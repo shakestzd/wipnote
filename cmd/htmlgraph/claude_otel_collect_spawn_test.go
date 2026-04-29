@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -187,5 +188,115 @@ func TestSpawnQuietByDefault(t *testing.T) {
 	}
 	if overrides.CollectorPort != 0 || overrides.SessionID != "" || overrides.Cleanup != nil {
 		t.Errorf("expected zero-value overrides on failure, got: %+v", overrides)
+	}
+}
+
+// TestRetrySpawn_SucceedsOnThirdAttempt injects a fake spawn function that
+// fails on attempts 1 and 2 then succeeds on attempt 3. Verifies the final
+// return values are from the successful attempt and that two warning lines
+// were written to stderr.
+func TestRetrySpawn_SucceedsOnThirdAttempt(t *testing.T) {
+	callCount := 0
+	var buf bytes.Buffer
+
+	fakeFn := func(binPath, sessionID, projectDir string) (int, *os.Process, error) {
+		callCount++
+		if callCount < 3 {
+			return 0, nil, fmt.Errorf("transient error attempt %d", callCount)
+		}
+		return 9999, &os.Process{Pid: 12345}, nil
+	}
+
+	port, proc, attempts, err := retrySpawnCollector("/fake/bin", "sid", t.TempDir(), 3, fakeFn, &buf)
+
+	if err != nil {
+		t.Fatalf("expected success on third attempt, got error: %v", err)
+	}
+	if port != 9999 {
+		t.Errorf("port = %d, want 9999", port)
+	}
+	if proc == nil || proc.Pid != 12345 {
+		t.Errorf("unexpected proc: %+v", proc)
+	}
+	if attempts != 3 {
+		t.Errorf("attempts = %d, want 3", attempts)
+	}
+	stderr := buf.String()
+	warnCount := strings.Count(stderr, "htmlgraph: warning: collector spawn attempt")
+	if warnCount != 2 {
+		t.Errorf("expected 2 warning lines, got %d; stderr=%q", warnCount, stderr)
+	}
+}
+
+// TestRetrySpawn_AllFail injects a fake spawn function that always fails.
+// Verifies the error is returned, attempts==3, and 2 warning lines appear
+// (warning for attempts 1 and 2; attempt 3 failure is surfaced as the error).
+func TestRetrySpawn_AllFail(t *testing.T) {
+	callCount := 0
+	var buf bytes.Buffer
+
+	fakeFn := func(binPath, sessionID, projectDir string) (int, *os.Process, error) {
+		callCount++
+		return 0, nil, fmt.Errorf("persistent failure attempt %d", callCount)
+	}
+
+	port, proc, attempts, err := retrySpawnCollector("/fake/bin", "sid", t.TempDir(), 3, fakeFn, &buf)
+
+	if err == nil {
+		t.Fatal("expected error when all attempts fail, got nil")
+	}
+	if port != 0 {
+		t.Errorf("port = %d, want 0", port)
+	}
+	if proc != nil {
+		t.Error("expected nil process on failure")
+	}
+	if attempts != 3 {
+		t.Errorf("attempts = %d, want 3", attempts)
+	}
+	stderr := buf.String()
+	warnCount := strings.Count(stderr, "htmlgraph: warning: collector spawn attempt")
+	if warnCount != 2 {
+		t.Errorf("expected 2 warning lines, got %d; stderr=%q", warnCount, stderr)
+	}
+}
+
+// TestSpawnSessionCollectorTo_RetriesOnTransientFailure verifies that the
+// higher-level spawnSessionCollectorTo succeeds when the underlying spawn
+// fails on the first attempt but succeeds on the second.
+func TestSpawnSessionCollectorTo_RetriesOnTransientFailure(t *testing.T) {
+	t.Setenv("HTMLGRAPH_OTEL_STRICT", "")
+
+	callCount := 0
+	origFn := spawnCollectorFn
+	t.Cleanup(func() { spawnCollectorFn = origFn })
+
+	spawnCollectorFn = func(binPath, sessionID, projectDir string) (int, *os.Process, error) {
+		callCount++
+		if callCount < 2 {
+			return 0, nil, fmt.Errorf("transient error")
+		}
+		return 8888, &os.Process{Pid: 99999}, nil
+	}
+
+	var buf bytes.Buffer
+	projectDir := t.TempDir()
+
+	overrides, wantExit := spawnSessionCollectorTo(projectDir, "/fake/bin", &buf)
+
+	if wantExit {
+		t.Error("expected wantExit=false on eventual success")
+	}
+	if overrides.CollectorPort != 8888 {
+		t.Errorf("CollectorPort = %d, want 8888", overrides.CollectorPort)
+	}
+	if overrides.SessionID == "" {
+		t.Error("expected non-empty SessionID")
+	}
+	if overrides.Cleanup == nil {
+		t.Error("expected non-nil Cleanup")
+	}
+	if callCount != 2 {
+		t.Errorf("callCount = %d, want 2", callCount)
 	}
 }
