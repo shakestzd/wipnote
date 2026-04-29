@@ -5,7 +5,7 @@ meta:
     description: Adds steps 2 (disaggregate into a logic/issue tree) and 3 (prioritize branches by impact x tractability) of Conn & McLean's Bulletproof Problem Solving on top of the v2 plan system. Today CRISPI maps onto steps 1, 4, 5, 6, 7 but skips 2 and 3 — slice prioritization is by-eye and decomposition is implicit. The tree captures the pre-history of each slice, gives critic agents tree-completeness as a critique target, and gives htmlgraph:execute a real prioritization signal beyond dependency order. Depends on PLAN A's compressed schema landing first.
     created_at: "2026-04-29"
     status: draft
-    version: 4
+    version: 5
 design:
     problem: ""
     goals: []
@@ -47,6 +47,27 @@ slices:
       effort: M
       risk: Low
       tests: 'Manual: run /htmlgraph:plan on a hotfix topic (no tree expected) and a multi-feature topic (tree expected)'
+      approved: false
+      comment: ""
+    - id: slic-9d121da4
+      num: 3
+      title: 'Critique mode: tree-completeness'
+      what: Add a critique flavor that argues 'what's missing from branch X?' against the tree, separate from per-slice feasibility critique. Reuse the critique infrastructure but target tree leaves instead of slice cards.
+      why: Today critique is per-slice — it can't catch 'you forgot a whole sub-problem.' Tree completeness as a first-class critique target catches that.
+      files:
+        - cmd/htmlgraph/plan_critique.go
+        - internal/critique/tree_completeness.go
+      deps:
+        - 1
+      done_when:
+        - Critique can target tree branches
+        - Output is structured (severity
+        - branch ID
+        - gap description)
+        - Surfaces in dashboard alongside per-slice critique
+      effort: L
+      risk: Med
+      tests: TestCritiqueTree_FindsMissingBranch, TestCritiqueTree_PassesCompleteTree
       approved: false
       comment: ""
 questions: []

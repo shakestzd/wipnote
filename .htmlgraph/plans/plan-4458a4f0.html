@@ -286,7 +286,7 @@ textarea::placeholder{color:var(--text-muted)}
   <p style="color:var(--text-dim)">Adds steps 2 (disaggregate into a logic/issue tree) and 3 (prioritize branches by impact x tractability) of Conn & McLean's Bulletproof Problem Solving on top of the v2 plan system. Today CRISPI maps onto steps 1, 4, 5, 6, 7 but skips 2 and 3 — slice prioritization is by-eye and decomposition is implicit. The tree captures the pre-history of each slice, gives critic agents tree-completeness as a critique target, and gives htmlgraph:execute a real prioritization signal beyond dependency order. Depends on PLAN A's compressed schema landing first.</p>
   <div class="meta">
     <span class="badge badge-pending">Draft</span>
-    <span style="font-size:.75rem;color:var(--text-muted)">v4 · 2 slices · Created 2026-04-29</span>
+    <span style="font-size:.75rem;color:var(--text-muted)">v5 · 3 slices · Created 2026-04-29</span>
   </div>
 </header>
 <button id="themeToggle" style="position:fixed;top:16px;right:16px;z-index:100;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:6px 12px;color:var(--text);font-family:var(--mono);font-size:0.75rem;cursor:pointer;">
@@ -308,6 +308,7 @@ textarea::placeholder{color:var(--text-muted)}
   <div id="graph-data" style="display:none">
     <div data-node="1" data-name="Schema: tree: top-level field with leaf id/text/impact/tractability/children/promotes_to" data-status="pending" data-deps="" data-files="2"></div>
     <div data-node="2" data-name="Plan SKILL: research phase produces structured tree YAML output" data-status="pending" data-deps="1" data-files="1"></div>
+    <div data-node="3" data-name="Critique mode: tree-completeness" data-status="pending" data-deps="1" data-files="2"></div>
     
     <!--PLAN_GRAPH_NODES-->
   </div>
@@ -381,6 +382,27 @@ textarea::placeholder{color:var(--text-muted)}
     <textarea data-section="slice-2" data-comment-for="slice-2" placeholder="Comments on slice 2..."></textarea>
   </div>
 </div>
+<div class="slice-card" data-slice="3" data-slice-name="slic-9d121da4" data-status="pending">
+  <div class="slice-header">
+    <span class="slice-num">#3</span>
+    <span class="slice-name">Critique mode: tree-completeness</span>
+    <span class="badge badge-blocked">L</span>
+    <span class="badge badge-revision">Med</span>
+    <span class="badge badge-pending" data-badge-for="slice-3">Pending</span>
+  </div>
+  
+  <div class="slice-field"><div class="slice-field-label">What</div><div class="slice-field-value" data-markdown="">Add a critique flavor that argues &#39;what&#39;s missing from branch X?&#39; against the tree, separate from per-slice feasibility critique. Reuse the critique infrastructure but target tree leaves instead of slice cards.</div></div>
+  <div class="slice-field"><div class="slice-field-label">Why</div><div class="slice-field-value" data-markdown="">Today critique is per-slice — it can&#39;t catch &#39;you forgot a whole sub-problem.&#39; Tree completeness as a first-class critique target catches that.</div></div>
+  <div class="slice-field"><div class="slice-field-label">Files</div><div class="slice-field-value"><code>cmd/htmlgraph/plan_critique.go, internal/critique/tree_completeness.go</code></div></div>
+  <div class="slice-field"><div class="slice-field-label">Done when</div><ul class="slice-done-list"><li data-markdown="">Critique can target tree branches</li><li data-markdown="">Output is structured (severity</li><li data-markdown="">branch ID</li><li data-markdown="">gap description)</li><li data-markdown="">Surfaces in dashboard alongside per-slice critique</li></ul></div>
+  
+  <div class="slice-field"><div class="slice-field-label">Test Strategy</div><div class="slice-field-value slice-tests" data-markdown="">TestCritiqueTree_FindsMissingBranch, TestCritiqueTree_PassesCompleteTree</div></div>
+  <div class="slice-deps">Dependencies: slices 1</div>
+  <div class="approval-row">
+    <label><input type="checkbox" data-section="slice-3" data-action="approve"> Approve slice</label>
+    <textarea data-section="slice-3" data-comment-for="slice-3" placeholder="Comments on slice 3..."></textarea>
+  </div>
+</div>
 
     <!--PLAN_SLICE_CARDS-->
   </div>
@@ -408,8 +430,8 @@ textarea::placeholder{color:var(--text-muted)}
   <h2>Feedback Summary</h2>
   <div class="progress-stats">
     <div class="progress-stat"><strong id="approvedCount">0</strong> approved</div>
-    <div class="progress-stat"><strong id="totalSections">3</strong> sections</div>
-    <div class="progress-stat"><strong id="pendingCount">3</strong> pending</div>
+    <div class="progress-stat"><strong id="totalSections">4</strong> sections</div>
+    <div class="progress-stat"><strong id="pendingCount">4</strong> pending</div>
   </div>
   <div class="progress-bar-track"><div class="progress-bar-fill" id="progressFill" style="width:0%"></div></div>
   <div class="comments-summary">
@@ -513,7 +535,7 @@ var planId=(function(){var a=document.querySelector('article[id]');return a?a.id
 
 (function(){
   'use strict';
-  var SECTIONS=/*PLAN_SECTIONS_JSON*/["design","slice-1","slice-2"]/*END_PLAN_SECTIONS_JSON*/;
+  var SECTIONS=/*PLAN_SECTIONS_JSON*/["design","slice-1","slice-2","slice-3"]/*END_PLAN_SECTIONS_JSON*/;
 
   function setBadge(el,ok){
     el.className='badge badge-'+(ok?'approved':'pending');
