@@ -5,7 +5,7 @@ meta:
     description: 'Closes four gaps in the v2 plan system surfaced by an audit of commitPlanChange and section-targeted update flow: (1) approve/reject-slice write YAML but skip git commit, (2) set-slice-status and answer-slice-question are SQLite-only and never reach the YAML, (3) plan render leaves uncommitted HTML drift, (4) no concurrency protection around load-mutate-save. Also delivers the per-slice compression project (questions/critique/feedback embedded in slices instead of plan-level) which is the schema foundation that makes (2) routable.'
     created_at: "2026-04-29"
     status: draft
-    version: 5
+    version: 6
 design:
     problem: ""
     goals: []
@@ -65,6 +65,25 @@ slices:
       effort: S
       risk: Low
       tests: TestPlanSlice_FeedbackRoundTrip, TestPlanSlice_AnswersRoundTrip, TestPlanSlice_BackwardCompat
+      approved: false
+      comment: ""
+    - id: slic-3bac7ad8
+      num: 4
+      title: 'CLI: --slice flag on add-question-yaml, set-critique-yaml, read-feedback-yaml'
+      what: Add an optional --slice <num-or-id> flag to the three verbs. When set, the question/critique/feedback target the per-slice fields. When unset, default to plan-level (back-compat). Update help text to recommend --slice for new content.
+      why: Today these verbs are plan-level only, so even after schema lands in slice 3, agents have no way to write per-slice content without hand-editing YAML. The flag bridges the gap.
+      files:
+        - cmd/htmlgraph/plan_yaml_cmds.go
+        - cmd/htmlgraph/plan_yaml_extras.go
+      deps:
+        - 3
+      done_when:
+        - All three verbs accept --slice
+        - plan-level call still works
+        - Tests cover both modes
+      effort: M
+      risk: Low
+      tests: TestAddQuestionYaml_PerSlice, TestSetCritiqueYaml_PerSlice, TestReadFeedbackYaml_PerSlice
       approved: false
       comment: ""
 questions: []

@@ -286,7 +286,7 @@ textarea::placeholder{color:var(--text-muted)}
   <p style="color:var(--text-dim)">Closes four gaps in the v2 plan system surfaced by an audit of commitPlanChange and section-targeted update flow: (1) approve/reject-slice write YAML but skip git commit, (2) set-slice-status and answer-slice-question are SQLite-only and never reach the YAML, (3) plan render leaves uncommitted HTML drift, (4) no concurrency protection around load-mutate-save. Also delivers the per-slice compression project (questions/critique/feedback embedded in slices instead of plan-level) which is the schema foundation that makes (2) routable.</p>
   <div class="meta">
     <span class="badge badge-pending">Draft</span>
-    <span style="font-size:.75rem;color:var(--text-muted)">v5 · 3 slices · Created 2026-04-29</span>
+    <span style="font-size:.75rem;color:var(--text-muted)">v6 · 4 slices · Created 2026-04-29</span>
   </div>
 </header>
 <button id="themeToggle" style="position:fixed;top:16px;right:16px;z-index:100;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:6px 12px;color:var(--text);font-family:var(--mono);font-size:0.75rem;cursor:pointer;">
@@ -309,6 +309,7 @@ textarea::placeholder{color:var(--text-muted)}
     <div data-node="1" data-name="Hotfix: auto-commit on approve-slice and reject-slice" data-status="pending" data-deps="" data-files="2"></div>
     <div data-node="2" data-name="Hotfix: file lock around planyaml.Save" data-status="pending" data-deps="" data-files="2"></div>
     <div data-node="3" data-name="Schema: per-slice Feedback and Answers fields on PlanSlice" data-status="pending" data-deps="" data-files="2"></div>
+    <div data-node="4" data-name="CLI: --slice flag on add-question-yaml, set-critique-yaml, read-feedback-yaml" data-status="pending" data-deps="3" data-files="2"></div>
     
     <!--PLAN_GRAPH_NODES-->
   </div>
@@ -403,6 +404,27 @@ textarea::placeholder{color:var(--text-muted)}
     <textarea data-section="slice-3" data-comment-for="slice-3" placeholder="Comments on slice 3..."></textarea>
   </div>
 </div>
+<div class="slice-card" data-slice="4" data-slice-name="slic-3bac7ad8" data-status="pending">
+  <div class="slice-header">
+    <span class="slice-num">#4</span>
+    <span class="slice-name">CLI: --slice flag on add-question-yaml, set-critique-yaml, read-feedback-yaml</span>
+    <span class="badge badge-revision">M</span>
+    <span class="badge badge-pending">Low</span>
+    <span class="badge badge-pending" data-badge-for="slice-4">Pending</span>
+  </div>
+  
+  <div class="slice-field"><div class="slice-field-label">What</div><div class="slice-field-value" data-markdown="">Add an optional --slice &lt;num-or-id&gt; flag to the three verbs. When set, the question/critique/feedback target the per-slice fields. When unset, default to plan-level (back-compat). Update help text to recommend --slice for new content.</div></div>
+  <div class="slice-field"><div class="slice-field-label">Why</div><div class="slice-field-value" data-markdown="">Today these verbs are plan-level only, so even after schema lands in slice 3, agents have no way to write per-slice content without hand-editing YAML. The flag bridges the gap.</div></div>
+  <div class="slice-field"><div class="slice-field-label">Files</div><div class="slice-field-value"><code>cmd/htmlgraph/plan_yaml_cmds.go, cmd/htmlgraph/plan_yaml_extras.go</code></div></div>
+  <div class="slice-field"><div class="slice-field-label">Done when</div><ul class="slice-done-list"><li data-markdown="">All three verbs accept --slice</li><li data-markdown="">plan-level call still works</li><li data-markdown="">Tests cover both modes</li></ul></div>
+  
+  <div class="slice-field"><div class="slice-field-label">Test Strategy</div><div class="slice-field-value slice-tests" data-markdown="">TestAddQuestionYaml_PerSlice, TestSetCritiqueYaml_PerSlice, TestReadFeedbackYaml_PerSlice</div></div>
+  <div class="slice-deps">Dependencies: slices 3</div>
+  <div class="approval-row">
+    <label><input type="checkbox" data-section="slice-4" data-action="approve"> Approve slice</label>
+    <textarea data-section="slice-4" data-comment-for="slice-4" placeholder="Comments on slice 4..."></textarea>
+  </div>
+</div>
 
     <!--PLAN_SLICE_CARDS-->
   </div>
@@ -430,8 +452,8 @@ textarea::placeholder{color:var(--text-muted)}
   <h2>Feedback Summary</h2>
   <div class="progress-stats">
     <div class="progress-stat"><strong id="approvedCount">0</strong> approved</div>
-    <div class="progress-stat"><strong id="totalSections">4</strong> sections</div>
-    <div class="progress-stat"><strong id="pendingCount">4</strong> pending</div>
+    <div class="progress-stat"><strong id="totalSections">5</strong> sections</div>
+    <div class="progress-stat"><strong id="pendingCount">5</strong> pending</div>
   </div>
   <div class="progress-bar-track"><div class="progress-bar-fill" id="progressFill" style="width:0%"></div></div>
   <div class="comments-summary">
@@ -535,7 +557,7 @@ var planId=(function(){var a=document.querySelector('article[id]');return a?a.id
 
 (function(){
   'use strict';
-  var SECTIONS=/*PLAN_SECTIONS_JSON*/["design","slice-1","slice-2","slice-3"]/*END_PLAN_SECTIONS_JSON*/;
+  var SECTIONS=/*PLAN_SECTIONS_JSON*/["design","slice-1","slice-2","slice-3","slice-4"]/*END_PLAN_SECTIONS_JSON*/;
 
   function setBadge(el,ok){
     el.className='badge badge-'+(ok?'approved':'pending');
