@@ -9,37 +9,30 @@ import (
 	"syscall"
 )
 
-// runHarnessWithCleanup runs the harness child process under a signal
-// handler that intercepts SIGINT and SIGTERM, ensuring cleanup runs
-// before the launcher exits. This is required because the standard
-// runtime path — `defer cleanup()` plus `os.Exit(child.ExitCode())` on
-// non-zero return — bypasses cleanup in three cases:
+// harnessResult describes how the parent launcher should terminate after
+// the harness child has reaped. Exactly one of the three fields is
+// meaningful per call:
 //
-//  1. Ctrl-C in the terminal: the signal hits the parent before c.Wait
-//     returns; without a handler, Go's default behavior aborts the
-//     process and skips defers.
-//  2. `kill -INT <launcher-pid>` from outside the terminal: same
-//     mechanism, no foreground-group propagation.
-//  3. Existing logic on `*exec.ExitError`: was already fixed in
-//     dc185548, but only covers the child's exit code path, not signal
-//     interruption of the parent.
-//
-// Pattern:
-//   - Install signal.Notify so the runtime no longer aborts on
-//     SIGINT/SIGTERM.
-//   - Start the child and Wait in a goroutine.
-//   - select on sigCh and waitCh: on signal, forward it to the child
-//     and wait for child exit; on normal exit, just proceed.
-//   - Always call cleanup (idempotent via sync.Once anyway).
-//   - On signal path, re-raise the same signal after reset so the
-//     parent's exit code reflects normal signal-exit semantics
-//     (128+signum on POSIX).
-//   - On non-zero child exit code, os.Exit with that code (cleanup
-//     already ran above).
-//
-// cleanup may be nil — if so, no cleanup is invoked but signal
-// handling still runs.
-func runHarnessWithCleanup(c *exec.Cmd, cleanup func()) error {
+//   - Err non-nil       → return this error to the caller (start failure or
+//     other unexpected error before/around the child run).
+//   - ReraiseSig non-0  → signal.Reset and re-raise this signal so the
+//     parent exits with 128+signum POSIX semantics. Used for both
+//     parent-received signals and child-was-signal-terminated cases.
+//   - ExitCode non-0    → os.Exit(ExitCode) to propagate the child's
+//     ordinary non-zero return code.
+//   - All zero          → child exited 0; return nil.
+type harnessResult struct {
+	Err         error
+	ReraiseSig  syscall.Signal
+	ExitCode    int
+}
+
+// runHarnessWithCleanupCore is the testable core of runHarnessWithCleanup.
+// It runs the child under SIGINT/SIGTERM signal handling, runs cleanup
+// once the child reaps, and returns a harnessResult describing how the
+// caller should terminate. Pure — no os.Exit, no syscall.Kill — so tests
+// can assert on the result without crashing the test binary.
+func runHarnessWithCleanupCore(c *exec.Cmd, cleanup func()) harnessResult {
 	var once sync.Once
 	callCleanup := func() {
 		once.Do(func() {
@@ -55,7 +48,7 @@ func runHarnessWithCleanup(c *exec.Cmd, cleanup func()) error {
 
 	if err := c.Start(); err != nil {
 		callCleanup()
-		return fmt.Errorf("start harness: %w", err)
+		return harnessResult{Err: fmt.Errorf("start harness: %w", err)}
 	}
 
 	waitCh := make(chan error, 1)
@@ -65,33 +58,72 @@ func runHarnessWithCleanup(c *exec.Cmd, cleanup func()) error {
 	select {
 	case sigReceived = <-sigCh:
 		// Forward the signal to the child so it exits gracefully.
-		// In a normal terminal Ctrl-C, the child already received
-		// SIGINT from the foreground group; the redundant Signal call
-		// is harmless. For external `kill -TERM` against the launcher
-		// only, this is the explicit forward.
 		if c.Process != nil {
 			_ = c.Process.Signal(sigReceived)
 		}
-		<-waitCh // child reaps
+		<-waitCh
 	case <-waitCh:
-		// Child exited on its own; nothing to forward.
+		// Child exited on its own.
 	}
 
 	callCleanup()
 
+	// Parent-received signal takes precedence: re-raise the same signal so
+	// the launcher's exit reflects the user's interrupt intent.
 	if sigReceived != nil {
-		// Reset to default handler and re-raise so the parent exits
-		// with conventional signal semantics (128+signum).
-		signal.Reset(syscall.SIGINT, syscall.SIGTERM)
 		if sysSig, ok := sigReceived.(syscall.Signal); ok {
-			_ = syscall.Kill(os.Getpid(), sysSig)
+			return harnessResult{ReraiseSig: sysSig}
 		}
-		// If the re-raise didn't terminate (rare), fall through.
-		return nil
 	}
 
-	if c.ProcessState != nil && !c.ProcessState.Success() {
-		os.Exit(c.ProcessState.ExitCode())
+	// No parent signal — inspect the child's wait status. If the child was
+	// killed by a signal (e.g. terminal SIGINT reached the child directly
+	// because we share the foreground process group), preserve POSIX
+	// signal-exit semantics by re-raising the same signal in the parent.
+	if c.ProcessState != nil {
+		if ws, ok := c.ProcessState.Sys().(syscall.WaitStatus); ok && ws.Signaled() {
+			return harnessResult{ReraiseSig: ws.Signal()}
+		}
+		if !c.ProcessState.Success() {
+			return harnessResult{ExitCode: c.ProcessState.ExitCode()}
+		}
+	}
+	return harnessResult{}
+}
+
+// runHarnessWithCleanup runs the harness child process under a signal
+// handler that intercepts SIGINT and SIGTERM, ensuring cleanup runs
+// before the launcher exits. It is the production entry point — for the
+// testable core that returns a result struct without calling os.Exit /
+// syscall.Kill, see runHarnessWithCleanupCore.
+//
+// Behavior:
+//   - On parent-received SIGINT/SIGTERM: forward to the child, run
+//     cleanup, then re-raise the signal in the parent for 128+signum
+//     POSIX exit semantics.
+//   - On child signal-termination (e.g. Ctrl-C reached the child via
+//     the terminal foreground group): re-raise the same signal in the
+//     parent so the launcher exits with the conventional 128+signum
+//     code instead of -1 / 255.
+//   - On child non-zero exit: os.Exit with the child's exit code.
+//   - On child exit 0: return nil.
+//
+// cleanup may be nil — if so, no cleanup is invoked but signal handling
+// still runs.
+func runHarnessWithCleanup(c *exec.Cmd, cleanup func()) error {
+	res := runHarnessWithCleanupCore(c, cleanup)
+	if res.Err != nil {
+		return res.Err
+	}
+	if res.ReraiseSig != 0 {
+		signal.Reset(syscall.SIGINT, syscall.SIGTERM)
+		_ = syscall.Kill(os.Getpid(), res.ReraiseSig)
+		// If the re-raise didn't terminate (rare; some signal masks),
+		// fall through with nil so the launcher returns cleanly.
+		return nil
+	}
+	if res.ExitCode != 0 {
+		os.Exit(res.ExitCode)
 	}
 	return nil
 }
