@@ -5,7 +5,7 @@ meta:
     description: 'Closes four gaps in the v2 plan system surfaced by an audit of commitPlanChange and section-targeted update flow: (1) approve/reject-slice write YAML but skip git commit, (2) set-slice-status and answer-slice-question are SQLite-only and never reach the YAML, (3) plan render leaves uncommitted HTML drift, (4) no concurrency protection around load-mutate-save. Also delivers the per-slice compression project (questions/critique/feedback embedded in slices instead of plan-level) which is the schema foundation that makes (2) routable.'
     created_at: "2026-04-29"
     status: draft
-    version: 4
+    version: 5
 design:
     problem: ""
     goals: []
@@ -47,6 +47,24 @@ slices:
       effort: M
       risk: Med
       tests: TestSave_ConcurrentWritersSerialize, TestSave_LockTimeoutError
+      approved: false
+      comment: ""
+    - id: slic-0c1ddc44
+      num: 3
+      title: 'Schema: per-slice Feedback and Answers fields on PlanSlice'
+      what: Extend internal/planyaml/schema.go::PlanSlice with Feedback []SliceFeedback and Answers []SliceAnswer (both omitempty). Each tracks author, timestamp, body — paired by slice/question ID. Update YAML round-trip tests.
+      why: PlanSlice already has Questions and CriticRevisions; adding Feedback and Answers completes the embedded model. This is the schema foundation that lets set-slice-status and answer-slice-question route into YAML in slice 5.
+      files:
+        - internal/planyaml/schema.go
+        - internal/planyaml/io_test.go
+      deps: []
+      done_when:
+        - New fields round-trip through Save/Load
+        - Existing plans load unchanged (backward compatible)
+        - YAML output omits empty fields
+      effort: S
+      risk: Low
+      tests: TestPlanSlice_FeedbackRoundTrip, TestPlanSlice_AnswersRoundTrip, TestPlanSlice_BackwardCompat
       approved: false
       comment: ""
 questions: []
