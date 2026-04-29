@@ -5,7 +5,7 @@ meta:
     description: 'Closes four gaps in the v2 plan system surfaced by an audit of commitPlanChange and section-targeted update flow: (1) approve/reject-slice write YAML but skip git commit, (2) set-slice-status and answer-slice-question are SQLite-only and never reach the YAML, (3) plan render leaves uncommitted HTML drift, (4) no concurrency protection around load-mutate-save. Also delivers the per-slice compression project (questions/critique/feedback embedded in slices instead of plan-level) which is the schema foundation that makes (2) routable.'
     created_at: "2026-04-29"
     status: draft
-    version: 9
+    version: 10
 design:
     problem: ""
     goals: []
@@ -140,6 +140,26 @@ slices:
       effort: L
       risk: Med
       tests: TestPlanMigrate_DryRun, TestPlanMigrate_HoistsByTitleMatch, TestPlanMigrate_Idempotent
+      approved: false
+      comment: ""
+    - id: slic-d3a0f3df
+      num: 8
+      title: 'Dashboard slice-card UI: render embedded questions, feedback, critic_revisions'
+      what: Update the slice-card view in plugin/static/dashboard (or wherever slice cards are rendered) to surface PlanSlice.Questions, PlanSlice.Feedback, PlanSlice.Answers, PlanSlice.CriticRevisions inline on each card. Plan-level Questions/Critique sections continue to render at plan level for un-migrated plans.
+      why: Without UI surface, the compressed schema is invisible to reviewers. Slice cards already exist as the primary review surface (feat-6dbc7112) — this completes the picture.
+      files:
+        - plugin/static/dashboard/slice-card.html
+        - plugin/static/dashboard/slice-card.js
+      deps:
+        - 3
+        - 7
+      done_when:
+        - Slice cards show all four embedded sections
+        - Old-shape plans render plan-level sections without breaking
+        - Visual QA on plan-1c14d560 (already in new shape) and plan-8ee8f517 (still old)
+      effort: M
+      risk: Low
+      tests: Visual QA via puppeteer or playwright snapshot of dashboard
       approved: false
       comment: ""
 questions: []
