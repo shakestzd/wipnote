@@ -555,23 +555,46 @@ func execCodex(opts codexLaunchOpts) error {
 	c.Stdout = os.Stdout
 	c.Stderr = os.Stderr
 
-	// Inject HTMLGRAPH_PROJECT_DIR so htmlgraph CLI and hooks resolve to the
-	// correct project root regardless of CWD.
-	// When WorktreeRoot is set, the process runs in the worktree but
-	// HTMLGRAPH_PROJECT_DIR points to the canonical project root (HtmlgraphRoot).
+	// Resolve the effective project dir for OTel collector spawning.
+	effectiveProjDir := opts.ProjectRoot
+	if opts.HtmlgraphRoot != "" {
+		effectiveProjDir = opts.HtmlgraphRoot
+	}
+
+	// Spawn a per-session OTel collector when a project dir is known and OTel
+	// is not explicitly disabled. Non-fatal: falls back gracefully on failure.
+	var otelPort int
+	var otelSessionID string
+	if effectiveProjDir != "" && !isExplicitlyDisabled(os.Getenv("HTMLGRAPH_OTEL_ENABLED")) {
+		var otelCleanup func()
+		otelPort, otelSessionID, otelCleanup = spawnCodexOtelCollector(effectiveProjDir)
+		if otelCleanup != nil {
+			defer otelCleanup()
+		}
+	}
+
+	// Build the child env: start from os.Environ, inject HTMLGRAPH_PROJECT_DIR,
+	// and layer OTel exporter vars when a collector was spawned.
+	env := os.Environ()
+	workDir := ""
+
 	switch {
 	case opts.WorktreeRoot != "":
-		env := os.Environ()
 		projectDir := opts.HtmlgraphRoot
 		if projectDir == "" {
 			projectDir = opts.ProjectRoot
 		}
 		env = setOrReplaceEnv(env, "HTMLGRAPH_PROJECT_DIR", projectDir)
-		c.Env = env
-		c.Dir = opts.WorktreeRoot
+		workDir = opts.WorktreeRoot
 	case opts.ProjectRoot != "":
-		c.Env = append(os.Environ(), "HTMLGRAPH_PROJECT_DIR="+opts.ProjectRoot)
-		c.Dir = opts.ProjectRoot
+		env = setOrReplaceEnv(env, "HTMLGRAPH_PROJECT_DIR", opts.ProjectRoot)
+		workDir = opts.ProjectRoot
+	}
+
+	env = buildCodexOtelEnv(env, otelPort, otelSessionID)
+	c.Env = env
+	if workDir != "" {
+		c.Dir = workDir
 	}
 
 	if err := c.Run(); err != nil {
