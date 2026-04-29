@@ -529,6 +529,13 @@ func launchClaude(opts LaunchOpts) error {
 
 	if err := c.Run(); err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {
+			// os.Exit bypasses deferred cleanups. Run the collector
+			// cleanup synchronously here; the deferred call is now a
+			// no-op (cleanup is idempotent via sync.Once in the
+			// lifecycle package).
+			if envOverrides.Cleanup != nil {
+				envOverrides.Cleanup()
+			}
 			os.Exit(exitErr.ExitCode())
 		}
 		return err

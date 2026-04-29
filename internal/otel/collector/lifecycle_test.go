@@ -55,6 +55,33 @@ func TestProcessCollector_Spawn_Success(t *testing.T) {
 	cleanup()
 }
 
+// TestProcessCollector_Spawn_CleanupIdempotent verifies that calling the
+// returned cleanup multiple times is safe — required because os.Exit in
+// the launcher bypasses deferred cleanups, so the launcher calls cleanup
+// explicitly before os.Exit while still leaving the deferred call in
+// place for non-os.Exit paths.
+func TestProcessCollector_Spawn_CleanupIdempotent(t *testing.T) {
+	var buf bytes.Buffer
+	lc := collector.NewProcessCollector(collector.ProcessCollectorOpts{
+		Stderr: &buf,
+		SpawnFn: func(binPath, sessionID, projectDir string, requestedPort int) (int, *os.Process, error) {
+			return 7777, startSleepProc(t), nil
+		},
+	})
+
+	_, cleanup, err := lc.Spawn("/fake/bin", "test-sess-idempotent", t.TempDir())
+	if err != nil {
+		t.Fatalf("Spawn: %v", err)
+	}
+	if cleanup == nil {
+		t.Fatal("cleanup should be non-nil on success")
+	}
+
+	// Call cleanup twice — second call must be a no-op, not panic.
+	cleanup()
+	cleanup()
+}
+
 // TestProcessCollector_Spawn_RetriesOnTransientFailure verifies that when the
 // fake SpawnFn fails on the first 2 calls and succeeds on the 3rd, Spawn
 // returns success and stderr has captured 2 warning lines.

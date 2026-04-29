@@ -565,8 +565,8 @@ func execCodex(opts codexLaunchOpts) error {
 	// is not explicitly disabled. Non-fatal: falls back gracefully on failure.
 	var otelPort int
 	var otelSessionID string
+	var otelCleanup func()
 	if effectiveProjDir != "" && !isExplicitlyDisabled(os.Getenv("HTMLGRAPH_OTEL_ENABLED")) {
-		var otelCleanup func()
 		otelPort, otelSessionID, otelCleanup = spawnCodexOtelCollector(effectiveProjDir)
 		if otelCleanup != nil {
 			defer otelCleanup()
@@ -599,6 +599,13 @@ func execCodex(opts codexLaunchOpts) error {
 
 	if err := c.Run(); err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {
+			// os.Exit bypasses deferred cleanups. Run the collector
+			// cleanup synchronously here; the deferred call is now a
+			// no-op (cleanup is idempotent via sync.Once in the
+			// lifecycle package).
+			if otelCleanup != nil {
+				otelCleanup()
+			}
 			os.Exit(exitErr.ExitCode())
 		}
 		return err

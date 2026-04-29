@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"syscall"
 	"time"
@@ -263,28 +264,35 @@ func StartWatchdog(
 // return time — the per-process reaper still does the same removal
 // asynchronously (idempotent), but cleanup callers should not have to
 // observe a brief stale window.
+//
+// The returned function is wrapped in sync.Once so callers may safely
+// invoke it multiple times — for example, both via `defer cleanup()` and
+// via an explicit pre-os.Exit call (since os.Exit bypasses defers).
 func makeCleanup(
 	procPtr *atomic.Pointer[os.Process],
 	projectDir, sessionID string,
 	stopWatchdog func(),
 ) func() {
+	var once sync.Once
 	return func() {
-		stopWatchdog() // blocks until watchdog goroutine exits
-		current := procPtr.Load()
-		if current == nil {
-			return
-		}
-		_ = current.Signal(syscall.SIGTERM)
-		deadline := time.Now().Add(3 * time.Second)
-		for time.Now().Before(deadline) {
-			if err := current.Signal(syscall.Signal(0)); err != nil {
-				removeCollectorPIDIfMatches(projectDir, sessionID, current.Pid)
-				return // process exited
+		once.Do(func() {
+			stopWatchdog() // blocks until watchdog goroutine exits
+			current := procPtr.Load()
+			if current == nil {
+				return
 			}
-			time.Sleep(100 * time.Millisecond)
-		}
-		_ = current.Kill()
-		removeCollectorPIDIfMatches(projectDir, sessionID, current.Pid)
+			_ = current.Signal(syscall.SIGTERM)
+			deadline := time.Now().Add(3 * time.Second)
+			for time.Now().Before(deadline) {
+				if err := current.Signal(syscall.Signal(0)); err != nil {
+					removeCollectorPIDIfMatches(projectDir, sessionID, current.Pid)
+					return // process exited
+				}
+				time.Sleep(100 * time.Millisecond)
+			}
+			_ = current.Kill()
+			removeCollectorPIDIfMatches(projectDir, sessionID, current.Pid)
+		})
 	}
 }
 
