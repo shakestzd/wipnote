@@ -5,12 +5,30 @@ meta:
     description: Adds steps 2 (disaggregate into a logic/issue tree) and 3 (prioritize branches by impact x tractability) of Conn & McLean's Bulletproof Problem Solving on top of the v2 plan system. Today CRISPI maps onto steps 1, 4, 5, 6, 7 but skips 2 and 3 — slice prioritization is by-eye and decomposition is implicit. The tree captures the pre-history of each slice, gives critic agents tree-completeness as a critique target, and gives htmlgraph:execute a real prioritization signal beyond dependency order. Depends on PLAN A's compressed schema landing first.
     created_at: "2026-04-29"
     status: draft
-    version: 2
+    version: 3
 design:
     problem: ""
     goals: []
     constraints: []
     approved: false
     comment: ""
-slices: []
+slices:
+    - id: slic-2a6b4992
+      num: 1
+      title: 'Schema: tree: top-level field with leaf id/text/impact/tractability/children/promotes_to'
+      what: 'Add Tree []TreeNode to PlanYAML. TreeNode has ID, Text, Impact (1-5), Tractability (1-5), Children []TreeNode (recursive), PromotesTo (slice num, optional), Notes. Validation: tree depth <=4, leaf must have impact+tractability, internal nodes inherit max child impact.'
+      why: Foundation. Without the schema, no other slice has anywhere to write.
+      files:
+        - internal/planyaml/schema.go
+        - internal/planyaml/io_test.go
+      deps: []
+      done_when:
+        - Schema round-trips
+        - Validation rejects invalid trees
+        - Existing plans without trees load unchanged
+      effort: M
+      risk: Low
+      tests: TestTreeNode_RoundTrip, TestTreeNode_ValidationRejectsDepth5, TestPlanWithoutTree_LoadsUnchanged
+      approved: false
+      comment: ""
 questions: []
