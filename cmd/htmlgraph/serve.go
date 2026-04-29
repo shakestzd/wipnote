@@ -105,6 +105,7 @@ func buildSingleProjectMux(database *sql.DB, htmlgraphDir string) *http.ServeMux
 	mux.Handle("/api/otel/cost", otelCostHandler(database))
 	mux.Handle("/api/otel/spans", otelSpansHandler(database))
 	mux.Handle("/api/otel/logs", otelLogsHandler(database))
+	mux.Handle("/api/otel/status", collectorStatusHandler(projectDir))
 
 	// CRISPI plan routes — list route must precede the per-plan catch-all.
 	mux.Handle("/api/plans", plansListHandler(htmlgraphDir, database))

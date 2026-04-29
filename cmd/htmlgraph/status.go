@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"sort"
 
@@ -97,9 +98,50 @@ func runStatus(_ *cobra.Command, _ []string) error {
 
 	fmt.Printf("\nTotal: %d work items\n", len(nodes))
 
+	// Collector health — scan .htmlgraph/sessions/ for recent PID files.
+	printCollectorHealth(filepath.Dir(dir))
+
 	if latest, newer, _ := versionpkg.CheckForUpdate(version); newer {
 		fmt.Printf("\nUpdate available: v%s (current: v%s)\n", latest, version)
 	}
 
 	return nil
+}
+
+// printCollectorHealth lists per-session collector status for any session
+// directory that contains a .collector-pid file. Best-effort: silently skips
+// sessions where the PID file is missing or unreadable.
+func printCollectorHealth(projectDir string) {
+	sessionsDir := filepath.Join(projectDir, ".htmlgraph", "sessions")
+	entries, err := os.ReadDir(sessionsDir)
+	if err != nil {
+		return // no sessions dir yet — nothing to print
+	}
+
+	printed := false
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		sessDir := filepath.Join(sessionsDir, e.Name())
+		pidPath := filepath.Join(sessDir, ".collector-pid")
+		if _, statErr := os.Stat(pidPath); statErr != nil {
+			continue // no PID file — collector was never spawned for this session
+		}
+		cs, err := ReadCollectorStatus(sessDir)
+		if err != nil {
+			continue
+		}
+		if !printed {
+			fmt.Println("\nCollector health:")
+			printed = true
+		}
+		if cs.Alive {
+			fmt.Printf("  %-36s  pid=%-7d port=%-5d alive=true  uptime=%ds\n",
+				e.Name(), cs.PID, cs.Port, cs.UptimeSec)
+		} else {
+			fmt.Printf("  %-36s  pid=%-7d port=%-5d alive=false last_seen=%d\n",
+				e.Name(), cs.PID, cs.Port, cs.LastActivityMs)
+		}
+	}
 }
