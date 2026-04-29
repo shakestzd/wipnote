@@ -5,7 +5,7 @@ meta:
     description: 'Closes four gaps in the v2 plan system surfaced by an audit of commitPlanChange and section-targeted update flow: (1) approve/reject-slice write YAML but skip git commit, (2) set-slice-status and answer-slice-question are SQLite-only and never reach the YAML, (3) plan render leaves uncommitted HTML drift, (4) no concurrency protection around load-mutate-save. Also delivers the per-slice compression project (questions/critique/feedback embedded in slices instead of plan-level) which is the schema foundation that makes (2) routable.'
     created_at: "2026-04-29"
     status: draft
-    version: 7
+    version: 8
 design:
     problem: ""
     goals: []
@@ -103,6 +103,23 @@ slices:
       effort: M
       risk: Med
       tests: TestSetSliceStatus_WritesYaml, TestAnswerSliceQuestion_WritesYaml
+      approved: false
+      comment: ""
+    - id: slic-a442cd09
+      num: 6
+      title: Auto-commit on plan render when HTML diverges
+      what: In cmd/htmlgraph/plan_render.go, diff the regenerated HTML against the on-disk version. If different, bump Meta.Version, write the new HTML, and call commitPlanChange. If identical, no-op.
+      why: 'Closes Gap #3. Today render rebuilds HTML without bumping version or committing, leaving uncommitted drift after manual edits.'
+      files:
+        - cmd/htmlgraph/plan_render.go
+      deps: []
+      done_when:
+        - Render-no-op produces zero git changes
+        - Render-after-edit produces one commit
+        - Meta.Version bumps only when HTML changed
+      effort: S
+      risk: Low
+      tests: TestPlanRender_NoOpOnIdentical, TestPlanRender_CommitsOnDivergent
       approved: false
       comment: ""
 questions: []

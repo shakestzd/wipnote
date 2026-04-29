@@ -286,7 +286,7 @@ textarea::placeholder{color:var(--text-muted)}
   <p style="color:var(--text-dim)">Closes four gaps in the v2 plan system surfaced by an audit of commitPlanChange and section-targeted update flow: (1) approve/reject-slice write YAML but skip git commit, (2) set-slice-status and answer-slice-question are SQLite-only and never reach the YAML, (3) plan render leaves uncommitted HTML drift, (4) no concurrency protection around load-mutate-save. Also delivers the per-slice compression project (questions/critique/feedback embedded in slices instead of plan-level) which is the schema foundation that makes (2) routable.</p>
   <div class="meta">
     <span class="badge badge-pending">Draft</span>
-    <span style="font-size:.75rem;color:var(--text-muted)">v7 · 5 slices · Created 2026-04-29</span>
+    <span style="font-size:.75rem;color:var(--text-muted)">v8 · 6 slices · Created 2026-04-29</span>
   </div>
 </header>
 <button id="themeToggle" style="position:fixed;top:16px;right:16px;z-index:100;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:6px 12px;color:var(--text);font-family:var(--mono);font-size:0.75rem;cursor:pointer;">
@@ -311,6 +311,7 @@ textarea::placeholder{color:var(--text-muted)}
     <div data-node="3" data-name="Schema: per-slice Feedback and Answers fields on PlanSlice" data-status="pending" data-deps="" data-files="2"></div>
     <div data-node="4" data-name="CLI: --slice flag on add-question-yaml, set-critique-yaml, read-feedback-yaml" data-status="pending" data-deps="3" data-files="2"></div>
     <div data-node="5" data-name="Route set-slice-status and answer-slice-question writes into YAML" data-status="pending" data-deps="3" data-files="2"></div>
+    <div data-node="6" data-name="Auto-commit on plan render when HTML diverges" data-status="pending" data-deps="" data-files="1"></div>
     
     <!--PLAN_GRAPH_NODES-->
   </div>
@@ -447,6 +448,27 @@ textarea::placeholder{color:var(--text-muted)}
     <textarea data-section="slice-5" data-comment-for="slice-5" placeholder="Comments on slice 5..."></textarea>
   </div>
 </div>
+<div class="slice-card" data-slice="6" data-slice-name="slic-a442cd09" data-status="pending">
+  <div class="slice-header">
+    <span class="slice-num">#6</span>
+    <span class="slice-name">Auto-commit on plan render when HTML diverges</span>
+    <span class="badge badge-pending">S</span>
+    <span class="badge badge-pending">Low</span>
+    <span class="badge badge-pending" data-badge-for="slice-6">Pending</span>
+  </div>
+  
+  <div class="slice-field"><div class="slice-field-label">What</div><div class="slice-field-value" data-markdown="">In cmd/htmlgraph/plan_render.go, diff the regenerated HTML against the on-disk version. If different, bump Meta.Version, write the new HTML, and call commitPlanChange. If identical, no-op.</div></div>
+  <div class="slice-field"><div class="slice-field-label">Why</div><div class="slice-field-value" data-markdown="">Closes Gap #3. Today render rebuilds HTML without bumping version or committing, leaving uncommitted drift after manual edits.</div></div>
+  <div class="slice-field"><div class="slice-field-label">Files</div><div class="slice-field-value"><code>cmd/htmlgraph/plan_render.go</code></div></div>
+  <div class="slice-field"><div class="slice-field-label">Done when</div><ul class="slice-done-list"><li data-markdown="">Render-no-op produces zero git changes</li><li data-markdown="">Render-after-edit produces one commit</li><li data-markdown="">Meta.Version bumps only when HTML changed</li></ul></div>
+  
+  <div class="slice-field"><div class="slice-field-label">Test Strategy</div><div class="slice-field-value slice-tests" data-markdown="">TestPlanRender_NoOpOnIdentical, TestPlanRender_CommitsOnDivergent</div></div>
+  <div class="slice-deps">Dependencies: none</div>
+  <div class="approval-row">
+    <label><input type="checkbox" data-section="slice-6" data-action="approve"> Approve slice</label>
+    <textarea data-section="slice-6" data-comment-for="slice-6" placeholder="Comments on slice 6..."></textarea>
+  </div>
+</div>
 
     <!--PLAN_SLICE_CARDS-->
   </div>
@@ -474,8 +496,8 @@ textarea::placeholder{color:var(--text-muted)}
   <h2>Feedback Summary</h2>
   <div class="progress-stats">
     <div class="progress-stat"><strong id="approvedCount">0</strong> approved</div>
-    <div class="progress-stat"><strong id="totalSections">6</strong> sections</div>
-    <div class="progress-stat"><strong id="pendingCount">6</strong> pending</div>
+    <div class="progress-stat"><strong id="totalSections">7</strong> sections</div>
+    <div class="progress-stat"><strong id="pendingCount">7</strong> pending</div>
   </div>
   <div class="progress-bar-track"><div class="progress-bar-fill" id="progressFill" style="width:0%"></div></div>
   <div class="comments-summary">
@@ -579,7 +601,7 @@ var planId=(function(){var a=document.querySelector('article[id]');return a?a.id
 
 (function(){
   'use strict';
-  var SECTIONS=/*PLAN_SECTIONS_JSON*/["design","slice-1","slice-2","slice-3","slice-4","slice-5"]/*END_PLAN_SECTIONS_JSON*/;
+  var SECTIONS=/*PLAN_SECTIONS_JSON*/["design","slice-1","slice-2","slice-3","slice-4","slice-5","slice-6"]/*END_PLAN_SECTIONS_JSON*/;
 
   function setBadge(el,ok){
     el.className='badge badge-'+(ok?'approved':'pending');
