@@ -78,6 +78,10 @@ func collectorStatusHandler(projectDir string) http.HandlerFunc {
 			http.Error(w, "session parameter required", http.StatusBadRequest)
 			return
 		}
+		if !isSafeSessionID(sessionID) {
+			http.Error(w, "invalid session id", http.StatusBadRequest)
+			return
+		}
 		sessDir := filepath.Join(projectDir, ".htmlgraph", "sessions", sessionID)
 		status, err := ReadCollectorStatus(sessDir)
 		if err != nil {
@@ -86,6 +90,22 @@ func collectorStatusHandler(projectDir string) http.HandlerFunc {
 		}
 		respondJSON(w, status)
 	}
+}
+
+// isSafeSessionID rejects values that contain path separators, ".." segments,
+// or NUL bytes, preventing the session query parameter from escaping the
+// .htmlgraph/sessions/ directory via path traversal.
+func isSafeSessionID(id string) bool {
+	if id == "" || id == "." || id == ".." {
+		return false
+	}
+	if strings.ContainsAny(id, `/\` + "\x00") {
+		return false
+	}
+	if strings.Contains(id, "..") {
+		return false
+	}
+	return true
 }
 
 // readPIDFile reads a PID from a file containing "<pid>\n".

@@ -95,6 +95,8 @@ func runOtelCollect(sessionID, projectDir, listenAddr string) error {
 func buildCollectorMux(snk *ndjson.Sink, lastActivity *atomic.Int64) *http.ServeMux {
 	reg := adapter.NewRegistry()
 	reg.Register(adapter.NewClaudeAdapter())
+	reg.Register(adapter.NewCodexAdapter())
+	reg.Register(adapter.NewGeminiAdapter())
 
 	handler := &collectorHandler{
 		registry:     reg,

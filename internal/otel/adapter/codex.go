@@ -12,7 +12,9 @@ import (
 // Identification: resource service.name == "codex-cli".
 //
 // Session ID attribute: conversation.id (signal-level, with resource fallback).
-// PromptID: synthesized from conversation.id + sequence number when available.
+// PromptID: gen_ai.prompt_id when present; otherwise empty. Codex does not
+// emit a stable per-prompt ID on every signal, so callers needing prompt-level
+// correlation must group by (SessionID, Timestamp window).
 //
 // Canonical attribute mapping:
 //
