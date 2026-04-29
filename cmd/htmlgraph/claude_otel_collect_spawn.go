@@ -125,6 +125,52 @@ func retrySpawnCollector(binPath, sessionID, projectDir string, maxAttempts int,
 	return 0, nil, maxAttempts, lastErr
 }
 
+// watchdogInterval returns the polling interval for the collector watchdog.
+// HTMLGRAPH_OTEL_WATCHDOG_INTERVAL overrides the default of 15s.
+func watchdogInterval() time.Duration {
+	if v := os.Getenv("HTMLGRAPH_OTEL_WATCHDOG_INTERVAL"); v != "" {
+		if d, err := time.ParseDuration(v); err == nil && d > 0 {
+			return d
+		}
+	}
+	return 15 * time.Second
+}
+
+// startCollectorWatchdog launches a goroutine that polls the collector process
+// every watchdogInterval(). On process death it calls retrySpawnCollector and
+// updates the current process. Returns a stop func that terminates the goroutine.
+func startCollectorWatchdog(initialProc *os.Process, binPath, sessionID, projectDir string, warnW io.Writer) func() {
+	done := make(chan struct{})
+
+	go func() {
+		ticker := time.NewTicker(watchdogInterval())
+		defer ticker.Stop()
+		currentProc := initialProc
+
+		for {
+			select {
+			case <-done:
+				return
+			case <-ticker.C:
+				if err := currentProc.Signal(syscall.Signal(0)); err == nil {
+					continue // process still alive
+				}
+				fmt.Fprintf(warnW, "htmlgraph: warning: collector died (pid=%d), respawning...\n", currentProc.Pid)
+				port, newProc, _, spawnErr := retrySpawnCollector(binPath, sessionID, projectDir, 3, nil, warnW)
+				if spawnErr != nil {
+					fmt.Fprintf(warnW, "htmlgraph: FATAL: collector respawn failed: %v\n", spawnErr)
+					return
+				}
+				writeCollectorPID(projectDir, sessionID, newProc.Pid)
+				fmt.Fprintf(warnW, "htmlgraph: info: collector respawned (pid=%d port=%d)\n", newProc.Pid, port)
+				currentProc = newProc
+			}
+		}
+	}()
+
+	return func() { close(done) }
+}
+
 // spawnSessionCollectorTo is the testable core of collector spawning.
 // It generates a session ID, spawns the collector at binPath (with up to 3
 // retry attempts using exponential backoff), and returns overrides and a
@@ -143,7 +189,9 @@ func spawnSessionCollectorTo(projectDir, binPath string, errW io.Writer) (otelEn
 	}
 
 	writeCollectorPID(projectDir, sessionID, proc.Pid)
-	cleanup := registerCollectorCleanup(proc, projectDir, sessionID)
+	stopWatchdog := startCollectorWatchdog(proc, binPath, sessionID, projectDir, errW)
+	baseCleanup := registerCollectorCleanup(proc, projectDir, sessionID)
+	cleanup := func() { stopWatchdog(); baseCleanup() }
 
 	return otelEnvOverrides{
 		CollectorPort: port,
