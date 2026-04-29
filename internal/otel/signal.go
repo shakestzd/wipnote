@@ -120,7 +120,10 @@ func (t TokenCounts) Total() int64 {
 //
 //	PromptID sources:
 //	  Claude  prompt.id (signal attr)
-//	  Codex   gen_ai.prompt_id (signal attr); synthesized from conversation.id+seq when absent
+//	  Codex   gen_ai.prompt_id (signal attr); empty when absent — Codex does
+//	          not emit a stable per-prompt ID on every signal, so callers
+//	          needing prompt-level correlation must group by
+//	          (SessionID, Timestamp window).
 //	  Gemini  gen_ai.prompt_id (signal attr)
 //
 // SessionID falls back to the resource-level attribute when absent from
@@ -137,7 +140,7 @@ type UnifiedSignal struct {
 
 	// correlation (normalized across harnesses)
 	SessionID  string // Claude session.id | Codex conversation_id | Gemini session.id
-	PromptID   string // Claude prompt.id | Codex synthesized | Gemini prompt_id
+	PromptID   string // Claude prompt.id | Codex gen_ai.prompt_id (empty when absent) | Gemini gen_ai.prompt_id
 	TraceID    string // W3C hex, unmodified
 	SpanID     string
 	ParentSpan string

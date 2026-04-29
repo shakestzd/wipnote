@@ -9,8 +9,9 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
+
+	"github.com/shakestzd/htmlgraph/internal/otel/collector"
 )
 
 // CollectorStatus holds the live health of a per-session OTel collector.
@@ -28,7 +29,7 @@ type CollectorStatus struct {
 
 // ReadCollectorStatus constructs a CollectorStatus for the given session
 // directory by reading:
-//   - .collector-pid  → PID + liveness probe
+//   - .collector-pid  → PID + liveness probe (start-time-verified on Linux)
 //   - events.ndjson   → collector_start event for port + start timestamp
 //
 // Returns an error only when .collector-pid is missing or unreadable.
@@ -39,7 +40,9 @@ func ReadCollectorStatus(sessDir string) (CollectorStatus, error) {
 		return CollectorStatus{}, fmt.Errorf("read collector PID: %w", err)
 	}
 
-	alive := isProcessAlive(pid)
+	// Use the collector package's identity-verifying liveness check rather
+	// than a bare kill(pid,0) probe, so a recycled PID is reported as dead.
+	alive, _ := collector.IsCollectorAlive(sessDir)
 
 	port, startTS := readCollectorStartEvent(filepath.Join(sessDir, "events.ndjson"))
 
@@ -119,16 +122,6 @@ func readPIDFile(path string) (int, error) {
 		return 0, fmt.Errorf("parse pid %q: %w", strings.TrimSpace(string(data)), err)
 	}
 	return pid, nil
-}
-
-// isProcessAlive uses kill(pid, 0) to probe whether the process exists.
-// This never sends a real signal — it only checks reachability.
-func isProcessAlive(pid int) bool {
-	proc, err := os.FindProcess(pid)
-	if err != nil {
-		return false
-	}
-	return proc.Signal(syscall.Signal(0)) == nil
 }
 
 // collectorStartLine is the minimal shape we parse from events.ndjson.

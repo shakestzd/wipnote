@@ -14,6 +14,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync/atomic"
 	"syscall"
 	"time"
@@ -257,9 +258,11 @@ func StartWatchdog(
 
 // makeCleanup returns a function that stops the watchdog (waiting for it to
 // exit), then SIGTERMs the *current* process tracked by procPtr and waits up
-// to 3s before SIGKILL. PID file removal is handled by the per-process
-// reaper goroutine started in startReaper, which conditionally removes the
-// file only when its own PID still matches the file's contents.
+// to 3s before SIGKILL. After the kill path completes, cleanup itself calls
+// removeCollectorPIDIfMatches so the PID file is gone synchronously by
+// return time — the per-process reaper still does the same removal
+// asynchronously (idempotent), but cleanup callers should not have to
+// observe a brief stale window.
 func makeCleanup(
 	procPtr *atomic.Pointer[os.Process],
 	projectDir, sessionID string,
@@ -275,11 +278,13 @@ func makeCleanup(
 		deadline := time.Now().Add(3 * time.Second)
 		for time.Now().Before(deadline) {
 			if err := current.Signal(syscall.Signal(0)); err != nil {
-				return // process exited; its reaper will remove the PID file
+				removeCollectorPIDIfMatches(projectDir, sessionID, current.Pid)
+				return // process exited
 			}
 			time.Sleep(100 * time.Millisecond)
 		}
 		_ = current.Kill()
+		removeCollectorPIDIfMatches(projectDir, sessionID, current.Pid)
 	}
 }
 
@@ -316,31 +321,105 @@ func newProcPointer(proc *os.Process) *atomic.Pointer[os.Process] {
 }
 
 // removeCollectorPIDIfMatches removes the .collector-pid file only when its
-// contents match the given PID. Used by the per-process reaper to avoid
-// deleting a fresher PID written by the watchdog after a respawn.
+// recorded PID matches the given pid. Used by the per-process reaper and by
+// makeCleanup to avoid deleting a fresher PID written by the watchdog after
+// a respawn.
 func removeCollectorPIDIfMatches(projectDir, sessionID string, pid int) {
 	pidPath := filepath.Join(projectDir, ".htmlgraph", "sessions", sessionID, ".collector-pid")
-	data, err := os.ReadFile(pidPath)
-	if err != nil {
-		return
-	}
-	got, err := strconv.Atoi(string(bytesTrimSpace(data)))
+	got, _, _, err := readCollectorPIDFile(pidPath)
 	if err != nil || got != pid {
 		return
 	}
 	_ = os.Remove(pidPath)
 }
 
-// bytesTrimSpace trims trailing whitespace without depending on the strings
-// package or copying the slice.
-func bytesTrimSpace(b []byte) []byte {
-	for len(b) > 0 && (b[len(b)-1] == '\n' || b[len(b)-1] == '\r' || b[len(b)-1] == ' ' || b[len(b)-1] == '\t') {
-		b = b[:len(b)-1]
+// readCollectorPIDFile parses a .collector-pid file. The file format is:
+//
+//	<pid>
+//	<starttime>     (optional second line — Linux clock-tick start time)
+//
+// Returns pid, starttime, hasStart=true when both lines parsed, or
+// hasStart=false for legacy single-line files.
+func readCollectorPIDFile(pidPath string) (pid int, starttime uint64, hasStart bool, err error) {
+	data, err := os.ReadFile(pidPath)
+	if err != nil {
+		return 0, 0, false, err
 	}
-	for len(b) > 0 && (b[0] == '\n' || b[0] == '\r' || b[0] == ' ' || b[0] == '\t') {
-		b = b[1:]
+	lines := strings.Split(strings.TrimSpace(string(data)), "\n")
+	if len(lines) == 0 || strings.TrimSpace(lines[0]) == "" {
+		return 0, 0, false, fmt.Errorf("empty PID file: %s", pidPath)
 	}
-	return b
+	pid, err = strconv.Atoi(strings.TrimSpace(lines[0]))
+	if err != nil {
+		return 0, 0, false, fmt.Errorf("parse pid %q: %w", lines[0], err)
+	}
+	if len(lines) >= 2 {
+		if st, perr := strconv.ParseUint(strings.TrimSpace(lines[1]), 10, 64); perr == nil {
+			return pid, st, true, nil
+		}
+	}
+	return pid, 0, false, nil
+}
+
+// readProcStartTime returns the process start time from /proc/<pid>/stat
+// field 22 (clock ticks since boot). Returns ok=false on non-Linux systems
+// or when the proc entry is unreadable. Used for PID-reuse detection.
+func readProcStartTime(pid int) (uint64, bool) {
+	data, err := os.ReadFile(fmt.Sprintf("/proc/%d/stat", pid))
+	if err != nil {
+		return 0, false
+	}
+	s := string(data)
+	// Field 2 (comm) is wrapped in parens and may itself contain spaces or
+	// parens. Split after the LAST closing paren.
+	idx := strings.LastIndex(s, ")")
+	if idx < 0 || idx+1 >= len(s) {
+		return 0, false
+	}
+	fields := strings.Fields(s[idx+1:])
+	// Index 0 here corresponds to field 3 (state); field 22 (starttime) is
+	// at index 19 of this slice.
+	if len(fields) < 20 {
+		return 0, false
+	}
+	st, err := strconv.ParseUint(fields[19], 10, 64)
+	if err != nil {
+		return 0, false
+	}
+	return st, true
+}
+
+// IsCollectorAlive verifies the recorded collector PID is alive AND that
+// its process start time matches the value recorded at write-time, when
+// available. The start-time check protects against PID reuse on
+// long-running CI workers; on platforms where /proc is unavailable or
+// when the PID file predates the start-time format, the check falls back
+// to the PID-only Signal(0) probe.
+//
+// sessDir is the absolute path to the session directory (typically
+// <project>/.htmlgraph/sessions/<sid>) — the function looks for
+// .collector-pid inside it. Returns (alive=false, pid=0) when the file
+// is missing or unreadable.
+func IsCollectorAlive(sessDir string) (alive bool, pid int) {
+	pid, recordedStart, hasStart, err := readCollectorPIDFile(filepath.Join(sessDir, ".collector-pid"))
+	if err != nil {
+		return false, 0
+	}
+	proc, err := os.FindProcess(pid)
+	if err != nil {
+		return false, pid
+	}
+	if proc.Signal(syscall.Signal(0)) != nil {
+		return false, pid
+	}
+	if !hasStart {
+		return true, pid // legacy file or non-Linux at write-time
+	}
+	actualStart, ok := readProcStartTime(pid)
+	if !ok {
+		return true, pid // /proc unavailable at read-time (non-Linux)
+	}
+	return actualStart == recordedStart, pid
 }
 
 // RemoveCollectorPID removes the .collector-pid file for a session.
@@ -354,10 +433,19 @@ func RemoveCollectorPID(projectDir, sessionID string) {
 }
 
 // WriteCollectorPID writes the collector PID to the session directory.
+// On Linux, also appends the process start time (clock ticks from
+// /proc/<pid>/stat field 22) on a second line so future liveness checks
+// can detect PID reuse. On non-Linux or when /proc is unreadable, only
+// the PID is written; consumers must tolerate single-line files.
+//
 // Best-effort: errors are silently ignored.
 func WriteCollectorPID(projectDir, sessionID string, pid int) {
 	sessDir := filepath.Join(projectDir, ".htmlgraph", "sessions", sessionID)
 	_ = os.MkdirAll(sessDir, 0o755)
 	pidPath := filepath.Join(sessDir, ".collector-pid")
-	_ = os.WriteFile(pidPath, []byte(strconv.Itoa(pid)+"\n"), 0o644)
+	content := strconv.Itoa(pid) + "\n"
+	if start, ok := readProcStartTime(pid); ok {
+		content += strconv.FormatUint(start, 10) + "\n"
+	}
+	_ = os.WriteFile(pidPath, []byte(content), 0o644)
 }

@@ -270,16 +270,20 @@ is rejected via `isSafeSessionID` before any filesystem access.
   Probably belongs in a separate plan.
 - **Adapter for Cursor / Aider / others.** Bias toward shipping these as
   separate adapters rather than special-casing the existing ones.
-- **Process-identity check on `.collector-pid`.** The reaper now
-  removes the PID file only when its contents still match the reaped
-  PID, which closes the watchdog-respawn race. The remaining concern
-  is PID reuse: between the time a collector dies and the reaper runs,
-  the kernel could recycle the PID for an unrelated process; a
-  `Signal(0)` probe by `/api/otel/status` would then incorrectly report
-  `alive=true`. For desktop usage this is essentially never seen, but
-  long-running CI workers might benefit from a start-time check (read
-  `/proc/<pid>/stat` field 22 at write-time, compare at probe-time).
-  The fix is local; it doesn't change any API.
+- **Process-identity check on `.collector-pid` — implemented.** The
+  reaper removes the PID file only when its contents still match the
+  reaped PID. To close the PID-reuse window — where the kernel
+  recycles a dead collector's PID for an unrelated process before
+  `/api/otel/status` probes — the lifecycle now records the process
+  start time (clock ticks from `/proc/<pid>/stat` field 22) on a
+  second line of `.collector-pid` at write-time, and the
+  `IsCollectorAlive` check verifies both PID liveness and start-time
+  match. On non-Linux platforms (`/proc` unavailable) or when reading
+  legacy single-line PID files, the check falls back to the PID-only
+  `Signal(0)` probe — degraded but no worse than before. Future work:
+  port this start-time mechanism to macOS using `kproc` /
+  `proc_pidinfo` if observed PID-reuse incidents on darwin warrant
+  the platform code.
 - **TEST-1 escalation path.** The plan originally included a real-
   subprocess respawn integration test gated on `testing.Short()`. That
   test was deferred during this work — see `feat-e195d658` for the
