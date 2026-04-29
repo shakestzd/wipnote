@@ -110,6 +110,21 @@ func (t TokenCounts) Total() int64 {
 // SignalID must be stable across retries so duplicate OTLP exports don't
 // double-count. Convention: the receiver derives it from a hash of
 // (resource, scope, name, timestamp, sorted attributes).
+//
+// Canonical attribute mapping by harness (all adapters must populate
+// Harness, SessionID, and CanonicalName on every signal):
+//
+//	Claude  service.name=claude-code   session.id      → SessionID
+//	Codex   service.name=codex-cli     conversation.id → SessionID
+//	Gemini  service.name=gemini-cli    session.id      → SessionID
+//
+//	PromptID sources:
+//	  Claude  prompt.id (signal attr)
+//	  Codex   gen_ai.prompt_id (signal attr); synthesized from conversation.id+seq when absent
+//	  Gemini  gen_ai.prompt_id (signal attr)
+//
+// SessionID falls back to the resource-level attribute when absent from
+// the signal-level attributes (cardinality-controlled metrics omit it).
 type UnifiedSignal struct {
 	// identity
 	Harness        Harness
