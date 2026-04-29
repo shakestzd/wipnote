@@ -5,7 +5,7 @@ meta:
     description: 'Closes four gaps in the v2 plan system surfaced by an audit of commitPlanChange and section-targeted update flow: (1) approve/reject-slice write YAML but skip git commit, (2) set-slice-status and answer-slice-question are SQLite-only and never reach the YAML, (3) plan render leaves uncommitted HTML drift, (4) no concurrency protection around load-mutate-save. Also delivers the per-slice compression project (questions/critique/feedback embedded in slices instead of plan-level) which is the schema foundation that makes (2) routable.'
     created_at: "2026-04-29"
     status: draft
-    version: 12
+    version: 13
 design:
     problem: ""
     goals: []
@@ -186,4 +186,16 @@ questions:
           label: Soft-deprecate (warn but allow)
         - key: peer
           label: Keep as peer for plan-wide concerns
+      answer: null
+    - id: q-flock-implementation-filesystem-lock-or
+      text: 'flock implementation: filesystem lock or in-memory mutex?'
+      description: Slice 2 needs serialization. Filesystem flock works cross-process (multiple htmlgraph CLI invocations) but is brittle on some filesystems (NFS, some Docker volumes). In-memory sync.Mutex works inside a single process but doesn't help cross-process — yolo spawns subprocesses for each verb, so this matters.
+      recommended: fs
+      options:
+        - key: fs
+          label: Filesystem flock (cross-process)
+        - key: mem
+          label: In-memory mutex (single process)
+        - key: both
+          label: Both — mutex inside
       answer: null

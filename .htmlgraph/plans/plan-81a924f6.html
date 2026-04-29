@@ -286,7 +286,7 @@ textarea::placeholder{color:var(--text-muted)}
   <p style="color:var(--text-dim)">Closes four gaps in the v2 plan system surfaced by an audit of commitPlanChange and section-targeted update flow: (1) approve/reject-slice write YAML but skip git commit, (2) set-slice-status and answer-slice-question are SQLite-only and never reach the YAML, (3) plan render leaves uncommitted HTML drift, (4) no concurrency protection around load-mutate-save. Also delivers the per-slice compression project (questions/critique/feedback embedded in slices instead of plan-level) which is the schema foundation that makes (2) routable.</p>
   <div class="meta">
     <span class="badge badge-pending">Draft</span>
-    <span style="font-size:.75rem;color:var(--text-muted)">v12 · 8 slices · Created 2026-04-29</span>
+    <span style="font-size:.75rem;color:var(--text-muted)">v13 · 8 slices · Created 2026-04-29</span>
   </div>
 </header>
 <button id="themeToggle" style="position:fixed;top:16px;right:16px;z-index:100;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:6px 12px;color:var(--text);font-family:var(--mono);font-size:0.75rem;cursor:pointer;">
@@ -549,6 +549,19 @@ textarea::placeholder{color:var(--text-muted)}
       <textarea data-section="questions" data-question-rationale="q-should-plan-level-questions-critique-be" placeholder="Rationale for q-should-plan-level-questions-critique-be..."></textarea>
     </div>
     
+    <div class="question-block" id="q-flock-implementation-filesystem-lock-or">
+      <p>flock implementation: filesystem lock or in-memory mutex?</p>
+      
+      
+      <label class="recommended"><input type="radio" name="q-flock-implementation-filesystem-lock-or" data-question="q-flock-implementation-filesystem-lock-or" value="Filesystem flock (cross-process)"> Filesystem flock (cross-process) <span class="rec-tag">recommended</span></label>
+      
+      <label><input type="radio" name="q-flock-implementation-filesystem-lock-or" data-question="q-flock-implementation-filesystem-lock-or" value="In-memory mutex (single process)"> In-memory mutex (single process)</label>
+      
+      <label><input type="radio" name="q-flock-implementation-filesystem-lock-or" data-question="q-flock-implementation-filesystem-lock-or" value="Both — mutex inside"> Both — mutex inside</label>
+      
+      <textarea data-section="questions" data-question-rationale="q-flock-implementation-filesystem-lock-or" placeholder="Rationale for q-flock-implementation-filesystem-lock-or..."></textarea>
+    </div>
+    
     <table class="q-table">
       <thead><tr><th>Question</th><th>Selected</th><th>Status</th></tr></thead>
       <tbody id="questionsRecap">
@@ -561,6 +574,12 @@ textarea::placeholder{color:var(--text-muted)}
         
         <tr data-recap-for="q-should-plan-level-questions-critique-be">
           <td>Should plan-level questions/critique be hard-deprecated or soft?</td>
+          <td class="recap-answer">&mdash;</td>
+          <td><span class="badge badge-pending">Pending</span></td>
+        </tr>
+        
+        <tr data-recap-for="q-flock-implementation-filesystem-lock-or">
+          <td>flock implementation: filesystem lock or in-memory mutex?</td>
           <td class="recap-answer">&mdash;</td>
           <td><span class="badge badge-pending">Pending</span></td>
         </tr>
