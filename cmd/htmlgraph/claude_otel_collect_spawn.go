@@ -94,18 +94,50 @@ type otelEnvOverrides struct {
 	Cleanup       func() // called on launcher exit to SIGTERM the collector
 }
 
+// spawnCollectorFn is the package-level spawn function used by
+// retrySpawnCollector. Tests may replace it to inject a fake.
+var spawnCollectorFn = spawnCollector
+
+// retrySpawnCollector attempts to spawn the collector up to maxAttempts times.
+// Backoff delays between attempts are: 100ms, 300ms, 700ms (indices 0, 1, 2).
+// spawnFn overrides the package-level spawnCollectorFn when non-nil (for tests).
+// After each non-final failure a warning line is written to warnW.
+// Returns the port, process, number of attempts made, and any final error.
+func retrySpawnCollector(binPath, sessionID, projectDir string, maxAttempts int, spawnFn func(string, string, string) (int, *os.Process, error), warnW io.Writer) (int, *os.Process, int, error) {
+	if spawnFn == nil {
+		spawnFn = spawnCollectorFn
+	}
+	backoff := []time.Duration{100 * time.Millisecond, 300 * time.Millisecond, 700 * time.Millisecond}
+	var lastErr error
+	for i := 0; i < maxAttempts; i++ {
+		port, proc, err := spawnFn(binPath, sessionID, projectDir)
+		if err == nil {
+			return port, proc, i + 1, nil
+		}
+		lastErr = err
+		if i < maxAttempts-1 {
+			fmt.Fprintf(warnW, "htmlgraph: warning: collector spawn attempt %d/%d failed: %v\n", i+1, maxAttempts, err)
+			if i < len(backoff) {
+				time.Sleep(backoff[i])
+			}
+		}
+	}
+	return 0, nil, maxAttempts, lastErr
+}
+
 // spawnSessionCollectorTo is the testable core of collector spawning.
-// It generates a session ID, spawns the collector at binPath, and returns
-// overrides and a wantExit flag. On spawn failure it always writes a FATAL
-// line to errW; wantExit is true only when HTMLGRAPH_OTEL_STRICT=1.
+// It generates a session ID, spawns the collector at binPath (with up to 3
+// retry attempts using exponential backoff), and returns overrides and a
+// wantExit flag. On spawn failure it always writes a FATAL line to errW;
+// wantExit is true only when HTMLGRAPH_OTEL_STRICT=1.
 // Silent-fail is preserved for soft-precondition failures that occur before
 // spawn (binary path resolution) — those are handled by the caller.
 func spawnSessionCollectorTo(projectDir, binPath string, errW io.Writer) (otelEnvOverrides, bool) {
 	sessionID := generateOtelSessionID()
 
-	port, proc, err := spawnCollector(binPath, sessionID, projectDir)
+	port, proc, attempts, err := retrySpawnCollector(binPath, sessionID, projectDir, 3, nil, errW)
 	if err != nil {
-		fmt.Fprintf(errW, "htmlgraph: FATAL: collector spawn failed after all retries: %v\n", err)
+		fmt.Fprintf(errW, "htmlgraph: FATAL: collector spawn failed after %d attempts: %v\n", attempts, err)
 		wantExit := os.Getenv("HTMLGRAPH_OTEL_STRICT") == "1"
 		return otelEnvOverrides{}, wantExit
 	}
