@@ -111,7 +111,7 @@ func spawnSessionCollectorTo(projectDir, binPath string, errW io.Writer) (otelEn
 	}
 
 	writeCollectorPID(projectDir, sessionID, proc.Pid)
-	cleanup := registerCollectorCleanup(proc)
+	cleanup := registerCollectorCleanup(proc, projectDir, sessionID)
 
 	return otelEnvOverrides{
 		CollectorPort: port,
@@ -141,8 +141,10 @@ func spawnSessionCollector(projectDir string) otelEnvOverrides {
 
 // registerCollectorCleanup spawns a reaper goroutine for the collector
 // child so it doesn't become a zombie if it exits on its own (idle
-// timeout). Returns a cleanup function that sends SIGTERM and waits.
-func registerCollectorCleanup(proc *os.Process) func() {
+// timeout). Returns a cleanup function that sends SIGTERM, waits, and
+// removes the .collector-pid file so subsequent liveness probes by
+// /api/otel/status do not see a stale PID after process exit.
+func registerCollectorCleanup(proc *os.Process, projectDir, sessionID string) func() {
 	go func() { _, _ = proc.Wait() }()
 
 	return func() {
@@ -150,12 +152,21 @@ func registerCollectorCleanup(proc *os.Process) func() {
 		deadline := time.Now().Add(3 * time.Second)
 		for time.Now().Before(deadline) {
 			if err := proc.Signal(syscall.Signal(0)); err != nil {
+				removeCollectorPID(projectDir, sessionID)
 				return // process exited
 			}
 			time.Sleep(100 * time.Millisecond)
 		}
 		_ = proc.Kill()
+		removeCollectorPID(projectDir, sessionID)
 	}
+}
+
+// removeCollectorPID removes the .collector-pid file for a session.
+// Best-effort: missing file or unreadable directory is not an error.
+func removeCollectorPID(projectDir, sessionID string) {
+	pidPath := filepath.Join(projectDir, ".htmlgraph", "sessions", sessionID, ".collector-pid")
+	_ = os.Remove(pidPath)
 }
 
 // writeCollectorPID writes the collector PID to the session directory.

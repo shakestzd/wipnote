@@ -97,6 +97,8 @@ type Receiver struct {
 func New(cfg Config, s sink.SignalSink) (*Receiver, error) {
 	r := &Receiver{cfg: cfg, sink: s, registry: adapter.NewRegistry()}
 	r.registry.Register(adapter.NewClaudeAdapter())
+	r.registry.Register(adapter.NewCodexAdapter())
+	r.registry.Register(adapter.NewGeminiAdapter())
 
 	if !cfg.Enabled {
 		return r, nil

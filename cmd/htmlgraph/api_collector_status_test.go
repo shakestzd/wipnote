@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"testing"
@@ -75,23 +76,35 @@ func TestReadCollectorStatus_Live(t *testing.T) {
 	}
 }
 
-// TestReadCollectorStatus_Dead writes an unlikely PID (999999) and asserts
-// that Alive=false is returned.
+// TestReadCollectorStatus_Dead spawns and reaps a short-lived child, then
+// uses the reaped PID — guaranteed dead at probe time — and asserts
+// Alive=false. Avoids the PID-reuse flakiness of arbitrary high PIDs.
 func TestReadCollectorStatus_Dead(t *testing.T) {
 	sessDir := t.TempDir()
-	// PID 999999 is very unlikely to be alive on any system.
-	writeTestCollectorPID(t, sessDir, 999999)
+	deadPID := spawnAndReapChild(t)
+	writeTestCollectorPID(t, sessDir, deadPID)
 
 	status, err := ReadCollectorStatus(sessDir)
 	if err != nil {
 		t.Fatalf("ReadCollectorStatus: %v", err)
 	}
 	if status.Alive {
-		t.Errorf("Alive = true, want false for dead PID 999999")
+		t.Errorf("Alive = true, want false for reaped PID %d", deadPID)
 	}
-	if status.PID != 999999 {
-		t.Errorf("PID = %d, want 999999", status.PID)
+	if status.PID != deadPID {
+		t.Errorf("PID = %d, want %d", status.PID, deadPID)
 	}
+}
+
+// spawnAndReapChild starts /bin/true (or the platform equivalent), waits
+// for it to exit, and returns its PID. The PID is dead at return time.
+func spawnAndReapChild(t *testing.T) int {
+	t.Helper()
+	cmd := exec.Command("/bin/sh", "-c", "exit 0")
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("spawn/reap child: %v", err)
+	}
+	return cmd.ProcessState.Pid()
 }
 
 // TestReadCollectorStatus_MissingPIDFile verifies that missing .collector-pid
