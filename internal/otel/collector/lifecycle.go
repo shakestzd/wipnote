@@ -333,13 +333,21 @@ func removeCollectorPIDIfMatches(projectDir, sessionID string, pid int) {
 	_ = os.Remove(pidPath)
 }
 
-// readCollectorPIDFile parses a .collector-pid file. The file format is:
+// ReadCollectorPIDFile parses a .collector-pid file. The file format is:
 //
 //	<pid>
 //	<starttime>     (optional second line — Linux clock-tick start time)
 //
 // Returns pid, starttime, hasStart=true when both lines parsed, or
-// hasStart=false for legacy single-line files.
+// hasStart=false for legacy single-line files. Exported so callers
+// outside this package (e.g. cmd/htmlgraph status surfaces) can parse
+// the PID file consistently with the writer.
+func ReadCollectorPIDFile(pidPath string) (pid int, starttime uint64, hasStart bool, err error) {
+	return readCollectorPIDFile(pidPath)
+}
+
+// readCollectorPIDFile is the internal implementation used by
+// removeCollectorPIDIfMatches and IsCollectorAlive.
 func readCollectorPIDFile(pidPath string) (pid int, starttime uint64, hasStart bool, err error) {
 	data, err := os.ReadFile(pidPath)
 	if err != nil {

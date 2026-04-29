@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 
@@ -111,15 +110,14 @@ func isSafeSessionID(id string) bool {
 	return true
 }
 
-// readPIDFile reads a PID from a file containing "<pid>\n".
+// readPIDFile reads the collector PID from .collector-pid. The file format
+// may be either single-line (legacy: "<pid>\n") or two-line ("<pid>\n<starttime>\n",
+// new format used by Linux writes). Delegates to collector.ReadCollectorPIDFile
+// so all consumers stay in sync with the writer.
 func readPIDFile(path string) (int, error) {
-	data, err := os.ReadFile(path)
+	pid, _, _, err := collector.ReadCollectorPIDFile(path)
 	if err != nil {
 		return 0, err
-	}
-	pid, err := strconv.Atoi(strings.TrimSpace(string(data)))
-	if err != nil {
-		return 0, fmt.Errorf("parse pid %q: %w", strings.TrimSpace(string(data)), err)
 	}
 	return pid, nil
 }

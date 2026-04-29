@@ -117,6 +117,31 @@ func TestReadCollectorStatus_MissingPIDFile(t *testing.T) {
 	}
 }
 
+// TestReadCollectorStatus_TwoLinePIDFormat verifies that the new 2-line
+// .collector-pid format (PID + start-time) is parsed correctly. Without
+// this coverage the regression caught in roborev job 96 — single-integer
+// parser failing on 2-line files — would have shipped silently.
+func TestReadCollectorStatus_TwoLinePIDFormat(t *testing.T) {
+	sessDir := t.TempDir()
+	if err := os.MkdirAll(sessDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	pidPath := filepath.Join(sessDir, ".collector-pid")
+	pid := os.Getpid()
+	content := strconv.Itoa(pid) + "\n" + "9999999\n" // PID + fake start-time
+	if err := os.WriteFile(pidPath, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	status, err := ReadCollectorStatus(sessDir)
+	if err != nil {
+		t.Fatalf("ReadCollectorStatus on 2-line PID file: %v", err)
+	}
+	if status.PID != pid {
+		t.Errorf("PID = %d, want %d (parser ignored the start-time second line)", status.PID, pid)
+	}
+}
+
 // TestCollectorStatusEndpoint verifies the /api/otel/status HTTP handler
 // returns valid JSON CollectorStatus given a properly formed session dir.
 func TestCollectorStatusEndpoint(t *testing.T) {
