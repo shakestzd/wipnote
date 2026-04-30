@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Per-session collector spawn for Codex CLI (CODEX-1)</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-9104fb56"
+             data-type="feature"
+             data-status="done"
+             data-priority="medium"
+             data-created="2026-04-29T18:50:29.512233"
+             data-updated="2026-04-29T21:01:18.993924" data-agent-assigned="claude-code" data-track-id="trk-cb36e595">
+
+        <header>
+            <h1>Per-session collector spawn for Codex CLI (CODEX-1)</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="c5ae568f-1904-41e6-a072-55afc0755865.html" data-relationship="implemented_in" data-since="2026-04-29T20:56:41.551128">session c5ae568f-1904-41e6-a072-55afc0755865</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="planned_in">
+                <h3>Planned In:</h3>
+                <ul>
+                    <li><a href="plan-1cd284e0.html" data-relationship="planned_in" data-since="2026-04-29T18:50:29.515908">plan-1cd284e0</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-cb36e595.html" data-relationship="part_of" data-since="2026-04-29T18:50:29.519682">trk-cb36e595</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="blocked_by">
+                <h3>Blocked By:</h3>
+                <ul>
+                    <li><a href="feat-35519ac2.html" data-relationship="blocked_by" data-since="2026-04-29T18:50:49.600857">Extract CollectorLifecycle interface to internal/otel/collector (REFACTOR-1)</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="relates_to">
+                <h3>Relates To:</h3>
+                <ul>
+                    <li><a href="feat-ac7532be.html" data-relationship="relates_to" data-since="2026-04-29T18:50:50.06862">Resilient harness-agnostic telemetry capture (collector hardening &#43; Codex/Gemini support)</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Add cmd/htmlgraph/codex_launch.go: htmlgraph codex launcher analogous to htmlgraph claude that spawns per-session collector via CollectorLifecycle and passes OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1: to codex child process. Codex CLI emits OTel via ~/.codex/config.toml [otel] section (PR openai/codex#2103). service.name=codex-cli, conversation.id is session identifier. HarnessCodex constant exists in internal/otel/signal.go:30. Acceptance: htmlgraph codex with test session generates .htmlgraph/sessions//events.ndjson with harness=codex signals. Refs: github.com/openai/codex/pull/2103, developers.openai.com/codex/config-reference, parent feat-ac7532be.</p>
+        </section>
+    </article>
+</body>
+</html>

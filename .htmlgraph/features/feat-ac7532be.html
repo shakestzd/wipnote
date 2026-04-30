@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Resilient harness-agnostic telemetry capture (collector hardening &#43; Codex/Gemini support)</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-ac7532be"
+             data-type="feature"
+             data-status="in-progress"
+             data-priority="medium"
+             data-created="2026-04-29T16:43:57.363196"
+             data-updated="2026-04-30T06:30:41.292016" data-agent-assigned="claude-code" data-track-id="trk-cb36e595">
+
+        <header>
+            <h1>Resilient harness-agnostic telemetry capture (collector hardening &#43; Codex/Gemini support)</h1>
+            <div class="metadata">
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-cb36e595.html" data-relationship="part_of" data-since="2026-04-29T16:43:57.370454">trk-cb36e595</a></li>
+                    <li><a href="trk-cb36e595.html" data-relationship="part_of" data-since="2026-04-29T18:17:14.020614">Multi-Project Hardening — per-project process isolation</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="c5ae568f-1904-41e6-a072-55afc0755865.html" data-relationship="implemented_in" data-since="2026-04-29T20:00:14.019222">session c5ae568f-1904-41e6-a072-55afc0755865</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implements">
+                <h3>Implements:</h3>
+                <ul>
+                    <li><a href="plan-1cd284e0.html" data-relationship="implements" data-since="2026-04-29T18:17:16.793309">Plan: Per-session OTel collector with NDJSON ingest &#43; SQLite as derived index</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="relates_to">
+                <h3>Relates To:</h3>
+                <ul>
+                    <li><a href="bug-28a9d7a7.html" data-relationship="relates_to" data-since="2026-04-29T18:17:16.757745">Session OTel collector dies mid-session and is duplicated by _serve-child receiver</a></li>
+                    <li><a href="bug-e8b8900b.html" data-relationship="relates_to" data-since="2026-04-29T18:17:16.824175">Parallel Claude Code sessions in same project merge into one session after ingest</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="false" data-step-id="step-feat-ac7532be-0">⏳ **Scope:** cmd/htmlgraph/claude_otel_collect_spawn.go — spawnSessionCollector()
+**Goal:** Replace silent-failure return (lines 114-116) with a fatal log &#43; non-zero exit path so operators can detect spawn failures immediately instead of discovering them in post-session analysis.
+**Approach:** After the spawnCollector() error path, emit a structured stderr line: `htmlgraph: FATAL: collector spawn failed after all retries: &lt;err&gt;`. Remove the silent `otelEnvOverrides{}` return for the primary code path; keep silent-fail only when HTMLGRAPH_OTEL_ENABLED is explicitly false or binary path resolution fails (soft precondition errors). This aligns with the bug-28a9d7a7 finding that handshake timeout at pid 58306 produced zero operator-visible signal. Implementation: promote the warning to a `log.Fatal` equivalent gated on `HTMLGRAPH_OTEL_STRICT=1` (opt-in initially, becomes default in next major). Reference: bug-28a9d7a7 FINDING 1; claude_otel_collect_spawn.go:114-116.
+**Acceptance:** Running `htmlgraph claude` in a project where the binary path is intentionally broken produces a non-zero exit and the FATAL line on stderr rather than a silent start.
+**Refs:** bug-28a9d7a7, plan-1cd284e0, trk-cb36e595</li>
+                <li data-completed="false" data-step-id="step-feat-ac7532be-1">⏳ **Scope:** cmd/htmlgraph/claude_otel_collect_spawn.go — spawnSessionCollector() and spawnCollector()
+**Goal:** Retry collector spawn up to 3 times with 100ms / 300ms / 700ms exponential backoff before giving up, narrowing the silent-failure window from one attempt to four.
+**Approach:** Extract a retrySpawnCollector(binPath, sessionID, projectDir string, maxAttempts int) function that loops over spawnCollector() calls, sleeping between attempts. Use attempt-indexed backoff: attempt 1 = 100ms, 2 = 300ms, 3 = 700ms. Log each retry attempt to stderr at warning level. The 3s handshake timeout per attempt (readCollectorHandshake) remains unchanged — total worst-case wall time 4 * 3s &#43; 1.1s backoff ≈ 13s, acceptable for session startup. If all retries fail, fall through to the fail-loud path from RESILIENCE-1. Rationale: transient port contention or process scheduling delays are the most likely cause of the pid 58306 incident (bug-28a9d7a7). Reference: otel_collect_spawn.go readCollectorHandshake:67-90; standard exponential backoff as used in net/http DefaultTransport.
+**Acceptance:** Unit test that injects a binPath pointing to a script that fails the first 2 invocations and succeeds on the 3rd verifies that spawnSessionCollector() returns a valid port and that 2 warning lines appear on stderr.
+**Refs:** bug-28a9d7a7, cmd/htmlgraph/claude_otel_collect_spawn.go:67-90</li>
+                <li data-completed="false" data-step-id="step-feat-ac7532be-2">⏳ **Scope:** cmd/htmlgraph/claude_otel_collect_spawn.go — new collectorWatchdog goroutine in spawnSessionCollector()
+**Goal:** Detect mid-session collector death and automatically respawn so telemetry gaps are minimized even when the process crashes or is killed by OOM after startup.
+**Approach:** After the initial successful spawn, launch a watchdog goroutine that polls `proc.Signal(0)` every 15s (configurable via HTMLGRAPH_OTEL_WATCHDOG_INTERVAL). On non-nil error (process gone), call retrySpawnCollector() again with the same sessionID and update the otelEnvOverrides.CollectorPort atomically so subsequent OTLP payloads from the harness target the new port — requires also updating the child process env of the running claude process, which is not possible post-fork. Instead, the watchdog should write the new port to a well-known file (.htmlgraph/sessions/&lt;sid&gt;/.collector-port) and expose it via a localhost redirect endpoint on the original port. Simpler alternative: the watchdog respawns and logs the new port; OTel traffic is lost during the gap but restarts clean. Choose simpler path for v1. Watchdog terminates when the session cleanup function is called. Reference: registerCollectorCleanup:132-146 (claude_otel_collect_spawn.go) for the existing reaper pattern; Go signal(0) liveness check as used in process managers like supervisord.
+**Acceptance:** Integration test: spawn collector, kill it with SIGKILL, wait 20s, verify a new .collector-pid file appears in the session dir and the new PID is live.
+**Refs:** cmd/htmlgraph/claude_otel_collect_spawn.go:132-146, plan-1cd284e0</li>
+                <li data-completed="false" data-step-id="step-feat-ac7532be-3">⏳ **Scope:** cmd/htmlgraph/api_otel.go (or new cmd/htmlgraph/api_collector_status.go) &#43; htmlgraph status CLI handler
+**Goal:** Expose live collector health — PID, port, uptime, signal counts, last-activity timestamp — in `htmlgraph status` output and the /api/otel/status JSON endpoint.
+**Approach:** The collector PID is already written to .htmlgraph/sessions/&lt;sid&gt;/.collector-pid (claude_otel_collect_spawn.go:152-155). Add a CollectorStatus struct that reads this file, probes the PID with Signal(0), reads .htmlgraph/sessions/&lt;sid&gt;/events.ndjson for the collector_start event (which embeds port &#43; pid), and returns JSON: {&#34;pid&#34;:N,&#34;port&#34;:N,&#34;alive&#34;:true/false,&#34;uptime_s&#34;:N,&#34;last_activity_ms&#34;:N,&#34;signals_ingested&#34;:N}. Wire it to GET /api/otel/status in api_otel.go. Update the `htmlgraph status` text formatter to include a Collector: line. Reference: writeCollectorPID (claude_otel_collect_spawn.go:151-155), writeCollectorStartEvent (otel_collect.go:119-136) for attribute names (pid, port, htmlgraph_sid).
+**Acceptance:** `htmlgraph status` while a session is active shows &#34;Collector: pid=&lt;N&gt; port=&lt;N&gt; alive=true&#34;. `htmlgraph status` after session end shows &#34;Collector: alive=false last_seen=&lt;ts&gt;&#34;.
+**Refs:** cmd/htmlgraph/claude_otel_collect_spawn.go:151-155, cmd/htmlgraph/otel_collect.go:119-136, cmd/htmlgraph/api_otel.go</li>
+                <li data-completed="false" data-step-id="step-feat-ac7532be-4">⏳ **Scope:** cmd/htmlgraph/claude_otel_collect_spawn.go → new internal/otel/collector/lifecycle.go
+**Goal:** Extract a CollectorLifecycle interface &#43; concrete implementation from claude_otel_collect_spawn.go so the same spawn/retry/watchdog/cleanup code can be called from a future codexLaunch() or geminiLaunch() entrypoint without duplicating the logic.
+**Approach:** Define an interface: type CollectorLifecycle interface { Spawn(binPath, sessionID, projectDir string) (port int, cleanup func(), err error); Status() CollectorStatus }. The concrete ProcessCollector implementation wraps spawnCollector, retrySpawnCollector, writeCollectorPID, registerCollectorCleanup, and the watchdog goroutine. The claude.go launchClaude() caller switches to CollectorLifecycle.Spawn() with zero behavior change. Future harness launchers call the same interface. This also makes unit testing the lifecycle much easier — inject a fake Spawner that returns ports on demand. Reference: Adapter interface pattern already established in internal/otel/adapter/adapter.go:105-121 — follow the same Go interface &#43; registry approach. File size: keep lifecycle.go under 200 lines; move helper functions in.
+**Acceptance:** go build ./... passes after refactor; existing integration test for Claude spawn path continues to pass without modification (behavioral identity).
+**Refs:** internal/otel/adapter/adapter.go:105-121, cmd/htmlgraph/claude_otel_collect_spawn.go, cmd/htmlgraph/claude.go:499-505</li>
+                <li data-completed="false" data-step-id="step-feat-ac7532be-5">⏳ **Scope:** new cmd/htmlgraph/codex_launch.go (or similar) &#43; packages/codex-marketplace
+**Goal:** Wire per-session collector spawn into the Codex CLI launch path, mirroring what claude.go does for Claude Code sessions.
+**Approach:** Codex CLI (openai/codex) natively emits OTel over OTLP HTTP when configured via ~/.codex/config.toml [otel] section (PR openai/codex#2103, merged). The session identifier is conversation.id on all events; service.name = &#34;codex-cli&#34;. The collector adapter for Codex (HarnessCodex = &#34;codex&#34; in internal/otel/signal.go:30) already exists. The integration needs: (1) a `htmlgraph codex` launcher command analogous to `htmlgraph claude` that spawns a per-session collector and passes OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:&lt;port&gt; to the codex child process — note Codex uses its own OTEL_* or [otel] config, not GEMINI_TELEMETRY_* — confirm via codex config docs at https://developers.openai.com/codex/config-reference; (2) hook the existing SessionStart hook to read HTMLGRAPH_OTEL_PORT from env if the codex harness is detected. Alternatively, expose the collector spawn as a hook so the SessionStart hook handler for codex calls `htmlgraph otel-spawn --harness codex --session-id &lt;id&gt;` and writes the port back to the session dir. Design decision between the two approaches is a key open question (see open questions in feature description). Reference: Codex PR openai/codex#2103 for attribute names; packages/codex-marketplace hooks.json SessionStart event; internal/otel/signal.go:30 HarnessCodex.
+**Acceptance:** Running `htmlgraph codex` (or the hook-based path) with a test Codex session generates .htmlgraph/sessions/&lt;sid&gt;/events.ndjson with harness=codex signals.
+**Refs:** https://github.com/openai/codex/pull/2103, https://developers.openai.com/codex/config-reference, packages/codex-marketplace/.agents/plugins/htmlgraph/hooks.json, internal/otel/signal.go:30</li>
+                <li data-completed="false" data-step-id="step-feat-ac7532be-6">⏳ **Scope:** new cmd/htmlgraph/gemini_launch.go (or hook path) &#43; packages/gemini-extension
+**Goal:** Wire per-session collector spawn into the Gemini CLI launch path.
+**Approach:** Gemini CLI has first-class OTel support with distinct env vars: GEMINI_TELEMETRY_ENABLED=true, GEMINI_TELEMETRY_USE_COLLECTOR=true, GEMINI_TELEMETRY_OTLP_ENDPOINT=http://127.0.0.1:&lt;port&gt;, GEMINI_TELEMETRY_OTLP_PROTOCOL=http (ref: https://google-gemini.github.io/gemini-cli/docs/cli/telemetry.html). Session ID is session.id on all signals, identical to Claude Code (making the HarnessGemini adapter straightforward). Gemini also exposes GEMINI_SESSION_ID as an env var to hooks (SessionStart hook receives the ID), which means the SessionStart hook handler can call `htmlgraph otel-spawn --harness gemini --session-id $GEMINI_SESSION_ID` and write the port to the session dir — enabling a pure-hook approach without a `htmlgraph gemini` launcher binary. The Gemini extension hooks.json already has a SessionStart hook (packages/gemini-extension/hooks/hooks.json:3). Proposed approach: augment the hook handler `htmlgraph hook session-start` to detect harness (GEMINI_SESSION_ID present → gemini) and spawn the collector, writing port to .htmlgraph/sessions/&lt;sid&gt;/.collector-port. Then add a BeforeAgent hook that reads the port file and injects GEMINI_TELEMETRY_OTLP_ENDPOINT — but Gemini hooks cannot mutate child env, so the launcher approach may still be needed. Research needed: can Gemini CLI read GEMINI_TELEMETRY_OTLP_ENDPOINT from environment at launch? If yes, `htmlgraph gemini` launcher is the cleanest path.
+**Acceptance:** Gemini session with GEMINI_TELEMETRY_ENABLED=true generates .htmlgraph/sessions/&lt;sid&gt;/events.ndjson with harness=gemini_cli signals including session.id.
+**Refs:** https://google-gemini.github.io/gemini-cli/docs/cli/telemetry.html, packages/gemini-extension/hooks/hooks.json, internal/otel/signal.go:31 HarnessGemini</li>
+                <li data-completed="false" data-step-id="step-feat-ac7532be-7">⏳ **Scope:** internal/otel/signal.go, internal/otel/adapter/claude.go, internal/otel/adapter/ (new codex.go &#43; gemini.go)
+**Goal:** Define and enforce a canonical attribute set that all harness adapters populate, so cross-harness dashboard queries work without harness-specific special-casing.
+**Approach:** Canonical required attributes on every UnifiedSignal: Harness (already set), SessionID (already set per-harness), PromptID (Claude: prompt.id; Codex: synthesize from conversation.id &#43; event sequence number; Gemini: gen_ai.prompt_id). For spans/logs that do not carry session.id at the signal level, fall back to the resource-level session.id (already done for Claude in claude.go baseSignal:246-249 — same pattern needed for Codex conversation.id and Gemini session.id fallback). Document the attribute mapping table in a doc comment in signal.go: Claude session.id → SessionID | Codex conversation.id → SessionID | Gemini session.id → SessionID. service.name discrimination: claude-code → HarnessClaude; codex-cli or codex → HarnessCodex (confirm exact value from PR openai/codex#2103, which sets service.name = &#34;codex-cli&#34;); gemini-cli → HarnessGemini (confirm from https://google-gemini.github.io/gemini-cli/docs/cli/telemetry.html). The collector handler (otel_collect_handler.go:76-90) already routes through the adapter registry; no change needed there. Write an adapter conformance test that verifies all three adapters populate Harness, SessionID, and CanonicalName on every signal type.
+**Acceptance:** `go test ./internal/otel/...` includes a TestAdapterConformance that passes for all three adapters across metric/log/span paths.
+**Refs:** internal/otel/signal.go:124, internal/otel/adapter/claude.go:242-249, https://github.com/openai/codex/pull/2103, https://google-gemini.github.io/gemini-cli/docs/cli/telemetry.html</li>
+                <li data-completed="false" data-step-id="step-feat-ac7532be-8">⏳ **Scope:** cmd/htmlgraph/otel_collect_test.go &#43; new cmd/htmlgraph/collector_watchdog_test.go
+**Goal:** Integration test that verifies the watchdog detects collector death and respawns within 20s, with no data races.
+**Approach:** The test binary pattern is already established: otel_collect_test.go uses binPath injection to test spawnCollector() against real child processes. Extend with TestWatchdogRespawn: (1) spawn a collector; (2) record the first PID from .collector-pid; (3) SIGKILL the collector; (4) poll .collector-pid every 500ms for up to 20s; (5) assert new PID != old PID and new process is alive. Run with -race to catch the atomic port-update path introduced in RESILIENCE-3. Also test TestHandshakeTimeout: inject a fake binary that sleeps 5s before printing the handshake line and assert spawnCollector returns the timeout error in under 4s. Reference: existing TestSpawnCollector pattern in cmd/htmlgraph/otel_collect_test.go.
+**Acceptance:** `go test -race ./cmd/htmlgraph/ -run TestWatchdog` passes; `go test -race ./cmd/htmlgraph/ -run TestHandshakeTimeout` passes in under 5s.
+**Refs:** cmd/htmlgraph/otel_collect_test.go, cmd/htmlgraph/claude_otel_collect_spawn.go:66-91</li>
+                <li data-completed="false" data-step-id="step-feat-ac7532be-9">⏳ **Scope:** cmd/htmlgraph/otel_collect_test.go or new cmd/htmlgraph/multiharness_test.go
+**Goal:** Integration test that verifies the per-session collector correctly ingests and routes signals from all three harness dialects.
+**Approach:** The collectorHandler uses buildCollectorMux → adapter.NewRegistry() → reg.Register(adapter.NewClaudeAdapter()). Currently only ClaudeAdapter is registered (otel_collect.go:103). Once CodexAdapter and GeminiAdapter exist (SCHEMA step), register all three and test: (1) POST /v1/logs with a fake Codex log body (service.name=codex-cli, conversation.id=&lt;id&gt;); assert ndjson sink contains a signal with Harness=codex and SessionID=&lt;id&gt;. (2) POST /v1/metrics with a fake Gemini metrics body (service.name=gemini-cli, session.id=&lt;sid&gt;); assert HarnessGemini and SessionID. (3) POST /v1/traces with a Claude trace body; assert HarnessClaude still works. Use the protobuf builders already imported in otel_collect_handler.go. Reference: otel_collect.go:101-116 for registry construction; internal/otel/adapter/claude_test.go for payload construction patterns.
+**Acceptance:** `go test ./cmd/htmlgraph/ -run TestMultiHarnessIngestion` passes with all three harness assertions verified.
+**Refs:** cmd/htmlgraph/otel_collect.go:101-116, internal/otel/adapter/claude_test.go</li>
+                <li data-completed="false" data-step-id="step-feat-ac7532be-10">⏳ **Scope:** .htmlgraph/plans/ (new ADR section) &#43; plan-1cd284e0 status update
+**Goal:** Document the harness-agnostic collector interface design as an ADR so future contributors understand the spawn-vs-hook tradeoff and the canonical attribute mapping.
+**Approach:** Create a new plan (or append a decision record section to plan-1cd284e0 via `htmlgraph plan add-question`) capturing: (1) ADR-001: CollectorLifecycle interface — why an extracted Go interface is preferred over per-harness duplicated spawn code; (2) ADR-002: Launcher vs hook-based spawn for Codex/Gemini — tradeoffs: launcher gives pre-fork env injection (clean, deterministic port), hook-based requires writing port to disk and polling (racy), but launcher requires users to replace `codex` / `gemini` invocations with `htmlgraph codex` / `htmlgraph gemini`; (3) Canonical attribute table from SCHEMA step; (4) Reference to bug-28a9d7a7 as the motivating incident and plan-1cd284e0 as the prior session-scoped design. The plan should link feat-ac7532be as the implementation target. Update plan-1cd284e0 status to &#34;extended&#34; with a forward-reference to the new ADR plan.
+**Acceptance:** `htmlgraph plan show &lt;new-plan-id&gt;` displays all three ADR sections; plan-1cd284e0 has a link to feat-ac7532be.
+**Refs:** plan-1cd284e0, bug-28a9d7a7, feat-ac7532be, commits 6430031c 2039aa0b 49de4919</li>
+            </ol>
+        </section>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>META-FEATURE — split into 11 child features for parallel dispatch on 2026-04-29.
+
+Original scope: harden per-session OTel collector spawn path (fail-loud, retry, watchdog) and extend capture pipeline to Codex CLI and Gemini CLI sessions.
+
+Children (linked via relates_to):
+- feat-dcf3d618  RESILIENCE-1: Fail-loud OTel collector spawn failure
+- feat-6286f19f  RESILIENCE-2: Retry OTel collector spawn with exponential backoff
+- feat-7b195a56  RESILIENCE-3: Watchdog respawns dead session collector
+- feat-1c3ebad9  STATUS-1: Expose collector health via htmlgraph status + /api/otel/status
+- feat-35519ac2  REFACTOR-1: Extract CollectorLifecycle interface to internal/otel/collector
+- feat-9104fb56  CODEX-1: Per-session collector spawn for Codex CLI
+- feat-7b094d00  GEMINI-1: Per-session collector spawn for Gemini CLI
+- feat-75426991  SCHEMA-1: Canonical attribute set + Codex/Gemini adapter conformance
+- feat-e195d658  TEST-1: Watchdog and handshake-timeout integration tests
+- feat-c6b3d956  TEST-2: Multi-harness collector ingestion integration test
+- feat-bc3c0067  DOC-1: ADR — harness-agnostic collector lifecycle + canonical attrs
+
+Dispatch order (blocked_by graph):
+- Wave 1 (parallel): RESILIENCE-1, STATUS-1, SCHEMA-1
+- Wave 2: RESILIENCE-2 (after RESILIENCE-1)
+- Wave 3: RESILIENCE-3 (after RESILIENCE-2)
+- Wave 4: REFACTOR-1, TEST-1 (after RESILIENCE-3)
+- Wave 5 (parallel): CODEX-1, GEMINI-1 (after REFACTOR-1)
+- Wave 6: TEST-2 (after SCHEMA-1, CODEX-1, GEMINI-1)
+- Wave 7: DOC-1 (after all)
+
+This parent stays open as a tracking record; complete it once all children are done.
+
+Refs: bug-28a9d7a7 (motivating incident), plan-1cd284e0, trk-cb36e595.</p>
+        </section>
+    </article>
+</body>
+</html>

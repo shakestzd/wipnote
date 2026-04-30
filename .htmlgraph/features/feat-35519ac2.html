@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Extract CollectorLifecycle interface to internal/otel/collector (REFACTOR-1)</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-35519ac2"
+             data-type="feature"
+             data-status="done"
+             data-priority="high"
+             data-created="2026-04-29T18:50:29.468042"
+             data-updated="2026-04-29T20:17:34.347685" data-agent-assigned="claude-code" data-track-id="trk-cb36e595">
+
+        <header>
+            <h1>Extract CollectorLifecycle interface to internal/otel/collector (REFACTOR-1)</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="planned_in">
+                <h3>Planned In:</h3>
+                <ul>
+                    <li><a href="plan-1cd284e0.html" data-relationship="planned_in" data-since="2026-04-29T18:50:29.471863">plan-1cd284e0</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-cb36e595.html" data-relationship="part_of" data-since="2026-04-29T18:50:29.474235">trk-cb36e595</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="blocked_by">
+                <h3>Blocked By:</h3>
+                <ul>
+                    <li><a href="feat-7b195a56.html" data-relationship="blocked_by" data-since="2026-04-29T18:50:49.567255">Watchdog respawns dead session collector (RESILIENCE-3)</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="relates_to">
+                <h3>Relates To:</h3>
+                <ul>
+                    <li><a href="feat-ac7532be.html" data-relationship="relates_to" data-since="2026-04-29T18:50:50.04686">Resilient harness-agnostic telemetry capture (collector hardening &#43; Codex/Gemini support)</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="c5ae568f-1904-41e6-a072-55afc0755865.html" data-relationship="implemented_in" data-since="2026-04-29T20:11:46.892087">session c5ae568f-1904-41e6-a072-55afc0755865</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Create internal/otel/collector/lifecycle.go with type CollectorLifecycle interface { Spawn(binPath, sessionID, projectDir string) (port int, cleanup func(), err error); Status() CollectorStatus }. Concrete ProcessCollector wraps spawnCollector, retrySpawnCollector, writeCollectorPID, registerCollectorCleanup, watchdog goroutine. cmd/htmlgraph/claude.go launchClaude switches to CollectorLifecycle.Spawn() with zero behavior change. Pattern: follow internal/otel/adapter/adapter.go:105-121 interface+registry approach. Keep lifecycle.go under 200 lines. Acceptance: go build ./... passes; existing Claude spawn integration test passes unmodified. Refs: parent feat-ac7532be.</p>
+        </section>
+    </article>
+</body>
+</html>
