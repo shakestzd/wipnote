@@ -6,12 +6,13 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"sync/atomic"
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/shakestzd/htmlgraph/internal/otel/collector"
 )
 
 // TestGenerateOtelSessionID verifies OTel session ID generation produces
@@ -107,23 +108,23 @@ func TestSpawnCollector_HandshakeTimeout(t *testing.T) {
 	}
 }
 
-// TestWriteCollectorPID writes a PID file and reads it back.
+// TestWriteCollectorPID writes a PID file and reads it back via the shared
+// collector parser, which handles both the legacy single-line format and
+// the new <pid>\n<start_time>\n format that WriteCollectorPID emits when
+// /proc/<pid>/stat is readable. Reading via strconv.Atoi on the whole
+// file directly here would silently pass on hosts where the test PID
+// happens to not exist in /proc and fail on hosts where it does.
 func TestWriteCollectorPID(t *testing.T) {
 	projectDir := t.TempDir()
 	sid := "test-pid-write"
-	pid := 42
+	pid := os.Getpid() // a PID that's guaranteed alive, so /proc/<pid>/stat exists
 
 	writeCollectorPID(projectDir, sid, pid)
 
 	pidPath := filepath.Join(projectDir, ".htmlgraph", "sessions", sid, ".collector-pid")
-	data, err := os.ReadFile(pidPath)
+	got, _, _, err := collector.ReadCollectorPIDFile(pidPath)
 	if err != nil {
-		t.Fatalf("PID file not found at %s: %v", pidPath, err)
-	}
-
-	got, err := strconv.Atoi(strings.TrimSpace(string(data)))
-	if err != nil {
-		t.Fatalf("PID file content is not a valid integer: %q", string(data))
+		t.Fatalf("ReadCollectorPIDFile: %v", err)
 	}
 	if got != pid {
 		t.Errorf("PID = %d, want %d", got, pid)
