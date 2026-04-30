@@ -7,7 +7,7 @@ Local-first observability and coordination platform for AI-assisted development.
 | Layer | Role |
 |-------|------|
 | `.htmlgraph/*.html` | Canonical store — single source of truth |
-| SQLite (`.htmlgraph/htmlgraph.db`) | Read index for queries and dashboard |
+| SQLite (`~/.cache/htmlgraph/<path-hash>/htmlgraph.db`) | Per-user read index for queries and dashboard (derived; not committed) |
 | Go binary (`htmlgraph`) | CLI + hook handler |
 
 ## For AI Agents
