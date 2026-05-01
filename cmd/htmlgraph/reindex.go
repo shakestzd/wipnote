@@ -297,7 +297,50 @@ func gitChangedFiles(projectDir, fromCommit, htmlgraphDir string) (added []strin
 		}
 	}
 
-	return added, deleted
+	// Include working-tree dirty files: modifications not yet committed (staged
+	// or unstaged). Commands like `bug move` write the HTML without committing,
+	// so git diff HEAD..HEAD misses them. Use `git diff --name-only` (unstaged)
+	// and `git diff --cached --name-only` (staged) to catch both cases.
+	added = appendDirtyHTMLFiles(projectDir, relHg, added)
+
+	return deduplicatePaths(added), deleted
+}
+
+// appendDirtyHTMLFiles appends any .htmlgraph HTML files that are modified in
+// the working tree (staged or unstaged) but not yet committed.
+func appendDirtyHTMLFiles(projectDir, relHg string, paths []string) []string {
+	for _, args := range [][]string{
+		{"diff", "--name-only", "--", relHg},
+		{"diff", "--cached", "--name-only", "--", relHg},
+	} {
+		out, err := exec.Command("git", append([]string{"-C", projectDir}, args...)...).Output()
+		if err != nil {
+			continue
+		}
+		for _, rel := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+			if rel == "" {
+				continue
+			}
+			path := filepath.Join(projectDir, rel)
+			if strings.HasSuffix(path, ".html") {
+				paths = append(paths, path)
+			}
+		}
+	}
+	return paths
+}
+
+// deduplicatePaths returns paths with duplicates removed, preserving order.
+func deduplicatePaths(paths []string) []string {
+	seen := make(map[string]bool, len(paths))
+	out := paths[:0:0]
+	for _, p := range paths {
+		if !seen[p] {
+			seen[p] = true
+			out = append(out, p)
+		}
+	}
+	return out
 }
 
 func idFromHTMLPath(path string) string {
