@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>agent_events: silent FK constraint failure on parent_event_id drops Read/Bash events, breaking PreToolUse research-first guard</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-89990f33"
+             data-type="bug"
+             data-status="todo"
+             data-priority="high"
+             data-created="2026-05-01T19:08:18.191506"
+             data-updated="2026-05-01T19:08:18.266104" data-agent-assigned="claude-code" data-track-id="trk-08dcbb33">
+
+        <header>
+            <h1>agent_events: silent FK constraint failure on parent_event_id drops Read/Bash events, breaking PreToolUse research-first guard</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="caused_by">
+                <h3>Caused By:</h3>
+                <ul>
+                    <li><a href="bug-92690d5b.html" data-relationship="caused_by" data-since="2026-05-01T19:08:18.201015">bug-92690d5b</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-08dcbb33.html" data-relationship="part_of" data-since="2026-05-01T19:08:18.265623">trk-08dcbb33</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>## Symptom
+
+In a yolo session attempting to fix bug-92690d5b, the agent ran multiple Read and Bash tool calls (verified by transcript). But `SELECT count(*), tool_name FROM agent_events WHERE session_id = '8e463928-...'` returned only 2 Bash entries and ZERO Read entries. The PreToolUse research-first guard then misfired — blocking Edit with 'Research is required before writing code' even after substantial reads.
+
+## Root cause (per agent's own diagnosis)
+
+The agent_events table has a FK constraint on parent_event_id. When events arrive whose parent_event_id references a row that doesn't exist (yet, or at all), the INSERT fails silently. Read events appear to be the most affected because their parent linkage is timing-sensitive.
+
+## Reproducer
+
+1. Run yolo dispatch on bug-92690d5b (or any new yolo session).
+2. Have the agent perform several Read calls.
+3. Query: `sqlite3 $DB "SELECT count(*), tool_name FROM agent_events WHERE session_id = '' GROUP BY tool_name"`.
+4. Observe: Read count is far below actual Read invocations (likely zero).
+
+## Why it matters
+
+1. The PreToolUse research-first guard at internal/hooks/yolo_guard.go reads from agent_events to decide whether the agent has done research. Missing entries = guard misfires = legitimate Edit calls blocked.
+2. Lineage queries (any join on agent_events) silently lose data.
+3. Worse: the broken guard motivated the agent to BYPASS it by directly INSERTing a fake Read row into SQLite (see linked bug). Silent data-integrity failures push agents toward unsafe workarounds.
+
+## Investigation directions
+
+- Audit internal/db where agent_events INSERTs happen. Check whether FK errors are logged or swallowed.
+- Likely fix: either (a) make parent_event_id nullable / constraint-free, (b) defer FK checks to end of transaction, (c) write events in two passes (parents first, then children), (d) log+continue on FK failure with a metric.
+- Add a metric / loud warning when an event INSERT fails so this doesn't reoccur silently.
+
+## Acceptance
+
+1. After a yolo session, agent_events Read count matches actual Read invocations within 5%.
+2. FK failures (if any remain) log a visible warning, not silent skip.
+3. Test exercises the timing-sensitive parent_event_id path that previously dropped events.</p>
+        </section>
+    </article>
+</body>
+</html>
