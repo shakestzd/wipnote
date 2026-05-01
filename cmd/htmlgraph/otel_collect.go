@@ -78,6 +78,13 @@ func runOtelCollect(sessionID, projectDir, listenAddr string) error {
 	if err := writeCollectorStartEvent(snk, sessionID, port); err != nil {
 		fmt.Fprintf(os.Stderr, "collector_start event: %v\n", err)
 	}
+	// Force the collector_start sentinel to disk immediately so any consumer
+	// that watches the file right after the handshake (e.g. tests, supervisors,
+	// the indexer) sees a non-empty session log without waiting for the next
+	// periodic flush tick.
+	if err := snk.Flush(); err != nil {
+		fmt.Fprintf(os.Stderr, "collector_start flush: %v\n", err)
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

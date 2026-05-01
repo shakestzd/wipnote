@@ -164,6 +164,14 @@ func TestMultiHarnessIngestion(t *testing.T) {
 		t.Errorf("Claude /v1/traces: status=%d, want 200", resp.StatusCode)
 	}
 
+	// Flush the sink to ensure buffered writes are on disk before reading.
+	// The new buffered ndjson.Sink only auto-flushes after FlushThreshold (64)
+	// events or the periodic SyncInterval (2s) — an explicit Flush is required
+	// in tests that send fewer than FlushThreshold signals.
+	if err := snk.Flush(); err != nil {
+		t.Fatalf("flush ndjson sink: %v", err)
+	}
+
 	// --- Read the ndjson output and assert ---
 	eventsPath := filepath.Join(sessDir, "events.ndjson")
 	f, err := os.Open(eventsPath)

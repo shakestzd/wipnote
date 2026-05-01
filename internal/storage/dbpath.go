@@ -72,6 +72,29 @@ func EnsureDBDir(dbPath string) error {
 	return os.MkdirAll(filepath.Dir(dbPath), 0o755)
 }
 
+// WarnIfLegacyDBPresent checks whether any legacy project-local SQLite
+// files are still present and writes a human-readable warning to w for
+// each one found. It never deletes files or blocks startup.
+//
+// Wire from one place that runs early in every binary path — the root
+// cobra command's PersistentPreRun is the right location.
+func WarnIfLegacyDBPresent(projectDir string, w io.Writer) {
+	for _, p := range LegacyProjectDBPaths(projectDir) {
+		info, err := os.Stat(p)
+		if err != nil {
+			continue
+		}
+		rel, err := filepath.Rel(projectDir, p)
+		if err != nil {
+			rel = p
+		}
+		mb := float64(info.Size()) / (1024 * 1024)
+		fmt.Fprintf(w,
+			"[htmlgraph] WARNING: legacy SQLite file at %s (%.0f MB) is unused — DB now lives in the user cache dir. You can delete: %s\n",
+			rel, mb, p)
+	}
+}
+
 // CleanLegacyDBIfSafe checks for legacy project-local SQLite files and
 // handles them based on whether the canonical cache DB exists and is non-empty:
 //

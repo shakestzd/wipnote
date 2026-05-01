@@ -10,11 +10,18 @@
 //   - "ts"      — timestamp in RFC3339Nano
 //   - "harness" — harness name
 //
+// Durability: the sink keeps the file open in append mode with a bufio.Writer.
+// It flushes (bufio.Flush + file.Sync) after every FlushThreshold events and
+// on the SyncInterval ticker, whichever comes first. This ensures events reach
+// disk even if the process is killed (host sleep, devcontainer disconnect,
+// SIGKILL) between writes. Close also flushes+syncs before releasing the file.
+//
 // Every write acquires syscall.Flock(LOCK_EX) before appending and releases
 // it afterward, matching the pattern in session_html.go:147 and materialize.go:241.
 package ndjson
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -28,24 +35,101 @@ import (
 	"github.com/shakestzd/htmlgraph/internal/otel/sink"
 )
 
+const (
+	// FlushThreshold is the number of events after which a flush+sync is triggered.
+	FlushThreshold = 64
+	// SyncInterval is the maximum time between periodic flush+sync calls.
+	SyncInterval = 2 * time.Second
+)
+
 // Sink appends signals to a per-session NDJSON file.
+// The file is kept open with a bufio.Writer for efficient batched writes.
+// A background goroutine periodically flushes and syncs the file.
 type Sink struct {
 	path string
-	mu   sync.Mutex // guards concurrent WriteBatch calls within one process
+	mu   sync.Mutex // guards f, bw, eventCount, closed
+
+	f          *os.File
+	bw         *bufio.Writer
+	eventCount int
+	closed     bool
+
+	stopCh chan struct{}
 }
 
 // New constructs a Sink for the given project directory and session ID.
-// The events.ndjson file is created lazily on first write; the session
-// directory must already exist.
+// The events.ndjson file is opened immediately in append+create mode so that
+// a replacement collector (after host sleep or reconnect) extends the same log
+// rather than starting empty. The session directory must already exist.
+// A background goroutine starts to periodically flush+sync the file.
 func New(projectDir, sessionID string) (*Sink, error) {
 	path := filepath.Join(projectDir, ".htmlgraph", "sessions", sessionID, "events.ndjson")
-	return &Sink{path: path}, nil
+
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+	if err != nil {
+		return nil, fmt.Errorf("ndjson open %s: %w", path, err)
+	}
+
+	s := &Sink{
+		path:   path,
+		f:      f,
+		bw:     bufio.NewWriter(f),
+		stopCh: make(chan struct{}),
+	}
+
+	go s.periodicSync()
+	return s, nil
+}
+
+// periodicSync runs in the background and flushes+syncs the file every SyncInterval.
+// It exits when the sink is closed.
+func (s *Sink) periodicSync() {
+	ticker := time.NewTicker(SyncInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			s.mu.Lock()
+			if !s.closed {
+				_ = s.flushAndSyncLocked()
+			}
+			s.mu.Unlock()
+		case <-s.stopCh:
+			return
+		}
+	}
+}
+
+// flushAndSyncLocked flushes the bufio.Writer and calls Sync on the underlying
+// file. Must be called with s.mu held. Acquires the cross-process flock for
+// the duration of the actual file write so concurrent processes (e.g. a
+// collector child and the indexer) cannot interleave appends — the flock
+// MUST guard the bufio.Flush, not just the in-memory append, because that's
+// the moment buffered bytes hit the shared file.
+func (s *Sink) flushAndSyncLocked() error {
+	if s.bw == nil || s.f == nil {
+		return nil
+	}
+	if err := syscall.Flock(int(s.f.Fd()), syscall.LOCK_EX); err != nil {
+		return fmt.Errorf("ndjson flock %s for flush: %w", s.path, err)
+	}
+	defer syscall.Flock(int(s.f.Fd()), syscall.LOCK_UN) //nolint:errcheck
+	if err := s.bw.Flush(); err != nil {
+		return fmt.Errorf("ndjson bufio flush: %w", err)
+	}
+	if err := s.f.Sync(); err != nil {
+		return fmt.Errorf("ndjson fsync: %w", err)
+	}
+	return nil
 }
 
 // WriteBatch appends one JSON line per signal to events.ndjson.
-// An exclusive flock is held for the duration of the write so concurrent
-// processes (e.g. a collector child and the indexer) don't interleave lines.
-// Empty batches are a no-op.
+// Lines are written to an in-memory bufio.Writer; the cross-process flock
+// is acquired by flushAndSyncLocked at the moment buffered bytes are
+// actually written to the shared file (so concurrent collector + indexer
+// processes can't interleave appends). Empty batches are a no-op. After
+// every FlushThreshold cumulative events, a flush+sync is triggered.
 func (s *Sink) WriteBatch(_ context.Context, harness otel.Harness, resourceAttrs map[string]any, signals []otel.UnifiedSignal) error {
 	if len(signals) == 0 {
 		return nil
@@ -54,16 +138,9 @@ func (s *Sink) WriteBatch(_ context.Context, harness otel.Harness, resourceAttrs
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	f, err := os.OpenFile(s.path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
-	if err != nil {
-		return fmt.Errorf("ndjson open %s: %w", s.path, err)
+	if s.closed {
+		return fmt.Errorf("ndjson sink is closed")
 	}
-	defer f.Close()
-
-	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX); err != nil {
-		return fmt.Errorf("ndjson flock %s: %w", s.path, err)
-	}
-	defer syscall.Flock(int(f.Fd()), syscall.LOCK_UN) //nolint:errcheck
 
 	for i := range signals {
 		line, err := marshalLine(harness, resourceAttrs, &signals[i])
@@ -71,16 +148,57 @@ func (s *Sink) WriteBatch(_ context.Context, harness otel.Harness, resourceAttrs
 			return fmt.Errorf("ndjson marshal signal %s: %w", signals[i].SignalID, err)
 		}
 		line = append(line, '\n')
-		if _, err := f.Write(line); err != nil {
+		if _, err := s.bw.Write(line); err != nil {
 			return fmt.Errorf("ndjson write signal %s: %w", signals[i].SignalID, err)
 		}
+		s.eventCount++
 	}
+
+	// Flush+sync after every FlushThreshold events to bound the data-loss window.
+	if s.eventCount >= FlushThreshold {
+		s.eventCount = 0
+		if err := s.flushAndSyncLocked(); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
-// Close is a no-op for NDJSON — the file is opened and closed per write.
-// Satisfies the sink.SignalSink interface.
-func (s *Sink) Close() error { return nil }
+// Flush immediately flushes the bufio buffer and fsyncs the underlying file
+// to stable storage. Callers that need guaranteed durability before the next
+// periodic tick (e.g. after writing a sentinel event) should call this.
+func (s *Sink) Flush() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.flushAndSyncLocked()
+}
+
+// Close flushes buffered data, syncs the file to disk, stops the background
+// goroutine, and closes the file handle. Safe to call multiple times.
+func (s *Sink) Close() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.closed {
+		return nil
+	}
+	s.closed = true
+	close(s.stopCh)
+
+	var firstErr error
+	if err := s.flushAndSyncLocked(); err != nil && firstErr == nil {
+		firstErr = err
+	}
+	if s.f != nil {
+		if err := s.f.Close(); err != nil && firstErr == nil {
+			firstErr = err
+		}
+		s.f = nil
+		s.bw = nil
+	}
+	return firstErr
+}
 
 // Ensure Sink implements SignalSink at compile time.
 var _ sink.SignalSink = (*Sink)(nil)

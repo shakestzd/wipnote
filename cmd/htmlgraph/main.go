@@ -225,6 +225,10 @@ func buildRoot() *cobra.Command {
 	cleanup.GroupID = "data"
 	root.AddCommand(cleanup)
 
+	cache := cacheCmd()
+	cache.GroupID = "data"
+	root.AddCommand(cache)
+
 	// dev group
 	yolo := yoloCmd()
 	yolo.GroupID = "dev"
@@ -315,7 +319,16 @@ func persistentPreRunE(cmd *cobra.Command, _ []string) error {
 		return nil
 	}
 	projectDir := filepath.Dir(hgDir)
-	storage.CleanLegacyDBIfSafe(projectDir, os.Stderr)
+	storage.WarnIfLegacyDBPresent(projectDir, os.Stderr)
+	// Opportunistic prune is destructive; skip it for the `cache` subtree so
+	// `htmlgraph cache prune --dry-run` reports the disk's actual state, and
+	// pass the active project's cache dir as protected so the LRU sweep can't
+	// pull the read-index out from under the very command that's about to run.
+	if !inCacheSubtree(cmd) {
+		if cacheRoot, cerr := storage.CacheRoot(); cerr == nil {
+			storage.OpportunisticPrune(cacheRoot, projectDir, os.Stderr)
+		}
+	}
 	if database, dberr := openDB(hgDir); dberr == nil {
 		_, _ = agent.EnsureSession(database, projectDir)
 		database.Close()
@@ -343,6 +356,19 @@ func persistentPreRunE(cmd *cobra.Command, _ []string) error {
 		_ = reg.Save()
 	}
 	return nil
+}
+
+// inCacheSubtree reports whether cmd or any ancestor is the `cache` command.
+// Used to bypass the destructive opportunistic prune in PersistentPreRunE so
+// `htmlgraph cache prune --dry-run` reports the cache's actual state rather
+// than what's left after the prune the pre-run hook just performed.
+func inCacheSubtree(cmd *cobra.Command) bool {
+	for p := cmd; p != nil; p = p.Parent() {
+		if p.Name() == "cache" {
+			return true
+		}
+	}
+	return false
 }
 
 // findHtmlgraphDir locates the .htmlgraph directory by delegating to the

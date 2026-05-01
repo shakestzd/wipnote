@@ -94,11 +94,14 @@ func TestNDJSONSink_WriteBatch(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ndj.New: %v", err)
 	}
-	t.Cleanup(func() { s.Close() })
 
 	signals := newTestSignals("sess-ndjson")
 	if err := s.WriteBatch(context.Background(), otel.HarnessClaude, map[string]any{"foo": "bar"}, signals); err != nil {
 		t.Fatalf("WriteBatch: %v", err)
+	}
+	// Close flushes the bufio buffer and syncs before we read.
+	if err := s.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
 	}
 
 	ndjsonPath := filepath.Join(sessionDir, "events.ndjson")
@@ -179,7 +182,6 @@ func TestNDJSONSink_Append(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ndj.New: %v", err)
 	}
-	defer s.Close()
 
 	signals := newTestSignals("sess-append")
 	if err := s.WriteBatch(context.Background(), otel.HarnessClaude, nil, signals[:1]); err != nil {
@@ -187,6 +189,10 @@ func TestNDJSONSink_Append(t *testing.T) {
 	}
 	if err := s.WriteBatch(context.Background(), otel.HarnessClaude, nil, signals[1:2]); err != nil {
 		t.Fatalf("second WriteBatch: %v", err)
+	}
+	// Close flushes the bufio buffer and syncs before we read.
+	if err := s.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
 	}
 
 	ndjsonPath := filepath.Join(sessionDir, "events.ndjson")
