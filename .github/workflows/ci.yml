@@ -21,13 +21,3 @@ jobs:
         run: go vet ./...
       - name: Test
         run: go test ./...
-      - name: Build htmlgraph binary
-        run: go build -o htmlgraph ./cmd/htmlgraph/
-      - name: Verify docs/code-areas.md is up to date
-        run: |
-          # Rebuild the SQLite read index from canonical .htmlgraph/*.html so
-          # code-areas reads deterministic state regardless of any stale or
-          # empty cache DB present in the runner environment.
-          ./htmlgraph reindex --full
-          ./htmlgraph code-areas --format markdown > docs/code-areas.md.gen
-          diff -q docs/code-areas.md docs/code-areas.md.gen

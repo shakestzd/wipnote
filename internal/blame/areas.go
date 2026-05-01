@@ -9,7 +9,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"io/fs"
+	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -66,20 +67,62 @@ type AreasResult struct {
 	Untracked []string `json:"untracked,omitempty"`
 }
 
-// skipDir reports whether a directory should be excluded from the walk.
-func skipDir(name string) bool {
+// untrackedTrackID is the synthetic track ID used by blame.rollupTracks for
+// features whose TrackID is empty. WalkAreas mirrors that grouping when
+// computing distinct-feature counts so the "(untracked)" track row reports a
+// truthful FeatureCount.
+const untrackedTrackID = "(untracked)"
+
+// excludedDir reports whether a path component should keep its file out of
+// the inventory. .htmlgraph is skipped because work-item HTML is its own
+// attribution domain, not source code; build outputs and vendored deps are
+// noise for this particular doc.
+func excludedDir(name string) bool {
 	switch name {
-	case ".git", ".htmlgraph", "node_modules", "vendor", ".claude",
-		"dist", "bin", "build", "out", "target":
+	case ".htmlgraph", "node_modules", "vendor", "dist", "out", "build", "target":
 		return true
 	}
-	// Hidden directories (e.g. .github, .vscode) are skipped.
-	return strings.HasPrefix(name, ".")
+	return false
 }
 
-// WalkAreas walks root, runs blame.Query for every source file, and groups the
-// results as requested by opts.
+func excludedPath(rel string) bool {
+	for _, part := range strings.Split(rel, "/") {
+		if excludedDir(part) {
+			return true
+		}
+	}
+	return false
+}
+
+// gitListFiles returns the tracked files at root, root-relative with forward
+// slashes. Using `git ls-files` (instead of walking the working tree) keeps
+// the inventory deterministic across environments — build artifacts, untracked
+// editor scratch files, and the local cache directory are all invisible to it.
+func gitListFiles(ctx context.Context, root string) ([]string, error) {
+	cmd := exec.CommandContext(ctx, "git", "-C", root, "ls-files", "-z")
+	out, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("git ls-files: %w", err)
+	}
+	raw := strings.Split(strings.TrimRight(string(out), "\x00"), "\x00")
+	files := make([]string, 0, len(raw))
+	for _, p := range raw {
+		if p == "" || excludedPath(p) {
+			continue
+		}
+		files = append(files, p)
+	}
+	return files, nil
+}
+
+// WalkAreas enumerates tracked files under root, runs blame.Query for each,
+// and groups the results as requested by opts.
 func WalkAreas(ctx context.Context, database *sql.DB, root string, opts WalkOptions) (*AreasResult, error) {
+	files, err := gitListFiles(ctx, root)
+	if err != nil {
+		return nil, err
+	}
+
 	// trackMap accumulates per-track aggregates (ByTrack mode).
 	trackMap := make(map[string]*TrackArea)
 	// trackFeatures holds the set of distinct feature IDs touching each track,
@@ -89,44 +132,25 @@ func WalkAreas(ctx context.Context, database *sql.DB, root string, opts WalkOpti
 	var byFile []FileArea
 	var untracked []string
 
-	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			// Failure to read root itself is fatal — we'd silently return an
-			// empty result. Failures on individual child entries (a single
-			// unreadable subdir or stale dirent) are skipped.
-			if path == root {
-				return walkErr
-			}
-			return nil
+	for _, rel := range files {
+		if err := ctx.Err(); err != nil {
+			return nil, err
 		}
-		if d.IsDir() {
-			if path != root && skipDir(d.Name()) {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		if !d.Type().IsRegular() {
-			return nil
+		// Skip directories that may have been listed as gitlinks (submodules).
+		if info, statErr := os.Stat(filepath.Join(root, rel)); statErr == nil && info.IsDir() {
+			continue
 		}
 
-		// Convert to a root-relative path for DB matching.
-		rel, err := filepath.Rel(root, path)
-		if err != nil {
-			rel = path
-		}
-		// Normalise to forward slashes for cross-platform consistency.
-		rel = filepath.ToSlash(rel)
-
-		result, err := Query(ctx, database, rel, QueryOptions{})
-		if err != nil {
-			return fmt.Errorf("blame %s: %w", rel, err)
+		result, queryErr := Query(ctx, database, rel, QueryOptions{})
+		if queryErr != nil {
+			return nil, fmt.Errorf("blame %s: %w", rel, queryErr)
 		}
 
 		if len(result.Features) == 0 {
 			if opts.includeUntracked() {
 				untracked = append(untracked, rel)
 			}
-			return nil
+			continue
 		}
 
 		if opts.ByFile {
@@ -134,7 +158,7 @@ func WalkAreas(ctx context.Context, database *sql.DB, root string, opts WalkOpti
 				Path:   rel,
 				Tracks: result.Tracks,
 			})
-			return nil
+			continue
 		}
 
 		// ByTrack grouping: fan out to each track that touched this file.
@@ -156,21 +180,17 @@ func WalkAreas(ctx context.Context, database *sql.DB, root string, opts WalkOpti
 			ta.TouchCount += tr.TouchCount
 		}
 		// Record distinct feature IDs per track from this file's features.
+		// Empty TrackID is normalised to the same synthetic key blame uses,
+		// so the "(untracked)" row's FeatureCount stays truthful.
 		for _, fr := range result.Features {
-			if fr.TrackID == "" {
-				continue
+			tid := fr.TrackID
+			if tid == "" {
+				tid = untrackedTrackID
 			}
-			if set, ok := trackFeatures[fr.TrackID]; ok {
+			if set, ok := trackFeatures[tid]; ok {
 				set[fr.ID] = struct{}{}
 			}
 		}
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-	if err := ctx.Err(); err != nil {
-		return nil, err
 	}
 
 	// Resolve distinct-feature counts per track now that the walk is complete.

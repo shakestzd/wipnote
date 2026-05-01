@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -13,6 +14,25 @@ import (
 	"github.com/shakestzd/htmlgraph/internal/db"
 	"github.com/shakestzd/htmlgraph/internal/models"
 )
+
+// gitInitWithFiles makes root a git repo with the given files committed, so
+// blame.WalkAreas (which drives the inventory off `git ls-files`) sees them.
+func gitInitWithFiles(t *testing.T, root string, files ...string) {
+	t.Helper()
+	for _, args := range [][]string{
+		{"init", "-q", "-b", "main"},
+		{"-c", "user.email=t@t", "-c", "user.name=t", "add", "--"},
+		{"-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "-m", "seed"},
+	} {
+		if args[len(args)-1] == "--" {
+			args = append(args, files...)
+		}
+		cmd := exec.Command("git", append([]string{"-C", root}, args...)...)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+	}
+}
 
 // setupAreasTestDB creates a temp .htmlgraph dir with a populated SQLite DB.
 // Returns the htmlgraph dir path and a cleanup function.
@@ -33,12 +53,14 @@ func areasSetup(t *testing.T) (root, hgDir string) {
 	hgDir = setupAreasTestDB(t)
 	root = filepath.Dir(hgDir)
 
-	// Write some source files.
-	for _, name := range []string{"alpha.go", "beta.go", "gamma.go"} {
+	// Write some source files and commit them so git ls-files sees them.
+	files := []string{"alpha.go", "beta.go", "gamma.go"}
+	for _, name := range files {
 		if err := os.WriteFile(filepath.Join(root, name), []byte("package main"), 0o644); err != nil {
 			t.Fatalf("write %s: %v", name, err)
 		}
 	}
+	gitInitWithFiles(t, root, files...)
 
 	d, err := db.Open(filepath.Join(hgDir, "htmlgraph.db"))
 	if err != nil {

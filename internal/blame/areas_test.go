@@ -3,6 +3,7 @@ package blame_test
 import (
 	"context"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 
@@ -11,6 +12,25 @@ import (
 
 // boolPtr is a test helper to get a *bool from a literal.
 func boolPtr(b bool) *bool { return &b }
+
+// gitInit makes root a git repo with the given files committed, so
+// blame.WalkAreas (which drives the inventory off `git ls-files`) sees them.
+func gitInit(t *testing.T, root string, files ...string) {
+	t.Helper()
+	for _, args := range [][]string{
+		{"init", "-q", "-b", "main"},
+		{"-c", "user.email=t@t", "-c", "user.name=t", "add", "--"},
+		{"-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "-m", "seed"},
+	} {
+		if args[len(args)-1] == "--" {
+			args = append(args, files...)
+		}
+		cmd := exec.Command("git", append([]string{"-C", root}, args...)...)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+	}
+}
 
 func TestWalkAreas_ByTrack_Grouping(t *testing.T) {
 	database := openTestDB(t)
@@ -26,6 +46,7 @@ func TestWalkAreas_ByTrack_Grouping(t *testing.T) {
 	writeFile(t, root, "file-a.go")
 	writeFile(t, root, "file-b.go")
 	writeFile(t, root, "file-c.go")
+	gitInit(t, root, "file-a.go", "file-b.go", "file-c.go")
 
 	insertFeatureFile(t, database, "ff-areas-1", "feat-areas-a1", "file-a.go")
 	insertFeatureFile(t, database, "ff-areas-2", "feat-areas-a2", "file-a.go")
@@ -72,6 +93,7 @@ func TestWalkAreas_ByFile_Inverse(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, root, "alpha.go")
 	writeFile(t, root, "beta.go")
+	gitInit(t, root, "alpha.go", "beta.go")
 
 	insertFeatureFile(t, database, "ff-byfile-1", "feat-byfile", "alpha.go")
 	insertFeatureFile(t, database, "ff-byfile-2", "feat-byfile", "beta.go")
@@ -102,6 +124,7 @@ func TestWalkAreas_UntrackedDetection(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, root, "untracked1.go")
 	writeFile(t, root, "untracked2.go")
+	gitInit(t, root, "untracked1.go", "untracked2.go")
 
 	res, err := blame.WalkAreas(context.Background(), database, root, blame.WalkOptions{
 		IncludeUntracked: boolPtr(true),
@@ -123,6 +146,7 @@ func TestWalkAreas_UntrackedExcluded(t *testing.T) {
 
 	root := t.TempDir()
 	writeFile(t, root, "noattr.go")
+	gitInit(t, root, "noattr.go")
 
 	res, err := blame.WalkAreas(context.Background(), database, root, blame.WalkOptions{
 		IncludeUntracked: boolPtr(false),
@@ -148,6 +172,8 @@ func TestWalkAreas_RootScoping(t *testing.T) {
 
 	writeFile(t, root1, "in-scope.go")
 	writeFile(t, root2, "out-of-scope.go")
+	gitInit(t, root1, "in-scope.go")
+	gitInit(t, root2, "out-of-scope.go")
 
 	// The DB matches on relative paths; register only out-of-scope.go
 	insertFeatureFile(t, database, "ff-scope-out", "feat-scope", "out-of-scope.go")
@@ -168,21 +194,24 @@ func TestWalkAreas_RootScoping(t *testing.T) {
 	}
 }
 
-func TestWalkAreas_SkipHiddenDirs(t *testing.T) {
+// TestWalkAreas_ExcludesHtmlgraphDir verifies that work-item HTML under
+// .htmlgraph/ is excluded — those files have their own attribution model
+// and would otherwise drown out the source-code inventory.
+func TestWalkAreas_ExcludesHtmlgraphDir(t *testing.T) {
 	database := openTestDB(t)
 
 	root := t.TempDir()
 	writeFile(t, root, "visible.go")
-	// Create hidden dir with a file — should be skipped.
-	hiddenDir := filepath.Join(root, ".hidden")
-	if err := os.MkdirAll(hiddenDir, 0o755); err != nil {
+	hgDir := filepath.Join(root, ".htmlgraph")
+	if err := os.MkdirAll(hgDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	writeFile(t, hiddenDir, "secret.go")
+	writeFile(t, hgDir, "trk-x.html")
+	gitInit(t, root, "visible.go", ".htmlgraph/trk-x.html")
 
-	insertTrack(t, database, "trk-hidden", "Track Hidden")
-	insertFeature(t, database, "feat-hidden", "Feature Hidden", "trk-hidden")
-	insertFeatureFile(t, database, "ff-hidden", "feat-hidden", ".hidden/secret.go")
+	insertTrack(t, database, "trk-htmlgraph", "Track Htmlgraph")
+	insertFeature(t, database, "feat-htmlgraph", "Feature Htmlgraph", "trk-htmlgraph")
+	insertFeatureFile(t, database, "ff-htmlgraph", "feat-htmlgraph", ".htmlgraph/trk-x.html")
 
 	res, err := blame.WalkAreas(context.Background(), database, root, blame.WalkOptions{
 		IncludeUntracked: boolPtr(true),
@@ -191,17 +220,16 @@ func TestWalkAreas_SkipHiddenDirs(t *testing.T) {
 		t.Fatalf("WalkAreas: %v", err)
 	}
 
-	// .hidden/secret.go should NOT appear — the hidden dir was skipped.
 	for _, ta := range res.ByTrack {
 		for _, f := range ta.Files {
-			if f.Path == ".hidden/secret.go" {
-				t.Error("hidden file should not appear in ByTrack")
+			if filepath.Dir(f.Path) == ".htmlgraph" {
+				t.Errorf("file under .htmlgraph/ should not appear in ByTrack: %s", f.Path)
 			}
 		}
 	}
 	for _, u := range res.Untracked {
-		if u == ".hidden/secret.go" {
-			t.Error("hidden file should not appear in Untracked")
+		if filepath.Dir(u) == ".htmlgraph" {
+			t.Errorf("file under .htmlgraph/ should not appear in Untracked: %s", u)
 		}
 	}
 }

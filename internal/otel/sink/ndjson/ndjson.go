@@ -121,10 +121,18 @@ func (s *Sink) flushAndSyncLocked() error {
 		return fmt.Errorf("ndjson flock %s for flush: %w", s.path, err)
 	}
 	defer syscall.Flock(int(s.f.Fd()), syscall.LOCK_UN) //nolint:errcheck
-	if _, err := s.f.Write(s.buf.Bytes()); err != nil {
-		return fmt.Errorf("ndjson write: %w", err)
+	// Drain the buffer with the io.Writer convention: a partial write returns
+	// (n>0, err). Advance past the written bytes before returning so a retry
+	// doesn't duplicate what already reached disk.
+	for s.buf.Len() > 0 {
+		n, err := s.f.Write(s.buf.Bytes())
+		if n > 0 {
+			s.buf.Next(n)
+		}
+		if err != nil {
+			return fmt.Errorf("ndjson write: %w", err)
+		}
 	}
-	s.buf.Reset()
 	if err := s.f.Sync(); err != nil {
 		return fmt.Errorf("ndjson fsync: %w", err)
 	}
