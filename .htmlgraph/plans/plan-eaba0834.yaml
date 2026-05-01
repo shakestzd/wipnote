@@ -1,0 +1,16 @@
+meta:
+    id: plan-eaba0834
+    track_id: trk-2c55adea
+    title: 'Write-path migration: templater + backfill + parser fast paths (Phase 2)'
+    description: 'Sub-plan of plan-3bbc313f — Phase 2 write-path. Refactor every HTML emitter to render from a single schema struct, backfill all 577 existing files to v1, and ship the read-side parser fast paths that downstream consumer migrations depend on. Highest-risk sub-plan in the migration: physically rewrites every HTML file in the repo.'
+    created_at: "2026-05-01"
+    status: draft
+    version: 2
+design:
+    problem: ""
+    goals: []
+    constraints: []
+    approved: false
+    comment: ""
+slices: []
+questions: []
