@@ -10,14 +10,15 @@
 //   - "ts"      — timestamp in RFC3339Nano
 //   - "harness" — harness name
 //
-// Durability: the sink keeps the file open in append mode with a bufio.Writer.
-// It flushes (bufio.Flush + file.Sync) after every FlushThreshold events and
+// Durability: signals are staged in an in-memory bytes.Buffer and drained to
+// the file under the cross-process flock after every FlushThreshold events and
 // on the SyncInterval ticker, whichever comes first. This ensures events reach
 // disk even if the process is killed (host sleep, devcontainer disconnect,
 // SIGKILL) between writes. Close also flushes+syncs before releasing the file.
 //
-// Every write acquires syscall.Flock(LOCK_EX) before appending and releases
-// it afterward, matching the pattern in session_html.go:147 and materialize.go:241.
+// flushAndSyncLocked acquires syscall.Flock(LOCK_EX) before writing the staged
+// bytes (matching the pattern in session_html.go:147 and materialize.go:241),
+// so concurrent collector + indexer processes cannot interleave partial records.
 package ndjson
 
 import (
