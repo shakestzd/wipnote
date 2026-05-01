@@ -1,0 +1,16 @@
+meta:
+    id: plan-c46c2a5a
+    track_id: trk-2c55adea
+    title: Migrate every SQLite consumer to HTML+NDJSON (Phase 3)
+    description: 'Sub-plan of plan-3bbc313f — Phase 3 consumer migration. Five parallel migrations of disjoint SQLite-using subsystems: CLI commands, htmlgraph query subcommand, dashboard API endpoints, hook event persistence, and internal/{graph,agent,planchat,registry}. All converge on the build-tag stub that proves SQLite isn''t required.'
+    created_at: "2026-05-01"
+    status: draft
+    version: 2
+design:
+    problem: ""
+    goals: []
+    constraints: []
+    approved: false
+    comment: ""
+slices: []
+questions: []
