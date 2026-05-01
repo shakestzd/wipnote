@@ -380,6 +380,28 @@ func TestSliceStatusEndpoint(t *testing.T) {
 	if w2.Code != http.StatusBadRequest {
 		t.Errorf("invalid status: got %d, want 400; body: %s", w2.Code, w2.Body.String())
 	}
+
+	// Round-trip: GET /slices must reflect the new execution_status.
+	// runSetSliceStatus writes only to plan_feedback, not the YAML mirror,
+	// so the read path must overlay plan_feedback values.
+	g := f.doRequest(http.MethodGet, "/api/plans/"+f.planID+"/slices", nil)
+	if g.Code != http.StatusOK {
+		t.Fatalf("GET /slices: got %d, want 200", g.Code)
+	}
+	var slices []sliceJSONItem
+	if err := json.Unmarshal(g.Body.Bytes(), &slices); err != nil {
+		t.Fatalf("decode slices: %v", err)
+	}
+	var got string
+	for _, s := range slices {
+		if s.Num == 1 {
+			got = s.ExecutionStatus
+			break
+		}
+	}
+	if got != "in_progress" {
+		t.Errorf("slice 1 execution_status after status POST: got %q, want %q", got, "in_progress")
+	}
 }
 
 // ---- POST /api/plans/{id}/slice/{n}/answer ---------------------------------

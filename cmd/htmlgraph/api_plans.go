@@ -652,8 +652,8 @@ func planRouter(database *sql.DB, htmlgraphDir string) http.HandlerFunc {
 	yamlH := planYAMLHandler(htmlgraphDir)
 	renderH := planRenderHandler(database, htmlgraphDir)
 	eventsH := planEventsHandler(database)
-	getJSONH := planGetJSONHandler(htmlgraphDir)
-	slicesH := planSlicesHandler(htmlgraphDir)
+	getJSONH := planGetJSONHandler(htmlgraphDir, database)
+	slicesH := planSlicesHandler(htmlgraphDir, database)
 	sliceMutateH := sliceMutationRouter(htmlgraphDir)
 	return func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
@@ -720,7 +720,10 @@ type planJSONResponse struct {
 
 // buildSliceJSONItems projects the plan's slices into the JSON wire shape,
 // including derivation of has_unanswered_questions from slice.Questions.
-func buildSliceJSONItems(plan *planyaml.PlanYAML) []sliceJSONItem {
+// When db is non-nil, execution_status is overlaid from plan_feedback —
+// runSetSliceStatus writes only to plan_feedback, not the YAML.
+func buildSliceJSONItems(plan *planyaml.PlanYAML, db *sql.DB, planID string) []sliceJSONItem {
+	execOverlay := loadSliceExecOverlay(db, planID)
 	out := make([]sliceJSONItem, 0, len(plan.Slices))
 	for _, s := range plan.Slices {
 		deps := s.Deps
@@ -734,14 +737,46 @@ func buildSliceJSONItems(plan *planyaml.PlanYAML) []sliceJSONItem {
 				break
 			}
 		}
+		exec := s.ExecutionStatus
+		if v, ok := execOverlay[s.Num]; ok {
+			exec = v
+		}
 		out = append(out, sliceJSONItem{
 			Num:                    s.Num,
 			Title:                  s.Title,
 			ApprovalStatus:         s.ApprovalStatus,
-			ExecutionStatus:        s.ExecutionStatus,
+			ExecutionStatus:        exec,
 			Deps:                   deps,
 			HasUnansweredQuestions: hasUnanswered,
 		})
+	}
+	return out
+}
+
+// loadSliceExecOverlay returns slice_num -> execution_status read from the
+// plan_feedback table (action='set_execution_status'). Failures yield an
+// empty map; the dashboard then falls back to YAML values.
+func loadSliceExecOverlay(db *sql.DB, planID string) map[int]string {
+	out := map[int]string{}
+	if db == nil {
+		return out
+	}
+	rows, err := db.Query(`SELECT section, value FROM plan_feedback
+		WHERE plan_id = ? AND action = 'set_execution_status' AND section LIKE 'slice-%'`, planID)
+	if err != nil {
+		return out
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var section, value string
+		if err := rows.Scan(&section, &value); err != nil {
+			continue
+		}
+		n, err := strconv.Atoi(strings.TrimPrefix(section, "slice-"))
+		if err != nil {
+			continue
+		}
+		out[n] = value
 	}
 	return out
 }
@@ -763,7 +798,7 @@ func loadPlanYAMLForAPI(htmlgraphDir, planID string) (*planyaml.PlanYAML, int, s
 
 // planGetJSONHandler returns the full plan as JSON.
 // GET /api/plans/{id}
-func planGetJSONHandler(htmlgraphDir string) http.HandlerFunc {
+func planGetJSONHandler(htmlgraphDir string, db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -786,7 +821,7 @@ func planGetJSONHandler(htmlgraphDir string) http.HandlerFunc {
 		respondJSON(w, planJSONResponse{
 			Meta:      plan.Meta,
 			Design:    plan.Design,
-			Slices:    buildSliceJSONItems(plan),
+			Slices:    buildSliceJSONItems(plan, db, planID),
 			Questions: questions,
 		})
 	}
@@ -794,7 +829,7 @@ func planGetJSONHandler(htmlgraphDir string) http.HandlerFunc {
 
 // planSlicesHandler returns just the slices array for a plan.
 // GET /api/plans/{id}/slices
-func planSlicesHandler(htmlgraphDir string) http.HandlerFunc {
+func planSlicesHandler(htmlgraphDir string, db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -810,7 +845,7 @@ func planSlicesHandler(htmlgraphDir string) http.HandlerFunc {
 			http.Error(w, msg, code)
 			return
 		}
-		respondJSON(w, buildSliceJSONItems(plan))
+		respondJSON(w, buildSliceJSONItems(plan, db, planID))
 	}
 }
 
