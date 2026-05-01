@@ -206,3 +206,24 @@ func TestCodexMarketplaceSourcePathForNestedSubdir(t *testing.T) {
 		t.Errorf("expected plugin manifest at nested path %q: %v", pluginManifest, err)
 	}
 }
+
+// TestCodexPluginJSONDeclaresSkillsPath verifies that the generated plugin.json
+// includes the "skills": "./skills/" field, which tells Codex's TUI where to find
+// SKILL.md files for mention autocomplete (e.g., $htmlgraph or $skill-name).
+func TestCodexPluginJSONDeclaresSkillsPath(t *testing.T) {
+	repoRoot := t.TempDir()
+	seedAssets(t, repoRoot)
+	outDir := filepath.Join(repoRoot, "packages", "codex-marketplace")
+
+	if err := (codexAdapter{}).Emit(fixtureManifest(), repoRoot, outDir); err != nil {
+		t.Fatalf("Emit: %v", err)
+	}
+
+	pluginManifest := filepath.Join(outDir, ".agents", "plugins", "htmlgraph", ".codex-plugin", "plugin.json")
+	var plug codexPluginJSON
+	readJSON(t, pluginManifest, &plug)
+
+	if plug.Skills != "./skills/" {
+		t.Errorf("plugin.json skills field = %q, want %q", plug.Skills, "./skills/")
+	}
+}

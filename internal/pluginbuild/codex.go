@@ -165,6 +165,7 @@ type codexPluginJSON struct {
 	Repository  string             `json:"repository,omitempty"`
 	License     string             `json:"license,omitempty"`
 	Keywords    []string           `json:"keywords,omitempty"`
+	Skills      string             `json:"skills,omitempty"`
 	Interface   codexInterfaceJSON `json:"interface"`
 }
 
@@ -196,6 +197,7 @@ func writeCodexManifest(m *Manifest, path string) error {
 		Repository: m.Repository,
 		License:    m.License,
 		Keywords:   m.Keywords,
+		Skills:     "./skills/",
 		Interface: codexInterfaceJSON{
 			DisplayName:      "HtmlGraph",
 			ShortDescription: m.Description,

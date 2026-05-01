@@ -20,6 +20,7 @@
     "git-based",
     "offline-first"
   ],
+  "skills": "./skills/",
   "interface": {
     "displayName": "HtmlGraph",
     "shortDescription": "Local-first observability and coordination platform for AI-assisted development. Go binary hooks for near-zero cold start.",
