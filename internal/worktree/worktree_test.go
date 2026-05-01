@@ -344,6 +344,36 @@ func TestEnsureForTrackTitled_BranchExistsWithoutWorktree(t *testing.T) {
 	}
 }
 
+// TestEnsureForTrackTitled_BranchCheckedOutInMainRepo guards against silently
+// reusing a non-isolated checkout (review finding from job 162). When the track
+// branch happens to be checked out in the main repo (or any path outside
+// .claude/worktrees/), EnsureForTrackTitled must refuse to attach rather than
+// running yolo against the user's primary working tree.
+func TestEnsureForTrackTitled_BranchCheckedOutInMainRepo(t *testing.T) {
+	dir := setupGitRepo(t)
+
+	// Create the track branch and check it out in the MAIN repo — simulating
+	// `git checkout trk-X` outside any managed worktree.
+	if out, err := exec.Command("git", "-C", dir, "checkout", "-b", "trk-mainrepo01").CombinedOutput(); err != nil {
+		t.Fatalf("git checkout -b: %v: %s", err, out)
+	}
+
+	// EnsureForTrackTitled must NOT reuse the main repo path.
+	_, err := worktree.EnsureForTrackTitled("Main Repo Track", "trk-mainrepo01", dir, io.Discard)
+	if err == nil {
+		t.Fatalf("expected error when branch is checked out in main repo, got nil")
+	}
+	if !strings.Contains(err.Error(), "already checked out") {
+		t.Errorf("expected 'already checked out' in error, got: %v", err)
+	}
+
+	// And the managed worktree directory must NOT have been created.
+	managedPath := filepath.Join(dir, ".claude", "worktrees", "main-repo-track-trk-mainrepo01")
+	if _, statErr := os.Stat(managedPath); statErr == nil {
+		t.Errorf("managed worktree should not have been created at %s", managedPath)
+	}
+}
+
 // TestEnsureForTrackTitled_StaleRegistrationAfterManualRemoval covers the case
 // where the worktree directory was rm-rf'd manually (no `git worktree remove`),
 // so git's worktree registration is stale. EnsureForTrackTitled must prune and

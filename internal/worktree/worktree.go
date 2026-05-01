@@ -224,8 +224,18 @@ func addOrAttachWorktree(repoRoot, worktreePath, branchName string) (string, boo
 	// so the porcelain listing reflects current on-disk state. Best-effort.
 	_ = exec.Command("git", "-C", repoRoot, "worktree", "prune").Run()
 
+	managedRoot := filepath.Join(repoRoot, ".claude", "worktrees")
 	if existing := worktreeOnBranch(repoRoot, branchName); existing != "" {
-		return existing, false, nil
+		// Only reuse worktrees we manage. The branch may be checked out at the
+		// main repo path or some external worktree — silently running yolo
+		// against either of those would bypass isolation.
+		if isUnderDir(existing, managedRoot) {
+			return existing, false, nil
+		}
+		return "", false, fmt.Errorf(
+			"branch %s is already checked out at %s (outside %s); "+
+				"switch or remove that checkout before re-running",
+			branchName, existing, managedRoot)
 	}
 
 	if err := os.MkdirAll(filepath.Dir(worktreePath), 0755); err != nil {
@@ -247,11 +257,33 @@ func addOrAttachWorktree(repoRoot, worktreePath, branchName string) (string, boo
 	return worktreePath, true, nil
 }
 
+// isUnderDir reports whether path is the same as, or nested under, dir.
+// Both paths are resolved to absolute form before comparison so callers can
+// pass repo-relative inputs from `git worktree list --porcelain` without
+// worrying about format differences.
+func isUnderDir(path, dir string) bool {
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return false
+	}
+	absDir, err := filepath.Abs(dir)
+	if err != nil {
+		return false
+	}
+	rel, err := filepath.Rel(absDir, absPath)
+	if err != nil {
+		return false
+	}
+	return rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
+}
+
 // worktreeOnBranch returns the path of the worktree currently checked out on
 // branchName per `git worktree list --porcelain`, or "" when no worktree is on
 // that branch. The porcelain format is more authoritative than scanning a
 // directory because it reflects worktrees registered anywhere in the repo and
-// stays accurate after `git worktree prune`.
+// stays accurate after `git worktree prune`. Callers must filter the result
+// against an expected parent directory before reusing — the helper itself
+// does not constrain location.
 func worktreeOnBranch(repoRoot, branchName string) string {
 	out, err := exec.Command("git", "-C", repoRoot, "worktree", "list", "--porcelain").Output()
 	if err != nil {
