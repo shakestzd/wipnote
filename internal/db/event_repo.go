@@ -31,6 +31,10 @@ func lookupAgentIDByEvent(database *sql.DB, eventID string) string {
 // is resolved automatically and stored as parent_agent_id, materialising the
 // agent-to-agent lineage edge in a single hop. Only new rows written after this
 // change will have parent_agent_id populated; no historical backfill is performed.
+//
+// parent_event_id is stored as best-effort lineage metadata with no FK constraint
+// (removed in bug-89990f33): the row is always persisted even when the parent row
+// doesn't exist yet (timing races are now silently OK).
 func InsertEvent(db *sql.DB, e *models.AgentEvent) error {
 	if e.ParentEventID != "" && e.ParentAgentID == "" {
 		e.ParentAgentID = lookupAgentIDByEvent(db, e.ParentEventID)
