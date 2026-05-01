@@ -177,6 +177,10 @@ func buildRoot() *cobra.Command {
 	codeAreas.GroupID = "query"
 	root.AddCommand(codeAreas)
 
+	contextPack := contextPackCmd()
+	contextPack.GroupID = "query"
+	root.AddCommand(contextPack)
+
 	executePreview := executePreviewCmd()
 	executePreview.GroupID = "query"
 	root.AddCommand(executePreview)

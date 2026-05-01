@@ -1,0 +1,330 @@
+package main
+
+import (
+	"bytes"
+	"context"
+	"fmt"
+	"os/exec"
+	"path/filepath"
+	"sort"
+	"strconv"
+	"strings"
+
+	"github.com/shakestzd/htmlgraph/internal/blame"
+	dbpkg "github.com/shakestzd/htmlgraph/internal/db"
+	"github.com/shakestzd/htmlgraph/internal/models"
+	"github.com/shakestzd/htmlgraph/internal/planyaml"
+	"github.com/shakestzd/htmlgraph/internal/workitem"
+	"github.com/spf13/cobra"
+)
+
+const contextPackCommitLimit = 8
+
+// contextPackCmd returns the cobra command for `htmlgraph context-pack <id>`.
+func contextPackCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "context-pack <work-item-id>",
+		Short: "Emit a markdown briefing for a dispatched agent picking up a work item",
+		Long: `Produces a structured GFM briefing covering all context a subagent
+needs to pick up a work item: claim command, branch-sync state, description,
+code surface, recent commits, and open plan questions.
+
+Accepts partial IDs (e.g. feat-55d3 resolves to feat-55d39535).
+
+Example:
+  htmlgraph context-pack feat-55d39535
+  htmlgraph context-pack feat-55d3`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runContextPack(cmd.Context(), args[0])
+		},
+	}
+}
+
+// runContextPack is the main entry point: resolves the ID, loads all data,
+// and emits the briefing to stdout.
+func runContextPack(ctx context.Context, rawID string) error {
+	dir, err := findHtmlgraphDir()
+	if err != nil {
+		return err
+	}
+
+	fullID, err := workitem.ResolvePartialID(dir, rawID)
+	if err != nil {
+		return err
+	}
+
+	proj, err := workitem.Open(dir, "htmlgraph-cli")
+	if err != nil {
+		return fmt.Errorf("open project: %w", err)
+	}
+	defer proj.DB.Close()
+
+	node, err := resolveNode(proj, fullID)
+	if err != nil {
+		return err
+	}
+
+	// WalkAreas is expensive (git ls-files + blame per file). Call ONCE.
+	var trackArea *blame.TrackArea
+	if node.TrackID != "" {
+		root := filepath.Dir(dir)
+		fa := false
+		res, walkErr := blame.WalkAreas(ctx, proj.DB, root, blame.WalkOptions{
+			ByFile:           false,
+			IncludeUntracked: &fa,
+		})
+		if walkErr == nil {
+			for i := range res.ByTrack {
+				if res.ByTrack[i].TrackID == node.TrackID {
+					trackArea = &res.ByTrack[i]
+					break
+				}
+			}
+		}
+	}
+
+	commits, err := commitsByTrack(proj, node.TrackID)
+	if err != nil {
+		commits = nil
+	}
+
+	questions, err := openQuestionsForTrack(dir, proj, node.TrackID)
+	if err != nil {
+		questions = nil
+	}
+
+	repoRoot := filepath.Dir(dir)
+	branch, _ := gitCurrentBranch()
+	ahead, behind, _ := gitAheadBehind(repoRoot)
+
+	fmt.Print(renderContextPack(node, branch, ahead, behind, trackArea, commits, questions))
+	return nil
+}
+
+// resolveNode loads a node from the appropriate collection based on ID prefix.
+func resolveNode(proj *workitem.Project, id string) (*models.Node, error) {
+	switch {
+	case strings.HasPrefix(id, "feat-"):
+		return proj.Features.Collection.Get(id)
+	case strings.HasPrefix(id, "bug-"):
+		return proj.Bugs.Collection.Get(id)
+	case strings.HasPrefix(id, "spk-"):
+		return proj.Spikes.Collection.Get(id)
+	default:
+		return nil, fmt.Errorf("unsupported work item type for ID %q", id)
+	}
+}
+
+// commitsByTrack collects and deduplicates commits across all features in the
+// given track, sorted by timestamp descending, capped at contextPackCommitLimit.
+// Private because GetCommitsByTrack does not exist in internal/db.
+func commitsByTrack(proj *workitem.Project, trackID string) ([]models.GitCommit, error) {
+	if trackID == "" {
+		return nil, nil
+	}
+	features, err := proj.Features.Collection.List(workitem.WithTrackID(trackID))
+	if err != nil {
+		return nil, err
+	}
+
+	seen := make(map[string]bool)
+	var all []models.GitCommit
+	for _, f := range features {
+		cs, err := dbpkg.GetCommitsByFeature(proj.DB, f.ID)
+		if err != nil {
+			continue
+		}
+		for _, c := range cs {
+			if !seen[c.CommitHash] {
+				seen[c.CommitHash] = true
+				all = append(all, c)
+			}
+		}
+	}
+
+	sort.Slice(all, func(i, j int) bool {
+		return all[i].Timestamp.After(all[j].Timestamp)
+	})
+	if len(all) > contextPackCommitLimit {
+		all = all[:contextPackCommitLimit]
+	}
+	return all, nil
+}
+
+// unansweredQuestion is a flat representation of a question that lacks an answer.
+type unansweredQuestion struct {
+	Source string // e.g. "plan pln-xxx" or "slice 2: My Slice"
+	Text   string
+}
+
+// openQuestionsForTrack loads all plans whose TrackID matches and collects
+// unanswered plan-level and slice-level questions.
+func openQuestionsForTrack(htmlgraphDir string, proj *workitem.Project, trackID string) ([]unansweredQuestion, error) {
+	if trackID == "" {
+		return nil, nil
+	}
+	plans, err := proj.Plans.Collection.List(workitem.WithTrackID(trackID))
+	if err != nil {
+		return nil, err
+	}
+
+	var out []unansweredQuestion
+	for _, planNode := range plans {
+		yamlPath := filepath.Join(htmlgraphDir, "plans", planNode.ID+".yaml")
+		py, err := planyaml.Load(yamlPath)
+		if err != nil {
+			continue
+		}
+		for _, q := range py.Questions {
+			if q.Answer == nil {
+				out = append(out, unansweredQuestion{
+					Source: fmt.Sprintf("plan %s", planNode.ID),
+					Text:   q.Text,
+				})
+			}
+		}
+		for _, sl := range py.Slices {
+			for _, sq := range sl.Questions {
+				if sq.Answer == "" {
+					out = append(out, unansweredQuestion{
+						Source: fmt.Sprintf("slice %d: %s", sl.Num, sl.Title),
+						Text:   sq.Text,
+					})
+				}
+			}
+		}
+	}
+	return out, nil
+}
+
+// gitAheadBehind returns how many commits HEAD is ahead/behind origin/main.
+func gitAheadBehind(repoRoot string) (ahead, behind int, err error) {
+	cmd := exec.Command("git", "-C", repoRoot, "rev-list", "--left-right", "--count", "origin/main...HEAD")
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	if runErr := cmd.Run(); runErr != nil {
+		return 0, 0, runErr
+	}
+	parts := strings.Fields(strings.TrimSpace(out.String()))
+	if len(parts) != 2 {
+		return 0, 0, fmt.Errorf("unexpected rev-list output: %q", out.String())
+	}
+	behind, _ = strconv.Atoi(parts[0])
+	ahead, _ = strconv.Atoi(parts[1])
+	return ahead, behind, nil
+}
+
+// renderContextPack assembles the full briefing as a GFM string.
+func renderContextPack(
+	node *models.Node,
+	branch string,
+	ahead, behind int,
+	trackArea *blame.TrackArea,
+	commits []models.GitCommit,
+	questions []unansweredQuestion,
+) string {
+	var buf bytes.Buffer
+
+	fmt.Fprintf(&buf, "# Context Pack: %s\n\n", node.ID)
+
+	// Section 1: Claim command
+	fmt.Fprintln(&buf, "## 1. Claim Command")
+	fmt.Fprintf(&buf, "\n```\nhtmlgraph %s start %s\n```\n\n", node.Type, node.ID)
+
+	// Section 2: Branch-sync state
+	fmt.Fprintln(&buf, "## 2. Branch-Sync State")
+	fmt.Fprintf(&buf, "\n- **Branch:** %s\n", branch)
+	fmt.Fprintf(&buf, "- **Ahead origin/main:** %d\n", ahead)
+	fmt.Fprintf(&buf, "- **Behind origin/main:** %d\n\n", behind)
+
+	// Section 3: Work-item description + steps
+	fmt.Fprintln(&buf, "## 3. Work Item Description")
+	fmt.Fprintf(&buf, "\n**Title:** %s\n\n", node.Title)
+	if node.Content != "" {
+		fmt.Fprintln(&buf, node.Content)
+		fmt.Fprintln(&buf)
+	}
+	if len(node.Steps) > 0 {
+		fmt.Fprintf(&buf, "**Steps:**\n\n")
+		for _, s := range node.Steps {
+			check := " "
+			if s.Completed {
+				check = "x"
+			}
+			fmt.Fprintf(&buf, "- [%s] %s\n", check, s.Description)
+		}
+		fmt.Fprintln(&buf)
+	}
+
+	// Sections 4 & 5: Code surface
+	fmt.Fprintln(&buf, "## 4. Code-Surface Helpers")
+	fmt.Fprintln(&buf, "\n## 5. File Paths with Package Qualifiers")
+	if node.TrackID == "" || trackArea == nil {
+		fmt.Fprintln(&buf, "\n(no track attribution)")
+	} else {
+		fmt.Fprintf(&buf, "\nTrack: **%s** (%s)\n\n", trackArea.TrackTitle, trackArea.TrackID)
+		fmt.Fprintln(&buf, "| File | Package | Features | Touches |")
+		fmt.Fprintln(&buf, "|------|---------|----------|---------|")
+		for _, f := range trackArea.Files {
+			pkg := goPackageQualifier(f.Path)
+			fmt.Fprintf(&buf, "| %s | %s | %d | %d |\n", f.Path, pkg, f.Features, f.Touches)
+		}
+		fmt.Fprintln(&buf)
+	}
+
+	// Section 6: Recent same-track commits
+	fmt.Fprintln(&buf, "## 6. Recent Same-Track Commits")
+	if node.TrackID == "" {
+		fmt.Fprintln(&buf, "\n(no track attribution)")
+	} else if len(commits) == 0 {
+		fmt.Fprintln(&buf, "\n(no commits yet)")
+	} else {
+		fmt.Fprintln(&buf, "")
+		fmt.Fprintln(&buf, "| Hash | Feature | Timestamp | Message |")
+		fmt.Fprintln(&buf, "|------|---------|-----------|---------|")
+		for _, c := range commits {
+			ts := c.Timestamp.UTC().Format("2006-01-02T15:04Z")
+			hash := c.CommitHash
+			if len(hash) > 8 {
+				hash = hash[:8]
+			}
+			msg := strings.ReplaceAll(c.Message, "|", "\\|")
+			if len(msg) > 72 {
+				msg = msg[:72] + "…"
+			}
+			fmt.Fprintf(&buf, "| %s | %s | %s | %s |\n", hash, c.FeatureID, ts, msg)
+		}
+		fmt.Fprintln(&buf)
+	}
+
+	// Section 7: Open plan-slice questions
+	fmt.Fprintln(&buf, "## 7. Open Plan-Slice Questions")
+	if node.TrackID == "" {
+		fmt.Fprintln(&buf, "\n(no track attribution)")
+	} else if len(questions) == 0 {
+		fmt.Fprintln(&buf, "\n(none)")
+	} else {
+		fmt.Fprintln(&buf, "")
+		for _, q := range questions {
+			fmt.Fprintf(&buf, "- **[%s]** %s\n", q.Source, q.Text)
+		}
+		fmt.Fprintln(&buf)
+	}
+
+	return buf.String()
+}
+
+// goPackageQualifier returns "package <dir>" for .go files; the raw path otherwise.
+// The package name is inferred from the immediate parent directory, matching Go
+// convention (internal/foo/bar.go → "package foo").
+func goPackageQualifier(path string) string {
+	if !strings.HasSuffix(path, ".go") {
+		return path
+	}
+	dir := filepath.Dir(path)
+	if dir == "." || dir == "" {
+		return "package main"
+	}
+	return "package " + filepath.Base(dir)
+}
