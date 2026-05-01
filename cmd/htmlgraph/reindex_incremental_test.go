@@ -205,6 +205,53 @@ func TestIncrementalReindex_PropagatesTrackIDAfterMove(t *testing.T) {
 	}
 }
 
+// TestIncrementalReindex_DirtyDeletion verifies that when a feature HTML file
+// is deleted in the working tree (dirty deletion, before commit) and detected
+// via dirty-files scan, the SQLite row for that feature is removed (not left stale).
+func TestIncrementalReindex_DirtyDeletion(t *testing.T) {
+	hgDir := setupHtmlgraphDir(t)
+	database, err := dbpkg.Open(filepath.Join(hgDir, "htmlgraph.db"))
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	defer database.Close()
+
+	// Create and index a feature HTML file.
+	path := writeMinimalFeatureHTML(t, filepath.Join(hgDir, "features"), "feat-dirty-del.html", "feat-dirty-del", "Dirty Delete Me")
+
+	// Initial reindex to populate DB.
+	validIDs := map[string]bool{}
+	_, upserted, errCount := reindexFromFileLists(database, []string{path}, nil, validIDs)
+	if upserted != 1 {
+		t.Fatalf("initial upserted: got %d, want 1", upserted)
+	}
+	if errCount != 0 {
+		t.Fatalf("initial errCount: got %d, want 0", errCount)
+	}
+
+	var countBefore int
+	database.QueryRow(`SELECT COUNT(*) FROM features WHERE id = ?`, "feat-dirty-del").Scan(&countBefore)
+	if countBefore != 1 {
+		t.Fatalf("feature in DB before deletion: want 1, got %d", countBefore)
+	}
+
+	// Simulate dirty deletion: remove the file from disk (but don't commit).
+	if err := os.Remove(path); err != nil {
+		t.Fatalf("Remove file: %v", err)
+	}
+
+	// Run incremental reindex with the deleted path in the deletion list.
+	// This simulates what would happen if git diff --name-status detected "D" status.
+	_, _, _ = reindexFromFileLists(database, nil, []string{path}, map[string]bool{})
+
+	// Verify the feature is removed from the DB.
+	var countAfter int
+	database.QueryRow(`SELECT COUNT(*) FROM features WHERE id = ?`, "feat-dirty-del").Scan(&countAfter)
+	if countAfter != 0 {
+		t.Errorf("dirty-deleted feature still in DB: count = %d (want 0)", countAfter)
+	}
+}
+
 // TestDeduplicatePaths verifies that deduplicatePaths removes duplicates while
 // preserving order and not modifying the original slice.
 func TestDeduplicatePaths(t *testing.T) {

@@ -299,35 +299,62 @@ func gitChangedFiles(projectDir, fromCommit, htmlgraphDir string) (added []strin
 
 	// Include working-tree dirty files: modifications not yet committed (staged
 	// or unstaged). Commands like `bug move` write the HTML without committing,
-	// so git diff HEAD..HEAD misses them. Use `git diff --name-only` (unstaged)
-	// and `git diff --cached --name-only` (staged) to catch both cases.
-	added = appendDirtyHTMLFiles(projectDir, relHg, added)
+	// so git diff HEAD..HEAD misses them. Use `git diff --name-status` (unstaged)
+	// and `git diff --cached --name-status` (staged) to catch both cases, and
+	// distinguish modifications (A, M, R) from deletions (D).
+	added, deleted = appendDirtyHTMLFiles(projectDir, relHg, added, deleted)
 
 	return deduplicatePaths(added), deleted
 }
 
-// appendDirtyHTMLFiles appends any .htmlgraph HTML files that are modified in
-// the working tree (staged or unstaged) but not yet committed.
-func appendDirtyHTMLFiles(projectDir, relHg string, paths []string) []string {
+// appendDirtyHTMLFiles appends any .htmlgraph HTML files that are modified or
+// deleted in the working tree (staged or unstaged) but not yet committed.
+// It uses git diff --name-status to distinguish modifications from deletions:
+// - A (added), M (modified), R (renamed) go to added list (upsert)
+// - D (deleted) goes to deleted list (remove from SQLite)
+func appendDirtyHTMLFiles(projectDir, relHg string, added, deleted []string) ([]string, []string) {
 	for _, args := range [][]string{
-		{"diff", "--name-only", "--", relHg},
-		{"diff", "--cached", "--name-only", "--", relHg},
+		{"diff", "--name-status", "--", relHg},
+		{"diff", "--cached", "--name-status", "--", relHg},
 	} {
 		out, err := exec.Command("git", append([]string{"-C", projectDir}, args...)...).Output()
 		if err != nil {
 			continue
 		}
-		for _, rel := range strings.Split(strings.TrimSpace(string(out)), "\n") {
-			if rel == "" {
+		for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+			if line == "" {
 				continue
 			}
-			path := filepath.Join(projectDir, rel)
-			if strings.HasSuffix(path, ".html") {
-				paths = append(paths, path)
+			parts := strings.SplitN(line, "\t", 3)
+			if len(parts) < 2 {
+				continue
+			}
+			status := parts[0]
+			// Handle renames: old path is deleted, new path is added.
+			if strings.HasPrefix(status, "R") && len(parts) == 3 {
+				oldPath := filepath.Join(projectDir, parts[1])
+				newPath := filepath.Join(projectDir, parts[2])
+				if strings.HasSuffix(newPath, ".html") {
+					added = append(added, newPath)
+				}
+				if strings.HasSuffix(oldPath, ".html") {
+					deleted = append(deleted, oldPath)
+				}
+				continue
+			}
+			filePath := filepath.Join(projectDir, parts[1])
+			if !strings.HasSuffix(filePath, ".html") {
+				continue
+			}
+			switch status {
+			case "A", "M":
+				added = append(added, filePath)
+			case "D":
+				deleted = append(deleted, filePath)
 			}
 		}
 	}
-	return paths
+	return added, deleted
 }
 
 // deduplicatePaths returns paths with duplicates removed, preserving order.
