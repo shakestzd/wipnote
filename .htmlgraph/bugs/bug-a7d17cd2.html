@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>htmlgraph reindex (incremental) does not propagate features.track_id changes from bug/feature move</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-a7d17cd2"
+             data-type="bug"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-05-01T18:55:54.285935"
+             data-updated="2026-05-01T18:55:54.295047" data-agent-assigned="claude-code" data-track-id="trk-08dcbb33">
+
+        <header>
+            <h1>htmlgraph reindex (incremental) does not propagate features.track_id changes from bug/feature move</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-08dcbb33.html" data-relationship="part_of" data-since="2026-05-01T18:55:54.294229">trk-08dcbb33</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="caused_by">
+                <h3>Caused By:</h3>
+                <ul>
+                    <li><a href="bug-92690d5b.html" data-relationship="caused_by" data-since="2026-05-01T18:55:54.291567">bug-92690d5b</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>## Symptom
+
+After running `htmlgraph bug move  ` (or `feature move`), the canonical HTML is updated correctly (data-track-id attribute reflects the new track), but the SQLite features.track_id column retains the OLD value. `htmlgraph reindex` (incremental) does not fix it. Only `htmlgraph reindex --full` propagates the new value.
+
+## Reproducer
+
+1. `htmlgraph bug move bug-92690d5b trk-be293476` → 'Moved: ... → trk-be293476'.
+2. `grep data-track-id .htmlgraph/bugs/bug-92690d5b.html` → 'trk-be293476' (correct).
+3. `htmlgraph reindex` → 'Reindexed (incremental): 35 upserted, 0 errors'.
+4. `sqlite3 ~/.cache/htmlgraph//htmlgraph.db 'SELECT track_id FROM features WHERE id = "bug-92690d5b"'` → 'trk-0677c709' (STALE).
+5. `htmlgraph reindex --full` → fixes it.
+
+## Hypothesis
+
+The incremental reindex code path likely only re-reads files newer than its last-seen marker but the upsert path may skip the track_id column update (or upsert with the wrong value) for already-known IDs. Worth checking internal/db/feature_repo.go upsert and internal/htmlparse for how track_id is parsed from data-track-id.
+
+## Why it matters
+
+Any downstream lineage query that joins through features.track_id silently shows stale track membership until --full reindex is forced. Confused users (and tools like context-pack) get wrong results.
+
+## Acceptance
+
+1. After `bug move` or `feature move`, an immediate `htmlgraph reindex` (incremental, no --full) updates features.track_id to the new value.
+2. Move command may also be the right place to do an in-band SQLite update (mirrors what start/complete do for status).
+3. Test covers: move → incremental reindex → assert SQLite track_id matches HTML.</p>
+        </section>
+    </article>
+</body>
+</html>

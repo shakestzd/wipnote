@@ -10,33 +10,51 @@
 <body>
     <article id="bug-92690d5b"
              data-type="bug"
-             data-status="todo"
+             data-status="done"
              data-priority="medium"
              data-created="2026-04-24T06:05:18.242701"
-             data-updated="2026-04-24T06:05:28.347969" data-agent-assigned="claude-code" data-track-id="trk-0677c709">
+             data-updated="2026-05-01T19:31:00.035243" data-agent-assigned="claude-code" data-track-id="trk-be293476">
 
         <header>
             <h1>htmlgraph yolo --track fails when branch already exists: &#39;git worktree add failed: exit status 255 / fatal: a branch named trk-xxx already exists&#39;</h1>
             <div class="metadata">
-                <span class="badge status-todo">Todo</span>
+                <span class="badge status-done">Done</span>
                 <span class="badge priority-medium">Medium Priority</span>
             </div>
         </header>
 
         <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-be293476.html" data-relationship="part_of" data-since="2026-05-01T18:48:04.756518">trk-be293476</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="d230fbcc-d1fa-4ae0-9bac-21f671f3ee06.html" data-relationship="implemented_in" data-since="2026-05-01T18:38:32.600203">session d230fbcc-d1fa-4ae0-9bac-21f671f3ee06</a></li>
+                    <li><a href="8e463928-e772-4408-8240-1e2266615e74.html" data-relationship="implemented_in" data-since="2026-05-01T18:57:21.18082">session 8e463928-e772-4408-8240-1e2266615e74</a></li>
+                </ul>
+            </section>
             <section data-edge-type="caused_by">
                 <h3>Caused By:</h3>
                 <ul>
                     <li><a href="feat-5143700e.html" data-relationship="caused_by" data-since="2026-04-24T06:05:18.247679">feat-5143700e</a></li>
                 </ul>
             </section>
-            <section data-edge-type="part_of">
-                <h3>Part Of:</h3>
-                <ul>
-                    <li><a href="trk-0677c709.html" data-relationship="part_of" data-since="2026-04-24T06:05:28.34757">trk-0677c709</a></li>
-                </ul>
-            </section>
         </nav>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="true" data-step-id="step-bug-92690d5b-0" data-agent="claude-code">✅ Add addOrAttachWorktree helper [task:1]</li>
+                <li data-completed="true" data-step-id="step-bug-92690d5b-1" data-agent="claude-code">✅ Wire helper into Ensure functions [task:2]</li>
+                <li data-completed="true" data-step-id="step-bug-92690d5b-2" data-agent="claude-code">✅ Add regression test for re-run [task:3]</li>
+                <li data-completed="true" data-step-id="step-bug-92690d5b-3" data-agent="claude-code">✅ Run quality gates and build [task:4]</li>
+                <li data-completed="true" data-step-id="step-bug-92690d5b-4" data-agent="claude-code">✅ Commit, push, open PR [task:5]</li>
+            </ol>
+        </section>
 
         <section data-content>
             <h3>Description</h3>
