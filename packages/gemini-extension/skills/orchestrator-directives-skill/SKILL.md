@@ -961,7 +961,7 @@ htmlgraph feature start/complete for attribution.
 
 When agent teams are active, HtmlGraph automatically records:
 
-- **Teammate identity** — every TeammateIdle, TaskCreated, and TaskCompleted event includes `teammate_name` and `team_name`
+- **Teammate identity** — every TeammateIdle, TaskCreated, and TaskCompleted event includes `teammate_name`
 - **Step attribution** — feature steps are prefixed with `[teammate-name]` so `htmlgraph snapshot` shows who did what
 - **Optional quality gate** — TaskCompleted can run build/test gates before allowing task completion. Opt-in via `.htmlgraph/config.json`:
 
