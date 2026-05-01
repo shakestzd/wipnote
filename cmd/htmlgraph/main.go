@@ -229,6 +229,10 @@ func buildRoot() *cobra.Command {
 	migrate.GroupID = "data"
 	root.AddCommand(migrate)
 
+	migrateTracks := migrateTracksCmd()
+	migrateTracks.GroupID = "data"
+	root.AddCommand(migrateTracks)
+
 	cleanup := cleanupCmd()
 	cleanup.GroupID = "data"
 	root.AddCommand(cleanup)

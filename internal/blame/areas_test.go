@@ -234,6 +234,53 @@ func TestWalkAreas_ExcludesHtmlgraphDir(t *testing.T) {
 	}
 }
 
+// TestWalkAreas_SkipsDeletedTrackedFiles is a regression test for the
+// roborev finding that `git ls-files` can include tracked files that
+// have been deleted from the working tree, and that a stale feature_files
+// row would re-attribute the file in the area inventory. WalkAreas must
+// skip ENOENT files cleanly (no error, no inventory entry).
+func TestWalkAreas_SkipsDeletedTrackedFiles(t *testing.T) {
+	database := openTestDB(t)
+
+	insertTrack(t, database, "trk-del", "Deleted Track")
+	insertFeature(t, database, "feat-del", "Deleted Feature", "trk-del")
+
+	root := t.TempDir()
+	writeFile(t, root, "kept.go")
+	writeFile(t, root, "ghost.go")
+	gitInit(t, root, "kept.go", "ghost.go")
+
+	// Stale feature_files rows for both — including the file we'll delete.
+	insertFeatureFile(t, database, "ff-del-1", "feat-del", "kept.go")
+	insertFeatureFile(t, database, "ff-del-2", "feat-del", "ghost.go")
+
+	// Delete ghost.go from the working tree but DO NOT git rm it, so it
+	// remains in `git ls-files` output while the file no longer exists.
+	if err := os.Remove(filepath.Join(root, "ghost.go")); err != nil {
+		t.Fatalf("remove ghost.go: %v", err)
+	}
+
+	res, err := blame.WalkAreas(context.Background(), database, root, blame.WalkOptions{
+		IncludeUntracked: boolPtr(true),
+	})
+	if err != nil {
+		t.Fatalf("WalkAreas: %v", err)
+	}
+
+	for _, ta := range res.ByTrack {
+		for _, f := range ta.Files {
+			if f.Path == "ghost.go" {
+				t.Errorf("deleted file ghost.go should not appear in ByTrack inventory: %+v", f)
+			}
+		}
+	}
+	for _, u := range res.Untracked {
+		if u == "ghost.go" {
+			t.Errorf("deleted file ghost.go should not appear in Untracked: %v", res.Untracked)
+		}
+	}
+}
+
 // writeFile creates an empty file at dir/name for walking tests.
 func writeFile(t *testing.T, dir, name string) {
 	t.Helper()

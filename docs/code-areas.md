@@ -321,7 +321,7 @@ _depends on local feature_files state that the canonical `.htmlgraph/*.html` doe
 
 ## Track: OTel Integration — telemetry capture, span hierarchy, cost attribution (trk-c4615ad2)
 
-9 features, 62 files, 79 total touches
+8 features, 60 files, 74 total touches
 
 | File | Features | Touches |
 |------|----------|---------|
@@ -330,11 +330,9 @@ _depends on local feature_files state that the canonical `.htmlgraph/*.html` doe
 | cmd/htmlgraph/api_otel.go | 1 | 1 |
 | cmd/htmlgraph/api_tree.go | 1 | 1 |
 | cmd/htmlgraph/api_tree_test.go | 1 | 1 |
-| cmd/htmlgraph/claude.go | 3 | 3 |
-| cmd/htmlgraph/claude_env.go | 3 | 3 |
-| cmd/htmlgraph/claude_env_test.go | 3 | 3 |
-| cmd/htmlgraph/claude_otel_collect_spawn.go | 1 | 1 |
-| cmd/htmlgraph/claude_otel_collect_spawn_test.go | 1 | 1 |
+| cmd/htmlgraph/claude.go | 2 | 2 |
+| cmd/htmlgraph/claude_env.go | 2 | 2 |
+| cmd/htmlgraph/claude_env_test.go | 2 | 2 |
 | cmd/htmlgraph/claude_serve_autostart.go | 2 | 2 |
 | cmd/htmlgraph/dashboard/components/event-tree.js | 2 | 2 |
 | cmd/htmlgraph/dashboard/css/components.css | 1 | 1 |
@@ -437,12 +435,11 @@ _depends on local feature_files state that the canonical `.htmlgraph/*.html` doe
 
 ## Track: Local cockpit — embedded parallel AI sessions in dashboard (trk-cd61bbae)
 
-14 features, 35 files, 58 total touches
+13 features, 29 files, 51 total touches
 
 | File | Features | Touches |
 |------|----------|---------|
 | .githooks/pre-commit | 2 | 2 |
-| cmd/htmlgraph/agent_worktree_test.go | 1 | 1 |
 | cmd/htmlgraph/codex.go | 1 | 1 |
 | cmd/htmlgraph/codex_test.go | 2 | 2 |
 | cmd/htmlgraph/dashboard/css/components.css | 3 | 3 |
@@ -460,10 +457,6 @@ _depends on local feature_files state that the canonical `.htmlgraph/*.html` doe
 | cmd/htmlgraph/terminal_handlers_test.go | 3 | 3 |
 | cmd/htmlgraph/workitem.go | 1 | 1 |
 | cmd/htmlgraph/workitem_test.go | 1 | 1 |
-| cmd/htmlgraph/worktree_helpers.go | 1 | 1 |
-| cmd/htmlgraph/worktree_helpers_test.go | 1 | 1 |
-| cmd/htmlgraph/yolo.go | 1 | 1 |
-| cmd/htmlgraph/yolo_test.go | 1 | 1 |
 | docs/cross-env-path-drift-audit.md | 1 | 1 |
 | internal/db/claim_repo.go | 1 | 1 |
 | internal/hooks/harness.go | 1 | 1 |
@@ -472,9 +465,8 @@ _depends on local feature_files state that the canonical `.htmlgraph/*.html` doe
 | internal/hooks/pretooluse_test.go | 1 | 1 |
 | internal/terminal/terminal.go | 4 | 4 |
 | internal/terminal/terminal_test.go | 3 | 3 |
-| internal/worktree/worktree.go | 3 | 3 |
+| internal/worktree/worktree.go | 2 | 2 |
 | internal/worktree/worktree_internal_test.go | 1 | 1 |
-| internal/worktree/worktree_test.go | 1 | 1 |
 | scripts/stress-launch.sh | 1 | 1 |
 
 ## Track: Launch Readiness — close pitch/reality gaps before LinkedIn launch (trk-0677c709)
@@ -508,6 +500,28 @@ _depends on local feature_files state that the canonical `.htmlgraph/*.html` doe
 | internal/storage/evict.go | 1 | 2 |
 | internal/storage/evict_test.go | 1 | 1 |
 | scripts/devcontainer.sh | 1 | 1 |
+
+## Track: Yolo Mode — autonomous feature execution (trk-be293476)
+
+3 features, 15 files, 15 total touches
+
+| File | Features | Touches |
+|------|----------|---------|
+| cmd/htmlgraph/agent_worktree_test.go | 1 | 1 |
+| cmd/htmlgraph/claude.go | 1 | 1 |
+| cmd/htmlgraph/claude_env.go | 1 | 1 |
+| cmd/htmlgraph/claude_env_test.go | 1 | 1 |
+| cmd/htmlgraph/claude_otel_collect_spawn.go | 1 | 1 |
+| cmd/htmlgraph/claude_otel_collect_spawn_test.go | 1 | 1 |
+| cmd/htmlgraph/worktree_helpers.go | 1 | 1 |
+| cmd/htmlgraph/worktree_helpers_test.go | 1 | 1 |
+| cmd/htmlgraph/yolo.go | 1 | 1 |
+| cmd/htmlgraph/yolo_test.go | 1 | 1 |
+| internal/hooks/pretooluse.go | 1 | 1 |
+| internal/hooks/yolo_guard.go | 1 | 1 |
+| internal/hooks/yolo_guard_test.go | 1 | 1 |
+| internal/worktree/worktree.go | 1 | 1 |
+| internal/worktree/worktree_test.go | 1 | 1 |
 
 ## Track: Plan Mode (trk-a30e8df4)
 
@@ -544,7 +558,7 @@ _depends on local feature_files state that the canonical `.htmlgraph/*.html` doe
 
 ## Track: Workitem Attribution & Lineage (trk-08dcbb33)
 
-3 features, 7 files, 8 total touches
+4 features, 7 files, 9 total touches
 
 | File | Features | Touches |
 |------|----------|---------|
@@ -552,7 +566,7 @@ _depends on local feature_files state that the canonical `.htmlgraph/*.html` doe
 | cmd/htmlgraph/api_otel.go | 1 | 1 |
 | cmd/htmlgraph/dashboard/components/event-tree.js | 1 | 1 |
 | cmd/htmlgraph/dashboard/css/components.css | 1 | 1 |
-| cmd/htmlgraph/main.go | 2 | 2 |
+| cmd/htmlgraph/main.go | 3 | 3 |
 | internal/db/otel_schema.go | 1 | 1 |
 | internal/otel/receiver/writer.go | 1 | 1 |
 
@@ -569,16 +583,6 @@ _depends on local feature_files state that the canonical `.htmlgraph/*.html` doe
 | internal/hooks/session_end.go | 1 | 1 |
 | internal/hooks/transcript_user_prompt.go | 1 | 1 |
 | internal/hooks/transcript_user_prompt_test.go | 1 | 1 |
-
-## Track: Yolo Mode — autonomous feature execution (trk-be293476)
-
-1 features, 3 files, 3 total touches
-
-| File | Features | Touches |
-|------|----------|---------|
-| internal/hooks/pretooluse.go | 1 | 1 |
-| internal/hooks/yolo_guard.go | 1 | 1 |
-| internal/hooks/yolo_guard_test.go | 1 | 1 |
 
 ## Untracked
 

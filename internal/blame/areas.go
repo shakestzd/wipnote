@@ -136,8 +136,22 @@ func WalkAreas(ctx context.Context, database *sql.DB, root string, opts WalkOpti
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
-		// Skip directories that may have been listed as gitlinks (submodules).
-		if info, statErr := os.Stat(filepath.Join(root, rel)); statErr == nil && info.IsDir() {
+		// `git ls-files` can report files that have been deleted from the
+		// working tree but still tracked, plus directories that are gitlinks
+		// (submodules). Stat first so we can distinguish:
+		//   - ENOENT → file was removed; skip so deleted files don't appear
+		//     in the area inventory or get re-attributed via stale
+		//     feature_files rows.
+		//   - other stat errors → propagate; something is genuinely wrong.
+		//   - directory → submodule gitlink, skip.
+		info, statErr := os.Stat(filepath.Join(root, rel))
+		if statErr != nil {
+			if os.IsNotExist(statErr) {
+				continue
+			}
+			return nil, fmt.Errorf("stat %s: %w", rel, statErr)
+		}
+		if info.IsDir() {
 			continue
 		}
 

@@ -1,0 +1,79 @@
+# Track-attribution rules: file-path globs → value-aligned track IDs.
+#
+# Used by `htmlgraph migrate-tracks` to backfill feature track attribution after
+# the value-aligned track reorganization (Plan Mode rename + creation of
+# Subagents / Yolo Mode / Lineage tracks). Each feature's feature_files rows
+# are matched against these globs; the dominant track (by match count) wins.
+# Higher `priority` rules override lower ones when a path matches multiple.
+#
+# Glob syntax:
+#   *    — matches any sequence within a single path segment (no /)
+#   **   — matches any sequence including / boundaries
+#   /    — path separator
+#
+# Track IDs:
+#   trk-a30e8df4 — Plan Mode
+#   trk-2c83a1e2 — Subagents
+#   trk-be293476 — Yolo Mode
+#   trk-08dcbb33 — Workitem Attribution & Lineage
+rules:
+  # ---- Plan Mode ----
+  - { glob: "cmd/htmlgraph/plan_*.go",            track_id: "trk-a30e8df4", priority: 100 }
+  - { glob: "cmd/htmlgraph/plan.go",              track_id: "trk-a30e8df4", priority: 100 }
+  - { glob: "cmd/htmlgraph/api_plans*.go",        track_id: "trk-a30e8df4", priority: 100 }
+  - { glob: "internal/plantmpl/**",               track_id: "trk-a30e8df4", priority: 100 }
+  - { glob: "internal/planyaml/**",               track_id: "trk-a30e8df4", priority: 100 }
+  - { glob: "internal/planamend/**",              track_id: "trk-a30e8df4", priority: 100 }
+  - { glob: "internal/planchat/**",               track_id: "trk-a30e8df4", priority: 100 }
+  - { glob: "internal/db/plan_*.go",              track_id: "trk-a30e8df4", priority: 100 }
+  - { glob: "plugin/skills/plan/**",              track_id: "trk-a30e8df4", priority: 100 }
+
+  # ---- Subagents ----
+  - { glob: "plugin/agents/*.md",                 track_id: "trk-2c83a1e2", priority: 100 }
+  - { glob: "internal/agent/**",                  track_id: "trk-2c83a1e2", priority: 100 }
+  - { glob: "internal/hooks/subagent_start*.go",  track_id: "trk-2c83a1e2", priority: 110 }
+  - { glob: "internal/hooks/attribution*.go",     track_id: "trk-2c83a1e2", priority: 110 }
+  - { glob: "internal/hooks/task_*.go",           track_id: "trk-2c83a1e2", priority: 110 }
+  - { glob: "internal/hooks/quality_gate*.go",    track_id: "trk-2c83a1e2", priority: 110 }
+  - { glob: "internal/otel/adapter/claude/**",    track_id: "trk-2c83a1e2", priority: 100 }
+  - { glob: "internal/otel/adapter/codex/**",     track_id: "trk-2c83a1e2", priority: 100 }
+  - { glob: "internal/otel/adapter/gemini/**",    track_id: "trk-2c83a1e2", priority: 100 }
+  - { glob: "internal/pricing/**",                track_id: "trk-2c83a1e2", priority: 100 }
+  - { glob: "cmd/htmlgraph/orchestrator*.go",     track_id: "trk-2c83a1e2", priority: 110 }
+  - { glob: "cmd/htmlgraph/agent_*.go",           track_id: "trk-2c83a1e2", priority: 100 }
+
+  # ---- Yolo Mode ----
+  - { glob: "cmd/htmlgraph/yolo*.go",             track_id: "trk-be293476", priority: 110 }
+  - { glob: "cmd/htmlgraph/tmux*.go",             track_id: "trk-be293476", priority: 110 }
+  - { glob: "cmd/htmlgraph/budget*.go",           track_id: "trk-be293476", priority: 110 }
+  - { glob: "cmd/htmlgraph/launch_run*.go",       track_id: "trk-be293476", priority: 110 }
+  - { glob: "cmd/htmlgraph/worktree_helpers*.go", track_id: "trk-be293476", priority: 110 }
+  - { glob: "cmd/htmlgraph/claude.go",            track_id: "trk-be293476", priority: 110 }
+  - { glob: "cmd/htmlgraph/claude_env*.go",       track_id: "trk-be293476", priority: 110 }
+  - { glob: "cmd/htmlgraph/agent_worktree*.go",   track_id: "trk-be293476", priority: 115 }
+  - { glob: "internal/hooks/yolo_guard*.go",      track_id: "trk-be293476", priority: 110 }
+  - { glob: "internal/worktree/**",               track_id: "trk-be293476", priority: 100 }
+
+  # ---- Workitem Attribution & Lineage ----
+  - { glob: "cmd/htmlgraph/lineage*.go",           track_id: "trk-08dcbb33", priority: 100 }
+  - { glob: "cmd/htmlgraph/trace*.go",             track_id: "trk-08dcbb33", priority: 110 }
+  - { glob: "cmd/htmlgraph/history*.go",           track_id: "trk-08dcbb33", priority: 110 }
+  - { glob: "cmd/htmlgraph/link*.go",              track_id: "trk-08dcbb33", priority: 110 }
+  - { glob: "cmd/htmlgraph/graph*.go",             track_id: "trk-08dcbb33", priority: 110 }
+  - { glob: "cmd/htmlgraph/blame*.go",             track_id: "trk-08dcbb33", priority: 110 }
+  - { glob: "cmd/htmlgraph/code_areas*.go",        track_id: "trk-08dcbb33", priority: 110 }
+  - { glob: "cmd/htmlgraph/workitem_edges*.go",    track_id: "trk-08dcbb33", priority: 110 }
+  - { glob: "cmd/htmlgraph/api_graph*.go",         track_id: "trk-08dcbb33", priority: 110 }
+  - { glob: "cmd/htmlgraph/api_provenance*.go",    track_id: "trk-08dcbb33", priority: 110 }
+  - { glob: "cmd/htmlgraph/api_tree*.go",          track_id: "trk-08dcbb33", priority: 110 }
+  - { glob: "cmd/htmlgraph/migrate_attribution*.go",track_id: "trk-08dcbb33", priority: 110 }
+  - { glob: "cmd/htmlgraph/migrate_tracks*.go",    track_id: "trk-08dcbb33", priority: 110 }
+  - { glob: "internal/graph/**",                   track_id: "trk-08dcbb33", priority: 100 }
+  - { glob: "internal/blame/**",                   track_id: "trk-08dcbb33", priority: 100 }
+  - { glob: "internal/migrate/**",                 track_id: "trk-08dcbb33", priority: 100 }
+  - { glob: "internal/db/lineage_repo*.go",        track_id: "trk-08dcbb33", priority: 110 }
+  - { glob: "internal/db/edge_repo*.go",           track_id: "trk-08dcbb33", priority: 110 }
+  - { glob: "internal/db/feature_files_repo*.go",  track_id: "trk-08dcbb33", priority: 110 }
+  - { glob: "internal/models/lineage*.go",         track_id: "trk-08dcbb33", priority: 110 }
+  - { glob: "internal/models/node*.go",            track_id: "trk-08dcbb33", priority: 110 }
+  - { glob: "internal/models/feature_file*.go",    track_id: "trk-08dcbb33", priority: 110 }
