@@ -171,6 +171,10 @@ func buildRoot() *cobra.Command {
 	blameC.GroupID = "query"
 	root.AddCommand(blameC)
 
+	codeAreas := codeAreasCmd()
+	codeAreas.GroupID = "query"
+	root.AddCommand(codeAreas)
+
 	executePreview := executePreviewCmd()
 	executePreview.GroupID = "query"
 	root.AddCommand(executePreview)

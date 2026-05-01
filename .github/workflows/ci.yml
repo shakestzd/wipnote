@@ -21,3 +21,9 @@ jobs:
         run: go vet ./...
       - name: Test
         run: go test ./...
+      - name: Build htmlgraph binary
+        run: go build -o htmlgraph ./cmd/htmlgraph/
+      - name: Verify docs/code-areas.md is up to date
+        run: |
+          ./htmlgraph code-areas --format markdown > docs/code-areas.md.gen
+          diff -q docs/code-areas.md docs/code-areas.md.gen
