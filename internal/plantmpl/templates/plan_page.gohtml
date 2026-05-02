@@ -675,7 +675,7 @@ var planId=(function(){var a=document.querySelector('article[id]');return a?a.id
       fetch((window.htmlgraphPlanBase||'')+'/api/plans/'+planId+'/feedback',{
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({section:sec,action:'approve',value:val,question_id:''})
+        body:JSON.stringify({section:sec,action:'approve',value:(val==='approved'?'true':'false'),question_id:''})
       });
     }
   }
@@ -847,10 +847,10 @@ var planId=(function(){var a=document.querySelector('article[id]');return a?a.id
             finalizeMsg.style.display='block';
           });
         } else {
-          return r.json().then(function(data){
+          return r.text().then(function(body){
             btn.textContent='Finalize Plan';
             btn.disabled=false;
-            finalizeMsg.textContent=data.error||'Not all sections approved.';
+            finalizeMsg.textContent=body||'Not all sections approved.';
             finalizeMsg.style.color='var(--blocked)';
             finalizeMsg.style.display='block';
           });

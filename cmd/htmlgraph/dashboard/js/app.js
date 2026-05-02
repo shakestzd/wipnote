@@ -3592,10 +3592,10 @@ function dashSidebarBuildRail(planId, body) {
           btn.textContent = 'Plan Finalized';
           btn.style.background = 'var(--approved, #22c55e)';
         } else {
-          return r.json().then(function(data) {
+          return r.text().then(function(body) {
             btn.textContent = 'Finalize Plan';
             btn.disabled = false;
-            alert(data.error || 'Not all sections approved.');
+            alert(body || 'Not all sections approved.');
           });
         }
       }).catch(function() {

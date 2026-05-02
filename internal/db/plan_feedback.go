@@ -158,6 +158,21 @@ func DeletePlanFeedback(db *sql.DB, planID string) error {
 	return nil
 }
 
+// NormalizePlanFeedbackValues migrates existing rows that were written by the
+// slice-card UI before the value-mapping fix. The buggy writer stored display
+// values ('approved', 'changes_requested', 'rejected') instead of the canonical
+// boolean strings ('true', 'false'). This function normalizes them. It is safe
+// to call repeatedly — once migrated, no rows match the WHERE clauses.
+func NormalizePlanFeedbackValues(db *sql.DB) error {
+	if _, err := db.Exec(`UPDATE plan_feedback SET value='true' WHERE action='approve' AND value='approved'`); err != nil {
+		return fmt.Errorf("normalize plan_feedback approved→true: %w", err)
+	}
+	if _, err := db.Exec(`UPDATE plan_feedback SET value='false' WHERE action='approve' AND value IN ('rejected','changes_requested')`); err != nil {
+		return fmt.Errorf("normalize plan_feedback rejected/changes_requested→false: %w", err)
+	}
+	return nil
+}
+
 // scanPlanFeedbackRows scans a *sql.Rows cursor into a []PlanFeedback slice.
 func scanPlanFeedbackRows(rows *sql.Rows) ([]PlanFeedback, error) {
 	var results []PlanFeedback

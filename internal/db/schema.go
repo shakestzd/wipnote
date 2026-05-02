@@ -138,6 +138,11 @@ func Open(dbPath string) (*sql.DB, error) {
 		}
 	}
 
+	if err := NormalizePlanFeedbackValues(db); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("normalize plan_feedback values: %w", err)
+	}
+
 	return db, nil
 }
 
