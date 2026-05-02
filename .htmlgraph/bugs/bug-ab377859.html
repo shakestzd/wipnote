@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>[P1] otel-collect handshake timeout blocks htmlgraph claude --dev startup</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-ab377859"
+             data-type="bug"
+             data-status="todo"
+             data-priority="high"
+             data-created="2026-05-01T22:53:54.574563"
+             data-updated="2026-05-01T22:56:55.349065" data-agent-assigned="claude-code" data-track-id="trk-c4615ad2">
+
+        <header>
+            <h1>[P1] otel-collect handshake timeout blocks htmlgraph claude --dev startup</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-c4615ad2.html" data-relationship="part_of" data-since="2026-05-01T22:53:54.609334">trk-c4615ad2</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="relates_to">
+                <h3>Relates To:</h3>
+                <ul>
+                    <li><a href="bug-56b686aa.html" data-relationship="relates_to" data-since="2026-05-01T22:56:55.284838">Sporadic SQLITE_BUSY: &#39;database is locked&#39; during routine CLI calls (PRAGMA journal_mode)</a></li>
+                    <li><a href="plan-3bbc313f.html" data-relationship="relates_to" data-since="2026-05-01T22:56:55.347648">Plan: HTML-canonical architecture migration</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>All 3 collector spawn retries hit a 3s handshake timeout and the launcher exits FATAL, so claude --dev never starts.
+
+Repro:
+  htmlgraph claude --dev
+
+Observed output:
+  Removing marketplace htmlgraph plugin for dev mode...
+  Marketplace htmlgraph removed (uninstalled, disabled, cache wiped).
+  Launching Claude Code with local plugin (--plugin-dir mode)
+  htmlgraph: warning: collector spawn attempt 1/3 failed: otel-collect: handshake timeout (3s)
+  htmlgraph: warning: collector spawn attempt 2/3 failed: otel-collect: handshake timeout (3s)
+  htmlgraph: FATAL: collector spawn failed after 3 attempts: otel-collect: handshake timeout (3s)
+
+Likely root cause (untriaged):
+  Stale claude --dev sessions and their otel-collect children survive across user disconnects in Codespaces. ps -ef shows two prior 'htmlgraph claude --dev' processes still alive (one from Apr27, one from Apr30) and at least one orphaned 'htmlgraph otel-collect' child holding resources. A freshly spawned collector then races with these for the SQLite project DB lock and cannot complete its pragma-application phase within the 3s handshake budget. Concurrent CLI calls in the same shell confirm SQLITE_BUSY: 'database is locked (5)' on PRAGMA journal_mode.
+
+Hypotheses to probe (in order):
+  1. Stale-collector reaping: detect zombie collectors at launch (pid file, port probe, or socket lockfile) and reap before spawning the new one.
+  2. Handshake budget too tight when another writer holds the DB. 3s is fine for a cold open, not for contention; either retry the handshake itself or extend the budget under detected contention.
+  3. --tmux mode (recommended in CLAUDE.md for Codespaces) is opt-in; non-tmux launches get killed silently on disconnect, leaving orphans. Consider making tmux the default for --dev in Codespaces, OR add a 'graceful-shutdown-on-parent-disconnect' supervisor that reaps the otel-collect when the parent claude exits.
+
+Severity: P1 — blocks dev-mode entry entirely; user cannot iterate on the plugin without manual ps/kill cleanup.
+
+Related:
+  - feat-ac7532be (Resilient harness-agnostic telemetry capture): this bug is the canonical failure mode that feature is designed to harden against. Suggest linking caused_by feat-ac7532be → this bug.
+  - plan-3bbc313f slice-1 (Phase 0a SQLite ingestion RCA): the PRAGMA journal_mode + concurrent-collector hypothesis named in slice-1 lines up with this repro; this bug is a fresh data point for that RCA.
+
+Workaround (untested, do NOT script blindly):
+  Identify other htmlgraph claude --dev sessions with ps -ef, decide whether they are still in use, and only then kill the orphan otel-collect children. Then rm the per-user cache DB at ~/.cache/htmlgraph//htmlgraph.db and retry.</p>
+        </section>
+    </article>
+</body>
+</html>
