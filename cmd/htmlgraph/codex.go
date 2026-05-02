@@ -182,9 +182,9 @@ func ensureCodexHooksEnabled(configPath string) error {
 	}
 
 	// Ensure [features] table exists and set codex_hooks = true
-	features, ok := tree["features"].(map[string]interface{})
+	features, ok := tree["features"].(map[string]any)
 	if !ok {
-		features = make(map[string]interface{})
+		features = make(map[string]any)
 		tree["features"] = features
 	}
 	features["codex_hooks"] = true
