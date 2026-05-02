@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"maps"
 )
 
 // Pragmas mirrors the Python PRAGMA_SETTINGS from pragmas.py.
@@ -28,9 +29,7 @@ var Pragmas = map[string]string{
 // crashes. On safelisted native filesystems it stays WAL.
 func BuildPragmas(dbPath string) map[string]string {
 	p := make(map[string]string, len(Pragmas))
-	for k, v := range Pragmas {
-		p[k] = v
-	}
+	maps.Copy(p, Pragmas)
 	if isUnsafeForMmap(dbPath) {
 		p["journal_mode"] = "DELETE"
 	}
