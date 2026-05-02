@@ -283,10 +283,11 @@ textarea::placeholder{color:var(--text-muted)}
 <!-- Plan Header -->
 <header class="plan-header">
   <h1>Plan: Stabilize SQLite ingestion and stand up CI scaffolding (Phase 0)</h1>
-  <p style="color:var(--text-dim)">Sub-plan of plan-3bbc313f (HTML-canonical architecture migration) — Phase 0 stabilization. RCA the SQLite corruption class, add auto-recovery, and stand up CI matrix scaffolding so the rest of the migration has a working baseline. See plan-3bbc313f for full architectural context.</p>
+  <p style="color:var(--text-dim)">Sub-plan of plan-3bbc313f (HTML-canonical architecture migration) — Phase 0 stabilization. RCA the SQLite corruption class, add auto-recovery, and stand up CI matrix scaffolding so the rest of the migration has a working baseline. See plan-3bbc313f for full architectural context.
+</p>
   <div class="meta">
     <span class="badge badge-pending">Draft</span>
-    <span style="font-size:.75rem;color:var(--text-muted)">v2 · 0 slices · Created 2026-05-01</span>
+    <span style="font-size:.75rem;color:var(--text-muted)">v2 · 3 slices · Created 2026-05-01</span>
   </div>
 </header>
 <button id="themeToggle" style="position:fixed;top:16px;right:16px;z-index:100;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:6px 12px;color:var(--text);font-family:var(--mono);font-size:0.75rem;cursor:pointer;">
@@ -306,6 +307,9 @@ textarea::placeholder{color:var(--text-muted)}
 <section class="dep-graph" data-zone="dependency-graph">
   <h2>Dependency Graph</h2>
   <div id="graph-data" style="display:none">
+    <div data-node="1" data-name="Phase 0a — RCA and fix the SQLite ingestion path so OTEL spans render" data-status="pending" data-deps="" data-files="8"></div>
+    <div data-node="2" data-name="Phase 0b — Auto-recover empty/corrupt DB at startup; add `htmlgraph recover-db`" data-status="pending" data-deps="1" data-files="5"></div>
+    <div data-node="3" data-name="Phase 0c — CI infrastructure prerequisite" data-status="pending" data-deps="" data-files="3"></div>
     
     <!--PLAN_GRAPH_NODES-->
   </div>
@@ -318,17 +322,29 @@ textarea::placeholder{color:var(--text-muted)}
 <details id="design" class="section-card" open data-phase="design" data-status="pending">
   <summary><span>Design</span><span class="badge badge-pending" data-badge-for="design">Pending</span></summary>
   <div class="section-body">
-    <!--PLAN_DESIGN_CONTENT-->
-    <div class="sub-section">
-      <h4>Open Questions</h4>
-      <!--PLAN_QUESTIONS-->
-    </div>
+    <h4>Problem</h4>
+<div data-markdown>`.htmlgraph/htmlgraph.db` has corrupted three times in nine days. The current OTEL activity feed shows zero spans because the DB ends up empty/no-schema even though NDJSON has the data. Existing CI is a single flat job with no matrix or workflow_call support, so downstream slices that need a `-tags sqlite_disabled` build, a migrator dry-run artifact, or a `database/sql` import audit have nowhere to land. Land minimal stabilization first so nothing else has to deliver visible parity in one giant step.
+</div>
+<h4>Goals</h4>
+<ol>
+<li data-markdown>Activity feed renders OTEL spans within one cold-start of `htmlgraph serve`.</li>
+<li data-markdown>Empty/corrupt DB is auto-recoverable from canonical sources (NDJSON + HTML) with no operator intervention.</li>
+<li data-markdown>CI hosts a matrix entry per build tag and uploads migrator dry-run diffs as PR artifacts.</li>
+</ol>
+<h4>Constraints</h4>
+<ul>
+<li data-markdown>No new runtime language deps (pure-Go embeds only).</li>
+<li data-markdown>Recovery must be deterministic: identical output between auto-recover and `htmlgraph recover-db`.</li>
+<li data-markdown>CI changes must not break existing default-tag builds.</li>
+</ul>
+
     <div class="approval-row">
       <label><input type="checkbox" data-section="design" data-action="approve"> Approve design</label>
       <textarea data-section="design" data-comment-for="design" placeholder="Comments on design decisions..."></textarea>
     </div>
   </div>
 </details>
+
 
 <!-- Structure Outline (hidden when empty) -->
 
@@ -337,23 +353,164 @@ textarea::placeholder{color:var(--text-muted)}
 <details id="slices" class="section-card" open data-phase="slices" data-status="pending">
   <summary><span>Slices</span><span class="badge badge-pending" data-badge-for="slices">Pending</span></summary>
   <div class="section-body">
-    
+    <div class="slice-card" data-slice="1" data-slice-name="slice-1" data-status="pending">
+  <div class="slice-header">
+    <span class="slice-num">#1</span>
+    <span class="slice-name">Phase 0a — RCA and fix the SQLite ingestion path so OTEL spans render</span>
+    <span class="badge badge-revision">M</span>
+    <span class="badge badge-revision">Med</span>
+    <span class="badge badge-pending slice-exec-badge" title="Execution: not_started">Not Started</span>
+    <span class="badge badge-pending slice-approval-badge" data-badge-for="slice-1">Pending</span>
+  </div>
+  
+  <div class="slice-field"><div class="slice-field-label">What</div><div class="slice-field-value slice-md"><p>Diagnose why <code>.htmlgraph/htmlgraph.db</code> keeps ending up empty/corrupt
+(3 incidents in 9 days, plus a current zero-byte file with no schema).
+The original &#34;concurrent collectors&#34; hypothesis is suspect because
+<code>internal/otel/receiver/writer.go</code> already sets <code>MaxOpenConns=1</code> and
+uses <code>BEGIN IMMEDIATE</code>. Specifically test three candidate causes:
+(a) <code>journal_mode=WAL</code> falls back to <code>DELETE</code> on the Codespaces
+filesystem (check <code>internal/db/pragmas.go</code>),
+(b) <code>INSERT OR IGNORE INTO sessions</code> swallows FK constraint
+violations on the <code>otel_signals</code> insert path, leaving the table empty
+while no error is logged,
+(c) the read-pool DSN and write-pool DSN apply different pragmas,
+causing journal-mode mismatch.
+Pick the actual cause with a reproducer; fix it; document the
+diagnosis in the commit message. The ingestion path spans
+<code>internal/otel/indexer/indexer.go</code>,
+<code>internal/otel/receiver/writer.go</code>, <code>internal/otel/sink/sink.go</code>,
+and <code>internal/db/otel_schema.go</code>.</p>
+</div></div>
+  <div class="slice-field"><div class="slice-field-label">Why</div><div class="slice-field-value slice-md"><p>Closes the immediate user-visible bug (activity feed shows no OTEL
+data) and stabilizes the baseline so the rest of the migration can
+proceed against a working dashboard. Without a correct RCA, the
+&#34;fix&#34; may not address the actual cause and corruption recurs.</p>
+</div></div>
+  <div class="slice-field"><div class="slice-field-label">Files</div><div class="slice-field-value"><code>internal/otel/receiver/writer.go, internal/otel/indexer/indexer.go, internal/otel/sink/sink.go, internal/otel/adapter/claude.go, internal/db/otel_schema.go, internal/db/pragmas.go, internal/storage/dbpath.go, internal/otel/receiver/writer_test.go</code></div></div>
+  <div class="slice-field"><div class="slice-field-label">Done when</div><ul class="slice-done-list"><li>Activity feed in the dashboard shows OTEL spans (api_request, tool_execution, tool_result) within one cold-start of `htmlgraph serve`.</li><li>A regression test reproduces the corruption / empty-schema scenario and verifies the fix.</li><li>Running two concurrent `htmlgraph claude` sessions does not cause DB corruption (verified manually &#43; scripted).</li><li>A new bug `[P1] SQLite read index ends up empty/corrupt` is filed under trk-c4615ad2 and closed by this slice&#39;s commits.</li></ul></div>
+  
+  <div class="slice-field"><div class="slice-field-label">Test Strategy</div><div class="slice-field-value slice-md slice-tests"><p>Unit: TestWriter_BatchIngest_EmptyDB_AutoMigrates — open against a fresh empty DB, batch-insert 10 spans, assert all are queryable.
+Integration: TestConcurrentCollectors_NoCorruption — spin up two collectors writing to the same DB via the WAL path; assert PRAGMA integrity_check is OK after 1k spans each.
+Regression: existing <code>internal/otel/receiver/*_test.go</code> and <code>internal/otel/sink/*_test.go</code> still pass.</p>
+</div></div>
+  
+  <div class="slice-field slice-critic-revisions">
+    <div class="slice-field-label">Critic Revisions</div>
+    <div class="slice-field-value">
+      
+      <div class="critic-revision">
+        <span class="badge badge-blocked critic-revision-badge">HIGH</span>
+        <span class="critic-revision-source">sonnet-coder</span>
+        <span class="critic-revision-summary">Concurrent-collector hypothesis may be wrong. writer.go already has MaxOpenConns=1 &#43; BEGIN IMMEDIATE. RCA must specifically probe (a) journal_mode falling back to DELETE on Codespaces fs, (b) INSERT OR IGNORE swallowing FK constraint violations on otel_signals → sessions, before landing any fix.</span>
+      </div>
+      
+      <div class="critic-revision">
+        <span class="badge badge-revision critic-revision-badge">MED</span>
+        <span class="critic-revision-source">researcher</span>
+        <span class="critic-revision-summary">Ingestion chain likely runs through internal/otel/indexer/indexer.go and internal/otel/sink/sqlite/sqlite.go in addition to receiver/writer.go — file list incomplete; corruption site may be in any of the three.</span>
+      </div>
+      
+    </div>
+  </div>
+  
+  
+  <div class="slice-deps">Dependencies: none</div>
+  <div class="approval-row">
+    <label><input type="checkbox" data-section="slice-1" data-action="approve"> Approve slice</label>
+    <textarea data-section="slice-1" data-comment-for="slice-1" placeholder="Comments on slice 1..."></textarea>
+  </div>
+</div>
+<div class="slice-card" data-slice="2" data-slice-name="slice-2" data-status="pending">
+  <div class="slice-header">
+    <span class="slice-num">#2</span>
+    <span class="slice-name">Phase 0b — Auto-recover empty/corrupt DB at startup; add `htmlgraph recover-db`</span>
+    <span class="badge badge-revision">M</span>
+    <span class="badge badge-revision">Med</span>
+    <span class="badge badge-pending slice-exec-badge" title="Execution: not_started">Not Started</span>
+    <span class="badge badge-pending slice-approval-badge" data-badge-for="slice-2">Pending</span>
+  </div>
+  
+  <div class="slice-field"><div class="slice-field-label">What</div><div class="slice-field-value slice-md"><p>In the SQLite open path (<code>internal/storage/dbpath.go</code> and
+<code>cmd/htmlgraph/main.go</code> startup), detect: (a) zero-byte DB,
+(b) PRAGMA integrity_check failure. On either, quarantine the file
+to <code>.htmlgraph/htmlgraph.db.corrupt-&lt;unix&gt;</code> and rebuild from
+canonical sources (replay every <code>.htmlgraph/sessions/*/events.ndjson</code>
+through the indexer; reparse all work-item HTML for the work-item
+tables). Add explicit <code>htmlgraph recover-db</code> subcommand for manual
+recovery, sharing the same code path.</p>
+</div></div>
+  <div class="slice-field"><div class="slice-field-label">Why</div><div class="slice-field-value slice-md"><p>Defensive: turns the next corruption from an incident into a slow
+startup. Also serves as the dress rehearsal for Phase 4 — proves the
+DB can be rebuilt deterministically from canonical sources, which is
+the precondition for ever calling SQLite &#34;disposable.&#34;</p>
+</div></div>
+  <div class="slice-field"><div class="slice-field-label">Files</div><div class="slice-field-value"><code>internal/storage/dbpath.go, internal/storage/recover.go, cmd/htmlgraph/main.go, cmd/htmlgraph/recover_db.go, cmd/htmlgraph/recover_db_test.go</code></div></div>
+  <div class="slice-field"><div class="slice-field-label">Done when</div><ul class="slice-done-list"><li>Starting `htmlgraph serve` against a zero-byte `htmlgraph.db` quarantines it and produces a fully-populated rebuild without operator intervention.</li><li>`htmlgraph recover-db` exits 0 and produces an identical DB to the auto-recovery path (golden-file comparison).</li><li>PRAGMA integrity_check failures during normal queries trigger a single quarantine &#43; rebuild, not an infinite loop.</li></ul></div>
+  
+  <div class="slice-field"><div class="slice-field-label">Test Strategy</div><div class="slice-field-value slice-md slice-tests"><p>Unit: TestRecoverDB_FromZeroByte — empty file → fully-populated DB, all expected tables present.
+Unit: TestRecoverDB_FromCorrupt — write a known-bad page, assert quarantine + rebuild.
+Integration: TestStartupAutoRecover — <code>htmlgraph status</code> against a corrupt DB succeeds.</p>
+</div></div>
+  
+  
+  <div class="slice-deps">Dependencies: slices 1</div>
+  <div class="approval-row">
+    <label><input type="checkbox" data-section="slice-2" data-action="approve"> Approve slice</label>
+    <textarea data-section="slice-2" data-comment-for="slice-2" placeholder="Comments on slice 2..."></textarea>
+  </div>
+</div>
+<div class="slice-card" data-slice="3" data-slice-name="slice-3" data-status="pending">
+  <div class="slice-header">
+    <span class="slice-num">#3</span>
+    <span class="slice-name">Phase 0c — CI infrastructure prerequisite</span>
+    <span class="badge badge-pending">S</span>
+    <span class="badge badge-pending">Low</span>
+    <span class="badge badge-pending slice-exec-badge" title="Execution: not_started">Not Started</span>
+    <span class="badge badge-pending slice-approval-badge" data-badge-for="slice-3">Pending</span>
+  </div>
+  
+  <div class="slice-field"><div class="slice-field-label">What</div><div class="slice-field-value slice-md"><p>Existing <code>.github/workflows/ci.yml</code> is a single flat quality-gates
+job. Several plan slices (6, 8, 11) depend on CI capabilities that
+don&#39;t yet exist:</p>
+<ul>
+<li>A matrix or workflow_call to run <code>go test -tags sqlite_disabled</code>
+in addition to default-tag tests (slice-8).</li>
+<li>A migrator dry-run job that uploads the diff as a PR artifact for
+human review (slice-6).</li>
+<li>A <code>database/sql</code> import audit step that asserts zero imports after
+slice-11.</li>
+</ul>
+<p>Refactor <code>.github/workflows/ci.yml</code> into a reusable workflow_call
+pattern; add a per-tag matrix (default, <code>sqlite_disabled</code>); add an
+artifact-upload step for migrator dry-runs; gate slice-11 on a
+&#34;no SQL imports&#34; check.</p>
+</div></div>
+  <div class="slice-field"><div class="slice-field-label">Why</div><div class="slice-field-value slice-md"><p>Slices 6, 8, and 11 cannot demonstrate their own correctness without
+these CI capabilities. Adding the infra in a dedicated slice (rather
+than threading it into each consumer) keeps the per-slice scope
+tight and lets the CI work be reviewed independently.</p>
+</div></div>
+  <div class="slice-field"><div class="slice-field-label">Files</div><div class="slice-field-value"><code>.github/workflows/ci.yml, .github/workflows/sql-audit.yml, .github/workflows/migrator-dryrun.yml</code></div></div>
+  <div class="slice-field"><div class="slice-field-label">Done when</div><ul class="slice-done-list"><li>ci.yml runs `go test ./...` with both default and `-tags sqlite_disabled` matrix entries.</li><li>A pre-existing failing test (e.g. lineage relying on DB) confirms the matrix entry runs and reports the failure (proves the infra works).</li><li>Migrator dry-run workflow exists and uploads `migrator-dryrun.diff` as an artifact on PRs touching `internal/migrate/`.</li><li>SQL-audit workflow exists; passes today (since SQL is allowed) but is wired to run on every PR.</li></ul></div>
+  
+  <div class="slice-field"><div class="slice-field-label">Test Strategy</div><div class="slice-field-value slice-md slice-tests"><p>Manual: open a PR that runs the new matrix; verify the sqlite_disabled job runs and reports honestly.
+Manual: open a PR touching internal/migrate/ stub; verify diff artifact uploads.</p>
+</div></div>
+  
+  
+  <div class="slice-deps">Dependencies: none</div>
+  <div class="approval-row">
+    <label><input type="checkbox" data-section="slice-3" data-action="approve"> Approve slice</label>
+    <textarea data-section="slice-3" data-comment-for="slice-3" placeholder="Comments on slice 3..."></textarea>
+  </div>
+</div>
+
     <!--PLAN_SLICE_CARDS-->
   </div>
 </details>
 
 <!-- Design Decisions (hidden for v2 plans — slice cards carry their own questions) -->
-<details id="questions" class="section-card" data-phase="questions" data-status="pending">
-  <summary><span>Design Decisions</span><span class="badge badge-pending" data-badge-for="questions">Pending</span></summary>
-  <div class="section-body">
-    <table class="q-table">
-      <thead><tr><th>Question</th><th>Selected</th><th>Status</th></tr></thead>
-      <tbody id="questionsRecap">
-        <!--PLAN_QUESTIONS_RECAP-->
-      </tbody>
-    </table>
-  </div>
-</details>
+
 
 
 
@@ -364,8 +521,8 @@ textarea::placeholder{color:var(--text-muted)}
   <h2>Feedback Summary</h2>
   <div class="progress-stats">
     <div class="progress-stat"><strong id="approvedCount">0</strong> approved</div>
-    <div class="progress-stat"><strong id="totalSections">1</strong> sections</div>
-    <div class="progress-stat"><strong id="pendingCount">1</strong> pending</div>
+    <div class="progress-stat"><strong id="totalSections">4</strong> sections</div>
+    <div class="progress-stat"><strong id="pendingCount">4</strong> pending</div>
   </div>
   <div class="progress-bar-track"><div class="progress-bar-fill" id="progressFill" style="width:0%"></div></div>
   <div class="comments-summary">
@@ -469,7 +626,7 @@ var planId=(function(){var a=document.querySelector('article[id]');return a?a.id
 
 (function(){
   'use strict';
-  var SECTIONS=/*PLAN_SECTIONS_JSON*/["design"]/*END_PLAN_SECTIONS_JSON*/;
+  var SECTIONS=/*PLAN_SECTIONS_JSON*/["design","slice-1","slice-2","slice-3"]/*END_PLAN_SECTIONS_JSON*/;
 
   function setBadge(el,ok){
     el.className='badge badge-'+(ok?'approved':'pending');

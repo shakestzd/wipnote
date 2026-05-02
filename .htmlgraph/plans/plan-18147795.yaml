@@ -2,15 +2,163 @@ meta:
     id: plan-18147795
     track_id: trk-2c55adea
     title: Stabilize SQLite ingestion and stand up CI scaffolding (Phase 0)
-    description: Sub-plan of plan-3bbc313f (HTML-canonical architecture migration) — Phase 0 stabilization. RCA the SQLite corruption class, add auto-recovery, and stand up CI matrix scaffolding so the rest of the migration has a working baseline. See plan-3bbc313f for full architectural context.
+    description: |
+        Sub-plan of plan-3bbc313f (HTML-canonical architecture migration) — Phase 0 stabilization. RCA the SQLite corruption class, add auto-recovery, and stand up CI matrix scaffolding so the rest of the migration has a working baseline. See plan-3bbc313f for full architectural context.
     created_at: "2026-05-01"
     status: draft
+    created_by: claude-opus
     version: 2
 design:
-    problem: ""
-    goals: []
-    constraints: []
+    problem: |
+        `.htmlgraph/htmlgraph.db` has corrupted three times in nine days. The current OTEL activity feed shows zero spans because the DB ends up empty/no-schema even though NDJSON has the data. Existing CI is a single flat job with no matrix or workflow_call support, so downstream slices that need a `-tags sqlite_disabled` build, a migrator dry-run artifact, or a `database/sql` import audit have nowhere to land. Land minimal stabilization first so nothing else has to deliver visible parity in one giant step.
+    goals:
+        - Activity feed renders OTEL spans within one cold-start of `htmlgraph serve`.
+        - Empty/corrupt DB is auto-recoverable from canonical sources (NDJSON + HTML) with no operator intervention.
+        - CI hosts a matrix entry per build tag and uploads migrator dry-run diffs as PR artifacts.
+    constraints:
+        - No new runtime language deps (pure-Go embeds only).
+        - 'Recovery must be deterministic: identical output between auto-recover and `htmlgraph recover-db`.'
+        - CI changes must not break existing default-tag builds.
     approved: false
     comment: ""
-slices: []
+slices:
+    - id: slice-1
+      num: 1
+      title: Phase 0a — RCA and fix the SQLite ingestion path so OTEL spans render
+      what: |
+        Diagnose why `.htmlgraph/htmlgraph.db` keeps ending up empty/corrupt
+        (3 incidents in 9 days, plus a current zero-byte file with no schema).
+        The original "concurrent collectors" hypothesis is suspect because
+        `internal/otel/receiver/writer.go` already sets `MaxOpenConns=1` and
+        uses `BEGIN IMMEDIATE`. Specifically test three candidate causes:
+        (a) `journal_mode=WAL` falls back to `DELETE` on the Codespaces
+        filesystem (check `internal/db/pragmas.go`),
+        (b) `INSERT OR IGNORE INTO sessions` swallows FK constraint
+        violations on the `otel_signals` insert path, leaving the table empty
+        while no error is logged,
+        (c) the read-pool DSN and write-pool DSN apply different pragmas,
+        causing journal-mode mismatch.
+        Pick the actual cause with a reproducer; fix it; document the
+        diagnosis in the commit message. The ingestion path spans
+        `internal/otel/indexer/indexer.go`,
+        `internal/otel/receiver/writer.go`, `internal/otel/sink/sink.go`,
+        and `internal/db/otel_schema.go`.
+      why: |
+        Closes the immediate user-visible bug (activity feed shows no OTEL
+        data) and stabilizes the baseline so the rest of the migration can
+        proceed against a working dashboard. Without a correct RCA, the
+        "fix" may not address the actual cause and corruption recurs.
+      files:
+        - internal/otel/receiver/writer.go
+        - internal/otel/indexer/indexer.go
+        - internal/otel/sink/sink.go
+        - internal/otel/adapter/claude.go
+        - internal/db/otel_schema.go
+        - internal/db/pragmas.go
+        - internal/storage/dbpath.go
+        - internal/otel/receiver/writer_test.go
+      deps: []
+      done_when:
+        - Activity feed in the dashboard shows OTEL spans (api_request, tool_execution, tool_result) within one cold-start of `htmlgraph serve`.
+        - A regression test reproduces the corruption / empty-schema scenario and verifies the fix.
+        - Running two concurrent `htmlgraph claude` sessions does not cause DB corruption (verified manually + scripted).
+        - A new bug `[P1] SQLite read index ends up empty/corrupt` is filed under trk-c4615ad2 and closed by this slice's commits.
+      effort: M
+      risk: Med
+      tests: |
+        Unit: TestWriter_BatchIngest_EmptyDB_AutoMigrates — open against a fresh empty DB, batch-insert 10 spans, assert all are queryable.
+        Integration: TestConcurrentCollectors_NoCorruption — spin up two collectors writing to the same DB via the WAL path; assert PRAGMA integrity_check is OK after 1k spans each.
+        Regression: existing `internal/otel/receiver/*_test.go` and `internal/otel/sink/*_test.go` still pass.
+      approved: false
+      comment: ""
+      approval_status: pending
+      execution_status: not_started
+      critic_revisions:
+        - source: sonnet-coder
+          severity: HIGH
+          summary: Concurrent-collector hypothesis may be wrong. writer.go already has MaxOpenConns=1 + BEGIN IMMEDIATE. RCA must specifically probe (a) journal_mode falling back to DELETE on Codespaces fs, (b) INSERT OR IGNORE swallowing FK constraint violations on otel_signals → sessions, before landing any fix.
+        - source: researcher
+          severity: MED
+          summary: Ingestion chain likely runs through internal/otel/indexer/indexer.go and internal/otel/sink/sqlite/sqlite.go in addition to receiver/writer.go — file list incomplete; corruption site may be in any of the three.
+    - id: slice-2
+      num: 2
+      title: Phase 0b — Auto-recover empty/corrupt DB at startup; add `htmlgraph recover-db`
+      what: |
+        In the SQLite open path (`internal/storage/dbpath.go` and
+        `cmd/htmlgraph/main.go` startup), detect: (a) zero-byte DB,
+        (b) PRAGMA integrity_check failure. On either, quarantine the file
+        to `.htmlgraph/htmlgraph.db.corrupt-<unix>` and rebuild from
+        canonical sources (replay every `.htmlgraph/sessions/*/events.ndjson`
+        through the indexer; reparse all work-item HTML for the work-item
+        tables). Add explicit `htmlgraph recover-db` subcommand for manual
+        recovery, sharing the same code path.
+      why: |
+        Defensive: turns the next corruption from an incident into a slow
+        startup. Also serves as the dress rehearsal for Phase 4 — proves the
+        DB can be rebuilt deterministically from canonical sources, which is
+        the precondition for ever calling SQLite "disposable."
+      files:
+        - internal/storage/dbpath.go
+        - internal/storage/recover.go
+        - cmd/htmlgraph/main.go
+        - cmd/htmlgraph/recover_db.go
+        - cmd/htmlgraph/recover_db_test.go
+      deps:
+        - 1
+      done_when:
+        - Starting `htmlgraph serve` against a zero-byte `htmlgraph.db` quarantines it and produces a fully-populated rebuild without operator intervention.
+        - '`htmlgraph recover-db` exits 0 and produces an identical DB to the auto-recovery path (golden-file comparison).'
+        - PRAGMA integrity_check failures during normal queries trigger a single quarantine + rebuild, not an infinite loop.
+      effort: M
+      risk: Med
+      tests: |
+        Unit: TestRecoverDB_FromZeroByte — empty file → fully-populated DB, all expected tables present.
+        Unit: TestRecoverDB_FromCorrupt — write a known-bad page, assert quarantine + rebuild.
+        Integration: TestStartupAutoRecover — `htmlgraph status` against a corrupt DB succeeds.
+      approved: false
+      comment: ""
+      approval_status: pending
+      execution_status: not_started
+    - id: slice-3
+      num: 3
+      title: Phase 0c — CI infrastructure prerequisite
+      what: |
+        Existing `.github/workflows/ci.yml` is a single flat quality-gates
+        job. Several plan slices (6, 8, 11) depend on CI capabilities that
+        don't yet exist:
+        - A matrix or workflow_call to run `go test -tags sqlite_disabled`
+          in addition to default-tag tests (slice-8).
+        - A migrator dry-run job that uploads the diff as a PR artifact for
+          human review (slice-6).
+        - A `database/sql` import audit step that asserts zero imports after
+          slice-11.
+
+        Refactor `.github/workflows/ci.yml` into a reusable workflow_call
+        pattern; add a per-tag matrix (default, `sqlite_disabled`); add an
+        artifact-upload step for migrator dry-runs; gate slice-11 on a
+        "no SQL imports" check.
+      why: |
+        Slices 6, 8, and 11 cannot demonstrate their own correctness without
+        these CI capabilities. Adding the infra in a dedicated slice (rather
+        than threading it into each consumer) keeps the per-slice scope
+        tight and lets the CI work be reviewed independently.
+      files:
+        - .github/workflows/ci.yml
+        - .github/workflows/sql-audit.yml
+        - .github/workflows/migrator-dryrun.yml
+      deps: []
+      done_when:
+        - ci.yml runs `go test ./...` with both default and `-tags sqlite_disabled` matrix entries.
+        - A pre-existing failing test (e.g. lineage relying on DB) confirms the matrix entry runs and reports the failure (proves the infra works).
+        - Migrator dry-run workflow exists and uploads `migrator-dryrun.diff` as an artifact on PRs touching `internal/migrate/`.
+        - SQL-audit workflow exists; passes today (since SQL is allowed) but is wired to run on every PR.
+      effort: S
+      risk: Low
+      tests: |
+        Manual: open a PR that runs the new matrix; verify the sqlite_disabled job runs and reports honestly.
+        Manual: open a PR touching internal/migrate/ stub; verify diff artifact uploads.
+      approved: false
+      comment: ""
+      approval_status: pending
+      execution_status: not_started
 questions: []
