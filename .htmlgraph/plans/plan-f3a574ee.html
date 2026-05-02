@@ -283,10 +283,11 @@ textarea::placeholder{color:var(--text-muted)}
 <!-- Plan Header -->
 <header class="plan-header">
   <h1>Plan: v1 HTML schema: corpus audit, spec, fixtures (Phase 1)</h1>
-  <p style="color:var(--text-dim)">Sub-plan of plan-3bbc313f — Phase 1 schema authoring. Audit the existing 577 HTML files, freeze the v1 vocabulary at https://htmlgraph.dev/v1/, ship Go types + validator + fixtures. The schema URL becomes a permanent public contract once committed; this child is design-heavy and should be reviewed for vocabulary completeness.</p>
+  <p style="color:var(--text-dim)">Sub-plan of plan-3bbc313f — Phase 1 schema authoring. Audit the existing 577 HTML files, freeze the v1 vocabulary at https://htmlgraph.dev/v1/, ship Go types + validator + fixtures. The schema URL becomes a permanent public contract once committed; this child is design-heavy and should be reviewed for vocabulary completeness.
+</p>
   <div class="meta">
     <span class="badge badge-pending">Draft</span>
-    <span style="font-size:.75rem;color:var(--text-muted)">v2 · 0 slices · Created 2026-05-01</span>
+    <span style="font-size:.75rem;color:var(--text-muted)">v2 · 3 slices · Created 2026-05-01</span>
   </div>
 </header>
 <button id="themeToggle" style="position:fixed;top:16px;right:16px;z-index:100;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:6px 12px;color:var(--text);font-family:var(--mono);font-size:0.75rem;cursor:pointer;">
@@ -306,6 +307,9 @@ textarea::placeholder{color:var(--text-muted)}
 <section class="dep-graph" data-zone="dependency-graph">
   <h2>Dependency Graph</h2>
   <div id="graph-data" style="display:none">
+    <div data-node="1" data-name="Phase 1c — Audit existing HTML corpus to inform v1 vocabulary" data-status="pending" data-deps="" data-files="5"></div>
+    <div data-node="2" data-name="Phase 1a — Author schema v1 spec, Go types, and validator" data-status="pending" data-deps="1" data-files="4"></div>
+    <div data-node="3" data-name="Phase 1b — Schema test fixtures (positive and negative)" data-status="pending" data-deps="2" data-files="8"></div>
     
     <!--PLAN_GRAPH_NODES-->
   </div>
@@ -318,17 +322,29 @@ textarea::placeholder{color:var(--text-muted)}
 <details id="design" class="section-card" open data-phase="design" data-status="pending">
   <summary><span>Design</span><span class="badge badge-pending" data-badge-for="design">Pending</span></summary>
   <div class="section-body">
-    <!--PLAN_DESIGN_CONTENT-->
-    <div class="sub-section">
-      <h4>Open Questions</h4>
-      <!--PLAN_QUESTIONS-->
-    </div>
+    <h4>Problem</h4>
+<div data-markdown>The HTML schema URL `https://htmlgraph.dev/v1/` becomes a permanent public contract once committed into 577 existing HTML files. Today those files use ad-hoc `data-*` attributes; without a corpus audit the v1 vocabulary will miss real fields and force a v2 migration soon after launch. Author the v1 schema as the architectural commitment everything else depends on.
+</div>
+<h4>Goals</h4>
+<ol>
+<li data-markdown>Inventory every distinct `data-*` attribute, edge relationship, meta name, and timestamp format actually present in `.htmlgraph/`.</li>
+<li data-markdown>Freeze v1 vocabulary covering EVERY observed field — no surprise that forces v2.</li>
+<li data-markdown>Ship Go types (`internal/schema/v1.go`) with `BodyPassthrough` per type, plus a validator and positive/negative fixtures.</li>
+</ol>
+<h4>Constraints</h4>
+<ul>
+<li data-markdown>Schema URL frozen at `https://htmlgraph.dev/v1/` (pending the open question on subdomain vs apex).</li>
+<li data-markdown>BodyPassthrough must round-trip arbitrary inner HTML byte-for-byte.</li>
+<li data-markdown>Validator returns specific errors for known-bad cases — no generic &#39;invalid HTML&#39; messages.</li>
+</ul>
+
     <div class="approval-row">
       <label><input type="checkbox" data-section="design" data-action="approve"> Approve design</label>
       <textarea data-section="design" data-comment-for="design" placeholder="Comments on design decisions..."></textarea>
     </div>
   </div>
 </details>
+
 
 <!-- Structure Outline (hidden when empty) -->
 
@@ -337,23 +353,159 @@ textarea::placeholder{color:var(--text-muted)}
 <details id="slices" class="section-card" open data-phase="slices" data-status="pending">
   <summary><span>Slices</span><span class="badge badge-pending" data-badge-for="slices">Pending</span></summary>
   <div class="section-body">
-    
+    <div class="slice-card" data-slice="1" data-slice-name="slice-1" data-status="pending">
+  <div class="slice-header">
+    <span class="slice-num">#1</span>
+    <span class="slice-name">Phase 1c — Audit existing HTML corpus to inform v1 vocabulary</span>
+    <span class="badge badge-revision">M</span>
+    <span class="badge badge-pending">Low</span>
+    <span class="badge badge-pending slice-exec-badge" title="Execution: not_started">Not Started</span>
+    <span class="badge badge-pending slice-approval-badge" data-badge-for="slice-1">Pending</span>
+  </div>
+  
+  <div class="slice-field"><div class="slice-field-label">What</div><div class="slice-field-value slice-md"><p>Before the v1 schema is frozen, scan all 577 existing
+<code>.htmlgraph/{features,bugs,spikes,plans,tracks,sessions}/*.html</code>
+files and enumerate every distinct <code>data-*</code> attribute name, value
+type, and edge relationship in actual use today. Produce
+<code>docs/schema/v0-inventory.md</code> listing:</p>
+<ul>
+<li>Per-type: every <code>data-*</code> attribute name, distinct values seen,
+and rough frequency.</li>
+<li>Every distinct <code>&lt;a data-relationship=&#34;...&#34;&gt;</code> value (the live
+edge vocabulary).</li>
+<li>Every distinct <code>&lt;meta name=&#34;...&#34;&gt;</code> already present in heads.</li>
+<li>Every observed timestamp format (so v1&#39;s <code>&lt;time datetime&gt;</code> covers
+them all).</li>
+<li>Hand-edited body content patterns (so the <code>BodyPassthrough</code>
+field on <code>schema.v1.&lt;Type&gt;</code> covers actual usage).</li>
+</ul>
+<p>Implement as <code>cmd/htmlgraph/audit_v0.go</code> — a one-shot CLI command
+that walks the corpus, parses with goquery, aggregates, and emits
+the markdown report.</p>
+</div></div>
+  <div class="slice-field"><div class="slice-field-label">Why</div><div class="slice-field-value slice-md"><p>The schema URL <code>https://htmlgraph.dev/v1/</code> becomes a permanent
+public contract once committed into 577 HTML files. A single missed
+attribute forces a v2 migration. Slice-3 (schema spec) MUST consume
+this inventory before freezing; that&#39;s why slice-3 deps on slice-12.</p>
+</div></div>
+  <div class="slice-field"><div class="slice-field-label">Files</div><div class="slice-field-value"><code>cmd/htmlgraph/audit_v0.go, cmd/htmlgraph/audit_v0_test.go, docs/schema/v0-inventory.md, internal/audit/scan.go, internal/audit/scan_test.go</code></div></div>
+  <div class="slice-field"><div class="slice-field-label">Done when</div><ul class="slice-done-list"><li>`htmlgraph audit-v0` runs on the working repo&#39;s `.htmlgraph/` and produces `docs/schema/v0-inventory.md`.</li><li>Inventory enumerates ≥10 distinct `data-*` attributes, ≥5 edge relationship types, ≥3 timestamp formats, and any meta-name primitives in use.</li><li>A reviewer (human or agent) can read the inventory and produce the v1 vocabulary list without consulting the source code.</li></ul></div>
+  
+  <div class="slice-field"><div class="slice-field-label">Test Strategy</div><div class="slice-field-value slice-md slice-tests"><p>Unit: TestScan_AggregatesAttributes — synthetic corpus, expected attribute frequencies match.
+Unit: TestScan_EmitsMarkdown — fixture corpus → markdown output matches recorded golden.
+Integration: TestAuditV0_RealCorpus — runs against <code>.htmlgraph/</code> in CI; output count &gt; thresholds.</p>
+</div></div>
+  
+  
+  <div class="slice-deps">Dependencies: none</div>
+  <div class="approval-row">
+    <label><input type="checkbox" data-section="slice-1" data-action="approve"> Approve slice</label>
+    <textarea data-section="slice-1" data-comment-for="slice-1" placeholder="Comments on slice 1..."></textarea>
+  </div>
+</div>
+<div class="slice-card" data-slice="2" data-slice-name="slice-2" data-status="pending">
+  <div class="slice-header">
+    <span class="slice-num">#2</span>
+    <span class="slice-name">Phase 1a — Author schema v1 spec, Go types, and validator</span>
+    <span class="badge badge-revision">M</span>
+    <span class="badge badge-revision">Med</span>
+    <span class="badge badge-pending slice-exec-badge" title="Execution: not_started">Not Started</span>
+    <span class="badge badge-pending slice-approval-badge" data-badge-for="slice-2">Pending</span>
+  </div>
+  
+  <div class="slice-field"><div class="slice-field-label">What</div><div class="slice-field-value slice-md"><p>Consume the v0 vocabulary inventory produced by slice-12. Write
+<code>docs/schema/v1.md</code> defining the <code>https://htmlgraph.dev/v1/</code>
+vocabulary: types (Feature, Bug, Spike, Plan, Track, Session, Commit,
+OtelSpan, AgentEvent), universal properties covering EVERY data-*
+attribute observed in the live corpus (so no surprise field forces
+a v2 migration), and the link-rel relationship vocabulary mapped
+from existing <code>data-relationship</code> values (depends-on, blocked-by,
+caused-by, contained-in, part-of, references, supersedes,
+produced-by-session, produced-commit, plus any others surfaced by
+the audit). Implement <code>internal/schema/v1.go</code> with Go structs
+matching the JSON-LD shape (<code>@context</code>, <code>@type</code>, <code>@id</code> + properties)
+and an explicit <code>BodyPassthrough string</code> field on each type to
+preserve hand-edited body content verbatim across re-renders.
+Implement <code>internal/schema/validate.go</code> — given an <code>io.Reader</code>
+over an HTML file, verify presence and consistency of <code>&lt;script type=&#34;application/ld+json&#34;&gt;</code>, <code>&lt;meta name=&#34;htmlgraph:*&#34;&gt;</code>,
+<code>&lt;link rel=&#34;...&#34;&gt;</code>, and <code>&lt;time datetime=&#34;...&#34;&gt;</code> against the schema.</p>
+</div></div>
+  <div class="slice-field"><div class="slice-field-label">Why</div><div class="slice-field-value slice-md"><p>Establishes the public contract everything else depends on. The schema
+is the new architectural commitment; nothing else can land safely
+until it&#39;s frozen. Acts as both human documentation and a parser
+contract for tools (CLI, dashboard, external <code>hq</code>/<code>jq</code> users).</p>
+</div></div>
+  <div class="slice-field"><div class="slice-field-label">Files</div><div class="slice-field-value"><code>docs/schema/v1.md, internal/schema/v1.go, internal/schema/validate.go, internal/schema/validate_test.go</code></div></div>
+  <div class="slice-field"><div class="slice-field-label">Done when</div><ul class="slice-done-list"><li>`docs/schema/v1.md` exists, defines all listed types and properties, and lists the `&lt;link rel&gt;` vocabulary derived from the slice-12 v0 inventory.</li><li>`internal/schema/v1.Feature`, `.Bug`, `.Spike`, `.Plan`, `.Track`, `.Session` Go structs round-trip via `encoding/json` matching the spec, INCLUDING a `BodyPassthrough` field per type.</li><li>Every distinct `data-*` attribute and edge type from the v0 inventory has a corresponding mapped property in v1 (no schema gap).</li><li>`internal/schema/Validate(r) error` returns nil for a hand-authored valid example, returns specific errors (missing field, wrong type) for known-bad cases.</li></ul></div>
+  
+  <div class="slice-field"><div class="slice-field-label">Test Strategy</div><div class="slice-field-value slice-md slice-tests"><p>Unit: TestValidate_GoldenFeature — read a fixture under testdata/v1/, assert nil error.
+Unit: TestValidate_MissingTypes — for each mandatory field, verify a clear error message.
+Unit: TestRoundTrip — marshal → unmarshal → equality for each type.</p>
+</div></div>
+  
+  <div class="slice-field slice-critic-revisions">
+    <div class="slice-field-label">Critic Revisions</div>
+    <div class="slice-field-value">
+      
+      <div class="critic-revision">
+        <span class="badge badge-blocked critic-revision-badge">HIGH</span>
+        <span class="critic-revision-source">sonnet-coder</span>
+        <span class="critic-revision-summary">Schema URL becomes a permanent public contract once committed into the 577 existing HTML files. Fixtures alone are insufficient validation — must enumerate every distinct data-* attribute, edge type, and status value actually in use across `.htmlgraph/**/*.html` BEFORE freezing v1, otherwise a surprise field forces a v2 migration. Suggest a prerequisite slice: &#39;Audit existing HTML corpus to inform v1 vocabulary&#39;.</span>
+      </div>
+      
+    </div>
+  </div>
+  
+  
+  <div class="slice-deps">Dependencies: slices 1</div>
+  <div class="approval-row">
+    <label><input type="checkbox" data-section="slice-2" data-action="approve"> Approve slice</label>
+    <textarea data-section="slice-2" data-comment-for="slice-2" placeholder="Comments on slice 2..."></textarea>
+  </div>
+</div>
+<div class="slice-card" data-slice="3" data-slice-name="slice-3" data-status="pending">
+  <div class="slice-header">
+    <span class="slice-num">#3</span>
+    <span class="slice-name">Phase 1b — Schema test fixtures (positive and negative)</span>
+    <span class="badge badge-pending">S</span>
+    <span class="badge badge-pending">Low</span>
+    <span class="badge badge-pending slice-exec-badge" title="Execution: not_started">Not Started</span>
+    <span class="badge badge-pending slice-approval-badge" data-badge-for="slice-3">Pending</span>
+  </div>
+  
+  <div class="slice-field"><div class="slice-field-label">What</div><div class="slice-field-value slice-md"><p>Author <code>internal/schema/testdata/v1/</code> containing one positive fixture
+per top-level type and at least three negative fixtures (missing
+required field, conflicting JSON-LD vs. meta-name status, malformed
+datetime). These fixtures are the canonical examples that downstream
+slices&#39; tests target. Include a <code>README.md</code> in the testdata dir
+explaining the fixture layout and how new types are added.</p>
+</div></div>
+  <div class="slice-field"><div class="slice-field-label">Why</div><div class="slice-field-value slice-md"><p>Without fixtures the validator from slice-3 has no real-world
+coverage. Fixtures also act as documentation by example for anyone
+writing migration code in slices 5-6, and as the regression bar
+for Phase 2 templater changes.</p>
+</div></div>
+  <div class="slice-field"><div class="slice-field-label">Files</div><div class="slice-field-value"><code>internal/schema/testdata/v1/feature_valid.html, internal/schema/testdata/v1/bug_valid.html, internal/schema/testdata/v1/track_valid.html, internal/schema/testdata/v1/session_valid.html, internal/schema/testdata/v1/feature_missing_status.html, internal/schema/testdata/v1/feature_jsonld_meta_mismatch.html, internal/schema/testdata/v1/feature_malformed_datetime.html, internal/schema/testdata/v1/README.md</code></div></div>
+  <div class="slice-field"><div class="slice-field-label">Done when</div><ul class="slice-done-list"><li>Each positive fixture passes `internal/schema.Validate` with nil error.</li><li>Each negative fixture fails `Validate` with a specific, non-generic error referencing the broken field.</li><li>Fixture README documents file naming and how to extend with new types.</li></ul></div>
+  
+  <div class="slice-field"><div class="slice-field-label">Test Strategy</div><div class="slice-field-value slice-md slice-tests"><p>Unit: TestFixtures_AllPositiveValidate — table-driven over every *_valid.html file.
+Unit: TestFixtures_AllNegativeFail — table-driven over every other file, asserting expected error substring.</p>
+</div></div>
+  
+  
+  <div class="slice-deps">Dependencies: slices 2</div>
+  <div class="approval-row">
+    <label><input type="checkbox" data-section="slice-3" data-action="approve"> Approve slice</label>
+    <textarea data-section="slice-3" data-comment-for="slice-3" placeholder="Comments on slice 3..."></textarea>
+  </div>
+</div>
+
     <!--PLAN_SLICE_CARDS-->
   </div>
 </details>
 
 <!-- Design Decisions (hidden for v2 plans — slice cards carry their own questions) -->
-<details id="questions" class="section-card" data-phase="questions" data-status="pending">
-  <summary><span>Design Decisions</span><span class="badge badge-pending" data-badge-for="questions">Pending</span></summary>
-  <div class="section-body">
-    <table class="q-table">
-      <thead><tr><th>Question</th><th>Selected</th><th>Status</th></tr></thead>
-      <tbody id="questionsRecap">
-        <!--PLAN_QUESTIONS_RECAP-->
-      </tbody>
-    </table>
-  </div>
-</details>
+
 
 
 
@@ -364,8 +516,8 @@ textarea::placeholder{color:var(--text-muted)}
   <h2>Feedback Summary</h2>
   <div class="progress-stats">
     <div class="progress-stat"><strong id="approvedCount">0</strong> approved</div>
-    <div class="progress-stat"><strong id="totalSections">1</strong> sections</div>
-    <div class="progress-stat"><strong id="pendingCount">1</strong> pending</div>
+    <div class="progress-stat"><strong id="totalSections">4</strong> sections</div>
+    <div class="progress-stat"><strong id="pendingCount">4</strong> pending</div>
   </div>
   <div class="progress-bar-track"><div class="progress-bar-fill" id="progressFill" style="width:0%"></div></div>
   <div class="comments-summary">
@@ -469,7 +621,7 @@ var planId=(function(){var a=document.querySelector('article[id]');return a?a.id
 
 (function(){
   'use strict';
-  var SECTIONS=/*PLAN_SECTIONS_JSON*/["design"]/*END_PLAN_SECTIONS_JSON*/;
+  var SECTIONS=/*PLAN_SECTIONS_JSON*/["design","slice-1","slice-2","slice-3"]/*END_PLAN_SECTIONS_JSON*/;
 
   function setBadge(el,ok){
     el.className='badge badge-'+(ok?'approved':'pending');
