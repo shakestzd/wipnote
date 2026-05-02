@@ -42,11 +42,20 @@ func BuildPragmas(dbPath string) map[string]string {
 // to all backing stores (e.g., in-memory SQLite); failures are logged at debug
 // level and don't block the Open. Other PRAGMAs are required.
 func ApplyPragmas(db *sql.DB, pragmas map[string]string) error {
+	// Must run before journal_mode: if the write lock is held, busy_timeout
+	// tells SQLite how long to wait before returning SQLITE_BUSY.
+	if bt, ok := pragmas["busy_timeout"]; ok {
+		if _, err := db.Exec(fmt.Sprintf("PRAGMA busy_timeout = %s", bt)); err != nil {
+			log.Printf("debug: skipping PRAGMA busy_timeout (not supported on this backing): %v", err)
+		}
+	}
+
 	// PRAGMAs that are REQUIRED — fail Open if these don't apply.
 	required := []string{"journal_mode", "synchronous", "foreign_keys", "temp_store", "mmap_size"}
 	// PRAGMAs that are best-effort — failure is logged at debug level
 	// and doesn't block Open (some drivers/backing stores reject these).
-	optional := []string{"busy_timeout", "cache_size"}
+	// busy_timeout is handled above (must precede journal_mode), so omit it here.
+	optional := []string{"cache_size"}
 
 	for _, pragma := range required {
 		value, ok := pragmas[pragma]
