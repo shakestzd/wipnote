@@ -104,9 +104,6 @@ func previewMessages(database *sql.DB, sessionID string, n int) ([]previewMessag
 	for i, m := range reversed {
 		msgs[len(reversed)-1-i] = m
 	}
-	if msgs == nil {
-		msgs = []previewMessage{}
-	}
 	return msgs, nil
 }
 

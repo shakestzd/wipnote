@@ -27,13 +27,6 @@ func codexConfigPath() string {
 // codexMarketplaceSection is the TOML key that indicates our marketplace is registered.
 const codexMarketplaceSection = `[marketplaces.htmlgraph]`
 
-// isCodexMarketplaceInstalled returns true if ~/.codex/config.toml contains
-// evidence that the htmlgraph marketplace (or plugin) is already registered.
-// Supports both the [marketplaces.htmlgraph] and [plugins."htmlgraph@htmlgraph"] forms.
-func isCodexMarketplaceInstalled() bool {
-	return isCodexMarketplaceInstalledAt(codexConfigPath())
-}
-
 // isCodexMarketplaceInstalledAt is the testable core that reads the given path.
 func isCodexMarketplaceInstalledAt(configPath string) bool {
 	data, err := os.ReadFile(configPath)
@@ -43,11 +36,6 @@ func isCodexMarketplaceInstalledAt(configPath string) bool {
 	content := string(data)
 	return strings.Contains(content, "[marketplaces.htmlgraph]") ||
 		strings.Contains(content, `[plugins."htmlgraph@htmlgraph"]`)
-}
-
-// isCodexHooksEnabled returns true if config.toml already has codex_hooks = true.
-func isCodexHooksEnabled() bool {
-	return isCodexHooksEnabledAt(codexConfigPath())
 }
 
 // isCodexHooksEnabledAt is the testable core.

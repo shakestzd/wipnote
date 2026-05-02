@@ -200,7 +200,7 @@ func commandRegistersFlag(cmd *cobra.Command, flag string) bool {
 
 // lineNumberFor returns the 1-based line number for the byte offset within
 // content. Used for nice error messages.
-func lineNumberFor(lines []string, content string, offset int) int {
+func lineNumberFor(_ []string, content string, offset int) int {
 	if offset < 0 || offset >= len(content) {
 		return 0
 	}

@@ -90,7 +90,7 @@ Examples:
 // `out` is the primary output stream (decision table or JSON array).
 // `status` is the human status stream — sent there so JSON mode keeps `out`
 // pure-JSON-parseable. Pass io.Discard to suppress status entirely.
-func runMigrateTracks(ctx context.Context, hgDir string, opts migrateTracksOpts, out, status io.Writer) error {
+func runMigrateTracks(_ context.Context, hgDir string, opts migrateTracksOpts, out, status io.Writer) error {
 	if opts.rulesPath == "" {
 		return fmt.Errorf("--rules is required")
 	}

@@ -281,9 +281,7 @@ func formatNum(n int64) string {
 		// One decimal place only when meaningful.
 		s := strconv.FormatFloat(f, 'f', 1, 64)
 		// Strip trailing ".0"
-		if strings.HasSuffix(s, ".0") {
-			s = s[:len(s)-2]
-		}
+		s = strings.TrimSuffix(s, ".0")
 		return s + "k"
 	}
 	return strconv.FormatInt(n, 10)

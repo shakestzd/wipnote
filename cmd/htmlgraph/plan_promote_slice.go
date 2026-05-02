@@ -198,7 +198,7 @@ func findPlanSlice(plan *planyaml.PlanYAML, sliceNum int) (int, planyaml.PlanSli
 
 // checkDepReadiness returns an error listing any dependency slices whose
 // execution_status is not 'done' or 'superseded'.
-func checkDepReadiness(db *sql.DB, plan *planyaml.PlanYAML, planID string, deps []int) error {
+func checkDepReadiness(db *sql.DB, _ *planyaml.PlanYAML, planID string, deps []int) error {
 	statuses, err := getSliceExecutionStatuses(db, planID)
 	if err != nil {
 		return fmt.Errorf("read execution statuses: %w", err)
