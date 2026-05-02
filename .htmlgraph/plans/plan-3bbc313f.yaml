@@ -5,9 +5,9 @@ meta:
     description: |
         Lock in a public HTML schema (JSON-LD payload + microdata body + link rel head edges + meta-name primitives + time datetime) that makes the work-item HTML files the canonical queryable substrate. Migrate every consumer (CLI, dashboard, ingest pipeline) off SQLite as a system requirement, in six phases. SQLite is allowed back later strictly as a disposable derived speed tier — not in this plan.
     created_at: "2026-05-01"
-    status: draft
+    status: done
     created_by: claude-opus
-    version: 1
+    version: 2
 design:
     problem: |
         `.htmlgraph/htmlgraph.db` has corrupted three times in nine days. The architecture claims SQLite is a "derived read index" but the codebase treats it as authoritative: ~110 Go files import `database/sql`, the entire `internal/hooks/` package persists hook events directly to SQLite tables, `internal/db/` is a 18-file repo package, and core subsystems (`internal/graph/`, `internal/agent/`, `internal/planchat/`, `internal/registry/`) depend on SQL queries. Today the OTEL activity feed shows zero spans because the DB is empty/no-schema, even though 198 spans are durably written to NDJSON for the current session. The CLI read-path is ~85% HTML-direct, but the WRITE-path and dashboard are deeply SQLite-coupled. Driver: `modernc.org/sqlite v1.37.1`. The cost-to-benefit has flipped — SQLite imposes a corruption class on every session for speed wins that current scale doesn't meaningfully require, and every new feature accidentally adds another SQLite dependency.
