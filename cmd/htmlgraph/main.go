@@ -337,7 +337,7 @@ func persistentPreRunE(cmd *cobra.Command, _ []string) error {
 		return nil
 	}
 	projectDir := filepath.Dir(hgDir)
-	storage.WarnIfLegacyDBPresent(projectDir, os.Stderr)
+	storage.CleanLegacyDBIfSafe(projectDir, os.Stderr)
 	// Opportunistic prune is destructive; skip it for the `cache` subtree so
 	// `htmlgraph cache prune --dry-run` reports the disk's actual state, and
 	// pass the active project's cache dir as protected so the LRU sweep can't
