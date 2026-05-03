@@ -905,3 +905,144 @@ func TestSliceCardFromPlanSlice_V2Fields(t *testing.T) {
 		t.Errorf("CriticRevisions not mapped correctly: %+v", sc.CriticRevisions)
 	}
 }
+
+// ---------------------------------------------------------------------------
+// SliceQuestion with Options — radio chip rendering (bug-07722c9c)
+// ---------------------------------------------------------------------------
+
+func TestSliceCard_RendersSliceLocalQuestionOptionChips(t *testing.T) {
+	sc := &plantmpl.SliceCard{
+		Num: 2,
+		ID:  "feat-test",
+		Questions: []planyaml.SliceQuestion{
+			{
+				ID:          "q-db",
+				Text:        "Which database should we use?",
+				Description: "Choose based on query complexity.",
+				Recommended: "postgres",
+				Options: []planyaml.QuestionOption{
+					{Key: "postgres", Label: "PostgreSQL"},
+					{Key: "sqlite", Label: "SQLite"},
+				},
+			},
+		},
+	}
+	var buf bytes.Buffer
+	if err := sc.Render(&buf); err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+	html := buf.String()
+
+	// Radio inputs must be emitted (not textareas for structured questions)
+	if !strings.Contains(html, `<input type="radio"`) {
+		t.Errorf("expected radio inputs for structured question, got:\n%s", html)
+	}
+
+	// Description must appear
+	if !strings.Contains(html, "Choose based on query complexity.") {
+		t.Errorf("expected description text in output:\n%s", html)
+	}
+
+	// Recommended option label must have class="recommended"
+	if !strings.Contains(html, `class="recommended"`) {
+		t.Errorf("expected class=\"recommended\" on recommended option label, got:\n%s", html)
+	}
+
+	// Recommended option must have rec-tag span
+	if !strings.Contains(html, `class="rec-tag"`) {
+		t.Errorf("expected rec-tag span on recommended option, got:\n%s", html)
+	}
+
+	// Non-recommended option (sqlite) must NOT have class="recommended"
+	// Count occurrences: only one label should carry the class
+	if strings.Count(html, `class="recommended"`) != 1 {
+		t.Errorf("expected exactly 1 label with class=\"recommended\", got:\n%s", html)
+	}
+
+	// Section key must be slice-scoped
+	if !strings.Contains(html, `data-section="slice-2-question-q-db"`) {
+		t.Errorf("expected slice-scoped data-section in output:\n%s", html)
+	}
+
+	// data-action="answer" must be present
+	if !strings.Contains(html, `data-action="answer"`) {
+		t.Errorf("expected data-action=\"answer\" on radio inputs:\n%s", html)
+	}
+
+	// Both option labels must appear
+	if !strings.Contains(html, "PostgreSQL") {
+		t.Errorf("expected 'PostgreSQL' option label in output:\n%s", html)
+	}
+	if !strings.Contains(html, "SQLite") {
+		t.Errorf("expected 'SQLite' option label in output:\n%s", html)
+	}
+}
+
+func TestSliceCard_RendersSliceLocalQuestionOptionsWithAnswer(t *testing.T) {
+	sc := &plantmpl.SliceCard{
+		Num: 3,
+		ID:  "feat-test",
+		Questions: []planyaml.SliceQuestion{
+			{
+				ID:          "q-cache",
+				Text:        "Caching strategy?",
+				Recommended: "redis",
+				Answer:      "memcached",
+				Options: []planyaml.QuestionOption{
+					{Key: "redis", Label: "Redis"},
+					{Key: "memcached", Label: "Memcached"},
+				},
+			},
+		},
+	}
+	var buf bytes.Buffer
+	if err := sc.Render(&buf); err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+	html := buf.String()
+
+	// The answered option must be checked
+	if !strings.Contains(html, `value="memcached" checked`) {
+		t.Errorf("expected checked attribute on answered option, got:\n%s", html)
+	}
+
+	// When answer is set, recommended label must NOT carry class="recommended"
+	// (recommended styling only applies when unanswered)
+	if strings.Contains(html, `class="recommended"`) {
+		t.Errorf("answered question should not show recommended styling, got:\n%s", html)
+	}
+}
+
+func TestSliceCard_FreeformQuestionFallbackTextarea(t *testing.T) {
+	sc := &plantmpl.SliceCard{
+		Num: 4,
+		ID:  "feat-test",
+		Questions: []planyaml.SliceQuestion{
+			{
+				ID:   "q-notes",
+				Text: "Any notes on deployment?",
+				// No Options — freeform fallback
+			},
+		},
+	}
+	var buf bytes.Buffer
+	if err := sc.Render(&buf); err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+	html := buf.String()
+
+	// Must fall back to textarea when no Options
+	if !strings.Contains(html, `<textarea`) {
+		t.Errorf("expected textarea fallback when no options, got:\n%s", html)
+	}
+
+	// Must NOT emit radio inputs with data-action="answer" (question chips)
+	if strings.Contains(html, `data-action="answer"`) {
+		t.Errorf("unexpected question radio inputs for freeform question, got:\n%s", html)
+	}
+
+	// Section key must be slice-scoped
+	if !strings.Contains(html, `data-section="slice-4-question-q-notes"`) {
+		t.Errorf("expected slice-scoped data-section in textarea output:\n%s", html)
+	}
+}

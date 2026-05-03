@@ -719,6 +719,21 @@ var planId=(function(){var a=document.querySelector('article[id]');return a?a.id
       if(badge) setBadge(badge,true);
     }
   });
+
+  // Slice-local question radio chips (data-action="answer", data-section=slice-N-question-<id>)
+  document.querySelectorAll('input[type="radio"][data-action="answer"]').forEach(function(r){
+    r.addEventListener('change',function(){
+      var sec=this.dataset.section;
+      if(planId){
+        fetch((window.htmlgraphPlanBase||'')+'/api/plans/'+planId+'/feedback',{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({section:sec,action:'answer',value:this.value,question_id:sec})
+        });
+      }
+    });
+  });
+
   var allRows=document.querySelectorAll('[data-recap-for]');
   var allAnswered=Array.prototype.every.call(allRows,function(r){
     var b=r.querySelector('.badge');

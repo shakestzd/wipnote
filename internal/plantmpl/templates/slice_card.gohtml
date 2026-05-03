@@ -142,10 +142,20 @@
         {{range .Questions}}
         <div class="question-block slice-question-block">
           <p>{{.Text}}</p>
+          {{if .Description}}<p class="question-desc">{{.Description}}</p>{{end}}
+          {{if .Options}}
+            {{$qid := $.SliceQuestionSectionKey .ID}}
+            {{$rec := .Recommended}}
+            {{$ans := .Answer}}
+            {{range .Options}}
+            <label{{if and (eq .Key $rec) (eq $ans "")}} class="recommended"{{end}}><input type="radio" name="{{$qid}}" data-section="{{$qid}}" data-action="answer" value="{{.Key}}"{{if eq .Key $ans}} checked{{end}}> {{.Label}}{{if and (eq .Key $rec) (eq $ans "")}} <span class="rec-tag">recommended</span>{{end}}</label>
+            {{end}}
+          {{else}}
           <textarea
             data-section="{{$.SliceQuestionSectionKey .ID}}"
             data-comment-for="{{$.SliceQuestionSectionKey .ID}}"
             placeholder="Answer question {{.ID}}...">{{.Answer}}</textarea>
+          {{end}}
         </div>
         {{end}}
       </div>
