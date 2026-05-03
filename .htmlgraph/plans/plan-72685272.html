@@ -397,6 +397,38 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
   <a href="#design" class="nav-link active" data-spy="design" data-initial="D">Design</a>
   <a href="#slices" class="nav-link" data-spy="slices" data-initial="S">Slices</a>
   
+  <ul class="slice-nav-list" id="slice-nav-list">
+    
+    <li>
+      <a href="#slice-1" class="slice-nav-item" data-slice-nav="1">
+        <span class="slice-nav-dot" data-approval="pending" data-dot-for="1"></span>
+        <span>#1 Headless invocation harness for `claude -p`</span>
+      </a>
+    </li>
+    
+    <li>
+      <a href="#slice-2" class="slice-nav-item" data-slice-nav="2">
+        <span class="slice-nav-dot" data-approval="pending" data-dot-for="2"></span>
+        <span>#2 `htmlgraph compliance auto <id>` — manual end-to-end run</span>
+      </a>
+    </li>
+    
+    <li>
+      <a href="#slice-3" class="slice-nav-item" data-slice-nav="3">
+        <span class="slice-nav-dot" data-approval="pending" data-dot-for="3"></span>
+        <span>#3 PostToolUse hook trigger — fire `compliance auto` async on `feature complete`</span>
+      </a>
+    </li>
+    
+    <li>
+      <a href="#slice-4" class="slice-nav-item" data-slice-nav="4">
+        <span class="slice-nav-dot" data-approval="pending" data-dot-for="4"></span>
+        <span>#4 Cost telemetry, OTel signals, and compliance history</span>
+      </a>
+    </li>
+    
+  </ul>
+  
   <a href="#questions" class="nav-link" data-spy="questions" data-initial="Q">Decisions</a>
   <a href="#critique" class="nav-link" data-spy="critique" data-initial="C">Critique</a>
   <a href="#feedback-summary" class="nav-link" data-spy="feedback-summary" data-initial="P">Progress</a>
@@ -404,15 +436,16 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
 </nav>
 <div class="plan-layout">
 <div class="plan-content">
-<article id="plan-72685272" data-plan-id="plan-72685272" data-feature-id="trk-8a7e82d8" data-status="draft">
+<article id="plan-72685272" data-plan-id="plan-72685272" data-feature-id="trk-8a7e82d8" data-status="active">
 
 <!-- Plan Header -->
 <header class="plan-header">
   <h1>Plan: Auto-compliance after feature complete — OODA pilot</h1>
-  <p style="color:var(--text-dim)">Active-observer pilot: when an agent runs htmlgraph feature complete, a PostToolUse hook invokes claude -p in headless mode to compare the feature spec against the implementation diff and write findings back to the work item. Closes the Act-to-Observe edge of the OODA loop with low blast radius. Built on primitives confirmed in the verification spike.</p>
+  <p style="color:var(--text-dim)">Pilot for the OODA active-observer initiative. When an agent runs `htmlgraph feature complete <id>`, a PostToolUse hook fires `claude -p` (headless) in the background to compare the feature's spec against its implementation diff and write structured findings back to the work item HTML. Closes the Act → Observe edge of the OODA loop with low blast radius — single hook, scoped LLM call, structured output. Built on primitives confirmed in spike `spk-13b6115b`.
+</p>
   <div class="meta">
     <span class="badge badge-pending">Draft</span>
-    <span style="font-size:.75rem;color:var(--text-muted)">v2 · 0 slices · Created 2026-05-03</span>
+    <span style="font-size:.75rem;color:var(--text-muted)">v3 · 4 slices · Created 2026-05-03</span>
   </div>
 </header>
 <button id="themeToggle" style="position:fixed;top:16px;right:16px;z-index:100;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:6px 12px;color:var(--text);font-family:var(--mono);font-size:0.75rem;cursor:pointer;">
@@ -432,6 +465,10 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
 <section class="dep-graph" data-zone="dependency-graph">
   <h2>Dependency Graph</h2>
   <div id="graph-data" style="display:none">
+    <div data-node="1" data-name="Headless invocation harness for `claude -p`" data-status="pending" data-deps="" data-files="2"></div>
+    <div data-node="2" data-name="`htmlgraph compliance auto <id>` — manual end-to-end run" data-status="pending" data-deps="1" data-files="3"></div>
+    <div data-node="3" data-name="PostToolUse hook trigger — fire `compliance auto` async on `feature complete`" data-status="pending" data-deps="2" data-files="3"></div>
+    <div data-node="4" data-name="Cost telemetry, OTel signals, and compliance history" data-status="pending" data-deps="3" data-files="4"></div>
     
     <!--PLAN_GRAPH_NODES-->
   </div>
@@ -444,17 +481,32 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
 <details id="design" class="section-card" open data-phase="design" data-status="pending">
   <summary><span>Design</span><span class="badge badge-pending" data-badge-for="design">Pending</span></summary>
   <div class="section-body">
-    <!--PLAN_DESIGN_CONTENT-->
-    <div class="sub-section">
-      <h4>Open Questions</h4>
-      <!--PLAN_QUESTIONS-->
-    </div>
+    <h4>Problem</h4>
+<div data-markdown>Today, completing a feature in HtmlGraph is a one-way write: the agent marks `feature complete`, the HTML body is updated, and the OODA loop&#39;s Act → Observe edge depends on a human later reading lineage and judging whether the implementation matched the spec. Specs grow stale; checkbox compliance is manually maintained or skipped; drift between spec and code is invisible until someone notices. Closing this edge with a hook-driven LLM judgment turns completion into a feedback event instead of a terminal one.
+</div>
+<h4>Goals</h4>
+<ol>
+<li data-markdown>**Automated spec-vs-implementation comparison** — every `feature complete` triggers an LLM judgment scored 0–100, written into a structured `&lt;section class=&#34;compliance-findings&#34;&gt;` on the feature HTML</li>
+<li data-markdown>**Non-blocking UX** — the hook fires `claude -p` async; agent CLI completes within 100ms regardless of LLM latency</li>
+<li data-markdown>**Cost-bounded** — per-call cost captured in `total_cost_usd` from the JSON result; `--max-budget-usd` ceiling per call; opt-in via `.htmlgraph/config.json` (default off)</li>
+<li data-markdown>**Reusable harness** — the `internal/headless` package introduced here is the foundation for the other three OODA features (drift detection, orientation scoring, tempo metrics)</li>
+</ol>
+<h4>Constraints</h4>
+<ul>
+<li data-markdown>No new runtime dependencies — Go stdlib + existing project deps only</li>
+<li data-markdown>Hook must respect the &#39;no stderr from hooks&#39; rule — all `claude -p` stdout/stderr captured into buffers, never leaked</li>
+<li data-markdown>Plugin source-of-truth: any new hook wiring goes via `packages/plugin-core/manifest.json` and `htmlgraph plugin build-ports`, never direct edits to generated `plugin/hooks/hooks.json`</li>
+<li data-markdown>Default-off opt-in — pilot must be safe to merge to main without affecting users who haven&#39;t enabled it</li>
+<li data-markdown>Backward compatible — existing `htmlgraph compliance &lt;id&gt;` (checkbox reporter) behavior unchanged; new functionality is `htmlgraph compliance auto &lt;id&gt;`</li>
+</ul>
+
     <div class="approval-row">
       <label><input type="checkbox" data-section="design" data-action="approve"> Approve design</label>
       <textarea data-section="design" data-comment-for="design" placeholder="Comments on design decisions..."></textarea>
     </div>
   </div>
 </details>
+
 
 <!-- Structure Outline (hidden when empty) -->
 
@@ -463,23 +515,735 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
 <details id="slices" class="section-card" open data-phase="slices" data-status="pending">
   <summary><span>Slices</span><span class="badge badge-pending" data-badge-for="slices">Pending</span></summary>
   <div class="section-body">
+    <details class="slice-card" id="slice-1" data-slice="1" data-slice-name="slice-1" data-status="pending" data-approval="pending">
+  <summary class="slice-summary" aria-label="Slice 1: Headless invocation harness for `claude -p`">
+    <span class="slice-num">#1</span>
+    <span class="slice-title-col">
+      <span class="slice-name">Headless invocation harness for `claude -p`</span>
+      <span class="slice-preview">Add internal/headless/claude.go — a Go package wrapping claude -p invocations.</span>
+      <span class="slice-meta-row">
+        <span class="slice-summary-badges">
+          <span class="badge badge-revision badge-sm">M</span>
+          <span class="badge badge-pending badge-sm">Low</span>
+          <span class="badge badge-pending badge-sm" title="Execution: not_started">Not Started</span>
+          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-1">Pending</span>
+          
+          <span class="badge badge-sm badge-questions" title="2 open question(s)">2 Q</span>
+        </span>
+        <span class="slice-actions" onclick="event.stopPropagation()">
+          <span class="approval-segmented" role="group" aria-label="Approval action">
+            <label class="seg-btn seg-approve" title="Approve">
+              <input type="radio" name="slice-1-approval" value="approved" data-section="slice-1" data-action="approve" aria-label="Approve slice 1">
+              &#10003;
+            </label>
+            <label class="seg-btn seg-changes" title="Request changes">
+              <input type="radio" name="slice-1-approval" value="changes_requested" data-section="slice-1" data-action="approve" aria-label="Request changes for slice 1">
+              &#8635;
+            </label>
+            <label class="seg-btn seg-reject" title="Reject">
+              <input type="radio" name="slice-1-approval" value="rejected" data-section="slice-1" data-action="approve" aria-label="Reject slice 1">
+              &#10005;
+            </label>
+          </span>
+        </span>
+      </span>
+    </span>
+    <span class="slice-chevron" aria-hidden="true"></span>
+  </summary>
+
+  <div class="slice-body">
     
+      
+      <div class="slice-field slice-what">
+        <div class="slice-field-label">What</div>
+        <div class="slice-field-value">
+          
+          <input type="checkbox" id="slice-1-what-reveal" class="reveal-toggle">
+          <div class="markdown-block reveal-content serif-prose"><p>Add <code>internal/headless/claude.go</code> — a Go package wrapping <code>claude -p</code> invocations.</p>
+<p>Public API:</p>
+<ul>
+<li><code>type InvokeRequest struct { SystemPrompt, UserPrompt, Model, Effort string; AllowedTools []string; PermissionMode string; SessionID string; MaxBudgetUSD float64; Timeout time.Duration }</code></li>
+<li><code>type InvokeResult struct { Result, SessionID, Subtype, Stderr string; IsError bool; TotalCostUSD float64; PermissionDenials []string; Usage map[string]any }</code></li>
+<li><code>func Invoke(ctx context.Context, req InvokeRequest) (*InvokeResult, error)</code> — runs <code>claude -p --bare --output-format json --model &lt;m&gt; --effort &lt;e&gt; --max-budget-usd &lt;n&gt; --permission-mode dontAsk --allowedTools &lt;list&gt;</code>, parses JSON</li>
+<li>Package-level <code>var Invoker InvokeFn = invokeReal</code> for test stub injection (matching the existing <code>completeIfInProgressFn</code> pattern in <code>internal/hooks/</code>)</li>
+</ul>
+<p>Captures stdout/stderr into <code>bytes.Buffer</code> so callers&#39; stderr is never polluted. Honors <code>ctx.Done()</code> to kill the subprocess. Returns typed errors: <code>BudgetExceededError</code> (subtype <code>error_max_budget_usd</code>), <code>ParseError</code>, <code>ExitError</code>.</p>
+</div>
+          <label for="slice-1-what-reveal" class="reveal-label">Show full description</label>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field slice-why">
+        <div class="slice-field-label">Why</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>Foundational primitive for all four OODA active-observer features (auto-compliance, drift detection, orientation scoring, tempo metrics). Encapsulating flag-building, JSON parsing, error handling, and stderr containment here means subsequent slices and follow-on plans don&#39;t reimplement them. Stub injection enables every downstream slice to be unit-testable without API spend.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Files</div>
+        <div class="slice-field-value"><code>internal/headless/claude.go, internal/headless/claude_test.go</code></div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Done when</div>
+        <ul class="slice-done-list slice-done-list--grid"><li>`Invoke` builds a `claude -p --bare --output-format json --model &lt;m&gt; --max-budget-usd &lt;n&gt; --permission-mode dontAsk` invocation with given args (verified via stub that captures argv)</li><li>JSON output parsed into `InvokeResult` with `TotalCostUSD`, `Result`, `IsError`, `Subtype`, `PermissionDenials`, `Usage`</li><li>Budget exhaustion (`subtype: error_max_budget_usd`) returns a typed `BudgetExceededError` wrapping the result, not a generic exec error</li><li>Stderr from `claude -p` is captured into `InvokeResult.Stderr` and never leaks to caller&#39;s stderr (regression test asserts caller stderr is empty)</li><li>Context cancellation kills the subprocess within 1s</li><li>Test stub injection works: `headless.Invoker = stubFn` swaps out the real invoker</li></ul>
+      </div>
+      
+    
+
+    
+    <div class="slice-field slice-tests-field">
+      <div class="slice-field-label">Test Strategy</div>
+      <div class="slice-field-value">
+        
+        
+        <div class="test-strategy">
+          
+          <div class="test-group" data-kind="unit">
+            <span class="test-chip">UNIT &middot; 1</span>
+            <ul><li></li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="other">
+            <span class="test-chip">OTHER &middot; 6</span>
+            <ul><li>- TestBuildArgs — given a request with all fields, args slice equals expected (`--bare --output-format json --model … --effort … --max-budget-usd … --permission-mode dontAsk --allowedTools Read`)</li><li>- TestParseSuccess — fixture JSON output, `InvokeResult` fields populated correctly</li><li>- TestParseBudgetError — fixture with `subtype: error_max_budget_usd` returns `BudgetExceededError`</li><li>- TestParseInvalidJSON — non-JSON stdout returns `ParseError` with stderr captured</li><li>- TestStderrContainment — stub child writes to stderr; calling `Invoke` does not write to caller&#39;s stderr</li><li>- TestContextCancel — context canceled mid-call; `Invoke` returns `context.Canceled`</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="integration">
+            <span class="test-chip">INTEGRATION &middot; 1</span>
+            <ul><li>skipped by default; when `ANTHROPIC_API_KEY` is set, runs `Invoke` with prompt &#34;say done&#34; and asserts `Result == &#34;done&#34;`, `TotalCostUSD &gt; 0`, `IsError == false`.</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="regression">
+            <span class="test-chip">REGRESSION &middot; 1</span>
+            <ul><li>existing tests in `internal/` packages must still pass.</li></ul>
+          </div>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+
+    
+
+    
+    <div class="slice-field slice-questions">
+      <div class="slice-field-label">Open Questions</div>
+      <div class="slice-field-value">
+        
+        <div class="question-block slice-question-block">
+          <p>Test stub injection — package-level var or interface?
+
+- **A: package-var** — `var Invoker InvokeFn = invokeReal`. Minimal change, easy to swap in tests, matches existing `completeIfInProgressFn` pattern in `internal/hooks/`. Test isolation depends on tearing down.
+- **B: interface** — Inject an `Invoker` interface via constructor. More idiomatic Go, but ~30 more lines and friction in callers.
+
+Recommended: **A — package-var**. Matches existing codebase pattern, faster to land, downstream slices need the stub yesterday.
+</p>
+          <textarea
+            data-section="slice-1-question-q-stub-pattern"
+            data-comment-for="slice-1-question-q-stub-pattern"
+            placeholder="Answer question q-stub-pattern..."></textarea>
+        </div>
+        
+        <div class="question-block slice-question-block">
+          <p>What permission mode should the harness default to?
+
+- **A: dontAsk** — restrictive; tools must be in `--allowedTools` or call fails. Safest for unattended.
+- **B: bypassPermissions** — skips all checks. Simpler but accepts whatever the LLM tries.
+
+Recommended: **A — dontAsk**. Auto-compliance is unattended; dontAsk &#43; explicit Read-only allow-list is the safest default for an OODA observer. Subsequent OODA features can override per-call.
+</p>
+          <textarea
+            data-section="slice-1-question-q-default-permission-mode"
+            data-comment-for="slice-1-question-q-default-permission-mode"
+            placeholder="Answer question q-default-permission-mode..."></textarea>
+        </div>
+        
+      </div>
+    </div>
+    
+
+    <div class="slice-deps">Dependencies: none</div>
+
+    <details class="comment-collapse">
+      <summary class="comment-collapse-trigger">+ Leave a comment</summary>
+      <div class="comment-collapse-body">
+        <textarea data-section="slice-1" data-comment-for="slice-1" placeholder="Comments on slice 1..."></textarea>
+      </div>
+    </details>
+  </div>
+</details>
+<details class="slice-card" id="slice-2" data-slice="2" data-slice-name="slice-2" data-status="pending" data-approval="pending">
+  <summary class="slice-summary" aria-label="Slice 2: `htmlgraph compliance auto &lt;id&gt;` — manual end-to-end run">
+    <span class="slice-num">#2</span>
+    <span class="slice-title-col">
+      <span class="slice-name">`htmlgraph compliance auto &lt;id&gt;` — manual end-to-end run</span>
+      <span class="slice-preview">Add cmd/htmlgraph/complianceauto.go — a new CLI subcommand htmlgraph compliance auto  [--model claude-sonnet-4-6] [--effort medium] [--dry-r…</span>
+      <span class="slice-meta-row">
+        <span class="slice-summary-badges">
+          <span class="badge badge-blocked badge-sm">L</span>
+          <span class="badge badge-revision badge-sm">Med</span>
+          <span class="badge badge-pending badge-sm" title="Execution: not_started">Not Started</span>
+          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-2">Pending</span>
+          
+          <span class="badge badge-sm badge-questions" title="4 open question(s)">4 Q</span>
+        </span>
+        <span class="slice-actions" onclick="event.stopPropagation()">
+          <span class="approval-segmented" role="group" aria-label="Approval action">
+            <label class="seg-btn seg-approve" title="Approve">
+              <input type="radio" name="slice-2-approval" value="approved" data-section="slice-2" data-action="approve" aria-label="Approve slice 2">
+              &#10003;
+            </label>
+            <label class="seg-btn seg-changes" title="Request changes">
+              <input type="radio" name="slice-2-approval" value="changes_requested" data-section="slice-2" data-action="approve" aria-label="Request changes for slice 2">
+              &#8635;
+            </label>
+            <label class="seg-btn seg-reject" title="Reject">
+              <input type="radio" name="slice-2-approval" value="rejected" data-section="slice-2" data-action="approve" aria-label="Reject slice 2">
+              &#10005;
+            </label>
+          </span>
+        </span>
+      </span>
+    </span>
+    <span class="slice-chevron" aria-hidden="true"></span>
+  </summary>
+
+  <div class="slice-body">
+    
+      
+      <div class="slice-field slice-what">
+        <div class="slice-field-label">What</div>
+        <div class="slice-field-value">
+          
+          <input type="checkbox" id="slice-2-what-reveal" class="reveal-toggle">
+          <div class="markdown-block reveal-content serif-prose"><p>Add <code>cmd/htmlgraph/compliance_auto.go</code> — a new CLI subcommand <code>htmlgraph compliance auto &lt;id&gt; [--model claude-sonnet-4-6] [--effort medium] [--dry-run] [--max-diff-chars 50000]</code>.</p>
+<p>Pipeline:</p>
+<ol>
+<li>Load feature node; error &#34;no feature: <code>&lt;id&gt;</code>&#34; if not found</li>
+<li>Read spec via <code>extractSpecSection()</code> (already exists in <code>cmd/htmlgraph/compliance.go</code>)</li>
+<li>If no spec section: write a &#34;compliance skipped: no spec&#34; finding via <code>writeComplianceSection</code>, exit 0</li>
+<li>Get commits attributed to the feature via <code>db.GetCommitsByFeature</code></li>
+<li>Build diff blob: for each commit, run <code>git show --no-color &lt;hash&gt;</code>. Truncate at <code>--max-diff-chars</code> (default 50000) at the nearest line boundary; append <code>... [truncated N chars]</code> footer</li>
+<li>Build prompt:
+<ul>
+<li>System: &#34;Return ONLY valid JSON. No prose, no markdown fences. Schema: <code>{summary: string, criteria: [{text, status: &#39;pass&#39;|&#39;fail&#39;|&#39;unclear&#39;, evidence}], score: 0-100, notes: string}</code>&#34;</li>
+<li>User: spec + diff</li>
+</ul>
+</li>
+<li>Call <code>headless.Invoke</code> from slice 1 with <code>Model</code>, <code>Effort</code>, <code>AllowedTools: [&#34;Read&#34;]</code>, <code>PermissionMode: &#34;dontAsk&#34;</code>, <code>MaxBudgetUSD: 0.50</code>, <code>Timeout: 60s</code></li>
+<li>Parse <code>result</code> as JSON. If parse fails: write a &#34;compliance error: parse failure&#34; finding, exit 1</li>
+<li>Write a <code>&lt;section class=&#34;compliance-findings&#34; data-score=&#34;N&#34; data-cost-usd=&#34;0.012&#34; data-model=&#34;claude-sonnet-4-6&#34; data-timestamp=&#34;...&#34;&gt;</code> with rendered findings. Idempotent: replaces existing section by class match, doesn&#39;t append.</li>
+<li>Print one-line summary to stdout: <code>compliance feat-X score=N cost=$0.012</code></li>
+<li><code>--dry-run</code> skips LLM call and section write — just prints the prompt that would be sent</li>
+</ol>
+</div>
+          <label for="slice-2-what-reveal" class="reveal-label">Show full description</label>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field slice-why">
+        <div class="slice-field-label">Why</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>The pilot&#39;s value is testable manually as soon as this slice lands. Decoupling the pipeline from the hook trigger lets us dogfood compliance scoring on existing features before automation, validate the prompt quality empirically, and tune <code>--model</code> / <code>--effort</code> based on real outputs. Without this slice, the pilot only works through hook triggers — slow and expensive to iterate on.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Files</div>
+        <div class="slice-field-value"><code>cmd/htmlgraph/compliance_auto.go, cmd/htmlgraph/compliance_auto_test.go, cmd/htmlgraph/compliance.go</code></div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Done when</div>
+        <ul class="slice-done-list slice-done-list--grid"><li>`htmlgraph compliance auto &lt;id&gt;` on a feature with a spec writes a `&lt;section class=&#34;compliance-findings&#34;&gt;` and prints a one-line summary</li><li>Re-running the command replaces the section (idempotent), does not duplicate</li><li>A feature without a spec exits 0 with a &#39;no spec&#39; note finding</li><li>An LLM response that fails JSON parse exits 1 with a clear error and writes a parse-failure finding</li><li>`--dry-run` prints the prompt and exits 0 without invoking the LLM</li><li>Existing `htmlgraph compliance &lt;id&gt;` (checkbox reporter) behavior unchanged</li></ul>
+      </div>
+      
+    
+
+    
+    <div class="slice-field slice-tests-field">
+      <div class="slice-field-label">Test Strategy</div>
+      <div class="slice-field-value">
+        
+        
+        <div class="test-strategy">
+          
+          <div class="test-group" data-kind="unit">
+            <span class="test-chip">UNIT &middot; 1</span>
+            <ul><li></li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="other">
+            <span class="test-chip">OTHER &middot; 7</span>
+            <ul><li>- TestComplianceAuto_NoSpec — feature without spec; exit 0, &#34;no spec&#34; finding written</li><li>- TestComplianceAuto_SuccessPath — stub returns valid JSON; section written with expected attributes</li><li>- TestComplianceAuto_ParseFailure — stub returns prose; exit 1 with parse-error finding</li><li>- TestComplianceAuto_Idempotent — running twice replaces section, doesn&#39;t duplicate</li><li>- TestBuildPrompt — given fixture spec &#43; diff, prompt structure matches expected format</li><li>- TestTruncateDiff — diff over limit truncated at line boundary with note appended</li><li>- TestDryRun — `--dry-run` prints prompt and exits 0 without calling Invoker</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="integration">
+            <span class="test-chip">INTEGRATION &middot; 1</span>
+            <ul><li>TestComplianceAutoEndToEnd — temp project with feature &#43; spec &#43; commits; stubbed `headless.Invoker`; assert section &#43; stdout summary</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="regression">
+            <span class="test-chip">REGRESSION &middot; 1</span>
+            <ul><li>`cmd/htmlgraph/compliance_test.go` and `cmd/htmlgraph/spec_test.go` pass unchanged</li></ul>
+          </div>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+
+    
+
+    
+    <div class="slice-field slice-questions">
+      <div class="slice-field-label">Open Questions</div>
+      <div class="slice-field-value">
+        
+        <div class="question-block slice-question-block">
+          <p>Where should compliance findings live in the feature HTML?
+
+- **A: section** — `&lt;section class=&#34;compliance-findings&#34;&gt;` with `data-*` attributes. Structured, queryable, parallels existing `&lt;section class=&#34;spec&#34;&gt;`.
+- **B: addnote** — Use `Collection.AddNote` to append a `&lt;p&gt;` to body. Minimal new code, but findings buried in body and not idempotent.
+- **C: properties** — Store as `Properties` map on node. Simplest, but invisible in HTML view.
+
+Recommended: **A — section**. Idempotency via class match, queryability via existing extractor pattern, visibility on dashboard. AddNote loses replace-on-rerun semantics. Properties hides findings.
+</p>
+          <textarea
+            data-section="slice-2-question-q-write-back-format"
+            data-comment-for="slice-2-question-q-write-back-format"
+            placeholder="Answer question q-write-back-format..."></textarea>
+        </div>
+        
+        <div class="question-block slice-question-block">
+          <p>How does the LLM see the implementation diff?
+
+- **A: prompt-text** — pre-compute diff via `git show`, embed as text in user prompt; truncate at 50k chars
+- **B: bash-allowed** — allow `Bash(git show)` in `--allowedTools`, let LLM fetch diff itself
+- **C: read-files** — allow `Read` on changed files, let LLM read them
+
+Recommended: **A — prompt-text**. Deterministic, fully testable with stubs, avoids permission-mode complexity. Bash-allowed needs allow-list for git but not other commands — risky surface. Read-files doubles LLM calls (it has to figure out which files matter). 50k chars covers ~98% of features at our typical scope.
+</p>
+          <textarea
+            data-section="slice-2-question-q-diff-source"
+            data-comment-for="slice-2-question-q-diff-source"
+            placeholder="Answer question q-diff-source..."></textarea>
+        </div>
+        
+        <div class="question-block slice-question-block">
+          <p>When the feature has no spec section, what should auto-compliance do?
+
+- **A: skip-with-note** — write a &#39;no spec&#39; finding section, exit 0. Future runs can re-run after spec is added.
+- **B: silent-skip** — exit 0 with no side effect.
+- **C: generate-then-score** — run `htmlgraph spec generate`, score against the auto-generated stub.
+
+Recommended: **A — skip-with-note**. Visibility matters; silent skip leaves users wondering if the pilot is broken. The &#39;no spec&#39; finding nudges users to add a spec. Generating a stub spec to score against is theater.
+</p>
+          <textarea
+            data-section="slice-2-question-q-no-spec-behavior"
+            data-comment-for="slice-2-question-q-no-spec-behavior"
+            placeholder="Answer question q-no-spec-behavior..."></textarea>
+        </div>
+        
+        <div class="question-block slice-question-block">
+          <p>Default model &#43; effort for auto-compliance?
+
+- **A: sonnet-medium** — `claude-sonnet-4-6` &#43; medium effort. ~$0.01–$0.03/call. Good signal.
+- **B: haiku-low** — `claude-haiku-4-5` &#43; low effort. ~$0.001–$0.003/call. May miss nuance.
+- **C: opus-high** — `claude-opus-4-7` &#43; high effort. ~$0.10–$0.30/call. Overkill for pilot.
+
+Recommended: **A — sonnet-medium**. Pilot economics: 10 features/day = ~$0.30/day. Acceptable. Haiku struggles to ground claims in diff evidence. Opus is overkill at this scope. All three selectable via `--model` &#43; `--effort`.
+</p>
+          <textarea
+            data-section="slice-2-question-q-model-default"
+            data-comment-for="slice-2-question-q-model-default"
+            placeholder="Answer question q-model-default..."></textarea>
+        </div>
+        
+      </div>
+    </div>
+    
+
+    <div class="slice-deps">Dependencies: slices 1</div>
+
+    <details class="comment-collapse">
+      <summary class="comment-collapse-trigger">+ Leave a comment</summary>
+      <div class="comment-collapse-body">
+        <textarea data-section="slice-2" data-comment-for="slice-2" placeholder="Comments on slice 2..."></textarea>
+      </div>
+    </details>
+  </div>
+</details>
+<details class="slice-card" id="slice-3" data-slice="3" data-slice-name="slice-3" data-status="pending" data-approval="pending">
+  <summary class="slice-summary" aria-label="Slice 3: PostToolUse hook trigger — fire `compliance auto` async on `feature complete`">
+    <span class="slice-num">#3</span>
+    <span class="slice-title-col">
+      <span class="slice-name">PostToolUse hook trigger — fire `compliance auto` async on `feature complete`</span>
+      <span class="slice-preview">Wire the PostToolUse hook to detect htmlgraph (feature|bug|spike) complete  and spawn htmlgraph compliance auto  in the background.</span>
+      <span class="slice-meta-row">
+        <span class="slice-summary-badges">
+          <span class="badge badge-revision badge-sm">M</span>
+          <span class="badge badge-revision badge-sm">Med</span>
+          <span class="badge badge-pending badge-sm" title="Execution: not_started">Not Started</span>
+          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-3">Pending</span>
+          
+          <span class="badge badge-sm badge-questions" title="3 open question(s)">3 Q</span>
+        </span>
+        <span class="slice-actions" onclick="event.stopPropagation()">
+          <span class="approval-segmented" role="group" aria-label="Approval action">
+            <label class="seg-btn seg-approve" title="Approve">
+              <input type="radio" name="slice-3-approval" value="approved" data-section="slice-3" data-action="approve" aria-label="Approve slice 3">
+              &#10003;
+            </label>
+            <label class="seg-btn seg-changes" title="Request changes">
+              <input type="radio" name="slice-3-approval" value="changes_requested" data-section="slice-3" data-action="approve" aria-label="Request changes for slice 3">
+              &#8635;
+            </label>
+            <label class="seg-btn seg-reject" title="Reject">
+              <input type="radio" name="slice-3-approval" value="rejected" data-section="slice-3" data-action="approve" aria-label="Reject slice 3">
+              &#10005;
+            </label>
+          </span>
+        </span>
+      </span>
+    </span>
+    <span class="slice-chevron" aria-hidden="true"></span>
+  </summary>
+
+  <div class="slice-body">
+    
+      
+      <div class="slice-field slice-what">
+        <div class="slice-field-label">What</div>
+        <div class="slice-field-value">
+          
+          <input type="checkbox" id="slice-3-what-reveal" class="reveal-toggle">
+          <div class="markdown-block reveal-content serif-prose"><p>Wire the PostToolUse hook to detect <code>htmlgraph (feature|bug|spike) complete &lt;id&gt;</code> and spawn <code>htmlgraph compliance auto &lt;id&gt;</code> in the background.</p>
+<ol>
+<li>In <code>internal/hooks/posttooluse.go</code>, add a regex symmetric to existing <code>featureStartRe</code>:
+<code>featureCompleteRe = regexp.MustCompile(\</code>htmlgraph\s+(feature|bug|spike)\s+complete\s+(\S+)`)`</li>
+<li>After the existing <code>featureStartRe</code> match block, add a <code>featureCompleteRe</code> block that calls <code>triggerAutoCompliance(projectDir, workitemID)</code></li>
+<li>New <code>internal/hooks/auto_compliance.go</code> with <code>triggerAutoCompliance</code>:
+<ul>
+<li>Read <code>.htmlgraph/config.json</code> for <code>auto_compliance_enabled</code> (default false)</li>
+<li>If disabled: return immediately</li>
+<li>If <code>ANTHROPIC_API_KEY</code> env var unset: return immediately (no stderr)</li>
+<li>Build <code>exec.Command(selfBinary(), &#34;compliance&#34;, &#34;auto&#34;, id)</code></li>
+<li><code>cmd.Stdout = io.Discard</code>, <code>cmd.Stderr = io.Discard</code> (no leak)</li>
+<li><code>cmd.SysProcAttr = &amp;syscall.SysProcAttr{Setpgid: true}</code> (detach process group)</li>
+<li><code>cmd.Start()</code> then <code>cmd.Process.Release()</code> (background, fire-and-forget)</li>
+<li>Return immediately</li>
+</ul>
+</li>
+</ol>
+</div>
+          <label for="slice-3-what-reveal" class="reveal-label">Show full description</label>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field slice-why">
+        <div class="slice-field-label">Why</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>Closes the OODA Act → Observe edge automatically. Async (background spawn) keeps the agent&#39;s CLI fast — completing a feature is no longer blocked by <code>claude -p</code> latency. Default-off + API-key check keep the pilot safe to merge to main without surprising users. Reuses the established <code>selfBinary()</code> + <code>exec.Command()</code> pattern from <code>task_tracking.go</code>.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Files</div>
+        <div class="slice-field-value"><code>internal/hooks/posttooluse.go, internal/hooks/auto_compliance.go, internal/hooks/auto_compliance_test.go</code></div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Done when</div>
+        <ul class="slice-done-list slice-done-list--grid"><li>PostToolUse path detects `htmlgraph (feature|bug|spike) complete &lt;id&gt;` matching the existing `featureStartRe` style</li><li>When `auto_compliance_enabled: true` in `.htmlgraph/config.json` AND `ANTHROPIC_API_KEY` set: hook spawns `htmlgraph compliance auto &lt;id&gt;` as a background process</li><li>Hook process returns within 100ms of receiving the completion event (verified by integration test)</li><li>Default behavior (no config.json) is no-op</li><li>No `claude -p` stdout/stderr leaks to the hook&#39;s stderr (regression check using stub child writing to stderr)</li><li>Failure of the spawned process does not affect the hook&#39;s exit code</li></ul>
+      </div>
+      
+    
+
+    
+    <div class="slice-field slice-tests-field">
+      <div class="slice-field-label">Test Strategy</div>
+      <div class="slice-field-value">
+        
+        
+        <div class="test-strategy">
+          
+          <div class="test-group" data-kind="unit">
+            <span class="test-chip">UNIT &middot; 1</span>
+            <ul><li></li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="other">
+            <span class="test-chip">OTHER &middot; 7</span>
+            <ul><li>- TestFeatureCompleteRe — matches `htmlgraph feature complete feat-abc123`; doesn&#39;t match `htmlgraph feature start feat-abc`</li><li>- TestReadConfig_AutoComplianceEnabled — temp dir with `auto_compliance_enabled: true`; returns true</li><li>- TestReadConfig_DefaultFalse — no config.json; returns false</li><li>- TestTrigger_NoSpawnIfDisabled — disabled config; spawn not invoked (verified via stub binary)</li><li>- TestTrigger_NoSpawnIfNoAPIKey — config enabled but `ANTHROPIC_API_KEY` unset; spawn not invoked</li><li>- TestTrigger_SpawnIfEnabled — config enabled &#43; key set; spawn invoked with expected args</li><li>- TestStderrContainment — stub child writes to stderr; hook&#39;s stderr remains empty</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="integration">
+            <span class="test-chip">INTEGRATION &middot; 1</span>
+            <ul><li>TestPostToolUse_FeatureCompleteEvent — full PostToolUse event with `htmlgraph feature complete feat-x` Bash command; trigger fires; hook returns within 100ms</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="regression">
+            <span class="test-chip">REGRESSION &middot; 1</span>
+            <ul><li>`internal/hooks/posttooluse_test.go` and `internal/hooks/task_tracking_test.go` pass unchanged</li></ul>
+          </div>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+
+    
+
+    
+    <div class="slice-field slice-questions">
+      <div class="slice-field-label">Open Questions</div>
+      <div class="slice-field-value">
+        
+        <div class="question-block slice-question-block">
+          <p>Synchronous (block hook on `claude -p`) or async (fire-and-forget)?
+
+- **A: async-default** — hook returns immediately, `claude -p` runs in background, findings appear when ready. UX unaffected by pilot.
+- **B: sync-with-timeout** — synchronous with 30s timeout; feedback before user sees completion output, but adds latency. Risk: hook timeout kills agent.
+- **C: configurable** — toggle in config.json; default async, opt-in sync.
+
+Recommended: **A — async-default**. OODA framing: active observers should not block the actor. Sync mode adds 10–30s to every feature complete. Findings landing 30s later in the dashboard is fine — they&#39;re for retrospective review.
+</p>
+          <textarea
+            data-section="slice-3-question-q-sync-vs-async"
+            data-comment-for="slice-3-question-q-sync-vs-async"
+            placeholder="Answer question q-sync-vs-async..."></textarea>
+        </div>
+        
+        <div class="question-block slice-question-block">
+          <p>Default value for `auto_compliance_enabled`?
+
+- **A: off** — default false; explicit opt-in. Pilot is safe to merge without surprising users.
+- **B: on** — default true; pilot is the new normal. Faster adoption.
+
+Recommended: **A — off**. Pilot phase: API costs are real, the prompt is unproven. Default-off lets us land the code in main and dogfood selectively. Flipping to default-on would be a separate slice / version bump after pilot success criteria are met.
+</p>
+          <textarea
+            data-section="slice-3-question-q-default-toggle"
+            data-comment-for="slice-3-question-q-default-toggle"
+            placeholder="Answer question q-default-toggle..."></textarea>
+        </div>
+        
+        <div class="question-block slice-question-block">
+          <p>What if the spawned `compliance auto` fails?
+
+- **A: silent** — failure invisible to the hook; findings simply absent from feature HTML.
+- **B: surface-on-next-cli** — write a &#39;compliance failed&#39; finding section so the user sees it next time they view the feature.
+- **C: block-completion** — block the `feature complete` operation. (Defeats the OODA non-blocking principle.)
+
+Recommended: **B — surface-on-next-cli**. Visibility without blocking. Slice 2&#39;s command already writes failure findings on parse errors; same pattern for spawn-side failures. block-completion is incompatible with async.
+</p>
+          <textarea
+            data-section="slice-3-question-q-error-behavior"
+            data-comment-for="slice-3-question-q-error-behavior"
+            placeholder="Answer question q-error-behavior..."></textarea>
+        </div>
+        
+      </div>
+    </div>
+    
+
+    <div class="slice-deps">Dependencies: slices 2</div>
+
+    <details class="comment-collapse">
+      <summary class="comment-collapse-trigger">+ Leave a comment</summary>
+      <div class="comment-collapse-body">
+        <textarea data-section="slice-3" data-comment-for="slice-3" placeholder="Comments on slice 3..."></textarea>
+      </div>
+    </details>
+  </div>
+</details>
+<details class="slice-card" id="slice-4" data-slice="4" data-slice-name="slice-4" data-status="pending" data-approval="pending">
+  <summary class="slice-summary" aria-label="Slice 4: Cost telemetry, OTel signals, and compliance history">
+    <span class="slice-num">#4</span>
+    <span class="slice-title-col">
+      <span class="slice-name">Cost telemetry, OTel signals, and compliance history</span>
+      <span class="slice-preview">Refinements layered on slices 1–3:</span>
+      <span class="slice-meta-row">
+        <span class="slice-summary-badges">
+          <span class="badge badge-revision badge-sm">M</span>
+          <span class="badge badge-pending badge-sm">Low</span>
+          <span class="badge badge-pending badge-sm" title="Execution: not_started">Not Started</span>
+          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-4">Pending</span>
+          
+          <span class="badge badge-sm badge-questions" title="1 open question(s)">1 Q</span>
+        </span>
+        <span class="slice-actions" onclick="event.stopPropagation()">
+          <span class="approval-segmented" role="group" aria-label="Approval action">
+            <label class="seg-btn seg-approve" title="Approve">
+              <input type="radio" name="slice-4-approval" value="approved" data-section="slice-4" data-action="approve" aria-label="Approve slice 4">
+              &#10003;
+            </label>
+            <label class="seg-btn seg-changes" title="Request changes">
+              <input type="radio" name="slice-4-approval" value="changes_requested" data-section="slice-4" data-action="approve" aria-label="Request changes for slice 4">
+              &#8635;
+            </label>
+            <label class="seg-btn seg-reject" title="Reject">
+              <input type="radio" name="slice-4-approval" value="rejected" data-section="slice-4" data-action="approve" aria-label="Reject slice 4">
+              &#10005;
+            </label>
+          </span>
+        </span>
+      </span>
+    </span>
+    <span class="slice-chevron" aria-hidden="true"></span>
+  </summary>
+
+  <div class="slice-body">
+    
+      
+      <div class="slice-field slice-what">
+        <div class="slice-field-label">What</div>
+        <div class="slice-field-value">
+          
+          <input type="checkbox" id="slice-4-what-reveal" class="reveal-toggle">
+          <div class="markdown-block reveal-content serif-prose"><p>Refinements layered on slices 1–3:</p>
+<ol>
+<li>Findings section attributes include <code>data-cost-usd</code>, <code>data-model</code>, <code>data-tokens-in</code>, <code>data-tokens-out</code> (read by dashboard for cohort cost reporting)</li>
+<li>Emit <code>auto_compliance.complete</code> OTel signal with feature_id, cost, duration, score — rolls up into existing <code>otel_session_rollup</code></li>
+<li>Diff truncation: configurable <code>max_diff_chars</code> in <code>.htmlgraph/config.json</code> (default 50000); truncate at line boundary; findings include <code>data-diff-truncated=&#34;true&#34;</code></li>
+<li>Per-feature compliance history: a second invocation appends a <code>&lt;details&gt;</code> block within the section showing prior runs (last 5: timestamp + score + cost)</li>
+<li>New CLI: <code>htmlgraph compliance history &lt;id&gt;</code> — prints prior compliance runs as a table</li>
+</ol>
+</div>
+          <label for="slice-4-what-reveal" class="reveal-label">Show full description</label>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field slice-why">
+        <div class="slice-field-label">Why</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>Pilot observability + safety. Without cost telemetry, we can&#39;t tell whether the feature is too expensive at scale. Without truncation, a large feature blows the context window and silently fails. Without history, regressions (&#39;score dropped from 95 → 70 across runs&#39;) are invisible. These don&#39;t gate the pilot&#39;s value but make it sustainable past day 14.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Files</div>
+        <div class="slice-field-value"><code>cmd/htmlgraph/compliance_auto.go, cmd/htmlgraph/compliance_history.go, cmd/htmlgraph/compliance_history_test.go, internal/db/otel_signals.go</code></div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Done when</div>
+        <ul class="slice-done-list"><li>Findings section includes `data-cost-usd` and `data-model` attributes</li><li>An `auto_compliance.complete` OTel signal is emitted on every run with feature_id and cost</li><li>Diffs over configured limit are truncated at line boundary with truncation note appended</li><li>Findings section preserves prior runs in a `&lt;details&gt;` block (last 5)</li><li>`htmlgraph compliance history &lt;id&gt;` lists prior runs newest-first</li></ul>
+      </div>
+      
+    
+
+    
+    <div class="slice-field slice-tests-field">
+      <div class="slice-field-label">Test Strategy</div>
+      <div class="slice-field-value">
+        
+        
+        <div class="test-strategy">
+          
+          <div class="test-group" data-kind="unit">
+            <span class="test-chip">UNIT &middot; 1</span>
+            <ul><li></li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="other">
+            <span class="test-chip">OTHER &middot; 5</span>
+            <ul><li>- TestTruncateDiff_BelowLimit — diff under limit; passed through unchanged</li><li>- TestTruncateDiff_AboveLimit — diff over limit; truncated at line boundary with note</li><li>- TestSectionWrite_IncludesCost — section attributes include cost-usd/model/tokens-in/out</li><li>- TestOTelSignal_Emitted — stub OTel writer; auto-compliance run emits one `auto_compliance.complete` signal</li><li>- TestComplianceHistory_OrdersByTimestamp — history command lists runs newest-first</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="integration">
+            <span class="test-chip">INTEGRATION &middot; 1</span>
+            <ul><li>TestComplianceAuto_AppendsToHistory — second run keeps prior run in `&lt;details&gt;` block (limit 5)</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="regression">
+            <span class="test-chip">REGRESSION &middot; 1</span>
+            <ul><li>slice 2 tests pass unchanged</li></ul>
+          </div>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+
+    
+
+    
+    <div class="slice-field slice-questions">
+      <div class="slice-field-label">Open Questions</div>
+      <div class="slice-field-value">
+        
+        <div class="question-block slice-question-block">
+          <p>How many prior runs to retain in the section&#39;s `&lt;details&gt;` block?
+
+- **A: last-5** — bounded HTML size, recent context
+- **B: last-20** — more history, but may bloat HTML
+- **C: unbounded** — full audit trail; HTML grows unbounded over feature lifetime
+
+Recommended: **A — last-5**. Most features see &lt;5 compliance runs. Bounded keeps HTML render fast. `htmlgraph compliance history` exposes the full audit when needed (queries OTel signals).
+</p>
+          <textarea
+            data-section="slice-4-question-q-history-depth"
+            data-comment-for="slice-4-question-q-history-depth"
+            placeholder="Answer question q-history-depth..."></textarea>
+        </div>
+        
+      </div>
+    </div>
+    
+
+    <div class="slice-deps">Dependencies: slices 3</div>
+
+    <details class="comment-collapse">
+      <summary class="comment-collapse-trigger">+ Leave a comment</summary>
+      <div class="comment-collapse-body">
+        <textarea data-section="slice-4" data-comment-for="slice-4" placeholder="Comments on slice 4..."></textarea>
+      </div>
+    </details>
+  </div>
+</details>
+
     <!--PLAN_SLICE_CARDS-->
   </div>
 </details>
 
 <!-- Design Decisions (hidden for v2 plans — slice cards carry their own questions) -->
-<details id="questions" class="section-card" data-phase="questions" data-status="pending">
-  <summary><span>Design Decisions</span><span class="badge badge-pending" data-badge-for="questions">Pending</span></summary>
-  <div class="section-body">
-    <table class="q-table">
-      <thead><tr><th>Question</th><th>Selected</th><th>Status</th></tr></thead>
-      <tbody id="questionsRecap">
-        <!--PLAN_QUESTIONS_RECAP-->
-      </tbody>
-    </table>
-  </div>
-</details>
+
 
 
 
@@ -490,8 +1254,8 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
   <h2>Feedback Summary</h2>
   <div class="progress-stats">
     <div class="progress-stat"><strong id="approvedCount">0</strong> approved</div>
-    <div class="progress-stat"><strong id="totalSections">1</strong> sections</div>
-    <div class="progress-stat"><strong id="pendingCount">1</strong> pending</div>
+    <div class="progress-stat"><strong id="totalSections">5</strong> sections</div>
+    <div class="progress-stat"><strong id="pendingCount">5</strong> pending</div>
   </div>
   <div class="progress-bar-track"><div class="progress-bar-fill" id="progressFill" style="width:0%"></div></div>
   <div class="comments-summary">
@@ -571,7 +1335,7 @@ var planId=(function(){var a=document.querySelector('article[id]');return a?a.id
 
 (function(){
   'use strict';
-  var SECTIONS=/*PLAN_SECTIONS_JSON*/["design"]/*END_PLAN_SECTIONS_JSON*/;
+  var SECTIONS=/*PLAN_SECTIONS_JSON*/["design","slice-1","slice-2","slice-3","slice-4"]/*END_PLAN_SECTIONS_JSON*/;
 
   function setBadge(el,ok){
     el.className='badge badge-'+(ok?'approved':'pending');

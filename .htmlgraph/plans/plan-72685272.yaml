@@ -2,15 +2,323 @@ meta:
     id: plan-72685272
     track_id: trk-8a7e82d8
     title: Auto-compliance after feature complete — OODA pilot
-    description: 'Active-observer pilot: when an agent runs htmlgraph feature complete, a PostToolUse hook invokes claude -p in headless mode to compare the feature spec against the implementation diff and write findings back to the work item. Closes the Act-to-Observe edge of the OODA loop with low blast radius. Built on primitives confirmed in the verification spike.'
+    description: |
+        Pilot for the OODA active-observer initiative. When an agent runs `htmlgraph feature complete <id>`, a PostToolUse hook fires `claude -p` (headless) in the background to compare the feature's spec against its implementation diff and write structured findings back to the work item HTML. Closes the Act → Observe edge of the OODA loop with low blast radius — single hook, scoped LLM call, structured output. Built on primitives confirmed in spike `spk-13b6115b`.
     created_at: "2026-05-03"
-    status: draft
-    version: 2
+    status: active
+    created_by: claude-opus
+    version: 3
 design:
-    problem: ""
-    goals: []
-    constraints: []
+    problem: |
+        Today, completing a feature in HtmlGraph is a one-way write: the agent marks `feature complete`, the HTML body is updated, and the OODA loop's Act → Observe edge depends on a human later reading lineage and judging whether the implementation matched the spec. Specs grow stale; checkbox compliance is manually maintained or skipped; drift between spec and code is invisible until someone notices. Closing this edge with a hook-driven LLM judgment turns completion into a feedback event instead of a terminal one.
+    goals:
+        - '**Automated spec-vs-implementation comparison** — every `feature complete` triggers an LLM judgment scored 0–100, written into a structured `<section class="compliance-findings">` on the feature HTML'
+        - '**Non-blocking UX** — the hook fires `claude -p` async; agent CLI completes within 100ms regardless of LLM latency'
+        - '**Cost-bounded** — per-call cost captured in `total_cost_usd` from the JSON result; `--max-budget-usd` ceiling per call; opt-in via `.htmlgraph/config.json` (default off)'
+        - '**Reusable harness** — the `internal/headless` package introduced here is the foundation for the other three OODA features (drift detection, orientation scoring, tempo metrics)'
+    constraints:
+        - No new runtime dependencies — Go stdlib + existing project deps only
+        - Hook must respect the 'no stderr from hooks' rule — all `claude -p` stdout/stderr captured into buffers, never leaked
+        - 'Plugin source-of-truth: any new hook wiring goes via `packages/plugin-core/manifest.json` and `htmlgraph plugin build-ports`, never direct edits to generated `plugin/hooks/hooks.json`'
+        - Default-off opt-in — pilot must be safe to merge to main without affecting users who haven't enabled it
+        - Backward compatible — existing `htmlgraph compliance <id>` (checkbox reporter) behavior unchanged; new functionality is `htmlgraph compliance auto <id>`
     approved: false
     comment: ""
-slices: []
-questions: []
+slices:
+    - id: slice-1
+      num: 1
+      title: Headless invocation harness for `claude -p`
+      what: |
+        Add `internal/headless/claude.go` — a Go package wrapping `claude -p` invocations.
+
+        Public API:
+        - `type InvokeRequest struct { SystemPrompt, UserPrompt, Model, Effort string; AllowedTools []string; PermissionMode string; SessionID string; MaxBudgetUSD float64; Timeout time.Duration }`
+        - `type InvokeResult struct { Result, SessionID, Subtype, Stderr string; IsError bool; TotalCostUSD float64; PermissionDenials []string; Usage map[string]any }`
+        - `func Invoke(ctx context.Context, req InvokeRequest) (*InvokeResult, error)` — runs `claude -p --bare --output-format json --model <m> --effort <e> --max-budget-usd <n> --permission-mode dontAsk --allowedTools <list>`, parses JSON
+        - Package-level `var Invoker InvokeFn = invokeReal` for test stub injection (matching the existing `completeIfInProgressFn` pattern in `internal/hooks/`)
+
+        Captures stdout/stderr into `bytes.Buffer` so callers' stderr is never polluted. Honors `ctx.Done()` to kill the subprocess. Returns typed errors: `BudgetExceededError` (subtype `error_max_budget_usd`), `ParseError`, `ExitError`.
+      why: |
+        Foundational primitive for all four OODA active-observer features (auto-compliance, drift detection, orientation scoring, tempo metrics). Encapsulating flag-building, JSON parsing, error handling, and stderr containment here means subsequent slices and follow-on plans don't reimplement them. Stub injection enables every downstream slice to be unit-testable without API spend.
+      files:
+        - internal/headless/claude.go
+        - internal/headless/claude_test.go
+      deps: []
+      done_when:
+        - '`Invoke` builds a `claude -p --bare --output-format json --model <m> --max-budget-usd <n> --permission-mode dontAsk` invocation with given args (verified via stub that captures argv)'
+        - JSON output parsed into `InvokeResult` with `TotalCostUSD`, `Result`, `IsError`, `Subtype`, `PermissionDenials`, `Usage`
+        - 'Budget exhaustion (`subtype: error_max_budget_usd`) returns a typed `BudgetExceededError` wrapping the result, not a generic exec error'
+        - Stderr from `claude -p` is captured into `InvokeResult.Stderr` and never leaks to caller's stderr (regression test asserts caller stderr is empty)
+        - Context cancellation kills the subprocess within 1s
+        - 'Test stub injection works: `headless.Invoker = stubFn` swaps out the real invoker'
+      effort: M
+      risk: Low
+      tests: |
+        Unit:
+        - TestBuildArgs — given a request with all fields, args slice equals expected (`--bare --output-format json --model … --effort … --max-budget-usd … --permission-mode dontAsk --allowedTools Read`)
+        - TestParseSuccess — fixture JSON output, `InvokeResult` fields populated correctly
+        - TestParseBudgetError — fixture with `subtype: error_max_budget_usd` returns `BudgetExceededError`
+        - TestParseInvalidJSON — non-JSON stdout returns `ParseError` with stderr captured
+        - TestStderrContainment — stub child writes to stderr; calling `Invoke` does not write to caller's stderr
+        - TestContextCancel — context canceled mid-call; `Invoke` returns `context.Canceled`
+
+        Integration: skipped by default; when `ANTHROPIC_API_KEY` is set, runs `Invoke` with prompt "say done" and asserts `Result == "done"`, `TotalCostUSD > 0`, `IsError == false`.
+
+        Regression: existing tests in `internal/` packages must still pass.
+      approved: false
+      comment: ""
+      approval_status: pending
+      execution_status: not_started
+      questions:
+        - id: q-stub-pattern
+          text: |
+            Test stub injection — package-level var or interface?
+
+            - **A: package-var** — `var Invoker InvokeFn = invokeReal`. Minimal change, easy to swap in tests, matches existing `completeIfInProgressFn` pattern in `internal/hooks/`. Test isolation depends on tearing down.
+            - **B: interface** — Inject an `Invoker` interface via constructor. More idiomatic Go, but ~30 more lines and friction in callers.
+
+            Recommended: **A — package-var**. Matches existing codebase pattern, faster to land, downstream slices need the stub yesterday.
+        - id: q-default-permission-mode
+          text: |
+            What permission mode should the harness default to?
+
+            - **A: dontAsk** — restrictive; tools must be in `--allowedTools` or call fails. Safest for unattended.
+            - **B: bypassPermissions** — skips all checks. Simpler but accepts whatever the LLM tries.
+
+            Recommended: **A — dontAsk**. Auto-compliance is unattended; dontAsk + explicit Read-only allow-list is the safest default for an OODA observer. Subsequent OODA features can override per-call.
+    - id: slice-2
+      num: 2
+      title: '`htmlgraph compliance auto <id>` — manual end-to-end run'
+      what: |
+        Add `cmd/htmlgraph/compliance_auto.go` — a new CLI subcommand `htmlgraph compliance auto <id> [--model claude-sonnet-4-6] [--effort medium] [--dry-run] [--max-diff-chars 50000]`.
+
+        Pipeline:
+        1. Load feature node; error "no feature: `<id>`" if not found
+        2. Read spec via `extractSpecSection()` (already exists in `cmd/htmlgraph/compliance.go`)
+        3. If no spec section: write a "compliance skipped: no spec" finding via `writeComplianceSection`, exit 0
+        4. Get commits attributed to the feature via `db.GetCommitsByFeature`
+        5. Build diff blob: for each commit, run `git show --no-color <hash>`. Truncate at `--max-diff-chars` (default 50000) at the nearest line boundary; append `... [truncated N chars]` footer
+        6. Build prompt:
+           - System: "Return ONLY valid JSON. No prose, no markdown fences. Schema: `{summary: string, criteria: [{text, status: 'pass'|'fail'|'unclear', evidence}], score: 0-100, notes: string}`"
+           - User: spec + diff
+        7. Call `headless.Invoke` from slice 1 with `Model`, `Effort`, `AllowedTools: ["Read"]`, `PermissionMode: "dontAsk"`, `MaxBudgetUSD: 0.50`, `Timeout: 60s`
+        8. Parse `result` as JSON. If parse fails: write a "compliance error: parse failure" finding, exit 1
+        9. Write a `<section class="compliance-findings" data-score="N" data-cost-usd="0.012" data-model="claude-sonnet-4-6" data-timestamp="...">` with rendered findings. Idempotent: replaces existing section by class match, doesn't append.
+        10. Print one-line summary to stdout: `compliance feat-X score=N cost=$0.012`
+        11. `--dry-run` skips LLM call and section write — just prints the prompt that would be sent
+      why: |
+        The pilot's value is testable manually as soon as this slice lands. Decoupling the pipeline from the hook trigger lets us dogfood compliance scoring on existing features before automation, validate the prompt quality empirically, and tune `--model` / `--effort` based on real outputs. Without this slice, the pilot only works through hook triggers — slow and expensive to iterate on.
+      files:
+        - cmd/htmlgraph/compliance_auto.go
+        - cmd/htmlgraph/compliance_auto_test.go
+        - cmd/htmlgraph/compliance.go
+      deps:
+        - 1
+      done_when:
+        - '`htmlgraph compliance auto <id>` on a feature with a spec writes a `<section class="compliance-findings">` and prints a one-line summary'
+        - Re-running the command replaces the section (idempotent), does not duplicate
+        - A feature without a spec exits 0 with a 'no spec' note finding
+        - An LLM response that fails JSON parse exits 1 with a clear error and writes a parse-failure finding
+        - '`--dry-run` prints the prompt and exits 0 without invoking the LLM'
+        - Existing `htmlgraph compliance <id>` (checkbox reporter) behavior unchanged
+      effort: L
+      risk: Med
+      tests: |
+        Unit:
+        - TestComplianceAuto_NoSpec — feature without spec; exit 0, "no spec" finding written
+        - TestComplianceAuto_SuccessPath — stub returns valid JSON; section written with expected attributes
+        - TestComplianceAuto_ParseFailure — stub returns prose; exit 1 with parse-error finding
+        - TestComplianceAuto_Idempotent — running twice replaces section, doesn't duplicate
+        - TestBuildPrompt — given fixture spec + diff, prompt structure matches expected format
+        - TestTruncateDiff — diff over limit truncated at line boundary with note appended
+        - TestDryRun — `--dry-run` prints prompt and exits 0 without calling Invoker
+
+        Integration: TestComplianceAutoEndToEnd — temp project with feature + spec + commits; stubbed `headless.Invoker`; assert section + stdout summary
+
+        Regression: `cmd/htmlgraph/compliance_test.go` and `cmd/htmlgraph/spec_test.go` pass unchanged
+      approved: false
+      comment: ""
+      approval_status: pending
+      execution_status: not_started
+      questions:
+        - id: q-write-back-format
+          text: |
+            Where should compliance findings live in the feature HTML?
+
+            - **A: section** — `<section class="compliance-findings">` with `data-*` attributes. Structured, queryable, parallels existing `<section class="spec">`.
+            - **B: addnote** — Use `Collection.AddNote` to append a `<p>` to body. Minimal new code, but findings buried in body and not idempotent.
+            - **C: properties** — Store as `Properties` map on node. Simplest, but invisible in HTML view.
+
+            Recommended: **A — section**. Idempotency via class match, queryability via existing extractor pattern, visibility on dashboard. AddNote loses replace-on-rerun semantics. Properties hides findings.
+        - id: q-diff-source
+          text: |
+            How does the LLM see the implementation diff?
+
+            - **A: prompt-text** — pre-compute diff via `git show`, embed as text in user prompt; truncate at 50k chars
+            - **B: bash-allowed** — allow `Bash(git show)` in `--allowedTools`, let LLM fetch diff itself
+            - **C: read-files** — allow `Read` on changed files, let LLM read them
+
+            Recommended: **A — prompt-text**. Deterministic, fully testable with stubs, avoids permission-mode complexity. Bash-allowed needs allow-list for git but not other commands — risky surface. Read-files doubles LLM calls (it has to figure out which files matter). 50k chars covers ~98% of features at our typical scope.
+        - id: q-no-spec-behavior
+          text: |
+            When the feature has no spec section, what should auto-compliance do?
+
+            - **A: skip-with-note** — write a 'no spec' finding section, exit 0. Future runs can re-run after spec is added.
+            - **B: silent-skip** — exit 0 with no side effect.
+            - **C: generate-then-score** — run `htmlgraph spec generate`, score against the auto-generated stub.
+
+            Recommended: **A — skip-with-note**. Visibility matters; silent skip leaves users wondering if the pilot is broken. The 'no spec' finding nudges users to add a spec. Generating a stub spec to score against is theater.
+        - id: q-model-default
+          text: |
+            Default model + effort for auto-compliance?
+
+            - **A: sonnet-medium** — `claude-sonnet-4-6` + medium effort. ~$0.01–$0.03/call. Good signal.
+            - **B: haiku-low** — `claude-haiku-4-5` + low effort. ~$0.001–$0.003/call. May miss nuance.
+            - **C: opus-high** — `claude-opus-4-7` + high effort. ~$0.10–$0.30/call. Overkill for pilot.
+
+            Recommended: **A — sonnet-medium**. Pilot economics: 10 features/day = ~$0.30/day. Acceptable. Haiku struggles to ground claims in diff evidence. Opus is overkill at this scope. All three selectable via `--model` + `--effort`.
+    - id: slice-3
+      num: 3
+      title: PostToolUse hook trigger — fire `compliance auto` async on `feature complete`
+      what: |
+        Wire the PostToolUse hook to detect `htmlgraph (feature|bug|spike) complete <id>` and spawn `htmlgraph compliance auto <id>` in the background.
+
+        1. In `internal/hooks/posttooluse.go`, add a regex symmetric to existing `featureStartRe`:
+           `featureCompleteRe = regexp.MustCompile(\`htmlgraph\s+(feature|bug|spike)\s+complete\s+(\S+)\`)`
+        2. After the existing `featureStartRe` match block, add a `featureCompleteRe` block that calls `triggerAutoCompliance(projectDir, workitemID)`
+        3. New `internal/hooks/auto_compliance.go` with `triggerAutoCompliance`:
+           - Read `.htmlgraph/config.json` for `auto_compliance_enabled` (default false)
+           - If disabled: return immediately
+           - If `ANTHROPIC_API_KEY` env var unset: return immediately (no stderr)
+           - Build `exec.Command(selfBinary(), "compliance", "auto", id)`
+           - `cmd.Stdout = io.Discard`, `cmd.Stderr = io.Discard` (no leak)
+           - `cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}` (detach process group)
+           - `cmd.Start()` then `cmd.Process.Release()` (background, fire-and-forget)
+           - Return immediately
+      why: |
+        Closes the OODA Act → Observe edge automatically. Async (background spawn) keeps the agent's CLI fast — completing a feature is no longer blocked by `claude -p` latency. Default-off + API-key check keep the pilot safe to merge to main without surprising users. Reuses the established `selfBinary()` + `exec.Command()` pattern from `task_tracking.go`.
+      files:
+        - internal/hooks/posttooluse.go
+        - internal/hooks/auto_compliance.go
+        - internal/hooks/auto_compliance_test.go
+      deps:
+        - 2
+      done_when:
+        - PostToolUse path detects `htmlgraph (feature|bug|spike) complete <id>` matching the existing `featureStartRe` style
+        - 'When `auto_compliance_enabled: true` in `.htmlgraph/config.json` AND `ANTHROPIC_API_KEY` set: hook spawns `htmlgraph compliance auto <id>` as a background process'
+        - Hook process returns within 100ms of receiving the completion event (verified by integration test)
+        - Default behavior (no config.json) is no-op
+        - No `claude -p` stdout/stderr leaks to the hook's stderr (regression check using stub child writing to stderr)
+        - Failure of the spawned process does not affect the hook's exit code
+      effort: M
+      risk: Med
+      tests: |
+        Unit:
+        - TestFeatureCompleteRe — matches `htmlgraph feature complete feat-abc123`; doesn't match `htmlgraph feature start feat-abc`
+        - TestReadConfig_AutoComplianceEnabled — temp dir with `auto_compliance_enabled: true`; returns true
+        - TestReadConfig_DefaultFalse — no config.json; returns false
+        - TestTrigger_NoSpawnIfDisabled — disabled config; spawn not invoked (verified via stub binary)
+        - TestTrigger_NoSpawnIfNoAPIKey — config enabled but `ANTHROPIC_API_KEY` unset; spawn not invoked
+        - TestTrigger_SpawnIfEnabled — config enabled + key set; spawn invoked with expected args
+        - TestStderrContainment — stub child writes to stderr; hook's stderr remains empty
+
+        Integration: TestPostToolUse_FeatureCompleteEvent — full PostToolUse event with `htmlgraph feature complete feat-x` Bash command; trigger fires; hook returns within 100ms
+
+        Regression: `internal/hooks/posttooluse_test.go` and `internal/hooks/task_tracking_test.go` pass unchanged
+      approved: false
+      comment: ""
+      approval_status: pending
+      execution_status: not_started
+      questions:
+        - id: q-sync-vs-async
+          text: |
+            Synchronous (block hook on `claude -p`) or async (fire-and-forget)?
+
+            - **A: async-default** — hook returns immediately, `claude -p` runs in background, findings appear when ready. UX unaffected by pilot.
+            - **B: sync-with-timeout** — synchronous with 30s timeout; feedback before user sees completion output, but adds latency. Risk: hook timeout kills agent.
+            - **C: configurable** — toggle in config.json; default async, opt-in sync.
+
+            Recommended: **A — async-default**. OODA framing: active observers should not block the actor. Sync mode adds 10–30s to every feature complete. Findings landing 30s later in the dashboard is fine — they're for retrospective review.
+        - id: q-default-toggle
+          text: |
+            Default value for `auto_compliance_enabled`?
+
+            - **A: off** — default false; explicit opt-in. Pilot is safe to merge without surprising users.
+            - **B: on** — default true; pilot is the new normal. Faster adoption.
+
+            Recommended: **A — off**. Pilot phase: API costs are real, the prompt is unproven. Default-off lets us land the code in main and dogfood selectively. Flipping to default-on would be a separate slice / version bump after pilot success criteria are met.
+        - id: q-error-behavior
+          text: |
+            What if the spawned `compliance auto` fails?
+
+            - **A: silent** — failure invisible to the hook; findings simply absent from feature HTML.
+            - **B: surface-on-next-cli** — write a 'compliance failed' finding section so the user sees it next time they view the feature.
+            - **C: block-completion** — block the `feature complete` operation. (Defeats the OODA non-blocking principle.)
+
+            Recommended: **B — surface-on-next-cli**. Visibility without blocking. Slice 2's command already writes failure findings on parse errors; same pattern for spawn-side failures. block-completion is incompatible with async.
+    - id: slice-4
+      num: 4
+      title: Cost telemetry, OTel signals, and compliance history
+      what: |
+        Refinements layered on slices 1–3:
+        1. Findings section attributes include `data-cost-usd`, `data-model`, `data-tokens-in`, `data-tokens-out` (read by dashboard for cohort cost reporting)
+        2. Emit `auto_compliance.complete` OTel signal with feature_id, cost, duration, score — rolls up into existing `otel_session_rollup`
+        3. Diff truncation: configurable `max_diff_chars` in `.htmlgraph/config.json` (default 50000); truncate at line boundary; findings include `data-diff-truncated="true"`
+        4. Per-feature compliance history: a second invocation appends a `<details>` block within the section showing prior runs (last 5: timestamp + score + cost)
+        5. New CLI: `htmlgraph compliance history <id>` — prints prior compliance runs as a table
+      why: |
+        Pilot observability + safety. Without cost telemetry, we can't tell whether the feature is too expensive at scale. Without truncation, a large feature blows the context window and silently fails. Without history, regressions ('score dropped from 95 → 70 across runs') are invisible. These don't gate the pilot's value but make it sustainable past day 14.
+      files:
+        - cmd/htmlgraph/compliance_auto.go
+        - cmd/htmlgraph/compliance_history.go
+        - cmd/htmlgraph/compliance_history_test.go
+        - internal/db/otel_signals.go
+      deps:
+        - 3
+      done_when:
+        - Findings section includes `data-cost-usd` and `data-model` attributes
+        - An `auto_compliance.complete` OTel signal is emitted on every run with feature_id and cost
+        - Diffs over configured limit are truncated at line boundary with truncation note appended
+        - Findings section preserves prior runs in a `<details>` block (last 5)
+        - '`htmlgraph compliance history <id>` lists prior runs newest-first'
+      effort: M
+      risk: Low
+      tests: |
+        Unit:
+        - TestTruncateDiff_BelowLimit — diff under limit; passed through unchanged
+        - TestTruncateDiff_AboveLimit — diff over limit; truncated at line boundary with note
+        - TestSectionWrite_IncludesCost — section attributes include cost-usd/model/tokens-in/out
+        - TestOTelSignal_Emitted — stub OTel writer; auto-compliance run emits one `auto_compliance.complete` signal
+        - TestComplianceHistory_OrdersByTimestamp — history command lists runs newest-first
+
+        Integration: TestComplianceAuto_AppendsToHistory — second run keeps prior run in `<details>` block (limit 5)
+
+        Regression: slice 2 tests pass unchanged
+      approved: false
+      comment: ""
+      approval_status: pending
+      execution_status: not_started
+      questions:
+        - id: q-history-depth
+          text: |
+            How many prior runs to retain in the section's `<details>` block?
+
+            - **A: last-5** — bounded HTML size, recent context
+            - **B: last-20** — more history, but may bloat HTML
+            - **C: unbounded** — full audit trail; HTML grows unbounded over feature lifetime
+
+            Recommended: **A — last-5**. Most features see <5 compliance runs. Bounded keeps HTML render fast. `htmlgraph compliance history` exposes the full audit when needed (queries OTel signals).
+questions:
+    - id: q-pilot-success-bar
+      text: What's the success bar for promoting the pilot from opt-in to default-on?
+      description: |
+        Fastest evaluation cycle wins for a pilot. signal-quality requires review setup overhead. cost-bounded is easy to measure but doesn't validate quality. dogfooded is pragmatic: if 3+ internal users run it on real features for 14 days with no rollbacks, the pilot has proven itself in practice. signal-quality can run as a follow-up audit after dogfood passes.
+      recommended: dogfooded
+      options:
+        - key: signal-quality
+          label: 'A: signal-quality — ≥80% of compliance findings agree with human review on a sample of 20 features. Rigorous but takes review setup.'
+        - key: cost-bounded
+          label: 'B: cost-bounded — pilot runs for 30 days at <$50 total cost across enabled users. Easy to measure but doesn''t validate quality.'
+        - key: dogfooded
+          label: 'C: dogfooded — used by ≥3 internal users on real features for 14 days with no rollbacks. Pragmatic; fastest to evaluate.'
+      answer: null
