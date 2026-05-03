@@ -431,7 +431,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
 </p>
   <div class="meta">
     <span class="badge badge-pending">Draft</span>
-    <span style="font-size:.75rem;color:var(--text-muted)">v1 · 2 slices · Created 2026-05-03</span>
+    <span style="font-size:.75rem;color:var(--text-muted)">v2 · 2 slices · Created 2026-05-03</span>
   </div>
 </header>
 <button id="themeToggle" style="position:fixed;top:16px;right:16px;z-index:100;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:6px 12px;color:var(--text);font-family:var(--mono);font-size:0.75rem;cursor:pointer;">
@@ -739,14 +739,7 @@ e. Truncate at <code>--max-diff-chars</code> (default 50000) at nearest line bou
       <div class="slice-field-value">
         
         <div class="question-block slice-question-block">
-          <p>Where should compliance findings live in the feature HTML?
-
-- **A: section** — `&lt;section class=&#34;compliance-findings&#34;&gt;` with `data-*` attributes. Structured, queryable, parallels existing `&lt;section class=&#34;spec&#34;&gt;`.
-- **B: addnote** — `Collection.AddNote` to append a `&lt;p&gt;`. Minimal new code, but findings buried in body and not idempotent.
-- **C: properties** — `Properties` map on node. Simplest, but invisible in HTML view.
-
-Recommended: **A — section**. Idempotency via class match, queryability via existing extractor pattern, visibility on dashboard.
-</p>
+          <p>Where should compliance findings live in the feature HTML?</p>
           <textarea
             data-section="slice-1-question-q-write-back-format"
             data-comment-for="slice-1-question-q-write-back-format"
@@ -754,14 +747,7 @@ Recommended: **A — section**. Idempotency via class match, queryability via ex
         </div>
         
         <div class="question-block slice-question-block">
-          <p>How does the LLM see the implementation diff?
-
-- **A: prompt-text** — pre-compute via `git show`, embed as text in user prompt; truncate at 50k chars
-- **B: bash-allowed** — allow `Bash(git show)` in `--allowedTools`, let LLM fetch
-- **C: read-files** — allow `Read` on changed files, let LLM read them
-
-Recommended: **A — prompt-text**. Deterministic, fully testable with stubs, avoids permission-mode complexity. Truncation at 50k chars covers typical features. Opus critique added: `git -C &lt;root&gt;` for project root resolution; `--first-parent` for merge commit safety; fallback via `feature_files` when commits aren&#39;t attributed.
-</p>
+          <p>How does the LLM see the implementation diff?</p>
           <textarea
             data-section="slice-1-question-q-diff-source"
             data-comment-for="slice-1-question-q-diff-source"
@@ -769,14 +755,7 @@ Recommended: **A — prompt-text**. Deterministic, fully testable with stubs, av
         </div>
         
         <div class="question-block slice-question-block">
-          <p>When the feature has no spec section, what should auto-compliance do?
-
-- **A: skip-with-note** — write a &#39;no spec&#39; finding section, exit 0
-- **B: silent-skip** — exit 0 with no side effect
-- **C: generate-then-score** — run `htmlgraph spec generate`, score against the auto-generated stub
-
-Recommended: **A — skip-with-note**. Visibility matters; silent skip leaves users wondering. Generated stub specs are theater.
-</p>
+          <p>When the feature has no spec section, what should auto-compliance do?</p>
           <textarea
             data-section="slice-1-question-q-no-spec-behavior"
             data-comment-for="slice-1-question-q-no-spec-behavior"
@@ -784,14 +763,7 @@ Recommended: **A — skip-with-note**. Visibility matters; silent skip leaves us
         </div>
         
         <div class="question-block slice-question-block">
-          <p>Default model &#43; effort for auto-compliance?
-
-- **A: sonnet-medium** — `claude-sonnet-4-6` &#43; medium effort. Estimated ~$0.03/call (provisional pending q-cost-measurement).
-- **B: haiku-low** — `claude-haiku-4-5` &#43; low effort. ~$0.001–$0.003/call. May miss nuance.
-- **C: opus-high** — `claude-opus-4-7` &#43; high effort. ~$0.10–$0.30/call. Overkill for pilot.
-
-Recommended: **A — sonnet-medium** pending the empirical cost measurement (`q-cost-measurement`). If the measured cost is materially higher than projected, this question may flip to B.
-</p>
+          <p>Default model &#43; effort for auto-compliance?</p>
           <textarea
             data-section="slice-1-question-q-model-default"
             data-comment-for="slice-1-question-q-model-default"
@@ -986,14 +958,7 @@ Recommended: **A — sonnet-medium** pending the empirical cost measurement (`q-
       <div class="slice-field-value">
         
         <div class="question-block slice-question-block">
-          <p>Where does compliance history come from?
-
-- **A: parse-from-html** — read prior findings from feature HTML&#39;s `&lt;details&gt;` blocks (last 5 retained by slice 1&#39;s section writer)
-- **B: separate-table** — store every run in a SQLite `compliance_runs` table; HTML retains only most recent
-- **C: both** — HTML for visibility, SQLite for analytics
-
-Recommended: **A — parse-from-html**. Pilot scope. SQLite backing is YAGNI until we have multi-feature analytics. Last-5 in HTML is enough for human review; the OTel telemetry follow-on plan can add a SQLite path later.
-</p>
+          <p>Where does compliance history come from?</p>
           <textarea
             data-section="slice-2-question-q-history-storage"
             data-comment-for="slice-2-question-q-history-storage"
@@ -1001,14 +966,7 @@ Recommended: **A — parse-from-html**. Pilot scope. SQLite backing is YAGNI unt
         </div>
         
         <div class="question-block slice-question-block">
-          <p>Day 14 quality audit rigor?
-
-- **A: 10 findings, 1 reviewer, ≥70% agreement** — pragmatic; matches `q-pilot-success-bar` recommendation
-- **B: 20 findings, 2 reviewers, agreement on agreement** — more rigorous; double the time
-- **C: 5 findings, 1 reviewer, qualitative** — cheapest but easy to game
-
-Recommended: **A**. Matches the plan&#39;s success bar. Adjustable upward if the day-7 checkpoint reveals signal noise.
-</p>
+          <p>Day 14 quality audit rigor?</p>
           <textarea
             data-section="slice-2-question-q-eval-rigor"
             data-comment-for="slice-2-question-q-eval-rigor"
