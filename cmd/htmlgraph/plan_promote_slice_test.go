@@ -470,17 +470,19 @@ func TestExecutePreview_IncludesPromotedSliceFeatures(t *testing.T) {
 // --- Spec-enforcement gate tests (feat-0fd7c8bc) ----------------------
 
 // seedPromoteFixture creates a temp project with a single approved slice and
-// returns the project dir + plan ID. Slices are NOT promoted yet.
-func seedPromoteFixture(t *testing.T, decisionsNotes string) (string, string) {
+// returns the htmlgraph dir + plan ID. The layout mirrors production: a
+// project root (t.TempDir()) containing a .htmlgraph/ subdirectory.
+func seedPromoteFixture(t *testing.T, decisionsNotes string) (hgDir, planID string) {
 	t.Helper()
-	dir := t.TempDir()
+	projectRoot := t.TempDir()
+	hgDir = filepath.Join(projectRoot, ".htmlgraph")
 	for _, sub := range []string{"plans", "features", "tracks"} {
-		if err := os.MkdirAll(filepath.Join(dir, sub), 0o755); err != nil {
+		if err := os.MkdirAll(filepath.Join(hgDir, sub), 0o755); err != nil {
 			t.Fatalf("mkdir %s: %v", sub, err)
 		}
 	}
 
-	p, err := workitem.Open(dir, "test-agent")
+	p, err := workitem.Open(hgDir, "test-agent")
 	if err != nil {
 		t.Fatalf("workitem.Open: %v", err)
 	}
@@ -491,8 +493,8 @@ func seedPromoteFixture(t *testing.T, decisionsNotes string) (string, string) {
 	}
 	p.Close()
 
-	pID := workitem.GenerateID("plan", "gate test")
-	plan := planyaml.NewPlan(pID, "Gate Test", "")
+	planID = workitem.GenerateID("plan", "gate test")
+	plan := planyaml.NewPlan(planID, "Gate Test", "")
 	plan.Meta.TrackID = track.ID
 	plan.Meta.Status = "active"
 	plan.Design.Problem = "x"
@@ -504,37 +506,33 @@ func seedPromoteFixture(t *testing.T, decisionsNotes string) (string, string) {
 		Why:            "because",
 		DecisionsNotes: decisionsNotes,
 	})
-	planPath := filepath.Join(dir, "plans", pID+".yaml")
+	planPath := filepath.Join(hgDir, "plans", planID+".yaml")
 	if err := planyaml.Save(planPath, plan); err != nil {
 		t.Fatalf("save plan: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, "plans", pID+".html"), []byte("<html></html>"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(hgDir, "plans", planID+".html"), []byte("<html></html>"), 0o644); err != nil {
 		t.Fatalf("write html: %v", err)
 	}
 
-	db, err := openPlanDB(dir)
+	db, err := openPlanDB(hgDir)
 	if err != nil {
 		t.Fatalf("openPlanDB: %v", err)
 	}
-	if err := dbpkg.StorePlanFeedback(db, pID, "slice-1", "approve", "true", ""); err != nil {
+	if err := dbpkg.StorePlanFeedback(db, planID, "slice-1", "approve", "true", ""); err != nil {
 		db.Close()
 		t.Fatalf("store approval: %v", err)
 	}
 	db.Close()
 
-	return dir, pID
+	return hgDir, planID
 }
 
-// writeSpecEnforcementConfig writes a config.json with spec_enforcement set.
-func writeSpecEnforcementConfig(t *testing.T, dir string, promoteSlice, featureComplete bool) {
+// writeSpecEnforcementConfig writes a config.json into the .htmlgraph dir.
+func writeSpecEnforcementConfig(t *testing.T, hgDir string, promoteSlice, featureComplete bool) {
 	t.Helper()
-	configDir := filepath.Join(dir, ".htmlgraph")
-	if err := os.MkdirAll(configDir, 0o755); err != nil {
-		t.Fatalf("mkdir .htmlgraph: %v", err)
-	}
 	body := fmt.Sprintf(`{"spec_enforcement":{"promote_slice":%t,"feature_complete":%t}}`,
 		promoteSlice, featureComplete)
-	if err := os.WriteFile(filepath.Join(configDir, "config.json"), []byte(body), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(hgDir, "config.json"), []byte(body), 0o644); err != nil {
 		t.Fatalf("write config: %v", err)
 	}
 }

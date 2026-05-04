@@ -105,7 +105,7 @@ func promoteSliceFromYAML(htmlgraphDir, planID string, sliceNum int, waiveDeps, 
 	// CRISPI spec-enforcement gate: refuse if config opts in and slice has no
 	// decisions captured. Audited override via --allow-spec-skip writes a
 	// comment to the slice so deliberate skips are visible in plan history.
-	enforcement := hooks.ReadSpecEnforcement(htmlgraphDir)
+	enforcement := hooks.ReadSpecEnforcement(filepath.Dir(htmlgraphDir))
 	if enforcement.PromoteSlice && strings.TrimSpace(slice.DecisionsNotes) == "" {
 		if !allowSpecSkip {
 			return "", fmt.Errorf("slice %d has no decisions; run `htmlgraph plan elicit-decisions %s %d` first (or invoke /htmlgraph:spec-from-slice on Claude). Override with --allow-spec-skip if intentional.",
