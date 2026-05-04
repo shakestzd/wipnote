@@ -2,15 +2,393 @@ meta:
     id: plan-cc24034c
     track_id: trk-13e39042
     title: CRISPI spec-definition enforcement — OpenSpec format + SDD elicitation gate
-    description: Adopts OpenSpec's MIT-licensed spec template (RFC 2119 SHALL/MUST + Given/When/Then scenarios + ADDED/MODIFIED/REMOVED delta sections) as the canonical <section class="spec"> format. Adds a 3-question interview gate (Scope/Decisions/Context) from DLAI's SDD methodology as a new skill that runs before promote-slice writes the spec block. Gates htmlgraph feature complete on spec presence. Extends htmlgraph spec generate with --insert that fills the OpenSpec template from a slice's what/done_when/tests/decisions fields and writes it into the feature HTML. Adds Completeness/Correctness/Coherence dimensions to htmlgraph compliance auto output (OpenSpec /opsx:verify-inspired). Built on the slice 1 work just shipped (compliance auto can already consume structured spec sections; this plan ensures those sections exist).
+    description: |
+        Closes the spec-definition gap in CRISPI: today, 0 of 117 done features have a `<section class="spec">` block — specs were never enforced at any stage of the planning workflow. Adopts OpenSpec's MIT-licensed Requirement + Scenario template format (RFC 2119 + Given/When/Then) as the canonical spec block, and SDD's 3-question interview gate (Scope/Decisions/Context) as the elicitation pattern before slice promotion writes the spec. Built on slice 1 of plan-72685272 — the auto-compliance pipeline already consumes structured spec sections; this plan ensures those sections exist.
     created_at: "2026-05-04"
-    status: draft
-    version: 2
+    status: active
+    created_by: claude-opus
+    version: 3
 design:
-    problem: ""
-    goals: []
-    constraints: []
+    problem: |
+        The CRISPI planning workflow (slice cards → promote-slice → feature complete) never enforces a spec block at any stage. Slice fields (what/why/done_when/tests) describe intent, but they live in plan YAML rather than in the feature HTML where compliance tools look. The result: zero features have specs, the existing `htmlgraph compliance` checkbox reporter has nothing to read, and the auto-compliance pipeline shipped in plan-72685272 can only validate the skip-no-spec path. Without specs, OODA active observation has no reference to compare implementation against.
+    goals:
+        - '**Canonical spec format** — adopt OpenSpec''s MIT-licensed Requirement/Scenario template as the structure of every `<section class="spec">` block, enabling structured parsing instead of free-text checkbox heuristics'
+        - '**Elicitation by default** — every slice that promotes to a feature gets a spec generated through a 3-question interview gate (Scope/Decisions/Context), eliminating the cold-start problem of empty specs'
+        - '**Enforcement at two gates** — `promote-slice` cannot create a feature without a spec; `feature complete` cannot mark done without a non-empty spec block. Both opt-in via config toggle for safe rollout.'
+        - '**Three-dimension verification** — `htmlgraph compliance auto` reports Completeness / Correctness / Coherence sub-scores (OpenSpec /opsx:verify-inspired) instead of a single 0-100 grade, with a project-level `spec_context` injected into the LLM prompt'
+    constraints:
+        - OpenSpec template content is MIT-licensed; copy verbatim with an attribution comment (e.g. `<!-- Spec template adapted from OpenSpec by Fission AI (MIT). -->`). DLAI SDD methodology has no license declared — adopt ideas (3-question interview gate) but do NOT copy any text verbatim
+        - Backward compatible — existing `[ ]/[x]` checkbox parser must keep working for any spec written in the legacy format; new format is additive, not replacement
+        - No new runtime dependencies — Go stdlib + existing project deps; OpenSpec's npm CLI is NOT a dependency
+        - Default-off opt-in — enforcement gates default to disabled in `.htmlgraph/config.json` so the plan is safe to merge without breaking existing workflows
+        - 'Plugin source-of-truth: any new skill goes via `packages/plugin-core/manifest.json` and `htmlgraph plugin build-ports` if cross-harness, or directly under `plugin/skills/` if Claude-only'
     approved: false
     comment: ""
-slices: []
-questions: []
+slices:
+    - id: slice-1
+      num: 1
+      title: OpenSpec template format + `--insert` flag for `htmlgraph spec generate`
+      what: |
+        Adopt OpenSpec's MIT-licensed spec template (RFC 2119 Requirement + Given/When/Then Scenario format) as the canonical structure of `htmlgraph spec generate` output. Add `--insert` flag that writes the generated spec directly into the feature HTML's `<section class="spec">` block. Extend `parseCriteria` to consume the new Requirement/Scenario format alongside the legacy `[ ]/[x]` checkbox format.
+
+        **Implementation:**
+        1. Copy `/tmp/openspec/schemas/spec-driven/templates/spec.md` content verbatim into a new file `plugin/templates/spec-template.md` with an attribution comment at the top: `<!-- Spec template adapted from OpenSpec by Fission AI (MIT). https://github.com/Fission-AI/OpenSpec -->`. Add an entry to a new top-level `ATTRIBUTION.md` documenting the third-party source + license.
+        2. Update `renderSpecMarkdown` (currently renders `# Spec`/`## Problem`/`## Acceptance Criteria` checkboxes/`## Files`/`## API Surface`/`## Notes`) to render a hybrid: keep `## Problem`, `## Files`, `## Notes` as CRISPI-specific context; replace `## Acceptance Criteria` with `## ADDED Requirements` containing one `### Requirement: <name>` per slice criterion, each with at least one `#### Scenario:` block (WHEN/THEN). The slice fields populate as: `done_when[i]` → Requirement i (with the criterion text as the SHALL statement); slice's `tests` field → Scenario blocks under each Requirement.
+        3. Add `--insert` boolean flag to `specGenerateCmd`. When true: locate the feature HTML, find or create `<section class="spec">`, write the rendered Markdown inside, save atomically via `writeFileAtomicRaw`. Idempotent: re-running replaces the section content (matches the pattern from compliance_auto.go's section writer).
+        4. Extend `parseCriteria` in `compliance.go` to recognise BOTH formats: existing `[ ]/[x]` lines under `## Acceptance Criteria` (legacy), AND `### Requirement:` headings with their `#### Scenario:` children (new). For new format, criterion status is derived from a sibling `- [x]`/`- [ ]` task line inside the Scenario block (or unchecked by default).
+        5. Fix the dead `criterionFailed` code path: extend the regex to capture `[F]` (or `[f]`) as failed status. Existing dead switch cases will become live.
+      why: |
+        The pilot's existing `compliance auto` command can read any `<section class="spec">` content but writes nothing into one. The `htmlgraph spec generate` stub today produces a free-text template that ends in stdout. Closing this gap means a single command (`htmlgraph spec generate --insert <feat-id>`) makes a feature's spec real and parseable. Adopting OpenSpec's structured Requirement/Scenario format gives `compliance auto` something machine-checkable rather than ad-hoc Markdown. Backward compat with checkboxes preserves any future legacy specs and keeps the dead `[F]` parser path from staying broken.
+      files:
+        - cmd/htmlgraph/spec.go
+        - cmd/htmlgraph/spec_test.go
+        - cmd/htmlgraph/compliance.go
+        - plugin/templates/spec-template.md
+        - ATTRIBUTION.md
+      deps: []
+      done_when:
+        - '`htmlgraph spec generate <feat-id> --insert` writes a `<section class="spec">` block into the feature HTML containing the OpenSpec-formatted template populated from slice/feature fields'
+        - Re-running `--insert` replaces the section content (idempotent), does not duplicate or corrupt
+        - 'Generated spec contains at least: `## Problem`, `## ADDED Requirements` with ≥1 `### Requirement:`, each with ≥1 `#### Scenario:`, `## Files`, `## Notes`'
+        - Attribution comment present in the generated spec block
+        - '`ATTRIBUTION.md` exists at repo root listing the OpenSpec source + MIT license'
+        - '`htmlgraph compliance <feat-id>` (legacy checkbox reporter) parses the new format: counts requirements as criteria, with status derived from inner task checkboxes'
+        - Legacy `[ ]/[x]/[F]` format still parses correctly (regression test)
+        - '`[F]` lines now correctly parse as `criterionFailed`, populating the previously-dead switch cases'
+        - '`extractSpecSection` is unchanged (still raw string match) — out of scope for this slice'
+      effort: M
+      risk: Med
+      tests: |
+        Unit:
+        - TestSpecGenerate_OpenSpecFormat — fixture slice produces output containing `### Requirement:` and `#### Scenario:`
+        - TestSpecGenerate_Insert_Idempotent — running `--insert` twice replaces section, doesn't duplicate
+        - TestSpecGenerate_Insert_NewSection — feature without `<section class="spec">` gets one created
+        - TestSpecGenerate_Insert_AtomicWrite — uses `writeFileAtomicRaw` (regression: torn writes don't occur during concurrent runs)
+        - TestParseCriteria_OpenSpecFormat — fixture spec with `### Requirement:` blocks parsed into criterion structs
+        - TestParseCriteria_LegacyChecks — fixture with `[ ]/[x]/[F]` parsed correctly (status mapping)
+        - TestParseCriteria_FailedStatus — `[F]` lines now produce `criterionFailed` (previously dead path)
+        - TestParseCriteria_HybridSpec — spec with BOTH formats interleaved counts both types
+
+        Integration: TestSpecGenerateInsertEndToEnd — temp project + feature + slice; run `spec generate --insert`; assert spec section present + parser counts criteria correctly
+
+        Regression:
+        - `cmd/htmlgraph/compliance_test.go` continues to pass (legacy paths)
+        - `cmd/htmlgraph/compliance_auto_test.go` continues to pass (compliance auto reads the new format)
+      approved: false
+      comment: ""
+      approval_status: pending
+      execution_status: not_started
+      questions:
+        - id: q-attribution-placement
+          text: Where should the OpenSpec MIT attribution live?
+          description: |
+            The OpenSpec template content is copied verbatim into HtmlGraph. MIT requires attribution. Three placements differ in visibility and maintenance cost.
+          recommended: both-comment-and-attribution-md
+          options:
+            - key: both-comment-and-attribution-md
+              label: both — `<!-- ... -->` HTML comment in the spec section AND a top-level `ATTRIBUTION.md` file. Most discoverable, costs ~10 lines.
+            - key: comment-only
+              label: comment-only — just the HTML comment per spec section. Simpler but only visible inside generated specs.
+            - key: attribution-md-only
+              label: attribution-md-only — top-level file only. Cleanest spec output but invisible to anyone reading the generated HTML.
+        - id: q-parser-strategy
+          text: Extend `parseCriteria` to handle both formats, or write a new `parseSpec` and dispatch?
+          description: |
+            The legacy parser is tightly coupled to `## Acceptance Criteria` heading + `[ ]/[x]` regex. Adding the OpenSpec Requirement/Scenario format doubles the surface.
+          recommended: extend-existing
+          options:
+            - key: extend-existing
+              label: extend-existing — modify `parseCriteria` to detect heading style and branch internally. Smaller diff, harder to test in isolation.
+            - key: new-parser-with-dispatcher
+              label: new-parser-with-dispatcher — add `parseOpenSpecFormat`, route via `parseSpec(content)` based on heading detection. Cleaner separation, larger diff.
+        - id: q-criterion-status-mapping
+          text: How is criterion status derived from the OpenSpec format?
+          description: |
+            OpenSpec's `### Requirement:` blocks don't have inline status markers — they're just spec text with optional `#### Scenario:` children. Where does pass/fail/unchecked come from?
+          recommended: task-checkbox-inside-scenario
+          options:
+            - key: task-checkbox-inside-scenario
+              label: task-checkbox-inside-scenario — look for a `- [x]` / `- [ ]` / `- [F]` task line inside each Scenario block; if present, that's the status. Mirrors OpenSpec's tasks.md convention.
+            - key: separate-status-block
+              label: separate-status-block — require a `## Status` section after `## ADDED Requirements` listing per-requirement status. More structured but new convention.
+            - key: implicit-unchecked
+              label: implicit-unchecked — every `### Requirement:` is unchecked by default; status only set by `htmlgraph compliance auto`'s LLM grading. Simplest but the legacy checkbox reporter becomes useless on new specs.
+    - id: slice-2
+      num: 2
+      title: Interview-gate skill + `decisions` slice field
+      what: |
+        Add a new user-invocable skill `htmlgraph:spec-from-slice` that runs the SDD-inspired 3-question interview before slice promotion writes the spec. Add a `Decisions []SliceDecision` field to the slice schema for storing the resolved choices.
+
+        **Implementation:**
+        1. New SKILL.md at `plugin/skills/spec-from-slice/SKILL.md` with frontmatter `name: htmlgraph:spec-from-slice`, `description: ...`, `user_invocable: true`. Body instructs Claude to:
+           a. Read the slice card from the plan YAML
+           b. Use `AskUserQuestion` to elicit Scope (what's in/out for this slice), Decisions (key implementation choices with rationale), Context (tone/stack/patterns to follow)
+           c. Save answers to the slice's `Decisions` field via `htmlgraph plan edit-slice <plan-id> <num> --decisions-json <file>`
+           d. Run `htmlgraph spec generate <feat-id> --insert` (slice 1's command) to materialise the spec, with answers passed via `--decisions-json` flag (the generator reads the slice's Decisions field and pre-fills the OpenSpec template's Requirement context with them)
+        2. Extend `internal/planyaml/schema.go` `PlanSlice` with `Decisions []SliceDecision` (yaml `omitempty`). New struct: `type SliceDecision struct { ID, Title, Choice, Rationale string }`.
+        3. Extend validator: if `Decisions` is non-empty, each must have non-empty `Title` and `Choice`.
+        4. Add `htmlgraph plan edit-slice` subcommand for writing decisions back into the YAML (or a focused `--decisions-json <path>` flag on an existing edit command if one exists; otherwise new).
+        5. Extend `htmlgraph spec generate` to accept `--decisions-json <path>` flag that pre-populates the spec's Requirement context with the elicited decisions, weaving them into the rationale section per Requirement.
+      why: |
+        Without an elicitation gate, slice promotion produces a spec from slice fields alone — sufficient for trivial slices but thin for slices with implementation tradeoffs. The 3-question interview is the minimum-viable elicitation pattern from SDD, transferred to CRISPI's slice-card model. Storing the resolved decisions in the slice schema preserves them for the generator (slice 1) AND makes them queryable for `htmlgraph compliance auto` (so the LLM grader can evaluate whether the implementation honored the documented decisions). The skill is user-invocable so it can be run manually before promote-slice; slice 3 wires it as an enforced gate.
+      files:
+        - plugin/skills/spec-from-slice/SKILL.md
+        - internal/planyaml/schema.go
+        - internal/planyaml/validate.go
+        - internal/planyaml/validate_test.go
+        - cmd/htmlgraph/spec.go
+      deps:
+        - 1
+      done_when:
+        - 'Skill file `plugin/skills/spec-from-slice/SKILL.md` exists with frontmatter (`name`, `description`, `user_invocable: true`) and an instruction body that prescribes the 3-question interview'
+        - '`PlanSlice` struct has `Decisions []SliceDecision` field with proper YAML tag'
+        - '`SliceDecision` struct has `ID`, `Title`, `Choice`, `Rationale` fields'
+        - Validator rejects a slice with non-empty `Decisions` where any decision has empty `Title` or `Choice`
+        - '`htmlgraph plan edit-slice <plan-id> <num> --decisions-json <path>` (new or extended) writes decisions into the YAML'
+        - '`htmlgraph spec generate --decisions-json <path>` reads decisions and incorporates them into the rendered spec''s Requirement context'
+        - Existing slice YAMLs without `Decisions` field continue to validate (omitempty preserved)
+      effort: M
+      risk: Low
+      tests: |
+        Unit:
+        - TestSliceSchema_DecisionsField — round-trip YAML with Decisions; fields preserved
+        - TestSliceValidator_DecisionsValid — non-empty Decisions with valid Title+Choice passes
+        - TestSliceValidator_DecisionsInvalid — Decisions with empty Title fails validation
+        - TestSliceSchema_NoDecisions — slice without Decisions field still validates (legacy compat)
+        - TestPlanEditSlice_WritesDecisions — CLI command writes decisions into YAML
+        - TestSpecGenerate_WithDecisions — `--decisions-json` populates Requirement context
+        - TestSkillFile_ValidFrontmatter — SKILL.md parses with expected frontmatter fields
+
+        Integration: TestSpecFromSlice_EndToEnd — fixture slice + simulated decisions JSON → run skill flow's downstream commands → assert spec section contains Decisions content
+
+        Regression: existing planyaml tests pass
+      approved: false
+      comment: ""
+      approval_status: pending
+      execution_status: not_started
+      questions:
+        - id: q-skill-trigger
+          text: Should the skill be auto-invoked by `promote-slice`, or user-invokable only?
+          description: |
+            Slice 3 will gate `promote-slice` on spec presence. The question for THIS slice is whether the skill itself is autonomous or human-triggered.
+          recommended: user-invokable-only
+          options:
+            - key: user-invokable-only
+              label: user-invokable-only — skill exists; user runs `/htmlgraph:spec-from-slice` before promote-slice. Slice 3 enforces presence; user must run the skill or generate a spec by other means.
+            - key: auto-invoke-from-promote
+              label: auto-invoke-from-promote — promote-slice automatically dispatches the skill if no spec exists. More magical, but couples promote-slice to a Claude-only skill (breaks for non-Claude harnesses).
+            - key: hybrid-with-flag
+              label: hybrid-with-flag — `htmlgraph plan promote-slice --interactive` invokes the skill; default refuses without spec. Best of both worlds, slightly more code.
+        - id: q-decisions-storage
+          text: Where do `Decisions` live — slice YAML, feature HTML, or both?
+          description: |
+            Decisions are elicited per-slice (input to spec) but they're also part of the final spec (output). Storage decision affects edit/query patterns.
+          recommended: yaml-canonical-html-rendered
+          options:
+            - key: yaml-canonical-html-rendered
+              label: yaml-canonical-html-rendered — slice YAML is the source of truth (under `slice.decisions[]`); feature HTML's spec section renders them. Single edit point. RECOMMENDED.
+            - key: html-canonical-yaml-derived
+              label: html-canonical-yaml-derived — decisions live in feature HTML; YAML stores a hash for staleness tracking. Mirrors how spec content is canonical in HTML, but more complex.
+            - key: both-independent
+              label: both-independent — decisions in both, edit-tools synchronise. Risks divergence.
+        - id: q-decisions-format
+          text: JSON vs YAML for `--decisions-json`?
+          description: |
+            The flag name says JSON but the slice schema is YAML. Could go either way.
+          recommended: json
+          options:
+            - key: json
+              label: json — easier to construct programmatically (jq, scripts); contradicts slice YAML format slightly. Recommended.
+            - key: yaml
+              label: yaml — matches slice schema; harder for shell-piped workflows.
+            - key: both
+              label: both — accept either (auto-detect by extension or content). More code, no clear win.
+    - id: slice-3
+      num: 3
+      title: Spec-presence gates at `promote-slice` and `feature complete`
+      what: |
+        Add two enforcement gates, both opt-in via `.htmlgraph/config.json`:
+
+        1. **`promote-slice` gate.** In `cmd/htmlgraph/plan_promote_slice.go` `promoteSliceFromYAML`, after the approval check (line 87) and before the dep check (line 97): if `config.spec_enforcement.promote_slice` is true and the slice has no spec materialised (no associated feature with non-empty `<section class="spec">`), return a clear error: `"slice <num> has no spec — run htmlgraph spec generate <feat-id> --insert first, or invoke /htmlgraph:spec-from-slice"`. If config is false (default), behavior unchanged.
+
+        2. **`feature complete` gate.** In `cmd/htmlgraph/workitem.go` `wiSetStatusWithAgent`, when `typeName == "feature"` and `status == "done"`, after `id, err = resolveID(dir, id)` and before `col.Complete(id)`: if `config.spec_enforcement.feature_complete` is true, read the feature HTML, call `extractSpecSection`, fail if empty or contains no requirements/criteria. Error message: `"feature <id> cannot be completed — spec section is empty or unscored. Run htmlgraph compliance auto <id> first."`
+
+        3. Add `spec_enforcement` config fields with defaults via the same pattern as `block_task_completion_on_quality_failure` (`internal/hooks/task_completion_gate.go`):
+           ```json
+           "spec_enforcement": {
+             "promote_slice": false,
+             "feature_complete": false
+           }
+           ```
+      why: |
+        Without enforcement, slice 1 + slice 2 are opt-in tooling that nobody is forced to use. The gates flip the default: once enabled, the workflow can't bypass spec definition. Defaulting both gates to false preserves backward compat — the plan can merge to main without breaking existing CI or non-spec workflows. Consumers opt in by editing `.htmlgraph/config.json`. Clear error messages tell the user how to satisfy each gate. The gate at `feature complete` is the "back stop" — even if `promote-slice` is bypassed (e.g., manually creating a feature), completion still demands a spec.
+      files:
+        - cmd/htmlgraph/plan_promote_slice.go
+        - cmd/htmlgraph/workitem.go
+        - internal/hooks/task_completion_gate.go
+        - internal/hooks/task_completion_gate_test.go
+      deps:
+        - 1
+      done_when:
+        - 'When `spec_enforcement.promote_slice: true` in `.htmlgraph/config.json`, `htmlgraph plan promote-slice <plan-id> <num>` errors out if the slice''s would-be feature has no spec section, with a remediation message'
+        - 'When `spec_enforcement.promote_slice: false` (default), promote-slice behavior unchanged'
+        - 'When `spec_enforcement.feature_complete: true`, `htmlgraph feature complete <id>` errors if no spec section or 0 requirements/criteria, with a remediation message'
+        - 'When `spec_enforcement.feature_complete: false` (default), feature complete behavior unchanged'
+        - Both gates use `extractSpecSection` (raw string match) — same as compliance commands; no new parsing
+        - Error messages name the exact remediation command for each gate
+      effort: S
+      risk: Med
+      tests: |
+        Unit:
+        - TestPromoteSliceGate_Disabled — default config; promote-slice succeeds without spec
+        - TestPromoteSliceGate_EnabledNoSpec — config enabled, slice has no spec; promote-slice fails with remediation message
+        - TestPromoteSliceGate_EnabledWithSpec — config enabled, spec exists; promote-slice succeeds
+        - TestFeatureCompleteGate_Disabled — default config; feature complete succeeds without spec
+        - TestFeatureCompleteGate_EnabledNoSpec — config enabled, feature has no spec; complete fails
+        - TestFeatureCompleteGate_EnabledWithSpec — config enabled, spec exists; complete succeeds
+        - TestConfigParsing — `.htmlgraph/config.json` with `spec_enforcement.*` fields parsed correctly
+
+        Integration: TestEndToEndEnforcement — temp project, enable both gates, simulate a slice promotion through completion; assert each gate fires when expected
+
+        Regression: `internal/hooks/task_completion_gate_test.go` continues to pass
+      approved: false
+      comment: ""
+      approval_status: pending
+      execution_status: not_started
+      questions:
+        - id: q-gate-strictness
+          text: Hard error or warning when spec is absent and gate is enabled?
+          description: |
+            Hard error blocks the workflow; warning surfaces the issue but lets the user proceed. Tradeoff: discipline vs friction.
+          recommended: hard-error
+          options:
+            - key: hard-error
+              label: hard-error — gate refuses the operation. User must satisfy the gate. Strongest enforcement; matches the SDD philosophy.
+            - key: warning-only
+              label: warning-only — gate prints a stderr warning but allows the operation. Soft. Defeats the gate's purpose.
+            - key: hard-error-with-override-flag
+              label: hard-error-with-override-flag — refuses by default; `--allow-spec-skip` flag bypasses. Best of both — strict but escapable.
+        - id: q-feature-complete-criterion-threshold
+          text: What threshold for `feature complete`'s spec check?
+          description: |
+            'Spec section exists' is the minimum bar. Should we also require some criteria to be checked?
+          recommended: at-least-one-requirement
+          options:
+            - key: at-least-one-requirement
+              label: at-least-one-requirement — spec must have ≥1 `### Requirement:` block (or ≥1 `[ ]/[x]/[F]` line in legacy format). Bare-minimum non-empty.
+            - key: all-criteria-checked
+              label: all-criteria-checked — every criterion must be `[x]` (or have a passing scenario). Strict but blocks features whose criteria are inherently manual.
+            - key: section-non-empty
+              label: section-non-empty — `<section class="spec">` exists and contains any text. Loosest; trivially bypassed.
+    - id: slice-4
+      num: 4
+      title: Three-dimension Completeness/Correctness/Coherence + spec_context
+      what: |
+        Extend `compliance auto` to report three sub-scores (Completeness / Correctness / Coherence) instead of a single 0-100 grade, and inject project-level spec-writing context into the LLM prompt.
+
+        **Implementation:**
+        1. Update the JSON schema in compliance_auto's system prompt: replace `score: 0-100` with `dimensions: { completeness: 0-100, correctness: 0-100, coherence: 0-100 }` and `overall_score: 0-100` (computed from dimensions). Update the prompt instructions to define each dimension per OpenSpec's /opsx:verify:
+           - Completeness: % of declared Requirements that have implementation in the diff
+           - Correctness: % of Requirements where implementation matches the SHALL statement and Scenarios
+           - Coherence: presence of design.decisions and whether implementation follows them; defaults to 100 if no decisions exist
+        2. Update `autoComplianceFinding` struct and `buildComplianceSystemPrompt` to match the new schema.
+        3. Update `renderFindingsHTML` (or equivalent) to display the dimensions table in the findings section: `<table data-dimensions>` with rows for each dimension + overall.
+        4. Update findings section attributes: add `data-completeness`, `data-correctness`, `data-coherence` alongside existing `data-score` (which becomes the overall).
+        5. Add `spec_context` field to `.htmlgraph/config.json`:
+           ```json
+           "spec_context": {
+             "tech_stack": "Go 1.24, SQLite, plugin/static (HTML+JS), templated via gohtml",
+             "rules": [
+               "Use SHALL for requirements; avoid 'should' which is non-normative.",
+               "Each Requirement gets ≥1 Scenario describing observable behavior.",
+               "Decisions document WHY, not WHAT — the WHAT belongs in the Requirement."
+             ]
+           }
+           ```
+        6. Read `spec_context` from config; inject into the system prompt of compliance auto's LLM call.
+      why: |
+        A single 0-100 score collapses three different signals: did the implementation cover all requirements, did it implement them correctly, and did it stay coherent with documented decisions. The OpenSpec /opsx:verify pattern separates these for actionable feedback — a 30/100 in Completeness vs 30/100 in Coherence has very different remediation. The `spec_context` injection (analog to OpenSpec's `config.yaml`) gives the LLM project-specific rules so it grades against our conventions, not its priors.
+      files:
+        - cmd/htmlgraph/compliance_auto.go
+        - cmd/htmlgraph/compliance_auto_test.go
+        - cmd/htmlgraph/compliance.go
+        - internal/hooks/task_completion_gate.go
+      deps:
+        - 1
+      done_when:
+        - '`htmlgraph compliance auto <id>` JSON output contains `dimensions: {completeness, correctness, coherence}` plus `overall_score`'
+        - Findings section attributes include `data-completeness`, `data-correctness`, `data-coherence`, `data-score` (overall)
+        - Findings HTML body renders a small dimensions table
+        - When `.htmlgraph/config.json` contains `spec_context`, the LLM prompt includes it as additional system-prompt content
+        - When `spec_context` is absent, prompt unchanged (regression-safe)
+        - Coherence defaults to 100 when no `decisions` are present in the slice/feature
+        - Existing `compliance auto` tests adapted to new schema; legacy `data-score` attribute remains for backward compat
+      effort: M
+      risk: Low
+      tests: |
+        Unit:
+        - TestComplianceAuto_DimensionsInOutput — stub returns dimensions JSON; findings section contains all four data attributes
+        - TestComplianceAuto_DimensionsTableInHTML — rendered HTML contains the dimensions table
+        - TestSpecContext_Injected — config has spec_context; prompt includes it
+        - TestSpecContext_Absent — config lacks spec_context; prompt unchanged
+        - TestCoherence_NoDecisions — stub returns finding without decisions; coherence defaults to 100
+
+        Integration: TestComplianceAutoEndToEnd — temp project + spec with Requirements + Decisions; mock LLM returns valid dimensions; assert all data attributes
+
+        Regression: existing compliance_auto_test.go continues to pass
+      approved: false
+      comment: ""
+      approval_status: pending
+      execution_status: not_started
+      questions:
+        - id: q-overall-score-formula
+          text: How is `overall_score` computed from the three dimensions?
+          description: |
+            Equal weighting is the simplest baseline; weighted formula or LLM-judged are alternatives.
+          recommended: equal-weight-mean
+          options:
+            - key: equal-weight-mean
+              label: equal-weight-mean — `(completeness + correctness + coherence) / 3`. Predictable, simple.
+            - key: completeness-weighted
+              label: completeness-weighted — `0.5*completeness + 0.3*correctness + 0.2*coherence`. Reflects 'did it ship the spec'-first priority.
+            - key: llm-judged
+              label: llm-judged — let the LLM produce overall_score directly with reasoning. Most flexible, least predictable.
+        - id: q-spec-context-format
+          text: Format of `spec_context` in config?
+          description: |
+            OpenSpec uses YAML; our `.htmlgraph/config.json` is JSON. Switching files for one feature is friction.
+          recommended: keep-in-config-json
+          options:
+            - key: keep-in-config-json
+              label: 'keep-in-config-json — embed `spec_context: {tech_stack, rules}` in existing config.json. One file.'
+            - key: separate-spec-yaml
+              label: separate-spec-yaml — new `.htmlgraph/spec.yaml` matches OpenSpec's pattern. Cleaner separation, more files.
+            - key: per-track-context
+              label: per-track-context — context lives on track HTML so it can vary per initiative. Most flexible, more code.
+questions:
+    - id: q-rollout-strategy
+      text: How should spec-enforcement gates roll out across the project?
+      description: |
+        Enforcement is default-off, but adoption strategy varies. The 117 spec-less done features are a real cohort question — we can't retroactively gate completed work without manual backfill.
+      recommended: opt-in-per-project
+      options:
+        - key: opt-in-per-project
+          label: opt-in-per-project — toggle in `.htmlgraph/config.json` enables enforcement project-wide; existing features grandfathered (no retroactive spec required)
+        - key: opt-in-per-track
+          label: opt-in-per-track — toggle on the track HTML or via a track-level flag; allows mixed enforcement within one project
+        - key: enforce-by-default
+          label: enforce-by-default — flip default to enforced; requires backfilling all 117 features first
+      answer: null
+    - id: q-grandfathered-features
+      text: What about the 117 existing done features that have no spec?
+      description: |
+        Even with opt-in enforcement, the existing cohort is spec-less. They can't be retrospectively scored by `compliance auto` without specs. Three options.
+      recommended: grandfather-with-marker
+      options:
+        - key: grandfather-with-marker
+          label: grandfather-with-marker — add a one-time `<section class="spec" data-grandfathered="true">` to each existing done feature noting 'no spec at completion'; future features get real specs
+        - key: backfill-via-llm
+          label: backfill-via-llm — write a `htmlgraph spec backfill --since <date>` that uses claude -p to reverse-engineer specs from each feature's diff. Expensive but produces real data.
+        - key: leave-empty
+          label: leave-empty — accept the cohort gap; only score features completed after this plan ships
+      answer: null
