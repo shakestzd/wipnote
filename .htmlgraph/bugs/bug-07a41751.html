@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Legacy SQLite file never auto-cleaned: production wires WarnIfLegacyDBPresent (info-only) instead of CleanLegacyDBIfSafe (auto-remove)</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-07a41751"
+             data-type="bug"
+             data-status="done"
+             data-priority="medium"
+             data-created="2026-05-03T14:15:39.741133"
+             data-updated="2026-05-03T14:24:34.379529" data-agent-assigned="claude-code" data-track-id="trk-0677c709">
+
+        <header>
+            <h1>Legacy SQLite file never auto-cleaned: production wires WarnIfLegacyDBPresent (info-only) instead of CleanLegacyDBIfSafe (auto-remove)</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-0677c709.html" data-relationship="part_of" data-since="2026-05-03T14:15:39.766595">trk-0677c709</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="6b432d50-b2c3-4045-960e-a815085f56c3.html" data-relationship="implemented_in" data-since="2026-05-03T14:15:40.264137">session 6b432d50-b2c3-4045-960e-a815085f56c3</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>On every htmlgraph CLI invocation, an INFO line prints to stderr like:
+  [htmlgraph] INFO: legacy SQLite file at .htmlgraph/htmlgraph.db (2.7 MB) is unused — DB now lives in the user cache dir. You can delete: 
+
+This pollutes stderr forever for any project that has a pre-cache-migration .htmlgraph/htmlgraph.db until the user manually rms it. Breaks scripted/piped CLI usage (e.g. htmlgraph plan show | head -100).
+
+Root cause: cmd/htmlgraph/main.go:340 calls storage.WarnIfLegacyDBPresent — info-only, never removes. A separate function storage.CleanLegacyDBIfSafe (internal/storage/dbpath.go:144) is fully written and tested to safely os.Remove the legacy file when the canonical cache DB exists and is non-empty, but it is dead code in production — only tests reference it.
+
+Fix: swap the call at main.go:340 from WarnIfLegacyDBPresent to CleanLegacyDBIfSafe. Then delete the now-orphan WarnIfLegacyDBPresent function (and any tests that target it specifically). Existing TestCleanLegacyDBIfSafe_* tests already cover the new behavior including the canonical-missing/empty cases (warns instead of removing).
+
+Severity: low (cosmetic/UX) but high friction for piped-output users.</p>
+        </section>
+    </article>
+</body>
+</html>

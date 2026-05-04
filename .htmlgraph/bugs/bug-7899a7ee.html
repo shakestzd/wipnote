@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>TestApplyPragmas_BusyTimeoutBeforeJournalMode flaky on CI (passes locally)</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-7899a7ee"
+             data-type="bug"
+             data-status="done"
+             data-priority="medium"
+             data-created="2026-05-02T23:16:09.724602"
+             data-updated="2026-05-03T02:12:29.748" data-agent-assigned="claude-code" data-track-id="trk-0677c709">
+
+        <header>
+            <h1>TestApplyPragmas_BusyTimeoutBeforeJournalMode flaky on CI (passes locally)</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="6b432d50-b2c3-4045-960e-a815085f56c3.html" data-relationship="implemented_in" data-since="2026-05-02T23:16:12.329492">session 6b432d50-b2c3-4045-960e-a815085f56c3</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-0677c709.html" data-relationship="part_of" data-since="2026-05-02T23:16:09.731737">trk-0677c709</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Regression test added in baf16572 to guard the busy_timeout-before-journal_mode fix passes locally on the dev container but fails on GitHub Actions CI with: 'applying PRAGMA journal_mode: database is locked (5) (SQLITE_BUSY)'.
+
+Three failed CI runs since the fix landed: 25260804125, 25262577080, 25264218716. All on main.
+
+Working hypothesis (unconfirmed): the explicit 'PRAGMA busy_timeout=5000' exec at the start of ApplyPragmas runs on whatever connection database/sql hands out from the pool. The subsequent 'PRAGMA journal_mode=WAL' may run on a DIFFERENT pooled connection where busy_timeout has not yet been applied — making the timeout effectively zero on that connection. The DSN-level '?_pragma=busy_timeout(5000)' should cover this on every new connection, but if the modernc.org/sqlite driver doesn't apply DSN pragmas before the first explicit Exec, the race window opens.
+
+Production code may still be sound (manual stress repro showed 0/20 failures), but the regression test is exposing the fragility. Fix space:
+1. Pin all pragma applications to a single dedicated *sql.Conn (db.Conn(ctx) + Conn.ExecContext). Forces serial execution on one underlying connection.
+2. Set sql.DB.MaxOpenConns(1) before ApplyPragmas, restore after. Less invasive but ugly.
+3. Confirm the modernc.org DSN pragma syntax actually applies busy_timeout on connection establishment (read driver source / docs). If not, the DSN is dead weight and the explicit exec must be on a pinned conn.
+
+Either way, the test must pass deterministically on CI. After fix, stress run go test ./internal/db/ -count=20 locally to confirm.</p>
+        </section>
+    </article>
+</body>
+</html>
