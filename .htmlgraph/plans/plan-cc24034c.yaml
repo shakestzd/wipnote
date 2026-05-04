@@ -7,7 +7,7 @@ meta:
     created_at: "2026-05-04"
     status: active
     created_by: claude-opus
-    version: 3
+    version: 7
 design:
     problem: |
         The CRISPI planning workflow (slice cards → promote-slice → feature complete) never enforces a spec block at any stage. Slice fields (what/why/done_when/tests) describe intent in plan YAML, but they don't reach the feature HTML where compliance tools look. Result: zero features have specs, the `htmlgraph compliance` checkbox reporter has nothing to read, and the auto-compliance pipeline shipped in feat-38a032e8 can only validate the skip-no-spec path. OODA active observation has no reference to compare implementation against.
@@ -32,6 +32,7 @@ design:
     comment: ""
 slices:
     - id: slice-1
+      feature_id: feat-79f41c6d
       num: 1
       title: OpenSpec spec template + `htmlgraph spec generate --insert` (non-destructive, locked)
       what: |
@@ -91,8 +92,8 @@ slices:
         - `internal/workitem/htmlwriter_test.go` passes unchanged
       approved: false
       comment: ""
-      approval_status: pending
-      execution_status: not_started
+      approval_status: approved
+      execution_status: promoted
       questions:
         - id: q-overwrite-policy
           text: What's the default behavior of `--insert` when the spec section already has content?
@@ -184,7 +185,7 @@ slices:
         - compliance_auto.go's parser usage unchanged (it already accepts arbitrary spec text via the LLM)
       approved: false
       comment: ""
-      approval_status: pending
+      approval_status: approved
       execution_status: not_started
       questions:
         - id: q-status-derivation-from-scenarios
@@ -295,7 +296,7 @@ slices:
         Regression: existing planyaml, hooks, and workitem tests pass
       approved: false
       comment: ""
-      approval_status: pending
+      approval_status: approved
       execution_status: not_started
       questions:
         - id: q-cli-and-skill-relationship

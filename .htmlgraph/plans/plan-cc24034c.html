@@ -401,21 +401,21 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     
     <li>
       <a href="#slice-1" class="slice-nav-item" data-slice-nav="1">
-        <span class="slice-nav-dot" data-approval="pending" data-dot-for="1"></span>
+        <span class="slice-nav-dot" data-approval="approved" data-dot-for="1"></span>
         <span>#1 OpenSpec spec template + `htmlgraph spec generate --insert` (non-destructive, locked)</span>
       </a>
     </li>
     
     <li>
       <a href="#slice-2" class="slice-nav-item" data-slice-nav="2">
-        <span class="slice-nav-dot" data-approval="pending" data-dot-for="2"></span>
+        <span class="slice-nav-dot" data-approval="approved" data-dot-for="2"></span>
         <span>#2 Parser extension: OpenSpec Requirement format + `[F]` failed-status revival</span>
       </a>
     </li>
     
     <li>
       <a href="#slice-3" class="slice-nav-item" data-slice-nav="3">
-        <span class="slice-nav-dot" data-approval="pending" data-dot-for="3"></span>
+        <span class="slice-nav-dot" data-approval="approved" data-dot-for="3"></span>
         <span>#3 Cross-harness `htmlgraph plan elicit-decisions` + Claude skill + promote/complete gates</span>
       </a>
     </li>
@@ -438,7 +438,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
 </p>
   <div class="meta">
     <span class="badge badge-pending">Draft</span>
-    <span style="font-size:.75rem;color:var(--text-muted)">v3 · 3 slices · Created 2026-05-04</span>
+    <span style="font-size:.75rem;color:var(--text-muted)">v7 · 3 slices · Created 2026-05-04</span>
   </div>
 </header>
 <button id="themeToggle" style="position:fixed;top:16px;right:16px;z-index:100;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:6px 12px;color:var(--text);font-family:var(--mono);font-size:0.75rem;cursor:pointer;">
@@ -513,7 +513,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
 <details id="slices" class="section-card" open data-phase="slices" data-status="pending">
   <summary><span>Slices</span><span class="badge badge-pending" data-badge-for="slices">Pending</span></summary>
   <div class="section-body">
-    <details class="slice-card" id="slice-1" data-slice="1" data-slice-name="slice-1" data-status="pending" data-approval="pending">
+    <details class="slice-card" id="slice-1" data-slice="1" data-slice-name="slice-1" data-status="pending" data-approval="approved">
   <summary class="slice-summary" aria-label="Slice 1: OpenSpec spec template &#43; `htmlgraph spec generate --insert` (non-destructive, locked)">
     <span class="slice-num">#1</span>
     <span class="slice-title-col">
@@ -523,15 +523,15 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
         <span class="slice-summary-badges">
           <span class="badge badge-revision badge-sm">M</span>
           <span class="badge badge-revision badge-sm">Med</span>
-          <span class="badge badge-pending badge-sm" title="Execution: not_started">Not Started</span>
-          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-1">Pending</span>
+          <span class="badge badge-revision badge-sm" title="Execution: promoted">Promoted</span>
+          <span class="badge badge-approved badge-sm slice-approval-badge" data-badge-for="slice-1">Approved</span>
           <span class="badge badge-sm badge-issues" title="7 critic issue(s)">7 issues</span>
           <span class="badge badge-sm badge-questions" title="2 open question(s)">2 Q</span>
         </span>
         <span class="slice-actions" onclick="event.stopPropagation()">
           <span class="approval-segmented" role="group" aria-label="Approval action">
             <label class="seg-btn seg-approve" title="Approve">
-              <input type="radio" name="slice-1-approval" value="approved" data-section="slice-1" data-action="approve" aria-label="Approve slice 1">
+              <input type="radio" name="slice-1-approval" value="approved" data-section="slice-1" data-action="approve" checked aria-label="Approve slice 1">
               &#10003;
             </label>
             <label class="seg-btn seg-changes" title="Request changes">
@@ -748,7 +748,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     </details>
   </div>
 </details>
-<details class="slice-card" id="slice-2" data-slice="2" data-slice-name="slice-2" data-status="pending" data-approval="pending">
+<details class="slice-card" id="slice-2" data-slice="2" data-slice-name="slice-2" data-status="pending" data-approval="approved">
   <summary class="slice-summary" aria-label="Slice 2: Parser extension: OpenSpec Requirement format &#43; `[F]` failed-status revival">
     <span class="slice-num">#2</span>
     <span class="slice-title-col">
@@ -759,14 +759,14 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
           <span class="badge badge-pending badge-sm">S</span>
           <span class="badge badge-pending badge-sm">Low</span>
           <span class="badge badge-pending badge-sm" title="Execution: not_started">Not Started</span>
-          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-2">Pending</span>
+          <span class="badge badge-approved badge-sm slice-approval-badge" data-badge-for="slice-2">Approved</span>
           <span class="badge badge-sm badge-issues" title="3 critic issue(s)">3 issues</span>
           <span class="badge badge-sm badge-questions" title="1 open question(s)">1 Q</span>
         </span>
         <span class="slice-actions" onclick="event.stopPropagation()">
           <span class="approval-segmented" role="group" aria-label="Approval action">
             <label class="seg-btn seg-approve" title="Approve">
-              <input type="radio" name="slice-2-approval" value="approved" data-section="slice-2" data-action="approve" aria-label="Approve slice 2">
+              <input type="radio" name="slice-2-approval" value="approved" data-section="slice-2" data-action="approve" checked aria-label="Approve slice 2">
               &#10003;
             </label>
             <label class="seg-btn seg-changes" title="Request changes">
@@ -931,7 +931,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     </details>
   </div>
 </details>
-<details class="slice-card" id="slice-3" data-slice="3" data-slice-name="slice-3" data-status="pending" data-approval="pending">
+<details class="slice-card" id="slice-3" data-slice="3" data-slice-name="slice-3" data-status="pending" data-approval="approved">
   <summary class="slice-summary" aria-label="Slice 3: Cross-harness `htmlgraph plan elicit-decisions` &#43; Claude skill &#43; promote/complete gates">
     <span class="slice-num">#3</span>
     <span class="slice-title-col">
@@ -942,14 +942,14 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
           <span class="badge badge-blocked badge-sm">L</span>
           <span class="badge badge-revision badge-sm">Med</span>
           <span class="badge badge-pending badge-sm" title="Execution: not_started">Not Started</span>
-          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-3">Pending</span>
+          <span class="badge badge-approved badge-sm slice-approval-badge" data-badge-for="slice-3">Approved</span>
           <span class="badge badge-sm badge-issues" title="6 critic issue(s)">6 issues</span>
           <span class="badge badge-sm badge-questions" title="3 open question(s)">3 Q</span>
         </span>
         <span class="slice-actions" onclick="event.stopPropagation()">
           <span class="approval-segmented" role="group" aria-label="Approval action">
             <label class="seg-btn seg-approve" title="Approve">
-              <input type="radio" name="slice-3-approval" value="approved" data-section="slice-3" data-action="approve" aria-label="Approve slice 3">
+              <input type="radio" name="slice-3-approval" value="approved" data-section="slice-3" data-action="approve" checked aria-label="Approve slice 3">
               &#10003;
             </label>
             <label class="seg-btn seg-changes" title="Request changes">
