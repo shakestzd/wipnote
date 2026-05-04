@@ -7,7 +7,7 @@ meta:
     created_at: "2026-05-04"
     status: active
     created_by: claude-opus
-    version: 7
+    version: 8
 design:
     problem: |
         The CRISPI planning workflow (slice cards → promote-slice → feature complete) never enforces a spec block at any stage. Slice fields (what/why/done_when/tests) describe intent in plan YAML, but they don't reach the feature HTML where compliance tools look. Result: zero features have specs, the `htmlgraph compliance` checkbox reporter has nothing to read, and the auto-compliance pipeline shipped in feat-38a032e8 can only validate the skip-no-spec path. OODA active observation has no reference to compare implementation against.
@@ -142,6 +142,7 @@ slices:
           severity: HIGH
           summary: Slice 1 effort=M was understated — re-validated as M after the parser extension moved out (this slice now contains template + insert + locking only)
     - id: slice-2
+      feature_id: feat-1f0f27de
       num: 2
       title: 'Parser extension: OpenSpec Requirement format + `[F]` failed-status revival'
       what: |
@@ -186,7 +187,7 @@ slices:
       approved: false
       comment: ""
       approval_status: approved
-      execution_status: not_started
+      execution_status: promoted
       questions:
         - id: q-status-derivation-from-scenarios
           text: How is criterion status derived from Scenario task checkboxes?
