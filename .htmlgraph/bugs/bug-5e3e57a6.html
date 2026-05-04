@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Pre-migration plans missing canonical HTML files (e.g., plan-14772c97)</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-5e3e57a6"
+             data-type="bug"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-05-04T22:47:08.93704"
+             data-updated="2026-05-04T22:47:08.957531" data-agent-assigned="claude-code" data-track-id="trk-cb36e595">
+
+        <header>
+            <h1>Pre-migration plans missing canonical HTML files (e.g., plan-14772c97)</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="caused_by">
+                <h3>Caused By:</h3>
+                <ul>
+                    <li><a href="feat-79f41c6d.html" data-relationship="caused_by" data-since="2026-05-04T22:47:08.950638">feat-79f41c6d</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-cb36e595.html" data-relationship="part_of" data-since="2026-05-04T22:47:08.957212">trk-cb36e595</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>plan-14772c97 (Agent Teams plugin integration, finalized 2026-04-11) has only a .yaml file in .htmlgraph/plans/; no corresponding .html canonical file exists. AGENTS.md states .htmlgraph/*.html is the canonical store. The missing HTML means the plan is invisible to htmlgraph plan list (HTML-backed), htmlgraph plan show, and htmlgraph plan set-status — all return 'plan file not found'. It does appear in htmlgraph plan list-yaml.
+
+Likely an artifact of the HTML-canonical migration (plan-3bbc313f, done 2026-05-01): pre-migration plans that weren't actively touched at migration time may have been missed by the regeneration sweep.
+
+Surfaced today during the agent-teams plan integration. plan-2c7f1b7d explicitly supersedes plan-14772c97 in its design.constraints, but the CLI couldn't mark plan-14772c97 as completed because of the missing HTML.
+
+Cohort scope: unknown how many other pre-migration plans share this state. A scan of .htmlgraph/plans/*.yaml without paired .html would identify the full cohort.
+
+Fix candidates: (a) one-shot script that scans .htmlgraph/plans/*.yaml and regenerates missing .html via the existing commitPlanChange path; (b) extend htmlgraph reindex to regenerate missing canonical artifacts, not just rebuild SQLite indexes; (c) make set-status auto-regenerate the HTML on first call. (a) is the cleanest one-shot fix for the cohort.</p>
+        </section>
+    </article>
+</body>
+</html>
