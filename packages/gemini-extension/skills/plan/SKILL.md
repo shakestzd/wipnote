@@ -23,6 +23,7 @@ A v2 plan is a YAML document containing slice cards. Each slice card is an execu
 | Each slice card (`what/why/done_when/tests`) | Executable spec — what an agent implements |
 | `feat-XXX` work item | Promoted feature = implementation tracker |
 | Sessions and commits | Evidence linked via `implemented_in` edges |
+| `<section class="spec">` in feature HTML | Materialised OpenSpec-format spec (Requirement/Scenario) — generated post-promotion via `htmlgraph spec generate --insert` |
 
 ---
 
@@ -105,6 +106,7 @@ slices:
       Unit: specific test with expected input/output
       Integration: specific integration scenario
       Regression: which existing tests must still pass
+    decisions_notes: ""       # free-text Scope/Decisions/Context written by `htmlgraph plan elicit-decisions` or the spec-from-slice skill; consumed by spec generate --insert
     approved: false
     comment: ""
 
@@ -156,6 +158,8 @@ All of these must be present and non-empty on every slice:
 | `risk` | `Low` (pure addition), `Med` (modifies existing), `High` (changes hot path or shared interface) |
 
 Use `what: |`, `why: |`, and `tests: |` (YAML literal blocks) so Markdown renders correctly in the dashboard.
+
+**Spec lifecycle (new in plan-cc24034c, post-2026-05-04):** the `decisions_notes` field is optional but populated automatically by the spec-from-slice skill before promotion. When `spec_enforcement.promote_slice: true` in `.htmlgraph/config.json`, `promote-slice` refuses if `decisions_notes` is empty.
 
 ---
 
@@ -218,6 +222,34 @@ For answered questions: bake the decision into the affected slice's `what` field
 
 ---
 
+## Step 6.5: Elicit Slice Decisions (Pre-Promotion)
+
+Before promoting an approved slice into a feature, capture the implementation decisions that will populate the spec. This is the **elicitation** stage of spec-driven development:
+
+```bash
+# Cross-harness CLI (works on Claude/Codex/Gemini):
+htmlgraph plan elicit-decisions <plan-id> <slice-num> \
+    --scope "<what's in/out for this slice>" \
+    --decisions "<key implementation choices and rationale>" \
+    --context "<tone, stack constraints, patterns to follow>"
+
+# Or stdin (YAML):
+htmlgraph plan elicit-decisions <plan-id> <slice-num> --from-stdin <<'EOF'
+scope: ...
+decisions: ...
+context: ...
+EOF
+
+# Or interactive (Claude only):
+/htmlgraph:spec-from-slice <plan-id> <slice-num>
+```
+
+The command writes `decisions_notes` (a free-text Markdown blob) into the slice YAML. The notes survive promotion and are consumed by `htmlgraph spec generate --insert` later.
+
+**Optional gate:** when `.htmlgraph/config.json` has `spec_enforcement.promote_slice: true`, `htmlgraph plan promote-slice` refuses to promote a slice with empty `decisions_notes` (use `--allow-spec-skip` to bypass with audit comment). Default is off; gate ships disabled.
+
+---
+
 ## Step 7: Promote Approved Slices
 
 Promote slices incrementally as they are approved — no need to wait for full-plan finalization.
@@ -233,6 +265,7 @@ htmlgraph plan promote-slice <plan-id> <slice-num> --waive-deps
 Rules:
 - The slice must have `approval_status=approved` (set via `approve-slice`).
 - All dependency slices must have `execution_status=done` or `superseded`, unless `--waive-deps`.
+- If `spec_enforcement.promote_slice: true` in `.htmlgraph/config.json`: the slice must have non-empty `decisions_notes` (run Step 6.5 first), or pass `--allow-spec-skip` to override.
 - `promote-slice` is idempotent: if `feature_id` is already set, it reuses the existing feature.
 - After promotion, `execution_status` is set to `promoted` in both YAML and `plan_feedback`.
 
@@ -247,6 +280,32 @@ for each slice (in dependency order):
   3. Track execution → htmlgraph plan set-slice-status <plan-id> <num> in_progress
   4. When done → htmlgraph plan set-slice-status <plan-id> <num> done
 ```
+
+---
+
+## Step 7.5: Materialise the Spec (Post-Promotion)
+
+After `promote-slice` creates the feature, generate the spec block in the feature HTML. This is the **materialisation** stage:
+
+```bash
+htmlgraph spec generate <feat-id> --insert
+```
+
+This writes a `<section class="spec">` block populated from:
+- The slice's `done_when` → `### Requirement:` headings (RFC 2119 SHALL statements)
+- The slice's `tests` → `#### Scenario:` blocks (Given/When/Then)
+- The slice's `decisions_notes` → `## Decisions` section
+- Plus `## Problem`, `## Files`, `## Notes` from other slice fields
+
+Behavior on re-run:
+- Default: refuses to overwrite an existing non-empty spec section; prints a unified diff of what would change.
+- `--force`: replaces the section content (idempotent; re-runs produce the same output).
+
+Once the spec exists, `htmlgraph compliance <feat-id>` (legacy checkbox reporter) and `htmlgraph compliance auto <feat-id>` (LLM grader from the OODA pilot) can both read and score it.
+
+**Optional gate:** when `.htmlgraph/config.json` has `spec_enforcement.feature_complete: true`, `htmlgraph feature complete <id>` refuses to mark done if the feature has no `<section class="spec">` block or 0 requirements/criteria. Use `--allow-spec-skip` to bypass with audit comment. Default off.
+
+The spec section is the artifact that `htmlgraph compliance auto` (from the OODA active-observer track) compares against the implementation diff for every promoted feature — it is the bridge between intent (slice card) and implementation (commits).
 
 ---
 
@@ -382,3 +441,4 @@ Legacy plans can be migrated incrementally: add v2 fields to individual slices a
 - **Critique is embedded per-slice** — use `critic_revisions` instead of a global critique section for v2 plans
 - **All slice fields are mandatory** — missing fields will fail `validate-yaml`
 - **Finalize is for legacy plans** — v2 plans use `promote-slice` per slice; `htmlgraph plan finalize` is the legacy all-at-once path
+- **Specs are created between approval and execution, not at finalization.** Two stages: (a) elicit decisions before promote-slice (writes `decisions_notes` to slice YAML); (b) generate spec section after promote-slice (writes `<section class="spec">` to feature HTML). Both stages have opt-in gates in `.htmlgraph/config.json` (`spec_enforcement.promote_slice`, `spec_enforcement.feature_complete`).
