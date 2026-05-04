@@ -5,9 +5,9 @@ meta:
     description: |
         Completes the Agent Teams plugin integration begun in plan-14772c97 (finalized 2026-04-11). That earlier plan was finalized but never formally promoted; in the interim, four of its six slices shipped directly to code without formal feature tracking: S2 (EventTaskCreated constant in `internal/models/enums.go:142`), S3 (step-text teammate attribution in `internal/hooks/task_tracking.go:33`), S4 (opt-in quality gate in `internal/hooks/task_completion_gate.go`), S5 (orchestrator-skill Agent Teams section at SKILL.md:895). One slice (S1 — CloudEvent + schema + persistence) is half-shipped: the CloudEvent parse side captures teammate fields but the DB write side does not, leaving `agent_events.teammate_name/team_name` NULL on every row. One (S6 — AGENTS.md + CLAUDE.md docs) is minimally shipped. This plan closes the remaining gaps: (a) slice-2 finishes S1's DB write side via `AgentEvent` model fields + `InsertEvent` columns + the missing `idle_reason` schema migration + the `recordSimpleEvent` handler trap fix, (b) slice-1 adds zero-friction auto-injection of `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` in HtmlGraph launchers (net-new work, not in plan-14772c97), (c) slice-3 corrects CLAUDE.md and the orchestrator skill to reflect auto-injection and document v2.1.64+ JSON hook control payloads. Supersedes plan-14772c97; the older plan's track `trk-6456fe7d` is orphaned (no canonical file in `.htmlgraph/tracks/`) and is replaced by `trk-8f9bc323`.
     created_at: "2026-05-04"
-    status: active
+    status: finalized
     created_by: claude-opus
-    version: 5
+    version: 6
 design:
     problem: |
         Agent Teams plugin integration began in plan-14772c97 (April 2026) but was never formally promoted to features. Four of its six slices shipped to code informally and remain in production: the `EventTaskCreated` event-type constant, step-text teammate attribution in HTML, the opt-in quality gate on TaskCompleted, and the orchestrator skill's Agent Teams vs Subagents section. Two gaps remain. (1) **Persistence gap** — slice 1's DB write side: `AgentEvent` struct lacks `TeammateName`/`TeamName`/`IdleReason` fields, `InsertEvent` doesn't write them, the `idle_reason` column is missing from schema entirely (S1 specified `teammate_name`/`team_name` but not `idle_reason`), and `TeammateIdle` uses the shared `recordSimpleEvent` helper that doesn't propagate teammate fields. Result: dashboard queries that filter or aggregate by teammate return NULL on every row. (2) **Manual env-var setup** — users have to remember `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` per-shell or in `.claude/settings.json`, and the orchestrator skill still says "set it manually" because no auto-injection exists. Plus CLAUDE.md's brief monitoring note has accumulated drift, and v2.1.64+ JSON hook control payload (`{"continue": false, "stopReason": "..."}`) is undocumented.
@@ -33,6 +33,7 @@ design:
     comment: ""
 slices:
     - id: slice-1
+      feature_id: feat-a49b5185
       num: 1
       title: Auto-inject `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` with opt-out via config
       what: |
@@ -143,6 +144,7 @@ slices:
           severity: LOW
           summary: Slice 1 effort=S undersells scope (config read + version-stamp logic + integration test). Effort kept S because the integration test is dropped — helper-level coverage is sufficient since claude/yolo/dev all funnel through buildClaudeLaunchEnv.
     - id: slice-2
+      feature_id: feat-b3bbb6a3
       num: 2
       title: Close the teammate-identity persistence gap in `agent_events`
       what: |
@@ -239,6 +241,7 @@ slices:
           severity: LOW
           summary: Index decision deferred — `teammate_name`/`team_name`/`idle_reason` indexes can be added when query patterns emerge. No-index is the explicit default for slice 2; revisit when dashboard surfaces them.
     - id: slice-3
+      feature_id: feat-60d035a1
       num: 3
       title: Update CLAUDE.md / orchestrator skill + (optional) `htmlgraph-teammate` subagent definition
       what: |
