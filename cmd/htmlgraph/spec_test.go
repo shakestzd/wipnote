@@ -254,6 +254,90 @@ func TestThirdPartyNotices_HasOpenSpec(t *testing.T) {
 	}
 }
 
+// TestSpecSectionSurvivesStatusWrite — the spec section inserted by
+// `spec generate --insert` must NOT be deleted when the feature is later
+// rewritten by a status transition (col.Start / col.Complete). This is the
+// regression test for the HIGH finding in roborev job 236.
+func TestSpecSectionSurvivesStatusWrite(t *testing.T) {
+	tmpDir := t.TempDir()
+	hgDir := filepath.Join(tmpDir, ".htmlgraph")
+	for _, sub := range []string{"features", "tracks", "plans", "specs", "spikes", "bugs"} {
+		_ = os.MkdirAll(filepath.Join(hgDir, sub), 0o755)
+	}
+
+	// Create a feature, then insert a spec, then mark it in-progress (which
+	// re-renders the HTML via WriteNodeHTML). The spec section must persist.
+	projectDirFlag = tmpDir
+	defer func() { projectDirFlag = "" }()
+
+	if err := testCreate("track", "T", "", "medium", false, false); err != nil {
+		t.Fatalf("create track: %v", err)
+	}
+	trackFiles, _ := filepath.Glob(filepath.Join(hgDir, "tracks", "trk-*.html"))
+	if len(trackFiles) == 0 {
+		t.Fatal("no track")
+	}
+	trackNode, _ := htmlparseParseFileForTest(t, trackFiles[0])
+
+	if err := testCreate("feature", "Feature With Spec", trackNode.ID, "medium", false, false); err != nil {
+		t.Fatalf("create feature: %v", err)
+	}
+	featFiles, _ := filepath.Glob(filepath.Join(hgDir, "features", "feat-*.html"))
+	if len(featFiles) == 0 {
+		t.Fatal("no feature")
+	}
+	featNode, _ := htmlparseParseFileForTest(t, featFiles[0])
+
+	if err := insertSpecIntoFeature(featFiles[0], featNode.ID, fixtureSpec(featNode.ID, "T"), false); err != nil {
+		t.Fatalf("insert spec: %v", err)
+	}
+
+	beforeBody, _ := os.ReadFile(featFiles[0])
+	if !strings.Contains(string(beforeBody), `<section class="spec">`) {
+		t.Fatal("setup: spec section should exist before status transition")
+	}
+
+	if err := runWiSetStatus("feature", featNode.ID, "in-progress"); err != nil {
+		t.Fatalf("set in-progress: %v", err)
+	}
+
+	afterBody, _ := os.ReadFile(featFiles[0])
+	if !strings.Contains(string(afterBody), `<section class="spec">`) {
+		t.Errorf("spec section was lost during status transition; content:\n%s", afterBody)
+	}
+	if !strings.Contains(string(afterBody), "### Requirement:") {
+		t.Errorf("spec body content was lost during status transition")
+	}
+}
+
+// htmlparseParseFileForTest is a thin wrapper that fatals the test rather
+// than returning errors.
+func htmlparseParseFileForTest(t *testing.T, path string) (*modelsNode, error) {
+	t.Helper()
+	body, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read %s: %v", path, err)
+	}
+	// Pull the article id="..." attribute.
+	const idMarker = `<article id="`
+	i := strings.Index(string(body), idMarker)
+	if i == -1 {
+		t.Fatalf("no article id in %s", path)
+	}
+	rest := string(body)[i+len(idMarker):]
+	q := strings.Index(rest, `"`)
+	if q == -1 {
+		t.Fatalf("malformed article id")
+	}
+	return &modelsNode{ID: rest[:q]}, nil
+}
+
+// modelsNode is a tiny stand-in so we don't pull the full models.Node into
+// test imports; we only need ID for these tests.
+type modelsNode struct {
+	ID string
+}
+
 // TestSpecInsertAndComplianceAutoConcurrent — insertSpecIntoFeature and
 // writeComplianceSection racing on the same feature both succeed; both
 // sections appear in the final HTML and no update is lost.

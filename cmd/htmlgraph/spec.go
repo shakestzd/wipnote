@@ -387,10 +387,12 @@ func specSectionIsEmpty(html string) bool {
 
 // insertSpecIntoFeature writes the rendered spec into the feature HTML's
 // <section class="spec"> block, refusing to clobber non-empty content unless
-// force is set. Acquires workitem.LockFeatureForWrite for the entire RMW
-// window to serialise with concurrent compliance auto writers.
+// force is set. Acquires workitem.LockFeatureForWrite (in-process mutex +
+// cross-process flock) for the entire RMW window so concurrent compliance
+// auto writers — including from other `htmlgraph` CLI processes — cannot
+// lose updates.
 func insertSpecIntoFeature(featurePath, featureID string, spec *specTemplate, force bool) error {
-	defer workitem.LockFeatureForWrite(featureID)()
+	defer workitem.LockFeatureForWrite(featurePath)()
 
 	raw, err := os.ReadFile(featurePath)
 	if err != nil {

@@ -97,8 +97,12 @@ func extractAcceptanceCriteria(path string) ([]string, error) {
 	return extractFromSteps(path)
 }
 
-// extractFromSpecSection parses markdown lines matching "N. [ ] ..." from the
-// <section class="spec"> block embedded in the HTML file.
+// extractFromSpecSection extracts acceptance criteria from the
+// <section class="spec"> block. It supports both the legacy numbered
+// checkbox format (`1. [ ] ...`) and the OpenSpec Requirement / Scenario
+// format (`### Requirement: <name>` blocks) by routing through the shared
+// parseCriteria helper. The `<pre>` wrapper applied by `spec generate
+// --insert` is unwrapped before parsing.
 func extractFromSpecSection(html string) []string {
 	const open = `<section class="spec">`
 	const close = `</section>`
@@ -113,6 +117,24 @@ func extractFromSpecSection(html string) []string {
 	}
 	section := html[start+len(open) : start+end]
 
+	// Try the unified parser first (handles both legacy and OpenSpec).
+	parsed := parseCriteria(unwrapPreBlock(section))
+	if len(parsed) > 0 {
+		out := make([]string, 0, len(parsed))
+		for _, c := range parsed {
+			text := strings.TrimSpace(c.Text)
+			if text != "" {
+				out = append(out, text)
+			}
+		}
+		if len(out) > 0 {
+			return out
+		}
+	}
+
+	// Fallback: tolerate the original legacy numbered-checkbox layout in
+	// case parseCriteria's section-state machine doesn't recognise the
+	// heading style (e.g. specs that omit `## Acceptance Criteria`).
 	var criteria []string
 	for _, line := range strings.Split(section, "\n") {
 		m := acPattern.FindStringSubmatch(line)

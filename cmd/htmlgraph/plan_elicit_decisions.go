@@ -94,8 +94,15 @@ type stdinPayload struct {
 // elicitDecisionsForSlice is the testable implementation. It loads the plan,
 // derives the combined Markdown blob from flags or stdin, writes the blob to
 // the slice's decisions_notes, and saves the plan atomically.
+//
+// The load → modify → save window runs inside planyaml.LockPlanForWrite so
+// concurrent in-process elicitations on different slices of the same plan
+// can't lose each other's writes.
 func elicitDecisionsForSlice(htmlgraphDir, planID string, sliceNum int, in elicitInput) error {
 	planPath := filepath.Join(htmlgraphDir, "plans", planID+".yaml")
+
+	defer planyaml.LockPlanForWrite(planPath)()
+
 	plan, err := planyaml.Load(planPath)
 	if err != nil {
 		return fmt.Errorf("load plan: %w", err)
@@ -120,7 +127,7 @@ func elicitDecisionsForSlice(htmlgraphDir, planID string, sliceNum int, in elici
 
 	plan.Slices[sliceIdx].DecisionsNotes = combineDecisionsMarkdown(scope, decisions, contextStr)
 
-	if err := planyaml.Save(planPath, plan); err != nil {
+	if err := planyaml.SaveLocked(planPath, plan); err != nil {
 		return fmt.Errorf("save plan: %w", err)
 	}
 
