@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="htmlgraph-version" content="1.0">
-<title>Plan: Native agent-teams enablement + hook payload completeness + docs update</title>
+<title>Plan: Agent Teams plugin integration</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,300;0,8..60,400;0,8..60,500;1,8..60,300;1,8..60,400&display=swap" rel="stylesheet">
@@ -433,12 +433,12 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
 
 <!-- Plan Header -->
 <header class="plan-header">
-  <h1>Plan: Native agent-teams enablement + hook payload completeness + docs update</h1>
-  <p style="color:var(--text-dim)">Three-slice plan to (a) auto-inject `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` in HtmlGraph launchers respecting user env, (b) close the persistence gap where `teammate_name` and `team_name` DB columns exist but are never written by `InsertEvent` (CLAUDE.md's claim of "automatic teammate identity capture" is currently partially aspirational), and (c) update CLAUDE.md + orchestrator-directives-skill to reflect auto-injection and document v2.1.64+ JSON hook control payload availability. Doc-grounded — research completed via the claude-code-guide agent reviewing canonical Claude Code docs. Built on the existing `addIfUnset` env-var pattern in `cmd/htmlgraph/claude_env.go` and the existing `taskCompletionConfig` config-read pattern.
+  <h1>Plan: Agent Teams plugin integration</h1>
+  <p style="color:var(--text-dim)">Completes the Agent Teams plugin integration begun in plan-14772c97 (finalized 2026-04-11). That earlier plan was finalized but never formally promoted; in the interim, four of its six slices shipped directly to code without formal feature tracking: S2 (EventTaskCreated constant in `internal/models/enums.go:142`), S3 (step-text teammate attribution in `internal/hooks/task_tracking.go:33`), S4 (opt-in quality gate in `internal/hooks/task_completion_gate.go`), S5 (orchestrator-skill Agent Teams section at SKILL.md:895). One slice (S1 — CloudEvent + schema + persistence) is half-shipped: the CloudEvent parse side captures teammate fields but the DB write side does not, leaving `agent_events.teammate_name/team_name` NULL on every row. One (S6 — AGENTS.md + CLAUDE.md docs) is minimally shipped. This plan closes the remaining gaps: (a) slice-2 finishes S1's DB write side via `AgentEvent` model fields + `InsertEvent` columns + the missing `idle_reason` schema migration + the `recordSimpleEvent` handler trap fix, (b) slice-1 adds zero-friction auto-injection of `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` in HtmlGraph launchers (net-new work, not in plan-14772c97), (c) slice-3 corrects CLAUDE.md and the orchestrator skill to reflect auto-injection and document v2.1.64+ JSON hook control payloads. Supersedes plan-14772c97; the older plan's track `trk-6456fe7d` is orphaned (no canonical file in `.htmlgraph/tracks/`) and is replaced by `trk-8f9bc323`.
 </p>
   <div class="meta">
     <span class="badge badge-pending">Draft</span>
-    <span style="font-size:.75rem;color:var(--text-muted)">v4 · 3 slices · Created 2026-05-04</span>
+    <span style="font-size:.75rem;color:var(--text-muted)">v5 · 3 slices · Created 2026-05-04</span>
   </div>
 </header>
 <button id="themeToggle" style="position:fixed;top:16px;right:16px;z-index:100;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:6px 12px;color:var(--text);font-family:var(--mono);font-size:0.75rem;cursor:pointer;">
@@ -474,14 +474,15 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
   <summary><span>Design</span><span class="badge badge-pending" data-badge-for="design">Pending</span></summary>
   <div class="section-body">
     <h4>Problem</h4>
-<div data-markdown>CLAUDE.md claims that when `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` is enabled, &#34;HtmlGraph automatically captures teammate identity on every TeammateIdle, TaskCreated, and TaskCompleted hook.&#34; Two gaps undermine this: (1) the env var must be set manually by the user — there&#39;s no auto-enablement in the htmlgraph launchers, so users have to remember it; (2) the DB schema added `teammate_name` and `team_name` columns to `agent_events` via migrations, but `InsertEvent` in `internal/db/event_repo.go` never writes them and the `AgentEvent` model has no corresponding fields. Result: even when teams ARE enabled, the SQLite index has NULL for these columns on every row. Step-prefix attribution in HTML works (via `addTaskStep`), but DB-side queries can&#39;t filter or aggregate by teammate. Plus the documentation is missing the v2.1.64+ JSON hook control payload feature (`{&#34;continue&#34;: false, &#34;stopReason&#34;: &#34;...&#34;}`).
+<div data-markdown>Agent Teams plugin integration began in plan-14772c97 (April 2026) but was never formally promoted to features. Four of its six slices shipped to code informally and remain in production: the `EventTaskCreated` event-type constant, step-text teammate attribution in HTML, the opt-in quality gate on TaskCompleted, and the orchestrator skill&#39;s Agent Teams vs Subagents section. Two gaps remain. (1) **Persistence gap** — slice 1&#39;s DB write side: `AgentEvent` struct lacks `TeammateName`/`TeamName`/`IdleReason` fields, `InsertEvent` doesn&#39;t write them, the `idle_reason` column is missing from schema entirely (S1 specified `teammate_name`/`team_name` but not `idle_reason`), and `TeammateIdle` uses the shared `recordSimpleEvent` helper that doesn&#39;t propagate teammate fields. Result: dashboard queries that filter or aggregate by teammate return NULL on every row. (2) **Manual env-var setup** — users have to remember `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` per-shell or in `.claude/settings.json`, and the orchestrator skill still says &#34;set it manually&#34; because no auto-injection exists. Plus CLAUDE.md&#39;s brief monitoring note has accumulated drift, and v2.1.64+ JSON hook control payload (`{&#34;continue&#34;: false, &#34;stopReason&#34;: &#34;...&#34;}`) is undocumented.
 </div>
 <h4>Goals</h4>
 <ol>
-<li data-markdown>**Zero-friction enablement** — `htmlgraph claude` / `htmlgraph yolo` / `htmlgraph dev` automatically inject `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` so users never have to set it manually; user-set env var (any value) takes precedence so the user can opt out via `=0` or override</li>
-<li data-markdown>**Complete teammate identity persistence** — `agent_events.teammate_name` and `team_name` columns are populated on every team-hook write, completing the schema&#39;s intent and enabling SQL queries that filter or aggregate by teammate</li>
-<li data-markdown>**Accurate documentation** — CLAUDE.md and the orchestrator skill reflect auto-injection and document the v2.1.64+ JSON control payload feature so readers know about both signaling paths</li>
-<li data-markdown>**Opt-out path** — `.htmlgraph/config.json` `agent_teams.enabled: false` disables the auto-injection for users who want hermetic isolation or are debugging team behavior</li>
+<li data-markdown>**Complete the persistence gap (was plan-14772c97 S1)** — `agent_events.teammate_name`, `team_name`, and `idle_reason` populated on every team-hook write. Closes the half-shipped state where parse-side captures the values but DB-side discards them.</li>
+<li data-markdown>**Zero-friction enablement (net-new)** — `htmlgraph claude` / `htmlgraph yolo` / `htmlgraph dev` auto-inject `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`. Non-empty user-set env var (any value, including `0`) takes precedence; empty-string value treated as unset and overwritten.</li>
+<li data-markdown>**Cost transparency** — first-run stderr notice + `.htmlgraph/AGENT_TEAMS_DEFAULT_v1` stamp file warns of Claude Code&#39;s ~7× token cost for teams. Future default flips don&#39;t break existing users.</li>
+<li data-markdown>**Opt-out path** — `.htmlgraph/config.json` `agent_teams.enabled: false` disables auto-injection for hermetic isolation or debugging.</li>
+<li data-markdown>**Accurate documentation (completes plan-14772c97 S6)** — CLAUDE.md and orchestrator skill flipped from &#39;set manually&#39; to reflect auto-injection; document v2.1.64+ JSON control payload availability (informational — implementation deferred to a future plan); single-source via `docs/agent-teams.md` referenced from both files to prevent drift.</li>
 </ol>
 <h4>Constraints</h4>
 <ul>
@@ -494,6 +495,8 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
 <li data-markdown>**Non-goal: backfill of historical agent_events rows** — pre-existing rows with NULL teammate_name/team_name remain NULL. New rows after this plan ships have the values populated. A separate plan can address backfill if needed.</li>
 <li data-markdown>**Non-goal: cross-harness teammate equivalents** — agent teams is Claude-only; no story for Codex/Gemini &#39;team&#39; equivalents. Filed separately if those harnesses gain similar features.</li>
 <li data-markdown>All three slices must ship in the same release to prevent documentation drift — slice 3 documents what slices 1 and 2 implement; shipping them out of sync creates a window where CLAUDE.md says &#39;set the env var manually&#39; while the launcher already auto-injects it (sonnet critic F1).</li>
+<li data-markdown>**Supersedes plan-14772c97** (finalized 2026-04-11). That plan&#39;s track `trk-6456fe7d` is orphaned (no canonical file in `.htmlgraph/tracks/`). The four shipped slices (S2 EventTaskCreated, S3 step-text attribution, S4 quality gate, S5 orchestrator skill section) are foundational and remain in production. This plan&#39;s slice-2 completes the half-shipped S1 (persistence). Slice-3 completes the partially-shipped S6 (CLAUDE.md docs). Slice-1 (auto-injection) is net-new — not in plan-14772c97.</li>
+<li data-markdown>**Track consolidation** — agent-teams work lives on `trk-8f9bc323` exclusively. The orphaned `trk-6456fe7d` reference in plan-14772c97 has no backing file and can be ignored. After this plan ships, plan-14772c97 is marked `completed` (its work either shipped to code or absorbed by this plan&#39;s slices).</li>
 </ul>
 
     <div class="approval-row">
