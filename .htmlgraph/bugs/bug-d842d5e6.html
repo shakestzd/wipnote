@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Dashboard Plans tab strips project context — shows 0 plans for active project</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-d842d5e6"
+             data-type="bug"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-05-03T19:49:28.071921"
+             data-updated="2026-05-03T19:49:28.079465" data-agent-assigned="claude-code" data-track-id="trk-cb36e595">
+
+        <header>
+            <h1>Dashboard Plans tab strips project context — shows 0 plans for active project</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-cb36e595.html" data-relationship="part_of" data-since="2026-05-03T19:49:28.078951">trk-cb36e595</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Symptom: navigating to a project's Plans tab in the dashboard renders 'Plans 0' even when the project has many plans in its index. Top-bar stats also show --/--/--/-- instead of project counts.
+
+Root cause (partial): server returns HTTP 301 from /p//plans (and /p//plans/) to /plans/, stripping the project context. The SPA's data layer then queries a global plans endpoint instead of the project-scoped one, returning empty.
+
+API confirms data is available: /p/46c1de7d/api/plans returns plan-72685272 with full detail and 17 other plans. /api/plans (no project prefix) returns 404, which is what /plans/ likely tries to query.
+
+Reproduce: htmlgraph serve --port 8088 --bind 0.0.0.0; navigate to http://localhost:8088/p//, click Plans tab; observe Plans 0.
+
+Fix candidates: (a) make /p//plans not redirect — render the project-scoped Plans view directly; (b) preserve project context in the SPA's URL state so client-side data fetches use /p//api/plans; (c) make the global /api/plans aggregate across projects when query param ?project= is set.
+
+Discovered while attempting to review plan-72685272 (OODA pilot) per the htmlgraph:plan workflow Step 5.</p>
+        </section>
+    </article>
+</body>
+</html>
