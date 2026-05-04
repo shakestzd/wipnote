@@ -153,7 +153,7 @@ type complianceResult struct {
 }
 
 // criterionPattern matches lines like: "1. [ ] text", "2. [x] text", "- [ ] text", "- [x] text"
-var criterionPattern = regexp.MustCompile(`(?i)^[\s\-\d\.]*\[([x\s])\]\s+(.+)$`)
+var criterionPattern = regexp.MustCompile(`(?i)^[\s\-\d\.]*\[([xfF\s])\]\s+(.+)$`)
 
 func complianceCmd() *cobra.Command {
 	var jsonOut bool
@@ -240,48 +240,155 @@ func computeCompliance(featureID string) (*complianceResult, error) {
 	return result, nil
 }
 
-// parseCriteria extracts acceptance criteria lines from spec content.
+// sectionState tracks which spec section the parser is currently inside.
+type sectionState int
+
+const (
+	sectionNone   sectionState = iota
+	sectionLegacy              // inside ## Acceptance Criteria
+	sectionNew                 // inside ## ADDED Requirements or ## MODIFIED Requirements
+)
+
+// requirementHeadingRe matches "### Requirement: <name>" headings.
+var requirementHeadingRe = regexp.MustCompile(`(?i)^###\s+Requirement:\s+(.+)$`)
+
+// parseCriteria extracts acceptance criteria from spec content.
+//
+// Section-state machine:
+//   - "## Acceptance Criteria"          → legacy mode: parse [ ]/[x]/[F] checkbox lines
+//   - "## ADDED/MODIFIED Requirements"  → new mode: parse ### Requirement: blocks
+//   - any other "## " heading           → none mode (skip)
+//
+// Hybrid documents are supported: criteria from each section are collected
+// independently with no cross-contamination.
 func parseCriteria(content string) []criterion {
 	var criteria []criterion
-	inSection := false
 	idx := 1
+	state := sectionNone
+
+	// New-format parsing state.
+	var (
+		inRequirement    bool
+		reqName          string
+		inScenario       bool
+		scenarioHasAny   bool   // any scenario task lines seen
+		scenarioFailed   bool   // any [F] seen
+		scenarioUnchecked bool  // any [ ] seen
+	)
+
+	// finaliseRequirement closes the current ### Requirement block and appends a criterion.
+	finaliseRequirement := func() {
+		if !inRequirement || reqName == "" {
+			return
+		}
+		status := criterionUnchecked
+		if scenarioFailed {
+			status = criterionFailed
+		} else if scenarioHasAny && !scenarioUnchecked {
+			status = criterionPassed
+		}
+		criteria = append(criteria, criterion{
+			Index:  idx,
+			Text:   reqName,
+			Status: status,
+		})
+		idx++
+		inRequirement = false
+		reqName = ""
+		inScenario = false
+		scenarioHasAny = false
+		scenarioFailed = false
+		scenarioUnchecked = false
+	}
 
 	for _, line := range strings.Split(content, "\n") {
 		trimmed := strings.TrimSpace(line)
 
-		// Track when we enter/exit the Acceptance Criteria section.
-		if strings.HasPrefix(trimmed, "## Acceptance Criteria") {
-			inSection = true
-			continue
-		}
-		if inSection && strings.HasPrefix(trimmed, "## ") {
-			inSection = false
+		// Detect top-level (##) section changes.
+		if strings.HasPrefix(trimmed, "## ") {
+			// Close any open requirement before switching sections.
+			if state == sectionNew {
+				finaliseRequirement()
+			}
+			heading := trimmed[3:]
+			switch {
+			case strings.HasPrefix(heading, "Acceptance Criteria"):
+				state = sectionLegacy
+			case strings.HasPrefix(heading, "ADDED Requirements"),
+				strings.HasPrefix(heading, "MODIFIED Requirements"):
+				state = sectionNew
+			default:
+				state = sectionNone
+			}
 			continue
 		}
 
-		if !inSection {
-			continue
-		}
+		switch state {
+		case sectionLegacy:
+			// Only parse checkbox lines; ignore ### / #### headings entirely.
+			m := criterionPattern.FindStringSubmatch(trimmed)
+			if m == nil {
+				continue
+			}
+			status := criterionStatusFromMatch(m[1])
+			criteria = append(criteria, criterion{
+				Index:  idx,
+				Text:   strings.TrimSpace(m[2]),
+				Status: status,
+			})
+			idx++
 
-		m := criterionPattern.FindStringSubmatch(trimmed)
-		if m == nil {
-			continue
+		case sectionNew:
+			// Detect ### Requirement: headings.
+			if strings.HasPrefix(trimmed, "### ") {
+				if m := requirementHeadingRe.FindStringSubmatch(trimmed); m != nil {
+					// Close previous requirement if any.
+					finaliseRequirement()
+					inRequirement = true
+					reqName = strings.TrimSpace(m[1])
+					inScenario = false
+					continue
+				}
+			}
+			// Detect #### Scenario: headings — enter scenario context.
+			if strings.HasPrefix(trimmed, "#### ") && inRequirement {
+				inScenario = true
+				continue
+			}
+			// Inside a scenario, scan task lines for status.
+			if inScenario && inRequirement {
+				m := criterionPattern.FindStringSubmatch(trimmed)
+				if m != nil {
+					scenarioHasAny = true
+					switch strings.ToLower(m[1]) {
+					case "f":
+						scenarioFailed = true
+					case " ":
+						scenarioUnchecked = true
+					}
+				}
+			}
 		}
+	}
 
-		status := criterionUnchecked
-		if strings.ToLower(m[1]) == "x" {
-			status = criterionPassed
-		}
-
-		criteria = append(criteria, criterion{
-			Index:  idx,
-			Text:   strings.TrimSpace(m[2]),
-			Status: status,
-		})
-		idx++
+	// Close any open requirement at end of input.
+	if state == sectionNew {
+		finaliseRequirement()
 	}
 
 	return criteria
+}
+
+// criterionStatusFromMatch maps the checkbox character to a criterionStatus.
+func criterionStatusFromMatch(ch string) criterionStatus {
+	switch strings.ToLower(ch) {
+	case "x":
+		return criterionPassed
+	case "f":
+		return criterionFailed
+	default:
+		return criterionUnchecked
+	}
 }
 
 // printComplianceText renders a human-readable compliance report.
