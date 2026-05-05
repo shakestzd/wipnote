@@ -141,7 +141,7 @@ type testWorkItem struct {
 
 func TestWriteStatuslineCache_WritesFile(t *testing.T) {
 	cacheDir := t.TempDir()
-	t.Setenv("HTMLGRAPH_CACHE_DIR", cacheDir)
+	t.Setenv("ERINN_CACHE_DIR", cacheDir)
 
 	// Set up a minimal .htmlgraph with a feature.
 	tmpDir := t.TempDir()
@@ -173,7 +173,7 @@ func TestWriteStatuslineCache_WritesFile(t *testing.T) {
 
 func TestWriteStatuslineCache_ClearsOnComplete(t *testing.T) {
 	cacheDir := t.TempDir()
-	t.Setenv("HTMLGRAPH_CACHE_DIR", cacheDir)
+	t.Setenv("ERINN_CACHE_DIR", cacheDir)
 
 	hgDir := filepath.Join(t.TempDir(), ".htmlgraph")
 	cachePath := statuslineCachePath(hgDir)
@@ -190,7 +190,7 @@ func TestWriteStatuslineCache_ClearsOnComplete(t *testing.T) {
 
 func TestReadStatuslineCache_ReadsFile(t *testing.T) {
 	cacheDir := t.TempDir()
-	t.Setenv("HTMLGRAPH_CACHE_DIR", cacheDir)
+	t.Setenv("ERINN_CACHE_DIR", cacheDir)
 
 	hgDir := filepath.Join(t.TempDir(), ".htmlgraph")
 	// Write to the project-scoped path.
@@ -204,7 +204,7 @@ func TestReadStatuslineCache_ReadsFile(t *testing.T) {
 }
 
 func TestReadStatuslineCache_EmptyOnMissing(t *testing.T) {
-	t.Setenv("HTMLGRAPH_CACHE_DIR", t.TempDir())
+	t.Setenv("ERINN_CACHE_DIR", t.TempDir())
 
 	got := ReadStatuslineCache(filepath.Join(t.TempDir(), "nonexistent", ".htmlgraph"))
 	if got != "" {
@@ -270,7 +270,7 @@ func TestRunStatuslineEmptySession(t *testing.T) {
 
 func TestStatuslineCacheProjectIsolation(t *testing.T) {
 	cacheDir := t.TempDir()
-	t.Setenv("HTMLGRAPH_CACHE_DIR", cacheDir)
+	t.Setenv("ERINN_CACHE_DIR", cacheDir)
 
 	dirA := filepath.Join(t.TempDir(), "project-a", ".htmlgraph")
 	dirB := filepath.Join(t.TempDir(), "project-b", ".htmlgraph")

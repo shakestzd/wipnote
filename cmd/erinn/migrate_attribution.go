@@ -31,7 +31,7 @@ func migrateAttributionFixCmd() *cobra.Command {
 task_delegation in the same session and reassigns agent_id and parent_event_id.
 
 This fixes events that were misattributed because CLAUDE_ENV_FILE was unset
-in worktree subagents, causing HTMLGRAPH_AGENT_ID to be absent from hook
+in worktree subagents, causing ERINN_AGENT_ID to be absent from hook
 subprocess environments.
 
 Use --dry-run to preview counts without modifying the database.

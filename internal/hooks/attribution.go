@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/shakestzd/htmlgraph/internal/paths"
+	"github.com/shakestzd/erinn/internal/paths"
 )
 
 // agentTraceFormatVersion is the pinned Agent Trace RFC version.
@@ -146,8 +146,8 @@ func claimTraceparent() *agentTraceRecord {
 	return best
 }
 
-// writeSubagentEnvVars writes HTMLGRAPH_PARENT_EVENT, HTMLGRAPH_AGENT_ID,
-// HTMLGRAPH_AGENT_TYPE, HTMLGRAPH_CONTRIBUTOR_TYPE, and OTEL_RESOURCE_ATTRIBUTES
+// writeSubagentEnvVars writes ERINN_PARENT_EVENT, ERINN_AGENT_ID,
+// ERINN_AGENT_TYPE, ERINN_CONTRIBUTOR_TYPE, and OTEL_RESOURCE_ATTRIBUTES
 // to CLAUDE_ENV_FILE so the subagent's hooks know their parent delegation,
 // agent identity, and Agent Trace contributor classification.
 //
@@ -183,13 +183,13 @@ func writeSubagentEnvVars(parentEventID, agentID, agentType, projectDir, session
 	defer f.Close()
 
 	lines := fmt.Sprintf(
-		"export HTMLGRAPH_PARENT_EVENT=%s\nexport HTMLGRAPH_AGENT_ID=%s\nexport HTMLGRAPH_AGENT_TYPE=%s\nexport HTMLGRAPH_CONTRIBUTOR_TYPE=ai_agent\n",
+		"export ERINN_PARENT_EVENT=%s\nexport ERINN_AGENT_ID=%s\nexport ERINN_AGENT_TYPE=%s\nexport ERINN_CONTRIBUTOR_TYPE=ai_agent\n",
 		parentEventID, agentID, agentType,
 	)
 	// Also propagate the project directory so subagent hook invocations can
 	// resolve .htmlgraph/ even when their EventCWD is a temp dir.
 	if projectDir != "" {
-		lines += "export HTMLGRAPH_PROJECT_DIR=" + projectDir + "\n"
+		lines += "export ERINN_PROJECT_DIR=" + projectDir + "\n"
 	}
 	// Merge htmlgraph.agent_id into OTEL_RESOURCE_ATTRIBUTES so the subagent's
 	// OTel SDK emits this attribute on every span. Merge with any existing value
@@ -215,7 +215,7 @@ func mergeOTELResourceAttrs(existing, newPair string) string {
 
 // writeSessionProjectDirHint persists projectDir to a session-scoped temp file
 // so that future hook processes (running in subagent temp dirs) can read it via
-// paths.ReadSessionHint when HTMLGRAPH_PROJECT_DIR is not in their env.
+// paths.ReadSessionHint when ERINN_PROJECT_DIR is not in their env.
 func writeSessionProjectDirHint(sessionID, projectDir string) {
 	paths.WriteSessionHint(sessionID, projectDir)
 }
@@ -236,10 +236,10 @@ func ApplyTraceparent() (parentSession, parentEvent string) {
 		return "", ""
 	}
 	if tp.TraceID != "" {
-		os.Setenv("HTMLGRAPH_PARENT_SESSION", tp.TraceID)
+		os.Setenv("ERINN_PARENT_SESSION", tp.TraceID)
 	}
 	if tp.ParentSpanID != "" {
-		os.Setenv("HTMLGRAPH_PARENT_EVENT", tp.ParentSpanID)
+		os.Setenv("ERINN_PARENT_EVENT", tp.ParentSpanID)
 	}
 	return tp.TraceID, tp.ParentSpanID
 }

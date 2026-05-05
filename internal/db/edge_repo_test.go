@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"testing"
 
-	"github.com/shakestzd/htmlgraph/internal/db"
+	"github.com/shakestzd/erinn/internal/db"
 )
 
 // openTestDB creates an in-memory SQLite database with the full HtmlGraph schema.

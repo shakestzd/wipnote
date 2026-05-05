@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/shakestzd/htmlgraph/internal/db"
-	"github.com/shakestzd/htmlgraph/internal/models"
+	"github.com/shakestzd/erinn/internal/db"
+	"github.com/shakestzd/erinn/internal/models"
 	"time"
 )
 
@@ -26,7 +26,7 @@ func TestIsYoloFromDB(t *testing.T) {
 	hgDir := filepath.Join(tmpDir, ".htmlgraph")
 	os.MkdirAll(filepath.Join(hgDir, ".db"), 0o755)
 	dbPath := filepath.Join(hgDir, ".db", "htmlgraph.db")
-	t.Setenv("HTMLGRAPH_DB_PATH", dbPath)
+	t.Setenv("ERINN_DB_PATH", dbPath)
 
 	// Open and initialise the DB via the project's Open helper.
 	database, err := db.Open(dbPath)
@@ -109,7 +109,7 @@ func TestIsYoloFromEvent(t *testing.T) {
 	// Empty permission_mode + DB with bypassPermissions → yolo.
 	os.MkdirAll(filepath.Join(hgDir, ".db"), 0o755)
 	dbPath := filepath.Join(hgDir, ".db", "htmlgraph.db")
-	t.Setenv("HTMLGRAPH_DB_PATH", dbPath)
+	t.Setenv("ERINN_DB_PATH", dbPath)
 	database, err := db.Open(dbPath)
 	if err != nil {
 		t.Fatalf("db.Open: %v", err)
@@ -298,7 +298,7 @@ func TestCheckYoloCommitGuard(t *testing.T) {
 // setupIsolatedProjectDir creates a temp directory with a .htmlgraph
 // subdirectory and pins the resolver chain to it for the duration of
 // the test. Without overriding CLAUDE_PROJECT_DIR and clearing
-// HTMLGRAPH_PROJECT_DIR, paths.ResolveProjectDir would inherit the
+// ERINN_PROJECT_DIR, paths.ResolveProjectDir would inherit the
 // outer Claude Code session's env vars and resolve to the real
 // htmlgraph repo root instead of the test's tempDir.
 func setupIsolatedProjectDir(t *testing.T) string {
@@ -308,12 +308,12 @@ func setupIsolatedProjectDir(t *testing.T) string {
 		t.Fatal(err)
 	}
 	t.Setenv("CLAUDE_PROJECT_DIR", projDir)
-	t.Setenv("HTMLGRAPH_PROJECT_DIR", "")
-	// HTMLGRAPH_SESSION_ID must remain non-empty so the resolver's
+	t.Setenv("ERINN_PROJECT_DIR", "")
+	// ERINN_SESSION_ID must remain non-empty so the resolver's
 	// priority-3 step (CLAUDE_PROJECT_DIR check) actually fires; it
-	// is gated on HTMLGRAPH_SESSION_ID being set as a stale-env guard.
-	if os.Getenv("HTMLGRAPH_SESSION_ID") == "" {
-		t.Setenv("HTMLGRAPH_SESSION_ID", "test-session")
+	// is gated on ERINN_SESSION_ID being set as a stale-env guard.
+	if os.Getenv("ERINN_SESSION_ID") == "" {
+		t.Setenv("ERINN_SESSION_ID", "test-session")
 	}
 	return projDir
 }
@@ -1199,12 +1199,12 @@ func TestGetClaimFromParentChain(t *testing.T) {
 // for the child so that all guards (e.g. checkYoloBudgetGuard) fire correctly.
 func TestIsYoloWithInheritance(t *testing.T) {
 	// Set up an isolated project directory so that isYoloFromDB resolves the
-	// correct DB path via HTMLGRAPH_DB_PATH.
+	// correct DB path via ERINN_DB_PATH.
 	tmpDir := t.TempDir()
 	hgDir := filepath.Join(tmpDir, ".htmlgraph")
 	os.MkdirAll(filepath.Join(hgDir, ".db"), 0o755)
 	dbPath := filepath.Join(hgDir, ".db", "htmlgraph.db")
-	t.Setenv("HTMLGRAPH_DB_PATH", dbPath)
+	t.Setenv("ERINN_DB_PATH", dbPath)
 
 	database, err := db.Open(dbPath)
 	if err != nil {

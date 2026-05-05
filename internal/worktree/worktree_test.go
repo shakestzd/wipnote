@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/shakestzd/htmlgraph/internal/worktree"
+	"github.com/shakestzd/erinn/internal/worktree"
 )
 
 // setupGitRepo creates a temp git repo with an initial commit and returns its path.

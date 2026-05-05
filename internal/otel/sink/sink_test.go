@@ -9,10 +9,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/shakestzd/htmlgraph/internal/otel"
-	"github.com/shakestzd/htmlgraph/internal/otel/sink"
-	ndj "github.com/shakestzd/htmlgraph/internal/otel/sink/ndjson"
-	sqls "github.com/shakestzd/htmlgraph/internal/otel/sink/sqlite"
+	"github.com/shakestzd/erinn/internal/otel"
+	"github.com/shakestzd/erinn/internal/otel/sink"
+	ndj "github.com/shakestzd/erinn/internal/otel/sink/ndjson"
+	sqls "github.com/shakestzd/erinn/internal/otel/sink/sqlite"
 )
 
 func newTestSignals(sessionID string) []otel.UnifiedSignal {

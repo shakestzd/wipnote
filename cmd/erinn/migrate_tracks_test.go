@@ -35,9 +35,9 @@ func migrateTracksTestEnv(t *testing.T) (hgDir, rulesPath string) {
 
 	// Force the DB to live inside the project for test isolation.
 	dbPath := filepath.Join(hgDir, "htmlgraph.db")
-	t.Setenv("HTMLGRAPH_DB_PATH", dbPath)
+	t.Setenv("ERINN_DB_PATH", dbPath)
 
-	// Open the project — workitem.Open will use HTMLGRAPH_DB_PATH and create
+	// Open the project — workitem.Open will use ERINN_DB_PATH and create
 	// the DB file. We also use it to write canonical HTML so feature update
 	// works end-to-end.
 	p, err := workitem.Open(hgDir, "test-agent")

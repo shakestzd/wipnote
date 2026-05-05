@@ -18,10 +18,10 @@ import (
 //  2. Redirects XDG base dirs to isolated tempdirs so registry writes from
 //     persistentPreRunE (or any code path calling registry.DefaultPath) never
 //     touch ~/.local/share/htmlgraph/projects.json during test runs (bug-cc41e3d2).
-//  3. Redirects HTMLGRAPH_DB_PATH to a process-scoped temp dir so that no test
-//     inadvertently creates entries under the user's real ~/.cache/htmlgraph
+//  3. Redirects ERINN_DB_PATH to a process-scoped temp dir so that no test
+//     inadvertently creates entries under the user's real ~/.cache/erinn
 //     (bug-8c34e1f5). Tests that need a per-test isolated DB can override via
-//     t.Setenv("HTMLGRAPH_DB_PATH", ...) which restores the value afterwards.
+//     t.Setenv("ERINN_DB_PATH", ...) which restores the value afterwards.
 //  4. Cleans up the binary temp dir created by buildOtelCollectTestBinary.
 //
 // Cleanup runs explicitly before os.Exit; deferred cleanups would never fire
@@ -45,7 +45,7 @@ func TestMain(m *testing.M) {
 	var dbTmp string
 	if tmp, err3 := os.MkdirTemp("", "htmlgraph-test-db-*"); err3 == nil {
 		dbTmp = tmp
-		os.Setenv("HTMLGRAPH_DB_PATH", filepath.Join(dbTmp, "htmlgraph.db")) //nolint:errcheck
+		os.Setenv("ERINN_DB_PATH", filepath.Join(dbTmp, "htmlgraph.db")) //nolint:errcheck
 	}
 
 	code := m.Run()

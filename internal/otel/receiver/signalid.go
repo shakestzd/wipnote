@@ -9,7 +9,7 @@ import (
 	"sort"
 	"strconv"
 
-	"github.com/shakestzd/htmlgraph/internal/otel/adapter"
+	"github.com/shakestzd/erinn/internal/otel/adapter"
 )
 
 // DeriveSignalID returns a stable idempotency key for an OTLP signal.

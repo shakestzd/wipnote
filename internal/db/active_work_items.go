@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-// AgentRootSentinel is stored as agent_id when HTMLGRAPH_AGENT_ID is unset,
+// AgentRootSentinel is stored as agent_id when ERINN_AGENT_ID is unset,
 // representing the top-level (non-subagent) session owner.
 const AgentRootSentinel = "__root__"
 

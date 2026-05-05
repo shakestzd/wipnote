@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/shakestzd/htmlgraph/internal/models"
+	"github.com/shakestzd/erinn/internal/models"
 )
 
 // TrackOption configures a new track during creation.

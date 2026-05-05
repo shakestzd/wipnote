@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/shakestzd/htmlgraph/internal/models"
+	"github.com/shakestzd/erinn/internal/models"
 )
 
 // Execer is satisfied by both *sql.DB and *sql.Tx, enabling transaction-aware helpers.

@@ -12,9 +12,9 @@ import (
 	"sort"
 	"strconv"
 
-	"github.com/shakestzd/htmlgraph/internal/otel"
-	"github.com/shakestzd/htmlgraph/internal/otel/adapter"
-	"github.com/shakestzd/htmlgraph/internal/otel/otlp"
+	"github.com/shakestzd/erinn/internal/otel"
+	"github.com/shakestzd/erinn/internal/otel/adapter"
+	"github.com/shakestzd/erinn/internal/otel/otlp"
 )
 
 // ConvertAll runs every signal in the decoded batch through the adapter

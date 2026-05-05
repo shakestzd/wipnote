@@ -120,8 +120,8 @@ func runServeChild(port int) error {
 		startAITitleBackfill(context.Background(), database, htmlgraphDir)
 	})
 
-	// Retention job: archive sessions older than HTMLGRAPH_SESSION_RETAIN_DAYS
-	// (default 30) at startup and every 24h. Dry-run via HTMLGRAPH_RETENTION_DRYRUN=1.
+	// Retention job: archive sessions older than ERINN_SESSION_RETAIN_DAYS
+	// (default 30) at startup and every 24h. Dry-run via ERINN_RETENTION_DRYRUN=1.
 	retention.StartLoop(context.Background(), database, htmlgraphDir)
 
 	return (&http.Server{Handler: mux}).Serve(ln)

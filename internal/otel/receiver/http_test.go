@@ -9,10 +9,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/shakestzd/htmlgraph/internal/db"
-	"github.com/shakestzd/htmlgraph/internal/otel/adapter"
-	"github.com/shakestzd/htmlgraph/internal/otel/receiver"
-	sqls "github.com/shakestzd/htmlgraph/internal/otel/sink/sqlite"
+	"github.com/shakestzd/erinn/internal/db"
+	"github.com/shakestzd/erinn/internal/otel/adapter"
+	"github.com/shakestzd/erinn/internal/otel/receiver"
+	sqls "github.com/shakestzd/erinn/internal/otel/sink/sqlite"
 
 	"google.golang.org/protobuf/proto"
 
@@ -217,7 +217,7 @@ func TestHTTPHandler_RejectsBadContentType(t *testing.T) {
 }
 
 // TestReceiver_DisabledIsNoop proves the opt-in posture: with
-// HTMLGRAPH_OTEL_ENABLED unset, Start returns nil without binding
+// ERINN_OTEL_ENABLED unset, Start returns nil without binding
 // a port or opening a DB.
 func TestReceiver_DisabledIsNoop(t *testing.T) {
 	r, err := receiver.New(receiver.Config{Enabled: false}, nil)

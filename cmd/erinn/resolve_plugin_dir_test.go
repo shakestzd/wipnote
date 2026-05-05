@@ -28,7 +28,7 @@ func TestResolvePluginDir_ClaudePluginRoot(t *testing.T) {
 	pluginDir := createFakePlugin(t, filepath.Join(tmpDir, "root-plugin"))
 
 	t.Setenv("CLAUDE_PLUGIN_ROOT", pluginDir)
-	t.Setenv("HTMLGRAPH_PLUGIN_DIR", "")
+	t.Setenv("ERINN_PLUGIN_DIR", "")
 	t.Setenv("HOME", t.TempDir()) // no well-known path
 
 	got := resolvePluginDir()
@@ -38,14 +38,14 @@ func TestResolvePluginDir_ClaudePluginRoot(t *testing.T) {
 }
 
 // TestResolvePluginDir_ClaudePluginRootTakesPrecedenceOverHtmlgraphPluginDir tests
-// that CLAUDE_PLUGIN_ROOT wins over HTMLGRAPH_PLUGIN_DIR.
+// that CLAUDE_PLUGIN_ROOT wins over ERINN_PLUGIN_DIR.
 func TestResolvePluginDir_ClaudePluginRootTakesPrecedenceOverHtmlgraphPluginDir(t *testing.T) {
 	tmpDir := t.TempDir()
 	rootPlugin := createFakePlugin(t, filepath.Join(tmpDir, "root-plugin"))
 	overridePlugin := createFakePlugin(t, filepath.Join(tmpDir, "override-plugin"))
 
 	t.Setenv("CLAUDE_PLUGIN_ROOT", rootPlugin)
-	t.Setenv("HTMLGRAPH_PLUGIN_DIR", overridePlugin)
+	t.Setenv("ERINN_PLUGIN_DIR", overridePlugin)
 	t.Setenv("HOME", t.TempDir())
 
 	got := resolvePluginDir()
@@ -54,14 +54,14 @@ func TestResolvePluginDir_ClaudePluginRootTakesPrecedenceOverHtmlgraphPluginDir(
 	}
 }
 
-// TestResolvePluginDir_EnvVarOverride tests that HTMLGRAPH_PLUGIN_DIR takes priority
+// TestResolvePluginDir_EnvVarOverride tests that ERINN_PLUGIN_DIR takes priority
 // when CLAUDE_PLUGIN_ROOT is not set.
 func TestResolvePluginDir_EnvVarOverride(t *testing.T) {
 	tmpDir := t.TempDir()
 	pluginDir := createFakePlugin(t, filepath.Join(tmpDir, "my-plugin"))
 
 	t.Setenv("CLAUDE_PLUGIN_ROOT", "")
-	t.Setenv("HTMLGRAPH_PLUGIN_DIR", pluginDir)
+	t.Setenv("ERINN_PLUGIN_DIR", pluginDir)
 
 	got := resolvePluginDir()
 	if got != pluginDir {
@@ -70,10 +70,10 @@ func TestResolvePluginDir_EnvVarOverride(t *testing.T) {
 }
 
 // TestResolvePluginDir_EnvVarInvalidFallsThrough tests that an invalid
-// HTMLGRAPH_PLUGIN_DIR does not short-circuit -- the function falls through
+// ERINN_PLUGIN_DIR does not short-circuit -- the function falls through
 // to subsequent strategies.
 func TestResolvePluginDir_EnvVarInvalidFallsThrough(t *testing.T) {
-	t.Setenv("HTMLGRAPH_PLUGIN_DIR", "/nonexistent/path/that/does/not/exist")
+	t.Setenv("ERINN_PLUGIN_DIR", "/nonexistent/path/that/does/not/exist")
 
 	// With no valid env var and no well-known path or symlink, should return "".
 	got := resolvePluginDir()
@@ -85,7 +85,7 @@ func TestResolvePluginDir_EnvVarInvalidFallsThrough(t *testing.T) {
 	}
 }
 
-// TestResolvePluginDir_EnvVarMissingPluginJSON tests that HTMLGRAPH_PLUGIN_DIR
+// TestResolvePluginDir_EnvVarMissingPluginJSON tests that ERINN_PLUGIN_DIR
 // is skipped when the directory exists but lacks .claude-plugin/plugin.json.
 func TestResolvePluginDir_EnvVarMissingPluginJSON(t *testing.T) {
 	tmpDir := t.TempDir()
@@ -95,7 +95,7 @@ func TestResolvePluginDir_EnvVarMissingPluginJSON(t *testing.T) {
 		t.Fatalf("failed to create dir: %v", err)
 	}
 
-	t.Setenv("HTMLGRAPH_PLUGIN_DIR", emptyDir)
+	t.Setenv("ERINN_PLUGIN_DIR", emptyDir)
 
 	got := resolvePluginDir()
 	if got == emptyDir {
@@ -125,7 +125,7 @@ func TestResolvePluginDir_MarketplacePath(t *testing.T) {
 	}
 
 	t.Setenv("CLAUDE_PLUGIN_ROOT", "")
-	t.Setenv("HTMLGRAPH_PLUGIN_DIR", "")
+	t.Setenv("ERINN_PLUGIN_DIR", "")
 	t.Setenv("HOME", tmpHome)
 
 	got := resolvePluginDir()
@@ -159,7 +159,7 @@ func TestResolvePluginDir_EnvVarTakesPrecedenceOverMarketplace(t *testing.T) {
 	}
 
 	t.Setenv("CLAUDE_PLUGIN_ROOT", "")
-	t.Setenv("HTMLGRAPH_PLUGIN_DIR", envPluginDir)
+	t.Setenv("ERINN_PLUGIN_DIR", envPluginDir)
 	t.Setenv("HOME", tmpHome)
 
 	got := resolvePluginDir()
@@ -178,7 +178,7 @@ func TestResolvePluginDir_EnvVarTakesPrecedenceOverMarketplace(t *testing.T) {
 // symlink walk-up doesn't crash.
 func TestResolvePluginDir_SymlinkWalkUpFallback(t *testing.T) {
 	t.Setenv("CLAUDE_PLUGIN_ROOT", "")
-	t.Setenv("HTMLGRAPH_PLUGIN_DIR", "")
+	t.Setenv("ERINN_PLUGIN_DIR", "")
 	// Set HOME to a temp dir with no installed_plugins.json or plugin installed.
 	t.Setenv("HOME", t.TempDir())
 
@@ -209,7 +209,7 @@ func TestResolvePluginDir_ProjectRootDetection(t *testing.T) {
 
 	// Clear env vars so earlier steps don't match
 	t.Setenv("CLAUDE_PLUGIN_ROOT", "")
-	t.Setenv("HTMLGRAPH_PLUGIN_DIR", "")
+	t.Setenv("ERINN_PLUGIN_DIR", "")
 	t.Setenv("HOME", filepath.Join(tmpDir, "fakehome")) // no marketplace
 
 	// Change to project directory
@@ -248,7 +248,7 @@ func TestResolvePluginDir_ProjectRootDetectionFromSubdirectory(t *testing.T) {
 
 	// Clear env vars
 	t.Setenv("CLAUDE_PLUGIN_ROOT", "")
-	t.Setenv("HTMLGRAPH_PLUGIN_DIR", "")
+	t.Setenv("ERINN_PLUGIN_DIR", "")
 	t.Setenv("HOME", filepath.Join(tmpDir, "fakehome"))
 
 	// Change to subdirectory

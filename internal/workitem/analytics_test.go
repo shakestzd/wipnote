@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/shakestzd/htmlgraph/internal/models"
-	"github.com/shakestzd/htmlgraph/internal/workitem"
+	"github.com/shakestzd/erinn/internal/models"
+	"github.com/shakestzd/erinn/internal/workitem"
 )
 
 // ---------------------------------------------------------------------------

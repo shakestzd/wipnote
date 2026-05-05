@@ -17,7 +17,7 @@ import (
 // Info describes the detected calling agent.
 type Info struct {
 	// ID is the agent identifier: "claude-code", "human", or a custom value
-	// from HTMLGRAPH_AGENT_ID.
+	// from ERINN_AGENT_ID.
 	ID string
 
 	// Model is the model name from CLAUDE_MODEL, or empty if not set.
@@ -29,7 +29,7 @@ type Info struct {
 var uuidPattern = regexp.MustCompile(`([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})`)
 
 // Detect returns the identity of the calling agent using env var priority:
-//  1. HTMLGRAPH_AGENT_ID  — explicit override (e.g. "codex", "copilot")
+//  1. ERINN_AGENT_ID  — explicit override (e.g. "codex", "copilot")
 //  2. CLAUDE_CODE=1 / CLAUDECODE=1 — running inside Claude Code → "claude-code"
 //  3. fallback            — "human" (CLI user, not an AI agent)
 //
@@ -43,7 +43,7 @@ func Detect() Info {
 }
 
 func detectID() string {
-	if v := os.Getenv("HTMLGRAPH_AGENT_ID"); v != "" {
+	if v := os.Getenv("ERINN_AGENT_ID"); v != "" {
 		return v
 	}
 	// Claude Code 2.x sets CLAUDECODE=1 (no underscore); older builds set
@@ -59,12 +59,12 @@ func detectID() string {
 }
 
 // ResolveSessionID returns the current session ID using a four-step fallback:
-//  1. HTMLGRAPH_SESSION_ID env var (set by writeEnvVars via CLAUDE_ENV_FILE)
+//  1. ERINN_SESSION_ID env var (set by writeEnvVars via CLAUDE_ENV_FILE)
 //  2. CLAUDE_SESSION_ID env var (normalised — Claude Code path-style IDs)
 //  3. .htmlgraph/.active-session file in projectDir
 //  4. Generated "cli-<pid>-<unix>" for plain CLI invocations
 func ResolveSessionID(projectDir string) string {
-	if v := os.Getenv("HTMLGRAPH_SESSION_ID"); v != "" {
+	if v := os.Getenv("ERINN_SESSION_ID"); v != "" {
 		return v
 	}
 	if v := os.Getenv("CLAUDE_SESSION_ID"); v != "" {

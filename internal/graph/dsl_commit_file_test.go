@@ -3,7 +3,7 @@ package graph_test
 import (
 	"testing"
 
-	"github.com/shakestzd/htmlgraph/internal/graph"
+	"github.com/shakestzd/erinn/internal/graph"
 )
 
 // --- isNodeType and normalizeNodeType ---

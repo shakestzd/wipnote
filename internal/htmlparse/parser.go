@@ -20,7 +20,7 @@ import (
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
-	"github.com/shakestzd/htmlgraph/internal/models"
+	"github.com/shakestzd/erinn/internal/models"
 )
 
 var emojiPrefix = regexp.MustCompile(`^[\x{2705}\x{23F3}\x{274C}\x{1F504}]\s*`)

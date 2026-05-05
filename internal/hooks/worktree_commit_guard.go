@@ -19,7 +19,7 @@ var agentBranchPrefixes = []string{"worktree-agent-", "subagent-"}
 // Escape hatches (all allow):
 //   - Session has no parent → orchestrator → allow.
 //   - Branch matches worktree-agent-* or subagent-* prefix → per-agent branch → allow.
-//   - HTMLGRAPH_AGENT_BRANCH=1 env var is set → explicitly authorised → allow.
+//   - ERINN_AGENT_BRANCH=1 env var is set → explicitly authorised → allow.
 //   - Branch is not main or master → allow.
 func checkSubagentCommitGuard(event *CloudEvent, parentSessionID string, projectDir string) string {
 	if event.ToolName != "Bash" {
@@ -93,10 +93,10 @@ func resolveCommitBranch(event *CloudEvent, projectDir string) string {
 	return strings.TrimSpace(string(out))
 }
 
-// agentBranchEnvSet returns true when HTMLGRAPH_AGENT_BRANCH=1 is set in the
+// agentBranchEnvSet returns true when ERINN_AGENT_BRANCH=1 is set in the
 // current process environment. This allows dispatch tooling to explicitly mark
 // a session as running on an intentional per-agent branch without requiring a
 // specific branch-name prefix.
 func agentBranchEnvSet() bool {
-	return strings.TrimSpace(os.Getenv("HTMLGRAPH_AGENT_BRANCH")) == "1"
+	return strings.TrimSpace(os.Getenv("ERINN_AGENT_BRANCH")) == "1"
 }

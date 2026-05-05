@@ -4,8 +4,8 @@ import (
 	"math"
 	"testing"
 
-	"github.com/shakestzd/htmlgraph/internal/otel"
-	"github.com/shakestzd/htmlgraph/internal/pricing"
+	"github.com/shakestzd/erinn/internal/otel"
+	"github.com/shakestzd/erinn/internal/pricing"
 )
 
 // TestDefaultLoadable ensures the embedded models.json parses cleanly.

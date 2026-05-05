@@ -214,9 +214,9 @@ func TestParseCodexUserPrompt(t *testing.T) {
 }
 
 func TestParseCodexEventSetsAgentID(t *testing.T) {
-	// Explicitly clear HTMLGRAPH_PARENT_AGENT so this test is not affected by
+	// Explicitly clear ERINN_PARENT_AGENT so this test is not affected by
 	// whatever the shell environment has set (e.g., "claude-code" in dev sessions).
-	t.Setenv("HTMLGRAPH_PARENT_AGENT", "")
+	t.Setenv("ERINN_PARENT_AGENT", "")
 
 	ev, err := parseCodexEvent([]byte(codexSessionStartJSON))
 	if err != nil {
@@ -230,11 +230,11 @@ func TestParseCodexEventSetsAgentID(t *testing.T) {
 
 // TestParseCodexEventAgentIDHardening covers the fix for bug-bfe41623:
 // parseCodexEvent must NOT override AgentID with "codex" when
-// HTMLGRAPH_PARENT_AGENT identifies a different harness.
+// ERINN_PARENT_AGENT identifies a different harness.
 func TestParseCodexEventAgentIDHardening(t *testing.T) {
 	tests := []struct {
 		name           string
-		parentAgentEnv string // value to set in HTMLGRAPH_PARENT_AGENT ("" = clear/unset)
+		parentAgentEnv string // value to set in ERINN_PARENT_AGENT ("" = clear/unset)
 		wantAgentID    string
 	}{
 		{
@@ -243,17 +243,17 @@ func TestParseCodexEventAgentIDHardening(t *testing.T) {
 			wantAgentID:    "codex",
 		},
 		{
-			name:           "codex harness HTMLGRAPH_PARENT_AGENT=codex → AgentID=codex",
+			name:           "codex harness ERINN_PARENT_AGENT=codex → AgentID=codex",
 			parentAgentEnv: "codex",
 			wantAgentID:    "codex",
 		},
 		{
-			name:           "routed through codex parser but HTMLGRAPH_PARENT_AGENT=claude-code → AgentID=claude-code",
+			name:           "routed through codex parser but ERINN_PARENT_AGENT=claude-code → AgentID=claude-code",
 			parentAgentEnv: "claude-code",
 			wantAgentID:    "claude-code",
 		},
 		{
-			name:           "routed through codex parser but HTMLGRAPH_PARENT_AGENT=gemini → AgentID=gemini",
+			name:           "routed through codex parser but ERINN_PARENT_AGENT=gemini → AgentID=gemini",
 			parentAgentEnv: "gemini",
 			wantAgentID:    "gemini",
 		},
@@ -264,7 +264,7 @@ func TestParseCodexEventAgentIDHardening(t *testing.T) {
 			// Always set (or clear) the env var so the test is not affected by
 			// whatever value happens to be inherited from the shell (e.g. "claude-code"
 			// in a live dev session, which is what triggered bug-bfe41623).
-			t.Setenv("HTMLGRAPH_PARENT_AGENT", tt.parentAgentEnv)
+			t.Setenv("ERINN_PARENT_AGENT", tt.parentAgentEnv)
 
 			ev, err := parseCodexEvent([]byte(codexSessionStartJSON))
 			if err != nil {

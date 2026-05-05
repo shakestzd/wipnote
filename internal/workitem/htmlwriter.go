@@ -15,7 +15,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/shakestzd/htmlgraph/internal/models"
+	"github.com/shakestzd/erinn/internal/models"
 )
 
 // featureWriteMu serialises concurrent writes that touch the same feature HTML

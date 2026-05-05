@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/shakestzd/htmlgraph/internal/db"
-	"github.com/shakestzd/htmlgraph/internal/models"
+	"github.com/shakestzd/erinn/internal/db"
+	"github.com/shakestzd/erinn/internal/models"
 )
 
 // setupTestDB opens an in-memory database with schema and a test session.

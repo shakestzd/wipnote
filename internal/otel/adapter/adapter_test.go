@@ -4,7 +4,7 @@ import (
 	"math"
 	"testing"
 
-	"github.com/shakestzd/htmlgraph/internal/otel"
+	"github.com/shakestzd/erinn/internal/otel"
 )
 
 // fakeAdapter is a test double that claims any resource whose service.name

@@ -12,7 +12,7 @@
 #   4. GET  /api/terminal/sessions — returns 0 non-exited entries (or empty)
 set -euo pipefail
 
-BASE_URL="${HTMLGRAPH_URL:-http://localhost:8080}"
+BASE_URL="${ERINN_URL:-http://localhost:8080}"
 PASS=0
 FAIL=0
 

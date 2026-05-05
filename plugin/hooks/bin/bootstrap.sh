@@ -45,8 +45,8 @@ resolve_version() {
 
     if [ ! -f "${plugin_json}" ]; then
         # Third fallback: explicit env var (for CI / pinning).
-        if [ -n "${HTMLGRAPH_VERSION:-}" ]; then
-            echo "${HTMLGRAPH_VERSION}"
+        if [ -n "${ERINN_VERSION:-}" ]; then
+            echo "${ERINN_VERSION}"
             return
         fi
 

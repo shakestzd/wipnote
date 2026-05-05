@@ -8,10 +8,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/shakestzd/htmlgraph/internal/db"
-	"github.com/shakestzd/htmlgraph/internal/otel"
-	"github.com/shakestzd/htmlgraph/internal/otel/receiver"
-	sqls "github.com/shakestzd/htmlgraph/internal/otel/sink/sqlite"
+	"github.com/shakestzd/erinn/internal/db"
+	"github.com/shakestzd/erinn/internal/otel"
+	"github.com/shakestzd/erinn/internal/otel/receiver"
+	sqls "github.com/shakestzd/erinn/internal/otel/sink/sqlite"
 )
 
 // setupIndexerDB creates a temporary SQLite DB with OTel schema and returns writer + db path.

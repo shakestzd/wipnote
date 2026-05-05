@@ -10,12 +10,12 @@ import (
 )
 
 // effectiveProjectDir resolves the project dir for OTel port derivation.
-// Priority: explicit arg → CLAUDE_PROJECT_DIR → HTMLGRAPH_PROJECT_DIR → os.Getwd.
+// Priority: explicit arg → CLAUDE_PROJECT_DIR → ERINN_PROJECT_DIR → os.Getwd.
 func effectiveProjectDir(explicit string) string {
 	if explicit != "" {
 		return explicit
 	}
-	for _, k := range []string{"CLAUDE_PROJECT_DIR", "HTMLGRAPH_PROJECT_DIR"} {
+	for _, k := range []string{"CLAUDE_PROJECT_DIR", "ERINN_PROJECT_DIR"} {
 		if v := strings.TrimSpace(os.Getenv(k)); v != "" {
 			return v
 		}
@@ -31,10 +31,10 @@ func effectiveProjectDir(explicit string) string {
 // inherits the user's shell env) and layers HtmlGraph-specific overrides
 // on top:
 //
-//  1. HTMLGRAPH_PROJECT_DIR — set when the launcher runs inside a
+//  1. ERINN_PROJECT_DIR — set when the launcher runs inside a
 //     worktree, so hooks resolve to the main .htmlgraph/ directory.
 //  2. OTel exporter vars — enabled by default (default-on). Set
-//     HTMLGRAPH_OTEL_ENABLED=0 to opt out. User-set OTel vars win:
+//     ERINN_OTEL_ENABLED=0 to opt out. User-set OTel vars win:
 //     we never clobber an explicit OTEL_* choice.
 //
 // htmlgraphProjectDir is the empty string when no override is needed
@@ -47,20 +47,20 @@ func buildClaudeLaunchEnv(htmlgraphProjectDir string, overrides *otelEnvOverride
 	env := os.Environ()
 
 	// Resolve an effective projectDir for OTel port derivation.
-	// Priority chain: explicit arg → CLAUDE_PROJECT_DIR → HTMLGRAPH_PROJECT_DIR → os.Getwd.
+	// Priority chain: explicit arg → CLAUDE_PROJECT_DIR → ERINN_PROJECT_DIR → os.Getwd.
 	projectDir := effectiveProjectDir(htmlgraphProjectDir)
 	if projectDir != "" {
-		env = setOrReplaceEnv(env, "HTMLGRAPH_PROJECT_DIR", projectDir)
+		env = setOrReplaceEnv(env, "ERINN_PROJECT_DIR", projectDir)
 	}
 
 	// Inject session ID when provided by the collector spawn path.
 	if overrides != nil && overrides.SessionID != "" {
-		env = setOrReplaceEnv(env, "HTMLGRAPH_SESSION_ID", overrides.SessionID)
+		env = setOrReplaceEnv(env, "ERINN_SESSION_ID", overrides.SessionID)
 	}
 
-	// OTel injection is default-on. Opt out by setting HTMLGRAPH_OTEL_ENABLED=0
+	// OTel injection is default-on. Opt out by setting ERINN_OTEL_ENABLED=0
 	// (or false/no/off). An unset or empty value means "on".
-	if isExplicitlyDisabled(os.Getenv("HTMLGRAPH_OTEL_ENABLED")) {
+	if isExplicitlyDisabled(os.Getenv("ERINN_OTEL_ENABLED")) {
 		return env
 	}
 
@@ -83,10 +83,10 @@ func buildClaudeLaunchEnv(htmlgraphProjectDir string, overrides *otelEnvOverride
 	env = addIfUnset(env, "OTEL_TRACES_EXPORTER", "otlp")
 	env = addIfUnset(env, "OTEL_EXPORTER_OTLP_PROTOCOL", "http/protobuf")
 	// The launcher's computed endpoint must win because it's derived from the same
-	// HTMLGRAPH_OTEL_* config the receiver reads in LoadConfigFromEnv. Inherited env
+	// ERINN_OTEL_* config the receiver reads in LoadConfigFromEnv. Inherited env
 	// values from a parent session whose hash resolved to a different port would silently
 	// drop spans. Users who need to point Claude Code at a non-htmlgraph receiver can
-	// steer via HTMLGRAPH_OTEL_HTTP_PORT / HTMLGRAPH_OTEL_BIND.
+	// steer via ERINN_OTEL_HTTP_PORT / ERINN_OTEL_BIND.
 	env = setOrReplaceEnv(env, "OTEL_EXPORTER_OTLP_ENDPOINT", endpoint)
 	// Tool details include bash commands, skill names, MCP tool names —
 	// non-sensitive by default. Turn off by setting to "0" before launch.
@@ -181,5 +181,5 @@ func probeReceiverReachability(endpoint string) {
 	}
 
 	// Print warning to stderr. One line only, no logging noise.
-	fmt.Fprintf(os.Stderr, "htmlgraph: warning: OTel receiver at %s is not reachable — Claude Code spans will be dropped. Start htmlgraph serve or HTMLGRAPH_OTEL_HTTP_PORT is wrong.\n", hostport)
+	fmt.Fprintf(os.Stderr, "htmlgraph: warning: OTel receiver at %s is not reachable — Claude Code spans will be dropped. Start htmlgraph serve or ERINN_OTEL_HTTP_PORT is wrong.\n", hostport)
 }

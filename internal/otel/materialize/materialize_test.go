@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/shakestzd/htmlgraph/internal/db"
-	"github.com/shakestzd/htmlgraph/internal/otel/materialize"
+	"github.com/shakestzd/erinn/internal/db"
+	"github.com/shakestzd/erinn/internal/otel/materialize"
 )
 
 // seedSession creates a session row + four api_request log events across

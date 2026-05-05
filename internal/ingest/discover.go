@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/shakestzd/htmlgraph/internal/paths"
+	"github.com/shakestzd/erinn/internal/paths"
 )
 
 // SessionFile represents a discovered Claude Code JSONL session file.

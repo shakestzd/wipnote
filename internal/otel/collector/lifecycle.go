@@ -51,7 +51,7 @@ type ProcessCollectorOpts struct {
 	SpawnFn SpawnFn
 
 	// WatchdogIntervalEnv is the env-var name used to override the watchdog
-	// poll interval. Empty string defaults to "HTMLGRAPH_OTEL_WATCHDOG_INTERVAL".
+	// poll interval. Empty string defaults to "ERINN_OTEL_WATCHDOG_INTERVAL".
 	WatchdogIntervalEnv string
 }
 
@@ -66,7 +66,7 @@ func NewProcessCollector(opts ProcessCollectorOpts) *ProcessCollector {
 		opts.Stderr = os.Stderr
 	}
 	if opts.WatchdogIntervalEnv == "" {
-		opts.WatchdogIntervalEnv = "HTMLGRAPH_OTEL_WATCHDOG_INTERVAL"
+		opts.WatchdogIntervalEnv = "ERINN_OTEL_WATCHDOG_INTERVAL"
 	}
 	return &ProcessCollector{opts: opts}
 }

@@ -13,9 +13,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/shakestzd/htmlgraph/internal/db"
-	"github.com/shakestzd/htmlgraph/internal/paths"
-	"github.com/shakestzd/htmlgraph/internal/storage"
+	"github.com/shakestzd/erinn/internal/db"
+	"github.com/shakestzd/erinn/internal/paths"
+	"github.com/shakestzd/erinn/internal/storage"
 )
 
 // mergeInProgressFn is injected for testing. In production, it checks the real
@@ -128,7 +128,7 @@ func checkYoloWorkItemGuard(toolName, featureID string, _ bool, sessionID string
 		return ""
 	}
 	// Secondary fallback: when CLAUDE_ENV_FILE is unset (common in YOLO mode),
-	// HTMLGRAPH_SESSION_ID is never exported, so `bug start` writes
+	// ERINN_SESSION_ID is never exported, so `bug start` writes
 	// active_feature_id to a different session row than the one the hook sees.
 	// Allow the edit when any work item is in-progress to prevent false blocks.
 	if hasAnyActiveWorkItem(db) {
@@ -179,7 +179,7 @@ func checkYoloBashWorkItemGuard(event *CloudEvent, featureID string, _ bool, ses
 		return ""
 	}
 	// Secondary fallback: when CLAUDE_ENV_FILE is unset (common in YOLO mode),
-	// HTMLGRAPH_SESSION_ID is never exported, so `bug start` writes
+	// ERINN_SESSION_ID is never exported, so `bug start` writes
 	// active_feature_id to a different session row than the one the hook sees.
 	// Allow the edit when any work item is in-progress to prevent false blocks.
 	if hasAnyActiveWorkItem(database) {
@@ -208,7 +208,7 @@ func sessionHasLinkedFeature(db *sql.DB, sessionID string) bool {
 // the features table, distinguished by the type column.
 //
 // This is used as a YOLO-mode fallback when CLAUDE_ENV_FILE is unset (typical
-// in YOLO mode), causing HTMLGRAPH_SESSION_ID to not be exported. In that case
+// in YOLO mode), causing ERINN_SESSION_ID to not be exported. In that case
 // `bug start` falls back to the .active-session file and writes
 // active_feature_id to a different session row than the one the PreToolUse
 // hook resolves from the CloudEvent payload. The fallback allows the edit when

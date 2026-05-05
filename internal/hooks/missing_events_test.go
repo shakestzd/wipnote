@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/shakestzd/htmlgraph/internal/db"
-	"github.com/shakestzd/htmlgraph/internal/models"
+	"github.com/shakestzd/erinn/internal/db"
+	"github.com/shakestzd/erinn/internal/models"
 )
 
 // setupMissingEventsDB creates a temp project dir with .htmlgraph/ and an
@@ -16,8 +16,8 @@ func setupMissingEventsDB(t *testing.T) (*testDB, string) {
 
 	// Link the test session to a project dir so ResolveProjectDir works.
 	projectDir := t.TempDir()
-	t.Setenv("HTMLGRAPH_SESSION_ID", "test-sess")
-	t.Setenv("HTMLGRAPH_PROJECT_DIR", projectDir)
+	t.Setenv("ERINN_SESSION_ID", "test-sess")
+	t.Setenv("ERINN_PROJECT_DIR", projectDir)
 
 	return td, "test-sess"
 }
@@ -63,7 +63,7 @@ func TestPreCompact_RecordsCheckpoint(t *testing.T) {
 // Continue without error when there is no session ID.
 func TestPreCompact_NoSessionID_ReturnsContinue(t *testing.T) {
 	td := setupTestDB(t)
-	t.Setenv("HTMLGRAPH_SESSION_ID", "")
+	t.Setenv("ERINN_SESSION_ID", "")
 
 	event := &CloudEvent{SessionID: "", CWD: t.TempDir()}
 	result, err := PreCompact(event, td.DB)
@@ -651,8 +651,8 @@ func TestSessionResume_ReactivatesCompletedSession(t *testing.T) {
 	database, projectDir := setupLifecycleDB(t)
 
 	sessionID := "resume-test-session-001"
-	t.Setenv("HTMLGRAPH_SESSION_ID", sessionID)
-	t.Setenv("HTMLGRAPH_PROJECT_DIR", projectDir)
+	t.Setenv("ERINN_SESSION_ID", sessionID)
+	t.Setenv("ERINN_PROJECT_DIR", projectDir)
 
 	// Insert a completed session.
 	if err := db.InsertSession(database, &models.Session{
@@ -691,7 +691,7 @@ func TestSessionResume_ReactivatesCompletedSession(t *testing.T) {
 // returns Continue without error when there is no session ID.
 func TestSessionResume_NoSessionID_ReturnsContinue(t *testing.T) {
 	database, projectDir := setupLifecycleDB(t)
-	t.Setenv("HTMLGRAPH_SESSION_ID", "")
+	t.Setenv("ERINN_SESSION_ID", "")
 
 	event := &CloudEvent{SessionID: "", CWD: projectDir}
 	result, err := SessionResume(event, database, projectDir)

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/shakestzd/htmlgraph/internal/models"
+	"github.com/shakestzd/erinn/internal/models"
 )
 
 // InsertMessage stores a transcript message. Returns the auto-generated ID.

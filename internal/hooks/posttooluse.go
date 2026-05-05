@@ -9,15 +9,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/shakestzd/htmlgraph/internal/db"
-	"github.com/shakestzd/htmlgraph/internal/models"
+	"github.com/shakestzd/erinn/internal/db"
+	"github.com/shakestzd/erinn/internal/models"
 )
 
 // PostToolUse handles the PostToolUse Claude Code hook event.
 // It finds the most recent "started" event for this session/tool and marks it completed.
 // Note: env vars don't persist between hook processes, so we query the DB instead.
 func PostToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
-	// PostToolUse trusts HTMLGRAPH_PARENT_PROMPT_EVENT set by the paired PreToolUse
+	// PostToolUse trusts ERINN_PARENT_PROMPT_EVENT set by the paired PreToolUse
 	// (trustParentEnvVar=true) to avoid the race where a new UserQuery arrives while
 	// the tool was executing and the LatestEventByTool fallback would return the wrong parent.
 	ctx := resolveToolUseContext(event, database, true)

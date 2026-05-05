@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/shakestzd/htmlgraph/internal/db"
-	"github.com/shakestzd/htmlgraph/internal/models"
+	"github.com/shakestzd/erinn/internal/db"
+	"github.com/shakestzd/erinn/internal/models"
 )
 
 // makeSessionDB creates an in-memory DB with a session row pointing to projectDir.
@@ -43,7 +43,7 @@ func TestCheckProjectDivergence_SameProject(t *testing.T) {
 	// Isolate from the developer's real environment: the hint file and env vars
 	// must not redirect ResolveProjectDir to the real htmlgraph project dir.
 	t.Setenv("CLAUDE_PROJECT_DIR", "")
-	t.Setenv("HTMLGRAPH_PROJECT_DIR", projectDir)
+	t.Setenv("ERINN_PROJECT_DIR", projectDir)
 
 	sessionID := "sess-same-project"
 	database := makeSessionDB(t, sessionID, projectDir)

@@ -138,8 +138,8 @@ func TestAutoImplementedInEdgeOnStart(t *testing.T) {
 	projectDirFlag = tmpDir
 	defer func() { projectDirFlag = "" }()
 
-	// Set a fake session ID (EnvSessionID reads HTMLGRAPH_SESSION_ID first)
-	t.Setenv("HTMLGRAPH_SESSION_ID", "test-session-abc")
+	// Set a fake session ID (EnvSessionID reads ERINN_SESSION_ID first)
+	t.Setenv("ERINN_SESSION_ID", "test-session-abc")
 
 	trackID := testSetupTrack(t, hgDir)
 
@@ -192,9 +192,9 @@ func TestNoImplementedInEdgeWithoutSession(t *testing.T) {
 	defer func() { projectDirFlag = "" }()
 
 	// Isolate from any real session running in the developer's environment.
-	t.Setenv("HTMLGRAPH_SESSION_ID", "")
+	t.Setenv("ERINN_SESSION_ID", "")
 	t.Setenv("CLAUDE_SESSION_ID", "")
-	t.Setenv("HTMLGRAPH_PROJECT_DIR", tmpDir)
+	t.Setenv("ERINN_PROJECT_DIR", tmpDir)
 	t.Setenv("CLAUDE_PROJECT_DIR", "")
 
 	trackID := testSetupTrack(t, hgDir)
@@ -405,7 +405,7 @@ func TestRunWiSetStatus_BlockedClearsCache(t *testing.T) {
 	defer func() { projectDirFlag = "" }()
 
 	// Set cache dir to temp so we don't pollute the real home dir.
-	t.Setenv("HTMLGRAPH_CACHE_DIR", tmpDir)
+	t.Setenv("ERINN_CACHE_DIR", tmpDir)
 
 	trackID := testSetupTrack(t, hgDir)
 
@@ -700,7 +700,7 @@ func testHgDirWithDB(t *testing.T, sessionID string) (tmpDir, hgDir string) {
 		}
 	}
 
-	// Pin the DB path inside the test temp dir via HTMLGRAPH_DB_PATH so the
+	// Pin the DB path inside the test temp dir via ERINN_DB_PATH so the
 	// production code (storage.CanonicalDBPath) and the test (which opens the
 	// same path directly) agree. Without this, production would write to the
 	// real user cache dir and the test would read from the unused tmp path.
@@ -708,7 +708,7 @@ func testHgDirWithDB(t *testing.T, sessionID string) (tmpDir, hgDir string) {
 	if err := os.MkdirAll(filepath.Dir(dbPath), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	t.Setenv("HTMLGRAPH_DB_PATH", dbPath)
+	t.Setenv("ERINN_DB_PATH", dbPath)
 
 	// Open (and migrate) the DB so tables exist, then insert a session row.
 	database, err := dbpkg.Open(dbPath)
@@ -738,8 +738,8 @@ func TestFeatureStart_Idempotent(t *testing.T) {
 
 	projectDirFlag = tmpDir
 	defer func() { projectDirFlag = "" }()
-	t.Setenv("HTMLGRAPH_SESSION_ID", sessionID)
-	t.Setenv("HTMLGRAPH_CACHE_DIR", tmpDir)
+	t.Setenv("ERINN_SESSION_ID", sessionID)
+	t.Setenv("ERINN_CACHE_DIR", tmpDir)
 
 	trackID := testSetupTrack(t, hgDir)
 
@@ -814,8 +814,8 @@ func TestFeatureStart_DifferentFeatures(t *testing.T) {
 
 	projectDirFlag = tmpDir
 	defer func() { projectDirFlag = "" }()
-	t.Setenv("HTMLGRAPH_SESSION_ID", sessionID)
-	t.Setenv("HTMLGRAPH_CACHE_DIR", tmpDir)
+	t.Setenv("ERINN_SESSION_ID", sessionID)
+	t.Setenv("ERINN_CACHE_DIR", tmpDir)
 
 	trackID := testSetupTrack(t, hgDir)
 
@@ -866,8 +866,8 @@ func TestFeatureStart_ClaimWrittenOnFirstStart(t *testing.T) {
 	tmpDir, hgDir := testHgDirWithDB(t, sessionID)
 	projectDirFlag = tmpDir
 	defer func() { projectDirFlag = "" }()
-	t.Setenv("HTMLGRAPH_SESSION_ID", sessionID)
-	t.Setenv("HTMLGRAPH_CACHE_DIR", tmpDir)
+	t.Setenv("ERINN_SESSION_ID", sessionID)
+	t.Setenv("ERINN_CACHE_DIR", tmpDir)
 
 	trackID := testSetupTrack(t, hgDir)
 
@@ -912,8 +912,8 @@ func TestFeatureStart_ClaimRenewedOnRepeatStart(t *testing.T) {
 	tmpDir, hgDir := testHgDirWithDB(t, sessionID)
 	projectDirFlag = tmpDir
 	defer func() { projectDirFlag = "" }()
-	t.Setenv("HTMLGRAPH_SESSION_ID", sessionID)
-	t.Setenv("HTMLGRAPH_CACHE_DIR", tmpDir)
+	t.Setenv("ERINN_SESSION_ID", sessionID)
+	t.Setenv("ERINN_CACHE_DIR", tmpDir)
 
 	trackID := testSetupTrack(t, hgDir)
 
@@ -967,8 +967,8 @@ func TestFeatureStart_ClaimWrittenAfterExpiry(t *testing.T) {
 	tmpDir, hgDir := testHgDirWithDB(t, sessionID)
 	projectDirFlag = tmpDir
 	defer func() { projectDirFlag = "" }()
-	t.Setenv("HTMLGRAPH_SESSION_ID", sessionID)
-	t.Setenv("HTMLGRAPH_CACHE_DIR", tmpDir)
+	t.Setenv("ERINN_SESSION_ID", sessionID)
+	t.Setenv("ERINN_CACHE_DIR", tmpDir)
 
 	trackID := testSetupTrack(t, hgDir)
 
@@ -1064,8 +1064,8 @@ func TestRunWiSetStatus_ConcurrentAgents(t *testing.T) {
 	tmpDir, hgDir := testHgDirWithDB(t, sessionID)
 	projectDirFlag = tmpDir
 	defer func() { projectDirFlag = "" }()
-	t.Setenv("HTMLGRAPH_SESSION_ID", sessionID)
-	t.Setenv("HTMLGRAPH_CACHE_DIR", tmpDir)
+	t.Setenv("ERINN_SESSION_ID", sessionID)
+	t.Setenv("ERINN_CACHE_DIR", tmpDir)
 
 	trackID := testSetupTrack(t, hgDir)
 
@@ -1152,8 +1152,8 @@ func TestSubagentCanStartFeatureCreatedByDifferentAgent(t *testing.T) {
 	tmpDir, hgDir := testHgDirWithDB(t, sessionID)
 	projectDirFlag = tmpDir
 	defer func() { projectDirFlag = "" }()
-	t.Setenv("HTMLGRAPH_SESSION_ID", sessionID)
-	t.Setenv("HTMLGRAPH_CACHE_DIR", tmpDir)
+	t.Setenv("ERINN_SESSION_ID", sessionID)
+	t.Setenv("ERINN_CACHE_DIR", tmpDir)
 
 	trackID := testSetupTrack(t, hgDir)
 
@@ -1231,8 +1231,8 @@ func TestRunWiSetStatus_SubagentsDoNotStompLegacyColumn(t *testing.T) {
 	tmpDir, hgDir := testHgDirWithDB(t, sessionID)
 	projectDirFlag = tmpDir
 	defer func() { projectDirFlag = "" }()
-	t.Setenv("HTMLGRAPH_SESSION_ID", sessionID)
-	t.Setenv("HTMLGRAPH_CACHE_DIR", tmpDir)
+	t.Setenv("ERINN_SESSION_ID", sessionID)
+	t.Setenv("ERINN_CACHE_DIR", tmpDir)
 
 	trackID := testSetupTrack(t, hgDir)
 

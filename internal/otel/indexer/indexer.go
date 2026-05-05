@@ -11,9 +11,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/shakestzd/htmlgraph/internal/db"
-	"github.com/shakestzd/htmlgraph/internal/otel"
-	"github.com/shakestzd/htmlgraph/internal/otel/sink"
+	"github.com/shakestzd/erinn/internal/db"
+	"github.com/shakestzd/erinn/internal/otel"
+	"github.com/shakestzd/erinn/internal/otel/sink"
 )
 
 const pollInterval = 500 * time.Millisecond

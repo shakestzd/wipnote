@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/shakestzd/htmlgraph/internal/db"
-	"github.com/shakestzd/htmlgraph/internal/models"
+	"github.com/shakestzd/erinn/internal/db"
+	"github.com/shakestzd/erinn/internal/models"
 )
 
 // setupTestDB creates a per-test on-disk SQLite DB with schema and a session.
@@ -95,8 +95,8 @@ func TestUserPrompt_EmptyPrompt(t *testing.T) {
 	td := setupTestDB(t)
 	defer td.DB.Close()
 
-	os.Setenv("HTMLGRAPH_SESSION_ID", "test-sess")
-	defer os.Unsetenv("HTMLGRAPH_SESSION_ID")
+	os.Setenv("ERINN_SESSION_ID", "test-sess")
+	defer os.Unsetenv("ERINN_SESSION_ID")
 
 	event := &CloudEvent{SessionID: "test-sess", Prompt: ""}
 	result, err := UserPrompt(event, td.DB)
@@ -112,8 +112,8 @@ func TestUserPrompt_InsertsUserQuery(t *testing.T) {
 	td := setupTestDB(t)
 	defer td.DB.Close()
 
-	os.Setenv("HTMLGRAPH_SESSION_ID", "test-sess")
-	defer os.Unsetenv("HTMLGRAPH_SESSION_ID")
+	os.Setenv("ERINN_SESSION_ID", "test-sess")
+	defer os.Unsetenv("ERINN_SESSION_ID")
 
 	event := &CloudEvent{SessionID: "test-sess", Prompt: "implement a new API endpoint"}
 	_, err := UserPrompt(event, td.DB)
@@ -137,8 +137,8 @@ func TestUserPrompt_WithOpenItems_ReturnsAttribution(t *testing.T) {
 	td := setupTestDB(t)
 	defer td.DB.Close()
 
-	os.Setenv("HTMLGRAPH_SESSION_ID", "test-sess")
-	defer os.Unsetenv("HTMLGRAPH_SESSION_ID")
+	os.Setenv("ERINN_SESSION_ID", "test-sess")
+	defer os.Unsetenv("ERINN_SESSION_ID")
 
 	// Add features so open items exist.
 	td.addFeature("feat-aaa", "feature", "Auth System", "in-progress")
@@ -169,8 +169,8 @@ func TestUserPrompt_ImplementationWithSpike_WarnsAboutSpike(t *testing.T) {
 	td := setupTestDB(t)
 	defer td.DB.Close()
 
-	os.Setenv("HTMLGRAPH_SESSION_ID", "test-sess")
-	defer os.Unsetenv("HTMLGRAPH_SESSION_ID")
+	os.Setenv("ERINN_SESSION_ID", "test-sess")
+	defer os.Unsetenv("ERINN_SESSION_ID")
 
 	td.addFeature("spk-001", "spike", "Research caching", "in-progress")
 	_, err := td.DB.Exec(`UPDATE sessions SET active_feature_id = 'spk-001' WHERE session_id = 'test-sess'`)
@@ -196,8 +196,8 @@ func TestUserPrompt_Dedup(t *testing.T) {
 	td := setupTestDB(t)
 	defer td.DB.Close()
 
-	os.Setenv("HTMLGRAPH_SESSION_ID", "test-sess")
-	defer os.Unsetenv("HTMLGRAPH_SESSION_ID")
+	os.Setenv("ERINN_SESSION_ID", "test-sess")
+	defer os.Unsetenv("ERINN_SESSION_ID")
 
 	event := &CloudEvent{SessionID: "test-sess", Prompt: "hello world"}
 	_, err := UserPrompt(event, td.DB)
@@ -219,8 +219,8 @@ func TestUserPrompt_SanitizesXMLBlocks(t *testing.T) {
 	td := setupTestDB(t)
 	defer td.DB.Close()
 
-	os.Setenv("HTMLGRAPH_SESSION_ID", "test-sess")
-	defer os.Unsetenv("HTMLGRAPH_SESSION_ID")
+	os.Setenv("ERINN_SESSION_ID", "test-sess")
+	defer os.Unsetenv("ERINN_SESSION_ID")
 
 	prompt := "<system-reminder>internal stuff</system-reminder>implement auth"
 	event := &CloudEvent{SessionID: "test-sess", Prompt: prompt}
@@ -278,8 +278,8 @@ func TestUserPrompt_TerseAdditionalContext(t *testing.T) {
 	td := setupTestDB(t)
 	defer td.DB.Close()
 
-	os.Setenv("HTMLGRAPH_SESSION_ID", "test-sess")
-	defer os.Unsetenv("HTMLGRAPH_SESSION_ID")
+	os.Setenv("ERINN_SESSION_ID", "test-sess")
+	defer os.Unsetenv("ERINN_SESSION_ID")
 
 	// Add features
 	td.addFeature("feat-aaa", "feature", "Auth System", "in-progress")
@@ -319,8 +319,8 @@ func TestUserPrompt_ActiveOnelinerIncluded(t *testing.T) {
 	td := setupTestDB(t)
 	defer td.DB.Close()
 
-	os.Setenv("HTMLGRAPH_SESSION_ID", "test-sess")
-	defer os.Unsetenv("HTMLGRAPH_SESSION_ID")
+	os.Setenv("ERINN_SESSION_ID", "test-sess")
+	defer os.Unsetenv("ERINN_SESSION_ID")
 
 	td.addFeature("bug-xyz", "bug", "Fix login crash", "in-progress")
 	td.setActiveFeature("test-sess", "bug-xyz")
@@ -343,8 +343,8 @@ func TestUserPrompt_NoActiveNoOneliner(t *testing.T) {
 	td := setupTestDB(t)
 	defer td.DB.Close()
 
-	os.Setenv("HTMLGRAPH_SESSION_ID", "test-sess")
-	defer os.Unsetenv("HTMLGRAPH_SESSION_ID")
+	os.Setenv("ERINN_SESSION_ID", "test-sess")
+	defer os.Unsetenv("ERINN_SESSION_ID")
 
 	td.addFeature("feat-aaa", "feature", "Auth System", "in-progress")
 	// Don't set active feature

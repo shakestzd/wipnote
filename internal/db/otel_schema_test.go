@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/shakestzd/htmlgraph/internal/db"
+	"github.com/shakestzd/erinn/internal/db"
 )
 
 func TestOtelSchemaCreated(t *testing.T) {

@@ -26,7 +26,7 @@ func serveLockPath(projectDir string) string {
 // for telemetry purposes — per-session collectors handle OTLP ingest.
 //
 // Gating:
-//   - When HTMLGRAPH_OTEL_ENABLED is explicitly disabled (0/false/no/off),
+//   - When ERINN_OTEL_ENABLED is explicitly disabled (0/false/no/off),
 //     return immediately — user opted out of the full HtmlGraph stack.
 //   - When the dashboard port (8080) already accepts a TCP connection,
 //     a serve process is assumed live — return nil.
@@ -38,7 +38,7 @@ func serveLockPath(projectDir string) string {
 // Stdout/stderr go to a log file under .htmlgraph/logs so the orphaned
 // server doesn't pollute the user's terminal.
 func ensureServeForDashboard(projectDir string) {
-	if isExplicitlyDisabled(os.Getenv("HTMLGRAPH_OTEL_ENABLED")) {
+	if isExplicitlyDisabled(os.Getenv("ERINN_OTEL_ENABLED")) {
 		return
 	}
 
@@ -111,7 +111,7 @@ func MaybeShowOtelNotice(projectDir string) {
 		return
 	}
 	// Respect explicit opt-out — no need to explain what we're not doing.
-	if isExplicitlyDisabled(os.Getenv("HTMLGRAPH_OTEL_ENABLED")) {
+	if isExplicitlyDisabled(os.Getenv("ERINN_OTEL_ENABLED")) {
 		return
 	}
 	// Only print when .htmlgraph/ already exists — don't create it just
@@ -136,7 +136,7 @@ func MaybeShowOtelNotice(projectDir string) {
 		"  Data stays 100% local, stored in .htmlgraph/htmlgraph.db.",
 		"",
 		"  Powers: activity feed · per-turn cost badges · span timeline",
-		"  Opt out: set HTMLGRAPH_OTEL_ENABLED=0 before launching.",
+		"  Opt out: set ERINN_OTEL_ENABLED=0 before launching.",
 		"",
 	}, "\n")
 	fmt.Fprint(os.Stderr, notice)
@@ -190,10 +190,10 @@ func removeServeLock(projectDir string) {
 	_ = os.Remove(serveLockPath(projectDir))
 }
 
-// debugLog writes a message to stderr only when HTMLGRAPH_DEBUG is set.
+// debugLog writes a message to stderr only when ERINN_DEBUG is set.
 // Used for low-level operational tracing that should not appear in normal output.
 func debugLog(msg string) {
-	if os.Getenv("HTMLGRAPH_DEBUG") != "" {
+	if os.Getenv("ERINN_DEBUG") != "" {
 		fmt.Fprintf(os.Stderr, "htmlgraph [debug]: %s\n", msg)
 	}
 }
@@ -229,7 +229,7 @@ func spawnDetachedServe(projectDir string) error {
 	// Detach from the launcher's process group so the server survives
 	// our exit. macOS and Linux both accept Setpgid via SysProcAttr.
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	// Inherit env including HTMLGRAPH_OTEL_ENABLED so the child's
+	// Inherit env including ERINN_OTEL_ENABLED so the child's
 	// serve_child turns the receiver on.
 	cmd.Env = os.Environ()
 	if err := cmd.Start(); err != nil {

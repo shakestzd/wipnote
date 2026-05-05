@@ -694,7 +694,7 @@ func truncateStr(s string, maxLen int) string {
 // self-enforces the wall-clock timeout via time.AfterFunc.
 //
 // Stderr is never leaked to the caller's stderr — it is captured into a buffer.
-// HTMLGRAPH_AUTO_COMPLIANCE_RUNNING=1 is set in the spawned process env
+// ERINN_AUTO_COMPLIANCE_RUNNING=1 is set in the spawned process env
 // (forward-compat fork-bomb guard for a future hook plan).
 func realHeadlessInvoker(ctx context.Context, req headlessRequest) (*headlessResult, error) {
 	args := []string{
@@ -721,7 +721,7 @@ func realHeadlessInvoker(ctx context.Context, req headlessRequest) (*headlessRes
 	cmd.Stderr = &stderrBuf
 
 	// Set env with fork-bomb guard.
-	cmd.Env = append(os.Environ(), "HTMLGRAPH_AUTO_COMPLIANCE_RUNNING=1")
+	cmd.Env = append(os.Environ(), "ERINN_AUTO_COMPLIANCE_RUNNING=1")
 
 	// Self-enforced wall-clock timeout.
 	var timedOut bool

@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/shakestzd/htmlgraph/internal/db"
+	"github.com/shakestzd/erinn/internal/db"
 )
 
 // openIsolatedDB opens a file-based SQLite in a temp dir so tests

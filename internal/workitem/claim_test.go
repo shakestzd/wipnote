@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/shakestzd/htmlgraph/internal/workitem"
+	"github.com/shakestzd/erinn/internal/workitem"
 )
 
 // ---------------------------------------------------------------------------

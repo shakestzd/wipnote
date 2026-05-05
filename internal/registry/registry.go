@@ -252,7 +252,7 @@ func WriteEntriesForTest(path string, entries []Entry) error {
 //
 // Two conditions trigger a skip:
 //
-//  1. HTMLGRAPH_SKIP_REGISTER=1 env var — explicit opt-out for tests.
+//  1. ERINN_SKIP_REGISTER=1 env var — explicit opt-out for tests.
 //  2. The path is inside os.TempDir() AND a component of the path under
 //     tempdir starts with "Test" (Go's t.TempDir() naming convention:
 //     /tmp/TestFooNNNN/sub).
@@ -260,7 +260,7 @@ func WriteEntriesForTest(path string, entries []Entry) error {
 // Production paths (e.g. /workspaces/htmlgraph) are never skipped because they
 // do not live under the OS temp directory.
 func ShouldSkipRegistration(projectDir string) bool {
-	if os.Getenv("HTMLGRAPH_SKIP_REGISTER") == "1" {
+	if os.Getenv("ERINN_SKIP_REGISTER") == "1" {
 		return true
 	}
 	return isGoTestTempDirPath(projectDir)
@@ -395,7 +395,7 @@ func looksLikeRealProject(dir string) bool {
 // Before saving, callers should also call Prune.
 func (r *Registry) Upsert(dir, name, remoteURL string) {
 	dir = filepath.Clean(dir)
-	if os.Getenv("HTMLGRAPH_SKIP_REGISTER") == "1" {
+	if os.Getenv("ERINN_SKIP_REGISTER") == "1" {
 		return
 	}
 	if isGoTestTempDirPath(dir) && !pathInsideTempDir(r.path) {

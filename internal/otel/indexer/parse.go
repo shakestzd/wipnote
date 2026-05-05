@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/shakestzd/htmlgraph/internal/otel"
+	"github.com/shakestzd/erinn/internal/otel"
 )
 
 // signalLine mirrors the on-disk JSON representation written by ndjson.Sink.

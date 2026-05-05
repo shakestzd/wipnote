@@ -57,7 +57,7 @@
           "leading_diamond": "<parentBackground,background>\ue0b0</>",
           "foreground": "p:white",
           "background": "#8B5CF6",
-          "template": " {{ if .Env.HTMLGRAPH_ACTIVE }}{{ .Env.HTMLGRAPH_ACTIVE }}{{ end }} "
+          "template": " {{ if .Env.ERINN_ACTIVE }}{{ .Env.ERINN_ACTIVE }}{{ end }} "
         },
         {
           "type": "claude",

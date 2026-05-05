@@ -422,9 +422,9 @@ func TestComplianceAuto_SuccessPath(t *testing.T) {
 		t.Fatalf("write feature HTML: %v", err)
 	}
 
-	// Set up a file-based DB so runComplianceAuto can open the same DB via HTMLGRAPH_DB_PATH.
+	// Set up a file-based DB so runComplianceAuto can open the same DB via ERINN_DB_PATH.
 	dbPath := filepath.Join(tmpDir, "test-htmlgraph.db")
-	t.Setenv("HTMLGRAPH_DB_PATH", dbPath)
+	t.Setenv("ERINN_DB_PATH", dbPath)
 	db, err := dbpkg.Open(dbPath)
 	if err != nil {
 		t.Fatalf("open db: %v", err)
@@ -839,7 +839,7 @@ func TestLockfile_Concurrent(t *testing.T) {
 	}
 }
 
-// TestForkGuardEnv verifies HTMLGRAPH_AUTO_COMPLIANCE_RUNNING=1 is in request env.
+// TestForkGuardEnv verifies ERINN_AUTO_COMPLIANCE_RUNNING=1 is in request env.
 // NOTE: Cannot call t.Parallel().
 func TestForkGuardEnv(t *testing.T) {
 	envSet := false
@@ -873,13 +873,13 @@ func TestForkGuardEnv(t *testing.T) {
 	// Instead, test that the env var injection code path is correct.
 	// This is a contract test: the env var must be present in any real invocation.
 	cmd := exec.Command("env")
-	cmd.Env = append(os.Environ(), "HTMLGRAPH_AUTO_COMPLIANCE_RUNNING=1")
+	cmd.Env = append(os.Environ(), "ERINN_AUTO_COMPLIANCE_RUNNING=1")
 	out, err := cmd.Output()
 	if err != nil {
 		t.Fatalf("env command failed: %v", err)
 	}
-	if !strings.Contains(string(out), "HTMLGRAPH_AUTO_COMPLIANCE_RUNNING=1") {
-		t.Error("HTMLGRAPH_AUTO_COMPLIANCE_RUNNING=1 not found in subprocess env")
+	if !strings.Contains(string(out), "ERINN_AUTO_COMPLIANCE_RUNNING=1") {
+		t.Error("ERINN_AUTO_COMPLIANCE_RUNNING=1 not found in subprocess env")
 	}
 
 	_ = req

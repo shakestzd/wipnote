@@ -132,7 +132,7 @@ func detectHarnessWithEnv(payload []byte, getenv func(string) string) Harness {
 // "hook_event_name", "cwd", and "session_id". We map those into the CloudEvent
 // fields that downstream handlers read.
 //
-// Hardening: if HTMLGRAPH_PARENT_AGENT is set to a value other than "codex"
+// Hardening: if ERINN_PARENT_AGENT is set to a value other than "codex"
 // (e.g. "claude-code"), we use that as AgentID rather than hard-coding "codex".
 // This prevents misclassification when a stale env or mis-routed payload reaches
 // this parser for a non-Codex harness.
@@ -143,7 +143,7 @@ func parseCodexEvent(raw []byte) (*CloudEvent, error) {
 	}
 
 	agentID := "codex"
-	if parent := strings.TrimSpace(os.Getenv("HTMLGRAPH_PARENT_AGENT")); parent != "" && parent != "codex" {
+	if parent := strings.TrimSpace(os.Getenv("ERINN_PARENT_AGENT")); parent != "" && parent != "codex" {
 		agentID = parent
 	}
 

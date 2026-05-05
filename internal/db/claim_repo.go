@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/shakestzd/htmlgraph/internal/models"
+	"github.com/shakestzd/erinn/internal/models"
 )
 
 // activeStatusList returns the active claim statuses as a SQL IN-list literal.

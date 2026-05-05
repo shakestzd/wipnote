@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/shakestzd/htmlgraph/internal/models"
+	"github.com/shakestzd/erinn/internal/models"
 )
 
 // lookupAgentIDByEvent returns the agent_id of an existing event, or "" if the

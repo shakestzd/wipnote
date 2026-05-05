@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/shakestzd/htmlgraph/internal/models"
+	"github.com/shakestzd/erinn/internal/models"
 )
 
 func TestNormalizeRelationship(t *testing.T) {

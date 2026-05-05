@@ -12,12 +12,12 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/shakestzd/htmlgraph/internal/db"
-	"github.com/shakestzd/htmlgraph/internal/models"
-	"github.com/shakestzd/htmlgraph/internal/otel"
-	"github.com/shakestzd/htmlgraph/internal/otel/sink/ndjson"
-	"github.com/shakestzd/htmlgraph/internal/paths"
-	"github.com/shakestzd/htmlgraph/internal/worktree"
+	"github.com/shakestzd/erinn/internal/db"
+	"github.com/shakestzd/erinn/internal/models"
+	"github.com/shakestzd/erinn/internal/otel"
+	"github.com/shakestzd/erinn/internal/otel/sink/ndjson"
+	"github.com/shakestzd/erinn/internal/paths"
+	"github.com/shakestzd/erinn/internal/worktree"
 )
 
 // ActiveSessionData is the JSON structure written to .htmlgraph/.active-session
@@ -158,9 +158,9 @@ func SessionStart(event *CloudEvent, database *sql.DB, projectDir string) (*Hook
 	// Propagate session ID to downstream hooks while git is running.
 	writeEnvVars(sessionID, projectDir)
 
-	// Emit the Rosetta correlation event: maps launcher-minted HTMLGRAPH_SESSION_ID
+	// Emit the Rosetta correlation event: maps launcher-minted ERINN_SESSION_ID
 	// to Claude Code's own session_id so the dashboard can follow --resume flows.
-	emitRosettaEvent(projectDir, os.Getenv("HTMLGRAPH_SESSION_ID"), event.SessionID)
+	emitRosettaEvent(projectDir, os.Getenv("ERINN_SESSION_ID"), event.SessionID)
 
 	// Wait for git result — upsertSession needs the commit hash.
 	startCommit := <-commitCh
@@ -177,8 +177,8 @@ func SessionStart(event *CloudEvent, database *sql.DB, projectDir string) (*Hook
 		// These env vars are NEVER set in subagent hook contexts (confirmed via
 		// /tmp/htmlgraph-hook-trace.jsonl); lineage now flows through the
 		// subagent-start hook writing sessions+agent_lineage_trace directly.
-		ParentSessionID: os.Getenv("HTMLGRAPH_PARENT_SESSION"),
-		ParentEventID:   os.Getenv("HTMLGRAPH_PARENT_EVENT"),
+		ParentSessionID: os.Getenv("ERINN_PARENT_SESSION"),
+		ParentEventID:   os.Getenv("ERINN_PARENT_EVENT"),
 		GitRemoteURL:    paths.GetGitRemoteURL(projectDir),
 		ProjectDir:      projectDir,
 	}
@@ -425,10 +425,10 @@ func writeEnvVars(sessionID, projectDir string) {
 	defer f.Close()
 
 	lines := []string{
-		"export HTMLGRAPH_SESSION_ID=" + sessionID,
-		"export HTMLGRAPH_PARENT_SESSION=" + sessionID,
-		"export HTMLGRAPH_PARENT_AGENT=claude-code",
-		"export HTMLGRAPH_NESTING_DEPTH=0",
+		"export ERINN_SESSION_ID=" + sessionID,
+		"export ERINN_PARENT_SESSION=" + sessionID,
+		"export ERINN_PARENT_AGENT=claude-code",
+		"export ERINN_NESTING_DEPTH=0",
 	}
 	if projectDir != "" {
 		lines = append(lines, "export CLAUDE_PROJECT_DIR="+projectDir)
@@ -450,11 +450,11 @@ func headCommit(dir string) string {
 // isSubagent returns true when env vars indicate this is a spawned subagent.
 // Falls back to checking .active-session when env vars are absent (worktrees).
 func isSubagent() bool {
-	if os.Getenv("HTMLGRAPH_PARENT_SESSION") != "" {
-		return os.Getenv("HTMLGRAPH_NESTING_DEPTH") != "0"
+	if os.Getenv("ERINN_PARENT_SESSION") != "" {
+		return os.Getenv("ERINN_NESTING_DEPTH") != "0"
 	}
 	// Env vars not set — check if .active-session was written by the parent.
-	// Worktree subagents get a fresh environment so HTMLGRAPH_PARENT_SESSION
+	// Worktree subagents get a fresh environment so ERINN_PARENT_SESSION
 	// won't be propagated, but the .active-session file is project-scoped.
 	return false
 }
@@ -522,11 +522,11 @@ func buildSessionStartAttribution(database *sql.DB) string {
 }
 
 // emitRosettaEvent writes a session_start NDJSON line correlating the
-// launcher-minted HTMLGRAPH_SESSION_ID with Claude Code's own session_id.
+// launcher-minted ERINN_SESSION_ID with Claude Code's own session_id.
 // This is the "Rosetta stone" record that lets the dashboard map a
 // `claude --resume <id>` back to the originating htmlgraph session.
 //
-// The event is written only when HTMLGRAPH_SESSION_ID is set (i.e. the
+// The event is written only when ERINN_SESSION_ID is set (i.e. the
 // session was started via `htmlgraph claude`). If it is unset, or if the
 // session directory cannot be created, the function returns silently.
 func emitRosettaEvent(projectDir, htmlgraphSID, claudeSessionID string) {

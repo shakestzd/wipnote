@@ -20,7 +20,7 @@ import (
 // linked-worktree gitdir pointer. Git worktrees created on one host (macOS
 // /Users/<user>/…) and reopened on another (Linux Codespace /workspaces/…)
 // leave stale absolute paths that break every subsequent git command. If
-// HTMLGRAPH_PROJECT_DIR points at the main repo, we can rewrite the .git
+// ERINN_PROJECT_DIR points at the main repo, we can rewrite the .git
 // pointer in place so the user doesn't hit cryptic "not a git repository"
 // errors before htmlgraph even starts.
 func selfHealGitdirIfStale() {
@@ -28,7 +28,7 @@ func selfHealGitdirIfStale() {
 	if err != nil {
 		return
 	}
-	mainRoot := os.Getenv("HTMLGRAPH_PROJECT_DIR")
+	mainRoot := os.Getenv("ERINN_PROJECT_DIR")
 	if mainRoot == "" {
 		return // no reliable anchor; skip silently
 	}
@@ -418,7 +418,7 @@ func findHtmlgraphDir() (string, error) {
 // to stdout when the resolved project root differs from the current working
 // directory. Project-level mutation commands (migrate, sweep, ingest) call
 // this before touching data so the user can tell at a glance when env-var
-// resolution (HTMLGRAPH_PROJECT_DIR / CLAUDE_PROJECT_DIR) or worktree
+// resolution (ERINN_PROJECT_DIR / CLAUDE_PROJECT_DIR) or worktree
 // detection is pointing them at a different project than the one they're
 // sitting in. No-op when the user is already in the resolved project —
 // keeps normal usage silent.

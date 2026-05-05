@@ -15,7 +15,7 @@ import (
 	"os/exec"
 	"time"
 
-	dbpkg "github.com/shakestzd/htmlgraph/internal/db"
+	dbpkg "github.com/shakestzd/erinn/internal/db"
 )
 
 // ChatMessage represents a single message in the chat history.

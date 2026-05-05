@@ -15,8 +15,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/shakestzd/htmlgraph/internal/db"
-	"github.com/shakestzd/htmlgraph/internal/models"
+	"github.com/shakestzd/erinn/internal/db"
+	"github.com/shakestzd/erinn/internal/models"
 	"gopkg.in/yaml.v3"
 )
 

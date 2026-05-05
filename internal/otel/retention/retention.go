@@ -2,10 +2,10 @@
 //
 // On serve startup and every 24h it walks .htmlgraph/sessions/, finds sessions
 // whose DB status is 'completed' and whose completed_at is older than
-// HTMLGRAPH_SESSION_RETAIN_DAYS (default 30), archives events.ndjson into
+// ERINN_SESSION_RETAIN_DAYS (default 30), archives events.ndjson into
 // .htmlgraph/archive/<yyyy-mm>/<sid>.tar.gz, and removes the live session dir.
 //
-// Dry-run mode (HTMLGRAPH_RETENTION_DRYRUN=1) logs intended actions without
+// Dry-run mode (ERINN_RETENTION_DRYRUN=1) logs intended actions without
 // moving any files.
 package retention
 
@@ -69,7 +69,7 @@ func Run(database *sql.DB, htmlgraphDir string, dryRun bool) error {
 // StartLoop runs an initial retention pass at startup, then repeats every 24h.
 // It returns immediately and runs in the background until ctx is cancelled.
 func StartLoop(ctx context.Context, database *sql.DB, htmlgraphDir string) {
-	dryRun := os.Getenv("HTMLGRAPH_RETENTION_DRYRUN") == "1"
+	dryRun := os.Getenv("ERINN_RETENTION_DRYRUN") == "1"
 	go func() {
 		// Run once at startup.
 		if err := Run(database, htmlgraphDir, dryRun); err != nil {
@@ -212,9 +212,9 @@ func indexerCaughtUp(sessDir, eventsFile string) bool {
 	return offset >= info.Size()
 }
 
-// retainDaysFromEnv reads HTMLGRAPH_SESSION_RETAIN_DAYS, defaulting to 30.
+// retainDaysFromEnv reads ERINN_SESSION_RETAIN_DAYS, defaulting to 30.
 func retainDaysFromEnv() int {
-	if v := os.Getenv("HTMLGRAPH_SESSION_RETAIN_DAYS"); v != "" {
+	if v := os.Getenv("ERINN_SESSION_RETAIN_DAYS"); v != "" {
 		if n, err := strconv.Atoi(v); err == nil && n > 0 {
 			return n
 		}

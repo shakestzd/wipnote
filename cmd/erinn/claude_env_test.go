@@ -35,10 +35,10 @@ func assertEnvEmptyOrUnset(t *testing.T, env []string, key string) {
 func clearOtelEnv(t *testing.T) {
 	t.Helper()
 	for _, key := range []string{
-		"HTMLGRAPH_OTEL_ENABLED",
-		"HTMLGRAPH_OTEL_HTTP_PORT",
-		"HTMLGRAPH_OTEL_BIND",
-		"HTMLGRAPH_PROJECT_DIR",
+		"ERINN_OTEL_ENABLED",
+		"ERINN_OTEL_HTTP_PORT",
+		"ERINN_OTEL_BIND",
+		"ERINN_PROJECT_DIR",
 		"CLAUDE_PROJECT_DIR",
 		"CLAUDE_CODE_ENABLE_TELEMETRY",
 		"CLAUDE_CODE_ENHANCED_TELEMETRY_BETA",
@@ -59,7 +59,7 @@ func testOverrides(port int) *otelEnvOverrides {
 
 func TestBuildClaudeLaunchEnv_ExplicitOptOut(t *testing.T) {
 	clearOtelEnv(t)
-	t.Setenv("HTMLGRAPH_OTEL_ENABLED", "0")
+	t.Setenv("ERINN_OTEL_ENABLED", "0")
 	env := buildClaudeLaunchEnv("", nil)
 	for _, key := range []string{
 		"CLAUDE_CODE_ENABLE_TELEMETRY",
@@ -70,7 +70,7 @@ func TestBuildClaudeLaunchEnv_ExplicitOptOut(t *testing.T) {
 	}
 
 	for _, val := range []string{"false", "no", "off"} {
-		t.Setenv("HTMLGRAPH_OTEL_ENABLED", val)
+		t.Setenv("ERINN_OTEL_ENABLED", val)
 		env = buildClaudeLaunchEnv("", nil)
 		assertEnvEmptyOrUnset(t, env, "CLAUDE_CODE_ENABLE_TELEMETRY")
 	}
@@ -88,12 +88,12 @@ func TestBuildClaudeLaunchEnv_WithCollector(t *testing.T) {
 	assertEnvContains(t, env, "CLAUDE_CODE_ENABLE_TELEMETRY", "1")
 	assertEnvContains(t, env, "OTEL_TRACES_EXPORTER", "otlp")
 	assertEnvContains(t, env, "OTEL_EXPORTER_OTLP_ENDPOINT", "http://127.0.0.1:12345")
-	assertEnvContains(t, env, "HTMLGRAPH_SESSION_ID", "test-session")
+	assertEnvContains(t, env, "ERINN_SESSION_ID", "test-session")
 }
 
 func TestBuildClaudeLaunchEnv_InjectsWhenCollectorActive(t *testing.T) {
 	clearOtelEnv(t)
-	t.Setenv("HTMLGRAPH_OTEL_ENABLED", "1")
+	t.Setenv("ERINN_OTEL_ENABLED", "1")
 
 	env := buildClaudeLaunchEnv("", testOverrides(9999))
 	assertEnvContains(t, env, "CLAUDE_CODE_ENABLE_TELEMETRY", "1")
@@ -108,7 +108,7 @@ func TestBuildClaudeLaunchEnv_InjectsWhenCollectorActive(t *testing.T) {
 
 func TestBuildClaudeLaunchEnv_RespectsUserOverrides(t *testing.T) {
 	clearOtelEnv(t)
-	t.Setenv("HTMLGRAPH_OTEL_ENABLED", "1")
+	t.Setenv("ERINN_OTEL_ENABLED", "1")
 	t.Setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "https://custom.example.com:4318")
 	t.Setenv("OTEL_METRICS_EXPORTER", "console")
 	t.Setenv("OTEL_LOG_TOOL_DETAILS", "0")
@@ -122,9 +122,9 @@ func TestBuildClaudeLaunchEnv_RespectsUserOverrides(t *testing.T) {
 
 func TestBuildClaudeLaunchEnv_WorktreeProjectDir(t *testing.T) {
 	clearOtelEnv(t)
-	t.Setenv("HTMLGRAPH_PROJECT_DIR", "/old/value")
+	t.Setenv("ERINN_PROJECT_DIR", "/old/value")
 	env := buildClaudeLaunchEnv("/worktree/main/.htmlgraph", nil)
-	assertEnvContains(t, env, "HTMLGRAPH_PROJECT_DIR", "/worktree/main/.htmlgraph")
+	assertEnvContains(t, env, "ERINN_PROJECT_DIR", "/worktree/main/.htmlgraph")
 }
 
 func TestIsTruthy(t *testing.T) {

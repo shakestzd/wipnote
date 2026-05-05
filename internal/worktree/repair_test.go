@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/shakestzd/htmlgraph/internal/worktree"
+	"github.com/shakestzd/erinn/internal/worktree"
 )
 
 // TestRepairGitdirStalePath is the primary TDD test: create a real worktree,

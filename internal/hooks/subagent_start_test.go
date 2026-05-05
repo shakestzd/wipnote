@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/shakestzd/htmlgraph/internal/db"
-	"github.com/shakestzd/htmlgraph/internal/models"
+	"github.com/shakestzd/erinn/internal/db"
+	"github.com/shakestzd/erinn/internal/models"
 )
 
 // TestSubagentStart_WritesLineageRows is the bug-cb4918d8 regression test for
@@ -25,10 +25,10 @@ func TestSubagentStart_WritesLineageRows(t *testing.T) {
 	agentType := "htmlgraph:haiku-coder"
 
 	// Isolate from the dev environment.
-	t.Setenv("HTMLGRAPH_PROJECT_DIR", projectDir)
-	t.Setenv("HTMLGRAPH_SESSION_ID", parentSessionID)
-	t.Setenv("HTMLGRAPH_AGENT_ID", "claude-code")
-	t.Setenv("HTMLGRAPH_PARENT_EVENT", "")
+	t.Setenv("ERINN_PROJECT_DIR", projectDir)
+	t.Setenv("ERINN_SESSION_ID", parentSessionID)
+	t.Setenv("ERINN_AGENT_ID", "claude-code")
+	t.Setenv("ERINN_PARENT_EVENT", "")
 
 	// Seed the parent session so downstream queries don't trip FK issues.
 	if err := db.InsertSession(database, &models.Session{
@@ -91,8 +91,8 @@ func TestSubagentStart_Idempotent(t *testing.T) {
 	parentSessionID := "parent-idempotent"
 	subagentID := "subagent-idempotent"
 
-	t.Setenv("HTMLGRAPH_PROJECT_DIR", projectDir)
-	t.Setenv("HTMLGRAPH_SESSION_ID", parentSessionID)
+	t.Setenv("ERINN_PROJECT_DIR", projectDir)
+	t.Setenv("ERINN_SESSION_ID", parentSessionID)
 
 	if err := db.InsertSession(database, &models.Session{
 		SessionID: parentSessionID, AgentAssigned: "claude-code", Status: "active",
@@ -121,8 +121,8 @@ func TestSubagentStop_ClosesLineage(t *testing.T) {
 	parentSessionID := "parent-stop-test"
 	subagentID := "subagent-stop-test"
 
-	t.Setenv("HTMLGRAPH_PROJECT_DIR", projectDir)
-	t.Setenv("HTMLGRAPH_SESSION_ID", parentSessionID)
+	t.Setenv("ERINN_PROJECT_DIR", projectDir)
+	t.Setenv("ERINN_SESSION_ID", parentSessionID)
 
 	if err := db.InsertSession(database, &models.Session{
 		SessionID: parentSessionID, AgentAssigned: "claude-code", Status: "active",
@@ -174,10 +174,10 @@ func TestSubagentStart_WritesPendingSubagentRow(t *testing.T) {
 	subagentID := "subagent-pending-123"
 	agentType := "htmlgraph:haiku-coder"
 
-	t.Setenv("HTMLGRAPH_PROJECT_DIR", projectDir)
-	t.Setenv("HTMLGRAPH_SESSION_ID", parentSessionID)
-	t.Setenv("HTMLGRAPH_AGENT_ID", "claude-code")
-	t.Setenv("HTMLGRAPH_PARENT_EVENT", "")
+	t.Setenv("ERINN_PROJECT_DIR", projectDir)
+	t.Setenv("ERINN_SESSION_ID", parentSessionID)
+	t.Setenv("ERINN_AGENT_ID", "claude-code")
+	t.Setenv("ERINN_PARENT_EVENT", "")
 	t.Setenv("CLAUDE_ENV_FILE", "")
 
 	if err := db.InsertSession(database, &models.Session{
@@ -226,9 +226,9 @@ func TestSubagentStart_WritesPendingSubagentRowIdempotent(t *testing.T) {
 	parentSessionID := "parent-pending-idem"
 	subagentID := "subagent-pending-idem"
 
-	t.Setenv("HTMLGRAPH_PROJECT_DIR", projectDir)
-	t.Setenv("HTMLGRAPH_SESSION_ID", parentSessionID)
-	t.Setenv("HTMLGRAPH_AGENT_ID", "claude-code")
+	t.Setenv("ERINN_PROJECT_DIR", projectDir)
+	t.Setenv("ERINN_SESSION_ID", parentSessionID)
+	t.Setenv("ERINN_AGENT_ID", "claude-code")
 	t.Setenv("CLAUDE_ENV_FILE", "")
 
 	if err := db.InsertSession(database, &models.Session{
@@ -282,10 +282,10 @@ func TestSubagentStart_WritesOTELResourceAttributes(t *testing.T) {
 		t.Fatalf("create CLAUDE_ENV_FILE: %v", err)
 	}
 	t.Setenv("CLAUDE_ENV_FILE", envFile)
-	t.Setenv("HTMLGRAPH_PROJECT_DIR", projectDir)
-	t.Setenv("HTMLGRAPH_SESSION_ID", parentSessionID)
-	t.Setenv("HTMLGRAPH_AGENT_ID", "claude-code")
-	t.Setenv("HTMLGRAPH_PARENT_EVENT", "")
+	t.Setenv("ERINN_PROJECT_DIR", projectDir)
+	t.Setenv("ERINN_SESSION_ID", parentSessionID)
+	t.Setenv("ERINN_AGENT_ID", "claude-code")
+	t.Setenv("ERINN_PARENT_EVENT", "")
 	// Pre-set an existing OTEL_RESOURCE_ATTRIBUTES value to verify merge.
 	t.Setenv("OTEL_RESOURCE_ATTRIBUTES", "service.name=test,service.version=1.0")
 
@@ -325,7 +325,7 @@ func TestSubagentStart_WritesOTELResourceAttributes(t *testing.T) {
 }
 
 // TestSubagentStart_PreservesClaudeCodeAgentIdentity is the regression test for
-// bug-1b095c09: when HTMLGRAPH_PARENT_AGENT=codex leaks from a parent shell and
+// bug-1b095c09: when ERINN_PARENT_AGENT=codex leaks from a parent shell and
 // CLAUDE_CODE_ENTRYPOINT is set (real Claude Code session), the handler must
 // store the agent_id and agent_type from the raw payload unchanged.
 // Before the fix, parseCodexEvent was invoked (because Claude Code's payload
@@ -338,14 +338,14 @@ func TestSubagentStart_PreservesClaudeCodeAgentIdentity(t *testing.T) {
 	agentType := "htmlgraph:researcher"
 
 	// Simulate leaked Codex env — must NOT override the payload's agent_id.
-	t.Setenv("HTMLGRAPH_PARENT_AGENT", "codex")
+	t.Setenv("ERINN_PARENT_AGENT", "codex")
 	// Simulate real Claude Code hook environment.
 	t.Setenv("CLAUDE_CODE_ENTRYPOINT", "cli")
 
-	t.Setenv("HTMLGRAPH_PROJECT_DIR", projectDir)
-	t.Setenv("HTMLGRAPH_SESSION_ID", parentSessionID)
-	t.Setenv("HTMLGRAPH_AGENT_ID", "claude-code")
-	t.Setenv("HTMLGRAPH_PARENT_EVENT", "")
+	t.Setenv("ERINN_PROJECT_DIR", projectDir)
+	t.Setenv("ERINN_SESSION_ID", parentSessionID)
+	t.Setenv("ERINN_AGENT_ID", "claude-code")
+	t.Setenv("ERINN_PARENT_EVENT", "")
 	t.Setenv("CLAUDE_ENV_FILE", "")
 
 	if err := db.InsertSession(database, &models.Session{
@@ -421,8 +421,8 @@ func TestSubagentStop_MissingTraceIsNonFatal(t *testing.T) {
 	database, projectDir := setupLifecycleDB(t)
 	parentSessionID := "parent-no-trace"
 
-	t.Setenv("HTMLGRAPH_PROJECT_DIR", projectDir)
-	t.Setenv("HTMLGRAPH_SESSION_ID", parentSessionID)
+	t.Setenv("ERINN_PROJECT_DIR", projectDir)
+	t.Setenv("ERINN_SESSION_ID", parentSessionID)
 
 	if err := db.InsertSession(database, &models.Session{
 		SessionID: parentSessionID, AgentAssigned: "claude-code", Status: "active",

@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
-	"github.com/shakestzd/htmlgraph/internal/db"
+	"github.com/shakestzd/erinn/internal/db"
 )
 
 // OrphanThreshold is the minimum age a tool-call row must reach before the

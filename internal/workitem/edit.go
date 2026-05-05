@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/shakestzd/htmlgraph/internal/models"
+	"github.com/shakestzd/erinn/internal/models"
 )
 
 // EditBuilder provides a fluent API for modifying an existing work item.

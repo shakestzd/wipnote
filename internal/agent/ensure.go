@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/shakestzd/htmlgraph/internal/paths"
+	"github.com/shakestzd/erinn/internal/paths"
 )
 
 // EnsureSession ensures a session row exists in the database for the current
@@ -19,7 +19,7 @@ import (
 // Cold path:  session missing → INSERT OR IGNORE + .active-session write.
 // Transient:  "cli-*" sessions skip DB entirely (human CLI usage).
 //
-// On success (non-transient), os.Setenv("HTMLGRAPH_SESSION_ID", sessionID) is
+// On success (non-transient), os.Setenv("ERINN_SESSION_ID", sessionID) is
 // called so that downstream EnvSessionID() calls work automatically.
 func EnsureSession(database *sql.DB, projectDir string) (string, error) {
 	sessionID := ResolveSessionID(projectDir)
@@ -40,7 +40,7 @@ func EnsureSession(database *sql.DB, projectDir string) (string, error) {
 		return sessionID, err
 	}
 	if count > 0 {
-		os.Setenv("HTMLGRAPH_SESSION_ID", sessionID) //nolint:errcheck
+		os.Setenv("ERINN_SESSION_ID", sessionID) //nolint:errcheck
 		return sessionID, nil
 	}
 
@@ -69,7 +69,7 @@ func EnsureSession(database *sql.DB, projectDir string) (string, error) {
 	// are required; we populate the full struct for forward-compatibility.
 	writeEnsuredActiveSession(sessionID, projectDir, info.ID)
 
-	os.Setenv("HTMLGRAPH_SESSION_ID", sessionID) //nolint:errcheck
+	os.Setenv("ERINN_SESSION_ID", sessionID) //nolint:errcheck
 	return sessionID, nil
 }
 

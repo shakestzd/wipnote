@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/shakestzd/htmlgraph/internal/models"
+	"github.com/shakestzd/erinn/internal/models"
 )
 
 func TestNodeJSONRoundTrip(t *testing.T) {

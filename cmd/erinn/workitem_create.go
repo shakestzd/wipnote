@@ -160,7 +160,7 @@ func runWiCreate(typeName, title string, o *wiCreateOpts) error {
 		// Update per-agent attribution so the status line reflects the
 		// newly-started work item (mirrors runWiSetStatus logic).
 		if sessionID != "" && p.DB != nil {
-			agentID := dbpkg.NormaliseAgentID(os.Getenv("HTMLGRAPH_AGENT_ID"))
+			agentID := dbpkg.NormaliseAgentID(os.Getenv("ERINN_AGENT_ID"))
 			_ = dbpkg.SetActiveWorkItem(p.DB, sessionID, agentID, node.ID)
 			// Legacy dual-write for consumers not yet reading active_work_items.
 			_ = hooks.UpdateActiveFeature(p.DB, sessionID, node.ID)

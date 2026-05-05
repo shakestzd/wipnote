@@ -8,13 +8,13 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/shakestzd/htmlgraph/internal/agent"
+	"github.com/shakestzd/erinn/internal/agent"
 )
 
 // --- Detect tests ---
 
 func TestDetect_ExplicitAgentID(t *testing.T) {
-	t.Setenv("HTMLGRAPH_AGENT_ID", "codex")
+	t.Setenv("ERINN_AGENT_ID", "codex")
 	t.Setenv("CLAUDE_CODE", "")
 	t.Setenv("CLAUDE_MODEL", "")
 	info := agent.Detect()
@@ -24,7 +24,7 @@ func TestDetect_ExplicitAgentID(t *testing.T) {
 }
 
 func TestDetect_ClaudeCode(t *testing.T) {
-	t.Setenv("HTMLGRAPH_AGENT_ID", "")
+	t.Setenv("ERINN_AGENT_ID", "")
 	t.Setenv("CLAUDE_CODE", "1")
 	t.Setenv("CLAUDECODE", "")
 	t.Setenv("CLAUDE_MODEL", "")
@@ -40,7 +40,7 @@ func TestDetect_ClaudeCode(t *testing.T) {
 // agent_events CHECK constraint then rejected for every non-UserQuery
 // tool_call insert, blinding the research-first yolo guard.
 func TestDetect_ClaudeCodeNoUnderscore(t *testing.T) {
-	t.Setenv("HTMLGRAPH_AGENT_ID", "")
+	t.Setenv("ERINN_AGENT_ID", "")
 	t.Setenv("CLAUDE_CODE", "")
 	t.Setenv("CLAUDECODE", "1")
 	t.Setenv("CLAUDE_MODEL", "")
@@ -51,7 +51,7 @@ func TestDetect_ClaudeCodeNoUnderscore(t *testing.T) {
 }
 
 func TestDetect_Human(t *testing.T) {
-	t.Setenv("HTMLGRAPH_AGENT_ID", "")
+	t.Setenv("ERINN_AGENT_ID", "")
 	t.Setenv("CLAUDE_CODE", "")
 	t.Setenv("CLAUDECODE", "")
 	t.Setenv("CLAUDE_MODEL", "")
@@ -62,7 +62,7 @@ func TestDetect_Human(t *testing.T) {
 }
 
 func TestDetect_Model(t *testing.T) {
-	t.Setenv("HTMLGRAPH_AGENT_ID", "")
+	t.Setenv("ERINN_AGENT_ID", "")
 	t.Setenv("CLAUDE_CODE", "")
 	t.Setenv("CLAUDE_MODEL", "opus-4")
 	info := agent.Detect()
@@ -72,20 +72,20 @@ func TestDetect_Model(t *testing.T) {
 }
 
 func TestDetect_Priority(t *testing.T) {
-	// HTMLGRAPH_AGENT_ID must win over CLAUDE_CODE
-	t.Setenv("HTMLGRAPH_AGENT_ID", "codex")
+	// ERINN_AGENT_ID must win over CLAUDE_CODE
+	t.Setenv("ERINN_AGENT_ID", "codex")
 	t.Setenv("CLAUDE_CODE", "1")
 	t.Setenv("CLAUDE_MODEL", "")
 	info := agent.Detect()
 	if info.ID != "codex" {
-		t.Errorf("got ID=%q, want %q (HTMLGRAPH_AGENT_ID should win)", info.ID, "codex")
+		t.Errorf("got ID=%q, want %q (ERINN_AGENT_ID should win)", info.ID, "codex")
 	}
 }
 
 // --- ResolveSessionID tests ---
 
 func TestResolveSessionID_ExplicitEnv(t *testing.T) {
-	t.Setenv("HTMLGRAPH_SESSION_ID", "abc")
+	t.Setenv("ERINN_SESSION_ID", "abc")
 	t.Setenv("CLAUDE_SESSION_ID", "")
 	result := agent.ResolveSessionID(t.TempDir())
 	if result != "abc" {
@@ -95,7 +95,7 @@ func TestResolveSessionID_ExplicitEnv(t *testing.T) {
 
 func TestResolveSessionID_ClaudeSessionID(t *testing.T) {
 	testUUID := "550e8400-e29b-41d4-a716-446655440000"
-	t.Setenv("HTMLGRAPH_SESSION_ID", "")
+	t.Setenv("ERINN_SESSION_ID", "")
 	t.Setenv("CLAUDE_SESSION_ID", "/mock/claude-501/-Users-testuser-/"+testUUID)
 	result := agent.ResolveSessionID(t.TempDir())
 	if result != testUUID {
@@ -104,7 +104,7 @@ func TestResolveSessionID_ClaudeSessionID(t *testing.T) {
 }
 
 func TestResolveSessionID_ActiveSessionFile(t *testing.T) {
-	t.Setenv("HTMLGRAPH_SESSION_ID", "")
+	t.Setenv("ERINN_SESSION_ID", "")
 	t.Setenv("CLAUDE_SESSION_ID", "")
 
 	dir := t.TempDir()
@@ -133,7 +133,7 @@ func TestResolveSessionID_ActiveSessionFile(t *testing.T) {
 }
 
 func TestResolveSessionID_GeneratesCLI(t *testing.T) {
-	t.Setenv("HTMLGRAPH_SESSION_ID", "")
+	t.Setenv("ERINN_SESSION_ID", "")
 	t.Setenv("CLAUDE_SESSION_ID", "")
 	// Use a temp dir with no .active-session file
 	result := agent.ResolveSessionID(t.TempDir())

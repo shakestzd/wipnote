@@ -36,7 +36,7 @@ func appendOrReplaceEnv(env []string, kv ...string) []string {
 // spawnCodexOtelCollector spawns a per-session OTel collector and returns the
 // port, session ID, and a cleanup function. On failure it writes a warning to
 // stderr and returns zero port / nil cleanup so the caller can proceed without
-// telemetry. Exits non-zero when HTMLGRAPH_OTEL_STRICT=1 and spawn fails.
+// telemetry. Exits non-zero when ERINN_OTEL_STRICT=1 and spawn fails.
 func spawnCodexOtelCollector(projectDir string) (port int, sessionID string, cleanup func()) {
 	binPath, err := os.Executable()
 	if err != nil {
@@ -47,13 +47,13 @@ func spawnCodexOtelCollector(projectDir string) (port int, sessionID string, cle
 	sessionID = generateOtelSessionID()
 	lc := collector.NewProcessCollector(collector.ProcessCollectorOpts{
 		Stderr:     os.Stderr,
-		StrictMode: os.Getenv("HTMLGRAPH_OTEL_STRICT") == "1",
+		StrictMode: os.Getenv("ERINN_OTEL_STRICT") == "1",
 	})
 
 	spawnedPort, spawnCleanup, spawnErr := lc.Spawn(binPath, sessionID, projectDir)
 	if spawnErr != nil {
 		fmt.Fprintf(os.Stderr, "htmlgraph: FATAL: codex collector spawn failed: %v\n", spawnErr)
-		if os.Getenv("HTMLGRAPH_OTEL_STRICT") == "1" {
+		if os.Getenv("ERINN_OTEL_STRICT") == "1" {
 			os.Exit(1)
 		}
 		return 0, "", nil
@@ -76,7 +76,7 @@ func buildCodexOtelEnv(base []string, port int, sessionID string) []string {
 		"OTEL_EXPORTER_OTLP_ENDPOINT="+endpoint,
 		"OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf",
 		"OTEL_SERVICE_NAME=codex-cli",
-		"HTMLGRAPH_OTEL_SESSION="+sessionID,
+		"ERINN_OTEL_SESSION="+sessionID,
 	)
 	return env
 }

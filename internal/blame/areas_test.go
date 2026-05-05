@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/shakestzd/htmlgraph/internal/blame"
+	"github.com/shakestzd/erinn/internal/blame"
 )
 
 // boolPtr is a test helper to get a *bool from a literal.

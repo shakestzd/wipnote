@@ -130,13 +130,13 @@ type geminiLaunchOpts struct {
 	// ExtraArgs are forwarded to the gemini process.
 	ExtraArgs []string
 	// ProjectRoot is the absolute path to the project root (or worktree path).
-	// When set, gemini is started in this directory and HTMLGRAPH_PROJECT_DIR is injected.
+	// When set, gemini is started in this directory and ERINN_PROJECT_DIR is injected.
 	ProjectRoot string
 	// WorktreeRoot, when non-empty, overrides the working directory for the
-	// Gemini process. HTMLGRAPH_PROJECT_DIR is set to HtmlgraphRoot instead.
+	// Gemini process. ERINN_PROJECT_DIR is set to HtmlgraphRoot instead.
 	WorktreeRoot string
 	// HtmlgraphRoot is the canonical project root containing .htmlgraph/.
-	// Used to set HTMLGRAPH_PROJECT_DIR when running in a worktree.
+	// Used to set ERINN_PROJECT_DIR when running in a worktree.
 	HtmlgraphRoot string
 	// DryRun, when true, prints the command that would be executed without running it.
 	DryRun bool
@@ -245,7 +245,7 @@ func execGemini(opts geminiLaunchOpts) error {
 	var otelPort int
 	var otelSessionID string
 	var otelCleanup func()
-	if effectiveProjDir != "" && !isExplicitlyDisabled(os.Getenv("HTMLGRAPH_OTEL_ENABLED")) {
+	if effectiveProjDir != "" && !isExplicitlyDisabled(os.Getenv("ERINN_OTEL_ENABLED")) {
 		otelPort, otelSessionID, otelCleanup = spawnGeminiOtelCollector(effectiveProjDir)
 		if otelCleanup != nil {
 			defer otelCleanup()
@@ -257,11 +257,11 @@ func execGemini(opts geminiLaunchOpts) error {
 	c.Stdout = os.Stdout
 	c.Stderr = os.Stderr
 
-	// Build the child env: start from os.Environ, inject HTMLGRAPH_PROJECT_DIR,
-	// HTMLGRAPH_AGENT, GEMINI_SYSTEM_MD, and OTel exporter vars when a collector
+	// Build the child env: start from os.Environ, inject ERINN_PROJECT_DIR,
+	// ERINN_AGENT, GEMINI_SYSTEM_MD, and OTel exporter vars when a collector
 	// was spawned.
 	// When WorktreeRoot is set, the process runs in the worktree but
-	// HTMLGRAPH_PROJECT_DIR points to the canonical project root (HtmlgraphRoot).
+	// ERINN_PROJECT_DIR points to the canonical project root (HtmlgraphRoot).
 	env := os.Environ()
 	switch {
 	case opts.WorktreeRoot != "":
@@ -269,13 +269,13 @@ func execGemini(opts geminiLaunchOpts) error {
 		if projectDir == "" {
 			projectDir = opts.ProjectRoot
 		}
-		env = setOrReplaceEnv(env, "HTMLGRAPH_PROJECT_DIR", projectDir)
+		env = setOrReplaceEnv(env, "ERINN_PROJECT_DIR", projectDir)
 		c.Dir = opts.WorktreeRoot
 	case opts.ProjectRoot != "":
-		env = setOrReplaceEnv(env, "HTMLGRAPH_PROJECT_DIR", opts.ProjectRoot)
+		env = setOrReplaceEnv(env, "ERINN_PROJECT_DIR", opts.ProjectRoot)
 		c.Dir = opts.ProjectRoot
 	}
-	env = append(env, "HTMLGRAPH_AGENT=gemini")
+	env = append(env, "ERINN_AGENT=gemini")
 	env = append(env, "GEMINI_SYSTEM_MD="+systemMdPath)
 	env = buildGeminiOtelEnv(env, otelPort, otelSessionID)
 	c.Env = env

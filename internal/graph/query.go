@@ -1,7 +1,7 @@
 package graph
 
 import (
-	"github.com/shakestzd/htmlgraph/internal/models"
+	"github.com/shakestzd/erinn/internal/models"
 )
 
 // ByStatus filters nodes by status.

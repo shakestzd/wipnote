@@ -59,7 +59,7 @@ func retrySpawnCollector(binPath, sessionID, projectDir string, maxAttempts int,
 // in procPtr. On death it respawns on originalPort and stores the new
 // process. The returned stop func blocks until the goroutine exits.
 func startCollectorWatchdog(procPtr *atomic.Pointer[os.Process], originalPort int, binPath, sessionID, projectDir string, warnW io.Writer) func() {
-	return collector.StartWatchdog(procPtr, originalPort, binPath, sessionID, projectDir, warnW, spawnCollectorFn, "HTMLGRAPH_OTEL_WATCHDOG_INTERVAL")
+	return collector.StartWatchdog(procPtr, originalPort, binPath, sessionID, projectDir, warnW, spawnCollectorFn, "ERINN_OTEL_WATCHDOG_INTERVAL")
 }
 
 // writeCollectorPID writes the collector PID to the session directory.
@@ -72,7 +72,7 @@ func writeCollectorPID(projectDir, sessionID string, pid int) {
 // constructs a ProcessCollector configured with the package-level
 // spawnCollectorFn (so tests can inject fakes via that variable) and calls
 // Spawn. On spawn failure, returns an empty overrides and wantExit=true
-// when HTMLGRAPH_OTEL_STRICT=1.
+// when ERINN_OTEL_STRICT=1.
 func spawnSessionCollectorTo(projectDir, binPath string, errW io.Writer) (otelEnvOverrides, bool) {
 	sessionID := generateOtelSessionID()
 	pc := collector.NewProcessCollector(collector.ProcessCollectorOpts{
@@ -82,7 +82,7 @@ func spawnSessionCollectorTo(projectDir, binPath string, errW io.Writer) (otelEn
 
 	port, cleanup, err := pc.Spawn(binPath, sessionID, projectDir)
 	if err != nil {
-		wantExit := os.Getenv("HTMLGRAPH_OTEL_STRICT") == "1"
+		wantExit := os.Getenv("ERINN_OTEL_STRICT") == "1"
 		return otelEnvOverrides{}, wantExit
 	}
 
@@ -96,7 +96,7 @@ func spawnSessionCollectorTo(projectDir, binPath string, errW io.Writer) (otelEn
 // spawnSessionCollector generates a session ID, spawns a per-session
 // collector, writes the PID file, and returns a cleanup function.
 // On spawn failure emits a FATAL line to stderr; exits non-zero when
-// HTMLGRAPH_OTEL_STRICT=1. Silent-fail is preserved when the binary
+// ERINN_OTEL_STRICT=1. Silent-fail is preserved when the binary
 // path cannot be resolved (soft precondition).
 func spawnSessionCollector(projectDir string) otelEnvOverrides {
 	binPath, err := os.Executable()

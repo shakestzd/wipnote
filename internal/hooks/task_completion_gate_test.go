@@ -67,7 +67,7 @@ func TestTaskCompleted_FlagOff_NeverBlocks(t *testing.T) {
 	projectDir := t.TempDir()
 	os.MkdirAll(filepath.Join(projectDir, ".htmlgraph"), 0o755)
 	os.WriteFile(filepath.Join(projectDir, "go.mod"), []byte("module test\n"), 0o644)
-	t.Setenv("HTMLGRAPH_PROJECT_DIR", projectDir)
+	t.Setenv("ERINN_PROJECT_DIR", projectDir)
 
 	event := &CloudEvent{
 		SessionID: sessionID,
@@ -108,7 +108,7 @@ func TestTaskCompleted_FlagOn_BlocksOnFailure(t *testing.T) {
 	os.WriteFile(filepath.Join(projectDir, "go.mod"), []byte("module test\n"), 0o644)
 	data, _ := json.Marshal(map[string]any{"block_task_completion_on_quality_failure": true})
 	os.WriteFile(filepath.Join(cfgDir, "config.json"), data, 0o644)
-	t.Setenv("HTMLGRAPH_PROJECT_DIR", projectDir)
+	t.Setenv("ERINN_PROJECT_DIR", projectDir)
 
 	event := &CloudEvent{
 		SessionID: sessionID,

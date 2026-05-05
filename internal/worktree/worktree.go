@@ -16,8 +16,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/shakestzd/htmlgraph/internal/htmlparse"
-	"github.com/shakestzd/htmlgraph/internal/slug"
+	"github.com/shakestzd/erinn/internal/htmlparse"
+	"github.com/shakestzd/erinn/internal/slug"
 )
 
 // RepairGitdirIfStale checks whether the current directory is a linked git
@@ -31,7 +31,7 @@ import (
 // gitdir is already valid or CWD is not a linked worktree, and (false, err)
 // on unexpected I/O errors.
 //
-// Use this at CLI entry when HTMLGRAPH_PROJECT_DIR is known — the helper is
+// Use this at CLI entry when ERINN_PROJECT_DIR is known — the helper is
 // intentionally conservative: it only rewrites when it can locate both the
 // stale gitdir reference AND the expected correct path under the provided
 // mainRepoRoot. Anything ambiguous is left alone.

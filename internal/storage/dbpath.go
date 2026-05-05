@@ -31,10 +31,10 @@ const DBFileName = "htmlgraph.db"
 // are the canonical store. Losing the cache file is harmless — the
 // indexer rebuilds it.
 //
-// Override with HTMLGRAPH_DB_PATH for CI, tests, or unusual setups.
+// Override with ERINN_DB_PATH for CI, tests, or unusual setups.
 // All callers MUST use this; do not construct DB paths inline.
 func CanonicalDBPath(projectDir string) (string, error) {
-	if override := os.Getenv("HTMLGRAPH_DB_PATH"); override != "" {
+	if override := os.Getenv("ERINN_DB_PATH"); override != "" {
 		return override, nil
 	}
 	abs, err := filepath.Abs(projectDir)
@@ -55,7 +55,7 @@ func CanonicalDBPath(projectDir string) (string, error) {
 	}
 	sum := sha256.Sum256([]byte(abs))
 	key := hex.EncodeToString(sum[:])[:16]
-	return filepath.Join(cache, "htmlgraph", key, DBFileName), nil
+	return filepath.Join(cache, "erinn", key, DBFileName), nil
 }
 
 // LegacyProjectDBPaths returns the two pre-cache-migration project-local
@@ -125,7 +125,7 @@ func CleanLegacyDBIfSafe(projectDir string, w io.Writer) {
 		}
 		if canonicalReady {
 			// Guard: if canonical path refers to this same file, skip removal.
-			// (User has explicitly set HTMLGRAPH_DB_PATH to a legacy path.)
+			// (User has explicitly set ERINN_DB_PATH to a legacy path.)
 			if legacyResolved := sameFileCheck(p, canonicalResolved); legacyResolved {
 				anyLegacySkipped = true
 				continue

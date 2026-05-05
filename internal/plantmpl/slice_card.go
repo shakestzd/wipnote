@@ -8,7 +8,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/shakestzd/htmlgraph/internal/planyaml"
+	"github.com/shakestzd/erinn/internal/planyaml"
 )
 
 // mdStripRe matches common inline Markdown formatting tokens for stripping.

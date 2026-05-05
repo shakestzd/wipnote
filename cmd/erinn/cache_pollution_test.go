@@ -15,9 +15,9 @@ import (
 //
 // Each call to storage.CanonicalDBPath with a unique project dir would
 // previously create a fresh subdirectory under the user's real
-// ~/.cache/htmlgraph, causing thousands of cache entries and gigabytes of
+// ~/.cache/erinn, causing thousands of cache entries and gigabytes of
 // disk usage after a single test run. TestMain (testmain_test.go) now sets
-// HTMLGRAPH_DB_PATH to a process-scoped temp dir before tests run, so
+// ERINN_DB_PATH to a process-scoped temp dir before tests run, so
 // CanonicalDBPath always returns the override and never touches the real cache.
 //
 // This test verifies that invariant: after calling CanonicalDBPath with
@@ -25,7 +25,7 @@ import (
 // subdirectories.
 func TestNoCachePollution(t *testing.T) {
 	// Get the real user cache dir. Because TestMain has already set
-	// HTMLGRAPH_DB_PATH, we must read the cache location directly from the OS
+	// ERINN_DB_PATH, we must read the cache location directly from the OS
 	// rather than going through CanonicalDBPath.
 	realCacheDir, err := os.UserCacheDir()
 	if err != nil {
@@ -49,7 +49,7 @@ func TestNoCachePollution(t *testing.T) {
 		// Verify the returned path is NOT under the real OS cache dir —
 		// it should be under the temp dir set by TestMain.
 		if strings.HasPrefix(got, htmlgraphCacheDir) {
-			t.Errorf("CanonicalDBPath(%q) = %q: path is under real cache dir %q (HTMLGRAPH_DB_PATH not set?)",
+			t.Errorf("CanonicalDBPath(%q) = %q: path is under real cache dir %q (ERINN_DB_PATH not set?)",
 				projectDir, got, htmlgraphCacheDir)
 		}
 	}
@@ -57,7 +57,7 @@ func TestNoCachePollution(t *testing.T) {
 	// Count subdirs after — must not have grown.
 	after := countSubdirs(t, htmlgraphCacheDir)
 	if after > before {
-		t.Errorf("real cache dir %q grew by %d subdirs during test (before=%d after=%d): HTMLGRAPH_DB_PATH redirect is not working",
+		t.Errorf("real cache dir %q grew by %d subdirs during test (before=%d after=%d): ERINN_DB_PATH redirect is not working",
 			htmlgraphCacheDir, after-before, before, after)
 	}
 }

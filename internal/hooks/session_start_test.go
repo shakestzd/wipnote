@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/shakestzd/htmlgraph/internal/db"
-	"github.com/shakestzd/htmlgraph/internal/models"
+	"github.com/shakestzd/erinn/internal/db"
+	"github.com/shakestzd/erinn/internal/models"
 )
 
 func TestSessionStartStoresProjectDir(t *testing.T) {
@@ -31,8 +31,8 @@ func TestSessionStartStoresProjectDir(t *testing.T) {
 
 	// Unset env vars that would override session ID or mark this as a subagent.
 	t.Setenv("CLAUDE_SESSION_ID", "")
-	t.Setenv("HTMLGRAPH_PARENT_SESSION", "")
-	t.Setenv("HTMLGRAPH_NESTING_DEPTH", "")
+	t.Setenv("ERINN_PARENT_SESSION", "")
+	t.Setenv("ERINN_NESTING_DEPTH", "")
 	t.Setenv("CLAUDE_ENV_FILE", "") // prevent writing to a real env file
 
 	_, err = SessionStart(event, database, projectDir)
@@ -68,8 +68,8 @@ func TestSessionStartActiveSessionContainsProjectDir(t *testing.T) {
 	event := &CloudEvent{SessionID: sessionID, CWD: projectDir}
 
 	t.Setenv("CLAUDE_SESSION_ID", "")
-	t.Setenv("HTMLGRAPH_PARENT_SESSION", "")
-	t.Setenv("HTMLGRAPH_NESTING_DEPTH", "")
+	t.Setenv("ERINN_PARENT_SESSION", "")
+	t.Setenv("ERINN_NESTING_DEPTH", "")
 	t.Setenv("CLAUDE_ENV_FILE", "") // force fallback to .active-session
 
 	_, err = SessionStart(event, database, projectDir)
@@ -165,7 +165,7 @@ func TestSessionStartWorktreeParentSessionIDPopulated(t *testing.T) {
 // HTML to whichever project the user was sitting in at the moment.
 //
 // Fix: ResolveProjectDir now prefers CLAUDE_PROJECT_DIR (set at session launch)
-// over EventCWD walk-up, gated on HTMLGRAPH_SESSION_ID being present.
+// over EventCWD walk-up, gated on ERINN_SESSION_ID being present.
 func TestSessionStart_PrefersClaudeProjectDirOverCWD(t *testing.T) {
 	// Project A: where Claude Code was launched (CLAUDE_PROJECT_DIR).
 	projectA := t.TempDir()
@@ -180,13 +180,13 @@ func TestSessionStart_PrefersClaudeProjectDirOverCWD(t *testing.T) {
 	}
 
 	// Simulate the session environment: CLAUDE_PROJECT_DIR points at A,
-	// HTMLGRAPH_SESSION_ID confirms this is a live session (not a stale shell var).
+	// ERINN_SESSION_ID confirms this is a live session (not a stale shell var).
 	const testSessionID = "regression-bug-71fc095f"
 	t.Setenv("CLAUDE_PROJECT_DIR", projectA)
-	t.Setenv("HTMLGRAPH_SESSION_ID", testSessionID)
-	t.Setenv("HTMLGRAPH_PROJECT_DIR", "")
-	t.Setenv("HTMLGRAPH_PARENT_SESSION", "")
-	t.Setenv("HTMLGRAPH_NESTING_DEPTH", "")
+	t.Setenv("ERINN_SESSION_ID", testSessionID)
+	t.Setenv("ERINN_PROJECT_DIR", "")
+	t.Setenv("ERINN_PARENT_SESSION", "")
+	t.Setenv("ERINN_NESTING_DEPTH", "")
 	t.Setenv("CLAUDE_SESSION_ID", "")
 	t.Setenv("CLAUDE_ENV_FILE", "") // prevent real env file writes
 
@@ -282,8 +282,8 @@ func TestSessionStartIncludesFullAttribution(t *testing.T) {
 	event := &CloudEvent{SessionID: sessionID, CWD: projectDir}
 
 	t.Setenv("CLAUDE_SESSION_ID", "")
-	t.Setenv("HTMLGRAPH_PARENT_SESSION", "")
-	t.Setenv("HTMLGRAPH_NESTING_DEPTH", "")
+	t.Setenv("ERINN_PARENT_SESSION", "")
+	t.Setenv("ERINN_NESTING_DEPTH", "")
 	t.Setenv("CLAUDE_ENV_FILE", "")
 
 	result, err := SessionStart(event, database, projectDir)
@@ -337,8 +337,8 @@ func TestSessionStartNoOpenItemsNonBareLaunch(t *testing.T) {
 	event := &CloudEvent{SessionID: sessionID, CWD: projectDir}
 
 	t.Setenv("CLAUDE_SESSION_ID", "")
-	t.Setenv("HTMLGRAPH_PARENT_SESSION", "")
-	t.Setenv("HTMLGRAPH_NESTING_DEPTH", "")
+	t.Setenv("ERINN_PARENT_SESSION", "")
+	t.Setenv("ERINN_NESTING_DEPTH", "")
 	t.Setenv("CLAUDE_ENV_FILE", "")
 
 	// Simulate a non-bare launch: write .launch-mode with a recent timestamp
@@ -382,8 +382,8 @@ func TestSessionStartNoOpenItemsBareLaunch(t *testing.T) {
 	event := &CloudEvent{SessionID: sessionID, CWD: projectDir}
 
 	t.Setenv("CLAUDE_SESSION_ID", "")
-	t.Setenv("HTMLGRAPH_PARENT_SESSION", "")
-	t.Setenv("HTMLGRAPH_NESTING_DEPTH", "")
+	t.Setenv("ERINN_PARENT_SESSION", "")
+	t.Setenv("ERINN_NESTING_DEPTH", "")
 	t.Setenv("CLAUDE_ENV_FILE", "")
 
 	// Do NOT write .launch-mode, or write it with an old timestamp so

@@ -12,9 +12,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/shakestzd/htmlgraph/internal/agent"
-	"github.com/shakestzd/htmlgraph/internal/paths"
-	"github.com/shakestzd/htmlgraph/internal/storage"
+	"github.com/shakestzd/erinn/internal/agent"
+	"github.com/shakestzd/erinn/internal/paths"
+	"github.com/shakestzd/erinn/internal/storage"
 )
 
 // CloudEvent is the JSON payload Claude Code sends to every hook via stdin.
@@ -164,7 +164,7 @@ func IsHtmlGraphProject(projectDir string) bool {
 //
 // Returns an error when os.UserCacheDir() fails. There is intentionally no
 // silent fallback to a project-local path: a fallback caused bug-62f14f8c
-// where the indexer wrote to ~/.cache/htmlgraph/<hash>/htmlgraph.db while
+// where the indexer wrote to ~/.cache/erinn/<hash>/htmlgraph.db while
 // the YOLO PreToolUse gate read .htmlgraph/.db/htmlgraph.db, leaving the
 // gate's view of agent_events permanently stale. Callers must propagate
 // the error (typically by skipping the hook with the configured fallback).
@@ -181,7 +181,7 @@ func NormaliseSessionID(raw string) string {
 
 // EnvSessionID returns the current session ID using a three-step fallback:
 //  1. CloudEvent session_id (always correct for hook invocations)
-//  2. HTMLGRAPH_SESSION_ID env var (for CLI commands without a CloudEvent)
+//  2. ERINN_SESSION_ID env var (for CLI commands without a CloudEvent)
 //  3. .htmlgraph/.active-session file (last resort for edge cases)
 func EnvSessionID(eventSessionID string) string {
 	// CloudEvent session_id is always correct for this hook invocation.
@@ -191,7 +191,7 @@ func EnvSessionID(eventSessionID string) string {
 		return sid
 	}
 	// Env var fallback — used by CLI commands that don't have a CloudEvent.
-	if v := os.Getenv("HTMLGRAPH_SESSION_ID"); v != "" {
+	if v := os.Getenv("ERINN_SESSION_ID"); v != "" {
 		return v
 	}
 	// Last resort: .active-session file.
@@ -208,7 +208,7 @@ func EnvSessionID(eventSessionID string) string {
 // resolveSessionIDWithHarness resolves the session ID using harness-aware logic.
 // All harnesses prefer the CloudEvent.SessionID from the payload and avoid env
 // var fallback when the payload carries a session_id. This prevents
-// HTMLGRAPH_SESSION_ID leaking from a parent Claude orchestrator shell into
+// ERINN_SESSION_ID leaking from a parent Claude orchestrator shell into
 // Task-spawned subagent hook invocations (bug fixed for Claude here; Codex and
 // Gemini already had this protection).
 func resolveSessionIDWithHarness(event *CloudEvent) string {

@@ -54,7 +54,7 @@ type LaunchOpts struct {
 	ProjectRoot string
 	// HtmlgraphRoot, if set, is the main repo root containing the canonical .htmlgraph/.
 	// Used when ProjectRoot is a worktree — all work item tracking resolves to this path
-	// instead of the worktree copy. Injected as HTMLGRAPH_PROJECT_DIR env var.
+	// instead of the worktree copy. Injected as ERINN_PROJECT_DIR env var.
 	HtmlgraphRoot string
 }
 
@@ -497,7 +497,7 @@ func launchClaude(opts LaunchOpts) error {
 	// exposes an ephemeral OTLP HTTP port. Non-fatal: on failure, the
 	// existing serve-based receiver is used as fallback.
 	var envOverrides otelEnvOverrides
-	if opts.ProjectRoot != "" && !isExplicitlyDisabled(os.Getenv("HTMLGRAPH_OTEL_ENABLED")) {
+	if opts.ProjectRoot != "" && !isExplicitlyDisabled(os.Getenv("ERINN_OTEL_ENABLED")) {
 		envOverrides = spawnSessionCollector(opts.ProjectRoot)
 		if envOverrides.Cleanup != nil {
 			defer envOverrides.Cleanup()
@@ -510,8 +510,8 @@ func launchClaude(opts LaunchOpts) error {
 	c.Stderr = os.Stderr
 
 	// Compose the child env: start from os.Environ, layer
-	// HTMLGRAPH_PROJECT_DIR when running in a worktree, and layer OTel
-	// exporter vars when HTMLGRAPH_OTEL_ENABLED=1 so Claude's OTLP
+	// ERINN_PROJECT_DIR when running in a worktree, and layer OTel
+	// exporter vars when ERINN_OTEL_ENABLED=1 so Claude's OTLP
 	// pipeline points at the htmlgraph serve receiver. See
 	// claude_env.go:buildClaudeLaunchEnv for precedence rules (user-set
 	// OTEL_* always wins).

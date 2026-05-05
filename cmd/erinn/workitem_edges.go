@@ -26,7 +26,7 @@ func detectActiveFeature(p *workitem.Project, _ string) string {
 	if sessionID == "" {
 		return ""
 	}
-	agentID := dbpkg.NormaliseAgentID(os.Getenv("HTMLGRAPH_AGENT_ID"))
+	agentID := dbpkg.NormaliseAgentID(os.Getenv("ERINN_AGENT_ID"))
 	return dbpkg.GetActiveWorkItemWithFallback(p.DB, sessionID, agentID)
 }
 

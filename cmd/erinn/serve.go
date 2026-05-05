@@ -114,11 +114,11 @@ func buildSingleProjectMux(database *sql.DB, htmlgraphDir string) *http.ServeMux
 
 	// Terminal sidecar routes — spawn/stop ttyd processes for the embedded
 	// interactive terminal. Must be registered before the catch-all "/" below.
-	// Gated behind HTMLGRAPH_TERMINAL: the routes are only registered when the
+	// Gated behind ERINN_TERMINAL: the routes are only registered when the
 	// env var is exactly "1". Any other value (including "0", "false", or empty)
 	// leaves the routes unregistered so they return 404. Strict match avoids the
-	// surprise where HTMLGRAPH_TERMINAL=0 would otherwise enable the feature.
-	if os.Getenv("HTMLGRAPH_TERMINAL") == "1" {
+	// surprise where ERINN_TERMINAL=0 would otherwise enable the feature.
+	if os.Getenv("ERINN_TERMINAL") == "1" {
 		mux.Handle("/api/terminal/start", handleTerminalStart(projectDir))
 		mux.Handle("/api/terminal/sessions", handleTerminalSessions())
 		mux.Handle("/api/terminal/stop", handleTerminalStop())
@@ -138,7 +138,7 @@ func buildSingleProjectMux(database *sql.DB, htmlgraphDir string) *http.ServeMux
 //
 // Search order:
 //  1. CLAUDE_PLUGIN_ROOT env var (always set by Claude Code in hook/plugin context)
-//  2. HTMLGRAPH_PLUGIN_DIR env var (explicit user override)
+//  2. ERINN_PLUGIN_DIR env var (explicit user override)
 //  3. installed_plugins.json installPath (marketplace: ~/.claude/plugins/cache/...)
 //  4. Symlink walk-up from binary (dev mode: binary lives inside plugin tree)
 //  5. Project-root detection (CWD walk-up: find .htmlgraph/ + plugin/)
@@ -153,7 +153,7 @@ func resolvePluginDir() string {
 	}
 
 	// 2. Explicit user override — useful for non-standard installs or testing.
-	if dir := os.Getenv("HTMLGRAPH_PLUGIN_DIR"); dir != "" {
+	if dir := os.Getenv("ERINN_PLUGIN_DIR"); dir != "" {
 		if _, err := os.Stat(filepath.Join(dir, ".claude-plugin", "plugin.json")); err == nil {
 			return dir
 		}

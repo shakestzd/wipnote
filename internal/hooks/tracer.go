@@ -50,7 +50,7 @@ func TraceInvocation(subcommand string, rawPayload []byte, parsed *CloudEvent) {
 		ev = *parsed
 	}
 
-	// Build env snapshot: include HTMLGRAPH_, CLAUDE_, ANTHROPIC_ prefixes.
+	// Build env snapshot: include ERINN_, CLAUDE_, ANTHROPIC_ prefixes.
 	// Redact vars whose name contains TOKEN, KEY, SECRET, or PASSWORD.
 	redactWords := []string{"TOKEN", "KEY", "SECRET", "PASSWORD"}
 	snap := make(map[string]string)
@@ -62,7 +62,7 @@ func TraceInvocation(subcommand string, rawPayload []byte, parsed *CloudEvent) {
 		name := kv[:idx]
 		value := kv[idx+1:]
 		upper := strings.ToUpper(name)
-		if !strings.HasPrefix(upper, "HTMLGRAPH_") &&
+		if !strings.HasPrefix(upper, "ERINN_") &&
 			!strings.HasPrefix(upper, "CLAUDE_") &&
 			!strings.HasPrefix(upper, "ANTHROPIC_") {
 			continue
@@ -88,8 +88,8 @@ func TraceInvocation(subcommand string, rawPayload []byte, parsed *CloudEvent) {
 			AgentID:         ev.AgentID,
 			ToolName:        ev.ToolName,
 			IsSubagent:      isSubagent,
-			ParentSessionID: os.Getenv("HTMLGRAPH_PARENT_SESSION"),
-			ParentEventID:   os.Getenv("HTMLGRAPH_PARENT_EVENT"),
+			ParentSessionID: os.Getenv("ERINN_PARENT_SESSION"),
+			ParentEventID:   os.Getenv("ERINN_PARENT_EVENT"),
 		},
 		EnvSnapshot: snap,
 	}

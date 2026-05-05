@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/shakestzd/htmlgraph/internal/paths"
+	"github.com/shakestzd/erinn/internal/paths"
 )
 
 // TestResolveViaGitCommonDir_NonGitDir verifies that a plain (non-git)
@@ -103,7 +103,7 @@ func TestGetGitRemoteURL_GitRepo(t *testing.T) {
 	}
 }
 
-// TestResolveProjectDir_HtmlgraphProjectDirEnv verifies that HTMLGRAPH_PROJECT_DIR
+// TestResolveProjectDir_HtmlgraphProjectDirEnv verifies that ERINN_PROJECT_DIR
 // is honoured so subagent hooks can locate .htmlgraph/ when EventCWD is a temp dir.
 func TestResolveProjectDir_HtmlgraphProjectDirEnv(t *testing.T) {
 	// Set up a real project directory with .htmlgraph/.
@@ -117,8 +117,8 @@ func TestResolveProjectDir_HtmlgraphProjectDirEnv(t *testing.T) {
 
 	// Unset CLAUDE_PROJECT_DIR so it does not interfere.
 	t.Setenv("CLAUDE_PROJECT_DIR", "")
-	// Set HTMLGRAPH_PROJECT_DIR to the real project dir (written by SubagentStart).
-	t.Setenv("HTMLGRAPH_PROJECT_DIR", projectDir)
+	// Set ERINN_PROJECT_DIR to the real project dir (written by SubagentStart).
+	t.Setenv("ERINN_PROJECT_DIR", projectDir)
 
 	got, err := paths.ResolveProjectDir(paths.ProjectDirOptions{
 		EventCWD:   fakeTmpCWD,
@@ -133,14 +133,14 @@ func TestResolveProjectDir_HtmlgraphProjectDirEnv(t *testing.T) {
 }
 
 // TestResolveProjectDir_HtmlgraphProjectDirEnv_Invalid verifies that an
-// invalid HTMLGRAPH_PROJECT_DIR value (no .htmlgraph/) falls through to the
+// invalid ERINN_PROJECT_DIR value (no .htmlgraph/) falls through to the
 // next resolution step rather than returning a wrong path.
 func TestResolveProjectDir_HtmlgraphProjectDirEnv_Invalid(t *testing.T) {
 	// A temp dir without .htmlgraph/ — should be skipped.
 	badDir := t.TempDir()
 
 	t.Setenv("CLAUDE_PROJECT_DIR", "")
-	t.Setenv("HTMLGRAPH_PROJECT_DIR", badDir) // no .htmlgraph/ here
+	t.Setenv("ERINN_PROJECT_DIR", badDir) // no .htmlgraph/ here
 
 	// Verify that the invalid env var is skipped (not returned).
 	// The resolver will fall through to later steps (git detection, walk-up, etc.),
@@ -153,12 +153,12 @@ func TestResolveProjectDir_HtmlgraphProjectDirEnv_Invalid(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if got == badDir {
-		t.Errorf("ResolveProjectDir = %q, should not return invalid HTMLGRAPH_PROJECT_DIR", got)
+		t.Errorf("ResolveProjectDir = %q, should not return invalid ERINN_PROJECT_DIR", got)
 	}
 }
 
 // TestResolveProjectDir_HintFile verifies that the session-scoped hint file
-// (step 4 in the resolution chain) is used when HTMLGRAPH_PROJECT_DIR is not
+// (step 4 in the resolution chain) is used when ERINN_PROJECT_DIR is not
 // set and a SessionID is provided. This covers the worktree subagent case
 // where CLAUDE_ENV_FILE is unset so SubagentStart writes to the hint file
 // instead of the env file.
@@ -174,7 +174,7 @@ func TestResolveProjectDir_HintFile(t *testing.T) {
 
 	// Clear both env vars so steps 2 and 3 are skipped.
 	t.Setenv("CLAUDE_PROJECT_DIR", "")
-	t.Setenv("HTMLGRAPH_PROJECT_DIR", "")
+	t.Setenv("ERINN_PROJECT_DIR", "")
 
 	// Write the session-scoped hint file (simulates writeSessionProjectDirHint in SubagentStart).
 	const testSessionID = "test-session-hint-valid"
@@ -208,7 +208,7 @@ func TestResolveProjectDir_HintFile_Invalid(t *testing.T) {
 	badDir := t.TempDir()
 
 	t.Setenv("CLAUDE_PROJECT_DIR", "")
-	t.Setenv("HTMLGRAPH_PROJECT_DIR", "")
+	t.Setenv("ERINN_PROJECT_DIR", "")
 
 	// Write a stale session-scoped hint pointing at a dir without .htmlgraph/.
 	const testSessionID = "test-session-hint-invalid"
@@ -257,7 +257,7 @@ func runGit(dir string, args ...string) error {
 }
 
 // TestResolveProjectDir_PrefersClaudeProjectDirWhenSessionIDPresent verifies
-// that CLAUDE_PROJECT_DIR is preferred over EventCWD/CWD when HTMLGRAPH_SESSION_ID
+// that CLAUDE_PROJECT_DIR is preferred over EventCWD/CWD when ERINN_SESSION_ID
 // is also set (confirming the env var was written by the current session's hooks).
 func TestResolveProjectDir_PrefersClaudeProjectDirWhenSessionIDPresent(t *testing.T) {
 	projectA := t.TempDir()
@@ -269,9 +269,9 @@ func TestResolveProjectDir_PrefersClaudeProjectDirWhenSessionIDPresent(t *testin
 		t.Fatalf("mkdir .htmlgraph in B: %v", err)
 	}
 
-	t.Setenv("HTMLGRAPH_PROJECT_DIR", "")
+	t.Setenv("ERINN_PROJECT_DIR", "")
 	t.Setenv("CLAUDE_PROJECT_DIR", projectA)
-	t.Setenv("HTMLGRAPH_SESSION_ID", "s1")
+	t.Setenv("ERINN_SESSION_ID", "s1")
 
 	got, err := paths.ResolveProjectDir(paths.ProjectDirOptions{
 		EventCWD:   projectB,
@@ -286,7 +286,7 @@ func TestResolveProjectDir_PrefersClaudeProjectDirWhenSessionIDPresent(t *testin
 }
 
 // TestResolveProjectDir_IgnoresStaleClaudeProjectDir verifies that CLAUDE_PROJECT_DIR
-// is ignored when HTMLGRAPH_SESSION_ID is NOT set (stale value from a parent shell).
+// is ignored when ERINN_SESSION_ID is NOT set (stale value from a parent shell).
 // Regression test for bug-71fc095f.
 func TestResolveProjectDir_IgnoresStaleClaudeProjectDir(t *testing.T) {
 	projectA := t.TempDir()
@@ -298,9 +298,9 @@ func TestResolveProjectDir_IgnoresStaleClaudeProjectDir(t *testing.T) {
 		t.Fatalf("mkdir .htmlgraph in B: %v", err)
 	}
 
-	t.Setenv("HTMLGRAPH_PROJECT_DIR", "")
+	t.Setenv("ERINN_PROJECT_DIR", "")
 	t.Setenv("CLAUDE_PROJECT_DIR", projectA) // stale — no session ID
-	t.Setenv("HTMLGRAPH_SESSION_ID", "")     // NOT set — stale shell scenario
+	t.Setenv("ERINN_SESSION_ID", "")     // NOT set — stale shell scenario
 
 	// EventCWD is projectB; without guardrail, A would win — but it should not.
 	got, err := paths.ResolveProjectDir(paths.ProjectDirOptions{
@@ -317,7 +317,7 @@ func TestResolveProjectDir_IgnoresStaleClaudeProjectDir(t *testing.T) {
 }
 
 // TestResolveProjectDir_FlagBeatsClaudeProjectDir verifies that --project-dir flag
-// takes priority over CLAUDE_PROJECT_DIR even when HTMLGRAPH_SESSION_ID is set.
+// takes priority over CLAUDE_PROJECT_DIR even when ERINN_SESSION_ID is set.
 func TestResolveProjectDir_FlagBeatsClaudeProjectDir(t *testing.T) {
 	flagDir := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(flagDir, ".htmlgraph"), 0o755); err != nil {
@@ -328,9 +328,9 @@ func TestResolveProjectDir_FlagBeatsClaudeProjectDir(t *testing.T) {
 		t.Fatalf("mkdir .htmlgraph in claudeDir: %v", err)
 	}
 
-	t.Setenv("HTMLGRAPH_PROJECT_DIR", "")
+	t.Setenv("ERINN_PROJECT_DIR", "")
 	t.Setenv("CLAUDE_PROJECT_DIR", claudeDir)
-	t.Setenv("HTMLGRAPH_SESSION_ID", "s1")
+	t.Setenv("ERINN_SESSION_ID", "s1")
 
 	got, err := paths.ResolveProjectDir(paths.ProjectDirOptions{
 		ExplicitDir: flagDir,
@@ -344,7 +344,7 @@ func TestResolveProjectDir_FlagBeatsClaudeProjectDir(t *testing.T) {
 }
 
 // TestResolveProjectDir_HtmlgraphEnvBeatsClaudeProjectDir verifies that
-// HTMLGRAPH_PROJECT_DIR takes priority over CLAUDE_PROJECT_DIR.
+// ERINN_PROJECT_DIR takes priority over CLAUDE_PROJECT_DIR.
 func TestResolveProjectDir_HtmlgraphEnvBeatsClaudeProjectDir(t *testing.T) {
 	htmlgraphDir := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(htmlgraphDir, ".htmlgraph"), 0o755); err != nil {
@@ -355,16 +355,16 @@ func TestResolveProjectDir_HtmlgraphEnvBeatsClaudeProjectDir(t *testing.T) {
 		t.Fatalf("mkdir .htmlgraph in claudeDir: %v", err)
 	}
 
-	t.Setenv("HTMLGRAPH_PROJECT_DIR", htmlgraphDir)
+	t.Setenv("ERINN_PROJECT_DIR", htmlgraphDir)
 	t.Setenv("CLAUDE_PROJECT_DIR", claudeDir)
-	t.Setenv("HTMLGRAPH_SESSION_ID", "s1")
+	t.Setenv("ERINN_SESSION_ID", "s1")
 
 	got, err := paths.ResolveProjectDir(paths.ProjectDirOptions{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if got != htmlgraphDir {
-		t.Errorf("ResolveProjectDir = %q, want %q (HTMLGRAPH_PROJECT_DIR should beat CLAUDE_PROJECT_DIR)", got, htmlgraphDir)
+		t.Errorf("ResolveProjectDir = %q, want %q (ERINN_PROJECT_DIR should beat CLAUDE_PROJECT_DIR)", got, htmlgraphDir)
 	}
 }
 
@@ -378,9 +378,9 @@ func TestResolveProjectDir_FallsBackToCwdWhenNoHtmlgraphDirInClaudeProjectDir(t 
 		t.Fatalf("mkdir .htmlgraph in realProjectDir: %v", err)
 	}
 
-	t.Setenv("HTMLGRAPH_PROJECT_DIR", "")
+	t.Setenv("ERINN_PROJECT_DIR", "")
 	t.Setenv("CLAUDE_PROJECT_DIR", noHtmlgraphDir) // points at dir WITHOUT .htmlgraph
-	t.Setenv("HTMLGRAPH_SESSION_ID", "s1")         // session ID is set
+	t.Setenv("ERINN_SESSION_ID", "s1")         // session ID is set
 
 	got, err := paths.ResolveProjectDir(paths.ProjectDirOptions{
 		EventCWD:   realProjectDir,

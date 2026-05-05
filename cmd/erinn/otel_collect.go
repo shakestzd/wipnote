@@ -182,14 +182,14 @@ func gracefulShutdown(srv *http.Server, snk *ndjson.Sink) error {
 }
 
 // parseIdleTimeout returns the idle timeout to use. When noIdleTimeout is
-// true or HTMLGRAPH_OTEL_IDLE_TIMEOUT env var is "0" or "never", returns
+// true or ERINN_OTEL_IDLE_TIMEOUT env var is "0" or "never", returns
 // noIdleTimeoutDuration (24 h) so the collector outlives any real session.
 // Otherwise respects the env var, then falls back to defaultIdleTimeout.
 func parseIdleTimeout(noIdleTimeout bool) time.Duration {
 	if noIdleTimeout {
 		return noIdleTimeoutDuration
 	}
-	if s := os.Getenv("HTMLGRAPH_OTEL_IDLE_TIMEOUT"); s != "" {
+	if s := os.Getenv("ERINN_OTEL_IDLE_TIMEOUT"); s != "" {
 		if s == "0" || s == "never" {
 			return noIdleTimeoutDuration
 		}

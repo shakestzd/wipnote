@@ -149,11 +149,11 @@ func TestWriteCollectorPID_CreatesDirectories(t *testing.T) {
 	}
 }
 
-// TestSpawnFailLoudStrict verifies that when HTMLGRAPH_OTEL_STRICT=1 and
+// TestSpawnFailLoudStrict verifies that when ERINN_OTEL_STRICT=1 and
 // collector spawn fails, spawnSessionCollectorTo emits a FATAL line on the
 // provided stderr writer and returns wantExit=true.
 func TestSpawnFailLoudStrict(t *testing.T) {
-	t.Setenv("HTMLGRAPH_OTEL_STRICT", "1")
+	t.Setenv("ERINN_OTEL_STRICT", "1")
 
 	var buf bytes.Buffer
 	projectDir := t.TempDir()
@@ -165,18 +165,18 @@ func TestSpawnFailLoudStrict(t *testing.T) {
 		t.Errorf("expected FATAL line on stderr, got: %q", stderr)
 	}
 	if !wantExit {
-		t.Error("expected wantExit=true when HTMLGRAPH_OTEL_STRICT=1 and spawn fails")
+		t.Error("expected wantExit=true when ERINN_OTEL_STRICT=1 and spawn fails")
 	}
 	if overrides.CollectorPort != 0 || overrides.SessionID != "" || overrides.Cleanup != nil {
 		t.Errorf("expected zero-value overrides on failure, got: %+v", overrides)
 	}
 }
 
-// TestSpawnQuietByDefault verifies that without HTMLGRAPH_OTEL_STRICT, a
+// TestSpawnQuietByDefault verifies that without ERINN_OTEL_STRICT, a
 // failed spawn still emits a FATAL line on stderr but returns wantExit=false
 // and zero-value overrides (degraded mode).
 func TestSpawnQuietByDefault(t *testing.T) {
-	t.Setenv("HTMLGRAPH_OTEL_STRICT", "")
+	t.Setenv("ERINN_OTEL_STRICT", "")
 
 	var buf bytes.Buffer
 	projectDir := t.TempDir()
@@ -188,7 +188,7 @@ func TestSpawnQuietByDefault(t *testing.T) {
 		t.Errorf("expected FATAL line on stderr even without strict mode, got: %q", stderr)
 	}
 	if wantExit {
-		t.Error("expected wantExit=false when HTMLGRAPH_OTEL_STRICT is not set")
+		t.Error("expected wantExit=false when ERINN_OTEL_STRICT is not set")
 	}
 	if overrides.CollectorPort != 0 || overrides.SessionID != "" || overrides.Cleanup != nil {
 		t.Errorf("expected zero-value overrides on failure, got: %+v", overrides)
@@ -269,7 +269,7 @@ func TestRetrySpawn_AllFail(t *testing.T) {
 // the initial process, and asserts that the watchdog detects death and calls
 // retrySpawnCollector (via the injected spawnCollectorFn).
 func TestWatchdog_RespawnsOnDeath(t *testing.T) {
-	t.Setenv("HTMLGRAPH_OTEL_WATCHDOG_INTERVAL", "50ms")
+	t.Setenv("ERINN_OTEL_WATCHDOG_INTERVAL", "50ms")
 
 	// Start a real short-lived process to kill.
 	cmd := exec.Command("/bin/sh", "-c", "sleep 60")
@@ -328,7 +328,7 @@ func TestWatchdog_RespawnsOnDeath(t *testing.T) {
 // TestWatchdog_StopsCleanlyWhenLive starts a watchdog with a live process,
 // immediately calls stopWatchdog, and asserts no warnings appear on stderr.
 func TestWatchdog_StopsCleanlyWhenLive(t *testing.T) {
-	t.Setenv("HTMLGRAPH_OTEL_WATCHDOG_INTERVAL", "50ms")
+	t.Setenv("ERINN_OTEL_WATCHDOG_INTERVAL", "50ms")
 
 	cmd := exec.Command("/bin/sh", "-c", "sleep 60")
 	if err := cmd.Start(); err != nil {
@@ -352,10 +352,10 @@ func TestWatchdog_StopsCleanlyWhenLive(t *testing.T) {
 	}
 }
 
-// TestWatchdog_IntervalEnvOverride verifies that HTMLGRAPH_OTEL_WATCHDOG_INTERVAL
+// TestWatchdog_IntervalEnvOverride verifies that ERINN_OTEL_WATCHDOG_INTERVAL
 // is parsed and applied — a 10ms interval should produce multiple ticks within 100ms.
 func TestWatchdog_IntervalEnvOverride(t *testing.T) {
-	t.Setenv("HTMLGRAPH_OTEL_WATCHDOG_INTERVAL", "10ms")
+	t.Setenv("ERINN_OTEL_WATCHDOG_INTERVAL", "10ms")
 
 	// Start a long-lived process so each probe succeeds (no respawn).
 	cmd := exec.Command("/bin/sh", "-c", "sleep 60")
@@ -395,7 +395,7 @@ func TestWatchdog_IntervalEnvOverride(t *testing.T) {
 // higher-level spawnSessionCollectorTo succeeds when the underlying spawn
 // fails on the first attempt but succeeds on the second.
 func TestSpawnSessionCollectorTo_RetriesOnTransientFailure(t *testing.T) {
-	t.Setenv("HTMLGRAPH_OTEL_STRICT", "")
+	t.Setenv("ERINN_OTEL_STRICT", "")
 
 	callCount := 0
 	origFn := spawnCollectorFn

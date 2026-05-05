@@ -99,8 +99,8 @@ func TestOtelCollect_HandshakeLine(t *testing.T) {
 	)
 	// Very short idle timeout so the process exits promptly after the handshake.
 	cmd.Env = append(os.Environ(),
-		"HTMLGRAPH_OTEL_IDLE_TIMEOUT=300ms",
-		"HTMLGRAPH_PROJECT_DIR="+projectDir,
+		"ERINN_OTEL_IDLE_TIMEOUT=300ms",
+		"ERINN_PROJECT_DIR="+projectDir,
 	)
 
 	stdout, err := cmd.StdoutPipe()
@@ -132,7 +132,7 @@ func TestOtelCollect_HandshakeLine(t *testing.T) {
 }
 
 // TestOtelCollect_IdleTimeout verifies that otel-collect exits 0 within a
-// reasonable window when no OTLP traffic arrives and HTMLGRAPH_OTEL_IDLE_TIMEOUT
+// reasonable window when no OTLP traffic arrives and ERINN_OTEL_IDLE_TIMEOUT
 // is set to a short value.
 func TestOtelCollect_IdleTimeout(t *testing.T) {
 	bin := buildOtelCollectTestBinary(t)
@@ -145,8 +145,8 @@ func TestOtelCollect_IdleTimeout(t *testing.T) {
 		"--listen", "127.0.0.1:0",
 	)
 	cmd.Env = append(os.Environ(),
-		"HTMLGRAPH_OTEL_IDLE_TIMEOUT=200ms",
-		"HTMLGRAPH_PROJECT_DIR="+projectDir,
+		"ERINN_OTEL_IDLE_TIMEOUT=200ms",
+		"ERINN_PROJECT_DIR="+projectDir,
 	)
 
 	stdout, err := cmd.StdoutPipe()
@@ -192,8 +192,8 @@ func TestOtelCollect_CollectorStartEvent(t *testing.T) {
 		"--listen", "127.0.0.1:0",
 	)
 	cmd.Env = append(os.Environ(),
-		"HTMLGRAPH_OTEL_IDLE_TIMEOUT=400ms",
-		"HTMLGRAPH_PROJECT_DIR="+projectDir,
+		"ERINN_OTEL_IDLE_TIMEOUT=400ms",
+		"ERINN_PROJECT_DIR="+projectDir,
 	)
 
 	stdout, err := cmd.StdoutPipe()

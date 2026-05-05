@@ -3,8 +3,8 @@ package adapter
 import (
 	"time"
 
-	"github.com/shakestzd/htmlgraph/internal/otel"
-	"github.com/shakestzd/htmlgraph/internal/pricing"
+	"github.com/shakestzd/erinn/internal/otel"
+	"github.com/shakestzd/erinn/internal/pricing"
 )
 
 // ClaudeAdapter converts Claude Code OTel emissions into UnifiedSignals.

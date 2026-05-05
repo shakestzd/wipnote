@@ -188,7 +188,7 @@ func wiCompleteCmd(typeName string) *cobra.Command {
 
 func runWiSetStatus(typeName, id, status string) error {
 	sessionID := hooks.EnvSessionID("")
-	agentID := dbpkg.NormaliseAgentID(os.Getenv("HTMLGRAPH_AGENT_ID"))
+	agentID := dbpkg.NormaliseAgentID(os.Getenv("ERINN_AGENT_ID"))
 	return wiSetStatusWithAgent(typeName, id, status, sessionID, agentID)
 }
 
@@ -423,7 +423,7 @@ func splitSteps(s string) []string {
 
 // agentForClaim returns the agent string for claim ownership.
 func agentForClaim() string {
-	if v := os.Getenv("HTMLGRAPH_AGENT_TYPE"); v != "" {
+	if v := os.Getenv("ERINN_AGENT_TYPE"); v != "" {
 		return v
 	}
 	return "claude-code"

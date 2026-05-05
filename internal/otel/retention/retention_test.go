@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/shakestzd/htmlgraph/internal/otel/retention"
+	"github.com/shakestzd/erinn/internal/otel/retention"
 	_ "modernc.org/sqlite"
 )
 
@@ -76,7 +76,7 @@ func TestRun_ArchivesOldCompletedSession(t *testing.T) {
 	insertSession(t, db, "sess-old", "completed", &old)
 	makeSessionDir(t, htmlgraphDir, "sess-old", `{"event":"test"}`+"\n")
 
-	t.Setenv("HTMLGRAPH_SESSION_RETAIN_DAYS", "30")
+	t.Setenv("ERINN_SESSION_RETAIN_DAYS", "30")
 	if err := retention.Run(db, htmlgraphDir, false); err != nil {
 		t.Fatalf("Run: %v", err)
 	}
@@ -117,7 +117,7 @@ func TestRun_SkipsActiveSession(t *testing.T) {
 	insertSession(t, db, "sess-active", "active", &old)
 	makeSessionDir(t, htmlgraphDir, "sess-active", `{"event":"live"}`+"\n")
 
-	t.Setenv("HTMLGRAPH_SESSION_RETAIN_DAYS", "30")
+	t.Setenv("ERINN_SESSION_RETAIN_DAYS", "30")
 	if err := retention.Run(db, htmlgraphDir, false); err != nil {
 		t.Fatalf("Run: %v", err)
 	}
@@ -142,7 +142,7 @@ func TestRun_SkipsRecentCompletedSession(t *testing.T) {
 	insertSession(t, db, "sess-recent", "completed", &recent)
 	makeSessionDir(t, htmlgraphDir, "sess-recent", `{"event":"recent"}`+"\n")
 
-	t.Setenv("HTMLGRAPH_SESSION_RETAIN_DAYS", "30")
+	t.Setenv("ERINN_SESSION_RETAIN_DAYS", "30")
 	if err := retention.Run(db, htmlgraphDir, false); err != nil {
 		t.Fatalf("Run: %v", err)
 	}
@@ -166,7 +166,7 @@ func TestRun_DryRunDoesNotMoveFiles(t *testing.T) {
 	insertSession(t, db, "sess-dry", "completed", &old)
 	makeSessionDir(t, htmlgraphDir, "sess-dry", `{"event":"dry"}`+"\n")
 
-	t.Setenv("HTMLGRAPH_SESSION_RETAIN_DAYS", "30")
+	t.Setenv("ERINN_SESSION_RETAIN_DAYS", "30")
 	if err := retention.Run(db, htmlgraphDir, true /* dryRun */); err != nil {
 		t.Fatalf("Run: %v", err)
 	}
@@ -198,7 +198,7 @@ func TestExtractArchive_RoundTrip(t *testing.T) {
 	makeSessionDir(t, htmlgraphDir, "sess-rt", content)
 
 	// Archive it.
-	t.Setenv("HTMLGRAPH_SESSION_RETAIN_DAYS", "30")
+	t.Setenv("ERINN_SESSION_RETAIN_DAYS", "30")
 	if err := retention.Run(db, htmlgraphDir, false); err != nil {
 		t.Fatalf("Run: %v", err)
 	}

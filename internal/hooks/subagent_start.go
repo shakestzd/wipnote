@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/shakestzd/htmlgraph/internal/db"
-	"github.com/shakestzd/htmlgraph/internal/models"
-	"github.com/shakestzd/htmlgraph/internal/paths"
+	"github.com/shakestzd/erinn/internal/db"
+	"github.com/shakestzd/erinn/internal/models"
+	"github.com/shakestzd/erinn/internal/paths"
 )
 
 // SubagentStart handles the SubagentStart Claude Code hook event.
@@ -78,7 +78,7 @@ func SubagentStart(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 			AgentType:     agentType,
 			SessionID:     sessionID,
 			CWD:           projectDir,
-			ParentAgentID: os.Getenv("HTMLGRAPH_AGENT_ID"),
+			ParentAgentID: os.Getenv("ERINN_AGENT_ID"),
 			CreatedAt:     time.Now().UnixMicro(),
 		}
 		if err := db.UpsertPendingSubagentStart(database, pending); err != nil {

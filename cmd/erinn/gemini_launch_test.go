@@ -25,7 +25,7 @@ func TestBuildGeminiOtelEnv_SetsAllFourVars(t *testing.T) {
 		"GEMINI_TELEMETRY_USE_COLLECTOR": "true",
 		"GEMINI_TELEMETRY_OTLP_ENDPOINT": "http://127.0.0.1:4317",
 		"GEMINI_TELEMETRY_OTLP_PROTOCOL": "http",
-		"HTMLGRAPH_OTEL_SESSION":         "sess-abc",
+		"ERINN_OTEL_SESSION":         "sess-abc",
 	}
 	for key, wantVal := range want {
 		found := false

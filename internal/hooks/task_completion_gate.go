@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/shakestzd/htmlgraph/internal/paths"
+	"github.com/shakestzd/erinn/internal/paths"
 )
 
 // BlockExit2Error is a sentinel error that signals the hook runner to exit

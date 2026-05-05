@@ -4,7 +4,7 @@ import (
 	"testing"
 	"unicode/utf8"
 
-	"github.com/shakestzd/htmlgraph/internal/slug"
+	"github.com/shakestzd/erinn/internal/slug"
 )
 
 func TestMake(t *testing.T) {

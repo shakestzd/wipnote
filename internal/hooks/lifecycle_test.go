@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/shakestzd/htmlgraph/internal/db"
-	"github.com/shakestzd/htmlgraph/internal/models"
+	"github.com/shakestzd/erinn/internal/db"
+	"github.com/shakestzd/erinn/internal/models"
 )
 
 // setupLifecycleDB creates a temp project dir with .htmlgraph/ and a real
@@ -36,20 +36,20 @@ func TestHookLifecycle(t *testing.T) {
 	sessionID := "lifecycle-test-session-001"
 
 	// Isolate from the developer's real environment.
-	// HTMLGRAPH_PROJECT_DIR must point to the test projectDir so that
+	// ERINN_PROJECT_DIR must point to the test projectDir so that
 	// ResolveProjectDir returns projectDir (not the real project via the hint
 	// file), preventing checkProjectDivergence from blocking the test event.
 	t.Setenv("CLAUDE_SESSION_ID", "")
-	t.Setenv("HTMLGRAPH_PARENT_SESSION", "")
-	t.Setenv("HTMLGRAPH_NESTING_DEPTH", "")
+	t.Setenv("ERINN_PARENT_SESSION", "")
+	t.Setenv("ERINN_NESTING_DEPTH", "")
 	t.Setenv("CLAUDE_ENV_FILE", "")
 	t.Setenv("CLAUDE_PROJECT_DIR", "")
-	t.Setenv("HTMLGRAPH_PROJECT_DIR", projectDir)
-	t.Setenv("HTMLGRAPH_SESSION_ID", sessionID)
-	t.Setenv("HTMLGRAPH_AGENT_ID", "claude-code")
-	t.Setenv("HTMLGRAPH_AGENT_TYPE", "")
-	t.Setenv("HTMLGRAPH_PARENT_EVENT", "")
-	t.Setenv("HTMLGRAPH_PARENT_PROMPT_EVENT", "")
+	t.Setenv("ERINN_PROJECT_DIR", projectDir)
+	t.Setenv("ERINN_SESSION_ID", sessionID)
+	t.Setenv("ERINN_AGENT_ID", "claude-code")
+	t.Setenv("ERINN_AGENT_TYPE", "")
+	t.Setenv("ERINN_PARENT_EVENT", "")
+	t.Setenv("ERINN_PARENT_PROMPT_EVENT", "")
 
 	// --- Step 1: SessionStart ---
 	startEvent := &CloudEvent{SessionID: sessionID, CWD: projectDir}
@@ -135,7 +135,7 @@ func TestHookLifecycle(t *testing.T) {
 		ToolUseID: "tool-use-001",
 		ToolInput: map[string]any{"command": "(cd packages/go && go test ./...)"},
 		ToolResult: map[string]any{
-			"output":   "ok  github.com/shakestzd/htmlgraph/...",
+			"output":   "ok  github.com/shakestzd/erinn/...",
 			"is_error": false,
 		},
 	}
@@ -183,11 +183,11 @@ func TestEventRecordingFlow(t *testing.T) {
 	database, projectDir := setupLifecycleDB(t)
 	sessionID := "event-flow-session-001"
 
-	t.Setenv("HTMLGRAPH_SESSION_ID", sessionID)
-	t.Setenv("HTMLGRAPH_AGENT_ID", "claude-code")
-	t.Setenv("HTMLGRAPH_AGENT_TYPE", "")
-	t.Setenv("HTMLGRAPH_PARENT_EVENT", "")
-	t.Setenv("HTMLGRAPH_PARENT_PROMPT_EVENT", "")
+	t.Setenv("ERINN_SESSION_ID", sessionID)
+	t.Setenv("ERINN_AGENT_ID", "claude-code")
+	t.Setenv("ERINN_AGENT_TYPE", "")
+	t.Setenv("ERINN_PARENT_EVENT", "")
+	t.Setenv("ERINN_PARENT_PROMPT_EVENT", "")
 
 	// Insert the session so FK constraints pass.
 	if err := db.InsertSession(database, &models.Session{
@@ -290,14 +290,14 @@ func TestSessionEndPopulatesFeaturesWorkedOn(t *testing.T) {
 	database, projectDir := setupLifecycleDB(t)
 	sessionID := "features-worked-on-session"
 
-	t.Setenv("HTMLGRAPH_SESSION_ID", sessionID)
-	t.Setenv("HTMLGRAPH_AGENT_ID", "claude-code")
-	t.Setenv("HTMLGRAPH_AGENT_TYPE", "")
-	t.Setenv("HTMLGRAPH_PARENT_EVENT", "")
-	t.Setenv("HTMLGRAPH_PARENT_PROMPT_EVENT", "")
+	t.Setenv("ERINN_SESSION_ID", sessionID)
+	t.Setenv("ERINN_AGENT_ID", "claude-code")
+	t.Setenv("ERINN_AGENT_TYPE", "")
+	t.Setenv("ERINN_PARENT_EVENT", "")
+	t.Setenv("ERINN_PARENT_PROMPT_EVENT", "")
 	t.Setenv("CLAUDE_ENV_FILE", "")
 	t.Setenv("CLAUDE_PROJECT_DIR", "")
-	t.Setenv("HTMLGRAPH_PROJECT_DIR", projectDir)
+	t.Setenv("ERINN_PROJECT_DIR", projectDir)
 
 	if err := db.InsertSession(database, &models.Session{
 		SessionID:     sessionID,
@@ -365,11 +365,11 @@ func TestYoloModeGuards(t *testing.T) {
 	database, projectDir := setupLifecycleDB(t)
 	sessionID := "yolo-guard-session-001"
 
-	t.Setenv("HTMLGRAPH_SESSION_ID", sessionID)
-	t.Setenv("HTMLGRAPH_AGENT_ID", "claude-code")
-	t.Setenv("HTMLGRAPH_AGENT_TYPE", "")
-	t.Setenv("HTMLGRAPH_PARENT_EVENT", "")
-	t.Setenv("HTMLGRAPH_PARENT_PROMPT_EVENT", "")
+	t.Setenv("ERINN_SESSION_ID", sessionID)
+	t.Setenv("ERINN_AGENT_ID", "claude-code")
+	t.Setenv("ERINN_AGENT_TYPE", "")
+	t.Setenv("ERINN_PARENT_EVENT", "")
+	t.Setenv("ERINN_PARENT_PROMPT_EVENT", "")
 
 	// Insert session without any active feature.
 	if err := db.InsertSession(database, &models.Session{

@@ -335,7 +335,7 @@ func launchCodexDefault(resumeID, trackID, featureID, worktreePath, workItem str
 	htmlgraphRoot := ""
 	switch {
 	case worktreePath != "":
-		// Explicit path — use as-is; set HTMLGRAPH_PROJECT_DIR to canonical root.
+		// Explicit path — use as-is; set ERINN_PROJECT_DIR to canonical root.
 		workDir = worktreePath
 		htmlgraphRoot = projectRoot
 	case !noWorktree && trackID != "":
@@ -508,14 +508,14 @@ type codexLaunchOpts struct {
 	ExtraArgs []string
 	// ProjectRoot is the absolute path to the project root (or worktree path).
 	// When set, Codex is started with this as the working directory, and
-	// HTMLGRAPH_PROJECT_DIR env var is injected.
+	// ERINN_PROJECT_DIR env var is injected.
 	ProjectRoot string
 	// WorktreeRoot, when non-empty, overrides the working directory for the
-	// Codex process. The process runs in WorktreeRoot but HTMLGRAPH_PROJECT_DIR
+	// Codex process. The process runs in WorktreeRoot but ERINN_PROJECT_DIR
 	// is set to HtmlgraphRoot (the canonical project root with .htmlgraph/).
 	WorktreeRoot string
 	// HtmlgraphRoot is the canonical project root containing .htmlgraph/.
-	// Used to set HTMLGRAPH_PROJECT_DIR when running in a worktree.
+	// Used to set ERINN_PROJECT_DIR when running in a worktree.
 	HtmlgraphRoot string
 }
 
@@ -554,14 +554,14 @@ func execCodex(opts codexLaunchOpts) error {
 	var otelPort int
 	var otelSessionID string
 	var otelCleanup func()
-	if effectiveProjDir != "" && !isExplicitlyDisabled(os.Getenv("HTMLGRAPH_OTEL_ENABLED")) {
+	if effectiveProjDir != "" && !isExplicitlyDisabled(os.Getenv("ERINN_OTEL_ENABLED")) {
 		otelPort, otelSessionID, otelCleanup = spawnCodexOtelCollector(effectiveProjDir)
 		if otelCleanup != nil {
 			defer otelCleanup()
 		}
 	}
 
-	// Build the child env: start from os.Environ, inject HTMLGRAPH_PROJECT_DIR,
+	// Build the child env: start from os.Environ, inject ERINN_PROJECT_DIR,
 	// and layer OTel exporter vars when a collector was spawned.
 	env := os.Environ()
 	workDir := ""
@@ -572,10 +572,10 @@ func execCodex(opts codexLaunchOpts) error {
 		if projectDir == "" {
 			projectDir = opts.ProjectRoot
 		}
-		env = setOrReplaceEnv(env, "HTMLGRAPH_PROJECT_DIR", projectDir)
+		env = setOrReplaceEnv(env, "ERINN_PROJECT_DIR", projectDir)
 		workDir = opts.WorktreeRoot
 	case opts.ProjectRoot != "":
-		env = setOrReplaceEnv(env, "HTMLGRAPH_PROJECT_DIR", opts.ProjectRoot)
+		env = setOrReplaceEnv(env, "ERINN_PROJECT_DIR", opts.ProjectRoot)
 		workDir = opts.ProjectRoot
 	}
 

@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/shakestzd/htmlgraph/internal/plantmpl"
+	"github.com/shakestzd/erinn/internal/plantmpl"
 )
 
 func TestProgressBarRendersSection(t *testing.T) {

@@ -37,7 +37,7 @@ type CacheEntry struct {
 }
 
 // CacheRoot returns the directory that holds per-project cache subdirs:
-// <UserCacheDir>/htmlgraph. The HTMLGRAPH_DB_PATH override is intentionally
+// <UserCacheDir>/htmlgraph. The ERINN_DB_PATH override is intentionally
 // ignored — it points at a single DB file, not a project-keyed cache root.
 func CacheRoot() (string, error) {
 	cache, err := os.UserCacheDir()

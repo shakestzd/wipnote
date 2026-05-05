@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/shakestzd/htmlgraph/internal/storage"
+	"github.com/shakestzd/erinn/internal/storage"
 )
 
 // TestNoInlineDBPathConstruction walks cmd/ and internal/ (skipping the
@@ -94,7 +94,7 @@ func TestNoInlineDBPathConstruction(t *testing.T) {
 				return nil
 			}
 			if strings.HasSuffix(path, "_test.go") {
-				// Test files are allowed to use HTMLGRAPH_DB_PATH via t.TempDir
+				// Test files are allowed to use ERINN_DB_PATH via t.TempDir
 				// and don't need the production path — skip them.
 				return nil
 			}
@@ -138,7 +138,7 @@ func TestNoInlineDBPathConstruction(t *testing.T) {
 }
 
 func TestCanonicalDBPath_RespectsOverride(t *testing.T) {
-	t.Setenv("HTMLGRAPH_DB_PATH", "/tmp/x/y.db")
+	t.Setenv("ERINN_DB_PATH", "/tmp/x/y.db")
 	got, err := storage.CanonicalDBPath("/some/project")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -149,7 +149,7 @@ func TestCanonicalDBPath_RespectsOverride(t *testing.T) {
 }
 
 func TestCanonicalDBPath_HashesProjectDir(t *testing.T) {
-	t.Setenv("HTMLGRAPH_DB_PATH", "") // ensure no override
+	t.Setenv("ERINN_DB_PATH", "") // ensure no override
 
 	path1, err := storage.CanonicalDBPath("/project/alpha")
 	if err != nil {
@@ -174,7 +174,7 @@ func TestCanonicalDBPath_HashesProjectDir(t *testing.T) {
 }
 
 func TestCanonicalDBPath_DirsContainHash(t *testing.T) {
-	t.Setenv("HTMLGRAPH_DB_PATH", "") // ensure no override
+	t.Setenv("ERINN_DB_PATH", "") // ensure no override
 
 	p, err := storage.CanonicalDBPath("/some/project")
 	if err != nil {
@@ -185,7 +185,7 @@ func TestCanonicalDBPath_DirsContainHash(t *testing.T) {
 	foundHtmlgraph := false
 	foundHexDir := false
 	for _, seg := range parts {
-		if seg == "htmlgraph" {
+		if seg == "erinn" {
 			foundHtmlgraph = true
 		}
 		// 16-char lowercase hex segment
@@ -203,7 +203,7 @@ func TestCanonicalDBPath_DirsContainHash(t *testing.T) {
 		}
 	}
 	if !foundHtmlgraph {
-		t.Errorf("expected 'htmlgraph' segment in path %s", p)
+		t.Errorf("expected 'erinn' segment in path %s", p)
 	}
 	if !foundHexDir {
 		t.Errorf("expected 16-char hex segment in path %s", p)
@@ -240,7 +240,7 @@ func TestCleanLegacyDBIfSafe_DeletesWhenCanonicalReady(t *testing.T) {
 	if err := os.WriteFile(canonicalPath, []byte("data"), 0o600); err != nil {
 		t.Fatalf("write canonical db: %v", err)
 	}
-	t.Setenv("HTMLGRAPH_DB_PATH", canonicalPath)
+	t.Setenv("ERINN_DB_PATH", canonicalPath)
 
 	// Set up legacy file.
 	legacyDir := filepath.Join(projectDir, ".htmlgraph")
@@ -274,7 +274,7 @@ func TestCleanLegacyDBIfSafe_WarnsWhenCanonicalMissing(t *testing.T) {
 
 	// Point canonical DB to a path that does not exist.
 	canonicalPath := filepath.Join(projectDir, "nonexistent-canonical.db")
-	t.Setenv("HTMLGRAPH_DB_PATH", canonicalPath)
+	t.Setenv("ERINN_DB_PATH", canonicalPath)
 
 	// Set up legacy file (~430 KB so it shows as 0.4 MB, not 0 MB).
 	legacyDir := filepath.Join(projectDir, ".htmlgraph")
@@ -319,7 +319,7 @@ func TestCleanLegacyDBIfSafe_WarnsWhenCanonicalEmpty(t *testing.T) {
 	if err := os.WriteFile(canonicalPath, []byte{}, 0o600); err != nil {
 		t.Fatalf("write empty canonical db: %v", err)
 	}
-	t.Setenv("HTMLGRAPH_DB_PATH", canonicalPath)
+	t.Setenv("ERINN_DB_PATH", canonicalPath)
 
 	// Set up legacy file.
 	legacyDir := filepath.Join(projectDir, ".htmlgraph")
@@ -355,7 +355,7 @@ func TestCleanLegacyDBIfSafe_RemovesEmptyDBDir(t *testing.T) {
 	if err := os.WriteFile(canonicalPath, []byte("data"), 0o600); err != nil {
 		t.Fatalf("write canonical db: %v", err)
 	}
-	t.Setenv("HTMLGRAPH_DB_PATH", canonicalPath)
+	t.Setenv("ERINN_DB_PATH", canonicalPath)
 
 	// Create empty .htmlgraph/.db/ directory (no legacy DB file inside).
 	dbDir := filepath.Join(projectDir, ".htmlgraph", ".db")
@@ -387,7 +387,7 @@ func TestCleanLegacyDBIfSafe_LeavesNonEmptyDBDir(t *testing.T) {
 	if err := os.WriteFile(canonicalPath, []byte("data"), 0o600); err != nil {
 		t.Fatalf("write canonical db: %v", err)
 	}
-	t.Setenv("HTMLGRAPH_DB_PATH", canonicalPath)
+	t.Setenv("ERINN_DB_PATH", canonicalPath)
 
 	// Create .htmlgraph/.db/ with an unrelated file inside.
 	dbDir := filepath.Join(projectDir, ".htmlgraph", ".db")
@@ -421,7 +421,7 @@ func TestCleanLegacyDBIfSafe_NoLegacyFiles(t *testing.T) {
 	if err := os.WriteFile(canonicalPath, []byte("data"), 0o600); err != nil {
 		t.Fatalf("write canonical db: %v", err)
 	}
-	t.Setenv("HTMLGRAPH_DB_PATH", canonicalPath)
+	t.Setenv("ERINN_DB_PATH", canonicalPath)
 
 	// No .htmlgraph/ directory or legacy files created.
 
@@ -439,9 +439,9 @@ func TestCleanLegacyDBIfSafe_NoLegacyFiles(t *testing.T) {
 func TestCleanLegacyDBIfSafe_NoLegacyFilesAndNoCanonical(t *testing.T) {
 	projectDir := t.TempDir()
 
-	// Do NOT set HTMLGRAPH_DB_PATH — let CanonicalDBPath compute it.
+	// Do NOT set ERINN_DB_PATH — let CanonicalDBPath compute it.
 	// Do NOT create any files — new user with nothing.
-	t.Setenv("HTMLGRAPH_DB_PATH", "") // ensure no override
+	t.Setenv("ERINN_DB_PATH", "") // ensure no override
 
 	var buf strings.Builder
 	storage.CleanLegacyDBIfSafe(projectDir, &buf)
@@ -459,7 +459,7 @@ func TestCleanLegacyDBIfSafe_DeletesZeroByteFile(t *testing.T) {
 
 	// Point canonical DB to a path that does not exist (canonical not ready).
 	canonicalPath := filepath.Join(projectDir, "nonexistent-canonical.db")
-	t.Setenv("HTMLGRAPH_DB_PATH", canonicalPath)
+	t.Setenv("ERINN_DB_PATH", canonicalPath)
 
 	// Create a zero-byte legacy file (vestigial).
 	legacyDir := filepath.Join(projectDir, ".htmlgraph")
@@ -485,13 +485,13 @@ func TestCleanLegacyDBIfSafe_DeletesZeroByteFile(t *testing.T) {
 	}
 }
 
-// TestCleanLegacyDBIfSafe_HTMLGRAPH_DB_PATH_PointingAtLegacy verifies that when
-// HTMLGRAPH_DB_PATH is explicitly set to a legacy path (e.g. .htmlgraph/htmlgraph.db),
+// TestCleanLegacyDBIfSafe_ERINN_DB_PATH_PointingAtLegacy verifies that when
+// ERINN_DB_PATH is explicitly set to a legacy path (e.g. .htmlgraph/htmlgraph.db),
 // that file is NOT deleted and the .db/ directory is also protected.
-func TestCleanLegacyDBIfSafe_HTMLGRAPH_DB_PATH_PointingAtLegacy(t *testing.T) {
+func TestCleanLegacyDBIfSafe_ERINN_DB_PATH_PointingAtLegacy(t *testing.T) {
 	projectDir := t.TempDir()
 
-	// Set up the legacy path as the canonical DB via HTMLGRAPH_DB_PATH.
+	// Set up the legacy path as the canonical DB via ERINN_DB_PATH.
 	legacyDir := filepath.Join(projectDir, ".htmlgraph")
 	if err := os.MkdirAll(legacyDir, 0o755); err != nil {
 		t.Fatalf("mkdir .htmlgraph: %v", err)
@@ -500,7 +500,7 @@ func TestCleanLegacyDBIfSafe_HTMLGRAPH_DB_PATH_PointingAtLegacy(t *testing.T) {
 	if err := os.WriteFile(legacyFile, []byte("data"), 0o600); err != nil {
 		t.Fatalf("write legacy db: %v", err)
 	}
-	t.Setenv("HTMLGRAPH_DB_PATH", legacyFile)
+	t.Setenv("ERINN_DB_PATH", legacyFile)
 
 	var buf strings.Builder
 	storage.CleanLegacyDBIfSafe(projectDir, &buf)
@@ -512,7 +512,7 @@ func TestCleanLegacyDBIfSafe_HTMLGRAPH_DB_PATH_PointingAtLegacy(t *testing.T) {
 
 	// No output expected (it's the canonical, no warning).
 	if buf.Len() != 0 {
-		t.Errorf("expected no output when HTMLGRAPH_DB_PATH points at legacy file, got: %q", buf.String())
+		t.Errorf("expected no output when ERINN_DB_PATH points at legacy file, got: %q", buf.String())
 	}
 }
 

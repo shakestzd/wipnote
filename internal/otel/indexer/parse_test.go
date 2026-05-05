@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/shakestzd/htmlgraph/internal/otel"
+	"github.com/shakestzd/erinn/internal/otel"
 )
 
 // TestParseLine_ValidSpan verifies all fields are mapped correctly for a span line.

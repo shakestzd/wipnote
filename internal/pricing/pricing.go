@@ -24,7 +24,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/shakestzd/htmlgraph/internal/otel"
+	"github.com/shakestzd/erinn/internal/otel"
 )
 
 //go:embed models.json

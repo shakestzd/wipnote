@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/shakestzd/htmlgraph/internal/otel/adapter"
+	"github.com/shakestzd/erinn/internal/otel/adapter"
 
 	commonpb "go.opentelemetry.io/proto/otlp/common/v1"
 	logspb "go.opentelemetry.io/proto/otlp/logs/v1"

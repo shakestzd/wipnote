@@ -710,7 +710,7 @@ func TestGeminiWorktreeFlagSetsCmdDir(t *testing.T) {
 	}
 }
 
-// TestGeminiHtmlgraphAgentEnvInjectionPreserved verifies that HTMLGRAPH_AGENT=gemini
+// TestGeminiHtmlgraphAgentEnvInjectionPreserved verifies that ERINN_AGENT=gemini
 // is still injected when WorktreeRoot/HtmlgraphRoot are set.
 // We verify via the dry-run output that the env line is expected, plus that our
 // struct fields are correctly populated.

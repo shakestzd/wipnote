@@ -132,7 +132,7 @@ func CreateOtelTables(db *sql.DB) error {
 	// as soon as the first subagent span arrives, eliminating the "flash" where
 	// orphan tool-call spans render without a parent Agent row.
 	//
-	// agent_id is the unique subagent identity (HTMLGRAPH_AGENT_ID written into
+	// agent_id is the unique subagent identity (ERINN_AGENT_ID written into
 	// the subagent env by writeSubagentEnvVars and echoed as a resource attribute
 	// htmlgraph.agent_id on every subagent OTel span).
 	//

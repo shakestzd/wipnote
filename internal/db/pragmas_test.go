@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	db "github.com/shakestzd/htmlgraph/internal/db"
+	db "github.com/shakestzd/erinn/internal/db"
 	_ "modernc.org/sqlite"
 )
 

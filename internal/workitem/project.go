@@ -13,8 +13,8 @@ import (
 	"strings"
 	"time"
 
-	dbpkg "github.com/shakestzd/htmlgraph/internal/db"
-	"github.com/shakestzd/htmlgraph/internal/storage"
+	dbpkg "github.com/shakestzd/erinn/internal/db"
+	"github.com/shakestzd/erinn/internal/storage"
 )
 
 // --- Base types --------------------------------------------------------------
@@ -29,7 +29,7 @@ type Base struct {
 
 	// AgentID is the unique agent identity for per-agent claim attribution.
 	// Empty string means orchestrator (main session). Subagents have a
-	// non-empty ID set via HTMLGRAPH_AGENT_ID.
+	// non-empty ID set via ERINN_AGENT_ID.
 	AgentID string
 
 	// DB is the optional SQLite database (read index).
@@ -91,7 +91,7 @@ func Open(projectDir, agent string) (*Project, error) {
 	base := &Base{
 		ProjectDir: projectDir,
 		Agent:      agent,
-		AgentID:    os.Getenv("HTMLGRAPH_AGENT_ID"), // "" for orchestrator
+		AgentID:    os.Getenv("ERINN_AGENT_ID"), // "" for orchestrator
 		DB:         database,
 	}
 

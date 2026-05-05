@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/shakestzd/htmlgraph/internal/storage"
+	"github.com/shakestzd/erinn/internal/storage"
 )
 
 // mkProject creates a fake project-cache subdir with a single file of the

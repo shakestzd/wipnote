@@ -10,8 +10,8 @@ package sqlite
 import (
 	"context"
 
-	"github.com/shakestzd/htmlgraph/internal/otel"
-	"github.com/shakestzd/htmlgraph/internal/otel/sink"
+	"github.com/shakestzd/erinn/internal/otel"
+	"github.com/shakestzd/erinn/internal/otel/sink"
 )
 
 // WriterCloser is the subset of *receiver.Writer used by this sink.

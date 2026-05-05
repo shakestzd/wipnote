@@ -28,7 +28,7 @@ func makeProjectDBWithSchema(t *testing.T, numFeatures, numBugs, numSpikes int) 
 		t.Fatal(err)
 	}
 	dbPath := filepath.Join(hgDir, ".db", "htmlgraph.db")
-	t.Setenv("HTMLGRAPH_DB_PATH", dbPath)
+	t.Setenv("ERINN_DB_PATH", dbPath)
 
 	// Use modernc.org/sqlite driver registered as "sqlite".
 	db, err := sql.Open("sqlite", dbPath)
@@ -357,7 +357,7 @@ func TestPruneDryRun_DoesNotWrite(t *testing.T) {
 
 // TestPruneTempdirEntries_HonorsEnvVar is a regression test for Finding 1:
 // verifies that PruneTempdirEntries does NOT remove non-test entries even
-// when HTMLGRAPH_SKIP_REGISTER=1 is set. The env-var opt-out should not leak
+// when ERINN_SKIP_REGISTER=1 is set. The env-var opt-out should not leak
 // from registration semantics into pruning semantics.
 func TestPruneTempdirEntries_HonorsEnvVar(t *testing.T) {
 	// Create a real project outside tempdir
@@ -371,15 +371,15 @@ func TestPruneTempdirEntries_HonorsEnvVar(t *testing.T) {
 	})
 
 	// Set the env var that should only affect registration, not pruning
-	oldEnv := os.Getenv("HTMLGRAPH_SKIP_REGISTER")
+	oldEnv := os.Getenv("ERINN_SKIP_REGISTER")
 	defer func() {
 		if oldEnv == "" {
-			os.Unsetenv("HTMLGRAPH_SKIP_REGISTER")
+			os.Unsetenv("ERINN_SKIP_REGISTER")
 		} else {
-			os.Setenv("HTMLGRAPH_SKIP_REGISTER", oldEnv)
+			os.Setenv("ERINN_SKIP_REGISTER", oldEnv)
 		}
 	}()
-	os.Setenv("HTMLGRAPH_SKIP_REGISTER", "1")
+	os.Setenv("ERINN_SKIP_REGISTER", "1")
 
 	cmd := projectsCmd()
 	var buf bytes.Buffer
@@ -390,14 +390,14 @@ func TestPruneTempdirEntries_HonorsEnvVar(t *testing.T) {
 	}
 
 	// The real project should still be in the registry after --tempdir-only prune
-	// because it's not a test temp dir, even though HTMLGRAPH_SKIP_REGISTER=1
+	// because it's not a test temp dir, even though ERINN_SKIP_REGISTER=1
 	reloaded, err := registry.Load(regPath)
 	if err != nil {
 		t.Fatal(err)
 	}
 	entries := reloaded.List()
 	if len(entries) != 1 {
-		t.Fatalf("expected 1 entry after prune with HTMLGRAPH_SKIP_REGISTER=1, got %d: %+v", len(entries), entries)
+		t.Fatalf("expected 1 entry after prune with ERINN_SKIP_REGISTER=1, got %d: %+v", len(entries), entries)
 	}
 	if entries[0].Name != "real-project" {
 		t.Errorf("wrong entry: expected 'real-project', got %q", entries[0].Name)

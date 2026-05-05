@@ -44,14 +44,14 @@ func buildCmd() *cobra.Command {
 //
 //   - Dev mode: binary at plugin/hooks/bin/htmlgraph → two levels up
 //   - Standalone CLI: binary at ~/.local/bin/htmlgraph → walk-up fails;
-//     fall back to plugin dir from CLAUDE_PLUGIN_ROOT / HTMLGRAPH_PLUGIN_DIR /
+//     fall back to plugin dir from CLAUDE_PLUGIN_ROOT / ERINN_PLUGIN_DIR /
 //     project-root detection
 //   - Marketplace install: binary is a bootstrap script, not the real binary;
 //     CLAUDE_PLUGIN_ROOT points to the real plugin tree
 //
 // Search order:
 //  1. CLAUDE_PLUGIN_ROOT env var (always set in hook/plugin context)
-//  2. HTMLGRAPH_PLUGIN_DIR env var (explicit user override)
+//  2. ERINN_PLUGIN_DIR env var (explicit user override)
 //  3. project-root detection (find .htmlgraph/, look for plugin/ next to it)
 //  4. os.Executable() walk-up (dev mode: binary inside plugin tree)
 func resolveBuildScript() (string, error) {
@@ -73,7 +73,7 @@ func resolveBuildScript() (string, error) {
 	}
 
 	// 2. Explicit user override.
-	if s, ok := tryPluginDir(os.Getenv("HTMLGRAPH_PLUGIN_DIR")); ok {
+	if s, ok := tryPluginDir(os.Getenv("ERINN_PLUGIN_DIR")); ok {
 		return s, nil
 	}
 
@@ -115,9 +115,9 @@ func resolveBuildScript() (string, error) {
 	}
 	if _, err := os.Stat(abs); os.IsNotExist(err) {
 		return "", fmt.Errorf(
-			"build script not found — tried CLAUDE_PLUGIN_ROOT, HTMLGRAPH_PLUGIN_DIR, "+
+			"build script not found — tried CLAUDE_PLUGIN_ROOT, ERINN_PLUGIN_DIR, "+
 				"project-root walk-up, and binary walk-up (last path: %s).\n"+
-				"Run from the project root or set HTMLGRAPH_PLUGIN_DIR=<path-to-go-plugin>.", abs)
+				"Run from the project root or set ERINN_PLUGIN_DIR=<path-to-go-plugin>.", abs)
 	}
 	return abs, nil
 }

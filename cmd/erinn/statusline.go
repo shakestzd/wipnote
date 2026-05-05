@@ -59,7 +59,7 @@ func statuslineFromSession(dir, sessionID string) error {
 
 	// Prefer per-agent attribution (active_work_items), fall back to legacy
 	// sessions.active_feature_id for sessions that predate the new table.
-	agentID := dbpkg.NormaliseAgentID(os.Getenv("HTMLGRAPH_AGENT_ID"))
+	agentID := dbpkg.NormaliseAgentID(os.Getenv("ERINN_AGENT_ID"))
 	featureID := dbpkg.GetActiveWorkItemWithFallback(database, sessionID, agentID)
 	if featureID == "" {
 		// No active feature for this session — show nothing.
@@ -280,7 +280,7 @@ func ReadStatuslineCache(htmlgraphDir string) string {
 // statuslineCachePath returns the project-scoped cache file path.
 // Format: <cacheDir>/.htmlgraph-statusline-<hash8>
 func statuslineCachePath(htmlgraphDir string) string {
-	cacheDir := os.Getenv("HTMLGRAPH_CACHE_DIR")
+	cacheDir := os.Getenv("ERINN_CACHE_DIR")
 	if cacheDir == "" {
 		home, err := os.UserHomeDir()
 		if err != nil {

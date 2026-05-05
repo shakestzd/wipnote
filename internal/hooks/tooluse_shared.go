@@ -6,9 +6,9 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/shakestzd/htmlgraph/internal/agent"
-	"github.com/shakestzd/htmlgraph/internal/db"
-	"github.com/shakestzd/htmlgraph/internal/paths"
+	"github.com/shakestzd/erinn/internal/agent"
+	"github.com/shakestzd/erinn/internal/db"
+	"github.com/shakestzd/erinn/internal/paths"
 )
 
 // featureIDCacheEntry holds the single cached result of GetActiveFeatureID for
@@ -60,7 +60,7 @@ type toolUseContext struct {
 // skip all DB operations.
 //
 // trustParentEnvVar should be true only in PostToolUse, where
-// HTMLGRAPH_PARENT_PROMPT_EVENT was set by the paired PreToolUse for this
+// ERINN_PARENT_PROMPT_EVENT was set by the paired PreToolUse for this
 // specific tool call. PreToolUse passes false so it always re-resolves the
 // parent from the DB, preventing stale env-var values from a prior tool call
 // from leaking into the next prompt's tool calls.
@@ -105,7 +105,7 @@ func resolveToolUseContext(event *CloudEvent, database *sql.DB, trustParentEnvVa
 
 	agentType := event.AgentType
 	if agentType == "" {
-		agentType = os.Getenv("HTMLGRAPH_AGENT_TYPE")
+		agentType = os.Getenv("ERINN_AGENT_TYPE")
 	}
 
 	projectDir := ResolveProjectDir(event.CWD, event.SessionID)
@@ -149,9 +149,9 @@ func resolveAgentID(event *CloudEvent) string {
 	if event.AgentID != "" {
 		return event.AgentID
 	}
-	// Check HTMLGRAPH_AGENT_ID env var (written to CLAUDE_ENV_FILE by SubagentStart
+	// Check ERINN_AGENT_ID env var (written to CLAUDE_ENV_FILE by SubagentStart
 	// when CLAUDE_ENV_FILE is set).
-	if id := os.Getenv("HTMLGRAPH_AGENT_ID"); id != "" {
+	if id := os.Getenv("ERINN_AGENT_ID"); id != "" {
 		return id
 	}
 	// Fall back to the per-subagent hint file (written when CLAUDE_ENV_FILE is unset).
@@ -175,18 +175,18 @@ func resolveEventAgentID(event *CloudEvent) string {
 }
 
 // resolveEventAgentType returns the agent type from the CloudEvent, falling
-// back to the HTMLGRAPH_AGENT_TYPE env var.
+// back to the ERINN_AGENT_TYPE env var.
 func resolveEventAgentType(event *CloudEvent) string {
 	if event.AgentType != "" {
 		return event.AgentType
 	}
-	return os.Getenv("HTMLGRAPH_AGENT_TYPE")
+	return os.Getenv("ERINN_AGENT_TYPE")
 }
 
 // resolveParentEventID finds the parent event using a multi-step fallback that
 // mirrors the Python event_tracker.py logic:
-//  1. Env var HTMLGRAPH_PARENT_PROMPT_EVENT (only when trustEnvVar=true, i.e. PostToolUse)
-//  2. Env var HTMLGRAPH_PARENT_EVENT (written by SubagentStart when CLAUDE_ENV_FILE set)
+//  1. Env var ERINN_PARENT_PROMPT_EVENT (only when trustEnvVar=true, i.e. PostToolUse)
+//  2. Env var ERINN_PARENT_EVENT (written by SubagentStart when CLAUDE_ENV_FILE set)
 //  3. Per-subagent hint file parent_event_id (written when CLAUDE_ENV_FILE unset)
 //  4. For subagents: task_delegation row matching our agent_id (Method 0.5)
 //  5. Most recent UserQuery in this session (orchestrator default)
@@ -197,7 +197,7 @@ func resolveEventAgentType(event *CloudEvent) string {
 // call being parented to the wrong prompt (the value persists in the process
 // environment across tool calls until the next UserPromptSubmit).
 func resolveParentEventID(database *sql.DB, sessionID, agentID string, isSubagent bool, trustEnvVar bool) string {
-	// HTMLGRAPH_PARENT_PROMPT_EVENT is written to CLAUDE_ENV_FILE by PreToolUse at
+	// ERINN_PARENT_PROMPT_EVENT is written to CLAUDE_ENV_FILE by PreToolUse at
 	// the moment the tool starts (before the tool executes). PostToolUse trusts it
 	// to avoid the race where a new UserQuery arrives while a long-running tool is
 	// executing (the LatestEventByTool fallback would return the wrong UserQuery).
@@ -213,17 +213,17 @@ func resolveParentEventID(database *sql.DB, sessionID, agentID string, isSubagen
 	// using a stale ID that doesn't exist in the current DB causes FK violations
 	// and silent InsertEvent failures.
 	if trustEnvVar {
-		if v := os.Getenv("HTMLGRAPH_PARENT_PROMPT_EVENT"); v != "" {
+		if v := os.Getenv("ERINN_PARENT_PROMPT_EVENT"); v != "" {
 			if db.EventExists(database, v) {
 				return v
 			}
 		}
 	}
 
-	// TODO(bug-cb4918d8): remove HTMLGRAPH_PARENT_EVENT read after lineage
+	// TODO(bug-cb4918d8): remove ERINN_PARENT_EVENT read after lineage
 	// wiring verified end-to-end — this env var is never set in subagent
 	// hook contexts; the subagent-hint file and DB fallback carry the load.
-	parentEventID := os.Getenv("HTMLGRAPH_PARENT_EVENT")
+	parentEventID := os.Getenv("ERINN_PARENT_EVENT")
 
 	if parentEventID == "" && sessionID != "" {
 		// Check per-subagent hint file (fallback for CLAUDE_ENV_FILE-unset case).
