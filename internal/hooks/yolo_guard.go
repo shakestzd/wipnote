@@ -786,20 +786,19 @@ func checkYoloUIValidationGuard(event *CloudEvent, yolo bool, database *sql.DB, 
 	}
 
 	// Fix 3: check for screenshot / UI validation in session (+ parent).
-	// Supported screenshot tool names:
-	//   - mcp__claude-in-chrome__computer  (Chrome MCP, action=screenshot)
-	//   - take_screenshot                  (other MCP server flavours)
-	//   - *screenshot*                     (catch-all for future servers)
+	// Supported screenshot patterns:
+	//   - tool_input contains "action":"screenshot" (Chrome MCP, including browser_batch)
+	//   - tool_name matches *take_screenshot* or *screenshot* (other MCP server flavours)
+	// This generalization covers browser_batch and other batch-style MCP tools that
+	// nest screenshot actions inside tool_input rather than exposing them as top-level tool_name.
 	for _, sid := range getSessionAndParent(database, sessionID) {
 		var validationCount int
 		database.QueryRow(`
 			SELECT COUNT(*) FROM agent_events
 			WHERE session_id = ?
 			  AND (
-			    -- Chrome MCP: tool_name is mcp__claude-in-chrome__computer,
-			    -- action discriminator lives in the tool_input JSON column.
-			    (tool_name = 'mcp__claude-in-chrome__computer'
-			      AND tool_input LIKE '%"action":"screenshot"%')
+			    -- Chrome MCP and batch tools: action discriminator in tool_input JSON.
+			    tool_input LIKE '%"action":"screenshot"%'
 			    -- Other MCP servers that expose a dedicated screenshot tool.
 			    OR tool_name LIKE '%take_screenshot%'
 			    OR tool_name LIKE '%screenshot%'

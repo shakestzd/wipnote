@@ -791,6 +791,46 @@ func TestVisualValidation_GitCommitTreeNotGated(t *testing.T) {
 	}
 }
 
+// TestUIValidationGuard_BrowserBatchScreenshotCounts verifies that screenshots
+// taken via mcp__claude-in-chrome__browser_batch are recognized (bug-19276d4b).
+// browser_batch records the nested computer action in tool_input, not tool_name.
+func TestUIValidationGuard_BrowserBatchScreenshotCounts(t *testing.T) {
+	repoDir := setupTempGitRepo(t)
+
+	// Stage an HTML file.
+	htmlFile := filepath.Join(repoDir, "index.html")
+	os.WriteFile(htmlFile, []byte("<html></html>"), 0o644)
+	cmd := exec.Command("git", "add", "index.html")
+	cmd.Dir = repoDir
+	cmd.Env = cleanEnv()
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("git add: %v\n%s", err, out)
+	}
+
+	tdb := setupTestDB(t)
+	defer tdb.DB.Close()
+
+	// Record a UI file edit in session state so uiFileCount > 0.
+	insertAgentEvent(t, tdb.DB, "evt-edit-html-batch", "test-sess", "Edit",
+		`{"file_path":"index.html"}`, "index.html", "completed")
+
+	// Record a browser_batch screenshot tool call with nested computer action.
+	// This simulates: tool_name='mcp__claude-in-chrome__browser_batch'
+	// with tool_input containing actions:[{name:'computer',input:{action:'screenshot',...}}]
+	insertAgentEvent(t, tdb.DB, "evt-screenshot-batch", "test-sess",
+		"mcp__claude-in-chrome__browser_batch",
+		`{"actions":[{"name":"computer","input":{"action":"screenshot"}}]}`, "", "completed")
+
+	event := &CloudEvent{
+		ToolName:  "Bash",
+		ToolInput: map[string]any{"command": "git commit -m 'ui with browser_batch screenshot'"},
+	}
+	result := checkYoloUIValidationGuard(event, true, tdb.DB, "test-sess")
+	if result != "" {
+		t.Errorf("expected allow after browser_batch screenshot, got: %s", result)
+	}
+}
+
 func TestCheckYoloStepsGuard(t *testing.T) {
 	// Set up a temp .htmlgraph dir with a feature that has no steps
 	tmpDir := t.TempDir()
