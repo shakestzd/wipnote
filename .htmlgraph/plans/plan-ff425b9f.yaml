@@ -7,7 +7,7 @@ meta:
     created_at: "2026-05-04"
     status: finalized
     created_by: claude-opus
-    version: 8
+    version: 9
 design:
     problem: |
         /htmlgraph:execute dispatches sub-agents in parallel against a track's features. Two infrastructure bugs make this fundamentally broken today: (1) the orchestrator's `htmlgraph feature start <id>` creates a claim under the orchestrator's session ID, but sub-agents run under different session IDs; the PreToolUse hook's claim lookup uses the sub-agent's own session, sees `claim=none`, and refuses Write/Edit/MultiEdit. Sub-agents cannot fix this from inside themselves (`feature start` from a sub-agent records a claim under yet another session, leaving the parent's claim in place). 6 of 8 sub-agents in the cited dispatch wasted 30-50 turns each investigating this. (2) Sub-agents dispatched with `Agent({isolation:"worktree"})` sometimes commit directly to main instead of an isolated branch — when the parent orchestrator is itself in a worktree, Claude Code appears to skip nested worktree creation, leaving sub-agents writing in the parent's working directory which after a checkout had ended up on main. 2 of 8 successful sub-agents in the cited dispatch had this happen; quality gates passed by luck. (3) Sub-agents dispatched from a parent in YOLO mode have their `Edit`/`Write` calls blocked because the YOLO-mode hook check (likely `checkYoloMode` in `yolo_guard.go` or a sibling) uses the sub-agent's own session ID directly. The sub-agent is not tagged YOLO; the check returns false; the gate refuses. In the cited dispatch one sub-agent burned 50 tool calls investigating the hook source instead of implementing the feature.
@@ -304,6 +304,7 @@ slices:
           severity: LOW
           summary: HTMLGRAPH_AGENT_BRANCH=1 env-var escape hatch leaks across boundary -- env vars set in parent persist into all children. Drop env-var hatch entirely; rely on branch denylist.
     - id: slice-3
+      feature_id: feat-72876845
       num: 3
       title: 'YOLO permission inheritance via parent-session chain (fixes #90 / bug-8ff540a7)'
       what: |
@@ -366,7 +367,7 @@ slices:
       approved: false
       comment: ""
       approval_status: pending
-      execution_status: not_started
+      execution_status: promoted
       questions:
         - id: q-yolo-inherit-strictness
           text: Should YOLO inheritance respect explicit non-YOLO tags on the sub-agent?
