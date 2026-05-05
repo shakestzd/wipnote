@@ -20,7 +20,7 @@ const (
 // startAITitleBackfill launches the one-time ai-title backfill in the background.
 // It is non-blocking: it spawns a goroutine and returns immediately.
 // The backfill is gated by a sentinel file at .htmlgraph/migrations/ai-title-backfill.done.
-func startAITitleBackfill(ctx context.Context, database *sql.DB, htmlgraphDir string) {
+func startAITitleBackfill(_ context.Context, database *sql.DB, htmlgraphDir string) {
 	go func() {
 		if err := runAITitleBackfill(database, htmlgraphDir, false); err != nil {
 			log.Printf("ai-title backfill: %v\n", err)

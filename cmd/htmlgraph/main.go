@@ -107,10 +107,12 @@ func buildRoot() *cobra.Command {
 	root.AddCommand(feature)
 
 	spike := workitemCmd("spike", "spikes")
+	spike.AddCommand(spikeResetCmd())
 	spike.GroupID = "workitems"
 	root.AddCommand(spike)
 
 	bug := workitemCmd("bug", "bugs")
+	bug.AddCommand(bugResetCmd())
 	bug.GroupID = "workitems"
 	root.AddCommand(bug)
 
@@ -167,6 +169,18 @@ func buildRoot() *cobra.Command {
 	lineage.GroupID = "query"
 	root.AddCommand(lineage)
 
+	blameC := blameCmd()
+	blameC.GroupID = "query"
+	root.AddCommand(blameC)
+
+	codeAreas := codeAreasCmd()
+	codeAreas.GroupID = "query"
+	root.AddCommand(codeAreas)
+
+	contextPack := contextPackCmd()
+	contextPack.GroupID = "query"
+	root.AddCommand(contextPack)
+
 	executePreview := executePreviewCmd()
 	executePreview.GroupID = "query"
 	root.AddCommand(executePreview)
@@ -221,9 +235,17 @@ func buildRoot() *cobra.Command {
 	migrate.GroupID = "data"
 	root.AddCommand(migrate)
 
+	migrateTracks := migrateTracksCmd()
+	migrateTracks.GroupID = "data"
+	root.AddCommand(migrateTracks)
+
 	cleanup := cleanupCmd()
 	cleanup.GroupID = "data"
 	root.AddCommand(cleanup)
+
+	cache := cacheCmd()
+	cache.GroupID = "data"
+	root.AddCommand(cache)
 
 	// dev group
 	yolo := yoloCmd()
@@ -301,6 +323,17 @@ func persistentPreRunE(cmd *cobra.Command, _ []string) error {
 	switch cmd.Name() {
 	case "version", "help", "init", "build", "install-hooks", "setup", "setup-cli", "projects", "upgrade", "update":
 		return nil
+	// Internal process commands: otel-collect and _serve-child are spawned as
+	// child processes by the parent supervisor. They must not open the SQLite DB
+	// in persistentPreRunE because:
+	//   1. otel-collect must print its handshake line within 3s of being spawned.
+	//      Opening the DB (and applying pragmas) can block for up to busy_timeout
+	//      (5s) when stale htmlgraph processes hold the write lock, causing all
+	//      3 spawn retries to time out and the launcher to exit FATAL.
+	//   2. _serve-child opens its own DB connection explicitly in runServeChild.
+	// Neither command participates in agent session tracking or the project registry.
+	case "otel-collect", "_serve-child":
+		return nil
 	}
 	// Skip hook subtree — hooks manage their own session lifecycle.
 	for p := cmd; p != nil; p = p.Parent() {
@@ -316,12 +349,21 @@ func persistentPreRunE(cmd *cobra.Command, _ []string) error {
 	}
 	projectDir := filepath.Dir(hgDir)
 	storage.CleanLegacyDBIfSafe(projectDir, os.Stderr)
+	// Opportunistic prune is destructive; skip it for the `cache` subtree so
+	// `htmlgraph cache prune --dry-run` reports the disk's actual state, and
+	// pass the active project's cache dir as protected so the LRU sweep can't
+	// pull the read-index out from under the very command that's about to run.
+	if !inCacheSubtree(cmd) {
+		if cacheRoot, cerr := storage.CacheRoot(); cerr == nil {
+			storage.OpportunisticPrune(cacheRoot, projectDir, os.Stderr)
+		}
+	}
 	if database, dberr := openDB(hgDir); dberr == nil {
 		_, _ = agent.EnsureSession(database, projectDir)
 		database.Close()
 	}
 	// Registry upsert — silent, cached git remote lookup.
-	if reg, regErr := registry.Load(registry.DefaultPath()); regErr == nil {
+	if reg, regErr := registry.Load(defaultRegistryPath()); regErr == nil {
 		var cachedRemote string
 		for _, e := range reg.List() {
 			if filepath.Clean(e.ProjectDir) == filepath.Clean(projectDir) {
@@ -343,6 +385,19 @@ func persistentPreRunE(cmd *cobra.Command, _ []string) error {
 		_ = reg.Save()
 	}
 	return nil
+}
+
+// inCacheSubtree reports whether cmd or any ancestor is the `cache` command.
+// Used to bypass the destructive opportunistic prune in PersistentPreRunE so
+// `htmlgraph cache prune --dry-run` reports the cache's actual state rather
+// than what's left after the prune the pre-run hook just performed.
+func inCacheSubtree(cmd *cobra.Command) bool {
+	for p := cmd; p != nil; p = p.Parent() {
+		if p.Name() == "cache" {
+			return true
+		}
+	}
+	return false
 }
 
 // findHtmlgraphDir locates the .htmlgraph directory by delegating to the

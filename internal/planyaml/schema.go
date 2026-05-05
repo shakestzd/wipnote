@@ -75,19 +75,35 @@ type PlanSlice struct {
 	// V2 slice-local spec fields.
 	Questions       []SliceQuestion  `yaml:"questions,omitempty"`        // slice-local open questions
 	CriticRevisions []CriticRevision `yaml:"critic_revisions,omitempty"` // critic feedback specific to this slice
+
+	// DecisionsNotes is free-text Markdown captured by `htmlgraph plan
+	// elicit-decisions` (typically Scope/Decisions/Context). Slice 1's
+	// `htmlgraph spec generate --insert` weaves this prose verbatim into the
+	// generated spec's `## Decisions` section. Free text — not a typed schema.
+	// Empty/absent renders no Decisions section.
+	DecisionsNotes string `yaml:"decisions_notes,omitempty"`
 }
 
-// SliceQuestion is an open question scoped to a single slice. Unlike plan-level
-// PlanQuestion, it is lightweight (no options list) — it captures the question
-// text and an optional freeform answer.
+// SliceQuestion is an open question scoped to a single slice. It supports two
+// forms:
+//
+//   - Minimal form: {id, text, answer} — freeform answer, no options
+//   - Structured form: {id, text, description, recommended, options[], answer} —
+//     mirrors PlanQuestion; the dashboard highlights the recommended option
+//
+// When options are present, answer should be one of the option keys (or empty
+// if unanswered). When options are absent, answer is a freeform string.
 //
 // The section key for plan_feedback responses is:
 //
 //	slice-<num>-question-<id>
 type SliceQuestion struct {
-	ID     string `yaml:"id"`
-	Text   string `yaml:"text"`
-	Answer string `yaml:"answer,omitempty"` // freeform answer; empty = unanswered
+	ID          string           `yaml:"id"`
+	Text        string           `yaml:"text"`
+	Description string           `yaml:"description,omitempty"`
+	Recommended string           `yaml:"recommended,omitempty"` // must match a key in Options when Options non-empty
+	Options     []QuestionOption `yaml:"options,omitempty"`
+	Answer      string           `yaml:"answer,omitempty"` // option key or freeform; empty = unanswered
 }
 
 // CriticRevision records a critic's feedback item scoped to a specific slice.

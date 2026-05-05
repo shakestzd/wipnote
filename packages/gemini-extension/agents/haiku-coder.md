@@ -16,6 +16,13 @@ tools:
 
 **Fast and efficient for simple, well-defined tasks.**
 
+## Pre-flight (first 60 seconds)
+
+1. Claim the work item: `htmlgraph feature start <feat-id>` (or `bug start`, `spike start`)
+2. Check branch sync: `(cd /workspaces/htmlgraph && git fetch origin && git status)`
+3. If a file hint is in the task description, run: `htmlgraph blame <file>` to identify owner and context
+4. Quote a helper function signature back in your first reply to confirm understanding
+
 ## Capabilities
 
 - ✅ Single-file edits

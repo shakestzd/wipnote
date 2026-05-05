@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>85 of 113 features (75%) have no feature_files rows — backfill the lineage index from git history</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-f92bedff"
+             data-type="bug"
+             data-status="done"
+             data-priority="high"
+             data-created="2026-05-01T16:54:11.04875"
+             data-updated="2026-05-01T17:32:54.571993" data-agent-assigned="claude-code" data-track-id="trk-08dcbb33">
+
+        <header>
+            <h1>85 of 113 features (75%) have no feature_files rows — backfill the lineage index from git history</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="caused_by">
+                <h3>Caused By:</h3>
+                <ul>
+                    <li><a href="feat-500da04c.html" data-relationship="caused_by" data-since="2026-05-01T16:54:11.054965">feat-500da04c</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="2d51eb66-2587-4507-979e-180e096ef576.html" data-relationship="implemented_in" data-since="2026-05-01T16:56:18.737517">session 2d51eb66-2587-4507-979e-180e096ef576</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-08dcbb33.html" data-relationship="part_of" data-since="2026-05-01T16:54:11.060773">trk-08dcbb33</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Surfaced by htmlgraph migrate-tracks --dry-run after feat-d9c66e16 shipped (PR #73). Of 113 classified features, 85 returned 'no-attribution (0 files)' — meaning they have zero rows in the feature_files table. This caps the entire lineage system: htmlgraph blame returns false negatives on real touches (e.g. internal/graph/algorithms.go shows zero features even though git history attributes feat-918f08b9 and feat-27e4ecf1 to it); htmlgraph code-areas under-counts by 75 percent; htmlgraph migrate-tracks cannot re-attribute orphan features. The four value-aligned tracks (Subagents, Yolo Mode, Lineage, Plan Mode) will look perpetually under-populated until this is fixed. Likely root cause: features predate the feature_files indexing pipeline OR the indexer only captures attribution from active hook events, missing commits referenced via trailer / commit message conventions. Proposed remediation: add a 'htmlgraph reindex --backfill-orphans' mode that walks git log for every feature ID in the store, parses commit messages and trailers for feat-XXX references, extracts touched paths via git show --name-only, and populates feature_files retroactively. Smoke test post-fix: re-run htmlgraph migrate-tracks --dry-run and verify the no-attribution count drops below 20. Out of scope for this bug ticket: implementing the backfill is itself feature-sized work. This bug exists to surface the gap and track its resolution.</p>
+        </section>
+    </article>
+</body>
+</html>

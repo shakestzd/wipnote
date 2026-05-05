@@ -1055,10 +1055,30 @@ func finalizePlanHTML(planPath string, database *sql.DB, planID string) error {
 	for _, fb := range feedback {
 		switch fb.Action {
 		case "approve":
-			// Check the approval checkbox for this section
-			if fb.Value == "true" {
-				doc.Find(fmt.Sprintf("input[data-section='%s'][data-action='approve']", fb.Section)).
+			// Handle approval inputs. For slice-card YAML plans, these are radio buttons
+			// with three values (approved, changes_requested, rejected). For legacy plans,
+			// these are checkboxes. Must branch on type to preserve radio-group invariant.
+			section := fb.Section
+			approved := fb.Value == "true"
+
+			// For radios: set checked only on value='approved' if approved, clear all otherwise
+			doc.Find(fmt.Sprintf("input[type='radio'][data-section='%s'][data-action='approve']", section)).
+				Each(func(_ int, s *goquery.Selection) {
+					val, _ := s.Attr("value")
+					if approved && val == "approved" {
+						s.SetAttr("checked", "checked")
+					} else {
+						s.RemoveAttr("checked")
+					}
+				})
+
+			// For checkboxes: set checked only if approved
+			if approved {
+				doc.Find(fmt.Sprintf("input[type='checkbox'][data-section='%s'][data-action='approve']", section)).
 					SetAttr("checked", "checked")
+			} else {
+				doc.Find(fmt.Sprintf("input[type='checkbox'][data-section='%s'][data-action='approve']", section)).
+					RemoveAttr("checked")
 			}
 		case "comment":
 			// Set textarea content for this section

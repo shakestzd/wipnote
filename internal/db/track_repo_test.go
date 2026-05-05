@@ -1,6 +1,7 @@
 package db_test
 
 import (
+	"slices"
 	"testing"
 	"time"
 
@@ -124,5 +125,58 @@ func TestUpsertTrack_FeatureFK(t *testing.T) {
 	).Scan(&trackID)
 	if trackID != "trk-fk-001" {
 		t.Errorf("track_id: got %q, want %q", trackID, "trk-fk-001")
+	}
+}
+
+func TestGetFeatureIDsByTrack_ContainsEdge(t *testing.T) {
+	database := openTestDB(t)
+
+	now := time.Now().UTC().Truncate(time.Second)
+
+	// Insert a track.
+	track := &db.Track{
+		ID:        "trk-contains-001",
+		Title:     "Contains Test Track",
+		Status:    "todo",
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+	if err := db.UpsertTrack(database, track); err != nil {
+		t.Fatalf("UpsertTrack: %v", err)
+	}
+
+	// Insert a feature WITHOUT setting track_id on the feature itself.
+	feat := &db.Feature{
+		ID:        "feat-contains-001",
+		Type:      "feature",
+		Title:     "Feature in Contains Edge",
+		Status:    "todo",
+		Priority:  "medium",
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+	if err := db.UpsertFeature(database, feat); err != nil {
+		t.Fatalf("UpsertFeature: %v", err)
+	}
+
+	// Insert a 'contains' edge: track → feature.
+	if err := db.InsertEdge(
+		database,
+		"trk-contains-001-contains-feat-contains-001",
+		"trk-contains-001", "track",
+		"feat-contains-001", "feature",
+		"contains", nil,
+	); err != nil {
+		t.Fatalf("InsertEdge: %v", err)
+	}
+
+	// Call GetFeatureIDsByTrack and verify the feature is returned.
+	ids, err := db.GetFeatureIDsByTrack(database, "trk-contains-001")
+	if err != nil {
+		t.Fatalf("GetFeatureIDsByTrack: %v", err)
+	}
+
+	if !slices.Contains(ids, "feat-contains-001") {
+		t.Errorf("feature not found via contains edge; got %v, want to include %q", ids, "feat-contains-001")
 	}
 }

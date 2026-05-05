@@ -54,6 +54,7 @@ import (
 	"os/exec"
 	"regexp"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"syscall"
@@ -290,6 +291,19 @@ func (s *Supervisor) spawnLocked(ctx context.Context, projectID, projectDir stri
 	proxy.ErrorHandler = func(w http.ResponseWriter, _ *http.Request, err error) {
 		w.WriteHeader(http.StatusBadGateway)
 		_, _ = fmt.Fprintf(w, "child unreachable: %v", err)
+	}
+	// ModifyResponse rewrites absolute-path Location headers so that
+	// 3xx redirects from the child preserve the /p/<id>/ project prefix.
+	// Without this, a 301 from the child (e.g. "/plans" → "/plans/")
+	// sends the browser to the bare path ("/plans/") at the parent server,
+	// stripping the project context and causing subsequent API calls to
+	// hit /api/plans (404) instead of /p/<id>/api/plans.
+	proxy.ModifyResponse = func(resp *http.Response) error {
+		loc := resp.Header.Get("Location")
+		if loc != "" && strings.HasPrefix(loc, "/") && !strings.HasPrefix(loc, "/p/") {
+			resp.Header.Set("Location", "/p/"+projectID+loc)
+		}
+		return nil
 	}
 
 	child := &Child{

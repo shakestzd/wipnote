@@ -20,6 +20,7 @@ import (
 // inline the string in callers (enforced by TestNoInlineDBPathConstruction).
 const DBFileName = "htmlgraph.db"
 
+
 // CanonicalDBPath returns the absolute path to the SQLite read-index for
 // the given project. The DB lives in the host's OS cache directory keyed
 // by project-path hash — never inside the project tree — so it always
@@ -72,6 +73,7 @@ func EnsureDBDir(dbPath string) error {
 	return os.MkdirAll(filepath.Dir(dbPath), 0o755)
 }
 
+
 // CleanLegacyDBIfSafe checks for legacy project-local SQLite files and
 // handles them based on whether the canonical cache DB exists and is non-empty:
 //
@@ -114,6 +116,11 @@ func CleanLegacyDBIfSafe(projectDir string, w io.Writer) {
 	for _, p := range LegacyProjectDBPaths(projectDir) {
 		info, statErr := os.Stat(p)
 		if statErr != nil {
+			continue
+		}
+		// Zero-byte files are vestigial; silently remove them.
+		if info.Size() == 0 {
+			_ = os.Remove(p)
 			continue
 		}
 		if canonicalReady {

@@ -1,0 +1,1090 @@
+meta:
+    id: plan-3bbc313f
+    track_id: trk-2c55adea
+    title: HTML-canonical architecture migration
+    description: |
+        Lock in a public HTML schema (JSON-LD payload + microdata body + link rel head edges + meta-name primitives + time datetime) that makes the work-item HTML files the canonical queryable substrate. Migrate every consumer (CLI, dashboard, ingest pipeline) off SQLite as a system requirement, in six phases. SQLite is allowed back later strictly as a disposable derived speed tier — not in this plan.
+    created_at: "2026-05-01"
+    status: done
+    created_by: claude-opus
+    version: 2
+design:
+    problem: |
+        `.htmlgraph/htmlgraph.db` has corrupted three times in nine days. The architecture claims SQLite is a "derived read index" but the codebase treats it as authoritative: ~110 Go files import `database/sql`, the entire `internal/hooks/` package persists hook events directly to SQLite tables, `internal/db/` is a 18-file repo package, and core subsystems (`internal/graph/`, `internal/agent/`, `internal/planchat/`, `internal/registry/`) depend on SQL queries. Today the OTEL activity feed shows zero spans because the DB is empty/no-schema, even though 198 spans are durably written to NDJSON for the current session. The CLI read-path is ~85% HTML-direct, but the WRITE-path and dashboard are deeply SQLite-coupled. Driver: `modernc.org/sqlite v1.37.1`. The cost-to-benefit has flipped — SQLite imposes a corruption class on every session for speed wins that current scale doesn't meaningfully require, and every new feature accidentally adds another SQLite dependency.
+    goals:
+        - '**Eliminate the corruption class** — losing the SQLite file becomes a sub-second nuisance (rm + rebuild from canonical HTML+NDJSON), not an incident.'
+        - '**Promote HTML to genuinely canonical** — every fact in a work-item file is queryable by an explicit, versioned schema (JSON-LD payload + `<link rel>` graph + `<meta name>` filters + `<time datetime>` + microdata body), informed by an audit of the actual data-* vocabulary in use today.'
+        - '**Make NDJSON canonical for events** — hook events and OTEL spans both persist to per-session NDJSON; SQLite is no longer the event store.'
+        - '**Remove SQLite as a system requirement** — the binary builds, ships, and runs without the `modernc.org/sqlite` driver; enforced via build tag (`!sqlite_disabled`) that swaps the import for an error-returning stub.'
+        - '**Preserve user-facing CLI and dashboard surface** — every existing command and dashboard view keeps behavior; users don''t notice the migration.'
+        - '**Land a new `htmlgraph query` subcommand** — jq-style filter over JSON-LD payloads via embedded `itchyny/gojq`.'
+    constraints:
+        - No new runtime language deps (no Python, no Rust binary). Pure-Go embeds only.
+        - Schema vocabulary versioned at `https://htmlgraph.dev/v1/`; freeze ONLY after corpus audit (slice-12) enumerates every distinct `data-*` attribute and edge type currently in use across the 577 existing HTML files.
+        - Phase 0 (slices 1-2) must land first — we do not remove SQLite paths while the DB is the only thing serving the activity feed.
+        - Every SQLite removal step keeps a non-SQLite fallback; the build-tag stub (slice-8 acceptance) is the binding compile-time contract.
+        - Backfill of existing `.htmlgraph/*.html` files (slice-6) must be reversible (git-snapshot before write) and content-preserving (passthrough body field; post-render diff fails the migrator).
+        - 'Plan blast radius extends well beyond the read-path audit: ~110 SQL-importing files, 18-file `internal/db/`, ~20-file `internal/hooks/` event-persistence layer, internal/{graph,agent,planchat,registry} all in scope. Several follow-on slices (12-16) added to cover work the original 11-slice plan missed.'
+    approved: false
+    comment: ""
+slices:
+    - id: slice-1
+      num: 1
+      title: Phase 0a — RCA and fix the SQLite ingestion path so OTEL spans render
+      what: |
+        Diagnose why `.htmlgraph/htmlgraph.db` keeps ending up empty/corrupt
+        (3 incidents in 9 days, plus a current zero-byte file with no schema).
+        The original "concurrent collectors" hypothesis is suspect because
+        `internal/otel/receiver/writer.go` already sets `MaxOpenConns=1` and
+        uses `BEGIN IMMEDIATE`. Specifically test three candidate causes:
+        (a) `journal_mode=WAL` falls back to `DELETE` on the Codespaces
+        filesystem (check `internal/db/pragmas.go`),
+        (b) `INSERT OR IGNORE INTO sessions` swallows FK constraint
+        violations on the `otel_signals` insert path, leaving the table empty
+        while no error is logged,
+        (c) the read-pool DSN and write-pool DSN apply different pragmas,
+        causing journal-mode mismatch.
+        Pick the actual cause with a reproducer; fix it; document the
+        diagnosis in the commit message. The ingestion path spans
+        `internal/otel/indexer/indexer.go`,
+        `internal/otel/receiver/writer.go`, `internal/otel/sink/sink.go`,
+        and `internal/db/otel_schema.go`.
+      why: |
+        Closes the immediate user-visible bug (activity feed shows no OTEL
+        data) and stabilizes the baseline so the rest of the migration can
+        proceed against a working dashboard. Without a correct RCA, the
+        "fix" may not address the actual cause and corruption recurs.
+      files:
+        - internal/otel/receiver/writer.go
+        - internal/otel/indexer/indexer.go
+        - internal/otel/sink/sink.go
+        - internal/otel/adapter/claude.go
+        - internal/db/otel_schema.go
+        - internal/db/pragmas.go
+        - internal/storage/dbpath.go
+        - internal/otel/receiver/writer_test.go
+      deps: []
+      done_when:
+        - Activity feed in the dashboard shows OTEL spans (api_request, tool_execution, tool_result) within one cold-start of `htmlgraph serve`.
+        - A regression test reproduces the corruption / empty-schema scenario and verifies the fix.
+        - Running two concurrent `htmlgraph claude` sessions does not cause DB corruption (verified manually + scripted).
+        - A new bug `[P1] SQLite read index ends up empty/corrupt` is filed under trk-c4615ad2 and closed by this slice's commits.
+      effort: M
+      risk: Med
+      tests: |
+        Unit: TestWriter_BatchIngest_EmptyDB_AutoMigrates — open against a fresh empty DB, batch-insert 10 spans, assert all are queryable.
+        Integration: TestConcurrentCollectors_NoCorruption — spin up two collectors writing to the same DB via the WAL path; assert PRAGMA integrity_check is OK after 1k spans each.
+        Regression: existing `internal/otel/receiver/*_test.go` and `internal/otel/sink/*_test.go` still pass.
+      approved: false
+      comment: ""
+      approval_status: pending
+      execution_status: not_started
+      critic_revisions:
+        - source: sonnet-coder
+          severity: HIGH
+          summary: Concurrent-collector hypothesis may be wrong. writer.go already has MaxOpenConns=1 + BEGIN IMMEDIATE. RCA must specifically probe (a) journal_mode falling back to DELETE on Codespaces fs, (b) INSERT OR IGNORE swallowing FK constraint violations on otel_signals → sessions, before landing any fix.
+        - source: researcher
+          severity: MED
+          summary: Ingestion chain likely runs through internal/otel/indexer/indexer.go and internal/otel/sink/sqlite/sqlite.go in addition to receiver/writer.go — file list incomplete; corruption site may be in any of the three.
+    - id: slice-2
+      num: 2
+      title: Phase 0b — Auto-recover empty/corrupt DB at startup; add `htmlgraph recover-db`
+      what: |
+        In the SQLite open path (`internal/storage/dbpath.go` and
+        `cmd/htmlgraph/main.go` startup), detect: (a) zero-byte DB,
+        (b) PRAGMA integrity_check failure. On either, quarantine the file
+        to `.htmlgraph/htmlgraph.db.corrupt-<unix>` and rebuild from
+        canonical sources (replay every `.htmlgraph/sessions/*/events.ndjson`
+        through the indexer; reparse all work-item HTML for the work-item
+        tables). Add explicit `htmlgraph recover-db` subcommand for manual
+        recovery, sharing the same code path.
+      why: |
+        Defensive: turns the next corruption from an incident into a slow
+        startup. Also serves as the dress rehearsal for Phase 4 — proves the
+        DB can be rebuilt deterministically from canonical sources, which is
+        the precondition for ever calling SQLite "disposable."
+      files:
+        - internal/storage/dbpath.go
+        - internal/storage/recover.go
+        - cmd/htmlgraph/main.go
+        - cmd/htmlgraph/recover_db.go
+        - cmd/htmlgraph/recover_db_test.go
+      deps:
+        - 1
+      done_when:
+        - Starting `htmlgraph serve` against a zero-byte `htmlgraph.db` quarantines it and produces a fully-populated rebuild without operator intervention.
+        - '`htmlgraph recover-db` exits 0 and produces an identical DB to the auto-recovery path (golden-file comparison).'
+        - PRAGMA integrity_check failures during normal queries trigger a single quarantine + rebuild, not an infinite loop.
+      effort: M
+      risk: Med
+      tests: |
+        Unit: TestRecoverDB_FromZeroByte — empty file → fully-populated DB, all expected tables present.
+        Unit: TestRecoverDB_FromCorrupt — write a known-bad page, assert quarantine + rebuild.
+        Integration: TestStartupAutoRecover — `htmlgraph status` against a corrupt DB succeeds.
+      approved: false
+      comment: ""
+      approval_status: pending
+      execution_status: not_started
+    - id: slice-3
+      num: 3
+      title: Phase 1a — Author schema v1 spec, Go types, and validator
+      what: |
+        Consume the v0 vocabulary inventory produced by slice-12. Write
+        `docs/schema/v1.md` defining the `https://htmlgraph.dev/v1/`
+        vocabulary: types (Feature, Bug, Spike, Plan, Track, Session, Commit,
+        OtelSpan, AgentEvent), universal properties covering EVERY data-*
+        attribute observed in the live corpus (so no surprise field forces
+        a v2 migration), and the link-rel relationship vocabulary mapped
+        from existing `data-relationship` values (depends-on, blocked-by,
+        caused-by, contained-in, part-of, references, supersedes,
+        produced-by-session, produced-commit, plus any others surfaced by
+        the audit). Implement `internal/schema/v1.go` with Go structs
+        matching the JSON-LD shape (`@context`, `@type`, `@id` + properties)
+        and an explicit `BodyPassthrough string` field on each type to
+        preserve hand-edited body content verbatim across re-renders.
+        Implement `internal/schema/validate.go` — given an `io.Reader`
+        over an HTML file, verify presence and consistency of `<script
+        type="application/ld+json">`, `<meta name="htmlgraph:*">`,
+        `<link rel="...">`, and `<time datetime="...">` against the schema.
+      why: |
+        Establishes the public contract everything else depends on. The schema
+        is the new architectural commitment; nothing else can land safely
+        until it's frozen. Acts as both human documentation and a parser
+        contract for tools (CLI, dashboard, external `hq`/`jq` users).
+      files:
+        - docs/schema/v1.md
+        - internal/schema/v1.go
+        - internal/schema/validate.go
+        - internal/schema/validate_test.go
+      deps:
+        - 12
+      done_when:
+        - '`docs/schema/v1.md` exists, defines all listed types and properties, and lists the `<link rel>` vocabulary derived from the slice-12 v0 inventory.'
+        - '`internal/schema/v1.Feature`, `.Bug`, `.Spike`, `.Plan`, `.Track`, `.Session` Go structs round-trip via `encoding/json` matching the spec, INCLUDING a `BodyPassthrough` field per type.'
+        - Every distinct `data-*` attribute and edge type from the v0 inventory has a corresponding mapped property in v1 (no schema gap).
+        - '`internal/schema/Validate(r) error` returns nil for a hand-authored valid example, returns specific errors (missing field, wrong type) for known-bad cases.'
+      effort: M
+      risk: Med
+      tests: |
+        Unit: TestValidate_GoldenFeature — read a fixture under testdata/v1/, assert nil error.
+        Unit: TestValidate_MissingTypes — for each mandatory field, verify a clear error message.
+        Unit: TestRoundTrip — marshal → unmarshal → equality for each type.
+      approved: false
+      comment: ""
+      approval_status: pending
+      execution_status: not_started
+      critic_revisions:
+        - source: sonnet-coder
+          severity: HIGH
+          summary: 'Schema URL becomes a permanent public contract once committed into the 577 existing HTML files. Fixtures alone are insufficient validation — must enumerate every distinct data-* attribute, edge type, and status value actually in use across `.htmlgraph/**/*.html` BEFORE freezing v1, otherwise a surprise field forces a v2 migration. Suggest a prerequisite slice: ''Audit existing HTML corpus to inform v1 vocabulary''.'
+    - id: slice-4
+      num: 4
+      title: Phase 1b — Schema test fixtures (positive and negative)
+      what: |
+        Author `internal/schema/testdata/v1/` containing one positive fixture
+        per top-level type and at least three negative fixtures (missing
+        required field, conflicting JSON-LD vs. meta-name status, malformed
+        datetime). These fixtures are the canonical examples that downstream
+        slices' tests target. Include a `README.md` in the testdata dir
+        explaining the fixture layout and how new types are added.
+      why: |
+        Without fixtures the validator from slice-3 has no real-world
+        coverage. Fixtures also act as documentation by example for anyone
+        writing migration code in slices 5-6, and as the regression bar
+        for Phase 2 templater changes.
+      files:
+        - internal/schema/testdata/v1/feature_valid.html
+        - internal/schema/testdata/v1/bug_valid.html
+        - internal/schema/testdata/v1/track_valid.html
+        - internal/schema/testdata/v1/session_valid.html
+        - internal/schema/testdata/v1/feature_missing_status.html
+        - internal/schema/testdata/v1/feature_jsonld_meta_mismatch.html
+        - internal/schema/testdata/v1/feature_malformed_datetime.html
+        - internal/schema/testdata/v1/README.md
+      deps:
+        - 3
+      done_when:
+        - Each positive fixture passes `internal/schema.Validate` with nil error.
+        - Each negative fixture fails `Validate` with a specific, non-generic error referencing the broken field.
+        - Fixture README documents file naming and how to extend with new types.
+      effort: S
+      risk: Low
+      tests: |
+        Unit: TestFixtures_AllPositiveValidate — table-driven over every *_valid.html file.
+        Unit: TestFixtures_AllNegativeFail — table-driven over every other file, asserting expected error substring.
+      approved: false
+      comment: ""
+      approval_status: pending
+      execution_status: not_started
+    - id: slice-5
+      num: 5
+      title: 'Phase 2a — Templater refactor: derive all schema layers from one source struct'
+      what: |
+        Refactor every HTML emitter to render from a single
+        `internal/schema/v1.<Type>` struct. The renderer derives, from
+        that one struct: (a) the JSON-LD `<script>` payload, (b)
+        `<meta name="htmlgraph:*">` head metas, (c) `<link rel="...">`
+        head edges, (d) microdata `itemscope`/`itemprop` decoration of
+        body elements, (e) `<time datetime>` for every timestamp,
+        (f) the `BodyPassthrough` field rendered verbatim into the body.
+        The struct is source of truth; no fact is hand-authored twice.
+        Every write path runs `schema.Validate` on its output and refuses
+        to write malformed HTML. Add a CI lint that fails on any
+        `os.WriteFile` / `file.Write` to a `.html` path that does not call
+        `schema.Validate` on the buffer first.
+
+        Real emitters to update (audited via grep):
+        `internal/workitem/{htmlwriter,edit,features,bugs,spikes,plans,sessions,tracks,specs,collection}.go`,
+        `internal/hooks/session_html.go`,
+        `cmd/htmlgraph/{workitem_create,workitem_modify,workitem_edges}.go`,
+        `cmd/htmlgraph/{plan_create,plan_mutations,plan_finalize,plan_finalize_yaml,plan_yaml_cmds,plan_promote_slice,plan_typed_sections,plan_migrate_orphans,plan_template,plan_wire,plan_yaml_extras}.go`,
+        `cmd/htmlgraph/{cleanup,migrate,migrate_attribution}.go`,
+        `cmd/htmlgraph/{api_plans,api_transcript}.go`,
+        `cmd/htmlgraph/{reindex,reindex_files,reindex_helpers,reindex_sessions,reindex_trailers}.go`.
+        Also update the templates in `plugin/templates/` (bug, chore,
+        feature, spike) to align with the new schema.
+      why: |
+        Removes the duplication-and-drift class permanently. Once this lands,
+        "the HTML schema" is a real architectural invariant rather than a
+        style guide. Validation at write time turns schema regressions into
+        test failures rather than corrupted artifacts.
+      files:
+        - internal/schema/render.go
+        - internal/workitem/htmlwriter.go
+        - internal/workitem/edit.go
+        - internal/workitem/features.go
+        - internal/workitem/bugs.go
+        - internal/workitem/spikes.go
+        - internal/workitem/plans.go
+        - internal/workitem/sessions.go
+        - internal/workitem/tracks.go
+        - internal/workitem/specs.go
+        - internal/workitem/collection.go
+        - internal/hooks/session_html.go
+        - cmd/htmlgraph/workitem_create.go
+        - cmd/htmlgraph/workitem_modify.go
+        - cmd/htmlgraph/workitem_edges.go
+        - cmd/htmlgraph/plan_mutations.go
+        - cmd/htmlgraph/plan_yaml_cmds.go
+        - cmd/htmlgraph/plan_finalize_yaml.go
+        - cmd/htmlgraph/plan_promote_slice.go
+        - cmd/htmlgraph/cleanup.go
+        - cmd/htmlgraph/migrate.go
+        - cmd/htmlgraph/migrate_attribution.go
+        - cmd/htmlgraph/reindex.go
+        - cmd/htmlgraph/reindex_files.go
+        - cmd/htmlgraph/reindex_helpers.go
+        - cmd/htmlgraph/reindex_sessions.go
+        - cmd/htmlgraph/reindex_trailers.go
+        - cmd/htmlgraph/api_plans.go
+        - cmd/htmlgraph/api_transcript.go
+        - plugin/templates/bug-template.html
+        - plugin/templates/chore-template.html
+        - plugin/templates/feature-template.html
+        - plugin/templates/spike-template.html
+      deps:
+        - 3
+        - 4
+      done_when:
+        - Every emitter calls a single `htmltemplate.Render(struct)` entry point.
+        - Every emitter validates output via `schema.Validate` before writing; CI test asserts no emitter bypasses the validator.
+        - Generated HTML for a sample Feature struct contains JSON-LD with the same `status` as the rendered `<meta name>` and the body microdata; mismatch is impossible by construction.
+      effort: L
+      risk: High
+      tests: |
+        Unit: TestRender_FeatureMatchesSchema — render a sample Feature, validate output, assert specific selectors.
+        Unit: TestRender_NoDuplication — given a struct with `status="x"`, mutate the struct and re-render; assert all five layers updated.
+        Integration: TestEmitterWriteRefusesInvalid — corrupt a render path to emit a missing-field HTML; assert write returns error.
+        Regression: existing `internal/workitem/*_test.go`, plan render tests, and snapshot tests still pass.
+      approved: false
+      comment: ""
+      approval_status: pending
+      execution_status: not_started
+      critic_revisions:
+        - source: researcher
+          severity: DANGER
+          summary: 'All listed render.go files are fictional. Real emitter paths are: internal/workitem/htmlwriter.go, internal/hooks/session_html.go, cmd/htmlgraph/workitem_create.go, cmd/htmlgraph/workitem_modify.go, cmd/htmlgraph/plan_mutations.go, cmd/htmlgraph/plan_yaml_cmds.go. Hook-emitted session HTML in particular would be silently skipped by current file list.'
+        - source: sonnet-coder
+          severity: DANGER
+          summary: Slice scope is severely under-counted. Beyond the listed paths, HTML write/re-render also happens in reindex_files.go, workitem_edges.go, plan_promote_slice.go, ingest.go, and others. The 'no emitter bypasses validator' done_when is unverifiable without an exhaustive grep for os.WriteFile / file.Write calls targeting `.htmlgraph/**/*.html`.
+        - source: sonnet-coder
+          severity: HIGH
+          summary: commitPlanChange regeneration loop and hook handlers write HTML outside the listed file set. Add a CI lint that fails on any write to a .html path that does not call schema.Validate on the buffer.
+    - id: slice-6
+      num: 6
+      title: Phase 2b — Backfill migration of 577 existing `.htmlgraph/*.html` files
+      what: |
+        Implement `htmlgraph migrate-html --to v1`: iterate every file under
+        `.htmlgraph/{features,bugs,spikes,plans,tracks,sessions}/*.html`
+        (577 files in the working repo). EXTRACT facts from the existing
+        `data-*` attribute scheme that's actually on disk today
+        (`data-status`, `data-type`, `data-since`, `data-relationship`,
+        and others enumerated in the slice-12 v0 inventory). NOT from
+        JSON-LD or microdata, which don't yet exist on disk.
+
+        Populate a `schema.v1.<Type>` struct including its `BodyPassthrough`
+        field — capture every byte of body content not mapped to a known
+        field, so hand-edits and freeform notes round-trip verbatim.
+        Re-render via the new templater (slice-5) and write back.
+
+        Rollback: before the first write, the migrator runs `git stash push -u`
+        on `.htmlgraph/` (or commits a snapshot to a `pre-v1-migration` branch)
+        so any failed migration can be reverted with one git command.
+
+        Modes:
+        `--dry-run` prints semantic diffs and exits 0/1 based on diff cleanliness
+          without writing.
+        `--write` performs the rollback snapshot, then iterates with fail-loud
+          on any file where the post-render whitespace-normalized body differs
+          from the original.
+        `--check` validates that every file under `.htmlgraph/` already passes
+          `schema.Validate` (used in CI to assert the migration converged).
+
+        Add a CI job that runs `htmlgraph migrate-html --dry-run` against the
+        committed `.htmlgraph/` snapshot in this repo (the repo dogfoods
+        itself) and uploads the diff as an artifact for human review BEFORE
+        the write path is enabled.
+      why: |
+        Without backfill, the codebase has two HTML formats: schema-compliant
+        (new emissions) and pre-schema (existing). The dual-format burden
+        defeats the whole plan. Backfill collapses the world to a single
+        format before Phase 3 reads can rely on it.
+      files:
+        - cmd/htmlgraph/migrate_html.go
+        - cmd/htmlgraph/migrate_html_test.go
+        - internal/migrate/v0_to_v1.go
+        - internal/migrate/v0_to_v1_test.go
+        - internal/migrate/rollback.go
+        - internal/migrate/testdata/legacy/
+        - .github/workflows/ci.yml
+      deps:
+        - 5
+        - 14
+      done_when:
+        - '`htmlgraph migrate-html --dry-run` produces a clean semantic diff for the working repo''s `.htmlgraph/` (status, edges, timestamps preserved; passthrough body byte-identical after whitespace normalization).'
+        - After `htmlgraph migrate-html --write`, `internal/schema.Validate` returns nil for every file under `.htmlgraph/{features,bugs,spikes,plans,tracks,sessions}/`.
+        - 'CI artifact: dry-run diff is uploaded for human review on every PR that touches `internal/migrate/` or `internal/schema/`.'
+        - 'Idempotent: running migrate-html twice produces zero diff on the second pass.'
+        - 'Rollback verified: a manual test confirms `git stash pop` (or branch checkout) restores all 577 files to pre-migration state byte-for-byte.'
+      effort: L
+      risk: High
+      tests: |
+        Unit: TestMigrate_FeatureSemanticPreserved — load legacy HTML, migrate, assert schema struct fields match expected.
+        Unit: TestMigrate_Idempotent — run migrate twice, second pass produces zero diff.
+        Integration: TestMigrate_FullCorpus — migrate the real `.htmlgraph/` (in CI sandbox), assert all files validate.
+      approved: false
+      comment: ""
+      approval_status: pending
+      execution_status: not_started
+      critic_revisions:
+        - source: sonnet-coder
+          severity: DANGER
+          summary: 'The migrator must read the EXISTING format (data-* attributes: data-status, data-type, data-created, data-relationship, data-since), not JSON-LD or microdata which don''t yet exist on disk. Plan as written reads from the wrong source. Add: pre-commit git snapshot of every file as rollback; --dry-run pass against actual corpus committed in CI artifacts before write path is enabled.'
+        - source: sonnet-coder
+          severity: HIGH
+          summary: Hand-edited body content (task notes, agent comments, freeform inline HTML) has no canonical field mapping and will be silently dropped or mangled by re-render. Add an explicit 'passthrough body' field to schema.v1.<Type> that round-trips arbitrary inner HTML verbatim. Fail-loud on any post-render diff after whitespace normalization.
+    - id: slice-7
+      num: 7
+      title: Phase 3a — `internal/htmlparse` JSON-LD fast path + ParseLinks + ParseHeadMeta
+      what: |
+        Add three new exported functions to `internal/htmlparse`:
+        (1) `ParseJSONLD(r) (*schema.v1.<Type>, error)` — extracts the
+        first `<script type="application/ld+json">` and unmarshals.
+        (2) `ParseLinks(r) ([]Link, error)` — head-only stream parse for
+        `<link rel="..." href="...">` tags.
+        (3) `ParseHeadMeta(r) (map[string]string, error)` — head-only stream
+        parse for `<meta name="htmlgraph:*" content="...">`.
+        All three short-circuit on `</head>`. Existing `ParseFile` continues
+        to work via goquery for legacy callers and body-content extraction.
+        Benchmark JSON-LD parse vs full parse and document the win.
+      why: |
+        The fast paths are the perf justification for not needing SQLite for
+        the common queries. ~1ms-per-file JSON-LD parse vs ~10ms goquery
+        means a 200-item snapshot is ~200ms instead of 2 seconds —
+        acceptable for CLI use, generous for dashboard cold-start.
+      files:
+        - internal/htmlparse/jsonld.go
+        - internal/htmlparse/links.go
+        - internal/htmlparse/head_meta.go
+        - internal/htmlparse/jsonld_test.go
+        - internal/htmlparse/links_test.go
+        - internal/htmlparse/head_meta_test.go
+        - internal/htmlparse/bench_test.go
+      deps:
+        - 4
+      done_when:
+        - All three functions return correct results on every fixture from slice-4.
+        - Head-only parsers stop at `</head>` (verified by benchmarking a 1MB body — parse time independent of body size).
+        - 'Documented benchmark in `bench_test.go`: JSON-LD path ≥5× faster than goquery on a real Feature file.'
+      effort: M
+      risk: Low
+      tests: |
+        Unit: TestParseJSONLD_AllFixtures — table-driven over schema fixtures.
+        Unit: TestParseLinks_HeadOnly — file with malicious gigantic body parses in < 5ms.
+        Bench: BenchmarkParseJSONLD vs BenchmarkParseFile_GoQuery on a real Feature.
+      approved: false
+      comment: ""
+      approval_status: pending
+      execution_status: not_started
+    - id: slice-8
+      num: 8
+      title: Phase 3b — Migrate SQLite-using CLI commands; introduce `sqlite_disabled` build tag stub
+      what: |
+        Rewrite the SQLite-dependent CLI command read paths to use HTML +
+        NDJSON + git directly:
+        (1) `trace`: scan commits via `git log` + path-filter; read
+        produced-by-session and produced-commit `<link rel>` edges from
+        work-item heads.
+        (2) `lineage`, `lineage_tree`: BFS over work-item heads using
+        `htmlparse.ParseLinks`; resolve neighbor IDs via href basenames.
+        (3) `session list/show`: scan `.htmlgraph/sessions/*.html` head metas
+        and per-session NDJSON; sort by `htmlgraph:created`.
+        (4) `status`: drop `dbpkg.CommitAttributionRate`; recompute on demand.
+        (5) `statusline`: drop SQL queries; read from work-item HTML.
+        (6) `track`, `claim`, `projects`: migrate to HTML+NDJSON.
+        (7) `hook`, `hook_exit_plan_mode`, `backfill_ai_title`,
+        `check_cross_project`: migrate the user-side hook handlers
+        (the deeper hook-event-persistence migration is slice-15).
+
+        Introduce the build-tag enforcement: a new file
+        `internal/db/disabled_stub.go` with `//go:build sqlite_disabled`
+        that re-exports the `internal/db` API surface as functions that
+        return a sentinel error. The matching `internal/db/enabled.go`
+        with `//go:build !sqlite_disabled` keeps current behavior. CI
+        builds the binary with `-tags sqlite_disabled` and asserts the full
+        CLI command matrix passes; this is the binding compile-time contract
+        that proves SQLite isn't required.
+      why: |
+        These commands are the SQLite-dependent CLI paths uncovered by the
+        `database/sql` import audit. Moving them off SQLite is most of the
+        work that lets Phase 4 delete the dependency. The build-tag stub
+        replaces the original "--block-sqlite" runtime flag (which the
+        critic correctly noted cannot intercept transitive opens) and
+        gives a compile-time guarantee instead.
+      files:
+        - cmd/htmlgraph/trace.go
+        - cmd/htmlgraph/lineage.go
+        - cmd/htmlgraph/lineage_tree.go
+        - cmd/htmlgraph/session.go
+        - cmd/htmlgraph/status.go
+        - cmd/htmlgraph/statusline.go
+        - cmd/htmlgraph/track.go
+        - cmd/htmlgraph/claim.go
+        - cmd/htmlgraph/projects.go
+        - cmd/htmlgraph/hook.go
+        - cmd/htmlgraph/hook_exit_plan_mode.go
+        - cmd/htmlgraph/backfill_ai_title.go
+        - cmd/htmlgraph/check_cross_project.go
+        - cmd/htmlgraph/trace_test.go
+        - cmd/htmlgraph/lineage_test.go
+        - internal/db/disabled_stub.go
+        - internal/db/enabled.go
+        - .github/workflows/ci.yml
+      deps:
+        - 7
+        - 14
+      done_when:
+        - '`go build -tags sqlite_disabled ./...` succeeds with zero `database/sql` references in the resulting binary symbols (verified via `go tool nm`).'
+        - Full CLI test suite passes when run with `-tags sqlite_disabled`.
+        - Each migrated command's output is byte-identical (or semantic-equivalent, documented) to the SQLite-backed version on a representative fixture project.
+        - CI runs `go test -tags sqlite_disabled ./...` as a job in addition to the default build (slice-14 enables this).
+      effort: L
+      risk: High
+      tests: |
+        Unit: TestTrace_NoSQL — sample fixture project, compare output to recorded golden.
+        Unit: TestLineage_NoSQL — fixture with 3-deep edges, BFS produces correct order.
+        Unit: TestSessionList_NoSQL — sessions sorted by created, no DB open.
+        Integration: TestCLI_BuildTagDisabled — every CLI command in the matrix runs successfully under `-tags sqlite_disabled`.
+        Regression: existing trace/lineage/session-list tests still pass under the default build.
+      approved: false
+      comment: ""
+      approval_status: pending
+      execution_status: not_started
+      critic_revisions:
+        - source: researcher
+          severity: HIGH
+          summary: api_graph.go, api_timeline.go, api_ingest.go, and api_feature_activity.go also import database/sql but are not in slice-8's file list. They will break when slice-11 deletes the driver. Either extend slice-8 or add a dedicated migration slice.
+        - source: researcher
+          severity: HIGH
+          summary: SQLite driver is `modernc.org/sqlite` (pure-Go, CGO-free), not `mattn/go-sqlite3`. Done_when checks that grep for mattn will pass vacuously without proving anything. Update assertions to check for modernc.org/sqlite in go.mod and go.sum.
+        - source: sonnet-coder
+          severity: HIGH
+          summary: --block-sqlite as a runtime flag cannot intercept transitive sql.Open calls in 12+ internal packages. The only reliable enforcement is a build tag that replaces the sqlite driver import with a stub returning an error — turning the contract into a compile-time guarantee instead of a runtime check.
+    - id: slice-9
+      num: 9
+      title: Phase 3c — `htmlgraph query` subcommand (gojq over JSON-LD)
+      what: |
+        Add `htmlgraph query <jq-expr> [paths...]`: extracts JSON-LD from
+        every HTML file in the given paths (default `.htmlgraph/**/*.html`),
+        pipes them through an embedded `github.com/itchyny/gojq` filter, and
+        emits JSONL on stdout. Supports `--type feature` shorthand to scope
+        to a single work-item type. Default output is one JSON object per
+        file; `--slurp` collects into an array. Document common recipes in
+        `docs/cli/query.md` (find all P1 bugs, lineage tree as JSON, etc.).
+
+        Note: `cmd/htmlgraph/query.go` does NOT currently exist (verified
+        via `ls cmd/htmlgraph/query*`); this is a new-file slice. Critic
+        feedback that suggested it might be partially implemented appears
+        to have been wrong.
+      why: |
+        Gives users and downstream scripts a stable shell-scriptable
+        interface that doesn't require a new CLI subcommand for every read
+        pattern. Replaces ad-hoc shell pipelines and prevents feature-creep
+        pressure on the core CLI surface. Also serves as a power-user
+        escape hatch when the dashboard doesn't expose a needed query.
+      files:
+        - cmd/htmlgraph/query.go
+        - cmd/htmlgraph/query_test.go
+        - docs/cli/query.md
+        - go.mod
+        - go.sum
+      deps:
+        - 7
+      done_when:
+        - '`htmlgraph query ''.status'' --type feature` lists the status of every feature file.'
+        - '`htmlgraph query ''. | select(.status == "in_progress")''` filters correctly.'
+        - Embedded gojq does not reach the network; runs offline.
+        - Documented at least 5 recipes in `docs/cli/query.md`.
+      effort: M
+      risk: Low
+      tests: |
+        Unit: TestQuery_TypeFilter — table-driven against schema fixtures.
+        Unit: TestQuery_SelectExpression — assert correct subset.
+        Integration: TestQuery_RealRepo — runs against `.htmlgraph/` in CI; expected output count matches `find | wc -l`.
+      approved: false
+      comment: ""
+      approval_status: pending
+      execution_status: not_started
+      critic_revisions:
+        - source: researcher
+          severity: LOW
+          summary: cmd/htmlgraph/query.go already exists. Slice may be partially implemented — read existing code before estimating effort. Could shrink to schema-aware filtering on top of the existing scaffolding.
+    - id: slice-10
+      num: 10
+      title: Phase 3d — Migrate ALL dashboard API endpoints off SQLite
+      what: |
+        The current dashboard exposes 20+ SQLite-backed endpoints (audited
+        via `rg "mux.Handle" cmd/htmlgraph/serve.go`). All must be migrated
+        or removed before slice-11 can delete the driver. Migrate each by
+        reading from canonical sources (HTML files for work-item facts,
+        NDJSON for events, git for commits):
+
+        (1) NEW endpoints (greenfield Go files):
+          `GET /api/items/:id` — stream JSON-LD payload from HTML
+          `GET /api/manifest` — head-only scan; returns `[{file, mtime, type, id}]`
+
+        (2) Rewrite existing endpoints to read from canonical sources:
+          `/api/events/recent`, `/api/events/feed`, `/api/events/tree`,
+          `/api/events/stream`, `/api/events/subagent` — read NDJSON;
+          merge hook events + OTEL spans; the activity feed bug
+          (this conversation's symptom) goes away by construction
+          because both kinds of events come from the same source.
+          `/api/sessions`, `/api/sessions/`, `/api/transcript` — HTML head metas + per-session NDJSON
+          `/api/features`, `/api/features/` — JSON-LD payloads
+          `/api/stats`, `/api/initial-stats`, `/api/timeline` — aggregate
+          from HTML on demand (cache in memory)
+          `/api/graph`, `/api/graph/agents`, `/api/graph/commits`,
+          `/api/graph/files`, `/api/graph/sessions` — BFS over `<link rel>`
+          edges in HTML heads
+          `/api/provenance/`, `/api/preview` — derive from HTML/NDJSON
+
+        (3) Keep `?legacy=1` query param on every migrated endpoint for
+        parity comparison during slice-10; removed in slice-11.
+
+        (4) Dashboard UI source location verification: `plugin/static/`
+        contains only `components.js` and `has-styles.css` (no
+        `dashboard.html` exists). The dashboard entry point is likely
+        served by `cmd/htmlgraph/serve.go` itself or embedded via Go's
+        `embed` directive. AS PART OF THIS SLICE: locate and document
+        the dashboard entry. If the dashboard JS calls endpoints by URL
+        with assumptions about response shape, update the JS to match
+        the new JSON-LD-derived response shapes in `components.js`.
+      why: |
+        Closes the loop on the original symptom (hook events render, OTEL
+        spans don't). Both kinds of events read from NDJSON via one
+        streaming decoder so they cannot diverge. Removes the dashboard's
+        dependency on SQLite, which is the gate to slice-11. Critic
+        noted slice-10 was severely under-scoped originally — only 3
+        of 20+ endpoints — this version covers all of them.
+      files:
+        - cmd/htmlgraph/api.go
+        - cmd/htmlgraph/api_collector_status.go
+        - cmd/htmlgraph/api_feature_activity.go
+        - cmd/htmlgraph/api_feed.go
+        - cmd/htmlgraph/api_graph.go
+        - cmd/htmlgraph/api_ingest.go
+        - cmd/htmlgraph/api_items.go
+        - cmd/htmlgraph/api_manifest.go
+        - cmd/htmlgraph/api_otel.go
+        - cmd/htmlgraph/api_plans.go
+        - cmd/htmlgraph/api_preview.go
+        - cmd/htmlgraph/api_provenance.go
+        - cmd/htmlgraph/api_timeline.go
+        - cmd/htmlgraph/api_transcript.go
+        - cmd/htmlgraph/api_tree.go
+        - cmd/htmlgraph/serve.go
+        - cmd/htmlgraph/api_feed_test.go
+        - cmd/htmlgraph/api_graph_test.go
+        - plugin/static/components.js
+      deps:
+        - 7
+      done_when:
+        - '`/api/feed` returns hook events and OTEL spans interleaved by timestamp without SQLite.'
+        - '`/api/items/:id` returns the JSON-LD payload from the HTML file directly.'
+        - 'Visual parity test: run dashboard against a fixture session, screenshot the feed; matches recorded golden within tolerance.'
+        - '`?legacy=1` still works for parity; CI compares old vs new output and asserts no semantic regression.'
+      effort: L
+      risk: High
+      tests: |
+        Unit: TestAPIFeed_NDJSONMergeOrder — assert events emit in monotonic timestamp order.
+        Unit: TestAPIItems_JSONLDPassthrough — fixture file, assert payload matches.
+        Integration: TestDashboardActivityFeedShowsSpans — ingest known NDJSON, assert feed contains spans (regression for current bug).
+      approved: false
+      comment: ""
+      approval_status: pending
+      execution_status: not_started
+      critic_revisions:
+        - source: researcher
+          severity: DANGER
+          summary: cmd/htmlgraph/api_items.go and api_manifest.go don't exist; internal/server/ doesn't exist as a package. These are NEW file creations, not refactors. Slice's framing as 'replace SQLite-backed read path' obscures the new-package work.
+        - source: sonnet-coder
+          severity: HIGH
+          summary: 'Slice lists plugin/static/dashboard.js but provides no JS-side work description. Existing dashboard JS calls endpoints by path/contract; new JSON-LD payloads will silently break the rendering. Enumerate the JS changes explicitly in `what` and `done_when`. Also: plugin/static/dashboard.html does not exist — locate the actual dashboard entry (likely Go-embedded).'
+        - source: researcher
+          severity: MED
+          summary: Slice deps wrongly include slice-8. Dashboard endpoints have no functional dependency on CLI command migration. Real dep is slice-7 only — drop slice-8 to enable parallel work.
+    - id: slice-11
+      num: 11
+      title: Phase 4 — Delete `modernc.org/sqlite` from the codebase
+      what: |
+        With slices 1, 2, 5-10, 15, 16 landed (all SQL-using subsystems
+        migrated), delete the dependency:
+
+        (1) Delete the entire `internal/db/` package (18 files: schema,
+        pragmas, *_repo.go, otel_schema, plan_feedback). All callers
+        already migrated by prior slices.
+        (2) Delete `internal/storage/dbpath.go`, `internal/storage/evict.go`
+        (the latter just landed; verify no remaining callers).
+        (3) Delete `cmd/htmlgraph/cache.go` and `cmd/htmlgraph/cache_pollution_test.go`
+        (cache is SQLite-specific).
+        (4) Delete the `htmlgraph reindex` command family (`reindex.go`,
+        `reindex_files.go`, `reindex_helpers.go`, `reindex_sessions.go`,
+        `reindex_trailers.go` and their tests) — there is no index to
+        rebuild. Keep `htmlgraph recover-db` from slice-2 ONLY if it now
+        means "purge stray DB files"; otherwise delete.
+        (5) Delete `internal/db/disabled_stub.go` and `internal/db/enabled.go`
+        (slice-8's build-tag stubs) — no longer needed.
+        (6) Remove `modernc.org/sqlite v1.37.1` from `go.mod`; run `go mod tidy`.
+        (7) Update `AGENTS.md`, `CLAUDE.md`, `cmd/htmlgraph/prompts/system-prompt.md`,
+        and the plugin port trees (slice-13 covers regeneration): remove
+        "SQLite read index" from architecture tables; replace with
+        "HTML files (canonical) + per-session NDJSON (canonical)".
+        (8) Add `.htmlgraph/htmlgraph.db*` to `.gitignore`; deploy script
+        nukes any stray files.
+        (9) CI verifies: `grep -r 'database/sql' cmd/ internal/` returns
+        zero matches; `go.sum` no longer references modernc.org/sqlite.
+
+        File-list ground truth: `rg -l '"database/sql"' cmd/ internal/`
+        currently returns ~110 files. By the time slice-11 runs, that count
+        must be 0. Slice-11 deletes the residual `internal/db/` package
+        and updates docs; the actual migrations happen in slices 5, 6, 8,
+        10, 15, 16.
+      why: |
+        Closes the migration. Until SQLite is deleted from go.mod, the
+        team will keep accidentally re-adding SQL-backed code paths
+        (we've watched it happen — `internal/storage/evict.go` landed
+        mid-conversation). "Removing the option" is the only way to
+        make the architecture promise real.
+      files:
+        - internal/db/
+        - internal/storage/dbpath.go
+        - internal/storage/evict.go
+        - internal/storage/evict_test.go
+        - cmd/htmlgraph/cache.go
+        - cmd/htmlgraph/cache_pollution_test.go
+        - cmd/htmlgraph/reindex.go
+        - cmd/htmlgraph/reindex_files.go
+        - cmd/htmlgraph/reindex_helpers.go
+        - cmd/htmlgraph/reindex_sessions.go
+        - cmd/htmlgraph/reindex_trailers.go
+        - cmd/htmlgraph/reindex_test.go
+        - cmd/htmlgraph/reindex_feature_files_test.go
+        - cmd/htmlgraph/reindex_incremental_test.go
+        - cmd/htmlgraph/reindex_sessions_test.go
+        - cmd/htmlgraph/reindex_trailers_test.go
+        - go.mod
+        - go.sum
+        - AGENTS.md
+        - CLAUDE.md
+        - cmd/htmlgraph/prompts/system-prompt.md
+        - .htmlgraph/.gitignore
+        - scripts/deploy-all.sh
+      deps:
+        - 8
+        - 10
+        - 15
+        - 16
+      done_when:
+        - '`go.sum` no longer references `mattn/go-sqlite3` or any SQLite driver.'
+        - '`grep -r ''database/sql'' cmd/ internal/` returns zero matches.'
+        - Full test suite passes.
+        - 'Binary size reduction documented in commit message (expected: ~3-5 MB).'
+        - Architecture table in `AGENTS.md` no longer mentions SQLite.
+      effort: L
+      risk: High
+      tests: |
+        Integration: TestNoSQLiteDriver — `go test ./...` with a build tag that fails on `database/sql` import.
+        Regression: full CLI command matrix passes.
+        Smoke: fresh checkout, `go build`, `htmlgraph status` against a clean repo — works.
+      approved: false
+      comment: ""
+      approval_status: pending
+      execution_status: not_started
+      critic_revisions:
+        - source: researcher
+          severity: DANGER
+          summary: 'ADDRESSED in revision: file list now enumerates real paths from grep audit (internal/db/ package, internal/storage/dbpath.go, reindex command family). 110 files import database/sql; deps now include slice-15 (hook handlers) and slice-16 (graph/agent/planchat/registry) so file count reaches 0 before deletion.'
+        - source: researcher
+          severity: MED
+          summary: 'ADDRESSED in revision: internal/storage/evict.go is now explicitly in the file list for deletion.'
+    - id: slice-12
+      num: 12
+      title: Phase 1c — Audit existing HTML corpus to inform v1 vocabulary
+      what: |
+        Before the v1 schema is frozen, scan all 577 existing
+        `.htmlgraph/{features,bugs,spikes,plans,tracks,sessions}/*.html`
+        files and enumerate every distinct `data-*` attribute name, value
+        type, and edge relationship in actual use today. Produce
+        `docs/schema/v0-inventory.md` listing:
+        - Per-type: every `data-*` attribute name, distinct values seen,
+          and rough frequency.
+        - Every distinct `<a data-relationship="...">` value (the live
+          edge vocabulary).
+        - Every distinct `<meta name="...">` already present in heads.
+        - Every observed timestamp format (so v1's `<time datetime>` covers
+          them all).
+        - Hand-edited body content patterns (so the `BodyPassthrough`
+          field on `schema.v1.<Type>` covers actual usage).
+
+        Implement as `cmd/htmlgraph/audit_v0.go` — a one-shot CLI command
+        that walks the corpus, parses with goquery, aggregates, and emits
+        the markdown report.
+      why: |
+        The schema URL `https://htmlgraph.dev/v1/` becomes a permanent
+        public contract once committed into 577 HTML files. A single missed
+        attribute forces a v2 migration. Slice-3 (schema spec) MUST consume
+        this inventory before freezing; that's why slice-3 deps on slice-12.
+      files:
+        - cmd/htmlgraph/audit_v0.go
+        - cmd/htmlgraph/audit_v0_test.go
+        - docs/schema/v0-inventory.md
+        - internal/audit/scan.go
+        - internal/audit/scan_test.go
+      deps: []
+      done_when:
+        - '`htmlgraph audit-v0` runs on the working repo''s `.htmlgraph/` and produces `docs/schema/v0-inventory.md`.'
+        - Inventory enumerates ≥10 distinct `data-*` attributes, ≥5 edge relationship types, ≥3 timestamp formats, and any meta-name primitives in use.
+        - A reviewer (human or agent) can read the inventory and produce the v1 vocabulary list without consulting the source code.
+      effort: M
+      risk: Low
+      tests: |
+        Unit: TestScan_AggregatesAttributes — synthetic corpus, expected attribute frequencies match.
+        Unit: TestScan_EmitsMarkdown — fixture corpus → markdown output matches recorded golden.
+        Integration: TestAuditV0_RealCorpus — runs against `.htmlgraph/` in CI; output count > thresholds.
+      approved: false
+      comment: ""
+      approval_status: pending
+      execution_status: not_started
+    - id: slice-13
+      num: 13
+      title: Phase 4b — Regenerate plugin ports (Codex, Gemini, Claude) after schema lands
+      what: |
+        htmlgraph ships the same plugin to three harnesses (Claude Code at
+        `plugin/`, Codex CLI at `packages/codex-plugin/`, Gemini extension
+        at `packages/gemini-extension/`) — all generated from
+        `packages/plugin-core/manifest.json` by `htmlgraph plugin build-ports`.
+        The Codex and Gemini trees embed `system-prompt.md` and architecture
+        docs that reference the SQLite read index.
+
+        After slice-11 deletes SQLite, run `htmlgraph plugin build-ports`
+        and audit that the regenerated trees:
+        (a) Have no SQLite mentions in any embedded markdown.
+        (b) Reference the new HTML schema as canonical.
+        (c) Are bit-identical to the source after a second regeneration
+        (idempotent).
+
+        Update `packages/plugin-core/manifest.json` and any shared assets
+        under `plugin/{commands,agents,skills,templates,static,config}/` if
+        the deletion of SQLite-related commands (e.g. `htmlgraph reindex`)
+        requires command-tree changes.
+      why: |
+        Without this, deployed plugins for Codex and Gemini will continue
+        to ship docs describing the old architecture even after slice-11
+        lands. Marketplaces ship from generated trees, not from source —
+        regenerate and verify.
+      files:
+        - packages/plugin-core/manifest.json
+        - plugin/agents/
+        - plugin/skills/
+        - plugin/commands/
+        - cmd/htmlgraph/prompts/system-prompt.md
+        - packages/codex-plugin/
+        - packages/gemini-extension/
+      deps:
+        - 11
+      done_when:
+        - '`htmlgraph plugin build-ports --target all` succeeds with zero diffs after a clean rebuild.'
+        - '`grep -r -i sqlite packages/codex-plugin/ packages/gemini-extension/ plugin/` returns zero matches.'
+        - Architecture docs in all three plugin trees describe HTML+NDJSON canonical.
+      effort: S
+      risk: Low
+      tests: |
+        Integration: TestPluginPortsIdempotent — run build-ports twice, assert byte-equality.
+        Lint: shell test that grep -r sqlite packages/ returns no matches.
+      approved: false
+      comment: ""
+      approval_status: pending
+      execution_status: not_started
+    - id: slice-14
+      num: 14
+      title: Phase 0c — CI infrastructure prerequisite
+      what: |
+        Existing `.github/workflows/ci.yml` is a single flat quality-gates
+        job. Several plan slices (6, 8, 11) depend on CI capabilities that
+        don't yet exist:
+        - A matrix or workflow_call to run `go test -tags sqlite_disabled`
+          in addition to default-tag tests (slice-8).
+        - A migrator dry-run job that uploads the diff as a PR artifact for
+          human review (slice-6).
+        - A `database/sql` import audit step that asserts zero imports after
+          slice-11.
+
+        Refactor `.github/workflows/ci.yml` into a reusable workflow_call
+        pattern; add a per-tag matrix (default, `sqlite_disabled`); add an
+        artifact-upload step for migrator dry-runs; gate slice-11 on a
+        "no SQL imports" check.
+      why: |
+        Slices 6, 8, and 11 cannot demonstrate their own correctness without
+        these CI capabilities. Adding the infra in a dedicated slice (rather
+        than threading it into each consumer) keeps the per-slice scope
+        tight and lets the CI work be reviewed independently.
+      files:
+        - .github/workflows/ci.yml
+        - .github/workflows/sql-audit.yml
+        - .github/workflows/migrator-dryrun.yml
+      deps: []
+      done_when:
+        - ci.yml runs `go test ./...` with both default and `-tags sqlite_disabled` matrix entries.
+        - A pre-existing failing test (e.g. lineage relying on DB) confirms the matrix entry runs and reports the failure (proves the infra works).
+        - Migrator dry-run workflow exists and uploads `migrator-dryrun.diff` as an artifact on PRs touching `internal/migrate/`.
+        - SQL-audit workflow exists; passes today (since SQL is allowed) but is wired to run on every PR.
+      effort: S
+      risk: Low
+      tests: |
+        Manual: open a PR that runs the new matrix; verify the sqlite_disabled job runs and reports honestly.
+        Manual: open a PR touching internal/migrate/ stub; verify diff artifact uploads.
+      approved: false
+      comment: ""
+      approval_status: pending
+      execution_status: not_started
+    - id: slice-15
+      num: 15
+      title: Phase 3e — Migrate hook event persistence from SQLite to NDJSON sink
+      what: |
+        The `internal/hooks/` package contains ~20 files that persist hook
+        events directly to SQLite tables (e.g. `agent_events`, `sessions`).
+        Files include: `lifecycle_test.go`, `missing_events.go`,
+        `posttooluse.go`, `pretooluse.go`, `session_end.go`,
+        `session_start.go`, `session_sweep.go`, `subagent_start.go`,
+        `task_tracking.go`, `tooluse_shared.go`, `track_event.go`,
+        `transcript_assistant.go`, `transcript_user_prompt.go`,
+        `user_prompt.go`, `yolo_guard.go`.
+
+        Migrate all hook event writes to the per-session NDJSON sink
+        (`internal/otel/sink/ndjson/ndjson.go`). Each hook handler emits
+        a typed event record (`{kind: "log", native: "hook_*",
+        session_id, prompt_id, ...}`) via the sink's append-only path.
+        The dashboard activity feed (slice-10) reads the same NDJSON for
+        both hook events AND OTEL spans — they cannot diverge.
+
+        Today's hook handlers also create rows in the `sessions` table.
+        Replace with: write `<meta name="htmlgraph:created">` to a session
+        HTML file at hook session_start; subsequent updates touch the same
+        file via the schema-aware writer (slice-5).
+      why: |
+        The hook-event persistence layer is the single largest unaccounted-
+        for SQLite consumer in the codebase. Slice-11 cannot delete SQLite
+        while hook handlers continue writing to `agent_events`. By
+        converging hook events and OTEL spans on the same NDJSON sink,
+        the activity feed bug (the original symptom of this conversation)
+        goes away by construction — both sources read from the same place.
+      files:
+        - internal/hooks/missing_events.go
+        - internal/hooks/posttooluse.go
+        - internal/hooks/pretooluse.go
+        - internal/hooks/session_end.go
+        - internal/hooks/session_start.go
+        - internal/hooks/session_sweep.go
+        - internal/hooks/subagent_start.go
+        - internal/hooks/task_tracking.go
+        - internal/hooks/tooluse_shared.go
+        - internal/hooks/track_event.go
+        - internal/hooks/transcript_assistant.go
+        - internal/hooks/transcript_user_prompt.go
+        - internal/hooks/user_prompt.go
+        - internal/hooks/yolo_guard.go
+        - internal/hooks/session_html.go
+        - internal/otel/sink/ndjson/ndjson.go
+        - internal/otel/sink/ndjson/ndjson_test.go
+      deps:
+        - 5
+        - 7
+      done_when:
+        - Every hook handler that previously called `internal/db` functions now writes via the NDJSON sink.
+        - '`grep -r ''database/sql'' internal/hooks/` returns zero matches.'
+        - Activity feed (under slice-10) shows hook events from NDJSON, not from `agent_events` table.
+        - Hook tests pass under `-tags sqlite_disabled`.
+      effort: L
+      risk: High
+      tests: |
+        Unit: TestHookSessionStart_WritesNDJSON — capture sink output, assert event shape.
+        Unit: TestHookPostToolUse_WritesNDJSON — same.
+        Integration: TestHooksFullSession_ProducesNDJSONFeed — simulate a session, assert NDJSON contains every expected hook event.
+        Regression: existing internal/hooks/*_test.go pass with NDJSON sink as backend.
+      approved: false
+      comment: ""
+      approval_status: pending
+      execution_status: not_started
+    - id: slice-16
+      num: 16
+      title: Phase 3f — Migrate `internal/{graph,agent,planchat,registry}` off SQLite
+      what: |
+        Four internal packages depend on SQL queries beyond the read-path
+        audit's scope:
+        (a) `internal/graph/` — `algorithms.go`, `dsl.go`, `pattern.go`,
+          `querybuilder.go`, `sessions.go`. Provides the lineage/trace
+          graph engine. Migrate to read directly from work-item HTML
+          `<link rel>` edges; cache parsed graphs in-memory in a session-
+          scoped struct.
+        (b) `internal/agent/ensure.go` — agent registry persistence.
+          Migrate to a small JSON file at `.htmlgraph/agents.json` (which
+          already exists for some metadata).
+        (c) `internal/planchat/backend.go` — plan feedback persistence.
+          Plan feedback is already partially in `internal/db/plan_feedback.go`;
+          migrate that store to per-plan `<feedback>` JSON-LD nested in
+          the plan's HTML, or a sidecar `.htmlgraph/plans/<id>.feedback.jsonl`.
+        (d) `internal/registry/registry.go` — host/project registry.
+          Migrate to a JSON file at `~/.local/share/htmlgraph/registry.json`
+          (or platform-equivalent).
+
+        For each package, document the migration choice (in-memory cache
+        vs JSON sidecar vs HTML embedding) in the package's
+        `doc.go` so future readers understand WHY.
+      why: |
+        Slice-11 cannot delete SQLite while these four packages still
+        import `database/sql`. They were missed in the original plan
+        because the read-path audit only enumerated CLI commands, not
+        internal packages. This slice closes the gap.
+      files:
+        - internal/graph/algorithms.go
+        - internal/graph/dsl.go
+        - internal/graph/pattern.go
+        - internal/graph/querybuilder.go
+        - internal/graph/sessions.go
+        - internal/graph/doc.go
+        - internal/agent/ensure.go
+        - internal/agent/doc.go
+        - internal/planchat/backend.go
+        - internal/planchat/doc.go
+        - internal/registry/registry.go
+        - internal/registry/doc.go
+      deps:
+        - 7
+      done_when:
+        - '`grep -r ''database/sql'' internal/{graph,agent,planchat,registry}/` returns zero matches.'
+        - Each package's doc.go explains the new persistence model.
+        - Lineage/trace graph queries (used by slice-8 and slice-10) still produce correct results — golden-file parity test passes.
+        - Existing tests under each package pass; new tests cover the JSON-sidecar and HTML-embedding paths.
+      effort: L
+      risk: High
+      tests: |
+        Unit: TestGraph_BFSOverHTMLLinks — fixture HTML corpus, assert traversal order matches old SQL-based result.
+        Unit: TestAgent_EnsureFromJSON — register agent, reload from JSON, assert identity.
+        Unit: TestPlanchat_FeedbackRoundTrip — write feedback, reload, assert content.
+        Unit: TestRegistry_HostJSON — register host, reload, assert identity.
+        Regression: full lineage/trace test suite passes with the new graph engine.
+      approved: false
+      comment: ""
+      approval_status: pending
+      execution_status: not_started
+questions:
+    - id: q-vocab-url
+      text: Should the schema vocabulary URL be `https://htmlgraph.dev/v1/` or something namespaced (e.g. `https://schema.htmlgraph.dev/v1/` or a github.io URL)?
+      description: |
+        The vocabulary URL becomes a public contract. Using the bare domain keeps it short and brand-aligned but reserves the path for future expansion. A subdomain leaves the apex free for marketing. A github.io URL avoids any DNS commitment but ties the schema to hosting choices.
+      recommended: bare-domain
+      options:
+        - key: bare-domain
+          label: 'A: `https://htmlgraph.dev/v1/` — short, brand-aligned, reserves path for expansion'
+        - key: subdomain
+          label: 'B: `https://schema.htmlgraph.dev/v1/` — explicit namespace, leaves apex free'
+        - key: github-io
+          label: 'C: `https://shakestzd.github.io/htmlgraph/schema/v1/` — no DNS commitment'
+      answer: null
+    - id: q-phase5-defer
+      text: Confirm Phase 5 (browser-as-query-engine) is out of scope for this plan?
+      description: |
+        Phase 5 is the higher-payoff but higher-risk follow-on: the dashboard becomes self-sufficient against a static HTML snapshot, with an in-tab IndexedDB index. Including it triples the plan size; deferring it means we ship a working SQLite-removal sooner and re-plan Phase 5 later. The plan as written defers it.
+      recommended: defer
+      options:
+        - key: defer
+          label: 'A: Defer — separate plan after Phase 4 lands'
+        - key: include
+          label: 'B: Include now — add 3 more slices for manifest endpoint, in-tab index, IndexedDB persistence'
+      answer: null
+    - id: q-block-sqlite-flag
+      text: Should `--block-sqlite` be a runtime flag, a build tag, or both?
+      description: |
+        Critic feedback: a runtime flag cannot intercept transitive sql.Open calls in 12+ internal packages. Only a build tag that replaces the driver import with an error-returning stub gives a compile-time guarantee. The runtime flag is still useful for local development ("does removing this code path actually work?") but the binding contract should be the build tag.
+      recommended: build-tag
+      options:
+        - key: flag
+          label: 'A: Runtime flag only — easier to develop, but unenforceable'
+        - key: build-tag
+          label: 'B: Build tag only — compile-time guarantee, harder to A/B'
+        - key: both
+          label: 'C: Build tag for CI/release; runtime flag for development'
+      answer: null
+    - id: q-add-corpus-audit-slice
+      text: Add a new slice (slice-12) for HTML corpus audit before freezing v1 schema?
+      description: |
+        Critic feedback: the schema URL `https://htmlgraph.dev/v1/` becomes a permanent public contract once committed into the 577 existing HTML files. Today's files use ad-hoc data-* attributes (data-status, data-type, data-since, data-relationship). Without auditing every distinct attribute and value actually in use, the v1 vocabulary will miss real fields and force a v2 migration soon after launch. The new slice would: parse all `.htmlgraph/**/*.html`, enumerate every distinct data-* attribute and edge type, produce a `docs/schema/v0-inventory.md` that informs slice-3.
+      recommended: "yes"
+      options:
+        - key: "yes"
+          label: 'A: Add slice-12 (corpus audit) as prerequisite to slice-3'
+        - key: "no"
+          label: 'B: Skip — accept that v1 may miss fields and require v2 sooner'
+      answer: null
+    - id: q-add-plugin-regen-slice
+      text: Add a new slice for plugin port regeneration after schema lands?
+      description: |
+        Critic feedback: htmlgraph ships the same plugin to Claude Code, Codex CLI, and Gemini CLI via `htmlgraph plugin build-ports`. The Codex and Gemini trees embed `system-prompt.md` which references the architecture (including the SQLite read index). Slice-11 updates AGENTS.md and CLAUDE.md but does not regenerate the per-target plugin trees. Without this, the deployed plugin docs will still reference SQLite after the migration.
+      recommended: "yes"
+      options:
+        - key: "yes"
+          label: 'A: Add slice-13 (plugin port regeneration) as final step after slice-11'
+        - key: "no"
+          label: 'B: Skip — handle as part of slice-11 with a single command in done_when'
+      answer: null
+    - id: q-add-ci-infra-slice
+      text: Add a new slice for CI infrastructure prerequisite?
+      description: |
+        Critic feedback: existing `.github/workflows/ci.yml` is a single flat quality-gates job with no matrix or workflow_call support. Slices 6 (migrator corpus test) and 8 (block-sqlite suite) require new CI jobs that the current infra cannot host. Either extend ci.yml in those slices or add a prerequisite slice. A prerequisite slice is cleaner — the CI work blocks the work that depends on it.
+      recommended: "yes"
+      options:
+        - key: "yes"
+          label: 'A: Add slice-14 (CI infrastructure) as prerequisite to slices 6 and 8'
+        - key: "no"
+          label: 'B: Fold the CI work into slices 6 and 8 themselves'
+      answer: null

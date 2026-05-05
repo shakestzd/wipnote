@@ -7,7 +7,7 @@
 <title>Plan: {{.Title}}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,300;0,8..60,400;0,8..60,500;1,8..60,300;1,8..60,400&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/github-dark.min.css" id="hljs-dark">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/github.min.css" id="hljs-light" disabled>
 <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/highlight.min.js"></script>
@@ -22,6 +22,7 @@
   --radius:8px; --radius-sm:5px;
   --mono:'JetBrains Mono',ui-monospace,'SF Mono','Cascadia Code',monospace;
   --sans:'DM Sans','Inter',system-ui,-apple-system,sans-serif;
+  --serif:'Source Serif 4',Georgia,serif;
   --shadow-card:0 2px 8px rgba(0,0,0,.5), 0 0 0 1px var(--border);
   --shadow-elevated:0 8px 32px rgba(0,0,0,.6), 0 0 0 1px var(--border);
   --transition:150ms cubic-bezier(.4,0,.2,1);
@@ -57,7 +58,7 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);line-height:
 .plan-content{flex:1;min-width:0;padding:32px 40px 80px;overflow-y:auto;max-width:960px}
 
 /* ── Chat sidebar ── */
-.chat-sidebar{width:360px;min-width:280px;max-width:600px;border-left:1px solid var(--border);display:flex;flex-direction:column;background:var(--bg-card);overflow:hidden;height:100%}
+.chat-sidebar{width:360px;min-width:280px;max-width:600px;border-left:1px solid var(--border);display:flex;flex-direction:column;background:var(--bg-card);overflow-y:auto;overflow-x:hidden;height:100vh;position:sticky;top:0;flex-shrink:0;transition:width 200ms ease,opacity 150ms ease}
 .chat-resize-handle{width:4px;cursor:col-resize;background:transparent;transition:background .15s;flex-shrink:0;position:relative}
 .chat-resize-handle:hover,.chat-resize-handle.dragging{background:var(--accent);opacity:.5}
 .chat-resize-handle::after{content:'';position:absolute;top:50%;left:-4px;width:12px;height:32px;transform:translateY(-50%);border-radius:4px}
@@ -149,24 +150,84 @@ textarea::placeholder{color:var(--text-muted)}
 .question-block input[type="radio"]{accent-color:var(--accent);margin-right:8px;cursor:pointer}
 .rec-tag{font-family:var(--mono);font-size:.65rem;color:var(--accent);text-transform:uppercase;letter-spacing:.05em;margin-left:6px;opacity:.8}
 
-/* ── Slice cards ── */
-.slice-card{background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius);padding:24px;margin-bottom:16px;transition:border-color var(--transition)}
+/* ── Slice cards (collapsible) ── */
+.slice-card{background:var(--bg-input);border:1px solid var(--border);border-left:3px solid var(--border);border-radius:var(--radius);margin-bottom:12px;transition:border-color var(--transition);scroll-margin-top:64px}
 .slice-card:hover{border-color:rgba(205,255,0,.2)}
-.slice-header{display:flex;align-items:center;gap:10px;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--border);flex-wrap:wrap}
-.slice-num{font-family:var(--mono);font-size:.8rem;color:var(--bg);background:var(--accent);padding:3px 9px;border-radius:4px;font-weight:700;min-width:26px;text-align:center}
-.slice-name{font-weight:600;font-size:1rem;font-family:var(--sans);flex:1}
-.slice-meta{font-size:.85rem;color:var(--text-muted);margin-bottom:8px;font-family:var(--mono)}
+/* Status stripe — keyed to data-approval attribute */
+.slice-card[data-approval="approved"]{border-left-color:var(--approved)}
+.slice-card[data-approval="rejected"]{border-left-color:var(--revision)}
+.slice-card[data-approval="changes_requested"]{border-left-color:var(--revision)}
+.slice-card[data-approval="pending"]{border-left-color:var(--border)}
+.slice-card[data-status="done"]{border-left-color:var(--discuss)}
+/* Summary / header — flex row: [#N] [title-col grows] [chevron]; title-col stacks title/preview/meta-row */
+.slice-card > summary.slice-summary{display:flex;align-items:flex-start;gap:12px;padding:12px 16px;cursor:pointer;list-style:none;user-select:none;font-weight:400;font-size:.94rem}
+.slice-card > summary.slice-summary::-webkit-details-marker{display:none}
+.slice-card > summary.slice-summary::marker{content:""}
+.slice-card > summary.slice-summary:hover{background:var(--bg-hover);border-radius:calc(var(--radius) - 1px)}
+.slice-num{margin-top:2px;font-family:var(--mono);font-size:.78rem;color:var(--bg);background:var(--accent);padding:2px 8px;border-radius:4px;font-weight:700;min-width:28px;text-align:center;flex:0 0 auto;align-self:flex-start}
+.slice-title-col{flex:1 1 auto;display:flex;flex-direction:column;gap:4px;min-width:0}
+.slice-name{font-weight:600;font-size:.94rem;font-family:var(--sans);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.slice-preview{color:var(--text-muted);font-size:.82rem;line-height:1.4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.slice-meta-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:4px;flex-wrap:wrap}
+.slice-summary-badges{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.badge-sm{font-size:.68rem;padding:2px 7px;letter-spacing:.04em}
+.badge-issues{background:rgba(239,68,68,.12);color:#f87171;border-color:rgba(239,68,68,.25)}
+.badge-questions{background:rgba(167,139,250,.12);color:var(--discuss);border-color:rgba(167,139,250,.25)}
+/* Segmented approval control */
+.slice-actions{display:flex;align-items:center;gap:6px;flex-shrink:0;margin-left:auto}
+.approval-segmented{display:inline-flex;border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;gap:0}
+.seg-btn{display:inline-flex;align-items:center;justify-content:center;padding:4px 9px;font-size:.82rem;cursor:pointer;line-height:1;color:var(--text-muted);transition:background var(--transition),color var(--transition);user-select:none}
+.seg-btn:hover{background:var(--bg-hover);color:var(--text)}
+.seg-btn input[type="radio"]{position:absolute;opacity:0;width:0;height:0;pointer-events:none}
+.seg-btn:has(input:checked){background:var(--bg-hover)}
+.seg-approve:has(input:checked){background:rgba(34,197,94,.15);color:var(--approved);border-right:1px solid var(--border)}
+.seg-changes:has(input:checked){background:rgba(245,158,11,.15);color:var(--revision);border-right:1px solid var(--border)}
+.seg-reject:has(input:checked){background:rgba(239,68,68,.15);color:var(--blocked)}
+/* Chevron */
+.slice-chevron{flex:0 0 auto;align-self:flex-start;width:16px;height:16px;position:relative;margin-top:6px}
+.slice-chevron::after{content:'';position:absolute;top:50%;left:50%;width:7px;height:7px;border-right:2px solid var(--text-muted);border-bottom:2px solid var(--text-muted);transform:translate(-60%,-60%) rotate(-45deg);transition:transform .2s ease}
+.slice-card[open] .slice-chevron::after{transform:translate(-60%,-30%) rotate(45deg)}
+/* Slice body (expanded content) */
+.slice-body{padding:4px 18px 16px}
+.slice-meta{font-size:.82rem;color:var(--text-muted);margin-bottom:6px;font-family:var(--mono)}
 .slice-meta span{margin-right:14px}
-.slice-field{margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid rgba(51,51,56,.4)}
+.slice-field{margin-top:14px;padding-bottom:10px;border-bottom:1px solid rgba(51,51,56,.4)}
 .slice-field:last-of-type{border-bottom:none}
-.slice-field-label{font-family:var(--mono);font-size:.75rem;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+.slice-field-label{font-family:var(--mono);font-size:.7rem;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px;opacity:.85}
 .slice-field-value{font-size:.92rem;color:var(--text-dim);line-height:1.7}
 .slice-field-value code{font-size:.82rem;word-break:break-all}
-.slice-tests{white-space:pre-line}
+/* Serif prose for WHAT/WHY/description */
+.serif-prose{font-family:var(--serif);font-size:.96rem;line-height:1.6}
+/* Reveal toggle (CSS-only) */
+.reveal-toggle{position:absolute;opacity:0;width:0;height:0;pointer-events:none}
+.reveal-content{max-height:8.5em;overflow:hidden;mask-image:linear-gradient(to bottom, black 60%, transparent 100%);-webkit-mask-image:linear-gradient(to bottom, black 60%, transparent 100%)}
+.reveal-toggle:checked~.reveal-content{max-height:none;mask-image:none;-webkit-mask-image:none}
+.reveal-label{display:inline-block;margin-top:4px;font-size:.78rem;color:var(--accent);cursor:pointer;font-family:var(--mono);opacity:.8;transition:opacity var(--transition)}
+.reveal-label:hover{opacity:1}
+.reveal-toggle:checked~.reveal-content~.reveal-label{display:none}
+/* Test strategy chips */
+.test-strategy{display:flex;flex-direction:column;gap:6px}
+.test-group{display:flex;align-items:flex-start;gap:10px}
+.test-chip{font-family:var(--mono);font-size:.65rem;font-weight:700;letter-spacing:.06em;background:var(--bg-card);border:1px solid var(--border);border-radius:4px;padding:3px 8px;white-space:nowrap;color:var(--text-muted);flex-shrink:0;margin-top:2px}
+.test-group[data-kind="unit"] .test-chip{border-color:rgba(34,197,94,.3);color:var(--approved)}
+.test-group[data-kind="integration"] .test-chip{border-color:rgba(167,139,250,.3);color:var(--discuss)}
+.test-group[data-kind="regression"] .test-chip,.test-group[data-kind="e2e"] .test-chip{border-color:rgba(245,158,11,.3);color:var(--revision)}
+.test-group ul{margin:0;padding-left:1.2em;display:flex;flex-direction:column;gap:2px}
+.test-group ul li{font-size:.84rem;padding:2px 0;color:var(--text-dim)}
+/* Done when list */
 .slice-done-list{list-style:none;padding-left:0;margin:0}
-.slice-done-list li{font-size:.9rem;color:var(--text-dim);padding:4px 0;padding-left:20px;position:relative}
+.slice-done-list li{font-size:.88rem;color:var(--text-dim);padding:3px 0;padding-left:18px;position:relative}
 .slice-done-list li::before{content:'\2713';position:absolute;left:0;color:var(--approved);font-weight:700}
-.slice-deps{font-size:.85rem;color:var(--text-muted);margin-top:8px;font-family:var(--mono)}
+.slice-done-list--grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:4px 24px}
+/* Slice deps */
+.slice-deps{font-size:.78rem;color:var(--text-muted);margin-top:10px;font-family:var(--mono)}
+/* Comment collapse */
+.comment-collapse{margin-top:10px;border-top:1px solid var(--border)}
+.comment-collapse-trigger{cursor:pointer;font-size:.8rem;color:var(--text-muted);padding:8px 0;font-family:var(--mono);list-style:none;user-select:none;transition:color var(--transition)}
+.comment-collapse-trigger::-webkit-details-marker{display:none}
+.comment-collapse-trigger:hover{color:var(--accent)}
+.comment-collapse-body{padding:8px 0 0}
+/* Old approval-row (design section etc) */
 .slice-card .approval-row{margin-top:16px}
 
 /* ── Progress zone ── */
@@ -228,6 +289,44 @@ textarea::placeholder{color:var(--text-muted)}
 #chat-send:disabled{opacity:.3;cursor:not-allowed}
 .chat-notice{font-size:.82rem;color:var(--text-muted);padding:20px;text-align:center;line-height:1.6}
 
+/* ── Review rail (sticky sidebar top) ── */
+.review-rail{padding:16px 18px;border-bottom:1px solid var(--border);background:var(--bg-card)}
+.review-rail h3{font-family:var(--sans);font-size:.82rem;font-weight:600;color:var(--text);margin-bottom:10px;text-transform:none;letter-spacing:0}
+.rail-dots{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px}
+.rail-dot{width:12px;height:12px;border-radius:50%;background:var(--border);border:2px solid transparent;cursor:pointer;transition:transform .12s;text-decoration:none;display:inline-block}
+.rail-dot:hover{transform:scale(1.3)}
+.rail-dot[data-approval="approved"]{background:var(--approved);border-color:rgba(34,197,94,.3)}
+.rail-dot[data-approval="rejected"]{background:var(--revision);border-color:rgba(245,158,11,.3)}
+.rail-dot[data-approval="changes_requested"]{background:var(--revision);border-color:rgba(245,158,11,.3)}
+.rail-dot[data-approval="pending"]{background:var(--border)}
+.rail-counter{font-size:.78rem;color:var(--text-dim);margin-bottom:6px;font-family:var(--sans)}
+.rail-counter strong{color:var(--text)}
+.rail-progress{height:5px;background:var(--bg-input);border-radius:3px;overflow:hidden;margin-bottom:12px}
+.rail-progress-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--approved));border-radius:3px;transition:width .4s cubic-bezier(.4,0,.2,1)}
+.rail-pending-list{font-size:.78rem;color:var(--text-dim);margin-bottom:12px}
+.rail-pending-list strong{display:block;font-size:.7rem;font-family:var(--mono);color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px}
+.rail-pending-list li{list-style:none;padding:2px 0;display:flex;align-items:center;gap:6px}
+.rail-pending-list li::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--border);flex-shrink:0}
+.rail-pending-list li[data-has-issues]::before{background:var(--blocked)}
+.rail-pending-list li[data-has-questions]::before{background:var(--discuss)}
+.btn-finalize-rail{width:100%;background:var(--accent);color:#0a0a0a;border:none;border-radius:var(--radius);padding:10px 16px;font-weight:700;font-size:.82rem;cursor:pointer;font-family:var(--sans);transition:all var(--transition)}
+.btn-finalize-rail:hover:not(:disabled){filter:brightness(.92)}
+.btn-finalize-rail:disabled{opacity:.3;cursor:not-allowed}
+.rail-finalize-hint{font-size:.7rem;color:var(--text-muted);margin-top:4px;text-align:center}
+/* Chat section inside sidebar now collapsible */
+.chat-collapsible{border-top:1px solid var(--border)}
+.chat-collapsible>summary{cursor:pointer;font-size:.82rem;font-weight:600;color:var(--text-muted);padding:10px 18px;list-style:none;user-select:none;font-family:var(--mono);text-transform:uppercase;letter-spacing:.04em;transition:color var(--transition)}
+.chat-collapsible>summary::-webkit-details-marker{display:none}
+.chat-collapsible>summary:hover{color:var(--accent)}
+/* sidebar slice nav */
+.slice-nav-list{padding:0;margin:0;list-style:none}
+.slice-nav-item{display:flex;align-items:center;gap:6px;padding:4px 20px 4px 28px;font-size:.75rem;color:var(--text-muted);text-decoration:none;cursor:pointer;transition:color var(--transition)}
+.slice-nav-item:hover{color:var(--text)}
+.slice-nav-dot{width:8px;height:8px;border-radius:50%;background:var(--border);flex-shrink:0;transition:background .2s}
+.slice-nav-dot[data-approval="approved"]{background:var(--approved)}
+.slice-nav-dot[data-approval="rejected"]{background:var(--revision)}
+.slice-nav-dot[data-approval="changes_requested"]{background:var(--revision)}
+
 /* ── Amendments ── */
 .amendments-panel{margin-top:28px;background:var(--bg-card);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow-card)}
 .amendments-panel h3{margin:0 0 14px;font-size:.92rem;color:var(--text);font-family:var(--sans);font-weight:600}
@@ -249,6 +348,29 @@ textarea::placeholder{color:var(--text-muted)}
 .yaml-viewer code{font-family:var(--mono);color:var(--text)}
 
 
+/* ── Sidebar toggle buttons ── */
+.sidebar-toggle{display:flex;align-items:center;justify-content:center;width:28px;height:28px;background:transparent;border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-muted);cursor:pointer;font-size:.9rem;line-height:1;transition:background var(--transition),color var(--transition);flex-shrink:0;padding:0}
+.sidebar-toggle:hover{background:var(--bg-hover);color:var(--text)}
+/* Left sidebar toggle — sits beside the brand */
+.plan-sidebar .brand-row{display:flex;align-items:center;justify-content:space-between;padding:16px 20px 20px;border-bottom:1px solid var(--border);margin-bottom:8px}
+.plan-sidebar .brand-row .brand{padding:0;border-bottom:none;margin-bottom:0}
+/* Right sidebar toggle header */
+.chat-sidebar-header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--border);flex-shrink:0}
+.chat-sidebar-header-title{font-family:var(--mono);font-size:.72rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em}
+/* Collapsed states */
+body.left-nav-collapsed .plan-sidebar{width:48px;min-width:48px;overflow:hidden}
+body.left-nav-collapsed .plan-sidebar .brand-row{padding:12px 10px}
+body.left-nav-collapsed .plan-sidebar .brand-row .brand{display:none}
+body.left-nav-collapsed .plan-sidebar .nav-link{padding:10px;justify-content:center;font-size:0;gap:0}
+body.left-nav-collapsed .plan-sidebar .nav-link::after{content:attr(data-initial);font-size:.7rem;font-family:var(--mono);font-weight:700}
+body.left-nav-collapsed .plan-sidebar .slice-nav-list{display:none}
+body.left-nav-collapsed{grid-template-columns:48px 1fr}
+body.right-rail-collapsed .chat-sidebar{width:0;min-width:0;opacity:0;pointer-events:none;overflow:hidden;border-left:none}
+body.right-rail-collapsed .chat-resize-handle{display:none}
+.sidebar-reopen{display:none;position:fixed;top:14px;right:14px;z-index:50;width:32px;height:32px;align-items:center;justify-content:center;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-muted);cursor:pointer;font-size:1rem;line-height:1;padding:0;box-shadow:0 2px 8px rgba(0,0,0,.35);transition:background var(--transition),color var(--transition)}
+.sidebar-reopen:hover{background:var(--bg-hover);color:var(--text)}
+body.right-rail-collapsed .sidebar-reopen{display:flex}
+
 /* ── Print ── */
 @media print{body{background:#fff;color:#111;max-width:100%;display:block}.plan-sidebar{display:none}.section-card,.dep-graph,.progress-zone,.slice-card{border-color:#ccc;background:#fafafa;box-shadow:none}details[open] summary~*{display:block}.btn-finalize,.chat-panel,.amendments-panel{display:none}}
 
@@ -268,14 +390,29 @@ textarea::placeholder{color:var(--text-muted)}
 </head>
 <body>
 
-<nav class="plan-sidebar">
-  <a href="/" class="brand">HtmlGraph</a>
-  <a href="#design" class="nav-link active" data-spy="design">Design</a>
-  <a href="#slices" class="nav-link" data-spy="slices">Slices</a>
-  <a href="#questions" class="nav-link" data-spy="questions">Decisions</a>
-  <a href="#critique" class="nav-link" data-spy="critique">Critique</a>
-  <a href="#feedback-summary" class="nav-link" data-spy="feedback-summary">Progress</a>
-  <a href="#chat-panel" class="nav-link" data-spy="chat-panel">Chat</a>
+<nav class="plan-sidebar" id="plan-sidebar">
+  <div class="brand-row">
+    <a href="/" class="brand">HtmlGraph</a>
+    <button class="sidebar-toggle" id="left-sidebar-toggle" title="Collapse sidebar" aria-label="Toggle left sidebar">&#8249;</button>
+  </div>
+  <a href="#design" class="nav-link active" data-spy="design" data-initial="D">Design</a>
+  <a href="#slices" class="nav-link" data-spy="slices" data-initial="S">Slices</a>
+  {{if .Slices}}
+  <ul class="slice-nav-list" id="slice-nav-list">
+    {{range .Slices}}
+    <li>
+      <a href="#slice-{{.Num}}" class="slice-nav-item" data-slice-nav="{{.Num}}">
+        <span class="slice-nav-dot" data-approval="{{.ApprovalDataAttr}}" data-dot-for="{{.Num}}"></span>
+        <span>#{{.Num}} {{.Title}}</span>
+      </a>
+    </li>
+    {{end}}
+  </ul>
+  {{end}}
+  <a href="#questions" class="nav-link" data-spy="questions" data-initial="Q">Decisions</a>
+  <a href="#critique" class="nav-link" data-spy="critique" data-initial="C">Critique</a>
+  <a href="#feedback-summary" class="nav-link" data-spy="feedback-summary" data-initial="P">Progress</a>
+  <a href="#chat-panel" class="nav-link" data-spy="chat-panel" data-initial="&#9825;">Chat</a>
 </nav>
 <div class="plan-layout">
 <div class="plan-content">
@@ -412,30 +549,6 @@ textarea::placeholder{color:var(--text-muted)}
 
 </article>
 </div><!-- /.plan-content -->
-
-<!-- Drag handle for resizing chat sidebar -->
-<div class="chat-resize-handle" id="chat-resize-handle"></div>
-
-<!-- Chat sidebar -->
-<aside class="chat-sidebar" id="chat-sidebar">
-  <section id="chat-panel" class="chat-panel" data-zone="chat">
-    <h2>Plan Discussion</h2>
-    <div id="chat-messages" class="chat-messages">
-      <p class="chat-notice" id="chat-empty">Ask about the plan design, slices, risks, or tradeoffs.</p>
-    </div>
-    <div class="chat-input-area">
-      <textarea id="chat-input" placeholder="Ask about the plan..." rows="2"></textarea>
-      <button id="chat-send">Send</button>
-    </div>
-  </section>
-
-  <!-- Amendments Panel -->
-  <div id="amendments-panel" class="amendments-panel" style="display:none">
-    <h3>Amendments</h3>
-    <div id="amendments-list"></div>
-    <div id="amendments-summary" class="amendments-summary"></div>
-  </div>
-</aside>
 </div><!-- /.plan-layout -->
 
 <script src="https://d3js.org/d3.v7.min.js"></script>
@@ -510,33 +623,65 @@ var planId=(function(){var a=document.querySelector('article[id]');return a?a.id
 
   function escHtml(s){var d=document.createElement('div');d.textContent=s;return d.innerHTML}
 
-  document.querySelectorAll('input[data-action="approve"]').forEach(function(cb){
-    cb.addEventListener('change',function(){
-      var sec=this.dataset.section;
-      var badge=document.querySelector('[data-badge-for="'+sec+'"]');
-      if(badge) setBadge(badge,this.checked);
-      var details=this.closest('details[data-phase]');
-      if(details) details.dataset.status=this.checked?'approved':'pending';
-      if(sec.startsWith('slice-')){
-        var n=sec.split('-')[1];
-        var node=document.getElementById('node-'+n);
-        if(node) node.dataset.status=this.checked?'approved':'pending';
-        var all=document.querySelectorAll('input[data-section^="slice-"][data-action="approve"]');
-        var allOk=Array.prototype.every.call(all,function(c){return c.checked});
-        var sb=document.querySelector('[data-badge-for="slices"]');
-        if(sb) setBadge(sb,allOk);
-        var sd=document.querySelector('[data-phase="slices"]');
-        if(sd) sd.dataset.status=allOk?'approved':'pending';
-      }
-      updateProgress();
-      if(planId){
-        fetch((window.htmlgraphPlanBase||'')+'/api/plans/'+planId+'/feedback',{
-          method:'POST',
-          headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({section:sec,action:'approve',value:String(this.checked),question_id:''})
-        });
-      }
-    });
+  // Helper: get effective approval value for a slice section.
+  // For radio-based slice controls, returns the selected value or 'pending'.
+  // For checkbox-based controls (design, outline), returns 'approved' or 'pending'.
+  function getApprovalValue(sec){
+    // Try radio group first (slice-N approval segmented control)
+    var checked=document.querySelector('input[type="radio"][data-section="'+sec+'"][data-action="approve"]:checked');
+    if(checked) return checked.value;
+    // Fallback: checkbox
+    var cb=document.querySelector('input[type="checkbox"][data-section="'+sec+'"][data-action="approve"]');
+    if(cb) return cb.checked?'approved':'pending';
+    return 'pending';
+  }
+
+  function handleApprovalChange(el){
+    var sec=el.dataset.section;
+    var val=getApprovalValue(sec);
+    var isApproved=(val==='approved');
+    var badge=document.querySelector('[data-badge-for="'+sec+'"]');
+    if(badge) setBadge(badge,isApproved);
+    var phaseDetails=el.closest('details[data-phase]');
+    if(phaseDetails) phaseDetails.dataset.status=isApproved?'approved':'pending';
+    if(sec.startsWith('slice-')&&sec.split('-').length===2){
+      var n=sec.split('-')[1];
+      // Update data-approval attribute on slice-card for CSS stripe
+      var sliceCard=document.getElementById('slice-'+n);
+      if(sliceCard) sliceCard.dataset.approval=val;
+      // Update dep graph node
+      var node=document.getElementById('node-'+n);
+      if(node) node.dataset.status=isApproved?'approved':'pending';
+      // Update sidebar nav dot
+      document.querySelectorAll('[data-dot-for="'+n+'"]').forEach(function(dot){
+        dot.dataset.approval=val;
+      });
+      // Update overall slices badge
+      var allSliceInputs=document.querySelectorAll('input[data-section^="slice-"][data-action="approve"]');
+      var sliceNums={};
+      Array.prototype.forEach.call(allSliceInputs,function(inp){
+        sliceNums[inp.dataset.section]=true;
+      });
+      var allOk=Object.keys(sliceNums).every(function(s){
+        return getApprovalValue(s)==='approved';
+      });
+      var sb=document.querySelector('[data-badge-for="slices"]');
+      if(sb) setBadge(sb,allOk);
+      var sd=document.querySelector('[data-phase="slices"]');
+      if(sd) sd.dataset.status=allOk?'approved':'pending';
+    }
+    updateProgress();
+    if(planId){
+      fetch((window.htmlgraphPlanBase||'')+'/api/plans/'+planId+'/feedback',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({section:sec,action:'approve',value:(val==='approved'?'true':'false'),question_id:''})
+      });
+    }
+  }
+
+  document.querySelectorAll('input[data-action="approve"]').forEach(function(el){
+    el.addEventListener('change',function(){ handleApprovalChange(this); });
   });
 
   document.querySelectorAll('input[type="radio"][data-question]').forEach(function(r){
@@ -574,6 +719,21 @@ var planId=(function(){var a=document.querySelector('article[id]');return a?a.id
       if(badge) setBadge(badge,true);
     }
   });
+
+  // Slice-local question radio chips (data-action="answer", data-section=slice-N-question-<id>)
+  document.querySelectorAll('input[type="radio"][data-action="answer"]').forEach(function(r){
+    r.addEventListener('change',function(){
+      var sec=this.dataset.section;
+      if(planId){
+        fetch((window.htmlgraphPlanBase||'')+'/api/plans/'+planId+'/feedback',{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({section:sec,action:'answer',value:this.value,question_id:sec})
+        });
+      }
+    });
+  });
+
   var allRows=document.querySelectorAll('[data-recap-for]');
   var allAnswered=Array.prototype.every.call(allRows,function(r){
     var b=r.querySelector('.badge');
@@ -587,14 +747,61 @@ var planId=(function(){var a=document.querySelector('article[id]');return a?a.id
   function updateProgress(){
     var approved=0;
     SECTIONS.forEach(function(sec){
-      var cb=document.querySelector('input[data-section="'+sec+'"][data-action="approve"]');
-      if(cb&&cb.checked) approved++;
+      if(getApprovalValue(sec)==='approved') approved++;
     });
-    document.getElementById('approvedCount').textContent=approved;
-    document.getElementById('pendingCount').textContent=SECTIONS.length-approved;
-    document.getElementById('progressFill').style.width=Math.round(approved/SECTIONS.length*100)+'%';
-    document.getElementById('finalizeBtn').disabled=(approved<SECTIONS.length);
+    var pct=SECTIONS.length>0?Math.round(approved/SECTIONS.length*100):0;
+    // Main progress bar
+    var ac=document.getElementById('approvedCount');
+    if(ac) ac.textContent=approved;
+    var pc=document.getElementById('pendingCount');
+    if(pc) pc.textContent=SECTIONS.length-approved;
+    var pf=document.getElementById('progressFill');
+    if(pf) pf.style.width=pct+'%';
+    var fb=document.getElementById('finalizeBtn');
+    if(fb) fb.disabled=(approved<SECTIONS.length);
+    // Review rail
+    var ra=document.getElementById('railApproved');
+    if(ra) ra.textContent=approved;
+    var rf=document.getElementById('railFill');
+    if(rf) rf.style.width=pct+'%';
+    var frb=document.getElementById('finalizeRailBtn');
+    if(frb) frb.disabled=(approved<SECTIONS.length);
+    updateRailPending();
     updateComments();
+  }
+
+  function updateRailPending(){
+    var list=document.getElementById('railPendingList');
+    if(!list) return;
+    // Keep the "Pending" header strong
+    list.innerHTML='<strong>Pending</strong>';
+    SECTIONS.forEach(function(sec){
+      if(getApprovalValue(sec)!=='approved'){
+        var li=document.createElement('li');
+        var sliceNum=sec.startsWith('slice-')?sec.split('-')[1]:null;
+        var issueCount=0,qCount=0;
+        if(sliceNum){
+          var card=document.getElementById('slice-'+sliceNum);
+          if(card){
+            var issueBadge=card.querySelector('.badge-issues');
+            var qBadge=card.querySelector('.badge-questions');
+            if(issueBadge) issueCount=parseInt(issueBadge.textContent)||0;
+            if(qBadge) qCount=parseInt(qBadge.textContent)||0;
+          }
+        }
+        if(issueCount>0) li.dataset.hasIssues='1';
+        if(qCount>0) li.dataset.hasQuestions='1';
+        var label=sec;
+        if(sliceNum){
+          var nameEl=document.querySelector('#slice-'+sliceNum+' .slice-name');
+          label='Slice '+sliceNum+(nameEl?' ('+nameEl.textContent.trim().substring(0,20)+(nameEl.textContent.trim().length>20?'…':'')+')':'');
+        }
+        if(issueCount>0) label+=' · '+issueCount+' issue'+(issueCount>1?'s':'');
+        if(qCount>0) label+=' · '+qCount+' Q';
+        li.textContent=label;
+        list.appendChild(li);
+      }
+    });
   }
 
   function updateComments(){
@@ -655,10 +862,10 @@ var planId=(function(){var a=document.querySelector('article[id]');return a?a.id
             finalizeMsg.style.display='block';
           });
         } else {
-          return r.json().then(function(data){
+          return r.text().then(function(body){
             btn.textContent='Finalize Plan';
             btn.disabled=false;
-            finalizeMsg.textContent=data.error||'Not all sections approved.';
+            finalizeMsg.textContent=body||'Not all sections approved.';
             finalizeMsg.style.color='var(--blocked)';
             finalizeMsg.style.display='block';
           });
@@ -674,6 +881,15 @@ var planId=(function(){var a=document.querySelector('article[id]');return a?a.id
     });
   }
 
+  // Wire the rail finalize button to the same handler
+  var finalizeRailBtn=document.getElementById('finalizeRailBtn');
+  if(finalizeRailBtn){
+    finalizeRailBtn.addEventListener('click',function(){
+      var mainBtn=document.getElementById('finalizeBtn');
+      if(mainBtn) mainBtn.click();
+    });
+  }
+
   function loadExistingFeedback(){
     if(!planId){return;}
     fetch((window.htmlgraphPlanBase||'')+'/api/plans/'+planId+'/feedback')
@@ -683,13 +899,27 @@ var planId=(function(){var a=document.querySelector('article[id]');return a?a.id
         if(data.sections){
           Object.keys(data.sections).forEach(function(sec){
             var info=data.sections[sec];
-            if(info.approved){
-              var cb=document.querySelector('input[data-section="'+sec+'"][data-action="approve"]');
-              if(cb&&!cb.checked){cb.checked=true;cb.dispatchEvent(new Event('change'));}
+            if(info.approved||info.value){
+              var val=info.value||'approved';
+              // Try radio first (slice controls)
+              var radio=document.querySelector('input[type="radio"][data-section="'+sec+'"][data-action="approve"][value="'+val+'"]');
+              if(radio&&!radio.checked){radio.checked=true;radio.dispatchEvent(new Event('change'));}
+              else if(val==='approved'||val==='true'){
+                // Fallback checkbox (design, outline)
+                var cb=document.querySelector('input[type="checkbox"][data-section="'+sec+'"][data-action="approve"]');
+                if(cb&&!cb.checked){cb.checked=true;cb.dispatchEvent(new Event('change'));}
+              }
             }
             if(info.comment){
+              // Comment textarea is inside a details.comment-collapse — open it first
               var ta=document.querySelector('textarea[data-section="'+sec+'"]');
-              if(ta) ta.value=info.comment;
+              if(ta){
+                ta.value=info.comment;
+                var collapse=ta.closest('details.comment-collapse');
+                if(collapse) collapse.open=true;
+                var trigger=collapse&&collapse.querySelector('.comment-collapse-trigger');
+                if(trigger) trigger.textContent='Edit comment';
+              }
             }
           });
         }
@@ -710,11 +940,12 @@ var planId=(function(){var a=document.querySelector('article[id]');return a?a.id
   document.querySelectorAll('input[data-action="approve"]').forEach(function(cb){
     cb.addEventListener('change',function(){
       var sec=this.dataset.section;
-      if(sec.startsWith('slice-')){
+      if(sec.startsWith('slice-')&&sec.split('-').length===2){
         var n=sec.split('-')[1];
         var nodeRect=d3.select('#dep-graph-svg .node[id="'+n+'"] rect');
         if(!nodeRect.empty()){
-          var color=this.checked?'#16a34a':'#6b7280';
+          var val=getApprovalValue(sec);
+          var color=val==='approved'?'#16a34a':val==='rejected'?'#f59e0b':'#6b7280';
           var cs=getComputedStyle(document.querySelector('.dep-graph')||document.documentElement);
           nodeRect.style('stroke',color).style('fill',cs.getPropertyValue('--bg-input').trim()||'#222228');
         }
@@ -1013,34 +1244,28 @@ function renderMd(text){
   update();
 })();
 
-// Chat sidebar drag-resize
+// Left nav collapse toggle
 (function(){
-  var handle=document.getElementById('chat-resize-handle');
-  var sidebar=document.getElementById('chat-sidebar');
-  if(!handle||!sidebar) return;
-  var startX,startW;
-  handle.addEventListener('mousedown',function(e){
-    e.preventDefault();
-    startX=e.clientX;
-    startW=sidebar.offsetWidth;
-    handle.classList.add('dragging');
-    document.body.style.cursor='col-resize';
-    document.body.style.userSelect='none';
-    function onMove(e){
-      var delta=startX-e.clientX;
-      var newW=Math.max(280,Math.min(600,startW+delta));
-      sidebar.style.width=newW+'px';
-    }
-    function onUp(){
-      handle.classList.remove('dragging');
-      document.body.style.cursor='';
-      document.body.style.userSelect='';
-      document.removeEventListener('mousemove',onMove);
-      document.removeEventListener('mouseup',onUp);
-    }
-    document.addEventListener('mousemove',onMove);
-    document.addEventListener('mouseup',onUp);
-  });
+  'use strict';
+  var KEY_L='htmlgraph-plan-left-collapsed';
+  var body=document.body;
+  var btnL=document.getElementById('left-sidebar-toggle');
+
+  function applyLeft(collapsed){
+    body.classList.toggle('left-nav-collapsed',collapsed);
+    if(btnL) btnL.textContent=collapsed?'›':'‹';
+    if(btnL) btnL.title=collapsed?'Expand sidebar':'Collapse sidebar';
+  }
+
+  applyLeft(localStorage.getItem(KEY_L)==='1');
+
+  if(btnL){
+    btnL.addEventListener('click',function(){
+      var collapsed=!body.classList.contains('left-nav-collapsed');
+      applyLeft(collapsed);
+      localStorage.setItem(KEY_L,collapsed?'1':'0');
+    });
+  }
 })();
 {{range .Assets.JS}}{{.}}
 {{end}}

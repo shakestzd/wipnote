@@ -1,0 +1,165 @@
+meta:
+    id: plan-149eeb44
+    track_id: trk-2c55adea
+    title: Delete SQLite and regenerate plugin ports (Phase 4)
+    description: |
+        Sub-plan of plan-3bbc313f — Phase 4 deletion. With every consumer migrated, delete modernc.org/sqlite from go.mod, the internal/db/ package, the htmlgraph reindex command family, and SQLite mentions from all docs. Regenerate Codex/Gemini/Claude plugin ports so deployed marketplaces stop shipping the old architecture description. Tight 2-slice review surface is intentional.
+    created_at: "2026-05-01"
+    status: draft
+    created_by: claude-opus
+    version: 2
+design:
+    problem: |
+        Until SQLite is deleted from go.mod, the team will keep accidentally re-adding SQL-backed code paths (already happened mid-conversation with `internal/storage/evict.go`). Removing the option is the only way to make the architecture promise real. The deployed Codex and Gemini plugin trees still embed `system-prompt.md` describing the SQLite read index; without regeneration, marketplaces will continue shipping the old narrative.
+    goals:
+        - '`grep -r ''database/sql'' cmd/ internal/` returns zero matches; `go.sum` no longer references modernc.org/sqlite.'
+        - Architecture docs in AGENTS.md, CLAUDE.md, and all three plugin trees describe HTML+NDJSON canonical.
+        - Plugin port regeneration is bit-idempotent.
+    constraints:
+        - Run only after every consumer migration in Child D is verified.
+        - Binary size reduction documented in commit message.
+        - '`.htmlgraph/htmlgraph.db*` added to `.gitignore`; deploy script nukes stray files.'
+    approved: false
+    comment: ""
+slices:
+    - id: slice-1
+      num: 1
+      title: Phase 4 — Delete `modernc.org/sqlite` from the codebase
+      what: |
+        With slices 1, 2, 5-10, 15, 16 landed (all SQL-using subsystems
+        migrated), delete the dependency:
+
+        (1) Delete the entire `internal/db/` package (18 files: schema,
+        pragmas, *_repo.go, otel_schema, plan_feedback). All callers
+        already migrated by prior slices.
+        (2) Delete `internal/storage/dbpath.go`, `internal/storage/evict.go`
+        (the latter just landed; verify no remaining callers).
+        (3) Delete `cmd/htmlgraph/cache.go` and `cmd/htmlgraph/cache_pollution_test.go`
+        (cache is SQLite-specific).
+        (4) Delete the `htmlgraph reindex` command family (`reindex.go`,
+        `reindex_files.go`, `reindex_helpers.go`, `reindex_sessions.go`,
+        `reindex_trailers.go` and their tests) — there is no index to
+        rebuild. Keep `htmlgraph recover-db` from slice-2 ONLY if it now
+        means "purge stray DB files"; otherwise delete.
+        (5) Delete `internal/db/disabled_stub.go` and `internal/db/enabled.go`
+        (slice-8's build-tag stubs) — no longer needed.
+        (6) Remove `modernc.org/sqlite v1.37.1` from `go.mod`; run `go mod tidy`.
+        (7) Update `AGENTS.md`, `CLAUDE.md`, `cmd/htmlgraph/prompts/system-prompt.md`,
+        and the plugin port trees (slice-13 covers regeneration): remove
+        "SQLite read index" from architecture tables; replace with
+        "HTML files (canonical) + per-session NDJSON (canonical)".
+        (8) Add `.htmlgraph/htmlgraph.db*` to `.gitignore`; deploy script
+        nukes any stray files.
+        (9) CI verifies: `grep -r 'database/sql' cmd/ internal/` returns
+        zero matches; `go.sum` no longer references modernc.org/sqlite.
+
+        File-list ground truth: `rg -l '"database/sql"' cmd/ internal/`
+        currently returns ~110 files. By the time slice-11 runs, that count
+        must be 0. Slice-11 deletes the residual `internal/db/` package
+        and updates docs; the actual migrations happen in slices 5, 6, 8,
+        10, 15, 16.
+      why: |
+        Closes the migration. Until SQLite is deleted from go.mod, the
+        team will keep accidentally re-adding SQL-backed code paths
+        (we've watched it happen — `internal/storage/evict.go` landed
+        mid-conversation). "Removing the option" is the only way to
+        make the architecture promise real.
+      files:
+        - internal/db/
+        - internal/storage/dbpath.go
+        - internal/storage/evict.go
+        - internal/storage/evict_test.go
+        - cmd/htmlgraph/cache.go
+        - cmd/htmlgraph/cache_pollution_test.go
+        - cmd/htmlgraph/reindex.go
+        - cmd/htmlgraph/reindex_files.go
+        - cmd/htmlgraph/reindex_helpers.go
+        - cmd/htmlgraph/reindex_sessions.go
+        - cmd/htmlgraph/reindex_trailers.go
+        - cmd/htmlgraph/reindex_test.go
+        - cmd/htmlgraph/reindex_feature_files_test.go
+        - cmd/htmlgraph/reindex_incremental_test.go
+        - cmd/htmlgraph/reindex_sessions_test.go
+        - cmd/htmlgraph/reindex_trailers_test.go
+        - go.mod
+        - go.sum
+        - AGENTS.md
+        - CLAUDE.md
+        - cmd/htmlgraph/prompts/system-prompt.md
+        - .htmlgraph/.gitignore
+        - scripts/deploy-all.sh
+      deps: []
+      done_when:
+        - '`go.sum` no longer references `mattn/go-sqlite3` or any SQLite driver.'
+        - '`grep -r ''database/sql'' cmd/ internal/` returns zero matches.'
+        - Full test suite passes.
+        - 'Binary size reduction documented in commit message (expected: ~3-5 MB).'
+        - Architecture table in `AGENTS.md` no longer mentions SQLite.
+      effort: L
+      risk: High
+      tests: |
+        Integration: TestNoSQLiteDriver — `go test ./...` with a build tag that fails on `database/sql` import.
+        Regression: full CLI command matrix passes.
+        Smoke: fresh checkout, `go build`, `htmlgraph status` against a clean repo — works.
+      approved: false
+      comment: ""
+      approval_status: pending
+      execution_status: not_started
+      critic_revisions:
+        - source: researcher
+          severity: DANGER
+          summary: 'ADDRESSED in revision: file list now enumerates real paths from grep audit (internal/db/ package, internal/storage/dbpath.go, reindex command family). 110 files import database/sql; deps now include slice-15 (hook handlers) and slice-16 (graph/agent/planchat/registry) so file count reaches 0 before deletion.'
+        - source: researcher
+          severity: MED
+          summary: 'ADDRESSED in revision: internal/storage/evict.go is now explicitly in the file list for deletion.'
+    - id: slice-2
+      num: 2
+      title: Phase 4b — Regenerate plugin ports (Codex, Gemini, Claude) after schema lands
+      what: |
+        htmlgraph ships the same plugin to three harnesses (Claude Code at
+        `plugin/`, Codex CLI at `packages/codex-plugin/`, Gemini extension
+        at `packages/gemini-extension/`) — all generated from
+        `packages/plugin-core/manifest.json` by `htmlgraph plugin build-ports`.
+        The Codex and Gemini trees embed `system-prompt.md` and architecture
+        docs that reference the SQLite read index.
+
+        After slice-11 deletes SQLite, run `htmlgraph plugin build-ports`
+        and audit that the regenerated trees:
+        (a) Have no SQLite mentions in any embedded markdown.
+        (b) Reference the new HTML schema as canonical.
+        (c) Are bit-identical to the source after a second regeneration
+        (idempotent).
+
+        Update `packages/plugin-core/manifest.json` and any shared assets
+        under `plugin/{commands,agents,skills,templates,static,config}/` if
+        the deletion of SQLite-related commands (e.g. `htmlgraph reindex`)
+        requires command-tree changes.
+      why: |
+        Without this, deployed plugins for Codex and Gemini will continue
+        to ship docs describing the old architecture even after slice-11
+        lands. Marketplaces ship from generated trees, not from source —
+        regenerate and verify.
+      files:
+        - packages/plugin-core/manifest.json
+        - plugin/agents/
+        - plugin/skills/
+        - plugin/commands/
+        - cmd/htmlgraph/prompts/system-prompt.md
+        - packages/codex-plugin/
+        - packages/gemini-extension/
+      deps:
+        - 1
+      done_when:
+        - '`htmlgraph plugin build-ports --target all` succeeds with zero diffs after a clean rebuild.'
+        - '`grep -r -i sqlite packages/codex-plugin/ packages/gemini-extension/ plugin/` returns zero matches.'
+        - Architecture docs in all three plugin trees describe HTML+NDJSON canonical.
+      effort: S
+      risk: Low
+      tests: |
+        Integration: TestPluginPortsIdempotent — run build-ports twice, assert byte-equality.
+        Lint: shell test that grep -r sqlite packages/ returns no matches.
+      approved: false
+      comment: ""
+      approval_status: pending
+      execution_status: not_started
+questions: []

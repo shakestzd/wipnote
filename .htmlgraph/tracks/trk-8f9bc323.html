@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Agent Teams native enablement</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="trk-8f9bc323"
+             data-type="track"
+             data-status="todo"
+             data-priority="high"
+             data-created="2026-05-04T16:51:59.870976"
+             data-updated="2026-05-04T23:28:34.703" data-agent-assigned="claude-code">
+
+        <header>
+            <h1>Agent Teams native enablement</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="contains">
+                <h3>Contains:</h3>
+                <ul>
+                    <li><a href="feat-a49b5185.html" data-relationship="contains" data-since="2026-05-04T23:28:34.638103">Auto-inject `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` with opt-out via config</a></li>
+                    <li><a href="feat-b3bbb6a3.html" data-relationship="contains" data-since="2026-05-04T23:28:34.670905">Close the teammate-identity persistence gap in `agent_events`</a></li>
+                    <li><a href="feat-60d035a1.html" data-relationship="contains" data-since="2026-05-04T23:28:34.696893">Update CLAUDE.md / orchestrator skill &#43; (optional) `htmlgraph-teammate` subagent definition</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Native HtmlGraph integration with Claude Code's experimental agent teams feature. Removes manual env-var setup friction, completes hook handlers with full payload capture (the 3 team events emit team-specific fields beyond what we currently capture), and updates documentation for v2.1.64+ JSON hook control payloads. Doc-grounded — research completed via claude-code-guide agent reviewing the canonical Claude Code docs at code.claude.com/docs/en/agent-teams and hooks reference.</p>
+        </section>
+    </article>
+</body>
+</html>

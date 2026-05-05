@@ -10,10 +10,63 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
+	"sync/atomic"
+	"syscall"
 	"time"
 
 	"github.com/shakestzd/htmlgraph/internal/models"
 )
+
+// featureWriteMu serialises concurrent writes that touch the same feature HTML
+// file in a single process. Keyed by node ID (string) → *sync.Mutex.
+// This prevents lost-update races between writers — `WriteNodeHTML`,
+// `compliance auto`'s findings writer, and `spec generate --insert`'s spec
+// writer all acquire the same per-feature lock via LockFeatureForWrite.
+var featureWriteMu sync.Map
+
+// LockFeatureForWrite acquires both an in-process mutex AND a cross-process
+// advisory file lock so multiple writers cannot race on the same feature
+// HTML. The file lock guards a sidecar at `<featurePath>.lock` (created on
+// first use, never deleted — flocks survive removal anyway, and an
+// always-present sidecar means we never re-create a contested file).
+// Callers MUST defer the returned release function.
+//
+// The acquire-read-modify-write window must be inside the lock; the
+// underlying atomic temp+rename keeps single writes safe on its own. This
+// closes the lost-update race when `compliance auto`, `spec generate
+// --insert`, and `WriteNodeHTML` (status transitions) target the same
+// feature concurrently — including from separate `htmlgraph` CLI processes.
+//
+// On flock acquisition errors, falls back to in-process-only locking and
+// logs nothing; this preserves single-process behavior for tests on file
+// systems that don't support flock.
+func LockFeatureForWrite(featurePath string) (release func()) {
+	muVal, _ := featureWriteMu.LoadOrStore(featurePath, &sync.Mutex{})
+	mu := muVal.(*sync.Mutex)
+	mu.Lock()
+
+	lockPath := featurePath + ".lock"
+	f, ferr := os.OpenFile(lockPath, os.O_RDWR|os.O_CREATE, 0o644)
+	if ferr != nil {
+		// In-process lock only — degrade gracefully on filesystem errors.
+		return mu.Unlock
+	}
+	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX); err != nil {
+		_ = f.Close()
+		return mu.Unlock
+	}
+	return func() {
+		_ = syscall.Flock(int(f.Fd()), syscall.LOCK_UN)
+		_ = f.Close()
+		mu.Unlock()
+	}
+}
+
+// atomicWriteCounter provides a unique sequence number per atomic write call,
+// used to make temp filenames unique even when called from multiple goroutines
+// in the same process (which all share the same PID).
+var atomicWriteCounter atomic.Int64
 
 // --- ID generation -----------------------------------------------------------
 
@@ -70,6 +123,17 @@ var nodeTmpl = template.Must(
 // writes it to the collection directory.  The output MUST be parseable by
 // htmlparse.ParseFile to ensure round-trip fidelity.
 //
+// Writes are atomic: the content is rendered to a temp file, fsynced, then
+// renamed over the target path (POSIX rename is atomic). A per-node mutex
+// serialises concurrent in-process writes for the same node ID to prevent
+// lost-update races.
+//
+// Supplemental sections (`<section class="spec">` and
+// `<section class="compliance-findings">`) are preserved across writes:
+// callers like `compliance auto` and `spec generate --insert` append these
+// outside the templated render, and we don't want a status transition (which
+// re-renders the whole file from the Node) to silently delete them.
+//
 // Returns the absolute path of the written file.
 func WriteNodeHTML(dir string, node *models.Node) (string, error) {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -77,15 +141,110 @@ func WriteNodeHTML(dir string, node *models.Node) (string, error) {
 	}
 
 	path := filepath.Join(dir, node.ID+".html")
+	// Acquire per-feature lock (in-process + cross-process) to serialize
+	// concurrent writes targeting the same HTML file.
+	defer LockFeatureForWrite(path)()
 	html, err := renderNodeHTML(node)
 	if err != nil {
 		return "", fmt.Errorf("render %s: %w", node.ID, err)
 	}
 
-	if err := os.WriteFile(path, []byte(html), 0o644); err != nil {
+	// Extract supplemental sections from the existing file (if any) and
+	// splice them back into the freshly-rendered template output. Skip
+	// silently when the file doesn't exist or has no supplemental sections.
+	if existing, rerr := os.ReadFile(path); rerr == nil {
+		if merged, ok := preserveSupplementalSections(string(existing), html); ok {
+			html = merged
+		}
+	}
+
+	if err := atomicWriteFile(path, []byte(html), 0o644); err != nil {
 		return "", fmt.Errorf("write %s: %w", path, err)
 	}
 	return path, nil
+}
+
+// preserveSupplementalSections finds known supplemental sections in the prior
+// file content (sections that the node template does not emit — currently
+// `<section class="spec">` and `<section class="compliance-findings">`) and
+// re-inserts them into the freshly-rendered template just before `</body>`.
+// Returns the merged HTML and ok=true when at least one section was carried
+// over; otherwise returns ("", false) so the caller writes the raw render.
+func preserveSupplementalSections(existing, rendered string) (string, bool) {
+	classes := []string{"spec", "compliance-findings"}
+	var preserved []string
+	for _, class := range classes {
+		if section, ok := extractSection(existing, class); ok {
+			preserved = append(preserved, section)
+		}
+	}
+	if len(preserved) == 0 {
+		return "", false
+	}
+	insert := "\n" + strings.Join(preserved, "\n") + "\n"
+	bodyClose := strings.LastIndex(rendered, "</body>")
+	if bodyClose == -1 {
+		return rendered + insert, true
+	}
+	return rendered[:bodyClose] + insert + rendered[bodyClose:], true
+}
+
+// extractSection returns the first `<section class="<class>"...></section>`
+// block in html along with ok=true. Match is by leading attribute prefix so
+// extra attributes (e.g. data-* on the compliance-findings section) are
+// retained verbatim.
+func extractSection(html, class string) (string, bool) {
+	openPrefix := `<section class="` + class + `"`
+	const closeTag = `</section>`
+	start := strings.Index(html, openPrefix)
+	if start == -1 {
+		return "", false
+	}
+	end := strings.Index(html[start:], closeTag)
+	if end == -1 {
+		return "", false
+	}
+	end += start + len(closeTag)
+	return html[start:end], true
+}
+
+// atomicWriteFile writes data to path atomically: it writes to a temp file in
+// the same directory, calls Sync to flush to storage, then renames the temp
+// file over the target. POSIX rename is atomic within the same filesystem.
+func atomicWriteFile(path string, data []byte, perm os.FileMode) error {
+	dir := filepath.Dir(path)
+	seq := atomicWriteCounter.Add(1)
+	tmp := fmt.Sprintf("%s.tmp.%d.%d", path, os.Getpid(), seq)
+
+	f, err := os.OpenFile(tmp, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, perm)
+	if err != nil {
+		return fmt.Errorf("open temp file: %w", err)
+	}
+
+	if _, err := f.Write(data); err != nil {
+		f.Close()
+		os.Remove(tmp)
+		return fmt.Errorf("write temp file: %w", err)
+	}
+
+	if err := f.Sync(); err != nil {
+		f.Close()
+		os.Remove(tmp)
+		return fmt.Errorf("sync temp file: %w", err)
+	}
+
+	if err := f.Close(); err != nil {
+		os.Remove(tmp)
+		return fmt.Errorf("close temp file: %w", err)
+	}
+
+	_ = dir // ensure dir is always used (for documentation clarity)
+	if err := os.Rename(tmp, path); err != nil {
+		os.Remove(tmp)
+		return fmt.Errorf("rename temp to target: %w", err)
+	}
+
+	return nil
 }
 
 // renderNodeHTML produces the full HTML document for a node using

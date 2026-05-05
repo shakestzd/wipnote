@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Project registry hardening: skip-on-tempdir &#43; 3-day TTL &#43; prune flags</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-d2d2be20"
+             data-type="feature"
+             data-status="done"
+             data-priority="medium"
+             data-created="2026-05-05T03:44:10.878755"
+             data-updated="2026-05-05T03:59:53.165477" data-agent-assigned="claude-code" data-track-id="trk-cb36e595">
+
+        <header>
+            <h1>Project registry hardening: skip-on-tempdir &#43; 3-day TTL &#43; prune flags</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-cb36e595.html" data-relationship="part_of" data-since="2026-05-05T03:44:10.950313">trk-cb36e595</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="caused_by">
+                <h3>Caused By:</h3>
+                <ul>
+                    <li><a href="bug-53917a13.html" data-relationship="caused_by" data-since="2026-05-05T03:44:11.095112">Project registry pollution: test temp dirs registered &#43; no auto-cleanup</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="ae976590-da08-4ebb-b8e3-1d352824417c.html" data-relationship="implemented_in" data-since="2026-05-05T03:44:11.268553">session ae976590-da08-4ebb-b8e3-1d352824417c</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Implements the 4-layer durable solution from bug-53917a13.
+
+Layer A — registration guard (write-side, prevents new pollution):
+- Skip registry upsert when project_dir is inside os.TempDir() AND leaf matches Test*
+- Honor HTMLGRAPH_SKIP_REGISTER=1 env var for explicit opt-out
+
+Layer B — read-time passive cleanup (self-healing):
+- /api/projects handler calls prune-stale before serving
+- Default TTL: 3 days (entries with last_seen older than 3d evicted on read)
+- Configurable via env or future config knob
+
+Layer C — explicit CLI extensions:
+- htmlgraph projects prune --since  (default 3d)
+- htmlgraph projects prune --tempdir-only (sweep test pollution)
+- htmlgraph projects prune --dry-run (preview)
+
+Layer D — test discipline:
+- Document HTMLGRAPH_SKIP_REGISTER=1 in CLAUDE.md / AGENTS.md test-writing guidance
+- Update relevant test setup helpers in internal/ to set the env var by default
+
+Caused by bug-53917a13 (full design + rationale lives there).</p>
+        </section>
+    </article>
+</body>
+</html>

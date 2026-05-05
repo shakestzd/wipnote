@@ -27,6 +27,11 @@ func setupTestProject(t *testing.T) string {
 	if err := os.MkdirAll(hgDir, 0o755); err != nil {
 		t.Fatalf("mkdir .htmlgraph: %v", err)
 	}
+	// Create a .git directory so looksLikeRealProject passes the git-ancestor
+	// check introduced by the registry hardening (bug-cc41e3d2).
+	if err := os.MkdirAll(filepath.Join(tmpDir, ".git"), 0o755); err != nil {
+		t.Fatalf("mkdir .git: %v", err)
+	}
 	return tmpDir
 }
 
@@ -37,7 +42,11 @@ func TestPersistentPreRunE_UpsertsRegistry(t *testing.T) {
 	homeDir := t.TempDir()
 
 	// Override HOME so DefaultPath() writes to a test-isolated location.
+	// Also clear XDG_DATA_HOME so DefaultPath falls back to the HOME-derived
+	// path (TestMain sets XDG_DATA_HOME for suite-wide isolation, but these
+	// tests control the registry path explicitly via HOME).
 	t.Setenv("HOME", homeDir)
+	t.Setenv("XDG_DATA_HOME", "")
 
 	// Stub out git subprocess — return a known URL.
 	origFn := getGitRemoteURLFn
@@ -94,6 +103,9 @@ func TestPersistentPreRunE_CachesGitRemote(t *testing.T) {
 	homeDir := t.TempDir()
 
 	t.Setenv("HOME", homeDir)
+	// Clear XDG_DATA_HOME so DefaultPath falls back to the HOME-derived path
+	// (TestMain sets XDG_DATA_HOME for suite-wide isolation).
+	t.Setenv("XDG_DATA_HOME", "")
 
 	// Pre-populate the registry with a GitRemoteURL so the second call should
 	// skip the git subprocess entirely.

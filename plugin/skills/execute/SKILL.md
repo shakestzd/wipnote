@@ -1,6 +1,6 @@
 ---
 name: htmlgraph:execute
-description: Execute a parallel plan using dependency-driven dispatch. Dispatches ALL unblocked tasks simultaneously, merges completed work, then dispatches newly unblocked tasks. No manual wave sequencing.
+description: Execute a parallel plan using dependency-driven dispatch. Checks file overlap among unblocked tasks, partitions into non-conflicting waves, and dispatches simultaneously. Merges completed work, then dispatches newly unblocked tasks. No manual wave sequencing.
 ---
 
 # HtmlGraph Parallel Execute
@@ -52,7 +52,8 @@ Do NOT execute in manual waves. Instead, run a dispatch loop:
 ```
 LOOP:
   1. Query: which tasks are unblocked? (pending + no blockedBy)
-  2. Dispatch ALL unblocked tasks in a single message (parallel agents)
+  1.5. Check file overlap among unblocked tasks → partition into non-conflicting waves
+  2. Dispatch non-overlapping unblocked tasks in a single message (parallel agents)
   3. Wait for agents to complete
   4. Merge completed branches to main
   5. Run quality gates on merged result
@@ -85,7 +86,23 @@ If no tasks exist yet, create them from the plan (see `/htmlgraph:plan`).
 
 ---
 
-## Step 1.5: Populate Tasks from Plan
+## Step 1.5: Check File Overlap Among Unblocked Tasks
+
+Before dispatching, verify that unblocked tasks do not edit the same files in parallel. File-level overlap defeats parallelism — two agents editing the same file produce merge conflicts that require manual resolution.
+
+**Overlap detection:**
+
+For each unblocked feature candidate, run `htmlgraph trace <feat-id>` to get its attributed file set. Then compute pairwise file-set intersection:
+
+- **No overlap detected** → Proceed to dispatch all unblocked features in a single message (the existing happy path).
+- **Partial overlap detected** → Partition into waves: dispatch the largest non-overlapping subset first; defer the conflicting features to the next dispatch cycle (after the first wave merges to main).
+- **All candidates conflict** → Warn the orchestrator with explicit confirmation; either dispatch a single feature only this wave, or document the override choice to accept merge conflicts. This is rare but possible if all remaining features touch the same critical files (e.g., `go.mod`, `plugin.json`, main registration files).
+
+**Implementation note:** The dependency graph alone is insufficient. Features can be dependency-independent but file-overlapping. This check is orthogonal to `blockedBy` — a feature may be unblocked but file-overlapping with another unblocked feature.
+
+---
+
+## Step 1.6: Populate Tasks from Plan
 
 When executing features that originated from a plan, you must first resolve the track title, then create tasks with readable subject fields.
 
@@ -355,8 +372,12 @@ while True:
     if not ready:
         break  # All tasks done or blocked on failed tasks
 
-    # Dispatch all ready tasks in ONE message
-    for task in ready:
+    # Check file overlap and partition if necessary
+    file_sets = {t.id: get_files(htmlgraph_trace(t.metadata.feature_id)) for t in ready}
+    no_overlap = find_max_independent_subset(file_sets)
+    
+    # Dispatch non-overlapping tasks in ONE message
+    for task in no_overlap:
         TaskUpdate(taskId=task.id, status="in_progress")
         Agent(
             description=task.subject,  # Must be slice.title from TaskCreate, NOT slice.num or feature_id
@@ -364,11 +385,17 @@ while True:
             isolation="worktree",
             prompt=build_prompt(task)
         )
+    
+    # Defer overlapping tasks to next wave
+    for task in ready:
+        if task not in no_overlap:
+            # Keep status as "pending" — will be in ready set again next iteration
+            pass
 
     # Wait for all agents to complete (foreground)
 
     # Merge all completed branches
-    for task in ready:
+    for task in no_overlap:
         merge(task.branch)
         resolve_conflicts_if_any()
 
@@ -376,7 +403,7 @@ while True:
     run_quality_gates()  # MUST pass before next dispatch
 
     # Mark complete
-    for task in ready:
+    for task in no_overlap:
         TaskUpdate(taskId=task.id, status="completed")
 ```
 

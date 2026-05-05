@@ -1,0 +1,231 @@
+meta:
+    id: plan-eaba0834
+    track_id: trk-2c55adea
+    title: 'Write-path migration: templater + backfill + parser fast paths (Phase 2)'
+    description: |
+        Sub-plan of plan-3bbc313f — Phase 2 write-path. Refactor every HTML emitter to render from a single schema struct, backfill all 577 existing files to v1, and ship the read-side parser fast paths that downstream consumer migrations depend on. Highest-risk sub-plan in the migration: physically rewrites every HTML file in the repo.
+    created_at: "2026-05-01"
+    status: draft
+    created_by: claude-opus
+    version: 2
+design:
+    problem: |
+        Today HTML emission and HTML parsing are both ad-hoc: ~30 emitter call sites construct HTML from string concatenation, with the same fact often appearing in multiple places (e.g. status in head meta AND in body), making drift inevitable. The repo's 577 existing files are in a v0-ish format incompatible with v1. Until both the emitters and the corpus are converted, downstream read-path migrations have no schema-clean source to read from.
+    goals:
+        - Every HTML emitter renders from a single `internal/schema/v1.<Type>` struct via one entry point; every write call validates output before writing.
+        - All 577 existing files migrate to v1, idempotent + reversible (git stash snapshot before write).
+        - '`internal/htmlparse` exposes head-only fast paths (JSON-LD, link rel, head meta) that are ≥5× faster than full goquery parse.'
+    constraints:
+        - 'Backfill must be content-preserving: post-render whitespace-normalized body must match original byte-for-byte (`BodyPassthrough` invariant).'
+        - CI lint must fail any `os.WriteFile` to a `.html` path that bypasses `schema.Validate`.
+        - Head-only parsers must short-circuit at `</head>` (parse time independent of body size).
+    approved: false
+    comment: ""
+slices:
+    - id: slice-1
+      num: 1
+      title: 'Phase 2a — Templater refactor: derive all schema layers from one source struct'
+      what: |
+        Refactor every HTML emitter to render from a single
+        `internal/schema/v1.<Type>` struct. The renderer derives, from
+        that one struct: (a) the JSON-LD `<script>` payload, (b)
+        `<meta name="htmlgraph:*">` head metas, (c) `<link rel="...">`
+        head edges, (d) microdata `itemscope`/`itemprop` decoration of
+        body elements, (e) `<time datetime>` for every timestamp,
+        (f) the `BodyPassthrough` field rendered verbatim into the body.
+        The struct is source of truth; no fact is hand-authored twice.
+        Every write path runs `schema.Validate` on its output and refuses
+        to write malformed HTML. Add a CI lint that fails on any
+        `os.WriteFile` / `file.Write` to a `.html` path that does not call
+        `schema.Validate` on the buffer first.
+
+        Real emitters to update (audited via grep):
+        `internal/workitem/{htmlwriter,edit,features,bugs,spikes,plans,sessions,tracks,specs,collection}.go`,
+        `internal/hooks/session_html.go`,
+        `cmd/htmlgraph/{workitem_create,workitem_modify,workitem_edges}.go`,
+        `cmd/htmlgraph/{plan_create,plan_mutations,plan_finalize,plan_finalize_yaml,plan_yaml_cmds,plan_promote_slice,plan_typed_sections,plan_migrate_orphans,plan_template,plan_wire,plan_yaml_extras}.go`,
+        `cmd/htmlgraph/{cleanup,migrate,migrate_attribution}.go`,
+        `cmd/htmlgraph/{api_plans,api_transcript}.go`,
+        `cmd/htmlgraph/{reindex,reindex_files,reindex_helpers,reindex_sessions,reindex_trailers}.go`.
+        Also update the templates in `plugin/templates/` (bug, chore,
+        feature, spike) to align with the new schema.
+      why: |
+        Removes the duplication-and-drift class permanently. Once this lands,
+        "the HTML schema" is a real architectural invariant rather than a
+        style guide. Validation at write time turns schema regressions into
+        test failures rather than corrupted artifacts.
+      files:
+        - internal/schema/render.go
+        - internal/workitem/htmlwriter.go
+        - internal/workitem/edit.go
+        - internal/workitem/features.go
+        - internal/workitem/bugs.go
+        - internal/workitem/spikes.go
+        - internal/workitem/plans.go
+        - internal/workitem/sessions.go
+        - internal/workitem/tracks.go
+        - internal/workitem/specs.go
+        - internal/workitem/collection.go
+        - internal/hooks/session_html.go
+        - cmd/htmlgraph/workitem_create.go
+        - cmd/htmlgraph/workitem_modify.go
+        - cmd/htmlgraph/workitem_edges.go
+        - cmd/htmlgraph/plan_mutations.go
+        - cmd/htmlgraph/plan_yaml_cmds.go
+        - cmd/htmlgraph/plan_finalize_yaml.go
+        - cmd/htmlgraph/plan_promote_slice.go
+        - cmd/htmlgraph/cleanup.go
+        - cmd/htmlgraph/migrate.go
+        - cmd/htmlgraph/migrate_attribution.go
+        - cmd/htmlgraph/reindex.go
+        - cmd/htmlgraph/reindex_files.go
+        - cmd/htmlgraph/reindex_helpers.go
+        - cmd/htmlgraph/reindex_sessions.go
+        - cmd/htmlgraph/reindex_trailers.go
+        - cmd/htmlgraph/api_plans.go
+        - cmd/htmlgraph/api_transcript.go
+        - plugin/templates/bug-template.html
+        - plugin/templates/chore-template.html
+        - plugin/templates/feature-template.html
+        - plugin/templates/spike-template.html
+      deps: []
+      done_when:
+        - Every emitter calls a single `htmltemplate.Render(struct)` entry point.
+        - Every emitter validates output via `schema.Validate` before writing; CI test asserts no emitter bypasses the validator.
+        - Generated HTML for a sample Feature struct contains JSON-LD with the same `status` as the rendered `<meta name>` and the body microdata; mismatch is impossible by construction.
+      effort: L
+      risk: High
+      tests: |
+        Unit: TestRender_FeatureMatchesSchema — render a sample Feature, validate output, assert specific selectors.
+        Unit: TestRender_NoDuplication — given a struct with `status="x"`, mutate the struct and re-render; assert all five layers updated.
+        Integration: TestEmitterWriteRefusesInvalid — corrupt a render path to emit a missing-field HTML; assert write returns error.
+        Regression: existing `internal/workitem/*_test.go`, plan render tests, and snapshot tests still pass.
+      approved: false
+      comment: ""
+      approval_status: pending
+      execution_status: not_started
+      critic_revisions:
+        - source: researcher
+          severity: DANGER
+          summary: 'All listed render.go files are fictional. Real emitter paths are: internal/workitem/htmlwriter.go, internal/hooks/session_html.go, cmd/htmlgraph/workitem_create.go, cmd/htmlgraph/workitem_modify.go, cmd/htmlgraph/plan_mutations.go, cmd/htmlgraph/plan_yaml_cmds.go. Hook-emitted session HTML in particular would be silently skipped by current file list.'
+        - source: sonnet-coder
+          severity: DANGER
+          summary: Slice scope is severely under-counted. Beyond the listed paths, HTML write/re-render also happens in reindex_files.go, workitem_edges.go, plan_promote_slice.go, ingest.go, and others. The 'no emitter bypasses validator' done_when is unverifiable without an exhaustive grep for os.WriteFile / file.Write calls targeting `.htmlgraph/**/*.html`.
+        - source: sonnet-coder
+          severity: HIGH
+          summary: commitPlanChange regeneration loop and hook handlers write HTML outside the listed file set. Add a CI lint that fails on any write to a .html path that does not call schema.Validate on the buffer.
+    - id: slice-2
+      num: 2
+      title: Phase 2b — Backfill migration of 577 existing `.htmlgraph/*.html` files
+      what: |
+        Implement `htmlgraph migrate-html --to v1`: iterate every file under
+        `.htmlgraph/{features,bugs,spikes,plans,tracks,sessions}/*.html`
+        (577 files in the working repo). EXTRACT facts from the existing
+        `data-*` attribute scheme that's actually on disk today
+        (`data-status`, `data-type`, `data-since`, `data-relationship`,
+        and others enumerated in the slice-12 v0 inventory). NOT from
+        JSON-LD or microdata, which don't yet exist on disk.
+
+        Populate a `schema.v1.<Type>` struct including its `BodyPassthrough`
+        field — capture every byte of body content not mapped to a known
+        field, so hand-edits and freeform notes round-trip verbatim.
+        Re-render via the new templater (slice-5) and write back.
+
+        Rollback: before the first write, the migrator runs `git stash push -u`
+        on `.htmlgraph/` (or commits a snapshot to a `pre-v1-migration` branch)
+        so any failed migration can be reverted with one git command.
+
+        Modes:
+        `--dry-run` prints semantic diffs and exits 0/1 based on diff cleanliness
+          without writing.
+        `--write` performs the rollback snapshot, then iterates with fail-loud
+          on any file where the post-render whitespace-normalized body differs
+          from the original.
+        `--check` validates that every file under `.htmlgraph/` already passes
+          `schema.Validate` (used in CI to assert the migration converged).
+
+        Add a CI job that runs `htmlgraph migrate-html --dry-run` against the
+        committed `.htmlgraph/` snapshot in this repo (the repo dogfoods
+        itself) and uploads the diff as an artifact for human review BEFORE
+        the write path is enabled.
+      why: |
+        Without backfill, the codebase has two HTML formats: schema-compliant
+        (new emissions) and pre-schema (existing). The dual-format burden
+        defeats the whole plan. Backfill collapses the world to a single
+        format before Phase 3 reads can rely on it.
+      files:
+        - cmd/htmlgraph/migrate_html.go
+        - cmd/htmlgraph/migrate_html_test.go
+        - internal/migrate/v0_to_v1.go
+        - internal/migrate/v0_to_v1_test.go
+        - internal/migrate/rollback.go
+        - internal/migrate/testdata/legacy/
+        - .github/workflows/ci.yml
+      deps:
+        - 1
+      done_when:
+        - '`htmlgraph migrate-html --dry-run` produces a clean semantic diff for the working repo''s `.htmlgraph/` (status, edges, timestamps preserved; passthrough body byte-identical after whitespace normalization).'
+        - After `htmlgraph migrate-html --write`, `internal/schema.Validate` returns nil for every file under `.htmlgraph/{features,bugs,spikes,plans,tracks,sessions}/`.
+        - 'CI artifact: dry-run diff is uploaded for human review on every PR that touches `internal/migrate/` or `internal/schema/`.'
+        - 'Idempotent: running migrate-html twice produces zero diff on the second pass.'
+        - 'Rollback verified: a manual test confirms `git stash pop` (or branch checkout) restores all 577 files to pre-migration state byte-for-byte.'
+      effort: L
+      risk: High
+      tests: |
+        Unit: TestMigrate_FeatureSemanticPreserved — load legacy HTML, migrate, assert schema struct fields match expected.
+        Unit: TestMigrate_Idempotent — run migrate twice, second pass produces zero diff.
+        Integration: TestMigrate_FullCorpus — migrate the real `.htmlgraph/` (in CI sandbox), assert all files validate.
+      approved: false
+      comment: ""
+      approval_status: pending
+      execution_status: not_started
+      critic_revisions:
+        - source: sonnet-coder
+          severity: DANGER
+          summary: 'The migrator must read the EXISTING format (data-* attributes: data-status, data-type, data-created, data-relationship, data-since), not JSON-LD or microdata which don''t yet exist on disk. Plan as written reads from the wrong source. Add: pre-commit git snapshot of every file as rollback; --dry-run pass against actual corpus committed in CI artifacts before write path is enabled.'
+        - source: sonnet-coder
+          severity: HIGH
+          summary: Hand-edited body content (task notes, agent comments, freeform inline HTML) has no canonical field mapping and will be silently dropped or mangled by re-render. Add an explicit 'passthrough body' field to schema.v1.<Type> that round-trips arbitrary inner HTML verbatim. Fail-loud on any post-render diff after whitespace normalization.
+    - id: slice-3
+      num: 3
+      title: Phase 3a — `internal/htmlparse` JSON-LD fast path + ParseLinks + ParseHeadMeta
+      what: |
+        Add three new exported functions to `internal/htmlparse`:
+        (1) `ParseJSONLD(r) (*schema.v1.<Type>, error)` — extracts the
+        first `<script type="application/ld+json">` and unmarshals.
+        (2) `ParseLinks(r) ([]Link, error)` — head-only stream parse for
+        `<link rel="..." href="...">` tags.
+        (3) `ParseHeadMeta(r) (map[string]string, error)` — head-only stream
+        parse for `<meta name="htmlgraph:*" content="...">`.
+        All three short-circuit on `</head>`. Existing `ParseFile` continues
+        to work via goquery for legacy callers and body-content extraction.
+        Benchmark JSON-LD parse vs full parse and document the win.
+      why: |
+        The fast paths are the perf justification for not needing SQLite for
+        the common queries. ~1ms-per-file JSON-LD parse vs ~10ms goquery
+        means a 200-item snapshot is ~200ms instead of 2 seconds —
+        acceptable for CLI use, generous for dashboard cold-start.
+      files:
+        - internal/htmlparse/jsonld.go
+        - internal/htmlparse/links.go
+        - internal/htmlparse/head_meta.go
+        - internal/htmlparse/jsonld_test.go
+        - internal/htmlparse/links_test.go
+        - internal/htmlparse/head_meta_test.go
+        - internal/htmlparse/bench_test.go
+      deps: []
+      done_when:
+        - All three functions return correct results on every fixture from slice-4.
+        - Head-only parsers stop at `</head>` (verified by benchmarking a 1MB body — parse time independent of body size).
+        - 'Documented benchmark in `bench_test.go`: JSON-LD path ≥5× faster than goquery on a real Feature file.'
+      effort: M
+      risk: Low
+      tests: |
+        Unit: TestParseJSONLD_AllFixtures — table-driven over schema fixtures.
+        Unit: TestParseLinks_HeadOnly — file with malicious gigantic body parses in < 5ms.
+        Bench: BenchmarkParseJSONLD vs BenchmarkParseFile_GoQuery on a real Feature.
+      approved: false
+      comment: ""
+      approval_status: pending
+      execution_status: not_started
+questions: []

@@ -1405,15 +1405,276 @@
 
 /* ── Plan detail panel ───────────────────────────────────── */
 .plan-detail { display: none; }
-.plan-detail.active { display: block; }
+.plan-detail.active { display: flex; flex-direction: column; height: calc(100vh - 60px); overflow: hidden; }
 .plan-detail-header {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 20px;
   padding-bottom: 16px;
   border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  margin-bottom: 0;
 }
+/* Two-column layout: content + sidebar */
+.plan-detail-columns {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+/* ── Dashboard-level plan review sidebar ─────────────────── */
+.dash-plan-sidebar {
+  width: 360px;
+  min-width: 280px;
+  max-width: 500px;
+  flex-shrink: 0;
+  border-left: 1px solid var(--border);
+  background: var(--bg-secondary);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: width 200ms ease, opacity 150ms ease, min-width 200ms ease;
+  position: relative;
+}
+.plan-detail.sidebar-collapsed .dash-plan-sidebar {
+  width: 0;
+  min-width: 0;
+  opacity: 0;
+  pointer-events: none;
+  overflow: hidden;
+  border-left: none;
+}
+.dash-sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.dash-sidebar-title {
+  font-family: var(--font-mono);
+  font-size: .72rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+.dash-sidebar-collapse-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: color 150ms, background 150ms;
+}
+.dash-sidebar-collapse-btn:hover { color: var(--text-primary); background: var(--bg-hover); }
+
+/* Floating reopen button when sidebar is collapsed */
+.dash-sidebar-reopen {
+  display: none;
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 50;
+  width: 32px;
+  height: 32px;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 5px);
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0;
+  box-shadow: 0 2px 8px rgba(0,0,0,.35);
+  transition: background 150ms, color 150ms;
+}
+.dash-sidebar-reopen:hover { background: var(--bg-hover); color: var(--text-primary); }
+.plan-detail.sidebar-collapsed .dash-sidebar-reopen { display: flex; }
+
+/* Review rail */
+.dash-review-rail {
+  padding: 14px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.dash-rail-dots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.dash-rail-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  background: var(--border);
+  cursor: pointer;
+  transition: transform 150ms, background 150ms;
+  flex-shrink: 0;
+}
+.dash-rail-dot:hover { transform: scale(1.25); }
+.dash-rail-dot[data-approval="approved"] { background: #22c55e; border-color: rgba(34,197,94,.3); }
+.dash-rail-dot[data-approval="rejected"],
+.dash-rail-dot[data-approval="changes_requested"] { background: #f59e0b; border-color: rgba(245,158,11,.3); }
+.dash-rail-dot[data-approval="pending"] { background: var(--border); }
+.dash-rail-counter {
+  font-size: .8rem;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+.dash-rail-counter strong { color: var(--text-primary); }
+.dash-rail-progress {
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  margin-bottom: 10px;
+  overflow: hidden;
+}
+.dash-rail-fill {
+  height: 100%;
+  background: #22c55e;
+  border-radius: 2px;
+  transition: width 300ms ease;
+}
+.dash-rail-pending {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 10px;
+  font-size: .8rem;
+  color: var(--text-muted);
+}
+.dash-rail-pending li { padding: 2px 0; }
+.dash-btn-finalize {
+  width: 100%;
+  background: var(--accent);
+  color: #0a0a0a;
+  border: none;
+  border-radius: var(--radius-sm, 5px);
+  padding: 10px 16px;
+  font-weight: 700;
+  font-size: .82rem;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  transition: filter 150ms;
+}
+.dash-btn-finalize:hover:not(:disabled) { filter: brightness(.92); }
+.dash-btn-finalize:disabled { opacity: .3; cursor: not-allowed; }
+.dash-finalize-hint {
+  font-size: .7rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+  text-align: center;
+}
+
+/* Chat section */
+.dash-chat-section {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+.dash-chat-header {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.dash-chat-title {
+  font-family: var(--font-mono);
+  font-size: .72rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+.dash-chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.dash-chat-notice {
+  font-size: .85rem;
+  color: var(--text-muted);
+  font-style: italic;
+  text-align: center;
+  margin: auto 0;
+}
+.dash-chat-bubble {
+  max-width: 100%;
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-size: .88rem;
+  line-height: 1.6;
+  word-break: break-word;
+}
+.dash-chat-bubble[data-role="user"] {
+  background: var(--accent-dim, rgba(205,255,0,.1));
+  color: var(--text-primary);
+  border-bottom-right-radius: 4px;
+  align-self: flex-end;
+}
+.dash-chat-bubble[data-role="assistant"] {
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  border-bottom-left-radius: 4px;
+  border: 1px solid var(--border);
+}
+.dash-chat-input-area {
+  display: flex;
+  gap: 8px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.dash-chat-input-area textarea {
+  flex: 1;
+  background: var(--bg-input, var(--bg-primary));
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 5px);
+  font-family: var(--font-sans);
+  font-size: .88rem;
+  padding: 8px 10px;
+  resize: none;
+  line-height: 1.5;
+}
+.dash-chat-input-area textarea:focus { outline: none; border-color: var(--accent); }
+.dash-chat-input-area button {
+  background: var(--accent);
+  color: #0a0a0a;
+  border: none;
+  border-radius: var(--radius-sm, 5px);
+  padding: 8px 14px;
+  font-weight: 600;
+  font-size: .82rem;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  align-self: flex-end;
+  transition: filter 150ms;
+}
+.dash-chat-input-area button:hover:not(:disabled) { filter: brightness(.92); }
+.dash-chat-input-area button:disabled { opacity: .4; cursor: not-allowed; }
+
+/* Plan detail body — flex child taking remaining width, scrollable */
+#plan-detail-body {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+}
+
 /* Plan detail — dark mode tokens (source of truth for embedded plan) */
 .plan-detail-body {
   --bg: #0f0f13;
@@ -1483,9 +1744,13 @@
 /* Plan embedded — layout & typography */
 .plan-detail-body .plan-sidebar { display: none; }
 .plan-detail-body #themeToggle { display: none; }
-.plan-detail-body .plan-layout { display: flex; height: calc(100vh - 120px); overflow: hidden; }
-.plan-detail-body .plan-content { flex: 1; min-width: 0; padding: 8px 24px 40px; max-width: none; overflow-y: auto; }
-.plan-detail-body .chat-sidebar { border-left: 1px solid var(--border); background: var(--bg-card); }
+/* plan-layout now fills the plan-detail-body column; sidebar lives in dash-plan-sidebar */
+.plan-detail-body .plan-layout { display: block; height: auto; overflow: visible; }
+.plan-detail-body .plan-content { flex: 1; min-width: 0; padding: 8px 24px 40px; max-width: none; overflow-y: visible; }
+/* In-template sidebar suppressed — dashboard renders its own */
+.plan-detail-body .chat-sidebar { display: none !important; }
+.plan-detail-body .chat-resize-handle { display: none !important; }
+.plan-detail-body .sidebar-reopen { display: none !important; }
 .plan-detail-body h1 { font-family: var(--sans); font-size: 1.5rem; font-weight: 700; letter-spacing: -.03em; margin-bottom: 6px; color: var(--text); }
 .plan-detail-body h1::first-letter { color: var(--accent); }
 .plan-detail-body h2 { font-family: var(--sans); font-size: 1.15rem; font-weight: 600; color: var(--text); }

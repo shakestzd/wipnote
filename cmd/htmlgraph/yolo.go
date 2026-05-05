@@ -70,11 +70,6 @@ Without either flag, launches in planning mode to help you create one first.`,
 	return cmd
 }
 
-// yoloSessionName returns a unique session name for YOLO mode.
-func yoloSessionName() string {
-	return fmt.Sprintf("yolo-%s", time.Now().UTC().Format("20060102-150405"))
-}
-
 // yoloDefaultName builds the default session label for YOLO mode.
 // When a trackID or featureID is provided, it resolves the track title and
 // builds "<track-slug>-yolo-<timestamp>". Falls back to "<project-slug>-yolo-<timestamp>".

@@ -27,6 +27,7 @@ are reparsed. Use --full to force a complete reparse of all files.`,
 	}
 	cmd.Flags().Bool("full", false, "Force full reindex of all HTML files (ignores git diff)")
 	cmd.Flags().BoolP("verbose", "v", false, "Print one line per error encountered during reindex")
+	cmd.AddCommand(reindexBackfillOrphansCmd())
 	return cmd
 }
 
@@ -296,7 +297,77 @@ func gitChangedFiles(projectDir, fromCommit, htmlgraphDir string) (added []strin
 		}
 	}
 
+	// Include working-tree dirty files: modifications not yet committed (staged
+	// or unstaged). Commands like `bug move` write the HTML without committing,
+	// so git diff HEAD..HEAD misses them. Use `git diff --name-status` (unstaged)
+	// and `git diff --cached --name-status` (staged) to catch both cases, and
+	// distinguish modifications (A, M, R) from deletions (D).
+	added, deleted = appendDirtyHTMLFiles(projectDir, relHg, added, deleted)
+
+	return deduplicatePaths(added), deleted
+}
+
+// appendDirtyHTMLFiles appends any .htmlgraph HTML files that are modified or
+// deleted in the working tree (staged or unstaged) but not yet committed.
+// It uses git diff --name-status to distinguish modifications from deletions:
+// - A (added), M (modified), R (renamed) go to added list (upsert)
+// - D (deleted) goes to deleted list (remove from SQLite)
+func appendDirtyHTMLFiles(projectDir, relHg string, added, deleted []string) ([]string, []string) {
+	for _, args := range [][]string{
+		{"diff", "--name-status", "--", relHg},
+		{"diff", "--cached", "--name-status", "--", relHg},
+	} {
+		out, err := exec.Command("git", append([]string{"-C", projectDir}, args...)...).Output()
+		if err != nil {
+			continue
+		}
+		for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+			if line == "" {
+				continue
+			}
+			parts := strings.SplitN(line, "\t", 3)
+			if len(parts) < 2 {
+				continue
+			}
+			status := parts[0]
+			// Handle renames: old path is deleted, new path is added.
+			if strings.HasPrefix(status, "R") && len(parts) == 3 {
+				oldPath := filepath.Join(projectDir, parts[1])
+				newPath := filepath.Join(projectDir, parts[2])
+				if strings.HasSuffix(newPath, ".html") {
+					added = append(added, newPath)
+				}
+				if strings.HasSuffix(oldPath, ".html") {
+					deleted = append(deleted, oldPath)
+				}
+				continue
+			}
+			filePath := filepath.Join(projectDir, parts[1])
+			if !strings.HasSuffix(filePath, ".html") {
+				continue
+			}
+			switch status {
+			case "A", "M":
+				added = append(added, filePath)
+			case "D":
+				deleted = append(deleted, filePath)
+			}
+		}
+	}
 	return added, deleted
+}
+
+// deduplicatePaths returns paths with duplicates removed, preserving order.
+func deduplicatePaths(paths []string) []string {
+	seen := make(map[string]bool, len(paths))
+	out := paths[:0:0]
+	for _, p := range paths {
+		if !seen[p] {
+			seen[p] = true
+			out = append(out, p)
+		}
+	}
+	return out
 }
 
 func idFromHTMLPath(path string) string {

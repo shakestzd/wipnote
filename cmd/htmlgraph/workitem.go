@@ -164,8 +164,14 @@ func wiStartCmd(typeName string) *cobra.Command {
 	}
 }
 
+// wiAllowSpecSkip is set by the `feature complete --allow-spec-skip` flag and
+// consumed by the feature-complete spec-enforcement gate below. Package-level
+// because wiSetStatusWithAgent has many test callers and we don't want to
+// thread a parameter through all of them just for an opt-in override.
+var wiAllowSpecSkip bool
+
 func wiCompleteCmd(typeName string) *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "complete <id>",
 		Short: "Mark a " + typeName + " as done",
 		Args:  cobra.ExactArgs(1),
@@ -173,6 +179,11 @@ func wiCompleteCmd(typeName string) *cobra.Command {
 			return runWiSetStatus(typeName, args[0], "done")
 		},
 	}
+	if typeName == "feature" {
+		cmd.Flags().BoolVar(&wiAllowSpecSkip, "allow-spec-skip", false,
+			"bypass spec_enforcement.feature_complete gate; intended for emergency overrides only")
+	}
+	return cmd
 }
 
 func runWiSetStatus(typeName, id, status string) error {
@@ -201,6 +212,16 @@ func wiSetStatusWithAgent(typeName, id, status, sessionID, agentID string) error
 	defer p.Close()
 
 	col := collectionFor(p, typeName)
+
+	// CRISPI spec-enforcement gate: when completing a feature with the
+	// gate opted in via config, refuse if the feature HTML has no usable
+	// spec section. --allow-spec-skip provides an audited bypass.
+	if typeName == "feature" && status == "done" && !wiAllowSpecSkip {
+		if err := checkFeatureCompleteSpecGate(dir, id); err != nil {
+			return err
+		}
+	}
+
 	var node *models.Node
 	switch status {
 	case "in-progress":
@@ -501,4 +522,49 @@ func kindFromPrefix(id string) string {
 		return "spec"
 	}
 	return "work item"
+}
+
+// checkFeatureCompleteSpecGate enforces config.spec_enforcement.feature_complete:
+// the feature HTML's <section class="spec"> must exist and contain at least one
+// usable criterion (either an OpenSpec ### Requirement: with a non-empty SHALL
+// line, or a legacy [ ]/[x]/[F] checkbox line under ## Acceptance Criteria).
+//
+// Returns nil when the gate is disabled, the feature has a non-empty spec, or
+// allowSpecSkip is set. Returns a remediation error otherwise.
+func checkFeatureCompleteSpecGate(htmlgraphDir, featureID string) error {
+	enforcement := hooks.ReadSpecEnforcement(filepath.Dir(htmlgraphDir))
+	if !enforcement.FeatureComplete {
+		return nil
+	}
+
+	featurePath := filepath.Join(htmlgraphDir, "features", featureID+".html")
+	raw, err := os.ReadFile(featurePath)
+	if err != nil {
+		// Feature file unreadable — let the normal Complete path raise the
+		// canonical error; we do not block on missing files.
+		return nil
+	}
+	specContent := extractSpecSection(string(raw))
+	if specContent == "" {
+		return fmt.Errorf("feature %s has no spec section; run `htmlgraph spec generate %s --insert` first (or invoke /htmlgraph:spec-from-slice on Claude). Override with --allow-spec-skip if intentional.",
+			featureID, featureID)
+	}
+	criteria := parseCriteria(unwrapPreBlock(specContent))
+	if len(criteria) == 0 {
+		return fmt.Errorf("feature %s spec section has 0 criteria; populate Requirements or Acceptance Criteria, or override with --allow-spec-skip",
+			featureID)
+	}
+	return nil
+}
+
+// unwrapPreBlock strips a leading/trailing <pre>...</pre> wrapper plus HTML
+// entity escapes that slice 1's `spec --insert` writer applies. Leaves
+// non-wrapped content untouched.
+func unwrapPreBlock(s string) string {
+	t := strings.TrimSpace(s)
+	if strings.HasPrefix(t, "<pre>") && strings.HasSuffix(t, "</pre>") {
+		t = strings.TrimSuffix(strings.TrimPrefix(t, "<pre>"), "</pre>")
+	}
+	r := strings.NewReplacer("&lt;", "<", "&gt;", ">", "&amp;", "&")
+	return r.Replace(t)
 }

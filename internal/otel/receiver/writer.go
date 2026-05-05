@@ -6,11 +6,21 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"sync"
 	"time"
 
 	"github.com/shakestzd/htmlgraph/internal/db"
 	"github.com/shakestzd/htmlgraph/internal/otel"
 )
+
+// dbExecer is the minimal interface shared by *sql.Conn and *sql.Tx, used
+// by helpers that need to issue queries within a live transaction without
+// caring whether they hold a *sql.Tx or a raw *sql.Conn.
+type dbExecer interface {
+	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
+	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
+	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
+}
 
 // Writer persists UnifiedSignals into the otel_signals table. It owns
 // its own *sql.DB with MaxOpenConns=1 so every write serializes through
@@ -21,13 +31,20 @@ import (
 // IMMEDIATE acquires the writer lock up front so we don't burn retry
 // budget on deferred upgrades. Prepared statements are held for the
 // Writer's lifetime.
+//
+// conn is a pinned *sql.Conn obtained at construction from the single
+// underlying connection. Using a pinned conn lets us issue raw
+// "BEGIN IMMEDIATE" / "COMMIT" / "ROLLBACK" statements that the
+// database/sql api cannot express through sql.TxOptions.
 type Writer struct {
 	db              *sql.DB
+	conn            *sql.Conn  // pinned to the single MaxOpenConns=1 connection
 	insertStmt      *sql.Stmt
 	sessStmt        *sql.Stmt
 	resStmt         *sql.Stmt
 	placeholderStmt *sql.Stmt // INSERT placeholder subagent_invocation row
 	upgradeStmt     *sql.Stmt // UPDATE placeholder → real Agent span
+	mu              sync.Mutex // serializes WriteBatch calls — SQLite serializes writes anyway via IMMEDIATE lock, this just makes it explicit at the Go layer
 }
 
 // NewWriter opens a writer-mode DB handle on dbPath. The handle is
@@ -51,14 +68,27 @@ func NewWriter(dbPath string) (*Writer, error) {
 		return nil, fmt.Errorf("open writer: %w", err)
 	}
 	// The single-writer constraint is the core of the concurrency
-	// design. Do not raise this number without reworking the batching
-	// strategy.
-	db.SetMaxOpenConns(1)
+	// design. We use MaxOpenConns=3: the writer pins one connection,
+	// and the remaining 2 allow concurrent readers and test assertions
+	// (e.g., QueryRow in ConcurrentBatches test). SQLite WAL mode
+	// supports multiple concurrent readers; only writes serialize.
+	db.SetMaxOpenConns(3)
 	db.SetMaxIdleConns(1)
 	db.SetConnMaxIdleTime(0)
 
-	w := &Writer{db: db}
+	// Acquire the pinned connection before preparing statements so that
+	// all prepared statements and BEGIN IMMEDIATE calls share the exact
+	// same underlying SQLite connection. Since MaxOpenConns=1 this is
+	// the one and only connection the pool will ever create.
+	conn, err := db.Conn(context.Background())
+	if err != nil {
+		db.Close()
+		return nil, fmt.Errorf("pin conn: %w", err)
+	}
+
+	w := &Writer{db: db, conn: conn}
 	if err := w.prepare(); err != nil {
+		conn.Close()
 		db.Close()
 		return nil, err
 	}
@@ -66,8 +96,9 @@ func NewWriter(dbPath string) (*Writer, error) {
 }
 
 func (w *Writer) prepare() error {
+	ctx := context.Background()
 	var err error
-	w.insertStmt, err = w.db.Prepare(`
+	w.insertStmt, err = w.conn.PrepareContext(ctx, `
 		INSERT OR IGNORE INTO otel_signals (
 			signal_id, harness, session_id, prompt_id,
 			trace_id, span_id, parent_span,
@@ -86,7 +117,7 @@ func (w *Writer) prepare() error {
 	// we haven't created via the hooks path, we create a minimal row so
 	// the FK resolves. If SessionStart later fires for the same id, it
 	// upgrades agent_assigned from the placeholder. Status stays 'active'.
-	w.sessStmt, err = w.db.Prepare(`
+	w.sessStmt, err = w.conn.PrepareContext(ctx, `
 		INSERT OR IGNORE INTO sessions (session_id, agent_assigned, status)
 		VALUES (?, ?, 'active')`)
 	if err != nil {
@@ -94,7 +125,7 @@ func (w *Writer) prepare() error {
 	}
 	// Resource attribute upsert: per (session_id, key), replace on conflict.
 	// OTel resource attrs repeat on every batch; we want the latest value.
-	w.resStmt, err = w.db.Prepare(`
+	w.resStmt, err = w.conn.PrepareContext(ctx, `
 		INSERT INTO otel_resource_attrs (session_id, harness, key, value, observed_at)
 		VALUES (?, ?, ?, ?, ?)
 		ON CONFLICT(session_id, key) DO UPDATE SET
@@ -111,7 +142,7 @@ func (w *Writer) prepare() error {
 	// signal_id, leave it alone (idempotent re-delivery).
 	// The span_id unique index (idx_otel_span_id_unique) is NOT used here; instead
 	// we guard at the call site with an existence check on span_id.
-	w.placeholderStmt, err = w.db.Prepare(`
+	w.placeholderStmt, err = w.conn.PrepareContext(ctx, `
 		INSERT OR IGNORE INTO otel_signals (
 			signal_id, harness, session_id,
 			trace_id, span_id,
@@ -127,7 +158,7 @@ func (w *Writer) prepare() error {
 	// already exists for the same span_id, overwrite the placeholder's fields
 	// with actual data. We identify placeholder rows via attrs_json containing
 	// "_pending":true so we don't accidentally overwrite real data.
-	w.upgradeStmt, err = w.db.Prepare(`
+	w.upgradeStmt, err = w.conn.PrepareContext(ctx, `
 		UPDATE otel_signals SET
 			signal_id = ?,
 			harness = ?,
@@ -182,6 +213,9 @@ func (w *Writer) Close() error {
 	if w.upgradeStmt != nil {
 		w.upgradeStmt.Close()
 	}
+	if w.conn != nil {
+		w.conn.Close()
+	}
 	return w.db.Close()
 }
 
@@ -205,22 +239,26 @@ func (w *Writer) WriteBatch(
 		return 0, nil
 	}
 
-	tx, err := w.db.BeginTx(ctx, &sql.TxOptions{})
-	if err != nil {
-		return 0, fmt.Errorf("begin: %w", err)
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	// BEGIN IMMEDIATE acquires the write lock up front, avoiding the
+	// SHARED→RESERVED→EXCLUSIVE upgrade race that a DEFERRED transaction
+	// triggers. With DEFERRED, SQLite holds only a SHARED lock until the
+	// first write; another writer can interpose between the SHARED acquisition
+	// and the RESERVED upgrade and return SQLITE_BUSY before busy_timeout
+	// even gets a chance to retry (the upgrade attempt is not retried under
+	// busy_timeout). IMMEDIATE eliminates this race entirely.
+	if _, err = w.conn.ExecContext(ctx, "BEGIN IMMEDIATE"); err != nil {
+		return 0, fmt.Errorf("begin immediate: %w", err)
 	}
+	// rollback is a no-op after a successful COMMIT; safe to call from defer.
+	committed := false
 	defer func() {
-		if err != nil {
-			tx.Rollback()
+		if !committed {
+			w.conn.ExecContext(context.Background(), "ROLLBACK") //nolint:errcheck
 		}
 	}()
-
-	// Upgrade the tx to an IMMEDIATE writer lock so we don't race
-	// another connection. modernc.org/sqlite supports this via a
-	// second Exec before the real work starts.
-	if _, err = tx.ExecContext(ctx, "SELECT 1"); err != nil {
-		return 0, fmt.Errorf("warm tx: %w", err)
-	}
 
 	// Track sessions we've already upserted this batch so we don't
 	// fire a redundant INSERT per signal.
@@ -231,12 +269,6 @@ func (w *Writer) WriteBatch(
 	// session per batch, regardless of signal count.
 	featureByID := map[string]string{}
 	resObservedAt := time.Now().UnixMicro()
-
-	insertStmt := tx.Stmt(w.insertStmt)
-	sessStmt := tx.Stmt(w.sessStmt)
-	resStmt := tx.Stmt(w.resStmt)
-	placeholderStmt := tx.Stmt(w.placeholderStmt)
-	upgradeStmt := tx.Stmt(w.upgradeStmt)
 
 	// spanExists caches span_ids already present in otel_signals (within this
 	// transaction) so we only query the DB once per distinct span_id per batch.
@@ -252,13 +284,13 @@ func (w *Writer) WriteBatch(
 		}
 		if !seen[s.SessionID] {
 			agent := string(harness)
-			if _, err = sessStmt.ExecContext(ctx, s.SessionID, agent); err != nil {
+			if _, err = w.sessStmt.ExecContext(ctx, s.SessionID, agent); err != nil {
 				return inserted, fmt.Errorf("sessions upsert: %w", err)
 			}
 			// Persist the resource attributes snapshot for this session.
 			for k, v := range resourceAttrs {
 				if sv, ok := valueString(v); ok {
-					if _, err = resStmt.ExecContext(ctx, s.SessionID, string(harness), k, sv, resObservedAt); err != nil {
+					if _, err = w.resStmt.ExecContext(ctx, s.SessionID, string(harness), k, sv, resObservedAt); err != nil {
 						return inserted, fmt.Errorf("resource attr upsert: %w", err)
 					}
 				}
@@ -286,7 +318,7 @@ func (w *Writer) WriteBatch(
 		featureID, cached := featureByID[s.SessionID]
 		if !cached {
 			var fid sql.NullString
-			_ = tx.QueryRowContext(ctx,
+			_ = w.conn.QueryRowContext(ctx,
 				`SELECT work_item_id FROM active_work_items WHERE session_id = ? AND agent_id = ?`,
 				s.SessionID, "__root__",
 			).Scan(&fid)
@@ -299,7 +331,7 @@ func (w *Writer) WriteBatch(
 		// rather than inserting a duplicate. This transparently promotes the placeholder
 		// written during orphan-span detection to a fully-attributed row.
 		if s.Kind == otel.KindSpan && s.CanonicalName == otel.CanonicalSubagent && s.SpanID != "" {
-			upgraded, upgradeErr := tryUpgradePlaceholder(ctx, upgradeStmt, s, attrsJSON, successVal, featureID)
+			upgraded, upgradeErr := tryUpgradePlaceholder(ctx, w.upgradeStmt, s, attrsJSON, successVal, featureID)
 			if upgradeErr != nil {
 				return inserted, fmt.Errorf("upgrade placeholder for span %s: %w", s.SpanID, upgradeErr)
 			}
@@ -315,7 +347,7 @@ func (w *Writer) WriteBatch(
 		// Only attempt this when the signal carries htmlgraph.agent_id so we can
 		// look up pending_subagent_starts. Gracefully degrade when missing.
 		if s.Kind == otel.KindSpan && s.ParentSpan != "" {
-			if err2 := w.maybeCreatePlaceholder(ctx, tx, placeholderStmt, s, resourceAttrs, spanExists, resObservedAt); err2 != nil {
+			if err2 := w.maybeCreatePlaceholder(ctx, w.conn, w.placeholderStmt, s, resourceAttrs, spanExists, resObservedAt); err2 != nil {
 				// Non-fatal: log via return path but don't block the real signal.
 				_ = err2
 			}
@@ -328,14 +360,14 @@ func (w *Writer) WriteBatch(
 		// is correct from the start. Two strategies (A: agent_id resource attr,
 		// B: overlap window) are applied in priority order.
 		if s.Kind == otel.KindSpan && s.ParentSpan != "" && s.CanonicalName != otel.CanonicalSubagent {
-			if newParent, reason := tryReattributeParent(ctx, tx, s, resourceAttrs); newParent != "" {
+			if newParent, reason := tryReattributeParent(ctx, w.conn, s, resourceAttrs); newParent != "" {
 				log.Printf("reattribute: span=%s old_parent=%s new_parent=%s reason=%s",
 					s.SpanID, s.ParentSpan, newParent, reason)
 				s.ParentSpan = newParent
 			}
 		}
 
-		res, execErr := insertStmt.ExecContext(ctx,
+		res, execErr := w.insertStmt.ExecContext(ctx,
 			s.SignalID, string(s.Harness), s.SessionID, nullStr(s.PromptID),
 			nullStr(s.TraceID), nullStr(s.SpanID), nullStr(s.ParentSpan),
 			string(s.Kind), s.CanonicalName, s.NativeName, s.Timestamp.UnixMicro(),
@@ -352,14 +384,15 @@ func (w *Writer) WriteBatch(
 		if execErr != nil {
 			return inserted, fmt.Errorf("insert signal %s: %w", s.SignalID, execErr)
 		}
-		if n, err := res.RowsAffected(); err == nil {
+		if n, rowsErr := res.RowsAffected(); rowsErr == nil {
 			inserted += int(n)
 		}
 	}
 
-	if err = tx.Commit(); err != nil {
+	if _, err = w.conn.ExecContext(ctx, "COMMIT"); err != nil {
 		return inserted, fmt.Errorf("commit: %w", err)
 	}
+	committed = true
 	return inserted, nil
 }
 
@@ -367,9 +400,13 @@ func (w *Writer) WriteBatch(
 // an incoming span's parent_span does not yet exist in otel_signals. It reads
 // htmlgraph.agent_id from resourceAttrs to look up pending_subagent_starts.
 // Errors are logged at the call site and never propagate to the caller.
+//
+// conn accepts any dbExecer (a pinned *sql.Conn in production). Using the
+// same conn that holds the BEGIN IMMEDIATE transaction avoids opening a
+// second connection on the MaxOpenConns=1 pool, which would deadlock.
 func (w *Writer) maybeCreatePlaceholder(
 	ctx context.Context,
-	tx *sql.Tx,
+	conn dbExecer,
 	placeholderStmt *sql.Stmt,
 	s *otel.UnifiedSignal,
 	resourceAttrs map[string]any,
@@ -384,7 +421,7 @@ func (w *Writer) maybeCreatePlaceholder(
 	}
 
 	var n int
-	if err := tx.QueryRowContext(ctx,
+	if err := conn.QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM otel_signals WHERE span_id = ?`, parentSpan,
 	).Scan(&n); err != nil {
 		return nil // non-fatal
@@ -401,11 +438,11 @@ func (w *Writer) maybeCreatePlaceholder(
 		return nil
 	}
 
-	// Look up the pending row using the transaction connection (same pool,
-	// MaxOpenConns=1 — we MUST use tx, not w.db, to avoid deadlock).
+	// Look up the pending row using the live conn (MaxOpenConns=1 — we MUST
+	// use conn, not w.db, to avoid a deadlock on the single connection).
 	var pending db.PendingSubagentStart
 	var cwd sql.NullString
-	err := tx.QueryRowContext(ctx, `
+	err := conn.QueryRowContext(ctx, `
 		SELECT agent_id, agent_type, session_id, cwd, created_at
 		FROM pending_subagent_starts
 		WHERE agent_id = ?`, agentID,
@@ -443,9 +480,9 @@ func (w *Writer) maybeCreatePlaceholder(
 
 	// Back-fill the agent_span_id mapping so Strategy A re-attribution can
 	// resolve (session_id, agent_id) → agent span_id without scanning otel_signals.
-	// We use the same transaction connection (tx) to avoid the w.db deadlock.
+	// We use the same conn to avoid the w.db deadlock on the single connection.
 	// Best-effort: ignore errors since re-attribution degrades gracefully.
-	if _, err := tx.ExecContext(ctx,
+	if _, err := conn.ExecContext(ctx,
 		`UPDATE pending_subagent_starts SET agent_span_id = ? WHERE agent_id = ?`,
 		parentSpan, agentID,
 	); err != nil {
@@ -515,7 +552,7 @@ func tryUpgradePlaceholder(
 // when no fix is warranted.
 func tryReattributeParent(
 	ctx context.Context,
-	tx *sql.Tx,
+	conn dbExecer,
 	s *otel.UnifiedSignal,
 	resourceAttrs map[string]any,
 ) (newParent, reason string) {
@@ -523,7 +560,7 @@ func tryReattributeParent(
 	agentID, _ := resourceAttrs["htmlgraph.agent_id"].(string)
 	if agentID != "" {
 		var agentSpanID sql.NullString
-		if err := tx.QueryRowContext(ctx,
+		if err := conn.QueryRowContext(ctx,
 			`SELECT agent_span_id FROM pending_subagent_starts WHERE agent_id = ?`, agentID,
 		).Scan(&agentSpanID); err == nil && agentSpanID.Valid && agentSpanID.String != "" {
 			if agentSpanID.String != s.ParentSpan {
@@ -542,7 +579,7 @@ func tryReattributeParent(
 
 	// Check that the current parent is indeed an interaction canonical.
 	var parentCanonical sql.NullString
-	if err := tx.QueryRowContext(ctx,
+	if err := conn.QueryRowContext(ctx,
 		`SELECT canonical FROM otel_signals WHERE span_id = ?`, s.ParentSpan,
 	).Scan(&parentCanonical); err != nil || parentCanonical.String != otel.CanonicalInteraction {
 		return "", ""
@@ -550,7 +587,7 @@ func tryReattributeParent(
 
 	// Find all subagent_invocation spans in this session that have a known duration.
 	spanTsMicros := s.Timestamp.UnixMicro()
-	rows, err := tx.QueryContext(ctx, `
+	rows, err := conn.QueryContext(ctx, `
 		SELECT span_id, ts_micros, duration_ms
 		FROM otel_signals
 		WHERE session_id = ? AND canonical = ? AND duration_ms IS NOT NULL AND duration_ms > 0`,

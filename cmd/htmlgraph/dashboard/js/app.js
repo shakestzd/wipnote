@@ -1510,6 +1510,8 @@ function closePlanDetail() {
   // Clear plan subnav
   var subnav = document.getElementById('plan-subnav');
   if (subnav) { subnav.classList.remove('active'); subnav.innerHTML = ''; }
+  // Reset dashboard sidebar state
+  dashSidebarTeardown();
 }
 
 function openPlanDetail(planId, title) {
@@ -1524,6 +1526,8 @@ function openPlanDetail(planId, title) {
   detail.classList.add('active');
   titleEl.textContent = title || planId;
   body.innerHTML = '<div class="empty">Loading...</div>';
+  // Set current plan ID for sidebar
+  detail.dataset.currentPlanId = planId;
 
   fetch(buildProjectUrl('plans/' + planId + '/render'))
     .then(function(r) {
@@ -1544,6 +1548,9 @@ function openPlanDetail(planId, title) {
       // Build plan subnav from section cards in the loaded content
       buildPlanSubnav(body);
 
+      // Wire the dashboard-level sidebar for this plan
+      dashSidebarSetup(planId, body);
+
       // Load external scripts sequentially, then run inlines
       function loadNext(i) {
         if (i >= externals.length) {
@@ -1557,6 +1564,8 @@ function openPlanDetail(planId, title) {
           body.querySelectorAll('.slice-field-value p').forEach(function(p) {
             if (/^\(\d+\)/.test(p.textContent)) p.classList.add('numbered-step');
           });
+          // Re-sync the review rail now that inline scripts may have set approval state
+          dashSidebarSyncRail(body);
           return;
         }
         var s = document.createElement('script');
@@ -1607,20 +1616,17 @@ function buildPlanSubnav(container) {
     subnav.appendChild(a);
   });
 
-  // Chat link — the chat sidebar is always visible on the right
-  var chatSidebar = container.querySelector('.chat-sidebar');
-  if (chatSidebar) {
-    var chatLink = document.createElement('a');
-    chatLink.href = '#';
-    chatLink.textContent = 'Chat';
-    chatLink.style.color = 'var(--accent)';
-    chatLink.addEventListener('click', function(e) {
-      e.preventDefault();
-      var input = chatSidebar.querySelector('#chat-input');
-      if (input) input.focus();
-    });
-    subnav.appendChild(chatLink);
-  }
+  // Chat link — focuses the dashboard-level chat panel
+  var chatLink = document.createElement('a');
+  chatLink.href = '#';
+  chatLink.textContent = 'Chat';
+  chatLink.style.color = 'var(--accent)';
+  chatLink.addEventListener('click', function(e) {
+    e.preventDefault();
+    var input = document.getElementById('dash-chat-input');
+    if (input) input.focus();
+  });
+  subnav.appendChild(chatLink);
 
   subnav.classList.add('active');
 }
@@ -3432,4 +3438,366 @@ document.addEventListener('DOMContentLoaded', function() {
     })
     .catch(function() {});
 });
+
+/* ── Dashboard-level Plan Review Sidebar ───────────────────────
+   Hoisted from plan_page.gohtml so it renders for every plan the
+   user opens — both YAML-backed plans with slice cards and legacy
+   static-HTML plans that have no slices at all. */
+
+var DASH_SIDEBAR_KEY = 'htmlgraph-dashboard-rail-collapsed';
+var _dashApprovalListener = null; // event listener handle for teardown
+
+(function initDashSidebarCollapse() {
+  var detail = document.getElementById('plan-detail');
+  var collapseBtn = document.getElementById('dash-sidebar-collapse');
+  var reopenBtn = document.getElementById('dash-sidebar-reopen');
+  if (!detail || !collapseBtn || !reopenBtn) return;
+
+  function applyCollapsed(collapsed) {
+    detail.classList.toggle('sidebar-collapsed', collapsed);
+    collapseBtn.textContent = collapsed ? '‹' : '›';
+    collapseBtn.title = collapsed ? 'Expand sidebar' : 'Collapse sidebar';
+  }
+
+  // Restore from localStorage
+  applyCollapsed(localStorage.getItem(DASH_SIDEBAR_KEY) === '1');
+
+  collapseBtn.addEventListener('click', function() {
+    var collapsed = !detail.classList.contains('sidebar-collapsed');
+    applyCollapsed(collapsed);
+    localStorage.setItem(DASH_SIDEBAR_KEY, collapsed ? '1' : '0');
+  });
+
+  reopenBtn.addEventListener('click', function() {
+    applyCollapsed(false);
+    localStorage.setItem(DASH_SIDEBAR_KEY, '0');
+  });
+}());
+
+function dashSidebarSyncRail(body) {
+  var rail = document.getElementById('dash-review-rail');
+  var dotsEl = document.getElementById('dash-rail-dots');
+  var approvedEl = document.getElementById('dash-rail-approved');
+  var totalEl = document.getElementById('dash-rail-total');
+  var fillEl = document.getElementById('dash-rail-fill');
+  var pendingList = document.getElementById('dash-rail-pending');
+  var finalizeBtn = document.getElementById('dash-finalize-btn');
+  if (!rail || !body) return;
+
+  var sliceCards = body.querySelectorAll('.slice-card[data-slice]');
+  if (!sliceCards.length) {
+    // Also try slice-card elements with data-approval (YAML plans)
+    sliceCards = body.querySelectorAll('.slice-card[data-approval]');
+  }
+  if (!sliceCards.length) {
+    rail.style.display = 'none';
+    if (finalizeBtn) finalizeBtn.style.display = 'none';
+    return;
+  }
+
+  rail.style.display = '';
+  if (finalizeBtn) finalizeBtn.style.display = '';
+
+  var dots = dotsEl ? Array.from(dotsEl.querySelectorAll('.dash-rail-dot')) : [];
+  var approved = 0;
+  var pending = [];
+
+  Array.from(sliceCards).forEach(function(card, i) {
+    var approval = card.dataset.approval || 'pending';
+    var sliceNum = card.id ? card.id.replace('slice-', '') : (i + 1);
+    var nameEl = card.querySelector('.slice-name');
+    var label = 'Slice ' + sliceNum + (nameEl ? ' (' + nameEl.textContent.trim().substring(0, 20) + ')' : '');
+
+    if (dots[i]) dots[i].dataset.approval = approval;
+
+    if (approval === 'approved') {
+      approved++;
+    } else {
+      pending.push(label);
+    }
+  });
+
+  var total = sliceCards.length;
+  var pct = total > 0 ? Math.round(approved / total * 100) : 0;
+
+  if (approvedEl) approvedEl.textContent = approved;
+  if (totalEl) totalEl.textContent = total;
+  if (fillEl) fillEl.style.width = pct + '%';
+  if (finalizeBtn) finalizeBtn.disabled = (approved < total);
+
+  if (pendingList) {
+    if (pending.length === 0) {
+      pendingList.innerHTML = '<li style="color:var(--text-muted);font-size:.8rem">All approved</li>';
+    } else {
+      pendingList.innerHTML = pending.map(function(p) {
+        return '<li>' + p + '</li>';
+      }).join('');
+    }
+  }
+}
+
+function dashSidebarBuildRail(planId, body) {
+  var rail = document.getElementById('dash-review-rail');
+  var dotsEl = document.getElementById('dash-rail-dots');
+  if (!rail || !dotsEl) return;
+
+  var sliceCards = body.querySelectorAll('.slice-card[data-slice]');
+  if (!sliceCards.length) sliceCards = body.querySelectorAll('.slice-card[data-approval]');
+
+  if (!sliceCards.length) {
+    rail.style.display = 'none';
+    var fb = document.getElementById('dash-finalize-btn');
+    if (fb) fb.style.display = 'none';
+    return;
+  }
+
+  // Build dot elements
+  dotsEl.innerHTML = '';
+  Array.from(sliceCards).forEach(function(card, i) {
+    var sliceNum = card.id ? card.id.replace('slice-', '') : (i + 1);
+    var nameEl = card.querySelector('.slice-name');
+    var label = 'Slice ' + sliceNum + (nameEl ? ': ' + nameEl.textContent.trim() : '');
+    var dot = document.createElement('a');
+    dot.href = '#';
+    dot.className = 'dash-rail-dot';
+    dot.dataset.approval = card.dataset.approval || 'pending';
+    dot.title = label;
+    dot.setAttribute('aria-label', 'Jump to ' + label);
+    dot.addEventListener('click', function(e) {
+      e.preventDefault();
+      // Scroll the body container to the slice card
+      var bodyEl = document.getElementById('plan-detail-body');
+      var target = card;
+      if (target) {
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
+    dotsEl.appendChild(dot);
+  });
+
+  dashSidebarSyncRail(body);
+
+  // Wire finalize button
+  var finalizeBtn = document.getElementById('dash-finalize-btn');
+  if (finalizeBtn) {
+    finalizeBtn.addEventListener('click', function() {
+      var btn = this;
+      btn.disabled = true;
+      btn.textContent = 'Finalizing...';
+      fetch(buildProjectUrl('plans/' + planId + '/finalize'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      }).then(function(r) {
+        if (r.ok) {
+          btn.textContent = 'Plan Finalized';
+          btn.style.background = 'var(--approved, #22c55e)';
+        } else {
+          return r.text().then(function(body) {
+            btn.textContent = 'Finalize Plan';
+            btn.disabled = false;
+            alert(body || 'Not all sections approved.');
+          });
+        }
+      }).catch(function() {
+        btn.textContent = 'Finalize Plan';
+        btn.disabled = false;
+      });
+    });
+  }
+}
+
+function dashSidebarSetupChat(planId) {
+  var messagesEl = document.getElementById('dash-chat-messages');
+  var inputEl = document.getElementById('dash-chat-input');
+  var sendBtn = document.getElementById('dash-chat-send');
+  var emptyEl = document.getElementById('dash-chat-empty');
+  if (!messagesEl || !inputEl || !sendBtn) return;
+
+  // Clear previous messages
+  messagesEl.innerHTML = '';
+  if (emptyEl) {
+    var notice = document.createElement('p');
+    notice.className = 'dash-chat-notice';
+    notice.id = 'dash-chat-empty';
+    notice.textContent = 'Ask about the plan design, slices, risks, or tradeoffs.';
+    messagesEl.appendChild(notice);
+  }
+
+  function escHtmlDash(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+  function renderMdDash(text) {
+    var s = escHtmlDash(text);
+    s = s.replace(/```(\w*)\n([\s\S]*?)```/g, function(_, lang, code) {
+      return '<pre><code' + (lang ? ' class="language-' + lang + '"' : '') + '>' + code.trim() + '</code></pre>';
+    });
+    s = s.replace(/`([^`]+)`/g, '<code>$1</code>');
+    s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    s = s.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+    s = s.replace(/^### (.+)$/gm, '<h4>$1</h4>');
+    s = s.replace(/^## (.+)$/gm, '<h3>$1</h3>');
+    s = s.replace(/^[*-] (.+)$/gm, '<li>$1</li>');
+    s = s.replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>');
+    var blocks = s.split(/\n\n/);
+    var html = blocks.map(function(block) {
+      var trimmed = block.trim();
+      if (!trimmed) return '';
+      return '<p>' + trimmed.replace(/\n/g, '<br>') + '</p>';
+    }).filter(Boolean).join('');
+    return html || '<p></p>';
+  }
+
+  function addBubble(role, content) {
+    if (!content || !content.trim()) return null;
+    var emptyNotice = messagesEl.querySelector('.dash-chat-notice');
+    if (emptyNotice) emptyNotice.style.display = 'none';
+    var div = document.createElement('div');
+    div.className = 'dash-chat-bubble';
+    div.dataset.role = role;
+    if (role === 'assistant') {
+      div.innerHTML = renderMdDash(content);
+    } else {
+      div.textContent = content;
+    }
+    messagesEl.appendChild(div);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+    return div;
+  }
+
+  function setEnabled(enabled) {
+    inputEl.disabled = !enabled;
+    sendBtn.disabled = !enabled;
+    if (enabled) inputEl.focus();
+  }
+
+  // Load previous messages
+  fetch(buildProjectUrl('plans/' + planId + '/feedback'))
+    .then(function(r) { return r.ok ? r.json() : null; })
+    .then(function(data) {
+      if (!data || !data.chat_messages || !data.chat_messages.length) return;
+      var emptyNotice = messagesEl.querySelector('.dash-chat-notice');
+      if (emptyNotice) emptyNotice.style.display = 'none';
+      data.chat_messages.forEach(function(m) { addBubble(m.role, m.content); });
+    })
+    .catch(function() {});
+
+  function sendMessage() {
+    var text = inputEl.value.trim();
+    if (!text || !planId) return;
+    inputEl.value = '';
+    setEnabled(false);
+    addBubble('user', text);
+
+    var emptyNotice = messagesEl.querySelector('.dash-chat-notice');
+    if (emptyNotice) emptyNotice.style.display = 'none';
+    var assistantBubble = document.createElement('div');
+    assistantBubble.className = 'dash-chat-bubble';
+    assistantBubble.dataset.role = 'assistant';
+    messagesEl.appendChild(assistantBubble);
+    var rawResponse = '';
+
+    fetch(buildProjectUrl('plans/' + planId + '/chat'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: text })
+    }).then(function(response) {
+      if (response.status === 503) {
+        assistantBubble.textContent = 'Chat unavailable — Claude CLI not found and no API key configured.';
+        assistantBubble.style.color = 'var(--text-muted)';
+        assistantBubble.style.fontStyle = 'italic';
+        setEnabled(true);
+        return;
+      }
+      if (!response.ok) {
+        assistantBubble.textContent = 'Error: ' + response.statusText;
+        setEnabled(true);
+        return;
+      }
+      var reader = response.body.getReader();
+      var decoder = new TextDecoder();
+      var buffer = '';
+
+      function processStream() {
+        reader.read().then(function(result) {
+          if (result.done) {
+            if (rawResponse) assistantBubble.innerHTML = renderMdDash(rawResponse);
+            setEnabled(true);
+            return;
+          }
+          buffer += decoder.decode(result.value, { stream: true });
+          var lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+          lines.forEach(function(line) {
+            line = line.trim();
+            if (!line.startsWith('data: ')) return;
+            var jsonStr = line.substring(6);
+            try {
+              var evt = JSON.parse(jsonStr);
+              if (evt.type === 'chunk' && evt.text) {
+                rawResponse += evt.text;
+                assistantBubble.textContent = rawResponse;
+                messagesEl.scrollTop = messagesEl.scrollHeight;
+              } else if (evt.type === 'error') {
+                assistantBubble.textContent += ' [Error: ' + evt.error + ']';
+              } else if (evt.type === 'done') {
+                if (rawResponse) assistantBubble.innerHTML = renderMdDash(rawResponse);
+                setEnabled(true);
+              }
+            } catch (e) {}
+          });
+          processStream();
+        }).catch(function() { setEnabled(true); });
+      }
+      processStream();
+    }).catch(function(err) {
+      assistantBubble.textContent = 'Network error: ' + err.message;
+      setEnabled(true);
+    });
+  }
+
+  sendBtn.addEventListener('click', sendMessage);
+  inputEl.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+  });
+}
+
+function dashSidebarSetup(planId, body) {
+  // Build the review rail from slice cards in the loaded content
+  dashSidebarBuildRail(planId, body);
+
+  // Set up chat panel
+  dashSidebarSetupChat(planId);
+
+  // Listen for approval changes inside the plan content and sync the rail
+  if (_dashApprovalListener) {
+    body.removeEventListener('change', _dashApprovalListener);
+  }
+  _dashApprovalListener = function(e) {
+    var el = e.target;
+    if (el && el.dataset && (el.dataset.action === 'approve' || el.name && el.name.indexOf('slice-') === 0)) {
+      // Small delay to let the in-template approval handler run first
+      setTimeout(function() { dashSidebarSyncRail(body); }, 50);
+    }
+  };
+  body.addEventListener('change', _dashApprovalListener);
+}
+
+function dashSidebarTeardown() {
+  var body = document.getElementById('plan-detail-body');
+  if (body && _dashApprovalListener) {
+    body.removeEventListener('change', _dashApprovalListener);
+    _dashApprovalListener = null;
+  }
+  // Reset chat panel
+  var messagesEl = document.getElementById('dash-chat-messages');
+  if (messagesEl) {
+    messagesEl.innerHTML = '<p class="dash-chat-notice" id="dash-chat-empty">Ask about the plan design, slices, risks, or tradeoffs.</p>';
+  }
+  // Reset rail
+  var rail = document.getElementById('dash-review-rail');
+  if (rail) rail.style.display = 'none';
+  var dotsEl = document.getElementById('dash-rail-dots');
+  if (dotsEl) dotsEl.innerHTML = '';
+  var fb = document.getElementById('dash-finalize-btn');
+  if (fb) { fb.textContent = 'Finalize Plan'; fb.disabled = true; fb.style.background = ''; fb.style.display = ''; }
+}
 

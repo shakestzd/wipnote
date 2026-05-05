@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Add reset verb to revert work items from in-progress to todo</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-28544453"
+             data-type="bug"
+             data-status="done"
+             data-priority="high"
+             data-created="2026-05-01T17:55:54.305561"
+             data-updated="2026-05-01T18:17:47.122604" data-agent-assigned="claude-code" data-track-id="trk-2c83a1e2">
+
+        <header>
+            <h1>Add reset verb to revert work items from in-progress to todo</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-2c83a1e2.html" data-relationship="part_of" data-since="2026-05-01T17:55:54.318193">trk-2c83a1e2</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="d230fbcc-d1fa-4ae0-9bac-21f671f3ee06.html" data-relationship="implemented_in" data-since="2026-05-01T17:55:54.408791">session d230fbcc-d1fa-4ae0-9bac-21f671f3ee06</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>## Why
+
+The CLI exposes status-transition verbs start (todo->in-progress), complete (in-progress->done), and reopen (done->in-progress for features and plans only) — but no verb for in-progress->todo. The orchestrator cannot cleanly recover from a stale claim: the only options today are (a) delete the item (loses history + edges), or (b) complete it (semantically wrong — implies shipped). This blocks WIP hygiene during cleanup passes. The PreToolUse hook (internal/hooks/pretooluse.go:33-46) blocks direct .htmlgraph/ edits as a workaround.
+
+## Scope
+
+Add a reset subcommand to the feature, bug, and spike command groups that flips an in-progress item back to todo. Pattern reference: cmd/htmlgraph/feature_reopen.go for the per-verb-file convention and command shape. Underlying primitive: internal/workitem/edit.go SetStatus chain (EditBuilder.SetStatus("todo").Save()).
+
+## Acceptance
+
+1. htmlgraph feature reset , htmlgraph bug reset , htmlgraph spike reset  all transition the item from in-progress to todo and emit a confirmation line.
+2. Running reset on an item that is not in-progress returns a non-zero exit and a clear error referencing the current status.
+3. The Steps array, edges, description, priority, and track are preserved — only status changes (and any started-timestamp metadata if such exists; mirror what start writes).
+4. SQLite read index reflects the change without an explicit reindex (mirror what start/complete/reopen do).
+5. Unit tests cover (a) happy path, (b) wrong-source-status error, (c) preservation of steps and edges.
+6. go build, go vet, and go test pass on the full repo.
+
+## Verb naming
+
+Proposed: reset. Alternative: unstart. Implementer picks; reset preferred for symmetry with reopen.
+
+## Out of scope
+
+- Bulk reset across multiple ids (single-id only).
+- Reset for plans or tracks (plans use plan reopen which already covers their lifecycle; tracks have a different lifecycle).
+- Flag to skip the from-status guard.</p>
+        </section>
+    </article>
+</body>
+</html>

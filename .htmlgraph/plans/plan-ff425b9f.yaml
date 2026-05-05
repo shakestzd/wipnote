@@ -1,0 +1,412 @@
+meta:
+    id: plan-ff425b9f
+    track_id: trk-cb36e595
+    title: Sub-agent dispatch hardening — diagnostic spike + attribution / commit guard / YOLO inheritance
+    description: |
+        Fixes three infrastructure-blocking dispatch-failure bugs (#87 attribution, #88 commit-to-main, #90 YOLO inheritance). Originally drafted as 3 slices; opus + sonnet critique surfaced HIGH findings that the plan rests on load-bearing assumptions that don't hold against the codebase: (a) sub-agent and orchestrator may share `session_id` per bug-cb4918d8 — the actual discriminator is `agent_id`, so a session_id-keyed chain walk wouldn't find lineage; (b) `GetToolUseContext` at `internal/db/session_repo.go:175` already has a `claimed_by_agent_id → owner_session_id` fallback that may already cover #87 — the cited 6/8 failure may be a different root cause entirely; (c) `getSessionAndParent` is one-hop and the helper's blast radius covers 4+ existing callers; (d) slice 3's premise (Claude Code does NOT propagate `bypassPermissions`) is unverified. Restructured: slice 0 is a diagnostic spike to capture real failing-dispatch DB state and verify which assumptions hold; slices 1-3 are deferred until slice 0's findings inform their actual scope, with critic_revisions documenting the open architectural questions. The original slice content is retained for context but should NOT be implemented as-is until slice 0 confirms the mechanism.
+    created_at: "2026-05-04"
+    status: finalized
+    created_by: claude-opus
+    version: 9
+design:
+    problem: |
+        /htmlgraph:execute dispatches sub-agents in parallel against a track's features. Two infrastructure bugs make this fundamentally broken today: (1) the orchestrator's `htmlgraph feature start <id>` creates a claim under the orchestrator's session ID, but sub-agents run under different session IDs; the PreToolUse hook's claim lookup uses the sub-agent's own session, sees `claim=none`, and refuses Write/Edit/MultiEdit. Sub-agents cannot fix this from inside themselves (`feature start` from a sub-agent records a claim under yet another session, leaving the parent's claim in place). 6 of 8 sub-agents in the cited dispatch wasted 30-50 turns each investigating this. (2) Sub-agents dispatched with `Agent({isolation:"worktree"})` sometimes commit directly to main instead of an isolated branch — when the parent orchestrator is itself in a worktree, Claude Code appears to skip nested worktree creation, leaving sub-agents writing in the parent's working directory which after a checkout had ended up on main. 2 of 8 successful sub-agents in the cited dispatch had this happen; quality gates passed by luck. (3) Sub-agents dispatched from a parent in YOLO mode have their `Edit`/`Write` calls blocked because the YOLO-mode hook check (likely `checkYoloMode` in `yolo_guard.go` or a sibling) uses the sub-agent's own session ID directly. The sub-agent is not tagged YOLO; the check returns false; the gate refuses. In the cited dispatch one sub-agent burned 50 tool calls investigating the hook source instead of implementing the feature.
+
+        **Restructure note (post-critique 2026-05-05):** opus's technical critique surfaced that the chain-walk approach in slice 1 may not work as designed — sub-agent CloudEvents share the orchestrator's session_id (per bug-cb4918d8), so `getSessionAndParent(sessionID)` resolves to the orchestrator's row directly with empty parent_session_id, not to a synthetic agent_id-keyed lineage row. The actual claim resolution path through `GetToolUseContext`'s `claimed_by_agent_id → owner_session_id` fallback may already handle the cited failure mode; if so, the 6/8 failures have a different root cause (perhaps `claimed_by_agent_id` is being populated when it shouldn't, breaking the COALESCE order; perhaps the claim's status is `completed` rather than in-progress; perhaps the sub-agent payload now carries a fresh session_id contrary to the bug-cb4918d8 invariant). Slice 0 captures real DB state from a reproduced failure to verify which mechanism is broken before slices 1-3 implement fixes.
+    goals:
+        - '**Parallel dispatch unblocked** — sub-agents inheriting attribution from a parent orchestrator session can write/edit/multiedit without manual claim shuffling. Mirrors the parent-chain walk already used in `yolo_guard.go` for the screenshot guard.'
+        - '**Main protected from accidental commits** — sub-agents attempting `git commit` while on `main`/`master` without an explicit per-agent branch are refused with a clear error and remediation. The orchestrator and sub-agents on per-agent branches commit normally.'
+        - '**No upstream Claude Code dependency** — the worktree commit guard sits at htmlgraph''s PreToolUse hook layer, not Claude Code''s Agent dispatch. We control whether sub-agent commits land on main regardless of what `isolation:"worktree"` does upstream.'
+        - '**YOLO inheritance via parent chain** — sub-agents whose orchestrator session is YOLO-mode have their Edit/Write calls accepted. Same `getSessionAndParent` walker as slice 1, applied to the YOLO-check site.'
+    constraints:
+        - '**Backward compatible** — the orchestrator''s existing claim flow (single-agent sessions doing their own `feature start`) continues to work. Slice 1 only EXTENDS the lookup to walk parent chains; it doesn''t change behavior when the agent owns the claim itself.'
+        - '**No new infrastructure** — both fixes use existing hook plumbing (`internal/hooks/pretooluse.go`) and existing precedent (`internal/hooks/yolo_guard.go`''s `getSessionAndParent`). No new packages, no new dependencies.'
+        - '**Defense-in-depth, not silver bullet** — slice 2''s guard refuses commits but cannot retroactively un-commit or rewrite history. If a sub-agent has already committed to main before this guard ships, manual recovery is required (out of scope; users can revert/cherry-pick).'
+        - '**Spike-first ordering** — slices 1, 2, and 3 depend on slice 0''s findings document. They must NOT be promoted until slice 0 produces concrete evidence of the actual failure mechanism. Their current `what` fields are aspirational and will likely need rewriting based on slice 0''s data.'
+        - '**Helper blast radius (per opus F4)** — `getSessionAndParent` is currently one-hop with 4 existing callers (`hasRecentResearch`, `hasRecentDiffReview`, `hasRecentTestRun`, `checkYoloUIValidationGuard`). Any extension to multi-hop must include cycle detection, depth limit, and regression tests for all 4 existing callers.'
+        - '**Hot-path performance (per opus F-perf)** — PreToolUse fires on every tool call. Multiple guards walking the chain redundantly is O(N×guards) per call. Slices 1-3 should cache the chain walk in `toolUseContext` for the lifetime of one hook invocation (single-walk, multi-consumer).'
+        - '**Reuse, don''t reinvent** — slice 2 must reuse the existing `gitCommitPattern` regex (per the canonical bug-a10ae96a anchored-Bash-matching rule) and `currentBranchIn(event.CWD)` helper from `yolo_guard.go`. Slice 3 must pin its target to `isYoloFromDB` (yolo_guard.go:44), NOT a non-existent `checkYoloMode`.'
+    approved: false
+    comment: ""
+slices:
+    - id: slice-0
+      num: 0
+      title: 'Diagnostic spike: capture real failing-dispatch DB state to verify root cause'
+      what: |
+        Read-only investigation slice. No production code changes. Output is a
+        markdown findings document at `docs/spikes/dispatch-hardening-spike.md`
+        that captures real DB state from a reproduced failing dispatch and
+        verifies which load-bearing assumptions in slices 1-3 hold.
+
+        Approach:
+        1. **Reproduce the failure.** Either replay the cited 6/8 dispatch from
+           track trk-9a3c622d (jobsmith) if the data is still available, or set
+           up a minimal reproduction:
+           - Start an orchestrator session, run `htmlgraph feature start <id>`
+           - Spawn an Agent({isolation:"worktree", subagent_type:"htmlgraph:sonnet-coder"})
+           - Have the sub-agent attempt Edit/Write
+           - Observe the exact failure mode (claim mismatch error, YOLO refusal,
+             commit-on-main, etc.)
+
+        2. **Capture the DB state at the failure point.**
+           For both orchestrator and sub-agent sessions, dump:
+           - `agent_events` rows (specifically: session_id, agent_id, parent_session_id, parent_agent_id, tool_name, tool_input)
+           - `sessions` rows (session_id, parent_session_id, metadata.permission_mode)
+           - `claims` rows (feature_id, owner_session_id, claimed_by_agent_id, status)
+           - `agent_lineage_trace` rows (trace_id, root_session_id)
+
+        3. **Answer the load-bearing questions:**
+           - Q1: Does the sub-agent's tool-call CloudEvent.session_id MATCH the
+             orchestrator's session_id (per bug-cb4918d8 invariant), or are they
+             different?
+           - Q2: Does `GetToolUseContext`'s existing `claimed_by_agent_id ->
+             owner_session_id` COALESCE chain return the orchestrator's claim
+             when called with the sub-agent's (session_id, agent_id) tuple?
+             If yes -- what's actually breaking in the cited 6/8 failure?
+           - Q3: For the YOLO inheritance bug (#90), does Claude Code propagate
+             `permission_mode=bypassPermissions` into the sub-agent's CloudEvent
+             payload? If yes -- `isYoloFromEvent` already handles inheritance;
+             slice 3 is unnecessary.
+           - Q4: For commit-to-main (#88), what was the actual sub-agent CWD
+             when it ran git commit? Was a new worktree created, or did
+             Claude Code's `isolation:"worktree"` fall through?
+
+        4. **Write the findings document** at `docs/spikes/dispatch-hardening-spike.md`:
+           - Section per question (Q1-Q4) with evidence (sample rows, code
+             citations, transcript excerpts)
+           - "Confirmed root causes" section: which mechanisms actually broke
+           - "Slice 1 / 2 / 3 implications" section: for each downstream slice,
+             list which of its current `what` steps are correct, which need
+             re-scoping, and which are wrong-problem-fixes
+           - "Recommended slice-1-3 rewrite" section: bullet-point sketch of
+             the actual fixes needed (not full slice cards; just direction)
+
+        5. **Smoke-test the existing fallback (Q2).** Add a transient test in
+           `internal/db/session_repo_test.go` (in a SEPARATE BRANCH or worktree
+           -- do NOT commit this) that builds the (session_id-shared, agent_id-
+           distinct) sub-agent fixture per bug-cb4918d8 and asserts whether
+           `GetToolUseContext` returns the orchestrator's claim. If yes, slice 1
+           needs to be re-scoped to fix what's ACTUALLY broken in the 6/8
+           failure (likely `claimed_by_agent_id` populated incorrectly or claim
+           status `completed`).
+      why: |
+        Opus's RED verdict on the original 3-slice plan: "this plan rests on
+        three load-bearing assumptions that don't hold up against the codebase."
+        Annotating findings as critic_revisions doesn't capture the depth -- at
+        minimum, slice 1 may be solving the wrong problem. Diagnostic data
+        first, fixes second. The spike is small (read-only, ~half a day) and
+        its findings either confirm the existing 3-slice direction or surface
+        the actual root cause for proper fixes. Either outcome is a strict
+        improvement over implementing speculative fixes that may ship without
+        addressing the bug.
+      files:
+        - docs/spikes/dispatch-hardening-spike.md
+      deps: []
+      done_when:
+        - '`docs/spikes/dispatch-hardening-spike.md` exists with sections Q1-Q4 answered with concrete evidence'
+        - Q2 (existing fallback) is verified via a transient test against `GetToolUseContext` with the bug-cb4918d8 fixture pattern
+        - Slice 1/2/3 implications section explicitly says, for each, whether the current `what` is correct, needs re-scoping, or is wrong-problem
+        - Recommended rewrite section gives bullet-point direction for each downstream slice
+        - No production code changes shipped from this slice (transient test is gitignored or stashed)
+      effort: S
+      risk: Low
+      tests: |
+        Unit: not applicable -- spike is investigation-only.
+        Integration: a transient `internal/db/session_repo_test.go` test exercising
+        bug-cb4918d8's fixture pattern; not committed to main.
+        Regression: existing tests pass unchanged (no production code touched).
+      approved: false
+      comment: ""
+      approval_status: pending
+      execution_status: not_started
+    - id: slice-1
+      feature_id: feat-ecd82f68
+      num: 1
+      title: 'PreToolUse claim check walks parent session chain (fixes #87 / bug-0413c3c4)'
+      what: |
+        The PreToolUse hook in `internal/hooks/pretooluse.go` checks whether the current session owns the active feature claim before allowing Write/Edit/MultiEdit. Today the check uses only the sub-agent's own session ID and refuses if `claim=none`. Sub-agents dispatched by an orchestrator that ran `htmlgraph feature start` see no claim under their own session and get blocked.
+
+        **Implementation:**
+        1. **Locate the claim check.** Find the spot in `pretooluse.go` (or its callees) that resolves the claim by session ID -- likely a function like `resolveActiveFeatureClaim(sessionID)` or similar.
+        2. **Locate the parent-chain walker.** `internal/hooks/yolo_guard.go` already has `getSessionAndParent(sessionID)` (or similarly named) that walks the parent chain via `agent_events` (or `sessions`) table to find the orchestrator session. Reuse it; do NOT duplicate.
+        3. **Replace the lookup with a parent-chain walk.** When the current session has no claim, walk up via `getSessionAndParent` and check each ancestor session for an active claim. If any ancestor session owns a claim for the feature being touched, treat it as the effective claim and allow the operation.
+        4. **Logging:** when the claim is inherited via parent chain, log a structured note (e.g., `claim inherited: session=<sub> parent=<orch> feat=<id>`) so the dispatch path is auditable.
+        5. **Conservative scope:** only walk the chain when `claim=none` for the current session. If the current session has its own (different) claim, leave existing behavior -- don't try to merge or transfer.
+      why: |
+        Without this, /htmlgraph:execute parallel dispatch is dead in the water: 6 of 8 sub-agents got stuck investigating the hook in the cited real-world example. The fix mirrors precedent already in the codebase (yolo_guard.go), so the implementation cost is low and the risk surface is well-understood. Walking the parent chain is the right semantic -- sub-agents are doing work ON BEHALF of the orchestrator that started the feature; treating the orchestrator's claim as inherited matches the dispatch model.
+      files:
+        - internal/hooks/pretooluse.go
+        - internal/hooks/pretooluse_test.go
+        - internal/hooks/yolo_guard.go
+      deps:
+        - 0
+      done_when:
+        - Sub-agent whose session is a direct child of orchestrator session (recorded in `agent_events` parent links) can Write/Edit/MultiEdit on a feature whose claim is owned by the orchestrator session
+        - Sub-agent without a parent-chain link (or whose chain doesn't reach a claim-holding session) is still refused, with the existing error message
+        - 'Multi-hop chains work: if sub-agent A spawns sub-sub-agent B, and orchestrator owns the claim, B''s writes are allowed (chain walked via `getSessionAndParent`''s recursive resolution)'
+        - Existing behavior preserved when current session owns its own claim (no chain walk needed)
+        - Structured log line emitted when claim is inherited via chain -- auditable in OTel session events
+      effort: M
+      risk: Med
+      tests: |
+        Unit:
+        - TestClaimCheck_OwnSessionClaim -- current session owns claim; pass-through unchanged
+        - TestClaimCheck_NoClaimNoChain -- no claim, no parent; refuse (existing behavior preserved)
+        - TestClaimCheck_ParentOwnsClaim -- current session has no claim, parent does; allow
+        - TestClaimCheck_GrandparentOwnsClaim -- 2-hop chain; allow
+        - TestClaimCheck_ChainBrokenAtSomeHop -- chain walk hits a session with neither a parent nor a claim; refuse
+        - TestClaimCheck_LogEmitted -- when chain walk finds an ancestor claim, structured log line emitted with sub/parent/feat IDs
+
+        Integration: TestPreToolUse_DispatchedSubagentWriteAllowed -- fixture sets up orchestrator session with feature start + claim, then a sub-agent session linked to it; sub-agent attempts Edit; PreToolUse allows. Mirror with grandparent chain.
+
+        Regression: existing `pretooluse_test.go` tests pass unchanged; `yolo_guard_test.go` continues to pass (we're reusing its helper, not modifying it).
+      approved: false
+      comment: ""
+      approval_status: pending
+      execution_status: promoted
+      questions:
+        - id: q-chain-depth-limit
+          text: Should the parent-chain walk have a depth limit?
+          description: |
+            Theoretically a session could have an unbounded parent chain. In practice, dispatch is at most 2-3 levels deep (orchestrator -> sub-agent -> maybe sub-sub-agent). But infinite chain walking on a malformed `agent_events` table could deadlock the hook.
+          recommended: limit-10
+          options:
+            - key: limit-10
+              label: limit-10 -- walk at most 10 hops; refuse beyond. Generous; matches reasonable dispatch depths.
+            - key: limit-3
+              label: limit-3 -- walk at most 3 hops. Tight; matches observed real-world depth.
+            - key: no-limit
+              label: no-limit -- walk until parent is null. Risk of infinite walk if data is malformed.
+        - id: q-claim-mismatch-policy
+          text: What if the current session has a claim for feat-A, but the parent owns a claim for feat-B (the file being edited)?
+          description: |
+            Edge case: sub-agent's own session has been marked active for a different feature (perhaps it ran feature start itself). The parent's claim is for the feature whose file we're editing. Three plausible policies.
+          recommended: parent-claim-wins
+          options:
+            - key: parent-claim-wins
+              label: parent-claim-wins -- if parent owns the claim for the file's feature, allow. The sub-agent's own claim is for unrelated work.
+            - key: own-claim-wins
+              label: own-claim-wins -- if current session has any claim, only that one counts; parent walk is skipped. Strictest; risks blocking legitimate cross-feature dispatch.
+            - key: refuse-on-conflict
+              label: refuse-on-conflict -- if claims disagree on the feature, refuse. Safest but may surface as new false-positive blocks.
+      critic_revisions:
+        - source: opus
+          severity: HIGH
+          summary: Chain-walk by session_id is wrong key -- per bug-cb4918d8, sub-agent and orchestrator share session_id; discriminator is agent_id. getSessionAndParent(sessionID) for a sub-agent returns the orchestrator's row with empty parent. Walker must walk by agent_id (or use agent_lineage_trace.trace_id -> root_session_id). Re-scope after slice 0 confirms.
+        - source: opus
+          severity: HIGH
+          summary: GetToolUseContext at db/session_repo.go:175 already has claimed_by_agent_id -> owner_session_id fallback for sub-agent claim resolution (added for bug-cb4918d8). Slice 1 may be solving the wrong problem; cited 6/8 failure may have a different root cause (claimed_by_agent_id over-population, claim status mismatch, fresh session_id violating cb4918d8 invariant). Slice 0 must verify.
+        - source: opus + sonnet
+          severity: HIGH
+          summary: getSessionAndParent is currently one-hop, not recursive. Multi-hop done_when requires extension. Helper has 4 existing callers (research, diff-review, test-run, screenshot guards) -- extending it cascades. Need a NEW helper walkSessionAncestors(db, sid, depthLimit) to avoid blast radius, OR explicit regression tests for all 4 callers.
+        - source: opus
+          severity: HIGH
+          summary: Slice 1 files list missing internal/db/session_repo.go -- actual claim SQL lookup is GetToolUseContext at lines 175-211 there, NOT pretooluse.go. The hook layer just consumes the resolved context.
+        - source: opus
+          severity: MEDIUM
+          summary: No cycle detection -- malformed sessions table where session A's parent is B and B's parent is A would loop forever and hang the hook. Walker must track visited IDs.
+        - source: opus
+          severity: MEDIUM
+          summary: Hot-path performance -- PreToolUse fires on every tool call. With slices 1+2+3 each walking the chain (1-N queries each), Edit/Write/Bash incurs O(N*3) sessions queries per call. Cache the walk in toolUseContext for the lifetime of one hook invocation.
+    - id: slice-2
+      feature_id: feat-9cef857b
+      num: 2
+      title: 'PreToolUse guard refuses sub-agent git commit on main (fixes #88 / bug-730c0f19)'
+      what: |
+        Add a new PreToolUse guard at `internal/hooks/worktree_commit_guard.go` that intercepts Bash tool calls matching `git commit` from sub-agent sessions and refuses if the working directory's branch is `main` or `master`, unless an explicit per-agent branch convention is in effect.
+
+        **Implementation:**
+        1. **Detect the Bash tool call.** PreToolUse fires for every tool. Filter for `tool_name == "Bash"` AND `tool_input["command"]` matches a regex like `^\s*git\s+commit\b` (case-insensitive). Fall through for non-commit Bash calls.
+        2. **Identify sub-agent sessions.** Use slice 1's `getSessionAndParent` to determine if the current session has a parent (i.e., is a sub-agent). If the current session is the orchestrator (no parent), allow normally -- the orchestrator commits on main intentionally.
+        3. **Resolve current branch.** Run `git -C <cwd> rev-parse --abbrev-ref HEAD` from the hook to get the branch. If it returns `main` or `master` AND the session has a parent: refuse with structured error.
+        4. **Per-agent branch convention** (escape hatch): if the branch matches `worktree-agent-*` or `subagent-*` or has the env var `HTMLGRAPH_AGENT_BRANCH=1` set in the hook's spawned env, allow even on main. This lets dispatch tooling explicitly mark "this is a per-agent branch I created intentionally" without forcing branch-name matching.
+        5. **Error message structure:** the refusal must include (a) which session is blocked, (b) what branch it's on, (c) suggested remediation: "create a per-agent branch first: `git checkout -b worktree-agent-<short-session-id>` then commit and merge to the track branch via the orchestrator." Include the parent-session ID for cross-reference.
+        6. **Wire the guard into pretooluse.go's dispatch.** Register it AFTER slice 1's claim-check enhancement (deps: [1]) so the parent-chain logic is available. Keep the guard small and isolated in its own file.
+      why: |
+        Two of 8 sub-agents in the cited real-world dispatch committed directly to main; quality gates passing was luck. With this guard, the same path produces a clear refusal at the htmlgraph layer regardless of how Claude Code's `isolation:"worktree"` resolves. The orchestrator's commits are unaffected (it has no parent session). Per-agent branches with the documented naming or env var work normally -- the guard is targeted at the specific failure mode (sub-agent + main + no per-agent branch).
+      files:
+        - internal/hooks/pretooluse.go
+        - internal/hooks/worktree_commit_guard.go
+        - internal/hooks/worktree_commit_guard_test.go
+      deps:
+        - 0
+        - 1
+      done_when:
+        - Sub-agent (session has parent) attempting `git commit` while on branch `main` or `master` is refused with a structured error message naming session, branch, and remediation
+        - Orchestrator (session has no parent) committing on main is allowed normally
+        - Sub-agent committing on a branch matching `worktree-agent-*` or `subagent-*` (or with `HTMLGRAPH_AGENT_BRANCH=1` set) is allowed regardless of whether the branch base is main
+        - Non-`git commit` Bash calls fall through (the guard only intercepts commit specifically -- not `git status`, `git log`, or any other Bash)
+        - 'Sub-agent on a non-main, non-master, non-recognized branch (e.g., `trk-XXX`): allow (matches the dispatch model where parents work on track branches)'
+        - Hook's `git -C <cwd> rev-parse` failures (not a git repo, etc.) -- fall through (don't block on detection failure)
+      effort: M
+      risk: Med
+      tests: |
+        Unit:
+        - TestCommitGuard_OrchestratorOnMain_Allowed -- session has no parent; allow
+        - TestCommitGuard_SubagentOnMain_Refused -- session has parent, branch=main; refuse with structured message
+        - TestCommitGuard_SubagentOnMaster_Refused -- same with `master`
+        - TestCommitGuard_SubagentOnTrackBranch_Allowed -- session has parent, branch=`trk-foo`; allow
+        - TestCommitGuard_SubagentOnAgentBranch_Allowed -- session has parent, branch matches `worktree-agent-*`; allow
+        - TestCommitGuard_SubagentEnvOverride_Allowed -- env `HTMLGRAPH_AGENT_BRANCH=1` set; allow on main
+        - TestCommitGuard_NonCommitBash_Allowed -- Bash command is `git status`, `git log`, etc.; fall through (allow)
+        - TestCommitGuard_GitDetectionFails_Allowed -- `cwd` is not a git repo; fall through
+        - TestCommitGuard_RemediationMessage -- refusal error includes session ID, branch, parent ID, suggested branch-creation command
+
+        Integration: TestPreToolUse_DispatchedSubagentCommitOnMainBlocked -- fixture orchestrator session + sub-agent session linked; sub-agent issues `git commit -m "..."` while on main; PreToolUse refuses with the documented error message.
+
+        Regression: existing PreToolUse tests pass; slice 1's claim-walk tests pass.
+      approved: false
+      comment: ""
+      approval_status: pending
+      execution_status: promoted
+      questions:
+        - id: q-branch-naming-convention
+          text: What branch-name pattern marks a 'per-agent branch' as the escape hatch?
+          description: |
+            Without a recognized name, the guard refuses. Need a convention.
+          recommended: worktree-agent-prefix
+          options:
+            - key: worktree-agent-prefix
+              label: worktree-agent-prefix -- names like `worktree-agent-<short-session-id>` or `worktree-agent-<feat-id>`. Aligns with Claude Code's worktree dir naming when isolation:worktree DOES create one.
+            - key: subagent-or-feat-prefix
+              label: subagent-or-feat-prefix -- accept either `subagent-*` or `feat-*` as escape hatch. More permissive; risk of accidentally committing as 'feat-XXX' on a non-isolated worktree.
+            - key: env-var-only
+              label: env-var-only -- drop branch-name patterns; require explicit `HTMLGRAPH_AGENT_BRANCH=1` env. Strictest; means dispatch tooling must always set the var explicitly.
+        - id: q-master-handling
+          text: Treat `master` the same as `main`?
+          description: |
+            Old repos still have `master` as the default. Newer repos (including htmlgraph) use `main`.
+          recommended: both
+          options:
+            - key: both
+              label: both -- refuse sub-agent commits on `main` AND `master`. Defensive; covers legacy repos.
+            - key: main-only
+              label: main-only -- only refuse on `main`. Cleaner if we're confident no users have master.
+            - key: configurable
+              label: configurable -- read protected branches from `.htmlgraph/config.json`. More flexible; more code.
+      critic_revisions:
+        - source: opus
+          severity: HIGH
+          summary: Silent bypass on detached HEAD / unrelated CWD -- git rev-parse returns 'HEAD' or errors when CWD isn't a git repo or is in detached state. Plan's 'fall through on detection failure' means commits land silently. No logging when bypass fires. Refuse on detached HEAD for sub-agents; emit structured debug log on every fall-through; consider rev-parse --show-toplevel comparison to project root.
+        - source: opus
+          severity: MEDIUM
+          summary: gitCommitPattern already exists at yolo_guard.go:237 (anchored regex from bug-a10ae96a, the canonical 'don't match git commit-tree / commit-graph' fix). Plan's '^\s*git\s+commit\b' would re-introduce that bug. MUST reuse gitCommitPattern, not write new regex.
+        - source: opus
+          severity: MEDIUM
+          summary: currentBranchIn(event.CWD) already exists at yolo_guard.go:660-674 -- slice 2 must reuse it, not re-implement the git subprocess call.
+        - source: opus + sonnet
+          severity: MEDIUM
+          summary: 'Branch-name escape hatch via worktree-agent-* / subagent-* prefixes is brittle and effectively dead code given allow-all-non-main semantics in done_when. Invert the rule: refuse ONLY on main, master, and remote HEAD branch (from git symbolic-ref refs/remotes/origin/HEAD); allow all other branches. Drop the escape-hatch question.'
+        - source: opus
+          severity: MEDIUM
+          summary: checkYoloWorktreeGuard at yolo_guard.go:328 already blocks Write/Edit on main in YOLO mode. Need slice 0 to explain how the cited 2 sub-agents got past it (was YOLO not active? did isolation:worktree create a new checkout of main?) before slice 2's commit guard can be considered correct as last-line-of-defense vs. redundant with the existing guard.
+        - source: opus
+          severity: LOW
+          summary: HTMLGRAPH_AGENT_BRANCH=1 env-var escape hatch leaks across boundary -- env vars set in parent persist into all children. Drop env-var hatch entirely; rely on branch denylist.
+    - id: slice-3
+      feature_id: feat-72876845
+      num: 3
+      title: 'YOLO permission inheritance via parent-session chain (fixes #90 / bug-8ff540a7)'
+      what: |
+        The YOLO-mode check (likely `checkYoloMode` in `internal/hooks/yolo_guard.go`
+        or a similar predicate consumed by `pretooluse.go`'s Edit/Write gate) returns
+        false for sub-agent sessions because the sub-agent's own `agent_events` row
+        isn't tagged with YOLO mode. Apply slice 1's `getSessionAndParent` walker so
+        the predicate walks up the parent chain and treats the sub-agent as YOLO when
+        ANY ancestor session is YOLO.
+
+        Implementation:
+        1. **Locate the YOLO-mode predicate.** Find the function (likely `checkYoloMode`
+           or `isYoloSession`) that today resolves YOLO state for a given session ID.
+        2. **Reuse the chain walker.** Slice 1 introduces `getSessionAndParent` (or
+           extends an existing walker). Use the SAME helper here.
+        3. **Replace direct lookup with chain walk.** When the current session has no
+           YOLO tag, walk up via `getSessionAndParent` and check each ancestor. If any
+           ancestor is tagged YOLO, treat the sub-agent as inheriting YOLO posture.
+        4. **Conservative scope:** only walk when current session has no YOLO tag of
+           its own. Don't override an explicit non-YOLO marker in the current session
+           (if such a thing exists).
+        5. **Logging:** emit a structured log line `yolo inherited: session=<sub> parent=<orch>`
+           when the walk finds an ancestor's YOLO posture, so the path is auditable.
+      why: |
+        Without this, /htmlgraph:execute parallel dispatch from a YOLO-mode parent
+        can't actually do work -- sub-agents are blocked at every Edit/Write. This is
+        the same dispatch-failure pattern as slice 1 (claim ownership) and slice 2
+        (commit-to-main); fixing it once in slice 1's helper makes this slice a
+        one-call extension at a different gate site. Defense-in-depth across all the
+        hook predicates that gate sub-agent behavior on session-local state.
+      files:
+        - internal/hooks/yolo_guard.go
+        - internal/hooks/yolo_guard_test.go
+        - internal/hooks/pretooluse.go
+      deps:
+        - 0
+        - 1
+      done_when:
+        - Sub-agent whose session is a child of an orchestrator session in YOLO mode has Edit/Write calls accepted (no longer refused)
+        - 'Multi-hop chains: sub-sub-agent inherits via grandparent walk'
+        - Sub-agent without parent chain reaching a YOLO session is still blocked (existing behavior)
+        - Sub-agent with its own explicit YOLO tag -- pass-through unchanged (no walk needed)
+        - Structured log line emitted when YOLO posture is inherited via chain
+        - Same depth limit as slice 1 (per `q-chain-depth-limit` answer) applied here
+      effort: S
+      risk: Med
+      tests: |
+        Unit:
+        - TestYoloCheck_OwnSessionYolo -- current session tagged YOLO; pass-through
+        - TestYoloCheck_NoYoloNoChain -- no parent, no YOLO; refuse
+        - TestYoloCheck_ParentYolo -- parent tagged YOLO; allow
+        - TestYoloCheck_GrandparentYolo -- 2-hop chain; allow
+        - TestYoloCheck_LogEmitted -- chain inheritance logs structured note
+
+        Integration: TestPreToolUse_DispatchedSubagentEditAllowed_FromYoloParent --
+        fixture orchestrator session tagged YOLO; sub-agent linked to it via
+        agent_events; sub-agent Edit; PreToolUse allows.
+
+        Regression: existing yolo_guard_test.go and pretooluse_test.go pass.
+      approved: false
+      comment: ""
+      approval_status: pending
+      execution_status: promoted
+      questions:
+        - id: q-yolo-inherit-strictness
+          text: Should YOLO inheritance respect explicit non-YOLO tags on the sub-agent?
+          description: |
+            Edge case: sub-agent's own session has been explicitly recorded as non-YOLO
+            (e.g., user opened a non-YOLO sub-shell from within YOLO orchestrator).
+            Should parent's YOLO override?
+          recommended: parent-yolo-overrides
+          options:
+            - key: parent-yolo-overrides
+              label: parent-yolo-overrides -- if parent is YOLO, sub-agent inherits regardless of own tag. Matches the dispatch model (sub-agent works ON BEHALF of parent).
+            - key: own-tag-wins
+              label: own-tag-wins -- explicit non-YOLO on sub-agent blocks inheritance. Safer but less ergonomic for dispatch.
+            - key: refuse-on-conflict
+              label: refuse-on-conflict -- if tags disagree, refuse. Most conservative; surfaces ambiguous configurations.
+      critic_revisions:
+        - source: sonnet
+          severity: HIGH
+          summary: Premise unverified -- slice 3 assumes Claude Code does NOT propagate permission_mode=bypassPermissions to sub-agent CloudEvents. If it DOES propagate, isYoloFromEvent already handles inheritance and slice 3 is fixing a phantom problem. Slice 0 Q3 must confirm before this slice can be implemented.
+        - source: opus
+          severity: MEDIUM
+          summary: Target predicate underspecified -- there is NO function named checkYoloMode or isYoloSession in internal/hooks/. The actual YOLO state path is isYoloFromEvent -> isYoloFromDB at yolo_guard.go:44. Slice 3 must pin to isYoloFromDB; do NOT touch the other 6 yolo_guard predicates (checkYoloUIValidationGuard, checkYoloRoborevGuard, checkYoloCommitGuard, checkYoloBudgetGuard, checkYoloDiffReviewGuard, checkYoloWorktreeGuard) -- they consume the chain-walked posture via isYoloFromEvent's aggregation.
+        - source: opus + sonnet
+          severity: MEDIUM
+          summary: q-yolo-inherit-strictness recommendation parent-yolo-overrides removes the ability for legitimate non-YOLO sub-agents (security audits, sandboxed tests) to opt out. Default to own-tag-wins; make parent-yolo-overrides opt-in via env var (HTMLGRAPH_YOLO_INHERIT=1) or session-metadata field. Document the escape hatch.
+questions: []
+critique:
+    reviewed_at: "2026-05-05"
+    reviewers:
+        - opus
+        - sonnet
+    assumptions: []
+    critics: []
+    risks: []
+    synthesis: |
+        Original 3-slice plan received RED from opus and YELLOW from sonnet on
+        structural grounds: load-bearing assumptions about session_id-keyed chain
+        walks, existing fallback coverage, helper one-hop semantics, and slice 3's
+        propagation premise. Restructured 2026-05-05 to add slice 0 (diagnostic
+        spike) and gate slices 1-3 on its findings. HIGH findings recorded as
+        critic_revisions on each downstream slice. Plan should re-enter critique
+        after slice 0 produces concrete evidence and slices 1-3 are re-scoped.

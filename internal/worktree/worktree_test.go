@@ -295,3 +295,107 @@ func TestEnsureForTrackTitled_TitleRenameIdempotent(t *testing.T) {
 		t.Errorf("title rename must not change worktree path: before=%q after=%q", path1, path2)
 	}
 }
+
+// TestEnsureForTrackTitled_BranchExistsWithoutWorktree is the regression test for
+// bug-92690d5b: a prior `htmlgraph yolo --track <id>` left the branch behind but
+// the worktree directory was removed (or the path was deleted manually). A second
+// invocation must succeed by attaching to the existing branch instead of failing
+// with `fatal: a branch named '<id>' already exists`.
+func TestEnsureForTrackTitled_BranchExistsWithoutWorktree(t *testing.T) {
+	dir := setupGitRepo(t)
+
+	// First call creates branch + titled worktree.
+	path1, err := worktree.EnsureForTrackTitled("Re-run Track", "trk-rerun01", dir, io.Discard)
+	if err != nil {
+		t.Fatalf("first EnsureForTrackTitled: %v", err)
+	}
+
+	// Properly remove the worktree (branch persists, worktree registration is
+	// deleted along with the directory). This is the steady-state shape of the
+	// bug — a prior session torn down its worktree but the branch sticks around.
+	if out, err := exec.Command("git", "-C", dir, "worktree", "remove", "--force", path1).CombinedOutput(); err != nil {
+		t.Fatalf("git worktree remove: %v: %s", err, out)
+	}
+
+	// Sanity: the directory is gone but the branch survives.
+	if _, err := os.Stat(path1); !os.IsNotExist(err) {
+		t.Fatalf("worktree dir should be gone, got err=%v", err)
+	}
+	if err := exec.Command("git", "-C", dir, "rev-parse", "--verify", "refs/heads/trk-rerun01").Run(); err != nil {
+		t.Fatalf("branch should still exist after worktree remove: %v", err)
+	}
+
+	// Second call must succeed by attaching to the existing branch.
+	path2, err := worktree.EnsureForTrackTitled("Re-run Track", "trk-rerun01", dir, io.Discard)
+	if err != nil {
+		t.Fatalf("second EnsureForTrackTitled (regression for bug-92690d5b): %v", err)
+	}
+	if _, err := os.Stat(path2); err != nil {
+		t.Errorf("second-run worktree should exist at %s: %v", path2, err)
+	}
+
+	// Confirm the worktree is now checked out on the original branch.
+	out, err := exec.Command("git", "-C", path2, "rev-parse", "--abbrev-ref", "HEAD").Output()
+	if err != nil {
+		t.Fatalf("rev-parse HEAD in re-attached worktree: %v", err)
+	}
+	if got := strings.TrimSpace(string(out)); got != "trk-rerun01" {
+		t.Errorf("re-attached worktree HEAD: got %q, want %q", got, "trk-rerun01")
+	}
+}
+
+// TestEnsureForTrackTitled_BranchCheckedOutInMainRepo guards against silently
+// reusing a non-isolated checkout (review finding from job 162). When the track
+// branch happens to be checked out in the main repo (or any path outside
+// .claude/worktrees/), EnsureForTrackTitled must refuse to attach rather than
+// running yolo against the user's primary working tree.
+func TestEnsureForTrackTitled_BranchCheckedOutInMainRepo(t *testing.T) {
+	dir := setupGitRepo(t)
+
+	// Create the track branch and check it out in the MAIN repo — simulating
+	// `git checkout trk-X` outside any managed worktree.
+	if out, err := exec.Command("git", "-C", dir, "checkout", "-b", "trk-mainrepo01").CombinedOutput(); err != nil {
+		t.Fatalf("git checkout -b: %v: %s", err, out)
+	}
+
+	// EnsureForTrackTitled must NOT reuse the main repo path.
+	_, err := worktree.EnsureForTrackTitled("Main Repo Track", "trk-mainrepo01", dir, io.Discard)
+	if err == nil {
+		t.Fatalf("expected error when branch is checked out in main repo, got nil")
+	}
+	if !strings.Contains(err.Error(), "already checked out") {
+		t.Errorf("expected 'already checked out' in error, got: %v", err)
+	}
+
+	// And the managed worktree directory must NOT have been created.
+	managedPath := filepath.Join(dir, ".claude", "worktrees", "main-repo-track-trk-mainrepo01")
+	if _, statErr := os.Stat(managedPath); statErr == nil {
+		t.Errorf("managed worktree should not have been created at %s", managedPath)
+	}
+}
+
+// TestEnsureForTrackTitled_StaleRegistrationAfterManualRemoval covers the case
+// where the worktree directory was rm-rf'd manually (no `git worktree remove`),
+// so git's worktree registration is stale. EnsureForTrackTitled must prune and
+// recreate without erroring.
+func TestEnsureForTrackTitled_StaleRegistrationAfterManualRemoval(t *testing.T) {
+	dir := setupGitRepo(t)
+
+	path1, err := worktree.EnsureForTrackTitled("Stale Reg Track", "trk-stale01", dir, io.Discard)
+	if err != nil {
+		t.Fatalf("first EnsureForTrackTitled: %v", err)
+	}
+
+	// Manually remove the worktree directory — leaves a stale registration.
+	if err := os.RemoveAll(path1); err != nil {
+		t.Fatalf("RemoveAll: %v", err)
+	}
+
+	path2, err := worktree.EnsureForTrackTitled("Stale Reg Track", "trk-stale01", dir, io.Discard)
+	if err != nil {
+		t.Fatalf("second EnsureForTrackTitled after manual rm (bug-92690d5b): %v", err)
+	}
+	if _, err := os.Stat(path2); err != nil {
+		t.Errorf("re-created worktree should exist at %s: %v", path2, err)
+	}
+}

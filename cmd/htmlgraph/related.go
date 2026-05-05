@@ -18,6 +18,7 @@ import (
 func featureCmdWithExtras() *cobra.Command {
 	cmd := workitemCmd("feature", "features")
 	cmd.AddCommand(featureReopenCmd())
+	cmd.AddCommand(featureResetCmd())
 	cmd.AddCommand(relatedCmd())
 	return cmd
 }

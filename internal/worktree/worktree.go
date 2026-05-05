@@ -98,20 +98,20 @@ func EnsureForFeature(featureID, repoRoot string, w io.Writer) (string, error) {
 		return worktreePath, nil
 	}
 
-	if err := os.MkdirAll(filepath.Dir(worktreePath), 0755); err != nil {
-		return "", fmt.Errorf("could not create worktrees directory: %w", err)
+	resolved, created, err := addOrAttachWorktree(repoRoot, worktreePath, branchName)
+	if err != nil {
+		return "", err
+	}
+	if !created {
+		fmt.Fprintf(w, "  Worktree: %s (reusing existing)\n", resolved)
+		return resolved, nil
 	}
 
-	cmd := exec.Command("git", "-C", repoRoot, "worktree", "add", worktreePath, "-b", branchName)
-	if out, err := cmd.CombinedOutput(); err != nil {
-		return "", fmt.Errorf("git worktree add failed: %w\n%s", err, out)
-	}
+	fmt.Fprintf(w, "  Worktree: %s (branch: %s)\n", resolved, branchName)
+	excludeHtmlgraphFromWorktree(resolved, w)
+	reindexWorktree(resolved, w)
 
-	fmt.Fprintf(w, "  Worktree: %s (branch: %s)\n", worktreePath, branchName)
-	excludeHtmlgraphFromWorktree(worktreePath, w)
-	reindexWorktree(worktreePath, w)
-
-	return worktreePath, nil
+	return resolved, nil
 }
 
 // EnsureForTrack ensures a git worktree exists for the given track and returns its path.
@@ -126,20 +126,20 @@ func EnsureForTrack(trackID, repoRoot string, w io.Writer) (string, error) {
 		return worktreePath, nil
 	}
 
-	if err := os.MkdirAll(filepath.Dir(worktreePath), 0755); err != nil {
-		return "", fmt.Errorf("could not create worktrees directory: %w", err)
+	resolved, created, err := addOrAttachWorktree(repoRoot, worktreePath, branchName)
+	if err != nil {
+		return "", err
+	}
+	if !created {
+		fmt.Fprintf(w, "  Worktree: %s (reusing existing)\n", resolved)
+		return resolved, nil
 	}
 
-	cmd := exec.Command("git", "-C", repoRoot, "worktree", "add", worktreePath, "-b", branchName)
-	if out, err := cmd.CombinedOutput(); err != nil {
-		return "", fmt.Errorf("git worktree add failed: %w\n%s", err, out)
-	}
+	fmt.Fprintf(w, "  Worktree: %s (branch: %s)\n", resolved, branchName)
+	excludeHtmlgraphFromWorktree(resolved, w)
+	reindexWorktree(resolved, w)
 
-	fmt.Fprintf(w, "  Worktree: %s (branch: %s)\n", worktreePath, branchName)
-	excludeHtmlgraphFromWorktree(worktreePath, w)
-	reindexWorktree(worktreePath, w)
-
-	return worktreePath, nil
+	return resolved, nil
 }
 
 // TrackWorktreeDirName returns the directory name to use for a track worktree.
@@ -193,20 +193,117 @@ func EnsureForTrackTitled(trackTitle, trackID, repoRoot string, w io.Writer) (st
 		return worktreePath, nil
 	}
 
+	resolved, created, err := addOrAttachWorktree(repoRoot, worktreePath, branchName)
+	if err != nil {
+		return "", err
+	}
+	if !created {
+		fmt.Fprintf(w, "  Worktree: %s (reusing existing)\n", resolved)
+		return resolved, nil
+	}
+
+	fmt.Fprintf(w, "  Worktree: %s (branch: %s)\n", resolved, branchName)
+	excludeHtmlgraphFromWorktree(resolved, w)
+	reindexWorktree(resolved, w)
+
+	return resolved, nil
+}
+
+// addOrAttachWorktree creates a git worktree at worktreePath for branchName, or
+// returns the path of an existing worktree when one is already checked out on the
+// branch. This makes track/feature worktree creation idempotent against the
+// "branch already exists" failure that occurs when the worktree directory was
+// removed but the branch reference persists from a prior run (bug-92690d5b).
+//
+// Returns (resolvedPath, created, err):
+//   - resolvedPath equals worktreePath when a new worktree was created,
+//     otherwise it's the path of the pre-existing worktree on branchName.
+//   - created is true only when this call created a new worktree on disk.
+func addOrAttachWorktree(repoRoot, worktreePath, branchName string) (string, bool, error) {
+	// Prune stale worktree registrations (e.g. from manually-deleted directories)
+	// so the porcelain listing reflects current on-disk state. Best-effort.
+	_ = exec.Command("git", "-C", repoRoot, "worktree", "prune").Run()
+
+	managedRoot := filepath.Join(repoRoot, ".claude", "worktrees")
+	if existing := worktreeOnBranch(repoRoot, branchName); existing != "" {
+		// Only reuse worktrees we manage. The branch may be checked out at the
+		// main repo path or some external worktree — silently running yolo
+		// against either of those would bypass isolation.
+		if isUnderDir(existing, managedRoot) {
+			return existing, false, nil
+		}
+		return "", false, fmt.Errorf(
+			"branch %s is already checked out at %s (outside %s); "+
+				"switch or remove that checkout before re-running",
+			branchName, existing, managedRoot)
+	}
+
 	if err := os.MkdirAll(filepath.Dir(worktreePath), 0755); err != nil {
-		return "", fmt.Errorf("could not create worktrees directory: %w", err)
+		return "", false, fmt.Errorf("could not create worktrees directory: %w", err)
 	}
 
-	cmd := exec.Command("git", "-C", repoRoot, "worktree", "add", worktreePath, "-b", branchName)
+	branchExists := exec.Command("git", "-C", repoRoot, "rev-parse", "--verify", "refs/heads/"+branchName).Run() == nil
+
+	var cmd *exec.Cmd
+	if branchExists {
+		// Attach to existing branch — omit -b so git does not try to create it.
+		cmd = exec.Command("git", "-C", repoRoot, "worktree", "add", worktreePath, branchName)
+	} else {
+		cmd = exec.Command("git", "-C", repoRoot, "worktree", "add", worktreePath, "-b", branchName)
+	}
 	if out, err := cmd.CombinedOutput(); err != nil {
-		return "", fmt.Errorf("git worktree add failed: %w\n%s", err, out)
+		return "", false, fmt.Errorf("git worktree add failed: %w\n%s", err, out)
 	}
+	return worktreePath, true, nil
+}
 
-	fmt.Fprintf(w, "  Worktree: %s (branch: %s)\n", worktreePath, branchName)
-	excludeHtmlgraphFromWorktree(worktreePath, w)
-	reindexWorktree(worktreePath, w)
+// isUnderDir reports whether path is the same as, or nested under, dir.
+// Both paths are resolved to absolute form before comparison so callers can
+// pass repo-relative inputs from `git worktree list --porcelain` without
+// worrying about format differences.
+func isUnderDir(path, dir string) bool {
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return false
+	}
+	absDir, err := filepath.Abs(dir)
+	if err != nil {
+		return false
+	}
+	rel, err := filepath.Rel(absDir, absPath)
+	if err != nil {
+		return false
+	}
+	return rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
+}
 
-	return worktreePath, nil
+// worktreeOnBranch returns the path of the worktree currently checked out on
+// branchName per `git worktree list --porcelain`, or "" when no worktree is on
+// that branch. The porcelain format is more authoritative than scanning a
+// directory because it reflects worktrees registered anywhere in the repo and
+// stays accurate after `git worktree prune`. Callers must filter the result
+// against an expected parent directory before reusing — the helper itself
+// does not constrain location.
+func worktreeOnBranch(repoRoot, branchName string) string {
+	out, err := exec.Command("git", "-C", repoRoot, "worktree", "list", "--porcelain").Output()
+	if err != nil {
+		return ""
+	}
+	var path string
+	fullRef := "refs/heads/" + branchName
+	for line := range strings.SplitSeq(string(out), "\n") {
+		switch {
+		case strings.HasPrefix(line, "worktree "):
+			path = strings.TrimPrefix(line, "worktree ")
+		case strings.HasPrefix(line, "branch "):
+			if strings.TrimPrefix(line, "branch ") == fullRef {
+				return path
+			}
+		case line == "":
+			path = ""
+		}
+	}
+	return ""
 }
 
 // findExistingWorktreeForBranch scans the worktrees directory under repoRoot for any

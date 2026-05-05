@@ -64,7 +64,7 @@ func proxyHandler(sup *childproc.Supervisor) http.HandlerFunc {
 			return
 		}
 
-		reg, err := registry.Load(registry.DefaultPath())
+		reg, err := registry.Load(defaultRegistryPath())
 		if err != nil {
 			http.Error(w, "load registry: "+err.Error(), http.StatusInternalServerError)
 			return
@@ -115,7 +115,7 @@ func autoDetectCurrentProject() *registry.Entry {
 	projectRoot := filepath.Dir(htmlgraphDir)
 	id := registry.ComputeID(projectRoot)
 
-	regPath := registry.DefaultPath()
+	regPath := defaultRegistryPath()
 	reg, _ := registry.Load(regPath)
 	for _, e := range reg.List() {
 		if e.ID == id {
@@ -155,6 +155,30 @@ func runParentServer(bind string, port int) error {
 	go sup.RunIdleReaper(reaperCtx)
 
 	mux := buildParentMux(sup)
+
+	// One-time startup prune: self-heal a corrupted registry by removing
+	// entries whose .htmlgraph/ directory no longer exists, then save.
+	// This runs once at server startup so stale entries from previous test
+	// runs or deleted projects don't accumulate indefinitely. Best-effort:
+	// errors are silently ignored so a broken registry never blocks startup.
+	//
+	// Save is triggered when EITHER:
+	//   - Prune removed entries (the registry on disk is now stale), OR
+	//   - Load resolved this Registry via the legacy-path fallback
+	//     (MigrationPending) and we still need to materialise it into the
+	//     canonical XDG path. Without the second arm, a clean legacy ->
+	//     canonical migration with no stale entries never writes the
+	//     canonical file at startup (review #55 F4).
+	//
+	// Uses defaultRegistryPath (the package-level indirection used by every
+	// other registry caller in this binary) so tests can stub the path
+	// once and have all subcommands plus this startup hook agree.
+	if reg, err := registry.Load(defaultRegistryPath()); err == nil {
+		pruned := reg.Prune()
+		if len(pruned) > 0 || reg.MigrationPending() {
+			_ = reg.Save()
+		}
+	}
 
 	addr := fmt.Sprintf("%s:%d", bind, port)
 

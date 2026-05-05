@@ -1,0 +1,1024 @@
+{
+  "generated_at": "2026-05-01T11:58:55.043861513Z",
+  "rules_path": "docs/track-attribution-rules.yaml",
+  "htmlgraph_tool": "migrate-tracks",
+  "decisions": [
+    {
+      "feature_id": "feat-22687d70",
+      "current_track": "trk-cd61bbae",
+      "proposed_track": "trk-be293476",
+      "dominant_share": 0.14285714285714285,
+      "file_count": 7,
+      "ambiguous": true,
+      "reason": "ambiguous"
+    },
+    {
+      "feature_id": "feat-2377191e",
+      "current_track": "trk-c4615ad2",
+      "proposed_track": "trk-be293476",
+      "dominant_share": 0.2857142857142857,
+      "file_count": 7,
+      "ambiguous": true,
+      "reason": "ambiguous"
+    },
+    {
+      "feature_id": "feat-655d386e",
+      "current_track": "trk-cd61bbae",
+      "proposed_track": "trk-be293476",
+      "dominant_share": 0.3333333333333333,
+      "file_count": 6,
+      "ambiguous": true,
+      "reason": "ambiguous"
+    },
+    {
+      "feature_id": "feat-775af56d",
+      "current_track": "trk-cd61bbae",
+      "proposed_track": "trk-be293476",
+      "dominant_share": 0.16666666666666666,
+      "file_count": 6,
+      "ambiguous": true,
+      "reason": "ambiguous"
+    },
+    {
+      "feature_id": "feat-9b767422",
+      "current_track": "trk-0677c709",
+      "proposed_track": "trk-be293476",
+      "dominant_share": 0.1,
+      "file_count": 10,
+      "ambiguous": true,
+      "reason": "ambiguous"
+    },
+    {
+      "feature_id": "feat-e1efb972",
+      "current_track": "trk-c4615ad2",
+      "proposed_track": "trk-2c83a1e2",
+      "dominant_share": 0.06818181818181818,
+      "file_count": 44,
+      "ambiguous": true,
+      "reason": "ambiguous"
+    },
+    {
+      "feature_id": "feat-03d28fc3",
+      "current_track": "trk-97f85b3b",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-03deaa60",
+      "current_track": "trk-c4615ad2",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-0fe674d9",
+      "current_track": "trk-c4615ad2",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-14eb64d5",
+      "current_track": "trk-c4615ad2",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-17ed3fd7",
+      "current_track": "trk-c4615ad2",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-19396f85",
+      "current_track": "trk-a30e8df4",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-23005b2c",
+      "current_track": "trk-cd61bbae",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 6,
+      "ambiguous": false,
+      "reason": "no-match"
+    },
+    {
+      "feature_id": "feat-26b8a5db",
+      "current_track": "trk-c4615ad2",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-277ed3a8",
+      "current_track": "trk-cd61bbae",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-289752a6",
+      "current_track": "trk-a30e8df4",
+      "proposed_track": "trk-a30e8df4",
+      "dominant_share": 0.6666666666666666,
+      "file_count": 12,
+      "ambiguous": false,
+      "reason": "no-change"
+    },
+    {
+      "feature_id": "feat-28b62b51",
+      "current_track": "trk-c4615ad2",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-292f87fe",
+      "current_track": "trk-c4615ad2",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-2b146a86",
+      "current_track": "trk-0677c709",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-31dcb795",
+      "current_track": "",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-33807582",
+      "current_track": "trk-a30e8df4",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-352a635e",
+      "current_track": "trk-a30e8df4",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-358ffa4f",
+      "current_track": "trk-0677c709",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-36d7c985",
+      "current_track": "trk-0677c709",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-378817e2",
+      "current_track": "trk-c4615ad2",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-3a65c5ca",
+      "current_track": "trk-c4615ad2",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 11,
+      "ambiguous": false,
+      "reason": "no-match"
+    },
+    {
+      "feature_id": "feat-3b690959",
+      "current_track": "trk-cb36e595",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-421eca05",
+      "current_track": "trk-0677c709",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-44c9120d",
+      "current_track": "trk-83603ac7",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-44d8c24f",
+      "current_track": "trk-a30e8df4",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-4ae13f3c",
+      "current_track": "trk-0677c709",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-4b4be3ec",
+      "current_track": "trk-c4615ad2",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 2,
+      "ambiguous": false,
+      "reason": "no-match"
+    },
+    {
+      "feature_id": "feat-4d3a2b5d",
+      "current_track": "trk-c4615ad2",
+      "proposed_track": "trk-be293476",
+      "dominant_share": 0.6,
+      "file_count": 5,
+      "ambiguous": false,
+      "reason": "confident"
+    },
+    {
+      "feature_id": "feat-4e802333",
+      "current_track": "",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-500da04c",
+      "current_track": "trk-2c55adea",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 3,
+      "ambiguous": false,
+      "reason": "no-match"
+    },
+    {
+      "feature_id": "feat-5085f38a",
+      "current_track": "trk-0677c709",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-5143700e",
+      "current_track": "",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-5144acc8",
+      "current_track": "trk-c4615ad2",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-52d15f78",
+      "current_track": "",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 19,
+      "ambiguous": false,
+      "reason": "no-match"
+    },
+    {
+      "feature_id": "feat-56aa1d48",
+      "current_track": "trk-c4615ad2",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 13,
+      "ambiguous": false,
+      "reason": "no-match"
+    },
+    {
+      "feature_id": "feat-56cddb0f",
+      "current_track": "trk-c4615ad2",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-5754c168",
+      "current_track": "trk-97f85b3b",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-57d35c02",
+      "current_track": "trk-a30e8df4",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-58214d69",
+      "current_track": "trk-d8aef97a",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-58e5975f",
+      "current_track": "trk-a30e8df4",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-5e32f20a",
+      "current_track": "trk-cb36e595",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-5e715785",
+      "current_track": "trk-2c3cbe63",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-605aaaac",
+      "current_track": "trk-c4615ad2",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-65432141",
+      "current_track": "trk-c4615ad2",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-69c6a463",
+      "current_track": "trk-08dcbb33",
+      "proposed_track": "trk-08dcbb33",
+      "dominant_share": 0.6666666666666666,
+      "file_count": 6,
+      "ambiguous": false,
+      "reason": "no-change"
+    },
+    {
+      "feature_id": "feat-69e27f1a",
+      "current_track": "trk-cd61bbae",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 4,
+      "ambiguous": false,
+      "reason": "no-match"
+    },
+    {
+      "feature_id": "feat-6c0bbfcf",
+      "current_track": "trk-0677c709",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-6dbc7112",
+      "current_track": "trk-a30e8df4",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-6fcd1d04",
+      "current_track": "trk-cd61bbae",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-71c86472",
+      "current_track": "",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-7837411f",
+      "current_track": "trk-c4615ad2",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-79d030c4",
+      "current_track": "",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-79f99a81",
+      "current_track": "trk-c4615ad2",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-79fd74ba",
+      "current_track": "trk-cb36e595",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-7aade9d4",
+      "current_track": "trk-c4615ad2",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-7af2dda7",
+      "current_track": "trk-08dcbb33",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-7e313ad6",
+      "current_track": "trk-0677c709",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-7f1ac9a4",
+      "current_track": "trk-08dcbb33",
+      "proposed_track": "trk-08dcbb33",
+      "dominant_share": 0.6666666666666666,
+      "file_count": 6,
+      "ambiguous": false,
+      "reason": "no-change"
+    },
+    {
+      "feature_id": "feat-81e6f866",
+      "current_track": "trk-97f85b3b",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-82e11bbb",
+      "current_track": "trk-08dcbb33",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 5,
+      "ambiguous": false,
+      "reason": "no-match"
+    },
+    {
+      "feature_id": "feat-8b09179e",
+      "current_track": "trk-83603ac7",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-90af35a0",
+      "current_track": "trk-cb36e595",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-95f22f89",
+      "current_track": "trk-2c3cbe63",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-9772ba80",
+      "current_track": "trk-c4615ad2",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-97d48e5c",
+      "current_track": "trk-2c3cbe63",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-985a9e01",
+      "current_track": "trk-0677c709",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-a51649b2",
+      "current_track": "trk-97f85b3b",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-a56428d0",
+      "current_track": "trk-cd61bbae",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 5,
+      "ambiguous": false,
+      "reason": "no-match"
+    },
+    {
+      "feature_id": "feat-ad358044",
+      "current_track": "",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-ad78f52b",
+      "current_track": "trk-cd61bbae",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 4,
+      "ambiguous": false,
+      "reason": "no-match"
+    },
+    {
+      "feature_id": "feat-af47836b",
+      "current_track": "trk-97f85b3b",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-afbb4dc9",
+      "current_track": "trk-c4615ad2",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-b16ab0e9",
+      "current_track": "trk-cb36e595",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-b4aea251",
+      "current_track": "trk-cd61bbae",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 2,
+      "ambiguous": false,
+      "reason": "no-match"
+    },
+    {
+      "feature_id": "feat-b4fa54ff",
+      "current_track": "trk-83603ac7",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-b5df4f85",
+      "current_track": "trk-0677c709",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-b637726b",
+      "current_track": "trk-97f85b3b",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-b6479241",
+      "current_track": "trk-c4615ad2",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-b6ee6c5d",
+      "current_track": "trk-0677c709",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-bb06e3f6",
+      "current_track": "",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-bb59f158",
+      "current_track": "trk-43648254",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-be0a57b7",
+      "current_track": "trk-0677c709",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 1,
+      "ambiguous": false,
+      "reason": "no-match"
+    },
+    {
+      "feature_id": "feat-c3f2f36f",
+      "current_track": "trk-83603ac7",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-c57c9b9c",
+      "current_track": "trk-0677c709",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-c87a1fd8",
+      "current_track": "trk-c4615ad2",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-cff8914a",
+      "current_track": "trk-2c3cbe63",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-d1f3b2a6",
+      "current_track": "trk-c4615ad2",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-d9c66e16",
+      "current_track": "trk-08dcbb33",
+      "proposed_track": "trk-08dcbb33",
+      "dominant_share": 0.6666666666666666,
+      "file_count": 6,
+      "ambiguous": false,
+      "reason": "no-change"
+    },
+    {
+      "feature_id": "feat-dcf6827f",
+      "current_track": "trk-97f85b3b",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-de257710",
+      "current_track": "trk-0677c709",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-e0553d90",
+      "current_track": "trk-d8aef97a",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-e25b40a0",
+      "current_track": "trk-c4615ad2",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-e2b6f964",
+      "current_track": "",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 9,
+      "ambiguous": false,
+      "reason": "no-match"
+    },
+    {
+      "feature_id": "feat-e505e51c",
+      "current_track": "trk-0677c709",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-e69b4c92",
+      "current_track": "trk-cd61bbae",
+      "proposed_track": "trk-be293476",
+      "dominant_share": 1,
+      "file_count": 8,
+      "ambiguous": false,
+      "reason": "confident"
+    },
+    {
+      "feature_id": "feat-e6b599dd",
+      "current_track": "trk-97f85b3b",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-e6db3d1a",
+      "current_track": "trk-cb36e595",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-e7f95366",
+      "current_track": "trk-83603ac7",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-ebefd886",
+      "current_track": "trk-c4615ad2",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-ec81c370",
+      "current_track": "trk-0677c709",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-ed1a1f2c",
+      "current_track": "trk-c4615ad2",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 7,
+      "ambiguous": false,
+      "reason": "no-match"
+    },
+    {
+      "feature_id": "feat-ee2db473",
+      "current_track": "trk-cb36e595",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-eeb3d7ad",
+      "current_track": "trk-2c3cbe63",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-f08eac55",
+      "current_track": "trk-cd61bbae",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-f0f893a3",
+      "current_track": "trk-c4615ad2",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 2,
+      "ambiguous": false,
+      "reason": "no-match"
+    },
+    {
+      "feature_id": "feat-f18d5c35",
+      "current_track": "trk-a30e8df4",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-f2ffa24b",
+      "current_track": "trk-0677c709",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 0,
+      "ambiguous": false,
+      "reason": "no-attribution"
+    },
+    {
+      "feature_id": "feat-fb9ecfe6",
+      "current_track": "trk-cd61bbae",
+      "proposed_track": "",
+      "dominant_share": 0,
+      "file_count": 3,
+      "ambiguous": false,
+      "reason": "no-match"
+    }
+  ]
+}

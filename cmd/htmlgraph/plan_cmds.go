@@ -67,6 +67,8 @@ func planCmdWithExtras() *cobra.Command {
 	cmd.AddCommand(planSetSliceStatusCmd())
 	// slice-5: incremental slice promotion
 	cmd.AddCommand(planPromoteSliceCmd())
+	// CRISPI: cross-harness decisions elicitation (feat-0fd7c8bc)
+	cmd.AddCommand(planElicitDecisionsCmd())
 	return cmd
 }
 

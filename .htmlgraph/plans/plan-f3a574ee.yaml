@@ -1,0 +1,177 @@
+meta:
+    id: plan-f3a574ee
+    track_id: trk-2c55adea
+    title: 'v1 HTML schema: corpus audit, spec, fixtures (Phase 1)'
+    description: |
+        Sub-plan of plan-3bbc313f — Phase 1 schema authoring. Audit the existing 577 HTML files, freeze the v1 vocabulary at https://htmlgraph.dev/v1/, ship Go types + validator + fixtures. The schema URL becomes a permanent public contract once committed; this child is design-heavy and should be reviewed for vocabulary completeness.
+    created_at: "2026-05-01"
+    status: draft
+    created_by: claude-opus
+    version: 2
+design:
+    problem: |
+        The HTML schema URL `https://htmlgraph.dev/v1/` becomes a permanent public contract once committed into 577 existing HTML files. Today those files use ad-hoc `data-*` attributes; without a corpus audit the v1 vocabulary will miss real fields and force a v2 migration soon after launch. Author the v1 schema as the architectural commitment everything else depends on.
+    goals:
+        - Inventory every distinct `data-*` attribute, edge relationship, meta name, and timestamp format actually present in `.htmlgraph/`.
+        - Freeze v1 vocabulary covering EVERY observed field — no surprise that forces v2.
+        - Ship Go types (`internal/schema/v1.go`) with `BodyPassthrough` per type, plus a validator and positive/negative fixtures.
+    constraints:
+        - Schema URL frozen at `https://htmlgraph.dev/v1/` (pending the open question on subdomain vs apex).
+        - BodyPassthrough must round-trip arbitrary inner HTML byte-for-byte.
+        - Validator returns specific errors for known-bad cases — no generic 'invalid HTML' messages.
+    approved: false
+    comment: ""
+slices:
+    - id: slice-1
+      num: 1
+      title: Phase 1c — Audit existing HTML corpus to inform v1 vocabulary
+      what: |
+        Before the v1 schema is frozen, scan all 577 existing
+        `.htmlgraph/{features,bugs,spikes,plans,tracks,sessions}/*.html`
+        files and enumerate every distinct `data-*` attribute name, value
+        type, and edge relationship in actual use today. Produce
+        `docs/schema/v0-inventory.md` listing:
+        - Per-type: every `data-*` attribute name, distinct values seen,
+          and rough frequency.
+        - Every distinct `<a data-relationship="...">` value (the live
+          edge vocabulary).
+        - Every distinct `<meta name="...">` already present in heads.
+        - Every observed timestamp format (so v1's `<time datetime>` covers
+          them all).
+        - Hand-edited body content patterns (so the `BodyPassthrough`
+          field on `schema.v1.<Type>` covers actual usage).
+
+        Implement as `cmd/htmlgraph/audit_v0.go` — a one-shot CLI command
+        that walks the corpus, parses with goquery, aggregates, and emits
+        the markdown report.
+      why: |
+        The schema URL `https://htmlgraph.dev/v1/` becomes a permanent
+        public contract once committed into 577 HTML files. A single missed
+        attribute forces a v2 migration. Slice-3 (schema spec) MUST consume
+        this inventory before freezing; that's why slice-3 deps on slice-12.
+      files:
+        - cmd/htmlgraph/audit_v0.go
+        - cmd/htmlgraph/audit_v0_test.go
+        - docs/schema/v0-inventory.md
+        - internal/audit/scan.go
+        - internal/audit/scan_test.go
+      deps: []
+      done_when:
+        - '`htmlgraph audit-v0` runs on the working repo''s `.htmlgraph/` and produces `docs/schema/v0-inventory.md`.'
+        - Inventory enumerates ≥10 distinct `data-*` attributes, ≥5 edge relationship types, ≥3 timestamp formats, and any meta-name primitives in use.
+        - A reviewer (human or agent) can read the inventory and produce the v1 vocabulary list without consulting the source code.
+      effort: M
+      risk: Low
+      tests: |
+        Unit: TestScan_AggregatesAttributes — synthetic corpus, expected attribute frequencies match.
+        Unit: TestScan_EmitsMarkdown — fixture corpus → markdown output matches recorded golden.
+        Integration: TestAuditV0_RealCorpus — runs against `.htmlgraph/` in CI; output count > thresholds.
+      approved: false
+      comment: ""
+      approval_status: pending
+      execution_status: not_started
+    - id: slice-2
+      num: 2
+      title: Phase 1a — Author schema v1 spec, Go types, and validator
+      what: |
+        Consume the v0 vocabulary inventory produced by slice-12. Write
+        `docs/schema/v1.md` defining the `https://htmlgraph.dev/v1/`
+        vocabulary: types (Feature, Bug, Spike, Plan, Track, Session, Commit,
+        OtelSpan, AgentEvent), universal properties covering EVERY data-*
+        attribute observed in the live corpus (so no surprise field forces
+        a v2 migration), and the link-rel relationship vocabulary mapped
+        from existing `data-relationship` values (depends-on, blocked-by,
+        caused-by, contained-in, part-of, references, supersedes,
+        produced-by-session, produced-commit, plus any others surfaced by
+        the audit). Implement `internal/schema/v1.go` with Go structs
+        matching the JSON-LD shape (`@context`, `@type`, `@id` + properties)
+        and an explicit `BodyPassthrough string` field on each type to
+        preserve hand-edited body content verbatim across re-renders.
+        Implement `internal/schema/validate.go` — given an `io.Reader`
+        over an HTML file, verify presence and consistency of `<script
+        type="application/ld+json">`, `<meta name="htmlgraph:*">`,
+        `<link rel="...">`, and `<time datetime="...">` against the schema.
+      why: |
+        Establishes the public contract everything else depends on. The schema
+        is the new architectural commitment; nothing else can land safely
+        until it's frozen. Acts as both human documentation and a parser
+        contract for tools (CLI, dashboard, external `hq`/`jq` users).
+      files:
+        - docs/schema/v1.md
+        - internal/schema/v1.go
+        - internal/schema/validate.go
+        - internal/schema/validate_test.go
+      deps:
+        - 1
+      done_when:
+        - '`docs/schema/v1.md` exists, defines all listed types and properties, and lists the `<link rel>` vocabulary derived from the slice-12 v0 inventory.'
+        - '`internal/schema/v1.Feature`, `.Bug`, `.Spike`, `.Plan`, `.Track`, `.Session` Go structs round-trip via `encoding/json` matching the spec, INCLUDING a `BodyPassthrough` field per type.'
+        - Every distinct `data-*` attribute and edge type from the v0 inventory has a corresponding mapped property in v1 (no schema gap).
+        - '`internal/schema/Validate(r) error` returns nil for a hand-authored valid example, returns specific errors (missing field, wrong type) for known-bad cases.'
+      effort: M
+      risk: Med
+      tests: |
+        Unit: TestValidate_GoldenFeature — read a fixture under testdata/v1/, assert nil error.
+        Unit: TestValidate_MissingTypes — for each mandatory field, verify a clear error message.
+        Unit: TestRoundTrip — marshal → unmarshal → equality for each type.
+      approved: false
+      comment: ""
+      approval_status: pending
+      execution_status: not_started
+      critic_revisions:
+        - source: sonnet-coder
+          severity: HIGH
+          summary: 'Schema URL becomes a permanent public contract once committed into the 577 existing HTML files. Fixtures alone are insufficient validation — must enumerate every distinct data-* attribute, edge type, and status value actually in use across `.htmlgraph/**/*.html` BEFORE freezing v1, otherwise a surprise field forces a v2 migration. Suggest a prerequisite slice: ''Audit existing HTML corpus to inform v1 vocabulary''.'
+    - id: slice-3
+      num: 3
+      title: Phase 1b — Schema test fixtures (positive and negative)
+      what: |
+        Author `internal/schema/testdata/v1/` containing one positive fixture
+        per top-level type and at least three negative fixtures (missing
+        required field, conflicting JSON-LD vs. meta-name status, malformed
+        datetime). These fixtures are the canonical examples that downstream
+        slices' tests target. Include a `README.md` in the testdata dir
+        explaining the fixture layout and how new types are added.
+      why: |
+        Without fixtures the validator from slice-3 has no real-world
+        coverage. Fixtures also act as documentation by example for anyone
+        writing migration code in slices 5-6, and as the regression bar
+        for Phase 2 templater changes.
+      files:
+        - internal/schema/testdata/v1/feature_valid.html
+        - internal/schema/testdata/v1/bug_valid.html
+        - internal/schema/testdata/v1/track_valid.html
+        - internal/schema/testdata/v1/session_valid.html
+        - internal/schema/testdata/v1/feature_missing_status.html
+        - internal/schema/testdata/v1/feature_jsonld_meta_mismatch.html
+        - internal/schema/testdata/v1/feature_malformed_datetime.html
+        - internal/schema/testdata/v1/README.md
+      deps:
+        - 2
+      done_when:
+        - Each positive fixture passes `internal/schema.Validate` with nil error.
+        - Each negative fixture fails `Validate` with a specific, non-generic error referencing the broken field.
+        - Fixture README documents file naming and how to extend with new types.
+      effort: S
+      risk: Low
+      tests: |
+        Unit: TestFixtures_AllPositiveValidate — table-driven over every *_valid.html file.
+        Unit: TestFixtures_AllNegativeFail — table-driven over every other file, asserting expected error substring.
+      approved: false
+      comment: ""
+      approval_status: pending
+      execution_status: not_started
+questions:
+    - id: q-vocab-url
+      text: Should the schema vocabulary URL be `https://htmlgraph.dev/v1/` or something namespaced (e.g. `https://schema.htmlgraph.dev/v1/` or a github.io URL)?
+      description: |
+        The vocabulary URL becomes a public contract. Using the bare domain keeps it short and brand-aligned but reserves the path for future expansion. A subdomain leaves the apex free for marketing. A github.io URL avoids any DNS commitment but ties the schema to hosting choices.
+      recommended: bare-domain
+      options:
+        - key: bare-domain
+          label: 'A: `https://htmlgraph.dev/v1/` — short, brand-aligned, reserves path for expansion'
+        - key: subdomain
+          label: 'B: `https://schema.htmlgraph.dev/v1/` — explicit namespace, leaves apex free'
+        - key: github-io
+          label: 'C: `https://shakestzd.github.io/htmlgraph/schema/v1/` — no DNS commitment'
+      answer: null

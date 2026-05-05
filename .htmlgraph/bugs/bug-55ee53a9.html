@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Port 8088 default leaks to production; should be devcontainer-only</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-55ee53a9"
+             data-type="bug"
+             data-status="todo"
+             data-priority="high"
+             data-created="2026-05-04T16:46:05.860541"
+             data-updated="2026-05-04T16:46:05.867754" data-agent-assigned="claude-code" data-track-id="trk-cb36e595">
+
+        <header>
+            <h1>Port 8088 default leaks to production; should be devcontainer-only</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-cb36e595.html" data-relationship="part_of" data-since="2026-05-04T16:46:05.867571">trk-cb36e595</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Port 8088 was intended as a devcontainer-specific dashboard port (per the project memory note), but is being applied as the default in production builds too. The cobra default for 'htmlgraph serve' is 8080 — somewhere a 8088 default or fallback has slipped into a path that runs in non-dev environments. Production users should see 8080 (cobra default) unless they explicitly pass --port. Investigation: grep for '8088' across cmd/ and internal/ outside of test fixtures and devcontainer docs; identify the leak point.</p>
+        </section>
+    </article>
+</body>
+</html>

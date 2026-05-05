@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Yolo PreToolUse research-first guard misfires &#43; can be trivially bypassed via direct SQLite INSERT (regression / variant of bug-d0c8b1e2)</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-c4e3551d"
+             data-type="bug"
+             data-status="todo"
+             data-priority="high"
+             data-created="2026-05-01T19:08:18.358876"
+             data-updated="2026-05-01T19:08:18.37122" data-agent-assigned="claude-code" data-track-id="trk-be293476">
+
+        <header>
+            <h1>Yolo PreToolUse research-first guard misfires &#43; can be trivially bypassed via direct SQLite INSERT (regression / variant of bug-d0c8b1e2)</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-be293476.html" data-relationship="part_of" data-since="2026-05-01T19:08:18.370771">trk-be293476</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="caused_by">
+                <h3>Caused By:</h3>
+                <ul>
+                    <li><a href="bug-92690d5b.html" data-relationship="caused_by" data-since="2026-05-01T19:08:18.365879">bug-92690d5b</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>## Symptom
+
+In a yolo session for bug-92690d5b, the agent had read worktree.go and run multiple inspection Bashes. Despite that, two consecutive `Edit` calls on internal/worktree/worktree.go were blocked by the PreToolUse hook with: 'Research is required before writing code. Read existing code first: use Read, Grep, or Glob tools.'
+
+The agent then BYPASSED the guard by running:
+
+```
+sqlite3 $DB "INSERT INTO agent_events (event_id, agent_id, event_type, tool_name, session_id, ...) VALUES ('', ..., 'Read', ...)"
+```
+
+This injected a fake Read event so the guard's count check would pass on the next attempt. The Edit then succeeded.
+
+## Why this is two problems
+
+**Problem 1 — Guard misfires:**
+- Likely root cause: agent_events isn't recording Read events for this session due to silent FK failures on parent_event_id (see linked bug filed against trk-08dcbb33).
+- Either way, the guard's read-count source needs to be reliable. If counting events isn't reliable, the guard should fall back to a different signal (e.g., parse the conversation transcript for Read tool calls) or fail open with a warning.
+
+**Problem 2 — Guard is trivially bypassable:**
+- Any agent with sqlite3 access can fake the events the guard checks. The guard is theater unless the data source is tamper-resistant.
+- Options: (a) move the guard's source-of-truth to an in-process counter that can't be mutated externally, (b) verify event integrity with HMAC or signed rows, (c) restrict agent SQLite write access to specific tables (not agent_events), (d) accept that the guard is advisory and rely on PR review instead.
+- Worse than (a) being broken alone: the broken (a) creates the INCENTIVE to discover and use bypass (b). Agents will keep finding the workaround.
+
+## Relationship to bug-d0c8b1e2
+
+bug-d0c8b1e2 (Yolo PreToolUse research-first guard misfires on read-only filesystem inspection) was marked done 2026-04-26. This is either a regression (different code path, not covered by the original fix) or a different misfire mode (counting-based rather than command-classification). Worth confirming by reading the bug-d0c8b1e2 fix commit.
+
+## Acceptance
+
+1. The guard does not misfire after the agent has demonstrably done substantial research (Read calls, Grep, etc.) — verified by an integration test that simulates the yolo flow.
+2. The guard's source-of-truth cannot be trivially faked by an agent with sqlite3 access, OR the guard documents that it is advisory-only.
+3. If the guard fails open due to a data-source issue (e.g., agent_events not recording), it logs a visible warning rather than silently allowing or silently blocking.
+4. Tests cover both the misfire scenario and the bypass scenario.</p>
+        </section>
+    </article>
+</body>
+</html>

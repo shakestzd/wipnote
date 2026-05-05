@@ -1,0 +1,375 @@
+meta:
+    id: plan-c46c2a5a
+    track_id: trk-2c55adea
+    title: Migrate every SQLite consumer to HTML+NDJSON (Phase 3)
+    description: |
+        Sub-plan of plan-3bbc313f — Phase 3 consumer migration. Five parallel migrations of disjoint SQLite-using subsystems: CLI commands, htmlgraph query subcommand, dashboard API endpoints, hook event persistence, and internal/{graph,agent,planchat,registry}. All converge on the build-tag stub that proves SQLite isn't required.
+    created_at: "2026-05-01"
+    status: draft
+    created_by: claude-opus
+    version: 2
+design:
+    problem: |
+        ~110 Go files import `database/sql` across CLI commands, dashboard endpoints, hook handlers, and four internal packages (`graph`, `agent`, `planchat`, `registry`). Until every consumer reads from HTML or NDJSON instead of SQLite, the driver cannot be deleted. The five migrations in this sub-plan are largely independent and can land in any order; the build-tag stub introduced in slice-1 provides the compile-time guarantee that proves convergence.
+    goals:
+        - '`go build -tags sqlite_disabled ./...` succeeds; `go tool nm` shows zero `database/sql` symbols in the binary.'
+        - Every CLI command, dashboard endpoint, hook handler, and internal package reads canonical sources (HTML + NDJSON + git) instead of SQLite.
+        - Activity feed reads hook events and OTEL spans from the same NDJSON sink — they cannot diverge.
+    constraints:
+        - Every migrated CLI command and dashboard endpoint is byte-identical or semantic-equivalent to its SQLite-backed predecessor on a representative fixture.
+        - '`?legacy=1` query param preserved on dashboard endpoints during this sub-plan for parity comparison; removed in Child E.'
+        - Build-tag stub is the binding contract — runtime flags are insufficient for transitive `sql.Open` calls.
+    approved: false
+    comment: ""
+slices:
+    - id: slice-1
+      num: 1
+      title: Phase 3b — Migrate SQLite-using CLI commands; introduce `sqlite_disabled` build tag stub
+      what: |
+        Rewrite the SQLite-dependent CLI command read paths to use HTML +
+        NDJSON + git directly:
+        (1) `trace`: scan commits via `git log` + path-filter; read
+        produced-by-session and produced-commit `<link rel>` edges from
+        work-item heads.
+        (2) `lineage`, `lineage_tree`: BFS over work-item heads using
+        `htmlparse.ParseLinks`; resolve neighbor IDs via href basenames.
+        (3) `session list/show`: scan `.htmlgraph/sessions/*.html` head metas
+        and per-session NDJSON; sort by `htmlgraph:created`.
+        (4) `status`: drop `dbpkg.CommitAttributionRate`; recompute on demand.
+        (5) `statusline`: drop SQL queries; read from work-item HTML.
+        (6) `track`, `claim`, `projects`: migrate to HTML+NDJSON.
+        (7) `hook`, `hook_exit_plan_mode`, `backfill_ai_title`,
+        `check_cross_project`: migrate the user-side hook handlers
+        (the deeper hook-event-persistence migration is slice-15).
+
+        Introduce the build-tag enforcement: a new file
+        `internal/db/disabled_stub.go` with `//go:build sqlite_disabled`
+        that re-exports the `internal/db` API surface as functions that
+        return a sentinel error. The matching `internal/db/enabled.go`
+        with `//go:build !sqlite_disabled` keeps current behavior. CI
+        builds the binary with `-tags sqlite_disabled` and asserts the full
+        CLI command matrix passes; this is the binding compile-time contract
+        that proves SQLite isn't required.
+      why: |
+        These commands are the SQLite-dependent CLI paths uncovered by the
+        `database/sql` import audit. Moving them off SQLite is most of the
+        work that lets Phase 4 delete the dependency. The build-tag stub
+        replaces the original "--block-sqlite" runtime flag (which the
+        critic correctly noted cannot intercept transitive opens) and
+        gives a compile-time guarantee instead.
+      files:
+        - cmd/htmlgraph/trace.go
+        - cmd/htmlgraph/lineage.go
+        - cmd/htmlgraph/lineage_tree.go
+        - cmd/htmlgraph/session.go
+        - cmd/htmlgraph/status.go
+        - cmd/htmlgraph/statusline.go
+        - cmd/htmlgraph/track.go
+        - cmd/htmlgraph/claim.go
+        - cmd/htmlgraph/projects.go
+        - cmd/htmlgraph/hook.go
+        - cmd/htmlgraph/hook_exit_plan_mode.go
+        - cmd/htmlgraph/backfill_ai_title.go
+        - cmd/htmlgraph/check_cross_project.go
+        - cmd/htmlgraph/trace_test.go
+        - cmd/htmlgraph/lineage_test.go
+        - internal/db/disabled_stub.go
+        - internal/db/enabled.go
+        - .github/workflows/ci.yml
+      deps: []
+      done_when:
+        - '`go build -tags sqlite_disabled ./...` succeeds with zero `database/sql` references in the resulting binary symbols (verified via `go tool nm`).'
+        - Full CLI test suite passes when run with `-tags sqlite_disabled`.
+        - Each migrated command's output is byte-identical (or semantic-equivalent, documented) to the SQLite-backed version on a representative fixture project.
+        - CI runs `go test -tags sqlite_disabled ./...` as a job in addition to the default build (slice-14 enables this).
+      effort: L
+      risk: High
+      tests: |
+        Unit: TestTrace_NoSQL — sample fixture project, compare output to recorded golden.
+        Unit: TestLineage_NoSQL — fixture with 3-deep edges, BFS produces correct order.
+        Unit: TestSessionList_NoSQL — sessions sorted by created, no DB open.
+        Integration: TestCLI_BuildTagDisabled — every CLI command in the matrix runs successfully under `-tags sqlite_disabled`.
+        Regression: existing trace/lineage/session-list tests still pass under the default build.
+      approved: false
+      comment: ""
+      approval_status: pending
+      execution_status: not_started
+      critic_revisions:
+        - source: researcher
+          severity: HIGH
+          summary: api_graph.go, api_timeline.go, api_ingest.go, and api_feature_activity.go also import database/sql but are not in slice-8's file list. They will break when slice-11 deletes the driver. Either extend slice-8 or add a dedicated migration slice.
+        - source: researcher
+          severity: HIGH
+          summary: SQLite driver is `modernc.org/sqlite` (pure-Go, CGO-free), not `mattn/go-sqlite3`. Done_when checks that grep for mattn will pass vacuously without proving anything. Update assertions to check for modernc.org/sqlite in go.mod and go.sum.
+        - source: sonnet-coder
+          severity: HIGH
+          summary: --block-sqlite as a runtime flag cannot intercept transitive sql.Open calls in 12+ internal packages. The only reliable enforcement is a build tag that replaces the sqlite driver import with a stub returning an error — turning the contract into a compile-time guarantee instead of a runtime check.
+    - id: slice-2
+      num: 2
+      title: Phase 3c — `htmlgraph query` subcommand (gojq over JSON-LD)
+      what: |
+        Add `htmlgraph query <jq-expr> [paths...]`: extracts JSON-LD from
+        every HTML file in the given paths (default `.htmlgraph/**/*.html`),
+        pipes them through an embedded `github.com/itchyny/gojq` filter, and
+        emits JSONL on stdout. Supports `--type feature` shorthand to scope
+        to a single work-item type. Default output is one JSON object per
+        file; `--slurp` collects into an array. Document common recipes in
+        `docs/cli/query.md` (find all P1 bugs, lineage tree as JSON, etc.).
+
+        Note: `cmd/htmlgraph/query.go` does NOT currently exist (verified
+        via `ls cmd/htmlgraph/query*`); this is a new-file slice. Critic
+        feedback that suggested it might be partially implemented appears
+        to have been wrong.
+      why: |
+        Gives users and downstream scripts a stable shell-scriptable
+        interface that doesn't require a new CLI subcommand for every read
+        pattern. Replaces ad-hoc shell pipelines and prevents feature-creep
+        pressure on the core CLI surface. Also serves as a power-user
+        escape hatch when the dashboard doesn't expose a needed query.
+      files:
+        - cmd/htmlgraph/query.go
+        - cmd/htmlgraph/query_test.go
+        - docs/cli/query.md
+        - go.mod
+        - go.sum
+      deps: []
+      done_when:
+        - '`htmlgraph query ''.status'' --type feature` lists the status of every feature file.'
+        - '`htmlgraph query ''. | select(.status == "in_progress")''` filters correctly.'
+        - Embedded gojq does not reach the network; runs offline.
+        - Documented at least 5 recipes in `docs/cli/query.md`.
+      effort: M
+      risk: Low
+      tests: |
+        Unit: TestQuery_TypeFilter — table-driven against schema fixtures.
+        Unit: TestQuery_SelectExpression — assert correct subset.
+        Integration: TestQuery_RealRepo — runs against `.htmlgraph/` in CI; expected output count matches `find | wc -l`.
+      approved: false
+      comment: ""
+      approval_status: pending
+      execution_status: not_started
+      critic_revisions:
+        - source: researcher
+          severity: LOW
+          summary: cmd/htmlgraph/query.go already exists. Slice may be partially implemented — read existing code before estimating effort. Could shrink to schema-aware filtering on top of the existing scaffolding.
+    - id: slice-3
+      num: 3
+      title: Phase 3d — Migrate ALL dashboard API endpoints off SQLite
+      what: |
+        The current dashboard exposes 20+ SQLite-backed endpoints (audited
+        via `rg "mux.Handle" cmd/htmlgraph/serve.go`). All must be migrated
+        or removed before slice-11 can delete the driver. Migrate each by
+        reading from canonical sources (HTML files for work-item facts,
+        NDJSON for events, git for commits):
+
+        (1) NEW endpoints (greenfield Go files):
+          `GET /api/items/:id` — stream JSON-LD payload from HTML
+          `GET /api/manifest` — head-only scan; returns `[{file, mtime, type, id}]`
+
+        (2) Rewrite existing endpoints to read from canonical sources:
+          `/api/events/recent`, `/api/events/feed`, `/api/events/tree`,
+          `/api/events/stream`, `/api/events/subagent` — read NDJSON;
+          merge hook events + OTEL spans; the activity feed bug
+          (this conversation's symptom) goes away by construction
+          because both kinds of events come from the same source.
+          `/api/sessions`, `/api/sessions/`, `/api/transcript` — HTML head metas + per-session NDJSON
+          `/api/features`, `/api/features/` — JSON-LD payloads
+          `/api/stats`, `/api/initial-stats`, `/api/timeline` — aggregate
+          from HTML on demand (cache in memory)
+          `/api/graph`, `/api/graph/agents`, `/api/graph/commits`,
+          `/api/graph/files`, `/api/graph/sessions` — BFS over `<link rel>`
+          edges in HTML heads
+          `/api/provenance/`, `/api/preview` — derive from HTML/NDJSON
+
+        (3) Keep `?legacy=1` query param on every migrated endpoint for
+        parity comparison during slice-10; removed in slice-11.
+
+        (4) Dashboard UI source location verification: `plugin/static/`
+        contains only `components.js` and `has-styles.css` (no
+        `dashboard.html` exists). The dashboard entry point is likely
+        served by `cmd/htmlgraph/serve.go` itself or embedded via Go's
+        `embed` directive. AS PART OF THIS SLICE: locate and document
+        the dashboard entry. If the dashboard JS calls endpoints by URL
+        with assumptions about response shape, update the JS to match
+        the new JSON-LD-derived response shapes in `components.js`.
+      why: |
+        Closes the loop on the original symptom (hook events render, OTEL
+        spans don't). Both kinds of events read from NDJSON via one
+        streaming decoder so they cannot diverge. Removes the dashboard's
+        dependency on SQLite, which is the gate to slice-11. Critic
+        noted slice-10 was severely under-scoped originally — only 3
+        of 20+ endpoints — this version covers all of them.
+      files:
+        - cmd/htmlgraph/api.go
+        - cmd/htmlgraph/api_collector_status.go
+        - cmd/htmlgraph/api_feature_activity.go
+        - cmd/htmlgraph/api_feed.go
+        - cmd/htmlgraph/api_graph.go
+        - cmd/htmlgraph/api_ingest.go
+        - cmd/htmlgraph/api_items.go
+        - cmd/htmlgraph/api_manifest.go
+        - cmd/htmlgraph/api_otel.go
+        - cmd/htmlgraph/api_plans.go
+        - cmd/htmlgraph/api_preview.go
+        - cmd/htmlgraph/api_provenance.go
+        - cmd/htmlgraph/api_timeline.go
+        - cmd/htmlgraph/api_transcript.go
+        - cmd/htmlgraph/api_tree.go
+        - cmd/htmlgraph/serve.go
+        - cmd/htmlgraph/api_feed_test.go
+        - cmd/htmlgraph/api_graph_test.go
+        - plugin/static/components.js
+      deps: []
+      done_when:
+        - '`/api/feed` returns hook events and OTEL spans interleaved by timestamp without SQLite.'
+        - '`/api/items/:id` returns the JSON-LD payload from the HTML file directly.'
+        - 'Visual parity test: run dashboard against a fixture session, screenshot the feed; matches recorded golden within tolerance.'
+        - '`?legacy=1` still works for parity; CI compares old vs new output and asserts no semantic regression.'
+      effort: L
+      risk: High
+      tests: |
+        Unit: TestAPIFeed_NDJSONMergeOrder — assert events emit in monotonic timestamp order.
+        Unit: TestAPIItems_JSONLDPassthrough — fixture file, assert payload matches.
+        Integration: TestDashboardActivityFeedShowsSpans — ingest known NDJSON, assert feed contains spans (regression for current bug).
+      approved: false
+      comment: ""
+      approval_status: pending
+      execution_status: not_started
+      critic_revisions:
+        - source: researcher
+          severity: DANGER
+          summary: cmd/htmlgraph/api_items.go and api_manifest.go don't exist; internal/server/ doesn't exist as a package. These are NEW file creations, not refactors. Slice's framing as 'replace SQLite-backed read path' obscures the new-package work.
+        - source: sonnet-coder
+          severity: HIGH
+          summary: 'Slice lists plugin/static/dashboard.js but provides no JS-side work description. Existing dashboard JS calls endpoints by path/contract; new JSON-LD payloads will silently break the rendering. Enumerate the JS changes explicitly in `what` and `done_when`. Also: plugin/static/dashboard.html does not exist — locate the actual dashboard entry (likely Go-embedded).'
+        - source: researcher
+          severity: MED
+          summary: Slice deps wrongly include slice-8. Dashboard endpoints have no functional dependency on CLI command migration. Real dep is slice-7 only — drop slice-8 to enable parallel work.
+    - id: slice-4
+      num: 4
+      title: Phase 3e — Migrate hook event persistence from SQLite to NDJSON sink
+      what: |
+        The `internal/hooks/` package contains ~20 files that persist hook
+        events directly to SQLite tables (e.g. `agent_events`, `sessions`).
+        Files include: `lifecycle_test.go`, `missing_events.go`,
+        `posttooluse.go`, `pretooluse.go`, `session_end.go`,
+        `session_start.go`, `session_sweep.go`, `subagent_start.go`,
+        `task_tracking.go`, `tooluse_shared.go`, `track_event.go`,
+        `transcript_assistant.go`, `transcript_user_prompt.go`,
+        `user_prompt.go`, `yolo_guard.go`.
+
+        Migrate all hook event writes to the per-session NDJSON sink
+        (`internal/otel/sink/ndjson/ndjson.go`). Each hook handler emits
+        a typed event record (`{kind: "log", native: "hook_*",
+        session_id, prompt_id, ...}`) via the sink's append-only path.
+        The dashboard activity feed (slice-10) reads the same NDJSON for
+        both hook events AND OTEL spans — they cannot diverge.
+
+        Today's hook handlers also create rows in the `sessions` table.
+        Replace with: write `<meta name="htmlgraph:created">` to a session
+        HTML file at hook session_start; subsequent updates touch the same
+        file via the schema-aware writer (slice-5).
+      why: |
+        The hook-event persistence layer is the single largest unaccounted-
+        for SQLite consumer in the codebase. Slice-11 cannot delete SQLite
+        while hook handlers continue writing to `agent_events`. By
+        converging hook events and OTEL spans on the same NDJSON sink,
+        the activity feed bug (the original symptom of this conversation)
+        goes away by construction — both sources read from the same place.
+      files:
+        - internal/hooks/missing_events.go
+        - internal/hooks/posttooluse.go
+        - internal/hooks/pretooluse.go
+        - internal/hooks/session_end.go
+        - internal/hooks/session_start.go
+        - internal/hooks/session_sweep.go
+        - internal/hooks/subagent_start.go
+        - internal/hooks/task_tracking.go
+        - internal/hooks/tooluse_shared.go
+        - internal/hooks/track_event.go
+        - internal/hooks/transcript_assistant.go
+        - internal/hooks/transcript_user_prompt.go
+        - internal/hooks/user_prompt.go
+        - internal/hooks/yolo_guard.go
+        - internal/hooks/session_html.go
+        - internal/otel/sink/ndjson/ndjson.go
+        - internal/otel/sink/ndjson/ndjson_test.go
+      deps: []
+      done_when:
+        - Every hook handler that previously called `internal/db` functions now writes via the NDJSON sink.
+        - '`grep -r ''database/sql'' internal/hooks/` returns zero matches.'
+        - Activity feed (under slice-10) shows hook events from NDJSON, not from `agent_events` table.
+        - Hook tests pass under `-tags sqlite_disabled`.
+      effort: L
+      risk: High
+      tests: |
+        Unit: TestHookSessionStart_WritesNDJSON — capture sink output, assert event shape.
+        Unit: TestHookPostToolUse_WritesNDJSON — same.
+        Integration: TestHooksFullSession_ProducesNDJSONFeed — simulate a session, assert NDJSON contains every expected hook event.
+        Regression: existing internal/hooks/*_test.go pass with NDJSON sink as backend.
+      approved: false
+      comment: ""
+      approval_status: pending
+      execution_status: not_started
+    - id: slice-5
+      num: 5
+      title: Phase 3f — Migrate `internal/{graph,agent,planchat,registry}` off SQLite
+      what: |
+        Four internal packages depend on SQL queries beyond the read-path
+        audit's scope:
+        (a) `internal/graph/` — `algorithms.go`, `dsl.go`, `pattern.go`,
+          `querybuilder.go`, `sessions.go`. Provides the lineage/trace
+          graph engine. Migrate to read directly from work-item HTML
+          `<link rel>` edges; cache parsed graphs in-memory in a session-
+          scoped struct.
+        (b) `internal/agent/ensure.go` — agent registry persistence.
+          Migrate to a small JSON file at `.htmlgraph/agents.json` (which
+          already exists for some metadata).
+        (c) `internal/planchat/backend.go` — plan feedback persistence.
+          Plan feedback is already partially in `internal/db/plan_feedback.go`;
+          migrate that store to per-plan `<feedback>` JSON-LD nested in
+          the plan's HTML, or a sidecar `.htmlgraph/plans/<id>.feedback.jsonl`.
+        (d) `internal/registry/registry.go` — host/project registry.
+          Migrate to a JSON file at `~/.local/share/htmlgraph/registry.json`
+          (or platform-equivalent).
+
+        For each package, document the migration choice (in-memory cache
+        vs JSON sidecar vs HTML embedding) in the package's
+        `doc.go` so future readers understand WHY.
+      why: |
+        Slice-11 cannot delete SQLite while these four packages still
+        import `database/sql`. They were missed in the original plan
+        because the read-path audit only enumerated CLI commands, not
+        internal packages. This slice closes the gap.
+      files:
+        - internal/graph/algorithms.go
+        - internal/graph/dsl.go
+        - internal/graph/pattern.go
+        - internal/graph/querybuilder.go
+        - internal/graph/sessions.go
+        - internal/graph/doc.go
+        - internal/agent/ensure.go
+        - internal/agent/doc.go
+        - internal/planchat/backend.go
+        - internal/planchat/doc.go
+        - internal/registry/registry.go
+        - internal/registry/doc.go
+      deps: []
+      done_when:
+        - '`grep -r ''database/sql'' internal/{graph,agent,planchat,registry}/` returns zero matches.'
+        - Each package's doc.go explains the new persistence model.
+        - Lineage/trace graph queries (used by slice-8 and slice-10) still produce correct results — golden-file parity test passes.
+        - Existing tests under each package pass; new tests cover the JSON-sidecar and HTML-embedding paths.
+      effort: L
+      risk: High
+      tests: |
+        Unit: TestGraph_BFSOverHTMLLinks — fixture HTML corpus, assert traversal order matches old SQL-based result.
+        Unit: TestAgent_EnsureFromJSON — register agent, reload from JSON, assert identity.
+        Unit: TestPlanchat_FeedbackRoundTrip — write feedback, reload, assert content.
+        Unit: TestRegistry_HostJSON — register host, reload, assert identity.
+        Regression: full lineage/trace test suite passes with the new graph engine.
+      approved: false
+      comment: ""
+      approval_status: pending
+      execution_status: not_started
+questions: []

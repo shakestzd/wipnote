@@ -26,6 +26,23 @@ func TestDetect_ExplicitAgentID(t *testing.T) {
 func TestDetect_ClaudeCode(t *testing.T) {
 	t.Setenv("HTMLGRAPH_AGENT_ID", "")
 	t.Setenv("CLAUDE_CODE", "1")
+	t.Setenv("CLAUDECODE", "")
+	t.Setenv("CLAUDE_MODEL", "")
+	info := agent.Detect()
+	if info.ID != "claude-code" {
+		t.Errorf("got ID=%q, want %q", info.ID, "claude-code")
+	}
+}
+
+// TestDetect_ClaudeCodeNoUnderscore covers the env var name shipped by
+// Claude Code 2.x (`CLAUDECODE=1`, no underscore). Without this fallback
+// the orchestrator's agent_id silently became "human", which the
+// agent_events CHECK constraint then rejected for every non-UserQuery
+// tool_call insert, blinding the research-first yolo guard.
+func TestDetect_ClaudeCodeNoUnderscore(t *testing.T) {
+	t.Setenv("HTMLGRAPH_AGENT_ID", "")
+	t.Setenv("CLAUDE_CODE", "")
+	t.Setenv("CLAUDECODE", "1")
 	t.Setenv("CLAUDE_MODEL", "")
 	info := agent.Detect()
 	if info.ID != "claude-code" {
@@ -36,6 +53,7 @@ func TestDetect_ClaudeCode(t *testing.T) {
 func TestDetect_Human(t *testing.T) {
 	t.Setenv("HTMLGRAPH_AGENT_ID", "")
 	t.Setenv("CLAUDE_CODE", "")
+	t.Setenv("CLAUDECODE", "")
 	t.Setenv("CLAUDE_MODEL", "")
 	info := agent.Detect()
 	if info.ID != "human" {

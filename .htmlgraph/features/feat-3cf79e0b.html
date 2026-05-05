@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Address PR #62 review feedback (registry hardening &#43; indexer removal)</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-3cf79e0b"
+             data-type="feature"
+             data-status="done"
+             data-priority="high"
+             data-created="2026-04-29T03:43:22.274887"
+             data-updated="2026-05-01T17:50:12.635099" data-agent-assigned="claude-code">
+
+        <header>
+            <h1>Address PR #62 review feedback (registry hardening &#43; indexer removal)</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="implements">
+                <h3>Implements:</h3>
+                <ul>
+                    <li><a href="bug-ccf8b887.html" data-relationship="implements" data-since="2026-04-29T03:43:28.64612">Address PR #62 review feedback (registry hardening &#43; indexer removal)</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="8ef0905c-77f1-4349-8e61-8380555d170c.html" data-relationship="implemented_in" data-since="2026-04-29T04:00:01.670691">session 8ef0905c-77f1-4349-8e61-8380555d170c</a></li>
+                    <li><a href="c2fe2500-e4d2-4ac8-a26a-e834bd9fe2f1.html" data-relationship="implemented_in" data-since="2026-04-29T06:57:10.767899">session c2fe2500-e4d2-4ac8-a26a-e834bd9fe2f1</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="true" data-step-id="step-feat-3cf79e0b-0" data-agent="claude-code">✅ Split out indexer-removal hunk to separate PR [task:1]</li>
+                <li data-completed="true" data-step-id="step-feat-3cf79e0b-1" data-agent="claude-code">✅ Fix TestMain defer-after-os.Exit leak [task:2]</li>
+                <li data-completed="true" data-step-id="step-feat-3cf79e0b-2" data-agent="claude-code">✅ Soften PR title — drop concurrent writes [task:3]</li>
+                <li data-completed="true" data-step-id="step-feat-3cf79e0b-3" data-agent="claude-code">✅ Document Save() Prune side-effect or rename [task:4]</li>
+                <li data-completed="true" data-step-id="step-feat-3cf79e0b-4" data-agent="claude-code">✅ Add legacy-path fallback in DefaultPath [task:5]</li>
+                <li data-completed="true" data-step-id="step-feat-3cf79e0b-5" data-agent="claude-code">✅ serve_parent stat-then-skip &#43; reconcile DefaultPath [task:6]</li>
+                <li data-completed="true" data-step-id="step-feat-3cf79e0b-6" data-agent="claude-code">✅ Refactor withRegistryAtAndStale helper [task:7]</li>
+                <li data-completed="true" data-step-id="step-feat-3cf79e0b-7" data-agent="claude-code">✅ Run quality gates and push [task:8]</li>
+            </ol>
+        </section>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Implements the fixes from the PR #62 review (see bug-ccf8b887 for the full issue list).
+
+Concrete actions, in priority order:
+
+1. (🔴) Update PR #62 title/summary to disclose the indexer removal (bug-28a9d7a7), OR split it into a second PR. Preferred: split — file a new PR for the indexer removal so the change is reviewable in isolation.
+
+2. (🟡) Fix TestMain defer-after-os.Exit leak in cmd/htmlgraph/worktree_helpers_test.go (lines ~469-484). Move os.RemoveAll calls before os.Exit(code).
+
+3. (🟡) Soften PR #62 title — drop 'concurrent writes' (no locking added) OR actually add file-level locking (flock) around Save(). Drop 'atomic write via temp-file+rename' from summary since that pre-existed.
+
+4. (🟡) Either rename registry.Save() to SaveAndPrune()/Compact() to reflect new semantics, OR beef up the godoc to make the Prune() side-effect impossible to miss.
+
+5. (🟡) Add legacy-path fallback in registry.DefaultPath(): if XDG path does not exist but ~/.local/share/htmlgraph/projects.json does, read from legacy and migrate on next save. Cover with a test.
+
+6. (🟢) serve_parent runServeServer startup auto-prune: stat-then-skip rewrite if no entries pruned. Also reconcile registry.DefaultPath() call vs defaultRegistryPath package var.
+
+7. (🟢) Refactor withRegistryAtAndStale in cmd/htmlgraph/projects_test.go to either use a registry-package test helper OR marshal []registry.Entry directly via json.MarshalIndent instead of hand-writing the JSON format.
+
+8. (🟢) Add a regression test asserting /api/indexer/status now 404s after the indexer removal in serve_child.go.
+
+After fixes: run go build ./... && go vet ./... && go test ./... — all must pass. Push to the PR #62 branch (or a new branch for the split-out indexer PR).</p>
+        </section>
+    </article>
+</body>
+</html>

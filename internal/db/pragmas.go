@@ -4,9 +4,12 @@
 package db
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"log"
+	"maps"
+	"strings"
 )
 
 // Pragmas mirrors the Python PRAGMA_SETTINGS from pragmas.py.
@@ -28,9 +31,7 @@ var Pragmas = map[string]string{
 // crashes. On safelisted native filesystems it stays WAL.
 func BuildPragmas(dbPath string) map[string]string {
 	p := make(map[string]string, len(Pragmas))
-	for k, v := range Pragmas {
-		p[k] = v
-	}
+	maps.Copy(p, Pragmas)
 	if isUnsafeForMmap(dbPath) {
 		p["journal_mode"] = "DELETE"
 	}
@@ -38,22 +39,64 @@ func BuildPragmas(dbPath string) map[string]string {
 }
 
 // ApplyPragmas sets all performance PRAGMAs on a database connection.
+//
+// All PRAGMAs are executed on a single dedicated *sql.Conn (pinned via
+// db.Conn) to prevent the connection-pool race where busy_timeout is set on
+// connection A but journal_mode (or another required PRAGMA) runs on
+// connection B, which has busy_timeout=0 and immediately returns SQLITE_BUSY
+// if the write lock is contended.
+//
 // Some PRAGMAs (busy_timeout, cache_size) are best-effort and may not apply
 // to all backing stores (e.g., in-memory SQLite); failures are logged at debug
 // level and don't block the Open. Other PRAGMAs are required.
 func ApplyPragmas(db *sql.DB, pragmas map[string]string) error {
+	ctx := context.Background()
+
+	// Acquire a dedicated connection so every PRAGMA below runs on the same
+	// underlying SQLite connection. This is critical: busy_timeout is
+	// per-connection state, and journal_mode=WAL must run on the same
+	// connection that already has busy_timeout set — otherwise a fresh pooled
+	// connection will see busy_timeout=0 and return SQLITE_BUSY immediately
+	// when the database is locked.
+	conn, err := db.Conn(ctx)
+	if err != nil {
+		return fmt.Errorf("acquiring dedicated connection for pragmas: %w", err)
+	}
+	defer conn.Close()
+
+	// Must run before journal_mode: if the write lock is held, busy_timeout
+	// tells SQLite how long to wait before returning SQLITE_BUSY.
+	if bt, ok := pragmas["busy_timeout"]; ok {
+		if _, err := conn.ExecContext(ctx, fmt.Sprintf("PRAGMA busy_timeout = %s", bt)); err != nil {
+			log.Printf("debug: skipping PRAGMA busy_timeout (not supported on this backing): %v", err)
+		}
+	}
+
 	// PRAGMAs that are REQUIRED — fail Open if these don't apply.
 	required := []string{"journal_mode", "synchronous", "foreign_keys", "temp_store", "mmap_size"}
 	// PRAGMAs that are best-effort — failure is logged at debug level
 	// and doesn't block Open (some drivers/backing stores reject these).
-	optional := []string{"busy_timeout", "cache_size"}
+	// busy_timeout is handled above (must precede journal_mode), so omit it here.
+	optional := []string{"cache_size"}
 
 	for _, pragma := range required {
 		value, ok := pragmas[pragma]
 		if !ok {
 			continue
 		}
-		_, err := db.Exec(fmt.Sprintf("PRAGMA %s = %s", pragma, value))
+		// Special case: journal_mode is case-insensitive and may already be set.
+		// Querying first avoids lock escalation from SHARED→EXCLUSIVE when upgrading
+		// DEFERRED transactions, which returns SQLITE_BUSY immediately on contention.
+		if strings.EqualFold(pragma, "journal_mode") {
+			var current string
+			if err := conn.QueryRowContext(ctx, "PRAGMA journal_mode").Scan(&current); err == nil {
+				if strings.EqualFold(current, value) {
+					continue // already in desired mode — skip the lock-acquiring SET
+				}
+			}
+			// fall through to the SET below if query failed or modes differ
+		}
+		_, err := conn.ExecContext(ctx, fmt.Sprintf("PRAGMA %s = %s", pragma, value))
 		if err != nil {
 			return fmt.Errorf("applying PRAGMA %s: %w", pragma, err)
 		}
@@ -64,7 +107,7 @@ func ApplyPragmas(db *sql.DB, pragmas map[string]string) error {
 		if !ok {
 			continue
 		}
-		_, err := db.Exec(fmt.Sprintf("PRAGMA %s = %s", pragma, value))
+		_, err := conn.ExecContext(ctx, fmt.Sprintf("PRAGMA %s = %s", pragma, value))
 		if err != nil {
 			// Best-effort: log at debug, continue. In-memory DBs in tests
 			// may reject busy_timeout / cache_size; that's fine because

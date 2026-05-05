@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Sporadic SQLITE_BUSY: &#39;database is locked&#39; during routine CLI calls (PRAGMA journal_mode)</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-56b686aa"
+             data-type="bug"
+             data-status="done"
+             data-priority="medium"
+             data-created="2026-05-01T22:56:26.246048"
+             data-updated="2026-05-02T20:06:21.267023" data-agent-assigned="claude-code" data-track-id="trk-c4615ad2">
+
+        <header>
+            <h1>Sporadic SQLITE_BUSY: &#39;database is locked&#39; during routine CLI calls (PRAGMA journal_mode)</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="6b432d50-b2c3-4045-960e-a815085f56c3.html" data-relationship="implemented_in" data-since="2026-05-02T19:53:58.595927">session 6b432d50-b2c3-4045-960e-a815085f56c3</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-c4615ad2.html" data-relationship="part_of" data-since="2026-05-01T22:56:26.278155">trk-c4615ad2</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="relates_to">
+                <h3>Relates To:</h3>
+                <ul>
+                    <li><a href="plan-3bbc313f.html" data-relationship="relates_to" data-since="2026-05-01T22:56:55.391372">Plan: HTML-canonical architecture migration</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>htmlgraph CLI commands intermittently fail at startup with:
+  open project: open database: applying pragmas: applying PRAGMA journal_mode: database is locked (5) (SQLITE_BUSY)
+
+Repro: in a working shell, run any htmlgraph CLI that opens the SQLite project DB shortly after another long-running htmlgraph process. Observed today on:
+  htmlgraph context-pack 
+  htmlgraph plan show    (truncated output to header-only — confirms partial open / failure path that does not surface a clean error to the user)
+  htmlgraph bug create ...        (transient; succeeds on retry)
+
+Symptoms (TWO failure modes — second one is worse):
+  1. Loud failure: full stderr 'database is locked' and non-zero exit. Acceptable; user retries.
+  2. Silent partial-open: command appears to succeed but emits only the cached header section and silently drops the body (observed on plan show). The user only notices because the output looks truncated. Partial-open should fail loudly, not return half a result.
+
+Likely cause: the SQLite open path applies PRAGMA journal_mode without retry/backoff under contention. Combined with the existing concern in plan-3bbc313f slice-1 about WAL falling back to DELETE on Codespaces fs, brief lock contention turns into hard failures or silent truncation.
+
+Suggested fix scope:
+  internal/storage/dbpath.go and internal/db/pragmas.go — wrap PRAGMA application in a busy_timeout (PRAGMA busy_timeout=N before journal_mode) and/or a bounded retry loop; ensure partial-open paths return an error rather than degrading to a header-only result; audit plan show specifically for the silent-truncation case.
+
+Related:
+  - bug-ab377859 (otel-collect handshake timeout): same root cause class, different victim.
+  - plan-3bbc313f slice-1, slice-2 (auto-recover empty/corrupt DB) — this bug is a sibling failure mode that slice-2's quarantine path would need to handle. Worth folding into the slice-1 RCA.
+
+Severity: medium — does not block work but undermines confidence in CLI output until partial-open is fixed.</p>
+        </section>
+    </article>
+</body>
+</html>

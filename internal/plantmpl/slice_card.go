@@ -4,14 +4,144 @@ import (
 	"fmt"
 	"html/template"
 	"io"
+	"regexp"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/shakestzd/htmlgraph/internal/planyaml"
 )
 
+// mdStripRe matches common inline Markdown formatting tokens for stripping.
+var mdStripRe = regexp.MustCompile(`(\*\*|__|[*_]|` + "`" + `+|\[([^\]]*)\]\([^)]*\))`)
+
+// htmlTagRe matches HTML tags (opening, closing, self-closing) for removal.
+var htmlTagRe = regexp.MustCompile(`<[^>]*>`)
+
+// stripMarkdown removes inline Markdown formatting and raw HTML tags from src
+// and returns plain text suitable for a one-line preview. It:
+//   - strips HTML tags (including any embedded event handlers like onerror=)
+//   - removes bold/italic markers (**,__,*,_)
+//   - removes inline code backticks (keeps inner text)
+//   - converts links [text](url) → text
+//   - strips leading list/heading markers (-, *, #, >, digits.)
+func stripMarkdown(src string) string {
+	s := strings.TrimSpace(src)
+	// Strip HTML tags first — this removes any raw HTML including event handlers.
+	s = htmlTagRe.ReplaceAllString(s, "")
+	// Strip leading list/heading/blockquote markers on the first line only
+	s = regexp.MustCompile(`^[\s]*[#>\-*\d.]+\s*`).ReplaceAllStringFunc(s, func(m string) string {
+		// Only strip if the entire leading portion is markup
+		return ""
+	})
+	// Replace [text](url) links with just text
+	s = regexp.MustCompile(`\[([^\]]*)\]\([^)]*\)`).ReplaceAllString(s, "$1")
+	// Remove backtick sequences (inline code — keep inner text)
+	s = regexp.MustCompile("`+([^`]*)`+").ReplaceAllString(s, "$1")
+	// Remove bold/italic markers
+	s = regexp.MustCompile(`(\*\*|__|[*_])`).ReplaceAllString(s, "")
+	return strings.TrimSpace(s)
+}
+
+// previewMaxRunes is the maximum rune count for a slice summary preview.
+const previewMaxRunes = 140
+
+// Preview returns a short plain-text preview of the slice content: the first
+// sentence (or line) of the What field, stripped of Markdown formatting, trimmed
+// to previewMaxRunes. Falls back to Description for legacy slices. Returns empty
+// string when neither field has content.
+func (sc *SliceCard) Preview() string {
+	src := sc.What
+	if strings.TrimSpace(src) == "" {
+		src = sc.Description
+	}
+	if strings.TrimSpace(src) == "" {
+		return ""
+	}
+	// Take the first non-empty line as the candidate sentence.
+	first := ""
+	for line := range strings.SplitSeq(src, "\n") {
+		t := strings.TrimSpace(line)
+		if t != "" {
+			first = t
+			break
+		}
+	}
+	if first == "" {
+		return ""
+	}
+	// Also split on ". " to get the first sentence if the line is long.
+	if idx := strings.Index(first, ". "); idx > 0 && idx < previewMaxRunes {
+		first = first[:idx+1]
+	}
+	plain := stripMarkdown(first)
+	if utf8.RuneCountInString(plain) > previewMaxRunes {
+		runes := []rune(plain)
+		plain = string(runes[:previewMaxRunes]) + "…"
+	}
+	return plain
+}
+
 var sliceCardTmpl = template.Must(
-	template.ParseFS(templateFS, "templates/slice_card.gohtml"),
+	template.New("slice_card.gohtml").Funcs(sliceCardFuncs).ParseFS(templateFS, "templates/slice_card.gohtml"),
 )
+
+// revealThreshold is the character count above which a markdown block gets a
+// "Show full description" reveal toggle.
+const revealThreshold = 400
+
+// TestGroup holds parsed test strategy items grouped by prefix (Unit, Integration, etc).
+type TestGroup struct {
+	Kind  string
+	Items []string
+}
+
+// ParseTestGroups parses a test strategy string into typed groups.
+// Lines matching "Kind: item" are grouped; if no recognisable prefix is found
+// on any line, nil is returned and the caller falls back to prose rendering.
+func ParseTestGroups(tests string) []TestGroup {
+	if strings.TrimSpace(tests) == "" {
+		return nil
+	}
+	lines := strings.Split(tests, "\n")
+	var groups []TestGroup
+	groupIdx := map[string]int{}
+	anyParsed := false
+	for _, raw := range lines {
+		line := strings.TrimSpace(raw)
+		if line == "" {
+			continue
+		}
+		colon := strings.IndexByte(line, ':')
+		if colon > 0 && colon < 25 {
+			kind := strings.TrimSpace(line[:colon])
+			// Validate: kind should be 1-4 words, no spaces is common (Unit, Integration)
+			if !strings.ContainsAny(kind, ".,;()[]{}") && len(strings.Fields(kind)) <= 3 {
+				item := strings.TrimSpace(line[colon+1:])
+				kindLower := strings.ToLower(kind)
+				if idx, ok := groupIdx[kindLower]; ok {
+					groups[idx].Items = append(groups[idx].Items, item)
+				} else {
+					groupIdx[kindLower] = len(groups)
+					groups = append(groups, TestGroup{Kind: kind, Items: []string{item}})
+				}
+				anyParsed = true
+				continue
+			}
+		}
+		// Unparseable line — add to a "Other" group
+		kindLower := "other"
+		if idx, ok := groupIdx[kindLower]; ok {
+			groups[idx].Items = append(groups[idx].Items, line)
+		} else {
+			groupIdx[kindLower] = len(groups)
+			groups = append(groups, TestGroup{Kind: "Other", Items: []string{line}})
+		}
+	}
+	if !anyParsed {
+		return nil
+	}
+	return groups
+}
 
 // SliceCard renders a single implementation slice with its metadata,
 // dependencies, and approval status.
@@ -39,6 +169,38 @@ type SliceCard struct {
 	Questions       []planyaml.SliceQuestion  // slice-local open questions
 	CriticRevisions []planyaml.CriticRevision // critic feedback specific to this slice
 }
+
+// IssueCount returns the number of critic revisions (issues) for this slice.
+func (sc *SliceCard) IssueCount() int { return len(sc.CriticRevisions) }
+
+// QuestionCount returns the number of open questions for this slice.
+func (sc *SliceCard) QuestionCount() int { return len(sc.Questions) }
+
+// WhatNeedsReveal returns true when the What content is long enough to warrant
+// a "Show full description" toggle (character count > revealThreshold).
+func (sc *SliceCard) WhatNeedsReveal() bool { return len(sc.What) > revealThreshold }
+
+// WhyNeedsReveal returns true when the Why content is long enough to warrant
+// a "Show full description" toggle.
+func (sc *SliceCard) WhyNeedsReveal() bool { return len(sc.Why) > revealThreshold }
+
+// DescriptionNeedsReveal returns true when the Description content is long enough.
+func (sc *SliceCard) DescriptionNeedsReveal() bool { return len(sc.Description) > revealThreshold }
+
+// TestGroups parses the Tests field into typed groups. Returns nil when no
+// prefix pattern is detected (caller renders prose fallback).
+func (sc *SliceCard) TestGroups() []TestGroup { return ParseTestGroups(sc.Tests) }
+
+// ApprovalDataAttr returns the data-approval attribute value for CSS status stripe.
+func (sc *SliceCard) ApprovalDataAttr() string {
+	if sc.ApprovalStatus == "" {
+		return "pending"
+	}
+	return sc.ApprovalStatus
+}
+
+// DoneWhenMultiCol returns true when Done When has 6 or more items (use 2-col grid).
+func (sc *SliceCard) DoneWhenMultiCol() bool { return len(sc.DoneWhen) >= 6 }
 
 // HasStructuredContent returns true when the slice has What/Why fields
 // (benchmark format) rather than just a flat description.
@@ -161,11 +323,10 @@ func (sc *SliceCard) ExecutionStatusClass() string {
 
 // CriticSeverityClass returns the CSS badge class for a critic revision severity.
 func (sc *SliceCard) CriticSeverityClass(severity string) string {
-	upper := strings.ToUpper(severity)
-	switch {
-	case upper == "HIGH" || upper == "DANGER":
+	switch strings.ToUpper(severity) {
+	case "HIGH", "DANGER":
 		return "badge-blocked"
-	case upper == "MED" || upper == "MEDIUM":
+	case "MED", "MEDIUM":
 		return "badge-revision"
 	default:
 		return "badge-pending"

@@ -1,0 +1,346 @@
+meta:
+    id: plan-2c7f1b7d
+    track_id: trk-8f9bc323
+    title: Agent Teams plugin integration
+    description: |
+        Completes the Agent Teams plugin integration begun in plan-14772c97 (finalized 2026-04-11). That earlier plan was finalized but never formally promoted; in the interim, four of its six slices shipped directly to code without formal feature tracking: S2 (EventTaskCreated constant in `internal/models/enums.go:142`), S3 (step-text teammate attribution in `internal/hooks/task_tracking.go:33`), S4 (opt-in quality gate in `internal/hooks/task_completion_gate.go`), S5 (orchestrator-skill Agent Teams section at SKILL.md:895). One slice (S1 — CloudEvent + schema + persistence) is half-shipped: the CloudEvent parse side captures teammate fields but the DB write side does not, leaving `agent_events.teammate_name/team_name` NULL on every row. One (S6 — AGENTS.md + CLAUDE.md docs) is minimally shipped. This plan closes the remaining gaps: (a) slice-2 finishes S1's DB write side via `AgentEvent` model fields + `InsertEvent` columns + the missing `idle_reason` schema migration + the `recordSimpleEvent` handler trap fix, (b) slice-1 adds zero-friction auto-injection of `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` in HtmlGraph launchers (net-new work, not in plan-14772c97), (c) slice-3 corrects CLAUDE.md and the orchestrator skill to reflect auto-injection and document v2.1.64+ JSON hook control payloads. Supersedes plan-14772c97; the older plan's track `trk-6456fe7d` is orphaned (no canonical file in `.htmlgraph/tracks/`) and is replaced by `trk-8f9bc323`.
+    created_at: "2026-05-04"
+    status: finalized
+    created_by: claude-opus
+    version: 8
+design:
+    problem: |
+        Agent Teams plugin integration began in plan-14772c97 (April 2026) but was never formally promoted to features. Four of its six slices shipped to code informally and remain in production: the `EventTaskCreated` event-type constant, step-text teammate attribution in HTML, the opt-in quality gate on TaskCompleted, and the orchestrator skill's Agent Teams vs Subagents section. Two gaps remain. (1) **Persistence gap** — slice 1's DB write side: `AgentEvent` struct lacks `TeammateName`/`TeamName`/`IdleReason` fields, `InsertEvent` doesn't write them, the `idle_reason` column is missing from schema entirely (S1 specified `teammate_name`/`team_name` but not `idle_reason`), and `TeammateIdle` uses the shared `recordSimpleEvent` helper that doesn't propagate teammate fields. Result: dashboard queries that filter or aggregate by teammate return NULL on every row. (2) **Manual env-var setup** — users have to remember `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` per-shell or in `.claude/settings.json`, and the orchestrator skill still says "set it manually" because no auto-injection exists. Plus CLAUDE.md's brief monitoring note has accumulated drift, and v2.1.64+ JSON hook control payload (`{"continue": false, "stopReason": "..."}`) is undocumented.
+    goals:
+        - '**Complete the persistence gap (was plan-14772c97 S1)** — `agent_events.teammate_name`, `team_name`, and `idle_reason` populated on every team-hook write. Closes the half-shipped state where parse-side captures the values but DB-side discards them.'
+        - '**Zero-friction enablement (net-new)** — `htmlgraph claude` / `htmlgraph yolo` / `htmlgraph dev` auto-inject `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`. Non-empty user-set env var (any value, including `0`) takes precedence; empty-string value treated as unset and overwritten.'
+        - '**Cost transparency** — first-run stderr notice + `.htmlgraph/AGENT_TEAMS_DEFAULT_v1` stamp file warns of Claude Code''s ~7× token cost for teams. Future default flips don''t break existing users.'
+        - '**Opt-out path** — `.htmlgraph/config.json` `agent_teams.enabled: false` disables auto-injection for hermetic isolation or debugging.'
+        - '**Accurate documentation (completes plan-14772c97 S6)** — CLAUDE.md and orchestrator skill flipped from ''set manually'' to reflect auto-injection; document v2.1.64+ JSON control payload availability (informational — implementation deferred to a future plan); single-source via `docs/agent-teams.md` referenced from both files to prevent drift.'
+    constraints:
+        - 'Cross-harness scope: `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` is a Claude-only env var. The Codex CLI and Gemini CLI launchers do NOT need the change — agent teams are a Claude Code feature only. Confirmed by research: codex.go and gemini.go don''t share `buildClaudeLaunchEnv`.'
+        - 'Backward compat: existing slice/feature step prefix attribution via `addTaskStep` continues to work; this plan adds DB-side persistence without changing the HTML write path.'
+        - 'User-set env var precedence: `addIfUnset` already handles this correctly — only sets the env var if the user hasn''t. No special logic needed.'
+        - 'Default-on opt-in: `agent_teams.enabled` defaults to true (auto-injection on). Opt-out is explicit `false` in config. Matches the user''s stated intent (''we should natively set it because that improves orchestration'').'
+        - '**Non-goal: JSON control payload IMPLEMENTATION** — current `BlockExit2Error` + `os.Exit(2)` mechanism is correct on all Claude Code versions and works for the existing `block_task_completion_on_quality_failure` gate. Adding `{"continue": false, "stopReason": "..."}` JSON support requires refactoring `runHookNamed`''s blocking dispatch. Out of scope; only documented in CLAUDE.md as a v2.1.64+ feature available for future use.'
+        - '**Non-goal: programmatic team creation** — Claude Code docs confirm teams are spawned via natural language only; no API exists. HtmlGraph''s role is observation (hooks) and coordination (gates), not dispatch.'
+        - '**Non-goal: backfill of historical agent_events rows** — pre-existing rows with NULL teammate_name/team_name remain NULL. New rows after this plan ships have the values populated. A separate plan can address backfill if needed.'
+        - '**Non-goal: cross-harness teammate equivalents** — agent teams is Claude-only; no story for Codex/Gemini ''team'' equivalents. Filed separately if those harnesses gain similar features.'
+        - All three slices must ship in the same release to prevent documentation drift — slice 3 documents what slices 1 and 2 implement; shipping them out of sync creates a window where CLAUDE.md says 'set the env var manually' while the launcher already auto-injects it (sonnet critic F1).
+        - '**Supersedes plan-14772c97** (finalized 2026-04-11). That plan''s track `trk-6456fe7d` is orphaned (no canonical file in `.htmlgraph/tracks/`). The four shipped slices (S2 EventTaskCreated, S3 step-text attribution, S4 quality gate, S5 orchestrator skill section) are foundational and remain in production. This plan''s slice-2 completes the half-shipped S1 (persistence). Slice-3 completes the partially-shipped S6 (CLAUDE.md docs). Slice-1 (auto-injection) is net-new — not in plan-14772c97.'
+        - '**Track consolidation** — agent-teams work lives on `trk-8f9bc323` exclusively. The orphaned `trk-6456fe7d` reference in plan-14772c97 has no backing file and can be ignored. After this plan ships, plan-14772c97 is marked `completed` (its work either shipped to code or absorbed by this plan''s slices).'
+    approved: false
+    comment: ""
+slices:
+    - id: slice-1
+      feature_id: feat-a49b5185
+      num: 1
+      title: Auto-inject `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` with opt-out via config
+      what: |
+        Auto-inject `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` into the env of the spawned `claude` subprocess in `htmlgraph claude`, `htmlgraph yolo`, `htmlgraph dev`. Honor user-set env var (any value, including `0`) as override. Add `.htmlgraph/config.json` opt-out toggle.
+
+        **Implementation:**
+        1. In `cmd/htmlgraph/claude_env.go` `buildClaudeLaunchEnv`, after the existing `HTMLGRAPH_PROJECT_DIR` block (~line 53), call: `env = addIfUnset(env, "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS", "1")`. The `addIfUnset` helper already exists and only sets the var if absent or empty in the parent env.
+        2. Gate the injection on the new opt-out config: read `.htmlgraph/config.json` `agent_teams.enabled` field. If explicitly `false`, skip injection. If absent or `true` (or `null`), inject (default-on).
+        3. Extend the existing `taskCompletionConfig` struct in `internal/hooks/task_completion_gate.go` (or add a sibling struct in the same file) with:
+           ```go
+           type htmlgraphConfig struct {
+               BlockOnQualityFailure bool `json:"block_task_completion_on_quality_failure"`
+               AgentTeams agentTeamsConfig `json:"agent_teams"`
+           }
+           type agentTeamsConfig struct {
+               Enabled *bool `json:"enabled"` // nil = default true; explicit false = opt out
+           }
+           ```
+           The `*bool` pointer is the established Go idiom for "absent means default". Add a helper `isAgentTeamsEnabled(projectDir string) bool` that returns true unless explicit false.
+        4. In `buildClaudeLaunchEnv`, call `isAgentTeamsEnabled(projectDir)` before the `addIfUnset` call. Branch accordingly.
+        5. **Version-stamp first-run notice** (per opus HIGH-4 cost-transparency finding): on the first launch where `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` would be auto-injected AND the stamp file `.htmlgraph/AGENT_TEAMS_DEFAULT_v1` does not exist, emit a one-line stderr notice: `"[htmlgraph] auto-enabling Claude Code agent teams (~7x token cost vs single agent). Opt out: agent_teams.enabled=false in .htmlgraph/config.json or CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=0 in env."` then create the stamp file. Subsequent launches stay quiet. The stamp is per-project (lives in `.htmlgraph/`).
+        6. **Config struct location: launcher-local** (per opus + sonnet medium critic findings). Define the new `agentTeamsConfig` struct in `cmd/htmlgraph/claude_env.go` itself (not in `internal/hooks/task_completion_gate.go`). Naming a generic `htmlgraphConfig` inside the hooks package couples unrelated concerns and a future reader looking for "the htmlgraph config" won't find it via package search. Launcher-local is correct for the current single consumer; promote to `internal/config/` if a second consumer emerges.
+        7. **Empty-string env value precedence** (per opus HIGH-1 finding): the existing `addIfUnset` helper treats empty-string user values as unset and overwrites them — its design is to rescue OTEL_* vars Claude Code zeroes out. The slice's done_when claim "any value takes precedence" must be tightened to "non-empty user-set value takes precedence; empty is treated as unset." If empty-string semantics matter to a user, document the workaround: `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=0` (explicit zero, non-empty).
+        8. **Config-vs-env precedence semantics** (per opus medium): when `agent_teams.enabled: false` in config AND a non-empty `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` is set in the parent env, the planned implementation skips the auto-injection block entirely — meaning the env value passes through to claude unchanged. Document this in the slice's done_when AND in the stderr notice and CLAUDE.md: "agent_teams.enabled=false disables auto-injection only; an explicitly-set parent env var still passes through. To fully disable, both unset the env var AND set the config flag."
+      why: |
+        The user's proposal: "we should natively set CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 because that improves the way htmlgraph orchestrates and manages the agents." Auto-injection eliminates the manual env-var setup step that today users have to remember per-shell or add to `.claude/settings.json`. The opt-out toggle provides a clean disable path for users who want hermetic isolation or are debugging team behavior. User-set env var precedence (already handled by `addIfUnset`) honors explicit user choice — including the value `0` to disable teams without touching config.
+      files:
+        - cmd/htmlgraph/claude_env.go
+        - cmd/htmlgraph/claude_env_test.go
+        - internal/hooks/task_completion_gate.go
+      deps: []
+      done_when:
+        - Running `htmlgraph claude` (or `yolo` or `dev`) without `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` set in the parent env results in `claude` running with `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` in its env
+        - Running with non-empty `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` in parent env (e.g., `=0` or `=1`) results in `claude` running with that exact value preserved (non-empty user values win)
+        - Running with empty `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=` (set-but-empty) results in `claude` running with `=1` (auto-injected; `addIfUnset` treats empty as unset). Documented behavior, not a bug.
+        - 'Running with `agent_teams.enabled: false` in `.htmlgraph/config.json` results in `claude` running WITHOUT the env var (no injection)'
+        - 'Running with `agent_teams.enabled: true` (explicit) in config — same as default — env var injected'
+        - 'Running with `agent_teams: {}` (object present but enabled key absent) in config — same as default — env var injected (`*bool` nil pointer treated as default-true)'
+        - '`buildCodexLaunchEnv` and Gemini equivalents are NOT modified (cross-harness scope per design.constraints)'
+        - Existing `claude_env_test.go` tests continue to pass
+        - 'On first launch where auto-injection fires AND `.htmlgraph/AGENT_TEAMS_DEFAULT_v1` doesn''t exist: stderr notice prints once and the stamp file is created; subsequent launches stay quiet'
+        - 'When `agent_teams.enabled: false` AND parent env has `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`: env value passes through to claude (config does not actively unset env). Documented in CLAUDE.md.'
+        - '`agentTeamsConfig` struct lives in `cmd/htmlgraph/claude_env.go` (launcher-local), not in `internal/hooks/`'
+      effort: S
+      risk: Low
+      tests: |
+        Unit:
+        - TestBuildClaudeLaunchEnv_AgentTeamsAutoInjected — no parent env set, no config; assert `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` in result
+        - TestBuildClaudeLaunchEnv_AgentTeamsUserOverride — parent env set to `0`; assert `=0` preserved
+        - TestBuildClaudeLaunchEnv_AgentTeamsUserOverrideOne — parent env set to `1`; assert `=1` preserved (not overwritten)
+        - TestBuildClaudeLaunchEnv_AgentTeamsConfigDisabled — config has `agent_teams.enabled: false`; assert env var NOT in result
+        - TestBuildClaudeLaunchEnv_AgentTeamsConfigEnabled — config has `agent_teams.enabled: true`; assert env var present
+        - TestBuildClaudeLaunchEnv_AgentTeamsConfigAbsentEnabled — config has `agent_teams: {}`; assert env var present (default-on)
+        - TestBuildClaudeLaunchEnv_AgentTeamsNoConfigFile — no config.json at all; assert env var present
+        - TestIsAgentTeamsEnabled_DefaultTrue — empty config returns true
+        - TestIsAgentTeamsEnabled_ExplicitFalse — explicit false returns false
+        - TestBuildClaudeLaunchEnv_AgentTeamsEmptyUserValue — parent env has `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=`; assert result has `=1` (empty treated as unset; documented behavior)
+        - TestVersionStamp_FirstRunWritesStamp — no stamp file present; first call to the helper writes the stamp and returns true (notice should fire)
+        - TestVersionStamp_StampPresentNoNotice — stamp file present; second call returns false (notice suppressed)
+        - TestConfigEnvPrecedence_ConfigFalseEnvSet — `agent_teams.enabled: false` in config + `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` in env; assert env value passes through (config does NOT unset)
+
+        Integration: TestLauncher_PassesAgentTeamsEnv — spawn a stub claude binary that prints its env; assert variable present in spawned env
+
+        Regression: existing `claude_env_test.go` (`TestBuildClaudeLaunchEnv_ExplicitOptOut`, `TestBuildClaudeLaunchEnv_WithCollector`) pass unchanged
+      approved: false
+      comment: ""
+      approval_status: pending
+      execution_status: not_started
+      questions:
+        - id: q-config-default-policy
+          text: What's the default behavior when `.htmlgraph/config.json` lacks an `agent_teams` field entirely?
+          description: |
+            Three options. The user's stated intent ("native enablement improves orchestration") favors default-on. But default-on requires every existing project to opt out if they don't want teams. Both opus and sonnet flagged that auto-enabling teams ships a ~7x token cost increase to every existing project on routine version bump without notice. Version-stamp adds first-run stderr notice + a stamp file enabling future default flips without breaking existing users. Trades 5 lines of code for cost transparency. Recommended.
+          recommended: default-on-with-version-stamp
+          options:
+            - key: default-on
+              label: default-on — absent config or absent `agent_teams` field defaults to enabled. Matches user intent. Existing projects automatically benefit.
+            - key: default-off-explicit-opt-in
+              label: 'default-off-explicit-opt-in — require `agent_teams.enabled: true` to enable. Conservative; does not change behavior for users who don''t update config.'
+            - key: default-on-with-version-stamp
+              label: default-on-with-version-stamp — default-on, but write a `.htmlgraph/AGENT_TEAMS_DEFAULT_v1` stamp the first time the launcher runs; later versions can flip default-off if needed without breaking existing users. Most defensible across version changes.
+        - id: q-config-struct-location
+          text: Where does the new `agentTeamsConfig` struct live?
+          description: |
+            Three reasonable locations. The existing pattern keeps each config reader self-contained.
+          recommended: launcher-local
+          options:
+            - key: extend-existing-task-completion-gate
+              label: extend-existing-task-completion-gate — extend `taskCompletionConfig` in `internal/hooks/task_completion_gate.go` to a top-level `htmlgraphConfig` with both fields. Single config file, single read. Minimal diff.
+            - key: new-config-package
+              label: new-config-package — new `internal/config/agent_teams.go` with its own struct + reader. Cleaner separation but introduces a new package for a small concern.
+            - key: launcher-local
+              label: launcher-local — define the struct in `cmd/htmlgraph/claude_env.go` since the launcher is the only consumer. Avoids polluting the hooks package with launcher concerns. Promote to `internal/config/` if a second consumer emerges. **Recommended after critic review.**
+      critic_revisions:
+        - source: opus
+          severity: HIGH
+          summary: addIfUnset semantics — empty-string user value is overwritten by design (helper rescues OTEL_* vars). done_when tightened to 'non-empty user value wins'; new test TestBuildClaudeLaunchEnv_AgentTeamsEmptyUserValue documents this.
+        - source: opus
+          severity: HIGH
+          summary: 'Default-on cost surprise (~7x tokens for every existing project on upgrade) — adopted version-stamp recommendation: first-run stderr notice + .htmlgraph/AGENT_TEAMS_DEFAULT_v1 stamp file enables future default flips without breaking users.'
+        - source: opus
+          severity: MEDIUM
+          summary: Config struct location — moved from internal/hooks/task_completion_gate.go to launcher-local in cmd/htmlgraph/claude_env.go to avoid coupling unrelated concerns.
+        - source: opus
+          severity: MEDIUM
+          summary: 'Config-vs-env precedence resolution — documented: agent_teams.enabled=false disables auto-injection only; explicit parent env var still passes through. To fully disable, unset env AND set config flag. Documented in stderr notice + CLAUDE.md.'
+        - source: sonnet
+          severity: LOW
+          summary: Slice 1 effort=S undersells scope (config read + version-stamp logic + integration test). Effort kept S because the integration test is dropped — helper-level coverage is sufficient since claude/yolo/dev all funnel through buildClaudeLaunchEnv.
+    - id: slice-2
+      feature_id: feat-b3bbb6a3
+      num: 2
+      title: Close the teammate-identity persistence gap in `agent_events`
+      what: |
+        Fix the persistence gap: `agent_events.teammate_name` and `team_name` columns exist (added by migrations in `internal/db/schema.go:123,128`) but `InsertEvent` never writes them. Result: SQL queries against these columns return NULL for every row. Add the corresponding fields to `AgentEvent` model, extend the INSERT statement, and verify hook handlers populate them on construction.
+
+        **Implementation:**
+        1. Add fields to `AgentEvent` struct in `internal/models/event.go`:
+           ```go
+           TeammateName string `json:"teammate_name,omitempty"`
+           TeamName     string `json:"team_name,omitempty"`
+           IdleReason   string `json:"idle_reason,omitempty"`
+           ```
+        2. **Add a new ALTER TABLE migration in `internal/db/schema.go`** mirroring the existing teammate_name/team_name pattern at lines 123-132: `ALTER TABLE agent_events ADD COLUMN idle_reason TEXT` (idempotent, ignore "duplicate column name" error). Without this migration, slice 2's INSERT statement references a column that doesn't exist on un-migrated DBs and crashes at runtime. (Per opus HIGH-2 + sonnet HIGH-4 — same finding from both critics.)
+        3. Extend `InsertEvent` in `internal/db/event_repo.go`: add the three columns to the column list and parameter list. **Use `nullStr()`** (already imported in event_repo.go:52-59) to match the existing convention for the 9 other nullable text columns. Empty strings → SQL NULL on write; `sql.NullString.String` returns `""` for NULL on read; round-trip stays empty-string-clean for Go callers. (Per opus medium + q-empty-vs-null recommendation switch.)
+        4. **Update three specific SELECT read sites** (per opus HIGH-3 — explicit enumeration replaces vague "all consumers"):
+           a. `GetEvent` in `internal/db/event_repo.go:81-124` — hand-rolled column-by-column SELECT; add the three columns to both the SELECT list and the Scan target list.
+           b. `ListEventsBySession` in `internal/db/event_repo.go:132+` — narrow column subset; add the three columns.
+           c. `ListEventsBySessionAsc` in `internal/db/event_repo.go:171+` — same as above.
+           Plus: grep `cmd/htmlgraph/`, `internal/dashboard/`, `internal/sessionhtml/` for additional `SELECT … FROM agent_events` consumers; update each. Add a per-function round-trip test for the three columns in each.
+        5. **`TeammateIdle` handler refactor** (per sonnet HIGH-5 — the `recordSimpleEvent` shared helper trap): the current `TeammateIdle` handler at `internal/hooks/missing_events.go:113` delegates to `recordSimpleEvent`, which constructs a generic `AgentEvent` with no teammate fields. Adding fields to `AgentEvent` does NOT auto-propagate them through `recordSimpleEvent`. Two implementation options:
+           a. **Inline the event construction** in `TeammateIdle` like `TaskCreated`/`TaskCompleted` do (preferred — clear, explicit, matches sibling handlers' patterns).
+           b. Extend `recordSimpleEvent`'s signature to accept `teammateName`, `teamName`, `idleReason` strings. May cascade into other callers of `recordSimpleEvent` — verify call sites first.
+           Pick (a) unless cascade risk in (b) is non-trivial. Document the choice in the implementer's PR.
+      why: |
+        CLAUDE.md claims teammate identity is captured automatically. The research confirmed that step-prefix attribution in HTML works (via `addTaskStep`), but the DB-side claim is partially false — `agent_events.teammate_name` and `team_name` are NULL on every row because `InsertEvent` doesn't include them. Closing this gap turns the dashboard's per-teammate views (and any future analytics-by-teammate queries) from impossible-by-design to working. Without this fix, slice 1's auto-enablement would expand the surface of broken-by-omission behavior. Bundling the bug fix with the enablement plan ensures a coherent shipped behavior: when teams are auto-enabled, identity is also auto-persisted.
+      files:
+        - internal/models/event.go
+        - internal/db/event_repo.go
+        - internal/db/event_repo_test.go
+        - internal/hooks/missing_events.go
+      deps: []
+      done_when:
+        - '`AgentEvent` struct has `TeammateName`, `TeamName`, `IdleReason` fields with `json:"...,omitempty"` tags'
+        - '**New schema migration**: idempotent ALTER TABLE adds `idle_reason TEXT` to `agent_events` (mirroring teammate_name/team_name migrations at schema.go:123-132)'
+        - '`InsertEvent` writes all three columns via `nullStr()` (NULL for empty strings, matching the existing convention for nullable text columns)'
+        - '**Three SELECT read sites updated**: `GetEvent`, `ListEventsBySession`, `ListEventsBySessionAsc` all include and scan the three new columns; per-function round-trip tests pass'
+        - '**`TeammateIdle` handler refactored** off `recordSimpleEvent` (or `recordSimpleEvent` extended): `event.TeammateName`, `event.TeamName`, `event.IdleReason` now propagate to the persisted `AgentEvent`'
+        - 'Insert + SELECT round-trip on a fresh DB: TaskCreated row with teammate_name=alice returns `alice` on `SELECT teammate_name FROM agent_events WHERE id=?`'
+        - Same round-trip for TeamName and IdleReason
+        - Pre-existing rows with NULL teammate_name/team_name read correctly (no migration of historical data per design.non_goals)
+        - 'Migration regression test: open a DB at the pre-slice-2 schema, run InsertEvent with new fields, verify no error and correct round-trip'
+      effort: M
+      risk: Med
+      tests: |
+        Unit:
+        - TestInsertEvent_TeammateName — insert event with TeammateName=foo; SELECT round-trip returns foo
+        - TestInsertEvent_TeamName — same for TeamName
+        - TestInsertEvent_IdleReason — same for IdleReason
+        - TestInsertEvent_AllEmptyOmitOK — insert event with all three fields empty; SELECT returns empty strings (no NULL/empty discrepancy)
+        - TestInsertEvent_LegacyNullRowsRoundTrip — row inserted by pre-fix INSERT (with NULL columns) is read correctly by new SELECT path
+        - TestSchemaMigration_IdleReasonAdded — open DB pre-migration, run schema.go init, verify `idle_reason` column exists
+        - TestSchemaMigration_IdleReasonIdempotent — run init twice; second call doesn't error on 'duplicate column'
+        - TestInsertEvent_NullStrConvention — insert with empty TeammateName; SELECT raw column returns NULL, but Scan into Go string returns empty
+        - TestGetEvent_ReturnsTeammateFields — round-trip via GetEvent specifically
+        - TestListEventsBySession_ReturnsTeammateFields — round-trip via ListEventsBySession
+        - TestListEventsBySessionAsc_ReturnsTeammateFields — round-trip via ListEventsBySessionAsc
+        - TestTeammateIdle_PersistsIdleReason — fire TeammateIdle hook with payload containing idle_reason; assert agent_events row has the value
+        - TestPreSliceDB_RoundTrip — fresh DB at pre-slice-2 schema, run new code path; assert no SQL error
+
+        Integration: TestTaskCreatedHook_PersistsTeammateName — fire TaskCreated hook with payload containing teammate_name=alice; assert agent_events row has teammate_name=alice via DB query
+
+        Regression: existing `event_repo_test.go` tests pass unchanged; `missing_events_test.go` pass unchanged
+      approved: false
+      comment: ""
+      approval_status: pending
+      execution_status: not_started
+      questions:
+        - id: q-empty-vs-null
+          text: How should empty strings be persisted in the DB?
+          description: |
+            The new fields are optional. Some events (e.g., a regular non-team PostToolUse) won't have teammate_name. Two choices for how to write this. Existing convention: `nullStr()` is used for the 9 other nullable text columns in `InsertEvent` (event_repo.go:52-59). Mixing conventions on the same table causes WHERE-clause surprises. Switching to `empty-string-as-null` matches the convention and round-trips cleanly via `sql.NullString` on read. Per opus medium critic finding.
+          recommended: empty-string-as-null
+          options:
+            - key: empty-string-as-empty
+              label: empty-string-as-empty — write empty string (`''`); SELECT returns `''`. Simple Go-idiomatic round-trip. Schema columns are nullable so this also works.
+            - key: empty-string-as-null
+              label: empty-string-as-null — convert empty string to SQL NULL on write. More truly absent. Requires `sql.NullString` plumbing.
+            - key: skip-row-if-empty
+              label: skip-row-if-empty — only INSERT rows where at least one of the three fields is non-empty. Reduces noise but breaks the existing schema invariant that every event gets one row.
+      critic_revisions:
+        - source: opus + sonnet
+          severity: HIGH
+          summary: idle_reason has no DB column — added new ALTER TABLE migration mirroring the teammate_name/team_name pattern. Without it, InsertEvent crashes on un-migrated DBs.
+        - source: opus
+          severity: HIGH
+          summary: Three SELECT read sites unspecified (GetEvent, ListEventsBySession, ListEventsBySessionAsc are hand-rolled column-by-column) — explicitly enumerated with per-function round-trip tests.
+        - source: sonnet
+          severity: HIGH
+          summary: TeammateIdle uses recordSimpleEvent shared helper — adding fields to AgentEvent doesn't auto-propagate. Implementer must inline event construction (matching TaskCreated/TaskCompleted) or extend recordSimpleEvent's signature; (a) preferred.
+        - source: opus
+          severity: MEDIUM
+          summary: Empty-string vs NULL convention mismatch — switched to nullStr() to match the existing 9 nullable-column convention in InsertEvent.
+        - source: opus
+          severity: LOW
+          summary: Index decision deferred — `teammate_name`/`team_name`/`idle_reason` indexes can be added when query patterns emerge. No-index is the explicit default for slice 2; revisit when dashboard surfaces them.
+    - id: slice-3
+      feature_id: feat-60d035a1
+      num: 3
+      title: Update CLAUDE.md / orchestrator skill + (optional) `htmlgraph-teammate` subagent definition
+      what: |
+        Update documentation to reflect the auto-injection (slice 1) and the now-actually-persisted teammate identity (slice 2). Document the v2.1.64+ JSON control payload feature in CLAUDE.md as not yet implemented. Optionally add a HtmlGraph-specific subagent definition usable as a teammate by natural-language reference.
+
+        **Implementation:**
+        1. **CLAUDE.md update.** The existing "Agent Teams (experimental)" section needs three updates:
+           - Replace the manual-setup statement with: "HtmlGraph auto-injects `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` in `htmlgraph claude` / `yolo` / `dev`. To opt out, set `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=0` in your shell or `agent_teams.enabled: false` in `.htmlgraph/config.json`."
+           - Add: "Teammate identity (`teammate_name`, `team_name`, `idle_reason`) is persisted to `agent_events` for every team-hook event, enabling SQL queries that filter or aggregate by teammate."
+           - Add: "**Hook control payloads** — Claude Code v2.1.64+ accepts JSON `{\"continue\": false, \"stopReason\": \"...\"}` from hooks as an alternative to exit-code 2. **HtmlGraph currently emits exit-code 2 only**; JSON control payloads are not yet implemented. See `bug-XXXXXXXX` for adoption tracking." — file the tracking bug as part of slice 3 work and substitute the real ID when committing.
+           - Add note: "agent_teams.enabled=false disables auto-injection only; an explicitly-set parent env var still passes through. To fully disable, both unset the env var AND set the config flag."
+        2. **orchestrator-directives-skill SKILL.md update.** Same three updates as CLAUDE.md, plus: rename the existing "Set automatically by `htmlgraph claude`/`htmlgraph yolo`; no manual step required" line if it currently differs (the research found it says "Environment variable: `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`" as a user requirement — flip to "Set automatically..."). Update the "blocked teammates cannot be /resume'd" caveat to mention JSON payload as a non-stranding alternative when implemented.
+        3. **Extract shared doc** (per opus + sonnet medium findings): extract the agent-teams content into `docs/agent-teams.md` as the single source of truth. Both CLAUDE.md and the orchestrator skill reference mirrored regions delimited by `<!-- agent-teams-mirror-start -->`/`<!-- agent-teams-mirror-end -->`. Add a `TestAgentTeamsDocsMirror` test asserting byte-equivalence of mirrored regions so drift becomes a CI failure.
+        4. **(Optional, gated on q-teammate-subagent-definition-scope) `plugin/agents/htmlgraph-teammate.md`.** New file with frontmatter:
+           ```yaml
+           ---
+           name: htmlgraph-teammate
+           description: General-purpose teammate aware of HtmlGraph conventions (work-item attribution, slice-based planning, spec sections). Spawn via natural language: "spawn a teammate using htmlgraph-teammate to ..."
+           model: sonnet
+           color: cyan
+           tools: [Read, Write, Edit, Bash, Grep, Glob]
+           maxTurns: 50
+           memory: project
+           ---
+           ```
+           Body briefs the teammate on: HtmlGraph's work-item attribution (start before changes, complete after), slice-card planning workflow, `<section class="spec">` format (Requirement/Scenario), the orchestrator delegation pattern, and the OODA active-observer integration if relevant. ~50-line system prompt. Note: skills/mcpServers don't propagate to teammates, so the definition can only inline conventions.
+      why: |
+        Documentation drift is a real cost: CLAUDE.md's current claim about teammate identity capture is partially false (the DB column is NULL); after slices 1+2 ship, the claim becomes accurate but the docs still say "you have to set the env var manually." Updating both files in lockstep ensures documentation matches behavior. The JSON control payload mention is informational — readers should know about the v2.1.64+ feature even if our hooks don't yet emit it. The optional teammate definition makes HtmlGraph's conventions composable into Claude Code's team workflow with one natural-language reference, removing friction for users who want to spawn teams that follow project conventions.
+      files:
+        - CLAUDE.md
+        - plugin/skills/orchestrator-directives-skill/SKILL.md
+        - plugin/agents/htmlgraph-teammate.md
+        - docs/agent-teams.md
+      deps:
+        - 1
+        - 2
+      done_when:
+        - CLAUDE.md 'Agent Teams (experimental)' section reflects auto-injection (no manual setup), persisted teammate identity, and JSON control payload availability
+        - '`plugin/skills/orchestrator-directives-skill/SKILL.md` agent-teams section matches CLAUDE.md (single source of truth for the policy, mirrored into the skill)'
+        - 'If question `q-teammate-subagent-definition-scope` answer is `include-in-slice-3`: `plugin/agents/htmlgraph-teammate.md` exists with valid frontmatter and a body that briefs the teammate on HtmlGraph conventions'
+        - 'If question answer is `defer-to-followon`: file a follow-on bug `Add htmlgraph-teammate subagent definition` referencing this slice as the parent context'
+        - 'If question answer is `define-multiple-roles`: create at least two definitions (`htmlgraph-teammate-coder.md`, `htmlgraph-teammate-researcher.md`) with appropriately scoped tool allowlists'
+        - Single-source `docs/agent-teams.md` exists with the canonical agent-teams content; CLAUDE.md and `plugin/skills/orchestrator-directives-skill/SKILL.md` reference it via mirrored region OR include-by-link
+        - '`TestAgentTeamsDocsMirror` test asserts byte-equivalence of the mirrored region across CLAUDE.md and the orchestrator skill'
+        - JSON control payload mention reframed as 'not yet implemented; see bug-XXX for adoption tracking' (no ambiguous 'available for future use' phrasing)
+        - '**File a tracking bug** for JSON control payload adoption as part of slice 3 work; substitute the real bug ID into the docs'
+      effort: S
+      risk: Low
+      tests: |
+        Unit:
+        - TestCLAUDEMD_HasAgentTeamsSection — read CLAUDE.md; assert section title and the three new content phrases (auto-injection, teammate identity persisted, JSON payload mention)
+        - TestSkillFile_ValidFrontmatter — for each agent file added (depending on q answer), assert frontmatter parses with required fields (name, description, model, tools)
+        - TestSkillFile_BodyMentionsConventions — agent body contains references to HtmlGraph conventions (work-item attribution, spec sections, etc.)
+        - TestAgentTeamsDocsMirror — read CLAUDE.md and orchestrator skill; extract `<!-- agent-teams-mirror-start -->`/`<!-- agent-teams-mirror-end -->` regions; assert byte-equivalence
+
+        Integration: not applicable for docs-only slice
+
+        Regression: any existing CLAUDE.md or SKILL.md tests pass
+      approved: false
+      comment: ""
+      approval_status: pending
+      execution_status: not_started
+      questions:
+        - id: q-docs-truth-source
+          text: Should the agent-teams documentation be a single source mirrored into multiple files, or independently maintained per file?
+          description: |
+            The existing pattern in this repo is duplication (CLAUDE.md and orchestrator skill both have agent-teams content). Single-source would prevent drift but adds tooling. Both critics flagged `duplicate-with-comment` as ineffective — comments don't prevent drift, and the orchestrator skill (line 914) and CLAUDE.md have already drifted in this repo. `extract-shared-doc` mechanically prevents drift via single source. Add a `TestAgentTeamsDocsMirror` test asserting byte-equivalence of mirrored regions (delimited by `<!-- agent-teams-mirror-start -->`/`<!-- agent-teams-mirror-end -->`) so drift becomes a CI failure. Per opus + sonnet medium findings.
+          recommended: extract-shared-doc
+          options:
+            - key: duplicate-with-comment
+              label: duplicate-with-comment — both files contain the full text; add a comment at the top of each saying 'mirror this from the other when changed'. Simple; matches existing pattern.
+            - key: skill-references-claudemd
+              label: skill-references-claudemd — orchestrator skill links to CLAUDE.md instead of duplicating. Single source. But skills are loaded into agent context as text, so the link wouldn't be auto-followed.
+            - key: extract-shared-doc
+              label: extract-shared-doc — extract the agent-teams content into a separate `docs/agent-teams.md` and have both CLAUDE.md and the skill say 'see docs/agent-teams.md'. Cleanest but introduces a new docs convention.
+      critic_revisions:
+        - source: opus + sonnet
+          severity: MEDIUM
+          summary: duplicate-with-comment doesn't prevent drift — switched to extract-shared-doc. New TestAgentTeamsDocsMirror enforces byte-equivalence of mirrored regions across CLAUDE.md and orchestrator skill.
+        - source: opus + sonnet
+          severity: MEDIUM
+          summary: JSON control payload doc framing tightened — explicit 'not yet implemented; see bug-XXX' instead of ambiguous 'available for future use'. Tracking bug to be filed during slice 3.
+        - source: sonnet
+          severity: LOW
+          summary: 'Subagent definition (q-teammate-subagent-definition-scope) — caveat noted: skills/mcpServers don''t propagate to teammates, so the definition can only inline conventions. Implementer should pick `defer-to-followon` unless a concrete teammate role is needed.'
+        - source: sonnet
+          severity: MEDIUM
+          summary: User-visible artifact thin without dashboard surface — slice 2's persistence is foundational; cost-by-teammate analytics and dashboard 'see who did what' filed as follow-on items, not gating slices.
+questions:
+    - id: q-teammate-subagent-definition-scope
+      text: Should slice 3 include a HtmlGraph-specific subagent definition usable as a teammate?
+      description: |
+        Subagent definitions in `plugin/agents/` can be referenced by name in natural-language team-spawn prompts. The doc research suggests this is a high-value optional addition: define `htmlgraph-teammate.md` with HtmlGraph conventions in the system prompt, and users can spawn teammates via `"spawn 3 teammates using the htmlgraph-teammate definition to..."`. The teammate inherits the `tools` allowlist (skills/mcpServers do NOT propagate to teammates per the docs).
+      recommended: include-in-slice-3
+      options:
+        - key: include-in-slice-3
+          label: 'include-in-slice-3 — add `plugin/agents/htmlgraph-teammate.md` (~50 lines: frontmatter + system prompt body) alongside the docs updates. Small marginal cost, immediate user value.'
+        - key: defer-to-followon
+          label: defer-to-followon — slice 3 stays docs-only. File a follow-on bug for the teammate definition. Keeps this plan tighter; teammate definition can be designed more thoughtfully when there's a clear use case.
+        - key: define-multiple-roles
+          label: 'define-multiple-roles — define a small library: `htmlgraph-teammate-coder.md`, `htmlgraph-teammate-researcher.md`, `htmlgraph-teammate-reviewer.md`. Larger scope; couples this plan to a teammate-role taxonomy that may need iteration.'
+      answer: null

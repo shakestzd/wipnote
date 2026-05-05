@@ -109,10 +109,16 @@ func DefaultSpawnFn(binPath, sessionID, projectDir string, requestedPort int) (i
 	if requestedPort > 0 {
 		listen = fmt.Sprintf("127.0.0.1:%d", requestedPort)
 	}
+	// --no-idle-timeout: keep the collector alive for the full interactive
+	// session. Without this flag, the collector self-exits after 5 min of no
+	// OTLP traffic — causing the harness to POST to a dead port for the rest
+	// of the session, which the watchdog then respawns in a tight cycle.
+	// Bug-28a9d7a7 Part A.
 	cmd := exec.Command(binPath, "otel-collect",
 		"--session-id", sessionID,
 		"--project-dir", projectDir,
 		"--listen", listen,
+		"--no-idle-timeout",
 	)
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	cmd.Stderr = os.Stderr

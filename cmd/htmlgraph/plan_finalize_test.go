@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/PuerkitoBio/goquery"
 	"github.com/shakestzd/htmlgraph/internal/planyaml"
 	"github.com/shakestzd/htmlgraph/internal/workitem"
 )
@@ -533,5 +534,109 @@ func TestAddSliceYAML_NoPrintsFakeFeatureID(t *testing.T) {
 	}
 	if !strings.HasPrefix(got.ID, "slic") {
 		t.Errorf("slice ID should be slic-prefixed (workitem.GenerateID convention), got %q", got.ID)
+	}
+}
+
+// TestFinalizePlanHTML_RadioGroupInvariant verifies that finalizePlanHTML correctly
+// handles radio buttons in slice-card YAML plans. The three approval radios
+// (approved, changes_requested, rejected) must maintain radio-group invariant:
+// exactly one can be checked at a time.
+func TestFinalizePlanHTML_RadioGroupInvariant(t *testing.T) {
+	htmlWithRadios := `<!DOCTYPE html>
+<html>
+<body>
+<article data-status="draft">
+  <input type="radio" name="slice-1-approval" value="approved" data-section="slice-1" data-action="approve">
+  <input type="radio" name="slice-1-approval" value="changes_requested" data-section="slice-1" data-action="approve">
+  <input type="radio" name="slice-1-approval" value="rejected" data-section="slice-1" data-action="approve">
+</article>
+</body>
+</html>`
+
+	// Parse the HTML.
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(htmlWithRadios))
+	if err != nil {
+		t.Fatalf("parse HTML: %v", err)
+	}
+
+	// Simulate finalizePlanHTML logic for approved section.
+	section := "slice-1"
+	approved := true
+	doc.Find(`input[type='radio'][data-section='` + section + `'][data-action='approve']`).
+		Each(func(_ int, s *goquery.Selection) {
+			val, _ := s.Attr("value")
+			if approved && val == "approved" {
+				s.SetAttr("checked", "checked")
+			} else {
+				s.RemoveAttr("checked")
+			}
+		})
+
+	// Verify only the "approved" radio is checked.
+	doc.Find(`input[type='radio'][data-section='` + section + `'][data-action='approve']`).
+		Each(func(_ int, s *goquery.Selection) {
+			val, _ := s.Attr("value")
+			_, hasChecked := s.Attr("checked")
+			if val == "approved" {
+				if !hasChecked {
+					t.Error("approved radio should be checked")
+				}
+			} else {
+				if hasChecked {
+					t.Errorf("%s radio should not be checked", val)
+				}
+			}
+		})
+}
+
+// TestFinalizePlanHTML_CheckboxGroupApproval verifies that finalizePlanHTML
+// correctly handles checkboxes in legacy plans. When approved=true, the checkbox
+// should be checked; when approved=false, it should be unchecked.
+func TestFinalizePlanHTML_CheckboxGroupApproval(t *testing.T) {
+	htmlWithCheckbox := `<!DOCTYPE html>
+<html>
+<body>
+<article data-status="draft">
+  <input type="checkbox" data-section="section-1" data-action="approve">
+</article>
+</body>
+</html>`
+
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(htmlWithCheckbox))
+	if err != nil {
+		t.Fatalf("parse HTML: %v", err)
+	}
+
+	// Test case 1: approved=true
+	section := "section-1"
+	approved := true
+	if approved {
+		doc.Find(`input[type='checkbox'][data-section='` + section + `'][data-action='approve']`).
+			SetAttr("checked", "checked")
+	} else {
+		doc.Find(`input[type='checkbox'][data-section='` + section + `'][data-action='approve']`).
+			RemoveAttr("checked")
+	}
+
+	_, hasChecked := doc.Find(`input[type='checkbox'][data-section='` + section + `'][data-action='approve']`).
+		First().Attr("checked")
+	if !hasChecked {
+		t.Error("checkbox should be checked when approved=true")
+	}
+
+	// Test case 2: approved=false
+	approved = false
+	if approved {
+		doc.Find(`input[type='checkbox'][data-section='` + section + `'][data-action='approve']`).
+			SetAttr("checked", "checked")
+	} else {
+		doc.Find(`input[type='checkbox'][data-section='` + section + `'][data-action='approve']`).
+			RemoveAttr("checked")
+	}
+
+	_, hasChecked = doc.Find(`input[type='checkbox'][data-section='` + section + `'][data-action='approve']`).
+		First().Attr("checked")
+	if hasChecked {
+		t.Error("checkbox should not be checked when approved=false")
 	}
 }

@@ -94,14 +94,28 @@ func Validate(plan *PlanYAML) []string {
 			errs = append(errs, fmt.Sprintf("%s.execution_status %q must be not_started|promoted|in_progress|done|blocked|superseded", prefix, s.ExecutionStatus))
 		}
 
-		// V2: slice-local questions — reject duplicate IDs within the same slice.
+		// V2: slice-local questions — reject duplicate IDs; validate structured form.
 		qIDs := map[string]bool{}
 		for j, q := range s.Questions {
+			qPfx := fmt.Sprintf("%s.questions[%d]", prefix, j)
 			if q.ID != "" {
 				if qIDs[q.ID] {
-					errs = append(errs, fmt.Sprintf("%s.questions[%d].id %q is duplicate within slice", prefix, j, q.ID))
+					errs = append(errs, fmt.Sprintf("%s.id %q is duplicate within slice", qPfx, q.ID))
 				}
 				qIDs[q.ID] = true
+			}
+			// Structured form: when options are present, recommended must match a key.
+			if q.Recommended != "" && len(q.Options) > 0 {
+				found := false
+				for _, o := range q.Options {
+					if o.Key == q.Recommended {
+						found = true
+						break
+					}
+				}
+				if !found {
+					errs = append(errs, fmt.Sprintf("%s.recommended %q not in options", qPfx, q.Recommended))
+				}
 			}
 		}
 

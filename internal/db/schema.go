@@ -138,6 +138,11 @@ func Open(dbPath string) (*sql.DB, error) {
 		}
 	}
 
+	if err := NormalizePlanFeedbackValues(db); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("normalize plan_feedback values: %w", err)
+	}
+
 	return db, nil
 }
 
@@ -179,7 +184,6 @@ func CreateAllTables(db *sql.DB) error {
 			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 			CHECK (NOT (event_type = 'tool_call' AND agent_id = 'human' AND (tool_name IS NULL OR tool_name != 'UserQuery'))),
 			FOREIGN KEY (session_id) REFERENCES sessions(session_id) ON DELETE CASCADE ON UPDATE CASCADE,
-			FOREIGN KEY (parent_event_id) REFERENCES agent_events(event_id) ON DELETE SET NULL ON UPDATE CASCADE,
 			FOREIGN KEY (feature_id) REFERENCES features(id) ON DELETE SET NULL ON UPDATE CASCADE
 		)`,
 
@@ -549,26 +553,35 @@ const agentEventsCheckConstraintDDL = `CREATE TABLE agent_events (
 			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 			CHECK (NOT (event_type = 'tool_call' AND agent_id = 'human' AND (tool_name IS NULL OR tool_name != 'UserQuery'))),
 			FOREIGN KEY (session_id) REFERENCES sessions(session_id) ON DELETE CASCADE ON UPDATE CASCADE,
-			FOREIGN KEY (parent_event_id) REFERENCES agent_events(event_id) ON DELETE SET NULL ON UPDATE CASCADE,
 			FOREIGN KEY (feature_id) REFERENCES features(id) ON DELETE SET NULL ON UPDATE CASCADE
 		)`
 
 // migrateAgentEventsAddCheckConstraint adds the attribution CHECK constraint to
-// the existing agent_events table via copy-and-swap. It is idempotent: if the
-// current table DDL already contains the constraint marker string, it is a no-op.
-// The migration is also guarded by a metadata key so it only runs once.
+// the existing agent_events table via copy-and-swap, and also drops the
+// self-referential FK on parent_event_id (which caused silent insert failures
+// when the parent row didn't exist yet — see bug-89990f33). It is idempotent:
+// it only runs when the live DDL requires changes.
+//
+// The migration uses dynamic column introspection (PRAGMA table_info) to detect
+// and preserve columns added by later migrations (reason, teammate_name, team_name,
+// prompt_id, etc.), ensuring no data loss during the copy-and-swap.
 func migrateAgentEventsAddCheckConstraint(db *sql.DB) error {
-	// Check if the constraint already exists in the live table DDL.
+	// Check if the live table DDL requires changes.
 	var currentSQL string
 	err := db.QueryRow(
 		`SELECT sql FROM sqlite_master WHERE type='table' AND name='agent_events'`,
 	).Scan(&currentSQL)
 	if err != nil {
-		// Table doesn't exist yet — CreateAllTables will create it with the constraint.
+		// Table doesn't exist yet — CreateAllTables will create it correctly.
 		return nil
 	}
-	if strings.Contains(currentSQL, "tool_name != 'UserQuery'") {
-		// Constraint already present — nothing to do.
+
+	needsCheck := !strings.Contains(currentSQL, "tool_name != 'UserQuery'")
+	// The parent_event_id self-referential FK causes silent insert drops when the
+	// parent row hasn't been written yet (timing race). Drop it.
+	hasParentEventFK := strings.Contains(currentSQL, "REFERENCES agent_events(event_id)")
+	if !needsCheck && !hasParentEventFK {
+		// Both the check constraint is present and the FK is already gone — nothing to do.
 		return nil
 	}
 
@@ -584,29 +597,86 @@ func migrateAgentEventsAddCheckConstraint(db *sql.DB) error {
 	}
 	defer tx.Rollback() //nolint:errcheck
 
-	// 1. Create the new table with the constraint.
-	newTableDDL := strings.Replace(agentEventsCheckConstraintDDL,
-		"CREATE TABLE agent_events", "CREATE TABLE agent_events_new", 1)
+	// 1. Introspect the live agent_events table to preserve ALL columns.
+	rows, err := tx.Query(`PRAGMA table_info(agent_events)`)
+	if err != nil {
+		return fmt.Errorf("pragma table_info: %w", err)
+	}
+	defer rows.Close()
+
+	type columnInfo struct {
+		name     string
+		typeName string
+		notnull  int
+		dfltVal  *string
+		pk       int
+	}
+	var columns []columnInfo
+	var colNames []string // for SELECT clause
+	for rows.Next() {
+		var cid int
+		var name, typeName string
+		var notnull int
+		var dfltVal *string
+		var pk int
+		if err := rows.Scan(&cid, &name, &typeName, &notnull, &dfltVal, &pk); err != nil {
+			return fmt.Errorf("scan column info: %w", err)
+		}
+		columns = append(columns, columnInfo{
+			name:     name,
+			typeName: typeName,
+			notnull:  notnull,
+			dfltVal:  dfltVal,
+			pk:       pk,
+		})
+		colNames = append(colNames, name)
+	}
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("iterate table_info: %w", err)
+	}
+
+	// 2. Build the new DDL dynamically from the introspected columns.
+	// Preserve the CHECK constraint, session_id FK, and feature_id FK.
+	// OMIT the parent_event_id FK (self-referential) — this is the whole point.
+	ddlParts := []string{"CREATE TABLE agent_events_new ("}
+	for i, col := range columns {
+		ddlParts = append(ddlParts, col.name+" "+col.typeName)
+		if col.notnull == 1 {
+			ddlParts = append(ddlParts, " NOT NULL")
+		}
+		if col.dfltVal != nil {
+			ddlParts = append(ddlParts, " DEFAULT "+*col.dfltVal)
+		}
+		if col.pk == 1 {
+			ddlParts = append(ddlParts, " PRIMARY KEY")
+		}
+		if i < len(columns)-1 {
+			ddlParts = append(ddlParts, ",")
+		}
+	}
+	// Add the CHECK constraint and foreign keys (except parent_event_id FK).
+	ddlParts = append(ddlParts, `,
+	CHECK (NOT (event_type = 'tool_call' AND agent_id = 'human' AND (tool_name IS NULL OR tool_name != 'UserQuery'))),
+	FOREIGN KEY (session_id) REFERENCES sessions(session_id) ON DELETE CASCADE ON UPDATE CASCADE,
+	FOREIGN KEY (feature_id) REFERENCES features(id) ON DELETE SET NULL ON UPDATE CASCADE`)
+	ddlParts = append(ddlParts, ")")
+	newTableDDL := strings.Join(ddlParts, "")
+
 	if _, err := tx.Exec(newTableDDL); err != nil {
 		return fmt.Errorf("create agent_events_new: %w", err)
 	}
 
-	// 2. Copy all rows. Rows that violate the constraint are silently skipped
-	//    (INSERT OR IGNORE) — by this point the attribution-fix migration should
-	//    have cleaned them, but we guard against edge cases.
-	if _, err := tx.Exec(`
+	// 3. Copy all rows. Build the INSERT...SELECT with the dynamically derived column list.
+	// This preserves all columns (including those added by later migrations).
+	selectClause := strings.Join(colNames, ",")
+	copySQL := fmt.Sprintf(`
 		INSERT OR IGNORE INTO agent_events_new
-		SELECT event_id, agent_id, event_type, timestamp, tool_name,
-		       input_summary, tool_input, output_summary, context,
-		       session_id, feature_id, parent_agent_id, parent_event_id,
-		       subagent_type, child_spike_count, cost_tokens,
-		       execution_duration_seconds, status, model, claude_task_id,
-		       source, step_id, created_at, updated_at
-		FROM agent_events`); err != nil {
+		SELECT %s FROM agent_events`, selectClause)
+	if _, err := tx.Exec(copySQL); err != nil {
 		return fmt.Errorf("copy rows to agent_events_new: %w", err)
 	}
 
-	// 3. Drop the old table and rename the new one.
+	// 4. Drop the old table and rename the new one.
 	if _, err := tx.Exec(`DROP TABLE agent_events`); err != nil {
 		return fmt.Errorf("drop agent_events: %w", err)
 	}

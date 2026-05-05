@@ -27,13 +27,6 @@ func codexConfigPath() string {
 // codexMarketplaceSection is the TOML key that indicates our marketplace is registered.
 const codexMarketplaceSection = `[marketplaces.htmlgraph]`
 
-// isCodexMarketplaceInstalled returns true if ~/.codex/config.toml contains
-// evidence that the htmlgraph marketplace (or plugin) is already registered.
-// Supports both the [marketplaces.htmlgraph] and [plugins."htmlgraph@htmlgraph"] forms.
-func isCodexMarketplaceInstalled() bool {
-	return isCodexMarketplaceInstalledAt(codexConfigPath())
-}
-
 // isCodexMarketplaceInstalledAt is the testable core that reads the given path.
 func isCodexMarketplaceInstalledAt(configPath string) bool {
 	data, err := os.ReadFile(configPath)
@@ -45,18 +38,13 @@ func isCodexMarketplaceInstalledAt(configPath string) bool {
 		strings.Contains(content, `[plugins."htmlgraph@htmlgraph"]`)
 }
 
-// isCodexHooksEnabled returns true if config.toml already has codex_hooks = true.
-func isCodexHooksEnabled() bool {
-	return isCodexHooksEnabledAt(codexConfigPath())
-}
-
 // isCodexHooksEnabledAt is the testable core.
 func isCodexHooksEnabledAt(configPath string) bool {
 	data, err := os.ReadFile(configPath)
 	if err != nil {
 		return false
 	}
-	for _, line := range strings.Split(string(data), "\n") {
+	for line := range strings.SplitSeq(string(data), "\n") {
 		trimmed := strings.TrimSpace(line)
 		if strings.HasPrefix(trimmed, "codex_hooks") && strings.Contains(trimmed, "=") {
 			parts := strings.SplitN(trimmed, "=", 2)
@@ -76,14 +64,14 @@ func getCodexMarketplacePathAt(configPath string) string {
 		return ""
 	}
 
-	tree := make(map[string]interface{})
+	tree := make(map[string]any)
 	if err := toml.Unmarshal(data, &tree); err != nil {
 		return ""
 	}
 
 	// Check [marketplaces.htmlgraph]
-	if mkts, ok := tree["marketplaces"].(map[string]interface{}); ok {
-		if hg, ok := mkts["htmlgraph"].(map[string]interface{}); ok {
+	if mkts, ok := tree["marketplaces"].(map[string]any); ok {
+		if hg, ok := mkts["htmlgraph"].(map[string]any); ok {
 			if source, ok := hg["source"].(string); ok {
 				return source
 			}
@@ -94,8 +82,8 @@ func getCodexMarketplacePathAt(configPath string) string {
 	}
 
 	// Check [plugins."htmlgraph@htmlgraph"]
-	if plugins, ok := tree["plugins"].(map[string]interface{}); ok {
-		if hg, ok := plugins["htmlgraph@htmlgraph"].(map[string]interface{}); ok {
+	if plugins, ok := tree["plugins"].(map[string]any); ok {
+		if hg, ok := plugins["htmlgraph@htmlgraph"].(map[string]any); ok {
 			if source, ok := hg["source"].(string); ok {
 				return source
 			}
@@ -123,7 +111,7 @@ func removeCodexHtmlgraphRegistrations(configPath string) (bool, error) {
 	}
 
 	// Parse the TOML tree
-	tree := make(map[string]interface{})
+	tree := make(map[string]any)
 	if len(data) > 0 {
 		if err := toml.Unmarshal(data, &tree); err != nil {
 			return false, fmt.Errorf("parsing %s: %w", configPath, err)
@@ -133,7 +121,7 @@ func removeCodexHtmlgraphRegistrations(configPath string) (bool, error) {
 	removed := false
 
 	// Remove from [plugins] — only the exact "htmlgraph@htmlgraph" entry
-	if plugins, ok := tree["plugins"].(map[string]interface{}); ok {
+	if plugins, ok := tree["plugins"].(map[string]any); ok {
 		if _, exists := plugins["htmlgraph@htmlgraph"]; exists {
 			delete(plugins, "htmlgraph@htmlgraph")
 			removed = true
@@ -145,7 +133,7 @@ func removeCodexHtmlgraphRegistrations(configPath string) (bool, error) {
 	}
 
 	// Remove from [marketplaces] — the "htmlgraph" entry
-	if mkts, ok := tree["marketplaces"].(map[string]interface{}); ok {
+	if mkts, ok := tree["marketplaces"].(map[string]any); ok {
 		if _, exists := mkts["htmlgraph"]; exists {
 			delete(mkts, "htmlgraph")
 			removed = true
@@ -186,7 +174,7 @@ func ensureCodexHooksEnabled(configPath string) error {
 	}
 
 	// Parse or create the TOML tree
-	tree := make(map[string]interface{})
+	tree := make(map[string]any)
 	if err == nil && len(data) > 0 {
 		if err := toml.Unmarshal(data, &tree); err != nil {
 			return fmt.Errorf("parsing %s: %w", configPath, err)
@@ -194,9 +182,9 @@ func ensureCodexHooksEnabled(configPath string) error {
 	}
 
 	// Ensure [features] table exists and set codex_hooks = true
-	features, ok := tree["features"].(map[string]interface{})
+	features, ok := tree["features"].(map[string]any)
 	if !ok {
-		features = make(map[string]interface{})
+		features = make(map[string]any)
 		tree["features"] = features
 	}
 	features["codex_hooks"] = true

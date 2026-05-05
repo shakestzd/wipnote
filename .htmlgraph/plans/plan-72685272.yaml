@@ -1,0 +1,342 @@
+meta:
+    id: plan-72685272
+    track_id: trk-8a7e82d8
+    title: Compliance auto-grading pilot — manual command + dogfood evaluation
+    description: |
+        Pilot for the OODA active-observer initiative. Adds `htmlgraph compliance auto <id>` — a manual CLI command that compares a feature's spec against its implementation diff via `claude -p` (headless) and writes structured findings to a `<section class="compliance-findings">` in the feature HTML. Pilot scope is intentionally manual: validates LLM judgment quality before automation locks in the prompt. Hook-driven automatic invocation and OTel telemetry are deferred to follow-on plans gated on pilot success. Built on primitives confirmed in spike `spk-13b6115b`. This rewrite reflects critique findings from opus (technical) and sonnet (scope) — most notably collapsing a premature harness abstraction, integrating concurrent-write safety up-front, and adding an explicit evaluation mechanism so the pilot can measure its own success.
+    created_at: "2026-05-03"
+    status: finalized
+    created_by: claude-opus
+    version: 6
+design:
+    problem: |
+        Today, completing a feature in HtmlGraph is a one-way write: the agent marks `feature complete`, the HTML body is updated, and the OODA loop's Act → Observe edge depends on a human later reading lineage and judging whether the implementation matched the spec. Specs grow stale; checkbox compliance is manually maintained or skipped; drift between spec and code is invisible until someone notices. A manual `compliance auto` command introduces an LLM judgment step that can run on completed features, surfacing implementation-vs-spec drift while keeping the pilot's blast radius small enough to evaluate without committing to automation.
+    goals:
+        - '**Manual compliance scoring** — `htmlgraph compliance auto <id>` runs `claude -p` headless, compares spec vs diff, writes 0–100 score + structured findings to a `<section class="compliance-findings">` in the feature HTML'
+        - '**Pilot-evaluable** — empirical cost measurement before approval; retrospective `--batch-since` mode runs against historical features; 14-day dogfood with manual quality audit on ≥10 findings produces a GREEN/YELLOW/RED promotion decision'
+        - '**Concurrent-safe by design** — atomic temp-file + rename in feature HTML write path; per-feature lockfile prevents lost updates; no silent corruption under concurrent invocation'
+        - '**Cost-bounded** — `--max-budget-usd` ceiling per call, `--max-turns N` tool-loop cap, `--max-wall-clock 5m` self-enforced timeout, `total_cost_usd` written into findings section for cohort cost tracking'
+    constraints:
+        - No new runtime dependencies — Go stdlib + existing project deps only; the `claude` binary is the one external dep, present in the development environment
+        - PostToolUse handler is already registered in `packages/plugin-core/manifest.json`; this pilot does not modify the manifest, does not require `htmlgraph plugin build-ports` regeneration
+        - 'Hook-driven automation explicitly out of scope; deferred to a follow-on plan after pilot evaluation passes (gates: see `q-pilot-success-bar`)'
+        - Backward compatible — existing `htmlgraph compliance <id>` (checkbox reporter) behavior unchanged; new functionality is `htmlgraph compliance auto <id>`
+        - All `claude -p` stdout/stderr captured into buffers; never leaks to caller's stderr (forward-compat for the future hook plan's 'no stderr from hooks' rule)
+        - All file writes to feature HTML use atomic temp+rename; existing `internal/workitem/htmlwriter.go` write path is upgraded to use atomic semantics for all writers, not just compliance
+    approved: false
+    comment: ""
+slices:
+    - id: slice-1
+      feature_id: feat-38a032e8
+      num: 1
+      title: '`htmlgraph compliance auto <id>` — manual end-to-end run with safety integrated'
+      what: |
+        Add `cmd/htmlgraph/compliance_auto.go` — a new CLI subcommand:
+
+        `htmlgraph compliance auto <id> [--model claude-sonnet-4-6] [--effort medium] [--dry-run] [--preview] [--max-diff-chars 50000] [--max-turns 5] [--max-wall-clock 5m] [--batch-since <date>]`
+
+        **Pipeline:**
+        1. Resolve project root via `git -C <projectDir> rev-parse --show-toplevel`. If not a git repo, write a "compliance skipped: no git history" finding section, exit 0.
+        2. Acquire per-feature lockfile `.htmlgraph/locks/compliance-<id>.lock` with current PID. If lockfile exists with a live PID, exit 1 with "compliance already running for <id>". Defer cleanup on exit.
+        3. Load feature node; error "no feature: <id>" if not found.
+        4. Read spec via `extractSpecSection()` (existing in `cmd/htmlgraph/compliance.go`). If no spec section: write a "compliance skipped: no spec" finding, exit 0.
+        5. Compute spec hash (SHA-256 of spec content) for staleness tracking.
+        6. Build diff blob:
+           a. Try `db.GetCommitsByFeature` for attributed commits.
+           b. If 0 rows: fall back to `git -C <root> diff <branch-point>..HEAD -- <files>` using `db.ListFilesByFeature`.
+           c. If still empty: write "compliance skipped: no diff available" finding, exit 0.
+           d. For attributed commits: `git -C <root> show --no-color --first-parent <hash>` (skip merge commit replayed history). Skip commits not present locally (shallow clone safety).
+           e. Truncate at `--max-diff-chars` (default 50000) at nearest line boundary; append `... [truncated N chars from M commits]` footer; set `data-diff-truncated="true"` on the section.
+        7. Build prompt:
+           - System: `Return ONLY valid JSON. No prose, no markdown fences. Schema: {summary: string, criteria: [{text, status: 'pass'|'fail'|'unclear', evidence}], score: 0-100, notes: string}`.
+           - User: spec text + diff blob.
+        8. Call inlined `runHeadlessClaude(ctx, req)` (in same package — no separate `internal/headless` harness; YAGNI per critique):
+           - Args: `claude -p --bare --output-format json --model <m> --effort <e> --max-budget-usd 0.50 --max-turns <n> --permission-mode dontAsk --allowedTools Read`
+           - Set `HTMLGRAPH_AUTO_COMPLIANCE_RUNNING=1` in spawned env (forward-compat fork-bomb guard for the future hook plan)
+           - Capture stdout into `bytes.Buffer`; capture stderr into a separate `bytes.Buffer` — never leak to caller stderr
+           - Honor context cancellation
+           - Self-enforce `--max-wall-clock` via `time.AfterFunc` killing the subprocess
+           - Parse JSON; return typed `BudgetExceededError` for `subtype: "error_max_budget_usd"`
+        9. Parse `result` field as JSON. If parse fails: write "compliance error: parse failure" finding, exit 1.
+        10. Write `<section class="compliance-findings" data-score="N" data-cost-usd="0.012" data-model="claude-sonnet-4-6" data-spec-hash="<sha>" data-timestamp="..." data-diff-truncated="false">` with rendered findings as HTML. Idempotent: replaces existing section by class match. Atomic: render full HTML to `<id>.html.tmp.<pid>`, fsync, `os.Rename(tmp, path)` (POSIX atomic rename).
+        11. Print one-line summary: `compliance feat-X score=N cost=$0.012 [stale-spec]` — `[stale-spec]` appears if previous section's `data-spec-hash` differs from current.
+
+        **Flag semantics:**
+        - `--dry-run` — skip the LLM call, print the prompt that would be sent
+        - `--preview` — run the full pipeline (LLM call included) but print findings to stdout instead of writing to feature HTML
+        - `--batch-since <date>` — iterate over all `done` features completed since `<date>`; rate-limit to 1 call per 30s to bound API spend
+
+        **Atomic write upgrade in `internal/workitem/htmlwriter.go`:**
+        - Replace `os.WriteFile(path, content, 0644)` in `WriteNodeHTML` with: write to `<path>.tmp.<pid>`, `f.Sync()`, `os.Rename(tmp, path)` (POSIX atomic rename)
+        - Add a `featureWriteMu sync.Map` (keyed by feature ID) for in-process serialization of `WriteNodeHTML`
+        - This upgrade is a P0 safety addition; without it, slice 1's "idempotent replace" guarantee is a textbook lost-update race (per opus critique HIGH-2)
+      why: |
+        The pilot's value is testable as soon as this slice ships: a human or agent runs `compliance auto <id>` on any completed feature, sees findings appear in the HTML, and judges the LLM's signal quality. Decoupling from a hook trigger lets us tune the prompt empirically without committing to automation that locks in a bad prompt. All safety guards (atomic write, fork guard env var, lockfile, truncation, turn cap, wall-clock cap) are integrated up-front because the manual pilot will run on real features in real concurrent contexts — these aren't refinements, they're correctness. The retrospective `--batch-since` mode unlocks evaluation against historical features, which slice 2's quality audit needs to bootstrap. The harness abstraction from the prior plan version was YAGNI per sonnet's critique; we inline `runHeadlessClaude` and extract a shared package only when a second OODA feature actually exists to consume it.
+      files:
+        - cmd/htmlgraph/compliance_auto.go
+        - cmd/htmlgraph/compliance_auto_test.go
+        - cmd/htmlgraph/compliance.go
+        - internal/workitem/htmlwriter.go
+      deps: []
+      done_when:
+        - '`htmlgraph compliance auto <id>` on a feature with a spec writes a `<section class="compliance-findings">` with score/cost/model/spec-hash/timestamp/diff-truncated attributes and prints a one-line summary'
+        - Re-running replaces the section (idempotent), does not duplicate
+        - Concurrent runs against the same feature do not corrupt HTML — verified by integration test that races two invocations and asserts both produce valid HTML and one outcome wins (no torn writes)
+        - A feature without a spec exits 0 with a 'no spec' note finding
+        - A feature in a non-git project exits 0 with a 'no git history' note finding
+        - When `db.GetCommitsByFeature` returns 0 rows, the fallback diff via `db.ListFilesByFeature` + `git diff` succeeds; verified on a feature without attributed commits
+        - Diffs over `--max-diff-chars` are truncated at line boundary with the truncation note included; section attribute `data-diff-truncated="true"`
+        - An LLM response that fails JSON parse exits 1 with a clear error and writes a parse-failure finding
+        - '`--dry-run` prints the prompt and exits 0 without invoking the LLM'
+        - '`--preview` runs the LLM call and prints findings to stdout without writing to feature HTML'
+        - '`--batch-since 2026-04-01` iterates over completed features since that date, rate-limited to 1 call per 30s'
+        - When the previous section's `data-spec-hash` differs from the current spec hash, the summary line includes `[stale-spec]`
+        - Per-feature lockfile prevents two concurrent runs; second invocation exits 1 with clear error
+        - '`HTMLGRAPH_AUTO_COMPLIANCE_RUNNING=1` is set in the env of the spawned `claude -p` subprocess'
+        - '`internal/workitem/htmlwriter.go` writes are atomic (temp+rename) for all callers; existing tests pass'
+        - Existing `htmlgraph compliance <id>` (checkbox reporter) behavior unchanged
+      effort: L
+      risk: Med
+      tests: |
+        Unit:
+        - TestComplianceAuto_NoSpec — feature without spec; exit 0, "no spec" finding written
+        - TestComplianceAuto_NoGitRepo — non-git project; exit 0, "no git history" finding
+        - TestComplianceAuto_SuccessPath — stub LLM returns valid JSON; section written with all expected attributes
+        - TestComplianceAuto_ParseFailure — stub returns prose; exit 1, parse-failure finding written
+        - TestComplianceAuto_Idempotent — running twice replaces section, doesn't duplicate
+        - TestComplianceAuto_FallbackDiff — feature with no attributed commits but `feature_files` entries; fallback diff succeeds
+        - TestBuildPrompt — fixture spec + diff produces expected prompt structure
+        - TestTruncateDiff_BelowLimit — diff under limit unchanged
+        - TestTruncateDiff_AboveLimit — diff over limit truncated at line boundary; data-diff-truncated="true"
+        - TestDryRun — `--dry-run` prints prompt, exits 0, no LLM call
+        - TestPreview — `--preview` runs LLM, prints findings, no HTML write
+        - TestBatchSince — `--batch-since 2026-04-01` iterates expected feature set with rate-limit
+        - TestStaleSpec — section's data-spec-hash differs from current; summary includes `[stale-spec]`
+        - TestLockfile_Concurrent — second invocation while first holds lock exits 1
+        - TestForkGuardEnv — spawned subprocess inherits HTMLGRAPH_AUTO_COMPLIANCE_RUNNING=1
+        - TestStderrContainment — stub LLM writes to stderr; caller's stderr stays empty
+        - TestMaxWallClock — wall clock exceeded; subprocess killed; timeout finding written
+        - TestAtomicWrite_Concurrent — racing two `compliance auto` invocations on same feature; HTML stays valid (key concurrency test for opus HIGH finding)
+
+        Integration:
+        - TestComplianceAutoEndToEnd — temp project with feature + spec + commits; stubbed claude invocation; assert section + stdout summary + atomic file present
+        - TestHtmlWriterAtomicity — directly racing `WriteNodeHTML` in goroutines; assert no file corruption
+
+        Regression:
+        - `cmd/htmlgraph/compliance_test.go` (checkbox reporter) passes unchanged
+        - `cmd/htmlgraph/spec_test.go` passes unchanged
+        - `internal/workitem/edit_test.go` and any existing `htmlwriter_test.go` pass unchanged
+      approved: false
+      comment: ""
+      approval_status: pending
+      execution_status: promoted
+      questions:
+        - id: q-write-back-format
+          text: Where should compliance findings live in the feature HTML?
+          description: |
+            Idempotency, queryability, and dashboard visibility differ across these options.
+            The compliance findings need to be replaceable on re-run (not appended), queryable
+            for history/cohort views, and visible to the user reading the feature page.
+          recommended: section
+          options:
+            - key: section
+              label: section — `<section class='compliance-findings'>` with `data-*` attributes. Structured, queryable, parallels existing `<section class='spec'>`.
+            - key: addnote
+              label: addnote — `Collection.AddNote` appends a `<p>`. Minimal new code, but findings buried in body and not idempotent.
+            - key: properties
+              label: properties — `Properties` map on node. Simplest, but invisible in HTML view.
+        - id: q-diff-source
+          text: How does the LLM see the implementation diff?
+          description: |
+            Determinism, testability, and permission-mode complexity differ. Opus critique
+            noted that whichever approach is chosen needs `git -C <root>` for project-root
+            resolution, `--first-parent` for merge-commit safety, and a fallback via
+            `feature_files` when commits aren't attributed to the feature.
+          recommended: prompt-text
+          options:
+            - key: prompt-text
+              label: prompt-text — pre-compute via `git show`, embed as text in user prompt; truncate at 50k chars
+            - key: bash-allowed
+              label: bash-allowed — allow `Bash(git show)` in `--allowedTools`, let LLM fetch the diff itself
+            - key: read-files
+              label: read-files — allow `Read` on changed files, let LLM read them directly
+        - id: q-no-spec-behavior
+          text: When the feature has no spec section, what should auto-compliance do?
+          description: |
+            Visibility vs silent skip vs synthetic generation. Silent skip leaves users
+            wondering whether the pilot is broken; generated stub specs are theater.
+          recommended: skip-with-note
+          options:
+            - key: skip-with-note
+              label: skip-with-note — write a 'no spec' finding section, exit 0
+            - key: silent-skip
+              label: silent-skip — exit 0 with no side effect
+            - key: generate-then-score
+              label: generate-then-score — run `htmlgraph spec generate`, score against the auto-generated stub
+        - id: q-model-default
+          text: Default model + effort for auto-compliance?
+          description: |
+            Cost vs signal quality. The recommendation here may flip to haiku-low pending
+            the empirical cost measurement (`q-cost-measurement`). All three remain
+            user-selectable via `--model` and `--effort` flags.
+          recommended: sonnet-medium
+          options:
+            - key: sonnet-medium
+              label: sonnet-medium — `claude-sonnet-4-6` + medium effort. Estimated ~$0.03/call (provisional pending q-cost-measurement).
+            - key: haiku-low
+              label: haiku-low — `claude-haiku-4-5` + low effort. ~$0.001–$0.003/call. May miss nuance.
+            - key: opus-high
+              label: opus-high — `claude-opus-4-7` + high effort. ~$0.10–$0.30/call. Overkill for pilot.
+      critic_revisions:
+        - source: opus
+          severity: HIGH
+          summary: File-write race in `internal/workitem/htmlwriter.go` (no atomic write/flock) — addressed by atomic temp+rename + per-feature mutex; integrated into this slice's done_when and tests
+        - source: opus
+          severity: MEDIUM
+          summary: '`db.GetCommitsByFeature` returns 0 rows for squash-merged or pre-hook features — addressed by feature_files fallback'
+        - source: opus
+          severity: MEDIUM
+          summary: '`git show` requires explicit `git -C <root>` and not-a-git-repo handling; merge commits need `--first-parent` — addressed in pipeline step 6'
+        - source: opus
+          severity: MEDIUM
+          summary: '`--max-budget-usd` is cost-only; tool-loop runaway needs `--max-turns N` cap — addressed via `--max-turns` flag default 5'
+        - source: opus
+          severity: MEDIUM
+          summary: '`--bare` strips project context (CLAUDE.md, MCP); rationale documented — all context comes from the prompt, not the host project'
+        - source: opus
+          severity: LOW
+          summary: '`extractSpecSection` reuse confirmed; `parseCriteria` reuse deferred unless quality benefit emerges in pilot'
+        - source: sonnet
+          severity: HIGH
+          summary: Harness abstraction was YAGNI — collapsed into this slice; `runHeadlessClaude` inline; extract package only after a second OODA consumer exists
+        - source: sonnet
+          severity: HIGH
+          summary: Diff truncation moved from refinement slice to this slice as P0 safety — without it, large features silently fail
+        - source: sonnet
+          severity: MEDIUM
+          summary: '`--preview` flag added — runs LLM call but prints findings to stdout instead of writing HTML, enabling review before commit'
+        - source: sonnet
+          severity: MEDIUM
+          summary: '`--batch-since <date>` retroactive mode added — enables evaluation against historical features without waiting for new completions'
+        - source: sonnet
+          severity: MEDIUM
+          summary: Cost data attributes (`data-cost-usd`, `data-model`) integrated into section write — no infrastructure cost
+    - id: slice-2
+      feature_id: feat-834180bf
+      num: 2
+      title: 'Pilot evaluation: cost measurement, dogfood, history command, review checkpoints'
+      what: |
+        Pilot evaluation infrastructure — produces the evidence needed to make a GREEN/YELLOW/RED promotion decision for a follow-on hook-driven plan.
+
+        1. **Empirical cost measurement (one-time pre-merge task).** Run `htmlgraph compliance auto <real-feat-id>` on one real completed feature with a non-trivial spec. Record the measured `total_cost_usd` from the JSON output. If materially different from the $0.03/call estimate, update `q-model-default` recommendation and re-baseline cost framing in `q-pilot-success-bar`.
+
+        2. **Retrospective batch baseline.** Run `htmlgraph compliance auto --batch-since 2026-01-01` (slice 1's batch mode) against historical features in this project. Output of that run becomes the day-0 evaluation dataset. Capture the run's aggregate cost.
+
+        3. **`htmlgraph compliance history <id>` command.** Reads prior compliance runs from the feature's findings section's `<details>` blocks (last 5 retained by slice 1's idempotent replace, when slice 1's design is extended in a future iteration to preserve history) AND from the section's `data-*` attributes for the most recent run. Prints a table: timestamp, model, score, cost, spec-hash, diff-truncated. Supports `--json` for evaluation script consumption.
+
+        4. **Review checkpoint runbook** — `docs/runbook/compliance-pilot-evaluation.md` describing:
+           - **Day 0 baseline:** measured cost + retrospective batch dataset
+           - **Day 7 checkpoint:** count of `compliance auto` invocations across dogfood users, sample of 5 random findings reviewed for plausibility, decision to continue or adjust prompt
+           - **Day 14 checkpoint:** full quality audit — manual review of 10 findings against engineer judgment, score-agreement target ≥70%
+           - **Decision criteria:** GREEN (all gates pass) → spawn hook-driven follow-on plan; YELLOW (signal noisy) → tune prompt, extend pilot 7 days; RED (consistent disagreement or unmanageable cost) → kill pilot, document why
+
+        5. **Dogfood activation.** Project-level shell-alias or runbook entry directing dogfood users to run `htmlgraph compliance auto <id>` after each `feature complete`. Since the hook is out of scope, "activation" means establishing muscle memory and reporting cadence. The runbook explicitly states the 14-day window and the success criteria.
+      why: |
+        The pilot has no value without an evaluation mechanism. Slice 1 produces findings; this slice produces *evidence* about whether those findings are useful. Without the empirical cost measurement, the model-default decision is built on extrapolation. Without the runbook, "pilot success" is a survey we never conduct. Without the history command, multi-run regressions are invisible. Without the retrospective batch, the pilot accumulates evaluation data only on features completed during the dogfood window — too small a sample. This slice converts a working tool (slice 1) into a measured experiment.
+      files:
+        - cmd/htmlgraph/compliance_history.go
+        - cmd/htmlgraph/compliance_history_test.go
+        - docs/runbook/compliance-pilot-evaluation.md
+      deps:
+        - 1
+      done_when:
+        - Empirical cost measurement performed; the measured `total_cost_usd` for one real feature is documented in the runbook and the slice body
+        - Retrospective batch baseline run completed against historical features in this project; the resulting dataset (or its commit hash) is referenced in the runbook
+        - '`htmlgraph compliance history <id>` lists prior compliance runs newest-first with timestamp/model/score/cost/spec-hash/diff-truncated'
+        - '`--json` flag prints history as JSON (one record per run)'
+        - '`docs/runbook/compliance-pilot-evaluation.md` exists with Day 0 / Day 7 / Day 14 sections, concrete review actions, and GREEN/YELLOW/RED decision criteria'
+        - 'Runbook documents dogfood activation: shell alias or one-line invocation prescribed; reporting cadence stated'
+      effort: M
+      risk: Low
+      tests: |
+        Unit:
+        - TestComplianceHistory_OrdersByTimestamp — reads `<details>` blocks; lists newest-first
+        - TestComplianceHistory_NoSection — feature without findings; exit 0, empty table
+        - TestComplianceHistory_JsonOutput — `--json` produces parseable JSON array
+        - TestComplianceHistory_ParsesAttrs — section with data-cost-usd / data-score / data-model attributes parsed correctly
+
+        Integration:
+        - TestRunbook_DocsPresent — verify `docs/runbook/compliance-pilot-evaluation.md` exists and contains the required Day 0/7/14 sections and decision-criteria block (regex check)
+
+        Regression: slice 1 tests pass unchanged
+      approved: false
+      comment: ""
+      approval_status: pending
+      execution_status: promoted
+      questions:
+        - id: q-history-storage
+          text: Where does compliance history come from?
+          description: |
+            Pilot scope. SQLite backing is YAGNI until multi-feature analytics; can be
+            added in the OTel telemetry follow-on plan once the pilot proves value.
+          recommended: parse-from-html
+          options:
+            - key: parse-from-html
+              label: parse-from-html — read prior findings from feature HTML's `<details>` blocks (last 5 retained by slice 1's section writer)
+            - key: separate-table
+              label: separate-table — store every run in a SQLite `compliance_runs` table; HTML retains only most recent
+            - key: both
+              label: both — HTML for visibility, SQLite for analytics
+        - id: q-eval-rigor
+          text: Day 14 quality audit rigor?
+          description: |
+            Adjustable upward if the day-7 checkpoint reveals signal noise. Matches
+            `q-pilot-success-bar`'s definition of pilot success.
+          recommended: ten-findings-one-reviewer
+          options:
+            - key: ten-findings-one-reviewer
+              label: 10 findings, 1 reviewer, ≥70% agreement — pragmatic; matches `q-pilot-success-bar` recommendation
+            - key: twenty-findings-two-reviewers
+              label: 20 findings, 2 reviewers, agreement-on-agreement — more rigorous; double the time
+            - key: five-findings-qualitative
+              label: 5 findings, 1 reviewer, qualitative — cheapest but easy to game
+      critic_revisions:
+        - source: sonnet
+          severity: HIGH
+          summary: Pilot had no evaluation mechanism — addressed by this entire slice (cost measurement + retrospective batch + history command + 14-day runbook)
+        - source: sonnet
+          severity: HIGH
+          summary: Cost estimate optimism — addressed by empirical pre-merge measurement step that updates plan estimates before slice approval
+        - source: sonnet
+          severity: MEDIUM
+          summary: Retroactive run for historical evaluation — addressed by `--batch-since` baseline using slice 1's batch mode
+        - source: sonnet
+          severity: MEDIUM
+          summary: Title 'OODA pilot' overpromised — plan title revised to 'Compliance auto-grading pilot — manual command + dogfood evaluation'
+questions:
+    - id: q-pilot-success-bar
+      text: How do we know the pilot succeeded — i.e., when do we promote to a hook-driven follow-on plan?
+      description: |
+        Combines option C's value (manual quality check) with option A's pragmatism (real-world adoption). 14 days × 10 reviewed findings is a manageable evaluation budget. Sonnet's scope critique flagged that earlier framing made A and C seem mutually exclusive — they aren't. Cost-bounded alone doesn't validate signal quality; full quality audit requires more review setup.
+      recommended: dogfooded-plus-audit
+      options:
+        - key: dogfooded-plus-audit
+          label: 'A: dogfooded + audit — ≥3 internal users run `compliance auto` on real features for 14 days AND at least one engineer manually reviews ≥10 findings, reporting ≥70% agreement with their own judgment'
+        - key: cost-bounded
+          label: 'B: cost-bounded only — pilot runs for 30 days at <$50 total cost across users. Easy to measure but doesn''t validate signal quality'
+        - key: full-quality-audit
+          label: 'C: full quality audit — ≥80% of findings agree with human review on a sample of 20 features. Most rigorous; takes review setup'
+      answer: null
+    - id: q-cost-measurement
+      text: Empirical per-call cost measurement before slice approval?
+      description: |
+        The plan estimates ~$0.03/call at sonnet-medium based on extrapolation, but spike `spk-13b6115b` observed cold-start plugin loading costs of ~$0.10/call. The cost difference between $0.03 and $0.10 affects the model-default decision (haiku vs sonnet) and the success-bar cost framing. One 30-second measurement saves weeks of misjudgment.
+      recommended: measure-before-approval
+      options:
+        - key: measure-before-approval
+          label: 'A: measure-before-approval — run `compliance auto` on one real completed feature, record `total_cost_usd`, update plan estimates. Blocks slice approval until measured'
+        - key: measure-during-pilot
+          label: 'B: measure-during-pilot — proceed to approval; record empirical costs from first dogfood runs. Plan estimates remain provisional'
+        - key: skip
+          label: 'C: skip — accept the optimistic estimate; revise if costs surprise'
+      answer: null

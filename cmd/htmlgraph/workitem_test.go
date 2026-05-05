@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -1298,3 +1299,134 @@ func TestRunWiSetStatus_SubagentsDoNotStompLegacyColumn(t *testing.T) {
 		t.Errorf("sessions.active_feature_id must be empty when only subagents claim features; got %q", legacy)
 	}
 }
+
+// --- Feature-complete spec-enforcement gate (feat-0fd7c8bc) ----------
+
+// setupFeatureGateProject creates a project root with a .htmlgraph subdir.
+// Returns the htmlgraphDir.
+func setupFeatureGateProject(t *testing.T) string {
+	t.Helper()
+	projectRoot := t.TempDir()
+	hgDir := filepath.Join(projectRoot, ".htmlgraph")
+	for _, sub := range []string{"features", "bugs", "tracks", "plans", "specs", "spikes"} {
+		if err := os.MkdirAll(filepath.Join(hgDir, sub), 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", sub, err)
+		}
+	}
+	return hgDir
+}
+
+// writeFeatureWithSpec writes a minimal feature HTML inside hgDir/features/
+// with optional spec content (raw text inside <section class="spec">).
+func writeFeatureWithSpec(t *testing.T, hgDir, featureID, specContent string) {
+	t.Helper()
+	body := fmt.Sprintf(`<!DOCTYPE html><html><body><article id="%s"></article>`, featureID)
+	if specContent != "" {
+		body += `<section class="spec">` + specContent + `</section>`
+	}
+	body += "</body></html>"
+	path := filepath.Join(hgDir, "features", featureID+".html")
+	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+		t.Fatalf("write feature html: %v", err)
+	}
+}
+
+// writeFeatureCompleteEnforcementConfig writes spec_enforcement.feature_complete=true
+// into hgDir/config.json (which lives under the project root).
+func writeFeatureCompleteEnforcementConfig(t *testing.T, hgDir string, enabled bool) {
+	t.Helper()
+	body := fmt.Sprintf(`{"spec_enforcement":{"feature_complete":%t}}`, enabled)
+	if err := os.WriteFile(filepath.Join(hgDir, "config.json"), []byte(body), 0o644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+}
+
+// TestFeatureCompleteGate_Disabled — default config; complete succeeds without
+// any spec section.
+func TestFeatureCompleteGate_Disabled(t *testing.T) {
+	wiAllowSpecSkip = false
+	hgDir := setupFeatureGateProject(t)
+	writeFeatureWithSpec(t, hgDir, "feat-gatedis", "")
+
+	if err := checkFeatureCompleteSpecGate(hgDir, "feat-gatedis"); err != nil {
+		t.Errorf("expected gate disabled by default, got error: %v", err)
+	}
+}
+
+// TestFeatureCompleteGate_EnabledNoSpec — config opted in, no spec section,
+// gate refuses.
+func TestFeatureCompleteGate_EnabledNoSpec(t *testing.T) {
+	hgDir := setupFeatureGateProject(t)
+	writeFeatureCompleteEnforcementConfig(t, hgDir, true)
+	writeFeatureWithSpec(t, hgDir, "feat-gatenospec", "")
+
+	err := checkFeatureCompleteSpecGate(hgDir, "feat-gatenospec")
+	if err == nil {
+		t.Fatal("expected gate refusal, got nil")
+	}
+	if !strings.Contains(err.Error(), "no spec section") {
+		t.Errorf("error should mention missing spec: %v", err)
+	}
+	if !strings.Contains(err.Error(), "spec generate") {
+		t.Errorf("error should point to remediation command: %v", err)
+	}
+}
+
+// TestFeatureCompleteGate_EnabledEmptySpec — section exists but has no
+// requirements/criteria; gate refuses.
+func TestFeatureCompleteGate_EnabledEmptySpec(t *testing.T) {
+	hgDir := setupFeatureGateProject(t)
+	writeFeatureCompleteEnforcementConfig(t, hgDir, true)
+	writeFeatureWithSpec(t, hgDir, "feat-gateempty",
+		`<pre>## Problem
+x
+## Notes
+none</pre>`)
+
+	err := checkFeatureCompleteSpecGate(hgDir, "feat-gateempty")
+	if err == nil {
+		t.Fatal("expected gate refusal on empty criteria, got nil")
+	}
+	if !strings.Contains(err.Error(), "0 criteria") {
+		t.Errorf("error should mention 0 criteria: %v", err)
+	}
+}
+
+// TestFeatureCompleteGate_EnabledWithRequirement — section has a Requirement
+// + scenario with checked task line; gate passes.
+func TestFeatureCompleteGate_EnabledWithRequirement(t *testing.T) {
+	hgDir := setupFeatureGateProject(t)
+	writeFeatureCompleteEnforcementConfig(t, hgDir, true)
+
+	specBody := `<pre>## ADDED Requirements
+
+### Requirement: Login
+The implementation SHALL ensure: users authenticate.
+
+#### Scenario: valid token
+- [x] WHEN the token signature verifies
+- [x] THEN the user is logged in
+</pre>`
+	writeFeatureWithSpec(t, hgDir, "feat-gateok", specBody)
+
+	if err := checkFeatureCompleteSpecGate(hgDir, "feat-gateok"); err != nil {
+		t.Errorf("expected gate to pass with requirement present, got: %v", err)
+	}
+}
+
+// TestFeatureCompleteGate_EnabledWithLegacyCriterion — legacy ## Acceptance
+// Criteria with at least one checkbox passes the gate.
+func TestFeatureCompleteGate_EnabledWithLegacyCriterion(t *testing.T) {
+	hgDir := setupFeatureGateProject(t)
+	writeFeatureCompleteEnforcementConfig(t, hgDir, true)
+	writeFeatureWithSpec(t, hgDir, "feat-gatelegacy",
+		`<pre>## Acceptance Criteria
+- [x] First criterion
+- [ ] Second criterion
+</pre>`)
+
+	if err := checkFeatureCompleteSpecGate(hgDir, "feat-gatelegacy"); err != nil {
+		t.Errorf("expected gate to pass with legacy criterion, got: %v", err)
+	}
+}
+

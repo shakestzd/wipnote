@@ -1,56 +1,174 @@
-<div class="slice-card" data-slice="{{.Num}}" data-slice-name="{{.ID}}" data-status="{{if .Status}}{{.Status}}{{else}}pending{{end}}">
-  <div class="slice-header">
+<details class="slice-card" id="slice-{{.Num}}" data-slice="{{.Num}}" data-slice-name="{{.ID}}" data-status="{{if .Status}}{{.Status}}{{else}}pending{{end}}" data-approval="{{.ApprovalDataAttr}}">
+  <summary class="slice-summary" aria-label="Slice {{.Num}}: {{.Title}}">
     <span class="slice-num">#{{.Num}}</span>
-    <span class="slice-name">{{.Title}}</span>
-    {{if .Effort}}<span class="badge {{.EffortClass}}">{{.Effort}}</span>{{end}}
-    {{if .Risk}}<span class="badge {{.RiskClass}}">{{.Risk}}</span>{{end}}
-    {{if .ExecutionStatus}}<span class="badge {{.ExecutionStatusClass}} slice-exec-badge" title="Execution: {{.ExecutionStatus}}">{{.ExecutionStatusLabel}}</span>{{end}}
-    <span class="badge {{.ApprovalStatusClass}} slice-approval-badge" data-badge-for="slice-{{.Num}}">{{.ApprovalStatusLabel}}</span>
-  </div>
-  {{if .HasStructuredContent}}
-  <div class="slice-field">{{if .What}}<div class="slice-field-label">What</div><div class="slice-field-value slice-md">{{.WhatHTML}}</div>{{end}}</div>
-  {{if .Why}}<div class="slice-field"><div class="slice-field-label">Why</div><div class="slice-field-value slice-md">{{.WhyHTML}}</div></div>{{end}}
-  {{if .Files}}<div class="slice-field"><div class="slice-field-label">Files</div><div class="slice-field-value"><code>{{.Files}}</code></div></div>{{end}}
-  {{if .DoneWhen}}<div class="slice-field"><div class="slice-field-label">Done when</div><ul class="slice-done-list">{{range .DoneWhen}}<li>{{.}}</li>{{end}}</ul></div>{{end}}
-  {{else}}
-  {{if .ID}}<div class="slice-meta"><span>{{.ID}}</span></div>{{end}}
-  {{if .Description}}<div class="slice-field"><div class="slice-field-value slice-md">{{.DescriptionHTML}}</div></div>{{end}}
-  {{if .Files}}<div class="slice-field"><div class="slice-field-label">Files</div><div class="slice-field-value"><code>{{.Files}}</code></div></div>{{end}}
-  {{end}}
-  {{if .Tests}}<div class="slice-field"><div class="slice-field-label">Test Strategy</div><div class="slice-field-value slice-md slice-tests">{{.TestsHTML}}</div></div>{{end}}
-  {{if .CriticRevisions}}
-  <div class="slice-field slice-critic-revisions">
-    <div class="slice-field-label">Critic Revisions</div>
-    <div class="slice-field-value">
-      {{range .CriticRevisions}}
-      <div class="critic-revision">
-        <span class="badge {{$.CriticSeverityClass .Severity}} critic-revision-badge">{{.Severity}}</span>
-        <span class="critic-revision-source">{{.Source}}</span>
-        <span class="critic-revision-summary">{{.Summary}}</span>
+    <span class="slice-title-col">
+      <span class="slice-name">{{.Title}}</span>
+      {{$preview := .Preview}}{{if $preview}}<span class="slice-preview">{{$preview}}</span>{{end}}
+      <span class="slice-meta-row">
+        <span class="slice-summary-badges">
+          {{if .Effort}}<span class="badge {{.EffortClass}} badge-sm">{{.Effort}}</span>{{end}}
+          {{if .Risk}}<span class="badge {{.RiskClass}} badge-sm">{{.Risk}}</span>{{end}}
+          {{if .ExecutionStatus}}<span class="badge {{.ExecutionStatusClass}} badge-sm" title="Execution: {{.ExecutionStatus}}">{{.ExecutionStatusLabel}}</span>{{end}}
+          <span class="badge {{.ApprovalStatusClass}} badge-sm slice-approval-badge" data-badge-for="slice-{{.Num}}">{{.ApprovalStatusLabel}}</span>
+          {{if gt .IssueCount 0}}<span class="badge badge-sm badge-issues" title="{{.IssueCount}} critic issue(s)">{{.IssueCount}} issue{{if gt .IssueCount 1}}s{{end}}</span>{{end}}
+          {{if gt .QuestionCount 0}}<span class="badge badge-sm badge-questions" title="{{.QuestionCount}} open question(s)">{{.QuestionCount}} Q</span>{{end}}
+        </span>
+        <span class="slice-actions" onclick="event.stopPropagation()">
+          <span class="approval-segmented" role="group" aria-label="Approval action">
+            <label class="seg-btn seg-approve" title="Approve">
+              <input type="radio" name="slice-{{.Num}}-approval" value="approved" data-section="slice-{{.Num}}" data-action="approve"{{if eq .ApprovalStatus "approved"}} checked{{end}} aria-label="Approve slice {{.Num}}">
+              &#10003;
+            </label>
+            <label class="seg-btn seg-changes" title="Request changes">
+              <input type="radio" name="slice-{{.Num}}-approval" value="changes_requested" data-section="slice-{{.Num}}" data-action="approve"{{if eq .ApprovalStatus "changes_requested"}} checked{{end}} aria-label="Request changes for slice {{.Num}}">
+              &#8635;
+            </label>
+            <label class="seg-btn seg-reject" title="Reject">
+              <input type="radio" name="slice-{{.Num}}-approval" value="rejected" data-section="slice-{{.Num}}" data-action="approve"{{if eq .ApprovalStatus "rejected"}} checked{{end}} aria-label="Reject slice {{.Num}}">
+              &#10005;
+            </label>
+          </span>
+        </span>
+      </span>
+    </span>
+    <span class="slice-chevron" aria-hidden="true"></span>
+  </summary>
+
+  <div class="slice-body">
+    {{if .HasStructuredContent}}
+      {{if .What}}
+      <div class="slice-field slice-what">
+        <div class="slice-field-label">What</div>
+        <div class="slice-field-value">
+          {{if .WhatNeedsReveal}}
+          <input type="checkbox" id="slice-{{.Num}}-what-reveal" class="reveal-toggle">
+          <div class="markdown-block reveal-content serif-prose">{{.WhatHTML}}</div>
+          <label for="slice-{{.Num}}-what-reveal" class="reveal-label">Show full description</label>
+          {{else}}
+          <div class="markdown-block serif-prose">{{.WhatHTML}}</div>
+          {{end}}
+        </div>
       </div>
       {{end}}
-    </div>
-  </div>
-  {{end}}
-  {{if .Questions}}
-  <div class="slice-field slice-questions">
-    <div class="slice-field-label">Open Questions</div>
-    <div class="slice-field-value">
-      {{range .Questions}}
-      <div class="question-block slice-question-block">
-        <p>{{.Text}}</p>
-        <textarea
-          data-section="{{$.SliceQuestionSectionKey .ID}}"
-          data-comment-for="{{$.SliceQuestionSectionKey .ID}}"
-          placeholder="Answer question {{.ID}}...">{{.Answer}}</textarea>
+      {{if .Why}}
+      <div class="slice-field slice-why">
+        <div class="slice-field-label">Why</div>
+        <div class="slice-field-value">
+          {{if .WhyNeedsReveal}}
+          <input type="checkbox" id="slice-{{.Num}}-why-reveal" class="reveal-toggle">
+          <div class="markdown-block reveal-content serif-prose">{{.WhyHTML}}</div>
+          <label for="slice-{{.Num}}-why-reveal" class="reveal-label">Show full description</label>
+          {{else}}
+          <div class="markdown-block serif-prose">{{.WhyHTML}}</div>
+          {{end}}
+        </div>
       </div>
       {{end}}
+      {{if .Files}}
+      <div class="slice-field">
+        <div class="slice-field-label">Files</div>
+        <div class="slice-field-value"><code>{{.Files}}</code></div>
+      </div>
+      {{end}}
+      {{if .DoneWhen}}
+      <div class="slice-field">
+        <div class="slice-field-label">Done when</div>
+        <ul class="slice-done-list{{if .DoneWhenMultiCol}} slice-done-list--grid{{end}}">{{range .DoneWhen}}<li>{{.}}</li>{{end}}</ul>
+      </div>
+      {{end}}
+    {{else}}
+      {{if .ID}}<div class="slice-meta"><span>{{.ID}}</span></div>{{end}}
+      {{if .Description}}
+      <div class="slice-field slice-description">
+        <div class="slice-field-value">
+          {{if .DescriptionNeedsReveal}}
+          <input type="checkbox" id="slice-{{.Num}}-desc-reveal" class="reveal-toggle">
+          <div class="markdown-block reveal-content serif-prose">{{.DescriptionHTML}}</div>
+          <label for="slice-{{.Num}}-desc-reveal" class="reveal-label">Show full description</label>
+          {{else}}
+          <div class="markdown-block serif-prose">{{.DescriptionHTML}}</div>
+          {{end}}
+        </div>
+      </div>
+      {{end}}
+      {{if .Files}}
+      <div class="slice-field">
+        <div class="slice-field-label">Files</div>
+        <div class="slice-field-value"><code>{{.Files}}</code></div>
+      </div>
+      {{end}}
+    {{end}}
+
+    {{if .Tests}}
+    <div class="slice-field slice-tests-field">
+      <div class="slice-field-label">Test Strategy</div>
+      <div class="slice-field-value">
+        {{$groups := .TestGroups}}
+        {{if $groups}}
+        <div class="test-strategy">
+          {{range $groups}}
+          <div class="test-group" data-kind="{{.Kind | printf "%s" | lower}}">
+            <span class="test-chip">{{.Kind | upper}} &middot; {{len .Items}}</span>
+            <ul>{{range .Items}}<li>{{.}}</li>{{end}}</ul>
+          </div>
+          {{end}}
+        </div>
+        {{else}}
+        <div class="markdown-block slice-tests">{{.TestsHTML}}</div>
+        {{end}}
+      </div>
     </div>
+    {{end}}
+
+    {{if .CriticRevisions}}
+    <div class="slice-field slice-critic-revisions">
+      <div class="slice-field-label">Critic Revisions</div>
+      <div class="slice-field-value">
+        {{range .CriticRevisions}}
+        <div class="critic-revision">
+          <span class="badge {{$.CriticSeverityClass .Severity}} critic-revision-badge">{{.Severity}}</span>
+          <span class="critic-revision-source">{{.Source}}</span>
+          <span class="critic-revision-summary">{{.Summary}}</span>
+        </div>
+        {{end}}
+      </div>
+    </div>
+    {{end}}
+
+    {{if .Questions}}
+    <div class="slice-field slice-questions">
+      <div class="slice-field-label">Open Questions</div>
+      <div class="slice-field-value">
+        {{range .Questions}}
+        <div class="question-block slice-question-block">
+          <p>{{.Text}}</p>
+          {{if .Description}}<p class="question-desc">{{.Description}}</p>{{end}}
+          {{if .Options}}
+            {{$qid := $.SliceQuestionSectionKey .ID}}
+            {{$rec := .Recommended}}
+            {{$ans := .Answer}}
+            {{range .Options}}
+            <label{{if and (eq .Key $rec) (eq $ans "")}} class="recommended"{{end}}><input type="radio" name="{{$qid}}" data-section="{{$qid}}" data-action="answer" value="{{.Key}}"{{if eq .Key $ans}} checked{{end}}> {{.Label}}{{if and (eq .Key $rec) (eq $ans "")}} <span class="rec-tag">recommended</span>{{end}}</label>
+            {{end}}
+          {{else}}
+          <textarea
+            data-section="{{$.SliceQuestionSectionKey .ID}}"
+            data-comment-for="{{$.SliceQuestionSectionKey .ID}}"
+            placeholder="Answer question {{.ID}}...">{{.Answer}}</textarea>
+          {{end}}
+        </div>
+        {{end}}
+      </div>
+    </div>
+    {{end}}
+
+    <div class="slice-deps">Dependencies: {{.DepsLabel}}</div>
+
+    <details class="comment-collapse">
+      <summary class="comment-collapse-trigger">+ Leave a comment</summary>
+      <div class="comment-collapse-body">
+        <textarea data-section="slice-{{.Num}}" data-comment-for="slice-{{.Num}}" placeholder="Comments on slice {{.Num}}..."></textarea>
+      </div>
+    </details>
   </div>
-  {{end}}
-  <div class="slice-deps">Dependencies: {{.DepsLabel}}</div>
-  <div class="approval-row">
-    <label><input type="checkbox" data-section="slice-{{.Num}}" data-action="approve"{{if eq .ApprovalStatus "approved"}} checked{{end}}> Approve slice</label>
-    <textarea data-section="slice-{{.Num}}" data-comment-for="slice-{{.Num}}" placeholder="Comments on slice {{.Num}}..."></textarea>
-  </div>
-</div>
+</details>

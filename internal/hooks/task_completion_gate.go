@@ -66,9 +66,18 @@ func runTaskCompletionGate(projectDir string) taskCompletionGateResult {
 	}
 }
 
+// SpecEnforcement holds opt-in spec-presence gate flags. Both default to
+// false; existing projects keep their current behavior unchanged until they
+// explicitly opt in.
+type SpecEnforcement struct {
+	PromoteSlice    bool `json:"promote_slice"`
+	FeatureComplete bool `json:"feature_complete"`
+}
+
 // taskCompletionConfig represents the relevant fields from .htmlgraph/config.json.
 type taskCompletionConfig struct {
-	BlockOnQualityFailure bool `json:"block_task_completion_on_quality_failure"`
+	BlockOnQualityFailure bool            `json:"block_task_completion_on_quality_failure"`
+	SpecEnforcement       SpecEnforcement `json:"spec_enforcement"`
 }
 
 // readTaskCompletionConfig reads the opt-in flag from .htmlgraph/config.json.
@@ -84,4 +93,20 @@ func readTaskCompletionConfig(projectDir string) bool {
 		return false
 	}
 	return cfg.BlockOnQualityFailure
+}
+
+// ReadSpecEnforcement returns the opt-in spec_enforcement settings from
+// .htmlgraph/config.json. Returns the zero value (both gates disabled) when
+// the file is missing, unreadable, or the key is absent — preserving
+// backward-compatible default-off behavior.
+func ReadSpecEnforcement(projectDir string) SpecEnforcement {
+	data, err := os.ReadFile(filepath.Join(projectDir, ".htmlgraph", "config.json"))
+	if err != nil {
+		return SpecEnforcement{}
+	}
+	var cfg taskCompletionConfig
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		return SpecEnforcement{}
+	}
+	return cfg.SpecEnforcement
 }

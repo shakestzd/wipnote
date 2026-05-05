@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Cross-harness `htmlgraph plan elicit-decisions` &#43; Claude skill &#43; promote/complete gates</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-0fd7c8bc"
+             data-type="feature"
+             data-status="done"
+             data-priority="medium"
+             data-created="2026-05-04T16:44:12.806723"
+             data-updated="2026-05-04T19:12:53.807357" data-agent-assigned="claude-code" data-track-id="trk-13e39042">
+
+        <header>
+            <h1>Cross-harness `htmlgraph plan elicit-decisions` &#43; Claude skill &#43; promote/complete gates</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="planned_in">
+                <h3>Planned In:</h3>
+                <ul>
+                    <li><a href="plan-cc24034c.html" data-relationship="planned_in" data-since="2026-05-04T16:44:12.818718">plan-cc24034c</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="blocked_by">
+                <h3>Blocked By:</h3>
+                <ul>
+                    <li><a href="feat-79f41c6d.html" data-relationship="blocked_by" data-since="2026-05-04T16:44:12.821881">feat-79f41c6d</a></li>
+                    <li><a href="feat-1f0f27de.html" data-relationship="blocked_by" data-since="2026-05-04T16:44:12.824654">feat-1f0f27de</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-13e39042.html" data-relationship="part_of" data-since="2026-05-04T16:44:12.811086">trk-13e39042</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Add cross-harness elicitation, a free-text `DecisionsNotes` slice field (NOT a typed schema — sonnet HIGH critique flagged the original `Decisions []SliceDecision` as YAGNI), a Claude-only convenience skill, and two opt-in enforcement gates.
+
+**Implementation:**
+
+1. **Schema field.** Add `DecisionsNotes string` (yaml `decisions_notes,omitempty`) to `PlanSlice` in `internal/planyaml/schema.go`. No typed sub-struct — free text only. No validator change required (string with omitempty validates trivially).
+
+2. **CLI elicitation command.** New `cmd/htmlgraph/plan_elicit_decisions.go` registers `htmlgraph plan elicit-decisions  `. Accepts:
+   - `--scope `, `--decisions `, `--context ` flags (programmatic / non-interactive)
+   - OR stdin in YAML format with three keys (`scope:`, `decisions:`, `context:`) when no flags set and stdin is a tty (or `--from-stdin` flag in CI)
+   - Combines the three answers into a single Markdown blob (e.g., `### Scope\n\n\n### Decisions\n\n\n### Context\n`) and writes to `slice.DecisionsNotes`
+   - Atomic write to plan YAML
+   - Cross-harness — works on Claude Code, Codex CLI, Gemini CLI without modification
+
+3. **Claude convenience skill.** New `plugin/skills/spec-from-slice/SKILL.md` with frontmatter `name: htmlgraph:spec-from-slice`, `user_invocable: true`. Body instructs Claude to:
+   a. Read the slice card from the plan YAML
+   b. Use `AskUserQuestion` to elicit Scope / Decisions / Context (3 grouped questions)
+   c. Run `htmlgraph plan elicit-decisions   --scope "..." --decisions "..." --context "..."` to write the notes
+   d. Run `htmlgraph spec generate  --insert` (slice 1's command) to materialise the spec
+   e. Handle re-elicitation: if `slice.DecisionsNotes` already populated, ask whether to re-elicit, edit-in-place, or skip
+
+4. **`promote-slice` gate.** In `cmd/htmlgraph/plan_promote_slice.go` after the approval check (~line 87) and before the dep check (~line 97): if `config.spec_enforcement.promote_slice` is true and `slice.DecisionsNotes == ""`: refuse with error message `"slice  has no decisions; run htmlgraph plan elicit-decisions   first (or invoke /htmlgraph:spec-from-slice on Claude). Override with --allow-spec-skip if intentional."`. Add `--allow-spec-skip` flag for audited override (logs the override into the slice's `Comment` field). Default behavior unchanged when config false.
+
+   Note: this gates on the SLICE having decisions, NOT on the feature having a spec — opus HIGH flagged the original "feature spec" framing as a temporal mismatch (the feature doesn't exist yet at gate time). The slice's `DecisionsNotes` is the right gate target since slice 1's spec generator reads it.
+
+5. **`feature complete` gate.** In `cmd/htmlgraph/workitem.go` `wiSetStatusWithAgent`, when `typeName == "feature"` and `status == "done"`: if `config.spec_enforcement.feature_complete` is true, read the feature HTML, call `extractSpecSection`, parse via slice 2's extended `parseCriteria`. Refuse if (a) section absent, OR (b) section contains 0 `### Requirement:` headings AND 0 legacy `[ ]/[x]/[F]` lines. Threshold: spec section must have ≥1 `### Requirement:` heading with non-empty SHALL line, OR ≥1 legacy line with non-empty criterion text. Add same `--allow-spec-skip` flag for override.
+
+6. **Config fields.** Extend `internal/hooks/task_completion_gate.go` (or wherever `block_task_completion_on_quality_failure` lives) with the new fields:
+   ```json
+   "spec_enforcement": {
+     "promote_slice": false,
+     "feature_complete": false
+   }
+   ```
+   Both default to false (opt-in).</p>
+        </section>
+    </article>
+</body>
+</html>

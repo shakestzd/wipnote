@@ -19,6 +19,12 @@ initialPrompt: "Run `htmlgraph agent-init` to load project context."
 
 Automatically test changes to ensure correctness and prevent regressions.
 
+## Pre-flight (first 60 seconds)
+
+1. Check branch sync: `(cd /workspaces/htmlgraph && git fetch origin && git status)`
+2. Claim only if a feature/bug ID is provided: `htmlgraph feature start <feat-id>` (optional)
+3. Identify test packages via: `(cd /workspaces/htmlgraph && find . -name '*_test.go' -o -name 'jest.config.*' -o -name 'pytest.ini' | head -20)`
+
 ## Purpose
 
 Enforce test-driven development and validation practices, ensuring all changes are tested before being marked complete.

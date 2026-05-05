@@ -8,6 +8,7 @@ import (
 	"time"
 
 	dbpkg "github.com/shakestzd/htmlgraph/internal/db"
+	"github.com/shakestzd/htmlgraph/internal/hooks"
 	"github.com/shakestzd/htmlgraph/internal/models"
 	"github.com/shakestzd/htmlgraph/internal/planyaml"
 	"github.com/shakestzd/htmlgraph/internal/workitem"
@@ -16,7 +17,7 @@ import (
 
 // planPromoteSliceCmd adds the cobra sub-command `plan promote-slice`.
 func planPromoteSliceCmd() *cobra.Command {
-	var waiveDeps bool
+	var waiveDeps, allowSpecSkip bool
 	cmd := &cobra.Command{
 		Use:   "promote-slice <plan-id> <slice-num>",
 		Short: "Promote an approved plan slice to a feature work item",
@@ -45,7 +46,7 @@ Example:
 			if err != nil {
 				return err
 			}
-			featID, err := promoteSliceFromYAML(htmlgraphDir, args[0], sliceNum, waiveDeps)
+			featID, err := promoteSliceFromYAML(htmlgraphDir, args[0], sliceNum, waiveDeps, allowSpecSkip)
 			if err != nil {
 				return err
 			}
@@ -54,12 +55,20 @@ Example:
 		},
 	}
 	cmd.Flags().BoolVar(&waiveDeps, "waive-deps", false, "skip dependency readiness check")
+	cmd.Flags().BoolVar(&allowSpecSkip, "allow-spec-skip", false, "bypass spec_enforcement.promote_slice gate; logs an audit comment on the slice")
 	return cmd
 }
 
 // promoteSliceFromYAML is the testable implementation of plan promote-slice.
 // It promotes exactly one approved slice, creating (or reusing) a feature.
-func promoteSliceFromYAML(htmlgraphDir, planID string, sliceNum int, waiveDeps bool) (string, error) {
+//
+// When config.spec_enforcement.promote_slice is true and allowSpecSkip is
+// false, the call refuses if the slice's DecisionsNotes is empty — pointing
+// the user at `htmlgraph plan elicit-decisions` (or the Claude skill) to
+// capture decisions before promotion. When allowSpecSkip is true and the
+// gate would have fired, an audit line is appended to slice.Comment so the
+// override is visible in the plan history.
+func promoteSliceFromYAML(htmlgraphDir, planID string, sliceNum int, waiveDeps, allowSpecSkip bool) (string, error) {
 	planPath := filepath.Join(htmlgraphDir, "plans", planID+".yaml")
 	plan, err := planyaml.Load(planPath)
 	if err != nil {
@@ -91,6 +100,25 @@ func promoteSliceFromYAML(htmlgraphDir, planID string, sliceNum int, waiveDeps b
 	if approvals[sectionKey] != "approved" && slice.ApprovalStatus != "approved" {
 		return "", fmt.Errorf("slice %d is not approved (plan_feedback=%q, yaml=%q); run 'htmlgraph plan approve-slice %s %d' first",
 			sliceNum, approvals[sectionKey], slice.ApprovalStatus, planID, sliceNum)
+	}
+
+	// CRISPI spec-enforcement gate: refuse if config opts in and slice has no
+	// decisions captured. Audited override via --allow-spec-skip writes a
+	// comment to the slice so deliberate skips are visible in plan history.
+	enforcement := hooks.ReadSpecEnforcement(filepath.Dir(htmlgraphDir))
+	if enforcement.PromoteSlice && strings.TrimSpace(slice.DecisionsNotes) == "" {
+		if !allowSpecSkip {
+			return "", fmt.Errorf("slice %d has no decisions; run `htmlgraph plan elicit-decisions %s %d` first (or invoke /htmlgraph:spec-from-slice on Claude). Override with --allow-spec-skip if intentional.",
+				sliceNum, planID, sliceNum)
+		}
+		auditNote := fmt.Sprintf("[%s] promote-slice --allow-spec-skip: promoted without decisions_notes",
+			time.Now().UTC().Format(time.RFC3339))
+		if existing := strings.TrimSpace(plan.Slices[sliceIdx].Comment); existing == "" {
+			plan.Slices[sliceIdx].Comment = auditNote
+		} else {
+			plan.Slices[sliceIdx].Comment = existing + "\n" + auditNote
+		}
+		fmt.Fprintln(stderr, "promote-slice: --allow-spec-skip set; bypassing spec_enforcement.promote_slice gate")
 	}
 
 	// Validate dependency readiness.
@@ -198,7 +226,7 @@ func findPlanSlice(plan *planyaml.PlanYAML, sliceNum int) (int, planyaml.PlanSli
 
 // checkDepReadiness returns an error listing any dependency slices whose
 // execution_status is not 'done' or 'superseded'.
-func checkDepReadiness(db *sql.DB, plan *planyaml.PlanYAML, planID string, deps []int) error {
+func checkDepReadiness(db *sql.DB, _ *planyaml.PlanYAML, planID string, deps []int) error {
 	statuses, err := getSliceExecutionStatuses(db, planID)
 	if err != nil {
 		return fmt.Errorf("read execution statuses: %w", err)

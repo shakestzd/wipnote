@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Plan finalize blocked: plan_feedback writer stores &#39;approved&#39; but counter queries &#39;True&#39;</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-4b399212"
+             data-type="bug"
+             data-status="done"
+             data-priority="medium"
+             data-created="2026-05-02T20:20:00.182265"
+             data-updated="2026-05-02T20:38:33.702473" data-agent-assigned="claude-code" data-track-id="trk-0677c709">
+
+        <header>
+            <h1>Plan finalize blocked: plan_feedback writer stores &#39;approved&#39; but counter queries &#39;True&#39;</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="6b432d50-b2c3-4045-960e-a815085f56c3.html" data-relationship="implemented_in" data-since="2026-05-02T20:20:02.497208">session 6b432d50-b2c3-4045-960e-a815085f56c3</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-0677c709.html" data-relationship="part_of" data-since="2026-05-02T20:20:00.191922">trk-0677c709</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>GitHub issue #85 (https://github.com/shakestzd/htmlgraph/issues/85). Finalize Plan button fails with HTTP 400 'not all sections approved' despite UI showing all N sections approved. Root cause per reporter: plan_feedback writer stores value='approved' for approve actions, but the count query filters WHERE action='approve' AND value='True' — mismatch returns 0, so a fully-approved plan never finalizes. Affects htmlgraph 0.57.0 (current). Bonus UX bug: dashboard JS surfaces all non-network finalize failures as 'Could not reach server. Is htmlgraph serve running?' (misleading) at js/app.js ~line 3587. Reporter included full repro: curl POST returns 400 with body 'not all sections approved'; curl GET returns approved=0 / total=11. DB inspection confirmed 11 rows in plan_feedback with value='approved' (both old and freshly-written rows on 0.57.0).</p>
+        </section>
+    </article>
+</body>
+</html>

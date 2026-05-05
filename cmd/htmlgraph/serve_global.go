@@ -72,15 +72,24 @@ func buildGlobalMux() *http.ServeMux {
 // returns an empty slice (not an error) so the dashboard landing renders
 // an empty state rather than 500.
 //
+// Passive cleanup: entries older than defaultRegistryTTL (3 days) are
+// pruned before the list is returned. The pruned registry is saved back to
+// disk best-effort (failures are silently ignored so the request is not
+// broken).
+//
 // Worktree filter: an entry whose ProjectDir is inside a linked git
 // worktree (resolveViaGitCommonDir returns a different main-repo path)
 // is NOT a standalone project — it's a working copy of an already
 // registered project. We exclude it from the landing so the user sees
 // one card per real project, not one card per worktree branch.
 func listRegisteredProjects() []projectSummary {
-	reg, err := registry.Load(registry.DefaultPath())
+	reg, err := registry.Load(defaultRegistryPath())
 	if err != nil {
 		return []projectSummary{}
+	}
+	// Passive TTL cleanup: evict stale entries and save back best-effort.
+	if removed := registry.PruneStale(reg, registry.DefaultRegistryTTL); removed > 0 {
+		_ = reg.SaveExact()
 	}
 	entries := reg.List()
 	out := make([]projectSummary, 0, len(entries))

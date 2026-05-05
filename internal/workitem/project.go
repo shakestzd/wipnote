@@ -10,6 +10,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
+	"time"
 
 	dbpkg "github.com/shakestzd/htmlgraph/internal/db"
 	"github.com/shakestzd/htmlgraph/internal/storage"
@@ -72,8 +74,17 @@ func Open(projectDir, agent string) (*Project, error) {
 	if err := storage.EnsureDBDir(dbPath); err != nil {
 		return nil, fmt.Errorf("create db dir: %w", err)
 	}
-	database, err := dbpkg.Open(dbPath)
-	if err != nil {
+	var database *sql.DB
+	const dbOpenAttempts = 3
+	for attempt := 1; attempt <= dbOpenAttempts; attempt++ {
+		database, err = dbpkg.Open(dbPath)
+		if err == nil {
+			break
+		}
+		if attempt < dbOpenAttempts && strings.Contains(err.Error(), "database is locked") {
+			time.Sleep(200 * time.Millisecond)
+			continue
+		}
 		return nil, fmt.Errorf("open database: %w", err)
 	}
 

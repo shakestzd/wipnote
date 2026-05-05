@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Project registry pollution: test temp dirs registered &#43; no auto-cleanup</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-53917a13"
+             data-type="bug"
+             data-status="done"
+             data-priority="medium"
+             data-created="2026-05-05T03:34:27.363767"
+             data-updated="2026-05-05T03:59:53.266499" data-agent-assigned="claude-code" data-track-id="trk-cb36e595">
+
+        <header>
+            <h1>Project registry pollution: test temp dirs registered &#43; no auto-cleanup</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-cb36e595.html" data-relationship="part_of" data-since="2026-05-05T03:34:27.373229">trk-cb36e595</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Symptom: ~/.local/share/htmlgraph/projects.json accumulates entries over time and never auto-cleans. Today's example: 3 entries pointing to /tmp/TestOtelCollect_*/001 from go test runs on 2026-05-01 still appear in the dashboard's project list 3 days later. htmlgraph projects prune doesn't remove them because the temp dirs still physically exist on disk (the test cleanup didn't aggressively sweep /tmp).
+
+Root causes (two distinct):
+
+1. WRITE-SIDE POLLUTION — every htmlgraph invocation in any directory upserts that directory into the registry, including go test temp dirs (t.TempDir() returns paths under /tmp/Test/). Test runs that exercise htmlgraph code paths inside a temp project register that temp project as if it were real.
+
+2. READ/CLEANUP-SIDE LAZINESS — prune is too narrow. It only removes entries where the .htmlgraph directory is missing. It does not handle: stale (last_seen older than N days), test pollution (paths matching test-tempdir patterns), or orphaned (entries that point to a real dir but the dir is empty / has no canonical content).
+
+Proposed durable solution (multi-layered):
+
+A. AT REGISTRATION TIME — skip detection in the upsert path:
+   - Detect when project_dir is inside os.TempDir() (or any ancestor matching it) AND the leaf component matches Test* (Go standard t.TempDir() naming: /TestXxxNNNNN/).
+   - Add HTMLGRAPH_SKIP_REGISTER=1 env var so tests can opt out explicitly without relying on path heuristics.
+   - Both checks at the same upsert call site in internal/projectreg/ (or wherever the registry write lives).
+
+B. AT READ TIME — passive cleanup on dashboard load:
+   - The /api/projects handler can call prune-stale before serving the response. Cheap, self-healing, no scheduling required.
+   - Also: when projects.json is opened for any read, evict entries with last_seen older than a configurable TTL (DEFAULT 3 DAYS — aggressive freshness; the dashboard should reflect what you're actively working on, not historical activity).
+
+C. EXPLICIT CLI — extend prune with selection criteria:
+   - htmlgraph projects prune --since 3d (DEFAULT — remove entries last_seen older than the duration; configurable but defaults to 3 days)
+   - htmlgraph projects prune --tempdir-only (remove entries whose project_dir is inside os.TempDir() AND matches Test* leaf, regardless of whether dir still exists)
+   - htmlgraph projects prune --dry-run (preview what would be removed)
+
+D. TEST DISCIPLINE — go test fixtures that need to invoke htmlgraph should set HTMLGRAPH_SKIP_REGISTER=1 in their t.Setenv calls. Document this in CLAUDE.md / AGENTS.md test-writing guidance.
+
+TTL choice: 3 DAYS (not 30). Rationale: the dashboard is for active work; if you havent touched a project in 3 days it shouldn't pollute the landing view. Easy to recover — re-running htmlgraph in the project re-registers it instantly. Low cost of mistakes.
+
+Implementation files (estimated):
+- internal/projectreg/registry.go (or similar) — add skip-on-tempdir + env-var check at upsert; add prune-stale-on-read with 3d default
+- cmd/htmlgraph/projects.go — extend prune with --since (default 3d), --tempdir-only, --dry-run flags
+- internal/server/projects.go (or wherever /api/projects is served) — call prune-stale on load
+- Documentation — CLAUDE.md / AGENTS.md test-writing guidance
+
+Estimated effort: M (single feature, ~200-300 lines including tests). Could be 3-4 slices in a small CRISPI plan if you want elicitation gates.
+
+Today's manifestation: the dashboard's Projects landing renders 3 stale 001 entries from go test runs 3 days ago, alongside the real htmlgraph project. UX confusion. The longer this persists the more pollution accumulates — currently 4356 cache directories under ~/.cache/htmlgraph/ (only one of which is the real project), suggesting registry pollution has been ongoing.</p>
+        </section>
+    </article>
+</body>
+</html>

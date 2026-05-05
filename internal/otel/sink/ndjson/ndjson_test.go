@@ -48,6 +48,10 @@ func TestNDJSONSink_OneLinePerSignal(t *testing.T) {
 	if err := s.WriteBatch(context.Background(), otel.HarnessClaude, nil, signals); err != nil {
 		t.Fatalf("WriteBatch: %v", err)
 	}
+	// Close flushes the bufio buffer and syncs before we read the file.
+	if err := s.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
 
 	f, err := os.Open(filepath.Join(sessDir, "events.ndjson"))
 	if err != nil {
@@ -98,10 +102,11 @@ func TestNDJSONSink_ValidJSON(t *testing.T) {
 	os.MkdirAll(sessDir, 0o755)
 
 	s, _ := ndjson.New(dir, sid)
-	defer s.Close()
 
 	signals := []otel.UnifiedSignal{makeSignal(otel.KindSpan, "id-1", sid)}
 	s.WriteBatch(context.Background(), otel.HarnessClaude, map[string]any{"env": "test"}, signals)
+	// Close flushes the bufio buffer and syncs before we read the file.
+	s.Close()
 
 	data, err := os.ReadFile(filepath.Join(sessDir, "events.ndjson"))
 	if err != nil {
@@ -127,22 +132,20 @@ func TestNDJSONSink_EmptyBatchIsNoOp(t *testing.T) {
 		t.Fatalf("empty WriteBatch returned error: %v", err)
 	}
 
-	// File should not exist since nothing was written.
+	// New now opens the file eagerly (O_CREATE), so the file exists but has 0 lines.
 	ndjsonPath := filepath.Join(sessDir, "events.ndjson")
-	if _, err := os.Stat(ndjsonPath); !os.IsNotExist(err) {
-		// File may exist if New creates it eagerly — only check if no lines.
-		f, _ := os.Open(ndjsonPath)
-		if f != nil {
-			sc := bufio.NewScanner(f)
-			lineCount := 0
-			for sc.Scan() {
-				lineCount++
-			}
-			f.Close()
-			if lineCount != 0 {
-				t.Errorf("empty batch: expected 0 lines, got %d", lineCount)
-			}
-		}
+	f, err := os.Open(ndjsonPath)
+	if err != nil {
+		t.Fatalf("expected file to exist after New: %v", err)
+	}
+	sc := bufio.NewScanner(f)
+	lineCount := 0
+	for sc.Scan() {
+		lineCount++
+	}
+	f.Close()
+	if lineCount != 0 {
+		t.Errorf("empty batch: expected 0 lines, got %d", lineCount)
 	}
 }
 
@@ -161,5 +164,140 @@ func TestNDJSONSink_CloseIsIdempotent(t *testing.T) {
 	}
 	if err := s.Close(); err != nil {
 		t.Errorf("second Close: %v", err)
+	}
+}
+
+// TestNDJSONSink_PeriodicFlush verifies that events written to the sink are
+// flushed and synced to disk within SyncInterval+1s without an explicit Close.
+// This guards against data loss on abrupt process termination (host sleep,
+// devcontainer disconnect, SIGKILL).
+func TestNDJSONSink_PeriodicFlush(t *testing.T) {
+	dir := t.TempDir()
+	sid := "periodic-flush-sess"
+	sessDir := filepath.Join(dir, ".htmlgraph", "sessions", sid)
+	if err := os.MkdirAll(sessDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	s, err := ndjson.New(dir, sid)
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	// Do NOT call Close — simulate an abrupt stop. The goroutine cleanup is
+	// handled by the test process exit; no leak in tests.
+	defer s.Close()
+
+	signals := []otel.UnifiedSignal{
+		makeSignal(otel.KindSpan, "flush-1", sid),
+		makeSignal(otel.KindLog, "flush-2", sid),
+		makeSignal(otel.KindMetric, "flush-3", sid),
+		makeSignal(otel.KindSpan, "flush-4", sid),
+		makeSignal(otel.KindLog, "flush-5", sid),
+	}
+	if err := s.WriteBatch(context.Background(), otel.HarnessClaude, nil, signals); err != nil {
+		t.Fatalf("WriteBatch: %v", err)
+	}
+
+	ndjsonPath := filepath.Join(sessDir, "events.ndjson")
+
+	// Poll until the periodic ticker fires and syncs the data. Budget: SyncInterval + 1s.
+	deadline := time.Now().Add(ndjson.SyncInterval + time.Second)
+	for time.Now().Before(deadline) {
+		info, err := os.Stat(ndjsonPath)
+		if err == nil && info.Size() > 0 {
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+
+	data, err := os.ReadFile(ndjsonPath)
+	if err != nil {
+		t.Fatalf("file not readable after periodic flush window: %v", err)
+	}
+	if len(data) == 0 {
+		t.Fatal("file is still empty after SyncInterval+1s — periodic flush did not run")
+	}
+
+	// Count lines to confirm all 5 events are present.
+	lineCount := 0
+	for _, b := range data {
+		if b == '\n' {
+			lineCount++
+		}
+	}
+	if lineCount != 5 {
+		t.Errorf("want 5 lines after periodic flush, got %d", lineCount)
+	}
+}
+
+// TestNDJSONSink_AppendOnReopen verifies that when a second Sink is opened for
+// the same session path (simulating a collector restart after host sleep), it
+// appends to the existing log rather than truncating it.
+func TestNDJSONSink_AppendOnReopen(t *testing.T) {
+	dir := t.TempDir()
+	sid := "append-reopen-sess"
+	sessDir := filepath.Join(dir, ".htmlgraph", "sessions", sid)
+	if err := os.MkdirAll(sessDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	// First sink — write 3 events, then "crash" (abandon without Close / goroutine runs).
+	s1, err := ndjson.New(dir, sid)
+	if err != nil {
+		t.Fatalf("New (first): %v", err)
+	}
+	batch1 := []otel.UnifiedSignal{
+		makeSignal(otel.KindSpan, "reopen-a1", sid),
+		makeSignal(otel.KindLog, "reopen-a2", sid),
+		makeSignal(otel.KindMetric, "reopen-a3", sid),
+	}
+	if err := s1.WriteBatch(context.Background(), otel.HarnessClaude, nil, batch1); err != nil {
+		t.Fatalf("WriteBatch (first): %v", err)
+	}
+	// Force flush to disk before "crashing".
+	if err := s1.Close(); err != nil {
+		t.Fatalf("Close (first): %v", err)
+	}
+
+	// Confirm 3 lines on disk.
+	ndjsonPath := filepath.Join(sessDir, "events.ndjson")
+	countLines := func() int {
+		data, err := os.ReadFile(ndjsonPath)
+		if err != nil {
+			return -1
+		}
+		n := 0
+		for _, b := range data {
+			if b == '\n' {
+				n++
+			}
+		}
+		return n
+	}
+	if got := countLines(); got != 3 {
+		t.Fatalf("after first sink: want 3 lines, got %d", got)
+	}
+
+	// Second sink — simulates a replacement collector opening the same session file.
+	s2, err := ndjson.New(dir, sid)
+	if err != nil {
+		t.Fatalf("New (second): %v", err)
+	}
+	defer s2.Close()
+
+	batch2 := []otel.UnifiedSignal{
+		makeSignal(otel.KindSpan, "reopen-b1", sid),
+		makeSignal(otel.KindLog, "reopen-b2", sid),
+	}
+	if err := s2.WriteBatch(context.Background(), otel.HarnessClaude, nil, batch2); err != nil {
+		t.Fatalf("WriteBatch (second): %v", err)
+	}
+	if err := s2.Close(); err != nil {
+		t.Fatalf("Close (second): %v", err)
+	}
+
+	// File must contain all 5 events (3 original + 2 new).
+	if got := countLines(); got != 5 {
+		t.Errorf("after reopen: want 5 lines (3+2), got %d", got)
 	}
 }

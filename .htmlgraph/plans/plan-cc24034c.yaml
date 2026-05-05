@@ -1,0 +1,372 @@
+meta:
+    id: plan-cc24034c
+    track_id: trk-13e39042
+    title: CRISPI spec-definition enforcement — OpenSpec format + cross-harness elicitation
+    description: |
+        Closes the spec-definition gap in CRISPI: today, 0 of 117 done features have a `<section class="spec">` block. Adopts OpenSpec's MIT-licensed Requirement/Scenario template (RFC 2119 + Given/When/Then) as the canonical spec format. Adds a cross-harness elicitation command (works on Claude/Codex/Gemini) plus a Claude-convenience skill, both writing free-text decision notes onto the slice. Gates `promote-slice` and `feature complete` on spec presence (opt-in via config). This rewrite (v2) addresses 10 HIGH findings from the opus + sonnet critiques: deferred 3-dimension scoring (premature without data), dropped typed `Decisions` schema (YAGNI — replaced with free-text `DecisionsNotes`), fixed promote-slice gate temporal bug (gate the slice, not the not-yet-feature), added cross-harness CLI fallback for the skill, fixed concurrent-writer corruption via shared per-feature lock, made `--insert` non-destructive by default. Backfill of the 117 existing spec-less features is explicitly out of scope (see non-goals).
+    created_at: "2026-05-04"
+    status: active
+    created_by: claude-opus
+    version: 9
+design:
+    problem: |
+        The CRISPI planning workflow (slice cards → promote-slice → feature complete) never enforces a spec block at any stage. Slice fields (what/why/done_when/tests) describe intent in plan YAML, but they don't reach the feature HTML where compliance tools look. Result: zero features have specs, the `htmlgraph compliance` checkbox reporter has nothing to read, and the auto-compliance pipeline shipped in feat-38a032e8 can only validate the skip-no-spec path. OODA active observation has no reference to compare implementation against.
+    goals:
+        - '**Canonical spec format** — adopt OpenSpec''s MIT-licensed Requirement/Scenario template as the structure of every `<section class="spec">` block, enabling structured parsing instead of free-text checkbox heuristics'
+        - '**Cross-harness elicitation by default** — every slice that promotes to a feature gets a spec via a simple 3-question elicitation (Scope/Decisions/Context). The CLI command works on every supported harness (Claude/Codex/Gemini); the Claude skill is a UX convenience layered on top.'
+        - '**Enforcement at two gates** — `promote-slice` cannot create a feature without slice-level decisions; `feature complete` cannot mark done without a non-empty spec block. Both opt-in via config toggle. Audited override available for emergencies.'
+        - '**Concurrent-writer safety** — extend the existing per-feature mutex from feat-38a032e8 so `spec generate --insert` and `compliance auto` cannot lose updates when run on the same feature'
+    constraints:
+        - OpenSpec template content is MIT-licensed; copy verbatim with attribution (HTML comment in generated specs + `THIRD-PARTY-NOTICES.md` at repo root, matching the Go ecosystem convention). DLAI SDD methodology has no license declared — do NOT copy verbatim from that repo; only the elicitation pattern is adapted.
+        - Backward compatible — existing `[ ]/[x]` checkbox parser must keep working; new format is additive. Hybrid spec content (both formats in one section) is rejected by the parser via first-heading-match scoping rather than silently double-counted.
+        - No new runtime dependencies — Go stdlib + existing project deps; OpenSpec's npm CLI is NOT a dependency.
+        - Default-off opt-in — enforcement gates default to disabled in `.htmlgraph/config.json` so the plan is safe to merge without breaking existing workflows.
+        - Cross-harness — the elicitation CLI must work on every supported harness. The Claude-only skill is a convenience wrapper, not the canonical entry point.
+        - Concurrent-writer safety — `spec generate --insert` and `compliance auto` must serialise on a shared per-feature lock to prevent the lost-update race when both write different sections of the same feature HTML.
+        - '**Non-goal: 3-dimension Completeness/Correctness/Coherence scoring** — defer until the existing single-score `compliance auto` has produced data on ≥10 features that demonstrates the single score is insufficient. (Was original slice 4; sonnet HIGH critique flagged as premature.)'
+        - '**Non-goal: backfill of the 117 existing spec-less features** — out of scope; tracked as a follow-on bug. The `q-cohort-strategy` plan question records the recommended deferral.'
+        - '**Non-goal: spec versioning / change tracking / OpenSpec ADDED/MODIFIED/REMOVED delta semantics** — specs are append-only by convention until a follow-up plan addresses revisions. The Requirement/Scenario format is adopted; the delta-merge workflow is not.'
+        - '**Non-goal: extractSpecSection HTML-aware parser upgrade** — known fragility (raw `strings.Index` truncates on nested `</section>`). Filed as a separate bug. Slice 1''s `--insert` writes the section but does not exercise the read path; the existing fragility risk is not increased by this plan.'
+        - '**Non-goal: project-level `spec_context` config injection** — was original slice 4. CLAUDE.md and AGENTS.md already provide project context to `claude -p` (since `--bare` was removed). A separate config field would duplicate without enforcing sync.'
+    approved: false
+    comment: ""
+slices:
+    - id: slice-1
+      feature_id: feat-79f41c6d
+      num: 1
+      title: OpenSpec spec template + `htmlgraph spec generate --insert` (non-destructive, locked)
+      what: |
+        Adopt OpenSpec's MIT-licensed spec template (RFC 2119 Requirement + Given/When/Then Scenario format) as the canonical structure of `htmlgraph spec generate` output. Add `--insert` flag that writes the generated spec into the feature HTML's `<section class="spec">` block — non-destructive by default, with `--force` for explicit overwrite. Extend the existing per-feature lock from feat-38a032e8 to cover spec writes too, preventing lost updates when `spec --insert` and `compliance auto` race on the same feature.
+
+        **Implementation:**
+        1. Copy `/tmp/openspec/schemas/spec-driven/templates/spec.md` verbatim to `plugin/templates/spec-template.md` with header comment: `<!-- Spec template adapted from OpenSpec by Fission AI (MIT). https://github.com/Fission-AI/OpenSpec -->`. Create `THIRD-PARTY-NOTICES.md` at repo root with one section per third-party source (OpenSpec entry: name, source URL, license, scope of use).
+        2. Update `renderSpecMarkdown` to render a hybrid: keep `## Problem` (from slice's `why`), `## Files` (from slice's `files`), `## Notes` (from slice's `tests`); replace `## Acceptance Criteria` with `## ADDED Requirements` containing one `### Requirement: <name>` per `done_when` entry, each with at least one `#### Scenario:` block. Mapping rule: `done_when[i]` → Requirement i (criterion text becomes the SHALL line); slice's `tests` field → one Scenario per requirement (split on test type if multiple).
+        3. If `slice.DecisionsNotes` is non-empty (field added in slice 3 — defensive: check existence; render nothing if absent), render a `## Decisions` section between `## Problem` and `## ADDED Requirements` containing the prose verbatim.
+        4. Add `--insert` boolean flag and `--force` boolean flag to `specGenerateCmd`. With `--insert`:
+           - Acquire the per-feature lock (extended in `internal/workitem/htmlwriter.go` — see step 6)
+           - Read the feature HTML
+           - If `<section class="spec">` exists with non-empty content (after stripping the attribution comment) AND `--force` not set: refuse with error `"spec section already has content; pass --force to overwrite, or edit the section directly"` and print a unified diff of what would change
+           - Otherwise: locate or create the section, write the rendered Markdown inside, save atomically via `writeFileAtomicRaw`
+           - Idempotent only when `--force` is set
+        5. Add `--no-clobber-only` mode is the default; existing `--output <file>` flag still writes to a file (no `--insert`). Mutual exclusivity: `--insert` and `--output` cannot both be set.
+        6. **Concurrent-writer safety.** Extend `internal/workitem/htmlwriter.go`'s existing `featureWriteMu sync.Map` (or equivalent per-feature mutex from feat-38a032e8) into a package-level helper `LockFeatureForWrite(featureID string) (release func())` that BOTH `compliance auto`'s findings writer AND `spec generate --insert`'s spec writer acquire before reading the feature HTML. Refactor compliance_auto.go's section writer to use the same helper. The acquire-read-modify-write window must be inside the lock; the atomic temp+rename remains as before. This closes the lost-update race opus's HIGH critique flagged.
+      why: |
+        The pilot's `compliance auto` can read any spec content but can't write one. The `htmlgraph spec generate` stub today produces a free-text template that ends in stdout. Adding `--insert` makes a feature's spec real and parseable in one command. Adopting OpenSpec's structured Requirement/Scenario format gives `compliance auto` something machine-checkable. Refusing-by-default protects manual edits (opus HIGH critique caught the silent-clobber risk). The shared per-feature lock prevents the concurrent-writer corruption opus also flagged. This slice is intentionally generator-and-write-path-only; the parser extension lives in slice 2.
+      files:
+        - cmd/htmlgraph/spec.go
+        - cmd/htmlgraph/spec_test.go
+        - internal/workitem/htmlwriter.go
+        - plugin/templates/spec-template.md
+        - THIRD-PARTY-NOTICES.md
+      deps: []
+      done_when:
+        - '`htmlgraph spec generate <feat-id> --insert` writes a `<section class="spec">` block into the feature HTML containing the OpenSpec-formatted template populated from slice/feature fields, when no spec section exists or the existing section is empty'
+        - 'When the spec section exists with non-empty content and `--force` is NOT set: command exits non-zero with a clear remediation message and prints a unified diff of intended changes'
+        - '`--force` flag enables the destructive replace; idempotent re-runs replace the section content'
+        - 'Generated spec contains: header attribution comment, optional `## Decisions` section (when slice has DecisionsNotes), `## Problem`, `## ADDED Requirements` with ≥1 `### Requirement:` (each with ≥1 `#### Scenario:`), `## Files`, `## Notes`'
+        - '`THIRD-PARTY-NOTICES.md` exists at repo root with the OpenSpec entry'
+        - '`internal/workitem/htmlwriter.go` exposes `LockFeatureForWrite(featureID)`; both `spec --insert` and `compliance auto` writers use it'
+        - 'Concurrent run test: racing `spec --insert` and `compliance auto` against the same feature does NOT lose updates (both sections present after both runs complete)'
+        - '`--insert` and `--output` are mutually exclusive (error if both set)'
+        - '`extractSpecSection` is unchanged in this slice (out-of-scope per design.constraints non-goal)'
+      effort: M
+      risk: Med
+      tests: |
+        Unit:
+        - TestSpecGenerate_OpenSpecFormat — fixture slice produces output containing `### Requirement:`, `#### Scenario:`, `- **WHEN**`, `- **THEN**`
+        - TestSpecGenerate_Insert_NewSection — feature without `<section class="spec">` gets one created
+        - TestSpecGenerate_Insert_NonClobber — existing non-empty spec; `--insert` without `--force` refuses with diff output
+        - TestSpecGenerate_Insert_Force — `--insert --force` replaces existing content
+        - TestSpecGenerate_Insert_AtomicAndLocked — uses LockFeatureForWrite; concurrent invocations serialise
+        - TestSpecGenerate_DecisionsRendered — slice with non-empty DecisionsNotes renders a `## Decisions` section
+        - TestSpecGenerate_DecisionsAbsent — slice without DecisionsNotes renders no Decisions section (no empty heading)
+        - TestSpecGenerate_FlagsMutex — `--insert` + `--output` errors out
+        - TestThirdPartyNotices_HasOpenSpec — file exists with OpenSpec entry (regex match)
+
+        Integration:
+        - TestSpecInsertAndComplianceAutoConcurrent — race two writers (`spec --insert` and `compliance auto`) against same feature; assert both sections present at the end, no torn HTML
+
+        Regression:
+        - `cmd/htmlgraph/compliance_test.go` (legacy paths) passes unchanged
+        - `cmd/htmlgraph/compliance_auto_test.go` passes unchanged (now uses the shared lock)
+        - `internal/workitem/htmlwriter_test.go` passes unchanged
+      approved: false
+      comment: ""
+      approval_status: approved
+      execution_status: promoted
+      questions:
+        - id: q-overwrite-policy
+          text: What's the default behavior of `--insert` when the spec section already has content?
+          description: |
+            Refuse-with-diff is the safest default per opus HIGH. Prompt is interactive (cross-harness friction). Force-overwrite is destructive.
+          recommended: refuse-with-diff
+          options:
+            - key: refuse-with-diff
+              label: refuse-with-diff — error out, print unified diff of intended changes, require explicit `--force` to proceed. Safest. Recommended.
+            - key: prompt-y-n
+              label: prompt-y-n — interactive `[y/N]` prompt. Doesn't work in CI/non-interactive shells; cross-harness friction.
+            - key: silent-overwrite
+              label: silent-overwrite — (the originally-proposed default) clobber the existing content. Destructive; opus HIGH flagged.
+        - id: q-decisions-section-position
+          text: Where in the rendered spec does the `## Decisions` section appear?
+          description: |
+            Three positions reasonable. Affects readability and how the LLM weighs decisions during compliance grading.
+          recommended: between-problem-and-requirements
+          options:
+            - key: between-problem-and-requirements
+              label: between-problem-and-requirements — `## Problem` → `## Decisions` → `## ADDED Requirements`. Decisions provide context for what follows.
+            - key: after-requirements
+              label: after-requirements — Requirements first; Decisions later for context. May be missed by readers who stop at Requirements.
+            - key: nested-per-requirement
+              label: nested-per-requirement — each `### Requirement:` gets its own `Decisions` subsection. More structured but couples decisions to specific requirements that may not exist 1:1.
+      critic_revisions:
+        - source: opus
+          severity: HIGH
+          summary: 'Slice 1 originally bundled 5 work-streams (template + insert + parser + [F] + locking) — split: parser extension moved to slice 2; remaining 3 (template, insert, locking) form this slice'
+        - source: opus
+          severity: HIGH
+          summary: '`--insert` silently clobbered manual edits — addressed by refuse-with-diff default; `--force` opt-in for destructive replace'
+        - source: opus
+          severity: HIGH
+          summary: Concurrent writer corruption between `spec --insert` and `compliance auto` — addressed by shared `LockFeatureForWrite` helper that both writers acquire
+        - source: opus
+          severity: MEDIUM
+          summary: '`extractSpecSection` raw-string fragility — out-of-scope per design.non_goals; slice 1''s `--insert` writes the section but does not exercise the read path'
+        - source: opus
+          severity: LOW
+          summary: '`THIRD-PARTY-NOTICES.md` chosen over `ATTRIBUTION.md` to match Go ecosystem convention (per opus LOW finding)'
+        - source: opus
+          severity: LOW
+          summary: Attribution placement (HTML comment + THIRD-PARTY-NOTICES.md) made explicit; question removed since the answer is dictated by MIT requirements
+        - source: sonnet
+          severity: HIGH
+          summary: Slice 1 effort=M was understated — re-validated as M after the parser extension moved out (this slice now contains template + insert + locking only)
+    - id: slice-2
+      feature_id: feat-1f0f27de
+      num: 2
+      title: 'Parser extension: OpenSpec Requirement format + `[F]` failed-status revival'
+      what: |
+        Extend `parseCriteria` in `cmd/htmlgraph/compliance.go` to recognise both the legacy `[ ]/[x]` checkbox format AND the new OpenSpec `### Requirement:` / `#### Scenario:` format. Format detection by first-heading match: `## Acceptance Criteria` → legacy mode; `## ADDED Requirements` (or `## MODIFIED Requirements`) → new mode. Reject hybrid pollution: only checkboxes directly under `## Acceptance Criteria` count as legacy criteria; only `### Requirement:` headings directly under `## ADDED Requirements` count as new. Revive the dead `criterionFailed` switch path by extending the regex to capture `[F]`/`[f]` as failed status.
+
+        **Implementation:**
+        1. Update the `criterionPattern` regex from `(?i)^[\s\-\d\.]*\[([x\s])\]\s+(.+)$` to `(?i)^[\s\-\d\.]*\[([xfF\s])\]\s+(.+)$` and add the failed-status mapping: `m[1] == "F" || m[1] == "f"` → `criterionFailed`.
+        2. Add a section-state machine to `parseCriteria`: track which top-level heading we're under (`## Acceptance Criteria` vs `## ADDED Requirements` vs neither). Apply the format-specific parsing only inside its own scope.
+        3. New format parsing: when inside `## ADDED Requirements` or `## MODIFIED Requirements`, treat each `### Requirement: <name>` as one criterion. Status derivation per recommendation in q-criterion-status-mapping: look for `- [x]/[ ]/[F]` task lines inside any `#### Scenario:` block beneath the requirement; if all scenarios pass, status=passed; if any fails, status=failed; if any unchecked, status=unchecked.
+        4. Update `criterion` struct and downstream consumers (`computeCompliance`, `formatCompliance`, JSON output) to handle `criterionFailed` as a real path — populate the previously-dead switch cases.
+      why: |
+        Slice 1 generates the new format but the existing parser only recognises legacy checkboxes. Without this slice, `htmlgraph compliance <feat-id>` (the legacy reporter) reports zero criteria on every spec generated by slice 1 — useless. Extending the parser instead of rewriting it preserves backward compatibility for any spec written in the legacy format. First-heading-match scoping (per opus MEDIUM finding) prevents the parser from double-counting a meta-text mention of `### Requirement:` inside a legacy `## Acceptance Criteria` section. Reviving `[F]` is unrelated cleanup but cheap to bundle since the regex change is the same edit.
+      files:
+        - cmd/htmlgraph/compliance.go
+        - cmd/htmlgraph/compliance_test.go
+      deps: []
+      done_when:
+        - '`parseCriteria` recognises `### Requirement: <name>` as a criterion when inside `## ADDED Requirements` or `## MODIFIED Requirements`'
+        - Status for new-format requirements derived from `- [x]/[ ]/[F]` task lines inside `#### Scenario:` blocks (all passed → passed; any failed → failed; any unchecked → unchecked)
+        - Legacy `[ ]/[x]/[F]` lines parsed only when directly under `## Acceptance Criteria`
+        - '`[F]` lines now correctly parse as `criterionFailed`, populating the previously-dead switch cases in `computeCompliance` / `formatCompliance` / JSON output'
+        - 'Hybrid pollution test: legacy spec containing meta-text `### Requirement:` in a comment counts only checkboxes (no double-count)'
+        - '`htmlgraph compliance <feat-id>` correctly reports criteria for both legacy and new-format specs'
+      effort: S
+      risk: Low
+      tests: |
+        Unit:
+        - TestParseCriteria_OpenSpecFormat — fixture spec with `### Requirement:` blocks parsed
+        - TestParseCriteria_LegacyChecks — fixture with `[ ]/[x]/[F]` parsed correctly
+        - TestParseCriteria_FailedStatus — `[F]` lines produce `criterionFailed`
+        - TestParseCriteria_NoFalsePollution — legacy spec with meta-text `### Requirement:` does NOT count as new-format criterion
+        - TestParseCriteria_StatusFromScenario_AllPass — all scenarios pass → requirement passed
+        - TestParseCriteria_StatusFromScenario_AnyFail — any scenario failed → requirement failed
+        - TestParseCriteria_StatusFromScenario_AnyUnchecked — any scenario unchecked → requirement unchecked
+        - TestParseCriteria_HybridDocument — document with both `## Acceptance Criteria` and `## ADDED Requirements` (separate sections); each parsed in its own scope
+
+        Integration: TestComplianceCommand_OpenSpecSpec — feature with new-format spec; `htmlgraph compliance <id>` reports criteria correctly
+
+        Regression:
+        - Legacy compliance_test.go fixtures continue to pass
+        - compliance_auto.go's parser usage unchanged (it already accepts arbitrary spec text via the LLM)
+      approved: false
+      comment: ""
+      approval_status: approved
+      execution_status: promoted
+      questions:
+        - id: q-status-derivation-from-scenarios
+          text: How is criterion status derived from Scenario task checkboxes?
+          description: |
+            OpenSpec scenarios don't have inline status markers — they're just spec text. We need a convention for status when multiple scenarios exist per requirement.
+          recommended: any-fail-is-fail
+          options:
+            - key: any-fail-is-fail
+              label: any-fail-is-fail — if any `- [F]` exists in any scenario, requirement = failed; else if all `- [x]`, passed; else unchecked. Pessimistic, matches QA discipline.
+            - key: all-must-pass
+              label: all-must-pass — only requirement = passed if EVERY scenario has `- [x]`. Stricter but rejects partial progress.
+            - key: majority-vote
+              label: majority-vote — count scenarios; >50% pass → passed. Pragmatic but loses precision.
+      critic_revisions:
+        - source: opus
+          severity: HIGH
+          summary: Slice 1 originally bundled the parser extension; split into this dedicated slice for clean scope
+        - source: opus
+          severity: MEDIUM
+          summary: Hybrid format pollution risk addressed by first-heading-match scoping rather than 'extend-existing' or 'always-try-both'
+        - source: opus / sonnet
+          severity: MEDIUM
+          summary: Parser regression risk on hybrid specs addressed by explicit format isolation in test TestParseCriteria_NoFalsePollution
+    - id: slice-3
+      feature_id: feat-0fd7c8bc
+      num: 3
+      title: Cross-harness `htmlgraph plan elicit-decisions` + Claude skill + promote/complete gates
+      what: |
+        Add cross-harness elicitation, a free-text `DecisionsNotes` slice field (NOT a typed schema — sonnet HIGH critique flagged the original `Decisions []SliceDecision` as YAGNI), a Claude-only convenience skill, and two opt-in enforcement gates.
+
+        **Implementation:**
+
+        1. **Schema field.** Add `DecisionsNotes string` (yaml `decisions_notes,omitempty`) to `PlanSlice` in `internal/planyaml/schema.go`. No typed sub-struct — free text only. No validator change required (string with omitempty validates trivially).
+
+        2. **CLI elicitation command.** New `cmd/htmlgraph/plan_elicit_decisions.go` registers `htmlgraph plan elicit-decisions <plan-id> <slice-num>`. Accepts:
+           - `--scope <text>`, `--decisions <text>`, `--context <text>` flags (programmatic / non-interactive)
+           - OR stdin in YAML format with three keys (`scope:`, `decisions:`, `context:`) when no flags set and stdin is a tty (or `--from-stdin` flag in CI)
+           - Combines the three answers into a single Markdown blob (e.g., `### Scope\n<text>\n\n### Decisions\n<text>\n\n### Context\n<text>`) and writes to `slice.DecisionsNotes`
+           - Atomic write to plan YAML
+           - Cross-harness — works on Claude Code, Codex CLI, Gemini CLI without modification
+
+        3. **Claude convenience skill.** New `plugin/skills/spec-from-slice/SKILL.md` with frontmatter `name: htmlgraph:spec-from-slice`, `user_invocable: true`. Body instructs Claude to:
+           a. Read the slice card from the plan YAML
+           b. Use `AskUserQuestion` to elicit Scope / Decisions / Context (3 grouped questions)
+           c. Run `htmlgraph plan elicit-decisions <plan-id> <slice-num> --scope "..." --decisions "..." --context "..."` to write the notes
+           d. Run `htmlgraph spec generate <feat-id> --insert` (slice 1's command) to materialise the spec
+           e. Handle re-elicitation: if `slice.DecisionsNotes` already populated, ask whether to re-elicit, edit-in-place, or skip
+
+        4. **`promote-slice` gate.** In `cmd/htmlgraph/plan_promote_slice.go` after the approval check (~line 87) and before the dep check (~line 97): if `config.spec_enforcement.promote_slice` is true and `slice.DecisionsNotes == ""`: refuse with error message `"slice <num> has no decisions; run htmlgraph plan elicit-decisions <plan-id> <num> first (or invoke /htmlgraph:spec-from-slice on Claude). Override with --allow-spec-skip if intentional."`. Add `--allow-spec-skip` flag for audited override (logs the override into the slice's `Comment` field). Default behavior unchanged when config false.
+
+           Note: this gates on the SLICE having decisions, NOT on the feature having a spec — opus HIGH flagged the original "feature spec" framing as a temporal mismatch (the feature doesn't exist yet at gate time). The slice's `DecisionsNotes` is the right gate target since slice 1's spec generator reads it.
+
+        5. **`feature complete` gate.** In `cmd/htmlgraph/workitem.go` `wiSetStatusWithAgent`, when `typeName == "feature"` and `status == "done"`: if `config.spec_enforcement.feature_complete` is true, read the feature HTML, call `extractSpecSection`, parse via slice 2's extended `parseCriteria`. Refuse if (a) section absent, OR (b) section contains 0 `### Requirement:` headings AND 0 legacy `[ ]/[x]/[F]` lines. Threshold: spec section must have ≥1 `### Requirement:` heading with non-empty SHALL line, OR ≥1 legacy line with non-empty criterion text. Add same `--allow-spec-skip` flag for override.
+
+        6. **Config fields.** Extend `internal/hooks/task_completion_gate.go` (or wherever `block_task_completion_on_quality_failure` lives) with the new fields:
+           ```json
+           "spec_enforcement": {
+             "promote_slice": false,
+             "feature_complete": false
+           }
+           ```
+           Both default to false (opt-in).
+      why: |
+        Without enforcement, slices 1+2 are tooling that nobody is required to use. The gates flip the default once config opts in. Cross-harness CLI is the canonical entry point; the skill is Claude-specific UX sugar. Free-text `DecisionsNotes` (instead of the original typed `Decisions []SliceDecision`) addresses sonnet HIGH on YAGNI — the only consumer is slice 1's spec renderer, which weaves the prose verbatim into a `## Decisions` Markdown section. No structured query, no validator surface, no edit-slice command for typed fields. Audited override (`--allow-spec-skip` with logged comment) addresses opus LOW finding on emergency bypass — refuses by default, but logs deliberate skips so they're auditable in the work-item history.
+      files:
+        - cmd/htmlgraph/plan_elicit_decisions.go
+        - cmd/htmlgraph/plan_elicit_decisions_test.go
+        - cmd/htmlgraph/plan_promote_slice.go
+        - cmd/htmlgraph/workitem.go
+        - internal/planyaml/schema.go
+        - internal/planyaml/validate.go
+        - internal/hooks/task_completion_gate.go
+        - plugin/skills/spec-from-slice/SKILL.md
+      deps:
+        - 1
+        - 2
+      done_when:
+        - '`PlanSlice.DecisionsNotes string` field exists with `omitempty` YAML tag; existing slice YAMLs without the field validate'
+        - '`htmlgraph plan elicit-decisions <plan-id> <num> --scope X --decisions Y --context Z` writes the combined Markdown blob to the slice YAML'
+        - '`htmlgraph plan elicit-decisions <plan-id> <num> --from-stdin` reads YAML from stdin (`scope:`, `decisions:`, `context:` keys) and writes the same blob'
+        - 'Cross-harness verification: command works under `bash`/`zsh` without Claude Code being present (no `AskUserQuestion` dependency)'
+        - 'Skill file `plugin/skills/spec-from-slice/SKILL.md` exists with `user_invocable: true`; body documents the 3-question interview pattern + handles re-elicitation state'
+        - 'When `spec_enforcement.promote_slice: true`, `htmlgraph plan promote-slice` refuses if `slice.DecisionsNotes` is empty, with a remediation message that names the elicit-decisions command'
+        - 'When `spec_enforcement.feature_complete: true`, `htmlgraph feature complete <id>` refuses if the feature HTML''s spec section is absent or has 0 requirements/criteria'
+        - '`--allow-spec-skip` flag bypasses both gates and writes an audit comment to the slice (or feature) HTML'
+        - Default config (no `spec_enforcement` key) preserves existing behavior — neither gate fires
+      effort: L
+      risk: Med
+      tests: |
+        Unit:
+        - TestSliceSchema_DecisionsNotesField — round-trip slice YAML with DecisionsNotes; field preserved
+        - TestSliceSchema_NoDecisionsNotes — legacy slice without the field still validates
+        - TestElicitDecisions_FlagsForm — `--scope/--decisions/--context` flags write expected Markdown blob
+        - TestElicitDecisions_StdinForm — `--from-stdin` with YAML payload writes the same blob
+        - TestElicitDecisions_AtomicWrite — concurrent elicitations on different slices don't race
+        - TestPromoteSliceGate_Disabled — default config; promote-slice succeeds without DecisionsNotes
+        - TestPromoteSliceGate_EnabledNoNotes — config enabled, slice has empty DecisionsNotes; promote-slice fails
+        - TestPromoteSliceGate_EnabledWithNotes — config enabled, slice has DecisionsNotes; promote-slice succeeds
+        - TestPromoteSliceGate_AllowSkip — config enabled, slice empty, `--allow-spec-skip` set; promote-slice succeeds with audit comment
+        - TestFeatureCompleteGate_Disabled — default config; complete succeeds without spec
+        - TestFeatureCompleteGate_EnabledNoSpec — config enabled, no spec section; complete fails
+        - TestFeatureCompleteGate_EnabledEmptySpec — config enabled, spec section exists but 0 requirements; complete fails
+        - TestFeatureCompleteGate_EnabledWithRequirement — config enabled, ≥1 requirement; complete succeeds
+        - TestSkillFile_ValidFrontmatter — SKILL.md parses with expected fields
+
+        Integration: TestEndToEndElicitationAndPromote — temp project, run elicit-decisions, then promote-slice with gate enabled; both succeed in sequence
+
+        Regression: existing planyaml, hooks, and workitem tests pass
+      approved: false
+      comment: ""
+      approval_status: approved
+      execution_status: promoted
+      questions:
+        - id: q-cli-and-skill-relationship
+          text: Is the Claude skill a frontend-only convenience, or can it also be invoked autonomously by promote-slice?
+          description: |
+            Cross-harness: skill works only on Claude. Autonomous invocation from promote-slice would couple the gate to Claude (broken on Codex/Gemini).
+          recommended: skill-is-claude-frontend-only
+          options:
+            - key: skill-is-claude-frontend-only
+              label: skill-is-claude-frontend-only — skill exists for UX convenience on Claude; CLI is the canonical interface; promote-slice never auto-dispatches the skill. Cross-harness clean. Recommended.
+            - key: auto-invoke-on-claude-detect
+              label: auto-invoke-on-claude-detect — promote-slice detects Claude via env var and auto-invokes the skill; falls back to CLI elicitation otherwise. More magic, more complexity.
+            - key: skill-required-on-claude
+              label: skill-required-on-claude — Claude users must run the skill; CLI rejected when running under Claude. Bad UX.
+        - id: q-stdin-format-for-elicit
+          text: What's the stdin format for non-interactive elicitation?
+          description: |
+            YAML and JSON both work. Pick one that matches existing CLI conventions.
+          recommended: yaml-stdin
+          options:
+            - key: yaml-stdin
+              label: yaml-stdin — keys `scope:`, `decisions:`, `context:` in YAML. Matches the slice YAML format the data lives in.
+            - key: json-stdin
+              label: json-stdin — JSON object. Easier to construct programmatically (jq) but contradicts surrounding YAML.
+            - key: separator-delimited
+              label: separator-delimited — three sections separated by `---`. Simplest; worse with multi-line answers.
+        - id: q-elicit-rerun-behavior
+          text: What if `htmlgraph plan elicit-decisions` is run twice on the same slice?
+          description: |
+            Re-elicitation is a real workflow (the user re-thinks decisions). Three options for the rerun behavior.
+          recommended: replace-with-warning
+          options:
+            - key: replace-with-warning
+              label: replace-with-warning — second run overwrites DecisionsNotes; prints a stderr warning that previous content was replaced. Simple.
+            - key: refuse-without-force
+              label: refuse-without-force — second run errors unless `--force` set; matches the slice 1 `--insert` policy. Consistent.
+            - key: append-with-timestamp
+              label: append-with-timestamp — second run appends with `## Re-elicited <timestamp>` separator. Preserves history; bloats the field.
+      critic_revisions:
+        - source: opus
+          severity: HIGH
+          summary: Promote-slice gate temporal mismatch — addressed by gating on `slice.DecisionsNotes` (slice scope) instead of feature HTML (feature doesn't exist at gate time)
+        - source: opus / sonnet
+          severity: HIGH
+          summary: Skill Claude-only — addressed by adding cross-harness `htmlgraph plan elicit-decisions` CLI as canonical interface; skill is a Claude-only convenience
+        - source: sonnet
+          severity: HIGH
+          summary: '`Decisions []SliceDecision` typed schema YAGNI — replaced with `DecisionsNotes string` (free text); single consumer (slice 1''s spec renderer) doesn''t need typed access'
+        - source: opus
+          severity: HIGH
+          summary: Cross-slice flag ownership conflict on `htmlgraph spec generate --decisions-json` — eliminated; slice 1 reads `slice.DecisionsNotes` directly from YAML, no flag plumbing across slices
+        - source: opus
+          severity: MEDIUM
+          summary: Gate threshold ambiguity in dual-format world — tightened to '≥1 `### Requirement:` with non-empty SHALL OR ≥1 legacy line with non-empty text'
+        - source: opus
+          severity: LOW
+          summary: Hard-error-with-override-flag adopted (per opus LOW finding) — `--allow-spec-skip` writes audit comment to the slice/feature HTML
+questions:
+    - id: q-cohort-strategy
+      text: What's the strategy for the 117 existing spec-less done features?
+      description: |
+        The plan delivers spec enforcement for FUTURE features but doesn't generate specs for the 117 already-done. Three options.
+      recommended: leave-empty-tracked-as-followon
+      options:
+        - key: leave-empty-tracked-as-followon
+          label: leave-empty-tracked-as-followon — accept the cohort gap; file a follow-on bug for backfill if/when needed. Keeps this plan tightly scoped to enforcement; the 117 features are old work and rarely re-evaluated.
+        - key: marker-now-as-shell-script
+          label: marker-now-as-shell-script — one-off `htmlgraph spec grandfather --all` adds `<section class="spec" data-grandfathered="true">` to every existing done feature. Adds ~50 lines to slice 3 but closes the cohort gap immediately.
+        - key: backfill-via-llm-followon
+          label: backfill-via-llm-followon — defer to a separate plan that uses claude -p to reverse-engineer specs from each feature's diff. Expensive but produces real data; needs its own scope discussion.
+      answer: null

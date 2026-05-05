@@ -7,7 +7,7 @@
 <title>Plan: Rich work graph — commit, file, and agent lineage nodes with unified provenance view</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,300;0,8..60,400;0,8..60,500;1,8..60,300;1,8..60,400&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/github-dark.min.css" id="hljs-dark">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/github.min.css" id="hljs-light" disabled>
 <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/highlight.min.js"></script>
@@ -22,6 +22,7 @@
   --radius:8px; --radius-sm:5px;
   --mono:'JetBrains Mono',ui-monospace,'SF Mono','Cascadia Code',monospace;
   --sans:'DM Sans','Inter',system-ui,-apple-system,sans-serif;
+  --serif:'Source Serif 4',Georgia,serif;
   --shadow-card:0 2px 8px rgba(0,0,0,.5), 0 0 0 1px var(--border);
   --shadow-elevated:0 8px 32px rgba(0,0,0,.6), 0 0 0 1px var(--border);
   --transition:150ms cubic-bezier(.4,0,.2,1);
@@ -57,7 +58,7 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);line-height:
 .plan-content{flex:1;min-width:0;padding:32px 40px 80px;overflow-y:auto;max-width:960px}
 
 /* ── Chat sidebar ── */
-.chat-sidebar{width:360px;min-width:280px;max-width:600px;border-left:1px solid var(--border);display:flex;flex-direction:column;background:var(--bg-card);overflow:hidden;height:100%}
+.chat-sidebar{width:360px;min-width:280px;max-width:600px;border-left:1px solid var(--border);display:flex;flex-direction:column;background:var(--bg-card);overflow-y:auto;overflow-x:hidden;height:100vh;position:sticky;top:0;flex-shrink:0;transition:width 200ms ease,opacity 150ms ease}
 .chat-resize-handle{width:4px;cursor:col-resize;background:transparent;transition:background .15s;flex-shrink:0;position:relative}
 .chat-resize-handle:hover,.chat-resize-handle.dragging{background:var(--accent);opacity:.5}
 .chat-resize-handle::after{content:'';position:absolute;top:50%;left:-4px;width:12px;height:32px;transform:translateY(-50%);border-radius:4px}
@@ -149,24 +150,84 @@ textarea::placeholder{color:var(--text-muted)}
 .question-block input[type="radio"]{accent-color:var(--accent);margin-right:8px;cursor:pointer}
 .rec-tag{font-family:var(--mono);font-size:.65rem;color:var(--accent);text-transform:uppercase;letter-spacing:.05em;margin-left:6px;opacity:.8}
 
-/* ── Slice cards ── */
-.slice-card{background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius);padding:24px;margin-bottom:16px;transition:border-color var(--transition)}
+/* ── Slice cards (collapsible) ── */
+.slice-card{background:var(--bg-input);border:1px solid var(--border);border-left:3px solid var(--border);border-radius:var(--radius);margin-bottom:12px;transition:border-color var(--transition);scroll-margin-top:64px}
 .slice-card:hover{border-color:rgba(205,255,0,.2)}
-.slice-header{display:flex;align-items:center;gap:10px;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--border);flex-wrap:wrap}
-.slice-num{font-family:var(--mono);font-size:.8rem;color:var(--bg);background:var(--accent);padding:3px 9px;border-radius:4px;font-weight:700;min-width:26px;text-align:center}
-.slice-name{font-weight:600;font-size:1rem;font-family:var(--sans);flex:1}
-.slice-meta{font-size:.85rem;color:var(--text-muted);margin-bottom:8px;font-family:var(--mono)}
+/* Status stripe — keyed to data-approval attribute */
+.slice-card[data-approval="approved"]{border-left-color:var(--approved)}
+.slice-card[data-approval="rejected"]{border-left-color:var(--revision)}
+.slice-card[data-approval="changes_requested"]{border-left-color:var(--revision)}
+.slice-card[data-approval="pending"]{border-left-color:var(--border)}
+.slice-card[data-status="done"]{border-left-color:var(--discuss)}
+/* Summary / header — flex row: [#N] [title-col grows] [chevron]; title-col stacks title/preview/meta-row */
+.slice-card > summary.slice-summary{display:flex;align-items:flex-start;gap:12px;padding:12px 16px;cursor:pointer;list-style:none;user-select:none;font-weight:400;font-size:.94rem}
+.slice-card > summary.slice-summary::-webkit-details-marker{display:none}
+.slice-card > summary.slice-summary::marker{content:""}
+.slice-card > summary.slice-summary:hover{background:var(--bg-hover);border-radius:calc(var(--radius) - 1px)}
+.slice-num{margin-top:2px;font-family:var(--mono);font-size:.78rem;color:var(--bg);background:var(--accent);padding:2px 8px;border-radius:4px;font-weight:700;min-width:28px;text-align:center;flex:0 0 auto;align-self:flex-start}
+.slice-title-col{flex:1 1 auto;display:flex;flex-direction:column;gap:4px;min-width:0}
+.slice-name{font-weight:600;font-size:.94rem;font-family:var(--sans);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.slice-preview{color:var(--text-muted);font-size:.82rem;line-height:1.4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.slice-meta-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:4px;flex-wrap:wrap}
+.slice-summary-badges{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.badge-sm{font-size:.68rem;padding:2px 7px;letter-spacing:.04em}
+.badge-issues{background:rgba(239,68,68,.12);color:#f87171;border-color:rgba(239,68,68,.25)}
+.badge-questions{background:rgba(167,139,250,.12);color:var(--discuss);border-color:rgba(167,139,250,.25)}
+/* Segmented approval control */
+.slice-actions{display:flex;align-items:center;gap:6px;flex-shrink:0;margin-left:auto}
+.approval-segmented{display:inline-flex;border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;gap:0}
+.seg-btn{display:inline-flex;align-items:center;justify-content:center;padding:4px 9px;font-size:.82rem;cursor:pointer;line-height:1;color:var(--text-muted);transition:background var(--transition),color var(--transition);user-select:none}
+.seg-btn:hover{background:var(--bg-hover);color:var(--text)}
+.seg-btn input[type="radio"]{position:absolute;opacity:0;width:0;height:0;pointer-events:none}
+.seg-btn:has(input:checked){background:var(--bg-hover)}
+.seg-approve:has(input:checked){background:rgba(34,197,94,.15);color:var(--approved);border-right:1px solid var(--border)}
+.seg-changes:has(input:checked){background:rgba(245,158,11,.15);color:var(--revision);border-right:1px solid var(--border)}
+.seg-reject:has(input:checked){background:rgba(239,68,68,.15);color:var(--blocked)}
+/* Chevron */
+.slice-chevron{flex:0 0 auto;align-self:flex-start;width:16px;height:16px;position:relative;margin-top:6px}
+.slice-chevron::after{content:'';position:absolute;top:50%;left:50%;width:7px;height:7px;border-right:2px solid var(--text-muted);border-bottom:2px solid var(--text-muted);transform:translate(-60%,-60%) rotate(-45deg);transition:transform .2s ease}
+.slice-card[open] .slice-chevron::after{transform:translate(-60%,-30%) rotate(45deg)}
+/* Slice body (expanded content) */
+.slice-body{padding:4px 18px 16px}
+.slice-meta{font-size:.82rem;color:var(--text-muted);margin-bottom:6px;font-family:var(--mono)}
 .slice-meta span{margin-right:14px}
-.slice-field{margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid rgba(51,51,56,.4)}
+.slice-field{margin-top:14px;padding-bottom:10px;border-bottom:1px solid rgba(51,51,56,.4)}
 .slice-field:last-of-type{border-bottom:none}
-.slice-field-label{font-family:var(--mono);font-size:.75rem;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+.slice-field-label{font-family:var(--mono);font-size:.7rem;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px;opacity:.85}
 .slice-field-value{font-size:.92rem;color:var(--text-dim);line-height:1.7}
 .slice-field-value code{font-size:.82rem;word-break:break-all}
-.slice-tests{white-space:pre-line}
+/* Serif prose for WHAT/WHY/description */
+.serif-prose{font-family:var(--serif);font-size:.96rem;line-height:1.6}
+/* Reveal toggle (CSS-only) */
+.reveal-toggle{position:absolute;opacity:0;width:0;height:0;pointer-events:none}
+.reveal-content{max-height:8.5em;overflow:hidden;mask-image:linear-gradient(to bottom, black 60%, transparent 100%);-webkit-mask-image:linear-gradient(to bottom, black 60%, transparent 100%)}
+.reveal-toggle:checked~.reveal-content{max-height:none;mask-image:none;-webkit-mask-image:none}
+.reveal-label{display:inline-block;margin-top:4px;font-size:.78rem;color:var(--accent);cursor:pointer;font-family:var(--mono);opacity:.8;transition:opacity var(--transition)}
+.reveal-label:hover{opacity:1}
+.reveal-toggle:checked~.reveal-content~.reveal-label{display:none}
+/* Test strategy chips */
+.test-strategy{display:flex;flex-direction:column;gap:6px}
+.test-group{display:flex;align-items:flex-start;gap:10px}
+.test-chip{font-family:var(--mono);font-size:.65rem;font-weight:700;letter-spacing:.06em;background:var(--bg-card);border:1px solid var(--border);border-radius:4px;padding:3px 8px;white-space:nowrap;color:var(--text-muted);flex-shrink:0;margin-top:2px}
+.test-group[data-kind="unit"] .test-chip{border-color:rgba(34,197,94,.3);color:var(--approved)}
+.test-group[data-kind="integration"] .test-chip{border-color:rgba(167,139,250,.3);color:var(--discuss)}
+.test-group[data-kind="regression"] .test-chip,.test-group[data-kind="e2e"] .test-chip{border-color:rgba(245,158,11,.3);color:var(--revision)}
+.test-group ul{margin:0;padding-left:1.2em;display:flex;flex-direction:column;gap:2px}
+.test-group ul li{font-size:.84rem;padding:2px 0;color:var(--text-dim)}
+/* Done when list */
 .slice-done-list{list-style:none;padding-left:0;margin:0}
-.slice-done-list li{font-size:.9rem;color:var(--text-dim);padding:4px 0;padding-left:20px;position:relative}
+.slice-done-list li{font-size:.88rem;color:var(--text-dim);padding:3px 0;padding-left:18px;position:relative}
 .slice-done-list li::before{content:'\2713';position:absolute;left:0;color:var(--approved);font-weight:700}
-.slice-deps{font-size:.85rem;color:var(--text-muted);margin-top:8px;font-family:var(--mono)}
+.slice-done-list--grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:4px 24px}
+/* Slice deps */
+.slice-deps{font-size:.78rem;color:var(--text-muted);margin-top:10px;font-family:var(--mono)}
+/* Comment collapse */
+.comment-collapse{margin-top:10px;border-top:1px solid var(--border)}
+.comment-collapse-trigger{cursor:pointer;font-size:.8rem;color:var(--text-muted);padding:8px 0;font-family:var(--mono);list-style:none;user-select:none;transition:color var(--transition)}
+.comment-collapse-trigger::-webkit-details-marker{display:none}
+.comment-collapse-trigger:hover{color:var(--accent)}
+.comment-collapse-body{padding:8px 0 0}
+/* Old approval-row (design section etc) */
 .slice-card .approval-row{margin-top:16px}
 
 /* ── Progress zone ── */
@@ -228,6 +289,44 @@ textarea::placeholder{color:var(--text-muted)}
 #chat-send:disabled{opacity:.3;cursor:not-allowed}
 .chat-notice{font-size:.82rem;color:var(--text-muted);padding:20px;text-align:center;line-height:1.6}
 
+/* ── Review rail (sticky sidebar top) ── */
+.review-rail{padding:16px 18px;border-bottom:1px solid var(--border);background:var(--bg-card)}
+.review-rail h3{font-family:var(--sans);font-size:.82rem;font-weight:600;color:var(--text);margin-bottom:10px;text-transform:none;letter-spacing:0}
+.rail-dots{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px}
+.rail-dot{width:12px;height:12px;border-radius:50%;background:var(--border);border:2px solid transparent;cursor:pointer;transition:transform .12s;text-decoration:none;display:inline-block}
+.rail-dot:hover{transform:scale(1.3)}
+.rail-dot[data-approval="approved"]{background:var(--approved);border-color:rgba(34,197,94,.3)}
+.rail-dot[data-approval="rejected"]{background:var(--revision);border-color:rgba(245,158,11,.3)}
+.rail-dot[data-approval="changes_requested"]{background:var(--revision);border-color:rgba(245,158,11,.3)}
+.rail-dot[data-approval="pending"]{background:var(--border)}
+.rail-counter{font-size:.78rem;color:var(--text-dim);margin-bottom:6px;font-family:var(--sans)}
+.rail-counter strong{color:var(--text)}
+.rail-progress{height:5px;background:var(--bg-input);border-radius:3px;overflow:hidden;margin-bottom:12px}
+.rail-progress-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--approved));border-radius:3px;transition:width .4s cubic-bezier(.4,0,.2,1)}
+.rail-pending-list{font-size:.78rem;color:var(--text-dim);margin-bottom:12px}
+.rail-pending-list strong{display:block;font-size:.7rem;font-family:var(--mono);color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px}
+.rail-pending-list li{list-style:none;padding:2px 0;display:flex;align-items:center;gap:6px}
+.rail-pending-list li::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--border);flex-shrink:0}
+.rail-pending-list li[data-has-issues]::before{background:var(--blocked)}
+.rail-pending-list li[data-has-questions]::before{background:var(--discuss)}
+.btn-finalize-rail{width:100%;background:var(--accent);color:#0a0a0a;border:none;border-radius:var(--radius);padding:10px 16px;font-weight:700;font-size:.82rem;cursor:pointer;font-family:var(--sans);transition:all var(--transition)}
+.btn-finalize-rail:hover:not(:disabled){filter:brightness(.92)}
+.btn-finalize-rail:disabled{opacity:.3;cursor:not-allowed}
+.rail-finalize-hint{font-size:.7rem;color:var(--text-muted);margin-top:4px;text-align:center}
+/* Chat section inside sidebar now collapsible */
+.chat-collapsible{border-top:1px solid var(--border)}
+.chat-collapsible>summary{cursor:pointer;font-size:.82rem;font-weight:600;color:var(--text-muted);padding:10px 18px;list-style:none;user-select:none;font-family:var(--mono);text-transform:uppercase;letter-spacing:.04em;transition:color var(--transition)}
+.chat-collapsible>summary::-webkit-details-marker{display:none}
+.chat-collapsible>summary:hover{color:var(--accent)}
+/* sidebar slice nav */
+.slice-nav-list{padding:0;margin:0;list-style:none}
+.slice-nav-item{display:flex;align-items:center;gap:6px;padding:4px 20px 4px 28px;font-size:.75rem;color:var(--text-muted);text-decoration:none;cursor:pointer;transition:color var(--transition)}
+.slice-nav-item:hover{color:var(--text)}
+.slice-nav-dot{width:8px;height:8px;border-radius:50%;background:var(--border);flex-shrink:0;transition:background .2s}
+.slice-nav-dot[data-approval="approved"]{background:var(--approved)}
+.slice-nav-dot[data-approval="rejected"]{background:var(--revision)}
+.slice-nav-dot[data-approval="changes_requested"]{background:var(--revision)}
+
 /* ── Amendments ── */
 .amendments-panel{margin-top:28px;background:var(--bg-card);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow-card)}
 .amendments-panel h3{margin:0 0 14px;font-size:.92rem;color:var(--text);font-family:var(--sans);font-weight:600}
@@ -249,6 +348,29 @@ textarea::placeholder{color:var(--text-muted)}
 .yaml-viewer code{font-family:var(--mono);color:var(--text)}
 
 
+/* ── Sidebar toggle buttons ── */
+.sidebar-toggle{display:flex;align-items:center;justify-content:center;width:28px;height:28px;background:transparent;border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-muted);cursor:pointer;font-size:.9rem;line-height:1;transition:background var(--transition),color var(--transition);flex-shrink:0;padding:0}
+.sidebar-toggle:hover{background:var(--bg-hover);color:var(--text)}
+/* Left sidebar toggle — sits beside the brand */
+.plan-sidebar .brand-row{display:flex;align-items:center;justify-content:space-between;padding:16px 20px 20px;border-bottom:1px solid var(--border);margin-bottom:8px}
+.plan-sidebar .brand-row .brand{padding:0;border-bottom:none;margin-bottom:0}
+/* Right sidebar toggle header */
+.chat-sidebar-header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--border);flex-shrink:0}
+.chat-sidebar-header-title{font-family:var(--mono);font-size:.72rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em}
+/* Collapsed states */
+body.left-nav-collapsed .plan-sidebar{width:48px;min-width:48px;overflow:hidden}
+body.left-nav-collapsed .plan-sidebar .brand-row{padding:12px 10px}
+body.left-nav-collapsed .plan-sidebar .brand-row .brand{display:none}
+body.left-nav-collapsed .plan-sidebar .nav-link{padding:10px;justify-content:center;font-size:0;gap:0}
+body.left-nav-collapsed .plan-sidebar .nav-link::after{content:attr(data-initial);font-size:.7rem;font-family:var(--mono);font-weight:700}
+body.left-nav-collapsed .plan-sidebar .slice-nav-list{display:none}
+body.left-nav-collapsed{grid-template-columns:48px 1fr}
+body.right-rail-collapsed .chat-sidebar{width:0;min-width:0;opacity:0;pointer-events:none;overflow:hidden;border-left:none}
+body.right-rail-collapsed .chat-resize-handle{display:none}
+.sidebar-reopen{display:none;position:fixed;top:14px;right:14px;z-index:50;width:32px;height:32px;align-items:center;justify-content:center;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-muted);cursor:pointer;font-size:1rem;line-height:1;padding:0;box-shadow:0 2px 8px rgba(0,0,0,.35);transition:background var(--transition),color var(--transition)}
+.sidebar-reopen:hover{background:var(--bg-hover);color:var(--text)}
+body.right-rail-collapsed .sidebar-reopen{display:flex}
+
 /* ── Print ── */
 @media print{body{background:#fff;color:#111;max-width:100%;display:block}.plan-sidebar{display:none}.section-card,.dep-graph,.progress-zone,.slice-card{border-color:#ccc;background:#fafafa;box-shadow:none}details[open] summary~*{display:block}.btn-finalize,.chat-panel,.amendments-panel{display:none}}
 
@@ -267,14 +389,78 @@ textarea::placeholder{color:var(--text-muted)}
 </head>
 <body>
 
-<nav class="plan-sidebar">
-  <a href="/" class="brand">HtmlGraph</a>
-  <a href="#design" class="nav-link active" data-spy="design">Design</a>
-  <a href="#slices" class="nav-link" data-spy="slices">Slices</a>
-  <a href="#questions" class="nav-link" data-spy="questions">Decisions</a>
-  <a href="#critique" class="nav-link" data-spy="critique">Critique</a>
-  <a href="#feedback-summary" class="nav-link" data-spy="feedback-summary">Progress</a>
-  <a href="#chat-panel" class="nav-link" data-spy="chat-panel">Chat</a>
+<nav class="plan-sidebar" id="plan-sidebar">
+  <div class="brand-row">
+    <a href="/" class="brand">HtmlGraph</a>
+    <button class="sidebar-toggle" id="left-sidebar-toggle" title="Collapse sidebar" aria-label="Toggle left sidebar">&#8249;</button>
+  </div>
+  <a href="#design" class="nav-link active" data-spy="design" data-initial="D">Design</a>
+  <a href="#slices" class="nav-link" data-spy="slices" data-initial="S">Slices</a>
+  
+  <ul class="slice-nav-list" id="slice-nav-list">
+    
+    <li>
+      <a href="#slice-1" class="slice-nav-item" data-slice-nav="1">
+        <span class="slice-nav-dot" data-approval="pending" data-dot-for="1"></span>
+        <span>#1 Commit and file nodes in graph API</span>
+      </a>
+    </li>
+    
+    <li>
+      <a href="#slice-2" class="slice-nav-item" data-slice-nav="2">
+        <span class="slice-nav-dot" data-approval="pending" data-dot-for="2"></span>
+        <span>#2 Session hierarchy and agent lineage edges</span>
+      </a>
+    </li>
+    
+    <li>
+      <a href="#slice-3" class="slice-nav-item" data-slice-nav="3">
+        <span class="slice-nav-dot" data-approval="pending" data-dot-for="3"></span>
+        <span>#3 D3 frontend — render commit and file nodes with visual distinction</span>
+      </a>
+    </li>
+    
+    <li>
+      <a href="#slice-4" class="slice-nav-item" data-slice-nav="4">
+        <span class="slice-nav-dot" data-approval="pending" data-dot-for="4"></span>
+        <span>#4 Provenance query API — per-node causal chain endpoints</span>
+      </a>
+    </li>
+    
+    <li>
+      <a href="#slice-5" class="slice-nav-item" data-slice-nav="5">
+        <span class="slice-nav-dot" data-approval="pending" data-dot-for="5"></span>
+        <span>#5 Dashboard provenance panel — click-to-drill node detail</span>
+      </a>
+    </li>
+    
+    <li>
+      <a href="#slice-6" class="slice-nav-item" data-slice-nav="6">
+        <span class="slice-nav-dot" data-approval="pending" data-dot-for="6"></span>
+        <span>#6 Extend internal/graph DSL and algorithms for new node types</span>
+      </a>
+    </li>
+    
+    <li>
+      <a href="#slice-7" class="slice-nav-item" data-slice-nav="7">
+        <span class="slice-nav-dot" data-approval="pending" data-dot-for="7"></span>
+        <span>#7 Graph filtering — type toggles and node count budgets</span>
+      </a>
+    </li>
+    
+    <li>
+      <a href="#slice-8" class="slice-nav-item" data-slice-nav="8">
+        <span class="slice-nav-dot" data-approval="pending" data-dot-for="8"></span>
+        <span>#8 Agent type nodes — surface who did the work</span>
+      </a>
+    </li>
+    
+  </ul>
+  
+  <a href="#questions" class="nav-link" data-spy="questions" data-initial="Q">Decisions</a>
+  <a href="#critique" class="nav-link" data-spy="critique" data-initial="C">Critique</a>
+  <a href="#feedback-summary" class="nav-link" data-spy="feedback-summary" data-initial="P">Progress</a>
+  <a href="#chat-panel" class="nav-link" data-spy="chat-panel" data-initial="&#9825;">Chat</a>
 </nav>
 <div class="plan-layout">
 <div class="plan-content">
@@ -364,410 +550,1170 @@ textarea::placeholder{color:var(--text-muted)}
 <details id="slices" class="section-card" open data-phase="slices" data-status="pending">
   <summary><span>Slices</span><span class="badge badge-pending" data-badge-for="slices">Pending</span></summary>
   <div class="section-body">
-    <div class="slice-card" data-slice="1" data-slice-name="slice-1" data-status="pending">
-  <div class="slice-header">
+    <details class="slice-card" id="slice-1" data-slice="1" data-slice-name="slice-1" data-status="pending" data-approval="pending">
+  <summary class="slice-summary" aria-label="Slice 1: Commit and file nodes in graph API">
     <span class="slice-num">#1</span>
-    <span class="slice-name">Commit and file nodes in graph API</span>
-    <span class="badge badge-revision">M</span>
-    <span class="badge badge-revision">Med</span>
-    <span class="badge badge-pending" data-badge-for="slice-1">Pending</span>
-  </div>
-  
-  <div class="slice-field"><div class="slice-field-label">What</div><div class="slice-field-value">Add commit and file nodes to the /api/graph endpoint in cmd/htmlgraph/api_graph.go.
-1. Add a new query branch in loadGraphNodes (after the sessions query, ~line 250) that
-   reads from git_commits using SELECT DISTINCT commit_hash to avoid duplicate nodes
-   (git_commits has a composite PK of (commit_hash, session_id), so a commit may appear
-   multiple times across sessions): SELECT DISTINCT commit_hash, &#39;commit&#39;,
-   SUBSTR(message,1,80), &#39;done&#39;, feature_id, session_id FROM git_commits GROUP BY
-   commit_hash. Map to graphNode with id=commit_hash, type=&#34;commit&#34;,
-   title=truncated message.
+    <span class="slice-title-col">
+      <span class="slice-name">Commit and file nodes in graph API</span>
+      <span class="slice-preview">Add commit and file nodes to the /api/graph endpoint in cmd/htmlgraph/apigraph.go.</span>
+      <span class="slice-meta-row">
+        <span class="slice-summary-badges">
+          <span class="badge badge-revision badge-sm">M</span>
+          <span class="badge badge-revision badge-sm">Med</span>
+          
+          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-1">Pending</span>
+          
+          
+        </span>
+        <span class="slice-actions" onclick="event.stopPropagation()">
+          <span class="approval-segmented" role="group" aria-label="Approval action">
+            <label class="seg-btn seg-approve" title="Approve">
+              <input type="radio" name="slice-1-approval" value="approved" data-section="slice-1" data-action="approve" aria-label="Approve slice 1">
+              &#10003;
+            </label>
+            <label class="seg-btn seg-changes" title="Request changes">
+              <input type="radio" name="slice-1-approval" value="changes_requested" data-section="slice-1" data-action="approve" aria-label="Request changes for slice 1">
+              &#8635;
+            </label>
+            <label class="seg-btn seg-reject" title="Reject">
+              <input type="radio" name="slice-1-approval" value="rejected" data-section="slice-1" data-action="approve" aria-label="Reject slice 1">
+              &#10005;
+            </label>
+          </span>
+        </span>
+      </span>
+    </span>
+    <span class="slice-chevron" aria-hidden="true"></span>
+  </summary>
 
-2. Add another query branch for files from feature_files: SELECT DISTINCT file_path,
-   &#39;file&#39;, file_path, &#39;&#39; FROM feature_files. Map to graphNode with id=file_path,
-   type=&#34;file&#34;, title=basename(file_path). Deduplicate by file_path since multiple
-   features may touch the same file.
-
-3. Create edges: commit→feature (type=&#34;committed_for&#34;), commit→session (type=&#34;produced_by&#34;),
-   file→session (type=&#34;produced_in&#34;) using feature_files.session_id (which is a direct FK),
-   file→feature (type=&#34;touched_by&#34;). Note: file→commit (modified_in) edges cannot be
-   derived directly because feature_files has no commit_hash column. Users traverse
-   file → session → commit in two hops instead. Handle NULL session_id in feature_files
-   gracefully (skip edge creation when session_id IS NULL).
-
-4. Update the graphNode struct if needed (no new fields required — id, type, title, status,
-   edges, activity already cover everything).
-</div></div>
-  <div class="slice-field"><div class="slice-field-label">Why</div><div class="slice-field-value">This is the foundational slice. Without commit and file nodes in the API response, no downstream work (frontend, provenance, queries) can surface them. The data already exists in git_commits and feature_files — this slice just queries it and formats it as graph nodes with derived edges.
-</div></div>
-  <div class="slice-field"><div class="slice-field-label">Files</div><div class="slice-field-value"><code>cmd/htmlgraph/api_graph.go</code></div></div>
-  <div class="slice-field"><div class="slice-field-label">Done when</div><ul class="slice-done-list"><li>GET /api/graph returns nodes with type=&#39;commit&#39; (from git_commits table, deduplicated by commit_hash via GROUP BY)</li><li>GET /api/graph returns nodes with type=&#39;file&#39; (from feature_files table, deduplicated)</li><li>Edges exist between commit→feature, commit→session, file→session (produced_in), and file→feature</li><li>No file→commit (modified_in) edges — feature_files lacks commit_hash column; two-hop path via session is correct</li><li>Existing node types (feature, bug, track, session, spike, plan) are unchanged</li><li>No N&#43;1 queries — commit and file nodes loaded in bulk queries</li><li>NULL session_id in feature_files is handled gracefully (no edge created)</li></ul></div>
-  
-  <div class="slice-field"><div class="slice-field-label">Test Strategy</div><div class="slice-field-value slice-tests">Unit: TestGraphAPICommitNodes — insert test git_commits rows including duplicates across sessions, call loadGraphNodes, assert commit nodes deduplicated in response with correct type/title
-Unit: TestGraphAPIFileNodes — insert test feature_files rows, assert file nodes deduplicated by path
-Unit: TestGraphAPIDerivedEdges — assert commit→feature, file→session (produced_in), and file→feature edges are present; assert no file→commit (modified_in) edges
-Unit: TestGraphAPIFileNullSession — insert feature_files row with NULL session_id, assert no produced_in edge but node still appears
-Integration: curl /api/graph, parse JSON, verify commit and file nodes appear alongside existing types
-Regression: existing graph API tests must still pass
-</div></div>
-  <div class="slice-deps">Dependencies: none</div>
-  <div class="approval-row">
-    <label><input type="checkbox" data-section="slice-1" data-action="approve"> Approve slice</label>
-    <textarea data-section="slice-1" data-comment-for="slice-1" placeholder="Comments on slice 1..."></textarea>
-  </div>
+  <div class="slice-body">
+    
+      
+      <div class="slice-field slice-what">
+        <div class="slice-field-label">What</div>
+        <div class="slice-field-value">
+          
+          <input type="checkbox" id="slice-1-what-reveal" class="reveal-toggle">
+          <div class="markdown-block reveal-content serif-prose"><p>Add commit and file nodes to the /api/graph endpoint in cmd/htmlgraph/api_graph.go.</p>
+<ol>
+<li>
+<p>Add a new query branch in loadGraphNodes (after the sessions query, ~line 250) that
+reads from git_commits using SELECT DISTINCT commit_hash to avoid duplicate nodes
+(git_commits has a composite PK of (commit_hash, session_id), so a commit may appear
+multiple times across sessions): SELECT DISTINCT commit_hash, &#39;commit&#39;,
+SUBSTR(message,1,80), &#39;done&#39;, feature_id, session_id FROM git_commits GROUP BY
+commit_hash. Map to graphNode with id=commit_hash, type=&#34;commit&#34;,
+title=truncated message.</p>
+</li>
+<li>
+<p>Add another query branch for files from feature_files: SELECT DISTINCT file_path,
+&#39;file&#39;, file_path, &#39;&#39; FROM feature_files. Map to graphNode with id=file_path,
+type=&#34;file&#34;, title=basename(file_path). Deduplicate by file_path since multiple
+features may touch the same file.</p>
+</li>
+<li>
+<p>Create edges: commit→feature (type=&#34;committed_for&#34;), commit→session (type=&#34;produced_by&#34;),
+file→session (type=&#34;produced_in&#34;) using feature_files.session_id (which is a direct FK),
+file→feature (type=&#34;touched_by&#34;). Note: file→commit (modified_in) edges cannot be
+derived directly because feature_files has no commit_hash column. Users traverse
+file → session → commit in two hops instead. Handle NULL session_id in feature_files
+gracefully (skip edge creation when session_id IS NULL).</p>
+</li>
+<li>
+<p>Update the graphNode struct if needed (no new fields required — id, type, title, status,
+edges, activity already cover everything).</p>
+</li>
+</ol>
 </div>
-<div class="slice-card" data-slice="2" data-slice-name="slice-2" data-status="pending">
-  <div class="slice-header">
+          <label for="slice-1-what-reveal" class="reveal-label">Show full description</label>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field slice-why">
+        <div class="slice-field-label">Why</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>This is the foundational slice. Without commit and file nodes in the API response, no downstream work (frontend, provenance, queries) can surface them. The data already exists in git_commits and feature_files — this slice just queries it and formats it as graph nodes with derived edges.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Files</div>
+        <div class="slice-field-value"><code>cmd/htmlgraph/api_graph.go</code></div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Done when</div>
+        <ul class="slice-done-list slice-done-list--grid"><li>GET /api/graph returns nodes with type=&#39;commit&#39; (from git_commits table, deduplicated by commit_hash via GROUP BY)</li><li>GET /api/graph returns nodes with type=&#39;file&#39; (from feature_files table, deduplicated)</li><li>Edges exist between commit→feature, commit→session, file→session (produced_in), and file→feature</li><li>No file→commit (modified_in) edges — feature_files lacks commit_hash column; two-hop path via session is correct</li><li>Existing node types (feature, bug, track, session, spike, plan) are unchanged</li><li>No N&#43;1 queries — commit and file nodes loaded in bulk queries</li><li>NULL session_id in feature_files is handled gracefully (no edge created)</li></ul>
+      </div>
+      
+    
+
+    
+    <div class="slice-field slice-tests-field">
+      <div class="slice-field-label">Test Strategy</div>
+      <div class="slice-field-value">
+        
+        
+        <div class="test-strategy">
+          
+          <div class="test-group" data-kind="unit">
+            <span class="test-chip">UNIT &middot; 4</span>
+            <ul><li>TestGraphAPICommitNodes — insert test git_commits rows including duplicates across sessions, call loadGraphNodes, assert commit nodes deduplicated in response with correct type/title</li><li>TestGraphAPIFileNodes — insert test feature_files rows, assert file nodes deduplicated by path</li><li>TestGraphAPIDerivedEdges — assert commit→feature, file→session (produced_in), and file→feature edges are present; assert no file→commit (modified_in) edges</li><li>TestGraphAPIFileNullSession — insert feature_files row with NULL session_id, assert no produced_in edge but node still appears</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="integration">
+            <span class="test-chip">INTEGRATION &middot; 1</span>
+            <ul><li>curl /api/graph, parse JSON, verify commit and file nodes appear alongside existing types</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="regression">
+            <span class="test-chip">REGRESSION &middot; 1</span>
+            <ul><li>existing graph API tests must still pass</li></ul>
+          </div>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+
+    
+
+    
+
+    <div class="slice-deps">Dependencies: none</div>
+
+    <details class="comment-collapse">
+      <summary class="comment-collapse-trigger">+ Leave a comment</summary>
+      <div class="comment-collapse-body">
+        <textarea data-section="slice-1" data-comment-for="slice-1" placeholder="Comments on slice 1..."></textarea>
+      </div>
+    </details>
+  </div>
+</details>
+<details class="slice-card" id="slice-2" data-slice="2" data-slice-name="slice-2" data-status="pending" data-approval="pending">
+  <summary class="slice-summary" aria-label="Slice 2: Session hierarchy and agent lineage edges">
     <span class="slice-num">#2</span>
-    <span class="slice-name">Session hierarchy and agent lineage edges</span>
-    <span class="badge badge-revision">M</span>
-    <span class="badge badge-revision">Med</span>
-    <span class="badge badge-pending" data-badge-for="slice-2">Pending</span>
-  </div>
-  
-  <div class="slice-field"><div class="slice-field-label">What</div><div class="slice-field-value">Add parent→child session edges and agent lineage edges to the graph API.
-1. In loadGraphNodes or a new loadSessionHierarchyEdges function in api_graph.go,
-   query: SELECT session_id, parent_session_id FROM sessions WHERE parent_session_id
-   IS NOT NULL AND parent_session_id != &#39;&#39;. Create graphEdge with type=&#34;spawned&#34; for
-   each parent→child pair.
+    <span class="slice-title-col">
+      <span class="slice-name">Session hierarchy and agent lineage edges</span>
+      <span class="slice-preview">Add parent→child session edges and agent lineage edges to the graph API.</span>
+      <span class="slice-meta-row">
+        <span class="slice-summary-badges">
+          <span class="badge badge-revision badge-sm">M</span>
+          <span class="badge badge-revision badge-sm">Med</span>
+          
+          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-2">Pending</span>
+          
+          
+        </span>
+        <span class="slice-actions" onclick="event.stopPropagation()">
+          <span class="approval-segmented" role="group" aria-label="Approval action">
+            <label class="seg-btn seg-approve" title="Approve">
+              <input type="radio" name="slice-2-approval" value="approved" data-section="slice-2" data-action="approve" aria-label="Approve slice 2">
+              &#10003;
+            </label>
+            <label class="seg-btn seg-changes" title="Request changes">
+              <input type="radio" name="slice-2-approval" value="changes_requested" data-section="slice-2" data-action="approve" aria-label="Request changes for slice 2">
+              &#8635;
+            </label>
+            <label class="seg-btn seg-reject" title="Reject">
+              <input type="radio" name="slice-2-approval" value="rejected" data-section="slice-2" data-action="approve" aria-label="Reject slice 2">
+              &#10005;
+            </label>
+          </span>
+        </span>
+      </span>
+    </span>
+    <span class="slice-chevron" aria-hidden="true"></span>
+  </summary>
 
-2. Add agent lineage edges from agent_lineage_trace: SELECT trace_id, session_id,
-   root_session_id, agent_name, feature_id FROM agent_lineage_trace. Create edges:
-   root_session→child_session (type=&#34;spawned&#34;), agent→feature (type=&#34;worked_on&#34;)
-   where feature_id is not null. Avoid duplicating edges already created by the
-   session hierarchy query.
-
-3. Relax the session node filter. Currently sessions require &gt;5 agent_events AND
-   at least one message (api_graph.go ~line 218). This excludes subagent sessions
-   that do real work but have few events. Add a second path: also include any session
-   that appears in agent_lineage_trace OR has parent_session_id set, regardless of
-   event count. Cap total session nodes at 500 to prevent graph overload.
-</div></div>
-  <div class="slice-field"><div class="slice-field-label">Why</div><div class="slice-field-value">The session hierarchy is the backbone of the causal chain — it shows how the orchestrator spawns subagents. Without these edges, sessions float as isolated nodes. The agent lineage data (141 rows) is already captured but invisible in the graph. Relaxing the session filter surfaces subagent sessions that are currently hidden.
-</div></div>
-  <div class="slice-field"><div class="slice-field-label">Files</div><div class="slice-field-value"><code>cmd/htmlgraph/api_graph.go</code></div></div>
-  <div class="slice-field"><div class="slice-field-label">Done when</div><ul class="slice-done-list"><li>Parent→child session edges appear in /api/graph response with type=&#39;spawned&#39;</li><li>Agent lineage trace sessions appear as nodes even if they have &lt;5 events</li><li>Total session nodes capped at 500</li><li>No duplicate edges between sessions (deduplicated across hierarchy and lineage sources)</li></ul></div>
-  
-  <div class="slice-field"><div class="slice-field-label">Test Strategy</div><div class="slice-field-value slice-tests">Unit: TestSessionHierarchyEdges — insert parent/child sessions, verify spawned edges
-Unit: TestAgentLineageEdges — insert lineage traces with feature_id, verify worked_on edges
-Unit: TestRelaxedSessionFilter — insert session with 2 events but parent_session_id, verify it appears
-Regression: existing session filtering still works for sessions without parents
-</div></div>
-  <div class="slice-deps">Dependencies: none</div>
-  <div class="approval-row">
-    <label><input type="checkbox" data-section="slice-2" data-action="approve"> Approve slice</label>
-    <textarea data-section="slice-2" data-comment-for="slice-2" placeholder="Comments on slice 2..."></textarea>
-  </div>
+  <div class="slice-body">
+    
+      
+      <div class="slice-field slice-what">
+        <div class="slice-field-label">What</div>
+        <div class="slice-field-value">
+          
+          <input type="checkbox" id="slice-2-what-reveal" class="reveal-toggle">
+          <div class="markdown-block reveal-content serif-prose"><p>Add parent→child session edges and agent lineage edges to the graph API.</p>
+<ol>
+<li>
+<p>In loadGraphNodes or a new loadSessionHierarchyEdges function in api_graph.go,
+query: SELECT session_id, parent_session_id FROM sessions WHERE parent_session_id
+IS NOT NULL AND parent_session_id != &#39;&#39;. Create graphEdge with type=&#34;spawned&#34; for
+each parent→child pair.</p>
+</li>
+<li>
+<p>Add agent lineage edges from agent_lineage_trace: SELECT trace_id, session_id,
+root_session_id, agent_name, feature_id FROM agent_lineage_trace. Create edges:
+root_session→child_session (type=&#34;spawned&#34;), agent→feature (type=&#34;worked_on&#34;)
+where feature_id is not null. Avoid duplicating edges already created by the
+session hierarchy query.</p>
+</li>
+<li>
+<p>Relax the session node filter. Currently sessions require &gt;5 agent_events AND
+at least one message (api_graph.go ~line 218). This excludes subagent sessions
+that do real work but have few events. Add a second path: also include any session
+that appears in agent_lineage_trace OR has parent_session_id set, regardless of
+event count. Cap total session nodes at 500 to prevent graph overload.</p>
+</li>
+</ol>
 </div>
-<div class="slice-card" data-slice="3" data-slice-name="slice-3" data-status="pending">
-  <div class="slice-header">
+          <label for="slice-2-what-reveal" class="reveal-label">Show full description</label>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field slice-why">
+        <div class="slice-field-label">Why</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>The session hierarchy is the backbone of the causal chain — it shows how the orchestrator spawns subagents. Without these edges, sessions float as isolated nodes. The agent lineage data (141 rows) is already captured but invisible in the graph. Relaxing the session filter surfaces subagent sessions that are currently hidden.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Files</div>
+        <div class="slice-field-value"><code>cmd/htmlgraph/api_graph.go</code></div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Done when</div>
+        <ul class="slice-done-list"><li>Parent→child session edges appear in /api/graph response with type=&#39;spawned&#39;</li><li>Agent lineage trace sessions appear as nodes even if they have &lt;5 events</li><li>Total session nodes capped at 500</li><li>No duplicate edges between sessions (deduplicated across hierarchy and lineage sources)</li></ul>
+      </div>
+      
+    
+
+    
+    <div class="slice-field slice-tests-field">
+      <div class="slice-field-label">Test Strategy</div>
+      <div class="slice-field-value">
+        
+        
+        <div class="test-strategy">
+          
+          <div class="test-group" data-kind="unit">
+            <span class="test-chip">UNIT &middot; 3</span>
+            <ul><li>TestSessionHierarchyEdges — insert parent/child sessions, verify spawned edges</li><li>TestAgentLineageEdges — insert lineage traces with feature_id, verify worked_on edges</li><li>TestRelaxedSessionFilter — insert session with 2 events but parent_session_id, verify it appears</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="regression">
+            <span class="test-chip">REGRESSION &middot; 1</span>
+            <ul><li>existing session filtering still works for sessions without parents</li></ul>
+          </div>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+
+    
+
+    
+
+    <div class="slice-deps">Dependencies: none</div>
+
+    <details class="comment-collapse">
+      <summary class="comment-collapse-trigger">+ Leave a comment</summary>
+      <div class="comment-collapse-body">
+        <textarea data-section="slice-2" data-comment-for="slice-2" placeholder="Comments on slice 2..."></textarea>
+      </div>
+    </details>
+  </div>
+</details>
+<details class="slice-card" id="slice-3" data-slice="3" data-slice-name="slice-3" data-status="pending" data-approval="pending">
+  <summary class="slice-summary" aria-label="Slice 3: D3 frontend — render commit and file nodes with visual distinction">
     <span class="slice-num">#3</span>
-    <span class="slice-name">D3 frontend — render commit and file nodes with visual distinction</span>
-    <span class="badge badge-revision">M</span>
-    <span class="badge badge-revision">Med</span>
-    <span class="badge badge-pending" data-badge-for="slice-3">Pending</span>
-  </div>
-  
-  <div class="slice-field"><div class="slice-field-label">What</div><div class="slice-field-value">Update the D3 graph rendering in cmd/htmlgraph/dashboard/js/app.js to handle commit and file node types.
-1. Add TYPE_BAND_Y entries (at line 1456, NOT ~line 1639): commit=0.70, file=0.90
-   (below features, near sessions). This prevents commit/file nodes from landing
-   in the feature band.
+    <span class="slice-title-col">
+      <span class="slice-name">D3 frontend — render commit and file nodes with visual distinction</span>
+      <span class="slice-preview">Update the D3 graph rendering in cmd/htmlgraph/dashboard/js/app.js to handle commit and file node types.</span>
+      <span class="slice-meta-row">
+        <span class="slice-summary-badges">
+          <span class="badge badge-revision badge-sm">M</span>
+          <span class="badge badge-revision badge-sm">Med</span>
+          
+          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-3">Pending</span>
+          
+          
+        </span>
+        <span class="slice-actions" onclick="event.stopPropagation()">
+          <span class="approval-segmented" role="group" aria-label="Approval action">
+            <label class="seg-btn seg-approve" title="Approve">
+              <input type="radio" name="slice-3-approval" value="approved" data-section="slice-3" data-action="approve" aria-label="Approve slice 3">
+              &#10003;
+            </label>
+            <label class="seg-btn seg-changes" title="Request changes">
+              <input type="radio" name="slice-3-approval" value="changes_requested" data-section="slice-3" data-action="approve" aria-label="Request changes for slice 3">
+              &#8635;
+            </label>
+            <label class="seg-btn seg-reject" title="Reject">
+              <input type="radio" name="slice-3-approval" value="rejected" data-section="slice-3" data-action="approve" aria-label="Reject slice 3">
+              &#10005;
+            </label>
+          </span>
+        </span>
+      </span>
+    </span>
+    <span class="slice-chevron" aria-hidden="true"></span>
+  </summary>
 
-2. Add TYPE_TOKEN entries (~line 1480): commit=&#39;--status-done&#39; (muted green/teal),
-   file=&#39;--text-muted&#39; (light gray). These should be visually subdued since there
-   are many of them.
-
-3. Add edgeColor entries (~line 1687): committed_for=&#39;#10b981&#39;, produced_by=&#39;#0ea5e9&#39;,
-   produced_in=&#39;#a78bfa&#39;, touched_by=&#39;#6b7280&#39;, spawned=&#39;#f97316&#39;. Note: modified_in
-   is removed — replaced by produced_in (file→session edges).
-
-4. Reduce visual weight for commit/file nodes: in nodeRadius, apply a 0.5 multiplier
-   for type===&#39;commit&#39; or type===&#39;file&#39; (similar to session&#39;s 0.6). In fill opacity,
-   use 0.5 for these types.
-
-5. Update click handler (~line 1815): commit nodes could link to git show or remain
-   as tooltip-only. File nodes could open a file detail view or remain tooltip-only.
-   For MVP, show enhanced tooltip with full commit hash/message or full file path.
-
-6. Update the HTML legend in the dashboard template to include commit and file
-   entries with [data-graph-type] attributes.
-
-7. Add edge styling: spawned edges get stroke-dasharray=&#39;6,3&#39; (dashed) to distinguish
-   from structural edges. committed_for and touched_by get low opacity (0.3) like
-   worked_on to reduce visual noise.
-</div></div>
-  <div class="slice-field"><div class="slice-field-label">Why</div><div class="slice-field-value">Without frontend changes, commit and file nodes would render as gray circles with no labels, no distinct position, and incorrect sizing — making the graph harder to read, not easier. Visual distinction is critical because these node types are high-cardinality and should be visually subordinate to the work item structure.
-</div></div>
-  <div class="slice-field"><div class="slice-field-label">Files</div><div class="slice-field-value"><code>cmd/htmlgraph/dashboard/js/app.js, cmd/htmlgraph/dashboard/index.html</code></div></div>
-  <div class="slice-field"><div class="slice-field-label">Done when</div><ul class="slice-done-list"><li>Commit nodes render in teal/green with reduced radius, positioned in the 0.70 Y band</li><li>File nodes render in muted gray with reduced radius, positioned in the 0.90 Y band</li><li>New edge types have distinct colors in the visualization (produced_in replaces modified_in)</li><li>Legend shows commit and file entries</li><li>Spawned edges render as dashed lines</li><li>Graph remains readable with 2000&#43; nodes (no overlapping clusters)</li></ul></div>
-  
-  <div class="slice-field"><div class="slice-field-label">Test Strategy</div><div class="slice-field-value slice-tests">Visual: Start dashboard, verify commit nodes appear as small teal circles below features
-Visual: Verify file nodes appear as small gray circles at the bottom
-Visual: Verify spawned edges are dashed orange lines
-Visual: Verify legend has 8 entries (track, feature, bug, spike, plan, session, commit, file)
-Regression: existing node types still render correctly with correct colors and sizing
-</div></div>
-  <div class="slice-deps">Dependencies: slices 1,2</div>
-  <div class="approval-row">
-    <label><input type="checkbox" data-section="slice-3" data-action="approve"> Approve slice</label>
-    <textarea data-section="slice-3" data-comment-for="slice-3" placeholder="Comments on slice 3..."></textarea>
-  </div>
+  <div class="slice-body">
+    
+      
+      <div class="slice-field slice-what">
+        <div class="slice-field-label">What</div>
+        <div class="slice-field-value">
+          
+          <input type="checkbox" id="slice-3-what-reveal" class="reveal-toggle">
+          <div class="markdown-block reveal-content serif-prose"><p>Update the D3 graph rendering in cmd/htmlgraph/dashboard/js/app.js to handle commit and file node types.</p>
+<ol>
+<li>
+<p>Add TYPE_BAND_Y entries (at line 1456, NOT ~line 1639): commit=0.70, file=0.90
+(below features, near sessions). This prevents commit/file nodes from landing
+in the feature band.</p>
+</li>
+<li>
+<p>Add TYPE_TOKEN entries (~line 1480): commit=&#39;--status-done&#39; (muted green/teal),
+file=&#39;--text-muted&#39; (light gray). These should be visually subdued since there
+are many of them.</p>
+</li>
+<li>
+<p>Add edgeColor entries (~line 1687): committed_for=&#39;#10b981&#39;, produced_by=&#39;#0ea5e9&#39;,
+produced_in=&#39;#a78bfa&#39;, touched_by=&#39;#6b7280&#39;, spawned=&#39;#f97316&#39;. Note: modified_in
+is removed — replaced by produced_in (file→session edges).</p>
+</li>
+<li>
+<p>Reduce visual weight for commit/file nodes: in nodeRadius, apply a 0.5 multiplier
+for type===&#39;commit&#39; or type===&#39;file&#39; (similar to session&#39;s 0.6). In fill opacity,
+use 0.5 for these types.</p>
+</li>
+<li>
+<p>Update click handler (~line 1815): commit nodes could link to git show or remain
+as tooltip-only. File nodes could open a file detail view or remain tooltip-only.
+For MVP, show enhanced tooltip with full commit hash/message or full file path.</p>
+</li>
+<li>
+<p>Update the HTML legend in the dashboard template to include commit and file
+entries with [data-graph-type] attributes.</p>
+</li>
+<li>
+<p>Add edge styling: spawned edges get stroke-dasharray=&#39;6,3&#39; (dashed) to distinguish
+from structural edges. committed_for and touched_by get low opacity (0.3) like
+worked_on to reduce visual noise.</p>
+</li>
+</ol>
 </div>
-<div class="slice-card" data-slice="4" data-slice-name="slice-4" data-status="pending">
-  <div class="slice-header">
+          <label for="slice-3-what-reveal" class="reveal-label">Show full description</label>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field slice-why">
+        <div class="slice-field-label">Why</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>Without frontend changes, commit and file nodes would render as gray circles with no labels, no distinct position, and incorrect sizing — making the graph harder to read, not easier. Visual distinction is critical because these node types are high-cardinality and should be visually subordinate to the work item structure.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Files</div>
+        <div class="slice-field-value"><code>cmd/htmlgraph/dashboard/js/app.js, cmd/htmlgraph/dashboard/index.html</code></div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Done when</div>
+        <ul class="slice-done-list slice-done-list--grid"><li>Commit nodes render in teal/green with reduced radius, positioned in the 0.70 Y band</li><li>File nodes render in muted gray with reduced radius, positioned in the 0.90 Y band</li><li>New edge types have distinct colors in the visualization (produced_in replaces modified_in)</li><li>Legend shows commit and file entries</li><li>Spawned edges render as dashed lines</li><li>Graph remains readable with 2000&#43; nodes (no overlapping clusters)</li></ul>
+      </div>
+      
+    
+
+    
+    <div class="slice-field slice-tests-field">
+      <div class="slice-field-label">Test Strategy</div>
+      <div class="slice-field-value">
+        
+        
+        <div class="test-strategy">
+          
+          <div class="test-group" data-kind="visual">
+            <span class="test-chip">VISUAL &middot; 4</span>
+            <ul><li>Start dashboard, verify commit nodes appear as small teal circles below features</li><li>Verify file nodes appear as small gray circles at the bottom</li><li>Verify spawned edges are dashed orange lines</li><li>Verify legend has 8 entries (track, feature, bug, spike, plan, session, commit, file)</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="regression">
+            <span class="test-chip">REGRESSION &middot; 1</span>
+            <ul><li>existing node types still render correctly with correct colors and sizing</li></ul>
+          </div>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+
+    
+
+    
+
+    <div class="slice-deps">Dependencies: slices 1,2</div>
+
+    <details class="comment-collapse">
+      <summary class="comment-collapse-trigger">+ Leave a comment</summary>
+      <div class="comment-collapse-body">
+        <textarea data-section="slice-3" data-comment-for="slice-3" placeholder="Comments on slice 3..."></textarea>
+      </div>
+    </details>
+  </div>
+</details>
+<details class="slice-card" id="slice-4" data-slice="4" data-slice-name="slice-4" data-status="pending" data-approval="pending">
+  <summary class="slice-summary" aria-label="Slice 4: Provenance query API — per-node causal chain endpoints">
     <span class="slice-num">#4</span>
-    <span class="slice-name">Provenance query API — per-node causal chain endpoints</span>
-    <span class="badge badge-revision">M</span>
-    <span class="badge badge-pending">Low</span>
-    <span class="badge badge-pending" data-badge-for="slice-4">Pending</span>
-  </div>
-  
-  <div class="slice-field"><div class="slice-field-label">What</div><div class="slice-field-value">Add REST endpoints to cmd/htmlgraph/api_graph.go (or a new api_provenance.go file) that return the causal chain for any node. Register all new routes in serve.go via buildSingleProjectMux() — the correct route registration file (not server.go, which does not exist).
+    <span class="slice-title-col">
+      <span class="slice-name">Provenance query API — per-node causal chain endpoints</span>
+      <span class="slice-preview">Add REST endpoints to cmd/htmlgraph/apigraph.go (or a new apiprovenance.go file) that return the causal chain for any node.</span>
+      <span class="slice-meta-row">
+        <span class="slice-summary-badges">
+          <span class="badge badge-revision badge-sm">M</span>
+          <span class="badge badge-pending badge-sm">Low</span>
+          
+          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-4">Pending</span>
+          
+          
+        </span>
+        <span class="slice-actions" onclick="event.stopPropagation()">
+          <span class="approval-segmented" role="group" aria-label="Approval action">
+            <label class="seg-btn seg-approve" title="Approve">
+              <input type="radio" name="slice-4-approval" value="approved" data-section="slice-4" data-action="approve" aria-label="Approve slice 4">
+              &#10003;
+            </label>
+            <label class="seg-btn seg-changes" title="Request changes">
+              <input type="radio" name="slice-4-approval" value="changes_requested" data-section="slice-4" data-action="approve" aria-label="Request changes for slice 4">
+              &#8635;
+            </label>
+            <label class="seg-btn seg-reject" title="Reject">
+              <input type="radio" name="slice-4-approval" value="rejected" data-section="slice-4" data-action="approve" aria-label="Reject slice 4">
+              &#10005;
+            </label>
+          </span>
+        </span>
+      </span>
+    </span>
+    <span class="slice-chevron" aria-hidden="true"></span>
+  </summary>
 
-1. GET /api/provenance/&lt;id&gt; — returns the full upstream and downstream chain for any
-   node ID (feature, session, commit, file path). Note: the lineage command BFS in
-   lineage.go only traverses graph_edges (see lineage.go:212-215) — query-time-derived
-   edges are invisible to BFS. The provenance endpoint should use direct SQL JOINs for
-   commit/file nodes rather than relying on BFS, OR depend on edges being materialized
-   first (see q-edge-materialization). Reuse TraceCommit() and TraceFile() primitives
-   from internal/db — these are existing attribution primitives.
-   Response: { node: {...}, upstream: [{id, type, title, relationship}...], downstream: [...] }
-
-2. GET /api/graph/commits?feature=&lt;id&gt; — returns commits linked to a feature.
-   Query: SELECT * FROM git_commits WHERE feature_id = ? ORDER BY timestamp DESC.
-
-3. GET /api/graph/files?feature=&lt;id&gt; — returns files touched by a feature.
-   Query: SELECT * FROM feature_files WHERE feature_id = ? ORDER BY file_path.
-
-4. GET /api/graph/sessions?feature=&lt;id&gt; — already partially exists via
-   internal/graph/sessions.go SessionsForFeature. Wire it to an HTTP endpoint.
-
-5. Register all new routes in serve.go via buildSingleProjectMux() (line 57).
-</div></div>
-  <div class="slice-field"><div class="slice-field-label">Why</div><div class="slice-field-value">The graph visualization shows the big picture, but users need to drill into a specific node&#39;s causal chain. These endpoints power both the dashboard drill-down and CLI consumers. The lineage command already does this for CLI — these endpoints bring it to the web UI.
-</div></div>
-  <div class="slice-field"><div class="slice-field-label">Files</div><div class="slice-field-value"><code>cmd/htmlgraph/api_graph.go, cmd/htmlgraph/serve.go</code></div></div>
-  <div class="slice-field"><div class="slice-field-label">Done when</div><ul class="slice-done-list"><li>GET /api/provenance/&lt;feature-id&gt; returns upstream sessions and downstream commits/files</li><li>GET /api/graph/commits?feature=&lt;id&gt; returns commit list for a feature</li><li>GET /api/graph/files?feature=&lt;id&gt; returns file list for a feature</li><li>GET /api/graph/sessions?feature=&lt;id&gt; returns session list for a feature</li><li>All endpoints return proper JSON with correct Content-Type headers</li><li>404 for unknown IDs, empty arrays for nodes with no connections</li><li>Routes registered in serve.go via buildSingleProjectMux(), not in any server.go</li><li>Provenance endpoint uses TraceCommit()/TraceFile() from internal/db or direct SQL JOINs</li></ul></div>
-  
-  <div class="slice-field"><div class="slice-field-label">Test Strategy</div><div class="slice-field-value slice-tests">Unit: TestProvenanceEndpoint — insert feature with linked commits/files/sessions, assert full chain returned
-Unit: TestCommitsByFeature — insert 3 commits for feat-X, verify /api/graph/commits?feature=feat-X returns all 3
-Unit: TestFilesByFeature — similar for files
-Integration: curl each endpoint, verify JSON schema and correct data
-Regression: /api/graph still works as before
-</div></div>
-  <div class="slice-deps">Dependencies: slices 1</div>
-  <div class="approval-row">
-    <label><input type="checkbox" data-section="slice-4" data-action="approve"> Approve slice</label>
-    <textarea data-section="slice-4" data-comment-for="slice-4" placeholder="Comments on slice 4..."></textarea>
-  </div>
+  <div class="slice-body">
+    
+      
+      <div class="slice-field slice-what">
+        <div class="slice-field-label">What</div>
+        <div class="slice-field-value">
+          
+          <input type="checkbox" id="slice-4-what-reveal" class="reveal-toggle">
+          <div class="markdown-block reveal-content serif-prose"><p>Add REST endpoints to cmd/htmlgraph/api_graph.go (or a new api_provenance.go file) that return the causal chain for any node. Register all new routes in serve.go via buildSingleProjectMux() — the correct route registration file (not server.go, which does not exist).</p>
+<ol>
+<li>
+<p>GET /api/provenance/ — returns the full upstream and downstream chain for any
+node ID (feature, session, commit, file path). Note: the lineage command BFS in
+lineage.go only traverses graph_edges (see lineage.go:212-215) — query-time-derived
+edges are invisible to BFS. The provenance endpoint should use direct SQL JOINs for
+commit/file nodes rather than relying on BFS, OR depend on edges being materialized
+first (see q-edge-materialization). Reuse TraceCommit() and TraceFile() primitives
+from internal/db — these are existing attribution primitives.
+Response: { node: {...}, upstream: [{id, type, title, relationship}...], downstream: [...] }</p>
+</li>
+<li>
+<p>GET /api/graph/commits?feature= — returns commits linked to a feature.
+Query: SELECT * FROM git_commits WHERE feature_id = ? ORDER BY timestamp DESC.</p>
+</li>
+<li>
+<p>GET /api/graph/files?feature= — returns files touched by a feature.
+Query: SELECT * FROM feature_files WHERE feature_id = ? ORDER BY file_path.</p>
+</li>
+<li>
+<p>GET /api/graph/sessions?feature= — already partially exists via
+internal/graph/sessions.go SessionsForFeature. Wire it to an HTTP endpoint.</p>
+</li>
+<li>
+<p>Register all new routes in serve.go via buildSingleProjectMux() (line 57).</p>
+</li>
+</ol>
 </div>
-<div class="slice-card" data-slice="5" data-slice-name="slice-5" data-status="pending">
-  <div class="slice-header">
+          <label for="slice-4-what-reveal" class="reveal-label">Show full description</label>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field slice-why">
+        <div class="slice-field-label">Why</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>The graph visualization shows the big picture, but users need to drill into a specific node&#39;s causal chain. These endpoints power both the dashboard drill-down and CLI consumers. The lineage command already does this for CLI — these endpoints bring it to the web UI.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Files</div>
+        <div class="slice-field-value"><code>cmd/htmlgraph/api_graph.go, cmd/htmlgraph/serve.go</code></div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Done when</div>
+        <ul class="slice-done-list slice-done-list--grid"><li>GET /api/provenance/&lt;feature-id&gt; returns upstream sessions and downstream commits/files</li><li>GET /api/graph/commits?feature=&lt;id&gt; returns commit list for a feature</li><li>GET /api/graph/files?feature=&lt;id&gt; returns file list for a feature</li><li>GET /api/graph/sessions?feature=&lt;id&gt; returns session list for a feature</li><li>All endpoints return proper JSON with correct Content-Type headers</li><li>404 for unknown IDs, empty arrays for nodes with no connections</li><li>Routes registered in serve.go via buildSingleProjectMux(), not in any server.go</li><li>Provenance endpoint uses TraceCommit()/TraceFile() from internal/db or direct SQL JOINs</li></ul>
+      </div>
+      
+    
+
+    
+    <div class="slice-field slice-tests-field">
+      <div class="slice-field-label">Test Strategy</div>
+      <div class="slice-field-value">
+        
+        
+        <div class="test-strategy">
+          
+          <div class="test-group" data-kind="unit">
+            <span class="test-chip">UNIT &middot; 3</span>
+            <ul><li>TestProvenanceEndpoint — insert feature with linked commits/files/sessions, assert full chain returned</li><li>TestCommitsByFeature — insert 3 commits for feat-X, verify /api/graph/commits?feature=feat-X returns all 3</li><li>TestFilesByFeature — similar for files</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="integration">
+            <span class="test-chip">INTEGRATION &middot; 1</span>
+            <ul><li>curl each endpoint, verify JSON schema and correct data</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="regression">
+            <span class="test-chip">REGRESSION &middot; 1</span>
+            <ul><li>/api/graph still works as before</li></ul>
+          </div>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+
+    
+
+    
+
+    <div class="slice-deps">Dependencies: slices 1</div>
+
+    <details class="comment-collapse">
+      <summary class="comment-collapse-trigger">+ Leave a comment</summary>
+      <div class="comment-collapse-body">
+        <textarea data-section="slice-4" data-comment-for="slice-4" placeholder="Comments on slice 4..."></textarea>
+      </div>
+    </details>
+  </div>
+</details>
+<details class="slice-card" id="slice-5" data-slice="5" data-slice-name="slice-5" data-status="pending" data-approval="pending">
+  <summary class="slice-summary" aria-label="Slice 5: Dashboard provenance panel — click-to-drill node detail">
     <span class="slice-num">#5</span>
-    <span class="slice-name">Dashboard provenance panel — click-to-drill node detail</span>
-    <span class="badge badge-blocked">L</span>
-    <span class="badge badge-revision">Med</span>
-    <span class="badge badge-pending" data-badge-for="slice-5">Pending</span>
-  </div>
-  
-  <div class="slice-field"><div class="slice-field-label">What</div><div class="slice-field-value">Add a provenance detail panel to the dashboard that opens when clicking a graph node.
-1. In app.js, modify the graph click handler (~line 1815). Instead of navigating away,
-   open a slide-in panel (or modal) that shows the node&#39;s causal chain. Call
-   GET /api/provenance/&lt;id&gt; and render the result.
+    <span class="slice-title-col">
+      <span class="slice-name">Dashboard provenance panel — click-to-drill node detail</span>
+      <span class="slice-preview">Add a provenance detail panel to the dashboard that opens when clicking a graph node.</span>
+      <span class="slice-meta-row">
+        <span class="slice-summary-badges">
+          <span class="badge badge-blocked badge-sm">L</span>
+          <span class="badge badge-revision badge-sm">Med</span>
+          
+          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-5">Pending</span>
+          
+          
+        </span>
+        <span class="slice-actions" onclick="event.stopPropagation()">
+          <span class="approval-segmented" role="group" aria-label="Approval action">
+            <label class="seg-btn seg-approve" title="Approve">
+              <input type="radio" name="slice-5-approval" value="approved" data-section="slice-5" data-action="approve" aria-label="Approve slice 5">
+              &#10003;
+            </label>
+            <label class="seg-btn seg-changes" title="Request changes">
+              <input type="radio" name="slice-5-approval" value="changes_requested" data-section="slice-5" data-action="approve" aria-label="Request changes for slice 5">
+              &#8635;
+            </label>
+            <label class="seg-btn seg-reject" title="Reject">
+              <input type="radio" name="slice-5-approval" value="rejected" data-section="slice-5" data-action="approve" aria-label="Reject slice 5">
+              &#10005;
+            </label>
+          </span>
+        </span>
+      </span>
+    </span>
+    <span class="slice-chevron" aria-hidden="true"></span>
+  </summary>
 
-2. Panel layout:
-   - Header: node title, type badge, status
-   - Upstream section: &#34;Where did this come from?&#34; — list of parent nodes with
-     relationship labels (e.g., &#34;spawned by Session abc&#34;, &#34;part of Track XYZ&#34;)
-   - Downstream section: &#34;What did this produce?&#34; — list of child nodes
-     (e.g., &#34;produced Commit def123&#34;, &#34;touched File src/foo.go&#34;)
-   - Each item in the chain is clickable to navigate to that node&#39;s provenance
-
-3. For session nodes: also show agent name, duration, tool call count
-4. For commit nodes: show full hash, message, timestamp, author
-5. For file nodes: show all features that touched this file, with session attribution
-
-6. Add the panel HTML to dashboard/index.html and CSS to dashboard/css/style.css.
-   Use the existing panel patterns from the session detail or work detail views.
-</div></div>
-  <div class="slice-field"><div class="slice-field-label">Why</div><div class="slice-field-value">The graph shows relationships visually, but users need structured detail on demand. The provenance panel is the &#34;explain this node&#34; view that makes the graph actionable — not just a pretty picture but an investigation tool.
-</div></div>
-  <div class="slice-field"><div class="slice-field-label">Files</div><div class="slice-field-value"><code>cmd/htmlgraph/dashboard/js/app.js, cmd/htmlgraph/dashboard/index.html, cmd/htmlgraph/dashboard/css/style.css, cmd/htmlgraph/serve.go</code></div></div>
-  <div class="slice-field"><div class="slice-field-label">Done when</div><ul class="slice-done-list"><li>Clicking any graph node opens a provenance panel showing upstream and downstream chain</li><li>Panel shows relationship labels between nodes</li><li>Each chain item is clickable to navigate to that node</li><li>Panel closes cleanly and doesn&#39;t interfere with graph interaction</li><li>Panel renders correctly in both light and dark themes</li></ul></div>
-  
-  <div class="slice-field"><div class="slice-field-label">Test Strategy</div><div class="slice-field-value slice-tests">Visual: Click a feature node, verify panel shows linked sessions, commits, files
-Visual: Click a session node, verify panel shows agent name and spawned-by chain
-Visual: Click a commit node, verify panel shows full hash and linked feature
-Visual: Click chain items to navigate between nodes
-Visual: Toggle theme, verify panel colors update
-Regression: existing click handlers (session→transcript, work item→detail) still work
-</div></div>
-  <div class="slice-deps">Dependencies: slices 3,4</div>
-  <div class="approval-row">
-    <label><input type="checkbox" data-section="slice-5" data-action="approve"> Approve slice</label>
-    <textarea data-section="slice-5" data-comment-for="slice-5" placeholder="Comments on slice 5..."></textarea>
-  </div>
+  <div class="slice-body">
+    
+      
+      <div class="slice-field slice-what">
+        <div class="slice-field-label">What</div>
+        <div class="slice-field-value">
+          
+          <input type="checkbox" id="slice-5-what-reveal" class="reveal-toggle">
+          <div class="markdown-block reveal-content serif-prose"><p>Add a provenance detail panel to the dashboard that opens when clicking a graph node.</p>
+<ol>
+<li>
+<p>In app.js, modify the graph click handler (~line 1815). Instead of navigating away,
+open a slide-in panel (or modal) that shows the node&#39;s causal chain. Call
+GET /api/provenance/ and render the result.</p>
+</li>
+<li>
+<p>Panel layout:</p>
+<ul>
+<li>Header: node title, type badge, status</li>
+<li>Upstream section: &#34;Where did this come from?&#34; — list of parent nodes with
+relationship labels (e.g., &#34;spawned by Session abc&#34;, &#34;part of Track XYZ&#34;)</li>
+<li>Downstream section: &#34;What did this produce?&#34; — list of child nodes
+(e.g., &#34;produced Commit def123&#34;, &#34;touched File src/foo.go&#34;)</li>
+<li>Each item in the chain is clickable to navigate to that node&#39;s provenance</li>
+</ul>
+</li>
+<li>
+<p>For session nodes: also show agent name, duration, tool call count</p>
+</li>
+<li>
+<p>For commit nodes: show full hash, message, timestamp, author</p>
+</li>
+<li>
+<p>For file nodes: show all features that touched this file, with session attribution</p>
+</li>
+<li>
+<p>Add the panel HTML to dashboard/index.html and CSS to dashboard/css/style.css.
+Use the existing panel patterns from the session detail or work detail views.</p>
+</li>
+</ol>
 </div>
-<div class="slice-card" data-slice="6" data-slice-name="slice-6" data-status="pending">
-  <div class="slice-header">
+          <label for="slice-5-what-reveal" class="reveal-label">Show full description</label>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field slice-why">
+        <div class="slice-field-label">Why</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>The graph shows relationships visually, but users need structured detail on demand. The provenance panel is the &#34;explain this node&#34; view that makes the graph actionable — not just a pretty picture but an investigation tool.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Files</div>
+        <div class="slice-field-value"><code>cmd/htmlgraph/dashboard/js/app.js, cmd/htmlgraph/dashboard/index.html, cmd/htmlgraph/dashboard/css/style.css, cmd/htmlgraph/serve.go</code></div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Done when</div>
+        <ul class="slice-done-list"><li>Clicking any graph node opens a provenance panel showing upstream and downstream chain</li><li>Panel shows relationship labels between nodes</li><li>Each chain item is clickable to navigate to that node</li><li>Panel closes cleanly and doesn&#39;t interfere with graph interaction</li><li>Panel renders correctly in both light and dark themes</li></ul>
+      </div>
+      
+    
+
+    
+    <div class="slice-field slice-tests-field">
+      <div class="slice-field-label">Test Strategy</div>
+      <div class="slice-field-value">
+        
+        
+        <div class="test-strategy">
+          
+          <div class="test-group" data-kind="visual">
+            <span class="test-chip">VISUAL &middot; 5</span>
+            <ul><li>Click a feature node, verify panel shows linked sessions, commits, files</li><li>Click a session node, verify panel shows agent name and spawned-by chain</li><li>Click a commit node, verify panel shows full hash and linked feature</li><li>Click chain items to navigate between nodes</li><li>Toggle theme, verify panel colors update</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="regression">
+            <span class="test-chip">REGRESSION &middot; 1</span>
+            <ul><li>existing click handlers (session→transcript, work item→detail) still work</li></ul>
+          </div>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+
+    
+
+    
+
+    <div class="slice-deps">Dependencies: slices 3,4</div>
+
+    <details class="comment-collapse">
+      <summary class="comment-collapse-trigger">+ Leave a comment</summary>
+      <div class="comment-collapse-body">
+        <textarea data-section="slice-5" data-comment-for="slice-5" placeholder="Comments on slice 5..."></textarea>
+      </div>
+    </details>
+  </div>
+</details>
+<details class="slice-card" id="slice-6" data-slice="6" data-slice-name="slice-6" data-status="pending" data-approval="pending">
+  <summary class="slice-summary" aria-label="Slice 6: Extend internal/graph DSL and algorithms for new node types">
     <span class="slice-num">#6</span>
-    <span class="slice-name">Extend internal/graph DSL and algorithms for new node types</span>
-    <span class="badge badge-revision">M</span>
-    <span class="badge badge-pending">Low</span>
-    <span class="badge badge-pending" data-badge-for="slice-6">Pending</span>
-  </div>
-  
-  <div class="slice-field"><div class="slice-field-label">What</div><div class="slice-field-value">Update the internal/graph package to model commit and file node types.
-1. In dsl.go, add &#34;commit&#34; and &#34;file&#34; to knownNodeTypes (line 148, currently maps
-   feature/bug/spike/track/plan/spec). This enables DSL queries like:
-   feature[status=in-progress] -&gt; committed_for -&gt; commit
+    <span class="slice-title-col">
+      <span class="slice-name">Extend internal/graph DSL and algorithms for new node types</span>
+      <span class="slice-preview">Update the internal/graph package to model commit and file node types.</span>
+      <span class="slice-meta-row">
+        <span class="slice-summary-badges">
+          <span class="badge badge-revision badge-sm">M</span>
+          <span class="badge badge-pending badge-sm">Low</span>
+          
+          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-6">Pending</span>
+          
+          
+        </span>
+        <span class="slice-actions" onclick="event.stopPropagation()">
+          <span class="approval-segmented" role="group" aria-label="Approval action">
+            <label class="seg-btn seg-approve" title="Approve">
+              <input type="radio" name="slice-6-approval" value="approved" data-section="slice-6" data-action="approve" aria-label="Approve slice 6">
+              &#10003;
+            </label>
+            <label class="seg-btn seg-changes" title="Request changes">
+              <input type="radio" name="slice-6-approval" value="changes_requested" data-section="slice-6" data-action="approve" aria-label="Request changes for slice 6">
+              &#8635;
+            </label>
+            <label class="seg-btn seg-reject" title="Reject">
+              <input type="radio" name="slice-6-approval" value="rejected" data-section="slice-6" data-action="approve" aria-label="Reject slice 6">
+              &#10005;
+            </label>
+          </span>
+        </span>
+      </span>
+    </span>
+    <span class="slice-chevron" aria-hidden="true"></span>
+  </summary>
 
-2. In dsl.go, update resolveTypeSelector() (~line 176) and filterBySelectorDSL()
-   (~line 262) to add commit and file type branches. Without these changes, type-based
-   filtering in DSL queries will not match commit or file nodes.
-
-3. In algorithms.go, no changes needed — BFS/DFS already operate on graph_edges
-   generically. But verify that new edge types (committed_for, produced_by, produced_in,
-   touched_by, spawned) work correctly with DBShortestPath and DBReachable.
-
-4. In sessions.go, extend SessionsForFeature to also return commit and file data
-   alongside session links (or add parallel functions CommitsForFeature, FilesForFeature).
-
-5. In querybuilder.go, ensure the UNION query that resolves node metadata includes
-   git_commits and feature_files tables so commit/file nodes can be resolved by the
-   query builder. Also extend allowedFilterColumns (~line 212) to whitelist commit
-   and file node columns (e.g., commit_hash, file_path, message) to prevent SQL
-   injection and enable filtering.
-</div></div>
-  <div class="slice-field"><div class="slice-field-label">Why</div><div class="slice-field-value">The internal/graph package is used by CLI commands (graph cycles, graph path, graph reach) and the lineage command. Without these changes, queries involving commit or file nodes will fail silently or return incomplete results.
-</div></div>
-  <div class="slice-field"><div class="slice-field-label">Files</div><div class="slice-field-value"><code>internal/graph/dsl.go, internal/graph/sessions.go, internal/graph/querybuilder.go</code></div></div>
-  <div class="slice-field"><div class="slice-field-label">Done when</div><ul class="slice-done-list"><li>DSL queries like &#39;feature -&gt; committed_for -&gt; commit&#39; parse and execute correctly</li><li>resolveTypeSelector() and filterBySelectorDSL() handle commit and file type branches</li><li>allowedFilterColumns in querybuilder.go includes commit and file node columns</li><li>DBShortestPath between a feature and a commit traverses through committed_for edges</li><li>QueryBuilder resolves commit and file node metadata (title, type)</li><li>No regressions in existing graph CLI commands</li></ul></div>
-  
-  <div class="slice-field"><div class="slice-field-label">Test Strategy</div><div class="slice-field-value slice-tests">Unit: TestDSLCommitQuery — parse &#34;feature -&gt; committed_for -&gt; commit&#34;, verify execution
-Unit: TestDSLTypeSelector — verify resolveTypeSelector returns correct nodes for type=commit and type=file
-Unit: TestQueryBuilderCommitResolution — resolve a commit node, verify title is commit message
-Unit: TestAllowedFilterColumnsCommit — verify commit_hash and message are in allowedFilterColumns
-Unit: TestShortestPathWithCommits — insert feature→commit edge, verify path found
-Regression: all existing graph tests pass
-</div></div>
-  <div class="slice-deps">Dependencies: slices 1</div>
-  <div class="approval-row">
-    <label><input type="checkbox" data-section="slice-6" data-action="approve"> Approve slice</label>
-    <textarea data-section="slice-6" data-comment-for="slice-6" placeholder="Comments on slice 6..."></textarea>
-  </div>
+  <div class="slice-body">
+    
+      
+      <div class="slice-field slice-what">
+        <div class="slice-field-label">What</div>
+        <div class="slice-field-value">
+          
+          <input type="checkbox" id="slice-6-what-reveal" class="reveal-toggle">
+          <div class="markdown-block reveal-content serif-prose"><p>Update the internal/graph package to model commit and file node types.</p>
+<ol>
+<li>
+<p>In dsl.go, add &#34;commit&#34; and &#34;file&#34; to knownNodeTypes (line 148, currently maps
+feature/bug/spike/track/plan/spec). This enables DSL queries like:
+feature[status=in-progress] -&gt; committed_for -&gt; commit</p>
+</li>
+<li>
+<p>In dsl.go, update resolveTypeSelector() (~line 176) and filterBySelectorDSL()
+(~line 262) to add commit and file type branches. Without these changes, type-based
+filtering in DSL queries will not match commit or file nodes.</p>
+</li>
+<li>
+<p>In algorithms.go, no changes needed — BFS/DFS already operate on graph_edges
+generically. But verify that new edge types (committed_for, produced_by, produced_in,
+touched_by, spawned) work correctly with DBShortestPath and DBReachable.</p>
+</li>
+<li>
+<p>In sessions.go, extend SessionsForFeature to also return commit and file data
+alongside session links (or add parallel functions CommitsForFeature, FilesForFeature).</p>
+</li>
+<li>
+<p>In querybuilder.go, ensure the UNION query that resolves node metadata includes
+git_commits and feature_files tables so commit/file nodes can be resolved by the
+query builder. Also extend allowedFilterColumns (~line 212) to whitelist commit
+and file node columns (e.g., commit_hash, file_path, message) to prevent SQL
+injection and enable filtering.</p>
+</li>
+</ol>
 </div>
-<div class="slice-card" data-slice="7" data-slice-name="slice-7" data-status="pending">
-  <div class="slice-header">
+          <label for="slice-6-what-reveal" class="reveal-label">Show full description</label>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field slice-why">
+        <div class="slice-field-label">Why</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>The internal/graph package is used by CLI commands (graph cycles, graph path, graph reach) and the lineage command. Without these changes, queries involving commit or file nodes will fail silently or return incomplete results.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Files</div>
+        <div class="slice-field-value"><code>internal/graph/dsl.go, internal/graph/sessions.go, internal/graph/querybuilder.go</code></div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Done when</div>
+        <ul class="slice-done-list slice-done-list--grid"><li>DSL queries like &#39;feature -&gt; committed_for -&gt; commit&#39; parse and execute correctly</li><li>resolveTypeSelector() and filterBySelectorDSL() handle commit and file type branches</li><li>allowedFilterColumns in querybuilder.go includes commit and file node columns</li><li>DBShortestPath between a feature and a commit traverses through committed_for edges</li><li>QueryBuilder resolves commit and file node metadata (title, type)</li><li>No regressions in existing graph CLI commands</li></ul>
+      </div>
+      
+    
+
+    
+    <div class="slice-field slice-tests-field">
+      <div class="slice-field-label">Test Strategy</div>
+      <div class="slice-field-value">
+        
+        
+        <div class="test-strategy">
+          
+          <div class="test-group" data-kind="unit">
+            <span class="test-chip">UNIT &middot; 5</span>
+            <ul><li>TestDSLCommitQuery — parse &#34;feature -&gt; committed_for -&gt; commit&#34;, verify execution</li><li>TestDSLTypeSelector — verify resolveTypeSelector returns correct nodes for type=commit and type=file</li><li>TestQueryBuilderCommitResolution — resolve a commit node, verify title is commit message</li><li>TestAllowedFilterColumnsCommit — verify commit_hash and message are in allowedFilterColumns</li><li>TestShortestPathWithCommits — insert feature→commit edge, verify path found</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="regression">
+            <span class="test-chip">REGRESSION &middot; 1</span>
+            <ul><li>all existing graph tests pass</li></ul>
+          </div>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+
+    
+
+    
+
+    <div class="slice-deps">Dependencies: slices 1</div>
+
+    <details class="comment-collapse">
+      <summary class="comment-collapse-trigger">+ Leave a comment</summary>
+      <div class="comment-collapse-body">
+        <textarea data-section="slice-6" data-comment-for="slice-6" placeholder="Comments on slice 6..."></textarea>
+      </div>
+    </details>
+  </div>
+</details>
+<details class="slice-card" id="slice-7" data-slice="7" data-slice-name="slice-7" data-status="pending" data-approval="pending">
+  <summary class="slice-summary" aria-label="Slice 7: Graph filtering — type toggles and node count budgets">
     <span class="slice-num">#7</span>
-    <span class="slice-name">Graph filtering — type toggles and node count budgets</span>
-    <span class="badge badge-revision">M</span>
-    <span class="badge badge-revision">Med</span>
-    <span class="badge badge-pending" data-badge-for="slice-7">Pending</span>
-  </div>
-  
-  <div class="slice-field"><div class="slice-field-label">What</div><div class="slice-field-value">Add filtering controls to the graph API and dashboard frontend to manage node cardinality.
+    <span class="slice-title-col">
+      <span class="slice-name">Graph filtering — type toggles and node count budgets</span>
+      <span class="slice-preview">Add filtering controls to the graph API and dashboard frontend to manage node cardinality.</span>
+      <span class="slice-meta-row">
+        <span class="slice-summary-badges">
+          <span class="badge badge-revision badge-sm">M</span>
+          <span class="badge badge-revision badge-sm">Med</span>
+          
+          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-7">Pending</span>
+          
+          
+        </span>
+        <span class="slice-actions" onclick="event.stopPropagation()">
+          <span class="approval-segmented" role="group" aria-label="Approval action">
+            <label class="seg-btn seg-approve" title="Approve">
+              <input type="radio" name="slice-7-approval" value="approved" data-section="slice-7" data-action="approve" aria-label="Approve slice 7">
+              &#10003;
+            </label>
+            <label class="seg-btn seg-changes" title="Request changes">
+              <input type="radio" name="slice-7-approval" value="changes_requested" data-section="slice-7" data-action="approve" aria-label="Request changes for slice 7">
+              &#8635;
+            </label>
+            <label class="seg-btn seg-reject" title="Reject">
+              <input type="radio" name="slice-7-approval" value="rejected" data-section="slice-7" data-action="approve" aria-label="Reject slice 7">
+              &#10005;
+            </label>
+          </span>
+        </span>
+      </span>
+    </span>
+    <span class="slice-chevron" aria-hidden="true"></span>
+  </summary>
 
-Backend (cmd/htmlgraph/api_graph.go):
-1. Add a ?types=feature,session,commit query parameter to GET /api/graph. When present,
-   only return nodes of the specified types. When absent, return all types (backward compatible).
-2. Add per-type node count caps applied server-side: tracks=unlimited, features=unlimited,
-   bugs=unlimited, spikes=unlimited, plans=unlimited, sessions=300, commits=200, files=200,
-   agents=100. Caps apply after all nodes are loaded but before edge derivation. Order by
-   activity DESC (most connected first) to keep the most interesting nodes.
-3. Add a ?limit=N parameter for total node cap (default: 2000). Return the highest-activity
-   nodes across all types up to the limit.
-4. Return cap metadata in the response: { nodes: [...], edges: [...], caps: { sessions: {total: 516, shown: 300}, ... } }
-   so the frontend can show &#34;showing 300 of 516 sessions&#34;.
-
-Frontend (cmd/htmlgraph/dashboard/js/app.js, cmd/htmlgraph/dashboard/index.html):
-1. Add a filter toolbar above the graph canvas with toggle buttons for each node type
-   (Track, Feature, Bug, Spike, Plan, Session, Commit, File, Agent). Each button has a
-   colored dot matching the node color and a count badge.
-2. Toggling a type off removes those nodes from the D3 simulation and re-renders.
-   Toggling on re-fetches with the updated ?types= parameter.
-3. Show &#34;Showing N of M&#34; text for capped types.
-4. Add a &#34;Reset&#34; button that removes all filters and returns to default view.
-</div></div>
-  <div class="slice-field"><div class="slice-field-label">Why</div><div class="slice-field-value">Without filtering, adding commit (51&#43;), file (299&#43;), session (300&#43;), and agent nodes will overwhelm the visualization. The graph goes from ~700 to potentially 1500&#43; nodes. Type toggles let users focus on the relationships they care about (e.g., &#34;show me just features and sessions&#34; or &#34;show me commits and files for this area&#34;). Per-type caps prevent any single high-cardinality type from dominating the graph.
-</div></div>
-  <div class="slice-field"><div class="slice-field-label">Files</div><div class="slice-field-value"><code>cmd/htmlgraph/api_graph.go, cmd/htmlgraph/dashboard/js/app.js, cmd/htmlgraph/dashboard/index.html</code></div></div>
-  <div class="slice-field"><div class="slice-field-label">Done when</div><ul class="slice-done-list"><li>GET /api/graph?types=feature,session returns only feature and session nodes</li><li>Per-type caps enforced server-side (sessions 300, commits 200, files 200, agents 100)</li><li>Response includes caps metadata showing total vs shown counts</li><li>Dashboard has toggle buttons for each node type above the graph</li><li>Toggling a type off removes those nodes from the visualization</li><li>Capped types show Showing N of M indicator</li><li>Default view (no filters) works identically to current behavior</li></ul></div>
-  
-  <div class="slice-field"><div class="slice-field-label">Test Strategy</div><div class="slice-field-value slice-tests">Unit: TestGraphAPITypeFilter — request ?types=feature,session, verify only those types returned
-Unit: TestGraphAPINodeCaps — insert 400 sessions, verify only 300 returned ordered by activity
-Unit: TestGraphAPICapsMetadata — verify response includes caps object with total/shown counts
-Visual: Toggle off file nodes, verify they disappear from graph
-Visual: Toggle on commits, verify they appear with correct colors
-Visual: Verify Showing 200 of 299 text appears for capped file nodes
-Regression: /api/graph without parameters returns same results as before
-</div></div>
-  <div class="slice-deps">Dependencies: slices 1,2,3</div>
-  <div class="approval-row">
-    <label><input type="checkbox" data-section="slice-7" data-action="approve"> Approve slice</label>
-    <textarea data-section="slice-7" data-comment-for="slice-7" placeholder="Comments on slice 7..."></textarea>
-  </div>
+  <div class="slice-body">
+    
+      
+      <div class="slice-field slice-what">
+        <div class="slice-field-label">What</div>
+        <div class="slice-field-value">
+          
+          <input type="checkbox" id="slice-7-what-reveal" class="reveal-toggle">
+          <div class="markdown-block reveal-content serif-prose"><p>Add filtering controls to the graph API and dashboard frontend to manage node cardinality.</p>
+<p>Backend (cmd/htmlgraph/api_graph.go):</p>
+<ol>
+<li>Add a ?types=feature,session,commit query parameter to GET /api/graph. When present,
+only return nodes of the specified types. When absent, return all types (backward compatible).</li>
+<li>Add per-type node count caps applied server-side: tracks=unlimited, features=unlimited,
+bugs=unlimited, spikes=unlimited, plans=unlimited, sessions=300, commits=200, files=200,
+agents=100. Caps apply after all nodes are loaded but before edge derivation. Order by
+activity DESC (most connected first) to keep the most interesting nodes.</li>
+<li>Add a ?limit=N parameter for total node cap (default: 2000). Return the highest-activity
+nodes across all types up to the limit.</li>
+<li>Return cap metadata in the response: { nodes: [...], edges: [...], caps: { sessions: {total: 516, shown: 300}, ... } }
+so the frontend can show &#34;showing 300 of 516 sessions&#34;.</li>
+</ol>
+<p>Frontend (cmd/htmlgraph/dashboard/js/app.js, cmd/htmlgraph/dashboard/index.html):</p>
+<ol>
+<li>Add a filter toolbar above the graph canvas with toggle buttons for each node type
+(Track, Feature, Bug, Spike, Plan, Session, Commit, File, Agent). Each button has a
+colored dot matching the node color and a count badge.</li>
+<li>Toggling a type off removes those nodes from the D3 simulation and re-renders.
+Toggling on re-fetches with the updated ?types= parameter.</li>
+<li>Show &#34;Showing N of M&#34; text for capped types.</li>
+<li>Add a &#34;Reset&#34; button that removes all filters and returns to default view.</li>
+</ol>
 </div>
-<div class="slice-card" data-slice="8" data-slice-name="slice-8" data-status="pending">
-  <div class="slice-header">
+          <label for="slice-7-what-reveal" class="reveal-label">Show full description</label>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field slice-why">
+        <div class="slice-field-label">Why</div>
+        <div class="slice-field-value">
+          
+          <input type="checkbox" id="slice-7-why-reveal" class="reveal-toggle">
+          <div class="markdown-block reveal-content serif-prose"><p>Without filtering, adding commit (51+), file (299+), session (300+), and agent nodes will overwhelm the visualization. The graph goes from ~700 to potentially 1500+ nodes. Type toggles let users focus on the relationships they care about (e.g., &#34;show me just features and sessions&#34; or &#34;show me commits and files for this area&#34;). Per-type caps prevent any single high-cardinality type from dominating the graph.</p>
+</div>
+          <label for="slice-7-why-reveal" class="reveal-label">Show full description</label>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Files</div>
+        <div class="slice-field-value"><code>cmd/htmlgraph/api_graph.go, cmd/htmlgraph/dashboard/js/app.js, cmd/htmlgraph/dashboard/index.html</code></div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Done when</div>
+        <ul class="slice-done-list slice-done-list--grid"><li>GET /api/graph?types=feature,session returns only feature and session nodes</li><li>Per-type caps enforced server-side (sessions 300, commits 200, files 200, agents 100)</li><li>Response includes caps metadata showing total vs shown counts</li><li>Dashboard has toggle buttons for each node type above the graph</li><li>Toggling a type off removes those nodes from the visualization</li><li>Capped types show Showing N of M indicator</li><li>Default view (no filters) works identically to current behavior</li></ul>
+      </div>
+      
+    
+
+    
+    <div class="slice-field slice-tests-field">
+      <div class="slice-field-label">Test Strategy</div>
+      <div class="slice-field-value">
+        
+        
+        <div class="test-strategy">
+          
+          <div class="test-group" data-kind="unit">
+            <span class="test-chip">UNIT &middot; 3</span>
+            <ul><li>TestGraphAPITypeFilter — request ?types=feature,session, verify only those types returned</li><li>TestGraphAPINodeCaps — insert 400 sessions, verify only 300 returned ordered by activity</li><li>TestGraphAPICapsMetadata — verify response includes caps object with total/shown counts</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="visual">
+            <span class="test-chip">VISUAL &middot; 3</span>
+            <ul><li>Toggle off file nodes, verify they disappear from graph</li><li>Toggle on commits, verify they appear with correct colors</li><li>Verify Showing 200 of 299 text appears for capped file nodes</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="regression">
+            <span class="test-chip">REGRESSION &middot; 1</span>
+            <ul><li>/api/graph without parameters returns same results as before</li></ul>
+          </div>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+
+    
+
+    
+
+    <div class="slice-deps">Dependencies: slices 1,2,3</div>
+
+    <details class="comment-collapse">
+      <summary class="comment-collapse-trigger">+ Leave a comment</summary>
+      <div class="comment-collapse-body">
+        <textarea data-section="slice-7" data-comment-for="slice-7" placeholder="Comments on slice 7..."></textarea>
+      </div>
+    </details>
+  </div>
+</details>
+<details class="slice-card" id="slice-8" data-slice="8" data-slice-name="slice-8" data-status="pending" data-approval="pending">
+  <summary class="slice-summary" aria-label="Slice 8: Agent type nodes — surface who did the work">
     <span class="slice-num">#8</span>
-    <span class="slice-name">Agent type nodes — surface who did the work</span>
-    <span class="badge badge-revision">M</span>
-    <span class="badge badge-pending">Low</span>
-    <span class="badge badge-pending" data-badge-for="slice-8">Pending</span>
-  </div>
-  
-  <div class="slice-field"><div class="slice-field-label">What</div><div class="slice-field-value">Add agent type nodes to the graph, making each distinct agent (e.g., &#34;htmlgraph:researcher&#34;,
-&#34;htmlgraph:sonnet-coder&#34;, &#34;htmlgraph:opus-coder&#34;) a first-class graph entity.
+    <span class="slice-title-col">
+      <span class="slice-name">Agent type nodes — surface who did the work</span>
+      <span class="slice-preview">Add agent type nodes to the graph, making each distinct agent (e.g., &#34;htmlgraph:researcher&#34;,</span>
+      <span class="slice-meta-row">
+        <span class="slice-summary-badges">
+          <span class="badge badge-revision badge-sm">M</span>
+          <span class="badge badge-pending badge-sm">Low</span>
+          
+          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-8">Pending</span>
+          
+          
+        </span>
+        <span class="slice-actions" onclick="event.stopPropagation()">
+          <span class="approval-segmented" role="group" aria-label="Approval action">
+            <label class="seg-btn seg-approve" title="Approve">
+              <input type="radio" name="slice-8-approval" value="approved" data-section="slice-8" data-action="approve" aria-label="Approve slice 8">
+              &#10003;
+            </label>
+            <label class="seg-btn seg-changes" title="Request changes">
+              <input type="radio" name="slice-8-approval" value="changes_requested" data-section="slice-8" data-action="approve" aria-label="Request changes for slice 8">
+              &#8635;
+            </label>
+            <label class="seg-btn seg-reject" title="Reject">
+              <input type="radio" name="slice-8-approval" value="rejected" data-section="slice-8" data-action="approve" aria-label="Reject slice 8">
+              &#10005;
+            </label>
+          </span>
+        </span>
+      </span>
+    </span>
+    <span class="slice-chevron" aria-hidden="true"></span>
+  </summary>
 
-Backend (cmd/htmlgraph/api_graph.go):
-1. Query distinct agent names: SELECT DISTINCT agent_name FROM agent_lineage_trace
-   WHERE agent_name != &#39;&#39; UNION SELECT DISTINCT agent_assigned FROM sessions
-   WHERE agent_assigned != &#39;&#39;. Map to graphNode with id=agent_name, type=&#34;agent&#34;,
-   title=agent_name.
-2. Derive edges: agent→session (type=&#34;ran_as&#34;) from agent_lineage_trace.agent_name →
-   agent_lineage_trace.session_id. Shows which sessions were run by which agent type.
-3. Derive edges: agent→feature (type=&#34;worked_on&#34;) from agent_lineage_trace WHERE
-   feature_id IS NOT NULL. Shows which agent types contributed to which features.
-4. Activity count for agent nodes: COUNT of agent_lineage_trace rows &#43; COUNT of sessions
-   WHERE agent_assigned = agent_name. Larger activity = larger node.
-
-Frontend (cmd/htmlgraph/dashboard/js/app.js, cmd/htmlgraph/dashboard/index.html):
-1. TYPE_BAND_Y: agent=0.35 (between tracks at 0.20 and features at 0.50).
-2. TYPE_TOKEN: agent=&#39;--priority-high&#39; (amber/orange) — warm color to stand out as
-   the &#34;who&#34; in the graph, distinct from &#34;what&#34; (features) and &#34;how&#34; (sessions).
-3. edgeColor: ran_as=&#39;#f59e0b&#39; (amber).
-4. Radius multiplier 0.8, opacity 0.85 — important but fewer in number.
-5. Update legend to include Agent entry.
-6. Click handler: tooltip with agent name, total sessions, features worked on, tool calls.
-
-DSL (internal/graph/dsl.go):
-1. Add &#34;agent&#34; and &#34;agents&#34; to knownNodeTypes.
-</div></div>
-  <div class="slice-field"><div class="slice-field-label">Why</div><div class="slice-field-value">The graph answers &#34;what was built&#34; and &#34;when&#34; but not &#34;who built it.&#34; Agent types are the AI workforce — showing them as graph nodes completes the full causal chain: orchestrator → agent type → session → feature → commit → files. The data already exists in agent_lineage_trace (141 rows with agent_name) and sessions.agent_assigned.
-</div></div>
-  <div class="slice-field"><div class="slice-field-label">Files</div><div class="slice-field-value"><code>cmd/htmlgraph/api_graph.go, cmd/htmlgraph/dashboard/js/app.js, cmd/htmlgraph/dashboard/index.html, internal/graph/dsl.go</code></div></div>
-  <div class="slice-field"><div class="slice-field-label">Done when</div><ul class="slice-done-list"><li>GET /api/graph returns nodes with type=&#39;agent&#39; for each distinct agent name</li><li>Agent→session (ran_as) edges connect agent types to their sessions</li><li>Agent→feature (worked_on) edges connect agent types to features they contributed to</li><li>Agent nodes render in amber at the 0.35 Y band, sized by activity</li><li>Legend includes Agent entry</li><li>Clicking agent node shows tooltip with session/feature/tool counts</li><li>No duplicate agent nodes (DISTINCT on agent_name)</li></ul></div>
-  
-  <div class="slice-field"><div class="slice-field-label">Test Strategy</div><div class="slice-field-value slice-tests">Unit: TestGraphAPIAgentNodes — insert agent_lineage_trace rows with different agent_names, verify distinct agent nodes
-Unit: TestGraphAPIAgentEdges — verify ran_as edges from agent to session, worked_on edges from agent to feature
-Unit: TestGraphAPIAgentActivity — verify activity count reflects session &#43; lineage counts
-Visual: Verify agent nodes appear as amber circles above the feature band
-Visual: Verify agent→session edges connect to the session cluster
-Visual: Click agent node, verify tooltip shows correct counts
-Regression: existing node types unchanged
-</div></div>
-  <div class="slice-deps">Dependencies: slices 2,3</div>
-  <div class="approval-row">
-    <label><input type="checkbox" data-section="slice-8" data-action="approve"> Approve slice</label>
-    <textarea data-section="slice-8" data-comment-for="slice-8" placeholder="Comments on slice 8..."></textarea>
-  </div>
+  <div class="slice-body">
+    
+      
+      <div class="slice-field slice-what">
+        <div class="slice-field-label">What</div>
+        <div class="slice-field-value">
+          
+          <input type="checkbox" id="slice-8-what-reveal" class="reveal-toggle">
+          <div class="markdown-block reveal-content serif-prose"><p>Add agent type nodes to the graph, making each distinct agent (e.g., &#34;htmlgraph:researcher&#34;,
+&#34;htmlgraph:sonnet-coder&#34;, &#34;htmlgraph:opus-coder&#34;) a first-class graph entity.</p>
+<p>Backend (cmd/htmlgraph/api_graph.go):</p>
+<ol>
+<li>Query distinct agent names: SELECT DISTINCT agent_name FROM agent_lineage_trace
+WHERE agent_name != &#39;&#39; UNION SELECT DISTINCT agent_assigned FROM sessions
+WHERE agent_assigned != &#39;&#39;. Map to graphNode with id=agent_name, type=&#34;agent&#34;,
+title=agent_name.</li>
+<li>Derive edges: agent→session (type=&#34;ran_as&#34;) from agent_lineage_trace.agent_name →
+agent_lineage_trace.session_id. Shows which sessions were run by which agent type.</li>
+<li>Derive edges: agent→feature (type=&#34;worked_on&#34;) from agent_lineage_trace WHERE
+feature_id IS NOT NULL. Shows which agent types contributed to which features.</li>
+<li>Activity count for agent nodes: COUNT of agent_lineage_trace rows + COUNT of sessions
+WHERE agent_assigned = agent_name. Larger activity = larger node.</li>
+</ol>
+<p>Frontend (cmd/htmlgraph/dashboard/js/app.js, cmd/htmlgraph/dashboard/index.html):</p>
+<ol>
+<li>TYPE_BAND_Y: agent=0.35 (between tracks at 0.20 and features at 0.50).</li>
+<li>TYPE_TOKEN: agent=&#39;--priority-high&#39; (amber/orange) — warm color to stand out as
+the &#34;who&#34; in the graph, distinct from &#34;what&#34; (features) and &#34;how&#34; (sessions).</li>
+<li>edgeColor: ran_as=&#39;#f59e0b&#39; (amber).</li>
+<li>Radius multiplier 0.8, opacity 0.85 — important but fewer in number.</li>
+<li>Update legend to include Agent entry.</li>
+<li>Click handler: tooltip with agent name, total sessions, features worked on, tool calls.</li>
+</ol>
+<p>DSL (internal/graph/dsl.go):</p>
+<ol>
+<li>Add &#34;agent&#34; and &#34;agents&#34; to knownNodeTypes.</li>
+</ol>
 </div>
+          <label for="slice-8-what-reveal" class="reveal-label">Show full description</label>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field slice-why">
+        <div class="slice-field-label">Why</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>The graph answers &#34;what was built&#34; and &#34;when&#34; but not &#34;who built it.&#34; Agent types are the AI workforce — showing them as graph nodes completes the full causal chain: orchestrator → agent type → session → feature → commit → files. The data already exists in agent_lineage_trace (141 rows with agent_name) and sessions.agent_assigned.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Files</div>
+        <div class="slice-field-value"><code>cmd/htmlgraph/api_graph.go, cmd/htmlgraph/dashboard/js/app.js, cmd/htmlgraph/dashboard/index.html, internal/graph/dsl.go</code></div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Done when</div>
+        <ul class="slice-done-list slice-done-list--grid"><li>GET /api/graph returns nodes with type=&#39;agent&#39; for each distinct agent name</li><li>Agent→session (ran_as) edges connect agent types to their sessions</li><li>Agent→feature (worked_on) edges connect agent types to features they contributed to</li><li>Agent nodes render in amber at the 0.35 Y band, sized by activity</li><li>Legend includes Agent entry</li><li>Clicking agent node shows tooltip with session/feature/tool counts</li><li>No duplicate agent nodes (DISTINCT on agent_name)</li></ul>
+      </div>
+      
+    
+
+    
+    <div class="slice-field slice-tests-field">
+      <div class="slice-field-label">Test Strategy</div>
+      <div class="slice-field-value">
+        
+        
+        <div class="test-strategy">
+          
+          <div class="test-group" data-kind="unit">
+            <span class="test-chip">UNIT &middot; 3</span>
+            <ul><li>TestGraphAPIAgentNodes — insert agent_lineage_trace rows with different agent_names, verify distinct agent nodes</li><li>TestGraphAPIAgentEdges — verify ran_as edges from agent to session, worked_on edges from agent to feature</li><li>TestGraphAPIAgentActivity — verify activity count reflects session &#43; lineage counts</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="visual">
+            <span class="test-chip">VISUAL &middot; 3</span>
+            <ul><li>Verify agent nodes appear as amber circles above the feature band</li><li>Verify agent→session edges connect to the session cluster</li><li>Click agent node, verify tooltip shows correct counts</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="regression">
+            <span class="test-chip">REGRESSION &middot; 1</span>
+            <ul><li>existing node types unchanged</li></ul>
+          </div>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+
+    
+
+    
+
+    <div class="slice-deps">Dependencies: slices 2,3</div>
+
+    <details class="comment-collapse">
+      <summary class="comment-collapse-trigger">+ Leave a comment</summary>
+      <div class="comment-collapse-body">
+        <textarea data-section="slice-8" data-comment-for="slice-8" placeholder="Comments on slice 8..."></textarea>
+      </div>
+    </details>
+  </div>
+</details>
 
     <!--PLAN_SLICE_CARDS-->
   </div>
 </details>
 
-<!-- Design Decisions -->
+<!-- Design Decisions (hidden for v2 plans — slice cards carry their own questions) -->
 <details id="questions" class="section-card" data-phase="questions" data-status="pending">
   <summary><span>Design Decisions</span><span class="badge badge-pending" data-badge-for="questions">Pending</span></summary>
   <div class="section-body">
@@ -1084,30 +2030,6 @@ Regression: existing node types unchanged
 
 </article>
 </div><!-- /.plan-content -->
-
-<!-- Drag handle for resizing chat sidebar -->
-<div class="chat-resize-handle" id="chat-resize-handle"></div>
-
-<!-- Chat sidebar -->
-<aside class="chat-sidebar" id="chat-sidebar">
-  <section id="chat-panel" class="chat-panel" data-zone="chat">
-    <h2>Plan Discussion</h2>
-    <div id="chat-messages" class="chat-messages">
-      <p class="chat-notice" id="chat-empty">Ask about the plan design, slices, risks, or tradeoffs.</p>
-    </div>
-    <div class="chat-input-area">
-      <textarea id="chat-input" placeholder="Ask about the plan..." rows="2"></textarea>
-      <button id="chat-send">Send</button>
-    </div>
-  </section>
-
-  <!-- Amendments Panel -->
-  <div id="amendments-panel" class="amendments-panel" style="display:none">
-    <h3>Amendments</h3>
-    <div id="amendments-list"></div>
-    <div id="amendments-summary" class="amendments-summary"></div>
-  </div>
-</aside>
 </div><!-- /.plan-layout -->
 
 <script src="https://d3js.org/d3.v7.min.js"></script>
@@ -1182,33 +2104,65 @@ var planId=(function(){var a=document.querySelector('article[id]');return a?a.id
 
   function escHtml(s){var d=document.createElement('div');d.textContent=s;return d.innerHTML}
 
-  document.querySelectorAll('input[data-action="approve"]').forEach(function(cb){
-    cb.addEventListener('change',function(){
-      var sec=this.dataset.section;
-      var badge=document.querySelector('[data-badge-for="'+sec+'"]');
-      if(badge) setBadge(badge,this.checked);
-      var details=this.closest('details[data-phase]');
-      if(details) details.dataset.status=this.checked?'approved':'pending';
-      if(sec.startsWith('slice-')){
-        var n=sec.split('-')[1];
-        var node=document.getElementById('node-'+n);
-        if(node) node.dataset.status=this.checked?'approved':'pending';
-        var all=document.querySelectorAll('input[data-section^="slice-"][data-action="approve"]');
-        var allOk=Array.prototype.every.call(all,function(c){return c.checked});
-        var sb=document.querySelector('[data-badge-for="slices"]');
-        if(sb) setBadge(sb,allOk);
-        var sd=document.querySelector('[data-phase="slices"]');
-        if(sd) sd.dataset.status=allOk?'approved':'pending';
-      }
-      updateProgress();
-      if(planId){
-        fetch((window.htmlgraphPlanBase||'')+'/api/plans/'+planId+'/feedback',{
-          method:'POST',
-          headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({section:sec,action:'approve',value:String(this.checked),question_id:''})
-        });
-      }
-    });
+  // Helper: get effective approval value for a slice section.
+  // For radio-based slice controls, returns the selected value or 'pending'.
+  // For checkbox-based controls (design, outline), returns 'approved' or 'pending'.
+  function getApprovalValue(sec){
+    // Try radio group first (slice-N approval segmented control)
+    var checked=document.querySelector('input[type="radio"][data-section="'+sec+'"][data-action="approve"]:checked');
+    if(checked) return checked.value;
+    // Fallback: checkbox
+    var cb=document.querySelector('input[type="checkbox"][data-section="'+sec+'"][data-action="approve"]');
+    if(cb) return cb.checked?'approved':'pending';
+    return 'pending';
+  }
+
+  function handleApprovalChange(el){
+    var sec=el.dataset.section;
+    var val=getApprovalValue(sec);
+    var isApproved=(val==='approved');
+    var badge=document.querySelector('[data-badge-for="'+sec+'"]');
+    if(badge) setBadge(badge,isApproved);
+    var phaseDetails=el.closest('details[data-phase]');
+    if(phaseDetails) phaseDetails.dataset.status=isApproved?'approved':'pending';
+    if(sec.startsWith('slice-')&&sec.split('-').length===2){
+      var n=sec.split('-')[1];
+      // Update data-approval attribute on slice-card for CSS stripe
+      var sliceCard=document.getElementById('slice-'+n);
+      if(sliceCard) sliceCard.dataset.approval=val;
+      // Update dep graph node
+      var node=document.getElementById('node-'+n);
+      if(node) node.dataset.status=isApproved?'approved':'pending';
+      // Update sidebar nav dot
+      document.querySelectorAll('[data-dot-for="'+n+'"]').forEach(function(dot){
+        dot.dataset.approval=val;
+      });
+      // Update overall slices badge
+      var allSliceInputs=document.querySelectorAll('input[data-section^="slice-"][data-action="approve"]');
+      var sliceNums={};
+      Array.prototype.forEach.call(allSliceInputs,function(inp){
+        sliceNums[inp.dataset.section]=true;
+      });
+      var allOk=Object.keys(sliceNums).every(function(s){
+        return getApprovalValue(s)==='approved';
+      });
+      var sb=document.querySelector('[data-badge-for="slices"]');
+      if(sb) setBadge(sb,allOk);
+      var sd=document.querySelector('[data-phase="slices"]');
+      if(sd) sd.dataset.status=allOk?'approved':'pending';
+    }
+    updateProgress();
+    if(planId){
+      fetch((window.htmlgraphPlanBase||'')+'/api/plans/'+planId+'/feedback',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({section:sec,action:'approve',value:val,question_id:''})
+      });
+    }
+  }
+
+  document.querySelectorAll('input[data-action="approve"]').forEach(function(el){
+    el.addEventListener('change',function(){ handleApprovalChange(this); });
   });
 
   document.querySelectorAll('input[type="radio"][data-question]').forEach(function(r){
@@ -1259,14 +2213,61 @@ var planId=(function(){var a=document.querySelector('article[id]');return a?a.id
   function updateProgress(){
     var approved=0;
     SECTIONS.forEach(function(sec){
-      var cb=document.querySelector('input[data-section="'+sec+'"][data-action="approve"]');
-      if(cb&&cb.checked) approved++;
+      if(getApprovalValue(sec)==='approved') approved++;
     });
-    document.getElementById('approvedCount').textContent=approved;
-    document.getElementById('pendingCount').textContent=SECTIONS.length-approved;
-    document.getElementById('progressFill').style.width=Math.round(approved/SECTIONS.length*100)+'%';
-    document.getElementById('finalizeBtn').disabled=(approved<SECTIONS.length);
+    var pct=SECTIONS.length>0?Math.round(approved/SECTIONS.length*100):0;
+    // Main progress bar
+    var ac=document.getElementById('approvedCount');
+    if(ac) ac.textContent=approved;
+    var pc=document.getElementById('pendingCount');
+    if(pc) pc.textContent=SECTIONS.length-approved;
+    var pf=document.getElementById('progressFill');
+    if(pf) pf.style.width=pct+'%';
+    var fb=document.getElementById('finalizeBtn');
+    if(fb) fb.disabled=(approved<SECTIONS.length);
+    // Review rail
+    var ra=document.getElementById('railApproved');
+    if(ra) ra.textContent=approved;
+    var rf=document.getElementById('railFill');
+    if(rf) rf.style.width=pct+'%';
+    var frb=document.getElementById('finalizeRailBtn');
+    if(frb) frb.disabled=(approved<SECTIONS.length);
+    updateRailPending();
     updateComments();
+  }
+
+  function updateRailPending(){
+    var list=document.getElementById('railPendingList');
+    if(!list) return;
+    // Keep the "Pending" header strong
+    list.innerHTML='<strong>Pending</strong>';
+    SECTIONS.forEach(function(sec){
+      if(getApprovalValue(sec)!=='approved'){
+        var li=document.createElement('li');
+        var sliceNum=sec.startsWith('slice-')?sec.split('-')[1]:null;
+        var issueCount=0,qCount=0;
+        if(sliceNum){
+          var card=document.getElementById('slice-'+sliceNum);
+          if(card){
+            var issueBadge=card.querySelector('.badge-issues');
+            var qBadge=card.querySelector('.badge-questions');
+            if(issueBadge) issueCount=parseInt(issueBadge.textContent)||0;
+            if(qBadge) qCount=parseInt(qBadge.textContent)||0;
+          }
+        }
+        if(issueCount>0) li.dataset.hasIssues='1';
+        if(qCount>0) li.dataset.hasQuestions='1';
+        var label=sec;
+        if(sliceNum){
+          var nameEl=document.querySelector('#slice-'+sliceNum+' .slice-name');
+          label='Slice '+sliceNum+(nameEl?' ('+nameEl.textContent.trim().substring(0,20)+(nameEl.textContent.trim().length>20?'…':'')+')':'');
+        }
+        if(issueCount>0) label+=' · '+issueCount+' issue'+(issueCount>1?'s':'');
+        if(qCount>0) label+=' · '+qCount+' Q';
+        li.textContent=label;
+        list.appendChild(li);
+      }
+    });
   }
 
   function updateComments(){
@@ -1346,6 +2347,15 @@ var planId=(function(){var a=document.querySelector('article[id]');return a?a.id
     });
   }
 
+  // Wire the rail finalize button to the same handler
+  var finalizeRailBtn=document.getElementById('finalizeRailBtn');
+  if(finalizeRailBtn){
+    finalizeRailBtn.addEventListener('click',function(){
+      var mainBtn=document.getElementById('finalizeBtn');
+      if(mainBtn) mainBtn.click();
+    });
+  }
+
   function loadExistingFeedback(){
     if(!planId){return;}
     fetch((window.htmlgraphPlanBase||'')+'/api/plans/'+planId+'/feedback')
@@ -1355,13 +2365,27 @@ var planId=(function(){var a=document.querySelector('article[id]');return a?a.id
         if(data.sections){
           Object.keys(data.sections).forEach(function(sec){
             var info=data.sections[sec];
-            if(info.approved){
-              var cb=document.querySelector('input[data-section="'+sec+'"][data-action="approve"]');
-              if(cb&&!cb.checked){cb.checked=true;cb.dispatchEvent(new Event('change'));}
+            if(info.approved||info.value){
+              var val=info.value||'approved';
+              // Try radio first (slice controls)
+              var radio=document.querySelector('input[type="radio"][data-section="'+sec+'"][data-action="approve"][value="'+val+'"]');
+              if(radio&&!radio.checked){radio.checked=true;radio.dispatchEvent(new Event('change'));}
+              else if(val==='approved'||val==='true'){
+                // Fallback checkbox (design, outline)
+                var cb=document.querySelector('input[type="checkbox"][data-section="'+sec+'"][data-action="approve"]');
+                if(cb&&!cb.checked){cb.checked=true;cb.dispatchEvent(new Event('change'));}
+              }
             }
             if(info.comment){
+              // Comment textarea is inside a details.comment-collapse — open it first
               var ta=document.querySelector('textarea[data-section="'+sec+'"]');
-              if(ta) ta.value=info.comment;
+              if(ta){
+                ta.value=info.comment;
+                var collapse=ta.closest('details.comment-collapse');
+                if(collapse) collapse.open=true;
+                var trigger=collapse&&collapse.querySelector('.comment-collapse-trigger');
+                if(trigger) trigger.textContent='Edit comment';
+              }
             }
           });
         }
@@ -1382,11 +2406,12 @@ var planId=(function(){var a=document.querySelector('article[id]');return a?a.id
   document.querySelectorAll('input[data-action="approve"]').forEach(function(cb){
     cb.addEventListener('change',function(){
       var sec=this.dataset.section;
-      if(sec.startsWith('slice-')){
+      if(sec.startsWith('slice-')&&sec.split('-').length===2){
         var n=sec.split('-')[1];
         var nodeRect=d3.select('#dep-graph-svg .node[id="'+n+'"] rect');
         if(!nodeRect.empty()){
-          var color=this.checked?'#16a34a':'#6b7280';
+          var val=getApprovalValue(sec);
+          var color=val==='approved'?'#16a34a':val==='rejected'?'#f59e0b':'#6b7280';
           var cs=getComputedStyle(document.querySelector('.dep-graph')||document.documentElement);
           nodeRect.style('stroke',color).style('fill',cs.getPropertyValue('--bg-input').trim()||'#222228');
         }
@@ -1499,10 +2524,17 @@ function renderMd(text){
   });
   s=s.replace(/^[*-] (.+)$/gm,'<li>$1</li>');
   s=s.replace(/(<li>.*<\/li>\n?)+/g,'<ul>$&</ul>');
-  s=s.replace(/^\d+\. (.+)$/gm,'<li>$1</li>');
-  s=s.replace(/\n\n/g,'</p><p>');
-  s=s.replace(/\n/g,'<br>');
-  return '<p>'+s+'</p>';
+  s=s.replace(/^\d+\. (.+)$/gm,'<li data-ol>$1</li>');
+  s=s.replace(/(<li data-ol>.*<\/li>\n?)+/g,'<ol>$&</ol>');
+  s=s.replace(/ data-ol/g,'');
+  // Split on paragraph boundaries and wrap each block.
+  var blocks=s.split(/\n\n/);
+  var html=blocks.map(function(block){
+    var trimmed=block.trim();
+    if(!trimmed) return '';
+    return '<p>'+trimmed.replace(/\n/g,'<br>')+'</p>';
+  }).filter(Boolean).join('');
+  return html||'<p></p>';
 }
 // Render inline markdown for elements with data-markdown attribute.
 // For block elements (div/p) replaces innerHTML; for inline (li/span)
@@ -1678,34 +2710,28 @@ function renderMd(text){
   update();
 })();
 
-// Chat sidebar drag-resize
+// Left nav collapse toggle
 (function(){
-  var handle=document.getElementById('chat-resize-handle');
-  var sidebar=document.getElementById('chat-sidebar');
-  if(!handle||!sidebar) return;
-  var startX,startW;
-  handle.addEventListener('mousedown',function(e){
-    e.preventDefault();
-    startX=e.clientX;
-    startW=sidebar.offsetWidth;
-    handle.classList.add('dragging');
-    document.body.style.cursor='col-resize';
-    document.body.style.userSelect='none';
-    function onMove(e){
-      var delta=startX-e.clientX;
-      var newW=Math.max(280,Math.min(600,startW+delta));
-      sidebar.style.width=newW+'px';
-    }
-    function onUp(){
-      handle.classList.remove('dragging');
-      document.body.style.cursor='';
-      document.body.style.userSelect='';
-      document.removeEventListener('mousemove',onMove);
-      document.removeEventListener('mouseup',onUp);
-    }
-    document.addEventListener('mousemove',onMove);
-    document.addEventListener('mouseup',onUp);
-  });
+  'use strict';
+  var KEY_L='htmlgraph-plan-left-collapsed';
+  var body=document.body;
+  var btnL=document.getElementById('left-sidebar-toggle');
+
+  function applyLeft(collapsed){
+    body.classList.toggle('left-nav-collapsed',collapsed);
+    if(btnL) btnL.textContent=collapsed?'›':'‹';
+    if(btnL) btnL.title=collapsed?'Expand sidebar':'Collapse sidebar';
+  }
+
+  applyLeft(localStorage.getItem(KEY_L)==='1');
+
+  if(btnL){
+    btnL.addEventListener('click',function(){
+      var collapsed=!body.classList.contains('left-nav-collapsed');
+      applyLeft(collapsed);
+      localStorage.setItem(KEY_L,collapsed?'1':'0');
+    });
+  }
 })();
 
 

@@ -100,6 +100,13 @@ var planPageTmpl = texttemplate.Must(
 	}).ParseFS(templateFS, "templates/plan_page.gohtml"),
 )
 
+// sliceCardFuncs provides template functions for slice_card.gohtml.
+// These are registered on the html/template instance used by sliceCardTmpl.
+var sliceCardFuncs = template.FuncMap{
+	"lower": strings.ToLower,
+	"upper": strings.ToUpper,
+}
+
 // Component is anything that can render itself into a plan zone.
 type Component interface {
 	Render(w io.Writer) error

@@ -29,9 +29,9 @@ type Info struct {
 var uuidPattern = regexp.MustCompile(`([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})`)
 
 // Detect returns the identity of the calling agent using env var priority:
-//  1. HTMLGRAPH_AGENT_ID — explicit override (e.g. "codex", "copilot")
-//  2. CLAUDE_CODE=1      — running inside Claude Code → "claude-code"
-//  3. fallback           — "human" (CLI user, not an AI agent)
+//  1. HTMLGRAPH_AGENT_ID  — explicit override (e.g. "codex", "copilot")
+//  2. CLAUDE_CODE=1 / CLAUDECODE=1 — running inside Claude Code → "claude-code"
+//  3. fallback            — "human" (CLI user, not an AI agent)
 //
 // Model is always read from CLAUDE_MODEL (empty string if unset).
 func Detect() Info {
@@ -46,7 +46,13 @@ func detectID() string {
 	if v := os.Getenv("HTMLGRAPH_AGENT_ID"); v != "" {
 		return v
 	}
-	if os.Getenv("CLAUDE_CODE") != "" {
+	// Claude Code 2.x sets CLAUDECODE=1 (no underscore); older builds set
+	// CLAUDE_CODE=1. Accept either so agent_id never silently falls back to
+	// "human" — that fallback collides with the agent_events CHECK constraint
+	// `NOT (event_type='tool_call' AND agent_id='human' AND tool_name != 'UserQuery')`,
+	// which silently rejects every Read/Bash/Edit insert and blinds the
+	// research-first yolo guard.
+	if os.Getenv("CLAUDE_CODE") != "" || os.Getenv("CLAUDECODE") != "" {
 		return "claude-code"
 	}
 	return "human"

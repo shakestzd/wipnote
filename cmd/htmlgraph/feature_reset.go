@@ -1,0 +1,75 @@
+package main
+
+import (
+	"fmt"
+
+	dbpkg "github.com/shakestzd/htmlgraph/internal/db"
+	"github.com/shakestzd/htmlgraph/internal/models"
+	"github.com/shakestzd/htmlgraph/internal/workitem"
+	"github.com/spf13/cobra"
+)
+
+func featureResetCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "reset <feature-id>",
+		Short: "Reset an in-progress feature back to todo",
+		Long: `Reset an in-progress feature by setting its status back to 'todo'.
+This is a non-destructive operation — all history, steps, edges, and description
+are preserved. The agent assignment is cleared.
+
+Errors if the feature is not currently in-progress.
+
+Example:
+  htmlgraph feature reset feat-a1b2c3d4`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(_ *cobra.Command, args []string) error {
+			title, err := executeReset("feature", args[0])
+			if err != nil {
+				return err
+			}
+			fmt.Printf("Reset: %s  %s\n", args[0], title)
+			return nil
+		},
+	}
+}
+
+// executeReset sets an in-progress work item back to todo.
+// Returns the item title on success.
+func executeReset(typeName, id string) (string, error) {
+	htmlgraphDir, err := findHtmlgraphDir()
+	if err != nil {
+		return "", err
+	}
+
+	id, err = resolveID(htmlgraphDir, id)
+	if err != nil {
+		return "", err
+	}
+
+	p, err := workitem.Open(htmlgraphDir, "claude-code")
+	if err != nil {
+		return "", fmt.Errorf("open project: %w", err)
+	}
+	defer p.Close()
+
+	col := collectionFor(p, typeName)
+
+	node, err := col.Get(id)
+	if err != nil {
+		return "", fmt.Errorf("get %s %s: %w", typeName, id, err)
+	}
+
+	if node.Status != models.StatusInProgress {
+		return "", fmt.Errorf("%s is not in-progress (status: %s) — nothing to reset", id, node.Status)
+	}
+
+	if err := col.Edit(id).SetStatus(string(models.StatusTodo)).SetAgent("").Save(); err != nil {
+		return "", fmt.Errorf("reset %s %s: %w", typeName, id, err)
+	}
+
+	if p.DB != nil {
+		_ = dbpkg.UpdateFeatureStatus(p.DB, id, string(models.StatusTodo))
+	}
+
+	return node.Title, nil
+}

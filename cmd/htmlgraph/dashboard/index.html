@@ -269,7 +269,37 @@
           </button>
           <h3 id="plan-detail-title" style="margin:0;font-size:0.95rem"></h3>
         </div>
-        <div class="plan-detail-body" id="plan-detail-body"></div>
+        <div class="plan-detail-columns">
+          <div class="plan-detail-body" id="plan-detail-body"></div>
+          <aside class="dash-plan-sidebar" id="dash-plan-sidebar">
+            <div class="dash-sidebar-header">
+              <span class="dash-sidebar-title">REVIEW</span>
+              <button class="dash-sidebar-collapse-btn" id="dash-sidebar-collapse" title="Collapse sidebar" aria-label="Toggle review sidebar">&#8250;</button>
+            </div>
+            <div class="dash-review-rail" id="dash-review-rail" style="display:none">
+              <h3 style="font-family:var(--font-mono);font-size:.72rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">Review Progress</h3>
+              <div class="dash-rail-dots" id="dash-rail-dots"></div>
+              <div class="dash-rail-counter"><strong id="dash-rail-approved">0</strong> of <strong id="dash-rail-total">0</strong> approved</div>
+              <div class="dash-rail-progress"><div class="dash-rail-fill" id="dash-rail-fill" style="width:0%"></div></div>
+              <ul class="dash-rail-pending" id="dash-rail-pending"><li style="color:var(--text-muted);font-size:.8rem">All up to date</li></ul>
+              <button class="dash-btn-finalize" id="dash-finalize-btn" disabled>Finalize Plan</button>
+              <p class="dash-finalize-hint">All sections must be approved to finalize.</p>
+            </div>
+            <div class="dash-chat-section">
+              <div class="dash-chat-header">
+                <span class="dash-chat-title">Plan Discussion</span>
+              </div>
+              <div class="dash-chat-messages" id="dash-chat-messages">
+                <p class="dash-chat-notice" id="dash-chat-empty">Ask about the plan design, slices, risks, or tradeoffs.</p>
+              </div>
+              <div class="dash-chat-input-area">
+                <textarea id="dash-chat-input" placeholder="Ask about the plan..." rows="2"></textarea>
+                <button id="dash-chat-send">Send</button>
+              </div>
+            </div>
+          </aside>
+        </div>
+        <button class="dash-sidebar-reopen" id="dash-sidebar-reopen" title="Show review panel" aria-label="Show review panel">&#8249;</button>
       </div>
     </section>
 

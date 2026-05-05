@@ -10,10 +10,10 @@
 <body>
     <article id="bug-28a9d7a7"
              data-type="bug"
-             data-status="in-progress"
+             data-status="todo"
              data-priority="high"
              data-created="2026-04-26T12:39:31.284862"
-             data-updated="2026-04-26T18:41:12.858039" data-agent-assigned="claude-code" data-track-id="trk-c4615ad2">
+             data-updated="2026-04-29T15:23:48.655047" data-agent-assigned="claude-code" data-track-id="trk-c4615ad2">
 
         <header>
             <h1>Session OTel collector dies mid-session and is duplicated by _serve-child receiver</h1>
@@ -24,6 +24,12 @@
         </header>
 
         <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-c4615ad2.html" data-relationship="part_of" data-since="2026-04-26T12:39:31.292788">trk-c4615ad2</a></li>
+                </ul>
+            </section>
             <section data-edge-type="relates_to">
                 <h3>Relates To:</h3>
                 <ul>
@@ -43,12 +49,6 @@
                     <li><a href="bug-4697c62c.html" data-relationship="caused_by" data-since="2026-04-26T12:39:31.289337">bug-4697c62c</a></li>
                 </ul>
             </section>
-            <section data-edge-type="part_of">
-                <h3>Part Of:</h3>
-                <ul>
-                    <li><a href="trk-c4615ad2.html" data-relationship="part_of" data-since="2026-04-26T12:39:31.292788">trk-c4615ad2</a></li>
-                </ul>
-            </section>
         </nav>
 
         <section data-steps>
@@ -65,6 +65,7 @@
                 <li data-completed="false" data-step-id="step-bug-28a9d7a7-8">⏳ Step 9: Quality gates. Run in order, fix any failure before proceeding: (a) go build ./... (b) go vet ./... (c) go test -count=1 -timeout 180s ./... (d) go test -count=3 -timeout 120s -run &#39;TestPlanLifecycle_NoSlices|TestAutocommitPlan&#39; ./cmd/htmlgraph/ — regression guard against the bug-de827cbf hang.</li>
                 <li data-completed="false" data-step-id="step-bug-28a9d7a7-9">⏳ Step 10: Stage only the files touched in steps 2 and 4-8 (use git add with explicit paths, not git add -A — the working tree contains many unrelated modifications). Commit with message: &#39;refactor(otel): remove orphaned server-based receiver, keep session-scoped collector (bug-28a9d7a7)&#39;. Body should explain that the runtime path was already removed and this commit deletes the dead code &#43; stale comments. Do NOT push. Do NOT use --no-verify. Do NOT add Co-Authored-By lines.</li>
                 <li data-completed="false" data-step-id="step-bug-28a9d7a7-10">⏳ SCOPE CHANGE 2026-04-26: User chose Option C (durable refactor — collector and indexer share one canonical writer) over the minimal rip-out. Additionally, phase 2 of OTel migration aims to reduce/eliminate SQLite dependence. Steps 1-10 above are SUPERSEDED — do not execute as written. New plan pending; will be tracked under a new feature scoped to the OTel track (trk-c4615ad2). This bug remains in-progress as the trigger but execution will move to the new feature once planned.</li>
+                <li data-completed="false" data-step-id="step-bug-28a9d7a7-11">⏳ FINDING 1 — Collector never started for pid 58306: spawnCollector failed silently at startup (non-fatal path), leaving no session dir under .htmlgraph/sessions/ newer than 06:00; the 06:34 session has zero .collector-pid file and pid 31202 (the 06:00 session&#39;s collector) is already dead. Root guard at claude.go:500 checks opts.ProjectRoot != &#39;&#39; and !isExplicitlyDisabled(HTMLGRAPH_OTEL_ENABLED) — both pass for --dev mode — so spawn was attempted but spawnCollector returned otelEnvOverrides{} (zero-value) on failure, silently skipping the collector without any user-visible error beyond a stderr warning.</li>
             </ol>
         </section>
 

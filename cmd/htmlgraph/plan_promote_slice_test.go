@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -63,7 +64,7 @@ func TestPromoteSlice_Approved_CreatesFeature(t *testing.T) {
 	db.Close()
 
 	// Promote slice 1.
-	featID, err := promoteSliceFromYAML(dir, pID, 1, false)
+	featID, err := promoteSliceFromYAML(dir, pID, 1, false, false)
 	if err != nil {
 		t.Fatalf("promoteSliceFromYAML: %v", err)
 	}
@@ -142,7 +143,7 @@ func TestPromoteSlice_NotApproved_Refuses(t *testing.T) {
 	os.WriteFile(filepath.Join(dir, "plans", pID+".html"), []byte("<html></html>"), 0o644)
 
 	// No approval row — must refuse.
-	_, err := promoteSliceFromYAML(dir, pID, 1, false)
+	_, err := promoteSliceFromYAML(dir, pID, 1, false, false)
 	if err == nil {
 		t.Fatal("expected error for unapproved slice")
 	}
@@ -187,7 +188,7 @@ func TestPromoteSlice_BlockedByPendingDeps_Refuses(t *testing.T) {
 	db.Close()
 
 	// Without --waive-deps: must refuse.
-	_, err := promoteSliceFromYAML(dir, pID, 2, false)
+	_, err := promoteSliceFromYAML(dir, pID, 2, false, false)
 	if err == nil {
 		t.Fatal("expected error when dep not done")
 	}
@@ -201,7 +202,7 @@ func TestPromoteSlice_BlockedByPendingDeps_Refuses(t *testing.T) {
 	dbpkg.StorePlanFeedback(db2, pID, "slice-2", "approve", "true", "")
 	db2.Close()
 
-	featID, err := promoteSliceFromYAML(dir, pID, 2, true)
+	featID, err := promoteSliceFromYAML(dir, pID, 2, true, false)
 	if err != nil {
 		t.Fatalf("waive-deps promote: %v", err)
 	}
@@ -247,7 +248,7 @@ func TestPromoteSlice_DepDoneViaSetSliceStatus_NoWaiveNeeded(t *testing.T) {
 	}
 
 	// Without --waive-deps: must succeed because slice 1 is done.
-	featID, err := promoteSliceFromYAML(dir, pID, 2, false)
+	featID, err := promoteSliceFromYAML(dir, pID, 2, false, false)
 	if err != nil {
 		t.Fatalf("expected promote to succeed when dep marked done via runSetSliceStatus, got: %v", err)
 	}
@@ -282,13 +283,13 @@ func TestPromoteSlice_Idempotent(t *testing.T) {
 	db.Close()
 
 	// First promote.
-	featID1, err := promoteSliceFromYAML(dir, pID, 1, false)
+	featID1, err := promoteSliceFromYAML(dir, pID, 1, false, false)
 	if err != nil {
 		t.Fatalf("first promote: %v", err)
 	}
 
 	// Second promote — must reuse same feature_id, not create duplicate.
-	featID2, err := promoteSliceFromYAML(dir, pID, 1, false)
+	featID2, err := promoteSliceFromYAML(dir, pID, 1, false, false)
 	if err != nil {
 		t.Fatalf("second promote: %v", err)
 	}
@@ -329,7 +330,7 @@ func TestPromoteSlice_SetsExecutionStatusPromoted(t *testing.T) {
 	dbpkg.StorePlanFeedback(db, pID, "slice-1", "approve", "true", "")
 	db.Close()
 
-	if _, err := promoteSliceFromYAML(dir, pID, 1, false); err != nil {
+	if _, err := promoteSliceFromYAML(dir, pID, 1, false, false); err != nil {
 		t.Fatalf("promote: %v", err)
 	}
 
@@ -377,7 +378,7 @@ func TestPromoteSlice_PlanRemainsActive(t *testing.T) {
 	dbpkg.StorePlanFeedback(db, pID, "slice-1", "approve", "true", "")
 	db.Close()
 
-	if _, err := promoteSliceFromYAML(dir, pID, 1, false); err != nil {
+	if _, err := promoteSliceFromYAML(dir, pID, 1, false, false); err != nil {
 		t.Fatalf("promote: %v", err)
 	}
 
@@ -439,7 +440,7 @@ func TestExecutePreview_IncludesPromotedSliceFeatures(t *testing.T) {
 	}
 	db.Close()
 
-	featID, err := promoteSliceFromYAML(hgDir, pID, 1, false)
+	featID, err := promoteSliceFromYAML(hgDir, pID, 1, false, false)
 	if err != nil {
 		t.Fatalf("promoteSliceFromYAML: %v", err)
 	}
@@ -463,5 +464,143 @@ func TestExecutePreview_IncludesPromotedSliceFeatures(t *testing.T) {
 			ids[i] = f.ID
 		}
 		t.Errorf("promoted feature %s not found in execute-preview features: %v", featID, ids)
+	}
+}
+
+// --- Spec-enforcement gate tests (feat-0fd7c8bc) ----------------------
+
+// seedPromoteFixture creates a temp project with a single approved slice and
+// returns the htmlgraph dir + plan ID. The layout mirrors production: a
+// project root (t.TempDir()) containing a .htmlgraph/ subdirectory.
+func seedPromoteFixture(t *testing.T, decisionsNotes string) (hgDir, planID string) {
+	t.Helper()
+	projectRoot := t.TempDir()
+	hgDir = filepath.Join(projectRoot, ".htmlgraph")
+	for _, sub := range []string{"plans", "features", "tracks"} {
+		if err := os.MkdirAll(filepath.Join(hgDir, sub), 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", sub, err)
+		}
+	}
+
+	p, err := workitem.Open(hgDir, "test-agent")
+	if err != nil {
+		t.Fatalf("workitem.Open: %v", err)
+	}
+	track, err := p.Tracks.Create("Gate Track")
+	if err != nil {
+		p.Close()
+		t.Fatalf("create track: %v", err)
+	}
+	p.Close()
+
+	planID = workitem.GenerateID("plan", "gate test")
+	plan := planyaml.NewPlan(planID, "Gate Test", "")
+	plan.Meta.TrackID = track.ID
+	plan.Meta.Status = "active"
+	plan.Design.Problem = "x"
+	plan.Slices = append(plan.Slices, planyaml.PlanSlice{
+		ID:             workitem.GenerateID("slice", "s"),
+		Num:            1,
+		Title:          "Slice One",
+		What:           "do",
+		Why:            "because",
+		DecisionsNotes: decisionsNotes,
+	})
+	planPath := filepath.Join(hgDir, "plans", planID+".yaml")
+	if err := planyaml.Save(planPath, plan); err != nil {
+		t.Fatalf("save plan: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(hgDir, "plans", planID+".html"), []byte("<html></html>"), 0o644); err != nil {
+		t.Fatalf("write html: %v", err)
+	}
+
+	db, err := openPlanDB(hgDir)
+	if err != nil {
+		t.Fatalf("openPlanDB: %v", err)
+	}
+	if err := dbpkg.StorePlanFeedback(db, planID, "slice-1", "approve", "true", ""); err != nil {
+		db.Close()
+		t.Fatalf("store approval: %v", err)
+	}
+	db.Close()
+
+	return hgDir, planID
+}
+
+// writeSpecEnforcementConfig writes a config.json into the .htmlgraph dir.
+func writeSpecEnforcementConfig(t *testing.T, hgDir string, promoteSlice, featureComplete bool) {
+	t.Helper()
+	body := fmt.Sprintf(`{"spec_enforcement":{"promote_slice":%t,"feature_complete":%t}}`,
+		promoteSlice, featureComplete)
+	if err := os.WriteFile(filepath.Join(hgDir, "config.json"), []byte(body), 0o644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+}
+
+// TestPromoteSliceGate_Disabled — default config, no DecisionsNotes; succeeds.
+func TestPromoteSliceGate_Disabled(t *testing.T) {
+	dir, pID := seedPromoteFixture(t, "")
+
+	featID, err := promoteSliceFromYAML(dir, pID, 1, false, false)
+	if err != nil {
+		t.Fatalf("expected success with gate disabled, got error: %v", err)
+	}
+	if !strings.HasPrefix(featID, "feat-") {
+		t.Errorf("featID = %q", featID)
+	}
+}
+
+// TestPromoteSliceGate_EnabledNoNotes — gate enabled + empty notes refuses.
+func TestPromoteSliceGate_EnabledNoNotes(t *testing.T) {
+	dir, pID := seedPromoteFixture(t, "")
+	writeSpecEnforcementConfig(t, dir, true, false)
+
+	_, err := promoteSliceFromYAML(dir, pID, 1, false, false)
+	if err == nil {
+		t.Fatal("expected gate refusal, got nil")
+	}
+	if !strings.Contains(err.Error(), "no decisions") {
+		t.Errorf("error should mention missing decisions: %v", err)
+	}
+	if !strings.Contains(err.Error(), "elicit-decisions") {
+		t.Errorf("error should point to remediation command: %v", err)
+	}
+}
+
+// TestPromoteSliceGate_EnabledWithNotes — gate enabled + notes present succeeds.
+func TestPromoteSliceGate_EnabledWithNotes(t *testing.T) {
+	dir, pID := seedPromoteFixture(t, "### Decisions\nWe picked X.")
+	writeSpecEnforcementConfig(t, dir, true, false)
+
+	featID, err := promoteSliceFromYAML(dir, pID, 1, false, false)
+	if err != nil {
+		t.Fatalf("expected success with notes present, got: %v", err)
+	}
+	if !strings.HasPrefix(featID, "feat-") {
+		t.Errorf("featID = %q", featID)
+	}
+}
+
+// TestPromoteSliceGate_AllowSkip — gate enabled, no notes, --allow-spec-skip
+// succeeds and writes an audit line into slice.Comment.
+func TestPromoteSliceGate_AllowSkip(t *testing.T) {
+	dir, pID := seedPromoteFixture(t, "")
+	writeSpecEnforcementConfig(t, dir, true, false)
+
+	featID, err := promoteSliceFromYAML(dir, pID, 1, false, true)
+	if err != nil {
+		t.Fatalf("expected --allow-spec-skip to succeed, got: %v", err)
+	}
+	if !strings.HasPrefix(featID, "feat-") {
+		t.Errorf("featID = %q", featID)
+	}
+
+	// Audit comment must appear on the slice.
+	plan, err := planyaml.Load(filepath.Join(dir, "plans", pID+".yaml"))
+	if err != nil {
+		t.Fatalf("reload plan: %v", err)
+	}
+	if !strings.Contains(plan.Slices[0].Comment, "allow-spec-skip") {
+		t.Errorf("expected audit comment on slice, got: %q", plan.Slices[0].Comment)
 	}
 }

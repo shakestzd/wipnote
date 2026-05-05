@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>context-pack: Section 4 (Code-Surface Helpers) emits empty heading when track lookup yields no rows</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-546cda63"
+             data-type="bug"
+             data-status="done"
+             data-priority="medium"
+             data-created="2026-05-01T18:44:09.533559"
+             data-updated="2026-05-01T20:46:26.235712" data-agent-assigned="claude-code" data-track-id="trk-2c83a1e2">
+
+        <header>
+            <h1>context-pack: Section 4 (Code-Surface Helpers) emits empty heading when track lookup yields no rows</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-2c83a1e2.html" data-relationship="part_of" data-since="2026-05-01T18:44:09.556496">trk-2c83a1e2</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="d230fbcc-d1fa-4ae0-9bac-21f671f3ee06.html" data-relationship="implemented_in" data-since="2026-05-01T20:05:04.236842">session d230fbcc-d1fa-4ae0-9bac-21f671f3ee06</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="caused_by">
+                <h3>Caused By:</h3>
+                <ul>
+                    <li><a href="bug-92690d5b.html" data-relationship="caused_by" data-since="2026-05-01T18:44:09.545744">bug-92690d5b</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>## Symptom
+
+`htmlgraph context-pack ` prints the section 4 heading with no body content when the work item has no track OR when the track-aligned blame lookup returns zero file rows. Sections 5/6/7 print '(no track attribution)' or '(none)' as a fallback under the same condition, but section 4 prints nothing at all.
+
+## Reproducer
+
+`htmlgraph context-pack feat-79d030c4` (untracked work item).
+
+Output around section 4:
+```
+## 4. Code-Surface Helpers
+
+## 5. File Paths with Package Qualifiers
+
+(no track attribution)
+```
+
+## Expected
+
+Section 4 should emit a placeholder consistent with sections 5/6/7 — e.g., '(no track attribution)' when the work item lacks a track, '(no related files)' when the track yields zero file rows.
+
+## Fix site
+
+cmd/htmlgraph/context_pack.go — wherever section 4 renders. Likely a missing else-branch or guard that prints the placeholder when the source data is empty.
+
+## Acceptance
+
+1. `htmlgraph context-pack ` emits '(no track attribution)' under section 4 heading.
+2. `htmlgraph context-pack ` emits '(no related files)' or similar under section 4 heading.
+3. Existing tests still pass; add a new test asserting section 4 has non-empty body under both conditions.</p>
+        </section>
+    </article>
+</body>
+</html>

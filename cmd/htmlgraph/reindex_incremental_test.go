@@ -2,6 +2,8 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -143,6 +145,155 @@ func TestIncrementalReindex_DeletesRemovedFiles(t *testing.T) {
 	if count != 0 {
 		t.Errorf("deleted feature still in DB: count = %d", count)
 	}
+}
+
+// TestIncrementalReindex_PropagatesTrackIDAfterMove verifies that when a feature
+// HTML file is updated with a new data-track-id (simulating `bug/feature move`)
+// and the file appears in the incremental changed-file list, the SQLite row is
+// updated with the correct track_id — not left with the stale value.
+func TestIncrementalReindex_PropagatesTrackIDAfterMove(t *testing.T) {
+	hgDir := setupHtmlgraphDir(t)
+	database, err := dbpkg.Open(filepath.Join(hgDir, "htmlgraph.db"))
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	defer database.Close()
+
+	now := time.Now().UTC()
+
+	// Seed both tracks in the DB so trackExists() returns true for both.
+	for _, trk := range []struct{ id, title string }{
+		{"trk-old-001", "Old Track"},
+		{"trk-new-001", "New Track"},
+	} {
+		if err := dbpkg.UpsertTrack(database, &dbpkg.Track{
+			ID: trk.id, Type: "track", Title: trk.title,
+			Status: "todo", Priority: "medium", CreatedAt: now, UpdatedAt: now,
+		}); err != nil {
+			t.Fatalf("UpsertTrack %s: %v", trk.id, err)
+		}
+	}
+
+	// Seed the feature with the old track.
+	if err := dbpkg.UpsertFeature(database, &dbpkg.Feature{
+		ID: "bug-move-001", Type: "bug", Title: "Move Me",
+		Status: "todo", Priority: "medium",
+		TrackID: "trk-old-001", CreatedAt: now, UpdatedAt: now,
+	}); err != nil {
+		t.Fatalf("UpsertFeature (initial): %v", err)
+	}
+
+	// Write HTML file with the new track ID — simulating what `bug move` writes.
+	path := writeFeatureHTMLWithTrack(t, filepath.Join(hgDir, "bugs"), "bug-move-001.html",
+		"bug-move-001", "bug", "Move Me", "trk-new-001")
+
+	// Run incremental reindex as if the changed file was detected.
+	validIDs := map[string]bool{}
+	_, upserted, errCount := reindexFromFileLists(database, []string{path}, nil, validIDs)
+
+	if upserted != 1 {
+		t.Errorf("upserted: got %d, want 1", upserted)
+	}
+	if errCount != 0 {
+		t.Errorf("errCount: got %d, want 0", errCount)
+	}
+
+	var gotTrackID string
+	database.QueryRow(`SELECT COALESCE(track_id,'') FROM features WHERE id = ?`, "bug-move-001").Scan(&gotTrackID)
+	if gotTrackID != "trk-new-001" {
+		t.Errorf("track_id after incremental reindex: got %q, want %q", gotTrackID, "trk-new-001")
+	}
+}
+
+// TestIncrementalReindex_DirtyDeletion verifies that when a feature HTML file
+// is deleted in the working tree (dirty deletion, before commit) and detected
+// via dirty-files scan, the SQLite row for that feature is removed (not left stale).
+func TestIncrementalReindex_DirtyDeletion(t *testing.T) {
+	hgDir := setupHtmlgraphDir(t)
+	database, err := dbpkg.Open(filepath.Join(hgDir, "htmlgraph.db"))
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	defer database.Close()
+
+	// Create and index a feature HTML file.
+	path := writeMinimalFeatureHTML(t, filepath.Join(hgDir, "features"), "feat-dirty-del.html", "feat-dirty-del", "Dirty Delete Me")
+
+	// Initial reindex to populate DB.
+	validIDs := map[string]bool{}
+	_, upserted, errCount := reindexFromFileLists(database, []string{path}, nil, validIDs)
+	if upserted != 1 {
+		t.Fatalf("initial upserted: got %d, want 1", upserted)
+	}
+	if errCount != 0 {
+		t.Fatalf("initial errCount: got %d, want 0", errCount)
+	}
+
+	var countBefore int
+	database.QueryRow(`SELECT COUNT(*) FROM features WHERE id = ?`, "feat-dirty-del").Scan(&countBefore)
+	if countBefore != 1 {
+		t.Fatalf("feature in DB before deletion: want 1, got %d", countBefore)
+	}
+
+	// Simulate dirty deletion: remove the file from disk (but don't commit).
+	if err := os.Remove(path); err != nil {
+		t.Fatalf("Remove file: %v", err)
+	}
+
+	// Run incremental reindex with the deleted path in the deletion list.
+	// This simulates what would happen if git diff --name-status detected "D" status.
+	_, _, _ = reindexFromFileLists(database, nil, []string{path}, map[string]bool{})
+
+	// Verify the feature is removed from the DB.
+	var countAfter int
+	database.QueryRow(`SELECT COUNT(*) FROM features WHERE id = ?`, "feat-dirty-del").Scan(&countAfter)
+	if countAfter != 0 {
+		t.Errorf("dirty-deleted feature still in DB: count = %d (want 0)", countAfter)
+	}
+}
+
+// TestDeduplicatePaths verifies that deduplicatePaths removes duplicates while
+// preserving order and not modifying the original slice.
+func TestDeduplicatePaths(t *testing.T) {
+	input := []string{"/a/b.html", "/c/d.html", "/a/b.html", "/e/f.html", "/c/d.html"}
+	got := deduplicatePaths(input)
+	want := []string{"/a/b.html", "/c/d.html", "/e/f.html"}
+	if len(got) != len(want) {
+		t.Fatalf("deduplicatePaths: got %v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("deduplicatePaths[%d]: got %q, want %q", i, got[i], want[i])
+		}
+	}
+}
+
+// writeFeatureHTMLWithTrack writes a minimal HTML file for any work-item type
+// (feature, bug, spike) with a specific data-track-id attribute.
+func writeFeatureHTMLWithTrack(t *testing.T, dir, filename, id, itemType, title, trackID string) string {
+	t.Helper()
+	content := fmt.Sprintf(`<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><title>%s</title></head>
+<body>
+  <article id="%s"
+           data-type="%s"
+           data-status="todo"
+           data-priority="medium"
+           data-track-id="%s"
+           data-created="%s"
+           data-updated="%s">
+    <header><h1>%s</h1></header>
+  </article>
+</body>
+</html>`, title, id, itemType, trackID,
+		time.Now().Format(time.RFC3339), time.Now().Format(time.RFC3339), title)
+
+	path := filepath.Join(dir, filename)
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("write HTML %s: %v", path, err)
+	}
+	return path
 }
 
 // reindexFromFileLists is a testable shim for the incremental upsert logic that
