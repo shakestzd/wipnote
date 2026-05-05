@@ -102,7 +102,44 @@ For each unblocked feature candidate, run `htmlgraph trace <feat-id>` to get its
 
 ---
 
-## Step 1.6: Populate Tasks from Plan
+## Step 1.6: Precondition Check — Verify SendMessage Availability
+
+Before dispatching ANY agents in parallel, verify that the `SendMessage` tool is available. Without it, paused sub-agents cannot be resumed, making the parallel dispatch unrecoverable.
+
+**Run this check BEFORE step 2:**
+
+```
+ToolSearch(query="select:SendMessage", max_results=1)
+```
+
+**If the result is empty or "No matching deferred tools found":**
+
+Print the following error and STOP — do not proceed to dispatch:
+
+```
+/htmlgraph:execute requires SendMessage to be loaded so paused sub-agents can be
+resumed. SendMessage is gated behind `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`
+and is only available in agent-teams sessions.
+
+Note: even with the env var set, worktree subagents cannot be resumed via
+SendMessage (Claude Code issue #42596). This check is a minimum bar — it does
+not guarantee recoverability.
+
+Aborting parallel dispatch. Options:
+  (a) Enable agent-teams mode and dispatch as a team rather than worktree subagents.
+  (b) Reduce slice scope so a single-shot dispatch fits within the tool budget.
+  (c) Run `htmlgraph yolo --feature <id>` sequentially per feature.
+```
+
+**If the result lists SendMessage:** proceed to the dispatch loop.
+
+> Note: SendMessage being present does not fully solve the problem. Worktree
+> subagents still cannot be resumed via SendMessage per Claude Code issue #42596.
+> This check is a minimum bar only.
+
+---
+
+## Step 1.7: Populate Tasks from Plan
 
 When executing features that originated from a plan, you must first resolve the track title, then create tasks with readable subject fields.
 
@@ -213,28 +250,8 @@ the orchestrator will resolve merge conflicts after all agents complete:
 ## Do NOT Touch
 {files owned by other concurrent tasks — for awareness only}
 
-## Step 1: Write Failing Tests FIRST (TDD — mandatory)
-Before writing ANY implementation code, create test file(s):
-{task.tests — from acceptance criteria in the plan}
-
-After writing tests, verify:
-- Tests COMPILE (no syntax errors)
-- Tests FAIL (implementation doesn't exist yet)
-Run: go test ./... — expect failures, not compilation errors.
-
-## Step 2: Implement Until Tests Pass
-Now write the minimum implementation to make all tests pass.
-Do not add code that isn't covered by a test.
-
-## Step 3: Quality Gate (MANDATORY before commit)
-go build ./... && go vet ./... && go test ./...
-
-## Commit
-git add {specific files}
-git commit -m "feat({scope}): {description} ({feature_id})"
-
-## Step 4: Complete Attribution
-htmlgraph feature complete {metadata.feature_id}
+## TDD Protocol
+Follow the TDD protocol from /htmlgraph:tdd-protocol — write failing tests first, run quality gates (`go build && go vet && go test`), commit per the documented format, attribute via `htmlgraph feature start` / `complete`.
 
 Report: files changed, lines added, tests passing, test names.
 ```

@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>/htmlgraph:execute paused agents unrecoverable when SendMessage tool unavailable</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-c6c54edc"
+             data-type="bug"
+             data-status="done"
+             data-priority="high"
+             data-created="2026-05-05T17:48:38.096429"
+             data-updated="2026-05-05T18:06:55.204201" data-agent-assigned="claude-code" data-track-id="trk-cb36e595">
+
+        <header>
+            <h1>/htmlgraph:execute paused agents unrecoverable when SendMessage tool unavailable</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-cb36e595.html" data-relationship="part_of" data-since="2026-05-05T17:48:38.115154">trk-cb36e595</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="ae976590-da08-4ebb-b8e3-1d352824417c.html" data-relationship="implemented_in" data-since="2026-05-05T17:48:38.244499">session ae976590-da08-4ebb-b8e3-1d352824417c</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Mirror of GitHub issue #92 (https://github.com/shakestzd/htmlgraph/issues/92).
+
+When /htmlgraph:execute dispatches parallel sub-agents, agents can pause when they exhaust tool-use budget. The Agent runtime returns 'agentId: ' with 'worktreePath: {continue: true}' and the hint 'use SendMessage with to:  to continue this agent.' But SendMessage is NOT a loaded tool in Claude Code — referenced in Agent docstrings but not in deferred-tool list. ToolSearch returns no match.
+
+Paused agents' worktrees clean up before commits land. In-progress work lost. Skill has no fallback.
+
+Suggested fixes from issue:
+1. Document SendMessage as hard prerequisite for /htmlgraph:execute; verify before dispatching.
+2. Update skill to detect 'worktreePath: continue:true' pause shape; re-dispatch fresh agent with prior context, OR surface clear failure to orchestrator.
+3. Reduce default prompt size — strip inline TDD boilerplate; link to shared TDD protocol skill.
+4. Add --no-tdd or --minimal-prompt mode for slices where codebase has test coverage and agent only extends it.
+
+Repro: /htmlgraph:execute on track with 7+ slices, 3 parallel htmlgraph:sonnet-coder agents with TDD prompts; agents run ~50 tool calls and pause near commit; SendMessage unavailable; worktrees cleaned without commits.</p>
+        </section>
+    </article>
+</body>
+</html>
