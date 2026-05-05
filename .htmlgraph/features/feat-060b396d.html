@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Diagnostic spike: dispatch failure root-cause investigation (slice-0 of plan-ff425b9f)</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-060b396d"
+             data-type="feature"
+             data-status="in-progress"
+             data-priority="high"
+             data-created="2026-05-05T15:58:12.377219"
+             data-updated="2026-05-05T16:04:17.784559" data-agent-assigned="claude-code" data-track-id="trk-cb36e595">
+
+        <header>
+            <h1>Diagnostic spike: dispatch failure root-cause investigation (slice-0 of plan-ff425b9f)</h1>
+            <div class="metadata">
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="caused_by">
+                <h3>Caused By:</h3>
+                <ul>
+                    <li><a href="bug-0413c3c4.html" data-relationship="caused_by" data-since="2026-05-05T15:58:24.968872">Subagent feature attribution hook blocks file writes — claim ownership tied to wrong session ID</a></li>
+                    <li><a href="bug-730c0f19.html" data-relationship="caused_by" data-since="2026-05-05T15:58:25.026882">Dispatched sub-agents commit directly to main instead of isolated branch</a></li>
+                    <li><a href="bug-8ff540a7.html" data-relationship="caused_by" data-since="2026-05-05T15:58:25.141173">Subagents inherit non-YOLO permission mode — Edit/Write blocked despite parent in YOLO</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="0022c4dc-25aa-4dc1-b8ef-ef3e49135ece.html" data-relationship="implemented_in" data-since="2026-05-05T16:04:17.784313">session 0022c4dc-25aa-4dc1-b8ef-ef3e49135ece</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-cb36e595.html" data-relationship="part_of" data-since="2026-05-05T15:58:12.40211">trk-cb36e595</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Slice 0 of plan-ff425b9f. Read-only investigation producing docs/spikes/dispatch-hardening-spike.md with answers to Q1-Q4 about the actual mechanism behind the cited 6/8 dispatch failure (#87 attribution, #88 commit-to-main, #90 YOLO inheritance). Findings inform implementation scope of slices 1-3 (feat-ecd82f68, feat-9cef857b, feat-72876845). Direct feature creation because slice-0 num=0 not accepted by promote-slice.</p>
+        </section>
+    </article>
+</body>
+</html>

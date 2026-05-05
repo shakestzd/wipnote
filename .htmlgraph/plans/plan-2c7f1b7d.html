@@ -1,15 +1,13 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="htmlgraph-version" content="1.0">
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="htmlgraph-version" content="1.0"/>
 <title>Plan: Agent Teams plugin integration</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,300;0,8..60,400;0,8..60,500;1,8..60,300;1,8..60,400&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/github-dark.min.css" id="hljs-dark">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/github.min.css" id="hljs-light" disabled>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin=""/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&amp;family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&amp;family=Source+Serif+4:ital,opsz,wght@0,8..60,300;0,8..60,400;0,8..60,500;1,8..60,300;1,8..60,400&amp;display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/github-dark.min.css" id="hljs-dark"/>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/github.min.css" id="hljs-light" disabled=""/>
 <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/highlight.min.js"></script>
 <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/languages/go.min.js"></script>
 <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/languages/yaml.min.js"></script>
@@ -392,7 +390,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
 <nav class="plan-sidebar" id="plan-sidebar">
   <div class="brand-row">
     <a href="/" class="brand">HtmlGraph</a>
-    <button class="sidebar-toggle" id="left-sidebar-toggle" title="Collapse sidebar" aria-label="Toggle left sidebar">&#8249;</button>
+    <button class="sidebar-toggle" id="left-sidebar-toggle" title="Collapse sidebar" aria-label="Toggle left sidebar">‹</button>
   </div>
   <a href="#design" class="nav-link active" data-spy="design" data-initial="D">Design</a>
   <a href="#slices" class="nav-link" data-spy="slices" data-initial="S">Slices</a>
@@ -425,7 +423,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
   <a href="#questions" class="nav-link" data-spy="questions" data-initial="Q">Decisions</a>
   <a href="#critique" class="nav-link" data-spy="critique" data-initial="C">Critique</a>
   <a href="#feedback-summary" class="nav-link" data-spy="feedback-summary" data-initial="P">Progress</a>
-  <a href="#chat-panel" class="nav-link" data-spy="chat-panel" data-initial="&#9825;">Chat</a>
+  <a href="#chat-panel" class="nav-link" data-spy="chat-panel" data-initial="♡">Chat</a>
 </nav>
 <div class="plan-layout">
 <div class="plan-content">
@@ -434,7 +432,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
 <!-- Plan Header -->
 <header class="plan-header">
   <h1>Plan: Agent Teams plugin integration</h1>
-  <p style="color:var(--text-dim)">Completes the Agent Teams plugin integration begun in plan-14772c97 (finalized 2026-04-11). That earlier plan was finalized but never formally promoted; in the interim, four of its six slices shipped directly to code without formal feature tracking: S2 (EventTaskCreated constant in `internal/models/enums.go:142`), S3 (step-text teammate attribution in `internal/hooks/task_tracking.go:33`), S4 (opt-in quality gate in `internal/hooks/task_completion_gate.go`), S5 (orchestrator-skill Agent Teams section at SKILL.md:895). One slice (S1 — CloudEvent + schema + persistence) is half-shipped: the CloudEvent parse side captures teammate fields but the DB write side does not, leaving `agent_events.teammate_name/team_name` NULL on every row. One (S6 — AGENTS.md + CLAUDE.md docs) is minimally shipped. This plan closes the remaining gaps: (a) slice-2 finishes S1's DB write side via `AgentEvent` model fields + `InsertEvent` columns + the missing `idle_reason` schema migration + the `recordSimpleEvent` handler trap fix, (b) slice-1 adds zero-friction auto-injection of `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` in HtmlGraph launchers (net-new work, not in plan-14772c97), (c) slice-3 corrects CLAUDE.md and the orchestrator skill to reflect auto-injection and document v2.1.64+ JSON hook control payloads. Supersedes plan-14772c97; the older plan's track `trk-6456fe7d` is orphaned (no canonical file in `.htmlgraph/tracks/`) and is replaced by `trk-8f9bc323`.
+  <p style="color:var(--text-dim)">Completes the Agent Teams plugin integration begun in plan-14772c97 (finalized 2026-04-11). That earlier plan was finalized but never formally promoted; in the interim, four of its six slices shipped directly to code without formal feature tracking: S2 (EventTaskCreated constant in `internal/models/enums.go:142`), S3 (step-text teammate attribution in `internal/hooks/task_tracking.go:33`), S4 (opt-in quality gate in `internal/hooks/task_completion_gate.go`), S5 (orchestrator-skill Agent Teams section at SKILL.md:895). One slice (S1 — CloudEvent + schema + persistence) is half-shipped: the CloudEvent parse side captures teammate fields but the DB write side does not, leaving `agent_events.teammate_name/team_name` NULL on every row. One (S6 — AGENTS.md + CLAUDE.md docs) is minimally shipped. This plan closes the remaining gaps: (a) slice-2 finishes S1&#39;s DB write side via `AgentEvent` model fields + `InsertEvent` columns + the missing `idle_reason` schema migration + the `recordSimpleEvent` handler trap fix, (b) slice-1 adds zero-friction auto-injection of `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` in HtmlGraph launchers (net-new work, not in plan-14772c97), (c) slice-3 corrects CLAUDE.md and the orchestrator skill to reflect auto-injection and document v2.1.64+ JSON hook control payloads. Supersedes plan-14772c97; the older plan&#39;s track `trk-6456fe7d` is orphaned (no canonical file in `.htmlgraph/tracks/`) and is replaced by `trk-8f9bc323`.
 </p>
   <div class="meta">
     <span class="badge badge-pending">Draft</span>
@@ -442,7 +440,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
   </div>
 </header>
 <button id="themeToggle" style="position:fixed;top:16px;right:16px;z-index:100;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:6px 12px;color:var(--text);font-family:var(--mono);font-size:0.75rem;cursor:pointer;">
-  &#9728; Light
+  ☀ Light
 </button>
 
 <!-- Related Work -->
@@ -451,7 +449,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
 <!-- Plan YAML source (collapsible) -->
 <details class="yaml-viewer" id="yaml-viewer">
     <summary>View Plan YAML</summary>
-    <pre><code class="language-yaml" id="yaml-content">Loading&#x2026;</code></pre>
+    <pre><code class="language-yaml" id="yaml-content">Loading…</code></pre>
 </details>
 
 <!-- ZONE 1: Dependency Graph -->
@@ -470,37 +468,37 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
 <!-- ZONE 2: Interactive Sections -->
 
 <!-- Design -->
-<details id="design" class="section-card" open data-phase="design" data-status="pending">
+<details id="design" class="section-card" open="" data-phase="design" data-status="pending">
   <summary><span>Design</span><span class="badge badge-pending" data-badge-for="design">Pending</span></summary>
   <div class="section-body">
     <h4>Problem</h4>
-<div data-markdown>Agent Teams plugin integration began in plan-14772c97 (April 2026) but was never formally promoted to features. Four of its six slices shipped to code informally and remain in production: the `EventTaskCreated` event-type constant, step-text teammate attribution in HTML, the opt-in quality gate on TaskCompleted, and the orchestrator skill&#39;s Agent Teams vs Subagents section. Two gaps remain. (1) **Persistence gap** — slice 1&#39;s DB write side: `AgentEvent` struct lacks `TeammateName`/`TeamName`/`IdleReason` fields, `InsertEvent` doesn&#39;t write them, the `idle_reason` column is missing from schema entirely (S1 specified `teammate_name`/`team_name` but not `idle_reason`), and `TeammateIdle` uses the shared `recordSimpleEvent` helper that doesn&#39;t propagate teammate fields. Result: dashboard queries that filter or aggregate by teammate return NULL on every row. (2) **Manual env-var setup** — users have to remember `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` per-shell or in `.claude/settings.json`, and the orchestrator skill still says &#34;set it manually&#34; because no auto-injection exists. Plus CLAUDE.md&#39;s brief monitoring note has accumulated drift, and v2.1.64+ JSON hook control payload (`{&#34;continue&#34;: false, &#34;stopReason&#34;: &#34;...&#34;}`) is undocumented.
+<div data-markdown="">Agent Teams plugin integration began in plan-14772c97 (April 2026) but was never formally promoted to features. Four of its six slices shipped to code informally and remain in production: the `EventTaskCreated` event-type constant, step-text teammate attribution in HTML, the opt-in quality gate on TaskCompleted, and the orchestrator skill&#39;s Agent Teams vs Subagents section. Two gaps remain. (1) **Persistence gap** — slice 1&#39;s DB write side: `AgentEvent` struct lacks `TeammateName`/`TeamName`/`IdleReason` fields, `InsertEvent` doesn&#39;t write them, the `idle_reason` column is missing from schema entirely (S1 specified `teammate_name`/`team_name` but not `idle_reason`), and `TeammateIdle` uses the shared `recordSimpleEvent` helper that doesn&#39;t propagate teammate fields. Result: dashboard queries that filter or aggregate by teammate return NULL on every row. (2) **Manual env-var setup** — users have to remember `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` per-shell or in `.claude/settings.json`, and the orchestrator skill still says &#34;set it manually&#34; because no auto-injection exists. Plus CLAUDE.md&#39;s brief monitoring note has accumulated drift, and v2.1.64+ JSON hook control payload (`{&#34;continue&#34;: false, &#34;stopReason&#34;: &#34;...&#34;}`) is undocumented.
 </div>
 <h4>Goals</h4>
 <ol>
-<li data-markdown>**Complete the persistence gap (was plan-14772c97 S1)** — `agent_events.teammate_name`, `team_name`, and `idle_reason` populated on every team-hook write. Closes the half-shipped state where parse-side captures the values but DB-side discards them.</li>
-<li data-markdown>**Zero-friction enablement (net-new)** — `htmlgraph claude` / `htmlgraph yolo` / `htmlgraph dev` auto-inject `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`. Non-empty user-set env var (any value, including `0`) takes precedence; empty-string value treated as unset and overwritten.</li>
-<li data-markdown>**Cost transparency** — first-run stderr notice + `.htmlgraph/AGENT_TEAMS_DEFAULT_v1` stamp file warns of Claude Code&#39;s ~7× token cost for teams. Future default flips don&#39;t break existing users.</li>
-<li data-markdown>**Opt-out path** — `.htmlgraph/config.json` `agent_teams.enabled: false` disables auto-injection for hermetic isolation or debugging.</li>
-<li data-markdown>**Accurate documentation (completes plan-14772c97 S6)** — CLAUDE.md and orchestrator skill flipped from &#39;set manually&#39; to reflect auto-injection; document v2.1.64+ JSON control payload availability (informational — implementation deferred to a future plan); single-source via `docs/agent-teams.md` referenced from both files to prevent drift.</li>
+<li data-markdown="">**Complete the persistence gap (was plan-14772c97 S1)** — `agent_events.teammate_name`, `team_name`, and `idle_reason` populated on every team-hook write. Closes the half-shipped state where parse-side captures the values but DB-side discards them.</li>
+<li data-markdown="">**Zero-friction enablement (net-new)** — `htmlgraph claude` / `htmlgraph yolo` / `htmlgraph dev` auto-inject `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`. Non-empty user-set env var (any value, including `0`) takes precedence; empty-string value treated as unset and overwritten.</li>
+<li data-markdown="">**Cost transparency** — first-run stderr notice + `.htmlgraph/AGENT_TEAMS_DEFAULT_v1` stamp file warns of Claude Code&#39;s ~7× token cost for teams. Future default flips don&#39;t break existing users.</li>
+<li data-markdown="">**Opt-out path** — `.htmlgraph/config.json` `agent_teams.enabled: false` disables auto-injection for hermetic isolation or debugging.</li>
+<li data-markdown="">**Accurate documentation (completes plan-14772c97 S6)** — CLAUDE.md and orchestrator skill flipped from &#39;set manually&#39; to reflect auto-injection; document v2.1.64+ JSON control payload availability (informational — implementation deferred to a future plan); single-source via `docs/agent-teams.md` referenced from both files to prevent drift.</li>
 </ol>
 <h4>Constraints</h4>
 <ul>
-<li data-markdown>Cross-harness scope: `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` is a Claude-only env var. The Codex CLI and Gemini CLI launchers do NOT need the change — agent teams are a Claude Code feature only. Confirmed by research: codex.go and gemini.go don&#39;t share `buildClaudeLaunchEnv`.</li>
-<li data-markdown>Backward compat: existing slice/feature step prefix attribution via `addTaskStep` continues to work; this plan adds DB-side persistence without changing the HTML write path.</li>
-<li data-markdown>User-set env var precedence: `addIfUnset` already handles this correctly — only sets the env var if the user hasn&#39;t. No special logic needed.</li>
-<li data-markdown>Default-on opt-in: `agent_teams.enabled` defaults to true (auto-injection on). Opt-out is explicit `false` in config. Matches the user&#39;s stated intent (&#39;we should natively set it because that improves orchestration&#39;).</li>
-<li data-markdown>**Non-goal: JSON control payload IMPLEMENTATION** — current `BlockExit2Error` + `os.Exit(2)` mechanism is correct on all Claude Code versions and works for the existing `block_task_completion_on_quality_failure` gate. Adding `{&#34;continue&#34;: false, &#34;stopReason&#34;: &#34;...&#34;}` JSON support requires refactoring `runHookNamed`&#39;s blocking dispatch. Out of scope; only documented in CLAUDE.md as a v2.1.64+ feature available for future use.</li>
-<li data-markdown>**Non-goal: programmatic team creation** — Claude Code docs confirm teams are spawned via natural language only; no API exists. HtmlGraph&#39;s role is observation (hooks) and coordination (gates), not dispatch.</li>
-<li data-markdown>**Non-goal: backfill of historical agent_events rows** — pre-existing rows with NULL teammate_name/team_name remain NULL. New rows after this plan ships have the values populated. A separate plan can address backfill if needed.</li>
-<li data-markdown>**Non-goal: cross-harness teammate equivalents** — agent teams is Claude-only; no story for Codex/Gemini &#39;team&#39; equivalents. Filed separately if those harnesses gain similar features.</li>
-<li data-markdown>All three slices must ship in the same release to prevent documentation drift — slice 3 documents what slices 1 and 2 implement; shipping them out of sync creates a window where CLAUDE.md says &#39;set the env var manually&#39; while the launcher already auto-injects it (sonnet critic F1).</li>
-<li data-markdown>**Supersedes plan-14772c97** (finalized 2026-04-11). That plan&#39;s track `trk-6456fe7d` is orphaned (no canonical file in `.htmlgraph/tracks/`). The four shipped slices (S2 EventTaskCreated, S3 step-text attribution, S4 quality gate, S5 orchestrator skill section) are foundational and remain in production. This plan&#39;s slice-2 completes the half-shipped S1 (persistence). Slice-3 completes the partially-shipped S6 (CLAUDE.md docs). Slice-1 (auto-injection) is net-new — not in plan-14772c97.</li>
-<li data-markdown>**Track consolidation** — agent-teams work lives on `trk-8f9bc323` exclusively. The orphaned `trk-6456fe7d` reference in plan-14772c97 has no backing file and can be ignored. After this plan ships, plan-14772c97 is marked `completed` (its work either shipped to code or absorbed by this plan&#39;s slices).</li>
+<li data-markdown="">Cross-harness scope: `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` is a Claude-only env var. The Codex CLI and Gemini CLI launchers do NOT need the change — agent teams are a Claude Code feature only. Confirmed by research: codex.go and gemini.go don&#39;t share `buildClaudeLaunchEnv`.</li>
+<li data-markdown="">Backward compat: existing slice/feature step prefix attribution via `addTaskStep` continues to work; this plan adds DB-side persistence without changing the HTML write path.</li>
+<li data-markdown="">User-set env var precedence: `addIfUnset` already handles this correctly — only sets the env var if the user hasn&#39;t. No special logic needed.</li>
+<li data-markdown="">Default-on opt-in: `agent_teams.enabled` defaults to true (auto-injection on). Opt-out is explicit `false` in config. Matches the user&#39;s stated intent (&#39;we should natively set it because that improves orchestration&#39;).</li>
+<li data-markdown="">**Non-goal: JSON control payload IMPLEMENTATION** — current `BlockExit2Error` + `os.Exit(2)` mechanism is correct on all Claude Code versions and works for the existing `block_task_completion_on_quality_failure` gate. Adding `{&#34;continue&#34;: false, &#34;stopReason&#34;: &#34;...&#34;}` JSON support requires refactoring `runHookNamed`&#39;s blocking dispatch. Out of scope; only documented in CLAUDE.md as a v2.1.64+ feature available for future use.</li>
+<li data-markdown="">**Non-goal: programmatic team creation** — Claude Code docs confirm teams are spawned via natural language only; no API exists. HtmlGraph&#39;s role is observation (hooks) and coordination (gates), not dispatch.</li>
+<li data-markdown="">**Non-goal: backfill of historical agent_events rows** — pre-existing rows with NULL teammate_name/team_name remain NULL. New rows after this plan ships have the values populated. A separate plan can address backfill if needed.</li>
+<li data-markdown="">**Non-goal: cross-harness teammate equivalents** — agent teams is Claude-only; no story for Codex/Gemini &#39;team&#39; equivalents. Filed separately if those harnesses gain similar features.</li>
+<li data-markdown="">All three slices must ship in the same release to prevent documentation drift — slice 3 documents what slices 1 and 2 implement; shipping them out of sync creates a window where CLAUDE.md says &#39;set the env var manually&#39; while the launcher already auto-injects it (sonnet critic F1).</li>
+<li data-markdown="">**Supersedes plan-14772c97** (finalized 2026-04-11). That plan&#39;s track `trk-6456fe7d` is orphaned (no canonical file in `.htmlgraph/tracks/`). The four shipped slices (S2 EventTaskCreated, S3 step-text attribution, S4 quality gate, S5 orchestrator skill section) are foundational and remain in production. This plan&#39;s slice-2 completes the half-shipped S1 (persistence). Slice-3 completes the partially-shipped S6 (CLAUDE.md docs). Slice-1 (auto-injection) is net-new — not in plan-14772c97.</li>
+<li data-markdown="">**Track consolidation** — agent-teams work lives on `trk-8f9bc323` exclusively. The orphaned `trk-6456fe7d` reference in plan-14772c97 has no backing file and can be ignored. After this plan ships, plan-14772c97 is marked `completed` (its work either shipped to code or absorbed by this plan&#39;s slices).</li>
 </ul>
 
     <div class="approval-row">
-      <label><input type="checkbox" data-section="design" data-action="approve"> Approve design</label>
+      <label><input type="checkbox" data-section="design" data-action="approve" checked="checked"/> Approve design</label>
       <textarea data-section="design" data-comment-for="design" placeholder="Comments on design decisions..."></textarea>
     </div>
   </div>
@@ -511,7 +509,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
 
 
 <!-- Slices -->
-<details id="slices" class="section-card" open data-phase="slices" data-status="pending">
+<details id="slices" class="section-card" open="" data-phase="slices" data-status="pending">
   <summary><span>Slices</span><span class="badge badge-pending" data-badge-for="slices">Pending</span></summary>
   <div class="section-body">
     <details class="slice-card" id="slice-1" data-slice="1" data-slice-name="slice-1" data-status="pending" data-approval="pending">
@@ -532,16 +530,16 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
         <span class="slice-actions" onclick="event.stopPropagation()">
           <span class="approval-segmented" role="group" aria-label="Approval action">
             <label class="seg-btn seg-approve" title="Approve">
-              <input type="radio" name="slice-1-approval" value="approved" data-section="slice-1" data-action="approve" aria-label="Approve slice 1">
-              &#10003;
+              <input type="radio" name="slice-1-approval" value="approved" data-section="slice-1" data-action="approve" aria-label="Approve slice 1" checked="checked"/>
+              ✓
             </label>
             <label class="seg-btn seg-changes" title="Request changes">
-              <input type="radio" name="slice-1-approval" value="changes_requested" data-section="slice-1" data-action="approve" aria-label="Request changes for slice 1">
-              &#8635;
+              <input type="radio" name="slice-1-approval" value="changes_requested" data-section="slice-1" data-action="approve" aria-label="Request changes for slice 1"/>
+              ↻
             </label>
             <label class="seg-btn seg-reject" title="Reject">
-              <input type="radio" name="slice-1-approval" value="rejected" data-section="slice-1" data-action="approve" aria-label="Reject slice 1">
-              &#10005;
+              <input type="radio" name="slice-1-approval" value="rejected" data-section="slice-1" data-action="approve" aria-label="Reject slice 1"/>
+              ✕
             </label>
           </span>
         </span>
@@ -557,7 +555,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
         <div class="slice-field-label">What</div>
         <div class="slice-field-value">
           
-          <input type="checkbox" id="slice-1-what-reveal" class="reveal-toggle">
+          <input type="checkbox" id="slice-1-what-reveal" class="reveal-toggle"/>
           <div class="markdown-block reveal-content serif-prose"><p>Auto-inject <code>CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1</code> into the env of the spawned <code>claude</code> subprocess in <code>htmlgraph claude</code>, <code>htmlgraph yolo</code>, <code>htmlgraph dev</code>. Honor user-set env var (any value, including <code>0</code>) as override. Add <code>.htmlgraph/config.json</code> opt-out toggle.</p>
 <p><strong>Implementation:</strong></p>
 <ol>
@@ -590,7 +588,7 @@ The <code>*bool</code> pointer is the established Go idiom for &#34;absent means
         <div class="slice-field-label">Why</div>
         <div class="slice-field-value">
           
-          <input type="checkbox" id="slice-1-why-reveal" class="reveal-toggle">
+          <input type="checkbox" id="slice-1-why-reveal" class="reveal-toggle"/>
           <div class="markdown-block reveal-content serif-prose"><p>The user&#39;s proposal: &#34;we should natively set CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 because that improves the way htmlgraph orchestrates and manages the agents.&#34; Auto-injection eliminates the manual env-var setup step that today users have to remember per-shell or add to <code>.claude/settings.json</code>. The opt-out toggle provides a clean disable path for users who want hermetic isolation or are debugging team behavior. User-set env var precedence (already handled by <code>addIfUnset</code>) honors explicit user choice — including the value <code>0</code> to disable teams without touching config.</p>
 </div>
           <label for="slice-1-why-reveal" class="reveal-label">Show full description</label>
@@ -621,22 +619,22 @@ The <code>*bool</code> pointer is the established Go idiom for &#34;absent means
         <div class="test-strategy">
           
           <div class="test-group" data-kind="unit">
-            <span class="test-chip">UNIT &middot; 1</span>
+            <span class="test-chip">UNIT · 1</span>
             <ul><li></li></ul>
           </div>
           
           <div class="test-group" data-kind="other">
-            <span class="test-chip">OTHER &middot; 13</span>
-            <ul><li>- TestBuildClaudeLaunchEnv_AgentTeamsAutoInjected — no parent env set, no config; assert `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` in result</li><li>- TestBuildClaudeLaunchEnv_AgentTeamsUserOverride — parent env set to `0`; assert `=0` preserved</li><li>- TestBuildClaudeLaunchEnv_AgentTeamsUserOverrideOne — parent env set to `1`; assert `=1` preserved (not overwritten)</li><li>- TestBuildClaudeLaunchEnv_AgentTeamsConfigDisabled — config has `agent_teams.enabled: false`; assert env var NOT in result</li><li>- TestBuildClaudeLaunchEnv_AgentTeamsConfigEnabled — config has `agent_teams.enabled: true`; assert env var present</li><li>- TestBuildClaudeLaunchEnv_AgentTeamsConfigAbsentEnabled — config has `agent_teams: {}`; assert env var present (default-on)</li><li>- TestBuildClaudeLaunchEnv_AgentTeamsNoConfigFile — no config.json at all; assert env var present</li><li>- TestIsAgentTeamsEnabled_DefaultTrue — empty config returns true</li><li>- TestIsAgentTeamsEnabled_ExplicitFalse — explicit false returns false</li><li>- TestBuildClaudeLaunchEnv_AgentTeamsEmptyUserValue — parent env has `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=`; assert result has `=1` (empty treated as unset; documented behavior)</li><li>- TestVersionStamp_FirstRunWritesStamp — no stamp file present; first call to the helper writes the stamp and returns true (notice should fire)</li><li>- TestVersionStamp_StampPresentNoNotice — stamp file present; second call returns false (notice suppressed)</li><li>- TestConfigEnvPrecedence_ConfigFalseEnvSet — `agent_teams.enabled: false` in config &#43; `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` in env; assert env value passes through (config does NOT unset)</li></ul>
+            <span class="test-chip">OTHER · 13</span>
+            <ul><li>- TestBuildClaudeLaunchEnv_AgentTeamsAutoInjected — no parent env set, no config; assert `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` in result</li><li>- TestBuildClaudeLaunchEnv_AgentTeamsUserOverride — parent env set to `0`; assert `=0` preserved</li><li>- TestBuildClaudeLaunchEnv_AgentTeamsUserOverrideOne — parent env set to `1`; assert `=1` preserved (not overwritten)</li><li>- TestBuildClaudeLaunchEnv_AgentTeamsConfigDisabled — config has `agent_teams.enabled: false`; assert env var NOT in result</li><li>- TestBuildClaudeLaunchEnv_AgentTeamsConfigEnabled — config has `agent_teams.enabled: true`; assert env var present</li><li>- TestBuildClaudeLaunchEnv_AgentTeamsConfigAbsentEnabled — config has `agent_teams: {}`; assert env var present (default-on)</li><li>- TestBuildClaudeLaunchEnv_AgentTeamsNoConfigFile — no config.json at all; assert env var present</li><li>- TestIsAgentTeamsEnabled_DefaultTrue — empty config returns true</li><li>- TestIsAgentTeamsEnabled_ExplicitFalse — explicit false returns false</li><li>- TestBuildClaudeLaunchEnv_AgentTeamsEmptyUserValue — parent env has `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=`; assert result has `=1` (empty treated as unset; documented behavior)</li><li>- TestVersionStamp_FirstRunWritesStamp — no stamp file present; first call to the helper writes the stamp and returns true (notice should fire)</li><li>- TestVersionStamp_StampPresentNoNotice — stamp file present; second call returns false (notice suppressed)</li><li>- TestConfigEnvPrecedence_ConfigFalseEnvSet — `agent_teams.enabled: false` in config + `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` in env; assert env value passes through (config does NOT unset)</li></ul>
           </div>
           
           <div class="test-group" data-kind="integration">
-            <span class="test-chip">INTEGRATION &middot; 1</span>
+            <span class="test-chip">INTEGRATION · 1</span>
             <ul><li>TestLauncher_PassesAgentTeamsEnv — spawn a stub claude binary that prints its env; assert variable present in spawned env</li></ul>
           </div>
           
           <div class="test-group" data-kind="regression">
-            <span class="test-chip">REGRESSION &middot; 1</span>
+            <span class="test-chip">REGRESSION · 1</span>
             <ul><li>existing `claude_env_test.go` (`TestBuildClaudeLaunchEnv_ExplicitOptOut`, `TestBuildClaudeLaunchEnv_WithCollector`) pass unchanged</li></ul>
           </div>
           
@@ -660,7 +658,7 @@ The <code>*bool</code> pointer is the established Go idiom for &#34;absent means
         <div class="critic-revision">
           <span class="badge badge-blocked critic-revision-badge">HIGH</span>
           <span class="critic-revision-source">opus</span>
-          <span class="critic-revision-summary">Default-on cost surprise (~7x tokens for every existing project on upgrade) — adopted version-stamp recommendation: first-run stderr notice &#43; .htmlgraph/AGENT_TEAMS_DEFAULT_v1 stamp file enables future default flips without breaking users.</span>
+          <span class="critic-revision-summary">Default-on cost surprise (~7x tokens for every existing project on upgrade) — adopted version-stamp recommendation: first-run stderr notice + .htmlgraph/AGENT_TEAMS_DEFAULT_v1 stamp file enables future default flips without breaking users.</span>
         </div>
         
         <div class="critic-revision">
@@ -672,13 +670,13 @@ The <code>*bool</code> pointer is the established Go idiom for &#34;absent means
         <div class="critic-revision">
           <span class="badge badge-revision critic-revision-badge">MEDIUM</span>
           <span class="critic-revision-source">opus</span>
-          <span class="critic-revision-summary">Config-vs-env precedence resolution — documented: agent_teams.enabled=false disables auto-injection only; explicit parent env var still passes through. To fully disable, unset env AND set config flag. Documented in stderr notice &#43; CLAUDE.md.</span>
+          <span class="critic-revision-summary">Config-vs-env precedence resolution — documented: agent_teams.enabled=false disables auto-injection only; explicit parent env var still passes through. To fully disable, unset env AND set config flag. Documented in stderr notice + CLAUDE.md.</span>
         </div>
         
         <div class="critic-revision">
           <span class="badge badge-pending critic-revision-badge">LOW</span>
           <span class="critic-revision-source">sonnet</span>
-          <span class="critic-revision-summary">Slice 1 effort=S undersells scope (config read &#43; version-stamp logic &#43; integration test). Effort kept S because the integration test is dropped — helper-level coverage is sufficient since claude/yolo/dev all funnel through buildClaudeLaunchEnv.</span>
+          <span class="critic-revision-summary">Slice 1 effort=S undersells scope (config read + version-stamp logic + integration test). Effort kept S because the integration test is dropped — helper-level coverage is sufficient since claude/yolo/dev all funnel through buildClaudeLaunchEnv.</span>
         </div>
         
       </div>
@@ -692,18 +690,18 @@ The <code>*bool</code> pointer is the established Go idiom for &#34;absent means
         
         <div class="question-block slice-question-block">
           <p>What&#39;s the default behavior when `.htmlgraph/config.json` lacks an `agent_teams` field entirely?</p>
-          <p class="question-desc">Three options. The user&#39;s stated intent (&#34;native enablement improves orchestration&#34;) favors default-on. But default-on requires every existing project to opt out if they don&#39;t want teams. Both opus and sonnet flagged that auto-enabling teams ships a ~7x token cost increase to every existing project on routine version bump without notice. Version-stamp adds first-run stderr notice &#43; a stamp file enabling future default flips without breaking existing users. Trades 5 lines of code for cost transparency. Recommended.
+          <p class="question-desc">Three options. The user&#39;s stated intent (&#34;native enablement improves orchestration&#34;) favors default-on. But default-on requires every existing project to opt out if they don&#39;t want teams. Both opus and sonnet flagged that auto-enabling teams ships a ~7x token cost increase to every existing project on routine version bump without notice. Version-stamp adds first-run stderr notice + a stamp file enabling future default flips without breaking existing users. Trades 5 lines of code for cost transparency. Recommended.
 </p>
           
             
             
             
             
-            <label><input type="radio" name="slice-1-question-q-config-default-policy" data-section="slice-1-question-q-config-default-policy" data-action="answer" value="default-on"> default-on — absent config or absent `agent_teams` field defaults to enabled. Matches user intent. Existing projects automatically benefit.</label>
+            <label><input type="radio" name="slice-1-question-q-config-default-policy" data-section="slice-1-question-q-config-default-policy" data-action="answer" value="default-on"/> default-on — absent config or absent `agent_teams` field defaults to enabled. Matches user intent. Existing projects automatically benefit.</label>
             
-            <label><input type="radio" name="slice-1-question-q-config-default-policy" data-section="slice-1-question-q-config-default-policy" data-action="answer" value="default-off-explicit-opt-in"> default-off-explicit-opt-in — require `agent_teams.enabled: true` to enable. Conservative; does not change behavior for users who don&#39;t update config.</label>
+            <label><input type="radio" name="slice-1-question-q-config-default-policy" data-section="slice-1-question-q-config-default-policy" data-action="answer" value="default-off-explicit-opt-in"/> default-off-explicit-opt-in — require `agent_teams.enabled: true` to enable. Conservative; does not change behavior for users who don&#39;t update config.</label>
             
-            <label class="recommended"><input type="radio" name="slice-1-question-q-config-default-policy" data-section="slice-1-question-q-config-default-policy" data-action="answer" value="default-on-with-version-stamp"> default-on-with-version-stamp — default-on, but write a `.htmlgraph/AGENT_TEAMS_DEFAULT_v1` stamp the first time the launcher runs; later versions can flip default-off if needed without breaking existing users. Most defensible across version changes. <span class="rec-tag">recommended</span></label>
+            <label class="recommended"><input type="radio" name="slice-1-question-q-config-default-policy" data-section="slice-1-question-q-config-default-policy" data-action="answer" value="default-on-with-version-stamp"/> default-on-with-version-stamp — default-on, but write a `.htmlgraph/AGENT_TEAMS_DEFAULT_v1` stamp the first time the launcher runs; later versions can flip default-off if needed without breaking existing users. Most defensible across version changes. <span class="rec-tag">recommended</span></label>
             
           
         </div>
@@ -717,11 +715,11 @@ The <code>*bool</code> pointer is the established Go idiom for &#34;absent means
             
             
             
-            <label><input type="radio" name="slice-1-question-q-config-struct-location" data-section="slice-1-question-q-config-struct-location" data-action="answer" value="extend-existing-task-completion-gate"> extend-existing-task-completion-gate — extend `taskCompletionConfig` in `internal/hooks/task_completion_gate.go` to a top-level `htmlgraphConfig` with both fields. Single config file, single read. Minimal diff.</label>
+            <label><input type="radio" name="slice-1-question-q-config-struct-location" data-section="slice-1-question-q-config-struct-location" data-action="answer" value="extend-existing-task-completion-gate"/> extend-existing-task-completion-gate — extend `taskCompletionConfig` in `internal/hooks/task_completion_gate.go` to a top-level `htmlgraphConfig` with both fields. Single config file, single read. Minimal diff.</label>
             
-            <label><input type="radio" name="slice-1-question-q-config-struct-location" data-section="slice-1-question-q-config-struct-location" data-action="answer" value="new-config-package"> new-config-package — new `internal/config/agent_teams.go` with its own struct &#43; reader. Cleaner separation but introduces a new package for a small concern.</label>
+            <label><input type="radio" name="slice-1-question-q-config-struct-location" data-section="slice-1-question-q-config-struct-location" data-action="answer" value="new-config-package"/> new-config-package — new `internal/config/agent_teams.go` with its own struct + reader. Cleaner separation but introduces a new package for a small concern.</label>
             
-            <label class="recommended"><input type="radio" name="slice-1-question-q-config-struct-location" data-section="slice-1-question-q-config-struct-location" data-action="answer" value="launcher-local"> launcher-local — define the struct in `cmd/htmlgraph/claude_env.go` since the launcher is the only consumer. Avoids polluting the hooks package with launcher concerns. Promote to `internal/config/` if a second consumer emerges. **Recommended after critic review.** <span class="rec-tag">recommended</span></label>
+            <label class="recommended"><input type="radio" name="slice-1-question-q-config-struct-location" data-section="slice-1-question-q-config-struct-location" data-action="answer" value="launcher-local"/> launcher-local — define the struct in `cmd/htmlgraph/claude_env.go` since the launcher is the only consumer. Avoids polluting the hooks package with launcher concerns. Promote to `internal/config/` if a second consumer emerges. **Recommended after critic review.** <span class="rec-tag">recommended</span></label>
             
           
         </div>
@@ -758,16 +756,16 @@ The <code>*bool</code> pointer is the established Go idiom for &#34;absent means
         <span class="slice-actions" onclick="event.stopPropagation()">
           <span class="approval-segmented" role="group" aria-label="Approval action">
             <label class="seg-btn seg-approve" title="Approve">
-              <input type="radio" name="slice-2-approval" value="approved" data-section="slice-2" data-action="approve" aria-label="Approve slice 2">
-              &#10003;
+              <input type="radio" name="slice-2-approval" value="approved" data-section="slice-2" data-action="approve" aria-label="Approve slice 2" checked="checked"/>
+              ✓
             </label>
             <label class="seg-btn seg-changes" title="Request changes">
-              <input type="radio" name="slice-2-approval" value="changes_requested" data-section="slice-2" data-action="approve" aria-label="Request changes for slice 2">
-              &#8635;
+              <input type="radio" name="slice-2-approval" value="changes_requested" data-section="slice-2" data-action="approve" aria-label="Request changes for slice 2"/>
+              ↻
             </label>
             <label class="seg-btn seg-reject" title="Reject">
-              <input type="radio" name="slice-2-approval" value="rejected" data-section="slice-2" data-action="approve" aria-label="Reject slice 2">
-              &#10005;
+              <input type="radio" name="slice-2-approval" value="rejected" data-section="slice-2" data-action="approve" aria-label="Reject slice 2"/>
+              ✕
             </label>
           </span>
         </span>
@@ -783,7 +781,7 @@ The <code>*bool</code> pointer is the established Go idiom for &#34;absent means
         <div class="slice-field-label">What</div>
         <div class="slice-field-value">
           
-          <input type="checkbox" id="slice-2-what-reveal" class="reveal-toggle">
+          <input type="checkbox" id="slice-2-what-reveal" class="reveal-toggle"/>
           <div class="markdown-block reveal-content serif-prose"><p>Fix the persistence gap: <code>agent_events.teammate_name</code> and <code>team_name</code> columns exist (added by migrations in <code>internal/db/schema.go:123,128</code>) but <code>InsertEvent</code> never writes them. Result: SQL queries against these columns return NULL for every row. Add the corresponding fields to <code>AgentEvent</code> model, extend the INSERT statement, and verify hook handlers populate them on construction.</p>
 <p><strong>Implementation:</strong></p>
 <ol>
@@ -816,7 +814,7 @@ Pick (a) unless cascade risk in (b) is non-trivial. Document the choice in the i
         <div class="slice-field-label">Why</div>
         <div class="slice-field-value">
           
-          <input type="checkbox" id="slice-2-why-reveal" class="reveal-toggle">
+          <input type="checkbox" id="slice-2-why-reveal" class="reveal-toggle"/>
           <div class="markdown-block reveal-content serif-prose"><p>CLAUDE.md claims teammate identity is captured automatically. The research confirmed that step-prefix attribution in HTML works (via <code>addTaskStep</code>), but the DB-side claim is partially false — <code>agent_events.teammate_name</code> and <code>team_name</code> are NULL on every row because <code>InsertEvent</code> doesn&#39;t include them. Closing this gap turns the dashboard&#39;s per-teammate views (and any future analytics-by-teammate queries) from impossible-by-design to working. Without this fix, slice 1&#39;s auto-enablement would expand the surface of broken-by-omission behavior. Bundling the bug fix with the enablement plan ensures a coherent shipped behavior: when teams are auto-enabled, identity is also auto-persisted.</p>
 </div>
           <label for="slice-2-why-reveal" class="reveal-label">Show full description</label>
@@ -833,7 +831,7 @@ Pick (a) unless cascade risk in (b) is non-trivial. Document the choice in the i
       
       <div class="slice-field">
         <div class="slice-field-label">Done when</div>
-        <ul class="slice-done-list slice-done-list--grid"><li>`AgentEvent` struct has `TeammateName`, `TeamName`, `IdleReason` fields with `json:&#34;...,omitempty&#34;` tags</li><li>**New schema migration**: idempotent ALTER TABLE adds `idle_reason TEXT` to `agent_events` (mirroring teammate_name/team_name migrations at schema.go:123-132)</li><li>`InsertEvent` writes all three columns via `nullStr()` (NULL for empty strings, matching the existing convention for nullable text columns)</li><li>**Three SELECT read sites updated**: `GetEvent`, `ListEventsBySession`, `ListEventsBySessionAsc` all include and scan the three new columns; per-function round-trip tests pass</li><li>**`TeammateIdle` handler refactored** off `recordSimpleEvent` (or `recordSimpleEvent` extended): `event.TeammateName`, `event.TeamName`, `event.IdleReason` now propagate to the persisted `AgentEvent`</li><li>Insert &#43; SELECT round-trip on a fresh DB: TaskCreated row with teammate_name=alice returns `alice` on `SELECT teammate_name FROM agent_events WHERE id=?`</li><li>Same round-trip for TeamName and IdleReason</li><li>Pre-existing rows with NULL teammate_name/team_name read correctly (no migration of historical data per design.non_goals)</li><li>Migration regression test: open a DB at the pre-slice-2 schema, run InsertEvent with new fields, verify no error and correct round-trip</li></ul>
+        <ul class="slice-done-list slice-done-list--grid"><li>`AgentEvent` struct has `TeammateName`, `TeamName`, `IdleReason` fields with `json:&#34;...,omitempty&#34;` tags</li><li>**New schema migration**: idempotent ALTER TABLE adds `idle_reason TEXT` to `agent_events` (mirroring teammate_name/team_name migrations at schema.go:123-132)</li><li>`InsertEvent` writes all three columns via `nullStr()` (NULL for empty strings, matching the existing convention for nullable text columns)</li><li>**Three SELECT read sites updated**: `GetEvent`, `ListEventsBySession`, `ListEventsBySessionAsc` all include and scan the three new columns; per-function round-trip tests pass</li><li>**`TeammateIdle` handler refactored** off `recordSimpleEvent` (or `recordSimpleEvent` extended): `event.TeammateName`, `event.TeamName`, `event.IdleReason` now propagate to the persisted `AgentEvent`</li><li>Insert + SELECT round-trip on a fresh DB: TaskCreated row with teammate_name=alice returns `alice` on `SELECT teammate_name FROM agent_events WHERE id=?`</li><li>Same round-trip for TeamName and IdleReason</li><li>Pre-existing rows with NULL teammate_name/team_name read correctly (no migration of historical data per design.non_goals)</li><li>Migration regression test: open a DB at the pre-slice-2 schema, run InsertEvent with new fields, verify no error and correct round-trip</li></ul>
       </div>
       
     
@@ -847,22 +845,22 @@ Pick (a) unless cascade risk in (b) is non-trivial. Document the choice in the i
         <div class="test-strategy">
           
           <div class="test-group" data-kind="unit">
-            <span class="test-chip">UNIT &middot; 1</span>
+            <span class="test-chip">UNIT · 1</span>
             <ul><li></li></ul>
           </div>
           
           <div class="test-group" data-kind="other">
-            <span class="test-chip">OTHER &middot; 13</span>
+            <span class="test-chip">OTHER · 13</span>
             <ul><li>- TestInsertEvent_TeammateName — insert event with TeammateName=foo; SELECT round-trip returns foo</li><li>- TestInsertEvent_TeamName — same for TeamName</li><li>- TestInsertEvent_IdleReason — same for IdleReason</li><li>- TestInsertEvent_AllEmptyOmitOK — insert event with all three fields empty; SELECT returns empty strings (no NULL/empty discrepancy)</li><li>- TestInsertEvent_LegacyNullRowsRoundTrip — row inserted by pre-fix INSERT (with NULL columns) is read correctly by new SELECT path</li><li>- TestSchemaMigration_IdleReasonAdded — open DB pre-migration, run schema.go init, verify `idle_reason` column exists</li><li>- TestSchemaMigration_IdleReasonIdempotent — run init twice; second call doesn&#39;t error on &#39;duplicate column&#39;</li><li>- TestInsertEvent_NullStrConvention — insert with empty TeammateName; SELECT raw column returns NULL, but Scan into Go string returns empty</li><li>- TestGetEvent_ReturnsTeammateFields — round-trip via GetEvent specifically</li><li>- TestListEventsBySession_ReturnsTeammateFields — round-trip via ListEventsBySession</li><li>- TestListEventsBySessionAsc_ReturnsTeammateFields — round-trip via ListEventsBySessionAsc</li><li>- TestTeammateIdle_PersistsIdleReason — fire TeammateIdle hook with payload containing idle_reason; assert agent_events row has the value</li><li>- TestPreSliceDB_RoundTrip — fresh DB at pre-slice-2 schema, run new code path; assert no SQL error</li></ul>
           </div>
           
           <div class="test-group" data-kind="integration">
-            <span class="test-chip">INTEGRATION &middot; 1</span>
+            <span class="test-chip">INTEGRATION · 1</span>
             <ul><li>TestTaskCreatedHook_PersistsTeammateName — fire TaskCreated hook with payload containing teammate_name=alice; assert agent_events row has teammate_name=alice via DB query</li></ul>
           </div>
           
           <div class="test-group" data-kind="regression">
-            <span class="test-chip">REGRESSION &middot; 1</span>
+            <span class="test-chip">REGRESSION · 1</span>
             <ul><li>existing `event_repo_test.go` tests pass unchanged; `missing_events_test.go` pass unchanged</li></ul>
           </div>
           
@@ -879,7 +877,7 @@ Pick (a) unless cascade risk in (b) is non-trivial. Document the choice in the i
         
         <div class="critic-revision">
           <span class="badge badge-blocked critic-revision-badge">HIGH</span>
-          <span class="critic-revision-source">opus &#43; sonnet</span>
+          <span class="critic-revision-source">opus + sonnet</span>
           <span class="critic-revision-summary">idle_reason has no DB column — added new ALTER TABLE migration mirroring the teammate_name/team_name pattern. Without it, InsertEvent crashes on un-migrated DBs.</span>
         </div>
         
@@ -925,11 +923,11 @@ Pick (a) unless cascade risk in (b) is non-trivial. Document the choice in the i
             
             
             
-            <label><input type="radio" name="slice-2-question-q-empty-vs-null" data-section="slice-2-question-q-empty-vs-null" data-action="answer" value="empty-string-as-empty"> empty-string-as-empty — write empty string (`&#39;&#39;`); SELECT returns `&#39;&#39;`. Simple Go-idiomatic round-trip. Schema columns are nullable so this also works.</label>
+            <label><input type="radio" name="slice-2-question-q-empty-vs-null" data-section="slice-2-question-q-empty-vs-null" data-action="answer" value="empty-string-as-empty"/> empty-string-as-empty — write empty string (`&#39;&#39;`); SELECT returns `&#39;&#39;`. Simple Go-idiomatic round-trip. Schema columns are nullable so this also works.</label>
             
-            <label class="recommended"><input type="radio" name="slice-2-question-q-empty-vs-null" data-section="slice-2-question-q-empty-vs-null" data-action="answer" value="empty-string-as-null"> empty-string-as-null — convert empty string to SQL NULL on write. More truly absent. Requires `sql.NullString` plumbing. <span class="rec-tag">recommended</span></label>
+            <label class="recommended"><input type="radio" name="slice-2-question-q-empty-vs-null" data-section="slice-2-question-q-empty-vs-null" data-action="answer" value="empty-string-as-null"/> empty-string-as-null — convert empty string to SQL NULL on write. More truly absent. Requires `sql.NullString` plumbing. <span class="rec-tag">recommended</span></label>
             
-            <label><input type="radio" name="slice-2-question-q-empty-vs-null" data-section="slice-2-question-q-empty-vs-null" data-action="answer" value="skip-row-if-empty"> skip-row-if-empty — only INSERT rows where at least one of the three fields is non-empty. Reduces noise but breaks the existing schema invariant that every event gets one row.</label>
+            <label><input type="radio" name="slice-2-question-q-empty-vs-null" data-section="slice-2-question-q-empty-vs-null" data-action="answer" value="skip-row-if-empty"/> skip-row-if-empty — only INSERT rows where at least one of the three fields is non-empty. Reduces noise but breaks the existing schema invariant that every event gets one row.</label>
             
           
         </div>
@@ -949,10 +947,10 @@ Pick (a) unless cascade risk in (b) is non-trivial. Document the choice in the i
   </div>
 </details>
 <details class="slice-card" id="slice-3" data-slice="3" data-slice-name="slice-3" data-status="pending" data-approval="pending">
-  <summary class="slice-summary" aria-label="Slice 3: Update CLAUDE.md / orchestrator skill &#43; (optional) `htmlgraph-teammate` subagent definition">
+  <summary class="slice-summary" aria-label="Slice 3: Update CLAUDE.md / orchestrator skill + (optional) `htmlgraph-teammate` subagent definition">
     <span class="slice-num">#3</span>
     <span class="slice-title-col">
-      <span class="slice-name">Update CLAUDE.md / orchestrator skill &#43; (optional) `htmlgraph-teammate` subagent definition</span>
+      <span class="slice-name">Update CLAUDE.md / orchestrator skill + (optional) `htmlgraph-teammate` subagent definition</span>
       <span class="slice-preview">Update documentation to reflect the auto-injection (slice 1) and the now-actually-persisted teammate identity (slice 2).</span>
       <span class="slice-meta-row">
         <span class="slice-summary-badges">
@@ -966,16 +964,16 @@ Pick (a) unless cascade risk in (b) is non-trivial. Document the choice in the i
         <span class="slice-actions" onclick="event.stopPropagation()">
           <span class="approval-segmented" role="group" aria-label="Approval action">
             <label class="seg-btn seg-approve" title="Approve">
-              <input type="radio" name="slice-3-approval" value="approved" data-section="slice-3" data-action="approve" aria-label="Approve slice 3">
-              &#10003;
+              <input type="radio" name="slice-3-approval" value="approved" data-section="slice-3" data-action="approve" aria-label="Approve slice 3" checked="checked"/>
+              ✓
             </label>
             <label class="seg-btn seg-changes" title="Request changes">
-              <input type="radio" name="slice-3-approval" value="changes_requested" data-section="slice-3" data-action="approve" aria-label="Request changes for slice 3">
-              &#8635;
+              <input type="radio" name="slice-3-approval" value="changes_requested" data-section="slice-3" data-action="approve" aria-label="Request changes for slice 3"/>
+              ↻
             </label>
             <label class="seg-btn seg-reject" title="Reject">
-              <input type="radio" name="slice-3-approval" value="rejected" data-section="slice-3" data-action="approve" aria-label="Reject slice 3">
-              &#10005;
+              <input type="radio" name="slice-3-approval" value="rejected" data-section="slice-3" data-action="approve" aria-label="Reject slice 3"/>
+              ✕
             </label>
           </span>
         </span>
@@ -991,7 +989,7 @@ Pick (a) unless cascade risk in (b) is non-trivial. Document the choice in the i
         <div class="slice-field-label">What</div>
         <div class="slice-field-value">
           
-          <input type="checkbox" id="slice-3-what-reveal" class="reveal-toggle">
+          <input type="checkbox" id="slice-3-what-reveal" class="reveal-toggle"/>
           <div class="markdown-block reveal-content serif-prose"><p>Update documentation to reflect the auto-injection (slice 1) and the now-actually-persisted teammate identity (slice 2). Document the v2.1.64+ JSON control payload feature in CLAUDE.md as not yet implemented. Optionally add a HtmlGraph-specific subagent definition usable as a teammate by natural-language reference.</p>
 <p><strong>Implementation:</strong></p>
 <ol>
@@ -1029,7 +1027,7 @@ Body briefs the teammate on: HtmlGraph&#39;s work-item attribution (start before
         <div class="slice-field-label">Why</div>
         <div class="slice-field-value">
           
-          <input type="checkbox" id="slice-3-why-reveal" class="reveal-toggle">
+          <input type="checkbox" id="slice-3-why-reveal" class="reveal-toggle"/>
           <div class="markdown-block reveal-content serif-prose"><p>Documentation drift is a real cost: CLAUDE.md&#39;s current claim about teammate identity capture is partially false (the DB column is NULL); after slices 1+2 ship, the claim becomes accurate but the docs still say &#34;you have to set the env var manually.&#34; Updating both files in lockstep ensures documentation matches behavior. The JSON control payload mention is informational — readers should know about the v2.1.64+ feature even if our hooks don&#39;t yet emit it. The optional teammate definition makes HtmlGraph&#39;s conventions composable into Claude Code&#39;s team workflow with one natural-language reference, removing friction for users who want to spawn teams that follow project conventions.</p>
 </div>
           <label for="slice-3-why-reveal" class="reveal-label">Show full description</label>
@@ -1060,22 +1058,22 @@ Body briefs the teammate on: HtmlGraph&#39;s work-item attribution (start before
         <div class="test-strategy">
           
           <div class="test-group" data-kind="unit">
-            <span class="test-chip">UNIT &middot; 1</span>
+            <span class="test-chip">UNIT · 1</span>
             <ul><li></li></ul>
           </div>
           
           <div class="test-group" data-kind="other">
-            <span class="test-chip">OTHER &middot; 4</span>
+            <span class="test-chip">OTHER · 4</span>
             <ul><li>- TestCLAUDEMD_HasAgentTeamsSection — read CLAUDE.md; assert section title and the three new content phrases (auto-injection, teammate identity persisted, JSON payload mention)</li><li>- TestSkillFile_ValidFrontmatter — for each agent file added (depending on q answer), assert frontmatter parses with required fields (name, description, model, tools)</li><li>- TestSkillFile_BodyMentionsConventions — agent body contains references to HtmlGraph conventions (work-item attribution, spec sections, etc.)</li><li>- TestAgentTeamsDocsMirror — read CLAUDE.md and orchestrator skill; extract `&lt;!-- agent-teams-mirror-start --&gt;`/`&lt;!-- agent-teams-mirror-end --&gt;` regions; assert byte-equivalence</li></ul>
           </div>
           
           <div class="test-group" data-kind="integration">
-            <span class="test-chip">INTEGRATION &middot; 1</span>
+            <span class="test-chip">INTEGRATION · 1</span>
             <ul><li>not applicable for docs-only slice</li></ul>
           </div>
           
           <div class="test-group" data-kind="regression">
-            <span class="test-chip">REGRESSION &middot; 1</span>
+            <span class="test-chip">REGRESSION · 1</span>
             <ul><li>any existing CLAUDE.md or SKILL.md tests pass</li></ul>
           </div>
           
@@ -1092,13 +1090,13 @@ Body briefs the teammate on: HtmlGraph&#39;s work-item attribution (start before
         
         <div class="critic-revision">
           <span class="badge badge-revision critic-revision-badge">MEDIUM</span>
-          <span class="critic-revision-source">opus &#43; sonnet</span>
+          <span class="critic-revision-source">opus + sonnet</span>
           <span class="critic-revision-summary">duplicate-with-comment doesn&#39;t prevent drift — switched to extract-shared-doc. New TestAgentTeamsDocsMirror enforces byte-equivalence of mirrored regions across CLAUDE.md and orchestrator skill.</span>
         </div>
         
         <div class="critic-revision">
           <span class="badge badge-revision critic-revision-badge">MEDIUM</span>
-          <span class="critic-revision-source">opus &#43; sonnet</span>
+          <span class="critic-revision-source">opus + sonnet</span>
           <span class="critic-revision-summary">JSON control payload doc framing tightened — explicit &#39;not yet implemented; see bug-XXX&#39; instead of ambiguous &#39;available for future use&#39;. Tracking bug to be filed during slice 3.</span>
         </div>
         
@@ -1125,18 +1123,18 @@ Body briefs the teammate on: HtmlGraph&#39;s work-item attribution (start before
         
         <div class="question-block slice-question-block">
           <p>Should the agent-teams documentation be a single source mirrored into multiple files, or independently maintained per file?</p>
-          <p class="question-desc">The existing pattern in this repo is duplication (CLAUDE.md and orchestrator skill both have agent-teams content). Single-source would prevent drift but adds tooling. Both critics flagged `duplicate-with-comment` as ineffective — comments don&#39;t prevent drift, and the orchestrator skill (line 914) and CLAUDE.md have already drifted in this repo. `extract-shared-doc` mechanically prevents drift via single source. Add a `TestAgentTeamsDocsMirror` test asserting byte-equivalence of mirrored regions (delimited by `&lt;!-- agent-teams-mirror-start --&gt;`/`&lt;!-- agent-teams-mirror-end --&gt;`) so drift becomes a CI failure. Per opus &#43; sonnet medium findings.
+          <p class="question-desc">The existing pattern in this repo is duplication (CLAUDE.md and orchestrator skill both have agent-teams content). Single-source would prevent drift but adds tooling. Both critics flagged `duplicate-with-comment` as ineffective — comments don&#39;t prevent drift, and the orchestrator skill (line 914) and CLAUDE.md have already drifted in this repo. `extract-shared-doc` mechanically prevents drift via single source. Add a `TestAgentTeamsDocsMirror` test asserting byte-equivalence of mirrored regions (delimited by `&lt;!-- agent-teams-mirror-start --&gt;`/`&lt;!-- agent-teams-mirror-end --&gt;`) so drift becomes a CI failure. Per opus + sonnet medium findings.
 </p>
           
             
             
             
             
-            <label><input type="radio" name="slice-3-question-q-docs-truth-source" data-section="slice-3-question-q-docs-truth-source" data-action="answer" value="duplicate-with-comment"> duplicate-with-comment — both files contain the full text; add a comment at the top of each saying &#39;mirror this from the other when changed&#39;. Simple; matches existing pattern.</label>
+            <label><input type="radio" name="slice-3-question-q-docs-truth-source" data-section="slice-3-question-q-docs-truth-source" data-action="answer" value="duplicate-with-comment"/> duplicate-with-comment — both files contain the full text; add a comment at the top of each saying &#39;mirror this from the other when changed&#39;. Simple; matches existing pattern.</label>
             
-            <label><input type="radio" name="slice-3-question-q-docs-truth-source" data-section="slice-3-question-q-docs-truth-source" data-action="answer" value="skill-references-claudemd"> skill-references-claudemd — orchestrator skill links to CLAUDE.md instead of duplicating. Single source. But skills are loaded into agent context as text, so the link wouldn&#39;t be auto-followed.</label>
+            <label><input type="radio" name="slice-3-question-q-docs-truth-source" data-section="slice-3-question-q-docs-truth-source" data-action="answer" value="skill-references-claudemd"/> skill-references-claudemd — orchestrator skill links to CLAUDE.md instead of duplicating. Single source. But skills are loaded into agent context as text, so the link wouldn&#39;t be auto-followed.</label>
             
-            <label class="recommended"><input type="radio" name="slice-3-question-q-docs-truth-source" data-section="slice-3-question-q-docs-truth-source" data-action="answer" value="extract-shared-doc"> extract-shared-doc — extract the agent-teams content into a separate `docs/agent-teams.md` and have both CLAUDE.md and the skill say &#39;see docs/agent-teams.md&#39;. Cleanest but introduces a new docs convention. <span class="rec-tag">recommended</span></label>
+            <label class="recommended"><input type="radio" name="slice-3-question-q-docs-truth-source" data-section="slice-3-question-q-docs-truth-source" data-action="answer" value="extract-shared-doc"/> extract-shared-doc — extract the agent-teams content into a separate `docs/agent-teams.md` and have both CLAUDE.md and the skill say &#39;see docs/agent-teams.md&#39;. Cleanest but introduces a new docs convention. <span class="rec-tag">recommended</span></label>
             
           
         </div>
@@ -1181,7 +1179,7 @@ Body briefs the teammate on: HtmlGraph&#39;s work-item attribution (start before
     <div id="commentsFeed"><p style="font-size:.8rem;color:var(--text-muted);font-style:italic">No comments yet.</p></div>
   </div>
   <div class="finalize-area">
-    <button class="btn-finalize" id="finalizeBtn" disabled>Finalize Plan</button>
+    <button class="btn-finalize" id="finalizeBtn" disabled="">Finalize Plan</button>
     <p style="font-size:.75rem;color:var(--text-muted);margin-top:6px">All sections must be approved before finalizing.</p>
   </div>
 </section>
@@ -2023,6 +2021,7 @@ syncHljsTheme();
     .catch(function(){});
 })();
 </script>
-</div><!-- .plan-content -->
-</body>
-</html>
+<!-- .plan-content -->
+
+
+</body></html>

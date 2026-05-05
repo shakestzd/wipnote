@@ -2,7 +2,7 @@
 name: opus-coder
 description: Deep reasoning code execution agent for complex tasks
 model: opus
-max_turns: 40
+max_turns: 80
 tools:
     - read_file
     - replace

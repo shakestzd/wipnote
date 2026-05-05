@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Subagent feature attribution hook blocks file writes — claim ownership tied to wrong session ID</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-0413c3c4"
+             data-type="bug"
+             data-status="done"
+             data-priority="high"
+             data-created="2026-05-05T03:47:55.945414"
+             data-updated="2026-05-05T16:04:47.951087" data-agent-assigned="claude-code" data-track-id="trk-cb36e595">
+
+        <header>
+            <h1>Subagent feature attribution hook blocks file writes — claim ownership tied to wrong session ID</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-cb36e595.html" data-relationship="part_of" data-since="2026-05-05T03:47:55.969043">trk-cb36e595</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="caused_by">
+                <h3>Caused By:</h3>
+                <ul>
+                    <li><a href="feat-d2d2be20.html" data-relationship="caused_by" data-since="2026-05-05T03:47:55.961865">feat-d2d2be20</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Mirror of GitHub issue #87 (https://github.com/shakestzd/htmlgraph/issues/87).
+
+When the orchestrator runs htmlgraph feature start  then dispatches a sub-agent (Agent with isolation:worktree), the PreToolUse hook blocks the sub-agent from editing files. Block reason: 'feature claim is owned by session af03332e... but my session is 7a2e7c3e...'.
+
+Root cause: the orchestrator's feature start creates a claim under the orchestrator's session ID. The sub-agent runs under a different session ID. The hook's claim lookup uses the sub-agent's own session, sees claim=none, and refuses Write/Edit/MultiEdit. Re-running feature start from inside the sub-agent doesn't fix it — it creates yet another claim under yet another session.
+
+Impact: in a /htmlgraph:execute parallel dispatch of 8 features, 6 of 8 sub-agents got stuck investigating the hook instead of doing the work. Each spent 30-50 tool turns reading hook source, looking at agent_events tables, trying to release-and-reacquire claims. None unblocked. Orchestrator had to abort and complete the work itself.
+
+Stuck sub-agent IDs (from the cited dispatch on track trk-9a3c622d/jobsmith):
+- ac59bf33c337b7dc2 (feat-b2a97e7d)
+- ae06671c7d4621098 (feat-be2ffa3b)
+- a17de8afda3146973 (feat-7b26b9ca)
+- abc235e7d8cac6d9a (feat-96290e5c)
+- a7dff7b8055fb0ec6 (feat-b782a87a)
+- a2f8edaf7b4a1406a (feat-c63021d8)
+
+Suggested fix directions (from issue):
+1. Walk parent chain in claim ownership check — yolo_guard.go already uses getSessionAndParent for the screenshot guard; apply same pattern to pretooluse claim check.
+2. Make htmlgraph feature start from a sub-agent transfer the claim from parent session to sub-agent session if parent owns it.
+3. Add htmlgraph feature claim --session= command for programmatic handoff during dispatch.
+
+Recommended: option 1 (walk parent chain). Lowest blast radius, matches existing pattern, doesn't require new commands, transparent to users.
+
+Why this matters: /htmlgraph:execute parallel dispatch is non-functional without this fix. Every dispatch becomes a debugging session for the hook itself.</p>
+        </section>
+    </article>
+</body>
+</html>

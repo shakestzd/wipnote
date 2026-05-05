@@ -13,7 +13,7 @@
              data-status="todo"
              data-priority="high"
              data-created="2026-04-09T20:45:55.987414"
-             data-updated="2026-05-05T03:47:56.045999" data-agent-assigned="claude-code">
+             data-updated="2026-05-05T15:58:12.422786" data-agent-assigned="claude-code">
 
         <header>
             <h1>Multi-Project Hardening — per-project process isolation</h1>
@@ -60,6 +60,12 @@
                     <li><a href="feat-d2d2be20.html" data-relationship="contains" data-since="2026-05-05T03:44:10.950313">Project registry hardening: skip-on-tempdir &#43; 3-day TTL &#43; prune flags</a></li>
                     <li><a href="bug-0413c3c4.html" data-relationship="contains" data-since="2026-05-05T03:47:55.969043">Subagent feature attribution hook blocks file writes — claim ownership tied to wrong session ID</a></li>
                     <li><a href="bug-730c0f19.html" data-relationship="contains" data-since="2026-05-05T03:47:56.040876">Dispatched sub-agents commit directly to main instead of isolated branch</a></li>
+                    <li><a href="bug-19276d4b.html" data-relationship="contains" data-since="2026-05-05T15:02:22.135082">yolo-guard SQL misses screenshots taken via mcp__claude-in-chrome__browser_batch</a></li>
+                    <li><a href="bug-8ff540a7.html" data-relationship="contains" data-since="2026-05-05T15:02:22.249703">Subagents inherit non-YOLO permission mode — Edit/Write blocked despite parent in YOLO</a></li>
+                    <li><a href="feat-ecd82f68.html" data-relationship="contains" data-since="2026-05-05T15:49:58.147965">PreToolUse claim check walks parent session chain (fixes #87 / bug-0413c3c4)</a></li>
+                    <li><a href="feat-9cef857b.html" data-relationship="contains" data-since="2026-05-05T15:50:03.263443">PreToolUse guard refuses sub-agent git commit on main (fixes #88 / bug-730c0f19)</a></li>
+                    <li><a href="feat-72876845.html" data-relationship="contains" data-since="2026-05-05T15:50:07.77782">YOLO permission inheritance via parent-session chain (fixes #90 / bug-8ff540a7)</a></li>
+                    <li><a href="feat-060b396d.html" data-relationship="contains" data-since="2026-05-05T15:58:12.40211">Diagnostic spike: dispatch failure root-cause investigation (slice-0 of plan-ff425b9f)</a></li>
                 </ul>
             </section>
         </nav>

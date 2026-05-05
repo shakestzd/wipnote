@@ -7,7 +7,7 @@ meta:
     created_at: "2026-05-04"
     status: finalized
     created_by: claude-opus
-    version: 6
+    version: 8
 design:
     problem: |
         Agent Teams plugin integration began in plan-14772c97 (April 2026) but was never formally promoted to features. Four of its six slices shipped to code informally and remain in production: the `EventTaskCreated` event-type constant, step-text teammate attribution in HTML, the opt-in quality gate on TaskCompleted, and the orchestrator skill's Agent Teams vs Subagents section. Two gaps remain. (1) **Persistence gap** — slice 1's DB write side: `AgentEvent` struct lacks `TeammateName`/`TeamName`/`IdleReason` fields, `InsertEvent` doesn't write them, the `idle_reason` column is missing from schema entirely (S1 specified `teammate_name`/`team_name` but not `idle_reason`), and `TeammateIdle` uses the shared `recordSimpleEvent` helper that doesn't propagate teammate fields. Result: dashboard queries that filter or aggregate by teammate return NULL on every row. (2) **Manual env-var setup** — users have to remember `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` per-shell or in `.claude/settings.json`, and the orchestrator skill still says "set it manually" because no auto-injection exists. Plus CLAUDE.md's brief monitoring note has accumulated drift, and v2.1.64+ JSON hook control payload (`{"continue": false, "stopReason": "..."}`) is undocumented.

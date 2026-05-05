@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>YOLO permission inheritance via parent-session chain (fixes #90 / bug-8ff540a7)</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-72876845"
+             data-type="feature"
+             data-status="in-progress"
+             data-priority="medium"
+             data-created="2026-05-05T15:50:07.775085"
+             data-updated="2026-05-05T16:10:04.224667" data-agent-assigned="claude-code" data-track-id="trk-cb36e595">
+
+        <header>
+            <h1>YOLO permission inheritance via parent-session chain (fixes #90 / bug-8ff540a7)</h1>
+            <div class="metadata">
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="blocked_by">
+                <h3>Blocked By:</h3>
+                <ul>
+                    <li><a href="feat-ecd82f68.html" data-relationship="blocked_by" data-since="2026-05-05T15:50:07.785344">feat-ecd82f68</a></li>
+                    <li><a href="feat-060b396d.html" data-relationship="blocked_by" data-since="2026-05-05T15:58:24.888634">Diagnostic spike: dispatch failure root-cause investigation (slice-0 of plan-ff425b9f)</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="planned_in">
+                <h3>Planned In:</h3>
+                <ul>
+                    <li><a href="plan-ff425b9f.html" data-relationship="planned_in" data-since="2026-05-05T15:50:07.783276">plan-ff425b9f</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-cb36e595.html" data-relationship="part_of" data-since="2026-05-05T15:50:07.77782">trk-cb36e595</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="5b44705e-2530-44da-bcaf-79f0a45ea157.html" data-relationship="implemented_in" data-since="2026-05-05T16:10:04.22431">session 5b44705e-2530-44da-bcaf-79f0a45ea157</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>The YOLO-mode check (likely `checkYoloMode` in `internal/hooks/yolo_guard.go`
+or a similar predicate consumed by `pretooluse.go`'s Edit/Write gate) returns
+false for sub-agent sessions because the sub-agent's own `agent_events` row
+isn't tagged with YOLO mode. Apply slice 1's `getSessionAndParent` walker so
+the predicate walks up the parent chain and treats the sub-agent as YOLO when
+ANY ancestor session is YOLO.
+
+Implementation:
+1. **Locate the YOLO-mode predicate.** Find the function (likely `checkYoloMode`
+   or `isYoloSession`) that today resolves YOLO state for a given session ID.
+2. **Reuse the chain walker.** Slice 1 introduces `getSessionAndParent` (or
+   extends an existing walker). Use the SAME helper here.
+3. **Replace direct lookup with chain walk.** When the current session has no
+   YOLO tag, walk up via `getSessionAndParent` and check each ancestor. If any
+   ancestor is tagged YOLO, treat the sub-agent as inheriting YOLO posture.
+4. **Conservative scope:** only walk when current session has no YOLO tag of
+   its own. Don't override an explicit non-YOLO marker in the current session
+   (if such a thing exists).
+5. **Logging:** emit a structured log line `yolo inherited: session= parent=`
+   when the walk finds an ancestor's YOLO posture, so the path is auditable.</p>
+        </section>
+    </article>
+</body>
+</html>
