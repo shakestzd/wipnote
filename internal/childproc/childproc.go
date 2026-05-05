@@ -367,10 +367,7 @@ func (s *Supervisor) Shutdown(ctx context.Context) {
 func (s *Supervisor) RunIdleReaper(ctx context.Context) {
 	tick := 60 * time.Second
 	if s.idleTimeout > 0 && s.idleTimeout/4 < tick {
-		tick = s.idleTimeout / 4
-		if tick < 10*time.Millisecond {
-			tick = 10 * time.Millisecond
-		}
+		tick = max(s.idleTimeout/4, 10*time.Millisecond)
 	}
 	t := time.NewTicker(tick)
 	defer t.Stop()
