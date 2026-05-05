@@ -1,0 +1,887 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Local-first observability and coordination platform for AI-assisted development">
+      
+      
+      
+        <link rel="canonical" href="https://shakestzd.github.io/erinn/blog/yolo-mode-autonomous-guardrails/">
+      
+      
+        <link rel="prev" href="../plan-mode-structured-plans/">
+      
+      
+        <link rel="next" href="../sub-agent-orchestration/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>YOLO Mode: Autonomous AI Development With Engineering Guardrails - erinn</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+    
+    
+      <link rel="stylesheet" href="../../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="black" data-md-color-accent="lime">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#yolo-mode-autonomous-ai-development-with-engineering-guardrails" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="erinn" class="md-header__button md-logo" aria-label="erinn" data-md-component="logo">
+      
+  <img src="../../assets/logo.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            erinn
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              YOLO Mode: Autonomous AI Development With Engineering Guardrails
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="black" data-md-color-accent="lime"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="black" data-md-color-accent="lime"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/shakestzd/erinn" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    shakestzd/erinn
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+                
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" hidden>
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="erinn" class="md-nav__button md-logo" aria-label="erinn" data-md-component="logo">
+      
+  <img src="../../assets/logo.png" alt="logo">
+
+    </a>
+    erinn
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/shakestzd/erinn" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    shakestzd/erinn
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+    
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      <a href="../" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Blog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+                
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#the-setup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The setup
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-9-guardrails" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The 9 guardrails
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="The 9 guardrails">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-work-item-guard" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Work item guard
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-worktree-guard" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Worktree guard
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-research-guard" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Research guard
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-test-guard" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Test guard
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-diff-review-guard" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Diff review guard
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6-budget-guard" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Budget guard
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#7-ui-validation-guard" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. UI validation guard
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#8-steps-guard" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Steps guard
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#9-code-health-guard" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Code health guard
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-embedded-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The embedded workflow
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-it-compares-to-auto-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How it compares to auto mode
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#worktree-isolation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Worktree isolation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-origin-story" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The origin story
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+  <div class="md-content md-content--post" data-md-component="content">
+    <div class="md-sidebar md-sidebar--post" data-md-component="sidebar" data-md-type="navigation">
+      <div class="md-sidebar__scrollwrap">
+        <div class="md-sidebar__inner md-post">
+          <nav class="md-nav md-nav--primary">
+            <div class="md-post__back">
+              <div class="md-nav__title md-nav__container">
+                <a href="../" class="md-nav__link">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+                  <span class="md-ellipsis">
+                    Back to index
+                  </span>
+                </a>
+              </div>
+            </div>
+            
+              <div class="md-post__authors md-typeset">
+                
+                  <div class="md-profile md-post__profile">
+                    <span class="md-author md-author--long">
+                      <img src="https://github.com/shakestzd.png" alt="Shakes">
+                    </span>
+                    <span class="md-profile__description">
+                      <strong>
+                        
+                          <a href="https://shakestzd.github.io">Shakes</a>
+                        
+                      </strong>
+                      <br>
+                      Data engineer building tools for AI-assisted development
+                    </span>
+                  </div>
+                
+              </div>
+            
+            <ul class="md-post__meta md-nav__list">
+              <li class="md-nav__item md-nav__item--section">
+                <div class="md-post__title">
+                  <span class="md-ellipsis">
+                    Metadata
+                  </span>
+                </div>
+                <nav class="md-nav">
+                  <ul class="md-nav__list">
+                    <li class="md-nav__item">
+                      <div class="md-nav__link">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 19H5V8h14m-3-7v2H8V1H6v2H5c-1.11 0-2 .89-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2h-1V1m-1 11h-5v5h5z"/></svg>
+                        <time datetime="2026-04-14 00:00:00+00:00" class="md-ellipsis">April 14, 2026</time>
+                      </div>
+                    </li>
+                    
+                    
+                      <li class="md-nav__item">
+                        <div class="md-nav__link">
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9 3v15h3V3zm3 2 4 13 3-1-4-13zM5 5v13h3V5zM3 19v2h18v-2z"/></svg>
+                          <span class="md-ellipsis">
+                            in
+                            
+                              <a href="../category/features/">Features</a></span>
+                        </div>
+                      </li>
+                    
+                    
+                      
+                      <li class="md-nav__item">
+                        <div class="md-nav__link">
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 20a8 8 0 0 0 8-8 8 8 0 0 0-8-8 8 8 0 0 0-8 8 8 8 0 0 0 8 8m0-18a10 10 0 0 1 10 10 10 10 0 0 1-10 10C6.47 22 2 17.5 2 12A10 10 0 0 1 12 2m.5 5v5.25l4.5 2.67-.75 1.23L11 13V7z"/></svg>
+                          <span class="md-ellipsis">
+                            
+                              5 min read
+                            
+                          </span>
+                        </div>
+                      </li>
+                    
+                  </ul>
+                </nav>
+              </li>
+            </ul>
+            
+          </nav>
+          
+        </div>
+      </div>
+    </div>
+    <article class="md-content__inner md-typeset">
+      
+        
+  
+
+
+
+  
+  
+
+
+<h1 id="yolo-mode-autonomous-ai-development-with-engineering-guardrails">YOLO Mode: Autonomous AI Development With Engineering Guardrails<a class="headerlink" href="#yolo-mode-autonomous-ai-development-with-engineering-guardrails" title="Permanent link">&para;</a></h1>
+<p>The question every developer using AI coding tools eventually asks: "Can I just let it run?" The appeal of autonomous AI development is obvious: you describe what you want, walk away, and come back to a working feature. The fear is equally obvious: what if it makes a mess?</p>
+<p>Claude Code's answer is auto mode, a server-side classifier that screens every tool call for security threats like data exfiltration, production deployments, and force-pushes to main. It's a good answer to the security question. But it's only available on Team, Enterprise, or API plans, requires admin enablement, and only works with the Anthropic API provider. And it doesn't address a different question entirely: is the AI doing <em>quality</em> development work?</p>
+<p>HtmlGraph's YOLO mode answers the quality question.</p>
+<!-- more -->
+
+<h2 id="the-setup">The setup<a class="headerlink" href="#the-setup" title="Permanent link">&para;</a></h2>
+<p>YOLO mode operates on <code>bypassPermissions</code>, the most permissive Claude Code mode, where all permission prompts are skipped. On its own, this skips all user-facing permission prompts. The Claude Code documentation says it "offers no protection against prompt injection or unintended actions" and recommends it only for isolated containers. The model's safety training still applies, but there are no structural quality gates.</p>
+<p>But YOLO mode doesn't run on <code>bypassPermissions</code> alone. It layers 9 deterministic guardrails on top, all implemented as Go hooks that fire on every tool call. These hooks are the safety net between Claude and your codebase.</p>
+<h2 id="the-9-guardrails">The 9 guardrails<a class="headerlink" href="#the-9-guardrails" title="Permanent link">&para;</a></h2>
+<h3 id="1-work-item-guard">1. Work item guard<a class="headerlink" href="#1-work-item-guard" title="Permanent link">&para;</a></h3>
+<p>Blocks <code>Write</code>, <code>Edit</code>, and <code>MultiEdit</code> operations if no active feature ID is linked to the session. Every change must trace to a tracked work item. No anonymous code modifications.</p>
+<h3 id="2-worktree-guard">2. Worktree guard<a class="headerlink" href="#2-worktree-guard" title="Permanent link">&para;</a></h3>
+<p>Blocks all writes on <code>main</code> or <code>master</code> branch. Every YOLO session gets its own git worktree on a dedicated branch. The worst case is a bad branch you throw away, not damage to your mainline.</p>
+<h3 id="3-research-guard">3. Research guard<a class="headerlink" href="#3-research-guard" title="Permanent link">&para;</a></h3>
+<p>Blocks any write if no <code>Read</code>, <code>Grep</code>, or <code>Glob</code> tool has run in the session. Forces the agent to look at the existing code before modifying it. This single guard prevents a surprising number of "the agent rewrote everything from scratch instead of editing what was there" incidents.</p>
+<h3 id="4-test-guard">4. Test guard<a class="headerlink" href="#4-test-guard" title="Permanent link">&para;</a></h3>
+<p>Blocks <code>git commit</code> if no test command (<code>go test</code>, <code>pytest</code>, <code>uv run ruff</code>) has run in the session. You can write code all day, but you can't ship it without testing.</p>
+<h3 id="5-diff-review-guard">5. Diff review guard<a class="headerlink" href="#5-diff-review-guard" title="Permanent link">&para;</a></h3>
+<p>Blocks <code>git commit</code> if no <code>git diff</code> has been run in the session. The agent must look at what it's about to commit. This catches cases where the agent thinks it made a small change but actually staged something much larger.</p>
+<h3 id="6-budget-guard">6. Budget guard<a class="headerlink" href="#6-budget-guard" title="Permanent link">&para;</a></h3>
+<p>Blocks <code>git commit</code> if the staged diff exceeds hard limits: 20 files or 600 lines added. Merge commits are exempt. There's also an advisory threshold at 10 files or 300 lines that triggers a warning without blocking.</p>
+<p>This exists because I once watched an agent stage a 47-file commit that refactored half the codebase when I asked it to fix a typo. The budget guard makes oversized commits structurally impossible.</p>
+<h3 id="7-ui-validation-guard">7. UI validation guard<a class="headerlink" href="#7-ui-validation-guard" title="Permanent link">&para;</a></h3>
+<p>Blocks <code>git commit</code> if any UI files (<code>.html</code>, <code>.css</code>, <code>.js</code>, <code>.ts</code>, <code>.tsx</code>, <code>.vue</code>, <code>.svelte</code>) were modified but no screenshot tool was called. If you changed the UI, you need to verify it looks right.</p>
+<h3 id="8-steps-guard">8. Steps guard<a class="headerlink" href="#8-steps-guard" title="Permanent link">&para;</a></h3>
+<p>Warns (soft block) when <code>htmlgraph feature start</code> is called on a feature that has zero implementation steps. Encourages the agent to think about the approach before starting to code.</p>
+<h3 id="9-code-health-guard">9. Code health guard<a class="headerlink" href="#9-code-health-guard" title="Permanent link">&para;</a></h3>
+<p>Warns (non-blocking) when a file being written already exceeds 500 lines. The warning is non-blocking to allow refactoring, but it surfaces the problem so the agent (and you) know the file is getting large.</p>
+<h2 id="the-embedded-workflow">The embedded workflow<a class="headerlink" href="#the-embedded-workflow" title="Permanent link">&para;</a></h2>
+<p>Beyond hooks, YOLO mode injects an 8-step development workflow into the system prompt:</p>
+<ol>
+<li>Create or claim a work item</li>
+<li>Research the codebase</li>
+<li>Write a spec with acceptance criteria</li>
+<li>Write tests first (TDD)</li>
+<li>Implement the feature</li>
+<li>Run quality gates (<code>go build &amp;&amp; go vet &amp;&amp; go test</code>)</li>
+<li>Validate UI changes visually</li>
+<li>Review the diff and commit</li>
+</ol>
+<p>The hooks enforce the critical steps (research, testing, diff review, budget). The prompt guides the agent through the full workflow. Together they produce commits that look like they came from a disciplined developer, not a runaway AI.</p>
+<h2 id="how-it-compares-to-auto-mode">How it compares to auto mode<a class="headerlink" href="#how-it-compares-to-auto-mode" title="Permanent link">&para;</a></h2>
+<p>Auto mode and YOLO mode solve different problems:</p>
+<table>
+<thead>
+<tr>
+<th>Concern</th>
+<th>Auto Mode</th>
+<th>YOLO Mode</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Primary focus</strong></td>
+<td>Security threats</td>
+<td>Development quality</td>
+</tr>
+<tr>
+<td><strong>Guardrail type</strong></td>
+<td>ML classifier (probabilistic, 83% recall)</td>
+<td>Go hooks (deterministic, 100% reliable)</td>
+</tr>
+<tr>
+<td><strong>Branch discipline</strong></td>
+<td>Blocks force-push to main</td>
+<td>Blocks ALL writes on main</td>
+</tr>
+<tr>
+<td><strong>Commit hygiene</strong></td>
+<td>Not addressed</td>
+<td>Tests + diff review + budget required</td>
+</tr>
+<tr>
+<td><strong>Work attribution</strong></td>
+<td>Not addressed</td>
+<td>Blocks writes without tracked feature</td>
+</tr>
+<tr>
+<td><strong>Research before writing</strong></td>
+<td>Not addressed</td>
+<td>Enforced</td>
+</tr>
+<tr>
+<td><strong>Availability</strong></td>
+<td>Team/Enterprise/API only</td>
+<td>Any plan, any provider, any model</td>
+</tr>
+<tr>
+<td><strong>Prompt injection defense</strong></td>
+<td>Classifier strips tool results</td>
+<td>Not addressed</td>
+</tr>
+</tbody>
+</table>
+<p>They're complementary, not competing. Auto mode catches security threats: exfiltration, IAM changes, production deployments. YOLO mode catches quality issues: untested code, oversized commits, unresearched modifications, unattributed work. The ideal setup would layer both, though that's not currently wired up since auto mode requires a subscription tier I don't have access to.</p>
+<h2 id="worktree-isolation">Worktree isolation<a class="headerlink" href="#worktree-isolation" title="Permanent link">&para;</a></h2>
+<p>Every YOLO session creates a dedicated git worktree:</p>
+<ul>
+<li>Track worktrees: <code>.claude/worktrees/&lt;trackID&gt;/</code> on branch <code>trk-&lt;trackID&gt;</code></li>
+<li>Feature worktrees: <code>.claude/worktrees/&lt;featureID&gt;/</code> on branch <code>yolo-&lt;featureID&gt;</code></li>
+<li>Sub-agent worktrees: nested under the track worktree on branch <code>agent-&lt;trackID&gt;-&lt;taskName&gt;</code></li>
+</ul>
+<p>This provides structural safety independent of the hooks. An agent that produces garbage doesn't pollute your working tree; it pollutes its own isolated branch that you can inspect and discard. The <code>.htmlgraph/</code> directory is excluded from worktrees via git's local exclude file, so all work item operations resolve to the main project's state.</p>
+<h2 id="the-origin-story">The origin story<a class="headerlink" href="#the-origin-story" title="Permanent link">&para;</a></h2>
+<p>I didn't design these guardrails theoretically. Every one of them exists because of a real incident:</p>
+<ul>
+<li>The work item guard: agents were writing code with no traceable purpose</li>
+<li>The worktree guard: an agent committed directly to main during an autonomous run</li>
+<li>The research guard: agents kept reimplementing functions that already existed</li>
+<li>The budget guard: that 47-file commit I mentioned</li>
+<li>The UI validation guard: an agent shipped a CSS change that broke the entire dashboard layout</li>
+</ul>
+<p>YOLO mode is scar tissue turned into engineering discipline. The philosophy is simple: enforce the same standards a good engineer follows: research first, test before committing, don't touch main, keep changes focused, and make every modification traceable to a reason.</p>
+<p>The difference is that a human developer follows these practices by habit and judgment. An autonomous AI needs structural enforcement.</p>
+
+
+
+
+
+
+
+  
+  
+
+
+
+
+  
+
+
+
+      
+    </article>
+  </div>
+
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+        
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../plan-mode-structured-plans/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Plan Mode: From Freeform Text to Structured, Critiqued, Human-Reviewed Plans">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Plan Mode: From Freeform Text to Structured, Critiqued, Human-Reviewed Plans
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../sub-agent-orchestration/" class="md-footer__link md-footer__link--next" aria-label="Next: Sub-Agent Orchestration: Cost-Aware Delegation With Work Attribution">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                Sub-Agent Orchestration: Cost-Aware Delegation With Work Attribution
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright &copy; 2025 TZDLabs
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/shakestzd/erinn" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.top", "navigation.footer", "search.suggest", "search.highlight", "content.code.copy"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>
