@@ -367,10 +367,7 @@ func (s *Supervisor) Shutdown(ctx context.Context) {
 func (s *Supervisor) RunIdleReaper(ctx context.Context) {
 	tick := 60 * time.Second
 	if s.idleTimeout > 0 && s.idleTimeout/4 < tick {
-		tick = s.idleTimeout / 4
-		if tick < 10*time.Millisecond {
-			tick = 10 * time.Millisecond
-		}
+		tick = max(s.idleTimeout/4, 10*time.Millisecond)
 	}
 	t := time.NewTicker(tick)
 	defer t.Stop()
@@ -404,7 +401,18 @@ func (s *Supervisor) reapIdleOnce() {
 
 	for _, c := range toKill {
 		_ = c.cmd.Process.Signal(syscall.SIGTERM)
-		// The reaper goroutine (cmd.Wait) removes it from the map.
+		// Escalate to SIGKILL if the child hasn't exited within 100ms.
+		// SIGTERM may be delivered cleanly but cmd.Wait can block on stdout pipe
+		// drain under CPU contention (CI runners), preventing map cleanup. SIGKILL
+		// forces immediate process death and pipe close.
+		go func(c *Child) {
+			select {
+			case <-c.exitC:
+				// Process exited cleanly; nothing to do.
+			case <-time.After(100 * time.Millisecond):
+				_ = c.cmd.Process.Kill()
+			}
+		}(c)
 	}
 }
 

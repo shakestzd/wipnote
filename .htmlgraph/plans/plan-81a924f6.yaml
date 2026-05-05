@@ -1,0 +1,213 @@
+meta:
+    id: plan-81a924f6
+    track_id: trk-a30e8df4
+    title: 'v2 plan system: auto-commit hardening + per-slice compression'
+    description: 'Closes four gaps in the v2 plan system surfaced by an audit of commitPlanChange and section-targeted update flow: (1) approve/reject-slice write YAML but skip git commit, (2) set-slice-status and answer-slice-question are SQLite-only and never reach the YAML, (3) plan render leaves uncommitted HTML drift, (4) no concurrency protection around load-mutate-save. Also delivers the per-slice compression project (questions/critique/feedback embedded in slices instead of plan-level) which is the schema foundation that makes (2) routable.'
+    created_at: "2026-04-29"
+    status: draft
+    version: 14
+design:
+    problem: ""
+    goals: []
+    constraints: []
+    approved: false
+    comment: ""
+slices:
+    - id: slic-6989fa43
+      num: 1
+      title: 'Hotfix: auto-commit on approve-slice and reject-slice'
+      what: 'Add commitPlanChange call at the end of runApproveSlice and runRejectSlice in cmd/htmlgraph/plan_*.go so approval state changes land in git as standalone commits with a descriptive message (e.g. ''plan: approve slice <num> in <plan-id>'').'
+      why: Today both verbs call updateSliceYAMLApproval (which saves YAML) but never call commitPlanChange. Approval changes sit uncommitted on disk until the next mutating verb sweeps them up — breaking the 'every change is a commit' invariant and erasing audit trail of who approved what when.
+      files:
+        - cmd/htmlgraph/plan_approve_slice.go
+        - cmd/htmlgraph/plan_reject_slice.go
+      deps: []
+      done_when:
+        - git log shows a dedicated commit for each approve/reject call
+        - Existing approval-related tests still pass
+        - New test covers the commit-on-approve path
+      effort: S
+      risk: Low
+      tests: TestApproveSlice_CreatesGitCommit, TestRejectSlice_CreatesGitCommit
+      approved: false
+      comment: ""
+    - id: slic-e756d30f
+      num: 2
+      title: 'Hotfix: file lock around planyaml.Save'
+      what: Introduce per-plan-file flock in internal/planyaml/io.go::Save so concurrent CLI calls against the same plan serialize their load-mutate-save cycle. Use a sidecar .lock file via golang.org/x/sys/unix flock (or syscall.Flock) with a short timeout; fall back to error if lock acquisition fails.
+      why: Today Save is plain os.ReadFile + os.WriteFile with no protection. Under yolo-mode parallel agents writing different sections of the same plan, one agent's changes can silently clobber the other's — breaking the 'YAML is current state' invariant.
+      files:
+        - internal/planyaml/io.go
+        - internal/planyaml/lock.go
+      deps: []
+      done_when:
+        - Concurrent test demonstrates serialization
+        - Save returns clear error on lock contention timeout
+        - No regression in single-writer perf
+      effort: M
+      risk: Med
+      tests: TestSave_ConcurrentWritersSerialize, TestSave_LockTimeoutError
+      approved: false
+      comment: ""
+    - id: slic-0c1ddc44
+      num: 3
+      title: 'Schema: per-slice Feedback and Answers fields on PlanSlice'
+      what: Extend internal/planyaml/schema.go::PlanSlice with Feedback []SliceFeedback and Answers []SliceAnswer (both omitempty). Each tracks author, timestamp, body — paired by slice/question ID. Update YAML round-trip tests.
+      why: PlanSlice already has Questions and CriticRevisions; adding Feedback and Answers completes the embedded model. This is the schema foundation that lets set-slice-status and answer-slice-question route into YAML in slice 5.
+      files:
+        - internal/planyaml/schema.go
+        - internal/planyaml/io_test.go
+      deps: []
+      done_when:
+        - New fields round-trip through Save/Load
+        - Existing plans load unchanged (backward compatible)
+        - YAML output omits empty fields
+      effort: S
+      risk: Low
+      tests: TestPlanSlice_FeedbackRoundTrip, TestPlanSlice_AnswersRoundTrip, TestPlanSlice_BackwardCompat
+      approved: false
+      comment: ""
+    - id: slic-3bac7ad8
+      num: 4
+      title: 'CLI: --slice flag on add-question-yaml, set-critique-yaml, read-feedback-yaml'
+      what: Add an optional --slice <num-or-id> flag to the three verbs. When set, the question/critique/feedback target the per-slice fields. When unset, default to plan-level (back-compat). Update help text to recommend --slice for new content.
+      why: Today these verbs are plan-level only, so even after schema lands in slice 3, agents have no way to write per-slice content without hand-editing YAML. The flag bridges the gap.
+      files:
+        - cmd/htmlgraph/plan_yaml_cmds.go
+        - cmd/htmlgraph/plan_yaml_extras.go
+      deps:
+        - 3
+      done_when:
+        - All three verbs accept --slice
+        - plan-level call still works
+        - Tests cover both modes
+      effort: M
+      risk: Low
+      tests: TestAddQuestionYaml_PerSlice, TestSetCritiqueYaml_PerSlice, TestReadFeedbackYaml_PerSlice
+      approved: false
+      comment: ""
+    - id: slic-d37b8b6b
+      num: 5
+      title: Route set-slice-status and answer-slice-question writes into YAML
+      what: Mirror the SQLite write into the corresponding PlanSlice.Feedback / PlanSlice.Answers entry, then call commitPlanChange. Keep the SQLite write as a denormalized read cache for dashboard query speed, or drop it if the YAML-driven indexer can backfill — design decision deferred to Question 2.
+      why: 'Closes Gap #2: the YAML becomes the complete current state for slice operational signal. set-slice-status and answer-slice-question are the two outliers that bypass the commitPlanChange flow today.'
+      files:
+        - cmd/htmlgraph/plan_slice_status.go
+        - cmd/htmlgraph/plan_answer_slice_question.go
+      deps:
+        - 3
+      done_when:
+        - Both verbs write to YAML and commit
+        - Dashboard slice status reflects YAML truth
+        - SQLite path either dropped or kept in sync
+      effort: M
+      risk: Med
+      tests: TestSetSliceStatus_WritesYaml, TestAnswerSliceQuestion_WritesYaml
+      approved: false
+      comment: ""
+    - id: slic-a442cd09
+      num: 6
+      title: Auto-commit on plan render when HTML diverges
+      what: In cmd/htmlgraph/plan_render.go, diff the regenerated HTML against the on-disk version. If different, bump Meta.Version, write the new HTML, and call commitPlanChange. If identical, no-op.
+      why: 'Closes Gap #3. Today render rebuilds HTML without bumping version or committing, leaving uncommitted drift after manual edits.'
+      files:
+        - cmd/htmlgraph/plan_render.go
+      deps: []
+      done_when:
+        - Render-no-op produces zero git changes
+        - Render-after-edit produces one commit
+        - Meta.Version bumps only when HTML changed
+      effort: S
+      risk: Low
+      tests: TestPlanRender_NoOpOnIdentical, TestPlanRender_CommitsOnDivergent
+      approved: false
+      comment: ""
+    - id: slic-7be5df58
+      num: 7
+      title: 'Migration command: plan migrate <plan-id>'
+      what: 'New CLI verb htmlgraph plan migrate that hoists plan-level Questions and Critique into per-slice blocks where attribution is recoverable (heuristic: question text mentions slice title or num). Orphan questions/critique stay at plan level with a migrated_at marker. Single commit at end.'
+      why: Three of the four sampled v2 plans (plan-8ee8f517, plan-a33c983e, plan-251676c5) still use the old plan-level shape. Without migration they'll stay split between plan-level and per-slice forever.
+      files:
+        - cmd/htmlgraph/plan_migrate.go
+        - internal/planyaml/migrate.go
+      deps:
+        - 3
+        - 4
+      done_when:
+        - Dry-run mode previews changes
+        - Apply mode commits a single migration commit
+        - Idempotent — re-running on a migrated plan is a no-op
+      effort: L
+      risk: Med
+      tests: TestPlanMigrate_DryRun, TestPlanMigrate_HoistsByTitleMatch, TestPlanMigrate_Idempotent
+      approved: false
+      comment: ""
+    - id: slic-d3a0f3df
+      num: 8
+      title: 'Dashboard slice-card UI: render embedded questions, feedback, critic_revisions'
+      what: Update the slice-card view in plugin/static/dashboard (or wherever slice cards are rendered) to surface PlanSlice.Questions, PlanSlice.Feedback, PlanSlice.Answers, PlanSlice.CriticRevisions inline on each card. Plan-level Questions/Critique sections continue to render at plan level for un-migrated plans.
+      why: Without UI surface, the compressed schema is invisible to reviewers. Slice cards already exist as the primary review surface (feat-6dbc7112) — this completes the picture.
+      files:
+        - plugin/static/dashboard/slice-card.html
+        - plugin/static/dashboard/slice-card.js
+      deps:
+        - 3
+        - 7
+      done_when:
+        - Slice cards show all four embedded sections
+        - Old-shape plans render plan-level sections without breaking
+        - Visual QA on plan-1c14d560 (already in new shape) and plan-8ee8f517 (still old)
+      effort: M
+      risk: Low
+      tests: Visual QA via puppeteer or playwright snapshot of dashboard
+      approved: false
+      comment: ""
+questions:
+    - id: q-should-set-slice-status-keep-the-sqlite
+      text: Should set-slice-status keep the SQLite denormalization or move fully to YAML?
+      description: Slice 5 routes the YAML write but the SQLite plan_feedback table currently serves dashboard slice-status queries. Keeping it as a read cache means double-write overhead but fast queries; dropping it means YAML is the single source but dashboard rebuilds the index from YAML on read.
+      recommended: keep
+      options:
+        - key: keep
+          label: Keep SQLite as read cache (double-write)
+        - key: drop
+          label: Drop SQLite path (YAML-only)
+        - key: lazy
+          label: Drop on write but lazily rebuild index on read
+      answer: null
+    - id: q-should-plan-level-questions-critique-be
+      text: Should plan-level questions/critique be hard-deprecated or soft?
+      description: After slice 4 lands, --slice becomes the recommended path. We can either (a) hard-deprecate plan-level by removing the no-flag write path, (b) soft-deprecate with a warning when plan-level is used on a plan with >=1 slice, or (c) leave plan-level as a peer for genuinely plan-wide concerns.
+      recommended: soft
+      options:
+        - key: hard
+          label: Hard-deprecate (remove plan-level write)
+        - key: soft
+          label: Soft-deprecate (warn but allow)
+        - key: peer
+          label: Keep as peer for plan-wide concerns
+      answer: null
+    - id: q-flock-implementation-filesystem-lock-or
+      text: 'flock implementation: filesystem lock or in-memory mutex?'
+      description: Slice 2 needs serialization. Filesystem flock works cross-process (multiple htmlgraph CLI invocations) but is brittle on some filesystems (NFS, some Docker volumes). In-memory sync.Mutex works inside a single process but doesn't help cross-process — yolo spawns subprocesses for each verb, so this matters.
+      recommended: fs
+      options:
+        - key: fs
+          label: Filesystem flock (cross-process)
+        - key: mem
+          label: In-memory mutex (single process)
+        - key: both
+          label: Both — mutex inside
+      answer: null
+    - id: q-migration-mode-explicit-verb-only-or-aut
+      text: 'Migration mode: explicit verb only, or auto-on-load?'
+      description: Slice 7 introduces htmlgraph plan migrate. Should it be explicit-only (user opts in), or should planyaml.Load auto-migrate when it detects the old shape (writing the migrated YAML back via commitPlanChange)?
+      recommended: explicit
+      options:
+        - key: explicit
+          label: Explicit verb only
+        - key: auto
+          label: Auto-migrate on Load
+        - key: prompt
+          label: Prompt user on first read
+      answer: null

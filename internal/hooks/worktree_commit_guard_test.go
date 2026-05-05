@@ -12,21 +12,21 @@ import (
 // is blocked from committing on main/master, while an orchestrator (no parent)
 // is always allowed.
 func TestCheckSubagentCommitGuard_SubagentOnMain(t *testing.T) {
-	// Use the real project directory — it is on main, which is what we want to test.
-	projectDir := "/workspaces/htmlgraph"
-
-	commitEvent := &CloudEvent{
-		ToolName:  "Bash",
-		SessionID: "sub-sess-abc12345",
-		CWD:       projectDir,
-		ToolInput: map[string]any{
-			"command": "git commit -m \"test commit\"",
-		},
-	}
-
 	// Sub-agent (has parent) on main → must be blocked.
 	t.Run("subagent_on_main_is_blocked", func(t *testing.T) {
-		reason := checkSubagentCommitGuard(commitEvent, "parent-sess-xyz", projectDir)
+		tmpDir := t.TempDir()
+		if err := initTestGitRepoOnBranch(t, tmpDir, "main"); err != nil {
+			t.Skipf("cannot init git repo: %v", err)
+		}
+		commitEvent := &CloudEvent{
+			ToolName:  "Bash",
+			SessionID: "sub-sess-abc12345",
+			CWD:       tmpDir,
+			ToolInput: map[string]any{
+				"command": "git commit -m \"test commit\"",
+			},
+		}
+		reason := checkSubagentCommitGuard(commitEvent, "parent-sess-xyz", tmpDir)
 		if reason == "" {
 			t.Fatal("expected sub-agent commit on main to be blocked, but it was allowed")
 		}
@@ -40,7 +40,19 @@ func TestCheckSubagentCommitGuard_SubagentOnMain(t *testing.T) {
 
 	// Orchestrator (no parent) on main → must be allowed.
 	t.Run("orchestrator_on_main_is_allowed", func(t *testing.T) {
-		reason := checkSubagentCommitGuard(commitEvent, "", projectDir)
+		tmpDir := t.TempDir()
+		if err := initTestGitRepoOnBranch(t, tmpDir, "main"); err != nil {
+			t.Skipf("cannot init git repo: %v", err)
+		}
+		commitEvent := &CloudEvent{
+			ToolName:  "Bash",
+			SessionID: "sub-sess-abc12345",
+			CWD:       tmpDir,
+			ToolInput: map[string]any{
+				"command": "git commit -m \"test commit\"",
+			},
+		}
+		reason := checkSubagentCommitGuard(commitEvent, "", tmpDir)
 		if reason != "" {
 			t.Errorf("expected orchestrator commit on main to be allowed, got: %q", reason)
 		}
@@ -48,8 +60,20 @@ func TestCheckSubagentCommitGuard_SubagentOnMain(t *testing.T) {
 
 	// Sub-agent with HTMLGRAPH_AGENT_BRANCH=1 → escape hatch, allowed.
 	t.Run("subagent_with_agent_branch_env_is_allowed", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		if err := initTestGitRepoOnBranch(t, tmpDir, "main"); err != nil {
+			t.Skipf("cannot init git repo: %v", err)
+		}
+		commitEvent := &CloudEvent{
+			ToolName:  "Bash",
+			SessionID: "sub-sess-abc12345",
+			CWD:       tmpDir,
+			ToolInput: map[string]any{
+				"command": "git commit -m \"test commit\"",
+			},
+		}
 		t.Setenv("HTMLGRAPH_AGENT_BRANCH", "1")
-		reason := checkSubagentCommitGuard(commitEvent, "parent-sess-xyz", projectDir)
+		reason := checkSubagentCommitGuard(commitEvent, "parent-sess-xyz", tmpDir)
 		if reason != "" {
 			t.Errorf("expected HTMLGRAPH_AGENT_BRANCH=1 to allow commit, got: %q", reason)
 		}
@@ -77,16 +101,20 @@ func TestCheckSubagentCommitGuard_SubagentOnMain(t *testing.T) {
 
 	// Non-Bash tool → always allowed.
 	t.Run("non_bash_tool_is_allowed", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		if err := initTestGitRepoOnBranch(t, tmpDir, "main"); err != nil {
+			t.Skipf("cannot init git repo: %v", err)
+		}
 		writeEvent := &CloudEvent{
 			ToolName:  "Write",
 			SessionID: "sub-sess-abc12345",
-			CWD:       projectDir,
+			CWD:       tmpDir,
 			ToolInput: map[string]any{
 				"file_path": "/tmp/foo.go",
 				"content":   "package main",
 			},
 		}
-		reason := checkSubagentCommitGuard(writeEvent, "parent-sess-xyz", projectDir)
+		reason := checkSubagentCommitGuard(writeEvent, "parent-sess-xyz", tmpDir)
 		if reason != "" {
 			t.Errorf("expected non-Bash tool to be allowed, got: %q", reason)
 		}
@@ -94,15 +122,19 @@ func TestCheckSubagentCommitGuard_SubagentOnMain(t *testing.T) {
 
 	// Bash but not a commit command → allowed.
 	t.Run("non_commit_bash_is_allowed", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		if err := initTestGitRepoOnBranch(t, tmpDir, "main"); err != nil {
+			t.Skipf("cannot init git repo: %v", err)
+		}
 		lsEvent := &CloudEvent{
 			ToolName:  "Bash",
 			SessionID: "sub-sess-abc12345",
-			CWD:       projectDir,
+			CWD:       tmpDir,
 			ToolInput: map[string]any{
 				"command": "git status",
 			},
 		}
-		reason := checkSubagentCommitGuard(lsEvent, "parent-sess-xyz", projectDir)
+		reason := checkSubagentCommitGuard(lsEvent, "parent-sess-xyz", tmpDir)
 		if reason != "" {
 			t.Errorf("expected non-commit Bash to be allowed, got: %q", reason)
 		}

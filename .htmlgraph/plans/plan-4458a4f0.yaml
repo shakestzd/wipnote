@@ -1,0 +1,149 @@
+meta:
+    id: plan-4458a4f0
+    track_id: trk-a30e8df4
+    title: 'v2 plan system: logic-tree decomposition (Bulletproof Problem Solving steps 2-3)'
+    description: Adds steps 2 (disaggregate into a logic/issue tree) and 3 (prioritize branches by impact x tractability) of Conn & McLean's Bulletproof Problem Solving on top of the v2 plan system. Today CRISPI maps onto steps 1, 4, 5, 6, 7 but skips 2 and 3 — slice prioritization is by-eye and decomposition is implicit. The tree captures the pre-history of each slice, gives critic agents tree-completeness as a critique target, and gives htmlgraph:execute a real prioritization signal beyond dependency order. Depends on PLAN A's compressed schema landing first.
+    created_at: "2026-04-29"
+    status: draft
+    version: 10
+design:
+    problem: ""
+    goals: []
+    constraints: []
+    approved: false
+    comment: ""
+slices:
+    - id: slic-2a6b4992
+      num: 1
+      title: 'Schema: tree: top-level field with leaf id/text/impact/tractability/children/promotes_to'
+      what: 'Add Tree []TreeNode to PlanYAML. TreeNode has ID, Text, Impact (1-5), Tractability (1-5), Children []TreeNode (recursive), PromotesTo (slice num, optional), Notes. Validation: tree depth <=4, leaf must have impact+tractability, internal nodes inherit max child impact.'
+      why: Foundation. Without the schema, no other slice has anywhere to write.
+      files:
+        - internal/planyaml/schema.go
+        - internal/planyaml/io_test.go
+      deps: []
+      done_when:
+        - Schema round-trips
+        - Validation rejects invalid trees
+        - Existing plans without trees load unchanged
+      effort: M
+      risk: Low
+      tests: TestTreeNode_RoundTrip, TestTreeNode_ValidationRejectsDepth5, TestPlanWithoutTree_LoadsUnchanged
+      approved: false
+      comment: ""
+    - id: slic-fe0da5a1
+      num: 2
+      title: 'Plan SKILL: research phase produces structured tree YAML output'
+      what: 'Update plugin/skills/plan/SKILL.md to instruct the planner to emit a tree YAML during research phase before drafting slice cards. Gate: tree mandatory only when candidate slice count >= 5; below that, slice drafting starts directly.'
+      why: Folds steps 2-3 into the existing research phase rather than adding a new ceremony stage. Avoids consulting theater for hotfix-sized plans.
+      files:
+        - plugin/skills/plan/SKILL.md
+      deps:
+        - 1
+      done_when:
+        - Skill produces tree YAML for >=5-slice plans
+        - Smaller plans skip tree without prompting
+        - Critique step references tree completeness when present
+      effort: M
+      risk: Low
+      tests: 'Manual: run /htmlgraph:plan on a hotfix topic (no tree expected) and a multi-feature topic (tree expected)'
+      approved: false
+      comment: ""
+    - id: slic-9d121da4
+      num: 3
+      title: 'Critique mode: tree-completeness'
+      what: Add a critique flavor that argues 'what's missing from branch X?' against the tree, separate from per-slice feasibility critique. Reuse the critique infrastructure but target tree leaves instead of slice cards.
+      why: Today critique is per-slice — it can't catch 'you forgot a whole sub-problem.' Tree completeness as a first-class critique target catches that.
+      files:
+        - cmd/htmlgraph/plan_critique.go
+        - internal/critique/tree_completeness.go
+      deps:
+        - 1
+      done_when:
+        - Critique can target tree branches
+        - Output is structured (severity
+        - branch ID
+        - gap description)
+        - Surfaces in dashboard alongside per-slice critique
+      effort: L
+      risk: Med
+      tests: TestCritiqueTree_FindsMissingBranch, TestCritiqueTree_PassesCompleteTree
+      approved: false
+      comment: ""
+    - id: slic-11e2a9f8
+      num: 4
+      title: Slice tree_leaf back-reference + carry-forward at promotion
+      what: Add TreeLeaf string field to PlanSlice. promote-slice from a tree leaf copies leaf.Notes, leaf.Questions, and impact/tractability into the slice. Approval of a leaf is recorded as approval of the slice it promotes to.
+      why: Closes the loop between tree and slices. Lets execute use the leaf-derived impact x tractability score as a dispatch priority signal. Also depends on PLAN A slice 3 (compressed schema / per-slice Feedback+Answers fields).
+      files:
+        - internal/planyaml/schema.go
+        - cmd/htmlgraph/plan_promote_slice.go
+      deps:
+        - 1
+      done_when:
+        - Leaf->slice promotion carries forward all metadata
+        - tree_leaf back-reference round-trips
+        - Existing promote-slice path works for plans without trees
+      effort: M
+      risk: Low
+      tests: TestPromoteSlice_FromTreeLeaf, TestPromoteSlice_NoTreeStillWorks
+      approved: false
+      comment: ""
+    - id: slic-186123ff
+      num: 5
+      title: htmlgraph:execute prioritization by impact x tractability
+      what: Within the unblocked-set of features ready to dispatch, sort by impact * tractability (descending) using the leaf-derived score on the parent slice. Falls back to insertion order when no tree present.
+      why: Today execute dispatches by dependency order only. With tree-derived scores, agents naturally take high-impact + low-effort work first.
+      files:
+        - cmd/htmlgraph/execute.go
+        - internal/execute/dispatcher.go
+      deps:
+        - 4
+      done_when:
+        - Dispatch order respects impact*tractability when present
+        - Plans without trees see no behavior change
+        - Dashboard surfaces the priority score per feature
+      effort: M
+      risk: Low
+      tests: TestExecute_PrioritizesByImpactTractability, TestExecute_NoTreeFallsBack
+      approved: false
+      comment: ""
+questions:
+    - id: q-impact-and-tractability-scale-1-5-numeri
+      text: 'Impact and tractability scale: 1-5 numeric, 1-3 numeric, or qualitative?'
+      description: Each tree leaf and slice carries impact and tractability. Numeric 1-5 gives finer granularity but inflates ('everything is a 4'); 1-3 forces choices; qualitative low/med/high is cleanest for non-engineers but loses sortability without a mapping.
+      recommended: three
+      options:
+        - key: five
+          label: 1-5 numeric
+        - key: three
+          label: 1-3 numeric
+        - key: qual
+          label: low/med/high (with internal mapping)
+      answer: null
+    - id: q-tree-mandatory-threshold-at-n-candidate
+      text: 'Tree mandatory threshold: at >=N candidate slices?'
+      description: We want to avoid forcing a tree on hotfix-sized plans. Threshold of N=5 catches anything multi-feature. N=3 catches almost everything (could feel forced). N=10 only catches large initiatives.
+      recommended: five
+      options:
+        - key: three
+          label: N=3
+        - key: five
+          label: N=5
+        - key: ten
+          label: N=10
+        - key: never
+          label: Never mandatory; always optional
+      answer: null
+    - id: q-tree-as-separate-top-level-field-or-fold
+      text: Tree as separate top-level field or fold into design?
+      description: design.* already holds the problem statement. tree could either (a) be a sibling top-level field for clarity, or (b) fold into design.tree as a nested concept within problem definition.
+      recommended: top
+      options:
+        - key: top
+          label: 'Separate top-level tree:'
+        - key: nested
+          label: design.tree nested
+        - key: both
+          label: tree top-level + design.tree pointer
+      answer: null
