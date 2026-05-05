@@ -1,12 +1,12 @@
 prompt = '''
-# /htmlgraph:end
+# /erinn:end
 
 End the current session and record work summary
 
 ## Usage
 
 ```
-/htmlgraph:end
+/erinn:end
 ```
 
 ## Parameters
@@ -16,7 +16,7 @@ End the current session and record work summary
 ## Examples
 
 ```bash
-/htmlgraph:end
+/erinn:end
 ```
 Gracefully end the current session and show work summary
 
@@ -30,13 +30,13 @@ Gracefully end the current session and show work summary
 
 1. **Get current session and active work:**
    ```bash
-   htmlgraph session list --limit 1
-   htmlgraph status
+   erinn session list --limit 1
+   erinn status
    ```
 
 2. **End the session:**
    ```bash
-   htmlgraph session end
+   erinn session end
    ```
 
 3. **Present session summary** using the output template below, including:
@@ -46,12 +46,12 @@ Gracefully end the current session and show work summary
    - Progress made
 
 4. **Provide next-session guidance:**
-   - Mention how to view dashboard: `htmlgraph serve`
+   - Mention how to view dashboard: `erinn serve`
    - Suggest next steps for the next session
-   - Link to session record in `.htmlgraph/sessions/`
+   - Link to session record in `.erinn/sessions/`
 
 5. **CRITICAL CONSTRAINT:**
-   - ONLY run `/htmlgraph:end` when the user explicitly requests it
+   - ONLY run `/erinn:end` when the user explicitly requests it
    - Do NOT automatically end sessions
    - Wait for explicit user command
 
@@ -71,7 +71,7 @@ Gracefully end the current session and show work summary
 
 ---
 
-Session recorded in `.htmlgraph/sessions/`
-View dashboard: `htmlgraph serve`
+Session recorded in `.erinn/sessions/`
+View dashboard: `erinn serve`
 
 '''

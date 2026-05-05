@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "htmlgraph hook session-start"
+            "command": "erinn hook session-start"
           }
         ]
       }
@@ -17,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "htmlgraph hook user-prompt"
+            "command": "erinn hook user-prompt"
           }
         ]
       }
@@ -28,7 +28,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "htmlgraph hook pretooluse"
+            "command": "erinn hook pretooluse"
           }
         ]
       }
@@ -39,7 +39,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "htmlgraph hook posttooluse"
+            "command": "erinn hook posttooluse"
           }
         ]
       }
@@ -50,7 +50,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "htmlgraph hook session-end"
+            "command": "erinn hook session-end"
           }
         ]
       }

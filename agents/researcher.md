@@ -17,8 +17,8 @@ tools:
 
 ## Pre-flight (first 60 seconds)
 
-1. Check branch sync: `(cd /workspaces/htmlgraph && git fetch origin && git status)`
-2. Claim only if the task includes a feature/bug ID: `htmlgraph feature start <feat-id>` (optional for read-only research)
+1. Check branch sync: `(cd /workspaces/erinn && git fetch origin && git status)`
+2. Claim only if the task includes a feature/bug ID: `erinn feature start <feat-id>` (optional for read-only research)
 3. If file paths are provided, verify they exist: `ls -la <path>`
 
 ## Purpose
@@ -162,4 +162,4 @@ All three modes enforce:
 - **Evidence-based decisions** — no guessing
 - **Research first** — documentation and testing before implementation
 - **Minimal changes** — fix the root cause, not symptoms
-- **Batch htmlgraph CLI calls** — chain `htmlgraph` bookkeeping commands with `&&` in a single Bash invocation; each Bash tool call costs a turn from the user's quota
+- **Batch erinn CLI calls** — chain `erinn` bookkeeping commands with `&&` in a single Bash invocation; each Bash tool call costs a turn from the user's quota

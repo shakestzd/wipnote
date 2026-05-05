@@ -1,12 +1,12 @@
 prompt = '''
-# /htmlgraph:feature-start
+# /erinn:feature-start
 
 Start working on a feature (moves it to in-progress)
 
 ## Usage
 
 ```
-/htmlgraph:feature-start [feature-id]
+/erinn:feature-start [feature-id]
 ```
 
 ## Parameters
@@ -17,12 +17,12 @@ Start working on a feature (moves it to in-progress)
 ## Examples
 
 ```bash
-/htmlgraph:feature-start feature-001
+/erinn:feature-start feature-001
 ```
 Start working on feature-001
 
 ```bash
-/htmlgraph:feature-start
+/erinn:feature-start
 ```
 List available features and prompt for selection
 
@@ -40,18 +40,18 @@ List available features and prompt for selection
 
 2. **List available features:**
    ```bash
-   htmlgraph find features --status todo
+   erinn find features --status todo
    ```
    Show available features to the user, ask which they want to start, wait for response.
 
 3. **Start the feature:**
    ```bash
-   htmlgraph feature start {feature_id}
+   erinn feature start {feature_id}
    ```
 
 4. **Get feature details:**
    ```bash
-   htmlgraph feature show {feature_id}
+   erinn feature show {feature_id}
    ```
    Extract: title, ID, status (should be "in-progress"), description, and any implementation steps.
 

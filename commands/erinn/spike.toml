@@ -1,12 +1,12 @@
 prompt = '''
-# /htmlgraph:spike
+# /erinn:spike
 
 Create a research/planning spike
 
 ## Usage
 
 ```
-/htmlgraph:spike <title> [--description TEXT] [--track ID]
+/erinn:spike <title> [--description TEXT] [--track ID]
 ```
 
 ## Parameters
@@ -19,17 +19,17 @@ Create a research/planning spike
 ## Examples
 
 ```bash
-/htmlgraph:spike "Research OAuth providers"
+/erinn:spike "Research OAuth providers"
 ```
 Create a spike
 
 ```bash
-/htmlgraph:spike "Investigate caching strategies" --description "Focus on Redis vs Memcached"
+/erinn:spike "Investigate caching strategies" --description "Focus on Redis vs Memcached"
 ```
 Create a spike with description
 
 ```bash
-/htmlgraph:spike "Plan data migration" --track trk-abc123
+/erinn:spike "Plan data migration" --track trk-abc123
 ```
 Spike linked to a track
 
@@ -42,13 +42,13 @@ Spike linked to a track
 Run spike create, passing `--description` and `--track` when provided:
 
 ```bash
-htmlgraph spike create "{title}" [--description "{description}"] [--track {track_id}]
+erinn spike create "{title}" [--description "{description}"] [--track {track_id}]
 ```
 
 Then immediately start the spike:
 
 ```bash
-htmlgraph spike start {id}
+erinn spike start {id}
 ```
 
 Present the spike ID and title from CLI output using the output template below.

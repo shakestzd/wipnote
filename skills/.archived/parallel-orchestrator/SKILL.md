@@ -8,12 +8,12 @@ description: ARCHIVED — Use orchestrator-directives-skill instead. Orchestrate
 
 # Parallel Orchestrator Skill (ARCHIVED)
 
-> **This skill is archived.** Use `/htmlgraph:orchestrator-directives-skill` for current orchestration patterns.
+> **This skill is archived.** Use `/erinn:orchestrator-directives-skill` for current orchestration patterns.
 
 ## Core Principle: 6-Phase Parallel Workflow
 
 ```
-1. ANALYZE   → htmlgraph analytics summary + htmlgraph find features --status todo
+1. ANALYZE   → erinn analytics summary + erinn find features --status todo
 2. PREPARE   → Cache shared context, isolate tasks
 3. DISPATCH  → Spawn agents in ONE message (parallel)
 4. MONITOR   → Track health metrics per agent
@@ -27,9 +27,9 @@ description: ARCHIVED — Use orchestrator-directives-skill instead. Orchestrate
 
 ```bash
 # Check what can be parallelized
-htmlgraph analytics summary
-htmlgraph find features --status todo
-htmlgraph analytics summary
+erinn analytics summary
+erinn find features --status todo
+erinn analytics summary
 ```
 
 ### Decision Criteria
@@ -54,9 +54,9 @@ Identify files all agents need and share that context in each agent's prompt. Pa
 
 ```python
 # CORRECT: All in one message (parallel)
-Task(subagent_type="htmlgraph:gemini-operator", description="Research API", prompt="...")
-Task(subagent_type="htmlgraph:sonnet-coder", description="Implement feat-123", prompt="...")
-Task(subagent_type="htmlgraph:sonnet-coder", description="Implement feat-456", prompt="...")
+Task(subagent_type="erinn:gemini-operator", description="Research API", prompt="...")
+Task(subagent_type="erinn:sonnet-coder", description="Implement feat-123", prompt="...")
+Task(subagent_type="erinn:sonnet-coder", description="Implement feat-456", prompt="...")
 
 # WRONG: Sequential messages (not parallel)
 # result1 = Task(...)  # Wait for completion
@@ -98,7 +98,7 @@ git diff --stat
 uv run pytest
 
 # Commit unified changes
-htmlgraph feature complete <feat-id>
+erinn feature complete <feat-id>
 ```
 
 ---
@@ -118,8 +118,8 @@ htmlgraph feature complete <feat-id>
 ### "Not enough independent tasks"
 ```bash
 # Check what's available
-htmlgraph analytics summary
-htmlgraph find features --status todo
+erinn analytics summary
+erinn find features --status todo
 ```
 
 ### File conflicts detected

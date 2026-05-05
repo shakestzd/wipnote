@@ -1,11 +1,11 @@
 ---
-name: htmlgraph:tdd-protocol
+name: erinn:tdd-protocol
 description: TDD protocol for sub-agent implementation tasks — write failing tests first, run quality gates, commit format, attribution rules
 ---
 
 # TDD Protocol for Sub-Agent Implementation
 
-Use this skill for any implementation task dispatched by `/htmlgraph:execute`. It defines the mandatory workflow: failing tests first, quality gates, commit format, and work-item attribution.
+Use this skill for any implementation task dispatched by `/erinn:execute`. It defines the mandatory workflow: failing tests first, quality gates, commit format, and work-item attribution.
 
 **Trigger keywords:** write tests first, TDD, test-driven, quality gate, commit format, attribution
 
@@ -14,7 +14,7 @@ Use this skill for any implementation task dispatched by `/htmlgraph:execute`. I
 ## Step 1: Attribution — Before Any Code
 
 ```bash
-htmlgraph feature start {feature_id}
+erinn feature start {feature_id}
 ```
 
 Run this as the FIRST command, before reading files, writing tests, or any implementation.
@@ -72,7 +72,7 @@ Co-Authored-By: Claude Sonnet <noreply@anthropic.com>
 ## Step 6: Complete Attribution
 
 ```bash
-htmlgraph feature complete {feature_id}
+erinn feature complete {feature_id}
 ```
 
 Run this after quality gates pass and the commit is made.

@@ -1,12 +1,12 @@
 prompt = '''
-# /htmlgraph:status
+# /erinn:status
 
 Check project status and active features
 
 ## Usage
 
 ```
-/htmlgraph:status
+/erinn:status
 ```
 
 ## Parameters
@@ -16,7 +16,7 @@ Check project status and active features
 ## Examples
 
 ```bash
-/htmlgraph:status
+/erinn:status
 ```
 Show project progress and current feature
 
@@ -30,8 +30,8 @@ Show project progress and current feature
 
 1. **Get comprehensive status:**
    ```bash
-   htmlgraph status
-   htmlgraph find features --status in-progress
+   erinn status
+   erinn find features --status in-progress
    ```
 
 2. **Extract key metrics from output:**
@@ -42,10 +42,10 @@ Show project progress and current feature
 3. **Present a summary** using the output template below.
 
 4. **Recommend next steps** based on status:
-   - If no active features → Suggest `/htmlgraph:recommend`
+   - If no active features → Suggest `/erinn:recommend`
    - If active features exist → Show their progress
    - If features done → Acknowledge progress
-   - Suggest `/htmlgraph:plan` for new work
+   - Suggest `/erinn:plan` for new work
 
 ### Output Format:
 
@@ -58,8 +58,8 @@ Show project progress and current feature
 {active_features with titles and step progress}
 
 ### Quick Actions
-- Use `/htmlgraph:plan` to start planning new work
-- Use `/htmlgraph:recommend` to get recommendations
-- Run `htmlgraph serve` to open dashboard
+- Use `/erinn:plan` to start planning new work
+- Use `/erinn:recommend` to get recommendations
+- Run `erinn serve` to open dashboard
 
 '''

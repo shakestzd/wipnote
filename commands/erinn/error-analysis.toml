@@ -1,21 +1,21 @@
 prompt = '''
 ---
 name: error-analysis
-description: Systematically capture, analyze, and track errors with HtmlGraph spike-based investigation workflow
+description: Systematically capture, analyze, and track errors with Erinn AI spike-based investigation workflow
 args:
   - name: error_context
     description: Brief description of the error or error message
     required: false
 ---
 
-# /htmlgraph:error-analysis
+# /erinn:error-analysis
 
-Systematically capture, analyze, and track errors with HtmlGraph spike-based investigation workflow.
+Systematically capture, analyze, and track errors with Erinn AI spike-based investigation workflow.
 
 ## Usage
 
 ```
-/htmlgraph:error-analysis [error_context]
+/erinn:error-analysis [error_context]
 ```
 
 ## Parameters
@@ -26,21 +26,21 @@ Systematically capture, analyze, and track errors with HtmlGraph spike-based inv
 ## Examples
 
 ```bash
-/htmlgraph:error-analysis "PreToolUse hook failing with 'No such file'"
+/erinn:error-analysis "PreToolUse hook failing with 'No such file'"
 ```
-Capture and analyze a hook error with HtmlGraph tracking
+Capture and analyze a hook error with Erinn AI tracking
 
 ```bash
-/htmlgraph:error-analysis
+/erinn:error-analysis
 ```
 Interactive error capture workflow
 
 
 ## Instructions for Claude
 
-**CRITICAL: This command implements systematic error investigation using HtmlGraph spikes.**
+**CRITICAL: This command implements systematic error investigation using Erinn AI spikes.**
 
-This command follows a research-first debugging methodology: capture the error, categorize it, investigate systematically, and track progress in HtmlGraph.
+This command follows a research-first debugging methodology: capture the error, categorize it, investigate systematically, and track progress in Erinn AI.
 
 ### Implementation:
 
@@ -87,22 +87,22 @@ This command follows a research-first debugging methodology: capture the error, 
    - Dependency versions
    - Stack traces
 
-4. **Document error details in HtmlGraph:**
-   Run `htmlgraph track list` to find the appropriate track. If none applies, omit `--track`.
-   Use `htmlgraph bug create` to track the error investigation and findings:
+4. **Document error details in Erinn AI:**
+   Run `erinn track list` to find the appropriate track. If none applies, omit `--track`.
+   Use `erinn bug create` to track the error investigation and findings:
    ```bash
-   htmlgraph bug create "Error Analysis: {error_category} - {brief_description}" --track <trk-id>
+   erinn bug create "Error Analysis: {error_category} - {brief_description}" --track <trk-id>
    ```
    Then immediately start the bug:
    ```bash
-   htmlgraph bug start <id>
+   erinn bug start <id>
    ```
 
 5. **Provide systematic investigation prompts:**
    Based on error category, guide investigation:
 
    **Hook Errors:**
-   - [ ] Research hook documentation (use /htmlgraph:research or claude-code-guide)
+   - [ ] Research hook documentation (use /erinn:research or claude-code-guide)
    - [ ] Check for duplicate hooks across sources
    - [ ] Verify hook file paths and permissions
    - [ ] Test with --debug flag for verbose output
@@ -138,15 +138,15 @@ This command follows a research-first debugging methodology: capture the error, 
 
 6. **Dispatch codebase investigation:**
    If the error requires codebase investigation, dispatch the researcher agent immediately.
-   Use `Task(subagent_type="htmlgraph:researcher")` for researching documentation and prior art.
-   Use `Task(subagent_type="htmlgraph:debugger")` for systematic error investigation.
-   Use `Task(subagent_type="htmlgraph:test-runner")` to validate fixes.
+   Use `Task(subagent_type="erinn:researcher")` for researching documentation and prior art.
+   Use `Task(subagent_type="erinn:debugger")` for systematic error investigation.
+   Use `Task(subagent_type="erinn:test-runner")` to validate fixes.
 
 7. **Document investigation workflow:**
 
    After creating the bug, record progress as you investigate:
    ```bash
-   htmlgraph bug show <bug-id>
+   erinn bug show <bug-id>
    ```
 
    Follow these investigation steps:
@@ -185,21 +185,21 @@ This command follows a research-first debugging methodology: capture the error, 
 
 ### Next Steps
 1. Complete investigation checklist items
-2. Document findings in spike: `/htmlgraph:spike {spike.id}`
+2. Document findings in spike: `/erinn:spike {spike.id}`
 3. Delegate to specialized agents:
-   - `Task(subagent_type="htmlgraph:researcher")` for unfamiliar concepts
-   - `Task(subagent_type="htmlgraph:debugger")` for systematic debugging
-   - `Task(subagent_type="htmlgraph:test-runner")` to validate fixes
+   - `Task(subagent_type="erinn:researcher")` for unfamiliar concepts
+   - `Task(subagent_type="erinn:debugger")` for systematic debugging
+   - `Task(subagent_type="erinn:test-runner")` to validate fixes
 
 ### Start Investigation
 Use these commands to begin:
 ```bash
 # View spike in dashboard
-htmlgraph serve
+erinn serve
 # Open: http://localhost:8080
 
 # Research if needed (unfamiliar error)
-/htmlgraph:research "{error topic}"
+/erinn:research "{error topic}"
 
 # Document findings as you investigate
 # Findings are auto-tracked in the spike
@@ -227,9 +227,9 @@ Use these patterns to categorize errors:
 This command implements the systematic debugging workflow:
 
 ```
-1. /htmlgraph:error-analysis "error message"  → Capture & categorize
+1. /erinn:error-analysis "error message"  → Capture & categorize
 2. [Complete investigation checklist]          → Gather evidence
-3. /htmlgraph:research "topic" (if needed)    → Research unfamiliar concepts
+3. /erinn:research "topic" (if needed)    → Research unfamiliar concepts
 4. [Test hypothesis systematically]            → Debug root cause
 5. [Implement minimal fix]                     → Fix the issue
 6. [Run quality gates]                         → Validate fix
@@ -266,7 +266,7 @@ Before marking investigation complete, verify:
 
 ```bash
 # Step 1: Capture error
-/htmlgraph:error-analysis "PreToolUse hook failing with 'No such file'"
+/erinn:error-analysis "PreToolUse hook failing with 'No such file'"
 
 # Creates spike with:
 # - Error category: hook
@@ -274,7 +274,7 @@ Before marking investigation complete, verify:
 # - Debugging resources
 
 # Step 2: Research (if unfamiliar with hooks)
-/htmlgraph:research "Claude Code hook loading and file paths"
+/erinn:research "Claude Code hook loading and file paths"
 
 # Finds:
 # - Hooks load from .claude/hooks/ and plugin directories
@@ -309,8 +309,8 @@ claude --debug <command>  # Test with verbose output
 5. Find actual solution
 
 ✅ **Correct approach:**
-1. Use `/htmlgraph:error-analysis` to capture error
-2. Use `/htmlgraph:research` to understand root cause
+1. Use `/erinn:error-analysis` to capture error
+2. Use `/erinn:research` to understand root cause
 3. Implement fix based on understanding
 4. Validate fix works
 5. Document learning

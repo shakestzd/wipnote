@@ -1,26 +1,26 @@
 prompt = '''
-# /htmlgraph:git-commit
+# /erinn:git-commit
 
 Commit changes using Bash-copilot first, haiku-coder as fallback.
 
 ## Usage
 
 ```
-/htmlgraph:git-commit [message] [--push] [--files <list>]
+/erinn:git-commit [message] [--push] [--files <list>]
 ```
 
 ## Parameters
 
 - `message` (optional): Commit message. If omitted, Claude analyzes the diff and drafts one.
 - `--push`: Also push after committing.
-- `--files <list>`: Specific files to stage. Default: analyze git diff and select source files, excluding `.htmlgraph/`.
+- `--files <list>`: Specific files to stage. Default: analyze git diff and select source files, excluding `.erinn/`.
 
 ## Examples
 
 ```
-/htmlgraph:git-commit "feat: add user authentication"
-/htmlgraph:git-commit --push
-/htmlgraph:git-commit --files internal/foo.go internal/foo_test.go "fix: resolve null pointer"
+/erinn:git-commit "feat: add user authentication"
+/erinn:git-commit --push
+/erinn:git-commit --files internal/foo.go internal/foo_test.go "fix: resolve null pointer"
 ```
 
 ## Instructions for Claude
@@ -33,7 +33,7 @@ Commit changes using Bash-copilot first, haiku-coder as fallback.
 git diff --stat HEAD; git status --short
 ```
 
-Select source files to stage. Exclude `.htmlgraph/` directory unless explicitly requested.
+Select source files to stage. Exclude `.erinn/` directory unless explicitly requested.
 
 If no message was provided, draft one from the diff using conventional commit format.
 
@@ -60,7 +60,7 @@ If `--push` was passed, add: "Then push to origin." to the prompt.
 
 ```text
 Agent(
-    subagent_type="htmlgraph:haiku-coder",
+    subagent_type="erinn:haiku-coder",
     description="Commit: <message>",
     prompt="Stage these files: <list>. Commit with message: '<message>'. Do NOT push."
 )

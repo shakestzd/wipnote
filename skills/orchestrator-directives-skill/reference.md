@@ -1,6 +1,6 @@
 # Orchestrator Directives - Complete Reference
 
-This document contains the complete orchestration rules and patterns for HtmlGraph project.
+This document contains the complete orchestration rules and patterns for Erinn AI project.
 
 **Source:** `packages/claude-plugin/rules/orchestration.md`
 
@@ -52,7 +52,7 @@ copilot -p "Stage files: CLAUDE.md, SKILL.md, git-commit-push.sh. Commit with me
 ```python
 # Priority 2: haiku-coder fallback (if copilot unavailable)
 Agent(
-    subagent_type="htmlgraph:haiku-coder",
+    subagent_type="erinn:haiku-coder",
     description="Commit: docs: enforce strict git delegation",
     prompt="""
     Stage files: CLAUDE.md, SKILL.md, git-commit-push.sh
@@ -167,26 +167,26 @@ Ask yourself:
 
 Use these reflections to adjust your delegation habits.
 
-## Integration with HtmlGraph CLI
+## Integration with Erinn AI CLI
 
 Always use the CLI to track orchestration activities:
 
 ```bash
 # Track what you delegate
-htmlgraph feature create "Implement authentication" --track <trk-id>
-htmlgraph feature start <feat-id>
+erinn feature create "Implement authentication" --track <trk-id>
+erinn feature start <feat-id>
 ```
 
 ```bash
 # Try CLI tools directly first
 gemini -p "Find all auth-related code in src/: What library is used? Where is validation?" \
   --output-format json --yolo --include-directories . 2>&1
-# fallback → Agent(subagent_type="htmlgraph:haiku-coder", ...)
+# fallback → Agent(subagent_type="erinn:haiku-coder", ...)
 ```
 ```bash
 codex exec "Implement OAuth flow based on research findings" \
   --full-auto --json -m gpt-4.1-mini -C . 2>&1
-# fallback → Agent(subagent_type="htmlgraph:sonnet-coder", ...)
+# fallback → Agent(subagent_type="erinn:sonnet-coder", ...)
 ```
 
 **See:** `packages/go-plugin/skills/orchestrator-directives-skill/SKILL.md` for complete orchestrator patterns
@@ -200,15 +200,15 @@ codex exec "Implement OAuth flow based on research findings" \
 ```bash
 # Dispatch 3 parallel Bash calls in a single message (CLI-first pattern)
 codex exec "Add JWT auth to API endpoints..." --full-auto --json -m gpt-4.1-mini -C . 2>&1
-# fallback → Agent(subagent_type="htmlgraph:sonnet-coder", ...)
+# fallback → Agent(subagent_type="erinn:sonnet-coder", ...)
 ```
 ```bash
 codex exec "Write unit + integration tests for auth endpoints..." --full-auto --json -m gpt-4.1-mini -C . 2>&1
-# fallback → Agent(subagent_type="htmlgraph:haiku-coder", ...)
+# fallback → Agent(subagent_type="erinn:haiku-coder", ...)
 ```
 ```bash
 gemini -p "Update API documentation for auth endpoints..." --output-format json --yolo --include-directories . 2>&1
-# fallback → Agent(subagent_type="htmlgraph:haiku-coder", ...)
+# fallback → Agent(subagent_type="erinn:haiku-coder", ...)
 ```
 # All three run in parallel; each reports results independently
 
@@ -232,7 +232,7 @@ copilot -p "Stage files: [list files]. Commit with message: 'chore: update sessi
 ```python
 # ✅ CORRECT - Priority 2: haiku-coder fallback (if copilot unavailable)
 Agent(
-    subagent_type="htmlgraph:haiku-coder",
+    subagent_type="erinn:haiku-coder",
     description="Commit: chore: update session tracking",
     prompt="""
     Commit and push changes to git:
@@ -265,99 +265,99 @@ Agent(
 
 ```bash
 # 1. Create feature (orchestrator does this directly)
-htmlgraph feature create "Add user authentication" --track <trk-id>
-htmlgraph feature start <feat-id>
+erinn feature create "Add user authentication" --track <trk-id>
+erinn feature start <feat-id>
 ```
 
 ```bash
 # 2. Research (try gemini CLI first)
 gemini -p "Research existing auth patterns: What library is used? Where is validation? What OAuth providers are supported?" \
   --output-format json --yolo --include-directories . 2>&1
-# fallback → Agent(subagent_type="htmlgraph:haiku-coder", ...)
+# fallback → Agent(subagent_type="erinn:haiku-coder", ...)
 ```
 
 ```bash
 # 3. Implement (try codex CLI first, after research completes)
 codex exec "Implement OAuth flow: Add JWT auth to API endpoints, create middleware for token validation, support Google and GitHub OAuth" \
   --full-auto --json -m gpt-4.1-mini -C . 2>&1
-# fallback → Agent(subagent_type="htmlgraph:sonnet-coder", ...)
+# fallback → Agent(subagent_type="erinn:sonnet-coder", ...)
 ```
 
 ```bash
 # 4. Commit (try copilot CLI first)
 copilot -p "Commit with message: 'feat: add user authentication with OAuth support'. Do NOT push." \
   --allow-all-tools --no-color --add-dir . 2>&1
-# fallback → Agent(subagent_type="htmlgraph:haiku-coder", ...)
+# fallback → Agent(subagent_type="erinn:haiku-coder", ...)
 ```
 
 ```bash
 # 5. Mark feature complete
-htmlgraph feature complete <feat-id>
+erinn feature complete <feat-id>
 ```
 
 ### Example 2: Bug Fix Workflow
 
 ```bash
 # 1. Create bug
-htmlgraph bug create "Session timeout not working" --track <trk-id>
+erinn bug create "Session timeout not working" --track <trk-id>
 ```
 
 ```bash
 # 2. Investigate (try gemini CLI first)
 gemini -p "Debug session timeout: expected 30min, observed ~5min. Find config, check middleware, review logs, identify root cause." \
   --output-format json --yolo --include-directories . 2>&1
-# fallback → Agent(subagent_type="htmlgraph:haiku-coder", ...)
+# fallback → Agent(subagent_type="erinn:haiku-coder", ...)
 ```
 
 ```bash
 # Fix (try codex CLI first, after investigation)
 codex exec "Fix session timeout to 30 minutes. Add regression test. Verify fix works." \
   --full-auto --json -m gpt-4.1-mini -C . 2>&1
-# fallback → Agent(subagent_type="htmlgraph:sonnet-coder", ...)
+# fallback → Agent(subagent_type="erinn:sonnet-coder", ...)
 ```
 
 ```bash
 # 3. Commit (try copilot CLI first)
 copilot -p "Commit with message: 'fix: correct session timeout to 30 minutes'. Do NOT push." \
   --allow-all-tools --no-color --add-dir . 2>&1
-# fallback → Agent(subagent_type="htmlgraph:haiku-coder", ...)
+# fallback → Agent(subagent_type="erinn:haiku-coder", ...)
 ```
 
 ```bash
 # 4. Mark bug resolved
-htmlgraph bug complete <bug-id>
+erinn bug complete <bug-id>
 ```
 
 ### Example 3: Parallel Task Coordination
 
 ```bash
 # Create feature
-htmlgraph feature create "Refactor API layer" --track <trk-id>
+erinn feature create "Refactor API layer" --track <trk-id>
 ```
 
 ```bash
 # Dispatch 3 parallel Bash calls in a single message
 gemini -p "Update API documentation to reflect new endpoints" --output-format json --yolo --include-directories . 2>&1
-# fallback → Agent(subagent_type="htmlgraph:haiku-coder", ...)
+# fallback → Agent(subagent_type="erinn:haiku-coder", ...)
 ```
 ```bash
 codex exec "Update test suite for refactored API endpoints" --full-auto --json -m gpt-4.1-mini -C . 2>&1
-# fallback → Agent(subagent_type="htmlgraph:sonnet-coder", ...)
+# fallback → Agent(subagent_type="erinn:sonnet-coder", ...)
 ```
 ```bash
 gemini -p "Create migration guide for API changes" --output-format json --yolo --include-directories . 2>&1
-# fallback → Agent(subagent_type="htmlgraph:haiku-coder", ...)
+# fallback → Agent(subagent_type="erinn:haiku-coder", ...)
 ```
 
 ```bash
 # After all complete — commit everything (try copilot CLI first)
 copilot -p "Commit all API refactoring changes with message: 'refactor: update API layer with improved endpoints'. Do NOT push." \
   --allow-all-tools --no-color --add-dir . 2>&1
-# fallback → Agent(subagent_type="htmlgraph:haiku-coder", ...)
+# fallback → Agent(subagent_type="erinn:haiku-coder", ...)
 ```
 
 ```bash
-htmlgraph feature complete <feat-id>
+erinn feature complete <feat-id>
 ```
 
 ## Common Anti-Patterns to Avoid
@@ -447,9 +447,9 @@ Task(prompt="Implement new feature")
 ```
 
 ```bash
-# ✅ CORRECT - Track with HtmlGraph CLI
-htmlgraph feature create "Implement new feature" --track <trk-id>
-htmlgraph feature start <feat-id>
+# ✅ CORRECT - Track with Erinn AI CLI
+erinn feature create "Implement new feature" --track <trk-id>
+erinn feature start <feat-id>
 ```
 
 ```python
@@ -458,7 +458,7 @@ Task(prompt="Implement new feature")
 
 ```bash
 # Update status after completion
-htmlgraph feature complete <feat-id>
+erinn feature complete <feat-id>
 ```
 
 ## Summary
@@ -467,7 +467,7 @@ htmlgraph feature complete <feat-id>
 
 1. **Delegate Everything** - Except Task(), AskUserQuestion(), TodoWrite(), and CLI operations
 2. **Parallel Dispatch** - Send all independent Tasks in one message
-3. **Track Work** - Use HtmlGraph CLI for all features, bugs, spikes
+3. **Track Work** - Use Erinn AI CLI for all features, bugs, spikes
 4. **Parallel > Sequential** - Delegate independently when possible
 5. **Git = Always Delegate** - Never run git commands directly
 

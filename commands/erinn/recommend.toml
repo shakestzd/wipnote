@@ -1,12 +1,12 @@
 prompt = '''
-# /htmlgraph:recommend
+# /erinn:recommend
 
 Get smart recommendations on what to work on next, including project health, bottleneck analysis, and parallel opportunities.
 
 ## Usage
 
 ```
-/htmlgraph:recommend [--top N]
+/erinn:recommend [--top N]
 ```
 
 ## Parameters
@@ -16,12 +16,12 @@ Get smart recommendations on what to work on next, including project health, bot
 ## Examples
 
 ```bash
-/htmlgraph:recommend
+/erinn:recommend
 ```
 Get top 5 recommendations with full analysis
 
 ```bash
-/htmlgraph:recommend --top 10
+/erinn:recommend --top 10
 ```
 Get top 10 recommendations
 
@@ -36,10 +36,10 @@ The command displays:
 
 ## Instructions for Claude
 
-This command invokes `htmlgraph recommend` via the CLI, which provides all analytics in one unified output.
+This command invokes `erinn recommend` via the CLI, which provides all analytics in one unified output.
 
 **Key workflow:**
-1. Run `htmlgraph recommend [--top N]` where N is user's choice or default 5
+1. Run `erinn recommend [--top N]` where N is user's choice or default 5
 2. Present the output with light markdown formatting
 3. Analyze the **recommended items** for parallel execution opportunities
 4. Propose next action: either parallel launch or sequential plan

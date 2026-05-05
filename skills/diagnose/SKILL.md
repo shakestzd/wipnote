@@ -1,19 +1,19 @@
 ---
 name: diagnose
-description: "Diagnose bugs, errors, and issues with root cause analysis. Use when asked to diagnose, debug, investigate, or find root cause of any problem — whether a HtmlGraph bug ID, error message, unexpected behavior, or delegation audit."
+description: "Diagnose bugs, errors, and issues with root cause analysis. Use when asked to diagnose, debug, investigate, or find root cause of any problem — whether an erinn bug ID, error message, unexpected behavior, or delegation audit."
 user_invocable: true
 ---
 
-# /htmlgraph:diagnose
+# /erinn:diagnose
 
 General-purpose diagnostic skill for investigating bugs, errors, and unexpected behavior.
 
 ## Usage
 
 ```
-/htmlgraph:diagnose <bug-id>              # Investigate a specific bug
-/htmlgraph:diagnose <error or symptom>    # Investigate an error or behavior
-/htmlgraph:diagnose --delegation          # Audit delegation compliance (legacy mode)
+/erinn:diagnose <bug-id>              # Investigate a specific bug
+/erinn:diagnose <error or symptom>    # Investigate an error or behavior
+/erinn:diagnose --delegation          # Audit delegation compliance (legacy mode)
 ```
 
 ## When to Activate
@@ -28,22 +28,22 @@ Trigger on:
 ## Work Item Attribution
 
 All diagnostic work must be attributed:
-- Bug investigation: `htmlgraph bug start <bug-id>` before investigating
-- New errors: `htmlgraph bug create "Error: description" --track <trk-id>` then start it
-- Run `htmlgraph help` for available commands
+- Bug investigation: `erinn bug start <bug-id>` before investigating
+- New errors: `erinn bug create "Error: description" --track <trk-id>` then start it
+- Run `erinn help` for available commands
 
 ## Instructions for Claude
 
 ### Route by Input
 
 **If given a bug ID** (matches `bug-*`):
-1. Start attribution: `htmlgraph bug start <bug-id>`
-2. Fetch bug details: `htmlgraph bug show <bug-id>`
+1. Start attribution: `erinn bug start <bug-id>`
+2. Fetch bug details: `erinn bug show <bug-id>`
 3. Dispatch the debugger agent with the bug context
 4. Present findings and suggested fix
 
 **If given an error message or symptom**:
-1. Create and start a bug: `htmlgraph bug create "<summary>" --track <trk-id>` then `htmlgraph bug start <id>`
+1. Create and start a bug: `erinn bug create "<summary>" --track <trk-id>` then `erinn bug start <id>`
 2. Dispatch the debugger agent with the error context
 3. Present findings and suggested fix
 
@@ -51,7 +51,7 @@ All diagnostic work must be attributed:
 1. Run the delegation audit (see Delegation Mode below)
 
 **If no arguments**:
-1. Check project health: `htmlgraph recommend --top 3`
+1. Check project health: `erinn recommend --top 3`
 2. Identify bottlenecks, stale items, or anomalies
 3. Suggest what to investigate
 
@@ -61,7 +61,7 @@ Dispatch the debugger agent with a structured prompt:
 
 ```python
 Agent(
-    subagent_type="htmlgraph:debugger",
+    subagent_type="erinn:debugger",
     description="Diagnose: <bug summary>",
     prompt="""
 ## Bug: <bug-id> — <title>
@@ -113,8 +113,8 @@ When `--delegation` is specified, audit the current session's delegation complia
 
 1. **Collect data**:
 ```bash
-htmlgraph status
-sqlite3 .htmlgraph/htmlgraph.db "
+erinn status
+sqlite3 .htmlgraph/erinn.db "
 SELECT tool_name, COUNT(*) as count
 FROM agent_events
 WHERE session_id = (SELECT session_id FROM agent_events ORDER BY timestamp DESC LIMIT 1)

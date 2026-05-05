@@ -12,9 +12,9 @@ Use this skill for code hygiene, quality gates, and pre-commit workflows.
 ## Work Item Attribution
 
 Quality gate runs should be attributed. Before fixing errors:
-1. Ensure a feature or bug is active: `htmlgraph status`
-2. If fixing a bug: `htmlgraph bug create "Fix: description" --track <trk-id>` then `htmlgraph bug start <id>`
-3. Run `htmlgraph help` for available commands
+1. Ensure a feature or bug is active: `erinn status`
+2. If fixing a bug: `erinn bug create "Fix: description" --track <trk-id>` then `erinn bug start <id>`
+3. Run `erinn help` for available commands
 
 ---
 
@@ -144,9 +144,9 @@ uv run ruff check --fix .
 2. Determine whether the code or the test expectation is wrong
 3. Fix the root cause; do not delete or skip the failing test
 
-## Integration with HtmlGraph
+## Integration with erinn
 
-Track quality improvements in active work items (features, bugs) using `htmlgraph feature edit <id>` or `htmlgraph bug edit <id>`.
+Track quality improvements in active work items (features, bugs) using `erinn feature edit <id>` or `erinn bug edit <id>`.
 
 ---
 

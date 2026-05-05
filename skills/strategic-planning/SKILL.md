@@ -1,6 +1,6 @@
 ---
 name: strategic-planning
-description: Use HtmlGraph analytics to make smart work prioritization decisions. Activate when recommending work, finding bottlenecks, assessing risks, or analyzing project impact.
+description: Use Erinn AI analytics to make smart work prioritization decisions. Activate when recommending work, finding bottlenecks, assessing risks, or analyzing project impact.
 ---
 
 # Strategic Planning Skill
@@ -19,16 +19,16 @@ description: Use HtmlGraph analytics to make smart work prioritization decisions
 - Progress seems slow (what's blocking us?)
 - Planning major changes (what's the impact?)
 
-**CLI reference:** Run `htmlgraph help` for available commands. Key commands:
-- `htmlgraph status` — project overview
-- `htmlgraph find features --status in-progress` — active work
-- `htmlgraph recommend` — AI-recommended next work
+**CLI reference:** Run `erinn help` for available commands. Key commands:
+- `erinn status` — project overview
+- `erinn find features --status in-progress` — active work
+- `erinn recommend` — AI-recommended next work
 
 ---
 
 ## Core Principle: Data-Driven Decisions
 
-HtmlGraph provides analytics that consider:
+Erinn AI provides analytics that consider:
 - **Dependencies** - What blocks/enables other work
 - **Priority** - Business importance
 - **Impact** - How many tasks are unlocked
@@ -41,28 +41,28 @@ HtmlGraph provides analytics that consider:
 
 ```bash
 # 1. What should I work on? (recommendations)
-htmlgraph analytics summary
+erinn analytics summary
 
 # 2. What's blocking progress?
-htmlgraph analytics summary
+erinn analytics summary
 
 # 3. Project snapshot (status + WIP)
-htmlgraph snapshot --summary
+erinn snapshot --summary
 
 # 4. Find in-progress work
-htmlgraph find features --status in-progress
+erinn find features --status in-progress
 ```
 
 ---
 
 ## CLI Reference
 
-### `htmlgraph analytics summary`
+### `erinn analytics summary`
 
 Find tasks that block the most downstream work.
 
 ```bash
-htmlgraph analytics summary
+erinn analytics summary
 ```
 
 **Use when:**
@@ -72,12 +72,12 @@ htmlgraph analytics summary
 
 ---
 
-### `htmlgraph analytics summary`
+### `erinn analytics summary`
 
 Get scored recommendations considering all factors.
 
 ```bash
-htmlgraph analytics summary
+erinn analytics summary
 ```
 
 **Scoring factors:**
@@ -88,16 +88,16 @@ htmlgraph analytics summary
 
 ---
 
-### `htmlgraph find features --status todo`
+### `erinn find features --status todo`
 
 Find tasks that can run concurrently (no dependencies).
 
 ```bash
 # All todo features
-htmlgraph find features --status todo
+erinn find features --status todo
 
 # All in-progress
-htmlgraph find features --status in-progress
+erinn find features --status in-progress
 ```
 
 **Use when:**
@@ -107,12 +107,12 @@ htmlgraph find features --status in-progress
 
 ---
 
-### `htmlgraph snapshot --summary`
+### `erinn snapshot --summary`
 
 Project health and status overview.
 
 ```bash
-htmlgraph snapshot --summary
+erinn snapshot --summary
 ```
 
 **Use when:**
@@ -128,9 +128,9 @@ htmlgraph snapshot --summary
 
 ```bash
 # Get project status overview
-htmlgraph status
-htmlgraph snapshot --summary
-htmlgraph analytics summary
+erinn status
+erinn snapshot --summary
+erinn analytics summary
 ```
 
 ---
@@ -139,8 +139,8 @@ htmlgraph analytics summary
 
 ```bash
 # Find what's causing the block
-htmlgraph analytics summary
-htmlgraph find features --status blocked
+erinn analytics summary
+erinn find features --status blocked
 ```
 
 ---
@@ -149,8 +149,8 @@ htmlgraph find features --status blocked
 
 ```bash
 # Check what's ready (no dependencies)
-htmlgraph analytics summary
-htmlgraph find features --status todo
+erinn analytics summary
+erinn find features --status todo
 ```
 
 ---
@@ -159,9 +159,9 @@ htmlgraph find features --status todo
 
 ```bash
 # See everything by status
-htmlgraph find features --status in-progress
-htmlgraph find features --status todo
-htmlgraph find bugs --status open
+erinn find features --status in-progress
+erinn find features --status todo
+erinn find bugs --status open
 ```
 
 ---
@@ -172,11 +172,11 @@ Use CLI analytics to inform planning decisions:
 
 ```bash
 # Get full picture before planning
-htmlgraph analytics summary
-htmlgraph snapshot --summary
+erinn analytics summary
+erinn snapshot --summary
 
-# Use htmlgraph plan generate to create formal plans
-htmlgraph plan generate <track-id>
+# Use erinn plan generate to create formal plans
+erinn plan generate <track-id>
 ```
 
 ---
@@ -204,42 +204,42 @@ htmlgraph plan generate <track-id>
 
 ```bash
 # What's blocking us?
-htmlgraph analytics summary
+erinn analytics summary
 
 # What should I do?
-htmlgraph analytics summary
+erinn analytics summary
 
 # Project snapshot
-htmlgraph snapshot --summary
+erinn snapshot --summary
 
 # Check status
-htmlgraph status
+erinn status
 
 # Find in-progress work
-htmlgraph find features --status in-progress
+erinn find features --status in-progress
 
 # Find todo work (parallelizable candidates)
-htmlgraph find features --status todo
+erinn find features --status todo
 ```
 
 ---
 
 ## Recommend Workflow
 
-Run `htmlgraph recommend [--top N]` (default N=5) for scored recommendations:
+Run `erinn recommend [--top N]` (default N=5) for scored recommendations:
 
 ```bash
-htmlgraph recommend --top 5
+erinn recommend --top 5
 ```
 
 After presenting output, analyze whether the top recommendations can run in parallel:
 
 1. Check dependencies — do any recommended items block each other?
 2. Check file overlap — do they modify the same files or modules?
-3. If independent → propose `/htmlgraph:execute` for parallel dispatch
+3. If independent → propose `/erinn:execute` for parallel dispatch
 4. If dependent → identify critical path, propose sequential order
 
 **Propose next action:**
-- 2+ independent items → `/htmlgraph:execute` (parallel)
-- Blocked items → start with the blocker using `/htmlgraph:plan <id>`
+- 2+ independent items → `/erinn:execute` (parallel)
+- Blocked items → start with the blocker using `/erinn:plan <id>`
 - Single item → delegate to appropriate agent tier (haiku/sonnet/opus)

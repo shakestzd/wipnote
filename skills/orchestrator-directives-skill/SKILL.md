@@ -2,8 +2,8 @@
 id: orchestrator-directives
 name: Orchestrator Directives Skill
 description: >-
-  HtmlGraph orchestration patterns for AI-assisted development. Use when working on code in an
-  HtmlGraph project — provides delegation patterns, model selection, quality gates, and work
+  erinn orchestration patterns for AI-assisted development. Use when working on code in an
+  erinn project — provides delegation patterns, model selection, quality gates, and work
   tracking guidance. Activate when planning work, delegating to agents, debugging, building
   features, or managing tasks.
 trigger: "when user asks about delegation, orchestration, or cost optimization"
@@ -38,23 +38,23 @@ Task(
 
 ---
 
-## Batching htmlgraph CLI Calls (IMPERATIVE)
+## Batching erinn CLI Calls (IMPERATIVE)
 
-Each Bash tool call spends one agent turn from the user's quota. **Chain htmlgraph bookkeeping commands with `&&` into a single Bash invocation whenever possible.** htmlgraph exists to reduce agent overhead — do not add it back by issuing one Bash call per `htmlgraph link add`.
+Each Bash tool call spends one agent turn from the user's quota. **Chain erinn bookkeeping commands with `&&` into a single Bash invocation whenever possible.** erinn exists to reduce agent overhead — do not add it back by issuing one Bash call per `erinn link add`.
 
 **Do this (1 tool call):**
 ```bash
-htmlgraph bug create "A" --track trk-xxx --description "..." && \
-htmlgraph bug create "B" --track trk-xxx --description "..." && \
-htmlgraph link add feat-aaa feat-bbb --rel blocks && \
-htmlgraph link add feat-ccc feat-ddd --rel relates_to
+erinn bug create "A" --track trk-xxx --description "..." && \
+erinn bug create "B" --track trk-xxx --description "..." && \
+erinn link add feat-aaa feat-bbb --rel blocks && \
+erinn link add feat-ccc feat-ddd --rel relates_to
 ```
 
 **Never 4 separate Bash calls for the same thing.**
 
 **When NOT to chain:** only when a downstream command must parse the ID printed by an earlier command. Chain the creators into one call, then chain the dependents into a second call. Two calls, not eight.
 
-Applies to `feature/bug/spike/track/plan create|start|complete|add-step`, `link add|remove`, `feature edit`, and any other htmlgraph bookkeeping.
+Applies to `feature/bug/spike/track/plan create|start|complete|add-step`, `link add|remove`, `feature edit`, and any other erinn bookkeeping.
 
 ---
 
@@ -199,18 +199,18 @@ Ask yourself these questions:
 
 ### Data File Reads — Direct Read Tool Permitted
 
-The orchestrator MAY call the `Read` tool directly, without delegating to `htmlgraph:researcher` or `htmlgraph:reader`, when ALL of the following hold:
+The orchestrator MAY call the `Read` tool directly, without delegating to `erinn:researcher` or `erinn:reader`, when ALL of the following hold:
 
-1. The file is a **data or config file**: YAML, JSON, TOML, Markdown (non-source), `.htmlgraph/**/*.yaml`, `.htmlgraph/**/*.html`, log files, or plain text output
+1. The file is a **data or config file**: YAML, JSON, TOML, Markdown (non-source), `.erinn/**/*.yaml`, `.erinn/**/*.html`, log files, or plain text output
 2. It is a **single-file read** — not a glob-then-read pattern, not multiple files
 3. The task is **retrieval only** — you need the content to compose a subsequent delegation or user response, not to modify code
 
-**Anti-pattern this replaces:** Delegating a 30 KB YAML read to `htmlgraph:researcher` pays ~60 s of skill-injection overhead for work that takes <100 ms inline. Do not delegate single data-file reads.
+**Anti-pattern this replaces:** Delegating a 30 KB YAML read to `erinn:researcher` pays ~60 s of skill-injection overhead for work that takes <100 ms inline. Do not delegate single data-file reads.
 
 **Source code and writes still MUST delegate:**
 - `.go`, `.ts`, `.py`, and other source files → delegate to researcher or coder
 - Any `Edit` or `Write` operation → delegate to appropriate coder agent
-- Multi-file reads or glob patterns → use `htmlgraph:reader` (zero-skill agent)
+- Multi-file reads or glob patterns → use `erinn:reader` (zero-skill agent)
 
 </details>
 
@@ -221,7 +221,7 @@ Only these can be executed directly by orchestrator:
 
 1. **Task()** - Delegation itself
    - Use spawner subagent types when possible
-   - Example: `Task(subagent_type="htmlgraph:gemini-spawner", ...)`
+   - Example: `Task(subagent_type="erinn:gemini-spawner", ...)`
 
 2. **AskUserQuestion()** - Clarifying requirements
    - Get user input before delegating
@@ -231,14 +231,14 @@ Only these can be executed directly by orchestrator:
    - Create/update todo lists
    - Example: `TodoWrite(todos=[...])`
 
-**HtmlGraph CLI operations** (create features and bugs):
-- `htmlgraph feature create "title" --track <trk-id>`
-- `htmlgraph bug create "title" --track <trk-id>`
+**erinn CLI operations** (create features and bugs):
+- `erinn feature create "title" --track <trk-id>`
+- `erinn bug create "title" --track <trk-id>`
 
 **Track Assignment (MANDATORY before creating work items):**
 
 Before creating ANY new track:
-1. Run `htmlgraph track list` to see all existing tracks
+1. Run `erinn track list` to see all existing tracks
 2. Match the new work against existing track titles and descriptions
 3. Only create a new track if NO existing track covers the scope
 4. When in doubt, ask the user which track to use
@@ -382,21 +382,21 @@ Task(
 ```bash
 gemini -p "Search codebase for authentication patterns and summarize findings" \
   --output-format json --yolo --include-directories . 2>&1
-# fallback → Agent(subagent_type="htmlgraph:haiku-coder", ...)
+# fallback → Agent(subagent_type="erinn:haiku-coder", ...)
 ```
 
 **Code implementation (try CLI first):**
 ```bash
 codex exec "Implement OAuth authentication endpoint with JWT support" \
   --full-auto --json -m gpt-4.1-mini -C . 2>&1
-# fallback → Agent(subagent_type="htmlgraph:sonnet-coder", ...)
+# fallback → Agent(subagent_type="erinn:sonnet-coder", ...)
 ```
 
 **Git operations (try CLI first):**
 ```bash
 copilot -p "Commit changes with message: 'feat: add OAuth authentication'. Do NOT push." \
   --allow-all-tools --no-color --add-dir . 2>&1
-# fallback → Agent(subagent_type="htmlgraph:haiku-coder", ...)
+# fallback → Agent(subagent_type="erinn:haiku-coder", ...)
 ```
 
 </details>
@@ -415,7 +415,7 @@ copilot -p "Stage files: <list>. Commit with message: '<message>'. Do NOT push."
 ```python
 # Priority 2: haiku-coder fallback (if copilot fails or not installed)
 Agent(
-    subagent_type="htmlgraph:haiku-coder",
+    subagent_type="erinn:haiku-coder",
     description="Commit and push changes",
     prompt="Stage files: <list>. Commit with message: 'feat: add X'. Do NOT push.",
 )
@@ -438,7 +438,7 @@ codex exec "TASK_DESCRIPTION" --full-auto --json -m gpt-4.1-mini -C . 2>&1
 ```python
 # Priority 2: sonnet-coder fallback (if codex fails or not installed)
 Agent(
-    subagent_type="htmlgraph:sonnet-coder",
+    subagent_type="erinn:sonnet-coder",
     description="Implement feature X",
     prompt="Add OAuth authentication to the login endpoint.",
 )
@@ -462,7 +462,7 @@ gemini -p "TASK_DESCRIPTION" --output-format json --yolo --include-directories .
 ```python
 # Priority 2: haiku-coder fallback (if gemini fails or not installed)
 Agent(
-    subagent_type="htmlgraph:haiku-coder",
+    subagent_type="erinn:haiku-coder",
     description="Research auth patterns",
     prompt="Analyze all authentication patterns in this codebase. Find security gaps.",
 )
@@ -497,7 +497,7 @@ Before presenting recommendations or starting multi-task work, ALWAYS:
 ```python
 # Launch parallel agents in worktrees — one per feature
 Agent(
-    subagent_type="htmlgraph:sonnet-coder",
+    subagent_type="erinn:sonnet-coder",
     description="Feature A",
     prompt="Implement feature A...",
     isolation="worktree",
@@ -505,7 +505,7 @@ Agent(
 )
 
 Agent(
-    subagent_type="htmlgraph:sonnet-coder",
+    subagent_type="erinn:sonnet-coder",
     description="Feature B",
     prompt="Implement feature B...",
     isolation="worktree",
@@ -513,7 +513,7 @@ Agent(
 )
 
 Agent(
-    subagent_type="htmlgraph:haiku-coder",
+    subagent_type="erinn:haiku-coder",
     description="Feature C (simple)",
     prompt="Implement feature C...",
     isolation="worktree",
@@ -570,17 +570,17 @@ Task(
 </details>
 
 <details>
-<summary><strong>HtmlGraph Result Retrieval</strong></summary>
+<summary><strong>erinn Result Retrieval</strong></summary>
 
 **Subagents report findings automatically:**
 
 When a Task() completes, findings are available via CLI:
 ```bash
 # Check recent spikes
-htmlgraph spike list
+erinn spike list
 
 # View specific spike
-htmlgraph spike show <id>
+erinn spike show <id>
 ```
 
 **Pattern: Read findings after Task completes**
@@ -588,16 +588,16 @@ htmlgraph spike show <id>
 ```bash
 # 1. Delegate exploration (try gemini CLI first)
 gemini -p "Find all authentication patterns..." --output-format json --yolo --include-directories . 2>&1
-# fallback → Agent(subagent_type="htmlgraph:haiku-coder", ...)
+# fallback → Agent(subagent_type="erinn:haiku-coder", ...)
 ```
 
 ```bash
 # 2. The subagent creates a spike with findings
-# Read findings via: htmlgraph spike list (then spike show <id>)
+# Read findings via: erinn spike list (then spike show <id>)
 
 # 3. Use findings in next delegation (try codex CLI first)
 codex exec "Implement authentication based on auth pattern research findings..." --full-auto --json -m gpt-4.1-mini -C . 2>&1
-# fallback → Agent(subagent_type="htmlgraph:sonnet-coder", ...)
+# fallback → Agent(subagent_type="erinn:sonnet-coder", ...)
 ```
 
 </details>
@@ -706,7 +706,7 @@ CLAUDE_ORCHESTRATOR_ACTIVE=true  # Set by SDK
 <summary><strong>Session Continuity Across Compacts</strong></summary>
 
 **Features preserved across compact:**
-- Work items in HtmlGraph
+- Work items in erinn
 - Feature/spike tracking
 - Delegation patterns
 - Model selection guidance
@@ -721,7 +721,7 @@ CLAUDE_ORCHESTRATOR_ACTIVE=true  # Set by SDK
 
 ```
 Before compact:
-- Work on features, track in HtmlGraph
+- Work on features, track in erinn
 - Delegate with clear prompts
 - Use SDK to save progress
 
@@ -746,7 +746,7 @@ When delegating to ANY coder agent, include these requirements in the prompt:
 - Prefer well-maintained packages over custom implementations
 
 ### Code Design
-- **DRY** — Extract shared logic; check `src/python/htmlgraph/utils/` for existing utilities before writing new ones
+- **DRY** — Extract shared logic; check `src/python/erinn/utils/` for existing utilities before writing new ones
 - **Single Responsibility** — One clear purpose per module, class, and function
 - **KISS** — Simplest solution that satisfies current requirements
 - **YAGNI** — Only implement what is needed now, not speculative future needs
@@ -792,7 +792,7 @@ Never commit with unresolved type errors, lint warnings, or test failures.
 - Orchestrator stays available for decisions
 
 **Principle 5: Track Everything**
-- Use HtmlGraph CLI to track delegations
+- Use erinn CLI to track delegations
 - Features, spikes, bugs created for all work
 - Clear record of who did what
 
@@ -851,8 +851,8 @@ The PreToolUse hook enforces attribution before code changes. Behavior by scenar
 **When denied:** Create a work item first, then retry.
 
 ```bash
-htmlgraph feature create "Title" --track <trk-id>   # creates + returns feat-id
-htmlgraph feature start <feat-id>                   # sets attribution for this session
+erinn feature create "Title" --track <trk-id>   # creates + returns feat-id
+erinn feature start <feat-id>                   # sets attribution for this session
 ```
 
 **Decision rule for code changes:**
@@ -865,13 +865,13 @@ htmlgraph feature start <feat-id>                   # sets attribution for this 
 
 - **[/multi-ai-orchestration](/multi-ai-orchestration)** - Comprehensive model selection guide with detailed decision matrix
 - **[/code-quality](/code-quality)** - Quality gates and pre-commit workflows
-- **[/strategic-planning](/strategic-planning)** - HtmlGraph analytics for smart prioritization
+- **[/strategic-planning](/strategic-planning)** - erinn analytics for smart prioritization
 
 ## Reference Documentation
 
 - **Complete Rules:** See [orchestration.md](../../rules/orchestration.md)
 - **Advanced Patterns:** See [reference.md](./reference.md)
-- **HtmlGraph CLI:** `htmlgraph --help`
+- **erinn CLI:** `erinn --help`
 
 ---
 
@@ -903,7 +903,7 @@ Claude Code v2.1.32+ ships an experimental **agent teams** feature where indepen
 | **Ownership** | Parallel — each teammate claims tasks independently | Sequential — orchestrator dispatches one-at-a-time |
 | **Communication** | Teammates message each other directly | Subagents report back to orchestrator only |
 | **Best for** | Competing-hypothesis debugging, multi-lens review, feature ownership splitting | Sequential task chains, research→implement, isolated single-task work |
-| **HtmlGraph tracking** | Automatic — TeammateIdle/TaskCreated/TaskCompleted hooks fire per teammate | Manual — orchestrator attributes via `htmlgraph feature start/complete` |
+| **erinn tracking** | Automatic — TeammateIdle/TaskCreated/TaskCompleted hooks fire per teammate | Manual — orchestrator attributes via `erinn feature start/complete` |
 | **Context isolation** | Each teammate has its own context window | Subagents inherit orchestrator's context model |
 | **Cost model** | N teammates × full session cost | Orchestrator + N smaller subagent calls |
 
@@ -913,7 +913,7 @@ Agent teams require explicit opt-in:
 
 1. **Environment variable:** `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`
 2. **Minimum version:** Claude Code **2.1.32** or later
-3. The HtmlGraph plugin works with or without teams enabled — hooks gracefully no-op when no team is active
+3. The erinn plugin works with or without teams enabled — hooks gracefully no-op when no team is active
 
 ### How to Spawn a Team
 
@@ -931,7 +931,7 @@ Claude Code will create teammates, assign them work from a shared task list, and
 - **No session resume** — teammates exit via the `exit-code-2` block-and-return contract; Claude Code's `/resume` is not currently wired through this path. If a teammate is blocked (e.g., by a quality gate), the teammate is stranded. Always provide manual recovery instructions in stderr.
 - **One team per session** — you cannot spawn multiple teams in a single Claude Code session.
 - **No nested teams** — a teammate cannot create its own team.
-- **`/htmlgraph:execute` is unchanged** — the parallel dispatch skill continues to use subagents with worktree isolation. This plan does not convert it to use teams.
+- **`/erinn:execute` is unchanged** — the parallel dispatch skill continues to use subagents with worktree isolation. This plan does not convert it to use teams.
 
 ### Example Prompts
 
@@ -954,16 +954,16 @@ root cause messages the others.
 ```
 Create an agent team for track trk-XXXX. Each teammate claims
 one unblocked feature and works it to completion. Use
-htmlgraph feature start/complete for attribution.
+erinn feature start/complete for attribution.
 ```
 
-### What HtmlGraph Captures
+### What erinn Captures
 
-When agent teams are active, HtmlGraph automatically records:
+When agent teams are active, erinn automatically records:
 
 - **Teammate identity** — every TeammateIdle, TaskCreated, and TaskCompleted event includes `teammate_name`
-- **Step attribution** — feature steps are prefixed with `[teammate-name]` so `htmlgraph snapshot` shows who did what
-- **Optional quality gate** — TaskCompleted can run build/test gates before allowing task completion. Opt-in via `.htmlgraph/config.json`:
+- **Step attribution** — feature steps are prefixed with `[teammate-name]` so `erinn snapshot` shows who did what
+- **Optional quality gate** — TaskCompleted can run build/test gates before allowing task completion. Opt-in via `.erinn/config.json`:
 
 ```json
 {
@@ -971,4 +971,4 @@ When agent teams are active, HtmlGraph automatically records:
 }
 ```
 
-> **WARNING:** Enabling the quality gate can strand teammates. Blocked teammates cannot be `/resume`d. When blocking occurs, stderr includes a manual recovery command: `htmlgraph feature complete <feature-id>`.
+> **WARNING:** Enabling the quality gate can strand teammates. Blocked teammates cannot be `/resume`d. When blocking occurs, stderr includes a manual recovery command: `erinn feature complete <feature-id>`.

@@ -1,10 +1,10 @@
 {
   "$schema": "https://json-schema.org/draft-07/schema#",
   "version": "1.0.0",
-  "description": "Pre-Work Validation Hook Configuration - Enforces HtmlGraph workflow before code changes",
+  "description": "Pre-Work Validation Hook Configuration - Enforces Erinn AI workflow before code changes",
 
   "core_principles": {
-    "sdk_only": "SDK is the ONLY interface to .htmlgraph/ - never direct Write/Edit",
+    "sdk_only": "SDK is the ONLY interface to .erinn/ - never direct Write/Edit",
     "spike_planning": "Spikes are for planning and creating work items (via SDK only)",
     "implementation_work": "Features/bugs/chores are for code implementation"
   },
@@ -16,9 +16,9 @@
       "^git status",
       "^git diff",
       "^git log",
-      "^htmlgraph status",
-      "^htmlgraph session",
-      "^htmlgraph version",
+      "^erinn status",
+      "^erinn session",
+      "^erinn version",
       "^ls",
       "^pwd",
       "^cat",
@@ -33,23 +33,23 @@
     "description": "Operations that are NEVER allowed (even with active work)",
     "direct_htmlgraph_writes": {
       "tools": ["Write", "Edit", "Delete", "NotebookEdit"],
-      "path_patterns": ["\\.htmlgraph/"],
-      "message": "Never write directly to .htmlgraph/. Use SDK: htmlgraph feature create/start/complete",
-      "suggestion": "Use SDK commands:\n  htmlgraph feature create 'Title'\n  htmlgraph feature start <id>\n  htmlgraph bug create 'Title'"
+      "path_patterns": ["\\.erinn/"],
+      "message": "Never write directly to .erinn/. Use SDK: erinn feature create/start/complete",
+      "suggestion": "Use SDK commands:\n  erinn feature create 'Title'\n  erinn feature start <id>\n  erinn bug create 'Title'"
     }
   },
 
   "sdk_commands": {
-    "description": "Bash commands that invoke HtmlGraph SDK",
+    "description": "Bash commands that invoke Erinn AI SDK",
     "patterns": [
-      "^htmlgraph ",
-      "^htmlgraph "
+      "^erinn ",
+      "^erinn "
     ],
     "allowed_during_spike": true,
     "examples": [
-      "htmlgraph feature create 'Add validation'",
-      "htmlgraph bug create 'Fix drift issue'",
-      "htmlgraph feature start feat-123"
+      "erinn feature create 'Add validation'",
+      "erinn bug create 'Fix drift issue'",
+      "erinn feature start feat-123"
     ]
   },
 
@@ -64,18 +64,18 @@
         "direct_writes": ["Write", "Edit", "Delete", "NotebookEdit"],
         "code_bash": ["Bash that modifies code (go build, npm, git commit, etc.)"]
       },
-      "deny_message": "Spike '{spike_id}' is for planning only.\n\nAllowed:\n  - Read operations (Read, Grep, Glob)\n  - SDK commands (htmlgraph feature create)\n\nFor code changes:\n  1. Create feature: htmlgraph feature create 'Title'\n  2. Start feature: htmlgraph feature start <id>\n  3. Then make code changes"
+      "deny_message": "Spike '{spike_id}' is for planning only.\n\nAllowed:\n  - Read operations (Read, Grep, Glob)\n  - SDK commands (erinn feature create)\n\nFor code changes:\n  1. Create feature: erinn feature create 'Title'\n  2. Start feature: erinn feature start <id>\n  3. Then make code changes"
     },
     "implementation": {
-      "description": "Features, bugs, chores allow all code operations (except direct .htmlgraph/ writes)",
+      "description": "Features, bugs, chores allow all code operations (except direct .erinn/ writes)",
       "types": ["feature", "bug", "chore"],
       "allow": {
-        "code_operations": ["Write", "Edit", "Delete", "NotebookEdit (not .htmlgraph/)"],
+        "code_operations": ["Write", "Edit", "Delete", "NotebookEdit (not .erinn/)"],
         "code_bash": ["All Bash commands"],
         "sdk_commands": ["All SDK commands"]
       },
       "deny": {
-        "direct_htmlgraph_writes": ["Write/Edit/Delete to .htmlgraph/ paths"]
+        "direct_htmlgraph_writes": ["Write/Edit/Delete to .erinn/ paths"]
       }
     }
   },
@@ -117,18 +117,18 @@
       },
       "no_work_item_code_change": {
         "decision": "deny",
-        "reason": "INSTRUCTION: Before this file operation, create and start a work item. Execute:\n\nhtmlgraph feature create 'Your feature description here'\nhtmlgraph feature start <id>\n\nThen retry the file operation.",
+        "reason": "INSTRUCTION: Before this file operation, create and start a work item. Execute:\n\nerinn feature create 'Your feature description here'\nerinn feature start <id>\n\nThen retry the file operation.",
         "suggestion": "Work item required for code changes"
       },
       "spike_code_change_denied": {
         "decision": "deny",
-        "reason": "INSTRUCTION: Spike '{spike_id}' is for planning only. Before this file operation, create an implementation work item. Execute:\n\nhtmlgraph feature create 'Implement [describe the change]'\nhtmlgraph feature start <id>\n\nThen retry the file operation.",
+        "reason": "INSTRUCTION: Spike '{spike_id}' is for planning only. Before this file operation, create an implementation work item. Execute:\n\nerinn feature create 'Implement [describe the change]'\nerinn feature start <id>\n\nThen retry the file operation.",
         "suggestion": "Implementation work item required"
       },
       "direct_htmlgraph_write_denied": {
         "decision": "deny",
-        "reason": "INSTRUCTION: Never write directly to .htmlgraph/ files. Use the CLI instead. For tracking operations, use:\n\nhtmlgraph feature create 'Title'\nhtmlgraph feature start <id>\nhtmlgraph bug create 'Title'\n\nThe CLI is the only interface to .htmlgraph/ data.",
-        "suggestion": "Use SDK - never direct file writes to .htmlgraph/"
+        "reason": "INSTRUCTION: Never write directly to .erinn/ files. Use the CLI instead. For tracking operations, use:\n\nerinn feature create 'Title'\nerinn feature start <id>\nerinn bug create 'Title'\n\nThe CLI is the only interface to .erinn/ data.",
+        "suggestion": "Use SDK - never direct file writes to .erinn/"
       }
     }
   },
@@ -144,7 +144,7 @@
       {
         "step": 2,
         "action": "check_always_deny",
-        "description": "Check if direct write to .htmlgraph/ (always denied)"
+        "description": "Check if direct write to .erinn/ (always denied)"
       },
       {
         "step": 3,
@@ -171,7 +171,7 @@
 
   "logging": {
     "enabled": true,
-    "log_file": ".htmlgraph/validation-audit.log",
+    "log_file": ".erinn/validation-audit.log",
     "log_denials": true,
     "log_bypasses": true,
     "log_permissions": false

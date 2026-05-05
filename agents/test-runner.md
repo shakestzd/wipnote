@@ -16,9 +16,9 @@ Automatically test changes to ensure correctness and prevent regressions.
 
 ## Pre-flight (first 60 seconds)
 
-1. Check branch sync: `(cd /workspaces/htmlgraph && git fetch origin && git status)`
-2. Claim only if a feature/bug ID is provided: `htmlgraph feature start <feat-id>` (optional)
-3. Identify test packages via: `(cd /workspaces/htmlgraph && find . -name '*_test.go' -o -name 'jest.config.*' -o -name 'pytest.ini' | head -20)`
+1. Check branch sync: `(cd /workspaces/erinn && git fetch origin && git status)`
+2. Claim only if a feature/bug ID is provided: `erinn feature start <feat-id>` (optional)
+3. Identify test packages via: `(cd /workspaces/erinn && find . -name '*_test.go' -o -name 'jest.config.*' -o -name 'pytest.ini' | head -20)`
 
 ## Purpose
 
@@ -104,11 +104,11 @@ func TestHookNotDuplicated(t *testing.T) {
 
 **CLI integration test:**
 ```bash
-htmlgraph feature create "Test Feature" --track <trk-id> && htmlgraph feature list
-htmlgraph feature show invalid-id   # must return non-zero exit
+erinn feature create "Test Feature" --track <trk-id> && erinn feature list
+erinn feature show invalid-id   # must return non-zero exit
 ```
 
-**Batch htmlgraph bookkeeping.** Each Bash tool call costs one turn from the user's quota. Chain `htmlgraph` commands with `&&` — `htmlgraph bug create ... && htmlgraph bug start <id> && htmlgraph link add ...` is one call, not three.
+**Batch erinn bookkeeping.** Each Bash tool call costs one turn from the user's quota. Chain `erinn` commands with `&&` — `erinn bug create ... && erinn bug start <id> && erinn link add ...` is one call, not three.
 
 ## Continuous Testing Workflow (TDD)
 

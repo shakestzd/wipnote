@@ -1,14 +1,14 @@
 ---
-name: htmlgraph-tracker
-description: ARCHIVED — Use htmlgraph skill instead. HtmlGraph workflow combining session tracking, orchestration, and parallel coordination.
+name: erinn-tracker
+description: ARCHIVED — Use erinn skill instead. Erinn AI workflow combining session tracking, orchestration, and parallel coordination.
 ---
 
-<!-- ARCHIVED: This skill has been superseded by the htmlgraph skill -->
+<!-- ARCHIVED: This skill has been superseded by the erinn skill -->
 <!-- Python SDK references removed — use Go CLI commands instead -->
 
-# HtmlGraph Tracker Skill (ARCHIVED)
+# Erinn AI Tracker Skill (ARCHIVED)
 
-> **This skill is archived.** Use `/htmlgraph:htmlgraph` for current workflow patterns.
+> **This skill is archived.** Use `/erinn:erinn` for current workflow patterns.
 
 ---
 
@@ -16,15 +16,15 @@ description: ARCHIVED — Use htmlgraph skill instead. HtmlGraph workflow combin
 
 ```bash
 # Session start
-htmlgraph status
-htmlgraph analytics summary
+erinn status
+erinn analytics summary
 
 # Create and track work
-htmlgraph feature create "Title"
-htmlgraph feature start <feat-id>
+erinn feature create "Title"
+erinn feature start <feat-id>
 
 # Mark complete
-htmlgraph feature complete <feat-id>
+erinn feature complete <feat-id>
 ```
 
 ---
@@ -33,24 +33,24 @@ htmlgraph feature complete <feat-id>
 
 ```bash
 # Features
-htmlgraph feature create "Title"
-htmlgraph feature start <feat-id>
-htmlgraph feature complete <feat-id>
-htmlgraph find features --status todo
-htmlgraph find features --status in-progress
+erinn feature create "Title"
+erinn feature start <feat-id>
+erinn feature complete <feat-id>
+erinn find features --status todo
+erinn find features --status in-progress
 
 # Bugs
-htmlgraph bug create "Title"
-htmlgraph bug start <bug-id>
-htmlgraph bug complete <bug-id>
+erinn bug create "Title"
+erinn bug start <bug-id>
+erinn bug complete <bug-id>
 
 # Spikes (investigation)
-htmlgraph spike create "Title"
-htmlgraph spike start <spike-id>
-htmlgraph spike complete <spike-id>
+erinn spike create "Title"
+erinn spike start <spike-id>
+erinn spike complete <spike-id>
 
 # Tracks (multi-feature initiatives)
-htmlgraph track new "Title"
+erinn track new "Title"
 ```
 
 ---
@@ -58,10 +58,10 @@ htmlgraph track new "Title"
 ## Analytics
 
 ```bash
-htmlgraph analytics summary
-htmlgraph analytics summary
-htmlgraph snapshot --summary
-htmlgraph find features --status todo
+erinn analytics summary
+erinn analytics summary
+erinn snapshot --summary
+erinn find features --status todo
 ```
 
 ---
@@ -72,12 +72,12 @@ Dispatch independent tasks in a single message:
 
 ```python
 # All in one message = parallel execution
-Task(subagent_type="htmlgraph:gemini-operator", prompt="Research...")
-Task(subagent_type="htmlgraph:sonnet-coder", prompt="Implement feat-123...")
-Task(subagent_type="htmlgraph:sonnet-coder", prompt="Implement feat-456...")
+Task(subagent_type="erinn:gemini-operator", prompt="Research...")
+Task(subagent_type="erinn:sonnet-coder", prompt="Implement feat-123...")
+Task(subagent_type="erinn:sonnet-coder", prompt="Implement feat-456...")
 ```
 
-See `/htmlgraph:orchestrator-directives-skill` for complete patterns.
+See `/erinn:orchestrator-directives-skill` for complete patterns.
 
 ---
 

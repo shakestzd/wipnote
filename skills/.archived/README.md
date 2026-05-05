@@ -4,16 +4,16 @@ This directory contains skills that have been consolidated or deprecated.
 
 ## parallel-orchestrator (Archived 2025-12-31)
 
-**Reason:** Consolidated into `htmlgraph-tracker` skill.
+**Reason:** Consolidated into `erinn-tracker` skill.
 
 **Why?** The parallel-orchestrator skill provided orchestration and delegation patterns, but this created confusion:
 - Two skills with overlapping responsibilities
 - Users didn't know which to activate
-- Orchestration is a core part of the HtmlGraph workflow, not a separate concern
+- Orchestration is a core part of the Erinn AI workflow, not a separate concern
 
-**Solution:** All orchestration directives are now in `htmlgraph-tracker` as "Orchestrator Mode" (Section 1 of Core Responsibilities).
+**Solution:** All orchestration directives are now in `erinn-tracker` as "Orchestrator Mode" (Section 1 of Core Responsibilities).
 
-**Migration:** The `htmlgraph-tracker` skill now includes:
+**Migration:** The `erinn-tracker` skill now includes:
 - Orchestrator mode directives (delegation patterns)
 - 6-phase parallel workflow
 - Task ID coordination helpers
@@ -26,4 +26,4 @@ This directory contains skills that have been consolidated or deprecated.
 - Task ID pattern for result retrieval
 - SDK orchestration methods
 
-**See:** `htmlgraph-tracker/SKILL.md` for the consolidated skill.
+**See:** `erinn-tracker/SKILL.md` for the consolidated skill.

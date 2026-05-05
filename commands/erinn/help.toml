@@ -1,12 +1,12 @@
 prompt = '''
-# /htmlgraph:help
+# /erinn:help
 
-Display available HtmlGraph commands and usage
+Display available Erinn AI commands and usage
 
 ## Usage
 
 ```
-/htmlgraph:help
+/erinn:help
 ```
 
 ## Parameters
@@ -16,7 +16,7 @@ Display available HtmlGraph commands and usage
 ## Examples
 
 ```bash
-/htmlgraph:help
+/erinn:help
 ```
 Show all available commands and their descriptions
 
@@ -30,7 +30,7 @@ Show all available commands and their descriptions
 
 1. **Retrieve help text:**
    ```bash
-   htmlgraph --help
+   erinn --help
    ```
 
 2. **Present the complete help message** using the output template above
@@ -48,44 +48,44 @@ Show all available commands and their descriptions
    - Provide CLI equivalents for power users
 
 5. **Highlight key information:**
-   - Dashboard access: `htmlgraph serve` → http://localhost:8080
-   - All commands start with `/htmlgraph:` for consistency
+   - Dashboard access: `erinn serve` → http://localhost:8080
+   - All commands start with `/erinn:` for consistency
    - CLI is available as alternative interface
 ```
 
 ### Output Format:
 
-## HtmlGraph Commands
+## Erinn AI Commands
 
 ### Session Management
-- `/htmlgraph:start` - Start session, see status, choose what to work on
-- `/htmlgraph:end` - End current session gracefully
-- `/htmlgraph:status` - Quick status check
+- `/erinn:start` - Start session, see status, choose what to work on
+- `/erinn:end` - End current session gracefully
+- `/erinn:status` - Quick status check
 
 ### Feature Management
-- `/htmlgraph:feature-add [title]` - Add a new feature
-- `/htmlgraph:feature-start <id>` - Start working on a feature
-- `/htmlgraph:feature-complete [id]` - Mark feature as complete
-- `/htmlgraph:feature-primary <id>` - Set primary feature for attribution
+- `/erinn:feature-add [title]` - Add a new feature
+- `/erinn:feature-start <id>` - Start working on a feature
+- `/erinn:feature-complete [id]` - Mark feature as complete
+- `/erinn:feature-primary <id>` - Set primary feature for attribution
 
 ### Utilities
-- `/htmlgraph:init` - Initialize HtmlGraph in project
-- `/htmlgraph:serve [port]` - Start dashboard server
-- `/htmlgraph:track <tool> <summary>` - Manually track activity
+- `/erinn:init` - Initialize Erinn AI in project
+- `/erinn:serve [port]` - Start dashboard server
+- `/erinn:track <tool> <summary>` - Manually track activity
 
 ### CLI Commands
 You can also use the CLI directly:
 ```bash
-htmlgraph --help
-htmlgraph status
-htmlgraph feature list
-htmlgraph session list
+erinn --help
+erinn status
+erinn feature list
+erinn session list
 ```
 
 ### Dashboard
 View progress in browser:
 ```bash
-htmlgraph serve
+erinn serve
 # Open http://localhost:8080
 ```
 
