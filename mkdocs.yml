@@ -1,8 +1,8 @@
-site_name: HtmlGraph
+site_name: erinn
 site_description: Local-first observability and coordination platform for AI-assisted development
-site_url: https://shakestzd.github.io/htmlgraph/
-repo_url: https://github.com/shakestzd/htmlgraph
-repo_name: shakestzd/htmlgraph
+site_url: https://shakestzd.github.io/erinn/
+repo_url: https://github.com/shakestzd/erinn
+repo_name: shakestzd/erinn
 copyright: Copyright &copy; 2025 TZDLabs
 
 exclude_docs: |
@@ -73,7 +73,7 @@ extra_css:
 extra:
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/shakestzd/htmlgraph
+      link: https://github.com/shakestzd/erinn
 
 nav:
   - Home: index.md

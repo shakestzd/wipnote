@@ -1,11 +1,11 @@
 version: 2
 
-project_name: htmlgraph
+project_name: erinn
 
 builds:
-  - id: htmlgraph
-    main: ./cmd/htmlgraph
-    binary: htmlgraph
+  - id: erinn
+    main: ./cmd/erinn
+    binary: erinn
     goos:
       - darwin
       - linux
@@ -18,20 +18,20 @@ builds:
       - CGO_ENABLED=0
 
 archives:
-  - id: htmlgraph
+  - id: erinn
     builds:
-      - htmlgraph
-    name_template: "htmlgraph_{{.Version}}_{{.Os}}_{{.Arch}}"
+      - erinn
+    name_template: "erinn_{{.Version}}_{{.Os}}_{{.Arch}}"
     format: tar.gz
 
 checksum:
-  name_template: "htmlgraph_{{.Version}}_checksums.txt"
+  name_template: "erinn_{{.Version}}_checksums.txt"
   algorithm: sha256
 
 release:
   github:
     owner: shakestzd
-    name: htmlgraph
+    name: erinn
   name_template: "Go v{{.Version}}"
 
 git:
