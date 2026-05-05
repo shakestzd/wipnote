@@ -6,13 +6,13 @@ repos:
       # Auto-format code style (before lint check)
       - id: ruff-format
         args: [--fix]
-        files: ^src/python/htmlgraph/
+        files: ^src/python/erinn/
         stages: [pre-commit]
 
       # Lint and auto-fix issues
       - id: ruff
         args: [--fix]
-        files: ^src/python/htmlgraph/
+        files: ^src/python/erinn/
         stages: [pre-commit]
 
   # Mypy - static type checking
@@ -20,10 +20,10 @@ repos:
     rev: v1.7.1
     hooks:
       - id: mypy
-        args: [src/python/htmlgraph/]
+        args: [src/python/erinn/]
         additional_dependencies:
           [pydantic, typing_extensions, watchdog, rich, jinja2, justhtml]
-        files: ^src/python/htmlgraph/
+        files: ^src/python/erinn/
         stages: [pre-commit]
 
   # Standard pre-commit hooks
@@ -31,9 +31,9 @@ repos:
     rev: v4.5.0
     hooks:
       - id: trailing-whitespace
-        files: ^src/python/htmlgraph/
+        files: ^src/python/erinn/
       - id: end-of-file-fixer
-        files: ^src/python/htmlgraph/
+        files: ^src/python/erinn/
       - id: check-yaml
       - id: check-json
       - id: check-merge-conflict
@@ -56,5 +56,5 @@ repos:
         entry: uv run ruff check
         language: system
         pass_filenames: false
-        files: ^src/python/htmlgraph/
+        files: ^src/python/erinn/
         stages: [pre-commit]
