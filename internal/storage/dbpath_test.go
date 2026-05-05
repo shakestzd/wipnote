@@ -433,6 +433,58 @@ func TestCleanLegacyDBIfSafe_NoLegacyFiles(t *testing.T) {
 	}
 }
 
+// TestCleanLegacyDBIfSafe_NoLegacyFilesAndNoCanonical verifies that when
+// neither legacy files nor a canonical DB exist (brand new user), no output
+// is produced. This is the scenario that was filing bug-5b5611c2.
+func TestCleanLegacyDBIfSafe_NoLegacyFilesAndNoCanonical(t *testing.T) {
+	projectDir := t.TempDir()
+
+	// Do NOT set HTMLGRAPH_DB_PATH — let CanonicalDBPath compute it.
+	// Do NOT create any files — new user with nothing.
+	t.Setenv("HTMLGRAPH_DB_PATH", "") // ensure no override
+
+	var buf strings.Builder
+	storage.CleanLegacyDBIfSafe(projectDir, &buf)
+
+	if buf.Len() != 0 {
+		t.Errorf("expected no output when no legacy files and no canonical DB exist, got: %q", buf.String())
+	}
+}
+
+// TestCleanLegacyDBIfSafe_DeletesZeroByteFile verifies that zero-byte legacy
+// files are silently removed, even when the canonical DB is not yet ready.
+// This prevents spurious warnings for vestigial/orphaned zero-byte files.
+func TestCleanLegacyDBIfSafe_DeletesZeroByteFile(t *testing.T) {
+	projectDir := t.TempDir()
+
+	// Point canonical DB to a path that does not exist (canonical not ready).
+	canonicalPath := filepath.Join(projectDir, "nonexistent-canonical.db")
+	t.Setenv("HTMLGRAPH_DB_PATH", canonicalPath)
+
+	// Create a zero-byte legacy file (vestigial).
+	legacyDir := filepath.Join(projectDir, ".htmlgraph")
+	if err := os.MkdirAll(legacyDir, 0o755); err != nil {
+		t.Fatalf("mkdir .htmlgraph: %v", err)
+	}
+	legacyFile := filepath.Join(legacyDir, "htmlgraph.db")
+	if err := os.WriteFile(legacyFile, []byte{}, 0o600); err != nil {
+		t.Fatalf("write zero-byte legacy db: %v", err)
+	}
+
+	var buf strings.Builder
+	storage.CleanLegacyDBIfSafe(projectDir, &buf)
+
+	// No output expected (zero-byte file is silently removed).
+	if buf.Len() != 0 {
+		t.Errorf("expected no output for zero-byte legacy file, got: %q", buf.String())
+	}
+
+	// Zero-byte file must be removed.
+	if _, err := os.Stat(legacyFile); !os.IsNotExist(err) {
+		t.Errorf("expected zero-byte legacy file to be removed, but it still exists")
+	}
+}
+
 // TestCleanLegacyDBIfSafe_HTMLGRAPH_DB_PATH_PointingAtLegacy verifies that when
 // HTMLGRAPH_DB_PATH is explicitly set to a legacy path (e.g. .htmlgraph/htmlgraph.db),
 // that file is NOT deleted and the .db/ directory is also protected.

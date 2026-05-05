@@ -118,6 +118,11 @@ func CleanLegacyDBIfSafe(projectDir string, w io.Writer) {
 		if statErr != nil {
 			continue
 		}
+		// Zero-byte files are vestigial; silently remove them.
+		if info.Size() == 0 {
+			_ = os.Remove(p)
+			continue
+		}
 		if canonicalReady {
 			// Guard: if canonical path refers to this same file, skip removal.
 			// (User has explicitly set HTMLGRAPH_DB_PATH to a legacy path.)
