@@ -413,6 +413,13 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
       </a>
     </li>
     
+    <li>
+      <a href="#slice-3" class="slice-nav-item" data-slice-nav="3">
+        <span class="slice-nav-dot" data-approval="pending" data-dot-for="3"></span>
+        <span>#3 YOLO permission inheritance via parent-session chain (fixes #90 / bug-8ff540a7)</span>
+      </a>
+    </li>
+    
   </ul>
   
   <a href="#questions" class="nav-link" data-spy="questions" data-initial="Q">Decisions</a>
@@ -427,11 +434,11 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
 <!-- Plan Header -->
 <header class="plan-header">
   <h1>Plan: Sub-agent dispatch hardening — attribution session-walk + worktree commit guard</h1>
-  <p style="color:var(--text-dim)">Fixes two infrastructure-blocking bugs surfaced in GitHub #87 (bug-0413c3c4) and #88 (bug-730c0f19). The /htmlgraph:execute parallel dispatch model is currently non-functional: in a real-world dispatch of 8 features, 6 of 8 sub-agents got stuck on attribution-claim session-ID mismatches (sub-agent runs under different session than orchestrator's `feature start`), and 2 of 8 successful sub-agents committed directly to main instead of isolated worktree branches (Claude Code's `isolation:"worktree"` falls through when the parent is itself in a worktree). Slice 1 walks the parent-session chain in the PreToolUse claim check, mirroring the `getSessionAndParent` pattern already established in `yolo_guard.go`. Slice 2 adds a PreToolUse Bash guard that detects sub-agent `git commit` invocations on main without an explicit per-agent branch and refuses, defending against Claude Code's worktree-creation behavior at the htmlgraph hook layer.
+  <p style="color:var(--text-dim)">Fixes two infrastructure-blocking bugs surfaced in GitHub #87 (bug-0413c3c4) and #88 (bug-730c0f19). The /htmlgraph:execute parallel dispatch model is currently non-functional: in a real-world dispatch of 8 features, 6 of 8 sub-agents got stuck on attribution-claim session-ID mismatches (sub-agent runs under different session than orchestrator's `feature start`), and 2 of 8 successful sub-agents committed directly to main instead of isolated worktree branches (Claude Code's `isolation:"worktree"` falls through when the parent is itself in a worktree). Slice 1 walks the parent-session chain in the PreToolUse claim check, mirroring the `getSessionAndParent` pattern already established in `yolo_guard.go`. Slice 2 adds a PreToolUse Bash guard that detects sub-agent `git commit` invocations on main without an explicit per-agent branch and refuses, defending against Claude Code's worktree-creation behavior at the htmlgraph hook layer. Slice 3 closes the third manifestation of this same dispatch-failure pattern (per bug-8ff540a7 / GitHub #90): the YOLO-mode permission check in `yolo_guard.go`'s `checkYoloMode` (or equivalent) refuses sub-agent Edit/Write because the sub-agent's own session isn't tagged YOLO, even though the parent orchestrator is. Slice 3 applies slice 1's same `getSessionAndParent` walker to the YOLO-mode predicate so sub-agents inherit the parent's YOLO posture.
 </p>
   <div class="meta">
     <span class="badge badge-pending">Draft</span>
-    <span style="font-size:.75rem;color:var(--text-muted)">v3 · 2 slices · Created 2026-05-04</span>
+    <span style="font-size:.75rem;color:var(--text-muted)">v4 · 3 slices · Created 2026-05-04</span>
   </div>
 </header>
 <button id="themeToggle" style="position:fixed;top:16px;right:16px;z-index:100;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:6px 12px;color:var(--text);font-family:var(--mono);font-size:0.75rem;cursor:pointer;">
@@ -453,6 +460,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
   <div id="graph-data" style="display:none">
     <div data-node="1" data-name="PreToolUse claim check walks parent session chain (fixes #87 / bug-0413c3c4)" data-status="pending" data-deps="" data-files="3"></div>
     <div data-node="2" data-name="PreToolUse guard refuses sub-agent git commit on main (fixes #88 / bug-730c0f19)" data-status="pending" data-deps="1" data-files="3"></div>
+    <div data-node="3" data-name="YOLO permission inheritance via parent-session chain (fixes #90 / bug-8ff540a7)" data-status="pending" data-deps="1" data-files="3"></div>
     
     <!--PLAN_GRAPH_NODES-->
   </div>
@@ -466,13 +474,14 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
   <summary><span>Design</span><span class="badge badge-pending" data-badge-for="design">Pending</span></summary>
   <div class="section-body">
     <h4>Problem</h4>
-<div data-markdown>/htmlgraph:execute dispatches sub-agents in parallel against a track&#39;s features. Two infrastructure bugs make this fundamentally broken today: (1) the orchestrator&#39;s `htmlgraph feature start &lt;id&gt;` creates a claim under the orchestrator&#39;s session ID, but sub-agents run under different session IDs; the PreToolUse hook&#39;s claim lookup uses the sub-agent&#39;s own session, sees `claim=none`, and refuses Write/Edit/MultiEdit. Sub-agents cannot fix this from inside themselves (`feature start` from a sub-agent records a claim under yet another session, leaving the parent&#39;s claim in place). 6 of 8 sub-agents in the cited dispatch wasted 30-50 turns each investigating this. (2) Sub-agents dispatched with `Agent({isolation:&#34;worktree&#34;})` sometimes commit directly to main instead of an isolated branch — when the parent orchestrator is itself in a worktree, Claude Code appears to skip nested worktree creation, leaving sub-agents writing in the parent&#39;s working directory which after a checkout had ended up on main. 2 of 8 successful sub-agents in the cited dispatch had this happen; quality gates passed by luck.
+<div data-markdown>/htmlgraph:execute dispatches sub-agents in parallel against a track&#39;s features. Two infrastructure bugs make this fundamentally broken today: (1) the orchestrator&#39;s `htmlgraph feature start &lt;id&gt;` creates a claim under the orchestrator&#39;s session ID, but sub-agents run under different session IDs; the PreToolUse hook&#39;s claim lookup uses the sub-agent&#39;s own session, sees `claim=none`, and refuses Write/Edit/MultiEdit. Sub-agents cannot fix this from inside themselves (`feature start` from a sub-agent records a claim under yet another session, leaving the parent&#39;s claim in place). 6 of 8 sub-agents in the cited dispatch wasted 30-50 turns each investigating this. (2) Sub-agents dispatched with `Agent({isolation:&#34;worktree&#34;})` sometimes commit directly to main instead of an isolated branch — when the parent orchestrator is itself in a worktree, Claude Code appears to skip nested worktree creation, leaving sub-agents writing in the parent&#39;s working directory which after a checkout had ended up on main. 2 of 8 successful sub-agents in the cited dispatch had this happen; quality gates passed by luck. (3) Sub-agents dispatched from a parent in YOLO mode have their `Edit`/`Write` calls blocked because the YOLO-mode hook check (likely `checkYoloMode` in `yolo_guard.go` or a sibling) uses the sub-agent&#39;s own session ID directly. The sub-agent is not tagged YOLO; the check returns false; the gate refuses. In the cited dispatch one sub-agent burned 50 tool calls investigating the hook source instead of implementing the feature.
 </div>
 <h4>Goals</h4>
 <ol>
 <li data-markdown>**Parallel dispatch unblocked** — sub-agents inheriting attribution from a parent orchestrator session can write/edit/multiedit without manual claim shuffling. Mirrors the parent-chain walk already used in `yolo_guard.go` for the screenshot guard.</li>
 <li data-markdown>**Main protected from accidental commits** — sub-agents attempting `git commit` while on `main`/`master` without an explicit per-agent branch are refused with a clear error and remediation. The orchestrator and sub-agents on per-agent branches commit normally.</li>
 <li data-markdown>**No upstream Claude Code dependency** — the worktree commit guard sits at htmlgraph&#39;s PreToolUse hook layer, not Claude Code&#39;s Agent dispatch. We control whether sub-agent commits land on main regardless of what `isolation:&#34;worktree&#34;` does upstream.</li>
+<li data-markdown>**YOLO inheritance via parent chain** — sub-agents whose orchestrator session is YOLO-mode have their Edit/Write calls accepted. Same `getSessionAndParent` walker as slice 1, applied to the YOLO-check site.</li>
 </ol>
 <h4>Constraints</h4>
 <ul>
@@ -851,6 +860,184 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     </details>
   </div>
 </details>
+<details class="slice-card" id="slice-3" data-slice="3" data-slice-name="slice-3" data-status="pending" data-approval="pending">
+  <summary class="slice-summary" aria-label="Slice 3: YOLO permission inheritance via parent-session chain (fixes #90 / bug-8ff540a7)">
+    <span class="slice-num">#3</span>
+    <span class="slice-title-col">
+      <span class="slice-name">YOLO permission inheritance via parent-session chain (fixes #90 / bug-8ff540a7)</span>
+      <span class="slice-preview">The YOLO-mode check (likely checkYoloMode in internal/hooks/yologuard.go</span>
+      <span class="slice-meta-row">
+        <span class="slice-summary-badges">
+          <span class="badge badge-pending badge-sm">S</span>
+          <span class="badge badge-revision badge-sm">Med</span>
+          <span class="badge badge-pending badge-sm" title="Execution: not_started">Not Started</span>
+          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-3">Pending</span>
+          
+          <span class="badge badge-sm badge-questions" title="1 open question(s)">1 Q</span>
+        </span>
+        <span class="slice-actions" onclick="event.stopPropagation()">
+          <span class="approval-segmented" role="group" aria-label="Approval action">
+            <label class="seg-btn seg-approve" title="Approve">
+              <input type="radio" name="slice-3-approval" value="approved" data-section="slice-3" data-action="approve" aria-label="Approve slice 3">
+              &#10003;
+            </label>
+            <label class="seg-btn seg-changes" title="Request changes">
+              <input type="radio" name="slice-3-approval" value="changes_requested" data-section="slice-3" data-action="approve" aria-label="Request changes for slice 3">
+              &#8635;
+            </label>
+            <label class="seg-btn seg-reject" title="Reject">
+              <input type="radio" name="slice-3-approval" value="rejected" data-section="slice-3" data-action="approve" aria-label="Reject slice 3">
+              &#10005;
+            </label>
+          </span>
+        </span>
+      </span>
+    </span>
+    <span class="slice-chevron" aria-hidden="true"></span>
+  </summary>
+
+  <div class="slice-body">
+    
+      
+      <div class="slice-field slice-what">
+        <div class="slice-field-label">What</div>
+        <div class="slice-field-value">
+          
+          <input type="checkbox" id="slice-3-what-reveal" class="reveal-toggle">
+          <div class="markdown-block reveal-content serif-prose"><p>The YOLO-mode check (likely <code>checkYoloMode</code> in <code>internal/hooks/yolo_guard.go</code>
+or a similar predicate consumed by <code>pretooluse.go</code>&#39;s Edit/Write gate) returns
+false for sub-agent sessions because the sub-agent&#39;s own <code>agent_events</code> row
+isn&#39;t tagged with YOLO mode. Apply slice 1&#39;s <code>getSessionAndParent</code> walker so
+the predicate walks up the parent chain and treats the sub-agent as YOLO when
+ANY ancestor session is YOLO.</p>
+<p>Implementation:</p>
+<ol>
+<li><strong>Locate the YOLO-mode predicate.</strong> Find the function (likely <code>checkYoloMode</code>
+or <code>isYoloSession</code>) that today resolves YOLO state for a given session ID.</li>
+<li><strong>Reuse the chain walker.</strong> Slice 1 introduces <code>getSessionAndParent</code> (or
+extends an existing walker). Use the SAME helper here.</li>
+<li><strong>Replace direct lookup with chain walk.</strong> When the current session has no
+YOLO tag, walk up via <code>getSessionAndParent</code> and check each ancestor. If any
+ancestor is tagged YOLO, treat the sub-agent as inheriting YOLO posture.</li>
+<li><strong>Conservative scope:</strong> only walk when current session has no YOLO tag of
+its own. Don&#39;t override an explicit non-YOLO marker in the current session
+(if such a thing exists).</li>
+<li><strong>Logging:</strong> emit a structured log line <code>yolo inherited: session=&lt;sub&gt; parent=&lt;orch&gt;</code>
+when the walk finds an ancestor&#39;s YOLO posture, so the path is auditable.</li>
+</ol>
+</div>
+          <label for="slice-3-what-reveal" class="reveal-label">Show full description</label>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field slice-why">
+        <div class="slice-field-label">Why</div>
+        <div class="slice-field-value">
+          
+          <input type="checkbox" id="slice-3-why-reveal" class="reveal-toggle">
+          <div class="markdown-block reveal-content serif-prose"><p>Without this, /htmlgraph:execute parallel dispatch from a YOLO-mode parent
+can&#39;t actually do work — sub-agents are blocked at every Edit/Write. This is
+the same dispatch-failure pattern as slice 1 (claim ownership) and slice 2
+(commit-to-main); fixing it once in slice 1&#39;s helper makes this slice a
+one-call extension at a different gate site. Defense-in-depth across all the
+hook predicates that gate sub-agent behavior on session-local state.</p>
+</div>
+          <label for="slice-3-why-reveal" class="reveal-label">Show full description</label>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Files</div>
+        <div class="slice-field-value"><code>internal/hooks/yolo_guard.go, internal/hooks/yolo_guard_test.go, internal/hooks/pretooluse.go</code></div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Done when</div>
+        <ul class="slice-done-list slice-done-list--grid"><li>Sub-agent whose session is a child of an orchestrator session in YOLO mode has Edit/Write calls accepted (no longer refused)</li><li>Multi-hop chains: sub-sub-agent inherits via grandparent walk</li><li>Sub-agent without parent chain reaching a YOLO session is still blocked (existing behavior)</li><li>Sub-agent with its own explicit YOLO tag — pass-through unchanged (no walk needed)</li><li>Structured log line emitted when YOLO posture is inherited via chain</li><li>Same depth limit as slice 1 (per `q-chain-depth-limit` answer) applied here</li></ul>
+      </div>
+      
+    
+
+    
+    <div class="slice-field slice-tests-field">
+      <div class="slice-field-label">Test Strategy</div>
+      <div class="slice-field-value">
+        
+        
+        <div class="test-strategy">
+          
+          <div class="test-group" data-kind="unit">
+            <span class="test-chip">UNIT &middot; 1</span>
+            <ul><li></li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="other">
+            <span class="test-chip">OTHER &middot; 7</span>
+            <ul><li>- TestYoloCheck_OwnSessionYolo — current session tagged YOLO; pass-through</li><li>- TestYoloCheck_NoYoloNoChain — no parent, no YOLO; refuse</li><li>- TestYoloCheck_ParentYolo — parent tagged YOLO; allow</li><li>- TestYoloCheck_GrandparentYolo — 2-hop chain; allow</li><li>- TestYoloCheck_LogEmitted — chain inheritance logs structured note</li><li>fixture orchestrator session tagged YOLO; sub-agent linked to it via</li><li>agent_events; sub-agent Edit; PreToolUse allows.</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="integration">
+            <span class="test-chip">INTEGRATION &middot; 1</span>
+            <ul><li>TestPreToolUse_DispatchedSubagentEditAllowed_FromYoloParent —</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="regression">
+            <span class="test-chip">REGRESSION &middot; 1</span>
+            <ul><li>existing yolo_guard_test.go and pretooluse_test.go pass.</li></ul>
+          </div>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+
+    
+
+    
+    <div class="slice-field slice-questions">
+      <div class="slice-field-label">Open Questions</div>
+      <div class="slice-field-value">
+        
+        <div class="question-block slice-question-block">
+          <p>Should YOLO inheritance respect explicit non-YOLO tags on the sub-agent?</p>
+          <p class="question-desc">Edge case: sub-agent&#39;s own session has been explicitly recorded as non-YOLO
+(e.g., user opened a non-YOLO sub-shell from within YOLO orchestrator).
+Should parent&#39;s YOLO override?
+</p>
+          
+            
+            
+            
+            
+            <label class="recommended"><input type="radio" name="slice-3-question-q-yolo-inherit-strictness" data-section="slice-3-question-q-yolo-inherit-strictness" data-action="answer" value="parent-yolo-overrides"> parent-yolo-overrides — if parent is YOLO, sub-agent inherits regardless of own tag. Matches the dispatch model (sub-agent works ON BEHALF of parent). <span class="rec-tag">recommended</span></label>
+            
+            <label><input type="radio" name="slice-3-question-q-yolo-inherit-strictness" data-section="slice-3-question-q-yolo-inherit-strictness" data-action="answer" value="own-tag-wins"> own-tag-wins — explicit non-YOLO on sub-agent blocks inheritance. Safer but less ergonomic for dispatch.</label>
+            
+            <label><input type="radio" name="slice-3-question-q-yolo-inherit-strictness" data-section="slice-3-question-q-yolo-inherit-strictness" data-action="answer" value="refuse-on-conflict"> refuse-on-conflict — if tags disagree, refuse. Most conservative; surfaces ambiguous configurations.</label>
+            
+          
+        </div>
+        
+      </div>
+    </div>
+    
+
+    <div class="slice-deps">Dependencies: slices 1</div>
+
+    <details class="comment-collapse">
+      <summary class="comment-collapse-trigger">+ Leave a comment</summary>
+      <div class="comment-collapse-body">
+        <textarea data-section="slice-3" data-comment-for="slice-3" placeholder="Comments on slice 3..."></textarea>
+      </div>
+    </details>
+  </div>
+</details>
 
     <!--PLAN_SLICE_CARDS-->
   </div>
@@ -868,8 +1055,8 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
   <h2>Feedback Summary</h2>
   <div class="progress-stats">
     <div class="progress-stat"><strong id="approvedCount">0</strong> approved</div>
-    <div class="progress-stat"><strong id="totalSections">3</strong> sections</div>
-    <div class="progress-stat"><strong id="pendingCount">3</strong> pending</div>
+    <div class="progress-stat"><strong id="totalSections">4</strong> sections</div>
+    <div class="progress-stat"><strong id="pendingCount">4</strong> pending</div>
   </div>
   <div class="progress-bar-track"><div class="progress-bar-fill" id="progressFill" style="width:0%"></div></div>
   <div class="comments-summary">
@@ -949,7 +1136,7 @@ var planId=(function(){var a=document.querySelector('article[id]');return a?a.id
 
 (function(){
   'use strict';
-  var SECTIONS=/*PLAN_SECTIONS_JSON*/["design","slice-1","slice-2"]/*END_PLAN_SECTIONS_JSON*/;
+  var SECTIONS=/*PLAN_SECTIONS_JSON*/["design","slice-1","slice-2","slice-3"]/*END_PLAN_SECTIONS_JSON*/;
 
   function setBadge(el,ok){
     el.className='badge badge-'+(ok?'approved':'pending');
