@@ -91,14 +91,27 @@ func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 	// Only enforced in YOLO mode — normal interactive subagents should not be
 	// blocked by this guard (bug-ba6d1e1c).
 	// Skipped during grace period (subagent just spawned, needs time to claim).
+	//
+	// Parent-chain claim walk (feat-ecd82f68): when the sub-agent has no direct
+	// claim, check the parent session chain. The orchestrator may have run
+	// `htmlgraph feature start` and holds the claim under its session ID.
+	claimedItem := ctx.ClaimedItem
+	if ctx.IsSubagent && claimedItem == "" {
+		inherited, parentSessID := getClaimFromParentChain(database, ctx.SessionID, claimedItem)
+		if inherited != "" {
+			claimedItem = inherited
+			debugLog(ctx.ProjectDir, "[htmlgraph] claim inherited: session=%s parent=%s feat=%s",
+				ctx.SessionID, parentSessID, inherited)
+		}
+	}
 	hasAgentClaim := false
 	if ctx.IsSubagent {
-		hasAgentClaim = ctx.ClaimedItem != ""
+		hasAgentClaim = claimedItem != ""
 	} else {
 		hasAgentClaim = ctx.FeatureID != ""
 	}
 	if ctx.IsYoloMode && !subagentGrace {
-		if warn := checkSubagentWorkItemGuard(event.ToolName, ctx.IsSubagent, hasAgentClaim, ctx.SessionID, ctx.IsYoloMode, ctx.FeatureID, ctx.ClaimedItem); warn != "" {
+		if warn := checkSubagentWorkItemGuard(event.ToolName, ctx.IsSubagent, hasAgentClaim, ctx.SessionID, ctx.IsYoloMode, ctx.FeatureID, claimedItem); warn != "" {
 			return &HookResult{Decision: "block", Reason: warn}, nil
 		}
 	}

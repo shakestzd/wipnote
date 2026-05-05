@@ -628,6 +628,40 @@ func getSessionAndParent(database *sql.DB, sessionID string) []string {
 	return sessionIDs
 }
 
+// getClaimFromParentChain walks the parent session chain for sessionID and
+// returns the work_item_id of the first active claim found on an ancestor
+// session. Only walks when the current session has no claim of its own
+// (claimedItem == ""). Returns "" when no ancestor claim is found.
+//
+// This allows sub-agent sessions to inherit the orchestrator's claim so that
+// Write/Edit guards don't block agents dispatched by an orchestrator that ran
+// `htmlgraph feature start`.
+func getClaimFromParentChain(database *sql.DB, sessionID, claimedItem string) (string, string) {
+	if claimedItem != "" || database == nil || sessionID == "" {
+		return claimedItem, ""
+	}
+	// Walk the parent chain: check parent session for an active claim.
+	sessionIDs := getSessionAndParent(database, sessionID)
+	if len(sessionIDs) < 2 {
+		return "", ""
+	}
+	activeList := "'proposed','claimed','in_progress','blocked','handoff_pending'"
+	for _, sid := range sessionIDs[1:] { // skip current session (index 0)
+		var inherited string
+		query := fmt.Sprintf(`
+			SELECT work_item_id FROM claims
+			WHERE owner_session_id = ?
+			  AND status IN (%s)
+			ORDER BY leased_at DESC
+			LIMIT 1`, activeList)
+		database.QueryRow(query, sid).Scan(&inherited)
+		if inherited != "" {
+			return inherited, sid
+		}
+	}
+	return "", ""
+}
+
 // hasRecentDiffReview checks if git diff was run in this session or its
 // parent session. Worktree subagents inherit diff reviews from the outer
 // orchestrator session that spawned them.

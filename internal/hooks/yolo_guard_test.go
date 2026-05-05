@@ -1112,3 +1112,81 @@ func TestBashCommandTargetsExternalPath_EmptyProjectRoot(t *testing.T) {
 		t.Error("expected external=true for absolute path when projectRoot is empty")
 	}
 }
+
+// TestGetClaimFromParentChain verifies that sub-agent sessions inherit the
+// parent orchestrator's claim when they have no claim of their own.
+func TestGetClaimFromParentChain(t *testing.T) {
+	tdb := setupTestDB(t)
+	defer tdb.DB.Close()
+
+	// Insert parent (orchestrator) session.
+	parentSessID := "orch-sess-claim"
+	if err := db.InsertSession(tdb.DB, &models.Session{
+		SessionID:     parentSessID,
+		AgentAssigned: "claude-code",
+		Status:        "active",
+		CreatedAt:     tdb.now,
+	}); err != nil {
+		t.Fatalf("InsertSession(parent): %v", err)
+	}
+
+	// Insert child (sub-agent) session with parent_session_id set.
+	childSessID := "child-sess-claim"
+	if err := db.InsertSession(tdb.DB, &models.Session{
+		SessionID:       childSessID,
+		AgentAssigned:   "claude-code",
+		Status:          "active",
+		CreatedAt:       tdb.now,
+		ParentSessionID: parentSessID,
+	}); err != nil {
+		t.Fatalf("InsertSession(child): %v", err)
+	}
+
+	// Insert the feature that the orchestrator will claim.
+	tdb.addFeature("feat-parent-claim", "feature", "Parent feature", "in-progress")
+
+	// No claim yet — getClaimFromParentChain should return "".
+	got, gotParent := getClaimFromParentChain(tdb.DB, childSessID, "")
+	if got != "" {
+		t.Errorf("expected no inherited claim before parent claim, got %q", got)
+	}
+	if gotParent != "" {
+		t.Errorf("expected no parent session before parent claim, got %q", gotParent)
+	}
+
+	// Orchestrator claims the feature under its session ID.
+	claim := &models.Claim{
+		ClaimID:        "claim-parent-chain",
+		WorkItemID:     "feat-parent-claim",
+		OwnerSessionID: parentSessID,
+		OwnerAgent:     "claude-code",
+		Status:         models.ClaimInProgress,
+	}
+	if err := db.ClaimItem(tdb.DB, claim, 30*time.Minute); err != nil {
+		t.Fatalf("ClaimItem: %v", err)
+	}
+
+	// Child session (no direct claim) should now inherit the parent's claim.
+	got, gotParent = getClaimFromParentChain(tdb.DB, childSessID, "")
+	if got != "feat-parent-claim" {
+		t.Errorf("expected inherited claim=feat-parent-claim, got %q", got)
+	}
+	if gotParent != parentSessID {
+		t.Errorf("expected parent session=%q, got %q", parentSessID, gotParent)
+	}
+
+	// When child already has its own claim, the function should pass it through unchanged.
+	gotWithOwn, gotParentWithOwn := getClaimFromParentChain(tdb.DB, childSessID, "feat-own-claim")
+	if gotWithOwn != "feat-own-claim" {
+		t.Errorf("expected own claim unchanged, got %q", gotWithOwn)
+	}
+	if gotParentWithOwn != "" {
+		t.Errorf("expected no parent session when own claim set, got %q", gotParentWithOwn)
+	}
+
+	// nil DB → returns empty, no panic.
+	gotNil, gotNilParent := getClaimFromParentChain(nil, childSessID, "")
+	if gotNil != "" || gotNilParent != "" {
+		t.Errorf("expected empty for nil db, got claim=%q parent=%q", gotNil, gotNilParent)
+	}
+}
