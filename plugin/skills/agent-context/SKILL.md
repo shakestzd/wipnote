@@ -28,9 +28,9 @@ When your task is done and quality gates pass:
 
 ## Safety Rules
 
-**FORBIDDEN:** Never edit `.erinn/` files directly. Use the CLI:
-- `erinn feature complete <id>` not `Edit(".erinn/features/...")`
-- `erinn bug create "title"` not `Write(".erinn/bugs/...")`
+**FORBIDDEN:** Never edit `.htmlgraph/` files directly. Use the CLI:
+- `erinn feature complete <id>` not `Edit(".htmlgraph/features/...")`
+- `erinn bug create "title"` not `Write(".htmlgraph/bugs/...")`
 
 **BATCH erinn CLI calls.** Each Bash tool call spends one turn from the user's quota. Chain commands with `&&` into a single invocation whenever possible. Do this (1 call):
 ```bash
@@ -42,7 +42,7 @@ Never 3 separate Bash calls for the same thing. Only break into multiple calls w
 
 ### Plan YAML Updates
 
-Plan YAML files (`.erinn/plans/*.yaml`) are validated assets — never write them directly.
+Plan YAML files (`.htmlgraph/plans/*.yaml`) are validated assets — never write them directly.
 Use the CLI to ensure valid structure:
 
 - **Create:** `erinn plan create-yaml "<title>"`

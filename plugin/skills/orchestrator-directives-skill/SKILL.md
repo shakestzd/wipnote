@@ -2,8 +2,8 @@
 id: orchestrator-directives
 name: Orchestrator Directives Skill
 description: >-
-  Erinn AI orchestration patterns for AI-assisted development. Use when working on code in an
-  Erinn AI project — provides delegation patterns, model selection, quality gates, and work
+  erinn orchestration patterns for AI-assisted development. Use when working on code in an
+  erinn project — provides delegation patterns, model selection, quality gates, and work
   tracking guidance. Activate when planning work, delegating to agents, debugging, building
   features, or managing tasks.
 trigger: "when user asks about delegation, orchestration, or cost optimization"
@@ -231,7 +231,7 @@ Only these can be executed directly by orchestrator:
    - Create/update todo lists
    - Example: `TodoWrite(todos=[...])`
 
-**Erinn AI CLI operations** (create features and bugs):
+**erinn CLI operations** (create features and bugs):
 - `erinn feature create "title" --track <trk-id>`
 - `erinn bug create "title" --track <trk-id>`
 
@@ -570,7 +570,7 @@ Task(
 </details>
 
 <details>
-<summary><strong>Erinn AI Result Retrieval</strong></summary>
+<summary><strong>erinn Result Retrieval</strong></summary>
 
 **Subagents report findings automatically:**
 
@@ -706,7 +706,7 @@ CLAUDE_ORCHESTRATOR_ACTIVE=true  # Set by SDK
 <summary><strong>Session Continuity Across Compacts</strong></summary>
 
 **Features preserved across compact:**
-- Work items in Erinn AI
+- Work items in erinn
 - Feature/spike tracking
 - Delegation patterns
 - Model selection guidance
@@ -721,7 +721,7 @@ CLAUDE_ORCHESTRATOR_ACTIVE=true  # Set by SDK
 
 ```
 Before compact:
-- Work on features, track in Erinn AI
+- Work on features, track in erinn
 - Delegate with clear prompts
 - Use SDK to save progress
 
@@ -792,7 +792,7 @@ Never commit with unresolved type errors, lint warnings, or test failures.
 - Orchestrator stays available for decisions
 
 **Principle 5: Track Everything**
-- Use Erinn AI CLI to track delegations
+- Use erinn CLI to track delegations
 - Features, spikes, bugs created for all work
 - Clear record of who did what
 
@@ -865,13 +865,13 @@ erinn feature start <feat-id>                   # sets attribution for this sess
 
 - **[/multi-ai-orchestration](/multi-ai-orchestration)** - Comprehensive model selection guide with detailed decision matrix
 - **[/code-quality](/code-quality)** - Quality gates and pre-commit workflows
-- **[/strategic-planning](/strategic-planning)** - Erinn AI analytics for smart prioritization
+- **[/strategic-planning](/strategic-planning)** - erinn analytics for smart prioritization
 
 ## Reference Documentation
 
 - **Complete Rules:** See [orchestration.md](../../rules/orchestration.md)
 - **Advanced Patterns:** See [reference.md](./reference.md)
-- **Erinn AI CLI:** `erinn --help`
+- **erinn CLI:** `erinn --help`
 
 ---
 
@@ -903,7 +903,7 @@ Claude Code v2.1.32+ ships an experimental **agent teams** feature where indepen
 | **Ownership** | Parallel — each teammate claims tasks independently | Sequential — orchestrator dispatches one-at-a-time |
 | **Communication** | Teammates message each other directly | Subagents report back to orchestrator only |
 | **Best for** | Competing-hypothesis debugging, multi-lens review, feature ownership splitting | Sequential task chains, research→implement, isolated single-task work |
-| **Erinn AI tracking** | Automatic — TeammateIdle/TaskCreated/TaskCompleted hooks fire per teammate | Manual — orchestrator attributes via `erinn feature start/complete` |
+| **erinn tracking** | Automatic — TeammateIdle/TaskCreated/TaskCompleted hooks fire per teammate | Manual — orchestrator attributes via `erinn feature start/complete` |
 | **Context isolation** | Each teammate has its own context window | Subagents inherit orchestrator's context model |
 | **Cost model** | N teammates × full session cost | Orchestrator + N smaller subagent calls |
 
@@ -913,7 +913,7 @@ Agent teams require explicit opt-in:
 
 1. **Environment variable:** `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`
 2. **Minimum version:** Claude Code **2.1.32** or later
-3. The Erinn AI plugin works with or without teams enabled — hooks gracefully no-op when no team is active
+3. The erinn plugin works with or without teams enabled — hooks gracefully no-op when no team is active
 
 ### How to Spawn a Team
 
@@ -957,9 +957,9 @@ one unblocked feature and works it to completion. Use
 erinn feature start/complete for attribution.
 ```
 
-### What Erinn AI Captures
+### What erinn Captures
 
-When agent teams are active, Erinn AI automatically records:
+When agent teams are active, erinn automatically records:
 
 - **Teammate identity** — every TeammateIdle, TaskCreated, and TaskCompleted event includes `teammate_name`
 - **Step attribution** — feature steps are prefixed with `[teammate-name]` so `erinn snapshot` shows who did what

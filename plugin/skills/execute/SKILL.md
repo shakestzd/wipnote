@@ -3,7 +3,7 @@ name: erinn:execute
 description: Execute a parallel plan using dependency-driven dispatch. Checks file overlap among unblocked tasks, partitions into non-conflicting waves, and dispatches simultaneously. Merges completed work, then dispatches newly unblocked tasks. No manual wave sequencing.
 ---
 
-# Erinn AI Parallel Execute
+# erinn Parallel Execute
 
 Use this skill to execute development tasks in parallel using dependency-driven dispatch and worktree isolation.
 

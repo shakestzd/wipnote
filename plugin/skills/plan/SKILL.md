@@ -3,7 +3,7 @@ name: erinn:plan
 description: Plan development work using v2 slice-card YAML. Generates a plan with slice cards as executable specs, runs critique, pauses for human review, then promotes approved slices to features. Use when asked to plan, create a development plan, or build a feature with design clarity first.
 ---
 
-# Erinn AI Plan
+# erinn Plan
 
 Use this skill when asked to plan development work, organize tasks for multi-agent execution, or design a feature with human review before implementation.
 
@@ -19,7 +19,7 @@ A v2 plan is a YAML document containing slice cards. Each slice card is an execu
 
 | Artifact | Role |
 |----------|------|
-| `.erinn/plans/<plan-id>.yaml` | Plan = context document (problem, goals, constraints, slices) |
+| `.htmlgraph/plans/<plan-id>.yaml` | Plan = context document (problem, goals, constraints, slices) |
 | Each slice card (`what/why/done_when/tests`) | Executable spec — what an agent implements |
 | `feat-XXX` work item | Promoted feature = implementation tracker |
 | Sessions and commits | Evidence linked via `implemented_in` edges |
@@ -57,7 +57,7 @@ Research the area before writing any YAML. Answer:
 erinn plan create-yaml "<title>" --description "<description>" --track <trk-id>
 ```
 
-Note the returned plan ID. Then write the YAML to `.erinn/plans/<plan-id>.yaml` using `erinn plan rewrite-yaml <plan-id> --file /tmp/plan.yaml`.
+Note the returned plan ID. Then write the YAML to `.htmlgraph/plans/<plan-id>.yaml` using `erinn plan rewrite-yaml <plan-id> --file /tmp/plan.yaml`.
 
 ### v2 YAML Schema
 

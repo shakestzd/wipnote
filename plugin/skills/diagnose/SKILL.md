@@ -1,6 +1,6 @@
 ---
 name: diagnose
-description: "Diagnose bugs, errors, and issues with root cause analysis. Use when asked to diagnose, debug, investigate, or find root cause of any problem — whether a Erinn AI bug ID, error message, unexpected behavior, or delegation audit."
+description: "Diagnose bugs, errors, and issues with root cause analysis. Use when asked to diagnose, debug, investigate, or find root cause of any problem — whether an erinn bug ID, error message, unexpected behavior, or delegation audit."
 user_invocable: true
 ---
 
@@ -114,7 +114,7 @@ When `--delegation` is specified, audit the current session's delegation complia
 1. **Collect data**:
 ```bash
 erinn status
-sqlite3 .erinn/erinn.db "
+sqlite3 .htmlgraph/erinn.db "
 SELECT tool_name, COUNT(*) as count
 FROM agent_events
 WHERE session_id = (SELECT session_id FROM agent_events ORDER BY timestamp DESC LIMIT 1)

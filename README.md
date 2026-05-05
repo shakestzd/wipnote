@@ -1,8 +1,8 @@
-# HtmlGraph
+# erinn
 
 **Causal lineage and observability for AI-assisted development.**
 
-Answer "why does this code exist?" in one command. HtmlGraph traces causal chains across work items, commits, sessions, and agent spawns — then stores everything as HTML files in your repo. No external infrastructure required.
+Answer "why does this code exist?" in one command. erinn traces causal chains across work items, commits, sessions, and agent spawns — then stores everything as HTML files in your repo. No external infrastructure required.
 
 ## What this is NOT
 
@@ -15,45 +15,45 @@ Answer "why does this code exist?" in one command. HtmlGraph traces causal chain
 | Layer | Role |
 |-------|------|
 | `.htmlgraph/*.html` | Canonical CRUD store — single source of truth |
-| SQLite (`.htmlgraph/htmlgraph.db`) | Rebuildable read cache for fast queries and the dashboard |
-| Go binary (`htmlgraph`) | CLI + hook handler |
+| SQLite (`.htmlgraph/erinn.db`) | Rebuildable read cache for fast queries and the dashboard |
+| Go binary (`erinn`) | CLI + hook handler |
 
-HTML is the source of truth; SQLite is derived. If they drift, `htmlgraph reindex` drops the database and rebuilds it from the HTML files. No external infrastructure — no Postgres, no Redis, no cloud sync.
+HTML is the source of truth; SQLite is derived. If they drift, `erinn reindex` drops the database and rebuilds it from the HTML files. No external infrastructure — no Postgres, no Redis, no cloud sync.
 
 ## Install
 
 ```bash
 # Install (universal)
-curl -fsSL https://raw.githubusercontent.com/shakestzd/htmlgraph/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/shakestzd/erinn/main/install.sh | sh
 
 # Or as a Claude Code plugin
-claude plugin install htmlgraph
+claude plugin install erinn
 
 # Or build from source
-git clone https://github.com/shakestzd/htmlgraph.git
-cd htmlgraph && go build -o htmlgraph ./cmd/htmlgraph/
+git clone https://github.com/shakestzd/erinn.git
+cd erinn && go build -o erinn ./cmd/erinn/
 ```
 
-For subsequent rebuilds after the binary is on your PATH, use `htmlgraph build` instead.
+For subsequent rebuilds after the binary is on your PATH, use `erinn build` instead.
 
 ### Upgrading
 
 ```bash
-htmlgraph upgrade            # latest release
-htmlgraph upgrade --check    # check without installing
-htmlgraph update             # alias for upgrade
+erinn upgrade            # latest release
+erinn upgrade --check    # check without installing
+erinn update             # alias for upgrade
 ```
 
 ## Quick Start
 
 ```bash
-htmlgraph init                          # creates .htmlgraph/ in your repo
-htmlgraph track create "Auth Overhaul"
-htmlgraph feature create "Add OAuth" --track <trk-id> --description "Implement OAuth2 flow"
-htmlgraph feature start <feat-id>
+erinn init                          # creates .htmlgraph/ in your repo
+erinn track create "Auth Overhaul"
+erinn feature create "Add OAuth" --track <trk-id> --description "Implement OAuth2 flow"
+erinn feature start <feat-id>
 # ... do work ...
-htmlgraph feature complete <feat-id>
-htmlgraph serve                         # dashboard at localhost:4000
+erinn feature complete <feat-id>
+erinn serve                         # dashboard at localhost:4000
 ```
 
 ## What It Does
@@ -62,13 +62,13 @@ htmlgraph serve                         # dashboard at localhost:4000
 
 ```bash
 # Unified causal chain: forward edges (what this caused) + backward edges (what caused this)
-htmlgraph lineage feat-abc1234
+erinn lineage feat-abc1234
 
 # Reverse direction: given a feature ID, list every commit and session it produced
-htmlgraph trace feat-abc1234
+erinn trace feat-abc1234
 
 # Temporal lineage: git log for a work item's HTML file — every edit, in order
-htmlgraph history feat-abc1234
+erinn history feat-abc1234
 ```
 
 **Work item tracking** — Features, bugs, spikes, and tracks as HTML files in `.htmlgraph/`. Every change is a git diff. Every item has a lifecycle: create, start, complete.
@@ -83,7 +83,7 @@ htmlgraph history feat-abc1234
 
 **Quality gates** — Enforce software engineering discipline: build, lint, and test before every commit. Spec compliance scoring, code health metrics, and structured diff reviews.
 
-**Real-time dashboard** — Activity feed, kanban board, session viewer, and work item detail — served locally by `htmlgraph serve`.
+**Real-time dashboard** — Activity feed, kanban board, session viewer, and work item detail — served locally by `erinn serve`.
 
 **Multi-agent attribution and observation** — Claude Code, Gemini CLI, Codex, and GitHub Copilot all read from and write to the same work items via the CLI. Every tool call, file edit, and session is attributed to a work item so you can see what each agent actually did. (Session transcript ingestion currently supports Claude Code JSONL format.)
 
@@ -104,25 +104,25 @@ htmlgraph history feat-abc1234
 The lineage command family covers work items, commits, sessions, and files within a single repo. Two natural follow-ups are explicitly out of scope for now:
 
 - **Spec-as-node** — treating feature specs as first-class lineage nodes so acceptance criteria appear in the causal chain alongside the code that satisfies them.
-- **Cross-project lineage** — tracing chains across multiple repos registered in `~/.local/share/htmlgraph/projects.json`. Today each project's lineage is self-contained.
+- **Cross-project lineage** — tracing chains across multiple repos registered in `~/.local/share/erinn/projects.json`. Today each project's lineage is self-contained.
 
 ## CLI Reference
 
 ```
-htmlgraph help --compact
+erinn help --compact
 ```
 
-See full CLI documentation at [shakestzd.github.io/htmlgraph](https://shakestzd.github.io/htmlgraph/reference/cli/).
+See full CLI documentation at [erinnai.com/reference/cli](https://erinnai.com/reference/cli/).
 
 ## Contributing
 
-HtmlGraph is developed using HtmlGraph itself (dogfooding). `.htmlgraph/` contains real work items — not demos.
+erinn is developed using erinn itself (dogfooding). `.htmlgraph/` contains real work items — not demos.
 
 ```bash
-git clone https://github.com/shakestzd/htmlgraph
-cd htmlgraph
-go build -o htmlgraph ./cmd/htmlgraph/
-./htmlgraph init
+git clone https://github.com/shakestzd/erinn
+cd erinn
+go build -o erinn ./cmd/erinn/
+./erinn init
 ```
 
 Quality gates: `go build ./... && go vet ./... && go test ./...`
@@ -133,5 +133,5 @@ MIT
 
 ## Links
 
-- [Documentation](https://shakestzd.github.io/htmlgraph/)
-- [GitHub](https://github.com/shakestzd/htmlgraph)
+- [Documentation](https://erinnai.com/)
+- [GitHub](https://github.com/shakestzd/erinn)

@@ -144,7 +144,7 @@ uv run ruff check --fix .
 2. Determine whether the code or the test expectation is wrong
 3. Fix the root cause; do not delete or skip the failing test
 
-## Integration with Erinn AI
+## Integration with erinn
 
 Track quality improvements in active work items (features, bugs) using `erinn feature edit <id>` or `erinn bug edit <id>`.
 

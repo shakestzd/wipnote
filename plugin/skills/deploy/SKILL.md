@@ -1,12 +1,12 @@
 ---
-description: "Deploy and release Erinn AI — run quality gates, bump version, tag, push, and trigger GitHub release pipeline. Use when asked to deploy, release, publish, ship, or push a new version."
+description: "Deploy and release erinn — run quality gates, bump version, tag, push, and trigger GitHub release pipeline. Use when asked to deploy, release, publish, ship, or push a new version."
 argument-hint: "[VERSION]"
 allowed-tools: ["Bash", "Read", "Grep", "Glob"]
 ---
 
-# Deploy Erinn AI
+# Deploy erinn
 
-Run the full deployment pipeline for Erinn AI.
+Run the full deployment pipeline for erinn.
 
 ## Quick Deploy
 
@@ -79,7 +79,7 @@ When the user asks to deploy or release:
 
 ## Version Numbering
 
-Erinn AI follows semantic versioning:
+erinn follows semantic versioning:
 - **MAJOR** — Breaking changes
 - **MINOR** — New features (backward compatible)
 - **PATCH** — Bug fixes
