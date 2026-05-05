@@ -190,30 +190,60 @@ func pruneWithSinceAction(cmd *cobra.Command, reg *registry.Registry, since stri
 		return fmt.Errorf("invalid --since value %q: %w", since, err)
 	}
 
-	// Reload a fresh registry for dry-run inspection, or use current for live run.
 	allBefore := reg.List()
 	cutoff := time.Now().Add(-ttl)
 
-	var wouldRemove []string
+	var structuralRemove []string
+	var ttlRemove []string
+
+	// First pass: collect both structural and TTL removals
 	for _, e := range allBefore {
+		// Structural check: .htmlgraph directory missing
+		if _, err := os.Stat(filepath.Join(e.ProjectDir, ".htmlgraph")); err != nil {
+			structuralRemove = append(structuralRemove, e.ProjectDir)
+			continue
+		}
+
+		// TTL check: last_seen older than cutoff
 		t, terr := time.Parse(time.RFC3339, e.LastSeen)
 		if terr != nil || t.Before(cutoff) {
-			wouldRemove = append(wouldRemove, e.ProjectDir)
+			ttlRemove = append(ttlRemove, e.ProjectDir)
 		}
 	}
 
 	if dryRun {
-		for _, p := range wouldRemove {
-			fmt.Fprintln(cmd.OutOrStdout(), "would prune:", p)
+		if len(structuralRemove) > 0 {
+			fmt.Fprintf(cmd.OutOrStdout(), "would prune %d missing .htmlgraph dirs:\n", len(structuralRemove))
+			for _, p := range structuralRemove {
+				fmt.Fprintln(cmd.OutOrStdout(), "  would prune (missing .htmlgraph):", p)
+			}
 		}
-		fmt.Fprintf(cmd.OutOrStdout(), "dry-run: would prune %d entries\n", len(wouldRemove))
+		if len(ttlRemove) > 0 {
+			fmt.Fprintf(cmd.OutOrStdout(), "would prune %d stale entries (older than %s):\n", len(ttlRemove), since)
+			for _, p := range ttlRemove {
+				fmt.Fprintln(cmd.OutOrStdout(), "  would prune (stale):", p)
+			}
+		}
+		total := len(structuralRemove) + len(ttlRemove)
+		fmt.Fprintf(cmd.OutOrStdout(), "dry-run: would prune %d entries total\n", total)
 		return nil
 	}
 
-	removed := registry.PruneStale(reg, ttl)
+	// Apply both prunes: structural first, then TTL
+	structuralCount := len(structuralPrune(reg))
+	ttlCount := registry.PruneStale(reg, ttl)
+	totalRemoved := structuralCount + ttlCount
 	kept := len(reg.List())
-	fmt.Fprintf(cmd.OutOrStdout(), "pruned %d stale projects, kept %d\n", removed, kept)
-	if removed == 0 {
+
+	if structuralCount > 0 {
+		fmt.Fprintf(cmd.OutOrStdout(), "pruned %d entries with missing .htmlgraph\n", structuralCount)
+	}
+	if ttlCount > 0 {
+		fmt.Fprintf(cmd.OutOrStdout(), "pruned %d stale entries (older than %s)\n", ttlCount, since)
+	}
+	fmt.Fprintf(cmd.OutOrStdout(), "pruned %d entries total, kept %d\n", totalRemoved, kept)
+
+	if totalRemoved == 0 {
 		return nil
 	}
 	return reg.SaveExact()
@@ -224,7 +254,7 @@ func pruneTempdirOnlyAction(cmd *cobra.Command, reg *registry.Registry, dryRun b
 	if dryRun {
 		var wouldRemove []string
 		for _, e := range reg.List() {
-			if registry.ShouldSkipRegistration(e.ProjectDir) {
+			if registry.IsGoTestTempDirPath(e.ProjectDir) {
 				wouldRemove = append(wouldRemove, e.ProjectDir)
 			}
 		}

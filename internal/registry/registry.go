@@ -266,9 +266,11 @@ func ShouldSkipRegistration(projectDir string) bool {
 	return isGoTestTempDirPath(projectDir)
 }
 
-// isGoTestTempDirPath reports whether projectDir points inside os.TempDir() and
-// contains a Test* path component under that temp root, matching Go's
-// t.TempDir() naming convention.
+// isGoTestTempDirPath returns true when projectDir is inside os.TempDir()
+// and matches Go's t.TempDir() naming convention: projectDir is DIRECTLY
+// under (or IS ITSELF) a directory named TestXXX... (e.g. /tmp/TestFoo1234
+// or /tmp/TestFoo1234/sub, but not /tmp/TestFoo1234/realproject/sub).
+// This matches projects created by t.TempDir() at the temp root level.
 func isGoTestTempDirPath(projectDir string) bool {
 	tempDir, err := filepath.EvalSymlinks(os.TempDir())
 	if err != nil {
@@ -281,15 +283,39 @@ func isGoTestTempDirPath(projectDir string) bool {
 	if !strings.HasPrefix(abs, tempDir+string(filepath.Separator)) {
 		return false
 	}
-	// Walk up path components between abs and tempDir looking for a
-	// component that starts with "Test" — the Go test runner name pattern.
-	for p := abs; p != tempDir && p != "/" && p != "."; p = filepath.Dir(p) {
-		leaf := filepath.Base(p)
-		if strings.HasPrefix(leaf, "Test") {
-			return true
-		}
+
+	// Check if abs itself or its direct parent is under a Test* directory
+	// For /tmp/TestFoo1234, return true
+	// For /tmp/TestFoo1234/sub, return true
+	// For /tmp/TestFoo1234/sub/subsub, return false
+	parent := filepath.Dir(abs)
+	if parent == abs {
+		// At filesystem root, not a test temp dir
+		return false
 	}
+
+	// Check direct parent
+	parentBase := filepath.Base(parent)
+	if strings.HasPrefix(parentBase, "Test") && parent != tempDir {
+		return true
+	}
+
+	// Check if abs is itself a Test* dir (directly under tempDir)
+	absBase := filepath.Base(abs)
+	if strings.HasPrefix(absBase, "Test") {
+		// Make sure it's directly under tempDir (not deeper)
+		relPath, _ := filepath.Rel(tempDir, abs)
+		return !strings.Contains(relPath, string(filepath.Separator))
+	}
+
 	return false
+}
+
+// IsGoTestTempDirPath reports whether projectDir points inside os.TempDir() and
+// contains a Test* path component under that temp root, matching Go's
+// t.TempDir() naming convention.
+func IsGoTestTempDirPath(projectDir string) bool {
+	return isGoTestTempDirPath(projectDir)
 }
 
 // pathInsideTempDir reports whether path lives under os.TempDir(). Test suites
@@ -333,7 +359,7 @@ func PruneTempdirEntries(reg *Registry) int {
 	var removed int
 	kept := reg.entries[:0]
 	for _, e := range reg.entries {
-		if ShouldSkipRegistration(e.ProjectDir) {
+		if IsGoTestTempDirPath(e.ProjectDir) {
 			removed++
 			continue
 		}

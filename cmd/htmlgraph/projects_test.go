@@ -238,9 +238,20 @@ func TestPruneSince_3d_RemovesOlder(t *testing.T) {
 	old := time.Now().Add(-4 * 24 * time.Hour).UTC().Format(time.RFC3339)
 	recent := time.Now().Add(-1 * time.Hour).UTC().Format(time.RFC3339)
 
+	// Create actual projects with .htmlgraph directories
+	tmpHome := t.TempDir()
+	oldProj := filepath.Join(tmpHome, "old-project")
+	recentProj := filepath.Join(tmpHome, "recent-project")
+	if err := os.MkdirAll(filepath.Join(oldProj, ".htmlgraph"), 0755); err != nil {
+		t.Fatalf("create old project: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(recentProj, ".htmlgraph"), 0755); err != nil {
+		t.Fatalf("create recent project: %v", err)
+	}
+
 	regPath := withRegistryAtAndStale(t, []registry.Entry{
-		{ProjectDir: "/tmp/old-project", Name: "old", LastSeen: old},
-		{ProjectDir: "/tmp/recent-project", Name: "recent", LastSeen: recent},
+		{ProjectDir: oldProj, Name: "old", LastSeen: old},
+		{ProjectDir: recentProj, Name: "recent", LastSeen: recent},
 	})
 
 	cmd := projectsCmd()
@@ -306,8 +317,15 @@ func TestPruneTempdirOnly_RemovesTestPaths(t *testing.T) {
 func TestPruneDryRun_DoesNotWrite(t *testing.T) {
 	old := time.Now().Add(-4 * 24 * time.Hour).UTC().Format(time.RFC3339)
 
+	// Create a project with .htmlgraph directory
+	tmpHome := t.TempDir()
+	oldProj := filepath.Join(tmpHome, "old-dry-project")
+	if err := os.MkdirAll(filepath.Join(oldProj, ".htmlgraph"), 0755); err != nil {
+		t.Fatalf("create project: %v", err)
+	}
+
 	regPath := withRegistryAtAndStale(t, []registry.Entry{
-		{ProjectDir: "/tmp/old-dry-project", Name: "old", LastSeen: old},
+		{ProjectDir: oldProj, Name: "old", LastSeen: old},
 	})
 
 	cmd := projectsCmd()
@@ -334,5 +352,54 @@ func TestPruneDryRun_DoesNotWrite(t *testing.T) {
 	}
 	if !strings.Contains(out, "would prune") {
 		t.Errorf("expected 'would prune' in output, got: %s", out)
+	}
+}
+
+// TestPruneTempdirEntries_HonorsEnvVar is a regression test for Finding 1:
+// verifies that PruneTempdirEntries does NOT remove non-test entries even
+// when HTMLGRAPH_SKIP_REGISTER=1 is set. The env-var opt-out should not leak
+// from registration semantics into pruning semantics.
+func TestPruneTempdirEntries_HonorsEnvVar(t *testing.T) {
+	// Create a real project outside tempdir
+	realProj := filepath.Join(t.TempDir(), "real-project")
+	if err := os.MkdirAll(filepath.Join(realProj, ".htmlgraph"), 0755); err != nil {
+		t.Fatalf("create real project: %v", err)
+	}
+
+	regPath := withRegistryAtAndStale(t, []registry.Entry{
+		{ProjectDir: realProj, Name: "real-project"},
+	})
+
+	// Set the env var that should only affect registration, not pruning
+	oldEnv := os.Getenv("HTMLGRAPH_SKIP_REGISTER")
+	defer func() {
+		if oldEnv == "" {
+			os.Unsetenv("HTMLGRAPH_SKIP_REGISTER")
+		} else {
+			os.Setenv("HTMLGRAPH_SKIP_REGISTER", oldEnv)
+		}
+	}()
+	os.Setenv("HTMLGRAPH_SKIP_REGISTER", "1")
+
+	cmd := projectsCmd()
+	var buf bytes.Buffer
+	cmd.SetOut(&buf)
+	cmd.SetArgs([]string{"prune", "--tempdir-only"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute: %v", err)
+	}
+
+	// The real project should still be in the registry after --tempdir-only prune
+	// because it's not a test temp dir, even though HTMLGRAPH_SKIP_REGISTER=1
+	reloaded, err := registry.Load(regPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	entries := reloaded.List()
+	if len(entries) != 1 {
+		t.Fatalf("expected 1 entry after prune with HTMLGRAPH_SKIP_REGISTER=1, got %d: %+v", len(entries), entries)
+	}
+	if entries[0].Name != "real-project" {
+		t.Errorf("wrong entry: expected 'real-project', got %q", entries[0].Name)
 	}
 }
