@@ -41,6 +41,9 @@ if ! command -v uv >/dev/null 2>&1; then
   curl -LsSf https://astral.sh/uv/install.sh | sh
 fi
 
+echo "==> Installing mkdocs with material theme and extensions..."
+uv tool install mkdocs --with mkdocs-material --with pymdown-extensions
+
 echo "==> Installing Oh My Posh..."
 if ! command -v oh-my-posh >/dev/null 2>&1; then
   curl -s https://ohmyposh.dev/install.sh | bash -s -- -d "$HOME/.local/bin"
