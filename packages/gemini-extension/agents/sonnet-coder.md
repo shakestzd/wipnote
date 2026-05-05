@@ -2,7 +2,7 @@
 name: sonnet-coder
 description: Balanced code execution agent for moderate complexity tasks
 model: sonnet
-max_turns: 40
+max_turns: 60
 tools:
     - read_file
     - replace

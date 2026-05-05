@@ -10,7 +10,7 @@ tools:
   - Grep
   - Glob
   - Bash
-maxTurns: 80
+maxTurns: 120
 skills:
   - agent-context
   - code-quality-skill
