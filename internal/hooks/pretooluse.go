@@ -116,6 +116,13 @@ func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 		}
 	}
 
+	// Guard: block sub-agent git commit on main/master.
+	// Orchestrators (no parent) are allowed to commit on main intentionally.
+	// This runs unconditionally — it is not gated on YOLO mode.
+	if warn := checkSubagentCommitGuard(event, ctx.ParentSessionID, ctx.ProjectDir); warn != "" {
+		return &HookResult{Decision: "block", Reason: warn}, nil
+	}
+
 	// Always-on guards: work item and research required regardless of YOLO mode.
 	// Skipped during subagent grace period (subagent just spawned, needs time to claim).
 	if !subagentGrace {
