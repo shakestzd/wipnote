@@ -3,7 +3,7 @@ name: wipnote:plan
 description: Plan development work using v2 slice-card YAML. Generates a plan with slice cards as executable specs, runs critique, pauses for human review, then promotes approved slices to features. Use when asked to plan, create a development plan, or build a feature with design clarity first.
 ---
 
-# erinn Plan
+# wipnote Plan
 
 Use this skill when asked to plan development work, organize tasks for multi-agent execution, or design a feature with human review before implementation.
 
@@ -13,7 +13,7 @@ Use this skill when asked to plan development work, organize tasks for multi-age
 
 ## Overview
 
-A v2 plan is a YAML document containing slice cards. Each slice card is an executable spec — it defines what to build, why it matters, acceptance criteria, and tests. The human reviews and approves slices individually. Approved slices are promoted to feature work items incrementally via `erinn plan promote-slice`.
+A v2 plan is a YAML document containing slice cards. Each slice card is an executable spec — it defines what to build, why it matters, acceptance criteria, and tests. The human reviews and approves slices individually. Approved slices are promoted to feature work items incrementally via `wipnote plan promote-slice`.
 
 **Spec-driven mapping:**
 
@@ -23,7 +23,7 @@ A v2 plan is a YAML document containing slice cards. Each slice card is an execu
 | Each slice card (`what/why/done_when/tests`) | Executable spec — what an agent implements |
 | `feat-XXX` work item | Promoted feature = implementation tracker |
 | Sessions and commits | Evidence linked via `implemented_in` edges |
-| `<section class="spec">` in feature HTML | Materialised OpenSpec-format spec (Requirement/Scenario) — generated post-promotion via `erinn spec generate --insert` |
+| `<section class="spec">` in feature HTML | Materialised OpenSpec-format spec (Requirement/Scenario) — generated post-promotion via `wipnote spec generate --insert` |
 
 ---
 
@@ -31,9 +31,9 @@ A v2 plan is a YAML document containing slice cards. Each slice card is an execu
 
 Before anything else:
 
-1. `erinn status` — is there an active feature/track?
-2. If yes: `erinn feature start <id>`
-3. If no: `erinn feature create "<title>" --track <trk-id>` then `erinn feature start <id>`
+1. `wipnote status` — is there an active feature/track?
+2. If yes: `wipnote feature start <id>`
+3. If no: `wipnote feature create "<title>" --track <trk-id>` then `wipnote feature start <id>`
 
 ---
 
@@ -54,10 +54,10 @@ Research the area before writing any YAML. Answer:
 ## Step 2: Create the Plan YAML
 
 ```bash
-erinn plan create-yaml "<title>" --description "<description>" --track <trk-id>
+wipnote plan create-yaml "<title>" --description "<description>" --track <trk-id>
 ```
 
-Note the returned plan ID. Then write the YAML to `.htmlgraph/plans/<plan-id>.yaml` using `erinn plan rewrite-yaml <plan-id> --file /tmp/plan.yaml`.
+Note the returned plan ID. Then write the YAML to `.htmlgraph/plans/<plan-id>.yaml` using `wipnote plan rewrite-yaml <plan-id> --file /tmp/plan.yaml`.
 
 ### v2 YAML Schema
 
@@ -106,7 +106,7 @@ slices:
       Unit: specific test with expected input/output
       Integration: specific integration scenario
       Regression: which existing tests must still pass
-    decisions_notes: ""       # free-text Scope/Decisions/Context written by `erinn plan elicit-decisions` or the spec-from-slice skill; consumed by spec generate --insert
+    decisions_notes: ""       # free-text Scope/Decisions/Context written by `wipnote plan elicit-decisions` or the spec-from-slice skill; consumed by spec generate --insert
     approved: false
     comment: ""
 
@@ -159,14 +159,14 @@ All of these must be present and non-empty on every slice:
 
 Use `what: |`, `why: |`, and `tests: |` (YAML literal blocks) so Markdown renders correctly in the dashboard.
 
-**Spec lifecycle (new in plan-cc24034c, post-2026-05-04):** the `decisions_notes` field is optional but populated automatically by the spec-from-slice skill before promotion. When `spec_enforcement.promote_slice: true` in `.erinn/config.json`, `promote-slice` refuses if `decisions_notes` is empty.
+**Spec lifecycle (new in plan-cc24034c, post-2026-05-04):** the `decisions_notes` field is optional but populated automatically by the spec-from-slice skill before promotion. When `spec_enforcement.promote_slice: true` in `.erinn/config.json`, `wipnote plan promote-slice` refuses if `decisions_notes` is empty.
 
 ---
 
 ## Step 3: Validate
 
 ```bash
-erinn plan validate-yaml <plan-id>
+wipnote plan validate-yaml <plan-id>
 ```
 
 Fix any schema errors before proceeding.
@@ -177,14 +177,14 @@ Fix any schema errors before proceeding.
 
 Run two critique agents in parallel. Each reads the plan YAML and produces findings.
 
-After critique, integrate HIGH/DANGER findings directly into the affected slice cards as `critic_revisions` entries. Rewrite the YAML via `erinn plan rewrite-yaml`.
+After critique, integrate HIGH/DANGER findings directly into the affected slice cards as `critic_revisions` entries. Rewrite the YAML via `wipnote plan rewrite-yaml`.
 
 ---
 
 ## Step 5: Open for Human Review (PAUSE)
 
 ```bash
-erinn serve
+wipnote serve
 ```
 
 Tell the human:
@@ -199,9 +199,9 @@ Per-slice review:
   4. Read the critique revisions embedded in each card
 
 CLI shortcuts (if reviewing outside the dashboard):
-  erinn plan approve-slice <plan-id> <num>
-  erinn plan reject-slice <plan-id> <num> [--changes-requested]
-  erinn plan answer-slice-question <plan-id> <num> <question-id> <answer-key>
+  wipnote plan approve-slice <plan-id> <num>
+  wipnote plan reject-slice <plan-id> <num> [--changes-requested]
+  wipnote plan answer-slice-question <plan-id> <num> <question-id> <answer-key>
 
 I will wait until you signal readiness before promoting any slices.
 ```
@@ -213,7 +213,7 @@ I will wait until you signal readiness before promoting any slices.
 ## Step 6: Read Decisions and Integrate Feedback
 
 ```bash
-erinn plan read-feedback-yaml <plan-id>
+wipnote plan read-feedback-yaml <plan-id>
 ```
 
 For rejected slices: update the YAML to address the rejection, then re-run Step 5.
@@ -228,13 +228,13 @@ Before promoting an approved slice into a feature, capture the implementation de
 
 ```bash
 # Cross-harness CLI (works on Claude/Codex/Gemini):
-erinn plan elicit-decisions <plan-id> <slice-num> \
+wipnote plan elicit-decisions <plan-id> <slice-num> \
     --scope "<what's in/out for this slice>" \
     --decisions "<key implementation choices and rationale>" \
     --context "<tone, stack constraints, patterns to follow>"
 
 # Or stdin (YAML):
-erinn plan elicit-decisions <plan-id> <slice-num> --from-stdin <<'EOF'
+wipnote plan elicit-decisions <plan-id> <slice-num> --from-stdin <<'EOF'
 scope: ...
 decisions: ...
 context: ...
@@ -244,9 +244,9 @@ EOF
 /wipnote:spec-from-slice <plan-id> <slice-num>
 ```
 
-The command writes `decisions_notes` (a free-text Markdown blob) into the slice YAML. The notes survive promotion and are consumed by `erinn spec generate --insert` later.
+The command writes `decisions_notes` (a free-text Markdown blob) into the slice YAML. The notes survive promotion and are consumed by `wipnote spec generate --insert` later.
 
-**Optional gate:** when `.erinn/config.json` has `spec_enforcement.promote_slice: true`, `erinn plan promote-slice` refuses to promote a slice with empty `decisions_notes` (use `--allow-spec-skip` to bypass with audit comment). Default is off; gate ships disabled.
+**Optional gate:** when `.erinn/config.json` has `spec_enforcement.promote_slice: true`, `wipnote plan promote-slice` refuses to promote a slice with empty `decisions_notes` (use `--allow-spec-skip` to bypass with audit comment). Default is off; gate ships disabled.
 
 ---
 
@@ -256,10 +256,10 @@ Promote slices incrementally as they are approved — no need to wait for full-p
 
 ```bash
 # Promote a single approved slice (creates feat-XXX, wires edges):
-erinn plan promote-slice <plan-id> <slice-num>
+wipnote plan promote-slice <plan-id> <slice-num>
 
 # If a slice's deps are already done externally (e.g. already in-flight):
-erinn plan promote-slice <plan-id> <slice-num> --waive-deps
+wipnote plan promote-slice <plan-id> <slice-num> --waive-deps
 ```
 
 Rules:
@@ -275,10 +275,10 @@ The command prints the promoted `feat-XXX` ID. That feature is now part of the t
 
 ```
 for each slice (in dependency order):
-  1. Review → erinn plan approve-slice <plan-id> <num>
-  2. Promote → erinn plan promote-slice <plan-id> <num>
-  3. Track execution → erinn plan set-slice-status <plan-id> <num> in_progress
-  4. When done → erinn plan set-slice-status <plan-id> <num> done
+  1. Review → wipnote plan approve-slice <plan-id> <num>
+  2. Promote → wipnote plan promote-slice <plan-id> <num>
+  3. Track execution → wipnote plan set-slice-status <plan-id> <num> in_progress
+  4. When done → wipnote plan set-slice-status <plan-id> <num> done
 ```
 
 ---
@@ -288,7 +288,7 @@ for each slice (in dependency order):
 After `promote-slice` creates the feature, generate the spec block in the feature HTML. This is the **materialisation** stage:
 
 ```bash
-erinn spec generate <feat-id> --insert
+wipnote spec generate <feat-id> --insert
 ```
 
 This writes a `<section class="spec">` block populated from:
@@ -301,11 +301,11 @@ Behavior on re-run:
 - Default: refuses to overwrite an existing non-empty spec section; prints a unified diff of what would change.
 - `--force`: replaces the section content (idempotent; re-runs produce the same output).
 
-Once the spec exists, `erinn compliance <feat-id>` (legacy checkbox reporter) and `erinn compliance auto <feat-id>` (LLM grader from the OODA pilot) can both read and score it.
+Once the spec exists, `wipnote compliance <feat-id>` (legacy checkbox reporter) and `wipnote compliance auto <feat-id>` (LLM grader from the OODA pilot) can both read and score it.
 
-**Optional gate:** when `.erinn/config.json` has `spec_enforcement.feature_complete: true`, `erinn feature complete <id>` refuses to mark done if the feature has no `<section class="spec">` block or 0 requirements/criteria. Use `--allow-spec-skip` to bypass with audit comment. Default off.
+**Optional gate:** when `.erinn/config.json` has `spec_enforcement.feature_complete: true`, `wipnote feature complete <id>` refuses to mark done if the feature has no `<section class="spec">` block or 0 requirements/criteria. Use `--allow-spec-skip` to bypass with audit comment. Default off.
 
-The spec section is the artifact that `erinn compliance auto` (from the OODA active-observer track) compares against the implementation diff for every promoted feature — it is the bridge between intent (slice card) and implementation (commits).
+The spec section is the artifact that `wipnote compliance auto` (from the OODA active-observer track) compares against the implementation diff for every promoted feature — it is the bridge between intent (slice card) and implementation (commits).
 
 ---
 
@@ -314,7 +314,7 @@ The spec section is the artifact that `erinn compliance auto` (from the OODA act
 When all slices are done, rejected, or superseded:
 
 ```bash
-erinn plan set-status <plan-id> completed
+wipnote plan set-status <plan-id> completed
 ```
 
 ---
@@ -323,11 +323,11 @@ erinn plan set-status <plan-id> completed
 
 | Command | Usage | Effect |
 |---------|-------|--------|
-| `approve-slice` | `erinn plan approve-slice <plan-id> <num>` | Sets `approval_status=approved` in `plan_feedback` |
-| `reject-slice` | `erinn plan reject-slice <plan-id> <num> [--changes-requested]` | Sets `approval_status=rejected` or `changes_requested` |
-| `answer-slice-question` | `erinn plan answer-slice-question <plan-id> <num> <question-id> <answer-key>` | Records answer to a slice-local question |
-| `set-slice-status` | `erinn plan set-slice-status <plan-id> <num> <status>` | Sets `execution_status` (`not_started\|promoted\|in_progress\|done\|blocked\|superseded`) |
-| `promote-slice` | `erinn plan promote-slice <plan-id> <num> [--waive-deps]` | Creates `feat-XXX`, wires edges, sets `execution_status=promoted` |
+| `approve-slice` | `wipnote plan approve-slice <plan-id> <num>` | Sets `approval_status=approved` in `plan_feedback` |
+| `reject-slice` | `wipnote plan reject-slice <plan-id> <num> [--changes-requested]` | Sets `approval_status=rejected` or `changes_requested` |
+| `answer-slice-question` | `wipnote plan answer-slice-question <plan-id> <num> <question-id> <answer-key>` | Records answer to a slice-local question |
+| `set-slice-status` | `wipnote plan set-slice-status <plan-id> <num> <status>` | Sets `execution_status` (`not_started\|promoted\|in_progress\|done\|blocked\|superseded`) |
+| `promote-slice` | `wipnote plan promote-slice <plan-id> <num> [--waive-deps]` | Creates `feat-XXX`, wires edges, sets `execution_status=promoted` |
 
 ---
 
@@ -374,14 +374,14 @@ slices:
     title: "In-memory rate limiter middleware"
     what: |
       Add `internal/ratelimit/limiter.go`: a token-bucket limiter keyed by
-      client IP. Wire it as HTTP middleware in `cmd/erinn/serve.go`.
+      client IP. Wire it as HTTP middleware in `cmd/wipnote/serve.go`.
       Return HTTP 429 with a JSON error body when the bucket is empty.
     why: |
       Protects the SQLite writer from burst overload. Addresses the throughput
       cap goal.
     files:
       - internal/ratelimit/limiter.go
-      - cmd/erinn/serve.go
+      - cmd/wipnote/serve.go
     deps: []
     done_when:
       - "Requests above the configured limit receive HTTP 429"
@@ -398,18 +398,18 @@ slices:
     num: 2
     title: "Throttle counter metric"
     what: |
-      Increment a `erinn_throttled_total` counter in the limiter middleware.
+      Increment a `wipnote_throttled_total` counter in the limiter middleware.
       Expose it on the existing `/metrics` endpoint via the Prometheus-compatible
-      text format already used by `cmd/erinn/metrics.go`.
+      text format already used by `cmd/wipnote/metrics.go`.
     why: |
       Addresses the visibility goal. Without this, operators cannot tell whether
       rate limiting is firing or calibrated correctly.
     files:
       - internal/ratelimit/limiter.go
-      - cmd/erinn/metrics.go
+      - cmd/wipnote/metrics.go
     deps: [1]
     done_when:
-      - "`erinn_throttled_total` increments on each 429 response"
+      - "`wipnote_throttled_total` increments on each 429 response"
       - "Counter is present in /metrics output"
     effort: S
     risk: Low
@@ -440,5 +440,5 @@ Legacy plans can be migrated incrementally: add v2 fields to individual slices a
 - **Promote incrementally** — `promote-slice` does not require full-plan finalization
 - **Critique is embedded per-slice** — use `critic_revisions` instead of a global critique section for v2 plans
 - **All slice fields are mandatory** — missing fields will fail `validate-yaml`
-- **Finalize is for legacy plans** — v2 plans use `promote-slice` per slice; `erinn plan finalize` is the legacy all-at-once path
+- **Finalize is for legacy plans** — v2 plans use `promote-slice` per slice; `wipnote plan finalize` is the legacy all-at-once path
 - **Specs are created between approval and execution, not at finalization.** Two stages: (a) elicit decisions before promote-slice (writes `decisions_notes` to slice YAML); (b) generate spec section after promote-slice (writes `<section class="spec">` to feature HTML). Both stages have opt-in gates in `.erinn/config.json` (`spec_enforcement.promote_slice`, `spec_enforcement.feature_complete`).

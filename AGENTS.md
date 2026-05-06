@@ -1,4 +1,4 @@
-# erinn
+# wipnote
 
 Local-first observability and coordination platform for AI-assisted development.
 
@@ -7,24 +7,24 @@ Local-first observability and coordination platform for AI-assisted development.
 | Layer | Role |
 |-------|------|
 | `.htmlgraph/*.html` | Canonical store — single source of truth |
-| SQLite (`~/.cache/erinn/<path-hash>/erinn.db`) | Per-user read index for queries and dashboard (derived; not committed) |
-| Go binary (`erinn`) | CLI + hook handler |
+| SQLite (`~/.cache/wipnote/<path-hash>/wipnote.db`) | Per-user read index for queries and dashboard (derived; not committed) |
+| Go binary (`wipnote`) | CLI + hook handler |
 
 ## For AI Agents
 
-All CLI usage, safety rules, and best practices are delivered by the erinn plugin.
-Run `erinn help --compact` for the CLI reference.
+All CLI usage, safety rules, and best practices are delivered by the wipnote plugin.
+Run `wipnote help --compact` for the CLI reference.
 
 ## Supported Harnesses
 
-erinn currently ships the same plugin to three AI coding harnesses:
+wipnote currently ships the same plugin to three AI coding harnesses:
 
 - **Claude Code** — plugin tree at `plugin/`
 - **Codex CLI** — plugin tree at `packages/codex-plugin/`
 - **Gemini CLI** — extension tree at `packages/gemini-extension/`
 
 All three trees are **generated** from the same source of truth at
-`packages/plugin-core/manifest.json` by `erinn plugin build-ports`. Shared
+`packages/plugin-core/manifest.json` by `wipnote plugin build-ports`. Shared
 markdown assets (commands, agents, skills, templates) live in `plugin/…/` and are
 copied verbatim into every target — the formats are compatible across harnesses,
 so a new slash command or skill lands in all three at once. See
@@ -32,7 +32,7 @@ so a new slash command or skill lands in all three at once. See
 
 ## Dogfooding
 
-This project uses erinn to develop itself. `.htmlgraph/` contains real work items — not demos.
+This project uses wipnote to develop itself. `.htmlgraph/` contains real work items — not demos.
 
 ## Temporal Awareness
 

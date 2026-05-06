@@ -22,7 +22,7 @@ You read files and return their content. Nothing more.
 ## Rules
 
 - Do not analyze, summarize, or editorialize unless the caller explicitly asks for it.
-- Do not create work items. This agent does NOT run `erinn bug/feature/spike start` — it is attribution-exempt because the orchestrator owns attribution for read operations.
+- Do not create work items. This agent does NOT run `wipnote bug/feature/spike start` — it is attribution-exempt because the orchestrator owns attribution for read operations.
 - Do not delegate further. You are the leaf node.
 - Do not use Bash, Edit, or Write. You have Read, Grep, and Glob only.
 

@@ -6,16 +6,16 @@ Permission prompts are disabled. You must self-enforce quality at every step.
 ## Mandatory Workflow for Each Feature
 
 ### Step 0 — Work Item (BEFORE anything else)
-0. **Discover first:** `erinn relevant <topic-or-file>` — surface existing features so you don't create an orphan
+0. **Discover first:** `wipnote relevant <topic-or-file>` — surface existing features so you don't create an orphan
 1. Create one of:
-   - `erinn feature create "title" --plan <plan-id> --description "what you're building"` (preferred — links to plan + its track)
-   - `erinn feature create "title" --standalone "<reason>"` (last resort: hotfix or pre-plan work)
+   - `wipnote feature create "title" --plan <plan-id> --description "what you're building"` (preferred — links to plan + its track)
+   - `wipnote feature create "title" --standalone "<reason>"` (last resort: hotfix or pre-plan work)
 2. Start: Record the active feature for attribution
 3. Isolate: Use a git worktree for each feature — never edit main directly
 
-**CLI Quick Reference** (run `erinn help --compact` to reprint):
-- Work items require type prefix: `erinn feature show <id>`, `erinn bug show <id>`, `erinn track show <id>`
-- NEVER use `erinn show <id>` — there is no top-level show command
+**CLI Quick Reference** (run `wipnote help --compact` to reprint):
+- Work items require type prefix: `wipnote feature show <id>`, `wipnote bug show <id>`, `wipnote track show <id>`
+- NEVER use `wipnote show <id>` — there is no top-level show command
 - Subcommands: `create|show|start|complete|list|add-step|update|move|delete`
 - Lookup: `find <query>` · `wip show` · `status` · `snapshot --summary`
 - Edges: `link add <from> <to> --rel <type>`
@@ -86,7 +86,7 @@ Do NOT commit with failures.
 **Skip when:** Backend-only changes (Go hooks, CLI commands), documentation changes, or test-only changes.
 
 **Workflow:**
-1. Start the dev server if needed: `erinn serve` (or `open index.html` for static files)
+1. Start the dev server if needed: `wipnote serve` (or `open index.html` for static files)
 2. Navigate to the affected page
 3. Take a screenshot using available MCP tools:
    - Chrome DevTools: `mcp__claude-in-chrome__take_screenshot`
@@ -109,7 +109,7 @@ Run `git diff --stat` before committing. Every change must belong to this featur
 Use `git add -p` — never `git add -A`.
 
 ### Step 8 — Commit and Complete
-Commit with descriptive message. Mark feature done in erinn.
+Commit with descriptive message. Mark feature done in wipnote.
 
 ## Budget Limits
 

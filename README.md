@@ -1,8 +1,8 @@
-# erinn
+# wipnote
 
 **Causal lineage and observability for AI-assisted development.**
 
-Answer "why does this code exist?" in one command. erinn traces causal chains across work items, commits, sessions, and agent spawns — then stores everything as HTML files in your repo. No external infrastructure required.
+Answer "why does this code exist?" in one command. wipnote traces causal chains across work items, commits, sessions, and agent spawns — then stores everything as HTML files in your repo. No external infrastructure required.
 
 ## What this is NOT
 
@@ -15,45 +15,45 @@ Answer "why does this code exist?" in one command. erinn traces causal chains ac
 | Layer | Role |
 |-------|------|
 | `.htmlgraph/*.html` | Canonical CRUD store — single source of truth |
-| SQLite (`.htmlgraph/erinn.db`) | Rebuildable read cache for fast queries and the dashboard |
-| Go binary (`erinn`) | CLI + hook handler |
+| SQLite (`.htmlgraph/wipnote.db`) | Rebuildable read cache for fast queries and the dashboard |
+| Go binary (`wipnote`) | CLI + hook handler |
 
-HTML is the source of truth; SQLite is derived. If they drift, `erinn reindex` drops the database and rebuilds it from the HTML files. No external infrastructure — no Postgres, no Redis, no cloud sync.
+HTML is the source of truth; SQLite is derived. If they drift, `wipnote reindex` drops the database and rebuilds it from the HTML files. No external infrastructure — no Postgres, no Redis, no cloud sync.
 
 ## Install
 
 ```bash
 # Install (universal)
-curl -fsSL https://raw.githubusercontent.com/shakestzd/erinn/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/shakestzd/wipnote/main/install.sh | sh
 
 # Or as a Claude Code plugin
-claude plugin install erinn
+claude plugin install wipnote
 
 # Or build from source
-git clone https://github.com/shakestzd/erinn.git
-cd erinn && go build -o erinn ./cmd/erinn/
+git clone https://github.com/shakestzd/wipnote.git
+cd wipnote && go build -o wipnote ./cmd/wipnote/
 ```
 
-For subsequent rebuilds after the binary is on your PATH, use `erinn build` instead.
+For subsequent rebuilds after the binary is on your PATH, use `wipnote build` instead.
 
 ### Upgrading
 
 ```bash
-erinn upgrade            # latest release
-erinn upgrade --check    # check without installing
-erinn update             # alias for upgrade
+wipnote upgrade            # latest release
+wipnote upgrade --check    # check without installing
+wipnote update             # alias for upgrade
 ```
 
 ## Quick Start
 
 ```bash
-erinn init                          # creates .htmlgraph/ in your repo
-erinn track create "Auth Overhaul"
-erinn feature create "Add OAuth" --track <trk-id> --description "Implement OAuth2 flow"
-erinn feature start <feat-id>
+wipnote init                          # creates .htmlgraph/ in your repo
+wipnote track create "Auth Overhaul"
+wipnote feature create "Add OAuth" --track <trk-id> --description "Implement OAuth2 flow"
+wipnote feature start <feat-id>
 # ... do work ...
-erinn feature complete <feat-id>
-erinn serve                         # dashboard at localhost:4000
+wipnote feature complete <feat-id>
+wipnote serve                         # dashboard at localhost:4000
 ```
 
 ## What It Does
@@ -62,13 +62,13 @@ erinn serve                         # dashboard at localhost:4000
 
 ```bash
 # Unified causal chain: forward edges (what this caused) + backward edges (what caused this)
-erinn lineage feat-abc1234
+wipnote lineage feat-abc1234
 
 # Reverse direction: given a feature ID, list every commit and session it produced
-erinn trace feat-abc1234
+wipnote trace feat-abc1234
 
 # Temporal lineage: git log for a work item's HTML file — every edit, in order
-erinn history feat-abc1234
+wipnote history feat-abc1234
 ```
 
 **Work item tracking** — Features, bugs, spikes, and tracks as HTML files in `.htmlgraph/`. Every change is a git diff. Every item has a lifecycle: create, start, complete.
@@ -83,7 +83,7 @@ erinn history feat-abc1234
 
 **Quality gates** — Enforce software engineering discipline: build, lint, and test before every commit. Spec compliance scoring, code health metrics, and structured diff reviews.
 
-**Real-time dashboard** — Activity feed, kanban board, session viewer, and work item detail — served locally by `erinn serve`.
+**Real-time dashboard** — Activity feed, kanban board, session viewer, and work item detail — served locally by `wipnote serve`.
 
 **Multi-agent attribution and observation** — Claude Code, Gemini CLI, Codex, and GitHub Copilot all read from and write to the same work items via the CLI. Every tool call, file edit, and session is attributed to a work item so you can see what each agent actually did. (Session transcript ingestion currently supports Claude Code JSONL format.)
 
@@ -104,25 +104,25 @@ erinn history feat-abc1234
 The lineage command family covers work items, commits, sessions, and files within a single repo. Two natural follow-ups are explicitly out of scope for now:
 
 - **Spec-as-node** — treating feature specs as first-class lineage nodes so acceptance criteria appear in the causal chain alongside the code that satisfies them.
-- **Cross-project lineage** — tracing chains across multiple repos registered in `~/.local/share/erinn/projects.json`. Today each project's lineage is self-contained.
+- **Cross-project lineage** — tracing chains across multiple repos registered in `~/.local/share/wipnote/projects.json`. Today each project's lineage is self-contained.
 
 ## CLI Reference
 
 ```
-erinn help --compact
+wipnote help --compact
 ```
 
-See full CLI documentation at [erinnai.com/reference/cli](https://erinnai.com/reference/cli/).
+See full CLI documentation at [wipnote.dev/reference/cli](https://wipnote.dev/reference/cli/).
 
 ## Contributing
 
-erinn is developed using erinn itself (dogfooding). `.htmlgraph/` contains real work items — not demos.
+wipnote is developed using wipnote itself (dogfooding). `.htmlgraph/` contains real work items — not demos.
 
 ```bash
-git clone https://github.com/shakestzd/erinn
-cd erinn
-go build -o erinn ./cmd/erinn/
-./erinn init
+git clone https://github.com/shakestzd/wipnote
+cd wipnote
+go build -o wipnote ./cmd/wipnote/
+./wipnote init
 ```
 
 Quality gates: `go build ./... && go vet ./... && go test ./...`
@@ -133,5 +133,5 @@ MIT
 
 ## Links
 
-- [Documentation](https://erinnai.com/)
-- [GitHub](https://github.com/shakestzd/erinn)
+- [Documentation](https://wipnote.dev/)
+- [GitHub](https://github.com/shakestzd/wipnote)

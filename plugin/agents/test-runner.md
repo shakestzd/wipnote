@@ -12,7 +12,7 @@ maxTurns: 20
 skills:
   - agent-context
   - code-quality-skill
-initialPrompt: "Run `erinn agent-init` to load project context."
+initialPrompt: "Run `wipnote agent-init` to load project context."
 ---
 
 # Test Runner Agent
@@ -21,9 +21,9 @@ Automatically test changes to ensure correctness and prevent regressions.
 
 ## Pre-flight (first 60 seconds)
 
-1. Check branch sync: `(cd /workspaces/erinn && git fetch origin && git status)`
-2. Claim only if a feature/bug ID is provided: `erinn feature start <feat-id>` (optional)
-3. Identify test packages via: `(cd /workspaces/erinn && find . -name '*_test.go' -o -name 'jest.config.*' -o -name 'pytest.ini' | head -20)`
+1. Check branch sync: `(cd /workspaces/wipnote && git fetch origin && git status)`
+2. Claim only if a feature/bug ID is provided: `wipnote feature start <feat-id>` (optional)
+3. Identify test packages via: `(cd /workspaces/wipnote && find . -name '*_test.go' -o -name 'jest.config.*' -o -name 'pytest.ini' | head -20)`
 
 ## Purpose
 

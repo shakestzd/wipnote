@@ -1,6 +1,6 @@
 @AGENTS.md
 
-# erinn — Claude Code
+# wipnote — Claude Code
 
 Local-first observability and coordination platform for AI-assisted development.
 
@@ -8,14 +8,14 @@ Local-first observability and coordination platform for AI-assisted development.
 
 ## Build
 
-**Always use `erinn build`, never `go build` directly.**
+**Always use `wipnote build`, never `go build` directly.**
 
 ```bash
-erinn build      # outputs to plugin/hooks/bin/erinn (on your PATH)
+wipnote build      # outputs to plugin/hooks/bin/wipnote (on your PATH)
 plugin/build.sh      # equivalent
 ```
 
-Running `go build -o erinn ./cmd/erinn/` puts the binary in CWD, not on your PATH.
+Running `go build -o wipnote ./cmd/wipnote/` puts the binary in CWD, not on your PATH.
 
 ---
 
@@ -26,7 +26,7 @@ go build ./... && go vet ./... && go test ./...
 # Commit only when ALL pass
 ```
 
-Use `/erinn:code-quality-skill` for the complete pre-commit workflow.
+Use `/wipnote:code-quality-skill` for the complete pre-commit workflow.
 
 ---
 
@@ -36,14 +36,14 @@ Use `/erinn:code-quality-skill` for the complete pre-commit workflow.
 ./scripts/deploy-all.sh X.Y.Z --no-confirm   # full pipeline
 ```
 
-Or `/erinn:deploy X.Y.Z`. CLI binary and plugin are independent installs — the deploy script updates both. Never update one without the other.
+Or `/wipnote:deploy X.Y.Z`. CLI binary and plugin are independent installs — the deploy script updates both. Never update one without the other.
 
 ---
 
 ## Dev Mode
 
 ```bash
-erinn claude --dev   # loads plugin from source via --plugin-dir
+wipnote claude --dev   # loads plugin from source via --plugin-dir
 ```
 
 Dev mode uninstalls the marketplace plugin, clears cache, and launches with `claude --plugin-dir plugin/`. This ensures agents, skills, tools, and hooks all load from your local source — not stale marketplace copies. The marketplace plugin is reinstalled on exit.
@@ -52,13 +52,13 @@ Dev mode uninstalls the marketplace plugin, clears cache, and launches with `cla
 
 ## Resuming a Specific Session
 
-`erinn claude`, `erinn yolo`, and `erinn dev` all accept `--resume <session-id>` to resume a specific prior Claude Code session. On exit, Claude Code prints a line like `claude --resume d846b50d-…`; pass that ID through the erinn launcher to get the erinn plugin, system prompt, and (in `--dev`) local `--plugin-dir` applied to the resumed session:
+`wipnote claude`, `wipnote yolo`, and `wipnote dev` all accept `--resume <session-id>` to resume a specific prior Claude Code session. On exit, Claude Code prints a line like `claude --resume d846b50d-…`; pass that ID through the wipnote launcher to get the wipnote plugin, system prompt, and (in `--dev`) local `--plugin-dir` applied to the resumed session:
 
 ```bash
-erinn claude --resume d846b50d-9ce4-45c1-8ad2-0f84da537efd
-erinn claude --dev --resume <session-id>
-erinn yolo --dev --resume <session-id>
-erinn dev --resume <session-id>
+wipnote claude --resume d846b50d-9ce4-45c1-8ad2-0f84da537efd
+wipnote claude --dev --resume <session-id>
+wipnote yolo --dev --resume <session-id>
+wipnote dev --resume <session-id>
 ```
 
 `--resume <id>` differs from `--continue` (which resumes the most recent session). If both are passed, `--resume <id>` wins.
@@ -67,23 +67,23 @@ erinn dev --resume <session-id>
 
 Codespaces clients disconnect on idle, browser refresh, or network blips — killing long dev sessions. Wrap dev in tmux:
 
-    erinn claude --dev --tmux
+    wipnote claude --dev --tmux
 
-First run creates a tmux session named `erinn-dev`. On disconnect, detach instead of dying. Re-run the same command to reattach to the surviving session. Manually detach with `Ctrl-b d`; kill the session with `tmux kill-session -t erinn-dev`.
+First run creates a tmux session named `wipnote-dev`. On disconnect, detach instead of dying. Re-run the same command to reattach to the surviving session. Manually detach with `Ctrl-b d`; kill the session with `tmux kill-session -t wipnote-dev`.
 
 ## Yolo Mode in Codespaces
 
 Codespaces clients disconnect on idle, browser refresh, or network blips — killing long yolo runs. Wrap yolo in tmux:
 
-    erinn yolo --dev --tmux
+    wipnote yolo --dev --tmux
 
-First run creates a tmux session named `erinn-yolo`. On disconnect, detach instead of dying. Re-run the same command to reattach to the surviving session. Manually detach with `Ctrl-b d`; kill the session with `tmux kill-session -t erinn-yolo`.
+First run creates a tmux session named `wipnote-yolo`. On disconnect, detach instead of dying. Re-run the same command to reattach to the surviving session. Manually detach with `Ctrl-b d`; kill the session with `tmux kill-session -t wipnote-yolo`.
 
 ---
 
 ## Plugin Source — Single Source of Truth
 
-erinn ships one plugin to multiple AI-tool targets (Claude Code, Codex CLI, Gemini CLI) from
+wipnote ships one plugin to multiple AI-tool targets (Claude Code, Codex CLI, Gemini CLI) from
 a single source. Each target's plugin tree is **generated** — never hand-edit it.
 
 **Layering (edit the left column only):**
@@ -92,7 +92,7 @@ a single source. Each target's plugin tree is **generated** — never hand-edit 
 |-------|------------------|-------|
 | `packages/plugin-core/manifest.json` | Canonical plugin metadata + per-target output paths + hook event matrix (which events target Claude, Codex, Gemini, or any combination) | YES |
 | `plugin/commands/`, `plugin/agents/`, `plugin/skills/`, `plugin/templates/`, `plugin/static/`, `plugin/config/` | Shared markdown/static assets — copied verbatim into every target tree | YES |
-| `cmd/`, `internal/` | Go CLI + hook handlers (all hooks are thin wrappers over `erinn hook <handler>`) | YES |
+| `cmd/`, `internal/` | Go CLI + hook handlers (all hooks are thin wrappers over `wipnote hook <handler>`) | YES |
 | `plugin/.claude-plugin/plugin.json`, `plugin/hooks/hooks.json` | Generated Claude Code tree | NO — regenerate |
 | `packages/codex-plugin/` | Generated Codex CLI tree | NO — regenerate |
 | `packages/gemini-extension/` | Generated Gemini CLI tree | NO — regenerate |
@@ -101,10 +101,10 @@ a single source. Each target's plugin tree is **generated** — never hand-edit 
 **Regenerate after every manifest or asset edit:**
 
 ```bash
-erinn plugin build-ports              # all targets
-erinn plugin build-ports --target codex
-erinn plugin build-ports --target claude
-erinn plugin build-ports --target gemini
+wipnote plugin build-ports              # all targets
+wipnote plugin build-ports --target codex
+wipnote plugin build-ports --target claude
+wipnote plugin build-ports --target gemini
 ```
 
 See `packages/plugin-core/README.md` for the per-task recipes (new command, new hook,
@@ -116,7 +116,7 @@ new target) and `.claude/rules/plugin-development.md` for full plugin structure 
 
 Delegate ALL operations except `Task()`, `AskUserQuestion()`, `TodoWrite()`, SDK operations.
 
-Use `/erinn:orchestrator-directives-skill` for delegation patterns and model selection.
+Use `/wipnote:orchestrator-directives-skill` for delegation patterns and model selection.
 
 ---
 
@@ -124,19 +124,19 @@ Use `/erinn:orchestrator-directives-skill` for delegation patterns and model sel
 
 | Task | Command |
 |------|---------|
-| View work | `erinn snapshot --summary` |
+| View work | `wipnote snapshot --summary` |
 | Run tests | `go test ./...` |
-| Build binary | `erinn build` |
+| Build binary | `wipnote build` |
 | Deploy | `./scripts/deploy-all.sh VERSION --no-confirm` |
-| Dashboard | `erinn serve` |
-| Status | `erinn status` |
-| Self-update | `erinn upgrade` |
+| Dashboard | `wipnote serve` |
+| Status | `wipnote status` |
+| Self-update | `wipnote upgrade` |
 
 ---
 
 ## Monitoring Claude Code Upstream
 
-Claude Code is our only integration surface. Plugins, hooks, skills, slash commands, and observability (logging, events, sessions) are how erinn influences behavior — if upstream changes those contracts, our plugin either breaks silently or misses new capabilities.
+Claude Code is our only integration surface. Plugins, hooks, skills, slash commands, and observability (logging, events, sessions) are how wipnote influences behavior — if upstream changes those contracts, our plugin either breaks silently or misses new capabilities.
 
 **Periodically review the Claude Code docs for changes to:**
 
@@ -154,10 +154,10 @@ Claude Code is our only integration surface. Plugins, hooks, skills, slash comma
 - https://code.claude.com/docs/en/agent-teams
 - Claude Code release notes / changelog
 
-When upstream contracts change, the fix lands in `plugin/hooks/hooks.json`, `internal/hooks/`, `plugin/skills/`, or `cmd/erinn/prompts/system-prompt.md` — not in AGENTS.md or CLAUDE.md (which are user-facing project docs, not plugin surfaces).
+When upstream contracts change, the fix lands in `plugin/hooks/hooks.json`, `internal/hooks/`, `plugin/skills/`, or `cmd/wipnote/prompts/system-prompt.md` — not in AGENTS.md or CLAUDE.md (which are user-facing project docs, not plugin surfaces).
 
 ---
 
 ## Dogfooding
 
-This project uses erinn to develop itself. `.htmlgraph/` contains real work items — not demos.
+This project uses wipnote to develop itself. `.htmlgraph/` contains real work items — not demos.
