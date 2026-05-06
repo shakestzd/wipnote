@@ -1,14 +1,14 @@
 #!/bin/sh
-# install.sh — Standalone installer for erinn binary.
+# install.sh — Standalone installer for wipnote binary.
 #
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/shakestzd/erinn/main/install.sh | sh
+#   curl -fsSL https://raw.githubusercontent.com/shakestzd/wipnote/main/install.sh | sh
 #
 # With a specific version:
-#   curl -fsSL https://raw.githubusercontent.com/shakestzd/erinn/main/install.sh | sh -s -- --version 0.35.0
+#   curl -fsSL https://raw.githubusercontent.com/shakestzd/wipnote/main/install.sh | sh -s -- --version 0.35.0
 #
 # With a custom install directory:
-#   curl -fsSL https://raw.githubusercontent.com/shakestzd/erinn/main/install.sh | sh -s -- --install-dir /usr/local/bin
+#   curl -fsSL https://raw.githubusercontent.com/shakestzd/wipnote/main/install.sh | sh -s -- --install-dir /usr/local/bin
 #
 # Options:
 #   --version <ver>      Install a specific version (e.g. 0.35.0)
@@ -22,19 +22,19 @@
 
 set -e
 
-REPO="shakestzd/erinn"
+REPO="shakestzd/wipnote"
 DEFAULT_INSTALL_DIR="${HOME}/.local/bin"
-BINARY_NAME="erinn"
+BINARY_NAME="wipnote"
 
 # ---------------------------------------------------------------------------
 # Logging helpers
 # ---------------------------------------------------------------------------
 log_info() {
-    printf '[erinn-install] %s\n' "$*"
+    printf '[wipnote-install] %s\n' "$*"
 }
 
 log_err() {
-    printf '[erinn-install] ERROR: %s\n' "$*" >&2
+    printf '[wipnote-install] ERROR: %s\n' "$*" >&2
 }
 
 die() {
@@ -47,12 +47,12 @@ die() {
 # ---------------------------------------------------------------------------
 show_help() {
     cat <<EOF
-erinn installer — Download and install the erinn binary.
+wipnote installer — Download and install the wipnote binary.
 
 Usage:
   install.sh [OPTIONS]
 
-  curl -fsSL https://raw.githubusercontent.com/shakestzd/erinn/main/install.sh | sh
+  curl -fsSL https://raw.githubusercontent.com/shakestzd/wipnote/main/install.sh | sh
 
 Options:
   --version <ver>      Install a specific version (e.g. 0.38.0)
@@ -184,7 +184,7 @@ resolve_latest_version() {
 verify_checksum() {
     _tarball="$1"
     _version="$2"
-    _checksums_url="https://github.com/${REPO}/releases/download/v${_version}/erinn_${_version}_checksums.txt"
+    _checksums_url="https://github.com/${REPO}/releases/download/v${_version}/wipnote_${_version}_checksums.txt"
     _tmpfile="${_tarball}.checksums.txt"
 
     if ! command -v sha256sum >/dev/null 2>&1 && ! command -v shasum >/dev/null 2>&1; then
@@ -198,7 +198,7 @@ verify_checksum() {
         return 0
     fi
 
-    _archive_name="erinn_${_version}_${PLATFORM_OS}_${PLATFORM_ARCH}.tar.gz"
+    _archive_name="wipnote_${_version}_${PLATFORM_OS}_${PLATFORM_ARCH}.tar.gz"
     _expected="$(grep "${_archive_name}" "${_tmpfile}" | awk '{print $1}')"
 
     if [ -z "${_expected}" ]; then
@@ -237,7 +237,7 @@ is_already_installed() {
 # Download and install the binary
 # ---------------------------------------------------------------------------
 download_and_install() {
-    _archive="erinn_${VERSION}_${PLATFORM_OS}_${PLATFORM_ARCH}.tar.gz"
+    _archive="wipnote_${VERSION}_${PLATFORM_OS}_${PLATFORM_ARCH}.tar.gz"
     _url="https://github.com/${REPO}/releases/download/v${VERSION}/${_archive}"
 
     log_info "Downloading ${_archive}..."
@@ -306,10 +306,10 @@ main() {
         resolve_latest_version
     fi
 
-    log_info "Installing erinn v${VERSION} (${PLATFORM_OS}/${PLATFORM_ARCH}) to ${INSTALL_DIR}..."
+    log_info "Installing wipnote v${VERSION} (${PLATFORM_OS}/${PLATFORM_ARCH}) to ${INSTALL_DIR}..."
 
     if is_already_installed; then
-        log_info "erinn v${VERSION} is already installed at ${INSTALL_DIR}/${BINARY_NAME}. Nothing to do."
+        log_info "wipnote v${VERSION} is already installed at ${INSTALL_DIR}/${BINARY_NAME}. Nothing to do."
         exit 0
     fi
 
@@ -321,7 +321,7 @@ main() {
     fi
 
     _installed_ver="$("${INSTALL_DIR}/${BINARY_NAME}" version 2>/dev/null | tr -s ' ' '\n' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "(unknown)")"
-    log_info "Successfully installed erinn ${_installed_ver}"
+    log_info "Successfully installed wipnote ${_installed_ver}"
 
     check_path
 }

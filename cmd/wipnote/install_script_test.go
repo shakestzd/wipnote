@@ -68,15 +68,15 @@ func TestInstallScriptArchiveFormat(t *testing.T) {
 
 	contentStr := string(content)
 
-	// Should use underscore-separated format: erinn_${VERSION}_${OS}_${ARCH}.tar.gz
-	// NOT dash-separated: erinn-${OS}-${ARCH}.tar.gz
-	if !strings.Contains(contentStr, "erinn_") {
-		t.Errorf("install.sh should use underscore-separated archive name (erinn_VERSION_OS_ARCH.tar.gz)")
+	// Should use underscore-separated format: wipnote_${VERSION}_${OS}_${ARCH}.tar.gz
+	// NOT dash-separated: wipnote-${OS}-${ARCH}.tar.gz
+	if !strings.Contains(contentStr, "wipnote_") {
+		t.Errorf("install.sh should use underscore-separated archive name (wipnote_VERSION_OS_ARCH.tar.gz)")
 	}
 
 	// Make sure it doesn't have the old dash format from bootstrap.sh
-	if strings.Contains(contentStr, "erinn-${") || strings.Contains(contentStr, "erinn-${PLATFORM") {
-		t.Errorf("install.sh should not use dash-separated archive name (erinn-OS-ARCH.tar.gz)")
+	if strings.Contains(contentStr, "wipnote-${") || strings.Contains(contentStr, "wipnote-${PLATFORM") {
+		t.Errorf("install.sh should not use dash-separated archive name (wipnote-OS-ARCH.tar.gz)")
 	}
 }
 

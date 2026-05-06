@@ -1,11 +1,11 @@
 version: 2
 
-project_name: erinn
+project_name: wipnote
 
 builds:
-  - id: erinn
-    main: ./cmd/erinn
-    binary: erinn
+  - id: wipnote
+    main: ./cmd/wipnote
+    binary: wipnote
     goos:
       - darwin
       - linux
@@ -18,20 +18,20 @@ builds:
       - CGO_ENABLED=0
 
 archives:
-  - id: erinn
+  - id: wipnote
     builds:
-      - erinn
-    name_template: "erinn_{{.Version}}_{{.Os}}_{{.Arch}}"
+      - wipnote
+    name_template: "wipnote_{{.Version}}_{{.Os}}_{{.Arch}}"
     format: tar.gz
 
 checksum:
-  name_template: "erinn_{{.Version}}_checksums.txt"
+  name_template: "wipnote_{{.Version}}_checksums.txt"
   algorithm: sha256
 
 release:
   github:
     owner: shakestzd
-    name: erinn
+    name: wipnote
   name_template: "Go v{{.Version}}"
 
 git:
