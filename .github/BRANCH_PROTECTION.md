@@ -71,7 +71,7 @@ Required secrets for CI/CD:
 ### Repository Secrets
 - `PYPI_API_TOKEN` - PyPI API token for package publishing
   - Get from: https://pypi.org/manage/account/token/
-  - Scope: Project-specific token for htmlgraph
+  - Scope: Project-specific token for wipnote
 
 ### Environments
 
@@ -151,7 +151,7 @@ git push origin v0.7.2-test
 ### PyPI Publishing Fails
 
 1. Verify `PYPI_API_TOKEN` secret exists
-2. Check token has correct scope (htmlgraph project)
+2. Check token has correct scope (wipnote project)
 3. Verify environment `pypi` is configured
 4. Check token hasn't expired
 

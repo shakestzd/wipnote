@@ -4,7 +4,7 @@ name: Gemini Extension — Subtree Split
 # Splits packages/gemini-extension/ to the gemini-extension-dist branch and
 # creates a per-release tag so end users can install via:
 #
-#   gemini extensions install shakestzd/htmlgraph --ref gemini-extension-vX.Y.Z
+#   gemini extensions install shakestzd/wipnote --ref gemini-extension-vX.Y.Z
 
 on:
   push:

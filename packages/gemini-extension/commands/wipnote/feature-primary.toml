@@ -31,13 +31,13 @@ Set feature-001 as the primary feature for activity attribution
 
 1. **Start the feature (makes it the active/primary feature):**
    ```bash
-   erinn feature start {feature_id}
+   wipnote feature start {feature_id}
    ```
 
 2. **Get feature details and other active features:**
    ```bash
-   erinn feature show {feature_id}
-   erinn find features --status in-progress
+   wipnote feature show {feature_id}
+   wipnote find features --status in-progress
    ```
 
 3. **Present a summary** using the output template below with:

@@ -1,6 +1,6 @@
 ---
 name: report-issue
-description: Report an issue with Erinn AI to the development team
+description: Report an issue with wipnote to the development team
 arguments:
   - name: title
     description: Brief title for the issue
@@ -9,7 +9,7 @@ arguments:
 
 # /wipnote:report-issue
 
-Report a bug or issue with Erinn AI directly to the development team.
+Report a bug or issue with wipnote directly to the development team.
 
 ## Usage
 
@@ -23,7 +23,7 @@ When the user invokes this command:
 
 1. If no title provided, ask the user to describe the issue they're experiencing
 2. Gather context automatically:
-   - Erinn AI version: `erinn version`
+   - wipnote version: `wipnote version`
    - Go version: `go version`
    - OS: `uname -s -r`
    - Claude Code version: check `claude --version` if available
@@ -32,10 +32,10 @@ When the user invokes this command:
    - Steps to reproduce
    - Expected vs actual behavior
    - Any error messages or stack traces
-4. Create the GitHub issue using `gh issue create` on `shakestzd/erinn`:
+4. Create the GitHub issue using `gh issue create` on `shakestzd/wipnote`:
 
 ```bash
-gh issue create --repo shakestzd/erinn \
+gh issue create --repo shakestzd/wipnote \
   --title "Bug: <title>" \
   --body "$(cat <<'EOF'
 ## Bug Report
@@ -43,7 +43,7 @@ gh issue create --repo shakestzd/erinn \
 **Description:** <user's description>
 
 ### Environment
-- Erinn AI version: <version>
+- wipnote version: <version>
 - Go version: <version>
 - OS: <os>
 - Claude Code version: <version>
@@ -63,12 +63,12 @@ gh issue create --repo shakestzd/erinn \
 ```
 
 ---
-*Reported via Erinn AI issue reporter*
+*Reported via wipnote issue reporter*
 EOF
 )"
 ```
 
-5. If `gh` is not authenticated or the user can't create issues, provide the issue body as formatted text they can paste manually at https://github.com/shakestzd/erinn/issues/new
+5. If `gh` is not authenticated or the user can't create issues, provide the issue body as formatted text they can paste manually at https://github.com/shakestzd/wipnote/issues/new
 
 6. Return the issue URL to the user.
 

@@ -1,6 +1,6 @@
 # Orchestrator Directives - Complete Reference
 
-This document contains the complete orchestration rules and patterns for Erinn AI project.
+This document contains the complete orchestration rules and patterns for wipnote project.
 
 **Source:** `packages/claude-plugin/rules/orchestration.md`
 
@@ -167,14 +167,14 @@ Ask yourself:
 
 Use these reflections to adjust your delegation habits.
 
-## Integration with Erinn AI CLI
+## Integration with wipnote CLI
 
 Always use the CLI to track orchestration activities:
 
 ```bash
 # Track what you delegate
-erinn feature create "Implement authentication" --track <trk-id>
-erinn feature start <feat-id>
+wipnote feature create "Implement authentication" --track <trk-id>
+wipnote feature start <feat-id>
 ```
 
 ```bash
@@ -265,8 +265,8 @@ Agent(
 
 ```bash
 # 1. Create feature (orchestrator does this directly)
-erinn feature create "Add user authentication" --track <trk-id>
-erinn feature start <feat-id>
+wipnote feature create "Add user authentication" --track <trk-id>
+wipnote feature start <feat-id>
 ```
 
 ```bash
@@ -292,14 +292,14 @@ copilot -p "Commit with message: 'feat: add user authentication with OAuth suppo
 
 ```bash
 # 5. Mark feature complete
-erinn feature complete <feat-id>
+wipnote feature complete <feat-id>
 ```
 
 ### Example 2: Bug Fix Workflow
 
 ```bash
 # 1. Create bug
-erinn bug create "Session timeout not working" --track <trk-id>
+wipnote bug create "Session timeout not working" --track <trk-id>
 ```
 
 ```bash
@@ -325,14 +325,14 @@ copilot -p "Commit with message: 'fix: correct session timeout to 30 minutes'. D
 
 ```bash
 # 4. Mark bug resolved
-erinn bug complete <bug-id>
+wipnote bug complete <bug-id>
 ```
 
 ### Example 3: Parallel Task Coordination
 
 ```bash
 # Create feature
-erinn feature create "Refactor API layer" --track <trk-id>
+wipnote feature create "Refactor API layer" --track <trk-id>
 ```
 
 ```bash
@@ -357,7 +357,7 @@ copilot -p "Commit all API refactoring changes with message: 'refactor: update A
 ```
 
 ```bash
-erinn feature complete <feat-id>
+wipnote feature complete <feat-id>
 ```
 
 ## Common Anti-Patterns to Avoid
@@ -447,9 +447,9 @@ Task(prompt="Implement new feature")
 ```
 
 ```bash
-# ✅ CORRECT - Track with Erinn AI CLI
-erinn feature create "Implement new feature" --track <trk-id>
-erinn feature start <feat-id>
+# ✅ CORRECT - Track with wipnote CLI
+wipnote feature create "Implement new feature" --track <trk-id>
+wipnote feature start <feat-id>
 ```
 
 ```python
@@ -458,7 +458,7 @@ Task(prompt="Implement new feature")
 
 ```bash
 # Update status after completion
-erinn feature complete <feat-id>
+wipnote feature complete <feat-id>
 ```
 
 ## Summary
@@ -467,7 +467,7 @@ erinn feature complete <feat-id>
 
 1. **Delegate Everything** - Except Task(), AskUserQuestion(), TodoWrite(), and CLI operations
 2. **Parallel Dispatch** - Send all independent Tasks in one message
-3. **Track Work** - Use Erinn AI CLI for all features, bugs, spikes
+3. **Track Work** - Use wipnote CLI for all features, bugs, spikes
 4. **Parallel > Sequential** - Delegate independently when possible
 5. **Git = Always Delegate** - Never run git commands directly
 

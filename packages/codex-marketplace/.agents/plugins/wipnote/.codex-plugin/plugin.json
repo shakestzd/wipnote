@@ -21,7 +21,7 @@
     "offline-first"
   ],
   "interface": {
-    "displayName": "Erinn AI",
+    "displayName": "wipnote",
     "shortDescription": "Local-first observability and coordination platform for AI-assisted development. Go binary hooks for near-zero cold start.",
     "developerName": "Shakes Dlamini",
     "category": "Development Tools"

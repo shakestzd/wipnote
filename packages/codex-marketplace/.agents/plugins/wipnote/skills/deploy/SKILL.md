@@ -1,12 +1,12 @@
 ---
-description: "Deploy and release erinn — run quality gates, bump version, tag, push, and trigger GitHub release pipeline. Use when asked to deploy, release, publish, ship, or push a new version."
+description: "Deploy and release wipnote — run quality gates, bump version, tag, push, and trigger GitHub release pipeline. Use when asked to deploy, release, publish, ship, or push a new version."
 argument-hint: "[VERSION]"
 allowed-tools: ["Bash", "Read", "Grep", "Glob"]
 ---
 
-# Deploy erinn
+# Deploy wipnote
 
-Run the full deployment pipeline for erinn.
+Run the full deployment pipeline for wipnote.
 
 ## Quick Deploy
 
@@ -42,7 +42,7 @@ When the user asks to deploy or release:
    ./scripts/deploy-all.sh VERSION --no-confirm
    ```
 
-3. **If the script doesn't exist** (user is not in the erinn dev repo), guide them
+3. **If the script doesn't exist** (user is not in the wipnote dev repo), guide them
    through manual steps:
    ```bash
    # 1. Run quality gates
@@ -79,7 +79,7 @@ When the user asks to deploy or release:
 
 ## Version Numbering
 
-erinn follows semantic versioning:
+wipnote follows semantic versioning:
 - **MAJOR** — Breaking changes
 - **MINOR** — New features (backward compatible)
 - **PATCH** — Bug fixes

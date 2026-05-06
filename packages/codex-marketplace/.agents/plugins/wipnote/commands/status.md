@@ -29,8 +29,8 @@ Show project progress and current feature
 
 1. **Get comprehensive status:**
    ```bash
-   erinn status
-   erinn find features --status in-progress
+   wipnote status
+   wipnote find features --status in-progress
    ```
 
 2. **Extract key metrics from output:**
@@ -59,4 +59,4 @@ Show project progress and current feature
 ### Quick Actions
 - Use `/wipnote:plan` to start planning new work
 - Use `/wipnote:recommend` to get recommendations
-- Run `erinn serve` to open dashboard
+- Run `wipnote serve` to open dashboard

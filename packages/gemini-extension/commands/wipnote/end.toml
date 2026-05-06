@@ -30,13 +30,13 @@ Gracefully end the current session and show work summary
 
 1. **Get current session and active work:**
    ```bash
-   erinn session list --limit 1
-   erinn status
+   wipnote session list --limit 1
+   wipnote status
    ```
 
 2. **End the session:**
    ```bash
-   erinn session end
+   wipnote session end
    ```
 
 3. **Present session summary** using the output template below, including:
@@ -46,9 +46,9 @@ Gracefully end the current session and show work summary
    - Progress made
 
 4. **Provide next-session guidance:**
-   - Mention how to view dashboard: `erinn serve`
+   - Mention how to view dashboard: `wipnote serve`
    - Suggest next steps for the next session
-   - Link to session record in `.erinn/sessions/`
+   - Link to session record in `.wipnote/sessions/`
 
 5. **CRITICAL CONSTRAINT:**
    - ONLY run `/wipnote:end` when the user explicitly requests it
@@ -71,7 +71,7 @@ Gracefully end the current session and show work summary
 
 ---
 
-Session recorded in `.erinn/sessions/`
-View dashboard: `erinn serve`
+Session recorded in `.wipnote/sessions/`
+View dashboard: `wipnote serve`
 
 '''

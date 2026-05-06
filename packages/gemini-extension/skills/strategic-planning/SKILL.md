@@ -1,6 +1,6 @@
 ---
 name: strategic-planning
-description: Use Erinn AI analytics to make smart work prioritization decisions. Activate when recommending work, finding bottlenecks, assessing risks, or analyzing project impact.
+description: Use wipnote analytics to make smart work prioritization decisions. Activate when recommending work, finding bottlenecks, assessing risks, or analyzing project impact.
 ---
 
 # Strategic Planning Skill
@@ -19,16 +19,16 @@ description: Use Erinn AI analytics to make smart work prioritization decisions.
 - Progress seems slow (what's blocking us?)
 - Planning major changes (what's the impact?)
 
-**CLI reference:** Run `erinn help` for available commands. Key commands:
-- `erinn status` — project overview
-- `erinn find features --status in-progress` — active work
-- `erinn recommend` — AI-recommended next work
+**CLI reference:** Run `wipnote help` for available commands. Key commands:
+- `wipnote status` — project overview
+- `wipnote find features --status in-progress` — active work
+- `wipnote recommend` — AI-recommended next work
 
 ---
 
 ## Core Principle: Data-Driven Decisions
 
-Erinn AI provides analytics that consider:
+wipnote provides analytics that consider:
 - **Dependencies** - What blocks/enables other work
 - **Priority** - Business importance
 - **Impact** - How many tasks are unlocked
@@ -41,28 +41,28 @@ Erinn AI provides analytics that consider:
 
 ```bash
 # 1. What should I work on? (recommendations)
-erinn analytics summary
+wipnote analytics summary
 
 # 2. What's blocking progress?
-erinn analytics summary
+wipnote analytics summary
 
 # 3. Project snapshot (status + WIP)
-erinn snapshot --summary
+wipnote snapshot --summary
 
 # 4. Find in-progress work
-erinn find features --status in-progress
+wipnote find features --status in-progress
 ```
 
 ---
 
 ## CLI Reference
 
-### `erinn analytics summary`
+### `wipnote analytics summary`
 
 Find tasks that block the most downstream work.
 
 ```bash
-erinn analytics summary
+wipnote analytics summary
 ```
 
 **Use when:**
@@ -72,12 +72,12 @@ erinn analytics summary
 
 ---
 
-### `erinn analytics summary`
+### `wipnote analytics summary`
 
 Get scored recommendations considering all factors.
 
 ```bash
-erinn analytics summary
+wipnote analytics summary
 ```
 
 **Scoring factors:**
@@ -88,16 +88,16 @@ erinn analytics summary
 
 ---
 
-### `erinn find features --status todo`
+### `wipnote find features --status todo`
 
 Find tasks that can run concurrently (no dependencies).
 
 ```bash
 # All todo features
-erinn find features --status todo
+wipnote find features --status todo
 
 # All in-progress
-erinn find features --status in-progress
+wipnote find features --status in-progress
 ```
 
 **Use when:**
@@ -107,12 +107,12 @@ erinn find features --status in-progress
 
 ---
 
-### `erinn snapshot --summary`
+### `wipnote snapshot --summary`
 
 Project health and status overview.
 
 ```bash
-erinn snapshot --summary
+wipnote snapshot --summary
 ```
 
 **Use when:**
@@ -128,9 +128,9 @@ erinn snapshot --summary
 
 ```bash
 # Get project status overview
-erinn status
-erinn snapshot --summary
-erinn analytics summary
+wipnote status
+wipnote snapshot --summary
+wipnote analytics summary
 ```
 
 ---
@@ -139,8 +139,8 @@ erinn analytics summary
 
 ```bash
 # Find what's causing the block
-erinn analytics summary
-erinn find features --status blocked
+wipnote analytics summary
+wipnote find features --status blocked
 ```
 
 ---
@@ -149,8 +149,8 @@ erinn find features --status blocked
 
 ```bash
 # Check what's ready (no dependencies)
-erinn analytics summary
-erinn find features --status todo
+wipnote analytics summary
+wipnote find features --status todo
 ```
 
 ---
@@ -159,9 +159,9 @@ erinn find features --status todo
 
 ```bash
 # See everything by status
-erinn find features --status in-progress
-erinn find features --status todo
-erinn find bugs --status open
+wipnote find features --status in-progress
+wipnote find features --status todo
+wipnote find bugs --status open
 ```
 
 ---
@@ -172,11 +172,11 @@ Use CLI analytics to inform planning decisions:
 
 ```bash
 # Get full picture before planning
-erinn analytics summary
-erinn snapshot --summary
+wipnote analytics summary
+wipnote snapshot --summary
 
-# Use erinn plan generate to create formal plans
-erinn plan generate <track-id>
+# Use wipnote plan generate to create formal plans
+wipnote plan generate <track-id>
 ```
 
 ---
@@ -204,32 +204,32 @@ erinn plan generate <track-id>
 
 ```bash
 # What's blocking us?
-erinn analytics summary
+wipnote analytics summary
 
 # What should I do?
-erinn analytics summary
+wipnote analytics summary
 
 # Project snapshot
-erinn snapshot --summary
+wipnote snapshot --summary
 
 # Check status
-erinn status
+wipnote status
 
 # Find in-progress work
-erinn find features --status in-progress
+wipnote find features --status in-progress
 
 # Find todo work (parallelizable candidates)
-erinn find features --status todo
+wipnote find features --status todo
 ```
 
 ---
 
 ## Recommend Workflow
 
-Run `erinn recommend [--top N]` (default N=5) for scored recommendations:
+Run `wipnote recommend [--top N]` (default N=5) for scored recommendations:
 
 ```bash
-erinn recommend --top 5
+wipnote recommend --top 5
 ```
 
 After presenting output, analyze whether the top recommendations can run in parallel:

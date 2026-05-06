@@ -13,7 +13,7 @@ List all YAML plans in the project with their status, slice counts, and creation
 Single command — no shell parsing needed:
 
 ```bash
-erinn plan list-yaml
+wipnote plan list-yaml
 ```
 
 Present the output as-is. If the user wants to review a specific plan, suggest:

@@ -1,7 +1,7 @@
 prompt = '''
 # /wipnote:init
 
-Initialize Erinn AI in a project
+Initialize wipnote in a project
 
 ## Usage
 
@@ -18,7 +18,7 @@ Initialize Erinn AI in a project
 ```bash
 /wipnote:init
 ```
-Set up Erinn AI directory structure in project
+Set up wipnote directory structure in project
 
 
 
@@ -30,9 +30,9 @@ Set up Erinn AI directory structure in project
 
 1. **Initialize project:**
    ```bash
-   erinn init
+   wipnote init
    ```
-   The command will report whether `.erinn/` was created or already exists.
+   The command will report whether `.wipnote/` was created or already exists.
 
 2. **Present next steps** using the output template below.
 
@@ -48,21 +48,21 @@ Set up Erinn AI directory structure in project
 
 ### Output Format:
 
-## Erinn AI Initialized
+## wipnote Initialized
 
-Created `.erinn/` directory with:
+Created `.wipnote/` directory with:
 - `features/` - Feature work items
 - `sessions/` - Session activity logs
 - `tracks/` - Multi-feature tracks
 - `spikes/` - Research and investigation
 - `bugs/` - Bug tracking
-- `erinn.db` - SQLite read index for queries and dashboard
+- `wipnote.db` - SQLite read index for queries and dashboard
 - `refs.json` - Project metadata references
-- `styles.css` - Default stylesheet for Erinn AI HTML nodes
+- `styles.css` - Default stylesheet for wipnote HTML nodes
 
 Note:
-- Additional paths such as plans, events, and launch/session markers may appear later as other Erinn AI commands and hooks run.
-- Current `erinn init` does not create legacy analytics directories like `insights/`, `metrics/`, or `cigs/`.
+- Additional paths such as plans, events, and launch/session markers may appear later as other wipnote commands and hooks run.
+- Current `wipnote init` does not create legacy analytics directories like `insights/`, `metrics/`, or `cigs/`.
 
 ### Next Steps
 1. Plan new work: `/wipnote:plan "Feature title"`

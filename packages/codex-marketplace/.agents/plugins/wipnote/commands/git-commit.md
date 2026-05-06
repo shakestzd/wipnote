@@ -12,7 +12,7 @@ Commit changes using Bash-copilot first, haiku-coder as fallback.
 
 - `message` (optional): Commit message. If omitted, Claude analyzes the diff and drafts one.
 - `--push`: Also push after committing.
-- `--files <list>`: Specific files to stage. Default: analyze git diff and select source files, excluding `.erinn/`.
+- `--files <list>`: Specific files to stage. Default: analyze git diff and select source files, excluding `.wipnote/`.
 
 ## Examples
 
@@ -32,7 +32,7 @@ Commit changes using Bash-copilot first, haiku-coder as fallback.
 git diff --stat HEAD; git status --short
 ```
 
-Select source files to stage. Exclude `.erinn/` directory unless explicitly requested.
+Select source files to stage. Exclude `.wipnote/` directory unless explicitly requested.
 
 If no message was provided, draft one from the diff using conventional commit format.
 

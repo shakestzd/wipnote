@@ -13,7 +13,7 @@ description: ARCHIVED — Use orchestrator-directives-skill instead. Orchestrate
 ## Core Principle: 6-Phase Parallel Workflow
 
 ```
-1. ANALYZE   → erinn analytics summary + erinn find features --status todo
+1. ANALYZE   → wipnote analytics summary + wipnote find features --status todo
 2. PREPARE   → Cache shared context, isolate tasks
 3. DISPATCH  → Spawn agents in ONE message (parallel)
 4. MONITOR   → Track health metrics per agent
@@ -27,9 +27,9 @@ description: ARCHIVED — Use orchestrator-directives-skill instead. Orchestrate
 
 ```bash
 # Check what can be parallelized
-erinn analytics summary
-erinn find features --status todo
-erinn analytics summary
+wipnote analytics summary
+wipnote find features --status todo
+wipnote analytics summary
 ```
 
 ### Decision Criteria
@@ -98,7 +98,7 @@ git diff --stat
 uv run pytest
 
 # Commit unified changes
-erinn feature complete <feat-id>
+wipnote feature complete <feat-id>
 ```
 
 ---
@@ -118,8 +118,8 @@ erinn feature complete <feat-id>
 ### "Not enough independent tasks"
 ```bash
 # Check what's available
-erinn analytics summary
-erinn find features --status todo
+wipnote analytics summary
+wipnote find features --status todo
 ```
 
 ### File conflicts detected

@@ -42,13 +42,13 @@ Spike linked to a track
 Run spike create, passing `--description` and `--track` when provided:
 
 ```bash
-erinn spike create "{title}" [--description "{description}"] [--track {track_id}]
+wipnote spike create "{title}" [--description "{description}"] [--track {track_id}]
 ```
 
 Then immediately start the spike:
 
 ```bash
-erinn spike start {id}
+wipnote spike start {id}
 ```
 
 Present the spike ID and title from CLI output using the output template below.

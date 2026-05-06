@@ -1,7 +1,7 @@
-# HtmlGraph Devcontainer
+# Wipnote Devcontainer
 
-A clean-room **source development** environment for working on htmlgraph
-itself, isolated from your laptop's installed htmlgraph release and from
+A clean-room **source development** environment for working on wipnote
+itself, isolated from your laptop's installed wipnote release and from
 any host-side Claude/Gemini/Codex configuration.
 
 ## Scope
@@ -9,9 +9,9 @@ any host-side Claude/Gemini/Codex configuration.
 This devcontainer is not a user environment — it is specifically for
 editing `cmd/`, `internal/`, and `plugin/` source files, running the Go
 test suite, and exercising the dashboard against a container-local
-`.htmlgraph/` state.
+`.wipnote/` state.
 
-Your laptop keeps running the installed `htmlgraph` release for day-to-day
+Your laptop keeps running the installed `wipnote` release for day-to-day
 work across other projects. The two are fully independent.
 
 ## Toolchain
@@ -24,7 +24,7 @@ work across other projects. The two are fully independent.
 | Claude Code CLI | `npm install -g @anthropic-ai/claude-code` |
 | Gemini CLI | `npm install -g @google/gemini-cli` |
 | Codex CLI | `npm install -g @openai/codex` |
-| `htmlgraph` binary | Built from repo source via `plugin/build.sh` |
+| `wipnote` binary | Built from repo source via `plugin/build.sh` |
 | `git`, `make`, `ripgrep`, `fd`, `jq`, `sqlite3`, `shellcheck` | Dockerfile apt install |
 
 ## Start
@@ -32,7 +32,7 @@ work across other projects. The two are fully independent.
 1. Open the repository in VS Code.
 2. Run `Dev Containers: Reopen in Container`.
 3. Wait for `.devcontainer/post-create.sh` to finish. It installs the
-   three agent CLIs, runs `./plugin/build.sh` so `htmlgraph` lands on
+   three agent CLIs, runs `./plugin/build.sh` so `wipnote` lands on
    PATH, and runs `go build` + `go vet` as quality gates.
 
 ## Authentication
@@ -60,45 +60,45 @@ are required.
 
 ## State Isolation
 
-The container uses a **named Docker volume** (`htmlgraph-dev-state`) for
-`.htmlgraph/`. This means:
+The container uses a **named Docker volume** (`wipnote-dev-state`) for
+`.wipnote/`. This means:
 
-- The container starts with an empty `.htmlgraph/` on first boot.
+- The container starts with an empty `.wipnote/` on first boot.
 - Work items you create inside the container stay inside the container
-  and do not affect your host `.htmlgraph/`.
+  and do not affect your host `.wipnote/`.
 - The state persists across container rebuilds, so you can dogfood
-  htmlgraph inside the container without losing work.
+  wipnote inside the container without losing work.
 - If you want to reset the container-local state, delete the volume:
-  `docker volume rm htmlgraph-dev-state`.
+  `docker volume rm wipnote-dev-state`.
 
 ## Development Workflow
 
 ```bash
 # Edit cmd/, internal/, or plugin/ files in VS Code.
 # Rebuild the binary after any change:
-htmlgraph build
+wipnote build
 
 # Run the full test suite on demand:
 bash scripts/devcontainer-verify.sh
 
 # Launch Claude Code in dev mode so it loads the plugin from repo source:
-htmlgraph claude --dev
+wipnote claude --dev
 
-# Start the dashboard to inspect the container-local .htmlgraph/:
-htmlgraph serve
+# Start the dashboard to inspect the container-local .wipnote/:
+wipnote serve
 # Dashboard forwarded to http://localhost:8088 on your host (container port 8080).
 ```
 
 ## What changed from the previous devcontainer
 
 The previous devcontainer was built for the removed Python-based
-htmlgraph. It ran `uv sync --frozen` against a `pyproject.toml` that no
+wipnote. It ran `uv sync --frozen` against a `pyproject.toml` that no
 longer exists, never built the Go binary, never enabled the plugin, and
 forwarded six host API keys into the container. This version:
 
-- Builds `htmlgraph` from source and installs it to `~/.local/bin/`.
+- Builds `wipnote` from source and installs it to `~/.local/bin/`.
 - Uses the Go 1.23 devcontainer base image (Python base dropped).
 - Forwards no host API keys — all authentication is interactive or via
   Codespaces secrets.
-- Isolates `.htmlgraph/` in a named volume so the container never sees
+- Isolates `.wipnote/` in a named volume so the container never sees
   your laptop's work items.

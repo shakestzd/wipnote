@@ -14,7 +14,7 @@ Use this skill for any implementation task dispatched by `/wipnote:execute`. It 
 ## Step 1: Attribution — Before Any Code
 
 ```bash
-erinn feature start {feature_id}
+wipnote feature start {feature_id}
 ```
 
 Run this as the FIRST command, before reading files, writing tests, or any implementation.
@@ -72,7 +72,7 @@ Co-Authored-By: Claude Sonnet <noreply@anthropic.com>
 ## Step 6: Complete Attribution
 
 ```bash
-erinn feature complete {feature_id}
+wipnote feature complete {feature_id}
 ```
 
 Run this after quality gates pass and the commit is made.

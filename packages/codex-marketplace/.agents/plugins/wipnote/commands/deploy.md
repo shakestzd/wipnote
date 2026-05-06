@@ -1,6 +1,6 @@
 # /wipnote:deploy
 
-Deploy a new Erinn AI release. Handles quality gates, git push, GitHub Release, marketplace sync, plugin update, and CLI binary rebuild.
+Deploy a new wipnote release. Handles quality gates, git push, GitHub Release, marketplace sync, plugin update, and CLI binary rebuild.
 
 ## Usage
 
@@ -52,7 +52,7 @@ The script handles everything:
 - Git commit, tag, push
 - GitHub Actions triggers GoReleaser (cross-platform binaries)
 - Marketplace clone pull
-- `claude plugin update erinn@erinn`
+- `claude plugin update wipnote@wipnote`
 - CLI binary rebuild via `plugin/build.sh`
 
 ### Post-deployment verification
@@ -64,7 +64,7 @@ gh run list --workflow=release-go.yml --limit 1
 
 # Verify installed versions match
 grep '"version"' plugin/.claude-plugin/plugin.json
-cat ~/.local/share/erinn/.binary-version
+cat ~/.local/share/wipnote/.binary-version
 ```
 
 ### If deployment fails
@@ -73,8 +73,8 @@ cat ~/.local/share/erinn/.binary-version
 - **Git push failure**: Check branch is main, no upstream conflicts
 - **Plugin update failure**: Manually pull marketplace clone and retry:
   ```bash
-  (cd ~/.claude/plugins/marketplaces/erinn && git pull origin main)
-  claude plugin update erinn@erinn
+  (cd ~/.claude/plugins/marketplaces/wipnote && git pull origin main)
+  claude plugin update wipnote@wipnote
   ```
 - **Build failure**: Run `sh plugin/build.sh` directly
 

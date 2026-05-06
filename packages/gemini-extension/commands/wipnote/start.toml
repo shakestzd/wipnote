@@ -32,8 +32,8 @@ Begin a new development session and choose what to work on
 
 1. **Get comprehensive session start info:**
    ```bash
-   erinn snapshot --summary
-   erinn analytics summary
+   wipnote snapshot --summary
+   wipnote analytics summary
    ```
 
 2. **Parse the output** to extract:
@@ -56,7 +56,7 @@ Begin a new development session and choose what to work on
 
 5. **Ask the user what they want to work on** with data-driven options
 
-6. **Wait for user direction** before taking any action. If invoked programmatically (no human in the loop), use the top recommendation from `erinn recommend` automatically instead of waiting.
+6. **Wait for user direction** before taking any action. If invoked programmatically (no human in the loop), use the top recommendation from `wipnote recommend` automatically instead of waiting.
 
 7. **Apply constraints:**
    - Maximum 5 features can be in progress (WIP limit)
@@ -67,7 +67,7 @@ Begin a new development session and choose what to work on
 
 8. **Remind the user:**
    - All activity is automatically tracked to features
-   - View progress in browser: `erinn serve` → http://localhost:8080
+   - View progress in browser: `wipnote serve` → http://localhost:8080
    - Use `/wipnote:plan` to start new work with proper planning
 
 ### Output Format:

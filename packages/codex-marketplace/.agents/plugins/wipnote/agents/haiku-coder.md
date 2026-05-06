@@ -14,7 +14,7 @@ maxTurns: 40
 skills:
   - agent-context
   - code-quality-skill
-initialPrompt: "Run `erinn agent-init` to load project context, then `erinn status` to check active work items."
+initialPrompt: "Run `wipnote agent-init` to load project context, then `wipnote status` to check active work items."
 ---
 
 # Haiku Coder Agent
@@ -23,9 +23,9 @@ initialPrompt: "Run `erinn agent-init` to load project context, then `erinn stat
 
 ## Pre-flight (first 60 seconds)
 
-1. Claim the work item: `erinn feature start <feat-id>` (or `bug start`, `spike start`)
-2. Check branch sync: `(cd /workspaces/erinn && git fetch origin && git status)`
-3. If a file hint is in the task description, run: `erinn blame <file>` to identify owner and context
+1. Claim the work item: `wipnote feature start <feat-id>` (or `bug start`, `spike start`)
+2. Check branch sync: `(cd /workspaces/wipnote && git fetch origin && git status)`
+3. If a file hint is in the task description, run: `wipnote blame <file>` to identify owner and context
 4. Quote a helper function signature back in your first reply to confirm understanding
 
 ## Capabilities

@@ -6,13 +6,13 @@ The extension is distributed via a CI-maintained split branch. Install by pinnin
 versioned tag published on every release:
 
 ```
-gemini extensions install shakestzd/htmlgraph --ref gemini-extension-v<version>
+gemini extensions install shakestzd/wipnote --ref gemini-extension-v<version>
 ```
 
 For example, using the latest release:
 
 ```
-gemini extensions install shakestzd/htmlgraph --ref gemini-extension-v0.55.5
+gemini extensions install shakestzd/wipnote --ref gemini-extension-v0.55.5
 ```
 
 The tag `gemini-extension-vX.Y.Z` points to a branch root that contains **only** the
@@ -30,7 +30,7 @@ release. You do not need to manage this branch manually.
 
 Regenerate with:
 
-    htmlgraph plugin build-ports --target gemini
+    wipnote plugin build-ports --target gemini
 
 Any change here is a change to the build output and will be overwritten on the
 next run. To add commands, agents, skills, or hooks, edit the shared source
@@ -44,7 +44,7 @@ Link this tree into your Gemini CLI and restart so the new extension is picked u
 
     gemini extensions link $(pwd)/packages/gemini-extension
 
-Then restart the Gemini CLI. Unlink with `gemini extensions unlink htmlgraph`
+Then restart the Gemini CLI. Unlink with `gemini extensions unlink wipnote`
 when you're done.
 
 ## Tree layout

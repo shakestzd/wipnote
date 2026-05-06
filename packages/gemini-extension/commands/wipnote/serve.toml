@@ -36,11 +36,11 @@ Start dashboard on port 3000
 
 1. **Start the dashboard server in the background:**
    ```bash
-   erinn serve --port {port} &
+   wipnote serve --port {port} &
    ```
    Default port is 8080 if not specified.
 
-   Note: `erinn serve` blocks the terminal if run in the foreground. Use `&` to background it, or run it in a separate terminal if you need to see its output.
+   Note: `wipnote serve` blocks the terminal if run in the foreground. Use `&` to background it, or run it in a separate terminal if you need to see its output.
 
 2. **Present dashboard information** using the output template below.
 

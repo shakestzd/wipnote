@@ -74,11 +74,11 @@ This command implements the mandatory research phase. Research reduces:
 
    If spike provided:
    ```bash
-   erinn spike show {spike_id}
+   wipnote spike show {spike_id}
    ```
    Record findings by presenting them in the structured format below, referencing the spike ID.
 
-   Note: spike findings are captured in the chat output. Run `erinn spike complete <id>` when investigation is done.
+   Note: spike findings are captured in the chat output. Run `wipnote spike complete <id>` when investigation is done.
 
    Otherwise, present findings in structured format.
 
@@ -248,7 +248,7 @@ The complete planning workflow is:
 # - Identify risks (from anti-patterns)
 
 # Step 4: Create track from spike
-# Use: erinn track create "title" with spike findings
+# Use: wipnote track create "title" with spike findings
 
 # Step 5: Implement features
 # With confidence from research-backed design
@@ -284,7 +284,7 @@ With research:
 After research is complete, record it in the spike if one was provided:
 
 ```bash
-erinn spike show {spike_id}
+wipnote spike show {spike_id}
 ```
 
 Note in your response that research has been validated so that `/wipnote:plan` can incorporate findings when creating the track.

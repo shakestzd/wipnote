@@ -1,6 +1,6 @@
 ---
 name: Bug Report
-about: Report a bug or issue with HtmlGraph
+about: Report a bug or issue with Wipnote
 title: 'Bug: '
 labels: bug
 assignees: ''
@@ -10,7 +10,7 @@ assignees: ''
 <!-- A clear description of the bug -->
 
 ## Environment
-- HtmlGraph version:
+- Wipnote version:
 - Python version:
 - OS:
 - Claude Code version:

@@ -29,13 +29,13 @@ Open the Codex Interoperability plan for review
 
 1. Verify the plan exists:
    ```bash
-   erinn plan show <plan-id>
+   wipnote plan show <plan-id>
    ```
    If not found, suggest `/wipnote:plan-list` to see available plans.
 
 2. Launch the review notebook:
    ```bash
-   erinn plan review <plan-id> --port 3001
+   wipnote plan review <plan-id> --port 3001
    ```
    This runs `marimo run` with the plan pre-selected, env vars set, and sandbox mode enabled.
 
@@ -57,7 +57,7 @@ Open the Codex Interoperability plan for review
 
 4. Wait for the user to finalize. Check progress with:
    ```bash
-   sqlite3 .erinn/erinn.db \
+   sqlite3 .wipnote/wipnote.db \
      "SELECT COUNT(*) FROM plan_feedback WHERE plan_id='<plan-id>' AND action='approve' AND value='True'"
    ```
 
