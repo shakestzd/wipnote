@@ -35,7 +35,7 @@ func isCodexMarketplaceInstalledAt(configPath string) bool {
 	}
 	content := string(data)
 	return strings.Contains(content, "[marketplaces.wipnote]") ||
-		strings.Contains(content, `[plugins."htmlgraph@htmlgraph"]`)
+		strings.Contains(content, `[plugins."wipnote@wipnote"]`)
 }
 
 // isCodexHooksEnabledAt is the testable core.
@@ -56,7 +56,7 @@ func isCodexHooksEnabledAt(configPath string) bool {
 	return false
 }
 
-// getCodexMarketplacePathAt parses config.toml and returns the registered htmlgraph
+// getCodexMarketplacePathAt parses config.toml and returns the registered wipnote
 // marketplace path, or empty string if not found.
 func getCodexMarketplacePathAt(configPath string) string {
 	data, err := os.ReadFile(configPath)
@@ -81,9 +81,9 @@ func getCodexMarketplacePathAt(configPath string) string {
 		}
 	}
 
-	// Check [plugins."htmlgraph@htmlgraph"]
+	// Check [plugins."wipnote@wipnote"]
 	if plugins, ok := tree["plugins"].(map[string]any); ok {
-		if hg, ok := plugins["htmlgraph@htmlgraph"].(map[string]any); ok {
+		if hg, ok := plugins["wipnote@wipnote"].(map[string]any); ok {
 			if source, ok := hg["source"].(string); ok {
 				return source
 			}
@@ -96,11 +96,11 @@ func getCodexMarketplacePathAt(configPath string) string {
 	return ""
 }
 
-// removeCodexHtmlgraphRegistrations removes any HtmlGraph marketplace or plugin
+// removeCodexWipnoteRegistrations removes any wipnote marketplace or plugin
 // registrations from the given config.toml file. It is idempotent — if the file
-// does not exist or contains no htmlgraph entries, it is a no-op.
+// does not exist or contains no wipnote entries, it is a no-op.
 // Returns (removed bool, error). removed=true indicates at least one entry was deleted.
-func removeCodexHtmlgraphRegistrations(configPath string) (bool, error) {
+func removeCodexWipnoteRegistrations(configPath string) (bool, error) {
 	// Read existing config, if any
 	data, err := os.ReadFile(configPath)
 	if err != nil {
@@ -120,11 +120,14 @@ func removeCodexHtmlgraphRegistrations(configPath string) (bool, error) {
 
 	removed := false
 
-	// Remove from [plugins] — only the exact "htmlgraph@htmlgraph" entry
+	// Remove from [plugins]. The htmlgraph key is a legacy registration that
+	// must be cleaned up so it cannot shadow the renamed wipnote plugin.
 	if plugins, ok := tree["plugins"].(map[string]any); ok {
-		if _, exists := plugins["htmlgraph@htmlgraph"]; exists {
-			delete(plugins, "htmlgraph@htmlgraph")
-			removed = true
+		for _, key := range []string{"wipnote@wipnote", "htmlgraph@htmlgraph"} {
+			if _, exists := plugins[key]; exists {
+				delete(plugins, key)
+				removed = true
+			}
 		}
 		// If [plugins] is now empty, remove the whole section
 		if len(plugins) == 0 {
@@ -132,11 +135,14 @@ func removeCodexHtmlgraphRegistrations(configPath string) (bool, error) {
 		}
 	}
 
-	// Remove from [marketplaces] — the "htmlgraph" entry
+	// Remove from [marketplaces]. Keep removing the legacy htmlgraph entry for
+	// users who installed the plugin before the rename.
 	if mkts, ok := tree["marketplaces"].(map[string]any); ok {
-		if _, exists := mkts["htmlgraph"]; exists {
-			delete(mkts, "htmlgraph")
-			removed = true
+		for _, key := range []string{"wipnote", "htmlgraph"} {
+			if _, exists := mkts[key]; exists {
+				delete(mkts, key)
+				removed = true
+			}
 		}
 		// If [marketplaces] is now empty, remove the whole section
 		if len(mkts) == 0 {
@@ -215,24 +221,24 @@ func promptYesNo(question string, yes bool) bool {
 	return answer == "y" || answer == "yes"
 }
 
-// codexCmd returns the cobra command for `htmlgraph codex`.
+// codexCmd returns the cobra command for `wipnote codex`.
 func codexCmd() *cobra.Command {
 	var init_, continue_, dev, cleanup, dryRun, yes, noWorktree bool
 	var resumeID, trackID, featureID, worktreePath, workItem string
 
 	cmd := &cobra.Command{
 		Use:   "codex",
-		Short: "Launch Codex CLI with HtmlGraph context",
-		Long: `Launch Codex CLI with HtmlGraph observability context.
+		Short: "Launch Codex CLI with wipnote context",
+		Long: `Launch Codex CLI with wipnote observability context.
 
 Modes:
-  htmlgraph codex                   Launch Codex interactively with HtmlGraph env.
-  htmlgraph codex --init            Install the HtmlGraph Codex marketplace (idempotent).
-  htmlgraph codex --continue        Resume the last Codex session (codex resume --last).
-  htmlgraph codex --resume <id>     Resume a specific Codex session by ID.
-  htmlgraph codex --dev             Register local packages/codex-marketplace/ and launch.
-  htmlgraph codex --feature <id>    Launch in the feature's git worktree.
-  htmlgraph codex --track <id>      Launch in the track's git worktree.
+  wipnote codex                   Launch Codex interactively with wipnote env.
+  wipnote codex --init            Install the wipnote Codex marketplace (idempotent).
+  wipnote codex --continue        Resume the last Codex session (codex resume --last).
+  wipnote codex --resume <id>     Resume a specific Codex session by ID.
+  wipnote codex --dev             Register local packages/codex-marketplace/ and launch.
+  wipnote codex --feature <id>    Launch in the feature's git worktree.
+  wipnote codex --track <id>      Launch in the track's git worktree.
 
 Session IDs come from ~/.codex/session_index.jsonl.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -249,7 +255,7 @@ Session IDs come from ~/.codex/session_index.jsonl.`,
 		},
 	}
 
-	cmd.Flags().BoolVar(&init_, "init", false, "Install the HtmlGraph Codex marketplace plugin (idempotent)")
+	cmd.Flags().BoolVar(&init_, "init", false, "Install the wipnote Codex marketplace plugin (idempotent)")
 	cmd.Flags().BoolVar(&continue_, "continue", false, "Resume the last Codex session")
 	cmd.Flags().BoolVar(&dev, "dev", false, "Register local packages/codex-marketplace/ and launch Codex")
 	cmd.Flags().BoolVar(&cleanup, "cleanup", false, "With --dev: unregister the local marketplace on exit")
@@ -265,8 +271,8 @@ Session IDs come from ~/.codex/session_index.jsonl.`,
 	return cmd
 }
 
-// runCodexInit installs the HtmlGraph Codex marketplace plugin, idempotently.
-// Corresponds to: htmlgraph codex --init
+// runCodexInit installs the wipnote Codex marketplace plugin, idempotently.
+// Corresponds to: wipnote codex --init
 // Phase 1: Install / verify marketplace (idempotent).
 // Phase 2: Check codex_hooks — prompt user if not set.
 func runCodexInit(yes, dryRun bool) error {
@@ -276,11 +282,11 @@ func runCodexInit(yes, dryRun bool) error {
 	marketplaceInstalled := isCodexMarketplaceInstalledAt(configPath)
 	if !marketplaceInstalled {
 		addArgs := []string{
-			"marketplace", "add",
+			"plugin", "marketplace", "add",
 			codexMarketplaceRepo,
 			"--sparse", codexMarketplaceSparse,
 		}
-		fmt.Printf("Installing HtmlGraph Codex marketplace...\n")
+		fmt.Printf("Installing wipnote Codex marketplace...\n")
 		fmt.Printf("  repo: %s  sparse: %s\n", codexMarketplaceRepo, codexMarketplaceSparse)
 
 		if dryRun {
@@ -289,10 +295,10 @@ func runCodexInit(yes, dryRun bool) error {
 			if out, err := exec.Command("codex", addArgs...).CombinedOutput(); err != nil {
 				return fmt.Errorf("codex marketplace add failed: %w\n%s", err, strings.TrimSpace(string(out)))
 			}
-			fmt.Println("HtmlGraph Codex marketplace installed.")
+			fmt.Println("wipnote Codex marketplace installed.")
 		}
 	} else {
-		fmt.Println("HtmlGraph Codex marketplace is already installed.")
+		fmt.Println("wipnote Codex marketplace is already installed.")
 	}
 
 	// Phase 2: Check and optionally enable codex_hooks feature flag.
@@ -314,16 +320,16 @@ func runCodexInit(yes, dryRun bool) error {
 	}
 
 	fmt.Println()
-	fmt.Println("Setup complete. Run: htmlgraph codex")
+	fmt.Println("Setup complete. Run: wipnote codex")
 	return nil
 }
 
-// launchCodexDefault launches Codex interactively with HtmlGraph env injection.
-// Corresponds to: htmlgraph codex
+// launchCodexDefault launches Codex interactively with wipnote env injection.
+// Corresponds to: wipnote codex
 func launchCodexDefault(resumeID, trackID, featureID, worktreePath, workItem string, noWorktree bool, extraArgs []string) error {
 	projectRoot, _ := resolveProjectRoot()
 
-	// Work item attribution: emit `htmlgraph feature start <id>` before launching.
+	// Work item attribution: emit `wipnote feature start <id>` before launching.
 	if workItem != "" {
 		if err := runFeatureStart(workItem); err != nil {
 			fmt.Fprintf(os.Stderr, "warning: could not start work item %s: %v\n", workItem, err)
@@ -332,39 +338,39 @@ func launchCodexDefault(resumeID, trackID, featureID, worktreePath, workItem str
 
 	// Resolve worktree path.
 	workDir := projectRoot
-	htmlgraphRoot := ""
+	wipnoteRoot := ""
 	switch {
 	case worktreePath != "":
 		// Explicit path — use as-is; set WIPNOTE_PROJECT_DIR to canonical root.
 		workDir = worktreePath
-		htmlgraphRoot = projectRoot
+		wipnoteRoot = projectRoot
 	case !noWorktree && trackID != "":
 		wt, err := EnsureForTrack(trackID, projectRoot, os.Stdout)
 		if err != nil {
 			return err
 		}
 		workDir = wt
-		htmlgraphRoot = projectRoot
+		wipnoteRoot = projectRoot
 	case !noWorktree && featureID != "":
 		wt, err := EnsureForFeature(featureID, projectRoot, os.Stdout)
 		if err != nil {
 			return err
 		}
 		workDir = wt
-		htmlgraphRoot = projectRoot
+		wipnoteRoot = projectRoot
 	}
 
-	fmt.Println("Launching Codex CLI with HtmlGraph context...")
+	fmt.Println("Launching Codex CLI with wipnote context...")
 	return execCodex(codexLaunchOpts{
-		ResumeID:      resumeID,
-		ExtraArgs:     extraArgs,
-		ProjectRoot:   workDir,
-		WorktreeRoot:  workDir,
-		HtmlgraphRoot: htmlgraphRoot,
+		ResumeID:     resumeID,
+		ExtraArgs:    extraArgs,
+		ProjectRoot:  workDir,
+		WorktreeRoot: workDir,
+		WipnoteRoot:  wipnoteRoot,
 	})
 }
 
-// runFeatureStart runs `htmlgraph feature start <id>` for work item attribution.
+// runFeatureStart runs `wipnote feature start <id>` for work item attribution.
 func runFeatureStart(id string) error {
 	exe, err := os.Executable()
 	if err != nil {
@@ -377,7 +383,7 @@ func runFeatureStart(id string) error {
 }
 
 // launchCodexContinue resumes the last Codex session.
-// Corresponds to: htmlgraph codex --continue
+// Corresponds to: wipnote codex --continue
 func launchCodexContinue(resumeID string, extraArgs []string) error {
 	projectRoot, _ := resolveProjectRoot()
 	fmt.Println("Resuming last Codex session...")
@@ -390,7 +396,7 @@ func launchCodexContinue(resumeID string, extraArgs []string) error {
 }
 
 // launchCodexDev registers the local packages/codex-marketplace/ and launches Codex.
-// Corresponds to: htmlgraph codex --dev [--cleanup]
+// Corresponds to: wipnote codex --dev [--cleanup]
 // If a mismatched marketplace is already registered (e.g., from a prior --init),
 // it is removed and replaced with the local path.
 func launchCodexDev(resumeID string, cleanup, dryRun bool, extraArgs []string) error {
@@ -419,9 +425,9 @@ func launchCodexDev(resumeID string, cleanup, dryRun bool, extraArgs []string) e
 		}
 		fmt.Printf("Replacing mismatched marketplace registration (%s)\n", oldPathDisplay)
 		if dryRun {
-			fmt.Printf("[dry-run] would remove HtmlGraph registrations from %s\n", configPath)
+			fmt.Printf("[dry-run] would remove wipnote registrations from %s\n", configPath)
 		} else {
-			removed, rmErr := removeCodexHtmlgraphRegistrations(configPath)
+			removed, rmErr := removeCodexWipnoteRegistrations(configPath)
 			if rmErr != nil {
 				return fmt.Errorf("removing mismatched marketplace from %s: %w", configPath, rmErr)
 			}
@@ -434,7 +440,7 @@ func launchCodexDev(resumeID string, cleanup, dryRun bool, extraArgs []string) e
 
 	// Add the local marketplace if not already registered at the correct path
 	if registeredAbs != localAbs {
-		addArgs := []string{"marketplace", "add", localMarketplace}
+		addArgs := []string{"plugin", "marketplace", "add", localMarketplace}
 		if dryRun {
 			fmt.Printf("[dry-run] codex %s\n", strings.Join(addArgs, " "))
 		} else {
@@ -463,11 +469,11 @@ func launchCodexDev(resumeID string, cleanup, dryRun bool, extraArgs []string) e
 	// --cleanup: unregister the local marketplace after session ends.
 	if cleanup && !dryRun {
 		fmt.Println("Cleaning up local marketplace registration...")
-		removed, rmErr := removeCodexHtmlgraphRegistrations(configPath)
+		removed, rmErr := removeCodexWipnoteRegistrations(configPath)
 		if rmErr != nil {
 			fmt.Fprintf(os.Stderr, "warning: could not remove marketplace registration: %v\n", rmErr)
 		} else if !removed {
-			fmt.Println("No HtmlGraph registrations found to clean up.")
+			fmt.Println("No wipnote registrations found to clean up.")
 		}
 	}
 
@@ -478,16 +484,16 @@ func launchCodexDev(resumeID string, cleanup, dryRun bool, extraArgs []string) e
 // by walking up from CWD to find the project root (directory containing .wipnote/).
 // Returns an error if no project root is found or the marketplace directory is missing.
 func resolveLocalCodexMarketplace() (string, error) {
-	htmlgraphDir, err := findHtmlgraphDir()
+	wipnoteDir, err := findWipnoteDir()
 	if err != nil {
 		return "", fmt.Errorf("could not find project root (.wipnote/ directory not found)\n" +
-			"Run from the HtmlGraph project directory, or use htmlgraph codex --init for the marketplace version")
+			"Run from the wipnote project directory, or use wipnote codex --init for the marketplace version")
 	}
-	projectRoot := filepath.Dir(htmlgraphDir)
+	projectRoot := filepath.Dir(wipnoteDir)
 	marketplacePath := filepath.Join(projectRoot, "packages", "codex-marketplace")
 	if _, statErr := os.Stat(marketplacePath); os.IsNotExist(statErr) {
 		return "", fmt.Errorf("packages/codex-marketplace/ not found at %s\n"+
-			"Run from the HtmlGraph repo root, or use htmlgraph codex --init for the marketplace version",
+			"Run from the wipnote repo root, or use wipnote codex --init for the marketplace version",
 			marketplacePath)
 	}
 	abs, err := filepath.Abs(marketplacePath)
@@ -512,11 +518,11 @@ type codexLaunchOpts struct {
 	ProjectRoot string
 	// WorktreeRoot, when non-empty, overrides the working directory for the
 	// Codex process. The process runs in WorktreeRoot but WIPNOTE_PROJECT_DIR
-	// is set to HtmlgraphRoot (the canonical project root with .wipnote/).
+	// is set to WipnoteRoot (the canonical project root with .wipnote/).
 	WorktreeRoot string
-	// HtmlgraphRoot is the canonical project root containing .wipnote/.
+	// WipnoteRoot is the canonical project root containing .wipnote/.
 	// Used to set WIPNOTE_PROJECT_DIR when running in a worktree.
-	HtmlgraphRoot string
+	WipnoteRoot string
 }
 
 // execCodex builds the codex argv and execs it, replacing the current process.
@@ -545,8 +551,8 @@ func execCodex(opts codexLaunchOpts) error {
 
 	// Resolve the effective project dir for OTel collector spawning.
 	effectiveProjDir := opts.ProjectRoot
-	if opts.HtmlgraphRoot != "" {
-		effectiveProjDir = opts.HtmlgraphRoot
+	if opts.WipnoteRoot != "" {
+		effectiveProjDir = opts.WipnoteRoot
 	}
 
 	// Spawn a per-session OTel collector when a project dir is known and OTel
@@ -568,7 +574,7 @@ func execCodex(opts codexLaunchOpts) error {
 
 	switch {
 	case opts.WorktreeRoot != "":
-		projectDir := opts.HtmlgraphRoot
+		projectDir := opts.WipnoteRoot
 		if projectDir == "" {
 			projectDir = opts.ProjectRoot
 		}
