@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "erinn hook session-start"
+            "command": "wipnote hook session-start"
           }
         ]
       },
@@ -15,7 +15,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "erinn hook session-resume"
+            "command": "wipnote hook session-resume"
           }
         ]
       }
@@ -26,7 +26,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "erinn hook session-end"
+            "command": "wipnote hook session-end"
           }
         ]
       }
@@ -37,7 +37,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "erinn hook user-prompt"
+            "command": "wipnote hook user-prompt"
           }
         ]
       },
@@ -58,7 +58,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "erinn hook pretooluse"
+            "command": "wipnote hook pretooluse"
           }
         ]
       }
@@ -69,7 +69,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "erinn hook posttooluse"
+            "command": "wipnote hook posttooluse"
           }
         ]
       },
@@ -78,7 +78,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "erinn hook exit-plan-mode",
+            "command": "wipnote hook exit-plan-mode",
             "timeout": 30
           }
         ]
@@ -90,7 +90,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "erinn hook subagent-start"
+            "command": "wipnote hook subagent-start"
           }
         ]
       }
@@ -101,7 +101,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "erinn hook subagent-stop"
+            "command": "wipnote hook subagent-stop"
           }
         ]
       }
@@ -112,7 +112,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "erinn hook stop"
+            "command": "wipnote hook stop"
           }
         ]
       }
@@ -123,7 +123,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "erinn hook posttooluse-failure"
+            "command": "wipnote hook posttooluse-failure"
           }
         ]
       }
@@ -134,7 +134,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "erinn hook pre-compact"
+            "command": "wipnote hook pre-compact"
           }
         ]
       }
@@ -145,7 +145,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "erinn hook teammate-idle"
+            "command": "wipnote hook teammate-idle"
           }
         ]
       }
@@ -156,7 +156,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "erinn hook task-completed"
+            "command": "wipnote hook task-completed"
           }
         ]
       }
@@ -167,7 +167,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "erinn hook instructions-loaded"
+            "command": "wipnote hook instructions-loaded"
           }
         ]
       }
@@ -178,7 +178,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "erinn hook worktree-create"
+            "command": "wipnote hook worktree-create"
           }
         ]
       }
@@ -189,7 +189,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "erinn hook worktree-remove"
+            "command": "wipnote hook worktree-remove"
           }
         ]
       }
@@ -200,7 +200,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "erinn hook post-compact"
+            "command": "wipnote hook post-compact"
           }
         ]
       }
@@ -211,7 +211,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "erinn hook task-created"
+            "command": "wipnote hook task-created"
           }
         ]
       }
@@ -222,7 +222,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "erinn hook permission-request"
+            "command": "wipnote hook permission-request"
           }
         ]
       }
@@ -233,7 +233,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "erinn hook config-change"
+            "command": "wipnote hook config-change"
           }
         ]
       }

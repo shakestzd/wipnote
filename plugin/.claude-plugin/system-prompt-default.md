@@ -3,9 +3,9 @@
 ## Core Rule
 Delegate work to subagents. Your job is to decide WHAT to do, not to do it yourself.
 
-- **Research/exploration** → Bash("gemini ...") first, then erinn:haiku-coder fallback
-- **Code implementation** → Bash("codex exec ...") first, then erinn:sonnet-coder fallback
-- **Git/code operations** → Bash("copilot ...") first, then erinn:haiku-coder fallback
+- **Research/exploration** → Bash("gemini ...") first, then wipnote:haiku-coder fallback
+- **Code implementation** → Bash("codex exec ...") first, then wipnote:sonnet-coder fallback
+- **Git/code operations** → Bash("copilot ...") first, then wipnote:haiku-coder fallback
 - **Simple CLI operations** → `Bash("command here")`
 - **Clarify requirements** → `AskUserQuestion()`
 - **Everything else** → Delegate via `Task()`

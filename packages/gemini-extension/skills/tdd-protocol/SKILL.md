@@ -1,11 +1,11 @@
 ---
-name: erinn:tdd-protocol
+name: wipnote:tdd-protocol
 description: TDD protocol for sub-agent implementation tasks — write failing tests first, run quality gates, commit format, attribution rules
 ---
 
 # TDD Protocol for Sub-Agent Implementation
 
-Use this skill for any implementation task dispatched by `/erinn:execute`. It defines the mandatory workflow: failing tests first, quality gates, commit format, and work-item attribution.
+Use this skill for any implementation task dispatched by `/wipnote:execute`. It defines the mandatory workflow: failing tests first, quality gates, commit format, and work-item attribution.
 
 **Trigger keywords:** write tests first, TDD, test-driven, quality gate, commit format, attribution
 

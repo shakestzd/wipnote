@@ -1,5 +1,5 @@
 ---
-name: erinn:execute
+name: wipnote:execute
 description: Execute a parallel plan using dependency-driven dispatch. Checks file overlap among unblocked tasks, partitions into non-conflicting waves, and dispatches simultaneously. Merges completed work, then dispatches newly unblocked tasks. No manual wave sequencing.
 ---
 
@@ -82,7 +82,7 @@ TaskList()
 # These are ready to dispatch immediately
 ```
 
-If no tasks exist yet, create them from the plan (see `/erinn:plan`).
+If no tasks exist yet, create them from the plan (see `/wipnote:plan`).
 
 ---
 
@@ -117,7 +117,7 @@ ToolSearch(query="select:SendMessage", max_results=1)
 Print the following error and STOP — do not proceed to dispatch:
 
 ```
-/erinn:execute requires SendMessage to be loaded so paused sub-agents can be
+/wipnote:execute requires SendMessage to be loaded so paused sub-agents can be
 resumed. SendMessage is gated behind `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`
 and is only available in agent-teams sessions.
 
@@ -170,7 +170,7 @@ TaskCreate(
     metadata={
         "feature_id": "<slice.id>",             # e.g. feat-7540a6cc
         "num": <slice.num>,                     # e.g. 1
-        "agent": "erinn:sonnet-coder"
+        "agent": "wipnote:sonnet-coder"
     }
 )
 ```
@@ -188,14 +188,14 @@ Spawn ALL ready tasks in a single message. Each gets an isolated worktree:
 
 Agent(
     description="feat-001: Add check command",
-    subagent_type="erinn:sonnet-coder",
+    subagent_type="wipnote:sonnet-coder",
     isolation="worktree",
     prompt="[full task spec — see template below]"
 )
 
 Agent(
     description="feat-002: Add budget command",
-    subagent_type="erinn:sonnet-coder",
+    subagent_type="wipnote:sonnet-coder",
     isolation="worktree",
     prompt="[full task spec]"
 )
@@ -251,7 +251,7 @@ the orchestrator will resolve merge conflicts after all agents complete:
 {files owned by other concurrent tasks — for awareness only}
 
 ## TDD Protocol
-Follow the TDD protocol from /erinn:tdd-protocol — write failing tests first, run quality gates (`go build && go vet && go test`), commit per the documented format, attribute via `erinn feature start` / `complete`.
+Follow the TDD protocol from /wipnote:tdd-protocol — write failing tests first, run quality gates (`go build && go vet && go test`), commit per the documented format, attribute via `erinn feature start` / `complete`.
 
 Report: files changed, lines added, tests passing, test names.
 ```
@@ -344,7 +344,7 @@ After all tasks complete, transition from autonomous development to reviewed int
 Run roborev on the feature branch:
 ```bash
 # Review all branch commits
-/erinn:roborev  # or: roborev review-branch
+/wipnote:roborev  # or: roborev review-branch
 
 # Address any medium+ severity findings before merging
 # Fix on the feature branch, or acknowledge with justification
@@ -376,7 +376,7 @@ git worktree remove .claude/worktrees/agent-XXXX --force
 # Remove branches
 git branch -D worktree-agent-XXXX
 
-# Or use /erinn:cleanup for automated cleanup
+# Or use /wipnote:cleanup for automated cleanup
 ```
 
 ---
@@ -514,4 +514,4 @@ go build ./... && go vet ./... && go test ./...
 
 ## Related Skills
 
-- **[/erinn:plan](/erinn:plan)** - Create the dependency graph before executing
+- **[/wipnote:plan](/wipnote:plan)** - Create the dependency graph before executing

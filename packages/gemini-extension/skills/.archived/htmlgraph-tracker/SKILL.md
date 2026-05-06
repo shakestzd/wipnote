@@ -8,7 +8,7 @@ description: ARCHIVED — Use erinn skill instead. Erinn AI workflow combining s
 
 # Erinn AI Tracker Skill (ARCHIVED)
 
-> **This skill is archived.** Use `/erinn:erinn` for current workflow patterns.
+> **This skill is archived.** Use `/wipnote:erinn` for current workflow patterns.
 
 ---
 
@@ -72,12 +72,12 @@ Dispatch independent tasks in a single message:
 
 ```python
 # All in one message = parallel execution
-Task(subagent_type="erinn:gemini-operator", prompt="Research...")
-Task(subagent_type="erinn:sonnet-coder", prompt="Implement feat-123...")
-Task(subagent_type="erinn:sonnet-coder", prompt="Implement feat-456...")
+Task(subagent_type="wipnote:gemini-operator", prompt="Research...")
+Task(subagent_type="wipnote:sonnet-coder", prompt="Implement feat-123...")
+Task(subagent_type="wipnote:sonnet-coder", prompt="Implement feat-456...")
 ```
 
-See `/erinn:orchestrator-directives-skill` for complete patterns.
+See `/wipnote:orchestrator-directives-skill` for complete patterns.
 
 ---
 

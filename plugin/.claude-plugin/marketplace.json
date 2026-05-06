@@ -1,5 +1,5 @@
 {
-  "name": "Erinn AI",
+  "name": "wipnote",
   "owner": {
     "name": "Shakes Dlamini",
     "email": "shakestzd@gmail.com",
@@ -9,7 +9,7 @@
   "version": "0.35.0",
   "plugins": [
     {
-      "name": "erinn",
+      "name": "wipnote",
       "version": "0.35.0",
       "source": "../",
       "description": "HTML-based agent observability + workflow analytics (Git-first JSONL + rebuildable SQLite index)",
@@ -29,8 +29,8 @@
         "email": "shakestzd@gmail.com",
         "url": "https://github.com/shakestzd"
       },
-      "repository": "https://github.com/shakestzd/erinn",
-      "homepage": "https://github.com/shakestzd/erinn#readme",
+      "repository": "https://github.com/shakestzd/wipnote",
+      "homepage": "https://github.com/shakestzd/wipnote#readme",
       "license": "MIT",
       "keywords": [
         "observability",

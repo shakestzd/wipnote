@@ -1,5 +1,5 @@
 ---
-name: erinn:spec-from-slice
+name: wipnote:spec-from-slice
 description: Elicit Scope/Decisions/Context for a plan slice and generate its OpenSpec-formatted feature spec. Use after a slice is approved but before promote-slice, or any time a slice needs decisions captured. Wraps the cross-harness `erinn plan elicit-decisions` CLI plus `erinn spec generate --insert`.
 user_invocable: true
 ---

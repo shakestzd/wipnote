@@ -236,10 +236,10 @@ After presenting output, analyze whether the top recommendations can run in para
 
 1. Check dependencies — do any recommended items block each other?
 2. Check file overlap — do they modify the same files or modules?
-3. If independent → propose `/erinn:execute` for parallel dispatch
+3. If independent → propose `/wipnote:execute` for parallel dispatch
 4. If dependent → identify critical path, propose sequential order
 
 **Propose next action:**
-- 2+ independent items → `/erinn:execute` (parallel)
-- Blocked items → start with the blocker using `/erinn:plan <id>`
+- 2+ independent items → `/wipnote:execute` (parallel)
+- Blocked items → start with the blocker using `/wipnote:plan <id>`
 - Single item → delegate to appropriate agent tier (haiku/sonnet/opus)

@@ -1,14 +1,14 @@
 {
-  "name": "erinn",
+  "name": "wipnote",
   "interface": {
-    "displayName": "Erinn AI"
+    "displayName": "wipnote"
   },
   "plugins": [
     {
-      "name": "erinn",
+      "name": "wipnote",
       "source": {
         "source": "local",
-        "path": "./erinn"
+        "path": "./wipnote"
       },
       "policy": {
         "installation": "AVAILABLE",

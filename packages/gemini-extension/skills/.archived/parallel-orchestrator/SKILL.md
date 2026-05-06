@@ -8,7 +8,7 @@ description: ARCHIVED — Use orchestrator-directives-skill instead. Orchestrate
 
 # Parallel Orchestrator Skill (ARCHIVED)
 
-> **This skill is archived.** Use `/erinn:orchestrator-directives-skill` for current orchestration patterns.
+> **This skill is archived.** Use `/wipnote:orchestrator-directives-skill` for current orchestration patterns.
 
 ## Core Principle: 6-Phase Parallel Workflow
 
@@ -54,9 +54,9 @@ Identify files all agents need and share that context in each agent's prompt. Pa
 
 ```python
 # CORRECT: All in one message (parallel)
-Task(subagent_type="erinn:gemini-operator", description="Research API", prompt="...")
-Task(subagent_type="erinn:sonnet-coder", description="Implement feat-123", prompt="...")
-Task(subagent_type="erinn:sonnet-coder", description="Implement feat-456", prompt="...")
+Task(subagent_type="wipnote:gemini-operator", description="Research API", prompt="...")
+Task(subagent_type="wipnote:sonnet-coder", description="Implement feat-123", prompt="...")
+Task(subagent_type="wipnote:sonnet-coder", description="Implement feat-456", prompt="...")
 
 # WRONG: Sequential messages (not parallel)
 # result1 = Task(...)  # Wait for completion
