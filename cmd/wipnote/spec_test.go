@@ -94,7 +94,7 @@ func TestSpecGenerate_Insert_NewSection(t *testing.T) {
 	featureID := "feat-insertnew"
 	path := writeFeatureFile(t, dir, featureID, minimalFeatureHTMLForSpec(featureID, ""))
 
-	if err := insertSpecIntoFeature(path, featureID, fixtureSpec(featureID, "T"), false); err != nil {
+	if err := insertSpecIntoFeature(path, fixtureSpec(featureID, "T"), false); err != nil {
 		t.Fatalf("insert: %v", err)
 	}
 
@@ -115,7 +115,7 @@ func TestSpecGenerate_Insert_NonClobber(t *testing.T) {
 	existing := "manual content the user typed"
 	path := writeFeatureFile(t, dir, featureID, minimalFeatureHTMLForSpec(featureID, existing))
 
-	err := insertSpecIntoFeature(path, featureID, fixtureSpec(featureID, "T"), false)
+	err := insertSpecIntoFeature(path, fixtureSpec(featureID, "T"), false)
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -136,12 +136,12 @@ func TestSpecGenerate_Insert_Force(t *testing.T) {
 	featureID := "feat-forcerepl"
 	path := writeFeatureFile(t, dir, featureID, minimalFeatureHTMLForSpec(featureID, "old content"))
 
-	if err := insertSpecIntoFeature(path, featureID, fixtureSpec(featureID, "T"), true); err != nil {
+	if err := insertSpecIntoFeature(path, fixtureSpec(featureID, "T"), true); err != nil {
 		t.Fatalf("first force insert: %v", err)
 	}
 	first, _ := os.ReadFile(path)
 
-	if err := insertSpecIntoFeature(path, featureID, fixtureSpec(featureID, "T"), true); err != nil {
+	if err := insertSpecIntoFeature(path, fixtureSpec(featureID, "T"), true); err != nil {
 		t.Fatalf("second force insert: %v", err)
 	}
 	second, _ := os.ReadFile(path)
@@ -169,7 +169,7 @@ func TestSpecGenerate_Insert_AtomicAndLocked(t *testing.T) {
 		go func(i int) {
 			defer wg.Done()
 			spec := fixtureSpec(featureID, fmt.Sprintf("T-%d", i))
-			_ = insertSpecIntoFeature(path, featureID, spec, true)
+			_ = insertSpecIntoFeature(path, spec, true)
 		}(i)
 	}
 	wg.Wait()
@@ -288,7 +288,7 @@ func TestSpecSectionSurvivesStatusWrite(t *testing.T) {
 	}
 	featNode, _ := htmlparseParseFileForTest(t, featFiles[0])
 
-	if err := insertSpecIntoFeature(featFiles[0], featNode.ID, fixtureSpec(featNode.ID, "T"), false); err != nil {
+	if err := insertSpecIntoFeature(featFiles[0], fixtureSpec(featNode.ID, "T"), false); err != nil {
 		t.Fatalf("insert spec: %v", err)
 	}
 
@@ -353,7 +353,7 @@ func TestSpecInsertAndComplianceAutoConcurrent(t *testing.T) {
 	for i := 0; i < N; i++ {
 		go func(i int) {
 			defer wg.Done()
-			_ = insertSpecIntoFeature(path, featureID, fixtureSpec(featureID, fmt.Sprintf("T-%d", i)), true)
+			_ = insertSpecIntoFeature(path, fixtureSpec(featureID, fmt.Sprintf("T-%d", i)), true)
 		}(i)
 		go func(i int) {
 			defer wg.Done()
