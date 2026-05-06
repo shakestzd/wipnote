@@ -7,7 +7,7 @@ meta:
     created_at: "2026-05-06"
     status: finalized
     created_by: codex
-    version: 7
+    version: 8
 design:
     problem: |
         wipnote currently treats `plugin/skills/**/SKILL.md` and `plugin/agents/*.md` as cross-harness assets, then copies them into the Codex marketplace tree. That is sufficient for Codex skills now that the plugin manifest points at `./skills/`, but it is not sufficient for Codex custom agents: current Codex documentation says custom agents are standalone TOML files under `.codex/agents/` or `~/.codex/agents/`, not plugin-root `agents/*.md` files. The result is a partial port where the skills load but wipnote's named subagents do not appear in Codex. The next architecture must keep business logic in one place while emitting each harness's native packaging format.
@@ -75,6 +75,7 @@ slices:
             - key: move-core
               label: Move to plugin-core — cleaner long-term but larger migration
     - id: slice-2
+      feature_id: feat-4d7c582e
       num: 2
       title: Emit Codex-native skills without duplicating business logic
       what: |
@@ -112,7 +113,7 @@ slices:
       approved: false
       comment: ""
       approval_status: pending
-      execution_status: not_started
+      execution_status: promoted
     - id: slice-3
       num: 3
       title: Translate wipnote agents into Codex custom-agent TOML
