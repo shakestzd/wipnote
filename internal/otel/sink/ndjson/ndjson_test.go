@@ -29,7 +29,7 @@ func makeSignal(kind otel.Kind, id, sessionID string) otel.UnifiedSignal {
 func TestNDJSONSink_OneLinePerSignal(t *testing.T) {
 	dir := t.TempDir()
 	sid := "ndjson-test-sess"
-	sessDir := filepath.Join(dir, ".erinn", "sessions", sid)
+	sessDir := filepath.Join(dir, ".wipnote", "sessions", sid)
 	if err := os.MkdirAll(sessDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -98,7 +98,7 @@ func TestNDJSONSink_OneLinePerSignal(t *testing.T) {
 func TestNDJSONSink_ValidJSON(t *testing.T) {
 	dir := t.TempDir()
 	sid := "json-valid-sess"
-	sessDir := filepath.Join(dir, ".erinn", "sessions", sid)
+	sessDir := filepath.Join(dir, ".wipnote", "sessions", sid)
 	os.MkdirAll(sessDir, 0o755)
 
 	s, _ := ndjson.New(dir, sid)
@@ -122,7 +122,7 @@ func TestNDJSONSink_ValidJSON(t *testing.T) {
 func TestNDJSONSink_EmptyBatchIsNoOp(t *testing.T) {
 	dir := t.TempDir()
 	sid := "empty-batch-sess"
-	sessDir := filepath.Join(dir, ".erinn", "sessions", sid)
+	sessDir := filepath.Join(dir, ".wipnote", "sessions", sid)
 	os.MkdirAll(sessDir, 0o755)
 
 	s, _ := ndjson.New(dir, sid)
@@ -152,7 +152,7 @@ func TestNDJSONSink_EmptyBatchIsNoOp(t *testing.T) {
 func TestNDJSONSink_CloseIsIdempotent(t *testing.T) {
 	dir := t.TempDir()
 	sid := "close-idem-sess"
-	sessDir := filepath.Join(dir, ".erinn", "sessions", sid)
+	sessDir := filepath.Join(dir, ".wipnote", "sessions", sid)
 	os.MkdirAll(sessDir, 0o755)
 
 	s, err := ndjson.New(dir, sid)
@@ -174,7 +174,7 @@ func TestNDJSONSink_CloseIsIdempotent(t *testing.T) {
 func TestNDJSONSink_PeriodicFlush(t *testing.T) {
 	dir := t.TempDir()
 	sid := "periodic-flush-sess"
-	sessDir := filepath.Join(dir, ".erinn", "sessions", sid)
+	sessDir := filepath.Join(dir, ".wipnote", "sessions", sid)
 	if err := os.MkdirAll(sessDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -236,7 +236,7 @@ func TestNDJSONSink_PeriodicFlush(t *testing.T) {
 func TestNDJSONSink_AppendOnReopen(t *testing.T) {
 	dir := t.TempDir()
 	sid := "append-reopen-sess"
-	sessDir := filepath.Join(dir, ".erinn", "sessions", sid)
+	sessDir := filepath.Join(dir, ".wipnote", "sessions", sid)
 	if err := os.MkdirAll(sessDir, 0o755); err != nil {
 		t.Fatal(err)
 	}

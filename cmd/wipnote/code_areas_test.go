@@ -34,20 +34,20 @@ func gitInitWithFiles(t *testing.T, root string, files ...string) {
 	}
 }
 
-// setupAreasTestDB creates a temp .erinn dir with a populated SQLite DB.
+// setupAreasTestDB creates a temp .wipnote dir with a populated SQLite DB.
 // Returns the htmlgraph dir path and a cleanup function.
 func setupAreasTestDB(t *testing.T) string {
 	t.Helper()
 	tmpDir := t.TempDir()
-	hgDir := filepath.Join(tmpDir, ".erinn")
+	hgDir := filepath.Join(tmpDir, ".wipnote")
 	if err := os.MkdirAll(hgDir, 0o755); err != nil {
-		t.Fatalf("mkdir .erinn: %v", err)
+		t.Fatalf("mkdir .wipnote: %v", err)
 	}
 	return hgDir
 }
 
 // areasSetup populates a full test environment: temp dir tree + populated DB.
-// Returns root dir (source files) and hgDir (.erinn).
+// Returns root dir (source files) and hgDir (.wipnote).
 func areasSetup(t *testing.T) (root, hgDir string) {
 	t.Helper()
 	hgDir = setupAreasTestDB(t)

@@ -193,14 +193,14 @@ func TestResolvePluginDir_SymlinkWalkUpFallback(t *testing.T) {
 }
 
 // TestResolvePluginDir_ProjectRootDetection tests that resolveProjectPluginDir
-// walks up from CWD to find .erinn/ and plugin/.
+// walks up from CWD to find .wipnote/ and plugin/.
 func TestResolvePluginDir_ProjectRootDetection(t *testing.T) {
-	// Create a fake project with .erinn/ and plugin/
+	// Create a fake project with .wipnote/ and plugin/
 	tmpDir := t.TempDir()
 
-	// Create .erinn directory (marks project root)
-	if err := os.MkdirAll(filepath.Join(tmpDir, ".erinn"), 0755); err != nil {
-		t.Fatalf("failed to create .erinn: %v", err)
+	// Create .wipnote directory (marks project root)
+	if err := os.MkdirAll(filepath.Join(tmpDir, ".wipnote"), 0755); err != nil {
+		t.Fatalf("failed to create .wipnote: %v", err)
 	}
 
 	// Create plugin directory structure
@@ -228,12 +228,12 @@ func TestResolvePluginDir_ProjectRootDetection(t *testing.T) {
 // TestResolvePluginDir_ProjectRootDetectionFromSubdirectory tests that
 // resolveProjectPluginDir can walk UP from a subdirectory to find the project root.
 func TestResolvePluginDir_ProjectRootDetectionFromSubdirectory(t *testing.T) {
-	// Create a fake project with .erinn/ and plugin/
+	// Create a fake project with .wipnote/ and plugin/
 	tmpDir := t.TempDir()
 
-	// Create .erinn directory (marks project root)
-	if err := os.MkdirAll(filepath.Join(tmpDir, ".erinn"), 0755); err != nil {
-		t.Fatalf("failed to create .erinn: %v", err)
+	// Create .wipnote directory (marks project root)
+	if err := os.MkdirAll(filepath.Join(tmpDir, ".wipnote"), 0755); err != nil {
+		t.Fatalf("failed to create .wipnote: %v", err)
 	}
 
 	// Create plugin directory structure

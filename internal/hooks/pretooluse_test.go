@@ -36,7 +36,7 @@ func makeSessionDB(t *testing.T, sessionID, projectDir string) *sql.DB {
 
 func TestCheckProjectDivergence_SameProject(t *testing.T) {
 	projectDir := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(projectDir, ".erinn"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(projectDir, ".wipnote"), 0o755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
 
@@ -65,11 +65,11 @@ func TestCheckProjectDivergence_SameProject(t *testing.T) {
 
 func TestCheckProjectDivergence_DifferentProject_WriteTool_Blocks(t *testing.T) {
 	sessionProject := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(sessionProject, ".erinn"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(sessionProject, ".wipnote"), 0o755); err != nil {
 		t.Fatalf("mkdir session project: %v", err)
 	}
 	otherProject := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(otherProject, ".erinn"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(otherProject, ".wipnote"), 0o755); err != nil {
 		t.Fatalf("mkdir other project: %v", err)
 	}
 
@@ -103,11 +103,11 @@ func TestCheckProjectDivergence_DifferentProject_WriteTool_Blocks(t *testing.T) 
 
 func TestCheckProjectDivergence_DifferentProject_ReadTool_Allows(t *testing.T) {
 	sessionProject := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(sessionProject, ".erinn"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(sessionProject, ".wipnote"), 0o755); err != nil {
 		t.Fatalf("mkdir session project: %v", err)
 	}
 	otherProject := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(otherProject, ".erinn"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(otherProject, ".wipnote"), 0o755); err != nil {
 		t.Fatalf("mkdir other project: %v", err)
 	}
 

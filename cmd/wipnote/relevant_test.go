@@ -41,12 +41,12 @@ const sampleFeatureHTML = `<!DOCTYPE html>
 </body>
 </html>`
 
-// makeRelevantFixture creates a temp .erinn directory with one feature HTML file.
-// Returns the .erinn dir path and a cleanup function.
+// makeRelevantFixture creates a temp .wipnote directory with one feature HTML file.
+// Returns the .wipnote dir path and a cleanup function.
 func makeRelevantFixture(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
-	hgDir := filepath.Join(dir, ".erinn")
+	hgDir := filepath.Join(dir, ".wipnote")
 	featDir := filepath.Join(hgDir, "features")
 	if err := os.MkdirAll(featDir, 0o755); err != nil {
 		t.Fatalf("mkdir: %v", err)
@@ -230,7 +230,7 @@ func TestRelevantResult_JSONShape(t *testing.T) {
 		Status: "in-progress",
 		Score:  3.0,
 		Citations: []citation{
-			{File: ".erinn/features/feat-aabbccdd.html", Line: 10, Snippet: "retrieval"},
+			{File: ".wipnote/features/feat-aabbccdd.html", Line: 10, Snippet: "retrieval"},
 		},
 	}
 

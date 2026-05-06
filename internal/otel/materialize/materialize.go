@@ -228,7 +228,7 @@ var articleOpenTagRe = regexp.MustCompile(`<article\s+[^>]*>`)
 // may not have created one for an OTel-only session. In that case the
 // SQLite rollup is still written and the HTML is simply skipped.
 func writeHTML(projectDir string, r *Rollup, prompts []PromptBreakdown) error {
-	htmlPath := filepath.Join(projectDir, ".erinn", "sessions", r.SessionID+".html")
+	htmlPath := filepath.Join(projectDir, ".wipnote", "sessions", r.SessionID+".html")
 	f, err := os.OpenFile(htmlPath, os.O_RDWR, 0o644)
 	if err != nil {
 		if os.IsNotExist(err) {

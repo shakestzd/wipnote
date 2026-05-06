@@ -91,8 +91,8 @@ func TestEnsureForTrack_ReusesExisting(t *testing.T) {
 func TestResolveTrackForFeature_ReturnsTrackID(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	// Create .erinn/features directory
-	featureDir := filepath.Join(tmpDir, ".erinn", "features")
+	// Create .wipnote/features directory
+	featureDir := filepath.Join(tmpDir, ".wipnote", "features")
 	if err := os.MkdirAll(featureDir, 0755); err != nil {
 		t.Fatalf("failed to create feature dir: %v", err)
 	}
@@ -123,8 +123,8 @@ func TestResolveTrackForFeature_ReturnsTrackID(t *testing.T) {
 func TestResolveTrackForFeature_ReturnsEmptyWhenNoTrack(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	// Create .erinn/features directory
-	featureDir := filepath.Join(tmpDir, ".erinn", "features")
+	// Create .wipnote/features directory
+	featureDir := filepath.Join(tmpDir, ".wipnote", "features")
 	if err := os.MkdirAll(featureDir, 0755); err != nil {
 		t.Fatalf("failed to create feature dir: %v", err)
 	}

@@ -14,16 +14,16 @@ import (
 	"github.com/shakestzd/wipnote/internal/registry"
 )
 
-// globalTestProject creates a tmpdir project with a .erinn dir. Unlike
+// globalTestProject creates a tmpdir project with a .wipnote dir. Unlike
 // the pre-doorway version, it does NOT populate a SQLite schema because
-// the doorway server no longer opens project DBs. A bare .erinn/
+// the doorway server no longer opens project DBs. A bare .wipnote/
 // directory is enough for registry.Upsert to accept the path.
 // A .git directory is also created so looksLikeRealProject passes the
 // git-ancestor check introduced by the registry hardening (bug-cc41e3d2).
 func globalTestProject(t *testing.T) string {
 	t.Helper()
 	tmp := t.TempDir()
-	hgDir := filepath.Join(tmp, ".erinn")
+	hgDir := filepath.Join(tmp, ".wipnote")
 	if err := os.MkdirAll(hgDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -218,7 +218,7 @@ func TestDoorwayNeverOpensDBs(t *testing.T) {
 	p1 := globalTestProject(t)
 	setupGlobalRegistry(t, p1)
 
-	dbPath := filepath.Join(p1, ".erinn", "htmlgraph.db")
+	dbPath := filepath.Join(p1, ".wipnote", "htmlgraph.db")
 
 	// Initialize a minimal schema so we can detect any mutation.
 	db, err := sql.Open("sqlite", dbPath)

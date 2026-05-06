@@ -121,7 +121,7 @@ func TestWriteCollectorPID(t *testing.T) {
 
 	writeCollectorPID(projectDir, sid, pid)
 
-	pidPath := filepath.Join(projectDir, ".erinn", "sessions", sid, ".collector-pid")
+	pidPath := filepath.Join(projectDir, ".wipnote", "sessions", sid, ".collector-pid")
 	got, _, _, err := collector.ReadCollectorPIDFile(pidPath)
 	if err != nil {
 		t.Fatalf("ReadCollectorPIDFile: %v", err)
@@ -139,7 +139,7 @@ func TestWriteCollectorPID_CreatesDirectories(t *testing.T) {
 
 	writeCollectorPID(projectDir, sid, 1234)
 
-	sessDir := filepath.Join(projectDir, ".erinn", "sessions", sid)
+	sessDir := filepath.Join(projectDir, ".wipnote", "sessions", sid)
 	info, err := os.Stat(sessDir)
 	if err != nil {
 		t.Fatalf("session dir not created: %v", err)

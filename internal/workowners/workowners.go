@@ -1,4 +1,4 @@
-// Package workowners parses .erinn/WORKOWNERS files that map gitignore-style
+// Package workowners parses .wipnote/WORKOWNERS files that map gitignore-style
 // glob patterns to track or feature IDs. This provides static, explicit ownership
 // that overrides the heuristic DB-based file ownership resolution.
 //

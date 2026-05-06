@@ -214,7 +214,7 @@ type planFeedbackRequest struct {
 	QuestionID string `json:"question_id"`
 }
 
-// planFileHandler serves HTML plan files from .erinn/plans/{id}.html.
+// planFileHandler serves HTML plan files from .wipnote/plans/{id}.html.
 // GET /plans/{id}.html
 func planFileHandler(htmlgraphDir string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -549,7 +549,7 @@ func planChatHandler(database *sql.DB, htmlgraphDir string) http.HandlerFunc {
 		// Load plan YAML for context.
 		planContext := loadPlanContext(htmlgraphDir, planID)
 
-		// Resolve project dir (parent of .erinn/).
+		// Resolve project dir (parent of .wipnote/).
 		projectDir := filepath.Dir(htmlgraphDir)
 
 		backend := planchat.New(database, planID, planContext, projectDir)

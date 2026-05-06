@@ -85,7 +85,7 @@ func TestSQLiteSink_WriteBatch(t *testing.T) {
 
 func TestNDJSONSink_WriteBatch(t *testing.T) {
 	dir := t.TempDir()
-	sessionDir := filepath.Join(dir, ".erinn", "sessions", "sess-ndjson")
+	sessionDir := filepath.Join(dir, ".wipnote", "sessions", "sess-ndjson")
 	if err := os.MkdirAll(sessionDir, 0o755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
@@ -147,7 +147,7 @@ func TestNDJSONSink_WriteBatch(t *testing.T) {
 
 func TestNDJSONSink_NoDBConnection(t *testing.T) {
 	dir := t.TempDir()
-	sessionDir := filepath.Join(dir, ".erinn", "sessions", "sess-nodb")
+	sessionDir := filepath.Join(dir, ".wipnote", "sessions", "sess-nodb")
 	if err := os.MkdirAll(sessionDir, 0o755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
@@ -173,7 +173,7 @@ func TestNDJSONSink_NoDBConnection(t *testing.T) {
 
 func TestNDJSONSink_Append(t *testing.T) {
 	dir := t.TempDir()
-	sessionDir := filepath.Join(dir, ".erinn", "sessions", "sess-append")
+	sessionDir := filepath.Join(dir, ".wipnote", "sessions", "sess-append")
 	if err := os.MkdirAll(sessionDir, 0o755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}

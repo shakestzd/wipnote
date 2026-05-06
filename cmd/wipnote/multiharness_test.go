@@ -63,7 +63,7 @@ func TestMultiHarnessIngestion(t *testing.T) {
 	// --- Set up the project dir and ndjson sink ---
 	projectDir := t.TempDir()
 	sessionID := "mh-test-session"
-	sessDir := filepath.Join(projectDir, ".erinn", "sessions", sessionID)
+	sessDir := filepath.Join(projectDir, ".wipnote", "sessions", sessionID)
 	if err := os.MkdirAll(sessDir, 0o755); err != nil {
 		t.Fatalf("MkdirAll session dir: %v", err)
 	}

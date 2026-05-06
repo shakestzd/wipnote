@@ -33,10 +33,10 @@ type SessionEvent struct {
 }
 
 // CreateSessionHTML writes the initial session HTML file to
-// .erinn/sessions/{session-id}.html. It creates the sessions directory if
+// .wipnote/sessions/{session-id}.html. It creates the sessions directory if
 // needed. Errors are silently logged via debugLog — HTML is non-critical.
 func CreateSessionHTML(projectDir string, s *models.Session) {
-	sessDir := filepath.Join(projectDir, ".erinn", "sessions")
+	sessDir := filepath.Join(projectDir, ".wipnote", "sessions")
 	if err := os.MkdirAll(sessDir, 0o755); err != nil {
 		debugLog(projectDir, "[session-html] mkdir sessions: %v", err)
 		return
@@ -134,7 +134,7 @@ func CreateSessionHTML(projectDir string, s *models.Session) {
 // and rewrites — preventing lost updates from concurrent hook invocations.
 // Errors are silently logged (non-critical path).
 func AppendEventToSessionHTML(projectDir, sessionID string, ev SessionEvent) {
-	htmlPath := filepath.Join(projectDir, ".erinn", "sessions", sessionID+".html")
+	htmlPath := filepath.Join(projectDir, ".wipnote", "sessions", sessionID+".html")
 
 	f, err := os.OpenFile(htmlPath, os.O_RDWR, 0o644)
 	if err != nil {
@@ -227,7 +227,7 @@ var badgeEventsRe = regexp.MustCompile(`<span class="badge">\d+ events?</span>`)
 // AppendEventToSessionHTML so it does not race a concurrent sweep append
 // or a late PostToolUse write during SessionEnd.
 func FinalizeSessionHTML(projectDir, sessionID, endedAt, status string, eventCount int) {
-	htmlPath := filepath.Join(projectDir, ".erinn", "sessions", sessionID+".html")
+	htmlPath := filepath.Join(projectDir, ".wipnote", "sessions", sessionID+".html")
 	f, err := os.OpenFile(htmlPath, os.O_RDWR, 0o644)
 	if err != nil {
 		// File doesn't exist — silently ignore.
@@ -300,7 +300,7 @@ func FinalizeSessionHTML(projectDir, sessionID, endedAt, status string, eventCou
 // tool call, so the resulting file is byte-for-byte compatible with a
 // live-hook-written session and round-trips through reindexSessions.
 //
-// htmlgraphDir is the .erinn directory of the project receiving the
+// htmlgraphDir is the .wipnote directory of the project receiving the
 // ingest. sessionSourceDir is the decoded Claude-projects project directory
 // the session originated from and is recorded on the session model for
 // display scoping. The render is a no-op when the target HTML file already

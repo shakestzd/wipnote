@@ -74,17 +74,17 @@ type SpecEnforcement struct {
 	FeatureComplete bool `json:"feature_complete"`
 }
 
-// taskCompletionConfig represents the relevant fields from .erinn/config.json.
+// taskCompletionConfig represents the relevant fields from .wipnote/config.json.
 type taskCompletionConfig struct {
 	BlockOnQualityFailure bool            `json:"block_task_completion_on_quality_failure"`
 	SpecEnforcement       SpecEnforcement `json:"spec_enforcement"`
 }
 
-// readTaskCompletionConfig reads the opt-in flag from .erinn/config.json.
+// readTaskCompletionConfig reads the opt-in flag from .wipnote/config.json.
 // Returns false (do not block) when the file is missing, unreadable, or the
 // key is absent.
 func readTaskCompletionConfig(projectDir string) bool {
-	data, err := os.ReadFile(filepath.Join(projectDir, ".erinn", "config.json"))
+	data, err := os.ReadFile(filepath.Join(projectDir, ".wipnote", "config.json"))
 	if err != nil {
 		return false
 	}
@@ -96,11 +96,11 @@ func readTaskCompletionConfig(projectDir string) bool {
 }
 
 // ReadSpecEnforcement returns the opt-in spec_enforcement settings from
-// .erinn/config.json. Returns the zero value (both gates disabled) when
+// .wipnote/config.json. Returns the zero value (both gates disabled) when
 // the file is missing, unreadable, or the key is absent — preserving
 // backward-compatible default-off behavior.
 func ReadSpecEnforcement(projectDir string) SpecEnforcement {
-	data, err := os.ReadFile(filepath.Join(projectDir, ".erinn", "config.json"))
+	data, err := os.ReadFile(filepath.Join(projectDir, ".wipnote", "config.json"))
 	if err != nil {
 		return SpecEnforcement{}
 	}

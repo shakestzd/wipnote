@@ -55,9 +55,9 @@ func TestGetSetMetadata(t *testing.T) {
 
 func TestIdFromHTMLPath(t *testing.T) {
 	cases := []struct{ path, want string }{
-		{"/dir/.erinn/features/feat-abc123.html", "feat-abc123"},
-		{"/dir/.erinn/tracks/trk-def456.html", "trk-def456"},
-		{"/dir/.erinn/spikes/spk-xyz.html", "spk-xyz"},
+		{"/dir/.wipnote/features/feat-abc123.html", "feat-abc123"},
+		{"/dir/.wipnote/tracks/trk-def456.html", "trk-def456"},
+		{"/dir/.wipnote/spikes/spk-xyz.html", "spk-xyz"},
 	}
 	for _, tc := range cases {
 		got := idFromHTMLPath(tc.path)

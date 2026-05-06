@@ -16,7 +16,7 @@ import (
 // serveLockPath returns the path of the per-project serve lock file.
 // The lock file stores the PID of a running `htmlgraph serve` process.
 func serveLockPath(projectDir string) string {
-	return filepath.Join(projectDir, ".erinn", ".serve.lock")
+	return filepath.Join(projectDir, ".wipnote", ".serve.lock")
 }
 
 // ensureServeForDashboard spawns a detached `htmlgraph serve` if one is not
@@ -35,7 +35,7 @@ func serveLockPath(projectDir string) string {
 //     return an error — a missing dashboard is degraded operation, not a
 //     fatal launcher failure.
 //
-// Stdout/stderr go to a log file under .erinn/logs so the orphaned
+// Stdout/stderr go to a log file under .wipnote/logs so the orphaned
 // server doesn't pollute the user's terminal.
 func ensureServeForDashboard(projectDir string) {
 	if isExplicitlyDisabled(os.Getenv("WIPNOTE_OTEL_ENABLED")) {
@@ -98,13 +98,13 @@ func probePort(host string, port int, timeout time.Duration) bool {
 
 // otelNoticeMarkerPath returns the path of the one-time notice marker file.
 func otelNoticeMarkerPath(projectDir string) string {
-	return filepath.Join(projectDir, ".erinn", ".otel-notice-shown")
+	return filepath.Join(projectDir, ".wipnote", ".otel-notice-shown")
 }
 
 // MaybeShowOtelNotice prints a one-time notice to STDERR on first launch
 // explaining that HtmlGraph captures Claude Code telemetry via OTel.
 // Subsequent launches are silent (a marker file records that the notice
-// has been shown). Safe to call when .erinn/ doesn't exist — it
+// has been shown). Safe to call when .wipnote/ doesn't exist — it
 // simply returns without creating the directory or printing anything.
 func MaybeShowOtelNotice(projectDir string) {
 	if projectDir == "" {
@@ -114,9 +114,9 @@ func MaybeShowOtelNotice(projectDir string) {
 	if isExplicitlyDisabled(os.Getenv("WIPNOTE_OTEL_ENABLED")) {
 		return
 	}
-	// Only print when .erinn/ already exists — don't create it just
+	// Only print when .wipnote/ already exists — don't create it just
 	// to write the marker.
-	htmlgraphDir := filepath.Join(projectDir, ".erinn")
+	htmlgraphDir := filepath.Join(projectDir, ".wipnote")
 	if _, err := os.Stat(htmlgraphDir); os.IsNotExist(err) {
 		return
 	}
@@ -133,7 +133,7 @@ func MaybeShowOtelNotice(projectDir string) {
 		"    tool calls, prompts, costs, token usage, and latencies.",
 		"",
 		"  A per-session OTLP collector is started automatically.",
-		"  Data stays 100% local, stored in .erinn/htmlgraph.db.",
+		"  Data stays 100% local, stored in .wipnote/htmlgraph.db.",
 		"",
 		"  Powers: activity feed · per-turn cost badges · span timeline",
 		"  Opt out: set WIPNOTE_OTEL_ENABLED=0 before launching.",
@@ -201,7 +201,7 @@ func debugLog(msg string) {
 // spawnDetachedServe starts `htmlgraph serve` in a new process group so
 // it survives the launcher's exit and keeps serving the dashboard (and
 // the OTel receiver) after claude terminates. Output redirects to
-// .erinn/logs/serve-auto.log.
+// .wipnote/logs/serve-auto.log.
 //
 // Uses os.Executable() for the binary path so the spawned server is
 // the SAME version as the launcher — prevents version skew when the
@@ -211,7 +211,7 @@ func spawnDetachedServe(projectDir string) error {
 	if err != nil {
 		return fmt.Errorf("resolve self path: %w", err)
 	}
-	logDir := filepath.Join(projectDir, ".erinn", "logs")
+	logDir := filepath.Join(projectDir, ".wipnote", "logs")
 	if err := os.MkdirAll(logDir, 0o755); err != nil {
 		return fmt.Errorf("create log dir: %w", err)
 	}

@@ -11,7 +11,7 @@ import (
 // (false, false) when no lock file exists.
 func TestCheckServeLock_NoLockfile(t *testing.T) {
 	dir := t.TempDir()
-	_ = os.MkdirAll(filepath.Join(dir, ".erinn"), 0o755)
+	_ = os.MkdirAll(filepath.Join(dir, ".wipnote"), 0o755)
 
 	skip, stale := checkServeLock(dir)
 	if skip {
@@ -31,7 +31,7 @@ func TestCheckServeLock_NoLockfile(t *testing.T) {
 // process is alive.
 func TestEnsureServeForOtel_SkipsWhenLockfileAlive(t *testing.T) {
 	dir := t.TempDir()
-	hgDir := filepath.Join(dir, ".erinn")
+	hgDir := filepath.Join(dir, ".wipnote")
 	_ = os.MkdirAll(hgDir, 0o755)
 
 	// Write a lock file pointing at the current (live) process.
@@ -54,7 +54,7 @@ func TestEnsureServeForOtel_SkipsWhenLockfileAlive(t *testing.T) {
 // allowing the caller to clean up and proceed with a fresh spawn.
 func TestEnsureServeForOtel_CleansStaleLockfile(t *testing.T) {
 	dir := t.TempDir()
-	hgDir := filepath.Join(dir, ".erinn")
+	hgDir := filepath.Join(dir, ".wipnote")
 	_ = os.MkdirAll(hgDir, 0o755)
 
 	// Use a PID that cannot exist: 99999999 (far beyond OS limit on any platform).
@@ -81,7 +81,7 @@ func TestEnsureServeForOtel_CleansStaleLockfile(t *testing.T) {
 // TestWriteRemoveServeLock verifies the write/remove lifecycle.
 func TestWriteRemoveServeLock(t *testing.T) {
 	dir := t.TempDir()
-	hgDir := filepath.Join(dir, ".erinn")
+	hgDir := filepath.Join(dir, ".wipnote")
 	_ = os.MkdirAll(hgDir, 0o755)
 
 	writeServeLock(dir)

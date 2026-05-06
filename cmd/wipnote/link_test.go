@@ -10,7 +10,7 @@ import (
 
 func TestLinkErrorMessageInvalidPrefix(t *testing.T) {
 	tmpDir := t.TempDir()
-	hgDir := filepath.Join(tmpDir, ".erinn")
+	hgDir := filepath.Join(tmpDir, ".wipnote")
 	for _, sub := range []string{"features", "bugs", "spikes", "tracks", "plans", "specs"} {
 		if err := os.MkdirAll(filepath.Join(hgDir, sub), 0o755); err != nil {
 			t.Fatal(err)
@@ -53,7 +53,7 @@ func TestLinkErrorMessageInvalidPrefix(t *testing.T) {
 
 func TestLinkErrorMessageNoEdge(t *testing.T) {
 	tmpDir := t.TempDir()
-	hgDir := filepath.Join(tmpDir, ".erinn")
+	hgDir := filepath.Join(tmpDir, ".wipnote")
 	for _, sub := range []string{"features", "bugs", "spikes", "tracks", "plans", "specs"} {
 		if err := os.MkdirAll(filepath.Join(hgDir, sub), 0o755); err != nil {
 			t.Fatal(err)
@@ -100,7 +100,7 @@ func TestLinkErrorMessageNoEdge(t *testing.T) {
 
 func TestWorkitemErrorMessageUnknownType(t *testing.T) {
 	tmpDir := t.TempDir()
-	hgDir := filepath.Join(tmpDir, ".erinn")
+	hgDir := filepath.Join(tmpDir, ".wipnote")
 	for _, sub := range []string{"features", "bugs", "spikes", "tracks", "plans", "specs"} {
 		if err := os.MkdirAll(filepath.Join(hgDir, sub), 0o755); err != nil {
 			t.Fatal(err)

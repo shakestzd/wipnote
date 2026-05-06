@@ -117,7 +117,7 @@ func SessionEnd(event *CloudEvent, database *sql.DB, projectDir string) (*HookRe
 // or 2s elapses. Best-effort — if the indexer is behind, materialize will
 // use whatever signals have been indexed so far.
 func waitForIndexerCatchUp(projectDir, sessionID string) {
-	sessDir := filepath.Join(projectDir, ".erinn", "sessions", sessionID)
+	sessDir := filepath.Join(projectDir, ".wipnote", "sessions", sessionID)
 	ndjsonPath := filepath.Join(sessDir, "events.ndjson")
 	offsetPath := filepath.Join(sessDir, ".index-offset")
 
@@ -141,7 +141,7 @@ func waitForIndexerCatchUp(projectDir, sessionID string) {
 // waits up to 3 seconds for a clean drain, then falls back to SIGKILL.
 // All errors are silently logged — the collector PID file is best-effort.
 func signalCollector(projectDir, sessionID string) {
-	pidPath := filepath.Join(projectDir, ".erinn", "sessions", sessionID, ".collector-pid")
+	pidPath := filepath.Join(projectDir, ".wipnote", "sessions", sessionID, ".collector-pid")
 	data, err := os.ReadFile(pidPath)
 	if err != nil {
 		// No PID file — collector was never spawned or already cleaned up.

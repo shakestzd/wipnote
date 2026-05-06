@@ -30,19 +30,19 @@ func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 		return &HookResult{}, nil
 	}
 
-	// Guard: never intercept writes to .erinn/ — mirror of
+	// Guard: never intercept writes to .wipnote/ — mirror of
 	// pretooluse-htmlgraph-guard.py to prevent accidental DB corruption.
-	// Covers Write/Edit/MultiEdit tools AND Bash commands that target .erinn/.
+	// Covers Write/Edit/MultiEdit tools AND Bash commands that target .wipnote/.
 	if isHtmlGraphWrite(event) {
 		return &HookResult{
 			Decision: "block",
-			Reason:   ".erinn/ is managed by HtmlGraph SDK. Use SDK methods instead.",
+			Reason:   ".wipnote/ is managed by HtmlGraph SDK. Use SDK methods instead.",
 		}, nil
 	}
 	if isBashHtmlGraphWrite(event) {
 		return &HookResult{
 			Decision: "block",
-			Reason:   ".erinn/ is managed by HtmlGraph CLI. Use `htmlgraph` commands instead of direct file manipulation.",
+			Reason:   ".wipnote/ is managed by HtmlGraph CLI. Use `htmlgraph` commands instead of direct file manipulation.",
 		}, nil
 	}
 
@@ -308,7 +308,7 @@ func checkBashCwdGuard(event *CloudEvent) string {
 //   - cd dir && cmd1 && cmd2
 var bareCdPattern = regexp.MustCompile(`^cd\s+[^;)]+&&`)
 
-// isHtmlGraphWrite returns true for file-write tools targeting .erinn/.
+// isHtmlGraphWrite returns true for file-write tools targeting .wipnote/.
 func isHtmlGraphWrite(event *CloudEvent) bool {
 	switch event.ToolName {
 	case "Write", "Edit", "MultiEdit":
@@ -324,15 +324,15 @@ func isHtmlGraphWrite(event *CloudEvent) bool {
 
 func containsHtmlgraphDir(path string) bool {
 	for i := range path {
-		if path[i] == '.' && i+11 <= len(path) && path[i:i+11] == ".erinn/" {
+		if path[i] == '.' && i+11 <= len(path) && path[i:i+11] == ".wipnote/" {
 			return true
 		}
 	}
-	return path == ".erinn"
+	return path == ".wipnote"
 }
 
 // isBashHtmlGraphWrite detects Bash commands that directly manipulate
-// .erinn/ files (rm, sed, echo/cat redirect, python -c, mv, cp, etc.).
+// .wipnote/ files (rm, sed, echo/cat redirect, python -c, mv, cp, etc.).
 // These bypass the structured Write/Edit tools and must be blocked.
 func isBashHtmlGraphWrite(event *CloudEvent) bool {
 	if event.ToolName != "Bash" {
@@ -350,35 +350,35 @@ func isBashHtmlGraphWrite(event *CloudEvent) bool {
 }
 
 // bashHtmlGraphCLI matches commands that invoke the htmlgraph CLI binary.
-// These are allowed since the CLI is the approved interface to .erinn/.
+// These are allowed since the CLI is the approved interface to .wipnote/.
 var bashHtmlGraphCLI = regexp.MustCompile(`\bhtmlgraph\b`)
 
-// bashHtmlGraphWritePattern matches Bash commands that write to .erinn/.
+// bashHtmlGraphWritePattern matches Bash commands that write to .wipnote/.
 // Covers: rm, sed -i, echo/cat/tee redirects (> or >>), mv, cp, python -c,
 // touch, chmod, mkdir, and any other direct manipulation.
 var bashHtmlGraphWritePattern = regexp.MustCompile(
 	`(?:` +
-		`\brm\s+.*\.erinn/` +
+		`\brm\s+.*\.wipnote/` +
 		`|` +
-		`\bsed\s+-i.*\.erinn/` +
+		`\bsed\s+-i.*\.wipnote/` +
 		`|` +
-		`>[^&\s]\S*\.erinn/` +
+		`>[^&\s]\S*\.wipnote/` +
 		`|` +
-		`>>[^&\s]\S*\.erinn/` +
+		`>>[^&\s]\S*\.wipnote/` +
 		`|` +
-		`\btee\s+\S*\.erinn/` +
+		`\btee\s+\S*\.wipnote/` +
 		`|` +
-		`\bmv\s+.*\.erinn/` +
+		`\bmv\s+.*\.wipnote/` +
 		`|` +
-		`\bcp\s+.*\.erinn/` +
+		`\bcp\s+.*\.wipnote/` +
 		`|` +
-		`\btouch\s+\S*\.erinn/` +
+		`\btouch\s+\S*\.wipnote/` +
 		`|` +
-		`\bchmod\s+.*\.erinn/` +
+		`\bchmod\s+.*\.wipnote/` +
 		`|` +
-		`\bmkdir\s+.*\.erinn/` +
+		`\bmkdir\s+.*\.wipnote/` +
 		`|` +
-		`\bpython[23]?\s+-c\s+.*\.erinn/` +
+		`\bpython[23]?\s+-c\s+.*\.wipnote/` +
 		`)`,
 )
 
@@ -548,7 +548,7 @@ func toInt(v any) int {
 
 // checkProjectDivergence compares the CWD of the current event against the
 // project_dir stored in the session row. When they resolve to different
-// .erinn/ roots:
+// .wipnote/ roots:
 //   - Write tools are blocked with a clear error message.
 //   - Read-only tools are silently allowed, but a warning is written to debug.log.
 //

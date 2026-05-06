@@ -12,14 +12,14 @@ import (
 	"github.com/shakestzd/wipnote/internal/registry"
 )
 
-// makeProjectDBWithSchema creates a tmpdir "project" with a .erinn/
+// makeProjectDBWithSchema creates a tmpdir "project" with a .wipnote/
 // subdirectory and a SQLite DB that has a `features` table matching the
 // real htmlgraph schema (type column — 'feature' | 'bug' | 'spike').
 // Populates a few rows so ITEMS counts are non-zero.
 func makeProjectDBWithSchema(t *testing.T, numFeatures, numBugs, numSpikes int) string {
 	t.Helper()
 	tmp := t.TempDir()
-	hgDir := filepath.Join(tmp, ".erinn")
+	hgDir := filepath.Join(tmp, ".wipnote")
 	if err := os.MkdirAll(filepath.Join(hgDir, ".db"), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -60,7 +60,7 @@ func makeProjectDBWithSchema(t *testing.T, numFeatures, numBugs, numSpikes int) 
 }
 
 // withRegistryAtAndStale sets up a registry with entries that were previously registered
-// but whose .erinn directories may have been deleted (stale). It writes entries directly
+// but whose .wipnote directories may have been deleted (stale). It writes entries directly
 // via registry.WriteEntriesForTest — bypassing Upsert's looksLikeRealProject guard so the
 // tests can verify prune behavior. The on-disk format is sourced from the same atomic-write
 // path Save uses, so this helper cannot drift if the schema evolves.
@@ -94,14 +94,14 @@ func withRegistryAtAndStale(t *testing.T, entries []registry.Entry) string {
 func TestProjectsList_Output(t *testing.T) {
 	realProject := makeProjectDBWithSchema(t, 3, 2, 1)
 	staleProjectDir := filepath.Join(t.TempDir(), "stale-project")
-	if err := os.MkdirAll(filepath.Join(staleProjectDir, ".erinn"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(staleProjectDir, ".wipnote"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.MkdirAll(filepath.Join(staleProjectDir, ".git"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	// Remove .erinn to make it stale
-	if err := os.RemoveAll(filepath.Join(staleProjectDir, ".erinn")); err != nil {
+	// Remove .wipnote to make it stale
+	if err := os.RemoveAll(filepath.Join(staleProjectDir, ".wipnote")); err != nil {
 		t.Fatal(err)
 	}
 
@@ -140,14 +140,14 @@ func TestProjectsList_Output(t *testing.T) {
 func TestProjectsPrune_RemovesAndSaves(t *testing.T) {
 	realProject := makeProjectDBWithSchema(t, 0, 0, 0)
 	staleProjectDir := filepath.Join(t.TempDir(), "stale-project")
-	if err := os.MkdirAll(filepath.Join(staleProjectDir, ".erinn"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(staleProjectDir, ".wipnote"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.MkdirAll(filepath.Join(staleProjectDir, ".git"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	// Remove .erinn to make it stale
-	if err := os.RemoveAll(filepath.Join(staleProjectDir, ".erinn")); err != nil {
+	// Remove .wipnote to make it stale
+	if err := os.RemoveAll(filepath.Join(staleProjectDir, ".wipnote")); err != nil {
 		t.Fatal(err)
 	}
 
@@ -192,7 +192,7 @@ func TestProjectsList_NoMigrations(t *testing.T) {
 	withRegistryAtAndStale(t, []registry.Entry{{ProjectDir: realProject, Name: "real"}})
 
 	// Snapshot table set before.
-	dbPath := filepath.Join(realProject, ".erinn", ".db", "htmlgraph.db")
+	dbPath := filepath.Join(realProject, ".wipnote", ".db", "htmlgraph.db")
 	before := readTableNames(t, dbPath)
 
 	cmd := projectsCmd()
@@ -238,14 +238,14 @@ func TestPruneSince_3d_RemovesOlder(t *testing.T) {
 	old := time.Now().Add(-4 * 24 * time.Hour).UTC().Format(time.RFC3339)
 	recent := time.Now().Add(-1 * time.Hour).UTC().Format(time.RFC3339)
 
-	// Create actual projects with .erinn directories
+	// Create actual projects with .wipnote directories
 	tmpHome := t.TempDir()
 	oldProj := filepath.Join(tmpHome, "old-project")
 	recentProj := filepath.Join(tmpHome, "recent-project")
-	if err := os.MkdirAll(filepath.Join(oldProj, ".erinn"), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(oldProj, ".wipnote"), 0755); err != nil {
 		t.Fatalf("create old project: %v", err)
 	}
-	if err := os.MkdirAll(filepath.Join(recentProj, ".erinn"), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(recentProj, ".wipnote"), 0755); err != nil {
 		t.Fatalf("create recent project: %v", err)
 	}
 
@@ -317,10 +317,10 @@ func TestPruneTempdirOnly_RemovesTestPaths(t *testing.T) {
 func TestPruneDryRun_DoesNotWrite(t *testing.T) {
 	old := time.Now().Add(-4 * 24 * time.Hour).UTC().Format(time.RFC3339)
 
-	// Create a project with .erinn directory
+	// Create a project with .wipnote directory
 	tmpHome := t.TempDir()
 	oldProj := filepath.Join(tmpHome, "old-dry-project")
-	if err := os.MkdirAll(filepath.Join(oldProj, ".erinn"), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(oldProj, ".wipnote"), 0755); err != nil {
 		t.Fatalf("create project: %v", err)
 	}
 
@@ -362,7 +362,7 @@ func TestPruneDryRun_DoesNotWrite(t *testing.T) {
 func TestPruneTempdirEntries_HonorsEnvVar(t *testing.T) {
 	// Create a real project outside tempdir
 	realProj := filepath.Join(t.TempDir(), "real-project")
-	if err := os.MkdirAll(filepath.Join(realProj, ".erinn"), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(realProj, ".wipnote"), 0755); err != nil {
 		t.Fatalf("create real project: %v", err)
 	}
 

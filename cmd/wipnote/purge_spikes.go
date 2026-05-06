@@ -13,7 +13,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// purgeSpikesCmd scans .erinn/spikes/, identifies stale todo spikes, and
+// purgeSpikesCmd scans .wipnote/spikes/, identifies stale todo spikes, and
 // deletes them. Kept spikes: done/in-progress, track-linked, or manual filenames.
 func purgeSpikesCmd() *cobra.Command {
 	var dryRun bool
@@ -21,7 +21,7 @@ func purgeSpikesCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "purge-spikes",
 		Short: "Remove stale todo spikes, keeping linked and done spikes",
-		Long: `Scans .erinn/spikes/ and deletes stale todo spikes.
+		Long: `Scans .wipnote/spikes/ and deletes stale todo spikes.
 
 A spike is KEPT if any of the following are true:
   - Status is done or in-progress

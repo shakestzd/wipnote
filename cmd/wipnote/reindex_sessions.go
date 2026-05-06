@@ -47,7 +47,7 @@ func reindexSessions(database *sql.DB, sessionDir, projectDir string) (int, int,
 // fallbackProjectDir is used when the HTML file predates the
 // data-project-dir attribute. It should be the filesystem path of the
 // project that owns the sessionDir being walked (typically the parent of
-// .erinn/). This prevents bug-a52d5bf9, where sessions were written
+// .wipnote/). This prevents bug-a52d5bf9, where sessions were written
 // without any project_dir and polluted every project's dashboard.
 func parseSessionHTML(database *sql.DB, path, fallbackProjectDir string) (int, error) {
 	f, err := os.Open(path)

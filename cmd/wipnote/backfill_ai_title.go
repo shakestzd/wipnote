@@ -19,7 +19,7 @@ const (
 
 // startAITitleBackfill launches the one-time ai-title backfill in the background.
 // It is non-blocking: it spawns a goroutine and returns immediately.
-// The backfill is gated by a sentinel file at .erinn/migrations/ai-title-backfill.done.
+// The backfill is gated by a sentinel file at .wipnote/migrations/ai-title-backfill.done.
 func startAITitleBackfill(_ context.Context, database *sql.DB, htmlgraphDir string) {
 	go func() {
 		if err := runAITitleBackfill(database, htmlgraphDir, false); err != nil {

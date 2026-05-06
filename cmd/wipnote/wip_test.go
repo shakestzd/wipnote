@@ -8,7 +8,7 @@ import (
 
 func TestWipResetWithoutForceError(t *testing.T) {
 	tmpDir := t.TempDir()
-	hgDir := filepath.Join(tmpDir, ".erinn")
+	hgDir := filepath.Join(tmpDir, ".wipnote")
 	for _, sub := range []string{"features", "bugs", "spikes", "tracks", "plans", "specs"} {
 		if err := os.MkdirAll(filepath.Join(hgDir, sub), 0o755); err != nil {
 			t.Fatal(err)
@@ -42,7 +42,7 @@ func TestWipResetWithoutForceError(t *testing.T) {
 
 func TestWipResetWithoutForceErrorMultipleItems(t *testing.T) {
 	tmpDir := t.TempDir()
-	hgDir := filepath.Join(tmpDir, ".erinn")
+	hgDir := filepath.Join(tmpDir, ".wipnote")
 	for _, sub := range []string{"features", "bugs", "spikes", "tracks", "plans", "specs"} {
 		if err := os.MkdirAll(filepath.Join(hgDir, sub), 0o755); err != nil {
 			t.Fatal(err)
@@ -82,7 +82,7 @@ func TestWipResetWithoutForceErrorMultipleItems(t *testing.T) {
 
 func TestWipResetWithForceSucceeds(t *testing.T) {
 	tmpDir := t.TempDir()
-	hgDir := filepath.Join(tmpDir, ".erinn")
+	hgDir := filepath.Join(tmpDir, ".wipnote")
 	for _, sub := range []string{"features", "bugs", "spikes", "tracks", "plans", "specs"} {
 		if err := os.MkdirAll(filepath.Join(hgDir, sub), 0o755); err != nil {
 			t.Fatal(err)

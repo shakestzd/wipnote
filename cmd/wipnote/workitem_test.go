@@ -41,7 +41,7 @@ func testSetupTrack(t *testing.T, hgDir string) string {
 
 func TestAutoTrackEdgesOnCreate(t *testing.T) {
 	tmpDir := t.TempDir()
-	hgDir := filepath.Join(tmpDir, ".erinn")
+	hgDir := filepath.Join(tmpDir, ".wipnote")
 	for _, sub := range []string{"features", "bugs", "spikes", "tracks", "plans", "specs"} {
 		if err := os.MkdirAll(filepath.Join(hgDir, sub), 0o755); err != nil {
 			t.Fatal(err)
@@ -105,7 +105,7 @@ func TestAutoTrackEdgesOnCreate(t *testing.T) {
 
 func TestAutoTrackEdgesNotCreatedForTrack(t *testing.T) {
 	tmpDir := t.TempDir()
-	hgDir := filepath.Join(tmpDir, ".erinn")
+	hgDir := filepath.Join(tmpDir, ".wipnote")
 	for _, sub := range []string{"features", "bugs", "spikes", "tracks", "plans", "specs"} {
 		os.MkdirAll(filepath.Join(hgDir, sub), 0o755)
 	}
@@ -130,7 +130,7 @@ func TestAutoTrackEdgesNotCreatedForTrack(t *testing.T) {
 
 func TestAutoImplementedInEdgeOnStart(t *testing.T) {
 	tmpDir := t.TempDir()
-	hgDir := filepath.Join(tmpDir, ".erinn")
+	hgDir := filepath.Join(tmpDir, ".wipnote")
 	for _, sub := range []string{"features", "bugs", "spikes", "tracks", "plans", "specs"} {
 		os.MkdirAll(filepath.Join(hgDir, sub), 0o755)
 	}
@@ -183,7 +183,7 @@ func TestAutoImplementedInEdgeOnStart(t *testing.T) {
 
 func TestNoImplementedInEdgeWithoutSession(t *testing.T) {
 	tmpDir := t.TempDir()
-	hgDir := filepath.Join(tmpDir, ".erinn")
+	hgDir := filepath.Join(tmpDir, ".wipnote")
 	for _, sub := range []string{"features", "bugs", "spikes", "tracks", "plans", "specs"} {
 		os.MkdirAll(filepath.Join(hgDir, sub), 0o755)
 	}
@@ -218,7 +218,7 @@ func TestNoImplementedInEdgeWithoutSession(t *testing.T) {
 
 func TestAutoCausedByEdgeOnBugCreate(t *testing.T) {
 	tmpDir := t.TempDir()
-	hgDir := filepath.Join(tmpDir, ".erinn")
+	hgDir := filepath.Join(tmpDir, ".wipnote")
 	for _, sub := range []string{"features", "bugs", "spikes", "tracks", "plans", "specs"} {
 		os.MkdirAll(filepath.Join(hgDir, sub), 0o755)
 	}
@@ -263,7 +263,7 @@ func TestAutoCausedByEdgeOnBugCreate(t *testing.T) {
 
 func TestBugCreateNoLinkSkipsCausedBy(t *testing.T) {
 	tmpDir := t.TempDir()
-	hgDir := filepath.Join(tmpDir, ".erinn")
+	hgDir := filepath.Join(tmpDir, ".wipnote")
 	for _, sub := range []string{"features", "bugs", "spikes", "tracks", "plans", "specs"} {
 		os.MkdirAll(filepath.Join(hgDir, sub), 0o755)
 	}
@@ -294,7 +294,7 @@ func TestBugCreateNoLinkSkipsCausedBy(t *testing.T) {
 
 func TestFeatureCreateRequiresDescription(t *testing.T) {
 	tmpDir := t.TempDir()
-	hgDir := filepath.Join(tmpDir, ".erinn")
+	hgDir := filepath.Join(tmpDir, ".wipnote")
 	for _, sub := range []string{"features", "bugs", "spikes", "tracks", "plans", "specs"} {
 		os.MkdirAll(filepath.Join(hgDir, sub), 0o755)
 	}
@@ -333,7 +333,7 @@ func TestFeatureCreateRequiresDescription(t *testing.T) {
 
 func TestBugCreateRequiresDescription(t *testing.T) {
 	tmpDir := t.TempDir()
-	hgDir := filepath.Join(tmpDir, ".erinn")
+	hgDir := filepath.Join(tmpDir, ".wipnote")
 	for _, sub := range []string{"features", "bugs", "spikes", "tracks", "plans", "specs"} {
 		os.MkdirAll(filepath.Join(hgDir, sub), 0o755)
 	}
@@ -372,7 +372,7 @@ func TestBugCreateRequiresDescription(t *testing.T) {
 
 func TestSpecCreateNoDescriptionWarning(t *testing.T) {
 	tmpDir := t.TempDir()
-	hgDir := filepath.Join(tmpDir, ".erinn")
+	hgDir := filepath.Join(tmpDir, ".wipnote")
 	for _, sub := range []string{"features", "bugs", "spikes", "tracks", "plans", "specs"} {
 		os.MkdirAll(filepath.Join(hgDir, sub), 0o755)
 	}
@@ -397,7 +397,7 @@ func TestSpecCreateNoDescriptionWarning(t *testing.T) {
 
 func TestRunWiSetStatus_BlockedClearsCache(t *testing.T) {
 	tmpDir := t.TempDir()
-	hgDir := filepath.Join(tmpDir, ".erinn")
+	hgDir := filepath.Join(tmpDir, ".wipnote")
 	for _, sub := range []string{"features", "bugs", "spikes", "tracks", "plans", "specs"} {
 		os.MkdirAll(filepath.Join(hgDir, sub), 0o755)
 	}
@@ -470,7 +470,7 @@ func TestCreateWithDescription_AllKinds(t *testing.T) {
 		tc := tc
 		t.Run(tc.kind, func(t *testing.T) {
 			tmpDir := t.TempDir()
-			hgDir := filepath.Join(tmpDir, ".erinn")
+			hgDir := filepath.Join(tmpDir, ".wipnote")
 			for _, sub := range []string{"features", "bugs", "spikes", "tracks", "plans", "specs"} {
 				if err := os.MkdirAll(filepath.Join(hgDir, sub), 0o755); err != nil {
 					t.Fatal(err)
@@ -536,7 +536,7 @@ func TestSetDescription_AllKinds(t *testing.T) {
 		tc := tc
 		t.Run(tc.kind, func(t *testing.T) {
 			tmpDir := t.TempDir()
-			hgDir := filepath.Join(tmpDir, ".erinn")
+			hgDir := filepath.Join(tmpDir, ".wipnote")
 			for _, sub := range []string{"features", "bugs", "spikes", "tracks", "plans", "specs"} {
 				if err := os.MkdirAll(filepath.Join(hgDir, sub), 0o755); err != nil {
 					t.Fatal(err)
@@ -688,12 +688,12 @@ func TestWarnMissingFields_BugErrorMessageRetrievalFirst(t *testing.T) {
 	}
 }
 
-// testHgDirWithDB creates a temp dir with .erinn subdirs and a seeded
+// testHgDirWithDB creates a temp dir with .wipnote subdirs and a seeded
 // session row. Returns tmpDir, hgDir, and the pre-opened DB (caller closes it).
 func testHgDirWithDB(t *testing.T, sessionID string) (tmpDir, hgDir string) {
 	t.Helper()
 	tmpDir = t.TempDir()
-	hgDir = filepath.Join(tmpDir, ".erinn")
+	hgDir = filepath.Join(tmpDir, ".wipnote")
 	for _, sub := range []string{"features", "bugs", "spikes", "tracks", "plans", "specs"} {
 		if err := os.MkdirAll(filepath.Join(hgDir, sub), 0o755); err != nil {
 			t.Fatal(err)
@@ -1302,12 +1302,12 @@ func TestRunWiSetStatus_SubagentsDoNotStompLegacyColumn(t *testing.T) {
 
 // --- Feature-complete spec-enforcement gate (feat-0fd7c8bc) ----------
 
-// setupFeatureGateProject creates a project root with a .erinn subdir.
+// setupFeatureGateProject creates a project root with a .wipnote subdir.
 // Returns the htmlgraphDir.
 func setupFeatureGateProject(t *testing.T) string {
 	t.Helper()
 	projectRoot := t.TempDir()
-	hgDir := filepath.Join(projectRoot, ".erinn")
+	hgDir := filepath.Join(projectRoot, ".wipnote")
 	for _, sub := range []string{"features", "bugs", "tracks", "plans", "specs", "spikes"} {
 		if err := os.MkdirAll(filepath.Join(hgDir, sub), 0o755); err != nil {
 			t.Fatalf("mkdir %s: %v", sub, err)

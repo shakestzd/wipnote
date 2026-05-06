@@ -788,8 +788,8 @@ func hasStagedUIFiles() bool {
 			continue
 		}
 		lower := strings.ToLower(line)
-		// Skip data files — .erinn/ HTML files are work items, not UI.
-		if strings.Contains(lower, ".erinn/") {
+		// Skip data files — .wipnote/ HTML files are work items, not UI.
+		if strings.Contains(lower, ".wipnote/") {
 			continue
 		}
 		// UI directories.
@@ -838,7 +838,7 @@ func checkYoloUIValidationGuard(event *CloudEvent, yolo bool, database *sql.DB, 
 	}
 
 	// Check if any UI files were modified in this session.
-	// Exclude .erinn/ work item HTML files — those are data, not UI.
+	// Exclude .wipnote/ work item HTML files — those are data, not UI.
 	var uiFileCount int
 	database.QueryRow(`
 		SELECT COUNT(*) FROM agent_events
@@ -847,7 +847,7 @@ func checkYoloUIValidationGuard(event *CloudEvent, yolo bool, database *sql.DB, 
 		    OR input_summary LIKE '%.js%'  OR input_summary LIKE '%.ts%'
 		    OR input_summary LIKE '%.tsx%' OR input_summary LIKE '%.vue%'
 		    OR input_summary LIKE '%.svelte%')
-		  AND input_summary NOT LIKE '%.erinn/%'
+		  AND input_summary NOT LIKE '%.wipnote/%'
 		  AND status = 'completed'`,
 		sessionID,
 	).Scan(&uiFileCount)

@@ -2,7 +2,7 @@ package hooks
 
 const (
 	// --- Project Directory Resolution ---
-	// Default walk-up levels when resolving .erinn/ directory
+	// Default walk-up levels when resolving .wipnote/ directory
 	defaultProjectDirWalkLevels = 10
 
 	// --- Text Truncation Limits ---

@@ -247,8 +247,8 @@ func featuresFromDB(database *sql.DB) []map[string]any {
 	return features
 }
 
-// featuresFromHTML scans .erinn/features/*.html, .erinn/bugs/*.html,
-// .erinn/spikes/*.html, .erinn/tracks/*.html and parses each file.
+// featuresFromHTML scans .wipnote/features/*.html, .wipnote/bugs/*.html,
+// .wipnote/spikes/*.html, .wipnote/tracks/*.html and parses each file.
 func featuresFromHTML(projectDir string) []map[string]any {
 	// Build track title lookup from tracks/*.html first.
 	trackTitles := buildTrackTitles(projectDir)

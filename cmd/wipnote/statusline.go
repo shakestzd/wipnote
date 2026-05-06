@@ -110,7 +110,7 @@ func statuslineFromSession(dir, sessionID string) error {
 // resolveTrackContext returns a formatted track summary if the feature belongs to a track.
 // Format: "track_icon Track Title [done/total]"
 // Returns empty string if no track.
-// dir is the .erinn directory; it is used to read HTML files for accurate counts
+// dir is the .wipnote directory; it is used to read HTML files for accurate counts
 // since the SQLite features table may be stale (not all features are indexed).
 func resolveTrackContext(database *sql.DB, dir, featureID string) string {
 	// Check track_id in SQLite first (fast path).
@@ -278,7 +278,7 @@ func ReadStatuslineCache(htmlgraphDir string) string {
 }
 
 // statuslineCachePath returns the project-scoped cache file path.
-// Format: <cacheDir>/.erinn-statusline-<hash8>
+// Format: <cacheDir>/.wipnote-statusline-<hash8>
 func statuslineCachePath(htmlgraphDir string) string {
 	cacheDir := os.Getenv("WIPNOTE_CACHE_DIR")
 	if cacheDir == "" {
@@ -293,5 +293,5 @@ func statuslineCachePath(htmlgraphDir string) string {
 	}
 	h := sha256.Sum256([]byte(filepath.Clean(htmlgraphDir)))
 	suffix := hex.EncodeToString(h[:4]) // 8 hex chars
-	return filepath.Join(cacheDir, ".erinn-statusline-"+suffix)
+	return filepath.Join(cacheDir, ".wipnote-statusline-"+suffix)
 }

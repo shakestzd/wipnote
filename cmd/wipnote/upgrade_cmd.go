@@ -258,7 +258,7 @@ func atomicReplace(src, dest string) error {
 // checkWritable verifies the directory is writable by attempting to create a
 // temp file inside it.
 func checkWritable(dir string) error {
-	tmp, err := os.CreateTemp(dir, ".erinn-write-test-*")
+	tmp, err := os.CreateTemp(dir, ".wipnote-write-test-*")
 	if err != nil {
 		return err
 	}

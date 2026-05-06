@@ -48,11 +48,11 @@ type LaunchOpts struct {
 	Name string
 	// ExtraArgs are forwarded to the claude process.
 	ExtraArgs []string
-	// ProjectRoot is the absolute path to the project root (directory containing .erinn/).
+	// ProjectRoot is the absolute path to the project root (directory containing .wipnote/).
 	// When set, Claude Code is started with this as the working directory, and path-sensitive
 	// helpers (writeLaunchMarker, etc.) anchor their paths here instead of CWD.
 	ProjectRoot string
-	// HtmlgraphRoot, if set, is the main repo root containing the canonical .erinn/.
+	// HtmlgraphRoot, if set, is the main repo root containing the canonical .wipnote/.
 	// Used when ProjectRoot is a worktree — all work item tracking resolves to this path
 	// instead of the worktree copy. Injected as WIPNOTE_PROJECT_DIR env var.
 	HtmlgraphRoot string
@@ -153,7 +153,7 @@ func launchClaudeDev(extraArgs []string, auto bool, resumeID, name string) error
 	// resolveProjectPluginDir walks up from CWD to find plugin/.claude-plugin/plugin.json.
 	pluginDir := resolveProjectPluginDir()
 	if pluginDir == "" {
-		return fmt.Errorf("could not find plugin/ directory relative to project root. Run from the project directory containing .erinn/ and plugin/")
+		return fmt.Errorf("could not find plugin/ directory relative to project root. Run from the project directory containing .wipnote/ and plugin/")
 	}
 	// Verify expected plugin structure.
 	if _, err := os.Stat(filepath.Join(pluginDir, ".claude-plugin", "plugin.json")); os.IsNotExist(err) {
@@ -257,9 +257,9 @@ func claudeSettingsJSONPath() string {
 
 // devModeBackupPath returns the path to the dev-mode backup state file.
 func devModeBackupPath(projectRoot string) string {
-	base := ".erinn"
+	base := ".wipnote"
 	if projectRoot != "" {
-		base = filepath.Join(projectRoot, ".erinn")
+		base = filepath.Join(projectRoot, ".wipnote")
 	}
 	return filepath.Join(base, ".dev-mode-backup")
 }
@@ -350,9 +350,9 @@ func cleanupStaleDev(projectRoot string) {
 }
 
 func launchClaudeInit(extraArgs []string, resumeID, name string) error {
-	// --init always uses CWD — never walk up to a parent with .erinn/.
+	// --init always uses CWD — never walk up to a parent with .wipnote/.
 	// The user explicitly wants to work in THIS directory, which may not
-	// have .erinn/ yet. Walk-up would anchor to the wrong project.
+	// have .wipnote/ yet. Walk-up would anchor to the wrong project.
 	projectRoot, _ := os.Getwd()
 	cleanupStaleDev(projectRoot)
 	ensurePluginOnLaunch()
@@ -493,7 +493,7 @@ func launchClaude(opts LaunchOpts) error {
 	ensureServeForDashboard(opts.ProjectRoot)
 
 	// Generate a per-session ID and spawn a per-session OTel collector.
-	// The collector writes NDJSON to .erinn/sessions/<sid>/ and
+	// The collector writes NDJSON to .wipnote/sessions/<sid>/ and
 	// exposes an ephemeral OTLP HTTP port. Non-fatal: on failure, the
 	// existing serve-based receiver is used as fallback.
 	var envOverrides otelEnvOverrides
@@ -530,7 +530,7 @@ func launchClaude(opts LaunchOpts) error {
 	return runHarnessWithCleanup(c, envOverrides.Cleanup)
 }
 
-// writeLaunchMarker writes .erinn/.launch-mode for hooks to detect the launch mode.
+// writeLaunchMarker writes .wipnote/.launch-mode for hooks to detect the launch mode.
 // projectRoot must be non-empty; if it is empty the write is skipped to avoid
 // polluting whatever directory the user happens to be in.
 func writeLaunchMarker(mode, projectRoot string) {
@@ -546,7 +546,7 @@ func writeLaunchMarker(mode, projectRoot string) {
 	if err != nil {
 		return
 	}
-	dir := filepath.Join(projectRoot, ".erinn")
+	dir := filepath.Join(projectRoot, ".wipnote")
 	os.MkdirAll(dir, 0755)                                       //nolint:errcheck
 	os.WriteFile(filepath.Join(dir, ".launch-mode"), data, 0644) //nolint:errcheck
 }

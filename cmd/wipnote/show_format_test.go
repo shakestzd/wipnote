@@ -82,12 +82,12 @@ const samplePlanHTML = `<!DOCTYPE html>
 </body>
 </html>`
 
-// makeShowFixture creates a temp .erinn directory with a single HTML file
+// makeShowFixture creates a temp .wipnote directory with a single HTML file
 // in the given subdir with the given filename and content. Returns the tmpDir.
 func makeShowFixture(t *testing.T, subdir, filename, content string) string {
 	t.Helper()
 	tmpDir := t.TempDir()
-	hgDir := filepath.Join(tmpDir, ".erinn")
+	hgDir := filepath.Join(tmpDir, ".wipnote")
 	for _, sub := range []string{"features", "bugs", "spikes", "tracks", "plans", "specs"} {
 		if err := os.MkdirAll(filepath.Join(hgDir, sub), 0o755); err != nil {
 			t.Fatalf("mkdir %s: %v", sub, err)

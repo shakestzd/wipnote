@@ -52,7 +52,7 @@ func buildCmd() *cobra.Command {
 // Search order:
 //  1. CLAUDE_PLUGIN_ROOT env var (always set in hook/plugin context)
 //  2. WIPNOTE_PLUGIN_DIR env var (explicit user override)
-//  3. project-root detection (find .erinn/, look for plugin/ next to it)
+//  3. project-root detection (find .wipnote/, look for plugin/ next to it)
 //  4. os.Executable() walk-up (dev mode: binary inside plugin tree)
 func resolveBuildScript() (string, error) {
 	// Helper: probe whether a plugin dir has build.sh.
@@ -77,14 +77,14 @@ func resolveBuildScript() (string, error) {
 		return s, nil
 	}
 
-	// 3. Project-root detection: find the .erinn/ directory walking up from
-	//    CWD, then look for plugin/ adjacent to .erinn/.
+	// 3. Project-root detection: find the .wipnote/ directory walking up from
+	//    CWD, then look for plugin/ adjacent to .wipnote/.
 	//    This works when the user runs `htmlgraph build` from anywhere inside
 	//    the project tree (standalone CLI case).
 	if cwd, err := os.Getwd(); err == nil {
 		dir := cwd
 		for {
-			if _, err := os.Stat(filepath.Join(dir, ".erinn")); err == nil {
+			if _, err := os.Stat(filepath.Join(dir, ".wipnote")); err == nil {
 				candidate := filepath.Join(dir, "plugin", "build.sh")
 				if _, err := os.Stat(candidate); err == nil {
 					return candidate, nil

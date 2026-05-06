@@ -11,14 +11,14 @@ import (
 )
 
 func TestSessionStartStoresProjectDir(t *testing.T) {
-	// Set up a temporary project directory with a .erinn subdir.
+	// Set up a temporary project directory with a .wipnote subdir.
 	projectDir := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(projectDir, ".erinn"), 0o755); err != nil {
-		t.Fatalf("mkdir .erinn: %v", err)
+	if err := os.MkdirAll(filepath.Join(projectDir, ".wipnote"), 0o755); err != nil {
+		t.Fatalf("mkdir .wipnote: %v", err)
 	}
 
 	// Open an in-memory SQLite database.
-	database, err := db.Open(filepath.Join(projectDir, ".erinn", "htmlgraph.db"))
+	database, err := db.Open(filepath.Join(projectDir, ".wipnote", "htmlgraph.db"))
 	if err != nil {
 		t.Fatalf("db.Open: %v", err)
 	}
@@ -52,11 +52,11 @@ func TestSessionStartStoresProjectDir(t *testing.T) {
 
 func TestSessionStartActiveSessionContainsProjectDir(t *testing.T) {
 	projectDir := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(projectDir, ".erinn"), 0o755); err != nil {
-		t.Fatalf("mkdir .erinn: %v", err)
+	if err := os.MkdirAll(filepath.Join(projectDir, ".wipnote"), 0o755); err != nil {
+		t.Fatalf("mkdir .wipnote: %v", err)
 	}
 
-	database, err := db.Open(filepath.Join(projectDir, ".erinn", "htmlgraph.db"))
+	database, err := db.Open(filepath.Join(projectDir, ".wipnote", "htmlgraph.db"))
 	if err != nil {
 		t.Fatalf("db.Open: %v", err)
 	}
@@ -99,11 +99,11 @@ func TestSessionStartActiveSessionContainsProjectDir(t *testing.T) {
 func TestSessionStartWorktreeParentSessionIDPopulated(t *testing.T) {
 	// Set up the project directory.
 	mainDir := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(mainDir, ".erinn"), 0o755); err != nil {
-		t.Fatalf("mkdir .erinn: %v", err)
+	if err := os.MkdirAll(filepath.Join(mainDir, ".wipnote"), 0o755); err != nil {
+		t.Fatalf("mkdir .wipnote: %v", err)
 	}
 
-	database, err := db.Open(filepath.Join(mainDir, ".erinn", "htmlgraph.db"))
+	database, err := db.Open(filepath.Join(mainDir, ".wipnote", "htmlgraph.db"))
 	if err != nil {
 		t.Fatalf("db.Open: %v", err)
 	}
@@ -169,14 +169,14 @@ func TestSessionStartWorktreeParentSessionIDPopulated(t *testing.T) {
 func TestSessionStart_PrefersClaudeProjectDirOverCWD(t *testing.T) {
 	// Project A: where Claude Code was launched (CLAUDE_PROJECT_DIR).
 	projectA := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(projectA, ".erinn"), 0o755); err != nil {
-		t.Fatalf("mkdir .erinn in A: %v", err)
+	if err := os.MkdirAll(filepath.Join(projectA, ".wipnote"), 0o755); err != nil {
+		t.Fatalf("mkdir .wipnote in A: %v", err)
 	}
 
 	// Project B: where the user cd'd during the session.
 	projectB := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(projectB, ".erinn"), 0o755); err != nil {
-		t.Fatalf("mkdir .erinn in B: %v", err)
+	if err := os.MkdirAll(filepath.Join(projectB, ".wipnote"), 0o755); err != nil {
+		t.Fatalf("mkdir .wipnote in B: %v", err)
 	}
 
 	// Simulate the session environment: CLAUDE_PROJECT_DIR points at A,
@@ -191,7 +191,7 @@ func TestSessionStart_PrefersClaudeProjectDirOverCWD(t *testing.T) {
 	t.Setenv("CLAUDE_ENV_FILE", "") // prevent real env file writes
 
 	// Open DB in project A (the correct project).
-	database, err := db.Open(filepath.Join(projectA, ".erinn", "htmlgraph.db"))
+	database, err := db.Open(filepath.Join(projectA, ".wipnote", "htmlgraph.db"))
 	if err != nil {
 		t.Fatalf("db.Open: %v", err)
 	}
@@ -214,11 +214,11 @@ func TestSessionStart_PrefersClaudeProjectDirOverCWD(t *testing.T) {
 	}
 
 	// Session HTML must land in project A, not project B.
-	sessionHTMLInA := filepath.Join(projectA, ".erinn", "sessions", testSessionID+".html")
+	sessionHTMLInA := filepath.Join(projectA, ".wipnote", "sessions", testSessionID+".html")
 	if _, err := os.Stat(sessionHTMLInA); err != nil {
 		t.Errorf("session HTML not found in project A (%s): %v", sessionHTMLInA, err)
 	}
-	sessionHTMLInB := filepath.Join(projectB, ".erinn", "sessions", testSessionID+".html")
+	sessionHTMLInB := filepath.Join(projectB, ".wipnote", "sessions", testSessionID+".html")
 	if _, err := os.Stat(sessionHTMLInB); err == nil {
 		t.Errorf("session HTML found in project B (%s) — split-brain bug-71fc095f not fixed", sessionHTMLInB)
 	}
@@ -254,11 +254,11 @@ func TestInsertAndGetSessionProjectDir(t *testing.T) {
 
 func TestSessionStartIncludesFullAttribution(t *testing.T) {
 	projectDir := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(projectDir, ".erinn"), 0o755); err != nil {
-		t.Fatalf("mkdir .erinn: %v", err)
+	if err := os.MkdirAll(filepath.Join(projectDir, ".wipnote"), 0o755); err != nil {
+		t.Fatalf("mkdir .wipnote: %v", err)
 	}
 
-	database, err := db.Open(filepath.Join(projectDir, ".erinn", "htmlgraph.db"))
+	database, err := db.Open(filepath.Join(projectDir, ".wipnote", "htmlgraph.db"))
 	if err != nil {
 		t.Fatalf("db.Open: %v", err)
 	}
@@ -322,11 +322,11 @@ func TestSessionStartIncludesFullAttribution(t *testing.T) {
 // recent), SessionStart returns empty AdditionalContext (no banner shown).
 func TestSessionStartNoOpenItemsNonBareLaunch(t *testing.T) {
 	projectDir := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(projectDir, ".erinn"), 0o755); err != nil {
-		t.Fatalf("mkdir .erinn: %v", err)
+	if err := os.MkdirAll(filepath.Join(projectDir, ".wipnote"), 0o755); err != nil {
+		t.Fatalf("mkdir .wipnote: %v", err)
 	}
 
-	database, err := db.Open(filepath.Join(projectDir, ".erinn", "htmlgraph.db"))
+	database, err := db.Open(filepath.Join(projectDir, ".wipnote", "htmlgraph.db"))
 	if err != nil {
 		t.Fatalf("db.Open: %v", err)
 	}
@@ -343,7 +343,7 @@ func TestSessionStartNoOpenItemsNonBareLaunch(t *testing.T) {
 
 	// Simulate a non-bare launch: write .launch-mode with a recent timestamp
 	// so bareLaunchNudge detects it as launched via htmlgraph claude.
-	launchModeFile := filepath.Join(projectDir, ".erinn", ".launch-mode")
+	launchModeFile := filepath.Join(projectDir, ".wipnote", ".launch-mode")
 	launchModeData := []byte(`{"mode":"htmlgraph-claude","pid":1234,"timestamp":"2024-01-01T12:00:00Z"}`)
 	if err := os.WriteFile(launchModeFile, launchModeData, 0o644); err != nil {
 		t.Fatalf("write .launch-mode: %v", err)
@@ -367,11 +367,11 @@ func TestSessionStartNoOpenItemsNonBareLaunch(t *testing.T) {
 // SessionStart returns the bareLaunchNudge text as AdditionalContext.
 func TestSessionStartNoOpenItemsBareLaunch(t *testing.T) {
 	projectDir := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(projectDir, ".erinn"), 0o755); err != nil {
-		t.Fatalf("mkdir .erinn: %v", err)
+	if err := os.MkdirAll(filepath.Join(projectDir, ".wipnote"), 0o755); err != nil {
+		t.Fatalf("mkdir .wipnote: %v", err)
 	}
 
-	database, err := db.Open(filepath.Join(projectDir, ".erinn", "htmlgraph.db"))
+	database, err := db.Open(filepath.Join(projectDir, ".wipnote", "htmlgraph.db"))
 	if err != nil {
 		t.Fatalf("db.Open: %v", err)
 	}

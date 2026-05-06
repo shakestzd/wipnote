@@ -148,7 +148,7 @@ func TestCollectorStatusEndpoint(t *testing.T) {
 	// Build a temp project dir tree.
 	projectDir := t.TempDir()
 	sessionID := "test-sess-collector"
-	sessDir := filepath.Join(projectDir, ".erinn", "sessions", sessionID)
+	sessDir := filepath.Join(projectDir, ".wipnote", "sessions", sessionID)
 
 	pid := os.Getpid()
 	port := 14318

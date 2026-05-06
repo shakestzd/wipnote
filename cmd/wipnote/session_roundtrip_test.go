@@ -19,13 +19,13 @@ import (
 )
 
 // setupRoundTripEnv prepares a temp project with an on-disk db at the
-// expected `.erinn/htmlgraph.db` location and returns the paths.
+// expected `.wipnote/htmlgraph.db` location and returns the paths.
 // The db is left closed — callers re-open as needed so sweep and reindex
 // both hit a real file that survives between goroutines.
 func setupRoundTripEnv(t *testing.T) (projectDir, htmlgraphDir, dbPath string) {
 	t.Helper()
 	projectDir = t.TempDir()
-	htmlgraphDir = filepath.Join(projectDir, ".erinn")
+	htmlgraphDir = filepath.Join(projectDir, ".wipnote")
 	if err := os.MkdirAll(filepath.Join(htmlgraphDir, "sessions"), 0o755); err != nil {
 		t.Fatalf("mkdir sessions: %v", err)
 	}

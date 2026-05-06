@@ -19,7 +19,7 @@ func reindexCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "reindex",
 		Short: "Sync HTML work items to SQLite index",
-		Long: `Reads HTML work item files from .erinn/ and upserts them into the SQLite index.
+		Long: `Reads HTML work item files from .wipnote/ and upserts them into the SQLite index.
 
 By default runs incrementally: only files changed since the last successful reindex
 are reparsed. Use --full to force a complete reparse of all files.`,
@@ -307,7 +307,7 @@ func gitChangedFiles(projectDir, fromCommit, htmlgraphDir string) (added []strin
 	return deduplicatePaths(added), deleted
 }
 
-// appendDirtyHTMLFiles appends any .erinn HTML files that are modified or
+// appendDirtyHTMLFiles appends any .wipnote HTML files that are modified or
 // deleted in the working tree (staged or unstaged) but not yet committed.
 // It uses git diff --name-status to distinguish modifications from deletions:
 // - A (added), M (modified), R (renamed) go to added list (upsert)

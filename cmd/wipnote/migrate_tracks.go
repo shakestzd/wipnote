@@ -85,7 +85,7 @@ Examples:
 
 // runMigrateTracks executes the classifier against the project at hgDir and
 // emits text/json output to out. When opts.write is true, applies confident
-// moves and records them in a manifest file under .erinn/migrations/.
+// moves and records them in a manifest file under .wipnote/migrations/.
 //
 // `out` is the primary output stream (decision table or JSON array).
 // `status` is the human status stream — sent there so JSON mode keeps `out`

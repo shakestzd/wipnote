@@ -102,7 +102,7 @@ func proxyHandler(sup *childproc.Supervisor) http.HandlerFunc {
 	}
 }
 
-// autoDetectCurrentProject walks up from CWD looking for a .erinn/
+// autoDetectCurrentProject walks up from CWD looking for a .wipnote/
 // directory. If found, registers it in the global registry (if not
 // already present) and returns its registry entry. Returns nil if the
 // current directory is outside any HtmlGraph project — in that case, the
@@ -157,7 +157,7 @@ func runParentServer(bind string, port int) error {
 	mux := buildParentMux(sup)
 
 	// One-time startup prune: self-heal a corrupted registry by removing
-	// entries whose .erinn/ directory no longer exists, then save.
+	// entries whose .wipnote/ directory no longer exists, then save.
 	// This runs once at server startup so stale entries from previous test
 	// runs or deleted projects don't accumulate indefinitely. Best-effort:
 	// errors are silently ignored so a broken registry never blocks startup.
@@ -193,7 +193,7 @@ func runParentServer(bind string, port int) error {
 	// Write the per-project serve lockfile so concurrent launcher invocations
 	// (from a second terminal opening another Claude session) detect a live
 	// serve process and skip spawning a duplicate that would collide on :8080.
-	// Best-effort: missing .erinn/ or write errors are silently ignored.
+	// Best-effort: missing .wipnote/ or write errors are silently ignored.
 	if htmlgraphDir, err := findHtmlgraphDir(); err == nil {
 		projectDir := filepath.Dir(htmlgraphDir)
 		writeServeLock(projectDir)

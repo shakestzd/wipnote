@@ -17,7 +17,7 @@ import (
 func seedSession(t *testing.T) (projectDir string, database *sql.DB, sessionID string) {
 	t.Helper()
 	projectDir = t.TempDir()
-	htmlgraphDir := filepath.Join(projectDir, ".erinn")
+	htmlgraphDir := filepath.Join(projectDir, ".wipnote")
 	if err := os.MkdirAll(filepath.Join(htmlgraphDir, "sessions"), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -201,7 +201,7 @@ func TestMaterialize_WritesSQLiteAndHTML(t *testing.T) {
 	}
 
 	// HTML file has the rollup section and article attributes.
-	htmlPath := filepath.Join(projectDir, ".erinn", "sessions", sessionID+".html")
+	htmlPath := filepath.Join(projectDir, ".wipnote", "sessions", sessionID+".html")
 	data, err := os.ReadFile(htmlPath)
 	if err != nil {
 		t.Fatalf("read html: %v", err)
@@ -250,7 +250,7 @@ func TestMaterialize_IdempotentReplacesPriorRollup(t *testing.T) {
 		t.Fatalf("second materialize: %v", err)
 	}
 
-	htmlPath := filepath.Join(projectDir, ".erinn", "sessions", sessionID+".html")
+	htmlPath := filepath.Join(projectDir, ".wipnote", "sessions", sessionID+".html")
 	data, _ := os.ReadFile(htmlPath)
 	if n := strings.Count(string(data), "<section data-otel-rollup"); n != 1 {
 		t.Errorf("rollup section appears %d times, want 1", n)
@@ -267,7 +267,7 @@ func TestMaterialize_IdempotentReplacesPriorRollup(t *testing.T) {
 // pre-Phase-1 session looks like.
 func TestMaterialize_NoOpWhenNoSignals(t *testing.T) {
 	projectDir := t.TempDir()
-	htmlgraphDir := filepath.Join(projectDir, ".erinn")
+	htmlgraphDir := filepath.Join(projectDir, ".wipnote")
 	os.MkdirAll(filepath.Join(htmlgraphDir, "sessions"), 0o755)
 	database, err := db.Open(filepath.Join(htmlgraphDir, "htmlgraph.db"))
 	if err != nil {
@@ -302,7 +302,7 @@ func TestMaterialize_MissingHTMLSurvives(t *testing.T) {
 	projectDir, database, sessionID := seedSession(t)
 
 	// Delete the session HTML file so only the SQLite path exercises.
-	htmlPath := filepath.Join(projectDir, ".erinn", "sessions", sessionID+".html")
+	htmlPath := filepath.Join(projectDir, ".wipnote", "sessions", sessionID+".html")
 	if err := os.Remove(htmlPath); err != nil {
 		t.Fatalf("remove html: %v", err)
 	}

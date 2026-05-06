@@ -74,12 +74,12 @@ type AreasResult struct {
 const untrackedTrackID = "(untracked)"
 
 // excludedDir reports whether a path component should keep its file out of
-// the inventory. .erinn is skipped because work-item HTML is its own
+// the inventory. .wipnote is skipped because work-item HTML is its own
 // attribution domain, not source code; build outputs and vendored deps are
 // noise for this particular doc.
 func excludedDir(name string) bool {
 	switch name {
-	case ".erinn", "node_modules", "vendor", "dist", "out", "build", "target":
+	case ".wipnote", "node_modules", "vendor", "dist", "out", "build", "target":
 		return true
 	}
 	return false

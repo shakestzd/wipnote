@@ -25,7 +25,7 @@ func cleanupGhostSessionsCmd() *cobra.Command {
 		Use:   "ghost-sessions",
 		Short: "Remove session rows with no HTML file AND no messages/tool_calls/agent_events",
 		Long: `Finds session rows where BOTH conditions hold:
-  1. No .erinn/sessions/<id>.html file exists on disk
+  1. No .wipnote/sessions/<id>.html file exists on disk
   2. No messages, tool_calls, or agent_events for the session_id
 
 Only rows that meet BOTH conditions are deleted. Sessions with HTML files are
@@ -111,7 +111,7 @@ func runCleanupGhostSessions(dryRun bool) error {
 	return nil
 }
 
-// collectSessionHTMLIDs walks .erinn/sessions/ and returns the set of
+// collectSessionHTMLIDs walks .wipnote/sessions/ and returns the set of
 // session IDs that have a corresponding .html file on disk.
 func collectSessionHTMLIDs(htmlgraphDir string) (map[string]struct{}, error) {
 	dir := filepath.Join(htmlgraphDir, "sessions")

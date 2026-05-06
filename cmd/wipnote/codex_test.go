@@ -90,7 +90,7 @@ func TestIsCodexMarketplaceInstalledAt(t *testing.T) {
 	}
 
 	// Test 3: File contains the marketplace section
-	err = os.WriteFile(configPath, []byte("[marketplaces.erinn]\nrepo = \"shakestzd/wipnote\"\n"), 0644)
+	err = os.WriteFile(configPath, []byte("[marketplaces.wipnote]\nrepo = \"shakestzd/wipnote\"\n"), 0644)
 	if err != nil {
 		t.Fatalf("WriteFile: %v", err)
 	}
@@ -277,7 +277,7 @@ func TestCodexDevReplacesMismatchedMarketplace(t *testing.T) {
 	configPath := filepath.Join(tmpdir, "config.toml")
 
 	// Seed a config with a mismatched marketplace pointing elsewhere
-	initialContent := `[marketplaces.erinn]
+	initialContent := `[marketplaces.wipnote]
 source = "/some/other/path"
 `
 	if err := os.WriteFile(configPath, []byte(initialContent), 0644); err != nil {
@@ -310,14 +310,14 @@ func TestGetCodexMarketplacePathAt(t *testing.T) {
 			want:    "",
 		},
 		{
-			name: "marketplaces.erinn with source",
-			content: "[marketplaces.erinn]\n" +
+			name: "marketplaces.wipnote with source",
+			content: "[marketplaces.wipnote]\n" +
 				"source = \"/path/to/marketplace\"\n",
 			want: "/path/to/marketplace",
 		},
 		{
-			name: "marketplaces.erinn with path",
-			content: "[marketplaces.erinn]\n" +
+			name: "marketplaces.wipnote with path",
+			content: "[marketplaces.wipnote]\n" +
 				"path = \"/alt/path\"\n",
 			want: "/alt/path",
 		},
@@ -389,7 +389,7 @@ some_feature = true
 		t.Errorf("htmlgraph@htmlgraph should be removed but is still present")
 	}
 	if strings.Contains(content, "htmlgraph = ") {
-		t.Errorf("[marketplaces.erinn] should be removed but is still present")
+		t.Errorf("[marketplaces.wipnote] should be removed but is still present")
 	}
 
 	// Other entries must be preserved

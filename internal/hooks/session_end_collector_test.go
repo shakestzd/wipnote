@@ -16,8 +16,8 @@ import (
 func TestSignalCollector_NoopWhenNoPIDFile(t *testing.T) {
 	dir := t.TempDir()
 	projectDir := dir
-	// Create .erinn/sessions/<sid>/ but no .collector-pid file.
-	sessDir := filepath.Join(projectDir, ".erinn", "sessions", "sess-test")
+	// Create .wipnote/sessions/<sid>/ but no .collector-pid file.
+	sessDir := filepath.Join(projectDir, ".wipnote", "sessions", "sess-test")
 	if err := os.MkdirAll(sessDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -28,7 +28,7 @@ func TestSignalCollector_NoopWhenNoPIDFile(t *testing.T) {
 // TestSignalCollector_InvalidPIDFile verifies graceful handling of a corrupt PID file.
 func TestSignalCollector_InvalidPIDFile(t *testing.T) {
 	dir := t.TempDir()
-	sessDir := filepath.Join(dir, ".erinn", "sessions", "sess-bad")
+	sessDir := filepath.Join(dir, ".wipnote", "sessions", "sess-bad")
 	if err := os.MkdirAll(sessDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -47,7 +47,7 @@ func TestSignalCollector_AlreadyExitedProcess(t *testing.T) {
 	}
 
 	dir := t.TempDir()
-	sessDir := filepath.Join(dir, ".erinn", "sessions", "sess-dead")
+	sessDir := filepath.Join(dir, ".wipnote", "sessions", "sess-dead")
 	if err := os.MkdirAll(sessDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -69,7 +69,7 @@ func TestSignalCollector_LiveProcess(t *testing.T) {
 
 	dir := t.TempDir()
 	sessID := "sess-live"
-	sessDir := filepath.Join(dir, ".erinn", "sessions", sessID)
+	sessDir := filepath.Join(dir, ".wipnote", "sessions", sessID)
 	if err := os.MkdirAll(sessDir, 0o755); err != nil {
 		t.Fatal(err)
 	}

@@ -16,12 +16,12 @@ import (
 	"github.com/shakestzd/wipnote/internal/workitem"
 )
 
-// setupContextPackEnv creates a minimal .erinn directory tree and opens a
+// setupContextPackEnv creates a minimal .wipnote directory tree and opens a
 // Project. Returns the temp root dir, hgDir, and the open project.
 func setupContextPackEnv(t *testing.T) (tmpDir, hgDir string, proj *workitem.Project) {
 	t.Helper()
 	tmpDir = t.TempDir()
-	hgDir = filepath.Join(tmpDir, ".erinn")
+	hgDir = filepath.Join(tmpDir, ".wipnote")
 	for _, sub := range []string{"features", "bugs", "spikes", "tracks", "plans", "specs"} {
 		if err := os.MkdirAll(filepath.Join(hgDir, sub), 0o755); err != nil {
 			t.Fatalf("mkdir %s: %v", sub, err)

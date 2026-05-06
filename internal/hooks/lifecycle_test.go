@@ -12,14 +12,14 @@ import (
 	"github.com/shakestzd/wipnote/internal/models"
 )
 
-// setupLifecycleDB creates a temp project dir with .erinn/ and a real
+// setupLifecycleDB creates a temp project dir with .wipnote/ and a real
 // SQLite DB. Returns the database and the project dir.
 func setupLifecycleDB(t *testing.T) (*sql.DB, string) {
 	t.Helper()
 	projectDir := t.TempDir()
-	hgDir := filepath.Join(projectDir, ".erinn")
+	hgDir := filepath.Join(projectDir, ".wipnote")
 	if err := os.MkdirAll(hgDir, 0o755); err != nil {
-		t.Fatalf("mkdir .erinn: %v", err)
+		t.Fatalf("mkdir .wipnote: %v", err)
 	}
 	database, err := db.Open(filepath.Join(hgDir, "htmlgraph.db"))
 	if err != nil {

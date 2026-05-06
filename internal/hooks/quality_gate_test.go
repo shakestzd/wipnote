@@ -223,10 +223,10 @@ func TestCheckFileQuality_PNGFile_Skipped(t *testing.T) {
 }
 
 func TestCheckFileQuality_HtmlGraphDir_Skipped(t *testing.T) {
-	// Simulate a path inside .erinn/ — we don't need it to actually exist.
-	got := CheckFileQuality(".erinn/features/feat-abc.html")
+	// Simulate a path inside .wipnote/ — we don't need it to actually exist.
+	got := CheckFileQuality(".wipnote/features/feat-abc.html")
 	if got != "" {
-		t.Errorf(".erinn/ paths should be skipped, got: %q", got)
+		t.Errorf(".wipnote/ paths should be skipped, got: %q", got)
 	}
 }
 

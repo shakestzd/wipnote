@@ -49,7 +49,7 @@ func WithAgent(a string) FilterOption {
 }
 
 // Collection is a generic, type-aware collection of work item nodes.
-// It manages a single subdirectory of .erinn/ (features, bugs, spikes,
+// It manages a single subdirectory of .wipnote/ (features, bugs, spikes,
 // tracks, or sessions) and provides CRUD, filtering, and lifecycle methods.
 type Collection struct {
 	base           *Base

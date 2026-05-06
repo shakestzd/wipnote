@@ -22,7 +22,7 @@ func purgeStaleEntries(database *sql.DB, validIDs map[string]bool) (int, int) {
 	staleFeatureIDs := collectStaleIDs(database, "SELECT id FROM features", validIDs)
 	purged := deleteByIDs(database, "DELETE FROM features WHERE id = ?", staleFeatureIDs)
 
-	// Purge stale tracks (HTML files deleted from .erinn/tracks/).
+	// Purge stale tracks (HTML files deleted from .wipnote/tracks/).
 	staleTrackIDs := collectStaleIDs(database, "SELECT id FROM tracks", validIDs)
 	purged += deleteByIDs(database, "DELETE FROM tracks WHERE id = ?", staleTrackIDs)
 

@@ -68,7 +68,7 @@ func ReadCollectorStatus(sessDir string) (CollectorStatus, error) {
 
 // collectorStatusHandler returns an http.HandlerFunc for GET /api/otel/status.
 // Query param: ?session=<session-id>  (matches ?session= used by transcriptHandler)
-// projectDir is the project root (parent of .erinn/).
+// projectDir is the project root (parent of .wipnote/).
 func collectorStatusHandler(projectDir string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
@@ -84,7 +84,7 @@ func collectorStatusHandler(projectDir string) http.HandlerFunc {
 			http.Error(w, "invalid session id", http.StatusBadRequest)
 			return
 		}
-		sessDir := filepath.Join(projectDir, ".erinn", "sessions", sessionID)
+		sessDir := filepath.Join(projectDir, ".wipnote", "sessions", sessionID)
 		status, err := ReadCollectorStatus(sessDir)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusNotFound)
@@ -96,7 +96,7 @@ func collectorStatusHandler(projectDir string) http.HandlerFunc {
 
 // isSafeSessionID rejects values that contain path separators, ".." segments,
 // or NUL bytes, preventing the session query parameter from escaping the
-// .erinn/sessions/ directory via path traversal.
+// .wipnote/sessions/ directory via path traversal.
 func isSafeSessionID(id string) bool {
 	if id == "" || id == "." || id == ".." {
 		return false

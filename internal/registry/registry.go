@@ -49,7 +49,7 @@ type Entry struct {
 	ID string `json:"id"`
 
 	// ProjectDir is the absolute path to the project root (the directory that
-	// contains .erinn/).
+	// contains .wipnote/).
 	ProjectDir string `json:"project_dir"`
 
 	// Name is the human-readable project name (typically the directory basename
@@ -158,7 +158,7 @@ func (r *Registry) MigrationPending() bool {
 // write is atomic from the reader's perspective.
 //
 // SIDE EFFECT: Save also calls Prune() before writing — entries whose
-// project directory no longer contains a .erinn/ subdirectory are
+// project directory no longer contains a .wipnote/ subdirectory are
 // dropped from the in-memory slice and never written. Callers expecting
 // "save exactly what I have in memory" semantics will be surprised; if a
 // project dir was temporarily unmounted or symlinked away at save time,
@@ -175,7 +175,7 @@ func (r *Registry) Save() error {
 // tempfile + rename path as Save, but without an implicit structural prune.
 // Callers that have already curated the entry set (for example, TTL cleanup)
 // should prefer this helper so they don't accidentally drop otherwise-kept
-// entries whose .erinn directory is temporarily unavailable.
+// entries whose .wipnote directory is temporarily unavailable.
 func (r *Registry) SaveExact() error {
 	if err := writeEntriesAtomic(r.path, r.entries); err != nil {
 		return err
@@ -369,16 +369,16 @@ func PruneTempdirEntries(reg *Registry) int {
 	return removed
 }
 
-// looksLikeRealProject returns true when dir contains a .erinn/
+// looksLikeRealProject returns true when dir contains a .wipnote/
 // subdirectory. That is the sole signal: HtmlGraph projects are not
 // required to be Git repositories, so a `.git` ancestor is NOT part of
 // the gate (review #55 F1).
 //
 // Registration hardening lives in Upsert, not here: a real project is still
-// defined solely by the presence of .erinn/. The tempdir guard decides
+// defined solely by the presence of .wipnote/. The tempdir guard decides
 // whether that real project should be written to the persistent registry.
 func looksLikeRealProject(dir string) bool {
-	_, err := os.Stat(filepath.Join(dir, ".erinn"))
+	_, err := os.Stat(filepath.Join(dir, ".wipnote"))
 	return err == nil
 }
 
@@ -388,7 +388,7 @@ func looksLikeRealProject(dir string) bool {
 // entry is appended with a freshly computed ID.
 //
 // Upsert silently skips:
-//   - Directories that do not look like real projects (no .erinn/ subdirectory).
+//   - Directories that do not look like real projects (no .wipnote/ subdirectory).
 //   - Directories that match test temp-dir patterns when the target registry is
 //     persistent (test-local registries under os.TempDir() are allowed).
 //
@@ -432,13 +432,13 @@ func (r *Registry) List() []Entry {
 }
 
 // Prune removes entries whose project directory no longer contains a
-// .erinn subdirectory.  It returns the ProjectDir values of the removed
+// .wipnote subdirectory.  It returns the ProjectDir values of the removed
 // entries.
 func (r *Registry) Prune() []string {
 	var pruned []string
 	kept := r.entries[:0]
 	for _, e := range r.entries {
-		if _, err := os.Stat(filepath.Join(e.ProjectDir, ".erinn")); err == nil {
+		if _, err := os.Stat(filepath.Join(e.ProjectDir, ".wipnote")); err == nil {
 			kept = append(kept, e)
 		} else {
 			pruned = append(pruned, e.ProjectDir)

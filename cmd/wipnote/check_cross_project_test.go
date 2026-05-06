@@ -11,14 +11,14 @@ import (
 	"github.com/shakestzd/wipnote/internal/models"
 )
 
-// setupCrossProjectDB creates a temporary .erinn directory with an
+// setupCrossProjectDB creates a temporary .wipnote directory with an
 // initialised SQLite database, returning the htmlgraph dir path and the open DB.
 func setupCrossProjectDB(t *testing.T) (string, *sql.DB) {
 	t.Helper()
 	tmpDir := t.TempDir()
-	hgDir := filepath.Join(tmpDir, ".erinn")
+	hgDir := filepath.Join(tmpDir, ".wipnote")
 	if err := os.MkdirAll(hgDir, 0o755); err != nil {
-		t.Fatalf("create .erinn dir: %v", err)
+		t.Fatalf("create .wipnote dir: %v", err)
 	}
 	database, err := dbpkg.Open(filepath.Join(hgDir, "htmlgraph.db"))
 	if err != nil {

@@ -42,7 +42,7 @@ func projectsListCmd() *cobra.Command {
 		Short: "List all known projects in the registry",
 		Long: `List all known projects in the registry.
 
-With --gone, show only orphan entries whose .erinn directory no longer exists.`,
+With --gone, show only orphan entries whose .wipnote directory no longer exists.`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			reg, err := registry.Load(defaultRegistryPath())
 			if err != nil {
@@ -55,7 +55,7 @@ With --gone, show only orphan entries whose .erinn directory no longer exists.`,
 			for _, e := range entries {
 				alive := false
 				items := "-"
-				hgDir := filepath.Join(e.ProjectDir, ".erinn")
+				hgDir := filepath.Join(e.ProjectDir, ".wipnote")
 				if _, statErr := os.Stat(hgDir); statErr == nil {
 					alive = true
 					if dbPath, pathErr := storage.CanonicalDBPath(e.ProjectDir); pathErr == nil {
@@ -85,7 +85,7 @@ With --gone, show only orphan entries whose .erinn directory no longer exists.`,
 			return w.Flush()
 		},
 	}
-	cmd.Flags().BoolVar(&goneOnly, "gone", false, "show only orphan entries whose .erinn directory no longer exists")
+	cmd.Flags().BoolVar(&goneOnly, "gone", false, "show only orphan entries whose .wipnote directory no longer exists")
 	return cmd
 }
 
@@ -101,7 +101,7 @@ func projectsPruneCmd() *cobra.Command {
 		Short: "Remove stale registry entries",
 		Long: `Remove stale registry entries from ~/.local/share/htmlgraph/projects.json.
 
-Default behavior (no flags): remove entries whose .erinn directory no longer exists.
+Default behavior (no flags): remove entries whose .wipnote directory no longer exists.
 
 With --since: also remove entries last_seen older than the given duration.
   Accepts Go duration strings (e.g. 30m, 48h) or a "Nd" shorthand for N days.
@@ -126,12 +126,12 @@ With --dry-run: print what would be removed without writing to disk.`,
 				return pruneWithSinceAction(cmd, reg, pruneSince, pruneDryRun)
 			}
 
-			// Default: remove entries whose .erinn directory no longer exists.
+			// Default: remove entries whose .wipnote directory no longer exists.
 			if pruneDryRun {
 				// Dry-run structural prune: report what would be removed.
 				var wouldRemove []string
 				for _, e := range reg.List() {
-					hgDir := filepath.Join(e.ProjectDir, ".erinn")
+					hgDir := filepath.Join(e.ProjectDir, ".wipnote")
 					if _, statErr := os.Stat(hgDir); statErr != nil {
 						wouldRemove = append(wouldRemove, e.ProjectDir)
 					}
@@ -176,7 +176,7 @@ func parseDuration(s string) (time.Duration, error) {
 	return time.ParseDuration(s)
 }
 
-// structuralPrune removes entries whose .erinn directory is missing and
+// structuralPrune removes entries whose .wipnote directory is missing and
 // returns the list of removed ProjectDir values. The registry is mutated.
 func structuralPrune(reg *registry.Registry) []string {
 	return reg.Prune()
@@ -198,8 +198,8 @@ func pruneWithSinceAction(cmd *cobra.Command, reg *registry.Registry, since stri
 
 	// First pass: collect both structural and TTL removals
 	for _, e := range allBefore {
-		// Structural check: .erinn directory missing
-		if _, err := os.Stat(filepath.Join(e.ProjectDir, ".erinn")); err != nil {
+		// Structural check: .wipnote directory missing
+		if _, err := os.Stat(filepath.Join(e.ProjectDir, ".wipnote")); err != nil {
 			structuralRemove = append(structuralRemove, e.ProjectDir)
 			continue
 		}
@@ -213,9 +213,9 @@ func pruneWithSinceAction(cmd *cobra.Command, reg *registry.Registry, since stri
 
 	if dryRun {
 		if len(structuralRemove) > 0 {
-			fmt.Fprintf(cmd.OutOrStdout(), "would prune %d missing .erinn dirs:\n", len(structuralRemove))
+			fmt.Fprintf(cmd.OutOrStdout(), "would prune %d missing .wipnote dirs:\n", len(structuralRemove))
 			for _, p := range structuralRemove {
-				fmt.Fprintln(cmd.OutOrStdout(), "  would prune (missing .erinn):", p)
+				fmt.Fprintln(cmd.OutOrStdout(), "  would prune (missing .wipnote):", p)
 			}
 		}
 		if len(ttlRemove) > 0 {
@@ -236,7 +236,7 @@ func pruneWithSinceAction(cmd *cobra.Command, reg *registry.Registry, since stri
 	kept := len(reg.List())
 
 	if structuralCount > 0 {
-		fmt.Fprintf(cmd.OutOrStdout(), "pruned %d entries with missing .erinn\n", structuralCount)
+		fmt.Fprintf(cmd.OutOrStdout(), "pruned %d entries with missing .wipnote\n", structuralCount)
 	}
 	if ttlCount > 0 {
 		fmt.Fprintf(cmd.OutOrStdout(), "pruned %d stale entries (older than %s)\n", ttlCount, since)

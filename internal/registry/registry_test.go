@@ -31,7 +31,7 @@ func makeSafeBaseDir(t *testing.T) string {
 }
 
 // makeRealProject creates a directory that passes looksLikeRealProject:
-// it has a .erinn/ subdirectory and a .git/ directory. Returns the project root.
+// it has a .wipnote/ subdirectory and a .git/ directory. Returns the project root.
 //
 // The directory is created directly under os.TempDir() with a "proj-*" prefix,
 // NOT under t.TempDir(). This is intentional: t.TempDir() returns a path whose
@@ -41,7 +41,7 @@ func makeSafeBaseDir(t *testing.T) string {
 func makeRealProject(t *testing.T) string {
 	t.Helper()
 	dir := makeSafeBaseDir(t)
-	if err := os.MkdirAll(filepath.Join(dir, ".erinn"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(dir, ".wipnote"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.MkdirAll(filepath.Join(dir, ".git"), 0o755); err != nil {
@@ -206,22 +206,22 @@ func TestSave_AtomicRename(t *testing.T) {
 	}
 }
 
-// TestPrune_RemovesStale ensures Prune removes entries whose <dir>/.erinn does not exist.
+// TestPrune_RemovesStale ensures Prune removes entries whose <dir>/.wipnote does not exist.
 func TestPrune_RemovesStale(t *testing.T) {
 	// Use makeSafeBaseDir to avoid ShouldSkipRegistration blocking Upsert.
 	validDir := makeSafeBaseDir(t)
 	staleDir := makeSafeBaseDir(t)
 
-	// Valid project: has both .erinn and .git subdirectories (passes Upsert guard).
-	if err := os.MkdirAll(filepath.Join(validDir, ".erinn"), 0o755); err != nil {
+	// Valid project: has both .wipnote and .git subdirectories (passes Upsert guard).
+	if err := os.MkdirAll(filepath.Join(validDir, ".wipnote"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.MkdirAll(filepath.Join(validDir, ".git"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 
-	// Stale project: was once valid (upserted), then .erinn was removed.
-	if err := os.MkdirAll(filepath.Join(staleDir, ".erinn"), 0o755); err != nil {
+	// Stale project: was once valid (upserted), then .wipnote was removed.
+	if err := os.MkdirAll(filepath.Join(staleDir, ".wipnote"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.MkdirAll(filepath.Join(staleDir, ".git"), 0o755); err != nil {
@@ -236,8 +236,8 @@ func TestPrune_RemovesStale(t *testing.T) {
 	r.Upsert(validDir, "valid", "")
 	r.Upsert(staleDir, "stale", "")
 
-	// Simulate staleness by removing .erinn from staleDir.
-	if err := os.RemoveAll(filepath.Join(staleDir, ".erinn")); err != nil {
+	// Simulate staleness by removing .wipnote from staleDir.
+	if err := os.RemoveAll(filepath.Join(staleDir, ".wipnote")); err != nil {
 		t.Fatal(err)
 	}
 
@@ -262,11 +262,11 @@ func TestPrune_RemovesStale(t *testing.T) {
 // path containing "/wt-" to the "main" root so we can drive the
 // logic without a real git repo.
 func TestDropLinkedWorktrees(t *testing.T) {
-	// Create real-looking project dirs (with .erinn + .git) so Upsert
+	// Create real-looking project dirs (with .wipnote + .git) so Upsert
 	// accepts them. Use makeSafeBaseDir to avoid ShouldSkipRegistration.
 	addHgGit := func(dir string) {
 		t.Helper()
-		if err := os.MkdirAll(filepath.Join(dir, ".erinn"), 0o755); err != nil {
+		if err := os.MkdirAll(filepath.Join(dir, ".wipnote"), 0o755); err != nil {
 			t.Fatal(err)
 		}
 		if err := os.MkdirAll(filepath.Join(dir, ".git"), 0o755); err != nil {
@@ -325,7 +325,7 @@ func TestDropLinkedWorktrees_NilResolver(t *testing.T) {
 	r, _ := registry.Load(path)
 	// Use makeSafeBaseDir to avoid ShouldSkipRegistration rejecting the Upsert.
 	aDir := makeSafeBaseDir(t)
-	if err := os.MkdirAll(filepath.Join(aDir, ".erinn"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(aDir, ".wipnote"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.MkdirAll(filepath.Join(aDir, ".git"), 0o755); err != nil {
@@ -492,7 +492,7 @@ func TestEntry_StableID(t *testing.T) {
 }
 
 // TestNoRegistryPollution verifies Upsert's gate: directories without
-// a .erinn/ subdirectory are silently rejected, while directories
+// a .wipnote/ subdirectory are silently rejected, while directories
 // that do have one are accepted regardless of whether they sit inside
 // a git repository (review #55 F1 — HtmlGraph projects are not required
 // to be Git repos). Test pollution is prevented by the XDG_DATA_HOME
@@ -520,7 +520,7 @@ func TestNoRegistryPollution(t *testing.T) {
 	// sub-test's t.TempDir(). Without re-baselining, a "+1 expected" check
 	// can fail because the prior entry was silently pruned mid-flight.
 
-	// Upsert from a plain tempdir (no .erinn/) — must be rejected so
+	// Upsert from a plain tempdir (no .wipnote/) — must be rejected so
 	// that hooks running inside a stray cwd cannot register garbage.
 	t.Run("tempdir_no_htmlgraph_rejected", func(t *testing.T) {
 		baseline := loadCount()
@@ -537,7 +537,7 @@ func TestNoRegistryPollution(t *testing.T) {
 		}
 	})
 
-	// Upsert from a dir with .erinn/ but no .git ancestor — must be
+	// Upsert from a dir with .wipnote/ but no .git ancestor — must be
 	// ACCEPTED. Non-Git projects are valid HtmlGraph projects.
 	// Use a proj-* prefixed dir directly under os.TempDir() so the path
 	// doesn't have a Test* component (which would trigger ShouldSkipRegistration).
@@ -548,7 +548,7 @@ func TestNoRegistryPollution(t *testing.T) {
 			t.Fatal(err)
 		}
 		t.Cleanup(func() { os.RemoveAll(nonGit) })
-		if err := os.MkdirAll(filepath.Join(nonGit, ".erinn"), 0o755); err != nil {
+		if err := os.MkdirAll(filepath.Join(nonGit, ".wipnote"), 0o755); err != nil {
 			t.Fatal(err)
 		}
 		r, _ := registry.Load(regPath)
@@ -563,7 +563,7 @@ func TestNoRegistryPollution(t *testing.T) {
 		}
 	})
 
-	// Upsert from a real-looking project (tempdir + .erinn + .git).
+	// Upsert from a real-looking project (tempdir + .wipnote + .git).
 	// Verify the new entry shows up in the post-Save list — counting
 	// deltas is unreliable because Save's internal Prune drops entries
 	// whose ProjectDir got cleaned up by a previous sub-test's tempdir.
@@ -743,14 +743,14 @@ func TestShouldSkipRegistration_EnvVar(t *testing.T) {
 // TestShouldSkipRegistration_UpsertBlocked verifies that Upsert silently
 // rejects a path that ShouldSkipRegistration identifies as a test tempdir.
 func TestShouldSkipRegistration_UpsertBlocked(t *testing.T) {
-	// Build a fake Test* path under os.TempDir() that also has a .erinn dir
+	// Build a fake Test* path under os.TempDir() that also has a .wipnote dir
 	// (to ensure looksLikeRealProject would pass if skip weren't active).
 	base, err := filepath.EvalSymlinks(os.TempDir())
 	if err != nil {
 		base = os.TempDir()
 	}
 	testProjDir := filepath.Join(base, "TestRegistrySkip123")
-	if err := os.MkdirAll(filepath.Join(testProjDir, ".erinn"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(testProjDir, ".wipnote"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(testProjDir)

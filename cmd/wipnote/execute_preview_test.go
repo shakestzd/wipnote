@@ -9,11 +9,11 @@ import (
 )
 
 // TestExecutePreview_BuildsEnvelope is a unit test for buildExecutePreview that
-// sets up a minimal .erinn/ tree and verifies the JSON envelope contains the
+// sets up a minimal .wipnote/ tree and verifies the JSON envelope contains the
 // track, linked bugs, and git state fields.
 func TestExecutePreview_BuildsEnvelope(t *testing.T) {
 	dir := t.TempDir()
-	hgDir := filepath.Join(dir, ".erinn")
+	hgDir := filepath.Join(dir, ".wipnote")
 
 	// Create directory skeleton.
 	for _, sub := range []string{"tracks", "features", "bugs", "plans", "spikes", "specs"} {
@@ -109,7 +109,7 @@ func writeFile(t *testing.T, path, content string) {
 // finding that resolveNodePath-only lookup regressed the directory form).
 func TestExecutePreview_DirectoryBackedTrack(t *testing.T) {
 	dir := t.TempDir()
-	hgDir := filepath.Join(dir, ".erinn")
+	hgDir := filepath.Join(dir, ".wipnote")
 	if err := os.MkdirAll(filepath.Join(hgDir, "tracks", "trk-dirform"), 0o755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
@@ -135,7 +135,7 @@ func TestExecutePreview_DirectoryBackedTrack(t *testing.T) {
 // that plans were under-discovered).
 func TestExecutePreview_PlanByFeatureID(t *testing.T) {
 	dir := t.TempDir()
-	hgDir := filepath.Join(dir, ".erinn")
+	hgDir := filepath.Join(dir, ".wipnote")
 	for _, sub := range []string{"tracks", "features", "plans"} {
 		if err := os.MkdirAll(filepath.Join(hgDir, sub), 0o755); err != nil {
 			t.Fatalf("mkdir %s: %v", sub, err)

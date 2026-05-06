@@ -14,7 +14,7 @@ func initCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "init",
 		Short: "Initialize a new HtmlGraph project in the current directory",
-		Long: `Creates the .erinn/ directory structure, initializes the SQLite
+		Long: `Creates the .wipnote/ directory structure, initializes the SQLite
 database, and writes default configuration files.
 
 Safe to run on an existing project — only missing pieces are created.`,
@@ -28,7 +28,7 @@ func runInit(_ *cobra.Command, _ []string) error {
 		return fmt.Errorf("get working directory: %w", err)
 	}
 
-	graphDir := filepath.Join(cwd, ".erinn")
+	graphDir := filepath.Join(cwd, ".wipnote")
 
 	if err := createSubdirs(graphDir); err != nil {
 		return err
@@ -55,14 +55,14 @@ func runInit(_ *cobra.Command, _ []string) error {
 
 	fmt.Printf("Initialized HtmlGraph in %s\n", graphDir)
 	fmt.Println()
-	fmt.Println("  .erinn/features/")
-	fmt.Println("  .erinn/bugs/")
-	fmt.Println("  .erinn/spikes/")
-	fmt.Println("  .erinn/tracks/")
-	fmt.Println("  .erinn/sessions/")
+	fmt.Println("  .wipnote/features/")
+	fmt.Println("  .wipnote/bugs/")
+	fmt.Println("  .wipnote/spikes/")
+	fmt.Println("  .wipnote/tracks/")
+	fmt.Println("  .wipnote/sessions/")
 	fmt.Printf("  %s\n", dbPath)
-	fmt.Println("  .erinn/refs.json")
-	fmt.Println("  .erinn/styles.css")
+	fmt.Println("  .wipnote/refs.json")
+	fmt.Println("  .wipnote/styles.css")
 	fmt.Println()
 	fmt.Println("Run 'htmlgraph status' to verify.")
 	return nil

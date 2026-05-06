@@ -19,7 +19,7 @@ func setupSweepEnv(t *testing.T, sessionID string, eventID string, age time.Dura
 	t.Helper()
 
 	projectDir := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(projectDir, ".erinn", "sessions"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(projectDir, ".wipnote", "sessions"), 0o755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
 
@@ -69,7 +69,7 @@ func TestSweepOrphanedEventsForSession_AppendsAbortedLi(t *testing.T) {
 		t.Errorf("appended: got %d, want 1", appended)
 	}
 
-	data, err := os.ReadFile(filepath.Join(projectDir, ".erinn", "sessions", "sess-sweep-001.html"))
+	data, err := os.ReadFile(filepath.Join(projectDir, ".wipnote", "sessions", "sess-sweep-001.html"))
 	if err != nil {
 		t.Fatalf("read session html: %v", err)
 	}
@@ -106,7 +106,7 @@ func TestSweepOrphanedEventsForSession_Idempotent(t *testing.T) {
 		t.Errorf("second sweep should be no-op, got %d", second)
 	}
 
-	data, _ := os.ReadFile(filepath.Join(projectDir, ".erinn", "sessions", "sess-sweep-idem-001.html"))
+	data, _ := os.ReadFile(filepath.Join(projectDir, ".wipnote", "sessions", "sess-sweep-idem-001.html"))
 	if strings.Count(string(data), `data-event-id="evt-orphan-idem-1"`) != 1 {
 		t.Errorf("expected exactly 1 synthetic entry after double sweep")
 	}

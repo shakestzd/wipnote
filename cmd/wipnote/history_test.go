@@ -10,13 +10,13 @@ import (
 )
 
 // TestHistoryResolvesFilePath verifies resolveHistoryPath maps each work-item
-// prefix to the correct subdirectory under .erinn/.
+// prefix to the correct subdirectory under .wipnote/.
 func TestHistoryResolvesFilePath(t *testing.T) {
 	t.Parallel()
 
-	// Build a temporary .erinn tree with one file per type.
+	// Build a temporary .wipnote tree with one file per type.
 	root := t.TempDir()
-	hgDir := filepath.Join(root, ".erinn")
+	hgDir := filepath.Join(root, ".wipnote")
 
 	dirs := map[string]string{
 		"feat-abc12345": "features",
@@ -75,7 +75,7 @@ func TestHistoryMissingFile(t *testing.T) {
 	t.Parallel()
 
 	root := t.TempDir()
-	hgDir := filepath.Join(root, ".erinn")
+	hgDir := filepath.Join(root, ".wipnote")
 	if err := os.MkdirAll(hgDir, 0755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
@@ -116,7 +116,7 @@ func seedRepo(t *testing.T) (repoRoot string, filePath string) {
 	run("git", "config", "user.email", "tester@example.com")
 	run("git", "config", "user.name", "Tester")
 
-	hgDir := filepath.Join(dir, ".erinn", "features")
+	hgDir := filepath.Join(dir, ".wipnote", "features")
 	if err := os.MkdirAll(hgDir, 0755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
@@ -143,7 +143,7 @@ func TestHistoryRunsGitLog(t *testing.T) {
 	t.Parallel()
 
 	repoRoot, _ := seedRepo(t)
-	hgDir := filepath.Join(repoRoot, ".erinn")
+	hgDir := filepath.Join(repoRoot, ".wipnote")
 
 	path, err := resolveHistoryPath(hgDir, "feat-test0001")
 	if err != nil {
@@ -172,16 +172,16 @@ func TestHistoryRunsGitLog(t *testing.T) {
 }
 
 // TestResolveHistoryRoot_LinkedWorktreePrefersCwd guards the regression the
-// second roborev round flagged: when .erinn lives in the main checkout
+// second roborev round flagged: when .wipnote lives in the main checkout
 // but the user runs `history` from a linked worktree, resolveHistoryRoot
 // must return the LINKED worktree's toplevel so `git log` sees branch-local
 // history — NOT the main checkout's HEAD.
 //
 // Submodule fallback is exercised by running from a completely separate
 // repository: git-common-dir differs, and the helper must fall back to the
-// .erinn owner rather than log the unrelated repo.
+// .wipnote owner rather than log the unrelated repo.
 func TestResolveHistoryRoot_LinkedWorktreePrefersCwd(t *testing.T) {
-	// Main checkout with one commit and a .erinn file.
+	// Main checkout with one commit and a .wipnote file.
 	mainRoot, _ := seedRepo(t)
 
 	// Absolute main-root (resolving symlinks so comparisons below are stable
@@ -254,7 +254,7 @@ func TestResolveHistoryRoot_LinkedWorktreePrefersCwd(t *testing.T) {
 		}
 	})
 
-	t.Run("cwd=unrelated-repo => falls back to .erinn owner", func(t *testing.T) {
+	t.Run("cwd=unrelated-repo => falls back to .wipnote owner", func(t *testing.T) {
 		// Build a completely separate git repo so git-common-dir differs.
 		otherRoot := t.TempDir()
 		runGit(otherRoot, "init", "-b", "main")
@@ -280,10 +280,10 @@ func TestResolveHistoryRoot_LinkedWorktreePrefersCwd(t *testing.T) {
 
 // TestResolveHistoryRoot_SymlinkedPaths guards the regression where
 // resolveHistoryRoot compared raw git-common-dir strings without symlink
-// resolution. If cwd and the .erinn owner reach the same repo through
+// resolution. If cwd and the .wipnote owner reach the same repo through
 // different symlinked paths (macOS /tmp vs /private/tmp, or a container
 // mount shadowing the host path), the equality check fails and history
-// incorrectly falls back to the .erinn owner.
+// incorrectly falls back to the .wipnote owner.
 //
 // Setup: create a repo at a real path, then reference it through a symlink.
 // Expectation: gitCommonDir yields the same canonical path for both so the
@@ -342,7 +342,7 @@ func TestHistoryJSONOutput(t *testing.T) {
 	t.Parallel()
 
 	repoRoot, _ := seedRepo(t)
-	hgDir := filepath.Join(repoRoot, ".erinn")
+	hgDir := filepath.Join(repoRoot, ".wipnote")
 
 	path, err := resolveHistoryPath(hgDir, "feat-test0001")
 	if err != nil {

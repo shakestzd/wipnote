@@ -98,7 +98,7 @@ func runStatus(_ *cobra.Command, _ []string) error {
 
 	fmt.Printf("\nTotal: %d work items\n", len(nodes))
 
-	// Collector health — scan .erinn/sessions/ for recent PID files.
+	// Collector health — scan .wipnote/sessions/ for recent PID files.
 	printCollectorHealth(filepath.Dir(dir))
 
 	if latest, newer, _ := versionpkg.CheckForUpdate(version); newer {
@@ -112,7 +112,7 @@ func runStatus(_ *cobra.Command, _ []string) error {
 // directory that contains a .collector-pid file. Best-effort: silently skips
 // sessions where the PID file is missing or unreadable.
 func printCollectorHealth(projectDir string) {
-	sessionsDir := filepath.Join(projectDir, ".erinn", "sessions")
+	sessionsDir := filepath.Join(projectDir, ".wipnote", "sessions")
 	entries, err := os.ReadDir(sessionsDir)
 	if err != nil {
 		return // no sessions dir yet — nothing to print

@@ -57,7 +57,7 @@ Without either flag, launches in planning mode to help you create one first.`,
 	}
 
 	cmd.Flags().BoolVar(&dev, "dev", false, "Load plugin from local source (development mode)")
-	cmd.Flags().BoolVar(&initMode, "init", false, "Initialize .erinn/ then launch in YOLO mode")
+	cmd.Flags().BoolVar(&initMode, "init", false, "Initialize .wipnote/ then launch in YOLO mode")
 	cmd.Flags().BoolVar(&continueMode, "continue", false, "Resume last YOLO session")
 	cmd.Flags().BoolVar(&noWorktree, "no-worktree", false, "Skip worktree creation (run in project root)")
 	cmd.Flags().BoolVar(&tmux, "tmux", false, "Wrap yolo in a tmux session named 'htmlgraph-yolo' (survives disconnects; reattaches on re-run)")
@@ -106,7 +106,7 @@ func resolveTrackTitle(trackID, featureID, projectRoot string) string {
 	if tid == "" {
 		return ""
 	}
-	trackFile := filepath.Join(projectRoot, ".erinn", "tracks", tid+".html")
+	trackFile := filepath.Join(projectRoot, ".wipnote", "tracks", tid+".html")
 	node, err := htmlparse.ParseFile(trackFile)
 	if err != nil {
 		return ""
@@ -114,10 +114,10 @@ func resolveTrackTitle(trackID, featureID, projectRoot string) string {
 	return node.Title
 }
 
-// validateWorkItem checks that a track or feature HTML file exists in .erinn/.
+// validateWorkItem checks that a track or feature HTML file exists in .wipnote/.
 // Returns the validated ID and item type, or an error.
 func validateWorkItem(trackID, featureID, projectRoot string) (id, kind string, err error) {
-	htmlgraphDir := filepath.Join(projectRoot, ".erinn")
+	htmlgraphDir := filepath.Join(projectRoot, ".wipnote")
 	switch {
 	case trackID != "":
 		htmlFile := filepath.Join(htmlgraphDir, "tracks", trackID+".html")
@@ -170,7 +170,7 @@ func mergeAgentToTrack(trackID, taskName, projectRoot string) error {
 // resolveTrackForFeature reads a feature HTML file and returns its data-track-id attribute.
 // If the feature file doesn't exist or has no track ID, returns empty string.
 func resolveTrackForFeature(featureID, projectRoot string) string {
-	featureFile := filepath.Join(projectRoot, ".erinn", "features", featureID+".html")
+	featureFile := filepath.Join(projectRoot, ".wipnote", "features", featureID+".html")
 	node, err := htmlparse.ParseFile(featureFile)
 	if err != nil {
 		// File not found or parse error — gracefully return empty
@@ -308,7 +308,7 @@ func launchYoloDev(trackID, featureID string, noWorktree bool, resumeID, name st
 	// Dev mode resolves the plugin from local source, NOT the marketplace.
 	pluginDir := resolveProjectPluginDir()
 	if pluginDir == "" {
-		return fmt.Errorf("could not find plugin/ directory relative to project root. Run from the project directory containing .erinn/ and plugin/")
+		return fmt.Errorf("could not find plugin/ directory relative to project root. Run from the project directory containing .wipnote/ and plugin/")
 	}
 	if _, err := os.Stat(filepath.Join(pluginDir, ".claude-plugin", "plugin.json")); os.IsNotExist(err) {
 		return fmt.Errorf("plugin.json not found at %s",
@@ -407,7 +407,7 @@ func launchYoloDev(trackID, featureID string, noWorktree bool, resumeID, name st
 }
 
 func launchYoloInit(trackID, featureID, resumeID, name string, extraArgs []string) error {
-	// Initialize .erinn/ first.
+	// Initialize .wipnote/ first.
 	if err := runInit(nil, nil); err != nil {
 		return fmt.Errorf("init failed: %w", err)
 	}

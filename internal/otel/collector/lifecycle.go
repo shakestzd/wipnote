@@ -339,7 +339,7 @@ func newProcPointer(proc *os.Process) *atomic.Pointer[os.Process] {
 // makeCleanup to avoid deleting a fresher PID written by the watchdog after
 // a respawn.
 func removeCollectorPIDIfMatches(projectDir, sessionID string, pid int) {
-	pidPath := filepath.Join(projectDir, ".erinn", "sessions", sessionID, ".collector-pid")
+	pidPath := filepath.Join(projectDir, ".wipnote", "sessions", sessionID, ".collector-pid")
 	got, _, _, err := readCollectorPIDFile(pidPath)
 	if err != nil || got != pid {
 		return
@@ -419,7 +419,7 @@ func readProcStartTime(pid int) (uint64, bool) {
 // to the PID-only Signal(0) probe.
 //
 // sessDir is the absolute path to the session directory (typically
-// <project>/.erinn/sessions/<sid>) — the function looks for
+// <project>/.wipnote/sessions/<sid>) — the function looks for
 // .collector-pid inside it. Returns (alive=false, pid=0) when the file
 // is missing or unreadable.
 func IsCollectorAlive(sessDir string) (alive bool, pid int) {
@@ -450,7 +450,7 @@ func IsCollectorAlive(sessDir string) (alive bool, pid int) {
 // Unlike removeCollectorPIDIfMatches, this is unconditional. Used by direct
 // shim callers; the reaper path uses the conditional variant.
 func RemoveCollectorPID(projectDir, sessionID string) {
-	pidPath := filepath.Join(projectDir, ".erinn", "sessions", sessionID, ".collector-pid")
+	pidPath := filepath.Join(projectDir, ".wipnote", "sessions", sessionID, ".collector-pid")
 	_ = os.Remove(pidPath)
 }
 
@@ -462,7 +462,7 @@ func RemoveCollectorPID(projectDir, sessionID string) {
 //
 // Best-effort: errors are silently ignored.
 func WriteCollectorPID(projectDir, sessionID string, pid int) {
-	sessDir := filepath.Join(projectDir, ".erinn", "sessions", sessionID)
+	sessDir := filepath.Join(projectDir, ".wipnote", "sessions", sessionID)
 	_ = os.MkdirAll(sessDir, 0o755)
 	pidPath := filepath.Join(sessDir, ".collector-pid")
 	content := strconv.Itoa(pid) + "\n"

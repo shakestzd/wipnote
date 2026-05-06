@@ -62,14 +62,14 @@ func runHistory(id string, jsonOut bool) error {
 	//
 	// Two failure modes to avoid:
 	//   - nested submodule: cwd is inside a different repository than the
-	//     discovered .erinn, and using cwd would log the submodule.
-	//   - linked worktree: .erinn lives in the main checkout but cwd is an
-	//     active linked worktree; using the .erinn owner would log the
+	//     discovered .wipnote, and using cwd would log the submodule.
+	//   - linked worktree: .wipnote lives in the main checkout but cwd is an
+	//     active linked worktree; using the .wipnote owner would log the
 	//     main checkout's HEAD and miss branch-local history.
 	//
 	// Strategy: prefer cwd's worktree if it belongs to the SAME repository as
-	// the .erinn owner (same git-common-dir), otherwise fall back to the
-	// .erinn owner. git-common-dir is shared by every linked worktree of
+	// the .wipnote owner (same git-common-dir), otherwise fall back to the
+	// .wipnote owner. git-common-dir is shared by every linked worktree of
 	// a repo and differs for submodules, so it is the correct discriminator.
 	repoRoot, err := resolveHistoryRoot(filepath.Dir(hgDir))
 	if err != nil {
@@ -112,7 +112,7 @@ func resolveHistoryPath(hgDir, id string) (string, error) {
 		return archivePath, nil
 	}
 
-	return "", fmt.Errorf("work item %q not found in .erinn/%s/ or .erinn/archives/", id, sub)
+	return "", fmt.Errorf("work item %q not found in .wipnote/%s/ or .wipnote/archives/", id, sub)
 }
 
 // subDirAndExt returns the subdirectory name and file extension for a given
@@ -149,7 +149,7 @@ func gitToplevel(dir string) (string, error) {
 // shared git dir (the main checkout's .git for linked worktrees). Two
 // directories belong to the same repository iff their git-common-dir values
 // are equal after symlink resolution — raw strings are not enough because a
-// worktree and the .erinn owner can reach the same repo via different
+// worktree and the .wipnote owner can reach the same repo via different
 // symlinked paths (e.g. /tmp vs /private/tmp on macOS, or a dev container
 // mount shadowing the host path).
 func gitCommonDir(dir string) (string, error) {
@@ -166,11 +166,11 @@ func gitCommonDir(dir string) (string, error) {
 
 // resolveHistoryRoot picks the correct git toplevel for `history <id>`.
 //
-// If the process cwd and the supplied .erinn owner directory share a
+// If the process cwd and the supplied .wipnote owner directory share a
 // git-common-dir, they belong to the same repository — cwd may be a linked
 // worktree on a different branch, and its toplevel is the right one for
 // branch-local history. Otherwise cwd is inside a different repository
-// (typically a nested submodule) and we fall back to the .erinn owner
+// (typically a nested submodule) and we fall back to the .wipnote owner
 // so history never escapes the HtmlGraph checkout.
 func resolveHistoryRoot(hgOwner string) (string, error) {
 	ownerCommon, ownerErr := gitCommonDir(hgOwner)

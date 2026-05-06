@@ -35,7 +35,7 @@ func setupPlanTestDB(t *testing.T) (*sql.DB, string) {
 	return database, planID
 }
 
-// writeTempPlanHTML creates a temporary .erinn/plans directory with a
+// writeTempPlanHTML creates a temporary .wipnote/plans directory with a
 // minimal plan HTML file and a matching YAML file. Returns the htmlgraphDir.
 func writeTempPlanHTML(t *testing.T, planID string) string {
 	t.Helper()

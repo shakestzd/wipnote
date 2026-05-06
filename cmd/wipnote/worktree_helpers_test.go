@@ -102,7 +102,7 @@ func setupWorktreeGitRepo(t *testing.T) string {
 // writeFeatureHTML writes a minimal feature HTML file. If trackID is empty, data-track-id is omitted.
 func writeFeatureHTML(t *testing.T, dir, featureID, trackID string) {
 	t.Helper()
-	featureDir := filepath.Join(dir, ".erinn", "features")
+	featureDir := filepath.Join(dir, ".wipnote", "features")
 	if err := os.MkdirAll(featureDir, 0755); err != nil {
 		t.Fatalf("mkdir features: %v", err)
 	}
@@ -262,7 +262,7 @@ func TestEnsureForFeature_DiscardWriter(t *testing.T) {
 // writeTrackHTMLWithTitle writes a minimal track HTML file with the given title.
 func writeTrackHTMLWithTitle(t *testing.T, dir, trackID, title string) {
 	t.Helper()
-	trackDir := filepath.Join(dir, ".erinn", "tracks")
+	trackDir := filepath.Join(dir, ".wipnote", "tracks")
 	if err := os.MkdirAll(trackDir, 0755); err != nil {
 		t.Fatalf("mkdir tracks: %v", err)
 	}
@@ -290,7 +290,7 @@ func TestEnsureForTrackWithTitle_FeatureParentTrack(t *testing.T) {
 	writeTrackHTMLWithTitle(t, dir, trackID, "Titled Parent Track")
 
 	// Create a feature that points to the titled track.
-	featureDir := filepath.Join(dir, ".erinn", "features")
+	featureDir := filepath.Join(dir, ".wipnote", "features")
 	if err := os.MkdirAll(featureDir, 0755); err != nil {
 		t.Fatalf("mkdir features: %v", err)
 	}

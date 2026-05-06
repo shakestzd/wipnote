@@ -193,7 +193,7 @@ func runSessionEnd(sessionID string) error {
 	return nil
 }
 
-// openDB is a shared helper to open the SQLite DB from the .erinn dir.
+// openDB is a shared helper to open the SQLite DB from the .wipnote dir.
 // The DB lives in the OS cache dir (keyed by project-path hash) — never
 // inside the project tree. See storage.CanonicalDBPath for details.
 func openDB(htmlgraphDir string) (*sql.DB, error) {

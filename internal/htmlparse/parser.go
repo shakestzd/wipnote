@@ -1,6 +1,6 @@
 // Package htmlparse reads HtmlGraph HTML work item files into Go structs.
 //
-// Each .erinn/features/*.html file follows a well-defined structure:
+// Each .wipnote/features/*.html file follows a well-defined structure:
 //
 //	<article id="feat-xxx" data-type="feature" data-status="todo" ...>
 //	  <header><h1>Title</h1></header>

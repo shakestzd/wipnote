@@ -181,7 +181,7 @@ func addLinkedNode(htmlgraphDir, id string, p *executePreview, seen map[string]b
 	}
 }
 
-// discoverPlansByFeatureID scans .erinn/plans/*.html for any plan whose
+// discoverPlansByFeatureID scans .wipnote/plans/*.html for any plan whose
 // data-feature-id attribute matches sourceID, and adds matching plans to the
 // preview. Mirrors findExistingPlanForSource in plan_cmds.go but collects
 // all hits rather than returning the first.

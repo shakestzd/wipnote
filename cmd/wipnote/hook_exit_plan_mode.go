@@ -15,14 +15,14 @@ import (
 )
 
 // handleExitPlanMode handles the PostToolUse ExitPlanMode event. It finds the
-// most recently modified markdown file in .erinn/plans/, parses it into a
+// most recently modified markdown file in .wipnote/plans/, parses it into a
 // best-effort CRISPI YAML plan, saves it, and suggests a review command.
 //
 // This handler lives in cmd/htmlgraph (not internal/hooks) because the hooks
 // package must not import workitem (spike creation policy). The markdown-to-YAML
 // conversion uses workitem.GenerateID and planyaml.NewPlan/Save.
 func handleExitPlanMode(event *hooks.CloudEvent, database *sql.DB, projectDir string) (*hooks.HookResult, error) {
-	plansDir := filepath.Join(projectDir, ".erinn", "plans")
+	plansDir := filepath.Join(projectDir, ".wipnote", "plans")
 
 	mdPath, err := mostRecentMarkdownFile(plansDir)
 	if err != nil {

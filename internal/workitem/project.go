@@ -21,7 +21,7 @@ import (
 
 // Base holds the shared context needed by all collection operations.
 type Base struct {
-	// ProjectDir is the path to the .erinn/ directory.
+	// ProjectDir is the path to the .wipnote/ directory.
 	ProjectDir string
 
 	// Agent is the identifier of the agent using this package (e.g. "claude-code").
@@ -55,7 +55,7 @@ type Project struct {
 // Open creates a new Project instance, opens the SQLite database, and
 // initialises all collection accessors.
 //
-// projectDir must point to a .erinn/ directory.
+// projectDir must point to a .wipnote/ directory.
 // agent identifies the calling agent for work attribution.
 func Open(projectDir, agent string) (*Project, error) {
 	if projectDir == "" {
@@ -65,7 +65,7 @@ func Open(projectDir, agent string) (*Project, error) {
 		return nil, fmt.Errorf("agent must not be empty")
 	}
 
-	// Note: ProjectDir field is the .erinn directory (caller convention),
+	// Note: ProjectDir field is the .wipnote directory (caller convention),
 	// but storage.CanonicalDBPath wants the actual project root.
 	dbPath, err := storage.CanonicalDBPath(filepath.Dir(projectDir))
 	if err != nil {

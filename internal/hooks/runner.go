@@ -138,7 +138,7 @@ func Empty() error {
 	return err
 }
 
-// ResolveProjectDir finds the project directory containing .erinn/.
+// ResolveProjectDir finds the project directory containing .wipnote/.
 // Delegates to paths.ResolveProjectDir with the CloudEvent CWD and a
 // walk-up limit of defaultProjectDirWalkLevels (matching the previous hook behaviour).
 // sessionID enables session-scoped hint lookup; pass "" when no event is available.
@@ -151,9 +151,9 @@ func ResolveProjectDir(cwd, sessionID string) string {
 	return dir
 }
 
-// IsHtmlGraphProject returns true when the project directory has a .erinn/ dir.
+// IsHtmlGraphProject returns true when the project directory has a .wipnote/ dir.
 func IsHtmlGraphProject(projectDir string) bool {
-	_, err := os.Stat(filepath.Join(projectDir, ".erinn"))
+	_, err := os.Stat(filepath.Join(projectDir, ".wipnote"))
 	return err == nil
 }
 
@@ -165,7 +165,7 @@ func IsHtmlGraphProject(projectDir string) bool {
 // Returns an error when os.UserCacheDir() fails. There is intentionally no
 // silent fallback to a project-local path: a fallback caused bug-62f14f8c
 // where the indexer wrote to ~/.cache/wipnote/<hash>/htmlgraph.db while
-// the YOLO PreToolUse gate read .erinn/.db/htmlgraph.db, leaving the
+// the YOLO PreToolUse gate read .wipnote/.db/htmlgraph.db, leaving the
 // gate's view of agent_events permanently stale. Callers must propagate
 // the error (typically by skipping the hook with the configured fallback).
 func DBPath(projectDir string) (string, error) {
@@ -182,7 +182,7 @@ func NormaliseSessionID(raw string) string {
 // EnvSessionID returns the current session ID using a three-step fallback:
 //  1. CloudEvent session_id (always correct for hook invocations)
 //  2. WIPNOTE_SESSION_ID env var (for CLI commands without a CloudEvent)
-//  3. .erinn/.active-session file (last resort for edge cases)
+//  3. .wipnote/.active-session file (last resort for edge cases)
 func EnvSessionID(eventSessionID string) string {
 	// CloudEvent session_id is always correct for this hook invocation.
 	// It takes priority over the env var, which can be overwritten by a

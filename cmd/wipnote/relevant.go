@@ -74,7 +74,7 @@ Query auto-detection:
   git SHA    — 7–40 lowercase hex characters
   keyword    — anything else
 
-Reads directly from .erinn/*.html via ripgrep + git log.
+Reads directly from .wipnote/*.html via ripgrep + git log.
 SQLite is not consulted.
 
 Examples:
@@ -246,7 +246,7 @@ func tokenizeQuery(query string) []string {
 	return out
 }
 
-// searchWithRipgrep runs rg --json over .erinn/*.html for the given query
+// searchWithRipgrep runs rg --json over .wipnote/*.html for the given query
 // and adds scores/citations to the scores map.
 func searchWithRipgrep(hgDir, query string, scores map[string]*relevantResult) error {
 	args := []string{

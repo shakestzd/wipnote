@@ -12,7 +12,7 @@ import (
 func setupResetTest(t *testing.T) (tmpDir, hgDir string) {
 	t.Helper()
 	tmpDir = t.TempDir()
-	hgDir = filepath.Join(tmpDir, ".erinn")
+	hgDir = filepath.Join(tmpDir, ".wipnote")
 	for _, sub := range []string{"features", "bugs", "spikes", "tracks", "plans", "specs"} {
 		if err := os.MkdirAll(filepath.Join(hgDir, sub), 0o755); err != nil {
 			t.Fatal(err)

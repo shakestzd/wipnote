@@ -153,7 +153,7 @@ func TestParseNoArticle(t *testing.T) {
 }
 
 func TestParseRealWorkItem(t *testing.T) {
-	// This test uses a real HTML feature file from the .erinn/ directory.
+	// This test uses a real HTML feature file from the .wipnote/ directory.
 	// It validates that the Go parser produces the same results as the Python parser.
 	realHTML := `<!DOCTYPE html>
 <html lang="en">

@@ -13,8 +13,8 @@ import (
 
 func TestCreateSessionHTML(t *testing.T) {
 	projectDir := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(projectDir, ".erinn"), 0o755); err != nil {
-		t.Fatalf("mkdir .erinn: %v", err)
+	if err := os.MkdirAll(filepath.Join(projectDir, ".wipnote"), 0o755); err != nil {
+		t.Fatalf("mkdir .wipnote: %v", err)
 	}
 
 	now := time.Date(2026, 4, 8, 12, 0, 0, 0, time.UTC)
@@ -29,7 +29,7 @@ func TestCreateSessionHTML(t *testing.T) {
 
 	CreateSessionHTML(projectDir, s)
 
-	htmlPath := filepath.Join(projectDir, ".erinn", "sessions", "sess-html-test-001.html")
+	htmlPath := filepath.Join(projectDir, ".wipnote", "sessions", "sess-html-test-001.html")
 	data, err := os.ReadFile(htmlPath)
 	if err != nil {
 		t.Fatalf("session HTML file not created: %v", err)
@@ -89,8 +89,8 @@ func TestCreateSessionHTML(t *testing.T) {
 
 func TestCreateSessionHTMLSubagent(t *testing.T) {
 	projectDir := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(projectDir, ".erinn"), 0o755); err != nil {
-		t.Fatalf("mkdir .erinn: %v", err)
+	if err := os.MkdirAll(filepath.Join(projectDir, ".wipnote"), 0o755); err != nil {
+		t.Fatalf("mkdir .wipnote: %v", err)
 	}
 
 	s := &models.Session{
@@ -104,7 +104,7 @@ func TestCreateSessionHTMLSubagent(t *testing.T) {
 
 	CreateSessionHTML(projectDir, s)
 
-	htmlPath := filepath.Join(projectDir, ".erinn", "sessions", "sess-html-sub-001.html")
+	htmlPath := filepath.Join(projectDir, ".wipnote", "sessions", "sess-html-sub-001.html")
 	data, err := os.ReadFile(htmlPath)
 	if err != nil {
 		t.Fatalf("session HTML file not created: %v", err)
@@ -118,7 +118,7 @@ func TestCreateSessionHTMLSubagent(t *testing.T) {
 
 func TestAppendEventToSessionHTML(t *testing.T) {
 	projectDir := t.TempDir()
-	sessDir := filepath.Join(projectDir, ".erinn", "sessions")
+	sessDir := filepath.Join(projectDir, ".wipnote", "sessions")
 	if err := os.MkdirAll(sessDir, 0o755); err != nil {
 		t.Fatalf("mkdir sessions: %v", err)
 	}
@@ -187,7 +187,7 @@ func TestAppendEventToSessionHTML(t *testing.T) {
 
 func TestAppendMultipleEventsToSessionHTML(t *testing.T) {
 	projectDir := t.TempDir()
-	sessDir := filepath.Join(projectDir, ".erinn", "sessions")
+	sessDir := filepath.Join(projectDir, ".wipnote", "sessions")
 	if err := os.MkdirAll(sessDir, 0o755); err != nil {
 		t.Fatalf("mkdir sessions: %v", err)
 	}
@@ -240,7 +240,7 @@ func TestAppendMultipleEventsToSessionHTML(t *testing.T) {
 
 func TestFinalizeSessionHTML(t *testing.T) {
 	projectDir := t.TempDir()
-	sessDir := filepath.Join(projectDir, ".erinn", "sessions")
+	sessDir := filepath.Join(projectDir, ".wipnote", "sessions")
 	if err := os.MkdirAll(sessDir, 0o755); err != nil {
 		t.Fatalf("mkdir sessions: %v", err)
 	}
@@ -304,8 +304,8 @@ func TestFinalizeSessionHTML(t *testing.T) {
 
 func TestMissingSessionHTMLDoesNotError(t *testing.T) {
 	projectDir := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(projectDir, ".erinn"), 0o755); err != nil {
-		t.Fatalf("mkdir .erinn: %v", err)
+	if err := os.MkdirAll(filepath.Join(projectDir, ".wipnote"), 0o755); err != nil {
+		t.Fatalf("mkdir .wipnote: %v", err)
 	}
 
 	// Appending to a non-existent session file should not panic or error.
@@ -325,9 +325,9 @@ func TestMissingSessionHTMLDoesNotError(t *testing.T) {
 
 func TestCreateSessionHTMLCreatesDirectory(t *testing.T) {
 	projectDir := t.TempDir()
-	// Only create .erinn, NOT .erinn/sessions — CreateSessionHTML should handle it.
-	if err := os.MkdirAll(filepath.Join(projectDir, ".erinn"), 0o755); err != nil {
-		t.Fatalf("mkdir .erinn: %v", err)
+	// Only create .wipnote, NOT .wipnote/sessions — CreateSessionHTML should handle it.
+	if err := os.MkdirAll(filepath.Join(projectDir, ".wipnote"), 0o755); err != nil {
+		t.Fatalf("mkdir .wipnote: %v", err)
 	}
 
 	s := &models.Session{
@@ -339,7 +339,7 @@ func TestCreateSessionHTMLCreatesDirectory(t *testing.T) {
 	}
 	CreateSessionHTML(projectDir, s)
 
-	htmlPath := filepath.Join(projectDir, ".erinn", "sessions", "sess-mkdir-test-001.html")
+	htmlPath := filepath.Join(projectDir, ".wipnote", "sessions", "sess-mkdir-test-001.html")
 	if _, err := os.Stat(htmlPath); os.IsNotExist(err) {
 		t.Error("CreateSessionHTML should create the sessions directory automatically")
 	}
@@ -347,9 +347,9 @@ func TestCreateSessionHTMLCreatesDirectory(t *testing.T) {
 
 func TestRenderIngestedSessionHTML_Shape(t *testing.T) {
 	projectDir := t.TempDir()
-	htmlgraphDir := filepath.Join(projectDir, ".erinn")
+	htmlgraphDir := filepath.Join(projectDir, ".wipnote")
 	if err := os.MkdirAll(htmlgraphDir, 0o755); err != nil {
-		t.Fatalf("mkdir .erinn: %v", err)
+		t.Fatalf("mkdir .wipnote: %v", err)
 	}
 
 	msgTs := time.Date(2026, 4, 10, 12, 0, 0, 0, time.UTC)
@@ -403,7 +403,7 @@ func TestRenderIngestedSessionHTML_Shape(t *testing.T) {
 
 func TestRenderIngestedSessionHTML_SkipExisting(t *testing.T) {
 	projectDir := t.TempDir()
-	htmlgraphDir := filepath.Join(projectDir, ".erinn")
+	htmlgraphDir := filepath.Join(projectDir, ".wipnote")
 	if err := os.MkdirAll(filepath.Join(htmlgraphDir, "sessions"), 0o755); err != nil {
 		t.Fatalf("mkdir sessions: %v", err)
 	}
@@ -434,7 +434,7 @@ func TestRenderIngestedSessionHTML_SkipExisting(t *testing.T) {
 
 func TestRenderIngestedSessionHTML_ForceOverwrite(t *testing.T) {
 	projectDir := t.TempDir()
-	htmlgraphDir := filepath.Join(projectDir, ".erinn")
+	htmlgraphDir := filepath.Join(projectDir, ".wipnote")
 	if err := os.MkdirAll(filepath.Join(htmlgraphDir, "sessions"), 0o755); err != nil {
 		t.Fatalf("mkdir sessions: %v", err)
 	}
@@ -466,9 +466,9 @@ func TestRenderIngestedSessionHTML_ForceOverwrite(t *testing.T) {
 
 func TestRenderIngestedSessionHTML_Idempotent(t *testing.T) {
 	projectDir := t.TempDir()
-	htmlgraphDir := filepath.Join(projectDir, ".erinn")
+	htmlgraphDir := filepath.Join(projectDir, ".wipnote")
 	if err := os.MkdirAll(htmlgraphDir, 0o755); err != nil {
-		t.Fatalf("mkdir .erinn: %v", err)
+		t.Fatalf("mkdir .wipnote: %v", err)
 	}
 
 	result := &ingest.ParseResult{
@@ -498,7 +498,7 @@ func TestRenderIngestedSessionHTML_Idempotent(t *testing.T) {
 
 func TestAppendEventHTMLEscaping(t *testing.T) {
 	projectDir := t.TempDir()
-	sessDir := filepath.Join(projectDir, ".erinn", "sessions")
+	sessDir := filepath.Join(projectDir, ".wipnote", "sessions")
 	if err := os.MkdirAll(sessDir, 0o755); err != nil {
 		t.Fatalf("mkdir sessions: %v", err)
 	}

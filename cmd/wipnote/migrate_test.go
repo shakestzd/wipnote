@@ -18,7 +18,7 @@ import (
 func setupMigrateEnv(t *testing.T, orphanIDs ...string) string {
 	t.Helper()
 	projectDir := t.TempDir()
-	htmlgraphDir := filepath.Join(projectDir, ".erinn")
+	htmlgraphDir := filepath.Join(projectDir, ".wipnote")
 	if err := os.MkdirAll(filepath.Join(htmlgraphDir, "sessions"), 0o755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
@@ -70,7 +70,7 @@ func setupMigrateEnv(t *testing.T, orphanIDs ...string) string {
 
 func TestExistingSessionHTMLSet(t *testing.T) {
 	tmpdir := t.TempDir()
-	sessDir := filepath.Join(tmpdir, ".erinn", "sessions")
+	sessDir := filepath.Join(tmpdir, ".wipnote", "sessions")
 	if err := os.MkdirAll(sessDir, 0o755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
@@ -80,7 +80,7 @@ func TestExistingSessionHTMLSet(t *testing.T) {
 		}
 	}
 
-	set, err := existingSessionHTMLSet(filepath.Join(tmpdir, ".erinn"))
+	set, err := existingSessionHTMLSet(filepath.Join(tmpdir, ".wipnote"))
 	if err != nil {
 		t.Fatalf("existingSessionHTMLSet: %v", err)
 	}

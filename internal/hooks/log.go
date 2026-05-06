@@ -9,13 +9,13 @@ import (
 	"time"
 )
 
-// debugLog writes a diagnostic message to .erinn/debug.log if it can be resolved.
+// debugLog writes a diagnostic message to .wipnote/debug.log if it can be resolved.
 // Silently no-ops if the project dir can't be found or the file can't be opened.
 func debugLog(projectDir, format string, args ...any) {
 	if projectDir == "" {
 		return
 	}
-	logPath := filepath.Join(projectDir, ".erinn", "debug.log")
+	logPath := filepath.Join(projectDir, ".wipnote", "debug.log")
 	f, err := os.OpenFile(logPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
 	if err != nil {
 		return
@@ -33,7 +33,7 @@ func debugLogFields(projectDir, handler string, fields map[string]string, msg st
 	if projectDir == "" {
 		return
 	}
-	logPath := filepath.Join(projectDir, ".erinn", "debug.log")
+	logPath := filepath.Join(projectDir, ".wipnote", "debug.log")
 	f, err := os.OpenFile(logPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
 	if err != nil {
 		return

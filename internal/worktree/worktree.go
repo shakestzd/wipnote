@@ -368,7 +368,7 @@ func EnsureForAgent(trackID, taskName, repoRoot string, w io.Writer) (string, er
 // resolveTrackForFeature reads a feature HTML file and returns its data-track-id attribute.
 // If the feature file doesn't exist or has no track ID, returns empty string.
 func resolveTrackForFeature(featureID, projectRoot string) string {
-	featureFile := filepath.Join(projectRoot, ".erinn", "features", featureID+".html")
+	featureFile := filepath.Join(projectRoot, ".wipnote", "features", featureID+".html")
 	node, err := htmlparse.ParseFile(featureFile)
 	if err != nil {
 		// File not found or parse error — gracefully return empty.
@@ -377,7 +377,7 @@ func resolveTrackForFeature(featureID, projectRoot string) string {
 	return node.TrackID
 }
 
-// excludeHtmlgraphFromWorktree adds .erinn/ to the worktree's local git exclude file.
+// excludeHtmlgraphFromWorktree adds .wipnote/ to the worktree's local git exclude file.
 // Best-effort: errors are written to w but do not abort.
 func excludeHtmlgraphFromWorktree(worktreePath string, w io.Writer) {
 	gitFile := filepath.Join(worktreePath, ".git")
@@ -406,7 +406,7 @@ func excludeHtmlgraphFromWorktree(worktreePath string, w io.Writer) {
 	}
 	defer f.Close()
 
-	if _, err := f.WriteString("\n.erinn/\n"); err != nil {
+	if _, err := f.WriteString("\n.wipnote/\n"); err != nil {
 		fmt.Fprintf(w, "  Warning: could not write to exclude file: %v\n", err)
 	}
 }

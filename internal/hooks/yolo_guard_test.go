@@ -23,7 +23,7 @@ func init() {
 func TestIsYoloFromDB(t *testing.T) {
 	// Create a temp directory with a real on-disk DB.
 	tmpDir := t.TempDir()
-	hgDir := filepath.Join(tmpDir, ".erinn")
+	hgDir := filepath.Join(tmpDir, ".wipnote")
 	os.MkdirAll(filepath.Join(hgDir, ".db"), 0o755)
 	dbPath := filepath.Join(hgDir, ".db", "htmlgraph.db")
 	t.Setenv("WIPNOTE_DB_PATH", dbPath)
@@ -85,7 +85,7 @@ func TestIsYoloFromDB(t *testing.T) {
 
 func TestIsYoloFromEvent(t *testing.T) {
 	tmpDir := t.TempDir()
-	hgDir := filepath.Join(tmpDir, ".erinn")
+	hgDir := filepath.Join(tmpDir, ".wipnote")
 	os.MkdirAll(hgDir, 0o755)
 
 	// bypassPermissions → yolo regardless of DB state.
@@ -295,7 +295,7 @@ func TestCheckYoloCommitGuard(t *testing.T) {
 	}
 }
 
-// setupIsolatedProjectDir creates a temp directory with a .erinn
+// setupIsolatedProjectDir creates a temp directory with a .wipnote
 // subdirectory and pins the resolver chain to it for the duration of
 // the test. Without overriding CLAUDE_PROJECT_DIR and clearing
 // WIPNOTE_PROJECT_DIR, paths.ResolveProjectDir would inherit the
@@ -304,7 +304,7 @@ func TestCheckYoloCommitGuard(t *testing.T) {
 func setupIsolatedProjectDir(t *testing.T) string {
 	t.Helper()
 	projDir := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(projDir, ".erinn"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(projDir, ".wipnote"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("CLAUDE_PROJECT_DIR", projDir)
@@ -832,9 +832,9 @@ func TestUIValidationGuard_BrowserBatchScreenshotCounts(t *testing.T) {
 }
 
 func TestCheckYoloStepsGuard(t *testing.T) {
-	// Set up a temp .erinn dir with a feature that has no steps
+	// Set up a temp .wipnote dir with a feature that has no steps
 	tmpDir := t.TempDir()
-	hgDir := filepath.Join(tmpDir, ".erinn")
+	hgDir := filepath.Join(tmpDir, ".wipnote")
 	os.MkdirAll(filepath.Join(hgDir, "features"), 0o755)
 
 	// Feature without steps
@@ -1201,7 +1201,7 @@ func TestIsYoloWithInheritance(t *testing.T) {
 	// Set up an isolated project directory so that isYoloFromDB resolves the
 	// correct DB path via WIPNOTE_DB_PATH.
 	tmpDir := t.TempDir()
-	hgDir := filepath.Join(tmpDir, ".erinn")
+	hgDir := filepath.Join(tmpDir, ".wipnote")
 	os.MkdirAll(filepath.Join(hgDir, ".db"), 0o755)
 	dbPath := filepath.Join(hgDir, ".db", "htmlgraph.db")
 	t.Setenv("WIPNOTE_DB_PATH", dbPath)

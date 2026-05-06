@@ -20,7 +20,7 @@ import (
 	"github.com/shakestzd/wipnote/internal/worktree"
 )
 
-// ActiveSessionData is the JSON structure written to .erinn/.active-session
+// ActiveSessionData is the JSON structure written to .wipnote/.active-session
 // as a fallback propagation mechanism when CLAUDE_ENV_FILE is unset (worktree
 // subagents). All fields mirror what writeEnvVars() exports via CLAUDE_ENV_FILE.
 type ActiveSessionData struct {
@@ -33,7 +33,7 @@ type ActiveSessionData struct {
 	Timestamp     float64 `json:"timestamp"`
 }
 
-// WriteActiveSession writes session context to .erinn/.active-session so
+// WriteActiveSession writes session context to .wipnote/.active-session so
 // worktree subagent hooks can read session ID even when CLAUDE_ENV_FILE is unset.
 //
 // Writes are atomic (write-to-temp + rename) so concurrent readers never see
@@ -56,7 +56,7 @@ func WriteActiveSession(sessionID, projectDir string) {
 	if err != nil {
 		return
 	}
-	dir := filepath.Join(projectDir, ".erinn")
+	dir := filepath.Join(projectDir, ".wipnote")
 	target := filepath.Join(dir, ".active-session")
 	tmp, err := os.CreateTemp(dir, ".active-session.tmp-*")
 	if err != nil {
@@ -78,13 +78,13 @@ func WriteActiveSession(sessionID, projectDir string) {
 	}
 }
 
-// ReadActiveSession reads session context from .erinn/.active-session.
+// ReadActiveSession reads session context from .wipnote/.active-session.
 // Returns nil when the file doesn't exist or can't be parsed.
 func ReadActiveSession(projectDir string) *ActiveSessionData {
 	if projectDir == "" {
 		return nil
 	}
-	path := filepath.Join(projectDir, ".erinn", ".active-session")
+	path := filepath.Join(projectDir, ".wipnote", ".active-session")
 	b, err := os.ReadFile(path)
 	if err != nil {
 		return nil
@@ -96,7 +96,7 @@ func ReadActiveSession(projectDir string) *ActiveSessionData {
 	return &data
 }
 
-// launchModeFile is the JSON structure written to .erinn/.launch-mode by
+// launchModeFile is the JSON structure written to .wipnote/.launch-mode by
 // `htmlgraph claude`. It records how the current Claude session was started.
 type launchModeFile struct {
 	Mode      string `json:"mode"`
@@ -111,7 +111,7 @@ func bareLaunchNudge(projectDir string) string {
 	if projectDir == "" {
 		return ""
 	}
-	path := filepath.Join(projectDir, ".erinn", ".launch-mode")
+	path := filepath.Join(projectDir, ".wipnote", ".launch-mode")
 	info, err := os.Stat(path)
 	if err == nil {
 		// File exists — check if it was written within the last 30 seconds.
@@ -401,7 +401,7 @@ func upsertSession(database *sql.DB, s *models.Session) error {
 }
 
 // writeEnvVars appends session context exports to CLAUDE_ENV_FILE and always
-// writes .erinn/.active-session as a backup. The .active-session file
+// writes .wipnote/.active-session as a backup. The .active-session file
 // ensures downstream hooks can resolve the session ID even when CLAUDE_ENV_FILE
 // is unavailable (YOLO mode, worktree subagents, plugin-dir launches).
 func writeEnvVars(sessionID, projectDir string) {
@@ -534,7 +534,7 @@ func emitRosettaEvent(projectDir, htmlgraphSID, claudeSessionID string) {
 		return // not a launcher-managed session; skip silently
 	}
 
-	sessDir := filepath.Join(projectDir, ".erinn", "sessions", htmlgraphSID)
+	sessDir := filepath.Join(projectDir, ".wipnote", "sessions", htmlgraphSID)
 	if err := os.MkdirAll(sessDir, 0o755); err != nil {
 		debugLog(projectDir, "[session-start] rosetta: mkdir session dir: %v", err)
 		return

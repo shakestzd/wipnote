@@ -68,7 +68,7 @@ Returns exit code 0 if all gates pass, 1 if any fail.`,
 	return cmd
 }
 
-// resolveProjectRoot finds the project root from the .erinn directory.
+// resolveProjectRoot finds the project root from the .wipnote directory.
 func resolveProjectRoot() (string, error) {
 	htmlgraphDir, err := findHtmlgraphDir()
 	if err != nil {

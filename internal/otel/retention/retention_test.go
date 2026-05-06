@@ -64,7 +64,7 @@ func makeSessionDir(t *testing.T, htmlgraphDir, sessionID, content string) {
 
 func TestRun_ArchivesOldCompletedSession(t *testing.T) {
 	dir := t.TempDir()
-	htmlgraphDir := filepath.Join(dir, ".erinn")
+	htmlgraphDir := filepath.Join(dir, ".wipnote")
 	if err := os.MkdirAll(filepath.Join(htmlgraphDir, "sessions"), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -86,7 +86,7 @@ func TestRun_ArchivesOldCompletedSession(t *testing.T) {
 		t.Error("expected live session dir to be removed after archiving")
 	}
 
-	// Archive should exist somewhere under .erinn/archive/.
+	// Archive should exist somewhere under .wipnote/archive/.
 	archiveRoot := filepath.Join(htmlgraphDir, "archive")
 	found := false
 	_ = filepath.Walk(archiveRoot, func(path string, info os.FileInfo, err error) error {
@@ -99,13 +99,13 @@ func TestRun_ArchivesOldCompletedSession(t *testing.T) {
 		return nil
 	})
 	if !found {
-		t.Error("expected archive file to exist under .erinn/archive/")
+		t.Error("expected archive file to exist under .wipnote/archive/")
 	}
 }
 
 func TestRun_SkipsActiveSession(t *testing.T) {
 	dir := t.TempDir()
-	htmlgraphDir := filepath.Join(dir, ".erinn")
+	htmlgraphDir := filepath.Join(dir, ".wipnote")
 	if err := os.MkdirAll(filepath.Join(htmlgraphDir, "sessions"), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -130,7 +130,7 @@ func TestRun_SkipsActiveSession(t *testing.T) {
 
 func TestRun_SkipsRecentCompletedSession(t *testing.T) {
 	dir := t.TempDir()
-	htmlgraphDir := filepath.Join(dir, ".erinn")
+	htmlgraphDir := filepath.Join(dir, ".wipnote")
 	if err := os.MkdirAll(filepath.Join(htmlgraphDir, "sessions"), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -155,7 +155,7 @@ func TestRun_SkipsRecentCompletedSession(t *testing.T) {
 
 func TestRun_DryRunDoesNotMoveFiles(t *testing.T) {
 	dir := t.TempDir()
-	htmlgraphDir := filepath.Join(dir, ".erinn")
+	htmlgraphDir := filepath.Join(dir, ".wipnote")
 	if err := os.MkdirAll(filepath.Join(htmlgraphDir, "sessions"), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -185,7 +185,7 @@ func TestRun_DryRunDoesNotMoveFiles(t *testing.T) {
 
 func TestExtractArchive_RoundTrip(t *testing.T) {
 	dir := t.TempDir()
-	htmlgraphDir := filepath.Join(dir, ".erinn")
+	htmlgraphDir := filepath.Join(dir, ".wipnote")
 	if err := os.MkdirAll(filepath.Join(htmlgraphDir, "sessions"), 0o755); err != nil {
 		t.Fatal(err)
 	}

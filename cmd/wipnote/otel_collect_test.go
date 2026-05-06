@@ -49,12 +49,12 @@ func buildOtelCollectTestBinary(t *testing.T) string {
 	return bin
 }
 
-// mkOtelCollectProject creates a temp project dir with a .erinn directory
+// mkOtelCollectProject creates a temp project dir with a .wipnote directory
 // and returns the project root.
 func mkOtelCollectProject(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(dir, ".erinn"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(dir, ".wipnote"), 0o755); err != nil {
 		t.Fatalf("mkdirall: %v", err)
 	}
 	return dir
@@ -214,7 +214,7 @@ func TestOtelCollect_CollectorStartEvent(t *testing.T) {
 	// Give it a moment to flush the collector_start event.
 	time.Sleep(100 * time.Millisecond)
 
-	eventsPath := filepath.Join(projectDir, ".erinn", "sessions", sid, "events.ndjson")
+	eventsPath := filepath.Join(projectDir, ".wipnote", "sessions", sid, "events.ndjson")
 	data, err := os.ReadFile(eventsPath)
 	if err != nil {
 		t.Fatalf("events.ndjson not found at %s: %v", eventsPath, err)
@@ -242,7 +242,7 @@ func TestOtelCollect_CollectorStartEvent(t *testing.T) {
 		t.Fatalf("attrs field missing or not an object: %v", first["attrs"])
 	}
 	if attrs["htmlgraph_sid"] != sid {
-		t.Errorf("attrs.erinn_sid = %q, want %q", attrs["htmlgraph_sid"], sid)
+		t.Errorf("attrs.wipnote_sid = %q, want %q", attrs["htmlgraph_sid"], sid)
 	}
 	if _, hasPort := attrs["port"]; !hasPort {
 		t.Error("attrs.port missing from collector_start event")

@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// makeTestDir creates a minimal .erinn directory structure with stub HTML
+// makeTestDir creates a minimal .wipnote directory structure with stub HTML
 // files for the given IDs. Returns the htmlgraphDir path.
 func makeTestDir(t *testing.T, ids ...string) string {
 	t.Helper()

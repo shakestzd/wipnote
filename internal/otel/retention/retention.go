@@ -1,9 +1,9 @@
 // Package retention implements the session data retention policy for HtmlGraph.
 //
-// On serve startup and every 24h it walks .erinn/sessions/, finds sessions
+// On serve startup and every 24h it walks .wipnote/sessions/, finds sessions
 // whose DB status is 'completed' and whose completed_at is older than
 // WIPNOTE_SESSION_RETAIN_DAYS (default 30), archives events.ndjson into
-// .erinn/archive/<yyyy-mm>/<sid>.tar.gz, and removes the live session dir.
+// .wipnote/archive/<yyyy-mm>/<sid>.tar.gz, and removes the live session dir.
 //
 // Dry-run mode (WIPNOTE_RETENTION_DRYRUN=1) logs intended actions without
 // moving any files.
@@ -28,7 +28,7 @@ const (
 	runInterval       = 24 * time.Hour
 )
 
-// Run executes one retention pass over .erinn/sessions/.
+// Run executes one retention pass over .wipnote/sessions/.
 // It queries the DB for completed sessions older than the retention window,
 // archives events.ndjson, and removes the live session directory.
 // When dryRun is true, actions are logged but no files are moved.
@@ -91,7 +91,7 @@ func StartLoop(ctx context.Context, database *sql.DB, htmlgraphDir string) {
 }
 
 // archiveSession archives events.ndjson for the given session into
-// .erinn/archive/<yyyy-mm>/<sid>.tar.gz, then removes the session dir.
+// .wipnote/archive/<yyyy-mm>/<sid>.tar.gz, then removes the session dir.
 func archiveSession(htmlgraphDir, sessionID string, completedAt time.Time, dryRun bool) error {
 	sessDir := filepath.Join(htmlgraphDir, "sessions", sessionID)
 	eventsFile := filepath.Join(sessDir, "events.ndjson")
@@ -222,8 +222,8 @@ func retainDaysFromEnv() int {
 	return defaultRetainDays
 }
 
-// ExtractArchive extracts a .tar.gz archive from .erinn/archive/ back into
-// .erinn/sessions/<sid>/ so the indexer can pick it up on next replay.
+// ExtractArchive extracts a .tar.gz archive from .wipnote/archive/ back into
+// .wipnote/sessions/<sid>/ so the indexer can pick it up on next replay.
 func ExtractArchive(htmlgraphDir, sessionID string) error {
 	// Search for the archive across month subdirectories.
 	archiveRoot := filepath.Join(htmlgraphDir, "archive")

@@ -141,7 +141,7 @@ func buildSingleProjectMux(database *sql.DB, htmlgraphDir string) *http.ServeMux
 //  2. WIPNOTE_PLUGIN_DIR env var (explicit user override)
 //  3. installed_plugins.json installPath (marketplace: ~/.claude/plugins/cache/...)
 //  4. Symlink walk-up from binary (dev mode: binary lives inside plugin tree)
-//  5. Project-root detection (CWD walk-up: find .erinn/ + plugin/)
+//  5. Project-root detection (CWD walk-up: find .wipnote/ + plugin/)
 func resolvePluginDir() string {
 	// 1. CLAUDE_PLUGIN_ROOT — set by Claude Code whenever a hook runs.
 	//    This is the authoritative source in hook and plugin context, and
@@ -185,7 +185,7 @@ func resolvePluginDir() string {
 		return pluginDir
 	}
 
-	// 5. Project-root detection — walk up from CWD to find .erinn/,
+	// 5. Project-root detection — walk up from CWD to find .wipnote/,
 	//    then check for plugin/ relative to the project root.
 	//    This makes dev mode work from a fresh clone or fork without
 	//    needing a marketplace install first.
@@ -197,7 +197,7 @@ func resolvePluginDir() string {
 }
 
 // resolveProjectPluginDir walks up from CWD looking for a directory containing
-// .erinn/ and plugin/.claude-plugin/plugin.json. Returns the
+// .wipnote/ and plugin/.claude-plugin/plugin.json. Returns the
 // plugin dir path or "" if not found.
 func resolveProjectPluginDir() string {
 	cwd, err := os.Getwd()
@@ -208,9 +208,9 @@ func resolveProjectPluginDir() string {
 	// Walk up at most 5 levels looking for the project root.
 	dir := cwd
 	for range 5 {
-		// Check if this directory has both .erinn/ and plugin/
+		// Check if this directory has both .wipnote/ and plugin/
 		pluginDir := filepath.Join(dir, "plugin")
-		if _, err := os.Stat(filepath.Join(dir, ".erinn")); err == nil {
+		if _, err := os.Stat(filepath.Join(dir, ".wipnote")); err == nil {
 			if _, err := os.Stat(filepath.Join(pluginDir, ".claude-plugin", "plugin.json")); err == nil {
 				return pluginDir
 			}
@@ -269,7 +269,7 @@ func resolveMarketplacePluginDir() string {
 }
 
 // autoIngestLoop runs transcript ingestion immediately, then every 60 seconds.
-// htmlgraphDir is the .erinn/ directory of the project being served;
+// htmlgraphDir is the .wipnote/ directory of the project being served;
 // its parent is used as the project-root filter for session discovery. This
 // removes the previous os.Getwd() dependency so the child process spawned
 // by the parent server (slice 2) still scopes ingestion to the correct
@@ -293,7 +293,7 @@ func autoIngestLoop(database *sql.DB, htmlgraphDir string, onFirstComplete func(
 // autoIngestOnce discovers session files and ingests any that are new.
 func autoIngestOnce(database *sql.DB, htmlgraphDir string) {
 	// Filter to current project only — derive project root from htmlgraphDir
-	// (parent of .erinn/) so the child-process server still scopes
+	// (parent of .wipnote/) so the child-process server still scopes
 	// ingestion correctly.
 	projectFilter := filepath.Dir(htmlgraphDir)
 	files, err := ingest.DiscoverSessions(projectFilter)

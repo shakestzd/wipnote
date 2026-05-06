@@ -61,16 +61,16 @@ htmlgraph feature create "Short description" --standalone "<reason>" --descripti
 func safetyRulesSection() string {
 	return `## HtmlGraph Safety Rules
 
-### FORBIDDEN: Do NOT touch .erinn/ directory
+### FORBIDDEN: Do NOT touch .wipnote/ directory
 NEVER:
-- Edit files in ` + "`.erinn/`" + ` directory
-- Create new files in ` + "`.erinn/`" + `
-- Modify ` + "`.erinn/*.html`" + ` files
-- Write to ` + "`.erinn/*.db`" + ` or any database files
-- Delete or rename ` + "`.erinn/`" + ` files
-- Read ` + "`.erinn/`" + ` files directly (` + "`cat`" + `, ` + "`grep`" + `, ` + "`sqlite3`" + `)
+- Edit files in ` + "`.wipnote/`" + ` directory
+- Create new files in ` + "`.wipnote/`" + `
+- Modify ` + "`.wipnote/*.html`" + ` files
+- Write to ` + "`.wipnote/*.db`" + ` or any database files
+- Delete or rename ` + "`.wipnote/`" + ` files
+- Read ` + "`.wipnote/`" + ` files directly (` + "`cat`" + `, ` + "`grep`" + `, ` + "`sqlite3`" + `)
 
-The .erinn directory is managed by the CLI and hooks.
+The .wipnote directory is managed by the CLI and hooks.
 
 ### Use CLI instead of direct file operations
 ` + "```bash" + `
@@ -80,9 +80,9 @@ htmlgraph snapshot --summary  # View all items
 htmlgraph find "<query>"      # Search work items
 
 # INCORRECT — never do this
-cat .erinn/features/feat-xxx.html
-sqlite3 .erinn/htmlgraph.db "SELECT ..."
-grep -r topic .erinn/
+cat .wipnote/features/feat-xxx.html
+sqlite3 .wipnote/htmlgraph.db "SELECT ..."
+grep -r topic .wipnote/
 ` + "```" + `
 `
 }

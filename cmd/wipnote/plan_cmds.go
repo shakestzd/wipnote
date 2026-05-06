@@ -128,7 +128,7 @@ func runPlanGenerate(sourceID string) error {
 }
 
 // routePlanGenerateByArg contains the routing logic extracted from runPlanGenerate
-// so it can be called from tests without needing a real .erinn directory on
+// so it can be called from tests without needing a real .wipnote directory on
 // the file system search path.
 func routePlanGenerateByArg(htmlgraphDir, sourceID string) (string, error) {
 	switch {

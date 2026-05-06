@@ -73,7 +73,7 @@ func EnsureSession(database *sql.DB, projectDir string) (string, error) {
 	return sessionID, nil
 }
 
-// ensuredActiveSession is the JSON shape written to .erinn/.active-session
+// ensuredActiveSession is the JSON shape written to .wipnote/.active-session
 // by EnsureSession. It mirrors hooks.ActiveSessionData to keep the format
 // consistent without creating an import dependency.
 type ensuredActiveSession struct {
@@ -87,7 +87,7 @@ type ensuredActiveSession struct {
 }
 
 // writeEnsuredActiveSession writes minimal session context to
-// .erinn/.active-session. Errors are silently ignored — this is a
+// .wipnote/.active-session. Errors are silently ignored — this is a
 // best-effort propagation mechanism; hook handlers fall back gracefully.
 func writeEnsuredActiveSession(sessionID, projectDir, agentID string) {
 	if projectDir == "" {
@@ -106,7 +106,7 @@ func writeEnsuredActiveSession(sessionID, projectDir, agentID string) {
 	if err != nil {
 		return
 	}
-	path := filepath.Join(projectDir, ".erinn", ".active-session")
+	path := filepath.Join(projectDir, ".wipnote", ".active-session")
 	_ = os.WriteFile(path, b, 0o644)
 }
 

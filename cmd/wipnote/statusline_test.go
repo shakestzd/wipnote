@@ -13,7 +13,7 @@ import (
 func TestStatuslineCmd(t *testing.T) {
 	// Create temporary directory for test database
 	tmpDir := t.TempDir()
-	htmlgraphDir := filepath.Join(tmpDir, ".erinn")
+	htmlgraphDir := filepath.Join(tmpDir, ".wipnote")
 	if err := os.MkdirAll(htmlgraphDir, 0o755); err != nil {
 		t.Fatalf("failed to create test directory: %v", err)
 	}
@@ -143,9 +143,9 @@ func TestWriteStatuslineCache_WritesFile(t *testing.T) {
 	cacheDir := t.TempDir()
 	t.Setenv("WIPNOTE_CACHE_DIR", cacheDir)
 
-	// Set up a minimal .erinn with a feature.
+	// Set up a minimal .wipnote with a feature.
 	tmpDir := t.TempDir()
-	hgDir := filepath.Join(tmpDir, ".erinn")
+	hgDir := filepath.Join(tmpDir, ".wipnote")
 	for _, sub := range []string{"features", "bugs", "spikes", "tracks", "plans", "specs"} {
 		os.MkdirAll(filepath.Join(hgDir, sub), 0o755)
 	}
@@ -175,7 +175,7 @@ func TestWriteStatuslineCache_ClearsOnComplete(t *testing.T) {
 	cacheDir := t.TempDir()
 	t.Setenv("WIPNOTE_CACHE_DIR", cacheDir)
 
-	hgDir := filepath.Join(t.TempDir(), ".erinn")
+	hgDir := filepath.Join(t.TempDir(), ".wipnote")
 	cachePath := statuslineCachePath(hgDir)
 	os.WriteFile(cachePath, []byte("old data"), 0o644)
 
@@ -192,7 +192,7 @@ func TestReadStatuslineCache_ReadsFile(t *testing.T) {
 	cacheDir := t.TempDir()
 	t.Setenv("WIPNOTE_CACHE_DIR", cacheDir)
 
-	hgDir := filepath.Join(t.TempDir(), ".erinn")
+	hgDir := filepath.Join(t.TempDir(), ".wipnote")
 	// Write to the project-scoped path.
 	cachePath := statuslineCachePath(hgDir)
 	os.WriteFile(cachePath, []byte("test content"), 0o644)
@@ -206,7 +206,7 @@ func TestReadStatuslineCache_ReadsFile(t *testing.T) {
 func TestReadStatuslineCache_EmptyOnMissing(t *testing.T) {
 	t.Setenv("WIPNOTE_CACHE_DIR", t.TempDir())
 
-	got := ReadStatuslineCache(filepath.Join(t.TempDir(), "nonexistent", ".erinn"))
+	got := ReadStatuslineCache(filepath.Join(t.TempDir(), "nonexistent", ".wipnote"))
 	if got != "" {
 		t.Errorf("expected empty for missing cache, got %q", got)
 	}
@@ -217,7 +217,7 @@ func TestReadStatuslineCache_EmptyOnMissing(t *testing.T) {
 // This prevents cross-session state leakage (bug-33476dbf).
 func TestRunStatuslineEmptySession(t *testing.T) {
 	tmpDir := t.TempDir()
-	htmlgraphDir := filepath.Join(tmpDir, ".erinn")
+	htmlgraphDir := filepath.Join(tmpDir, ".wipnote")
 	// Create the standard subdirectories so workitem.Open succeeds if it were called.
 	for _, sub := range []string{"features", "bugs", "spikes", "tracks", "plans", "specs"} {
 		if err := os.MkdirAll(filepath.Join(htmlgraphDir, sub), 0o755); err != nil {
@@ -272,8 +272,8 @@ func TestStatuslineCacheProjectIsolation(t *testing.T) {
 	cacheDir := t.TempDir()
 	t.Setenv("WIPNOTE_CACHE_DIR", cacheDir)
 
-	dirA := filepath.Join(t.TempDir(), "project-a", ".erinn")
-	dirB := filepath.Join(t.TempDir(), "project-b", ".erinn")
+	dirA := filepath.Join(t.TempDir(), "project-a", ".wipnote")
+	dirB := filepath.Join(t.TempDir(), "project-b", ".wipnote")
 
 	// Write cache for project A.
 	pathA := statuslineCachePath(dirA)

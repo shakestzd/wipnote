@@ -50,7 +50,7 @@ func setupGitRepo(t *testing.T) string {
 // writeFeatureHTML writes a minimal feature HTML file. If trackID is empty, data-track-id is omitted.
 func writeFeatureHTML(t *testing.T, dir, featureID, trackID string) {
 	t.Helper()
-	featureDir := filepath.Join(dir, ".erinn", "features")
+	featureDir := filepath.Join(dir, ".wipnote", "features")
 	if err := os.MkdirAll(featureDir, 0755); err != nil {
 		t.Fatalf("mkdir features: %v", err)
 	}
@@ -222,7 +222,7 @@ func TestEnsureForFeatureWriterReceivesProgress(t *testing.T) {
 // writeTrackHTML writes a minimal track HTML file with the given title.
 func writeTrackHTML(t *testing.T, dir, trackID, title string) {
 	t.Helper()
-	trackDir := filepath.Join(dir, ".erinn", "tracks")
+	trackDir := filepath.Join(dir, ".wipnote", "tracks")
 	if err := os.MkdirAll(trackDir, 0755); err != nil {
 		t.Fatalf("mkdir tracks: %v", err)
 	}

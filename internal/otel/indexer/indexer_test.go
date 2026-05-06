@@ -31,7 +31,7 @@ func setupIndexerDB(t *testing.T) (*receiver.Writer, string) {
 	return w, dbPath
 }
 
-// writeNDJSONFixture creates a .erinn/sessions/<sid>/events.ndjson file
+// writeNDJSONFixture creates a .wipnote/sessions/<sid>/events.ndjson file
 // with the given NDJSON lines.
 func writeNDJSONFixture(t *testing.T, htmlgraphDir, sessionID string, lines []string) string {
 	t.Helper()

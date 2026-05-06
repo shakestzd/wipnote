@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-// setupPlanGenerateDir creates a minimal .erinn directory structure
+// setupPlanGenerateDir creates a minimal .wipnote directory structure
 // with a fake track HTML file, returning the htmlgraph dir path.
 func setupPlanGenerateDir(t *testing.T) string {
 	t.Helper()
@@ -161,7 +161,7 @@ func TestPlanGeneratePlanPrefixRescaffolds(t *testing.T) {
 }
 
 // TestPlanGenerateTitleCollisionGuard verifies that a trk-* argument that
-// cannot be resolved in the .erinn dir returns an error — it must not
+// cannot be resolved in the .wipnote dir returns an error — it must not
 // fall through to topic creation mode.
 func TestPlanGenerateTitleCollisionGuard(t *testing.T) {
 	dir := t.TempDir()

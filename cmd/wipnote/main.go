@@ -84,7 +84,7 @@ func buildRoot() *cobra.Command {
 		&projectDirFlag,
 		"project-dir",
 		"",
-		"explicit project root containing .erinn/ (overrides CLAUDE_PROJECT_DIR and CWD walk-up)",
+		"explicit project root containing .wipnote/ (overrides CLAUDE_PROJECT_DIR and CWD walk-up)",
 	)
 
 	// Lazy session registration + passive project registration: every CLI
@@ -319,7 +319,7 @@ func versionCmd() *cobra.Command {
 // operations degrade gracefully — registration failures never block a CLI
 // command from running.
 func persistentPreRunE(cmd *cobra.Command, _ []string) error {
-	// Skip commands that must work without .erinn/.
+	// Skip commands that must work without .wipnote/.
 	switch cmd.Name() {
 	case "version", "help", "init", "build", "install-hooks", "setup", "setup-cli", "projects", "upgrade", "update":
 		return nil
@@ -400,9 +400,9 @@ func inCacheSubtree(cmd *cobra.Command) bool {
 	return false
 }
 
-// findHtmlgraphDir locates the .erinn directory by delegating to the
+// findHtmlgraphDir locates the .wipnote directory by delegating to the
 // shared paths.ResolveProjectDir resolver (--project-dir flag → CLAUDE_PROJECT_DIR
-// env → git worktree detection → CWD walk-up) and appending ".erinn".
+// env → git worktree detection → CWD walk-up) and appending ".wipnote".
 func findHtmlgraphDir() (string, error) {
 	paths.CleanupGlobalHint() // Remove stale global hint from older versions
 	root, err := paths.ResolveProjectDir(paths.ProjectDirOptions{
@@ -411,7 +411,7 @@ func findHtmlgraphDir() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(root, ".erinn"), nil
+	return filepath.Join(root, ".wipnote"), nil
 }
 
 // printProjectHeaderIfDifferent prints a one-line "Project: <path>" header

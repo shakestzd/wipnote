@@ -72,11 +72,11 @@ func writeMinimalTrackHTML(t *testing.T, dir, filename, id, title string) string
 	return path
 }
 
-// setupHtmlgraphDir creates a minimal .erinn directory structure in a temp dir.
+// setupHtmlgraphDir creates a minimal .wipnote directory structure in a temp dir.
 func setupHtmlgraphDir(t *testing.T) string {
 	t.Helper()
 	tmpDir := t.TempDir()
-	hgDir := filepath.Join(tmpDir, ".erinn")
+	hgDir := filepath.Join(tmpDir, ".wipnote")
 	for _, sub := range []string{"features", "bugs", "spikes", "tracks"} {
 		if err := os.MkdirAll(filepath.Join(hgDir, sub), 0o755); err != nil {
 			t.Fatalf("mkdir %s: %v", sub, err)

@@ -123,8 +123,8 @@ func TestBuildClaudeLaunchEnv_RespectsUserOverrides(t *testing.T) {
 func TestBuildClaudeLaunchEnv_WorktreeProjectDir(t *testing.T) {
 	clearOtelEnv(t)
 	t.Setenv("WIPNOTE_PROJECT_DIR", "/old/value")
-	env := buildClaudeLaunchEnv("/worktree/main/.erinn", nil)
-	assertEnvContains(t, env, "WIPNOTE_PROJECT_DIR", "/worktree/main/.erinn")
+	env := buildClaudeLaunchEnv("/worktree/main/.wipnote", nil)
+	assertEnvContains(t, env, "WIPNOTE_PROJECT_DIR", "/worktree/main/.wipnote")
 }
 
 func TestIsTruthy(t *testing.T) {

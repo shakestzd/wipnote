@@ -135,7 +135,7 @@ type geminiLaunchOpts struct {
 	// WorktreeRoot, when non-empty, overrides the working directory for the
 	// Gemini process. WIPNOTE_PROJECT_DIR is set to HtmlgraphRoot instead.
 	WorktreeRoot string
-	// HtmlgraphRoot is the canonical project root containing .erinn/.
+	// HtmlgraphRoot is the canonical project root containing .wipnote/.
 	// Used to set WIPNOTE_PROJECT_DIR when running in a worktree.
 	HtmlgraphRoot string
 	// DryRun, when true, prints the command that would be executed without running it.
@@ -485,11 +485,11 @@ func launchGeminiDev(isolate, dryRun bool, extraArgs []string) error {
 }
 
 // resolveLocalGeminiExtension returns the absolute path to packages/gemini-extension/
-// by walking up from CWD to find the project root (directory containing .erinn/).
+// by walking up from CWD to find the project root (directory containing .wipnote/).
 func resolveLocalGeminiExtension() (string, error) {
 	htmlgraphDir, err := findHtmlgraphDir()
 	if err != nil {
-		return "", fmt.Errorf("could not find project root (.erinn/ directory not found)\n" +
+		return "", fmt.Errorf("could not find project root (.wipnote/ directory not found)\n" +
 			"Run from the HtmlGraph project directory, or use htmlgraph gemini --init for the extension version")
 	}
 	projectRoot := filepath.Dir(htmlgraphDir)

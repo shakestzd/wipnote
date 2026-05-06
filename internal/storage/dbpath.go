@@ -62,8 +62,8 @@ func CanonicalDBPath(projectDir string) (string, error) {
 // paths. Only the orphan-detection guard uses these; callers must not open them.
 func LegacyProjectDBPaths(projectDir string) []string {
 	return []string{
-		filepath.Join(projectDir, ".erinn", DBFileName),
-		filepath.Join(projectDir, ".erinn", ".db", DBFileName),
+		filepath.Join(projectDir, ".wipnote", DBFileName),
+		filepath.Join(projectDir, ".wipnote", ".db", DBFileName),
 	}
 }
 
@@ -79,7 +79,7 @@ func EnsureDBDir(dbPath string) error {
 //
 //   - If the canonical DB exists and has Size() > 0 (migration is complete):
 //     silently os.Remove each legacy file found. Also removes the empty
-//     .erinn/.db/ directory if present and empty (using os.Remove, which
+//     .wipnote/.db/ directory if present and empty (using os.Remove, which
 //     will not remove a non-empty directory). Removal errors are silently
 //     swallowed — if a file cannot be removed, the warn branch fires instead
 //     for that specific file.
@@ -100,7 +100,7 @@ func CleanLegacyDBIfSafe(projectDir string, w io.Writer) {
 		}
 	}
 
-	dbDir := filepath.Join(projectDir, ".erinn", ".db")
+	dbDir := filepath.Join(projectDir, ".wipnote", ".db")
 
 	// Resolve canonical path for comparison; fallback to abs if EvalSymlinks fails.
 	canonicalResolved := canonicalPath
@@ -146,7 +146,7 @@ func CleanLegacyDBIfSafe(projectDir string, w io.Writer) {
 	}
 
 	// Remove the empty .db/ subdirectory if the canonical DB is ready and
-	// the canonical path doesn't reside in .erinn/.db/.
+	// the canonical path doesn't reside in .wipnote/.db/.
 	if canonicalReady && !anyLegacySkipped {
 		if !strings.HasPrefix(filepath.Clean(canonicalResolved), filepath.Clean(dbDir)) {
 			// os.Remove succeeds only on empty directories; non-empty ones are left alone.

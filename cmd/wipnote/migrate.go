@@ -30,7 +30,7 @@ func migrateSessionsCmd() *cobra.Command {
 		Use:   "sessions",
 		Short: "Backfill session HTML files for SQLite-only sessions",
 		Long: `Finds session rows that have no corresponding HTML file in
-.erinn/sessions/ and renders one for each so the reindex round-trip
+.wipnote/sessions/ and renders one for each so the reindex round-trip
 works. Prefers re-parsing the original JSONL transcript when it is still
 available in ~/.claude/projects/; falls back to rendering from the SQLite
 rows when the transcript has been pruned.
@@ -123,7 +123,7 @@ func runMigrateSessions(dryRun bool) error {
 var errNoData = fmt.Errorf("no data available to render session")
 
 // existingSessionHTMLSet returns the set of session IDs that already have an
-// HTML file in .erinn/sessions/.
+// HTML file in .wipnote/sessions/.
 func existingSessionHTMLSet(htmlgraphDir string) (map[string]struct{}, error) {
 	pattern := filepath.Join(htmlgraphDir, "sessions", "*.html")
 	files, err := filepath.Glob(pattern)

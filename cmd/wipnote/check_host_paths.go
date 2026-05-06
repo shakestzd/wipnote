@@ -79,11 +79,11 @@ func checkHostPathsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "host-paths",
 		Short: "Scan committed artifacts for host-local absolute paths",
-		Long: `Scan .erinn/ and .claude/ for host-local absolute paths that must
+		Long: `Scan .wipnote/ and .claude/ for host-local absolute paths that must
 not be committed (e.g. /Users/alice/, /home/bob/, /workspaces/charlie/).
 
 Files listed in scripts/host-paths-allowlist.txt are skipped.
-The binary .erinn/htmlgraph.db and .claude/settings.local.json are always skipped.
+The binary .wipnote/htmlgraph.db and .claude/settings.local.json are always skipped.
 
 Exit code 0 — no violations; exit code 1 — violations found.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -152,16 +152,16 @@ func loadHostPathAllowlist(path string) (map[string]bool, error) {
 	return allowlist, scanner.Err()
 }
 
-// fullScopeFiles collects all scannable files under .erinn/ and .claude/.
+// fullScopeFiles collects all scannable files under .wipnote/ and .claude/.
 // Skips:
-//   - .erinn/htmlgraph.db (binary)
+//   - .wipnote/htmlgraph.db (binary)
 //   - .claude/settings.local.json (ephemeral)
 //   - .claude/worktrees/ entirely — linked-worktree .git files legitimately
 //     carry absolute gitdir: paths by design (git requires them). Scanning
 //     them produces noisy false positives on every developer's machine.
 func fullScopeFiles(repoRoot string) ([]string, error) {
 	var files []string
-	for _, dir := range []string{".erinn", ".claude"} {
+	for _, dir := range []string{".wipnote", ".claude"} {
 		dirPath := filepath.Join(repoRoot, dir)
 		if _, err := os.Stat(dirPath); os.IsNotExist(err) {
 			continue
@@ -206,7 +206,7 @@ func stagedScopeFiles(repoRoot string) ([]string, error) {
 		if rel == "" {
 			continue
 		}
-		if !strings.HasPrefix(rel, ".erinn/") && !strings.HasPrefix(rel, ".claude/") {
+		if !strings.HasPrefix(rel, ".wipnote/") && !strings.HasPrefix(rel, ".claude/") {
 			continue
 		}
 		base := filepath.Base(rel)

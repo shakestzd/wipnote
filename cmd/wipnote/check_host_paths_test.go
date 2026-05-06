@@ -172,7 +172,7 @@ func TestScanFileForHostPaths_AllPatterns(t *testing.T) {
 func TestLoadHostPathAllowlist(t *testing.T) {
 	tmp := t.TempDir()
 	f := filepath.Join(tmp, "allowlist.txt")
-	content := "# comment\n\n.erinn/bugs/bug-4b6d8369.html\n.claude/settings.local.json\n"
+	content := "# comment\n\n.wipnote/bugs/bug-4b6d8369.html\n.claude/settings.local.json\n"
 	if err := os.WriteFile(f, []byte(content), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -184,8 +184,8 @@ func TestLoadHostPathAllowlist(t *testing.T) {
 	if len(allowlist) != 2 {
 		t.Errorf("expected 2 entries, got %d: %v", len(allowlist), allowlist)
 	}
-	if !allowlist[".erinn/bugs/bug-4b6d8369.html"] {
-		t.Error("expected .erinn/bugs/bug-4b6d8369.html in allowlist")
+	if !allowlist[".wipnote/bugs/bug-4b6d8369.html"] {
+		t.Error("expected .wipnote/bugs/bug-4b6d8369.html in allowlist")
 	}
 	if !allowlist[".claude/settings.local.json"] {
 		t.Error("expected .claude/settings.local.json in allowlist")
@@ -231,7 +231,7 @@ func TestScanHostPathFiles_AllowlistSkipsFile(t *testing.T) {
 func TestFullScopeFiles_SkipsBinaryAndLocal(t *testing.T) {
 	tmp := t.TempDir()
 
-	hgDir := filepath.Join(tmp, ".erinn")
+	hgDir := filepath.Join(tmp, ".wipnote")
 	claudeDir := filepath.Join(tmp, ".claude")
 	for _, d := range []string{hgDir, claudeDir} {
 		if err := os.MkdirAll(d, 0o755); err != nil {

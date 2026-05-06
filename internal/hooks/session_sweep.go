@@ -87,7 +87,7 @@ func sweepOrphans(database *sql.DB, projectDir string, orphans []db.OrphanEvent)
 			continue
 		}
 
-		htmlPath := filepath.Join(projectDir, ".erinn", "sessions", o.SessionID+".html")
+		htmlPath := filepath.Join(projectDir, ".wipnote", "sessions", o.SessionID+".html")
 		alreadyPresent, dedupErr := sessionHTMLHasEvent(htmlPath, o.EventID)
 		if dedupErr != nil {
 			debugLog(projectDir, "[sweep] dedup read %s: %v", htmlPath, dedupErr)

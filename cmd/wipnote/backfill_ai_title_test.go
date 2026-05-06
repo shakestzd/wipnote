@@ -77,7 +77,7 @@ func getBackfillTitle(t *testing.T, database *sql.DB, sessionID string) string {
 func TestBackfillUpdatesStaleTitle(t *testing.T) {
 	database := setupBackfillDB(t)
 	tmpDir := t.TempDir()
-	htmlgraphDir := filepath.Join(tmpDir, ".erinn")
+	htmlgraphDir := filepath.Join(tmpDir, ".wipnote")
 	if err := os.MkdirAll(htmlgraphDir, 0o755); err != nil {
 		t.Fatalf("mkdir htmlgraphDir: %v", err)
 	}
@@ -141,7 +141,7 @@ func TestBackfillUpdatesStaleTitle(t *testing.T) {
 func TestBackfillIdempotentViaMarker(t *testing.T) {
 	database := setupBackfillDB(t)
 	tmpDir := t.TempDir()
-	htmlgraphDir := filepath.Join(tmpDir, ".erinn")
+	htmlgraphDir := filepath.Join(tmpDir, ".wipnote")
 	if err := os.MkdirAll(htmlgraphDir, 0o755); err != nil {
 		t.Fatalf("mkdir htmlgraphDir: %v", err)
 	}
@@ -180,7 +180,7 @@ func TestBackfillIdempotentViaMarker(t *testing.T) {
 func TestBackfillSkipsMissingJSONL(t *testing.T) {
 	database := setupBackfillDB(t)
 	tmpDir := t.TempDir()
-	htmlgraphDir := filepath.Join(tmpDir, ".erinn")
+	htmlgraphDir := filepath.Join(tmpDir, ".wipnote")
 	if err := os.MkdirAll(htmlgraphDir, 0o755); err != nil {
 		t.Fatalf("mkdir htmlgraphDir: %v", err)
 	}
@@ -207,7 +207,7 @@ func TestBackfillSkipsMissingJSONL(t *testing.T) {
 func TestBackfillResumable(t *testing.T) {
 	database := setupBackfillDB(t)
 	tmpDir := t.TempDir()
-	htmlgraphDir := filepath.Join(tmpDir, ".erinn")
+	htmlgraphDir := filepath.Join(tmpDir, ".wipnote")
 	if err := os.MkdirAll(htmlgraphDir, 0o755); err != nil {
 		t.Fatalf("mkdir htmlgraphDir: %v", err)
 	}

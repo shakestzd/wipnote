@@ -260,7 +260,7 @@ func TestThirdPartyNotices_HasOpenSpec(t *testing.T) {
 // regression test for the HIGH finding in roborev job 236.
 func TestSpecSectionSurvivesStatusWrite(t *testing.T) {
 	tmpDir := t.TempDir()
-	hgDir := filepath.Join(tmpDir, ".erinn")
+	hgDir := filepath.Join(tmpDir, ".wipnote")
 	for _, sub := range []string{"features", "tracks", "plans", "specs", "spikes", "bugs"} {
 		_ = os.MkdirAll(filepath.Join(hgDir, sub), 0o755)
 	}

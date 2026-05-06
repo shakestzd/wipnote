@@ -115,7 +115,7 @@ func listRegisteredProjects() []projectSummary {
 //
 // Implementation: paths.ResolveViaGitCommonDir returns a non-empty
 // string ONLY when dir is in a linked worktree AND the main repo root
-// has a .erinn/ directory. If the resolved path differs from the
+// has a .wipnote/ directory. If the resolved path differs from the
 // entry's own ProjectDir, the entry is a worktree.
 func isLinkedWorktree(dir string) bool {
 	mainRoot := paths.ResolveViaGitCommonDir(dir)

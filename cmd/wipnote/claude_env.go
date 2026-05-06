@@ -32,7 +32,7 @@ func effectiveProjectDir(explicit string) string {
 // on top:
 //
 //  1. WIPNOTE_PROJECT_DIR — set when the launcher runs inside a
-//     worktree, so hooks resolve to the main .erinn/ directory.
+//     worktree, so hooks resolve to the main .wipnote/ directory.
 //  2. OTel exporter vars — enabled by default (default-on). Set
 //     WIPNOTE_OTEL_ENABLED=0 to opt out. User-set OTel vars win:
 //     we never clobber an explicit OTEL_* choice.

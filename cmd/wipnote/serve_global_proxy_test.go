@@ -61,14 +61,14 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-// mkIntegrationProject creates a tmpdir project with .erinn/ and a
+// mkIntegrationProject creates a tmpdir project with .wipnote/ and a
 // SQLite DB containing a minimal schema plus the given feature IDs so
 // tests can distinguish which project served a request by inspecting
-// the returned count. Returns the project root (parent of .erinn).
+// the returned count. Returns the project root (parent of .wipnote).
 func mkIntegrationProject(t *testing.T, featureIDs ...string) string {
 	t.Helper()
 	tmp := t.TempDir()
-	hgDir := filepath.Join(tmp, ".erinn")
+	hgDir := filepath.Join(tmp, ".wipnote")
 	if err := os.MkdirAll(hgDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -226,7 +226,7 @@ func TestCrossProjectIsolation(t *testing.T) {
 
 	// Cross-check: open projB's DB directly and assert its feature set
 	// is untouched — the A request did not leak into B.
-	dbB, err := sql.Open("sqlite", filepath.Join(projB, ".erinn", "htmlgraph.db")+"?mode=ro")
+	dbB, err := sql.Open("sqlite", filepath.Join(projB, ".wipnote", "htmlgraph.db")+"?mode=ro")
 	if err != nil {
 		t.Fatal(err)
 	}

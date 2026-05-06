@@ -3,7 +3,7 @@
 // file. No DB connection is opened. Placeholder/upgrade logic is intentionally
 // absent — the NDJSON→SQLite indexer (slice 5) handles that on replay.
 //
-// File layout: .erinn/sessions/<session_id>/events.ndjson
+// File layout: .wipnote/sessions/<session_id>/events.ndjson
 //
 // Each line is a JSON object with all UnifiedSignal fields plus:
 //   - "kind"    — signal kind ("span", "metric", "log")
@@ -68,7 +68,7 @@ type Sink struct {
 // rather than starting empty. The session directory must already exist.
 // A background goroutine starts to periodically flush+sync the file.
 func New(projectDir, sessionID string) (*Sink, error) {
-	path := filepath.Join(projectDir, ".erinn", "sessions", sessionID, "events.ndjson")
+	path := filepath.Join(projectDir, ".wipnote", "sessions", sessionID, "events.ndjson")
 
 	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
 	if err != nil {

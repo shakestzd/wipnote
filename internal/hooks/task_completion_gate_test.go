@@ -9,7 +9,7 @@ import (
 
 func TestReadTaskCompletionConfig_MissingFile(t *testing.T) {
 	dir := t.TempDir()
-	os.MkdirAll(filepath.Join(dir, ".erinn"), 0o755)
+	os.MkdirAll(filepath.Join(dir, ".wipnote"), 0o755)
 	if readTaskCompletionConfig(dir) {
 		t.Error("expected false when config.json is missing")
 	}
@@ -17,7 +17,7 @@ func TestReadTaskCompletionConfig_MissingFile(t *testing.T) {
 
 func TestReadTaskCompletionConfig_FlagOff(t *testing.T) {
 	dir := t.TempDir()
-	cfgDir := filepath.Join(dir, ".erinn")
+	cfgDir := filepath.Join(dir, ".wipnote")
 	os.MkdirAll(cfgDir, 0o755)
 	data, _ := json.Marshal(map[string]any{"block_task_completion_on_quality_failure": false})
 	os.WriteFile(filepath.Join(cfgDir, "config.json"), data, 0o644)
@@ -29,7 +29,7 @@ func TestReadTaskCompletionConfig_FlagOff(t *testing.T) {
 
 func TestReadTaskCompletionConfig_FlagOn(t *testing.T) {
 	dir := t.TempDir()
-	cfgDir := filepath.Join(dir, ".erinn")
+	cfgDir := filepath.Join(dir, ".wipnote")
 	os.MkdirAll(cfgDir, 0o755)
 	data, _ := json.Marshal(map[string]any{"block_task_completion_on_quality_failure": true})
 	os.WriteFile(filepath.Join(cfgDir, "config.json"), data, 0o644)
@@ -65,7 +65,7 @@ func TestTaskCompleted_FlagOff_NeverBlocks(t *testing.T) {
 
 	// Create a project dir with a go.mod (gate will fail) but NO config.json (flag off).
 	projectDir := t.TempDir()
-	os.MkdirAll(filepath.Join(projectDir, ".erinn"), 0o755)
+	os.MkdirAll(filepath.Join(projectDir, ".wipnote"), 0o755)
 	os.WriteFile(filepath.Join(projectDir, "go.mod"), []byte("module test\n"), 0o644)
 	t.Setenv("WIPNOTE_PROJECT_DIR", projectDir)
 
@@ -103,7 +103,7 @@ func TestTaskCompleted_FlagOn_BlocksOnFailure(t *testing.T) {
 
 	// Create project dir with go.mod AND config with blocking enabled.
 	projectDir := t.TempDir()
-	cfgDir := filepath.Join(projectDir, ".erinn")
+	cfgDir := filepath.Join(projectDir, ".wipnote")
 	os.MkdirAll(cfgDir, 0o755)
 	os.WriteFile(filepath.Join(projectDir, "go.mod"), []byte("module test\n"), 0o644)
 	data, _ := json.Marshal(map[string]any{"block_task_completion_on_quality_failure": true})
