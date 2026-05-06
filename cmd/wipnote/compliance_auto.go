@@ -1,5 +1,5 @@
 // Package main — compliance auto subcommand.
-// Invoked as: htmlgraph compliance auto <feature-id> [flags]
+// Invoked as: wipnote compliance auto <feature-id> [flags]
 //
 // Pipeline:
 //  1. Resolve git root; skip with "no git history" if not a repo.
@@ -148,18 +148,18 @@ Flags:
 
 // runComplianceAuto runs the full compliance auto pipeline for a single feature.
 func runComplianceAuto(ctx context.Context, featureID string, flags complianceAutoFlags) error {
-	// Step 1: Resolve htmlgraph dir and project root.
-	htmlgraphDir, err := findHtmlgraphDir()
+	// Step 1: Resolve wipnote dir and project root.
+	wipnoteDir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}
-	projectDir := filepath.Dir(htmlgraphDir)
+	projectDir := filepath.Dir(wipnoteDir)
 
 	gitRoot, err := resolveGitRoot(projectDir)
 	if err != nil {
 		// Not a git repo — write "no git history" finding, exit 0.
-		featurePath := filepath.Join(htmlgraphDir, "features", featureID+".html")
-		if statErr := writeSkipFinding(featurePath, featureID, "compliance skipped: no git history"); statErr != nil {
+		featurePath := filepath.Join(wipnoteDir, "features", featureID+".html")
+		if statErr := writeSkipFinding(featurePath, "compliance skipped: no git history"); statErr != nil {
 			return statErr
 		}
 		fmt.Printf("compliance %s: skipped — no git history\n", featureID)
@@ -167,7 +167,7 @@ func runComplianceAuto(ctx context.Context, featureID string, flags complianceAu
 	}
 
 	// Step 2: Acquire per-feature lockfile.
-	lockPath := filepath.Join(htmlgraphDir, "locks", "compliance-"+featureID+".lock")
+	lockPath := filepath.Join(wipnoteDir, "locks", "compliance-"+featureID+".lock")
 	unlock, err := acquireComplianceLock(lockPath)
 	if err != nil {
 		return err
@@ -175,7 +175,7 @@ func runComplianceAuto(ctx context.Context, featureID string, flags complianceAu
 	defer unlock()
 
 	// Step 3: Load feature path; error if not found.
-	featurePath := filepath.Join(htmlgraphDir, "features", featureID+".html")
+	featurePath := filepath.Join(wipnoteDir, "features", featureID+".html")
 	if _, err := os.Stat(featurePath); err != nil {
 		return fmt.Errorf("no feature: %s", featureID)
 	}
@@ -188,7 +188,7 @@ func runComplianceAuto(ctx context.Context, featureID string, flags complianceAu
 	// Step 4: Extract spec.
 	specContent := extractSpecSection(string(featureHTML))
 	if specContent == "" {
-		if err := writeSkipFinding(featurePath, featureID, "compliance skipped: no spec"); err != nil {
+		if err := writeSkipFinding(featurePath, "compliance skipped: no spec"); err != nil {
 			return err
 		}
 		fmt.Printf("compliance %s: skipped — no spec\n", featureID)
@@ -202,7 +202,7 @@ func runComplianceAuto(ctx context.Context, featureID string, flags complianceAu
 	prevSpecHash := extractPrevSpecHash(string(featureHTML))
 
 	// Step 6: Build diff blob.
-	database, err := openDB(htmlgraphDir)
+	database, err := openDB(wipnoteDir)
 	if err != nil {
 		return fmt.Errorf("open db: %w", err)
 	}
@@ -214,7 +214,7 @@ func runComplianceAuto(ctx context.Context, featureID string, flags complianceAu
 	}
 
 	if diffBlob == "" {
-		if err := writeSkipFinding(featurePath, featureID, "compliance skipped: no diff available"); err != nil {
+		if err := writeSkipFinding(featurePath, "compliance skipped: no diff available"); err != nil {
 			return err
 		}
 		fmt.Printf("compliance %s: skipped — no diff available\n", featureID)
@@ -249,11 +249,11 @@ func runComplianceAuto(ctx context.Context, featureID string, flags complianceAu
 	if err != nil {
 		if budgetErr, ok := err.(*BudgetExceededError); ok {
 			attrs := map[string]string{
-				"score":         "0",
-				"cost-usd":      "0",
-				"model":         flags.model,
-				"spec-hash":     specHash,
-				"timestamp":     time.Now().UTC().Format(time.RFC3339),
+				"score":          "0",
+				"cost-usd":       "0",
+				"model":          flags.model,
+				"spec-hash":      specHash,
+				"timestamp":      time.Now().UTC().Format(time.RFC3339),
 				"diff-truncated": strconv.FormatBool(diffTruncated),
 			}
 			body := renderFindingsHTML(&autoComplianceFinding{
@@ -269,11 +269,11 @@ func runComplianceAuto(ctx context.Context, featureID string, flags complianceAu
 		}
 		if strings.Contains(err.Error(), "timeout") {
 			attrs := map[string]string{
-				"score":         "0",
-				"cost-usd":      "0",
-				"model":         flags.model,
-				"spec-hash":     specHash,
-				"timestamp":     time.Now().UTC().Format(time.RFC3339),
+				"score":          "0",
+				"cost-usd":       "0",
+				"model":          flags.model,
+				"spec-hash":      specHash,
+				"timestamp":      time.Now().UTC().Format(time.RFC3339),
 				"diff-truncated": strconv.FormatBool(diffTruncated),
 			}
 			body := renderFindingsHTML(&autoComplianceFinding{
@@ -295,11 +295,11 @@ func runComplianceAuto(ctx context.Context, featureID string, flags complianceAu
 	if err != nil {
 		// Write parse-failure finding, exit 1.
 		attrs := map[string]string{
-			"score":         "0",
-			"cost-usd":      fmt.Sprintf("%.6f", result.costUSD),
-			"model":         flags.model,
-			"spec-hash":     specHash,
-			"timestamp":     time.Now().UTC().Format(time.RFC3339),
+			"score":          "0",
+			"cost-usd":       fmt.Sprintf("%.6f", result.costUSD),
+			"model":          flags.model,
+			"spec-hash":      specHash,
+			"timestamp":      time.Now().UTC().Format(time.RFC3339),
 			"diff-truncated": strconv.FormatBool(diffTruncated),
 		}
 		failFinding := &autoComplianceFinding{
@@ -317,11 +317,11 @@ func runComplianceAuto(ctx context.Context, featureID string, flags complianceAu
 
 	// Step 11: --preview: print findings to stdout, no HTML write.
 	attrs := map[string]string{
-		"score":         strconv.Itoa(finding.Score),
-		"cost-usd":      fmt.Sprintf("%.6f", result.costUSD),
-		"model":         flags.model,
-		"spec-hash":     specHash,
-		"timestamp":     time.Now().UTC().Format(time.RFC3339),
+		"score":          strconv.Itoa(finding.Score),
+		"cost-usd":       fmt.Sprintf("%.6f", result.costUSD),
+		"model":          flags.model,
+		"spec-hash":      specHash,
+		"timestamp":      time.Now().UTC().Format(time.RFC3339),
 		"diff-truncated": strconv.FormatBool(diffTruncated),
 	}
 	body := renderFindingsHTML(finding)
@@ -354,12 +354,12 @@ func runComplianceAutoBatch(ctx context.Context, flags complianceAutoFlags) erro
 		return fmt.Errorf("invalid --batch-since date %q: use format 2006-01-02", flags.batchSince)
 	}
 
-	htmlgraphDir, err := findHtmlgraphDir()
+	wipnoteDir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}
 
-	database, err := openDB(htmlgraphDir)
+	database, err := openDB(wipnoteDir)
 	if err != nil {
 		return fmt.Errorf("open db: %w", err)
 	}
@@ -663,18 +663,18 @@ func renderFindingsHTML(f *autoComplianceFinding) string {
 
 // writeSkipFinding writes a "compliance skipped: <reason>" finding to the feature HTML.
 // It creates the feature file if it doesn't exist (no-op if feature file is missing).
-func writeSkipFinding(featurePath, featureID, reason string) error {
+func writeSkipFinding(featurePath, reason string) error {
 	if _, err := os.Stat(featurePath); err != nil {
 		// Feature file doesn't exist — nothing to write to.
 		return nil
 	}
 
 	attrs := map[string]string{
-		"score":         "0",
-		"cost-usd":      "0",
-		"model":         "none",
-		"spec-hash":     "none",
-		"timestamp":     time.Now().UTC().Format(time.RFC3339),
+		"score":          "0",
+		"cost-usd":       "0",
+		"model":          "none",
+		"spec-hash":      "none",
+		"timestamp":      time.Now().UTC().Format(time.RFC3339),
 		"diff-truncated": "false",
 	}
 	body := fmt.Sprintf("<p><em>%s</em></p>", html.EscapeString(reason))
@@ -761,7 +761,7 @@ func realHeadlessInvoker(ctx context.Context, req headlessRequest) (*headlessRes
 	}
 
 	// Parse the JSON response from claude.
-	return parseClaudeOutput(stdoutBuf.Bytes(), req.model)
+	return parseClaudeOutput(stdoutBuf.Bytes())
 }
 
 // claudeOutputJSON is the structure of claude's --output-format json response.
@@ -774,7 +774,7 @@ type claudeOutputJSON struct {
 }
 
 // parseClaudeOutput parses the JSON output from `claude -p --output-format json`.
-func parseClaudeOutput(data []byte, model string) (*headlessResult, error) {
+func parseClaudeOutput(data []byte) (*headlessResult, error) {
 	var out claudeOutputJSON
 	if err := json.Unmarshal(data, &out); err != nil {
 		return nil, fmt.Errorf("parse claude output JSON: %w; raw: %s", err, truncateStr(string(data), 300))
