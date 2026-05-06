@@ -1,12 +1,12 @@
 prompt = '''
-# /erinn:git-commit
+# /wipnote:git-commit
 
 Commit changes using Bash-copilot first, haiku-coder as fallback.
 
 ## Usage
 
 ```
-/erinn:git-commit [message] [--push] [--files <list>]
+/wipnote:git-commit [message] [--push] [--files <list>]
 ```
 
 ## Parameters
@@ -18,9 +18,9 @@ Commit changes using Bash-copilot first, haiku-coder as fallback.
 ## Examples
 
 ```
-/erinn:git-commit "feat: add user authentication"
-/erinn:git-commit --push
-/erinn:git-commit --files internal/foo.go internal/foo_test.go "fix: resolve null pointer"
+/wipnote:git-commit "feat: add user authentication"
+/wipnote:git-commit --push
+/wipnote:git-commit --files internal/foo.go internal/foo_test.go "fix: resolve null pointer"
 ```
 
 ## Instructions for Claude
@@ -60,7 +60,7 @@ If `--push` was passed, add: "Then push to origin." to the prompt.
 
 ```text
 Agent(
-    subagent_type="erinn:haiku-coder",
+    subagent_type="wipnote:haiku-coder",
     description="Commit: <message>",
     prompt="Stage these files: <list>. Commit with message: '<message>'. Do NOT push."
 )

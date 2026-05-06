@@ -1,12 +1,12 @@
 prompt = '''
-# /erinn:spike
+# /wipnote:spike
 
 Create a research/planning spike
 
 ## Usage
 
 ```
-/erinn:spike <title> [--description TEXT] [--track ID]
+/wipnote:spike <title> [--description TEXT] [--track ID]
 ```
 
 ## Parameters
@@ -19,17 +19,17 @@ Create a research/planning spike
 ## Examples
 
 ```bash
-/erinn:spike "Research OAuth providers"
+/wipnote:spike "Research OAuth providers"
 ```
 Create a spike
 
 ```bash
-/erinn:spike "Investigate caching strategies" --description "Focus on Redis vs Memcached"
+/wipnote:spike "Investigate caching strategies" --description "Focus on Redis vs Memcached"
 ```
 Create a spike with description
 
 ```bash
-/erinn:spike "Plan data migration" --track trk-abc123
+/wipnote:spike "Plan data migration" --track trk-abc123
 ```
 Spike linked to a track
 

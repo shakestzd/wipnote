@@ -1,5 +1,5 @@
 ---
-name: erinn:plan
+name: wipnote:plan
 description: Plan development work using v2 slice-card YAML. Generates a plan with slice cards as executable specs, runs critique, pauses for human review, then promotes approved slices to features. Use when asked to plan, create a development plan, or build a feature with design clarity first.
 ---
 
@@ -241,7 +241,7 @@ context: ...
 EOF
 
 # Or interactive (Claude only):
-/erinn:spec-from-slice <plan-id> <slice-num>
+/wipnote:spec-from-slice <plan-id> <slice-num>
 ```
 
 The command writes `decisions_notes` (a free-text Markdown blob) into the slice YAML. The notes survive promotion and are consumed by `erinn spec generate --insert` later.
@@ -269,7 +269,7 @@ Rules:
 - `promote-slice` is idempotent: if `feature_id` is already set, it reuses the existing feature.
 - After promotion, `execution_status` is set to `promoted` in both YAML and `plan_feedback`.
 
-The command prints the promoted `feat-XXX` ID. That feature is now part of the track and participates in the dependency-driven dispatch loop (see `/erinn:execute`).
+The command prints the promoted `feat-XXX` ID. That feature is now part of the track and participates in the dependency-driven dispatch loop (see `/wipnote:execute`).
 
 ### Promotion workflow for a multi-slice plan
 

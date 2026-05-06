@@ -1,12 +1,12 @@
 prompt = '''
-# /erinn:init
+# /wipnote:init
 
 Initialize Erinn AI in a project
 
 ## Usage
 
 ```
-/erinn:init
+/wipnote:init
 ```
 
 ## Parameters
@@ -16,7 +16,7 @@ Initialize Erinn AI in a project
 ## Examples
 
 ```bash
-/erinn:init
+/wipnote:init
 ```
 Set up Erinn AI directory structure in project
 
@@ -37,9 +37,9 @@ Set up Erinn AI directory structure in project
 2. **Present next steps** using the output template below.
 
 3. **Guide the user:**
-   - How to plan work: `/erinn:plan "title"`
-   - How to start session: `/erinn:start`
-   - How to view dashboard: `/erinn:serve`
+   - How to plan work: `/wipnote:plan "title"`
+   - How to start session: `/wipnote:start`
+   - How to view dashboard: `/wipnote:serve`
 
 4. **Highlight key points:**
    - All subsequent work will be tracked automatically
@@ -65,20 +65,20 @@ Note:
 - Current `erinn init` does not create legacy analytics directories like `insights/`, `metrics/`, or `cigs/`.
 
 ### Next Steps
-1. Plan new work: `/erinn:plan "Feature title"`
-2. Start session: `/erinn:start`
-3. View dashboard: `/erinn:serve`
+1. Plan new work: `/wipnote:plan "Feature title"`
+2. Start session: `/wipnote:start`
+3. View dashboard: `/wipnote:serve`
 
 ### Quick Start
 ```bash
 # Start planning
-/erinn:plan "Add user authentication"
+/wipnote:plan "Add user authentication"
 
 # Begin work
-/erinn:start
+/wipnote:start
 
 # View progress
-/erinn:serve
+/wipnote:serve
 # Open http://localhost:8080
 ```
 

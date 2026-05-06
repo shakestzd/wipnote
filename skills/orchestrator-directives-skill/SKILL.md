@@ -199,18 +199,18 @@ Ask yourself these questions:
 
 ### Data File Reads — Direct Read Tool Permitted
 
-The orchestrator MAY call the `Read` tool directly, without delegating to `erinn:researcher` or `erinn:reader`, when ALL of the following hold:
+The orchestrator MAY call the `Read` tool directly, without delegating to `wipnote:researcher` or `wipnote:reader`, when ALL of the following hold:
 
 1. The file is a **data or config file**: YAML, JSON, TOML, Markdown (non-source), `.erinn/**/*.yaml`, `.erinn/**/*.html`, log files, or plain text output
 2. It is a **single-file read** — not a glob-then-read pattern, not multiple files
 3. The task is **retrieval only** — you need the content to compose a subsequent delegation or user response, not to modify code
 
-**Anti-pattern this replaces:** Delegating a 30 KB YAML read to `erinn:researcher` pays ~60 s of skill-injection overhead for work that takes <100 ms inline. Do not delegate single data-file reads.
+**Anti-pattern this replaces:** Delegating a 30 KB YAML read to `wipnote:researcher` pays ~60 s of skill-injection overhead for work that takes <100 ms inline. Do not delegate single data-file reads.
 
 **Source code and writes still MUST delegate:**
 - `.go`, `.ts`, `.py`, and other source files → delegate to researcher or coder
 - Any `Edit` or `Write` operation → delegate to appropriate coder agent
-- Multi-file reads or glob patterns → use `erinn:reader` (zero-skill agent)
+- Multi-file reads or glob patterns → use `wipnote:reader` (zero-skill agent)
 
 </details>
 
@@ -221,7 +221,7 @@ Only these can be executed directly by orchestrator:
 
 1. **Task()** - Delegation itself
    - Use spawner subagent types when possible
-   - Example: `Task(subagent_type="erinn:gemini-spawner", ...)`
+   - Example: `Task(subagent_type="wipnote:gemini-spawner", ...)`
 
 2. **AskUserQuestion()** - Clarifying requirements
    - Get user input before delegating
@@ -382,21 +382,21 @@ Task(
 ```bash
 gemini -p "Search codebase for authentication patterns and summarize findings" \
   --output-format json --yolo --include-directories . 2>&1
-# fallback → Agent(subagent_type="erinn:haiku-coder", ...)
+# fallback → Agent(subagent_type="wipnote:haiku-coder", ...)
 ```
 
 **Code implementation (try CLI first):**
 ```bash
 codex exec "Implement OAuth authentication endpoint with JWT support" \
   --full-auto --json -m gpt-4.1-mini -C . 2>&1
-# fallback → Agent(subagent_type="erinn:sonnet-coder", ...)
+# fallback → Agent(subagent_type="wipnote:sonnet-coder", ...)
 ```
 
 **Git operations (try CLI first):**
 ```bash
 copilot -p "Commit changes with message: 'feat: add OAuth authentication'. Do NOT push." \
   --allow-all-tools --no-color --add-dir . 2>&1
-# fallback → Agent(subagent_type="erinn:haiku-coder", ...)
+# fallback → Agent(subagent_type="wipnote:haiku-coder", ...)
 ```
 
 </details>
@@ -415,7 +415,7 @@ copilot -p "Stage files: <list>. Commit with message: '<message>'. Do NOT push."
 ```python
 # Priority 2: haiku-coder fallback (if copilot fails or not installed)
 Agent(
-    subagent_type="erinn:haiku-coder",
+    subagent_type="wipnote:haiku-coder",
     description="Commit and push changes",
     prompt="Stage files: <list>. Commit with message: 'feat: add X'. Do NOT push.",
 )
@@ -438,7 +438,7 @@ codex exec "TASK_DESCRIPTION" --full-auto --json -m gpt-4.1-mini -C . 2>&1
 ```python
 # Priority 2: sonnet-coder fallback (if codex fails or not installed)
 Agent(
-    subagent_type="erinn:sonnet-coder",
+    subagent_type="wipnote:sonnet-coder",
     description="Implement feature X",
     prompt="Add OAuth authentication to the login endpoint.",
 )
@@ -462,7 +462,7 @@ gemini -p "TASK_DESCRIPTION" --output-format json --yolo --include-directories .
 ```python
 # Priority 2: haiku-coder fallback (if gemini fails or not installed)
 Agent(
-    subagent_type="erinn:haiku-coder",
+    subagent_type="wipnote:haiku-coder",
     description="Research auth patterns",
     prompt="Analyze all authentication patterns in this codebase. Find security gaps.",
 )
@@ -497,7 +497,7 @@ Before presenting recommendations or starting multi-task work, ALWAYS:
 ```python
 # Launch parallel agents in worktrees — one per feature
 Agent(
-    subagent_type="erinn:sonnet-coder",
+    subagent_type="wipnote:sonnet-coder",
     description="Feature A",
     prompt="Implement feature A...",
     isolation="worktree",
@@ -505,7 +505,7 @@ Agent(
 )
 
 Agent(
-    subagent_type="erinn:sonnet-coder",
+    subagent_type="wipnote:sonnet-coder",
     description="Feature B",
     prompt="Implement feature B...",
     isolation="worktree",
@@ -513,7 +513,7 @@ Agent(
 )
 
 Agent(
-    subagent_type="erinn:haiku-coder",
+    subagent_type="wipnote:haiku-coder",
     description="Feature C (simple)",
     prompt="Implement feature C...",
     isolation="worktree",
@@ -588,7 +588,7 @@ erinn spike show <id>
 ```bash
 # 1. Delegate exploration (try gemini CLI first)
 gemini -p "Find all authentication patterns..." --output-format json --yolo --include-directories . 2>&1
-# fallback → Agent(subagent_type="erinn:haiku-coder", ...)
+# fallback → Agent(subagent_type="wipnote:haiku-coder", ...)
 ```
 
 ```bash
@@ -597,7 +597,7 @@ gemini -p "Find all authentication patterns..." --output-format json --yolo --in
 
 # 3. Use findings in next delegation (try codex CLI first)
 codex exec "Implement authentication based on auth pattern research findings..." --full-auto --json -m gpt-4.1-mini -C . 2>&1
-# fallback → Agent(subagent_type="erinn:sonnet-coder", ...)
+# fallback → Agent(subagent_type="wipnote:sonnet-coder", ...)
 ```
 
 </details>
@@ -931,7 +931,7 @@ Claude Code will create teammates, assign them work from a shared task list, and
 - **No session resume** — teammates exit via the `exit-code-2` block-and-return contract; Claude Code's `/resume` is not currently wired through this path. If a teammate is blocked (e.g., by a quality gate), the teammate is stranded. Always provide manual recovery instructions in stderr.
 - **One team per session** — you cannot spawn multiple teams in a single Claude Code session.
 - **No nested teams** — a teammate cannot create its own team.
-- **`/erinn:execute` is unchanged** — the parallel dispatch skill continues to use subagents with worktree isolation. This plan does not convert it to use teams.
+- **`/wipnote:execute` is unchanged** — the parallel dispatch skill continues to use subagents with worktree isolation. This plan does not convert it to use teams.
 
 ### Example Prompts
 

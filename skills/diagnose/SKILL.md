@@ -4,16 +4,16 @@ description: "Diagnose bugs, errors, and issues with root cause analysis. Use wh
 user_invocable: true
 ---
 
-# /erinn:diagnose
+# /wipnote:diagnose
 
 General-purpose diagnostic skill for investigating bugs, errors, and unexpected behavior.
 
 ## Usage
 
 ```
-/erinn:diagnose <bug-id>              # Investigate a specific bug
-/erinn:diagnose <error or symptom>    # Investigate an error or behavior
-/erinn:diagnose --delegation          # Audit delegation compliance (legacy mode)
+/wipnote:diagnose <bug-id>              # Investigate a specific bug
+/wipnote:diagnose <error or symptom>    # Investigate an error or behavior
+/wipnote:diagnose --delegation          # Audit delegation compliance (legacy mode)
 ```
 
 ## When to Activate
@@ -61,7 +61,7 @@ Dispatch the debugger agent with a structured prompt:
 
 ```python
 Agent(
-    subagent_type="erinn:debugger",
+    subagent_type="wipnote:debugger",
     description="Diagnose: <bug summary>",
     prompt="""
 ## Bug: <bug-id> — <title>

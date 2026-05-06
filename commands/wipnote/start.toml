@@ -1,12 +1,12 @@
 prompt = '''
-# /erinn:start
+# /wipnote:start
 
 Start a new session with context continuity and status overview
 
 ## Usage
 
 ```
-/erinn:start
+/wipnote:start
 ```
 
 ## Parameters
@@ -16,7 +16,7 @@ Start a new session with context continuity and status overview
 ## Examples
 
 ```bash
-/erinn:start
+/wipnote:start
 ```
 Begin a new development session and choose what to work on
 
@@ -28,7 +28,7 @@ Begin a new development session and choose what to work on
 
 **DO THIS:**
 
-**DELEGATION**: For complex project reviews or analysis of large backlogs, delegate to `Task(subagent_type="erinn:researcher")`.
+**DELEGATION**: For complex project reviews or analysis of large backlogs, delegate to `Task(subagent_type="wipnote:researcher")`.
 
 1. **Get comprehensive session start info:**
    ```bash
@@ -68,7 +68,7 @@ Begin a new development session and choose what to work on
 8. **Remind the user:**
    - All activity is automatically tracked to features
    - View progress in browser: `erinn serve` → http://localhost:8080
-   - Use `/erinn:plan` to start new work with proper planning
+   - Use `/wipnote:plan` to start new work with proper planning
 
 ### Output Format:
 
@@ -120,7 +120,7 @@ Based on strategic analysis, I recommend:
    - Why: {top_reasons}
 2. Continue with current feature
 3. Start a different feature
-4. Create new work item (`/erinn:plan`)
+4. Create new work item (`/wipnote:plan`)
 5. Something else
 
 '''

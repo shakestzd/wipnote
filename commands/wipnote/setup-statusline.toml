@@ -3,7 +3,7 @@ prompt = '''
 description: Set up Oh My Posh status line with Erinn AI active work item display
 ---
 
-# /erinn:setup-statusline
+# /wipnote:setup-statusline
 
 Configure the Claude Code status line to use Oh My Posh with Erinn AI work item display.
 

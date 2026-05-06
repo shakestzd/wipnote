@@ -1,12 +1,12 @@
 prompt = '''
-# /erinn:feature-primary
+# /wipnote:feature-primary
 
 Set the primary feature for activity attribution
 
 ## Usage
 
 ```
-/erinn:feature-primary <feature-id>
+/wipnote:feature-primary <feature-id>
 ```
 
 ## Parameters
@@ -17,7 +17,7 @@ Set the primary feature for activity attribution
 ## Examples
 
 ```bash
-/erinn:feature-primary feature-001
+/wipnote:feature-primary feature-001
 ```
 Set feature-001 as the primary feature for activity attribution
 

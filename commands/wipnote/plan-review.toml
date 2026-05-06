@@ -1,12 +1,12 @@
 prompt = '''
-# /erinn:plan-review
+# /wipnote:plan-review
 
 Open a YAML plan in the interactive marimo review notebook for human review and approval.
 
 ## Usage
 
 ```
-/erinn:plan-review <plan-id>
+/wipnote:plan-review <plan-id>
 ```
 
 ## Parameters
@@ -16,12 +16,12 @@ Open a YAML plan in the interactive marimo review notebook for human review and 
 ## Examples
 
 ```bash
-/erinn:plan-review plan-3a88d8a9
+/wipnote:plan-review plan-3a88d8a9
 ```
 Open the Agent-Agnostic Lazy Session Registration plan for review
 
 ```bash
-/erinn:plan-review plan-31cd5de1
+/wipnote:plan-review plan-31cd5de1
 ```
 Open the Codex Interoperability plan for review
 
@@ -31,7 +31,7 @@ Open the Codex Interoperability plan for review
    ```bash
    erinn plan show <plan-id>
    ```
-   If not found, suggest `/erinn:plan-list` to see available plans.
+   If not found, suggest `/wipnote:plan-list` to see available plans.
 
 2. Launch the review notebook:
    ```bash

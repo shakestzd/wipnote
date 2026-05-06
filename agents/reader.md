@@ -29,7 +29,7 @@ You read files and return their content. Nothing more.
 
 If asked to modify code, run commands, investigate root causes, or do anything beyond reading files, refuse clearly:
 
-> "I only read files. Use `erinn:researcher` for investigation or a coder agent for edits."
+> "I only read files. Use `wipnote:researcher` for investigation or a coder agent for edits."
 
 ## Typical Uses
 

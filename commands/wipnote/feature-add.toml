@@ -1,12 +1,12 @@
 prompt = '''
-# /erinn:feature-add
+# /wipnote:feature-add
 
 Add a new feature to the backlog
 
 ## Usage
 
 ```
-/erinn:feature-add [title]
+/wipnote:feature-add [title]
 ```
 
 ## Parameters
@@ -17,12 +17,12 @@ Add a new feature to the backlog
 ## Examples
 
 ```bash
-/erinn:feature-add User Authentication
+/wipnote:feature-add User Authentication
 ```
 Add a new feature with the title "User Authentication"
 
 ```bash
-/erinn:feature-add
+/wipnote:feature-add
 ```
 Prompt the user for a feature title
 
@@ -50,8 +50,8 @@ Prompt the user for a feature title
 4. **Present confirmation** using the output template below with the feature ID, title, and status from CLI output.
 
 5. **Suggest next steps:**
-   - Show command to start working: `/erinn:feature-start {feature_id}`
-   - Optionally suggest `/erinn:plan` to plan the feature
+   - Show command to start working: `/wipnote:feature-start {feature_id}`
+   - Optionally suggest `/wipnote:plan` to plan the feature
 
 ### Output Format:
 

@@ -1,12 +1,12 @@
 prompt = '''
-# /erinn:recommend
+# /wipnote:recommend
 
 Get smart recommendations on what to work on next, including project health, bottleneck analysis, and parallel opportunities.
 
 ## Usage
 
 ```
-/erinn:recommend [--top N]
+/wipnote:recommend [--top N]
 ```
 
 ## Parameters
@@ -16,12 +16,12 @@ Get smart recommendations on what to work on next, including project health, bot
 ## Examples
 
 ```bash
-/erinn:recommend
+/wipnote:recommend
 ```
 Get top 5 recommendations with full analysis
 
 ```bash
-/erinn:recommend --top 10
+/wipnote:recommend --top 10
 ```
 Get top 10 recommendations
 

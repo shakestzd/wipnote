@@ -8,14 +8,14 @@ args:
     required: false
 ---
 
-# /erinn:error-analysis
+# /wipnote:error-analysis
 
 Systematically capture, analyze, and track errors with Erinn AI spike-based investigation workflow.
 
 ## Usage
 
 ```
-/erinn:error-analysis [error_context]
+/wipnote:error-analysis [error_context]
 ```
 
 ## Parameters
@@ -26,12 +26,12 @@ Systematically capture, analyze, and track errors with Erinn AI spike-based inve
 ## Examples
 
 ```bash
-/erinn:error-analysis "PreToolUse hook failing with 'No such file'"
+/wipnote:error-analysis "PreToolUse hook failing with 'No such file'"
 ```
 Capture and analyze a hook error with Erinn AI tracking
 
 ```bash
-/erinn:error-analysis
+/wipnote:error-analysis
 ```
 Interactive error capture workflow
 
@@ -102,7 +102,7 @@ This command follows a research-first debugging methodology: capture the error, 
    Based on error category, guide investigation:
 
    **Hook Errors:**
-   - [ ] Research hook documentation (use /erinn:research or claude-code-guide)
+   - [ ] Research hook documentation (use /wipnote:research or claude-code-guide)
    - [ ] Check for duplicate hooks across sources
    - [ ] Verify hook file paths and permissions
    - [ ] Test with --debug flag for verbose output
@@ -138,9 +138,9 @@ This command follows a research-first debugging methodology: capture the error, 
 
 6. **Dispatch codebase investigation:**
    If the error requires codebase investigation, dispatch the researcher agent immediately.
-   Use `Task(subagent_type="erinn:researcher")` for researching documentation and prior art.
-   Use `Task(subagent_type="erinn:debugger")` for systematic error investigation.
-   Use `Task(subagent_type="erinn:test-runner")` to validate fixes.
+   Use `Task(subagent_type="wipnote:researcher")` for researching documentation and prior art.
+   Use `Task(subagent_type="wipnote:debugger")` for systematic error investigation.
+   Use `Task(subagent_type="wipnote:test-runner")` to validate fixes.
 
 7. **Document investigation workflow:**
 
@@ -185,11 +185,11 @@ This command follows a research-first debugging methodology: capture the error, 
 
 ### Next Steps
 1. Complete investigation checklist items
-2. Document findings in spike: `/erinn:spike {spike.id}`
+2. Document findings in spike: `/wipnote:spike {spike.id}`
 3. Delegate to specialized agents:
-   - `Task(subagent_type="erinn:researcher")` for unfamiliar concepts
-   - `Task(subagent_type="erinn:debugger")` for systematic debugging
-   - `Task(subagent_type="erinn:test-runner")` to validate fixes
+   - `Task(subagent_type="wipnote:researcher")` for unfamiliar concepts
+   - `Task(subagent_type="wipnote:debugger")` for systematic debugging
+   - `Task(subagent_type="wipnote:test-runner")` to validate fixes
 
 ### Start Investigation
 Use these commands to begin:
@@ -199,7 +199,7 @@ erinn serve
 # Open: http://localhost:8080
 
 # Research if needed (unfamiliar error)
-/erinn:research "{error topic}"
+/wipnote:research "{error topic}"
 
 # Document findings as you investigate
 # Findings are auto-tracked in the spike
@@ -227,9 +227,9 @@ Use these patterns to categorize errors:
 This command implements the systematic debugging workflow:
 
 ```
-1. /erinn:error-analysis "error message"  → Capture & categorize
+1. /wipnote:error-analysis "error message"  → Capture & categorize
 2. [Complete investigation checklist]          → Gather evidence
-3. /erinn:research "topic" (if needed)    → Research unfamiliar concepts
+3. /wipnote:research "topic" (if needed)    → Research unfamiliar concepts
 4. [Test hypothesis systematically]            → Debug root cause
 5. [Implement minimal fix]                     → Fix the issue
 6. [Run quality gates]                         → Validate fix
@@ -266,7 +266,7 @@ Before marking investigation complete, verify:
 
 ```bash
 # Step 1: Capture error
-/erinn:error-analysis "PreToolUse hook failing with 'No such file'"
+/wipnote:error-analysis "PreToolUse hook failing with 'No such file'"
 
 # Creates spike with:
 # - Error category: hook
@@ -274,7 +274,7 @@ Before marking investigation complete, verify:
 # - Debugging resources
 
 # Step 2: Research (if unfamiliar with hooks)
-/erinn:research "Claude Code hook loading and file paths"
+/wipnote:research "Claude Code hook loading and file paths"
 
 # Finds:
 # - Hooks load from .claude/hooks/ and plugin directories
@@ -309,8 +309,8 @@ claude --debug <command>  # Test with verbose output
 5. Find actual solution
 
 ✅ **Correct approach:**
-1. Use `/erinn:error-analysis` to capture error
-2. Use `/erinn:research` to understand root cause
+1. Use `/wipnote:error-analysis` to capture error
+2. Use `/wipnote:research` to understand root cause
 3. Implement fix based on understanding
 4. Validate fix works
 5. Document learning

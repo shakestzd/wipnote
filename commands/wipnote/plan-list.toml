@@ -1,12 +1,12 @@
 prompt = '''
-# /erinn:plan-list
+# /wipnote:plan-list
 
 List all YAML plans in the project with their status, slice counts, and creation dates. Sorted newest first.
 
 ## Usage
 
 ```
-/erinn:plan-list
+/wipnote:plan-list
 ```
 
 ## Instructions for Claude
@@ -20,7 +20,7 @@ erinn plan list-yaml
 Present the output as-is. If the user wants to review a specific plan, suggest:
 
 ```
-/erinn:plan-review <plan-id>
+/wipnote:plan-review <plan-id>
 ```
 
 '''

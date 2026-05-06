@@ -1,12 +1,12 @@
 prompt = '''
-# /erinn:end
+# /wipnote:end
 
 End the current session and record work summary
 
 ## Usage
 
 ```
-/erinn:end
+/wipnote:end
 ```
 
 ## Parameters
@@ -16,7 +16,7 @@ End the current session and record work summary
 ## Examples
 
 ```bash
-/erinn:end
+/wipnote:end
 ```
 Gracefully end the current session and show work summary
 
@@ -51,7 +51,7 @@ Gracefully end the current session and show work summary
    - Link to session record in `.erinn/sessions/`
 
 5. **CRITICAL CONSTRAINT:**
-   - ONLY run `/erinn:end` when the user explicitly requests it
+   - ONLY run `/wipnote:end` when the user explicitly requests it
    - Do NOT automatically end sessions
    - Wait for explicit user command
 

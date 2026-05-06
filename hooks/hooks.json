@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "erinn hook session-start"
+            "command": "wipnote hook session-start"
           }
         ]
       }
@@ -17,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "erinn hook user-prompt"
+            "command": "wipnote hook user-prompt"
           }
         ]
       }
@@ -28,7 +28,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "erinn hook pretooluse"
+            "command": "wipnote hook pretooluse"
           }
         ]
       }
@@ -39,7 +39,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "erinn hook posttooluse"
+            "command": "wipnote hook posttooluse"
           }
         ]
       }
@@ -50,7 +50,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "erinn hook session-end"
+            "command": "wipnote hook session-end"
           }
         ]
       }

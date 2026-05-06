@@ -1,12 +1,12 @@
 prompt = '''
-# /erinn:feature-start
+# /wipnote:feature-start
 
 Start working on a feature (moves it to in-progress)
 
 ## Usage
 
 ```
-/erinn:feature-start [feature-id]
+/wipnote:feature-start [feature-id]
 ```
 
 ## Parameters
@@ -17,12 +17,12 @@ Start working on a feature (moves it to in-progress)
 ## Examples
 
 ```bash
-/erinn:feature-start feature-001
+/wipnote:feature-start feature-001
 ```
 Start working on feature-001
 
 ```bash
-/erinn:feature-start
+/wipnote:feature-start
 ```
 List available features and prompt for selection
 

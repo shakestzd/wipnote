@@ -1,5 +1,5 @@
 prompt = '''
-# /erinn:research
+# /wipnote:research
 
 Perform structured research before planning implementation. Uses WebSearch to gather best practices, patterns, and solutions from the web.
 
@@ -8,7 +8,7 @@ Claude performs the searches directly using WebSearch — this is not delegated 
 ## Usage
 
 ```
-/erinn:research <topic> [--spike SPIKE_ID]
+/wipnote:research <topic> [--spike SPIKE_ID]
 ```
 
 ## Parameters
@@ -20,12 +20,12 @@ Claude performs the searches directly using WebSearch — this is not delegated 
 ## Examples
 
 ```bash
-/erinn:research "Real-time WebSocket best practices"
+/wipnote:research "Real-time WebSocket best practices"
 ```
 Research WebSocket patterns and document findings
 
 ```bash
-/erinn:research "JWT token security" --spike spike-abc123
+/wipnote:research "JWT token security" --spike spike-abc123
 ```
 Research JWT security and attach findings to existing spike
 
@@ -92,8 +92,8 @@ This command implements the mandatory research phase. Research reduces:
    - ✅ Links to sources
 
 6. **Suggest next steps:**
-   - If spike exists → "Complete spike steps, then use /erinn:plan"
-   - If no spike → "Use /erinn:plan to create track from findings"
+   - If spike exists → "Complete spike steps, then use /wipnote:plan"
+   - If no spike → "Use /wipnote:plan to create track from findings"
 
 ### Research Structure Template:
 
@@ -220,8 +220,8 @@ Before completing research, verify:
 The complete planning workflow is:
 
 ```
-1. /erinn:research "{topic}"          → Gather best practices
-2. /erinn:plan "{description}" --spike → Create planning spike
+1. /wipnote:research "{topic}"          → Gather best practices
+2. /wipnote:plan "{description}" --spike → Create planning spike
 3. [Complete spike steps]                  → Design solution
 4. [Create track from plan]                → Structure implementation
 5. [Create features from track]            → Execute work
@@ -231,7 +231,7 @@ The complete planning workflow is:
 
 ```bash
 # Step 1: Research
-/erinn:research "OAuth 2.0 implementation with FastAPI"
+/wipnote:research "OAuth 2.0 implementation with FastAPI"
 
 # Research finds:
 # - Use authlib library (most maintained)
@@ -240,7 +240,7 @@ The complete planning workflow is:
 # - Use refresh token rotation
 
 # Step 2: Create spike with research context
-/erinn:plan "User Authentication System" --spike --timebox 4
+/wipnote:plan "User Authentication System" --spike --timebox 4
 
 # Step 3: During spike, use research to:
 # - Define requirements (from best practices)
@@ -288,6 +288,6 @@ After research is complete, record it in the spike if one was provided:
 erinn spike show {spike_id}
 ```
 
-Note in your response that research has been validated so that `/erinn:plan` can incorporate findings when creating the track.
+Note in your response that research has been validated so that `/wipnote:plan` can incorporate findings when creating the track.
 
 '''

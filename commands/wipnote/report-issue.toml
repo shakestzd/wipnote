@@ -8,14 +8,14 @@ arguments:
     required: false
 ---
 
-# /erinn:report-issue
+# /wipnote:report-issue
 
 Report a bug or issue with Erinn AI directly to the development team.
 
 ## Usage
 
 ```
-/erinn:report-issue [title]
+/wipnote:report-issue [title]
 ```
 
 ## Instructions for Claude

@@ -1,12 +1,12 @@
 prompt = '''
-# /erinn:serve
+# /wipnote:serve
 
 Start the dashboard server
 
 ## Usage
 
 ```
-/erinn:serve [port]
+/wipnote:serve [port]
 ```
 
 ## Parameters
@@ -17,12 +17,12 @@ Start the dashboard server
 ## Examples
 
 ```bash
-/erinn:serve
+/wipnote:serve
 ```
 Start dashboard on default port 8080
 
 ```bash
-/erinn:serve 3000
+/wipnote:serve 3000
 ```
 Start dashboard on port 3000
 

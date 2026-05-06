@@ -1,12 +1,12 @@
 prompt = '''
-# /erinn:deploy
+# /wipnote:deploy
 
 Deploy a new Erinn AI release. Handles quality gates, git push, GitHub Release, marketplace sync, plugin update, and CLI binary rebuild.
 
 ## Usage
 
 ```
-/erinn:deploy <version>
+/wipnote:deploy <version>
 ```
 
 ## Parameters
@@ -16,12 +16,12 @@ Deploy a new Erinn AI release. Handles quality gates, git push, GitHub Release, 
 ## Examples
 
 ```
-/erinn:deploy 0.42.3
+/wipnote:deploy 0.42.3
 ```
 Patch release (bug fixes)
 
 ```
-/erinn:deploy 0.43.0
+/wipnote:deploy 0.43.0
 ```
 Minor release (new features)
 

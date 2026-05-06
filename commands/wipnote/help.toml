@@ -1,12 +1,12 @@
 prompt = '''
-# /erinn:help
+# /wipnote:help
 
 Display available Erinn AI commands and usage
 
 ## Usage
 
 ```
-/erinn:help
+/wipnote:help
 ```
 
 ## Parameters
@@ -16,7 +16,7 @@ Display available Erinn AI commands and usage
 ## Examples
 
 ```bash
-/erinn:help
+/wipnote:help
 ```
 Show all available commands and their descriptions
 
@@ -49,7 +49,7 @@ Show all available commands and their descriptions
 
 5. **Highlight key information:**
    - Dashboard access: `erinn serve` → http://localhost:8080
-   - All commands start with `/erinn:` for consistency
+   - All commands start with `/wipnote:` for consistency
    - CLI is available as alternative interface
 ```
 
@@ -58,20 +58,20 @@ Show all available commands and their descriptions
 ## Erinn AI Commands
 
 ### Session Management
-- `/erinn:start` - Start session, see status, choose what to work on
-- `/erinn:end` - End current session gracefully
-- `/erinn:status` - Quick status check
+- `/wipnote:start` - Start session, see status, choose what to work on
+- `/wipnote:end` - End current session gracefully
+- `/wipnote:status` - Quick status check
 
 ### Feature Management
-- `/erinn:feature-add [title]` - Add a new feature
-- `/erinn:feature-start <id>` - Start working on a feature
-- `/erinn:feature-complete [id]` - Mark feature as complete
-- `/erinn:feature-primary <id>` - Set primary feature for attribution
+- `/wipnote:feature-add [title]` - Add a new feature
+- `/wipnote:feature-start <id>` - Start working on a feature
+- `/wipnote:feature-complete [id]` - Mark feature as complete
+- `/wipnote:feature-primary <id>` - Set primary feature for attribution
 
 ### Utilities
-- `/erinn:init` - Initialize Erinn AI in project
-- `/erinn:serve [port]` - Start dashboard server
-- `/erinn:track <tool> <summary>` - Manually track activity
+- `/wipnote:init` - Initialize Erinn AI in project
+- `/wipnote:serve [port]` - Start dashboard server
+- `/wipnote:track <tool> <summary>` - Manually track activity
 
 ### CLI Commands
 You can also use the CLI directly:

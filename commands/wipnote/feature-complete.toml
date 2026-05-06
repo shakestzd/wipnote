@@ -1,12 +1,12 @@
 prompt = '''
-# /erinn:feature-complete
+# /wipnote:feature-complete
 
 Mark a feature as complete
 
 ## Usage
 
 ```
-/erinn:feature-complete [feature-id]
+/wipnote:feature-complete [feature-id]
 ```
 
 ## Parameters
@@ -17,12 +17,12 @@ Mark a feature as complete
 ## Examples
 
 ```bash
-/erinn:feature-complete feature-001
+/wipnote:feature-complete feature-001
 ```
 Complete a specific feature
 
 ```bash
-/erinn:feature-complete
+/wipnote:feature-complete
 ```
 Complete the current active feature
 
@@ -58,7 +58,7 @@ Complete the current active feature
    ```
    - If pending features exist → Suggest starting the next feature
    - If all features done → Congratulate on completion
-   - Offer to run `/erinn:plan` for new work
+   - Offer to run `/wipnote:plan` for new work
 
 ### Output Format:
 
@@ -75,8 +75,8 @@ Complete the current active feature
 {top recommendation from `erinn analytics summary`}
 
 **DELEGATION**: Delegate implementation based on complexity:
-- Simple fixes (1-2 files) → `Task(subagent_type="erinn:haiku-coder")`
-- Features (3-8 files) → `Task(subagent_type="erinn:sonnet-coder")`
-- Architecture (10+ files) → `Task(subagent_type="erinn:opus-coder")`
+- Simple fixes (1-2 files) → `Task(subagent_type="wipnote:haiku-coder")`
+- Features (3-8 files) → `Task(subagent_type="wipnote:sonnet-coder")`
+- Architecture (10+ files) → `Task(subagent_type="wipnote:opus-coder")`
 
 '''
