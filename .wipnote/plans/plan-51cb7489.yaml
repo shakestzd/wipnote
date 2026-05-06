@@ -5,9 +5,9 @@ meta:
     description: |
         Design a single-source plugin-core architecture that emits Codex-native skills and custom agent TOML while preserving the business logic currently authored for the Claude Code wipnote plugin.
     created_at: "2026-05-06"
-    status: active
+    status: finalized
     created_by: codex
-    version: 5
+    version: 7
 design:
     problem: |
         wipnote currently treats `plugin/skills/**/SKILL.md` and `plugin/agents/*.md` as cross-harness assets, then copies them into the Codex marketplace tree. That is sufficient for Codex skills now that the plugin manifest points at `./skills/`, but it is not sufficient for Codex custom agents: current Codex documentation says custom agents are standalone TOML files under `.codex/agents/` or `~/.codex/agents/`, not plugin-root `agents/*.md` files. The result is a partial port where the skills load but wipnote's named subagents do not appear in Codex. The next architecture must keep business logic in one place while emitting each harness's native packaging format.
@@ -28,6 +28,7 @@ design:
     comment: ""
 slices:
     - id: slice-1
+      feature_id: feat-051237b1
       num: 1
       title: Define canonical plugin asset model
       what: |
@@ -63,7 +64,7 @@ slices:
       approved: false
       comment: ""
       approval_status: pending
-      execution_status: not_started
+      execution_status: promoted
       questions:
         - id: q-canonical-source
           text: Should the first pass keep `plugin/` markdown as canonical, or introduce `packages/plugin-core/assets` as canonical source?
