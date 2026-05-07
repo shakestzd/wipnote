@@ -3,8 +3,8 @@ meta:
     title: Launch readiness — wipnote public launch blockers
     description: Ordered critical path to LinkedIn + HN launch. Audit performed 2026-05-07. Estimated 3–4 days of focused work.
     created_at: "2026-05-07"
-    status: todo
-    version: 4
+    status: active
+    version: 5
 design:
     problem: 'Audit on 2026-05-07 found 4 blocker categories before public launch: missing LICENSE, incomplete rename artifacts, claim-breaking bugs (OTel, Gemini hooks, Yolo guard), stale docs/release, and missing content.'
     goals:
