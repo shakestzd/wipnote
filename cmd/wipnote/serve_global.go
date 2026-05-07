@@ -1,4 +1,4 @@
-// Package main — the parent HtmlGraph doorway server.
+// Package main — the parent wipnote doorway server.
 //
 // After the per-project process isolation re-architecture (plan-237fb251),
 // the parent server holds ZERO SQLite handles. It serves only three things:

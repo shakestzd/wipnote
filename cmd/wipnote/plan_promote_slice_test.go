@@ -12,7 +12,6 @@ import (
 	"github.com/shakestzd/wipnote/internal/workitem"
 )
 
-
 func TestPromoteSlice_Approved_CreatesFeature(t *testing.T) {
 	dir := t.TempDir()
 	for _, sub := range []string{"plans", "features", "tracks"} {
@@ -470,7 +469,7 @@ func TestExecutePreview_IncludesPromotedSliceFeatures(t *testing.T) {
 // --- Spec-enforcement gate tests (feat-0fd7c8bc) ----------------------
 
 // seedPromoteFixture creates a temp project with a single approved slice and
-// returns the htmlgraph dir + plan ID. The layout mirrors production: a
+// returns the wipnote dir + plan ID. The layout mirrors production: a
 // project root (t.TempDir()) containing a .wipnote/ subdirectory.
 func seedPromoteFixture(t *testing.T, decisionsNotes string) (hgDir, planID string) {
 	t.Helper()

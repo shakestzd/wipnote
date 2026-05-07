@@ -17,7 +17,7 @@ are preserved. The agent assignment is cleared.
 Errors if the bug is not currently in-progress.
 
 Example:
-  htmlgraph bug reset bug-a1b2c3d4`,
+  wipnote bug reset bug-a1b2c3d4`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
 			title, err := executeReset("bug", args[0])

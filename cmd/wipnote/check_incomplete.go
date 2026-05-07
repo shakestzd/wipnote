@@ -35,7 +35,7 @@ type incompleteItem struct {
 }
 
 func runCheckIncomplete() error {
-	dir, err := findHtmlgraphDir()
+	dir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}

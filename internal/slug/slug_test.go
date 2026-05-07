@@ -82,9 +82,9 @@ func TestMake(t *testing.T) {
 		},
 		{
 			name:   "project basename with path",
-			input:  "htmlgraph",
+			input:  "wipnote",
 			maxLen: 30,
-			want:   "htmlgraph",
+			want:   "wipnote",
 		},
 		{
 			name:   "non-ASCII title stripped to ASCII words only",

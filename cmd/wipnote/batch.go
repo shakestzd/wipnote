@@ -15,9 +15,9 @@ import (
 
 // batchSpec is the YAML schema for batch work item creation.
 type batchSpec struct {
-	Track    batchTrack    `yaml:"track"`
-	Features []batchItem   `yaml:"features"`
-	Links    []batchLink   `yaml:"links"`
+	Track    batchTrack  `yaml:"track"`
+	Features []batchItem `yaml:"features"`
+	Links    []batchLink `yaml:"links"`
 }
 
 type batchTrack struct {
@@ -68,9 +68,9 @@ func batchApplyCmd() *cobra.Command {
 Supports file input or stdin (pipe from another command).
 
 Examples:
-  htmlgraph batch apply --file spec.yaml
-  htmlgraph batch apply --file spec.yaml --dry-run
-  cat spec.yaml | htmlgraph batch apply --file -`,
+  wipnote batch apply --file spec.yaml
+  wipnote batch apply --file spec.yaml --dry-run
+  cat spec.yaml | wipnote batch apply --file -`,
 		RunE: func(_ *cobra.Command, _ []string) error {
 			data, err := readBatchInput(file)
 			if err != nil {
@@ -127,7 +127,7 @@ func executeBatchApply(data []byte, dryRun bool) (*batchResult, error) {
 		return executeDryRun(spec), nil
 	}
 
-	dir, err := findHtmlgraphDir()
+	dir, err := findWipnoteDir()
 	if err != nil {
 		return nil, err
 	}
@@ -298,7 +298,7 @@ func batchExportCmd() *cobra.Command {
 }
 
 func runBatchExport(trackID string) error {
-	dir, err := findHtmlgraphDir()
+	dir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}

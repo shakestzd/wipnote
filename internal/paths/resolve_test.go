@@ -44,10 +44,10 @@ func TestResolveViaGitCommonDir_EmptyDir(t *testing.T) {
 	_ = paths.ResolveViaGitCommonDir("")
 }
 
-// TestResolveViaGitCommonDir_NoHtmlgraph verifies that even when git
+// TestResolveViaGitCommonDir_NoWipnote verifies that even when git
 // common-dir resolves, the function returns "" if the main repo has no
 // .wipnote directory.
-func TestResolveViaGitCommonDir_NoHtmlgraph(t *testing.T) {
+func TestResolveViaGitCommonDir_NoWipnote(t *testing.T) {
 	// Create a temp dir that looks like a git repo main root (has .git/) but
 	// no .wipnote/. We can't easily simulate --git-common-dir returning a
 	// path, so this test validates the stat guard via a direct integration:
@@ -59,8 +59,8 @@ func TestResolveViaGitCommonDir_NoHtmlgraph(t *testing.T) {
 	result := paths.ResolveViaGitCommonDir(tmpDir)
 	if result != "" {
 		// Only fail if result doesn't actually have .wipnote
-		htmlgraphPath := filepath.Join(result, ".wipnote")
-		if _, err := os.Stat(htmlgraphPath); os.IsNotExist(err) {
+		wipnotePath := filepath.Join(result, ".wipnote")
+		if _, err := os.Stat(wipnotePath); os.IsNotExist(err) {
 			t.Errorf("returned %q which has no .wipnote directory", result)
 		}
 	}
@@ -103,9 +103,9 @@ func TestGetGitRemoteURL_GitRepo(t *testing.T) {
 	}
 }
 
-// TestResolveProjectDir_HtmlgraphProjectDirEnv verifies that WIPNOTE_PROJECT_DIR
+// TestResolveProjectDir_WipnoteProjectDirEnv verifies that WIPNOTE_PROJECT_DIR
 // is honoured so subagent hooks can locate .wipnote/ when EventCWD is a temp dir.
-func TestResolveProjectDir_HtmlgraphProjectDirEnv(t *testing.T) {
+func TestResolveProjectDir_WipnoteProjectDirEnv(t *testing.T) {
 	// Set up a real project directory with .wipnote/.
 	projectDir := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(projectDir, ".wipnote"), 0o755); err != nil {
@@ -132,10 +132,10 @@ func TestResolveProjectDir_HtmlgraphProjectDirEnv(t *testing.T) {
 	}
 }
 
-// TestResolveProjectDir_HtmlgraphProjectDirEnv_Invalid verifies that an
+// TestResolveProjectDir_WipnoteProjectDirEnv_Invalid verifies that an
 // invalid WIPNOTE_PROJECT_DIR value (no .wipnote/) falls through to the
 // next resolution step rather than returning a wrong path.
-func TestResolveProjectDir_HtmlgraphProjectDirEnv_Invalid(t *testing.T) {
+func TestResolveProjectDir_WipnoteProjectDirEnv_Invalid(t *testing.T) {
 	// A temp dir without .wipnote/ — should be skipped.
 	badDir := t.TempDir()
 
@@ -300,7 +300,7 @@ func TestResolveProjectDir_IgnoresStaleClaudeProjectDir(t *testing.T) {
 
 	t.Setenv("WIPNOTE_PROJECT_DIR", "")
 	t.Setenv("CLAUDE_PROJECT_DIR", projectA) // stale — no session ID
-	t.Setenv("WIPNOTE_SESSION_ID", "")     // NOT set — stale shell scenario
+	t.Setenv("WIPNOTE_SESSION_ID", "")       // NOT set — stale shell scenario
 
 	// EventCWD is projectB; without guardrail, A would win — but it should not.
 	got, err := paths.ResolveProjectDir(paths.ProjectDirOptions{
@@ -343,19 +343,19 @@ func TestResolveProjectDir_FlagBeatsClaudeProjectDir(t *testing.T) {
 	}
 }
 
-// TestResolveProjectDir_HtmlgraphEnvBeatsClaudeProjectDir verifies that
+// TestResolveProjectDir_WipnoteEnvBeatsClaudeProjectDir verifies that
 // WIPNOTE_PROJECT_DIR takes priority over CLAUDE_PROJECT_DIR.
-func TestResolveProjectDir_HtmlgraphEnvBeatsClaudeProjectDir(t *testing.T) {
-	htmlgraphDir := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(htmlgraphDir, ".wipnote"), 0o755); err != nil {
-		t.Fatalf("mkdir .wipnote in htmlgraphDir: %v", err)
+func TestResolveProjectDir_WipnoteEnvBeatsClaudeProjectDir(t *testing.T) {
+	wipnoteDir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(wipnoteDir, ".wipnote"), 0o755); err != nil {
+		t.Fatalf("mkdir .wipnote in wipnoteDir: %v", err)
 	}
 	claudeDir := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(claudeDir, ".wipnote"), 0o755); err != nil {
 		t.Fatalf("mkdir .wipnote in claudeDir: %v", err)
 	}
 
-	t.Setenv("WIPNOTE_PROJECT_DIR", htmlgraphDir)
+	t.Setenv("WIPNOTE_PROJECT_DIR", wipnoteDir)
 	t.Setenv("CLAUDE_PROJECT_DIR", claudeDir)
 	t.Setenv("WIPNOTE_SESSION_ID", "s1")
 
@@ -363,23 +363,23 @@ func TestResolveProjectDir_HtmlgraphEnvBeatsClaudeProjectDir(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if got != htmlgraphDir {
-		t.Errorf("ResolveProjectDir = %q, want %q (WIPNOTE_PROJECT_DIR should beat CLAUDE_PROJECT_DIR)", got, htmlgraphDir)
+	if got != wipnoteDir {
+		t.Errorf("ResolveProjectDir = %q, want %q (WIPNOTE_PROJECT_DIR should beat CLAUDE_PROJECT_DIR)", got, wipnoteDir)
 	}
 }
 
-// TestResolveProjectDir_FallsBackToCwdWhenNoHtmlgraphDirInClaudeProjectDir
+// TestResolveProjectDir_FallsBackToCwdWhenNoWipnoteDirInClaudeProjectDir
 // verifies that when CLAUDE_PROJECT_DIR points at a dir with no .wipnote/,
 // the resolver falls through to EventCWD/CWD walk-up even when session ID is set.
-func TestResolveProjectDir_FallsBackToCwdWhenNoHtmlgraphDirInClaudeProjectDir(t *testing.T) {
-	noHtmlgraphDir := t.TempDir() // no .wipnote/ subdirectory
+func TestResolveProjectDir_FallsBackToCwdWhenNoWipnoteDirInClaudeProjectDir(t *testing.T) {
+	noWipnoteDir := t.TempDir() // no .wipnote/ subdirectory
 	realProjectDir := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(realProjectDir, ".wipnote"), 0o755); err != nil {
 		t.Fatalf("mkdir .wipnote in realProjectDir: %v", err)
 	}
 
 	t.Setenv("WIPNOTE_PROJECT_DIR", "")
-	t.Setenv("CLAUDE_PROJECT_DIR", noHtmlgraphDir) // points at dir WITHOUT .wipnote
+	t.Setenv("CLAUDE_PROJECT_DIR", noWipnoteDir) // points at dir WITHOUT .wipnote
 	t.Setenv("WIPNOTE_SESSION_ID", "s1")         // session ID is set
 
 	got, err := paths.ResolveProjectDir(paths.ProjectDirOptions{

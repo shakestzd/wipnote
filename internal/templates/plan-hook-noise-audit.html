@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="htmlgraph-version" content="1.0">
+<meta name="wipnote-version" content="1.0">
 <title>Plan: Hook Noise Audit</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -125,7 +125,7 @@ textarea::placeholder{color:var(--text-muted)}
 <body>
 
 <nav class="plan-sidebar">
-  <a href="/" class="brand">HtmlGraph</a>
+  <a href="/" class="brand">wipnote</a>
   <a href="/#activity" class="nav-link">Activity</a>
   <a href="/#sessions" class="nav-link">Sessions</a>
   <a href="/#work" class="nav-link">Work</a>
@@ -172,7 +172,7 @@ textarea::placeholder{color:var(--text-muted)}
     </div>
     <div class="sub-section">
       <h4>Desired End State</h4>
-      <p>Spikes are only created deliberately via CLI (<code>htmlgraph spike create</code>) or orchestrator decisions. Hook events flow to the session event stream instead. The <code>.htmlgraph/spikes/</code> directory contains only ~20 spikes with real architectural/investigation value.</p>
+      <p>Spikes are only created deliberately via CLI (<code>wipnote spike create</code>) or orchestrator decisions. Hook events flow to the session event stream instead. The <code>.wipnote/spikes/</code> directory contains only ~20 spikes with real architectural/investigation value.</p>
     </div>
     <div class="sub-section">
       <h4>Relevant Patterns</h4>
@@ -226,7 +226,7 @@ func (h *Handler) emitSessionEvent(evt SessionEvent) error
 
 func (sc *SpikeCollection) Create(title string, opts ...SpikeOption) (*Node, error)
 // Add: source validation &mdash; only CLI and orchestrator callers allowed</code></pre>
-    <pre><code class="language-go">// cmd/htmlgraph/purge.go &mdash; new
+    <pre><code class="language-go">// cmd/wipnote/purge.go &mdash; new
 
 func purgeStaleSpikeCmd() *cobra.Command
 // Flags: --dry-run, --keep-linked, --keep-done, --older-than DAYS</code></pre>
@@ -259,9 +259,9 @@ func purgeStaleSpikeCmd() *cobra.Command
     </div>
     <div class="slice-card" data-slice="3" data-slice-name="reserve-for-deliberate-use" data-status="pending" data-files="2">
       <div class="slice-header"><span class="slice-num">#3</span><span class="slice-name">Reserve spikes for deliberate use</span><span class="badge badge-pending" data-badge-for="slice-3">Pending</span></div>
-      <div class="slice-meta"><span>feat-84052b5e</span><span>Files: <code>internal/workitem/spikes.go</code>, <code>cmd/htmlgraph/spike.go</code></span></div>
+      <div class="slice-meta"><span>feat-84052b5e</span><span>Files: <code>internal/workitem/spikes.go</code>, <code>cmd/wipnote/spike.go</code></span></div>
       <h4>Test Strategy</h4>
-      <ul><li>Unit test that <code>Create()</code> rejects non-CLI callers</li><li>Test CLI <code>htmlgraph spike create</code> still works</li></ul>
+      <ul><li>Unit test that <code>Create()</code> rejects non-CLI callers</li><li>Test CLI <code>wipnote spike create</code> still works</li></ul>
       <p style="font-size:.8rem;color:var(--text-muted);margin-top:6px">Dependencies: Slice #2</p>
       <div class="approval-row"><label><input type="checkbox" data-section="slice-3" data-action="approve"> Approve slice</label><textarea data-section="slice-3" data-comment-for="slice-3" placeholder="Comments on slice 3..."></textarea></div>
     </div>
@@ -275,7 +275,7 @@ func purgeStaleSpikeCmd() *cobra.Command
     </div>
     <div class="slice-card" data-slice="5" data-slice-name="purge-stale-spikes" data-status="pending" data-files="2">
       <div class="slice-header"><span class="slice-num">#5</span><span class="slice-name">Purge 644 stale spikes</span><span class="badge badge-pending" data-badge-for="slice-5">Pending</span></div>
-      <div class="slice-meta"><span>feat-e8b4d667</span><span>Files: <code>cmd/htmlgraph/purge.go</code> (new), <code>.htmlgraph/spikes/*.html</code></span></div>
+      <div class="slice-meta"><span>feat-e8b4d667</span><span>Files: <code>cmd/wipnote/purge.go</code> (new), <code>.wipnote/spikes/*.html</code></span></div>
       <h4>Test Strategy</h4>
       <ul><li>Dry-run mode shows count</li><li>Purge removes only unlinked todo spikes</li><li>Linked spikes preserved</li></ul>
       <p style="font-size:.8rem;color:var(--text-muted);margin-top:6px">Dependencies: Slices #2 and #3</p>
@@ -518,7 +518,7 @@ func purgeStaleSpikeCmd() *cobra.Command
     .catch(function(){
       btn.textContent='Finalize Plan';
       btn.disabled=false;
-      alert('Server not running. Start with: htmlgraph serve');
+      alert('Server not running. Start with: wipnote serve');
     });
   });
 

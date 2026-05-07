@@ -32,7 +32,7 @@ var funcPrefixes = map[string]string{
 // no issues are found. Designed to complete in <5ms (single read, line scan).
 func CheckFileQuality(filePath string) string {
 	// Skip .wipnote/ directory entirely.
-	if containsHtmlgraphDir(filePath) {
+	if containsWipnoteDir(filePath) {
 		return ""
 	}
 

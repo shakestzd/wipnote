@@ -1,7 +1,7 @@
-# Build output — the system binary lives at ~/.local/bin/htmlgraph in dev mode.
-# In dist mode, plugin/build.sh writes htmlgraph-bin (real binary) + htmlgraph
+# Build output — the system binary lives at ~/.local/bin/wipnote in dev mode.
+# In dist mode, plugin/build.sh writes wipnote-bin (real binary) + wipnote
 # (bootstrap wrapper) for marketplace distribution; those artifacts are also
 # generated and should not be tracked.
-htmlgraph
-htmlgraph-dev
-htmlgraph-bin
+wipnote
+wipnote-dev
+wipnote-bin

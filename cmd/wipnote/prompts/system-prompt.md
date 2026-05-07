@@ -14,8 +14,8 @@ wipnote history feat-abc1234   # git log of a work item's own HTML file
 
 | Layer | Role |
 |-------|------|
-| `.htmlgraph/*.html` | Canonical store — single source of truth |
-| SQLite (`.htmlgraph/wipnote.db`) | Read index for queries and dashboard |
+| `.wipnote/*.html` | Canonical store — single source of truth |
+| SQLite (`.wipnote/wipnote.db`) | Read index for queries and dashboard |
 | Go binary (`wipnote`) | CLI + hook handler |
 
 ## Work Tracking (MANDATORY — before ANY delegation)
@@ -215,6 +215,6 @@ wipnote help --compact   # reprint this list at any time
 
 When Claude Code's agent teams feature is enabled (`CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`, requires v2.1.32+), wipnote automatically captures teammate identity on every `TeammateIdle`, `TaskCreated`, and `TaskCompleted` hook — feature steps are prefixed with `[teammate-name]` for attribution in `wipnote snapshot`. The plugin hooks gracefully no-op when no team is active.
 
-**Optional quality gate:** set `block_task_completion_on_quality_failure: true` in `.htmlgraph/config.json` to block task completion (exit code 2) when build/test fails. Default off. Warning: blocked teammates cannot be `/resume`d — stderr includes the manual recovery command (`wipnote feature complete <id>`).
+**Optional quality gate:** set `block_task_completion_on_quality_failure: true` in `.wipnote/config.json` to block task completion (exit code 2) when build/test fails. Default off. Warning: blocked teammates cannot be `/resume`d — stderr includes the manual recovery command (`wipnote feature complete <id>`).
 
 For delegation decision criteria (teams vs subagents, example prompts, caveats), see `/wipnote:orchestrator-directives-skill`.

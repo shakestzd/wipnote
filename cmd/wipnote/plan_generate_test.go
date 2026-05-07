@@ -8,7 +8,7 @@ import (
 )
 
 // setupPlanGenerateDir creates a minimal .wipnote directory structure
-// with a fake track HTML file, returning the htmlgraph dir path.
+// with a fake track HTML file, returning the wipnote dir path.
 func setupPlanGenerateDir(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()

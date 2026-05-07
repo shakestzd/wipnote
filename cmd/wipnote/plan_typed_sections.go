@@ -15,7 +15,7 @@ import (
 // buildTypedPlanSections builds typed plantmpl.SliceCard and DependencyGraph
 // from a work item's "contains" edges. Each slice gets structured What/Files
 // fields populated from the child feature's content and DB file counts.
-func buildTypedPlanSections(nodePath, htmlgraphDir string) ([]plantmpl.SliceCard, *plantmpl.DependencyGraph) {
+func buildTypedPlanSections(nodePath, wipnoteDir string) ([]plantmpl.SliceCard, *plantmpl.DependencyGraph) {
 	node, err := htmlparse.ParseFile(nodePath)
 	if err != nil {
 		return nil, nil
@@ -48,7 +48,7 @@ func buildTypedPlanSections(nodePath, htmlgraphDir string) ([]plantmpl.SliceCard
 	}
 
 	var database *sql.DB
-	if dbPath, pathErr := storage.CanonicalDBPath(filepath.Dir(htmlgraphDir)); pathErr == nil {
+	if dbPath, pathErr := storage.CanonicalDBPath(filepath.Dir(wipnoteDir)); pathErr == nil {
 		if db, dbErr := dbpkg.Open(dbPath); dbErr == nil {
 			database = db
 			defer database.Close()
@@ -63,7 +63,7 @@ func buildTypedPlanSections(nodePath, htmlgraphDir string) ([]plantmpl.SliceCard
 		var what string
 		var files int
 
-		childPath := resolveNodePath(htmlgraphDir, f.id)
+		childPath := resolveNodePath(wipnoteDir, f.id)
 		if childPath != "" {
 			if childNode, err := htmlparse.ParseFile(childPath); err == nil {
 				if childNode.Content != "" {

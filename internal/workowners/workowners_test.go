@@ -52,12 +52,12 @@ func TestParse_CommentsAndBlanks(t *testing.T) {
 
 func TestResolve_DoubleStarPrefix(t *testing.T) {
 	wf := &File{Rules: []Rule{
-		{Pattern: "cmd/htmlgraph/**", OwnerID: "trk-cli"},
+		{Pattern: "cmd/wipnote/**", OwnerID: "trk-cli"},
 	}}
-	if got := wf.Resolve("cmd/htmlgraph/main.go"); got != "trk-cli" {
+	if got := wf.Resolve("cmd/wipnote/main.go"); got != "trk-cli" {
 		t.Errorf("expected trk-cli, got %q", got)
 	}
-	if got := wf.Resolve("cmd/htmlgraph/sub/file.go"); got != "trk-cli" {
+	if got := wf.Resolve("cmd/wipnote/sub/file.go"); got != "trk-cli" {
 		t.Errorf("expected trk-cli for nested path, got %q", got)
 	}
 	if got := wf.Resolve("internal/db/schema.go"); got != "" {
@@ -80,9 +80,9 @@ func TestResolve_GlobPattern(t *testing.T) {
 func TestResolve_LastMatchWins(t *testing.T) {
 	wf := &File{Rules: []Rule{
 		{Pattern: "cmd/**", OwnerID: "trk-general"},
-		{Pattern: "cmd/htmlgraph/**", OwnerID: "trk-specific"},
+		{Pattern: "cmd/wipnote/**", OwnerID: "trk-specific"},
 	}}
-	if got := wf.Resolve("cmd/htmlgraph/main.go"); got != "trk-specific" {
+	if got := wf.Resolve("cmd/wipnote/main.go"); got != "trk-specific" {
 		t.Errorf("expected trk-specific (last match), got %q", got)
 	}
 	if got := wf.Resolve("cmd/other/main.go"); got != "trk-general" {

@@ -17,7 +17,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// executePreview is the JSON envelope returned by `htmlgraph execute-preview`.
+// executePreview is the JSON envelope returned by `wipnote execute-preview`.
 // It aggregates everything an orchestrator needs to start dispatching work on a
 // track: track metadata, linked work items grouped by kind, and current git state.
 type executePreview struct {
@@ -41,7 +41,7 @@ func executePreviewCmd() *cobra.Command {
 	var format string
 	cmd := &cobra.Command{
 		Use:   "execute-preview <trk-id>",
-		Short: "Return everything /htmlgraph:execute needs to start dispatching — one call",
+		Short: "Return everything /wipnote:execute needs to start dispatching — one call",
 		Long: "Aggregates track metadata, linked features/bugs/plans, and current git state " +
 			"into a single structured payload. Collapses the ~10-call discovery sequence " +
 			"that orchestrators previously needed before first dispatch.",
@@ -55,7 +55,7 @@ func executePreviewCmd() *cobra.Command {
 }
 
 func runExecutePreview(id, format string) error {
-	dir, err := findHtmlgraphDir()
+	dir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}
@@ -136,12 +136,12 @@ func buildExecutePreview(dir, trackID string) (*executePreview, error) {
 // tracks/<id>.html first, then the directory-backed tracks/<id>/index.html
 // fallback. resolveNodePath only handles the flat form, so execute-preview
 // needs its own resolver to avoid regressing directory-backed tracks.
-func resolveTrackPath(htmlgraphDir, id string) string {
-	flat := filepath.Join(htmlgraphDir, "tracks", id+".html")
+func resolveTrackPath(wipnoteDir, id string) string {
+	flat := filepath.Join(wipnoteDir, "tracks", id+".html")
 	if _, err := os.Stat(flat); err == nil {
 		return flat
 	}
-	indexed := filepath.Join(htmlgraphDir, "tracks", id, "index.html")
+	indexed := filepath.Join(wipnoteDir, "tracks", id, "index.html")
 	if _, err := os.Stat(indexed); err == nil {
 		return indexed
 	}
@@ -151,15 +151,15 @@ func resolveTrackPath(htmlgraphDir, id string) string {
 // addLinkedNode resolves a node path, parses the HTML, and appends it to the
 // correct preview bucket based on the canonical id prefix. Spikes use spk-
 // (matching internal/models/enums.go and history.go). Idempotent via seen.
-func addLinkedNode(htmlgraphDir, id string, p *executePreview, seen map[string]bool) {
+func addLinkedNode(wipnoteDir, id string, p *executePreview, seen map[string]bool) {
 	if id == "" || seen[id] {
 		return
 	}
 	seen[id] = true
-	path := resolveNodePath(htmlgraphDir, id)
+	path := resolveNodePath(wipnoteDir, id)
 	if path == "" {
 		if strings.HasPrefix(id, "trk-") {
-			path = resolveTrackPath(htmlgraphDir, id)
+			path = resolveTrackPath(wipnoteDir, id)
 		}
 		if path == "" {
 			return
@@ -185,8 +185,8 @@ func addLinkedNode(htmlgraphDir, id string, p *executePreview, seen map[string]b
 // data-feature-id attribute matches sourceID, and adds matching plans to the
 // preview. Mirrors findExistingPlanForSource in plan_cmds.go but collects
 // all hits rather than returning the first.
-func discoverPlansByFeatureID(htmlgraphDir, sourceID string, p *executePreview, seen map[string]bool) {
-	plansDir := filepath.Join(htmlgraphDir, "plans")
+func discoverPlansByFeatureID(wipnoteDir, sourceID string, p *executePreview, seen map[string]bool) {
+	plansDir := filepath.Join(wipnoteDir, "plans")
 	entries, err := os.ReadDir(plansDir)
 	if err != nil {
 		return
@@ -207,18 +207,18 @@ func discoverPlansByFeatureID(htmlgraphDir, sourceID string, p *executePreview, 
 		if !bytes.Contains(data, needle) {
 			continue
 		}
-		addLinkedNode(htmlgraphDir, planID, p, seen)
+		addLinkedNode(wipnoteDir, planID, p, seen)
 	}
 }
 
 // currentGitState resolves git state for the caller's current working directory
-// when it belongs to the same repository as the HtmlGraph project. If the
+// when it belongs to the same repository as the wipnote project. If the
 // caller is inside a nested/submodule repo (different git-common-dir), probes
-// run against the HtmlGraph project root instead so the preview never reports
+// run against the wipnote project root instead so the preview never reports
 // branch/ahead/behind for an unrelated repository. Mirrors the same guard as
-// `htmlgraph history` (see resolveHistoryRoot in history.go).
-func currentGitState(htmlgraphDir string) executeGitState {
-	repoRoot := resolveGitProbeRoot(htmlgraphDir)
+// `wipnote history` (see resolveHistoryRoot in history.go).
+func currentGitState(wipnoteDir string) executeGitState {
+	repoRoot := resolveGitProbeRoot(wipnoteDir)
 	state := executeGitState{WorktreePath: repoRoot}
 
 	if branch, err := gitOutputIn(repoRoot, "rev-parse", "--abbrev-ref", "HEAD"); err == nil {
@@ -243,7 +243,7 @@ func currentGitState(htmlgraphDir string) executeGitState {
 }
 
 // resolveGitProbeRoot picks the repo root for git probes. Prefers the caller's
-// cwd when it shares a git-common-dir with the HtmlGraph project (linked
+// cwd when it shares a git-common-dir with the wipnote project (linked
 // worktree — branch-local state is correct). Otherwise falls back to the
 // project owner so nested/submodule CWDs don't leak unrelated repo state.
 // Reuses resolveHistoryRoot which already implements this check.
@@ -252,8 +252,8 @@ func currentGitState(htmlgraphDir string) executeGitState {
 // silently fall back to the project owner rather than aborting — execute-
 // preview must stay non-fatal — but emit a stderr diagnostic so confused
 // ahead/behind counts have a visible trail for debugging.
-func resolveGitProbeRoot(htmlgraphDir string) string {
-	owner := filepath.Dir(htmlgraphDir)
+func resolveGitProbeRoot(wipnoteDir string) string {
+	owner := filepath.Dir(wipnoteDir)
 	root, err := resolveHistoryRoot(owner)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "execute-preview: resolveHistoryRoot(%s) failed, falling back to project owner: %v\n", owner, err)
@@ -265,7 +265,7 @@ func resolveGitProbeRoot(htmlgraphDir string) string {
 // gitOutputIn runs a git sub-command with cwd set to repoRoot, returning
 // trimmed stdout. Distinct from gitOutput in review.go (which runs in the
 // current working directory) because execute-preview needs to resolve paths
-// relative to the discovered htmlgraph project root, not the caller's cwd.
+// relative to the discovered wipnote project root, not the caller's cwd.
 func gitOutputIn(repoRoot string, args ...string) (string, error) {
 	cmd := exec.Command("git", args...)
 	cmd.Dir = repoRoot
@@ -303,4 +303,3 @@ func firstN(s string, n int) string {
 	}
 	return s[:n]
 }
-

@@ -18,30 +18,30 @@ import (
 	dbpkg "github.com/shakestzd/wipnote/internal/db"
 	"github.com/shakestzd/wipnote/internal/planamend"
 	"github.com/shakestzd/wipnote/internal/planchat"
-	"github.com/shakestzd/wipnote/internal/planyaml"
 	"github.com/shakestzd/wipnote/internal/plantmpl"
+	"github.com/shakestzd/wipnote/internal/planyaml"
 )
 
 // planListItem is a single entry in the GET /api/plans response.
 type planListItem struct {
-	ID         string    `json:"id"`
-	Title      string    `json:"title"`
-	Status     string    `json:"status"`
-	FeatureID  string    `json:"feature_id"`
-	Approved   int       `json:"approved"`
-	Total      int       `json:"total"`
-	UpdatedAt  time.Time `json:"updated_at"`
+	ID        string    `json:"id"`
+	Title     string    `json:"title"`
+	Status    string    `json:"status"`
+	FeatureID string    `json:"feature_id"`
+	Approved  int       `json:"approved"`
+	Total     int       `json:"total"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 // plansListHandler returns a JSON array of all plans sorted by mtime desc.
 // GET /api/plans
-func plansListHandler(htmlgraphDir string, database *sql.DB) http.HandlerFunc {
+func plansListHandler(wipnoteDir string, database *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		plansDir := filepath.Join(htmlgraphDir, "plans")
+		plansDir := filepath.Join(wipnoteDir, "plans")
 		entries, err := os.ReadDir(plansDir)
 		if err != nil {
 			if os.IsNotExist(err) {
@@ -216,7 +216,7 @@ type planFeedbackRequest struct {
 
 // planFileHandler serves HTML plan files from .wipnote/plans/{id}.html.
 // GET /plans/{id}.html
-func planFileHandler(htmlgraphDir string) http.HandlerFunc {
+func planFileHandler(wipnoteDir string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -232,7 +232,7 @@ func planFileHandler(htmlgraphDir string) http.HandlerFunc {
 			http.Error(w, "not found", http.StatusNotFound)
 			return
 		}
-		planPath := filepath.Join(htmlgraphDir, "plans", name)
+		planPath := filepath.Join(wipnoteDir, "plans", name)
 		if _, err := os.Stat(planPath); err != nil {
 			http.Error(w, "plan not found", http.StatusNotFound)
 			return
@@ -243,7 +243,7 @@ func planFileHandler(htmlgraphDir string) http.HandlerFunc {
 
 // planStatusHandler returns status information for a plan.
 // GET /api/plans/{id}/status
-func planStatusHandler(database *sql.DB, htmlgraphDir string) http.HandlerFunc {
+func planStatusHandler(database *sql.DB, wipnoteDir string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -254,7 +254,7 @@ func planStatusHandler(database *sql.DB, htmlgraphDir string) http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		planPath, err := resolvePlanPath(htmlgraphDir, planID)
+		planPath, err := resolvePlanPath(wipnoteDir, planID)
 		if err != nil {
 			http.Error(w, "plan not found", http.StatusNotFound)
 			return
@@ -337,7 +337,7 @@ func planFeedbackSubmitHandler(database *sql.DB) http.HandlerFunc {
 
 // planFinalizeHandler finalizes a plan once all sections are approved.
 // POST /api/plans/{id}/finalize
-func planFinalizeHandler(database *sql.DB, htmlgraphDir string) http.HandlerFunc {
+func planFinalizeHandler(database *sql.DB, wipnoteDir string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -371,7 +371,7 @@ func planFinalizeHandler(database *sql.DB, htmlgraphDir string) http.HandlerFunc
 		}
 
 		// Write finalized HTML snapshot with all feedback baked in.
-		planPath, err := resolvePlanPath(htmlgraphDir, planID)
+		planPath, err := resolvePlanPath(wipnoteDir, planID)
 		if err == nil {
 			if err := finalizePlanHTML(planPath, database, planID); err != nil {
 				log.Printf("warning: finalizePlanHTML failed for %s: %v", planID, err)
@@ -380,7 +380,7 @@ func planFinalizeHandler(database *sql.DB, htmlgraphDir string) http.HandlerFunc
 
 		// Keep YAML meta.status in sync with HTML finalization so YAML remains
 		// the source of truth for status reads (parsePlanHTMLStatus, plan wait, etc.).
-		if yamlErr := updatePlanStatus(htmlgraphDir, planID, "finalized"); yamlErr != nil {
+		if yamlErr := updatePlanStatus(wipnoteDir, planID, "finalized"); yamlErr != nil {
 			log.Printf("warning: updatePlanStatus(finalized) failed for %s: %v", planID, yamlErr)
 		}
 
@@ -391,10 +391,10 @@ func planFinalizeHandler(database *sql.DB, htmlgraphDir string) http.HandlerFunc
 		}
 
 		// Create track and features from approved slices, mirroring what the CLI
-		// does via `htmlgraph plan finalize-yaml`. Partial failures are logged and
+		// does via `wipnote plan finalize-yaml`. Partial failures are logged and
 		// reported in the response — a finalized plan with N/M features created is
 		// better than aborting and leaving the plan in a half-finalized state.
-		createdFeatures, featFailures, featErr := finalizeYAMLWithDB(database, htmlgraphDir, planID)
+		createdFeatures, featFailures, featErr := finalizeYAMLWithDB(database, wipnoteDir, planID)
 		if featErr != nil {
 			log.Printf("warning: finalizeYAMLWithDB failed for %s: %v", planID, featErr)
 		}
@@ -466,7 +466,7 @@ func planFeedbackHandler(database *sql.DB) http.HandlerFunc {
 
 // planDeleteHandler deletes a draft plan's HTML file and feedback.
 // DELETE /api/plans/{id}/delete
-func planDeleteHandler(database *sql.DB, htmlgraphDir string) http.HandlerFunc {
+func planDeleteHandler(database *sql.DB, wipnoteDir string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodDelete {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -477,7 +477,7 @@ func planDeleteHandler(database *sql.DB, htmlgraphDir string) http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		planPath, err := resolvePlanPath(htmlgraphDir, planID)
+		planPath, err := resolvePlanPath(wipnoteDir, planID)
 		if err != nil {
 			http.Error(w, "plan not found", http.StatusNotFound)
 			return
@@ -518,7 +518,7 @@ type planChatRequest struct {
 
 // planChatHandler streams Claude responses as SSE for a plan chat session.
 // POST /api/plans/{id}/chat
-func planChatHandler(database *sql.DB, htmlgraphDir string) http.HandlerFunc {
+func planChatHandler(database *sql.DB, wipnoteDir string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -547,10 +547,10 @@ func planChatHandler(database *sql.DB, htmlgraphDir string) http.HandlerFunc {
 		}
 
 		// Load plan YAML for context.
-		planContext := loadPlanContext(htmlgraphDir, planID)
+		planContext := loadPlanContext(wipnoteDir, planID)
 
 		// Resolve project dir (parent of .wipnote/).
-		projectDir := filepath.Dir(htmlgraphDir)
+		projectDir := filepath.Dir(wipnoteDir)
 
 		backend := planchat.New(database, planID, planContext, projectDir)
 		if !backend.IsAvailable() {
@@ -623,12 +623,12 @@ func planChatHandler(database *sql.DB, htmlgraphDir string) http.HandlerFunc {
 
 // loadPlanContext reads the plan YAML file for use as Claude context.
 // Falls back to empty string if the file is not found.
-func loadPlanContext(htmlgraphDir, planID string) string {
-	yamlPath := filepath.Join(htmlgraphDir, "plans", planID+".yaml")
+func loadPlanContext(wipnoteDir, planID string) string {
+	yamlPath := filepath.Join(wipnoteDir, "plans", planID+".yaml")
 	data, err := os.ReadFile(yamlPath)
 	if err != nil {
 		// Try HTML fallback for plan context.
-		htmlPath := filepath.Join(htmlgraphDir, "plans", planID+".html")
+		htmlPath := filepath.Join(wipnoteDir, "plans", planID+".html")
 		data, err = os.ReadFile(htmlPath)
 		if err != nil {
 			return ""
@@ -639,15 +639,15 @@ func loadPlanContext(htmlgraphDir, planID string) string {
 
 // planRouter dispatches /api/plans/{id}/{action} to the appropriate handler.
 // Registered under /api/plans/ in serve.go.
-func planRouter(database *sql.DB, htmlgraphDir string) http.HandlerFunc {
-	statusH := planStatusHandler(database, htmlgraphDir)
+func planRouter(database *sql.DB, wipnoteDir string) http.HandlerFunc {
+	statusH := planStatusHandler(database, wipnoteDir)
 	feedbackH := planFeedbackHandler(database)
-	finalizeH := planFinalizeHandler(database, htmlgraphDir)
-	deleteH := planDeleteHandler(database, htmlgraphDir)
-	chatH := planChatHandler(database, htmlgraphDir)
+	finalizeH := planFinalizeHandler(database, wipnoteDir)
+	deleteH := planDeleteHandler(database, wipnoteDir)
+	chatH := planChatHandler(database, wipnoteDir)
 	amendmentsH := planAmendmentsHandler(database)
-	yamlH := planYAMLHandler(htmlgraphDir)
-	renderH := planRenderHandler(database, htmlgraphDir)
+	yamlH := planYAMLHandler(wipnoteDir)
+	renderH := planRenderHandler(database, wipnoteDir)
 	eventsH := planEventsHandler(database)
 	return func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
@@ -680,7 +680,7 @@ func planRouter(database *sql.DB, htmlgraphDir string) http.HandlerFunc {
 // Returns just the plan content (no outer HTML shell/sidebar) for embedding
 // in the dashboard detail panel.
 // GET /api/plans/{id}/render
-func planRenderHandler(database *sql.DB, htmlgraphDir string) http.HandlerFunc {
+func planRenderHandler(database *sql.DB, wipnoteDir string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -695,13 +695,13 @@ func planRenderHandler(database *sql.DB, htmlgraphDir string) http.HandlerFunc {
 		// Build a PlanPage dynamically from the YAML source so the content
 		// is always up-to-date — the static HTML may be stale or empty.
 		page := plantmpl.BuildFromTopic(planID, "", "", "")
-		enrichPageFromYAML(htmlgraphDir, planID, page)
+		enrichPageFromYAML(wipnoteDir, planID, page)
 		enrichRelatedWork(database, page)
 
 		// If YAML enrichment didn't populate the title, fall back to
 		// extracting it from the static HTML file.
 		if page.Title == "" {
-			htmlPath := filepath.Join(htmlgraphDir, "plans", planID+".html")
+			htmlPath := filepath.Join(wipnoteDir, "plans", planID+".html")
 			if data, err := os.ReadFile(htmlPath); err == nil {
 				if doc, err := goquery.NewDocumentFromReader(strings.NewReader(string(data))); err == nil {
 					page.Title = doc.Find("h1").First().Text()
@@ -909,7 +909,7 @@ func planEventsHandler(database *sql.DB) http.HandlerFunc {
 
 // planYAMLHandler serves the raw YAML source for a plan.
 // GET /api/plans/{id}/yaml
-func planYAMLHandler(htmlgraphDir string) http.HandlerFunc {
+func planYAMLHandler(wipnoteDir string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -920,7 +920,7 @@ func planYAMLHandler(htmlgraphDir string) http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		data, err := os.ReadFile(filepath.Join(htmlgraphDir, "plans", planID+".yaml"))
+		data, err := os.ReadFile(filepath.Join(wipnoteDir, "plans", planID+".yaml"))
 		if err != nil {
 			http.Error(w, "plan YAML not found", http.StatusNotFound)
 			return
@@ -1005,8 +1005,8 @@ func extractPlanID(urlPath, suffix string) (string, error) {
 
 // resolvePlanPath returns the absolute path to a plan's HTML file, or an
 // error if the file does not exist.
-func resolvePlanPath(htmlgraphDir, planID string) (string, error) {
-	p := filepath.Join(htmlgraphDir, "plans", planID+".html")
+func resolvePlanPath(wipnoteDir, planID string) (string, error) {
+	p := filepath.Join(wipnoteDir, "plans", planID+".html")
 	if _, err := os.Stat(p); err != nil {
 		return "", fmt.Errorf("plan %s not found", planID)
 	}

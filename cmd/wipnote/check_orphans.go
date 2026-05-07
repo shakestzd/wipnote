@@ -31,7 +31,7 @@ Use --strict to return exit code 1 if orphaned items exist (for CI/pre-commit).`
 }
 
 func runCheckOrphans(strict bool) error {
-	dir, err := findHtmlgraphDir()
+	dir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}

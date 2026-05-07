@@ -13,7 +13,7 @@ Claude Code has a built-in plan mode. You press Shift+Tab twice, Claude research
 
 But when you're planning a multi-week initiative with 8 interdependent slices, design decisions that need human input, and architectural trade-offs that need scrutiny, freeform text isn't enough. The plan vanishes when the session ends. There's no structured approval flow. Nobody critiques the plan before you act on it. And there's no mechanism to wire the approved plan into executable work items.
 
-HtmlGraph's CRISPI plan system fills these gaps.
+wipnote's CRISPI plan system fills these gaps.
 
 <!-- more -->
 
@@ -35,7 +35,7 @@ This is useful for tactical work. But it has key limitations:
 
 ## CRISPI: a structured alternative
 
-HtmlGraph's plan system produces a YAML document where each slice is a self-contained executable spec card:
+wipnote's plan system produces a YAML document where each slice is a self-contained executable spec card:
 
 ```yaml
 meta:
@@ -97,7 +97,7 @@ So I switched to Marimo, a reactive Python notebook framework. Marimo's cell-bas
 
 The Marimo prototype grew into a substantial tool: 8 Python modules covering plan rendering, persistence, critique display, dependency graphs (via anywidget + dagre-d3), Claude chat with streaming responses, and an amendment system where the AI can propose changes to the plan that the reviewer accepts or rejects.
 
-Once I understood what the workflow should feel like (once I'd lived with it through several real plan reviews), I ported everything back to Go and vanilla JavaScript, embedded directly in the `htmlgraph serve` dashboard.
+Once I understood what the workflow should feel like (once I'd lived with it through several real plan reviews), I ported everything back to Go and vanilla JavaScript, embedded directly in the `wipnote serve` dashboard.
 
 The custom dashboard version now has full feature parity with the Marimo notebook: reactive approvals, dependency graph with approval coloring, SSE-streamed Claude chat, amendment tracking, critique rendering, YAML viewer with syntax highlighting, and a progress bar with finalize button. All with zero Python dependency, integrated into the same dashboard you use for work items and sessions.
 
@@ -105,7 +105,7 @@ The custom dashboard version now has full feature parity with the Marimo noteboo
 
 The Marimo version has clean enough separation that it could become its own Python package. The 8 modules (plan_notebook, plan_ui, plan_persistence, critique_renderer, dagre_widget, claude_chat, chat_widget, amendment_parser) are already self-contained; they just need a YAML plan file and a SQLite database.
 
-A standalone `crispi-plan-review` package could be useful for anyone doing structured plan review with AI, even outside the HtmlGraph ecosystem. It's something I'm actively considering.
+A standalone `crispi-plan-review` package could be useful for anyone doing structured plan review with AI, even outside the wipnote ecosystem. It's something I'm actively considering.
 
 ## Human review: local and persistent
 
@@ -122,14 +122,14 @@ The connection between plan and execution is incremental. As slices are approved
 
 ```bash
 # Review a slice, then promote it to a feature:
-htmlgraph plan approve-slice plan-3a88d8a9 1
-htmlgraph plan promote-slice plan-3a88d8a9 1
+wipnote plan approve-slice plan-3a88d8a9 1
+wipnote plan promote-slice plan-3a88d8a9 1
 # → prints feat-7a3c1f0b
 ```
 
 `promote-slice` creates a `feat-XXX` work item, wires it to the track and plan via typed edges, and checks dependency readiness. The feature immediately enters the execute skill's dependency-driven dispatch loop — no manual sequencing required. Dep-blocked slices wait in the `blocked` bucket until their dependencies complete.
 
-This incremental model means you can start executing approved slices while the rest of the plan is still under review. The plan doesn't need to be fully finalized to make progress. When all slices are done, rejected, or superseded, you close the plan with `htmlgraph plan set-status <id> completed`.
+This incremental model means you can start executing approved slices while the rest of the plan is still under review. The plan doesn't need to be fully finalized to make progress. When all slices are done, rejected, or superseded, you close the plan with `wipnote plan set-status <id> completed`.
 
 The guardrails are static (file count limits, test requirements, diff review), not plan-aware. But combining structured slice cards with tracked features and linked sessions means there's always a clear record of what was intended, what was approved, and what was actually built.
 

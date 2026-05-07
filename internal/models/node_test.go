@@ -12,13 +12,13 @@ func TestNodeJSONRoundTrip(t *testing.T) {
 	now := time.Now().UTC().Truncate(time.Millisecond)
 
 	original := &models.Node{
-		ID:       "feat-abc123",
-		Title:    "Test Feature",
-		Type:     "feature",
-		Status:   models.StatusInProgress,
-		Priority: models.PriorityHigh,
-		CreatedAt: now,
-		UpdatedAt: now,
+		ID:            "feat-abc123",
+		Title:         "Test Feature",
+		Type:          "feature",
+		Status:        models.StatusInProgress,
+		Priority:      models.PriorityHigh,
+		CreatedAt:     now,
+		UpdatedAt:     now,
 		AgentAssigned: "claude-code",
 		TrackID:       "trk-xyz",
 		Steps: []models.Step{
@@ -202,4 +202,3 @@ func TestRemoveEdge(t *testing.T) {
 		t.Error("RemoveEdge on nil edges should return false")
 	}
 }
-

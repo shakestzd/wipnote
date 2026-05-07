@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-# update-formula.sh — Update htmlgraph.rb with correct version and SHA256 checksums.
+# update-formula.sh — Update wipnote.rb with correct version and SHA256 checksums.
 #
 # Usage: ./update-formula.sh VERSION
 # Example: ./update-formula.sh 0.35.0
@@ -9,7 +9,7 @@
 set -eu
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-FORMULA="$SCRIPT_DIR/htmlgraph.rb"
+FORMULA="$SCRIPT_DIR/wipnote.rb"
 
 if [ $# -ne 1 ]; then
   echo "Usage: $0 VERSION" >&2
@@ -18,7 +18,7 @@ if [ $# -ne 1 ]; then
 fi
 
 VERSION="$1"
-CHECKSUMS_URL="https://github.com/shakestzd/htmlgraph/releases/download/go/v${VERSION}/htmlgraph_${VERSION}_checksums.txt"
+CHECKSUMS_URL="https://github.com/shakestzd/wipnote/releases/download/go/v${VERSION}/wipnote_${VERSION}_checksums.txt"
 
 echo "Fetching checksums for v${VERSION}..."
 CHECKSUMS=$(curl -fsSL "$CHECKSUMS_URL") || {
@@ -30,10 +30,10 @@ get_sha256() {
   echo "$CHECKSUMS" | awk -v file="$1" '$2 == file { print $1 }'
 }
 
-SHA256_DARWIN_ARM64=$(get_sha256 "htmlgraph_${VERSION}_darwin_arm64.tar.gz")
-SHA256_DARWIN_AMD64=$(get_sha256 "htmlgraph_${VERSION}_darwin_amd64.tar.gz")
-SHA256_LINUX_ARM64=$(get_sha256  "htmlgraph_${VERSION}_linux_arm64.tar.gz")
-SHA256_LINUX_AMD64=$(get_sha256  "htmlgraph_${VERSION}_linux_amd64.tar.gz")
+SHA256_DARWIN_ARM64=$(get_sha256 "wipnote_${VERSION}_darwin_arm64.tar.gz")
+SHA256_DARWIN_AMD64=$(get_sha256 "wipnote_${VERSION}_darwin_amd64.tar.gz")
+SHA256_LINUX_ARM64=$(get_sha256  "wipnote_${VERSION}_linux_arm64.tar.gz")
+SHA256_LINUX_AMD64=$(get_sha256  "wipnote_${VERSION}_linux_amd64.tar.gz")
 
 for var in SHA256_DARWIN_ARM64 SHA256_DARWIN_AMD64 SHA256_LINUX_ARM64 SHA256_LINUX_AMD64; do
   eval val=\$$var
@@ -71,4 +71,4 @@ echo "  darwin_amd64: ${SHA256_DARWIN_AMD64}"
 echo "  linux_arm64:  ${SHA256_LINUX_ARM64}"
 echo "  linux_amd64:  ${SHA256_LINUX_AMD64}"
 echo ""
-echo "Next: commit and push htmlgraph.rb to shakestzd/homebrew-htmlgraph"
+echo "Next: commit and push wipnote.rb to shakestzd/homebrew-wipnote"

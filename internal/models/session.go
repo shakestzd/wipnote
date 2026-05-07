@@ -14,13 +14,13 @@ type Session struct {
 	CreatedAt       time.Time  `json:"created_at"`
 	CompletedAt     *time.Time `json:"completed_at,omitempty"`
 
-	TotalEvents    int     `json:"total_events"`
-	TotalTokensUsed int    `json:"total_tokens_used"`
-	ContextDrift   float64 `json:"context_drift"`
+	TotalEvents     int     `json:"total_events"`
+	TotalTokensUsed int     `json:"total_tokens_used"`
+	ContextDrift    float64 `json:"context_drift"`
 
-	Status          string `json:"status"` // active, completed, paused, failed
-	TranscriptID    string `json:"transcript_id,omitempty"`
-	TranscriptPath  string `json:"transcript_path,omitempty"`
+	Status           string `json:"status"` // active, completed, paused, failed
+	TranscriptID     string `json:"transcript_id,omitempty"`
+	TranscriptPath   string `json:"transcript_path,omitempty"`
 	TranscriptSynced string `json:"transcript_synced,omitempty"`
 
 	StartCommit string `json:"start_commit,omitempty"`
@@ -39,25 +39,25 @@ type Session struct {
 	RecommendedContext json.RawMessage `json:"recommended_context,omitempty"`
 	ContinuedFrom      string          `json:"continued_from,omitempty"`
 
-	CostBudget             *float64 `json:"cost_budget,omitempty"`
-	CostThresholdBreached  int      `json:"cost_threshold_breached"`
-	PredictedCost          float64  `json:"predicted_cost"`
-	Model                  string   `json:"model,omitempty"`
-	ActiveFeatureID        string   `json:"active_feature_id,omitempty"`
-	GitRemoteURL           string   `json:"git_remote_url,omitempty"`
-	ProjectDir             string   `json:"project_dir,omitempty"`
+	CostBudget            *float64 `json:"cost_budget,omitempty"`
+	CostThresholdBreached int      `json:"cost_threshold_breached"`
+	PredictedCost         float64  `json:"predicted_cost"`
+	Model                 string   `json:"model,omitempty"`
+	ActiveFeatureID       string   `json:"active_feature_id,omitempty"`
+	GitRemoteURL          string   `json:"git_remote_url,omitempty"`
+	ProjectDir            string   `json:"project_dir,omitempty"`
 }
 
 // ActivityEntry is a lightweight view used in dashboard activity feeds.
 type ActivityEntry struct {
-	EventID     string    `json:"event_id"`
-	SessionID   string    `json:"session_id"`
-	AgentID     string    `json:"agent_id"`
-	EventType   EventType `json:"event_type"`
-	ToolName    string    `json:"tool_name"`
-	Summary     string    `json:"summary"`
-	Timestamp   time.Time `json:"timestamp"`
-	FeatureID   string    `json:"feature_id,omitempty"`
-	ParentID    string    `json:"parent_event_id,omitempty"`
-	Model       string    `json:"model,omitempty"`
+	EventID   string    `json:"event_id"`
+	SessionID string    `json:"session_id"`
+	AgentID   string    `json:"agent_id"`
+	EventType EventType `json:"event_type"`
+	ToolName  string    `json:"tool_name"`
+	Summary   string    `json:"summary"`
+	Timestamp time.Time `json:"timestamp"`
+	FeatureID string    `json:"feature_id,omitempty"`
+	ParentID  string    `json:"parent_event_id,omitempty"`
+	Model     string    `json:"model,omitempty"`
 }

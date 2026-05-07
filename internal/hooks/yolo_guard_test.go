@@ -25,7 +25,7 @@ func TestIsYoloFromDB(t *testing.T) {
 	tmpDir := t.TempDir()
 	hgDir := filepath.Join(tmpDir, ".wipnote")
 	os.MkdirAll(filepath.Join(hgDir, ".db"), 0o755)
-	dbPath := filepath.Join(hgDir, ".db", "htmlgraph.db")
+	dbPath := filepath.Join(hgDir, ".db", "wipnote.db")
 	t.Setenv("WIPNOTE_DB_PATH", dbPath)
 
 	// Open and initialise the DB via the project's Open helper.
@@ -108,7 +108,7 @@ func TestIsYoloFromEvent(t *testing.T) {
 
 	// Empty permission_mode + DB with bypassPermissions → yolo.
 	os.MkdirAll(filepath.Join(hgDir, ".db"), 0o755)
-	dbPath := filepath.Join(hgDir, ".db", "htmlgraph.db")
+	dbPath := filepath.Join(hgDir, ".db", "wipnote.db")
 	t.Setenv("WIPNOTE_DB_PATH", dbPath)
 	database, err := db.Open(dbPath)
 	if err != nil {
@@ -161,7 +161,9 @@ func TestCheckYoloWorkItemGuard(t *testing.T) {
 		{"write without feature in yolo blocks", "Write", "", true, true},
 		{"edit without feature in yolo blocks", "Edit", "", true, true},
 		{"multiedit without feature in yolo blocks", "MultiEdit", "", true, true},
+		{"codex apply_patch without feature blocks", "apply_patch", "", true, true},
 		{"write with feature in yolo allows", "Write", "feat-123", true, false},
+		{"codex apply_patch with feature allows", "apply_patch", "feat-123", true, false},
 		// Guard is always-on: write without feature blocks even outside yolo.
 		{"write without feature outside yolo blocks", "Write", "", false, true},
 		{"read without feature in yolo allows", "Read", "", true, false},
@@ -215,10 +217,9 @@ func TestHasAnyActiveWorkItem(t *testing.T) {
 	}
 }
 
-// TestCheckYoloWorkItemGuard_AnyActiveWorkItemFallback verifies that the guard
-// allows edits when no session-linked feature exists but an in-progress work
-// item is present — the YOLO-mode session ID mismatch fallback.
-func TestCheckYoloWorkItemGuard_AnyActiveWorkItemFallback(t *testing.T) {
+// TestCheckYoloWorkItemGuard_RejectsUnlinkedActiveWorkItem verifies that an
+// unrelated in-progress item no longer satisfies attribution for this session.
+func TestCheckYoloWorkItemGuard_RejectsUnlinkedActiveWorkItem(t *testing.T) {
 	tdb := setupTestDB(t)
 	defer tdb.DB.Close()
 
@@ -228,17 +229,17 @@ func TestCheckYoloWorkItemGuard_AnyActiveWorkItemFallback(t *testing.T) {
 		t.Error("expected block when no active work item and session unlinked")
 	}
 
-	// Add an in-progress spike → allowed via fallback
+	// Add an in-progress spike in the project. It must not satisfy this session.
 	tdb.addFeature("spike-active", "spike", "Active spike", "in-progress")
 	result = checkYoloWorkItemGuard("Write", "", true, "some-session", tdb.DB)
-	if result != "" {
-		t.Errorf("expected allow via hasAnyActiveWorkItem fallback, got: %s", result)
+	if result == "" {
+		t.Error("expected block when only an unrelated work item is active")
 	}
 }
 
-// TestCheckYoloBashWorkItemGuard_AnyActiveWorkItemFallback verifies the same
-// fallback for Bash file-write commands.
-func TestCheckYoloBashWorkItemGuard_AnyActiveWorkItemFallback(t *testing.T) {
+// TestCheckYoloBashWorkItemGuard_RejectsUnlinkedActiveWorkItem verifies the
+// same attribution rule for Bash file-write commands.
+func TestCheckYoloBashWorkItemGuard_RejectsUnlinkedActiveWorkItem(t *testing.T) {
 	tdb := setupTestDB(t)
 	defer tdb.DB.Close()
 
@@ -253,22 +254,22 @@ func TestCheckYoloBashWorkItemGuard_AnyActiveWorkItemFallback(t *testing.T) {
 		t.Error("expected block when no active work item and session unlinked")
 	}
 
-	// Add an in-progress feature → allowed via fallback
+	// Add an in-progress feature in the project. It must not satisfy this session.
 	tdb.addFeature("feat-active", "feature", "Active feature", "in-progress")
 	result = checkYoloBashWorkItemGuard(event, "", true, "some-session", tdb.DB)
-	if result != "" {
-		t.Errorf("expected allow via hasAnyActiveWorkItem fallback, got: %s", result)
+	if result == "" {
+		t.Error("expected block when only an unrelated work item is active")
 	}
 }
 
 func TestCheckYoloCommitGuard(t *testing.T) {
 	tests := []struct {
-		name      string
-		tool      string
-		cmd       string
-		yolo      bool
-		testRan   bool
-		blocked   bool
+		name    string
+		tool    string
+		cmd     string
+		yolo    bool
+		testRan bool
+		blocked bool
 	}{
 		{"git commit without tests in yolo blocks", "Bash", "git commit -m 'foo'", true, false, true},
 		{"git commit with tests in yolo allows", "Bash", "git commit -m 'foo'", true, true, false},
@@ -300,7 +301,7 @@ func TestCheckYoloCommitGuard(t *testing.T) {
 // the test. Without overriding CLAUDE_PROJECT_DIR and clearing
 // WIPNOTE_PROJECT_DIR, paths.ResolveProjectDir would inherit the
 // outer Claude Code session's env vars and resolve to the real
-// htmlgraph repo root instead of the test's tempDir.
+// wipnote repo root instead of the test's tempDir.
 func setupIsolatedProjectDir(t *testing.T) string {
 	t.Helper()
 	projDir := t.TempDir()
@@ -416,8 +417,8 @@ func TestCheckYoloWorktreeGuard_ErrorMessage(t *testing.T) {
 	if msg == "" {
 		t.Fatal("expected block message")
 	}
-	if !strings.Contains(msg, "htmlgraph yolo") {
-		t.Errorf("error message should suggest htmlgraph yolo, got: %s", msg)
+	if !strings.Contains(msg, "wipnote yolo") {
+		t.Errorf("error message should suggest wipnote yolo, got: %s", msg)
 	}
 }
 
@@ -452,11 +453,11 @@ func TestCheckYoloResearchGuard(t *testing.T) {
 
 func TestCheckYoloDiffReviewGuard(t *testing.T) {
 	tests := []struct {
-		name       string
-		cmd        string
-		yolo       bool
-		diffRan    bool
-		blocked    bool
+		name    string
+		cmd     string
+		yolo    bool
+		diffRan bool
+		blocked bool
 	}{
 		{"commit without diff in yolo blocks", "git commit -m 'x'", true, false, true},
 		{"commit with diff in yolo allows", "git commit -m 'x'", true, true, false},
@@ -855,11 +856,11 @@ func TestCheckYoloStepsGuard(t *testing.T) {
 		yolo   bool
 		warned bool
 	}{
-		{"start without steps warns", "htmlgraph feature start feat-nosteps", true, true},
-		{"start with steps allows", "htmlgraph feature start feat-steps", true, false},
-		{"start outside yolo allows", "htmlgraph feature start feat-nosteps", false, false},
-		{"non-start allows", "htmlgraph feature show feat-nosteps", true, false},
-		{"non-bash allows", "htmlgraph feature start feat-nosteps", true, true},
+		{"start without steps warns", "wipnote feature start feat-nosteps", true, true},
+		{"start with steps allows", "wipnote feature start feat-steps", true, false},
+		{"start outside yolo allows", "wipnote feature start feat-nosteps", false, false},
+		{"non-start allows", "wipnote feature show feat-nosteps", true, false},
+		{"non-bash allows", "wipnote feature start feat-nosteps", true, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -971,6 +972,13 @@ func TestIsBashFileWrite_WriteIntentCommandsBlocked(t *testing.T) {
 		{"tee -a", "tee -a logfile.txt"},
 		{"dd", "dd if=x of=y"},
 		{"patch", "patch -p1 < diff.patch"},
+		// Formatters / fixers
+		{"gofmt -w", "gofmt -w internal/hooks/pretooluse.go"},
+		{"go fmt", "go fmt ./..."},
+		{"prettier --write", "prettier --write src/app.ts"},
+		{"eslint --fix", "eslint --fix src/app.ts"},
+		{"ruff --fix", "uv run ruff check --fix ."},
+		{"black", "black src/"},
 		// Git write operations
 		{"git add", "git add ."},
 		{"git commit", "git commit -m 'msg'"},
@@ -990,6 +998,16 @@ func TestIsBashFileWrite_WriteIntentCommandsBlocked(t *testing.T) {
 				t.Errorf("isBashFileWrite should be true for write-intent command %q", tc.cmd)
 			}
 		})
+	}
+}
+
+func TestIsBashFileWrite_CodexExecCommand(t *testing.T) {
+	event := &CloudEvent{
+		ToolName:  "exec_command",
+		ToolInput: map[string]any{"cmd": "gofmt -w internal/hooks/pretooluse.go"},
+	}
+	if !isBashFileWrite(event) {
+		t.Fatal("expected Codex exec_command cmd to be classified as a file write")
 	}
 }
 
@@ -1075,16 +1093,16 @@ func TestCheckYoloBashResearchGuard_ProjectPathMessage(t *testing.T) {
 // TestBashCommandTargetsExternalPath verifies that in-repo absolute paths are
 // classified as internal (not external) and truly external paths remain external.
 func TestBashCommandTargetsExternalPath(t *testing.T) {
-	projectRoot := "/workspaces/htmlgraph"
+	projectRoot := "/workspaces/wipnote"
 
 	tests := []struct {
-		name       string
-		cmd        string
+		name         string
+		cmd          string
 		wantExternal bool
 	}{
 		// In-repo absolute paths must NOT be classified as external.
-		{"in-repo abs path", "echo x > /workspaces/htmlgraph/foo.txt", false},
-		{"in-repo abs path subdir", "rm /workspaces/htmlgraph/internal/foo.go", false},
+		{"in-repo abs path", "echo x > /workspaces/wipnote/foo.txt", false},
+		{"in-repo abs path subdir", "rm /workspaces/wipnote/internal/foo.go", false},
 		// System paths are external.
 		{"etc hostname", "echo hi > /etc/hostname", true},
 		// Home-directory paths are external.
@@ -1108,7 +1126,7 @@ func TestBashCommandTargetsExternalPath(t *testing.T) {
 // TestBashCommandTargetsExternalPath_EmptyProjectRoot verifies that any absolute
 // path is treated as external when the project root is unknown.
 func TestBashCommandTargetsExternalPath_EmptyProjectRoot(t *testing.T) {
-	if !bashCommandTargetsExternalPath("echo x > /workspaces/htmlgraph/foo.txt", "") {
+	if !bashCommandTargetsExternalPath("echo x > /workspaces/wipnote/foo.txt", "") {
 		t.Error("expected external=true for absolute path when projectRoot is empty")
 	}
 }
@@ -1203,7 +1221,7 @@ func TestIsYoloWithInheritance(t *testing.T) {
 	tmpDir := t.TempDir()
 	hgDir := filepath.Join(tmpDir, ".wipnote")
 	os.MkdirAll(filepath.Join(hgDir, ".db"), 0o755)
-	dbPath := filepath.Join(hgDir, ".db", "htmlgraph.db")
+	dbPath := filepath.Join(hgDir, ".db", "wipnote.db")
 	t.Setenv("WIPNOTE_DB_PATH", dbPath)
 
 	database, err := db.Open(dbPath)

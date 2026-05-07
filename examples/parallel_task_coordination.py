@@ -5,8 +5,8 @@ Demonstrates spawning multiple tasks in parallel and retrieving
 each result independently using the Task ID pattern.
 """
 
-from htmlgraph import SDK
-from htmlgraph.orchestration import delegate_with_id, get_results_by_task_id
+from wipnote import SDK
+from wipnote.orchestration import delegate_with_id, get_results_by_task_id
 
 
 def main():

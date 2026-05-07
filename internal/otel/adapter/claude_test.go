@@ -202,8 +202,8 @@ func TestClaudeAdapter_Span_Interaction(t *testing.T) {
 		StartTime: start,
 		EndTime:   end,
 		Attrs: map[string]any{
-			"session.id":            "6bfe7f17-971d-4c30-99f2-1c8b91c87f2b",
-			"interaction.sequence":  int64(1),
+			"session.id":              "6bfe7f17-971d-4c30-99f2-1c8b91c87f2b",
+			"interaction.sequence":    int64(1),
 			"interaction.duration_ms": int64(25368),
 		},
 	}

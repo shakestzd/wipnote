@@ -90,4 +90,4 @@ git push origin "${DIST_TAG}" --force
 
 echo ""
 echo "Done. End-user install:"
-echo "  gemini extensions install shakestzd/htmlgraph --ref ${DIST_TAG}"
+echo "  gemini extensions install shakestzd/wipnote --ref ${DIST_TAG}"

@@ -127,15 +127,15 @@ class TestGrepRemaining:
         assert any("module.py" in r for r in results)
         assert any("other.py" in r for r in results)
 
-    def test_excludes_htmlgraph_dir(self, tmp_path):
-        hg_dir = tmp_path / ".htmlgraph"
+    def test_excludes_wipnote_dir(self, tmp_path):
+        hg_dir = tmp_path / ".wipnote"
         hg_dir.mkdir()
         (hg_dir / "feature.html").write_text("old_function mentioned here")
         (tmp_path / "real.py").write_text("def old_function(): pass\n")
 
         results = hook._grep_remaining("old_function", tmp_path)
-        # .htmlgraph/ excluded — only real.py should appear
-        assert all(".htmlgraph" not in r for r in results)
+        # .wipnote/ excluded — only real.py should appear
+        assert all(".wipnote" not in r for r in results)
         assert any("real.py" in r for r in results)
 
     def test_returns_empty_when_no_matches(self, tmp_path):

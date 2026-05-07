@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# deploy-all.sh — HtmlGraph release pipeline (dev-only)
+# deploy-all.sh — wipnote release pipeline (dev-only)
 #
 # Usage:
 #   ./scripts/deploy-all.sh VERSION [FLAGS]
@@ -232,7 +232,7 @@ else
     #    Claude Code's marketplace is a local git clone; without a pull the
     #    update command compares against the stale checkout and reports "already
     #    at latest."
-    MARKETPLACE_DIR="$HOME/.claude/plugins/marketplaces/htmlgraph"
+    MARKETPLACE_DIR="$HOME/.claude/plugins/marketplaces/wipnote"
     if [[ -d "$MARKETPLACE_DIR/.git" ]]; then
         (cd "$MARKETPLACE_DIR" && git pull origin main --quiet 2>/dev/null) \
             && ok "Marketplace clone updated" \
@@ -241,8 +241,8 @@ else
         warn "Marketplace clone not found at $MARKETPLACE_DIR — skipping pull"
     fi
 
-    # 2. Rebuild CLI binary so ~/.local/bin/htmlgraph matches the release.
-    #    Plugin hooks use `htmlgraph` (PATH lookup), not the bundled binary.
+    # 2. Rebuild CLI binary so ~/.local/bin/wipnote matches the release.
+    #    Plugin hooks use `wipnote` (PATH lookup), not the bundled binary.
     #    No plugin reinstall needed — the marketplace clone update (above)
     #    is sufficient. Reinstalling interferes with dev mode (--plugin-dir).
     if [[ -f "$PROJECT_ROOT/plugin/build.sh" ]]; then

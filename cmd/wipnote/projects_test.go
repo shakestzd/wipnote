@@ -14,7 +14,7 @@ import (
 
 // makeProjectDBWithSchema creates a tmpdir "project" with a .wipnote/
 // subdirectory and a SQLite DB that has a `features` table matching the
-// real htmlgraph schema (type column — 'feature' | 'bug' | 'spike').
+// real wipnote schema (type column — 'feature' | 'bug' | 'spike').
 // Populates a few rows so ITEMS counts are non-zero.
 func makeProjectDBWithSchema(t *testing.T, numFeatures, numBugs, numSpikes int) string {
 	t.Helper()
@@ -27,7 +27,7 @@ func makeProjectDBWithSchema(t *testing.T, numFeatures, numBugs, numSpikes int) 
 	if err := os.MkdirAll(filepath.Join(tmp, ".git"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	dbPath := filepath.Join(hgDir, ".db", "htmlgraph.db")
+	dbPath := filepath.Join(hgDir, ".db", "wipnote.db")
 	t.Setenv("WIPNOTE_DB_PATH", dbPath)
 
 	// Use modernc.org/sqlite driver registered as "sqlite".
@@ -192,7 +192,7 @@ func TestProjectsList_NoMigrations(t *testing.T) {
 	withRegistryAtAndStale(t, []registry.Entry{{ProjectDir: realProject, Name: "real"}})
 
 	// Snapshot table set before.
-	dbPath := filepath.Join(realProject, ".wipnote", ".db", "htmlgraph.db")
+	dbPath := filepath.Join(realProject, ".wipnote", ".db", "wipnote.db")
 	before := readTableNames(t, dbPath)
 
 	cmd := projectsCmd()
@@ -288,7 +288,7 @@ func TestPruneTempdirOnly_RemovesTestPaths(t *testing.T) {
 
 	regPath := withRegistryAtAndStale(t, []registry.Entry{
 		{ProjectDir: testPath, Name: "test-pollution"},
-		{ProjectDir: "/workspaces/htmlgraph", Name: "real"},
+		{ProjectDir: "/workspaces/wipnote", Name: "real"},
 	})
 
 	cmd := projectsCmd()

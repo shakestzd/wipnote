@@ -222,7 +222,7 @@ func TestCheckFileQuality_PNGFile_Skipped(t *testing.T) {
 	}
 }
 
-func TestCheckFileQuality_HtmlGraphDir_Skipped(t *testing.T) {
+func TestCheckFileQuality_wipnoteDir_Skipped(t *testing.T) {
 	// Simulate a path inside .wipnote/ — we don't need it to actually exist.
 	got := CheckFileQuality(".wipnote/features/feat-abc.html")
 	if got != "" {

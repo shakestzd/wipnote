@@ -18,7 +18,7 @@ func sessionRestoreCmd() *cobra.Command {
 		Long: `Extracts a previously-archived session (.wipnote/archive/<yyyy-mm>/<sid>.tar.gz)
 back into .wipnote/sessions/<sid>/ so the NDJSON indexer picks it up on
 its next replay cycle. The session must have been archived by the retention
-job (htmlgraph serve runs this automatically every 24h).`,
+job (wipnote serve runs this automatically every 24h).`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
 			return runSessionRestore(args[0])
@@ -27,13 +27,13 @@ job (htmlgraph serve runs this automatically every 24h).`,
 }
 
 func runSessionRestore(sessionID string) error {
-	dir, err := findHtmlgraphDir()
+	dir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}
-	htmlgraphDir := filepath.Clean(dir)
+	wipnoteDir := filepath.Clean(dir)
 
-	if err := retention.ExtractArchive(htmlgraphDir, sessionID); err != nil {
+	if err := retention.ExtractArchive(wipnoteDir, sessionID); err != nil {
 		return fmt.Errorf("restore session %s: %w", sessionID, err)
 	}
 

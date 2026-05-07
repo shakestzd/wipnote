@@ -3,12 +3,12 @@
 // Package main — integration tests for the multi-project doorway server.
 //
 // These tests exercise the full parent + reverse proxy + childproc
-// supervisor + real `htmlgraph _serve-child` binary pipeline. They are
+// supervisor + real `wipnote _serve-child` binary pipeline. They are
 // gated behind `//go:build integration` so `go test ./...` keeps the
 // fast unit suite by default; CI adds a second job with
 // `-tags=integration` to run these.
 //
-// Per feasibility critic A10/C8, TestMain builds the htmlgraph binary
+// Per feasibility critic A10/C8, TestMain builds the wipnote binary
 // ONCE at package startup and every test reuses that binary via the
 // package-level testBinPath. A per-test go build would cost 5-15s each
 // and blow the 60s CI budget.
@@ -35,23 +35,23 @@ import (
 
 var testBinPath string
 
-// TestMain builds the htmlgraph binary once, stores the path in
+// TestMain builds the wipnote binary once, stores the path in
 // testBinPath, runs the tests, and (best-effort) cleans up afterwards.
 // The built binary is used by every test that needs a real
 // _serve-child process.
 func TestMain(m *testing.M) {
-	tmp, err := os.MkdirTemp("", "htmlgraph-integration-")
+	tmp, err := os.MkdirTemp("", "wipnote-integration-")
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "mkdirtemp:", err)
 		os.Exit(1)
 	}
-	testBinPath = filepath.Join(tmp, "htmlgraph")
+	testBinPath = filepath.Join(tmp, "wipnote")
 
 	build := exec.Command("go", "build", "-o", testBinPath, "./")
 	build.Dir = "."
 	build.Stderr = os.Stderr
 	if err := build.Run(); err != nil {
-		fmt.Fprintln(os.Stderr, "build htmlgraph for integration tests:", err)
+		fmt.Fprintln(os.Stderr, "build wipnote for integration tests:", err)
 		_ = os.RemoveAll(tmp)
 		os.Exit(1)
 	}
@@ -72,7 +72,7 @@ func mkIntegrationProject(t *testing.T, featureIDs ...string) string {
 	if err := os.MkdirAll(hgDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	dbPath := filepath.Join(hgDir, "htmlgraph.db")
+	dbPath := filepath.Join(hgDir, "wipnote.db")
 	db, err := sql.Open("sqlite", dbPath)
 	if err != nil {
 		t.Fatal(err)
@@ -226,7 +226,7 @@ func TestCrossProjectIsolation(t *testing.T) {
 
 	// Cross-check: open projB's DB directly and assert its feature set
 	// is untouched — the A request did not leak into B.
-	dbB, err := sql.Open("sqlite", filepath.Join(projB, ".wipnote", "htmlgraph.db")+"?mode=ro")
+	dbB, err := sql.Open("sqlite", filepath.Join(projB, ".wipnote", "wipnote.db")+"?mode=ro")
 	if err != nil {
 		t.Fatal(err)
 	}

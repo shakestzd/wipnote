@@ -15,10 +15,10 @@ Now I have the exact code. Here are the five concrete improvements:
 | `packages/go/internal/workitem/templates/node.gohtml:15-16` | Remove `data-created` and `data-updated` attributes |
 | `packages/go/internal/workitem/htmlwriter.go:110-111,165-166` | Remove `CreatedAt`/`UpdatedAt` from template data |
 | `packages/go/internal/htmlparse/parser.go` | Stop parsing these attributes (they won't exist) |
-| `packages/go/cmd/htmlgraph/reindex.go` | At index time, shell out to `git log --diff-filter=A --format=%aI -- <file>` for created, `git log -1 --format=%aI -- <file>` for updated |
+| `packages/go/cmd/wipnote/reindex.go` | At index time, shell out to `git log --diff-filter=A --format=%aI -- <file>` for created, `git log -1 --format=%aI -- <file>` for updated |
 | `packages/go/internal/db/schema.go` | `features` table keeps `created_at`/`updated_at` columns — they're populated from git during reindex |
 
-**Risk:** Slightly slower reindex (one `git log` call per file). Mitigated by batching: `git log --format='%aI %H' --name-only -- .htmlgraph/features/` gets all timestamps in one call.
+**Risk:** Slightly slower reindex (one `git log` call per file). Mitigated by batching: `git log --format='%aI %H' --name-only -- .wipnote/features/` gets all timestamps in one call.
 
 **What you lose:** Nothing real. The HTML files become simpler and the timestamps become trustworthy.
 
@@ -28,22 +28,22 @@ Now I have the exact code. Here are the five concrete improvements:
 
 **What:** Track the last-indexed commit. On reindex, only reparse HTML files that git reports as changed.
 
-**Why:** `reindex.go:25-62` currently globs and parses every HTML file on every run. As `.htmlgraph/` grows, this gets slower linearly. Git knows exactly what changed.
+**Why:** `reindex.go:25-62` currently globs and parses every HTML file on every run. As `.wipnote/` grows, this gets slower linearly. Git knows exactly what changed.
 
 **What changes:**
 
 | File | Change |
 |------|--------|
 | `packages/go/internal/db/schema.go` | Add `metadata` table: `CREATE TABLE IF NOT EXISTS metadata (key TEXT PRIMARY KEY, value TEXT)` |
-| `packages/go/cmd/htmlgraph/reindex.go` | Before reindex: read `last_indexed_commit` from metadata. Run `git diff --name-only <last_commit> HEAD -- .htmlgraph/`. Only parse returned files. After reindex: write current HEAD as `last_indexed_commit`. |
-| `packages/go/cmd/htmlgraph/reindex.go` | Keep `--full` flag to force full reparse when needed |
+| `packages/go/cmd/wipnote/reindex.go` | Before reindex: read `last_indexed_commit` from metadata. Run `git diff --name-only <last_commit> HEAD -- .wipnote/`. Only parse returned files. After reindex: write current HEAD as `last_indexed_commit`. |
+| `packages/go/cmd/wipnote/reindex.go` | Keep `--full` flag to force full reparse when needed |
 
 **Implementation sketch:**
 ```go
 // Get changed files since last index
 lastCommit := db.GetMetadata("last_indexed_commit")
 if lastCommit != "" && !fullReindex {
-    cmd := exec.Command("git", "diff", "--name-only", lastCommit, "HEAD", "--", ".htmlgraph/")
+    cmd := exec.Command("git", "diff", "--name-only", lastCommit, "HEAD", "--", ".wipnote/")
     // parse only these files
 } else {
     // existing full glob behavior
@@ -63,7 +63,7 @@ db.SetMetadata("last_indexed_commit", currentHEAD)
 **Why:** The current approach (`feature_files_repo.go:14-30`) only captures files touched via Claude Code hooks. It misses:
 - Manual edits committed outside a session
 - Files touched by other agents without hooks
-- Historical work before htmlgraph was installed
+- Historical work before wipnote was installed
 
 Git knows every file every commit touched. Since `git_commits` already links commits to features, the mapping is derivable.
 
@@ -72,9 +72,9 @@ Git knows every file every commit touched. Since `git_commits` already links com
 | File | Change |
 |------|--------|
 | `packages/go/internal/hooks/pretooluse.go` | Stop calling `UpsertFeatureFile` on every tool use (remove hot-path overhead) |
-| `packages/go/cmd/htmlgraph/reindex.go` | Add a `reindexFeatureFiles()` pass: for each feature, get linked commits from `git_commits`, run `git diff-tree --no-commit-id -r <commit>` to get files, upsert into `feature_files` |
+| `packages/go/cmd/wipnote/reindex.go` | Add a `reindexFeatureFiles()` pass: for each feature, get linked commits from `git_commits`, run `git diff-tree --no-commit-id -r <commit>` to get files, upsert into `feature_files` |
 | `packages/go/internal/db/feature_files_repo.go` | Keep the table and query functions. Change population from "hook-driven append" to "reindex-driven rebuild" |
-| `packages/go/cmd/htmlgraph/backfill.go` | Can be simplified — backfill IS the reindex now |
+| `packages/go/cmd/wipnote/backfill.go` | Can be simplified — backfill IS the reindex now |
 
 **Implementation sketch:**
 ```go
@@ -95,11 +95,11 @@ func reindexFeatureFiles(db *sql.DB) error {
 
 **What:** Align the traceparent format in `attribution.go:15-20` with the [Agent Trace RFC](https://github.com/cursor/agent-trace) that Cursor, Cloudflare, Vercel, Google Jules, and Git AI have adopted.
 
-**Why:** htmlgraph currently uses a custom `traceparentEntry` struct with custom JSON written to temp files. The Agent Trace standard defines a common format for "which agent contributed which code." Adopting it means:
-- Git AI can read htmlgraph's attribution data
+**Why:** wipnote currently uses a custom `traceparentEntry` struct with custom JSON written to temp files. The Agent Trace standard defines a common format for "which agent contributed which code." Adopting it means:
+- Git AI can read wipnote's attribution data
 - Agent Blame (Mesa) can read it
 - Cursor's tooling can read it
-- htmlgraph can read theirs
+- wipnote can read theirs
 
 **What changes:**
 
@@ -111,7 +111,7 @@ func reindexFeatureFiles(db *sql.DB) error {
 
 **Risk:** The Agent Trace RFC is still evolving. Pin to a specific version and version the format in the output.
 
-**Impact:** Interoperability with the emerging ecosystem. htmlgraph stops being an island and becomes a node in a network of tools that share attribution data.
+**Impact:** Interoperability with the emerging ecosystem. wipnote stops being an island and becomes a node in a network of tools that share attribution data.
 
 ---
 
@@ -125,7 +125,7 @@ func reindexFeatureFiles(db *sql.DB) error {
 
 | File | Change |
 |------|--------|
-| `.github/workflows/ci.yml` (new) | Go build, vet, test + htmlgraph quality checks on every PR |
+| `.github/workflows/ci.yml` (new) | Go build, vet, test + wipnote quality checks on every PR |
 | `.github/BRANCH_PROTECTION.md` | Update to reference the actual CI workflow (currently references checks that don't exist) |
 | `packages/go/internal/hooks/quality_gate.go` | **Keep as-is** — fast local feedback is still valuable. The Action is the enforcement backstop. |
 

@@ -12,9 +12,9 @@ import (
 //
 // Schema overview:
 //
-//   otel_signals         — one row per OTLP metric point, log record, or span
-//   otel_resource_attrs  — per-session resource attribute snapshot (service.version, terminal.type, ...)
-//   otel_session_rollup  — materialized totals written on SessionEnd
+//	otel_signals         — one row per OTLP metric point, log record, or span
+//	otel_resource_attrs  — per-session resource attribute snapshot (service.version, terminal.type, ...)
+//	otel_session_rollup  — materialized totals written on SessionEnd
 //
 // Design notes:
 //   - signal_id is the idempotency key. Receivers compute it as a hash
@@ -117,7 +117,7 @@ func CreateOtelTables(db *sql.DB) error {
 	}
 
 	// Idempotent migration: feature_id column added after initial schema
-	// so existing DBs pick it up on the next `htmlgraph serve`. Duplicate
+	// so existing DBs pick it up on the next `wipnote serve`. Duplicate
 	// column errors are expected on re-runs and are silently swallowed,
 	// matching the convention used elsewhere in internal/db/schema.go.
 	if _, err := db.Exec(`ALTER TABLE otel_signals ADD COLUMN feature_id TEXT`); err != nil {
@@ -134,7 +134,7 @@ func CreateOtelTables(db *sql.DB) error {
 	//
 	// agent_id is the unique subagent identity (WIPNOTE_AGENT_ID written into
 	// the subagent env by writeSubagentEnvVars and echoed as a resource attribute
-	// htmlgraph.agent_id on every subagent OTel span).
+	// wipnote.agent_id on every subagent OTel span).
 	//
 	// agent_span_id is the span_id of the otel_signals placeholder row created
 	// for this subagent. Populated by the OTLP receiver's placeholder-creation

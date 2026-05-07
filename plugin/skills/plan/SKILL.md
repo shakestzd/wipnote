@@ -19,7 +19,7 @@ A v2 plan is a YAML document containing slice cards. Each slice card is an execu
 
 | Artifact | Role |
 |----------|------|
-| `.htmlgraph/plans/<plan-id>.yaml` | Plan = context document (problem, goals, constraints, slices) |
+| `.wipnote/plans/<plan-id>.yaml` | Plan = context document (problem, goals, constraints, slices) |
 | Each slice card (`what/why/done_when/tests`) | Executable spec — what an agent implements |
 | `feat-XXX` work item | Promoted feature = implementation tracker |
 | Sessions and commits | Evidence linked via `implemented_in` edges |
@@ -57,7 +57,7 @@ Research the area before writing any YAML. Answer:
 wipnote plan create-yaml "<title>" --description "<description>" --track <trk-id>
 ```
 
-Note the returned plan ID. Then write the YAML to `.htmlgraph/plans/<plan-id>.yaml` using `wipnote plan rewrite-yaml <plan-id> --file /tmp/plan.yaml`.
+Note the returned plan ID. Then write the YAML to `.wipnote/plans/<plan-id>.yaml` using `wipnote plan rewrite-yaml <plan-id> --file /tmp/plan.yaml`.
 
 ### v2 YAML Schema
 
@@ -159,7 +159,7 @@ All of these must be present and non-empty on every slice:
 
 Use `what: |`, `why: |`, and `tests: |` (YAML literal blocks) so Markdown renders correctly in the dashboard.
 
-**Spec lifecycle (new in plan-cc24034c, post-2026-05-04):** the `decisions_notes` field is optional but populated automatically by the spec-from-slice skill before promotion. When `spec_enforcement.promote_slice: true` in `.erinn/config.json`, `wipnote plan promote-slice` refuses if `decisions_notes` is empty.
+**Spec lifecycle (new in plan-cc24034c, post-2026-05-04):** the `decisions_notes` field is optional but populated automatically by the spec-from-slice skill before promotion. When `spec_enforcement.promote_slice: true` in `.wipnote/config.json`, `wipnote plan promote-slice` refuses if `decisions_notes` is empty.
 
 ---
 
@@ -246,7 +246,7 @@ EOF
 
 The command writes `decisions_notes` (a free-text Markdown blob) into the slice YAML. The notes survive promotion and are consumed by `wipnote spec generate --insert` later.
 
-**Optional gate:** when `.erinn/config.json` has `spec_enforcement.promote_slice: true`, `wipnote plan promote-slice` refuses to promote a slice with empty `decisions_notes` (use `--allow-spec-skip` to bypass with audit comment). Default is off; gate ships disabled.
+**Optional gate:** when `.wipnote/config.json` has `spec_enforcement.promote_slice: true`, `wipnote plan promote-slice` refuses to promote a slice with empty `decisions_notes` (use `--allow-spec-skip` to bypass with audit comment). Default is off; gate ships disabled.
 
 ---
 
@@ -265,7 +265,7 @@ wipnote plan promote-slice <plan-id> <slice-num> --waive-deps
 Rules:
 - The slice must have `approval_status=approved` (set via `approve-slice`).
 - All dependency slices must have `execution_status=done` or `superseded`, unless `--waive-deps`.
-- If `spec_enforcement.promote_slice: true` in `.erinn/config.json`: the slice must have non-empty `decisions_notes` (run Step 6.5 first), or pass `--allow-spec-skip` to override.
+- If `spec_enforcement.promote_slice: true` in `.wipnote/config.json`: the slice must have non-empty `decisions_notes` (run Step 6.5 first), or pass `--allow-spec-skip` to override.
 - `promote-slice` is idempotent: if `feature_id` is already set, it reuses the existing feature.
 - After promotion, `execution_status` is set to `promoted` in both YAML and `plan_feedback`.
 
@@ -303,7 +303,7 @@ Behavior on re-run:
 
 Once the spec exists, `wipnote compliance <feat-id>` (legacy checkbox reporter) and `wipnote compliance auto <feat-id>` (LLM grader from the OODA pilot) can both read and score it.
 
-**Optional gate:** when `.erinn/config.json` has `spec_enforcement.feature_complete: true`, `wipnote feature complete <id>` refuses to mark done if the feature has no `<section class="spec">` block or 0 requirements/criteria. Use `--allow-spec-skip` to bypass with audit comment. Default off.
+**Optional gate:** when `.wipnote/config.json` has `spec_enforcement.feature_complete: true`, `wipnote feature complete <id>` refuses to mark done if the feature has no `<section class="spec">` block or 0 requirements/criteria. Use `--allow-spec-skip` to bypass with audit comment. Default off.
 
 The spec section is the artifact that `wipnote compliance auto` (from the OODA active-observer track) compares against the implementation diff for every promoted feature — it is the bridge between intent (slice card) and implementation (commits).
 
@@ -441,4 +441,4 @@ Legacy plans can be migrated incrementally: add v2 fields to individual slices a
 - **Critique is embedded per-slice** — use `critic_revisions` instead of a global critique section for v2 plans
 - **All slice fields are mandatory** — missing fields will fail `validate-yaml`
 - **Finalize is for legacy plans** — v2 plans use `promote-slice` per slice; `wipnote plan finalize` is the legacy all-at-once path
-- **Specs are created between approval and execution, not at finalization.** Two stages: (a) elicit decisions before promote-slice (writes `decisions_notes` to slice YAML); (b) generate spec section after promote-slice (writes `<section class="spec">` to feature HTML). Both stages have opt-in gates in `.erinn/config.json` (`spec_enforcement.promote_slice`, `spec_enforcement.feature_complete`).
+- **Specs are created between approval and execution, not at finalization.** Two stages: (a) elicit decisions before promote-slice (writes `decisions_notes` to slice YAML); (b) generate spec section after promote-slice (writes `<section class="spec">` to feature HTML). Both stages have opt-in gates in `.wipnote/config.json` (`spec_enforcement.promote_slice`, `spec_enforcement.feature_complete`).

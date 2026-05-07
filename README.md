@@ -14,8 +14,8 @@ Answer "why does this code exist?" in one command. wipnote traces causal chains 
 
 | Layer | Role |
 |-------|------|
-| `.htmlgraph/*.html` | Canonical CRUD store — single source of truth |
-| SQLite (`.htmlgraph/wipnote.db`) | Rebuildable read cache for fast queries and the dashboard |
+| `.wipnote/*.html` | Canonical CRUD store — single source of truth |
+| SQLite (`.wipnote/wipnote.db`) | Rebuildable read cache for fast queries and the dashboard |
 | Go binary (`wipnote`) | CLI + hook handler |
 
 HTML is the source of truth; SQLite is derived. If they drift, `wipnote reindex` drops the database and rebuilds it from the HTML files. No external infrastructure — no Postgres, no Redis, no cloud sync.
@@ -47,7 +47,7 @@ wipnote update             # alias for upgrade
 ## Quick Start
 
 ```bash
-wipnote init                          # creates .htmlgraph/ in your repo
+wipnote init                          # creates .wipnote/ in your repo
 wipnote track create "Auth Overhaul"
 wipnote feature create "Add OAuth" --track <trk-id> --description "Implement OAuth2 flow"
 wipnote feature start <feat-id>
@@ -71,7 +71,7 @@ wipnote trace feat-abc1234
 wipnote history feat-abc1234
 ```
 
-**Work item tracking** — Features, bugs, spikes, and tracks as HTML files in `.htmlgraph/`. Every change is a git diff. Every item has a lifecycle: create, start, complete.
+**Work item tracking** — Features, bugs, spikes, and tracks as HTML files in `.wipnote/`. Every change is a git diff. Every item has a lifecycle: create, start, complete.
 
 **Session observability** — Hooks capture every tool call, every prompt, and attribute them to the active work item. See exactly what happened in any session via the dashboard.
 
@@ -116,7 +116,7 @@ See full CLI documentation at [wipnote.dev/reference/cli](https://wipnote.dev/re
 
 ## Contributing
 
-wipnote is developed using wipnote itself (dogfooding). `.htmlgraph/` contains real work items — not demos.
+wipnote is developed using wipnote itself (dogfooding). `.wipnote/` contains real work items — not demos.
 
 ```bash
 git clone https://github.com/shakestzd/wipnote

@@ -16,7 +16,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// migrateTracksOpts holds the parsed CLI flags for `htmlgraph migrate-tracks`.
+// migrateTracksOpts holds the parsed CLI flags for `wipnote migrate-tracks`.
 type migrateTracksOpts struct {
 	rulesPath string
 	dryRun    bool
@@ -27,7 +27,7 @@ type migrateTracksOpts struct {
 	force     bool    // overwrite existing manifest
 }
 
-// migrateTracksCmd returns the cobra command for `htmlgraph migrate-tracks`.
+// migrateTracksCmd returns the cobra command for `wipnote migrate-tracks`.
 func migrateTracksCmd() *cobra.Command {
 	opts := migrateTracksOpts{
 		dryRun:    true,
@@ -56,15 +56,15 @@ Decisions are emitted in five categories:
   no-change       — current track is already the dominant track
 
 Examples:
-  htmlgraph migrate-tracks --rules docs/track-attribution-rules.yaml
-  htmlgraph migrate-tracks --rules rules.yaml --write
-  htmlgraph migrate-tracks --rules rules.yaml --format json
-  htmlgraph migrate-tracks --rules rules.yaml --types features,bugs`,
+  wipnote migrate-tracks --rules docs/track-attribution-rules.yaml
+  wipnote migrate-tracks --rules rules.yaml --write
+  wipnote migrate-tracks --rules rules.yaml --format json
+  wipnote migrate-tracks --rules rules.yaml --types features,bugs`,
 		RunE: func(_ *cobra.Command, _ []string) error {
 			if opts.write {
 				opts.dryRun = false
 			}
-			hgDir, err := findHtmlgraphDir()
+			hgDir, err := findWipnoteDir()
 			if err != nil {
 				return err
 			}
@@ -115,7 +115,7 @@ func runMigrateTracks(_ context.Context, hgDir string, opts migrateTracksOpts, o
 		return fmt.Errorf("rules file %s contains no rules", opts.rulesPath)
 	}
 
-	p, err := workitem.Open(hgDir, "htmlgraph-cli")
+	p, err := workitem.Open(hgDir, "wipnote-cli")
 	if err != nil {
 		return fmt.Errorf("open project: %w", err)
 	}
@@ -185,7 +185,7 @@ func runMigrateTracks(_ context.Context, hgDir string, opts migrateTracksOpts, o
 			len(applyErrs), manifestPath)
 	}
 	fmt.Fprintf(status, "\nManifest written: %s\n", manifestPath)
-	fmt.Fprintln(status, "Run `htmlgraph reindex --full` to refresh the SQLite read index "+
+	fmt.Fprintln(status, "Run `wipnote reindex --full` to refresh the SQLite read index "+
 		"so blame/code-areas reflect the new attribution.")
 	return nil
 }
@@ -299,18 +299,18 @@ func applyDecisions(p *workitem.Project, decisions []migrate.Decision) []error {
 
 // migrationManifest is the on-disk audit record for a single backfill run.
 type migrationManifest struct {
-	GeneratedAt   time.Time          `json:"generated_at"`
-	RulesPath     string             `json:"rules_path"`
-	HtmlgraphTool string             `json:"htmlgraph_tool"` // "migrate-tracks"
-	Decisions     []migrate.Decision `json:"decisions"`
+	GeneratedAt time.Time          `json:"generated_at"`
+	RulesPath   string             `json:"rules_path"`
+	WipnoteTool string             `json:"wipnote_tool"` // "migrate-tracks"
+	Decisions   []migrate.Decision `json:"decisions"`
 }
 
 func writeManifest(path, rulesPath string, decisions []migrate.Decision) error {
 	m := migrationManifest{
-		GeneratedAt:   time.Now().UTC(),
-		RulesPath:     rulesPath,
-		HtmlgraphTool: "migrate-tracks",
-		Decisions:     decisions,
+		GeneratedAt: time.Now().UTC(),
+		RulesPath:   rulesPath,
+		WipnoteTool: "migrate-tracks",
+		Decisions:   decisions,
 	}
 	data, err := json.MarshalIndent(m, "", "  ")
 	if err != nil {

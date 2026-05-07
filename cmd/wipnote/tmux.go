@@ -13,8 +13,8 @@ type tmuxWrapAction int
 
 const (
 	tmuxActionSkip  tmuxWrapAction = iota // already inside tmux — proceed normally
-	tmuxActionError                        // tmux flag set but tmux binary missing
-	tmuxActionExec                         // re-exec under tmux
+	tmuxActionError                       // tmux flag set but tmux binary missing
+	tmuxActionExec                        // re-exec under tmux
 )
 
 // decideTmuxWrap returns the action to take given the current environment.
@@ -55,8 +55,8 @@ func stripTmuxFlag(args []string) []string {
 // before any side-effecting work — because if it decides to exec, the current
 // process is replaced entirely and nothing after the call runs.
 //
-// sessionName is the tmux session name to attach to or create (e.g. "htmlgraph-yolo"
-// or "htmlgraph-dev"). Different commands pass different names so their sessions
+// sessionName is the tmux session name to attach to or create (e.g. "wipnote-yolo"
+// or "wipnote-dev"). Different commands pass different names so their sessions
 // are independent and can survive in parallel.
 //
 // When --tmux is not set, or we are already inside tmux, the function is a no-op

@@ -51,7 +51,7 @@ func claimListCmd() *cobra.Command {
 }
 
 func runClaimList(sessionID, status string, limit int) error {
-	dir, err := findHtmlgraphDir()
+	dir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}
@@ -108,7 +108,7 @@ func claimShowCmd() *cobra.Command {
 }
 
 func runClaimShow(claimID string) error {
-	dir, err := findHtmlgraphDir()
+	dir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}
@@ -124,7 +124,7 @@ func runClaimShow(claimID string) error {
 		return fmt.Errorf("get claim: %w", err)
 	}
 	if claim == nil {
-		return fmt.Errorf("claim %q not found — claims expire after 30 minutes of inactivity\nRun 'htmlgraph claim list' to see active claims.", claimID)
+		return fmt.Errorf("claim %q not found — claims expire after 30 minutes of inactivity\nRun 'wipnote claim list' to see active claims.", claimID)
 	}
 
 	fmt.Printf("Claim:    %s\n", claim.ClaimID)
@@ -173,7 +173,7 @@ func claimReleaseCmd() *cobra.Command {
 }
 
 func runClaimRelease(claimID string) error {
-	dir, err := findHtmlgraphDir()
+	dir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}
@@ -190,7 +190,7 @@ func runClaimRelease(claimID string) error {
 		return fmt.Errorf("get claim: %w", err)
 	}
 	if claim == nil {
-		return fmt.Errorf("claim %q not found — claims expire after 30 minutes of inactivity\nRun 'htmlgraph claim list' to see active claims.", claimID)
+		return fmt.Errorf("claim %q not found — claims expire after 30 minutes of inactivity\nRun 'wipnote claim list' to see active claims.", claimID)
 	}
 
 	// Release the claim (moves to abandoned state)
@@ -223,7 +223,7 @@ If no claim ID is provided, heartbeat all active claims for the current session.
 }
 
 func runClaimHeartbeat(claimID string) error {
-	dir, err := findHtmlgraphDir()
+	dir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}
@@ -249,7 +249,7 @@ func runHeartbeatOne(db *sql.DB, claimID string) error {
 		return fmt.Errorf("get claim: %w", err)
 	}
 	if claim == nil {
-		return fmt.Errorf("claim %q not found — claims expire after 30 minutes of inactivity\nRun 'htmlgraph claim list' to see active claims.", claimID)
+		return fmt.Errorf("claim %q not found — claims expire after 30 minutes of inactivity\nRun 'wipnote claim list' to see active claims.", claimID)
 	}
 
 	// Default lease duration (30 minutes)
@@ -273,7 +273,7 @@ func runHeartbeatAllForSession(db *sql.DB) error {
 		var err error
 		sessionID, err = dbpkg.MostRecentActiveSession(db)
 		if err != nil || sessionID == "" {
-			return fmt.Errorf("no active session found — cannot auto-detect claim\nSpecify the claim ID directly: 'htmlgraph claim heartbeat clm-xxxxxxxx'. Run 'htmlgraph claim list' to find it.")
+			return fmt.Errorf("no active session found — cannot auto-detect claim\nSpecify the claim ID directly: 'wipnote claim heartbeat clm-xxxxxxxx'. Run 'wipnote claim list' to find it.")
 		}
 	}
 

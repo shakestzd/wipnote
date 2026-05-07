@@ -37,16 +37,22 @@ func (h Harness) String() string {
 // codexPayload is used only for harness detection and input parsing.
 // It matches the flat top-level shape of a Codex CLI hook payload.
 type codexPayload struct {
-	SessionID      string `json:"session_id"`
-	TurnID         string `json:"turn_id"`
-	TranscriptPath string `json:"transcript_path"`
-	CWD            string `json:"cwd"`
-	HookEventName  string `json:"hook_event_name"`
-	Model          string `json:"model"`
-	PermissionMode string `json:"permission_mode"`
-	Source         string `json:"source"`
-	Prompt         string `json:"prompt"`
-	ToolName       string `json:"tool_name"`
+	SessionID      string         `json:"session_id"`
+	TurnID         string         `json:"turn_id"`
+	TranscriptPath string         `json:"transcript_path"`
+	CWD            string         `json:"cwd"`
+	HookEventName  string         `json:"hook_event_name"`
+	Model          string         `json:"model"`
+	PermissionMode string         `json:"permission_mode"`
+	Source         string         `json:"source"`
+	Prompt         string         `json:"prompt"`
+	ToolName       string         `json:"tool_name"`
+	ToolInput      map[string]any `json:"tool_input"`
+	ToolUseID      string         `json:"tool_use_id"`
+	ToolResult     map[string]any `json:"tool_result"`
+	TaskID         string         `json:"task_id"`
+	TaskData       map[string]any `json:"task"`
+	TaskSubject    string         `json:"task_subject"`
 }
 
 // geminiPayload is used only for harness detection and input parsing.
@@ -70,7 +76,7 @@ type geminiPayload struct {
 
 // DetectHarness is the exported entry point for harness detection. It calls
 // detectHarness with the provided payload bytes. This is the function called
-// from cmd/htmlgraph/hook.go.
+// from cmd/wipnote/hook.go.
 func DetectHarness(payload []byte) Harness {
 	return detectHarness(payload)
 }
@@ -157,6 +163,12 @@ func parseCodexEvent(raw []byte) (*CloudEvent, error) {
 		Source:         p.Source,
 		Prompt:         p.Prompt,
 		ToolName:       p.ToolName,
+		ToolInput:      p.ToolInput,
+		ToolUseID:      p.ToolUseID,
+		ToolResult:     p.ToolResult,
+		TaskID:         p.TaskID,
+		TaskData:       p.TaskData,
+		TaskSubject:    p.TaskSubject,
 	}
 	return ev, nil
 }

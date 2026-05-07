@@ -1,4 +1,4 @@
-// Package planyaml defines the YAML data model for HtmlGraph plans.
+// Package planyaml defines the YAML data model for wipnote plans.
 // It provides Go structs with YAML tags matching the canonical schema
 // defined in prototypes/sample_plan.yaml, plus Load/Save/NewPlan helpers.
 package planyaml
@@ -48,7 +48,7 @@ type PlanDesign struct {
 // Global sections ("design", "questions", existing keys) are unchanged.
 // The UNIQUE(plan_id, section, action, question_id) constraint in
 // internal/db/plan_feedback.go already accommodates these formats; slice-4
-// extends cmd/htmlgraph/api_plans.go validSectionRe to accept the new pattern.
+// extends cmd/wipnote/api_plans.go validSectionRe to accept the new pattern.
 //
 // Agents should write multiline what/why/tests fields using YAML literal
 // blocks (|) for Markdown-capable content — see the planning skill for examples.
@@ -76,9 +76,9 @@ type PlanSlice struct {
 	Questions       []SliceQuestion  `yaml:"questions,omitempty"`        // slice-local open questions
 	CriticRevisions []CriticRevision `yaml:"critic_revisions,omitempty"` // critic feedback specific to this slice
 
-	// DecisionsNotes is free-text Markdown captured by `htmlgraph plan
+	// DecisionsNotes is free-text Markdown captured by `wipnote plan
 	// elicit-decisions` (typically Scope/Decisions/Context). Slice 1's
-	// `htmlgraph spec generate --insert` weaves this prose verbatim into the
+	// `wipnote spec generate --insert` weaves this prose verbatim into the
 	// generated spec's `## Decisions` section. Free text — not a typed schema.
 	// Empty/absent renders no Decisions section.
 	DecisionsNotes string `yaml:"decisions_notes,omitempty"`

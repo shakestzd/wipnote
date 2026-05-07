@@ -14,8 +14,8 @@ wipnote history feat-abc1234   # git log of a work item's own HTML file
 
 | Layer | Role |
 |-------|------|
-| `.htmlgraph/*.html` | Canonical store — single source of truth |
-| SQLite (`.htmlgraph/wipnote.db`) | Read index for queries and dashboard |
+| `.wipnote/*.html` | Canonical store — single source of truth |
+| SQLite (`.wipnote/wipnote.db`) | Read index for queries and dashboard |
 | Go binary (`wipnote`) | CLI + hook handler |
 
 ## Work Tracking (MANDATORY — before ANY delegation)

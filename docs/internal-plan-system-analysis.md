@@ -45,7 +45,7 @@
 ### The dependency chain Marimo introduces
 
 ```
-htmlgraph plan review <id>
+wipnote plan review <id>
   -> exec.LookPath("uv")                   # Requires uv on PATH
   -> os.MkdirTemp + notebook.WriteToDir     # Extract 7 .py files to temp dir
   -> uvx marimo run --sandbox               # Resolves marimo>=0.22.4, pyyaml, anywidget, traitlets
@@ -57,7 +57,7 @@ htmlgraph plan review <id>
 
 ## 2. What Already Exists Internally
 
-**Critical insight: 70-80% of an internal replacement already exists** in `internal/plantmpl/` and `cmd/htmlgraph/api_plans.go`.
+**Critical insight: 70-80% of an internal replacement already exists** in `internal/plantmpl/` and `cmd/wipnote/api_plans.go`.
 
 | Internal Component | Status | Marimo Equivalent |
 |---|---|---|
@@ -147,11 +147,11 @@ htmlgraph plan review <id>
 | Benefit | Impact |
 |---|---|
 | **Eliminate Python/uv dependency** | No more `exec.LookPath("uv")` gate; no `uvx marimo run --sandbox` with network resolution |
-| **Single binary** | Plan review becomes `htmlgraph serve` -> open browser. No temp dir extraction, no subprocess |
+| **Single binary** | Plan review becomes `wipnote serve` -> open browser. No temp dir extraction, no subprocess |
 | **Instant startup** | Go HTTP server starts in <50ms vs Marimo's 3-8 second cold start (Python + package resolution) |
 | **Offline-first** | No CDN dependency for Marimo's own assets (only D3/dagre-d3, which can be vendored) |
 | **Full UX control** | Chat widget, layout, animations, keyboard shortcuts — no framework constraints |
-| **Unified dashboard** | Plan review becomes a route in `htmlgraph serve`, alongside existing dashboard |
+| **Unified dashboard** | Plan review becomes a route in `wipnote serve`, alongside existing dashboard |
 | **Simpler CI/CD** | No Python test matrix, no marimo version pinning, no anywidget compatibility |
 | **Smaller binary** | Drop ~1,700 lines of embedded Python from `internal/notebook/` |
 | **No version drift risk** | Marimo 0.22.4+ requirement won't break silently on updates |
@@ -198,7 +198,7 @@ htmlgraph plan review <id>
 - Delete `prototypes/*.py` (or archive to `prototypes/archive/`)
 - Remove `notebook.WriteToDir()` and embed directive
 - Drop uv/marimo documentation references
-- Update `plugin/skills/plan/SKILL.md` step 5 from `htmlgraph plan review` (Marimo) to `htmlgraph serve` route
+- Update `plugin/skills/plan/SKILL.md` step 5 from `wipnote plan review` (Marimo) to `wipnote serve` route
 - **Half day**
 
 **Total: ~960 lines of new code, 4-5 days of work, removing ~1,712 lines of Python + ~200 lines of Go embedding infrastructure.**
@@ -215,7 +215,7 @@ htmlgraph plan review <id>
 
 3. **The only real gap is the chat widget.** Everything else — approvals, questions, graph, critique, progress bar, finalization — already works in the internal system. The chat widget is ~600 lines of well-understood code (SSE + bubble UI).
 
-4. **Architectural alignment.** HtmlGraph's philosophy is local-first, single binary, Go-native. The Marimo detour was a smart prototyping decision that validated the UX, but the production path should be consistent with the rest of the system.
+4. **Architectural alignment.** wipnote's philosophy is local-first, single binary, Go-native. The Marimo detour was a smart prototyping decision that validated the UX, but the production path should be consistent with the rest of the system.
 
 5. **The risk is low.** The Marimo notebooks can stay in `prototypes/` as reference implementations. No knowledge is lost — a prototype is being graduated to production infrastructure.
 

@@ -77,9 +77,9 @@ func getBackfillTitle(t *testing.T, database *sql.DB, sessionID string) string {
 func TestBackfillUpdatesStaleTitle(t *testing.T) {
 	database := setupBackfillDB(t)
 	tmpDir := t.TempDir()
-	htmlgraphDir := filepath.Join(tmpDir, ".wipnote")
-	if err := os.MkdirAll(htmlgraphDir, 0o755); err != nil {
-		t.Fatalf("mkdir htmlgraphDir: %v", err)
+	wipnoteDir := filepath.Join(tmpDir, ".wipnote")
+	if err := os.MkdirAll(wipnoteDir, 0o755); err != nil {
+		t.Fatalf("mkdir wipnoteDir: %v", err)
 	}
 
 	type sessionCase struct {
@@ -88,9 +88,9 @@ func TestBackfillUpdatesStaleTitle(t *testing.T) {
 	}
 
 	legacySessions := []sessionCase{
-		{id: "sess-bf-001", title: "[htmlgraph-titler] Some old title"},
-		{id: "sess-bf-002", title: "[htmlgraph-titler] Another old"},
-		{id: "sess-bf-003", title: "[htmlgraph-titler] Third one"},
+		{id: "sess-bf-001", title: "[wipnote-titler] Some old title"},
+		{id: "sess-bf-002", title: "[wipnote-titler] Another old"},
+		{id: "sess-bf-003", title: "[wipnote-titler] Third one"},
 	}
 	nullSession := sessionCase{id: "sess-bf-004", title: ""}
 	dashSession := sessionCase{id: "sess-bf-005", title: "--"}
@@ -112,7 +112,7 @@ func TestBackfillUpdatesStaleTitle(t *testing.T) {
 	writeJSONLNoAITitle(t, jsonlPath5, dashSession.id)
 	seedBackfillSession(t, database, dashSession.id, dashSession.title, jsonlPath5)
 
-	if err := runAITitleBackfill(database, htmlgraphDir, true); err != nil {
+	if err := runAITitleBackfill(database, wipnoteDir, true); err != nil {
 		t.Fatalf("runAITitleBackfill: %v", err)
 	}
 
@@ -141,22 +141,22 @@ func TestBackfillUpdatesStaleTitle(t *testing.T) {
 func TestBackfillIdempotentViaMarker(t *testing.T) {
 	database := setupBackfillDB(t)
 	tmpDir := t.TempDir()
-	htmlgraphDir := filepath.Join(tmpDir, ".wipnote")
-	if err := os.MkdirAll(htmlgraphDir, 0o755); err != nil {
-		t.Fatalf("mkdir htmlgraphDir: %v", err)
+	wipnoteDir := filepath.Join(tmpDir, ".wipnote")
+	if err := os.MkdirAll(wipnoteDir, 0o755); err != nil {
+		t.Fatalf("mkdir wipnoteDir: %v", err)
 	}
 
 	sessionID := "sess-idem-001"
 	jsonlPath := filepath.Join(tmpDir, sessionID+".jsonl")
 	writeJSONLWithAITitle(t, jsonlPath, sessionID, "AI Title")
-	seedBackfillSession(t, database, sessionID, "[htmlgraph-titler] old", jsonlPath)
+	seedBackfillSession(t, database, sessionID, "[wipnote-titler] old", jsonlPath)
 
 	// First run: should update title and write marker.
-	if err := runAITitleBackfill(database, htmlgraphDir, false); err != nil {
+	if err := runAITitleBackfill(database, wipnoteDir, false); err != nil {
 		t.Fatalf("first run: %v", err)
 	}
 
-	markerPath := filepath.Join(htmlgraphDir, "migrations", "ai-title-backfill.done")
+	markerPath := filepath.Join(wipnoteDir, "migrations", "ai-title-backfill.done")
 	if _, err := os.Stat(markerPath); os.IsNotExist(err) {
 		t.Fatal("marker file was not created after first run")
 	}
@@ -165,7 +165,7 @@ func TestBackfillIdempotentViaMarker(t *testing.T) {
 	database.Exec(`UPDATE sessions SET title = 'Manually changed' WHERE session_id = ?`, sessionID)
 
 	// Second run with forceRun=false — marker exists, should be a no-op.
-	if err := runAITitleBackfill(database, htmlgraphDir, false); err != nil {
+	if err := runAITitleBackfill(database, wipnoteDir, false); err != nil {
 		t.Fatalf("second run: %v", err)
 	}
 
@@ -180,24 +180,24 @@ func TestBackfillIdempotentViaMarker(t *testing.T) {
 func TestBackfillSkipsMissingJSONL(t *testing.T) {
 	database := setupBackfillDB(t)
 	tmpDir := t.TempDir()
-	htmlgraphDir := filepath.Join(tmpDir, ".wipnote")
-	if err := os.MkdirAll(htmlgraphDir, 0o755); err != nil {
-		t.Fatalf("mkdir htmlgraphDir: %v", err)
+	wipnoteDir := filepath.Join(tmpDir, ".wipnote")
+	if err := os.MkdirAll(wipnoteDir, 0o755); err != nil {
+		t.Fatalf("mkdir wipnoteDir: %v", err)
 	}
 
 	sessionID := "sess-missing-001"
 	missingPath := filepath.Join(tmpDir, "nonexistent.jsonl")
 	// Deliberately do not create the file.
-	seedBackfillSession(t, database, sessionID, "[htmlgraph-titler] stale", missingPath)
+	seedBackfillSession(t, database, sessionID, "[wipnote-titler] stale", missingPath)
 
 	// Should not crash; should log+skip.
-	if err := runAITitleBackfill(database, htmlgraphDir, true); err != nil {
+	if err := runAITitleBackfill(database, wipnoteDir, true); err != nil {
 		t.Fatalf("runAITitleBackfill: %v", err)
 	}
 
 	// Title should remain unchanged.
 	got := getBackfillTitle(t, database, sessionID)
-	if got != "[htmlgraph-titler] stale" {
+	if got != "[wipnote-titler] stale" {
 		t.Errorf("title should be untouched for missing JSONL: got %q", got)
 	}
 }
@@ -207,9 +207,9 @@ func TestBackfillSkipsMissingJSONL(t *testing.T) {
 func TestBackfillResumable(t *testing.T) {
 	database := setupBackfillDB(t)
 	tmpDir := t.TempDir()
-	htmlgraphDir := filepath.Join(tmpDir, ".wipnote")
-	if err := os.MkdirAll(htmlgraphDir, 0o755); err != nil {
-		t.Fatalf("mkdir htmlgraphDir: %v", err)
+	wipnoteDir := filepath.Join(tmpDir, ".wipnote")
+	if err := os.MkdirAll(wipnoteDir, 0o755); err != nil {
+		t.Fatalf("mkdir wipnoteDir: %v", err)
 	}
 
 	// Seed two sessions.
@@ -217,25 +217,25 @@ func TestBackfillResumable(t *testing.T) {
 		sid := fmt.Sprintf("sess-resume-%03d", i)
 		jsonlPath := filepath.Join(tmpDir, sid+".jsonl")
 		writeJSONLWithAITitle(t, jsonlPath, sid, fmt.Sprintf("Resumed title %d", i))
-		seedBackfillSession(t, database, sid, "[htmlgraph-titler] old", jsonlPath)
+		seedBackfillSession(t, database, sid, "[wipnote-titler] old", jsonlPath)
 	}
 
 	// First run: fully process everything.
-	if err := runAITitleBackfill(database, htmlgraphDir, false); err != nil {
+	if err := runAITitleBackfill(database, wipnoteDir, false); err != nil {
 		t.Fatalf("first run: %v", err)
 	}
 
 	// Delete the marker to simulate an interrupted previous run.
-	markerPath := filepath.Join(htmlgraphDir, "migrations", "ai-title-backfill.done")
+	markerPath := filepath.Join(wipnoteDir, "migrations", "ai-title-backfill.done")
 	if err := os.Remove(markerPath); err != nil {
 		t.Fatalf("remove marker: %v", err)
 	}
 
 	// Manually revert one session title to simulate partial progress.
-	database.Exec(`UPDATE sessions SET title = '[htmlgraph-titler] reverted' WHERE session_id = 'sess-resume-001'`)
+	database.Exec(`UPDATE sessions SET title = '[wipnote-titler] reverted' WHERE session_id = 'sess-resume-001'`)
 
 	// Second run with forceRun=false (no marker) — should process again.
-	if err := runAITitleBackfill(database, htmlgraphDir, false); err != nil {
+	if err := runAITitleBackfill(database, wipnoteDir, false); err != nil {
 		t.Fatalf("second run: %v", err)
 	}
 

@@ -124,11 +124,11 @@ func updateLastQuery(database *sql.DB, sessionID, prompt string) {
 
 // compactCLIRef is a per-turn CLI quick-reference injected into CIGS guidance.
 // Keep in sync with the constant in help.go.
-const compactCLIRef = `**htmlgraph CLI** — feature|bug|spike|track|plan [create|show|start|complete|list|add-step|delete] · find <q> · wip · status · snapshot · link [add|remove|list] · session [list|show] · analytics [summary|velocity] · check · health · spec|tdd|review|compliance <id> · batch [apply|export] · ingest · reindex · yolo --feature <id>
+const compactCLIRef = `**wipnote CLI** — feature|bug|spike|track|plan [create|show|start|complete|list|add-step|delete] · find <q> · wip · status · snapshot · link [add|remove|list] · session [list|show] · analytics [summary|velocity] · check · health · spec|tdd|review|compliance <id> · batch [apply|export] · ingest · reindex · yolo --feature <id>
 **Required flags:** feature/bug create need --track <id> --description "…"`
 
 // buildAttributionGuidance returns a compact CIGS attribution block listing
-// open work items so Claude can call htmlgraph feature start for the right item.
+// open work items so Claude can call wipnote feature start for the right item.
 // Used once per session in SessionStart hook.
 func buildAttributionGuidance(database *sql.DB, sessionID, activeFeatureID string) string {
 	open := listOpenWorkItems(database)
@@ -149,7 +149,7 @@ func buildAttributionGuidance(database *sql.DB, sessionID, activeFeatureID strin
 		lines = append(lines, "**ACTIVE**: none", "")
 	}
 
-	lines = append(lines, "**Open work items** — run `htmlgraph feature start <id>`:")
+	lines = append(lines, "**Open work items** — run `wipnote feature start <id>`:")
 	for _, item := range open {
 		if item.id == activeFeatureID {
 			continue // already shown in active context above
@@ -209,7 +209,7 @@ func buildActiveFeatureContext(database *sql.DB, featureID string) string {
 	if stepsTotal > 0 {
 		lines = append(lines, fmt.Sprintf("  Steps: %d/%d complete", stepsCompleted, stepsTotal))
 	} else {
-		lines = append(lines, "  Steps: none defined — add with `htmlgraph feature add-step`")
+		lines = append(lines, "  Steps: none defined — add with `wipnote feature add-step`")
 	}
 
 	blockers := queryBlockedBy(database, featureID)

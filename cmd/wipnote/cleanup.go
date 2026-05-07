@@ -42,20 +42,20 @@ Idempotent. Safe to re-run.`,
 }
 
 func runCleanupGhostSessions(dryRun bool) error {
-	htmlgraphDir, err := findHtmlgraphDir()
+	wipnoteDir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}
-	printProjectHeaderIfDifferent(htmlgraphDir)
+	printProjectHeaderIfDifferent(wipnoteDir)
 
-	database, err := openDB(htmlgraphDir)
+	database, err := openDB(wipnoteDir)
 	if err != nil {
 		return fmt.Errorf("open database: %w", err)
 	}
 	defer database.Close()
 
 	// 1. Build the set of session_ids that have HTML files on disk.
-	htmlIDs, err := collectSessionHTMLIDs(htmlgraphDir)
+	htmlIDs, err := collectSessionHTMLIDs(wipnoteDir)
 	if err != nil {
 		return fmt.Errorf("scan session HTML files: %w", err)
 	}
@@ -113,8 +113,8 @@ func runCleanupGhostSessions(dryRun bool) error {
 
 // collectSessionHTMLIDs walks .wipnote/sessions/ and returns the set of
 // session IDs that have a corresponding .html file on disk.
-func collectSessionHTMLIDs(htmlgraphDir string) (map[string]struct{}, error) {
-	dir := filepath.Join(htmlgraphDir, "sessions")
+func collectSessionHTMLIDs(wipnoteDir string) (map[string]struct{}, error) {
+	dir := filepath.Join(wipnoteDir, "sessions")
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		if os.IsNotExist(err) {

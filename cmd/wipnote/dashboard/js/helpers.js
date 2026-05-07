@@ -97,13 +97,13 @@ function cleanSessionTitle(text) {
   if (cmdMatch) {
     var cmd = cmdMatch[1];
     var cmdNames = {
-      'htmlgraph:execute': 'Parallel Execution',
-      'htmlgraph:recommend': 'Work Recommendations',
-      'htmlgraph:plan': 'Planning Session',
-      'htmlgraph:status': 'Status Check',
-      'htmlgraph:diagnose': 'Diagnostics',
-      'htmlgraph:cleanup': 'Cleanup',
-      'htmlgraph:git-commit': 'Git Commit'
+      'wipnote:execute': 'Parallel Execution',
+      'wipnote:recommend': 'Work Recommendations',
+      'wipnote:plan': 'Planning Session',
+      'wipnote:status': 'Status Check',
+      'wipnote:diagnose': 'Diagnostics',
+      'wipnote:cleanup': 'Cleanup',
+      'wipnote:git-commit': 'Git Commit'
     };
     return cmdNames[cmd] || '/' + cmd;
   }

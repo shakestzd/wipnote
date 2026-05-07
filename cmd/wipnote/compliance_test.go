@@ -281,8 +281,8 @@ func TestComplianceCommand_OpenSpecSpec(t *testing.T) {
 	t.Parallel()
 
 	tmpDir := t.TempDir()
-	htmlgraphDir := filepath.Join(tmpDir, ".wipnote")
-	featuresDir := filepath.Join(htmlgraphDir, "features")
+	wipnoteDir := filepath.Join(tmpDir, ".wipnote")
+	featuresDir := filepath.Join(wipnoteDir, "features")
 	if err := os.MkdirAll(featuresDir, 0o755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}

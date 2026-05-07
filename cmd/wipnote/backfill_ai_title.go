@@ -20,9 +20,9 @@ const (
 // startAITitleBackfill launches the one-time ai-title backfill in the background.
 // It is non-blocking: it spawns a goroutine and returns immediately.
 // The backfill is gated by a sentinel file at .wipnote/migrations/ai-title-backfill.done.
-func startAITitleBackfill(_ context.Context, database *sql.DB, htmlgraphDir string) {
+func startAITitleBackfill(_ context.Context, database *sql.DB, wipnoteDir string) {
 	go func() {
-		if err := runAITitleBackfill(database, htmlgraphDir, false); err != nil {
+		if err := runAITitleBackfill(database, wipnoteDir, false); err != nil {
 			log.Printf("ai-title backfill: %v\n", err)
 		}
 	}()
@@ -34,8 +34,8 @@ func startAITitleBackfill(_ context.Context, database *sql.DB, htmlgraphDir stri
 //
 // forceRun=true bypasses the sentinel-file gate, used in tests and for
 // resumable re-runs after an interrupted backfill.
-func runAITitleBackfill(database *sql.DB, htmlgraphDir string, forceRun bool) error {
-	markerPath := filepath.Join(htmlgraphDir, aiTitleBackfillMarker)
+func runAITitleBackfill(database *sql.DB, wipnoteDir string, forceRun bool) error {
+	markerPath := filepath.Join(wipnoteDir, aiTitleBackfillMarker)
 
 	if !forceRun {
 		if _, err := os.Stat(markerPath); err == nil {
@@ -55,7 +55,7 @@ func runAITitleBackfill(database *sql.DB, htmlgraphDir string, forceRun bool) er
 		WHERE title IS NULL
 		   OR title = ''
 		   OR title = '--'
-		   OR title LIKE '[htmlgraph-titler]%'`)
+		   OR title LIKE '[wipnote-titler]%'`)
 	if err != nil {
 		return err
 	}
@@ -120,7 +120,7 @@ func runAITitleBackfill(database *sql.DB, htmlgraphDir string, forceRun bool) er
 	for u := range updates {
 		if _, err := database.Exec(
 			`UPDATE sessions SET title = ? WHERE session_id = ?
-			  AND (title IS NULL OR title = '' OR title = '--' OR title LIKE '[htmlgraph-titler]%')
+			  AND (title IS NULL OR title = '' OR title = '--' OR title LIKE '[wipnote-titler]%')
 			  AND COALESCE(title, '') <> ?`,
 			u.title, u.sessionID, u.title,
 		); err != nil {

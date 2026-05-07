@@ -113,7 +113,7 @@ func TestProcessCollector_Spawn_RetriesOnTransientFailure(t *testing.T) {
 	}
 
 	stderr := buf.String()
-	warnCount := strings.Count(stderr, "htmlgraph: warning: collector spawn attempt")
+	warnCount := strings.Count(stderr, "wipnote: warning: collector spawn attempt")
 	if warnCount != 2 {
 		t.Errorf("expected 2 warning lines, got %d; stderr=%q", warnCount, stderr)
 	}

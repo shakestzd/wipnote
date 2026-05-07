@@ -27,9 +27,9 @@ const noIdleTimeoutDuration = 24 * time.Hour
 
 func otelCollectCmd() *cobra.Command {
 	var (
-		sessionID    string
-		projectDir   string
-		listen       string
+		sessionID     string
+		projectDir    string
+		listen        string
 		noIdleTimeout bool
 	)
 	cmd := &cobra.Command{
@@ -76,7 +76,7 @@ func runOtelCollect(sessionID, projectDir, listenAddr string, noIdleTimeout bool
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 
-	if _, err := fmt.Fprintf(os.Stdout, "htmlgraph-otel-ready port=%d\n", port); err != nil {
+	if _, err := fmt.Fprintf(os.Stdout, "wipnote-otel-ready port=%d\n", port); err != nil {
 		return fmt.Errorf("write handshake: %w", err)
 	}
 	_ = os.Stdout.Sync()
@@ -127,13 +127,13 @@ func buildCollectorMux(snk *ndjson.Sink, lastActivity *atomic.Int64) *http.Serve
 // writeCollectorStartEvent writes the collector_start NDJSON line.
 func writeCollectorStartEvent(snk *ndjson.Sink, sessionID string, port int) error {
 	attrs := map[string]any{
-		"htmlgraph_sid": sessionID,
-		"pid":           os.Getpid(),
-		"port":          port,
+		"wipnote_sid": sessionID,
+		"pid":         os.Getpid(),
+		"port":        port,
 	}
 
 	sig := otel.UnifiedSignal{
-		Harness:       "htmlgraph",
+		Harness:       "wipnote",
 		SignalID:      "collector-start-" + sessionID,
 		Kind:          "collector_start",
 		CanonicalName: "collector_start",
@@ -142,7 +142,7 @@ func writeCollectorStartEvent(snk *ndjson.Sink, sessionID string, port int) erro
 		SessionID:     sessionID,
 		RawAttrs:      attrs,
 	}
-	return snk.WriteBatch(context.Background(), "htmlgraph", nil, []otel.UnifiedSignal{sig})
+	return snk.WriteBatch(context.Background(), "wipnote", nil, []otel.UnifiedSignal{sig})
 }
 
 // awaitShutdown blocks until SIGTERM or idle timeout, then gracefully shuts down.

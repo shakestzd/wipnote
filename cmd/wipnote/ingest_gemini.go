@@ -15,7 +15,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// ingestGeminiCmd returns the `htmlgraph ingest --tool gemini` subcommand.
+// ingestGeminiCmd returns the `wipnote ingest --tool gemini` subcommand.
 func ingestGeminiCmd() *cobra.Command {
 	var (
 		project string
@@ -27,7 +27,7 @@ func ingestGeminiCmd() *cobra.Command {
 		Use:   "gemini",
 		Short: "Ingest Gemini CLI session transcripts",
 		Long: `Reads Gemini CLI session JSON files from ~/.gemini/tmp/ and stores
-structured messages and tool calls in the HtmlGraph database.
+structured messages and tool calls in the wipnote database.
 
 By default, discovers sessions for the current project. Use --all to
 ingest all projects, or --project to target a specific project slug.`,
@@ -44,13 +44,13 @@ ingest all projects, or --project to target a specific project slug.`,
 }
 
 func runIngestGemini(project string, all, force bool) error {
-	htmlgraphDir, err := findHtmlgraphDir()
+	wipnoteDir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}
-	printProjectHeaderIfDifferent(htmlgraphDir)
+	printProjectHeaderIfDifferent(wipnoteDir)
 
-	dbPath, err := storage.CanonicalDBPath(filepath.Dir(htmlgraphDir))
+	dbPath, err := storage.CanonicalDBPath(filepath.Dir(wipnoteDir))
 	if err != nil {
 		return fmt.Errorf("resolve db path: %w", err)
 	}
@@ -63,7 +63,7 @@ func runIngestGemini(project string, all, force bool) error {
 	// Determine project filter: use CWD-based project path unless --all or --project set.
 	projectFilter := project
 	if projectFilter == "" && !all {
-		projectFilter = filepath.Dir(htmlgraphDir)
+		projectFilter = filepath.Dir(wipnoteDir)
 	}
 
 	files, err := ingest.DiscoverGeminiSessions(projectFilter)
@@ -92,7 +92,7 @@ func runIngestGemini(project string, all, force bool) error {
 			}
 		}
 
-		n, toolN, err := ingestGeminiFileWithDB(database, htmlgraphDir, sf, force)
+		n, toolN, err := ingestGeminiFileWithDB(database, wipnoteDir, sf, force)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "  skip %s: %v\n", truncate(sf.SessionID, 12), err)
 			errCount++
@@ -113,7 +113,7 @@ func runIngestGemini(project string, all, force bool) error {
 }
 
 // ingestGeminiFileWithDB ingests a single Gemini session JSON file into the database.
-func ingestGeminiFileWithDB(database *sql.DB, htmlgraphDir string, sf ingest.GeminiSessionFile, force bool) (int, int, error) {
+func ingestGeminiFileWithDB(database *sql.DB, wipnoteDir string, sf ingest.GeminiSessionFile, force bool) (int, int, error) {
 	result, err := ingest.ParseGeminiFile(sf.Path)
 	if err != nil {
 		return 0, 0, err
@@ -127,10 +127,10 @@ func ingestGeminiFileWithDB(database *sql.DB, htmlgraphDir string, sf ingest.Gem
 		_ = dbpkg.DeleteSessionIngestEvents(database, sf.SessionID)
 	}
 
-	ensureGeminiSession(database, sf.SessionID, result, filepath.Dir(htmlgraphDir))
+	ensureGeminiSession(database, sf.SessionID, result, filepath.Dir(wipnoteDir))
 	msgCount, toolCount := storeGeminiParseResult(database, sf.SessionID, result)
 
-	if rerr := hooks.RenderIngestedSessionHTML(htmlgraphDir, sf.SessionID, filepath.Dir(htmlgraphDir), result, force); rerr != nil {
+	if rerr := hooks.RenderIngestedSessionHTML(wipnoteDir, sf.SessionID, filepath.Dir(wipnoteDir), result, force); rerr != nil {
 		fmt.Fprintf(os.Stderr, "  warn: render HTML for %s: %v\n", truncate(sf.SessionID, 12), rerr)
 	}
 

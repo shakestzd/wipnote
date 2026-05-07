@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-// isPluginInstalled checks whether the htmlgraph plugin is in Claude Code's
+// isPluginInstalled checks whether the wipnote plugin is in Claude Code's
 // installed_plugins.json.
 func isPluginInstalled() bool {
 	return isPluginInstalledAt(installedPluginsJSONPath())
@@ -28,7 +28,7 @@ func isPluginInstalledAt(path string) bool {
 	if json.Unmarshal(data, &outer) != nil {
 		return false
 	}
-	raw, ok := outer.Plugins["htmlgraph@htmlgraph"]
+	raw, ok := outer.Plugins["wipnote@wipnote"]
 	if !ok {
 		return false
 	}
@@ -39,7 +39,6 @@ func isPluginInstalledAt(path string) bool {
 	}
 	return true
 }
-
 
 // installedPluginVersionAt is the testable core.
 func installedPluginVersionAt(path string) string {
@@ -53,7 +52,7 @@ func installedPluginVersionAt(path string) string {
 	if json.Unmarshal(data, &outer) != nil {
 		return ""
 	}
-	raw, ok := outer.Plugins["htmlgraph@htmlgraph"]
+	raw, ok := outer.Plugins["wipnote@wipnote"]
 	if !ok {
 		return ""
 	}
@@ -76,7 +75,7 @@ func versionNotice(binaryVersion, latestVersion string) string {
 	if latestVersion == "" || binaryVersion == latestVersion {
 		return ""
 	}
-	return fmt.Sprintf("Update available: v%s → v%s. Run: htmlgraph plugin install", binaryVersion, latestVersion)
+	return fmt.Sprintf("Update available: v%s → v%s. Run: wipnote plugin install", binaryVersion, latestVersion)
 }
 
 // fetchLatestVersion queries the GitHub API for the latest release version.
@@ -105,7 +104,7 @@ func fetchLatestVersion() string {
 // Only called when no plugin is detected (first launch).
 func interactivePluginInstall() {
 	fmt.Println()
-	fmt.Println("HtmlGraph plugin is not installed for Claude Code.")
+	fmt.Println("wipnote plugin is not installed for Claude Code.")
 	fmt.Println("The plugin adds hooks, agents, skills, and slash commands.")
 	fmt.Println()
 	fmt.Println("  1. Install from marketplace (recommended)")
@@ -120,14 +119,14 @@ func interactivePluginInstall() {
 	switch choice {
 	case "1", "":
 		fmt.Println()
-		if err := ensureHtmlgraphPlugin(); err != nil {
+		if err := ensureWipnotePlugin(); err != nil {
 			fmt.Fprintf(os.Stderr, "warning: plugin installation failed: %v\n", err)
-			fmt.Fprintf(os.Stderr, "  Run manually: claude plugin marketplace add shakestzd/wipnote && claude plugin install htmlgraph@htmlgraph\n")
+			fmt.Fprintf(os.Stderr, "  Run manually: claude plugin marketplace add shakestzd/wipnote && claude plugin install wipnote@wipnote\n")
 		} else {
 			fmt.Println("Plugin installed successfully.")
 		}
 	case "2":
-		fmt.Println("Continuing without plugin. Run 'htmlgraph plugin install' later to add it.")
+		fmt.Println("Continuing without plugin. Run 'wipnote plugin install' later to add it.")
 	default:
 		fmt.Println("Invalid choice. Continuing without plugin.")
 	}
@@ -143,7 +142,7 @@ func ensurePluginOnLaunch() {
 		// Post-install verification: confirm the install actually took effect.
 		if !isPluginInstalled() {
 			fmt.Fprintln(os.Stderr, "warning: plugin installation did not complete — launching without plugin")
-			fmt.Fprintln(os.Stderr, "  Run manually: claude plugin marketplace add shakestzd/wipnote && claude plugin install htmlgraph@htmlgraph")
+			fmt.Fprintln(os.Stderr, "  Run manually: claude plugin marketplace add shakestzd/wipnote && claude plugin install wipnote@wipnote")
 		}
 		return
 	}

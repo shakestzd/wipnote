@@ -21,16 +21,16 @@ const agentTraceFormatVersion = "0.1.0"
 // Cloudflare, Vercel, Google Jules, Git AI). format_version is included for
 // forward compatibility as the RFC evolves.
 type agentTraceRecord struct {
-	FormatVersion   string    `json:"format_version"`           // "0.1.0" — pinned RFC version
-	TraceID         string    `json:"trace_id"`                 // Session/trace identifier
-	SpanID          string    `json:"span_id,omitempty"`        // This contribution's span ID
-	ParentSpanID    string    `json:"parent_span_id,omitempty"` // Parent span (delegation chain)
-	ContributorID   string    `json:"contributor_id,omitempty"` // Agent identifier (e.g. "claude-code")
+	FormatVersion   string    `json:"format_version"`             // "0.1.0" — pinned RFC version
+	TraceID         string    `json:"trace_id"`                   // Session/trace identifier
+	SpanID          string    `json:"span_id,omitempty"`          // This contribution's span ID
+	ParentSpanID    string    `json:"parent_span_id,omitempty"`   // Parent span (delegation chain)
+	ContributorID   string    `json:"contributor_id,omitempty"`   // Agent identifier (e.g. "claude-code")
 	ContributorType string    `json:"contributor_type,omitempty"` // "ai_agent" | "human" | "tool"
-	ToolName        string    `json:"tool_name,omitempty"`      // Tool used (e.g. "Write", "Edit")
-	SessionID       string    `json:"session_id,omitempty"`     // HtmlGraph session ID
-	Timestamp       time.Time `json:"timestamp"`                // When the contribution occurred
-	Claimed         bool      `json:"claimed"`                  // Whether this entry has been claimed
+	ToolName        string    `json:"tool_name,omitempty"`        // Tool used (e.g. "Write", "Edit")
+	SessionID       string    `json:"session_id,omitempty"`       // wipnote session ID
+	Timestamp       time.Time `json:"timestamp"`                  // When the contribution occurred
+	Claimed         bool      `json:"claimed"`                    // Whether this entry has been claimed
 }
 
 // timestampUnix returns the record's timestamp as a Unix epoch float for
@@ -42,7 +42,7 @@ func (r *agentTraceRecord) timestampUnix() float64 {
 // writeTraceparent writes an Agent Trace record to the temp queue directory.
 // Mirrors the Python write_traceparent_queue() helper in pretooluse.py.
 func writeTraceparent(parentSessionID, parentEventID string) {
-	queueDir := filepath.Join(os.TempDir(), "htmlgraph-traceparent")
+	queueDir := filepath.Join(os.TempDir(), "wipnote-traceparent")
 	if err := os.MkdirAll(queueDir, 0o755); err != nil {
 		return
 	}
@@ -100,7 +100,7 @@ func parseTraceparentFile(data []byte) (*agentTraceRecord, bool) {
 // from the temp queue. Returns nil if nothing is available or entries are stale.
 // Mirrors claim_traceparent() in session-start.py.
 func claimTraceparent() *agentTraceRecord {
-	queueDir := filepath.Join(os.TempDir(), "htmlgraph-traceparent")
+	queueDir := filepath.Join(os.TempDir(), "wipnote-traceparent")
 	entries, err := filepath.Glob(filepath.Join(queueDir, "tp-*.json"))
 	if err != nil || len(entries) == 0 {
 		return nil
@@ -152,7 +152,7 @@ func claimTraceparent() *agentTraceRecord {
 // agent identity, and Agent Trace contributor classification.
 //
 // OTEL_RESOURCE_ATTRIBUTES is merged with any existing value so the subagent's
-// OTel SDK emits htmlgraph.agent_id on every span — the OTLP receiver uses this
+// OTel SDK emits wipnote.agent_id on every span — the OTLP receiver uses this
 // to look up pending_subagent_starts and synthesize a placeholder row.
 //
 // When CLAUDE_ENV_FILE is unset (worktree subagents), falls back to a
@@ -171,13 +171,13 @@ func writeSubagentEnvVars(parentEventID, agentID, agentType, projectDir, session
 		// SubagentStart handler before this function). Write the project dir
 		// to a session-scoped temp file so downstream hook processes can still
 		// resolve .wipnote/ when their EventCWD is a temp directory.
-		debugLog(projectDir, "[htmlgraph] CLAUDE_ENV_FILE unset — writing session-scoped project dir hint (agent=%s session=%s)", agentType, sessionID)
+		debugLog(projectDir, "[wipnote] CLAUDE_ENV_FILE unset — writing session-scoped project dir hint (agent=%s session=%s)", agentType, sessionID)
 		writeSessionProjectDirHint(sessionID, projectDir)
 		return
 	}
 	f, err := os.OpenFile(envFile, os.O_APPEND|os.O_WRONLY, 0o644)
 	if err != nil {
-		debugLog(projectDir, "[htmlgraph] failed to open CLAUDE_ENV_FILE %s: %v", envFile, err)
+		debugLog(projectDir, "[wipnote] failed to open CLAUDE_ENV_FILE %s: %v", envFile, err)
 		return
 	}
 	defer f.Close()
@@ -191,11 +191,11 @@ func writeSubagentEnvVars(parentEventID, agentID, agentType, projectDir, session
 	if projectDir != "" {
 		lines += "export WIPNOTE_PROJECT_DIR=" + projectDir + "\n"
 	}
-	// Merge htmlgraph.agent_id into OTEL_RESOURCE_ATTRIBUTES so the subagent's
+	// Merge wipnote.agent_id into OTEL_RESOURCE_ATTRIBUTES so the subagent's
 	// OTel SDK emits this attribute on every span. Merge with any existing value
 	// so we don't clobber other resource attributes set by the harness or user.
 	if agentID != "" {
-		otelRA := mergeOTELResourceAttrs(os.Getenv("OTEL_RESOURCE_ATTRIBUTES"), "htmlgraph.agent_id="+agentID)
+		otelRA := mergeOTELResourceAttrs(os.Getenv("OTEL_RESOURCE_ATTRIBUTES"), "wipnote.agent_id="+agentID)
 		lines += "export OTEL_RESOURCE_ATTRIBUTES=" + otelRA + "\n"
 	}
 	f.WriteString(lines)

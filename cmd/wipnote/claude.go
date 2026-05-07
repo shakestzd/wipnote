@@ -52,10 +52,10 @@ type LaunchOpts struct {
 	// When set, Claude Code is started with this as the working directory, and path-sensitive
 	// helpers (writeLaunchMarker, etc.) anchor their paths here instead of CWD.
 	ProjectRoot string
-	// HtmlgraphRoot, if set, is the main repo root containing the canonical .wipnote/.
+	// WipnoteRoot, if set, is the main repo root containing the canonical .wipnote/.
 	// Used when ProjectRoot is a worktree — all work item tracking resolves to this path
 	// instead of the worktree copy. Injected as WIPNOTE_PROJECT_DIR env var.
-	HtmlgraphRoot string
+	WipnoteRoot string
 }
 
 func claudeCmd() *cobra.Command {
@@ -64,15 +64,15 @@ func claudeCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "claude",
-		Short: "Launch Claude Code with HtmlGraph",
+		Short: "Launch Claude Code with wipnote",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Tmux wrap must happen before any side-effecting work.
 			// When --tmux is set and we are not already inside tmux, this
-			// replaces the current process with: tmux new-session -A -s htmlgraph-dev -- <argv without --tmux>
+			// replaces the current process with: tmux new-session -A -s wipnote-dev -- <argv without --tmux>
 			// and never returns. If tmux is missing, an error is returned.
 			// If we are already inside tmux (TMUX env set), this is a no-op.
 			_ = tmux // flag is consumed via os.Args inspection in maybeTmuxWrap
-			if err := maybeTmuxWrap("htmlgraph-dev"); err != nil {
+			if err := maybeTmuxWrap("wipnote-dev"); err != nil {
 				return err
 			}
 			switch {
@@ -93,7 +93,7 @@ func claudeCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&auto, "auto", false, "Launch with auto mode enabled (autonomous operation)")
 	cmd.Flags().BoolVar(&init_, "init", false, "Launch with marketplace plugin installation")
 	cmd.Flags().BoolVar(&continue_, "continue", false, "Resume last session with marketplace plugin")
-	cmd.Flags().BoolVar(&tmux, "tmux", false, "Wrap in a tmux session named 'htmlgraph-dev' (survives disconnects; reattaches on re-run)")
+	cmd.Flags().BoolVar(&tmux, "tmux", false, "Wrap in a tmux session named 'wipnote-dev' (survives disconnects; reattaches on re-run)")
 	cmd.Flags().StringVar(&resumeID, "resume", "", "Resume a specific Claude Code session by ID")
 	cmd.Flags().StringVar(&name, "name", "", "Session label shown in Claude TUI (default: <project>-<timestamp>)")
 	cmd.AddCommand(yoloCmd())
@@ -114,13 +114,15 @@ func defaultSessionName(projectRoot string) string {
 	return projectSlug + "-" + ts
 }
 
-// removeMarketplaceHtmlgraph fully removes the htmlgraph marketplace plugin so it
+// removeMarketplaceWipnote fully removes the wipnote marketplace plugin so it
 // cannot shadow --plugin-dir agents/skills during dev mode. Belt-and-braces:
 // uninstall removes the install record, disable flips the enabled flag, and
 // RemoveAll wipes any cloned/cached files that linger even after uninstall.
-func removeMarketplaceHtmlgraph() {
-	fmt.Println("Removing marketplace htmlgraph plugin for dev mode...")
-	for _, scope := range []string{"htmlgraph@htmlgraph", "htmlgraph@local-marketplace"} {
+func removeMarketplaceWipnote() {
+	fmt.Println("Removing marketplace wipnote plugin for dev mode...")
+	// Legacy htmlgraph scopes are still removed so old marketplace installs
+	// cannot shadow local wipnote dev plugins.
+	for _, scope := range []string{"wipnote@wipnote", "wipnote@local-marketplace", "htmlgraph@htmlgraph", "htmlgraph@local-marketplace"} {
 		if out, err := exec.Command("claude", "plugin", "uninstall", scope).CombinedOutput(); err != nil {
 			msg := strings.ToLower(strings.TrimSpace(string(out)))
 			if !strings.Contains(msg, "not found") && !strings.Contains(msg, "not installed") && !strings.Contains(msg, "already uninstalled") {
@@ -136,6 +138,9 @@ func removeMarketplaceHtmlgraph() {
 	}
 	home, _ := os.UserHomeDir()
 	marketplaceDirs := []string{
+		filepath.Join(home, ".claude", "plugins", "marketplaces", "wipnote"),
+		filepath.Join(home, ".claude", "plugins", "cache", "wipnote"),
+		filepath.Join(home, ".claude", "plugins", "cache", "local-marketplace", "wipnote"),
 		filepath.Join(home, ".claude", "plugins", "marketplaces", "htmlgraph"),
 		filepath.Join(home, ".claude", "plugins", "cache", "htmlgraph"),
 		filepath.Join(home, ".claude", "plugins", "cache", "local-marketplace", "htmlgraph"),
@@ -145,7 +150,7 @@ func removeMarketplaceHtmlgraph() {
 			fmt.Fprintf(os.Stdout, "warning: could not remove %s: %v\n", dir, err)
 		}
 	}
-	fmt.Println("Marketplace htmlgraph removed (uninstalled, disabled, cache wiped).")
+	fmt.Println("Marketplace wipnote removed (uninstalled, disabled, cache wiped).")
 }
 
 func launchClaudeDev(extraArgs []string, auto bool, resumeID, name string) error {
@@ -160,21 +165,21 @@ func launchClaudeDev(extraArgs []string, auto bool, resumeID, name string) error
 		return fmt.Errorf("plugin.json not found at %s",
 			filepath.Join(pluginDir, ".claude-plugin", "plugin.json"))
 	}
-	if _, err := exec.LookPath("htmlgraph"); err != nil {
-		return fmt.Errorf("htmlgraph binary not found on PATH\nBuild with: htmlgraph build (or plugin/build.sh)")
+	if err := requireWipnoteOnPath(); err != nil {
+		return err
 	}
 
 	// Resolve project root so paths are anchored correctly regardless of CWD.
 	projectRoot := ""
-	if htmlgraphDir, err := findHtmlgraphDir(); err == nil {
-		projectRoot = filepath.Dir(htmlgraphDir)
+	if wipnoteDir, err := findWipnoteDir(); err == nil {
+		projectRoot = filepath.Dir(wipnoteDir)
 	}
 
 	// Clean up any leftover symlink state from a previous dev mode crash.
 	cleanupStaleDev(projectRoot)
 
 	// Nuke marketplace plugin so it can't shadow the --plugin-dir agents/skills.
-	removeMarketplaceHtmlgraph()
+	removeMarketplaceWipnote()
 
 	sessionName := name
 	// Only synthesize a default name for new sessions. When resuming an existing
@@ -203,6 +208,13 @@ func launchClaudeDev(extraArgs []string, auto bool, resumeID, name string) error
 		ExtraArgs:          extraArgs,
 		ProjectRoot:        projectRoot,
 	})
+}
+
+func requireWipnoteOnPath() error {
+	if _, err := exec.LookPath("wipnote"); err != nil {
+		return fmt.Errorf("wipnote binary not found on PATH\nBuild with: wipnote build (or plugin/build.sh)")
+	}
+	return nil
 }
 
 // autoPermissionMode returns "auto" when enabled is true, otherwise empty string.
@@ -412,21 +424,20 @@ func launchClaudeDefault(extraArgs []string, resumeID, name string) error {
 	})
 }
 
+const wipnoteMarketplaceRepo = "shakestzd/wipnote"
 
-const htmlgraphMarketplaceRepo = "shakestzd/wipnote"
-
-// ensureHtmlgraphPlugin registers the htmlgraph marketplace (if needed) and
+// ensureWipnotePlugin registers the wipnote marketplace (if needed) and
 // installs or updates the plugin. Returns an error if both install and update fail.
-func ensureHtmlgraphPlugin() error {
+func ensureWipnotePlugin() error {
 	// Step 1: Register marketplace if not already known.
-	fmt.Println("Registering htmlgraph marketplace...")
+	fmt.Println("Registering wipnote marketplace...")
 	exec.Command("claude", "plugin", "marketplace", "add",
-		htmlgraphMarketplaceRepo).Run() //nolint:errcheck
+		wipnoteMarketplaceRepo).Run() //nolint:errcheck
 
 	// Step 2: Try install, fall back to update.
-	fmt.Println("Installing/updating htmlgraph plugin...")
-	if out, err := exec.Command("claude", "plugin", "install", "htmlgraph@htmlgraph").CombinedOutput(); err != nil {
-		if out2, err2 := exec.Command("claude", "plugin", "update", "htmlgraph").CombinedOutput(); err2 != nil {
+	fmt.Println("Installing/updating wipnote plugin...")
+	if out, err := exec.Command("claude", "plugin", "install", "wipnote@wipnote").CombinedOutput(); err != nil {
+		if out2, err2 := exec.Command("claude", "plugin", "update", "wipnote").CombinedOutput(); err2 != nil {
 			return fmt.Errorf("plugin install failed: %s\nplugin update failed: %s",
 				strings.TrimSpace(string(out)), strings.TrimSpace(string(out2)))
 		}
@@ -438,8 +449,8 @@ func ensureHtmlgraphPlugin() error {
 func launchClaude(opts LaunchOpts) error {
 	// Write launch marker to the main project root, not the worktree.
 	markerRoot := opts.ProjectRoot
-	if opts.HtmlgraphRoot != "" {
-		markerRoot = opts.HtmlgraphRoot
+	if opts.WipnoteRoot != "" {
+		markerRoot = opts.WipnoteRoot
 	}
 	writeLaunchMarker(opts.Mode, markerRoot)
 
@@ -485,7 +496,7 @@ func launchClaude(opts LaunchOpts) error {
 	// server so users see the explanation before any server output.
 	MaybeShowOtelNotice(opts.ProjectRoot)
 
-	// Auto-start a detached `htmlgraph serve` for the dashboard and
+	// Auto-start a detached `wipnote serve` for the dashboard and
 	// semantic-ops (AI-title backfill, etc.). The serve process is now a
 	// pure reader + dashboard server — OTLP ingest is handled by the
 	// per-session collector spawned below. See claude_serve_autostart.go
@@ -512,12 +523,12 @@ func launchClaude(opts LaunchOpts) error {
 	// Compose the child env: start from os.Environ, layer
 	// WIPNOTE_PROJECT_DIR when running in a worktree, and layer OTel
 	// exporter vars when WIPNOTE_OTEL_ENABLED=1 so Claude's OTLP
-	// pipeline points at the htmlgraph serve receiver. See
+	// pipeline points at the wipnote serve receiver. See
 	// claude_env.go:buildClaudeLaunchEnv for precedence rules (user-set
 	// OTEL_* always wins).
 	var worktreeOverride string
-	if opts.HtmlgraphRoot != "" && opts.HtmlgraphRoot != opts.ProjectRoot {
-		worktreeOverride = opts.HtmlgraphRoot
+	if opts.WipnoteRoot != "" && opts.WipnoteRoot != opts.ProjectRoot {
+		worktreeOverride = opts.WipnoteRoot
 	}
 	c.Env = buildClaudeLaunchEnv(worktreeOverride, &envOverrides)
 

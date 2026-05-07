@@ -7,33 +7,33 @@ import (
 )
 
 // Codex session-start payload — matches the real captured payload shape from
-// /tmp/htmlgraph-codex-hook-payloads/session-start-86946.json.
+// /tmp/wipnote-codex-hook-payloads/session-start-86946.json.
 const codexSessionStartJSON = `{
 	"session_id": "019da445-8036-73c2-a8fc-dacdb57417a8",
 	"transcript_path": "/Users/testuser/.codex/sessions/2026/04/19/rollout-2026-04-19T01-45-11-019da445-8036-73c2-a8fc-dacdb57417a8.jsonl",
-	"cwd": "/Users/testuser/DevProjects/htmlgraph",
+	"cwd": "/Users/testuser/DevProjects/wipnote",
 	"hook_event_name": "SessionStart",
 	"model": "gpt-5.4",
 	"permission_mode": "default",
 	"source": "startup"
 }`
 
-// Codex user-prompt payload — matches /tmp/htmlgraph-codex-hook-payloads/user-prompt-86954.json.
+// Codex user-prompt payload — matches /tmp/wipnote-codex-hook-payloads/user-prompt-86954.json.
 const codexUserPromptJSON = `{
 	"session_id": "019da445-8036-73c2-a8fc-dacdb57417a8",
 	"turn_id": "019da445-a255-77e1-98c4-9d456711f47b",
 	"transcript_path": "/Users/testuser/.codex/sessions/2026/04/19/rollout-2026-04-19T01-45-11-019da445-8036-73c2-a8fc-dacdb57417a8.jsonl",
-	"cwd": "/Users/testuser/DevProjects/htmlgraph",
+	"cwd": "/Users/testuser/DevProjects/wipnote",
 	"hook_event_name": "UserPromptSubmit",
 	"model": "gpt-5.4",
 	"permission_mode": "default",
-	"prompt": "Do these four small tasks so I can confirm HtmlGraph telemetry is firing."
+	"prompt": "Do these four small tasks so I can confirm wipnote telemetry is firing."
 }`
 
 // Claude CloudEvent payload — typical SessionStart shape sent by Claude Code.
 const claudeSessionStartJSON = `{
 	"session_id": "sess-abc123",
-	"cwd": "/Users/testuser/DevProjects/htmlgraph",
+	"cwd": "/Users/testuser/DevProjects/wipnote",
 	"permission_mode": "default",
 	"model": "claude-opus-4-5",
 	"transcript_path": "/tmp/session.jsonl",
@@ -45,7 +45,7 @@ const claudeSessionStartJSON = `{
 const geminiSessionStartJSON = `{
 	"invocation_id": "gemini-inv-abc123",
 	"session_id": "gemini-sess-xyz789",
-	"cwd": "/Users/testuser/DevProjects/htmlgraph",
+	"cwd": "/Users/testuser/DevProjects/wipnote",
 	"model": "gemini-2.5-pro"
 }`
 
@@ -118,10 +118,10 @@ func TestDetectHarness_ClaudeCodeEntrypointWins(t *testing.T) {
 	// Claude Code SubagentStart payload — has hook_event_name like all Claude Code events.
 	claudeSubagentStartJSON := `{
 		"session_id": "db130bce-c0b4-4378-bfc6-759f6306849c",
-		"cwd": "/workspaces/htmlgraph",
+		"cwd": "/workspaces/wipnote",
 		"hook_event_name": "SubagentStart",
 		"agent_id": "af0d03b76bfb578de",
-		"agent_type": "htmlgraph:researcher"
+		"agent_type": "wipnote:researcher"
 	}`
 
 	// With CLAUDE_CODE_ENTRYPOINT set → must be HarnessClaude.
@@ -148,10 +148,10 @@ func TestDetectHarness_AgentIDPreservedThroughClaudeHarness(t *testing.T) {
 
 	payload := []byte(`{
 		"session_id": "db130bce-c0b4-4378-bfc6-759f6306849c",
-		"cwd": "/workspaces/htmlgraph",
+		"cwd": "/workspaces/wipnote",
 		"hook_event_name": "SubagentStart",
 		"agent_id": "task-uuid-xyz",
-		"agent_type": "htmlgraph:sonnet-coder"
+		"agent_type": "wipnote:sonnet-coder"
 	}`)
 
 	harness := DetectHarness(payload)
@@ -166,8 +166,8 @@ func TestDetectHarness_AgentIDPreservedThroughClaudeHarness(t *testing.T) {
 	if ev.AgentID != "task-uuid-xyz" {
 		t.Errorf("AgentID = %q, want %q; CLAUDE_CODE_ENTRYPOINT must prevent Codex parser from clobbering to 'codex'", ev.AgentID, "task-uuid-xyz")
 	}
-	if ev.AgentType != "htmlgraph:sonnet-coder" {
-		t.Errorf("AgentType = %q, want %q", ev.AgentType, "htmlgraph:sonnet-coder")
+	if ev.AgentType != "wipnote:sonnet-coder" {
+		t.Errorf("AgentType = %q, want %q", ev.AgentType, "wipnote:sonnet-coder")
 	}
 }
 
@@ -182,8 +182,8 @@ func TestParseCodexSessionStart(t *testing.T) {
 	if ev.SessionID != "019da445-8036-73c2-a8fc-dacdb57417a8" {
 		t.Errorf("SessionID = %q, want 019da445-8036-73c2-a8fc-dacdb57417a8", ev.SessionID)
 	}
-	if ev.CWD != "/Users/testuser/DevProjects/htmlgraph" {
-		t.Errorf("CWD = %q, want /Users/testuser/DevProjects/htmlgraph", ev.CWD)
+	if ev.CWD != "/Users/testuser/DevProjects/wipnote" {
+		t.Errorf("CWD = %q, want /Users/testuser/DevProjects/wipnote", ev.CWD)
 	}
 	if ev.Model != "gpt-5.4" {
 		t.Errorf("Model = %q, want gpt-5.4", ev.Model)
@@ -210,6 +210,35 @@ func TestParseCodexUserPrompt(t *testing.T) {
 	}
 	if ev.Prompt == "" {
 		t.Error("Prompt should be populated for UserPromptSubmit")
+	}
+}
+
+func TestParseCodexToolPayload(t *testing.T) {
+	payload := []byte(`{
+		"session_id": "019da445-8036-73c2-a8fc-dacdb57417a8",
+		"turn_id": "019da445-a255-77e1-98c4-9d456711f47b",
+		"transcript_path": "/tmp/rollout.jsonl",
+		"cwd": "/Users/testuser/DevProjects/wipnote",
+		"hook_event_name": "PreToolUse",
+		"model": "gpt-5.4",
+		"permission_mode": "default",
+		"tool_name": "Bash",
+		"tool_input": {"command": "pwd"},
+		"tool_use_id": "call-123"
+	}`)
+
+	ev, err := parseCodexEvent(payload)
+	if err != nil {
+		t.Fatalf("parseCodexEvent: %v", err)
+	}
+	if ev.ToolName != "Bash" {
+		t.Errorf("ToolName = %q, want Bash", ev.ToolName)
+	}
+	if ev.ToolUseID != "call-123" {
+		t.Errorf("ToolUseID = %q, want call-123", ev.ToolUseID)
+	}
+	if got, _ := ev.ToolInput["command"].(string); got != "pwd" {
+		t.Errorf("ToolInput[command] = %q, want pwd", got)
 	}
 }
 
@@ -289,8 +318,8 @@ func TestParseGeminiSessionStart(t *testing.T) {
 	if ev.SessionID != "gemini-sess-xyz789" {
 		t.Errorf("SessionID = %q, want gemini-sess-xyz789", ev.SessionID)
 	}
-	if ev.CWD != "/Users/testuser/DevProjects/htmlgraph" {
-		t.Errorf("CWD = %q, want /Users/testuser/DevProjects/htmlgraph", ev.CWD)
+	if ev.CWD != "/Users/testuser/DevProjects/wipnote" {
+		t.Errorf("CWD = %q, want /Users/testuser/DevProjects/wipnote", ev.CWD)
 	}
 }
 

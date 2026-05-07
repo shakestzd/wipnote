@@ -36,7 +36,7 @@ var featureWriteMu sync.Map
 // underlying atomic temp+rename keeps single writes safe on its own. This
 // closes the lost-update race when `compliance auto`, `spec generate
 // --insert`, and `WriteNodeHTML` (status transitions) target the same
-// feature concurrently — including from separate `htmlgraph` CLI processes.
+// feature concurrently — including from separate `wipnote` CLI processes.
 //
 // On flock acquisition errors, falls back to in-process-only locking and
 // logs nothing; this preserves single-process behavior for tests on file
@@ -71,7 +71,7 @@ var atomicWriteCounter atomic.Int64
 // --- ID generation -----------------------------------------------------------
 
 // prefixes maps node types to their short ID prefix.
-// Matches Python htmlgraph.ids.PREFIXES.
+// Matches Python wipnote.ids.PREFIXES.
 var prefixes = map[string]string{
 	"feature": "feat",
 	"bug":     "bug",
@@ -119,7 +119,7 @@ var nodeTmpl = template.Must(
 	template.ParseFS(templateFS, "templates/node.gohtml"),
 )
 
-// WriteNodeHTML serialises a Node to the canonical HtmlGraph HTML format and
+// WriteNodeHTML serialises a Node to the canonical wipnote HTML format and
 // writes it to the collection directory.  The output MUST be parseable by
 // htmlparse.ParseFile to ensure round-trip fidelity.
 //

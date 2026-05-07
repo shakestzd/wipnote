@@ -21,9 +21,9 @@ Relationship types: blocks, blocked_by, relates_to, implements,
                     caused_by, spawned_from, implemented_in, part_of, contains
 
 Examples:
-  htmlgraph link add feat-abc feat-def --rel blocks
-  htmlgraph link remove feat-abc feat-def --rel blocks
-  htmlgraph link list feat-abc`,
+  wipnote link add feat-abc feat-def --rel blocks
+  wipnote link remove feat-abc feat-def --rel blocks
+  wipnote link list feat-abc`,
 	}
 	cmd.AddCommand(linkAddCmd())
 	cmd.AddCommand(linkRemoveCmd())
@@ -54,7 +54,7 @@ func linkAddCmd() *cobra.Command {
 }
 
 func runLinkAdd(fromID, toID, rel string) error {
-	dir, err := findHtmlgraphDir()
+	dir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}
@@ -130,7 +130,7 @@ func linkRemoveCmd() *cobra.Command {
 }
 
 func runLinkRemove(fromID, toID, rel string) error {
-	dir, err := findHtmlgraphDir()
+	dir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}
@@ -160,7 +160,7 @@ func runLinkRemove(fromID, toID, rel string) error {
 		return fmt.Errorf("remove edge: %w", err)
 	}
 	if !removed {
-		return fmt.Errorf("no %s edge from %s to %s\nRun 'htmlgraph link list %s' to see existing edges for this work item.", rel, fromID, toID, fromID)
+		return fmt.Errorf("no %s edge from %s to %s\nRun 'wipnote link list %s' to see existing edges for this work item.", rel, fromID, toID, fromID)
 	}
 
 	fmt.Printf("Unlinked: %s -[%s]-> %s\n", fromID, rel, toID)
@@ -179,7 +179,7 @@ func linkListCmd() *cobra.Command {
 }
 
 func runLinkList(id string) error {
-	dir, err := findHtmlgraphDir()
+	dir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}

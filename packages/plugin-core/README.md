@@ -1,6 +1,6 @@
-# plugin-core — DRY source of truth for Erinn AI plugin ports
+# plugin-core — DRY source of truth for wipnote plugin ports
 
-All Erinn AI plugin ports (Claude Code, Codex CLI, Gemini CLI) are generated from the
+All wipnote plugin ports (Claude Code, Codex CLI, Gemini CLI) are generated from the
 files in this directory so we never edit the same logic twice.
 
 ## Source of truth
@@ -22,17 +22,17 @@ files in this directory so we never edit the same logic twice.
 
 ## Build
 
-    erinn plugin build-ports              # regenerate all targets
-    erinn plugin build-ports --target codex
-    erinn plugin build-ports --target claude
-    erinn plugin build-ports --target gemini
+    wipnote plugin build-ports              # regenerate all targets
+    wipnote plugin build-ports --target codex
+    wipnote plugin build-ports --target claude
+    wipnote plugin build-ports --target gemini
 
 The command writes each target's tree under the `outDir` declared in
 `manifest.json → targets.<name>`.
 
 ## Hooks — thin wrappers
 
-Every hook resolves to `erinn hook <handler>`. Business logic lives in the
+Every hook resolves to `wipnote hook <handler>`. Business logic lives in the
 Go CLI (`internal/hooks/`); the plugin manifests only declare which events route
 to which handler and on which target. Events whose `targets` list omits a given
 target are not emitted to that target's hooks file.
@@ -82,7 +82,7 @@ $EDITOR plugin/commands/mycmd.md
 $EDITOR plugin/agents/my-agent.md
 $EDITOR plugin/skills/my-skill/SKILL.md
 
-erinn plugin build-ports
+wipnote plugin build-ports
 ```
 
 Every target picks the new asset up automatically — no manifest edit needed,
@@ -114,8 +114,8 @@ Three places, always in this order:
    }
    ```
 
-3. **Route** (`cmd/erinn/hook.go`) — register the CLI subcommand so
-   `erinn hook my-new-event` resolves to the Go handler:
+3. **Route** (`cmd/wipnote/hook.go`) — register the CLI subcommand so
+   `wipnote hook my-new-event` resolves to the Go handler:
 
    ```go
    hookSubcmd("my-new-event", "Handle MyNewEvent event", emptyResult, hooks.MyNewEvent),
@@ -124,7 +124,7 @@ Three places, always in this order:
    Use `hookSubcmdWithProject(...)` instead when the handler needs the project
    dir passed through (see `session-start` for the pattern).
 
-Then run `erinn plugin build-ports && erinn build` and update the
+Then run `wipnote plugin build-ports && wipnote build` and update the
 **Hook event matrix** table above.
 
 ### Add a new target
@@ -151,7 +151,7 @@ the canonical sub-emitter registration pattern.
      "manifestPath": "mytool-extension.json",
      "hooksPath": "hooks/hooks.json",
      "contextFile": "MYTOOL.md",
-     "commandNamespace": "erinn"
+     "commandNamespace": "wipnote"
    }
    ```
 
@@ -186,7 +186,7 @@ the canonical sub-emitter registration pattern.
      rooted at `outDir`.
 
    `init()` must call `Register(...)` so the target is discoverable by
-   `erinn plugin build-ports --target <name>`. Duplicate registrations panic.
+   `wipnote plugin build-ports --target <name>`. Duplicate registrations panic.
 
    **Sub-emitters for format translation.** If the target needs per-asset
    translation (e.g. Gemini's markdown-to-TOML slash commands), do **not**
@@ -200,6 +200,6 @@ the canonical sub-emitter registration pattern.
 3. **Regenerate and verify**:
 
    ```bash
-   erinn build
-   erinn plugin build-ports --target mytool
+   wipnote build
+   wipnote plugin build-ports --target mytool
    ```

@@ -16,16 +16,16 @@ import (
 // constructs a DB path outside storage.CanonicalDBPath. Three patterns
 // are forbidden in production code outside internal/storage:
 //
-//  1. Lines containing the literal "htmlgraph.db" string. Production
+//  1. Lines containing the literal "wipnote.db" string. Production
 //     code must reference storage.DBFileName, and even then only outside
 //     a filepath.Join (rule 2).
 //  2. Lines that contain BOTH filepath.Join and storage.DBFileName.
 //     This catches the regression class fixed by bug-62f14f8c, where
 //     internal/hooks/runner.go silently fell back to constructing
-//     .wipnote/.db/htmlgraph.db whenever os.UserCacheDir() errored.
+//     .wipnote/.db/wipnote.db whenever os.UserCacheDir() errored.
 //     Comparison sites (e.g. `if base == storage.DBFileName`) remain
 //     allowed because they do not synthesize a path.
-//  3. Lines containing ".wipnote/.db" or ".db/htmlgraph" — the legacy
+//  3. Lines containing ".wipnote/.db" or ".db/wipnote" — the legacy
 //     in-tree DB locations should never appear in callers; only
 //     storage.LegacyProjectDBPaths (inside internal/storage) may
 //     reference them, for the orphan-detection warning.
@@ -35,7 +35,7 @@ import (
 // filepath.Join calls single-line in production code.
 func TestNoInlineDBPathConstruction(t *testing.T) {
 	// Resolve module root from GOPATH or the source location.
-	root := filepath.Join(build.Default.GOPATH, "src", "github.com", "shakestzd", "htmlgraph")
+	root := filepath.Join(build.Default.GOPATH, "src", "github.com", "shakestzd", "wipnote")
 	// Fallback: walk up from this file's package to find go.mod.
 	if _, err := os.Stat(root); err != nil {
 		// __file__ is internal/storage/dbpath_test.go → go up three levels
@@ -72,9 +72,9 @@ func TestNoInlineDBPathConstruction(t *testing.T) {
 	// substrings on the same line (legitimate comparison sites use only
 	// storage.DBFileName, which is allowed).
 	linePatterns := []string{
-		`"htmlgraph.db"`,   // literal filename
+		`"wipnote.db"`,   // literal filename
 		`".wipnote/.db"`, // legacy ext4-volume path segment
-		`".db/htmlgraph"`,  // partial path hinting at legacy layout
+		`".db/wipnote"`,  // partial path hinting at legacy layout
 	}
 
 	var violations []violation
@@ -182,11 +182,11 @@ func TestCanonicalDBPath_DirsContainHash(t *testing.T) {
 	}
 
 	parts := strings.Split(filepath.ToSlash(p), "/")
-	foundHtmlgraph := false
+	foundWipnote := false
 	foundHexDir := false
 	for _, seg := range parts {
 		if seg == "wipnote" {
-			foundHtmlgraph = true
+			foundWipnote = true
 		}
 		// 16-char lowercase hex segment
 		if len(seg) == 16 {
@@ -202,8 +202,8 @@ func TestCanonicalDBPath_DirsContainHash(t *testing.T) {
 			}
 		}
 	}
-	if !foundHtmlgraph {
-		t.Errorf("expected 'erinn' segment in path %s", p)
+	if !foundWipnote {
+		t.Errorf("expected 'wipnote' segment in path %s", p)
 	}
 	if !foundHexDir {
 		t.Errorf("expected 16-char hex segment in path %s", p)
@@ -214,18 +214,22 @@ func TestLegacyProjectDBPaths(t *testing.T) {
 	projectDir := "/my/project"
 	paths := storage.LegacyProjectDBPaths(projectDir)
 
-	if len(paths) != 2 {
-		t.Fatalf("expected 2 legacy paths, got %d", len(paths))
+	if len(paths) != 4 {
+		t.Fatalf("expected 4 legacy paths, got %d", len(paths))
 	}
 
-	want0 := filepath.Join(projectDir, ".wipnote", "htmlgraph.db")
-	want1 := filepath.Join(projectDir, ".wipnote", ".db", "htmlgraph.db")
-
-	if paths[0] != want0 {
-		t.Errorf("path[0]: got %s, want %s", paths[0], want0)
+	want := []string{
+		filepath.Join(projectDir, ".wipnote", "wipnote.db"),
+		filepath.Join(projectDir, ".wipnote", ".db", "wipnote.db"),
+		// The old filename remains detectable for cleanup after the rename.
+		filepath.Join(projectDir, ".wipnote", "htmlgraph.db"),
+		filepath.Join(projectDir, ".wipnote", ".db", "htmlgraph.db"),
 	}
-	if paths[1] != want1 {
-		t.Errorf("path[1]: got %s, want %s", paths[1], want1)
+
+	for i := range want {
+		if paths[i] != want[i] {
+			t.Errorf("path[%d]: got %s, want %s", i, paths[i], want[i])
+		}
 	}
 }
 
@@ -247,7 +251,7 @@ func TestCleanLegacyDBIfSafe_DeletesWhenCanonicalReady(t *testing.T) {
 	if err := os.MkdirAll(legacyDir, 0o755); err != nil {
 		t.Fatalf("mkdir .wipnote: %v", err)
 	}
-	legacyFile := filepath.Join(legacyDir, "htmlgraph.db")
+	legacyFile := filepath.Join(legacyDir, "wipnote.db")
 	if err := os.WriteFile(legacyFile, []byte("stale"), 0o600); err != nil {
 		t.Fatalf("write legacy db: %v", err)
 	}
@@ -281,7 +285,7 @@ func TestCleanLegacyDBIfSafe_WarnsWhenCanonicalMissing(t *testing.T) {
 	if err := os.MkdirAll(legacyDir, 0o755); err != nil {
 		t.Fatalf("mkdir .wipnote: %v", err)
 	}
-	legacyFile := filepath.Join(legacyDir, "htmlgraph.db")
+	legacyFile := filepath.Join(legacyDir, "wipnote.db")
 	content := make([]byte, 440*1024) // 440 KB
 	if err := os.WriteFile(legacyFile, content, 0o600); err != nil {
 		t.Fatalf("write legacy db: %v", err)
@@ -326,7 +330,7 @@ func TestCleanLegacyDBIfSafe_WarnsWhenCanonicalEmpty(t *testing.T) {
 	if err := os.MkdirAll(legacyDir, 0o755); err != nil {
 		t.Fatalf("mkdir .wipnote: %v", err)
 	}
-	legacyFile := filepath.Join(legacyDir, "htmlgraph.db")
+	legacyFile := filepath.Join(legacyDir, "wipnote.db")
 	if err := os.WriteFile(legacyFile, []byte("stale data"), 0o600); err != nil {
 		t.Fatalf("write legacy db: %v", err)
 	}
@@ -466,7 +470,7 @@ func TestCleanLegacyDBIfSafe_DeletesZeroByteFile(t *testing.T) {
 	if err := os.MkdirAll(legacyDir, 0o755); err != nil {
 		t.Fatalf("mkdir .wipnote: %v", err)
 	}
-	legacyFile := filepath.Join(legacyDir, "htmlgraph.db")
+	legacyFile := filepath.Join(legacyDir, "wipnote.db")
 	if err := os.WriteFile(legacyFile, []byte{}, 0o600); err != nil {
 		t.Fatalf("write zero-byte legacy db: %v", err)
 	}
@@ -486,7 +490,7 @@ func TestCleanLegacyDBIfSafe_DeletesZeroByteFile(t *testing.T) {
 }
 
 // TestCleanLegacyDBIfSafe_WIPNOTE_DB_PATH_PointingAtLegacy verifies that when
-// WIPNOTE_DB_PATH is explicitly set to a legacy path (e.g. .wipnote/htmlgraph.db),
+// WIPNOTE_DB_PATH is explicitly set to a legacy path (e.g. .wipnote/wipnote.db),
 // that file is NOT deleted and the .db/ directory is also protected.
 func TestCleanLegacyDBIfSafe_WIPNOTE_DB_PATH_PointingAtLegacy(t *testing.T) {
 	projectDir := t.TempDir()
@@ -496,7 +500,7 @@ func TestCleanLegacyDBIfSafe_WIPNOTE_DB_PATH_PointingAtLegacy(t *testing.T) {
 	if err := os.MkdirAll(legacyDir, 0o755); err != nil {
 		t.Fatalf("mkdir .wipnote: %v", err)
 	}
-	legacyFile := filepath.Join(legacyDir, "htmlgraph.db")
+	legacyFile := filepath.Join(legacyDir, "wipnote.db")
 	if err := os.WriteFile(legacyFile, []byte("data"), 0o600); err != nil {
 		t.Fatalf("write legacy db: %v", err)
 	}
@@ -515,5 +519,3 @@ func TestCleanLegacyDBIfSafe_WIPNOTE_DB_PATH_PointingAtLegacy(t *testing.T) {
 		t.Errorf("expected no output when WIPNOTE_DB_PATH points at legacy file, got: %q", buf.String())
 	}
 }
-
-

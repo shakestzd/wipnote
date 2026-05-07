@@ -5,7 +5,7 @@ Requirements:
 - ANTHROPIC_API_KEY env var enables API fallback when claude CLI is unavailable
 
 Usage:
-    backend = ClaudeChatBackend(plan_context="...", db_path="/path/to/.htmlgraph/htmlgraph.db", plan_id="plan-abc123")
+    backend = ClaudeChatBackend(plan_context="...", db_path="/path/to/.wipnote/wipnote.db", plan_id="plan-abc123")
     for chunk in backend.send("What are the main risks?"):
         print(chunk, end="", flush=True)
 """
@@ -27,7 +27,7 @@ class ClaudeChatBackend:
 
     Session persistence: sessions are named with the plan_id so they survive
     notebook restarts. The subprocess cwd is set to the project root (parent of
-    HTMLGRAPH_DIR) so Claude Code binds the session to the real project, not the
+    WIPNOTE_DIR) so Claude Code binds the session to the real project, not the
     temp dir where the notebook files are extracted.
 
     Prompt injection defense: plan_context is wrapped in <plan-context> XML tags
@@ -44,10 +44,10 @@ class ClaudeChatBackend:
         """
         Args:
             plan_context: Full plan YAML text + critique synthesis + approval state.
-            db_path: Path to htmlgraph.db for session persistence (optional).
+            db_path: Path to wipnote.db for session persistence (optional).
             plan_id: Plan ID for SQLite lookup and session naming (optional).
             project_dir: Project root directory for claude subprocess cwd (optional).
-                         Derived from HTMLGRAPH_DIR parent. If not set, the subprocess
+                         Derived from WIPNOTE_DIR parent. If not set, the subprocess
                          inherits the current working directory (temp dir).
         """
         self.plan_context = plan_context
@@ -129,7 +129,7 @@ class ClaudeChatBackend:
             "Always explain the reasoning before or after the AMEND directive.\n\n"
             "When you emit AMEND directives, they are automatically parsed and saved to the project database. "
             "The user will see a confirmation for each amendment logged. Accepted amendments are applied to the "
-            "plan YAML when the user runs `htmlgraph plan rewrite-yaml`. You do not need to ask the user to "
+            "plan YAML when the user runs `wipnote plan rewrite-yaml`. You do not need to ask the user to "
             "manually edit the YAML — the system handles it.\n\n"
             "<plan-context>\n"
             f"{self.plan_context}\n"

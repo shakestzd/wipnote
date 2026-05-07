@@ -2,7 +2,7 @@
 """
 Demo script: Create track-001-auth example.
 
-This demonstrates the Conductor-style planning workflow with HtmlGraph:
+This demonstrates the Conductor-style planning workflow with wipnote:
 1. Create a track for User Authentication
 2. Create a spec with requirements and acceptance criteria
 3. Create an implementation plan with phases and tasks
@@ -15,15 +15,15 @@ from pathlib import Path
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src" / "python"))
 
-from htmlgraph.planning import AcceptanceCriterion, Phase, Task
-from htmlgraph.track_manager import TrackManager
+from wipnote.planning import AcceptanceCriterion, Phase, Task
+from wipnote.track_manager import TrackManager
 
 
 def main():
     """Create the demo track."""
 
     # Initialize manager
-    manager = TrackManager(".htmlgraph")
+    manager = TrackManager(".wipnote")
 
     print("Creating track-001-auth demo...")
     print("=" * 60)
@@ -138,7 +138,7 @@ def main():
 
     # 4. Create the plan with all phases and tasks
     print("\n4. Creating implementation plan...")
-    from htmlgraph.planning import Plan
+    from wipnote.planning import Plan
 
     plan = Plan(
         id="track-001-auth-plan",
@@ -326,16 +326,16 @@ def main():
     print("\n" + "=" * 60)
     print("✓ Demo track created successfully!")
     print("\nView the results:")
-    print("  - Track index: .htmlgraph/tracks/track-001-auth/index.html")
-    print("  - Spec:        .htmlgraph/tracks/track-001-auth/spec.html")
-    print("  - Plan:        .htmlgraph/tracks/track-001-auth/plan.html")
+    print("  - Track index: .wipnote/tracks/track-001-auth/index.html")
+    print("  - Spec:        .wipnote/tracks/track-001-auth/spec.html")
+    print("  - Plan:        .wipnote/tracks/track-001-auth/plan.html")
     print("\nOpen the plan.html in a browser to see:")
     print("  - List view (default)")
     print("  - Kanban board")
     print("  - Timeline view")
     print("  - Dependency graph")
     print("\nStart the server to view the dashboard:")
-    print("  uv run htmlgraph serve")
+    print("  uv run wipnote serve")
     print("  Then open: http://localhost:8080")
 
 

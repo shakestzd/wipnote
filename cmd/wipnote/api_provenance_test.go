@@ -48,7 +48,7 @@ func setupProvenanceDBWithData(t *testing.T) (*sql.DB, string) {
 	// Insert a file linked to the feature.
 	_, err = database.Exec(
 		`INSERT INTO feature_files (id, feature_id, file_path, operation, session_id, first_seen, last_seen, created_at)
-		 VALUES ('ff-001', ?, 'cmd/htmlgraph/main.go', 'modified', 'sess-001', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+		 VALUES ('ff-001', ?, 'cmd/wipnote/main.go', 'modified', 'sess-001', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
 		featureID,
 	)
 	if err != nil {
@@ -193,8 +193,8 @@ func TestFilesForFeatureHandler_ReturnsFiles(t *testing.T) {
 	if len(files) != 1 {
 		t.Fatalf("files count: got %d, want 1", len(files))
 	}
-	if files[0].FilePath != "cmd/htmlgraph/main.go" {
-		t.Errorf("file_path: got %q, want cmd/htmlgraph/main.go", files[0].FilePath)
+	if files[0].FilePath != "cmd/wipnote/main.go" {
+		t.Errorf("file_path: got %q, want cmd/wipnote/main.go", files[0].FilePath)
 	}
 }
 
@@ -269,14 +269,14 @@ func TestProvenanceHandler_AgentNodeResolves(t *testing.T) {
 	database, featureID := setupProvenanceDB(t)
 	_, err := database.Exec(
 		`INSERT INTO agent_lineage_trace (trace_id, session_id, root_session_id, agent_name, feature_id) VALUES (?, ?, ?, ?, ?)`,
-		"tr-1", "sess-agent", "sess-agent", "htmlgraph:sonnet-coder", featureID,
+		"tr-1", "sess-agent", "sess-agent", "wipnote:sonnet-coder", featureID,
 	)
 	if err != nil {
 		t.Fatalf("seed lineage: %v", err)
 	}
 	mux := buildSingleProjectMux(database, t.TempDir())
 
-	req := httptest.NewRequest(http.MethodGet, "/api/provenance/htmlgraph:sonnet-coder", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/provenance/wipnote:sonnet-coder", nil)
 	w := httptest.NewRecorder()
 	mux.ServeHTTP(w, req)
 

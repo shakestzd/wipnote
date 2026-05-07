@@ -1,6 +1,6 @@
 ---
 name: wipnote:spec-from-slice
-description: Elicit Scope/Decisions/Context for a plan slice and generate its OpenSpec-formatted feature spec. Use after a slice is approved but before promote-slice, or any time a slice needs decisions captured. Wraps the cross-harness `erinn plan elicit-decisions` CLI plus `erinn spec generate --insert`.
+description: Elicit Scope/Decisions/Context for a plan slice and generate its OpenSpec-formatted feature spec. Use after a slice is approved but before promote-slice, or any time a slice needs decisions captured. Wraps the cross-harness `wipnote plan elicit-decisions` CLI plus `wipnote spec generate --insert`.
 user_invocable: true
 ---
 
@@ -11,13 +11,13 @@ active plan, then materialise the resulting feature's OpenSpec-formatted spec
 into its HTML — in a single guided pass.
 
 This skill is a Claude-only convenience layer. The canonical interface is the
-cross-harness CLI command `erinn plan elicit-decisions`, which works on
+cross-harness CLI command `wipnote plan elicit-decisions`, which works on
 Codex CLI and Gemini CLI without any of the steps below.
 
 ## When to invoke
 
 - Plan slice has just been approved and you are about to call
-  `erinn plan promote-slice`.
+  `wipnote plan promote-slice`.
 - Slice has been promoted and the resulting feature has no
   `<section class="spec">` yet, or the section is empty.
 - Decisions changed and you want to re-elicit and re-generate the spec.
@@ -29,12 +29,12 @@ Codex CLI and Gemini CLI without any of the steps below.
 
 If the slice already has `feature_id` set, the skill will reuse it for the
 generate step. Otherwise it stops after writing the decisions and points the
-user at `erinn plan promote-slice` first.
+user at `wipnote plan promote-slice` first.
 
 ## Procedure
 
-1. **Read the slice card.** Run `erinn plan show <plan-id>` (or read
-   `.erinn/plans/<plan-id>.yaml` directly) to find the slice with the given
+1. **Read the slice card.** Run `wipnote plan show <plan-id>` (or read
+   `.wipnote/plans/<plan-id>.yaml` directly) to find the slice with the given
    `num`. Capture `title`, `what`, `why`, `done_when`, `tests`, and current
    `decisions_notes` (if any).
 
@@ -58,7 +58,7 @@ user at `erinn plan promote-slice` first.
 
 4. **Write decisions.** Run the cross-harness CLI:
    ```bash
-   erinn plan elicit-decisions <plan-id> <slice-num> \
+   wipnote plan elicit-decisions <plan-id> <slice-num> \
      --scope "<scope answer>" \
      --decisions "<decisions answer>" \
      --context "<context answer>"
@@ -69,29 +69,29 @@ user at `erinn plan promote-slice` first.
 5. **Generate the spec.** If the slice has a `feature_id` (i.e., it has already
    been promoted), run:
    ```bash
-   erinn spec generate <feature-id> --insert
+   wipnote spec generate <feature-id> --insert
    ```
    The spec section is written non-destructively: if the feature already has
    non-empty spec content, the command prints a diff and refuses. Pass
    `--force` only when the user explicitly accepts the overwrite.
 
    If the slice has no `feature_id` yet, tell the user to run
-   `erinn plan promote-slice <plan-id> <slice-num>` first, then re-invoke
+   `wipnote plan promote-slice <plan-id> <slice-num>` first, then re-invoke
    this skill.
 
 6. **Confirm.** Show a 2-3 line summary: which fields changed, where the spec
-   was written, what to do next (typically `erinn plan promote-slice` if
-   not yet promoted, or `erinn compliance <feature-id>` to verify the
+   was written, what to do next (typically `wipnote plan promote-slice` if
+   not yet promoted, or `wipnote compliance <feature-id>` to verify the
    spec parses).
 
 ## Notes
 
-- The CLI command `erinn plan elicit-decisions` is the source of truth.
+- The CLI command `wipnote plan elicit-decisions` is the source of truth.
   This skill exists to make the interview ergonomic on Claude Code via
   `AskUserQuestion`. Other harnesses (Codex CLI, Gemini CLI) call the CLI
   directly — they do not need this skill.
 - `decisions_notes` is free text, not a typed schema. The renderer in
-  `erinn spec generate` weaves it verbatim into the generated spec's
+  `wipnote spec generate` weaves it verbatim into the generated spec's
   `## Decisions` section.
 - The `--allow-spec-skip` flag on `promote-slice` and `feature complete` is
   for emergency overrides only; this skill is the regular path.

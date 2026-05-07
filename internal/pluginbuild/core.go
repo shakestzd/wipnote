@@ -58,7 +58,7 @@ type Target struct {
 	MarketplaceDisplayName string `json:"marketplaceDisplayName,omitempty"`
 	MarketplaceCategory    string `json:"marketplaceCategory,omitempty"`
 	// PluginSubdir is the relative path under outDir where the actual plugin
-	// content lives when marketplace wrapping is used (e.g. "plugins/htmlgraph").
+	// content lives when marketplace wrapping is used (e.g. "plugins/wipnote").
 	PluginSubdir string `json:"pluginSubdir,omitempty"`
 }
 
@@ -78,7 +78,7 @@ type HookMatrix struct {
 	Events []HookEvent `json:"events"`
 }
 
-// HookEvent declares a single event entry. Handler is the `erinn hook
+// HookEvent declares a single event entry. Handler is the `wipnote hook
 // <handler>` subcommand (ignored when Command is set). Command is an escape
 // hatch for shell-only hooks like the Claude timestamp injector. Targets is
 // the list of target names for which this entry is emitted.

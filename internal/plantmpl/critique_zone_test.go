@@ -297,8 +297,8 @@ func TestCritiqueZoneRenderEmptyShowsPlaceholder(t *testing.T) {
 	}
 
 	html := buf.String()
-	if !strings.Contains(html, "htmlgraph plan critique") {
-		t.Error("empty critique should show placeholder with htmlgraph plan critique command")
+	if !strings.Contains(html, "wipnote plan critique") {
+		t.Error("empty critique should show placeholder with wipnote plan critique command")
 	}
 }
 
@@ -334,7 +334,7 @@ func TestCritiqueZoneRenderPartialAssumptionsOnly(t *testing.T) {
 		t.Error("Synthesis should not appear when empty")
 	}
 	// No placeholder expected when we have content
-	if strings.Contains(html, "htmlgraph plan critique") {
+	if strings.Contains(html, "wipnote plan critique") {
 		t.Error("placeholder should not appear when assumptions are present")
 	}
 }

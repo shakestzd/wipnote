@@ -46,7 +46,7 @@ func runServer(bind string, port int) error {
 }
 
 // buildSingleProjectMux constructs the HTTP routes for a single-project
-// HtmlGraph server. It does NOT start the HTTP server and does NOT launch
+// wipnote server. It does NOT start the HTTP server and does NOT launch
 // background goroutines — the caller is responsible for both.
 //
 // This factory is shared by:
@@ -56,13 +56,13 @@ func runServer(bind string, port int) error {
 //
 // dashboardFS is accessed via the package-level dashboardSub() helper and
 // is intentionally not a parameter.
-func buildSingleProjectMux(database *sql.DB, htmlgraphDir string) *http.ServeMux {
+func buildSingleProjectMux(database *sql.DB, wipnoteDir string) *http.ServeMux {
 	mux := http.NewServeMux()
 
 	// /api/mode — lets the dashboard detect single vs global mode on load.
 	// The child includes the project name (derived from the project dir's
 	// basename) so the UI can label the header when drilled in via a proxy.
-	projectDir := filepath.Dir(htmlgraphDir)
+	projectDir := filepath.Dir(wipnoteDir)
 	projectName := filepath.Base(projectDir)
 	mux.Handle("/api/mode", http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		respondJSON(w, map[string]any{
@@ -84,13 +84,13 @@ func buildSingleProjectMux(database *sql.DB, htmlgraphDir string) *http.ServeMux
 	mux.Handle("/api/events/stream", sseHandler(database))
 	mux.Handle("/api/events/subagent", subagentEventsHandler(database))
 	mux.Handle("/api/sessions", sessionsHandler(database, projectDir))
-	mux.Handle("/api/features", featuresHandler(database, htmlgraphDir))
-	mux.Handle("/api/stats", statsHandler(database, htmlgraphDir))
+	mux.Handle("/api/features", featuresHandler(database, wipnoteDir))
+	mux.Handle("/api/stats", statsHandler(database, wipnoteDir))
 	mux.Handle("/api/initial-stats", initialStatsHandler(database))
 	mux.Handle("/api/timeline", timelineHandler(database))
-	mux.Handle("/api/transcript", transcriptHandler(database, htmlgraphDir))
+	mux.Handle("/api/transcript", transcriptHandler(database, wipnoteDir))
 	mux.Handle("/api/sessions/", sessionIngestHandler(database))
-	mux.Handle("/api/features/", featureActivityRouter(database, htmlgraphDir))
+	mux.Handle("/api/features/", featureActivityRouter(database, wipnoteDir))
 	mux.Handle("/api/graph", graphAPIHandler(database))
 	mux.Handle("/api/graph/agents", agentsHandler(database))
 	mux.Handle("/api/provenance/", provenanceHandler(database))
@@ -108,9 +108,9 @@ func buildSingleProjectMux(database *sql.DB, htmlgraphDir string) *http.ServeMux
 	mux.Handle("/api/otel/status", collectorStatusHandler(projectDir))
 
 	// CRISPI plan routes — list route must precede the per-plan catch-all.
-	mux.Handle("/api/plans", plansListHandler(htmlgraphDir, database))
-	mux.Handle("/plans/", planFileHandler(htmlgraphDir))
-	mux.Handle("/api/plans/", planRouter(database, htmlgraphDir))
+	mux.Handle("/api/plans", plansListHandler(wipnoteDir, database))
+	mux.Handle("/plans/", planFileHandler(wipnoteDir))
+	mux.Handle("/api/plans/", planRouter(database, wipnoteDir))
 
 	// Terminal sidecar routes — spawn/stop ttyd processes for the embedded
 	// interactive terminal. Must be registered before the catch-all "/" below.
@@ -168,9 +168,9 @@ func resolvePluginDir() string {
 	}
 
 	// 4. Symlink walk-up from binary — works for dev mode where the binary
-	//    lives at plugin/hooks/bin/htmlgraph (two levels up is
+	//    lives at plugin/hooks/bin/wipnote (two levels up is
 	//    the plugin root).  Fails gracefully when the binary is at
-	//    ~/.local/bin/htmlgraph (standalone) or inside the marketplace cache
+	//    ~/.local/bin/wipnote (standalone) or inside the marketplace cache
 	//    (already handled above), because those paths have no plugin.json.
 	binPath, err := os.Executable()
 	if err != nil {
@@ -226,7 +226,7 @@ func resolveProjectPluginDir() string {
 
 // resolveMarketplacePluginDir reads ~/.claude/plugins/installed_plugins.json
 // and returns the first installPath that has a valid .claude-plugin/plugin.json
-// and whose key contains "htmlgraph". Returns "" on any error or miss.
+// and whose key contains "wipnote". Returns "" on any error or miss.
 func resolveMarketplacePluginDir() string {
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -247,7 +247,7 @@ func resolveMarketplacePluginDir() string {
 	}
 
 	for key, entries := range registry.Plugins {
-		if !strings.Contains(key, "htmlgraph") {
+		if !strings.Contains(key, "wipnote") {
 			continue
 		}
 		for _, e := range entries {
@@ -269,7 +269,7 @@ func resolveMarketplacePluginDir() string {
 }
 
 // autoIngestLoop runs transcript ingestion immediately, then every 60 seconds.
-// htmlgraphDir is the .wipnote/ directory of the project being served;
+// wipnoteDir is the .wipnote/ directory of the project being served;
 // its parent is used as the project-root filter for session discovery. This
 // removes the previous os.Getwd() dependency so the child process spawned
 // by the parent server (slice 2) still scopes ingestion to the correct
@@ -279,23 +279,23 @@ func resolveMarketplacePluginDir() string {
 // sequence one-time startup work (e.g. the ai-title backfill) so that such
 // work observes a fully-populated sessions table on the very first launch
 // after upgrade.
-func autoIngestLoop(database *sql.DB, htmlgraphDir string, onFirstComplete func()) {
-	autoIngestOnce(database, htmlgraphDir)
+func autoIngestLoop(database *sql.DB, wipnoteDir string, onFirstComplete func()) {
+	autoIngestOnce(database, wipnoteDir)
 	if onFirstComplete != nil {
 		onFirstComplete()
 	}
 	for {
 		time.Sleep(60 * time.Second)
-		autoIngestOnce(database, htmlgraphDir)
+		autoIngestOnce(database, wipnoteDir)
 	}
 }
 
 // autoIngestOnce discovers session files and ingests any that are new.
-func autoIngestOnce(database *sql.DB, htmlgraphDir string) {
-	// Filter to current project only — derive project root from htmlgraphDir
+func autoIngestOnce(database *sql.DB, wipnoteDir string) {
+	// Filter to current project only — derive project root from wipnoteDir
 	// (parent of .wipnote/) so the child-process server still scopes
 	// ingestion correctly.
-	projectFilter := filepath.Dir(htmlgraphDir)
+	projectFilter := filepath.Dir(wipnoteDir)
 	files, err := ingest.DiscoverSessions(projectFilter)
 	if err != nil {
 		return
@@ -341,7 +341,7 @@ func autoIngestOnce(database *sql.DB, htmlgraphDir string) {
 		ensureSession(database, sf.SessionID, result, sessionSourceDir)
 		msgCount, toolCount := storeParseResult(database, sf.SessionID, "", result)
 		_ = dbpkg.UpdateTranscriptSync(database, sf.SessionID, sf.Path)
-		if rerr := hooks.RenderIngestedSessionHTML(htmlgraphDir, sf.SessionID, sessionSourceDir, result, false); rerr != nil {
+		if rerr := hooks.RenderIngestedSessionHTML(wipnoteDir, sf.SessionID, sessionSourceDir, result, false); rerr != nil {
 			log.Printf("auto-ingest: render HTML for %s: %v\n", truncate(sf.SessionID, 14), rerr)
 		}
 		if msgCount > 0 {
@@ -354,7 +354,7 @@ func autoIngestOnce(database *sql.DB, htmlgraphDir string) {
 	// "active" if file modified < 5 min ago, "completed" otherwise.
 	// Also tag active sessions with launch_mode from .launch-mode file.
 	launchMode := ""
-	if data, err := os.ReadFile(filepath.Join(htmlgraphDir, ".launch-mode")); err == nil {
+	if data, err := os.ReadFile(filepath.Join(wipnoteDir, ".launch-mode")); err == nil {
 		if strings.Contains(string(data), `"yolo`) {
 			launchMode = "yolo"
 		}
@@ -380,15 +380,14 @@ func autoIngestOnce(database *sql.DB, htmlgraphDir string) {
 }
 
 // isHeadlessSession returns true if the session was created by the
-// htmlgraph titler (claude -p calls). Detected by the [htmlgraph-titler]
+// wipnote titler (claude -p calls). Detected by the [wipnote-titler]
 // marker in the first user message.
 func isHeadlessSession(result *ingest.ParseResult) bool {
 	for _, m := range result.Messages {
 		if m.Role == "user" {
-			return strings.Contains(m.Content, "[htmlgraph-titler]") ||
+			return strings.Contains(m.Content, "[wipnote-titler]") ||
 				strings.Contains(m.Content, "Generate a concise 4-8 word title for this AI coding session")
 		}
 	}
 	return false
 }
-

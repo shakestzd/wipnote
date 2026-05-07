@@ -1,5 +1,5 @@
 // Package ingest reads Claude Code JSONL session files and extracts
-// structured messages and tool calls for storage in HtmlGraph's database.
+// structured messages and tool calls for storage in wipnote's database.
 package ingest
 
 import (
@@ -18,7 +18,7 @@ import (
 
 // EventID generates a deterministic event ID from a session, tool use ID,
 // tool name, and index. Uses SHA-256 hash formatted as "evt-" + 8 hex chars.
-// Shared between the cmd/htmlgraph ingest pipeline and the internal/hooks
+// Shared between the cmd/wipnote ingest pipeline and the internal/hooks
 // session HTML renderer so both agree on event_id for the same logical call.
 func EventID(sessionID, toolUseID, toolName string, index int) string {
 	key := sessionID + "|" + toolUseID

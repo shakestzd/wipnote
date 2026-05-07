@@ -12,7 +12,7 @@ import (
 // ---- plan set-status --------------------------------------------------------
 
 // validPlanStatuses is the canonical list of plan statuses, sourced from
-// cmd/htmlgraph/plan_validate.go (validStatuses map) and updatePlanStatus.
+// cmd/wipnote/plan_validate.go (validStatuses map) and updatePlanStatus.
 // 'active' and 'completed' are v2 lifecycle states (slice-1) that align the
 // CLI vocabulary with internal/planyaml/validate.go meta.status enum.
 var validPlanStatuses = []string{"todo", "draft", "in-progress", "done", "finalized", "active", "completed"}
@@ -33,16 +33,16 @@ func runPlanSetStatus(planID, status string) error {
 		return err
 	}
 
-	htmlgraphDir, err := findHtmlgraphDir()
+	wipnoteDir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}
 
-	if err := updatePlanStatus(htmlgraphDir, planID, status); err != nil {
+	if err := updatePlanStatus(wipnoteDir, planID, status); err != nil {
 		return err
 	}
 
-	yamlPath := filepath.Join(htmlgraphDir, "plans", planID+".yaml")
+	yamlPath := filepath.Join(wipnoteDir, "plans", planID+".yaml")
 	if err := commitPlanChange(yamlPath, fmt.Sprintf("plan set-status %s %s", planID, status)); err != nil {
 		return fmt.Errorf("autocommit set-status: %w", err)
 	}

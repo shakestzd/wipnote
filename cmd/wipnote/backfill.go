@@ -40,12 +40,12 @@ empty, using the session's active_feature_id. Safe to run multiple times.`,
 }
 
 func runBackfillFeatureFiles(_ *cobra.Command, _ []string) error {
-	htmlgraphDir, err := findHtmlgraphDir()
+	wipnoteDir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}
 
-	database, err := openDB(htmlgraphDir)
+	database, err := openDB(wipnoteDir)
 	if err != nil {
 		return fmt.Errorf("open database: %w", err)
 	}
@@ -103,12 +103,12 @@ func runBackfillFeatureFiles(_ *cobra.Command, _ []string) error {
 }
 
 func runBackfillToolCallsFeature(_ *cobra.Command, _ []string) error {
-	htmlgraphDir, err := findHtmlgraphDir()
+	wipnoteDir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}
 
-	database, err := openDB(htmlgraphDir)
+	database, err := openDB(wipnoteDir)
 	if err != nil {
 		return fmt.Errorf("open database: %w", err)
 	}

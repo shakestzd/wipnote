@@ -35,7 +35,7 @@ func gitInitWithFiles(t *testing.T, root string, files ...string) {
 }
 
 // setupAreasTestDB creates a temp .wipnote dir with a populated SQLite DB.
-// Returns the htmlgraph dir path and a cleanup function.
+// Returns the wipnote dir path and a cleanup function.
 func setupAreasTestDB(t *testing.T) string {
 	t.Helper()
 	tmpDir := t.TempDir()
@@ -62,7 +62,7 @@ func areasSetup(t *testing.T) (root, hgDir string) {
 	}
 	gitInitWithFiles(t, root, files...)
 
-	d, err := db.Open(filepath.Join(hgDir, "htmlgraph.db"))
+	d, err := db.Open(filepath.Join(hgDir, "wipnote.db"))
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
@@ -107,10 +107,10 @@ func areasSetup(t *testing.T) (root, hgDir string) {
 }
 
 // captureCodeAreas runs formatAreasText / formatAreasMarkdown directly via WalkAreas.
-// This avoids the DB-open path in runCodeAreas (which relies on findHtmlgraphDir).
+// This avoids the DB-open path in runCodeAreas (which relies on findWipnoteDir).
 func captureCodeAreas(t *testing.T, hgDir, rootDir, format string, byFile, includeUntracked bool) string {
 	t.Helper()
-	d, err := db.Open(filepath.Join(hgDir, "htmlgraph.db"))
+	d, err := db.Open(filepath.Join(hgDir, "wipnote.db"))
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
@@ -236,4 +236,3 @@ func TestCodeAreas_CmdRegistered(t *testing.T) {
 		t.Error("code-areas command not registered in buildRoot()")
 	}
 }
-

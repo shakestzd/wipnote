@@ -49,7 +49,7 @@ func graphCyclesCmd() *cobra.Command {
 }
 
 func runGraphCycles() error {
-	dir, err := findHtmlgraphDir()
+	dir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}
@@ -107,7 +107,7 @@ func graphPathCmd() *cobra.Command {
 }
 
 func runGraphPath(fromID, toID string) error {
-	dir, err := findHtmlgraphDir()
+	dir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}
@@ -162,7 +162,7 @@ func graphReachCmd() *cobra.Command {
 }
 
 func runGraphReach(startID string, depth int) error {
-	dir, err := findHtmlgraphDir()
+	dir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}
@@ -213,7 +213,7 @@ func graphOrphansCmd() *cobra.Command {
 }
 
 func runGraphOrphans() error {
-	dir, err := findHtmlgraphDir()
+	dir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}
@@ -264,7 +264,7 @@ func graphHubsCmd() *cobra.Command {
 }
 
 func runGraphHubs(minEdges int) error {
-	dir, err := findHtmlgraphDir()
+	dir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}
@@ -313,7 +313,7 @@ func graphBottlenecksCmd() *cobra.Command {
 }
 
 func runGraphBottlenecks() error {
-	dir, err := findHtmlgraphDir()
+	dir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}
@@ -363,7 +363,7 @@ func graphSessionsCmd() *cobra.Command {
 }
 
 func runGraphSessions(featureID string) error {
-	dir, err := findHtmlgraphDir()
+	dir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}

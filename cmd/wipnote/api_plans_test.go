@@ -36,7 +36,7 @@ func setupPlanTestDB(t *testing.T) (*sql.DB, string) {
 }
 
 // writeTempPlanHTML creates a temporary .wipnote/plans directory with a
-// minimal plan HTML file and a matching YAML file. Returns the htmlgraphDir.
+// minimal plan HTML file and a matching YAML file. Returns the wipnoteDir.
 func writeTempPlanHTML(t *testing.T, planID string) string {
 	t.Helper()
 	dir := t.TempDir()
@@ -100,9 +100,9 @@ func TestExtractPlanID(t *testing.T) {
 
 func TestPlanFileHandler_Serves(t *testing.T) {
 	planID := "plan-file-test"
-	htmlgraphDir := writeTempPlanHTML(t, planID)
+	wipnoteDir := writeTempPlanHTML(t, planID)
 
-	handler := planFileHandler(htmlgraphDir)
+	handler := planFileHandler(wipnoteDir)
 	req := httptest.NewRequest(http.MethodGet, "/plans/"+planID+".html", nil)
 	w := httptest.NewRecorder()
 	handler(w, req)
@@ -116,11 +116,11 @@ func TestPlanFileHandler_Serves(t *testing.T) {
 }
 
 func TestPlanFileHandler_NotFound(t *testing.T) {
-	htmlgraphDir := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(htmlgraphDir, "plans"), 0o755); err != nil {
+	wipnoteDir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(wipnoteDir, "plans"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	handler := planFileHandler(htmlgraphDir)
+	handler := planFileHandler(wipnoteDir)
 	req := httptest.NewRequest(http.MethodGet, "/plans/plan-missing.html", nil)
 	w := httptest.NewRecorder()
 	handler(w, req)
@@ -130,8 +130,8 @@ func TestPlanFileHandler_NotFound(t *testing.T) {
 }
 
 func TestPlanFileHandler_RejectsPathTraversal(t *testing.T) {
-	htmlgraphDir := t.TempDir()
-	handler := planFileHandler(htmlgraphDir)
+	wipnoteDir := t.TempDir()
+	handler := planFileHandler(wipnoteDir)
 	req := httptest.NewRequest(http.MethodGet, "/plans/../secret.html", nil)
 	w := httptest.NewRecorder()
 	handler(w, req)
@@ -146,13 +146,13 @@ func TestPlanFileHandler_RejectsPathTraversal(t *testing.T) {
 
 func TestPlanStatusHandler_OK(t *testing.T) {
 	database, planID := setupPlanTestDB(t)
-	htmlgraphDir := writeTempPlanHTML(t, planID)
+	wipnoteDir := writeTempPlanHTML(t, planID)
 
 	if err := db.StorePlanFeedback(database, planID, "design", "approve", "true", ""); err != nil {
 		t.Fatalf("store feedback: %v", err)
 	}
 
-	handler := planStatusHandler(database, htmlgraphDir)
+	handler := planStatusHandler(database, wipnoteDir)
 	req := httptest.NewRequest(http.MethodGet, "/api/plans/"+planID+"/status", nil)
 	w := httptest.NewRecorder()
 	handler(w, req)
@@ -177,11 +177,11 @@ func TestPlanStatusHandler_OK(t *testing.T) {
 
 func TestPlanStatusHandler_PlanNotFound(t *testing.T) {
 	database, _ := setupPlanTestDB(t)
-	htmlgraphDir := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(htmlgraphDir, "plans"), 0o755); err != nil {
+	wipnoteDir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(wipnoteDir, "plans"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	handler := planStatusHandler(database, htmlgraphDir)
+	handler := planStatusHandler(database, wipnoteDir)
 	req := httptest.NewRequest(http.MethodGet, "/api/plans/plan-missing/status", nil)
 	w := httptest.NewRecorder()
 	handler(w, req)
@@ -240,9 +240,9 @@ func TestPlanFeedbackSubmitHandler_MissingFields(t *testing.T) {
 
 func TestPlanFinalizeHandler_NotApproved(t *testing.T) {
 	database, planID := setupPlanTestDB(t)
-	htmlgraphDir := writeTempPlanHTML(t, planID)
+	wipnoteDir := writeTempPlanHTML(t, planID)
 
-	handler := planFinalizeHandler(database, htmlgraphDir)
+	handler := planFinalizeHandler(database, wipnoteDir)
 	req := httptest.NewRequest(http.MethodPost, "/api/plans/"+planID+"/finalize", nil)
 	w := httptest.NewRecorder()
 	handler(w, req)
@@ -254,7 +254,7 @@ func TestPlanFinalizeHandler_NotApproved(t *testing.T) {
 
 func TestPlanFinalizeHandler_Success(t *testing.T) {
 	database, planID := setupPlanTestDB(t)
-	htmlgraphDir := writeTempPlanHTML(t, planID)
+	wipnoteDir := writeTempPlanHTML(t, planID)
 
 	for _, section := range []string{"design", "outline"} {
 		if err := db.StorePlanFeedback(database, planID, section, "approve", "true", ""); err != nil {
@@ -262,7 +262,7 @@ func TestPlanFinalizeHandler_Success(t *testing.T) {
 		}
 	}
 
-	handler := planFinalizeHandler(database, htmlgraphDir)
+	handler := planFinalizeHandler(database, wipnoteDir)
 	req := httptest.NewRequest(http.MethodPost, "/api/plans/"+planID+"/finalize", nil)
 	w := httptest.NewRecorder()
 	handler(w, req)
@@ -280,7 +280,7 @@ func TestPlanFinalizeHandler_Success(t *testing.T) {
 	}
 
 	// Verify HTML file was updated on disk.
-	htmlStatus, err := parsePlanHTMLStatus(filepath.Join(htmlgraphDir, "plans", planID+".html"))
+	htmlStatus, err := parsePlanHTMLStatus(filepath.Join(wipnoteDir, "plans", planID+".html"))
 	if err != nil {
 		t.Fatalf("parsePlanHTMLStatus: %v", err)
 	}
@@ -417,9 +417,9 @@ func TestBuildFeedbackResponse_NoChatMessages(t *testing.T) {
 
 func TestPlanChatHandler_MethodNotAllowed(t *testing.T) {
 	database, planID := setupPlanTestDB(t)
-	htmlgraphDir := writeTempPlanHTML(t, planID)
+	wipnoteDir := writeTempPlanHTML(t, planID)
 
-	router := planRouter(database, htmlgraphDir)
+	router := planRouter(database, wipnoteDir)
 	req := httptest.NewRequest(http.MethodGet, "/api/plans/"+planID+"/chat", nil)
 	w := httptest.NewRecorder()
 	router(w, req)
@@ -431,9 +431,9 @@ func TestPlanChatHandler_MethodNotAllowed(t *testing.T) {
 
 func TestPlanChatHandler_EmptyMessage(t *testing.T) {
 	database, planID := setupPlanTestDB(t)
-	htmlgraphDir := writeTempPlanHTML(t, planID)
+	wipnoteDir := writeTempPlanHTML(t, planID)
 
-	router := planRouter(database, htmlgraphDir)
+	router := planRouter(database, wipnoteDir)
 	body, _ := json.Marshal(map[string]string{"message": ""})
 	req := httptest.NewRequest(http.MethodPost, "/api/plans/"+planID+"/chat", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
@@ -447,9 +447,9 @@ func TestPlanChatHandler_EmptyMessage(t *testing.T) {
 
 func TestPlanChatHandler_InvalidJSON(t *testing.T) {
 	database, planID := setupPlanTestDB(t)
-	htmlgraphDir := writeTempPlanHTML(t, planID)
+	wipnoteDir := writeTempPlanHTML(t, planID)
 
-	router := planRouter(database, htmlgraphDir)
+	router := planRouter(database, wipnoteDir)
 	req := httptest.NewRequest(http.MethodPost, "/api/plans/"+planID+"/chat",
 		bytes.NewReader([]byte("not json")))
 	req.Header.Set("Content-Type", "application/json")
@@ -466,13 +466,13 @@ func TestPlanChatHandler_Unavailable(t *testing.T) {
 	// This test only works reliably when claude is NOT installed,
 	// which is the CI default. Skip if claude is available.
 	database, planID := setupPlanTestDB(t)
-	htmlgraphDir := writeTempPlanHTML(t, planID)
+	wipnoteDir := writeTempPlanHTML(t, planID)
 
 	// Override PATH to ensure claude is not found.
 	t.Setenv("PATH", "/nonexistent")
 	t.Setenv("ANTHROPIC_API_KEY", "")
 
-	router := planRouter(database, htmlgraphDir)
+	router := planRouter(database, wipnoteDir)
 	body, _ := json.Marshal(map[string]string{"message": "hello"})
 	req := httptest.NewRequest(http.MethodPost, "/api/plans/"+planID+"/chat", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
@@ -521,9 +521,9 @@ func writeTempPlanYAML(t *testing.T, planID, content string) string {
 func TestPlanYAMLEndpoint_Found(t *testing.T) {
 	planID := "plan-yaml-test"
 	yamlContent := "meta:\n  id: " + planID + "\ntitle: Test Plan\n"
-	htmlgraphDir := writeTempPlanYAML(t, planID, yamlContent)
+	wipnoteDir := writeTempPlanYAML(t, planID, yamlContent)
 
-	handler := planYAMLHandler(htmlgraphDir)
+	handler := planYAMLHandler(wipnoteDir)
 	req := httptest.NewRequest(http.MethodGet, "/api/plans/"+planID+"/yaml", nil)
 	w := httptest.NewRecorder()
 	handler(w, req)
@@ -541,12 +541,12 @@ func TestPlanYAMLEndpoint_Found(t *testing.T) {
 }
 
 func TestPlanYAMLEndpoint_NotFound(t *testing.T) {
-	htmlgraphDir := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(htmlgraphDir, "plans"), 0o755); err != nil {
+	wipnoteDir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(wipnoteDir, "plans"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 
-	handler := planYAMLHandler(htmlgraphDir)
+	handler := planYAMLHandler(wipnoteDir)
 	req := httptest.NewRequest(http.MethodGet, "/api/plans/nonexistent/yaml", nil)
 	w := httptest.NewRecorder()
 	handler(w, req)
@@ -557,9 +557,9 @@ func TestPlanYAMLEndpoint_NotFound(t *testing.T) {
 }
 
 func TestPlanYAMLEndpoint_MethodNotAllowed(t *testing.T) {
-	htmlgraphDir := t.TempDir()
+	wipnoteDir := t.TempDir()
 
-	handler := planYAMLHandler(htmlgraphDir)
+	handler := planYAMLHandler(wipnoteDir)
 	req := httptest.NewRequest(http.MethodPost, "/api/plans/some-plan/yaml", nil)
 	w := httptest.NewRecorder()
 	handler(w, req)
@@ -609,9 +609,9 @@ func TestValidSectionRe_AcceptsSliceQuestion_Underscores(t *testing.T) {
 
 func TestValidSectionRe_RejectsBadFormats(t *testing.T) {
 	bad := []string{
-		"slice-",            // no num
-		"slice-abc",         // non-numeric num
-		"slice-1-question-", // no question ID
+		"slice-",                // no num
+		"slice-abc",             // non-numeric num
+		"slice-1-question-",     // no question ID
 		"slice-1-questionn-foo", // typo: extra 'n'
 		"slice-",
 		"slice",

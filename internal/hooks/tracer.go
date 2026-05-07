@@ -7,15 +7,15 @@ import (
 	"time"
 )
 
-const traceFile = "/tmp/htmlgraph-hook-trace.jsonl"
+const traceFile = "/tmp/wipnote-hook-trace.jsonl"
 
 // traceRecord is the JSONL schema written per hook invocation.
 type traceRecord struct {
-	TS          string             `json:"ts"`
-	Subcommand  string             `json:"subcommand"`
-	RawPayload  json.RawMessage    `json:"raw_payload"`
-	Resolved    traceResolved      `json:"resolved"`
-	EnvSnapshot map[string]string  `json:"env_snapshot"`
+	TS          string            `json:"ts"`
+	Subcommand  string            `json:"subcommand"`
+	RawPayload  json.RawMessage   `json:"raw_payload"`
+	Resolved    traceResolved     `json:"resolved"`
+	EnvSnapshot map[string]string `json:"env_snapshot"`
 }
 
 type traceResolved struct {
@@ -33,7 +33,7 @@ func TruncateTraceFile() {
 	_ = os.Remove(traceFile)
 }
 
-// TraceInvocation appends a JSONL line to /tmp/htmlgraph-hook-trace.jsonl.
+// TraceInvocation appends a JSONL line to /tmp/wipnote-hook-trace.jsonl.
 // It never causes a hook to fail — all errors are silently swallowed.
 func TraceInvocation(subcommand string, rawPayload []byte, parsed *CloudEvent) {
 	defer func() { recover() }() //nolint:errcheck

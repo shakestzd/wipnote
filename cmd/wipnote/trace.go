@@ -31,10 +31,10 @@ func traceCmd() *cobra.Command {
   trace <spk-id>      — commits, sessions, and files for a spike (forward)
 
 Examples:
-  htmlgraph trace abc1234
-  htmlgraph trace internal/db/schema.go
-  htmlgraph trace feat-046e2e03
-  htmlgraph trace feat-046e2e03 --json`,
+  wipnote trace abc1234
+  wipnote trace internal/db/schema.go
+  wipnote trace feat-046e2e03
+  wipnote trace feat-046e2e03 --json`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
 			return runTrace(args[0], jsonOut)
@@ -67,7 +67,7 @@ func looksLikeWorkItemID(s string) bool {
 
 func runTrace(arg string, jsonOut bool) error {
 	if looksLikeWorkItemID(arg) {
-		dir, err := findHtmlgraphDir()
+		dir, err := findWipnoteDir()
 		if err != nil {
 			return err
 		}
@@ -93,20 +93,20 @@ func runTrace(arg string, jsonOut bool) error {
 
 // traceCommitJSON is the structured output schema for commit tracing.
 type traceCommitJSON struct {
-	Query   string            `json:"query"`
-	Results []traceCommitHit  `json:"results"`
+	Query   string           `json:"query"`
+	Results []traceCommitHit `json:"results"`
 }
 
 type traceCommitHit struct {
-	Commit   string `json:"commit"`
-	Message  string `json:"message,omitempty"`
-	Session  string `json:"session,omitempty"`
-	Feature  string `json:"feature,omitempty"`
-	Track    string `json:"track,omitempty"`
+	Commit  string `json:"commit"`
+	Message string `json:"message,omitempty"`
+	Session string `json:"session,omitempty"`
+	Feature string `json:"feature,omitempty"`
+	Track   string `json:"track,omitempty"`
 }
 
 func runTraceCommit(sha string, jsonOut bool) error {
-	dir, err := findHtmlgraphDir()
+	dir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}
@@ -126,7 +126,7 @@ func runTraceCommit(sha string, jsonOut bool) error {
 		return err
 	}
 	if len(commits) == 0 {
-		return fmt.Errorf("commit %s not found in git_commits table\nRun 'htmlgraph ingest commits' to import git history", sha)
+		return fmt.Errorf("commit %s not found in git_commits table\nRun 'wipnote ingest commits' to import git history", sha)
 	}
 
 	if jsonOut {
@@ -187,7 +187,7 @@ type traceFileHit struct {
 }
 
 func runTraceFile(filePath string, jsonOut bool) error {
-	dir, err := findHtmlgraphDir()
+	dir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}
@@ -243,7 +243,7 @@ func runTraceFile(filePath string, jsonOut bool) error {
 
 	if len(results) == 0 {
 		fmt.Println("  No features found for this file.")
-		fmt.Println("  Run 'htmlgraph reindex' to rebuild file attribution.")
+		fmt.Println("  Run 'wipnote reindex' to rebuild file attribution.")
 		return nil
 	}
 

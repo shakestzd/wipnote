@@ -17,7 +17,7 @@ func getBootstrapScriptPath(t *testing.T) string {
 		t.Fatal("Could not determine current test file location")
 	}
 
-	// Walk up from cmd/htmlgraph/bootstrap_test.go to repo root
+	// Walk up from cmd/wipnote/bootstrap_test.go to repo root
 	repoRoot := filepath.Dir(filepath.Dir(filepath.Dir(thisFile)))
 
 	scriptPath := filepath.Join(repoRoot, "plugin", "hooks", "bin", "bootstrap.sh")
@@ -77,9 +77,9 @@ func TestBootstrapScriptHasPathCheck(t *testing.T) {
 
 	scriptContent := string(content)
 
-	// Verify the script contains "command -v htmlgraph" for PATH lookup
-	if !strings.Contains(scriptContent, "command -v htmlgraph") {
-		t.Error("bootstrap.sh must check PATH via 'command -v htmlgraph'")
+	// Verify the script contains "command -v wipnote" for PATH lookup
+	if !strings.Contains(scriptContent, "command -v wipnote") {
+		t.Error("bootstrap.sh must check PATH via 'command -v wipnote'")
 	}
 
 	// Verify it uses PATH_BINARY variable
@@ -137,7 +137,7 @@ func TestBootstrapScriptStructure(t *testing.T) {
 	scriptContent := string(content)
 
 	// Find line numbers of key sections
-	pathCheckIdx := strings.Index(scriptContent, "command -v htmlgraph")
+	pathCheckIdx := strings.Index(scriptContent, "command -v wipnote")
 	fastPathIdx := strings.Index(scriptContent, "Fast path:")
 	slowPathIdx := strings.Index(scriptContent, "Slow path:")
 

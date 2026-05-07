@@ -45,23 +45,23 @@ type WriteScope struct {
 
 // Claim represents a time-bounded assignment of a work item to a session.
 type Claim struct {
-	ClaimID           string          `json:"claim_id"`
-	WorkItemID        string          `json:"work_item_id"`
-	TrackID           string          `json:"track_id,omitempty"`
-	OwnerSessionID    string          `json:"owner_session_id"`
-	OwnerAgent        string          `json:"owner_agent"`
-	ClaimedByAgentID  string          `json:"claimed_by_agent_id"` // subagent ID or "" for orchestrator
-	Status            ClaimStatus     `json:"status"`
-	IntendedOutput    string          `json:"intended_output,omitempty"`
-	WriteScope        json.RawMessage `json:"write_scope,omitempty"`
-	LeasedAt          time.Time       `json:"leased_at"`
-	LeaseExpiresAt    time.Time       `json:"lease_expires_at"`
-	LastHeartbeatAt   time.Time       `json:"last_heartbeat_at"`
-	Dependencies      json.RawMessage `json:"dependencies,omitempty"`
-	ProgressNotes     string          `json:"progress_notes,omitempty"`
-	BlockerReason     string          `json:"blocker_reason,omitempty"`
-	CreatedAt         time.Time       `json:"created_at"`
-	UpdatedAt         time.Time       `json:"updated_at"`
+	ClaimID          string          `json:"claim_id"`
+	WorkItemID       string          `json:"work_item_id"`
+	TrackID          string          `json:"track_id,omitempty"`
+	OwnerSessionID   string          `json:"owner_session_id"`
+	OwnerAgent       string          `json:"owner_agent"`
+	ClaimedByAgentID string          `json:"claimed_by_agent_id"` // subagent ID or "" for orchestrator
+	Status           ClaimStatus     `json:"status"`
+	IntendedOutput   string          `json:"intended_output,omitempty"`
+	WriteScope       json.RawMessage `json:"write_scope,omitempty"`
+	LeasedAt         time.Time       `json:"leased_at"`
+	LeaseExpiresAt   time.Time       `json:"lease_expires_at"`
+	LastHeartbeatAt  time.Time       `json:"last_heartbeat_at"`
+	Dependencies     json.RawMessage `json:"dependencies,omitempty"`
+	ProgressNotes    string          `json:"progress_notes,omitempty"`
+	BlockerReason    string          `json:"blocker_reason,omitempty"`
+	CreatedAt        time.Time       `json:"created_at"`
+	UpdatedAt        time.Time       `json:"updated_at"`
 }
 
 // IsActive reports whether the claim is in a non-terminal state.

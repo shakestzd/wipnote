@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>HtmlGraph — Graph Viewer</title>
+  <title>wipnote — Graph Viewer</title>
   <style>
     :root {
       --bg-primary:    #151518;
@@ -198,7 +198,7 @@
 </head>
 <body>
   <header>
-    <h1>HtmlGraph Graph Viewer</h1>
+    <h1>wipnote Graph Viewer</h1>
     <span id="loading">Loading…</span>
     <div id="stats"></div>
   </header>
@@ -235,7 +235,7 @@
 
       for (const type of types) {
         try {
-          const resp = await fetch(`.htmlgraph/${type}/`);
+          const resp = await fetch(`.wipnote/${type}/`);
           if (!resp.ok) continue;
           const html = await resp.text();
           const doc = parser.parseFromString(html, 'text/html');
@@ -244,7 +244,7 @@
           for (const link of links) {
             const href = link.getAttribute('href');
             if (!href || href.startsWith('?') || href.startsWith('/') || href.includes('..')) continue;
-            const itemUrl = `.htmlgraph/${type}/${href}`;
+            const itemUrl = `.wipnote/${type}/${href}`;
             try {
               const itemResp = await fetch(itemUrl);
               if (!itemResp.ok) continue;

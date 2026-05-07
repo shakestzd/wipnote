@@ -12,7 +12,7 @@ import (
 // TestSubagentStart_WritesLineageRows is the bug-cb4918d8 regression test for
 // the subagent-start write path. Given a CloudEvent with agent_id and
 // agent_type populated (the empirically-verified discriminator fields from
-// /tmp/htmlgraph-hook-trace.jsonl), the handler must:
+// /tmp/wipnote-hook-trace.jsonl), the handler must:
 //
 //  1. Insert a synthetic sessions row keyed by agent_id with
 //     parent_session_id = event.SessionID and is_subagent = 1.
@@ -22,7 +22,7 @@ func TestSubagentStart_WritesLineageRows(t *testing.T) {
 	database, projectDir := setupLifecycleDB(t)
 	parentSessionID := "parent-session-cb4918d8"
 	subagentID := "subagent-abc123"
-	agentType := "htmlgraph:haiku-coder"
+	agentType := "wipnote:haiku-coder"
 
 	// Isolate from the dev environment.
 	t.Setenv("WIPNOTE_PROJECT_DIR", projectDir)
@@ -172,7 +172,7 @@ func TestSubagentStart_WritesPendingSubagentRow(t *testing.T) {
 	database, projectDir := setupLifecycleDB(t)
 	parentSessionID := "parent-pending-test"
 	subagentID := "subagent-pending-123"
-	agentType := "htmlgraph:haiku-coder"
+	agentType := "wipnote:haiku-coder"
 
 	t.Setenv("WIPNOTE_PROJECT_DIR", projectDir)
 	t.Setenv("WIPNOTE_SESSION_ID", parentSessionID)
@@ -267,7 +267,7 @@ func TestSubagentStart_WritesPendingSubagentRowIdempotent(t *testing.T) {
 }
 
 // TestSubagentStart_WritesOTELResourceAttributes asserts that writeSubagentEnvVars
-// appends OTEL_RESOURCE_ATTRIBUTES=htmlgraph.agent_id=<id> to CLAUDE_ENV_FILE,
+// appends OTEL_RESOURCE_ATTRIBUTES=wipnote.agent_id=<id> to CLAUDE_ENV_FILE,
 // merging with any existing value so pre-existing attributes are preserved.
 func TestSubagentStart_WritesOTELResourceAttributes(t *testing.T) {
 	database, projectDir := setupLifecycleDB(t)
@@ -314,7 +314,7 @@ func TestSubagentStart_WritesOTELResourceAttributes(t *testing.T) {
 	}
 	fileStr := string(content)
 
-	expectedSubstr := "htmlgraph.agent_id=" + subagentID
+	expectedSubstr := "wipnote.agent_id=" + subagentID
 	if !strings.Contains(fileStr, expectedSubstr) {
 		t.Errorf("CLAUDE_ENV_FILE does not contain %q\n\nfile contents:\n%s", expectedSubstr, fileStr)
 	}
@@ -330,12 +330,12 @@ func TestSubagentStart_WritesOTELResourceAttributes(t *testing.T) {
 // store the agent_id and agent_type from the raw payload unchanged.
 // Before the fix, parseCodexEvent was invoked (because Claude Code's payload
 // contains hook_event_name), which hardcoded AgentID="codex" and defaulted
-// AgentType="general-purpose", stomping htmlgraph:* agent attribution.
+// AgentType="general-purpose", stomping wipnote:* agent attribution.
 func TestSubagentStart_PreservesClaudeCodeAgentIdentity(t *testing.T) {
 	database, projectDir := setupLifecycleDB(t)
 	parentSessionID := "parent-session-1b095c09"
 	subagentID := "task-uuid-xyz"
-	agentType := "htmlgraph:researcher"
+	agentType := "wipnote:researcher"
 
 	// Simulate leaked Codex env — must NOT override the payload's agent_id.
 	t.Setenv("WIPNOTE_PARENT_AGENT", "codex")

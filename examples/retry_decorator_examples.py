@@ -11,7 +11,7 @@ import logging
 import time
 from typing import Any
 
-from htmlgraph import retry, retry_async
+from wipnote import retry, retry_async
 
 # Configure logging to see retry messages
 logging.basicConfig(

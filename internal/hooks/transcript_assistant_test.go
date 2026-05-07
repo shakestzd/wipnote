@@ -96,11 +96,11 @@ func makeAssistantToolUseRecord(uuid, parentUUID, sessionID string) string {
 // makeUserToolResultRecord returns a JSONL line for a user record with tool_result.
 func makeUserToolResultRecord(uuid, parentUUID, sessionID, toolUseID string) string {
 	rec := map[string]any{
-		"type":      "user",
-		"uuid":      uuid,
+		"type":       "user",
+		"uuid":       uuid,
 		"parentUuid": parentUUID,
-		"sessionId": sessionID,
-		"timestamp": "2026-04-20T09:59:00.000Z",
+		"sessionId":  sessionID,
+		"timestamp":  "2026-04-20T09:59:00.000Z",
 		"message": map[string]any{
 			"role": "user",
 			"content": []map[string]any{

@@ -14,8 +14,8 @@ func buildCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "build",
-		Short: "Rebuild the htmlgraph binary",
-		Long:  "Rebuild the htmlgraph Go binary using the build script in the plugin directory.",
+		Short: "Rebuild the wipnote binary",
+		Long:  "Rebuild the wipnote Go binary using the build script in the plugin directory.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			buildScript, err := resolveBuildScript()
 			if err != nil {
@@ -42,8 +42,8 @@ func buildCmd() *cobra.Command {
 // The build script lives at plugin/build.sh.  Its location
 // depends on which binary is running:
 //
-//   - Dev mode: binary at plugin/hooks/bin/htmlgraph → two levels up
-//   - Standalone CLI: binary at ~/.local/bin/htmlgraph → walk-up fails;
+//   - Dev mode: binary at plugin/hooks/bin/wipnote → two levels up
+//   - Standalone CLI: binary at ~/.local/bin/wipnote → walk-up fails;
 //     fall back to plugin dir from CLAUDE_PLUGIN_ROOT / WIPNOTE_PLUGIN_DIR /
 //     project-root detection
 //   - Marketplace install: binary is a bootstrap script, not the real binary;
@@ -79,7 +79,7 @@ func resolveBuildScript() (string, error) {
 
 	// 3. Project-root detection: find the .wipnote/ directory walking up from
 	//    CWD, then look for plugin/ adjacent to .wipnote/.
-	//    This works when the user runs `htmlgraph build` from anywhere inside
+	//    This works when the user runs `wipnote build` from anywhere inside
 	//    the project tree (standalone CLI case).
 	if cwd, err := os.Getwd(); err == nil {
 		dir := cwd
@@ -99,7 +99,7 @@ func resolveBuildScript() (string, error) {
 	}
 
 	// 4. os.Executable() walk-up — works for dev mode where the binary lives
-	//    at plugin/hooks/bin/htmlgraph.
+	//    at plugin/hooks/bin/wipnote.
 	binPath, err := os.Executable()
 	if err != nil {
 		return "", fmt.Errorf("finding executable path: %w", err)

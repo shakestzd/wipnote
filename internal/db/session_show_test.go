@@ -31,7 +31,7 @@ func TestCountEventsByTool(t *testing.T) {
 		{"evt-cet-2", "Read", "feat-aaa"},
 		{"evt-cet-3", "Read", "feat-bbb"},
 		{"evt-cet-4", "Bash", "feat-aaa"},
-		{"evt-cet-5", "", ""},  // empty tool_name — should be excluded
+		{"evt-cet-5", "", ""}, // empty tool_name — should be excluded
 		{"evt-cet-6", "Grep", ""},
 	}
 
@@ -96,7 +96,7 @@ func TestDistinctFeatureIDs(t *testing.T) {
 		{"evt-dfi-1", "feat-aaa"},
 		{"evt-dfi-2", "feat-aaa"}, // duplicate — should deduplicate
 		{"evt-dfi-3", "feat-bbb"},
-		{"evt-dfi-4", ""},         // empty feature_id — should be excluded
+		{"evt-dfi-4", ""}, // empty feature_id — should be excluded
 		{"evt-dfi-5", "feat-ccc"},
 	}
 

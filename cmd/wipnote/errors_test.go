@@ -8,16 +8,16 @@ import (
 // TestSessionErrorMessages verifies error messages contain recovery guidance
 func TestSessionErrorMessages(t *testing.T) {
 	tests := []struct {
-		name          string
-		errorMsg      string
-		mustContain   []string
+		name        string
+		errorMsg    string
+		mustContain []string
 	}{
 		{
 			name:     "no active sessions error",
-			errorMsg: "no active sessions found\nRun 'htmlgraph session start' to begin tracking, or specify a session ID explicitly.",
+			errorMsg: "no active sessions found\nRun 'wipnote session start' to begin tracking, or specify a session ID explicitly.",
 			mustContain: []string{
 				"no active sessions found",
-				"htmlgraph session start",
+				"wipnote session start",
 				"specify a session ID",
 			},
 		},
@@ -43,21 +43,21 @@ func TestClaimErrorMessages(t *testing.T) {
 	}{
 		{
 			name:     "claim not found error",
-			errorMsg: "claim \"clm-123\" not found — claims expire after 30 minutes of inactivity\nRun 'htmlgraph claim list' to see active claims.",
+			errorMsg: "claim \"clm-123\" not found — claims expire after 30 minutes of inactivity\nRun 'wipnote claim list' to see active claims.",
 			mustContain: []string{
 				"claim \"clm-123\" not found",
 				"expire after 30 minutes",
-				"htmlgraph claim list",
+				"wipnote claim list",
 			},
 		},
 		{
 			name:     "no active session for heartbeat",
-			errorMsg: "no active session found — cannot auto-detect claim\nSpecify the claim ID directly: 'htmlgraph claim heartbeat clm-xxxxxxxx'. Run 'htmlgraph claim list' to find it.",
+			errorMsg: "no active session found — cannot auto-detect claim\nSpecify the claim ID directly: 'wipnote claim heartbeat clm-xxxxxxxx'. Run 'wipnote claim list' to find it.",
 			mustContain: []string{
 				"no active session found",
 				"cannot auto-detect claim",
 				"claim heartbeat clm-xxxxxxxx",
-				"htmlgraph claim list",
+				"wipnote claim list",
 			},
 		},
 	}
@@ -82,11 +82,11 @@ func TestReportErrorMessages(t *testing.T) {
 	}{
 		{
 			name:     "no sessions found error",
-			errorMsg: "no sessions found in the database\nRun 'htmlgraph ingest' to import Claude Code session transcripts, or 'htmlgraph session start' to begin tracking.",
+			errorMsg: "no sessions found in the database\nRun 'wipnote ingest' to import Claude Code session transcripts, or 'wipnote session start' to begin tracking.",
 			mustContain: []string{
 				"no sessions found in the database",
-				"htmlgraph ingest",
-				"htmlgraph session start",
+				"wipnote ingest",
+				"wipnote session start",
 			},
 		},
 	}

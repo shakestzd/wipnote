@@ -218,12 +218,12 @@ var _ sink.SignalSink = (*Sink)(nil)
 // signalLine is the on-disk JSON representation of a single signal.
 // Top-level fields carry the most-queried attributes; RawAttrs holds everything else.
 type signalLine struct {
-	Kind      string         `json:"kind"`
-	Harness   string         `json:"harness"`
-	TS        string         `json:"ts"`
-	SignalID  string         `json:"signal_id"`
-	SessionID string         `json:"session_id"`
-	PromptID  string         `json:"prompt_id,omitempty"`
+	Kind      string `json:"kind"`
+	Harness   string `json:"harness"`
+	TS        string `json:"ts"`
+	SignalID  string `json:"signal_id"`
+	SessionID string `json:"session_id"`
+	PromptID  string `json:"prompt_id,omitempty"`
 
 	CanonicalName string `json:"canonical,omitempty"`
 	NativeName    string `json:"native,omitempty"`
@@ -249,11 +249,11 @@ type signalLine struct {
 	CostUSD    float64 `json:"cost_usd,omitempty"`
 	CostSource string  `json:"cost_source,omitempty"`
 
-	DurationMs int64   `json:"duration_ms,omitempty"`
-	Success    *bool   `json:"success,omitempty"`
-	ErrorMsg   string  `json:"error_msg,omitempty"`
-	Attempt    int     `json:"attempt,omitempty"`
-	StatusCode int     `json:"status_code,omitempty"`
+	DurationMs int64  `json:"duration_ms,omitempty"`
+	Success    *bool  `json:"success,omitempty"`
+	ErrorMsg   string `json:"error_msg,omitempty"`
+	Attempt    int    `json:"attempt,omitempty"`
+	StatusCode int    `json:"status_code,omitempty"`
 
 	ResourceAttrs map[string]any `json:"resource_attrs,omitempty"`
 	Attrs         map[string]any `json:"attrs,omitempty"`

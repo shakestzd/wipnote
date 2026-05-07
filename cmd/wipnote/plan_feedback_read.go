@@ -15,11 +15,11 @@ import (
 
 // planFeedbackOutput is the structured JSON written to stdout by read-feedback.
 type planFeedbackOutput struct {
-	PlanID          string            `json:"plan_id"`
-	Status          string            `json:"status"`
-	SectionApprovals map[string]bool  `json:"section_approvals"`
+	PlanID           string            `json:"plan_id"`
+	Status           string            `json:"status"`
+	SectionApprovals map[string]bool   `json:"section_approvals"`
 	QuestionAnswers  map[string]string `json:"question_answers"`
-	SliceApprovals   map[string]bool  `json:"slice_approvals"`
+	SliceApprovals   map[string]bool   `json:"slice_approvals"`
 	Comments         map[string]string `json:"comments"`
 }
 
@@ -36,7 +36,7 @@ func planReadFeedbackCmd() *cobra.Command {
 }
 
 func runPlanReadFeedback(planID string) error {
-	htmlgraphDir, err := findHtmlgraphDir()
+	wipnoteDir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}
@@ -52,7 +52,7 @@ func runPlanReadFeedback(planID string) error {
 	}
 
 	// Fall back to HTML file parsing.
-	planPath := filepath.Join(htmlgraphDir, "plans", planID+".html")
+	planPath := filepath.Join(wipnoteDir, "plans", planID+".html")
 	out, err = parseFeedbackFromHTML(planID, planPath)
 	if err != nil {
 		return fmt.Errorf("read plan feedback: %w", err)
@@ -76,9 +76,9 @@ func fetchFeedbackFromAPI(planID string) (planFeedbackOutput, error) {
 	}
 
 	var apiResp struct {
-		PlanID    string `json:"plan_id"`
-		Status    string `json:"status"`
-		Sections  map[string]struct {
+		PlanID   string `json:"plan_id"`
+		Status   string `json:"status"`
+		Sections map[string]struct {
 			Approved bool   `json:"approved"`
 			Comment  string `json:"comment"`
 		} `json:"sections"`

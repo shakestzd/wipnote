@@ -16,16 +16,16 @@ func TestBuildShellCmd(t *testing.T) {
 		workItem string
 		want     string
 	}{
-		{"defaults", "", "", "", "htmlgraph claude --dev"},
-		{"claude dev", "claude", "dev", "", "htmlgraph claude --dev"},
-		{"claude normal", "claude", "normal", "", "htmlgraph claude"},
-		{"codex dev", "codex", "dev", "", "htmlgraph codex --dev"},
-		{"gemini dev", "gemini", "dev", "", "htmlgraph gemini --dev"},
+		{"defaults", "", "", "", "wipnote claude --dev"},
+		{"claude dev", "claude", "dev", "", "wipnote claude --dev"},
+		{"claude normal", "claude", "normal", "", "wipnote claude"},
+		{"codex dev", "codex", "dev", "", "wipnote codex --dev"},
+		{"gemini dev", "gemini", "dev", "", "wipnote gemini --dev"},
 		{"yolo bypasses wrapper", "yolo", "dev", "", "claude --permission-mode bypassPermissions"},
-		{"work item prefix claude", "claude", "dev", "feat-abc", "htmlgraph feature start feat-abc >/dev/null 2>&1; htmlgraph claude --dev"},
-		{"work item prefix codex", "codex", "dev", "feat-abc", "htmlgraph feature start feat-abc >/dev/null 2>&1; htmlgraph codex --dev"},
-		{"work item prefix gemini", "gemini", "dev", "feat-abc", "htmlgraph feature start feat-abc >/dev/null 2>&1; htmlgraph gemini --dev"},
-		{"work item prefix yolo", "yolo", "dev", "feat-abc", "htmlgraph feature start feat-abc >/dev/null 2>&1; claude --permission-mode bypassPermissions"},
+		{"work item prefix claude", "claude", "dev", "feat-abc", "wipnote feature start feat-abc >/dev/null 2>&1; wipnote claude --dev"},
+		{"work item prefix codex", "codex", "dev", "feat-abc", "WIPNOTE_AGENT_ID=codex WIPNOTE_AGENT_TYPE=codex wipnote feature start feat-abc >/dev/null 2>&1; wipnote codex --dev"},
+		{"work item prefix gemini", "gemini", "dev", "feat-abc", "wipnote feature start feat-abc >/dev/null 2>&1; wipnote gemini --dev"},
+		{"work item prefix yolo", "yolo", "dev", "feat-abc", "wipnote feature start feat-abc >/dev/null 2>&1; claude --permission-mode bypassPermissions"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -111,7 +111,7 @@ func TestManagerStartReturnsID(t *testing.T) {
 }
 
 // TestStartRequestZeroValue verifies that a zero-value StartRequest with defaultDir
-// resolves CWD to defaultDir and produces "htmlgraph claude --dev".
+// resolves CWD to defaultDir and produces "wipnote claude --dev".
 func TestStartRequestZeroValue(t *testing.T) {
 	var req StartRequest
 
@@ -136,7 +136,7 @@ func TestStartRequestZeroValue(t *testing.T) {
 	}
 
 	got := buildShellCmd(agent, mode, req.WorkItem)
-	want := "htmlgraph claude --dev"
+	want := "wipnote claude --dev"
 	if got != want {
 		t.Errorf("zero StartRequest should produce %q, got %q", want, got)
 	}
@@ -149,7 +149,7 @@ func TestStartRequestZeroValue(t *testing.T) {
 //
 // Note on SQLITE_BUSY criterion: Manager does not touch SQLite directly.
 // The "zero SQLITE_BUSY entries in debug.log during the launch window"
-// criterion from the plan applies to the `htmlgraph serve` parallel paths
+// criterion from the plan applies to the `wipnote serve` parallel paths
 // (guarded by checkServeLock in claude_serve_autostart.go). At the Manager
 // level there is no SQLite access, so that assertion is out-of-scope for this
 // test. The parallel-launch guard (checkServeLock/writeServeLock) lives at the

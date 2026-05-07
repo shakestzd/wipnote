@@ -92,7 +92,7 @@ func TestParseGemini_ToolCalls(t *testing.T) {
 					{
 						"id": "read_file_1234_0",
 						"name": "read_file",
-						"args": {"file_path": "/workspaces/htmlgraph/AGENTS.md"}
+						"args": {"file_path": "/workspaces/wipnote/AGENTS.md"}
 					},
 					{
 						"id": "run_shell_1234_1",
@@ -311,14 +311,14 @@ func TestGeminiParityModernToolNames(t *testing.T) {
 	// These are the modern Gemini tool names the generator emits.
 	// (They are known to be in pluginbuild.claudeToGeminiTool values.)
 	modernToolNames := map[string]string{
-		"read_file":          "Read",
-		"replace":            "Edit",
-		"write_file":         "Write",
-		"grep_search":        "Grep",
-		"glob":               "Glob",
-		"run_shell_command":  "Bash",
-		"google_web_search":  "Other",
-		"web_fetch":          "Other",
+		"read_file":         "Read",
+		"replace":           "Edit",
+		"write_file":        "Write",
+		"grep_search":       "Grep",
+		"glob":              "Glob",
+		"run_shell_command": "Bash",
+		"google_web_search": "Other",
+		"web_fetch":         "Other",
 	}
 
 	for toolName, expectedCategory := range modernToolNames {

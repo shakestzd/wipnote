@@ -14,12 +14,12 @@ import (
 )
 
 // serveLockPath returns the path of the per-project serve lock file.
-// The lock file stores the PID of a running `htmlgraph serve` process.
+// The lock file stores the PID of a running `wipnote serve` process.
 func serveLockPath(projectDir string) string {
 	return filepath.Join(projectDir, ".wipnote", ".serve.lock")
 }
 
-// ensureServeForDashboard spawns a detached `htmlgraph serve` if one is not
+// ensureServeForDashboard spawns a detached `wipnote serve` if one is not
 // already running. Called from launchClaude before exec'ing claude so that
 // the dashboard (and semantic-ops such as AI-title backfill) are available
 // for the duration of the claude session. Serve is no longer auto-started
@@ -27,10 +27,10 @@ func serveLockPath(projectDir string) string {
 //
 // Gating:
 //   - When WIPNOTE_OTEL_ENABLED is explicitly disabled (0/false/no/off),
-//     return immediately — user opted out of the full HtmlGraph stack.
+//     return immediately — user opted out of the full wipnote stack.
 //   - When the dashboard port (8080) already accepts a TCP connection,
 //     a serve process is assumed live — return nil.
-//   - Otherwise spawn `htmlgraph serve` detached, wait up to 3 seconds
+//   - Otherwise spawn `wipnote serve` detached, wait up to 3 seconds
 //     for it to bind port 8080, and log a warning if it never does. Never
 //     return an error — a missing dashboard is degraded operation, not a
 //     fatal launcher failure.
@@ -53,7 +53,7 @@ func ensureServeForDashboard(projectDir string) {
 
 	// Check the lockfile before spawning. If a serve process is already
 	// running (lock file contains a live PID), skip the spawn to prevent
-	// a second htmlgraph serve from racing to bind port 8080.
+	// a second wipnote serve from racing to bind port 8080.
 	if skipSpawn, stale := checkServeLock(projectDir); skipSpawn {
 		debugLog("ensureServeForDashboard: skipping spawn, serve already running (lockfile)")
 		return
@@ -63,7 +63,7 @@ func ensureServeForDashboard(projectDir string) {
 	}
 
 	if err := spawnDetachedServe(projectDir); err != nil {
-		fmt.Fprintf(os.Stderr, "htmlgraph: auto-start serve failed: %v\n", err)
+		fmt.Fprintf(os.Stderr, "wipnote: auto-start serve failed: %v\n", err)
 		return
 	}
 
@@ -72,12 +72,12 @@ func ensureServeForDashboard(projectDir string) {
 	defer cancel()
 	for {
 		if probePort(dashboardHost, dashboardPort, 200*time.Millisecond) {
-			fmt.Fprintf(os.Stderr, "htmlgraph: started serve (dashboard) on %s:%d\n", dashboardHost, dashboardPort)
+			fmt.Fprintf(os.Stderr, "wipnote: started serve (dashboard) on %s:%d\n", dashboardHost, dashboardPort)
 			return
 		}
 		select {
 		case <-ctx.Done():
-			fmt.Fprintf(os.Stderr, "htmlgraph: serve did not bind %s:%d within 3s; dashboard may be unavailable\n", dashboardHost, dashboardPort)
+			fmt.Fprintf(os.Stderr, "wipnote: serve did not bind %s:%d within 3s; dashboard may be unavailable\n", dashboardHost, dashboardPort)
 			return
 		case <-time.After(150 * time.Millisecond):
 		}
@@ -102,7 +102,7 @@ func otelNoticeMarkerPath(projectDir string) string {
 }
 
 // MaybeShowOtelNotice prints a one-time notice to STDERR on first launch
-// explaining that HtmlGraph captures Claude Code telemetry via OTel.
+// explaining that wipnote captures Claude Code telemetry via OTel.
 // Subsequent launches are silent (a marker file records that the notice
 // has been shown). Safe to call when .wipnote/ doesn't exist — it
 // simply returns without creating the directory or printing anything.
@@ -116,8 +116,8 @@ func MaybeShowOtelNotice(projectDir string) {
 	}
 	// Only print when .wipnote/ already exists — don't create it just
 	// to write the marker.
-	htmlgraphDir := filepath.Join(projectDir, ".wipnote")
-	if _, err := os.Stat(htmlgraphDir); os.IsNotExist(err) {
+	wipnoteDir := filepath.Join(projectDir, ".wipnote")
+	if _, err := os.Stat(wipnoteDir); os.IsNotExist(err) {
 		return
 	}
 	markerPath := otelNoticeMarkerPath(projectDir)
@@ -127,13 +127,13 @@ func MaybeShowOtelNotice(projectDir string) {
 
 	notice := strings.Join([]string{
 		"",
-		"  htmlgraph: OTel telemetry is on (first-launch notice)",
+		"  wipnote: OTel telemetry is on (first-launch notice)",
 		"  -------------------------------------------------------",
-		"  HtmlGraph auto-captures Claude Code activity via OpenTelemetry:",
+		"  wipnote auto-captures Claude Code activity via OpenTelemetry:",
 		"    tool calls, prompts, costs, token usage, and latencies.",
 		"",
 		"  A per-session OTLP collector is started automatically.",
-		"  Data stays 100% local, stored in .wipnote/htmlgraph.db.",
+		"  Data stays 100% local, stored in .wipnote/wipnote.db.",
 		"",
 		"  Powers: activity feed · per-turn cost badges · span timeline",
 		"  Opt out: set WIPNOTE_OTEL_ENABLED=0 before launching.",
@@ -174,7 +174,7 @@ func checkServeLock(projectDir string) (skipSpawn, stale bool) {
 }
 
 // writeServeLock writes the current process PID to the per-project serve
-// lock file. Called by `htmlgraph serve` on startup so concurrent launchers
+// lock file. Called by `wipnote serve` on startup so concurrent launchers
 // can detect a live serve process and skip spawning a duplicate.
 // The write is best-effort — errors are silently ignored because a missing
 // lock file causes a harmless duplicate-spawn attempt (which then fails to
@@ -194,18 +194,18 @@ func removeServeLock(projectDir string) {
 // Used for low-level operational tracing that should not appear in normal output.
 func debugLog(msg string) {
 	if os.Getenv("WIPNOTE_DEBUG") != "" {
-		fmt.Fprintf(os.Stderr, "htmlgraph [debug]: %s\n", msg)
+		fmt.Fprintf(os.Stderr, "wipnote [debug]: %s\n", msg)
 	}
 }
 
-// spawnDetachedServe starts `htmlgraph serve` in a new process group so
+// spawnDetachedServe starts `wipnote serve` in a new process group so
 // it survives the launcher's exit and keeps serving the dashboard (and
 // the OTel receiver) after claude terminates. Output redirects to
 // .wipnote/logs/serve-auto.log.
 //
 // Uses os.Executable() for the binary path so the spawned server is
 // the SAME version as the launcher — prevents version skew when the
-// user has multiple htmlgraph builds on PATH (dev vs released).
+// user has multiple wipnote builds on PATH (dev vs released).
 func spawnDetachedServe(projectDir string) error {
 	binPath, err := os.Executable()
 	if err != nil {

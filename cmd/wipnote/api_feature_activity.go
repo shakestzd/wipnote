@@ -145,8 +145,8 @@ func featureActivityHandler(database *sql.DB) http.HandlerFunc {
 // featureActivityRouter dispatches /api/features/ sub-routes.
 // It handles both /api/features/detail and /api/features/{id}/activity,
 // delegating unknown paths to a 404.
-func featureActivityRouter(database *sql.DB, htmlgraphDir string) http.HandlerFunc {
-	detailHandler := featureDetailHandler(htmlgraphDir)
+func featureActivityRouter(database *sql.DB, wipnoteDir string) http.HandlerFunc {
+	detailHandler := featureDetailHandler(wipnoteDir)
 	relatedHandler := relatedFeaturesHandler(database)
 	activityHandler := featureActivityHandler(database)
 
@@ -164,4 +164,3 @@ func featureActivityRouter(database *sql.DB, htmlgraphDir string) http.HandlerFu
 		}
 	}
 }
-

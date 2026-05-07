@@ -29,10 +29,11 @@ import (
 // register with a net/http mux at /v1/traces, /v1/metrics, /v1/logs.
 //
 // Content-type multiplex:
-//   application/x-protobuf  → binary (proto.Unmarshal)
-//   application/json        → protojson.Unmarshal (handles OTLP/JSON
-//                             hex-encoded trace_id/span_id correctly)
-//   anything else           → 415 Unsupported Media Type
+//
+//	application/x-protobuf  → binary (proto.Unmarshal)
+//	application/json        → protojson.Unmarshal (handles OTLP/JSON
+//	                          hex-encoded trace_id/span_id correctly)
+//	anything else           → 415 Unsupported Media Type
 //
 // The response body is an empty Export*ServiceResponse per the OTel
 // spec — partial-success fields are populated when the writer rejects

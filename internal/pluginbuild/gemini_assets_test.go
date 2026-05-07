@@ -39,7 +39,7 @@ func TestGeminiAdapterCopiesVerbatimAssets(t *testing.T) {
 	geminiPath := filepath.Join(outDir, "GEMINI.md")
 	if data, err := os.ReadFile(geminiPath); err != nil {
 		t.Errorf("expected GEMINI.md at %s: %v", geminiPath, err)
-	} else if string(data) != "# HtmlGraph (Gemini)\n" {
+	} else if string(data) != "# wipnote (Gemini)\n" {
 		t.Errorf("GEMINI.md content: %q", string(data))
 	}
 
@@ -74,7 +74,7 @@ func TestGeminiAdapterSkipsMissingContextFile(t *testing.T) {
 // locally so we don't depend on the wider fixture evolving across phases.
 func geminiPhase1Manifest() *Manifest {
 	return &Manifest{
-		Name:        "erinn",
+		Name:        "wipnote",
 		Version:     "0.0.0-test",
 		Description: "test plugin",
 		Targets: map[string]Target{
@@ -83,7 +83,7 @@ func geminiPhase1Manifest() *Manifest {
 				ManifestPath:     "gemini-extension.json",
 				HooksPath:        "hooks/hooks.json",
 				ContextFile:      "GEMINI.md",
-				CommandNamespace: "erinn",
+				CommandNamespace: "wipnote",
 			},
 		},
 		AssetSources: AssetSources{
@@ -111,7 +111,7 @@ func seedGeminiPhase1Assets(t *testing.T, repoRoot string) {
 	writeFile(t, filepath.Join(repoRoot, "plugin", "static", "y.css"), "body{}\n")
 	writeFile(t, filepath.Join(repoRoot, "plugin", "config", "z.json"), "{}\n")
 	writeFile(t, filepath.Join(repoRoot, "plugin", "commands", "should-not-copy.md"), "# nope\n")
-	writeFile(t, filepath.Join(repoRoot, "GEMINI.md"), "# HtmlGraph (Gemini)\n")
+	writeFile(t, filepath.Join(repoRoot, "GEMINI.md"), "# wipnote (Gemini)\n")
 }
 
 func writeFile(t *testing.T, path, body string) {

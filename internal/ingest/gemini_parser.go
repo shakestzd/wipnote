@@ -266,7 +266,7 @@ func parseGeminiTimestamp(ts string) time.Time {
 	return t
 }
 
-// geminiToolCategory maps Gemini CLI tool names to canonical HtmlGraph categories.
+// geminiToolCategory maps Gemini CLI tool names to canonical wipnote categories.
 // Accepts both modern Gemini names (emitted by the generator) and legacy names
 // for backward compatibility with historical sessions.
 func geminiToolCategory(name string) string {

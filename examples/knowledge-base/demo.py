@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-HtmlGraph Knowledge Base Demo
+wipnote Knowledge Base Demo
 
-Demonstrates using HtmlGraph for personal knowledge management.
+Demonstrates using wipnote for personal knowledge management.
 Think Obsidian or Roam Research, but with HTML files.
 """
 
@@ -13,7 +13,7 @@ from pathlib import Path
 # Add src to path for development
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src" / "python"))
 
-from htmlgraph import SDK, Edge, Node
+from wipnote import SDK, Edge, Node
 
 
 def create_notes(sdk: SDK):
@@ -24,18 +24,18 @@ def create_notes(sdk: SDK):
     (sdk.features.create(f"Daily Note: {date.today()}").set_priority("low").save())
 
     # Concept notes
-    htmlgraph_note = Node(
-        id="note-htmlgraph",
-        title="HtmlGraph",
+    wipnote_note = Node(
+        id="note-wipnote",
+        title="wipnote",
         type="note",
         status="active",
         priority="high",
         content="""
-        <h2>HtmlGraph - HTML is All You Need</h2>
+        <h2>wipnote - HTML is All You Need</h2>
         <p>A graph database framework built entirely on web standards.</p>
 
         <h3>Core Concept</h3>
-        <p>Instead of using Neo4j or other graph databases, HtmlGraph uses:</p>
+        <p>Instead of using Neo4j or other graph databases, wipnote uses:</p>
         <ul>
             <li>HTML files as nodes</li>
             <li>Hyperlinks as edges</li>
@@ -82,12 +82,12 @@ def create_notes(sdk: SDK):
 
         <h3>Applications</h3>
         <ul>
-            <li>HtmlGraph - graph database in HTML</li>
+            <li>wipnote - graph database in HTML</li>
             <li>Progressive Web Apps</li>
             <li>Static site generators</li>
         </ul>
         """,
-        edges={"related": [Edge(target_id="note-htmlgraph", relationship="related")]},
+        edges={"related": [Edge(target_id="note-wipnote", relationship="related")]},
     )
 
     graph_db_note = Node(
@@ -108,10 +108,10 @@ def create_notes(sdk: SDK):
         </ul>
 
         <h3>The HTML Alternative</h3>
-        <p>HtmlGraph proves you don't need a traditional graph database.</p>
+        <p>wipnote proves you don't need a traditional graph database.</p>
         <p>HTML files + hyperlinks = graph database!</p>
         """,
-        edges={"related": [Edge(target_id="note-htmlgraph", relationship="related")]},
+        edges={"related": [Edge(target_id="note-wipnote", relationship="related")]},
     )
 
     ai_agents_note = Node(
@@ -132,7 +132,7 @@ def create_notes(sdk: SDK):
             <li>Human observability</li>
         </ul>
 
-        <h3>HtmlGraph Solution</h3>
+        <h3>wipnote Solution</h3>
         <p>HTML files provide a simple coordination mechanism:</p>
         <ul>
             <li>Git handles merging and conflicts</li>
@@ -141,11 +141,11 @@ def create_notes(sdk: SDK):
             <li>No custom protocol needed</li>
         </ul>
         """,
-        edges={"related": [Edge(target_id="note-htmlgraph", relationship="related")]},
+        edges={"related": [Edge(target_id="note-wipnote", relationship="related")]},
     )
 
     # Add all notes to graph
-    for note in [htmlgraph_note, web_standards_note, graph_db_note, ai_agents_note]:
+    for note in [wipnote_note, web_standards_note, graph_db_note, ai_agents_note]:
         sdk.features._ensure_graph().add(note, overwrite=True)
         print(f"   ✅ Created: {note.title}")
 
@@ -168,10 +168,10 @@ def demonstrate_queries(sdk: SDK):
         print(f"   - {note.title}")
 
     # Find related notes
-    print("\n🔗 Notes related to 'HtmlGraph':")
-    htmlgraph_note = sdk.features.get("note-htmlgraph")
-    if htmlgraph_note:
-        related_ids = [e.target_id for e in htmlgraph_note.edges.get("related", [])]
+    print("\n🔗 Notes related to 'wipnote':")
+    wipnote_note = sdk.features.get("note-wipnote")
+    if wipnote_note:
+        related_ids = [e.target_id for e in wipnote_note.edges.get("related", [])]
         for note_id in related_ids:
             note = sdk.features.get(note_id)
             if note:
@@ -213,7 +213,7 @@ def demonstrate_graph_visualization(sdk: SDK):
 def main():
     """Run the knowledge base demo."""
     print("=" * 80)
-    print("HtmlGraph Knowledge Base Demo")
+    print("wipnote Knowledge Base Demo")
     print("'HTML is All You Need' - Knowledge Management Edition")
     print("=" * 80)
 

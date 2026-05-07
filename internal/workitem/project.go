@@ -1,4 +1,4 @@
-// Package workitem provides internal work item operations for HtmlGraph.
+// Package workitem provides internal work item operations for wipnote.
 //
 // It manages collections for features, bugs, spikes, tracks, and sessions
 // with functional options for creation and a dual-write strategy
@@ -38,7 +38,7 @@ type Base struct {
 
 // --- Project -----------------------------------------------------------------
 
-// Project is the main entry point for interacting with an HtmlGraph project.
+// Project is the main entry point for interacting with an wipnote project.
 type Project struct {
 	*Base
 

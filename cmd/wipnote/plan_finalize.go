@@ -23,7 +23,7 @@ type finalizeResult struct {
 
 // executePlanFinalize reads a plan's steps, creates a track and features,
 // wires edges, and marks the plan as finalized. Idempotent.
-func executePlanFinalize(p *workitem.Project, htmlgraphDir, planID string) (*finalizeResult, error) {
+func executePlanFinalize(p *workitem.Project, wipnoteDir, planID string) (*finalizeResult, error) {
 	// Get the plan node.
 	planNode, err := p.Plans.Get(planID)
 	if err != nil {
@@ -44,7 +44,7 @@ func executePlanFinalize(p *workitem.Project, htmlgraphDir, planID string) (*fin
 
 	// Use plan steps as slices — all steps are treated as approved.
 	// Prefer YAML slices (source of truth) over HTML steps.
-	slices := parsePlanSlicesFromYAML(htmlgraphDir, planID)
+	slices := parsePlanSlicesFromYAML(wipnoteDir, planID)
 	if len(slices) == 0 {
 		slices = parsePlanStepsAsSlices(planNode)
 	}
@@ -123,8 +123,8 @@ type planSlice struct {
 
 // parsePlanSlicesFromYAML reads slices from the YAML plan file.
 // Returns nil if the YAML doesn't exist or has no slices.
-func parsePlanSlicesFromYAML(htmlgraphDir, planID string) []planSlice {
-	yamlPath := filepath.Join(htmlgraphDir, "plans", planID+".yaml")
+func parsePlanSlicesFromYAML(wipnoteDir, planID string) []planSlice {
+	yamlPath := filepath.Join(wipnoteDir, "plans", planID+".yaml")
 	plan, err := planyaml.Load(yamlPath)
 	if err != nil || len(plan.Slices) == 0 {
 		return nil
@@ -176,7 +176,7 @@ func buildExecuteCmd(trackID string) string {
 	if trackID == "" {
 		return ""
 	}
-	return "htmlgraph yolo --track " + trackID
+	return "wipnote yolo --track " + trackID
 }
 
 // findFeaturesForTrack returns feature IDs linked to a track via contains edges.
@@ -241,20 +241,20 @@ Requires:
   - plan has at least one slice
 
 Example:
-  htmlgraph plan finalize plan-a1b2c3d4`,
+  wipnote plan finalize plan-a1b2c3d4`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
-			htmlgraphDir, err := findHtmlgraphDir()
+			wipnoteDir, err := findWipnoteDir()
 			if err != nil {
 				return err
 			}
-			p, err := workitem.Open(htmlgraphDir, agentForClaim())
+			p, err := workitem.Open(wipnoteDir, agentForClaim())
 			if err != nil {
 				return fmt.Errorf("open project: %w", err)
 			}
 			defer p.Close()
 
-			result, err := executePlanFinalizeFromYAML(p, htmlgraphDir, args[0])
+			result, err := executePlanFinalizeFromYAML(p, wipnoteDir, args[0])
 			if err != nil {
 				return err
 			}
@@ -275,8 +275,8 @@ Example:
 // executePlanFinalizeFromYAML implements the new plan finalize logic.
 // It validates the YAML plan, creates features for each slice linked to plan
 // and track, writes feature_id back to YAML, and marks the plan finalized.
-func executePlanFinalizeFromYAML(p *workitem.Project, htmlgraphDir, planID string) (*finalizeResult, error) {
-	planPath := filepath.Join(htmlgraphDir, "plans", planID+".yaml")
+func executePlanFinalizeFromYAML(p *workitem.Project, wipnoteDir, planID string) (*finalizeResult, error) {
+	planPath := filepath.Join(wipnoteDir, "plans", planID+".yaml")
 	plan, err := planyaml.Load(planPath)
 	if err != nil {
 		return nil, fmt.Errorf("load plan YAML: %w", err)
@@ -312,7 +312,7 @@ func executePlanFinalizeFromYAML(p *workitem.Project, htmlgraphDir, planID strin
 		// Idempotency — trust-and-skip: if the YAML already records a FeatureID
 		// the feature was created in a previous finalize run. Features are
 		// independent work items after creation; any changes to title or content
-		// must be made via `htmlgraph feature edit`, not by re-running plan
+		// must be made via `wipnote feature edit`, not by re-running plan
 		// finalize. This is the one-way-mutation invariant.
 		if s.FeatureID != "" {
 			numToFeatureID[s.Num] = s.FeatureID
@@ -388,7 +388,7 @@ func executePlanFinalizeFromYAML(p *workitem.Project, htmlgraphDir, planID strin
 	}
 
 	// Re-render the plan HTML so it reflects finalized state.
-	_ = renderPlanToFile(htmlgraphDir, planID)
+	_ = renderPlanToFile(wipnoteDir, planID)
 
 	commitMsg := fmt.Sprintf("plan(%s): finalize — %d features created on %s", planID, len(featureIDs), trackID)
 	if err := commitPlanChange(planPath, commitMsg); err != nil {

@@ -1,4 +1,4 @@
-# `htmlgraph migrate-tracks`
+# `wipnote migrate-tracks`
 
 Backfill feature track attribution by classifying each feature's `feature_files`
 paths against a YAML rule catalog. Confident moves are applied; ambiguous
@@ -14,7 +14,7 @@ whose code surface dominates.
 ## Usage
 
 ```
-htmlgraph migrate-tracks --rules <yaml> [--dry-run|--write]
+wipnote migrate-tracks --rules <yaml> [--dry-run|--write]
                           [--types features,bugs]
                           [--ambiguity-threshold 0.6]
                           [--format text|json] [--force]
@@ -34,7 +34,7 @@ htmlgraph migrate-tracks --rules <yaml> [--dry-run|--write]
 
 ```yaml
 rules:
-  - { glob: "cmd/htmlgraph/yolo.go",     track_id: "trk-be293476", priority: 110 }
+  - { glob: "cmd/wipnote/yolo.go",     track_id: "trk-be293476", priority: 110 }
   - { glob: "internal/blame/**",         track_id: "trk-08dcbb33", priority: 100 }
   - { glob: "plugin/agents/*.md",        track_id: "trk-2c83a1e2", priority: 100 }
 ```
@@ -63,23 +63,23 @@ etc.) before glob matching.
 ## Manifest
 
 Every `--write` invocation records a manifest at
-`.htmlgraph/migrations/track-backfill-<unix>.json` containing the rules path
+`.wipnote/migrations/track-backfill-<unix>.json` containing the rules path
 and the full Decision array (every feature considered, including the ones
 left untouched). To roll back a move, edit the feature's track via
-`htmlgraph feature update <id> --track <old-track>`.
+`wipnote feature update <id> --track <old-track>`.
 
 To prevent stomping on a prior run, `--write` refuses to proceed if any
-`track-backfill-*.json` file already exists in `.htmlgraph/migrations/`.
+`track-backfill-*.json` file already exists in `.wipnote/migrations/`.
 Pass `--force` to override.
 
 ## Refresh the read index after `--write`
 
 The migration writes through the canonical HTML store. The SQLite read
-index that powers `htmlgraph blame` and `htmlgraph code-areas` only
+index that powers `wipnote blame` and `wipnote code-areas` only
 catches up after a full reindex:
 
 ```
-htmlgraph reindex --full
+wipnote reindex --full
 ```
 
 The incremental reindex skips files whose `data-track-id` changed but
@@ -90,12 +90,12 @@ whose `data-updated` timestamp didn't, so a `--full` pass is required.
 Verify the migration landed by running blame on canonical files:
 
 ```
-htmlgraph blame cmd/htmlgraph/yolo.go         # expect dominant: trk-be293476 (Yolo Mode)
-htmlgraph blame internal/hooks/yolo_guard.go  # expect dominant: trk-be293476
-htmlgraph blame plugin/agents/sonnet-coder.md # expect dominant: trk-2c83a1e2 (Subagents)
+wipnote blame cmd/wipnote/yolo.go         # expect dominant: trk-be293476 (Yolo Mode)
+wipnote blame internal/hooks/yolo_guard.go  # expect dominant: trk-be293476
+wipnote blame plugin/agents/sonnet-coder.md # expect dominant: trk-2c83a1e2 (Subagents)
 ```
 
-`htmlgraph code-areas --format markdown > docs/code-areas.md` regenerates
+`wipnote code-areas --format markdown > docs/code-areas.md` regenerates
 the per-track inventory snapshot that quantifies the rebalance.
 
 ## Scope notes
@@ -105,5 +105,5 @@ the per-track inventory snapshot that quantifies the rebalance.
   re-attribution).
 - The classifier only operates on work items present in the canonical
   HTML store. Features that exist in `feature_files` but not in
-  `.htmlgraph/features/*.html` are silently ignored — repairing those
+  `.wipnote/features/*.html` are silently ignored — repairing those
   orphans is a separate upstream concern.

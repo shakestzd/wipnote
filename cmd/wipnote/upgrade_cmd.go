@@ -29,8 +29,8 @@ func upgradeCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "upgrade",
 		Aliases: []string{"update"},
-		Short:   "Upgrade htmlgraph to the latest (or specified) version",
-		Long:    "Download and install the latest htmlgraph release from GitHub. Use --check to preview without installing.",
+		Short:   "Upgrade wipnote to the latest (or specified) version",
+		Long:    "Download and install the latest wipnote release from GitHub. Use --check to preview without installing.",
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return runUpgrade(cmd.OutOrStdout(), checkOnly, pinVersion)
 		},
@@ -70,22 +70,22 @@ func runUpgrade(out io.Writer, checkOnly bool, pinVersion string) error {
 	archive := archiveName(targetVer, platformOS, platformArch)
 	url := fmt.Sprintf("%s/v%s/%s", downloadBaseURL, targetVer, archive)
 
-	fmt.Fprintf(out, "Downloading htmlgraph v%s for %s/%s...\n", targetVer, platformOS, platformArch)
+	fmt.Fprintf(out, "Downloading wipnote v%s for %s/%s...\n", targetVer, platformOS, platformArch)
 
 	// Download to temp dir.
-	tmpDir, err := os.MkdirTemp("", "htmlgraph-upgrade-*")
+	tmpDir, err := os.MkdirTemp("", "wipnote-upgrade-*")
 	if err != nil {
 		return fmt.Errorf("creating temp dir: %w", err)
 	}
 	defer os.RemoveAll(tmpDir)
 
-	tarballPath := filepath.Join(tmpDir, "htmlgraph.tar.gz")
+	tarballPath := filepath.Join(tmpDir, "wipnote.tar.gz")
 	if err := downloadFile(url, tarballPath); err != nil {
 		return fmt.Errorf("downloading release: %w", err)
 	}
 
 	// Extract binary from tarball.
-	binaryName := "htmlgraph"
+	binaryName := "wipnote"
 	extractedPath := filepath.Join(tmpDir, binaryName)
 	if err := extractBinary(tarballPath, binaryName, extractedPath); err != nil {
 		return fmt.Errorf("extracting binary: %w", err)
@@ -104,7 +104,7 @@ func runUpgrade(out io.Writer, checkOnly bool, pinVersion string) error {
 	// Check if destination is writable.
 	installDir := filepath.Dir(currentBin)
 	if err := checkWritable(installDir); err != nil {
-		return fmt.Errorf("install directory %s is not writable: %w\nTry: sudo htmlgraph upgrade, or reinstall to ~/.local/bin", installDir, err)
+		return fmt.Errorf("install directory %s is not writable: %w\nTry: sudo wipnote upgrade, or reinstall to ~/.local/bin", installDir, err)
 	}
 
 	fmt.Fprintf(out, "Installing to %s...\n", currentBin)
@@ -114,7 +114,7 @@ func runUpgrade(out io.Writer, checkOnly bool, pinVersion string) error {
 		return fmt.Errorf("replacing binary: %w", err)
 	}
 
-	// Update ~/.local/share/htmlgraph/.binary-version so bootstrap fast-path works.
+	// Update ~/.local/share/wipnote/.binary-version so bootstrap fast-path works.
 	updateVersionFile(targetVer)
 
 	// Self-test: run the newly installed binary's version subcommand.
@@ -123,7 +123,7 @@ func runUpgrade(out io.Writer, checkOnly bool, pinVersion string) error {
 		fmt.Fprintf(out, "warning: version verification failed: %v\n", err)
 		fmt.Fprintln(out, "The binary was installed but may not report the expected version.")
 	} else {
-		fmt.Fprintf(out, "htmlgraph v%s installed successfully.\n", targetVer)
+		fmt.Fprintf(out, "wipnote v%s installed successfully.\n", targetVer)
 	}
 	return nil
 }
@@ -266,21 +266,21 @@ func checkWritable(dir string) error {
 	return os.Remove(tmp.Name())
 }
 
-// updateVersionFile writes the installed version to ~/.local/share/htmlgraph/.binary-version.
+// updateVersionFile writes the installed version to ~/.local/share/wipnote/.binary-version.
 func updateVersionFile(ver string) {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return
 	}
-	versionFile := filepath.Join(home, ".local", "share", "htmlgraph", ".binary-version")
+	versionFile := filepath.Join(home, ".local", "share", "wipnote", ".binary-version")
 	_ = os.MkdirAll(filepath.Dir(versionFile), 0o755)
 	_ = os.WriteFile(versionFile, []byte(ver), 0o644)
 }
 
 // archiveName constructs the archive filename matching goreleaser's name_template:
-// "htmlgraph_{{.Version}}_{{.Os}}_{{.Arch}}"
+// "wipnote_{{.Version}}_{{.Os}}_{{.Arch}}"
 func archiveName(version, os, arch string) string {
-	return fmt.Sprintf("htmlgraph_%s_%s_%s.tar.gz", version, os, arch)
+	return fmt.Sprintf("wipnote_%s_%s_%s.tar.gz", version, os, arch)
 }
 
 // verifySelfVersion runs `<binary> version` and checks the output contains targetVer.

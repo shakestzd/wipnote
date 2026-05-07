@@ -25,7 +25,7 @@ var atomicWriteCounter atomic.Int64
 //
 // The whole read-modify-write window runs inside workitem.LockFeatureForWrite
 // (in-process mutex + cross-process flock) so racing writers — including
-// separate `htmlgraph` CLI processes — cannot lose updates.
+// separate `wipnote` CLI processes — cannot lose updates.
 //
 // attrs is a map of data-* attribute names (without the "data-" prefix) → values.
 // body is the inner HTML content for the section.
@@ -172,7 +172,7 @@ func complianceCmd() *cobra.Command {
 Criteria marked with [ ] are UNCHECKED, [x] are PASSED.
 Exit 0 if no failures found; exit 1 if any criteria are explicitly marked as failed.
 
-Use 'htmlgraph compliance auto <id>' to run LLM-powered auto-grading.`,
+Use 'wipnote compliance auto <id>' to run LLM-powered auto-grading.`,
 		Args: cobra.ArbitraryArgs,
 		RunE: func(_ *cobra.Command, args []string) error {
 			if len(args) == 0 {
@@ -204,7 +204,7 @@ func runCompliance(featureID string, jsonOut bool) error {
 
 // computeCompliance reads the feature HTML and scores the spec criteria.
 func computeCompliance(featureID string) (*complianceResult, error) {
-	dir, err := findHtmlgraphDir()
+	dir, err := findWipnoteDir()
 	if err != nil {
 		return nil, err
 	}
@@ -274,12 +274,12 @@ func parseCriteria(content string) []criterion {
 
 	// New-format parsing state.
 	var (
-		inRequirement    bool
-		reqName          string
-		inScenario       bool
-		scenarioHasAny   bool   // any scenario task lines seen
-		scenarioFailed   bool   // any [F] seen
-		scenarioUnchecked bool  // any [ ] seen
+		inRequirement     bool
+		reqName           string
+		inScenario        bool
+		scenarioHasAny    bool // any scenario task lines seen
+		scenarioFailed    bool // any [F] seen
+		scenarioUnchecked bool // any [ ] seen
 	)
 
 	// finaliseRequirement closes the current ### Requirement block and appends a criterion.
@@ -400,7 +400,7 @@ func criterionStatusFromMatch(ch string) criterionStatus {
 // printComplianceText renders a human-readable compliance report.
 func printComplianceText(r *complianceResult) error {
 	if !r.HasSpec {
-		fmt.Printf("No spec found for %s. Run: htmlgraph spec generate %s\n", r.FeatureID, r.FeatureID)
+		fmt.Printf("No spec found for %s. Run: wipnote spec generate %s\n", r.FeatureID, r.FeatureID)
 		return nil
 	}
 
@@ -426,7 +426,7 @@ func printComplianceText(r *complianceResult) error {
 	fmt.Println()
 
 	if r.HasFailure {
-		return fmt.Errorf("compliance check failed: %d criteria marked as failed\nRun 'htmlgraph compliance show <feature-id>' to review individual criteria.", r.Failed)
+		return fmt.Errorf("compliance check failed: %d criteria marked as failed\nRun 'wipnote compliance show <feature-id>' to review individual criteria.", r.Failed)
 	}
 	return nil
 }

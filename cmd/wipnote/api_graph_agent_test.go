@@ -28,7 +28,7 @@ func TestLoadGraphNodes_AgentNodesOmitted(t *testing.T) {
 	db := setupAgentTestDB(t)
 	_, err := db.Exec(`
 		INSERT INTO agent_lineage_trace (trace_id, root_session_id, session_id, agent_name, feature_id)
-		VALUES ('t1', 'root-1', 'sess-1', 'htmlgraph:researcher', 'feat-aaa')`)
+		VALUES ('t1', 'root-1', 'sess-1', 'wipnote:researcher', 'feat-aaa')`)
 	if err != nil {
 		t.Fatalf("seed lineage: %v", err)
 	}
@@ -52,8 +52,8 @@ func TestLoadAgentEdgesRanAs(t *testing.T) {
 	_, err := db.Exec(`
 		INSERT INTO agent_lineage_trace (trace_id, root_session_id, session_id, agent_name, feature_id)
 		VALUES
-			('t1', 'root-1', 'sess-a', 'htmlgraph:researcher', ''),
-			('t2', 'root-1', 'sess-b', 'htmlgraph:sonnet-coder', '')`)
+			('t1', 'root-1', 'sess-a', 'wipnote:researcher', ''),
+			('t2', 'root-1', 'sess-b', 'wipnote:sonnet-coder', '')`)
 	if err != nil {
 		t.Fatalf("seed lineage: %v", err)
 	}
@@ -67,11 +67,11 @@ func TestLoadAgentEdgesRanAs(t *testing.T) {
 		}
 	}
 
-	if ranAs["htmlgraph:researcher"] != "sess-a" {
-		t.Errorf("ran_as edge: want htmlgraph:researcher -> sess-a, got %v", ranAs["htmlgraph:researcher"])
+	if ranAs["wipnote:researcher"] != "sess-a" {
+		t.Errorf("ran_as edge: want wipnote:researcher -> sess-a, got %v", ranAs["wipnote:researcher"])
 	}
-	if ranAs["htmlgraph:sonnet-coder"] != "sess-b" {
-		t.Errorf("ran_as edge: want htmlgraph:sonnet-coder -> sess-b, got %v", ranAs["htmlgraph:sonnet-coder"])
+	if ranAs["wipnote:sonnet-coder"] != "sess-b" {
+		t.Errorf("ran_as edge: want wipnote:sonnet-coder -> sess-b, got %v", ranAs["wipnote:sonnet-coder"])
 	}
 }
 
@@ -83,9 +83,9 @@ func TestLoadAgentEdgesWorkedOn(t *testing.T) {
 	_, err := db.Exec(`
 		INSERT INTO agent_lineage_trace (trace_id, root_session_id, session_id, agent_name, feature_id)
 		VALUES
-			('t1', 'root-1', 'sess-a', 'htmlgraph:researcher', 'feat-111'),
-			('t2', 'root-1', 'sess-b', 'htmlgraph:sonnet-coder', ''),
-			('t3', 'root-2', 'sess-c', 'htmlgraph:researcher', 'feat-222')`)
+			('t1', 'root-1', 'sess-a', 'wipnote:researcher', 'feat-111'),
+			('t2', 'root-1', 'sess-b', 'wipnote:sonnet-coder', ''),
+			('t3', 'root-2', 'sess-c', 'wipnote:researcher', 'feat-222')`)
 	if err != nil {
 		t.Fatalf("seed lineage: %v", err)
 	}
@@ -99,14 +99,14 @@ func TestLoadAgentEdgesWorkedOn(t *testing.T) {
 		}
 	}
 
-	// htmlgraph:researcher should have worked_on edges for feat-111 and feat-222.
-	researcherFeatures := workedOn["htmlgraph:researcher"]
+	// wipnote:researcher should have worked_on edges for feat-111 and feat-222.
+	researcherFeatures := workedOn["wipnote:researcher"]
 	if len(researcherFeatures) != 2 {
-		t.Errorf("htmlgraph:researcher worked_on: want 2 features, got %d: %v", len(researcherFeatures), researcherFeatures)
+		t.Errorf("wipnote:researcher worked_on: want 2 features, got %d: %v", len(researcherFeatures), researcherFeatures)
 	}
 
-	// htmlgraph:sonnet-coder has no feature_id, so no worked_on edge.
-	if len(workedOn["htmlgraph:sonnet-coder"]) != 0 {
-		t.Errorf("htmlgraph:sonnet-coder worked_on: want 0, got %v", workedOn["htmlgraph:sonnet-coder"])
+	// wipnote:sonnet-coder has no feature_id, so no worked_on edge.
+	if len(workedOn["wipnote:sonnet-coder"]) != 0 {
+		t.Errorf("wipnote:sonnet-coder worked_on: want 0, got %v", workedOn["wipnote:sonnet-coder"])
 	}
 }

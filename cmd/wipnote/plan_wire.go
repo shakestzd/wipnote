@@ -28,14 +28,14 @@ as finalized. Features are matched to plan slices by title (case-insensitive).
 The agent must have already created the features before running this command.
 
 Example:
-  htmlgraph plan wire plan-abc123 --track trk-def456`,
+  wipnote plan wire plan-abc123 --track trk-def456`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
-			htmlgraphDir, err := findHtmlgraphDir()
+			wipnoteDir, err := findWipnoteDir()
 			if err != nil {
 				return err
 			}
-			return wirePlan(htmlgraphDir, args[0], trackID)
+			return wirePlan(wipnoteDir, args[0], trackID)
 		},
 	}
 
@@ -46,14 +46,14 @@ Example:
 }
 
 // wirePlan is the testable implementation of planWireCmd.
-func wirePlan(htmlgraphDir, planID, trackID string) error {
-	planPath := filepath.Join(htmlgraphDir, "plans", planID+".yaml")
+func wirePlan(wipnoteDir, planID, trackID string) error {
+	planPath := filepath.Join(wipnoteDir, "plans", planID+".yaml")
 	plan, err := planyaml.Load(planPath)
 	if err != nil {
 		return fmt.Errorf("load plan: %w", err)
 	}
 
-	p, err := workitem.Open(htmlgraphDir, agentForClaim())
+	p, err := workitem.Open(wipnoteDir, agentForClaim())
 	if err != nil {
 		return fmt.Errorf("open project: %w", err)
 	}

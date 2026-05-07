@@ -108,8 +108,8 @@ func TestResolveSessionID_ActiveSessionFile(t *testing.T) {
 	t.Setenv("CLAUDE_SESSION_ID", "")
 
 	dir := t.TempDir()
-	htmlgraphDir := filepath.Join(dir, ".wipnote")
-	if err := os.MkdirAll(htmlgraphDir, 0o755); err != nil {
+	wipnoteDir := filepath.Join(dir, ".wipnote")
+	if err := os.MkdirAll(wipnoteDir, 0o755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
 
@@ -122,7 +122,7 @@ func TestResolveSessionID_ActiveSessionFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(htmlgraphDir, ".active-session"), b, 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(wipnoteDir, ".active-session"), b, 0o644); err != nil {
 		t.Fatalf("write .active-session: %v", err)
 	}
 

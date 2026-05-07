@@ -70,16 +70,16 @@ Returns exit code 0 if all gates pass, 1 if any fail.`,
 
 // resolveProjectRoot finds the project root from the .wipnote directory.
 func resolveProjectRoot() (string, error) {
-	htmlgraphDir, err := findHtmlgraphDir()
+	wipnoteDir, err := findWipnoteDir()
 	if err != nil {
-		// Fall back to CWD if not in an htmlgraph project.
+		// Fall back to CWD if not in an wipnote project.
 		cwd, cwdErr := os.Getwd()
 		if cwdErr != nil {
 			return "", fmt.Errorf("get working directory: %w", cwdErr)
 		}
 		return cwd, nil
 	}
-	return filepath.Dir(htmlgraphDir), nil
+	return filepath.Dir(wipnoteDir), nil
 }
 
 func hasGoProject(root string) bool {
@@ -148,5 +148,5 @@ func printResults(results []gateResult) error {
 		return nil
 	}
 	fmt.Println("\033[31mOne or more quality gates failed.\033[0m")
-	return fmt.Errorf("quality gates failed — see details above\nRun individual checks with 'htmlgraph check --go-only' to isolate failures.")
+	return fmt.Errorf("quality gates failed — see details above\nRun individual checks with 'wipnote check --go-only' to isolate failures.")
 }

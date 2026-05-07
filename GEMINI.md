@@ -1,12 +1,12 @@
-# HtmlGraph for Gemini
+# wipnote for Gemini
 
-**MANDATORY instructions for Google Gemini AI agents working with HtmlGraph projects.**
+**MANDATORY instructions for Google Gemini AI agents working with wipnote projects.**
 
 ---
 
 ## REQUIRED READING - DO THIS FIRST
 
-**→ READ [AGENTS.md](./AGENTS.md) BEFORE USING HTMLGRAPH**
+**→ READ [AGENTS.md](./AGENTS.md) BEFORE USING WIPNOTE**
 
 The AGENTS.md file contains ALL core documentation:
 - ✅ **CLI Quick Start** - REQUIRED commands and usage
@@ -24,31 +24,31 @@ The AGENTS.md file contains ALL core documentation:
 
 ### ABSOLUTE RULE: Use CLI, Never Direct File Edits
 
-**CRITICAL: NEVER use file operations on `.htmlgraph/` HTML files.**
+**CRITICAL: NEVER use file operations on `.wipnote/` HTML files.**
 
 ❌ **FORBIDDEN:**
 ```python
 # NEVER DO THIS
-Write('/path/to/.htmlgraph/features/feature-123.html', ...)
-Edit('/path/to/.htmlgraph/sessions/session-456.html', ...)
+Write('/path/to/.wipnote/features/feature-123.html', ...)
+Edit('/path/to/.wipnote/sessions/session-456.html', ...)
 ```
 
 ✅ **REQUIRED - Use CLI:**
 ```bash
 # Get project summary (DO THIS at session start)
-htmlgraph snapshot --summary
+wipnote snapshot --summary
 
 # Create a feature
-htmlgraph feature create "Implement Search"
+wipnote feature create "Implement Search"
 # Returns: feat-abc12345
 
 # Start working on it
-htmlgraph feature start feat-abc12345
+wipnote feature start feat-abc12345
 ```
 
 ### Gemini Extension Integration
 
-The HtmlGraph Gemini extension is located at `packages/gemini-extension/`.
+The wipnote Gemini extension is located at `packages/gemini-extension/`.
 
 **Installation:**
 ```bash
@@ -69,14 +69,14 @@ cd packages/gemini-extension
 
 ## Commands Available in Gemini
 
-All HtmlGraph commands are available in Gemini through the extension:
+All wipnote commands are available in Gemini through the extension:
 
-- `/htmlgraph:start` - Start session with project context
-- `/htmlgraph:status` - Check current status
-- `/htmlgraph:plan` - Smart planning workflow
-- `/htmlgraph:spike` - Create research spike
-- `/htmlgraph:recommend` - Get strategic recommendations
-- `/htmlgraph:end` - End session with summary
+- `/wipnote:start` - Start session with project context
+- `/wipnote:status` - Check current status
+- `/wipnote:plan` - Smart planning workflow
+- `/wipnote:spike` - Create research spike
+- `/wipnote:recommend` - Get strategic recommendations
+- `/wipnote:end` - End session with summary
 
 **→ Full command reference in [AGENTS.md](./AGENTS.md)**
 
@@ -94,9 +94,9 @@ All HtmlGraph commands are available in Gemini through the extension:
 | REST API | ✅ Same | ✅ Same |
 
 **Both platforms use the same:**
-- Go CLI binary (`htmlgraph`)
+- Go CLI binary (`wipnote`)
 - REST API (port 8080)
-- CLI commands (`uvx htmlgraph`)
+- CLI commands (`uvx wipnote`)
 - HTML file format
 
 ---
@@ -107,21 +107,21 @@ All HtmlGraph commands are available in Gemini through the extension:
 # Gemini Code Assist workflow
 
 # 1. Get oriented
-htmlgraph snapshot --summary
+wipnote snapshot --summary
 
 # 2. Get recommendations
-htmlgraph analytics recommend
+wipnote analytics recommend
 
 # 3. Find next high-priority task
-htmlgraph find features --status todo
+wipnote find features --status todo
 
 # 4. Start working on it
-htmlgraph feature start feat-abc12345
+wipnote feature start feat-abc12345
 
 # 5. (Do the actual implementation work...)
 
 # 6. Complete the feature
-htmlgraph feature complete feat-abc12345
+wipnote feature complete feat-abc12345
 ```
 
 ---
@@ -132,7 +132,7 @@ htmlgraph feature complete feat-abc12345
 
 Check extension status in Gemini settings:
 ```
-Gemini Settings → Extensions → HtmlGraph
+Gemini Settings → Extensions → wipnote
 ```
 
 ### Commands Not Available
@@ -146,13 +146,13 @@ uv run python ../common/generators/generate_commands.py
 
 ### CLI Not Found
 
-Ensure htmlgraph is installed:
+Ensure wipnote is installed:
 ```bash
-uv pip install htmlgraph
+uv pip install wipnote
 # or
-pip install htmlgraph
+pip install wipnote
 # Verify
-htmlgraph version
+wipnote version
 ```
 
 ---
@@ -196,7 +196,7 @@ htmlgraph version
 2. **Build Package** - Create wheel and source distributions
 3. **Publish to PyPI** - Upload package to PyPI
 4. **Local Install** - Install latest version locally
-5. **Update Claude Plugin** - Run `claude plugin update htmlgraph`
+5. **Update Claude Plugin** - Run `claude plugin update wipnote`
 6. **Update Gemini Extension** - Update version in gemini-extension.json
 7. **Update Codex Skill** - Check for Codex and update if present
 
@@ -206,9 +206,9 @@ htmlgraph version
 
 ## Memory File Synchronization
 
-**CRITICAL: Use `uvx htmlgraph sync-docs` to maintain documentation consistency.**
+**CRITICAL: Use `uvx wipnote sync-docs` to maintain documentation consistency.**
 
-HtmlGraph uses a centralized documentation pattern:
+wipnote uses a centralized documentation pattern:
 - **AGENTS.md** - Single source of truth (SDK, API, CLI, workflows)
 - **CLAUDE.md** - Platform-specific notes + references AGENTS.md
 - **GEMINI.md** - Platform-specific notes + references AGENTS.md
@@ -216,14 +216,14 @@ HtmlGraph uses a centralized documentation pattern:
 **Quick Usage:**
 ```bash
 # Check if files are synchronized
-uvx htmlgraph sync-docs --check
+uvx wipnote sync-docs --check
 
 # Generate platform-specific file
-uvx htmlgraph sync-docs --generate gemini
-uvx htmlgraph sync-docs --generate claude
+uvx wipnote sync-docs --generate gemini
+uvx wipnote sync-docs --generate claude
 
 # Synchronize all files (default)
-uvx htmlgraph sync-docs
+uvx wipnote sync-docs
 ```
 
 **Why This Matters:**

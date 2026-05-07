@@ -100,19 +100,19 @@ func TestGeminiResumePassThrough(t *testing.T) {
 }
 
 // TestGeminiDevIsolate verifies that --dev --isolate sets the Extension field
-// to "htmlgraph" in the launch opts.
+// to "wipnote" in the launch opts.
 func TestGeminiDevIsolate(t *testing.T) {
 	// Simulate what launchGeminiDev does with isolate=true.
 	ext := ""
 	isolate := true
 	if isolate {
-		ext = "htmlgraph"
+		ext = "wipnote"
 	}
 	opts := geminiLaunchOpts{
 		Extension: ext,
 	}
-	if opts.Extension != "htmlgraph" {
-		t.Errorf("expected Extension=htmlgraph when isolate=true, got %q", opts.Extension)
+	if opts.Extension != "wipnote" {
+		t.Errorf("expected Extension=wipnote when isolate=true, got %q", opts.Extension)
 	}
 }
 
@@ -121,7 +121,7 @@ func TestGeminiDevNoIsolate(t *testing.T) {
 	ext := ""
 	isolate := false
 	if isolate {
-		ext = "htmlgraph"
+		ext = "wipnote"
 	}
 	opts := geminiLaunchOpts{
 		Extension: ext,
@@ -155,7 +155,7 @@ func TestIsGeminiExtensionInstalled(t *testing.T) {
 
 	// Point the home-based path to a temp directory by testing the helper
 	// directly with a custom path check.
-	extPath := filepath.Join(tmpdir, ".gemini", "extensions", "htmlgraph")
+	extPath := filepath.Join(tmpdir, ".gemini", "extensions", "wipnote")
 
 	// Not installed yet.
 	if _, err := os.Stat(extPath); err == nil {
@@ -308,7 +308,7 @@ func TestGeminiDevSkipsLinkWhenAlreadyLinkedToLocalPath(t *testing.T) {
 	localExtPath := "/abs/path/to/packages/gemini-extension"
 
 	// Create the metadata directory structure.
-	metaDir := filepath.Join(tmpdir, ".gemini", "extensions", "htmlgraph")
+	metaDir := filepath.Join(tmpdir, ".gemini", "extensions", "wipnote")
 	if err := os.MkdirAll(metaDir, 0755); err != nil {
 		t.Fatalf("MkdirAll: %v", err)
 	}
@@ -358,7 +358,7 @@ func TestGeminiDevUninstallsStaleInstall(t *testing.T) {
 	stalePath := "/some/other/path"
 
 	// Create the metadata directory structure.
-	metaDir := filepath.Join(tmpdir, ".gemini", "extensions", "htmlgraph")
+	metaDir := filepath.Join(tmpdir, ".gemini", "extensions", "wipnote")
 	if err := os.MkdirAll(metaDir, 0755); err != nil {
 		t.Fatalf("MkdirAll: %v", err)
 	}
@@ -588,7 +588,7 @@ func TestGeminiDevDryRunWithIsolateSurfacesSystemMd(t *testing.T) {
 
 	// Simulate --dev --isolate --dry-run.
 	opts := geminiLaunchOpts{
-		Extension:   "htmlgraph",
+		Extension:   "wipnote",
 		ProjectRoot: "/test/project",
 		DryRun:      true,
 	}
@@ -609,8 +609,8 @@ func TestGeminiDevDryRunWithIsolateSurfacesSystemMd(t *testing.T) {
 	if !strings.Contains(output, "GEMINI_SYSTEM_MD=") {
 		t.Errorf("dev --isolate --dry-run output missing GEMINI_SYSTEM_MD line; got:\n%s", output)
 	}
-	if !strings.Contains(output, "-e htmlgraph") {
-		t.Errorf("dev --isolate --dry-run output missing '-e htmlgraph'; got:\n%s", output)
+	if !strings.Contains(output, "-e wipnote") {
+		t.Errorf("dev --isolate --dry-run output missing '-e wipnote'; got:\n%s", output)
 	}
 }
 
@@ -629,7 +629,7 @@ func TestGeminiDevPostLinkVerifiesMetadata(t *testing.T) {
 	wrongPath := "/some/other/path"
 
 	// Create the metadata directory structure.
-	metaDir := filepath.Join(tmpdir, ".gemini", "extensions", "htmlgraph")
+	metaDir := filepath.Join(tmpdir, ".gemini", "extensions", "wipnote")
 	if err := os.MkdirAll(metaDir, 0755); err != nil {
 		t.Fatalf("MkdirAll: %v", err)
 	}
@@ -692,29 +692,29 @@ func TestGeminiWorktreeFlagsRegistered(t *testing.T) {
 }
 
 // TestGeminiWorktreeFlagSetsCmdDir verifies that geminiLaunchOpts correctly carries
-// WorktreeRoot and HtmlgraphRoot when a worktree is resolved.
+// WorktreeRoot and WipnoteRoot when a worktree is resolved.
 func TestGeminiWorktreeFlagSetsCmdDir(t *testing.T) {
 	worktreePath := "/fake/gemini/worktree"
 	projectRoot := "/fake/gemini/project"
 
 	opts := geminiLaunchOpts{
-		WorktreeRoot:  worktreePath,
-		HtmlgraphRoot: projectRoot,
+		WorktreeRoot: worktreePath,
+		WipnoteRoot:  projectRoot,
 	}
 
 	if opts.WorktreeRoot != worktreePath {
 		t.Errorf("WorktreeRoot: got %q, want %q", opts.WorktreeRoot, worktreePath)
 	}
-	if opts.HtmlgraphRoot != projectRoot {
-		t.Errorf("HtmlgraphRoot: got %q, want %q", opts.HtmlgraphRoot, projectRoot)
+	if opts.WipnoteRoot != projectRoot {
+		t.Errorf("WipnoteRoot: got %q, want %q", opts.WipnoteRoot, projectRoot)
 	}
 }
 
-// TestGeminiHtmlgraphAgentEnvInjectionPreserved verifies that WIPNOTE_AGENT=gemini
-// is still injected when WorktreeRoot/HtmlgraphRoot are set.
+// TestGeminiWipnoteAgentEnvInjectionPreserved verifies that WIPNOTE_AGENT=gemini
+// is still injected when WorktreeRoot/WipnoteRoot are set.
 // We verify via the dry-run output that the env line is expected, plus that our
 // struct fields are correctly populated.
-func TestGeminiHtmlgraphAgentEnvInjectionPreserved(t *testing.T) {
+func TestGeminiWipnoteAgentEnvInjectionPreserved(t *testing.T) {
 	origStdout := os.Stdout
 	r, w, err := os.Pipe()
 	if err != nil {
@@ -723,10 +723,10 @@ func TestGeminiHtmlgraphAgentEnvInjectionPreserved(t *testing.T) {
 	os.Stdout = w
 
 	execErr := execGemini(geminiLaunchOpts{
-		DryRun:        true,
-		WorktreeRoot:  "/fake/worktree",
-		HtmlgraphRoot: "/fake/project",
-		ProjectRoot:   "/fake/worktree",
+		DryRun:       true,
+		WorktreeRoot: "/fake/worktree",
+		WipnoteRoot:  "/fake/project",
+		ProjectRoot:  "/fake/worktree",
 	})
 
 	w.Close()

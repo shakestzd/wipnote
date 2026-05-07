@@ -1,4 +1,4 @@
-// Package paths provides shared path-resolution utilities for the htmlgraph
+// Package paths provides shared path-resolution utilities for the wipnote
 // CLI and hook runner.
 package paths
 
@@ -117,14 +117,14 @@ func ResolveProjectDir(opts ProjectDirOptions) (string, error) {
 
 	// 8. Walk-up from EventCWD (limited when WalkLevels > 0).
 	if opts.EventCWD != "" {
-		if found := walkUpForHtmlgraph(opts.EventCWD, opts.WalkLevels); found != "" {
+		if found := walkUpForWipnote(opts.EventCWD, opts.WalkLevels); found != "" {
 			return found, nil
 		}
 	}
 
 	// 9. Walk-up from process CWD (unlimited).
 	if wd, err := os.Getwd(); err == nil {
-		if found := walkUpForHtmlgraph(wd, 0); found != "" {
+		if found := walkUpForWipnote(wd, 0); found != "" {
 			return found, nil
 		}
 	}
@@ -137,12 +137,12 @@ func ResolveProjectDir(opts ProjectDirOptions) (string, error) {
 	if wd, err := os.Getwd(); err == nil {
 		return wd, nil
 	}
-	return "", errors.New("no .wipnote directory found. cd into a repo with .wipnote/ or run `htmlgraph status` to confirm your project dir")
+	return "", errors.New("no .wipnote directory found. cd into a repo with .wipnote/ or run `wipnote status` to confirm your project dir")
 }
 
-// walkUpForHtmlgraph traverses parent directories looking for .wipnote/.
+// walkUpForWipnote traverses parent directories looking for .wipnote/.
 // maxLevels == 0 means walk all the way to the filesystem root.
-func walkUpForHtmlgraph(start string, maxLevels int) string {
+func walkUpForWipnote(start string, maxLevels int) string {
 	dir := start
 	for i := 0; maxLevels == 0 || i < maxLevels; i++ {
 		parent := filepath.Dir(dir)
@@ -228,7 +228,7 @@ func GetGitRemoteURL(dir string) string {
 
 // SessionHintPath returns the path to the session-scoped project dir hint.
 func SessionHintPath(sessionID string) string {
-	return filepath.Join(os.TempDir(), "htmlgraph-session-"+sessionID+".projectdir")
+	return filepath.Join(os.TempDir(), "wipnote-session-"+sessionID+".projectdir")
 }
 
 // ReadSessionHint reads the project directory from a session-scoped hint file.
@@ -263,7 +263,7 @@ func CleanupSessionHint(sessionID string) {
 // CleanupGlobalHint removes the legacy global hint file if it exists.
 // Called once at startup to clean up stale state from older versions.
 func CleanupGlobalHint() {
-	_ = os.Remove(filepath.Join(os.TempDir(), "htmlgraph-project-dir.hint"))
+	_ = os.Remove(filepath.Join(os.TempDir(), "wipnote-project-dir.hint"))
 }
 
 // SubagentContext holds the identity of a subagent written at SubagentStart
@@ -277,7 +277,7 @@ type SubagentContext struct {
 
 // subagentHintDir returns the directory used for per-subagent hint files.
 func subagentHintDir(sessionID string) string {
-	return filepath.Join(os.TempDir(), "htmlgraph-subagents", sessionID)
+	return filepath.Join(os.TempDir(), "wipnote-subagents", sessionID)
 }
 
 // WriteSubagentHint persists the subagent context to a per-subagent file so

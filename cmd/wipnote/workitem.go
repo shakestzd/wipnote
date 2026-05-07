@@ -57,7 +57,7 @@ func wiListCmd(_ string, dirName string) *cobra.Command {
 }
 
 func runWiList(dirName, statusFilter string) error {
-	dir, err := findHtmlgraphDir()
+	dir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}
@@ -117,7 +117,7 @@ func runWiShow(id string) error {
 
 // runWiShowWithFormat shows a work item in the requested format (text or json).
 func runWiShowWithFormat(id, format string) error {
-	dir, err := findHtmlgraphDir()
+	dir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}
@@ -192,12 +192,21 @@ func runWiSetStatus(typeName, id, status string) error {
 	return wiSetStatusWithAgent(typeName, id, status, sessionID, agentID)
 }
 
+func writesLegacyActiveFeature(agentID string) bool {
+	switch agentID {
+	case dbpkg.AgentRootSentinel, "codex":
+		return true
+	default:
+		return false
+	}
+}
+
 // wiSetStatusWithAgent is the testable core of runWiSetStatus that accepts
 // explicit sessionID and agentID instead of reading them from the environment.
 // This allows concurrent tests to call it with distinct agent identities without
 // env-var races.
 func wiSetStatusWithAgent(typeName, id, status, sessionID, agentID string) error {
-	dir, err := findHtmlgraphDir()
+	dir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}
@@ -235,7 +244,7 @@ func wiSetStatusWithAgent(typeName, id, status, sessionID, agentID string) error
 		node, err = col.Complete(id)
 	}
 	if err != nil {
-		return fmt.Errorf("cannot set %s %s to %s: %w\nRun 'htmlgraph wip' to see active items or 'htmlgraph %s list' to see valid IDs.", typeName, id, status, err, typeName)
+		return fmt.Errorf("cannot set %s %s to %s: %w\nRun 'wipnote wip' to see active items or 'wipnote %s list' to see valid IDs.", typeName, id, status, err, typeName)
 	}
 
 	// When starting a work item, update per-agent attribution, create a claim
@@ -254,7 +263,7 @@ func wiSetStatusWithAgent(typeName, id, status, sessionID, agentID string) error
 					// write to the root agent only: root stays authoritative for
 					// consumers still reading the legacy column; subagents rely on
 					// per-agent claims + active_work_items for their own attribution.
-					if agentID == dbpkg.AgentRootSentinel {
+					if writesLegacyActiveFeature(agentID) {
 						_ = hooks.UpdateActiveFeature(p.DB, sessionID, id)
 					}
 				}
@@ -349,7 +358,7 @@ func wiDeleteCmd(typeName string) *cobra.Command {
 }
 
 func runWiDelete(id string) error {
-	dir, err := findHtmlgraphDir()
+	dir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}
@@ -388,7 +397,7 @@ func runWiAddStep(typeName, id, description string, allowHostPaths bool) error {
 		return err
 	}
 
-	dir, err := findHtmlgraphDir()
+	dir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}
@@ -430,15 +439,15 @@ func agentForClaim() string {
 }
 
 // resolveID resolves a partial or full work item ID to its canonical form.
-func resolveID(htmlgraphDir, id string) (string, error) {
-	return workitem.ResolvePartialID(htmlgraphDir, id)
+func resolveID(wipnoteDir, id string) (string, error) {
+	return workitem.ResolvePartialID(wipnoteDir, id)
 }
 
 // resolveNodePath searches all subdirectories for a file matching id.
-func resolveNodePath(htmlgraphDir, id string) string {
+func resolveNodePath(wipnoteDir, id string) string {
 	dirs := []string{"features", "bugs", "spikes", "tracks", "plans", "specs"}
 	for _, sub := range dirs {
-		p := filepath.Join(htmlgraphDir, sub, id+".html")
+		p := filepath.Join(wipnoteDir, sub, id+".html")
 		if _, err := os.Stat(p); err == nil {
 			return p
 		}
@@ -497,7 +506,7 @@ func printNodeDetail(n *models.Node) {
 
 	// Hint for finalized plans: surface the idempotent dispatch command.
 	if n.Type == "plan" && string(n.Status) == "finalized" {
-		fmt.Printf("\nNext: htmlgraph plan finalize-yaml %s   (idempotent — creates features, embeds decisions, prints dispatch summary)\n", n.ID)
+		fmt.Printf("\nNext: wipnote plan finalize-yaml %s   (idempotent — creates features, embeds decisions, prints dispatch summary)\n", n.ID)
 	}
 }
 
@@ -531,13 +540,13 @@ func kindFromPrefix(id string) string {
 //
 // Returns nil when the gate is disabled, the feature has a non-empty spec, or
 // allowSpecSkip is set. Returns a remediation error otherwise.
-func checkFeatureCompleteSpecGate(htmlgraphDir, featureID string) error {
-	enforcement := hooks.ReadSpecEnforcement(filepath.Dir(htmlgraphDir))
+func checkFeatureCompleteSpecGate(wipnoteDir, featureID string) error {
+	enforcement := hooks.ReadSpecEnforcement(filepath.Dir(wipnoteDir))
 	if !enforcement.FeatureComplete {
 		return nil
 	}
 
-	featurePath := filepath.Join(htmlgraphDir, "features", featureID+".html")
+	featurePath := filepath.Join(wipnoteDir, "features", featureID+".html")
 	raw, err := os.ReadFile(featurePath)
 	if err != nil {
 		// Feature file unreadable — let the normal Complete path raise the
@@ -546,7 +555,7 @@ func checkFeatureCompleteSpecGate(htmlgraphDir, featureID string) error {
 	}
 	specContent := extractSpecSection(string(raw))
 	if specContent == "" {
-		return fmt.Errorf("feature %s has no spec section; run `htmlgraph spec generate %s --insert` first (or invoke /htmlgraph:spec-from-slice on Claude). Override with --allow-spec-skip if intentional.",
+		return fmt.Errorf("feature %s has no spec section; run `wipnote spec generate %s --insert` first (or invoke /wipnote:spec-from-slice on Claude). Override with --allow-spec-skip if intentional.",
 			featureID, featureID)
 	}
 	criteria := parseCriteria(unwrapPreBlock(specContent))

@@ -13,7 +13,7 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-// openMemDB opens an in-memory SQLite database with the full HtmlGraph schema.
+// openMemDB opens an in-memory SQLite database with the full wipnote schema.
 func openMemDB(t *testing.T) *sql.DB {
 	t.Helper()
 	database, err := db.Open(":memory:")
@@ -28,8 +28,8 @@ func openMemDB(t *testing.T) *sql.DB {
 // ResolveSessionID can find a session ID from the file path.
 func writeActiveSessionFile(t *testing.T, dir, sessionID string) {
 	t.Helper()
-	htmlgraphDir := filepath.Join(dir, ".wipnote")
-	if err := os.MkdirAll(htmlgraphDir, 0o755); err != nil {
+	wipnoteDir := filepath.Join(dir, ".wipnote")
+	if err := os.MkdirAll(wipnoteDir, 0o755); err != nil {
 		t.Fatalf("mkdir .wipnote: %v", err)
 	}
 	data := map[string]interface{}{
@@ -40,7 +40,7 @@ func writeActiveSessionFile(t *testing.T, dir, sessionID string) {
 	if err != nil {
 		t.Fatalf("marshal active session: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(htmlgraphDir, ".active-session"), b, 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(wipnoteDir, ".active-session"), b, 0o644); err != nil {
 		t.Fatalf("write .active-session: %v", err)
 	}
 }

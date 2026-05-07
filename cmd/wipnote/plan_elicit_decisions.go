@@ -32,11 +32,11 @@ into the slice's decisions_notes field as a single Markdown blob.
 Two input forms:
 
   Flags (programmatic / non-interactive):
-    htmlgraph plan elicit-decisions <plan-id> <slice-num> \
+    wipnote plan elicit-decisions <plan-id> <slice-num> \
       --scope "..." --decisions "..." --context "..."
 
   Stdin (YAML payload):
-    cat <<EOF | htmlgraph plan elicit-decisions <plan-id> <slice-num> --from-stdin
+    cat <<EOF | wipnote plan elicit-decisions <plan-id> <slice-num> --from-stdin
     scope: |
       <text>
     decisions: |
@@ -47,10 +47,10 @@ Two input forms:
 
 The command writes to plan YAML atomically. Re-runs replace previous content
 with a stderr warning. The slice's decisions_notes field is consumed by
-'htmlgraph spec generate --insert' to populate the spec's '## Decisions' section.`,
+'wipnote spec generate --insert' to populate the spec's '## Decisions' section.`,
 		Args: cobra.ExactArgs(2),
 		RunE: func(_ *cobra.Command, args []string) error {
-			htmlgraphDir, err := findHtmlgraphDir()
+			wipnoteDir, err := findWipnoteDir()
 			if err != nil {
 				return err
 			}
@@ -58,7 +58,7 @@ with a stderr warning. The slice's decisions_notes field is consumed by
 			if err != nil {
 				return err
 			}
-			return elicitDecisionsForSlice(htmlgraphDir, args[0], sliceNum,
+			return elicitDecisionsForSlice(wipnoteDir, args[0], sliceNum,
 				elicitInput{
 					scope:     scope,
 					decisions: decisions,
@@ -98,8 +98,8 @@ type stdinPayload struct {
 // The load → modify → save window runs inside planyaml.LockPlanForWrite so
 // concurrent in-process elicitations on different slices of the same plan
 // can't lose each other's writes.
-func elicitDecisionsForSlice(htmlgraphDir, planID string, sliceNum int, in elicitInput) error {
-	planPath := filepath.Join(htmlgraphDir, "plans", planID+".yaml")
+func elicitDecisionsForSlice(wipnoteDir, planID string, sliceNum int, in elicitInput) error {
+	planPath := filepath.Join(wipnoteDir, "plans", planID+".yaml")
 
 	defer planyaml.LockPlanForWrite(planPath)()
 

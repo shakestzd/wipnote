@@ -138,4 +138,3 @@ func (fc *FeatureCollection) Create(title string, opts ...FeatureOption) (*model
 
 	return node, nil
 }
-

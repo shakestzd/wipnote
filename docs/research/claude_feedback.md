@@ -1,4 +1,4 @@
-# What HtmlGraph Is Leaving on the Table
+# What wipnote Is Leaving on the Table
 
 This is a fundamental architectural question. You've built a graph system that stores data in the format a graph engine (the browser) natively understands — **but then you bypass that engine entirely** and rebuild the graph processing in Python.
 
@@ -6,7 +6,7 @@ This is a fundamental architectural question. You've built a graph system that s
 
 ## The Core Gap
 
-| What HtmlGraph Does | What the Browser Already Does |
+| What wipnote Does | What the Browser Already Does |
 |---------------------|-------------------------------|
 | Parses HTML with `justhtml` (Python) | Parses HTML natively (C++ engine) |
 | Builds graph in `networkx` (Python) | Builds DOM tree automatically |
@@ -122,7 +122,7 @@ async function buildGraph(entryFile) {
 
 ## The Strategic Reframe
 
-Right now HtmlGraph's architecture is:
+Right now wipnote's architecture is:
 
 ```
 HTML files → Python parser → Python graph → SQLite → Phoenix dashboard → Browser
@@ -134,7 +134,7 @@ It could be:
 HTML files → Browser (it already IS the parser + graph engine + renderer)
 ```
 
-**The value HtmlGraph should add isn't rebuilding what the browser does.** It's the things the browser *can't* do natively:
+**The value wipnote should add isn't rebuilding what the browser does.** It's the things the browser *can't* do natively:
 
 - **Multi-agent coordination protocols** (who's working on what)
 - **Git integration** (commit hooks, diff-aware updates)
@@ -263,7 +263,7 @@ def save(self):
 
 ```python
 class HtmlSerializer:
-    """Produces valid HtmlGraph HTML from structured data."""
+    """Produces valid wipnote HTML from structured data."""
     
     def serialize_feature(self, data: FeatureData) -> str:
         steps_html = "\n".join(

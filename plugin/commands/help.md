@@ -1,6 +1,6 @@
 # /wipnote:help
 
-Display available Erinn AI commands and usage
+Display available wipnote commands and usage
 
 ## Usage
 
@@ -29,7 +29,7 @@ Show all available commands and their descriptions
 
 1. **Retrieve help text:**
    ```bash
-   erinn --help
+   wipnote --help
    ```
 
 2. **Present the complete help message** using the output template above
@@ -47,14 +47,14 @@ Show all available commands and their descriptions
    - Provide CLI equivalents for power users
 
 5. **Highlight key information:**
-   - Dashboard access: `erinn serve` → http://localhost:8080
+   - Dashboard access: `wipnote serve` → http://localhost:8080
    - All commands start with `/wipnote:` for consistency
    - CLI is available as alternative interface
 ```
 
 ### Output Format:
 
-## Erinn AI Commands
+## wipnote Commands
 
 ### Session Management
 - `/wipnote:start` - Start session, see status, choose what to work on
@@ -68,22 +68,22 @@ Show all available commands and their descriptions
 - `/wipnote:feature-primary <id>` - Set primary feature for attribution
 
 ### Utilities
-- `/wipnote:init` - Initialize Erinn AI in project
+- `/wipnote:init` - Initialize wipnote in project
 - `/wipnote:serve [port]` - Start dashboard server
 - `/wipnote:track <tool> <summary>` - Manually track activity
 
 ### CLI Commands
 You can also use the CLI directly:
 ```bash
-erinn --help
-erinn status
-erinn feature list
-erinn session list
+wipnote --help
+wipnote status
+wipnote feature list
+wipnote session list
 ```
 
 ### Dashboard
 View progress in browser:
 ```bash
-erinn serve
+wipnote serve
 # Open http://localhost:8080
 ```

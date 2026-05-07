@@ -11,10 +11,10 @@ func init() { Register(codexAdapter{}) }
 // codexAdapter emits the Codex CLI marketplace tree. Layout:
 //
 //	<outDir>/.agents/plugins/marketplace.json
-//	<outDir>/.agents/plugins/erinn/.codex-plugin/plugin.json
-//	<outDir>/.agents/plugins/erinn/hooks.json
-//	<outDir>/.agents/plugins/erinn/.mcp.json
-//	<outDir>/.agents/plugins/erinn/{commands,agents,skills,templates,static,config}/
+//	<outDir>/.agents/plugins/wipnote/.codex-plugin/plugin.json
+//	<outDir>/.agents/plugins/wipnote/hooks.json
+//	<outDir>/.agents/plugins/wipnote/.mcp.json
+//	<outDir>/.agents/plugins/wipnote/{commands,agents,skills,templates,static,config}/
 //
 // Codex 0.121.0+ registers plugins exclusively via `codex marketplace add <path>`.
 // Codex expects the marketplace root to contain `.agents/plugins/marketplace.json`
@@ -22,7 +22,7 @@ func init() { Register(codexAdapter{}) }
 //
 // Codex hook event names differ from Claude in a few places (TaskStarted,
 // TaskComplete, TurnAborted) — the manifest's `targets` field controls which
-// events are emitted here. Business logic stays in `erinn hook <handler>`
+// events are emitted here. Business logic stays in `wipnote hook <handler>`
 // so the Codex plugin is a thin wrapper just like the Claude one.
 type codexAdapter struct{}
 
@@ -34,7 +34,7 @@ func (codexAdapter) Name() string { return "codex" }
 // Hand-maintained files (README.md) outside these paths are never touched.
 // The owned subtree is narrowed to the plugin's own directory to avoid
 // deleting sibling plugins under .agents/plugins/.
-var codexOwnedSubtrees = []string{".agents/plugins/erinn"}
+var codexOwnedSubtrees = []string{".agents/plugins/wipnote"}
 
 func (c codexAdapter) Emit(m *Manifest, repoRoot, outDir string) error {
 	target, ok := m.Targets[c.Name()]
@@ -46,7 +46,7 @@ func (c codexAdapter) Emit(m *Manifest, repoRoot, outDir string) error {
 	// Codex expects: <outDir>/.agents/plugins/<plugin-name>/
 	pluginSubdir := target.PluginSubdir
 	if pluginSubdir == "" {
-		pluginSubdir = ".agents/plugins/erinn"
+		pluginSubdir = ".agents/plugins/wipnote"
 	}
 	pluginDir := filepath.Join(outDir, pluginSubdir)
 
@@ -56,10 +56,8 @@ func (c codexAdapter) Emit(m *Manifest, repoRoot, outDir string) error {
 		return fmt.Errorf("codex pre-clean: %w", err)
 	}
 
-	// Write marketplace.json at <outDir>/.agents/plugins/marketplace.json.
-	// source.path is relative to the directory containing marketplace.json
-	// (i.e. .agents/plugins/), so compute as filepath.Rel against that directory.
 	mktPath := filepath.Join(outDir, ".agents", "plugins", "marketplace.json")
+	// source.path is relative to the directory containing marketplace.json.
 	mktDir := filepath.Dir(mktPath)
 	rel, err := filepath.Rel(mktDir, pluginDir)
 	if err != nil {
@@ -70,7 +68,7 @@ func (c codexAdapter) Emit(m *Manifest, repoRoot, outDir string) error {
 		return err
 	}
 
-	// Write per-plugin files under plugins/htmlgraph/.
+	// Write per-plugin files under plugins/wipnote/.
 	if err := writeCodexManifest(m, filepath.Join(pluginDir, target.ManifestPath)); err != nil {
 		return err
 	}
@@ -88,9 +86,9 @@ func (c codexAdapter) Emit(m *Manifest, repoRoot, outDir string) error {
 // codexMarketplaceJSON is the schema for marketplace.json at the root of a
 // Codex marketplace directory. Codex reads this file on `codex marketplace add`.
 type codexMarketplaceJSON struct {
-	Name      string                 `json:"name"`
-	Interface codexMktInterfaceJSON  `json:"interface"`
-	Plugins   []codexMktPluginJSON   `json:"plugins"`
+	Name      string                `json:"name"`
+	Interface codexMktInterfaceJSON `json:"interface"`
+	Plugins   []codexMktPluginJSON  `json:"plugins"`
 }
 
 type codexMktInterfaceJSON struct {
@@ -98,10 +96,10 @@ type codexMktInterfaceJSON struct {
 }
 
 type codexMktPluginJSON struct {
-	Name     string               `json:"name"`
-	Source   codexMktSourceJSON   `json:"source"`
-	Policy   codexMktPolicyJSON   `json:"policy"`
-	Category string               `json:"category,omitempty"`
+	Name     string             `json:"name"`
+	Source   codexMktSourceJSON `json:"source"`
+	Policy   codexMktPolicyJSON `json:"policy"`
+	Category string             `json:"category,omitempty"`
 }
 
 type codexMktSourceJSON struct {
@@ -115,8 +113,7 @@ type codexMktPolicyJSON struct {
 }
 
 // writeCodexMarketplace writes marketplace.json to path. sourcePath is the
-// relative path to the plugin directory, computed relative to the directory
-// containing marketplace.json (i.e. <outDir>/.agents/plugins/).
+// relative path from the marketplace.json directory to the plugin directory.
 func writeCodexMarketplace(m *Manifest, target Target, path, sourcePath string) error {
 	name := target.MarketplaceName
 	if name == "" {
@@ -130,8 +127,6 @@ func writeCodexMarketplace(m *Manifest, target Target, path, sourcePath string) 
 	if category == "" {
 		category = m.Category
 	}
-
-	// source.path is relative to the directory containing marketplace.json.
 
 	return writeJSON(path, codexMarketplaceJSON{
 		Name:      name,
@@ -165,6 +160,9 @@ type codexPluginJSON struct {
 	Repository  string             `json:"repository,omitempty"`
 	License     string             `json:"license,omitempty"`
 	Keywords    []string           `json:"keywords,omitempty"`
+	Skills      string             `json:"skills,omitempty"`
+	Hooks       string             `json:"hooks,omitempty"`
+	MCPServers  string             `json:"mcpServers,omitempty"`
 	Interface   codexInterfaceJSON `json:"interface"`
 }
 
@@ -196,8 +194,11 @@ func writeCodexManifest(m *Manifest, path string) error {
 		Repository: m.Repository,
 		License:    m.License,
 		Keywords:   m.Keywords,
+		Skills:     "./skills/",
+		Hooks:      "./hooks.json",
+		MCPServers: "./.mcp.json",
 		Interface: codexInterfaceJSON{
-			DisplayName:      "Erinn AI",
+			DisplayName:      "wipnote",
 			ShortDescription: m.Description,
 			DeveloperName:    m.Author.Name,
 			Category:         m.Category,
@@ -235,7 +236,7 @@ func writeCodexHooks(m *Manifest, path string) error {
 	return writeJSON(path, orderedHookMap{keys: order, values: hooks})
 }
 
-// ensureCodexMCP writes a stub .mcp.json if none exists. Erinn AI doesn't
+// ensureCodexMCP writes a stub .mcp.json if none exists. wipnote doesn't
 // currently expose an MCP server, but the file is part of the Codex plugin
 // contract and future MCP integrations land here without schema churn.
 func ensureCodexMCP(path string) error {

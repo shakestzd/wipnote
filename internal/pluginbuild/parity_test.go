@@ -11,11 +11,11 @@ import (
 // TestClaudeParityFromLiveManifest guards the Claude plugin port against
 // regressions in the shared manifest. It loads the real
 // packages/plugin-core/manifest.json, emits a Claude plugin tree into a
-// tempdir, and asserts the invariants the HtmlGraph plugin must satisfy:
+// tempdir, and asserts the invariants the wipnote plugin must satisfy:
 // manifest name/version, the three workhorse hook events, and at least one
 // command/agent/skill copied from the asset sources. The test is
 // self-contained: it does not shell out, hit the network, or depend on the
-// erinn binary being installed.
+// wipnote binary being installed.
 func TestClaudeParityFromLiveManifest(t *testing.T) {
 	cwd, err := os.Getwd()
 	if err != nil {

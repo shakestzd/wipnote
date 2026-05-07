@@ -392,21 +392,21 @@ func scanEvent(rows *sql.Rows) map[string]any {
 	}
 
 	return map[string]any{
-		"event_id":      eventID,
-		"agent_id":      agentID,
-		"event_type":    eventType,
-		"timestamp":     ts,
-		"tool_name":     toolName,
-		"input_summary": inputSum,
-		"output_summary": outputSum,
-		"session_id":    sessionID,
-		"feature_id":    featureID,
-		"feature_title": featureTitle,
-		"status":        status,
+		"event_id":        eventID,
+		"agent_id":        agentID,
+		"event_type":      eventType,
+		"timestamp":       ts,
+		"tool_name":       toolName,
+		"input_summary":   inputSum,
+		"output_summary":  outputSum,
+		"session_id":      sessionID,
+		"feature_id":      featureID,
+		"feature_title":   featureTitle,
+		"status":          status,
 		"parent_event_id": parentEvtID,
-		"subagent_type": subagentType,
-		"tool_use_id":   stepID,
-		"model":         model,
+		"subagent_type":   subagentType,
+		"tool_use_id":     stepID,
+		"model":           model,
 	}
 }
 
@@ -443,4 +443,3 @@ func walkChildren(children []map[string]any, stats *turnStats, models map[string
 		}
 	}
 }
-

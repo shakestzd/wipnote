@@ -38,12 +38,12 @@ Prompt the user for a feature title
    - If no title → ask the user: "What feature would you like to add?"
 
 2. **Get track ID:**
-   - Run `erinn track list` to show available tracks
+   - Run `wipnote track list` to show available tracks
    - Ask the user: "Which track should this feature belong to? (provide trk-id)"
 
 3. **Create the feature using CLI:**
    ```bash
-   erinn feature create "{title}" --track {trk-id}
+   wipnote feature create "{title}" --track {trk-id}
    ```
 
 4. **Present confirmation** using the output template below with the feature ID, title, and status from CLI output.
@@ -62,5 +62,5 @@ Prompt the user for a feature title
 
 Start working on it with:
 ```bash
-erinn feature start {feature_id}
+wipnote feature start {feature_id}
 ```

@@ -40,20 +40,20 @@ Complexity-gated: plans with fewer than 3 slices output
 critique_warranted=false.
 
 Example:
-  htmlgraph plan critique plan-a1b2c3d4`,
+  wipnote plan critique plan-a1b2c3d4`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
-			htmlgraphDir, err := findHtmlgraphDir()
+			wipnoteDir, err := findWipnoteDir()
 			if err != nil {
 				return err
 			}
-			return runPlanCritique(htmlgraphDir, args[0])
+			return runPlanCritique(wipnoteDir, args[0])
 		},
 	}
 }
 
-func runPlanCritique(htmlgraphDir, planID string) error {
-	out, err := extractCritiqueData(htmlgraphDir, planID)
+func runPlanCritique(wipnoteDir, planID string) error {
+	out, err := extractCritiqueData(wipnoteDir, planID)
 	if err != nil {
 		return err
 	}
@@ -63,8 +63,8 @@ func runPlanCritique(htmlgraphDir, planID string) error {
 }
 
 // extractCritiqueData reads a plan node and extracts structured data for critique.
-func extractCritiqueData(htmlgraphDir, planID string) (*critiqueOutput, error) {
-	p, err := workitem.Open(htmlgraphDir, agentForClaim())
+func extractCritiqueData(wipnoteDir, planID string) (*critiqueOutput, error) {
+	p, err := workitem.Open(wipnoteDir, agentForClaim())
 	if err != nil {
 		return nil, fmt.Errorf("open project: %w", err)
 	}
@@ -77,7 +77,7 @@ func extractCritiqueData(htmlgraphDir, planID string) (*critiqueOutput, error) {
 
 	// Extract description from plan HTML, not node.Content.
 	// For CRISPI plans, the description is in the <p> tag after the <h1>.
-	description := extractPlanDescription(htmlgraphDir, planID)
+	description := extractPlanDescription(wipnoteDir, planID)
 
 	out := &critiqueOutput{
 		PlanID:      planID,
@@ -94,7 +94,7 @@ func extractCritiqueData(htmlgraphDir, planID string) (*critiqueOutput, error) {
 		})
 	}
 	if len(out.Slices) == 0 {
-		yamlPath := filepath.Join(htmlgraphDir, "plans", planID+".yaml")
+		yamlPath := filepath.Join(wipnoteDir, "plans", planID+".yaml")
 		if plan, err := planyaml.Load(yamlPath); err == nil {
 			for _, s := range plan.Slices {
 				out.Slices = append(out.Slices, critiqueSlice{
@@ -117,8 +117,8 @@ func extractCritiqueData(htmlgraphDir, planID string) (*critiqueOutput, error) {
 
 // extractPlanDescription reads the plan HTML file and extracts the description
 // from the <p> tag immediately after the <h1> in the header.
-func extractPlanDescription(htmlgraphDir, planID string) string {
-	planPath := filepath.Join(htmlgraphDir, "plans", planID+".html")
+func extractPlanDescription(wipnoteDir, planID string) string {
+	planPath := filepath.Join(wipnoteDir, "plans", planID+".html")
 	data, err := os.ReadFile(planPath)
 	if err != nil {
 		return ""

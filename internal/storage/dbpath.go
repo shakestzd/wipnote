@@ -1,4 +1,4 @@
-// Package storage provides helpers for resolving HtmlGraph's SQLite
+// Package storage provides helpers for resolving wipnote's SQLite
 // database path. The database is a derived read-index (HTML files and NDJSON
 // events are canonical state); it lives in the host's OS cache directory
 // rather than inside the project tree so it always sits on a filesystem
@@ -18,8 +18,11 @@ import (
 
 // DBFileName is the canonical SQLite filename. Use the constant; never
 // inline the string in callers (enforced by TestNoInlineDBPathConstruction).
-const DBFileName = "htmlgraph.db"
+const DBFileName = "wipnote.db"
 
+// legacyHTMLGraphDBFileName is retained only so cleanup can find and warn
+// about project-local SQLite files written before the wipnote rename.
+const legacyHTMLGraphDBFileName = "htmlgraph.db"
 
 // CanonicalDBPath returns the absolute path to the SQLite read-index for
 // the given project. The DB lives in the host's OS cache directory keyed
@@ -27,7 +30,7 @@ const DBFileName = "htmlgraph.db"
 // sits on a filesystem that supports SQLite WAL/SHM mmap (ext4, APFS, etc.)
 // regardless of how the project itself is mounted (virtiofs, osxfs, NFS).
 //
-// SQLite is a derived index in HtmlGraph: HTML files and NDJSON events
+// SQLite is a derived index in wipnote: HTML files and NDJSON events
 // are the canonical store. Losing the cache file is harmless — the
 // indexer rebuilds it.
 //
@@ -64,6 +67,8 @@ func LegacyProjectDBPaths(projectDir string) []string {
 	return []string{
 		filepath.Join(projectDir, ".wipnote", DBFileName),
 		filepath.Join(projectDir, ".wipnote", ".db", DBFileName),
+		filepath.Join(projectDir, ".wipnote", legacyHTMLGraphDBFileName),
+		filepath.Join(projectDir, ".wipnote", ".db", legacyHTMLGraphDBFileName),
 	}
 }
 
@@ -72,7 +77,6 @@ func LegacyProjectDBPaths(projectDir string) []string {
 func EnsureDBDir(dbPath string) error {
 	return os.MkdirAll(filepath.Dir(dbPath), 0o755)
 }
-
 
 // CleanLegacyDBIfSafe checks for legacy project-local SQLite files and
 // handles them based on whether the canonical cache DB exists and is non-empty:
@@ -141,7 +145,7 @@ func CleanLegacyDBIfSafe(projectDir string, w io.Writer) {
 		}
 		mb := float64(info.Size()) / (1024 * 1024)
 		fmt.Fprintf(w,
-			"[htmlgraph] WARNING: legacy SQLite file at %s (%.1f MB) is unused — DB now lives in the user cache dir. You can delete: %s\n",
+			"[wipnote] WARNING: legacy SQLite file at %s (%.1f MB) is unused — DB now lives in the user cache dir. You can delete: %s\n",
 			rel, mb, p)
 	}
 

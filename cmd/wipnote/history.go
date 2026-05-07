@@ -20,7 +20,7 @@ type historyEntry struct {
 	Subject string `json:"subject"`
 }
 
-// newHistoryCmd returns the cobra command for `htmlgraph history <id>`.
+// newHistoryCmd returns the cobra command for `wipnote history <id>`.
 func newHistoryCmd() *cobra.Command {
 	var jsonOut bool
 
@@ -33,8 +33,8 @@ the git log for that file, most-recent commit first.
 Supported prefixes: feat-, bug-, spk-, plan-, trk-
 
 Examples:
-  htmlgraph history feat-2a43f5f8
-  htmlgraph history plan-3b0d5133 --json`,
+  wipnote history feat-2a43f5f8
+  wipnote history plan-3b0d5133 --json`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
 			return runHistory(args[0], jsonOut)
@@ -48,7 +48,7 @@ Examples:
 // runHistory is the top-level handler: resolves the path, runs git log, and
 // renders the result.
 func runHistory(id string, jsonOut bool) error {
-	hgDir, err := findHtmlgraphDir()
+	hgDir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}
@@ -171,7 +171,7 @@ func gitCommonDir(dir string) (string, error) {
 // worktree on a different branch, and its toplevel is the right one for
 // branch-local history. Otherwise cwd is inside a different repository
 // (typically a nested submodule) and we fall back to the .wipnote owner
-// so history never escapes the HtmlGraph checkout.
+// so history never escapes the wipnote checkout.
 func resolveHistoryRoot(hgOwner string) (string, error) {
 	ownerCommon, ownerErr := gitCommonDir(hgOwner)
 	cwdCommon, cwdErr := gitCommonDir(".")

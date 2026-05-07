@@ -98,7 +98,7 @@ links:
     to: "First Feature"
     rel: relates_to
 `
-	// Set project-dir so findHtmlgraphDir works
+	// Set project-dir so findWipnoteDir works
 	projectDirFlag = tmpDir
 	defer func() { projectDirFlag = "" }()
 

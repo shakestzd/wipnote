@@ -52,14 +52,14 @@ const (
 // call per (metric_name, attribute-set) tuple; the receiver fans out
 // multi-point aggregates before calling Convert.
 type OTLPMetric struct {
-	Name       string
-	Kind       MetricKind
-	Unit       string
-	Timestamp  time.Time
-	Value      float64 // counter delta, gauge snapshot, or histogram sum
-	Count      uint64  // populated for histograms
-	Attrs      map[string]any
-	StartTime  time.Time
+	Name      string
+	Kind      MetricKind
+	Unit      string
+	Timestamp time.Time
+	Value     float64 // counter delta, gauge snapshot, or histogram sum
+	Count     uint64  // populated for histograms
+	Attrs     map[string]any
+	StartTime time.Time
 }
 
 // OTLPLog captures one OTLP log/event record. OTel LogRecord fields map
@@ -109,7 +109,7 @@ type OTLPSpanEvent struct {
 // the Claude adapter, "codex" by Codex, and so on.
 //
 // Convert* methods may return zero, one, or multiple signals per input.
-// Returning zero is valid (e.g. for heartbeat metrics with no HtmlGraph
+// Returning zero is valid (e.g. for heartbeat metrics with no wipnote
 // meaning). Returning multiple is valid for metric aggregates that carry
 // per-dimension token counts needing one signal per dimension.
 type Adapter interface {

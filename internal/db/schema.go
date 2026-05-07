@@ -11,7 +11,7 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-// Open opens (or creates) an HtmlGraph SQLite database at the given path,
+// Open opens (or creates) an wipnote SQLite database at the given path,
 // applies performance PRAGMAs, and ensures the schema exists.
 func Open(dbPath string) (*sql.DB, error) {
 	dir := filepath.Dir(dbPath)
@@ -146,7 +146,7 @@ func Open(dbPath string) (*sql.DB, error) {
 	return db, nil
 }
 
-// CreateAllTables creates every HtmlGraph table if it does not already exist.
+// CreateAllTables creates every wipnote table if it does not already exist.
 // Mirrors create_all_tables() from Python ddl.py.
 func CreateAllTables(db *sql.DB) error {
 	stmts := []string{

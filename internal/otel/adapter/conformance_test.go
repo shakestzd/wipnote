@@ -97,6 +97,16 @@ func TestAdapterConformance_Identify(t *testing.T) {
 	}
 }
 
+func TestCodexAdapterIdentify_DefaultServiceName(t *testing.T) {
+	codex := adapter.NewCodexAdapter()
+	res := adapter.OTLPResource{Attrs: map[string]any{
+		"service.name": "codex_cli_rs",
+	}}
+	if !codex.Identify(res) {
+		t.Fatalf("Codex adapter did not identify Codex's default service.name")
+	}
+}
+
 // TestAdapterConformance_Metric checks the metric path populates Harness,
 // SessionID, and CanonicalName.
 func TestAdapterConformance_Metric(t *testing.T) {

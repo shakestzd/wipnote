@@ -39,18 +39,18 @@ List available features and prompt for selection
 
 2. **List available features:**
    ```bash
-   erinn find features --status todo
+   wipnote find features --status todo
    ```
    Show available features to the user, ask which they want to start, wait for response.
 
 3. **Start the feature:**
    ```bash
-   erinn feature start {feature_id}
+   wipnote feature start {feature_id}
    ```
 
 4. **Get feature details:**
    ```bash
-   erinn feature show {feature_id}
+   wipnote feature show {feature_id}
    ```
    Extract: title, ID, status (should be "in-progress"), description, and any implementation steps.
 

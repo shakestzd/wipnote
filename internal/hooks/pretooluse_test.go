@@ -15,7 +15,7 @@ import (
 // makeSessionDB creates an in-memory DB with a session row pointing to projectDir.
 func makeSessionDB(t *testing.T, sessionID, projectDir string) *sql.DB {
 	t.Helper()
-	database, err := db.Open(filepath.Join(t.TempDir(), "htmlgraph.db"))
+	database, err := db.Open(filepath.Join(t.TempDir(), "wipnote.db"))
 	if err != nil {
 		t.Fatalf("db.Open: %v", err)
 	}
@@ -41,7 +41,7 @@ func TestCheckProjectDivergence_SameProject(t *testing.T) {
 	}
 
 	// Isolate from the developer's real environment: the hint file and env vars
-	// must not redirect ResolveProjectDir to the real htmlgraph project dir.
+	// must not redirect ResolveProjectDir to the real wipnote project dir.
 	t.Setenv("CLAUDE_PROJECT_DIR", "")
 	t.Setenv("WIPNOTE_PROJECT_DIR", projectDir)
 
@@ -134,7 +134,7 @@ func TestCheckProjectDivergence_DifferentProject_ReadTool_Allows(t *testing.T) {
 
 func TestCheckProjectDivergence_NoSessionProjectDir_Allows(t *testing.T) {
 	// Session has no project_dir stored — should not block anything.
-	database, err := db.Open(filepath.Join(t.TempDir(), "htmlgraph.db"))
+	database, err := db.Open(filepath.Join(t.TempDir(), "wipnote.db"))
 	if err != nil {
 		t.Fatalf("db.Open: %v", err)
 	}
@@ -170,7 +170,7 @@ func TestCheckProjectDivergence_EmptySessionID_Allows(t *testing.T) {
 		CWD:       t.TempDir(),
 		ToolInput: map[string]any{"path": "/foo.go"},
 	}
-	database, _ := db.Open(filepath.Join(t.TempDir(), "htmlgraph.db"))
+	database, _ := db.Open(filepath.Join(t.TempDir(), "wipnote.db"))
 	defer database.Close()
 
 	result := checkProjectDivergence(event, database, "")
@@ -180,7 +180,7 @@ func TestCheckProjectDivergence_EmptySessionID_Allows(t *testing.T) {
 }
 
 func TestIsWriteTool(t *testing.T) {
-	writeTools := []string{"Write", "Edit", "MultiEdit", "Bash", "NotebookEdit", "Agent"}
+	writeTools := []string{"Write", "Edit", "MultiEdit", "apply_patch", "Bash", "exec_command", "functions.exec_command", "NotebookEdit", "Agent"}
 	for _, name := range writeTools {
 		if !isWriteTool(name) {
 			t.Errorf("expected %s to be a write tool", name)
@@ -205,8 +205,10 @@ func TestCheckSubagentWorkItemGuard(t *testing.T) {
 		{"subagent Write no work item blocks", "Write", true, false, true},
 		{"subagent Edit no work item blocks", "Edit", true, false, true},
 		{"subagent MultiEdit no work item blocks", "MultiEdit", true, false, true},
+		{"subagent apply_patch no work item blocks", "apply_patch", true, false, true},
 		{"subagent Write with work item allows", "Write", true, true, false},
 		{"subagent Edit with work item allows", "Edit", true, true, false},
+		{"subagent apply_patch with work item allows", "apply_patch", true, true, false},
 		{"subagent Bash no work item allows (not a write-only guard)", "Bash", true, false, false},
 		{"subagent Read no work item allows", "Read", true, false, false},
 		{"non-subagent Write no work item allows", "Write", false, false, false},
@@ -305,6 +307,50 @@ func TestCheckSubagentWorkItemGuard_DiagnosticFields(t *testing.T) {
 	}
 }
 
+func TestPreToolUseRecordsClaimedWorkItemFeatureID(t *testing.T) {
+	tdb := setupTestDB(t)
+
+	tdb.addFeature("bug-claim-001", "bug", "Claimed bug", "in-progress")
+	claim := &models.Claim{
+		ClaimID:          "clm-claim-001",
+		WorkItemID:       "bug-claim-001",
+		OwnerSessionID:   "test-sess",
+		OwnerAgent:       "codex",
+		ClaimedByAgentID: "codex",
+		Status:           models.ClaimInProgress,
+	}
+	if err := db.ClaimItemOrRenew(tdb.DB, claim, 30*time.Minute); err != nil {
+		t.Fatalf("ClaimItemOrRenew: %v", err)
+	}
+
+	event := &CloudEvent{
+		AgentID:   "codex",
+		SessionID: "test-sess",
+		CWD:       t.TempDir(),
+		ToolName:  "Read",
+		ToolInput: map[string]any{"file_path": "internal/hooks/pretooluse.go"},
+		ToolUseID: "claimed-feature-validation",
+	}
+	result, err := PreToolUse(event, tdb.DB)
+	if err != nil {
+		t.Fatalf("PreToolUse: %v", err)
+	}
+	if result.Decision == "block" {
+		t.Fatalf("Read should not be blocked: %s", result.Reason)
+	}
+
+	var featureID string
+	if err := tdb.DB.QueryRow(
+		`SELECT COALESCE(feature_id, '') FROM agent_events WHERE step_id = ?`,
+		"claimed-feature-validation",
+	).Scan(&featureID); err != nil {
+		t.Fatalf("query event feature_id: %v", err)
+	}
+	if featureID != "bug-claim-001" {
+		t.Fatalf("feature_id = %q, want bug-claim-001", featureID)
+	}
+}
+
 // TestIsBashFileWrite_NewPatterns verifies the write-intent patterns added in
 // the roborev-job-14 fix: explicit fd-1 redirect (1>), combined redirects (&>, &>>),
 // find -delete, and the negative case cat ... 2>/dev/null (must NOT block).
@@ -351,6 +397,38 @@ func TestIsBashFileWrite_NewPatterns(t *testing.T) {
 				t.Errorf("isBashFileWrite should be false for command %q", tc.cmd)
 			}
 		})
+	}
+}
+
+func TestIsWipnoteCLICommandAnchorsExecutable(t *testing.T) {
+	tests := []struct {
+		name string
+		cmd  string
+		want bool
+	}{
+		{"bare wipnote", "wipnote feature start feat-abc", true},
+		{"env-prefixed wipnote", "WIPNOTE_AGENT_ID=codex wipnote feature start feat-abc >/dev/null 2>&1", true},
+		{"compound wipnote only", "wipnote feature start feat-abc && wipnote status", true},
+		{"path wipnote", "/usr/local/bin/wipnote status", true},
+		{"mentioned only", "echo wipnote > .wipnote/features/feat-abc.html", false},
+		{"mixed direct write", "wipnote status && echo x > .wipnote/features/feat-abc.html", false},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := isWipnoteCLICommand(tc.cmd); got != tc.want {
+				t.Fatalf("isWipnoteCLICommand(%q) = %v, want %v", tc.cmd, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestIsBashwipnoteWrite_DoesNotBypassOnMention(t *testing.T) {
+	event := &CloudEvent{
+		ToolName:  "Bash",
+		ToolInput: map[string]any{"command": "echo wipnote > .wipnote/features/feat-abc.html"},
+	}
+	if !isBashwipnoteWrite(event) {
+		t.Fatal("direct .wipnote write that merely mentions wipnote should be blocked")
 	}
 }
 

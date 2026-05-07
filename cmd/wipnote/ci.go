@@ -27,7 +27,7 @@ func ciInitCmd() *cobra.Command {
 }
 
 func runCIInit(_ *cobra.Command, _ []string) error {
-	// ci init works on any project, not just HtmlGraph-initialized ones.
+	// ci init works on any project, not just wipnote-initialized ones.
 	// Prefer --project-dir flag, then fall through to CWD.
 	projectDir := projectDirFlag
 	if projectDir == "" {

@@ -228,7 +228,7 @@ func TestWriter_DropsSignalWithEmptySessionID(t *testing.T) {
 
 // TestWriter_OrphanSpanCreatePlaceholder verifies that when an incoming span's
 // parent_span does not exist in otel_signals, and the resource carries
-// htmlgraph.agent_id matching a pending_subagent_starts row, a placeholder
+// wipnote.agent_id matching a pending_subagent_starts row, a placeholder
 // subagent_invocation row is synthesised for the parent_span immediately.
 func TestWriter_OrphanSpanCreatePlaceholder(t *testing.T) {
 	w, dbPath := newWriter(t)
@@ -275,8 +275,8 @@ func TestWriter_OrphanSpanCreatePlaceholder(t *testing.T) {
 	})
 
 	resourceAttrs := map[string]any{
-		"service.name":       "claude-code",
-		"htmlgraph.agent_id": agentID, // triggers placeholder path
+		"service.name":     "claude-code",
+		"wipnote.agent_id": agentID, // triggers placeholder path
 	}
 	n, err := w.WriteBatch(ctx, otel.HarnessClaude, resourceAttrs, []otel.UnifiedSignal{orphanSpan})
 	if err != nil {
@@ -349,8 +349,8 @@ func TestWriter_RealAgentSpanUpgradesPlaceholder(t *testing.T) {
 	}
 
 	resourceAttrs := map[string]any{
-		"service.name":       "claude-code",
-		"htmlgraph.agent_id": agentID,
+		"service.name":     "claude-code",
+		"wipnote.agent_id": agentID,
 	}
 
 	// Step 1: Send an orphan child span. This triggers placeholder creation for agentSpanID.
@@ -384,10 +384,10 @@ func TestWriter_RealAgentSpanUpgradesPlaceholder(t *testing.T) {
 	realAgentSpan := sigFixture(sessionID, "prompt-upgrade", func(s *otel.UnifiedSignal) {
 		s.SignalID = "sig-real-agent-upgrade"
 		s.Kind = otel.KindSpan
-		s.CanonicalName = otel.CanonicalSubagent   // triggers upgrade path
+		s.CanonicalName = otel.CanonicalSubagent // triggers upgrade path
 		s.NativeName = "claude_code.agent_turn"
-		s.SpanID = agentSpanID                     // same span_id as placeholder
-		s.ParentSpan = ""                           // root agent span has no parent
+		s.SpanID = agentSpanID // same span_id as placeholder
+		s.ParentSpan = ""      // root agent span has no parent
 		s.TraceID = "trace-upgrade-999"
 		s.Model = "claude-sonnet-4-6"
 		s.Tokens = otel.TokenCounts{Input: 500, Output: 1200}
@@ -440,7 +440,7 @@ func TestWriter_RealAgentSpanUpgradesPlaceholder(t *testing.T) {
 }
 
 // TestWriter_ReattributesByAgentIDResourceAttr verifies Strategy A re-attribution:
-// a child span arriving with htmlgraph.agent_id and a wrong parent_span (pointing
+// a child span arriving with wipnote.agent_id and a wrong parent_span (pointing
 // at the interaction) gets re-parented to the correct Agent span_id.
 func TestWriter_ReattributesByAgentIDResourceAttr(t *testing.T) {
 	w, dbPath := newWriter(t)
@@ -509,8 +509,8 @@ func TestWriter_ReattributesByAgentIDResourceAttr(t *testing.T) {
 	})
 
 	resourceAttrs := map[string]any{
-		"service.name":       "claude-code",
-		"htmlgraph.agent_id": agentID, // Strategy A trigger
+		"service.name":     "claude-code",
+		"wipnote.agent_id": agentID, // Strategy A trigger
 	}
 	n, err := w.WriteBatch(ctx, otel.HarnessClaude, resourceAttrs, []otel.UnifiedSignal{childSpan})
 	if err != nil {
@@ -533,7 +533,7 @@ func TestWriter_ReattributesByAgentIDResourceAttr(t *testing.T) {
 }
 
 // TestWriter_ReattributesByOverlapWindow verifies Strategy B re-attribution:
-// a span without htmlgraph.agent_id, whose parent is an interaction span, gets
+// a span without wipnote.agent_id, whose parent is an interaction span, gets
 // re-parented to the single Agent span whose window contains its timestamp.
 func TestWriter_ReattributesByOverlapWindow(t *testing.T) {
 	w, dbPath := newWriter(t)
@@ -595,7 +595,7 @@ func TestWriter_ReattributesByOverlapWindow(t *testing.T) {
 		s.ToolName = "Bash"
 	})
 
-	// No htmlgraph.agent_id — Strategy B should kick in.
+	// No wipnote.agent_id — Strategy B should kick in.
 	resourceAttrs := map[string]any{
 		"service.name": "claude-code",
 	}
@@ -685,7 +685,7 @@ func TestWriter_DoesNotReattributeWhenAmbiguous(t *testing.T) {
 		s.ToolName = "Bash"
 	})
 
-	// No htmlgraph.agent_id — only Strategy B is attempted.
+	// No wipnote.agent_id — only Strategy B is attempted.
 	resourceAttrs := map[string]any{
 		"service.name": "claude-code",
 	}
@@ -753,7 +753,7 @@ func TestNewWriter_DoesNotForceWAL(t *testing.T) {
 }
 
 // TestWriter_OrphanSpanNoAgentIDGracefulDegrade verifies that an orphan span
-// without htmlgraph.agent_id in resource attrs does NOT synthesise a placeholder
+// without wipnote.agent_id in resource attrs does NOT synthesise a placeholder
 // (graceful degradation for pre-upgrade sessions).
 func TestWriter_OrphanSpanNoAgentIDGracefulDegrade(t *testing.T) {
 	w, _ := newWriter(t)
@@ -771,10 +771,10 @@ func TestWriter_OrphanSpanNoAgentIDGracefulDegrade(t *testing.T) {
 		s.ParentSpan = orphanParentSpan
 	})
 
-	// No htmlgraph.agent_id in resource attrs — should not create placeholder.
+	// No wipnote.agent_id in resource attrs — should not create placeholder.
 	resourceAttrs := map[string]any{
 		"service.name": "claude-code",
-		// intentionally omitting htmlgraph.agent_id
+		// intentionally omitting wipnote.agent_id
 	}
 	n, err := w.WriteBatch(ctx, otel.HarnessClaude, resourceAttrs, []otel.UnifiedSignal{orphanSpan})
 	if err != nil {

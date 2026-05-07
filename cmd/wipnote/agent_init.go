@@ -14,7 +14,7 @@ func agentInitCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "agent-init",
 		Short: "Output shared agent context (safety rules, attribution, quality gates)",
-		Long: `Outputs shared instructions that all HtmlGraph agents must follow.
+		Long: `Outputs shared instructions that all wipnote agents must follow.
 Agents call this command at startup to load safety rules, work attribution
 patterns, and project-appropriate quality gates into their context.
 
@@ -42,24 +42,24 @@ Before ANY other work, identify and activate the work item for this task:
 
 ` + "```bash" + `
 # Check what's currently in-progress
-htmlgraph find --status in-progress
+wipnote find --status in-progress
 
 # Start the relevant work item (check task description for the feature/bug ID)
-htmlgraph feature start feat-XXXX  # or: htmlgraph bug start bug-XXXX
+wipnote feature start feat-XXXX  # or: wipnote bug start bug-XXXX
 ` + "```" + `
 
-If no work item exists for this task, first run ` + "`htmlgraph relevant <topic>`" + ` to find existing context. If still nothing, create one:
+If no work item exists for this task, first run ` + "`wipnote relevant <topic>`" + ` to find existing context. If still nothing, create one:
 ` + "```bash" + `
 # Preferred — links the feature to its plan and the plan's track:
-htmlgraph feature create "Short description" --plan <plan-id> --description "optional detail"
+wipnote feature create "Short description" --plan <plan-id> --description "optional detail"
 # Last resort (hotfix or pre-plan work):
-htmlgraph feature create "Short description" --standalone "<reason>" --description "optional detail"
+wipnote feature create "Short description" --standalone "<reason>" --description "optional detail"
 ` + "```" + `
 `
 }
 
 func safetyRulesSection() string {
-	return `## HtmlGraph Safety Rules
+	return `## wipnote Safety Rules
 
 ### FORBIDDEN: Do NOT touch .wipnote/ directory
 NEVER:
@@ -75,13 +75,13 @@ The .wipnote directory is managed by the CLI and hooks.
 ### Use CLI instead of direct file operations
 ` + "```bash" + `
 # CORRECT
-htmlgraph status              # View work status
-htmlgraph snapshot --summary  # View all items
-htmlgraph find "<query>"      # Search work items
+wipnote status              # View work status
+wipnote snapshot --summary  # View all items
+wipnote find "<query>"      # Search work items
 
 # INCORRECT — never do this
 cat .wipnote/features/feat-xxx.html
-sqlite3 .wipnote/htmlgraph.db "SELECT ..."
+sqlite3 .wipnote/wipnote.db "SELECT ..."
 grep -r topic .wipnote/
 ` + "```" + `
 `
@@ -186,4 +186,3 @@ Before committing ANY changes, run the project's test suite and linter.
 - **YAGNI** — Only implement what's needed now
 `
 }
-

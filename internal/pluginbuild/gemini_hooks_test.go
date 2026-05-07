@@ -89,10 +89,10 @@ func TestGeminiHookHandlerOverride(t *testing.T) {
 
 	// Gemini SessionEnd event must invoke session-end handler, not stop.
 	if !strings.Contains(s, "wipnote hook session-end") {
-		t.Errorf("expected SessionEnd to invoke 'erinn hook session-end' for Gemini:\n%s", s)
+		t.Errorf("expected SessionEnd to invoke 'wipnote hook session-end' for Gemini:\n%s", s)
 	}
 	if strings.Contains(s, "wipnote hook stop") {
-		t.Errorf("Gemini SessionEnd should not invoke 'erinn hook stop' (that's Claude's):\n%s", s)
+		t.Errorf("Gemini SessionEnd should not invoke 'wipnote hook stop' (that's Claude's):\n%s", s)
 	}
 }
 
@@ -112,7 +112,7 @@ func TestGeminiHookExtensionPathVar(t *testing.T) {
 		Hooks: HookMatrix{Events: []HookEvent{
 			{
 				Name:    "SessionStart",
-				Command: "$GEMINI_EXTENSION_DIR/bin/erinn hook session-start",
+				Command: "$GEMINI_EXTENSION_DIR/bin/wipnote hook session-start",
 				Targets: []string{"gemini"},
 			},
 		}},
@@ -181,7 +181,7 @@ func TestGeminiHookMatcherWildcard(t *testing.T) {
 // TestGeminiAdapterEmitsHooksFromFixture exercises the Gemini hooks sub-emitter
 // against the fixture manifest. It asserts that:
 //   - `hooks/hooks.json` is written with the SessionStart event and its mapped
-//     `erinn hook session-start` command.
+//     `wipnote hook session-start` command.
 //   - Codex-only events (TaskStarted) do not leak into the Gemini output.
 //   - Claude-only matcher variants (SessionStart + `session-resume` / matcher
 //     "resume") do not leak into the Gemini output.
@@ -275,11 +275,11 @@ func TestGeminiParityFromLiveManifest(t *testing.T) {
 	// in the manifest. Check that translated names appear and Claude-only names
 	// do not leak through.
 	for _, want := range []string{
-		`"SessionStart"`,  // SessionStart → SessionStart (unchanged, no geminiEventName set)
-		`"BeforeAgent"`,   // UserPromptSubmit → BeforeAgent
-		`"BeforeTool"`,    // PreToolUse → BeforeTool
-		`"AfterTool"`,     // PostToolUse → AfterTool
-		`"SessionEnd"`,    // Stop → SessionEnd
+		`"SessionStart"`, // SessionStart → SessionStart (unchanged, no geminiEventName set)
+		`"BeforeAgent"`,  // UserPromptSubmit → BeforeAgent
+		`"BeforeTool"`,   // PreToolUse → BeforeTool
+		`"AfterTool"`,    // PostToolUse → AfterTool
+		`"SessionEnd"`,   // Stop → SessionEnd
 	} {
 		if !strings.Contains(hooks, want) {
 			t.Errorf("gemini hooks missing %s", want)

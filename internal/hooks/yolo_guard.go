@@ -25,7 +25,7 @@ var mergeInProgressFn = isMergeInProgress
 
 // isYoloFromEvent checks the CloudEvent permission_mode field first (live
 // state from Claude Code), falling back to a SQLite DB lookup.
-func isYoloFromEvent(event *CloudEvent, htmlgraphDir string) bool {
+func isYoloFromEvent(event *CloudEvent, wipnoteDir string) bool {
 	if event.PermissionMode == "bypassPermissions" {
 		return true
 	}
@@ -35,7 +35,7 @@ func isYoloFromEvent(event *CloudEvent, htmlgraphDir string) bool {
 	}
 	// Fallback: check DB for session's last known permission_mode.
 	// This is populated by the ConfigChange hook handler.
-	return isYoloFromDB(htmlgraphDir, event.SessionID)
+	return isYoloFromDB(wipnoteDir, event.SessionID)
 }
 
 // isYoloWithInheritance checks YOLO mode for the current session and, when the
@@ -48,8 +48,8 @@ func isYoloFromEvent(event *CloudEvent, htmlgraphDir string) bool {
 //
 // When YOLO is inherited from an ancestor, a debug log line is emitted for
 // auditability.
-func isYoloWithInheritance(event *CloudEvent, htmlgraphDir string, database *sql.DB, sessionID, projectDir string) bool {
-	if isYoloFromEvent(event, htmlgraphDir) {
+func isYoloWithInheritance(event *CloudEvent, wipnoteDir string, database *sql.DB, sessionID, projectDir string) bool {
+	if isYoloFromEvent(event, wipnoteDir) {
 		return true
 	}
 	// An explicit non-empty, non-bypass permission_mode means the current session
@@ -66,8 +66,8 @@ func isYoloWithInheritance(event *CloudEvent, htmlgraphDir string, database *sql
 		return false // no parent
 	}
 	for _, parentID := range sessionIDs[1:] {
-		if isYoloFromDB(htmlgraphDir, parentID) {
-			debugLog(projectDir, "[htmlgraph] yolo inherited: session=%s parent=%s",
+		if isYoloFromDB(wipnoteDir, parentID) {
+			debugLog(projectDir, "[wipnote] yolo inherited: session=%s parent=%s",
 				sessionID, parentID)
 			return true
 		}
@@ -78,11 +78,11 @@ func isYoloWithInheritance(event *CloudEvent, htmlgraphDir string, database *sql
 // isYoloFromDB looks up the session's permission_mode from the sessions.metadata
 // JSON column. This is populated by the ConfigChange hook when the user toggles
 // permission mode in Claude Code.
-func isYoloFromDB(htmlgraphDir, sessionID string) bool {
+func isYoloFromDB(wipnoteDir, sessionID string) bool {
 	if sessionID == "" {
 		return false
 	}
-	projectDir := filepath.Dir(htmlgraphDir)
+	projectDir := filepath.Dir(wipnoteDir)
 	dbPath, err := storage.CanonicalDBPath(projectDir)
 	if err != nil {
 		return false
@@ -115,7 +115,7 @@ func isYoloFromDB(htmlgraphDir, sessionID string) bool {
 // unrelated features exist).
 func checkYoloWorkItemGuard(toolName, featureID string, _ bool, sessionID string, db *sql.DB) string {
 	switch toolName {
-	case "Write", "Edit", "MultiEdit":
+	case "Write", "Edit", "MultiEdit", "apply_patch":
 	default:
 		return ""
 	}
@@ -127,20 +127,13 @@ func checkYoloWorkItemGuard(toolName, featureID string, _ bool, sessionID string
 	if sessionID != "" && db != nil && sessionHasLinkedFeature(db, sessionID) {
 		return ""
 	}
-	// Secondary fallback: when CLAUDE_ENV_FILE is unset (common in YOLO mode),
-	// WIPNOTE_SESSION_ID is never exported, so `bug start` writes
-	// active_feature_id to a different session row than the one the hook sees.
-	// Allow the edit when any work item is in-progress to prevent false blocks.
-	if hasAnyActiveWorkItem(db) {
-		return ""
-	}
 	return "An active work item is required before writing code. " +
-		"Run: htmlgraph feature start <id>  or  htmlgraph feature create \"title\" --track <trk-id>"
+		"Run: wipnote feature start <id>  or  wipnote feature create \"title\" --track <trk-id>"
 }
 
 // yoloSubagentGracePeriod is the window after session start during which a
 // subagent is allowed to write files before claiming a work item. This gives
-// the subagent time to run `htmlgraph feature start <id>` as its first action.
+// the subagent time to run `wipnote feature start <id>` as its first action.
 const yoloSubagentGracePeriod = 30 * time.Second
 
 // checkYoloSubagentGrace returns true when the session qualifies for the
@@ -163,10 +156,10 @@ func checkYoloSubagentGrace(yolo, isSubagent bool, sessionCreatedAt time.Time, p
 
 // checkYoloBashWorkItemGuard extends the work-item guard to Bash file-write
 // commands (sed -i, rm, redirects, etc.). Always enforced (was YOLO-only, now universal).
-// htmlgraph CLI commands are always exempt — they are the approved write path.
+// wipnote CLI commands are always exempt — they are the approved write path.
 func checkYoloBashWorkItemGuard(event *CloudEvent, featureID string, _ bool, sessionID string, database *sql.DB) string {
-	cmd, _ := event.ToolInput["command"].(string)
-	if bashHtmlGraphCLI.MatchString(cmd) {
+	cmd := shellCommand(event.ToolInput)
+	if isWipnoteCLICommand(cmd) {
 		return ""
 	}
 	if !isBashFileWrite(event) {
@@ -178,15 +171,8 @@ func checkYoloBashWorkItemGuard(event *CloudEvent, featureID string, _ bool, ses
 	if sessionID != "" && database != nil && sessionHasLinkedFeature(database, sessionID) {
 		return ""
 	}
-	// Secondary fallback: when CLAUDE_ENV_FILE is unset (common in YOLO mode),
-	// WIPNOTE_SESSION_ID is never exported, so `bug start` writes
-	// active_feature_id to a different session row than the one the hook sees.
-	// Allow the edit when any work item is in-progress to prevent false blocks.
-	if hasAnyActiveWorkItem(database) {
-		return ""
-	}
 	return "An active work item is required before writing code via Bash. " +
-		"Run: htmlgraph feature start <id>  or  htmlgraph feature create \"title\" --track <trk-id>"
+		"Run: wipnote feature start <id>  or  wipnote feature create \"title\" --track <trk-id>"
 }
 
 // sessionHasLinkedFeature returns true when the given session has a feature
@@ -226,36 +212,36 @@ func hasAnyActiveWorkItem(database *sql.DB) bool {
 	return count > 0
 }
 
-// featureStartPattern matches htmlgraph feature/bug start commands.
-var featureStartPattern = regexp.MustCompile(`\bhtmlgraph\s+(feature|bug)\s+start\s+([\w-]+)`)
+// featureStartPattern matches wipnote feature/bug start commands.
+var featureStartPattern = regexp.MustCompile(`\bwipnote\s+(feature|bug)\s+start\s+([\w-]+)`)
 
 // checkYoloStepsGuard warns when starting a work item that has no
 // implementation steps. Returns a non-empty reason to warn, or "" to allow.
-func checkYoloStepsGuard(event *CloudEvent, yolo bool, htmlgraphDir string) string {
-	if !yolo || event.ToolName != "Bash" {
+func checkYoloStepsGuard(event *CloudEvent, yolo bool, wipnoteDir string) string {
+	if !yolo || !isShellTool(event.ToolName) {
 		return ""
 	}
-	cmd, _ := event.ToolInput["command"].(string)
+	cmd := shellCommand(event.ToolInput)
 	m := featureStartPattern.FindStringSubmatch(cmd)
 	if m == nil {
 		return ""
 	}
 	itemID := m[2]
-	stepsCount := countStepsForItem(htmlgraphDir, itemID)
+	stepsCount := countStepsForItem(wipnoteDir, itemID)
 	if stepsCount > 0 {
 		return ""
 	}
 	return fmt.Sprintf(
 		"Warning: %s has no implementation steps. "+
-			"Add steps first: htmlgraph feature add-step %s \"description\"",
+			"Add steps first: wipnote feature add-step %s \"description\"",
 		itemID, itemID)
 }
 
 // countStepsForItem reads an HTML work item file and counts its steps.
-func countStepsForItem(htmlgraphDir, itemID string) int {
+func countStepsForItem(wipnoteDir, itemID string) int {
 	subdirs := []string{"features", "bugs", "spikes", "tracks", "plans", "specs"}
 	for _, sub := range subdirs {
-		path := filepath.Join(htmlgraphDir, sub, itemID+".html")
+		path := filepath.Join(wipnoteDir, sub, itemID+".html")
 		data, err := os.ReadFile(path)
 		if err != nil {
 			continue
@@ -292,10 +278,10 @@ func checkYoloCommitGuard(event *CloudEvent, yolo, testRan bool) string {
 	if !yolo {
 		return ""
 	}
-	if event.ToolName != "Bash" {
+	if !isShellTool(event.ToolName) {
 		return ""
 	}
-	cmd, _ := event.ToolInput["command"].(string)
+	cmd := shellCommand(event.ToolInput)
 	if !gitCommitPattern.MatchString(cmd) {
 		return ""
 	}
@@ -313,10 +299,10 @@ func checkYoloCommitGuard(event *CloudEvent, yolo, testRan bool) string {
 // YOLO hard limits (20 files or 600 lines added). Merge commits are
 // exempt — they combine already-reviewed sub-feature work.
 func checkYoloBudgetGuard(event *CloudEvent, yolo bool) string {
-	if !yolo || event.ToolName != "Bash" {
+	if !yolo || !isShellTool(event.ToolName) {
 		return ""
 	}
-	cmd, _ := event.ToolInput["command"].(string)
+	cmd := shellCommand(event.ToolInput)
 	if !gitCommitPattern.MatchString(cmd) {
 		return ""
 	}
@@ -367,7 +353,7 @@ func checkYoloWorktreeGuard(toolName, branch string, yolo bool) string {
 		return ""
 	}
 	switch toolName {
-	case "Write", "Edit", "MultiEdit":
+	case "Write", "Edit", "MultiEdit", "apply_patch":
 	default:
 		return ""
 	}
@@ -376,20 +362,20 @@ func checkYoloWorktreeGuard(toolName, branch string, yolo bool) string {
 			return ""
 		}
 		return "YOLO mode requires a feature or track branch. " +
-			"Use: htmlgraph yolo --track <id> or htmlgraph yolo --feature <id>"
+			"Use: wipnote yolo --track <id> or wipnote yolo --feature <id>"
 	}
 	return ""
 }
 
 // checkYoloBashWorktreeGuard extends the worktree guard to Bash file-write
 // commands on main/master branch.
-// htmlgraph CLI commands are always exempt — they are the approved write path.
+// wipnote CLI commands are always exempt — they are the approved write path.
 func checkYoloBashWorktreeGuard(event *CloudEvent, branch string, yolo bool) string {
 	if !yolo {
 		return ""
 	}
-	cmd, _ := event.ToolInput["command"].(string)
-	if bashHtmlGraphCLI.MatchString(cmd) {
+	cmd := shellCommand(event.ToolInput)
+	if isWipnoteCLICommand(cmd) {
 		return ""
 	}
 	if !isBashFileWrite(event) {
@@ -400,7 +386,7 @@ func checkYoloBashWorktreeGuard(event *CloudEvent, branch string, yolo bool) str
 			return ""
 		}
 		return "YOLO mode requires a feature or track branch for Bash file writes. " +
-			"Use: htmlgraph yolo --track <id> or htmlgraph yolo --feature <id>"
+			"Use: wipnote yolo --track <id> or wipnote yolo --feature <id>"
 	}
 	return ""
 }
@@ -409,7 +395,7 @@ func checkYoloBashWorktreeGuard(event *CloudEvent, branch string, yolo bool) str
 // occurred in the session (research-first principle). Always enforced.
 func checkYoloResearchGuard(toolName string, _ bool, hasResearch bool) string {
 	switch toolName {
-	case "Write", "Edit", "MultiEdit":
+	case "Write", "Edit", "MultiEdit", "apply_patch":
 	default:
 		return ""
 	}
@@ -421,14 +407,14 @@ func checkYoloResearchGuard(toolName string, _ bool, hasResearch bool) string {
 }
 
 // checkYoloBashResearchGuard extends the research guard to Bash file-write commands.
-// Always enforced. htmlgraph CLI commands are always exempt.
+// Always enforced. wipnote CLI commands are always exempt.
 //
 // When the write targets a path outside the project tree (e.g. ~/.config/…),
 // the message omits the "use Read/Grep/Glob" suggestion — those tools cannot
 // reach paths outside the project root (bug-d0c8b1e2).
 func checkYoloBashResearchGuard(event *CloudEvent, _ bool, hasResearch bool) string {
-	cmd, _ := event.ToolInput["command"].(string)
-	if bashHtmlGraphCLI.MatchString(cmd) {
+	cmd := shellCommand(event.ToolInput)
+	if isWipnoteCLICommand(cmd) {
 		return ""
 	}
 	if !isBashFileWrite(event) {
@@ -486,7 +472,7 @@ func checkYoloOrchestratorWriteGuard(event *CloudEvent, isSubagent bool) string 
 		return "" // Subagents are expected to write files.
 	}
 	switch event.ToolName {
-	case "Write", "Edit", "MultiEdit":
+	case "Write", "Edit", "MultiEdit", "apply_patch":
 		return "Orchestrator writing directly instead of delegating. " +
 			"Consider using a coder agent for implementation work."
 	}
@@ -501,10 +487,10 @@ func checkYoloOrchestratorWriteGuard(event *CloudEvent, isSubagent bool) string 
 // daemon down, timeout) causes a fail-open return of "" to avoid blocking
 // unrelated work.
 func checkYoloRoborevGuard(event *CloudEvent, yolo bool) string {
-	if !yolo || event.ToolName != "Bash" {
+	if !yolo || !isShellTool(event.ToolName) {
 		return ""
 	}
-	cmd, _ := event.ToolInput["command"].(string)
+	cmd := shellCommand(event.ToolInput)
 	if !gitCommitPattern.MatchString(cmd) {
 		return ""
 	}
@@ -551,10 +537,10 @@ func checkYoloRoborevGuard(event *CloudEvent, yolo bool) string {
 // checkYoloDiffReviewGuard blocks git commit when no git diff has been
 // reviewed in this session.
 func checkYoloDiffReviewGuard(event *CloudEvent, yolo, diffRan bool) string {
-	if !yolo || event.ToolName != "Bash" {
+	if !yolo || !isShellTool(event.ToolName) {
 		return ""
 	}
-	cmd, _ := event.ToolInput["command"].(string)
+	cmd := shellCommand(event.ToolInput)
 	if !gitCommitPattern.MatchString(cmd) {
 		return ""
 	}
@@ -576,7 +562,7 @@ func checkYoloCodeHealthGuard(event *CloudEvent, yolo bool) string {
 		return ""
 	}
 	switch event.ToolName {
-	case "Write", "Edit", "MultiEdit":
+	case "Write", "Edit", "MultiEdit", "apply_patch":
 	default:
 		return ""
 	}
@@ -672,7 +658,7 @@ func getSessionAndParent(database *sql.DB, sessionID string) []string {
 //
 // This allows sub-agent sessions to inherit the orchestrator's claim so that
 // Write/Edit guards don't block agents dispatched by an orchestrator that ran
-// `htmlgraph feature start`.
+// `wipnote feature start`.
 func getClaimFromParentChain(database *sql.DB, sessionID, claimedItem string) (string, string) {
 	if claimedItem != "" || database == nil || sessionID == "" {
 		return claimedItem, ""
@@ -822,10 +808,10 @@ func hasStagedUIFiles() bool {
 //     "action":"screenshot" in the tool_input JSON column. Existing
 //     take_screenshot patterns are retained for other MCP server flavours.
 func checkYoloUIValidationGuard(event *CloudEvent, yolo bool, database *sql.DB, sessionID string) string {
-	if !yolo || event.ToolName != "Bash" {
+	if !yolo || !isShellTool(event.ToolName) {
 		return ""
 	}
-	cmd, _ := event.ToolInput["command"].(string)
+	cmd := shellCommand(event.ToolInput)
 	if !gitCommitPattern.MatchString(cmd) {
 		return ""
 	}

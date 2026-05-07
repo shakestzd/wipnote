@@ -25,7 +25,7 @@ func pricingCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "pricing",
 		Short: "Manage the embedded model pricing snapshot used for cost derivation",
-		Long: `HtmlGraph derives USD cost estimates for Codex and Gemini OTel signals
+		Long: `wipnote derives USD cost estimates for Codex and Gemini OTel signals
 from token counts × per-model rates. Rates ship embedded in the binary
 (internal/pricing/models.json). Use these subcommands to list the current
 snapshot or refresh it from upstream (LiteLLM).`,
@@ -72,7 +72,7 @@ func pricingShowCmd() *cobra.Command {
 			}
 			p, ok := tbl.Lookup(args[0])
 			if !ok {
-				return fmt.Errorf("unknown model %q (try `htmlgraph pricing list`)", args[0])
+				return fmt.Errorf("unknown model %q (try `wipnote pricing list`)", args[0])
 			}
 			enc := json.NewEncoder(cmd.OutOrStdout())
 			enc.SetIndent("", "  ")
@@ -88,7 +88,7 @@ func pricingUpdateCmd() *cobra.Command {
 		Use:   "update",
 		Short: "Refresh the embedded pricing snapshot from upstream (LiteLLM)",
 		Long: `Fetches the LiteLLM model pricing JSON, filters it to the models that
-HtmlGraph tracks, and rewrites internal/pricing/models.json. The embedded
+wipnote tracks, and rewrites internal/pricing/models.json. The embedded
 snapshot does not take effect until the binary is rebuilt.
 
 Use --dry-run to see what would change without writing the file.`,
@@ -238,7 +238,7 @@ func writeModelsJSON(path string, table map[string]pricing.Pricing) error {
 	out := make(map[string]any, len(table)+1)
 	out["_metadata"] = map[string]string{
 		"source":       litellmRawURL,
-		"filtered_for": "htmlgraph OTel cost derivation",
+		"filtered_for": "wipnote OTel cost derivation",
 		"last_updated": time.Now().UTC().Format("2006-01-02"),
 		"notes":        "Costs are USD per token. Anthropic cache_read ≈ 0.10x input; cache_creation ≈ 1.25x input (5-min TTL).",
 	}

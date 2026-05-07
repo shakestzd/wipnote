@@ -1,4 +1,4 @@
-// Package db provides SQLite database operations for HtmlGraph.
+// Package db provides SQLite database operations for wipnote.
 //
 // Uses modernc.org/sqlite (pure Go, no CGo) for maximum portability.
 package db

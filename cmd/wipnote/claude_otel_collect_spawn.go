@@ -38,7 +38,7 @@ var spawnCollectorFn collector.SpawnFn = collector.DefaultSpawnFn
 // spawnCollector starts an otel-collect child process and waits for its
 // handshake. Delegates to collector.DefaultSpawnFn with auto-port (0).
 //
-// binPath is the path to the htmlgraph binary to invoke. In production
+// binPath is the path to the wipnote binary to invoke. In production
 // callers should pass the result of os.Executable(); tests pass a
 // pre-built test binary.
 func spawnCollector(binPath, sessionID, projectDir string) (int, *os.Process, error) {
@@ -101,7 +101,7 @@ func spawnSessionCollectorTo(projectDir, binPath string, errW io.Writer) (otelEn
 func spawnSessionCollector(projectDir string) otelEnvOverrides {
 	binPath, err := os.Executable()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "htmlgraph: warning: per-session collector skipped: %v\n", err)
+		fmt.Fprintf(os.Stderr, "wipnote: warning: per-session collector skipped: %v\n", err)
 		return otelEnvOverrides{}
 	}
 

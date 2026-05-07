@@ -41,11 +41,11 @@ type signalLine struct {
 	CostUSD    float64 `json:"cost_usd,omitempty"`
 	CostSource string  `json:"cost_source,omitempty"`
 
-	DurationMs int64   `json:"duration_ms,omitempty"`
-	Success    *bool   `json:"success,omitempty"`
-	ErrorMsg   string  `json:"error_msg,omitempty"`
-	Attempt    int     `json:"attempt,omitempty"`
-	StatusCode int     `json:"status_code,omitempty"`
+	DurationMs int64  `json:"duration_ms,omitempty"`
+	Success    *bool  `json:"success,omitempty"`
+	ErrorMsg   string `json:"error_msg,omitempty"`
+	Attempt    int    `json:"attempt,omitempty"`
+	StatusCode int    `json:"status_code,omitempty"`
 
 	ResourceAttrs map[string]any `json:"resource_attrs,omitempty"`
 	Attrs         map[string]any `json:"attrs,omitempty"`

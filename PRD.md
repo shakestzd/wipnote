@@ -1,5 +1,5 @@
 # Product Requirements Document (PRD)
-# HtmlGraph: "HTML is All You Need"
+# wipnote: "HTML is All You Need"
 
 **Version**: 1.0  
 **Date**: December 16, 2024  
@@ -10,9 +10,9 @@
 
 ## Executive Summary
 
-**HtmlGraph** is a lightweight graph database framework built entirely on web standards (HTML, CSS, JavaScript) that eliminates the need for external graph databases like Neo4j or Memgraph. It enables AI agents to coordinate work using HTML files as nodes, hyperlinks as edges, and CSS selectors as the query language.
+**wipnote** is a lightweight graph database framework built entirely on web standards (HTML, CSS, JavaScript) that eliminates the need for external graph databases like Neo4j or Memgraph. It enables AI agents to coordinate work using HTML files as nodes, hyperlinks as edges, and CSS selectors as the query language.
 
-**Market Opportunity**: With the explosion of AI coding agents (Claude Code, Copilot, Cursor, Aider), developers need simple infrastructure for agent coordination and observability. Current solutions require Docker, complex databases, and custom protocols. HtmlGraph provides a zero-dependency alternative that's human-readable and version-control friendly.
+**Market Opportunity**: With the explosion of AI coding agents (Claude Code, Copilot, Cursor, Aider), developers need simple infrastructure for agent coordination and observability. Current solutions require Docker, complex databases, and custom protocols. wipnote provides a zero-dependency alternative that's human-readable and version-control friendly.
 
 **Target Launch**: Q1 2025
 
@@ -318,7 +318,7 @@ Solution: D3.js or Cytoscape.js integration
                  │
 ┌────────────────┴────────────────────────────────────────────┐
 │                  JavaScript Library                          │
-│  - HtmlGraph class                                          │
+│  - wipnote class                                          │
 │  - DOMParser integration                                    │
 │  - CSS selector queries                                     │
 │  - Graph algorithms (BFS, DFS)                              │
@@ -365,7 +365,7 @@ Node(
 **Python:**
 ```python
 # Graph operations
-graph = HtmlGraph('directory/')
+graph = wipnote('directory/')
 graph.add(node)
 graph.update(node)
 graph.query(css_selector)
@@ -382,7 +382,7 @@ agent.complete_step(task_id, step_index)
 **JavaScript:**
 ```javascript
 // Graph operations
-const graph = new HtmlGraph();
+const graph = new wipnote();
 await graph.loadFrom('directory/');
 const nodes = graph.query(css_selector);
 const path = graph.findPath(from, to);
@@ -444,38 +444,38 @@ graph.renderDashboard('#app', options);
 **Neo4j**
 - **Strengths**: Mature, powerful Cypher queries, enterprise support
 - **Weaknesses**: Complex setup, expensive, binary format
-- **Differentiation**: HtmlGraph has zero dependencies, human-readable
+- **Differentiation**: wipnote has zero dependencies, human-readable
 
 **Memgraph**
 - **Strengths**: Fast, Cypher compatible, good for streaming
 - **Weaknesses**: Requires Docker, learning curve
-- **Differentiation**: HtmlGraph needs no server
+- **Differentiation**: wipnote needs no server
 
 **ArangoDB**
 - **Strengths**: Multi-model (graph, document, key-value)
 - **Weaknesses**: Heavy, complex, overkill for simple use cases
-- **Differentiation**: HtmlGraph is lightweight and focused
+- **Differentiation**: wipnote is lightweight and focused
 
 ### Indirect Competitors
 
 **JSON Files**
 - **Strengths**: Simple, ubiquitous
 - **Weaknesses**: No native graph structure, no visual rendering
-- **Differentiation**: HtmlGraph has hyperlinks + browser rendering
+- **Differentiation**: wipnote has hyperlinks + browser rendering
 
 **SQLite**
 - **Strengths**: Zero setup, fast queries
 - **Weaknesses**: Not designed for graphs, no visual layer
-- **Differentiation**: HtmlGraph is graph-native + human-readable
+- **Differentiation**: wipnote is graph-native + human-readable
 
 **Markdown + Obsidian**
 - **Strengths**: Note-taking focused, backlinks, visual
 - **Weaknesses**: Desktop app required, not agent-native
-- **Differentiation**: HtmlGraph is agent-first + programmable
+- **Differentiation**: wipnote is agent-first + programmable
 
 ### Positioning
 
-**HtmlGraph** positions itself as:
+**wipnote** positions itself as:
 - **Simpler than** Neo4j/Memgraph (zero dependencies)
 - **More visual than** JSON/SQLite (browsers render it)
 - **More programmable than** Obsidian/Roam (API-first)
@@ -530,10 +530,10 @@ graph.renderDashboard('#app', options);
 - [ ] Integration with popular AI tools
 
 **Content Calendar:**
-- Week 1: "Getting Started with HtmlGraph"
-- Week 2: "Migrating from Neo4j to HtmlGraph"
+- Week 1: "Getting Started with wipnote"
+- Week 2: "Migrating from Neo4j to wipnote"
 - Week 3: "Building AI Agent Systems"
-- Week 4: "HtmlGraph Performance Deep-Dive"
+- Week 4: "wipnote Performance Deep-Dive"
 
 ### Phase 4: Ecosystem (Months 3-6)
 
@@ -645,7 +645,7 @@ graph.renderDashboard('#app', options);
 
 ## Open Questions
 
-1. **Naming**: Is "HtmlGraph" the right name? Alternatives:
+1. **Naming**: Is "wipnote" the right name? Alternatives:
    - WebGraph
    - HtmlDB
    - GraphML (might conflict with existing GraphML format)
@@ -705,4 +705,4 @@ See CLAUDE.md section "Use Cases"
 
 **Next Review Date**: 2024-12-30
 
-**Contact**: github.com/shakestzd/htmlgraph
+**Contact**: github.com/shakestzd/wipnote

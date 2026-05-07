@@ -52,7 +52,7 @@ func TestIsInPATH(t *testing.T) {
 
 func TestCheckExistingTarget_Missing(t *testing.T) {
 	tmp := t.TempDir()
-	target := filepath.Join(tmp, "htmlgraph")
+	target := filepath.Join(tmp, "wipnote")
 	var buf bytes.Buffer
 
 	done, err := checkExistingTarget(&buf, target, "/some/src", false)
@@ -67,7 +67,7 @@ func TestCheckExistingTarget_Missing(t *testing.T) {
 func TestCheckExistingTarget_AlreadySymlinked(t *testing.T) {
 	tmp := t.TempDir()
 	src := filepath.Join(tmp, "real-binary")
-	target := filepath.Join(tmp, "htmlgraph")
+	target := filepath.Join(tmp, "wipnote")
 
 	// Create a fake source file.
 	if err := os.WriteFile(src, []byte("binary"), 0o755); err != nil {
@@ -92,7 +92,7 @@ func TestCheckExistingTarget_AlreadySymlinked(t *testing.T) {
 
 func TestCheckExistingTarget_DifferentFile_NoForce(t *testing.T) {
 	tmp := t.TempDir()
-	target := filepath.Join(tmp, "htmlgraph")
+	target := filepath.Join(tmp, "wipnote")
 	if err := os.WriteFile(target, []byte("old binary"), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -109,7 +109,7 @@ func TestCheckExistingTarget_DifferentFile_NoForce(t *testing.T) {
 
 func TestCheckExistingTarget_DifferentFile_Force(t *testing.T) {
 	tmp := t.TempDir()
-	target := filepath.Join(tmp, "htmlgraph")
+	target := filepath.Join(tmp, "wipnote")
 	if err := os.WriteFile(target, []byte("old binary"), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -171,9 +171,9 @@ func TestRunSetupCLI_EndToEnd(t *testing.T) {
 	installDir := filepath.Join(tmp, "bin")
 
 	// Use the current test binary as the "source binary" via a temp file.
-	fakeSrc := filepath.Join(tmp, "fake-htmlgraph")
+	fakeSrc := filepath.Join(tmp, "fake-wipnote")
 	// Write a shell script that returns a version line.
-	script := "#!/bin/sh\necho 'htmlgraph dev (go)'\n"
+	script := "#!/bin/sh\necho 'wipnote dev (go)'\n"
 	if err := os.WriteFile(fakeSrc, []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -184,7 +184,7 @@ func TestRunSetupCLI_EndToEnd(t *testing.T) {
 	if err := os.MkdirAll(installDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	target := filepath.Join(installDir, "htmlgraph")
+	target := filepath.Join(installDir, "wipnote")
 	if err := createLink(fakeSrc, target); err != nil {
 		t.Fatalf("createLink: %v", err)
 	}

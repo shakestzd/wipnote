@@ -32,7 +32,7 @@ func ingestCmd() *cobra.Command {
 		Use:   "ingest",
 		Short: "Ingest Claude Code session transcripts from JSONL files",
 		Long: `Reads Claude Code session JSONL files from ~/.claude/projects/ and
-stores structured messages and tool calls in the HtmlGraph database.
+stores structured messages and tool calls in the wipnote database.
 
 By default, discovers sessions for the current project. Use --all to
 ingest all projects, or --session to target a specific session.`,
@@ -53,13 +53,13 @@ ingest all projects, or --session to target a specific session.`,
 }
 
 func runIngest(sessionID, project string, all, force bool) error {
-	htmlgraphDir, err := findHtmlgraphDir()
+	wipnoteDir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}
-	printProjectHeaderIfDifferent(htmlgraphDir)
+	printProjectHeaderIfDifferent(wipnoteDir)
 
-	database, err := openDB(htmlgraphDir)
+	database, err := openDB(wipnoteDir)
 	if err != nil {
 		return err
 	}
@@ -74,7 +74,7 @@ func runIngest(sessionID, project string, all, force bool) error {
 	// When --all is set or --project is explicitly provided, skip the remote filter.
 	var gitRemote string
 	if project == "" && !all {
-		gitRemote = paths.GetGitRemoteURL(filepath.Dir(htmlgraphDir))
+		gitRemote = paths.GetGitRemoteURL(filepath.Dir(wipnoteDir))
 	}
 
 	files, err := ingest.DiscoverSessions(project)
@@ -157,7 +157,7 @@ func ingestBySessionID(database *sql.DB, sessionID string, force bool) error {
 			return nil
 		}
 	}
-	return fmt.Errorf("session %s not found in ~/.claude/projects/\nSession IDs are full UUIDs from Claude Code. Run 'htmlgraph ingest' without --session to discover available sessions.", sessionID)
+	return fmt.Errorf("session %s not found in ~/.claude/projects/\nSession IDs are full UUIDs from Claude Code. Run 'wipnote ingest' without --session to discover available sessions.", sessionID)
 }
 
 func ingestFile(database *sql.DB, sf ingest.SessionFile, force bool) (int, int, error) {
@@ -185,8 +185,8 @@ func ingestFileWithAgent(database *sql.DB, sf ingest.SessionFile, agentID string
 	msgCount, toolCount := storeParseResult(database, sf.SessionID, agentID, result)
 	_ = dbpkg.UpdateTranscriptSync(database, sf.SessionID, sf.Path)
 
-	if htmlgraphDir, err := findHtmlgraphDir(); err == nil {
-		if rerr := hooks.RenderIngestedSessionHTML(htmlgraphDir, sf.SessionID, sessionSourceDir, result, force); rerr != nil {
+	if wipnoteDir, err := findWipnoteDir(); err == nil {
+		if rerr := hooks.RenderIngestedSessionHTML(wipnoteDir, sf.SessionID, sessionSourceDir, result, force); rerr != nil {
 			fmt.Fprintf(os.Stderr, "  warn: render HTML for %s: %v\n", truncate(sf.SessionID, 12), rerr)
 		}
 	}
@@ -490,18 +490,18 @@ Feature attribution is extracted from commit messages using two patterns:
 }
 
 func runIngestCommits(since string, limit int) error {
-	htmlgraphDir, err := findHtmlgraphDir()
+	wipnoteDir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}
 
-	database, err := openDB(htmlgraphDir)
+	database, err := openDB(wipnoteDir)
 	if err != nil {
 		return err
 	}
 	defer database.Close()
 
-	repoDir := filepath.Dir(htmlgraphDir)
+	repoDir := filepath.Dir(wipnoteDir)
 
 	inserted, attributed, err := ingestCommitsFromRepo(database, repoDir, since, limit)
 	if err != nil {

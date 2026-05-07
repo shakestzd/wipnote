@@ -30,7 +30,7 @@ func setupContextPackEnv(t *testing.T) (tmpDir, hgDir string, proj *workitem.Pro
 	projectDirFlag = tmpDir
 	t.Cleanup(func() { projectDirFlag = "" })
 
-	p, err := workitem.Open(hgDir, "htmlgraph-cli")
+	p, err := workitem.Open(hgDir, "wipnote-cli")
 	if err != nil {
 		t.Fatalf("workitem.Open: %v", err)
 	}
@@ -151,7 +151,7 @@ func TestContextPack_HappyPath(t *testing.T) {
 	)
 
 	checks := []struct{ header, contains string }{
-		{"## 1. Claim Command", "htmlgraph feature start " + featID},
+		{"## 1. Claim Command", "wipnote feature start " + featID},
 		{"## 2. Branch-Sync State", "feat/my-branch"},
 		{"## 3. Work Item Description", "Happy Feature"},
 		{"## 4. Code-Surface Helpers", ""},
@@ -167,7 +167,7 @@ func TestContextPack_NoTrack(t *testing.T) {
 	_, hgDir, _ := setupContextPackEnv(t)
 
 	if err := runWiCreate("feature", "Untracked Feature", &wiCreateOpts{
-		priority:        "medium",
+		priority:         "medium",
 		standaloneReason: "test",
 	}); err != nil {
 		t.Fatalf("create feature: %v", err)
@@ -255,7 +255,7 @@ func TestContextPack_PartialIDResolution(t *testing.T) {
 	_, hgDir, _ := setupContextPackEnv(t)
 
 	if err := runWiCreate("feature", "Partial ID Feature", &wiCreateOpts{
-		priority:        "medium",
+		priority:         "medium",
 		standaloneReason: "test",
 	}); err != nil {
 		t.Fatalf("create feature: %v", err)
@@ -298,7 +298,7 @@ func TestContextPack_GoPackageQualifier(t *testing.T) {
 		want string
 	}{
 		{"internal/foo/bar.go", "package foo"},
-		{"cmd/htmlgraph/main.go", "package htmlgraph"},
+		{"cmd/wipnote/main.go", "package wipnote"},
 		{"internal/db/schema.go", "package db"},
 		{"README.md", ""},
 		{"Makefile", ""},

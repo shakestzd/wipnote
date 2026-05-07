@@ -269,7 +269,7 @@ func bestTrackForPath(rules *RuleSet, p string) string {
 
 // normalizePath strips the absolute prefix from a path captured by tool
 // hooks running inside a worktree, returning a repo-relative path so glob
-// rules written against repo-relative globs (cmd/htmlgraph/blame.go) still
+// rules written against repo-relative globs (cmd/wipnote/blame.go) still
 // match. Paths already relative are returned unchanged.
 //
 // Strategy:
@@ -349,8 +349,8 @@ func topTrack(counts map[string]int) (string, int) {
 
 // matchGlob implements a small subset of glob syntax used by the rule catalog:
 //
-//	*   — matches any sequence of non-/ characters within a single segment
-//	**  — matches any sequence of characters including / boundaries
+//   - — matches any sequence of non-/ characters within a single segment
+//     **  — matches any sequence of characters including / boundaries
 //
 // Other characters are matched literally. Use this rather than path.Match,
 // which doesn't support **.

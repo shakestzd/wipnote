@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Create HtmlGraph development track from PRD.md.
+Create wipnote development track from PRD.md.
 
-This script creates a comprehensive track/spec/plan for HtmlGraph's own development,
+This script creates a comprehensive track/spec/plan for wipnote's own development,
 demonstrating vertical integration by using the complete stack.
 """
 
@@ -12,29 +12,29 @@ from pathlib import Path
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src" / "python"))
 
-from htmlgraph.planning import AcceptanceCriterion, Phase, Task
-from htmlgraph.track_manager import TrackManager
+from wipnote.planning import AcceptanceCriterion, Phase, Task
+from wipnote.track_manager import TrackManager
 
 
 def main():
-    """Create the HtmlGraph development track."""
+    """Create the wipnote development track."""
 
-    manager = TrackManager(".htmlgraph")
+    manager = TrackManager(".wipnote")
 
-    print("Creating HtmlGraph Development Track...")
+    print("Creating wipnote Development Track...")
     print("=" * 60)
 
     # 1. Create the track
     print("\n1. Creating track...")
     track = manager.create_track(
-        title="HtmlGraph - HTML is All You Need",
+        title="wipnote - HTML is All You Need",
         description="Lightweight graph database framework built on web standards for AI agent coordination",
         priority="critical",
     )
 
-    # Rename to htmlgraph-dev
+    # Rename to wipnote-dev
     track_path = manager.tracks_dir / track.id
-    dev_path = manager.tracks_dir / "htmlgraph-dev"
+    dev_path = manager.tracks_dir / "wipnote-dev"
 
     if dev_path.exists():
         import shutil
@@ -42,7 +42,7 @@ def main():
         shutil.rmtree(dev_path)
 
     track_path.rename(dev_path)
-    track.id = "htmlgraph-dev"
+    track.id = "wipnote-dev"
     manager._write_track_index(track, dev_path)
 
     print(f"   ✓ Created track: {track.id}")
@@ -50,10 +50,10 @@ def main():
     # 2. Create the spec
     print("\n2. Creating specification...")
     spec = manager.create_spec(
-        track_id="htmlgraph-dev",
-        title="HtmlGraph Product Specification",
+        track_id="wipnote-dev",
+        title="wipnote Product Specification",
         overview="Build a zero-dependency graph database using HTML files as nodes, hyperlinks as edges, and CSS selectors for queries",
-        context="AI agent developers need simple coordination infrastructure without Docker/databases. HtmlGraph provides human-readable, git-friendly agent state management",
+        context="AI agent developers need simple coordination infrastructure without Docker/databases. wipnote provides human-readable, git-friendly agent state management",
         author="Shakes",
     )
 
@@ -67,7 +67,7 @@ def main():
         {
             "description": "Python library with core graph operations",
             "priority": "must-have",
-            "notes": "HtmlGraph class, add/update/query/get methods, file-based storage",
+            "notes": "wipnote class, add/update/query/get methods, file-based storage",
         },
         {
             "description": "HTML node creation and serialization",
@@ -98,7 +98,7 @@ def main():
         {
             "description": "JavaScript library for browser-side queries",
             "priority": "should-have",
-            "notes": "HtmlGraph JS class, DOMParser integration, CSS selectors",
+            "notes": "wipnote JS class, DOMParser integration, CSS selectors",
         },
         {
             "description": "Interactive dashboard with multiple views",
@@ -125,7 +125,7 @@ def main():
 
     for req in requirements:
         manager.add_requirement(
-            track_id="htmlgraph-dev",
+            track_id="wipnote-dev",
             description=req["description"],
             priority=req["priority"],
             notes=req["notes"],
@@ -166,12 +166,12 @@ def main():
 
     # 4. Create implementation plan
     print("\n4. Creating implementation plan...")
-    from htmlgraph.planning import Plan
+    from wipnote.planning import Plan
 
     plan = Plan(
-        id="htmlgraph-dev-plan",
-        title="HtmlGraph Implementation Plan",
-        track_id="htmlgraph-dev",
+        id="wipnote-dev-plan",
+        title="wipnote Implementation Plan",
+        track_id="wipnote-dev",
         status="active",
     )
 
@@ -213,7 +213,7 @@ def main():
         ),
         Task(
             id="1.4",
-            description="HtmlGraph class (add, update, query, get)",
+            description="wipnote class (add, update, query, get)",
             priority="high",
             estimate_hours=6.0,
             assigned="claude",
@@ -255,7 +255,7 @@ def main():
     phase2.tasks = [
         Task(
             id="2.1",
-            description="JavaScript HtmlGraph library",
+            description="JavaScript wipnote library",
             priority="high",
             estimate_hours=6.0,
             assigned="claude",
@@ -353,7 +353,7 @@ def main():
         ),
         Task(
             id="3.5",
-            description="CLI tool (htmlgraph command)",
+            description="CLI tool (wipnote command)",
             priority="low",
             estimate_hours=5.0,
             assigned="claude",
@@ -486,13 +486,13 @@ def main():
     plan_path.write_text(plan.to_html(), encoding="utf-8")
 
     print("\n" + "=" * 60)
-    print("✓ HtmlGraph Development Track created successfully!")
+    print("✓ wipnote Development Track created successfully!")
     print("\nView the results:")
-    print("  - Track: .htmlgraph/tracks/htmlgraph-dev/index.html")
-    print("  - Spec:  .htmlgraph/tracks/htmlgraph-dev/spec.html")
-    print("  - Plan:  .htmlgraph/tracks/htmlgraph-dev/plan.html")
+    print("  - Track: .wipnote/tracks/wipnote-dev/index.html")
+    print("  - Spec:  .wipnote/tracks/wipnote-dev/spec.html")
+    print("  - Plan:  .wipnote/tracks/wipnote-dev/plan.html")
     print("\nStart the server to view:")
-    print("  uv run htmlgraph serve")
+    print("  uv run wipnote serve")
     print("  Then open: http://localhost:8080")
     print("\nNext steps:")
     print("  1. Link existing features to plan tasks")

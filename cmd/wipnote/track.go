@@ -37,7 +37,6 @@ func trackCmdWithExtras() *cobra.Command {
 	return cmd
 }
 
-
 // trackShowCmd shows a single track by ID.
 func trackShowCmd() *cobra.Command {
 	var deep bool
@@ -61,7 +60,7 @@ func runTrackShow(id string, deep bool) error {
 
 // runTrackShowWithFormat shows a track in the requested format (text or json).
 func runTrackShowWithFormat(id string, deep bool, format string) error {
-	dir, err := findHtmlgraphDir()
+	dir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}
@@ -185,8 +184,8 @@ func isActionable(f *models.Node, nodeMap map[string]*models.Node) bool {
 
 // openTrackDB opens the SQLite DB if it exists; returns nil without error when
 // the file is absent (file counts are optional).
-func openTrackDB(htmlgraphDir string) *sql.DB {
-	dbPath, err := storage.CanonicalDBPath(filepath.Dir(htmlgraphDir))
+func openTrackDB(wipnoteDir string) *sql.DB {
+	dbPath, err := storage.CanonicalDBPath(filepath.Dir(wipnoteDir))
 	if err != nil {
 		return nil
 	}
@@ -263,8 +262,8 @@ func printFeatureRow(f *models.Node, marker string, nodeMap map[string]*models.N
 	}
 }
 
-func printTrackDetail(n *models.Node, htmlgraphDir string) {
-	features := loadLinkedByType(htmlgraphDir, "features", n.ID)
+func printTrackDetail(n *models.Node, wipnoteDir string) {
+	features := loadLinkedByType(wipnoteDir, "features", n.ID)
 	sorted := topoSortFeatures(features)
 
 	doneCount := 0
@@ -291,7 +290,7 @@ func printTrackDetail(n *models.Node, htmlgraphDir string) {
 	}
 
 	if len(sorted) > 0 {
-		database := openTrackDB(htmlgraphDir)
+		database := openTrackDB(wipnoteDir)
 		if database != nil {
 			defer database.Close()
 		}
@@ -309,8 +308,8 @@ func printTrackDetail(n *models.Node, htmlgraphDir string) {
 		}
 	}
 
-	printLinkedSection(htmlgraphDir, "bugs", "Linked bugs", n.ID)
-	printLinkedSection(htmlgraphDir, "spikes", "Linked spikes", n.ID)
+	printLinkedSection(wipnoteDir, "bugs", "Linked bugs", n.ID)
+	printLinkedSection(wipnoteDir, "spikes", "Linked spikes", n.ID)
 
 	if n.Content != "" {
 		fmt.Println("\nDescription:")
@@ -339,8 +338,8 @@ func printTrackDetail(n *models.Node, htmlgraphDir string) {
 
 // printLinkedSection prints a labelled section of items linked to a track,
 // covering a single work item subdir (features, bugs, or spikes).
-func printLinkedSection(htmlgraphDir, subdir, label, trackID string) {
-	items := loadLinkedByType(htmlgraphDir, subdir, trackID)
+func printLinkedSection(wipnoteDir, subdir, label, trackID string) {
+	items := loadLinkedByType(wipnoteDir, subdir, trackID)
 	if len(items) == 0 {
 		return
 	}
@@ -358,8 +357,8 @@ func printLinkedSection(htmlgraphDir, subdir, label, trackID string) {
 // containsEdgeIDs returns the set of target IDs referenced by a track's
 // "contains" edges, so loadLinkedByType can include edge-linked children that
 // do not carry the data-track-id attribute.
-func containsEdgeIDs(htmlgraphDir, trackID string) map[string]bool {
-	path := filepath.Join(htmlgraphDir, "tracks", trackID+".html")
+func containsEdgeIDs(wipnoteDir, trackID string) map[string]bool {
+	path := filepath.Join(wipnoteDir, "tracks", trackID+".html")
 	node, err := htmlparse.ParseFile(path)
 	if err != nil {
 		return nil
@@ -373,12 +372,12 @@ func containsEdgeIDs(htmlgraphDir, trackID string) map[string]bool {
 
 // loadLinkedByType returns nodes of a given subdir linked to trackID either
 // via the TrackID metadata field or via a "contains" edge on the track.
-func loadLinkedByType(htmlgraphDir, subdir, trackID string) []*models.Node {
-	nodes, err := graph.LoadDir(filepath.Join(htmlgraphDir, subdir))
+func loadLinkedByType(wipnoteDir, subdir, trackID string) []*models.Node {
+	nodes, err := graph.LoadDir(filepath.Join(wipnoteDir, subdir))
 	if err != nil {
 		return nil
 	}
-	edgeIDs := containsEdgeIDs(htmlgraphDir, trackID)
+	edgeIDs := containsEdgeIDs(wipnoteDir, trackID)
 	seen := make(map[string]bool)
 	var linked []*models.Node
 	for _, n := range nodes {
@@ -461,7 +460,7 @@ func printDeepGroup(label string, items []*models.Node) {
 }
 
 // printTrackDeep prints a track with all linked items (features, bugs, spikes).
-func printTrackDeep(n *models.Node, htmlgraphDir string) {
+func printTrackDeep(n *models.Node, wipnoteDir string) {
 	sep := strings.Repeat("─", 60)
 	fmt.Println(sep)
 	fmt.Printf("  %s\n", n.Title)
@@ -472,9 +471,9 @@ func printTrackDeep(n *models.Node, htmlgraphDir string) {
 	if !n.CreatedAt.IsZero() {
 		fmt.Printf("  Created   %s\n", n.CreatedAt.Format("2006-01-02"))
 	}
-	features := loadLinkedByType(htmlgraphDir, "features", n.ID)
-	bugs := loadLinkedByType(htmlgraphDir, "bugs", n.ID)
-	spikes := loadLinkedByType(htmlgraphDir, "spikes", n.ID)
+	features := loadLinkedByType(wipnoteDir, "features", n.ID)
+	bugs := loadLinkedByType(wipnoteDir, "bugs", n.ID)
+	spikes := loadLinkedByType(wipnoteDir, "spikes", n.ID)
 	printDeepGroup("Features", features)
 	printDeepGroup("Bugs", bugs)
 	printDeepGroup("Spikes", spikes)

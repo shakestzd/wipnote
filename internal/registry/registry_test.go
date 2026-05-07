@@ -341,7 +341,7 @@ func TestDropLinkedWorktrees_NilResolver(t *testing.T) {
 	}
 }
 
-// TestDefaultPath verifies the path falls back to ~/.local/share/htmlgraph/projects.json
+// TestDefaultPath verifies the path falls back to ~/.local/share/wipnote/projects.json
 // when XDG_DATA_HOME is not set, and honors XDG_DATA_HOME when it is set.
 func TestDefaultPath(t *testing.T) {
 	// Sub-test: XDG_DATA_HOME unset — expect home-dir fallback.
@@ -352,7 +352,7 @@ func TestDefaultPath(t *testing.T) {
 		if err != nil {
 			t.Skipf("cannot determine home dir: %v", err)
 		}
-		expected := filepath.Join(home, ".local", "share", "htmlgraph", "projects.json")
+		expected := filepath.Join(home, ".local", "share", "wipnote", "projects.json")
 		if got != expected {
 			t.Errorf("DefaultPath() = %q, want %q", got, expected)
 		}
@@ -363,7 +363,7 @@ func TestDefaultPath(t *testing.T) {
 		xdg := t.TempDir()
 		t.Setenv("XDG_DATA_HOME", xdg)
 		got := registry.DefaultPath()
-		expected := filepath.Join(xdg, "htmlgraph", "projects.json")
+		expected := filepath.Join(xdg, "wipnote", "projects.json")
 		if got != expected {
 			t.Errorf("DefaultPath() = %q, want %q", got, expected)
 		}
@@ -384,7 +384,7 @@ func TestLoad_LegacyFallback(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", xdg)
 
 	canonical := registry.DefaultPath()
-	legacy := filepath.Join(home, ".local", "share", "htmlgraph", "projects.json")
+	legacy := filepath.Join(home, ".local", "share", "wipnote", "projects.json")
 	if canonical == legacy {
 		t.Fatalf("canonical %q must differ from legacy %q for this test", canonical, legacy)
 	}
@@ -494,13 +494,13 @@ func TestEntry_StableID(t *testing.T) {
 // TestNoRegistryPollution verifies Upsert's gate: directories without
 // a .wipnote/ subdirectory are silently rejected, while directories
 // that do have one are accepted regardless of whether they sit inside
-// a git repository (review #55 F1 — HtmlGraph projects are not required
+// a git repository (review #55 F1 — wipnote projects are not required
 // to be Git repos). Test pollution is prevented by the XDG_DATA_HOME
 // isolation set up at the top of this test, NOT by a .git heuristic.
 func TestNoRegistryPollution(t *testing.T) {
 	// Isolate BOTH registry locations: XDG (canonical) and HOME (legacy
 	// fallback). Without pinning HOME, the legacy-fallback in Load reads
-	// the user's real ~/.local/share/htmlgraph/projects.json on the first
+	// the user's real ~/.local/share/wipnote/projects.json on the first
 	// loadCount() call — corrupting the baseline.
 	xdg := t.TempDir()
 	t.Setenv("XDG_DATA_HOME", xdg)
@@ -522,7 +522,7 @@ func TestNoRegistryPollution(t *testing.T) {
 
 	// Upsert from a plain tempdir (no .wipnote/) — must be rejected so
 	// that hooks running inside a stray cwd cannot register garbage.
-	t.Run("tempdir_no_htmlgraph_rejected", func(t *testing.T) {
+	t.Run("tempdir_no_wipnote_rejected", func(t *testing.T) {
 		baseline := loadCount()
 		ghost := t.TempDir()
 		r, _ := registry.Load(regPath)
@@ -538,10 +538,10 @@ func TestNoRegistryPollution(t *testing.T) {
 	})
 
 	// Upsert from a dir with .wipnote/ but no .git ancestor — must be
-	// ACCEPTED. Non-Git projects are valid HtmlGraph projects.
+	// ACCEPTED. Non-Git projects are valid wipnote projects.
 	// Use a proj-* prefixed dir directly under os.TempDir() so the path
 	// doesn't have a Test* component (which would trigger ShouldSkipRegistration).
-	t.Run("htmlgraph_without_git_accepted", func(t *testing.T) {
+	t.Run("wipnote_without_git_accepted", func(t *testing.T) {
 		baseline := loadCount()
 		nonGit, err := os.MkdirTemp(os.TempDir(), "proj-nongit-")
 		if err != nil {
@@ -558,7 +558,7 @@ func TestNoRegistryPollution(t *testing.T) {
 		}
 		after := loadCount()
 		if after != baseline+1 {
-			t.Errorf("non-Git HtmlGraph project must register: registry went from %d to %d, want %d",
+			t.Errorf("non-Git wipnote project must register: registry went from %d to %d, want %d",
 				baseline, after, baseline+1)
 		}
 	})
@@ -630,7 +630,7 @@ func TestLoad_LegacyCorrupt(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", xdg)
 
 	canonical := registry.DefaultPath()
-	legacy := filepath.Join(home, ".local", "share", "htmlgraph", "projects.json")
+	legacy := filepath.Join(home, ".local", "share", "wipnote", "projects.json")
 
 	if err := os.MkdirAll(filepath.Dir(legacy), 0o755); err != nil {
 		t.Fatal(err)
@@ -654,7 +654,7 @@ func TestLoad_MigrationPending(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", xdg)
 
 	canonical := registry.DefaultPath()
-	legacy := filepath.Join(home, ".local", "share", "htmlgraph", "projects.json")
+	legacy := filepath.Join(home, ".local", "share", "wipnote", "projects.json")
 
 	if err := os.MkdirAll(filepath.Dir(legacy), 0o755); err != nil {
 		t.Fatal(err)
@@ -723,8 +723,8 @@ func TestShouldSkipRegistration_TempDirNonTest(t *testing.T) {
 
 // TestShouldSkipRegistration_RealPath verifies a normal production path is not skipped.
 func TestShouldSkipRegistration_RealPath(t *testing.T) {
-	if registry.ShouldSkipRegistration("/workspaces/htmlgraph") {
-		t.Error("ShouldSkipRegistration(/workspaces/htmlgraph) = true, want false")
+	if registry.ShouldSkipRegistration("/workspaces/wipnote") {
+		t.Error("ShouldSkipRegistration(/workspaces/wipnote) = true, want false")
 	}
 }
 
@@ -732,7 +732,7 @@ func TestShouldSkipRegistration_RealPath(t *testing.T) {
 // var causes all paths to be skipped regardless of the path structure.
 func TestShouldSkipRegistration_EnvVar(t *testing.T) {
 	t.Setenv("WIPNOTE_SKIP_REGISTER", "1")
-	if !registry.ShouldSkipRegistration("/workspaces/htmlgraph") {
+	if !registry.ShouldSkipRegistration("/workspaces/wipnote") {
 		t.Error("ShouldSkipRegistration with WIPNOTE_SKIP_REGISTER=1 returned false, want true")
 	}
 	if !registry.ShouldSkipRegistration("/tmp/myproject") {

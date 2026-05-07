@@ -1,4 +1,4 @@
-// Package models defines the core data structures for HtmlGraph.
+// Package models defines the core data structures for wipnote.
 //
 // These types mirror the Python Pydantic models in models.py and event_log.py,
 // ensuring JSON-compatible serialization so both runtimes can read/write the

@@ -161,7 +161,7 @@ func TestSpawnFailLoudStrict(t *testing.T) {
 	overrides, wantExit := spawnSessionCollectorTo(projectDir, "/nonexistent/binary", &buf)
 
 	stderr := buf.String()
-	if !strings.Contains(stderr, "htmlgraph: FATAL:") {
+	if !strings.Contains(stderr, "wipnote: FATAL:") {
 		t.Errorf("expected FATAL line on stderr, got: %q", stderr)
 	}
 	if !wantExit {
@@ -184,7 +184,7 @@ func TestSpawnQuietByDefault(t *testing.T) {
 	overrides, wantExit := spawnSessionCollectorTo(projectDir, "/nonexistent/binary", &buf)
 
 	stderr := buf.String()
-	if !strings.Contains(stderr, "htmlgraph: FATAL:") {
+	if !strings.Contains(stderr, "wipnote: FATAL:") {
 		t.Errorf("expected FATAL line on stderr even without strict mode, got: %q", stderr)
 	}
 	if wantExit {
@@ -226,7 +226,7 @@ func TestRetrySpawn_SucceedsOnThirdAttempt(t *testing.T) {
 		t.Errorf("attempts = %d, want 3", attempts)
 	}
 	stderr := buf.String()
-	warnCount := strings.Count(stderr, "htmlgraph: warning: collector spawn attempt")
+	warnCount := strings.Count(stderr, "wipnote: warning: collector spawn attempt")
 	if warnCount != 2 {
 		t.Errorf("expected 2 warning lines, got %d; stderr=%q", warnCount, stderr)
 	}
@@ -259,7 +259,7 @@ func TestRetrySpawn_AllFail(t *testing.T) {
 		t.Errorf("attempts = %d, want 3", attempts)
 	}
 	stderr := buf.String()
-	warnCount := strings.Count(stderr, "htmlgraph: warning: collector spawn attempt")
+	warnCount := strings.Count(stderr, "wipnote: warning: collector spawn attempt")
 	if warnCount != 2 {
 		t.Errorf("expected 2 warning lines, got %d; stderr=%q", warnCount, stderr)
 	}

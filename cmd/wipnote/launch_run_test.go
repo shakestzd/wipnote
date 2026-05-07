@@ -36,7 +36,7 @@ func TestRunHarnessWithCleanup_StartFailure(t *testing.T) {
 	cleanupCalled := false
 	cleanup := func() { cleanupCalled = true }
 
-	c := exec.Command("/this/binary/does/not/exist/htmlgraph-test")
+	c := exec.Command("/this/binary/does/not/exist/wipnote-test")
 	err := runHarnessWithCleanup(c, cleanup)
 	if err == nil {
 		t.Error("expected error on start failure, got nil")

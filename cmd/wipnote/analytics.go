@@ -34,7 +34,7 @@ func analyticsSummaryCmd() *cobra.Command {
 type statusCounts struct{ todo, active, blocked, done int }
 
 func runAnalyticsSummary(_ *cobra.Command, _ []string) error {
-	dir, err := findHtmlgraphDir()
+	dir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}
@@ -119,7 +119,7 @@ func analyticsVelocityCmd() *cobra.Command {
 }
 
 func runAnalyticsVelocity(_ *cobra.Command, _ []string) error {
-	dir, err := findHtmlgraphDir()
+	dir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}
@@ -181,4 +181,3 @@ func progressBar(count, maxWidth int) string {
 	}
 	return string(bar)
 }
-

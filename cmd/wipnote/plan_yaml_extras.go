@@ -26,12 +26,12 @@ func planListYAMLCmd() *cobra.Command {
 }
 
 func runListYAML() error {
-	htmlgraphDir, err := findHtmlgraphDir()
+	wipnoteDir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}
 
-	plansDir := filepath.Join(htmlgraphDir, "plans")
+	plansDir := filepath.Join(wipnoteDir, "plans")
 	entries, err := os.ReadDir(plansDir)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -137,11 +137,11 @@ func runAddQuestionYAML(planID, text, description, recommended, optionsStr strin
 			return fmt.Errorf("--recommended %q not found in options", recommended)
 		}
 	}
-	htmlgraphDir, err := findHtmlgraphDir()
+	wipnoteDir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}
-	planPath := filepath.Join(htmlgraphDir, "plans", planID+".yaml")
+	planPath := filepath.Join(wipnoteDir, "plans", planID+".yaml")
 	plan, err := planyaml.Load(planPath)
 	if err != nil {
 		return fmt.Errorf("load plan: %w", err)
@@ -219,11 +219,11 @@ func planSetCritiqueYAMLCmd() *cobra.Command {
 }
 
 func runSetCritiqueYAML(planID, dataStr string) error {
-	htmlgraphDir, err := findHtmlgraphDir()
+	wipnoteDir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}
-	planPath := filepath.Join(htmlgraphDir, "plans", planID+".yaml")
+	planPath := filepath.Join(wipnoteDir, "plans", planID+".yaml")
 	plan, err := planyaml.Load(planPath)
 	if err != nil {
 		return fmt.Errorf("load plan: %w", err)
@@ -268,11 +268,11 @@ func planValidateYAMLCmd() *cobra.Command {
 }
 
 func runValidateYAML(planID string) error {
-	htmlgraphDir, err := findHtmlgraphDir()
+	wipnoteDir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}
-	planPath := filepath.Join(htmlgraphDir, "plans", planID+".yaml")
+	planPath := filepath.Join(wipnoteDir, "plans", planID+".yaml")
 	plan, err := planyaml.Load(planPath)
 	if err != nil {
 		return fmt.Errorf("load plan: %w", err)
@@ -293,7 +293,7 @@ func planReviewCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:        "review <plan-id>",
 		Short:      "Open a plan for review (use the dashboard instead)",
-		Deprecated: "use 'htmlgraph serve' and open http://localhost:8080/#plans instead",
+		Deprecated: "use 'wipnote serve' and open http://localhost:8080/#plans instead",
 		Args:       cobra.ExactArgs(1),
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return nil
@@ -311,7 +311,7 @@ func planSetDesignYAMLCmd() *cobra.Command {
 		Long: `Set the structured design subsections on a YAML plan.
 
 Example:
-  htmlgraph plan set-design-yaml plan-a1b2c3d4 \
+  wipnote plan set-design-yaml plan-a1b2c3d4 \
     --problem "The current system has X limitation..." \
     --goals "Goal 1,Goal 2,Goal 3" \
     --constraints "Must not break X,Must support Y"`,
@@ -327,11 +327,11 @@ Example:
 }
 
 func runSetDesignYAML(planID, problem, goals, constraints string) error {
-	htmlgraphDir, err := findHtmlgraphDir()
+	wipnoteDir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}
-	planPath := filepath.Join(htmlgraphDir, "plans", planID+".yaml")
+	planPath := filepath.Join(wipnoteDir, "plans", planID+".yaml")
 	plan, err := planyaml.Load(planPath)
 	if err != nil {
 		return fmt.Errorf("load plan: %w", err)
@@ -383,8 +383,8 @@ The new content is validated before writing. The meta.id in the new content
 must match the existing plan ID to prevent accidental overwrites.
 
 Example:
-  htmlgraph plan rewrite-yaml plan-abc12345 --file /tmp/updated-plan.yaml
-  cat /tmp/updated-plan.yaml | htmlgraph plan rewrite-yaml plan-abc12345`,
+  wipnote plan rewrite-yaml plan-abc12345 --file /tmp/updated-plan.yaml
+  cat /tmp/updated-plan.yaml | wipnote plan rewrite-yaml plan-abc12345`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
 			return runRewriteYAML(args[0], filePath)
@@ -395,12 +395,12 @@ Example:
 }
 
 func runRewriteYAML(planID, filePath string) error {
-	htmlgraphDir, err := findHtmlgraphDir()
+	wipnoteDir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}
 
-	planPath := filepath.Join(htmlgraphDir, "plans", planID+".yaml")
+	planPath := filepath.Join(wipnoteDir, "plans", planID+".yaml")
 
 	// Confirm the plan exists.
 	if _, err := os.Stat(planPath); err != nil {
@@ -443,7 +443,7 @@ func runRewriteYAML(planID, filePath string) error {
 	}
 
 	// Apply accepted amendments from plan_feedback before saving.
-	amendmentsApplied, err := applyAcceptedAmendments(htmlgraphDir, planID, newPlan)
+	amendmentsApplied, err := applyAcceptedAmendments(wipnoteDir, planID, newPlan)
 	if err != nil {
 		return fmt.Errorf("apply amendments: %w", err)
 	}
@@ -475,8 +475,8 @@ type amendmentValue struct {
 
 // applyAcceptedAmendments queries accepted amendments for planID, applies them
 // to the in-memory plan, marks them applied in the DB, and returns the count.
-func applyAcceptedAmendments(htmlgraphDir, planID string, plan *planyaml.PlanYAML) (int, error) {
-	dbPath, err := storage.CanonicalDBPath(filepath.Dir(htmlgraphDir))
+func applyAcceptedAmendments(wipnoteDir, planID string, plan *planyaml.PlanYAML) (int, error) {
+	dbPath, err := storage.CanonicalDBPath(filepath.Dir(wipnoteDir))
 	if err != nil {
 		return 0, fmt.Errorf("resolve db path: %w", err)
 	}
@@ -605,18 +605,18 @@ func planReadFeedbackYAMLCmd() *cobra.Command {
 }
 
 func runReadFeedbackYAML(planID string) error {
-	htmlgraphDir, err := findHtmlgraphDir()
+	wipnoteDir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}
 	// Read YAML status.
-	planPath := filepath.Join(htmlgraphDir, "plans", planID+".yaml")
+	planPath := filepath.Join(wipnoteDir, "plans", planID+".yaml")
 	plan, err := planyaml.Load(planPath)
 	if err != nil {
 		return fmt.Errorf("load plan: %w", err)
 	}
 	// Query SQLite.
-	dbPath, err := storage.CanonicalDBPath(filepath.Dir(htmlgraphDir))
+	dbPath, err := storage.CanonicalDBPath(filepath.Dir(wipnoteDir))
 	if err != nil {
 		return fmt.Errorf("resolve db path: %w", err)
 	}

@@ -89,8 +89,8 @@ func GetEvent(db *sql.DB, eventID string) (*models.AgentEvent, error) {
 
 	e := &models.AgentEvent{}
 	var (
-		tsStr, createdStr, updatedStr                        string
-		toolName, inSum, toolInput, outSum, featID           sql.NullString
+		tsStr, createdStr, updatedStr                       string
+		toolName, inSum, toolInput, outSum, featID          sql.NullString
 		parentAgent, parentEvt, subType, model, src, stepID sql.NullString
 	)
 

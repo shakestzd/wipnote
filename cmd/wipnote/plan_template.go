@@ -65,7 +65,7 @@ func extractPlanNodeInfo(rawHTML string) planNodeInfo {
 // The <!--PLAN_DESIGN_CONTENT--> marker appears first so that manually-set
 // content (via plan set-section) renders above the auto-generated scope.
 // The feature list is wrapped in a collapsible <details> grouped by status.
-func buildDesignContent(info planNodeInfo, nodePath, htmlgraphDir string) string {
+func buildDesignContent(info planNodeInfo, nodePath, wipnoteDir string) string {
 	var b strings.Builder
 	if info.description != "" {
 		fmt.Fprintf(&b, "    <p>%s</p>\n", html.EscapeString(info.description))
@@ -95,7 +95,7 @@ func buildDesignContent(info planNodeInfo, nodePath, htmlgraphDir string) string
 		}
 
 		item := scopeItem{title: title, status: "todo"}
-		if childPath := resolveNodePath(htmlgraphDir, edge.TargetID); childPath != "" {
+		if childPath := resolveNodePath(wipnoteDir, edge.TargetID); childPath != "" {
 			if child, err := htmlparse.ParseFile(childPath); err == nil {
 				item.status = string(child.Status)
 				if child.Content != "" {
@@ -148,7 +148,7 @@ func buildDesignContent(info planNodeInfo, nodePath, htmlgraphDir string) string
 
 // buildOutlineContent generates the Structure Outline section showing
 // the dependency chain and execution order.
-func buildOutlineContent(nodePath, htmlgraphDir string) string {
+func buildOutlineContent(nodePath, wipnoteDir string) string {
 	node, err := htmlparse.ParseFile(nodePath)
 	if err != nil || len(node.Edges["contains"]) == 0 {
 		return ""
@@ -166,7 +166,7 @@ func buildOutlineContent(nodePath, htmlgraphDir string) string {
 			title = edge.TargetID
 		}
 		it := item{id: edge.TargetID, title: title}
-		if childPath := resolveNodePath(htmlgraphDir, edge.TargetID); childPath != "" {
+		if childPath := resolveNodePath(wipnoteDir, edge.TargetID); childPath != "" {
 			if child, err := htmlparse.ParseFile(childPath); err == nil {
 				for _, dep := range child.Edges["blocked_by"] {
 					it.deps = append(it.deps, dep.TargetID)
@@ -214,5 +214,3 @@ func buildOutlineContent(nodePath, htmlgraphDir string) string {
 	}
 	return b.String()
 }
-
-

@@ -44,10 +44,10 @@ func findCmd() *cobra.Command {
 Collections: features, bugs, spikes, tracks, plans, specs, all
 
 Examples:
-  htmlgraph find features --status blocked
-  htmlgraph find bugs --priority high --status todo
-  htmlgraph find all --status in-progress --order-by created
-  htmlgraph find features --title "auth" --limit 5`,
+  wipnote find features --status blocked
+  wipnote find bugs --priority high --status todo
+  wipnote find all --status in-progress --order-by created
+  wipnote find features --title "auth" --limit 5`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
 			return runFind(args[0], findOpts{
@@ -92,7 +92,7 @@ type findOpts struct {
 }
 
 func runFind(collection string, opts findOpts) error {
-	dir, err := findHtmlgraphDir()
+	dir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}
@@ -168,7 +168,7 @@ func runFindByID(dir, id string) error {
 	path := resolveNodePath(dir, id)
 	if path == "" {
 		kind := kindFromPrefix(id)
-		return fmt.Errorf("find: no item found with ID %q\nRun 'htmlgraph %s list' to see valid IDs, or 'htmlgraph find all --title <keyword>' to search by title", id, kind)
+		return fmt.Errorf("find: no item found with ID %q\nRun 'wipnote %s list' to see valid IDs, or 'wipnote find all --title <keyword>' to search by title", id, kind)
 	}
 	node, err := htmlparse.ParseFile(path)
 	if err != nil {

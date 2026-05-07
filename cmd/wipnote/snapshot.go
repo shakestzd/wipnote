@@ -33,7 +33,7 @@ type snapshotRow struct {
 }
 
 func runSnapshot(summary bool) error {
-	dir, err := findHtmlgraphDir()
+	dir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}
@@ -73,7 +73,7 @@ func runSnapshot(summary bool) error {
 	}
 
 	// Full snapshot view.
-	fmt.Printf("HtmlGraph snapshot  (%s)\n", dir)
+	fmt.Printf("wipnote snapshot  (%s)\n", dir)
 	fmt.Printf("%-12s  %5s  %8s  %7s  %4s\n",
 		"TYPE", "TOTAL", "IN-PROG", "BLOCKED", "DONE")
 	fmt.Println("─────────────────────────────────────────")

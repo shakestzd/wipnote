@@ -40,7 +40,7 @@ func runWiUpdate(typeName, id string, o *wiUpdateOpts) error {
 	if o.title == "" && o.priority == "" && o.trackID == "" {
 		return fmt.Errorf("at least one of --title, --priority, or --track is required")
 	}
-	dir, err := findHtmlgraphDir()
+	dir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}
@@ -65,7 +65,7 @@ func runWiUpdate(typeName, id string, o *wiUpdateOpts) error {
 	if o.trackID != "" {
 		// Validate target track exists.
 		if _, err := p.Tracks.Get(o.trackID); err != nil {
-			return fmt.Errorf("track %s not found\nRun 'htmlgraph track list' to see available tracks", o.trackID)
+			return fmt.Errorf("track %s not found\nRun 'wipnote track list' to see available tracks", o.trackID)
 		}
 		edit = edit.SetTrack(o.trackID)
 	}
@@ -96,7 +96,7 @@ func wiMoveCmd(typeName string) *cobra.Command {
 }
 
 func runWiMove(typeName, id, targetTrackID string) error {
-	dir, err := findHtmlgraphDir()
+	dir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}
@@ -113,13 +113,13 @@ func runWiMove(typeName, id, targetTrackID string) error {
 	col := collectionFor(p, typeName)
 	node, err := col.Get(id)
 	if err != nil {
-		return fmt.Errorf("%s %s not found: %w\nRun 'htmlgraph %s list' to see valid IDs.", typeName, id, err, typeName)
+		return fmt.Errorf("%s %s not found: %w\nRun 'wipnote %s list' to see valid IDs.", typeName, id, err, typeName)
 	}
 
 	// Validate target track exists.
 	track, err := p.Tracks.Get(targetTrackID)
 	if err != nil {
-		return fmt.Errorf("track %s not found\nRun 'htmlgraph track list' to see available tracks", targetTrackID)
+		return fmt.Errorf("track %s not found\nRun 'wipnote track list' to see available tracks", targetTrackID)
 	}
 
 	if node.TrackID == targetTrackID {

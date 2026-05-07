@@ -194,10 +194,10 @@ func TestWalkAreas_RootScoping(t *testing.T) {
 	}
 }
 
-// TestWalkAreas_ExcludesHtmlgraphDir verifies that work-item HTML under
+// TestWalkAreas_ExcludesWipnoteDir verifies that work-item HTML under
 // .wipnote/ is excluded — those files have their own attribution model
 // and would otherwise drown out the source-code inventory.
-func TestWalkAreas_ExcludesHtmlgraphDir(t *testing.T) {
+func TestWalkAreas_ExcludesWipnoteDir(t *testing.T) {
 	database := openTestDB(t)
 
 	root := t.TempDir()
@@ -209,9 +209,9 @@ func TestWalkAreas_ExcludesHtmlgraphDir(t *testing.T) {
 	writeFile(t, hgDir, "trk-x.html")
 	gitInit(t, root, "visible.go", ".wipnote/trk-x.html")
 
-	insertTrack(t, database, "trk-htmlgraph", "Track Htmlgraph")
-	insertFeature(t, database, "feat-htmlgraph", "Feature Htmlgraph", "trk-htmlgraph")
-	insertFeatureFile(t, database, "ff-htmlgraph", "feat-htmlgraph", ".wipnote/trk-x.html")
+	insertTrack(t, database, "trk-wipnote", "Track Wipnote")
+	insertFeature(t, database, "feat-wipnote", "Feature Wipnote", "trk-wipnote")
+	insertFeatureFile(t, database, "ff-wipnote", "feat-wipnote", ".wipnote/trk-x.html")
 
 	res, err := blame.WalkAreas(context.Background(), database, root, blame.WalkOptions{
 		IncludeUntracked: boolPtr(true),

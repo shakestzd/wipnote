@@ -13,7 +13,7 @@ The question every developer using AI coding tools eventually asks: "Can I just 
 
 Claude Code's answer is auto mode, a server-side classifier that screens every tool call for security threats like data exfiltration, production deployments, and force-pushes to main. It's a good answer to the security question. But it's only available on Team, Enterprise, or API plans, requires admin enablement, and only works with the Anthropic API provider. And it doesn't address a different question entirely: is the AI doing *quality* development work?
 
-HtmlGraph's YOLO mode answers the quality question.
+wipnote's YOLO mode answers the quality question.
 
 <!-- more -->
 
@@ -57,7 +57,7 @@ Blocks `git commit` if any UI files (`.html`, `.css`, `.js`, `.ts`, `.tsx`, `.vu
 
 ### 8. Steps guard
 
-Warns (soft block) when `htmlgraph feature start` is called on a feature that has zero implementation steps. Encourages the agent to think about the approach before starting to code.
+Warns (soft block) when `wipnote feature start` is called on a feature that has zero implementation steps. Encourages the agent to think about the approach before starting to code.
 
 ### 9. Code health guard
 
@@ -103,7 +103,7 @@ Every YOLO session creates a dedicated git worktree:
 - Feature worktrees: `.claude/worktrees/<featureID>/` on branch `yolo-<featureID>`
 - Sub-agent worktrees: nested under the track worktree on branch `agent-<trackID>-<taskName>`
 
-This provides structural safety independent of the hooks. An agent that produces garbage doesn't pollute your working tree; it pollutes its own isolated branch that you can inspect and discard. The `.htmlgraph/` directory is excluded from worktrees via git's local exclude file, so all work item operations resolve to the main project's state.
+This provides structural safety independent of the hooks. An agent that produces garbage doesn't pollute your working tree; it pollutes its own isolated branch that you can inspect and discard. The `.wipnote/` directory is excluded from worktrees via git's local exclude file, so all work item operations resolve to the main project's state.
 
 ## The origin story
 

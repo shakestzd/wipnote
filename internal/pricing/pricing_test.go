@@ -34,10 +34,10 @@ func TestClaudeCostEmpiricalMatch(t *testing.T) {
 	// model=claude-haiku-4-5-20251001, dimensions as reported by
 	// claude_code.api_request log events.
 	cases := []struct {
-		name          string
-		tokens        otel.TokenCounts
-		wantCost      float64
-		tolerancePct  float64
+		name         string
+		tokens       otel.TokenCounts
+		wantCost     float64
+		tolerancePct float64
 	}{
 		{
 			name:     "turn1_api_request",
@@ -47,15 +47,15 @@ func TestClaudeCostEmpiricalMatch(t *testing.T) {
 			tolerancePct: 0.01,
 		},
 		{
-			name:     "turn2_api_request",
-			tokens:   otel.TokenCounts{Input: 3, Output: 87, CacheRead: 0, CacheCreation: 16623},
-			wantCost: 0.02121675,
+			name:         "turn2_api_request",
+			tokens:       otel.TokenCounts{Input: 3, Output: 87, CacheRead: 0, CacheCreation: 16623},
+			wantCost:     0.02121675,
 			tolerancePct: 0.01,
 		},
 		{
-			name:     "turn3_api_request",
-			tokens:   otel.TokenCounts{Input: 5, Output: 101, CacheRead: 16623, CacheCreation: 888},
-			wantCost: 0.0032823,
+			name:         "turn3_api_request",
+			tokens:       otel.TokenCounts{Input: 5, Output: 101, CacheRead: 16623, CacheCreation: 888},
+			wantCost:     0.0032823,
 			tolerancePct: 0.01,
 		},
 	}

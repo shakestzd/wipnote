@@ -57,8 +57,8 @@ type commitMatch struct {
 
 // fileStats holds a file path and its diff stats for one commit.
 type fileStats struct {
-	path        string
-	linesAdded  int
+	path         string
+	linesAdded   int
 	linesRemoved int
 }
 
@@ -66,11 +66,11 @@ func runReindexBackfillOrphans(cmd *cobra.Command, _ []string) error {
 	writeMode, _ := cmd.Flags().GetBool("write")
 	verbose, _ := cmd.Flags().GetBool("verbose")
 
-	htmlgraphDir, err := findHtmlgraphDir()
+	wipnoteDir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}
-	projectDir := filepath.Dir(htmlgraphDir)
+	projectDir := filepath.Dir(wipnoteDir)
 
 	dbPath, err := storage.CanonicalDBPath(projectDir)
 	if err != nil {

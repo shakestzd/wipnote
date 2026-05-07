@@ -16,7 +16,7 @@ func TestErrNotFound(t *testing.T) {
 			wantSub: []string{
 				"work item",
 				"feat-abc123",
-				"htmlgraph feature list",
+				"wipnote feature list",
 			},
 		},
 		{
@@ -25,7 +25,7 @@ func TestErrNotFound(t *testing.T) {
 			wantSub: []string{
 				"work item",
 				"bug-xyz789",
-				"htmlgraph bug list",
+				"wipnote bug list",
 			},
 		},
 		{
@@ -34,7 +34,7 @@ func TestErrNotFound(t *testing.T) {
 			wantSub: []string{
 				"work item",
 				"trk-def456",
-				"htmlgraph track list",
+				"wipnote track list",
 			},
 		},
 	}
@@ -84,7 +84,7 @@ func TestErrNotFoundOnDisk(t *testing.T) {
 }
 
 func TestErrNoActive(t *testing.T) {
-	err := ErrNoActive("features", "htmlgraph feature create 'title'")
+	err := ErrNoActive("features", "wipnote feature create 'title'")
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -93,7 +93,7 @@ func TestErrNoActive(t *testing.T) {
 	wantSubs := []string{
 		"no active",
 		"features",
-		"htmlgraph feature create",
+		"wipnote feature create",
 	}
 	for _, sub := range wantSubs {
 		if !strings.Contains(errStr, sub) {

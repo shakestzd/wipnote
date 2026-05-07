@@ -34,11 +34,11 @@ Rules:
   5. execution_status is set to 'promoted' in plan_feedback and YAML.
 
 Example:
-  htmlgraph plan promote-slice plan-abc12345 2
-  htmlgraph plan promote-slice plan-abc12345 2 --waive-deps`,
+  wipnote plan promote-slice plan-abc12345 2
+  wipnote plan promote-slice plan-abc12345 2 --waive-deps`,
 		Args: cobra.ExactArgs(2),
 		RunE: func(_ *cobra.Command, args []string) error {
-			htmlgraphDir, err := findHtmlgraphDir()
+			wipnoteDir, err := findWipnoteDir()
 			if err != nil {
 				return err
 			}
@@ -46,7 +46,7 @@ Example:
 			if err != nil {
 				return err
 			}
-			featID, err := promoteSliceFromYAML(htmlgraphDir, args[0], sliceNum, waiveDeps, allowSpecSkip)
+			featID, err := promoteSliceFromYAML(wipnoteDir, args[0], sliceNum, waiveDeps, allowSpecSkip)
 			if err != nil {
 				return err
 			}
@@ -64,12 +64,12 @@ Example:
 //
 // When config.spec_enforcement.promote_slice is true and allowSpecSkip is
 // false, the call refuses if the slice's DecisionsNotes is empty — pointing
-// the user at `htmlgraph plan elicit-decisions` (or the Claude skill) to
+// the user at `wipnote plan elicit-decisions` (or the Claude skill) to
 // capture decisions before promotion. When allowSpecSkip is true and the
 // gate would have fired, an audit line is appended to slice.Comment so the
 // override is visible in the plan history.
-func promoteSliceFromYAML(htmlgraphDir, planID string, sliceNum int, waiveDeps, allowSpecSkip bool) (string, error) {
-	planPath := filepath.Join(htmlgraphDir, "plans", planID+".yaml")
+func promoteSliceFromYAML(wipnoteDir, planID string, sliceNum int, waiveDeps, allowSpecSkip bool) (string, error) {
+	planPath := filepath.Join(wipnoteDir, "plans", planID+".yaml")
 	plan, err := planyaml.Load(planPath)
 	if err != nil {
 		return "", fmt.Errorf("load plan: %w", err)
@@ -82,7 +82,7 @@ func promoteSliceFromYAML(htmlgraphDir, planID string, sliceNum int, waiveDeps, 
 	}
 
 	// Open DB.
-	db, err := openPlanDB(htmlgraphDir)
+	db, err := openPlanDB(wipnoteDir)
 	if err != nil {
 		return "", err
 	}
@@ -98,17 +98,17 @@ func promoteSliceFromYAML(htmlgraphDir, planID string, sliceNum int, waiveDeps, 
 	// approval_status (pre-set in the source). Either source is sufficient;
 	// runApproveSlice keeps both in sync, but a YAML-only seed should also work.
 	if approvals[sectionKey] != "approved" && slice.ApprovalStatus != "approved" {
-		return "", fmt.Errorf("slice %d is not approved (plan_feedback=%q, yaml=%q); run 'htmlgraph plan approve-slice %s %d' first",
+		return "", fmt.Errorf("slice %d is not approved (plan_feedback=%q, yaml=%q); run 'wipnote plan approve-slice %s %d' first",
 			sliceNum, approvals[sectionKey], slice.ApprovalStatus, planID, sliceNum)
 	}
 
 	// CRISPI spec-enforcement gate: refuse if config opts in and slice has no
 	// decisions captured. Audited override via --allow-spec-skip writes a
 	// comment to the slice so deliberate skips are visible in plan history.
-	enforcement := hooks.ReadSpecEnforcement(filepath.Dir(htmlgraphDir))
+	enforcement := hooks.ReadSpecEnforcement(filepath.Dir(wipnoteDir))
 	if enforcement.PromoteSlice && strings.TrimSpace(slice.DecisionsNotes) == "" {
 		if !allowSpecSkip {
-			return "", fmt.Errorf("slice %d has no decisions; run `htmlgraph plan elicit-decisions %s %d` first (or invoke /htmlgraph:spec-from-slice on Claude). Override with --allow-spec-skip if intentional.",
+			return "", fmt.Errorf("slice %d has no decisions; run `wipnote plan elicit-decisions %s %d` first (or invoke /wipnote:spec-from-slice on Claude). Override with --allow-spec-skip if intentional.",
 				sliceNum, planID, sliceNum)
 		}
 		auditNote := fmt.Sprintf("[%s] promote-slice --allow-spec-skip: promoted without decisions_notes",
@@ -140,7 +140,7 @@ func promoteSliceFromYAML(htmlgraphDir, planID string, sliceNum int, waiveDeps, 
 	}
 
 	// Open project for work item creation.
-	p, err := workitem.Open(htmlgraphDir, agentForClaim())
+	p, err := workitem.Open(wipnoteDir, agentForClaim())
 	if err != nil {
 		return "", fmt.Errorf("open project: %w", err)
 	}

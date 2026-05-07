@@ -21,7 +21,7 @@ func TestPlanFeedback_OutputStructure(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(dir, ".db"), 0o755); err != nil {
 		t.Fatalf("mkdir .db: %v", err)
 	}
-	dbPath := filepath.Join(dir, ".db", "htmlgraph.db")
+	dbPath := filepath.Join(dir, ".db", "wipnote.db")
 	t.Setenv("WIPNOTE_DB_PATH", dbPath)
 	db, err := dbpkg.Open(dbPath)
 	if err != nil {
@@ -137,7 +137,7 @@ func TestPlanFeedback_EmptyPlan(t *testing.T) {
 	}
 
 	// Create empty DB.
-	db, err := dbpkg.Open(filepath.Join(dir, "htmlgraph.db"))
+	db, err := dbpkg.Open(filepath.Join(dir, "wipnote.db"))
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}

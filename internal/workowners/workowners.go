@@ -5,7 +5,7 @@
 // Format (one rule per line):
 //
 //	# Comment
-//	cmd/htmlgraph/**  trk-f2a1a880
+//	cmd/wipnote/**  trk-f2a1a880
 //	internal/db/*.go  feat-abc123
 //	*.md              trk-docs
 //

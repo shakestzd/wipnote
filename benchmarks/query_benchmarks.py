@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Performance benchmarks for HtmlGraph query operations.
+Performance benchmarks for wipnote query operations.
 
 Run with: python benchmarks/query_benchmarks.py
 
@@ -21,8 +21,8 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 
-from htmlgraph import HtmlGraph
-from htmlgraph.models import Edge, Node
+from wipnote import wipnote
+from wipnote.models import Edge, Node
 
 
 @dataclass
@@ -73,14 +73,14 @@ def benchmark(name: str, func: Callable, iterations: int = 100) -> BenchmarkResu
 
 def create_test_graph(
     num_nodes: int, edge_density: float = 0.1
-) -> tuple[HtmlGraph, Path]:
+) -> tuple[wipnote, Path]:
     """Create a test graph with specified number of nodes and edge density."""
     temp_dir = Path(tempfile.mkdtemp())
-    graph_dir = temp_dir / ".htmlgraph"
+    graph_dir = temp_dir / ".wipnote"
     features_dir = graph_dir / "features"
     features_dir.mkdir(parents=True)
 
-    graph = HtmlGraph(str(graph_dir))
+    graph = wipnote(str(graph_dir))
 
     # Create nodes
     statuses = ["todo", "in-progress", "blocked", "done"]
@@ -126,7 +126,7 @@ def create_test_graph(
     return graph, temp_dir
 
 
-def linear_scan_reverse_lookup(graph: HtmlGraph, target_id: str) -> list:
+def linear_scan_reverse_lookup(graph: wipnote, target_id: str) -> list:
     """O(V*E) linear scan for reverse edge lookup (old method)."""
     result = []
     for node in graph._nodes.values():
@@ -139,7 +139,7 @@ def linear_scan_reverse_lookup(graph: HtmlGraph, target_id: str) -> list:
 def run_benchmarks():
     """Run all benchmarks."""
     print("=" * 70)
-    print("HtmlGraph Query Performance Benchmarks")
+    print("wipnote Query Performance Benchmarks")
     print("=" * 70)
 
     # Test with different graph sizes

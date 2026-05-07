@@ -341,12 +341,12 @@ func TestEvict_ProtectedSurvivesSizeSweep(t *testing.T) {
 	}
 }
 
-func TestCacheRoot_ContainsHtmlgraphSegment(t *testing.T) {
+func TestCacheRoot_ContainsWipnoteSegment(t *testing.T) {
 	root, err := storage.CacheRoot()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(filepath.ToSlash(root), "/htmlgraph") {
-		t.Errorf("expected 'htmlgraph' segment in %s", root)
+	if !strings.Contains(filepath.ToSlash(root), "/wipnote") {
+		t.Errorf("expected 'wipnote' segment in %s", root)
 	}
 }

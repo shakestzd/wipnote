@@ -11,7 +11,7 @@ import (
 // commands the real CLI registers — visible, hidden, deprecated, grouped, and
 // ungrouped — so tests can assert renderCompactHelp behaviour in isolation.
 func buildTestRoot() *cobra.Command {
-	root := &cobra.Command{Use: "htmlgraph"}
+	root := &cobra.Command{Use: "wipnote"}
 
 	addCmd := func(name, short string, subs ...string) *cobra.Command {
 		c := &cobra.Command{Use: name, Short: short}
@@ -118,8 +118,8 @@ func TestRenderCompactHelp_HasHeaderAndHint(t *testing.T) {
 	if !strings.Contains(out, "## CLI Quick Reference") {
 		t.Error("output should contain '## CLI Quick Reference' header")
 	}
-	if !strings.Contains(out, "htmlgraph help --compact") {
-		t.Error("output should contain the 'htmlgraph help --compact' reprint hint")
+	if !strings.Contains(out, "wipnote help --compact") {
+		t.Error("output should contain the 'wipnote help --compact' reprint hint")
 	}
 }
 
@@ -151,7 +151,7 @@ func TestRenderCompactHelp_RealTree_ContainsExpectedCommands(t *testing.T) {
 // uses cobra Group metadata — not any hand-maintained list — to decide which
 // commands appear and in which section.
 func TestRenderCompactHelp_GroupsFromMetadata(t *testing.T) {
-	root := &cobra.Command{Use: "htmlgraph"}
+	root := &cobra.Command{Use: "wipnote"}
 	root.AddGroup(&cobra.Group{ID: "alpha", Title: "Alpha Group"})
 	root.AddGroup(&cobra.Group{ID: "beta", Title: "Beta Group"})
 
@@ -281,7 +281,7 @@ func TestPlanReview_IsDeprecatedViaCobraField(t *testing.T) {
 }
 
 // TestPlanReview_HiddenFromParentHelp verifies that plan review does not
-// appear in `htmlgraph plan --help` output because cobra hides deprecated
+// appear in `wipnote plan --help` output because cobra hides deprecated
 // commands from parent listings by default.
 func TestPlanReview_HiddenFromParentHelp(t *testing.T) {
 	root := buildRoot()
@@ -308,7 +308,7 @@ func TestPlanReview_HiddenFromParentHelp(t *testing.T) {
 }
 
 // TestPlanReview_HelpContainsDeprecationMarker verifies that running
-// `htmlgraph plan review --help` surfaces cobra's deprecation notice.
+// `wipnote plan review --help` surfaces cobra's deprecation notice.
 // Cobra emits the deprecation warning to stderr when the deprecated command
 // is invoked (including via --help).
 func TestPlanReview_HelpContainsDeprecationMarker(t *testing.T) {

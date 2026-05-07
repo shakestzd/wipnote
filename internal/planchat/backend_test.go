@@ -10,7 +10,7 @@ import (
 	dbpkg "github.com/shakestzd/wipnote/internal/db"
 )
 
-// openTestDB creates an in-memory SQLite database with the full HtmlGraph schema.
+// openTestDB creates an in-memory SQLite database with the full wipnote schema.
 func openTestDB(t *testing.T) *sql.DB {
 	t.Helper()
 	database, err := dbpkg.Open(":memory:")

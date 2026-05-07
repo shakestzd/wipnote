@@ -33,9 +33,9 @@ func setupIndexerDB(t *testing.T) (*receiver.Writer, string) {
 
 // writeNDJSONFixture creates a .wipnote/sessions/<sid>/events.ndjson file
 // with the given NDJSON lines.
-func writeNDJSONFixture(t *testing.T, htmlgraphDir, sessionID string, lines []string) string {
+func writeNDJSONFixture(t *testing.T, wipnoteDir, sessionID string, lines []string) string {
 	t.Helper()
-	sessDir := filepath.Join(htmlgraphDir, "sessions", sessionID)
+	sessDir := filepath.Join(wipnoteDir, "sessions", sessionID)
 	if err := os.MkdirAll(sessDir, 0o755); err != nil {
 		t.Fatalf("MkdirAll: %v", err)
 	}
@@ -65,7 +65,7 @@ func countSignals(t *testing.T, w *receiver.Writer, sessionID string) int {
 // a pre-written NDJSON file to the SQLite database.
 func TestIndexer_ProcessesNDJSONFile(t *testing.T) {
 	w, _ := setupIndexerDB(t)
-	htmlgraphDir := t.TempDir()
+	wipnoteDir := t.TempDir()
 	sessionID := "idx-test-sess-01"
 
 	lines := []string{
@@ -73,10 +73,10 @@ func TestIndexer_ProcessesNDJSONFile(t *testing.T) {
 		`{"kind":"metric","harness":"claude_code","ts":"2026-04-24T19:00:01Z","signal_id":"s2","session_id":"idx-test-sess-01","canonical":"token_usage","native":"claude_code.token_usage","tokens_input":100,"tokens_output":50}`,
 		`{"kind":"log","harness":"claude_code","ts":"2026-04-24T19:00:02Z","signal_id":"s3","session_id":"idx-test-sess-01","canonical":"session_start","native":"claude_code.session.start"}`,
 	}
-	writeNDJSONFixture(t, htmlgraphDir, sessionID, lines)
+	writeNDJSONFixture(t, wipnoteDir, sessionID, lines)
 
 	snk := sqls.New(w)
-	idxr := New(htmlgraphDir, snk)
+	idxr := New(wipnoteDir, snk)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -95,16 +95,16 @@ func TestIndexer_ProcessesNDJSONFile(t *testing.T) {
 // doesn't create duplicate rows (INSERT OR IGNORE on signal_id).
 func TestIndexer_IdempotentReplay(t *testing.T) {
 	w, _ := setupIndexerDB(t)
-	htmlgraphDir := t.TempDir()
+	wipnoteDir := t.TempDir()
 	sessionID := "idx-test-sess-02"
 
 	lines := []string{
 		`{"kind":"span","harness":"claude_code","ts":"2026-04-24T19:00:00Z","signal_id":"dup-s1","session_id":"idx-test-sess-02","canonical":"api_request","native":"claude_code.api_request"}`,
 	}
-	writeNDJSONFixture(t, htmlgraphDir, sessionID, lines)
+	writeNDJSONFixture(t, wipnoteDir, sessionID, lines)
 
 	snk := sqls.New(w)
-	idxr := New(htmlgraphDir, snk)
+	idxr := New(wipnoteDir, snk)
 	ctx := context.Background()
 
 	// First replay.
@@ -112,7 +112,7 @@ func TestIndexer_IdempotentReplay(t *testing.T) {
 		t.Fatalf("first processSession: %v", err)
 	}
 	// Reset checkpoint to force full replay.
-	checkpointPath := filepath.Join(htmlgraphDir, "sessions", sessionID, ".index-offset")
+	checkpointPath := filepath.Join(wipnoteDir, "sessions", sessionID, ".index-offset")
 	if err := os.Remove(checkpointPath); err != nil && !os.IsNotExist(err) {
 		t.Fatalf("remove checkpoint: %v", err)
 	}
@@ -131,17 +131,17 @@ func TestIndexer_IdempotentReplay(t *testing.T) {
 // TestIndexer_SkipsCollectorStart verifies that collector_start lines don't create DB rows.
 func TestIndexer_SkipsCollectorStart(t *testing.T) {
 	w, _ := setupIndexerDB(t)
-	htmlgraphDir := t.TempDir()
+	wipnoteDir := t.TempDir()
 	sessionID := "idx-test-sess-03"
 
 	lines := []string{
 		`{"kind":"collector_start","harness":"claude_code","ts":"2026-04-24T19:00:00Z","signal_id":"cs-1","session_id":"idx-test-sess-03"}`,
 		`{"kind":"span","harness":"claude_code","ts":"2026-04-24T19:00:01Z","signal_id":"real-s1","session_id":"idx-test-sess-03","canonical":"api_request","native":"claude_code.api_request"}`,
 	}
-	writeNDJSONFixture(t, htmlgraphDir, sessionID, lines)
+	writeNDJSONFixture(t, wipnoteDir, sessionID, lines)
 
 	snk := sqls.New(w)
-	idxr := New(htmlgraphDir, snk)
+	idxr := New(wipnoteDir, snk)
 	ctx := context.Background()
 
 	if err := idxr.processSession(ctx, sessionID); err != nil {
@@ -158,16 +158,16 @@ func TestIndexer_SkipsCollectorStart(t *testing.T) {
 // new lines after the checkpoint offset.
 func TestIndexer_CheckpointResumesFromOffset(t *testing.T) {
 	w, _ := setupIndexerDB(t)
-	htmlgraphDir := t.TempDir()
+	wipnoteDir := t.TempDir()
 	sessionID := "idx-test-sess-04"
 
 	line1 := `{"kind":"span","harness":"claude_code","ts":"2026-04-24T19:00:00Z","signal_id":"chk-s1","session_id":"idx-test-sess-04","canonical":"api_request","native":"claude_code.api_request"}`
 	line2 := `{"kind":"span","harness":"claude_code","ts":"2026-04-24T19:00:01Z","signal_id":"chk-s2","session_id":"idx-test-sess-04","canonical":"api_request","native":"claude_code.api_request"}`
 
-	ndjsonPath := writeNDJSONFixture(t, htmlgraphDir, sessionID, []string{line1})
+	ndjsonPath := writeNDJSONFixture(t, wipnoteDir, sessionID, []string{line1})
 
 	snk := sqls.New(w)
-	idxr := New(htmlgraphDir, snk)
+	idxr := New(wipnoteDir, snk)
 	ctx := context.Background()
 
 	// First run: processes line1, checkpoints after it.
@@ -200,16 +200,16 @@ func TestIndexer_CheckpointResumesFromOffset(t *testing.T) {
 // TestIndexer_Status verifies the status snapshot reflects per-session offsets and sizes.
 func TestIndexer_Status(t *testing.T) {
 	w, _ := setupIndexerDB(t)
-	htmlgraphDir := t.TempDir()
+	wipnoteDir := t.TempDir()
 	sessionID := "idx-status-sess"
 
 	lines := []string{
 		`{"kind":"span","harness":"claude_code","ts":"2026-04-24T19:00:00Z","signal_id":"st-s1","session_id":"idx-status-sess","canonical":"api_request","native":"claude_code.api_request"}`,
 	}
-	writeNDJSONFixture(t, htmlgraphDir, sessionID, lines)
+	writeNDJSONFixture(t, wipnoteDir, sessionID, lines)
 
 	snk := sqls.New(w)
-	idxr := New(htmlgraphDir, snk)
+	idxr := New(wipnoteDir, snk)
 	ctx := context.Background()
 
 	if err := idxr.processSession(ctx, sessionID); err != nil {
@@ -235,13 +235,13 @@ func TestIndexer_Status(t *testing.T) {
 
 // TestIndexer_Start_ContextCancel verifies Start() respects context cancellation.
 func TestIndexer_Start_ContextCancel(t *testing.T) {
-	htmlgraphDir := t.TempDir()
+	wipnoteDir := t.TempDir()
 	// Create the sessions dir so the indexer can scan it.
-	_ = os.MkdirAll(filepath.Join(htmlgraphDir, "sessions"), 0o755)
+	_ = os.MkdirAll(filepath.Join(wipnoteDir, "sessions"), 0o755)
 
 	// Use a fakeWriter that satisfies sqls.WriterCloser.
 	snk := sqls.New(&fakeWriter{})
-	idxr := New(htmlgraphDir, snk)
+	idxr := New(wipnoteDir, snk)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan struct{})
@@ -278,8 +278,8 @@ func statusKeys(m map[string]FileInfo) []string {
 
 // TestIndexer_DiscoverSessions verifies that discoverSessions finds session dirs.
 func TestIndexer_DiscoverSessions(t *testing.T) {
-	htmlgraphDir := t.TempDir()
-	sessionsDir := filepath.Join(htmlgraphDir, "sessions")
+	wipnoteDir := t.TempDir()
+	sessionsDir := filepath.Join(wipnoteDir, "sessions")
 
 	// Create two session dirs, one with events.ndjson, one without.
 	sess1 := filepath.Join(sessionsDir, "sess-alpha")
@@ -290,7 +290,7 @@ func TestIndexer_DiscoverSessions(t *testing.T) {
 	// sess2 has no events.ndjson
 
 	snk := sqls.New(&fakeWriter{})
-	idxr := New(htmlgraphDir, snk)
+	idxr := New(wipnoteDir, snk)
 
 	sessions, err := idxr.discoverSessions()
 	if err != nil {

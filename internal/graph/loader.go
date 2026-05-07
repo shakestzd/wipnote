@@ -1,4 +1,4 @@
-// Package graph loads and queries HtmlGraph work item files.
+// Package graph loads and queries wipnote work item files.
 package graph
 
 import (
@@ -48,12 +48,12 @@ func LoadDir(dir string) ([]*models.Node, error) {
 }
 
 // LoadAll reads features, bugs, spikes, tracks, plans, and specs from a .wipnote root.
-func LoadAll(htmlgraphDir string) ([]*models.Node, error) {
+func LoadAll(wipnoteDir string) ([]*models.Node, error) {
 	subdirs := []string{"features", "bugs", "spikes", "tracks", "plans", "specs"}
 	var all []*models.Node
 
 	for _, sub := range subdirs {
-		dir := filepath.Join(htmlgraphDir, sub)
+		dir := filepath.Join(wipnoteDir, sub)
 		if _, err := os.Stat(dir); os.IsNotExist(err) {
 			continue
 		}

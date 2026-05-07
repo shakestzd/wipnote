@@ -2,20 +2,20 @@
 """
 Example: Capability-Based Agent Routing for Multi-Agent Coordination.
 
-This example demonstrates how to use HtmlGraph's routing system to
+This example demonstrates how to use wipnote's routing system to
 intelligently assign tasks to agents based on their capabilities and
 current workload.
 
 Usage:
     python examples/routing-demo.py
 
-This creates a .htmlgraph/ directory with:
+This creates a .wipnote/ directory with:
 - features/ - Tasks with required capabilities
 - Features are routed to the best agents based on their capabilities
 """
 
-from htmlgraph.models import Node
-from htmlgraph.routing import (
+from wipnote.models import Node
+from wipnote.routing import (
     AgentCapabilityRegistry,
     CapabilityMatcher,
     route_tasks_to_agents,
@@ -32,7 +32,7 @@ def print_header(title: str) -> None:
 def main():
     """Run the capability-based routing demo."""
 
-    print_header("HtmlGraph Capability-Based Routing Demo")
+    print_header("wipnote Capability-Based Routing Demo")
 
     # Step 1: Create agent registry and register agents with capabilities
     print("Step 1: Registering agents with capabilities...")

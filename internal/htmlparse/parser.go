@@ -1,4 +1,4 @@
-// Package htmlparse reads HtmlGraph HTML work item files into Go structs.
+// Package htmlparse reads wipnote HTML work item files into Go structs.
 //
 // Each .wipnote/features/*.html file follows a well-defined structure:
 //

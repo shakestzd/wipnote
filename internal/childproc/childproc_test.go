@@ -21,16 +21,16 @@ const (
 // buildFakeChild writes a shell script that ignores its args, prints the
 // handshake line, then sleeps. The script is used as the BinPath for a
 // Supervisor so the handshake/lifecycle/reap logic can be exercised
-// without needing a real htmlgraph binary.
+// without needing a real wipnote binary.
 func buildFakeChild(t *testing.T, port int) string {
 	t.Helper()
 	if runtime.GOOS == "windows" {
 		t.Skip("fake child shell script is POSIX-only")
 	}
 	dir := t.TempDir()
-	path := filepath.Join(dir, "fake-htmlgraph")
+	path := filepath.Join(dir, "fake-wipnote")
 	script := "#!/bin/sh\n" +
-		"echo \"htmlgraph-serve-ready port=" + itoa(port) + " pid=$$\"\n" +
+		"echo \"wipnote-serve-ready port=" + itoa(port) + " pid=$$\"\n" +
 		"exec sleep 30\n"
 	if err := os.WriteFile(path, []byte(script), 0o755); err != nil {
 		t.Fatal(err)
@@ -144,7 +144,7 @@ func TestGetOrSpawnConcurrent(t *testing.T) {
 func TestInvalidHandshakeFails(t *testing.T) {
 	// Fake binary that prints the wrong line.
 	dir := t.TempDir()
-	path := filepath.Join(dir, "bad-htmlgraph")
+	path := filepath.Join(dir, "bad-wipnote")
 	bad := "#!/bin/sh\necho \"wrong line format\"\nexec sleep 30\n"
 	if err := os.WriteFile(path, []byte(bad), 0o755); err != nil {
 		t.Fatal(err)
@@ -164,7 +164,7 @@ func TestInvalidHandshakeFails(t *testing.T) {
 func TestHandshakeTimeout(t *testing.T) {
 	// Fake binary that never prints — sleeps forever with no output.
 	dir := t.TempDir()
-	path := filepath.Join(dir, "silent-htmlgraph")
+	path := filepath.Join(dir, "silent-wipnote")
 	if err := os.WriteFile(path, []byte("#!/bin/sh\nexec sleep 30\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}

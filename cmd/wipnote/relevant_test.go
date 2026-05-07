@@ -21,7 +21,7 @@ func requireRipgrep(t *testing.T) {
 	}
 }
 
-// sampleFeatureHTML is a minimal valid HtmlGraph feature HTML fixture.
+// sampleFeatureHTML is a minimal valid wipnote feature HTML fixture.
 const sampleFeatureHTML = `<!DOCTYPE html>
 <html lang="en">
 <head><meta charset="UTF-8"><title>Test Feature</title></head>
@@ -65,7 +65,7 @@ func TestDetectQueryType_FilePath(t *testing.T) {
 		query string
 		want  queryType
 	}{
-		{"cmd/htmlgraph/relevant.go", queryTypeFile},
+		{"cmd/wipnote/relevant.go", queryTypeFile},
 		{"internal/models/node.go", queryTypeFile},
 		{"./foo/bar.html", queryTypeFile},
 		{"/absolute/path/to/file.md", queryTypeFile},
@@ -98,7 +98,7 @@ func TestDetectQueryType_Keyword(t *testing.T) {
 		"retrieval",
 		"auth middleware",
 		"plan finalize",
-		"xyz123",   // too short/mixed to be SHA
+		"xyz123", // too short/mixed to be SHA
 		"hello world",
 	}
 	for _, kw := range cases {

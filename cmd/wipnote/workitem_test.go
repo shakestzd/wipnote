@@ -485,11 +485,11 @@ func TestCreateWithDescription_AllKinds(t *testing.T) {
 			}
 
 			opts := &wiCreateOpts{
-				trackID:          trackID,
-				priority:         "medium",
-				description:      "persisted description body",
-				start:            false,
-				noLink:           true,
+				trackID:     trackID,
+				priority:    "medium",
+				description: "persisted description body",
+				start:       false,
+				noLink:      true,
 				standaloneReason: func() string {
 					if tc.kind == "feature" && trackID == "" {
 						return "test-standalone"
@@ -611,8 +611,8 @@ func TestWarnMissingFields_FeatureRequiresTrack(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for feature without --track, got nil")
 	}
-	if !stringContains(err.Error(), "htmlgraph track list") {
-		t.Errorf("error should mention 'htmlgraph track list', got: %q", err.Error())
+	if !stringContains(err.Error(), "wipnote track list") {
+		t.Errorf("error should mention 'wipnote track list', got: %q", err.Error())
 	}
 }
 
@@ -622,8 +622,8 @@ func TestWarnMissingFields_BugRequiresTrack(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for bug without --track, got nil")
 	}
-	if !stringContains(err.Error(), "htmlgraph track list") {
-		t.Errorf("error should mention 'htmlgraph track list', got: %q", err.Error())
+	if !stringContains(err.Error(), "wipnote track list") {
+		t.Errorf("error should mention 'wipnote track list', got: %q", err.Error())
 	}
 }
 
@@ -658,15 +658,15 @@ func TestWarnMissingFields_ErrorMessageGuidance(t *testing.T) {
 		t.Fatal("expected error, got nil")
 	}
 	msg := err.Error()
-	if !stringContains(msg, "htmlgraph track list") {
-		t.Errorf("error message should contain 'htmlgraph track list': %q", msg)
+	if !stringContains(msg, "wipnote track list") {
+		t.Errorf("error message should contain 'wipnote track list': %q", msg)
 	}
 	if !stringContains(msg, "--track") {
 		t.Errorf("error message should mention '--track': %q", msg)
 	}
 	// Retrieval-first framing: relevant command must appear before track list.
-	if !stringContains(msg, "htmlgraph relevant") {
-		t.Errorf("error message should mention 'htmlgraph relevant' for retrieval-first discovery: %q", msg)
+	if !stringContains(msg, "wipnote relevant") {
+		t.Errorf("error message should mention 'wipnote relevant' for retrieval-first discovery: %q", msg)
 	}
 	if !stringContains(msg, "last resort") {
 		t.Errorf("error message should frame track creation as 'last resort': %q", msg)
@@ -680,8 +680,8 @@ func TestWarnMissingFields_BugErrorMessageRetrievalFirst(t *testing.T) {
 		t.Fatal("expected error for bug without --track, got nil")
 	}
 	msg := err.Error()
-	if !stringContains(msg, "htmlgraph relevant") {
-		t.Errorf("bug error message should mention 'htmlgraph relevant': %q", msg)
+	if !stringContains(msg, "wipnote relevant") {
+		t.Errorf("bug error message should mention 'wipnote relevant': %q", msg)
 	}
 	if !stringContains(msg, "last resort") {
 		t.Errorf("bug error message should frame track creation as 'last resort': %q", msg)
@@ -704,7 +704,7 @@ func testHgDirWithDB(t *testing.T, sessionID string) (tmpDir, hgDir string) {
 	// production code (storage.CanonicalDBPath) and the test (which opens the
 	// same path directly) agree. Without this, production would write to the
 	// real user cache dir and the test would read from the unused tmp path.
-	dbPath := filepath.Join(hgDir, ".db", "htmlgraph.db")
+	dbPath := filepath.Join(hgDir, ".db", "wipnote.db")
 	if err := os.MkdirAll(filepath.Dir(dbPath), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -759,7 +759,7 @@ func TestFeatureStart_Idempotent(t *testing.T) {
 	}
 
 	// Read active_feature_id after first start.
-	database, err := dbpkg.Open(filepath.Join(hgDir, ".db", "htmlgraph.db"))
+	database, err := dbpkg.Open(filepath.Join(hgDir, ".db", "wipnote.db"))
 	if err != nil {
 		t.Fatalf("open db after first start: %v", err)
 	}
@@ -838,7 +838,7 @@ func TestFeatureStart_DifferentFeatures(t *testing.T) {
 		t.Fatalf("start A: %v", err)
 	}
 
-	database, err := dbpkg.Open(filepath.Join(hgDir, ".db", "htmlgraph.db"))
+	database, err := dbpkg.Open(filepath.Join(hgDir, ".db", "wipnote.db"))
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
@@ -885,7 +885,7 @@ func TestFeatureStart_ClaimWrittenOnFirstStart(t *testing.T) {
 		t.Fatalf("first start: %v", err)
 	}
 
-	database, err := dbpkg.Open(filepath.Join(hgDir, ".db", "htmlgraph.db"))
+	database, err := dbpkg.Open(filepath.Join(hgDir, ".db", "wipnote.db"))
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
@@ -938,7 +938,7 @@ func TestFeatureStart_ClaimRenewedOnRepeatStart(t *testing.T) {
 		t.Fatalf("second start: %v", err)
 	}
 
-	database, err := dbpkg.Open(filepath.Join(hgDir, ".db", "htmlgraph.db"))
+	database, err := dbpkg.Open(filepath.Join(hgDir, ".db", "wipnote.db"))
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
@@ -987,7 +987,7 @@ func TestFeatureStart_ClaimWrittenAfterExpiry(t *testing.T) {
 		t.Fatalf("first start: %v", err)
 	}
 
-	database, err := dbpkg.Open(filepath.Join(hgDir, ".db", "htmlgraph.db"))
+	database, err := dbpkg.Open(filepath.Join(hgDir, ".db", "wipnote.db"))
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
@@ -1027,7 +1027,7 @@ func TestFeatureStart_ClaimWrittenAfterExpiry(t *testing.T) {
 		t.Fatalf("second start after expiry: %v", err)
 	}
 
-	database2, err := dbpkg.Open(filepath.Join(hgDir, ".db", "htmlgraph.db"))
+	database2, err := dbpkg.Open(filepath.Join(hgDir, ".db", "wipnote.db"))
 	if err != nil {
 		t.Fatalf("open db2: %v", err)
 	}
@@ -1112,7 +1112,7 @@ func TestRunWiSetStatus_ConcurrentAgents(t *testing.T) {
 	}
 
 	// Verify all N rows in active_work_items.
-	database, err := dbpkg.Open(filepath.Join(hgDir, ".db", "htmlgraph.db"))
+	database, err := dbpkg.Open(filepath.Join(hgDir, ".db", "wipnote.db"))
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
@@ -1189,7 +1189,7 @@ func TestSubagentCanStartFeatureCreatedByDifferentAgent(t *testing.T) {
 
 	// Step 4: Verify both agents' rows exist in active_work_items and point
 	// to the same feature.
-	database, err := dbpkg.Open(filepath.Join(hgDir, ".db", "htmlgraph.db"))
+	database, err := dbpkg.Open(filepath.Join(hgDir, ".db", "wipnote.db"))
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
@@ -1222,8 +1222,8 @@ func TestSubagentCanStartFeatureCreatedByDifferentAgent(t *testing.T) {
 // attribution loss and stalls under parallel dispatch.
 //
 // Invariant: subagent feature starts leave sessions.active_feature_id
-// untouched; only the root agent (AgentRootSentinel) writes it. All agents'
-// per-agent claims still land correctly in active_work_items.
+// untouched; only root launcher agents write it. All agents' per-agent claims
+// still land correctly in active_work_items.
 func TestRunWiSetStatus_SubagentsDoNotStompLegacyColumn(t *testing.T) {
 	const sessionID = "test-session-no-stomp"
 	const N = 4
@@ -1276,7 +1276,7 @@ func TestRunWiSetStatus_SubagentsDoNotStompLegacyColumn(t *testing.T) {
 		}
 	}
 
-	database, err := dbpkg.Open(filepath.Join(hgDir, ".db", "htmlgraph.db"))
+	database, err := dbpkg.Open(filepath.Join(hgDir, ".db", "wipnote.db"))
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
@@ -1300,10 +1300,45 @@ func TestRunWiSetStatus_SubagentsDoNotStompLegacyColumn(t *testing.T) {
 	}
 }
 
+func TestRunWiSetStatus_CodexLauncherWritesLegacyColumn(t *testing.T) {
+	const sessionID = "test-session-codex-root"
+	const agentID = "codex"
+
+	tmpDir, hgDir := testHgDirWithDB(t, sessionID)
+	projectDirFlag = tmpDir
+	defer func() { projectDirFlag = "" }()
+	t.Setenv("WIPNOTE_SESSION_ID", sessionID)
+	t.Setenv("WIPNOTE_CACHE_DIR", tmpDir)
+
+	trackID := testSetupTrack(t, hgDir)
+	if err := testCreate("feature", "Codex Launcher Feature", trackID, "medium", false, false); err != nil {
+		t.Fatalf("create feature: %v", err)
+	}
+	featFiles, _ := filepath.Glob(filepath.Join(hgDir, "features", "feat-*.html"))
+	if len(featFiles) != 1 {
+		t.Fatalf("expected 1 feature file, got %d", len(featFiles))
+	}
+	featNode, _ := htmlparse.ParseFile(featFiles[0])
+
+	if err := wiSetStatusWithAgent("feature", featNode.ID, "in-progress", sessionID, agentID); err != nil {
+		t.Fatalf("codex feature start: %v", err)
+	}
+
+	database, err := dbpkg.Open(filepath.Join(hgDir, ".db", "wipnote.db"))
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	defer database.Close()
+
+	if got := hooks.GetActiveFeatureID(database, sessionID); got != featNode.ID {
+		t.Fatalf("sessions.active_feature_id = %q, want %q", got, featNode.ID)
+	}
+}
+
 // --- Feature-complete spec-enforcement gate (feat-0fd7c8bc) ----------
 
 // setupFeatureGateProject creates a project root with a .wipnote subdir.
-// Returns the htmlgraphDir.
+// Returns the wipnoteDir.
 func setupFeatureGateProject(t *testing.T) string {
 	t.Helper()
 	projectRoot := t.TempDir()
@@ -1429,4 +1464,3 @@ func TestFeatureCompleteGate_EnabledWithLegacyCriterion(t *testing.T) {
 		t.Errorf("expected gate to pass with legacy criterion, got: %v", err)
 	}
 }
-

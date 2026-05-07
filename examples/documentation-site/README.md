@@ -1,10 +1,10 @@
 # Documentation Site Example
 
-A static documentation site using HtmlGraph for page linking and navigation.
+A static documentation site using wipnote for page linking and navigation.
 
 ## Overview
 
-This example demonstrates using HtmlGraph as a documentation system where:
+This example demonstrates using wipnote as a documentation system where:
 - Each doc page is an HTML file
 - Cross-references are hyperlinks
 - Table of contents is auto-generated
@@ -43,7 +43,7 @@ Just HTML files - open in browser immediately.
 - Related pages from graph edges
 
 ### 4. Search
-Use HtmlGraph queries:
+Use wipnote queries:
 ```python
 # Find pages about "authentication"
 results = graph.query("[data-keywords*='authentication']")
@@ -78,10 +78,10 @@ results = graph.query("[data-keywords*='authentication']")
 
 ## Implementation
 
-The HtmlGraph docs site (docs/) is itself built this way!
+The wipnote docs site (docs/) is itself built this way!
 
 Check `../../docs/` for a real-world example.
 
 ## Learn More
 
-See the main [HtmlGraph documentation](../../docs/)
+See the main [wipnote documentation](../../docs/)

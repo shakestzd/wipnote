@@ -110,7 +110,7 @@ func warnMissingFields(typeName string, o *wiCreateOpts) error {
 	// Features and bugs require a track to link to an initiative.
 	// Features with an explicit standalone_reason are exempt from the track requirement.
 	if o.trackID == "" && (typeName == "feature" || typeName == "bug") && !(typeName == "feature" && o.standaloneReason != "") {
-		msg := fmt.Sprintf("%s requires --track <trk-id> to link to an initiative.\n\nFind the right existing track before creating a new one:\n  1. htmlgraph relevant \"<topic from your work>\"   — searches by content\n  2. htmlgraph track list                          — enumerate all tracks\n\nOnly if no existing track fits, create one as a last resort:\n  htmlgraph track create \"Track Title\"", typeName)
+		msg := fmt.Sprintf("%s requires --track <trk-id> to link to an initiative.\n\nFind the right existing track before creating a new one:\n  1. wipnote relevant \"<topic from your work>\"   — searches by content\n  2. wipnote track list                          — enumerate all tracks\n\nOnly if no existing track fits, create one as a last resort:\n  wipnote track create \"Track Title\"", typeName)
 
 		// For bugs with --files, try to suggest the track via file ownership.
 		if typeName == "bug" && o.files != "" {
@@ -127,7 +127,7 @@ func warnMissingFields(typeName string, o *wiCreateOpts) error {
 		// Standalone features (no plan, no track) only need --standalone reason, not --description.
 		isStandaloneFeature := typeName == "feature" && o.standaloneReason != ""
 		if o.description == "" && !isStandaloneFeature {
-			return fmt.Errorf("%s requires --description (captures context for future sessions)\nExample: htmlgraph %s create \"title\" --description \"root cause and context\"", typeName, typeName)
+			return fmt.Errorf("%s requires --description (captures context for future sessions)\nExample: wipnote %s create \"title\" --description \"root cause and context\"", typeName, typeName)
 		}
 	case "spec":
 		if o.description == "" {
@@ -141,7 +141,7 @@ func warnMissingFields(typeName string, o *wiCreateOpts) error {
 // Checks WORKOWNERS static map first, then falls back to DB heuristic.
 // Returns a suggestion string like "--track trk-abc (owns cmd/foo.go)".
 func suggestTrackFromFiles(files string) string {
-	dir, err := findHtmlgraphDir()
+	dir, err := findWipnoteDir()
 	if err != nil {
 		return ""
 	}
@@ -167,7 +167,7 @@ func suggestTrackFromFiles(files string) string {
 					return fmt.Sprintf("--track %s (WORKOWNERS: %s via %s)", trackID, f, ownerID)
 				}
 			}
-			return fmt.Sprintf("feature %s owns %s (WORKOWNERS) — find its track with: htmlgraph feature show %s",
+			return fmt.Sprintf("feature %s owns %s (WORKOWNERS) — find its track with: wipnote feature show %s",
 				ownerID, f, ownerID)
 		}
 	}
@@ -191,7 +191,7 @@ func suggestTrackFromFiles(files string) string {
 		if owner.TrackID != "" {
 			return fmt.Sprintf("--track %s (%s owns %s)", owner.TrackID, owner.Title, f)
 		}
-		return fmt.Sprintf("feature %s (%s) owns %s — find its track with: htmlgraph feature show %s",
+		return fmt.Sprintf("feature %s (%s) owns %s — find its track with: wipnote feature show %s",
 			owner.FeatureID, owner.Title, f, owner.FeatureID)
 	}
 	return ""

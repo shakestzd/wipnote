@@ -1,6 +1,6 @@
-# HtmlGraph Scripts
+# wipnote Scripts
 
-Development and deployment scripts for the HtmlGraph project.
+Development and deployment scripts for the wipnote project.
 
 ## Deployment
 
@@ -25,7 +25,7 @@ See `deploy-all.sh --help` for all options.
 Worktree creation is handled by the Go CLI:
 
 ```bash
-htmlgraph yolo --track <trk-id>         # Create worktree + branch for a track
+wipnote yolo --track <trk-id>         # Create worktree + branch for a track
 ```
 
 These thin shell helpers manage worktrees after they exist:

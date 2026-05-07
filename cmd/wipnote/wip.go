@@ -38,7 +38,7 @@ func wipShowCmd() *cobra.Command {
 }
 
 func runWipShow() error {
-	dir, err := findHtmlgraphDir()
+	dir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}
@@ -83,7 +83,7 @@ func wipResetCmd() *cobra.Command {
 }
 
 func runWipReset(force bool) error {
-	dir, err := findHtmlgraphDir()
+	dir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}
@@ -95,7 +95,7 @@ func runWipReset(force bool) error {
 
 	if !force {
 		count := len(items)
-		return fmt.Errorf("%d items are in-progress. This will reset all to todo.\nRun 'htmlgraph wip reset --force' to confirm, or 'htmlgraph wip show' to review first.", count)
+		return fmt.Errorf("%d items are in-progress. This will reset all to todo.\nRun 'wipnote wip reset --force' to confirm, or 'wipnote wip show' to review first.", count)
 	}
 
 	if len(items) == 0 {
@@ -143,14 +143,14 @@ func collectionDir(p *workitem.Project, nodeType string) string {
 }
 
 // scanInProgress collects all in-progress nodes across features, bugs, spikes.
-func scanInProgress(htmlgraphDir string) ([]*models.Node, error) {
+func scanInProgress(wipnoteDir string) ([]*models.Node, error) {
 	dirs := []struct {
 		path     string
 		nodeType string
 	}{
-		{filepath.Join(htmlgraphDir, "features"), "feature"},
-		{filepath.Join(htmlgraphDir, "bugs"), "bug"},
-		{filepath.Join(htmlgraphDir, "spikes"), "spike"},
+		{filepath.Join(wipnoteDir, "features"), "feature"},
+		{filepath.Join(wipnoteDir, "bugs"), "bug"},
+		{filepath.Join(wipnoteDir, "spikes"), "spike"},
 	}
 
 	var items []*models.Node

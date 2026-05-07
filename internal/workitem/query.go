@@ -23,7 +23,7 @@ const (
 	Desc
 )
 
-// Query is a chainable query builder for HtmlGraph nodes.
+// Query is a chainable query builder for wipnote nodes.
 // Build a query with Find/FindAll, add Where/OrderBy/Limit, then Execute.
 type Query struct {
 	project    *Project

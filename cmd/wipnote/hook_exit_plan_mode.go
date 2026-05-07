@@ -18,7 +18,7 @@ import (
 // most recently modified markdown file in .wipnote/plans/, parses it into a
 // best-effort CRISPI YAML plan, saves it, and suggests a review command.
 //
-// This handler lives in cmd/htmlgraph (not internal/hooks) because the hooks
+// This handler lives in cmd/wipnote (not internal/hooks) because the hooks
 // package must not import workitem (spike creation policy). The markdown-to-YAML
 // conversion uses workitem.GenerateID and planyaml.NewPlan/Save.
 func handleExitPlanMode(event *hooks.CloudEvent, database *sql.DB, projectDir string) (*hooks.HookResult, error) {
@@ -71,7 +71,7 @@ func handleExitPlanMode(event *hooks.CloudEvent, database *sql.DB, projectDir st
 	}
 
 	suggestion := fmt.Sprintf(
-		"Plan mode output converted to CRISPI YAML: %s\nRun: htmlgraph plan review %s",
+		"Plan mode output converted to CRISPI YAML: %s\nRun: wipnote plan review %s",
 		yamlPath, planID)
 
 	return &hooks.HookResult{
@@ -142,27 +142,27 @@ var mdFilePathPattern = regexp.MustCompile(`(?:^|\s)([\w./\-]+\.(?:go|py|ts|tsx|
 // that represent plan metadata sections rather than delivery slices. Content
 // under these headings is routed to the design section, not to slices.
 var structuralHeadings = map[string]struct{}{
-	"context":            {},
-	"background":         {},
-	"overview":           {},
-	"summary":            {},
-	"verification":       {},
-	"testing":            {},
-	"test plan":          {},
-	"tests":              {},
-	"performance":        {},
-	"performance budget": {},
-	"files changed":      {},
-	"file changes":       {},
-	"key files":          {},
-	"dependencies":       {},
-	"prerequisites":      {},
-	"requirements":       {},
-	"risk":               {},
-	"risks":              {},
-	"risk assessment":    {},
-	"notes":              {},
-	"open questions":     {},
+	"context":              {},
+	"background":           {},
+	"overview":             {},
+	"summary":              {},
+	"verification":         {},
+	"testing":              {},
+	"test plan":            {},
+	"tests":                {},
+	"performance":          {},
+	"performance budget":   {},
+	"files changed":        {},
+	"file changes":         {},
+	"key files":            {},
+	"dependencies":         {},
+	"prerequisites":        {},
+	"requirements":         {},
+	"risk":                 {},
+	"risks":                {},
+	"risk assessment":      {},
+	"notes":                {},
+	"open questions":       {},
 	"key design decisions": {},
 }
 

@@ -1,17 +1,17 @@
-# Homebrew Tap for HtmlGraph
+# Homebrew Tap for wipnote
 
-Homebrew formula for [htmlgraph](https://github.com/shakestzd/htmlgraph) — local-first observability and coordination platform for AI-assisted development.
+Homebrew formula for [wipnote](https://github.com/shakestzd/wipnote) — local-first observability and coordination platform for AI-assisted development.
 
 ## Setup (one-time)
 
-1. Create the GitHub tap repo: `shakestzd/homebrew-htmlgraph`
-2. Copy `htmlgraph.rb` to that repo
+1. Create the GitHub tap repo: `shakestzd/homebrew-wipnote`
+2. Copy `wipnote.rb` to that repo
 
 ## Usage
 
 ```bash
-brew tap shakestzd/htmlgraph
-brew install htmlgraph
+brew tap shakestzd/wipnote
+brew install wipnote
 ```
 
 ## Updating
@@ -25,13 +25,13 @@ After a new release, run the update script from this directory:
 This will:
 - Download the checksums file for the specified version from GitHub Releases
 - Parse SHA256 values for all four platforms (darwin/linux x amd64/arm64)
-- Update `htmlgraph.rb` in-place with the new version and correct checksums
+- Update `wipnote.rb` in-place with the new version and correct checksums
 
 Then commit and push the updated formula to the tap repo:
 
 ```bash
-git add htmlgraph.rb
-git commit -m "htmlgraph 0.36.0"
+git add wipnote.rb
+git commit -m "wipnote 0.36.0"
 git push
 ```
 
@@ -47,5 +47,5 @@ Supported platforms:
 
 Release asset URL pattern:
 ```
-https://github.com/shakestzd/htmlgraph/releases/download/go/v{VERSION}/htmlgraph_{VERSION}_{OS}_{ARCH}.tar.gz
+https://github.com/shakestzd/wipnote/releases/download/go/v{VERSION}/wipnote_{VERSION}_{OS}_{ARCH}.tar.gz
 ```

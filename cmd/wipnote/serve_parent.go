@@ -105,14 +105,14 @@ func proxyHandler(sup *childproc.Supervisor) http.HandlerFunc {
 // autoDetectCurrentProject walks up from CWD looking for a .wipnote/
 // directory. If found, registers it in the global registry (if not
 // already present) and returns its registry entry. Returns nil if the
-// current directory is outside any HtmlGraph project — in that case, the
+// current directory is outside any wipnote project — in that case, the
 // parent server still runs, it just doesn't print a deep-link URL.
 func autoDetectCurrentProject() *registry.Entry {
-	htmlgraphDir, err := findHtmlgraphDir()
+	wipnoteDir, err := findWipnoteDir()
 	if err != nil {
 		return nil
 	}
-	projectRoot := filepath.Dir(htmlgraphDir)
+	projectRoot := filepath.Dir(wipnoteDir)
 	id := registry.ComputeID(projectRoot)
 
 	regPath := defaultRegistryPath()
@@ -184,7 +184,7 @@ func runParentServer(bind string, port int) error {
 
 	// Auto-detect & print URLs.
 	entry := autoDetectCurrentProject()
-	fmt.Printf("HtmlGraph:            http://%s/\n", addr)
+	fmt.Printf("wipnote:            http://%s/\n", addr)
 	if entry != nil {
 		fmt.Printf("Current project:     http://%s/p/%s/\n", addr, entry.ID)
 	}
@@ -194,8 +194,8 @@ func runParentServer(bind string, port int) error {
 	// (from a second terminal opening another Claude session) detect a live
 	// serve process and skip spawning a duplicate that would collide on :8080.
 	// Best-effort: missing .wipnote/ or write errors are silently ignored.
-	if htmlgraphDir, err := findHtmlgraphDir(); err == nil {
-		projectDir := filepath.Dir(htmlgraphDir)
+	if wipnoteDir, err := findWipnoteDir(); err == nil {
+		projectDir := filepath.Dir(wipnoteDir)
 		writeServeLock(projectDir)
 		defer removeServeLock(projectDir)
 	}
@@ -237,4 +237,3 @@ func buildParentMux(sup *childproc.Supervisor) *http.ServeMux {
 	mux.Handle("/p/", proxyHandler(sup))
 	return mux
 }
-

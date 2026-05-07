@@ -36,7 +36,7 @@ If asked to modify code, run commands, investigate root causes, or do anything b
 
 - Read multiple config/data files in one shot (YAML, JSON, TOML, HTML, logs)
 - Glob a directory and return matching file contents
-- Retrieve `.erinn/**/*.html` or `.erinn/**/*.yaml` work item data
+- Retrieve `.wipnote/**/*.html` or `.wipnote/**/*.yaml` work item data
 - Return raw file content for the orchestrator to include in a subsequent delegation prompt
 
 ## Why No Skills

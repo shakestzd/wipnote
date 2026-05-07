@@ -18,10 +18,10 @@ import (
 // The receiver builds one Decoded per HTTP request and hands it off to
 // the adapter pipeline in one call.
 type Decoded struct {
-	Spans      []ScopedSpan
-	Metrics    []ScopedMetric
-	Logs       []ScopedLog
-	Resource   adapter.OTLPResource // resource is shared across all scopes in a request
+	Spans    []ScopedSpan
+	Metrics  []ScopedMetric
+	Logs     []ScopedLog
+	Resource adapter.OTLPResource // resource is shared across all scopes in a request
 }
 
 // ScopedSpan / ScopedMetric / ScopedLog carry the instrumentation scope
@@ -44,7 +44,7 @@ type ScopedLog struct {
 
 // DecodeTraces converts an OTLP ExportTraceServiceRequest payload into
 // intermediate spans. One Decoded per resource — OTLP requests may carry
-// multiple ResourceSpans, but HtmlGraph flattens to one since we key
+// multiple ResourceSpans, but wipnote flattens to one since we key
 // persistence off the resource's service.name.
 //
 // Invalid trace/span IDs (zero bytes or wrong length) are logged by the
@@ -194,7 +194,7 @@ func extractLogName(l *logspb.LogRecord) string {
 }
 
 // fanoutMetric dispatches the metric's data points into per-point
-// intermediate metrics. Only the Point-type dimensions that HtmlGraph
+// intermediate metrics. Only the Point-type dimensions that wipnote
 // cares about are fanned out; OTel's summary-of-summaries aggregations
 // are currently ignored.
 func fanoutMetric(d *Decoded, scope adapter.OTLPScope, m *metricspb.Metric) {

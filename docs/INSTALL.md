@@ -1,4 +1,4 @@
-# HtmlGraph Installation Guide
+# wipnote Installation Guide
 
 ## Prerequisites
 
@@ -11,71 +11,71 @@
 
 ```bash
 # Universal installer (recommended)
-curl -fsSL https://raw.githubusercontent.com/shakestzd/htmlgraph/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/shakestzd/wipnote/main/install.sh | sh
 
 # Or build from source
-git clone https://github.com/shakestzd/htmlgraph.git
-cd htmlgraph && go build -o ~/.local/bin/htmlgraph ./cmd/htmlgraph/
+git clone https://github.com/shakestzd/wipnote.git
+cd wipnote && go build -o ~/.local/bin/wipnote ./cmd/wipnote/
 ```
 
 ### Upgrading
 
 ```bash
-htmlgraph upgrade            # latest release
-htmlgraph upgrade --check    # check without installing
+wipnote upgrade            # latest release
+wipnote upgrade --check    # check without installing
 ```
 
 ---
 
 ## Claude Code Integration
 
-Install the HtmlGraph plugin from the Claude Code marketplace:
+Install the wipnote plugin from the Claude Code marketplace:
 
 ```bash
-htmlgraph claude --init     # registers the marketplace and installs the plugin
-htmlgraph claude            # launch Claude Code with HtmlGraph context
+wipnote claude --init     # registers the marketplace and installs the plugin
+wipnote claude            # launch Claude Code with wipnote context
 ```
 
 ### Dev mode (dogfooding from source)
 
 ```bash
-htmlgraph claude --dev      # links local plugin source and launches Claude Code
+wipnote claude --dev      # links local plugin source and launches Claude Code
 ```
 
 ### Resume sessions
 
 ```bash
-htmlgraph claude --continue              # resume the last session
-htmlgraph claude --resume <session-id>   # resume a specific session by UUID
+wipnote claude --continue              # resume the last session
+wipnote claude --resume <session-id>   # resume a specific session by UUID
 ```
 
 ---
 
 ## Gemini CLI Integration
 
-The HtmlGraph Gemini extension is distributed via the `gemini-extension-dist` branch of
+The wipnote Gemini extension is distributed via the `gemini-extension-dist` branch of
 this repository, published automatically on every release as a `gemini-extension-v<version>`
 tag.
 
 ### Install
 
 ```bash
-htmlgraph gemini --init     # installs the extension matching the htmlgraph binary version
-htmlgraph gemini            # launch Gemini CLI with HtmlGraph context
+wipnote gemini --init     # installs the extension matching the wipnote binary version
+wipnote gemini            # launch Gemini CLI with wipnote context
 ```
 
 The `--init` command runs:
 
 ```
-gemini extensions install shakestzd/htmlgraph --ref gemini-extension-v<version> --consent --skip-settings
+gemini extensions install shakestzd/wipnote --ref gemini-extension-v<version> --consent --skip-settings
 ```
 
-Where `<version>` matches the currently installed `htmlgraph` binary. Pass `--ref` to
+Where `<version>` matches the currently installed `wipnote` binary. Pass `--ref` to
 override:
 
 ```bash
-htmlgraph gemini --init --ref gemini-extension-v0.55.6   # pin a specific version
-htmlgraph gemini --init --force                          # reinstall over existing
+wipnote gemini --init --ref gemini-extension-v0.55.6   # pin a specific version
+wipnote gemini --init --force                          # reinstall over existing
 ```
 
 ### Resume sessions
@@ -83,16 +83,16 @@ htmlgraph gemini --init --force                          # reinstall over existi
 Gemini uses session **indices** (integers), not UUIDs. List sessions to find the index:
 
 ```bash
-htmlgraph gemini --list-sessions    # gemini --list-sessions
-htmlgraph gemini --continue         # gemini --resume latest
-htmlgraph gemini --resume 3         # gemini --resume 3
+wipnote gemini --list-sessions    # gemini --list-sessions
+wipnote gemini --continue         # gemini --resume latest
+wipnote gemini --resume 3         # gemini --resume 3
 ```
 
 ### Dev mode (dogfooding from source)
 
 ```bash
-htmlgraph gemini --dev              # links packages/gemini-extension/ as a live pointer
-htmlgraph gemini --dev --isolate    # also passes -e htmlgraph to suppress other extensions
+wipnote gemini --dev              # links packages/gemini-extension/ as a live pointer
+wipnote gemini --dev --isolate    # also passes -e wipnote to suppress other extensions
 ```
 
 Dev mode runs `gemini extensions link /abs/path/to/packages/gemini-extension` (idempotent)
@@ -104,21 +104,21 @@ up immediately without reinstalling.
 ## Codex CLI Integration
 
 ```bash
-htmlgraph codex --init      # registers the HtmlGraph Codex marketplace
-htmlgraph codex             # launch Codex CLI with HtmlGraph context
+wipnote codex --init      # registers the wipnote Codex marketplace
+wipnote codex             # launch Codex CLI with wipnote context
 ```
 
 ### Resume sessions
 
 ```bash
-htmlgraph codex --continue             # codex resume --last
-htmlgraph codex --resume <session-id>  # codex resume <id>
+wipnote codex --continue             # codex resume --last
+wipnote codex --resume <session-id>  # codex resume <id>
 ```
 
 ### Dev mode
 
 ```bash
-htmlgraph codex --dev       # registers packages/codex-marketplace/ locally and launches Codex
+wipnote codex --dev       # registers packages/codex-marketplace/ locally and launches Codex
 ```
 
 ---
@@ -129,7 +129,7 @@ After installing the CLI and at least one AI tool integration:
 
 ```bash
 cd /your/project
-htmlgraph init              # creates .htmlgraph/ and installs hooks
+wipnote init              # creates .wipnote/ and installs hooks
 ```
 
 ---
@@ -137,7 +137,7 @@ htmlgraph init              # creates .htmlgraph/ and installs hooks
 ## Verify installation
 
 ```bash
-htmlgraph version           # prints version information
-htmlgraph status            # project health overview
-htmlgraph serve             # starts the local dashboard at localhost:4000
+wipnote version           # prints version information
+wipnote status            # project health overview
+wipnote serve             # starts the local dashboard at localhost:4000
 ```

@@ -61,7 +61,7 @@ func LoadBytes(data []byte) (*PlanYAML, error) {
 // half-written file). Plan.Meta.Version auto-increments every save so every
 // mutation is tracked as a distinct revision.
 //
-// In-process locking only — separate `htmlgraph` CLI processes editing the
+// In-process locking only — separate `wipnote` CLI processes editing the
 // same plan still need an advisory file lock at the call site (see
 // LockPlanForWrite).
 func Save(path string, plan *PlanYAML) error {
@@ -126,7 +126,7 @@ func saveLocked(path string, plan *PlanYAML) error {
 // MUST defer the returned release function.
 //
 // Cross-process safety is NOT provided here; layer an advisory file lock on
-// top when multiple `htmlgraph` invocations may edit the same plan.
+// top when multiple `wipnote` invocations may edit the same plan.
 func LockPlanForWrite(path string) (release func()) {
 	muVal, _ := planWriteMu.LoadOrStore(path, &sync.Mutex{})
 	mu := muVal.(*sync.Mutex)

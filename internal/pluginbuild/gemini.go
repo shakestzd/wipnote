@@ -68,7 +68,7 @@ type GeminiSubEmitter func(m *Manifest, repoRoot, outDir string, target Target) 
 var geminiSubEmitters []GeminiSubEmitter
 
 // geminiExtensionJSON is the Gemini extension manifest schema. Only the
-// fields HtmlGraph currently uses are modeled; Gemini tolerates omitted
+// fields wipnote currently uses are modeled; Gemini tolerates omitted
 // optional keys (excludeTools, settings, themes, mcpServers, migratedTo, plan).
 type geminiExtensionJSON struct {
 	Name            string `json:"name"`

@@ -670,9 +670,9 @@ func TestFindOrphanedEvents(t *testing.T) {
 		}
 	}
 
-	insert("evt-recent-started", 1, "started")  // too new
-	insert("evt-old-started", 10, "started")    // orphan
-	insert("evt-old-completed", 10, "completed") // not started
+	insert("evt-recent-started", 1, "started")      // too new
+	insert("evt-old-started", 10, "started")        // orphan
+	insert("evt-old-completed", 10, "completed")    // not started
 	insert("evt-ancient-started", 60*30, "started") // orphan, also past 24h
 
 	orphans, err := db.FindOrphanedEvents(database, "", 5*time.Minute)
@@ -853,10 +853,10 @@ func TestInsertEventWithAddedColumns(t *testing.T) {
 	// Verify that columns added by later migrations exist and can be queried.
 	// The migration should have preserved these columns: reason, teammate_name, team_name, prompt_id.
 	var (
-		reason      sql.NullString
-		teammate    sql.NullString
-		teamName    sql.NullString
-		promptID    sql.NullString
+		reason   sql.NullString
+		teammate sql.NullString
+		teamName sql.NullString
+		promptID sql.NullString
 	)
 	if err := database.QueryRow(`
 		SELECT reason, teammate_name, team_name, prompt_id FROM agent_events WHERE event_id = ?`,

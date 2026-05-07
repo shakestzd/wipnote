@@ -13,7 +13,6 @@ import (
 	"github.com/shakestzd/wipnote/internal/models"
 )
 
-
 // TestPreviewQueryReturnsLastNUserAssistant verifies the SQL query inside
 // previewMessages returns only user/assistant rows, ordered by ordinal DESC
 // (newest first), limited to N.

@@ -31,7 +31,7 @@ func SubagentStart(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 
 	// Populate the lineage write path: insert a synthetic sessions row keyed
 	// by the subagent's agent_id (guaranteed distinct per subagent, empirically
-	// verified via /tmp/htmlgraph-hook-trace.jsonl) and a matching
+	// verified via /tmp/wipnote-hook-trace.jsonl) and a matching
 	// agent_lineage_trace row so downstream queries can walk the subagent tree.
 	// bug-cb4918d8: Claude Code delivers the SAME session_id to orchestrator
 	// and subagent hook events, so agent_id is the only discriminator.

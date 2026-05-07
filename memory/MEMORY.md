@@ -1,4 +1,4 @@
-# HtmlGraph Project Memory
+# wipnote Project Memory
 
 ## Project Positioning (Strategic)
 
@@ -29,7 +29,7 @@ Demote to historical context in all docs.
 
 When `sdk.features.start()` raises `WIP limit (3) reached`:
 - `get_active_features()` counts ALL in-progress nodes including **spikes** (not just features)
-- Spikes live in `.htmlgraph/features/spk-*.html` — same directory as features
+- Spikes live in `.wipnote/features/spk-*.html` — same directory as features
 - `sdk.spikes.edit()` fails if spike not found via spikes collection — edit HTML directly
 - The right fix: find all in-progress HTML files, reset stale ones to `done` via direct HTML edit
 
@@ -44,17 +44,17 @@ Never: 10 iterative Bash commands chasing the problem directly.
 
 For parallel feature development:
 1. `sdk.features.start(feat_id)` for each feature (check WIP limit first)
-2. `git worktree add ../htmlgraph-{feat_id} -b {feat_id}-work` for each
+2. `git worktree add ../wipnote-{feat_id} -b {feat_id}-work` for each
 3. Launch background `Agent(sonnet-coder)` per worktree
 4. Merge back when agents complete
 
-Worktree dirs: `../htmlgraph-{feature-id}/` (sibling to main repo)
+Worktree dirs: `../wipnote-{feature-id}/` (sibling to main repo)
 
 ## Auto Work Item Attribution (v0.33.41)
 
 **Implemented:** Claude-via-SDK attribution pattern in `UserPromptSubmit` hook.
 
-Files: `src/python/htmlgraph/hooks/prompt_analyzer.py`, `packages/claude-plugin/hooks/scripts/user-prompt-submit.py`
+Files: `src/python/wipnote/hooks/prompt_analyzer.py`, `packages/claude-plugin/hooks/scripts/user-prompt-submit.py`
 
 **How it works:** Every prompt receives a "Work Item Attribution" block in CIGS guidance listing all open work items. Claude is instructed to call `sdk.features.start("correct-id")` if needed.
 
@@ -64,8 +64,8 @@ Files: `src/python/htmlgraph/hooks/prompt_analyzer.py`, `packages/claude-plugin/
 
 ## Dashboard Architecture (v0.33.43)
 
-**Active dashboard:** `src/python/htmlgraph/api/templates/dashboard-redesign.html`
-(NOT `src/python/htmlgraph/dashboard.html` — old WebSocket version)
+**Active dashboard:** `src/python/wipnote/api/templates/dashboard-redesign.html`
+(NOT `src/python/wipnote/dashboard.html` — old WebSocket version)
 
 **Live updates:** SSE via `/activity-feed/stream` → `refreshActivityFeed()` → HTMX morphs DOM
 

@@ -70,7 +70,7 @@ func recommendCmd() *cobra.Command {
 }
 
 func runRecommend(topN int, jsonOut bool) error {
-	dir, err := findHtmlgraphDir()
+	dir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}

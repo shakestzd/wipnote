@@ -56,7 +56,7 @@ func wiCreateCmd(typeName, _ string) *cobra.Command {
 }
 
 func runWiCreate(typeName, title string, o *wiCreateOpts) error {
-	dir, err := findHtmlgraphDir()
+	dir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}
@@ -70,7 +70,7 @@ func runWiCreate(typeName, title string, o *wiCreateOpts) error {
 	// Features with an explicit --track but no --plan are also accepted (e.g.
 	// created by automated finalize), so only reject truly bare feature creates.
 	if typeName == "feature" && o.planID == "" && o.standaloneReason == "" && o.trackID == "" {
-		return fmt.Errorf("feature must have a parent plan OR --standalone <reason>.\nRun 'htmlgraph relevant <topic>' to find existing context first.")
+		return fmt.Errorf("feature must have a parent plan OR --standalone <reason>.\nRun 'wipnote relevant <topic>' to find existing context first.")
 	}
 
 	// When --plan is given, resolve the plan to get its track ID so the feature

@@ -20,7 +20,7 @@
 #   1  — one or more violations found (prints "file:line: <matched-path>")
 #
 # USAGE:
-#   scripts/check-host-paths.sh                    # scan .htmlgraph/ and .claude/ (default)
+#   scripts/check-host-paths.sh                    # scan .wipnote/ and .claude/ (default)
 #   scripts/check-host-paths.sh --staged           # scan only git-staged files (pre-commit)
 #   scripts/check-host-paths.sh --full             # scan entire git-tracked repo (CI)
 #   scripts/check-host-paths.sh path/to/file       # scan specific file(s)
@@ -116,9 +116,9 @@ if [[ ${#EXPLICIT_FILES[@]} -gt 0 ]]; then
 elif [[ "$STAGED_ONLY" -eq 1 ]]; then
     while IFS= read -r f; do
         # Only include files matching our scope
-        if [[ "$f" == .htmlgraph/* || "$f" == .claude/* ]]; then
+        if [[ "$f" == .wipnote/* || "$f" == .claude/* ]]; then
             # Skip files that are intentionally machine-specific (matches full-scan exclusions)
-            [[ "$(basename "$f")" == "htmlgraph.db" ]] && continue
+            [[ "$(basename "$f")" == "wipnote.db" ]] && continue
             [[ "$(basename "$f")" == "settings.local.json" ]] && continue
             FILES_TO_SCAN+=("$REPO_ROOT/$f")
         fi
@@ -127,18 +127,18 @@ elif [[ "$FULL_SCAN" -eq 1 ]]; then
     # Full scan: entire git-tracked tree
     while IFS= read -r f; do
         # Skip binary/build artifacts that can't contain text paths
-        [[ "$(basename "$f")" == "htmlgraph.db" ]] && continue
-        [[ "$(basename "$f")" == "htmlgraph.db-wal" ]] && continue
-        [[ "$(basename "$f")" == "htmlgraph.db-shm" ]] && continue
+        [[ "$(basename "$f")" == "wipnote.db" ]] && continue
+        [[ "$(basename "$f")" == "wipnote.db-wal" ]] && continue
+        [[ "$(basename "$f")" == "wipnote.db-shm" ]] && continue
         FILES_TO_SCAN+=("$REPO_ROOT/$f")
     done < <(git -C "$REPO_ROOT" ls-files 2>/dev/null || true)
 else
-    # Default scan: .htmlgraph/** and .claude/**
+    # Default scan: .wipnote/** and .claude/**
     while IFS= read -r f; do
         FILES_TO_SCAN+=("$f")
-    done < <(find "$REPO_ROOT/.htmlgraph" "$REPO_ROOT/.claude" \
+    done < <(find "$REPO_ROOT/.wipnote" "$REPO_ROOT/.claude" \
         -type f \
-        ! -name "htmlgraph.db" \
+        ! -name "wipnote.db" \
         ! -name "settings.local.json" \
         2>/dev/null || true)
 fi

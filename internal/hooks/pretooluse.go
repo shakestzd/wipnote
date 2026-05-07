@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -31,18 +32,18 @@ func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 	}
 
 	// Guard: never intercept writes to .wipnote/ — mirror of
-	// pretooluse-htmlgraph-guard.py to prevent accidental DB corruption.
+	// pretooluse-wipnote-guard.py to prevent accidental DB corruption.
 	// Covers Write/Edit/MultiEdit tools AND Bash commands that target .wipnote/.
-	if isHtmlGraphWrite(event) {
+	if iswipnoteWrite(event) {
 		return &HookResult{
 			Decision: "block",
-			Reason:   ".wipnote/ is managed by HtmlGraph SDK. Use SDK methods instead.",
+			Reason:   ".wipnote/ is managed by wipnote SDK. Use SDK methods instead.",
 		}, nil
 	}
-	if isBashHtmlGraphWrite(event) {
+	if isBashwipnoteWrite(event) {
 		return &HookResult{
 			Decision: "block",
-			Reason:   ".wipnote/ is managed by HtmlGraph CLI. Use `htmlgraph` commands instead of direct file manipulation.",
+			Reason:   ".wipnote/ is managed by wipnote CLI. Use `wipnote` commands instead of direct file manipulation.",
 		}, nil
 	}
 
@@ -64,7 +65,7 @@ func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 	// (Read/Grep/Glob) and writing only to the plan file. Skip work-item and
 	// YOLO guards entirely — record the event for observability and allow.
 	if event.PermissionMode == "plan" {
-		debugLog(ctx.ProjectDir, "[htmlgraph] plan mode active — skipping write guards for %s",
+		debugLog(ctx.ProjectDir, "[wipnote] plan mode active — skipping write guards for %s",
 			event.ToolName)
 		return recordEventAndAllow(event, ctx, database)
 	}
@@ -83,7 +84,7 @@ func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 		ctx.SessionCreatedAt, ctx.ParentSessionID, database,
 	)
 	if subagentGrace {
-		debugLog(ctx.ProjectDir, "[htmlgraph] subagent grace period active for session %s — allowing write before claim",
+		debugLog(ctx.ProjectDir, "[wipnote] subagent grace period active for session %s — allowing write before claim",
 			ctx.SessionID)
 	}
 
@@ -94,13 +95,16 @@ func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 	//
 	// Parent-chain claim walk (feat-ecd82f68): when the sub-agent has no direct
 	// claim, check the parent session chain. The orchestrator may have run
-	// `htmlgraph feature start` and holds the claim under its session ID.
+	// `wipnote feature start` and holds the claim under its session ID.
 	claimedItem := ctx.ClaimedItem
 	if ctx.IsSubagent && claimedItem == "" {
 		inherited, parentSessID := getClaimFromParentChain(database, ctx.SessionID, claimedItem)
 		if inherited != "" {
 			claimedItem = inherited
-			debugLog(ctx.ProjectDir, "[htmlgraph] claim inherited: session=%s parent=%s feat=%s",
+			if ctx.FeatureID == "" {
+				ctx.FeatureID = inherited
+			}
+			debugLog(ctx.ProjectDir, "[wipnote] claim inherited: session=%s parent=%s feat=%s",
 				ctx.SessionID, parentSessID, inherited)
 		}
 	}
@@ -126,14 +130,18 @@ func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 	// Always-on guards: work item and research required regardless of YOLO mode.
 	// Skipped during subagent grace period (subagent just spawned, needs time to claim).
 	if !subagentGrace {
-		if warn := checkYoloWorkItemGuard(event.ToolName, ctx.FeatureID, ctx.IsYoloMode, ctx.SessionID, database); warn != "" {
+		activeWorkItem := ctx.FeatureID
+		if activeWorkItem == "" {
+			activeWorkItem = claimedItem
+		}
+		if warn := checkYoloWorkItemGuard(event.ToolName, activeWorkItem, ctx.IsYoloMode, ctx.SessionID, database); warn != "" {
 			return &HookResult{
 				Decision: "block",
 				Reason:   warn,
 			}, nil
 		}
 		// Extend work-item guard to Bash file-write commands (sed -i, rm, redirects, etc.).
-		if warn := checkYoloBashWorkItemGuard(event, ctx.FeatureID, ctx.IsYoloMode, ctx.SessionID, database); warn != "" {
+		if warn := checkYoloBashWorkItemGuard(event, activeWorkItem, ctx.IsYoloMode, ctx.SessionID, database); warn != "" {
 			return &HookResult{
 				Decision: "block",
 				Reason:   warn,
@@ -152,7 +160,7 @@ func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 	if ctx.IsYoloMode {
 		// Warn (not block) when starting a work item without steps.
 		if warn := checkYoloStepsGuard(event, ctx.IsYoloMode, ctx.HgDir); warn != "" {
-			debugLog(ctx.ProjectDir, "[htmlgraph] YOLO steps warning: %s", warn)
+			debugLog(ctx.ProjectDir, "[wipnote] YOLO steps warning: %s", warn)
 		}
 
 		// Resolve branch from the target file's worktree, not the session CWD.
@@ -169,7 +177,7 @@ func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 		// Warn (not block) about code health — files already oversized should be
 		// allowed to be edited so they can be refactored smaller.
 		if warn := checkYoloCodeHealthGuard(event, ctx.IsYoloMode); warn != "" {
-			debugLog(ctx.ProjectDir, "[htmlgraph] YOLO code health warning: %s", warn)
+			debugLog(ctx.ProjectDir, "[wipnote] YOLO code health warning: %s", warn)
 		}
 		testRan := hasRecentTestRun(database, ctx.SessionID)
 		if warn := checkYoloCommitGuard(event, ctx.IsYoloMode, testRan); warn != "" {
@@ -191,7 +199,7 @@ func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 		// Warn (not block) when the orchestrator writes directly instead of
 		// delegating to a subagent (bug-06627817).
 		if warn := checkYoloOrchestratorWriteGuard(event, ctx.IsSubagent); warn != "" {
-			debugLog(ctx.ProjectDir, "[htmlgraph] YOLO orchestrator write warning: %s", warn)
+			debugLog(ctx.ProjectDir, "[wipnote] YOLO orchestrator write warning: %s", warn)
 		}
 	}
 
@@ -283,10 +291,10 @@ func writeParentPromptEvent(parentEventID string) {
 //
 // Returns a non-empty reason string to block the command, or "" to allow.
 func checkBashCwdGuard(event *CloudEvent) string {
-	if event.ToolName != "Bash" {
+	if !isShellTool(event.ToolName) {
 		return ""
 	}
-	cmd, _ := event.ToolInput["command"].(string)
+	cmd := shellCommand(event.ToolInput)
 	if cmd == "" {
 		return ""
 	}
@@ -308,21 +316,25 @@ func checkBashCwdGuard(event *CloudEvent) string {
 //   - cd dir && cmd1 && cmd2
 var bareCdPattern = regexp.MustCompile(`^cd\s+[^;)]+&&`)
 
-// isHtmlGraphWrite returns true for file-write tools targeting .wipnote/.
-func isHtmlGraphWrite(event *CloudEvent) bool {
+// iswipnoteWrite returns true for file-write tools targeting .wipnote/.
+func iswipnoteWrite(event *CloudEvent) bool {
 	switch event.ToolName {
-	case "Write", "Edit", "MultiEdit":
+	case "Write", "Edit", "MultiEdit", "apply_patch":
 	default:
 		return false
+	}
+	if event.ToolName == "apply_patch" {
+		patch, _ := event.ToolInput["patch"].(string)
+		return containsWipnoteDir(patch)
 	}
 	path, _ := event.ToolInput["path"].(string)
 	if path == "" {
 		path, _ = event.ToolInput["file_path"].(string)
 	}
-	return containsHtmlgraphDir(path)
+	return containsWipnoteDir(path)
 }
 
-func containsHtmlgraphDir(path string) bool {
+func containsWipnoteDir(path string) bool {
 	for i := range path {
 		if path[i] == '.' && i+11 <= len(path) && path[i:i+11] == ".wipnote/" {
 			return true
@@ -331,40 +343,97 @@ func containsHtmlgraphDir(path string) bool {
 	return path == ".wipnote"
 }
 
-// isBashHtmlGraphWrite detects Bash commands that directly manipulate
+// isBashwipnoteWrite detects Bash commands that directly manipulate
 // .wipnote/ files (rm, sed, echo/cat redirect, python -c, mv, cp, etc.).
 // These bypass the structured Write/Edit tools and must be blocked.
-func isBashHtmlGraphWrite(event *CloudEvent) bool {
-	if event.ToolName != "Bash" {
+func isBashwipnoteWrite(event *CloudEvent) bool {
+	if !isShellTool(event.ToolName) {
 		return false
 	}
-	cmd, _ := event.ToolInput["command"].(string)
+	cmd := shellCommand(event.ToolInput)
 	if cmd == "" {
 		return false
 	}
-	// Skip commands that are HtmlGraph CLI invocations — those are allowed.
-	if bashHtmlGraphCLI.MatchString(cmd) {
+	// Skip commands that are wipnote CLI invocations — those are allowed.
+	if isWipnoteCLICommand(cmd) {
 		return false
 	}
-	return bashHtmlGraphWritePattern.MatchString(cmd)
+	return bashwipnoteWritePattern.MatchString(cmd)
 }
 
-// bashHtmlGraphCLI matches commands that invoke the htmlgraph CLI binary.
-// These are allowed since the CLI is the approved interface to .wipnote/.
-var bashHtmlGraphCLI = regexp.MustCompile(`\bhtmlgraph\b`)
+// isWipnoteCLICommand returns true when every shell command segment invokes the
+// wipnote CLI binary. The check is intentionally anchored to the executable
+// token so commands that merely mention "wipnote" cannot bypass write guards.
+func isWipnoteCLICommand(cmd string) bool {
+	segments := splitShellCommandSegments(cmd)
+	if len(segments) == 0 {
+		return false
+	}
+	for _, segment := range segments {
+		if !segmentStartsWithWipnoteCLI(segment) {
+			return false
+		}
+	}
+	return true
+}
 
-// bashHtmlGraphWritePattern matches Bash commands that write to .wipnote/.
+func splitShellCommandSegments(cmd string) []string {
+	var segments []string
+	start := 0
+	for i := 0; i < len(cmd); i++ {
+		sepLen := 0
+		switch cmd[i] {
+		case '\n', ';', '|':
+			sepLen = 1
+		case '&':
+			if i+1 < len(cmd) && cmd[i+1] == '&' {
+				sepLen = 2
+			}
+		}
+		if sepLen == 0 {
+			continue
+		}
+		part := strings.TrimSpace(cmd[start:i])
+		if part != "" {
+			segments = append(segments, part)
+		}
+		i += sepLen - 1
+		start = i + 1
+	}
+	part := strings.TrimSpace(cmd[start:])
+	if part != "" {
+		segments = append(segments, part)
+	}
+	return segments
+}
+
+func segmentStartsWithWipnoteCLI(segment string) bool {
+	fields := strings.Fields(segment)
+	for len(fields) > 0 {
+		first := fields[0]
+		if strings.Contains(first, "=") && !strings.HasPrefix(first, "-") {
+			fields = fields[1:]
+			continue
+		}
+		return first == "wipnote" || strings.HasSuffix(first, "/wipnote")
+	}
+	return false
+}
+
+// bashwipnoteWritePattern matches Bash commands that write to .wipnote/.
 // Covers: rm, sed -i, echo/cat/tee redirects (> or >>), mv, cp, python -c,
 // touch, chmod, mkdir, and any other direct manipulation.
-var bashHtmlGraphWritePattern = regexp.MustCompile(
+var bashwipnoteWritePattern = regexp.MustCompile(
 	`(?:` +
 		`\brm\s+.*\.wipnote/` +
 		`|` +
 		`\bsed\s+-i.*\.wipnote/` +
 		`|` +
-		`>[^&\s]\S*\.wipnote/` +
+		`\d?>\s*\S*\.wipnote/` +
 		`|` +
-		`>>[^&\s]\S*\.wipnote/` +
+		`\d?>>\s*\S*\.wipnote/` +
+		`|` +
+		`&>>?\s*\S*\.wipnote/` +
 		`|` +
 		`\btee\s+\S*\.wipnote/` +
 		`|` +
@@ -386,14 +455,34 @@ var bashHtmlGraphWritePattern = regexp.MustCompile(
 // to read-only commands like git status, ls, grep, etc.). Used by YOLO guards
 // to extend Write/Edit/MultiEdit protections to Bash file manipulation.
 func isBashFileWrite(event *CloudEvent) bool {
-	if event.ToolName != "Bash" {
+	if !isShellTool(event.ToolName) {
 		return false
 	}
-	cmd, _ := event.ToolInput["command"].(string)
+	cmd := shellCommand(event.ToolInput)
 	if cmd == "" {
 		return false
 	}
 	return bashFileWritePattern.MatchString(cmd)
+}
+
+func isShellTool(toolName string) bool {
+	switch toolName {
+	case "Bash", "exec_command", "functions.exec_command":
+		return true
+	}
+	return false
+}
+
+func shellCommand(input map[string]any) string {
+	if input == nil {
+		return ""
+	}
+	for _, key := range []string{"command", "cmd"} {
+		if v, ok := input[key].(string); ok {
+			return v
+		}
+	}
+	return ""
 }
 
 // bashFileWritePattern matches Bash commands that write/modify files.
@@ -459,6 +548,19 @@ var bashFileWritePattern = regexp.MustCompile(
 		`|` +
 		`\bpatch\s` +
 		`|` +
+		// Common formatter/linter commands that rewrite files in place.
+		`\bgofmt\s+-w\b` +
+		`|` +
+		`\bgo\s+fmt\b` +
+		`|` +
+		`\bprettier\b.*\s--write\b` +
+		`|` +
+		`\beslint\b.*\s--fix\b` +
+		`|` +
+		`\bruff\b.*\s--fix\b` +
+		`|` +
+		`\bblack\b\s` +
+		`|` +
 		// Git write operations (add/commit/push modify index, history, or remote)
 		`\bgit\s+(?:add|commit|push|reset|rebase|merge|mv|rm|stash|tag|cherry-pick)\b` +
 		`|` +
@@ -482,7 +584,7 @@ func SummariseInput(toolName string, input map[string]any) string {
 	}
 
 	// For file tools, use the path.
-	for _, key := range []string{"path", "file_path", "command", "query", "prompt"} {
+	for _, key := range []string{"path", "file_path", "command", "cmd", "query", "prompt"} {
 		if v, ok := input[key].(string); ok && v != "" {
 			if len(v) > 120 {
 				v = v[:120] + "…"
@@ -590,7 +692,7 @@ func checkProjectDivergence(event *CloudEvent, database *sql.DB, sessionID strin
 	}
 
 	// Read-only tool: allow but log the drift.
-	debugLog(sessionProjectDir, "[htmlgraph] CWD divergence (read-only %s): session=%s event_cwd=%s",
+	debugLog(sessionProjectDir, "[wipnote] CWD divergence (read-only %s): session=%s event_cwd=%s",
 		event.ToolName, sessionProjectDir, event.CWD)
 	return nil
 }
@@ -610,7 +712,7 @@ func checkSubagentWorkItemGuard(toolName string, isSubagent, hasWorkItem bool, s
 		return ""
 	}
 	switch toolName {
-	case "Write", "Edit", "MultiEdit":
+	case "Write", "Edit", "MultiEdit", "apply_patch":
 	default:
 		return ""
 	}
@@ -634,7 +736,7 @@ func checkSubagentWorkItemGuard(toolName string, isSubagent, hasWorkItem bool, s
 		"Write blocked: no claimed work item.\n"+
 			"  session=%s yolo=%v subagent=%v\n"+
 			"  feature=%s  claim=%s\n"+
-			"To unblock: htmlgraph feature start <id>  (or: htmlgraph feature create \"...\" --track <trk-id>)",
+			"To unblock: wipnote feature start <id>  (or: wipnote feature create \"...\" --track <trk-id>)",
 		sess, isYoloMode, isSubagent,
 		feat, claim,
 	)
@@ -644,9 +746,8 @@ func checkSubagentWorkItemGuard(toolName string, isSubagent, hasWorkItem bool, s
 // arbitrary code. These are blocked when the CWD drifts to a different project.
 func isWriteTool(toolName string) bool {
 	switch toolName {
-	case "Write", "Edit", "MultiEdit", "Bash", "NotebookEdit", "Agent":
+	case "Write", "Edit", "MultiEdit", "apply_patch", "Bash", "exec_command", "functions.exec_command", "NotebookEdit", "Agent":
 		return true
 	}
 	return false
 }
-

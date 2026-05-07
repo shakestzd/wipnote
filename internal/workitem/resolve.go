@@ -38,7 +38,7 @@ func kindFromPrefix(id string) string {
 // ResolvePartialID resolves a partial or full work item ID to a canonical ID.
 //
 // Resolution order:
-//  1. Exact match — returns immediately if <htmlgraphDir>/<subdir>/<id>.html exists.
+//  1. Exact match — returns immediately if <wipnoteDir>/<subdir>/<id>.html exists.
 //  2. Prefix match — scans all collection directories for any file whose
 //     stem starts with id. If exactly one match is found, returns it.
 //     If multiple matches are found, returns an error listing all candidates.
@@ -46,17 +46,17 @@ func kindFromPrefix(id string) string {
 //
 // The returned string is always the full canonical ID (e.g. "feat-43aea33f"),
 // never a file path.
-func ResolvePartialID(htmlgraphDir, id string) (string, error) {
+func ResolvePartialID(wipnoteDir, id string) (string, error) {
 	// 1. Exact match: check each subdir for <id>.html.
 	for _, sub := range subdirs {
-		p := filepath.Join(htmlgraphDir, sub, id+".html")
+		p := filepath.Join(wipnoteDir, sub, id+".html")
 		if _, err := os.Stat(p); err == nil {
 			return id, nil
 		}
 	}
 
 	// 2. Prefix match across all collection directories.
-	matches, err := prefixMatchIDs(htmlgraphDir, id)
+	matches, err := prefixMatchIDs(wipnoteDir, id)
 	if err != nil {
 		return "", err
 	}
@@ -77,10 +77,10 @@ func ResolvePartialID(htmlgraphDir, id string) (string, error) {
 
 // prefixMatchIDs scans all collection subdirectories for HTML files whose
 // stem (filename without .html) starts with prefix. Returns all matching IDs.
-func prefixMatchIDs(htmlgraphDir, prefix string) ([]string, error) {
+func prefixMatchIDs(wipnoteDir, prefix string) ([]string, error) {
 	var matches []string
 	for _, sub := range subdirs {
-		dir := filepath.Join(htmlgraphDir, sub)
+		dir := filepath.Join(wipnoteDir, sub)
 		entries, err := os.ReadDir(dir)
 		if err != nil {
 			if os.IsNotExist(err) {

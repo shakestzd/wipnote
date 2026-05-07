@@ -29,7 +29,7 @@ func globalTestProject(t *testing.T) string {
 	}
 	// Touch an empty DB file so registry.Upsert doesn't skip this entry
 	// in environments that might perform a light existence check.
-	f, err := os.Create(filepath.Join(hgDir, "htmlgraph.db"))
+	f, err := os.Create(filepath.Join(hgDir, "wipnote.db"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -218,7 +218,7 @@ func TestDoorwayNeverOpensDBs(t *testing.T) {
 	p1 := globalTestProject(t)
 	setupGlobalRegistry(t, p1)
 
-	dbPath := filepath.Join(p1, ".wipnote", "htmlgraph.db")
+	dbPath := filepath.Join(p1, ".wipnote", "wipnote.db")
 
 	// Initialize a minimal schema so we can detect any mutation.
 	db, err := sql.Open("sqlite", dbPath)

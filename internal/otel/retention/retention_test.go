@@ -47,9 +47,9 @@ func insertSession(t *testing.T, db *sql.DB, sessionID, status string, completed
 }
 
 // makeSessionDir creates a synthetic session dir with an events.ndjson file.
-func makeSessionDir(t *testing.T, htmlgraphDir, sessionID, content string) {
+func makeSessionDir(t *testing.T, wipnoteDir, sessionID, content string) {
 	t.Helper()
-	dir := filepath.Join(htmlgraphDir, "sessions", sessionID)
+	dir := filepath.Join(wipnoteDir, "sessions", sessionID)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
@@ -64,8 +64,8 @@ func makeSessionDir(t *testing.T, htmlgraphDir, sessionID, content string) {
 
 func TestRun_ArchivesOldCompletedSession(t *testing.T) {
 	dir := t.TempDir()
-	htmlgraphDir := filepath.Join(dir, ".wipnote")
-	if err := os.MkdirAll(filepath.Join(htmlgraphDir, "sessions"), 0o755); err != nil {
+	wipnoteDir := filepath.Join(dir, ".wipnote")
+	if err := os.MkdirAll(filepath.Join(wipnoteDir, "sessions"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 
@@ -74,20 +74,20 @@ func TestRun_ArchivesOldCompletedSession(t *testing.T) {
 	// Session completed 40 days ago — should be archived.
 	old := time.Now().UTC().Add(-40 * 24 * time.Hour)
 	insertSession(t, db, "sess-old", "completed", &old)
-	makeSessionDir(t, htmlgraphDir, "sess-old", `{"event":"test"}`+"\n")
+	makeSessionDir(t, wipnoteDir, "sess-old", `{"event":"test"}`+"\n")
 
 	t.Setenv("WIPNOTE_SESSION_RETAIN_DAYS", "30")
-	if err := retention.Run(db, htmlgraphDir, false); err != nil {
+	if err := retention.Run(db, wipnoteDir, false); err != nil {
 		t.Fatalf("Run: %v", err)
 	}
 
 	// Live session dir should be gone.
-	if _, err := os.Stat(filepath.Join(htmlgraphDir, "sessions", "sess-old")); !os.IsNotExist(err) {
+	if _, err := os.Stat(filepath.Join(wipnoteDir, "sessions", "sess-old")); !os.IsNotExist(err) {
 		t.Error("expected live session dir to be removed after archiving")
 	}
 
 	// Archive should exist somewhere under .wipnote/archive/.
-	archiveRoot := filepath.Join(htmlgraphDir, "archive")
+	archiveRoot := filepath.Join(wipnoteDir, "archive")
 	found := false
 	_ = filepath.Walk(archiveRoot, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -105,8 +105,8 @@ func TestRun_ArchivesOldCompletedSession(t *testing.T) {
 
 func TestRun_SkipsActiveSession(t *testing.T) {
 	dir := t.TempDir()
-	htmlgraphDir := filepath.Join(dir, ".wipnote")
-	if err := os.MkdirAll(filepath.Join(htmlgraphDir, "sessions"), 0o755); err != nil {
+	wipnoteDir := filepath.Join(dir, ".wipnote")
+	if err := os.MkdirAll(filepath.Join(wipnoteDir, "sessions"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 
@@ -115,23 +115,23 @@ func TestRun_SkipsActiveSession(t *testing.T) {
 	// Active session — must not be archived regardless of age.
 	old := time.Now().UTC().Add(-60 * 24 * time.Hour)
 	insertSession(t, db, "sess-active", "active", &old)
-	makeSessionDir(t, htmlgraphDir, "sess-active", `{"event":"live"}`+"\n")
+	makeSessionDir(t, wipnoteDir, "sess-active", `{"event":"live"}`+"\n")
 
 	t.Setenv("WIPNOTE_SESSION_RETAIN_DAYS", "30")
-	if err := retention.Run(db, htmlgraphDir, false); err != nil {
+	if err := retention.Run(db, wipnoteDir, false); err != nil {
 		t.Fatalf("Run: %v", err)
 	}
 
 	// Live dir must still exist.
-	if _, err := os.Stat(filepath.Join(htmlgraphDir, "sessions", "sess-active")); err != nil {
+	if _, err := os.Stat(filepath.Join(wipnoteDir, "sessions", "sess-active")); err != nil {
 		t.Errorf("expected active session dir to remain: %v", err)
 	}
 }
 
 func TestRun_SkipsRecentCompletedSession(t *testing.T) {
 	dir := t.TempDir()
-	htmlgraphDir := filepath.Join(dir, ".wipnote")
-	if err := os.MkdirAll(filepath.Join(htmlgraphDir, "sessions"), 0o755); err != nil {
+	wipnoteDir := filepath.Join(dir, ".wipnote")
+	if err := os.MkdirAll(filepath.Join(wipnoteDir, "sessions"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 
@@ -140,23 +140,23 @@ func TestRun_SkipsRecentCompletedSession(t *testing.T) {
 	// Completed 5 days ago — within retention window.
 	recent := time.Now().UTC().Add(-5 * 24 * time.Hour)
 	insertSession(t, db, "sess-recent", "completed", &recent)
-	makeSessionDir(t, htmlgraphDir, "sess-recent", `{"event":"recent"}`+"\n")
+	makeSessionDir(t, wipnoteDir, "sess-recent", `{"event":"recent"}`+"\n")
 
 	t.Setenv("WIPNOTE_SESSION_RETAIN_DAYS", "30")
-	if err := retention.Run(db, htmlgraphDir, false); err != nil {
+	if err := retention.Run(db, wipnoteDir, false); err != nil {
 		t.Fatalf("Run: %v", err)
 	}
 
 	// Live dir must still exist.
-	if _, err := os.Stat(filepath.Join(htmlgraphDir, "sessions", "sess-recent")); err != nil {
+	if _, err := os.Stat(filepath.Join(wipnoteDir, "sessions", "sess-recent")); err != nil {
 		t.Errorf("expected recent session dir to remain: %v", err)
 	}
 }
 
 func TestRun_DryRunDoesNotMoveFiles(t *testing.T) {
 	dir := t.TempDir()
-	htmlgraphDir := filepath.Join(dir, ".wipnote")
-	if err := os.MkdirAll(filepath.Join(htmlgraphDir, "sessions"), 0o755); err != nil {
+	wipnoteDir := filepath.Join(dir, ".wipnote")
+	if err := os.MkdirAll(filepath.Join(wipnoteDir, "sessions"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 
@@ -164,20 +164,20 @@ func TestRun_DryRunDoesNotMoveFiles(t *testing.T) {
 
 	old := time.Now().UTC().Add(-40 * 24 * time.Hour)
 	insertSession(t, db, "sess-dry", "completed", &old)
-	makeSessionDir(t, htmlgraphDir, "sess-dry", `{"event":"dry"}`+"\n")
+	makeSessionDir(t, wipnoteDir, "sess-dry", `{"event":"dry"}`+"\n")
 
 	t.Setenv("WIPNOTE_SESSION_RETAIN_DAYS", "30")
-	if err := retention.Run(db, htmlgraphDir, true /* dryRun */); err != nil {
+	if err := retention.Run(db, wipnoteDir, true /* dryRun */); err != nil {
 		t.Fatalf("Run: %v", err)
 	}
 
 	// Dry-run: live dir must still exist.
-	if _, err := os.Stat(filepath.Join(htmlgraphDir, "sessions", "sess-dry")); err != nil {
+	if _, err := os.Stat(filepath.Join(wipnoteDir, "sessions", "sess-dry")); err != nil {
 		t.Errorf("dry-run must not remove session dir: %v", err)
 	}
 
 	// Dry-run: archive must not exist.
-	archiveRoot := filepath.Join(htmlgraphDir, "archive")
+	archiveRoot := filepath.Join(wipnoteDir, "archive")
 	if _, err := os.Stat(archiveRoot); err == nil {
 		t.Error("dry-run must not create archive dir")
 	}
@@ -185,8 +185,8 @@ func TestRun_DryRunDoesNotMoveFiles(t *testing.T) {
 
 func TestExtractArchive_RoundTrip(t *testing.T) {
 	dir := t.TempDir()
-	htmlgraphDir := filepath.Join(dir, ".wipnote")
-	if err := os.MkdirAll(filepath.Join(htmlgraphDir, "sessions"), 0o755); err != nil {
+	wipnoteDir := filepath.Join(dir, ".wipnote")
+	if err := os.MkdirAll(filepath.Join(wipnoteDir, "sessions"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 
@@ -195,26 +195,26 @@ func TestExtractArchive_RoundTrip(t *testing.T) {
 	content := `{"trace_id":"abc","span_id":"123"}` + "\n"
 	old := time.Now().UTC().Add(-40 * 24 * time.Hour)
 	insertSession(t, db, "sess-rt", "completed", &old)
-	makeSessionDir(t, htmlgraphDir, "sess-rt", content)
+	makeSessionDir(t, wipnoteDir, "sess-rt", content)
 
 	// Archive it.
 	t.Setenv("WIPNOTE_SESSION_RETAIN_DAYS", "30")
-	if err := retention.Run(db, htmlgraphDir, false); err != nil {
+	if err := retention.Run(db, wipnoteDir, false); err != nil {
 		t.Fatalf("Run: %v", err)
 	}
 
 	// Verify live dir was removed.
-	if _, err := os.Stat(filepath.Join(htmlgraphDir, "sessions", "sess-rt")); !os.IsNotExist(err) {
+	if _, err := os.Stat(filepath.Join(wipnoteDir, "sessions", "sess-rt")); !os.IsNotExist(err) {
 		t.Fatal("expected session dir to be removed before restore")
 	}
 
 	// Restore.
-	if err := retention.ExtractArchive(htmlgraphDir, "sess-rt"); err != nil {
+	if err := retention.ExtractArchive(wipnoteDir, "sess-rt"); err != nil {
 		t.Fatalf("ExtractArchive: %v", err)
 	}
 
 	// Restored events.ndjson should match original content.
-	got, err := os.ReadFile(filepath.Join(htmlgraphDir, "sessions", "sess-rt", "events.ndjson"))
+	got, err := os.ReadFile(filepath.Join(wipnoteDir, "sessions", "sess-rt", "events.ndjson"))
 	if err != nil {
 		t.Fatalf("read restored events: %v", err)
 	}

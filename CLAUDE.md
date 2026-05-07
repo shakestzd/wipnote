@@ -160,4 +160,4 @@ When upstream contracts change, the fix lands in `plugin/hooks/hooks.json`, `int
 
 ## Dogfooding
 
-This project uses wipnote to develop itself. `.htmlgraph/` contains real work items — not demos.
+This project uses wipnote to develop itself. `.wipnote/` contains real work items — not demos.

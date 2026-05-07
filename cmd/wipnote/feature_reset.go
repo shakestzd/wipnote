@@ -20,7 +20,7 @@ are preserved. The agent assignment is cleared.
 Errors if the feature is not currently in-progress.
 
 Example:
-  htmlgraph feature reset feat-a1b2c3d4`,
+  wipnote feature reset feat-a1b2c3d4`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
 			title, err := executeReset("feature", args[0])
@@ -36,17 +36,17 @@ Example:
 // executeReset sets an in-progress work item back to todo.
 // Returns the item title on success.
 func executeReset(typeName, id string) (string, error) {
-	htmlgraphDir, err := findHtmlgraphDir()
+	wipnoteDir, err := findWipnoteDir()
 	if err != nil {
 		return "", err
 	}
 
-	id, err = resolveID(htmlgraphDir, id)
+	id, err = resolveID(wipnoteDir, id)
 	if err != nil {
 		return "", err
 	}
 
-	p, err := workitem.Open(htmlgraphDir, "claude-code")
+	p, err := workitem.Open(wipnoteDir, "claude-code")
 	if err != nil {
 		return "", fmt.Errorf("open project: %w", err)
 	}

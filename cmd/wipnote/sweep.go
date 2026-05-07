@@ -32,12 +32,12 @@ SQLite rows to status='aborted' with reason='swept'.
 Scope defaults to every session in the current project. Pass --session to
 limit the sweep to a single session.`,
 		RunE: func(_ *cobra.Command, _ []string) error {
-			htmlgraphDir, err := findHtmlgraphDir()
+			wipnoteDir, err := findWipnoteDir()
 			if err != nil {
 				return err
 			}
-			printProjectHeaderIfDifferent(htmlgraphDir)
-			dbPath, err := storage.CanonicalDBPath(filepath.Dir(htmlgraphDir))
+			printProjectHeaderIfDifferent(wipnoteDir)
+			dbPath, err := storage.CanonicalDBPath(filepath.Dir(wipnoteDir))
 			if err != nil {
 				return fmt.Errorf("resolve db path: %w", err)
 			}
@@ -47,7 +47,7 @@ limit the sweep to a single session.`,
 			}
 			defer database.Close()
 
-			projectDir := filepath.Dir(htmlgraphDir)
+			projectDir := filepath.Dir(wipnoteDir)
 			var appended int
 			if sessionID != "" {
 				appended = hooks.SweepOrphanedEventsForSession(database, projectDir, sessionID)

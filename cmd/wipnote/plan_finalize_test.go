@@ -115,14 +115,14 @@ func TestPlanFinalize_ExecuteCmd(t *testing.T) {
 		t.Fatalf("finalize: %v", err)
 	}
 
-	want := "htmlgraph yolo --track " + result.TrackID
+	want := "wipnote yolo --track " + result.TrackID
 	if result.ExecuteCmd != want {
 		t.Errorf("ExecuteCmd = %q, want %q", result.ExecuteCmd, want)
 	}
 }
 
 func TestBuildExecuteCmd(t *testing.T) {
-	if got := buildExecuteCmd("trk-abc123"); got != "htmlgraph yolo --track trk-abc123" {
+	if got := buildExecuteCmd("trk-abc123"); got != "wipnote yolo --track trk-abc123" {
 		t.Errorf("got %q", got)
 	}
 	if got := buildExecuteCmd(""); got != "" {
@@ -611,7 +611,7 @@ func TestFinalizePlanHTML_CheckboxGroupApproval(t *testing.T) {
 	section := "section-1"
 	approved := true
 	if approved {
-		doc.Find(`input[type='checkbox'][data-section='` + section + `'][data-action='approve']`).
+		doc.Find(`input[type='checkbox'][data-section='`+section+`'][data-action='approve']`).
 			SetAttr("checked", "checked")
 	} else {
 		doc.Find(`input[type='checkbox'][data-section='` + section + `'][data-action='approve']`).
@@ -627,7 +627,7 @@ func TestFinalizePlanHTML_CheckboxGroupApproval(t *testing.T) {
 	// Test case 2: approved=false
 	approved = false
 	if approved {
-		doc.Find(`input[type='checkbox'][data-section='` + section + `'][data-action='approve']`).
+		doc.Find(`input[type='checkbox'][data-section='`+section+`'][data-action='approve']`).
 			SetAttr("checked", "checked")
 	} else {
 		doc.Find(`input[type='checkbox'][data-section='` + section + `'][data-action='approve']`).

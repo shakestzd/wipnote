@@ -72,7 +72,7 @@ func SessionEnd(event *CloudEvent, database *sql.DB, projectDir string) (*HookRe
 	if released, err := db.ReleaseAllClaimsForSession(database, sessionID); err != nil {
 		debugLog(projectDir, "[error] handler=session-end session=%s: release claims: %v", sessionID[:minLen(sessionID, 8)], err)
 	} else if released > 0 {
-		debugLog(projectDir, "[htmlgraph] session-end: released %d claims for session %s", released, sessionID[:minLen(sessionID, 8)])
+		debugLog(projectDir, "[wipnote] session-end: released %d claims for session %s", released, sessionID[:minLen(sessionID, 8)])
 	}
 
 	// Clean up the session-scoped project dir hint file now that this session is ending.
@@ -213,7 +213,7 @@ func SessionResume(event *CloudEvent, database *sql.DB, projectDir string) (*Hoo
 		`SELECT active_feature_id FROM sessions WHERE session_id = ?`, sessionID,
 	).Scan(&featID)
 
-	msg := fmt.Sprintf("[HtmlGraph] Session %s resumed.", sessionID[:minLen(sessionID, 8)])
+	msg := fmt.Sprintf("[wipnote] Session %s resumed.", sessionID[:minLen(sessionID, 8)])
 	if featID.Valid && featID.String != "" {
 		msg += fmt.Sprintf(" Active feature: %s", featID.String)
 	}

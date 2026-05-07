@@ -320,14 +320,14 @@ func TestExecuteDSL_AgentType(t *testing.T) {
 	database := openTestDB(t)
 	_, err := database.Exec(
 		`INSERT INTO agent_lineage_trace (trace_id, session_id, root_session_id, agent_name) VALUES (?, ?, ?, ?)`,
-		"tr-1", "sess-1", "sess-1", "htmlgraph:sonnet-coder",
+		"tr-1", "sess-1", "sess-1", "wipnote:sonnet-coder",
 	)
 	if err != nil {
 		t.Fatalf("seed lineage: %v", err)
 	}
 	_, err = database.Exec(
 		`INSERT INTO sessions (session_id, agent_assigned, status) VALUES (?, ?, ?)`,
-		"sess-2", "htmlgraph:opus-coder", "active",
+		"sess-2", "wipnote:opus-coder", "active",
 	)
 	if err != nil {
 		t.Fatalf("seed session: %v", err)
@@ -347,7 +347,7 @@ func TestExecuteDSL_AgentType(t *testing.T) {
 			t.Errorf("expected type 'agent', got %q for id=%q", r.Type, r.ID)
 		}
 	}
-	if !seen["htmlgraph:sonnet-coder"] || !seen["htmlgraph:opus-coder"] {
+	if !seen["wipnote:sonnet-coder"] || !seen["wipnote:opus-coder"] {
 		t.Errorf("missing expected agent names in results: %+v", results)
 	}
 }
@@ -356,7 +356,7 @@ func TestExecuteDSL_AgentTypeSingular(t *testing.T) {
 	database := openTestDB(t)
 	_, err := database.Exec(
 		`INSERT INTO agent_lineage_trace (trace_id, session_id, root_session_id, agent_name) VALUES (?, ?, ?, ?)`,
-		"tr-1", "sess-1", "sess-1", "htmlgraph:researcher",
+		"tr-1", "sess-1", "sess-1", "wipnote:researcher",
 	)
 	if err != nil {
 		t.Fatalf("seed lineage: %v", err)
@@ -369,8 +369,8 @@ func TestExecuteDSL_AgentTypeSingular(t *testing.T) {
 	if len(results) != 1 {
 		t.Fatalf("expected 1 result, got %d", len(results))
 	}
-	if results[0].ID != "htmlgraph:researcher" {
-		t.Errorf("expected ID 'htmlgraph:researcher', got %q", results[0].ID)
+	if results[0].ID != "wipnote:researcher" {
+		t.Errorf("expected ID 'wipnote:researcher', got %q", results[0].ID)
 	}
 	if results[0].Type != "agent" {
 		t.Errorf("expected type 'agent', got %q", results[0].Type)

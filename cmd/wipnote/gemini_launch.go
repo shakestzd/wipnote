@@ -14,7 +14,7 @@ import (
 func spawnGeminiOtelCollector(projectDir string) (port int, sessionID string, cleanup func()) {
 	binPath, err := os.Executable()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "htmlgraph: warning: gemini per-session collector skipped: %v\n", err)
+		fmt.Fprintf(os.Stderr, "wipnote: warning: gemini per-session collector skipped: %v\n", err)
 		return 0, "", nil
 	}
 
@@ -26,7 +26,7 @@ func spawnGeminiOtelCollector(projectDir string) (port int, sessionID string, cl
 
 	spawnedPort, spawnCleanup, spawnErr := lc.Spawn(binPath, sessionID, projectDir)
 	if spawnErr != nil {
-		fmt.Fprintf(os.Stderr, "htmlgraph: FATAL: gemini collector spawn failed: %v\n", spawnErr)
+		fmt.Fprintf(os.Stderr, "wipnote: FATAL: gemini collector spawn failed: %v\n", spawnErr)
 		if os.Getenv("WIPNOTE_OTEL_STRICT") == "1" {
 			os.Exit(1)
 		}

@@ -9,14 +9,14 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// blameOpts holds the parsed CLI flags for `htmlgraph blame`.
+// blameOpts holds the parsed CLI flags for `wipnote blame`.
 type blameOpts struct {
 	format string
 	since  string
 	top    int
 }
 
-// blameCmd returns the cobra command for `htmlgraph blame <path>`.
+// blameCmd returns the cobra command for `wipnote blame <path>`.
 func blameCmd() *cobra.Command {
 	var opts blameOpts
 
@@ -31,10 +31,10 @@ grouped and rolled up by track, with touch counts and last-seen timestamps.
 Output formats: text (default), json, markdown
 
 Examples:
-  htmlgraph blame internal/db/schema.go
-  htmlgraph blame cmd/htmlgraph/main.go --format json
-  htmlgraph blame internal/db/schema.go --format markdown --top 5
-  htmlgraph blame internal/db/schema.go --since 2025-01-01`,
+  wipnote blame internal/db/schema.go
+  wipnote blame cmd/wipnote/main.go --format json
+  wipnote blame internal/db/schema.go --format markdown --top 5
+  wipnote blame internal/db/schema.go --since 2025-01-01`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
 			return runBlame(args[0], opts)
@@ -50,7 +50,7 @@ Examples:
 
 // runBlame opens the database, calls blame.Query, and dispatches to the formatter.
 func runBlame(path string, opts blameOpts) error {
-	dir, err := findHtmlgraphDir()
+	dir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}
@@ -104,4 +104,3 @@ func parseSinceDate(s string) (time.Time, error) {
 	}
 	return t.UTC(), err
 }
-

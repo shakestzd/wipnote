@@ -46,7 +46,7 @@ func sessionListCmd() *cobra.Command {
 }
 
 func runSessionList(activeOnly bool, limit int) error {
-	dir, err := findHtmlgraphDir()
+	dir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}
@@ -123,7 +123,7 @@ func sessionStartCmd() *cobra.Command {
 }
 
 func runSessionStart(agent string) error {
-	dir, err := findHtmlgraphDir()
+	dir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}
@@ -165,7 +165,7 @@ func sessionEndCmd() *cobra.Command {
 }
 
 func runSessionEnd(sessionID string) error {
-	dir, err := findHtmlgraphDir()
+	dir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}
@@ -182,7 +182,7 @@ func runSessionEnd(sessionID string) error {
 			return fmt.Errorf("find active session: %w", err)
 		}
 		if sessionID == "" {
-			return fmt.Errorf("no active sessions found\nRun 'htmlgraph session start' to begin tracking, or specify a session ID explicitly.")
+			return fmt.Errorf("no active sessions found\nRun 'wipnote session start' to begin tracking, or specify a session ID explicitly.")
 		}
 	}
 
@@ -196,8 +196,8 @@ func runSessionEnd(sessionID string) error {
 // openDB is a shared helper to open the SQLite DB from the .wipnote dir.
 // The DB lives in the OS cache dir (keyed by project-path hash) — never
 // inside the project tree. See storage.CanonicalDBPath for details.
-func openDB(htmlgraphDir string) (*sql.DB, error) {
-	projectDir := filepath.Dir(htmlgraphDir)
+func openDB(wipnoteDir string) (*sql.DB, error) {
+	projectDir := filepath.Dir(wipnoteDir)
 	dbPath, err := storage.CanonicalDBPath(projectDir)
 	if err != nil {
 		return nil, fmt.Errorf("resolve db path: %w", err)
@@ -225,7 +225,7 @@ func sessionShowCmd() *cobra.Command {
 }
 
 func runSessionShow(sessionID string) error {
-	dir, err := findHtmlgraphDir()
+	dir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}
@@ -237,7 +237,7 @@ func runSessionShow(sessionID string) error {
 
 	s, err := dbpkg.GetSession(db, sessionID)
 	if err != nil {
-		return fmt.Errorf("session %q not found: %w\nRun 'htmlgraph session list' to see known sessions.", sessionID, err)
+		return fmt.Errorf("session %q not found: %w\nRun 'wipnote session list' to see known sessions.", sessionID, err)
 	}
 
 	sep := strings.Repeat("─", 60)

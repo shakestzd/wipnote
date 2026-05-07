@@ -42,7 +42,7 @@ type planFeedbackJSON struct {
 	ChatMessages []planFeedbackChatMessage       `json:"chat_messages"`
 }
 
-// planFeedbackCmd returns the cobra command for `htmlgraph plan feedback <plan-id>`.
+// planFeedbackCmd returns the cobra command for `wipnote plan feedback <plan-id>`.
 func planFeedbackCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "feedback <plan-id>",
@@ -52,7 +52,7 @@ to stdout as JSON. Includes approvals (per slice), question answers, accepted
 amendments, and chat messages. Useful for agents running without HTTP server.
 
 Example:
-  htmlgraph plan feedback plan-a1b2c3d4`,
+  wipnote plan feedback plan-a1b2c3d4`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
 			return runPlanFeedback(args[0])
@@ -61,16 +61,16 @@ Example:
 }
 
 func runPlanFeedback(planID string) error {
-	htmlgraphDir, err := findHtmlgraphDir()
+	wipnoteDir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}
-	return planFeedback(htmlgraphDir, planID)
+	return planFeedback(wipnoteDir, planID)
 }
 
 // planFeedback is the testable inner implementation.
-func planFeedback(htmlgraphDir, planID string) error {
-	dbPath, err := storage.CanonicalDBPath(filepath.Dir(htmlgraphDir))
+func planFeedback(wipnoteDir, planID string) error {
+	dbPath, err := storage.CanonicalDBPath(filepath.Dir(wipnoteDir))
 	if err != nil {
 		return fmt.Errorf("resolve db path: %w", err)
 	}

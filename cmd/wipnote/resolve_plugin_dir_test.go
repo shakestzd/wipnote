@@ -15,7 +15,7 @@ func createFakePlugin(t *testing.T, dir string) string {
 		t.Fatalf("failed to create .claude-plugin dir: %v", err)
 	}
 	pluginJSON := filepath.Join(claudePluginDir, "plugin.json")
-	if err := os.WriteFile(pluginJSON, []byte(`{"name":"htmlgraph","version":"0.1.0"}`), 0644); err != nil {
+	if err := os.WriteFile(pluginJSON, []byte(`{"name":"wipnote","version":"0.1.0"}`), 0644); err != nil {
 		t.Fatalf("failed to write plugin.json: %v", err)
 	}
 	return dir
@@ -37,9 +37,9 @@ func TestResolvePluginDir_ClaudePluginRoot(t *testing.T) {
 	}
 }
 
-// TestResolvePluginDir_ClaudePluginRootTakesPrecedenceOverHtmlgraphPluginDir tests
+// TestResolvePluginDir_ClaudePluginRootTakesPrecedenceOverWipnotePluginDir tests
 // that CLAUDE_PLUGIN_ROOT wins over WIPNOTE_PLUGIN_DIR.
-func TestResolvePluginDir_ClaudePluginRootTakesPrecedenceOverHtmlgraphPluginDir(t *testing.T) {
+func TestResolvePluginDir_ClaudePluginRootTakesPrecedenceOverWipnotePluginDir(t *testing.T) {
 	tmpDir := t.TempDir()
 	rootPlugin := createFakePlugin(t, filepath.Join(tmpDir, "root-plugin"))
 	overridePlugin := createFakePlugin(t, filepath.Join(tmpDir, "override-plugin"))
@@ -106,12 +106,12 @@ func TestResolvePluginDir_EnvVarMissingPluginJSON(t *testing.T) {
 // TestResolvePluginDir_MarketplacePath tests that resolveMarketplacePluginDir
 // discovers the plugin via installed_plugins.json when no env vars are set.
 // The marketplace path is ~/.claude/plugins/cache/<marketplace>/<name>/<version>/
-// — NOT ~/.claude/plugins/htmlgraph/ (the old hard-coded path).
+// — NOT ~/.claude/plugins/wipnote/ (the old hard-coded path).
 func TestResolvePluginDir_MarketplacePath(t *testing.T) {
 	tmpHome := t.TempDir()
 
 	// Create a fake marketplace install at the real cache path structure.
-	installPath := filepath.Join(tmpHome, ".claude", "plugins", "cache", "htmlgraph", "htmlgraph", "1.0.0")
+	installPath := filepath.Join(tmpHome, ".claude", "plugins", "cache", "wipnote", "wipnote", "1.0.0")
 	createFakePlugin(t, installPath)
 
 	// Write installed_plugins.json pointing to the fake install.
@@ -119,7 +119,7 @@ func TestResolvePluginDir_MarketplacePath(t *testing.T) {
 	if err := os.MkdirAll(pluginsDir, 0755); err != nil {
 		t.Fatalf("creating plugins dir: %v", err)
 	}
-	registryJSON := `{"version":2,"plugins":{"htmlgraph@htmlgraph":[{"installPath":"` + installPath + `","version":"1.0.0"}]}}`
+	registryJSON := `{"version":2,"plugins":{"wipnote@wipnote":[{"installPath":"` + installPath + `","version":"1.0.0"}]}}`
 	if err := os.WriteFile(filepath.Join(pluginsDir, "installed_plugins.json"), []byte(registryJSON), 0644); err != nil {
 		t.Fatalf("writing installed_plugins.json: %v", err)
 	}
@@ -147,13 +147,13 @@ func TestResolvePluginDir_EnvVarTakesPrecedenceOverMarketplace(t *testing.T) {
 
 	// Set up marketplace plugin in installed_plugins.json.
 	tmpHome := filepath.Join(tmpDir, "home")
-	installPath := filepath.Join(tmpHome, ".claude", "plugins", "cache", "htmlgraph", "htmlgraph", "1.0.0")
+	installPath := filepath.Join(tmpHome, ".claude", "plugins", "cache", "wipnote", "wipnote", "1.0.0")
 	createFakePlugin(t, installPath)
 	pluginsDir := filepath.Join(tmpHome, ".claude", "plugins")
 	if err := os.MkdirAll(pluginsDir, 0755); err != nil {
 		t.Fatalf("creating plugins dir: %v", err)
 	}
-	registryJSON := `{"version":2,"plugins":{"htmlgraph@htmlgraph":[{"installPath":"` + installPath + `","version":"1.0.0"}]}}`
+	registryJSON := `{"version":2,"plugins":{"wipnote@wipnote":[{"installPath":"` + installPath + `","version":"1.0.0"}]}}`
 	if err := os.WriteFile(filepath.Join(pluginsDir, "installed_plugins.json"), []byte(registryJSON), 0644); err != nil {
 		t.Fatalf("writing installed_plugins.json: %v", err)
 	}

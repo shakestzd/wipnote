@@ -86,8 +86,8 @@ func TestGitCommitExists_InvalidCommit(t *testing.T) {
 
 // TestIncrementalReindex_ParsesChangedFiles verifies only changed-list files are upserted.
 func TestIncrementalReindex_ParsesChangedFiles(t *testing.T) {
-	hgDir := setupHtmlgraphDir(t)
-	database, err := dbpkg.Open(filepath.Join(hgDir, "htmlgraph.db"))
+	hgDir := setupWipnoteDir(t)
+	database, err := dbpkg.Open(filepath.Join(hgDir, "wipnote.db"))
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
@@ -122,8 +122,8 @@ func TestIncrementalReindex_ParsesChangedFiles(t *testing.T) {
 
 // TestIncrementalReindex_DeletesRemovedFiles verifies deleted paths are removed from DB.
 func TestIncrementalReindex_DeletesRemovedFiles(t *testing.T) {
-	hgDir := setupHtmlgraphDir(t)
-	database, err := dbpkg.Open(filepath.Join(hgDir, "htmlgraph.db"))
+	hgDir := setupWipnoteDir(t)
+	database, err := dbpkg.Open(filepath.Join(hgDir, "wipnote.db"))
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
@@ -152,8 +152,8 @@ func TestIncrementalReindex_DeletesRemovedFiles(t *testing.T) {
 // and the file appears in the incremental changed-file list, the SQLite row is
 // updated with the correct track_id — not left with the stale value.
 func TestIncrementalReindex_PropagatesTrackIDAfterMove(t *testing.T) {
-	hgDir := setupHtmlgraphDir(t)
-	database, err := dbpkg.Open(filepath.Join(hgDir, "htmlgraph.db"))
+	hgDir := setupWipnoteDir(t)
+	database, err := dbpkg.Open(filepath.Join(hgDir, "wipnote.db"))
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
@@ -209,8 +209,8 @@ func TestIncrementalReindex_PropagatesTrackIDAfterMove(t *testing.T) {
 // is deleted in the working tree (dirty deletion, before commit) and detected
 // via dirty-files scan, the SQLite row for that feature is removed (not left stale).
 func TestIncrementalReindex_DirtyDeletion(t *testing.T) {
-	hgDir := setupHtmlgraphDir(t)
-	database, err := dbpkg.Open(filepath.Join(hgDir, "htmlgraph.db"))
+	hgDir := setupWipnoteDir(t)
+	database, err := dbpkg.Open(filepath.Join(hgDir, "wipnote.db"))
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}

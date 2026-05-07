@@ -12,7 +12,7 @@ import (
 )
 
 // DefaultMaxAge / DefaultMaxSize are the policy used by opportunistic prune
-// and as the default flag values for `htmlgraph cache prune`. They match
+// and as the default flag values for `wipnote cache prune`. They match
 // the spike recommendation in spk-dfb051a3 (3-day age, 1 GiB cap).
 const (
 	DefaultMaxAge  = 3 * 24 * time.Hour
@@ -37,14 +37,14 @@ type CacheEntry struct {
 }
 
 // CacheRoot returns the directory that holds per-project cache subdirs:
-// <UserCacheDir>/htmlgraph. The WIPNOTE_DB_PATH override is intentionally
+// <UserCacheDir>/wipnote. The WIPNOTE_DB_PATH override is intentionally
 // ignored — it points at a single DB file, not a project-keyed cache root.
 func CacheRoot() (string, error) {
 	cache, err := os.UserCacheDir()
 	if err != nil {
 		return "", fmt.Errorf("locate user cache dir: %w", err)
 	}
-	return filepath.Join(cache, "htmlgraph"), nil
+	return filepath.Join(cache, "wipnote"), nil
 }
 
 // CacheStats lists every project-cache subdir under cacheRoot, newest first.
@@ -216,7 +216,7 @@ func OpportunisticPrune(cacheRoot, projectDir string, w io.Writer) {
 	if err != nil || !ran || len(res.Removed) == 0 || w == nil {
 		return
 	}
-	fmt.Fprintf(w, "[htmlgraph] cache: pruned %d stale cache dir(s), freed %d bytes\n",
+	fmt.Fprintf(w, "[wipnote] cache: pruned %d stale cache dir(s), freed %d bytes\n",
 		len(res.Removed), res.BytesFreed)
 }
 

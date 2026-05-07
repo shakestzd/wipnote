@@ -22,7 +22,7 @@ var (
 	otelCollectTestBinaryTmpDir string
 )
 
-// buildOtelCollectTestBinary builds the htmlgraph binary into a temp dir and
+// buildOtelCollectTestBinary builds the wipnote binary into a temp dir and
 // returns the path. It is safe to call multiple times — subsequent calls
 // reuse the first binary. The temp dir is cleaned up by TestMain (testmain_test.go).
 func buildOtelCollectTestBinary(t *testing.T) string {
@@ -34,7 +34,7 @@ func buildOtelCollectTestBinary(t *testing.T) string {
 	}
 	tmp := t.TempDir()
 	otelCollectTestBinaryTmpDir = tmp // tracked for cleanup in TestMain
-	bin := filepath.Join(tmp, "htmlgraph-test")
+	bin := filepath.Join(tmp, "wipnote-test")
 	cmd := exec.Command("go", "build", "-o", bin, ".")
 	_, thisFile, _, ok := runtime.Caller(0)
 	if !ok {
@@ -43,7 +43,7 @@ func buildOtelCollectTestBinary(t *testing.T) string {
 	cmd.Dir = filepath.Dir(thisFile)
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
-		t.Fatalf("build htmlgraph for otel-collect tests: %v", err)
+		t.Fatalf("build wipnote for otel-collect tests: %v", err)
 	}
 	otelCollectTestBinary = bin
 	return bin
@@ -61,14 +61,14 @@ func mkOtelCollectProject(t *testing.T) string {
 }
 
 // readHandshakeLine reads lines from the scanner until it finds the
-// htmlgraph-otel-ready line or the deadline is exceeded.
+// wipnote-otel-ready line or the deadline is exceeded.
 func readHandshakeLine(t *testing.T, scanner *bufio.Scanner, deadline time.Duration) (string, bool) {
 	t.Helper()
 	done := make(chan string, 1)
 	go func() {
 		for scanner.Scan() {
 			line := scanner.Text()
-			if strings.HasPrefix(line, "htmlgraph-otel-ready") {
+			if strings.HasPrefix(line, "wipnote-otel-ready") {
 				done <- line
 				return
 			}
@@ -84,7 +84,7 @@ func readHandshakeLine(t *testing.T, scanner *bufio.Scanner, deadline time.Durat
 }
 
 // TestOtelCollect_HandshakeLine verifies that otel-collect prints exactly one
-// handshake line on stdout matching "htmlgraph-otel-ready port=<N>" and nothing
+// handshake line on stdout matching "wipnote-otel-ready port=<N>" and nothing
 // else before the process is signalled. Stdout purity is required because the
 // launcher in S3 uses bufio.Scanner on the child's stdout pipe.
 func TestOtelCollect_HandshakeLine(t *testing.T) {
@@ -115,15 +115,15 @@ func TestOtelCollect_HandshakeLine(t *testing.T) {
 	scanner := bufio.NewScanner(stdout)
 	line, ok := readHandshakeLine(t, scanner, 5*time.Second)
 	if !ok {
-		t.Fatal("otel-collect did not print htmlgraph-otel-ready within 5s")
+		t.Fatal("otel-collect did not print wipnote-otel-ready within 5s")
 	}
 
-	// Validate format: "htmlgraph-otel-ready port=<N>"
-	if !strings.HasPrefix(line, "htmlgraph-otel-ready port=") {
+	// Validate format: "wipnote-otel-ready port=<N>"
+	if !strings.HasPrefix(line, "wipnote-otel-ready port=") {
 		t.Errorf("handshake line format wrong: %q", line)
 	}
 	var port int
-	if _, err := fmt.Sscanf(line, "htmlgraph-otel-ready port=%d", &port); err != nil {
+	if _, err := fmt.Sscanf(line, "wipnote-otel-ready port=%d", &port); err != nil {
 		t.Errorf("could not parse port from handshake %q: %v", line, err)
 	}
 	if port <= 0 || port > 65535 {
@@ -241,8 +241,8 @@ func TestOtelCollect_CollectorStartEvent(t *testing.T) {
 	if !ok {
 		t.Fatalf("attrs field missing or not an object: %v", first["attrs"])
 	}
-	if attrs["htmlgraph_sid"] != sid {
-		t.Errorf("attrs.wipnote_sid = %q, want %q", attrs["htmlgraph_sid"], sid)
+	if attrs["wipnote_sid"] != sid {
+		t.Errorf("attrs.wipnote_sid = %q, want %q", attrs["wipnote_sid"], sid)
 	}
 	if _, hasPort := attrs["port"]; !hasPort {
 		t.Error("attrs.port missing from collector_start event")

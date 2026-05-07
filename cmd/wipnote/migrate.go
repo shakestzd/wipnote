@@ -45,12 +45,12 @@ Idempotent — sessions that already have an HTML file are left alone.`,
 }
 
 func runMigrateSessions(dryRun bool) error {
-	htmlgraphDir, err := findHtmlgraphDir()
+	wipnoteDir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}
-	printProjectHeaderIfDifferent(htmlgraphDir)
-	dbPath, err := storage.CanonicalDBPath(filepath.Dir(htmlgraphDir))
+	printProjectHeaderIfDifferent(wipnoteDir)
+	dbPath, err := storage.CanonicalDBPath(filepath.Dir(wipnoteDir))
 	if err != nil {
 		return fmt.Errorf("resolve db path: %w", err)
 	}
@@ -60,7 +60,7 @@ func runMigrateSessions(dryRun bool) error {
 	}
 	defer database.Close()
 
-	present, err := existingSessionHTMLSet(htmlgraphDir)
+	present, err := existingSessionHTMLSet(wipnoteDir)
 	if err != nil {
 		return fmt.Errorf("scan session html files: %w", err)
 	}
@@ -87,11 +87,11 @@ func runMigrateSessions(dryRun bool) error {
 
 		if dryRun {
 			fmt.Printf("  %s: source=%s -> %s\n", truncate(sessionID, 14), source,
-				filepath.Join(htmlgraphDir, "sessions", sessionID+".html"))
+				filepath.Join(wipnoteDir, "sessions", sessionID+".html"))
 			continue
 		}
 
-		err := migrateOneSession(database, htmlgraphDir, sessionID, source, jsonlIndex)
+		err := migrateOneSession(database, wipnoteDir, sessionID, source, jsonlIndex)
 		switch {
 		case err == nil && source == "jsonl":
 			migratedJSONL++
@@ -124,8 +124,8 @@ var errNoData = fmt.Errorf("no data available to render session")
 
 // existingSessionHTMLSet returns the set of session IDs that already have an
 // HTML file in .wipnote/sessions/.
-func existingSessionHTMLSet(htmlgraphDir string) (map[string]struct{}, error) {
-	pattern := filepath.Join(htmlgraphDir, "sessions", "*.html")
+func existingSessionHTMLSet(wipnoteDir string) (map[string]struct{}, error) {
+	pattern := filepath.Join(wipnoteDir, "sessions", "*.html")
 	files, err := filepath.Glob(pattern)
 	if err != nil {
 		return nil, err
@@ -180,7 +180,7 @@ func discoverJSONLIndex() map[string]ingest.SessionFile {
 // migrateOneSession renders a single orphan session's HTML file. Prefers
 // re-parsing the JSONL transcript for maximum fidelity; falls back to SQLite
 // when the transcript is gone.
-func migrateOneSession(database *sql.DB, htmlgraphDir, sessionID, source string, jsonlIndex map[string]ingest.SessionFile) error {
+func migrateOneSession(database *sql.DB, wipnoteDir, sessionID, source string, jsonlIndex map[string]ingest.SessionFile) error {
 	projectDir := sessionProjectDir(database, sessionID)
 
 	if source == "jsonl" {
@@ -188,7 +188,7 @@ func migrateOneSession(database *sql.DB, htmlgraphDir, sessionID, source string,
 		if ok {
 			result, err := ingest.ParseFile(sf.Path)
 			if err == nil && len(result.Messages) > 0 {
-				return hooks.RenderIngestedSessionHTML(htmlgraphDir, sessionID, projectDir, result, false)
+				return hooks.RenderIngestedSessionHTML(wipnoteDir, sessionID, projectDir, result, false)
 			}
 			// JSONL parse failed or empty — fall through to SQLite fallback.
 		}
@@ -201,7 +201,7 @@ func migrateOneSession(database *sql.DB, htmlgraphDir, sessionID, source string,
 	if len(result.ToolCalls) == 0 && len(result.Messages) == 0 {
 		return errNoData
 	}
-	return hooks.RenderIngestedSessionHTML(htmlgraphDir, sessionID, projectDir, result, false)
+	return hooks.RenderIngestedSessionHTML(wipnoteDir, sessionID, projectDir, result, false)
 }
 
 // sessionProjectDir returns the project_dir column for a session, or "".

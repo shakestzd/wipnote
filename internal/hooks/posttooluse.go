@@ -72,7 +72,7 @@ func PostToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 	// Record orchestrator direct-tool usage for analytics.
 	// Subagents are excluded — only direct orchestrator use is interesting here.
 	if !ctx.IsSubagent {
-	// Orchestrator analytics removed — stderr caused "hook error" in Claude Code UI.
+		// Orchestrator analytics removed — stderr caused "hook error" in Claude Code UI.
 	}
 	// Capture git commits and link to the active work item.
 	if event.ToolName == "Bash" {
@@ -91,7 +91,7 @@ func PostToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 		}
 	}
 
-	// Tag claims with agent ID when a subagent runs "htmlgraph feature start <id>".
+	// Tag claims with agent ID when a subagent runs "wipnote feature start <id>".
 	// The CLI doesn't know the agent_id, but the PostToolUse hook sees both.
 	if ctx.IsSubagent && event.ToolName == "Bash" {
 		if cmd, ok := event.ToolInput["command"].(string); ok {
@@ -172,7 +172,6 @@ func PostToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 	return result, nil
 }
 
-
 // commitClosingRe matches closing keywords followed by a work item ID in commit messages.
 // Supports: "completes feat-abc123", "closes bug-def456", "fixes spk-789abc",
 // "resolves feat-abc123", and parenthetical form "(feat-abc123)".
@@ -180,13 +179,13 @@ func PostToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 var commitClosingRe = regexp.MustCompile(`(?:completes?|closes?|fix(?:es)?|resolves?)\s+((?:feat|bug|spk)-[0-9a-f]{8})`)
 
 // commitParenRe matches parenthetical work item references at the end of commit
-// messages, e.g. "(feat-abc12345)". This is the existing HtmlGraph convention.
+// messages, e.g. "(feat-abc12345)". This is the existing wipnote convention.
 var commitParenRe = regexp.MustCompile(`\(\s*((?:feat|bug|spk)-[0-9a-f]{8})\s*\)`)
 
 // extractClosingIDs parses a commit message for work item IDs that should be
 // auto-completed. It recognises two patterns:
 //  1. Closing keywords: "completes feat-abc123", "fixes bug-def456"
-//  2. Parenthetical refs: "(feat-abc123)" — the existing HtmlGraph convention
+//  2. Parenthetical refs: "(feat-abc123)" — the existing wipnote convention
 //
 // Returns a deduplicated slice of work item IDs.
 func extractClosingIDs(commitMsg string) []string {
@@ -291,8 +290,8 @@ func completeIfInProgressImpl(id string, database *sql.DB) bool {
 	return true
 }
 
-// featureStartRe matches "htmlgraph (feature|bug|spike) start <id>" in a Bash command.
-var featureStartRe = regexp.MustCompile(`htmlgraph\s+(?:feature|bug|spike)\s+start\s+(\S+)`)
+// featureStartRe matches "wipnote (feature|bug|spike) start <id>" in a Bash command.
+var featureStartRe = regexp.MustCompile(`wipnote\s+(?:feature|bug|spike)\s+start\s+(\S+)`)
 
 // gitCommitOutputRe matches the commit line from git commit output, e.g.:
 // "[main abc1234] commit message here"
@@ -429,7 +428,6 @@ func summarizeToolOutput(result map[string]any) string {
 	}
 	return ""
 }
-
 
 // filePathHash returns an 8-char hex digest of a file path, used to generate
 // deterministic IDs for feature_files rows.

@@ -14,18 +14,18 @@ import (
 
 // mockTerminalManager is a test double implementing terminalManager interface.
 type mockTerminalManager struct {
-	lastReq      terminal.StartRequest
-	lastDir      string
-	returnID     string
-	returnPort   int
-	returnPid    int
-	returnErr    error
-	sessions     []terminal.SessionView
-	stopByIDErr  error
-	stopByPIDErr error
+	lastReq       terminal.StartRequest
+	lastDir       string
+	returnID      string
+	returnPort    int
+	returnPid     int
+	returnErr     error
+	sessions      []terminal.SessionView
+	stopByIDErr   error
+	stopByPIDErr  error
 	stopAllCalled bool
-	stoppedID    string
-	stoppedPID   int
+	stoppedID     string
+	stoppedPID    int
 }
 
 func (m *mockTerminalManager) Start(req terminal.StartRequest, defaultDir string) (string, int, int, error) {

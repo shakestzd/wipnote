@@ -69,7 +69,7 @@ func TestGeminiAdapterEmitsCommandsTOML(t *testing.T) {
 		t.Fatalf("Emit: %v", err)
 	}
 
-	tomlPath := filepath.Join(outDir, "commands", "erinn", "hello.toml")
+	tomlPath := filepath.Join(outDir, "commands", "wipnote", "hello.toml")
 	data, err := os.ReadFile(tomlPath)
 	if err != nil {
 		t.Fatalf("read emitted toml: %v", err)

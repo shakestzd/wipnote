@@ -60,7 +60,7 @@ func ConvertAll(a adapter.Adapter, d otlp.Decoded) []otel.UnifiedSignal {
 //
 // FNV-64a keeps the hash fast (one pass over ~1-2 KB of attribute
 // strings) and gives ~1e-7 collision risk at the 10-100 signals/sec
-// scale HtmlGraph targets. SignalID is not a security primitive.
+// scale wipnote targets. SignalID is not a security primitive.
 // Collisions only cause a single row to be rejected (INSERT OR IGNORE),
 // not data corruption.
 //

@@ -201,7 +201,7 @@ func TestCompleteInProgressByTrack_Query(t *testing.T) {
 // TestWorktreeRemove_AutoCompletes verifies WorktreeRemove injects auto-completion
 // context and records the checkpoint event.
 func TestWorktreeRemove_AutoCompletes(t *testing.T) {
-	// Stub out the CLI shell-out so the test does not require a real htmlgraph
+	// Stub out the CLI shell-out so the test does not require a real wipnote
 	// binary or a project DB at a known path. The stub marks the item done
 	// in-process by updating the DB directly, matching what the CLI would do.
 	orig := completeIfInProgressFn

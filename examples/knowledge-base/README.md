@@ -1,6 +1,6 @@
 # Knowledge Base Example
 
-Personal knowledge management using HtmlGraph - like Obsidian or Roam Research, but with HTML.
+Personal knowledge management using wipnote - like Obsidian or Roam Research, but with HTML.
 
 ## Overview
 
@@ -22,7 +22,7 @@ python demo.py
 ### 1. Concept Notes
 
 Create interconnected notes about different topics:
-- HtmlGraph concept
+- wipnote concept
 - Web Standards
 - Graph Databases
 - AI Agents
@@ -33,9 +33,9 @@ Each note links to related concepts, forming a knowledge graph.
 
 Notes reference each other:
 ```
-HtmlGraph → Web Standards
-HtmlGraph → Graph Databases
-HtmlGraph → AI Agents
+wipnote → Web Standards
+wipnote → Graph Databases
+wipnote → AI Agents
 ```
 
 ### 3. Knowledge Queries
@@ -46,7 +46,7 @@ Find notes by various criteria:
 important = sdk.features.where(type="note", priority="high")
 
 # Find related notes
-related = graph.find_related("note-htmlgraph", relationship="related")
+related = graph.find_related("note-wipnote", relationship="related")
 
 # Find connection paths
 path = graph.shortest_path("note-a", "note-b", relationship="related")
@@ -157,6 +157,6 @@ paper = Node(
 
 ## Learn More
 
-- [HtmlGraph Documentation](../../docs/)
+- [wipnote Documentation](../../docs/)
 - [Graph Queries](../../docs/guide/queries.md)
 - [SDK Reference](../../docs/api/sdk.md)

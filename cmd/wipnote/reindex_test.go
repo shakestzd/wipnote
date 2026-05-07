@@ -72,8 +72,8 @@ func writeMinimalTrackHTML(t *testing.T, dir, filename, id, title string) string
 	return path
 }
 
-// setupHtmlgraphDir creates a minimal .wipnote directory structure in a temp dir.
-func setupHtmlgraphDir(t *testing.T) string {
+// setupWipnoteDir creates a minimal .wipnote directory structure in a temp dir.
+func setupWipnoteDir(t *testing.T) string {
 	t.Helper()
 	tmpDir := t.TempDir()
 	hgDir := filepath.Join(tmpDir, ".wipnote")
@@ -215,14 +215,14 @@ func TestPurgeStaleEntries_ValidEntriesKept(t *testing.T) {
 }
 
 func TestReindex_DeletedHTMLPurgesDBEntry(t *testing.T) {
-	hgDir := setupHtmlgraphDir(t)
+	hgDir := setupWipnoteDir(t)
 
 	// Write a track and feature HTML file.
 	writeMinimalTrackHTML(t, filepath.Join(hgDir, "tracks"), "trk-del-001.html", "trk-del-001", "Track To Delete")
 	writeMinimalFeatureHTML(t, filepath.Join(hgDir, "features"), "feat-del-001.html", "feat-del-001", "Feature To Delete")
 
 	// Open DB and do an initial reindex (both files exist).
-	database, err := dbpkg.Open(filepath.Join(hgDir, "htmlgraph.db"))
+	database, err := dbpkg.Open(filepath.Join(hgDir, "wipnote.db"))
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}

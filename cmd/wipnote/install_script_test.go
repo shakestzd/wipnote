@@ -11,7 +11,7 @@ import (
 // TestInstallScriptExists validates that install.sh exists at project root.
 func TestInstallScriptExists(t *testing.T) {
 	// Relative to this test file, go back to repo root
-	// cmd/htmlgraph/install_script_test.go -> repo root is 2 levels up
+	// cmd/wipnote/install_script_test.go -> repo root is 2 levels up
 	scriptPath := filepath.Join("..", "..", "install.sh")
 
 	info, err := os.Stat(scriptPath)

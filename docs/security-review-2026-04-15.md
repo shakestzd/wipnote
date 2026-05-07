@@ -19,18 +19,18 @@ In practice, any website opened in the same browser can issue requests to `http:
 - Add CSRF protections for mutating endpoints.
 - Consider a per-process random bearer token printed at startup for dashboard use.
 
-## 2) Entire `.htmlgraph` directory is web-accessible (High)
+## 2) Entire `.wipnote` directory is web-accessible (High)
 
 ### Why this matters
-The server exposes `.htmlgraph/` through `/htmlgraph/` using `http.FileServer`. This likely includes:
-- `htmlgraph.db` (full indexed session/event history)
+The server exposes `.wipnote/` through `/wipnote/` using `http.FileServer`. This likely includes:
+- `wipnote.db` (full indexed session/event history)
 - logs
 - plans and internal artifacts
 
 Combined with permissive CORS, a malicious webpage can exfiltrate local project metadata/transcripts from the running dashboard server.
 
 ### Evidence
-- `/htmlgraph/` is directly mapped to the on-disk `.htmlgraph` directory with no file allowlist.
+- `/wipnote/` is directly mapped to the on-disk `.wipnote` directory with no file allowlist.
 
 ### Recommendations
 - Remove raw directory serving in production mode.
@@ -53,7 +53,7 @@ Combined with permissive CORS, a malicious webpage can exfiltrate local project 
 ---
 
 ## Risk summary
-- **High:** cross-origin unauthenticated API access and raw `.htmlgraph` file serving.
+- **High:** cross-origin unauthenticated API access and raw `.wipnote` file serving.
 - **Medium:** metadata overexposure from `/api/projects`.
 
 Together, these issues create a realistic local-data exfiltration path from a normal browser session.

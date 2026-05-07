@@ -11,8 +11,8 @@ import (
 	"time"
 
 	"github.com/shakestzd/wipnote/internal/models"
-	"github.com/shakestzd/wipnote/internal/planyaml"
 	"github.com/shakestzd/wipnote/internal/plantmpl"
+	"github.com/shakestzd/wipnote/internal/planyaml"
 	"github.com/shakestzd/wipnote/internal/workitem"
 	"github.com/spf13/cobra"
 )
@@ -31,21 +31,21 @@ creates a standalone plan for design-first workflows. Add slices with
 'plan add-slice', questions with 'plan add-question', then review and finalize.
 
 Example:
-  htmlgraph plan create "Auth Middleware Rewrite" --description "Rewrite for compliance"`,
+  wipnote plan create "Auth Middleware Rewrite" --description "Rewrite for compliance"`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
-			htmlgraphDir, err := findHtmlgraphDir()
+			wipnoteDir, err := findWipnoteDir()
 			if err != nil {
 				return err
 			}
-			planID, err := createPlanFromTopic(htmlgraphDir, args[0], description)
+			planID, err := createPlanFromTopic(wipnoteDir, args[0], description)
 			if err != nil {
 				return err
 			}
-			yamlPath := filepath.Join(htmlgraphDir, "plans", planID+".yaml")
-			htmlPath := filepath.Join(htmlgraphDir, "plans", planID+".html")
+			yamlPath := filepath.Join(wipnoteDir, "plans", planID+".yaml")
+			htmlPath := filepath.Join(wipnoteDir, "plans", planID+".html")
 			fmt.Printf("Edit here:  %s\n", yamlPath)
-			fmt.Printf("Then:       htmlgraph plan finalize %s\n", planID)
+			fmt.Printf("Then:       wipnote plan finalize %s\n", planID)
 			fmt.Println(htmlPath)
 			return nil
 		},
@@ -56,8 +56,8 @@ Example:
 
 // createPlanFromTopic creates a plan node and scaffolds the CRISPI interactive
 // template. Returns the plan ID (e.g. plan-a1b2c3d4).
-func createPlanFromTopic(htmlgraphDir, title, description string) (string, error) {
-	p, err := workitem.Open(htmlgraphDir, agentForClaim())
+func createPlanFromTopic(wipnoteDir, title, description string) (string, error) {
+	p, err := workitem.Open(wipnoteDir, agentForClaim())
 	if err != nil {
 		return "", fmt.Errorf("open project: %w", err)
 	}
@@ -76,7 +76,7 @@ func createPlanFromTopic(htmlgraphDir, title, description string) (string, error
 	}
 
 	// Create the YAML scaffold (source of truth for plan content).
-	yamlPath := filepath.Join(htmlgraphDir, "plans", node.ID+".yaml")
+	yamlPath := filepath.Join(wipnoteDir, "plans", node.ID+".yaml")
 	if _, err := os.Stat(yamlPath); os.IsNotExist(err) {
 		emptyPlan := planyaml.NewPlan(node.ID, title, description)
 		if err := planyaml.Save(yamlPath, emptyPlan); err != nil {
@@ -91,8 +91,8 @@ func createPlanFromTopic(htmlgraphDir, title, description string) (string, error
 
 // scaffoldCRISPIPlanFromNode regenerates the CRISPI template from a full node,
 // including any existing slices (steps). Used by the re-scaffold path.
-func scaffoldCRISPIPlanFromNode(htmlgraphDir string, node *models.Node) error {
-	plansDir := filepath.Join(htmlgraphDir, "plans")
+func scaffoldCRISPIPlanFromNode(wipnoteDir string, node *models.Node) error {
+	plansDir := filepath.Join(wipnoteDir, "plans")
 	if err := os.MkdirAll(plansDir, 0o755); err != nil {
 		return fmt.Errorf("create plans dir: %w", err)
 	}
@@ -119,7 +119,7 @@ func scaffoldCRISPIPlanFromNode(htmlgraphDir string, node *models.Node) error {
 	}
 
 	// Enrich with Questions and Critique from the YAML file if present.
-	enrichPageFromYAML(htmlgraphDir, node.ID, page)
+	enrichPageFromYAML(wipnoteDir, node.ID, page)
 
 	outPath := filepath.Join(plansDir, node.ID+".html")
 	f, err := os.Create(outPath)
@@ -143,8 +143,8 @@ func ensureGraph(g *plantmpl.DependencyGraph) *plantmpl.DependencyGraph {
 // page.Questions and page.Critique from the YAML data. This bridges the
 // planyaml data model to the plantmpl rendering structs.
 // If the YAML file does not exist the function is a no-op.
-func enrichPageFromYAML(htmlgraphDir, planID string, page *plantmpl.PlanPage) {
-	yamlPath := filepath.Join(htmlgraphDir, "plans", planID+".yaml")
+func enrichPageFromYAML(wipnoteDir, planID string, page *plantmpl.PlanPage) {
+	yamlPath := filepath.Join(wipnoteDir, "plans", planID+".yaml")
 	plan, err := planyaml.Load(yamlPath)
 	if err != nil {
 		if _, statErr := os.Stat(yamlPath); os.IsNotExist(statErr) {
@@ -355,7 +355,7 @@ dashboard plan detail view. The YAML file is the source of truth; the
 HTML file is the rendered artifact.
 
 Example:
-  htmlgraph plan render plan-abc12345`,
+  wipnote plan render plan-abc12345`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
 			return runPlanRender(args[0])
@@ -364,25 +364,25 @@ Example:
 }
 
 func runPlanRender(planID string) error {
-	htmlgraphDir, err := findHtmlgraphDir()
+	wipnoteDir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}
-	return renderPlanToFile(htmlgraphDir, planID)
+	return renderPlanToFile(wipnoteDir, planID)
 }
 
 // renderPlanToFileQuiet regenerates plan HTML from the YAML source without
 // printing to stdout. Used by commitPlanChange to re-render before staging so
 // the committed HTML is always in sync with the YAML (Fix 2 of bug-365a84d9).
-func renderPlanToFileQuiet(htmlgraphDir, planID string) error {
+func renderPlanToFileQuiet(wipnoteDir, planID string) error {
 	page := plantmpl.BuildFromTopic(planID, "", "", time.Now().UTC().Format("2006-01-02"))
-	enrichPageFromYAML(htmlgraphDir, planID, page)
+	enrichPageFromYAML(wipnoteDir, planID, page)
 
 	if page.Title == "" {
 		page.Title = planID
 	}
 
-	outPath := filepath.Join(htmlgraphDir, "plans", planID+".html")
+	outPath := filepath.Join(wipnoteDir, "plans", planID+".html")
 	f, err := os.Create(outPath)
 	if err != nil {
 		return fmt.Errorf("create HTML file: %w", err)
@@ -397,20 +397,20 @@ func renderPlanToFileQuiet(htmlgraphDir, planID string) error {
 
 // renderPlanToFile regenerates plan HTML from the YAML source using the
 // dashboard template. Called by the CLI command and tests.
-func renderPlanToFile(htmlgraphDir, planID string) error {
-	yamlPath := filepath.Join(htmlgraphDir, "plans", planID+".yaml")
+func renderPlanToFile(wipnoteDir, planID string) error {
+	yamlPath := filepath.Join(wipnoteDir, "plans", planID+".yaml")
 	if _, err := os.Stat(yamlPath); err != nil {
-		return fmt.Errorf("YAML source not found: %s\nRun 'htmlgraph plan generate <track-id>' to create a plan", yamlPath)
+		return fmt.Errorf("YAML source not found: %s\nRun 'wipnote plan generate <track-id>' to create a plan", yamlPath)
 	}
 
 	page := plantmpl.BuildFromTopic(planID, "", "", time.Now().UTC().Format("2006-01-02"))
-	enrichPageFromYAML(htmlgraphDir, planID, page)
+	enrichPageFromYAML(wipnoteDir, planID, page)
 
 	if page.Title == "" {
 		page.Title = planID
 	}
 
-	outPath := filepath.Join(htmlgraphDir, "plans", planID+".html")
+	outPath := filepath.Join(wipnoteDir, "plans", planID+".html")
 	f, err := os.Create(outPath)
 	if err != nil {
 		return fmt.Errorf("create HTML file: %w", err)
@@ -442,8 +442,8 @@ func parsePlanStepsAsSlices(node *models.Node) []planSlice {
 }
 
 // findPlanFile returns the path to a plan's HTML file, or empty string.
-func findPlanFile(htmlgraphDir, planID string) string {
-	p := filepath.Join(htmlgraphDir, "plans", planID+".html")
+func findPlanFile(wipnoteDir, planID string) string {
+	p := filepath.Join(wipnoteDir, "plans", planID+".html")
 	if _, err := os.Stat(p); err == nil {
 		return p
 	}
@@ -453,10 +453,10 @@ func findPlanFile(htmlgraphDir, planID string) string {
 // updatePlanStatus sets meta.status in a plan's YAML source of truth.
 // It does NOT touch the HTML file and does NOT commit — callers are
 // responsible for re-rendering and committing via commitPlanChange.
-func updatePlanStatus(htmlgraphDir, planID, newStatus string) error {
-	htmlPath := findPlanFile(htmlgraphDir, planID)
+func updatePlanStatus(wipnoteDir, planID, newStatus string) error {
+	htmlPath := findPlanFile(wipnoteDir, planID)
 	if htmlPath == "" {
-		return fmt.Errorf("plan file not found: %s\nRun 'htmlgraph plan list' to see valid plan IDs", planID)
+		return fmt.Errorf("plan file not found: %s\nRun 'wipnote plan list' to see valid plan IDs", planID)
 	}
 	yamlPath := strings.TrimSuffix(htmlPath, ".html") + ".yaml"
 

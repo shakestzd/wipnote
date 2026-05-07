@@ -150,7 +150,7 @@ type FileTraceResult struct {
 }
 
 // TraceFile returns all features that touched a given file path, enriched
-// with title, status, and parent track. Used by `htmlgraph trace <file>`.
+// with title, status, and parent track. Used by `wipnote trace <file>`.
 func TraceFile(database *sql.DB, filePath string) ([]FileTraceResult, error) {
 	rows, err := database.Query(`
 		SELECT ff.feature_id,
@@ -181,9 +181,9 @@ func TraceFile(database *sql.DB, filePath string) ([]FileTraceResult, error) {
 
 // FileOwner identifies a feature/track that owns a file path.
 type FileOwner struct {
-	FeatureID string
-	TrackID   string
-	Title     string
+	FeatureID  string
+	TrackID    string
+	Title      string
 	TouchCount int
 }
 

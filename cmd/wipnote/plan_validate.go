@@ -38,12 +38,12 @@ func planValidateCmd() *cobra.Command {
 }
 
 func runPlanValidate(planID string) error {
-	htmlgraphDir, err := findHtmlgraphDir()
+	wipnoteDir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}
 
-	result, err := validatePlan(htmlgraphDir, planID)
+	result, err := validatePlan(wipnoteDir, planID)
 	if err != nil {
 		return fmt.Errorf("validate plan: %w", err)
 	}
@@ -54,8 +54,8 @@ func runPlanValidate(planID string) error {
 }
 
 // validatePlan performs structural validation on a plan node.
-func validatePlan(htmlgraphDir, planID string) (planValidation, error) {
-	p, err := workitem.Open(htmlgraphDir, agentForClaim())
+func validatePlan(wipnoteDir, planID string) (planValidation, error) {
+	p, err := workitem.Open(wipnoteDir, agentForClaim())
 	if err != nil {
 		return planValidation{}, fmt.Errorf("open project: %w", err)
 	}
@@ -95,7 +95,7 @@ func validatePlan(htmlgraphDir, planID string) (planValidation, error) {
 	}
 
 	// Count slices — prefer YAML (source of truth), fall back to HTML steps.
-	yamlPath := filepath.Join(htmlgraphDir, "plans", planID+".yaml")
+	yamlPath := filepath.Join(wipnoteDir, "plans", planID+".yaml")
 	yamlSliceCount := 0
 	if plan, loadErr := planyaml.Load(yamlPath); loadErr == nil {
 		yamlSliceCount = len(plan.Slices)
@@ -119,14 +119,14 @@ func validatePlan(htmlgraphDir, planID string) (planValidation, error) {
 	}
 
 	// Verify plan HTML file exists on disk.
-	planPath := findPlanFile(htmlgraphDir, planID)
+	planPath := findPlanFile(wipnoteDir, planID)
 	if planPath == "" {
 		addError("plan HTML file not found on disk")
 		return result, nil
 	}
 
 	// Validate the generated CRISPI HTML file if it exists and looks like one.
-	crisPIPath := filepath.Join(htmlgraphDir, "plans", planID+".html")
+	crisPIPath := filepath.Join(wipnoteDir, "plans", planID+".html")
 	if isCRISPIFile(crisPIPath) {
 		htmlErrs, htmlWarnings, htmlStats := validatePlanHTML(crisPIPath)
 		for _, e := range htmlErrs {

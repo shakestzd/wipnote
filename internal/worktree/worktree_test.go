@@ -297,7 +297,7 @@ func TestEnsureForTrackTitled_TitleRenameIdempotent(t *testing.T) {
 }
 
 // TestEnsureForTrackTitled_BranchExistsWithoutWorktree is the regression test for
-// bug-92690d5b: a prior `htmlgraph yolo --track <id>` left the branch behind but
+// bug-92690d5b: a prior `wipnote yolo --track <id>` left the branch behind but
 // the worktree directory was removed (or the path was deleted manually). A second
 // invocation must succeed by attaching to the existing branch instead of failing
 // with `fatal: a branch named '<id>' already exists`.

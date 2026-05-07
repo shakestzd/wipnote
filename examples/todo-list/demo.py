@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-HtmlGraph Todo List Demo
+wipnote Todo List Demo
 
-Demonstrates basic HtmlGraph usage with a simple todo list.
+Demonstrates basic wipnote usage with a simple todo list.
 Run this script from the examples/todo-list directory.
 """
 
@@ -12,19 +12,19 @@ from pathlib import Path
 # Add src to path for development
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src" / "python"))
 
-from htmlgraph import Edge, HtmlGraph, Node, Step
-from htmlgraph.agents import AgentInterface
+from wipnote import Edge, wipnote, Node, Step
+from wipnote.agents import AgentInterface
 
 
 def main():
-    """Demonstrate HtmlGraph todo list operations."""
+    """Demonstrate wipnote todo list operations."""
     print("=" * 60)
-    print("HtmlGraph Todo List Demo")
+    print("wipnote Todo List Demo")
     print("'HTML is All You Need'")
     print("=" * 60)
 
     # Initialize graph from current directory
-    graph = HtmlGraph(".")
+    graph = wipnote(".")
     print(f"\n📂 Loaded {len(graph)} tasks from HTML files")
 
     # Show stats

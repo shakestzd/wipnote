@@ -2,8 +2,8 @@
 id: orchestrator-directives
 name: Orchestrator Directives Skill
 description: >-
-  erinn orchestration patterns for AI-assisted development. Use when working on code in an
-  erinn project — provides delegation patterns, model selection, quality gates, and work
+  wipnote orchestration patterns for AI-assisted development. Use when working on code in an
+  wipnote project — provides delegation patterns, model selection, quality gates, and work
   tracking guidance. Activate when planning work, delegating to agents, debugging, building
   features, or managing tasks.
 trigger: "when user asks about delegation, orchestration, or cost optimization"
@@ -38,23 +38,23 @@ Task(
 
 ---
 
-## Batching erinn CLI Calls (IMPERATIVE)
+## Batching wipnote CLI Calls (IMPERATIVE)
 
-Each Bash tool call spends one agent turn from the user's quota. **Chain erinn bookkeeping commands with `&&` into a single Bash invocation whenever possible.** erinn exists to reduce agent overhead — do not add it back by issuing one Bash call per `erinn link add`.
+Each Bash tool call spends one agent turn from the user's quota. **Chain wipnote bookkeeping commands with `&&` into a single Bash invocation whenever possible.** wipnote exists to reduce agent overhead — do not add it back by issuing one Bash call per `wipnote link add`.
 
 **Do this (1 tool call):**
 ```bash
-erinn bug create "A" --track trk-xxx --description "..." && \
-erinn bug create "B" --track trk-xxx --description "..." && \
-erinn link add feat-aaa feat-bbb --rel blocks && \
-erinn link add feat-ccc feat-ddd --rel relates_to
+wipnote bug create "A" --track trk-xxx --description "..." && \
+wipnote bug create "B" --track trk-xxx --description "..." && \
+wipnote link add feat-aaa feat-bbb --rel blocks && \
+wipnote link add feat-ccc feat-ddd --rel relates_to
 ```
 
 **Never 4 separate Bash calls for the same thing.**
 
 **When NOT to chain:** only when a downstream command must parse the ID printed by an earlier command. Chain the creators into one call, then chain the dependents into a second call. Two calls, not eight.
 
-Applies to `feature/bug/spike/track/plan create|start|complete|add-step`, `link add|remove`, `feature edit`, and any other erinn bookkeeping.
+Applies to `feature/bug/spike/track/plan create|start|complete|add-step`, `link add|remove`, `feature edit`, and any other wipnote bookkeeping.
 
 ---
 
@@ -201,7 +201,7 @@ Ask yourself these questions:
 
 The orchestrator MAY call the `Read` tool directly, without delegating to `wipnote:researcher` or `wipnote:reader`, when ALL of the following hold:
 
-1. The file is a **data or config file**: YAML, JSON, TOML, Markdown (non-source), `.erinn/**/*.yaml`, `.erinn/**/*.html`, log files, or plain text output
+1. The file is a **data or config file**: YAML, JSON, TOML, Markdown (non-source), `.wipnote/**/*.yaml`, `.wipnote/**/*.html`, log files, or plain text output
 2. It is a **single-file read** — not a glob-then-read pattern, not multiple files
 3. The task is **retrieval only** — you need the content to compose a subsequent delegation or user response, not to modify code
 
@@ -231,14 +231,14 @@ Only these can be executed directly by orchestrator:
    - Create/update todo lists
    - Example: `TodoWrite(todos=[...])`
 
-**erinn CLI operations** (create features and bugs):
-- `erinn feature create "title" --track <trk-id>`
-- `erinn bug create "title" --track <trk-id>`
+**wipnote CLI operations** (create features and bugs):
+- `wipnote feature create "title" --track <trk-id>`
+- `wipnote bug create "title" --track <trk-id>`
 
 **Track Assignment (MANDATORY before creating work items):**
 
 Before creating ANY new track:
-1. Run `erinn track list` to see all existing tracks
+1. Run `wipnote track list` to see all existing tracks
 2. Match the new work against existing track titles and descriptions
 3. Only create a new track if NO existing track covers the scope
 4. When in doubt, ask the user which track to use
@@ -570,17 +570,17 @@ Task(
 </details>
 
 <details>
-<summary><strong>erinn Result Retrieval</strong></summary>
+<summary><strong>wipnote Result Retrieval</strong></summary>
 
 **Subagents report findings automatically:**
 
 When a Task() completes, findings are available via CLI:
 ```bash
 # Check recent spikes
-erinn spike list
+wipnote spike list
 
 # View specific spike
-erinn spike show <id>
+wipnote spike show <id>
 ```
 
 **Pattern: Read findings after Task completes**
@@ -593,7 +593,7 @@ gemini -p "Find all authentication patterns..." --output-format json --yolo --in
 
 ```bash
 # 2. The subagent creates a spike with findings
-# Read findings via: erinn spike list (then spike show <id>)
+# Read findings via: wipnote spike list (then spike show <id>)
 
 # 3. Use findings in next delegation (try codex CLI first)
 codex exec "Implement authentication based on auth pattern research findings..." --full-auto --json -m gpt-4.1-mini -C . 2>&1
@@ -706,7 +706,7 @@ CLAUDE_ORCHESTRATOR_ACTIVE=true  # Set by SDK
 <summary><strong>Session Continuity Across Compacts</strong></summary>
 
 **Features preserved across compact:**
-- Work items in erinn
+- Work items in wipnote
 - Feature/spike tracking
 - Delegation patterns
 - Model selection guidance
@@ -721,7 +721,7 @@ CLAUDE_ORCHESTRATOR_ACTIVE=true  # Set by SDK
 
 ```
 Before compact:
-- Work on features, track in erinn
+- Work on features, track in wipnote
 - Delegate with clear prompts
 - Use SDK to save progress
 
@@ -746,7 +746,7 @@ When delegating to ANY coder agent, include these requirements in the prompt:
 - Prefer well-maintained packages over custom implementations
 
 ### Code Design
-- **DRY** — Extract shared logic; check `src/python/erinn/utils/` for existing utilities before writing new ones
+- **DRY** — Extract shared logic; check `src/python/wipnote/utils/` for existing utilities before writing new ones
 - **Single Responsibility** — One clear purpose per module, class, and function
 - **KISS** — Simplest solution that satisfies current requirements
 - **YAGNI** — Only implement what is needed now, not speculative future needs
@@ -792,7 +792,7 @@ Never commit with unresolved type errors, lint warnings, or test failures.
 - Orchestrator stays available for decisions
 
 **Principle 5: Track Everything**
-- Use erinn CLI to track delegations
+- Use wipnote CLI to track delegations
 - Features, spikes, bugs created for all work
 - Clear record of who did what
 
@@ -851,8 +851,8 @@ The PreToolUse hook enforces attribution before code changes. Behavior by scenar
 **When denied:** Create a work item first, then retry.
 
 ```bash
-erinn feature create "Title" --track <trk-id>   # creates + returns feat-id
-erinn feature start <feat-id>                   # sets attribution for this session
+wipnote feature create "Title" --track <trk-id>   # creates + returns feat-id
+wipnote feature start <feat-id>                   # sets attribution for this session
 ```
 
 **Decision rule for code changes:**
@@ -865,13 +865,13 @@ erinn feature start <feat-id>                   # sets attribution for this sess
 
 - **[/multi-ai-orchestration](/multi-ai-orchestration)** - Comprehensive model selection guide with detailed decision matrix
 - **[/code-quality](/code-quality)** - Quality gates and pre-commit workflows
-- **[/strategic-planning](/strategic-planning)** - erinn analytics for smart prioritization
+- **[/strategic-planning](/strategic-planning)** - wipnote analytics for smart prioritization
 
 ## Reference Documentation
 
 - **Complete Rules:** See [orchestration.md](../../rules/orchestration.md)
 - **Advanced Patterns:** See [reference.md](./reference.md)
-- **erinn CLI:** `erinn --help`
+- **wipnote CLI:** `wipnote --help`
 
 ---
 
@@ -903,7 +903,7 @@ Claude Code v2.1.32+ ships an experimental **agent teams** feature where indepen
 | **Ownership** | Parallel — each teammate claims tasks independently | Sequential — orchestrator dispatches one-at-a-time |
 | **Communication** | Teammates message each other directly | Subagents report back to orchestrator only |
 | **Best for** | Competing-hypothesis debugging, multi-lens review, feature ownership splitting | Sequential task chains, research→implement, isolated single-task work |
-| **erinn tracking** | Automatic — TeammateIdle/TaskCreated/TaskCompleted hooks fire per teammate | Manual — orchestrator attributes via `erinn feature start/complete` |
+| **wipnote tracking** | Automatic — TeammateIdle/TaskCreated/TaskCompleted hooks fire per teammate | Manual — orchestrator attributes via `wipnote feature start/complete` |
 | **Context isolation** | Each teammate has its own context window | Subagents inherit orchestrator's context model |
 | **Cost model** | N teammates × full session cost | Orchestrator + N smaller subagent calls |
 
@@ -913,7 +913,7 @@ Agent teams require explicit opt-in:
 
 1. **Environment variable:** `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`
 2. **Minimum version:** Claude Code **2.1.32** or later
-3. The erinn plugin works with or without teams enabled — hooks gracefully no-op when no team is active
+3. The wipnote plugin works with or without teams enabled — hooks gracefully no-op when no team is active
 
 ### How to Spawn a Team
 
@@ -954,16 +954,16 @@ root cause messages the others.
 ```
 Create an agent team for track trk-XXXX. Each teammate claims
 one unblocked feature and works it to completion. Use
-erinn feature start/complete for attribution.
+wipnote feature start/complete for attribution.
 ```
 
-### What erinn Captures
+### What wipnote Captures
 
-When agent teams are active, erinn automatically records:
+When agent teams are active, wipnote automatically records:
 
 - **Teammate identity** — every TeammateIdle, TaskCreated, and TaskCompleted event includes `teammate_name`
-- **Step attribution** — feature steps are prefixed with `[teammate-name]` so `erinn snapshot` shows who did what
-- **Optional quality gate** — TaskCompleted can run build/test gates before allowing task completion. Opt-in via `.erinn/config.json`:
+- **Step attribution** — feature steps are prefixed with `[teammate-name]` so `wipnote snapshot` shows who did what
+- **Optional quality gate** — TaskCompleted can run build/test gates before allowing task completion. Opt-in via `.wipnote/config.json`:
 
 ```json
 {
@@ -971,4 +971,4 @@ When agent teams are active, erinn automatically records:
 }
 ```
 
-> **WARNING:** Enabling the quality gate can strand teammates. Blocked teammates cannot be `/resume`d. When blocking occurs, stderr includes a manual recovery command: `erinn feature complete <feature-id>`.
+> **WARNING:** Enabling the quality gate can strand teammates. Blocked teammates cannot be `/resume`d. When blocking occurs, stderr includes a manual recovery command: `wipnote feature complete <feature-id>`.

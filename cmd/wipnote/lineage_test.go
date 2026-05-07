@@ -48,7 +48,7 @@ func TestLineageRouting(t *testing.T) {
 		{"abcdef0123456789abcdef0123456789abcdef01", kindCommit}, // 40 hex
 		{"abc1234", kindCommit},                                  // short hex still routes to commit
 		{"internal/db/schema.go", kindFile},
-		{"cmd/htmlgraph/main.go", kindFile},
+		{"cmd/wipnote/main.go", kindFile},
 	}
 	for _, tc := range cases {
 		got := detectLineageKind(tc.arg)

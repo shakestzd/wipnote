@@ -13,8 +13,8 @@ import (
 func TestStatuslineCmd(t *testing.T) {
 	// Create temporary directory for test database
 	tmpDir := t.TempDir()
-	htmlgraphDir := filepath.Join(tmpDir, ".wipnote")
-	if err := os.MkdirAll(htmlgraphDir, 0o755); err != nil {
+	wipnoteDir := filepath.Join(tmpDir, ".wipnote")
+	if err := os.MkdirAll(wipnoteDir, 0o755); err != nil {
 		t.Fatalf("failed to create test directory: %v", err)
 	}
 
@@ -24,7 +24,7 @@ func TestStatuslineCmd(t *testing.T) {
 	os.Chdir(tmpDir)
 
 	// Create and populate test database
-	dbPath := filepath.Join(htmlgraphDir, ".db", "htmlgraph.db")
+	dbPath := filepath.Join(wipnoteDir, ".db", "wipnote.db")
 	db, err := dbpkg.Open(dbPath)
 	if err != nil {
 		t.Fatalf("failed to open database: %v", err)
@@ -217,10 +217,10 @@ func TestReadStatuslineCache_EmptyOnMissing(t *testing.T) {
 // This prevents cross-session state leakage (bug-33476dbf).
 func TestRunStatuslineEmptySession(t *testing.T) {
 	tmpDir := t.TempDir()
-	htmlgraphDir := filepath.Join(tmpDir, ".wipnote")
+	wipnoteDir := filepath.Join(tmpDir, ".wipnote")
 	// Create the standard subdirectories so workitem.Open succeeds if it were called.
 	for _, sub := range []string{"features", "bugs", "spikes", "tracks", "plans", "specs"} {
-		if err := os.MkdirAll(filepath.Join(htmlgraphDir, sub), 0o755); err != nil {
+		if err := os.MkdirAll(filepath.Join(wipnoteDir, sub), 0o755); err != nil {
 			t.Fatalf("mkdir %s: %v", sub, err)
 		}
 	}
@@ -233,12 +233,12 @@ func TestRunStatuslineEmptySession(t *testing.T) {
 <meta name="status" content="in-progress">
 <meta name="title" content="Leaked Feature">
 </head><body></body></html>`
-	featurePath := filepath.Join(htmlgraphDir, "features", "feat-leak1.html")
+	featurePath := filepath.Join(wipnoteDir, "features", "feat-leak1.html")
 	if err := os.WriteFile(featurePath, []byte(featureHTML), 0o644); err != nil {
 		t.Fatalf("write feature: %v", err)
 	}
 
-	// Point the project directory at tmpDir so findHtmlgraphDir can resolve it.
+	// Point the project directory at tmpDir so findWipnoteDir can resolve it.
 	oldProjectDir := projectDirFlag
 	projectDirFlag = tmpDir
 	defer func() { projectDirFlag = oldProjectDir }()

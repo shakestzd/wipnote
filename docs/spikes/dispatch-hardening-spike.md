@@ -11,8 +11,8 @@ This spike captures real DB state from a reproduced sub-agent dispatch and verif
 
 ## Reproduction context
 
-The orchestrator (this session) ran `htmlgraph feature start feat-060b396d` and dispatched
-`Agent({isolation:"worktree", subagent_type:"htmlgraph:researcher", prompt:...})` from
+The orchestrator (this session) ran `wipnote feature start feat-060b396d` and dispatched
+`Agent({isolation:"worktree", subagent_type:"wipnote:researcher", prompt:...})` from
 inside the worktree at `.claude/worktrees/multi-project-hardening-per-trk-cb36e595`
 (branch `trk-cb36e595`).
 
@@ -34,9 +34,9 @@ This split is the core invariant: **the `sessions` table tracks sub-agents with 
 `git worktree list` after dispatch:
 
 ```
-/workspaces/htmlgraph                                                             [main]
-/workspaces/htmlgraph/.claude/worktrees/crispi-spec-definition-trk-13e39042       [trk-13e39042]
-/workspaces/htmlgraph/.claude/worktrees/multi-project-hardening-per-trk-cb36e595  [trk-cb36e595]
+/workspaces/wipnote                                                             [main]
+/workspaces/wipnote/.claude/worktrees/crispi-spec-definition-trk-13e39042       [trk-13e39042]
+/workspaces/wipnote/.claude/worktrees/multi-project-hardening-per-trk-cb36e595  [trk-cb36e595]
 ```
 
 **No nested worktree was created for the dispatched sub-agent.** The sub-agent operated
@@ -54,8 +54,8 @@ at lines 178-181 documents the invariant explicitly:
 > orchestrator's claim is keyed on owner_session_id, so this resolves the parent's
 > claim for any subagent running under it.
 
-**bug-cb4918d8 not found.** `htmlgraph bug show bug-cb4918d8` returns "work item not
-found." `htmlgraph find cb4918d8` returns no matches. The bug ID is referenced only in
+**bug-cb4918d8 not found.** `wipnote bug show bug-cb4918d8` returns "work item not
+found." `wipnote find cb4918d8` returns no matches. The bug ID is referenced only in
 code comments and in plan-ff425b9f's own description. The original bug record may have
 been deleted, renumbered, or never created — the **fix shipped on 2026-04-13** as commit
 `7a252c1f1bd7d224a9398e8ded1be81f8c6013f9` ("fix(hooks): populate subagent lineage +
@@ -159,19 +159,19 @@ test fixture exactly mirrors the bug-cb4918d8 pattern (claim with
 DIFFERENT agent_id but same session_id). No new transient test was needed.
 
 **Bug #87's quoted error message ("feature claim is owned by session X but my session
-is Y") is NOT present in current htmlgraph code.** Searched all of `internal/hooks/`
+is Y") is NOT present in current wipnote code.** Searched all of `internal/hooks/`
 and `cmd/`; no such message format exists. The current "Write blocked" message
 (`pretooluse.go:613-620`) prints `feature=<id>  claim=<id>` in a different shape.
 Either the bug paraphrased the message, or the cited 6/8 dispatch ran on an older
-or different codebase (the cited track `trk-9a3c622d` from "jobsmith" — `htmlgraph
-track show trk-9a3c622d` returns "not found" in the htmlgraph project's graph;
+or different codebase (the cited track `trk-9a3c622d` from "jobsmith" — `wipnote
+track show trk-9a3c622d` returns "not found" in the wipnote project's graph;
 this dispatch ran in another project's repo).
 
 **Finding:** The existing COALESCE fallback **already covers the cited #87 attribution
-mechanism** for any dispatch on a current htmlgraph build (≥ commit 7a252c1f,
+mechanism** for any dispatch on a current wipnote build (≥ commit 7a252c1f,
 2026-04-13). The bugs were filed 2026-05-05, three weeks AFTER the fix shipped, but
 they reference a dispatch on an external (jobsmith) project — likely on a stale
-htmlgraph version. **Slice 1 (feat-ecd82f68) is solving a problem that the current
+wipnote version. **Slice 1 (feat-ecd82f68) is solving a problem that the current
 codebase does not have.**
 
 ---
@@ -181,7 +181,7 @@ codebase does not have.**
 **Code:** `internal/hooks/yolo_guard.go:26-68`
 
 ```go
-func isYoloFromEvent(event *CloudEvent, htmlgraphDir string) bool {
+func isYoloFromEvent(event *CloudEvent, wipnoteDir string) bool {
     if event.PermissionMode == "bypassPermissions" {
         return true
     }
@@ -190,10 +190,10 @@ func isYoloFromEvent(event *CloudEvent, htmlgraphDir string) bool {
         return false
     }
     // Fallback: check DB for session's last known permission_mode.
-    return isYoloFromDB(htmlgraphDir, event.SessionID)
+    return isYoloFromDB(wipnoteDir, event.SessionID)
 }
 
-func isYoloFromDB(htmlgraphDir, sessionID string) bool {
+func isYoloFromDB(wipnoteDir, sessionID string) bool {
     // ... opens DB, runs:
     // SELECT json_extract(metadata, '$.permission_mode') FROM sessions WHERE session_id = ?
 }
@@ -216,8 +216,8 @@ func isYoloFromDB(htmlgraphDir, sessionID string) bool {
 
 **Direct evidence from this dispatch:** the orchestrator's session row has
 `metadata.permission_mode = NULL` (the field was never written). My session was
-not actually in YOLO mode — this is a `htmlgraph claude --dev` session, not
-`htmlgraph yolo`. So I cannot directly observe YOLO propagation from this
+not actually in YOLO mode — this is a `wipnote claude --dev` session, not
+`wipnote yolo`. So I cannot directly observe YOLO propagation from this
 reproduction. But I can verify the code path:
 
 - If `event.PermissionMode == ""` for a sub-agent CloudEvent (Claude Code does NOT
@@ -232,7 +232,7 @@ unverified without a YOLO-mode reproduction**. Slice 3 cannot be properly
 designed until we observe what `event.PermissionMode` actually contains for sub-agent
 CloudEvents in a YOLO orchestrator.
 
-**Recommended verification step (deferred to slice 3 scoping):** start a `htmlgraph
+**Recommended verification step (deferred to slice 3 scoping):** start a `wipnote
 yolo` session, dispatch a sub-agent, dump
 `SELECT data FROM agent_events WHERE agent_id = '<sub>' LIMIT 1` and inspect the
 `permission_mode` field of the captured CloudEvent payload.
@@ -265,15 +265,15 @@ worktrees were created (`git worktree list` showed no sub-agent worktrees), and 
 agents wrote/committed in the parent's wd, which after a checkout had ended up on main."
 
 **Direct evidence from this dispatch:** the orchestrator is in
-`/workspaces/htmlgraph/.claude/worktrees/multi-project-hardening-per-trk-cb36e595` on
+`/workspaces/wipnote/.claude/worktrees/multi-project-hardening-per-trk-cb36e595` on
 branch `trk-cb36e595`. The sub-agent was spawned with
-`Agent({isolation:"worktree", subagent_type:"htmlgraph:researcher"})`. After dispatch:
+`Agent({isolation:"worktree", subagent_type:"wipnote:researcher"})`. After dispatch:
 
 ```
 $ git worktree list
-/workspaces/htmlgraph                                                             [main]
-/workspaces/htmlgraph/.claude/worktrees/crispi-spec-definition-trk-13e39042       [trk-13e39042]
-/workspaces/htmlgraph/.claude/worktrees/multi-project-hardening-per-trk-cb36e595  [trk-cb36e595]
+/workspaces/wipnote                                                             [main]
+/workspaces/wipnote/.claude/worktrees/crispi-spec-definition-trk-13e39042       [trk-13e39042]
+/workspaces/wipnote/.claude/worktrees/multi-project-hardening-per-trk-cb36e595  [trk-cb36e595]
 ```
 
 **No new worktree was created for the sub-agent.** Confirmed: when the parent
@@ -307,7 +307,7 @@ mostly fixed too.
 (legitimate, deliberate non-YOLO dispatch) can still commit to main with no guard.
 The fix is a YOLO-independent guard: refuse `git commit` from `is_subagent=1`
 sessions on `main`/`master`/origin's HEAD branch, regardless of YOLO state. This
-is the "defense-in-depth at htmlgraph's layer" the bug record recommends.
+is the "defense-in-depth at wipnote's layer" the bug record recommends.
 
 **`is_subagent` detection caveat:** as noted in Q2, `ctx.IsSubagent` for a
 sub-agent's tool call comes from `sessions WHERE session_id = event.SessionID`,
@@ -332,7 +332,7 @@ orchestrator, because both look up the same sessions row.
 - **#87 (attribution claim):** **Already fixed** by COALESCE fallback in
   `GetToolUseContext` (commit `7a252c1f`, 2026-04-13). The cited 6/8 failure
   reflects a dispatch on an older or external (jobsmith) codebase. No further fix
-  needed in current htmlgraph.
+  needed in current wipnote.
 
 - **#88 (commit-to-main):** Two-part mechanism:
   1. `Agent({isolation:"worktree"})` from a parent already in a worktree does NOT
@@ -373,11 +373,11 @@ orchestrator, because both look up the same sessions row.
 | Logging for chain inheritance | Could be useful for telemetry, but outside the original problem scope. |
 
 **Verdict: WRONG-PROBLEM. Drop slice 1 entirely.** The bug is already fixed in
-current htmlgraph. The plan's misreading of the cited dispatch (which happened on
-an external project, possibly older htmlgraph) led to drafting a fix for an
+current wipnote. The plan's misreading of the cited dispatch (which happened on
+an external project, possibly older wipnote) led to drafting a fix for an
 already-solved problem. Recommend marking feat-ecd82f68 as `won't fix — already
 resolved by commit 7a252c1f`. If new attribution failures surface, file a fresh
-bug with concrete repro on current htmlgraph.
+bug with concrete repro on current wipnote.
 
 ### Slice 2 (feat-9cef857b — PreToolUse guard refuses sub-agent git commit on main)
 
@@ -431,7 +431,7 @@ for a sub-agent's tool call when the parent is in YOLO mode?** Three scenarios:
    34. **Inheritance broken.**
 
 Recommendation: **before implementing slice 3**, run a YOLO reproduction
-(`htmlgraph yolo` session, dispatch a sub-agent, capture
+(`wipnote yolo` session, dispatch a sub-agent, capture
 `agent_events.data` for the sub-agent's tool call). If scenario 1 or 2: drop
 slice 3. If scenario 3: the fix is to check `is_subagent` for the event's
 session and, if true, prefer the parent's DB posture over the live event field.
@@ -469,7 +469,7 @@ broken — see #88 analysis).
 
 ### Defer or drop slice 3 (feat-72876845)
 
-1. **Block on YOLO reproduction first.** Run a `htmlgraph yolo` session,
+1. **Block on YOLO reproduction first.** Run a `wipnote yolo` session,
    dispatch a sub-agent, dump
    `SELECT data FROM agent_events WHERE agent_id = '<sub>' AND tool_name = 'Edit' LIMIT 1`.
 2. Inspect `data` for `permission_mode`:
@@ -486,10 +486,10 @@ broken — see #88 analysis).
   the orchestrator's row. Fix: add a second lookup keyed on `event.AgentID`
   (sub-agent's own session row) and expose `IsSubagent` from THAT row. This
   unblocks slices 2 and 3 simultaneously.
-- **Bug records #87/#88/#90 should cite the htmlgraph version of the cited
+- **Bug records #87/#88/#90 should cite the wipnote version of the cited
   dispatch.** Without knowing whether the dispatch ran pre- or post-
   `7a252c1f`, the bug analysis is ambiguous. Future bug filings on dispatch
-  failures should include `htmlgraph version` output and the
+  failures should include `wipnote version` output and the
   `claims.claimed_by_agent_id` value observed in DB.
 
 ---

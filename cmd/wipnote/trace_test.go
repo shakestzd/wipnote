@@ -19,7 +19,7 @@ func TestLooksLikeFilePath(t *testing.T) {
 		want bool
 	}{
 		{"internal/db/schema.go", true},
-		{"cmd/htmlgraph/main.go", true},
+		{"cmd/wipnote/main.go", true},
 		{"file.go", true},
 		{"./relative/path", true},
 		{"abc1234", false},

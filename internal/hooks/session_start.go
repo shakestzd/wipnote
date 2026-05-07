@@ -44,13 +44,13 @@ func WriteActiveSession(sessionID, projectDir string) {
 		return
 	}
 	data := ActiveSessionData{
-		SessionID:    sessionID,
+		SessionID:     sessionID,
 		ParentSession: sessionID,
-		ParentAgent:  "claude-code",
-		NestingDepth: 0,
-		ProjectDir:   projectDir,
-		GitRemoteURL: paths.GetGitRemoteURL(projectDir),
-		Timestamp:    float64(time.Now().UnixNano()) / 1e9,
+		ParentAgent:   "claude-code",
+		NestingDepth:  0,
+		ProjectDir:    projectDir,
+		GitRemoteURL:  paths.GetGitRemoteURL(projectDir),
+		Timestamp:     float64(time.Now().UnixNano()) / 1e9,
 	}
 	b, err := json.Marshal(data)
 	if err != nil {
@@ -97,7 +97,7 @@ func ReadActiveSession(projectDir string) *ActiveSessionData {
 }
 
 // launchModeFile is the JSON structure written to .wipnote/.launch-mode by
-// `htmlgraph claude`. It records how the current Claude session was started.
+// `wipnote claude`. It records how the current Claude session was started.
 type launchModeFile struct {
 	Mode      string `json:"mode"`
 	PID       int    `json:"pid"`
@@ -105,7 +105,7 @@ type launchModeFile struct {
 }
 
 // bareLaunchNudge returns a context nudge when Claude was started without
-// `htmlgraph claude` (i.e. .launch-mode is missing or older than 30 seconds).
+// `wipnote claude` (i.e. .launch-mode is missing or older than 30 seconds).
 // Returns an empty string when the orchestrator system prompt is already active.
 func bareLaunchNudge(projectDir string) string {
 	if projectDir == "" {
@@ -119,10 +119,10 @@ func bareLaunchNudge(projectDir string) string {
 			return ""
 		}
 	}
-	return "HtmlGraph plugin is active in this project. For the best experience with orchestrated delegation, " +
-		"work tracking, and quality gates, use the /htmlgraph:orchestrator-directives-skill for guidance " +
+	return "wipnote plugin is active in this project. For the best experience with orchestrated delegation, " +
+		"work tracking, and quality gates, use the /wipnote:orchestrator-directives-skill for guidance " +
 		"on how to delegate work, select models, and manage tasks. You can also start sessions with " +
-		"`htmlgraph claude` for automatic orchestrator mode."
+		"`wipnote claude` for automatic orchestrator mode."
 }
 
 // SessionStart handles the SessionStart Claude Code hook event.
@@ -166,16 +166,16 @@ func SessionStart(event *CloudEvent, database *sql.DB, projectDir string) (*Hook
 	startCommit := <-commitCh
 
 	s := &models.Session{
-		SessionID:       sessionID,
-		AgentAssigned:   resolveEventAgentID(event),
-		Status:          "active",
-		CreatedAt:       now,
-		StartCommit:     startCommit,
-		IsSubagent:      isSubagentEvent(event) || isSubagent(),
-		Model: os.Getenv("CLAUDE_MODEL"),
+		SessionID:     sessionID,
+		AgentAssigned: resolveEventAgentID(event),
+		Status:        "active",
+		CreatedAt:     now,
+		StartCommit:   startCommit,
+		IsSubagent:    isSubagentEvent(event) || isSubagent(),
+		Model:         os.Getenv("CLAUDE_MODEL"),
 		// TODO(bug-cb4918d8): remove after lineage wiring verified end-to-end.
 		// These env vars are NEVER set in subagent hook contexts (confirmed via
-		// /tmp/htmlgraph-hook-trace.jsonl); lineage now flows through the
+		// /tmp/wipnote-hook-trace.jsonl); lineage now flows through the
 		// subagent-start hook writing sessions+agent_lineage_trace directly.
 		ParentSessionID: os.Getenv("WIPNOTE_PARENT_SESSION"),
 		ParentEventID:   os.Getenv("WIPNOTE_PARENT_EVENT"),
@@ -255,7 +255,7 @@ func SessionStart(event *CloudEvent, database *sql.DB, projectDir string) (*Hook
 	}
 
 	// Fallback nudge if no attribution block was generated (no open items).
-	// This nudge uses the same "HtmlGraph plugin is active..." message.
+	// This nudge uses the same "wipnote plugin is active..." message.
 	if nudge := bareLaunchNudge(projectDir); nudge != "" {
 		return &HookResult{AdditionalContext: nudge}, nil
 	}
@@ -267,14 +267,14 @@ func SessionStart(event *CloudEvent, database *sql.DB, projectDir string) (*Hook
 // the transaction. All fields are computed from read-only DB queries before
 // the transaction begins.
 type lineageInputs struct {
-	featureID     string
-	rootSessionID string
+	featureID       string
+	rootSessionID   string
 	parentSessionID string
-	depth         int
-	path          []string
-	parentAgent   string
-	myAgent       string
-	needsRootSeed bool
+	depth           int
+	path            []string
+	parentAgent     string
+	myAgent         string
+	needsRootSeed   bool
 }
 
 // resolveParentLineage reads the parent's lineage record and builds the inputs
@@ -410,16 +410,16 @@ func writeEnvVars(sessionID, projectDir string) {
 
 	envFile := os.Getenv("CLAUDE_ENV_FILE")
 	if envFile == "" {
-		debugLog(projectDir, "[htmlgraph] CLAUDE_ENV_FILE unset — using .active-session only (session_id=%s)", sessionID)
+		debugLog(projectDir, "[wipnote] CLAUDE_ENV_FILE unset — using .active-session only (session_id=%s)", sessionID)
 		return
 	}
 	if err := os.MkdirAll(filepath.Dir(envFile), 0o755); err != nil {
-		debugLog(projectDir, "[htmlgraph] failed to create CLAUDE_ENV_FILE dir %s: %v", filepath.Dir(envFile), err)
+		debugLog(projectDir, "[wipnote] failed to create CLAUDE_ENV_FILE dir %s: %v", filepath.Dir(envFile), err)
 		return
 	}
 	f, err := os.OpenFile(envFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
 	if err != nil {
-		debugLog(projectDir, "[htmlgraph] failed to open CLAUDE_ENV_FILE %s: %v", envFile, err)
+		debugLog(projectDir, "[wipnote] failed to open CLAUDE_ENV_FILE %s: %v", envFile, err)
 		return
 	}
 	defer f.Close()
@@ -504,15 +504,15 @@ func buildSessionStartAttribution(database *sql.DB) string {
 
 	// Build the intro.
 	lines := []string{
-		"HtmlGraph plugin is active in this project. For the best experience with orchestrated delegation, " +
-			"work tracking, and quality gates, use the /htmlgraph:orchestrator-directives-skill for guidance " +
+		"wipnote plugin is active in this project. For the best experience with orchestrated delegation, " +
+			"work tracking, and quality gates, use the /wipnote:orchestrator-directives-skill for guidance " +
 			"on how to delegate work, select models, and manage tasks. You can also start sessions with " +
-			"`htmlgraph claude` for automatic orchestrator mode.",
+			"`wipnote claude` for automatic orchestrator mode.",
 		"",
 	}
 
 	lines = append(lines, "## Work Item Attribution (CIGS)", "")
-	lines = append(lines, "**Open work items** — run `htmlgraph feature start <id>`:")
+	lines = append(lines, "**Open work items** — run `wipnote feature start <id>`:")
 	for _, item := range open {
 		lines = append(lines, fmt.Sprintf("  `%s` — %s [%s]", item.id, item.title, item.status))
 	}
@@ -524,42 +524,42 @@ func buildSessionStartAttribution(database *sql.DB) string {
 // emitRosettaEvent writes a session_start NDJSON line correlating the
 // launcher-minted WIPNOTE_SESSION_ID with Claude Code's own session_id.
 // This is the "Rosetta stone" record that lets the dashboard map a
-// `claude --resume <id>` back to the originating htmlgraph session.
+// `claude --resume <id>` back to the originating wipnote session.
 //
 // The event is written only when WIPNOTE_SESSION_ID is set (i.e. the
-// session was started via `htmlgraph claude`). If it is unset, or if the
+// session was started via `wipnote claude`). If it is unset, or if the
 // session directory cannot be created, the function returns silently.
-func emitRosettaEvent(projectDir, htmlgraphSID, claudeSessionID string) {
-	if htmlgraphSID == "" {
+func emitRosettaEvent(projectDir, wipnoteSID, claudeSessionID string) {
+	if wipnoteSID == "" {
 		return // not a launcher-managed session; skip silently
 	}
 
-	sessDir := filepath.Join(projectDir, ".wipnote", "sessions", htmlgraphSID)
+	sessDir := filepath.Join(projectDir, ".wipnote", "sessions", wipnoteSID)
 	if err := os.MkdirAll(sessDir, 0o755); err != nil {
 		debugLog(projectDir, "[session-start] rosetta: mkdir session dir: %v", err)
 		return
 	}
 
-	snk, err := ndjson.New(projectDir, htmlgraphSID)
+	snk, err := ndjson.New(projectDir, wipnoteSID)
 	if err != nil {
 		debugLog(projectDir, "[session-start] rosetta: create ndjson sink: %v", err)
 		return
 	}
 
 	sig := otel.UnifiedSignal{
-		Harness:       "htmlgraph",
-		SignalID:      "session-start-" + htmlgraphSID,
+		Harness:       "wipnote",
+		SignalID:      "session-start-" + wipnoteSID,
 		Kind:          otel.KindLog,
 		CanonicalName: otel.CanonicalSessionStart,
 		NativeName:    "session_start",
 		Timestamp:     time.Now().UTC(),
-		SessionID:     htmlgraphSID,
+		SessionID:     wipnoteSID,
 		RawAttrs: map[string]any{
-			"htmlgraph_sid":    htmlgraphSID,
+			"wipnote_sid":       wipnoteSID,
 			"claude_session_id": claudeSessionID,
 		},
 	}
-	if err := snk.WriteBatch(context.Background(), "htmlgraph", nil, []otel.UnifiedSignal{sig}); err != nil {
+	if err := snk.WriteBatch(context.Background(), "wipnote", nil, []otel.UnifiedSignal{sig}); err != nil {
 		debugLog(projectDir, "[session-start] rosetta: write event: %v", err)
 	}
 }

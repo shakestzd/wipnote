@@ -69,7 +69,7 @@ func CreateSessionHTML(projectDir string, s *models.Session) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="htmlgraph-version" content="1.0">
+    <meta name="wipnote-version" content="1.0">
     <title>Session `)
 	b.WriteString(html.EscapeString(startedAt))
 	b.WriteString(`</title>
@@ -300,15 +300,15 @@ func FinalizeSessionHTML(projectDir, sessionID, endedAt, status string, eventCou
 // tool call, so the resulting file is byte-for-byte compatible with a
 // live-hook-written session and round-trips through reindexSessions.
 //
-// htmlgraphDir is the .wipnote directory of the project receiving the
+// wipnoteDir is the .wipnote directory of the project receiving the
 // ingest. sessionSourceDir is the decoded Claude-projects project directory
 // the session originated from and is recorded on the session model for
 // display scoping. The render is a no-op when the target HTML file already
 // exists unless force is true — live hook writes are authoritative and
 // ingest must not clobber them.
-func RenderIngestedSessionHTML(htmlgraphDir, sessionID, sessionSourceDir string, result *ingest.ParseResult, force bool) error {
-	parentDir := filepath.Dir(htmlgraphDir)
-	htmlPath := filepath.Join(htmlgraphDir, "sessions", sessionID+".html")
+func RenderIngestedSessionHTML(wipnoteDir, sessionID, sessionSourceDir string, result *ingest.ParseResult, force bool) error {
+	parentDir := filepath.Dir(wipnoteDir)
+	htmlPath := filepath.Join(wipnoteDir, "sessions", sessionID+".html")
 	if !force {
 		if _, err := os.Stat(htmlPath); err == nil {
 			return nil

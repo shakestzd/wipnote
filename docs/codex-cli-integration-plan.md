@@ -1,8 +1,8 @@
-# HtmlGraph Plan for Codex CLI
+# wipnote Plan for Codex CLI
 
 ## Goal
 
-Make HtmlGraph work well in Codex CLI without pretending Codex is Claude Code.
+Make wipnote work well in Codex CLI without pretending Codex is Claude Code.
 
 The right target is:
 
@@ -16,19 +16,19 @@ The wrong target is a file-for-file port of the Claude plugin.
 
 ## Executive Summary
 
-HtmlGraph already has a reusable core:
+wipnote already has a reusable core:
 
-- the `htmlgraph` CLI is host-neutral
+- the `wipnote` CLI is host-neutral
 - the hook runner is already a Go binary with a generic event envelope
 - the repo already has `AGENTS.md` and `CODEX.md`
 - Codex is already recognized as an agent identity in `internal/agent/detect.go`
 
 But the current ecosystem is still mostly Claude-shaped:
 
-- plugin packaging is Claude-only: [plugin/.claude-plugin/plugin.json](/workspaces/htmlgraph/plugin/.claude-plugin/plugin.json:1)
-- plugin install UX is Claude-only: [cmd/htmlgraph/plugin.go](/workspaces/htmlgraph/cmd/htmlgraph/plugin.go:1)
-- session discovery is Claude-only: [internal/ingest/discover.go](/workspaces/htmlgraph/internal/ingest/discover.go:15)
-- hook behavior assumes Claude events far beyond what Codex currently emits: [plugin/hooks/hooks.json](/workspaces/htmlgraph/plugin/hooks/hooks.json:1), [cmd/htmlgraph/hook.go](/workspaces/htmlgraph/cmd/htmlgraph/hook.go:13)
+- plugin packaging is Claude-only: [plugin/.claude-plugin/plugin.json](../plugin/.claude-plugin/plugin.json:1)
+- plugin install UX is Claude-only: [cmd/wipnote/plugin.go](../cmd/wipnote/plugin.go:1)
+- session discovery is Claude-only: [internal/ingest/discover.go](../internal/ingest/discover.go:15)
+- hook behavior assumes Claude events far beyond what Codex currently emits: [plugin/hooks/hooks.json](../plugin/hooks/hooks.json:1), [cmd/wipnote/hook.go](../cmd/wipnote/hook.go:13)
 
 So the plan should be:
 
@@ -41,18 +41,18 @@ So the plan should be:
 
 ### Reusable Core
 
-- `htmlgraph hook ...` is already a compiled hook surface, not a pile of shell scripts: [cmd/htmlgraph/hook.go](/workspaces/htmlgraph/cmd/htmlgraph/hook.go:13)
-- hook payload parsing is already generic enough to map onto Codex fields like `session_id`, `cwd`, `model`, `tool_name`, and `transcript_path`: [internal/hooks/runner.go](/workspaces/htmlgraph/internal/hooks/runner.go:17)
-- session start already stores `transcript_path` when provided by the runtime: [internal/hooks/session_start.go](/workspaces/htmlgraph/internal/hooks/session_start.go:179)
-- user-prompt and tool-use hooks already record HtmlGraph events in SQLite: [internal/hooks/user_prompt.go](/workspaces/htmlgraph/internal/hooks/user_prompt.go:14), [internal/hooks/pretooluse.go](/workspaces/htmlgraph/internal/hooks/pretooluse.go:17)
-- `selfBinary()` is only mildly Claude-coupled and already falls back to `os.Executable()` and `PATH`: [internal/hooks/task_tracking.go](/workspaces/htmlgraph/internal/hooks/task_tracking.go:12)
+- `wipnote hook ...` is already a compiled hook surface, not a pile of shell scripts: [cmd/wipnote/hook.go](../cmd/wipnote/hook.go:13)
+- hook payload parsing is already generic enough to map onto Codex fields like `session_id`, `cwd`, `model`, `tool_name`, and `transcript_path`: [internal/hooks/runner.go](../internal/hooks/runner.go:17)
+- session start already stores `transcript_path` when provided by the runtime: [internal/hooks/session_start.go](../internal/hooks/session_start.go:179)
+- user-prompt and tool-use hooks already record wipnote events in SQLite: [internal/hooks/user_prompt.go](../internal/hooks/user_prompt.go:14), [internal/hooks/pretooluse.go](../internal/hooks/pretooluse.go:17)
+- `selfBinary()` is only mildly Claude-coupled and already falls back to `os.Executable()` and `PATH`: [internal/hooks/task_tracking.go](../internal/hooks/task_tracking.go:12)
 
 ### Existing Codex Surface
 
-- repo-level Codex guidance exists: [CODEX.md](/workspaces/htmlgraph/CODEX.md:1)
-- repo-local Codex config now exists: [.codex/config.toml](/workspaces/htmlgraph/.codex/config.toml:1)
-- the repo already contains an earlier Codex review: [docs/codex-interoperability-review.md](/workspaces/htmlgraph/docs/codex-interoperability-review.md:1)
-- the orchestrator prompt already mentions `codex exec ...` as an external coding path: [cmd/htmlgraph/prompts/system-prompt.md](/workspaces/htmlgraph/cmd/htmlgraph/prompts/system-prompt.md:45)
+- repo-level Codex guidance exists: [CODEX.md](../CODEX.md:1)
+- repo-local Codex config now exists: [.codex/config.toml](../.codex/config.toml:1)
+- the repo already contains an earlier Codex review: [docs/codex-interoperability-review.md](../docs/codex-interoperability-review.md:1)
+- the orchestrator prompt already mentions `codex exec ...` as an external coding path: [cmd/wipnote/prompts/system-prompt.md](../cmd/wipnote/prompts/system-prompt.md:45)
 
 ### Content That Transfers Well
 
@@ -70,9 +70,9 @@ Current Claude assets:
 
 ### 1. Packaging Is Claude-Only
 
-The shipped plugin manifest is `.claude-plugin`, not `.codex-plugin`: [plugin/.claude-plugin/plugin.json](/workspaces/htmlgraph/plugin/.claude-plugin/plugin.json:1)
+The shipped plugin manifest is `.claude-plugin`, not `.codex-plugin`: [plugin/.claude-plugin/plugin.json](../plugin/.claude-plugin/plugin.json:1)
 
-The CLI installer only knows how to call `claude plugin ...`: [cmd/htmlgraph/plugin.go](/workspaces/htmlgraph/cmd/htmlgraph/plugin.go:16)
+The CLI installer only knows how to call `claude plugin ...`: [cmd/wipnote/plugin.go](../cmd/wipnote/plugin.go:16)
 
 Impact:
 
@@ -82,7 +82,7 @@ Impact:
 
 ### 2. Hook Coverage Assumes Claude’s Larger Event Model
 
-HtmlGraph currently wires many events that Codex does not expose:
+wipnote currently wires many events that Codex does not expose:
 
 - `SessionEnd`
 - `SubagentStart`
@@ -95,7 +95,7 @@ HtmlGraph currently wires many events that Codex does not expose:
 - `PermissionRequest`
 - `WorktreeCreate`
 - `WorktreeRemove`
-- others in [plugin/hooks/hooks.json](/workspaces/htmlgraph/plugin/hooks/hooks.json:1)
+- others in [plugin/hooks/hooks.json](../plugin/hooks/hooks.json:1)
 
 Codex’s documented hook surface is smaller and the important constraint is stricter:
 
@@ -111,12 +111,12 @@ Source: OpenAI Codex Hooks docs, especially lines covering locations, matcher be
 
 Impact:
 
-- HtmlGraph cannot rely on Codex hooks to observe `Read`, `Write`, `Edit`, MCP, Web, or other tool classes
+- wipnote cannot rely on Codex hooks to observe `Read`, `Write`, `Edit`, MCP, Web, or other tool classes
 - many current guardrails cannot be enforced in Codex the same way they are in Claude
 
 ### 3. Session Ingestion Is Claude-Specific
 
-Session discovery currently scans `~/.claude/projects/`: [internal/ingest/discover.go](/workspaces/htmlgraph/internal/ingest/discover.go:15)
+Session discovery currently scans `~/.claude/projects/`: [internal/ingest/discover.go](../internal/ingest/discover.go:15)
 
 Impact:
 
@@ -125,7 +125,7 @@ Impact:
 
 ### 4. Public Install Story Is Still Claude-First
 
-The README still recommends the Claude plugin first: [README.md](/workspaces/htmlgraph/README.md:24)
+The README still recommends the Claude plugin first: [README.md](../README.md:24)
 
 Impact:
 
@@ -176,7 +176,7 @@ Design implication:
 
 ### Skills
 
-Codex skills are a strong fit for HtmlGraph’s workflow content.
+Codex skills are a strong fit for wipnote’s workflow content.
 
 Important current facts from official docs:
 
@@ -188,7 +188,7 @@ Source: https://developers.openai.com/codex/skills
 
 Design implication:
 
-- migrate HtmlGraph workflow UX into skills first
+- migrate wipnote workflow UX into skills first
 - treat most existing Claude command docs as source material, not as a target format
 
 ### Plugins
@@ -206,7 +206,7 @@ Source: https://developers.openai.com/codex/plugins
 
 Design implication:
 
-- HtmlGraph should ship one Codex plugin bundle
+- wipnote should ship one Codex plugin bundle
 - that bundle should prioritize skills and an MCP server over command mirroring
 
 ### Agents
@@ -223,7 +223,7 @@ Source: Codex Subagents docs snippet showing `.codex/agents/reviewer.toml` and T
 
 Design implication:
 
-- port HtmlGraph agents by re-encoding them as Codex TOML agents
+- port wipnote agents by re-encoding them as Codex TOML agents
 - do not try to reuse Claude markdown/frontmatter agent files directly
 
 ### AGENTS.md and Config
@@ -255,7 +255,7 @@ Keep these as the stable shared layer:
 - work-item CRUD and graph logic
 - SQLite schema and event persistence
 - dashboard and API
-- `htmlgraph` CLI
+- `wipnote` CLI
 - generic hook event persistence helpers
 
 ## 2. Host Adapter Layer
@@ -281,7 +281,7 @@ Create a real Codex plugin tree, separate from `plugin/`:
 
 Suggested path:
 
-- `plugins/htmlgraph-codex/`
+- `plugins/wipnote-codex/`
 
 Suggested contents:
 
@@ -312,9 +312,9 @@ Write down what “works for Codex CLI” means for v1.
 Definition of done for v1:
 
 - repo-local Codex usage is documented and stable
-- HtmlGraph records Codex sessions, prompts, and Bash tool events
-- HtmlGraph ships a Codex plugin with core skills
-- HtmlGraph ships a small set of Codex custom agents
+- wipnote records Codex sessions, prompts, and Bash tool events
+- wipnote ships a Codex plugin with core skills
+- wipnote ships a small set of Codex custom agents
 - public docs accurately describe Codex support and limitations
 
 Non-goals for v1:
@@ -355,7 +355,7 @@ Deliverables:
 
 Key tasks:
 
-1. Add a Codex hook manifest that shells out to `htmlgraph hook ...`.
+1. Add a Codex hook manifest that shells out to `wipnote hook ...`.
 2. Add a Codex event normalization shim if needed so stdin payloads map onto the existing `CloudEvent` structure.
 3. Restrict matcher usage correctly:
    - `SessionStart`: `startup|resume`
@@ -386,14 +386,14 @@ Key tasks:
 
 Success criteria:
 
-- `htmlgraph ingest` or equivalent sees Codex sessions as first-class inputs
+- `wipnote ingest` or equivalent sees Codex sessions as first-class inputs
 - dashboard session views can show Codex session data without Claude-specific assumptions
 
 ## Phase 4: Ship A Minimal Codex Plugin
 
 Deliverables:
 
-- `plugins/htmlgraph-codex/.codex-plugin/plugin.json`
+- `plugins/wipnote-codex/.codex-plugin/plugin.json`
 - bundled core skills
 - local plugin dev/test instructions
 - marketplace metadata if you want distribution through Codex-native plugin discovery
@@ -441,14 +441,14 @@ Key tasks:
 
 1. Translate each Claude markdown agent into TOML plus concise instructions.
 2. Keep the roster small; Codex does not benefit from a long list of overlapping near-duplicates.
-3. Align each agent with HtmlGraph work attribution rules from `AGENTS.md`.
+3. Align each agent with wipnote work attribution rules from `AGENTS.md`.
 4. Add tests or smoke checks that the agent files parse and are discoverable.
 
 Important design choice:
 
 - prefer fewer, sharper agents over a large Claude-style roster
 
-## Phase 6: Add A Thin HtmlGraph MCP Server For Codex
+## Phase 6: Add A Thin wipnote MCP Server For Codex
 
 This is the highest-leverage medium-term step.
 
@@ -460,14 +460,14 @@ Why:
 
 Suggested first tools:
 
-- `htmlgraph_status`
-- `htmlgraph_feature_list`
-- `htmlgraph_feature_start`
-- `htmlgraph_feature_complete`
-- `htmlgraph_find`
-- `htmlgraph_snapshot`
-- `htmlgraph_session_show`
-- `htmlgraph_review`
+- `wipnote_status`
+- `wipnote_feature_list`
+- `wipnote_feature_start`
+- `wipnote_feature_complete`
+- `wipnote_find`
+- `wipnote_snapshot`
+- `wipnote_session_show`
+- `wipnote_review`
 
 Design rule:
 
@@ -487,15 +487,15 @@ Key tasks:
 1. Document the recommended default as:
    - `workspace-write`
    - `on-request`
-2. Use rules for common `htmlgraph ...` command prefixes where that improves UX.
+2. Use rules for common `wipnote ...` command prefixes where that improves UX.
 3. Keep repo-local exceptions narrow.
 4. Treat `danger-full-access` as an environment-specific workaround, not the general recommendation.
 
 Important current repo note:
 
-- this repo currently pins `danger-full-access` because the present Linux environment cannot initialize `bubblewrap`: [.codex/config.toml](/workspaces/htmlgraph/.codex/config.toml:1)
+- this repo currently pins `danger-full-access` because the present Linux environment cannot initialize `bubblewrap`: [.codex/config.toml](../.codex/config.toml:1)
 
-That is a local compatibility fix, not the long-term recommended HtmlGraph default.
+That is a local compatibility fix, not the long-term recommended wipnote default.
 
 ## Phase 8: Update Public Docs and Product Positioning
 
@@ -523,13 +523,13 @@ Key tasks:
 
 ## Priority Order
 
-If you want the fastest path to “HtmlGraph works in Codex CLI,” do the work in this order:
+If you want the fastest path to “wipnote works in Codex CLI,” do the work in this order:
 
 1. repo-local `.codex/hooks.json`
 2. Codex transcript discovery and ingestion
 3. Codex plugin skeleton with 3-5 core skills
 4. `.codex/agents/*.toml`
-5. thin HtmlGraph MCP server
+5. thin wipnote MCP server
 6. public docs and support matrix cleanup
 
 If you do plugin packaging before transcript ingestion, the result will install cleanly but feel shallow.
@@ -562,7 +562,7 @@ If you keep Codex support inside the current Claude plugin tree, the result will
 
 Mitigation:
 
-- separate `plugin/` from `plugins/htmlgraph-codex/`
+- separate `plugin/` from `plugins/wipnote-codex/`
 - add a host adapter boundary in code
 
 ### Risk 2: Treating Hooks As The Whole Product
@@ -592,12 +592,12 @@ Mitigation:
 
 ## Success Criteria
 
-HtmlGraph should count as “working for Codex CLI” when:
+wipnote should count as “working for Codex CLI” when:
 
-- a Codex user can install or enable HtmlGraph without touching Claude tooling
-- Codex sessions show up in HtmlGraph session views
+- a Codex user can install or enable wipnote without touching Claude tooling
+- Codex sessions show up in wipnote session views
 - prompts and Bash actions are attributed to work items
-- a user can invoke HtmlGraph workflows through Codex skills
+- a user can invoke wipnote workflows through Codex skills
 - at least one review-oriented and one execution-oriented Codex agent are available
 - docs describe the real limitations accurately
 
@@ -614,25 +614,25 @@ If you later decide to execute this plan, the first milestone should be:
 
 That milestone proves the hard part:
 
-- HtmlGraph can observe and persist real Codex activity in a Codex-native way
+- wipnote can observe and persist real Codex activity in a Codex-native way
 
 ## Sources
 
 ### Repo
 
-- [docs/codex-interoperability-review.md](/workspaces/htmlgraph/docs/codex-interoperability-review.md:1)
-- [CODEX.md](/workspaces/htmlgraph/CODEX.md:1)
-- [README.md](/workspaces/htmlgraph/README.md:1)
-- [plugin/hooks/hooks.json](/workspaces/htmlgraph/plugin/hooks/hooks.json:1)
-- [plugin/.claude-plugin/plugin.json](/workspaces/htmlgraph/plugin/.claude-plugin/plugin.json:1)
-- [cmd/htmlgraph/plugin.go](/workspaces/htmlgraph/cmd/htmlgraph/plugin.go:1)
-- [cmd/htmlgraph/hook.go](/workspaces/htmlgraph/cmd/htmlgraph/hook.go:13)
-- [internal/hooks/runner.go](/workspaces/htmlgraph/internal/hooks/runner.go:17)
-- [internal/hooks/session_start.go](/workspaces/htmlgraph/internal/hooks/session_start.go:101)
-- [internal/hooks/user_prompt.go](/workspaces/htmlgraph/internal/hooks/user_prompt.go:14)
-- [internal/hooks/pretooluse.go](/workspaces/htmlgraph/internal/hooks/pretooluse.go:17)
-- [internal/hooks/task_tracking.go](/workspaces/htmlgraph/internal/hooks/task_tracking.go:12)
-- [internal/ingest/discover.go](/workspaces/htmlgraph/internal/ingest/discover.go:15)
+- [docs/codex-interoperability-review.md](../docs/codex-interoperability-review.md:1)
+- [CODEX.md](../CODEX.md:1)
+- [README.md](../README.md:1)
+- [plugin/hooks/hooks.json](../plugin/hooks/hooks.json:1)
+- [plugin/.claude-plugin/plugin.json](../plugin/.claude-plugin/plugin.json:1)
+- [cmd/wipnote/plugin.go](../cmd/wipnote/plugin.go:1)
+- [cmd/wipnote/hook.go](../cmd/wipnote/hook.go:13)
+- [internal/hooks/runner.go](../internal/hooks/runner.go:17)
+- [internal/hooks/session_start.go](../internal/hooks/session_start.go:101)
+- [internal/hooks/user_prompt.go](../internal/hooks/user_prompt.go:14)
+- [internal/hooks/pretooluse.go](../internal/hooks/pretooluse.go:17)
+- [internal/hooks/task_tracking.go](../internal/hooks/task_tracking.go:12)
+- [internal/ingest/discover.go](../internal/ingest/discover.go:15)
 
 ### Official Codex docs
 

@@ -13,9 +13,9 @@ Usage:
 import tempfile
 from datetime import datetime
 
-from htmlgraph import SDK
-from htmlgraph.models import Node
-from htmlgraph.session_manager import SessionManager
+from wipnote import SDK
+from wipnote.models import Node
+from wipnote.session_manager import SessionManager
 
 
 def demo_sdk_handoff():

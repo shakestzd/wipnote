@@ -8,11 +8,11 @@ import (
 // (tmux-flag, TMUX env, tmux-on-path) → expected action.
 func TestDecideTmuxWrap(t *testing.T) {
 	tests := []struct {
-		name        string
-		tmuxFlag    bool
-		tmuxEnv     string
-		tmuxOnPath  bool
-		wantAction  tmuxWrapAction
+		name       string
+		tmuxFlag   bool
+		tmuxEnv    string
+		tmuxOnPath bool
+		wantAction tmuxWrapAction
 	}{
 		{
 			name:       "flag not set — always skip regardless of env/path",
@@ -71,23 +71,23 @@ func TestStripTmuxFlag(t *testing.T) {
 	}{
 		{
 			name: "removes bare --tmux",
-			in:   []string{"htmlgraph", "yolo", "--dev", "--tmux", "--feature", "feat-abc"},
-			want: []string{"htmlgraph", "yolo", "--dev", "--feature", "feat-abc"},
+			in:   []string{"wipnote", "yolo", "--dev", "--tmux", "--feature", "feat-abc"},
+			want: []string{"wipnote", "yolo", "--dev", "--feature", "feat-abc"},
 		},
 		{
 			name: "removes --tmux=true variant",
-			in:   []string{"htmlgraph", "yolo", "--tmux=true", "--dev"},
-			want: []string{"htmlgraph", "yolo", "--dev"},
+			in:   []string{"wipnote", "yolo", "--tmux=true", "--dev"},
+			want: []string{"wipnote", "yolo", "--dev"},
 		},
 		{
 			name: "no --tmux flag — unchanged",
-			in:   []string{"htmlgraph", "yolo", "--dev", "--feature", "feat-xyz"},
-			want: []string{"htmlgraph", "yolo", "--dev", "--feature", "feat-xyz"},
+			in:   []string{"wipnote", "yolo", "--dev", "--feature", "feat-xyz"},
+			want: []string{"wipnote", "yolo", "--dev", "--feature", "feat-xyz"},
 		},
 		{
 			name: "only --tmux",
-			in:   []string{"htmlgraph", "yolo", "--tmux"},
-			want: []string{"htmlgraph", "yolo"},
+			in:   []string{"wipnote", "yolo", "--tmux"},
+			want: []string{"wipnote", "yolo"},
 		},
 		{
 			name: "empty args",

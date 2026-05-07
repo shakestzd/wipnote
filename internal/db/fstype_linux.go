@@ -11,19 +11,19 @@ import (
 
 // Filesystem magic numbers for filesystems where WAL-SHM mmap is unsafe.
 const (
-	fuseSuperMagic     = 0x65735546
-	v9fsMagic          = 0x01021997 // 9p / virtiofs on older kernels
+	fuseSuperMagic      = 0x65735546
+	v9fsMagic           = 0x01021997 // 9p / virtiofs on older kernels
 	overlayFSSuperMagic = 0x794c7630
-	nfsSuperMagic      = 0x6969
-	smbSuperMagic      = 0xFE534D42
-	smb2SuperMagic     = 0x517B
+	nfsSuperMagic       = 0x6969
+	smbSuperMagic       = 0xFE534D42
+	smb2SuperMagic      = 0x517B
 
 	// Safelisted native filesystem magic numbers (WAL is safe).
-	ext4Magic   = 0xEF53
-	xfsMagic    = 0x58465342
-	btrfsMagic  = 0x9123683E
-	tmpfsMagic  = 0x01021994
-	zfsMagic    = 0x2FC12FC1
+	ext4Magic  = 0xEF53
+	xfsMagic   = 0x58465342
+	btrfsMagic = 0x9123683E
+	tmpfsMagic = 0x01021994
+	zfsMagic   = 0x2FC12FC1
 )
 
 // isUnsafeForMmap returns true if the filesystem backing dbPath is known to be

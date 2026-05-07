@@ -7,19 +7,19 @@ var plans = [];
 var stats = {};
 var currentView = 'activity';
 var seenEventIds = new Set();
-var groupByTrack = localStorage.getItem('htmlgraph-kanban-group-by-track') === 'true';
+var groupByTrack = localStorage.getItem('wipnote-kanban-group-by-track') === 'true';
 
 // Global mode state — populated by detectMode() on init. In single-project
 // mode both values stay unset and buildProjectUrl() returns plain URLs.
-window.htmlgraphMode = 'single';
-window.htmlgraphProjects = [];
-window.htmlgraphProjectId = '';
+window.wipnoteMode = 'single';
+window.wipnoteProjects = [];
+window.wipnoteProjectId = '';
 
 // Terminal state — tracks the currently running ttyd sidecar pid.
 var terminalPid = null;
 // The last work-item ID opened in the Work detail panel; passed to the
 // terminal start request so the session is pre-scoped to that item.
-window.htmlgraphActiveWorkItem = '';
+window.wipnoteActiveWorkItem = '';
 
 /* ── Navigation ────────────────────────────────────────────── */
 document.querySelector('.nav').addEventListener('click', function(e) {
@@ -39,7 +39,7 @@ document.querySelector('.nav').addEventListener('click', function(e) {
 /* ── Data fetching ─────────────────────────────────────────── */
 function fetchStats() {
   // In global mode with no project selected, show aggregate stats.
-  var url = (window.htmlgraphMode === 'global' && !window.htmlgraphProjectId)
+  var url = (window.wipnoteMode === 'global' && !window.wipnoteProjectId)
     ? '/api/projects/all/stats'
     : buildProjectUrl('stats');
   return fetch(url).then(function(r) {
@@ -257,7 +257,7 @@ var _previewCache = {};
 
 // Per-project localStorage key for expanded session IDs.
 function _sessionsExpandedKey() {
-  var pid = window.htmlgraphProjectId || window.location.pathname;
+  var pid = window.wipnoteProjectId || window.location.pathname;
   return 'hg-sessions-expanded-' + pid;
 }
 
@@ -614,7 +614,7 @@ function buildKanbanColumns(items) {
 
 function buildTrackSection(trackId, trackTitle, items) {
   var doneCount = items.filter(function(f) { return f.status === 'done'; }).length;
-  var collapseKey = 'htmlgraph-track-collapsed-' + trackId;
+  var collapseKey = 'wipnote-track-collapsed-' + trackId;
   var isCollapsed = localStorage.getItem(collapseKey) === 'true';
 
   var section = document.createElement('div');
@@ -837,7 +837,7 @@ function closeWorkDetail() {
 
 function openWorkDetail(id) {
   // Track the active work item so the terminal button can pre-scope sessions.
-  window.htmlgraphActiveWorkItem = id;
+  window.wipnoteActiveWorkItem = id;
 
   var detail = document.getElementById('work-detail');
   var board = document.getElementById('kanban-board');
@@ -1159,7 +1159,7 @@ function renderWorkDetail(container, node) {
           row.appendChild(lastEl);
 
           row.addEventListener('click', function() {
-            console.log('[htmlgraph] file trace:', fe.file_path);
+            console.log('[wipnote] file trace:', fe.file_path);
           });
 
           fp.body.appendChild(row);
@@ -1230,7 +1230,7 @@ document.addEventListener('DOMContentLoaded', function() {
     toggleBtn.classList.toggle('active', groupByTrack);
     toggleBtn.addEventListener('click', function() {
       groupByTrack = !groupByTrack;
-      localStorage.setItem('htmlgraph-kanban-group-by-track', groupByTrack ? 'true' : 'false');
+      localStorage.setItem('wipnote-kanban-group-by-track', groupByTrack ? 'true' : 'false');
       renderKanban();
     });
   }
@@ -1262,27 +1262,27 @@ document.addEventListener('DOMContentLoaded', function() {
 
   var btn = document.getElementById('theme-toggle');
   if (!btn) return;
-  var saved = localStorage.getItem('htmlgraph-theme');
+  var saved = localStorage.getItem('wipnote-theme');
   if (!saved) {
     saved = (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark';
-    localStorage.setItem('htmlgraph-theme', saved);
+    localStorage.setItem('wipnote-theme', saved);
   }
   document.documentElement.dataset.theme = saved;
   btn.textContent = saved === 'light' ? '\u263E' : '\u2600';
   btn.addEventListener('click', function() {
     var current = document.documentElement.dataset.theme || 'dark';
     var next = current === 'dark' ? 'light' : 'dark';
-    window._htmlgraphTheme = next;
+    window._wipnoteTheme = next;
     document.documentElement.dataset.theme = next;
-    localStorage.setItem('htmlgraph-theme', next);
+    localStorage.setItem('wipnote-theme', next);
     btn.textContent = next === 'light' ? '\u263E' : '\u2600';
   });
 
   // Re-assert theme after any dynamic content injection (plan scripts may alter it)
-  window._htmlgraphTheme = saved;
+  window._wipnoteTheme = saved;
   var observer = new MutationObserver(function() {
-    if (document.documentElement.dataset.theme !== window._htmlgraphTheme) {
-      document.documentElement.dataset.theme = window._htmlgraphTheme;
+    if (document.documentElement.dataset.theme !== window._wipnoteTheme) {
+      document.documentElement.dataset.theme = window._wipnoteTheme;
     }
   });
   observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
@@ -1310,7 +1310,7 @@ function detectMode() {
     return r.json();
   }).then(function(data) {
     if (!data) return;
-    window.htmlgraphMode = data.mode;
+    window.wipnoteMode = data.mode;
     if (data.mode === 'global' && isDoorwayLanding()) {
       return loadAndRenderProjectsLanding();
     }
@@ -1319,14 +1319,14 @@ function detectMode() {
     // Also expose projectRoot so the event-tree component can relativize
     // absolute paths (e.g. strip project root prefix from file paths).
     if (data.mode === 'single' && data.projectName) {
-      window.htmlgraphProjectName = data.projectName;
-      window.htmlgraphProjectRoot = data.projectRoot || null;
+      window.wipnoteProjectName = data.projectName;
+      window.wipnoteProjectRoot = data.projectRoot || null;
       var pe = document.getElementById('brand-project');
       if (pe) {
         pe.textContent = '/ ' + data.projectName;
         pe.style.display = '';
       }
-      document.title = data.projectName + ' — HtmlGraph';
+      document.title = data.projectName + ' — wipnote';
     }
   }).catch(function() {});
 }
@@ -1340,7 +1340,7 @@ function loadAndRenderProjectsLanding() {
     return r.json();
   }).then(function(projects) {
     if (!Array.isArray(projects)) projects = [];
-    window.htmlgraphProjects = projects;
+    window.wipnoteProjects = projects;
 
     // Hide the per-project side nav — the landing is a level above.
     var nav = document.querySelector('.nav');
@@ -1418,7 +1418,7 @@ function renderProjectsLanding(projects) {
 // the single-project startup (under /p/<id>/).
 detectMode().then(function() {
   // Probe the terminal feature gate once on every page — hide the button if
-  // the backend routes are not registered (HTMLGRAPH_TERMINAL not set to "1").
+  // the backend routes are not registered (WIPNOTE_TERMINAL not set to "1").
   // Runs before the doorway early return so the landing page also hides its
   // button, since the root server never registers /api/terminal/* either.
   probeTerminalFeature();
@@ -2669,7 +2669,7 @@ function highlightSession(sessionId) {
 /* ── Terminal feature gate ─────────────────────────────────── */
 
 // probeTerminalFeature checks once at init whether the backend has the
-// terminal routes registered (HTMLGRAPH_TERMINAL env var). On 404 (or
+// terminal routes registered (WIPNOTE_TERMINAL env var). On 404 (or
 // any network error) the open-terminal button is hidden so the feature
 // is invisible when not enabled. Called once from the startup sequence.
 function probeTerminalFeature() {
@@ -2690,7 +2690,7 @@ function probeTerminalFeature() {
 
 // openTerminal starts a ttyd sidecar and shows the overlay iframe.
 function openTerminal() {
-  var workItem = window.htmlgraphActiveWorkItem || '';
+  var workItem = window.wipnoteActiveWorkItem || '';
   fetch(buildProjectUrl('terminal/start'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -2800,7 +2800,7 @@ function openLauncherModal() {
   if (!modal || !backdrop) return;
 
   // Pre-populate work item from the currently active work detail view.
-  var activeId = window.htmlgraphActiveWorkItem || '';
+  var activeId = window.wipnoteActiveWorkItem || '';
   launcherWorkItemId = '';
   launcherWorkItemTitle = '';
 
@@ -3444,7 +3444,7 @@ document.addEventListener('DOMContentLoaded', function() {
    user opens — both YAML-backed plans with slice cards and legacy
    static-HTML plans that have no slices at all. */
 
-var DASH_SIDEBAR_KEY = 'htmlgraph-dashboard-rail-collapsed';
+var DASH_SIDEBAR_KEY = 'wipnote-dashboard-rail-collapsed';
 var _dashApprovalListener = null; // event listener handle for teardown
 
 (function initDashSidebarCollapse() {

@@ -36,11 +36,11 @@ Without either flag, launches in planning mode to help you create one first.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Tmux wrap must happen before any side-effecting work.
 			// When --tmux is set and we are not already inside tmux, this
-			// replaces the current process with: tmux new-session -A -s htmlgraph-yolo -- <argv without --tmux>
+			// replaces the current process with: tmux new-session -A -s wipnote-yolo -- <argv without --tmux>
 			// and never returns. If tmux is missing, an error is returned.
 			// If we are already inside tmux (TMUX env set), this is a no-op.
 			_ = tmux // flag is consumed via os.Args inspection in maybeTmuxWrap
-			if err := maybeTmuxWrap("htmlgraph-yolo"); err != nil {
+			if err := maybeTmuxWrap("wipnote-yolo"); err != nil {
 				return err
 			}
 			switch {
@@ -60,7 +60,7 @@ Without either flag, launches in planning mode to help you create one first.`,
 	cmd.Flags().BoolVar(&initMode, "init", false, "Initialize .wipnote/ then launch in YOLO mode")
 	cmd.Flags().BoolVar(&continueMode, "continue", false, "Resume last YOLO session")
 	cmd.Flags().BoolVar(&noWorktree, "no-worktree", false, "Skip worktree creation (run in project root)")
-	cmd.Flags().BoolVar(&tmux, "tmux", false, "Wrap yolo in a tmux session named 'htmlgraph-yolo' (survives disconnects; reattaches on re-run)")
+	cmd.Flags().BoolVar(&tmux, "tmux", false, "Wrap yolo in a tmux session named 'wipnote-yolo' (survives disconnects; reattaches on re-run)")
 	cmd.Flags().StringVar(&permMode, "permission-mode", "bypassPermissions",
 		"Permission mode (bypassPermissions, acceptEdits)")
 	cmd.Flags().StringVar(&trackID, "track", "", "Track ID to work on (e.g., trk-3719d8f3)")
@@ -117,16 +117,16 @@ func resolveTrackTitle(trackID, featureID, projectRoot string) string {
 // validateWorkItem checks that a track or feature HTML file exists in .wipnote/.
 // Returns the validated ID and item type, or an error.
 func validateWorkItem(trackID, featureID, projectRoot string) (id, kind string, err error) {
-	htmlgraphDir := filepath.Join(projectRoot, ".wipnote")
+	wipnoteDir := filepath.Join(projectRoot, ".wipnote")
 	switch {
 	case trackID != "":
-		htmlFile := filepath.Join(htmlgraphDir, "tracks", trackID+".html")
+		htmlFile := filepath.Join(wipnoteDir, "tracks", trackID+".html")
 		if _, statErr := os.Stat(htmlFile); os.IsNotExist(statErr) {
 			return "", "", workitem.ErrNotFound("track", trackID)
 		}
 		return trackID, "track", nil
 	case featureID != "":
-		htmlFile := filepath.Join(htmlgraphDir, "features", featureID+".html")
+		htmlFile := filepath.Join(wipnoteDir, "features", featureID+".html")
 		if _, statErr := os.Stat(htmlFile); os.IsNotExist(statErr) {
 			return "", "", workitem.ErrNotFound("feature", featureID)
 		}
@@ -205,8 +205,8 @@ func launchYoloPlanningMode(projectRoot string, extraArgs []string) error {
 	fmt.Println("No --track or --feature specified.")
 	fmt.Println("Launching in planning mode to help you create a track or feature first.")
 	fmt.Println("Once you have a track/feature, restart with:")
-	fmt.Println("  htmlgraph yolo --track <track-id>")
-	fmt.Println("  htmlgraph yolo --feature <feature-id>")
+	fmt.Println("  wipnote yolo --track <track-id>")
+	fmt.Println("  wipnote yolo --feature <feature-id>")
 	fmt.Println()
 	return launchClaude(LaunchOpts{
 		Mode:               "yolo-planning",
@@ -218,8 +218,8 @@ func launchYoloPlanningMode(projectRoot string, extraArgs []string) error {
 
 func launchYoloDefault(permMode, trackID, featureID string, noWorktree bool, resumeID, name string, extraArgs []string) error {
 	projectRoot := ""
-	if htmlgraphDir, err := findHtmlgraphDir(); err == nil {
-		projectRoot = filepath.Dir(htmlgraphDir)
+	if wipnoteDir, err := findWipnoteDir(); err == nil {
+		projectRoot = filepath.Dir(wipnoteDir)
 	}
 
 	ensurePluginOnLaunch()
@@ -300,7 +300,7 @@ func launchYoloDefault(permMode, trackID, featureID string, noWorktree bool, res
 		Name:             sessionName,
 		ExtraArgs:        extraArgs,
 		ProjectRoot:      workDir,
-		HtmlgraphRoot:    projectRoot,
+		WipnoteRoot:      projectRoot,
 	})
 }
 
@@ -314,13 +314,13 @@ func launchYoloDev(trackID, featureID string, noWorktree bool, resumeID, name st
 		return fmt.Errorf("plugin.json not found at %s",
 			filepath.Join(pluginDir, ".claude-plugin", "plugin.json"))
 	}
-	if _, err := exec.LookPath("htmlgraph"); err != nil {
-		return fmt.Errorf("htmlgraph binary not found on PATH\nBuild with: htmlgraph build (or plugin/build.sh)")
+	if err := requireWipnoteOnPath(); err != nil {
+		return err
 	}
 
 	projectRoot := ""
-	if htmlgraphDir, err := findHtmlgraphDir(); err == nil {
-		projectRoot = filepath.Dir(htmlgraphDir)
+	if wipnoteDir, err := findWipnoteDir(); err == nil {
+		projectRoot = filepath.Dir(wipnoteDir)
 	}
 
 	// No work item provided — fall back to planning mode.
@@ -367,7 +367,7 @@ func launchYoloDev(trackID, featureID string, noWorktree bool, resumeID, name st
 	}
 
 	// Nuke marketplace plugin so it can't shadow the --plugin-dir agents/skills.
-	removeMarketplaceHtmlgraph()
+	removeMarketplaceWipnote()
 
 	sessionName := name
 	// Only synthesize a default name for new sessions. When resuming an existing
@@ -402,7 +402,7 @@ func launchYoloDev(trackID, featureID string, noWorktree bool, resumeID, name st
 		Name:             sessionName,
 		ExtraArgs:        extraArgs,
 		ProjectRoot:      workDir,
-		HtmlgraphRoot:    projectRoot,
+		WipnoteRoot:      projectRoot,
 	})
 }
 
@@ -417,8 +417,8 @@ func launchYoloInit(trackID, featureID, resumeID, name string, extraArgs []strin
 
 func launchYoloContinue(extraArgs []string, resumeID string) error {
 	projectRoot := ""
-	if htmlgraphDir, err := findHtmlgraphDir(); err == nil {
-		projectRoot = filepath.Dir(htmlgraphDir)
+	if wipnoteDir, err := findWipnoteDir(); err == nil {
+		projectRoot = filepath.Dir(wipnoteDir)
 	}
 
 	ensurePluginOnLaunch()

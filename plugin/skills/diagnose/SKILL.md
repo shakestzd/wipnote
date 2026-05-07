@@ -1,6 +1,6 @@
 ---
 name: diagnose
-description: "Diagnose bugs, errors, and issues with root cause analysis. Use when asked to diagnose, debug, investigate, or find root cause of any problem — whether an erinn bug ID, error message, unexpected behavior, or delegation audit."
+description: "Diagnose bugs, errors, and issues with root cause analysis. Use when asked to diagnose, debug, investigate, or find root cause of any problem — whether a wipnote bug ID, error message, unexpected behavior, or delegation audit."
 user_invocable: true
 ---
 
@@ -28,22 +28,22 @@ Trigger on:
 ## Work Item Attribution
 
 All diagnostic work must be attributed:
-- Bug investigation: `erinn bug start <bug-id>` before investigating
-- New errors: `erinn bug create "Error: description" --track <trk-id>` then start it
-- Run `erinn help` for available commands
+- Bug investigation: `wipnote bug start <bug-id>` before investigating
+- New errors: `wipnote bug create "Error: description" --track <trk-id>` then start it
+- Run `wipnote help` for available commands
 
 ## Instructions for Claude
 
 ### Route by Input
 
 **If given a bug ID** (matches `bug-*`):
-1. Start attribution: `erinn bug start <bug-id>`
-2. Fetch bug details: `erinn bug show <bug-id>`
+1. Start attribution: `wipnote bug start <bug-id>`
+2. Fetch bug details: `wipnote bug show <bug-id>`
 3. Dispatch the debugger agent with the bug context
 4. Present findings and suggested fix
 
 **If given an error message or symptom**:
-1. Create and start a bug: `erinn bug create "<summary>" --track <trk-id>` then `erinn bug start <id>`
+1. Create and start a bug: `wipnote bug create "<summary>" --track <trk-id>` then `wipnote bug start <id>`
 2. Dispatch the debugger agent with the error context
 3. Present findings and suggested fix
 
@@ -51,7 +51,7 @@ All diagnostic work must be attributed:
 1. Run the delegation audit (see Delegation Mode below)
 
 **If no arguments**:
-1. Check project health: `erinn recommend --top 3`
+1. Check project health: `wipnote recommend --top 3`
 2. Identify bottlenecks, stale items, or anomalies
 3. Suggest what to investigate
 
@@ -113,8 +113,8 @@ When `--delegation` is specified, audit the current session's delegation complia
 
 1. **Collect data**:
 ```bash
-erinn status
-sqlite3 .htmlgraph/erinn.db "
+wipnote status
+sqlite3 .wipnote/wipnote.db "
 SELECT tool_name, COUNT(*) as count
 FROM agent_events
 WHERE session_id = (SELECT session_id FROM agent_events ORDER BY timestamp DESC LIMIT 1)

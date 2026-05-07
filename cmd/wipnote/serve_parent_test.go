@@ -19,11 +19,11 @@ func TestIsValidProjectID(t *testing.T) {
 		{"a/b", false},
 		{"a\\b", false},
 		{"a\x00b", false},
-		{"XYZ", false},       // not in [a-f0-9]
-		{"abc", false},       // too short (< 4)
-		{"deadbeef", true},   // canonical 8-char ID
-		{"abcd1234", true},   // valid 8-char hex
-		{"abc1", true},       // minimum 4-char
+		{"XYZ", false},     // not in [a-f0-9]
+		{"abc", false},     // too short (< 4)
+		{"deadbeef", true}, // canonical 8-char ID
+		{"abcd1234", true}, // valid 8-char hex
+		{"abc1", true},     // minimum 4-char
 	}
 	for _, tc := range tests {
 		got := isValidProjectID(tc.id)
@@ -40,10 +40,10 @@ func TestProxyHandlerRejectsInvalidID(t *testing.T) {
 	h := proxyHandler(sup)
 
 	bad := []string{
-		"/p/",                // empty
-		"/p/../etc/passwd",   // traversal
-		"/p/XYZ/api/stats",   // non-hex
-		"/p/ab/api/stats",    // too short
+		"/p/",              // empty
+		"/p/../etc/passwd", // traversal
+		"/p/XYZ/api/stats", // non-hex
+		"/p/ab/api/stats",  // too short
 	}
 	for _, p := range bad {
 		req := httptest.NewRequest("GET", p, nil)

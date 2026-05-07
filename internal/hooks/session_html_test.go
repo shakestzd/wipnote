@@ -347,8 +347,8 @@ func TestCreateSessionHTMLCreatesDirectory(t *testing.T) {
 
 func TestRenderIngestedSessionHTML_Shape(t *testing.T) {
 	projectDir := t.TempDir()
-	htmlgraphDir := filepath.Join(projectDir, ".wipnote")
-	if err := os.MkdirAll(htmlgraphDir, 0o755); err != nil {
+	wipnoteDir := filepath.Join(projectDir, ".wipnote")
+	if err := os.MkdirAll(wipnoteDir, 0o755); err != nil {
 		t.Fatalf("mkdir .wipnote: %v", err)
 	}
 
@@ -367,11 +367,11 @@ func TestRenderIngestedSessionHTML_Shape(t *testing.T) {
 		Model: "claude-sonnet-4-5",
 	}
 
-	if err := RenderIngestedSessionHTML(htmlgraphDir, "sess-render-001", "/src/project", result, false); err != nil {
+	if err := RenderIngestedSessionHTML(wipnoteDir, "sess-render-001", "/src/project", result, false); err != nil {
 		t.Fatalf("RenderIngestedSessionHTML: %v", err)
 	}
 
-	htmlPath := filepath.Join(htmlgraphDir, "sessions", "sess-render-001.html")
+	htmlPath := filepath.Join(wipnoteDir, "sessions", "sess-render-001.html")
 	data, err := os.ReadFile(htmlPath)
 	if err != nil {
 		t.Fatalf("read rendered HTML: %v", err)
@@ -403,13 +403,13 @@ func TestRenderIngestedSessionHTML_Shape(t *testing.T) {
 
 func TestRenderIngestedSessionHTML_SkipExisting(t *testing.T) {
 	projectDir := t.TempDir()
-	htmlgraphDir := filepath.Join(projectDir, ".wipnote")
-	if err := os.MkdirAll(filepath.Join(htmlgraphDir, "sessions"), 0o755); err != nil {
+	wipnoteDir := filepath.Join(projectDir, ".wipnote")
+	if err := os.MkdirAll(filepath.Join(wipnoteDir, "sessions"), 0o755); err != nil {
 		t.Fatalf("mkdir sessions: %v", err)
 	}
 
 	// Pre-seed the target file with sentinel content representing a live-hook write.
-	htmlPath := filepath.Join(htmlgraphDir, "sessions", "sess-exists-001.html")
+	htmlPath := filepath.Join(wipnoteDir, "sessions", "sess-exists-001.html")
 	sentinel := []byte("<!DOCTYPE html><html><body>LIVE-HOOK-CONTENT</body></html>\n")
 	if err := os.WriteFile(htmlPath, sentinel, 0o644); err != nil {
 		t.Fatalf("seed: %v", err)
@@ -419,7 +419,7 @@ func TestRenderIngestedSessionHTML_SkipExisting(t *testing.T) {
 		Messages:  []models.Message{{Ordinal: 0, Timestamp: time.Now().UTC()}},
 		ToolCalls: []models.ToolCall{{MessageOrdinal: 0, ToolName: "Read", ToolUseID: "tu-x"}},
 	}
-	if err := RenderIngestedSessionHTML(htmlgraphDir, "sess-exists-001", "/src/project", result, false); err != nil {
+	if err := RenderIngestedSessionHTML(wipnoteDir, "sess-exists-001", "/src/project", result, false); err != nil {
 		t.Fatalf("RenderIngestedSessionHTML: %v", err)
 	}
 
@@ -434,12 +434,12 @@ func TestRenderIngestedSessionHTML_SkipExisting(t *testing.T) {
 
 func TestRenderIngestedSessionHTML_ForceOverwrite(t *testing.T) {
 	projectDir := t.TempDir()
-	htmlgraphDir := filepath.Join(projectDir, ".wipnote")
-	if err := os.MkdirAll(filepath.Join(htmlgraphDir, "sessions"), 0o755); err != nil {
+	wipnoteDir := filepath.Join(projectDir, ".wipnote")
+	if err := os.MkdirAll(filepath.Join(wipnoteDir, "sessions"), 0o755); err != nil {
 		t.Fatalf("mkdir sessions: %v", err)
 	}
 
-	htmlPath := filepath.Join(htmlgraphDir, "sessions", "sess-force-001.html")
+	htmlPath := filepath.Join(wipnoteDir, "sessions", "sess-force-001.html")
 	if err := os.WriteFile(htmlPath, []byte("STALE"), 0o644); err != nil {
 		t.Fatalf("seed: %v", err)
 	}
@@ -448,7 +448,7 @@ func TestRenderIngestedSessionHTML_ForceOverwrite(t *testing.T) {
 		Messages:  []models.Message{{Ordinal: 0, Timestamp: time.Now().UTC()}},
 		ToolCalls: []models.ToolCall{{MessageOrdinal: 0, ToolName: "Read", ToolUseID: "tu-force"}},
 	}
-	if err := RenderIngestedSessionHTML(htmlgraphDir, "sess-force-001", "/src/project", result, true); err != nil {
+	if err := RenderIngestedSessionHTML(wipnoteDir, "sess-force-001", "/src/project", result, true); err != nil {
 		t.Fatalf("RenderIngestedSessionHTML: %v", err)
 	}
 
@@ -466,8 +466,8 @@ func TestRenderIngestedSessionHTML_ForceOverwrite(t *testing.T) {
 
 func TestRenderIngestedSessionHTML_Idempotent(t *testing.T) {
 	projectDir := t.TempDir()
-	htmlgraphDir := filepath.Join(projectDir, ".wipnote")
-	if err := os.MkdirAll(htmlgraphDir, 0o755); err != nil {
+	wipnoteDir := filepath.Join(projectDir, ".wipnote")
+	if err := os.MkdirAll(wipnoteDir, 0o755); err != nil {
 		t.Fatalf("mkdir .wipnote: %v", err)
 	}
 
@@ -475,19 +475,19 @@ func TestRenderIngestedSessionHTML_Idempotent(t *testing.T) {
 		Messages:  []models.Message{{Ordinal: 0, Timestamp: time.Date(2026, 4, 10, 10, 0, 0, 0, time.UTC)}},
 		ToolCalls: []models.ToolCall{{MessageOrdinal: 0, ToolName: "Read", ToolUseID: "tu-idem"}},
 	}
-	if err := RenderIngestedSessionHTML(htmlgraphDir, "sess-idem-001", "/src", result, false); err != nil {
+	if err := RenderIngestedSessionHTML(wipnoteDir, "sess-idem-001", "/src", result, false); err != nil {
 		t.Fatalf("first render: %v", err)
 	}
-	first, err := os.ReadFile(filepath.Join(htmlgraphDir, "sessions", "sess-idem-001.html"))
+	first, err := os.ReadFile(filepath.Join(wipnoteDir, "sessions", "sess-idem-001.html"))
 	if err != nil {
 		t.Fatalf("read first: %v", err)
 	}
 
 	// Second run is a no-op because the file already exists.
-	if err := RenderIngestedSessionHTML(htmlgraphDir, "sess-idem-001", "/src", result, false); err != nil {
+	if err := RenderIngestedSessionHTML(wipnoteDir, "sess-idem-001", "/src", result, false); err != nil {
 		t.Fatalf("second render: %v", err)
 	}
-	second, err := os.ReadFile(filepath.Join(htmlgraphDir, "sessions", "sess-idem-001.html"))
+	second, err := os.ReadFile(filepath.Join(wipnoteDir, "sessions", "sess-idem-001.html"))
 	if err != nil {
 		t.Fatalf("read second: %v", err)
 	}

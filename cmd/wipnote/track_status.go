@@ -87,7 +87,7 @@ func runTrackStatus(trackID string) error {
 	// 2. Check if branch exists
 	checkCmd := exec.Command("git", "rev-parse", "--verify", branchName)
 	if err := checkCmd.Run(); err != nil {
-		return fmt.Errorf("branch %s not found — the track may not have a worktree yet\nRun 'htmlgraph yolo --track %s' to create the worktree and branch.", branchName, trackID)
+		return fmt.Errorf("branch %s not found — the track may not have a worktree yet\nRun 'wipnote yolo --track %s' to create the worktree and branch.", branchName, trackID)
 	}
 
 	// 3. Get commits on track branch not on main

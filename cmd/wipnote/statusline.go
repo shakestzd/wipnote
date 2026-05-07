@@ -30,7 +30,7 @@ func statuslineCmd() *cobra.Command {
 }
 
 func runStatusline(sessionID string) error {
-	dir, err := findHtmlgraphDir()
+	dir, err := findWipnoteDir()
 	if err != nil {
 		return nil
 	}
@@ -135,7 +135,7 @@ func resolveTrackContext(database *sql.DB, dir, featureID string) string {
 	database.QueryRow("SELECT title FROM tracks WHERE id = ?", trackID.String).Scan(&trackTitle) //nolint:errcheck
 
 	// Count done/total by reading HTML files directly — same source that
-	// `htmlgraph track show` uses. SQLite features rows are often incomplete
+	// `wipnote track show` uses. SQLite features rows are often incomplete
 	// (features indexed in graph_edges but absent from the features table),
 	// which caused [0/0] to appear in the status line.
 	features := loadLinkedByType(dir, "features", trackID.String)
@@ -155,7 +155,6 @@ func resolveTrackContext(database *sql.DB, dir, featureID string) string {
 	return fmt.Sprintf("%s %s [%d/%d]", iconFor("track"), title, done, total)
 }
 
-
 func iconFor(typeName string) string {
 	switch typeName {
 	case "bug":
@@ -172,21 +171,21 @@ func iconFor(typeName string) string {
 }
 
 // WriteStatuslineCache writes the active work item summary to a project-scoped
-// cache file. The filename includes a hash of the htmlgraphDir so different
+// cache file. The filename includes a hash of the wipnoteDir so different
 // projects never overwrite each other's cache (bug-95dc78ba).
 // Pass empty featureID to clear the cache (on complete).
 //
 // Writes are atomic (write-to-temp + rename) so parallel agents calling
 // feature start cannot produce a torn cache file (bug-d2d3fb3f).
-func WriteStatuslineCache(htmlgraphDir, featureID string) {
-	cachePath := statuslineCachePath(htmlgraphDir)
+func WriteStatuslineCache(wipnoteDir, featureID string) {
+	cachePath := statuslineCachePath(wipnoteDir)
 	if cachePath == "" {
 		return
 	}
 
 	var payload []byte
 	if featureID != "" {
-		payload = []byte(buildCacheLine(htmlgraphDir, featureID))
+		payload = []byte(buildCacheLine(wipnoteDir, featureID))
 	}
 	atomicWriteFile(cachePath, payload, 0o644)
 }
@@ -222,8 +221,8 @@ func atomicWriteFile(path string, data []byte, mode os.FileMode) {
 
 // buildCacheLine produces the display string for a work item, including
 // its track context if available. Format: "Track [done/total] -> Feature"
-func buildCacheLine(htmlgraphDir, featureID string) string {
-	p, err := workitem.Open(htmlgraphDir, "claude-code")
+func buildCacheLine(wipnoteDir, featureID string) string {
+	p, err := workitem.Open(wipnoteDir, "claude-code")
 	if err != nil {
 		return featureID
 	}
@@ -244,7 +243,7 @@ func buildCacheLine(htmlgraphDir, featureID string) string {
 	}
 
 	// Attempt track context via DB.
-	dbPath, err := storage.CanonicalDBPath(filepath.Dir(htmlgraphDir))
+	dbPath, err := storage.CanonicalDBPath(filepath.Dir(wipnoteDir))
 	if err != nil {
 		return fmt.Sprintf("%s %s", iconFor(featureType), truncate(featureTitle, 30))
 	}
@@ -254,7 +253,7 @@ func buildCacheLine(htmlgraphDir, featureID string) string {
 	}
 	defer database.Close()
 
-	trackLine := resolveTrackContext(database, htmlgraphDir, featureID)
+	trackLine := resolveTrackContext(database, wipnoteDir, featureID)
 	if trackLine != "" {
 		return fmt.Sprintf("%s -> %s %s",
 			trackLine, iconFor(featureType), truncate(featureTitle, 25))
@@ -264,9 +263,9 @@ func buildCacheLine(htmlgraphDir, featureID string) string {
 
 // ReadStatuslineCache reads the project-scoped cached status line from disk.
 // Returns empty string if the cache file doesn't exist or is empty.
-// htmlgraphDir is required to scope the lookup to the correct project.
-func ReadStatuslineCache(htmlgraphDir string) string {
-	cachePath := statuslineCachePath(htmlgraphDir)
+// wipnoteDir is required to scope the lookup to the correct project.
+func ReadStatuslineCache(wipnoteDir string) string {
+	cachePath := statuslineCachePath(wipnoteDir)
 	if cachePath == "" {
 		return ""
 	}
@@ -279,7 +278,7 @@ func ReadStatuslineCache(htmlgraphDir string) string {
 
 // statuslineCachePath returns the project-scoped cache file path.
 // Format: <cacheDir>/.wipnote-statusline-<hash8>
-func statuslineCachePath(htmlgraphDir string) string {
+func statuslineCachePath(wipnoteDir string) string {
 	cacheDir := os.Getenv("WIPNOTE_CACHE_DIR")
 	if cacheDir == "" {
 		home, err := os.UserHomeDir()
@@ -288,10 +287,10 @@ func statuslineCachePath(htmlgraphDir string) string {
 		}
 		cacheDir = home
 	}
-	if htmlgraphDir == "" {
+	if wipnoteDir == "" {
 		return ""
 	}
-	h := sha256.Sum256([]byte(filepath.Clean(htmlgraphDir)))
+	h := sha256.Sum256([]byte(filepath.Clean(wipnoteDir)))
 	suffix := hex.EncodeToString(h[:4]) // 8 hex chars
 	return filepath.Join(cacheDir, ".wipnote-statusline-"+suffix)
 }

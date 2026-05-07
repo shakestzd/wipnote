@@ -449,4 +449,3 @@ func filterBySelectorDSL(db *sql.DB, ids []string, sel nodeSelector) ([]string, 
 	}
 	return result, rows.Err()
 }
-

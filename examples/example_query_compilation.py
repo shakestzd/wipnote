@@ -7,8 +7,8 @@ This shows how to pre-compile frequently used selectors for better performance.
 
 import tempfile
 
-from htmlgraph import HtmlGraph
-from htmlgraph.models import Node
+from wipnote import wipnote
+from wipnote.models import Node
 
 
 def main():
@@ -18,7 +18,7 @@ def main():
 
     with tempfile.TemporaryDirectory() as tmpdir:
         # Create graph
-        graph = HtmlGraph(tmpdir, auto_load=False)
+        graph = wipnote(tmpdir, auto_load=False)
 
         # Add sample nodes
         print("\n📝 Adding sample nodes...")

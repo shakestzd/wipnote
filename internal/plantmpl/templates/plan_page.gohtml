@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="htmlgraph-version" content="1.0">
+<meta name="wipnote-version" content="1.0">
 <title>Plan: {{.Title}}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -392,7 +392,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
 
 <nav class="plan-sidebar" id="plan-sidebar">
   <div class="brand-row">
-    <a href="/" class="brand">HtmlGraph</a>
+    <a href="/" class="brand">wipnote</a>
     <button class="sidebar-toggle" id="left-sidebar-toggle" title="Collapse sidebar" aria-label="Toggle left sidebar">&#8249;</button>
   </div>
   <a href="#design" class="nav-link active" data-spy="design" data-initial="D">Design</a>
@@ -558,10 +558,10 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
 // rendered HTML works whether the file is served at the legacy
 // /plans/<id>.html path (single-project server) or at /p/<id>/plans/<id>.html
 // (via the parent-doorway reverse proxy). Every fetch() on this page
-// prefixes window.htmlgraphPlanBase, which is '' at the root and
+// prefixes window.wipnotePlanBase, which is '' at the root and
 // '/p/<id>' under the proxy. This is the per-project routing fix for
 // the multi-project hardening re-architecture (plan-237fb251).
-window.htmlgraphPlanBase = (function() {
+window.wipnotePlanBase = (function() {
   var p = window.location.pathname || '';
   if (p.indexOf('/p/') !== 0) return '';
   var segs = p.split('/').filter(function(s) { return s !== ''; });
@@ -672,7 +672,7 @@ var planId=(function(){var a=document.querySelector('article[id]');return a?a.id
     }
     updateProgress();
     if(planId){
-      fetch((window.htmlgraphPlanBase||'')+'/api/plans/'+planId+'/feedback',{
+      fetch((window.wipnotePlanBase||'')+'/api/plans/'+planId+'/feedback',{
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body:JSON.stringify({section:sec,action:'approve',value:(val==='approved'?'true':'false'),question_id:''})
@@ -703,7 +703,7 @@ var planId=(function(){var a=document.querySelector('article[id]');return a?a.id
       var details=document.querySelector('[data-phase="questions"]');
       if(details) details.dataset.status=allAnswered?'approved':'pending';
       if(planId){
-        fetch((window.htmlgraphPlanBase||'')+'/api/plans/'+planId+'/feedback',{
+        fetch((window.wipnotePlanBase||'')+'/api/plans/'+planId+'/feedback',{
           method:'POST',
           headers:{'Content-Type':'application/json'},
           body:JSON.stringify({section:'questions',action:'answer',value:this.value,question_id:this.dataset.question})
@@ -725,7 +725,7 @@ var planId=(function(){var a=document.querySelector('article[id]');return a?a.id
     r.addEventListener('change',function(){
       var sec=this.dataset.section;
       if(planId){
-        fetch((window.htmlgraphPlanBase||'')+'/api/plans/'+planId+'/feedback',{
+        fetch((window.wipnotePlanBase||'')+'/api/plans/'+planId+'/feedback',{
           method:'POST',
           headers:{'Content-Type':'application/json'},
           body:JSON.stringify({section:sec,action:'answer',value:this.value,question_id:sec})
@@ -818,7 +818,7 @@ var planId=(function(){var a=document.querySelector('article[id]');return a?a.id
     ta.addEventListener('input',function(){clearTimeout(timer);timer=setTimeout(updateComments,400)});
     ta.addEventListener('blur',function(){
       if(planId&&this.value.trim()){
-        fetch((window.htmlgraphPlanBase||'')+'/api/plans/'+planId+'/feedback',{
+        fetch((window.wipnotePlanBase||'')+'/api/plans/'+planId+'/feedback',{
           method:'POST',
           headers:{'Content-Type':'application/json'},
           body:JSON.stringify({section:this.dataset.section,action:'comment',value:this.value.trim(),question_id:''})
@@ -838,7 +838,7 @@ var planId=(function(){var a=document.querySelector('article[id]');return a?a.id
       btn.disabled=true;
       btn.textContent='Finalizing...';
       finalizeMsg.style.display='none';
-      fetch((window.htmlgraphPlanBase||'')+'/api/plans/'+planId+'/finalize',{
+      fetch((window.wipnotePlanBase||'')+'/api/plans/'+planId+'/finalize',{
         method:'POST',
         headers:{'Content-Type':'application/json'}
       })
@@ -874,7 +874,7 @@ var planId=(function(){var a=document.querySelector('article[id]');return a?a.id
       .catch(function(){
         btn.textContent='Finalize Plan';
         btn.disabled=false;
-        finalizeMsg.textContent='Could not reach server. Is htmlgraph serve running?';
+        finalizeMsg.textContent='Could not reach server. Is wipnote serve running?';
         finalizeMsg.style.color='var(--revision)';
         finalizeMsg.style.display='block';
       });
@@ -892,7 +892,7 @@ var planId=(function(){var a=document.querySelector('article[id]');return a?a.id
 
   function loadExistingFeedback(){
     if(!planId){return;}
-    fetch((window.htmlgraphPlanBase||'')+'/api/plans/'+planId+'/feedback')
+    fetch((window.wipnotePlanBase||'')+'/api/plans/'+planId+'/feedback')
       .then(function(r){return r.ok?r.json():null;})
       .then(function(data){
         if(!data){return;}
@@ -1124,7 +1124,7 @@ function renderMd(text){
 
   // Load previous messages directly into the chat thread.
   if(planId){
-    fetch((window.htmlgraphPlanBase||'')+'/api/plans/'+planId+'/feedback')
+    fetch((window.wipnotePlanBase||'')+'/api/plans/'+planId+'/feedback')
       .then(function(r){return r.ok?r.json():null;})
       .then(function(data){
         if(!data||!data.chat_messages||!data.chat_messages.length) return;
@@ -1151,7 +1151,7 @@ function renderMd(text){
     chatMessages.appendChild(assistantBubble);
     var rawResponse='';
 
-    fetch((window.htmlgraphPlanBase||'')+'/api/plans/'+planId+'/chat',{
+    fetch((window.wipnotePlanBase||'')+'/api/plans/'+planId+'/chat',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({message:text})
@@ -1247,7 +1247,7 @@ function renderMd(text){
 // Left nav collapse toggle
 (function(){
   'use strict';
-  var KEY_L='htmlgraph-plan-left-collapsed';
+  var KEY_L='wipnote-plan-left-collapsed';
   var body=document.body;
   var btnL=document.getElementById('left-sidebar-toggle');
 
@@ -1290,7 +1290,7 @@ syncHljsTheme();
     var planEl=document.querySelector('[data-plan-id]');
     if(!planEl)return;
     var id=planEl.getAttribute('data-plan-id');
-    fetch((window.htmlgraphPlanBase||'')+'/api/plans/'+id+'/yaml')
+    fetch((window.wipnotePlanBase||'')+'/api/plans/'+id+'/yaml')
       .then(function(r){if(!r.ok)throw new Error('err');return r.text();})
       .then(function(t){
         codeEl.textContent=t;
@@ -1341,7 +1341,7 @@ syncHljsTheme();
     summary.textContent=selects.length+' amendments — '+accepted+' accepted, '+pending+' pending';
   }
 
-  fetch((window.htmlgraphPlanBase||'')+'/api/plans/'+planId+'/amendments')
+  fetch((window.wipnotePlanBase||'')+'/api/plans/'+planId+'/amendments')
     .then(function(r){return r.json();})
     .then(function(amendments){
       if(!amendments||!amendments.length)return;
@@ -1364,7 +1364,7 @@ syncHljsTheme();
           sel.appendChild(opt);
         });
         sel.addEventListener('change',function(){
-          fetch((window.htmlgraphPlanBase||'')+'/api/plans/'+planId+'/feedback',{
+          fetch((window.wipnotePlanBase||'')+'/api/plans/'+planId+'/feedback',{
             method:'POST',
             headers:{'Content-Type':'application/json'},
             body:JSON.stringify({

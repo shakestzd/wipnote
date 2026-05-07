@@ -258,7 +258,7 @@ func buildMinimalCRISPIHTML(sliceCount int) string {
 <html lang="en">
 <head><meta charset="UTF-8"><title>Plan: Test</title></head>
 <body>
-<nav class="plan-sidebar"><a href="/">HtmlGraph</a></nav>
+<nav class="plan-sidebar"><a href="/">wipnote</a></nav>
 <div class="plan-content">
 <article id="plan-test1234" data-feature-id="feat-xxx" data-status="draft">
 <header class="plan-header"><h1>Plan: Test</h1></header>

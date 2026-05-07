@@ -39,4 +39,3 @@ func TrackEvent(toolName string, event *CloudEvent, database *sql.DB) (*HookResu
 
 	return &HookResult{Continue: true}, nil
 }
-

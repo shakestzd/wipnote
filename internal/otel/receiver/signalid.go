@@ -1,5 +1,5 @@
 // Package receiver holds the HTTP OTLP receiver, the SQLite writer,
-// and the orchestrator that wires them into `htmlgraph serve`.
+// and the orchestrator that wires them into `wipnote serve`.
 package receiver
 
 import (
@@ -25,7 +25,7 @@ import (
 //
 // FNV-64a keeps the hash fast (one pass over ~1–2 KB of attribute
 // strings) and gives ~1e-7 collision risk at the 10–100 signals/sec
-// scale HtmlGraph targets. SignalID is not a security primitive —
+// scale wipnote targets. SignalID is not a security primitive —
 // SHA-256 would be overkill. Collisions only cause a single row to be
 // rejected (INSERT OR IGNORE), not data corruption.
 //

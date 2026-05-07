@@ -41,15 +41,15 @@ type crossProjectSession struct {
 }
 
 func runCheckCrossProject(fix bool) error {
-	htmlgraphDir, err := findHtmlgraphDir()
+	wipnoteDir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}
 
-	projectRoot := filepath.Dir(htmlgraphDir)
+	projectRoot := filepath.Dir(wipnoteDir)
 	currentRemote := paths.GetGitRemoteURL(projectRoot)
 
-	database, err := openDB(htmlgraphDir)
+	database, err := openDB(wipnoteDir)
 	if err != nil {
 		return fmt.Errorf("open database: %w", err)
 	}
@@ -165,4 +165,3 @@ func deleteForeignSessions(database *sql.DB, foreign []crossProjectSession) (int
 	}
 	return deleted, nil
 }
-

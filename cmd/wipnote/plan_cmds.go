@@ -14,8 +14,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/shakestzd/wipnote/internal/planyaml"
 	"github.com/shakestzd/wipnote/internal/plantmpl"
+	"github.com/shakestzd/wipnote/internal/planyaml"
 	"github.com/shakestzd/wipnote/internal/workitem"
 	"github.com/spf13/cobra"
 )
@@ -114,31 +114,31 @@ func isWorkItemPrefix(id string) bool {
 //   - trk-*, feat-*, bug-*, spk-* → retroactive mode: scaffold from work item
 //   - free text     → plan-first mode: create from topic title
 func runPlanGenerate(sourceID string) error {
-	htmlgraphDir, err := findHtmlgraphDir()
+	wipnoteDir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}
 
-	planID, err := routePlanGenerateByArg(htmlgraphDir, sourceID)
+	planID, err := routePlanGenerateByArg(wipnoteDir, sourceID)
 	if err != nil {
 		return err
 	}
-	fmt.Println(filepath.Join(htmlgraphDir, "plans", planID+".html"))
+	fmt.Println(filepath.Join(wipnoteDir, "plans", planID+".html"))
 	return nil
 }
 
 // routePlanGenerateByArg contains the routing logic extracted from runPlanGenerate
 // so it can be called from tests without needing a real .wipnote directory on
 // the file system search path.
-func routePlanGenerateByArg(htmlgraphDir, sourceID string) (string, error) {
+func routePlanGenerateByArg(wipnoteDir, sourceID string) (string, error) {
 	switch {
 	case strings.HasPrefix(sourceID, "plan-"):
 		// Re-scaffold mode: regenerate CRISPI HTML from current plan data.
-		return rescaffoldExistingPlan(htmlgraphDir, sourceID)
+		return rescaffoldExistingPlan(wipnoteDir, sourceID)
 
 	case isWorkItemPrefix(sourceID):
 		// Retroactive mode: resolve then scaffold from the work item.
-		planID, err := runPlanGenerateFromWorkItem(htmlgraphDir, sourceID)
+		planID, err := runPlanGenerateFromWorkItem(wipnoteDir, sourceID)
 		if err != nil {
 			return "", err
 		}
@@ -146,14 +146,14 @@ func routePlanGenerateByArg(htmlgraphDir, sourceID string) (string, error) {
 
 	default:
 		// Plan-first mode: treat the argument as a free-text topic title.
-		return createPlanFromTopic(htmlgraphDir, sourceID, "")
+		return createPlanFromTopic(wipnoteDir, sourceID, "")
 	}
 }
 
 // rescaffoldExistingPlan re-reads a plan node and regenerates the CRISPI
 // template with all current data (title, description, slices, questions).
-func rescaffoldExistingPlan(htmlgraphDir, planID string) (string, error) {
-	p, err := workitem.Open(htmlgraphDir, agentForClaim())
+func rescaffoldExistingPlan(wipnoteDir, planID string) (string, error) {
+	p, err := workitem.Open(wipnoteDir, agentForClaim())
 	if err != nil {
 		return "", fmt.Errorf("open project: %w", err)
 	}
@@ -164,7 +164,7 @@ func rescaffoldExistingPlan(htmlgraphDir, planID string) (string, error) {
 		return "", fmt.Errorf("plan %q not found: %w", planID, err)
 	}
 
-	if err := scaffoldCRISPIPlanFromNode(htmlgraphDir, node); err != nil {
+	if err := scaffoldCRISPIPlanFromNode(wipnoteDir, node); err != nil {
 		return "", fmt.Errorf("re-scaffold %s: %w", planID, err)
 	}
 
@@ -174,18 +174,18 @@ func rescaffoldExistingPlan(htmlgraphDir, planID string) (string, error) {
 // runPlanGenerateFromWorkItem scaffolds a plan from an existing work item.
 // If a plan for sourceID already exists it returns the existing plan ID without
 // creating a duplicate.
-func runPlanGenerateFromWorkItem(htmlgraphDir, sourceID string) (string, error) {
-	resolved, err := resolveID(htmlgraphDir, sourceID)
+func runPlanGenerateFromWorkItem(wipnoteDir, sourceID string) (string, error) {
+	resolved, err := resolveID(wipnoteDir, sourceID)
 	if err != nil {
 		return "", fmt.Errorf("resolve %s: %w", sourceID, err)
 	}
-	nodePath := resolveNodePath(htmlgraphDir, resolved)
+	nodePath := resolveNodePath(wipnoteDir, resolved)
 	if nodePath == "" {
-		return "", fmt.Errorf("work item %q not found\nRun 'htmlgraph wip' to see active items or 'htmlgraph find <query>' to search.", resolved)
+		return "", fmt.Errorf("work item %q not found\nRun 'wipnote wip' to see active items or 'wipnote find <query>' to search.", resolved)
 	}
 
 	// Check whether a plan already exists for this source ID.
-	if existing := findExistingPlanForSource(htmlgraphDir, resolved); existing != "" {
+	if existing := findExistingPlanForSource(wipnoteDir, resolved); existing != "" {
 		return existing, nil
 	}
 
@@ -195,7 +195,7 @@ func runPlanGenerateFromWorkItem(htmlgraphDir, sourceID string) (string, error) 
 	}
 
 	planID := workitem.GenerateID("plan", info.title)
-	plansDir := filepath.Join(htmlgraphDir, "plans")
+	plansDir := filepath.Join(wipnoteDir, "plans")
 	if err := os.MkdirAll(plansDir, 0o755); err != nil {
 		return "", fmt.Errorf("create plans dir: %w", err)
 	}
@@ -204,15 +204,15 @@ func runPlanGenerateFromWorkItem(htmlgraphDir, sourceID string) (string, error) 
 	page := plantmpl.BuildFromWorkItem(planID, resolved, info.title, info.description, date)
 
 	// Populate zones from the work item's features.
-	slices, graph := buildTypedPlanSections(nodePath, htmlgraphDir)
+	slices, graph := buildTypedPlanSections(nodePath, wipnoteDir)
 	page.Slices = slices
 	page.Graph = graph
 
-	designHTML := buildDesignContent(info, nodePath, htmlgraphDir)
+	designHTML := buildDesignContent(info, nodePath, wipnoteDir)
 	if designHTML != "" {
 		page.Design = &plantmpl.DesignSection{Content: template.HTML(designHTML)}
 	}
-	outlineHTML := buildOutlineContent(nodePath, htmlgraphDir)
+	outlineHTML := buildOutlineContent(nodePath, wipnoteDir)
 	if outlineHTML != "" {
 		page.Outline = &plantmpl.OutlineSection{Content: template.HTML(outlineHTML)}
 	}
@@ -234,8 +234,8 @@ func runPlanGenerateFromWorkItem(htmlgraphDir, sourceID string) (string, error) 
 // findExistingPlanForSource scans the plans directory for any HTML file that
 // references sourceID in its data-feature-id attribute. Returns the plan ID
 // (stem of the filename) if found, or an empty string.
-func findExistingPlanForSource(htmlgraphDir, sourceID string) string {
-	plansDir := filepath.Join(htmlgraphDir, "plans")
+func findExistingPlanForSource(wipnoteDir, sourceID string) string {
+	plansDir := filepath.Join(wipnoteDir, "plans")
 	entries, err := os.ReadDir(plansDir)
 	if err != nil {
 		return ""
@@ -269,12 +269,12 @@ func planOpenCmd() *cobra.Command {
 }
 
 func runPlanOpen(planID string) error {
-	htmlgraphDir, err := findHtmlgraphDir()
+	wipnoteDir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}
 
-	planPath := filepath.Join(htmlgraphDir, "plans", planID+".html")
+	planPath := filepath.Join(wipnoteDir, "plans", planID+".html")
 	if _, err := os.Stat(planPath); err != nil {
 		return fmt.Errorf("plan %q not found at %s", planID, planPath)
 	}
@@ -309,7 +309,7 @@ func planWaitCmd() *cobra.Command {
 }
 
 func runPlanWait(planID string, timeout time.Duration) error {
-	htmlgraphDir, err := findHtmlgraphDir()
+	wipnoteDir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}
@@ -328,7 +328,7 @@ func runPlanWait(planID string, timeout time.Duration) error {
 			fmt.Println()
 			return fmt.Errorf("timeout: plan %s was not finalized within %s", planID, timeout)
 		case <-ticker.C:
-			finalized, err := checkPlanFinalized(htmlgraphDir, planID)
+			finalized, err := checkPlanFinalized(wipnoteDir, planID)
 			if err != nil {
 				fmt.Print(".")
 				continue
@@ -344,7 +344,7 @@ func runPlanWait(planID string, timeout time.Duration) error {
 
 // checkPlanFinalized returns true when the plan's status is "finalized".
 // Prefers the live API; falls back to reading the HTML file directly.
-func checkPlanFinalized(htmlgraphDir, planID string) (bool, error) {
+func checkPlanFinalized(wipnoteDir, planID string) (bool, error) {
 	if isServerRunning("http://localhost:8080") {
 		status, err := fetchPlanStatusFromAPI(planID)
 		if err == nil {
@@ -352,7 +352,7 @@ func checkPlanFinalized(htmlgraphDir, planID string) (bool, error) {
 		}
 	}
 
-	yamlPath := filepath.Join(htmlgraphDir, "plans", planID+".yaml")
+	yamlPath := filepath.Join(wipnoteDir, "plans", planID+".yaml")
 	plan, err := planyaml.Load(yamlPath)
 	if err != nil {
 		return false, fmt.Errorf("load plan YAML: %w", err)

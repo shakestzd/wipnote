@@ -34,7 +34,7 @@ func migrateTracksTestEnv(t *testing.T) (hgDir, rulesPath string) {
 	}
 
 	// Force the DB to live inside the project for test isolation.
-	dbPath := filepath.Join(hgDir, "htmlgraph.db")
+	dbPath := filepath.Join(hgDir, "wipnote.db")
 	t.Setenv("WIPNOTE_DB_PATH", dbPath)
 
 	// Open the project — workitem.Open will use WIPNOTE_DB_PATH and create
@@ -89,17 +89,17 @@ func migrateTracksTestEnv(t *testing.T) (hgDir, rulesPath string) {
 	}
 
 	// featClear: 4 yolo files, 0 plan
-	for _, f := range []string{"cmd/htmlgraph/yolo.go", "cmd/htmlgraph/tmux.go", "cmd/htmlgraph/budget.go", "internal/worktree/manager.go"} {
+	for _, f := range []string{"cmd/wipnote/yolo.go", "cmd/wipnote/tmux.go", "cmd/wipnote/budget.go", "internal/worktree/manager.go"} {
 		upsert(featClear.ID, f)
 	}
 	// featAmbig: 2 plan, 2 yolo (50/50 split)
-	for _, f := range []string{"cmd/htmlgraph/plan_create.go", "cmd/htmlgraph/plan_show.go", "cmd/htmlgraph/yolo.go", "cmd/htmlgraph/tmux.go"} {
+	for _, f := range []string{"cmd/wipnote/plan_create.go", "cmd/wipnote/plan_show.go", "cmd/wipnote/yolo.go", "cmd/wipnote/tmux.go"} {
 		upsert(featAmbig.ID, f)
 	}
 	// featOrphan: zero feature_files
 	_ = featOrphan
 	// featStable: 3 yolo files; current track is already trk-yolo.
-	for _, f := range []string{"cmd/htmlgraph/yolo.go", "cmd/htmlgraph/tmux.go", "cmd/htmlgraph/launch_run.go"} {
+	for _, f := range []string{"cmd/wipnote/yolo.go", "cmd/wipnote/tmux.go", "cmd/wipnote/launch_run.go"} {
 		upsert(featStable.ID, f)
 	}
 
@@ -115,12 +115,12 @@ func migrateTracksTestEnv(t *testing.T) (hgDir, rulesPath string) {
 	// Write a rules file using the actual track IDs we just created.
 	rulesPath = filepath.Join(root, "rules.yaml")
 	rulesYAML := "rules:\n" +
-		"  - { glob: \"cmd/htmlgraph/yolo.go\",        track_id: \"" + tYolo.ID + "\", priority: 110 }\n" +
-		"  - { glob: \"cmd/htmlgraph/tmux.go\",        track_id: \"" + tYolo.ID + "\", priority: 110 }\n" +
-		"  - { glob: \"cmd/htmlgraph/budget.go\",      track_id: \"" + tYolo.ID + "\", priority: 110 }\n" +
-		"  - { glob: \"cmd/htmlgraph/launch_run.go\",  track_id: \"" + tYolo.ID + "\", priority: 110 }\n" +
+		"  - { glob: \"cmd/wipnote/yolo.go\",        track_id: \"" + tYolo.ID + "\", priority: 110 }\n" +
+		"  - { glob: \"cmd/wipnote/tmux.go\",        track_id: \"" + tYolo.ID + "\", priority: 110 }\n" +
+		"  - { glob: \"cmd/wipnote/budget.go\",      track_id: \"" + tYolo.ID + "\", priority: 110 }\n" +
+		"  - { glob: \"cmd/wipnote/launch_run.go\",  track_id: \"" + tYolo.ID + "\", priority: 110 }\n" +
 		"  - { glob: \"internal/worktree/**\",         track_id: \"" + tYolo.ID + "\", priority: 100 }\n" +
-		"  - { glob: \"cmd/htmlgraph/plan_*.go\",      track_id: \"" + tPlan.ID + "\", priority: 100 }\n"
+		"  - { glob: \"cmd/wipnote/plan_*.go\",      track_id: \"" + tPlan.ID + "\", priority: 100 }\n"
 	if err := os.WriteFile(rulesPath, []byte(rulesYAML), 0o644); err != nil {
 		t.Fatalf("write rules: %v", err)
 	}
@@ -331,7 +331,7 @@ func TestMigrateTracksBugsWriteEditsBugCollection(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Bugs.Create: %v", err)
 	}
-	for _, f := range []string{"cmd/htmlgraph/yolo.go", "cmd/htmlgraph/tmux.go", "cmd/htmlgraph/budget.go", "internal/worktree/manager.go"} {
+	for _, f := range []string{"cmd/wipnote/yolo.go", "cmd/wipnote/tmux.go", "cmd/wipnote/budget.go", "internal/worktree/manager.go"} {
 		if err := db.UpsertFeatureFile(p.DB, &models.FeatureFile{
 			ID: "ff-bug-" + bg.ID + "-" + f, FeatureID: bg.ID, FilePath: f, Operation: "edit",
 		}); err != nil {
@@ -409,9 +409,9 @@ func TestMigrateTracksRejectsUnknownProposedTrack(t *testing.T) {
 	badRules := filepath.Join(filepath.Dir(hgDir), "bad-rules.yaml")
 	if err := os.WriteFile(badRules, []byte(
 		"rules:\n"+
-			"  - { glob: \"cmd/htmlgraph/yolo.go\", track_id: \"trk-does-not-exist\", priority: 110 }\n"+
-			"  - { glob: \"cmd/htmlgraph/tmux.go\", track_id: \"trk-does-not-exist\", priority: 110 }\n"+
-			"  - { glob: \"cmd/htmlgraph/budget.go\", track_id: \"trk-does-not-exist\", priority: 110 }\n"+
+			"  - { glob: \"cmd/wipnote/yolo.go\", track_id: \"trk-does-not-exist\", priority: 110 }\n"+
+			"  - { glob: \"cmd/wipnote/tmux.go\", track_id: \"trk-does-not-exist\", priority: 110 }\n"+
+			"  - { glob: \"cmd/wipnote/budget.go\", track_id: \"trk-does-not-exist\", priority: 110 }\n"+
 			"  - { glob: \"internal/worktree/**\", track_id: \"trk-does-not-exist\", priority: 100 }\n"),
 		0o644); err != nil {
 		t.Fatalf("write bad-rules: %v", err)

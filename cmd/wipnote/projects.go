@@ -20,14 +20,14 @@ import (
 // commands at a tmpdir registry without touching the real user's home.
 var defaultRegistryPath = registry.DefaultPath
 
-// projectsCmd returns the `htmlgraph projects` command tree.
+// projectsCmd returns the `wipnote projects` command tree.
 func projectsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "projects",
 		Short: "Manage the cross-project registry",
-		Long: `Manage the cross-project registry at ~/.local/share/htmlgraph/projects.json.
+		Long: `Manage the cross-project registry at ~/.local/share/wipnote/projects.json.
 
-The registry is populated passively: every htmlgraph invocation inside a
+The registry is populated passively: every wipnote invocation inside a
 project upserts that project into the registry. Use ` + "`projects list`" + ` to
 see all known projects and ` + "`projects prune`" + ` to remove stale entries.`,
 	}
@@ -99,7 +99,7 @@ func projectsPruneCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "prune",
 		Short: "Remove stale registry entries",
-		Long: `Remove stale registry entries from ~/.local/share/htmlgraph/projects.json.
+		Long: `Remove stale registry entries from ~/.local/share/wipnote/projects.json.
 
 Default behavior (no flags): remove entries whose .wipnote directory no longer exists.
 

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-HtmlGraph Documentation Site Demo
+wipnote Documentation Site Demo
 
-Demonstrates using HtmlGraph for building a static documentation site.
+Demonstrates using wipnote for building a static documentation site.
 No build step, no framework - just HTML files with smart linking.
 """
 
@@ -12,7 +12,7 @@ from pathlib import Path
 # Add src to path for development
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src" / "python"))
 
-from htmlgraph import SDK, Edge, Node
+from wipnote import SDK, Edge, Node
 
 
 def create_documentation_pages(sdk: SDK):
@@ -22,13 +22,13 @@ def create_documentation_pages(sdk: SDK):
     # Homepage / Table of Contents
     homepage = Node(
         id="doc-index",
-        title="HtmlGraph Documentation",
+        title="wipnote Documentation",
         type="doc",
         status="active",
         priority="high",
         content="""
-        <h1>HtmlGraph Documentation</h1>
-        <p>Welcome to HtmlGraph - "HTML is All You Need"</p>
+        <h1>wipnote Documentation</h1>
+        <p>Welcome to wipnote - "HTML is All You Need"</p>
 
         <h2>Getting Started</h2>
         <ul>
@@ -75,13 +75,13 @@ def create_documentation_pages(sdk: SDK):
         </ul>
 
         <h2>Install via pip</h2>
-        <pre><code>pip install htmlgraph</code></pre>
+        <pre><code>pip install wipnote</code></pre>
 
         <h2>Install via uv</h2>
-        <pre><code>uv pip install htmlgraph</code></pre>
+        <pre><code>uv pip install wipnote</code></pre>
 
         <h2>Verify Installation</h2>
-        <pre><code>python -c "import htmlgraph; print(htmlgraph.__version__)"</code></pre>
+        <pre><code>python -c "import wipnote; print(wipnote.__version__)"</code></pre>
 
         <h2>Next Steps</h2>
         <p>Ready to start? Check out the <a href="#doc-quickstart">Quickstart Guide</a>.</p>
@@ -104,10 +104,10 @@ def create_documentation_pages(sdk: SDK):
         <h1>Quickstart Guide</h1>
 
         <h2>Your First Graph</h2>
-        <pre><code>from htmlgraph import HtmlGraph, Node
+        <pre><code>from wipnote import wipnote, Node
 
 # Create a graph
-graph = HtmlGraph("my-graph")
+graph = wipnote("my-graph")
 
 # Add a node
 node = Node(
@@ -128,7 +128,7 @@ tasks = graph.query("[data-type='task']")
 done = graph.query("[data-status='done']")</code></pre>
 
         <h2>Using the SDK</h2>
-        <pre><code>from htmlgraph import SDK
+        <pre><code>from wipnote import SDK
 
 sdk = SDK(directory=".", agent="my-agent")
 
@@ -162,7 +162,7 @@ feature = sdk.features.create("Add authentication")</code></pre>
         <h1>API Overview</h1>
 
         <h2>Core Concepts</h2>
-        <p>HtmlGraph provides three main APIs:</p>
+        <p>wipnote provides three main APIs:</p>
 
         <h3>1. Graph API</h3>
         <p>Low-level graph operations for creating and querying HTML nodes.</p>
@@ -176,7 +176,7 @@ feature = sdk.features.create("Add authentication")</code></pre>
         <p>Simplified API for AI agents to interact with the graph.</p>
 
         <h2>Philosophy</h2>
-        <p>HtmlGraph uses web standards:</p>
+        <p>wipnote uses web standards:</p>
         <ul>
             <li>HTML files = graph nodes</li>
             <li>Hyperlinks = graph edges</li>
@@ -203,10 +203,10 @@ feature = sdk.features.create("Add authentication")</code></pre>
         content="""
         <h1>Graph API Reference</h1>
 
-        <h2>HtmlGraph Class</h2>
+        <h2>wipnote Class</h2>
 
         <h3>Constructor</h3>
-        <pre><code>graph = HtmlGraph(directory="path/to/graph")</code></pre>
+        <pre><code>graph = wipnote(directory="path/to/graph")</code></pre>
 
         <h3>Methods</h3>
 
@@ -307,10 +307,10 @@ feature = sdk.features.create("Add authentication")</code></pre>
         <h1>Basic Usage Examples</h1>
 
         <h2>Example 1: Todo List</h2>
-        <p>Create a simple todo list using HtmlGraph.</p>
-        <pre><code>from htmlgraph import HtmlGraph, Node
+        <p>Create a simple todo list using wipnote.</p>
+        <pre><code>from wipnote import wipnote, Node
 
-graph = HtmlGraph("todos")
+graph = wipnote("todos")
 
 # Create tasks
 task1 = Node(id="task-1", title="Write docs", type="task")
@@ -328,7 +328,7 @@ all_tasks = graph.query("[data-type='task']")
 urgent = graph.query("[data-priority='high']")</code></pre>
 
         <h2>Example 3: Track Dependencies</h2>
-        <pre><code>from htmlgraph import Edge
+        <pre><code>from wipnote import Edge
 
 task = Node(
     id="task-3",
@@ -382,7 +382,7 @@ for task_id, blocked_count in bottlenecks:
 
         <h2>Pattern 3: Agent Coordination</h2>
         <p>Multiple agents working on the same graph.</p>
-        <pre><code>from htmlgraph.agents import AgentInterface
+        <pre><code>from wipnote.agents import AgentInterface
 
 agent = AgentInterface(".", agent_id="agent-1")
 
@@ -546,7 +546,7 @@ def generate_table_of_contents(sdk: SDK):
 def main():
     """Run the documentation site demo."""
     print("=" * 80)
-    print("HtmlGraph Documentation Site Demo")
+    print("wipnote Documentation Site Demo")
     print("'HTML is All You Need' - Documentation Edition")
     print("=" * 80)
 

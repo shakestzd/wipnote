@@ -1,5 +1,5 @@
 // Package agent provides agent identity detection and session ID resolution
-// for the HtmlGraph CLI and hook subsystems.
+// for the wipnote CLI and hook subsystems.
 //
 // It is intentionally dependency-free (no internal imports) so that both the
 // hook handlers and CLI commands can import it without creating import cycles.

@@ -16,7 +16,7 @@ from __future__ import annotations
 import argparse
 
 import pytest
-from htmlgraph.cli.models import (
+from wipnote.cli.models import (
     FeatureCreateArgs,
     FeatureFilter,
     FeatureIdArgs,
@@ -211,7 +211,7 @@ class TestStatusArgs:
         a = StatusArgs()
         assert a.format == "text"
         assert a.verbose is False
-        assert a.graph_dir == ".htmlgraph"
+        assert a.graph_dir == ".wipnote"
 
     def test_valid_formats(self) -> None:
         for fmt in ["text", "json", "html"]:
@@ -257,7 +257,7 @@ class TestFormatValidationError:
 
 class TestValidateArgs:
     def test_converts_namespace_to_model(self) -> None:
-        ns = argparse.Namespace(format="json", verbose=True, graph_dir=".htmlgraph")
+        ns = argparse.Namespace(format="json", verbose=True, graph_dir=".wipnote")
         result = validate_args(StatusArgs, ns)
         assert result.format == "json"
         assert result.verbose is True
@@ -266,7 +266,7 @@ class TestValidateArgs:
         ns = argparse.Namespace(
             format="text",
             verbose=False,
-            graph_dir=".htmlgraph",
+            graph_dir=".wipnote",
             command="status",
             func=lambda x: x,
         )
@@ -293,7 +293,7 @@ class TestBackwardCompat:
 
     def test_feature_release_from_args_no_pydantic(self) -> None:
         """FeatureReleaseCommand.from_args works without Pydantic validation."""
-        from htmlgraph.cli.work.features import FeatureReleaseCommand
+        from wipnote.cli.work.features import FeatureReleaseCommand
 
         ns = argparse.Namespace(id="feat-abc", collection="features")
         cmd = FeatureReleaseCommand.from_args(ns)
@@ -302,15 +302,15 @@ class TestBackwardCompat:
 
     def test_orchestrator_status_from_args_no_pydantic(self) -> None:
         """OrchestratorStatusCommand.from_args works without Pydantic validation."""
-        from htmlgraph.cli.work.orchestration import OrchestratorStatusCommand
+        from wipnote.cli.work.orchestration import OrchestratorStatusCommand
 
-        ns = argparse.Namespace(graph_dir=".htmlgraph")
+        ns = argparse.Namespace(graph_dir=".wipnote")
         cmd = OrchestratorStatusCommand.from_args(ns)
         assert cmd is not None
 
     def test_feature_start_with_pydantic_validation(self) -> None:
         """FeatureStartCommand.from_args validates via Pydantic."""
-        from htmlgraph.cli.work.features import FeatureStartCommand
+        from wipnote.cli.work.features import FeatureStartCommand
 
         ns = argparse.Namespace(id="  feat-abc  ", collection="features")
         cmd = FeatureStartCommand.from_args(ns)
@@ -319,8 +319,8 @@ class TestBackwardCompat:
 
     def test_feature_start_empty_id_raises_command_error(self) -> None:
         """FeatureStartCommand.from_args raises CommandError on empty ID."""
-        from htmlgraph.cli.base import CommandError
-        from htmlgraph.cli.work.features import FeatureStartCommand
+        from wipnote.cli.base import CommandError
+        from wipnote.cli.work.features import FeatureStartCommand
 
         ns = argparse.Namespace(id="", collection="features")
         with pytest.raises(CommandError):
@@ -328,8 +328,8 @@ class TestBackwardCompat:
 
     def test_feature_create_invalid_priority_raises_command_error(self) -> None:
         """FeatureCreateCommand.from_args raises CommandError on invalid priority."""
-        from htmlgraph.cli.base import CommandError
-        from htmlgraph.cli.work.features import FeatureCreateCommand
+        from wipnote.cli.base import CommandError
+        from wipnote.cli.work.features import FeatureCreateCommand
 
         ns = argparse.Namespace(
             title="My Feature",
@@ -345,8 +345,8 @@ class TestBackwardCompat:
 
     def test_orchestrator_enable_invalid_level_raises_command_error(self) -> None:
         """OrchestratorEnableCommand.from_args raises CommandError on invalid level."""
-        from htmlgraph.cli.base import CommandError
-        from htmlgraph.cli.work.orchestration import OrchestratorEnableCommand
+        from wipnote.cli.base import CommandError
+        from wipnote.cli.work.orchestration import OrchestratorEnableCommand
 
         ns = argparse.Namespace(level="extreme")
         with pytest.raises(CommandError):

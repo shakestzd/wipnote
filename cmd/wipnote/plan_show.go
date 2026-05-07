@@ -31,11 +31,11 @@ func planShowCmd() *cobra.Command {
 func runPlanShowWithFormat(rawID, format string) error {
 	if format != "json" {
 		// Only check drift for human-readable output (avoids confusing stderr noise in JSON mode).
-		if htmlgraphDir, err := findHtmlgraphDir(); err == nil {
-			resolved, err := resolveID(htmlgraphDir, rawID)
+		if wipnoteDir, err := findWipnoteDir(); err == nil {
+			resolved, err := resolveID(wipnoteDir, rawID)
 			if err == nil && strings.HasPrefix(resolved, "plan-") {
-				yamlPath := filepath.Join(htmlgraphDir, "plans", resolved+".yaml")
-				htmlPath := filepath.Join(htmlgraphDir, "plans", resolved+".html")
+				yamlPath := filepath.Join(wipnoteDir, "plans", resolved+".yaml")
+				htmlPath := filepath.Join(wipnoteDir, "plans", resolved+".html")
 				checkPlanDrift(yamlPath, htmlPath, os.Stderr)
 			}
 		}
@@ -66,7 +66,7 @@ func checkPlanDrift(yamlPath, htmlPath string, w io.Writer) {
 
 	if m := planArticleStatusRe.FindStringSubmatch(html); len(m) == 3 {
 		if m[2] != plan.Meta.Status {
-			fmt.Fprintf(w, "warning: %s YAML/HTML drift — status: yaml=%q html=%q. HTML is stale; re-render with 'htmlgraph plan generate %s'.\n",
+			fmt.Fprintf(w, "warning: %s YAML/HTML drift — status: yaml=%q html=%q. HTML is stale; re-render with 'wipnote plan generate %s'.\n",
 				planID, plan.Meta.Status, m[2], planID)
 		}
 	}
@@ -74,7 +74,7 @@ func checkPlanDrift(yamlPath, htmlPath string, w io.Writer) {
 	if m := planTitleRe.FindStringSubmatch(html); len(m) == 2 {
 		htmlTitle := strings.TrimSpace(m[1])
 		if htmlTitle != plan.Meta.Title {
-			fmt.Fprintf(w, "warning: %s YAML/HTML drift — title: yaml=%q html=%q. HTML is stale; re-render with 'htmlgraph plan generate %s'.\n",
+			fmt.Fprintf(w, "warning: %s YAML/HTML drift — title: yaml=%q html=%q. HTML is stale; re-render with 'wipnote plan generate %s'.\n",
 				planID, plan.Meta.Title, htmlTitle, planID)
 		}
 	}
@@ -82,7 +82,7 @@ func checkPlanDrift(yamlPath, htmlPath string, w io.Writer) {
 	htmlSliceCount := len(planSliceRe.FindAllString(html, -1))
 	yamlSliceCount := len(plan.Slices)
 	if htmlSliceCount != yamlSliceCount {
-		fmt.Fprintf(w, "warning: %s YAML/HTML drift — slice count: yaml=%d html=%d. HTML is stale; re-render with 'htmlgraph plan generate %s'.\n",
+		fmt.Fprintf(w, "warning: %s YAML/HTML drift — slice count: yaml=%d html=%d. HTML is stale; re-render with 'wipnote plan generate %s'.\n",
 			planID, yamlSliceCount, htmlSliceCount, planID)
 	}
 }

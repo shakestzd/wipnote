@@ -2,8 +2,8 @@
 
 ## Context
 
-HtmlGraph is developed across two hosts: macOS (`/Users/shakes/DevProjects/htmlgraph`)
-and a Linux Codespaces devcontainer (`/workspaces/htmlgraph`). Several committed artifacts
+wipnote is developed across two hosts: macOS (`/Users/shakes/DevProjects/wipnote`)
+and a Linux Codespaces devcontainer (`/workspaces/wipnote`). Several committed artifacts
 carry host-local absolute paths that break or mislead agents on the other host. Two
 specific instances were fixed (bug-f4760452, bug-e1c968fe) and a pre-commit guardrail
 landed (bug-4b6d8369). This document classifies every on-disk artifact class that can
@@ -15,18 +15,18 @@ carry such paths, assigns remediation status, and lists remaining open items.
 
 | Artifact | Classification | Remediation | Status |
 |---|---|---|---|
-| `.htmlgraph/plans/*.yaml` | relative-rewriteable | Redact to placeholders; pre-commit guardrail | Done (bug-f4760452, bug-4b6d8369) |
-| `.htmlgraph/bugs/*.html` body text | relative-rewriteable | Redact; pre-commit guardrail | Done (bug-f4760452, bug-4b6d8369) |
-| `.htmlgraph/sessions/*.html` `data-project-dir` attr | ephemeral | Written once at session creation from live `$CLAUDE_PROJECT_DIR`; no repair needed | OK — by design |
-| `.htmlgraph/sessions/*.html` tool-call list | ephemeral | Replay log of actual agent actions; paths are historical record, not config | OK — by design |
-| `htmlgraph.db` `sessions.project_dir` column | ephemeral | Populated from `CLAUDE_PROJECT_DIR` at `SessionStart`; value reflects host at time of session | OK — by design; SQLite is not synced cross-host |
-| `htmlgraph.db` `sessions.transcript_path` column | ephemeral | Absolute path to Claude project JSONL on writing host; correct for that host | OK — by design |
+| `.wipnote/plans/*.yaml` | relative-rewriteable | Redact to placeholders; pre-commit guardrail | Done (bug-f4760452, bug-4b6d8369) |
+| `.wipnote/bugs/*.html` body text | relative-rewriteable | Redact; pre-commit guardrail | Done (bug-f4760452, bug-4b6d8369) |
+| `.wipnote/sessions/*.html` `data-project-dir` attr | ephemeral | Written once at session creation from live `$CLAUDE_PROJECT_DIR`; no repair needed | OK — by design |
+| `.wipnote/sessions/*.html` tool-call list | ephemeral | Replay log of actual agent actions; paths are historical record, not config | OK — by design |
+| `wipnote.db` `sessions.project_dir` column | ephemeral | Populated from `CLAUDE_PROJECT_DIR` at `SessionStart`; value reflects host at time of session | OK — by design; SQLite is not synced cross-host |
+| `wipnote.db` `sessions.transcript_path` column | ephemeral | Absolute path to Claude project JSONL on writing host; correct for that host | OK — by design |
 | `.claude/settings.local.json` | must-stay-absolute | Per-machine file, gitignored; stale paths silently override project config | Open — see §1 |
 | `.claude/worktrees/*/.git` gitdir line | must-stay-absolute | Rewrite on `SessionStart` when mismatch detected | Done (bug-e1c968fe) |
 | `.claude/agent-memory/**/*.md` | relative-rewriteable | Agent-authored; can contain observed host paths in prose | Open — see §2 |
 | `~/.claude/projects/<slug>/memory/*.md` | relative-rewriteable | User-level memory; can store examples with host paths | Open — see §3 |
-| `plugin/hooks/hooks.json` | relative-rewriteable | All hook commands use bare `htmlgraph hook …` — no absolute paths | OK — clean |
-| `plugin/hooks/bin/htmlgraph` (binary) | ephemeral | Compiled per-host; not committed (gitignored) | OK — no issue |
+| `plugin/hooks/hooks.json` | relative-rewriteable | All hook commands use bare `wipnote hook …` — no absolute paths | OK — clean |
+| `plugin/hooks/bin/wipnote` (binary) | ephemeral | Compiled per-host; not committed (gitignored) | OK — no issue |
 | `.env` / `.env.local` | N/A | Neither file exists in this repo | N/A |
 | `.claude/skills/**` prose referencing host paths | relative-rewriteable | Auto-synced from `plugin/skills/`; one stale path found in deployment skill reference | Open — see §4 |
 
@@ -34,14 +34,14 @@ carry such paths, assigns remediation status, and lists remaining open items.
 
 ## Deep-Dive Per Artifact
 
-### `.htmlgraph/plans/*.yaml` and `.htmlgraph/bugs/*.html` body text
+### `.wipnote/plans/*.yaml` and `.wipnote/bugs/*.html` body text
 
 **What paths:** Free-form text fields (precondition notes, bug descriptions) copied verbatim
 from agent prose. Examples found before remediation:
 - `plan-c248b73f.yaml:178` — `/home/vscode/.copilot/session-state/…`
-- `bug-71fc095f.html:43` — `/Users/shakes/DevProjects/shakestzd/.htmlgraph/htmlgraph.db`
+- `bug-71fc095f.html:43` — `/Users/shakes/DevProjects/shakestzd/.wipnote/wipnote.db`
 
-**Who writes:** `htmlgraph plan create`, `htmlgraph bug create`, agent-generated updates.
+**Who writes:** `wipnote plan create`, `wipnote bug create`, agent-generated updates.
 
 **Remediation:** bug-f4760452 redacted the two live instances. bug-4b6d8369 added
 `scripts/check-host-paths.sh` (invoked from `.githooks/pre-commit --staged`) to block
@@ -57,7 +57,7 @@ spec prose. The scanner produces false positives for these. See Open §5.
 
 ---
 
-### `.htmlgraph/sessions/*.html`
+### `.wipnote/sessions/*.html`
 
 **What paths:** Every session HTML carries `data-project-dir="/abs/path/to/repo"` on the
 root element, and the tool-call `<li>` log includes every absolute path the agent accessed
@@ -72,23 +72,23 @@ what happened on a specific host at a specific time. The `data-project-dir` attr
 correct for the originating host. These files are committed to the repo as historical
 records, so they will contain cross-host paths forever. This is expected and not a bug.
 
-**No remediation needed.** The pre-commit scanner's scope intentionally covers `.htmlgraph/`
+**No remediation needed.** The pre-commit scanner's scope intentionally covers `.wipnote/`
 but session HTMLs should arguably be in an allowlist given their historical nature.
 
 ---
 
-### `htmlgraph.db` (SQLite)
+### `wipnote.db` (SQLite)
 
 **What paths:** `sessions.project_dir` — absolute path of the project on the writing host.
 `sessions.transcript_path` — absolute path to the Claude JSONL transcript file on the writing
-host (e.g. `/home/vscode/.claude/projects/-workspaces-htmlgraph/abc123.jsonl` or
+host (e.g. `/home/vscode/.claude/projects/-workspaces-wipnote/abc123.jsonl` or
 `/Users/shakes/.claude/projects/-Users-shakes-…/abc123.jsonl`).
 
 **Who writes:** `internal/hooks/session_start.go` (`SessionStart` handler) reads
 `CLAUDE_PROJECT_DIR` from the env and the Claude hook payload.
 
 **Classification:** **Ephemeral.** SQLite is not committed to the repo (it is `.gitignore`d
-or rebuilt via `htmlgraph reindex`). Each host maintains its own DB. Cross-host path
+or rebuilt via `wipnote reindex`). Each host maintains its own DB. Cross-host path
 drift in SQLite is a non-issue because the DB is never synced.
 
 **No remediation needed.**
@@ -102,7 +102,7 @@ scripts, `statusLine.command` pointing to an absolute wrapper script. Confirmed 
 examples:
 - `"Bash(CLAUDE_PLUGIN_ROOT=/Users/shakes/.claude/plugins/cache/…)"` permission rules
 - `"statusLine": {"command": "/Users/shakes/.claude/omp-claude-wrapper.sh"}`
-- Multiple `"Bash(/Users/shakes/DevProjects/htmlgraph/…:*)"` permission entries
+- Multiple `"Bash(/Users/shakes/DevProjects/wipnote/…:*)"` permission entries
 
 **Who writes:** Claude Code writes this file whenever the user approves a new permission
 pattern or changes Claude settings. It is gitignored (per-machine by design) but the
@@ -133,7 +133,7 @@ current host's absolute repo root. `internal/worktree/worktree.go` calls `git wo
 linked worktree `.git` files (relative paths are not supported by all git versions).
 
 **Remediation:** bug-e1c968fe tracked this. The worktree `.git` file for
-`trk-787f57d3` and `trk-cd61bbae` currently show correct `/workspaces/htmlgraph/…` paths.
+`trk-787f57d3` and `trk-cd61bbae` currently show correct `/workspaces/wipnote/…` paths.
 However, no code in `internal/hooks/session_start.go` or `internal/worktree/` currently
 detects and repairs a stale `gitdir` — the fix was manual rewrite. A `session-start`
 hook repair step was proposed in bug-e1c968fe but not implemented. See Open §6.
@@ -143,9 +143,9 @@ hook repair step was proposed in bug-e1c968fe but not implemented. See Open §6.
 ### `.claude/agent-memory/**/*.md`
 
 **What paths:** Agent-written reference documents that record observed environment facts.
-Confirmed: `agent-memory/htmlgraph-researcher/reference_external_cli_integration.md`
+Confirmed: `agent-memory/wipnote-researcher/reference_external_cli_integration.md`
 contains `/Users/shakes/.nvm/versions/node/v22.20.0/bin/` and
-`/Users/shakes/.codex/skills/htmlgraph-tracker`.
+`/Users/shakes/.codex/skills/wipnote-tracker`.
 
 **Who writes:** Agents writing memory files during sessions on macOS.
 
@@ -180,7 +180,7 @@ No action required unless agents start treating memory examples as live config. 
 ### `.claude/skills/**` (auto-synced from `plugin/skills/`)
 
 **What paths:** `plugin/skills/deployment-automation-skill/reference.md` contains
-`cd /Users/shakes/DevProjects/htmlgraph` in an example command block.
+`cd /Users/shakes/DevProjects/wipnote` in an example command block.
 
 **Who writes:** Hand-edited skill source files under `plugin/`.
 
@@ -188,7 +188,7 @@ No action required unless agents start treating memory examples as live config. 
 `$PROJECT_ROOT` or a generic placeholder rather than a host-specific path.
 
 **Remediation:** Update `plugin/skills/deployment-automation-skill/reference.md` to
-replace the absolute path with a placeholder. Regenerate ports with `htmlgraph plugin
+replace the absolute path with a placeholder. Regenerate ports with `wipnote plugin
 build-ports`. Add skill files to the pre-commit scanner scope. See Open §4.
 
 ---
@@ -209,7 +209,7 @@ build-ports`. Add skill files to the pre-commit scanner scope. See Open §4.
    (Low priority — informational only.)
 
 4. **Fix absolute path in `plugin/skills/deployment-automation-skill/reference.md`.**
-   Replace `/Users/shakes/DevProjects/htmlgraph` with `<project-root>` or `$(git rev-parse
+   Replace `/Users/shakes/DevProjects/wipnote` with `<project-root>` or `$(git rev-parse
    --show-toplevel)`. Regenerate all plugin ports and commit. (Low priority — doc-only.)
 
 5. **Add allowlist for intentional `/home/vscode/` in spec prose.** `plan-251676c5` contains

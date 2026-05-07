@@ -14,8 +14,8 @@ func TestIsPluginInstalled_TrueWhenPresent(t *testing.T) {
 	data := map[string]any{
 		"version": 1,
 		"plugins": map[string]any{
-			"htmlgraph@htmlgraph": []map[string]string{
-				{"scope": "htmlgraph", "installPath": "/some/path", "version": "0.39.0"},
+			"wipnote@wipnote": []map[string]string{
+				{"scope": "wipnote", "installPath": "/some/path", "version": "0.39.0"},
 			},
 		},
 	}
@@ -56,8 +56,8 @@ func TestInstalledPluginVersion_ReturnsVersion(t *testing.T) {
 	data := map[string]any{
 		"version": 1,
 		"plugins": map[string]any{
-			"htmlgraph@htmlgraph": []map[string]string{
-				{"scope": "htmlgraph", "installPath": "/some/path", "version": "0.38.0"},
+			"wipnote@wipnote": []map[string]string{
+				{"scope": "wipnote", "installPath": "/some/path", "version": "0.38.0"},
 			},
 		},
 	}

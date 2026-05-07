@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="htmlgraph-version" content="1.0">
+    <meta name="wipnote-version" content="1.0">
     <title>Basic Usage Examples</title>
     <link rel="stylesheet" href="../styles.css">
 </head>
@@ -50,10 +50,10 @@
         <h1>Basic Usage Examples</h1>
 
         <h2>Example 1: Todo List</h2>
-        <p>Create a simple todo list using HtmlGraph.</p>
-        <pre><code>from htmlgraph import HtmlGraph, Node
+        <p>Create a simple todo list using wipnote.</p>
+        <pre><code>from wipnote import wipnote, Node
 
-graph = HtmlGraph("todos")
+graph = wipnote("todos")
 
 # Create tasks
 task1 = Node(id="task-1", title="Write docs", type="task")
@@ -71,7 +71,7 @@ all_tasks = graph.query("[data-type='task']")
 urgent = graph.query("[data-priority='high']")</code></pre>
 
         <h2>Example 3: Track Dependencies</h2>
-        <pre><code>from htmlgraph import Edge
+        <pre><code>from wipnote import Edge
 
 task = Node(
     id="task-3",

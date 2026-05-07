@@ -1,4 +1,4 @@
-// Package hooks implements Claude Code hook handlers for HtmlGraph.
+// Package hooks implements Claude Code hook handlers for wipnote.
 //
 // Each handler reads a CloudEvent JSON payload from stdin and writes a
 // HookResult JSON to stdout. The Go binary replaces the Python hook scripts,
@@ -18,7 +18,7 @@ import (
 )
 
 // CloudEvent is the JSON payload Claude Code sends to every hook via stdin.
-// Only the fields HtmlGraph actually uses are decoded; the rest are ignored.
+// Only the fields wipnote actually uses are decoded; the rest are ignored.
 type CloudEvent struct {
 	// Top-level fields common to all hook types
 	SessionID      string `json:"session_id"`
@@ -49,11 +49,11 @@ type CloudEvent struct {
 
 	// SessionStart / SessionEnd / Stop — common session fields
 	TranscriptPath string `json:"transcript_path"`
-	Source         string `json:"source"`   // startup, resume, clear, compact
+	Source         string `json:"source"` // startup, resume, clear, compact
 	Model          string `json:"model"`
 
 	// SessionEnd
-	Reason   string `json:"reason"`    // prompt_input_exit, interrupt, etc.
+	Reason   string `json:"reason"` // prompt_input_exit, interrupt, etc.
 	ExitCode int    `json:"exit_code"`
 
 	// TaskCreated / TaskCompleted
@@ -72,10 +72,10 @@ type CloudEvent struct {
 // Fields are omitted when empty to keep the payload minimal.
 type HookResult struct {
 	Continue          bool   `json:"continue,omitempty"`
-	Decision          string `json:"decision,omitempty"`           // "allow" | "deny" | "block"
+	Decision          string `json:"decision,omitempty"` // "allow" | "deny" | "block"
 	Reason            string `json:"reason,omitempty"`
-	Message           string `json:"message,omitempty"`            // shown on stderr
-	AdditionalContext string `json:"additionalContext,omitempty"`  // injected into conversation
+	Message           string `json:"message,omitempty"`           // shown on stderr
+	AdditionalContext string `json:"additionalContext,omitempty"` // injected into conversation
 }
 
 // ReadRawStdin reads all bytes from stdin without parsing. This is used by the
@@ -151,8 +151,8 @@ func ResolveProjectDir(cwd, sessionID string) string {
 	return dir
 }
 
-// IsHtmlGraphProject returns true when the project directory has a .wipnote/ dir.
-func IsHtmlGraphProject(projectDir string) bool {
+// IswipnoteProject returns true when the project directory has a .wipnote/ dir.
+func IswipnoteProject(projectDir string) bool {
 	_, err := os.Stat(filepath.Join(projectDir, ".wipnote"))
 	return err == nil
 }
@@ -164,8 +164,8 @@ func IsHtmlGraphProject(projectDir string) bool {
 //
 // Returns an error when os.UserCacheDir() fails. There is intentionally no
 // silent fallback to a project-local path: a fallback caused bug-62f14f8c
-// where the indexer wrote to ~/.cache/wipnote/<hash>/htmlgraph.db while
-// the YOLO PreToolUse gate read .wipnote/.db/htmlgraph.db, leaving the
+// where the indexer wrote to ~/.cache/wipnote/<hash>/wipnote.db while
+// the YOLO PreToolUse gate read .wipnote/.db/wipnote.db, leaving the
 // gate's view of agent_events permanently stale. Callers must propagate
 // the error (typically by skipping the hook with the configured fallback).
 func DBPath(projectDir string) (string, error) {

@@ -18,14 +18,14 @@ Promoted features are NOT deleted — they have their own lifecycle.
 Adding or editing slices after reopen will create NEW features on the next finalize.
 
 Example:
-  htmlgraph plan reopen plan-a1b2c3d4`,
+  wipnote plan reopen plan-a1b2c3d4`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
-			htmlgraphDir, err := findHtmlgraphDir()
+			wipnoteDir, err := findWipnoteDir()
 			if err != nil {
 				return err
 			}
-			if err := executePlanReopen(htmlgraphDir, args[0]); err != nil {
+			if err := executePlanReopen(wipnoteDir, args[0]); err != nil {
 				return err
 			}
 			fmt.Printf("Plan %s reopened (status: todo).\n", args[0])
@@ -37,8 +37,8 @@ Example:
 
 // executePlanReopen unlocks a finalized plan by setting its YAML status back to "todo".
 // Promoted features are not deleted.
-func executePlanReopen(htmlgraphDir, planID string) error {
-	planPath := filepath.Join(htmlgraphDir, "plans", planID+".yaml")
+func executePlanReopen(wipnoteDir, planID string) error {
+	planPath := filepath.Join(wipnoteDir, "plans", planID+".yaml")
 	plan, err := planyaml.Load(planPath)
 	if err != nil {
 		return fmt.Errorf("load plan YAML for %s: %w", planID, err)
@@ -54,7 +54,7 @@ func executePlanReopen(htmlgraphDir, planID string) error {
 	}
 
 	// Re-render HTML to reflect new status.
-	_ = renderPlanToFile(htmlgraphDir, planID)
+	_ = renderPlanToFile(wipnoteDir, planID)
 
 	commitMsg := fmt.Sprintf("plan(%s): reopen", planID)
 	if err := commitPlanChange(planPath, commitMsg); err != nil {

@@ -99,7 +99,7 @@ func TestIsCodexMarketplaceInstalledAt(t *testing.T) {
 	}
 
 	// Test 4: File contains the plugin section variant
-	err = os.WriteFile(configPath, []byte(`[plugins."htmlgraph@htmlgraph"]`+"\n"), 0644)
+	err = os.WriteFile(configPath, []byte(`[plugins."wipnote@wipnote"]`+"\n"), 0644)
 	if err != nil {
 		t.Fatalf("WriteFile: %v", err)
 	}
@@ -155,13 +155,44 @@ func TestIsCodexHooksEnabledAt(t *testing.T) {
 	}
 }
 
+// TestIsCodexPluginEnabledAt verifies detection of the enabled plugin stanza.
+func TestIsCodexPluginEnabledAt(t *testing.T) {
+	tmpdir := t.TempDir()
+	configPath := filepath.Join(tmpdir, "config.toml")
+
+	if isCodexPluginEnabledAt(configPath) {
+		t.Errorf("expected false when config file does not exist")
+	}
+
+	if err := os.WriteFile(configPath, []byte("[plugins.\"github@openai-curated\"]\nenabled = true\n"), 0644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+	if isCodexPluginEnabledAt(configPath) {
+		t.Errorf("expected false when wipnote plugin is absent")
+	}
+
+	if err := os.WriteFile(configPath, []byte("[plugins.\"wipnote@wipnote\"]\nenabled = false\n"), 0644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+	if isCodexPluginEnabledAt(configPath) {
+		t.Errorf("expected false when wipnote plugin is disabled")
+	}
+
+	if err := os.WriteFile(configPath, []byte("[plugins.\"wipnote@wipnote\"]\nenabled = true\n"), 0644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+	if !isCodexPluginEnabledAt(configPath) {
+		t.Errorf("expected true when wipnote plugin is enabled")
+	}
+}
+
 // TestPromptYesNo verifies the yes/no prompt logic.
 func TestPromptYesNo(t *testing.T) {
 	tests := []struct {
-		name      string
-		autoYes   bool
-		wantResp  bool
-		question  string
+		name     string
+		autoYes  bool
+		wantResp bool
+		question string
 	}{
 		{
 			name:     "auto-yes returns true immediately",
@@ -270,6 +301,247 @@ func TestEnsureCodexHooksEnabledCreatesFromEmpty(t *testing.T) {
 	}
 }
 
+// TestEnsureCodexPluginEnabledIdempotent verifies that the plugin enablement
+// config is created once and left stable on repeated calls.
+func TestEnsureCodexPluginEnabledIdempotent(t *testing.T) {
+	tmpdir := t.TempDir()
+	configPath := filepath.Join(tmpdir, "config.toml")
+
+	if err := ensureCodexPluginEnabled(configPath); err != nil {
+		t.Fatalf("first ensureCodexPluginEnabled: %v", err)
+	}
+	data1, _ := os.ReadFile(configPath)
+
+	if err := ensureCodexPluginEnabled(configPath); err != nil {
+		t.Fatalf("second ensureCodexPluginEnabled: %v", err)
+	}
+	data2, _ := os.ReadFile(configPath)
+
+	if string(data1) != string(data2) {
+		t.Errorf("second call changed the output:\nFirst:\n%s\nSecond:\n%s", string(data1), string(data2))
+	}
+	if !isCodexPluginEnabledAt(configPath) {
+		t.Errorf("wipnote plugin should be enabled after ensure")
+	}
+}
+
+// TestEnsureCodexPluginEnabledPreservesExistingPlugins verifies enabling
+// wipnote keeps other plugin configuration intact.
+func TestEnsureCodexPluginEnabledPreservesExistingPlugins(t *testing.T) {
+	tmpdir := t.TempDir()
+	configPath := filepath.Join(tmpdir, "config.toml")
+
+	initialContent := `[plugins."github@openai-curated"]
+enabled = true
+
+[features]
+codex_hooks = true
+`
+	if err := os.WriteFile(configPath, []byte(initialContent), 0644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+
+	if err := ensureCodexPluginEnabled(configPath); err != nil {
+		t.Fatalf("ensureCodexPluginEnabled: %v", err)
+	}
+
+	data, _ := os.ReadFile(configPath)
+	content := string(data)
+	if !strings.Contains(content, "github@openai-curated") {
+		t.Errorf("github plugin config should be preserved:\n%s", content)
+	}
+	if !strings.Contains(content, "wipnote@wipnote") {
+		t.Errorf("wipnote plugin config should be present:\n%s", content)
+	}
+	if !strings.Contains(content, "codex_hooks") {
+		t.Errorf("features config should be preserved:\n%s", content)
+	}
+	if !isCodexPluginEnabledAt(configPath) {
+		t.Errorf("wipnote plugin should be enabled")
+	}
+}
+
+func TestIsCodexPluginInstalledAt(t *testing.T) {
+	tmpdir := t.TempDir()
+	cachePath := filepath.Join(tmpdir, "cache", "wipnote", "wipnote")
+
+	if isCodexPluginInstalledAt(cachePath) {
+		t.Errorf("expected false when cache path does not exist")
+	}
+
+	directManifest := filepath.Join(cachePath, ".codex-plugin", "plugin.json")
+	if err := os.MkdirAll(filepath.Dir(directManifest), 0755); err != nil {
+		t.Fatalf("MkdirAll direct: %v", err)
+	}
+	if err := os.WriteFile(directManifest, []byte(`{"name":"wipnote"}`), 0644); err != nil {
+		t.Fatalf("WriteFile direct: %v", err)
+	}
+	if isCodexPluginInstalledAt(cachePath) {
+		t.Errorf("expected false for direct cache plugin manifest; Codex expects a version subdirectory")
+	}
+
+	versionedCache := filepath.Join(tmpdir, "versioned", "wipnote", "wipnote")
+	versionedManifest := filepath.Join(versionedCache, "abc123", ".codex-plugin", "plugin.json")
+	if err := os.MkdirAll(filepath.Dir(versionedManifest), 0755); err != nil {
+		t.Fatalf("MkdirAll versioned: %v", err)
+	}
+	if err := os.WriteFile(versionedManifest, []byte(`{"name":"wipnote"}`), 0644); err != nil {
+		t.Fatalf("WriteFile versioned: %v", err)
+	}
+	if !isCodexPluginInstalledAt(versionedCache) {
+		t.Errorf("expected true for versioned cache plugin manifest")
+	}
+}
+
+func TestCodexPluginDirFromMarketplace(t *testing.T) {
+	tmpdir := t.TempDir()
+	marketplaceDir := filepath.Join(tmpdir, "packages", "codex-marketplace", ".agents", "plugins")
+	pluginDir := filepath.Join(marketplaceDir, "wipnote")
+	if err := os.MkdirAll(filepath.Join(pluginDir, ".codex-plugin"), 0755); err != nil {
+		t.Fatalf("MkdirAll plugin: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(pluginDir, ".codex-plugin", "plugin.json"), []byte(`{"name":"wipnote"}`), 0644); err != nil {
+		t.Fatalf("WriteFile plugin manifest: %v", err)
+	}
+	marketplaceJSON := filepath.Join(marketplaceDir, "marketplace.json")
+	body := `{"plugins":[{"name":"wipnote","source":{"source":"local","path":"./wipnote"}}]}`
+	if err := os.WriteFile(marketplaceJSON, []byte(body), 0644); err != nil {
+		t.Fatalf("WriteFile marketplace: %v", err)
+	}
+
+	got, err := codexPluginDirFromMarketplace(marketplaceJSON)
+	if err != nil {
+		t.Fatalf("codexPluginDirFromMarketplace: %v", err)
+	}
+	if got != pluginDir {
+		t.Errorf("codexPluginDirFromMarketplace = %q, want %q", got, pluginDir)
+	}
+}
+
+func TestEnsureCodexLocalPluginInstalled(t *testing.T) {
+	tmpHome := t.TempDir()
+	t.Setenv("HOME", tmpHome)
+	tmpdir := t.TempDir()
+	configPath := filepath.Join(tmpdir, "config.toml")
+	marketplaceRoot := filepath.Join(tmpdir, "codex-marketplace")
+	marketplaceDir := filepath.Join(marketplaceRoot, ".agents", "plugins")
+	pluginDir := filepath.Join(marketplaceDir, "wipnote")
+	if err := os.MkdirAll(filepath.Join(pluginDir, ".codex-plugin"), 0755); err != nil {
+		t.Fatalf("MkdirAll plugin: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(pluginDir, ".codex-plugin", "plugin.json"), []byte(`{"name":"wipnote"}`), 0644); err != nil {
+		t.Fatalf("WriteFile plugin manifest: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(pluginDir, "hooks.json"), []byte(`{}`), 0644); err != nil {
+		t.Fatalf("WriteFile hooks: %v", err)
+	}
+	marketplaceJSON := filepath.Join(marketplaceDir, "marketplace.json")
+	body := `{"plugins":[{"name":"wipnote","source":{"source":"local","path":"./wipnote"}}]}`
+	if err := os.WriteFile(marketplaceJSON, []byte(body), 0644); err != nil {
+		t.Fatalf("WriteFile marketplace: %v", err)
+	}
+	config := "[marketplaces.wipnote]\nsource = \"" + filepath.ToSlash(marketplaceRoot) + "\"\n"
+	if err := os.WriteFile(configPath, []byte(config), 0644); err != nil {
+		t.Fatalf("WriteFile config: %v", err)
+	}
+
+	installed, err := ensureCodexLocalPluginInstalled(configPath, true)
+	if err != nil {
+		t.Fatalf("ensureCodexLocalPluginInstalled: %v", err)
+	}
+	if !installed {
+		t.Fatalf("expected local plugin cache to be installed")
+	}
+	if !isCodexPluginInstalledAt(codexPluginCachePath()) {
+		t.Errorf("expected cache path to contain loadable plugin manifest")
+	}
+	wantManifest := filepath.Join(codexPluginCachePath(), codexLocalPluginCacheVersion, ".codex-plugin", "plugin.json")
+	if _, err := os.Stat(wantManifest); err != nil {
+		t.Errorf("expected local dev cache manifest at %s: %v", wantManifest, err)
+	}
+}
+
+func TestEnsureCodexGlobalHooksInstalledCreatesUserHooks(t *testing.T) {
+	tmpdir := t.TempDir()
+	pluginDir := filepath.Join(tmpdir, "plugin")
+	if err := os.MkdirAll(pluginDir, 0755); err != nil {
+		t.Fatalf("MkdirAll plugin: %v", err)
+	}
+	pluginHooks := `{"hooks":{"SessionStart":[{"matcher":"","hooks":[{"type":"command","command":"wipnote hook session-start"}]}],"PreToolUse":[{"matcher":"","hooks":[{"type":"command","command":"wipnote hook pretooluse"}]}]}}`
+	if err := os.WriteFile(filepath.Join(pluginDir, "hooks.json"), []byte(pluginHooks), 0644); err != nil {
+		t.Fatalf("WriteFile plugin hooks: %v", err)
+	}
+	hooksPath := filepath.Join(tmpdir, ".codex", "hooks.json")
+
+	changed, err := ensureCodexGlobalHooksInstalled(hooksPath, pluginDir)
+	if err != nil {
+		t.Fatalf("ensureCodexGlobalHooksInstalled: %v", err)
+	}
+	if !changed {
+		t.Fatalf("expected hooks install to report changed")
+	}
+	data, err := os.ReadFile(hooksPath)
+	if err != nil {
+		t.Fatalf("ReadFile hooks: %v", err)
+	}
+	content := string(data)
+	for _, want := range []string{"SessionStart", "PreToolUse", "wipnote hook session-start", "wipnote hook pretooluse"} {
+		if !strings.Contains(content, want) {
+			t.Errorf("installed hooks missing %q:\n%s", want, content)
+		}
+	}
+
+	changed, err = ensureCodexGlobalHooksInstalled(hooksPath, pluginDir)
+	if err != nil {
+		t.Fatalf("second ensureCodexGlobalHooksInstalled: %v", err)
+	}
+	if changed {
+		t.Fatalf("expected second install to be idempotent")
+	}
+	data2, _ := os.ReadFile(hooksPath)
+	if string(data) != string(data2) {
+		t.Fatalf("second install changed hooks:\nfirst:\n%s\nsecond:\n%s", data, data2)
+	}
+}
+
+func TestEnsureCodexGlobalHooksInstalledPreservesUserHooks(t *testing.T) {
+	tmpdir := t.TempDir()
+	pluginDir := filepath.Join(tmpdir, "plugin")
+	if err := os.MkdirAll(pluginDir, 0755); err != nil {
+		t.Fatalf("MkdirAll plugin: %v", err)
+	}
+	pluginHooks := `{"hooks":{"Stop":[{"matcher":"","hooks":[{"type":"command","command":"wipnote hook stop"}]}]}}`
+	if err := os.WriteFile(filepath.Join(pluginDir, "hooks.json"), []byte(pluginHooks), 0644); err != nil {
+		t.Fatalf("WriteFile plugin hooks: %v", err)
+	}
+	hooksPath := filepath.Join(tmpdir, ".codex", "hooks.json")
+	userHooks := `{"hooks":{"Stop":[{"matcher":"","hooks":[{"type":"command","command":"echo user-stop"}]}],"UserPromptSubmit":[{"matcher":"","hooks":[{"type":"command","command":"echo user-prompt"}]}]}}`
+	if err := os.MkdirAll(filepath.Dir(hooksPath), 0755); err != nil {
+		t.Fatalf("MkdirAll hooks dir: %v", err)
+	}
+	if err := os.WriteFile(hooksPath, []byte(userHooks), 0644); err != nil {
+		t.Fatalf("WriteFile user hooks: %v", err)
+	}
+
+	changed, err := ensureCodexGlobalHooksInstalled(hooksPath, pluginDir)
+	if err != nil {
+		t.Fatalf("ensureCodexGlobalHooksInstalled: %v", err)
+	}
+	if !changed {
+		t.Fatalf("expected merge to report changed")
+	}
+	data, err := os.ReadFile(hooksPath)
+	if err != nil {
+		t.Fatalf("ReadFile hooks: %v", err)
+	}
+	content := string(data)
+	for _, want := range []string{"echo user-stop", "echo user-prompt", "wipnote hook stop"} {
+		if !strings.Contains(content, want) {
+			t.Errorf("merged hooks missing %q:\n%s", want, content)
+		}
+	}
+}
+
 // TestCodexDevReplacesMismatchedMarketplace verifies that --dev mode detects
 // a mismatched marketplace registration and replaces it.
 func TestCodexDevReplacesMismatchedMarketplace(t *testing.T) {
@@ -324,7 +596,7 @@ func TestGetCodexMarketplacePathAt(t *testing.T) {
 		{
 			name: "plugins variant",
 			content: "[plugins]\n" +
-				"\"htmlgraph@htmlgraph\" = {source = \"/plugin/path\"}\n",
+				"\"wipnote@wipnote\" = {source = \"/plugin/path\"}\n",
 			want: "/plugin/path",
 		},
 	}
@@ -346,19 +618,21 @@ func TestGetCodexMarketplacePathAt(t *testing.T) {
 	}
 }
 
-// TestRemoveCodexHtmlgraphRegistrations verifies that removeCodexHtmlgraphRegistrations
-// correctly deletes htmlgraph entries while preserving other config sections.
-func TestRemoveCodexHtmlgraphRegistrations(t *testing.T) {
+// TestRemoveCodexWipnoteRegistrations verifies that removeCodexWipnoteRegistrations
+// correctly deletes wipnote entries while preserving other config sections.
+func TestRemoveCodexWipnoteRegistrations(t *testing.T) {
 	tmpdir := t.TempDir()
 	configPath := filepath.Join(tmpdir, "config.toml")
 
-	// Create a realistic config with htmlgraph entries plus other unrelated config
+	// Create a realistic config with wipnote entries plus other unrelated config
 	initialContent := `[plugins]
-"htmlgraph@htmlgraph" = {source = "/old/path"}
+"wipnote@wipnote" = {source = "/old/path"}
+"htmlgraph@htmlgraph" = {source = "/legacy/path"}
 "github@openai-curated" = {source = "https://github.com/openai/curated"}
 
 [marketplaces]
-htmlgraph = {source = "/also/old/path"}
+wipnote = {source = "/also/old/path"}
+htmlgraph = {source = "/legacy/marketplace/path"}
 other_marketplace = {source = "https://other.com"}
 
 [mcp_servers]
@@ -371,10 +645,10 @@ some_feature = true
 		t.Fatalf("WriteFile: %v", err)
 	}
 
-	// Call removeCodexHtmlgraphRegistrations
-	removed, err := removeCodexHtmlgraphRegistrations(configPath)
+	// Call removeCodexWipnoteRegistrations
+	removed, err := removeCodexWipnoteRegistrations(configPath)
 	if err != nil {
-		t.Fatalf("removeCodexHtmlgraphRegistrations: %v", err)
+		t.Fatalf("removeCodexWipnoteRegistrations: %v", err)
 	}
 	if !removed {
 		t.Errorf("expected removed=true, got false")
@@ -384,12 +658,18 @@ some_feature = true
 	data, _ := os.ReadFile(configPath)
 	content := string(data)
 
-	// htmlgraph entries should be gone
+	// wipnote entries should be gone
+	if strings.Contains(content, `"wipnote@wipnote"`) {
+		t.Errorf("wipnote@wipnote should be removed but is still present")
+	}
 	if strings.Contains(content, `"htmlgraph@htmlgraph"`) {
-		t.Errorf("htmlgraph@htmlgraph should be removed but is still present")
+		t.Errorf("legacy htmlgraph@htmlgraph should be removed but is still present")
+	}
+	if strings.Contains(content, "wipnote = ") {
+		t.Errorf("[marketplaces.wipnote] should be removed but is still present")
 	}
 	if strings.Contains(content, "htmlgraph = ") {
-		t.Errorf("[marketplaces.wipnote] should be removed but is still present")
+		t.Errorf("legacy [marketplaces.htmlgraph] should be removed but is still present")
 	}
 
 	// Other entries must be preserved
@@ -407,13 +687,13 @@ some_feature = true
 	}
 }
 
-// TestRemoveCodexHtmlgraphRegistrationsNoop verifies that removeCodexHtmlgraphRegistrations
-// returns removed=false and preserves file content byte-for-byte when no htmlgraph entries exist.
-func TestRemoveCodexHtmlgraphRegistrationsNoop(t *testing.T) {
+// TestRemoveCodexWipnoteRegistrationsNoop verifies that removeCodexWipnoteRegistrations
+// returns removed=false and preserves file content byte-for-byte when no wipnote entries exist.
+func TestRemoveCodexWipnoteRegistrationsNoop(t *testing.T) {
 	tmpdir := t.TempDir()
 	configPath := filepath.Join(tmpdir, "config.toml")
 
-	// Create a config with no htmlgraph entries
+	// Create a config with no wipnote entries
 	initialContent := `[plugins]
 "github@openai-curated" = {source = "https://github.com/openai/curated"}
 
@@ -427,13 +707,13 @@ my_server = {command = "/path/to/server"}
 	// Read the original content for comparison
 	originalData, _ := os.ReadFile(configPath)
 
-	// Call removeCodexHtmlgraphRegistrations
-	removed, err := removeCodexHtmlgraphRegistrations(configPath)
+	// Call removeCodexWipnoteRegistrations
+	removed, err := removeCodexWipnoteRegistrations(configPath)
 	if err != nil {
-		t.Fatalf("removeCodexHtmlgraphRegistrations: %v", err)
+		t.Fatalf("removeCodexWipnoteRegistrations: %v", err)
 	}
 	if removed {
-		t.Errorf("expected removed=false (no htmlgraph entries), got true")
+		t.Errorf("expected removed=false (no wipnote entries), got true")
 	}
 
 	// Verify the file was not modified
@@ -444,14 +724,14 @@ my_server = {command = "/path/to/server"}
 	}
 }
 
-// TestRemoveCodexHtmlgraphRegistrationsNonexistentFile verifies that removeCodexHtmlgraphRegistrations
+// TestRemoveCodexWipnoteRegistrationsNonexistentFile verifies that removeCodexWipnoteRegistrations
 // gracefully handles a non-existent config file.
-func TestRemoveCodexHtmlgraphRegistrationsNonexistentFile(t *testing.T) {
+func TestRemoveCodexWipnoteRegistrationsNonexistentFile(t *testing.T) {
 	configPath := "/nonexistent/path/config.toml"
 
-	removed, err := removeCodexHtmlgraphRegistrations(configPath)
+	removed, err := removeCodexWipnoteRegistrations(configPath)
 	if err != nil {
-		t.Fatalf("removeCodexHtmlgraphRegistrations on non-existent file: %v", err)
+		t.Fatalf("removeCodexWipnoteRegistrations on non-existent file: %v", err)
 	}
 	if removed {
 		t.Errorf("expected removed=false for non-existent file, got true")
@@ -479,5 +759,8 @@ func TestCodexFlagsParseWorktree(t *testing.T) {
 	if workItemFlag == nil {
 		t.Fatal("codexCmd missing --work-item flag")
 	}
+	yoloFlag := cmd.Flags().Lookup("yolo")
+	if yoloFlag == nil {
+		t.Fatal("codexCmd missing --yolo flag")
+	}
 }
-

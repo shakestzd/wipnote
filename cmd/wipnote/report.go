@@ -22,9 +22,9 @@ func reportCmd() *cobra.Command {
 If no session-id is given, the most recent session is used.
 
 Example:
-  htmlgraph report
-  htmlgraph report sess-abc123
-  htmlgraph report --summary`,
+  wipnote report
+  wipnote report sess-abc123
+  wipnote report --summary`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
 			sessionID := ""
@@ -40,7 +40,7 @@ Example:
 
 // runReport orchestrates session lookup, event fetch, and display.
 func runReport(sessionID string, summaryOnly bool) error {
-	dir, err := findHtmlgraphDir()
+	dir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}
@@ -57,7 +57,7 @@ func runReport(sessionID string, summaryOnly bool) error {
 			return fmt.Errorf("find most recent session: %w", err)
 		}
 		if sessionID == "" {
-			return fmt.Errorf("no sessions found in the database\nRun 'htmlgraph ingest' to import Claude Code session transcripts, or 'htmlgraph session start' to begin tracking.")
+			return fmt.Errorf("no sessions found in the database\nRun 'wipnote ingest' to import Claude Code session transcripts, or 'wipnote session start' to begin tracking.")
 		}
 	}
 

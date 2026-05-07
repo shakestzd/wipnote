@@ -6,7 +6,7 @@ SDK Operations Demo - Create features, tracks, and spikes for dashboard monitori
 import time
 from datetime import datetime
 
-from htmlgraph import SDK
+from wipnote import SDK
 
 # Initialize SDK
 sdk = SDK(agent="demo-agent")

@@ -122,8 +122,8 @@ func TeammateIdle(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 }
 
 // TaskCreated handles the TaskCreated Claude Code hook event.
-// Mirrors Claude Code tasks into HtmlGraph as steps on the active feature,
-// making HtmlGraph the durable task tracking surface that survives session
+// Mirrors Claude Code tasks into wipnote as steps on the active feature,
+// making wipnote the durable task tracking surface that survives session
 // termination and is visible to other sessions.
 func TaskCreated(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 	sessionID := EnvSessionID(event.SessionID)
@@ -151,20 +151,20 @@ func TaskCreated(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 
 	now := time.Now().UTC()
 	ev := &models.AgentEvent{
-		EventID:      uuid.New().String(),
-		AgentID:      resolveEventAgentID(event),
-		EventType:    models.EventTaskCreated,
-		Timestamp:    now,
-		ToolName:     "TaskCreate",
-		InputSummary: summary,
+		EventID:       uuid.New().String(),
+		AgentID:       resolveEventAgentID(event),
+		EventType:     models.EventTaskCreated,
+		Timestamp:     now,
+		ToolName:      "TaskCreate",
+		InputSummary:  summary,
 		OutputSummary: description,
-		SessionID:    sessionID,
-		FeatureID:    featureID,
-		Status:       "recorded",
-		Source:       "hook",
-		ClaudeTaskID: taskID,
-		CreatedAt:    now,
-		UpdatedAt:    now,
+		SessionID:     sessionID,
+		FeatureID:     featureID,
+		Status:        "recorded",
+		Source:        "hook",
+		ClaudeTaskID:  taskID,
+		CreatedAt:     now,
+		UpdatedAt:     now,
 	}
 
 	if err := db.InsertEvent(database, ev); err != nil {
@@ -177,13 +177,11 @@ func TaskCreated(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 		addTaskStep(database, sessionID, featureID, taskID, subject, event.TeammateName)
 	}
 
-
-
 	return &HookResult{Continue: true}, nil
 }
 
 // TaskCompleted handles the TaskCompleted Claude Code hook event.
-// Marks the corresponding HtmlGraph step as completed and records a
+// Marks the corresponding wipnote step as completed and records a
 // task_completed agent_event for the timeline.
 func TaskCompleted(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 	sessionID := EnvSessionID(event.SessionID)
@@ -240,7 +238,7 @@ func TaskCompleted(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 
 			if blockOnFailure {
 				msg := fmt.Sprintf("Quality gate %q failed. "+
-					"To complete this task manually after fixing: htmlgraph feature complete %s",
+					"To complete this task manually after fixing: wipnote feature complete %s",
 					gate.GateName, featureID)
 				return nil, &BlockExit2Error{Message: msg}
 			}

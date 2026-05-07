@@ -12,7 +12,7 @@ import (
 )
 
 // setupCrossProjectDB creates a temporary .wipnote directory with an
-// initialised SQLite database, returning the htmlgraph dir path and the open DB.
+// initialised SQLite database, returning the wipnote dir path and the open DB.
 func setupCrossProjectDB(t *testing.T) (string, *sql.DB) {
 	t.Helper()
 	tmpDir := t.TempDir()
@@ -20,7 +20,7 @@ func setupCrossProjectDB(t *testing.T) (string, *sql.DB) {
 	if err := os.MkdirAll(hgDir, 0o755); err != nil {
 		t.Fatalf("create .wipnote dir: %v", err)
 	}
-	database, err := dbpkg.Open(filepath.Join(hgDir, "htmlgraph.db"))
+	database, err := dbpkg.Open(filepath.Join(hgDir, "wipnote.db"))
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
@@ -30,12 +30,12 @@ func setupCrossProjectDB(t *testing.T) (string, *sql.DB) {
 func insertTestSession(t *testing.T, database *sql.DB, id, projectDir, gitRemoteURL string) {
 	t.Helper()
 	s := &models.Session{
-		SessionID:    id,
+		SessionID:     id,
 		AgentAssigned: "claude",
-		CreatedAt:    time.Now().UTC(),
-		Status:       "completed",
-		ProjectDir:   projectDir,
-		GitRemoteURL: gitRemoteURL,
+		CreatedAt:     time.Now().UTC(),
+		Status:        "completed",
+		ProjectDir:    projectDir,
+		GitRemoteURL:  gitRemoteURL,
 	}
 	if err := dbpkg.InsertSession(database, s); err != nil {
 		t.Fatalf("insert session %s: %v", id, err)

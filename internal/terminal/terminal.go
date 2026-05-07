@@ -51,7 +51,7 @@ type StartRequest struct {
 	// CWD is the working directory for the session.
 	// Defaults to the server's project directory when empty.
 	CWD string
-	// WorkItem, when non-empty, prepends "htmlgraph feature start <id>; "
+	// WorkItem, when non-empty, prepends "wipnote feature start <id>; "
 	// to the shell command for attribution.
 	WorkItem string
 }
@@ -139,13 +139,14 @@ func waitForPort(port int, timeout time.Duration) error {
 // buildShellCmd constructs the shell one-liner that ttyd will run inside bash -lc.
 //
 // Rules:
-//   - agent=claude (default) → htmlgraph claude [--dev]
-//   - agent=codex → htmlgraph codex [--dev]
-//   - agent=gemini → htmlgraph gemini [--dev]
-//   - agent=yolo → claude --permission-mode bypassPermissions (no htmlgraph yolo wrapper)
+//   - agent=claude (default) → wipnote claude [--dev]
+//   - agent=codex → wipnote codex [--dev]
+//   - agent=gemini → wipnote gemini [--dev]
+//   - agent=yolo → claude --permission-mode bypassPermissions (no wipnote yolo wrapper)
 //   - mode=dev (default) → --dev flag appended (not applicable to yolo)
 //   - mode=normal → no flag
-//   - workItem non-empty → prepends "htmlgraph feature start <id>; " for ALL agents
+//   - workItem non-empty → prepends "wipnote feature start <id>; " for ALL agents,
+//     with Codex identity env when agent=codex
 func buildShellCmd(agent, mode, workItem string) string {
 	if agent == "" {
 		agent = "claude"
@@ -157,17 +158,21 @@ func buildShellCmd(agent, mode, workItem string) string {
 	var base string
 	switch agent {
 	case "yolo":
-		// yolo uses claude directly with bypassPermissions; no htmlgraph wrapper.
+		// yolo uses claude directly with bypassPermissions; no wipnote wrapper.
 		base = "claude --permission-mode bypassPermissions"
 	default:
-		base = "htmlgraph " + agent
+		base = "wipnote " + agent
 		if mode == "dev" {
 			base += " --dev"
 		}
 	}
 
 	if workItem != "" {
-		return "htmlgraph feature start " + workItem + " >/dev/null 2>&1; " + base
+		prefix := "wipnote feature start " + workItem
+		if agent == "codex" {
+			prefix = "WIPNOTE_AGENT_ID=codex WIPNOTE_AGENT_TYPE=codex " + prefix
+		}
+		return prefix + " >/dev/null 2>&1; " + base
 	}
 	return base
 }
@@ -237,7 +242,7 @@ func (m *Manager) Start(req StartRequest, defaultDir string) (id string, port in
 	cmd := exec.Command(
 		"ttyd",
 		"-p", strconv.Itoa(port),
-		"-W",               // writable (allows input)
+		"-W",              // writable (allows input)
 		"-i", "127.0.0.1", // bind to localhost only
 		"bash", "-lc", shellCmd,
 	)

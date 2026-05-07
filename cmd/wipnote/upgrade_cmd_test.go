@@ -100,7 +100,7 @@ func TestAssetURLConstruction(t *testing.T) {
 }
 
 // TestArchiveName verifies that the archive naming logic produces the exact format
-// that goreleaser's name_template generates: "htmlgraph_{{.Version}}_{{.Os}}_{{.Arch}}"
+// that goreleaser's name_template generates: "wipnote_{{.Version}}_{{.Os}}_{{.Arch}}"
 func TestArchiveName(t *testing.T) {
 	tests := []struct {
 		version string
@@ -108,11 +108,11 @@ func TestArchiveName(t *testing.T) {
 		arch    string
 		want    string
 	}{
-		{"0.55.1", "darwin", "arm64", "htmlgraph_0.55.1_darwin_arm64.tar.gz"},
-		{"0.55.1", "darwin", "amd64", "htmlgraph_0.55.1_darwin_amd64.tar.gz"},
-		{"0.55.1", "linux", "amd64", "htmlgraph_0.55.1_linux_amd64.tar.gz"},
-		{"0.55.1", "linux", "arm64", "htmlgraph_0.55.1_linux_arm64.tar.gz"},
-		{"0.54.0", "darwin", "arm64", "htmlgraph_0.54.0_darwin_arm64.tar.gz"},
+		{"0.55.1", "darwin", "arm64", "wipnote_0.55.1_darwin_arm64.tar.gz"},
+		{"0.55.1", "darwin", "amd64", "wipnote_0.55.1_darwin_amd64.tar.gz"},
+		{"0.55.1", "linux", "amd64", "wipnote_0.55.1_linux_amd64.tar.gz"},
+		{"0.55.1", "linux", "arm64", "wipnote_0.55.1_linux_arm64.tar.gz"},
+		{"0.54.0", "darwin", "arm64", "wipnote_0.54.0_darwin_arm64.tar.gz"},
 	}
 
 	for _, tt := range tests {

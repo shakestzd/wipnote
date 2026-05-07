@@ -38,12 +38,12 @@ type dbExecer interface {
 // database/sql api cannot express through sql.TxOptions.
 type Writer struct {
 	db              *sql.DB
-	conn            *sql.Conn  // pinned to the single MaxOpenConns=1 connection
+	conn            *sql.Conn // pinned to the single MaxOpenConns=1 connection
 	insertStmt      *sql.Stmt
 	sessStmt        *sql.Stmt
 	resStmt         *sql.Stmt
-	placeholderStmt *sql.Stmt // INSERT placeholder subagent_invocation row
-	upgradeStmt     *sql.Stmt // UPDATE placeholder → real Agent span
+	placeholderStmt *sql.Stmt  // INSERT placeholder subagent_invocation row
+	upgradeStmt     *sql.Stmt  // UPDATE placeholder → real Agent span
 	mu              sync.Mutex // serializes WriteBatch calls — SQLite serializes writes anyway via IMMEDIATE lock, this just makes it explicit at the Go layer
 }
 
@@ -344,7 +344,7 @@ func (w *Writer) WriteBatch(
 		// Orphan span detection: when an incoming span has a parent_span that does
 		// not yet exist in otel_signals, synthesise a placeholder row so the
 		// dashboard renders the Agent node immediately instead of waiting minutes.
-		// Only attempt this when the signal carries htmlgraph.agent_id so we can
+		// Only attempt this when the signal carries wipnote.agent_id so we can
 		// look up pending_subagent_starts. Gracefully degrade when missing.
 		if s.Kind == otel.KindSpan && s.ParentSpan != "" {
 			if err2 := w.maybeCreatePlaceholder(ctx, w.conn, w.placeholderStmt, s, resourceAttrs, spanExists, resObservedAt); err2 != nil {
@@ -398,7 +398,7 @@ func (w *Writer) WriteBatch(
 
 // maybeCreatePlaceholder synthesises a subagent_invocation placeholder row when
 // an incoming span's parent_span does not yet exist in otel_signals. It reads
-// htmlgraph.agent_id from resourceAttrs to look up pending_subagent_starts.
+// wipnote.agent_id from resourceAttrs to look up pending_subagent_starts.
 // Errors are logged at the call site and never propagate to the caller.
 //
 // conn accepts any dbExecer (a pinned *sql.Conn in production). Using the
@@ -431,8 +431,8 @@ func (w *Writer) maybeCreatePlaceholder(
 		return nil // parent already exists; nothing to do
 	}
 
-	// Parent is missing. Check for htmlgraph.agent_id on the resource.
-	agentID, _ := resourceAttrs["htmlgraph.agent_id"].(string)
+	// Parent is missing. Check for wipnote.agent_id on the resource.
+	agentID, _ := resourceAttrs["wipnote.agent_id"].(string)
 	if agentID == "" {
 		// No agent_id → we can't look up pending_subagent_starts. Degrade gracefully.
 		return nil
@@ -459,7 +459,7 @@ func (w *Writer) maybeCreatePlaceholder(
 	placeholderAttrs := map[string]any{
 		"_pending":           true,
 		"agent_type":         pending.AgentType,
-		"htmlgraph.agent_id": agentID,
+		"wipnote.agent_id":   agentID,
 		"placeholder_source": "subagent_start_hook",
 	}
 	attrsJSON, _ := json.Marshal(placeholderAttrs)
@@ -539,14 +539,14 @@ func tryUpgradePlaceholder(
 // its parent_span points to an interaction span instead of the enclosing Agent
 // span). Two strategies are applied in priority order:
 //
-//  A. htmlgraph.agent_id resource attr (post-feat-e1efb972): look up the
-//     agent_span_id in pending_subagent_starts for this agent_id; if found
-//     and differs from the incoming parent_span, override.
+//	A. wipnote.agent_id resource attr (post-feat-e1efb972): look up the
+//	   agent_span_id in pending_subagent_starts for this agent_id; if found
+//	   and differs from the incoming parent_span, override.
 //
-//  B. Overlap window (pre-feat-e1efb972 fallback): when no agent_id is
-//     available, check if the incoming span's timestamp falls within
-//     exactly one sibling subagent_invocation span's [ts, ts+duration]
-//     window and the current parent is an interaction canonical.
+//	B. Overlap window (pre-feat-e1efb972 fallback): when no agent_id is
+//	   available, check if the incoming span's timestamp falls within
+//	   exactly one sibling subagent_invocation span's [ts, ts+duration]
+//	   window and the current parent is an interaction canonical.
 //
 // Returns (newParentSpanID, reason) when re-attribution applies, or ("", "")
 // when no fix is warranted.
@@ -557,7 +557,7 @@ func tryReattributeParent(
 	resourceAttrs map[string]any,
 ) (newParent, reason string) {
 	// Strategy A: authoritative agent_id mapping.
-	agentID, _ := resourceAttrs["htmlgraph.agent_id"].(string)
+	agentID, _ := resourceAttrs["wipnote.agent_id"].(string)
 	if agentID != "" {
 		var agentSpanID sql.NullString
 		if err := conn.QueryRowContext(ctx,

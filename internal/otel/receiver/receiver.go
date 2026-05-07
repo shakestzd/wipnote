@@ -17,7 +17,7 @@ import (
 )
 
 // Config controls the embedded OTLP receiver that ships inside
-// `htmlgraph serve`. Defaults match the Phase 1 posture: opt-in,
+// `wipnote serve`. Defaults match the Phase 1 posture: opt-in,
 // loopback-only, HTTP-only (no gRPC).
 type Config struct {
 	// Enabled turns the receiver on. When false, Start is a no-op.
@@ -34,7 +34,7 @@ type Config struct {
 
 	// DBPath is the SQLite file path for persistence. If empty, the
 	// receiver assumes it's been initialized inline — callers pass
-	// this when embedding inside `htmlgraph serve`.
+	// this when embedding inside `wipnote serve`.
 	DBPath string
 }
 
@@ -72,7 +72,7 @@ func LoadConfigFromEnv(dbPath string, projectDir string) Config {
 }
 
 // Receiver wires the HTTP handler, signal sink, and adapter registry
-// into a lifecycle object that `htmlgraph serve` can Start/Stop.
+// into a lifecycle object that `wipnote serve` can Start/Stop.
 //
 // Typical usage:
 //
@@ -122,7 +122,7 @@ func (r *Receiver) Handler() *HTTPHandler { return r.handler }
 // Start is idempotent; concurrent calls return the same running state.
 //
 // When HTTPPort is 0 the listener is skipped — useful when callers
-// mount the handler on their own mux (e.g. inside htmlgraph serve,
+// mount the handler on their own mux (e.g. inside wipnote serve,
 // which already runs an HTTP server).
 func (r *Receiver) Start(ctx context.Context) error {
 	if !r.cfg.Enabled {
@@ -189,7 +189,7 @@ func (r *Receiver) Stop(ctx context.Context) error {
 
 // isExplicitlyDisabled reports whether a value explicitly opts OUT of OTel
 // (for the default-on policy). Empty / unset values default to on.
-// Defined locally to avoid import cycles with cmd/htmlgraph.
+// Defined locally to avoid import cycles with cmd/wipnote.
 func isExplicitlyDisabled(v string) bool {
 	switch strings.ToLower(strings.TrimSpace(v)) {
 	case "0", "false", "no", "off":

@@ -1,4 +1,4 @@
-// Erinn AI Browser-Native Web Components
+// wipnote Browser-Native Web Components
 // These components self-render from data-* attributes, replacing server-side template logic.
 
 class HgWorkItem extends HTMLElement {

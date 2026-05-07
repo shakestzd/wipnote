@@ -28,7 +28,7 @@ func effectiveProjectDir(explicit string) string {
 
 // buildClaudeLaunchEnv returns the environment vector for a spawned
 // `claude` process. It always starts from os.Environ() (so the child
-// inherits the user's shell env) and layers HtmlGraph-specific overrides
+// inherits the user's shell env) and layers wipnote-specific overrides
 // on top:
 //
 //  1. WIPNOTE_PROJECT_DIR — set when the launcher runs inside a
@@ -37,18 +37,18 @@ func effectiveProjectDir(explicit string) string {
 //     WIPNOTE_OTEL_ENABLED=0 to opt out. User-set OTel vars win:
 //     we never clobber an explicit OTEL_* choice.
 //
-// htmlgraphProjectDir is the empty string when no override is needed
+// wipnoteProjectDir is the empty string when no override is needed
 // (not in a worktree). Pass it explicitly rather than deriving it from
 // opts so the helper stays easy to unit-test.
 //
 // overrides supplies optional per-session collector port and session ID.
 // Pass nil or a zero-value struct to use defaults.
-func buildClaudeLaunchEnv(htmlgraphProjectDir string, overrides *otelEnvOverrides) []string {
+func buildClaudeLaunchEnv(wipnoteProjectDir string, overrides *otelEnvOverrides) []string {
 	env := os.Environ()
 
 	// Resolve an effective projectDir for OTel port derivation.
 	// Priority chain: explicit arg → CLAUDE_PROJECT_DIR → WIPNOTE_PROJECT_DIR → os.Getwd.
-	projectDir := effectiveProjectDir(htmlgraphProjectDir)
+	projectDir := effectiveProjectDir(wipnoteProjectDir)
 	if projectDir != "" {
 		env = setOrReplaceEnv(env, "WIPNOTE_PROJECT_DIR", projectDir)
 	}
@@ -85,7 +85,7 @@ func buildClaudeLaunchEnv(htmlgraphProjectDir string, overrides *otelEnvOverride
 	// The launcher's computed endpoint must win because it's derived from the same
 	// WIPNOTE_OTEL_* config the receiver reads in LoadConfigFromEnv. Inherited env
 	// values from a parent session whose hash resolved to a different port would silently
-	// drop spans. Users who need to point Claude Code at a non-htmlgraph receiver can
+	// drop spans. Users who need to point Claude Code at a non-wipnote receiver can
 	// steer via WIPNOTE_OTEL_HTTP_PORT / WIPNOTE_OTEL_BIND.
 	env = setOrReplaceEnv(env, "OTEL_EXPORTER_OTLP_ENDPOINT", endpoint)
 	// Tool details include bash commands, skill names, MCP tool names —
@@ -181,5 +181,5 @@ func probeReceiverReachability(endpoint string) {
 	}
 
 	// Print warning to stderr. One line only, no logging noise.
-	fmt.Fprintf(os.Stderr, "htmlgraph: warning: OTel receiver at %s is not reachable — Claude Code spans will be dropped. Start htmlgraph serve or WIPNOTE_OTEL_HTTP_PORT is wrong.\n", hostport)
+	fmt.Fprintf(os.Stderr, "wipnote: warning: OTel receiver at %s is not reachable — Claude Code spans will be dropped. Start wipnote serve or WIPNOTE_OTEL_HTTP_PORT is wrong.\n", hostport)
 }

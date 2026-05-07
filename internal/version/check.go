@@ -1,4 +1,4 @@
-// Package version provides update-check utilities for the htmlgraph CLI.
+// Package version provides update-check utilities for the wipnote CLI.
 package version
 
 import (
@@ -26,8 +26,8 @@ type cache struct {
 // version. Returns (latestVersion, isNewer, error).
 //
 // Resolution chain (no network first):
-//  1. Read from cache (~/.local/share/htmlgraph/version-check.json) if < 24h old.
-//  2. Read ~/.claude/plugins/marketplaces/htmlgraph/plugin/.claude-plugin/plugin.json
+//  1. Read from cache (~/.local/share/wipnote/version-check.json) if < 24h old.
+//  2. Read ~/.claude/plugins/marketplaces/wipnote/plugin/.claude-plugin/plugin.json
 //     — the local marketplace clone; no network needed.
 //  3. Run `gh release view --json tagName -q .tagName` — requires gh CLI.
 //  4. If all fail, return ("", false, nil) — silent degradation.
@@ -89,14 +89,14 @@ func writeCache(latest string) {
 	_ = os.WriteFile(p, data, 0o644)
 }
 
-// cachePath returns ~/.local/share/htmlgraph/version-check.json.
+// cachePath returns ~/.local/share/wipnote/version-check.json.
 // Returns "" if the home directory cannot be determined.
 func cachePath() string {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return ""
 	}
-	return filepath.Join(home, ".local", "share", "htmlgraph", cacheFile)
+	return filepath.Join(home, ".local", "share", "wipnote", cacheFile)
 }
 
 // readMarketplaceVersion reads the version from the local marketplace clone.
@@ -106,7 +106,7 @@ func readMarketplaceVersion() string {
 	if err != nil {
 		return ""
 	}
-	pluginJSON := filepath.Join(home, ".claude", "plugins", "marketplaces", "htmlgraph", "plugin", ".claude-plugin", "plugin.json")
+	pluginJSON := filepath.Join(home, ".claude", "plugins", "marketplaces", "wipnote", "plugin", ".claude-plugin", "plugin.json")
 	data, err := os.ReadFile(pluginJSON)
 	if err != nil {
 		return ""

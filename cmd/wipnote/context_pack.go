@@ -21,7 +21,7 @@ import (
 const contextPackCommitLimit = 8
 const contextPackFileLimit = 20
 
-// contextPackCmd returns the cobra command for `htmlgraph context-pack <id>`.
+// contextPackCmd returns the cobra command for `wipnote context-pack <id>`.
 func contextPackCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "context-pack <work-item-id>",
@@ -33,8 +33,8 @@ code surface, recent commits, and open plan questions.
 Accepts partial IDs (e.g. feat-55d3 resolves to feat-55d39535).
 
 Example:
-  htmlgraph context-pack feat-55d39535
-  htmlgraph context-pack feat-55d3`,
+  wipnote context-pack feat-55d39535
+  wipnote context-pack feat-55d3`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runContextPack(cmd.Context(), args[0])
@@ -45,7 +45,7 @@ Example:
 // runContextPack is the main entry point: resolves the ID, loads all data,
 // and emits the briefing to stdout.
 func runContextPack(ctx context.Context, rawID string) error {
-	dir, err := findHtmlgraphDir()
+	dir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}
@@ -55,7 +55,7 @@ func runContextPack(ctx context.Context, rawID string) error {
 		return err
 	}
 
-	proj, err := workitem.Open(dir, "htmlgraph-cli")
+	proj, err := workitem.Open(dir, "wipnote-cli")
 	if err != nil {
 		return fmt.Errorf("open project: %w", err)
 	}
@@ -181,7 +181,7 @@ type unansweredQuestion struct {
 
 // openQuestionsForTrack loads all plans whose TrackID matches and collects
 // unanswered plan-level and slice-level questions.
-func openQuestionsForTrack(htmlgraphDir string, proj *workitem.Project, trackID string) ([]unansweredQuestion, error) {
+func openQuestionsForTrack(wipnoteDir string, proj *workitem.Project, trackID string) ([]unansweredQuestion, error) {
 	if trackID == "" {
 		return nil, nil
 	}
@@ -192,7 +192,7 @@ func openQuestionsForTrack(htmlgraphDir string, proj *workitem.Project, trackID 
 
 	var out []unansweredQuestion
 	for _, planNode := range plans {
-		yamlPath := filepath.Join(htmlgraphDir, "plans", planNode.ID+".yaml")
+		yamlPath := filepath.Join(wipnoteDir, "plans", planNode.ID+".yaml")
 		py, err := planyaml.Load(yamlPath)
 		if err != nil {
 			continue
@@ -251,7 +251,7 @@ func renderContextPack(
 
 	// Section 1: Claim command
 	fmt.Fprintln(&buf, "## 1. Claim Command")
-	fmt.Fprintf(&buf, "\n```\nhtmlgraph %s start %s\n```\n\n", node.Type, node.ID)
+	fmt.Fprintf(&buf, "\n```\nwipnote %s start %s\n```\n\n", node.Type, node.ID)
 
 	// Section 2: Branch-sync state
 	fmt.Fprintln(&buf, "## 2. Branch-Sync State")
@@ -283,8 +283,8 @@ func renderContextPack(
 	if node.TrackID == "" {
 		fmt.Fprintln(&buf, "\n(no track attribution)")
 	} else {
-		fmt.Fprintln(&buf, "\nUse `htmlgraph blame <file>` to identify file owners.")
-		fmt.Fprintf(&buf, "Use `htmlgraph code-areas --track %s` for the full file list.\n\n", node.TrackID)
+		fmt.Fprintln(&buf, "\nUse `wipnote blame <file>` to identify file owners.")
+		fmt.Fprintf(&buf, "Use `wipnote code-areas --track %s` for the full file list.\n\n", node.TrackID)
 	}
 
 	// Section 5: File Paths with Package Qualifiers
@@ -309,7 +309,7 @@ func renderContextPack(
 			fmt.Fprintf(&buf, "| %s | %s | %d | %d |\n", f.Path, pkgCol, f.Features, f.Touches)
 		}
 		if truncated > 0 {
-			fmt.Fprintf(&buf, "\n… and %d more files in this track (use `htmlgraph code-areas --track %s` to see all).\n", truncated, trackArea.TrackID)
+			fmt.Fprintf(&buf, "\n… and %d more files in this track (use `wipnote code-areas --track %s` to see all).\n", truncated, trackArea.TrackID)
 		}
 		fmt.Fprintln(&buf)
 	}

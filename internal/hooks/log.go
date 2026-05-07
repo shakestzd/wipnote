@@ -68,7 +68,7 @@ func debugLogFields(projectDir, handler string, fields map[string]string, msg st
 }
 
 // LogError logs a handler error with structured context (handler name, session ID).
-// It resolves the project dir from env/CWD so it can be called from cmd/htmlgraph
+// It resolves the project dir from env/CWD so it can be called from cmd/wipnote
 // where projectDir is not yet known. Silently no-ops if the project cannot be found.
 func LogError(handler, sessionID, msg string) {
 	projectDir := resolveLogDir()
@@ -100,7 +100,7 @@ func resolveLogDir() string {
 }
 
 // MinSessionLen returns min(8, len(s)) for safe session ID truncation in log messages.
-// Exported so cmd/htmlgraph can use it when building structured log fields.
+// Exported so cmd/wipnote can use it when building structured log fields.
 func MinSessionLen(s string) int {
 	if len(s) < 8 {
 		return len(s)

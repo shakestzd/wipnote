@@ -8,13 +8,13 @@ import (
 // CritiqueZone renders the multi-model critique section containing
 // assumption verification, model critiques, synthesis, and risk analysis.
 type CritiqueZone struct {
-	Assumptions      []AssumptionResult
-	GeminiCritique   template.HTML
-	GeminiTitle      string // e.g. "Haiku (design review)" — falls back to "Design Critique"
-	CopilotCritique  template.HTML
-	CopilotTitle     string // e.g. "Sonnet (feasibility)" — falls back to "Feasibility Critique"
-	Synthesis        template.HTML
-	RiskTable        []RiskRow
+	Assumptions     []AssumptionResult
+	GeminiCritique  template.HTML
+	GeminiTitle     string // e.g. "Haiku (design review)" — falls back to "Design Critique"
+	CopilotCritique template.HTML
+	CopilotTitle    string // e.g. "Sonnet (feasibility)" — falls back to "Feasibility Critique"
+	Synthesis       template.HTML
+	RiskTable       []RiskRow
 }
 
 // AssumptionResult represents a verified or falsified assumption.

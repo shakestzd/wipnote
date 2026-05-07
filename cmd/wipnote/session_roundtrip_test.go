@@ -19,17 +19,17 @@ import (
 )
 
 // setupRoundTripEnv prepares a temp project with an on-disk db at the
-// expected `.wipnote/htmlgraph.db` location and returns the paths.
+// expected `.wipnote/wipnote.db` location and returns the paths.
 // The db is left closed — callers re-open as needed so sweep and reindex
 // both hit a real file that survives between goroutines.
-func setupRoundTripEnv(t *testing.T) (projectDir, htmlgraphDir, dbPath string) {
+func setupRoundTripEnv(t *testing.T) (projectDir, wipnoteDir, dbPath string) {
 	t.Helper()
 	projectDir = t.TempDir()
-	htmlgraphDir = filepath.Join(projectDir, ".wipnote")
-	if err := os.MkdirAll(filepath.Join(htmlgraphDir, "sessions"), 0o755); err != nil {
+	wipnoteDir = filepath.Join(projectDir, ".wipnote")
+	if err := os.MkdirAll(filepath.Join(wipnoteDir, "sessions"), 0o755); err != nil {
 		t.Fatalf("mkdir sessions: %v", err)
 	}
-	dbPath = filepath.Join(htmlgraphDir, "htmlgraph.db")
+	dbPath = filepath.Join(wipnoteDir, "wipnote.db")
 
 	database, err := dbpkg.Open(dbPath)
 	if err != nil {
@@ -43,7 +43,7 @@ func setupRoundTripEnv(t *testing.T) (projectDir, htmlgraphDir, dbPath string) {
 // renders HTML, the HTML parses via goquery, and the rebuilt SQLite row
 // after a reindex matches the expected event count.
 func TestSessionRoundTrip_IngestThenReindex(t *testing.T) {
-	_, htmlgraphDir, dbPath := setupRoundTripEnv(t)
+	_, wipnoteDir, dbPath := setupRoundTripEnv(t)
 
 	database, err := dbpkg.Open(dbPath)
 	if err != nil {
@@ -75,7 +75,7 @@ func TestSessionRoundTrip_IngestThenReindex(t *testing.T) {
 	if err := dbpkg.InsertSession(database, sess); err != nil {
 		t.Fatalf("InsertSession: %v", err)
 	}
-	if err := hooks.RenderIngestedSessionHTML(htmlgraphDir, sessionID, "/src/project", result, false); err != nil {
+	if err := hooks.RenderIngestedSessionHTML(wipnoteDir, sessionID, "/src/project", result, false); err != nil {
 		t.Fatalf("render: %v", err)
 	}
 
@@ -84,7 +84,7 @@ func TestSessionRoundTrip_IngestThenReindex(t *testing.T) {
 		t.Fatalf("delete events: %v", err)
 	}
 
-	total, upserted, errFiles := reindexSessions(database, filepath.Join(htmlgraphDir, "sessions"), filepath.Dir(htmlgraphDir))
+	total, upserted, errFiles := reindexSessions(database, filepath.Join(wipnoteDir, "sessions"), filepath.Dir(wipnoteDir))
 	if errFiles != 0 {
 		t.Fatalf("reindex errors: %d", errFiles)
 	}
@@ -109,7 +109,7 @@ func TestSessionRoundTrip_IngestThenReindex(t *testing.T) {
 // TestSessionRoundTrip_OrphanSweepReindexesAsAborted proves that a swept
 // orphan comes back as status=aborted after a reindex.
 func TestSessionRoundTrip_OrphanSweepReindexesAsAborted(t *testing.T) {
-	projectDir, htmlgraphDir, dbPath := setupRoundTripEnv(t)
+	projectDir, wipnoteDir, dbPath := setupRoundTripEnv(t)
 
 	database, err := dbpkg.Open(dbPath)
 	if err != nil {
@@ -154,7 +154,7 @@ func TestSessionRoundTrip_OrphanSweepReindexesAsAborted(t *testing.T) {
 	if _, err := database.Exec(`DELETE FROM agent_events`); err != nil {
 		t.Fatalf("delete events: %v", err)
 	}
-	_, upserted, errFiles := reindexSessions(database, filepath.Join(htmlgraphDir, "sessions"), filepath.Dir(htmlgraphDir))
+	_, upserted, errFiles := reindexSessions(database, filepath.Join(wipnoteDir, "sessions"), filepath.Dir(wipnoteDir))
 	if errFiles != 0 {
 		t.Fatalf("reindex errors: %d", errFiles)
 	}
@@ -174,7 +174,7 @@ func TestSessionRoundTrip_OrphanSweepReindexesAsAborted(t *testing.T) {
 // TestSessionRoundTrip_MigrationBackfill verifies slice 3: SQLite-only
 // sessions get rendered and round-trip through reindex.
 func TestSessionRoundTrip_MigrationBackfill(t *testing.T) {
-	_, htmlgraphDir, dbPath := setupRoundTripEnv(t)
+	_, wipnoteDir, dbPath := setupRoundTripEnv(t)
 
 	database, err := dbpkg.Open(dbPath)
 	if err != nil {
@@ -211,7 +211,7 @@ func TestSessionRoundTrip_MigrationBackfill(t *testing.T) {
 	// Migrate directly via the internal helpers (no CLI plumbing needed).
 	emptyIdx := map[string]ingest.SessionFile{}
 	for _, id := range []string{"sess-mig-a", "sess-mig-b"} {
-		if err := migrateOneSession(database, htmlgraphDir, id, "sqlite", emptyIdx); err != nil {
+		if err := migrateOneSession(database, wipnoteDir, id, "sqlite", emptyIdx); err != nil {
 			t.Fatalf("migrateOneSession %s: %v", id, err)
 		}
 	}
@@ -220,7 +220,7 @@ func TestSessionRoundTrip_MigrationBackfill(t *testing.T) {
 	if _, err := database.Exec(`DELETE FROM agent_events`); err != nil {
 		t.Fatalf("delete events: %v", err)
 	}
-	_, upserted, errFiles := reindexSessions(database, filepath.Join(htmlgraphDir, "sessions"), filepath.Dir(htmlgraphDir))
+	_, upserted, errFiles := reindexSessions(database, filepath.Join(wipnoteDir, "sessions"), filepath.Dir(wipnoteDir))
 	if errFiles != 0 {
 		t.Fatalf("reindex errors: %d", errFiles)
 	}
@@ -236,7 +236,7 @@ func TestSessionRoundTrip_MigrationBackfill(t *testing.T) {
 // goquery and verifies every single event lands in the final file matched
 // by data-event-id. Anything less than "all 20 present" is a failure.
 func TestSessionRoundTrip_ConcurrentWriters(t *testing.T) {
-	projectDir, htmlgraphDir, dbPath := setupRoundTripEnv(t)
+	projectDir, wipnoteDir, dbPath := setupRoundTripEnv(t)
 
 	database, err := dbpkg.Open(dbPath)
 	if err != nil {
@@ -352,7 +352,7 @@ func TestSessionRoundTrip_ConcurrentWriters(t *testing.T) {
 	wg.Wait()
 
 	// Parse via goquery and collect every data-event-id.
-	htmlPath := filepath.Join(htmlgraphDir, "sessions", sessionID+".html")
+	htmlPath := filepath.Join(wipnoteDir, "sessions", sessionID+".html")
 	f, err := os.Open(htmlPath)
 	if err != nil {
 		t.Fatalf("open final html: %v", err)
@@ -386,7 +386,7 @@ func TestSessionRoundTrip_ConcurrentWriters(t *testing.T) {
 	if _, err := database.Exec(`DELETE FROM agent_events`); err != nil {
 		t.Fatalf("delete events: %v", err)
 	}
-	_, upserted, errFiles := reindexSessions(database, filepath.Join(htmlgraphDir, "sessions"), filepath.Dir(htmlgraphDir))
+	_, upserted, errFiles := reindexSessions(database, filepath.Join(wipnoteDir, "sessions"), filepath.Dir(wipnoteDir))
 	if errFiles != 0 {
 		t.Fatalf("reindex errors: %d", errFiles)
 	}

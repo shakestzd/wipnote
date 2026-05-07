@@ -1,4 +1,4 @@
-// Package retention implements the session data retention policy for HtmlGraph.
+// Package retention implements the session data retention policy for wipnote.
 //
 // On serve startup and every 24h it walks .wipnote/sessions/, finds sessions
 // whose DB status is 'completed' and whose completed_at is older than
@@ -32,7 +32,7 @@ const (
 // It queries the DB for completed sessions older than the retention window,
 // archives events.ndjson, and removes the live session directory.
 // When dryRun is true, actions are logged but no files are moved.
-func Run(database *sql.DB, htmlgraphDir string, dryRun bool) error {
+func Run(database *sql.DB, wipnoteDir string, dryRun bool) error {
 	retainDays := retainDaysFromEnv()
 	cutoff := time.Now().UTC().Add(-time.Duration(retainDays) * 24 * time.Hour)
 
@@ -59,7 +59,7 @@ func Run(database *sql.DB, htmlgraphDir string, dryRun bool) error {
 		if err != nil {
 			continue
 		}
-		if err := archiveSession(htmlgraphDir, sessionID, completedAt, dryRun); err != nil {
+		if err := archiveSession(wipnoteDir, sessionID, completedAt, dryRun); err != nil {
 			fmt.Fprintf(os.Stderr, "retention: archive session %s: %v\n", sessionID, err)
 		}
 	}
@@ -68,11 +68,11 @@ func Run(database *sql.DB, htmlgraphDir string, dryRun bool) error {
 
 // StartLoop runs an initial retention pass at startup, then repeats every 24h.
 // It returns immediately and runs in the background until ctx is cancelled.
-func StartLoop(ctx context.Context, database *sql.DB, htmlgraphDir string) {
+func StartLoop(ctx context.Context, database *sql.DB, wipnoteDir string) {
 	dryRun := os.Getenv("WIPNOTE_RETENTION_DRYRUN") == "1"
 	go func() {
 		// Run once at startup.
-		if err := Run(database, htmlgraphDir, dryRun); err != nil {
+		if err := Run(database, wipnoteDir, dryRun); err != nil {
 			fmt.Fprintf(os.Stderr, "retention: startup pass: %v\n", err)
 		}
 		ticker := time.NewTicker(runInterval)
@@ -82,7 +82,7 @@ func StartLoop(ctx context.Context, database *sql.DB, htmlgraphDir string) {
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
-				if err := Run(database, htmlgraphDir, dryRun); err != nil {
+				if err := Run(database, wipnoteDir, dryRun); err != nil {
 					fmt.Fprintf(os.Stderr, "retention: periodic pass: %v\n", err)
 				}
 			}
@@ -92,8 +92,8 @@ func StartLoop(ctx context.Context, database *sql.DB, htmlgraphDir string) {
 
 // archiveSession archives events.ndjson for the given session into
 // .wipnote/archive/<yyyy-mm>/<sid>.tar.gz, then removes the session dir.
-func archiveSession(htmlgraphDir, sessionID string, completedAt time.Time, dryRun bool) error {
-	sessDir := filepath.Join(htmlgraphDir, "sessions", sessionID)
+func archiveSession(wipnoteDir, sessionID string, completedAt time.Time, dryRun bool) error {
+	sessDir := filepath.Join(wipnoteDir, "sessions", sessionID)
 	eventsFile := filepath.Join(sessDir, "events.ndjson")
 
 	// Nothing to archive if session dir or events file doesn't exist.
@@ -114,7 +114,7 @@ func archiveSession(htmlgraphDir, sessionID string, completedAt time.Time, dryRu
 	}
 
 	month := completedAt.Format("2006-01")
-	archiveDir := filepath.Join(htmlgraphDir, "archive", month)
+	archiveDir := filepath.Join(wipnoteDir, "archive", month)
 	archivePath := filepath.Join(archiveDir, sessionID+".tar.gz")
 
 	if dryRun {
@@ -224,20 +224,20 @@ func retainDaysFromEnv() int {
 
 // ExtractArchive extracts a .tar.gz archive from .wipnote/archive/ back into
 // .wipnote/sessions/<sid>/ so the indexer can pick it up on next replay.
-func ExtractArchive(htmlgraphDir, sessionID string) error {
+func ExtractArchive(wipnoteDir, sessionID string) error {
 	// Search for the archive across month subdirectories.
-	archiveRoot := filepath.Join(htmlgraphDir, "archive")
+	archiveRoot := filepath.Join(wipnoteDir, "archive")
 	archivePath, err := findArchive(archiveRoot, sessionID)
 	if err != nil {
 		return fmt.Errorf("find archive for session %s: %w", sessionID, err)
 	}
 
-	sessDir := filepath.Join(htmlgraphDir, "sessions", sessionID)
+	sessDir := filepath.Join(wipnoteDir, "sessions", sessionID)
 	if err := os.MkdirAll(sessDir, 0o755); err != nil {
 		return fmt.Errorf("create session dir: %w", err)
 	}
 
-	return extractTarGz(archivePath, filepath.Join(htmlgraphDir, "sessions"))
+	return extractTarGz(archivePath, filepath.Join(wipnoteDir, "sessions"))
 }
 
 // findArchive searches month subdirectories under archiveRoot for <sid>.tar.gz.

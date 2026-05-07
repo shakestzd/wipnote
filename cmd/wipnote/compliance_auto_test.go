@@ -299,9 +299,9 @@ func TestComplianceAuto_NoSpec(t *testing.T) {
 	// Set up a git repo so we pass the git-root check (no git → no-git-history skip instead).
 	setupTempGitRepo(t, tmpDir, map[string]string{"file.go": "package main"})
 
-	// Set up htmlgraph dir with a feature that has NO spec section.
-	htmlgraphDir := filepath.Join(tmpDir, ".wipnote")
-	featuresDir := filepath.Join(htmlgraphDir, "features")
+	// Set up wipnote dir with a feature that has NO spec section.
+	wipnoteDir := filepath.Join(tmpDir, ".wipnote")
+	featuresDir := filepath.Join(wipnoteDir, "features")
 	if err := os.MkdirAll(featuresDir, 0o755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
@@ -353,8 +353,8 @@ func TestComplianceAuto_NoSpec(t *testing.T) {
 func TestComplianceAuto_NoGitRepo(t *testing.T) {
 	// Set up project in a non-git directory.
 	tmpDir := t.TempDir()
-	htmlgraphDir := filepath.Join(tmpDir, ".wipnote")
-	featuresDir := filepath.Join(htmlgraphDir, "features")
+	wipnoteDir := filepath.Join(tmpDir, ".wipnote")
+	featuresDir := filepath.Join(wipnoteDir, "features")
 	if err := os.MkdirAll(featuresDir, 0o755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
@@ -409,9 +409,9 @@ func TestComplianceAuto_SuccessPath(t *testing.T) {
 	gitRoot := tmpDir
 	commitHash := setupTempGitRepo(t, gitRoot, map[string]string{"main.go": "package main\nfunc main(){}"})
 
-	// Set up htmlgraph dir inside the git repo.
-	htmlgraphDir := filepath.Join(tmpDir, ".wipnote")
-	featuresDir := filepath.Join(htmlgraphDir, "features")
+	// Set up wipnote dir inside the git repo.
+	wipnoteDir := filepath.Join(tmpDir, ".wipnote")
+	featuresDir := filepath.Join(wipnoteDir, "features")
 	if err := os.MkdirAll(featuresDir, 0o755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
@@ -423,7 +423,7 @@ func TestComplianceAuto_SuccessPath(t *testing.T) {
 	}
 
 	// Set up a file-based DB so runComplianceAuto can open the same DB via WIPNOTE_DB_PATH.
-	dbPath := filepath.Join(tmpDir, "test-htmlgraph.db")
+	dbPath := filepath.Join(tmpDir, "test-wipnote.db")
 	t.Setenv("WIPNOTE_DB_PATH", dbPath)
 	db, err := dbpkg.Open(dbPath)
 	if err != nil {
@@ -508,8 +508,8 @@ func TestComplianceAuto_ParseFailure(t *testing.T) {
 	featureID := "feat-parse-fail"
 
 	setupTempGitRepo(t, tmpDir, map[string]string{"main.go": "package main"})
-	htmlgraphDir := filepath.Join(tmpDir, ".wipnote")
-	featuresDir := filepath.Join(htmlgraphDir, "features")
+	wipnoteDir := filepath.Join(tmpDir, ".wipnote")
+	featuresDir := filepath.Join(wipnoteDir, "features")
 	if err := os.MkdirAll(featuresDir, 0o755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
@@ -565,8 +565,8 @@ func TestComplianceAuto_Idempotent(t *testing.T) {
 	featureID := "feat-idempotent"
 
 	setupTempGitRepo(t, tmpDir, map[string]string{"main.go": "package main"})
-	htmlgraphDir := filepath.Join(tmpDir, ".wipnote")
-	featuresDir := filepath.Join(htmlgraphDir, "features")
+	wipnoteDir := filepath.Join(tmpDir, ".wipnote")
+	featuresDir := filepath.Join(wipnoteDir, "features")
 	if err := os.MkdirAll(featuresDir, 0o755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
@@ -622,8 +622,8 @@ func TestDryRun(t *testing.T) {
 	featureID := "feat-dry-run"
 
 	setupTempGitRepo(t, tmpDir, map[string]string{"main.go": "package main"})
-	htmlgraphDir := filepath.Join(tmpDir, ".wipnote")
-	featuresDir := filepath.Join(htmlgraphDir, "features")
+	wipnoteDir := filepath.Join(tmpDir, ".wipnote")
+	featuresDir := filepath.Join(wipnoteDir, "features")
 	if err := os.MkdirAll(featuresDir, 0o755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
@@ -699,8 +699,8 @@ func TestPreview(t *testing.T) {
 	featureID := "feat-preview"
 
 	setupTempGitRepo(t, tmpDir, map[string]string{"main.go": "package main"})
-	htmlgraphDir := filepath.Join(tmpDir, ".wipnote")
-	featuresDir := filepath.Join(htmlgraphDir, "features")
+	wipnoteDir := filepath.Join(tmpDir, ".wipnote")
+	featuresDir := filepath.Join(wipnoteDir, "features")
 	if err := os.MkdirAll(featuresDir, 0o755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
@@ -763,8 +763,8 @@ func TestStaleSpec(t *testing.T) {
 	featureID := "feat-stale"
 
 	setupTempGitRepo(t, tmpDir, map[string]string{"main.go": "package main"})
-	htmlgraphDir := filepath.Join(tmpDir, ".wipnote")
-	featuresDir := filepath.Join(htmlgraphDir, "features")
+	wipnoteDir := filepath.Join(tmpDir, ".wipnote")
+	featuresDir := filepath.Join(wipnoteDir, "features")
 	if err := os.MkdirAll(featuresDir, 0o755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
@@ -925,8 +925,8 @@ func TestMaxWallClock(t *testing.T) {
 	featureID := "feat-timeout"
 
 	setupTempGitRepo(t, tmpDir, map[string]string{"main.go": "package main"})
-	htmlgraphDir := filepath.Join(tmpDir, ".wipnote")
-	featuresDir := filepath.Join(htmlgraphDir, "features")
+	wipnoteDir := filepath.Join(tmpDir, ".wipnote")
+	featuresDir := filepath.Join(wipnoteDir, "features")
 	if err := os.MkdirAll(featuresDir, 0o755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
@@ -974,8 +974,8 @@ func TestAtomicWrite_Concurrent(t *testing.T) {
 	featureID := "feat-concurrent"
 
 	setupTempGitRepo(t, tmpDir, map[string]string{"main.go": "package main"})
-	htmlgraphDir := filepath.Join(tmpDir, ".wipnote")
-	featuresDir := filepath.Join(htmlgraphDir, "features")
+	wipnoteDir := filepath.Join(tmpDir, ".wipnote")
+	featuresDir := filepath.Join(wipnoteDir, "features")
 	if err := os.MkdirAll(featuresDir, 0o755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
@@ -1120,8 +1120,8 @@ func TestComplianceAuto_FallbackDiff(t *testing.T) {
 	run("add", "main.go")
 	run("commit", "-m", "update main")
 
-	htmlgraphDir := filepath.Join(tmpDir, ".wipnote")
-	featuresDir := filepath.Join(htmlgraphDir, "features")
+	wipnoteDir := filepath.Join(tmpDir, ".wipnote")
+	featuresDir := filepath.Join(wipnoteDir, "features")
 	if err := os.MkdirAll(featuresDir, 0o755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
@@ -1245,8 +1245,8 @@ func TestComplianceAutoEndToEnd(t *testing.T) {
 	})
 
 	// Set up .wipnote structure.
-	htmlgraphDir := filepath.Join(tmpDir, ".wipnote")
-	featuresDir := filepath.Join(htmlgraphDir, "features")
+	wipnoteDir := filepath.Join(tmpDir, ".wipnote")
+	featuresDir := filepath.Join(wipnoteDir, "features")
 	if err := os.MkdirAll(featuresDir, 0o755); err != nil {
 		t.Fatalf("mkdir features: %v", err)
 	}

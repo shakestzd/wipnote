@@ -68,12 +68,12 @@ type attributionUpdate struct {
 }
 
 func runMigrateAttributionFix(dryRun bool, sessionFilter string) error {
-	htmlgraphDir, err := findHtmlgraphDir()
+	wipnoteDir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}
-	printProjectHeaderIfDifferent(htmlgraphDir)
-	dbPath, err := storage.CanonicalDBPath(filepath.Dir(htmlgraphDir))
+	printProjectHeaderIfDifferent(wipnoteDir)
+	dbPath, err := storage.CanonicalDBPath(filepath.Dir(wipnoteDir))
 	if err != nil {
 		return fmt.Errorf("resolve db path: %w", err)
 	}

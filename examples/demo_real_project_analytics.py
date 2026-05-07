@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 """
-Demo of dependency analytics on the real HtmlGraph project.
+Demo of dependency analytics on the real wipnote project.
 
 Shows how to use SDK.dep_analytics to analyze the actual project dependencies.
 """
 
-from htmlgraph import SDK
+from wipnote import SDK
 
 
 def main():
     print("\n" + "📊 " * 35)
-    print("HTMLGRAPH PROJECT - DEPENDENCY ANALYTICS")
+    print("WIPNOTE PROJECT - DEPENDENCY ANALYTICS")
     print("📊 " * 35)
 
     # Initialize SDK

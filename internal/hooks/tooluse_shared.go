@@ -40,18 +40,18 @@ func cachedGetActiveFeatureID(database *sql.DB, sessionID string) string {
 
 // toolUseContext holds resolved identifiers shared by PreToolUse and PostToolUse.
 type toolUseContext struct {
-	SessionID       string
-	FeatureID       string
-	AgentID         string
-	AgentType       string
-	IsSubagent      bool
-	ProjectDir      string
-	HgDir           string
-	IsYoloMode      bool
-	ParentEventID   string
-	ParentSessionID string // parent session ID for subagent context lookups
+	SessionID        string
+	FeatureID        string
+	AgentID          string
+	AgentType        string
+	IsSubagent       bool
+	ProjectDir       string
+	HgDir            string
+	IsYoloMode       bool
+	ParentEventID    string
+	ParentSessionID  string    // parent session ID for subagent context lookups
 	SessionCreatedAt time.Time // used for subagent grace period
-	ClaimedItem     string // work_item_id of agent's active claim, or ""
+	ClaimedItem      string    // work_item_id of agent's active claim, or ""
 }
 
 // resolveToolUseContext resolves session, feature, agent identifiers, project
@@ -92,6 +92,9 @@ func resolveToolUseContext(event *CloudEvent, database *sql.DB, trustParentEnvVa
 		parentSessionID = row.ParentSessionID
 		sessionCreatedAt = row.CreatedAt
 		claimedItem = row.ClaimedItem
+		if featureID == "" {
+			featureID = claimedItem
+		}
 		// Keep the process-level cache warm for other callers (missing_events etc.)
 		featureIDCache = featureIDCacheEntry{
 			sessionID: sessionID,

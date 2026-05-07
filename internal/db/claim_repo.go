@@ -95,7 +95,7 @@ func ClaimItem(db *sql.DB, claim *models.Claim, leaseDuration time.Duration) err
 		if qErr != nil {
 			return fmt.Errorf("work item %s already has an active claim (lookup failed: %w)", claim.WorkItemID, qErr)
 		}
-		return fmt.Errorf("work item %s already claimed by session %s (claim %s, status %s)\nClaims expire after 30 minutes. Run 'htmlgraph claim list' to check status.",
+		return fmt.Errorf("work item %s already claimed by session %s (claim %s, status %s)\nClaims expire after 30 minutes. Run 'wipnote claim list' to check status.",
 			claim.WorkItemID, existing.OwnerSessionID, existing.ClaimID, existing.Status)
 	}
 	return nil
@@ -535,7 +535,7 @@ func nullJSON(raw json.RawMessage) sql.NullString {
 
 // UpdateClaimAgentID sets claimed_by_agent_id on the most recent active claim
 // for the given work item. This is called by PostToolUse when a subagent runs
-// "htmlgraph feature start <id>" — the hook knows the agent_id from the
+// "wipnote feature start <id>" — the hook knows the agent_id from the
 // CloudEvent but the CLI doesn't have it in its environment.
 func UpdateClaimAgentID(database *sql.DB, workItemID, agentID string) error {
 	_, err := database.Exec(

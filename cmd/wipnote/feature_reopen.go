@@ -19,7 +19,7 @@ This is a non-destructive operation — all history is preserved.
 Errors if the feature is not currently done.
 
 Example:
-  htmlgraph feature reopen feat-a1b2c3d4`,
+  wipnote feature reopen feat-a1b2c3d4`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
 			if err := executeFeatureReopen(args[0]); err != nil {
@@ -33,17 +33,17 @@ Example:
 
 // executeFeatureReopen sets a done feature back to in-progress.
 func executeFeatureReopen(featureID string) error {
-	htmlgraphDir, err := findHtmlgraphDir()
+	wipnoteDir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}
 
-	featureID, err = resolveID(htmlgraphDir, featureID)
+	featureID, err = resolveID(wipnoteDir, featureID)
 	if err != nil {
 		return err
 	}
 
-	p, err := workitem.Open(htmlgraphDir, "claude-code")
+	p, err := workitem.Open(wipnoteDir, "claude-code")
 	if err != nil {
 		return fmt.Errorf("open project: %w", err)
 	}

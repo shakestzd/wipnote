@@ -1,22 +1,22 @@
 ---
-description: Set up Oh My Posh status line with Erinn AI active work item display
+description: Set up Oh My Posh status line with wipnote active work item display
 ---
 
 # /wipnote:setup-statusline
 
-Configure the Claude Code status line to use Oh My Posh with Erinn AI work item display.
+Configure the Claude Code status line to use Oh My Posh with wipnote work item display.
 
 ## What This Sets Up
 
 1. **`~/.claude/omp-claude-wrapper.sh`** — Wrapper script that:
    - Reads session JSON from Claude Code stdin
-   - Queries `erinn statusline --session <id>` for the active work item
-   - Exports `ERINN_ACTIVE` env var for Oh My Posh to display
+   - Queries `wipnote statusline --session <id>` for the active work item
+   - Exports `WIPNOTE_ACTIVE` env var for Oh My Posh to display
    - Pipes through to Oh My Posh for rendering
 
 2. **`~/.claude.omp.json`** — Oh My Posh theme with:
    - Git repo/branch/status segment
-   - Erinn AI active work item segment (purple, uses `ERINN_ACTIVE`)
+   - wipnote active work item segment (purple, uses `WIPNOTE_ACTIVE`)
    - Claude model + token usage segment
 
 3. **`.claude/settings.json`** — Points `statusLine.command` at the wrapper
@@ -37,9 +37,9 @@ Oh My Posh is required. Install it first:
   # See https://ohmyposh.dev/docs/installation for other platforms
 ```
 
-Check that `erinn` is on PATH:
+Check that `wipnote` is on PATH:
 ```bash
-which erinn || echo "NOT INSTALLED"
+which wipnote || echo "NOT INSTALLED"
 ```
 
 ### Step 2: Write the Wrapper Script
@@ -48,15 +48,15 @@ Write `~/.claude/omp-claude-wrapper.sh`:
 
 ```bash
 #!/bin/bash
-# Erinn AI + Oh My Posh wrapper for Claude Code status line
+# wipnote + Oh My Posh wrapper for Claude Code status line
 # Reads session JSON from stdin, queries active work item, renders via OMP
 
-# Guard: only show status when CWD is inside an erinn project.
+# Guard: only show status when CWD is inside a wipnote project.
 # This prevents CLAUDE_PROJECT_DIR env bleed from a previous session resolving
-# erinn statusline to the wrong project when in an unrelated directory.
+# wipnote statusline to the wrong project when in an unrelated directory.
 _dir="$(pwd)"
 while [ "$_dir" != "/" ]; do
-    [ -d "$_dir/.erinn" ] && break
+    [ -d "$_dir/.wipnote" ] && break
     _dir=$(dirname "$_dir")
 done
 if [ "$_dir" = "/" ]; then
@@ -70,18 +70,18 @@ INPUT=$(cat)
 SESS_ID=$(echo "$INPUT" | python3 -c "import sys, json; print(json.load(sys.stdin).get('session_id',''))" 2>/dev/null)
 
 # Get active work item for THIS session via fast Go binary
-ACTIVE_WORK=$(erinn statusline --session "$SESS_ID" 2>/dev/null)
+ACTIVE_WORK=$(wipnote statusline --session "$SESS_ID" 2>/dev/null)
 
 # No cache fallback — if statusline returns empty, show nothing.
-# The global cache ($HOME/.erinn-statusline-cache) caused cross-project bleed
+# The global cache ($HOME/.wipnote-statusline-cache) caused cross-project bleed
 # when switching directories, showing stale items from unrelated projects.
 
 # Export for Oh My Posh template to use
-export ERINN_ACTIVE="$ACTIVE_WORK"
+export WIPNOTE_ACTIVE="$ACTIVE_WORK"
 
 # Find Oh My Posh binary
-OMP_BIN="${ERINN_OMP_BIN:-$(which oh-my-posh 2>/dev/null)}"
-OMP_CONFIG="${ERINN_OMP_CONFIG:-$HOME/.claude.omp.json}"
+OMP_BIN="${WIPNOTE_OMP_BIN:-$(which oh-my-posh 2>/dev/null)}"
+OMP_CONFIG="${WIPNOTE_OMP_CONFIG:-$HOME/.claude.omp.json}"
 
 if [ -n "$OMP_BIN" ] && [ -f "$OMP_CONFIG" ]; then
     echo "$INPUT" | "$OMP_BIN" claude --config "$OMP_CONFIG"
@@ -162,7 +162,7 @@ The default theme:
           "leading_diamond": "<parentBackground,background>\ue0b0</>",
           "foreground": "p:white",
           "background": "#8B5CF6",
-          "template": " {{ if .Env.ERINN_ACTIVE }}{{ .Env.ERINN_ACTIVE }}{{ end }} "
+          "template": " {{ if .Env.WIPNOTE_ACTIVE }}{{ .Env.WIPNOTE_ACTIVE }}{{ end }} "
         },
         {
           "type": "claude",
@@ -221,6 +221,6 @@ Restart Claude Code to see it. The status line shows:
   [repo/branch] [active work item] [model + tokens]
 
 To customize the theme: edit ~/.claude.omp.json
-To override OMP binary: set ERINN_OMP_BIN
-To override theme path: set ERINN_OMP_CONFIG
+To override OMP binary: set WIPNOTE_OMP_BIN
+To override theme path: set WIPNOTE_OMP_CONFIG
 ```

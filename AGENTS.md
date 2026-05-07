@@ -6,7 +6,7 @@ Local-first observability and coordination platform for AI-assisted development.
 
 | Layer | Role |
 |-------|------|
-| `.htmlgraph/*.html` | Canonical store — single source of truth |
+| `.wipnote/*.html` | Canonical store — single source of truth |
 | SQLite (`~/.cache/wipnote/<path-hash>/wipnote.db`) | Per-user read index for queries and dashboard (derived; not committed) |
 | Go binary (`wipnote`) | CLI + hook handler |
 
@@ -32,7 +32,7 @@ so a new slash command or skill lands in all three at once. See
 
 ## Dogfooding
 
-This project uses wipnote to develop itself. `.htmlgraph/` contains real work items — not demos.
+This project uses wipnote to develop itself. `.wipnote/` contains real work items — not demos.
 
 ## Temporal Awareness
 

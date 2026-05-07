@@ -14,14 +14,14 @@ import (
 // transcriptRecord is the minimal shape of one JSONL line in the Claude Code
 // transcript file. Only the fields we need are decoded; unknown fields ignored.
 type transcriptRecord struct {
-	Type      string `json:"type"`
-	UUID      string `json:"uuid"`
-	ParentUUID string `json:"parentUuid"`
-	SessionID string `json:"sessionId"`
-	RequestID string `json:"requestId"`
-	Timestamp string `json:"timestamp"`
-	IsSidechain bool  `json:"isSidechain"`
-	Message   struct {
+	Type        string `json:"type"`
+	UUID        string `json:"uuid"`
+	ParentUUID  string `json:"parentUuid"`
+	SessionID   string `json:"sessionId"`
+	RequestID   string `json:"requestId"`
+	Timestamp   string `json:"timestamp"`
+	IsSidechain bool   `json:"isSidechain"`
+	Message     struct {
 		Role       string `json:"role"`
 		StopReason string `json:"stop_reason"`
 		Content    []struct {
@@ -133,8 +133,8 @@ func resolveUserPromptAncestor(uuidToRecord map[string]*transcriptRecord, startP
 }
 
 // readTranscriptWithMap scans the transcript JSONL and returns both:
-//   1. The most recent non-sidechain assistant record with text content
-//   2. A map of all parsed records keyed by UUID for ancestor walking
+//  1. The most recent non-sidechain assistant record with text content
+//  2. A map of all parsed records keyed by UUID for ancestor walking
 //
 // Returns (nil, nil, error) on I/O failure; (nil, map, nil) if no qualifying
 // assistant record found but transcript was readable; (rec, map, nil) on success.
@@ -311,4 +311,3 @@ func insertAssistantTextSignal(
 		debugLog(projectDir, "[assistant-text] insert signal: %v", dbErr)
 	}
 }
-

@@ -18,7 +18,7 @@ func fakeCmd(name string) *cobra.Command {
 }
 
 // setupTestProject creates a temporary directory with a .wipnote/
-// subdirectory (mimicking a real HtmlGraph project) and returns the project
+// subdirectory (mimicking a real wipnote project) and returns the project
 // root path and a cleanup function.
 func setupTestProject(t *testing.T) string {
 	t.Helper()
@@ -68,7 +68,7 @@ func TestPersistentPreRunE_UpsertsRegistry(t *testing.T) {
 	}
 
 	// Assert projects.json exists and contains our project.
-	regPath := filepath.Join(homeDir, ".local", "share", "htmlgraph", "projects.json")
+	regPath := filepath.Join(homeDir, ".local", "share", "wipnote", "projects.json")
 	data, err := os.ReadFile(regPath)
 	if err != nil {
 		t.Fatalf("projects.json not created: %v", err)
@@ -109,7 +109,7 @@ func TestPersistentPreRunE_CachesGitRemote(t *testing.T) {
 
 	// Pre-populate the registry with a GitRemoteURL so the second call should
 	// skip the git subprocess entirely.
-	regPath := filepath.Join(homeDir, ".local", "share", "htmlgraph", "projects.json")
+	regPath := filepath.Join(homeDir, ".local", "share", "wipnote", "projects.json")
 	if err := os.MkdirAll(filepath.Dir(regPath), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -201,7 +201,7 @@ func buildRootCmdForTest(t *testing.T) *cobra.Command {
 	// rootCmd.PersistentPreRunE. Since both live in package main, we can share
 	// the same package-level variables (projectDirFlag, getGitRemoteURLFn).
 	root := &cobra.Command{
-		Use:           "htmlgraph",
+		Use:           "wipnote",
 		SilenceErrors: true,
 		SilenceUsage:  true,
 	}

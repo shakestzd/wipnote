@@ -18,7 +18,7 @@ func TestSessionStartStoresProjectDir(t *testing.T) {
 	}
 
 	// Open an in-memory SQLite database.
-	database, err := db.Open(filepath.Join(projectDir, ".wipnote", "htmlgraph.db"))
+	database, err := db.Open(filepath.Join(projectDir, ".wipnote", "wipnote.db"))
 	if err != nil {
 		t.Fatalf("db.Open: %v", err)
 	}
@@ -56,7 +56,7 @@ func TestSessionStartActiveSessionContainsProjectDir(t *testing.T) {
 		t.Fatalf("mkdir .wipnote: %v", err)
 	}
 
-	database, err := db.Open(filepath.Join(projectDir, ".wipnote", "htmlgraph.db"))
+	database, err := db.Open(filepath.Join(projectDir, ".wipnote", "wipnote.db"))
 	if err != nil {
 		t.Fatalf("db.Open: %v", err)
 	}
@@ -103,7 +103,7 @@ func TestSessionStartWorktreeParentSessionIDPopulated(t *testing.T) {
 		t.Fatalf("mkdir .wipnote: %v", err)
 	}
 
-	database, err := db.Open(filepath.Join(mainDir, ".wipnote", "htmlgraph.db"))
+	database, err := db.Open(filepath.Join(mainDir, ".wipnote", "wipnote.db"))
 	if err != nil {
 		t.Fatalf("db.Open: %v", err)
 	}
@@ -191,7 +191,7 @@ func TestSessionStart_PrefersClaudeProjectDirOverCWD(t *testing.T) {
 	t.Setenv("CLAUDE_ENV_FILE", "") // prevent real env file writes
 
 	// Open DB in project A (the correct project).
-	database, err := db.Open(filepath.Join(projectA, ".wipnote", "htmlgraph.db"))
+	database, err := db.Open(filepath.Join(projectA, ".wipnote", "wipnote.db"))
 	if err != nil {
 		t.Fatalf("db.Open: %v", err)
 	}
@@ -226,7 +226,7 @@ func TestSessionStart_PrefersClaudeProjectDirOverCWD(t *testing.T) {
 
 func TestInsertAndGetSessionProjectDir(t *testing.T) {
 	dir := t.TempDir()
-	database, err := db.Open(filepath.Join(dir, "htmlgraph.db"))
+	database, err := db.Open(filepath.Join(dir, "wipnote.db"))
 	if err != nil {
 		t.Fatalf("db.Open: %v", err)
 	}
@@ -258,7 +258,7 @@ func TestSessionStartIncludesFullAttribution(t *testing.T) {
 		t.Fatalf("mkdir .wipnote: %v", err)
 	}
 
-	database, err := db.Open(filepath.Join(projectDir, ".wipnote", "htmlgraph.db"))
+	database, err := db.Open(filepath.Join(projectDir, ".wipnote", "wipnote.db"))
 	if err != nil {
 		t.Fatalf("db.Open: %v", err)
 	}
@@ -307,8 +307,8 @@ func TestSessionStartIncludesFullAttribution(t *testing.T) {
 	}
 
 	// Should contain CLI quick-reference.
-	if !testContainsStr(result.AdditionalContext, "htmlgraph CLI") {
-		t.Errorf("attribution should mention 'htmlgraph CLI', got: %s", result.AdditionalContext)
+	if !testContainsStr(result.AdditionalContext, "wipnote CLI") {
+		t.Errorf("attribution should mention 'wipnote CLI', got: %s", result.AdditionalContext)
 	}
 
 	// Should contain required flags reminder.
@@ -318,7 +318,7 @@ func TestSessionStartIncludesFullAttribution(t *testing.T) {
 }
 
 // TestSessionStartNoOpenItemsNonBareLaunch verifies that when there are no open
-// work items AND the session was launched via htmlgraph claude (launch mode is
+// work items AND the session was launched via wipnote claude (launch mode is
 // recent), SessionStart returns empty AdditionalContext (no banner shown).
 func TestSessionStartNoOpenItemsNonBareLaunch(t *testing.T) {
 	projectDir := t.TempDir()
@@ -326,7 +326,7 @@ func TestSessionStartNoOpenItemsNonBareLaunch(t *testing.T) {
 		t.Fatalf("mkdir .wipnote: %v", err)
 	}
 
-	database, err := db.Open(filepath.Join(projectDir, ".wipnote", "htmlgraph.db"))
+	database, err := db.Open(filepath.Join(projectDir, ".wipnote", "wipnote.db"))
 	if err != nil {
 		t.Fatalf("db.Open: %v", err)
 	}
@@ -342,9 +342,9 @@ func TestSessionStartNoOpenItemsNonBareLaunch(t *testing.T) {
 	t.Setenv("CLAUDE_ENV_FILE", "")
 
 	// Simulate a non-bare launch: write .launch-mode with a recent timestamp
-	// so bareLaunchNudge detects it as launched via htmlgraph claude.
+	// so bareLaunchNudge detects it as launched via wipnote claude.
 	launchModeFile := filepath.Join(projectDir, ".wipnote", ".launch-mode")
-	launchModeData := []byte(`{"mode":"htmlgraph-claude","pid":1234,"timestamp":"2024-01-01T12:00:00Z"}`)
+	launchModeData := []byte(`{"mode":"wipnote-claude","pid":1234,"timestamp":"2024-01-01T12:00:00Z"}`)
 	if err := os.WriteFile(launchModeFile, launchModeData, 0o644); err != nil {
 		t.Fatalf("write .launch-mode: %v", err)
 	}
@@ -355,7 +355,7 @@ func TestSessionStartNoOpenItemsNonBareLaunch(t *testing.T) {
 	}
 
 	// With no open items and non-bare launch, AdditionalContext should be empty.
-	// bareLaunchNudge returns empty (launch was via htmlgraph claude), and
+	// bareLaunchNudge returns empty (launch was via wipnote claude), and
 	// buildSessionStartAttribution returns empty (no open items).
 	if result.AdditionalContext != "" {
 		t.Errorf("AdditionalContext should be empty for non-bare launch with no open items, got: %q", result.AdditionalContext)
@@ -371,7 +371,7 @@ func TestSessionStartNoOpenItemsBareLaunch(t *testing.T) {
 		t.Fatalf("mkdir .wipnote: %v", err)
 	}
 
-	database, err := db.Open(filepath.Join(projectDir, ".wipnote", "htmlgraph.db"))
+	database, err := db.Open(filepath.Join(projectDir, ".wipnote", "wipnote.db"))
 	if err != nil {
 		t.Fatalf("db.Open: %v", err)
 	}
@@ -396,13 +396,13 @@ func TestSessionStartNoOpenItemsBareLaunch(t *testing.T) {
 	}
 
 	// With no open items but bare launch, AdditionalContext should contain
-	// the bareLaunchNudge text (which suggests using htmlgraph claude).
+	// the bareLaunchNudge text (which suggests using wipnote claude).
 	if result.AdditionalContext == "" {
 		t.Fatal("AdditionalContext should contain bareLaunchNudge text for bare launch with no open items")
 	}
 
-	if !testContainsStr(result.AdditionalContext, "htmlgraph claude") {
-		t.Errorf("bareLaunchNudge text should mention 'htmlgraph claude', got: %s", result.AdditionalContext)
+	if !testContainsStr(result.AdditionalContext, "wipnote claude") {
+		t.Errorf("bareLaunchNudge text should mention 'wipnote claude', got: %s", result.AdditionalContext)
 	}
 }
 

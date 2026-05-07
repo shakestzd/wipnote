@@ -1,5 +1,5 @@
 // Package otel defines the canonical, harness-agnostic telemetry signal
-// representation used across HtmlGraph's OpenTelemetry ingestion pipeline.
+// representation used across wipnote's OpenTelemetry ingestion pipeline.
 //
 // Three AI-coding harnesses emit OTel telemetry with different dialects:
 // Claude Code (claude_code.*), Codex CLI (codex.*), and Gemini CLI

@@ -24,7 +24,7 @@ func setupTestDB(t *testing.T) *testDB {
 	// active features or no active feature).
 	featureIDCache = featureIDCacheEntry{}
 
-	dbPath := filepath.Join(t.TempDir(), "htmlgraph.db")
+	dbPath := filepath.Join(t.TempDir(), "wipnote.db")
 	database, err := db.Open(dbPath)
 	if err != nil {
 		t.Fatalf("db.Open: %v", err)
@@ -301,7 +301,7 @@ func TestUserPrompt_TerseAdditionalContext(t *testing.T) {
 		t.Errorf("UserPrompt should be terse (no open items roster), got: %s", result.AdditionalContext)
 	}
 	// Should not contain the full CLI ref
-	if strings.Contains(result.AdditionalContext, "htmlgraph CLI") {
+	if strings.Contains(result.AdditionalContext, "wipnote CLI") {
 		t.Errorf("UserPrompt should be terse (no CLI ref), got: %s", result.AdditionalContext)
 	}
 	// Should contain the active item one-liner

@@ -31,10 +31,10 @@ func TestNoCachePollution(t *testing.T) {
 	if err != nil {
 		t.Skipf("os.UserCacheDir() unavailable: %v", err)
 	}
-	htmlgraphCacheDir := filepath.Join(realCacheDir, "htmlgraph")
+	wipnoteCacheDir := filepath.Join(realCacheDir, "wipnote")
 
 	// Count existing subdirs in the real cache before the test.
-	before := countSubdirs(t, htmlgraphCacheDir)
+	before := countSubdirs(t, wipnoteCacheDir)
 
 	// Call CanonicalDBPath with several distinct project dirs to exercise the
 	// path that used to create cache entries. Each unique dir gets a different
@@ -48,17 +48,17 @@ func TestNoCachePollution(t *testing.T) {
 		}
 		// Verify the returned path is NOT under the real OS cache dir —
 		// it should be under the temp dir set by TestMain.
-		if strings.HasPrefix(got, htmlgraphCacheDir) {
+		if strings.HasPrefix(got, wipnoteCacheDir) {
 			t.Errorf("CanonicalDBPath(%q) = %q: path is under real cache dir %q (WIPNOTE_DB_PATH not set?)",
-				projectDir, got, htmlgraphCacheDir)
+				projectDir, got, wipnoteCacheDir)
 		}
 	}
 
 	// Count subdirs after — must not have grown.
-	after := countSubdirs(t, htmlgraphCacheDir)
+	after := countSubdirs(t, wipnoteCacheDir)
 	if after > before {
 		t.Errorf("real cache dir %q grew by %d subdirs during test (before=%d after=%d): WIPNOTE_DB_PATH redirect is not working",
-			htmlgraphCacheDir, after-before, before, after)
+			wipnoteCacheDir, after-before, before, after)
 	}
 }
 

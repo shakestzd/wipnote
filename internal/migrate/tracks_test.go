@@ -24,13 +24,13 @@ func fakeFiles(featureID string, paths ...string) []models.FeatureFile {
 // testRules returns a small RuleSet covering the four value-aligned tracks.
 func testRules() *RuleSet {
 	return &RuleSet{Rules: []Rule{
-		{Glob: "cmd/htmlgraph/yolo.go", TrackID: "trk-yolo", Priority: 110},
-		{Glob: "cmd/htmlgraph/tmux.go", TrackID: "trk-yolo", Priority: 110},
+		{Glob: "cmd/wipnote/yolo.go", TrackID: "trk-yolo", Priority: 110},
+		{Glob: "cmd/wipnote/tmux.go", TrackID: "trk-yolo", Priority: 110},
 		{Glob: "internal/worktree/**", TrackID: "trk-yolo", Priority: 100},
-		{Glob: "cmd/htmlgraph/plan_*.go", TrackID: "trk-plan", Priority: 100},
+		{Glob: "cmd/wipnote/plan_*.go", TrackID: "trk-plan", Priority: 100},
 		{Glob: "internal/plantmpl/**", TrackID: "trk-plan", Priority: 100},
 		{Glob: "internal/blame/**", TrackID: "trk-lineage", Priority: 100},
-		{Glob: "cmd/htmlgraph/blame.go", TrackID: "trk-lineage", Priority: 110},
+		{Glob: "cmd/wipnote/blame.go", TrackID: "trk-lineage", Priority: 110},
 		{Glob: "plugin/agents/*.md", TrackID: "trk-subagents", Priority: 100},
 	}}
 }
@@ -38,8 +38,8 @@ func testRules() *RuleSet {
 func TestClassify_SingleTrackDominant(t *testing.T) {
 	rules := testRules()
 	files := fakeFiles("feat-001",
-		"cmd/htmlgraph/yolo.go",
-		"cmd/htmlgraph/tmux.go",
+		"cmd/wipnote/yolo.go",
+		"cmd/wipnote/tmux.go",
 		"internal/worktree/manager.go",
 		"internal/worktree/registry.go",
 	)
@@ -65,11 +65,11 @@ func TestClassify_AmbiguousBelowThreshold(t *testing.T) {
 	rules := testRules()
 	// 3 plan files, 2 yolo files: dominant share = 3/5 = 0.6
 	files := fakeFiles("feat-002",
-		"cmd/htmlgraph/plan_create.go",
-		"cmd/htmlgraph/plan_show.go",
-		"cmd/htmlgraph/plan_finalize.go",
-		"cmd/htmlgraph/yolo.go",
-		"cmd/htmlgraph/tmux.go",
+		"cmd/wipnote/plan_create.go",
+		"cmd/wipnote/plan_show.go",
+		"cmd/wipnote/plan_finalize.go",
+		"cmd/wipnote/yolo.go",
+		"cmd/wipnote/tmux.go",
 	)
 	// threshold 0.7 → ambiguous (0.6 < 0.7)
 	d := ClassifyFeature(rules, files, "trk-old", 0.7)
@@ -100,13 +100,13 @@ func TestClassify_NoFeatureFiles(t *testing.T) {
 
 func TestClassify_RulePriorityWins(t *testing.T) {
 	// rule A glob=internal/blame/** (priority 100) → trk-lineage
-	// rule B glob=cmd/htmlgraph/blame.go (priority 110) → trk-lineage
+	// rule B glob=cmd/wipnote/blame.go (priority 110) → trk-lineage
 	// To test priority resolution we need two rules with overlapping globs but different track IDs.
 	rules := &RuleSet{Rules: []Rule{
-		{Glob: "cmd/htmlgraph/**", TrackID: "trk-broad", Priority: 50},
-		{Glob: "cmd/htmlgraph/blame.go", TrackID: "trk-lineage", Priority: 200},
+		{Glob: "cmd/wipnote/**", TrackID: "trk-broad", Priority: 50},
+		{Glob: "cmd/wipnote/blame.go", TrackID: "trk-lineage", Priority: 200},
 	}}
-	files := fakeFiles("feat-prio", "cmd/htmlgraph/blame.go")
+	files := fakeFiles("feat-prio", "cmd/wipnote/blame.go")
 	d := ClassifyFeature(rules, files, "trk-old", 0.6)
 	if d.ProposedTrack != "trk-lineage" {
 		t.Fatalf("proposed_track = %q, want trk-lineage (higher priority should win)", d.ProposedTrack)
@@ -138,10 +138,10 @@ func TestClassify_LowConfidenceOnSameTrackStillAmbiguous(t *testing.T) {
 	// still split attribution.
 	rules := testRules()
 	files := fakeFiles("feat-low",
-		"cmd/htmlgraph/yolo.go",         // 1 yolo
-		"cmd/htmlgraph/plan_create.go",  // 1 plan
-		"plugin/agents/x.md",            // 1 subagents
-		"internal/blame/blame.go",       // 1 lineage
+		"cmd/wipnote/yolo.go",        // 1 yolo
+		"cmd/wipnote/plan_create.go", // 1 plan
+		"plugin/agents/x.md",         // 1 subagents
+		"internal/blame/blame.go",    // 1 lineage
 	)
 	d := ClassifyFeature(rules, files, "trk-yolo", 0.6)
 	if !d.Ambiguous {
@@ -154,7 +154,7 @@ func TestClassify_LowConfidenceOnSameTrackStillAmbiguous(t *testing.T) {
 
 func TestClassify_AlreadyOnDominantTrack(t *testing.T) {
 	rules := testRules()
-	files := fakeFiles("feat-stay", "cmd/htmlgraph/yolo.go", "cmd/htmlgraph/tmux.go")
+	files := fakeFiles("feat-stay", "cmd/wipnote/yolo.go", "cmd/wipnote/tmux.go")
 	d := ClassifyFeature(rules, files, "trk-yolo", 0.6) // current == dominant
 	if d.Reason != "no-change" {
 		t.Fatalf("reason = %q, want no-change", d.Reason)
@@ -166,7 +166,7 @@ func TestClassify_AlreadyOnDominantTrack(t *testing.T) {
 
 func TestLoadRules_ParsesYAML(t *testing.T) {
 	yaml := `rules:
-  - { glob: "cmd/htmlgraph/yolo.go", track_id: "trk-yolo", priority: 110 }
+  - { glob: "cmd/wipnote/yolo.go", track_id: "trk-yolo", priority: 110 }
   - { glob: "internal/blame/**", track_id: "trk-lineage", priority: 100 }
 `
 	dir := t.TempDir()
@@ -181,7 +181,7 @@ func TestLoadRules_ParsesYAML(t *testing.T) {
 	if len(rs.Rules) != 2 {
 		t.Fatalf("got %d rules, want 2", len(rs.Rules))
 	}
-	if rs.Rules[0].Glob != "cmd/htmlgraph/yolo.go" || rs.Rules[0].TrackID != "trk-yolo" || rs.Rules[0].Priority != 110 {
+	if rs.Rules[0].Glob != "cmd/wipnote/yolo.go" || rs.Rules[0].TrackID != "trk-yolo" || rs.Rules[0].Priority != 110 {
 		t.Fatalf("rule[0] = %+v", rs.Rules[0])
 	}
 }
@@ -190,8 +190,8 @@ func TestClassify_HandlesAbsolutePaths(t *testing.T) {
 	rules := testRules()
 	// File paths captured by hooks running in a worktree are absolute.
 	files := fakeFiles("feat-abs",
-		"/workspaces/htmlgraph/.claude/worktrees/wt-foo/cmd/htmlgraph/yolo.go",
-		"/workspaces/htmlgraph/cmd/htmlgraph/tmux.go",
+		"/workspaces/wipnote/.claude/worktrees/wt-foo/cmd/wipnote/yolo.go",
+		"/workspaces/wipnote/cmd/wipnote/tmux.go",
 	)
 	d := ClassifyFeature(rules, files, "trk-old", 0.6)
 	if d.ProposedTrack != "trk-yolo" {
@@ -206,16 +206,16 @@ func TestNormalizePath(t *testing.T) {
 	cases := []struct {
 		in, want string
 	}{
-		{"cmd/htmlgraph/yolo.go", "cmd/htmlgraph/yolo.go"},
-		{"/workspaces/htmlgraph/cmd/htmlgraph/yolo.go", "cmd/htmlgraph/yolo.go"},
+		{"cmd/wipnote/yolo.go", "cmd/wipnote/yolo.go"},
+		{"/workspaces/wipnote/cmd/wipnote/yolo.go", "cmd/wipnote/yolo.go"},
 		{"/repo/.claude/worktrees/x/internal/blame/blame.go", "internal/blame/blame.go"},
 		{"/random/path/with/no/anchor.txt", "/random/path/with/no/anchor.txt"},
 		{"/foo/plugin/agents/x.md", "plugin/agents/x.md"},
 		// Worktree prefix with cmd/ underneath
-		{"/workspaces/htmlgraph/.claude/worktrees/wt-foo/cmd/htmlgraph/plan_show.go",
-			"cmd/htmlgraph/plan_show.go"},
+		{"/workspaces/wipnote/.claude/worktrees/wt-foo/cmd/wipnote/plan_show.go",
+			"cmd/wipnote/plan_show.go"},
 		// .githooks anchor
-		{"/workspaces/htmlgraph/.githooks/pre-commit", ".githooks/pre-commit"},
+		{"/workspaces/wipnote/.githooks/pre-commit", ".githooks/pre-commit"},
 	}
 	for _, c := range cases {
 		got := normalizePath(c.in)
@@ -233,10 +233,10 @@ func TestMatchGlob_DoubleStar(t *testing.T) {
 		{"internal/blame/**", "internal/blame/blame.go", true},
 		{"internal/blame/**", "internal/blame/sub/areas.go", true},
 		{"internal/blame/**", "internal/other/blame.go", false},
-		{"cmd/htmlgraph/plan_*.go", "cmd/htmlgraph/plan_create.go", true},
-		{"cmd/htmlgraph/plan_*.go", "cmd/htmlgraph/plan_sub/file.go", false},
-		{"cmd/htmlgraph/yolo.go", "cmd/htmlgraph/yolo.go", true},
-		{"cmd/htmlgraph/yolo.go", "cmd/htmlgraph/yolo_test.go", false},
+		{"cmd/wipnote/plan_*.go", "cmd/wipnote/plan_create.go", true},
+		{"cmd/wipnote/plan_*.go", "cmd/wipnote/plan_sub/file.go", false},
+		{"cmd/wipnote/yolo.go", "cmd/wipnote/yolo.go", true},
+		{"cmd/wipnote/yolo.go", "cmd/wipnote/yolo_test.go", false},
 		{"plugin/agents/*.md", "plugin/agents/sonnet-coder.md", true},
 		{"plugin/agents/*.md", "plugin/agents/sub/x.md", false},
 	}

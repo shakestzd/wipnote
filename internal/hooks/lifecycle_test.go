@@ -21,7 +21,7 @@ func setupLifecycleDB(t *testing.T) (*sql.DB, string) {
 	if err := os.MkdirAll(hgDir, 0o755); err != nil {
 		t.Fatalf("mkdir .wipnote: %v", err)
 	}
-	database, err := db.Open(filepath.Join(hgDir, "htmlgraph.db"))
+	database, err := db.Open(filepath.Join(hgDir, "wipnote.db"))
 	if err != nil {
 		t.Fatalf("db.Open: %v", err)
 	}
@@ -439,7 +439,7 @@ func TestYoloModeGuards(t *testing.T) {
 		// Work item guard should have passed; any remaining block is from another
 		// YOLO guard (e.g. research or worktree). Accept blocks from those guards
 		// but fail if reason still mentions missing work item.
-		if result.Reason == "No active work item. Start a feature or bug before writing: htmlgraph feature start <id>" {
+		if result.Reason == "No active work item. Start a feature or bug before writing: wipnote feature start <id>" {
 			t.Errorf("work item guard still blocking after feature set: %s", result.Reason)
 		}
 	}

@@ -1,6 +1,6 @@
 // Package collector provides the CollectorLifecycle interface and its
 // ProcessCollector implementation for spawning, monitoring, and cleaning up
-// htmlgraph otel-collect child processes.
+// wipnote otel-collect child processes.
 //
 // Future launchers (Codex, Gemini) call Spawn directly without duplicating
 // retry/watchdog/cleanup machinery.
@@ -85,7 +85,7 @@ func (c *ProcessCollector) Spawn(binPath, sessionID, projectDir string) (int, fu
 
 	port, proc, attempts, err := RetrySpawn(binPath, sessionID, projectDir, 0, 3, spawnFn, c.opts.Stderr)
 	if err != nil {
-		fmt.Fprintf(c.opts.Stderr, "htmlgraph: FATAL: collector spawn failed after %d attempts: %v\n", attempts, err)
+		fmt.Fprintf(c.opts.Stderr, "wipnote: FATAL: collector spawn failed after %d attempts: %v\n", attempts, err)
 		return 0, nil, err
 	}
 
@@ -99,7 +99,7 @@ func (c *ProcessCollector) Spawn(binPath, sessionID, projectDir string) (int, fu
 }
 
 // DefaultSpawnFn starts an otel-collect child process and waits for its
-// handshake line ("htmlgraph-otel-ready port=<N>"). When requestedPort is 0,
+// handshake line ("wipnote-otel-ready port=<N>"). When requestedPort is 0,
 // the kernel auto-assigns a port; when non-zero, the collector binds the
 // requested port (used by the watchdog to preserve endpoint identity across
 // respawns). The child is started in its own process group (Setpgid) so it
@@ -151,7 +151,7 @@ func readHandshake(scanner *bufio.Scanner) (int, error) {
 		for scanner.Scan() {
 			line := scanner.Text()
 			var p int
-			if _, err := fmt.Sscanf(line, "htmlgraph-otel-ready port=%d", &p); err == nil {
+			if _, err := fmt.Sscanf(line, "wipnote-otel-ready port=%d", &p); err == nil {
 				ch <- result{port: p}
 				return
 			}
@@ -186,7 +186,7 @@ func RetrySpawn(
 		}
 		lastErr = err
 		if i < maxAttempts-1 {
-			fmt.Fprintf(warnW, "htmlgraph: warning: collector spawn attempt %d/%d failed: %v\n", i+1, maxAttempts, err)
+			fmt.Fprintf(warnW, "wipnote: warning: collector spawn attempt %d/%d failed: %v\n", i+1, maxAttempts, err)
 			if i < len(backoff) {
 				time.Sleep(backoff[i])
 			}
@@ -243,16 +243,16 @@ func StartWatchdog(
 				if err := current.Signal(syscall.Signal(0)); err == nil {
 					continue
 				}
-				fmt.Fprintf(warnW, "htmlgraph: warning: collector died (pid=%d), respawning on port %d...\n", current.Pid, originalPort)
+				fmt.Fprintf(warnW, "wipnote: warning: collector died (pid=%d), respawning on port %d...\n", current.Pid, originalPort)
 				_, newProc, _, spawnErr := RetrySpawn(binPath, sessionID, projectDir, originalPort, 3, spawnFn, warnW)
 				if spawnErr != nil {
-					fmt.Fprintf(warnW, "htmlgraph: FATAL: collector respawn failed: %v\n", spawnErr)
+					fmt.Fprintf(warnW, "wipnote: FATAL: collector respawn failed: %v\n", spawnErr)
 					return
 				}
 				WriteCollectorPID(projectDir, sessionID, newProc.Pid)
 				startReaper(newProc, projectDir, sessionID)
 				procPtr.Store(newProc)
-				fmt.Fprintf(warnW, "htmlgraph: info: collector respawned (pid=%d port=%d)\n", newProc.Pid, originalPort)
+				fmt.Fprintf(warnW, "wipnote: info: collector respawned (pid=%d port=%d)\n", newProc.Pid, originalPort)
 			}
 		}
 	}()
@@ -316,7 +316,7 @@ func startReaper(proc *os.Process, projectDir, sessionID string) {
 }
 
 // RegisterCleanup is preserved for backwards compatibility with the shim in
-// cmd/htmlgraph/claude_otel_collect_spawn.go. It composes a single-process
+// cmd/wipnote/claude_otel_collect_spawn.go. It composes a single-process
 // reaper and cleanup. New code should call ProcessCollector.Spawn instead.
 //
 // Deprecated: prefer ProcessCollector.Spawn — RegisterCleanup cannot track
@@ -354,7 +354,7 @@ func removeCollectorPIDIfMatches(projectDir, sessionID string, pid int) {
 //
 // Returns pid, starttime, hasStart=true when both lines parsed, or
 // hasStart=false for legacy single-line files. Exported so callers
-// outside this package (e.g. cmd/htmlgraph status surfaces) can parse
+// outside this package (e.g. cmd/wipnote status surfaces) can parse
 // the PID file consistently with the writer.
 func ReadCollectorPIDFile(pidPath string) (pid int, starttime uint64, hasStart bool, err error) {
 	return readCollectorPIDFile(pidPath)

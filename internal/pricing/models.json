@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "source": "https://github.com/BerriAI/litellm/blob/main/model_prices_and_context_window.json",
-    "filtered_for": "htmlgraph OTel cost derivation",
+    "filtered_for": "wipnote OTel cost derivation",
     "last_updated": "2026-04-20",
     "notes": "Costs are USD per token (not per MTok). cache_read is ~0.10x input for Anthropic (5-min cache); cache_creation is ~1.25x input (5-min). Values empirically verified against Claude Code emissions where possible."
   },

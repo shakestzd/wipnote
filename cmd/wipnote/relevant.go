@@ -17,7 +17,7 @@ import (
 // Ranking weight constants — tunable.
 const (
 	weightFileMention  = 2.0 // each ripgrep hit inside HTML content
-	weightCommitItem   = 3.0 // commit attributed to this item via htmlgraph-item trailer
+	weightCommitItem   = 3.0 // commit attributed to this item via wipnote-item trailer
 	weightStatusActive = 1.5 // bonus for in-progress items
 	weightStatusDone   = 0.2 // small weight for done items (still relevant as context)
 )
@@ -78,9 +78,9 @@ Reads directly from .wipnote/*.html via ripgrep + git log.
 SQLite is not consulted.
 
 Examples:
-  htmlgraph relevant cmd/htmlgraph/relevant.go
-  htmlgraph relevant "retrieval"
-  htmlgraph relevant abc1234`,
+  wipnote relevant cmd/wipnote/relevant.go
+  wipnote relevant "retrieval"
+  wipnote relevant abc1234`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
 			return runRelevant(args[0], format)
@@ -133,7 +133,7 @@ func detectQueryType(query string) queryType {
 
 // runRelevant is the main entry point for the relevant command.
 func runRelevant(query, format string) error {
-	hgDir, err := findHtmlgraphDir()
+	hgDir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}
@@ -288,14 +288,14 @@ func searchWithRipgrep(hgDir, query string, scores map[string]*relevantResult) e
 
 // rgMessage is a minimal ripgrep --json message.
 type rgMessage struct {
-	Type string    `json:"type"`
+	Type string      `json:"type"`
 	Data rgMatchData `json:"data"`
 }
 
 type rgMatchData struct {
-	Path    rgText   `json:"path"`
-	Lines   rgText   `json:"lines"`
-	LineNumber int   `json:"line_number"`
+	Path       rgText `json:"path"`
+	Lines      rgText `json:"lines"`
+	LineNumber int    `json:"line_number"`
 }
 
 type rgText struct {
@@ -388,10 +388,10 @@ func attrOrEmpty(sel *goquery.Selection, name string) string {
 }
 
 // searchViaGitFileHistory uses git log --follow to find commits touching the
-// given file, then parses htmlgraph-item trailers to attribute work items.
+// given file, then parses wipnote-item trailers to attribute work items.
 //
 // Uses ASCII record separator (\x1e) between commits and unit separator (\x00)
-// between fields so that multi-line commit bodies (where htmlgraph-item trailers
+// between fields so that multi-line commit bodies (where wipnote-item trailers
 // usually live) parse correctly.
 func searchViaGitFileHistory(projectDir, hgDir, filePath string, scores map[string]*relevantResult) error {
 	out, err := exec.Command(
@@ -414,7 +414,7 @@ func searchViaGitFileHistory(projectDir, hgDir, filePath string, scores map[stri
 		}
 		sha, date, subject, body := parts[0], parts[1], parts[2], parts[3]
 
-		// Extract htmlgraph-item trailers from commit body.
+		// Extract wipnote-item trailers from commit body.
 		for _, itemID := range extractHTMLGraphTrailers(body) {
 			filePath := resolveItemHTMLPath(hgDir, itemID)
 			var node *relevantResult
@@ -436,7 +436,7 @@ func searchViaGitFileHistory(projectDir, hgDir, filePath string, scores map[stri
 	return nil
 }
 
-// searchViaGitSHA looks up a specific commit SHA and extracts htmlgraph-item
+// searchViaGitSHA looks up a specific commit SHA and extracts wipnote-item
 // trailers to attribute work items, then augments with ripgrep of item IDs.
 //
 // Uses \x00 field separators so that multi-line commit bodies parse correctly.
@@ -483,18 +483,18 @@ func searchViaGitSHA(projectDir, hgDir, sha string, scores map[string]*relevantR
 	return nil
 }
 
-// extractHTMLGraphTrailers parses "htmlgraph-item: <id>" trailers from a commit body.
+// extractHTMLGraphTrailers parses "wipnote-item: <id>" trailers from a commit body.
 func extractHTMLGraphTrailers(body string) []string {
 	var ids []string
 	for _, line := range strings.Split(body, "\n") {
 		line = strings.TrimSpace(line)
-		after, ok := strings.CutPrefix(strings.ToLower(line), "htmlgraph-item:")
+		after, ok := strings.CutPrefix(strings.ToLower(line), "wipnote-item:")
 		if !ok {
 			continue
 		}
 		id := strings.TrimSpace(after)
 		// Restore original case — re-cut from original line.
-		orig := strings.TrimSpace(line[len("htmlgraph-item:"):])
+		orig := strings.TrimSpace(line[len("wipnote-item:"):])
 		if orig != "" {
 			ids = append(ids, orig)
 		} else if id != "" {

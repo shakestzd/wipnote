@@ -17,11 +17,11 @@ import (
 func seedSession(t *testing.T) (projectDir string, database *sql.DB, sessionID string) {
 	t.Helper()
 	projectDir = t.TempDir()
-	htmlgraphDir := filepath.Join(projectDir, ".wipnote")
-	if err := os.MkdirAll(filepath.Join(htmlgraphDir, "sessions"), 0o755); err != nil {
+	wipnoteDir := filepath.Join(projectDir, ".wipnote")
+	if err := os.MkdirAll(filepath.Join(wipnoteDir, "sessions"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	database, err := db.Open(filepath.Join(htmlgraphDir, "htmlgraph.db"))
+	database, err := db.Open(filepath.Join(wipnoteDir, "wipnote.db"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -82,7 +82,7 @@ func seedSession(t *testing.T) (projectDir string, database *sql.DB, sessionID s
 	}
 
 	// Create a session HTML file mirroring the real CreateSessionHTML output.
-	htmlPath := filepath.Join(htmlgraphDir, "sessions", sessionID+".html")
+	htmlPath := filepath.Join(wipnoteDir, "sessions", sessionID+".html")
 	seed := `<!DOCTYPE html>
 <html>
 <body>
@@ -267,9 +267,9 @@ func TestMaterialize_IdempotentReplacesPriorRollup(t *testing.T) {
 // pre-Phase-1 session looks like.
 func TestMaterialize_NoOpWhenNoSignals(t *testing.T) {
 	projectDir := t.TempDir()
-	htmlgraphDir := filepath.Join(projectDir, ".wipnote")
-	os.MkdirAll(filepath.Join(htmlgraphDir, "sessions"), 0o755)
-	database, err := db.Open(filepath.Join(htmlgraphDir, "htmlgraph.db"))
+	wipnoteDir := filepath.Join(projectDir, ".wipnote")
+	os.MkdirAll(filepath.Join(wipnoteDir, "sessions"), 0o755)
+	database, err := db.Open(filepath.Join(wipnoteDir, "wipnote.db"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -277,7 +277,7 @@ func TestMaterialize_NoOpWhenNoSignals(t *testing.T) {
 
 	sessionID := "sess-empty"
 	database.Exec(`INSERT INTO sessions (session_id, agent_assigned) VALUES (?, ?)`, sessionID, "claude-code")
-	htmlPath := filepath.Join(htmlgraphDir, "sessions", sessionID+".html")
+	htmlPath := filepath.Join(wipnoteDir, "sessions", sessionID+".html")
 	os.WriteFile(htmlPath, []byte(`<!DOCTYPE html><html><body><article id="`+sessionID+`"></article></body></html>`), 0o644)
 
 	if err := materialize.Materialize(database, projectDir, sessionID); err != nil {

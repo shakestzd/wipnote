@@ -11,7 +11,7 @@ import (
 func pluginCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "plugin",
-		Short: "Manage the HtmlGraph Claude Code plugin",
+		Short: "Manage the wipnote Claude Code plugin",
 	}
 	cmd.AddCommand(pluginInstallCmd())
 	cmd.AddCommand(pluginBuildPortsCmd())
@@ -21,8 +21,8 @@ func pluginCmd() *cobra.Command {
 func pluginInstallCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "install",
-		Short: "Install the HtmlGraph plugin for Claude Code",
-		Long:  "Installs the HtmlGraph plugin into Claude Code via 'claude plugin install htmlgraph'.",
+		Short: "Install the wipnote plugin for Claude Code",
+		Long:  "Installs the wipnote plugin into Claude Code via 'claude plugin install wipnote'.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			claudePath, err := exec.LookPath("claude")
 			if err != nil {
@@ -30,15 +30,15 @@ func pluginInstallCmd() *cobra.Command {
 			}
 
 			// Register the marketplace so Claude Code can find the plugin.
-			fmt.Fprintln(cmd.OutOrStdout(), "Registering htmlgraph marketplace...")
-			_ = exec.Command(claudePath, "plugin", "marketplace", "add", htmlgraphMarketplaceRepo).Run()
+			fmt.Fprintln(cmd.OutOrStdout(), "Registering wipnote marketplace...")
+			_ = exec.Command(claudePath, "plugin", "marketplace", "add", wipnoteMarketplaceRepo).Run()
 
 			fmt.Fprintln(cmd.OutOrStdout(), "Installing plugin...")
-			c := exec.Command(claudePath, "plugin", "install", "htmlgraph@htmlgraph")
+			c := exec.Command(claudePath, "plugin", "install", "wipnote@wipnote")
 			c.Stdout = os.Stdout
 			c.Stderr = os.Stderr
 			if err := c.Run(); err != nil {
-				return fmt.Errorf("claude plugin install htmlgraph@htmlgraph: %w", err)
+				return fmt.Errorf("claude plugin install wipnote@wipnote: %w", err)
 			}
 
 			fmt.Fprintln(cmd.OutOrStdout(), "Plugin installed successfully.")

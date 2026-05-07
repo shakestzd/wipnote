@@ -112,11 +112,11 @@ func printCacheStats(w io.Writer, root string, entries []storage.CacheEntry) err
 }
 
 // protectedForCacheCmd returns the active project's cache dir as a one-element
-// slice for EvictOptions.Protected, so an explicit `htmlgraph cache prune`
+// slice for EvictOptions.Protected, so an explicit `wipnote cache prune`
 // can never delete the read-index of the very project the operator is in.
 // Returns nil when the project root or its cache path can't be resolved.
 func protectedForCacheCmd() []string {
-	hgDir, err := findHtmlgraphDir()
+	hgDir, err := findWipnoteDir()
 	if err != nil {
 		return nil
 	}

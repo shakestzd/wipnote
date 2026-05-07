@@ -42,7 +42,7 @@ For the simpler hierarchy-only flow that requires an existing track and
 promotes every slice unconditionally, use 'plan finalize' instead.
 
 Example:
-  htmlgraph plan finalize-yaml plan-a1b2c3d4`,
+  wipnote plan finalize-yaml plan-a1b2c3d4`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
 			return runFinalizeYAML(args[0])
@@ -51,18 +51,18 @@ Example:
 }
 
 func runFinalizeYAML(planID string) error {
-	htmlgraphDir, err := findHtmlgraphDir()
+	wipnoteDir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}
-	return finalizeYAML(htmlgraphDir, planID)
+	return finalizeYAML(wipnoteDir, planID)
 }
 
 // finalizeYAML is the testable inner implementation of runFinalizeYAML.
-// It takes an explicit htmlgraphDir rather than resolving it from the environment.
-func finalizeYAML(htmlgraphDir, planID string) error {
+// It takes an explicit wipnoteDir rather than resolving it from the environment.
+func finalizeYAML(wipnoteDir, planID string) error {
 	// Read approvals from SQLite.
-	dbPath, err := storage.CanonicalDBPath(filepath.Dir(htmlgraphDir))
+	dbPath, err := storage.CanonicalDBPath(filepath.Dir(wipnoteDir))
 	if err != nil {
 		return fmt.Errorf("resolve db path: %w", err)
 	}
@@ -72,13 +72,13 @@ func finalizeYAML(htmlgraphDir, planID string) error {
 	}
 	defer db.Close()
 
-	featIDs, _, err := finalizeYAMLWithDB(db, htmlgraphDir, planID)
+	featIDs, _, err := finalizeYAMLWithDB(db, wipnoteDir, planID)
 	if err != nil {
 		return err
 	}
 
 	// Print summary via CLI path (load plan again for summary context).
-	planPath := filepath.Join(htmlgraphDir, "plans", planID+".yaml")
+	planPath := filepath.Join(wipnoteDir, "plans", planID+".yaml")
 	plan, loadErr := planyaml.Load(planPath)
 	if loadErr != nil {
 		return nil // summary is optional; creation already succeeded
@@ -93,7 +93,7 @@ func finalizeYAML(htmlgraphDir, planID string) error {
 	}
 	var track *models.Node
 	if plan.Meta.TrackID != "" {
-		p, pErr := workitem.Open(htmlgraphDir, agentForClaim())
+		p, pErr := workitem.Open(wipnoteDir, agentForClaim())
 		if pErr == nil {
 			defer p.Close()
 			track, _ = p.Tracks.Get(plan.Meta.TrackID)
@@ -114,8 +114,8 @@ type finalizeFailure struct {
 // caller-supplied database connection. It returns the IDs of created features
 // and any per-slice failures. Partial success is not an error — callers should
 // inspect both return values.
-func finalizeYAMLWithDB(db *sql.DB, htmlgraphDir, planID string) (createdIDs []string, failures []finalizeFailure, err error) {
-	planPath := filepath.Join(htmlgraphDir, "plans", planID+".yaml")
+func finalizeYAMLWithDB(db *sql.DB, wipnoteDir, planID string) (createdIDs []string, failures []finalizeFailure, err error) {
+	planPath := filepath.Join(wipnoteDir, "plans", planID+".yaml")
 	plan, err := planyaml.Load(planPath)
 	if err != nil {
 		return nil, nil, fmt.Errorf("load plan: %w", err)
@@ -148,7 +148,7 @@ func finalizeYAMLWithDB(db *sql.DB, htmlgraphDir, planID string) (createdIDs []s
 	applyAmendments(plan, amendments)
 
 	// Open project for work item creation.
-	p, pErr := workitem.Open(htmlgraphDir, agentForClaim())
+	p, pErr := workitem.Open(wipnoteDir, agentForClaim())
 	if pErr != nil {
 		return nil, nil, fmt.Errorf("open project: %w", pErr)
 	}
@@ -461,8 +461,8 @@ func printFinalizeYAMLSummary(
 	}
 
 	fmt.Println("\nNext:")
-	fmt.Printf("  /htmlgraph:execute %s   (in Claude — dispatches tasks)\n", plan.Meta.ID)
-	fmt.Printf("  OR: htmlgraph yolo --track %s   (autonomous mode)\n", trackID)
+	fmt.Printf("  /wipnote:execute %s   (in Claude — dispatches tasks)\n", plan.Meta.ID)
+	fmt.Printf("  OR: wipnote yolo --track %s   (autonomous mode)\n", trackID)
 }
 
 // applyAmendments applies accepted amendment directives to plan slices in memory.

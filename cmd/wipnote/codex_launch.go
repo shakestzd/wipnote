@@ -40,7 +40,7 @@ func appendOrReplaceEnv(env []string, kv ...string) []string {
 func spawnCodexOtelCollector(projectDir string) (port int, sessionID string, cleanup func()) {
 	binPath, err := os.Executable()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "htmlgraph: warning: codex per-session collector skipped: %v\n", err)
+		fmt.Fprintf(os.Stderr, "wipnote: warning: codex per-session collector skipped: %v\n", err)
 		return 0, "", nil
 	}
 
@@ -52,7 +52,7 @@ func spawnCodexOtelCollector(projectDir string) (port int, sessionID string, cle
 
 	spawnedPort, spawnCleanup, spawnErr := lc.Spawn(binPath, sessionID, projectDir)
 	if spawnErr != nil {
-		fmt.Fprintf(os.Stderr, "htmlgraph: FATAL: codex collector spawn failed: %v\n", spawnErr)
+		fmt.Fprintf(os.Stderr, "wipnote: FATAL: codex collector spawn failed: %v\n", spawnErr)
 		if os.Getenv("WIPNOTE_OTEL_STRICT") == "1" {
 			os.Exit(1)
 		}
@@ -79,4 +79,20 @@ func buildCodexOtelEnv(base []string, port int, sessionID string) []string {
 		"WIPNOTE_OTEL_SESSION="+sessionID,
 	)
 	return env
+}
+
+func buildCodexAgentEnv(base []string) []string {
+	return appendOrReplaceEnv(base, "WIPNOTE_AGENT_ID=codex", "WIPNOTE_AGENT_TYPE=codex")
+}
+
+func buildCodexOtelConfigArgs(port int) []string {
+	if port == 0 {
+		return nil
+	}
+	base := fmt.Sprintf("http://127.0.0.1:%d", port)
+	return []string{
+		"-c", "otel.log_user_prompt=true",
+		"-c", fmt.Sprintf(`otel.exporter={ otlp-http = { endpoint = "%s/v1/logs", protocol = "binary" } }`, base),
+		"-c", fmt.Sprintf(`otel.trace_exporter={ otlp-http = { endpoint = "%s/v1/traces", protocol = "binary" } }`, base),
+	}
 }

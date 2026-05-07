@@ -1,7 +1,7 @@
 // Package pricing derives a USD cost estimate from per-token counts and a
 // model identifier. It ships with an embedded snapshot of per-model rates
 // (models.json) filtered from the LiteLLM community-maintained pricing
-// table. The `htmlgraph pricing update` command refreshes the snapshot
+// table. The `wipnote pricing update` command refreshes the snapshot
 // from upstream.
 //
 // Claude Code emits cost_usd directly on its api_request events; for that
@@ -64,7 +64,7 @@ func Default() (*Table, error) {
 }
 
 // Load parses a models.json-shaped byte slice into a Table. Used by the
-// `htmlgraph pricing update` command to validate a freshly-fetched file
+// `wipnote pricing update` command to validate a freshly-fetched file
 // before writing it to disk, and by tests that supply custom tables.
 func Load(data []byte) (*Table, error) {
 	var raw map[string]json.RawMessage
@@ -152,7 +152,7 @@ func (t *Table) Derive(model string, tok otel.TokenCounts) (float64, otel.CostSo
 }
 
 // Models returns the sorted list of model identifiers the table knows
-// about. Used by `htmlgraph pricing list` and tests.
+// about. Used by `wipnote pricing list` and tests.
 func (t *Table) Models() []string {
 	out := make([]string, 0, len(t.models))
 	for k := range t.models {

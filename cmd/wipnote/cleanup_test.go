@@ -241,7 +241,7 @@ func TestFindContentFreeSessionIDs_NoAgentEvents(t *testing.T) {
 // ---------- runCleanupGhostSessions integration tests ----------
 
 // setupHTMLGraphDir creates a .wipnote/ directory tree with an SQLite DB
-// at the given root, and returns the htmlgraphDir path.
+// at the given root, and returns the wipnoteDir path.
 func setupHTMLGraphDir(t *testing.T) (string, *sql.DB) {
 	t.Helper()
 	root := t.TempDir()
@@ -254,7 +254,7 @@ func setupHTMLGraphDir(t *testing.T) (string, *sql.DB) {
 	if err := os.MkdirAll(filepath.Join(hgDir, ".db"), 0o755); err != nil {
 		t.Fatalf("mkdir .db: %v", err)
 	}
-	dbPath := filepath.Join(hgDir, ".db", "htmlgraph.db")
+	dbPath := filepath.Join(hgDir, ".db", "wipnote.db")
 	t.Setenv("WIPNOTE_DB_PATH", dbPath)
 	database, err := dbpkg.Open(dbPath)
 	if err != nil {
@@ -308,7 +308,7 @@ func TestRunCleanupGhostSessions_NeverDeletesHTMLBacked(t *testing.T) {
 	}
 
 	// Verify the row still exists.
-	db2, err := dbpkg.Open(filepath.Join(hgDir, ".db", "htmlgraph.db"))
+	db2, err := dbpkg.Open(filepath.Join(hgDir, ".db", "wipnote.db"))
 	if err != nil {
 		t.Fatalf("reopen db: %v", err)
 	}
@@ -338,7 +338,7 @@ func TestRunCleanupGhostSessions_DeletesTrueGhosts(t *testing.T) {
 		t.Fatalf("runCleanupGhostSessions: %v", err)
 	}
 
-	db2, err := dbpkg.Open(filepath.Join(hgDir, ".db", "htmlgraph.db"))
+	db2, err := dbpkg.Open(filepath.Join(hgDir, ".db", "wipnote.db"))
 	if err != nil {
 		t.Fatalf("reopen db: %v", err)
 	}
@@ -380,7 +380,7 @@ func TestRunCleanupGhostSessions_DryRunNoDelete(t *testing.T) {
 	}
 
 	// Row must still exist.
-	db2, err := dbpkg.Open(filepath.Join(hgDir, ".db", "htmlgraph.db"))
+	db2, err := dbpkg.Open(filepath.Join(hgDir, ".db", "wipnote.db"))
 	if err != nil {
 		t.Fatalf("reopen db: %v", err)
 	}

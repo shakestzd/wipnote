@@ -25,7 +25,7 @@ design:
   constraints:
   - Hooks must **never block Claude** — errors always fall through to Allow
   - No external dependencies — SQLite only, no Redis/Postgres
-  - Backward compatible — existing .htmlgraph/ databases must work without migration
+  - Backward compatible — existing .wipnote/ databases must work without migration
   approved: false
   comment: ''
 slices:

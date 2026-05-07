@@ -37,12 +37,12 @@ func relatedCmd() *cobra.Command {
 }
 
 func runRelated(featureID string) error {
-	htmlgraphDir, err := findHtmlgraphDir()
+	wipnoteDir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}
 
-	dbPath, err := storage.CanonicalDBPath(filepath.Dir(htmlgraphDir))
+	dbPath, err := storage.CanonicalDBPath(filepath.Dir(wipnoteDir))
 	if err != nil {
 		return fmt.Errorf("resolve db path: %w", err)
 	}
@@ -110,7 +110,7 @@ func runSetDescription(kind, id, text, acceptance, testStrategy, expectedBehavio
 		}
 	}
 
-	dir, err := findHtmlgraphDir()
+	dir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}

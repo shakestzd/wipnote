@@ -334,9 +334,9 @@ func TestYAMLStructure_MatchesSampleSchema(t *testing.T) {
 		},
 		Slices: []PlanSlice{
 			{
-				ID:    "feat-test",
-				Num:   1,
-				Title: "First slice",
+				ID:     "feat-test",
+				Num:    1,
+				Title:  "First slice",
 				Effort: "S",
 				Risk:   "Low",
 			},

@@ -17,10 +17,10 @@ code looks the way it does — the *what* lives in the commit messages, the
 
 ## Context
 
-`plan-1cd284e0` introduced a per-session OTel collector that the `htmlgraph
+`plan-1cd284e0` introduced a per-session OTel collector that the `wipnote
 claude` launcher spawns as a child of the user's interactive session. The
 collector listens on a dynamic 127.0.0.1 port, accepts OTLP/HTTP from the
-harness, and writes NDJSON to `.htmlgraph/sessions/<sid>/events.ndjson`.
+harness, and writes NDJSON to `.wipnote/sessions/<sid>/events.ndjson`.
 SQLite is treated as a derived index — the NDJSON file is canonical.
 
 `bug-28a9d7a7` showed two failure modes the v1 design did not handle:
@@ -89,10 +89,10 @@ NDJSON-canonical model assumes one writer per session file.
 
 ### Consequences
 
-- `cmd/htmlgraph/claude_otel_collect_spawn.go` is now a thin shim
+- `cmd/wipnote/claude_otel_collect_spawn.go` is now a thin shim
   (~110 LOC) that calls `internal/otel/collector`. Future Claude-specific
   hooks can live in the shim without contaminating the lifecycle.
-- `cmd/htmlgraph/codex_launch.go` and `cmd/htmlgraph/gemini_launch.go`
+- `cmd/wipnote/codex_launch.go` and `cmd/wipnote/gemini_launch.go`
   each contribute ~60-80 LOC of harness-specific env-injection logic on
   top of the shared lifecycle.
 - The shared `appendOrReplaceEnv` helper (in `codex_launch.go`,
@@ -121,8 +121,8 @@ NDJSON-canonical model assumes one writer per session file.
 
 ### Decision
 
-Each harness gets a wrapper command (`htmlgraph claude`, `htmlgraph codex`,
-`htmlgraph gemini`) that spawns the collector *before* `exec`ing the
+Each harness gets a wrapper command (`wipnote claude`, `wipnote codex`,
+`wipnote gemini`) that spawns the collector *before* `exec`ing the
 harness child, and injects the collector's port into the child's
 environment. The hook-based alternative (have a `SessionStart` hook spawn
 the collector and write the port to a file the harness later reads) was
@@ -131,18 +131,18 @@ considered and rejected for the spawn responsibility, though the existing
 
 ### Alternatives considered
 
-**(a) Launcher-based (chosen).** `htmlgraph codex` resolves the user's
+**(a) Launcher-based (chosen).** `wipnote codex` resolves the user's
 `codex` binary, spawns the collector, builds the child env with the OTel
 exporter pointed at the collector port, then `exec`s codex. Pre-fork env
 injection is deterministic — by the time the harness reads its OTel
 config, the port is real and listening.
 
-**(b) Hook-based.** A `SessionStart` hook (`htmlgraph hook session-start`)
+**(b) Hook-based.** A `SessionStart` hook (`wipnote hook session-start`)
 detects the harness, spawns the collector, and writes the port to
-`.htmlgraph/sessions/<sid>/.collector-port`. The harness reads its OTel
+`.wipnote/sessions/<sid>/.collector-port`. The harness reads its OTel
 config from the same file (or a wrapper script polls the file and exports
 the env var before launching the harness binary). Considered because it
-avoids requiring users to type `htmlgraph codex` instead of `codex`. But:
+avoids requiring users to type `wipnote codex` instead of `codex`. But:
 
 - Hooks cannot mutate child env post-fork in any of the three harnesses we
   support today. Whatever the hook writes has to be picked up by *some*
@@ -153,9 +153,9 @@ avoids requiring users to type `htmlgraph codex` instead of `codex`. But:
   reading. Filesystem syncs across container boundaries (devcontainer +
   host mount) can produce stale reads.
 - Diagnosing "my OTel didn't work" requires inspecting hook execution
-  *and* the port file, vs. one `htmlgraph codex --debug` invocation.
+  *and* the port file, vs. one `wipnote codex --debug` invocation.
 
-**(c) Daemon mode.** A `htmlgraph daemon` runs in the background; the
+**(c) Daemon mode.** A `wipnote daemon` runs in the background; the
 harness's OTel config is permanently pointed at `127.0.0.1:<fixed port>`;
 the daemon multiplexes multiple sessions onto one collector. Rejected for
 the same reasons as ADR-001(d): per-session isolation, simpler upgrade
@@ -164,15 +164,15 @@ story.
 ### Consequences
 
 - The user-visible command surface gains three commands:
-  `htmlgraph claude`, `htmlgraph codex`, `htmlgraph gemini`. Each is a
+  `wipnote claude`, `wipnote codex`, `wipnote gemini`. Each is a
   thin wrapper — invocations not using these wrappers continue to work
   but get no telemetry capture.
-- For Codex and Gemini, the `htmlgraph plugin install` step (or
+- For Codex and Gemini, the `wipnote plugin install` step (or
   equivalent harness-specific install) must document the wrapper
   invocation. The daemon-style "set it and forget it" UX is not
   available.
 - The wrappers compose cleanly with non-OTel concerns (work-item
-  attribution, worktree creation) that already live in `htmlgraph claude`.
+  attribution, worktree creation) that already live in `wipnote claude`.
 
 ### What remains for hooks
 
@@ -225,13 +225,13 @@ existing default:
    handshake timeouts. Targets transient port-bind contention and
    process-scheduling jitter.
 
-2. **Fail-loud on permanent failure** (`HTMLGRAPH_OTEL_STRICT=1`). Off by
+2. **Fail-loud on permanent failure** (`WIPNOTE_OTEL_STRICT=1`). Off by
    default. When set, all-attempts-failed produces a non-zero exit
    instead of degraded silent mode. Operators running CI or production
    sessions where missing telemetry is itself a failure should set this.
 
 3. **Watchdog respawn with port preservation**
-   (`StartWatchdog` / `HTMLGRAPH_OTEL_WATCHDOG_INTERVAL`). On by
+   (`StartWatchdog` / `WIPNOTE_OTEL_WATCHDOG_INTERVAL`). On by
    default, 15s polling interval. Detects mid-session collector death
    and respawns the collector binding the **same port** as the original
    spawn, so the harness's OTLP exporter endpoint remains valid across
@@ -249,7 +249,7 @@ existing default:
    respawns and idle exits.
 
 The status surface (`/api/otel/status` and the `Collector health:` block
-in `htmlgraph status`) lets operators verify all three are working
+in `wipnote status`) lets operators verify all three are working
 without grepping logs. Path traversal in the `?session=` query parameter
 is rejected via `isSafeSessionID` before any filesystem access.
 
@@ -260,7 +260,7 @@ deterministically: deferred (panic / normal return), explicit before
 `os.Exit(exitCode)` on harness non-zero exit (Go's `os.Exit` bypasses
 defers), and from a signal handler when the launcher itself receives
 SIGINT/SIGTERM. The third path is centralized in
-`cmd/htmlgraph/launch_run.go:runHarnessWithCleanup`, which all three
+`cmd/wipnote/launch_run.go:runHarnessWithCleanup`, which all three
 launchers call instead of `c.Run()`. It registers `signal.Notify` for
 SIGINT/SIGTERM, runs the child concurrently, forwards a received
 signal to the child, runs cleanup once the child reaps, then re-raises
@@ -280,7 +280,7 @@ PID files stale until idle timeout.
   during the rebind window) would close that residual gap. Cost is one
   more goroutine plus buffered-write semantics. Worth doing if
   real-world incidents show the residual gap matters.
-- **Daemon-mode option.** A `htmlgraph daemon --multi-session` mode for
+- **Daemon-mode option.** A `wipnote daemon --multi-session` mode for
   power users who run many parallel sessions and want a single
   long-lived collector. Would require extending `Lifecycle` with a
   "join existing" path and a session-id-to-port multiplex table.
@@ -314,7 +314,7 @@ These were flagged in the original feature spec and remain unresolved at
 merge time. None blocked implementation, but each warrants a follow-up.
 
 - **Gemini env-var propagation reliability.** The current
-  `htmlgraph gemini` launcher injects `GEMINI_TELEMETRY_OTLP_ENDPOINT`
+  `wipnote gemini` launcher injects `GEMINI_TELEMETRY_OTLP_ENDPOINT`
   pre-fork, which is the cleanest path. The spec also mooted a
   hook-based fallback (`SessionStart` writes port to disk; harness
   picks it up), which would let users keep typing `gemini` directly.
@@ -323,12 +323,12 @@ merge time. None blocked implementation, but each warrants a follow-up.
   measuring whether Gemini's hook-time env propagation actually works
   in practice — earlier research notes suggested Gemini hooks cannot
   mutate child env post-fork, but this was not exhaustively verified.
-- **`HTMLGRAPH_OTEL_STRICT` default flip.** RESILIENCE-1 made strict
+- **`WIPNOTE_OTEL_STRICT` default flip.** RESILIENCE-1 made strict
   mode opt-in (defaults to degraded silent failure). The original spec
   said "opt-in initially, becomes default in next major." We have not
   scheduled the flip. Decision needed: pick a release version (e.g.
   v1.0.0 / v0.60.0), announce the deprecation, then flip. Until then,
-  CI and production deployments should set `HTMLGRAPH_OTEL_STRICT=1`
+  CI and production deployments should set `WIPNOTE_OTEL_STRICT=1`
   explicitly to opt in to fail-loud semantics today.
 
 ## Cross-references
@@ -337,13 +337,13 @@ merge time. None blocked implementation, but each warrants a follow-up.
 |----------|-------|
 | Lifecycle implementation | `internal/otel/collector/lifecycle.go` |
 | Lifecycle tests | `internal/otel/collector/lifecycle_test.go` |
-| Claude shim | `cmd/htmlgraph/claude_otel_collect_spawn.go` |
-| Codex launcher | `cmd/htmlgraph/codex_launch.go`, `cmd/htmlgraph/codex.go:execCodex` |
-| Gemini launcher | `cmd/htmlgraph/gemini_launch.go`, `cmd/htmlgraph/gemini.go:execGemini` |
+| Claude shim | `cmd/wipnote/claude_otel_collect_spawn.go` |
+| Codex launcher | `cmd/wipnote/codex_launch.go`, `cmd/wipnote/codex.go:execCodex` |
+| Gemini launcher | `cmd/wipnote/gemini_launch.go`, `cmd/wipnote/gemini.go:execGemini` |
 | Adapters | `internal/otel/adapter/{claude,codex,gemini}.go` |
 | Adapter conformance | `internal/otel/adapter/conformance_test.go` |
-| Multi-harness HTTP test | `cmd/htmlgraph/multiharness_test.go` |
-| Status surface | `cmd/htmlgraph/api_collector_status.go`, `cmd/htmlgraph/status.go:printCollectorHealth` |
+| Multi-harness HTTP test | `cmd/wipnote/multiharness_test.go` |
+| Status surface | `cmd/wipnote/api_collector_status.go`, `cmd/wipnote/status.go:printCollectorHealth` |
 | Canonical attribute table | `internal/otel/signal.go` (`UnifiedSignal` doc comment) |
 
 ## Implementation history

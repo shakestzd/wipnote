@@ -22,9 +22,9 @@ import (
 //     ordinary non-zero return code.
 //   - All zero          → child exited 0; return nil.
 type harnessResult struct {
-	Err         error
-	ReraiseSig  syscall.Signal
-	ExitCode    int
+	Err        error
+	ReraiseSig syscall.Signal
+	ExitCode   int
 }
 
 // runHarnessWithCleanupCore is the testable core of runHarnessWithCleanup.

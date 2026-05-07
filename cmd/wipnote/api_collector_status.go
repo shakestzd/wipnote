@@ -101,7 +101,7 @@ func isSafeSessionID(id string) bool {
 	if id == "" || id == "." || id == ".." {
 		return false
 	}
-	if strings.ContainsAny(id, `/\` + "\x00") {
+	if strings.ContainsAny(id, `/\`+"\x00") {
 		return false
 	}
 	if strings.Contains(id, "..") {

@@ -13,7 +13,7 @@ import (
 func initCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "init",
-		Short: "Initialize a new HtmlGraph project in the current directory",
+		Short: "Initialize a new wipnote project in the current directory",
 		Long: `Creates the .wipnote/ directory structure, initializes the SQLite
 database, and writes default configuration files.
 
@@ -53,7 +53,7 @@ func runInit(_ *cobra.Command, _ []string) error {
 		return err
 	}
 
-	fmt.Printf("Initialized HtmlGraph in %s\n", graphDir)
+	fmt.Printf("Initialized wipnote in %s\n", graphDir)
 	fmt.Println()
 	fmt.Println("  .wipnote/features/")
 	fmt.Println("  .wipnote/bugs/")
@@ -64,7 +64,7 @@ func runInit(_ *cobra.Command, _ []string) error {
 	fmt.Println("  .wipnote/refs.json")
 	fmt.Println("  .wipnote/styles.css")
 	fmt.Println()
-	fmt.Println("Run 'htmlgraph status' to verify.")
+	fmt.Println("Run 'wipnote status' to verify.")
 	return nil
 }
 
@@ -107,11 +107,11 @@ func writeFileIfAbsent(path string, content []byte) error {
 	return nil
 }
 
-// defaultStylesCSS is a minimal stylesheet for HtmlGraph HTML nodes.
+// defaultStylesCSS is a minimal stylesheet for wipnote HTML nodes.
 var defaultStylesCSS = []byte(`/**
- * HtmlGraph Default Stylesheet
+ * wipnote Default Stylesheet
  *
- * Provides sensible defaults for HtmlGraph nodes.
+ * Provides sensible defaults for wipnote nodes.
  * Customize as needed for your project.
  */
 

@@ -1,5 +1,5 @@
 /**
- * HtmlGraph - "HTML is All You Need"
+ * wipnote - "HTML is All You Need"
  *
  * A lightweight graph database framework using HTML files as nodes,
  * hyperlinks as edges, and CSS selectors as the query language.
@@ -501,9 +501,9 @@ class FindAPI {
 }
 
 /**
- * Main HtmlGraph class
+ * Main wipnote class
  */
-class HtmlGraph {
+class wipnote {
   constructor() {
     this._nodes = new Map();
     this._edgeIndex = new EdgeIndex();
@@ -852,7 +852,7 @@ class HtmlGraph {
    */
   subgraph(nodeIds, includeEdges = true) {
     const nodeIdSet = new Set(nodeIds);
-    const subgraph = new HtmlGraph();
+    const subgraph = new wipnote();
 
     for (const nodeId of nodeIds) {
       const node = this._nodes.get(nodeId);
@@ -957,7 +957,7 @@ class HtmlGraph {
 // Export for different module systems
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
-    HtmlGraph,
+    wipnote,
     QueryBuilder,
     ConditionBuilder,
     Condition,
@@ -969,7 +969,7 @@ if (typeof module !== 'undefined' && module.exports) {
 }
 
 if (typeof window !== 'undefined') {
-  window.HtmlGraph = HtmlGraph;
+  window.wipnote = wipnote;
   window.QueryBuilder = QueryBuilder;
   window.EdgeIndex = EdgeIndex;
 }

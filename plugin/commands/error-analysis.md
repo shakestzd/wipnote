@@ -1,6 +1,6 @@
 ---
 name: error-analysis
-description: Systematically capture, analyze, and track errors with Erinn AI spike-based investigation workflow
+description: Systematically capture, analyze, and track errors with wipnote spike-based investigation workflow
 args:
   - name: error_context
     description: Brief description of the error or error message
@@ -9,7 +9,7 @@ args:
 
 # /wipnote:error-analysis
 
-Systematically capture, analyze, and track errors with Erinn AI spike-based investigation workflow.
+Systematically capture, analyze, and track errors with wipnote spike-based investigation workflow.
 
 ## Usage
 
@@ -27,7 +27,7 @@ Systematically capture, analyze, and track errors with Erinn AI spike-based inve
 ```bash
 /wipnote:error-analysis "PreToolUse hook failing with 'No such file'"
 ```
-Capture and analyze a hook error with Erinn AI tracking
+Capture and analyze a hook error with wipnote tracking
 
 ```bash
 /wipnote:error-analysis
@@ -37,9 +37,9 @@ Interactive error capture workflow
 
 ## Instructions for Claude
 
-**CRITICAL: This command implements systematic error investigation using Erinn AI spikes.**
+**CRITICAL: This command implements systematic error investigation using wipnote spikes.**
 
-This command follows a research-first debugging methodology: capture the error, categorize it, investigate systematically, and track progress in Erinn AI.
+This command follows a research-first debugging methodology: capture the error, categorize it, investigate systematically, and track progress in wipnote.
 
 ### Implementation:
 
@@ -86,15 +86,15 @@ This command follows a research-first debugging methodology: capture the error, 
    - Dependency versions
    - Stack traces
 
-4. **Document error details in Erinn AI:**
-   Run `erinn track list` to find the appropriate track. If none applies, omit `--track`.
-   Use `erinn bug create` to track the error investigation and findings:
+4. **Document error details in wipnote:**
+   Run `wipnote track list` to find the appropriate track. If none applies, omit `--track`.
+   Use `wipnote bug create` to track the error investigation and findings:
    ```bash
-   erinn bug create "Error Analysis: {error_category} - {brief_description}" --track <trk-id>
+   wipnote bug create "Error Analysis: {error_category} - {brief_description}" --track <trk-id>
    ```
    Then immediately start the bug:
    ```bash
-   erinn bug start <id>
+   wipnote bug start <id>
    ```
 
 5. **Provide systematic investigation prompts:**
@@ -145,7 +145,7 @@ This command follows a research-first debugging methodology: capture the error, 
 
    After creating the bug, record progress as you investigate:
    ```bash
-   erinn bug show <bug-id>
+   wipnote bug show <bug-id>
    ```
 
    Follow these investigation steps:
@@ -194,7 +194,7 @@ This command follows a research-first debugging methodology: capture the error, 
 Use these commands to begin:
 ```bash
 # View spike in dashboard
-erinn serve
+wipnote serve
 # Open: http://localhost:8080
 
 # Research if needed (unfamiliar error)

@@ -15,24 +15,27 @@ import (
 // Identification: resource service.name == "claude-code".
 //
 // Span taxonomy (empirical):
-//   claude_code.interaction        — one user prompt turn (root)
-//   claude_code.llm_request        — one API call
-//   claude_code.tool               — logical tool invocation (tool_name attr)
-//   claude_code.tool.execution     — actual tool run (nested under .tool)
-//   claude_code.tool.blocked_on_user — permission wait (nested under .tool)
+//
+//	claude_code.interaction        — one user prompt turn (root)
+//	claude_code.llm_request        — one API call
+//	claude_code.tool               — logical tool invocation (tool_name attr)
+//	claude_code.tool.execution     — actual tool run (nested under .tool)
+//	claude_code.tool.blocked_on_user — permission wait (nested under .tool)
 //
 // Log events (monitoring-usage doc + empirical):
-//   claude_code.user_prompt, claude_code.api_request, claude_code.api_error,
-//   claude_code.tool_result, claude_code.tool_decision,
-//   claude_code.plugin_installed, claude_code.skill_activated,
-//   claude_code.api_request_body, claude_code.api_response_body.
+//
+//	claude_code.user_prompt, claude_code.api_request, claude_code.api_error,
+//	claude_code.tool_result, claude_code.tool_decision,
+//	claude_code.plugin_installed, claude_code.skill_activated,
+//	claude_code.api_request_body, claude_code.api_response_body.
 //
 // Metrics (monitoring-usage doc):
-//   claude_code.session.count, claude_code.token.usage,
-//   claude_code.cost.usage, claude_code.lines_of_code.count,
-//   claude_code.commit.count, claude_code.pull_request.count,
-//   claude_code.code_edit_tool.decision, claude_code.tool_decision,
-//   claude_code.active_time.total.
+//
+//	claude_code.session.count, claude_code.token.usage,
+//	claude_code.cost.usage, claude_code.lines_of_code.count,
+//	claude_code.commit.count, claude_code.pull_request.count,
+//	claude_code.code_edit_tool.decision, claude_code.tool_decision,
+//	claude_code.active_time.total.
 type ClaudeAdapter struct {
 	// Pricing is used to validate vendor cost_usd (sanity check) but
 	// Claude emits cost_usd directly so normally it's not needed. Kept
@@ -262,9 +265,11 @@ func copyAttrs(src map[string]any) map[string]any {
 
 // normalizeDecisionSource collapses harness-specific source strings
 // onto the canonical DecisionSource* constants.
-//   Claude: config | hook | user_permanent | user_temporary | user_abort | user_reject
-//   Codex:  Config | User | AutomatedReviewer   (capitalized)
-//   Gemini: (varies per approval_mode)
+//
+//	Claude: config | hook | user_permanent | user_temporary | user_abort | user_reject
+//	Codex:  Config | User | AutomatedReviewer   (capitalized)
+//	Gemini: (varies per approval_mode)
+//
 // Unrecognized values pass through unchanged so the RawAttrs drill-through
 // preserves fidelity.
 func normalizeDecisionSource(src string) string {

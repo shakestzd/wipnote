@@ -17,8 +17,8 @@ func setupCLICmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "setup-cli",
-		Short: "Make htmlgraph available on your PATH",
-		Long:  "Create a symlink so you can use htmlgraph from any terminal, not just within Claude Code sessions.",
+		Short: "Make wipnote available on your PATH",
+		Long:  "Create a symlink so you can use wipnote from any terminal, not just within Claude Code sessions.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runSetupCLI(cmd.OutOrStdout(), installDir, force)
 		},
@@ -43,7 +43,7 @@ func runSetupCLI(out io.Writer, installDir string, force bool) error {
 		return fmt.Errorf("creating install directory %s: %w", targetDir, err)
 	}
 
-	target := filepath.Join(targetDir, "htmlgraph")
+	target := filepath.Join(targetDir, "wipnote")
 
 	done, err := checkExistingTarget(out, target, src, force)
 	if err != nil {
@@ -60,7 +60,7 @@ func runSetupCLI(out io.Writer, installDir string, force bool) error {
 	if err := verifyInstall(target); err != nil {
 		fmt.Fprintf(out, "warning: verification failed: %v\n", err)
 	} else {
-		fmt.Fprintf(out, "htmlgraph installed at %s\n", target)
+		fmt.Fprintf(out, "wipnote installed at %s\n", target)
 	}
 
 	if !isInPATH(targetDir) {

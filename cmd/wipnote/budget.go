@@ -21,15 +21,15 @@ const (
 
 // budgetResult holds the computed budget metrics.
 type budgetResult struct {
-	FilesChanged   int    `json:"files_changed"`
-	LinesAdded     int    `json:"lines_added"`
-	FileStatus     string `json:"file_status"`   // "ok", "advisory", "hard"
-	LineStatus     string `json:"line_status"`   // "ok", "advisory", "hard"
-	OverallStatus  string `json:"overall_status"` // "ok", "advisory", "hard"
-	BaseBranch     string `json:"base_branch"`
-	CurrentBranch  string `json:"current_branch"`
-	NoChanges      bool   `json:"no_changes"`
-	NoFeatureBranch bool  `json:"no_feature_branch"`
+	FilesChanged    int    `json:"files_changed"`
+	LinesAdded      int    `json:"lines_added"`
+	FileStatus      string `json:"file_status"`    // "ok", "advisory", "hard"
+	LineStatus      string `json:"line_status"`    // "ok", "advisory", "hard"
+	OverallStatus   string `json:"overall_status"` // "ok", "advisory", "hard"
+	BaseBranch      string `json:"base_branch"`
+	CurrentBranch   string `json:"current_branch"`
+	NoChanges       bool   `json:"no_changes"`
+	NoFeatureBranch bool   `json:"no_feature_branch"`
 }
 
 func budgetCmd() *cobra.Command {
@@ -204,7 +204,7 @@ func printBudgetText(r *budgetResult, strict bool) error {
 	fmt.Printf("  Branch: %s vs %s\n", r.CurrentBranch, r.BaseBranch)
 
 	if r.OverallStatus == "hard" || (strict && r.OverallStatus == "advisory") {
-		return fmt.Errorf("budget exceeded: see violations above\nUse 'htmlgraph budget --base <branch>' to check against a different base branch.")
+		return fmt.Errorf("budget exceeded: see violations above\nUse 'wipnote budget --base <branch>' to check against a different base branch.")
 	}
 	return nil
 }

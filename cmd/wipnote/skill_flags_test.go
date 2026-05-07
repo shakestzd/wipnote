@@ -12,7 +12,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// TestSkillFlagsIntegration scans the plugin asset tree for `htmlgraph ...`
+// TestSkillFlagsIntegration scans the plugin asset tree for `wipnote ...`
 // invocations and validates that every prescribed flag is actually registered
 // on the target cobra command. Prevents recurrence of bug-7ca3638b (skill
 // prescribing `--format json` that trackShowCmd did not register).
@@ -20,7 +20,7 @@ import (
 // Scope: plugin/skills/**/*.md, plugin/commands/**/*.md, plugin/agents/**/*.md.
 //
 // Allowlist: flags listed in allowedShellFlags are skipped — these belong to
-// piped-to tools (grep, jq, etc.) rather than the htmlgraph CLI.
+// piped-to tools (grep, jq, etc.) rather than the wipnote CLI.
 func TestSkillFlagsIntegration(t *testing.T) {
 	root := repoRootForTest(t)
 	var pluginRoots []string
@@ -90,22 +90,22 @@ func TestSkillFlagsValidator_PassesGoodFixture(t *testing.T) {
 	}
 }
 
-// allowedShellFlags are flags that belong to non-htmlgraph tools reached via
+// allowedShellFlags are flags that belong to non-wipnote tools reached via
 // pipes in skill examples (grep, jq, etc.). They should not be validated
 // against the cobra tree.
 var allowedShellFlags = map[string]bool{
 	"--line-buffered": true,
 	"--raw-output":    true,
-	"--compact":       true, // htmlgraph help --compact is real; also jq --compact
+	"--compact":       true, // wipnote help --compact is real; also jq --compact
 	"--quiet":         true,
-	"--deep":          false, // real htmlgraph flag — leave to the validator
+	"--deep":          false, // real wipnote flag — leave to the validator
 }
 
-// invocationPattern matches `htmlgraph <cmd> [<subcmd>...]` followed by one or
+// invocationPattern matches `wipnote <cmd> [<subcmd>...]` followed by one or
 // more `--flag` tokens. Terminates on newline, backtick, or pipe/redirect.
 // Intentionally permissive — false-positive matches are filtered by the
 // validator when the command path is unknown.
-var invocationPattern = regexp.MustCompile(`\bhtmlgraph[ \t]+([a-zA-Z][\w-]*(?:[ \t]+[a-zA-Z][\w-]*)*?)[ \t]+((?:--[a-zA-Z][\w-]*(?:[= \t]\S+)?[ \t]*)+)`)
+var invocationPattern = regexp.MustCompile(`\bwipnote[ \t]+([a-zA-Z][\w-]*(?:[ \t]+[a-zA-Z][\w-]*)*?)[ \t]+((?:--[a-zA-Z][\w-]*(?:[= \t]\S+)?[ \t]*)+)`)
 var flagPattern = regexp.MustCompile(`--[a-zA-Z][\w-]*`)
 
 func scanFileForFlagViolations(t *testing.T, path string, cliRoot *cobra.Command) []string {
@@ -131,7 +131,7 @@ func scanFileForFlagViolations(t *testing.T, path string, cliRoot *cobra.Command
 		targetCmd := resolveCobraCommand(cliRoot, strings.Fields(cmdStr))
 		if targetCmd == nil {
 			// Unknown command path — likely an illustrative example or a
-			// command we don't care to validate (e.g. `htmlgraph feature`
+			// command we don't care to validate (e.g. `wipnote feature`
 			// standalone where the next word is a placeholder). Skip.
 			continue
 		}
@@ -145,7 +145,7 @@ func scanFileForFlagViolations(t *testing.T, path string, cliRoot *cobra.Command
 				rel, _ := filepath.Rel(repoRootForTest(t), path)
 				violations = append(violations,
 					fmt.Sprintf("%s:%d: command %q does not register flag %s",
-						rel, lineNum, "htmlgraph "+cmdStr, flag))
+						rel, lineNum, "wipnote "+cmdStr, flag))
 			}
 		}
 	}

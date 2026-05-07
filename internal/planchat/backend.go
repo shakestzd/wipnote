@@ -27,10 +27,10 @@ type ChatMessage struct {
 
 // Backend manages a Claude chat session for plan review.
 type Backend struct {
-	PlanID     string
+	PlanID      string
 	PlanContext string
-	ProjectDir string
-	DB         *sql.DB
+	ProjectDir  string
+	DB          *sql.DB
 
 	sessionID string
 	firstMsg  bool
@@ -39,11 +39,11 @@ type Backend struct {
 // New creates a new Backend and loads any existing session ID from the database.
 func New(db *sql.DB, planID, planContext, projectDir string) *Backend {
 	b := &Backend{
-		PlanID:     planID,
+		PlanID:      planID,
 		PlanContext: planContext,
-		ProjectDir: projectDir,
-		DB:         db,
-		firstMsg:   true,
+		ProjectDir:  projectDir,
+		DB:          db,
+		firstMsg:    true,
 	}
 	b.loadSessionID()
 	return b
@@ -140,7 +140,7 @@ func (b *Backend) buildSystemPrompt() string {
 		"Always explain the reasoning before or after the AMEND directive.\n\n" +
 		"When you emit AMEND directives, they are automatically parsed and saved to the project database. " +
 		"The user will see a confirmation for each amendment logged. Accepted amendments are applied to the " +
-		"plan YAML when the user runs `htmlgraph plan rewrite-yaml`. You do not need to ask the user to " +
+		"plan YAML when the user runs `wipnote plan rewrite-yaml`. You do not need to ask the user to " +
 		"manually edit the YAML -- the system handles it.\n\n" +
 		"<plan-context>\n" +
 		b.PlanContext + "\n" +

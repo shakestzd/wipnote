@@ -53,10 +53,10 @@ func commitPlanChange(planPath, message string) error {
 
 	// Re-render HTML from YAML before staging so commits always contain a fresh
 	// view — even when the caller only mutated the YAML (Fix 2, bug-365a84d9).
-	// Derive htmlgraphDir and planID from the path: .../plans/<planID>.yaml
+	// Derive wipnoteDir and planID from the path: .../plans/<planID>.yaml
 	planID := strings.TrimSuffix(filepath.Base(planPath), ".yaml")
-	htmlgraphDir := filepath.Dir(filepath.Dir(planPath)) // .../plans/.. → htmlgraph dir
-	if err := renderPlanToFileQuiet(htmlgraphDir, planID); err != nil {
+	wipnoteDir := filepath.Dir(filepath.Dir(planPath)) // .../plans/.. → wipnote dir
+	if err := renderPlanToFileQuiet(wipnoteDir, planID); err != nil {
 		return fmt.Errorf("autocommit: re-render HTML: %w", err)
 	}
 
@@ -111,7 +111,7 @@ Unlike the HTML 'plan create', this produces a machine-readable YAML file
 suitable for programmatic editing by agents and scripts.
 
 Example:
-  htmlgraph plan create-yaml "Auth Middleware Rewrite" --description "Rewrite for compliance" --track trk-abc12345`,
+  wipnote plan create-yaml "Auth Middleware Rewrite" --description "Rewrite for compliance" --track trk-abc12345`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
 			return runPlanCreateYAML(args[0], description, trackID)
@@ -124,7 +124,7 @@ Example:
 
 // runPlanCreateYAML generates a YAML plan file and prints its path.
 func runPlanCreateYAML(title, description, trackID string) error {
-	htmlgraphDir, err := findHtmlgraphDir()
+	wipnoteDir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}
@@ -136,7 +136,7 @@ func runPlanCreateYAML(title, description, trackID string) error {
 		plan.Meta.TrackID = trackID
 	}
 
-	plansDir := filepath.Join(htmlgraphDir, "plans")
+	plansDir := filepath.Join(wipnoteDir, "plans")
 	if err := os.MkdirAll(plansDir, 0o755); err != nil {
 		return fmt.Errorf("create plans dir: %w", err)
 	}
@@ -167,7 +167,7 @@ from the title. Files and done-when are comma-separated lists. Deps is a
 comma-separated list of slice nums (integers).
 
 Example:
-  htmlgraph plan add-slice-yaml plan-abc12345 "Auth Middleware" \
+  wipnote plan add-slice-yaml plan-abc12345 "Auth Middleware" \
     --what "Implement JWT middleware" \
     --why "Required for compliance" \
     --files "cmd/main.go,internal/auth.go" \
@@ -178,11 +178,11 @@ Example:
     --deps "1,2"`,
 		Args: cobra.ExactArgs(2),
 		RunE: func(_ *cobra.Command, args []string) error {
-			htmlgraphDir, err := findHtmlgraphDir()
+			wipnoteDir, err := findWipnoteDir()
 			if err != nil {
 				return err
 			}
-			return runPlanAddSliceYAML(htmlgraphDir, args[0], args[1],
+			return runPlanAddSliceYAML(wipnoteDir, args[0], args[1],
 				what, why, files, doneWhen, tests, effort, risk, deps)
 		},
 	}
@@ -201,7 +201,7 @@ Example:
 
 // runPlanAddSliceYAML loads the YAML plan, validates inputs, builds a PlanSlice,
 // appends it, and saves. Called by the CLI command and directly by tests.
-func runPlanAddSliceYAML(htmlgraphDir, planID, title, what, why, files, doneWhen, tests, effort, risk, deps string) error {
+func runPlanAddSliceYAML(wipnoteDir, planID, title, what, why, files, doneWhen, tests, effort, risk, deps string) error {
 	if what == "" {
 		return fmt.Errorf("--what is required")
 	}
@@ -216,7 +216,7 @@ func runPlanAddSliceYAML(htmlgraphDir, planID, title, what, why, files, doneWhen
 		return fmt.Errorf("--risk must be Low, Med, or High (got %q)", risk)
 	}
 
-	planPath := filepath.Join(htmlgraphDir, "plans", planID+".yaml")
+	planPath := filepath.Join(wipnoteDir, "plans", planID+".yaml")
 	plan, err := planyaml.Load(planPath)
 	if err != nil {
 		return fmt.Errorf("load plan %q: %w", planID, err)
@@ -299,25 +299,25 @@ func planApproveSliceCmd() *cobra.Command {
 SQLite plan_feedback with section='slice-<num>' and action='approve'.
 
 Example:
-  htmlgraph plan approve-slice plan-abc12345 3`,
+  wipnote plan approve-slice plan-abc12345 3`,
 		Args: cobra.ExactArgs(2),
 		RunE: func(_ *cobra.Command, args []string) error {
-			htmlgraphDir, err := findHtmlgraphDir()
+			wipnoteDir, err := findWipnoteDir()
 			if err != nil {
 				return err
 			}
-			return runApproveSlice(htmlgraphDir, args[0], args[1])
+			return runApproveSlice(wipnoteDir, args[0], args[1])
 		},
 	}
 }
 
-func runApproveSlice(htmlgraphDir, planID, sliceNumStr string) error {
+func runApproveSlice(wipnoteDir, planID, sliceNumStr string) error {
 	sliceNum, err := parseSliceNum(sliceNumStr)
 	if err != nil {
 		return err
 	}
 	section := fmt.Sprintf("slice-%d", sliceNum)
-	db, err := openPlanDB(htmlgraphDir)
+	db, err := openPlanDB(wipnoteDir)
 	if err != nil {
 		return err
 	}
@@ -325,7 +325,7 @@ func runApproveSlice(htmlgraphDir, planID, sliceNumStr string) error {
 	if err := dbpkg.StorePlanFeedback(db, planID, section, "approve", "true", ""); err != nil {
 		return fmt.Errorf("store approve feedback: %w", err)
 	}
-	if err := updateSliceYAMLApproval(htmlgraphDir, planID, sliceNum, "approved"); err != nil {
+	if err := updateSliceYAMLApproval(wipnoteDir, planID, sliceNum, "approved"); err != nil {
 		fmt.Fprintf(stderr, "approve-slice: YAML sync warning: %v\n", err)
 	}
 	fmt.Fprintf(os.Stdout, "Slice %d approved for plan %s\n", sliceNum, planID)
@@ -335,8 +335,8 @@ func runApproveSlice(htmlgraphDir, planID, sliceNumStr string) error {
 // updateSliceYAMLApproval mirrors the plan_feedback approval state into the
 // YAML plan document so the dashboard checkbox and promote/finalize see the
 // same source of truth. Caller treats failures as non-fatal warnings.
-func updateSliceYAMLApproval(htmlgraphDir, planID string, sliceNum int, approval string) error {
-	planPath := filepath.Join(htmlgraphDir, "plans", planID+".yaml")
+func updateSliceYAMLApproval(wipnoteDir, planID string, sliceNum int, approval string) error {
+	planPath := filepath.Join(wipnoteDir, "plans", planID+".yaml")
 	plan, err := planyaml.Load(planPath)
 	if err != nil {
 		return fmt.Errorf("load plan: %w", err)
@@ -362,22 +362,22 @@ func planRejectSliceCmd() *cobra.Command {
 Use --changes-requested to store action='changes_requested' instead.
 
 Example:
-  htmlgraph plan reject-slice plan-abc12345 3
-  htmlgraph plan reject-slice plan-abc12345 3 --changes-requested`,
+  wipnote plan reject-slice plan-abc12345 3
+  wipnote plan reject-slice plan-abc12345 3 --changes-requested`,
 		Args: cobra.ExactArgs(2),
 		RunE: func(_ *cobra.Command, args []string) error {
-			htmlgraphDir, err := findHtmlgraphDir()
+			wipnoteDir, err := findWipnoteDir()
 			if err != nil {
 				return err
 			}
-			return runRejectSlice(htmlgraphDir, args[0], args[1], changesRequested)
+			return runRejectSlice(wipnoteDir, args[0], args[1], changesRequested)
 		},
 	}
 	cmd.Flags().BoolVar(&changesRequested, "changes-requested", false, "store action=changes_requested instead of reject")
 	return cmd
 }
 
-func runRejectSlice(htmlgraphDir, planID, sliceNumStr string, changesRequested bool) error {
+func runRejectSlice(wipnoteDir, planID, sliceNumStr string, changesRequested bool) error {
 	sliceNum, err := parseSliceNum(sliceNumStr)
 	if err != nil {
 		return err
@@ -387,7 +387,7 @@ func runRejectSlice(htmlgraphDir, planID, sliceNumStr string, changesRequested b
 	if changesRequested {
 		action = "changes_requested"
 	}
-	db, err := openPlanDB(htmlgraphDir)
+	db, err := openPlanDB(wipnoteDir)
 	if err != nil {
 		return err
 	}
@@ -403,7 +403,7 @@ func runRejectSlice(htmlgraphDir, planID, sliceNumStr string, changesRequested b
 	if changesRequested {
 		yamlState = "changes_requested"
 	}
-	if err := updateSliceYAMLApproval(htmlgraphDir, planID, sliceNum, yamlState); err != nil {
+	if err := updateSliceYAMLApproval(wipnoteDir, planID, sliceNum, yamlState); err != nil {
 		fmt.Fprintf(stderr, "reject-slice: YAML sync warning: %v\n", err)
 	}
 	fmt.Fprintf(os.Stdout, "Slice %d rejected (action=%s) for plan %s\n", sliceNum, action, planID)
@@ -419,25 +419,25 @@ func planAnswerSliceQuestionCmd() *cobra.Command {
 with section='slice-<num>-question-<question-id>' and action='answer'.
 
 Example:
-  htmlgraph plan answer-slice-question plan-abc12345 3 q-error-handling yes`,
+  wipnote plan answer-slice-question plan-abc12345 3 q-error-handling yes`,
 		Args: cobra.ExactArgs(4),
 		RunE: func(_ *cobra.Command, args []string) error {
-			htmlgraphDir, err := findHtmlgraphDir()
+			wipnoteDir, err := findWipnoteDir()
 			if err != nil {
 				return err
 			}
-			return runAnswerSliceQuestion(htmlgraphDir, args[0], args[1], args[2], args[3])
+			return runAnswerSliceQuestion(wipnoteDir, args[0], args[1], args[2], args[3])
 		},
 	}
 }
 
-func runAnswerSliceQuestion(htmlgraphDir, planID, sliceNumStr, questionID, answerKey string) error {
+func runAnswerSliceQuestion(wipnoteDir, planID, sliceNumStr, questionID, answerKey string) error {
 	sliceNum, err := parseSliceNum(sliceNumStr)
 	if err != nil {
 		return err
 	}
 	section := fmt.Sprintf("slice-%d-question-%s", sliceNum, questionID)
-	db, err := openPlanDB(htmlgraphDir)
+	db, err := openPlanDB(wipnoteDir)
 	if err != nil {
 		return err
 	}
@@ -461,19 +461,19 @@ func planSetSliceStatusCmd() *cobra.Command {
 Stored in SQLite plan_feedback with section='slice-<num>' and action='set-status'.
 
 Example:
-  htmlgraph plan set-slice-status plan-abc12345 3 in_progress`,
+  wipnote plan set-slice-status plan-abc12345 3 in_progress`,
 		Args: cobra.ExactArgs(3),
 		RunE: func(_ *cobra.Command, args []string) error {
-			htmlgraphDir, err := findHtmlgraphDir()
+			wipnoteDir, err := findWipnoteDir()
 			if err != nil {
 				return err
 			}
-			return runSetSliceStatus(htmlgraphDir, args[0], args[1], args[2])
+			return runSetSliceStatus(wipnoteDir, args[0], args[1], args[2])
 		},
 	}
 }
 
-func runSetSliceStatus(htmlgraphDir, planID, sliceNumStr, status string) error {
+func runSetSliceStatus(wipnoteDir, planID, sliceNumStr, status string) error {
 	if err := validateSliceExecutionStatus(status); err != nil {
 		return err
 	}
@@ -482,7 +482,7 @@ func runSetSliceStatus(htmlgraphDir, planID, sliceNumStr, status string) error {
 		return err
 	}
 	section := fmt.Sprintf("slice-%d", sliceNum)
-	db, err := openPlanDB(htmlgraphDir)
+	db, err := openPlanDB(wipnoteDir)
 	if err != nil {
 		return err
 	}
@@ -514,10 +514,10 @@ func parseSliceNum(s string) (int, error) {
 	return n, nil
 }
 
-// openPlanDB resolves the DB path from htmlgraphDir and opens it.
-// The parent of htmlgraphDir is used as the project root for CanonicalDBPath.
-func openPlanDB(htmlgraphDir string) (*sql.DB, error) {
-	dbPath, err := storage.CanonicalDBPath(filepath.Dir(htmlgraphDir))
+// openPlanDB resolves the DB path from wipnoteDir and opens it.
+// The parent of wipnoteDir is used as the project root for CanonicalDBPath.
+func openPlanDB(wipnoteDir string) (*sql.DB, error) {
+	dbPath, err := storage.CanonicalDBPath(filepath.Dir(wipnoteDir))
 	if err != nil {
 		return nil, fmt.Errorf("resolve db path: %w", err)
 	}

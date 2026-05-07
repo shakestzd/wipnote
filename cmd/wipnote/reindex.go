@@ -35,12 +35,12 @@ func runReindex(cmd *cobra.Command, _ []string) error {
 	fullFlag, _ := cmd.Flags().GetBool("full")
 	verboseFlag, _ := cmd.Flags().GetBool("verbose")
 
-	htmlgraphDir, err := findHtmlgraphDir()
+	wipnoteDir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}
 
-	projectDir := filepath.Dir(htmlgraphDir)
+	projectDir := filepath.Dir(wipnoteDir)
 	dbPath, err := storage.CanonicalDBPath(projectDir)
 	if err != nil {
 		return fmt.Errorf("resolve db path: %w", err)
@@ -68,17 +68,17 @@ func runReindex(cmd *cobra.Command, _ []string) error {
 	}
 
 	if useIncremental {
-		total, upserted, errCount = runIncrementalReindex(database, htmlgraphDir, projectDir, lastCommit, validIDs, verboseFlag)
+		total, upserted, errCount = runIncrementalReindex(database, wipnoteDir, projectDir, lastCommit, validIDs, verboseFlag)
 		fmt.Printf("Reindexed (incremental): %d upserted, %d errors (of %d changed HTML files)\n",
 			upserted, errCount, total)
 	} else {
-		trackTotal, trackUpserted, trackErrs := reindexTracks(database, htmlgraphDir, projectDir, validIDs, verboseFlag)
+		trackTotal, trackUpserted, trackErrs := reindexTracks(database, wipnoteDir, projectDir, validIDs, verboseFlag)
 		total += trackTotal
 		upserted += trackUpserted
 		errCount += trackErrs
 
 		for _, dir := range []string{"features", "bugs", "spikes"} {
-			t, u, e := reindexFeatureDir(database, htmlgraphDir, projectDir, dir, validIDs, verboseFlag)
+			t, u, e := reindexFeatureDir(database, wipnoteDir, projectDir, dir, validIDs, verboseFlag)
 			total += t
 			upserted += u
 			errCount += e
@@ -86,7 +86,7 @@ func runReindex(cmd *cobra.Command, _ []string) error {
 
 		collectSessionIDs(database, validIDs)
 		purged, edgesPurged := purgeStaleEntries(database, validIDs)
-		reindexEdges(database, htmlgraphDir, validIDs)
+		reindexEdges(database, wipnoteDir, validIDs)
 		fixImplementedInEdges(database)
 		fmt.Printf("Reindexed: %d upserted, %d errors (of %d HTML files)\n",
 			upserted, errCount, total)
@@ -98,7 +98,7 @@ func runReindex(cmd *cobra.Command, _ []string) error {
 	// Rebuild agent_events from session HTML activity logs. projectDir is
 	// passed through so parseSessionHTML can attribute sessions whose HTML
 	// files predate the data-project-dir attribute (bug-a52d5bf9).
-	sessDir := filepath.Join(htmlgraphDir, "sessions")
+	sessDir := filepath.Join(wipnoteDir, "sessions")
 	sessTotal, sessUpserted, sessErrs := reindexSessions(database, sessDir, projectDir)
 	if sessUpserted > 0 || sessErrs > 0 {
 		fmt.Printf("  sessions: %d events upserted, %d errors (of %d session files)\n",
@@ -131,11 +131,11 @@ func runReindex(cmd *cobra.Command, _ []string) error {
 // runIncrementalReindex parses only files changed between lastCommit and HEAD.
 func runIncrementalReindex(
 	database *sql.DB,
-	htmlgraphDir, projectDir, lastCommit string,
+	wipnoteDir, projectDir, lastCommit string,
 	validIDs map[string]bool,
 	verbose bool,
 ) (int, int, int) {
-	added, deleted := gitChangedFiles(projectDir, lastCommit, htmlgraphDir)
+	added, deleted := gitChangedFiles(projectDir, lastCommit, wipnoteDir)
 
 	for _, path := range deleted {
 		id := idFromHTMLPath(path)
@@ -235,8 +235,8 @@ func gitCommitExists(projectDir, commit string) bool {
 	return err == nil
 }
 
-func gitChangedFiles(projectDir, fromCommit, htmlgraphDir string) (added []string, deleted []string) {
-	relHg, err := filepath.Rel(projectDir, htmlgraphDir)
+func gitChangedFiles(projectDir, fromCommit, wipnoteDir string) (added []string, deleted []string) {
+	relHg, err := filepath.Rel(projectDir, wipnoteDir)
 	if err != nil {
 		return nil, nil
 	}
@@ -375,10 +375,10 @@ func idFromHTMLPath(path string) string {
 	return strings.TrimSuffix(base, ".html")
 }
 
-func reindexTracks(database *sql.DB, htmlgraphDir, projectDir string, validIDs map[string]bool, verbose bool) (int, int, int) {
+func reindexTracks(database *sql.DB, wipnoteDir, projectDir string, validIDs map[string]bool, verbose bool) (int, int, int) {
 	patterns := []string{
-		filepath.Join(htmlgraphDir, "tracks", "*.html"),
-		filepath.Join(htmlgraphDir, "tracks", "*", "index.html"),
+		filepath.Join(wipnoteDir, "tracks", "*.html"),
+		filepath.Join(wipnoteDir, "tracks", "*", "index.html"),
 	}
 
 	seen := make(map[string]bool)
@@ -428,8 +428,8 @@ func reindexTracks(database *sql.DB, htmlgraphDir, projectDir string, validIDs m
 	return total, upserted, errCount
 }
 
-func reindexFeatureDir(database *sql.DB, htmlgraphDir, projectDir, dir string, validIDs map[string]bool, verbose bool) (int, int, int) {
-	pattern := filepath.Join(htmlgraphDir, dir, "*.html")
+func reindexFeatureDir(database *sql.DB, wipnoteDir, projectDir, dir string, validIDs map[string]bool, verbose bool) (int, int, int) {
+	pattern := filepath.Join(wipnoteDir, dir, "*.html")
 	files, _ := filepath.Glob(pattern)
 
 	var total, upserted, errCount int
@@ -501,7 +501,7 @@ func collectSessionIDs(database *sql.DB, validIDs map[string]bool) {
 	}
 }
 
-func reindexEdges(database *sql.DB, htmlgraphDir string, validIDs map[string]bool) {
+func reindexEdges(database *sql.DB, wipnoteDir string, validIDs map[string]bool) {
 	dirs := []struct {
 		subdir   string
 		nodeType string
@@ -512,7 +512,7 @@ func reindexEdges(database *sql.DB, htmlgraphDir string, validIDs map[string]boo
 		{"spikes", "spike"},
 	}
 	for _, d := range dirs {
-		pattern := filepath.Join(htmlgraphDir, d.subdir, "*.html")
+		pattern := filepath.Join(wipnoteDir, d.subdir, "*.html")
 		files, _ := filepath.Glob(pattern)
 		for _, f := range files {
 			node, err := htmlparse.ParseFile(f)
@@ -598,4 +598,3 @@ func fixImplementedInEdges(database *sql.DB) {
 		)
 	}
 }
-

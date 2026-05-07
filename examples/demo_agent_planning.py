@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Demo: AI Agent Strategic Planning with HtmlGraph
+Demo: AI Agent Strategic Planning with wipnote
 
 Shows how AI agents can use the strategic planning features to:
 - Find bottlenecks blocking the most work
@@ -12,7 +12,7 @@ Shows how AI agents can use the strategic planning features to:
 This is the AGENT-FRIENDLY interface - simple dicts, no complex objects.
 """
 
-from htmlgraph import SDK
+from wipnote import SDK
 
 
 def main():

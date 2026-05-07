@@ -5,7 +5,7 @@ Shows how to use the Pattern Learning feature to identify workflow patterns,
 anti-patterns, and optimization opportunities from tool call history.
 """
 
-from htmlgraph import SDK
+from wipnote import SDK
 
 
 def main():
@@ -53,7 +53,7 @@ def main():
 
     # 4. Export learnings to markdown
     print("\n4. Exporting learnings to markdown...")
-    output_path = ".htmlgraph/pattern_learnings.md"
+    output_path = ".wipnote/pattern_learnings.md"
     sdk.pattern_learning.export_learnings(output_path)
     print(f"   Exported to: {output_path}\n")
 

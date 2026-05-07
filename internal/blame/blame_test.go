@@ -14,7 +14,7 @@ import (
 	"github.com/shakestzd/wipnote/internal/models"
 )
 
-// openTestDB creates an in-memory SQLite database with the full HtmlGraph schema.
+// openTestDB creates an in-memory SQLite database with the full wipnote schema.
 func openTestDB(t *testing.T) *sql.DB {
 	t.Helper()
 	database, err := db.Open(":memory:")
@@ -182,7 +182,7 @@ func TestQuery_UnknownPath_EmptyNotError(t *testing.T) {
 	}
 }
 
-func TestQuery_HtmlgraphPath_Error(t *testing.T) {
+func TestQuery_WipnotePath_Error(t *testing.T) {
 	database := openTestDB(t)
 
 	_, err := blame.Query(context.Background(), database, ".wipnote/features/feat-abc.html", blame.QueryOptions{})

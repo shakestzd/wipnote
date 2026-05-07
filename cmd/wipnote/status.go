@@ -23,7 +23,7 @@ func statusCmd() *cobra.Command {
 }
 
 func runStatus(_ *cobra.Command, _ []string) error {
-	dir, err := findHtmlgraphDir()
+	dir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}
@@ -60,7 +60,7 @@ func runStatus(_ *cobra.Command, _ []string) error {
 		}
 	}
 
-	fmt.Printf("HtmlGraph status  (%s)\n\n", dir)
+	fmt.Printf("wipnote status  (%s)\n\n", dir)
 
 	types := []string{"feature", "bug", "spike", "track"}
 	for _, t := range types {

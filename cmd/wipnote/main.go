@@ -1,4 +1,4 @@
-// Package main is the entry point for the htmlgraph CLI.
+// Package main is the entry point for the wipnote CLI.
 package main
 
 import (
@@ -22,7 +22,7 @@ import (
 // leave stale absolute paths that break every subsequent git command. If
 // WIPNOTE_PROJECT_DIR points at the main repo, we can rewrite the .git
 // pointer in place so the user doesn't hit cryptic "not a git repository"
-// errors before htmlgraph even starts.
+// errors before wipnote even starts.
 func selfHealGitdirIfStale() {
 	cwd, err := os.Getwd()
 	if err != nil {
@@ -36,7 +36,7 @@ func selfHealGitdirIfStale() {
 		return // not a linked worktree
 	}
 	if repaired, err := worktree.RepairGitdirIfStale(cwd, mainRoot); err == nil && repaired {
-		fmt.Fprintf(os.Stderr, "htmlgraph: repaired stale worktree gitdir at %s\n", filepath.Join(cwd, ".git"))
+		fmt.Fprintf(os.Stderr, "wipnote: repaired stale worktree gitdir at %s\n", filepath.Join(cwd, ".git"))
 	}
 }
 
@@ -59,7 +59,7 @@ func main() {
 		// Cobra's "unknown command" error doesn't tell the agent what to do
 		// next when no close-match suggestion exists. Append a recovery hint.
 		if strings.HasPrefix(msg, "unknown command") && !strings.Contains(msg, "Did you mean") {
-			msg += "\nRun 'htmlgraph help --compact' to see all commands."
+			msg += "\nRun 'wipnote help --compact' to see all commands."
 		}
 		fmt.Fprintln(os.Stderr, msg)
 		os.Exit(1)
@@ -315,7 +315,7 @@ func versionCmd() *cobra.Command {
 // persistentPreRunE is attached to rootCmd and runs before every command. It
 // performs two side-effects: (1) ensures a session row exists for the current
 // agent attribution chain, and (2) upserts the current project into the
-// cross-project registry at ~/.local/share/htmlgraph/projects.json. Both
+// cross-project registry at ~/.local/share/wipnote/projects.json. Both
 // operations degrade gracefully — registration failures never block a CLI
 // command from running.
 func persistentPreRunE(cmd *cobra.Command, _ []string) error {
@@ -328,7 +328,7 @@ func persistentPreRunE(cmd *cobra.Command, _ []string) error {
 	// in persistentPreRunE because:
 	//   1. otel-collect must print its handshake line within 3s of being spawned.
 	//      Opening the DB (and applying pragmas) can block for up to busy_timeout
-	//      (5s) when stale htmlgraph processes hold the write lock, causing all
+	//      (5s) when stale wipnote processes hold the write lock, causing all
 	//      3 spawn retries to time out and the launcher to exit FATAL.
 	//   2. _serve-child opens its own DB connection explicitly in runServeChild.
 	// Neither command participates in agent session tracking or the project registry.
@@ -343,14 +343,14 @@ func persistentPreRunE(cmd *cobra.Command, _ []string) error {
 	}
 	// Degrade gracefully: commands must not fail because session
 	// registration is unavailable.
-	hgDir, err := findHtmlgraphDir()
+	hgDir, err := findWipnoteDir()
 	if err != nil {
 		return nil
 	}
 	projectDir := filepath.Dir(hgDir)
 	storage.CleanLegacyDBIfSafe(projectDir, os.Stderr)
 	// Opportunistic prune is destructive; skip it for the `cache` subtree so
-	// `htmlgraph cache prune --dry-run` reports the disk's actual state, and
+	// `wipnote cache prune --dry-run` reports the disk's actual state, and
 	// pass the active project's cache dir as protected so the LRU sweep can't
 	// pull the read-index out from under the very command that's about to run.
 	if !inCacheSubtree(cmd) {
@@ -377,7 +377,7 @@ func persistentPreRunE(cmd *cobra.Command, _ []string) error {
 		}
 		reg.Upsert(projectDir, filepath.Base(projectDir), remoteURL)
 		// Opportunistic worktree cleanup: registry entries created by
-		// older binaries (before findHtmlgraphDir started resolving
+		// older binaries (before findWipnoteDir started resolving
 		// linked worktrees to their main repo) persist as duplicate
 		// project cards in the doorway. Drop any entry whose path is
 		// inside a linked worktree of a registered main repo.
@@ -389,7 +389,7 @@ func persistentPreRunE(cmd *cobra.Command, _ []string) error {
 
 // inCacheSubtree reports whether cmd or any ancestor is the `cache` command.
 // Used to bypass the destructive opportunistic prune in PersistentPreRunE so
-// `htmlgraph cache prune --dry-run` reports the cache's actual state rather
+// `wipnote cache prune --dry-run` reports the cache's actual state rather
 // than what's left after the prune the pre-run hook just performed.
 func inCacheSubtree(cmd *cobra.Command) bool {
 	for p := cmd; p != nil; p = p.Parent() {
@@ -400,10 +400,10 @@ func inCacheSubtree(cmd *cobra.Command) bool {
 	return false
 }
 
-// findHtmlgraphDir locates the .wipnote directory by delegating to the
+// findWipnoteDir locates the .wipnote directory by delegating to the
 // shared paths.ResolveProjectDir resolver (--project-dir flag → CLAUDE_PROJECT_DIR
 // env → git worktree detection → CWD walk-up) and appending ".wipnote".
-func findHtmlgraphDir() (string, error) {
+func findWipnoteDir() (string, error) {
 	paths.CleanupGlobalHint() // Remove stale global hint from older versions
 	root, err := paths.ResolveProjectDir(paths.ProjectDirOptions{
 		ExplicitDir: projectDirFlag,
@@ -422,8 +422,8 @@ func findHtmlgraphDir() (string, error) {
 // detection is pointing them at a different project than the one they're
 // sitting in. No-op when the user is already in the resolved project —
 // keeps normal usage silent.
-func printProjectHeaderIfDifferent(htmlgraphDir string) {
-	projectRoot := filepath.Dir(htmlgraphDir)
+func printProjectHeaderIfDifferent(wipnoteDir string) {
+	projectRoot := filepath.Dir(wipnoteDir)
 	wd, err := os.Getwd()
 	if err != nil {
 		return

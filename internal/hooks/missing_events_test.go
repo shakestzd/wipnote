@@ -23,7 +23,9 @@ func setupMissingEventsDB(t *testing.T) (*testDB, string) {
 }
 
 // insertSessionWithID inserts a session with the given ID into a database.
-func insertSessionWithID(t *testing.T, database interface{ Exec(string, ...any) (interface{}, error) }, sessionID, projectDir string) {
+func insertSessionWithID(t *testing.T, database interface {
+	Exec(string, ...any) (interface{}, error)
+}, sessionID, projectDir string) {
 	t.Helper()
 }
 

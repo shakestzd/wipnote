@@ -5,6 +5,7 @@
 // A 500ms poll interval provides sub-second latency for dashboard updates without
 // requiring a new dependency (fsnotify) in go.mod.
 package indexer
+
 // No additional symbols needed — polling logic lives in indexer.go (Start/runOnce).
 // This file exists to document the deliberate polling-only decision and serve as
 // the extension point if fsnotify is added in a future iteration.

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="htmlgraph-version" content="1.0">
+    <meta name="wipnote-version" content="1.0">
     <title>Quickstart Guide</title>
     <link rel="stylesheet" href="../styles.css">
 </head>
@@ -50,10 +50,10 @@
         <h1>Quickstart Guide</h1>
 
         <h2>Your First Graph</h2>
-        <pre><code>from htmlgraph import HtmlGraph, Node
+        <pre><code>from wipnote import wipnote, Node
 
 # Create a graph
-graph = HtmlGraph("my-graph")
+graph = wipnote("my-graph")
 
 # Add a node
 node = Node(
@@ -74,7 +74,7 @@ tasks = graph.query("[data-type='task']")
 done = graph.query("[data-status='done']")</code></pre>
 
         <h2>Using the SDK</h2>
-        <pre><code>from htmlgraph import SDK
+        <pre><code>from wipnote import SDK
 
 sdk = SDK(directory=".", agent="my-agent")
 

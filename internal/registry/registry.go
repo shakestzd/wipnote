@@ -1,10 +1,10 @@
-// Package registry manages a JSON-backed catalog of HtmlGraph projects on the
+// Package registry manages a JSON-backed catalog of wipnote projects on the
 // local machine.
 //
 // # File format
 //
 // The registry is stored as a JSON array of Entry values at DefaultPath()
-// (~/.local/share/htmlgraph/projects.json).  A missing file is treated as an
+// (~/.local/share/wipnote/projects.json).  A missing file is treated as an
 // empty registry; Load never returns an error for a missing file.
 //
 // # Atomic writes
@@ -39,10 +39,10 @@ import (
 // DefaultRegistryTTL is the maximum age of a registry entry before passive
 // cleanup removes it. Three days reflects the dashboard's purpose: active
 // work. If you haven't touched a project in three days it shouldn't pollute
-// the landing view; re-running htmlgraph in the project re-registers it instantly.
+// the landing view; re-running wipnote in the project re-registers it instantly.
 const DefaultRegistryTTL = 3 * 24 * time.Hour
 
-// Entry represents a single registered HtmlGraph project.
+// Entry represents a single registered wipnote project.
 type Entry struct {
 	// ID is the first 8 hex characters of SHA256(ProjectDir).
 	// It is computed on first Upsert and never changes for a given directory.
@@ -70,7 +70,7 @@ type Registry struct {
 	entries []Entry
 
 	// migrated is set when Load resolved this Registry's contents from the
-	// legacy ~/.local/share/htmlgraph/projects.json instead of the supplied
+	// legacy ~/.local/share/wipnote/projects.json instead of the supplied
 	// canonical path. Callers can query MigrationPending() to learn whether
 	// a Save is needed solely to materialise the migration into the
 	// canonical XDG location, even when the in-memory slice is unchanged.
@@ -82,7 +82,7 @@ type Registry struct {
 //
 // Legacy migration: when path is the canonical XDG-aware DefaultPath() and
 // it does not yet exist, Load also probes the legacy
-// ~/.local/share/htmlgraph/projects.json. If that legacy file exists, its
+// ~/.local/share/wipnote/projects.json. If that legacy file exists, its
 // contents are returned and the in-memory Registry retains the canonical
 // path — the next Save persists to the canonical location and the legacy
 // file is left untouched. This avoids "all my projects vanished" reports
@@ -257,7 +257,7 @@ func WriteEntriesForTest(path string, entries []Entry) error {
 //     tempdir starts with "Test" (Go's t.TempDir() naming convention:
 //     /tmp/TestFooNNNN/sub).
 //
-// Production paths (e.g. /workspaces/htmlgraph) are never skipped because they
+// Production paths (e.g. /workspaces/wipnote) are never skipped because they
 // do not live under the OS temp directory.
 func ShouldSkipRegistration(projectDir string) bool {
 	if os.Getenv("WIPNOTE_SKIP_REGISTER") == "1" {
@@ -370,7 +370,7 @@ func PruneTempdirEntries(reg *Registry) int {
 }
 
 // looksLikeRealProject returns true when dir contains a .wipnote/
-// subdirectory. That is the sole signal: HtmlGraph projects are not
+// subdirectory. That is the sole signal: wipnote projects are not
 // required to be Git repositories, so a `.git` ancestor is NOT part of
 // the gate (review #55 F1).
 //
@@ -484,7 +484,7 @@ func (r *Registry) DropLinkedWorktrees(resolveMain func(dir string) string) []st
 
 // DefaultPath returns the canonical registry file path. It honors
 // XDG_DATA_HOME when set, otherwise falls back to the historical
-// ~/.local/share/htmlgraph/projects.json.
+// ~/.local/share/wipnote/projects.json.
 //
 // Legacy migration is handled by Load(): when the canonical path is
 // missing but the legacy file exists, Load reads from legacy and the
@@ -499,19 +499,19 @@ func DefaultPath() string {
 // path IS the canonical default in that case.
 func canonicalDefaultPath() string {
 	if xdg := os.Getenv("XDG_DATA_HOME"); xdg != "" {
-		return filepath.Join(xdg, "htmlgraph", "projects.json")
+		return filepath.Join(xdg, "wipnote", "projects.json")
 	}
 	return legacyDefaultPath()
 }
 
 // legacyDefaultPath returns the historical pre-XDG path
-// (~/.local/share/htmlgraph/projects.json), independent of XDG_DATA_HOME.
+// (~/.local/share/wipnote/projects.json), independent of XDG_DATA_HOME.
 func legacyDefaultPath() string {
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return filepath.Join(".local", "share", "htmlgraph", "projects.json")
+		return filepath.Join(".local", "share", "wipnote", "projects.json")
 	}
-	return filepath.Join(home, ".local", "share", "htmlgraph", "projects.json")
+	return filepath.Join(home, ".local", "share", "wipnote", "projects.json")
 }
 
 // OpenReadOnly opens the SQLite database at dbPath in read-only mode using the

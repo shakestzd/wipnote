@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="htmlgraph-version" content="1.0">
+<meta name="wipnote-version" content="1.0">
 <title>Plan: Webhook Support</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -127,7 +127,7 @@ textarea::placeholder{color:var(--text-muted)}
 <body>
 
 <nav class="plan-sidebar">
-  <a href="/" class="brand">HtmlGraph</a>
+  <a href="/" class="brand">wipnote</a>
   <a href="#design" class="nav-link active" data-spy="design">Design</a>
   <a href="#outline" class="nav-link" data-spy="outline">Outline</a>
   <a href="#slices" class="nav-link" data-spy="slices">Slices</a>
@@ -140,7 +140,7 @@ textarea::placeholder{color:var(--text-muted)}
 <!-- Plan Header -->
 <header class="plan-header">
   <h1>Plan: Webhook Support</h1>
-  <p style="color:var(--text-dim)">HTTP POST notifications for HtmlGraph events with retry and config management.</p>
+  <p style="color:var(--text-dim)">HTTP POST notifications for wipnote events with retry and config management.</p>
   <div class="meta">
     <span class="badge badge-pending">Draft</span>
     <span style="font-size:.75rem;color:var(--text-muted)"><!--PLAN_META--></span>
@@ -429,7 +429,7 @@ textarea::placeholder{color:var(--text-muted)}
     .catch(function(){
       btn.textContent='Finalize Plan';
       btn.disabled=false;
-      alert('Server not running. Start with: htmlgraph serve');
+      alert('Server not running. Start with: wipnote serve');
     });
   });
 

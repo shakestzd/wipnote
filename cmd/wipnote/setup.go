@@ -10,23 +10,23 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// htmlgraphPermRules are the permission rules that htmlgraph recommends
+// wipnotePermRules are the permission rules that wipnote recommends
 // for optimal subagent operation.
-var htmlgraphPermRules = []string{
-	"Bash(htmlgraph *)",
+var wipnotePermRules = []string{
+	"Bash(wipnote *)",
 }
 
 func setupCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "setup",
-		Short: "Configure Claude Code permissions for htmlgraph",
+		Short: "Configure Claude Code permissions for wipnote",
 		Long: `Add recommended permission rules to your Claude Code settings.
 
-This adds Bash(htmlgraph *) to your ~/.claude/settings.json so that
-subagents can run htmlgraph CLI commands (like work item registration)
+This adds Bash(wipnote *) to your ~/.claude/settings.json so that
+subagents can run wipnote CLI commands (like work item registration)
 without requiring manual approval each time.
 
-This is optional — htmlgraph works without it, but subagents may be
+This is optional — wipnote works without it, but subagents may be
 blocked by permission prompts when running in the background.`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return runSetup(cmd.OutOrStdout())
@@ -46,7 +46,7 @@ func runSetup(out io.Writer) error {
 		return err
 	}
 
-	added := mergePermissions(settings, htmlgraphPermRules)
+	added := mergePermissions(settings, wipnotePermRules)
 
 	if len(added) == 0 {
 		fmt.Fprintln(out, "Claude Code permissions already configured — nothing to do.")
@@ -64,7 +64,7 @@ func runSetup(out io.Writer) error {
 		fmt.Fprintf(out, "  + %s\n", rule)
 	}
 	fmt.Fprintln(out, "")
-	fmt.Fprintln(out, "Subagents can now run htmlgraph CLI commands without manual approval.")
+	fmt.Fprintln(out, "Subagents can now run wipnote CLI commands without manual approval.")
 	return nil
 }
 

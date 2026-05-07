@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# HtmlGraph devcontainer helper — wraps devcontainer CLI and docker for common workflows
+# wipnote devcontainer helper — wraps devcontainer CLI and docker for common workflows
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

@@ -115,17 +115,17 @@ func Session(db *sql.DB, sessionID string) (*Rollup, error) {
 // PromptBreakdown is one row of per-prompt aggregates. The dashboard's
 // event-tree view renders these next to each turn.
 type PromptBreakdown struct {
-	PromptID             string
-	FirstTs              int64
-	DurationMs           int64
-	CostUSD              float64
-	TokensIn             int64
-	TokensOut            int64
-	TokensCacheRead      int64
-	TokensCacheCreation  int64
-	APICalls             int64
-	ToolCalls            int64
-	APIErrors            int64
+	PromptID            string
+	FirstTs             int64
+	DurationMs          int64
+	CostUSD             float64
+	TokensIn            int64
+	TokensOut           int64
+	TokensCacheRead     int64
+	TokensCacheCreation int64
+	APICalls            int64
+	ToolCalls           int64
+	APIErrors           int64
 }
 
 // Prompts returns per-prompt aggregates for a session, ordered by the
@@ -288,15 +288,15 @@ func renderRollupSection(r *Rollup, prompts []PromptBreakdown) string {
 	b.WriteString(`>` + "\n")
 	b.WriteString(`        <header>` + "\n")
 	b.WriteString(fmt.Sprintf(`            <div class="metadata">` + "\n"))
-	b.WriteString(fmt.Sprintf(`                <span class="badge">$%.4f</span>` + "\n", r.TotalCostUSD))
-	b.WriteString(fmt.Sprintf(`                <span class="badge">%s tokens</span>` + "\n", humanTokens(r.TotalTokensIn+r.TotalTokensOut+r.TotalTokensCacheRead+r.TotalTokensCacheCreation)))
-	b.WriteString(fmt.Sprintf(`                <span class="badge">%d turns</span>` + "\n", r.TotalTurns))
-	b.WriteString(fmt.Sprintf(`                <span class="badge">%d tool calls</span>` + "\n", r.TotalToolCalls))
+	b.WriteString(fmt.Sprintf(`                <span class="badge">$%.4f</span>`+"\n", r.TotalCostUSD))
+	b.WriteString(fmt.Sprintf(`                <span class="badge">%s tokens</span>`+"\n", humanTokens(r.TotalTokensIn+r.TotalTokensOut+r.TotalTokensCacheRead+r.TotalTokensCacheCreation)))
+	b.WriteString(fmt.Sprintf(`                <span class="badge">%d turns</span>`+"\n", r.TotalTurns))
+	b.WriteString(fmt.Sprintf(`                <span class="badge">%d tool calls</span>`+"\n", r.TotalToolCalls))
 	if r.TotalAPIErrors > 0 {
-		b.WriteString(fmt.Sprintf(`                <span class="badge">%d API errors</span>` + "\n", r.TotalAPIErrors))
+		b.WriteString(fmt.Sprintf(`                <span class="badge">%d API errors</span>`+"\n", r.TotalAPIErrors))
 	}
 	if r.MaxAttempt > 1 {
-		b.WriteString(fmt.Sprintf(`                <span class="badge">max attempt %d</span>` + "\n", r.MaxAttempt))
+		b.WriteString(fmt.Sprintf(`                <span class="badge">max attempt %d</span>`+"\n", r.MaxAttempt))
 	}
 	b.WriteString(`            </div>` + "\n")
 	b.WriteString(`        </header>` + "\n")

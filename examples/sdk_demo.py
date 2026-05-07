@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-HtmlGraph SDK Demo - AI-Friendly API
+wipnote SDK Demo - AI-Friendly API
 
 Demonstrates the improved SDK for AI agents compared to the old API.
 """
 
-from htmlgraph import SDK
+from wipnote import SDK
 
 
 def old_api_example():
@@ -14,10 +14,10 @@ def old_api_example():
     print("OLD API (Verbose)")
     print("=" * 60)
 
-    from htmlgraph import AgentInterface, Node, Step
+    from wipnote import AgentInterface, Node, Step
 
     # Initialize with explicit path and agent_id
-    agent = AgentInterface(".htmlgraph/features", agent_id="claude")
+    agent = AgentInterface(".wipnote/features", agent_id="claude")
 
     # Create a feature (verbose)
     feature = Node(
@@ -65,7 +65,7 @@ def new_api_example():
     print("NEW SDK (Fluent & AI-Friendly)")
     print("=" * 60)
 
-    # Initialize - auto-discovers .htmlgraph directory
+    # Initialize - auto-discovers .wipnote directory
     sdk = SDK(agent="claude")
 
     # Create feature with fluent interface
@@ -168,7 +168,7 @@ def comparison_table():
         ("-" * 20, "-" * 20, "-" * 20),
         (
             "Initialization",
-            "AgentInterface('.htmlgraph/features', agent_id='claude')",
+            "AgentInterface('.wipnote/features', agent_id='claude')",
             "SDK(agent='claude')",
         ),
         (

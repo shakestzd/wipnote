@@ -17,7 +17,7 @@ import (
 //     in environments where the fork blocks on missing canonical state (bug-bb5b26f6).
 //  2. Redirects XDG base dirs to isolated tempdirs so registry writes from
 //     persistentPreRunE (or any code path calling registry.DefaultPath) never
-//     touch ~/.local/share/htmlgraph/projects.json during test runs (bug-cc41e3d2).
+//     touch ~/.local/share/wipnote/projects.json during test runs (bug-cc41e3d2).
 //  3. Redirects WIPNOTE_DB_PATH to a process-scoped temp dir so that no test
 //     inadvertently creates entries under the user's real ~/.cache/wipnote
 //     (bug-8c34e1f5). Tests that need a per-test isolated DB can override via
@@ -30,11 +30,11 @@ func TestMain(m *testing.M) {
 	worktree.SetReindexFnForTest(func(string, io.Writer) {})
 
 	// Redirect XDG base dirs to isolated tempdirs.
-	xdgData, err := os.MkdirTemp("", "htmlgraph-test-xdg-data-*")
+	xdgData, err := os.MkdirTemp("", "wipnote-test-xdg-data-*")
 	if err == nil {
 		os.Setenv("XDG_DATA_HOME", xdgData) //nolint:errcheck
 	}
-	xdgConfig, err2 := os.MkdirTemp("", "htmlgraph-test-xdg-config-*")
+	xdgConfig, err2 := os.MkdirTemp("", "wipnote-test-xdg-config-*")
 	if err2 == nil {
 		os.Setenv("XDG_CONFIG_HOME", xdgConfig) //nolint:errcheck
 	}
@@ -43,9 +43,9 @@ func TestMain(m *testing.M) {
 	// storage.CanonicalDBPath never touches the real user cache.
 	// os.MkdirTemp is used (not t.TempDir) because TestMain has no *testing.T.
 	var dbTmp string
-	if tmp, err3 := os.MkdirTemp("", "htmlgraph-test-db-*"); err3 == nil {
+	if tmp, err3 := os.MkdirTemp("", "wipnote-test-db-*"); err3 == nil {
 		dbTmp = tmp
-		os.Setenv("WIPNOTE_DB_PATH", filepath.Join(dbTmp, "htmlgraph.db")) //nolint:errcheck
+		os.Setenv("WIPNOTE_DB_PATH", filepath.Join(dbTmp, "wipnote.db")) //nolint:errcheck
 	}
 
 	code := m.Run()
@@ -90,8 +90,8 @@ func setupWorktreeGitRepo(t *testing.T) string {
 	f.WriteString("# Test")
 	f.Close()
 
-	exec.Command("git", "-C", dir, "add", ".").Run()     //nolint:errcheck
-	exec.Command("git", "-C", dir, "commit",             //nolint:errcheck
+	exec.Command("git", "-C", dir, "add", ".").Run() //nolint:errcheck
+	exec.Command("git", "-C", dir, "commit",         //nolint:errcheck
 		"-c", "user.name=test", "-c", "user.email=test@test.com",
 		"-m", "initial",
 	).Run()

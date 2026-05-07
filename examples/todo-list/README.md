@@ -1,10 +1,10 @@
 # Todo List Example
 
-A simple todo list application demonstrating HtmlGraph's core features.
+A simple todo list application demonstrating wipnote's core features.
 
 ## Overview
 
-This example shows how to build a basic task management system using HtmlGraph, where:
+This example shows how to build a basic task management system using wipnote, where:
 - Each task is an HTML file (a graph node)
 - Dependencies are hyperlinks (graph edges)
 - The browser is the UI (no build step needed)
@@ -15,7 +15,7 @@ This example shows how to build a basic task management system using HtmlGraph, 
 - `index.html` - Dashboard showing all tasks (open in browser)
 - `styles.css` - Styling for the task cards
 - `task-001.html` through `task-005.html` - Individual task nodes
-- `demo.py` - Python script demonstrating HtmlGraph operations
+- `demo.py` - Python script demonstrating wipnote operations
 
 ## Quick Start
 
@@ -77,7 +77,7 @@ bottlenecks = graph.find_bottlenecks(top_n=3)
 ### 4. AI Agent Interface
 
 ```python
-from htmlgraph.agents import AgentInterface
+from wipnote.agents import AgentInterface
 
 agent = AgentInterface(".", agent_id="my-agent")
 
@@ -91,9 +91,9 @@ context = agent.get_context(task.id)
 ### 5. Programmatic Task Creation
 
 ```python
-from htmlgraph import HtmlGraph, Node, Step, Edge
+from wipnote import wipnote, Node, Step, Edge
 
-graph = HtmlGraph(".")
+graph = wipnote(".")
 
 new_task = Node(
     id="task-006",
@@ -163,6 +163,6 @@ This example proves that complex graph operations (queries, traversal, algorithm
 
 ## Learn More
 
-- See the main [HtmlGraph documentation](../../docs/)
+- See the main [wipnote documentation](../../docs/)
 - Explore the [Python API](../../docs/api/graph.md)
 - Check out the [SDK guide](../../docs/api/sdk.md)

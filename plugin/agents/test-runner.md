@@ -109,11 +109,11 @@ func TestHookNotDuplicated(t *testing.T) {
 
 **CLI integration test:**
 ```bash
-erinn feature create "Test Feature" --track <trk-id> && erinn feature list
-erinn feature show invalid-id   # must return non-zero exit
+wipnote feature create "Test Feature" --track <trk-id> && wipnote feature list
+wipnote feature show invalid-id   # must return non-zero exit
 ```
 
-**Batch erinn bookkeeping.** Each Bash tool call costs one turn from the user's quota. Chain `erinn` commands with `&&` — `erinn bug create ... && erinn bug start <id> && erinn link add ...` is one call, not three.
+**Batch wipnote bookkeeping.** Each Bash tool call costs one turn from the user's quota. Chain `wipnote` commands with `&&` — `wipnote bug create ... && wipnote bug start <id> && wipnote link add ...` is one call, not three.
 
 ## Continuous Testing Workflow (TDD)
 

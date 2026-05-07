@@ -30,14 +30,14 @@ func tddCmd() *cobra.Command {
 Agents fill in test bodies before implementing — enforcing TDD (red-green-refactor).
 
 The command sources criteria from two places (in priority order):
-  1. <section class="spec"> in the feature HTML (written by htmlgraph spec generate)
+  1. <section class="spec"> in the feature HTML (written by wipnote spec generate)
   2. Steps listed in <section data-steps> as a fallback
 
 Example:
-  htmlgraph tdd feat-abc123
-  htmlgraph tdd feat-abc123 --python
-  htmlgraph tdd feat-abc123 --output tests/feat_abc123_test.go
-  htmlgraph tdd feat-abc123 --package mypackage_test`,
+  wipnote tdd feat-abc123
+  wipnote tdd feat-abc123 --python
+  wipnote tdd feat-abc123 --output tests/feat_abc123_test.go
+  wipnote tdd feat-abc123 --package mypackage_test`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
 			return runTDD(args[0], python, output, pkg)
@@ -52,7 +52,7 @@ Example:
 
 // runTDD loads the feature, extracts acceptance criteria, and renders test stubs.
 func runTDD(featureID string, python bool, output, pkg string) error {
-	dir, err := findHtmlgraphDir()
+	dir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}
@@ -68,7 +68,7 @@ func runTDD(featureID string, python bool, output, pkg string) error {
 	}
 
 	if len(criteria) == 0 {
-		return fmt.Errorf("no acceptance criteria found in %s — run: htmlgraph spec generate %s", featureID, featureID)
+		return fmt.Errorf("no acceptance criteria found in %s — run: wipnote spec generate %s", featureID, featureID)
 	}
 
 	var content string
@@ -195,7 +195,7 @@ func renderPythonTests(criteria []string) string {
 }
 
 // toGoTestName converts a criterion string to a valid Go test function name.
-// e.g. "htmlgraph review shows diff summary" → "TestHtmlgraphReviewShowsDiffSummary"
+// e.g. "wipnote review shows diff summary" → "TestWipnoteReviewShowsDiffSummary"
 func toGoTestName(s string) string {
 	words := splitWords(s)
 	var sb strings.Builder
@@ -212,7 +212,7 @@ func toGoTestName(s string) string {
 }
 
 // toPythonTestName converts a criterion string to a snake_case test name.
-// e.g. "htmlgraph review shows diff" → "test_htmlgraph_review_shows_diff"
+// e.g. "wipnote review shows diff" → "test_wipnote_review_shows_diff"
 func toPythonTestName(s string) string {
 	words := splitWords(s)
 	return "test_" + strings.Join(words, "_")

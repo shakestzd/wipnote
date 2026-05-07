@@ -1,14 +1,14 @@
 #!/bin/sh
-# bootstrap.sh - Lightweight bootstrap for htmlgraph Go binary.
+# bootstrap.sh - Lightweight bootstrap for wipnote Go binary.
 #
-# In the distributed plugin, this script IS named "htmlgraph".
+# In the distributed plugin, this script IS named "wipnote".
 # On first run it downloads the correct platform binary from GitHub Releases,
 # then exec's into it.  Subsequent runs simply exec the cached binary after
 # a fast (~1 ms) version check.
 #
-# Install location: ~/.local/bin/htmlgraph — shared by plugin bootstrap,
+# Install location: ~/.local/bin/wipnote — shared by plugin bootstrap,
 # curl install script, Homebrew, and setup-cli.  Metadata (version tracking)
-# lives at ~/.local/share/htmlgraph/.
+# lives at ~/.local/share/wipnote/.
 #
 # Design constraints:
 #   - POSIX sh (no bash-isms)
@@ -21,10 +21,10 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 # Install the binary to ~/.local/bin so it's on PATH for both plugin and
-# standalone users.  Metadata (version file) lives in ~/.local/share/htmlgraph.
+# standalone users.  Metadata (version file) lives in ~/.local/share/wipnote.
 INSTALL_DIR="${HOME}/.local/bin"
-BINARY="${INSTALL_DIR}/htmlgraph"
-META_DIR="${HOME}/.local/share/htmlgraph"
+BINARY="${INSTALL_DIR}/wipnote"
+META_DIR="${HOME}/.local/share/wipnote"
 VERSION_FILE="${META_DIR}/.binary-version"
 
 # ---------------------------------------------------------------------------
@@ -52,7 +52,7 @@ resolve_version() {
 
         # Fourth fallback: query GitHub releases API for the latest tag.
         # Wrapped in a 5-second timeout; silently ignored if unavailable.
-        _api_url="https://api.github.com/repos/shakestzd/htmlgraph/releases/latest"
+        _api_url="https://api.github.com/repos/shakestzd/wipnote/releases/latest"
         _tag=""
         if command -v curl >/dev/null 2>&1; then
             _tag="$(curl -fsSL --max-time 5 "${_api_url}" 2>/dev/null \
@@ -102,15 +102,15 @@ detect_platform() {
 # ---------------------------------------------------------------------------
 download_binary() {
     _version="$1"
-    _archive="htmlgraph-${PLATFORM_OS}-${PLATFORM_ARCH}.tar.gz"
-    _url="https://github.com/shakestzd/htmlgraph/releases/download/v${_version}/${_archive}"
+    _archive="wipnote-${PLATFORM_OS}-${PLATFORM_ARCH}.tar.gz"
+    _url="https://github.com/shakestzd/wipnote/releases/download/v${_version}/${_archive}"
 
     log_err "Downloading binary v${_version} for ${PLATFORM_OS}/${PLATFORM_ARCH}..."
 
     mkdir -p "${INSTALL_DIR}"
     mkdir -p "${META_DIR}"
     _tmpdir="$(mktemp -d)"
-    _tarball="${_tmpdir}/htmlgraph.tar.gz"
+    _tarball="${_tmpdir}/wipnote.tar.gz"
 
     # Try curl first (available on macOS + most Linux), fall back to wget.
     if command -v curl >/dev/null 2>&1; then
@@ -131,19 +131,19 @@ download_binary() {
         bail
     fi
 
-    # Extract — archive contains binary named "htmlgraph-${os}-${arch}"
+    # Extract — archive contains binary named "wipnote-${os}-${arch}"
     if ! tar xzf "${_tarball}" -C "${_tmpdir}" 2>/dev/null; then
         rm -rf "${_tmpdir}"
         log_err "Failed to extract archive."
         bail
     fi
 
-    # Move extracted binary into place (archive names it htmlgraph-${os}-${arch})
-    _extracted="${_tmpdir}/htmlgraph-${PLATFORM_OS}-${PLATFORM_ARCH}"
+    # Move extracted binary into place (archive names it wipnote-${os}-${arch})
+    _extracted="${_tmpdir}/wipnote-${PLATFORM_OS}-${PLATFORM_ARCH}"
     if [ -f "${_extracted}" ]; then
         mv "${_extracted}" "${BINARY}"
-    elif [ -f "${_tmpdir}/htmlgraph" ]; then
-        mv "${_tmpdir}/htmlgraph" "${BINARY}"
+    elif [ -f "${_tmpdir}/wipnote" ]; then
+        mv "${_tmpdir}/wipnote" "${BINARY}"
     else
         rm -rf "${_tmpdir}"
         log_err "Binary not found in archive."
@@ -154,14 +154,14 @@ download_binary() {
     echo "${_version}" > "${VERSION_FILE}"
 
     rm -rf "${_tmpdir}"
-    log_err "Installed htmlgraph v${_version} to ${BINARY}."
+    log_err "Installed wipnote v${_version} to ${BINARY}."
 }
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 log_err() {
-    echo "[htmlgraph] $*" >&2
+    echo "[wipnote] $*" >&2
 }
 
 # bail outputs {} to stdout (so Claude Code sees valid JSON) and exits 0.
@@ -183,9 +183,9 @@ fi
 # ---------------------------------------------------------------------------
 # Prefer PATH-installed binary if version matches (Homebrew, go install, curl)
 # ---------------------------------------------------------------------------
-PATH_BINARY="$(command -v htmlgraph 2>/dev/null || true)"
+PATH_BINARY="$(command -v wipnote 2>/dev/null || true)"
 if [ -n "${PATH_BINARY}" ]; then
-    # Guard: don't exec ourselves (bootstrap is also named "htmlgraph")
+    # Guard: don't exec ourselves (bootstrap is also named "wipnote")
     # Resolve real path of found binary
     _real_path="$(cd "$(dirname "${PATH_BINARY}")" && pwd)/$(basename "${PATH_BINARY}")"
     _self_path="${SCRIPT_DIR}/$(basename "$0")"

@@ -48,7 +48,7 @@ const sampleHTML = `<!DOCTYPE html>
         </section>
         <section data-content>
             <h3>Description</h3>
-            <p>Go module scaffold for HtmlGraph</p>
+            <p>Go module scaffold for wipnote</p>
         </section>
     </article>
 </body>
@@ -160,7 +160,7 @@ func TestParseRealWorkItem(t *testing.T) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="htmlgraph-version" content="1.0">
+    <meta name="wipnote-version" content="1.0">
     <title>Test Feature 1</title>
     <link rel="stylesheet" href="../styles.css">
 </head>

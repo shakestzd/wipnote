@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # stress-launch.sh — Smoke-test parallel terminal session launch against a
-# running `htmlgraph serve` instance.
+# running `wipnote serve` instance.
 #
 # Usage:  bash scripts/stress-launch.sh
 # Exits 0 on full pass, 1 on any criterion failure, 2 if serve is not running.
@@ -21,8 +21,8 @@ fail() { echo "FAIL: $*"; ((FAIL++)) || true; }
 
 # ── Prerequisite: serve must be reachable ────────────────────────────────────
 if ! curl -sf --max-time 3 "${BASE_URL}/" >/dev/null 2>&1; then
-  echo "ERROR: htmlgraph serve is not reachable at ${BASE_URL}" >&2
-  echo "       Start it with: htmlgraph serve" >&2
+  echo "ERROR: wipnote serve is not reachable at ${BASE_URL}" >&2
+  echo "       Start it with: wipnote serve" >&2
   exit 2
 fi
 

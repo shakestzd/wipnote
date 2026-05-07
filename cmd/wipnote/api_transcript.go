@@ -17,7 +17,7 @@ import (
 
 // transcriptHandler returns messages and tool calls for a session.
 // Requires ?session=SESSION_ID. Supports ?limit=N (default 500).
-func transcriptHandler(database *sql.DB, htmlgraphDir string) http.HandlerFunc {
+func transcriptHandler(database *sql.DB, wipnoteDir string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		sessionID := r.URL.Query().Get("session")
 		if sessionID == "" {
@@ -87,7 +87,7 @@ func transcriptHandler(database *sql.DB, htmlgraphDir string) http.HandlerFunc {
 		}
 
 		// Look up linked plan for this session (from plan chat).
-		planID, planTitle := lookupSessionPlan(database, htmlgraphDir, sessionID)
+		planID, planTitle := lookupSessionPlan(database, wipnoteDir, sessionID)
 
 		// Collect distinct work item IDs attributed to this session so the
 		// transcript stats row can render them as clickable badges next to
@@ -136,7 +136,7 @@ func lookupSessionFeatureIDs(database *sql.DB, sessionID string) []string {
 
 // lookupSessionPlan queries plan_feedback for a session→plan link and returns
 // (planID, planTitle). Returns ("", "") when no link exists.
-func lookupSessionPlan(database *sql.DB, htmlgraphDir, sessionID string) (string, string) {
+func lookupSessionPlan(database *sql.DB, wipnoteDir, sessionID string) (string, string) {
 	var planID string
 	database.QueryRow(
 		`SELECT plan_id FROM plan_feedback WHERE action = 'session_id' AND value = ? LIMIT 1`,
@@ -146,17 +146,17 @@ func lookupSessionPlan(database *sql.DB, htmlgraphDir, sessionID string) (string
 		return "", ""
 	}
 	// Resolve title from the plan HTML file.
-	planTitle := resolvePlanTitle(htmlgraphDir, planID)
+	planTitle := resolvePlanTitle(wipnoteDir, planID)
 	return planID, planTitle
 }
 
 // resolvePlanTitle reads the plan HTML file and extracts the h1 title.
 // Returns planID as fallback when the file is missing or unparseable.
-func resolvePlanTitle(htmlgraphDir, planID string) string {
-	if htmlgraphDir == "" {
+func resolvePlanTitle(wipnoteDir, planID string) string {
+	if wipnoteDir == "" {
 		return planID
 	}
-	planPath := filepath.Join(htmlgraphDir, "plans", planID+".html")
+	planPath := filepath.Join(wipnoteDir, "plans", planID+".html")
 	f, err := os.Open(planPath)
 	if err != nil {
 		return planID

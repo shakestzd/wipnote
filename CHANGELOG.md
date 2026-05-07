@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to HtmlGraph will be documented in this file.
+All notable changes to wipnote will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
@@ -8,13 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- `htmlgraph upgrade` / `htmlgraph update` — self-update CLI from GitHub releases with atomic binary replacement and self-test (feat-d16a24ac)
+- `wipnote upgrade` / `wipnote update` — self-update CLI from GitHub releases with atomic binary replacement and self-test (feat-d16a24ac)
 
 ### Documented
 - Standalone `install.sh` one-liner is now documented in README and docs/index.md. The installer itself already existed but was not advertised.
 
 ### Fixed
-- `bootstrap.sh` standalone install — now resolves version via `$HTMLGRAPH_VERSION` env var or GitHub API when no `plugin.json` is present (bug-b08a2ec9)
+- `bootstrap.sh` standalone install — now resolves version via `$WIPNOTE_VERSION` env var or GitHub API when no `plugin.json` is present (bug-b08a2ec9)
 
 ## [0.13.9] - 2025-12-30
 
@@ -26,7 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Operation classification system (allowed/warned/blocked)
   - Auto-generated delegation suggestions with examples
   - CLI commands: `orchestrator enable/disable/status`
-  - Configuration via `.htmlgraph/orchestrator.json`
+  - Configuration via `.wipnote/orchestrator.json`
 - **Comprehensive Documentation**
   - Complete orchestrator mode section in AGENTS.md
   - Standalone ORCHESTRATOR_MODE_GUIDE.md with examples
@@ -46,8 +46,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Technical Details
 - PreToolUse hook: `.claude/hooks/pre-tool-use/orchestrator_enforcement.sh`
-- Enforcement logic: `src/python/htmlgraph/orchestrator.py`
-- CLI integration: `src/python/htmlgraph/cli.py` (orchestrator subcommand)
+- Enforcement logic: `src/python/wipnote/orchestrator.py`
+- CLI integration: `src/python/wipnote/cli.py` (orchestrator subcommand)
 - Tests: `tests/unit/test_orchestrator.py`
 
 ## [0.13.8] - 2025-12-29
@@ -118,11 +118,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Pydantic models for validation
 - SQLite indexing (optional)
 
-[Unreleased]: https://github.com/shakestzd/htmlgraph/compare/v0.13.9...HEAD
-[0.13.9]: https://github.com/shakestzd/htmlgraph/compare/v0.13.8...v0.13.9
-[0.13.8]: https://github.com/shakestzd/htmlgraph/compare/v0.13.5...v0.13.8
-[0.13.5]: https://github.com/shakestzd/htmlgraph/compare/v0.13.0...v0.13.5
-[0.13.0]: https://github.com/shakestzd/htmlgraph/compare/v0.12.0...v0.13.0
-[0.12.0]: https://github.com/shakestzd/htmlgraph/compare/v0.11.0...v0.12.0
-[0.11.0]: https://github.com/shakestzd/htmlgraph/compare/v0.10.0...v0.11.0
-[0.10.0]: https://github.com/shakestzd/htmlgraph/releases/tag/v0.10.0
+[Unreleased]: https://github.com/shakestzd/wipnote/compare/v0.13.9...HEAD
+[0.13.9]: https://github.com/shakestzd/wipnote/compare/v0.13.8...v0.13.9
+[0.13.8]: https://github.com/shakestzd/wipnote/compare/v0.13.5...v0.13.8
+[0.13.5]: https://github.com/shakestzd/wipnote/compare/v0.13.0...v0.13.5
+[0.13.0]: https://github.com/shakestzd/wipnote/compare/v0.12.0...v0.13.0
+[0.12.0]: https://github.com/shakestzd/wipnote/compare/v0.11.0...v0.12.0
+[0.11.0]: https://github.com/shakestzd/wipnote/compare/v0.10.0...v0.11.0
+[0.10.0]: https://github.com/shakestzd/wipnote/releases/tag/v0.10.0

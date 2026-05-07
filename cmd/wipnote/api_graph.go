@@ -386,7 +386,7 @@ func loadGraphNodes(database *sql.DB) ([]graphNode, []string, error) {
 // in the graph. Priority:
 //
 //  1. sessions.title — set by the background titler for human sessions.
-//     Rejected when empty, when it starts with the "[htmlgraph-titler]"
+//     Rejected when empty, when it starts with the "[wipnote-titler]"
 //     sentinel (placeholder not yet replaced with a real summary), or when
 //     it's an obviously-empty placeholder like "--" or "-".
 //  2. First user message — truncated to ~56 chars with a trailing ellipsis.
@@ -396,7 +396,7 @@ func loadGraphNodes(database *sql.DB) ([]graphNode, []string, error) {
 //
 // The function is deliberately display-only; it never touches the database.
 func pickSessionLabel(sessionID, title, firstMsg, createdAt string) string {
-	const sentinel = "[htmlgraph-titler]"
+	const sentinel = "[wipnote-titler]"
 	short := sessionID
 	if len(short) > 8 {
 		short = short[:8]
@@ -429,11 +429,11 @@ func pickSessionLabel(sessionID, title, firstMsg, createdAt string) string {
 // label suitable for a graph node. The heavy lift is unwrapping Claude
 // Code slash-command invocations like
 //
-//	<command-message>htmlgraph:execute</command-message>
-//	<command-name>/htmlgraph:execute</command-name>
+//	<command-message>wipnote:execute</command-message>
+//	<command-name>/wipnote:execute</command-name>
 //	<command-args>trk-d8aef97a</command-args>
 //
-// into the clean form "/htmlgraph:execute trk-d8aef97a" which reads as a
+// into the clean form "/wipnote:execute trk-d8aef97a" which reads as a
 // proper session description instead of a lump of XML. Falls back to a
 // whitespace-collapsed version of the original message for non-command
 // sessions.

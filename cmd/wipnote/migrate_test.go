@@ -18,12 +18,12 @@ import (
 func setupMigrateEnv(t *testing.T, orphanIDs ...string) string {
 	t.Helper()
 	projectDir := t.TempDir()
-	htmlgraphDir := filepath.Join(projectDir, ".wipnote")
-	if err := os.MkdirAll(filepath.Join(htmlgraphDir, "sessions"), 0o755); err != nil {
+	wipnoteDir := filepath.Join(projectDir, ".wipnote")
+	if err := os.MkdirAll(filepath.Join(wipnoteDir, "sessions"), 0o755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
 
-	database, err := dbpkg.Open(filepath.Join(htmlgraphDir, ".db", "htmlgraph.db"))
+	database, err := dbpkg.Open(filepath.Join(wipnoteDir, ".db", "wipnote.db"))
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
@@ -65,7 +65,7 @@ func setupMigrateEnv(t *testing.T, orphanIDs ...string) string {
 			t.Fatalf("InsertToolCall: %v", err)
 		}
 	}
-	return htmlgraphDir
+	return wipnoteDir
 }
 
 func TestExistingSessionHTMLSet(t *testing.T) {
@@ -96,9 +96,9 @@ func TestExistingSessionHTMLSet(t *testing.T) {
 }
 
 func TestBuildParseResultFromSQLite(t *testing.T) {
-	htmlgraphDir := setupMigrateEnv(t, "sess-build-001")
+	wipnoteDir := setupMigrateEnv(t, "sess-build-001")
 
-	database, err := dbpkg.Open(filepath.Join(htmlgraphDir, ".db", "htmlgraph.db"))
+	database, err := dbpkg.Open(filepath.Join(wipnoteDir, ".db", "wipnote.db"))
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
@@ -117,20 +117,20 @@ func TestBuildParseResultFromSQLite(t *testing.T) {
 }
 
 func TestMigrateOneSession_RendersFromSQLite(t *testing.T) {
-	htmlgraphDir := setupMigrateEnv(t, "sess-migrate-001")
+	wipnoteDir := setupMigrateEnv(t, "sess-migrate-001")
 
-	database, err := dbpkg.Open(filepath.Join(htmlgraphDir, ".db", "htmlgraph.db"))
+	database, err := dbpkg.Open(filepath.Join(wipnoteDir, ".db", "wipnote.db"))
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
 	defer database.Close()
 
 	emptyIdx := map[string]ingest.SessionFile{}
-	if err := migrateOneSession(database, htmlgraphDir, "sess-migrate-001", "sqlite", emptyIdx); err != nil {
+	if err := migrateOneSession(database, wipnoteDir, "sess-migrate-001", "sqlite", emptyIdx); err != nil {
 		t.Fatalf("migrateOneSession: %v", err)
 	}
 
-	htmlPath := filepath.Join(htmlgraphDir, "sessions", "sess-migrate-001.html")
+	htmlPath := filepath.Join(wipnoteDir, "sessions", "sess-migrate-001.html")
 	data, err := os.ReadFile(htmlPath)
 	if err != nil {
 		t.Fatalf("read rendered: %v", err)
@@ -144,29 +144,29 @@ func TestMigrateOneSession_RendersFromSQLite(t *testing.T) {
 }
 
 func TestMigrateSessions_Idempotent(t *testing.T) {
-	htmlgraphDir := setupMigrateEnv(t, "sess-idem-001")
+	wipnoteDir := setupMigrateEnv(t, "sess-idem-001")
 
-	database, err := dbpkg.Open(filepath.Join(htmlgraphDir, ".db", "htmlgraph.db"))
+	database, err := dbpkg.Open(filepath.Join(wipnoteDir, ".db", "wipnote.db"))
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
 	defer database.Close()
 
 	emptyIdx := map[string]ingest.SessionFile{}
-	if err := migrateOneSession(database, htmlgraphDir, "sess-idem-001", "sqlite", emptyIdx); err != nil {
+	if err := migrateOneSession(database, wipnoteDir, "sess-idem-001", "sqlite", emptyIdx); err != nil {
 		t.Fatalf("first migrate: %v", err)
 	}
-	first, err := os.ReadFile(filepath.Join(htmlgraphDir, "sessions", "sess-idem-001.html"))
+	first, err := os.ReadFile(filepath.Join(wipnoteDir, "sessions", "sess-idem-001.html"))
 	if err != nil {
 		t.Fatalf("read first: %v", err)
 	}
 
 	// Second migrate is a no-op because the skip-if-exists guard in
 	// RenderIngestedSessionHTML short-circuits.
-	if err := migrateOneSession(database, htmlgraphDir, "sess-idem-001", "sqlite", emptyIdx); err != nil {
+	if err := migrateOneSession(database, wipnoteDir, "sess-idem-001", "sqlite", emptyIdx); err != nil {
 		t.Fatalf("second migrate: %v", err)
 	}
-	second, err := os.ReadFile(filepath.Join(htmlgraphDir, "sessions", "sess-idem-001.html"))
+	second, err := os.ReadFile(filepath.Join(wipnoteDir, "sessions", "sess-idem-001.html"))
 	if err != nil {
 		t.Fatalf("read second: %v", err)
 	}
@@ -176,20 +176,20 @@ func TestMigrateSessions_Idempotent(t *testing.T) {
 }
 
 func TestSelectOrphanSessions(t *testing.T) {
-	htmlgraphDir := setupMigrateEnv(t, "sess-orphan-1", "sess-orphan-2", "sess-already-has-html")
+	wipnoteDir := setupMigrateEnv(t, "sess-orphan-1", "sess-orphan-2", "sess-already-has-html")
 
 	// Mark one session as already having HTML.
-	if err := os.WriteFile(filepath.Join(htmlgraphDir, "sessions", "sess-already-has-html.html"), []byte("x"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(wipnoteDir, "sessions", "sess-already-has-html.html"), []byte("x"), 0o644); err != nil {
 		t.Fatalf("write existing: %v", err)
 	}
 
-	database, err := dbpkg.Open(filepath.Join(htmlgraphDir, ".db", "htmlgraph.db"))
+	database, err := dbpkg.Open(filepath.Join(wipnoteDir, ".db", "wipnote.db"))
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
 	defer database.Close()
 
-	present, err := existingSessionHTMLSet(htmlgraphDir)
+	present, err := existingSessionHTMLSet(wipnoteDir)
 	if err != nil {
 		t.Fatalf("set: %v", err)
 	}

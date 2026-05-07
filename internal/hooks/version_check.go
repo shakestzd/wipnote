@@ -80,7 +80,7 @@ func versionMismatchWarning() string {
 	}
 
 	return fmt.Sprintf(
-		"HtmlGraph version mismatch: CLI v%s != plugin v%s\nRun `htmlgraph build` to sync, or update the plugin.",
+		"wipnote version mismatch: CLI v%s != plugin v%s\nRun `wipnote build` to sync, or update the plugin.",
 		cli, plugin,
 	)
 }

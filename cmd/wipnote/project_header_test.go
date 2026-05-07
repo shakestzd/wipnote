@@ -50,11 +50,11 @@ func withCwd(t *testing.T, dir string) {
 
 func TestPrintProjectHeaderIfDifferent_SilentWhenInProject(t *testing.T) {
 	projectRoot := setupTestProject(t)
-	htmlgraphDir := filepath.Join(projectRoot, ".wipnote")
+	wipnoteDir := filepath.Join(projectRoot, ".wipnote")
 	withCwd(t, projectRoot)
 
 	out := captureStderr(t, func() {
-		printProjectHeaderIfDifferent(htmlgraphDir)
+		printProjectHeaderIfDifferent(wipnoteDir)
 	})
 	if out != "" {
 		t.Errorf("expected silent output when CWD == project, got: %q", out)
@@ -67,11 +67,11 @@ func TestPrintProjectHeaderIfDifferent_SilentWhenInSubdir(t *testing.T) {
 	if err := os.MkdirAll(sub, 0o755); err != nil {
 		t.Fatalf("mkdir sub: %v", err)
 	}
-	htmlgraphDir := filepath.Join(projectRoot, ".wipnote")
+	wipnoteDir := filepath.Join(projectRoot, ".wipnote")
 	withCwd(t, sub)
 
 	out := captureStderr(t, func() {
-		printProjectHeaderIfDifferent(htmlgraphDir)
+		printProjectHeaderIfDifferent(wipnoteDir)
 	})
 	if out != "" {
 		t.Errorf("expected silent output when CWD is inside project, got: %q", out)
@@ -81,11 +81,11 @@ func TestPrintProjectHeaderIfDifferent_SilentWhenInSubdir(t *testing.T) {
 func TestPrintProjectHeaderIfDifferent_PrintsWhenOutsideProject(t *testing.T) {
 	projectRoot := setupTestProject(t)
 	otherDir := t.TempDir()
-	htmlgraphDir := filepath.Join(projectRoot, ".wipnote")
+	wipnoteDir := filepath.Join(projectRoot, ".wipnote")
 	withCwd(t, otherDir)
 
 	out := captureStderr(t, func() {
-		printProjectHeaderIfDifferent(htmlgraphDir)
+		printProjectHeaderIfDifferent(wipnoteDir)
 	})
 	if !strings.Contains(out, "Project:") {
 		t.Errorf("expected 'Project:' header, got: %q", out)

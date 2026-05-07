@@ -23,15 +23,15 @@ Dry-run by default: prints count and IDs.
 Use --apply to mark each orphan with standalone_reason=pre-enforcement.
 
 Example:
-  htmlgraph plan migrate-orphans
-  htmlgraph plan migrate-orphans --apply`,
+  wipnote plan migrate-orphans
+  wipnote plan migrate-orphans --apply`,
 		Args: cobra.NoArgs,
 		RunE: func(_ *cobra.Command, _ []string) error {
-			htmlgraphDir, err := findHtmlgraphDir()
+			wipnoteDir, err := findWipnoteDir()
 			if err != nil {
 				return err
 			}
-			p, err := workitem.Open(htmlgraphDir, agentForClaim())
+			p, err := workitem.Open(wipnoteDir, agentForClaim())
 			if err != nil {
 				return fmt.Errorf("open project: %w", err)
 			}

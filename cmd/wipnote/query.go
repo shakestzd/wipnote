@@ -21,9 +21,9 @@ Syntax:
   type[field=value] -> rel_type -> type[field=value]
 
 Examples:
-  htmlgraph query "features[status=todo]"
-  htmlgraph query "tracks -> contains -> features"
-  htmlgraph query "features[status=todo] -> blocked_by -> features[status=done]"
+  wipnote query "features[status=todo]"
+  wipnote query "tracks -> contains -> features"
+  wipnote query "features[status=todo] -> blocked_by -> features[status=done]"
 
 Supported types: features, bugs, spikes, tracks, plans, specs
 Supported fields: status, type, priority, track_id`,
@@ -35,7 +35,7 @@ Supported fields: status, type, priority, track_id`,
 }
 
 func runQuery(dsl string) error {
-	dir, err := findHtmlgraphDir()
+	dir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}

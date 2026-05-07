@@ -41,9 +41,9 @@ Groups changes by file with per-file +/- line counts and a total summary.
 Always exits 0 (informational).
 
 Example:
-  htmlgraph review
-  htmlgraph review --base develop
-  htmlgraph review --json`,
+  wipnote review
+  wipnote review --base develop
+  wipnote review --json`,
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return runReview(base, jsonOut)
 		},

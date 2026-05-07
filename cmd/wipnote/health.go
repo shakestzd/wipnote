@@ -76,7 +76,7 @@ func runHealth(path string, goOnly, pythonOnly, jsonOut, failOnWarn bool) error 
 	}
 	printHealthReport(*result)
 	if result.Failures > 0 {
-		return fmt.Errorf("health check failed: %d failure(s) — see violations above\nUse 'htmlgraph health --json' for machine-readable output.", result.Failures)
+		return fmt.Errorf("health check failed: %d failure(s) — see violations above\nUse 'wipnote health --json' for machine-readable output.", result.Failures)
 	}
 	if failOnWarn && result.Warnings > 0 {
 		return fmt.Errorf("health check failed: %d warning(s)", result.Warnings)
@@ -159,7 +159,10 @@ func analyzeGoFile(path string, result *healthResult) error {
 	result.ModulesScanned++
 	addViolation(result, "module", path, "", 0, len(lines), moduleLimitWarn, moduleLimitFail)
 
-	type frame struct{ name string; startLine, depth int }
+	type frame struct {
+		name             string
+		startLine, depth int
+	}
 	var stack []frame
 	for i, line := range lines {
 		trimmed := strings.TrimSpace(line)
@@ -188,7 +191,10 @@ func analyzePythonFile(path string, result *healthResult) error {
 	result.ModulesScanned++
 	addViolation(result, "module", path, "", 0, len(lines), moduleLimitWarn, moduleLimitFail)
 
-	type frame struct{ name string; startLine, indent int }
+	type frame struct {
+		name              string
+		startLine, indent int
+	}
 	var stack []frame
 	for i, line := range lines {
 		if strings.TrimSpace(line) == "" {

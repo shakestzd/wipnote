@@ -2,7 +2,7 @@
 hide:
   - navigation
   - toc
-title: HtmlGraph
+title: wipnote
 ---
 
 <div class="hg-hero" markdown>
@@ -13,7 +13,7 @@ title: HtmlGraph
   </svg>
 </div>
 
-<h1 class="hg-hero__headline">HtmlGraph</h1>
+<h1 class="hg-hero__headline">wipnote</h1>
 
 <p class="hg-hero__sub">
 Local-first observability and coordination platform for AI-assisted development.
@@ -44,7 +44,7 @@ No external infrastructure required.
 <div class="hg-card" markdown>
 <span class="hg-card__title">Work item tracking</span>
 
-Features, bugs, spikes, and tracks as HTML files in `.htmlgraph/`. Every change is a git diff. Every item has a lifecycle: create, start, complete.
+Features, bugs, spikes, and tracks as HTML files in `.wipnote/`. Every change is a git diff. Every item has a lifecycle: create, start, complete.
 </div>
 
 <div class="hg-card" markdown>
@@ -80,7 +80,7 @@ Enforce software engineering discipline: build, lint, and test before every comm
 <div class="hg-card" markdown>
 <span class="hg-card__title">Real-time dashboard</span>
 
-Activity feed, kanban board, session viewer, and work item detail &mdash; served locally by `htmlgraph serve`. See what every agent is doing right now.
+Activity feed, kanban board, session viewer, and work item detail &mdash; served locally by `wipnote serve`. See what every agent is doing right now.
 </div>
 
 <div class="hg-card" markdown>
@@ -108,19 +108,19 @@ CRISPI plans break initiatives into trackable steps. Feature specs define accept
 <div class="hg-cards hg-cards--3col hg-cards--arch" markdown>
 
 <div class="hg-card hg-card--arch" markdown>
-<code class="hg-card__label">.htmlgraph/*.html</code>
+<code class="hg-card__label">.wipnote/*.html</code>
 
 **HTML files** &mdash; Work items are the source of truth. Human-readable. Git-diffable. No proprietary format.
 </div>
 
 <div class="hg-card hg-card--arch" markdown>
-<code class="hg-card__label">.htmlgraph/htmlgraph.db</code>
+<code class="hg-card__label">.wipnote/wipnote.db</code>
 
 **SQLite index** &mdash; A derived read index for fast queries and dashboard rendering. Gitignored. Rebuilt from HTML anytime.
 </div>
 
 <div class="hg-card hg-card--arch" markdown>
-<code class="hg-card__label">htmlgraph</code>
+<code class="hg-card__label">wipnote</code>
 
 **Go binary** &mdash; One CLI that does everything: create work items, manage sessions, serve the dashboard, run hooks.
 </div>
@@ -137,18 +137,18 @@ CRISPI plans break initiatives into trackable steps. Feature specs define accept
 
 ```bash
 # Initialize in your repo
-htmlgraph init
+wipnote init
 
 # Create a track and feature
-htmlgraph track create "Auth Overhaul"
-htmlgraph feature create "Add OAuth support" --track trk-abc123 --description "Implement OAuth2 flow"
-htmlgraph feature start feat-def456
+wipnote track create "Auth Overhaul"
+wipnote feature create "Add OAuth support" --track trk-abc123 --description "Implement OAuth2 flow"
+wipnote feature start feat-def456
 
 # Work with any AI agent — context is shared
 # ... Claude Code, Gemini, Codex all see the active work item ...
 
-htmlgraph feature complete feat-def456
-htmlgraph serve    # see everything at localhost:4000
+wipnote feature complete feat-def456
+wipnote serve    # see everything at localhost:4000
 ```
 
 </section>
@@ -161,22 +161,22 @@ htmlgraph serve    # see everything at localhost:4000
 
 ```bash
 # Install (universal)
-curl -fsSL https://raw.githubusercontent.com/shakestzd/htmlgraph/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/shakestzd/wipnote/main/install.sh | sh
 
 # Or as a Claude Code plugin
-claude plugin install htmlgraph
+claude plugin install wipnote
 
 # Or build from source
-git clone https://github.com/shakestzd/htmlgraph.git
-cd htmlgraph && go build -o htmlgraph ./cmd/htmlgraph/
+git clone https://github.com/shakestzd/wipnote.git
+cd wipnote && go build -o wipnote ./cmd/wipnote/
 ```
 
 ### Upgrading
 
 ```bash
-htmlgraph upgrade            # latest release
-htmlgraph upgrade --check    # check without installing
-htmlgraph update             # alias for upgrade
+wipnote upgrade            # latest release
+wipnote upgrade --check    # check without installing
+wipnote update             # alias for upgrade
 ```
 
 </section>
@@ -201,6 +201,6 @@ htmlgraph update             # alias for upgrade
 
 <div class="hg-footer-links" markdown>
 
-[CLI Reference](reference/cli.md) &nbsp;&middot;&nbsp; [Blog](blog/index.md) &nbsp;&middot;&nbsp; [GitHub](https://github.com/shakestzd/htmlgraph) &nbsp;&middot;&nbsp; [Claude Code Plugin](https://github.com/shakestzd/htmlgraph)
+[CLI Reference](reference/cli.md) &nbsp;&middot;&nbsp; [Blog](blog/index.md) &nbsp;&middot;&nbsp; [GitHub](https://github.com/shakestzd/wipnote) &nbsp;&middot;&nbsp; [Claude Code Plugin](https://github.com/shakestzd/wipnote)
 
 </div>

@@ -7,9 +7,9 @@ import (
 	"os"
 	"time"
 
-	"github.com/spf13/cobra"
 	"github.com/shakestzd/wipnote/internal/db"
 	"github.com/shakestzd/wipnote/internal/hooks"
+	"github.com/spf13/cobra"
 )
 
 // hookCmd returns the "wipnote hook" parent command with all subcommands.
@@ -64,6 +64,14 @@ Usage in hooks.json:
 		hookSubcmd("teammate-idle", "Handle TeammateIdle event", continueResult, hooks.TeammateIdle),
 		hookSubcmd("task-completed", "Handle TaskCompleted event", continueResult, hooks.TaskCompleted),
 		hookSubcmd("task-created", "Handle TaskCreated event", continueResult, hooks.TaskCreated),
+		hookSubcmd("task-started", "Handle TaskStarted event", continueResult,
+			func(event *hooks.CloudEvent, database *sql.DB) (*hooks.HookResult, error) {
+				return hooks.TrackEvent("TaskStarted", event, database)
+			}),
+		hookSubcmd("task-aborted", "Handle TurnAborted event", continueResult,
+			func(event *hooks.CloudEvent, database *sql.DB) (*hooks.HookResult, error) {
+				return hooks.TrackEvent("TurnAborted", event, database)
+			}),
 		hookSubcmd("instructions-loaded", "Handle InstructionsLoaded event", continueResult, hooks.InstructionsLoaded),
 		hookSubcmd("permission-request", "Handle PermissionRequest event", continueResult, hooks.PermissionRequest),
 		hookSubcmd("config-change", "Handle ConfigChange event — persist permission_mode to session metadata", continueResult, hooks.ConfigChange),
@@ -77,7 +85,7 @@ Usage in hooks.json:
 
 // hookSubcmd creates a hook subcommand that resolves the project dir and opens
 // the DB before calling handler. fallback is returned when the project is not
-// an HtmlGraph project or when the DB cannot be opened.
+// an wipnote project or when the DB cannot be opened.
 func hookSubcmd(
 	use, short string,
 	fallback *hooks.HookResult,
@@ -89,7 +97,7 @@ func hookSubcmd(
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return runHookNamed(use, func(event *hooks.CloudEvent) (*hooks.HookResult, error) {
 				projectDir := hooks.ResolveProjectDir(event.CWD, event.SessionID)
-				if !hooks.IsHtmlGraphProject(projectDir) {
+				if !hooks.IswipnoteProject(projectDir) {
 					return fallback, nil
 				}
 				dbPath, err := hooks.DBPath(projectDir)
@@ -128,7 +136,7 @@ func hookSubcmdWithProject(
 			}
 			return runHookNamed(use, func(event *hooks.CloudEvent) (*hooks.HookResult, error) {
 				projectDir := hooks.ResolveProjectDir(event.CWD, event.SessionID)
-				if !hooks.IsHtmlGraphProject(projectDir) {
+				if !hooks.IswipnoteProject(projectDir) {
 					return fallback, nil
 				}
 				dbPath, err := hooks.DBPath(projectDir)
@@ -164,7 +172,7 @@ func hookTrackEventCmd(fallback *hooks.HookResult) *cobra.Command {
 			}
 			return runHookNamed("track-event", func(event *hooks.CloudEvent) (*hooks.HookResult, error) {
 				projectDir := hooks.ResolveProjectDir(event.CWD, event.SessionID)
-				if !hooks.IsHtmlGraphProject(projectDir) {
+				if !hooks.IswipnoteProject(projectDir) {
 					return fallback, nil
 				}
 				dbPath, err := hooks.DBPath(projectDir)
@@ -239,4 +247,3 @@ func runHookNamed(subcommand string, handler func(*hooks.CloudEvent) (*hooks.Hoo
 	// Emit the result in the harness-appropriate wire format.
 	return hooks.WriteResultForHarness(harness, result)
 }
-

@@ -1,9 +1,9 @@
 /**
  * Todo List Example Stylesheet
- * Extends HtmlGraph defaults
+ * Extends wipnote defaults
  */
 
-@import url('../../src/python/htmlgraph/styles.css');
+@import url('../../src/python/wipnote/styles.css');
 
 /* Additional todo-specific styles */
 body {

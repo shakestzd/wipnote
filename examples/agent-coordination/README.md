@@ -1,6 +1,6 @@
 # Agent Coordination Example
 
-Multi-agent collaboration using HtmlGraph for coordinated software development.
+Multi-agent collaboration using wipnote for coordinated software development.
 
 ## Overview
 

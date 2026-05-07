@@ -9,14 +9,14 @@ import (
 	"time"
 )
 
-// selfBinary returns the path to the htmlgraph binary for self-invocation.
+// selfBinary returns the path to the wipnote binary for self-invocation.
 // Resolution order:
 //  1. CLAUDE_PLUGIN_ROOT env var (always correct in hook context)
 //  2. os.Executable() (correct when called from the binary itself)
-//  3. "htmlgraph" on PATH (fallback)
+//  3. "wipnote" on PATH (fallback)
 func selfBinary() string {
 	if root := os.Getenv("CLAUDE_PLUGIN_ROOT"); root != "" {
-		candidate := filepath.Join(root, "hooks", "bin", "htmlgraph")
+		candidate := filepath.Join(root, "hooks", "bin", "wipnote")
 		if _, err := os.Stat(candidate); err == nil {
 			return candidate
 		}
@@ -24,10 +24,10 @@ func selfBinary() string {
 	if exe, err := os.Executable(); err == nil {
 		return exe
 	}
-	return "htmlgraph"
+	return "wipnote"
 }
 
-// addTaskStep shells out to the htmlgraph CLI to add a step to the active
+// addTaskStep shells out to the wipnote CLI to add a step to the active
 // feature. This avoids importing the workitem package (architectural constraint:
 // hooks must not import workitem to prevent spike creation policy violations).
 func addTaskStep(database *sql.DB, sessionID, featureID, taskID, subject, teammateName string) {
@@ -40,7 +40,7 @@ func addTaskStep(database *sql.DB, sessionID, featureID, taskID, subject, teamma
 	}
 	typeName := inferTypeName(featureID)
 
-	// htmlgraph <type> add-step <id> "<description>"
+	// wipnote <type> add-step <id> "<description>"
 	cmd := exec.Command(selfBinary(), typeName, "add-step", featureID, stepDesc)
 	_ = cmd.Run()
 }
@@ -72,4 +72,3 @@ func inferTypeName(id string) string {
 		return "feature"
 	}
 }
-

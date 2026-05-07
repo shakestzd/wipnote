@@ -1,5 +1,5 @@
 // Package worktree provides helpers to create and reuse git worktrees for
-// HtmlGraph work items (features, tracks, and agent tasks).
+// wipnote work items (features, tracks, and agent tasks).
 //
 // All three public functions are idempotent: calling them on an already-existing
 // worktree returns the existing path without error. Progress messages are written
@@ -108,7 +108,7 @@ func EnsureForFeature(featureID, repoRoot string, w io.Writer) (string, error) {
 	}
 
 	fmt.Fprintf(w, "  Worktree: %s (branch: %s)\n", resolved, branchName)
-	excludeHtmlgraphFromWorktree(resolved, w)
+	excludeWipnoteFromWorktree(resolved, w)
 	reindexWorktree(resolved, w)
 
 	return resolved, nil
@@ -136,7 +136,7 @@ func EnsureForTrack(trackID, repoRoot string, w io.Writer) (string, error) {
 	}
 
 	fmt.Fprintf(w, "  Worktree: %s (branch: %s)\n", resolved, branchName)
-	excludeHtmlgraphFromWorktree(resolved, w)
+	excludeWipnoteFromWorktree(resolved, w)
 	reindexWorktree(resolved, w)
 
 	return resolved, nil
@@ -203,7 +203,7 @@ func EnsureForTrackTitled(trackTitle, trackID, repoRoot string, w io.Writer) (st
 	}
 
 	fmt.Fprintf(w, "  Worktree: %s (branch: %s)\n", resolved, branchName)
-	excludeHtmlgraphFromWorktree(resolved, w)
+	excludeWipnoteFromWorktree(resolved, w)
 	reindexWorktree(resolved, w)
 
 	return resolved, nil
@@ -349,7 +349,7 @@ func EnsureForAgent(trackID, taskName, repoRoot string, w io.Writer) (string, er
 
 	// Track branch must exist before creating an agent branch from it.
 	if err := exec.Command("git", "-C", repoRoot, "rev-parse", "--verify", trackID).Run(); err != nil {
-		return "", fmt.Errorf("track branch %s not found: create track worktree first with htmlgraph yolo --track %s", trackID, trackID)
+		return "", fmt.Errorf("track branch %s not found: create track worktree first with wipnote yolo --track %s", trackID, trackID)
 	}
 
 	if err := os.MkdirAll(filepath.Dir(worktreePath), 0755); err != nil {
@@ -377,9 +377,9 @@ func resolveTrackForFeature(featureID, projectRoot string) string {
 	return node.TrackID
 }
 
-// excludeHtmlgraphFromWorktree adds .wipnote/ to the worktree's local git exclude file.
+// excludeWipnoteFromWorktree adds .wipnote/ to the worktree's local git exclude file.
 // Best-effort: errors are written to w but do not abort.
-func excludeHtmlgraphFromWorktree(worktreePath string, w io.Writer) {
+func excludeWipnoteFromWorktree(worktreePath string, w io.Writer) {
 	gitFile := filepath.Join(worktreePath, ".git")
 	content, err := os.ReadFile(gitFile)
 	if err != nil {
@@ -424,7 +424,7 @@ func SetReindexFnForTest(fn func(worktreeDir string, w io.Writer)) func(string, 
 	return prev
 }
 
-// reindexWorktree runs `htmlgraph reindex` in the given worktree directory so
+// reindexWorktree runs `wipnote reindex` in the given worktree directory so
 // the worktree's SQLite cache is current before Claude launches. Best-effort:
 // failures are written to w but do not abort.
 func reindexWorktree(worktreeDir string, w io.Writer) {

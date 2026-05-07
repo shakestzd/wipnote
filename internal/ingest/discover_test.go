@@ -76,8 +76,8 @@ func TestDecodeProjectPath(t *testing.T) {
 		expected string
 	}{
 		{
-			encoded:  "-Users-testuser-DevProjects-htmlgraph",
-			expected: "/Users/testuser/DevProjects/htmlgraph",
+			encoded:  "-Users-testuser-DevProjects-wipnote",
+			expected: "/Users/testuser/DevProjects/wipnote",
 		},
 		{
 			encoded:  "-Users-alice-code-myapp",
@@ -112,19 +112,19 @@ func TestDecodeProjectPath(t *testing.T) {
 
 func TestFilterByGitRemote(t *testing.T) {
 	files := []SessionFile{
-		{SessionID: "sess-1", Project: "htmlgraph", GitRemoteURL: "https://github.com/owner/htmlgraph.git"},
-		{SessionID: "sess-2", Project: "htmlgraph", GitRemoteURL: "https://github.com/owner/htmlgraph.git"},
+		{SessionID: "sess-1", Project: "wipnote", GitRemoteURL: "https://github.com/owner/wipnote.git"},
+		{SessionID: "sess-2", Project: "wipnote", GitRemoteURL: "https://github.com/owner/wipnote.git"},
 		{SessionID: "sess-3", Project: "other-project", GitRemoteURL: "https://github.com/owner/other.git"},
 		{SessionID: "sess-4", Project: "no-remote", GitRemoteURL: ""},
 	}
 
 	t.Run("filters to matching remote only", func(t *testing.T) {
-		got := FilterByGitRemote(files, "https://github.com/owner/htmlgraph.git")
+		got := FilterByGitRemote(files, "https://github.com/owner/wipnote.git")
 		if len(got) != 2 {
 			t.Fatalf("got %d files, want 2", len(got))
 		}
 		for _, sf := range got {
-			if sf.GitRemoteURL != "https://github.com/owner/htmlgraph.git" {
+			if sf.GitRemoteURL != "https://github.com/owner/wipnote.git" {
 				t.Errorf("unexpected remote %q in result", sf.GitRemoteURL)
 			}
 		}
@@ -155,7 +155,7 @@ func TestFilterByGitRemote(t *testing.T) {
 	})
 
 	t.Run("handles empty input slice", func(t *testing.T) {
-		got := FilterByGitRemote(nil, "https://github.com/owner/htmlgraph.git")
+		got := FilterByGitRemote(nil, "https://github.com/owner/wipnote.git")
 		if len(got) != 0 {
 			t.Fatalf("got %d files, want 0", len(got))
 		}

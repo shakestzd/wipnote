@@ -32,9 +32,9 @@ func findRepoRoot(dir string) (string, error) {
 	}
 }
 
-// pluginBuildPortsCmd is `htmlgraph plugin build-ports`. It regenerates every
+// pluginBuildPortsCmd is `wipnote plugin build-ports`. It regenerates every
 // target plugin tree from packages/plugin-core/manifest.json — the single
-// source of truth for the HtmlGraph CLI companion plugin across Claude Code,
+// source of truth for the wipnote CLI companion plugin across Claude Code,
 // Codex CLI, and future targets. See internal/pluginbuild for the adapter
 // interface and per-target emitters.
 func pluginBuildPortsCmd() *cobra.Command {

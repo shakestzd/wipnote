@@ -28,7 +28,7 @@ func renderCompactHelp(root *cobra.Command) string {
 
 	var lines []string
 	lines = append(lines, "## CLI Quick Reference")
-	lines = append(lines, "htmlgraph CLI commands:")
+	lines = append(lines, "wipnote CLI commands:")
 
 	// Iterate groups in registration order (cobra preserves insertion order).
 	for _, grp := range root.Groups() {
@@ -60,7 +60,7 @@ func renderCompactHelp(root *cobra.Command) string {
 	}
 
 	lines = append(lines, `Required flags: feature/bug create require --track <id> --description "…"`)
-	lines = append(lines, "Run `htmlgraph help --compact` for this reference on demand.")
+	lines = append(lines, "Run `wipnote help --compact` for this reference on demand.")
 
 	return strings.Join(lines, "\n")
 }
@@ -79,7 +79,7 @@ func collectSubcommandNames(cmd *cobra.Command) []string {
 	return names
 }
 
-// helpCmd returns the "htmlgraph help" command with --compact flag support.
+// helpCmd returns the "wipnote help" command with --compact flag support.
 func helpCmd() *cobra.Command {
 	var compact bool
 

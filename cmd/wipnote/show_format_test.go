@@ -10,7 +10,7 @@ import (
 	"github.com/shakestzd/wipnote/internal/htmlparse"
 )
 
-// sampleBugHTML is a minimal HtmlGraph bug HTML fixture.
+// sampleBugHTML is a minimal wipnote bug HTML fixture.
 const sampleBugHTML = `<!DOCTYPE html>
 <html lang="en">
 <head><meta charset="UTF-8"><title>Test Bug</title></head>
@@ -29,7 +29,7 @@ const sampleBugHTML = `<!DOCTYPE html>
 </body>
 </html>`
 
-// sampleSpikeHTML is a minimal HtmlGraph spike HTML fixture.
+// sampleSpikeHTML is a minimal wipnote spike HTML fixture.
 const sampleSpikeHTML = `<!DOCTYPE html>
 <html lang="en">
 <head><meta charset="UTF-8"><title>Test Spike</title></head>
@@ -46,7 +46,7 @@ const sampleSpikeHTML = `<!DOCTYPE html>
 </body>
 </html>`
 
-// sampleTrackHTML is a minimal HtmlGraph track HTML fixture.
+// sampleTrackHTML is a minimal wipnote track HTML fixture.
 const sampleTrackHTML = `<!DOCTYPE html>
 <html lang="en">
 <head><meta charset="UTF-8"><title>Test Track</title></head>
@@ -64,7 +64,7 @@ const sampleTrackHTML = `<!DOCTYPE html>
 </body>
 </html>`
 
-// samplePlanHTML is a minimal HtmlGraph plan HTML fixture.
+// samplePlanHTML is a minimal wipnote plan HTML fixture.
 const samplePlanHTML = `<!DOCTYPE html>
 <html lang="en">
 <head><meta charset="UTF-8"><title>Plan: Test Plan</title></head>

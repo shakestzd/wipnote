@@ -27,12 +27,12 @@ func TestValidateDescriptionForHostPaths_Clean(t *testing.T) {
 
 // TestValidateDescriptionForHostPaths_RejectsWorkspaces rejects /workspaces/ paths.
 func TestValidateDescriptionForHostPaths_RejectsWorkspaces(t *testing.T) {
-	desc := "see /workspaces/htmlgraph/Screenshot_2025.png for context"
+	desc := "see /workspaces/wipnote/Screenshot_2025.png for context"
 	err := validateDescriptionForHostPaths(desc, false)
 	if err == nil {
 		t.Fatal("expected error for /workspaces/ path, got nil")
 	}
-	if !strings.Contains(err.Error(), "/workspaces/htmlgraph/") {
+	if !strings.Contains(err.Error(), "/workspaces/wipnote/") {
 		t.Errorf("error should mention the offending path; got: %v", err)
 	}
 	if !strings.Contains(err.Error(), "--allow-host-paths") {
@@ -54,7 +54,7 @@ func TestValidateDescriptionForHostPaths_RejectsHomePath(t *testing.T) {
 
 // TestValidateDescriptionForHostPaths_RejectsUsersPaths rejects /Users/ paths.
 func TestValidateDescriptionForHostPaths_RejectsUsersPaths(t *testing.T) {
-	desc := "file at /Users/alice/projects/htmlgraph/main.go"
+	desc := "file at /Users/alice/projects/wipnote/main.go"
 	err := validateDescriptionForHostPaths(desc, false)
 	if err == nil {
 		t.Fatal("expected error for /Users/ path, got nil")
@@ -66,7 +66,7 @@ func TestValidateDescriptionForHostPaths_RejectsUsersPaths(t *testing.T) {
 
 // TestValidateDescriptionForHostPaths_AllowHostPathsBypass passes with --allow-host-paths.
 func TestValidateDescriptionForHostPaths_AllowHostPathsBypass(t *testing.T) {
-	desc := "/workspaces/htmlgraph/foo.png embedded here"
+	desc := "/workspaces/wipnote/foo.png embedded here"
 	if err := validateDescriptionForHostPaths(desc, true); err != nil {
 		t.Errorf("expected no error when allowHostPaths=true, got: %v", err)
 	}
@@ -74,7 +74,7 @@ func TestValidateDescriptionForHostPaths_AllowHostPathsBypass(t *testing.T) {
 
 // TestValidateDescriptionForHostPaths_CIRunnerAllowed passes for /home/runner/ (CI).
 func TestValidateDescriptionForHostPaths_CIRunnerAllowed(t *testing.T) {
-	desc := "artifact at /home/runner/work/htmlgraph/htmlgraph/out.tar.gz"
+	desc := "artifact at /home/runner/work/wipnote/wipnote/out.tar.gz"
 	if err := validateDescriptionForHostPaths(desc, false); err != nil {
 		t.Errorf("expected /home/runner/ to be allowed, got: %v", err)
 	}
@@ -119,7 +119,7 @@ func TestScanFileForHostPaths_CleanSample(t *testing.T) {
 func TestScanFileForHostPaths_CIRunnerAllowed(t *testing.T) {
 	tmp := t.TempDir()
 	f := filepath.Join(tmp, "ci.html")
-	if err := os.WriteFile(f, []byte("<p>/home/runner/work/htmlgraph/htmlgraph</p>"), 0o644); err != nil {
+	if err := os.WriteFile(f, []byte("<p>/home/runner/work/wipnote/wipnote</p>"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	violations, err := scanFileForHostPaths(f, "ci.html")
@@ -227,7 +227,7 @@ func TestScanHostPathFiles_AllowlistSkipsFile(t *testing.T) {
 }
 
 // TestFullScopeFiles_SkipsBinaryAndLocal verifies that the scope collector excludes
-// htmlgraph.db and settings.local.json.
+// wipnote.db and settings.local.json.
 func TestFullScopeFiles_SkipsBinaryAndLocal(t *testing.T) {
 	tmp := t.TempDir()
 
@@ -241,7 +241,7 @@ func TestFullScopeFiles_SkipsBinaryAndLocal(t *testing.T) {
 
 	// Create files that should be excluded.
 	for _, name := range []string{
-		filepath.Join(hgDir, "htmlgraph.db"),
+		filepath.Join(hgDir, "wipnote.db"),
 		filepath.Join(claudeDir, "settings.local.json"),
 	} {
 		if err := os.WriteFile(name, []byte("data"), 0o644); err != nil {
@@ -265,7 +265,7 @@ func TestFullScopeFiles_SkipsBinaryAndLocal(t *testing.T) {
 
 	for _, f := range files {
 		base := filepath.Base(f)
-		if base == "htmlgraph.db" || base == "settings.local.json" {
+		if base == "wipnote.db" || base == "settings.local.json" {
 			t.Errorf("fullScopeFiles returned excluded file: %s", f)
 		}
 	}

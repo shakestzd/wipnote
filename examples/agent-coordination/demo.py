@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-HtmlGraph Multi-Agent Coordination Demo
+wipnote Multi-Agent Coordination Demo
 
-Demonstrates how multiple AI agents can collaborate on a project using HtmlGraph.
+Demonstrates how multiple AI agents can collaborate on a project using wipnote.
 This example shows the "Ij
 
 oka" use case - multiple agents working on interdependent features.
@@ -15,7 +15,7 @@ from pathlib import Path
 # Add src to path for development
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src" / "python"))
 
-from htmlgraph import SDK
+from wipnote import SDK
 
 
 def setup_project(sdk: SDK):
@@ -267,7 +267,7 @@ def show_coordination_insights(sdk: SDK):
 def main():
     """Run the multi-agent coordination demo."""
     print("=" * 80)
-    print("HtmlGraph Multi-Agent Coordination Demo")
+    print("wipnote Multi-Agent Coordination Demo")
     print("'HTML is All You Need' - Agent Edition")
     print("=" * 80)
 

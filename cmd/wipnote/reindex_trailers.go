@@ -94,7 +94,7 @@ func splitTrailerBlocks(output string) []commitBlock {
 }
 
 // parenWorkItemRe matches parenthesized work item references in commit messages,
-// e.g. "(feat-abc12345)". This is the primary HtmlGraph commit convention.
+// e.g. "(feat-abc12345)". This is the primary wipnote commit convention.
 var parenWorkItemRe = regexp.MustCompile(`\(\s*((?:feat|bug|spk|trk|pln|spc|plan|spec)-[0-9a-f]{8})\s*\)`)
 
 // parseTrailers extracts work item IDs from a git commit message.
@@ -108,7 +108,7 @@ func parseTrailers(message string) []string {
 	var ids []string
 	seen := make(map[string]bool)
 
-	// Parenthesized work item refs — the primary HtmlGraph convention.
+	// Parenthesized work item refs — the primary wipnote convention.
 	for _, m := range parenWorkItemRe.FindAllStringSubmatch(message, -1) {
 		id := m[1]
 		if !seen[id] {

@@ -117,7 +117,7 @@ func DiscoverSubagents(sessionDir string) ([]SessionFile, error) {
 }
 
 // decodeProjectName converts Claude's dash-encoded path to a human-friendly name.
-// e.g. "-Users-shakes-DevProjects-htmlgraph" → "htmlgraph"
+// e.g. "-Users-shakes-DevProjects-wipnote" → "wipnote"
 func decodeProjectName(encoded string) string {
 	parts := strings.Split(encoded, "-")
 	if len(parts) == 0 {
@@ -147,7 +147,7 @@ func decodeProjectName(encoded string) string {
 // dash-encoded project directory name.
 // Claude encodes paths by replacing "/" with "-", so the leading "-" represents
 // the root separator.
-// e.g. "-Users-alice-DevProjects-htmlgraph" → "/Users/alice/DevProjects/htmlgraph"
+// e.g. "-Users-alice-DevProjects-wipnote" → "/Users/alice/DevProjects/wipnote"
 func decodeProjectPath(encoded string) string {
 	if encoded == "" {
 		return ""
@@ -155,7 +155,7 @@ func decodeProjectPath(encoded string) string {
 	// Strip a leading dash (represents the root "/") then replace remaining dashes.
 	// We replace "-" with "/" which reconstructs the path from the encoding.
 	// Claude encodes absolute paths starting with "/" as "-..." so:
-	// "-Users-alice-DevProjects-htmlgraph" → "/Users/alice/DevProjects/htmlgraph"
+	// "-Users-alice-DevProjects-wipnote" → "/Users/alice/DevProjects/wipnote"
 	if strings.HasPrefix(encoded, "-") {
 		return "/" + strings.ReplaceAll(encoded[1:], "-", "/")
 	}

@@ -195,7 +195,9 @@ func GetToolUseContext(db *sql.DB, sessionID, agentID string) (*ToolUseContextRo
 		       COALESCE(
 		         (SELECT c.work_item_id FROM claims c
 		           WHERE c.claimed_by_agent_id = ?
+		             AND c.owner_session_id = ?
 		             AND c.status IN ('proposed','claimed','in_progress','blocked','handoff_pending')
+		           ORDER BY c.leased_at DESC
 		           LIMIT 1),
 		         (SELECT c.work_item_id FROM claims c
 		           WHERE c.owner_session_id = ?
@@ -208,7 +210,7 @@ func GetToolUseContext(db *sql.DB, sessionID, agentID string) (*ToolUseContextRo
 		LEFT JOIN features f ON f.id = s.active_feature_id
 		WHERE s.session_id = ?
 		LIMIT 1`,
-		agentID, sessionID, sessionID,
+		agentID, sessionID, sessionID, sessionID,
 	)
 
 	r := &ToolUseContextRow{}

@@ -59,27 +59,64 @@ dashboard-*.png
 # Codex output
 CODEX.md
 
-# HtmlGraph policy
-# Track canonical declarative project state under .htmlgraph/:
+# wipnote policy
+# Track canonical declarative project state under .wipnote/:
 # - work-item HTML/YAML content
 # - project config/metadata
 # - archive HTML when intentionally retained as part of repo history
 #
 # Ignore only derived storage/index artifacts and runtime telemetry.
 
-# HtmlGraph derived database/index/cache artifacts
+# wipnote derived database/index/cache artifacts
+.wipnote/*.db*
+.wipnote/.db/
+.wipnote/*.sqlite*
+.wipnote/archive-index/
+*.bloom
+
+# wipnote runtime/session telemetry
+.wipnote/events/
+.wipnote/sessions/
+.wipnote/logs/
+.wipnote/**/*.jsonl
+.wipnote/**/*.log
+.wipnote/**/*.lock
+.wipnote/.active-session
+.wipnote/.launch-mode
+.wipnote/.session-warning-state.json
+.wipnote/parent-activity.json
+.wipnote/.error-spikes.json
+.wipnote/active-auto-spikes.json
+.wipnote/drift-queue.json
+.wipnote/.otlp-port
+.wipnote/.serve.lock
+
+# wipnote obsolete/generated analytics artifacts from older builds
+.wipnote/cigs/
+.wipnote/insights/
+.wipnote/metrics/
+.wipnote/orchestrator-mode.json
+
+# wipnote invalid nested state
+.wipnote/.wipnote/
+
+# wipnote tracked canonical content should override broad global ignores
+!.wipnote/**/*.html
+!.wipnote/**/*.yaml
+!.wipnote/**/*.yml
+!.wipnote/**/*.css
+
+# Legacy HtmlGraph derived/runtime artifacts may still exist in old checkouts.
 .htmlgraph/*.db*
 .htmlgraph/.db/
 .htmlgraph/*.sqlite*
 .htmlgraph/archive-index/
-*.bloom
-
-# HtmlGraph runtime/session telemetry
 .htmlgraph/events/
 .htmlgraph/sessions/
 .htmlgraph/logs/
 .htmlgraph/**/*.jsonl
 .htmlgraph/**/*.log
+.htmlgraph/**/*.lock
 .htmlgraph/.active-session
 .htmlgraph/.launch-mode
 .htmlgraph/.session-warning-state.json
@@ -89,17 +126,11 @@ CODEX.md
 .htmlgraph/drift-queue.json
 .htmlgraph/.otlp-port
 .htmlgraph/.serve.lock
-
-# HtmlGraph obsolete/generated analytics artifacts from older builds
 .htmlgraph/cigs/
 .htmlgraph/insights/
 .htmlgraph/metrics/
 .htmlgraph/orchestrator-mode.json
-
-# HtmlGraph invalid nested state
 .htmlgraph/.htmlgraph/
-
-# HtmlGraph tracked canonical content should override broad global ignores
 !.htmlgraph/**/*.html
 !.htmlgraph/**/*.yaml
 !.htmlgraph/**/*.yml

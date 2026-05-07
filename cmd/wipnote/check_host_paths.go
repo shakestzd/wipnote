@@ -72,7 +72,7 @@ func validateDescriptionForHostPaths(description string, allowHostPaths bool) er
 	)
 }
 
-// checkHostPathsCmd returns the cobra sub-command wired into `htmlgraph check`.
+// checkHostPathsCmd returns the cobra sub-command wired into `wipnote check`.
 func checkHostPathsCmd() *cobra.Command {
 	var stagedOnly bool
 
@@ -83,7 +83,7 @@ func checkHostPathsCmd() *cobra.Command {
 not be committed (e.g. /Users/alice/, /home/bob/, /workspaces/charlie/).
 
 Files listed in scripts/host-paths-allowlist.txt are skipped.
-The binary .wipnote/htmlgraph.db and .claude/settings.local.json are always skipped.
+The binary .wipnote/wipnote.db and .claude/settings.local.json are always skipped.
 
 Exit code 0 — no violations; exit code 1 — violations found.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -154,7 +154,7 @@ func loadHostPathAllowlist(path string) (map[string]bool, error) {
 
 // fullScopeFiles collects all scannable files under .wipnote/ and .claude/.
 // Skips:
-//   - .wipnote/htmlgraph.db (binary)
+//   - .wipnote/wipnote.db (binary)
 //   - .claude/settings.local.json (ephemeral)
 //   - .claude/worktrees/ entirely — linked-worktree .git files legitimately
 //     carry absolute gitdir: paths by design (git requires them). Scanning

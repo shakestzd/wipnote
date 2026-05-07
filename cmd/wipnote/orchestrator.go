@@ -113,7 +113,7 @@ func runOrchestratorDisable() error {
 }
 
 func orchestratorConfigPath() (string, error) {
-	dir, err := findHtmlgraphDir()
+	dir, err := findWipnoteDir()
 	if err != nil {
 		return "", err
 	}

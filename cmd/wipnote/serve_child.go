@@ -19,9 +19,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// serveChildCmd is the hidden internal subcommand the parent HtmlGraph
+// serveChildCmd is the hidden internal subcommand the parent wipnote
 // server spawns for each project in multi-project mode. It is NOT intended
-// for direct invocation — end users run `htmlgraph serve`, which forks this
+// for direct invocation — end users run `wipnote serve`, which forks this
 // command as a child process per project.
 //
 // The child binds to an ephemeral port (--port 0), prints exactly one
@@ -47,12 +47,12 @@ func serveChildCmd() *cobra.Command {
 // runServeChild opens the project DB, builds the single-project mux, binds
 // the listener, prints the handshake, redirects stdio, and serves HTTP.
 func runServeChild(port int) error {
-	htmlgraphDir, err := findHtmlgraphDir()
+	wipnoteDir, err := findWipnoteDir()
 	if err != nil {
 		return fmt.Errorf("locate .wipnote: %w", err)
 	}
 
-	dbPath, err := storage.CanonicalDBPath(filepath.Dir(htmlgraphDir))
+	dbPath, err := storage.CanonicalDBPath(filepath.Dir(wipnoteDir))
 	if err != nil {
 		return fmt.Errorf("resolve db path: %w", err)
 	}
@@ -65,7 +65,7 @@ func runServeChild(port int) error {
 	}
 	// database is closed when the process exits; no defer Close — Serve blocks.
 
-	mux := buildSingleProjectMux(database, htmlgraphDir)
+	mux := buildSingleProjectMux(database, wipnoteDir)
 
 	// NDJSON→SQLite indexer (unconditional per Q5 cutover decision).
 	// A dedicated Writer is opened for the indexer so it does not contend
@@ -73,7 +73,7 @@ func runServeChild(port int) error {
 	if idxWriter, err := otelreceiver.NewWriter(dbPath); err != nil {
 		fmt.Fprintf(os.Stderr, "indexer writer init: %v\n", err)
 	} else {
-		idxr := indexer.New(htmlgraphDir, sqls.New(idxWriter)).WithDB(database)
+		idxr := indexer.New(wipnoteDir, sqls.New(idxWriter)).WithDB(database)
 		ctx := context.Background()
 		go idxr.Start(ctx)
 		// /api/indexer/status — per-file health for observability (Q7).
@@ -88,10 +88,10 @@ func runServeChild(port int) error {
 
 	// Handshake: MUST be the first output of this process. The parent
 	// supervisor (internal/childproc, slice 2) reads exactly one line
-	// matching `htmlgraph-serve-ready port=<N> pid=<P>` with a 5s deadline.
+	// matching `wipnote-serve-ready port=<N> pid=<P>` with a 5s deadline.
 	// Any prior stdout write — log line, deprecation warning, anything —
 	// corrupts the scanner. Do not add prints above this line.
-	if _, err := fmt.Printf("htmlgraph-serve-ready port=%d pid=%d\n", assigned, os.Getpid()); err != nil {
+	if _, err := fmt.Printf("wipnote-serve-ready port=%d pid=%d\n", assigned, os.Getpid()); err != nil {
 		return fmt.Errorf("write handshake: %w", err)
 	}
 	if err := os.Stdout.Sync(); err != nil {
@@ -102,8 +102,8 @@ func runServeChild(port int) error {
 	// Redirect stdout/stderr to a per-project log file so subsequent logs
 	// (auto-ingest, handler errors, etc.) don't leak through the supervisor's
 	// drain goroutine to the parent's terminal.
-	projectID := registry.ComputeID(filepath.Dir(htmlgraphDir))
-	logsDir := filepath.Join(htmlgraphDir, "logs")
+	projectID := registry.ComputeID(filepath.Dir(wipnoteDir))
+	logsDir := filepath.Join(wipnoteDir, "logs")
 	_ = os.MkdirAll(logsDir, 0o755)
 	logPath := filepath.Join(logsDir, fmt.Sprintf("serve-%s.log", projectID))
 	if f, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644); err == nil {
@@ -112,17 +112,17 @@ func runServeChild(port int) error {
 	}
 
 	// Auto-ingest transcripts on startup and every 60s, scoped to this
-	// project via the explicit htmlgraphDir argument (not CWD). After the
+	// project via the explicit wipnoteDir argument (not CWD). After the
 	// first ingest cycle completes we kick off a one-time ai-title backfill
 	// so it observes any newly-ingested legacy sessions instead of writing
 	// its `.done` marker against an empty sessions table.
-	go autoIngestLoop(database, htmlgraphDir, func() {
-		startAITitleBackfill(context.Background(), database, htmlgraphDir)
+	go autoIngestLoop(database, wipnoteDir, func() {
+		startAITitleBackfill(context.Background(), database, wipnoteDir)
 	})
 
 	// Retention job: archive sessions older than WIPNOTE_SESSION_RETAIN_DAYS
 	// (default 30) at startup and every 24h. Dry-run via WIPNOTE_RETENTION_DRYRUN=1.
-	retention.StartLoop(context.Background(), database, htmlgraphDir)
+	retention.StartLoop(context.Background(), database, wipnoteDir)
 
 	return (&http.Server{Handler: mux}).Serve(ln)
 }

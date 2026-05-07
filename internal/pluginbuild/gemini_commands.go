@@ -23,7 +23,7 @@ func init() {
 // TOML command under <outDir>/commands/<namespace>/<name>.toml. Gemini loads
 // .toml commands where the `prompt` key is the full markdown body; the
 // namespace segment means the slash-command resolves to /<namespace>:<name>
-// (e.g. /erinn:feature-start). When the target declares no namespace the
+// (e.g. /wipnote:feature-start). When the target declares no namespace the
 // files land directly under commands/ — a degenerate case kept for symmetry.
 func emitGeminiCommands(m *Manifest, repoRoot, outDir string, t Target) error {
 	if m.AssetSources.Commands == "" {
@@ -75,13 +75,13 @@ func emitGeminiCommands(m *Manifest, repoRoot, outDir string, t Target) error {
 }
 
 // toGeminiCommandTOML wraps a markdown body as a TOML `prompt` value using a
-// multiline literal string ('''…'''). Literal strings pass all content through
+// multiline literal string (”'…”'). Literal strings pass all content through
 // verbatim — backslashes, \n sequences, and \uXXXX escapes are NOT interpreted
 // by the TOML parser, so the prompt round-trips byte-for-byte from source
 // markdown to parsed TOML value.
 //
 // The only restriction of TOML literal strings is that they cannot contain the
-// sequence '''  If the source contains that sequence, this function returns an
+// sequence ”'  If the source contains that sequence, this function returns an
 // error — the caller should add an escape for that file or switch to a TOML
 // writer library rather than silently producing unparseable output.
 func toGeminiCommandTOML(mdBody string) (string, error) {

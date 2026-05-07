@@ -14,9 +14,9 @@ type PromptIntent struct {
 	IsContinuation   bool
 
 	// CIGS delegation flags (from classify_cigs_intent)
-	InvolvesExploration  bool
-	InvolvesCodeChanges  bool
-	InvolvesGit          bool
+	InvolvesExploration bool
+	InvolvesCodeChanges bool
+	InvolvesGit         bool
 
 	// Confidence score (0.0–1.0) for the strongest matched category.
 	Confidence float64
@@ -191,7 +191,7 @@ func intentDirective(intent PromptIntent, activeFeatureID, activeWorkType string
 			"WORKFLOW GUIDANCE: Bug report detected.\n"+
 				"Active work: %s — Type: feature\n\n"+
 				"If this bug is part of the current feature, continue.\n"+
-				"If separate, create a bug: htmlgraph bug create \"Title\" --track <trk-id>",
+				"If separate, create a bug: wipnote bug create \"Title\" --track <trk-id>",
 			activeFeatureID,
 		)
 	}
@@ -205,11 +205,11 @@ func intentDirective(intent PromptIntent, activeFeatureID, activeWorkType string
 		}
 		if intent.IsBugReport {
 			return "WORKFLOW GUIDANCE: Bug report detected but no active work item.\n" +
-				"Create a bug: htmlgraph bug create \"Title\" --track <trk-id> then htmlgraph bug start <id>"
+				"Create a bug: wipnote bug create \"Title\" --track <trk-id> then wipnote bug start <id>"
 		}
 		if intent.IsInvestigation {
 			return "WORKFLOW GUIDANCE: Investigation detected but no active work item.\n" +
-				"Create a spike: htmlgraph spike create \"Title\" --track <trk-id> then htmlgraph spike start <id>"
+				"Create a spike: wipnote spike create \"Title\" --track <trk-id> then wipnote spike start <id>"
 		}
 	}
 

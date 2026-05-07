@@ -32,12 +32,12 @@ type QueryOptions struct {
 
 // FeatureRow describes a single feature that touched the queried path.
 type FeatureRow struct {
-	ID           string    `json:"id"`
-	Title        string    `json:"title"`
-	TrackID      string    `json:"track_id"`
-	TrackTitle   string    `json:"track_title"`
-	TouchCount   int       `json:"touch_count"`   // proxy for lines_added
-	LastSeen     time.Time `json:"last_seen"`
+	ID         string    `json:"id"`
+	Title      string    `json:"title"`
+	TrackID    string    `json:"track_id"`
+	TrackTitle string    `json:"track_title"`
+	TouchCount int       `json:"touch_count"` // proxy for lines_added
+	LastSeen   time.Time `json:"last_seen"`
 }
 
 // TrackRollup aggregates all features in a track that touched the queried path.
@@ -61,7 +61,7 @@ type Result struct {
 // Returns an error only on DB failures or unknown path under .wipnote/.
 func Query(ctx context.Context, db *sql.DB, path string, opts QueryOptions) (*Result, error) {
 	if strings.Contains(path, ".wipnote/") || strings.HasPrefix(path, ".wipnote") {
-		return nil, fmt.Errorf("path %q is under .wipnote/ — use `htmlgraph` CLI commands to inspect work items, not direct file paths", path)
+		return nil, fmt.Errorf("path %q is under .wipnote/ — use `wipnote` CLI commands to inspect work items, not direct file paths", path)
 	}
 
 	rows, err := queryFeatureRows(ctx, db, path, opts)
@@ -209,7 +209,7 @@ func FormatText(r *Result) string {
 
 	if len(r.Features) == 0 {
 		fmt.Fprintln(&buf, "  No features have touched this file.")
-		fmt.Fprintln(&buf, "  Run 'htmlgraph reindex' to rebuild file attribution.")
+		fmt.Fprintln(&buf, "  Run 'wipnote reindex' to rebuild file attribution.")
 		return buf.String()
 	}
 

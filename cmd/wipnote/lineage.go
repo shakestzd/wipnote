@@ -16,7 +16,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// lineageKind classifies the routing target for a `htmlgraph lineage <id>`
+// lineageKind classifies the routing target for a `wipnote lineage <id>`
 // invocation. Routing is purely string-based: prefix → kind.
 type lineageKind int
 
@@ -92,7 +92,7 @@ func detectLineageKind(arg string) lineageKind {
 	return kindUnknown
 }
 
-// lineageOpts is the flag bundle for `htmlgraph lineage`.
+// lineageOpts is the flag bundle for `wipnote lineage`.
 //
 // depthSet and timelineSet record whether the user explicitly passed the
 // corresponding flag on the command line. The commit and file routes reject
@@ -125,7 +125,7 @@ type lineageNode struct {
 	Timestamp string `json:"timestamp,omitempty"`
 }
 
-// lineageJSON is the stable schema emitted by `htmlgraph lineage --json`.
+// lineageJSON is the stable schema emitted by `wipnote lineage --json`.
 //
 //	{
 //	  "root":     "<id>",
@@ -162,7 +162,7 @@ var allLineageRels = []string{
 	string(models.RelPlannedIn),
 }
 
-// newLineageCmd registers `htmlgraph lineage <id>` — the headline unified
+// newLineageCmd registers `wipnote lineage <id>` — the headline unified
 // causal chain command. It auto-detects the input type, walks graph_edges in
 // both directions across all 10 relationship types, and renders a tree.
 func newLineageCmd() *cobra.Command {
@@ -179,13 +179,13 @@ Supported inputs:
   <file/path.go>                 — file-to-feature attribution
 
 Examples:
-  htmlgraph lineage feat-48b3783c
-  htmlgraph lineage plan-3b0d5133 --depth 8
-  htmlgraph lineage sess-abc123 --json
-  htmlgraph lineage feat-48b3783c --timeline`,
+  wipnote lineage feat-48b3783c
+  wipnote lineage plan-3b0d5133 --depth 8
+  wipnote lineage sess-abc123 --json
+  wipnote lineage feat-48b3783c --timeline`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			dir, err := findHtmlgraphDir()
+			dir, err := findWipnoteDir()
 			if err != nil {
 				return err
 			}
@@ -476,7 +476,7 @@ func renderLineageTree(
 		printLineageBranches(w, root, forward)
 	}
 	if len(forward) == 0 && len(backward) == 0 {
-		fmt.Fprintln(w, "\n  (no related nodes — try `htmlgraph trace` for file/commit attribution)")
+		fmt.Fprintln(w, "\n  (no related nodes — try `wipnote trace` for file/commit attribution)")
 	}
 	return nil
 }
@@ -486,7 +486,7 @@ func renderLineageTree(
 // bidirectional bfsWalk would return empty — this is the correct surface.
 func runLineageCommit(w io.Writer, db *sql.DB, sha string, opts lineageOpts) error {
 	if opts.timelineSet || opts.depthSet {
-		return fmt.Errorf("--timeline and --depth are not supported for commit inputs; use `htmlgraph lineage <work-item-id>` for graph traversal")
+		return fmt.Errorf("--timeline and --depth are not supported for commit inputs; use `wipnote lineage <work-item-id>` for graph traversal")
 	}
 	commits, err := dbpkg.TraceCommit(db, sha)
 	if err != nil {
@@ -494,9 +494,9 @@ func runLineageCommit(w io.Writer, db *sql.DB, sha string, opts lineageOpts) err
 	}
 	if opts.jsonOut {
 		out := struct {
-			Root    string               `json:"root"`
-			Kind    string               `json:"kind"`
-			Commits []dbpkg.TraceResult  `json:"commits"`
+			Root    string              `json:"root"`
+			Kind    string              `json:"kind"`
+			Commits []dbpkg.TraceResult `json:"commits"`
 		}{Root: sha, Kind: kindCommit.String(), Commits: commits}
 		enc := json.NewEncoder(w)
 		enc.SetIndent("", "  ")
@@ -507,7 +507,7 @@ func runLineageCommit(w io.Writer, db *sql.DB, sha string, opts lineageOpts) err
 	fmt.Fprintf(w, "  Lineage: %s  [commit]\n", truncate(sha, 10))
 	fmt.Fprintln(w, sep)
 	if len(commits) == 0 {
-		fmt.Fprintln(w, "  (no matching commit — run 'htmlgraph ingest commits')")
+		fmt.Fprintln(w, "  (no matching commit — run 'wipnote ingest commits')")
 		return nil
 	}
 	for _, c := range commits {
@@ -533,7 +533,7 @@ func runLineageCommit(w io.Writer, db *sql.DB, sha string, opts lineageOpts) err
 // graph_edges nodes.
 func runLineageFile(w io.Writer, db *sql.DB, filePath string, opts lineageOpts) error {
 	if opts.timelineSet || opts.depthSet {
-		return fmt.Errorf("--timeline and --depth are not supported for file inputs; use `htmlgraph lineage <work-item-id>` for graph traversal")
+		return fmt.Errorf("--timeline and --depth are not supported for file inputs; use `wipnote lineage <work-item-id>` for graph traversal")
 	}
 	results, err := dbpkg.TraceFile(db, filePath)
 	if err != nil {
@@ -541,9 +541,9 @@ func runLineageFile(w io.Writer, db *sql.DB, filePath string, opts lineageOpts) 
 	}
 	if opts.jsonOut {
 		out := struct {
-			Root     string                   `json:"root"`
-			Kind     string                   `json:"kind"`
-			Features []dbpkg.FileTraceResult  `json:"features"`
+			Root     string                  `json:"root"`
+			Kind     string                  `json:"kind"`
+			Features []dbpkg.FileTraceResult `json:"features"`
 		}{Root: filePath, Kind: kindFile.String(), Features: results}
 		enc := json.NewEncoder(w)
 		enc.SetIndent("", "  ")
@@ -554,7 +554,7 @@ func runLineageFile(w io.Writer, db *sql.DB, filePath string, opts lineageOpts) 
 	fmt.Fprintf(w, "  Lineage: %s  [file]\n", filePath)
 	fmt.Fprintln(w, sep)
 	if len(results) == 0 {
-		fmt.Fprintln(w, "  (no features touch this file — run 'htmlgraph reindex')")
+		fmt.Fprintln(w, "  (no features touch this file — run 'wipnote reindex')")
 		return nil
 	}
 	fmt.Fprintf(w, "\n  Features (%d):\n", len(results))
@@ -624,4 +624,3 @@ func printLineageBranches(w io.Writer, pivot string, nodes []lineageNode) {
 		collectSeen(n.ID)
 	}
 }
-

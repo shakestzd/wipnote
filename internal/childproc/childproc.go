@@ -1,10 +1,10 @@
-// Package childproc supervises per-project HtmlGraph server child processes.
+// Package childproc supervises per-project wipnote server child processes.
 //
-// The parent HtmlGraph server ("htmlgraph serve") owns exactly one
+// The parent wipnote server ("wipnote serve") owns exactly one
 // Supervisor. When a request arrives at /p/<id>/..., the parent asks the
 // supervisor to GetOrSpawn a child for that project; the supervisor either
-// returns an existing warm child or forks `htmlgraph _serve-child` as a
-// new process, reads the handshake line ("htmlgraph-serve-ready port=N
+// returns an existing warm child or forks `wipnote _serve-child` as a
+// new process, reads the handshake line ("wipnote-serve-ready port=N
 // pid=P") to discover the ephemeral port, and stores a pre-built
 // httputil.ReverseProxy pointing at 127.0.0.1:<N>.
 //
@@ -63,7 +63,7 @@ import (
 
 // Options configures a Supervisor.
 type Options struct {
-	// BinPath is the absolute path to the htmlgraph binary. If empty, the
+	// BinPath is the absolute path to the wipnote binary. If empty, the
 	// supervisor uses os.Executable() so it forks its own image. Tests
 	// override this to point at a test-built binary.
 	BinPath string
@@ -84,7 +84,7 @@ const DefaultIdleTimeout = 10 * time.Minute
 // is zero.
 const DefaultSpawnTimeout = 5 * time.Second
 
-// Child represents one running htmlgraph _serve-child process.
+// Child represents one running wipnote _serve-child process.
 type Child struct {
 	ID          string
 	ProjectDir  string
@@ -137,11 +137,11 @@ func NewSupervisor(opts Options) *Supervisor {
 // handshakeRE matches exactly the line the _serve-child subcommand prints
 // as its first and only handshake output:
 //
-//	htmlgraph-serve-ready port=<N> pid=<P>
+//	wipnote-serve-ready port=<N> pid=<P>
 //
 // Any prior or intermixed output is a bug in the child — the scanner
 // fails closed.
-var handshakeRE = regexp.MustCompile(`^htmlgraph-serve-ready port=(\d+) pid=(\d+)$`)
+var handshakeRE = regexp.MustCompile(`^wipnote-serve-ready port=(\d+) pid=(\d+)$`)
 
 // GetOrSpawn returns an existing warm Child for projectID or spawns a new
 // one. Concurrent callers for the same projectID share a single
@@ -196,7 +196,7 @@ func (s *Supervisor) GetOrSpawn(ctx context.Context, projectID, projectDir strin
 	return c, nil
 }
 
-// spawnLocked forks htmlgraph _serve-child for the given project. The
+// spawnLocked forks wipnote _serve-child for the given project. The
 // caller must NOT hold s.mu — this function takes child-level locks only.
 func (s *Supervisor) spawnLocked(ctx context.Context, projectID, projectDir string) (*Child, error) {
 	if s.binPath == "" {
