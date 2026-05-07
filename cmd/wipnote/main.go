@@ -9,6 +9,7 @@ import (
 
 	"github.com/shakestzd/wipnote/internal/agent"
 	"github.com/shakestzd/wipnote/internal/paths"
+	"github.com/shakestzd/wipnote/internal/provenance"
 	"github.com/shakestzd/wipnote/internal/registry"
 	"github.com/shakestzd/wipnote/internal/storage"
 	versionpkg "github.com/shakestzd/wipnote/internal/version"
@@ -52,6 +53,12 @@ var projectDirFlag string
 var getGitRemoteURLFn = paths.GetGitRemoteURL
 
 func main() {
+	// Propagate the compiled CLI version into the provenance package so every
+	// session/work item written from this process records the binary identity.
+	// (Set early so any code path — including direct subcommand handlers that
+	// bypass persistentPreRunE — sees the right version.)
+	provenance.SetCLIVersion(version)
+
 	selfHealGitdirIfStale()
 	root := buildRoot()
 	if err := root.Execute(); err != nil {

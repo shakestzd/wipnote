@@ -14,6 +14,7 @@ import (
 
 	"github.com/shakestzd/wipnote/internal/ingest"
 	"github.com/shakestzd/wipnote/internal/models"
+	"github.com/shakestzd/wipnote/internal/provenance"
 )
 
 // SessionEvent holds the data needed to write a <li> element to a session's
@@ -96,7 +97,17 @@ func CreateSessionHTML(projectDir string, s *models.Session) {
 	b.WriteString(`"
              data-start-commit="`)
 	b.WriteString(html.EscapeString(s.StartCommit))
-	b.WriteString(`">
+	b.WriteString(`"`)
+	// Provenance attributes — emitted only when populated so older sessions
+	// continue to round-trip with the same byte shape.
+	prov := provenance.Provenance{
+		Agent:      s.CreatedByAgent,
+		Model:      s.CreatedByModel,
+		Role:       s.CreatedByRole,
+		CLIVersion: s.CreatedByCLIVersion,
+	}
+	b.WriteString(prov.HTMLAttrs())
+	b.WriteString(`>
 
         <header>
             <h1>Session `)
