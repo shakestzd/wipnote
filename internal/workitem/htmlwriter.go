@@ -279,6 +279,12 @@ type nodeTemplateData struct {
 	ClaimedAt        string
 	ClaimedBySession string
 
+	// Provenance — rendered as data-created-by-* attributes on <article>.
+	CreatedByAgent      string
+	CreatedByModel      string
+	CreatedByRole       string
+	CreatedByCLIVersion string
+
 	StatusLabel   string
 	PriorityLabel string
 
@@ -316,6 +322,12 @@ type stepData struct {
 	DependsOnStr string
 	Icon         string
 	Description  string
+
+	// Provenance — rendered as data-created-by-* attributes on <li>. Agent
+	// (above) doubles as the data-created-by-agent value.
+	CreatedByModel      string
+	CreatedByRole       string
+	CreatedByCLIVersion string
 }
 
 // newNodeTemplateData converts a models.Node into template-ready data.
@@ -333,6 +345,11 @@ func newNodeTemplateData(n *models.Node) *nodeTemplateData {
 		SpikeSubtype:     n.SpikeSubtype,
 		ClaimedAt:        n.ClaimedAt,
 		ClaimedBySession: n.ClaimedBySession,
+
+		CreatedByAgent:      n.CreatedByAgent,
+		CreatedByModel:      n.CreatedByModel,
+		CreatedByRole:       n.CreatedByRole,
+		CreatedByCLIVersion: n.CreatedByCLIVersion,
 
 		StatusLabel:   titleCase(strings.ReplaceAll(string(n.Status), "-", " ")),
 		PriorityLabel: titleCase(string(n.Priority)),
@@ -408,11 +425,14 @@ func buildSteps(steps []models.Step) []stepData {
 			completed = "true"
 		}
 		sd := stepData{
-			CompletedStr: completed,
-			StepID:       s.StepID,
-			Agent:        s.Agent,
-			Icon:         icon,
-			Description:  s.Description,
+			CompletedStr:        completed,
+			StepID:              s.StepID,
+			Agent:               s.Agent,
+			Icon:                icon,
+			Description:         s.Description,
+			CreatedByModel:      s.CreatedByModel,
+			CreatedByRole:       s.CreatedByRole,
+			CreatedByCLIVersion: s.CreatedByCLIVersion,
 		}
 		if len(s.DependsOn) > 0 {
 			sd.DependsOnStr = strings.Join(s.DependsOn, ",")

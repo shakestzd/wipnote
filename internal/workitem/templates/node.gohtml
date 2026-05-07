@@ -18,7 +18,11 @@
 {{- if .TrackID}} data-track-id="{{.TrackID}}"{{end}}
 {{- if .SpikeSubtype}} data-spike-subtype="{{.SpikeSubtype}}"{{end}}
 {{- if .ClaimedAt}} data-claimed-at="{{.ClaimedAt}}"{{end}}
-{{- if .ClaimedBySession}} data-claimed-by-session="{{.ClaimedBySession}}"{{end}}>
+{{- if .ClaimedBySession}} data-claimed-by-session="{{.ClaimedBySession}}"{{end}}
+{{- if .CreatedByAgent}} data-created-by-agent="{{.CreatedByAgent}}"{{end}}
+{{- if .CreatedByModel}} data-created-by-model="{{.CreatedByModel}}"{{end}}
+{{- if .CreatedByRole}} data-created-by-role="{{.CreatedByRole}}"{{end}}
+{{- if .CreatedByCLIVersion}} data-created-by-cli-version="{{.CreatedByCLIVersion}}"{{end}}>
 
         <header>
             <h1>{{.Title}}</h1>
@@ -51,7 +55,11 @@
                 <li data-completed="{{.CompletedStr}}"
 {{- if .StepID}} data-step-id="{{.StepID}}"{{end}}
 {{- if .Agent}} data-agent="{{.Agent}}"{{end}}
-{{- if .DependsOnStr}} data-depends-on="{{.DependsOnStr}}"{{end}}>{{.Icon}} {{.Description}}</li>
+{{- if .DependsOnStr}} data-depends-on="{{.DependsOnStr}}"{{end}}
+{{- if .Agent}} data-created-by-agent="{{.Agent}}"{{end}}
+{{- if .CreatedByModel}} data-created-by-model="{{.CreatedByModel}}"{{end}}
+{{- if .CreatedByRole}} data-created-by-role="{{.CreatedByRole}}"{{end}}
+{{- if .CreatedByCLIVersion}} data-created-by-cli-version="{{.CreatedByCLIVersion}}"{{end}}>{{.Icon}} {{.Description}}</li>
 {{- end}}
             </ol>
         </section>

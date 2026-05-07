@@ -122,6 +122,30 @@ func (e *EditBuilder) SetTrack(trackID string) *EditBuilder {
 	return e
 }
 
+// SetProvenance records who/what created this node. Empty fields are skipped
+// so it can be called multiple times to layer fallbacks (env → session → flag).
+// Mirrors the four data-created-by-* attributes rendered by the node template.
+func (e *EditBuilder) SetProvenance(agent, model, role, cliVersion string) *EditBuilder {
+	if e.err != nil {
+		return e
+	}
+	e.ops = append(e.ops, func(node *models.Node) {
+		if agent != "" {
+			node.CreatedByAgent = agent
+		}
+		if model != "" {
+			node.CreatedByModel = model
+		}
+		if role != "" {
+			node.CreatedByRole = role
+		}
+		if cliVersion != "" {
+			node.CreatedByCLIVersion = cliVersion
+		}
+	})
+	return e
+}
+
 // SetProperty sets a key-value pair in the node's Properties map.
 func (e *EditBuilder) SetProperty(key string, value any) *EditBuilder {
 	if e.err != nil {
@@ -136,16 +160,21 @@ func (e *EditBuilder) SetProperty(key string, value any) *EditBuilder {
 	return e
 }
 
-// AddStep appends an implementation step to the node.
+// AddStep appends an implementation step to the node. The harness identity
+// (Collection.base.Agent) is recorded on Step.Agent so the rendered <li>
+// carries data-created-by-agent matching the article's data-created-by-agent
+// for items created in the same session.
 func (e *EditBuilder) AddStep(description string) *EditBuilder {
 	if e.err != nil {
 		return e
 	}
+	agent := e.collection.base.Agent
 	e.ops = append(e.ops, func(node *models.Node) {
 		stepID := fmt.Sprintf("step-%s-%d", node.ID, len(node.Steps))
 		node.Steps = append(node.Steps, models.Step{
 			StepID:      stepID,
 			Description: description,
+			Agent:       agent,
 		})
 	})
 	return e
