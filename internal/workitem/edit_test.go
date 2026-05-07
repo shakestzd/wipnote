@@ -91,6 +91,27 @@ func TestEditAddNote(t *testing.T) {
 	}
 }
 
+func TestEditAddNoteAfterContentSettersRegardlessOfChainOrder(t *testing.T) {
+	p := newTestProject(t)
+	feat, _ := p.Features.Create("Edit Note Order Test")
+
+	err := p.Features.Edit(feat.ID).
+		AddNote("Keep this note").
+		SetDescription("<p>Replacement body</p>").
+		Save()
+	if err != nil {
+		t.Fatalf("Edit.Save: %v", err)
+	}
+
+	got, _ := p.Features.Get(feat.ID)
+	if !strings.Contains(got.Content, "Replacement body") {
+		t.Errorf("Content missing replacement body: %q", got.Content)
+	}
+	if !strings.Contains(got.Content, "Keep this note") {
+		t.Errorf("Content missing note: %q", got.Content)
+	}
+}
+
 func TestEditChainMultipleFields(t *testing.T) {
 	p := newTestProject(t)
 	feat, _ := p.Features.Create("Multi Edit Test")

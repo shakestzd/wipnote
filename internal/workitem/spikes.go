@@ -155,13 +155,12 @@ func (sc *SpikeCollection) Create(title string, opts ...SpikeOption) (*models.No
 
 // SetFindings updates the content of an existing spike with investigation findings.
 func (sc *SpikeCollection) SetFindings(id, findings string) (*models.Node, error) {
-	node, err := sc.Get(id)
+	node, err := sc.mutateNode(id, func(node *models.Node) error {
+		node.Content = fmt.Sprintf("<p>%s</p>", findings)
+		node.UpdatedAt = time.Now().UTC()
+		return nil
+	})
 	if err != nil {
-		return nil, err
-	}
-	node.Content = fmt.Sprintf("<p>%s</p>", findings)
-	node.UpdatedAt = time.Now().UTC()
-	if _, err := sc.writeNode(node); err != nil {
 		return nil, err
 	}
 	return node, nil

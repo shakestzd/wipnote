@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Claim machinery does not guarantee serialized canonical work item mutation</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-68f66cd6"
+             data-type="bug"
+             data-status="in-progress"
+             data-priority="high"
+             data-created="2026-05-07T04:13:54.201196"
+             data-updated="2026-05-07T05:11:33.387341" data-agent-assigned="claude-code" data-track-id="trk-0677c709">
+
+        <header>
+            <h1>Claim machinery does not guarantee serialized canonical work item mutation</h1>
+            <div class="metadata">
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-0677c709.html" data-relationship="part_of" data-since="2026-05-07T04:13:54.206653">trk-0677c709</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="019e005d-424e-7bc3-b943-259478b15784.html" data-relationship="implemented_in" data-since="2026-05-07T04:26:08.254478">session 019e005d-424e-7bc3-b943-259478b15784</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="caused_by">
+                <h3>Caused By:</h3>
+                <ul>
+                    <li><a href="feat-73cd46aa.html" data-relationship="caused_by" data-since="2026-05-07T04:13:54.205192">feat-73cd46aa</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="false" data-step-id="step-bug-68f66cd6-0">⏳ Add concurrency tests for same-item start complete link add add-step and edit paths</li>
+                <li data-completed="false" data-step-id="step-bug-68f66cd6-1">⏳ Confirm repeated transitions are idempotent and independent mutations are not lost</li>
+                <li data-completed="false" data-step-id="step-bug-68f66cd6-2">⏳ Add per-item canonical mutation locking or equivalent claim-backed serialization if tests expose lost updates</li>
+                <li data-completed="false" data-step-id="step-bug-68f66cd6-3">⏳ Investigate PreToolUse hook failure: unsupported stopReason</li>
+                <li data-completed="false" data-step-id="step-bug-68f66cd6-4">⏳ Address roborev job 2 finding: keep SQLite derived writes ordered inside the per-item canonical lock</li>
+                <li data-completed="false" data-step-id="step-bug-68f66cd6-5">⏳ Address roborev job 4 finding: preserve EditBuilder notes after content setters regardless of chain order</li>
+            </ol>
+        </section>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Verify and harden concurrent work item mutations so CLI-only changes to canonical item files are coordinated by claim machinery or item-level locking. Cover same-item concurrent start, complete, link add, add-step, and edit paths; prove idempotent repeated transitions and no lost updates for independent mutations. If the existing claim flow is insufficient, add a small per-item canonical read-modify-write lock while keeping SQLite as a derived cache.</p>
+        </section>
+    </article>
+</body>
+</html>

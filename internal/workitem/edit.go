@@ -19,20 +19,19 @@ import (
 //	    Save()
 type EditBuilder struct {
 	collection *Collection
-	node       *models.Node
+	id         string
 	err        error
 
+	ops          []func(*models.Node)
 	pendingNotes []string
 }
 
 // Edit returns an EditBuilder for modifying the node with the given ID.
 // If the node cannot be loaded, the error is deferred until Save().
 func (c *Collection) Edit(id string) *EditBuilder {
-	node, err := c.Get(id)
 	return &EditBuilder{
 		collection: c,
-		node:       node,
-		err:        err,
+		id:         id,
 	}
 }
 
@@ -41,7 +40,9 @@ func (e *EditBuilder) SetStatus(status string) *EditBuilder {
 	if e.err != nil {
 		return e
 	}
-	e.node.Status = models.NodeStatus(status)
+	e.ops = append(e.ops, func(node *models.Node) {
+		node.Status = models.NodeStatus(status)
+	})
 	return e
 }
 
@@ -50,7 +51,9 @@ func (e *EditBuilder) SetDescription(desc string) *EditBuilder {
 	if e.err != nil {
 		return e
 	}
-	e.node.Content = desc
+	e.ops = append(e.ops, func(node *models.Node) {
+		node.Content = desc
+	})
 	return e
 }
 
@@ -60,7 +63,9 @@ func (e *EditBuilder) SetFindings(findings string) *EditBuilder {
 	if e.err != nil {
 		return e
 	}
-	e.node.Content = fmt.Sprintf("<p>%s</p>", findings)
+	e.ops = append(e.ops, func(node *models.Node) {
+		node.Content = fmt.Sprintf("<p>%s</p>", findings)
+	})
 	return e
 }
 
@@ -78,7 +83,9 @@ func (e *EditBuilder) SetTitle(title string) *EditBuilder {
 	if e.err != nil {
 		return e
 	}
-	e.node.Title = title
+	e.ops = append(e.ops, func(node *models.Node) {
+		node.Title = title
+	})
 	return e
 }
 
@@ -87,7 +94,9 @@ func (e *EditBuilder) SetPriority(priority string) *EditBuilder {
 	if e.err != nil {
 		return e
 	}
-	e.node.Priority = models.Priority(priority)
+	e.ops = append(e.ops, func(node *models.Node) {
+		node.Priority = models.Priority(priority)
+	})
 	return e
 }
 
@@ -96,7 +105,9 @@ func (e *EditBuilder) SetAgent(agent string) *EditBuilder {
 	if e.err != nil {
 		return e
 	}
-	e.node.AgentAssigned = agent
+	e.ops = append(e.ops, func(node *models.Node) {
+		node.AgentAssigned = agent
+	})
 	return e
 }
 
@@ -105,7 +116,9 @@ func (e *EditBuilder) SetTrack(trackID string) *EditBuilder {
 	if e.err != nil {
 		return e
 	}
-	e.node.TrackID = trackID
+	e.ops = append(e.ops, func(node *models.Node) {
+		node.TrackID = trackID
+	})
 	return e
 }
 
@@ -114,10 +127,12 @@ func (e *EditBuilder) SetProperty(key string, value any) *EditBuilder {
 	if e.err != nil {
 		return e
 	}
-	if e.node.Properties == nil {
-		e.node.Properties = make(map[string]any)
-	}
-	e.node.Properties[key] = value
+	e.ops = append(e.ops, func(node *models.Node) {
+		if node.Properties == nil {
+			node.Properties = make(map[string]any)
+		}
+		node.Properties[key] = value
+	})
 	return e
 }
 
@@ -126,10 +141,12 @@ func (e *EditBuilder) AddStep(description string) *EditBuilder {
 	if e.err != nil {
 		return e
 	}
-	stepID := fmt.Sprintf("step-%s-%d", e.node.ID, len(e.node.Steps))
-	e.node.Steps = append(e.node.Steps, models.Step{
-		StepID:      stepID,
-		Description: description,
+	e.ops = append(e.ops, func(node *models.Node) {
+		stepID := fmt.Sprintf("step-%s-%d", node.ID, len(node.Steps))
+		node.Steps = append(node.Steps, models.Step{
+			StepID:      stepID,
+			Description: description,
+		})
 	})
 	return e
 }
@@ -141,55 +158,24 @@ func (e *EditBuilder) Save() error {
 		return fmt.Errorf("edit %s: %w", e.collection.collectionName, e.err)
 	}
 
-	// Append any pending notes to the content
-	if len(e.pendingNotes) > 0 {
-		e.applyNotes()
-	}
-
-	e.node.UpdatedAt = time.Now().UTC()
-
-	if _, err := e.collection.writeNode(e.node); err != nil {
+	_, err := e.collection.mutateNode(e.id, func(node *models.Node) error {
+		for _, op := range e.ops {
+			op(node)
+		}
+		for _, note := range e.pendingNotes {
+			e.applyNote(node, note)
+		}
+		node.UpdatedAt = time.Now().UTC()
+		return nil
+	})
+	if err != nil {
 		return fmt.Errorf("edit save: %w", err)
 	}
 	return nil
 }
 
-// applyNotes appends all pending notes to the node's content.
-func (e *EditBuilder) applyNotes() {
-	var b strings.Builder
-	if e.node.Content != "" {
-		// Wrap existing plain-text content in <p> so it survives
-		// the HTML round-trip (parser only reads element children).
-		content := e.node.Content
-		if !strings.HasPrefix(strings.TrimSpace(content), "<") {
-			content = "<p>" + content + "</p>"
-		}
-		b.WriteString(content)
-	}
-	now := time.Now().UTC().Format("2006-01-02 15:04")
-	agent := e.collection.base.Agent
-	for _, note := range e.pendingNotes {
-		b.WriteString(fmt.Sprintf(
-			"\n<p><strong>[%s %s]</strong> %s</p>", now, agent, note,
-		))
-	}
-	e.node.Content = b.String()
-}
-
-// --- Collection-level note and findings operations ---------------------------
-
-// AddNote appends a timestamped agent note to any work item's content.
-// This is a convenience method on Collection so all types (features,
-// bugs, spikes, tracks) inherit it.
-func (c *Collection) AddNote(id, note string) error {
-	node, err := c.Get(id)
-	if err != nil {
-		return fmt.Errorf("add note %s/%s: %w", c.collectionName, id, err)
-	}
-
-	now := time.Now().UTC().Format("2006-01-02 15:04")
-	agent := c.base.Agent
-
+// applyNote appends one note to the node's content.
+func (e *EditBuilder) applyNote(node *models.Node, note string) {
 	var b strings.Builder
 	if node.Content != "" {
 		// Wrap existing plain-text content in <p> so it survives
@@ -200,13 +186,42 @@ func (c *Collection) AddNote(id, note string) error {
 		}
 		b.WriteString(content)
 	}
+	now := time.Now().UTC().Format("2006-01-02 15:04")
+	agent := e.collection.base.Agent
 	b.WriteString(fmt.Sprintf(
 		"\n<p><strong>[%s %s]</strong> %s</p>", now, agent, note,
 	))
 	node.Content = b.String()
-	node.UpdatedAt = time.Now().UTC()
+}
 
-	if _, err := c.writeNode(node); err != nil {
+// --- Collection-level note and findings operations ---------------------------
+
+// AddNote appends a timestamped agent note to any work item's content.
+// This is a convenience method on Collection so all types (features,
+// bugs, spikes, tracks) inherit it.
+func (c *Collection) AddNote(id, note string) error {
+	_, err := c.mutateNode(id, func(node *models.Node) error {
+		now := time.Now().UTC().Format("2006-01-02 15:04")
+		agent := c.base.Agent
+
+		var b strings.Builder
+		if node.Content != "" {
+			// Wrap existing plain-text content in <p> so it survives
+			// the HTML round-trip (parser only reads element children).
+			content := node.Content
+			if !strings.HasPrefix(strings.TrimSpace(content), "<") {
+				content = "<p>" + content + "</p>"
+			}
+			b.WriteString(content)
+		}
+		b.WriteString(fmt.Sprintf(
+			"\n<p><strong>[%s %s]</strong> %s</p>", now, agent, note,
+		))
+		node.Content = b.String()
+		node.UpdatedAt = time.Now().UTC()
+		return nil
+	})
+	if err != nil {
 		return fmt.Errorf("add note %s/%s: %w", c.collectionName, id, err)
 	}
 	return nil
@@ -215,15 +230,12 @@ func (c *Collection) AddNote(id, note string) error {
 // SetFindings replaces the content of a work item with findings text.
 // Primarily intended for spikes, but available on all collections.
 func (c *Collection) SetFindings(id, findings string) error {
-	node, err := c.Get(id)
+	_, err := c.mutateNode(id, func(node *models.Node) error {
+		node.Content = fmt.Sprintf("<p>%s</p>", findings)
+		node.UpdatedAt = time.Now().UTC()
+		return nil
+	})
 	if err != nil {
-		return fmt.Errorf("set findings %s/%s: %w", c.collectionName, id, err)
-	}
-
-	node.Content = fmt.Sprintf("<p>%s</p>", findings)
-	node.UpdatedAt = time.Now().UTC()
-
-	if _, err := c.writeNode(node); err != nil {
 		return fmt.Errorf("set findings %s/%s: %w", c.collectionName, id, err)
 	}
 	return nil
