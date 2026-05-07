@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Rename htmlgraph → erinn for public launch</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-b02a559b"
+             data-type="feature"
+             data-status="in-progress"
+             data-priority="medium"
+             data-created="2026-05-05T21:14:33.837001"
+             data-updated="2026-05-05T21:42:38.269362" data-agent-assigned="claude-code">
+
+        <header>
+            <h1>Rename htmlgraph → erinn for public launch</h1>
+            <div class="metadata">
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="5b44705e-2530-44da-bcaf-79f0a45ea157.html" data-relationship="implemented_in" data-since="2026-05-05T21:15:34.933933">session 5b44705e-2530-44da-bcaf-79f0a45ea157</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="contains">
+                <h3>Contains:</h3>
+                <ul>
+                    <li><a href="feat-c45d9c79.html" data-relationship="contains" data-since="2026-05-05T21:42:38.074018">Rename wave 4 — docs and prompts sweep</a></li>
+                    <li><a href="feat-2e037f04.html" data-relationship="contains" data-since="2026-05-05T21:42:38.131365">Rename wave 5 — htmlgraph data dir to erinn</a></li>
+                    <li><a href="feat-3e120016.html" data-relationship="contains" data-since="2026-05-05T21:42:38.182399">Rename wave 6 — final sweep and verification</a></li>
+                    <li><a href="feat-204b3220.html" data-relationship="contains" data-since="2026-05-05T21:42:38.2214">Brand cleanup — Erinn AI to erinn lowercase &#43; German etymology</a></li>
+                    <li><a href="feat-f8dfe706.html" data-relationship="contains" data-since="2026-05-05T21:42:38.269013">Workspace dir rename — htmlgraph to erinn (post-session)</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Mechanical rename across Go module path, cmd/htmlgraph -> cmd/erinn, plugin source tree, agent/skill prefixes, docs, system prompts, env vars (HTMLGRAPH_* -> ERINN_*), cache paths (cache/htmlgraph -> cache/erinn), and internal .htmlgraph/ to .erinn/ directory. Sequenced in waves with build/vet/test green per wave.</p>
+        </section>
+    </article>
+</body>
+</html>

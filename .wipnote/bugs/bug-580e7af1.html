@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Plan finalize-yaml ignores approved slice feedback from dashboard</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-580e7af1"
+             data-type="bug"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-05-06T18:49:11.906622"
+             data-updated="2026-05-06T18:49:11.911556" data-agent-assigned="claude-code" data-track-id="trk-0677c709">
+
+        <header>
+            <h1>Plan finalize-yaml ignores approved slice feedback from dashboard</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-0677c709.html" data-relationship="part_of" data-since="2026-05-06T18:49:11.911401">trk-0677c709</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Playwright validation on http://127.0.0.1:8088/p/46c1de7d/ for plan-51cb7489 shows the plan detail page has design approved plus slices 1-5 approval radios checked, with Feedback Summary showing 6 approved / 6 sections / 0 pending. The same page's review progress panel still says 0 of 5 approved, and running wipnote plan finalize-yaml plan-51cb7489 reported Approved: 0 of 5 slices. Expected: dashboard review state, read-feedback-yaml, review progress, and finalize-yaml should agree on approved slice sections. Actual: read-feedback-yaml sees all slice approvals, but finalize-yaml/review progress do not. This disconnect can block or misreport feature generation from finalized plans.</p>
+        </section>
+    </article>
+</body>
+</html>

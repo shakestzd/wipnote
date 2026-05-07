@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Codex OTel adapter leaves tool and log events low-fidelity compared with Claude</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-ba376a49"
+             data-type="bug"
+             data-status="in-progress"
+             data-priority="medium"
+             data-created="2026-05-06T19:04:35.956029"
+             data-updated="2026-05-06T19:57:51.2184" data-agent-assigned="claude-code" data-track-id="trk-0677c709">
+
+        <header>
+            <h1>Codex OTel adapter leaves tool and log events low-fidelity compared with Claude</h1>
+            <div class="metadata">
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-0677c709.html" data-relationship="part_of" data-since="2026-05-06T19:04:35.963647">trk-0677c709</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="019dfe44-ba8c-7451-b68a-43d382e55516.html" data-relationship="implemented_in" data-since="2026-05-06T19:04:54.845761">session 019dfe44-ba8c-7451-b68a-43d382e55516</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Codex OTel was arriving but dashboard/API rows were lower fidelity than Claude: log records used generic native names like event otel/src/events/session_telemetry.rs:* instead of attrs[event.name], mcp.tools.call spans did not normalize to concrete mcp__server__tool names, and typed fields such as call_id, duration_ms, success, decision, model, and token counts were not promoted into otel_signals. Code changes were made in internal/otel/adapter/codex.go and internal/otel/adapter/codex_test.go to normalize Codex logs/spans and add tests. Remaining validation should compare a fresh Codex session against Claude OTel in the dashboard/API.</p>
+        </section>
+    </article>
+</body>
+</html>

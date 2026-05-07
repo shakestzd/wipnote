@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Rename wave 5c — pre-restart binary cleanup</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-8b8b0823"
+             data-type="feature"
+             data-status="done"
+             data-priority="medium"
+             data-created="2026-05-05T22:19:16.464044"
+             data-updated="2026-05-05T22:23:19.655343" data-agent-assigned="claude-code">
+
+        <header>
+            <h1>Rename wave 5c — pre-restart binary cleanup</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="5b44705e-2530-44da-bcaf-79f0a45ea157.html" data-relationship="implemented_in" data-since="2026-05-05T22:20:45.733075">session 5b44705e-2530-44da-bcaf-79f0a45ea157</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Final pre-restart cleanup before user validates renamed plugin. Fix install-binary.sh to install erinn not htmlgraph. Remove stale plugin/hooks/bin/htmlgraph + htmlgraph-dev. Rename htmlgraph-aliases.sh to erinn-aliases.sh, htmlgraph-deploy.toml to erinn-deploy.toml. Update install.sh + .pre-commit-config.yaml. Rebuild and reinstall erinn binary. Remove old ~/.local/bin/htmlgraph. Smoke test: erinn snapshot --summary works.</p>
+        </section>
+    </article>
+</body>
+</html>

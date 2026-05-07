@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Translate wipnote agents into Codex custom-agent TOML</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-dfbb65f1"
+             data-type="feature"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-05-06T18:36:22.7814"
+             data-updated="2026-05-06T18:36:22.948166" data-agent-assigned="claude-code" data-track-id="trk-0677c709">
+
+        <header>
+            <h1>Translate wipnote agents into Codex custom-agent TOML</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-0677c709.html" data-relationship="part_of" data-since="2026-05-06T18:36:22.785957">trk-0677c709</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="planned_in">
+                <h3>Planned In:</h3>
+                <ul>
+                    <li><a href="plan-51cb7489.html" data-relationship="planned_in" data-since="2026-05-06T18:36:22.831396">plan-51cb7489</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="blocked_by">
+                <h3>Blocked By:</h3>
+                <ul>
+                    <li><a href="feat-051237b1.html" data-relationship="blocked_by" data-since="2026-05-06T18:36:22.947822">feat-051237b1</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Add a Codex agent translator that converts canonical `AgentAsset` values
+into `.toml` files matching the documented Codex custom agent schema:
+`name`, `description`, and `developer_instructions` are required, with
+optional `model`, `model_reasoning_effort`, `sandbox_mode`,
+`nickname_candidates`, and `skills.config` only when there is a clear
+Codex mapping.
+
+The initial mapping should:
+- Emit `developer_instructions` from the markdown body plus any
+  `initialPrompt` text.
+- Map Claude model aliases conservatively: `haiku` to an inexpensive
+  Codex model only if the repo already has a Codex model policy; otherwise
+  omit `model` and inherit from parent.
+- Map Claude `tools: [Read, Grep, Glob]`-style allowlists onto Codex's
+  `sandbox_mode` field — reader-class agents (e.g. `reader.md`,
+  `researcher.md`) become `sandbox_mode = "read-only"`; writer-class
+  agents (`haiku-coder.md`, `sonnet-coder.md`, `opus-coder.md`,
+  `test-runner.md`) become `sandbox_mode = "workspace-write"`.
+- Omit Claude-only fields such as `color`, `disallowedTools`, and
+  `maxTurns` — Codex has no documented equivalents.
+- Prefix or namespace names only if needed to avoid collisions; prefer
+  stable names like `wipnote-sonnet-coder` for user-level agents.</p>
+        </section>
+    </article>
+</body>
+</html>

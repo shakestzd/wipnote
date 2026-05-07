@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Document and validate cross-harness parity</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-05718521"
+             data-type="feature"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-05-06T18:36:22.803346"
+             data-updated="2026-05-06T18:36:22.863463" data-agent-assigned="claude-code" data-track-id="trk-0677c709">
+
+        <header>
+            <h1>Document and validate cross-harness parity</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-0677c709.html" data-relationship="part_of" data-since="2026-05-06T18:36:22.808044">trk-0677c709</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="planned_in">
+                <h3>Planned In:</h3>
+                <ul>
+                    <li><a href="plan-51cb7489.html" data-relationship="planned_in" data-since="2026-05-06T18:36:22.858779">plan-51cb7489</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="blocked_by">
+                <h3>Blocked By:</h3>
+                <ul>
+                    <li><a href="feat-4d7c582e.html" data-relationship="blocked_by" data-since="2026-05-06T18:36:22.862895">feat-4d7c582e</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Update `packages/plugin-core/README.md` and relevant AGENTS/plugin docs
+to describe the new single-source architecture:
+- canonical business logic lives in parsed plugin assets,
+- Claude receives Claude-native markdown,
+- Gemini receives translated command and agent metadata,
+- Codex receives plugin-packaged skills (in marketplace plugin tree) plus separately-installed custom-agent TOML in `~/.codex/agents/`,
+- Gemini receives translated commands and markdown agents inside the extension directory (loaded automatically by `gemini extensions install`).
+
+Add a parity test that enumerates canonical agent and skill names and
+asserts every target emits an expected representation. Add a small
+operator checklist for verifying Codex after launch: `codex debug
+prompt-input` for skills, and custom-agent listing or spawn smoke for
+agents.</p>
+        </section>
+    </article>
+</body>
+</html>

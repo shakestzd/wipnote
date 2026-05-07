@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Rename wave 5 — htmlgraph data dir to erinn</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-2e037f04"
+             data-type="feature"
+             data-status="in-progress"
+             data-priority="medium"
+             data-created="2026-05-05T21:42:21.152641"
+             data-updated="2026-05-05T22:33:41.886158" data-agent-assigned="claude-code">
+
+        <header>
+            <h1>Rename wave 5 — htmlgraph data dir to erinn</h1>
+            <div class="metadata">
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="blocked_by">
+                <h3>Blocked By:</h3>
+                <ul>
+                    <li><a href="feat-3e120016.html" data-relationship="blocked_by" data-since="2026-05-05T21:52:53.618673">Rename wave 6 — final sweep and verification</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="5b44705e-2530-44da-bcaf-79f0a45ea157.html" data-relationship="implemented_in" data-since="2026-05-05T22:33:41.886045">session 5b44705e-2530-44da-bcaf-79f0a45ea157</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>git mv .htmlgraph .erinn. Update Go code that hardcodes .htmlgraph directory string lookups (internal/storage/dbpath.go, cmd/erinn/main.go, internal/workitem/, internal/registry/). Update path refs in CLAUDE.md, AGENTS.md, scripts, .gitignore. Inside .erinn/*.html and *.yaml: sweep .htmlgraph/ path strings only, not prose. Smoke test: erinn status returns 341 work items at new path.</p>
+        </section>
+    </article>
+</body>
+</html>

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Dashboard session indexer logs SQLITE_BUSY during concurrent validation</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-74a7bda7"
+             data-type="bug"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-05-06T19:51:04.708615"
+             data-updated="2026-05-06T19:51:04.722396" data-agent-assigned="claude-code" data-track-id="trk-a30e8df4">
+
+        <header>
+            <h1>Dashboard session indexer logs SQLITE_BUSY during concurrent validation</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="caused_by">
+                <h3>Caused By:</h3>
+                <ul>
+                    <li><a href="bug-ba376a49.html" data-relationship="caused_by" data-since="2026-05-06T19:51:04.718174">bug-ba376a49</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-a30e8df4.html" data-relationship="part_of" data-since="2026-05-06T19:51:04.721839">trk-a30e8df4</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>While validating Codex hook fixes with the dashboard server running on 8088, the server log repeatedly emitted: indexer: session 019dfeb937d1d14c30f073aaa699: commit: database is locked (SQLITE_BUSY). This happened while hook validation and test commands were also touching the project SQLite DB. Need determine whether the session indexer should back off/retry more gracefully or avoid noisy repeated commit failures under concurrent readers/writers.</p>
+        </section>
+    </article>
+</body>
+</html>

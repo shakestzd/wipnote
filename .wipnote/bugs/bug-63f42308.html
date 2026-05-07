@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Codex per-agent claims do not populate hook event feature_id</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-63f42308"
+             data-type="bug"
+             data-status="done"
+             data-priority="medium"
+             data-created="2026-05-06T19:22:37.854625"
+             data-updated="2026-05-06T19:50:41.969297" data-agent-assigned="claude-code" data-track-id="trk-a30e8df4">
+
+        <header>
+            <h1>Codex per-agent claims do not populate hook event feature_id</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="caused_by">
+                <h3>Caused By:</h3>
+                <ul>
+                    <li><a href="bug-ba376a49.html" data-relationship="caused_by" data-since="2026-05-06T19:22:37.859333">bug-ba376a49</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-a30e8df4.html" data-relationship="part_of" data-since="2026-05-06T19:22:37.861843">trk-a30e8df4</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="019dfe44-ba8c-7451-b68a-43d382e55516.html" data-relationship="implemented_in" data-since="2026-05-06T19:22:42.770063">session 019dfe44-ba8c-7451-b68a-43d382e55516</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Validation after Codex guard fix showed PreToolUse decisions honor active_work_items/claims, but recordEventAndAllow still writes agent_events.feature_id from sessions.active_feature_id only. Codex sessions with per-agent claims record allowed apply_patch/exec_command events with empty feature_id, weakening attribution.</p>
+        </section>
+    </article>
+</body>
+</html>

@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Public Launch 2026-05 — Erinn AI rename &#43; announcement</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="trk-bf3f8aa4"
+             data-type="track"
+             data-status="todo"
+             data-priority="high"
+             data-created="2026-05-05T21:42:21.035762"
+             data-updated="2026-05-06T11:09:03.073485" data-agent-assigned="claude-code">
+
+        <header>
+            <h1>Public Launch 2026-05 — Erinn AI rename &#43; announcement</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="contains">
+                <h3>Contains:</h3>
+                <ul>
+                    <li><a href="feat-b02a559b.html" data-relationship="contains" data-since="2026-05-05T21:42:37.972744">Rename htmlgraph → erinn for public launch</a></li>
+                    <li><a href="feat-4ae13f3c.html" data-relationship="contains" data-since="2026-05-05T21:42:38.467193">Record 3-4 minute demo video</a></li>
+                    <li><a href="feat-e505e51c.html" data-relationship="contains" data-since="2026-05-05T21:42:38.500349">Write blog post draft: MVP to canonical sessions arc</a></li>
+                    <li><a href="feat-ec81c370.html" data-relationship="contains" data-since="2026-05-05T21:42:38.529883">LinkedIn post &#43; HN submission</a></li>
+                    <li><a href="feat-36d7c985.html" data-relationship="contains" data-since="2026-05-05T21:42:38.558985">Push main to origin (v0.54.0 &#43; post-release fixes)</a></li>
+                    <li><a href="bug-5b5611c2.html" data-relationship="contains" data-since="2026-05-05T21:42:38.586064">Legacy SQLite warning fires in production projects; should be dev-only</a></li>
+                    <li><a href="bug-ab377859.html" data-relationship="contains" data-since="2026-05-05T21:42:38.61524">[P1] otel-collect handshake timeout blocks htmlgraph claude --dev startup</a></li>
+                    <li><a href="bug-0413c3c4.html" data-relationship="contains" data-since="2026-05-05T21:42:38.649177">Subagent feature attribution hook blocks file writes — claim ownership tied to wrong session ID</a></li>
+                    <li><a href="bug-730c0f19.html" data-relationship="contains" data-since="2026-05-05T21:42:38.690239">Dispatched sub-agents commit directly to main instead of isolated branch</a></li>
+                    <li><a href="bug-8ff540a7.html" data-relationship="contains" data-since="2026-05-05T21:42:38.731779">Subagents inherit non-YOLO permission mode — Edit/Write blocked despite parent in YOLO</a></li>
+                    <li><a href="feat-8b8b0823.html" data-relationship="contains" data-since="2026-05-05T22:19:16.880374">Rename wave 5c — pre-restart binary cleanup</a></li>
+                    <li><a href="feat-afc9e38b.html" data-relationship="contains" data-since="2026-05-06T10:38:45.228605">Rename erinn → spuren (second-pass rename)</a></li>
+                    <li><a href="feat-913bf7a6.html" data-relationship="contains" data-since="2026-05-06T11:09:03.073165">Rename erinn → wipnote (final brand decision)</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Public launch of Erinn AI (formerly HtmlGraph), week of 2026-05-05.
+
+## Strategic context
+
+Three-way local-first agent-tooling triangulation in May 2026:
+- **Symphony** (OpenAI, 2026-04-27) — cloud orchestration of Codex agents off Linear board
+- **kata** (Wes McKinney, 2026-04-30) — local-first agent-friendly issue tracker
+- **erinn** (us, renamed 2026-05-05) — local-first observability + causal lineage
+
+Positioning: Symphony orchestrates. kata tracks. erinn observes.
+
+## Rename decision (2026-05-05)
+
+HtmlGraph was 9 chars, awkward, disconnected from the product (HTML files are an implementation detail). Renamed to **erinn** — clipped from German *erinnern* (to remember). Captures the product thesis: causal lineage = remembering why code exists.
+
+Considered: spor (taken — Vy design system), merken (merken.ai stealth player), stamm, causa (.tech collision), pfad (.com taken). Erinn won on cleanest availability + dual etymology (German evocation, Irish/Gaelic name fallback).
+
+**Brand presentation:** lowercase `erinn` (like brew, kata, curl, jq), no AI suffix in prose, German etymology one-line README opener. Domain erinnai.com purchased. CLI binary `erinn`. Module path github.com/shakestzd/erinn. Internal data dir .erinn/. Repo renamed to shakestzd/erinn (GitHub auto-redirects).
+
+## Pre-launch fix sprint (committed 2026-05-05)
+
+Five launch-blocker bugs fixed, all related to yolo-mode safety:
+- bug-5b5611c2 — legacy SQLite warning (7141ca76)
+- bug-ab377859 — OTel handshake timeout (a50057e8)
+- bug-0413c3c4 — claim check parent-chain walk (833adbe9)
+- bug-730c0f19 — block subagent commit on main (8b02b115)
+- bug-8ff540a7 — yolo posture inheritance (a30def66)
+
+Plus opus-coder maxTurns bumped 40→80 (ea159c16). v0.58.0 cut and shipped (689cea5e) as last 'htmlgraph' release.
+
+## Rename sprint progress
+
+- Wave 1: Go module + cmd/erinn (a71bc508) DONE
+- Wave 2: env vars + cache paths (ea8e1ca4) DONE
+- Wave 3: plugin source tree + ports (e5f97d21) DONE
+- Wave 4: docs and prompts sweep — PENDING
+- Wave 5: .htmlgraph -> .erinn data dir — PENDING
+- Wave 6: final sweep + verification — PENDING
+- Brand cleanup (Erinn AI -> erinn lowercase) — PENDING
+- Workspace dir rename (post-session) — PENDING
+
+## Launch sequence
+
+1. Complete rename sprint (waves 4-6 + brand cleanup)
+2. Cut v0.59.0 of erinn
+3. Demo video (feat-4ae13f3c)
+4. Blog post draft (feat-e505e51c)
+5. LinkedIn launch post (feat-ec81c370) — Variant C: three-way triangulation
+6. HN submission
+
+## Variant C (recommended launch post)
+
+> Three local-first answers to what the agent is actually doing:
+>
+> Symphony (Codex + Linear) orchestrates. kata tracks. erinn observes.
+>
+> Building erinn since October — runs on Claude Code, causal lineage from plan to commit to session, yolo-mode guards compiled in Go. The 'why does this code exist?' layer above your task ledger.
+>
+> Open source. brew install erinn.
+
+## Process note
+
+Rename sprint should have been decomposed into per-wave work items upfront rather than a single umbrella feature (feat-b02a559b). Created wave 4-6 + brand cleanup + workspace rename features as part of this track for proper audit trail.</p>
+        </section>
+    </article>
+</body>
+</html>

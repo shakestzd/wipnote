@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Emit Codex-native skills without duplicating business logic</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-4d7c582e"
+             data-type="feature"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-05-06T18:36:22.710681"
+             data-updated="2026-05-06T18:36:22.726735" data-agent-assigned="claude-code" data-track-id="trk-0677c709">
+
+        <header>
+            <h1>Emit Codex-native skills without duplicating business logic</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-0677c709.html" data-relationship="part_of" data-since="2026-05-06T18:36:22.714154">trk-0677c709</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="planned_in">
+                <h3>Planned In:</h3>
+                <ul>
+                    <li><a href="plan-51cb7489.html" data-relationship="planned_in" data-since="2026-05-06T18:36:22.723533">plan-51cb7489</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="blocked_by">
+                <h3>Blocked By:</h3>
+                <ul>
+                    <li><a href="feat-051237b1.html" data-relationship="blocked_by" data-since="2026-05-06T18:36:22.72653">feat-051237b1</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Add a Codex skill emitter that writes `packages/codex-marketplace/.agents/plugins/wipnote/skills//SKILL.md`
+from the canonical `SkillAsset` model. Keep Codex-compatible
+`name` and `description` frontmatter, preserve the body as the business
+logic, and keep optional `references/`, `scripts/`, and `assets/` folders
+when present.
+
+This slice should make Codex skills an owned generated output rather than
+a blind copy. It should also update docs in `packages/plugin-core/README.md`
+to say skills are single-source but target-emitted.</p>
+        </section>
+    </article>
+</body>
+</html>

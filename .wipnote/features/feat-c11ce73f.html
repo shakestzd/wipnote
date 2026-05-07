@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Install and refresh Codex custom agents during wipnote codex launch</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-c11ce73f"
+             data-type="feature"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-05-06T18:36:22.849706"
+             data-updated="2026-05-06T18:36:22.886373" data-agent-assigned="claude-code" data-track-id="trk-0677c709">
+
+        <header>
+            <h1>Install and refresh Codex custom agents during wipnote codex launch</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-0677c709.html" data-relationship="part_of" data-since="2026-05-06T18:36:22.853941">trk-0677c709</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="planned_in">
+                <h3>Planned In:</h3>
+                <ul>
+                    <li><a href="plan-51cb7489.html" data-relationship="planned_in" data-since="2026-05-06T18:36:22.88602">plan-51cb7489</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Extend the `cmd/wipnote/codex.go` setup path so `wipnote codex --init`,
+`wipnote codex --dev`, and normal `wipnote codex` ensure generated Codex
+custom-agent TOML files are present in the user's Codex agent directory.
+
+Distinguish staging from install:
+- **Staging**: the generator writes TOML to a build-output path under
+  the wipnote source tree (e.g. `dist/codex-agents/.toml`) for
+  inspection and CI. This is NOT where Codex loads agents from.
+- **Install**: at launch time, copy generated TOML into
+  `~/.codex/agents/` (user-global) — Codex's documented agent
+  location. `os.MkdirAll` the directory if absent (it is not present
+  by default). Use a stable filename per agent (e.g.
+  `wipnote-sonnet-coder.toml`).
+
+In dev mode, force-refresh on each launch. In normal mode, install
+idempotently: read the existing file's ownership marker; only
+overwrite if the marker matches wipnote's (so user-authored files
+with the same name are never clobbered). Add a clear ownership marker
+as a TOML comment block at the top of every generated file:
+
+    # wipnote-managed: do not edit by hand. version=1
+    # source:
+    # generated:
+
+wipnote treats absence of this marker as user-authored and refuses
+to overwrite, even in dev mode.</p>
+        </section>
+    </article>
+</body>
+</html>

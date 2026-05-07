@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>wipnote codex --dev fails: codex CLI moved marketplace under plugin</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-58bbab1d"
+             data-type="bug"
+             data-status="done"
+             data-priority="high"
+             data-created="2026-05-06T16:52:44.33233"
+             data-updated="2026-05-06T16:54:37.320775" data-agent-assigned="claude-code" data-track-id="trk-0677c709">
+
+        <header>
+            <h1>wipnote codex --dev fails: codex CLI moved marketplace under plugin</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-0677c709.html" data-relationship="part_of" data-since="2026-05-06T16:52:44.342132">trk-0677c709</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="28042b78-0bd6-4c1e-9c74-dc7e6c6a46c9.html" data-relationship="implemented_in" data-since="2026-05-06T16:53:01.915515">session 28042b78-0bd6-4c1e-9c74-dc7e6c6a46c9</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Codex CLI 0.128.0 reorganized marketplace management under the 'plugin' subcommand. 'wipnote codex --dev' (and 'wipnote codex init') still call 'codex marketplace add ...', producing: error: unrecognized subcommand 'add'. Two call sites in cmd/wipnote/codex.go (lines ~284 and ~443) need 'plugin' prepended to the args slice.</p>
+        </section>
+    </article>
+</body>
+</html>

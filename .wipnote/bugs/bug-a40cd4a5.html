@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Agent code edits can proceed without mandatory wipnote work-item attribution</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-a40cd4a5"
+             data-type="bug"
+             data-status="done"
+             data-priority="medium"
+             data-created="2026-05-06T19:04:47.043244"
+             data-updated="2026-05-06T19:16:22.08216" data-agent-assigned="claude-code" data-track-id="trk-0677c709">
+
+        <header>
+            <h1>Agent code edits can proceed without mandatory wipnote work-item attribution</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-0677c709.html" data-relationship="part_of" data-since="2026-05-06T19:04:47.049281">trk-0677c709</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="019dfe44-ba8c-7451-b68a-43d382e55516.html" data-relationship="implemented_in" data-since="2026-05-06T19:06:07.346297">session 019dfe44-ba8c-7451-b68a-43d382e55516</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Process failure observed in this Codex session: code changes for the Codex OTel fidelity fix were implemented before creating or starting a dedicated wipnote bug/feature. This violates the project dogfooding expectation that implementation work is tracked with a work item before edits. Need a durable solution so agents cannot silently modify code without an active work item, or at minimum receive a hard pre-edit reminder/gate that requires creating/starting the relevant feature/bug and linking changed files. This bug should evaluate hook enforcement, CLI guardrails, and plugin instructions across Claude/Codex/Gemini.</p>
+        </section>
+    </article>
+</body>
+</html>

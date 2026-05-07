@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="htmlgraph-version" content="1.0">
+    <title>Sub-agent tool_calls not recorded in SQLite (zero rows for sub-agent session_id)</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-fbadab6d"
+             data-type="bug"
+             data-status="todo"
+             data-priority="high"
+             data-created="2026-05-05T20:39:10.768824"
+             data-updated="2026-05-05T20:39:10.784187" data-agent-assigned="claude-code" data-track-id="trk-0677c709">
+
+        <header>
+            <h1>Sub-agent tool_calls not recorded in SQLite (zero rows for sub-agent session_id)</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-0677c709.html" data-relationship="part_of" data-since="2026-05-05T20:39:10.783644">trk-0677c709</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>REPRO (observed today, session ad859e4f1f3415d04):
+
+Spawn an htmlgraph:researcher sub-agent via Agent(). Sub-agent runs ~40 tool calls (per Agent tool result usage stats: tool_uses: 40) before being paused on tool budget. Query the SQLite read index:
+
+  SELECT COUNT(*) FROM tool_calls WHERE session_id='ad859e4f1f3415d04';
+  -> 0
+
+The session row exists in 'sessions' table (agent_assigned=htmlgraph:researcher, status=active, created_at set), but tool_calls has zero rows for that session_id, and total_events on the session row is also 0.
+
+EXPECTED: tool_calls should record one row per actual tool use the sub-agent makes, keyed on its own session_id (not the parent's).
+
+ACTUAL: tool_calls table receives nothing for sub-agent tool uses. Either (a) the PostToolUse hook isn't firing inside sub-agent contexts, or (b) the tool_calls writer is keying on the parent session_id and dropping rows where the sub-agent's session_id doesn't match an expected lookup, or (c) the tool_calls table has a subagent_session_id column (it does) but writes go to session_id and sub-agent rows aren't being attributed to either column.
+
+IMPACT:
+- Activity feed and dashboard cannot show sub-agent work
+- htmlgraph snapshot underreports actual tool consumption
+- Cost predictions miss sub-agent costs entirely
+- Cannot diagnose stuck/paused sub-agents (this exact bug — the symptom that surfaced this, where a sub-agent was permanently paused on tool budget pause + missing SendMessage)
+
+RELATED CLOSED BUGS:
+- bug-7d105494 (Activity feed misattributes tool calls to wrong session) — DONE; check whether the fix actually wrote sub-agent rows or just re-keyed parent rows
+- bug-71fc095f (Attribution leak: current session_id appears...) — DONE
+- bug-d2d3fb3f (Parallel agents collide on attribution) — DONE
+- bug-0413c3c4 (Subagent feature attribution hook blocks first commit) — DONE
+- bug-c6c54edc (paused sub-agents unrecoverable when SendMessage tool unavailable) — DONE; this present bug is its dual on the observability side
+
+INVESTIGATION HINTS:
+- Schema: tool_calls already has subagent_session_id column — check whether anything writes to it
+- Hooks: PreToolUse/PostToolUse handlers may receive sub-agent events tagged with parent session_id; verify Agent tool envelope vs raw sub-agent tool envelope
+- Writer: confirm whether the sub-agent's tool calls are landing in tool_calls under the parent session_id (over-attribution) or being dropped entirely (loss)
+- Quick experiment: spawn a tiny sub-agent that runs exactly 3 known tool calls; query tool_calls grouped by session_id immediately after — see what session_id (if any) those rows land under.</p>
+        </section>
+    </article>
+</body>
+</html>

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Fix roborev review 303: slice-3/slice-4 promoted but unapproved in plan-51cb7489</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-09db28c1"
+             data-type="bug"
+             data-status="done"
+             data-priority="medium"
+             data-created="2026-05-07T00:29:01.248673"
+             data-updated="2026-05-07T00:32:30.10419" data-agent-assigned="claude-code" data-track-id="trk-0677c709">
+
+        <header>
+            <h1>Fix roborev review 303: slice-3/slice-4 promoted but unapproved in plan-51cb7489</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-0677c709.html" data-relationship="part_of" data-since="2026-05-07T00:29:01.259051">trk-0677c709</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="84669b4d-3922-416c-a4dc-2d24783acf46.html" data-relationship="implemented_in" data-since="2026-05-07T00:29:30.826516">session 84669b4d-3922-416c-a4dc-2d24783acf46</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Roborev review 303 flagged: slice-3 (line 170) and slice-4 (line 243) of plan-51cb7489.yaml have execution_status=promoted with feature_ids assigned, but approved=false and approval_status=pending. Reconcile state: either set approved=true/approval_status=approved, or revert promotion fields.</p>
+        </section>
+    </article>
+</body>
+</html>

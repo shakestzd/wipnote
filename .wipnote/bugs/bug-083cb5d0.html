@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Docs migration: lingering htmlgraph references in user-facing docs</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-083cb5d0"
+             data-type="bug"
+             data-status="done"
+             data-priority="medium"
+             data-created="2026-05-06T17:32:08.767622"
+             data-updated="2026-05-06T17:36:59.371966" data-agent-assigned="claude-code" data-track-id="trk-0677c709">
+
+        <header>
+            <h1>Docs migration: lingering htmlgraph references in user-facing docs</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-0677c709.html" data-relationship="part_of" data-since="2026-05-06T17:32:08.82716">trk-0677c709</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Replace htmlgraph/HtmlGraph/HTMLGraph references with wipnote/Wipnote in: .github/BRANCH_PROTECTION.md, .github/workflows/gemini-subtree.yml, .github/ISSUE_TEMPLATE/bug_report.md, .devcontainer/README.md, .claude/README.md. Also re-run 'wipnote plugin build-ports' to regenerate generated trees and clean up packages/codex-marketplace/.agents/plugins/htmlgraph/ stale dir.</p>
+        </section>
+    </article>
+</body>
+</html>
