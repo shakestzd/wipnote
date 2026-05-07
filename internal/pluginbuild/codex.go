@@ -80,7 +80,10 @@ func (c codexAdapter) Emit(m *Manifest, repoRoot, outDir string) error {
 			return err
 		}
 	}
-	return copyAssets(m, repoRoot, pluginDir)
+	if err := copyCodexAssets(m, repoRoot, pluginDir); err != nil {
+		return err
+	}
+	return emitCodexAgents(m, repoRoot, pluginDir)
 }
 
 // codexMarketplaceJSON is the schema for marketplace.json at the root of a
@@ -244,4 +247,25 @@ func ensureCodexMCP(path string) error {
 		return nil
 	}
 	return writeJSON(path, map[string]any{"mcpServers": map[string]any{}})
+}
+
+func copyCodexAssets(m *Manifest, repoRoot, outDir string) error {
+	pairs := []struct{ src, dst string }{
+		{m.AssetSources.Commands, "commands"},
+		{m.AssetSources.Skills, "skills"},
+		{m.AssetSources.Templates, "templates"},
+		{m.AssetSources.Static, "static"},
+		{m.AssetSources.Config, "config"},
+	}
+	for _, p := range pairs {
+		if p.src == "" {
+			continue
+		}
+		src := filepath.Join(repoRoot, p.src)
+		dst := filepath.Join(outDir, p.dst)
+		if err := copyAssetTree(src, dst); err != nil {
+			return err
+		}
+	}
+	return nil
 }

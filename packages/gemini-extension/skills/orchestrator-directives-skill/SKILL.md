@@ -70,13 +70,13 @@ Applies to `feature/bug/spike/track/plan create|start|complete|add-step`, `link 
 Ask these questions IN ORDER:
 
 1. **Can Gemini do this?** → Exploration, research, batch ops, file analysis
-   - YES = MUST try `Bash("gemini ...")` first (FREE - 2M tokens/min), fallback to haiku-coder
+   - YES = MUST try `Bash("gemini ...")` first (FREE - 2M tokens/min), fallback to patch-coder
 
 2. **Is this code work?** → Implementation, fixes, tests, refactoring
-   - YES = MUST try `Bash("codex ...")` first (70% cheaper than Claude), fallback to sonnet-coder
+   - YES = MUST try `Bash("codex ...")` first (70% cheaper than Claude), fallback to feature-coder
 
 3. **Is this git/GitHub?** → Commits, PRs, issues, branches
-   - YES = MUST try `Bash("copilot ...")` first (60% cheaper, GitHub-native), fallback to haiku-coder
+   - YES = MUST try `Bash("copilot ...")` first (60% cheaper, GitHub-native), fallback to patch-coder
 
 4. **Does this need deep reasoning?** → Architecture, complex planning
    - YES = Use Claude Opus (expensive, but strategically needed)
@@ -99,16 +99,16 @@ Ask these questions IN ORDER:
 
 ```
 WRONG (wastes Claude quota):
-- Code implementation → Task(haiku)               # USE Bash("codex ..."), fallback sonnet-coder
-- Git commits → Task(haiku)                       # USE Bash("copilot ..."), fallback haiku-coder
+- Code implementation → Task(haiku)               # USE Bash("codex ..."), fallback feature-coder
+- Git commits → Task(haiku)                       # USE Bash("copilot ..."), fallback patch-coder
 - File search → Task(haiku)                       # USE Bash("gemini ...") (FREE!)
 - Research → Task(haiku)                          # USE Bash("gemini ...") (FREE!)
 
 CORRECT (cost-optimized):
-- Code implementation → Bash("codex ...")         # Cheap, sandboxed; fallback sonnet-coder
-- Git commits → Bash("copilot ...")               # Cheap, GitHub-native; fallback haiku-coder
-- File search → Bash("gemini ...")                # FREE!; fallback haiku-coder
-- Research → Bash("gemini ...")                   # FREE!; fallback haiku-coder
+- Code implementation → Bash("codex ...")         # Cheap, sandboxed; fallback feature-coder
+- Git commits → Bash("copilot ...")               # Cheap, GitHub-native; fallback patch-coder
+- File search → Bash("gemini ...")                # FREE!; fallback patch-coder
+- Research → Bash("gemini ...")                   # FREE!; fallback patch-coder
 - Strategic decisions → Claude Opus               # Expensive, but needed
 - Coder agents → FALLBACK ONLY                    # When CLI tools fail or aren't installed
 ```
@@ -289,10 +289,10 @@ Everything else MUST be delegated.
 6. **All else fails** → Task() with Haiku (fallback)
 
 **Delegation Pattern:**
-- `Bash("gemini ...")` - FREE, 2M tokens/min, exploration & research → fallback: haiku-coder
-- `Bash("codex ...")` - Cheap code specialist, implementation & testing → fallback: sonnet-coder
-- `Bash("copilot ...")` - Cheap git specialist, GitHub integration → fallback: haiku-coder
-- Coder agents (`haiku-coder`, `sonnet-coder`) - Fallback only when CLI tools fail
+- `Bash("gemini ...")` - FREE, 2M tokens/min, exploration & research → fallback: patch-coder
+- `Bash("codex ...")` - Cheap code specialist, implementation & testing → fallback: feature-coder
+- `Bash("copilot ...")` - Cheap git specialist, GitHub integration → fallback: patch-coder
+- Coder agents (`patch-coder`, `feature-coder`) - Fallback only when CLI tools fail
 
 </details>
 
@@ -308,7 +308,7 @@ gemini -p "Analyze codebase for:
 - JWT usage" --output-format json --yolo --include-directories . 2>&1
 ```
 
-**If gemini fails/unavailable → fallback to haiku-coder**
+**If gemini fails/unavailable → fallback to patch-coder**
 
 **Best for:**
 - File searching (FREE!)
@@ -324,7 +324,7 @@ codex exec "Implement OAuth authentication:
 - Write unit tests" --full-auto --json -m gpt-4.1-mini -C . 2>&1
 ```
 
-**If codex fails/unavailable → fallback to sonnet-coder**
+**If codex fails/unavailable → fallback to feature-coder**
 
 **Best for:**
 - Code generation
@@ -341,7 +341,7 @@ copilot -p "Commit changes:
 - Do NOT push" --allow-all-tools --no-color --add-dir . 2>&1
 ```
 
-**If copilot fails/unavailable → fallback to haiku-coder**
+**If copilot fails/unavailable → fallback to patch-coder**
 
 **Best for:**
 - Git commits (60% cheaper than Task)
@@ -382,29 +382,29 @@ Task(
 ```bash
 gemini -p "Search codebase for authentication patterns and summarize findings" \
   --output-format json --yolo --include-directories . 2>&1
-# fallback → Agent(subagent_type="wipnote:haiku-coder", ...)
+# fallback → Agent(subagent_type="wipnote:patch-coder", ...)
 ```
 
 **Code implementation (try CLI first):**
 ```bash
 codex exec "Implement OAuth authentication endpoint with JWT support" \
   --full-auto --json -m gpt-4.1-mini -C . 2>&1
-# fallback → Agent(subagent_type="wipnote:sonnet-coder", ...)
+# fallback → Agent(subagent_type="wipnote:feature-coder", ...)
 ```
 
 **Git operations (try CLI first):**
 ```bash
 copilot -p "Commit changes with message: 'feat: add OAuth authentication'. Do NOT push." \
   --allow-all-tools --no-color --add-dir . 2>&1
-# fallback → Agent(subagent_type="wipnote:haiku-coder", ...)
+# fallback → Agent(subagent_type="wipnote:patch-coder", ...)
 ```
 
 </details>
 
 <details>
-<summary><strong>Git/Code Operations (Bash-first, haiku-coder fallback)</strong></summary>
+<summary><strong>Git/Code Operations (Bash-first, patch-coder fallback)</strong></summary>
 
-**Try the Copilot CLI directly via Bash first, then delegate to haiku-coder if unavailable.**
+**Try the Copilot CLI directly via Bash first, then delegate to patch-coder if unavailable.**
 
 ```bash
 # Priority 1: Bash-copilot (preferred)
@@ -413,9 +413,9 @@ copilot -p "Stage files: <list>. Commit with message: '<message>'. Do NOT push."
 ```
 
 ```python
-# Priority 2: haiku-coder fallback (if copilot fails or not installed)
+# Priority 2: patch-coder fallback (if copilot fails or not installed)
 Agent(
-    subagent_type="wipnote:haiku-coder",
+    subagent_type="wipnote:patch-coder",
     description="Commit and push changes",
     prompt="Stage files: <list>. Commit with message: 'feat: add X'. Do NOT push.",
 )
@@ -426,7 +426,7 @@ Agent(
 </details>
 
 <details>
-<summary><strong>Code Generation (Bash-first, sonnet-coder fallback)</strong></summary>
+<summary><strong>Code Generation (Bash-first, feature-coder fallback)</strong></summary>
 
 **For implementation, refactoring, and structured output tasks:**
 
@@ -436,9 +436,9 @@ codex exec "TASK_DESCRIPTION" --full-auto --json -m gpt-4.1-mini -C . 2>&1
 ```
 
 ```python
-# Priority 2: sonnet-coder fallback (if codex fails or not installed)
+# Priority 2: feature-coder fallback (if codex fails or not installed)
 Agent(
-    subagent_type="wipnote:sonnet-coder",
+    subagent_type="wipnote:feature-coder",
     description="Implement feature X",
     prompt="Add OAuth authentication to the login endpoint.",
 )
@@ -450,7 +450,7 @@ Always use `-m gpt-4.1-mini` for codex (never expensive gpt-5.4 default).
 </details>
 
 <details>
-<summary><strong>Research & Analysis (Bash-first, haiku-coder fallback)</strong></summary>
+<summary><strong>Research & Analysis (Bash-first, patch-coder fallback)</strong></summary>
 
 **For codebase exploration, documentation research, and large-context analysis:**
 
@@ -460,9 +460,9 @@ gemini -p "TASK_DESCRIPTION" --output-format json --yolo --include-directories .
 ```
 
 ```python
-# Priority 2: haiku-coder fallback (if gemini fails or not installed)
+# Priority 2: patch-coder fallback (if gemini fails or not installed)
 Agent(
-    subagent_type="wipnote:haiku-coder",
+    subagent_type="wipnote:patch-coder",
     description="Research auth patterns",
     prompt="Analyze all authentication patterns in this codebase. Find security gaps.",
 )
@@ -497,7 +497,7 @@ Before presenting recommendations or starting multi-task work, ALWAYS:
 ```python
 # Launch parallel agents in worktrees — one per feature
 Agent(
-    subagent_type="wipnote:sonnet-coder",
+    subagent_type="wipnote:feature-coder",
     description="Feature A",
     prompt="Implement feature A...",
     isolation="worktree",
@@ -505,7 +505,7 @@ Agent(
 )
 
 Agent(
-    subagent_type="wipnote:sonnet-coder",
+    subagent_type="wipnote:feature-coder",
     description="Feature B",
     prompt="Implement feature B...",
     isolation="worktree",
@@ -513,7 +513,7 @@ Agent(
 )
 
 Agent(
-    subagent_type="wipnote:haiku-coder",
+    subagent_type="wipnote:patch-coder",
     description="Feature C (simple)",
     prompt="Implement feature C...",
     isolation="worktree",
@@ -588,7 +588,7 @@ wipnote spike show <id>
 ```bash
 # 1. Delegate exploration (try gemini CLI first)
 gemini -p "Find all authentication patterns..." --output-format json --yolo --include-directories . 2>&1
-# fallback → Agent(subagent_type="wipnote:haiku-coder", ...)
+# fallback → Agent(subagent_type="wipnote:patch-coder", ...)
 ```
 
 ```bash
@@ -597,7 +597,7 @@ gemini -p "Find all authentication patterns..." --output-format json --yolo --in
 
 # 3. Use findings in next delegation (try codex CLI first)
 codex exec "Implement authentication based on auth pattern research findings..." --full-auto --json -m gpt-4.1-mini -C . 2>&1
-# fallback → Agent(subagent_type="wipnote:sonnet-coder", ...)
+# fallback → Agent(subagent_type="wipnote:feature-coder", ...)
 ```
 
 </details>
@@ -815,14 +815,14 @@ Never commit with unresolved type errors, lint warnings, or test failures.
 
 | Operation | MUST Use | Cost | Fallback |
 |-----------|----------|------|----------|
-| Search files | `Bash("gemini ...")` | FREE | haiku-coder |
-| Pattern analysis | `Bash("gemini ...")` | FREE | haiku-coder |
-| Documentation research | `Bash("gemini ...")` | FREE | haiku-coder |
-| Code generation | `Bash("codex ...")` | $ (70% off) | sonnet-coder |
-| Bug fixes | `Bash("codex ...")` | $ (70% off) | haiku-coder |
-| Write tests | `Bash("codex ...")` | $ (70% off) | haiku-coder |
-| Git commits | `Bash("copilot ...")` | $ (60% off) | haiku-coder |
-| Create PRs | `Bash("copilot ...")` | $ (60% off) | haiku-coder |
+| Search files | `Bash("gemini ...")` | FREE | patch-coder |
+| Pattern analysis | `Bash("gemini ...")` | FREE | patch-coder |
+| Documentation research | `Bash("gemini ...")` | FREE | patch-coder |
+| Code generation | `Bash("codex ...")` | $ (70% off) | feature-coder |
+| Bug fixes | `Bash("codex ...")` | $ (70% off) | patch-coder |
+| Write tests | `Bash("codex ...")` | $ (70% off) | patch-coder |
+| Git commits | `Bash("copilot ...")` | $ (60% off) | patch-coder |
+| Create PRs | `Bash("copilot ...")` | $ (60% off) | patch-coder |
 | Architecture | Claude Opus | $$$$ | Sonnet |
 | Strategic decisions | Claude Opus | $$$$ | Task() |
 
@@ -878,9 +878,9 @@ wipnote feature start <feat-id>                   # sets attribution for this se
 ## Quick Summary
 
 **Cost-First Orchestration:**
-1. `Bash("gemini ...")` (FREE) → exploration, research, analysis → fallback: haiku-coder
-2. `Bash("codex ...")` (70% off) → code implementation, fixes, tests → fallback: sonnet-coder
-3. `Bash("copilot ...")` (60% off) → git operations, PRs → fallback: haiku-coder
+1. `Bash("gemini ...")` (FREE) → exploration, research, analysis → fallback: patch-coder
+2. `Bash("codex ...")` (70% off) → code implementation, fixes, tests → fallback: feature-coder
+3. `Bash("copilot ...")` (60% off) → git operations, PRs → fallback: patch-coder
 4. Claude Opus → deep reasoning, strategy only
 
 **Orchestrator Rule:**

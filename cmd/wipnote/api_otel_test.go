@@ -280,7 +280,7 @@ func TestOtelSpansHandler_400ForMissingParam(t *testing.T) {
 }
 
 // TestOtelSpansHandler_ConcurrentSubagentModelAttribution verifies that when
-// two subagents run concurrently (haiku-coder and sonnet-coder dispatched by
+// two subagents run concurrently (patch-coder and feature-coder dispatched by
 // an Opus orchestrator), the /api/otel/spans response exposes each span's OWN
 // model field so the client-side _indexSpans absorption logic can attribute
 // Task/Agent rows to the dispatching orchestrator rather than a concurrent
@@ -371,14 +371,14 @@ func TestOtelSpansHandler_ConcurrentSubagentModelAttribution(t *testing.T) {
 		t.Fatalf("seed haiku api_request: %v", err)
 	}
 
-	// Task span dispatching sonnet-coder — this is what the Opus orchestrator spawns.
+	// Task span dispatching feature-coder — this is what the Opus orchestrator spawns.
 	_, err = database.Exec(`
 		INSERT INTO otel_signals (
 			signal_id, harness, session_id, kind, canonical, native,
 			ts_micros, trace_id, span_id, parent_span, tool_name, model, attrs_json
 		) VALUES
 		('task-sonnet', 'claude_code', ?, 'span', 'subagent_invocation', 'claude_code.tool',
-			1400, 'trace-A', 'task-sonnet-span', 'orch-root', 'Agent', NULL, '{"subagent_type":"wipnote:sonnet-coder"}')`,
+			1400, 'trace-A', 'task-sonnet-span', 'orch-root', 'Agent', NULL, '{"subagent_type":"wipnote:feature-coder"}')`,
 		sessionID)
 	if err != nil {
 		t.Fatalf("seed Task sonnet span: %v", err)
@@ -427,7 +427,7 @@ func TestOtelSpansHandler_ConcurrentSubagentModelAttribution(t *testing.T) {
 		t.Errorf("haiku api_request model = %q, want claude-haiku-4-5", haikuSpan.Model)
 	}
 
-	// The Task/Agent span (dispatching sonnet-coder) must have NO model of its
+	// The Task/Agent span (dispatching feature-coder) must have NO model of its
 	// own — the model badge comes from the _precedingApi on the client side, NOT
 	// from this span's model field. If a model were stored here, the client would
 	// show it regardless of the orchestrator-model guard logic.

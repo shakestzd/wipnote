@@ -320,14 +320,14 @@ func TestExecuteDSL_AgentType(t *testing.T) {
 	database := openTestDB(t)
 	_, err := database.Exec(
 		`INSERT INTO agent_lineage_trace (trace_id, session_id, root_session_id, agent_name) VALUES (?, ?, ?, ?)`,
-		"tr-1", "sess-1", "sess-1", "wipnote:sonnet-coder",
+		"tr-1", "sess-1", "sess-1", "wipnote:feature-coder",
 	)
 	if err != nil {
 		t.Fatalf("seed lineage: %v", err)
 	}
 	_, err = database.Exec(
 		`INSERT INTO sessions (session_id, agent_assigned, status) VALUES (?, ?, ?)`,
-		"sess-2", "wipnote:opus-coder", "active",
+		"sess-2", "wipnote:architect-coder", "active",
 	)
 	if err != nil {
 		t.Fatalf("seed session: %v", err)
@@ -347,7 +347,7 @@ func TestExecuteDSL_AgentType(t *testing.T) {
 			t.Errorf("expected type 'agent', got %q for id=%q", r.Type, r.ID)
 		}
 	}
-	if !seen["wipnote:sonnet-coder"] || !seen["wipnote:opus-coder"] {
+	if !seen["wipnote:feature-coder"] || !seen["wipnote:architect-coder"] {
 		t.Errorf("missing expected agent names in results: %+v", results)
 	}
 }

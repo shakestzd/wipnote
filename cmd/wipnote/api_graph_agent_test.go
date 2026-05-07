@@ -53,7 +53,7 @@ func TestLoadAgentEdgesRanAs(t *testing.T) {
 		INSERT INTO agent_lineage_trace (trace_id, root_session_id, session_id, agent_name, feature_id)
 		VALUES
 			('t1', 'root-1', 'sess-a', 'wipnote:researcher', ''),
-			('t2', 'root-1', 'sess-b', 'wipnote:sonnet-coder', '')`)
+			('t2', 'root-1', 'sess-b', 'wipnote:feature-coder', '')`)
 	if err != nil {
 		t.Fatalf("seed lineage: %v", err)
 	}
@@ -70,8 +70,8 @@ func TestLoadAgentEdgesRanAs(t *testing.T) {
 	if ranAs["wipnote:researcher"] != "sess-a" {
 		t.Errorf("ran_as edge: want wipnote:researcher -> sess-a, got %v", ranAs["wipnote:researcher"])
 	}
-	if ranAs["wipnote:sonnet-coder"] != "sess-b" {
-		t.Errorf("ran_as edge: want wipnote:sonnet-coder -> sess-b, got %v", ranAs["wipnote:sonnet-coder"])
+	if ranAs["wipnote:feature-coder"] != "sess-b" {
+		t.Errorf("ran_as edge: want wipnote:feature-coder -> sess-b, got %v", ranAs["wipnote:feature-coder"])
 	}
 }
 
@@ -84,7 +84,7 @@ func TestLoadAgentEdgesWorkedOn(t *testing.T) {
 		INSERT INTO agent_lineage_trace (trace_id, root_session_id, session_id, agent_name, feature_id)
 		VALUES
 			('t1', 'root-1', 'sess-a', 'wipnote:researcher', 'feat-111'),
-			('t2', 'root-1', 'sess-b', 'wipnote:sonnet-coder', ''),
+			('t2', 'root-1', 'sess-b', 'wipnote:feature-coder', ''),
 			('t3', 'root-2', 'sess-c', 'wipnote:researcher', 'feat-222')`)
 	if err != nil {
 		t.Fatalf("seed lineage: %v", err)
@@ -105,8 +105,8 @@ func TestLoadAgentEdgesWorkedOn(t *testing.T) {
 		t.Errorf("wipnote:researcher worked_on: want 2 features, got %d: %v", len(researcherFeatures), researcherFeatures)
 	}
 
-	// wipnote:sonnet-coder has no feature_id, so no worked_on edge.
-	if len(workedOn["wipnote:sonnet-coder"]) != 0 {
-		t.Errorf("wipnote:sonnet-coder worked_on: want 0, got %v", workedOn["wipnote:sonnet-coder"])
+	// wipnote:feature-coder has no feature_id, so no worked_on edge.
+	if len(workedOn["wipnote:feature-coder"]) != 0 {
+		t.Errorf("wipnote:feature-coder worked_on: want 0, got %v", workedOn["wipnote:feature-coder"])
 	}
 }

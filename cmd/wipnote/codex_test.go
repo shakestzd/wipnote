@@ -461,6 +461,144 @@ func TestEnsureCodexLocalPluginInstalled(t *testing.T) {
 	}
 }
 
+func TestEnsureCodexCustomAgentsInstalledCopiesTOML(t *testing.T) {
+	tmpdir := t.TempDir()
+	pluginDir := filepath.Join(tmpdir, "plugin")
+	sourceAgents := filepath.Join(pluginDir, "agents")
+	targetAgents := filepath.Join(tmpdir, ".codex", "agents")
+	if err := os.MkdirAll(sourceAgents, 0755); err != nil {
+		t.Fatalf("MkdirAll source agents: %v", err)
+	}
+	source := filepath.Join(sourceAgents, "wipnote-researcher.toml")
+	body := "name = \"wipnote-researcher\"\ndescription = \"Research agent\"\n"
+	if err := os.WriteFile(source, []byte(body), 0644); err != nil {
+		t.Fatalf("WriteFile source agent: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(sourceAgents, "legacy.md"), []byte("# ignored"), 0644); err != nil {
+		t.Fatalf("WriteFile ignored agent: %v", err)
+	}
+
+	changed, err := ensureCodexCustomAgentsInstalled(pluginDir, targetAgents)
+	if err != nil {
+		t.Fatalf("ensureCodexCustomAgentsInstalled: %v", err)
+	}
+	if !changed {
+		t.Fatalf("expected first install to report changed")
+	}
+	data, err := os.ReadFile(filepath.Join(targetAgents, "wipnote-researcher.toml"))
+	if err != nil {
+		t.Fatalf("reading installed agent: %v", err)
+	}
+	if string(data) != body {
+		t.Fatalf("installed agent mismatch:\n%s", data)
+	}
+	if _, err := os.Stat(filepath.Join(targetAgents, "legacy.md")); !os.IsNotExist(err) {
+		t.Fatalf("markdown agent should not be installed, stat err=%v", err)
+	}
+
+	changed, err = ensureCodexCustomAgentsInstalled(pluginDir, targetAgents)
+	if err != nil {
+		t.Fatalf("second ensureCodexCustomAgentsInstalled: %v", err)
+	}
+	if changed {
+		t.Fatalf("expected second install to be idempotent")
+	}
+}
+
+func TestEnsureCodexCustomAgentsInstalledSkipsBlockedProjectDir(t *testing.T) {
+	tmpdir := t.TempDir()
+	pluginDir := filepath.Join(tmpdir, "plugin")
+	sourceAgents := filepath.Join(pluginDir, "agents")
+	if err := os.MkdirAll(sourceAgents, 0755); err != nil {
+		t.Fatalf("MkdirAll source agents: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(sourceAgents, "wipnote-researcher.toml"), []byte("name = \"wipnote-researcher\"\n"), 0644); err != nil {
+		t.Fatalf("WriteFile source agent: %v", err)
+	}
+	projectCodexPath := filepath.Join(tmpdir, "project", ".codex")
+	if err := os.MkdirAll(filepath.Dir(projectCodexPath), 0755); err != nil {
+		t.Fatalf("MkdirAll project dir: %v", err)
+	}
+	if err := os.WriteFile(projectCodexPath, nil, 0600); err != nil {
+		t.Fatalf("WriteFile .codex sentinel: %v", err)
+	}
+
+	changed, err := ensureCodexCustomAgentsInstalled(pluginDir, filepath.Join(projectCodexPath, "agents"))
+	if err != nil {
+		t.Fatalf("ensureCodexCustomAgentsInstalled should skip file-backed .codex: %v", err)
+	}
+	if changed {
+		t.Fatalf("file-backed .codex should not report agent installation")
+	}
+}
+
+func TestEnsureCodexCustomAgentsInstalledPrunesStaleWipnoteAgents(t *testing.T) {
+	tmpdir := t.TempDir()
+	pluginDir := filepath.Join(tmpdir, "plugin")
+	sourceAgents := filepath.Join(pluginDir, "agents")
+	targetAgents := filepath.Join(tmpdir, ".codex", "agents")
+	if err := os.MkdirAll(sourceAgents, 0755); err != nil {
+		t.Fatalf("MkdirAll source agents: %v", err)
+	}
+	if err := os.MkdirAll(targetAgents, 0755); err != nil {
+		t.Fatalf("MkdirAll target agents: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(sourceAgents, "wipnote-patch-coder.toml"), []byte("name = \"wipnote-patch-coder\"\n"), 0644); err != nil {
+		t.Fatalf("WriteFile source agent: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(targetAgents, "wipnote-haiku-coder.toml"), []byte("name = \"wipnote-haiku-coder\"\n"), 0644); err != nil {
+		t.Fatalf("WriteFile stale agent: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(targetAgents, "other-agent.toml"), []byte("name = \"other-agent\"\n"), 0644); err != nil {
+		t.Fatalf("WriteFile unrelated agent: %v", err)
+	}
+
+	changed, err := ensureCodexCustomAgentsInstalled(pluginDir, targetAgents)
+	if err != nil {
+		t.Fatalf("ensureCodexCustomAgentsInstalled: %v", err)
+	}
+	if !changed {
+		t.Fatalf("expected prune/install to report changed")
+	}
+	if _, err := os.Stat(filepath.Join(targetAgents, "wipnote-haiku-coder.toml")); !os.IsNotExist(err) {
+		t.Fatalf("stale wipnote agent should be removed, stat err=%v", err)
+	}
+	if _, err := os.Stat(filepath.Join(targetAgents, "other-agent.toml")); err != nil {
+		t.Fatalf("unrelated custom agent should be preserved: %v", err)
+	}
+}
+
+func TestBuildCodexAgentConfigArgs(t *testing.T) {
+	tmpdir := t.TempDir()
+	agentsDir := filepath.Join(tmpdir, ".codex", "agents")
+	if err := os.MkdirAll(agentsDir, 0755); err != nil {
+		t.Fatalf("MkdirAll agents dir: %v", err)
+	}
+	agentPath := filepath.Join(agentsDir, "wipnote-test-runner.toml")
+	body := "name = \"wipnote-test-runner\"\ndescription = \"Run focused checks\"\ndeveloper_instructions = \"Run tests.\"\n"
+	if err := os.WriteFile(agentPath, []byte(body), 0644); err != nil {
+		t.Fatalf("WriteFile agent: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(agentsDir, "broken.toml"), []byte("not toml ="), 0644); err != nil {
+		t.Fatalf("WriteFile broken agent: %v", err)
+	}
+
+	got := buildCodexAgentConfigArgs(agentsDir)
+	joined := strings.Join(got, "\n")
+	for _, want := range []string{
+		"-c",
+		`agents.wipnote-test-runner.description="Run focused checks"`,
+		`agents.wipnote-test-runner.config_file="` + filepath.ToSlash(agentPath) + `"`,
+	} {
+		if !strings.Contains(joined, want) {
+			t.Fatalf("agent config args missing %q in %v", want, got)
+		}
+	}
+	if strings.Contains(joined, "broken") {
+		t.Fatalf("broken TOML should not produce config args: %v", got)
+	}
+}
+
 func TestEnsureCodexGlobalHooksInstalledCreatesUserHooks(t *testing.T) {
 	tmpdir := t.TempDir()
 	pluginDir := filepath.Join(tmpdir, "plugin")

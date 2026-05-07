@@ -50,9 +50,9 @@ copilot -p "Stage files: CLAUDE.md, SKILL.md, git-commit-push.sh. Commit with me
 ```
 
 ```python
-# Priority 2: haiku-coder fallback (if copilot unavailable)
+# Priority 2: patch-coder fallback (if copilot unavailable)
 Agent(
-    subagent_type="wipnote:haiku-coder",
+    subagent_type="wipnote:patch-coder",
     description="Commit: docs: enforce strict git delegation",
     prompt="""
     Stage files: CLAUDE.md, SKILL.md, git-commit-push.sh
@@ -181,12 +181,12 @@ wipnote feature start <feat-id>
 # Try CLI tools directly first
 gemini -p "Find all auth-related code in src/: What library is used? Where is validation?" \
   --output-format json --yolo --include-directories . 2>&1
-# fallback → Agent(subagent_type="wipnote:haiku-coder", ...)
+# fallback → Agent(subagent_type="wipnote:patch-coder", ...)
 ```
 ```bash
 codex exec "Implement OAuth flow based on research findings" \
   --full-auto --json -m gpt-4.1-mini -C . 2>&1
-# fallback → Agent(subagent_type="wipnote:sonnet-coder", ...)
+# fallback → Agent(subagent_type="wipnote:feature-coder", ...)
 ```
 
 **See:** `packages/go-plugin/skills/orchestrator-directives-skill/SKILL.md` for complete orchestrator patterns
@@ -200,15 +200,15 @@ codex exec "Implement OAuth flow based on research findings" \
 ```bash
 # Dispatch 3 parallel Bash calls in a single message (CLI-first pattern)
 codex exec "Add JWT auth to API endpoints..." --full-auto --json -m gpt-4.1-mini -C . 2>&1
-# fallback → Agent(subagent_type="wipnote:sonnet-coder", ...)
+# fallback → Agent(subagent_type="wipnote:feature-coder", ...)
 ```
 ```bash
 codex exec "Write unit + integration tests for auth endpoints..." --full-auto --json -m gpt-4.1-mini -C . 2>&1
-# fallback → Agent(subagent_type="wipnote:haiku-coder", ...)
+# fallback → Agent(subagent_type="wipnote:patch-coder", ...)
 ```
 ```bash
 gemini -p "Update API documentation for auth endpoints..." --output-format json --yolo --include-directories . 2>&1
-# fallback → Agent(subagent_type="wipnote:haiku-coder", ...)
+# fallback → Agent(subagent_type="wipnote:patch-coder", ...)
 ```
 # All three run in parallel; each reports results independently
 
@@ -221,7 +221,7 @@ gemini -p "Update API documentation for auth endpoints..." --output-format json 
 
 ### Orchestrator Pattern (REQUIRED)
 
-When operating as orchestrator, try the CLI directly first, then delegate to haiku-coder as fallback:
+When operating as orchestrator, try the CLI directly first, then delegate to patch-coder as fallback:
 
 ```bash
 # ✅ CORRECT - Priority 1: Try copilot CLI directly
@@ -230,9 +230,9 @@ copilot -p "Stage files: [list files]. Commit with message: 'chore: update sessi
 ```
 
 ```python
-# ✅ CORRECT - Priority 2: haiku-coder fallback (if copilot unavailable)
+# ✅ CORRECT - Priority 2: patch-coder fallback (if copilot unavailable)
 Agent(
-    subagent_type="wipnote:haiku-coder",
+    subagent_type="wipnote:patch-coder",
     description="Commit: chore: update session tracking",
     prompt="""
     Commit and push changes to git:
@@ -256,7 +256,7 @@ Agent(
 
 **Context cost:**
 - Bash-copilot (success): 1 tool call
-- haiku-coder fallback: 2 tool calls (Agent + result review)
+- patch-coder fallback: 2 tool calls (Agent + result review)
 - Direct git without delegation: 5-10+ tool calls (with failures and retries)
 
 ## Detailed Delegation Examples
@@ -273,21 +273,21 @@ wipnote feature start <feat-id>
 # 2. Research (try gemini CLI first)
 gemini -p "Research existing auth patterns: What library is used? Where is validation? What OAuth providers are supported?" \
   --output-format json --yolo --include-directories . 2>&1
-# fallback → Agent(subagent_type="wipnote:haiku-coder", ...)
+# fallback → Agent(subagent_type="wipnote:patch-coder", ...)
 ```
 
 ```bash
 # 3. Implement (try codex CLI first, after research completes)
 codex exec "Implement OAuth flow: Add JWT auth to API endpoints, create middleware for token validation, support Google and GitHub OAuth" \
   --full-auto --json -m gpt-4.1-mini -C . 2>&1
-# fallback → Agent(subagent_type="wipnote:sonnet-coder", ...)
+# fallback → Agent(subagent_type="wipnote:feature-coder", ...)
 ```
 
 ```bash
 # 4. Commit (try copilot CLI first)
 copilot -p "Commit with message: 'feat: add user authentication with OAuth support'. Do NOT push." \
   --allow-all-tools --no-color --add-dir . 2>&1
-# fallback → Agent(subagent_type="wipnote:haiku-coder", ...)
+# fallback → Agent(subagent_type="wipnote:patch-coder", ...)
 ```
 
 ```bash
@@ -306,21 +306,21 @@ wipnote bug create "Session timeout not working" --track <trk-id>
 # 2. Investigate (try gemini CLI first)
 gemini -p "Debug session timeout: expected 30min, observed ~5min. Find config, check middleware, review logs, identify root cause." \
   --output-format json --yolo --include-directories . 2>&1
-# fallback → Agent(subagent_type="wipnote:haiku-coder", ...)
+# fallback → Agent(subagent_type="wipnote:patch-coder", ...)
 ```
 
 ```bash
 # Fix (try codex CLI first, after investigation)
 codex exec "Fix session timeout to 30 minutes. Add regression test. Verify fix works." \
   --full-auto --json -m gpt-4.1-mini -C . 2>&1
-# fallback → Agent(subagent_type="wipnote:sonnet-coder", ...)
+# fallback → Agent(subagent_type="wipnote:feature-coder", ...)
 ```
 
 ```bash
 # 3. Commit (try copilot CLI first)
 copilot -p "Commit with message: 'fix: correct session timeout to 30 minutes'. Do NOT push." \
   --allow-all-tools --no-color --add-dir . 2>&1
-# fallback → Agent(subagent_type="wipnote:haiku-coder", ...)
+# fallback → Agent(subagent_type="wipnote:patch-coder", ...)
 ```
 
 ```bash
@@ -338,22 +338,22 @@ wipnote feature create "Refactor API layer" --track <trk-id>
 ```bash
 # Dispatch 3 parallel Bash calls in a single message
 gemini -p "Update API documentation to reflect new endpoints" --output-format json --yolo --include-directories . 2>&1
-# fallback → Agent(subagent_type="wipnote:haiku-coder", ...)
+# fallback → Agent(subagent_type="wipnote:patch-coder", ...)
 ```
 ```bash
 codex exec "Update test suite for refactored API endpoints" --full-auto --json -m gpt-4.1-mini -C . 2>&1
-# fallback → Agent(subagent_type="wipnote:sonnet-coder", ...)
+# fallback → Agent(subagent_type="wipnote:feature-coder", ...)
 ```
 ```bash
 gemini -p "Create migration guide for API changes" --output-format json --yolo --include-directories . 2>&1
-# fallback → Agent(subagent_type="wipnote:haiku-coder", ...)
+# fallback → Agent(subagent_type="wipnote:patch-coder", ...)
 ```
 
 ```bash
 # After all complete — commit everything (try copilot CLI first)
 copilot -p "Commit all API refactoring changes with message: 'refactor: update API layer with improved endpoints'. Do NOT push." \
   --allow-all-tools --no-color --add-dir . 2>&1
-# fallback → Agent(subagent_type="wipnote:haiku-coder", ...)
+# fallback → Agent(subagent_type="wipnote:patch-coder", ...)
 ```
 
 ```bash

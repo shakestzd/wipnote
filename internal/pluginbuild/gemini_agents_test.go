@@ -18,7 +18,7 @@ func TestGeminiAgentFrontmatterTranslation(t *testing.T) {
 	input := `---
 name: myagent
 description: A test agent
-model: claude-opus-4
+model: opus
 color: blue
 skills:
   - my-skill
@@ -36,8 +36,8 @@ tools:
 	}
 	s := string(out)
 
-	// KEEP: name, description, model
-	for _, want := range []string{"name: myagent", "description: A test agent", "model: claude-opus-4"} {
+	// KEEP: name, description; MAP: Claude model aliases to Gemini model aliases.
+	for _, want := range []string{"name: myagent", "description: A test agent", "model: pro"} {
 		if !strings.Contains(s, want) {
 			t.Errorf("expected %q in output:\n%s", want, s)
 		}
@@ -113,6 +113,27 @@ body
 	// A warning must have been logged.
 	if !strings.Contains(logBuf.String(), "UnknownTool") {
 		t.Errorf("expected log warning for UnknownTool; log output: %q", logBuf.String())
+	}
+}
+
+func TestMapGeminiAgentModelAliases(t *testing.T) {
+	tests := []struct {
+		name  string
+		model string
+		want  string
+	}{
+		{name: "fast", model: "haiku", want: "flash-lite"},
+		{name: "balanced", model: "sonnet", want: "flash"},
+		{name: "deep", model: "opus", want: "pro"},
+		{name: "native", model: "gemini-3-flash-preview", want: "gemini-3-flash-preview"},
+		{name: "inherit", model: "", want: ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := mapGeminiAgentModel(tt.model); got != tt.want {
+				t.Fatalf("mapGeminiAgentModel(%q) = %q, want %q", tt.model, got, tt.want)
+			}
+		})
 	}
 }
 
@@ -215,7 +236,7 @@ func TestGeminiAgentEmitterWritesTranslatedFiles(t *testing.T) {
 	agentContent := `---
 name: testagent
 description: Integration test agent
-model: claude-opus-4
+model: opus
 color: green
 maxTurns: 5
 tools:

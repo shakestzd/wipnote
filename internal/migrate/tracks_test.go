@@ -237,7 +237,7 @@ func TestMatchGlob_DoubleStar(t *testing.T) {
 		{"cmd/wipnote/plan_*.go", "cmd/wipnote/plan_sub/file.go", false},
 		{"cmd/wipnote/yolo.go", "cmd/wipnote/yolo.go", true},
 		{"cmd/wipnote/yolo.go", "cmd/wipnote/yolo_test.go", false},
-		{"plugin/agents/*.md", "plugin/agents/sonnet-coder.md", true},
+		{"plugin/agents/*.md", "plugin/agents/feature-coder.md", true},
 		{"plugin/agents/*.md", "plugin/agents/sub/x.md", false},
 	}
 	for _, c := range cases {

@@ -7,17 +7,18 @@ files in this directory so we never edit the same logic twice.
 
 - **`manifest.json`** — plugin metadata, per-target output paths, hook event
   matrix. `plugin/.claude-plugin/plugin.json`,
-  `packages/codex-plugin/.codex-plugin/plugin.json`, and
+  `packages/codex-marketplace/.agents/plugins/wipnote/.codex-plugin/plugin.json`, and
   `packages/gemini-extension/gemini-extension.json` are all generated from it.
 - **Assets** (commands, agents, skills, templates, static, config) live in
-  `plugin/…/` and are copied verbatim into each target. The markdown formats
-  (SKILL.md, agent `.md`, slash-command `.md`) are compatible with Claude Code
-  and Codex CLI, so no per-target translation is needed. Gemini CLI requires
-  TOML slash commands, so a sub-emitter translates the markdown on the way out.
-- **Generated trees** — `plugin/` (Claude), `packages/codex-plugin/` (Codex),
+  `plugin/…/`. Codex skills and commands are copied in their native markdown
+  form, while Codex agents are translated from `plugin/agents/*.md` into
+  custom-agent TOML under the generated marketplace plugin's `agents/` directory.
+  Gemini CLI requires TOML slash commands, so a sub-emitter translates the
+  markdown on the way out.
+- **Generated trees** — `plugin/` (Claude), `packages/codex-marketplace/` (Codex),
   and `packages/gemini-extension/` (Gemini) are output directories. Treat them
   as build artifacts: do not hand-edit anything under `plugin/.claude-plugin/`,
-  `plugin/hooks/hooks.json`, `packages/codex-plugin/`, or
+  `plugin/hooks/hooks.json`, `packages/codex-marketplace/`, or
   `packages/gemini-extension/`. Regenerate instead.
 
 ## Build
@@ -29,6 +30,38 @@ files in this directory so we never edit the same logic twice.
 
 The command writes each target's tree under the `outDir` declared in
 `manifest.json → targets.<name>`.
+
+Codex custom agents have a second runtime step: `wipnote codex --init`,
+`wipnote codex`, and `wipnote codex --dev` mirror the generated
+`packages/codex-marketplace/.agents/plugins/wipnote/agents/*.toml` files into
+Codex's documented custom-agent lookup directory. Normal installs use
+`~/.codex/agents`; dev launches also refresh project-local `.codex/agents`.
+The launcher additionally passes explicit `-c agents.<name>.config_file=...`
+overrides so fresh Codex CLI sessions do not rely only on plugin-cache discovery.
+
+Current limitation: some tool-backed Codex sessions still expose only generic
+`default`, `explorer`, and `worker` spawn roles even when custom-agent TOML files
+exist on disk. Treat plugin/cache file presence as generation proof, not runtime
+spawn proof; verify runtime behavior with an actual `spawn_agent` smoke test.
+
+### Agent roles and model policy
+
+Agent names describe responsibilities, not model families. Use stable role names
+such as `patch-coder`, `feature-coder`, and `architect-coder`; keep provider
+model choices in frontmatter or target-specific emitters.
+
+Current mapping:
+
+| Role | Purpose | Claude model alias | Codex model | Gemini model |
+|------|---------|--------------------|-------------|--------------|
+| `patch-coder` | Small, clear edits | `haiku` | `gpt-5.4-mini`, low effort | `flash-lite` |
+| `feature-coder` | Moderate implementation | `sonnet` | `gpt-5.4`, medium effort | `flash` |
+| `architect-coder` | Complex architecture/high risk | `opus` | `gpt-5.5`, high effort | `pro` |
+
+This follows each harness's documented shape: Claude subagents use a role `name`
+plus separate model configuration, Codex custom-agent TOML identifies agents by
+`name` and supports separate `model` / `model_reasoning_effort`, and Gemini
+subagents use role slugs with optional model overrides.
 
 ## Hooks — thin wrappers
 

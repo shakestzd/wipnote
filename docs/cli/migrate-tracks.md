@@ -92,7 +92,7 @@ Verify the migration landed by running blame on canonical files:
 ```
 wipnote blame cmd/wipnote/yolo.go         # expect dominant: trk-be293476 (Yolo Mode)
 wipnote blame internal/hooks/yolo_guard.go  # expect dominant: trk-be293476
-wipnote blame plugin/agents/sonnet-coder.md # expect dominant: trk-2c83a1e2 (Subagents)
+wipnote blame plugin/agents/feature-coder.md # expect dominant: trk-2c83a1e2 (Subagents)
 ```
 
 `wipnote code-areas --format markdown > docs/code-areas.md` regenerates

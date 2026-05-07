@@ -128,7 +128,7 @@ func translateAgentFrontmatter(filename string, raw []byte) ([]byte, error) {
 		gFM.Description = v
 	}
 	if v, ok := claudeFM["model"].(string); ok {
-		gFM.Model = v
+		gFM.Model = mapGeminiAgentModel(v)
 	}
 	if v, ok := claudeFM["maxTurns"].(int); ok {
 		gFM.MaxTurns = v
@@ -168,6 +168,19 @@ func translateAgentFrontmatter(filename string, raw []byte) ([]byte, error) {
 	buf.WriteString("---\n")
 	buf.Write(body)
 	return buf.Bytes(), nil
+}
+
+func mapGeminiAgentModel(model string) string {
+	switch strings.TrimSpace(model) {
+	case "haiku":
+		return "flash-lite"
+	case "sonnet":
+		return "flash"
+	case "opus":
+		return "pro"
+	default:
+		return model
+	}
 }
 
 // splitFrontmatter splits a markdown file at the YAML frontmatter delimiters.
