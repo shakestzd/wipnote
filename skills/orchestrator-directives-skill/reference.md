@@ -15,7 +15,7 @@ This document contains the complete orchestration rules and patterns for wipnote
 ## Operations You MUST Delegate
 
 **ALL operations EXCEPT:**
-- `Task()` - Delegation itself
+- `use the appropriate Gemini agent invocation` - Delegation itself
 - `AskUserQuestion()` - Clarifying requirements with user
 - `TodoWrite()` - Tracking work items
 - SDK operations - Creating features, spikes, bugs, analytics
@@ -39,7 +39,7 @@ Direct execution: 7+ tool calls
   git add → commit fails (hook) → fix code → commit → push fails → pull → push
 
 Delegation: 2 tool calls
-  Task(delegate git workflow) → Read result
+  use the appropriate Gemini agent invocation → Read result
 ```
 
 **Delegation pattern (Bash-first):**
@@ -51,16 +51,15 @@ copilot -p "Stage files: CLAUDE.md, SKILL.md, git-commit-push.sh. Commit with me
 
 ```python
 # Priority 2: patch-coder fallback (if copilot unavailable)
-Agent(
-    subagent_type="wipnote:patch-coder",
+Use Gemini agent invocation with:
+    agent="@patch-coder",
     description="Commit: docs: enforce strict git delegation",
-    prompt="""
+    message="""
     Stage files: CLAUDE.md, SKILL.md, git-commit-push.sh
     Commit with message: "docs: enforce strict git delegation in orchestrator directives"
     Do NOT push.
     Handle any errors (pre-commit hooks, conflicts, etc).
     """,
-)
 ```
 
 ### 2. Code Changes - DELEGATE Unless Trivial
@@ -160,7 +159,7 @@ ORCHESTRATOR REFLECTION: You executed code directly.
 
 Ask yourself:
 - Could this have been delegated to a subagent?
-- Would parallel Task() calls have been faster?
+- Would parallel use the appropriate Gemini agent invocation calls have been faster?
 - Is a work item tracking this effort?
 - What if this operation fails - how many retries will consume context?
 ```
@@ -181,12 +180,12 @@ wipnote feature start <feat-id>
 # Try CLI tools directly first
 gemini -p "Find all auth-related code in src/: What library is used? Where is validation?" \
   --output-format json --yolo --include-directories . 2>&1
-# fallback → Agent(subagent_type="wipnote:patch-coder", ...)
+# fallback → use @patch-coder
 ```
 ```bash
 codex exec "Implement OAuth flow based on research findings" \
   --full-auto --json -m gpt-4.1-mini -C . 2>&1
-# fallback → Agent(subagent_type="wipnote:feature-coder", ...)
+# fallback → use @feature-coder
 ```
 
 **See:** `packages/go-plugin/skills/orchestrator-directives-skill/SKILL.md` for complete orchestrator patterns
@@ -200,15 +199,15 @@ codex exec "Implement OAuth flow based on research findings" \
 ```bash
 # Dispatch 3 parallel Bash calls in a single message (CLI-first pattern)
 codex exec "Add JWT auth to API endpoints..." --full-auto --json -m gpt-4.1-mini -C . 2>&1
-# fallback → Agent(subagent_type="wipnote:feature-coder", ...)
+# fallback → use @feature-coder
 ```
 ```bash
 codex exec "Write unit + integration tests for auth endpoints..." --full-auto --json -m gpt-4.1-mini -C . 2>&1
-# fallback → Agent(subagent_type="wipnote:patch-coder", ...)
+# fallback → use @patch-coder
 ```
 ```bash
 gemini -p "Update API documentation for auth endpoints..." --output-format json --yolo --include-directories . 2>&1
-# fallback → Agent(subagent_type="wipnote:patch-coder", ...)
+# fallback → use @patch-coder
 ```
 # All three run in parallel; each reports results independently
 
@@ -231,10 +230,10 @@ copilot -p "Stage files: [list files]. Commit with message: 'chore: update sessi
 
 ```python
 # ✅ CORRECT - Priority 2: patch-coder fallback (if copilot unavailable)
-Agent(
-    subagent_type="wipnote:patch-coder",
+Use Gemini agent invocation with:
+    agent="@patch-coder",
     description="Commit: chore: update session tracking",
-    prompt="""
+    message="""
     Commit and push changes to git:
 
     Files to commit: [list files or use 'all changes']
@@ -248,7 +247,6 @@ Agent(
 
     Report final status: success or failure with details.
     """,
-)
 ```
 
 **Why Bash-first?** Skips the agent overhead when the CLI works — fast, transparent, cost-efficient.
@@ -273,21 +271,21 @@ wipnote feature start <feat-id>
 # 2. Research (try gemini CLI first)
 gemini -p "Research existing auth patterns: What library is used? Where is validation? What OAuth providers are supported?" \
   --output-format json --yolo --include-directories . 2>&1
-# fallback → Agent(subagent_type="wipnote:patch-coder", ...)
+# fallback → use @patch-coder
 ```
 
 ```bash
 # 3. Implement (try codex CLI first, after research completes)
 codex exec "Implement OAuth flow: Add JWT auth to API endpoints, create middleware for token validation, support Google and GitHub OAuth" \
   --full-auto --json -m gpt-4.1-mini -C . 2>&1
-# fallback → Agent(subagent_type="wipnote:feature-coder", ...)
+# fallback → use @feature-coder
 ```
 
 ```bash
 # 4. Commit (try copilot CLI first)
 copilot -p "Commit with message: 'feat: add user authentication with OAuth support'. Do NOT push." \
   --allow-all-tools --no-color --add-dir . 2>&1
-# fallback → Agent(subagent_type="wipnote:patch-coder", ...)
+# fallback → use @patch-coder
 ```
 
 ```bash
@@ -306,21 +304,21 @@ wipnote bug create "Session timeout not working" --track <trk-id>
 # 2. Investigate (try gemini CLI first)
 gemini -p "Debug session timeout: expected 30min, observed ~5min. Find config, check middleware, review logs, identify root cause." \
   --output-format json --yolo --include-directories . 2>&1
-# fallback → Agent(subagent_type="wipnote:patch-coder", ...)
+# fallback → use @patch-coder
 ```
 
 ```bash
 # Fix (try codex CLI first, after investigation)
 codex exec "Fix session timeout to 30 minutes. Add regression test. Verify fix works." \
   --full-auto --json -m gpt-4.1-mini -C . 2>&1
-# fallback → Agent(subagent_type="wipnote:feature-coder", ...)
+# fallback → use @feature-coder
 ```
 
 ```bash
 # 3. Commit (try copilot CLI first)
 copilot -p "Commit with message: 'fix: correct session timeout to 30 minutes'. Do NOT push." \
   --allow-all-tools --no-color --add-dir . 2>&1
-# fallback → Agent(subagent_type="wipnote:patch-coder", ...)
+# fallback → use @patch-coder
 ```
 
 ```bash
@@ -338,22 +336,22 @@ wipnote feature create "Refactor API layer" --track <trk-id>
 ```bash
 # Dispatch 3 parallel Bash calls in a single message
 gemini -p "Update API documentation to reflect new endpoints" --output-format json --yolo --include-directories . 2>&1
-# fallback → Agent(subagent_type="wipnote:patch-coder", ...)
+# fallback → use @patch-coder
 ```
 ```bash
 codex exec "Update test suite for refactored API endpoints" --full-auto --json -m gpt-4.1-mini -C . 2>&1
-# fallback → Agent(subagent_type="wipnote:feature-coder", ...)
+# fallback → use @feature-coder
 ```
 ```bash
 gemini -p "Create migration guide for API changes" --output-format json --yolo --include-directories . 2>&1
-# fallback → Agent(subagent_type="wipnote:patch-coder", ...)
+# fallback → use @patch-coder
 ```
 
 ```bash
 # After all complete — commit everything (try copilot CLI first)
 copilot -p "Commit all API refactoring changes with message: 'refactor: update API layer with improved endpoints'. Do NOT push." \
   --allow-all-tools --no-color --add-dir . 2>&1
-# fallback → Agent(subagent_type="wipnote:patch-coder", ...)
+# fallback → use @patch-coder
 ```
 
 ```bash
@@ -379,34 +377,33 @@ Bash(command="git push origin main")
 
 ```python
 # ✅ CORRECT - Delegate to subagent
-Task(
-    prompt="""
+Use Gemini agent invocation with:
+    message="""
     Commit and push changes:
     Message: "feat: new feature"
     Handle all errors (hooks, conflicts, etc)
     """,
-    subagent_type="general-purpose"
-)
+    workflow="general-purpose"
 ```
 
 ### Anti-Pattern 2: Sequential When Parallel is Possible
 
 ```python
 # ❌ WRONG - Sequential delegation
-Task(prompt="Update docs")
+use the appropriate Gemini agent invocation
 # Wait for result...
-Task(prompt="Update tests")
+use the appropriate Gemini agent invocation
 # Wait for result...
-Task(prompt="Update migration guide")
+use the appropriate Gemini agent invocation
 
 # Total time: T1 + T2 + T3
 ```
 
 ```python
 # ✅ CORRECT - Parallel delegation
-Task(prompt="Update docs")
-Task(prompt="Update tests")
-Task(prompt="Update migration guide")
+use the appropriate Gemini agent invocation
+use the appropriate Gemini agent invocation
+use the appropriate Gemini agent invocation
 
 # Total time: max(T1, T2, T3)
 ```
@@ -415,9 +412,9 @@ Task(prompt="Update migration guide")
 
 ```python
 # ❌ WRONG - No task IDs, can't distinguish results
-Task(prompt="Research auth patterns")
-Task(prompt="Research caching patterns")
-Task(prompt="Research logging patterns")
+use the appropriate Gemini agent invocation
+use the appropriate Gemini agent invocation
+use the appropriate Gemini agent invocation
 
 # Which result is which?
 ```
@@ -428,9 +425,9 @@ auth_id, auth_prompt = delegate_with_id("Research auth", "...", "general-purpose
 cache_id, cache_prompt = delegate_with_id("Research caching", "...", "general-purpose")
 log_id, log_prompt = delegate_with_id("Research logging", "...", "general-purpose")
 
-Task(prompt=auth_prompt, description=f"{auth_id}: Research auth")
-Task(prompt=cache_prompt, description=f"{cache_id}: Research caching")
-Task(prompt=log_prompt, description=f"{log_id}: Research logging")
+use the appropriate Gemini agent invocation
+use the appropriate Gemini agent invocation
+use the appropriate Gemini agent invocation
 
 # Retrieve results independently
 auth_results = get_results_by_task_id(sdk, auth_id)
@@ -442,7 +439,7 @@ log_results = get_results_by_task_id(sdk, log_id)
 
 ```python
 # ❌ WRONG - No feature/bug tracking
-Task(prompt="Implement new feature")
+use the appropriate Gemini agent invocation
 # No record of what was planned or completed
 ```
 
@@ -453,7 +450,7 @@ wipnote feature start <feat-id>
 ```
 
 ```python
-Task(prompt="Implement new feature")
+use the appropriate Gemini agent invocation
 ```
 
 ```bash
@@ -465,7 +462,7 @@ wipnote feature complete <feat-id>
 
 **Key Principles:**
 
-1. **Delegate Everything** - Except Task(), AskUserQuestion(), TodoWrite(), and CLI operations
+1. **Delegate Everything** - Except use the appropriate Gemini agent invocation, AskUserQuestion(), TodoWrite(), and CLI operations
 2. **Parallel Dispatch** - Send all independent Tasks in one message
 3. **Track Work** - Use wipnote CLI for all features, bugs, spikes
 4. **Parallel > Sequential** - Delegate independently when possible

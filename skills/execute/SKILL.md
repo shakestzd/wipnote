@@ -147,15 +147,15 @@ When executing features that originated from a plan, you must first resolve the 
 
 You already called `wipnote execute-preview <trk-id> --format json` in the first discovery step. The track's human title is `.track.title` in that payload — reuse it. Do not issue a second `wipnote track show` call just for the title.
 
-Use the title (not the raw track ID) as the outer `Agent()` description when spawning the top-level coordinator:
+Use the title (not the raw track ID) as the outer `use the appropriate Gemini agent invocation` description when spawning the top-level coordinator:
 
 ```
-Agent(description="Multi-Project MVP: execute plan", ...)  # ✓ GOOD
+use the appropriate Gemini agent invocation  # ✓ GOOD
 ```
 
 Never use the raw track ID:
 ```
-Agent(description="trk-8cf41009", ...)  # ✗ BAD
+use the appropriate Gemini agent invocation  # ✗ BAD
 ```
 
 **Create tasks with human-readable subjects:**
@@ -170,7 +170,7 @@ TaskCreate(
     metadata={
         "feature_id": "<slice.id>",             # e.g. feat-7540a6cc
         "num": <slice.num>,                     # e.g. 1
-        "agent": "wipnote:feature-coder"
+        "agent": "feature-coder"
     }
 )
 ```
@@ -186,19 +186,17 @@ Spawn ALL ready tasks in a single message. Each gets an isolated worktree:
 ```
 # In a SINGLE message, dispatch all N unblocked tasks:
 
-Agent(
+Use Gemini agent invocation with:
     description="feat-001: Add check command",
-    subagent_type="wipnote:feature-coder",
+    agent="@feature-coder",
     isolation="worktree",
-    prompt="[full task spec — see template below]"
-)
+    message="[full task spec — see template below]"
 
-Agent(
+Use Gemini agent invocation with:
     description="feat-002: Add budget command",
-    subagent_type="wipnote:feature-coder",
+    agent="@feature-coder",
     isolation="worktree",
-    prompt="[full task spec]"
-)
+    message="[full task spec]"
 
 # ... repeat for ALL unblocked tasks
 ```
@@ -396,12 +394,11 @@ while True:
     # Dispatch non-overlapping tasks in ONE message
     for task in no_overlap:
         TaskUpdate(taskId=task.id, status="in_progress")
-        Agent(
+        Use Gemini agent invocation with:
             description=task.subject,  # Must be slice.title from TaskCreate, NOT slice.num or feature_id
-            subagent_type=task.metadata.agent,
+            agent=task.metadata.agent,
             isolation="worktree",
-            prompt=build_prompt(task)
-        )
+            message=build_prompt(task)
     
     # Defer overlapping tasks to next wave
     for task in ready:

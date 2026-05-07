@@ -30,7 +30,9 @@ When your task is done and quality gates pass:
 
 **FORBIDDEN:** Never edit `.wipnote/` files directly. Use the CLI:
 - `wipnote feature complete <id>` not `Edit(".wipnote/features/...")`
-- `wipnote bug create "title"` not `Write(".wipnote/bugs/...")`
+- `wipnote bug create "title" --track <trk-id>` not `Write(".wipnote/bugs/...")`
+
+Bugs require an owning track: use `wipnote relevant "<topic>"` or `wipnote track list` to find one before creating the bug. `--standalone` is supported for feature creation only, not bug creation.
 
 **BATCH wipnote CLI calls.** Each Bash tool call spends one turn from the user's quota. Chain commands with `&&` into a single invocation whenever possible. Do this (1 call):
 ```bash

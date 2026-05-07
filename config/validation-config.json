@@ -35,7 +35,7 @@
       "tools": ["Write", "Edit", "Delete", "NotebookEdit"],
       "path_patterns": ["\\.wipnote/"],
       "message": "Never write directly to .wipnote/. Use SDK: wipnote feature create/start/complete",
-      "suggestion": "Use SDK commands:\n  wipnote feature create 'Title'\n  wipnote feature start <id>\n  wipnote bug create 'Title'"
+      "suggestion": "Use SDK commands:\n  wipnote feature create 'Title' --track <trk-id>\n  wipnote feature start <id>\n  wipnote bug create 'Title' --track <trk-id>"
     }
   },
 
@@ -47,8 +47,8 @@
     ],
     "allowed_during_spike": true,
     "examples": [
-      "wipnote feature create 'Add validation'",
-      "wipnote bug create 'Fix drift issue'",
+      "wipnote feature create 'Add validation' --track trk-xxx",
+      "wipnote bug create 'Fix drift issue' --track trk-xxx",
       "wipnote feature start feat-123"
     ]
   },
@@ -127,7 +127,7 @@
       },
       "direct_wipnote_write_denied": {
         "decision": "deny",
-        "reason": "INSTRUCTION: Never write directly to .wipnote/ files. Use the CLI instead. For tracking operations, use:\n\nwipnote feature create 'Title'\nwipnote feature start <id>\nwipnote bug create 'Title'\n\nThe CLI is the only interface to .wipnote/ data.",
+        "reason": "INSTRUCTION: Never write directly to .wipnote/ files. Use the CLI instead. For tracking operations, use:\n\nwipnote feature create 'Title' --track <trk-id>\nwipnote feature start <id>\nwipnote bug create 'Title' --track <trk-id>\n\nBugs require --track <trk-id>; --standalone is only supported for feature create. The CLI is the only interface to .wipnote/ data.",
         "suggestion": "Use SDK - never direct file writes to .wipnote/"
       }
     }
