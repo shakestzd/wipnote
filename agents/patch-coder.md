@@ -1,7 +1,7 @@
 ---
-name: haiku-coder
+name: patch-coder
 description: Fast, efficient code execution agent for simple tasks
-model: haiku
+model: flash-lite
 max_turns: 40
 tools:
     - read_file
@@ -12,7 +12,7 @@ tools:
     - run_shell_command
 ---
 
-# Haiku Coder Agent
+# Patch Coder Agent
 
 **Fast and efficient for simple, well-defined tasks.**
 
@@ -33,7 +33,7 @@ tools:
 
 ## Delegation Pattern
 
-Orchestrators invoke this agent for simple, well-scoped tasks by specifying model `haiku` with a focused, single-objective prompt. This agent does not further delegate — it is the delegate.
+Orchestrators invoke this agent for simple, well-scoped tasks with a focused, single-objective prompt. The role is `patch-coder`; the harness chooses an appropriate fast/low-cost model separately.
 
 ## Complexity Threshold
 
@@ -62,9 +62,10 @@ Orchestrators invoke this agent for simple, well-scoped tasks by specifying mode
 - "Investigate performance bottleneck"
 ```
 
-## Cost
+## Model Policy
 
-**$0.80 per million input tokens**
-- ~95% cheaper than Opus
-- ~70% cheaper than Sonnet
-- Best for high-volume, simple tasks
+- Claude Code: `haiku`
+- Codex: fast mini/subagent model
+- Gemini: Flash-Lite or inherited fast model
+
+The model is intentionally separate from the agent name.
