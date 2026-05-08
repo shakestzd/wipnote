@@ -76,6 +76,14 @@ func TestClaudeParityFromLiveManifest(t *testing.T) {
 	assertHasMarkdown(t, filepath.Join(outDir, "commands"), "commands")
 	assertHasMarkdown(t, filepath.Join(outDir, "agents"), "agents")
 	assertHasSkill(t, filepath.Join(outDir, "skills"))
+
+	executeSkill, err := os.ReadFile(filepath.Join(outDir, "skills", "execute", "SKILL.md"))
+	if err != nil {
+		t.Fatalf("read Claude execute skill: %v", err)
+	}
+	if !strings.Contains(string(executeSkill), "SendMessage") {
+		t.Errorf("Claude execute skill lost SendMessage preflight content")
+	}
 }
 
 func assertHasMarkdown(t *testing.T, dir, label string) {

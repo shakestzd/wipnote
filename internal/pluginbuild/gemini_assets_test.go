@@ -34,6 +34,9 @@ func TestGeminiAdapterCopiesVerbatimAssets(t *testing.T) {
 	if _, err := os.Stat(skillPath); err != nil {
 		t.Errorf("expected skill at %s: %v", skillPath, err)
 	}
+	if _, err := os.Stat(filepath.Join(outDir, "skills", "bar", "SKILL.codex.md")); !os.IsNotExist(err) {
+		t.Errorf("expected Codex override sidecar to be skipped in Gemini output; err=%v", err)
+	}
 
 	// Repo-root GEMINI.md copied to extension root (basename only).
 	geminiPath := filepath.Join(outDir, "GEMINI.md")
@@ -107,6 +110,7 @@ func seedGeminiPhase1Assets(t *testing.T, repoRoot string) {
 	t.Helper()
 	writeFile(t, filepath.Join(repoRoot, "plugin", "agents", "foo.md"), "# foo\n")
 	writeFile(t, filepath.Join(repoRoot, "plugin", "skills", "bar", "SKILL.md"), "# bar skill\n")
+	writeFile(t, filepath.Join(repoRoot, "plugin", "skills", "bar", "SKILL.codex.md"), "# codex override\n")
 	writeFile(t, filepath.Join(repoRoot, "plugin", "templates", "x.html"), "<html/>\n")
 	writeFile(t, filepath.Join(repoRoot, "plugin", "static", "y.css"), "body{}\n")
 	writeFile(t, filepath.Join(repoRoot, "plugin", "config", "z.json"), "{}\n")

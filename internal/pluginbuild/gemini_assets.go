@@ -86,6 +86,9 @@ func copyAssetTreeGemini(srcDir, dstDir string, knownRoles map[string]struct{}) 
 		if err != nil {
 			return err
 		}
+		if d.Type().IsRegular() && isCodexOverrideFile(d.Name()) {
+			return nil
+		}
 		rel, err := filepath.Rel(srcDir, path)
 		if err != nil {
 			return err
