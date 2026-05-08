@@ -107,8 +107,9 @@ func buildCodexOtelConfigArgs(port int) []string {
 	base := fmt.Sprintf("http://127.0.0.1:%d", port)
 	return []string{
 		"-c", "otel.log_user_prompt=true",
-		"-c", fmt.Sprintf(`otel.exporter={ otlp-http = { endpoint = "%s/v1/logs", protocol = "binary" } }`, base),
-		"-c", fmt.Sprintf(`otel.trace_exporter={ otlp-http = { endpoint = "%s/v1/traces", protocol = "binary" } }`, base),
+		"-c", fmt.Sprintf(`otel.exporter={ otlp-http = { endpoint = "%s/v1/logs", protocol = "http/protobuf" } }`, base),
+		"-c", fmt.Sprintf(`otel.trace_exporter={ otlp-http = { endpoint = "%s/v1/traces", protocol = "http/protobuf" } }`, base),
+		"-c", fmt.Sprintf(`otel.metrics_exporter={ otlp-http = { endpoint = "%s/v1/metrics", protocol = "http/protobuf" } }`, base),
 	}
 }
 
