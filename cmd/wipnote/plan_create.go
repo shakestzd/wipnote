@@ -163,6 +163,9 @@ func enrichPageFromYAML(wipnoteDir, planID string, page *plantmpl.PlanPage) {
 	if plan.Meta.Status != "" {
 		page.Status = plan.Meta.Status
 	}
+	if plan.Meta.Priority != "" {
+		page.Priority = plan.Meta.Priority
+	}
 	if plan.Meta.TrackID != "" && page.FeatureID == "" {
 		page.FeatureID = plan.Meta.TrackID
 	}

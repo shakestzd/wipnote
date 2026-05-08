@@ -16,6 +16,7 @@ const driftTestYAML = `meta:
     description: test
     created_at: "2026-04-15"
     status: finalized
+    priority: medium
     version: 1
 design:
     problem: p
@@ -128,6 +129,49 @@ func TestCheckPlanDrift_NoDrift(t *testing.T) {
 
 	if buf.Len() != 0 {
 		t.Errorf("expected no warnings, got:\n%s", buf.String())
+	}
+}
+
+func TestRenderedYAMLPlanPriorityRoundTrip(t *testing.T) {
+	tmpDir := t.TempDir()
+	wipnoteDir := filepath.Join(tmpDir, ".wipnote")
+	if err := os.MkdirAll(filepath.Join(wipnoteDir, "plans"), 0o755); err != nil {
+		t.Fatalf("mkdir plans: %v", err)
+	}
+	plan := `meta:
+    id: plan-priority
+    title: Priority Plan
+    description: test
+    created_at: "2026-05-07"
+    status: active
+    priority: high
+    version: 1
+design:
+    problem: p
+    goals: []
+    constraints: []
+    approved: false
+    comment: ""
+slices: []
+questions: []
+`
+	if err := os.WriteFile(filepath.Join(wipnoteDir, "plans", "plan-priority.yaml"), []byte(plan), 0o644); err != nil {
+		t.Fatalf("write yaml: %v", err)
+	}
+	if err := renderPlanToFile(wipnoteDir, "plan-priority"); err != nil {
+		t.Fatalf("renderPlanToFile: %v", err)
+	}
+	projectDirFlag = tmpDir
+	defer func() { projectDirFlag = "" }()
+
+	out := captureStdout(t, func() {
+		if err := runPlanShowWithFormat("plan-priority", "text"); err != nil {
+			t.Fatalf("runPlanShowWithFormat: %v", err)
+		}
+	})
+
+	if !strings.Contains(out, "Priority  high") {
+		t.Fatalf("rendered YAML plan did not round-trip high priority:\n%s", out)
 	}
 }
 

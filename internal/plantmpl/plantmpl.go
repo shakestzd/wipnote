@@ -162,6 +162,7 @@ type PlanPage struct {
 	Date        string // original YAML meta.created_at when available, else render time
 	Version     int    // monotonic version counter from plan.meta.version; 0 if unset
 	Status      string // "draft", "in-progress", "finalized", etc.
+	Priority    string // "low", "medium", "high", "critical"
 
 	// IsV2 marks a plan as using the v2 slice-card format where each slice
 	// carries its own questions and critic_revisions. When true, the global
@@ -228,6 +229,9 @@ func (p *PlanPage) Render(w io.Writer) error {
 	}
 	if p.Status == "" {
 		p.Status = "draft"
+	}
+	if p.Priority == "" {
+		p.Priority = "medium"
 	}
 	return planPageTmpl.Execute(w, p)
 }

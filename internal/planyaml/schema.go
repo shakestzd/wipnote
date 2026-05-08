@@ -20,6 +20,7 @@ type PlanMeta struct {
 	Description string `yaml:"description"`
 	CreatedAt   string `yaml:"created_at"`
 	Status      string `yaml:"status"` // draft | review | finalized | active | completed
+	Priority    string `yaml:"priority,omitempty"`
 	CreatedBy   string `yaml:"created_by,omitempty"`
 	Version     int    `yaml:"version"`
 }

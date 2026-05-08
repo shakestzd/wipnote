@@ -12,6 +12,7 @@ func BuildFromTopic(planID, title, description, date string) *PlanPage {
 		Description: description,
 		Date:        date,
 		Status:      "draft",
+		Priority:    "medium",
 		Assets:      &AssetRegistry{},
 	}
 }
@@ -26,6 +27,7 @@ func BuildFromWorkItem(planID, featureID, title, description, date string) *Plan
 		Description: description,
 		Date:        date,
 		Status:      "draft",
+		Priority:    "medium",
 		Assets:      &AssetRegistry{},
 	}
 }
