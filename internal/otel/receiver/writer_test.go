@@ -254,7 +254,7 @@ func TestWriter_OrphanSpanCreatePlaceholder(t *testing.T) {
 
 	pending := &db.PendingSubagentStart{
 		AgentID:   agentID,
-		AgentType: "haiku-coder",
+		AgentType: "patch-coder",
 		SessionID: sessionID,
 		CWD:       "/mock/test",
 		CreatedAt: time.Now().UnixMicro(),
@@ -339,7 +339,7 @@ func TestWriter_RealAgentSpanUpgradesPlaceholder(t *testing.T) {
 
 	pending := &db.PendingSubagentStart{
 		AgentID:   agentID,
-		AgentType: "sonnet-coder",
+		AgentType: "feature-coder",
 		SessionID: sessionID,
 		CWD:       "/tmp/upgrade-test",
 		CreatedAt: time.Now().Add(-30 * time.Second).UnixMicro(), // started 30s ago
@@ -470,7 +470,7 @@ func TestWriter_ReattributesByAgentIDResourceAttr(t *testing.T) {
 	if _, err := readDB.Exec(`
 		INSERT OR REPLACE INTO pending_subagent_starts
 			(agent_id, agent_type, session_id, created_at, agent_span_id)
-		VALUES (?, 'sonnet-coder', ?, ?, ?)`,
+		VALUES (?, 'feature-coder', ?, ?, ?)`,
 		agentID, sessionID, time.Now().UnixMicro(), agentSpanID,
 	); err != nil {
 		t.Fatalf("seed pending_subagent_starts: %v", err)

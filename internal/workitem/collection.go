@@ -150,20 +150,51 @@ func (c *Collection) writeNode(node *models.Node) (string, error) {
 	return WriteNodeHTML(c.Dir(), node)
 }
 
-// Start marks a node as in-progress and dual-writes status to SQLite.
-func (c *Collection) Start(id string) (*models.Node, error) {
+func (c *Collection) nodePath(id string) string {
+	return filepath.Join(c.Dir(), id+".html")
+}
+
+func (c *Collection) writeNodeUnlocked(node *models.Node) (string, error) {
+	return writeNodeHTMLUnlocked(c.Dir(), node)
+}
+
+// mutateNode serialises the full canonical read-modify-write window for a
+// single work item. SQLite remains a derived read index; the HTML file is read
+// and written while holding the per-item sidecar lock.
+func (c *Collection) mutateNode(id string, mutate func(*models.Node) error, afterWrite ...func(*models.Node)) (*models.Node, error) {
+	release := LockFeatureForWrite(c.nodePath(id))
+	defer release()
+
 	node, err := c.Get(id)
 	if err != nil {
 		return nil, err
 	}
-	node.Status = models.StatusInProgress
-	node.AgentAssigned = c.base.Agent
-	node.UpdatedAt = time.Now().UTC()
-	if _, err := c.writeNode(node); err != nil {
+	if err := mutate(node); err != nil {
 		return nil, err
 	}
-	if c.base.DB != nil {
-		_ = dbpkg.UpdateFeatureStatus(c.base.DB, id, "in-progress")
+	if _, err := c.writeNodeUnlocked(node); err != nil {
+		return nil, err
+	}
+	for _, fn := range afterWrite {
+		fn(node)
+	}
+	return node, nil
+}
+
+// Start marks a node as in-progress and dual-writes status to SQLite.
+func (c *Collection) Start(id string) (*models.Node, error) {
+	node, err := c.mutateNode(id, func(node *models.Node) error {
+		node.Status = models.StatusInProgress
+		node.AgentAssigned = c.base.Agent
+		node.UpdatedAt = time.Now().UTC()
+		return nil
+	}, func(*models.Node) {
+		if c.base.DB != nil {
+			_ = dbpkg.UpdateFeatureStatus(c.base.DB, id, "in-progress")
+		}
+	})
+	if err != nil {
+		return nil, err
 	}
 	return node, nil
 }
@@ -171,27 +202,27 @@ func (c *Collection) Start(id string) (*models.Node, error) {
 // Complete marks a node as done and auto-completes all steps.
 // Also releases any active SQLite claim with completed status.
 func (c *Collection) Complete(id string) (*models.Node, error) {
-	node, err := c.Get(id)
+	node, err := c.mutateNode(id, func(node *models.Node) error {
+		for i := range node.Steps {
+			if !node.Steps[i].Completed {
+				node.Steps[i].Completed = true
+				node.Steps[i].Agent = c.base.Agent
+				node.Steps[i].Timestamp = time.Now().UTC()
+			}
+		}
+		node.Status = models.StatusDone
+		node.UpdatedAt = time.Now().UTC()
+		return nil
+	}, func(*models.Node) {
+		if c.base.DB != nil {
+			_ = dbpkg.UpdateFeatureStatus(c.base.DB, id, "done")
+			if activeClaim, err := dbpkg.GetActiveClaim(c.base.DB, id); err == nil && activeClaim != nil {
+				_ = dbpkg.ReleaseClaim(c.base.DB, activeClaim.ClaimID, activeClaim.OwnerSessionID, models.ClaimCompleted)
+			}
+		}
+	})
 	if err != nil {
 		return nil, err
-	}
-	for i := range node.Steps {
-		if !node.Steps[i].Completed {
-			node.Steps[i].Completed = true
-			node.Steps[i].Agent = c.base.Agent
-			node.Steps[i].Timestamp = time.Now().UTC()
-		}
-	}
-	node.Status = models.StatusDone
-	node.UpdatedAt = time.Now().UTC()
-	if _, err := c.writeNode(node); err != nil {
-		return nil, err
-	}
-	if c.base.DB != nil {
-		_ = dbpkg.UpdateFeatureStatus(c.base.DB, id, "done")
-		if activeClaim, err := dbpkg.GetActiveClaim(c.base.DB, id); err == nil && activeClaim != nil {
-			_ = dbpkg.ReleaseClaim(c.base.DB, activeClaim.ClaimID, activeClaim.OwnerSessionID, models.ClaimCompleted)
-		}
 	}
 	return node, nil
 }
@@ -202,25 +233,24 @@ func (c *Collection) Complete(id string) (*models.Node, error) {
 // It also dual-writes to graph_edges in SQLite when a DB connection is available.
 // HTML is canonical; SQLite errors are non-fatal.
 func (c *Collection) AddEdge(id string, e models.Edge) (*models.Node, error) {
-	node, err := c.Get(id)
+	node, err := c.mutateNode(id, func(node *models.Node) error {
+		node.AddEdge(e)
+		return nil
+	}, func(*models.Node) {
+		// Dual-write to SQLite read index.
+		if c.base.DB != nil {
+			edgeID := fmt.Sprintf("%s-%s-%s", id, string(e.Relationship), e.TargetID)
+			_ = dbpkg.InsertEdge(
+				c.base.DB,
+				edgeID, id, c.nodeType,
+				e.TargetID, inferNodeType(e.TargetID),
+				string(e.Relationship),
+				e.Properties,
+			)
+		}
+	})
 	if err != nil {
 		return nil, fmt.Errorf("add edge %s: %w", id, err)
-	}
-	node.AddEdge(e)
-	if _, err := c.writeNode(node); err != nil {
-		return nil, fmt.Errorf("add edge %s: %w", id, err)
-	}
-
-	// Dual-write to SQLite read index.
-	if c.base.DB != nil {
-		edgeID := fmt.Sprintf("%s-%s-%s", id, string(e.Relationship), e.TargetID)
-		_ = dbpkg.InsertEdge(
-			c.base.DB,
-			edgeID, id, c.nodeType,
-			e.TargetID, inferNodeType(e.TargetID),
-			string(e.Relationship),
-			e.Properties,
-		)
 	}
 
 	return node, nil
@@ -230,21 +260,21 @@ func (c *Collection) AddEdge(id string, e models.Edge) (*models.Node, error) {
 // Returns the updated node and whether an edge was actually removed.
 // It also removes the corresponding row from graph_edges in SQLite.
 func (c *Collection) RemoveEdge(id, targetID string, relType models.RelationshipType) (*models.Node, bool, error) {
-	node, err := c.Get(id)
+	removed := false
+	node, err := c.mutateNode(id, func(node *models.Node) error {
+		removed = node.RemoveEdge(targetID, relType)
+		return nil
+	}, func(*models.Node) {
+		// Dual-write: remove from SQLite read index.
+		if removed && c.base.DB != nil {
+			_ = dbpkg.DeleteEdge(c.base.DB, id, targetID, string(relType))
+		}
+	})
 	if err != nil {
 		return nil, false, fmt.Errorf("remove edge %s: %w", id, err)
 	}
-	removed := node.RemoveEdge(targetID, relType)
 	if !removed {
 		return node, false, nil
-	}
-	if _, err := c.writeNode(node); err != nil {
-		return nil, false, fmt.Errorf("remove edge %s: %w", id, err)
-	}
-
-	// Dual-write: remove from SQLite read index.
-	if c.base.DB != nil {
-		_ = dbpkg.DeleteEdge(c.base.DB, id, targetID, string(relType))
 	}
 
 	return node, true, nil
@@ -278,18 +308,15 @@ func inferNodeType(id string) string {
 // Claim marks a work item as claimed by the current agent.
 // It sets AgentAssigned, ClaimedAt, and ClaimedBySession.
 func (c *Collection) Claim(id, sessionID string) error {
-	node, err := c.Get(id)
+	_, err := c.mutateNode(id, func(node *models.Node) error {
+		now := time.Now().UTC()
+		node.AgentAssigned = c.base.Agent
+		node.ClaimedAt = fmtTime(now)
+		node.ClaimedBySession = sessionID
+		node.UpdatedAt = now
+		return nil
+	})
 	if err != nil {
-		return fmt.Errorf("claim %s/%s: %w", c.collectionName, id, err)
-	}
-
-	now := time.Now().UTC()
-	node.AgentAssigned = c.base.Agent
-	node.ClaimedAt = fmtTime(now)
-	node.ClaimedBySession = sessionID
-	node.UpdatedAt = now
-
-	if _, err := c.writeNode(node); err != nil {
 		return fmt.Errorf("claim %s/%s: %w", c.collectionName, id, err)
 	}
 	return nil
@@ -298,25 +325,22 @@ func (c *Collection) Claim(id, sessionID string) error {
 // Release clears the claim on a work item, removing agent assignment
 // and claim metadata. Also releases the SQLite claim if DB is available.
 func (c *Collection) Release(id string) error {
-	node, err := c.Get(id)
+	_, err := c.mutateNode(id, func(node *models.Node) error {
+		node.AgentAssigned = ""
+		node.ClaimedAt = ""
+		node.ClaimedBySession = ""
+		node.UpdatedAt = time.Now().UTC()
+		return nil
+	}, func(*models.Node) {
+		// Release SQLite claim if DB is available.
+		if c.base.DB != nil {
+			if activeClaim, err := dbpkg.GetActiveClaim(c.base.DB, id); err == nil && activeClaim != nil {
+				_ = dbpkg.ReleaseClaim(c.base.DB, activeClaim.ClaimID, activeClaim.OwnerSessionID, models.ClaimAbandoned)
+			}
+		}
+	})
 	if err != nil {
 		return fmt.Errorf("release %s/%s: %w", c.collectionName, id, err)
-	}
-
-	node.AgentAssigned = ""
-	node.ClaimedAt = ""
-	node.ClaimedBySession = ""
-	node.UpdatedAt = time.Now().UTC()
-
-	if _, err := c.writeNode(node); err != nil {
-		return fmt.Errorf("release %s/%s: %w", c.collectionName, id, err)
-	}
-
-	// Release SQLite claim if DB is available.
-	if c.base.DB != nil {
-		if activeClaim, err := dbpkg.GetActiveClaim(c.base.DB, id); err == nil && activeClaim != nil {
-			_ = dbpkg.ReleaseClaim(c.base.DB, activeClaim.ClaimID, activeClaim.OwnerSessionID, models.ClaimAbandoned)
-		}
 	}
 	return nil
 }
@@ -326,11 +350,13 @@ func (c *Collection) Release(id string) error {
 // When a DB connection is available, claiming is atomic at the SQLite level
 // (no race condition). Falls back to HTML-only check when DB is nil.
 func (c *Collection) AtomicClaim(id, sessionID string) error {
+	release := LockFeatureForWrite(c.nodePath(id))
+	defer release()
+
 	node, err := c.Get(id)
 	if err != nil {
 		return fmt.Errorf("atomic claim %s/%s: %w", c.collectionName, id, err)
 	}
-
 	// SQLite-first: use atomic claim if DB is available.
 	if c.base.DB != nil {
 		claim := &models.Claim{
@@ -363,7 +389,7 @@ func (c *Collection) AtomicClaim(id, sessionID string) error {
 	node.ClaimedBySession = sessionID
 	node.UpdatedAt = now
 
-	if _, err := c.writeNode(node); err != nil {
+	if _, err := c.writeNodeUnlocked(node); err != nil {
 		return fmt.Errorf("atomic claim %s/%s: %w", c.collectionName, id, err)
 	}
 	return nil
@@ -373,32 +399,30 @@ func (c *Collection) AtomicClaim(id, sessionID string) error {
 // step ID so CompleteTaskStep can find and mark it done later.
 // Also updates SQLite step counters (best-effort, HTML is canonical).
 func (c *Collection) AddTaskStep(id, taskID, subject string) error {
-	node, err := c.Get(id)
+	var total, completed int
+	_, err := c.mutateNode(id, func(node *models.Node) error {
+		stepDesc := subject
+		if stepDesc == "" {
+			stepDesc = "Task " + taskID
+		}
+
+		node.Steps = append(node.Steps, models.Step{
+			StepID:      "task-" + taskID,
+			Description: stepDesc,
+			Completed:   false,
+			Agent:       c.base.Agent,
+			Timestamp:   time.Now().UTC(),
+		})
+		node.UpdatedAt = time.Now().UTC()
+		total, completed = countSteps(node.Steps)
+		return nil
+	}, func(*models.Node) {
+		if c.base.DB != nil {
+			_ = dbpkg.UpdateFeatureSteps(c.base.DB, id, total, completed)
+		}
+	})
 	if err != nil {
 		return fmt.Errorf("add task step %s: %w", id, err)
-	}
-
-	stepDesc := subject
-	if stepDesc == "" {
-		stepDesc = "Task " + taskID
-	}
-
-	node.Steps = append(node.Steps, models.Step{
-		StepID:      "task-" + taskID,
-		Description: stepDesc,
-		Completed:   false,
-		Agent:       c.base.Agent,
-		Timestamp:   time.Now().UTC(),
-	})
-	node.UpdatedAt = time.Now().UTC()
-
-	if _, err := c.writeNode(node); err != nil {
-		return fmt.Errorf("add task step %s: write: %w", id, err)
-	}
-
-	if c.base.DB != nil {
-		total, completed := countSteps(node.Steps)
-		_ = dbpkg.UpdateFeatureSteps(c.base.DB, id, total, completed)
 	}
 	return nil
 }
@@ -407,34 +431,31 @@ func (c *Collection) AddTaskStep(id, taskID, subject string) error {
 // No-op if the step is already complete or not found.
 // Also updates SQLite step counters (best-effort, HTML is canonical).
 func (c *Collection) CompleteTaskStep(id, taskID string) error {
-	node, err := c.Get(id)
+	modified := false
+	var total, completed int
+	_, err := c.mutateNode(id, func(node *models.Node) error {
+		stepID := "task-" + taskID
+		for i := range node.Steps {
+			if node.Steps[i].StepID == stepID && !node.Steps[i].Completed {
+				node.Steps[i].Completed = true
+				node.Steps[i].Agent = c.base.Agent
+				node.Steps[i].Timestamp = time.Now().UTC()
+				modified = true
+				break
+			}
+		}
+		if modified {
+			node.UpdatedAt = time.Now().UTC()
+		}
+		total, completed = countSteps(node.Steps)
+		return nil
+	}, func(*models.Node) {
+		if modified && c.base.DB != nil {
+			_ = dbpkg.UpdateFeatureSteps(c.base.DB, id, total, completed)
+		}
+	})
 	if err != nil {
 		return fmt.Errorf("complete task step %s: %w", id, err)
-	}
-
-	stepID := "task-" + taskID
-	modified := false
-	for i := range node.Steps {
-		if node.Steps[i].StepID == stepID && !node.Steps[i].Completed {
-			node.Steps[i].Completed = true
-			node.Steps[i].Agent = c.base.Agent
-			node.Steps[i].Timestamp = time.Now().UTC()
-			modified = true
-			break
-		}
-	}
-	if !modified {
-		return nil
-	}
-
-	node.UpdatedAt = time.Now().UTC()
-	if _, err := c.writeNode(node); err != nil {
-		return fmt.Errorf("complete task step %s: write: %w", id, err)
-	}
-
-	if c.base.DB != nil {
-		total, completed := countSteps(node.Steps)
-		_ = dbpkg.UpdateFeatureSteps(c.base.DB, id, total, completed)
 	}
 	return nil
 }
@@ -454,16 +475,13 @@ func countSteps(steps []models.Step) (total, completed int) {
 // Unlike Release, Unclaim only clears ClaimedAt and ClaimedBySession
 // but preserves AgentAssigned.
 func (c *Collection) Unclaim(id string) error {
-	node, err := c.Get(id)
+	_, err := c.mutateNode(id, func(node *models.Node) error {
+		node.ClaimedAt = ""
+		node.ClaimedBySession = ""
+		node.UpdatedAt = time.Now().UTC()
+		return nil
+	})
 	if err != nil {
-		return fmt.Errorf("unclaim %s/%s: %w", c.collectionName, id, err)
-	}
-
-	node.ClaimedAt = ""
-	node.ClaimedBySession = ""
-	node.UpdatedAt = time.Now().UTC()
-
-	if _, err := c.writeNode(node); err != nil {
 		return fmt.Errorf("unclaim %s/%s: %w", c.collectionName, id, err)
 	}
 	return nil

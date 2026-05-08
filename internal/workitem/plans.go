@@ -124,14 +124,28 @@ func (pc *PlanCollection) writeNode(node *models.Node) (string, error) {
 	return WriteNodeHTML(pc.Dir(), node)
 }
 
+// writeNodeUnlocked writes without acquiring the per-item lock. Callers must
+// hold LockFeatureForWrite for the target path before calling.
+func (pc *PlanCollection) writeNodeUnlocked(node *models.Node) (string, error) {
+	path := filepath.Join(pc.Dir(), node.ID+".html")
+	if isCRISPIPlanFile(path) {
+		return path, patchPlanHTML(path, node)
+	}
+	return writeNodeHTMLUnlocked(pc.Dir(), node)
+}
+
 // AddEdge overrides Collection.AddEdge for plans to preserve CRISPI HTML.
 func (pc *PlanCollection) AddEdge(id string, e models.Edge) (*models.Node, error) {
+	path := filepath.Join(pc.Dir(), id+".html")
+	release := LockFeatureForWrite(path)
+	defer release()
+
 	node, err := pc.Get(id)
 	if err != nil {
 		return nil, fmt.Errorf("add edge %s: %w", id, err)
 	}
 	node.AddEdge(e)
-	if _, err := pc.writeNode(node); err != nil {
+	if _, err := pc.writeNodeUnlocked(node); err != nil {
 		return nil, fmt.Errorf("add edge %s: %w", id, err)
 	}
 
@@ -151,6 +165,10 @@ func (pc *PlanCollection) AddEdge(id string, e models.Edge) (*models.Node, error
 
 // Start overrides Collection.Start for plans to preserve CRISPI HTML.
 func (pc *PlanCollection) Start(id string) (*models.Node, error) {
+	path := filepath.Join(pc.Dir(), id+".html")
+	release := LockFeatureForWrite(path)
+	defer release()
+
 	node, err := pc.Get(id)
 	if err != nil {
 		return nil, err
@@ -158,7 +176,7 @@ func (pc *PlanCollection) Start(id string) (*models.Node, error) {
 	node.Status = models.StatusInProgress
 	node.AgentAssigned = pc.base.Agent
 	node.UpdatedAt = time.Now().UTC()
-	if _, err := pc.writeNode(node); err != nil {
+	if _, err := pc.writeNodeUnlocked(node); err != nil {
 		return nil, err
 	}
 	if pc.base.DB != nil {
@@ -169,6 +187,10 @@ func (pc *PlanCollection) Start(id string) (*models.Node, error) {
 
 // Complete overrides Collection.Complete for plans to preserve CRISPI HTML.
 func (pc *PlanCollection) Complete(id string) (*models.Node, error) {
+	path := filepath.Join(pc.Dir(), id+".html")
+	release := LockFeatureForWrite(path)
+	defer release()
+
 	node, err := pc.Get(id)
 	if err != nil {
 		return nil, err
@@ -182,7 +204,7 @@ func (pc *PlanCollection) Complete(id string) (*models.Node, error) {
 	}
 	node.Status = models.StatusDone
 	node.UpdatedAt = time.Now().UTC()
-	if _, err := pc.writeNode(node); err != nil {
+	if _, err := pc.writeNodeUnlocked(node); err != nil {
 		return nil, err
 	}
 	if pc.base.DB != nil {

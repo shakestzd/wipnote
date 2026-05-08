@@ -20,7 +20,7 @@ func TestCreateSessionHTML(t *testing.T) {
 	now := time.Date(2026, 4, 8, 12, 0, 0, 0, time.UTC)
 	s := &models.Session{
 		SessionID:     "sess-html-test-001",
-		AgentAssigned: "opus-coder",
+		AgentAssigned: "architect-coder",
 		Status:        "active",
 		CreatedAt:     now,
 		StartCommit:   "abc1234",
@@ -54,7 +54,7 @@ func TestCreateSessionHTML(t *testing.T) {
 	if !strings.Contains(content, `data-status="active"`) {
 		t.Error("missing data-status")
 	}
-	if !strings.Contains(content, `data-agent="opus-coder"`) {
+	if !strings.Contains(content, `data-agent="architect-coder"`) {
 		t.Error("missing data-agent")
 	}
 	if !strings.Contains(content, `data-started-at="2026-04-08T12:00:00Z"`) {
@@ -95,7 +95,7 @@ func TestCreateSessionHTMLSubagent(t *testing.T) {
 
 	s := &models.Session{
 		SessionID:     "sess-html-sub-001",
-		AgentAssigned: "sonnet-coder",
+		AgentAssigned: "feature-coder",
 		Status:        "active",
 		CreatedAt:     time.Now().UTC(),
 		StartCommit:   "def5678",

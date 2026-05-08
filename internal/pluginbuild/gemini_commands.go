@@ -29,6 +29,7 @@ func emitGeminiCommands(m *Manifest, repoRoot, outDir string, t Target) error {
 	if m.AssetSources.Commands == "" {
 		return nil
 	}
+	knownRoles := codexKnownAgentRoles(m, repoRoot)
 	srcDir := filepath.Join(repoRoot, m.AssetSources.Commands)
 	info, err := os.Stat(srcDir)
 	if os.IsNotExist(err) {
@@ -61,7 +62,7 @@ func emitGeminiCommands(m *Manifest, repoRoot, outDir string, t Target) error {
 		if err != nil {
 			return fmt.Errorf("read command %s: %w", e.Name(), err)
 		}
-		toml, err := toGeminiCommandTOML(string(body))
+		toml, err := toGeminiCommandTOML(rewriteGeminiAgentIDs(rewriteGeminiDelegationSyntax(string(body), knownRoles), knownRoles))
 		if err != nil {
 			return fmt.Errorf("encode gemini command %s: %w", e.Name(), err)
 		}

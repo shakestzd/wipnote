@@ -40,7 +40,7 @@ wipnote find features --status todo
 wipnote find features --status in-progress
 
 # Bugs
-wipnote bug create "Title"
+wipnote bug create "Title" --track <trk-id>
 wipnote bug start <bug-id>
 wipnote bug complete <bug-id>
 

@@ -27,7 +27,7 @@ Begin a new development session and choose what to work on
 
 **DO THIS:**
 
-**DELEGATION**: For complex project reviews or analysis of large backlogs, delegate to `Task(subagent_type="wipnote:researcher")`.
+**DELEGATION**: For complex project reviews or analysis of large backlogs, delegate to `call spawn_agent with agent_type "wipnote-researcher"`.
 
 1. **Get comprehensive session start info:**
    ```bash

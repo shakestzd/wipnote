@@ -18,18 +18,18 @@ import (
 	"github.com/shakestzd/wipnote/internal/models"
 )
 
-// featureWriteMu serialises concurrent writes that touch the same feature HTML
-// file in a single process. Keyed by node ID (string) → *sync.Mutex.
-// This prevents lost-update races between writers — `WriteNodeHTML`,
-// `compliance auto`'s findings writer, and `spec generate --insert`'s spec
-// writer all acquire the same per-feature lock via LockFeatureForWrite.
-var featureWriteMu sync.Map
+// nodeWriteMu serialises concurrent writes that touch the same work item HTML
+// file in a single process. Keyed by node path (string) → *sync.Mutex.
+// This prevents lost-update races between writers — canonical work item
+// mutations, `compliance auto`'s findings writer, and `spec generate --insert`'s
+// spec writer all acquire the same per-item lock via LockFeatureForWrite.
+var nodeWriteMu sync.Map
 
 // LockFeatureForWrite acquires both an in-process mutex AND a cross-process
-// advisory file lock so multiple writers cannot race on the same feature
-// HTML. The file lock guards a sidecar at `<featurePath>.lock` (created on
-// first use, never deleted — flocks survive removal anyway, and an
-// always-present sidecar means we never re-create a contested file).
+// advisory file lock so multiple writers cannot race on the same work item
+// HTML. The file lock guards a sidecar at `<featurePath>.lock` (created on first
+// use, never deleted — flocks survive removal anyway, and an always-present
+// sidecar means we never re-create a contested file).
 // Callers MUST defer the returned release function.
 //
 // The acquire-read-modify-write window must be inside the lock; the
@@ -42,7 +42,7 @@ var featureWriteMu sync.Map
 // logs nothing; this preserves single-process behavior for tests on file
 // systems that don't support flock.
 func LockFeatureForWrite(featurePath string) (release func()) {
-	muVal, _ := featureWriteMu.LoadOrStore(featurePath, &sync.Mutex{})
+	muVal, _ := nodeWriteMu.LoadOrStore(featurePath, &sync.Mutex{})
 	mu := muVal.(*sync.Mutex)
 	mu.Lock()
 
@@ -120,13 +120,12 @@ var nodeTmpl = template.Must(
 )
 
 // WriteNodeHTML serialises a Node to the canonical wipnote HTML format and
-// writes it to the collection directory.  The output MUST be parseable by
+// writes it to the collection directory. The output MUST be parseable by
 // htmlparse.ParseFile to ensure round-trip fidelity.
 //
 // Writes are atomic: the content is rendered to a temp file, fsynced, then
-// renamed over the target path (POSIX rename is atomic). A per-node mutex
-// serialises concurrent in-process writes for the same node ID to prevent
-// lost-update races.
+// renamed over the target path (POSIX rename is atomic). A per-node lock also
+// serialises concurrent cross-process writes to the same node file.
 //
 // Supplemental sections (`<section class="spec">` and
 // `<section class="compliance-findings">`) are preserved across writes:
@@ -141,9 +140,15 @@ func WriteNodeHTML(dir string, node *models.Node) (string, error) {
 	}
 
 	path := filepath.Join(dir, node.ID+".html")
-	// Acquire per-feature lock (in-process + cross-process) to serialize
-	// concurrent writes targeting the same HTML file.
 	defer LockFeatureForWrite(path)()
+	return writeNodeHTMLUnlocked(dir, node)
+}
+
+// writeNodeHTMLUnlocked writes node HTML without acquiring the per-item lock.
+// Callers use this when a broader canonical read-modify-write operation already
+// owns LockFeatureForWrite for the target path.
+func writeNodeHTMLUnlocked(dir string, node *models.Node) (string, error) {
+	path := filepath.Join(dir, node.ID+".html")
 	html, err := renderNodeHTML(node)
 	if err != nil {
 		return "", fmt.Errorf("render %s: %w", node.ID, err)
@@ -274,6 +279,12 @@ type nodeTemplateData struct {
 	ClaimedAt        string
 	ClaimedBySession string
 
+	// Provenance — rendered as data-created-by-* attributes on <article>.
+	CreatedByAgent      string
+	CreatedByModel      string
+	CreatedByRole       string
+	CreatedByCLIVersion string
+
 	StatusLabel   string
 	PriorityLabel string
 
@@ -311,6 +322,12 @@ type stepData struct {
 	DependsOnStr string
 	Icon         string
 	Description  string
+
+	// Provenance — rendered as data-created-by-* attributes on <li>. Agent
+	// (above) doubles as the data-created-by-agent value.
+	CreatedByModel      string
+	CreatedByRole       string
+	CreatedByCLIVersion string
 }
 
 // newNodeTemplateData converts a models.Node into template-ready data.
@@ -328,6 +345,11 @@ func newNodeTemplateData(n *models.Node) *nodeTemplateData {
 		SpikeSubtype:     n.SpikeSubtype,
 		ClaimedAt:        n.ClaimedAt,
 		ClaimedBySession: n.ClaimedBySession,
+
+		CreatedByAgent:      n.CreatedByAgent,
+		CreatedByModel:      n.CreatedByModel,
+		CreatedByRole:       n.CreatedByRole,
+		CreatedByCLIVersion: n.CreatedByCLIVersion,
 
 		StatusLabel:   titleCase(strings.ReplaceAll(string(n.Status), "-", " ")),
 		PriorityLabel: titleCase(string(n.Priority)),
@@ -403,11 +425,14 @@ func buildSteps(steps []models.Step) []stepData {
 			completed = "true"
 		}
 		sd := stepData{
-			CompletedStr: completed,
-			StepID:       s.StepID,
-			Agent:        s.Agent,
-			Icon:         icon,
-			Description:  s.Description,
+			CompletedStr:        completed,
+			StepID:              s.StepID,
+			Agent:               s.Agent,
+			Icon:                icon,
+			Description:         s.Description,
+			CreatedByModel:      s.CreatedByModel,
+			CreatedByRole:       s.CreatedByRole,
+			CreatedByCLIVersion: s.CreatedByCLIVersion,
 		}
 		if len(s.DependsOn) > 0 {
 			sd.DependsOnStr = strings.Join(s.DependsOn, ",")

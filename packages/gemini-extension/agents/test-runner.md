@@ -1,7 +1,7 @@
 ---
 name: test-runner
 description: Quality assurance agent. Use after code changes to run tests, type checks, linting, and validate that quality gates pass.
-model: haiku
+model: flash-lite
 max_turns: 20
 tools:
     - read_file
@@ -108,7 +108,7 @@ wipnote feature create "Test Feature" --track <trk-id> && wipnote feature list
 wipnote feature show invalid-id   # must return non-zero exit
 ```
 
-**Batch wipnote bookkeeping.** Each Bash tool call costs one turn from the user's quota. Chain `wipnote` commands with `&&` — `wipnote bug create ... && wipnote bug start <id> && wipnote link add ...` is one call, not three.
+**Batch wipnote bookkeeping.** Each Bash tool call costs one turn from the user's quota. Chain `wipnote` commands with `&&` — `wipnote bug create ... --track <trk-id> && wipnote bug start <id> && wipnote link add ...` is one call, not three.
 
 ## Continuous Testing Workflow (TDD)
 

@@ -1,6 +1,6 @@
 # /wipnote:git-commit
 
-Commit changes using Bash-copilot first, haiku-coder as fallback.
+Commit changes using Bash-copilot first, patch-coder as fallback.
 
 ## Usage
 
@@ -55,17 +55,14 @@ copilot -p "Stage files: <list>. Commit with message: '<message>'. Do NOT push."
 
 If `--push` was passed, add: "Then push to origin." to the prompt.
 
-**Only if copilot failed, timed out, or was not found — delegate to haiku-coder:**
+**Only if copilot failed, timed out, or was not found — delegate to patch-coder:**
 
 ```text
-Agent(
-    subagent_type="wipnote:haiku-coder",
-    description="Commit: <message>",
-    prompt="Stage these files: <list>. Commit with message: '<message>'. Do NOT push."
-)
+Call spawn_agent with:
+Call spawn_agent with agent_type "wipnote-patch-coder" and message containing: description="Commit: <message>"; prompt="Stage these files: <list>. Commit with message: '<message>'. Do NOT push.".
 ```
 
-**Only if BOTH copilot and haiku-coder failed — use direct git as last resort:**
+**Only if BOTH copilot and patch-coder failed — use direct git as last resort:**
 
 ```bash
 git add <files> && git commit -m "<message>"
@@ -96,7 +93,7 @@ This project uses `.githooks/` with pre-commit checks (go build, go vet, go test
 Report which path was used and the result:
 
 ```
-Committed via: bash-copilot | haiku-coder | direct git
+Committed via: bash-copilot | patch-coder | direct git
 Commit: <hash>
 Files changed: <count>
 Message: <message>

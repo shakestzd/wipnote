@@ -93,7 +93,7 @@ func buildSingleProjectMux(database *sql.DB, wipnoteDir string) *http.ServeMux {
 	mux.Handle("/api/features/", featureActivityRouter(database, wipnoteDir))
 	mux.Handle("/api/graph", graphAPIHandler(database))
 	mux.Handle("/api/graph/agents", agentsHandler(database))
-	mux.Handle("/api/provenance/", provenanceHandler(database))
+	mux.Handle("/api/provenance/", provenanceHandler(database, wipnoteDir))
 	mux.Handle("/api/graph/commits", commitsForFeatureHandler(database))
 	mux.Handle("/api/graph/files", filesForFeatureHandler(database))
 	mux.Handle("/api/graph/sessions", sessionsForFeatureHandler(database))

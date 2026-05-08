@@ -205,11 +205,11 @@ _depends on local feature_files state that the canonical `.wipnote/*.html` does 
 | internal/worktree/worktree.go | 1 | 1 |
 | packages/codex-marketplace/.agents/plugins/wipnote/.codex-plugin/plugin.json | 1 | 1 |
 | packages/codex-marketplace/.agents/plugins/wipnote/.mcp.json | 1 | 1 |
-| packages/codex-marketplace/.agents/plugins/wipnote/agents/haiku-coder.md | 1 | 1 |
-| packages/codex-marketplace/.agents/plugins/wipnote/agents/opus-coder.md | 1 | 1 |
+| packages/codex-marketplace/.agents/plugins/wipnote/agents/patch-coder.md | 1 | 1 |
+| packages/codex-marketplace/.agents/plugins/wipnote/agents/architect-coder.md | 1 | 1 |
 | packages/codex-marketplace/.agents/plugins/wipnote/agents/reader.md | 1 | 1 |
 | packages/codex-marketplace/.agents/plugins/wipnote/agents/researcher.md | 1 | 1 |
-| packages/codex-marketplace/.agents/plugins/wipnote/agents/sonnet-coder.md | 1 | 1 |
+| packages/codex-marketplace/.agents/plugins/wipnote/agents/feature-coder.md | 1 | 1 |
 | packages/codex-marketplace/.agents/plugins/wipnote/agents/test-runner.md | 1 | 1 |
 | packages/codex-marketplace/.agents/plugins/wipnote/commands/deploy.md | 1 | 1 |
 | packages/codex-marketplace/.agents/plugins/wipnote/commands/end.md | 1 | 1 |
@@ -256,11 +256,11 @@ _depends on local feature_files state that the canonical `.wipnote/*.html` does 
 | packages/codex-marketplace/.agents/plugins/marketplace.json | 1 | 1 |
 | packages/gemini-extension/GEMINI.md | 1 | 1 |
 | packages/gemini-extension/README.md | 1 | 1 |
-| packages/gemini-extension/agents/haiku-coder.md | 2 | 2 |
-| packages/gemini-extension/agents/opus-coder.md | 2 | 2 |
+| packages/gemini-extension/agents/patch-coder.md | 2 | 2 |
+| packages/gemini-extension/agents/architect-coder.md | 2 | 2 |
 | packages/gemini-extension/agents/reader.md | 2 | 2 |
 | packages/gemini-extension/agents/researcher.md | 2 | 2 |
-| packages/gemini-extension/agents/sonnet-coder.md | 2 | 2 |
+| packages/gemini-extension/agents/feature-coder.md | 2 | 2 |
 | packages/gemini-extension/agents/test-runner.md | 2 | 2 |
 | packages/gemini-extension/commands/wipnote/deploy.toml | 2 | 2 |
 | packages/gemini-extension/commands/wipnote/end.toml | 2 | 2 |
@@ -1632,10 +1632,10 @@ _depends on local feature_files state that the canonical `.wipnote/*.html` does 
 - packages/homebrew/update-formula.sh
 - plugin/.claude-plugin/marketplace.json
 - plugin/.claude-plugin/system-prompt-default.md
-- plugin/agents/haiku-coder.md
-- plugin/agents/opus-coder.md
+- plugin/agents/patch-coder.md
+- plugin/agents/architect-coder.md
 - plugin/agents/reader.md
-- plugin/agents/sonnet-coder.md
+- plugin/agents/feature-coder.md
 - plugin/build.sh
 - plugin/commands/deploy.md
 - plugin/commands/end.md

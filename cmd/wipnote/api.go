@@ -196,11 +196,15 @@ func sessionsHandler(database *sql.DB, projectDir string) http.HandlerFunc {
 
 // featuresHandler returns up to 50 features, in-progress first.
 // Falls back to scanning HTML files when SQLite features table is empty.
+// Provenance fields (created_by_agent, created_by_model, created_by_role,
+// created_by_cli_ver) are merged in from HTML files for DB-backed results.
 func featuresHandler(database *sql.DB, projectDir string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		features := featuresFromDB(database)
 		if len(features) == 0 {
 			features = featuresFromHTML(projectDir)
+		} else {
+			mergeProvenanceFromHTML(features, projectDir)
 		}
 		respondJSON(w, features)
 	}
@@ -247,6 +251,43 @@ func featuresFromDB(database *sql.DB) []map[string]any {
 	return features
 }
 
+// mergeProvenanceFromHTML reads provenance attrs from HTML work-item files and
+// merges them into the feature maps returned by featuresFromDB. Items without
+// provenance are left unchanged (backward-compatible). Called by featuresHandler.
+func mergeProvenanceFromHTML(features []map[string]any, projectDir string) {
+	// Build a lookup: id -> provenance fields from HTML.
+	type provFields struct{ agent, model, role, cliVer string }
+	lookup := make(map[string]provFields, len(features))
+	for _, subdir := range []string{"features", "bugs", "spikes", "tracks"} {
+		pattern := filepath.Join(projectDir, subdir, "*.html")
+		files, _ := filepath.Glob(pattern)
+		for _, f := range files {
+			node, err := htmlparse.ParseFile(f)
+			if err != nil || node == nil || node.ID == "" {
+				continue
+			}
+			if node.CreatedByAgent == "" && node.CreatedByModel == "" && node.CreatedByRole == "" && node.CreatedByCLIVersion == "" {
+				continue // nothing to merge
+			}
+			lookup[node.ID] = provFields{
+				agent:  node.CreatedByAgent,
+				model:  node.CreatedByModel,
+				role:   node.CreatedByRole,
+				cliVer: node.CreatedByCLIVersion,
+			}
+		}
+	}
+	for i := range features {
+		id, _ := features[i]["id"].(string)
+		if pf, ok := lookup[id]; ok {
+			features[i]["created_by_agent"] = pf.agent
+			features[i]["created_by_model"] = pf.model
+			features[i]["created_by_role"] = pf.role
+			features[i]["created_by_cli_ver"] = pf.cliVer
+		}
+	}
+}
+
 // featuresFromHTML scans .wipnote/features/*.html, .wipnote/bugs/*.html,
 // .wipnote/spikes/*.html, .wipnote/tracks/*.html and parses each file.
 func featuresFromHTML(projectDir string) []map[string]any {
@@ -274,17 +315,21 @@ func featuresFromHTML(projectDir string) []map[string]any {
 			}
 			trackTitle := trackTitles[node.TrackID]
 			features = append(features, map[string]any{
-				"id":              node.ID,
-				"type":            node.Type,
-				"title":           node.Title,
-				"status":          string(node.Status),
-				"priority":        string(node.Priority),
-				"track_id":        node.TrackID,
-				"track_title":     trackTitle,
-				"created_at":      node.CreatedAt.Format(time.RFC3339),
-				"steps_total":     len(node.Steps),
-				"steps_completed": completed,
-				"edges":           edges,
+				"id":                  node.ID,
+				"type":                node.Type,
+				"title":               node.Title,
+				"status":              string(node.Status),
+				"priority":            string(node.Priority),
+				"track_id":            node.TrackID,
+				"track_title":         trackTitle,
+				"created_at":          node.CreatedAt.Format(time.RFC3339),
+				"steps_total":         len(node.Steps),
+				"steps_completed":     completed,
+				"edges":               edges,
+				"created_by_agent":    node.CreatedByAgent,
+				"created_by_model":    node.CreatedByModel,
+				"created_by_role":     node.CreatedByRole,
+				"created_by_cli_ver":  node.CreatedByCLIVersion,
 			})
 		}
 	}

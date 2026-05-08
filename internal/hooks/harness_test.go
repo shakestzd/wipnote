@@ -151,7 +151,7 @@ func TestDetectHarness_AgentIDPreservedThroughClaudeHarness(t *testing.T) {
 		"cwd": "/workspaces/wipnote",
 		"hook_event_name": "SubagentStart",
 		"agent_id": "task-uuid-xyz",
-		"agent_type": "wipnote:sonnet-coder"
+		"agent_type": "wipnote:feature-coder"
 	}`)
 
 	harness := DetectHarness(payload)
@@ -166,8 +166,8 @@ func TestDetectHarness_AgentIDPreservedThroughClaudeHarness(t *testing.T) {
 	if ev.AgentID != "task-uuid-xyz" {
 		t.Errorf("AgentID = %q, want %q; CLAUDE_CODE_ENTRYPOINT must prevent Codex parser from clobbering to 'codex'", ev.AgentID, "task-uuid-xyz")
 	}
-	if ev.AgentType != "wipnote:sonnet-coder" {
-		t.Errorf("AgentType = %q, want %q", ev.AgentType, "wipnote:sonnet-coder")
+	if ev.AgentType != "wipnote:feature-coder" {
+		t.Errorf("AgentType = %q, want %q", ev.AgentType, "wipnote:feature-coder")
 	}
 }
 
@@ -416,11 +416,14 @@ func TestEmitCodexBlockResponse(t *testing.T) {
 		t.Fatalf("unmarshal codex response: %v", err)
 	}
 
-	if got["continue"] != false {
-		t.Errorf("continue = %v, want false for block decision", got["continue"])
+	if _, ok := got["continue"]; ok {
+		t.Errorf("continue = %v, want omitted for Codex block decision", got["continue"])
 	}
 	if got["decision"] != "block" {
 		t.Errorf("decision = %v, want block", got["decision"])
+	}
+	if got["reason"] != "no active work item" {
+		t.Errorf("reason = %v, want no active work item", got["reason"])
 	}
 }
 

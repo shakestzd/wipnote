@@ -70,6 +70,13 @@ func parseDocument(doc *goquery.Document) (*models.Node, error) {
 	node.ClaimedAt = attrOr(article, "data-claimed-at", "")
 	node.ClaimedBySession = attrOr(article, "data-claimed-by-session", "")
 
+	// Provenance attributes (added in feat-40ef1333). Pre-existing items
+	// without these attributes round-trip as empty strings.
+	node.CreatedByAgent = attrOr(article, "data-created-by-agent", "")
+	node.CreatedByModel = attrOr(article, "data-created-by-model", "")
+	node.CreatedByRole = attrOr(article, "data-created-by-role", "")
+	node.CreatedByCLIVersion = attrOr(article, "data-created-by-cli-version", "")
+
 	// Timestamps
 	node.CreatedAt = parseTime(attrOr(article, "data-created", ""))
 	node.UpdatedAt = parseTime(attrOr(article, "data-updated", ""))
@@ -163,12 +170,21 @@ func parseSteps(doc *goquery.Document) []models.Step {
 			}
 		}
 
+		// Provenance — attribute set added in feat-40ef1333. Step.Agent is
+		// the harness identity and doubles as data-created-by-agent on write.
+		createdByModel := attrOr(li, "data-created-by-model", "")
+		createdByRole := attrOr(li, "data-created-by-role", "")
+		createdByCLIVersion := attrOr(li, "data-created-by-cli-version", "")
+
 		steps = append(steps, models.Step{
-			StepID:      stepID,
-			Description: text,
-			Completed:   completed,
-			Agent:       agent,
-			DependsOn:   dependsOn,
+			StepID:              stepID,
+			Description:         text,
+			Completed:           completed,
+			Agent:               agent,
+			DependsOn:           dependsOn,
+			CreatedByModel:      createdByModel,
+			CreatedByRole:       createdByRole,
+			CreatedByCLIVersion: createdByCLIVersion,
 		})
 	})
 

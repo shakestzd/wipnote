@@ -51,13 +51,13 @@ Do NOT use Read, Edit, Write, Grep, or Glob directly. Delegate to wipnote subage
 | Task Type | Delegate To | When |
 |-----------|------------|------|
 | Research / debugging / visual QA | `wipnote:researcher` | Understanding code, finding files, error investigation, UI review |
-| Simple code changes | `wipnote:haiku-coder` | 1-2 files, clear requirements, quick fixes |
-| Feature implementation | `wipnote:sonnet-coder` | 3-8 files, moderate complexity (DEFAULT) |
-| Complex architecture | `wipnote:opus-coder` | 10+ files, design decisions, ambiguous requirements |
+| Simple code changes | `wipnote:patch-coder` | 1-2 files, clear requirements, quick fixes |
+| Feature implementation | `wipnote:feature-coder` | 3-8 files, moderate complexity (DEFAULT) |
+| Complex architecture | `wipnote:architect-coder` | 10+ files, design decisions, ambiguous requirements |
 | Testing / quality | `wipnote:test-runner` | Running tests, quality gates, validation |
-| External AI (code gen) | `Bash("codex exec ...")` | Try Codex CLI first, haiku-coder fallback |
-| External AI (research) | `Bash("gemini ...")` | Try Gemini CLI first, haiku-coder fallback |
-| External AI (git/PRs) | `Bash("copilot ...")` | Try Copilot CLI first, haiku-coder fallback |
+| External AI (code gen) | `Bash("codex exec ...")` | Try Codex CLI first, patch-coder fallback |
+| External AI (research) | `Bash("gemini ...")` | Try Gemini CLI first, patch-coder fallback |
+| External AI (git/PRs) | `Bash("copilot ...")` | Try Copilot CLI first, patch-coder fallback |
 | Simple CLI commands | `Bash("command")` | Git operations, build commands, quick checks |
 | Clarify requirements | `AskUserQuestion()` | When requirements are unclear |
 
@@ -66,7 +66,7 @@ Do NOT use Read, Edit, Write, Grep, or Glob directly. Delegate to wipnote subage
 Try external CLIs directly via Bash before spawning agents:
 
 1. `Bash("copilot ...")` / `Bash("codex exec ...")` / `Bash("gemini ...")` — try first
-2. If CLI not found or fails → delegate to `wipnote:haiku-coder` (or `sonnet-coder` for code gen)
+2. If CLI not found or fails → delegate to `wipnote:patch-coder` (or `feature-coder` for code gen)
 3. Never spawn operator agents — they don't exist
 
 The orchestrator owns the fallback decision based on the Bash result.
@@ -158,21 +158,21 @@ Applies to all wipnote bookkeeping: `feature/bug/spike/track/plan create|start|c
 
 ### What You NEVER Execute Directly
 - `Read`, `Grep`, `Glob` — delegate to wipnote:researcher
-- `Edit`, `Write` — delegate to wipnote:haiku-coder, sonnet-coder, or opus-coder
+- `Edit`, `Write` — delegate to wipnote:patch-coder, feature-coder, or architect-coder
 - `NotebookEdit` — delegate to a coder agent
 - **Git, build, test, or deploy commands** — NEVER run these directly via `Bash`. Always delegate:
-  - Git operations → `Bash("copilot ...")` (preferred) or `wipnote:haiku-coder` (fallback)
-  - Build / test / quality gates → `wipnote:test-runner` or `wipnote:haiku-coder`
-  - Deploy → `wipnote:haiku-coder` (runs `./scripts/deploy-all.sh <version> --no-confirm`)
+  - Git operations → `Bash("copilot ...")` (preferred) or `wipnote:patch-coder` (fallback)
+  - Build / test / quality gates → `wipnote:test-runner` or `wipnote:patch-coder`
+  - Deploy → `wipnote:patch-coder` (runs `./scripts/deploy-all.sh <version> --no-confirm`)
 
 ### Available Agents
-| Agent | Model | Purpose |
+| Agent | Model policy | Purpose |
 |-------|-------|---------|
-| wipnote:researcher | sonnet | Research, debugging, visual QA (merged) |
-| wipnote:haiku-coder | haiku | Quick fixes, 1-2 files |
-| wipnote:sonnet-coder | sonnet | Features, 3-8 files (DEFAULT) |
-| wipnote:opus-coder | opus | Architecture, 10+ files |
-| wipnote:test-runner | haiku | Testing, quality gates |
+| wipnote:researcher | balanced research | Research, debugging, visual QA (merged) |
+| wipnote:patch-coder | fast/low-cost | Quick fixes, 1-2 files |
+| wipnote:feature-coder | balanced | Features, 3-8 files (DEFAULT) |
+| wipnote:architect-coder | high-capability | Architecture, 10+ files |
+| wipnote:test-runner | fast/low-cost | Testing, quality gates |
 
 ---
 

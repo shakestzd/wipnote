@@ -46,6 +46,14 @@ type Session struct {
 	ActiveFeatureID       string   `json:"active_feature_id,omitempty"`
 	GitRemoteURL          string   `json:"git_remote_url,omitempty"`
 	ProjectDir            string   `json:"project_dir,omitempty"`
+
+	// Provenance — who/what created this session. Populated at SessionStart
+	// from harness env vars and the wipnote binary version. Sessions written
+	// before this feature was added leave these empty (rendered as "unknown").
+	CreatedByAgent      string `json:"created_by_agent,omitempty"`
+	CreatedByModel      string `json:"created_by_model,omitempty"`
+	CreatedByRole       string `json:"created_by_role,omitempty"`
+	CreatedByCLIVersion string `json:"created_by_cli_version,omitempty"`
 }
 
 // ActivityEntry is a lightweight view used in dashboard activity feeds.

@@ -54,13 +54,13 @@ Identify files all agents need and share that context in each agent's prompt. Pa
 
 ```python
 # CORRECT: All in one message (parallel)
-Task(subagent_type="wipnote:gemini-operator", description="Research API", prompt="...")
-Task(subagent_type="wipnote:sonnet-coder", description="Implement feat-123", prompt="...")
-Task(subagent_type="wipnote:sonnet-coder", description="Implement feat-456", prompt="...")
+use the gemini-operator workflow described here
+use the sonnet-coder workflow described here
+use the sonnet-coder workflow described here
 
 # WRONG: Sequential messages (not parallel)
-# result1 = Task(...)  # Wait for completion
-# result2 = Task(...)  # Then next one
+# result1 = use the appropriate Gemini agent invocation  # Wait for completion
+# result2 = use the appropriate Gemini agent invocation  # Then next one
 ```
 
 ---

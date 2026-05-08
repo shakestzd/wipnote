@@ -1,0 +1,177 @@
+meta:
+    id: plan-cf1a6ae4
+    title: Launch readiness — wipnote public launch blockers
+    description: Ordered critical path to LinkedIn + HN launch. Audit performed 2026-05-07. Estimated 3–4 days of focused work.
+    created_at: "2026-05-07"
+    status: active
+    version: 5
+design:
+    problem: 'Audit on 2026-05-07 found 4 blocker categories before public launch: missing LICENSE, incomplete rename artifacts, claim-breaking bugs (OTel, Gemini hooks, Yolo guard), stale docs/release, and missing content.'
+    goals:
+        - Clear all launch blockers in priority order
+        - Ensure no claim-breaking bugs survive to launch day
+        - Ship v0.59.0 with correct Homebrew formula and gh-pages docs
+        - Have blog post, demo video, and launch post ready to publish
+    constraints:
+        - Do not push to origin/main until rename (feat-913bf7a6) is complete and build passes
+        - All quality gates (go build, go vet, go test with TMPDIR=.gotmp/tmp) must pass before tagging
+    approved: false
+    comment: ""
+slices:
+    - id: slice-001
+      num: 1
+      title: BLOCKER 1 — Add root LICENSE file (MIT)
+      what: ""
+      why: ""
+      files: []
+      deps: []
+      done_when: []
+      effort: ""
+      risk: ""
+      tests: ""
+      approved: false
+      comment: ""
+    - id: slice-002
+      num: 2
+      title: BLOCKER 2 — Fix wipnote-aliases.sh (hg- to wn-)
+      what: ""
+      why: ""
+      files: []
+      deps: []
+      done_when: []
+      effort: ""
+      risk: ""
+      tests: ""
+      approved: false
+      comment: ""
+    - id: slice-003
+      num: 3
+      title: BLOCKER 3 — Complete rename (feat-913bf7a6 + feat-b02a559b)
+      what: ""
+      why: ""
+      files: []
+      deps: []
+      done_when: []
+      effort: ""
+      risk: ""
+      tests: ""
+      approved: false
+      comment: ""
+    - id: slice-004
+      num: 4
+      title: 'BLOCKER 4 — Fix claim-breaking bug: OTel collector dies mid-session (bug-28a9d7a7)'
+      what: ""
+      why: ""
+      files: []
+      deps: []
+      done_when: []
+      effort: ""
+      risk: ""
+      tests: ""
+      approved: false
+      comment: ""
+    - id: slice-005
+      num: 5
+      title: 'BLOCKER 5 — Fix claim-breaking bug: Gemini hooks never fire (bug-4a3a27ee)'
+      what: ""
+      why: ""
+      files: []
+      deps: []
+      done_when: []
+      effort: ""
+      risk: ""
+      tests: ""
+      approved: false
+      comment: ""
+    - id: slice-006
+      num: 6
+      title: 'BLOCKER 6 — Fix claim-breaking bug: Yolo guard misfires (bug-c4e3551d)'
+      what: ""
+      why: ""
+      files: []
+      deps: []
+      done_when: []
+      effort: ""
+      risk: ""
+      tests: ""
+      approved: false
+      comment: ""
+    - id: slice-007
+      num: 7
+      title: RELEASE — Fix gh-pages docs title (bug-3f5922c8)
+      what: ""
+      why: ""
+      files: []
+      deps: []
+      done_when: []
+      effort: ""
+      risk: ""
+      tests: ""
+      approved: false
+      comment: ""
+    - id: slice-008
+      num: 8
+      title: RELEASE — Update Homebrew formula to current version (feat-c8bb337e)
+      what: ""
+      why: ""
+      files: []
+      deps: []
+      done_when: []
+      effort: ""
+      risk: ""
+      tests: ""
+      approved: false
+      comment: ""
+    - id: slice-009
+      num: 9
+      title: RELEASE — Tag v0.59.0, push origin/main, cut GitHub release (feat-c40942d3)
+      what: ""
+      why: ""
+      files: []
+      deps: []
+      done_when: []
+      effort: ""
+      risk: ""
+      tests: ""
+      approved: false
+      comment: ""
+    - id: slice-010
+      num: 10
+      title: CONTENT — Record demo video (feat-4ae13f3c)
+      what: ""
+      why: ""
+      files: []
+      deps: []
+      done_when: []
+      effort: ""
+      risk: ""
+      tests: ""
+      approved: false
+      comment: ""
+    - id: slice-011
+      num: 11
+      title: CONTENT — Write blog post draft (feat-e505e51c)
+      what: ""
+      why: ""
+      files: []
+      deps: []
+      done_when: []
+      effort: ""
+      risk: ""
+      tests: ""
+      approved: false
+      comment: ""
+    - id: slice-012
+      num: 12
+      title: LAUNCH — LinkedIn post + HN submission (feat-ec81c370)
+      what: ""
+      why: ""
+      files: []
+      deps: []
+      done_when: []
+      effort: ""
+      risk: ""
+      tests: ""
+      approved: false
+      comment: ""
+questions: []

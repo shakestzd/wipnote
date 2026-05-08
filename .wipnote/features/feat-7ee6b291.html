@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Separate agent roles from model selection across CLIs</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-7ee6b291"
+             data-type="feature"
+             data-status="done"
+             data-priority="medium"
+             data-created="2026-05-07T06:04:49.461818"
+             data-updated="2026-05-07T06:22:02.300129" data-agent-assigned="claude-code" data-track-id="trk-2c83a1e2">
+
+        <header>
+            <h1>Separate agent roles from model selection across CLIs</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-2c83a1e2.html" data-relationship="part_of" data-since="2026-05-07T06:04:49.466798">trk-2c83a1e2</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="true" data-step-id="step-feat-7ee6b291-0" data-agent="claude-code">✅ Implemented capability-based agent role names: patch-coder, feature-coder, architect-coder replace haiku/sonnet/opus-coder across shared agent sources, prompts, generated Codex TOML, and Gemini extension agents.</li>
+                <li data-completed="true" data-step-id="step-feat-7ee6b291-1" data-agent="claude-code">✅ Implemented harness-specific model mapping: Claude keeps haiku/sonnet/opus in model fields; Codex maps to gpt-5.4-mini/gpt-5.4/gpt-5.5 with effort; Gemini maps to flash-lite/flash/pro.</li>
+                <li data-completed="true" data-step-id="step-feat-7ee6b291-2" data-agent="claude-code">✅ Validated focused pluginbuild and Codex launcher tests; rebuilt and refreshed Codex agents; fresh codex exec successfully spawned wipnote-patch-coder.</li>
+            </ol>
+        </section>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Rename and document wipnote agent roles so role names describe capability rather than Claude model families, while each harness maps those roles to appropriate model/provider settings using current best practices.</p>
+        </section>
+    </article>
+</body>
+</html>

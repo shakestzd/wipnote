@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/pelletier/go-toml/v2"
+	"github.com/shakestzd/wipnote/internal/storage"
 	"github.com/spf13/cobra"
 )
 
@@ -30,6 +31,19 @@ func codexConfigPath() string {
 func codexHooksPath() string {
 	home, _ := os.UserHomeDir()
 	return filepath.Join(home, ".codex", "hooks.json")
+}
+
+// codexAgentsPath returns the documented user-level custom agent directory.
+func codexAgentsPath() string {
+	home, _ := os.UserHomeDir()
+	return filepath.Join(home, ".codex", "agents")
+}
+
+func codexProjectAgentsPath(projectRoot string) string {
+	if projectRoot == "" {
+		return ""
+	}
+	return filepath.Join(projectRoot, ".codex", "agents")
 }
 
 // codexMarketplaceSection is the TOML key that indicates our marketplace is registered.
@@ -475,6 +489,113 @@ func ensureCodexGlobalHooksFromCache() (bool, error) {
 	return ensureCodexGlobalHooksInstalled(codexHooksPath(), codexInstalledPluginDirAt(codexPluginCachePath()))
 }
 
+type codexCustomAgentHeader struct {
+	Name        string `toml:"name"`
+	Description string `toml:"description"`
+}
+
+func ensureCodexAgentsFromCache() (bool, error) {
+	return ensureCodexCustomAgentsInstalled(codexInstalledPluginDirAt(codexPluginCachePath()), codexAgentsPath())
+}
+
+func ensureCodexCustomAgentsInstalled(pluginDir, agentsDir string) (bool, error) {
+	if pluginDir == "" || agentsDir == "" {
+		return false, nil
+	}
+	parentDir := filepath.Dir(agentsDir)
+	if info, err := os.Stat(parentDir); err == nil && !info.IsDir() {
+		return false, nil
+	} else if err != nil && !os.IsNotExist(err) {
+		return false, fmt.Errorf("checking Codex agents parent %s: %w", parentDir, err)
+	}
+	sourceDir := filepath.Join(pluginDir, "agents")
+	entries, err := os.ReadDir(sourceDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		return false, fmt.Errorf("reading Codex agent source %s: %w", sourceDir, err)
+	}
+
+	changed := false
+	sourceNames := map[string]bool{}
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".toml") {
+			continue
+		}
+		sourceNames[entry.Name()] = true
+		sourcePath := filepath.Join(sourceDir, entry.Name())
+		targetPath := filepath.Join(agentsDir, entry.Name())
+		if sameFileContent(sourcePath, targetPath) {
+			continue
+		}
+		if err := os.MkdirAll(agentsDir, 0755); err != nil {
+			return false, fmt.Errorf("creating Codex agents dir %s: %w", agentsDir, err)
+		}
+		if err := copyFile(sourcePath, targetPath); err != nil {
+			return false, fmt.Errorf("installing Codex agent %s: %w", targetPath, err)
+		}
+		changed = true
+	}
+	targetEntries, err := os.ReadDir(agentsDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return changed, nil
+		}
+		return false, fmt.Errorf("reading Codex agents target %s: %w", agentsDir, err)
+	}
+	for _, entry := range targetEntries {
+		name := entry.Name()
+		if entry.IsDir() || !strings.HasPrefix(name, "wipnote-") || !strings.HasSuffix(name, ".toml") || sourceNames[name] {
+			continue
+		}
+		if err := os.Remove(filepath.Join(agentsDir, name)); err != nil {
+			return false, fmt.Errorf("removing stale Codex agent %s: %w", name, err)
+		}
+		changed = true
+	}
+	return changed, nil
+}
+
+func sameFileContent(a, b string) bool {
+	left, err := os.ReadFile(a)
+	if err != nil {
+		return false
+	}
+	right, err := os.ReadFile(b)
+	if err != nil {
+		return false
+	}
+	return string(left) == string(right)
+}
+
+func buildCodexAgentConfigArgs(agentsDir string) []string {
+	entries, err := os.ReadDir(agentsDir)
+	if err != nil {
+		return nil
+	}
+	var args []string
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".toml") {
+			continue
+		}
+		path := filepath.Join(agentsDir, entry.Name())
+		data, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+		var header codexCustomAgentHeader
+		if err := toml.Unmarshal(data, &header); err != nil || header.Name == "" {
+			continue
+		}
+		if header.Description != "" {
+			args = append(args, "-c", fmt.Sprintf("agents.%s.description=%q", header.Name, header.Description))
+		}
+		args = append(args, "-c", fmt.Sprintf("agents.%s.config_file=%q", header.Name, filepath.ToSlash(path)))
+	}
+	return args
+}
+
 func copyDir(src, dst string) error {
 	info, err := os.Stat(src)
 	if err != nil {
@@ -681,6 +802,15 @@ func runCodexInit(yes, dryRun bool) error {
 	} else {
 		fmt.Println("wipnote Codex hooks are already installed.")
 	}
+	if dryRun {
+		fmt.Println("[dry-run] would install wipnote Codex agents into ~/.codex/agents")
+	} else if changed, err := ensureCodexAgentsFromCache(); err != nil {
+		fmt.Fprintf(os.Stderr, "warning: could not install wipnote Codex agents: %v\n", err)
+	} else if changed {
+		fmt.Println("wipnote Codex agents installed in ~/.codex/agents.")
+	} else {
+		fmt.Println("wipnote Codex agents are already installed.")
+	}
 
 	fmt.Println()
 	fmt.Println("Setup complete. Run: wipnote codex")
@@ -718,6 +848,11 @@ func launchCodexDefault(resumeID, trackID, featureID, worktreePath, workItem str
 			fmt.Fprintf(os.Stderr, "warning: could not install wipnote Codex hooks: %v\n", err)
 		} else if changed {
 			fmt.Println("wipnote Codex hooks installed in ~/.codex/hooks.json.")
+		}
+		if changed, err := ensureCodexAgentsFromCache(); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: could not install wipnote Codex agents: %v\n", err)
+		} else if changed {
+			fmt.Println("wipnote Codex agents installed in ~/.codex/agents.")
 		}
 	}
 
@@ -759,6 +894,7 @@ func launchCodexDefault(resumeID, trackID, featureID, worktreePath, workItem str
 		ProjectRoot:  workDir,
 		WorktreeRoot: workDir,
 		WipnoteRoot:  wipnoteRoot,
+		Mode:         codexLaunchModeDefault,
 		Yolo:         yolo,
 	})
 }
@@ -796,6 +932,7 @@ func launchCodexContinue(resumeID string, yolo bool, extraArgs []string) error {
 		ResumeID:    resumeID,
 		ExtraArgs:   extraArgs,
 		ProjectRoot: projectRoot,
+		Mode:        codexLaunchModeContinue,
 		Yolo:        yolo,
 	})
 }
@@ -810,6 +947,7 @@ func launchCodexDev(resumeID string, cleanup, dryRun, yolo bool, extraArgs []str
 	if err != nil {
 		return err
 	}
+	projectRoot, _ := resolveProjectRoot()
 
 	fmt.Printf("Launching Codex CLI in dev mode...\n")
 	fmt.Printf("  Local marketplace: %s\n", localMarketplace)
@@ -892,11 +1030,21 @@ func launchCodexDev(resumeID string, cleanup, dryRun, yolo bool, extraArgs []str
 		} else {
 			fmt.Println("wipnote Codex hooks are already installed.")
 		}
+		pluginDir := codexInstalledPluginDirAt(codexPluginCachePath())
+		if changed, err := ensureCodexCustomAgentsInstalled(pluginDir, codexAgentsPath()); err != nil {
+			return fmt.Errorf("installing wipnote Codex agents: %w", err)
+		} else if changed {
+			fmt.Println("wipnote Codex agents installed in ~/.codex/agents.")
+		}
+		if changed, err := ensureCodexCustomAgentsInstalled(pluginDir, codexProjectAgentsPath(projectRoot)); err != nil {
+			return fmt.Errorf("installing project wipnote Codex agents: %w", err)
+		} else if changed {
+			fmt.Println("wipnote Codex agents installed in .codex/agents.")
+		}
 	} else {
 		fmt.Println("[dry-run] would install wipnote hooks into ~/.codex/hooks.json")
+		fmt.Println("[dry-run] would install wipnote Codex agents into ~/.codex/agents and .codex/agents")
 	}
-
-	projectRoot, _ := resolveProjectRoot()
 
 	if dryRun {
 		fmt.Printf("[dry-run] would exec: codex (resume=%q) in %s\n", resumeID, projectRoot)
@@ -907,6 +1055,7 @@ func launchCodexDev(resumeID string, cleanup, dryRun, yolo bool, extraArgs []str
 		ResumeID:    resumeID,
 		ExtraArgs:   extraArgs,
 		ProjectRoot: projectRoot,
+		Mode:        codexLaunchModeDev,
 		Yolo:        yolo,
 	})
 
@@ -967,9 +1116,15 @@ type codexLaunchOpts struct {
 	// WipnoteRoot is the canonical project root containing .wipnote/.
 	// Used to set WIPNOTE_PROJECT_DIR when running in a worktree.
 	WipnoteRoot string
+	// Mode selects the wipnote instruction addendum composed into
+	// model_instructions_file.
+	Mode codexLaunchMode
 	// Yolo passes Codex's explicit approvals/sandbox bypass flag before any
 	// subcommand, matching Claude's bypassPermissions launcher behavior.
 	Yolo bool
+	// WritableRoots are passed to Codex before any subcommand so resumed
+	// sessions and spawned subagents inherit required writable directories.
+	WritableRoots []string
 }
 
 // execCodex builds the codex argv and execs it, replacing the current process.
@@ -998,7 +1153,26 @@ func execCodex(opts codexLaunchOpts) error {
 		}
 	}
 
-	codexArgs := buildCodexArgs(opts, otelPort)
+	var dbPath string
+	if effectiveProjDir != "" {
+		var dbDir string
+		dbPath, dbDir, err = prepareCodexWritableDB(effectiveProjDir)
+		if err != nil {
+			return err
+		}
+		opts.WritableRoots = appendUniqueCodexWritableRoot(opts.WritableRoots, dbDir)
+	}
+
+	instructionArgs, instructionErr := buildCodexInstructionConfigArgs(codexPath, opts.ExtraArgs, opts.effectiveMode())
+	if instructionErr != nil {
+		fmt.Fprintf(os.Stderr, "wipnote: warning: codex orchestrator instructions skipped: %v\n", instructionErr)
+	}
+	configArgs := append([]string{}, instructionArgs...)
+	configArgs = append(configArgs, buildCodexAgentConfigArgs(codexAgentsPath())...)
+	if opts.ProjectRoot != "" {
+		configArgs = append(configArgs, buildCodexAgentConfigArgs(codexProjectAgentsPath(opts.ProjectRoot))...)
+	}
+	codexArgs := buildCodexArgs(opts, otelPort, configArgs)
 	c := exec.Command(codexPath, codexArgs...)
 	c.Stdin = os.Stdin
 	c.Stdout = os.Stdout
@@ -1022,6 +1196,9 @@ func execCodex(opts codexLaunchOpts) error {
 		workDir = opts.ProjectRoot
 	}
 
+	if dbPath != "" {
+		env = setOrReplaceEnv(env, "WIPNOTE_DB_PATH", dbPath)
+	}
 	env = buildCodexOtelEnv(env, otelPort, otelSessionID)
 	env = buildCodexAgentEnv(env)
 	c.Env = env
@@ -1032,11 +1209,41 @@ func execCodex(opts codexLaunchOpts) error {
 	return runHarnessWithCleanup(c, otelCleanup)
 }
 
-func buildCodexArgs(opts codexLaunchOpts, otelPort int) []string {
+func prepareCodexWritableDB(projectDir string) (dbPath string, dbDir string, err error) {
+	dbPath, err = storage.CanonicalDBPath(projectDir)
+	if err != nil {
+		return "", "", fmt.Errorf("resolving wipnote SQLite cache path for Codex: %w", err)
+	}
+	if err := storage.EnsureDBDir(dbPath); err != nil {
+		return "", "", fmt.Errorf("creating wipnote SQLite cache directory for Codex: %w", err)
+	}
+	return dbPath, filepath.Dir(dbPath), nil
+}
+
+func appendUniqueCodexWritableRoot(roots []string, root string) []string {
+	if root == "" {
+		return roots
+	}
+	clean := filepath.Clean(root)
+	for _, existing := range roots {
+		if filepath.Clean(existing) == clean {
+			return roots
+		}
+	}
+	return append(roots, root)
+}
+
+func buildCodexArgs(opts codexLaunchOpts, otelPort int, instructionArgs []string) []string {
 	var args []string
 	args = append(args, buildCodexOtelConfigArgs(otelPort)...)
+	args = append(args, instructionArgs...)
 	if opts.Yolo {
 		args = append(args, "--dangerously-bypass-approvals-and-sandbox")
+	}
+	for _, root := range opts.WritableRoots {
+		if root != "" {
+			args = append(args, "--add-dir", root)
+		}
 	}
 
 	if opts.ResumeID != "" {

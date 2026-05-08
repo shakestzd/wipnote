@@ -400,7 +400,9 @@ function renderSessions() {
     var isExpanded = _expandedSessions.has(s.session_id);
 
     var tr = document.createElement('tr');
-    tr.className = 'session-row' + (s.status === 'active' ? ' live' : '');
+    var _knownHarnesses = {'claude-code': true, 'codex': true, 'gemini': true};
+    var harnessClass = (s.agent && _knownHarnesses[s.agent]) ? ' harness-' + s.agent : '';
+    tr.className = 'session-row' + (s.status === 'active' ? ' live' : '') + harnessClass;
     tr.setAttribute('data-session-id', s.session_id);
     tr.addEventListener('click', function(e) {
       // Chevron click toggles preview; row click navigates.
@@ -441,6 +443,15 @@ function renderSessions() {
         navigateToPlan(s.plan_id, null);
       });
       titleTd.appendChild(planBadge);
+    }
+    if (s.agent) {
+      var _harnessLabels = {'claude-code': 'Claude', 'codex': 'Codex', 'gemini': 'Gemini'};
+      var cliBadge = document.createElement('span');
+      var harnessShort = _harnessLabels[s.agent] || s.agent;
+      var harnessKey = _harnessLabels[s.agent] ? s.agent : 'unknown';
+      cliBadge.className = 'badge-cli badge-cli-' + harnessKey;
+      cliBadge.textContent = harnessShort;
+      titleTd.appendChild(cliBadge);
     }
     tr.appendChild(titleTd);
 
@@ -2593,6 +2604,20 @@ function openProvenancePanel(nodeId) {
       titleEl.textContent = data.node.title || data.node.id;
       badge.textContent = data.node.type;
       badge.className = 'type-badge type-' + data.node.type;
+
+      var originEl = document.getElementById('provenance-origin');
+      if (originEl) {
+        var n = data.node;
+        var hasProv = n.created_by_agent || n.created_by_model || n.created_by_role || n.created_by_cli_ver;
+        if (hasProv) {
+          var fmt = function(v) { return v || 'unknown'; };
+          originEl.textContent = 'Created by: ' + fmt(n.created_by_agent) + ' / ' +
+            fmt(n.created_by_model) + ' / ' + fmt(n.created_by_role) + ' / ' + fmt(n.created_by_cli_ver);
+          originEl.className = 'provenance-origin';
+        } else {
+          originEl.className = 'provenance-origin hidden';
+        }
+      }
 
       upstreamEl.innerHTML = '';
       (data.upstream || []).forEach(function(link) {

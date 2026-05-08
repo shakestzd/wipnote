@@ -22,7 +22,7 @@ func TestSubagentStart_WritesLineageRows(t *testing.T) {
 	database, projectDir := setupLifecycleDB(t)
 	parentSessionID := "parent-session-cb4918d8"
 	subagentID := "subagent-abc123"
-	agentType := "wipnote:haiku-coder"
+	agentType := "wipnote:patch-coder"
 
 	// Isolate from the dev environment.
 	t.Setenv("WIPNOTE_PROJECT_DIR", projectDir)
@@ -172,7 +172,7 @@ func TestSubagentStart_WritesPendingSubagentRow(t *testing.T) {
 	database, projectDir := setupLifecycleDB(t)
 	parentSessionID := "parent-pending-test"
 	subagentID := "subagent-pending-123"
-	agentType := "wipnote:haiku-coder"
+	agentType := "wipnote:patch-coder"
 
 	t.Setenv("WIPNOTE_PROJECT_DIR", projectDir)
 	t.Setenv("WIPNOTE_SESSION_ID", parentSessionID)

@@ -231,17 +231,15 @@ func emitClaudeResponse(w io.Writer, result *HookResult) error {
 //   - "decision": "allow"|"block" and "reason" for PreToolUse decisions
 func emitCodexResponse(w io.Writer, result *HookResult) error {
 	type codexResponse struct {
-		Continue      bool   `json:"continue"`
+		Continue      *bool  `json:"continue,omitempty"`
 		SystemMessage string `json:"systemMessage,omitempty"`
 		Decision      string `json:"decision,omitempty"`
 		Reason        string `json:"reason,omitempty"`
 		StopReason    string `json:"stopReason,omitempty"`
 	}
 
-	resp := codexResponse{
-		// Default to continue=true unless the result is a hard block.
-		Continue: result.Decision != "block" && result.Decision != "deny",
-	}
+	continueTrue := true
+	resp := codexResponse{}
 
 	// Map AdditionalContext → systemMessage (Codex's inject-into-conversation field).
 	if result.AdditionalContext != "" {
@@ -249,10 +247,14 @@ func emitCodexResponse(w io.Writer, result *HookResult) error {
 	}
 
 	// Preserve decision/reason for blocking hooks (PreToolUse equivalent).
+	// Codex rejects {"continue": false} for PreToolUse; decision=block is the
+	// supported way to deny a tool call.
 	if result.Decision == "block" || result.Decision == "deny" {
 		resp.Decision = result.Decision
 		resp.Reason = result.Reason
 		resp.StopReason = result.Reason
+	} else {
+		resp.Continue = &continueTrue
 	}
 
 	return json.NewEncoder(w).Encode(resp)

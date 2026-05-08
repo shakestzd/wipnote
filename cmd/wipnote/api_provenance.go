@@ -3,7 +3,10 @@ package main
 import (
 	"database/sql"
 	"net/http"
+	"path/filepath"
 	"strings"
+
+	"github.com/shakestzd/wipnote/internal/htmlparse"
 )
 
 // provenanceResponse is the JSON shape for /api/provenance/{id}.
@@ -14,10 +17,14 @@ type provenanceResponse struct {
 }
 
 type provenanceNode struct {
-	ID     string `json:"id"`
-	Type   string `json:"type"`
-	Title  string `json:"title"`
-	Status string `json:"status"`
+	ID              string `json:"id"`
+	Type            string `json:"type"`
+	Title           string `json:"title"`
+	Status          string `json:"status"`
+	CreatedByAgent  string `json:"created_by_agent,omitempty"`
+	CreatedByModel  string `json:"created_by_model,omitempty"`
+	CreatedByRole   string `json:"created_by_role,omitempty"`
+	CreatedByCLIVer string `json:"created_by_cli_ver,omitempty"`
 }
 
 type provenanceLink struct {
@@ -52,7 +59,8 @@ type sessionResult struct {
 
 // provenanceHandler handles GET /api/provenance/{id}.
 // It returns the node's metadata plus upstream and downstream causal links.
-func provenanceHandler(database *sql.DB) http.HandlerFunc {
+// wipnoteDir is used to read provenance attrs from HTML files for work items.
+func provenanceHandler(database *sql.DB, wipnoteDir string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := strings.TrimPrefix(r.URL.Path, "/api/provenance/")
 		if id == "" {
@@ -62,7 +70,7 @@ func provenanceHandler(database *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		node, ok := resolveProvenanceNode(database, id)
+		node, ok := resolveProvenanceNode(database, id, wipnoteDir)
 		if !ok {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusNotFound)
@@ -85,13 +93,16 @@ func provenanceHandler(database *sql.DB) http.HandlerFunc {
 // git_commits, feature_files, or agent sources. Agent nodes have no dedicated
 // table — they are derived from distinct agent names in agent_lineage_trace
 // and sessions.agent_assigned, so resolution comes last.
-func resolveProvenanceNode(database *sql.DB, id string) (provenanceNode, bool) {
+// wipnoteDir is used to read provenance attrs from HTML files for work items.
+func resolveProvenanceNode(database *sql.DB, id string, wipnoteDir string) (provenanceNode, bool) {
 	var node provenanceNode
 	err := database.QueryRow(
 		`SELECT id, COALESCE(type,'feature'), COALESCE(title,''), COALESCE(status,'todo')
 		 FROM features WHERE id = ?`, id,
 	).Scan(&node.ID, &node.Type, &node.Title, &node.Status)
 	if err == nil {
+		// Enrich with provenance from HTML file.
+		node = enrichNodeProvenanceFromHTML(node, wipnoteDir)
 		return node, true
 	}
 
@@ -100,6 +111,7 @@ func resolveProvenanceNode(database *sql.DB, id string) (provenanceNode, bool) {
 		 FROM tracks WHERE id = ?`, id,
 	).Scan(&node.ID, &node.Type, &node.Title, &node.Status)
 	if err == nil {
+		node = enrichNodeProvenanceFromHTML(node, wipnoteDir)
 		return node, true
 	}
 
@@ -141,6 +153,28 @@ func resolveProvenanceNode(database *sql.DB, id string) (provenanceNode, bool) {
 	}
 
 	return provenanceNode{}, false
+}
+
+// enrichNodeProvenanceFromHTML reads provenance attrs from the work-item HTML
+// file for node.ID and fills in CreatedBy* fields when they are absent from
+// the DB row. Silently skips when wipnoteDir is empty or the file is missing.
+func enrichNodeProvenanceFromHTML(node provenanceNode, wipnoteDir string) provenanceNode {
+	if wipnoteDir == "" {
+		return node
+	}
+	for _, sub := range []string{"features", "bugs", "spikes", "tracks"} {
+		path := filepath.Join(wipnoteDir, sub, node.ID+".html")
+		parsed, err := htmlparse.ParseFile(path)
+		if err != nil || parsed == nil {
+			continue
+		}
+		node.CreatedByAgent = parsed.CreatedByAgent
+		node.CreatedByModel = parsed.CreatedByModel
+		node.CreatedByRole = parsed.CreatedByRole
+		node.CreatedByCLIVer = parsed.CreatedByCLIVersion
+		return node
+	}
+	return node
 }
 
 // loadUpstreamLinks returns nodes that point TO the given id, combining
@@ -346,7 +380,7 @@ func dedupeLinks(links []provenanceLink) []provenanceLink {
 // resolveLinkMetadata populates Type and Title for each link in place.
 func resolveLinkMetadata(database *sql.DB, links []provenanceLink) {
 	for i := range links {
-		if node, ok := resolveProvenanceNode(database, links[i].ID); ok {
+		if node, ok := resolveProvenanceNode(database, links[i].ID, ""); ok {
 			links[i].Type = node.Type
 			links[i].Title = node.Title
 		}

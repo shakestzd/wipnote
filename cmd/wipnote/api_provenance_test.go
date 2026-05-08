@@ -269,14 +269,14 @@ func TestProvenanceHandler_AgentNodeResolves(t *testing.T) {
 	database, featureID := setupProvenanceDB(t)
 	_, err := database.Exec(
 		`INSERT INTO agent_lineage_trace (trace_id, session_id, root_session_id, agent_name, feature_id) VALUES (?, ?, ?, ?, ?)`,
-		"tr-1", "sess-agent", "sess-agent", "wipnote:sonnet-coder", featureID,
+		"tr-1", "sess-agent", "sess-agent", "wipnote:feature-coder", featureID,
 	)
 	if err != nil {
 		t.Fatalf("seed lineage: %v", err)
 	}
 	mux := buildSingleProjectMux(database, t.TempDir())
 
-	req := httptest.NewRequest(http.MethodGet, "/api/provenance/wipnote:sonnet-coder", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/provenance/wipnote:feature-coder", nil)
 	w := httptest.NewRecorder()
 	mux.ServeHTTP(w, req)
 

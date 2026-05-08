@@ -15,6 +15,7 @@ import (
 	"github.com/shakestzd/wipnote/internal/hooks"
 	"github.com/shakestzd/wipnote/internal/htmlparse"
 	"github.com/shakestzd/wipnote/internal/models"
+	"github.com/shakestzd/wipnote/internal/provenance"
 	"github.com/shakestzd/wipnote/internal/slug"
 	"github.com/shakestzd/wipnote/internal/workitem"
 	"github.com/spf13/cobra"
@@ -470,6 +471,17 @@ func printNodeDetail(n *models.Node) {
 	if !n.CreatedAt.IsZero() {
 		fmt.Printf("  Created   %s\n", n.CreatedAt.Format("2006-01-02"))
 	}
+
+	// Provenance line — surface the harness/model/role/CLI version captured
+	// at creation. Always print so consumers see an explicit "unknown" rather
+	// than silently missing context for legacy items (feat-40ef1333).
+	prov := provenance.Provenance{
+		Agent:      n.CreatedByAgent,
+		Model:      n.CreatedByModel,
+		Role:       n.CreatedByRole,
+		CLIVersion: n.CreatedByCLIVersion,
+	}
+	fmt.Printf("  Created by  %s\n", prov.HumanString())
 
 	if len(n.Steps) > 0 {
 		done := 0

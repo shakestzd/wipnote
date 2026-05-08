@@ -231,7 +231,7 @@ func cigsImperatives(intent PromptIntent) string {
 	}
 	if intent.InvolvesGit {
 		lines = append(lines,
-			"[CIGS] Git operations detected — consider using Bash(\"copilot ...\") or delegating to haiku-coder.")
+			"[CIGS] Git operations detected — consider using Bash(\"copilot ...\") or delegating to patch-coder.")
 	}
 
 	if len(lines) == 0 {

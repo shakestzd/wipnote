@@ -3,11 +3,13 @@ package main
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 
 	dbpkg "github.com/shakestzd/wipnote/internal/db"
 	"github.com/shakestzd/wipnote/internal/hooks"
 	"github.com/shakestzd/wipnote/internal/models"
+	"github.com/shakestzd/wipnote/internal/provenance"
 	"github.com/shakestzd/wipnote/internal/workitem"
 	"github.com/spf13/cobra"
 )
@@ -24,6 +26,11 @@ type wiCreateOpts struct {
 	noLink           bool
 	causedBy         string // explicit caused_by feature ID for bugs
 	allowHostPaths   bool   // bypass host-path validation in description
+
+	// Provenance overrides (default: inherit from active session, then env).
+	createdByModel      string
+	createdByRole       string
+	createdByCLIVersion string
 }
 
 func wiCreateCmd(typeName, _ string) *cobra.Command {
@@ -45,6 +52,12 @@ func wiCreateCmd(typeName, _ string) *cobra.Command {
 	cmd.Flags().StringVar(&opts.files, "files", "", "comma-separated affected file paths")
 	cmd.Flags().StringVar(&opts.steps, "steps", "", "comma-separated implementation steps")
 	cmd.Flags().BoolVar(&opts.allowHostPaths, "allow-host-paths", false, "bypass host-local path check in --description")
+	cmd.Flags().StringVar(&opts.createdByModel, "created-by-model", "",
+		"override the model identity recorded as provenance (default: inherit from active session)")
+	cmd.Flags().StringVar(&opts.createdByRole, "created-by-role", "",
+		"override the agent role recorded as provenance (default: inherit from active session)")
+	cmd.Flags().StringVar(&opts.createdByCLIVersion, "created-by-cli-version", "",
+		"override the wipnote CLI version recorded as provenance (default: this binary's version)")
 	if typeName == "bug" {
 		cmd.Flags().StringVar(&opts.causedBy, "caused-by", "", "feature ID that caused this bug")
 	}
@@ -99,9 +112,13 @@ func runWiCreate(typeName, title string, o *wiCreateOpts) error {
 		return fmt.Errorf("create %s: %w", typeName, err)
 	}
 
-	// Post-creation: record steps, session provenance, and affected files.
+	// Post-creation: record steps, session provenance, affected files, and
+	// model/role/CLI attribution. Resolve provenance now (after createNode so
+	// session lookup is available) and apply via the same Edit chain.
 	sessionID := hooks.EnvSessionID("")
-	if o.steps != "" || sessionID != "" || (o.files != "" && typeName != "bug") {
+	prov := resolveCreateProvenance(dir, sessionID, o)
+	hasProvenance := !prov.IsEmpty()
+	if o.steps != "" || sessionID != "" || (o.files != "" && typeName != "bug") || hasProvenance {
 		col := collectionFor(p, typeName)
 		edit := col.Edit(node.ID)
 		for _, step := range splitSteps(o.steps) {
@@ -112,6 +129,9 @@ func runWiCreate(typeName, title string, o *wiCreateOpts) error {
 		}
 		if o.files != "" && typeName != "bug" {
 			edit = edit.SetProperty("affected_files", o.files)
+		}
+		if hasProvenance {
+			edit = edit.SetProvenance(prov.Agent, prov.Model, prov.Role, prov.CLIVersion)
 		}
 		if saveErr := edit.Save(); saveErr != nil {
 			fmt.Fprintf(os.Stderr, "Warning: failed to save metadata: %v\n", saveErr)
@@ -170,6 +190,31 @@ func runWiCreate(typeName, title string, o *wiCreateOpts) error {
 		fmt.Printf("Created: %s  %s\n", node.ID, node.Title)
 	}
 	return nil
+}
+
+// resolveCreateProvenance returns the provenance to record on a newly-created
+// work item. Resolution order, lowest-precedence first, so explicit flags win:
+//
+//  1. Provenance read from the active session HTML (inheritance default)
+//  2. Provenance detected from env vars / CLIVersion (process-level baseline)
+//  3. Explicit --created-by-* flags from the create command (user override)
+//
+// wipnoteDir is the .wipnote directory; the parent of that is the project root
+// passed to FromActiveSession.
+func resolveCreateProvenance(wipnoteDir, sessionID string, o *wiCreateOpts) provenance.Provenance {
+	projectDir := filepath.Dir(wipnoteDir)
+
+	sessionProv := provenance.FromActiveSession(projectDir, sessionID)
+	envProv := provenance.Detect()
+	flagProv := provenance.Provenance{
+		Model:      o.createdByModel,
+		Role:       o.createdByRole,
+		CLIVersion: o.createdByCLIVersion,
+	}
+
+	// Layer: flag → session → env. Session inherits beat env defaults (e.g.
+	// "dev" cli-version should not shadow "1.2.3" recorded in the session).
+	return flagProv.Merge(sessionProv).Merge(envProv)
 }
 
 func createNode(p *workitem.Project, typeName, title string, o *wiCreateOpts) (*models.Node, error) {

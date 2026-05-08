@@ -22,9 +22,9 @@ wipnote ships five specialized sub-agents, each scoped to a specific role:
 | Agent | Model | Purpose |
 |-------|-------|---------|
 | `researcher` | Sonnet | Investigation, debugging, visual QA. Evidence-first: documentation before trial-and-error. |
-| `haiku-coder` | Haiku | Quick fixes, 1-2 files, clear requirements. Fast and cheap. |
-| `sonnet-coder` | Sonnet | Feature implementation, 3-8 files, moderate complexity. The default. |
-| `opus-coder` | Opus | Complex architecture, 10+ files, ambiguous requirements, design decisions. |
+| `patch-coder` | Haiku | Quick fixes, 1-2 files, clear requirements. Fast and cheap. |
+| `feature-coder` | Sonnet | Feature implementation, 3-8 files, moderate complexity. The default. |
+| `architect-coder` | Opus | Complex architecture, 10+ files, ambiguous requirements, design decisions. |
 | `test-runner` | Haiku | Testing, quality gates, lint, type checking. |
 
 Each agent has a system prompt tailored to its role, scoped tool access, and a specific model tier. The researcher can read files but not write them. The test-runner runs commands but doesn't edit code. The coders write code but are instructed to delegate to the researcher when they need to understand unfamiliar systems.
@@ -37,7 +37,7 @@ Not every task needs Opus. A typo fix doesn't require deep reasoning. A config c
 - **Moderate** (Sonnet): Feature implementation, bug fixes, refactors across a few files
 - **Complex** (Opus): Architecture decisions, large refactors, ambiguous scope requiring judgment
 
-This isn't just about saving money, though that matters when you're running dozens of sub-agents per day. It's about using the right tool for the job. A haiku-coder that finishes a config change in 30 seconds is better than an opus-coder that spends 3 minutes on the same task and produces the same result.
+This isn't just about saving money, though that matters when you're running dozens of sub-agents per day. It's about using the right tool for the job. A patch-coder that finishes a config change in 30 seconds is better than an architect-coder that spends 3 minutes on the same task and produces the same result.
 
 The orchestrator directives skill encodes these patterns. It includes fallback logic: try external CLIs first (Gemini CLI for research, Codex for code generation), fall back to wipnote agents if those aren't available.
 
@@ -97,6 +97,6 @@ They're complementary. You could run an Agent Teams session where the team lead 
 
 ## The result
 
-This system has been used to build wipnote itself. 850+ features completed across 11 tracks, each one dispatched through this orchestration layer. The researcher investigates, the haiku-coder handles simple fixes, the sonnet-coder implements features, and the opus-coder makes architectural decisions. Every change is attributed, every commit passes quality gates, and the dashboard shows exactly what each agent contributed.
+This system has been used to build wipnote itself. 850+ features completed across 11 tracks, each one dispatched through this orchestration layer. The researcher investigates, the patch-coder handles simple fixes, the feature-coder implements features, and the architect-coder makes architectural decisions. Every change is attributed, every commit passes quality gates, and the dashboard shows exactly what each agent contributed.
 
 The numbers validate the approach. But more than that, the experience of using it daily, watching the right agent handle the right task efficiently, seeing attribution chains from plan to feature to commit, makes AI-assisted development feel less like working with a black box and more like managing a team.

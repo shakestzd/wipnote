@@ -14,6 +14,14 @@ type Step struct {
 	Agent       string    `json:"agent,omitempty"`
 	Timestamp   time.Time `json:"timestamp,omitempty"`
 	DependsOn   []string  `json:"depends_on,omitempty"`
+
+	// Provenance — captured at step creation/completion so we can tell which
+	// model + role + CLI version produced each step. Agent (above) doubles as
+	// the harness identity (claude-code, codex, gemini) and is rendered as
+	// the data-created-by-agent attribute in HTML.
+	CreatedByModel      string `json:"created_by_model,omitempty"`
+	CreatedByRole       string `json:"created_by_role,omitempty"`
+	CreatedByCLIVersion string `json:"created_by_cli_version,omitempty"`
 }
 
 // Edge represents a graph edge (relationship between nodes).
@@ -69,6 +77,14 @@ type Node struct {
 
 	// Spike classification (set by CLI spike create --type)
 	SpikeSubtype string `json:"spike_subtype,omitempty"`
+
+	// Provenance — captured at creation so consumers can tell which model,
+	// role, and wipnote CLI version produced this work item. Items written
+	// before this feature was added leave these empty (rendered as "unknown").
+	CreatedByAgent      string `json:"created_by_agent,omitempty"`
+	CreatedByModel      string `json:"created_by_model,omitempty"`
+	CreatedByRole       string `json:"created_by_role,omitempty"`
+	CreatedByCLIVersion string `json:"created_by_cli_version,omitempty"`
 }
 
 // Validate checks required fields and business rules.

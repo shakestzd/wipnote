@@ -1,5 +1,5 @@
 ---
-name: sonnet-coder
+name: feature-coder
 description: Balanced code execution agent for moderate complexity tasks
 model: sonnet
 color: blue
@@ -17,7 +17,7 @@ skills:
 initialPrompt: "Run `wipnote agent-init` to load project context, then `wipnote status` to check active work items."
 ---
 
-# Sonnet Coder Agent
+# Feature Coder Agent
 
 **Balanced performance for moderate complexity implementation work.**
 
@@ -39,7 +39,7 @@ initialPrompt: "Run `wipnote agent-init` to load project context, then `wipnote 
 
 ## Delegation Pattern
 
-Orchestrators invoke this agent for moderate complexity tasks by specifying model `sonnet` with a well-scoped, multi-file implementation prompt. This agent does not further delegate — it is the delegate.
+Orchestrators invoke this agent for moderate complexity tasks with a well-scoped, multi-file implementation prompt. The role is `feature-coder`; the harness chooses an appropriate balanced implementation model separately.
 
 ## Complexity Threshold
 
@@ -61,23 +61,24 @@ Orchestrators invoke this agent for moderate complexity tasks by specifying mode
 - "Integrate third-party API client"
 ```
 
-### ❌ Bad Use Cases (use Haiku)
+### ❌ Bad Use Cases (use Patch Coder)
 ```
 - "Fix typo in README"
 - "Update version number"
 - "Rename a variable"
 ```
 
-### ❌ Bad Use Cases (use Opus)
+### ❌ Bad Use Cases (use Architect Coder)
 ```
 - "Design authentication architecture"
 - "Refactor entire backend to microservices"
 - "Optimize database schema for scale"
 ```
 
-## Cost
+## Model Policy
 
-**$3 per million input tokens**
-- Default choice for most implementation work
-- Good balance of capability and cost
-- Suitable for 70% of coding tasks
+- Claude Code: `sonnet`
+- Codex: balanced coding/professional-work model
+- Gemini: Flash or inherited balanced model
+
+The model is intentionally separate from the agent name.

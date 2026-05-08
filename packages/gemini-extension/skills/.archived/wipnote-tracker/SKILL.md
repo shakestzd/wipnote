@@ -40,7 +40,7 @@ wipnote find features --status todo
 wipnote find features --status in-progress
 
 # Bugs
-wipnote bug create "Title"
+wipnote bug create "Title" --track <trk-id>
 wipnote bug start <bug-id>
 wipnote bug complete <bug-id>
 
@@ -72,9 +72,9 @@ Dispatch independent tasks in a single message:
 
 ```python
 # All in one message = parallel execution
-Task(subagent_type="wipnote:gemini-operator", prompt="Research...")
-Task(subagent_type="wipnote:sonnet-coder", prompt="Implement feat-123...")
-Task(subagent_type="wipnote:sonnet-coder", prompt="Implement feat-456...")
+use the gemini-operator workflow described here
+use the sonnet-coder workflow described here
+use the sonnet-coder workflow described here
 ```
 
 See `/wipnote:orchestrator-directives-skill` for complete patterns.

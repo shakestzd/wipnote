@@ -1,6 +1,8 @@
 package main
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -155,7 +157,7 @@ func TestBuildCodexArgs_PutsYoloBeforeResume(t *testing.T) {
 	got := buildCodexArgs(codexLaunchOpts{
 		ResumeLast: true,
 		Yolo:       true,
-	}, 0)
+	}, 0, nil)
 
 	yoloIdx := indexOf(got, "--dangerously-bypass-approvals-and-sandbox")
 	resumeIdx := indexOf(got, "resume")
@@ -174,7 +176,7 @@ func TestBuildCodexArgs_PutsOtelConfigBeforeResume(t *testing.T) {
 	got := buildCodexArgs(codexLaunchOpts{
 		ResumeLast: true,
 		ExtraArgs:  []string{"--sandbox", "workspace-write"},
-	}, 43189)
+	}, 43189, nil)
 
 	resumeIdx := indexOf(got, "resume")
 	if resumeIdx < 0 {
@@ -193,6 +195,187 @@ func TestBuildCodexArgs_PutsOtelConfigBeforeResume(t *testing.T) {
 	}
 	if got[len(got)-2] != "--sandbox" || got[len(got)-1] != "workspace-write" {
 		t.Fatalf("expected forwarded extra args after resume args, got %v", got)
+	}
+}
+
+func TestBuildCodexArgs_IncludesInstructionOverrideBeforeResume(t *testing.T) {
+	got := buildCodexArgs(codexLaunchOpts{
+		ResumeLast: true,
+	}, 0, []string{"-c", `model_instructions_file="/tmp/wipnote-codex.md"`})
+
+	resumeIdx := indexOf(got, "resume")
+	if resumeIdx < 0 {
+		t.Fatalf("expected resume subcommand in %v", got)
+	}
+	if got[0] != "-c" || got[1] != `model_instructions_file="/tmp/wipnote-codex.md"` {
+		t.Fatalf("expected instruction override before resume, got %v", got)
+	}
+	if resumeIdx < 2 {
+		t.Fatalf("expected resume after instruction override, got %v", got)
+	}
+}
+
+func TestBuildCodexArgs_PutsWritableRootsBeforeResume(t *testing.T) {
+	got := buildCodexArgs(codexLaunchOpts{
+		ResumeLast:    true,
+		WritableRoots: []string{"/tmp/wipnote-cache"},
+		ExtraArgs:     []string{"--sandbox", "workspace-write"},
+	}, 0, nil)
+
+	addDirIdx := indexOf(got, "--add-dir")
+	resumeIdx := indexOf(got, "resume")
+	if addDirIdx < 0 {
+		t.Fatalf("expected --add-dir in %v", got)
+	}
+	if addDirIdx+1 >= len(got) || got[addDirIdx+1] != "/tmp/wipnote-cache" {
+		t.Fatalf("expected writable root after --add-dir, got %v", got)
+	}
+	if resumeIdx < 0 {
+		t.Fatalf("expected resume subcommand in %v", got)
+	}
+	if addDirIdx > resumeIdx {
+		t.Fatalf("expected --add-dir before resume subcommand, got %v", got)
+	}
+	if got[len(got)-2] != "--sandbox" || got[len(got)-1] != "workspace-write" {
+		t.Fatalf("expected forwarded extra args after resume args, got %v", got)
+	}
+}
+
+func TestPrepareCodexWritableDBCreatesParent(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "cache", "wipnote.db")
+	t.Setenv("WIPNOTE_DB_PATH", dbPath)
+
+	gotPath, gotDir, err := prepareCodexWritableDB(t.TempDir())
+	if err != nil {
+		t.Fatalf("prepareCodexWritableDB: %v", err)
+	}
+	if gotPath != dbPath {
+		t.Fatalf("db path = %q, want %q", gotPath, dbPath)
+	}
+	if gotDir != filepath.Dir(dbPath) {
+		t.Fatalf("db dir = %q, want %q", gotDir, filepath.Dir(dbPath))
+	}
+	if info, err := os.Stat(gotDir); err != nil {
+		t.Fatalf("expected db parent to exist: %v", err)
+	} else if !info.IsDir() {
+		t.Fatalf("expected db parent to be a directory")
+	}
+}
+
+func TestAppendUniqueCodexWritableRootDedupesCleanPaths(t *testing.T) {
+	got := appendUniqueCodexWritableRoot([]string{"/tmp/wipnote-cache"}, "/tmp/wipnote-cache/.")
+	if len(got) != 1 {
+		t.Fatalf("expected duplicate clean path to be ignored, got %v", got)
+	}
+	got = appendUniqueCodexWritableRoot(got, "/tmp/other-cache")
+	if len(got) != 2 || got[1] != "/tmp/other-cache" {
+		t.Fatalf("expected distinct root to be appended, got %v", got)
+	}
+}
+
+func TestCodexRequestedModel(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+		want string
+	}{
+		{name: "short", args: []string{"-m", "gpt-5.4"}, want: "gpt-5.4"},
+		{name: "long", args: []string{"--model", "gpt-5.5"}, want: "gpt-5.5"},
+		{name: "equals", args: []string{"--model=gpt-5.3-codex"}, want: "gpt-5.3-codex"},
+		{name: "absent", args: []string{"--sandbox", "workspace-write"}, want: ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := codexRequestedModel(tt.args); got != tt.want {
+				t.Fatalf("codexRequestedModel(%v) = %q, want %q", tt.args, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestSelectCodexBaseInstructions(t *testing.T) {
+	data := []byte(`{"models":[{"slug":"gpt-a","base_instructions":"base a"},{"slug":"gpt-b","base_instructions":"base b"}]}`)
+
+	if got, err := selectCodexBaseInstructions(data, "gpt-b"); err != nil || got != "base b" {
+		t.Fatalf("select specific = %q, %v; want base b, nil", got, err)
+	}
+	if got, err := selectCodexBaseInstructions(data, ""); err != nil || got != "base a" {
+		t.Fatalf("select default = %q, %v; want base a, nil", got, err)
+	}
+	if _, err := selectCodexBaseInstructions(data, "missing"); err == nil {
+		t.Fatalf("expected missing model error")
+	}
+}
+
+func TestWriteCodexInstructionsFileComposesBaseAndWipnotePrompt(t *testing.T) {
+	path, err := writeCodexInstructionsFile("base instructions", "extra instructions", codexLaunchModeDefault)
+	if err != nil {
+		t.Fatalf("writeCodexInstructionsFile: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Remove(path) })
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("reading generated instructions: %v", err)
+	}
+	content := string(data)
+	for _, want := range []string{
+		"base instructions",
+		"# wipnote Orchestrator Addendum",
+		"extra instructions",
+	} {
+		if !strings.Contains(content, want) {
+			t.Fatalf("generated instructions missing %q:\n%s", want, content)
+		}
+	}
+}
+
+func TestCodexLaunchOptsEffectiveMode(t *testing.T) {
+	tests := []struct {
+		name string
+		opts codexLaunchOpts
+		want codexLaunchMode
+	}{
+		{name: "default", opts: codexLaunchOpts{}, want: codexLaunchModeDefault},
+		{name: "continue", opts: codexLaunchOpts{ResumeLast: true}, want: codexLaunchModeContinue},
+		{name: "dev", opts: codexLaunchOpts{Mode: codexLaunchModeDev}, want: codexLaunchModeDev},
+		{name: "yolo", opts: codexLaunchOpts{Yolo: true}, want: codexLaunchModeYolo},
+		{name: "yolo dev", opts: codexLaunchOpts{Mode: codexLaunchModeDev, Yolo: true}, want: codexLaunchModeYoloDev},
+		{name: "yolo continue", opts: codexLaunchOpts{Mode: codexLaunchModeContinue, Yolo: true}, want: codexLaunchModeYoloCont},
+		{name: "yolo resume", opts: codexLaunchOpts{ResumeLast: true, Yolo: true}, want: codexLaunchModeYoloCont},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.opts.effectiveMode(); got != tt.want {
+				t.Fatalf("effectiveMode() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestCodexInstructionAddendumByMode(t *testing.T) {
+	tests := []struct {
+		name string
+		mode codexLaunchMode
+		want []string
+	}{
+		{name: "default", mode: codexLaunchModeDefault, want: []string{"# wipnote Orchestrator"}},
+		{name: "dev", mode: codexLaunchModeDev, want: []string{"# wipnote Orchestrator", "## Codex Dev Mode"}},
+		{name: "continue", mode: codexLaunchModeContinue, want: []string{"# wipnote Orchestrator", "## Codex Continue Mode"}},
+		{name: "yolo", mode: codexLaunchModeYolo, want: []string{"# YOLO Autonomous Development Mode", "## Codex YOLO Mode"}},
+		{name: "yolo dev", mode: codexLaunchModeYoloDev, want: []string{"# YOLO Autonomous Development Mode", "## Codex Dev Mode", "## Codex YOLO Mode"}},
+		{name: "yolo continue", mode: codexLaunchModeYoloCont, want: []string{"# YOLO Autonomous Development Mode", "## Codex Continue Mode", "## Codex YOLO Mode"}},
+		{name: "init", mode: codexLaunchModeInit, want: []string{"## Codex Init Mode"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := codexInstructionAddendum(tt.mode)
+			for _, want := range tt.want {
+				if !strings.Contains(got, want) {
+					t.Fatalf("addendum for %s missing %q", tt.name, want)
+				}
+			}
+		})
 	}
 }
 

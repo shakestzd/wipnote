@@ -9,6 +9,7 @@ import (
 
 	"github.com/shakestzd/wipnote/internal/db"
 	"github.com/shakestzd/wipnote/internal/hooks"
+	"github.com/shakestzd/wipnote/internal/provenance"
 	"github.com/spf13/cobra"
 )
 
@@ -28,9 +29,11 @@ Usage in hooks.json:
   "command": "wipnote hook pretooluse"
   etc.`,
 		// Propagate the compiled version to the hooks package so session-start
-		// can detect CLI/plugin version mismatches.
+		// can detect CLI/plugin version mismatches and so provenance attribution
+		// records the binary that wrote each session/work item.
 		PersistentPreRun: func(_ *cobra.Command, _ []string) {
 			hooks.CLIVersion = version
+			provenance.SetCLIVersion(version)
 		},
 	}
 

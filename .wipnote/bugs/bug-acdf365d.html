@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Shared command/skill source uses Claude-only Task(subagent_type=) syntax (Codex&#43;Gemini affected)</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-acdf365d"
+             data-type="bug"
+             data-status="done"
+             data-priority="medium"
+             data-created="2026-05-07T06:40:12.026417"
+             data-updated="2026-05-07T14:47:27.999926" data-agent-assigned="claude-code" data-track-id="trk-2c83a1e2">
+
+        <header>
+            <h1>Shared command/skill source uses Claude-only Task(subagent_type=) syntax (Codex&#43;Gemini affected)</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-2c83a1e2.html" data-relationship="part_of" data-since="2026-05-07T06:40:12.033061">trk-2c83a1e2</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="be4be18d-a13d-468c-8f8c-6fce55df7f1c.html" data-relationship="implemented_in" data-since="2026-05-07T06:46:05.99528">session be4be18d-a13d-468c-8f8c-6fce55df7f1c</a></li>
+                    <li><a href="019e011c-41cf-7981-8476-30174334e123.html" data-relationship="implemented_in" data-since="2026-05-07T06:52:03.852969">session 019e011c-41cf-7981-8476-30174334e123</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="caused_by">
+                <h3>Caused By:</h3>
+                <ul>
+                    <li><a href="bug-d548d5ba.html" data-relationship="caused_by" data-since="2026-05-07T06:40:12.03054">bug-d548d5ba</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="true" data-step-id="step-bug-acdf365d-0" data-agent="claude-code">✅ Replaced active shared Claude-only subagent_type examples with harness-neutral delegation wording; regenerated Codex/Gemini ports; added pluginbuild regression test scanning active generated outputs for subagent_type syntax.</li>
+                <li data-completed="true" data-step-id="step-bug-acdf365d-1" data-agent="claude-code">✅ Addressed roborev job 10 by restoring Claude-facing subagent_type examples, moving non-Claude delegation syntax rewriting into Codex/Gemini emitters, and changing the regression test to emit fresh temp outputs before scanning.</li>
+            </ol>
+        </section>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Shared markdown sources copy verbatim into every target, so Claude-only delegation syntax leaks into Codex and Gemini output trees. The current Codex-only ID rewrite handles wipnote: -> wipnote-, but it does not address the surrounding Claude tool-call prose such as Task(subagent_type=...) or Agent(... subagent_type=...), which is not valid guidance for Codex or Gemini.
+
+ACTIVE SHARED SOURCES TO AUDIT/EDIT:
+- plugin/commands/feature-complete.md
+- plugin/commands/start.md
+- plugin/commands/error-analysis.md
+- plugin/commands/git-commit.md
+- plugin/skills/orchestrator-directives-skill/SKILL.md
+- plugin/skills/orchestrator-directives-skill/reference.md
+- plugin/skills/diagnose/SKILL.md
+- plugin/skills/execute/SKILL.md
+- cmd/wipnote/prompts/system-prompt.md (verify whether this prompt is Claude-only or shared across harnesses)
+
+ARCHIVED SOURCES TO DECIDE ON:
+- plugin/skills/.archived/parallel-orchestrator/SKILL.md
+- plugin/skills/.archived/wipnote-tracker/SKILL.md
+Either exclude archived skills from generated ports/tests, or update/delete stale examples so archived payloads cannot leak bad guidance.
+
+GENERATED OUTPUTS THAT SHOULD UPDATE AFTER REGEN (do not hand-edit):
+- packages/codex-marketplace/.agents/plugins/wipnote/{commands,skills}/...
+- packages/gemini-extension/{commands/wipnote,skills}/...
+
+PREREQUISITES BEFORE IMPLEMENTING:
+1. Verify Codex subagent invocation behavior against current Codex docs and known upstream behavior. Tool-backed Codex sessions may expose only spawn_agent roles even when .codex/agents TOML files exist, so generated Codex prose may need to say use the available spawn_agent tool/generic role rather than show Claude Task syntax.
+2. Verify Gemini subagent/extension invocation syntax. Gemini docs describe subagents as tools exposed by name and forceable with @agent-name; generated Gemini prose should use Gemini-native or harness-neutral wording, not Claude Task/Agent examples.
+3. Decide between two architectural approaches:
+   (a) Harness-neutral source language such as delegate to patch-coder with per-target expansion in plugin builders. Preferred for the source-of-truth model.
+   (b) Per-target source overlays for commands/skills where each harness needs different prose. Heavier, but may be simpler if neutral language gets unwieldy.
+
+Originally surfaced by roborev review job 8 of commit 864833a9. The colon-form agent ID portion is separate and already addressed by Codex ID rewriting; this bug tracks the residual harness-syntax gap.
+Acceptance Criteria
+- Active Codex generated outputs contain no Claude-only delegation call examples: no Task(subagent_type=...), no Agent(... subagent_type=...), and no subagent_type= strings in active commands/skills.
+- Active Gemini generated outputs contain no Claude-only delegation call examples: no Task(subagent_type=...), no Agent(... subagent_type=...), and no subagent_type= strings in active commands/skills.
+- Shared source under plugin/ either avoids Claude-only delegation call syntax entirely, or uses structured/harness-neutral markers that per-target translators expand correctly.
+- Generated-output tests assert the absence of Claude-only delegation syntax in active Codex and Gemini output paths. Tests should explicitly exclude archived paths only if the implementation intentionally excludes archived skills from generated payloads.
+- Claude output continues to use Claude current canonical delegation syntax where appropriate; the fix must not regress Claude.</p>
+        </section>
+    </article>
+</body>
+</html>

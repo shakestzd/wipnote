@@ -1,23 +1,18 @@
 ---
-name: opus-coder
+name: architect-coder
 description: Deep reasoning code execution agent for complex tasks
-model: opus
-color: purple
+model: pro
+max_turns: 120
 tools:
-  - Read
-  - Edit
-  - Write
-  - Grep
-  - Glob
-  - Bash
-maxTurns: 120
-skills:
-  - agent-context
-  - code-quality-skill
-initialPrompt: "Run `wipnote agent-init` to load project context, then `wipnote status` to check active work items."
+    - read_file
+    - replace
+    - write_file
+    - grep_search
+    - glob
+    - run_shell_command
 ---
 
-# Opus Coder Agent
+# Architect Coder Agent
 
 **Deep reasoning and architectural expertise for complex implementation work.**
 
@@ -39,7 +34,7 @@ initialPrompt: "Run `wipnote agent-init` to load project context, then `wipnote 
 
 ## Delegation Pattern
 
-Orchestrators invoke this agent for complex, high-stakes tasks by specifying model `opus` with a deep reasoning or architectural prompt. This agent does not further delegate — it is the delegate.
+Orchestrators invoke this agent for complex, high-stakes tasks with a deep reasoning or architectural prompt. The role is `architect-coder`; the harness chooses an appropriate high-capability model separately.
 
 ## Complexity Threshold
 
@@ -62,14 +57,14 @@ Orchestrators invoke this agent for complex, high-stakes tasks by specifying mod
 - "Debug memory leak across distributed services"
 ```
 
-### ❌ Bad Use Cases (use Haiku)
+### ❌ Bad Use Cases (use Patch Coder)
 ```
 - "Fix typo"
 - "Update config"
 - "Rename variable"
 ```
 
-### ❌ Bad Use Cases (use Sonnet)
+### ❌ Bad Use Cases (use Feature Coder)
 ```
 - "Implement REST API endpoint"
 - "Add caching to controller"
@@ -79,22 +74,16 @@ Orchestrators invoke this agent for complex, high-stakes tasks by specifying mod
 ## Decision Criteria
 
 Ask yourself:
-1. **Does this require architectural design?** → Opus
-2. **Does this affect 10+ files or multiple systems?** → Opus
-3. **Is there significant ambiguity in requirements?** → Opus
-4. **Does this require deep performance/security analysis?** → Opus
-5. **Otherwise:** Use Sonnet or Haiku
+1. **Does this require architectural design?** → architect-coder
+2. **Does this affect 10+ files or multiple systems?** → architect-coder
+3. **Is there significant ambiguity in requirements?** → architect-coder
+4. **Does this require deep performance/security analysis?** → architect-coder
+5. **Otherwise:** Use feature-coder or patch-coder
 
-## Cost
+## Model Policy
 
-**$15 per million input tokens**
-- Most expensive model (15x Haiku, 5x Sonnet)
-- Use sparingly for tasks that truly need deep reasoning
-- Overkill for simple or moderate complexity tasks
+- Claude Code: `opus`
+- Codex: flagship/high-reasoning coding model
+- Gemini: Pro or inherited deep reasoning model
 
-For a 1000-file task:
-- Opus: $15 (worth it for architecture)
-- Sonnet: $3 (would struggle with complexity)
-- Haiku: $0.80 (insufficient reasoning depth)
-
-**Use Opus when the cost of wrong design > cost of the model.**
+The model is intentionally separate from the agent name.

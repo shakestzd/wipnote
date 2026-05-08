@@ -20,19 +20,44 @@ Run `wipnote help --compact` for the CLI reference.
 wipnote currently ships the same plugin to three AI coding harnesses:
 
 - **Claude Code** — plugin tree at `plugin/`
-- **Codex CLI** — plugin tree at `packages/codex-plugin/`
+- **Codex CLI** — marketplace tree at `packages/codex-marketplace/`
 - **Gemini CLI** — extension tree at `packages/gemini-extension/`
 
 All three trees are **generated** from the same source of truth at
 `packages/plugin-core/manifest.json` by `wipnote plugin build-ports`. Shared
-markdown assets (commands, agents, skills, templates) live in `plugin/…/` and are
-copied verbatim into every target — the formats are compatible across harnesses,
-so a new slash command or skill lands in all three at once. See
-`packages/plugin-core/README.md` for details.
+markdown assets (commands, agents, skills, templates) live in `plugin/…/`.
+Codex agent markdown is translated into custom-agent TOML during generation, then
+`wipnote codex` mirrors those TOML files into Codex's documented `.codex/agents`
+lookup locations when launching. See `packages/plugin-core/README.md` for
+details.
+
+Agent role names are capability-based across harnesses. Use names like
+`patch-coder`, `feature-coder`, and `architect-coder`; model choices such as
+Claude `haiku`/`sonnet`/`opus`, Codex `gpt-*`, or Gemini `flash`/`pro` belong in
+the per-harness model configuration, not in the role name.
 
 ## Dogfooding
 
 This project uses wipnote to develop itself. `.wipnote/` contains real work items — not demos.
+
+## Dashboard Port Convention
+
+Production/local host installs use the default dashboard port:
+
+```bash
+wipnote serve
+# http://127.0.0.1:8080
+```
+
+Inside the VS Code devcontainer, run the dashboard on container port 8088 and
+bind all interfaces so the host can reach the forwarded port:
+
+```bash
+wipnote serve --bind 0.0.0.0 --port 8088
+# host: http://127.0.0.1:8088
+```
+
+Do not use the production default port 8080 for devcontainer dashboard sessions.
 
 ## Temporal Awareness
 

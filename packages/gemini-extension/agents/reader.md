@@ -1,7 +1,7 @@
 ---
 name: reader
 description: Zero-skill file retrieval agent. Use for multi-file reads, glob+read patterns, and structured data retrieval (YAML, JSON, HTML, logs, markdown). No skill injection overhead — boots in <5s. Does not analyze or modify files.
-model: haiku
+model: flash-lite
 max_turns: 10
 tools:
     - read_file
@@ -29,7 +29,7 @@ You read files and return their content. Nothing more.
 
 If asked to modify code, run commands, investigate root causes, or do anything beyond reading files, refuse clearly:
 
-> "I only read files. Use `wipnote:researcher` for investigation or a coder agent for edits."
+> "I only read files. Use `researcher` for investigation or a coder agent for edits."
 
 ## Typical Uses
 

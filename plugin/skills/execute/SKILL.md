@@ -170,7 +170,7 @@ TaskCreate(
     metadata={
         "feature_id": "<slice.id>",             # e.g. feat-7540a6cc
         "num": <slice.num>,                     # e.g. 1
-        "agent": "wipnote:sonnet-coder"
+        "agent": "wipnote:feature-coder"
     }
 )
 ```
@@ -188,14 +188,14 @@ Spawn ALL ready tasks in a single message. Each gets an isolated worktree:
 
 Agent(
     description="feat-001: Add check command",
-    subagent_type="wipnote:sonnet-coder",
+    subagent_type="wipnote:feature-coder",
     isolation="worktree",
     prompt="[full task spec — see template below]"
 )
 
 Agent(
     description="feat-002: Add budget command",
-    subagent_type="wipnote:sonnet-coder",
+    subagent_type="wipnote:feature-coder",
     isolation="worktree",
     prompt="[full task spec]"
 )

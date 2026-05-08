@@ -75,7 +75,7 @@ The biggest technical limitation is that Codex hooks currently only see Bash, so
   - `plugin/skills/plan/SKILL.md`
   - `plugin/skills/deploy/SKILL.md`
   - `plugin/skills/diagnose/SKILL.md`
-  - `plugin/agents/sonnet-coder.md`
+  - `plugin/agents/feature-coder.md`
 - OpenAI Codex docs:
   - `https://developers.openai.com/codex/guides/agents-md`
   - `https://developers.openai.com/codex/skills`

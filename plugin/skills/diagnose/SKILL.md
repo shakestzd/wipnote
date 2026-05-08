@@ -57,13 +57,9 @@ All diagnostic work must be attributed:
 
 ### Bug Investigation (Primary Mode)
 
-Dispatch the debugger agent with a structured prompt:
+Dispatch `Task(subagent_type="wipnote:researcher")` with a structured prompt:
 
-```python
-Agent(
-    subagent_type="wipnote:debugger",
-    description="Diagnose: <bug summary>",
-    prompt="""
+```text
 ## Bug: <bug-id> — <title>
 
 ### Symptom
@@ -82,8 +78,6 @@ Agent(
 - **Blast radius**: Does this affect other cases?
 - **Suggested fix**: What code change resolves it
 - **Verification**: How to confirm the fix works
-"""
-)
 ```
 
 After the agent reports back, present findings to the user in this format:

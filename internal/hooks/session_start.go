@@ -17,6 +17,7 @@ import (
 	"github.com/shakestzd/wipnote/internal/otel"
 	"github.com/shakestzd/wipnote/internal/otel/sink/ndjson"
 	"github.com/shakestzd/wipnote/internal/paths"
+	"github.com/shakestzd/wipnote/internal/provenance"
 	"github.com/shakestzd/wipnote/internal/worktree"
 )
 
@@ -187,6 +188,20 @@ func SessionStart(event *CloudEvent, database *sql.DB, projectDir string) (*Hook
 	if event.Model != "" {
 		s.Model = event.Model
 	}
+
+	// Provenance — capture which harness/model/role/CLI started this session
+	// so downstream consumers can attribute it across handoffs (feat-40ef1333).
+	prov := provenance.Detect()
+	if prov.Agent == "" {
+		prov.Agent = s.AgentAssigned
+	}
+	if event.Model != "" {
+		prov.Model = event.Model
+	}
+	s.CreatedByAgent = prov.Agent
+	s.CreatedByModel = prov.Model
+	s.CreatedByRole = prov.Role
+	s.CreatedByCLIVersion = prov.CLIVersion
 
 	// Resolve lineage inputs before opening the transaction (read-only queries).
 	var inp *lineageInputs
