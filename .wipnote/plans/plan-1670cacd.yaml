@@ -1,0 +1,17 @@
+meta:
+    id: plan-1670cacd
+    track_id: trk-a30e8df4
+    title: Launcher isolation, deployment modes, and parallel attribution
+    description: 'Design production-ready launcher isolation across Claude, Codex, and Gemini: default branch/worktree behavior, devcontainer vs host deployment modes, and robust attribution/event capture for parallel CLIs and subagents.'
+    created_at: "2026-05-08"
+    status: draft
+    priority: medium
+    version: 2
+design:
+    problem: ""
+    goals: []
+    constraints: []
+    approved: false
+    comment: ""
+slices: []
+questions: []
