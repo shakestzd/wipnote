@@ -400,7 +400,8 @@ function renderSessions() {
     var isExpanded = _expandedSessions.has(s.session_id);
 
     var tr = document.createElement('tr');
-    tr.className = 'session-row' + (s.status === 'active' ? ' live' : '');
+    var harnessClass = s.agent ? ' harness-' + s.agent : '';
+    tr.className = 'session-row' + (s.status === 'active' ? ' live' : '') + harnessClass;
     tr.setAttribute('data-session-id', s.session_id);
     tr.addEventListener('click', function(e) {
       // Chevron click toggles preview; row click navigates.
@@ -441,6 +442,13 @@ function renderSessions() {
         navigateToPlan(s.plan_id, null);
       });
       titleTd.appendChild(planBadge);
+    }
+    if (s.agent) {
+      var cliBadge = document.createElement('span');
+      var harnessShort = {'claude-code': 'Claude', 'codex': 'Codex', 'gemini': 'Gemini'}[s.agent] || s.agent;
+      cliBadge.className = 'badge-cli badge-cli-' + s.agent;
+      cliBadge.textContent = harnessShort;
+      titleTd.appendChild(cliBadge);
     }
     tr.appendChild(titleTd);
 
