@@ -145,7 +145,7 @@ func queryHookFeedEvents(database *sql.DB, limit int) ([]feedEvent, error) {
 		       COALESCE(e.feature_id, '') AS feature_id,
 		       COALESCE(e.parent_event_id, '') AS parent_event_id
 		FROM agent_events e
-		WHERE e.event_type IN ('start', 'end', 'check_point', 'error')
+		WHERE e.event_type IN ('start', 'end', 'check_point', 'error', 'tool_call', 'tool_blocked')
 		ORDER BY e.timestamp DESC
 		LIMIT ?`, limit)
 	if err != nil {
