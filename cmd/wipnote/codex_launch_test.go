@@ -131,7 +131,7 @@ func TestBuildCodexOtelConfigArgs_DisabledWithoutPort(t *testing.T) {
 	}
 }
 
-func TestBuildCodexOtelConfigArgs_ConfiguresLogsAndTraces(t *testing.T) {
+func TestBuildCodexOtelConfigArgs_ConfiguresLogsTracesAndMetrics(t *testing.T) {
 	got := buildCodexOtelConfigArgs(43189)
 	joined := ""
 	for _, arg := range got {
@@ -139,8 +139,9 @@ func TestBuildCodexOtelConfigArgs_ConfiguresLogsAndTraces(t *testing.T) {
 	}
 	for _, want := range []string{
 		"otel.log_user_prompt=true",
-		`otel.exporter={ otlp-http = { endpoint = "http://127.0.0.1:43189/v1/logs", protocol = "binary" } }`,
-		`otel.trace_exporter={ otlp-http = { endpoint = "http://127.0.0.1:43189/v1/traces", protocol = "binary" } }`,
+		`otel.exporter={ otlp-http = { endpoint = "http://127.0.0.1:43189/v1/logs", protocol = "http/protobuf" } }`,
+		`otel.trace_exporter={ otlp-http = { endpoint = "http://127.0.0.1:43189/v1/traces", protocol = "http/protobuf" } }`,
+		`otel.metrics_exporter={ otlp-http = { endpoint = "http://127.0.0.1:43189/v1/metrics", protocol = "http/protobuf" } }`,
 	} {
 		if !containsLine(joined, want) {
 			t.Errorf("Codex OTel config args missing %q in %v", want, got)

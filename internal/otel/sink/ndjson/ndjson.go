@@ -47,8 +47,7 @@ const (
 // Marshaled lines accumulate in an in-memory bytes.Buffer. flushAndSyncLocked
 // acquires the cross-process flock and writes the staged bytes directly to the
 // file in a single atomic append, so concurrent collector + indexer processes
-// can't interleave partial records (a bufio.Writer would silently flush mid-
-// Write without holding the flock).
+// can't interleave partial records.
 // A background goroutine periodically flushes and syncs the file.
 type Sink struct {
 	path string
@@ -121,9 +120,8 @@ func (s *Sink) flushAndSyncLocked() error {
 		return fmt.Errorf("ndjson flock %s for flush: %w", s.path, err)
 	}
 	defer syscall.Flock(int(s.f.Fd()), syscall.LOCK_UN) //nolint:errcheck
-	// Drain the buffer with the io.Writer convention: a partial write returns
-	// (n>0, err). Advance past the written bytes before returning so a retry
-	// doesn't duplicate what already reached disk.
+	// Drain the buffer: advance past written bytes on partial write so a
+	// retry doesn't duplicate what already reached disk.
 	for s.buf.Len() > 0 {
 		n, err := s.f.Write(s.buf.Bytes())
 		if n > 0 {
@@ -143,7 +141,7 @@ func (s *Sink) flushAndSyncLocked() error {
 // Lines are staged in an in-memory bytes.Buffer; flushAndSyncLocked drains
 // the buffer to the file under the cross-process flock so concurrent
 // collector + indexer processes can't interleave partial records. Empty
-// batches are a no-op. After every FlushThreshold cumulative events, a
+// batches are a no-op. After every FlushThreshold cumulative events a
 // flush+sync is triggered.
 func (s *Sink) WriteBatch(_ context.Context, harness otel.Harness, resourceAttrs map[string]any, signals []otel.UnifiedSignal) error {
 	if len(signals) == 0 {
@@ -178,9 +176,9 @@ func (s *Sink) WriteBatch(_ context.Context, harness otel.Harness, resourceAttrs
 	return nil
 }
 
-// Flush immediately flushes the bufio buffer and fsyncs the underlying file
-// to stable storage. Callers that need guaranteed durability before the next
-// periodic tick (e.g. after writing a sentinel event) should call this.
+// Flush immediately flushes the in-memory buffer and fsyncs the underlying
+// file to stable storage. Callers that need guaranteed durability before the
+// next periodic tick (e.g. after writing a sentinel event) should call this.
 func (s *Sink) Flush() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -189,6 +187,8 @@ func (s *Sink) Flush() error {
 
 // Close flushes buffered data, syncs the file to disk, stops the background
 // goroutine, and closes the file handle. Safe to call multiple times.
+// Short-lived callers must call Close (or defer it) after writing to guarantee
+// durability — the periodic ticker will not fire before a hook process exits.
 func (s *Sink) Close() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()

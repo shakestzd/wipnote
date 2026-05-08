@@ -1,6 +1,9 @@
 package hooks
 
 import (
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -702,5 +705,67 @@ func TestSessionResume_NoSessionID_ReturnsContinue(t *testing.T) {
 	}
 	if result == nil || !result.Continue {
 		t.Error("expected Continue=true when no session ID")
+	}
+}
+
+// --- Stop ---
+
+// TestStop_FinalizesSessionHTML verifies that Stop calls FinalizeSessionHTML
+// so the event-count badge is correct for harnesses (e.g. Codex) that map
+// their task-complete event to this handler instead of SessionEnd.
+func TestStop_FinalizesSessionHTML(t *testing.T) {
+	projectDir := t.TempDir()
+	sessionsDir := filepath.Join(projectDir, ".wipnote", "sessions")
+	if err := os.MkdirAll(sessionsDir, 0o755); err != nil {
+		t.Fatalf("mkdir sessions: %v", err)
+	}
+
+	database, err := db.Open(filepath.Join(t.TempDir(), "wipnote.db"))
+	if err != nil {
+		t.Fatalf("db.Open: %v", err)
+	}
+	t.Cleanup(func() { database.Close() })
+
+	sessionID := "stop-finalize-test-001"
+	sess := &models.Session{
+		SessionID:     sessionID,
+		AgentAssigned: "codex",
+		Status:        "active",
+		CreatedAt:     time.Now().UTC(),
+	}
+	if err := db.InsertSession(database, sess); err != nil {
+		t.Fatalf("InsertSession: %v", err)
+	}
+
+	// Create session HTML file so FinalizeSessionHTML has something to update.
+	CreateSessionHTML(projectDir, sess)
+
+	t.Setenv("WIPNOTE_SESSION_ID", sessionID)
+	t.Setenv("WIPNOTE_PROJECT_DIR", projectDir)
+	t.Setenv("WIPNOTE_AGENT_TYPE", "codex")
+	t.Setenv("CLAUDE_SESSION_ID", "")
+	t.Setenv("WIPNOTE_PARENT_SESSION", "")
+
+	event := &CloudEvent{SessionID: sessionID, CWD: projectDir}
+	result, err := Stop(event, database)
+	if err != nil {
+		t.Fatalf("Stop: %v", err)
+	}
+	if result == nil || !result.Continue {
+		t.Error("expected Continue=true from Stop")
+	}
+
+	htmlPath := filepath.Join(sessionsDir, sessionID+".html")
+	data, err := os.ReadFile(htmlPath)
+	if err != nil {
+		t.Fatalf("read session HTML: %v", err)
+	}
+	content := string(data)
+
+	if !strings.Contains(content, `data-status="completed"`) {
+		t.Error("Stop should have set data-status=completed in session HTML")
+	}
+	if strings.Contains(content, `data-status="active"`) {
+		t.Error("data-status should NOT still be active after Stop")
 	}
 }

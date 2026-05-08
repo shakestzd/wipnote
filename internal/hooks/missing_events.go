@@ -90,6 +90,12 @@ func Stop(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 		} else if n > 0 {
 			debugLog(projectDir, "[user-prompt-backfill] stop: %d prompts recovered (session=%s)", n, sessionID[:minSessionLen(sessionID)])
 		}
+		// Finalize session HTML so the event-count badge is accurate for harnesses
+		// (e.g. Codex) that map their task-complete event to this Stop handler
+		// rather than to SessionEnd. Non-fatal: errors are silently logged inside.
+		var evtCount int
+		_ = database.QueryRow(`SELECT COUNT(*) FROM agent_events WHERE session_id = ?`, sessionID).Scan(&evtCount)
+		FinalizeSessionHTML(projectDir, sessionID, time.Now().UTC().Format(time.RFC3339), "completed", evtCount)
 	}
 
 	return recordSimpleEvent(models.EventEnd, "Stop", summary, "recorded", event, database)

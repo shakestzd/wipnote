@@ -560,6 +560,14 @@ func emitRosettaEvent(projectDir, wipnoteSID, claudeSessionID string) {
 		debugLog(projectDir, "[session-start] rosetta: create ndjson sink: %v", err)
 		return
 	}
+	// Close flushes the in-memory buffer + fsyncs before the hook process exits.
+	// Without this a single-event write stays in memory and is lost — the 2s
+	// periodic ticker never fires in a short-lived hook process.
+	defer func() {
+		if err := snk.Close(); err != nil {
+			debugLog(projectDir, "[session-start] rosetta: close ndjson sink: %v", err)
+		}
+	}()
 
 	sig := otel.UnifiedSignal{
 		Harness:       "wipnote",

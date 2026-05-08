@@ -507,10 +507,12 @@ func checkYoloRoborevGuard(event *CloudEvent, yolo bool) string {
 		return "" // fail-open: not installed, daemon down, timeout, etc.
 	}
 
+	// RawID uses json.RawMessage so both string ("j1") and integer (46) IDs
+	// from different roborev versions parse without type-mismatch errors.
 	type roborevEntry struct {
-		ID            string `json:"id"`
-		Verdict       string `json:"verdict"`
-		CommitSubject string `json:"commit_subject"`
+		RawID         json.RawMessage `json:"id"`
+		Verdict       string          `json:"verdict"`
+		CommitSubject string          `json:"commit_subject"`
 	}
 
 	var entries []roborevEntry
@@ -521,7 +523,8 @@ func checkYoloRoborevGuard(event *CloudEvent, yolo bool) string {
 	var failedIDs []string
 	for _, e := range entries {
 		if e.Verdict == "F" {
-			failedIDs = append(failedIDs, e.ID)
+			// Strip surrounding quotes for string IDs; numbers pass through as-is.
+			failedIDs = append(failedIDs, strings.Trim(string(e.RawID), `"`))
 		}
 	}
 	if len(failedIDs) == 0 {

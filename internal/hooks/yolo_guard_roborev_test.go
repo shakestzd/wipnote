@@ -10,16 +10,29 @@ import (
 // makeRoborevScript creates a fake "roborev" binary in a temp dir that echoes
 // the given output and prepends the dir to PATH. It returns the dir so the
 // caller can clean up (via t.TempDir, which auto-cleans).
+//
+// Note: t.TempDir() resolves to /tmp which is mounted noexec in some
+// environments (e.g. Codespaces devcontainers). We use os.MkdirTemp with
+// "." as the root so the fake binary lands in the package source directory,
+// which is always on an exec-capable filesystem.
 func makeRoborevScript(t *testing.T, output string) string {
 	t.Helper()
-	dir := t.TempDir()
+	dir, err := os.MkdirTemp(".", "roborev-fake-*")
+	if err != nil {
+		t.Fatalf("mkdirtemp for fake roborev: %v", err)
+	}
+	t.Cleanup(func() { os.RemoveAll(dir) })
 	script := filepath.Join(dir, "roborev")
 	content := "#!/bin/sh\necho '" + output + "'\n"
 	if err := os.WriteFile(script, []byte(content), 0o755); err != nil {
 		t.Fatalf("write fake roborev: %v", err)
 	}
-	t.Setenv("PATH", dir+":"+os.Getenv("PATH"))
-	return dir
+	absDir, err := filepath.Abs(dir)
+	if err != nil {
+		t.Fatalf("abs path for fake roborev dir: %v", err)
+	}
+	t.Setenv("PATH", absDir+":"+os.Getenv("PATH"))
+	return absDir
 }
 
 // commitEvent builds a minimal CloudEvent that looks like a yolo git-commit
