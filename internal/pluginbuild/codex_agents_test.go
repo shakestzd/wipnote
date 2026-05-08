@@ -380,3 +380,56 @@ func TestCodexNoColonFormAgentIDsInOutputTree(t *testing.T) {
 			strings.Join(violations, "\n  "))
 	}
 }
+
+func TestCodexExecuteSkillUsesTargetOverride(t *testing.T) {
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	manifestPath, err := FindManifest(cwd)
+	if err != nil {
+		t.Fatalf("FindManifest: %v", err)
+	}
+	repoRoot := filepath.Dir(filepath.Dir(filepath.Dir(manifestPath)))
+
+	m, err := Load(manifestPath)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+
+	outDir := t.TempDir()
+	if err := (codexAdapter{}).Emit(m, repoRoot, outDir); err != nil {
+		t.Fatalf("Emit: %v", err)
+	}
+
+	skillPath := filepath.Join(outDir, ".agents", "plugins", "wipnote", "skills", "execute", "SKILL.md")
+	data, err := os.ReadFile(skillPath)
+	if err != nil {
+		t.Fatalf("read execute skill: %v", err)
+	}
+	content := string(data)
+
+	for _, banned := range []string{
+		"SendMessage",
+		"TaskList(",
+		"TaskCreate(",
+		"TaskUpdate(",
+		"CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS",
+		".claude/worktrees",
+	} {
+		if strings.Contains(content, banned) {
+			t.Errorf("Codex execute skill contains banned Claude-only term %q", banned)
+		}
+	}
+
+	for _, required := range []string{
+		"spawn_agent",
+		"wait_agent",
+		"send_input",
+		"close_agent",
+	} {
+		if !strings.Contains(content, required) {
+			t.Errorf("Codex execute skill missing required lifecycle primitive %q", required)
+		}
+	}
+}

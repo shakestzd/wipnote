@@ -326,6 +326,9 @@ func copyAssetTreeCodex(srcDir, dstDir string, knownRoles map[string]struct{}) e
 		if err != nil {
 			return err
 		}
+		if d.Type().IsRegular() && isCodexOverrideFile(d.Name()) {
+			return nil
+		}
 		rel, err := filepath.Rel(srcDir, path)
 		if err != nil {
 			return err
@@ -342,7 +345,11 @@ func copyAssetTreeCodex(srcDir, dstDir string, knownRoles map[string]struct{}) e
 // rewrite. Binary files (detected by a NUL byte in the first 512 bytes) are
 // copied verbatim.
 func copyFileCodex(src, dst string, knownRoles map[string]struct{}) error {
-	data, err := os.ReadFile(src)
+	resolvedSrc, err := codexAssetSource(src)
+	if err != nil {
+		return err
+	}
+	data, err := os.ReadFile(resolvedSrc)
 	if err != nil {
 		return err
 	}
@@ -358,11 +365,44 @@ func copyFileCodex(src, dst string, knownRoles map[string]struct{}) error {
 		return os.WriteFile(dst, data, 0o644)
 	}
 	translated := rewriteCodexDelegationSyntax(codexRewriteAgentIDs(string(data), knownRoles), knownRoles)
-	info, err := os.Stat(src)
+	info, err := os.Stat(resolvedSrc)
 	if err != nil {
 		return err
 	}
 	return os.WriteFile(dst, []byte(translated), info.Mode().Perm())
+}
+
+func codexAssetSource(path string) (string, error) {
+	override := codexOverridePath(path)
+	if override == "" {
+		return path, nil
+	}
+	if _, err := os.Stat(override); err == nil {
+		return override, nil
+	} else if !os.IsNotExist(err) {
+		return "", err
+	}
+	return path, nil
+}
+
+func codexOverridePath(path string) string {
+	dir := filepath.Dir(path)
+	file := filepath.Base(path)
+	ext := filepath.Ext(file)
+	if ext == "" {
+		return ""
+	}
+	base := strings.TrimSuffix(file, ext)
+	return filepath.Join(dir, base+".codex"+ext)
+}
+
+func isCodexOverrideFile(name string) bool {
+	ext := filepath.Ext(name)
+	if ext == "" {
+		return false
+	}
+	base := strings.TrimSuffix(name, ext)
+	return strings.HasSuffix(base, ".codex")
 }
 
 // codexRewriteAgentIDs rewrites every occurrence of wipnote:<role> → wipnote-<role>
