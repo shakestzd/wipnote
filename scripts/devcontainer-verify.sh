@@ -32,7 +32,7 @@ section "go test ./... -count=1"
 go test ./... -count=1
 
 section "required devcontainer tools"
-for tool in wipnote claude codex gemini copilot uv mkdocs oh-my-posh ttyd tmux rg fd jq sqlite3 shellcheck zsh direnv; do
+for tool in wipnote claude codex gemini copilot roborev uv mkdocs oh-my-posh ttyd bwrap tmux rg fd jq sqlite3 shellcheck zsh direnv; do
     if ! command -v "$tool" >/dev/null 2>&1; then
         echo "$tool is not on PATH. Rebuild the devcontainer or rerun .devcontainer/post-create.sh." >&2
         exit 1
@@ -42,6 +42,8 @@ done
 section "wipnote binary smoke test"
 wipnote version
 wipnote help --compact | head -20 || true
+roborev version
+roborev status || roborev daemon start
 
 section "wipnote serve smoke test"
 wipnote serve --port 8081 >/tmp/wipnote-verify-serve.log 2>&1 &

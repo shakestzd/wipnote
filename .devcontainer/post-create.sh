@@ -5,12 +5,45 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
+retry() {
+  local attempts=5
+  local delay=2
+  local try=1
+  local status=0
+
+  while true; do
+    "$@" && return 0
+    status=$?
+
+    if [ "$try" -ge "$attempts" ]; then
+      echo "command failed after ${attempts} attempts: $*" >&2
+      return "$status"
+    fi
+
+    echo "command failed (exit ${status}); retrying in ${delay}s: $*" >&2
+    sleep "$delay"
+    try=$((try + 1))
+    delay=$((delay * 2))
+  done
+}
+
+install_script_from_url() {
+  local url="$1"
+  local tmp
+
+  tmp="$(mktemp)"
+  retry curl -fsSL "$url" -o "$tmp"
+  sh "$tmp"
+  rm -f "$tmp"
+}
+
 # Fix ownership of named-volume mount points (Docker creates these as root:root)
 sudo chown -R vscode:vscode \
     "${REPO_ROOT}/.wipnote" \
     /home/vscode/.codex \
     /home/vscode/.gemini \
     /home/vscode/.copilot \
+    /home/vscode/.roborev \
     2>/dev/null || true
 
 cd "${REPO_ROOT}"
@@ -18,7 +51,7 @@ cd "${REPO_ROOT}"
 export PATH="${HOME}/.local/bin:${PATH}"
 
 echo "==> Verifying image tools..."
-for tool in tmux rg fd jq sqlite3 shellcheck direnv zsh; do
+for tool in bwrap tmux rg fd jq sqlite3 shellcheck direnv zsh; do
   command -v "$tool" >/dev/null 2>&1 || {
     echo "missing required image tool: $tool" >&2
     exit 1
@@ -26,7 +59,11 @@ for tool in tmux rg fd jq sqlite3 shellcheck direnv zsh; do
 done
 
 echo "==> Installing AI agent CLIs..."
-npm install -g --no-fund --no-audit \
+retry npm install -g --no-fund --no-audit \
+    --fetch-timeout=60000 \
+    --fetch-retries=1 \
+    --fetch-retry-mintimeout=5000 \
+    --fetch-retry-maxtimeout=30000 \
     @anthropic-ai/claude-code \
     @google/gemini-cli \
     @openai/codex \
@@ -45,15 +82,18 @@ mkdir -p ~/.claude/plugins/data
 
 echo "==> Installing uv..."
 if ! command -v uv >/dev/null 2>&1; then
-  curl -LsSf https://astral.sh/uv/install.sh | sh
+  install_script_from_url https://astral.sh/uv/install.sh
 fi
 
 echo "==> Installing mkdocs with material theme and extensions..."
-uv tool install mkdocs --with mkdocs-material --with pymdown-extensions
+retry uv tool install mkdocs --with mkdocs-material --with pymdown-extensions
 
 echo "==> Installing Oh My Posh..."
 if ! command -v oh-my-posh >/dev/null 2>&1; then
-  curl -s https://ohmyposh.dev/install.sh | bash -s -- -d "$HOME/.local/bin"
+  tmp_omp="$(mktemp)"
+  retry curl -fsSL https://ohmyposh.dev/install.sh -o "$tmp_omp"
+  bash "$tmp_omp" -d "$HOME/.local/bin"
+  rm -f "$tmp_omp"
 fi
 
 echo "==> Installing ttyd (required by the dashboard terminal launcher)..."
@@ -62,10 +102,25 @@ if ! command -v ttyd >/dev/null 2>&1; then
   TTYD_VERSION=$(curl -sfL https://api.github.com/repos/tsl0922/ttyd/releases/latest 2>/dev/null \
     | grep -oE '"tag_name": "[^"]+"' | head -1 | cut -d'"' -f4)
   TTYD_VERSION=${TTYD_VERSION:-1.7.7}
-  curl -fL -o "$HOME/.local/bin/ttyd" \
+  retry curl -fL -o "$HOME/.local/bin/ttyd" \
     "https://github.com/tsl0922/ttyd/releases/download/${TTYD_VERSION}/ttyd.$(uname -m)"
   chmod +x "$HOME/.local/bin/ttyd"
 fi
+
+echo "==> Installing roborev..."
+if ! command -v roborev >/dev/null 2>&1; then
+  mkdir -p "$HOME/.local/bin" "$HOME/.roborev"
+  tmp_roborev="$(mktemp)"
+  retry curl -fsSL https://roborev.io/install.sh -o "$tmp_roborev"
+  ROBOREV_INSTALL_DIR="$HOME/.local/bin" bash "$tmp_roborev"
+  rm -f "$tmp_roborev"
+fi
+
+echo "==> Initializing roborev for this repository..."
+mkdir -p "$HOME/.roborev"
+roborev init || {
+  echo "roborev init failed; continuing because AI agent authentication may not be complete yet" >&2
+}
 
 echo "==> Ensuring \$HOME/.local/bin is on PATH in shell rc files..."
 for _rc in "$HOME/.bashrc" "$HOME/.zshrc"; do
@@ -117,20 +172,23 @@ ln -sf "${SCRIPT_DIR}/claude.omp.json" "$HOME/.claude.omp.json"
 
 echo "==> Installing oh-my-zsh..."
 if [ ! -d "$HOME/.oh-my-zsh" ]; then
-  RUNZSH=no CHSH=no KEEP_ZSHRC=yes sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
+  tmp_omz="$(mktemp)"
+  retry curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh -o "$tmp_omz"
+  RUNZSH=no CHSH=no KEEP_ZSHRC=yes sh "$tmp_omz"
+  rm -f "$tmp_omz"
 fi
 
 echo "==> Installing powerlevel10k..."
 if [ ! -d "$HOME/powerlevel10k" ]; then
-  git clone --depth=1 https://github.com/romkatv/powerlevel10k.git "$HOME/powerlevel10k"
+  retry git clone --depth=1 https://github.com/romkatv/powerlevel10k.git "$HOME/powerlevel10k"
 fi
 
 echo "==> Installing zsh plugins..."
 ZSH_CUSTOM="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}"
 [ -d "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting" ] || \
-  git clone --depth=1 https://github.com/zsh-users/zsh-syntax-highlighting.git "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting"
+  retry git clone --depth=1 https://github.com/zsh-users/zsh-syntax-highlighting.git "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting"
 [ -d "$ZSH_CUSTOM/plugins/zsh-autosuggestions" ] || \
-  git clone --depth=1 https://github.com/zsh-users/zsh-autosuggestions.git "$ZSH_CUSTOM/plugins/zsh-autosuggestions"
+  retry git clone --depth=1 https://github.com/zsh-users/zsh-autosuggestions.git "$ZSH_CUSTOM/plugins/zsh-autosuggestions"
 
 echo "==> Copying dotfiles..."
 cp "${SCRIPT_DIR}/dotfiles/.zshrc" "$HOME/.zshrc"
@@ -148,6 +206,7 @@ claude --version || true
 codex --version || true
 gemini --version || true
 copilot --version || true
+roborev version || true
 wipnote version || true
 oh-my-posh --version || true
 
@@ -177,6 +236,7 @@ Persistent volumes mounted:
   /home/vscode/.codex          — Codex credentials
   /home/vscode/.gemini         — Gemini credentials
   /home/vscode/.copilot        — GitHub Copilot CLI credentials
+  /home/vscode/.roborev        — roborev config, review database, and daemon state
   /home/vscode/.local          — wipnote binary + version metadata
   <workspace>/.wipnote         — tracked dogfood work items; runtime artifacts
                                  are ignored by git

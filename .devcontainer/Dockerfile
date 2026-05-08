@@ -9,6 +9,7 @@ RUN rm -f /etc/apt/sources.list.d/yarn.list \
     && apt-get update \
     && apt-get install -y --no-install-recommends \
         bash-completion \
+        bubblewrap \
         build-essential \
         curl \
         direnv \

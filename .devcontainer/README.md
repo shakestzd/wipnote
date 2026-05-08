@@ -25,8 +25,9 @@ work across other projects. The two are fully independent.
 | Gemini CLI | `npm install -g @google/gemini-cli` |
 | Codex CLI | `npm install -g @openai/codex` |
 | GitHub Copilot CLI | `npm install -g @github/copilot` |
+| Roborev CLI | `.devcontainer/post-create.sh` via official `roborev.io` installer |
 | `wipnote` binary | Built from repo source via `plugin/build.sh` |
-| `tmux`, `rg`, `fd`, `jq`, `sqlite3`, `shellcheck`, `direnv`, `zsh` | Dockerfile apt install |
+| `bwrap`, `tmux`, `rg`, `fd`, `jq`, `sqlite3`, `shellcheck`, `direnv`, `zsh` | Dockerfile apt install |
 | `uv` | `.devcontainer/post-create.sh` via Astral installer |
 | MkDocs + Material + pymdown extensions | `.devcontainer/post-create.sh` via `uv tool install` |
 | Oh My Posh | `.devcontainer/post-create.sh` via upstream installer |
@@ -41,6 +42,12 @@ work across other projects. The two are fully independent.
    agent CLIs, docs/shell/dashboard helper tools, runs `./plugin/build.sh`
    so `wipnote` lands on PATH, and runs `go build` + `go vet` as quality
    gates.
+
+The devcontainer pins DNS to Cloudflare and Google via `runArgs` because
+Docker Desktop's internal DNS proxy can intermittently return `EAI_AGAIN`
+for registry lookups even when the host network is healthy. Network
+installs in `post-create.sh` also retry transient failures before failing
+the bootstrap.
 
 ## Authentication
 
@@ -58,7 +65,12 @@ copilot        # GitHub login
 Credentials persist across rebuilds via named Docker volumes mounted at
 `/home/vscode/.claude`, `/home/vscode/.codex`, `/home/vscode/.gemini`,
 and `/home/vscode/.copilot`. The source-built `wipnote` binary and
-locally installed helper tools persist in `/home/vscode/.local`.
+locally installed helper tools persist in `/home/vscode/.local`. Roborev
+state persists in `/home/vscode/.roborev`, and `post-create.sh`
+re-initializes this repository's Roborev hooks. This repo intentionally leaves
+Roborev agent selection open so you can use both Codex and Claude Code with
+per-command flags such as `roborev review --agent codex` or
+`roborev review --agent claude-code`.
 
 The volume names are `wipnote-*`. If you previously used the old
 `htmlgraph-*` devcontainer volumes, expect to authenticate once after
