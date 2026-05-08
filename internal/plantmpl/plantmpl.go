@@ -186,6 +186,41 @@ type PlanPage struct {
 	Assets *AssetRegistry
 }
 
+// StatusBadgeClass returns the CSS badge class suffix for the plan status.
+func (p *PlanPage) StatusBadgeClass() string {
+	switch p.Status {
+	case "active", "in-progress":
+		return "badge-revision"
+	case "completed", "finalized", "done":
+		return "badge-approved"
+	case "blocked":
+		return "badge-blocked"
+	default:
+		return "badge-pending"
+	}
+}
+
+// StatusLabel returns a human-readable label for the plan status badge.
+func (p *PlanPage) StatusLabel() string {
+	switch p.Status {
+	case "active":
+		return "Active"
+	case "in-progress":
+		return "In Progress"
+	case "completed", "finalized":
+		return "Done"
+	case "blocked":
+		return "Blocked"
+	case "draft", "todo":
+		return "Draft"
+	default:
+		if p.Status != "" {
+			return p.Status
+		}
+		return "Draft"
+	}
+}
+
 // Render writes the complete plan HTML to w.
 func (p *PlanPage) Render(w io.Writer) error {
 	if p.Assets == nil {

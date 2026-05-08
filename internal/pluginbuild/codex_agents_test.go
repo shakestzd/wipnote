@@ -83,6 +83,31 @@ maxTurns: 10
 	}
 }
 
+func TestTranslateCodexAgentBashSandbox(t *testing.T) {
+	raw := []byte(`---
+name: test-runner
+description: Quality assurance agent that runs builds and tests
+model: haiku
+tools:
+  - Read
+  - Grep
+  - Glob
+  - Bash
+maxTurns: 20
+---
+
+# Test Runner Agent
+`)
+
+	agent, err := translateCodexAgent("test-runner.md", raw)
+	if err != nil {
+		t.Fatalf("translateCodexAgent: %v", err)
+	}
+	if agent.SandboxMode != "workspace-write" {
+		t.Errorf("sandbox_mode = %q, want workspace-write (Bash writes caches/artifacts)", agent.SandboxMode)
+	}
+}
+
 func TestMapCodexAgentModelAliases(t *testing.T) {
 	tests := []struct {
 		name       string

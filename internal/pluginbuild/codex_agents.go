@@ -152,7 +152,7 @@ func codexDeveloperInstructions(body []byte, initialPrompt string) string {
 func codexSandboxMode(asset AgentAsset) string {
 	for _, tool := range asset.Tools {
 		switch tool {
-		case "Edit", "Write":
+		case "Edit", "Write", "Bash":
 			return "workspace-write"
 		}
 	}

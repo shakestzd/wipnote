@@ -423,7 +423,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
   <h1>Plan: {{.Title}}</h1>
   {{if .Description}}<p style="color:var(--text-dim)">{{.Description}}</p>{{end}}
   <div class="meta">
-    <span class="badge badge-pending">Draft</span>
+    <span class="badge {{.StatusBadgeClass}}">{{.StatusLabel}}</span>
     <span style="font-size:.75rem;color:var(--text-muted)">{{.PlanMeta}}</span>
   </div>
 </header>

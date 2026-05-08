@@ -19,7 +19,7 @@ design:
     comment: ""
 slices:
     - id: slice-001
-      num: 0
+      num: 1
       title: BLOCKER 1 — Add root LICENSE file (MIT)
       what: ""
       why: ""
@@ -32,7 +32,7 @@ slices:
       approved: false
       comment: ""
     - id: slice-002
-      num: 0
+      num: 2
       title: BLOCKER 2 — Fix wipnote-aliases.sh (hg- to wn-)
       what: ""
       why: ""
@@ -45,7 +45,7 @@ slices:
       approved: false
       comment: ""
     - id: slice-003
-      num: 0
+      num: 3
       title: BLOCKER 3 — Complete rename (feat-913bf7a6 + feat-b02a559b)
       what: ""
       why: ""
@@ -58,7 +58,7 @@ slices:
       approved: false
       comment: ""
     - id: slice-004
-      num: 0
+      num: 4
       title: 'BLOCKER 4 — Fix claim-breaking bug: OTel collector dies mid-session (bug-28a9d7a7)'
       what: ""
       why: ""
@@ -71,7 +71,7 @@ slices:
       approved: false
       comment: ""
     - id: slice-005
-      num: 0
+      num: 5
       title: 'BLOCKER 5 — Fix claim-breaking bug: Gemini hooks never fire (bug-4a3a27ee)'
       what: ""
       why: ""
@@ -84,7 +84,7 @@ slices:
       approved: false
       comment: ""
     - id: slice-006
-      num: 0
+      num: 6
       title: 'BLOCKER 6 — Fix claim-breaking bug: Yolo guard misfires (bug-c4e3551d)'
       what: ""
       why: ""
@@ -97,7 +97,7 @@ slices:
       approved: false
       comment: ""
     - id: slice-007
-      num: 0
+      num: 7
       title: RELEASE — Fix gh-pages docs title (bug-3f5922c8)
       what: ""
       why: ""
@@ -110,7 +110,7 @@ slices:
       approved: false
       comment: ""
     - id: slice-008
-      num: 0
+      num: 8
       title: RELEASE — Update Homebrew formula to current version (feat-c8bb337e)
       what: ""
       why: ""
@@ -123,7 +123,7 @@ slices:
       approved: false
       comment: ""
     - id: slice-009
-      num: 0
+      num: 9
       title: RELEASE — Tag v0.59.0, push origin/main, cut GitHub release (feat-c40942d3)
       what: ""
       why: ""
@@ -136,7 +136,7 @@ slices:
       approved: false
       comment: ""
     - id: slice-010
-      num: 0
+      num: 10
       title: CONTENT — Record demo video (feat-4ae13f3c)
       what: ""
       why: ""
@@ -149,7 +149,7 @@ slices:
       approved: false
       comment: ""
     - id: slice-011
-      num: 0
+      num: 11
       title: CONTENT — Write blog post draft (feat-e505e51c)
       what: ""
       why: ""
@@ -162,7 +162,7 @@ slices:
       approved: false
       comment: ""
     - id: slice-012
-      num: 0
+      num: 12
       title: LAUNCH — LinkedIn post + HN submission (feat-ec81c370)
       what: ""
       why: ""
