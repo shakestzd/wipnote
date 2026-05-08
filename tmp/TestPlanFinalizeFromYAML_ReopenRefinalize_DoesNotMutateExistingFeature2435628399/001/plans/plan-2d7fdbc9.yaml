@@ -4,8 +4,8 @@ meta:
     title: YAML Test Plan
     description: test plan
     created_at: "2026-05-08"
-    status: todo
-    version: 4
+    status: finalized
+    version: 5
 design:
     problem: We need to solve this problem
     goals: []
