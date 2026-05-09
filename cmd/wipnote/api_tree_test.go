@@ -2,6 +2,8 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
+	"strconv"
 	"testing"
 	"time"
 
@@ -217,7 +219,7 @@ func TestBuildEventTree_OtelFallsBackToHook(t *testing.T) {
 	mustExec(t, database,
 		`INSERT INTO agent_events (event_id, agent_id, event_type, timestamp, tool_name, session_id, status)
 		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
-		"uq-hook", "claude-code", "tool_call", ts, "UserQuery", "sess-test", "recorded")
+		"uq-hook", "", "tool_call", ts, "UserQuery", "sess-test", "recorded")
 
 	turns, err := buildEventTree(database, 50)
 	if err != nil {
@@ -230,6 +232,9 @@ func TestBuildEventTree_OtelFallsBackToHook(t *testing.T) {
 	uq := turns[0].UserQuery
 	if uq["event_id"] != "uq-hook" {
 		t.Errorf("event_id = %v, want uq-hook (hook fallback)", uq["event_id"])
+	}
+	if uq["agent_id"] != "claude-code" {
+		t.Errorf("agent_id = %v, want claude-code from session fallback", uq["agent_id"])
 	}
 }
 
@@ -268,6 +273,245 @@ func TestBuildEventTree_OtelPromptFromTrace(t *testing.T) {
 	if turns[0].UserQuery["input_summary"] != "Hello world" {
 		t.Errorf("input_summary = %v, want 'Hello world' from trace user_prompt log",
 			turns[0].UserQuery["input_summary"])
+	}
+	if turns[0].UserQuery["agent_id"] != "claude-code" {
+		t.Errorf("agent_id = %v, want claude-code from OTel harness", turns[0].UserQuery["agent_id"])
+	}
+}
+
+func TestBuildEventTree_OtelLogOnlyCodexTurn(t *testing.T) {
+	database := openTreeTestDB(t)
+	defer database.Close()
+
+	now := time.Now().UTC()
+	codexSess := &models.Session{
+		SessionID:     "sess-codex-log-only",
+		AgentAssigned: "codex",
+		CreatedAt:     now,
+		Status:        "active",
+	}
+	if err := db.InsertSession(database, codexSess); err != nil {
+		t.Fatalf("InsertSession: %v", err)
+	}
+
+	promptTS := now.UnixMicro()
+	apiTS := now.Add(150 * time.Millisecond).UnixMicro()
+	decisionTS := now.Add(300 * time.Millisecond).UnixMicro()
+	toolTS := now.Add(450 * time.Millisecond).UnixMicro()
+
+	mustExec(t, database,
+		`INSERT INTO otel_signals
+		 (signal_id, harness, session_id, prompt_id, kind, canonical, native, ts_micros, trace_id, attrs_json)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		"sig-codex-prompt", "codex", "sess-codex-log-only", "prompt-1",
+		"log", "user_prompt", "codex.user_prompt", 0, "trace-codex-1",
+		`{"prompt":"fix the dashboard activity page","event.timestamp":"`+time.UnixMicro(promptTS).UTC().Format(time.RFC3339)+`"}`)
+	mustExec(t, database,
+		`INSERT INTO otel_signals
+		 (signal_id, harness, session_id, prompt_id, kind, canonical, native, ts_micros, trace_id, model, attrs_json)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		"sig-codex-api", "codex", "sess-codex-log-only", "prompt-1",
+		"log", "api_request", "codex.api_request", 0, "trace-codex-1", "gpt-5.1",
+		`{"model":"gpt-5.1","input_token_count":123,"output_token_count":45,"event.timestamp":"`+time.UnixMicro(apiTS).UTC().Format(time.RFC3339Nano)+`"}`)
+	mustExec(t, database,
+		`INSERT INTO otel_signals
+		 (signal_id, harness, session_id, prompt_id, kind, canonical, native, ts_micros, trace_id, tool_name, decision, attrs_json)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		"sig-codex-decision", "codex", "sess-codex-log-only", "prompt-1",
+		"log", "tool_decision", "codex.tool_decision", 0, "trace-codex-1", "Bash", "allowed",
+		`{"tool_name":"Bash","decision":"allowed","event.timestamp":"`+time.UnixMicro(decisionTS).UTC().Format(time.RFC3339Nano)+`"}`)
+	mustExec(t, database,
+		`INSERT INTO otel_signals
+		 (signal_id, harness, session_id, prompt_id, kind, canonical, native, ts_micros, trace_id, tool_name, success, attrs_json)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		"sig-codex-tool", "codex", "sess-codex-log-only", "prompt-1",
+		"log", "tool_result", "codex.tool_result", 0, "trace-codex-1", "Bash", 1,
+		`{"tool_name":"Bash","full_command":"go test ./cmd/wipnote","event.timestamp":"`+time.UnixMicro(toolTS).UTC().Format(time.RFC3339Nano)+`"}`)
+
+	turns, err := buildEventTree(database, 50)
+	if err != nil {
+		t.Fatalf("buildEventTree: %v", err)
+	}
+
+	var codexTurn *turn
+	for i := range turns {
+		if id, _ := turns[i].UserQuery["event_id"].(string); id == "sig-codex-prompt" {
+			codexTurn = &turns[i]
+			break
+		}
+	}
+	if codexTurn == nil {
+		t.Fatalf("Codex log-only prompt missing from event tree: %+v", turns)
+	}
+
+	if got := codexTurn.UserQuery["input_summary"]; got != "fix the dashboard activity page" {
+		t.Fatalf("input_summary = %v, want prompt text", got)
+	}
+	if got := codexTurn.UserQuery["timestamp"]; got != time.UnixMicro(promptTS).UTC().Format(time.RFC3339) {
+		t.Fatalf("timestamp = %v, want event timestamp", got)
+	}
+	if codexTurn.Stats.ToolCount != 3 {
+		t.Fatalf("stats.tool_count = %d, want 3", codexTurn.Stats.ToolCount)
+	}
+	if len(codexTurn.Children) != 3 {
+		t.Fatalf("children = %d, want 3 log-derived rows", len(codexTurn.Children))
+	}
+
+	if codexTurn.Children[0]["event_id"] != "sig-codex-tool" {
+		t.Fatalf("first child = %v, want newest tool_result row", codexTurn.Children[0]["event_id"])
+	}
+	if codexTurn.Children[1]["tool_name"] != "Bash" {
+		t.Fatalf("second child tool_name = %v, want Bash tool_decision row", codexTurn.Children[1]["tool_name"])
+	}
+	if codexTurn.Children[2]["tool_name"] != "api_request" {
+		t.Fatalf("third child tool_name = %v, want api_request row", codexTurn.Children[2]["tool_name"])
+	}
+}
+
+func TestBuildEventTree_OtelLogOnlyCodexTurn_BoundsChildrenByPromptInterval(t *testing.T) {
+	database := openTreeTestDB(t)
+	defer database.Close()
+
+	now := time.Now().UTC()
+	codexSess := &models.Session{
+		SessionID:     "sess-codex-log-window",
+		AgentAssigned: "codex",
+		CreatedAt:     now,
+		Status:        "active",
+	}
+	if err := db.InsertSession(database, codexSess); err != nil {
+		t.Fatalf("InsertSession: %v", err)
+	}
+
+	prompt1TS := now.Add(-2 * time.Minute)
+	child1TS := prompt1TS.Add(200 * time.Millisecond)
+	prompt2TS := now.Add(-1 * time.Minute)
+	child2TS := prompt2TS.Add(200 * time.Millisecond)
+	child2ErrTS := prompt2TS.Add(400 * time.Millisecond)
+
+	mustExec(t, database,
+		`INSERT INTO otel_signals
+		 (signal_id, harness, session_id, prompt_id, kind, canonical, native, ts_micros, trace_id, attrs_json)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		"sig-codex-prompt-1", "codex", "sess-codex-log-window", "prompt-1",
+		"log", "user_prompt", "codex.user_prompt", 0, "trace-codex-window-1",
+		`{"prompt":"please run the dashboard server","event.timestamp":"`+prompt1TS.Format(time.RFC3339)+`"}`)
+	mustExec(t, database,
+		`INSERT INTO otel_signals
+		 (signal_id, harness, session_id, prompt_id, kind, canonical, native, ts_micros, trace_id, tool_name, success, attrs_json)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		"sig-codex-tool-1", "codex", "sess-codex-log-window", "",
+		"log", "tool_result", "codex.tool_result", 0, "trace-codex-window-1", "Bash", 1,
+		`{"tool_name":"Bash","full_command":"wipnote serve --port 8088","event.timestamp":"`+child1TS.Format(time.RFC3339Nano)+`"}`)
+
+	mustExec(t, database,
+		`INSERT INTO otel_signals
+		 (signal_id, harness, session_id, prompt_id, kind, canonical, native, ts_micros, trace_id, attrs_json)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		"sig-codex-prompt-2", "codex", "sess-codex-log-window", "prompt-2",
+		"log", "user_prompt", "codex.user_prompt", 0, "trace-codex-window-2",
+		`{"prompt":"codex events are still not showing","event.timestamp":"`+prompt2TS.Format(time.RFC3339)+`"}`)
+	mustExec(t, database,
+		`INSERT INTO otel_signals
+		 (signal_id, harness, session_id, prompt_id, kind, canonical, native, ts_micros, trace_id, tool_name, success, attrs_json)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		"sig-codex-tool-2", "codex", "sess-codex-log-window", "",
+		"log", "tool_result", "codex.tool_result", 0, "trace-codex-window-2", "Read", 0,
+		`{"tool_name":"Read","target":"cmd/wipnote/api_tree.go","event.timestamp":"`+child2TS.Format(time.RFC3339Nano)+`"}`)
+	mustExec(t, database,
+		`INSERT INTO otel_signals
+		 (signal_id, harness, session_id, prompt_id, kind, canonical, native, ts_micros, trace_id, attrs_json)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		"sig-codex-api-error-2", "codex", "sess-codex-log-window", "",
+		"log", "api_error", "codex.api_error", 0, "trace-codex-window-2",
+		`{"message":"dashboard query failed","event.timestamp":"`+child2ErrTS.Format(time.RFC3339Nano)+`"}`)
+
+	turns, err := buildEventTree(database, 50)
+	if err != nil {
+		t.Fatalf("buildEventTree: %v", err)
+	}
+
+	var prompt1Turn, prompt2Turn *turn
+	for i := range turns {
+		switch turns[i].UserQuery["event_id"] {
+		case "sig-codex-prompt-1":
+			prompt1Turn = &turns[i]
+		case "sig-codex-prompt-2":
+			prompt2Turn = &turns[i]
+		}
+	}
+	if prompt1Turn == nil || prompt2Turn == nil {
+		t.Fatalf("expected both Codex prompt turns, got %+v", turns)
+	}
+
+	if len(prompt1Turn.Children) != 1 {
+		t.Fatalf("prompt1 children = %d, want 1", len(prompt1Turn.Children))
+	}
+	if got := prompt1Turn.Children[0]["event_id"]; got != "sig-codex-tool-1" {
+		t.Fatalf("prompt1 child event_id = %v, want sig-codex-tool-1", got)
+	}
+	if prompt1Turn.Stats.ToolCount != 1 || prompt1Turn.Stats.ErrorCount != 0 {
+		t.Fatalf("prompt1 stats = %+v, want tool_count=1 error_count=0", prompt1Turn.Stats)
+	}
+
+	if len(prompt2Turn.Children) != 2 {
+		t.Fatalf("prompt2 children = %d, want 2", len(prompt2Turn.Children))
+	}
+	if got := prompt2Turn.Children[0]["event_id"]; got != "sig-codex-api-error-2" {
+		t.Fatalf("prompt2 newest child event_id = %v, want sig-codex-api-error-2", got)
+	}
+	if got := prompt2Turn.Children[1]["event_id"]; got != "sig-codex-tool-2" {
+		t.Fatalf("prompt2 second child event_id = %v, want sig-codex-tool-2", got)
+	}
+	if prompt2Turn.Stats.ToolCount != 2 || prompt2Turn.Stats.ErrorCount != 2 {
+		t.Fatalf("prompt2 stats = %+v, want tool_count=2 error_count=2", prompt2Turn.Stats)
+	}
+}
+
+func TestBuildEventTree_OtelLogOnlyCodexTurn_SortsZeroMicrosPromptsByEventTimestamp(t *testing.T) {
+	database := openTreeTestDB(t)
+	defer database.Close()
+
+	now := time.Now().UTC()
+	codexSess := &models.Session{
+		SessionID:     "sess-codex-zero-sort",
+		AgentAssigned: "codex",
+		CreatedAt:     now,
+		Status:        "active",
+	}
+	if err := db.InsertSession(database, codexSess); err != nil {
+		t.Fatalf("InsertSession: %v", err)
+	}
+
+	for i := 0; i < 4; i++ {
+		ts := now.Add(time.Duration(i) * time.Minute)
+		mustExec(t, database,
+			`INSERT INTO otel_signals
+			 (signal_id, harness, session_id, prompt_id, kind, canonical, native, ts_micros, trace_id, attrs_json)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			fmt.Sprintf("sig-codex-zero-sort-%d", i), "codex", "sess-codex-zero-sort", fmt.Sprintf("prompt-%d", i),
+			"log", "user_prompt", "codex.user_prompt", 0, fmt.Sprintf("trace-codex-zero-sort-%d", i),
+			`{"prompt":"prompt `+strconv.Itoa(i)+`","event.timestamp":"`+ts.Format(time.RFC3339Nano)+`"}`)
+	}
+
+	turns, err := buildEventTree(database, 2)
+	if err != nil {
+		t.Fatalf("buildEventTree: %v", err)
+	}
+
+	var prompts []string
+	for _, turn := range turns {
+		if turn.SessionID == "sess-codex-zero-sort" {
+			if prompt, _ := turn.UserQuery["input_summary"].(string); prompt != "" {
+				prompts = append(prompts, prompt)
+			}
+		}
+	}
+	if len(prompts) != 2 {
+		t.Fatalf("zero-sort prompts = %v, want 2 newest prompts", prompts)
+	}
+	if prompts[0] != "prompt 3" || prompts[1] != "prompt 2" {
+		t.Fatalf("zero-sort prompts = %v, want [prompt 3 prompt 2]", prompts)
 	}
 }
 

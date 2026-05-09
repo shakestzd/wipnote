@@ -849,6 +849,7 @@ class HgEventTree extends HTMLElement {
       + ' data-event-id="' + esc(uq.event_id) + '"'
       + ' data-timestamp="' + esc(uq.timestamp || '') + '">'
       + expandIcon
+      + this._cliBadgeMarkupForEvent(uq)
       + '<span class="event-time">' + formatTime(uq.timestamp) + '</span>'
       + '<span class="event-summary">' + esc(uq.input_summary || '') + '</span>'
       + featureBdg
@@ -857,26 +858,6 @@ class HgEventTree extends HTMLElement {
       + '</div>';
 
     if (isExp) {
-      // Render assistant_text logs first (text-only turn responses) so they
-      // appear before tool spans.
-      var assistantTexts = this._assistantTextsForTurn(turn);
-      if (assistantTexts.length > 0) {
-        html += assistantTexts.map(log => this.renderAssistantText(log, uq.feature_id)).join('');
-      } else {
-        // Fallback: when no OTel-derived assistant_text exists for this turn
-        // (e.g. the otel_signals write was dropped under pre-Option-3 contention),
-        // the Stop hook still recorded the last assistant message in
-        // agent_events.input_summary prefixed with "Agent stopped: ".
-        // Render that row with the same quiet-label + markdown + collapse
-        // treatment as renderAssistantText so the turn doesn't end silently.
-        var stopEvt = (turn.children || []).find(function(c) {
-          return c.tool_name === 'Stop' && c.event_type === 'end';
-        });
-        if (stopEvt) {
-          html += this.renderStopFallback(stopEvt, uq.feature_id);
-        }
-      }
-
       // Prefer OTel spans when present — they're the canonical source
       // of hierarchy (subagent tool calls nest natively, no custom
       // attribution logic needed). When a turn has no OTel data — e.g.
@@ -907,15 +888,68 @@ class HgEventTree extends HTMLElement {
       // Post-pass: bundle consecutive same-server MCP spans into synthetic
       // group wrappers so repetitive MCP runs collapse to a single row.
       var groupedRootSpans = this._groupConsecutiveMcp(filteredRootSpans);
+
+      var timelineItems = [];
+      this._assistantTextsForTurn(turn).forEach(function(log) {
+        timelineItems.push({
+          kind: 'assistant',
+          ts: log.ts_micros || 0,
+          render: () => this.renderAssistantText(log, uq.feature_id),
+        });
+      }, this);
+
       if (groupedRootSpans.length > 0) {
-        html += groupedRootSpans.map(s => this.renderSpan(s, 1, 0, uq.feature_id, turnModelShort)).join('');
+        groupedRootSpans.forEach(function(span) {
+          timelineItems.push({
+            kind: 'span',
+            ts: this._spanTimelineMicros(span),
+            render: () => this.renderSpan(span, 1, 0, uq.feature_id, turnModelShort),
+          });
+        }, this);
       } else if (turn.children) {
-        html += turn.children.map(c => this.renderEvent(c, 1)).join('');
+        turn.children.forEach(function(child) {
+          var isStop = child.tool_name === 'Stop' && child.event_type === 'end';
+          if (isStop && timelineItems.some(function(item) { return item.kind === 'assistant'; })) {
+            return;
+          }
+          timelineItems.push({
+            kind: isStop ? 'stop' : 'event',
+            ts: this._eventTimelineMicros(child),
+            render: () => isStop ? this.renderStopFallback(child, uq.feature_id) : this.renderEvent(child, 1),
+          });
+        }, this);
       }
+
+      timelineItems.sort(function(a, b) {
+        if (a.ts === b.ts) {
+          if (a.kind === 'assistant' && b.kind !== 'assistant') return -1;
+          if (b.kind === 'assistant' && a.kind !== 'assistant') return 1;
+          return 0;
+        }
+        return b.ts - a.ts;
+      });
+      html += timelineItems.map(function(item) { return item.render(); }).join('');
     }
 
     html += '</div>';
     return html;
+  }
+
+  _spanTimelineMicros(span) {
+    if (!span) return 0;
+    if (span.start_ts_micros) return span.start_ts_micros;
+    if (span.ts_micros) return span.ts_micros;
+    if (span.children && span.children.length) {
+      var childTimes = span.children.map(s => this._spanTimelineMicros(s)).filter(Boolean);
+      if (childTimes.length) return Math.max.apply(null, childTimes);
+    }
+    return 0;
+  }
+
+  _eventTimelineMicros(evt) {
+    if (!evt || !evt.timestamp) return 0;
+    var ms = Date.parse(evt.timestamp);
+    return Number.isFinite(ms) ? ms * 1000 : 0;
   }
 
   // renderAssistantText renders a single assistant_text log as a depth-1
@@ -1114,6 +1148,57 @@ class HgEventTree extends HTMLElement {
     if (agent.indexOf('gemini') !== -1) return 'accent-gemini';
     if (agent === 'human' || agent === 'user') return 'accent-user';
     return 'accent-system';
+  }
+
+  _cliSourceFromAccent(accentClass) {
+    if (accentClass === 'accent-claude') return 'claude';
+    if (accentClass === 'accent-codex') return 'codex';
+    if (accentClass === 'accent-gemini') return 'gemini';
+    return '';
+  }
+
+  _cliSourceForEvent(evt) {
+    var agent = ((evt && evt.agent_id) || '').toLowerCase();
+    if (agent.indexOf('openai') !== -1) return 'openai';
+    if (agent.indexOf('claude') !== -1) return 'claude';
+    if (agent.indexOf('codex') !== -1) return 'codex';
+    if (agent.indexOf('gemini') !== -1) return 'gemini';
+    return this._cliSourceFromAccent(this._rowAccentClass(evt));
+  }
+
+  _cliBadgeMarkup(source, label) {
+    if (!source) return '';
+    var titles = {
+      claude: 'Claude Code',
+      codex: 'Codex',
+      openai: 'OpenAI',
+      gemini: 'Gemini'
+    };
+    var classes = {
+      claude: 'cli-logo cli-logo-claude-code',
+      codex: 'cli-logo cli-logo-codex',
+      openai: 'cli-logo cli-logo-openai',
+      gemini: 'cli-logo cli-logo-gemini'
+    };
+    var glyphs = {
+      claude: '<path d="M17.3041 3.541h-3.6718l6.696 16.918H24Zm-10.6082 0L0 20.459h3.7442l1.3693-3.5527h7.0052l1.3693 3.5528h3.7442L10.5363 3.5409Zm-.3712 10.2232 2.2914-5.9456 2.2914 5.9456Z"/>',
+      codex: '<path d="M22.2819 9.8211a5.9847 5.9847 0 0 0-.5157-4.9108 6.0462 6.0462 0 0 0-6.5098-2.9A6.0651 6.0651 0 0 0 4.9807 4.1818a5.9847 5.9847 0 0 0-3.9977 2.9 6.0462 6.0462 0 0 0 .7427 7.0966 5.98 5.98 0 0 0 .511 4.9107 6.051 6.051 0 0 0 6.5146 2.9001A5.9847 5.9847 0 0 0 13.2599 24a6.0557 6.0557 0 0 0 5.7718-4.2058 5.9894 5.9894 0 0 0 3.9977-2.9001 6.0557 6.0557 0 0 0-.7475-7.0729zm-9.022 12.6081a4.4755 4.4755 0 0 1-2.8764-1.0408l.1419-.0804 4.7783-2.7582a.7948.7948 0 0 0 .3927-.6813v-6.7369l2.02 1.1686a.071.071 0 0 1 .038.052v5.5826a4.504 4.504 0 0 1-4.4945 4.4944zm-9.6607-4.1254a4.4708 4.4708 0 0 1-.5346-3.0137l.142.0852 4.783 2.7582a.7712.7712 0 0 0 .7806 0l5.8428-3.3685v2.3324a.0804.0804 0 0 1-.0332.0615L9.74 19.9502a4.4992 4.4992 0 0 1-6.1408-1.6464zM2.3408 7.8956a4.485 4.485 0 0 1 2.3655-1.9728V11.6a.7664.7664 0 0 0 .3879.6765l5.8144 3.3543-2.0201 1.1685a.0757.0757 0 0 1-.071 0l-4.8303-2.7865A4.504 4.504 0 0 1 2.3408 7.872zm16.5963 3.8558L13.1038 8.364 15.1192 7.2a.0757.0757 0 0 1 .071 0l4.8303 2.7913a4.4944 4.4944 0 0 1-.6765 8.1042v-5.6772a.79.79 0 0 0-.407-.667zm2.0107-3.0231l-.142-.0852-4.7735-2.7818a.7759.7759 0 0 0-.7854 0L9.409 9.2297V6.8974a.0662.0662 0 0 1 .0284-.0615l4.8303-2.7866a4.4992 4.4992 0 0 1 6.6802 4.66zM8.3065 12.863l-2.02-1.1638a.0804.0804 0 0 1-.038-.0567V6.0742a4.4992 4.4992 0 0 1 7.3757-3.4537l-.142.0805L8.704 5.459a.7948.7948 0 0 0-.3927.6813zm1.0976-2.3654l2.602-1.4998 2.6069 1.4998v2.9994l-2.5974 1.4997-2.6067-1.4997Z"/>',
+      openai: '<path d="M22.2819 9.8211a5.9847 5.9847 0 0 0-.5157-4.9108 6.0462 6.0462 0 0 0-6.5098-2.9A6.0651 6.0651 0 0 0 4.9807 4.1818a5.9847 5.9847 0 0 0-3.9977 2.9 6.0462 6.0462 0 0 0 .7427 7.0966 5.98 5.98 0 0 0 .511 4.9107 6.051 6.051 0 0 0 6.5146 2.9001A5.9847 5.9847 0 0 0 13.2599 24a6.0557 6.0557 0 0 0 5.7718-4.2058 5.9894 5.9894 0 0 0 3.9977-2.9001 6.0557 6.0557 0 0 0-.7475-7.0729zm-9.022 12.6081a4.4755 4.4755 0 0 1-2.8764-1.0408l.1419-.0804 4.7783-2.7582a.7948.7948 0 0 0 .3927-.6813v-6.7369l2.02 1.1686a.071.071 0 0 1 .038.052v5.5826a4.504 4.504 0 0 1-4.4945 4.4944zm-9.6607-4.1254a4.4708 4.4708 0 0 1-.5346-3.0137l.142.0852 4.783 2.7582a.7712.7712 0 0 0 .7806 0l5.8428-3.3685v2.3324a.0804.0804 0 0 1-.0332.0615L9.74 19.9502a4.4992 4.4992 0 0 1-6.1408-1.6464zM2.3408 7.8956a4.485 4.485 0 0 1 2.3655-1.9728V11.6a.7664.7664 0 0 0 .3879.6765l5.8144 3.3543-2.0201 1.1685a.0757.0757 0 0 1-.071 0l-4.8303-2.7865A4.504 4.504 0 0 1 2.3408 7.872zm16.5963 3.8558L13.1038 8.364 15.1192 7.2a.0757.0757 0 0 1 .071 0l4.8303 2.7913a4.4944 4.4944 0 0 1-.6765 8.1042v-5.6772a.79.79 0 0 0-.407-.667zm2.0107-3.0231l-.142-.0852-4.7735-2.7818a.7759.7759 0 0 0-.7854 0L9.409 9.2297V6.8974a.0662.0662 0 0 1 .0284-.0615l4.8303-2.7866a4.4992 4.4992 0 0 1 6.6802 4.66zM8.3065 12.863l-2.02-1.1638a.0804.0804 0 0 1-.038-.0567V6.0742a4.4992 4.4992 0 0 1 7.3757-3.4537l-.142.0805L8.704 5.459a.7948.7948 0 0 0-.3927.6813zm1.0976-2.3654l2.602-1.4998 2.6069 1.4998v2.9994l-2.5974 1.4997-2.6067-1.4997Z"/>',
+      gemini: '<path d="M11.04 19.32Q12 21.51 12 24q0-2.49.93-4.68.96-2.19 2.58-3.81t3.81-2.55Q21.51 12 24 12q-2.49 0-4.68-.93a12.3 12.3 0 0 1-3.81-2.58 12.3 12.3 0 0 1-2.58-3.81Q12 2.49 12 0q0 2.49-.96 4.68-.93 2.19-2.55 3.81a12.3 12.3 0 0 1-3.81 2.58Q2.49 12 0 12q2.49 0 4.68.96 2.19.93 3.81 2.55t2.55 3.81"/>'
+    };
+    var title = titles[source] || label;
+    return '<span class="' + classes[source] + '" role="img" aria-label="' + esc(title) + '" title="' + esc(title) + '">'
+      + '<svg class="cli-logo-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">'
+      + glyphs[source]
+      + '</svg>'
+      + '</span>';
+  }
+
+  _cliBadgeMarkupForEvent(evt) {
+    var source = this._cliSourceForEvent(evt);
+    if (!source) return '';
+    var label = source === 'claude' ? 'Claude' : source === 'codex' ? 'Codex' : source === 'openai' ? 'OpenAI' : 'Gemini';
+    return this._cliBadgeMarkup(source, label);
   }
 
   _spanAccentClass(span) {

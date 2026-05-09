@@ -177,15 +177,6 @@ func resolveEventAgentID(event *CloudEvent) string {
 	return agent.Detect().ID
 }
 
-// resolveEventAgentType returns the agent type from the CloudEvent, falling
-// back to the WIPNOTE_AGENT_TYPE env var.
-func resolveEventAgentType(event *CloudEvent) string {
-	if event.AgentType != "" {
-		return event.AgentType
-	}
-	return os.Getenv("WIPNOTE_AGENT_TYPE")
-}
-
 // resolveParentEventID finds the parent event using a multi-step fallback that
 // mirrors the Python event_tracker.py logic:
 //  1. Env var WIPNOTE_PARENT_PROMPT_EVENT (only when trustEnvVar=true, i.e. PostToolUse)

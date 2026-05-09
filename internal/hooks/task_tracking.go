@@ -30,7 +30,7 @@ func selfBinary() string {
 // addTaskStep shells out to the wipnote CLI to add a step to the active
 // feature. This avoids importing the workitem package (architectural constraint:
 // hooks must not import workitem to prevent spike creation policy violations).
-func addTaskStep(database *sql.DB, sessionID, featureID, taskID, subject, teammateName string) {
+func addTaskStep(_ *sql.DB, _ string, featureID, taskID, subject, teammateName string) {
 	if subject == "" {
 		subject = "Task " + taskID
 	}
@@ -48,7 +48,7 @@ func addTaskStep(database *sql.DB, sessionID, featureID, taskID, subject, teamma
 // completeTaskStep marks a step as done by updating the step counters in SQLite.
 // Full HTML step completion requires the workitem package, so we only update the
 // database counters here. The HTML will be reconciled on next reindex.
-func completeTaskStep(database *sql.DB, sessionID, featureID, taskID, teammateName string) {
+func completeTaskStep(database *sql.DB, _ string, featureID, taskID, _ string) {
 	if database == nil {
 		return
 	}

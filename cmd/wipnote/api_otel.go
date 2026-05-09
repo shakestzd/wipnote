@@ -1,14 +1,32 @@
 package main
 
 import (
+	"bufio"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
+	"sort"
 	"strings"
+	"time"
 
 	"github.com/shakestzd/wipnote/internal/otel/materialize"
+	"github.com/tidwall/gjson"
 )
+
+type otelLogJSON struct {
+	SignalID     string `json:"signal_id"`
+	TraceID      string `json:"trace_id"`
+	SpanID       string `json:"span_id"`
+	ParentSpan   string `json:"parent_span"`
+	Canonical    string `json:"canonical"`
+	TsMicros     int64  `json:"ts_micros"`
+	AttrsJSON    string `json:"attrs_json"`
+	FeatureID    string `json:"feature_id,omitempty"`
+	FeatureTitle string `json:"feature_title,omitempty"`
+}
 
 // otelRollupHandler returns the aggregated per-session OTel rollup.
 // Reads otel_session_rollup (populated on SessionEnd) if present,
@@ -788,6 +806,8 @@ func otelLogsHandler(database *sql.DB) http.HandlerFunc {
 			http.Error(w, "session_id required", http.StatusBadRequest)
 			return
 		}
+		out := []otelLogJSON{}
+
 		rows, err := database.Query(`
 			SELECT s.signal_id,
 				COALESCE(s.trace_id, ''), COALESCE(s.span_id, ''), COALESCE(s.parent_span, ''),
@@ -806,20 +826,8 @@ func otelLogsHandler(database *sql.DB) http.HandlerFunc {
 		}
 		defer rows.Close()
 
-		type logJSON struct {
-			SignalID     string `json:"signal_id"`
-			TraceID      string `json:"trace_id"`
-			SpanID       string `json:"span_id"`
-			ParentSpan   string `json:"parent_span"`
-			Canonical    string `json:"canonical"`
-			TsMicros     int64  `json:"ts_micros"`
-			AttrsJSON    string `json:"attrs_json"`
-			FeatureID    string `json:"feature_id,omitempty"`
-			FeatureTitle string `json:"feature_title,omitempty"`
-		}
-		out := []logJSON{}
 		for rows.Next() {
-			var l logJSON
+			var l otelLogJSON
 			if err := rows.Scan(
 				&l.SignalID, &l.TraceID, &l.SpanID, &l.ParentSpan,
 				&l.Canonical, &l.TsMicros, &l.AttrsJSON,
@@ -831,8 +839,272 @@ func otelLogsHandler(database *sql.DB) http.HandlerFunc {
 			out = append(out, l)
 		}
 
+		messageRows, err := database.Query(`
+			SELECT id, COALESCE(timestamp, ''), COALESCE(content, ''),
+				COALESCE(model, ''), COALESCE(uuid, ''), COALESCE(parent_uuid, '')
+			FROM messages
+			WHERE session_id = ? AND role = 'assistant' AND TRIM(content) != ''
+			ORDER BY timestamp ASC, ordinal ASC`, sessionID)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		defer messageRows.Close()
+
+		for messageRows.Next() {
+			var id int64
+			var tsRaw, content, model, uuid, parentUUID string
+			if err := messageRows.Scan(&id, &tsRaw, &content, &model, &uuid, &parentUUID); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			tsMicros := timestampStringToMicros(tsRaw)
+			if tsMicros == 0 {
+				continue
+			}
+			attrs := map[string]any{
+				"text":   content,
+				"source": "messages",
+			}
+			if model != "" {
+				attrs["model"] = model
+			}
+			attrsJSON, err := json.Marshal(attrs)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			spanID := uuid
+			if spanID == "" {
+				spanID = fmt.Sprintf("message:%d", id)
+			}
+			out = append(out, otelLogJSON{
+				SignalID:   fmt.Sprintf("message:%d", id),
+				SpanID:     spanID,
+				ParentSpan: parentUUID,
+				Canonical:  "assistant_text",
+				TsMicros:   tsMicros,
+				AttrsJSON:  string(attrsJSON),
+			})
+		}
+
+		out = append(out, transcriptAssistantLogs(sessionID)...)
+
+		sort.SliceStable(out, func(i, j int) bool {
+			return out[i].TsMicros < out[j].TsMicros
+		})
+
 		respondJSON(w, map[string]any{"logs": out})
 	}
+}
+
+func timestampStringToMicros(raw string) int64 {
+	if raw == "" {
+		return 0
+	}
+	for _, layout := range []string{time.RFC3339Nano, "2006-01-02 15:04:05.999999999-07:00", "2006-01-02 15:04:05"} {
+		if ts, err := time.Parse(layout, raw); err == nil {
+			return ts.UTC().UnixMicro()
+		}
+	}
+	return 0
+}
+
+func transcriptAssistantLogs(sessionID string) []otelLogJSON {
+	if sessionID == "" {
+		return nil
+	}
+	var out []otelLogJSON
+	out = append(out, codexTranscriptAssistantLogs(sessionID)...)
+	out = append(out, geminiTranscriptAssistantLogs(sessionID)...)
+	return out
+}
+
+func codexTranscriptAssistantLogs(sessionID string) []otelLogJSON {
+	path := findCodexTranscriptPath(sessionID)
+	if path == "" {
+		return nil
+	}
+
+	f, err := os.Open(path)
+	if err != nil {
+		return nil
+	}
+	defer f.Close()
+
+	var out []otelLogJSON
+	scanner := bufio.NewScanner(f)
+	scanner.Buffer(make([]byte, 0, 1024*1024), 10*1024*1024)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if gjson.Get(line, "type").String() != "response_item" {
+			continue
+		}
+		payload := gjson.Get(line, "payload")
+		if payload.Get("type").String() != "message" || payload.Get("role").String() != "assistant" {
+			continue
+		}
+		text := codexMessageText(payload.Get("content"))
+		if strings.TrimSpace(text) == "" {
+			continue
+		}
+		tsMicros := timestampStringToMicros(gjson.Get(line, "timestamp").String())
+		if tsMicros == 0 {
+			continue
+		}
+		model := gjson.Get(line, "payload.model").String()
+		attrs := map[string]any{
+			"text":   text,
+			"source": "codex_transcript",
+		}
+		if model != "" {
+			attrs["model"] = model
+		}
+		attrsJSON, err := json.Marshal(attrs)
+		if err != nil {
+			continue
+		}
+		id := gjson.Get(line, "payload.id").String()
+		if id == "" {
+			id = fmt.Sprintf("codex-transcript:%s:%d", sessionID, tsMicros)
+		}
+		out = append(out, otelLogJSON{
+			SignalID:  "codex-transcript:" + id,
+			SpanID:    id,
+			Canonical: "assistant_text",
+			TsMicros:  tsMicros,
+			AttrsJSON: string(attrsJSON),
+		})
+	}
+	return out
+}
+
+func codexMessageText(content gjson.Result) string {
+	if !content.IsArray() {
+		return ""
+	}
+	var parts []string
+	content.ForEach(func(_, block gjson.Result) bool {
+		if block.Get("type").String() == "output_text" || block.Get("type").String() == "text" {
+			if text := block.Get("text").String(); text != "" {
+				parts = append(parts, text)
+			}
+		}
+		return true
+	})
+	return strings.Join(parts, "\n")
+}
+
+func findCodexTranscriptPath(sessionID string) string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
+	root := filepath.Join(home, ".codex", "sessions")
+	var found string
+	_ = filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
+		if err != nil || d.IsDir() || found != "" {
+			return nil
+		}
+		base := filepath.Base(path)
+		if strings.HasSuffix(base, ".jsonl") && strings.Contains(base, sessionID) {
+			found = path
+		}
+		return nil
+	})
+	return found
+}
+
+func geminiTranscriptAssistantLogs(sessionID string) []otelLogJSON {
+	paths := findGeminiTranscriptPaths(sessionID)
+	if len(paths) == 0 {
+		return nil
+	}
+	var out []otelLogJSON
+	for _, path := range paths {
+		out = append(out, geminiTranscriptAssistantLogsFromPath(sessionID, path)...)
+	}
+	return out
+}
+
+func findGeminiTranscriptPaths(sessionID string) []string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return nil
+	}
+	root := filepath.Join(home, ".gemini", "tmp")
+	var paths []string
+	_ = filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
+		if err != nil || d.IsDir() || !strings.HasSuffix(filepath.Base(path), ".jsonl") {
+			return nil
+		}
+		f, err := os.Open(path)
+		if err != nil {
+			return nil
+		}
+		defer f.Close()
+		scanner := bufio.NewScanner(f)
+		scanner.Buffer(make([]byte, 0, 1024*1024), 10*1024*1024)
+		for scanner.Scan() {
+			line := scanner.Text()
+			if gjson.Get(line, "sessionId").String() == sessionID || strings.Contains(filepath.Base(path), sessionID) {
+				paths = append(paths, path)
+				break
+			}
+		}
+		return nil
+	})
+	return paths
+}
+
+func geminiTranscriptAssistantLogsFromPath(sessionID, path string) []otelLogJSON {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil
+	}
+	defer f.Close()
+
+	var out []otelLogJSON
+	scanner := bufio.NewScanner(f)
+	scanner.Buffer(make([]byte, 0, 1024*1024), 10*1024*1024)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if gjson.Get(line, "type").String() != "gemini" {
+			continue
+		}
+		text := gjson.Get(line, "content").String()
+		if strings.TrimSpace(text) == "" {
+			continue
+		}
+		tsMicros := timestampStringToMicros(gjson.Get(line, "timestamp").String())
+		if tsMicros == 0 {
+			continue
+		}
+		model := gjson.Get(line, "model").String()
+		attrs := map[string]any{
+			"text":   text,
+			"source": "gemini_transcript",
+		}
+		if model != "" {
+			attrs["model"] = model
+		}
+		attrsJSON, err := json.Marshal(attrs)
+		if err != nil {
+			continue
+		}
+		id := gjson.Get(line, "id").String()
+		if id == "" {
+			id = fmt.Sprintf("gemini-transcript:%s:%d", sessionID, tsMicros)
+		}
+		out = append(out, otelLogJSON{
+			SignalID:  "gemini-transcript:" + id,
+			SpanID:    id,
+			Canonical: "assistant_text",
+			TsMicros:  tsMicros,
+			AttrsJSON: string(attrsJSON),
+		})
+	}
+	return out
 }
 
 // readMaterializedRollup fetches the row from otel_session_rollup.

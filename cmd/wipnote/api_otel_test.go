@@ -161,6 +161,56 @@ func TestOtelPromptsHandler(t *testing.T) {
 	}
 }
 
+func TestOtelLogsHandler_IncludesAssistantMessages(t *testing.T) {
+	database := seedOtelSignals(t)
+	_, err := database.Exec(`
+		INSERT INTO messages (
+			session_id, ordinal, role, content, timestamp, model, uuid, parent_uuid
+		) VALUES (?, ?, 'assistant', ?, ?, ?, ?, ?)`,
+		"sess-api-1", 1, "Here is the answer", "2026-05-08T10:00:01.123Z",
+		"claude-sonnet-4-6", "asst-1", "user-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/otel/logs?session_id=sess-api-1", nil)
+	rec := httptest.NewRecorder()
+	otelLogsHandler(database).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+
+	var body struct {
+		Logs []struct {
+			SignalID   string `json:"signal_id"`
+			SpanID     string `json:"span_id"`
+			ParentSpan string `json:"parent_span"`
+			Canonical  string `json:"canonical"`
+			AttrsJSON  string `json:"attrs_json"`
+		} `json:"logs"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(body.Logs) != 1 {
+		t.Fatalf("logs = %d, want 1", len(body.Logs))
+	}
+	if body.Logs[0].Canonical != "assistant_text" {
+		t.Fatalf("canonical = %q, want assistant_text", body.Logs[0].Canonical)
+	}
+	if body.Logs[0].SpanID != "asst-1" || body.Logs[0].ParentSpan != "user-1" {
+		t.Fatalf("ids = %+v, want transcript UUID linkage", body.Logs[0])
+	}
+	var attrs map[string]any
+	if err := json.Unmarshal([]byte(body.Logs[0].AttrsJSON), &attrs); err != nil {
+		t.Fatalf("attrs decode: %v", err)
+	}
+	if attrs["text"] != "Here is the answer" || attrs["source"] != "messages" {
+		t.Fatalf("attrs = %+v", attrs)
+	}
+}
+
 func TestOtelCostHandler_GroupByModel(t *testing.T) {
 	database := seedOtelSignals(t)
 	req := httptest.NewRequest(http.MethodGet, "/api/otel/cost?group_by=model", nil)

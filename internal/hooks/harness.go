@@ -37,22 +37,25 @@ func (h Harness) String() string {
 // codexPayload is used only for harness detection and input parsing.
 // It matches the flat top-level shape of a Codex CLI hook payload.
 type codexPayload struct {
-	SessionID      string         `json:"session_id"`
-	TurnID         string         `json:"turn_id"`
-	TranscriptPath string         `json:"transcript_path"`
-	CWD            string         `json:"cwd"`
-	HookEventName  string         `json:"hook_event_name"`
-	Model          string         `json:"model"`
-	PermissionMode string         `json:"permission_mode"`
-	Source         string         `json:"source"`
-	Prompt         string         `json:"prompt"`
-	ToolName       string         `json:"tool_name"`
-	ToolInput      map[string]any `json:"tool_input"`
-	ToolUseID      string         `json:"tool_use_id"`
-	ToolResult     map[string]any `json:"tool_result"`
-	TaskID         string         `json:"task_id"`
-	TaskData       map[string]any `json:"task"`
-	TaskSubject    string         `json:"task_subject"`
+	SessionID            string         `json:"session_id"`
+	TurnID               string         `json:"turn_id"`
+	TranscriptPath       string         `json:"transcript_path"`
+	CWD                  string         `json:"cwd"`
+	HookEventName        string         `json:"hook_event_name"`
+	Model                string         `json:"model"`
+	PermissionMode       string         `json:"permission_mode"`
+	Timestamp            string         `json:"timestamp"`
+	Source               string         `json:"source"`
+	Prompt               string         `json:"prompt"`
+	LastAssistantMessage string         `json:"last_assistant_message"`
+	StopReason           string         `json:"stop_reason"`
+	ToolName             string         `json:"tool_name"`
+	ToolInput            map[string]any `json:"tool_input"`
+	ToolUseID            string         `json:"tool_use_id"`
+	ToolResult           map[string]any `json:"tool_result"`
+	TaskID               string         `json:"task_id"`
+	TaskData             map[string]any `json:"task"`
+	TaskSubject          string         `json:"task_subject"`
 }
 
 // geminiPayload is used only for harness detection and input parsing.
@@ -61,12 +64,16 @@ type codexPayload struct {
 // a nested "tool" object (for BeforeTool/AfterTool events) instead
 // of top-level tool_name.
 type geminiPayload struct {
-	InvocationID string `json:"invocation_id"`
-	SessionID    string `json:"session_id"`
-	CWD          string `json:"cwd"`
-	Model        string `json:"model"`
+	InvocationID   string `json:"invocation_id"`
+	SessionID      string `json:"session_id"`
+	CWD            string `json:"cwd"`
+	Model          string `json:"model"`
+	TranscriptPath string `json:"transcript_path"`
+	HookEventName  string `json:"hook_event_name"`
+	Timestamp      string `json:"timestamp"`
 	// BeforeAgent / AfterAgent prompt text field.
-	Prompt string `json:"prompt"`
+	Prompt         string `json:"prompt"`
+	PromptResponse string `json:"prompt_response"`
 	// BeforeTool / AfterTool nested tool object.
 	Tool struct {
 		Name  string         `json:"name"`
@@ -120,14 +127,15 @@ func detectHarnessWithEnv(payload []byte, getenv func(string) string) Harness {
 		return HarnessClaude
 	}
 
+	// Gemini: presence of "invocation_id" (unique to Gemini; absent from Claude/Codex payloads).
+	// Check this first because Gemini payloads may also contain "hook_event_name".
+	if _, ok := top["invocation_id"]; ok {
+		return HarnessGemini
+	}
+
 	// Codex: presence of "hook_event_name" when not inside Claude Code.
 	if _, ok := top["hook_event_name"]; ok {
 		return HarnessCodex
-	}
-
-	// Gemini: presence of "invocation_id" (absent from Claude/Codex payloads).
-	if _, ok := top["invocation_id"]; ok {
-		return HarnessGemini
 	}
 
 	return HarnessClaude
@@ -154,21 +162,25 @@ func parseCodexEvent(raw []byte) (*CloudEvent, error) {
 	}
 
 	ev := &CloudEvent{
-		AgentID:        agentID,
-		SessionID:      p.SessionID,
-		CWD:            p.CWD,
-		PermissionMode: p.PermissionMode,
-		Model:          p.Model,
-		TranscriptPath: p.TranscriptPath,
-		Source:         p.Source,
-		Prompt:         p.Prompt,
-		ToolName:       p.ToolName,
-		ToolInput:      p.ToolInput,
-		ToolUseID:      p.ToolUseID,
-		ToolResult:     p.ToolResult,
-		TaskID:         p.TaskID,
-		TaskData:       p.TaskData,
-		TaskSubject:    p.TaskSubject,
+		AgentID:              agentID,
+		SessionID:            p.SessionID,
+		CWD:                  p.CWD,
+		PermissionMode:       p.PermissionMode,
+		Timestamp:            p.Timestamp,
+		Model:                p.Model,
+		TranscriptPath:       p.TranscriptPath,
+		Source:               p.Source,
+		Prompt:               p.Prompt,
+		TurnID:               p.TurnID,
+		LastAssistantMessage: p.LastAssistantMessage,
+		StopReason:           p.StopReason,
+		ToolName:             p.ToolName,
+		ToolInput:            p.ToolInput,
+		ToolUseID:            p.ToolUseID,
+		ToolResult:           p.ToolResult,
+		TaskID:               p.TaskID,
+		TaskData:             p.TaskData,
+		TaskSubject:          p.TaskSubject,
 	}
 	return ev, nil
 }
@@ -188,10 +200,13 @@ func parseGeminiEvent(raw []byte) (*CloudEvent, error) {
 		AgentID: "gemini",
 		// Gemini may use "invocation_id" as the session identifier;
 		// fall back to session_id if present.
-		SessionID: p.SessionID,
-		CWD:       p.CWD,
-		Model:     p.Model,
-		Prompt:    p.Prompt,
+		SessionID:      p.SessionID,
+		CWD:            p.CWD,
+		Model:          p.Model,
+		TranscriptPath: p.TranscriptPath,
+		Timestamp:      p.Timestamp,
+		Prompt:         p.Prompt,
+		PromptResponse: p.PromptResponse,
 		// BeforeTool / AfterTool: tool name is nested under "tool".
 		ToolName:  p.Tool.Name,
 		ToolInput: p.Tool.Input,

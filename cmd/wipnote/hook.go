@@ -54,6 +54,7 @@ Usage in hooks.json:
 
 		// Standard two-arg handlers (event + db only).
 		hookSubcmd("user-prompt", "Handle UserPromptSubmit event", emptyResult, hooks.UserPrompt),
+		hookSubcmd("after-agent", "Handle Gemini AfterAgent event", continueResult, hooks.AfterAgent),
 		hookSubcmd("pretooluse", "Handle PreToolUse event", allowResult, hooks.PreToolUse),
 		hookSubcmd("posttooluse", "Handle PostToolUse event", continueResult, hooks.PostToolUse),
 		hookSubcmd("subagent-start", "Handle SubagentStart event", continueResult, hooks.SubagentStart),

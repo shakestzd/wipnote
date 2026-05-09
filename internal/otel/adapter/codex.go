@@ -1,6 +1,8 @@
 package adapter
 
 import (
+	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/shakestzd/wipnote/internal/otel"
@@ -77,7 +79,7 @@ func (c *CodexAdapter) ConvertMetric(res OTLPResource, scope OTLPScope, m OTLPMe
 // convention follows OpenAI's gen_ai semconv where applicable.
 func (c *CodexAdapter) ConvertLog(res OTLPResource, scope OTLPScope, l OTLPLog) []otel.UnifiedSignal {
 	nativeName := codexLogNativeName(l)
-	base := c.baseSignal(res, scope, otel.KindLog, nativeName, l.Timestamp, l.Attrs)
+	base := c.baseSignal(res, scope, otel.KindLog, nativeName, codexLogTimestamp(l), l.Attrs)
 	base.TraceID = l.TraceID
 	base.SpanID = l.SpanID
 
@@ -135,6 +137,18 @@ func (c *CodexAdapter) ConvertLog(res OTLPResource, scope OTLPScope, l OTLPLog) 
 	}
 
 	return []otel.UnifiedSignal{base}
+}
+
+func codexLogTimestamp(l OTLPLog) time.Time {
+	if !l.Timestamp.IsZero() {
+		return l.Timestamp
+	}
+	if ts := AttrString(l.Attrs, "event.timestamp"); ts != "" {
+		if parsed, err := parseCodexTimestamp(ts); err == nil {
+			return parsed
+		}
+	}
+	return time.Time{}
 }
 
 // ConvertSpan maps Codex span taxonomy onto canonical names.
@@ -220,6 +234,31 @@ func codexMCPToolName(attrs map[string]any) string {
 		return tool
 	}
 	return "mcp__" + server + "__" + tool
+}
+
+func parseCodexTimestamp(ts string) (time.Time, error) {
+	for _, layout := range []string{
+		time.RFC3339Nano,
+		time.RFC3339,
+		"2006-01-02T15:04:05.999999Z07:00",
+		"2006-01-02T15:04:05.999999999Z07:00",
+		"2006-01-02 15:04:05.999999999Z07:00",
+	} {
+		if parsed, err := time.Parse(layout, ts); err == nil {
+			return parsed, nil
+		}
+	}
+	if n, err := strconv.ParseInt(ts, 10, 64); err == nil {
+		switch {
+		case n >= 1e18:
+			return time.Unix(0, n).UTC(), nil
+		case n >= 1e15:
+			return time.UnixMicro(n).UTC(), nil
+		case n >= 1e12:
+			return time.UnixMilli(n).UTC(), nil
+		}
+	}
+	return time.Time{}, fmt.Errorf("unparseable timestamp: %q", ts)
 }
 
 func firstCodexString(attrs map[string]any, keys ...string) string {

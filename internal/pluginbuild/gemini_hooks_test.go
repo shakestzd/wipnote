@@ -22,6 +22,7 @@ func TestGeminiHookEventNameTranslation(t *testing.T) {
 		},
 		Hooks: HookMatrix{Events: []HookEvent{
 			{Name: "UserPromptSubmit", Handler: "user-prompt", Targets: []string{"gemini"}, GeminiEventName: "BeforeAgent"},
+			{Name: "AfterAgent", Handler: "after-agent", Targets: []string{"gemini"}},
 			{Name: "PreToolUse", Handler: "pretooluse", Targets: []string{"gemini"}, GeminiEventName: "BeforeTool"},
 			{Name: "PostToolUse", Handler: "posttooluse", Targets: []string{"gemini"}, GeminiEventName: "AfterTool"},
 			{Name: "Stop", Handler: "stop", Targets: []string{"gemini"}, GeminiEventName: "SessionEnd", GeminiHandler: "session-end"},
@@ -42,7 +43,7 @@ func TestGeminiHookEventNameTranslation(t *testing.T) {
 	s := string(data)
 
 	// Translated Gemini names must appear.
-	for _, want := range []string{`"BeforeAgent"`, `"BeforeTool"`, `"AfterTool"`, `"SessionEnd"`} {
+	for _, want := range []string{`"BeforeAgent"`, `"AfterAgent"`, `"BeforeTool"`, `"AfterTool"`, `"SessionEnd"`} {
 		if !strings.Contains(s, want) {
 			t.Errorf("expected %q in Gemini hooks:\n%s", want, s)
 		}
@@ -207,6 +208,8 @@ func TestGeminiAdapterEmitsHooksFromFixture(t *testing.T) {
 		case e.Name == "UserPromptSubmit" && e.Handler == "user-prompt":
 			e.Targets = append(e.Targets, "gemini")
 			e.GeminiEventName = "BeforeAgent"
+		case e.Name == "AfterAgent" && e.Handler == "after-agent":
+			e.Targets = append(e.Targets, "gemini")
 		case e.Name == "Stop" && e.Handler == "stop":
 			e.Targets = append(e.Targets, "gemini")
 			e.GeminiEventName = "SessionEnd"
@@ -277,6 +280,7 @@ func TestGeminiParityFromLiveManifest(t *testing.T) {
 	for _, want := range []string{
 		`"SessionStart"`, // SessionStart → SessionStart (unchanged, no geminiEventName set)
 		`"BeforeAgent"`,  // UserPromptSubmit → BeforeAgent
+		`"AfterAgent"`,   // Gemini final response capture
 		`"BeforeTool"`,   // PreToolUse → BeforeTool
 		`"AfterTool"`,    // PostToolUse → AfterTool
 		`"SessionEnd"`,   // Stop → SessionEnd
