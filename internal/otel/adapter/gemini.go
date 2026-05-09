@@ -156,6 +156,9 @@ func (g *GeminiAdapter) ConvertSpan(res OTLPResource, scope OTLPScope, s OTLPSpa
 		if base.ToolName == "" {
 			base.ToolName = AttrString(s.Attrs, "gen_ai.tool.name")
 		}
+		// Available when GEMINI_TELEMETRY_TRACES=true:
+		base.ToolInput = AttrString(s.Attrs, "gen_ai.tool.call.arguments")
+		base.ToolOutput = AttrString(s.Attrs, "gen_ai.tool.call.result")
 	default:
 		base.CanonicalName = otel.CanonicalUnknown
 	}

@@ -48,7 +48,7 @@ func addTaskStep(_ *sql.DB, _ string, featureID, taskID, subject, teammateName s
 // completeTaskStep marks a step as done by updating the step counters in SQLite.
 // Full HTML step completion requires the workitem package, so we only update the
 // database counters here. The HTML will be reconciled on next reindex.
-func completeTaskStep(database *sql.DB, _ string, featureID, taskID, _ string) {
+func completeTaskStep(database *sql.DB, _ string, featureID, _, _ string) {
 	if database == nil {
 		return
 	}

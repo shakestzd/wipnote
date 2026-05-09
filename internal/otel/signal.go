@@ -148,6 +148,8 @@ type UnifiedSignal struct {
 	// semantic attributes (present when applicable)
 	ToolName       string
 	ToolUseID      string // hooks-side only; OTel doesn't carry it
+	ToolInput      string // raw input arguments (available when GEMINI_TELEMETRY_TRACES=true)
+	ToolOutput     string // raw call result (available when GEMINI_TELEMETRY_TRACES=true)
 	Model          string
 	Decision       string
 	DecisionSource string
