@@ -841,7 +841,7 @@ func otelLogsHandler(database *sql.DB) http.HandlerFunc {
 
 		// Index canonical assistant_text timestamps so synthetic rows from
 		// messages/transcripts are skipped when otel_signals already covers them.
-		const otelLogsDedupWindowMicros = int64(5 * 1000 * 1000) // 5 seconds
+		const otelLogsDedupWindowMicros = int64(60 * 1000 * 1000) // 60 seconds
 		otelAssistantTimes := make([]int64, 0, len(out))
 		for _, l := range out {
 			if l.Canonical == "assistant_text" {
@@ -913,7 +913,22 @@ func otelLogsHandler(database *sql.DB) http.HandlerFunc {
 			})
 		}
 
-		for _, l := range transcriptAssistantLogs(sessionID) {
+		var sessionHarness string
+		_ = database.QueryRow(
+			`SELECT COALESCE(harness, '') FROM otel_signals WHERE session_id = ? LIMIT 1`,
+			sessionID,
+		).Scan(&sessionHarness)
+
+		var transcriptLogs []otelLogJSON
+		switch sessionHarness {
+		case "codex":
+			transcriptLogs = codexTranscriptAssistantLogs(sessionID)
+		case "gemini_cli":
+			transcriptLogs = geminiTranscriptAssistantLogs(sessionID)
+		default:
+			transcriptLogs = transcriptAssistantLogs(sessionID)
+		}
+		for _, l := range transcriptLogs {
 			if !isOtelCovered(l.TsMicros) {
 				out = append(out, l)
 			}
