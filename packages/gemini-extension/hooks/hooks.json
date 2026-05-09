@@ -33,6 +33,17 @@
         ]
       }
     ],
+    "AfterModel": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "wipnote hook after-model"
+          }
+        ]
+      }
+    ],
     "BeforeTool": [
       {
         "matcher": "*",

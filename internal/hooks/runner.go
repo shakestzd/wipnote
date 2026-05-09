@@ -33,6 +33,10 @@ type CloudEvent struct {
 	TurnID         string `json:"turn_id"`
 	PromptResponse string `json:"prompt_response"`
 
+	// AfterModel Gemini-specific fields (populated by parseGeminiEvent for AfterModel events).
+	LLMRequest  map[string]any `json:"llm_request,omitempty"`
+	LLMResponse map[string]any `json:"llm_response,omitempty"`
+
 	// PreToolUse / PostToolUse
 	ToolName  string         `json:"tool_name"`
 	ToolInput map[string]any `json:"tool_input"`

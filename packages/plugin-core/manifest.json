@@ -68,6 +68,7 @@
       { "name": "SessionEnd",         "handler": "session-end",         "targets": ["claude"] },
       { "name": "UserPromptSubmit",   "handler": "user-prompt",         "targets": ["claude", "codex", "gemini"], "geminiEventName": "BeforeAgent" },
       { "name": "AfterAgent",         "handler": "after-agent",         "targets": ["gemini"] },
+      { "name": "AfterModel",         "handler": "after-model",         "targets": ["gemini"] },
       { "name": "UserPromptSubmit",   "handler": "timestamp",           "targets": ["claude"], "command": "date '+Current time: %Y-%m-%dT%H:%M:%S%z (%Z)'", "timeout": 2 },
       { "name": "PreToolUse",         "handler": "pretooluse",          "targets": ["claude", "codex", "gemini"], "geminiEventName": "BeforeTool" },
       { "name": "PostToolUse",        "handler": "posttooluse",         "targets": ["claude", "codex", "gemini"], "geminiEventName": "AfterTool" },

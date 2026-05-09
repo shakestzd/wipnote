@@ -79,6 +79,9 @@ type geminiPayload struct {
 		Name  string         `json:"name"`
 		Input map[string]any `json:"input"`
 	} `json:"tool"`
+	// AfterModel LLM request/response fields (available when hook_event_name == "AfterModel").
+	LLMRequest  map[string]any `json:"llm_request,omitempty"`
+	LLMResponse map[string]any `json:"llm_response,omitempty"`
 }
 
 // DetectHarness is the exported entry point for harness detection. It calls
@@ -210,6 +213,9 @@ func parseGeminiEvent(raw []byte) (*CloudEvent, error) {
 		// BeforeTool / AfterTool: tool name is nested under "tool".
 		ToolName:  p.Tool.Name,
 		ToolInput: p.Tool.Input,
+		// AfterModel: LLM request/response payloads.
+		LLMRequest:  p.LLMRequest,
+		LLMResponse: p.LLMResponse,
 	}
 	// If session_id is empty, use invocation_id as a surrogate so that
 	// session-scoped DB lookups have something to work with.

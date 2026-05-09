@@ -89,6 +89,7 @@ func buildGeminiOtelEnv(base []string, port int, sessionID string) []string {
 	env = appendOrReplaceEnv(env,
 		"GEMINI_TELEMETRY_ENABLED=true",
 		"GEMINI_TELEMETRY_USE_COLLECTOR=true",
+		"GEMINI_TELEMETRY_TRACES=true",
 		"GEMINI_TELEMETRY_OTLP_ENDPOINT="+endpoint,
 		"GEMINI_TELEMETRY_OTLP_PROTOCOL=http",
 		"WIPNOTE_OTEL_SESSION="+sessionID,
