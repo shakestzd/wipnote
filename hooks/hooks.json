@@ -22,6 +22,17 @@
         ]
       }
     ],
+    "AfterAgent": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "wipnote hook after-agent"
+          }
+        ]
+      }
+    ],
     "BeforeTool": [
       {
         "matcher": "*",
