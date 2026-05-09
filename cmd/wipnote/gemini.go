@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -116,177 +117,56 @@ func runGeminiInit(ref string, force, dryRun bool) error {
 	return nil
 }
 
-// geminiLaunchOpts controls how the Gemini CLI is launched.
-type geminiLaunchOpts struct {
-	// ResumeLast, when true, passes --resume latest to gemini.
-	ResumeLast bool
-	// ResumeIndex, if non-empty, passes --resume <N> to gemini.
-	// Takes precedence over ResumeLast.
-	ResumeIndex string
-	// Extension, if non-empty, passes -e <extension> to gemini (isolate mode).
-	Extension string
-	// ListSessions, when true, passes --list-sessions to gemini and exits.
-	ListSessions bool
-	// ExtraArgs are forwarded to the gemini process.
-	ExtraArgs []string
-	// ProjectRoot is the absolute path to the project root (or worktree path).
-	// When set, gemini is started in this directory and WIPNOTE_PROJECT_DIR is injected.
-	ProjectRoot string
-	// WorktreeRoot, when non-empty, overrides the working directory for the
-	// Gemini process. WIPNOTE_PROJECT_DIR is set to WipnoteRoot instead.
-	WorktreeRoot string
-	// WipnoteRoot is the canonical project root containing .wipnote/.
-	// Used to set WIPNOTE_PROJECT_DIR when running in a worktree.
-	WipnoteRoot string
-	// DryRun, when true, prints the command that would be executed without running it.
-	DryRun bool
+// interactiveGeminiExtensionInstall prompts the user to install the extension.
+func interactiveGeminiExtensionInstall() {
+	fmt.Println()
+	fmt.Println("wipnote extension is not installed for Gemini CLI.")
+	fmt.Println("The extension adds hooks, agents, skills, and slash commands.")
+	fmt.Println()
+	fmt.Print("Install wipnote Gemini extension? [y/N]: ")
+
+	reader := bufio.NewReader(os.Stdin)
+	line, _ := reader.ReadString('\n')
+	choice := strings.TrimSpace(strings.ToLower(line))
+
+	if choice == "y" || choice == "yes" {
+		fmt.Println()
+		if err := runGeminiInit("", false, false); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: extension installation failed: %v\n", err)
+			fmt.Fprintf(os.Stderr, "  Run manually: wipnote gemini --init\n")
+		} else {
+			fmt.Println("Extension installed successfully.")
+		}
+	} else {
+		fmt.Println("Continuing without extension. Run 'wipnote gemini --init' later to add it.")
+	}
+	fmt.Println()
 }
 
-// renderGeminiSystemPrompt pre-processes the embedded orchestrator prompt by
-// substituting tool-name placeholders with literal tool names. This is a defensive
-// measure: even if Gemini's GEMINI_SYSTEM_MD substitution ever regresses, users will
-// see literal tool names (read_file, replace, etc.) rather than template variables.
-//
-// Section placeholders (${AgentSkills}, ${SubAgents}, ${AvailableTools}) are left
-// unchanged — they benefit from Gemini's runtime rendering and are more complex
-// to emulate statically.
-func renderGeminiSystemPrompt(content string) string {
-	toolNameReplacements := map[string]string{
-		"${read_file_ToolName}":         "read_file",
-		"${replace_ToolName}":           "replace",
-		"${write_file_ToolName}":        "write_file",
-		"${grep_search_ToolName}":       "grep_search",
-		"${glob_ToolName}":              "glob",
-		"${run_shell_command_ToolName}": "run_shell_command",
-		"${web_fetch_ToolName}":         "web_fetch",
-		"${google_web_search_ToolName}": "google_web_search",
-	}
+// ensureGeminiExtensionOnLaunch is called by the default launcher.
+var ensureGeminiExtensionOnLaunchFn = ensureGeminiExtensionOnLaunch
+var isGeminiExtensionInstalledFn = isGeminiExtensionInstalled
+var interactiveGeminiExtensionInstallFn = interactiveGeminiExtensionInstall
 
-	result := content
-	for placeholder, literal := range toolNameReplacements {
-		result = strings.ReplaceAll(result, placeholder, literal)
+// ensureGeminiExtensionOnLaunch is called by the default launcher.
+func ensureGeminiExtensionOnLaunch() {
+	if !isGeminiExtensionInstalledFn() {
+		interactiveGeminiExtensionInstallFn()
 	}
-	return result
 }
 
-// writeGeminiSystemPrompt writes the embedded orchestrator prompt to a temp file
-// and returns the absolute path. Gemini reads the file at startup via GEMINI_SYSTEM_MD.
-// The caller does not need to clean up — the OS temp dir is cleared automatically.
-func writeGeminiSystemPrompt() (string, error) {
-	f, err := os.CreateTemp("", "wipnote-gemini-system-*.md")
-	if err != nil {
-		return "", fmt.Errorf("creating temp file: %w", err)
+func maybeEnsureGeminiExtensionOnLaunch(dryRun bool) {
+	if dryRun {
+		return
 	}
-	// Pre-render tool-name placeholders before writing.
-	rendered := renderGeminiSystemPrompt(geminiSystemPrompt)
-	if _, err := f.WriteString(rendered); err != nil {
-		f.Close()
-		return "", fmt.Errorf("writing gemini system prompt: %w", err)
-	}
-	if err := f.Close(); err != nil {
-		return "", fmt.Errorf("closing temp file: %w", err)
-	}
-	abs, err := filepath.Abs(f.Name())
-	if err != nil {
-		return "", fmt.Errorf("resolving absolute path for temp file: %w", err)
-	}
-	return abs, nil
-}
-
-// execGemini builds the gemini argv and runs it, replacing the current process
-// (or returning an error if exec fails). If opts.DryRun is true, prints the
-// intended command and returns without executing.
-func execGemini(opts geminiLaunchOpts) error {
-	var geminiArgs []string
-
-	if opts.ListSessions {
-		geminiArgs = append(geminiArgs, "--list-sessions")
-	} else if opts.ResumeIndex != "" {
-		geminiArgs = append(geminiArgs, "--resume", opts.ResumeIndex)
-	} else if opts.ResumeLast {
-		geminiArgs = append(geminiArgs, "--resume", "latest")
-	}
-
-	if opts.Extension != "" {
-		geminiArgs = append(geminiArgs, "-e", opts.Extension)
-	}
-
-	geminiArgs = append(geminiArgs, opts.ExtraArgs...)
-
-	// Write the embedded orchestrator prompt to a tmpfile and inject via GEMINI_SYSTEM_MD.
-	// The env var expects an absolute path; Gemini does a full override (not append).
-	systemMdPath, err := writeGeminiSystemPrompt()
-	if err != nil {
-		return fmt.Errorf("failed to prepare GEMINI_SYSTEM_MD: %w", err)
-	}
-
-	if opts.DryRun {
-		fmt.Printf("[dry-run] GEMINI_SYSTEM_MD=%s\n", systemMdPath)
-		fmt.Printf("[dry-run] gemini %s\n", strings.Join(geminiArgs, " "))
-		if opts.ProjectRoot != "" {
-			fmt.Printf("[dry-run] in directory: %s\n", opts.ProjectRoot)
-		}
-		return nil
-	}
-
-	geminiPath, err := exec.LookPath("gemini")
-	if err != nil {
-		return fmt.Errorf("gemini not found in PATH: %w\nInstall Gemini CLI first: https://github.com/google-gemini/gemini-cli", err)
-	}
-
-	// Resolve the effective project dir for OTel collector spawning.
-	effectiveProjDir := opts.ProjectRoot
-	if opts.WipnoteRoot != "" {
-		effectiveProjDir = opts.WipnoteRoot
-	}
-
-	// Spawn a per-session OTel collector when a project dir is known and OTel
-	// is not explicitly disabled. Non-fatal: falls back gracefully on failure.
-	var otelPort int
-	var otelSessionID string
-	var otelCleanup func()
-	if effectiveProjDir != "" && !isExplicitlyDisabled(os.Getenv("WIPNOTE_OTEL_ENABLED")) {
-		otelPort, otelSessionID, otelCleanup = spawnGeminiOtelCollector(effectiveProjDir)
-		if otelCleanup != nil {
-			defer otelCleanup()
-		}
-	}
-
-	c := exec.Command(geminiPath, geminiArgs...)
-	c.Stdin = os.Stdin
-	c.Stdout = os.Stdout
-	c.Stderr = os.Stderr
-
-	// Build the child env: start from os.Environ, inject WIPNOTE_PROJECT_DIR,
-	// WIPNOTE_AGENT, GEMINI_SYSTEM_MD, and OTel exporter vars when a collector
-	// was spawned.
-	// When WorktreeRoot is set, the process runs in the worktree but
-	// WIPNOTE_PROJECT_DIR points to the canonical project root (WipnoteRoot).
-	env := os.Environ()
-	switch {
-	case opts.WorktreeRoot != "":
-		projectDir := opts.WipnoteRoot
-		if projectDir == "" {
-			projectDir = opts.ProjectRoot
-		}
-		env = setOrReplaceEnv(env, "WIPNOTE_PROJECT_DIR", projectDir)
-		c.Dir = opts.WorktreeRoot
-	case opts.ProjectRoot != "":
-		env = setOrReplaceEnv(env, "WIPNOTE_PROJECT_DIR", opts.ProjectRoot)
-		c.Dir = opts.ProjectRoot
-	}
-	env = append(env, "WIPNOTE_AGENT=gemini")
-	env = append(env, "GEMINI_SYSTEM_MD="+systemMdPath)
-	env = buildGeminiOtelEnv(env, otelPort, otelSessionID)
-	c.Env = env
-
-	return runHarnessWithCleanup(c, otelCleanup)
+	ensureGeminiExtensionOnLaunchFn()
 }
 
 // launchGeminiDefault launches Gemini interactively with wipnote env injection.
 // Corresponds to: wipnote gemini
 func launchGeminiDefault(trackID, featureID, worktreePath, workItem string, noWorktree bool, extraArgs []string, dryRun bool) error {
 	projectRoot, _ := resolveProjectRoot()
+	maybeEnsureGeminiExtensionOnLaunch(dryRun)
 
 	// Work item attribution: emit `wipnote feature start <id>` before launching.
 	if workItem != "" && !dryRun {
@@ -324,6 +204,7 @@ func launchGeminiDefault(trackID, featureID, worktreePath, workItem string, noWo
 		ProjectRoot:  workDir,
 		WorktreeRoot: workDir,
 		WipnoteRoot:  wipnoteRoot,
+		Mode:         geminiLaunchModeDefault,
 		DryRun:       dryRun,
 	})
 }
@@ -332,11 +213,13 @@ func launchGeminiDefault(trackID, featureID, worktreePath, workItem string, noWo
 // Corresponds to: wipnote gemini --continue
 func launchGeminiContinue(extraArgs []string, dryRun bool) error {
 	projectRoot, _ := resolveProjectRoot()
+	maybeEnsureGeminiExtensionOnLaunch(dryRun)
 	fmt.Println("Resuming latest Gemini session...")
 	return execGemini(geminiLaunchOpts{
 		ResumeLast:  true,
 		ExtraArgs:   extraArgs,
 		ProjectRoot: projectRoot,
+		Mode:        geminiLaunchModeContinue,
 		DryRun:      dryRun,
 	})
 }
@@ -345,11 +228,13 @@ func launchGeminiContinue(extraArgs []string, dryRun bool) error {
 // Corresponds to: wipnote gemini --resume <N>
 func launchGeminiResume(index string, extraArgs []string, dryRun bool) error {
 	projectRoot, _ := resolveProjectRoot()
+	maybeEnsureGeminiExtensionOnLaunch(dryRun)
 	fmt.Printf("Resuming Gemini session %s...\n", index)
 	return execGemini(geminiLaunchOpts{
 		ResumeIndex: index,
 		ExtraArgs:   extraArgs,
 		ProjectRoot: projectRoot,
+		Mode:        geminiLaunchModeContinue,
 		DryRun:      dryRun,
 	})
 }
@@ -480,6 +365,7 @@ func launchGeminiDev(isolate, dryRun bool, extraArgs []string) error {
 		Extension:   ext,
 		ExtraArgs:   extraArgs,
 		ProjectRoot: projectRoot,
+		Mode:        geminiLaunchModeDev,
 		DryRun:      dryRun,
 	})
 }
@@ -536,7 +422,7 @@ Installation:
 			case init_:
 				return runGeminiInit(ref, force, dryRun)
 			case listSessions:
-				return execGemini(geminiLaunchOpts{ListSessions: true, DryRun: dryRun})
+				return execGemini(geminiLaunchOpts{ListSessions: true, DryRun: dryRun, Mode: geminiLaunchModeDefault})
 			case dev:
 				return launchGeminiDev(isolate, dryRun, args)
 			case continue_:

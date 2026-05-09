@@ -96,6 +96,29 @@ func TestDetectHarnessFromGeminiPayload(t *testing.T) {
 	}
 }
 
+// TestDetectHarness_GeminiWithHookEventName is a regression test for bug-57c86318:
+// Gemini payloads can contain both "invocation_id" and "hook_event_name". The
+// detection logic must check for "invocation_id" FIRST (Gemini-exclusive) before
+// checking "hook_event_name" (which would incorrectly classify as Codex if checked
+// first). Without this ordering, Gemini sessions were recorded as "codex" in the
+// dashboard.
+func TestDetectHarness_GeminiWithHookEventName(t *testing.T) {
+	// Gemini payload with BOTH invocation_id and hook_event_name.
+	geminiWithHookEventName := `{
+		"invocation_id": "gemini-inv-with-event",
+		"session_id": "gemini-sess-with-event",
+		"cwd": "/Users/testuser/DevProjects/wipnote",
+		"model": "gemini-2.5-pro",
+		"hook_event_name": "BeforeAgent"
+	}`
+
+	got := detectHarnessWithEnv([]byte(geminiWithHookEventName), noClaudeEnv)
+	if got != HarnessGemini {
+		t.Errorf("detectHarnessWithEnv(gemini with hook_event_name, noClaudeEnv) = %v, want HarnessGemini; "+
+			"invocation_id must take priority over hook_event_name for correct Gemini classification", got)
+	}
+}
+
 func TestDetectHarnessEmptyPayload(t *testing.T) {
 	got := detectHarnessWithEnv([]byte{}, noClaudeEnv)
 	if got != HarnessClaude {
@@ -242,6 +265,37 @@ func TestParseCodexToolPayload(t *testing.T) {
 	}
 }
 
+func TestParseCodexStopPayloadCapturesAssistantFields(t *testing.T) {
+	payload := []byte(`{
+		"session_id": "019da445-8036-73c2-a8fc-dacdb57417a8",
+		"turn_id": "019da445-a255-77e1-98c4-9d456711f47b",
+		"transcript_path": "/tmp/rollout.jsonl",
+		"cwd": "/Users/testuser/DevProjects/wipnote",
+		"hook_event_name": "Stop",
+		"model": "gpt-5.4",
+		"timestamp": "2026-05-08T10:00:00Z",
+		"last_assistant_message": "Codex final answer",
+		"stop_reason": "end_turn"
+	}`)
+
+	ev, err := parseCodexEvent(payload)
+	if err != nil {
+		t.Fatalf("parseCodexEvent: %v", err)
+	}
+	if ev.TurnID != "019da445-a255-77e1-98c4-9d456711f47b" {
+		t.Errorf("TurnID = %q", ev.TurnID)
+	}
+	if ev.Timestamp != "2026-05-08T10:00:00Z" {
+		t.Errorf("Timestamp = %q", ev.Timestamp)
+	}
+	if ev.LastAssistantMessage != "Codex final answer" {
+		t.Errorf("LastAssistantMessage = %q", ev.LastAssistantMessage)
+	}
+	if ev.StopReason != "end_turn" {
+		t.Errorf("StopReason = %q", ev.StopReason)
+	}
+}
+
 func TestParseCodexEventSetsAgentID(t *testing.T) {
 	// Explicitly clear WIPNOTE_PARENT_AGENT so this test is not affected by
 	// whatever the shell environment has set (e.g., "claude-code" in dev sessions).
@@ -358,6 +412,31 @@ func TestParseGeminiBeforeTool(t *testing.T) {
 	}
 	if ev.ToolInput == nil {
 		t.Error("ToolInput should be populated")
+	}
+}
+
+func TestParseGeminiAfterAgentCapturesPromptResponse(t *testing.T) {
+	payload := []byte(`{
+		"invocation_id": "inv-abc",
+		"session_id": "gemini-sess-123",
+		"cwd": "/tmp/project",
+		"model": "gemini-2.5-pro",
+		"timestamp": "2026-05-08T10:00:00Z",
+		"prompt_response": "Gemini final answer"
+	}`)
+
+	ev, err := parseGeminiEvent(payload)
+	if err != nil {
+		t.Fatalf("parseGeminiEvent: %v", err)
+	}
+	if ev.PromptResponse != "Gemini final answer" {
+		t.Errorf("PromptResponse = %q", ev.PromptResponse)
+	}
+	if ev.Timestamp != "2026-05-08T10:00:00Z" {
+		t.Errorf("Timestamp = %q", ev.Timestamp)
+	}
+	if ev.Model != "gemini-2.5-pro" {
+		t.Errorf("Model = %q", ev.Model)
 	}
 }
 

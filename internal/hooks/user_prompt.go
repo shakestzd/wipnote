@@ -127,39 +127,6 @@ func updateLastQuery(database *sql.DB, sessionID, prompt string) {
 const compactCLIRef = `**wipnote CLI** — feature|bug|spike|track|plan [create|show|start|complete|list|add-step|delete] · find <q> · wip · status · snapshot · link [add|remove|list] · session [list|show] · analytics [summary|velocity] · check · health · spec|tdd|review|compliance <id> · batch [apply|export] · ingest · reindex · yolo --feature <id>
 **Required flags:** feature/bug create need --track <id> --description "…"`
 
-// buildAttributionGuidance returns a compact CIGS attribution block listing
-// open work items so Claude can call wipnote feature start for the right item.
-// Used once per session in SessionStart hook.
-func buildAttributionGuidance(database *sql.DB, sessionID, activeFeatureID string) string {
-	open := listOpenWorkItems(database)
-	if len(open) == 0 {
-		return ""
-	}
-
-	activeContext := buildActiveFeatureContext(database, activeFeatureID)
-
-	lines := []string{
-		"## Work Item Attribution (CIGS)",
-		"",
-	}
-
-	if activeContext != "" {
-		lines = append(lines, activeContext, "")
-	} else {
-		lines = append(lines, "**ACTIVE**: none", "")
-	}
-
-	lines = append(lines, "**Open work items** — run `wipnote feature start <id>`:")
-	for _, item := range open {
-		if item.id == activeFeatureID {
-			continue // already shown in active context above
-		}
-		lines = append(lines, fmt.Sprintf("  `%s` — %s [%s]", item.id, item.title, item.status))
-	}
-	lines = append(lines, "", compactCLIRef)
-	return joinLines(lines)
-}
-
 // buildActiveItemOneLiner returns a terse "ACTIVE: <id> — <title>" string when
 // an active item is set, or empty string when none. Used per-turn in UserPromptSubmit.
 func buildActiveItemOneLiner(database *sql.DB, featureID string) string {
@@ -340,13 +307,6 @@ func getActiveWorkItemType(database *sql.DB, featureID string) string {
 		`SELECT type FROM features WHERE id = ?`, featureID,
 	).Scan(&itemType)
 	return itemType.String
-}
-
-func activeFeatureOrNone(id string) string {
-	if id == "" {
-		return "none"
-	}
-	return id
 }
 
 // sanitizePrompt strips XML notification/reminder blocks from prompt text.
