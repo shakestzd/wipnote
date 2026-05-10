@@ -1,0 +1,29 @@
+meta:
+    id: plan-efcf9f79
+    title: Medium Plan
+    description: ""
+    created_at: "2026-05-10"
+    status: draft
+    priority: medium
+    version: 3
+design:
+    problem: ""
+    goals: []
+    constraints: []
+    approved: false
+    comment: ""
+slices:
+    - id: slic-3aea53e1
+      num: 1
+      title: S1
+      what: Do S1
+      why: ""
+      files: []
+      deps: []
+      done_when: []
+      effort: S
+      risk: Low
+      tests: ""
+      approved: false
+      comment: ""
+questions: []
