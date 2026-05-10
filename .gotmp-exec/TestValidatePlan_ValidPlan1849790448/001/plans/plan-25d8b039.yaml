@@ -1,0 +1,29 @@
+meta:
+    id: plan-25d8b039
+    title: Valid Plan
+    description: A valid plan
+    created_at: "2026-05-09"
+    status: draft
+    priority: medium
+    version: 3
+design:
+    problem: ""
+    goals: []
+    constraints: []
+    approved: false
+    comment: ""
+slices:
+    - id: slic-a2983174
+      num: 1
+      title: Slice One
+      what: Implement slice one
+      why: ""
+      files: []
+      deps: []
+      done_when: []
+      effort: S
+      risk: Low
+      tests: ""
+      approved: false
+      comment: ""
+questions: []

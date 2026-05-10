@@ -1,0 +1,32 @@
+meta:
+    id: plan-9758ec8d
+    track_id: trk-ca565fdd
+    title: Preview Plan
+    description: ""
+    created_at: "2026-05-09"
+    status: active
+    priority: medium
+    version: 3
+design:
+    problem: test problem
+    goals: []
+    constraints: []
+    approved: false
+    comment: ""
+slices:
+    - id: slic-a5b32b71
+      feature_id: feat-83b9a289
+      num: 1
+      title: Preview Slice
+      what: Do preview thing
+      why: Because
+      files: []
+      deps: []
+      done_when: []
+      effort: ""
+      risk: ""
+      tests: ""
+      approved: false
+      comment: ""
+      execution_status: promoted
+questions: []

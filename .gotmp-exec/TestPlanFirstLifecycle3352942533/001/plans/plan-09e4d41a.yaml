@@ -1,0 +1,55 @@
+meta:
+    id: plan-09e4d41a
+    title: Auth Middleware Rewrite
+    description: Rewrite auth for compliance
+    created_at: "2026-05-09"
+    status: draft
+    priority: medium
+    version: 5
+design:
+    problem: ""
+    goals: []
+    constraints: []
+    approved: false
+    comment: ""
+slices:
+    - id: slic-cb14058b
+      num: 1
+      title: Error handling layer
+      what: Implement Error handling layer
+      why: ""
+      files: []
+      deps: []
+      done_when: []
+      effort: S
+      risk: Low
+      tests: ""
+      approved: false
+      comment: ""
+    - id: slic-d72dbd7a
+      num: 2
+      title: Token validation
+      what: Implement Token validation
+      why: ""
+      files: []
+      deps: []
+      done_when: []
+      effort: S
+      risk: Low
+      tests: ""
+      approved: false
+      comment: ""
+    - id: slic-107ccd4c
+      num: 3
+      title: Migration script
+      what: Implement Migration script
+      why: ""
+      files: []
+      deps: []
+      done_when: []
+      effort: S
+      risk: Low
+      tests: ""
+      approved: false
+      comment: ""
+questions: []

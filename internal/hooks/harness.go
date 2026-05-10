@@ -92,18 +92,23 @@ func DetectHarness(payload []byte) Harness {
 }
 
 // detectHarness examines the raw payload bytes and the process environment to
-// determine the harness that sent them. The detection rules are:
+// determine the harness that sent them. The detection rules are (in priority order):
 //
-//   - HarnessClaude: CLAUDE_CODE_ENTRYPOINT env var is set (Claude Code sets this
+//  1. HarnessClaude: CLAUDE_CODE_ENTRYPOINT env var is set (Claude Code sets this
 //     in every hook invocation; Codex and Gemini do not). This takes priority over
 //     payload-based detection because Claude Code also sends "hook_event_name" in
 //     its payloads, which previously caused false Codex classification.
-//   - HarnessCodex:  CLAUDE_CODE_ENTRYPOINT is absent AND top-level
-//     "hook_event_name" field is present (Codex's discriminator when not inside
-//     a Claude Code session).
-//   - HarnessGemini: CLAUDE_CODE_ENTRYPOINT is absent AND top-level
-//     "invocation_id" field is present AND "hook_event_name" is absent.
-//   - HarnessClaude: default fallback when no discriminating signal is found.
+//  2. HarnessGemini: WIPNOTE_AGENT_ID=gemini (set by `wipnote gemini` launcher).
+//     This must be checked before payload fields because real Gemini hook payloads
+//     do NOT include "invocation_id" — the Gemini hook schema uses hook_event_name
+//     like Codex, making payload-only detection ambiguous.
+//  3. HarnessCodex:  WIPNOTE_AGENT_ID=codex (set by `wipnote codex` launcher).
+//  4. HarnessGemini: WIPNOTE_AGENT_ID absent AND top-level "invocation_id" present.
+//  5. HarnessGemini: hook_event_name is a Gemini-native value (BeforeAgent, AfterAgent,
+//     AfterModel, BeforeTool, AfterTool) — reliable payload-only discriminator when the
+//     wipnote launcher is not used (i.e. `gemini` run directly).
+//  6. HarnessCodex:  any other "hook_event_name" present.
+//  7. HarnessClaude: default fallback.
 func detectHarness(payload []byte) Harness {
 	return detectHarnessWithEnv(payload, os.Getenv)
 }
@@ -120,6 +125,24 @@ func detectHarnessWithEnv(payload []byte, getenv func(string) string) Harness {
 		return HarnessClaude
 	}
 
+	// WIPNOTE_AGENT_ID is set by the wipnote launcher before spawning the
+	// harness process (buildGeminiAgentEnv sets WIPNOTE_AGENT_ID=gemini;
+	// the Codex launcher sets WIPNOTE_AGENT_ID=codex). Use it as a reliable
+	// env-based discriminator when payload-shape alone is ambiguous.
+	//
+	// This is necessary because real Gemini CLI hook payloads do NOT include
+	// "invocation_id" — the official Gemini hook schema only has session_id,
+	// cwd, hook_event_name, timestamp, and event-specific fields. Without this
+	// check, every Gemini hook event is misclassified as HarnessCodex (because
+	// hook_event_name IS present), causing agent_id='codex' to be written to
+	// agent_events for Gemini sessions (the bug reported for session 8de1df19).
+	switch getenv("WIPNOTE_AGENT_ID") {
+	case "gemini":
+		return HarnessGemini
+	case "codex":
+		return HarnessCodex
+	}
+
 	if len(payload) == 0 {
 		return HarnessClaude
 	}
@@ -130,10 +153,21 @@ func detectHarnessWithEnv(payload []byte, getenv func(string) string) Harness {
 		return HarnessClaude
 	}
 
-	// Gemini: presence of "invocation_id" (unique to Gemini; absent from Claude/Codex payloads).
-	// Check this first because Gemini payloads may also contain "hook_event_name".
+	// Gemini: presence of "invocation_id" (future-proofing; real Gemini payloads omit it).
 	if _, ok := top["invocation_id"]; ok {
 		return HarnessGemini
+	}
+
+	// Gemini: hook_event_name values that Codex never emits. Gemini CLI uses its own
+	// event naming convention (BeforeAgent, AfterAgent, AfterModel, BeforeTool, AfterTool)
+	// rather than Codex's UserPromptSubmit / PreToolUse / PostToolUse names. This is the
+	// only reliable payload-only discriminator when WIPNOTE_AGENT_ID is not set (i.e. when
+	// `gemini` is run directly rather than via `wipnote gemini`).
+	if name, _ := top["hook_event_name"].(string); name != "" {
+		switch name {
+		case "BeforeAgent", "AfterAgent", "AfterModel", "BeforeTool", "AfterTool":
+			return HarnessGemini
+		}
 	}
 
 	// Codex: presence of "hook_event_name" when not inside Claude Code.

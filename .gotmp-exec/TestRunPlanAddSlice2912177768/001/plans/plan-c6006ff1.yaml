@@ -1,0 +1,42 @@
+meta:
+    id: plan-c6006ff1
+    title: Test Plan
+    description: A test plan
+    created_at: "2026-05-09"
+    status: draft
+    priority: medium
+    version: 4
+design:
+    problem: ""
+    goals: []
+    constraints: []
+    approved: false
+    comment: ""
+slices:
+    - id: slic-28537752
+      num: 1
+      title: Implement error handling
+      what: Handle errors
+      why: ""
+      files: []
+      deps: []
+      done_when: []
+      effort: S
+      risk: Low
+      tests: ""
+      approved: false
+      comment: ""
+    - id: slic-46379899
+      num: 2
+      title: Add tests
+      what: Write unit tests
+      why: ""
+      files: []
+      deps: []
+      done_when: []
+      effort: S
+      risk: Low
+      tests: ""
+      approved: false
+      comment: ""
+questions: []
