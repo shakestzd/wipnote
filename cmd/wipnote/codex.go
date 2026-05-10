@@ -1149,6 +1149,9 @@ func execCodex(opts codexLaunchOpts) error {
 		effectiveProjDir = opts.WipnoteRoot
 	}
 
+	// Auto-start a detached `wipnote serve` for the dashboard.
+	ensureServeForDashboard(effectiveProjDir)
+
 	// Spawn a per-session OTel collector when a project dir is known and OTel
 	// is not explicitly disabled. Non-fatal: falls back gracefully on failure.
 	var otelPort int
