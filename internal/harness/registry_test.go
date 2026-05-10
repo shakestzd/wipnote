@@ -2,6 +2,7 @@ package harness_test
 
 import (
 	"sort"
+	"strings"
 	"testing"
 
 	"github.com/shakestzd/wipnote/internal/harness"
@@ -138,6 +139,121 @@ func TestRegistry_HooksHarnessMatchesHooksConst(t *testing.T) {
 		if int(tt.harnessVal) != int(tt.hooksVal) {
 			t.Errorf("%s: harness.Hooks%s=%d != hooks.Harness%s=%d",
 				tt.name, tt.name, int(tt.harnessVal), tt.name, int(tt.hooksVal))
+		}
+	}
+}
+
+// TestCodexOtelEnv verifies that the Codex OtelEnv function returns the
+// expected OTel environment variables including the service name and port.
+func TestCodexOtelEnv(t *testing.T) {
+	cfg := harness.Get("codex")
+	if cfg == nil {
+		t.Fatal("Get(\"codex\") returned nil")
+	}
+	if cfg.OtelEnv == nil {
+		t.Fatal("Get(\"codex\").OtelEnv is nil — must be non-nil for Codex")
+	}
+
+	got := cfg.OtelEnv(9999, "sess-abc")
+	if got == nil {
+		t.Fatal("OtelEnv(9999, \"sess-abc\") returned nil")
+	}
+
+	// Must contain OTEL_SERVICE_NAME=codex-cli.
+	foundServiceName := false
+	foundPort := false
+	for _, e := range got {
+		if e == "OTEL_SERVICE_NAME=codex-cli" {
+			foundServiceName = true
+		}
+		if strings.Contains(e, "9999") {
+			foundPort = true
+		}
+	}
+	if !foundServiceName {
+		t.Errorf("OtelEnv missing OTEL_SERVICE_NAME=codex-cli; got %v", got)
+	}
+	if !foundPort {
+		t.Errorf("OtelEnv missing entry containing port 9999; got %v", got)
+	}
+}
+
+// TestGeminiOtelEnv verifies that the Gemini OtelEnv function returns the
+// expected OTel environment variables including GEMINI_TELEMETRY_ENABLED=true.
+func TestGeminiOtelEnv(t *testing.T) {
+	cfg := harness.Get("gemini_cli")
+	if cfg == nil {
+		t.Fatal("Get(\"gemini_cli\") returned nil")
+	}
+	if cfg.OtelEnv == nil {
+		t.Fatal("Get(\"gemini_cli\").OtelEnv is nil — must be non-nil for Gemini")
+	}
+
+	got := cfg.OtelEnv(8080, "sess-xyz")
+	if got == nil {
+		t.Fatal("OtelEnv(8080, \"sess-xyz\") returned nil")
+	}
+
+	foundEnabled := false
+	for _, e := range got {
+		if e == "GEMINI_TELEMETRY_ENABLED=true" {
+			foundEnabled = true
+			break
+		}
+	}
+	if !foundEnabled {
+		t.Errorf("OtelEnv missing GEMINI_TELEMETRY_ENABLED=true; got %v", got)
+	}
+}
+
+// TestClaudeOtelEnv_Nil verifies that Claude's OtelEnv field is nil,
+// which is the documented contract (Claude Code injects its own OTel config).
+func TestClaudeOtelEnv_Nil(t *testing.T) {
+	cfg := harness.Get("claude_code")
+	if cfg == nil {
+		t.Fatal("Get(\"claude_code\") returned nil")
+	}
+	if cfg.OtelEnv != nil {
+		t.Error("Get(\"claude_code\").OtelEnv must be nil (Claude Code manages its own OTel config)")
+	}
+}
+
+// TestBuildAgentEnv_Codex verifies that BuildAgentEnv returns the correct
+// WIPNOTE_AGENT_ID and WIPNOTE_AGENT_TYPE values for Codex.
+func TestBuildAgentEnv_Codex(t *testing.T) {
+	cfg := harness.Get("codex")
+	if cfg == nil {
+		t.Fatal("Get(\"codex\") returned nil")
+	}
+
+	got := cfg.BuildAgentEnv()
+	want := []string{"WIPNOTE_AGENT_ID=codex", "WIPNOTE_AGENT_TYPE=codex"}
+	if len(got) != len(want) {
+		t.Fatalf("BuildAgentEnv() = %v, want %v", got, want)
+	}
+	for i, w := range want {
+		if got[i] != w {
+			t.Errorf("BuildAgentEnv()[%d] = %q, want %q", i, got[i], w)
+		}
+	}
+}
+
+// TestBuildAgentEnv_Gemini verifies that BuildAgentEnv returns the correct
+// WIPNOTE_AGENT_ID and WIPNOTE_AGENT_TYPE values for Gemini.
+func TestBuildAgentEnv_Gemini(t *testing.T) {
+	cfg := harness.Get("gemini_cli")
+	if cfg == nil {
+		t.Fatal("Get(\"gemini_cli\") returned nil")
+	}
+
+	got := cfg.BuildAgentEnv()
+	want := []string{"WIPNOTE_AGENT_ID=gemini", "WIPNOTE_AGENT_TYPE=gemini"}
+	if len(got) != len(want) {
+		t.Fatalf("BuildAgentEnv() = %v, want %v", got, want)
+	}
+	for i, w := range want {
+		if got[i] != w {
+			t.Errorf("BuildAgentEnv()[%d] = %q, want %q", i, got[i], w)
 		}
 	}
 }

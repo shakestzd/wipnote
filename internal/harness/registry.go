@@ -11,6 +11,11 @@ package harness
 
 import "sync"
 
+// OtelEnvFunc returns env vars to inject before launching this harness.
+// Must be non-nil for Codex and Gemini; nil is valid only for Claude
+// (Claude Code injects its own OTel config via its own mechanisms).
+type OtelEnvFunc func(port int, sessionID string) []string
+
 // HooksHarness mirrors the hooks.Harness int without importing internal/hooks.
 // The iota ordering MUST match hooks.HarnessClaude/Codex/Gemini exactly; this
 // is verified by TestRegistry_HooksHarnessMatchesHooksConst in registry_test.go.
@@ -53,6 +58,22 @@ type HarnessConfig struct {
 	// HooksHarness bridges to the hooks.Harness int without importing internal/hooks.
 	// Callers can cast: hooks.Harness(cfg.HooksHarness)
 	HooksHarness HooksHarness
+
+	// OtelEnv returns the OTel-related environment variables to inject when
+	// launching this harness. Must be non-nil for Codex and Gemini; nil is
+	// valid only for Claude (Claude Code injects its own OTel config).
+	// Codex and Gemini registry init() functions panic at startup if their
+	// OtelEnv is nil, preventing silent misconfiguration.
+	OtelEnv OtelEnvFunc
+}
+
+// BuildAgentEnv returns the WIPNOTE_AGENT_ID and WIPNOTE_AGENT_TYPE env vars
+// for this harness. Used by launchers to attribute spawned agent processes.
+func (c *HarnessConfig) BuildAgentEnv() []string {
+	return []string{
+		"WIPNOTE_AGENT_ID=" + c.AgentID,
+		"WIPNOTE_AGENT_TYPE=" + c.AgentID,
+	}
 }
 
 var (
