@@ -402,7 +402,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     <li>
       <a href="#slice-1" class="slice-nav-item" data-slice-nav="1">
         <span class="slice-nav-dot" data-approval="pending" data-dot-for="1"></span>
-        <span>#1 HarnessConfig registry — identity constants and two-type-system unification</span>
+        <span>#1 HarnessConfig registry — identity constants and hooks Harness int mapping</span>
       </a>
     </li>
     
@@ -416,14 +416,14 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     <li>
       <a href="#slice-3" class="slice-nav-item" data-slice-nav="3">
         <span class="slice-nav-dot" data-approval="pending" data-dot-for="3"></span>
-        <span>#3 Detection and adapter Identify() from registry — eliminate detection heuristic drift</span>
+        <span>#3 Detection and adapter Identify() from registry — data-driven, no hardcoded event names</span>
       </a>
     </li>
     
     <li>
       <a href="#slice-4" class="slice-nav-item" data-slice-nav="4">
         <span class="slice-nav-dot" data-approval="pending" data-dot-for="4"></span>
-        <span>#4 Complete add-a-harness recipe — README + config.json schema</span>
+        <span>#4 Complete add-a-harness recipe — README + wipnote harness list command</span>
       </a>
     </li>
     
@@ -465,10 +465,10 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
 <section class="dep-graph" data-zone="dependency-graph">
   <h2>Dependency Graph</h2>
   <div id="graph-data" style="display:none">
-    <div data-node="1" data-name="HarnessConfig registry — identity constants and two-type-system unification" data-status="pending" data-deps="" data-files="6"></div>
+    <div data-node="1" data-name="HarnessConfig registry — identity constants and hooks Harness int mapping" data-status="pending" data-deps="" data-files="5"></div>
     <div data-node="2" data-name="Launcher OTel config from registry — eliminate per-launcher env var hardcoding" data-status="pending" data-deps="1" data-files="5"></div>
-    <div data-node="3" data-name="Detection and adapter Identify() from registry — eliminate detection heuristic drift" data-status="pending" data-deps="1" data-files="7"></div>
-    <div data-node="4" data-name="Complete add-a-harness recipe — README + config.json schema" data-status="pending" data-deps="1,2,3" data-files="2"></div>
+    <div data-node="3" data-name="Detection and adapter Identify() from registry — data-driven, no hardcoded event names" data-status="pending" data-deps="1" data-files="7"></div>
+    <div data-node="4" data-name="Complete add-a-harness recipe — README + wipnote harness list command" data-status="pending" data-deps="1,2,3" data-files="2"></div>
     
     <!--PLAN_GRAPH_NODES-->
   </div>
@@ -482,7 +482,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
   <summary><span>Design</span><span class="badge badge-pending" data-badge-for="design">Pending</span></summary>
   <div class="section-body">
     <h4>Problem</h4>
-<div data-markdown>Per-harness configuration is scattered across at least 8 locations with no single source of truth: (1) Two parallel harness identity systems — hooks.HarnessClaude int in internal/hooks/harness.go and otel.HarnessClaude string in internal/otel/signal.go — can drift independently. (2) Telemetry env var names are hardcoded in separate launcher files using completely different conventions (GEMINI_TELEMETRY_* vs OTEL_EXPORTER_OTLP_*), making adding a new harness a multi-file hunt. (3) The OTEL_SERVICE_NAME value &#34;codex-cli&#34; is hardcoded in both codex_launch.go:92 and adapter/codex.go:36 — they must stay in sync manually. (4) Gemini native hook event names (BeforeAgent, AfterAgent, AfterModel, BeforeTool, AfterTool) used for harness detection in harness.go are duplicated from the geminiEventName fields already in manifest.json. (5) The per-harness session ID attribute key (&#34;session.id&#34; vs &#34;conversation.id&#34;) is hardcoded per adapter. (6) WIPNOTE_AGENT_ID literal values &#34;gemini&#34; and &#34;codex&#34; appear in three files (gemini_launch.go, codex_launch.go, harness.go) with no shared constant. (7) The README&#39;s &#34;add a new harness&#34; recipe covers only the plugin build step; the 6 required Go-layer changes are undocumented. The result: every bug fix touching harness identification (e.g. the recent BeforeAgent detection fix) requires auditing multiple files, and adding a new harness requires reading source to find all the places that need updating.
+<div data-markdown>Per-harness configuration is scattered across at least 8 locations with no single source of truth: (1) Two parallel harness identity systems — hooks.HarnessClaude int in internal/hooks/harness.go and otel.HarnessClaude string in internal/otel/signal.go — can drift independently. (2) Telemetry env var names are hardcoded in separate launcher files using completely different conventions (GEMINI_TELEMETRY_* vs OTEL_EXPORTER_OTLP_*), making adding a new harness a multi-file hunt. (3) The OTEL_SERVICE_NAME value &#34;codex-cli&#34; is hardcoded in both codex_launch.go:92 and adapter/codex.go:36 — they must stay in sync manually. (4) Gemini native hook event names (BeforeAgent, AfterAgent, AfterModel, BeforeTool, AfterTool) used for harness detection in harness.go are duplicated from the geminiEventName fields already in manifest.json. (5) The per-harness session ID attribute key (&#34;session.id&#34; vs &#34;conversation.id&#34;) is hardcoded per adapter. (6) WIPNOTE_AGENT_ID literal values &#34;gemini&#34; and &#34;codex&#34; appear in three files (gemini_launch.go, codex_launch.go, harness.go) with no shared constant. (7) The README&#39;s &#34;add a new harness&#34; recipe covers only the plugin build step; the 6 required Go-layer changes are undocumented. The result: every bug fix touching harness identification requires auditing multiple files, and adding a new harness requires reading source to find all the places that need updating.
 </div>
 <h4>Goals</h4>
 <ol>
@@ -493,10 +493,11 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
 </ol>
 <h4>Constraints</h4>
 <ul>
-<li data-markdown>No behavior change in slice 1-3 — pure refactor; all existing tests must pass unchanged</li>
+<li data-markdown>No behavior change in slices 1-3 — pure refactor; all existing tests must pass unchanged</li>
 <li data-markdown>Backward compat — DB harness string values (&#39;claude_code&#39;, &#39;codex&#39;, &#39;gemini_cli&#39;) must not change; existing rows keep their harness labels</li>
 <li data-markdown>No new external dependencies — stdlib + existing packages only</li>
 <li data-markdown>manifest.json remains the plugin build source of truth; the registry is for runtime Go config only</li>
+<li data-markdown>internal/harness must be a strict leaf package — imports nothing from this repo (no internal/otel, no internal/hooks, no cmd/). Violations create import cycles.</li>
 </ul>
 
     <div class="approval-row">
@@ -515,18 +516,18 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
   <summary><span>Slices</span><span class="badge badge-pending" data-badge-for="slices">Pending</span></summary>
   <div class="section-body">
     <details class="slice-card" id="slice-1" data-slice="1" data-slice-name="slice-1" data-status="pending" data-approval="pending">
-  <summary class="slice-summary" aria-label="Slice 1: HarnessConfig registry — identity constants and two-type-system unification">
+  <summary class="slice-summary" aria-label="Slice 1: HarnessConfig registry — identity constants and hooks Harness int mapping">
     <span class="slice-num">#1</span>
     <span class="slice-title-col">
-      <span class="slice-name">HarnessConfig registry — identity constants and two-type-system unification</span>
-      <span class="slice-preview">Create internal/harness/registry.go with:</span>
+      <span class="slice-name">HarnessConfig registry — identity constants and hooks Harness int mapping</span>
+      <span class="slice-preview">Create internal/harness/registry.go (leaf package — imports only stdlib):</span>
       <span class="slice-meta-row">
         <span class="slice-summary-badges">
           <span class="badge badge-revision badge-sm">M</span>
           <span class="badge badge-revision badge-sm">Med</span>
           <span class="badge badge-pending badge-sm" title="Execution: not_started">Not Started</span>
           <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-1">Pending</span>
-          
+          <span class="badge badge-sm badge-issues" title="2 critic issue(s)">2 issues</span>
           
         </span>
         <span class="slice-actions" onclick="event.stopPropagation()">
@@ -558,31 +559,50 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
         <div class="slice-field-value">
           
           <input type="checkbox" id="slice-1-what-reveal" class="reveal-toggle">
-          <div class="markdown-block reveal-content serif-prose"><p>Create <code>internal/harness/registry.go</code> with:</p>
-<pre><code class="language-go">type HarnessConfig struct {
-    ID          string   // &#34;claude_code&#34; | &#34;codex&#34; | &#34;gemini_cli&#34; — DB column value
-    AgentID     string   // WIPNOTE_AGENT_ID value: &#34;claude&#34; | &#34;codex&#34; | &#34;gemini&#34;
-    ServiceNames []string // OTel resource service.name values (codex has two variants)
-    SessionAttr string   // OTel attribute key for session ID
-    HookEventNames []string // native hook_event_name values (Gemini: BeforeAgent etc.)
+          <div class="markdown-block reveal-content serif-prose"><p>Create <code>internal/harness/registry.go</code> (leaf package — imports only stdlib):</p>
+<pre><code class="language-go">package harness
+
+type HooksHarness int // mirrors hooks.Harness int without importing it
+const (
+    HooksClaude HooksHarness = iota
+    HooksCodex
+    HooksGemini
+)
+
+type HarnessConfig struct {
+    ID             string       // DB value: &#34;claude_code&#34; | &#34;codex&#34; | &#34;gemini_cli&#34;
+    AgentID        string       // WIPNOTE_AGENT_ID: &#34;claude&#34; | &#34;codex&#34; | &#34;gemini&#34;
+    ServiceNames   []string     // OTel resource service.name values (codex has 2 variants)
+    SessionAttr    string       // OTel attribute key for session ID
+    HookEventNames []string     // native hook_event_name values (Gemini only)
+    HooksHarness   HooksHarness // bridges to hooks.Harness int without import
 }
 
-var registry = map[string]*HarnessConfig{} // keyed by ID
+var all []*HarnessConfig
 
-func Register(cfg *HarnessConfig)
-func Get(id string) *HarnessConfig  // returns nil if not found
-func All() []*HarnessConfig
+func Register(cfg *HarnessConfig) { all = append(all, cfg) }
+func Get(id string) *HarnessConfig { ... }
+func GetByAgentID(agentID string) *HarnessConfig { ... }
+func GetByHooksHarness(h HooksHarness) *HarnessConfig { ... }
+func All() []*HarnessConfig { return all }
 </code></pre>
-<p>Register Claude, Codex, and Gemini in <code>init()</code> blocks in three
-companion files: <code>registry_claude.go</code>, <code>registry_codex.go</code>,
-<code>registry_gemini.go</code>.</p>
-<p>In <code>internal/otel/signal.go</code>, change <code>HarnessClaude/Codex/Gemini</code>
-from <code>const</code> string literals to <code>var</code> values derived from registry:</p>
-<pre><code class="language-go">var HarnessClaude = harness.Get(&#34;claude_code&#34;).ID
+<p>Register in three companion files: registry_claude.go, registry_codex.go,
+registry_gemini.go. Each init() calls Register() with the config for its
+harness.</p>
+<p>Keep <code>otel.HarnessClaude/Codex/Gemini</code> in internal/otel/signal.go as
+unchanged const values — do NOT import internal/harness there. Instead,
+add a validation init() in each registry_*.go that asserts its ID matches
+the otel constant string using a string literal comparison:</p>
+<pre><code class="language-go">// registry_claude.go init() guard
+const _claudeOtelID = &#34;claude_code&#34; // must match otel.HarnessClaude
 </code></pre>
-<p>In <code>internal/hooks/harness.go</code>, change <code>agentID := &#34;codex&#34;</code> and
-<code>AgentID: &#34;gemini&#34;</code> hardcoded strings to use registry AgentID values.
-Change WIPNOTE_AGENT_ID switch cases to use registry AgentID values.</p>
+<p>This keeps signal.go dependency-free while catching drift at startup.</p>
+<p>In internal/hooks/harness.go:</p>
+<ul>
+<li>Replace <code>agentID := &#34;codex&#34;</code> with <code>harness.GetByHooksHarness(HooksCodex).AgentID</code></li>
+<li>Replace <code>AgentID: &#34;gemini&#34;</code> with <code>harness.GetByHooksHarness(HooksGemini).AgentID</code></li>
+<li>Replace WIPNOTE_AGENT_ID switch cases with a loop over <code>harness.All()</code> matching AgentID</li>
+</ul>
 </div>
           <label for="slice-1-what-reveal" class="reveal-label">Show full description</label>
           
@@ -594,11 +614,16 @@ Change WIPNOTE_AGENT_ID switch cases to use registry AgentID values.</p>
         <div class="slice-field-label">Why</div>
         <div class="slice-field-value">
           
-          <div class="markdown-block serif-prose"><p>Eliminates the two parallel constant sets (hooks.Harness int vs
-otel.Harness string) that must be kept in sync manually. After this
-slice, every harness string literal is owned by one file per harness.
-This is the foundation all later slices build on.</p>
+          <input type="checkbox" id="slice-1-why-reveal" class="reveal-toggle">
+          <div class="markdown-block reveal-content serif-prose"><p>The two parallel harness type systems (hooks.Harness int and otel.Harness
+string) live in separate packages with no shared source. Drift has already
+caused bugs. This slice creates the single owned source (internal/harness)
+without importing into the minimal otel/signal package (which would invert
+the dependency graph). The HooksHarness field in HarnessConfig bridges the
+gap by owning the int-to-string mapping in the registry rather than in
+either typed system.</p>
 </div>
+          <label for="slice-1-why-reveal" class="reveal-label">Show full description</label>
           
         </div>
       </div>
@@ -606,13 +631,13 @@ This is the foundation all later slices build on.</p>
       
       <div class="slice-field">
         <div class="slice-field-label">Files</div>
-        <div class="slice-field-value"><code>internal/harness/registry.go, internal/harness/registry_claude.go, internal/harness/registry_codex.go, internal/harness/registry_gemini.go, internal/otel/signal.go, internal/hooks/harness.go</code></div>
+        <div class="slice-field-value"><code>internal/harness/registry.go, internal/harness/registry_claude.go, internal/harness/registry_codex.go, internal/harness/registry_gemini.go, internal/hooks/harness.go</code></div>
       </div>
       
       
       <div class="slice-field">
         <div class="slice-field-label">Done when</div>
-        <ul class="slice-done-list"><li>internal/harness/registry.go compiles and all three harnesses register in init()</li><li>otel.HarnessClaude/Codex/Gemini values match current hardcoded strings (no DB migration needed)</li><li>All existing harness detection tests pass unchanged (go test ./internal/hooks/...)</li><li>No string literal &#39;codex&#39;, &#39;gemini&#39;, &#39;claude_code&#39; etc. remains outside the registry files</li></ul>
+        <ul class="slice-done-list"><li>internal/harness compiles with zero imports from this repo (verified by go list -deps ./internal/harness/...)</li><li>harness.Get(&#39;codex&#39;).AgentID == &#39;codex&#39; and harness.Get(&#39;gemini_cli&#39;).HookEventNames is non-empty</li><li>hooks/harness.go contains no hardcoded agent ID string literals outside string comparisons in test files</li><li>All existing harness detection tests pass (go test ./internal/hooks/... -v)</li><li>go vet ./internal/harness/... passes</li></ul>
       </div>
       
     
@@ -626,18 +651,18 @@ This is the foundation all later slices build on.</p>
         <div class="test-strategy">
           
           <div class="test-group" data-kind="unit">
-            <span class="test-chip">UNIT &middot; 2</span>
-            <ul><li>TestRegistry_GetAll — All() returns 3 entries; Get(&#34;codex&#34;).AgentID == &#34;codex&#34;</li><li>TestHarnessConstants_Unchanged — otel.HarnessClaude == &#34;claude_code&#34;,</li></ul>
+            <span class="test-chip">UNIT &middot; 3</span>
+            <ul><li>TestRegistry_GetAll — All() returns exactly 3 entries; IDs are</li><li>TestRegistry_GetByAgentID — GetByAgentID(&#34;gemini&#34;) returns Gemini config</li><li>TestRegistry_IDsMatchOtelConsts — string comparison asserts registry IDs</li></ul>
           </div>
           
           <div class="test-group" data-kind="other">
-            <span class="test-chip">OTHER &middot; 1</span>
-            <ul><li>HarnessCodex == &#34;codex&#34;, HarnessGemini == &#34;gemini_cli&#34;</li></ul>
+            <span class="test-chip">OTHER &middot; 2</span>
+            <ul><li>&#34;claude_code&#34;, &#34;codex&#34;, &#34;gemini_cli&#34;</li><li>match the otel constant string values (no import needed; use literals)</li></ul>
           </div>
           
           <div class="test-group" data-kind="regression">
-            <span class="test-chip">REGRESSION &middot; 2</span>
-            <ul><li>go test ./internal/hooks/... — all TestDetectHarness_* pass</li><li>go test ./internal/otel/... — all adapter tests pass</li></ul>
+            <span class="test-chip">REGRESSION &middot; 1</span>
+            <ul><li>go test ./internal/hooks/... — all TestDetectHarness_* pass unchanged</li></ul>
           </div>
           
         </div>
@@ -646,6 +671,25 @@ This is the foundation all later slices build on.</p>
     </div>
     
 
+    
+    <div class="slice-field slice-critic-revisions">
+      <div class="slice-field-label">Critic Revisions</div>
+      <div class="slice-field-value">
+        
+        <div class="critic-revision">
+          <span class="badge badge-blocked critic-revision-badge">DANGER</span>
+          <span class="critic-revision-source">sonnet</span>
+          <span class="critic-revision-summary">Original plan imported internal/harness from internal/otel/signal.go, inverting the dependency graph and creating a latent cycle. Fixed: keep otel constants unchanged; use per-registry-file literal guards for drift detection.</span>
+        </div>
+        
+        <div class="critic-revision">
+          <span class="badge badge-blocked critic-revision-badge">HIGH</span>
+          <span class="critic-revision-source">sonnet</span>
+          <span class="critic-revision-summary">done_when &#39;no string literals outside registry&#39; was unenforceable (tests, String() methods, DB values all use literals). Fixed: narrowed to &#39;no hardcoded agent ID literals in non-test production files&#39;.</span>
+        </div>
+        
+      </div>
+    </div>
     
 
     
@@ -665,14 +709,14 @@ This is the foundation all later slices build on.</p>
     <span class="slice-num">#2</span>
     <span class="slice-title-col">
       <span class="slice-name">Launcher OTel config from registry — eliminate per-launcher env var hardcoding</span>
-      <span class="slice-preview">Add to HarnessConfig:</span>
+      <span class="slice-preview">Add to HarnessConfig in registry.go:</span>
       <span class="slice-meta-row">
         <span class="slice-summary-badges">
           <span class="badge badge-pending badge-sm">S</span>
           <span class="badge badge-pending badge-sm">Low</span>
           <span class="badge badge-pending badge-sm" title="Execution: not_started">Not Started</span>
           <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-2">Pending</span>
-          
+          <span class="badge badge-sm badge-issues" title="1 critic issue(s)">1 issue</span>
           
         </span>
         <span class="slice-actions" onclick="event.stopPropagation()">
@@ -704,24 +748,34 @@ This is the foundation all later slices build on.</p>
         <div class="slice-field-value">
           
           <input type="checkbox" id="slice-2-what-reveal" class="reveal-toggle">
-          <div class="markdown-block reveal-content serif-prose"><p>Add to HarnessConfig:</p>
-<pre><code class="language-go">OtelEnvFunc func(port int, sessionID string) []string
-// returns the env var slice to inject before launching the harness process
+          <div class="markdown-block reveal-content serif-prose"><p>Add to HarnessConfig in registry.go:</p>
+<pre><code class="language-go">type OtelEnvFunc func(port int, sessionID string) []string
+// OtelEnv returns the env vars to inject before launching this harness.
+// nil is valid only for Claude (Claude Code sets its own OTel config).
+OtelEnv OtelEnvFunc
 </code></pre>
-<p>Each registry entry provides its OtelEnvFunc:</p>
+<p>Populate OtelEnv in registry_codex.go and registry_gemini.go:</p>
 <ul>
-<li>Claude: nil (Claude Code reads OTEL config differently; no injection needed)</li>
-<li>Codex: returns [&#34;OTEL_EXPORTER_OTLP_ENDPOINT=...&#34;, &#34;OTEL_SERVICE_NAME=codex-cli&#34;, ...]</li>
-<li>Gemini: returns [&#34;GEMINI_TELEMETRY_ENABLED=true&#34;, &#34;GEMINI_TELEMETRY_OTLP_ENDPOINT=...&#34;, ...]</li>
+<li>Codex: returns [&#34;OTEL_EXPORTER_OTLP_ENDPOINT=...&#34;, &#34;OTEL_SERVICE_NAME=codex-cli&#34;, ...]
+The env var name strings are const-declared within registry_codex.go.</li>
+<li>Gemini: returns [&#34;GEMINI_TELEMETRY_ENABLED=true&#34;, &#34;GEMINI_TELEMETRY_OTLP_ENDPOINT=...&#34;, ...]
+Same pattern in registry_gemini.go.</li>
+<li>Claude: OtelEnv left nil (Claude Code injects its own OTel config).</li>
 </ul>
-<p>Refactor <code>cmd/wipnote/codex_launch.go</code> <code>buildCodexOtelEnv</code> and
-<code>cmd/wipnote/gemini_launch.go</code> <code>buildGeminiOtelEnv</code> to call
-<code>harness.Get(&lt;id&gt;).OtelEnvFunc(port, sessionID)</code> and return that slice.
-The env var name strings move into <code>registry_codex.go</code> and
-<code>registry_gemini.go</code> respectively.</p>
-<p>Also move <code>WIPNOTE_AGENT_ID</code> and <code>WIPNOTE_AGENT_TYPE</code> injection into
-a shared <code>BuildAgentEnv() []string</code> method on HarnessConfig so the
-two launcher files share the same attribution env var logic.</p>
+<p>Refactor buildCodexOtelEnv in codex_launch.go and buildGeminiOtelEnv in
+gemini_launch.go to call harness.Get().OtelEnv(port, sessionID).</p>
+<p>Add BuildAgentEnv() method to HarnessConfig:</p>
+<pre><code class="language-go">func (c *HarnessConfig) BuildAgentEnv() []string {
+    return []string{
+        &#34;WIPNOTE_AGENT_ID=&#34; + c.AgentID,
+        &#34;WIPNOTE_AGENT_TYPE=&#34; + c.AgentID,
+    }
+}
+</code></pre>
+<p>Both launcher files call this instead of hardcoding the env var assembly.</p>
+<p>Document that OtelEnv must be non-nil for Codex and Gemini registrations —
+add a panic in GetByHooksHarness if a non-Claude harness has nil OtelEnv
+and the caller requests OTel env vars.</p>
 </div>
           <label for="slice-2-what-reveal" class="reveal-label">Show full description</label>
           
@@ -733,11 +787,11 @@ two launcher files share the same attribution env var logic.</p>
         <div class="slice-field-label">Why</div>
         <div class="slice-field-value">
           
-          <div class="markdown-block serif-prose"><p>Launchers currently each hardcode their own env var convention with no
-shared abstraction. The same OTel endpoint URL is assembled in three
-different formats. After this slice, changing the Gemini telemetry env
-var names (because Gemini CLI changes their API) requires editing only
-registry_gemini.go — not hunting through gemini_launch.go.</p>
+          <div class="markdown-block serif-prose"><p>Launchers use completely different env var naming conventions (GEMINI_TELEMETRY_*
+vs OTEL_EXPORTER_OTLP_*) with no abstraction. After this slice, adding a
+new harness requires only a new registry file that defines its OtelEnv —
+no edits to any launcher file. The WIPNOTE_AGENT_ID value also becomes
+derived from the registry rather than copy-pasted.</p>
 </div>
           
         </div>
@@ -752,7 +806,7 @@ registry_gemini.go — not hunting through gemini_launch.go.</p>
       
       <div class="slice-field">
         <div class="slice-field-label">Done when</div>
-        <ul class="slice-done-list"><li>buildCodexOtelEnv and buildGeminiOtelEnv contain no hardcoded env var name strings — all names live in registry files</li><li>WIPNOTE_AGENT_ID and WIPNOTE_AGENT_TYPE injection uses a shared BuildAgentEnv method</li><li>Codex and Gemini integration tests (go test ./cmd/wipnote/... -run TestLaunch) pass unchanged</li><li>OTEL_SERVICE_NAME=codex-cli value comes from registry (no longer hardcoded in codex_launch.go)</li></ul>
+        <ul class="slice-done-list"><li>buildCodexOtelEnv and buildGeminiOtelEnv contain no hardcoded env var name strings; all names are const-declared in their registry_*.go file</li><li>WIPNOTE_AGENT_ID injection in both launchers calls BuildAgentEnv()</li><li>harness.Get(&#39;codex&#39;).OtelEnv(9999, &#39;sess&#39;) returns a non-nil slice containing &#39;OTEL_SERVICE_NAME=codex-cli&#39; — testable without any cmd/wipnote imports</li><li>harness.Get(&#39;claude_code&#39;).OtelEnv is nil (documented behavior)</li><li>go test ./internal/harness/... and go test ./cmd/wipnote/... pass</li></ul>
       </div>
       
     
@@ -766,13 +820,13 @@ registry_gemini.go — not hunting through gemini_launch.go.</p>
         <div class="test-strategy">
           
           <div class="test-group" data-kind="unit">
-            <span class="test-chip">UNIT &middot; 2</span>
-            <ul><li>TestCodexOtelEnv — OtelEnvFunc for codex returns slice containing</li><li>TestGeminiOtelEnv — OtelEnvFunc for gemini returns slice containing</li></ul>
+            <span class="test-chip">UNIT &middot; 3</span>
+            <ul><li>TestCodexOtelEnv — harness.Get(&#34;codex&#34;).OtelEnv(9999, &#34;s&#34;) returns</li><li>TestGeminiOtelEnv — harness.Get(&#34;gemini_cli&#34;).OtelEnv(8080, &#34;s&#34;) returns</li><li>TestBuildAgentEnv_Codex — BuildAgentEnv() returns [&#34;WIPNOTE_AGENT_ID=codex&#34;,</li></ul>
           </div>
           
           <div class="test-group" data-kind="other">
-            <span class="test-chip">OTHER &middot; 2</span>
-            <ul><li>&#34;OTEL_SERVICE_NAME=codex-cli&#34; and &#34;OTEL_EXPORTER_OTLP_ENDPOINT=...&#34;</li><li>&#34;GEMINI_TELEMETRY_ENABLED=true&#34;</li></ul>
+            <span class="test-chip">OTHER &middot; 3</span>
+            <ul><li>slice with &#34;OTEL_SERVICE_NAME=codex-cli&#34; and endpoint containing &#34;9999&#34;</li><li>slice with &#34;GEMINI_TELEMETRY_ENABLED=true&#34;</li><li>&#34;WIPNOTE_AGENT_TYPE=codex&#34;]</li></ul>
           </div>
           
           <div class="test-group" data-kind="regression">
@@ -786,6 +840,19 @@ registry_gemini.go — not hunting through gemini_launch.go.</p>
     </div>
     
 
+    
+    <div class="slice-field slice-critic-revisions">
+      <div class="slice-field-label">Critic Revisions</div>
+      <div class="slice-field-value">
+        
+        <div class="critic-revision">
+          <span class="badge badge-blocked critic-revision-badge">HIGH</span>
+          <span class="critic-revision-source">sonnet</span>
+          <span class="critic-revision-summary">OtelEnvFunc as a bare func field creates nil-panic risk if a test binary doesn&#39;t import the registry init files. Fixed: added nil guard in GetByHooksHarness; documented nil-only-for-Claude contract explicitly in done_when; test verifies non-nil without cmd imports.</span>
+        </div>
+        
+      </div>
+    </div>
     
 
     
@@ -801,18 +868,18 @@ registry_gemini.go — not hunting through gemini_launch.go.</p>
   </div>
 </details>
 <details class="slice-card" id="slice-3" data-slice="3" data-slice-name="slice-3" data-status="pending" data-approval="pending">
-  <summary class="slice-summary" aria-label="Slice 3: Detection and adapter Identify() from registry — eliminate detection heuristic drift">
+  <summary class="slice-summary" aria-label="Slice 3: Detection and adapter Identify() from registry — data-driven, no hardcoded event names">
     <span class="slice-num">#3</span>
     <span class="slice-title-col">
-      <span class="slice-name">Detection and adapter Identify() from registry — eliminate detection heuristic drift</span>
-      <span class="slice-preview">In detectHarnessWithEnv (internal/hooks/harness.go), replace the</span>
+      <span class="slice-name">Detection and adapter Identify() from registry — data-driven, no hardcoded event names</span>
+      <span class="slice-preview">In detectHarnessWithEnv (internal/hooks/harness.go), replace the hardcoded</span>
       <span class="slice-meta-row">
         <span class="slice-summary-badges">
           <span class="badge badge-revision badge-sm">M</span>
           <span class="badge badge-revision badge-sm">Med</span>
           <span class="badge badge-pending badge-sm" title="Execution: not_started">Not Started</span>
           <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-3">Pending</span>
-          
+          <span class="badge badge-sm badge-issues" title="2 critic issue(s)">2 issues</span>
           
         </span>
         <span class="slice-actions" onclick="event.stopPropagation()">
@@ -844,26 +911,46 @@ registry_gemini.go — not hunting through gemini_launch.go.</p>
         <div class="slice-field-value">
           
           <input type="checkbox" id="slice-3-what-reveal" class="reveal-toggle">
-          <div class="markdown-block reveal-content serif-prose"><p>In <code>detectHarnessWithEnv</code> (<code>internal/hooks/harness.go</code>), replace the
-hardcoded <code>[]string{&#34;BeforeAgent&#34;,&#34;AfterAgent&#34;,&#34;AfterModel&#34;,&#34;BeforeTool&#34;,&#34;AfterTool&#34;}</code>
-with a loop over <code>harness.All()</code> checking each config&#39;s <code>HookEventNames</code>:</p>
-<pre><code class="language-go">for _, cfg := range harness.All() {
-    for _, name := range cfg.HookEventNames {
-        if name == hookEventName {
-            return harnessFromID(cfg.ID)
+          <div class="markdown-block reveal-content serif-prose"><p>In detectHarnessWithEnv (internal/hooks/harness.go), replace the hardcoded
+Gemini event name slice with a registry lookup. Add a harnessFromConfig
+helper that maps *harness.HarnessConfig → hooks.Harness int using the
+HooksHarness field added in slice 1:</p>
+<pre><code class="language-go">func harnessFromConfig(cfg *harness.HarnessConfig) Harness {
+    if cfg == nil {
+        return HarnessClaude
+    }
+    return Harness(cfg.HooksHarness) // HooksHarness int values match Harness iota
+}
+</code></pre>
+<p>The detection loop becomes:</p>
+<pre><code class="language-go">if name, _ := top[&#34;hook_event_name&#34;].(string); name != &#34;&#34; {
+    for _, cfg := range harness.All() {
+        for _, n := range cfg.HookEventNames {
+            if n == name {
+                return harnessFromConfig(cfg)
+            }
         }
     }
 }
 </code></pre>
-<p>In each OTel adapter&#39;s <code>Identify()</code> method, replace the hardcoded
-service name string with the registry value:</p>
+<p>In each OTel adapter&#39;s Identify() method, replace the hardcoded service
+name string with the registry value:</p>
 <pre><code class="language-go">func (g *GeminiAdapter) Identify(res OTLPResource) bool {
-    cfg := harness.Get(string(otel.HarnessGemini))
-    return slices.Contains(cfg.ServiceNames, AttrString(res.Attrs, &#34;service.name&#34;))
+    cfg := harness.Get(string(otel.HarnessGemini)) // imports internal/harness (OK — adapters are higher level)
+    if cfg == nil { return false }
+    svc := AttrString(res.Attrs, &#34;service.name&#34;)
+    for _, name := range cfg.ServiceNames {
+        if name == svc { return true }
+    }
+    return false
 }
 </code></pre>
-<p>In each adapter&#39;s <code>baseSignal()</code>, replace <code>&#34;session.id&#34;</code> /
-<code>&#34;conversation.id&#34;</code> literals with <code>harness.Get(...).SessionAttr</code>.</p>
+<p>Note: internal/otel/adapter may import internal/harness (adapters are
+higher-level than signal.go and do not create a cycle). Only internal/otel
+(the signal/writer core) must NOT import internal/harness.</p>
+<p>In each adapter&#39;s baseSignal() / sessionID resolution, replace the hardcoded
+attribute key string (&#34;session.id&#34; or &#34;conversation.id&#34;) with
+harness.Get(string(h.Name())).SessionAttr.</p>
 </div>
           <label for="slice-3-what-reveal" class="reveal-label">Show full description</label>
           
@@ -876,14 +963,12 @@ service name string with the registry value:</p>
         <div class="slice-field-value">
           
           <input type="checkbox" id="slice-3-why-reveal" class="reveal-toggle">
-          <div class="markdown-block reveal-content serif-prose"><p>The BeforeAgent/AfterAgent detection fix (commit 99bd64003) works
-because we hardcoded those names in harness.go. If Gemini adds a new
-hook event in a future release, we&#39;d need another code change. After
-this slice, the registry owns the native event names and detection is
-data-driven. Similarly, the Codex service name &#34;codex_cli_rs&#34; variant
-appears only in adapter/codex.go:36 — if Codex changes it, we&#39;d only
-find out when sessions stop being attributed. The registry&#39;s ServiceNames
-slice makes variant tracking explicit.</p>
+          <div class="markdown-block reveal-content serif-prose"><p>The BeforeAgent/AfterAgent detection fix (commit 99bd64003) works because
+we hardcoded those names in harness.go. If Gemini adds a new hook event,
+it requires another harness.go edit. After this slice, the registry owns
+native event names and detection is data-driven. harnessFromConfig() closes
+the two-type-system gap (int hooks.Harness vs string otel.Harness) without
+adding imports in either direction.</p>
 </div>
           <label for="slice-3-why-reveal" class="reveal-label">Show full description</label>
           
@@ -899,7 +984,7 @@ slice makes variant tracking explicit.</p>
       
       <div class="slice-field">
         <div class="slice-field-label">Done when</div>
-        <ul class="slice-done-list"><li>detectHarnessWithEnv contains no hardcoded Gemini event name strings; they come from the registry</li><li>All three adapters&#39; Identify() methods use registry ServiceNames</li><li>All three adapters&#39; baseSignal()/sessionID resolution uses registry SessionAttr</li><li>go test ./internal/hooks/... and go test ./internal/otel/... pass</li></ul>
+        <ul class="slice-done-list slice-done-list--grid"><li>detectHarnessWithEnv contains no hardcoded Gemini event name strings; they come from harness.All()</li><li>All three adapters&#39; Identify() methods use harness.Get().ServiceNames</li><li>All three adapters&#39; session ID resolution uses harness.Get().SessionAttr</li><li>harnessFromConfig() is defined and covered by TestHarnessFromConfig</li><li>go test ./internal/hooks/... and go test ./internal/otel/... pass</li><li>go list -deps ./internal/otel/ does NOT include internal/harness (only adapters import it, not the core signal package)</li></ul>
       </div>
       
     
@@ -913,13 +998,13 @@ slice makes variant tracking explicit.</p>
         <div class="test-strategy">
           
           <div class="test-group" data-kind="unit">
-            <span class="test-chip">UNIT &middot; 2</span>
-            <ul><li>TestDetection_FromRegistry — add a fake harness to registry with</li><li>TestAdapterIdentify_FromRegistry — GeminiAdapter.Identify uses</li></ul>
+            <span class="test-chip">UNIT &middot; 3</span>
+            <ul><li>TestHarnessFromConfig — harnessFromConfig(harness.Get(&#34;codex&#34;)) == HarnessCodex</li><li>TestDetection_FromRegistry — temporarily add a fake harness with</li><li>TestAdapterIdentify_FromRegistry — GeminiAdapter.Identify uses ServiceNames</li></ul>
           </div>
           
           <div class="test-group" data-kind="other">
-            <span class="test-chip">OTHER &middot; 4</span>
-            <ul><li>HookEventNames=[&#34;FakeEvent&#34;]; assert detectHarness detects it</li><li>registry ServiceNames; swap to &#34;gemini-cli-v2&#34; in registry, assert</li><li>Identify returns true for that service.name</li><li>detection tests still pass</li></ul>
+            <span class="test-chip">OTHER &middot; 3</span>
+            <ul><li>HookEventNames=[&#34;TestFakeEvent&#34;]; detectHarness returns that harness&#39;s int value</li><li>from registry; swap ServiceNames in test, assert correct identification</li><li>detection tests pass unchanged</li></ul>
           </div>
           
           <div class="test-group" data-kind="regression">
@@ -933,6 +1018,25 @@ slice makes variant tracking explicit.</p>
     </div>
     
 
+    
+    <div class="slice-field slice-critic-revisions">
+      <div class="slice-field-label">Critic Revisions</div>
+      <div class="slice-field-value">
+        
+        <div class="critic-revision">
+          <span class="badge badge-blocked critic-revision-badge">DANGER</span>
+          <span class="critic-revision-source">sonnet</span>
+          <span class="critic-revision-summary">Original plan had adapters and signal.go both importing internal/harness, which risked a cycle if harness ever imported otel. Fixed: only adapter/*.go imports internal/harness (they are the higher-level layer); internal/otel/signal.go and writer.go never import it. Verified via done_when go list check.</span>
+        </div>
+        
+        <div class="critic-revision">
+          <span class="badge badge-blocked critic-revision-badge">HIGH</span>
+          <span class="critic-revision-source">sonnet</span>
+          <span class="critic-revision-summary">harnessFromConfig() was not defined in original plan — the two-type bridge was unspecified. Fixed: added explicit HooksHarness field to HarnessConfig and defined harnessFromConfig() in what field.</span>
+        </div>
+        
+      </div>
+    </div>
     
 
     
@@ -948,11 +1052,11 @@ slice makes variant tracking explicit.</p>
   </div>
 </details>
 <details class="slice-card" id="slice-4" data-slice="4" data-slice-name="slice-4" data-status="pending" data-approval="pending">
-  <summary class="slice-summary" aria-label="Slice 4: Complete add-a-harness recipe — README &#43; config.json schema">
+  <summary class="slice-summary" aria-label="Slice 4: Complete add-a-harness recipe — README &#43; wipnote harness list command">
     <span class="slice-num">#4</span>
     <span class="slice-title-col">
-      <span class="slice-name">Complete add-a-harness recipe — README &#43; config.json schema</span>
-      <span class="slice-preview">Update packages/plugin-core/README.md &#34;Add a new target&#34; section to</span>
+      <span class="slice-name">Complete add-a-harness recipe — README &#43; wipnote harness list command</span>
+      <span class="slice-preview">Update packages/plugin-core/README.md &#34;Add a new target&#34; section to include</span>
       <span class="slice-meta-row">
         <span class="slice-summary-badges">
           <span class="badge badge-pending badge-sm">S</span>
@@ -991,25 +1095,23 @@ slice makes variant tracking explicit.</p>
         <div class="slice-field-value">
           
           <input type="checkbox" id="slice-4-what-reveal" class="reveal-toggle">
-          <div class="markdown-block reveal-content serif-prose"><p>Update <code>packages/plugin-core/README.md</code> &#34;Add a new target&#34; section to
-include the complete Go-layer checklist alongside the existing plugin
-build steps:</p>
+          <div class="markdown-block reveal-content serif-prose"><p>Update packages/plugin-core/README.md &#34;Add a new target&#34; section to include
+the complete Go-layer checklist alongside the existing plugin build steps:</p>
 <ol>
-<li>Add <code>targets.&lt;name&gt;</code> to manifest.json</li>
+<li>Add targets. to manifest.json</li>
 <li>Tag hook events with new target</li>
-<li>Implement <code>pluginbuild.Adapter</code> interface</li>
-<li>Add <code>internal/harness/registry_&lt;name&gt;.go</code> with HarnessConfig</li>
-<li>Add <code>internal/otel/adapter/&lt;name&gt;.go</code> implementing otel.Adapter</li>
-<li>Add <code>cmd/wipnote/&lt;name&gt;_launch.go</code> with OtelEnvFunc set in registry</li>
-<li>Run <code>go build ./... &amp;&amp; wipnote plugin build-ports &amp;&amp; go test ./...</code></li>
+<li>Implement pluginbuild.Adapter interface in internal/pluginbuild/.go</li>
+<li>Add internal/harness/registry_.go with HarnessConfig (OtelEnv,
+ServiceNames, SessionAttr, HookEventNames, HooksHarness)</li>
+<li>Add internal/otel/adapter/.go implementing otel.Adapter;
+import internal/harness to read ServiceNames and SessionAttr</li>
+<li>Add cmd/wipnote/_launch.go; call harness.Get().OtelEnv()
+and BuildAgentEnv() instead of hardcoding env vars</li>
+<li>Run: wipnote plugin build-ports &amp;&amp; go build ./... &amp;&amp; go test ./...</li>
 </ol>
-<p>Add <code>.wipnote/config.json</code> schema documentation (in README) for the
-OTel env vars that are now surfaced as user-overridable via the
-registry&#39;s OtelEnvFunc. Users should be able to set custom OTLP
-endpoints without rebuilding.</p>
-<p>Optionally: add a <code>wipnote harness list</code> subcommand that prints all
-registered harnesses with their ServiceNames and OTel env var keys —
-useful for debugging attribution mismatches.</p>
+<p>Add cmd/wipnote/harness_cmd.go implementing <code>wipnote harness list</code> that
+prints a table: ID | AgentID | ServiceNames | SessionAttr | HookEventNames.
+Wire it into the root command.</p>
 </div>
           <label for="slice-4-what-reveal" class="reveal-label">Show full description</label>
           
@@ -1021,11 +1123,11 @@ useful for debugging attribution mismatches.</p>
         <div class="slice-field-label">Why</div>
         <div class="slice-field-value">
           
-          <div class="markdown-block serif-prose"><p>The current README&#39;s &#34;Add a new target&#34; recipe covers only 3 of the 9
-required steps. Every engineer who adds a harness discovers the missing
-steps by reading source. After this slice, the recipe is self-contained
-and the config documentation tells users how to customize OTel endpoints
-without code changes.</p>
+          <div class="markdown-block serif-prose"><p>The current README&#39;s recipe covers only 3 of 9 required steps. Every
+engineer who adds a harness discovers the missing steps by reading source.
+After this slice, the recipe is self-contained. The harness list command
+is the debugging tool for attribution mismatches — faster than grepping
+source to find what service.name value a harness expects.</p>
 </div>
           
         </div>
@@ -1040,7 +1142,7 @@ without code changes.</p>
       
       <div class="slice-field">
         <div class="slice-field-label">Done when</div>
-        <ul class="slice-done-list"><li>README add-a-harness section lists all 7 steps including Go-layer steps</li><li>&#39;wipnote harness list&#39; prints a table of registered harnesses with ServiceNames, AgentID, SessionAttr, and HookEventNames columns</li><li>go build ./... passes with harness_cmd.go added</li></ul>
+        <ul class="slice-done-list"><li>README add-a-harness section lists all 7 steps in order, with file paths for each step</li><li>&#39;wipnote harness list&#39; outputs a table with 3 rows (claude, codex, gemini)</li><li>Table columns: ID, AgentID, ServiceNames, SessionAttr, HookEventNames</li><li>go build ./... passes with harness_cmd.go added</li></ul>
       </div>
       
     
@@ -1055,22 +1157,17 @@ without code changes.</p>
           
           <div class="test-group" data-kind="unit">
             <span class="test-chip">UNIT &middot; 1</span>
-            <ul><li>TestHarnessCmd_List — cobra command outputs 3 rows (claude, codex, gemini)</li></ul>
+            <ul><li>TestHarnessCmd_List — cobra command outputs 3 rows with correct columns</li></ul>
           </div>
           
           <div class="test-group" data-kind="integration">
             <span class="test-chip">INTEGRATION &middot; 1</span>
-            <ul><li>wipnote harness list (manual) shows correct values for all</li></ul>
-          </div>
-          
-          <div class="test-group" data-kind="other">
-            <span class="test-chip">OTHER &middot; 1</span>
-            <ul><li>three harnesses</li></ul>
+            <ul><li>wipnote harness list (manual smoke test) shows correct values</li></ul>
           </div>
           
           <div class="test-group" data-kind="regression">
             <span class="test-chip">REGRESSION &middot; 1</span>
-            <ul><li>existing README links and recipe headings unchanged</li></ul>
+            <ul><li>existing README links unchanged; no broken anchors</li></ul>
           </div>
           
         </div>
@@ -1099,52 +1196,6 @@ without code changes.</p>
 </details>
 
 <!-- Design Decisions (hidden for v2 plans — slice cards carry their own questions) -->
-<details id="questions" class="section-card" data-phase="questions" data-status="pending">
-  <summary><span>Design Decisions</span><span class="badge badge-pending" data-badge-for="questions">Pending</span></summary>
-  <div class="section-body">
-    
-    <div class="question-block" id="q-init-order">
-      <p>Should registry_*.go entries be registered via init() or via explicit Register() calls in a central init file?</p>
-      
-      
-      <label class="recommended"><input type="radio" name="q-init-order" data-question="q-init-order" value="A: Per-file init() — no central init.go; rely on filename ordering"> A: Per-file init() — no central init.go; rely on filename ordering <span class="rec-tag">recommended</span></label>
-      
-      <label><input type="radio" name="q-init-order" data-question="q-init-order" value="B: Central init.go — explicit Register() calls in defined order"> B: Central init.go — explicit Register() calls in defined order</label>
-      
-      <textarea data-section="questions" data-question-rationale="q-init-order" placeholder="Rationale for q-init-order..."></textarea>
-    </div>
-    
-    <div class="question-block" id="q-otel-env-override">
-      <p>Should OTel env var names in the registry be user-overridable via .wipnote/config.json, or remain build-time constants?</p>
-      
-      
-      <label class="recommended"><input type="radio" name="q-otel-env-override" data-question="q-otel-env-override" value="A: Build-time constants — names fixed, only endpoint URL overridable"> A: Build-time constants — names fixed, only endpoint URL overridable <span class="rec-tag">recommended</span></label>
-      
-      <label><input type="radio" name="q-otel-env-override" data-question="q-otel-env-override" value="B: Config-overridable — names come from .wipnote/config.json with registry defaults"> B: Config-overridable — names come from .wipnote/config.json with registry defaults</label>
-      
-      <textarea data-section="questions" data-question-rationale="q-otel-env-override" placeholder="Rationale for q-otel-env-override..."></textarea>
-    </div>
-    
-    <table class="q-table">
-      <thead><tr><th>Question</th><th>Selected</th><th>Status</th></tr></thead>
-      <tbody id="questionsRecap">
-        
-        <tr data-recap-for="q-init-order">
-          <td>Should registry_*.go entries be registered via init() or via explicit Register() calls in a central init file?</td>
-          <td class="recap-answer">&mdash;</td>
-          <td><span class="badge badge-pending">Pending</span></td>
-        </tr>
-        
-        <tr data-recap-for="q-otel-env-override">
-          <td>Should OTel env var names in the registry be user-overridable via .wipnote/config.json, or remain build-time constants?</td>
-          <td class="recap-answer">&mdash;</td>
-          <td><span class="badge badge-pending">Pending</span></td>
-        </tr>
-        
-      </tbody>
-    </table>
-  </div>
-</details>
 
 
 

@@ -10,116 +10,157 @@ meta:
     version: 1
 design:
     problem: |
-        Per-harness configuration is scattered across at least 8 locations with no single source of truth: (1) Two parallel harness identity systems — hooks.HarnessClaude int in internal/hooks/harness.go and otel.HarnessClaude string in internal/otel/signal.go — can drift independently. (2) Telemetry env var names are hardcoded in separate launcher files using completely different conventions (GEMINI_TELEMETRY_* vs OTEL_EXPORTER_OTLP_*), making adding a new harness a multi-file hunt. (3) The OTEL_SERVICE_NAME value "codex-cli" is hardcoded in both codex_launch.go:92 and adapter/codex.go:36 — they must stay in sync manually. (4) Gemini native hook event names (BeforeAgent, AfterAgent, AfterModel, BeforeTool, AfterTool) used for harness detection in harness.go are duplicated from the geminiEventName fields already in manifest.json. (5) The per-harness session ID attribute key ("session.id" vs "conversation.id") is hardcoded per adapter. (6) WIPNOTE_AGENT_ID literal values "gemini" and "codex" appear in three files (gemini_launch.go, codex_launch.go, harness.go) with no shared constant. (7) The README's "add a new harness" recipe covers only the plugin build step; the 6 required Go-layer changes are undocumented. The result: every bug fix touching harness identification (e.g. the recent BeforeAgent detection fix) requires auditing multiple files, and adding a new harness requires reading source to find all the places that need updating.
+        Per-harness configuration is scattered across at least 8 locations with no single source of truth: (1) Two parallel harness identity systems — hooks.HarnessClaude int in internal/hooks/harness.go and otel.HarnessClaude string in internal/otel/signal.go — can drift independently. (2) Telemetry env var names are hardcoded in separate launcher files using completely different conventions (GEMINI_TELEMETRY_* vs OTEL_EXPORTER_OTLP_*), making adding a new harness a multi-file hunt. (3) The OTEL_SERVICE_NAME value "codex-cli" is hardcoded in both codex_launch.go:92 and adapter/codex.go:36 — they must stay in sync manually. (4) Gemini native hook event names (BeforeAgent, AfterAgent, AfterModel, BeforeTool, AfterTool) used for harness detection in harness.go are duplicated from the geminiEventName fields already in manifest.json. (5) The per-harness session ID attribute key ("session.id" vs "conversation.id") is hardcoded per adapter. (6) WIPNOTE_AGENT_ID literal values "gemini" and "codex" appear in three files (gemini_launch.go, codex_launch.go, harness.go) with no shared constant. (7) The README's "add a new harness" recipe covers only the plugin build step; the 6 required Go-layer changes are undocumented. The result: every bug fix touching harness identification requires auditing multiple files, and adding a new harness requires reading source to find all the places that need updating.
     goals:
         - '**Single source of truth** — every per-harness fact (identity string, service name, OTel env vars, session ID attr key, native event names) lives in one registry; no other file owns these values'
         - '**New harness in one file** — adding a fourth harness requires only a new registry entry plus an OTel adapter; no edits to harness.go, signal.go, or any launcher'
         - '**User-configurable OTel env** — the registry exposes the OTel env var names so users can override telemetry endpoints without editing Go source'
         - '**Documented recipe** — README covers the complete add-a-harness checklist including all Go-layer steps'
     constraints:
-        - No behavior change in slice 1-3 — pure refactor; all existing tests must pass unchanged
+        - No behavior change in slices 1-3 — pure refactor; all existing tests must pass unchanged
         - Backward compat — DB harness string values ('claude_code', 'codex', 'gemini_cli') must not change; existing rows keep their harness labels
         - No new external dependencies — stdlib + existing packages only
         - manifest.json remains the plugin build source of truth; the registry is for runtime Go config only
+        - internal/harness must be a strict leaf package — imports nothing from this repo (no internal/otel, no internal/hooks, no cmd/). Violations create import cycles.
     approved: false
     comment: ""
 slices:
     - id: slice-1
       num: 1
-      title: HarnessConfig registry — identity constants and two-type-system unification
+      title: HarnessConfig registry — identity constants and hooks Harness int mapping
       what: |
-        Create `internal/harness/registry.go` with:
+        Create `internal/harness/registry.go` (leaf package — imports only stdlib):
 
         ```go
+        package harness
+
+        type HooksHarness int // mirrors hooks.Harness int without importing it
+        const (
+            HooksClaude HooksHarness = iota
+            HooksCodex
+            HooksGemini
+        )
+
         type HarnessConfig struct {
-            ID          string   // "claude_code" | "codex" | "gemini_cli" — DB column value
-            AgentID     string   // WIPNOTE_AGENT_ID value: "claude" | "codex" | "gemini"
-            ServiceNames []string // OTel resource service.name values (codex has two variants)
-            SessionAttr string   // OTel attribute key for session ID
-            HookEventNames []string // native hook_event_name values (Gemini: BeforeAgent etc.)
+            ID             string       // DB value: "claude_code" | "codex" | "gemini_cli"
+            AgentID        string       // WIPNOTE_AGENT_ID: "claude" | "codex" | "gemini"
+            ServiceNames   []string     // OTel resource service.name values (codex has 2 variants)
+            SessionAttr    string       // OTel attribute key for session ID
+            HookEventNames []string     // native hook_event_name values (Gemini only)
+            HooksHarness   HooksHarness // bridges to hooks.Harness int without import
         }
 
-        var registry = map[string]*HarnessConfig{} // keyed by ID
+        var all []*HarnessConfig
 
-        func Register(cfg *HarnessConfig)
-        func Get(id string) *HarnessConfig  // returns nil if not found
-        func All() []*HarnessConfig
+        func Register(cfg *HarnessConfig) { all = append(all, cfg) }
+        func Get(id string) *HarnessConfig { ... }
+        func GetByAgentID(agentID string) *HarnessConfig { ... }
+        func GetByHooksHarness(h HooksHarness) *HarnessConfig { ... }
+        func All() []*HarnessConfig { return all }
         ```
 
-        Register Claude, Codex, and Gemini in `init()` blocks in three
-        companion files: `registry_claude.go`, `registry_codex.go`,
-        `registry_gemini.go`.
+        Register in three companion files: registry_claude.go, registry_codex.go,
+        registry_gemini.go. Each init() calls Register() with the config for its
+        harness.
 
-        In `internal/otel/signal.go`, change `HarnessClaude/Codex/Gemini`
-        from `const` string literals to `var` values derived from registry:
+        Keep `otel.HarnessClaude/Codex/Gemini` in internal/otel/signal.go as
+        unchanged const values — do NOT import internal/harness there. Instead,
+        add a validation init() in each registry_*.go that asserts its ID matches
+        the otel constant string using a string literal comparison:
         ```go
-        var HarnessClaude = harness.Get("claude_code").ID
+        // registry_claude.go init() guard
+        const _claudeOtelID = "claude_code" // must match otel.HarnessClaude
         ```
+        This keeps signal.go dependency-free while catching drift at startup.
 
-        In `internal/hooks/harness.go`, change `agentID := "codex"` and
-        `AgentID: "gemini"` hardcoded strings to use registry AgentID values.
-        Change WIPNOTE_AGENT_ID switch cases to use registry AgentID values.
+        In internal/hooks/harness.go:
+        - Replace `agentID := "codex"` with `harness.GetByHooksHarness(HooksCodex).AgentID`
+        - Replace `AgentID: "gemini"` with `harness.GetByHooksHarness(HooksGemini).AgentID`
+        - Replace WIPNOTE_AGENT_ID switch cases with a loop over `harness.All()` matching AgentID
       why: |
-        Eliminates the two parallel constant sets (hooks.Harness int vs
-        otel.Harness string) that must be kept in sync manually. After this
-        slice, every harness string literal is owned by one file per harness.
-        This is the foundation all later slices build on.
+        The two parallel harness type systems (hooks.Harness int and otel.Harness
+        string) live in separate packages with no shared source. Drift has already
+        caused bugs. This slice creates the single owned source (internal/harness)
+        without importing into the minimal otel/signal package (which would invert
+        the dependency graph). The HooksHarness field in HarnessConfig bridges the
+        gap by owning the int-to-string mapping in the registry rather than in
+        either typed system.
       files:
         - internal/harness/registry.go
         - internal/harness/registry_claude.go
         - internal/harness/registry_codex.go
         - internal/harness/registry_gemini.go
-        - internal/otel/signal.go
         - internal/hooks/harness.go
       deps: []
       done_when:
-        - internal/harness/registry.go compiles and all three harnesses register in init()
-        - otel.HarnessClaude/Codex/Gemini values match current hardcoded strings (no DB migration needed)
-        - All existing harness detection tests pass unchanged (go test ./internal/hooks/...)
-        - No string literal 'codex', 'gemini', 'claude_code' etc. remains outside the registry files
+        - internal/harness compiles with zero imports from this repo (verified by go list -deps ./internal/harness/...)
+        - harness.Get('codex').AgentID == 'codex' and harness.Get('gemini_cli').HookEventNames is non-empty
+        - hooks/harness.go contains no hardcoded agent ID string literals outside string comparisons in test files
+        - All existing harness detection tests pass (go test ./internal/hooks/... -v)
+        - go vet ./internal/harness/... passes
       effort: M
       risk: Med
       tests: |
-        Unit: TestRegistry_GetAll — All() returns 3 entries; Get("codex").AgentID == "codex"
-        Unit: TestHarnessConstants_Unchanged — otel.HarnessClaude == "claude_code",
-              HarnessCodex == "codex", HarnessGemini == "gemini_cli"
-        Regression: go test ./internal/hooks/... — all TestDetectHarness_* pass
-        Regression: go test ./internal/otel/... — all adapter tests pass
+        Unit: TestRegistry_GetAll — All() returns exactly 3 entries; IDs are
+              "claude_code", "codex", "gemini_cli"
+        Unit: TestRegistry_GetByAgentID — GetByAgentID("gemini") returns Gemini config
+        Unit: TestRegistry_IDsMatchOtelConsts — string comparison asserts registry IDs
+              match the otel constant string values (no import needed; use literals)
+        Regression: go test ./internal/hooks/... — all TestDetectHarness_* pass unchanged
       approved: false
       comment: ""
       approval_status: pending
       execution_status: not_started
+      critic_revisions:
+        - source: sonnet
+          severity: DANGER
+          summary: 'Original plan imported internal/harness from internal/otel/signal.go, inverting the dependency graph and creating a latent cycle. Fixed: keep otel constants unchanged; use per-registry-file literal guards for drift detection.'
+        - source: sonnet
+          severity: HIGH
+          summary: 'done_when ''no string literals outside registry'' was unenforceable (tests, String() methods, DB values all use literals). Fixed: narrowed to ''no hardcoded agent ID literals in non-test production files''.'
     - id: slice-2
       num: 2
       title: Launcher OTel config from registry — eliminate per-launcher env var hardcoding
       what: |
-        Add to HarnessConfig:
+        Add to HarnessConfig in registry.go:
 
         ```go
-        OtelEnvFunc func(port int, sessionID string) []string
-        // returns the env var slice to inject before launching the harness process
+        type OtelEnvFunc func(port int, sessionID string) []string
+        // OtelEnv returns the env vars to inject before launching this harness.
+        // nil is valid only for Claude (Claude Code sets its own OTel config).
+        OtelEnv OtelEnvFunc
         ```
 
-        Each registry entry provides its OtelEnvFunc:
-        - Claude: nil (Claude Code reads OTEL config differently; no injection needed)
+        Populate OtelEnv in registry_codex.go and registry_gemini.go:
         - Codex: returns ["OTEL_EXPORTER_OTLP_ENDPOINT=...", "OTEL_SERVICE_NAME=codex-cli", ...]
+          The env var name strings are const-declared within registry_codex.go.
         - Gemini: returns ["GEMINI_TELEMETRY_ENABLED=true", "GEMINI_TELEMETRY_OTLP_ENDPOINT=...", ...]
+          Same pattern in registry_gemini.go.
+        - Claude: OtelEnv left nil (Claude Code injects its own OTel config).
 
-        Refactor `cmd/wipnote/codex_launch.go` `buildCodexOtelEnv` and
-        `cmd/wipnote/gemini_launch.go` `buildGeminiOtelEnv` to call
-        `harness.Get(<id>).OtelEnvFunc(port, sessionID)` and return that slice.
-        The env var name strings move into `registry_codex.go` and
-        `registry_gemini.go` respectively.
+        Refactor buildCodexOtelEnv in codex_launch.go and buildGeminiOtelEnv in
+        gemini_launch.go to call harness.Get(<id>).OtelEnv(port, sessionID).
 
-        Also move `WIPNOTE_AGENT_ID` and `WIPNOTE_AGENT_TYPE` injection into
-        a shared `BuildAgentEnv() []string` method on HarnessConfig so the
-        two launcher files share the same attribution env var logic.
+        Add BuildAgentEnv() method to HarnessConfig:
+        ```go
+        func (c *HarnessConfig) BuildAgentEnv() []string {
+            return []string{
+                "WIPNOTE_AGENT_ID=" + c.AgentID,
+                "WIPNOTE_AGENT_TYPE=" + c.AgentID,
+            }
+        }
+        ```
+        Both launcher files call this instead of hardcoding the env var assembly.
+
+        Document that OtelEnv must be non-nil for Codex and Gemini registrations —
+        add a panic in GetByHooksHarness if a non-Claude harness has nil OtelEnv
+        and the caller requests OTel env vars.
       why: |
-        Launchers currently each hardcode their own env var convention with no
-        shared abstraction. The same OTel endpoint URL is assembled in three
-        different formats. After this slice, changing the Gemini telemetry env
-        var names (because Gemini CLI changes their API) requires editing only
-        registry_gemini.go — not hunting through gemini_launch.go.
+        Launchers use completely different env var naming conventions (GEMINI_TELEMETRY_*
+        vs OTEL_EXPORTER_OTLP_*) with no abstraction. After this slice, adding a
+        new harness requires only a new registry file that defines its OtelEnv —
+        no edits to any launcher file. The WIPNOTE_AGENT_ID value also becomes
+        derived from the registry rather than copy-pasted.
       files:
         - internal/harness/registry.go
         - internal/harness/registry_codex.go
@@ -129,60 +170,88 @@ slices:
       deps:
         - 1
       done_when:
-        - buildCodexOtelEnv and buildGeminiOtelEnv contain no hardcoded env var name strings — all names live in registry files
-        - WIPNOTE_AGENT_ID and WIPNOTE_AGENT_TYPE injection uses a shared BuildAgentEnv method
-        - Codex and Gemini integration tests (go test ./cmd/wipnote/... -run TestLaunch) pass unchanged
-        - OTEL_SERVICE_NAME=codex-cli value comes from registry (no longer hardcoded in codex_launch.go)
+        - buildCodexOtelEnv and buildGeminiOtelEnv contain no hardcoded env var name strings; all names are const-declared in their registry_*.go file
+        - WIPNOTE_AGENT_ID injection in both launchers calls BuildAgentEnv()
+        - harness.Get('codex').OtelEnv(9999, 'sess') returns a non-nil slice containing 'OTEL_SERVICE_NAME=codex-cli' — testable without any cmd/wipnote imports
+        - harness.Get('claude_code').OtelEnv is nil (documented behavior)
+        - go test ./internal/harness/... and go test ./cmd/wipnote/... pass
       effort: S
       risk: Low
       tests: |
-        Unit: TestCodexOtelEnv — OtelEnvFunc for codex returns slice containing
-              "OTEL_SERVICE_NAME=codex-cli" and "OTEL_EXPORTER_OTLP_ENDPOINT=..."
-        Unit: TestGeminiOtelEnv — OtelEnvFunc for gemini returns slice containing
-              "GEMINI_TELEMETRY_ENABLED=true"
+        Unit: TestCodexOtelEnv — harness.Get("codex").OtelEnv(9999, "s") returns
+              slice with "OTEL_SERVICE_NAME=codex-cli" and endpoint containing "9999"
+        Unit: TestGeminiOtelEnv — harness.Get("gemini_cli").OtelEnv(8080, "s") returns
+              slice with "GEMINI_TELEMETRY_ENABLED=true"
+        Unit: TestBuildAgentEnv_Codex — BuildAgentEnv() returns ["WIPNOTE_AGENT_ID=codex",
+              "WIPNOTE_AGENT_TYPE=codex"]
         Regression: go test ./cmd/wipnote/... — existing launcher tests pass
       approved: false
       comment: ""
       approval_status: pending
       execution_status: not_started
+      critic_revisions:
+        - source: sonnet
+          severity: HIGH
+          summary: 'OtelEnvFunc as a bare func field creates nil-panic risk if a test binary doesn''t import the registry init files. Fixed: added nil guard in GetByHooksHarness; documented nil-only-for-Claude contract explicitly in done_when; test verifies non-nil without cmd imports.'
     - id: slice-3
       num: 3
-      title: Detection and adapter Identify() from registry — eliminate detection heuristic drift
+      title: Detection and adapter Identify() from registry — data-driven, no hardcoded event names
       what: |
-        In `detectHarnessWithEnv` (`internal/hooks/harness.go`), replace the
-        hardcoded `[]string{"BeforeAgent","AfterAgent","AfterModel","BeforeTool","AfterTool"}`
-        with a loop over `harness.All()` checking each config's `HookEventNames`:
+        In detectHarnessWithEnv (internal/hooks/harness.go), replace the hardcoded
+        Gemini event name slice with a registry lookup. Add a harnessFromConfig
+        helper that maps *harness.HarnessConfig → hooks.Harness int using the
+        HooksHarness field added in slice 1:
 
         ```go
-        for _, cfg := range harness.All() {
-            for _, name := range cfg.HookEventNames {
-                if name == hookEventName {
-                    return harnessFromID(cfg.ID)
+        func harnessFromConfig(cfg *harness.HarnessConfig) Harness {
+            if cfg == nil {
+                return HarnessClaude
+            }
+            return Harness(cfg.HooksHarness) // HooksHarness int values match Harness iota
+        }
+        ```
+
+        The detection loop becomes:
+        ```go
+        if name, _ := top["hook_event_name"].(string); name != "" {
+            for _, cfg := range harness.All() {
+                for _, n := range cfg.HookEventNames {
+                    if n == name {
+                        return harnessFromConfig(cfg)
+                    }
                 }
             }
         }
         ```
 
-        In each OTel adapter's `Identify()` method, replace the hardcoded
-        service name string with the registry value:
+        In each OTel adapter's Identify() method, replace the hardcoded service
+        name string with the registry value:
         ```go
         func (g *GeminiAdapter) Identify(res OTLPResource) bool {
-            cfg := harness.Get(string(otel.HarnessGemini))
-            return slices.Contains(cfg.ServiceNames, AttrString(res.Attrs, "service.name"))
+            cfg := harness.Get(string(otel.HarnessGemini)) // imports internal/harness (OK — adapters are higher level)
+            if cfg == nil { return false }
+            svc := AttrString(res.Attrs, "service.name")
+            for _, name := range cfg.ServiceNames {
+                if name == svc { return true }
+            }
+            return false
         }
         ```
 
-        In each adapter's `baseSignal()`, replace `"session.id"` /
-        `"conversation.id"` literals with `harness.Get(...).SessionAttr`.
+        Note: internal/otel/adapter may import internal/harness (adapters are
+        higher-level than signal.go and do not create a cycle). Only internal/otel
+        (the signal/writer core) must NOT import internal/harness.
+
+        In each adapter's baseSignal() / sessionID resolution, replace the hardcoded
+        attribute key string ("session.id" or "conversation.id") with
+        harness.Get(string(h.Name())).SessionAttr.
       why: |
-        The BeforeAgent/AfterAgent detection fix (commit 99bd64003) works
-        because we hardcoded those names in harness.go. If Gemini adds a new
-        hook event in a future release, we'd need another code change. After
-        this slice, the registry owns the native event names and detection is
-        data-driven. Similarly, the Codex service name "codex_cli_rs" variant
-        appears only in adapter/codex.go:36 — if Codex changes it, we'd only
-        find out when sessions stop being attributed. The registry's ServiceNames
-        slice makes variant tracking explicit.
+        The BeforeAgent/AfterAgent detection fix (commit 99bd64003) works because
+        we hardcoded those names in harness.go. If Gemini adds a new hook event,
+        it requires another harness.go edit. After this slice, the registry owns
+        native event names and detection is data-driven. harnessFromConfig() closes
+        the two-type-system gap (int hooks.Harness vs string otel.Harness) without
+        adding imports in either direction.
       files:
         - internal/hooks/harness.go
         - internal/otel/adapter/gemini.go
@@ -194,54 +263,60 @@ slices:
       deps:
         - 1
       done_when:
-        - detectHarnessWithEnv contains no hardcoded Gemini event name strings; they come from the registry
-        - All three adapters' Identify() methods use registry ServiceNames
-        - All three adapters' baseSignal()/sessionID resolution uses registry SessionAttr
+        - detectHarnessWithEnv contains no hardcoded Gemini event name strings; they come from harness.All()
+        - All three adapters' Identify() methods use harness.Get().ServiceNames
+        - All three adapters' session ID resolution uses harness.Get().SessionAttr
+        - harnessFromConfig() is defined and covered by TestHarnessFromConfig
         - go test ./internal/hooks/... and go test ./internal/otel/... pass
+        - go list -deps ./internal/otel/ does NOT include internal/harness (only adapters import it, not the core signal package)
       effort: M
       risk: Med
       tests: |
-        Unit: TestDetection_FromRegistry — add a fake harness to registry with
-              HookEventNames=["FakeEvent"]; assert detectHarness detects it
-        Unit: TestAdapterIdentify_FromRegistry — GeminiAdapter.Identify uses
-              registry ServiceNames; swap to "gemini-cli-v2" in registry, assert
-              Identify returns true for that service.name
+        Unit: TestHarnessFromConfig — harnessFromConfig(harness.Get("codex")) == HarnessCodex
+        Unit: TestDetection_FromRegistry — temporarily add a fake harness with
+              HookEventNames=["TestFakeEvent"]; detectHarness returns that harness's int value
+        Unit: TestAdapterIdentify_FromRegistry — GeminiAdapter.Identify uses ServiceNames
+              from registry; swap ServiceNames in test, assert correct identification
         Regression: TestDetectHarness_GeminiWithHookEventName and all other
-              detection tests still pass
+              detection tests pass unchanged
       approved: false
       comment: ""
       approval_status: pending
       execution_status: not_started
+      critic_revisions:
+        - source: sonnet
+          severity: DANGER
+          summary: 'Original plan had adapters and signal.go both importing internal/harness, which risked a cycle if harness ever imported otel. Fixed: only adapter/*.go imports internal/harness (they are the higher-level layer); internal/otel/signal.go and writer.go never import it. Verified via done_when go list check.'
+        - source: sonnet
+          severity: HIGH
+          summary: 'harnessFromConfig() was not defined in original plan — the two-type bridge was unspecified. Fixed: added explicit HooksHarness field to HarnessConfig and defined harnessFromConfig() in what field.'
     - id: slice-4
       num: 4
-      title: Complete add-a-harness recipe — README + config.json schema
+      title: Complete add-a-harness recipe — README + wipnote harness list command
       what: |
-        Update `packages/plugin-core/README.md` "Add a new target" section to
-        include the complete Go-layer checklist alongside the existing plugin
-        build steps:
+        Update packages/plugin-core/README.md "Add a new target" section to include
+        the complete Go-layer checklist alongside the existing plugin build steps:
 
-        1. Add `targets.<name>` to manifest.json
-        2. Tag hook events with new target
-        3. Implement `pluginbuild.Adapter` interface
-        4. Add `internal/harness/registry_<name>.go` with HarnessConfig
-        5. Add `internal/otel/adapter/<name>.go` implementing otel.Adapter
-        6. Add `cmd/wipnote/<name>_launch.go` with OtelEnvFunc set in registry
-        7. Run `go build ./... && wipnote plugin build-ports && go test ./...`
+          1. Add targets.<name> to manifest.json
+          2. Tag hook events with new target
+          3. Implement pluginbuild.Adapter interface in internal/pluginbuild/<name>.go
+          4. Add internal/harness/registry_<name>.go with HarnessConfig (OtelEnv,
+             ServiceNames, SessionAttr, HookEventNames, HooksHarness)
+          5. Add internal/otel/adapter/<name>.go implementing otel.Adapter;
+             import internal/harness to read ServiceNames and SessionAttr
+          6. Add cmd/wipnote/<name>_launch.go; call harness.Get(<id>).OtelEnv()
+             and BuildAgentEnv() instead of hardcoding env vars
+          7. Run: wipnote plugin build-ports && go build ./... && go test ./...
 
-        Add `.wipnote/config.json` schema documentation (in README) for the
-        OTel env vars that are now surfaced as user-overridable via the
-        registry's OtelEnvFunc. Users should be able to set custom OTLP
-        endpoints without rebuilding.
-
-        Optionally: add a `wipnote harness list` subcommand that prints all
-        registered harnesses with their ServiceNames and OTel env var keys —
-        useful for debugging attribution mismatches.
+        Add cmd/wipnote/harness_cmd.go implementing `wipnote harness list` that
+        prints a table: ID | AgentID | ServiceNames | SessionAttr | HookEventNames.
+        Wire it into the root command.
       why: |
-        The current README's "Add a new target" recipe covers only 3 of the 9
-        required steps. Every engineer who adds a harness discovers the missing
-        steps by reading source. After this slice, the recipe is self-contained
-        and the config documentation tells users how to customize OTel endpoints
-        without code changes.
+        The current README's recipe covers only 3 of 9 required steps. Every
+        engineer who adds a harness discovers the missing steps by reading source.
+        After this slice, the recipe is self-contained. The harness list command
+        is the debugging tool for attribution mismatches — faster than grepping
+        source to find what service.name value a harness expects.
       files:
         - packages/plugin-core/README.md
         - cmd/wipnote/harness_cmd.go
@@ -250,25 +325,25 @@ slices:
         - 2
         - 3
       done_when:
-        - README add-a-harness section lists all 7 steps including Go-layer steps
-        - '''wipnote harness list'' prints a table of registered harnesses with ServiceNames, AgentID, SessionAttr, and HookEventNames columns'
+        - README add-a-harness section lists all 7 steps in order, with file paths for each step
+        - '''wipnote harness list'' outputs a table with 3 rows (claude, codex, gemini)'
+        - 'Table columns: ID, AgentID, ServiceNames, SessionAttr, HookEventNames'
         - go build ./... passes with harness_cmd.go added
       effort: S
       risk: Low
       tests: |
-        Unit: TestHarnessCmd_List — cobra command outputs 3 rows (claude, codex, gemini)
-        Integration: wipnote harness list (manual) shows correct values for all
-              three harnesses
-        Regression: existing README links and recipe headings unchanged
+        Unit: TestHarnessCmd_List — cobra command outputs 3 rows with correct columns
+        Integration: wipnote harness list (manual smoke test) shows correct values
+        Regression: existing README links unchanged; no broken anchors
       approved: false
       comment: ""
       approval_status: pending
       execution_status: not_started
 questions:
     - id: q-init-order
-      text: Should registry_*.go entries be registered via init() or via explicit Register() calls in a central init file?
+      text: Should registry_*.go entries use per-file init() or a central init.go with explicit Register() calls?
       description: |
-        Go's init() ordering within a package is deterministic by filename. Since all three registry_*.go files are in the same package, their init() blocks run in filename-alphabetical order (claude → codex → gemini). This is safe but implicit. An alternative is a single harness/init.go that calls all three Register() functions explicitly in a defined order.
+        Go's init() ordering within a package is filename-alphabetical. All three registry_*.go files are in the same package so the order is deterministic (claude → codex → gemini). An alternative is a single harness/init.go that calls Register() explicitly for all three in a defined order.
       recommended: option-init
       options:
         - key: option-init
@@ -277,13 +352,13 @@ questions:
           label: 'B: Central init.go — explicit Register() calls in defined order'
       answer: null
     - id: q-otel-env-override
-      text: Should OTel env var names in the registry be user-overridable via .wipnote/config.json, or remain build-time constants?
+      text: Should OTel env var names in the registry be user-overridable via .wipnote/config.json, or fixed build-time constants within each registry file?
       description: |
-        Making env var names overridable lets users point wipnote at a custom OTLP collector without rebuilding. But it adds runtime config parsing complexity. The OTel endpoint URL is already overridable via WIPNOTE_OTEL_HTTP_PORT; only the endpoint URL changes, not the var name. Overridable var names would only matter if users run non-standard Gemini or Codex builds with different telemetry env var conventions.
+        Making env var names overridable lets users point wipnote at a custom OTLP collector without rebuilding. The OTel endpoint URL is already overridable via WIPNOTE_OTEL_HTTP_PORT. Overridable var names would only matter if users run non-standard Gemini/Codex builds with different telemetry env var names — an uncommon but real scenario for enterprise users with patched CLI builds.
       recommended: option-constants
       options:
         - key: option-constants
-          label: 'A: Build-time constants — names fixed, only endpoint URL overridable'
+          label: 'A: Build-time constants — env var names fixed, only endpoint URL overridable'
         - key: option-overridable
-          label: 'B: Config-overridable — names come from .wipnote/config.json with registry defaults'
+          label: 'B: Config-overridable — names come from .wipnote/config.json with registry defaults as fallback'
       answer: null
