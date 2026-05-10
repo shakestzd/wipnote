@@ -1,8 +1,11 @@
 package adapter
 
 import (
+	"fmt"
+	"strconv"
 	"time"
 
+	"github.com/shakestzd/wipnote/internal/harness"
 	"github.com/shakestzd/wipnote/internal/otel"
 )
 
@@ -30,12 +33,17 @@ func NewCodexAdapter() *CodexAdapter {
 func (c *CodexAdapter) Name() otel.Harness { return otel.HarnessCodex }
 
 func (c *CodexAdapter) Identify(res OTLPResource) bool {
-	switch AttrString(res.Attrs, "service.name") {
-	case "codex-cli", "codex_cli_rs":
-		return true
-	default:
+	cfg := harness.Get(string(otel.HarnessCodex))
+	if cfg == nil {
 		return false
 	}
+	svc := AttrString(res.Attrs, "service.name")
+	for _, name := range cfg.ServiceNames {
+		if name == svc {
+			return true
+		}
+	}
+	return false
 }
 
 // ConvertMetric maps Codex metric data points into canonical signals.
@@ -77,7 +85,7 @@ func (c *CodexAdapter) ConvertMetric(res OTLPResource, scope OTLPScope, m OTLPMe
 // convention follows OpenAI's gen_ai semconv where applicable.
 func (c *CodexAdapter) ConvertLog(res OTLPResource, scope OTLPScope, l OTLPLog) []otel.UnifiedSignal {
 	nativeName := codexLogNativeName(l)
-	base := c.baseSignal(res, scope, otel.KindLog, nativeName, l.Timestamp, l.Attrs)
+	base := c.baseSignal(res, scope, otel.KindLog, nativeName, codexLogTimestamp(l), l.Attrs)
 	base.TraceID = l.TraceID
 	base.SpanID = l.SpanID
 
@@ -137,6 +145,18 @@ func (c *CodexAdapter) ConvertLog(res OTLPResource, scope OTLPScope, l OTLPLog) 
 	return []otel.UnifiedSignal{base}
 }
 
+func codexLogTimestamp(l OTLPLog) time.Time {
+	if !l.Timestamp.IsZero() {
+		return l.Timestamp
+	}
+	if ts := AttrString(l.Attrs, "event.timestamp"); ts != "" {
+		if parsed, err := parseCodexTimestamp(ts); err == nil {
+			return parsed
+		}
+	}
+	return time.Time{}
+}
+
 // ConvertSpan maps Codex span taxonomy onto canonical names.
 func (c *CodexAdapter) ConvertSpan(res OTLPResource, scope OTLPScope, s OTLPSpan) []otel.UnifiedSignal {
 	base := c.baseSignal(res, scope, otel.KindSpan, s.Name, s.StartTime, s.Attrs)
@@ -183,20 +203,24 @@ func (c *CodexAdapter) ConvertSpan(res OTLPResource, scope OTLPScope, s OTLPSpan
 }
 
 // baseSignal populates the correlation IDs common to all Codex signals.
-// SessionID is sourced from the signal-level conversation.id attribute,
-// falling back to the resource-level conversation.id when absent (mirrors
-// the Claude adapter's session.id resource fallback at claude.go:246-249).
+// SessionID is sourced from the registry-defined SessionAttr (conversation.id),
+// falling back to the resource-level attribute when absent (mirrors
+// the Claude adapter's session.id resource fallback).
 func (c *CodexAdapter) baseSignal(
 	res OTLPResource, scope OTLPScope, kind otel.Kind, name string,
 	ts time.Time, attrs map[string]any,
 ) otel.UnifiedSignal {
+	sessionAttr := "conversation.id" // safe default
+	if cfg := harness.Get(string(otel.HarnessCodex)); cfg != nil {
+		sessionAttr = cfg.SessionAttr
+	}
 	sig := otel.UnifiedSignal{
 		Harness:        otel.HarnessCodex,
 		HarnessVersion: AttrString(res.Attrs, "service.version"),
 		Kind:           kind,
 		NativeName:     name,
 		Timestamp:      ts,
-		SessionID:      ResolveSessionID(attrs, res.Attrs, "conversation.id"),
+		SessionID:      ResolveSessionID(attrs, res.Attrs, sessionAttr),
 		PromptID:       AttrString(attrs, "gen_ai.prompt_id"),
 		RawAttrs:       copyAttrs(attrs),
 	}
@@ -220,6 +244,31 @@ func codexMCPToolName(attrs map[string]any) string {
 		return tool
 	}
 	return "mcp__" + server + "__" + tool
+}
+
+func parseCodexTimestamp(ts string) (time.Time, error) {
+	for _, layout := range []string{
+		time.RFC3339Nano,
+		time.RFC3339,
+		"2006-01-02T15:04:05.999999Z07:00",
+		"2006-01-02T15:04:05.999999999Z07:00",
+		"2006-01-02 15:04:05.999999999Z07:00",
+	} {
+		if parsed, err := time.Parse(layout, ts); err == nil {
+			return parsed, nil
+		}
+	}
+	if n, err := strconv.ParseInt(ts, 10, 64); err == nil {
+		switch {
+		case n >= 1e18:
+			return time.Unix(0, n).UTC(), nil
+		case n >= 1e15:
+			return time.UnixMicro(n).UTC(), nil
+		case n >= 1e12:
+			return time.UnixMilli(n).UTC(), nil
+		}
+	}
+	return time.Time{}, fmt.Errorf("unparseable timestamp: %q", ts)
 }
 
 func firstCodexString(attrs map[string]any, keys ...string) string {

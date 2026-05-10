@@ -82,7 +82,9 @@ func Stop(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 	}
 	if sessionID != "" {
 		projectDir := ResolveProjectDir(event.CWD, event.SessionID)
-		insertAssistantTextSignal(database, projectDir, sessionID, event.TranscriptPath)
+		if !insertAssistantTextSignalFromHookPayload(database, projectDir, sessionID, event, event.LastAssistantMessage, "hook_payload") {
+			insertAssistantTextSignal(database, projectDir, sessionID, event.TranscriptPath)
+		}
 		// Backfill any user prompts missed by the live UserPromptSubmit hook path.
 		// Non-fatal: errors are logged to debug.log and never block the Stop response.
 		if n, err := backfillMissedUserPrompts(database, projectDir, sessionID, event.TranscriptPath); err != nil {
@@ -99,6 +101,24 @@ func Stop(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 	}
 
 	return recordSimpleEvent(models.EventEnd, "Stop", summary, "recorded", event, database)
+}
+
+// AfterAgent handles the Gemini CLI AfterAgent hook event. Gemini exposes the
+// model's final text response directly in prompt_response, so capture it from
+// the hook payload instead of trying to infer it from a harness transcript.
+func AfterAgent(event *CloudEvent, database *sql.DB) (*HookResult, error) {
+	sessionID := resolveSessionIDWithHarness(event)
+	if sessionID == "" {
+		sessionID = EnvSessionID(event.SessionID)
+	}
+	if sessionID == "" {
+		return &HookResult{Continue: true}, nil
+	}
+
+	projectDir := ResolveProjectDir(event.CWD, event.SessionID)
+	insertAssistantTextSignalFromHookPayload(database, projectDir, sessionID, event, event.PromptResponse, "hook_payload")
+
+	return &HookResult{Continue: true}, nil
 }
 
 // PreCompact handles the PreCompact Claude Code hook event.

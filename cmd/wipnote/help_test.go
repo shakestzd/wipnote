@@ -258,6 +258,7 @@ var internalPlumbingAllowlist = map[string]bool{
 	"init":      true,
 	"setup":     true,
 	"setup-cli": true,
+	"harness":   true, // debugging/inspection tool for harness registry
 }
 
 // TestPlanReview_IsDeprecatedViaCobraField verifies that plan review uses

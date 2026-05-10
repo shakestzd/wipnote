@@ -1,6 +1,7 @@
 package hooks
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -23,13 +24,6 @@ func setupMissingEventsDB(t *testing.T) (*testDB, string) {
 	t.Setenv("WIPNOTE_PROJECT_DIR", projectDir)
 
 	return td, "test-sess"
-}
-
-// insertSessionWithID inserts a session with the given ID into a database.
-func insertSessionWithID(t *testing.T, database interface {
-	Exec(string, ...any) (interface{}, error)
-}, sessionID, projectDir string) {
-	t.Helper()
 }
 
 // --- PreCompact ---
@@ -77,6 +71,101 @@ func TestPreCompact_NoSessionID_ReturnsContinue(t *testing.T) {
 	}
 	if result == nil || !result.Continue {
 		t.Error("expected Continue=true when no session ID")
+	}
+}
+
+func TestStop_PrefersLastAssistantMessageOverTranscript(t *testing.T) {
+	td, sessionID := setupMissingEventsDB(t)
+
+	event := &CloudEvent{
+		AgentID:              "codex",
+		SessionID:            sessionID,
+		CWD:                  t.TempDir(),
+		TurnID:               "codex-turn-1",
+		Model:                "gpt-5.4",
+		Timestamp:            "2026-05-08T10:00:00Z",
+		LastAssistantMessage: "captured from stop payload",
+		StopReason:           "end_turn",
+	}
+
+	result, err := Stop(event, td.DB)
+	if err != nil {
+		t.Fatalf("Stop: %v", err)
+	}
+	if result == nil || !result.Continue {
+		t.Fatal("expected Continue=true from Stop")
+	}
+
+	var attrsRaw, harness string
+	if err := td.DB.QueryRow(`
+		SELECT attrs_json, harness FROM otel_signals
+		WHERE session_id = ? AND canonical = 'assistant_text'`,
+		sessionID,
+	).Scan(&attrsRaw, &harness); err != nil {
+		t.Fatalf("query assistant_text: %v", err)
+	}
+	if harness != "codex" {
+		t.Errorf("harness = %q, want codex", harness)
+	}
+	var attrs map[string]any
+	if err := json.Unmarshal([]byte(attrsRaw), &attrs); err != nil {
+		t.Fatalf("unmarshal attrs: %v", err)
+	}
+	if attrs["text"] != "captured from stop payload" {
+		t.Errorf("attrs[text] = %q", attrs["text"])
+	}
+	if attrs["source"] != "hook_payload" {
+		t.Errorf("attrs[source] = %q", attrs["source"])
+	}
+}
+
+func TestAfterAgent_InsertsGeminiPromptResponse(t *testing.T) {
+	td, sessionID := setupMissingEventsDB(t)
+
+	event := &CloudEvent{
+		AgentID:        "gemini",
+		SessionID:      sessionID,
+		CWD:            t.TempDir(),
+		Model:          "gemini-2.5-pro",
+		Timestamp:      "2026-05-08T10:00:00Z",
+		PromptResponse: "Gemini captured response",
+	}
+
+	result, err := AfterAgent(event, td.DB)
+	if err != nil {
+		t.Fatalf("AfterAgent: %v", err)
+	}
+	if result == nil || !result.Continue {
+		t.Fatal("expected Continue=true from AfterAgent")
+	}
+
+	var harness, native, attrsRaw string
+	if err := td.DB.QueryRow(`
+		SELECT harness, native, attrs_json
+		FROM otel_signals
+		WHERE session_id = ? AND canonical = 'assistant_text'`,
+		sessionID,
+	).Scan(&harness, &native, &attrsRaw); err != nil {
+		t.Fatalf("query assistant_text: %v", err)
+	}
+	if harness != "gemini_cli" {
+		t.Errorf("harness = %q, want gemini_cli", harness)
+	}
+	if native != "gemini_cli.assistant_turn" {
+		t.Errorf("native = %q, want gemini_cli.assistant_turn", native)
+	}
+	var attrs map[string]any
+	if err := json.Unmarshal([]byte(attrsRaw), &attrs); err != nil {
+		t.Fatalf("unmarshal attrs: %v", err)
+	}
+	if attrs["text"] != "Gemini captured response" {
+		t.Errorf("attrs[text] = %q", attrs["text"])
+	}
+	if attrs["source"] != "hook_payload" {
+		t.Errorf("attrs[source] = %q", attrs["source"])
+	}
+	if attrs["model"] != "gemini-2.5-pro" {
+		t.Errorf("attrs[model] = %q", attrs["model"])
 	}
 }
 

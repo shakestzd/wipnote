@@ -6,6 +6,8 @@ import (
 	"io"
 	"os"
 	"strings"
+
+	"github.com/shakestzd/wipnote/internal/harness"
 )
 
 // Harness identifies the AI coding harness that invoked this hook.
@@ -37,22 +39,25 @@ func (h Harness) String() string {
 // codexPayload is used only for harness detection and input parsing.
 // It matches the flat top-level shape of a Codex CLI hook payload.
 type codexPayload struct {
-	SessionID      string         `json:"session_id"`
-	TurnID         string         `json:"turn_id"`
-	TranscriptPath string         `json:"transcript_path"`
-	CWD            string         `json:"cwd"`
-	HookEventName  string         `json:"hook_event_name"`
-	Model          string         `json:"model"`
-	PermissionMode string         `json:"permission_mode"`
-	Source         string         `json:"source"`
-	Prompt         string         `json:"prompt"`
-	ToolName       string         `json:"tool_name"`
-	ToolInput      map[string]any `json:"tool_input"`
-	ToolUseID      string         `json:"tool_use_id"`
-	ToolResult     map[string]any `json:"tool_result"`
-	TaskID         string         `json:"task_id"`
-	TaskData       map[string]any `json:"task"`
-	TaskSubject    string         `json:"task_subject"`
+	SessionID            string         `json:"session_id"`
+	TurnID               string         `json:"turn_id"`
+	TranscriptPath       string         `json:"transcript_path"`
+	CWD                  string         `json:"cwd"`
+	HookEventName        string         `json:"hook_event_name"`
+	Model                string         `json:"model"`
+	PermissionMode       string         `json:"permission_mode"`
+	Timestamp            string         `json:"timestamp"`
+	Source               string         `json:"source"`
+	Prompt               string         `json:"prompt"`
+	LastAssistantMessage string         `json:"last_assistant_message"`
+	StopReason           string         `json:"stop_reason"`
+	ToolName             string         `json:"tool_name"`
+	ToolInput            map[string]any `json:"tool_input"`
+	ToolUseID            string         `json:"tool_use_id"`
+	ToolResult           map[string]any `json:"tool_result"`
+	TaskID               string         `json:"task_id"`
+	TaskData             map[string]any `json:"task"`
+	TaskSubject          string         `json:"task_subject"`
 }
 
 // geminiPayload is used only for harness detection and input parsing.
@@ -61,17 +66,34 @@ type codexPayload struct {
 // a nested "tool" object (for BeforeTool/AfterTool events) instead
 // of top-level tool_name.
 type geminiPayload struct {
-	InvocationID string `json:"invocation_id"`
-	SessionID    string `json:"session_id"`
-	CWD          string `json:"cwd"`
-	Model        string `json:"model"`
+	InvocationID   string `json:"invocation_id"`
+	SessionID      string `json:"session_id"`
+	CWD            string `json:"cwd"`
+	Model          string `json:"model"`
+	TranscriptPath string `json:"transcript_path"`
+	HookEventName  string `json:"hook_event_name"`
+	Timestamp      string `json:"timestamp"`
 	// BeforeAgent / AfterAgent prompt text field.
-	Prompt string `json:"prompt"`
+	Prompt         string `json:"prompt"`
+	PromptResponse string `json:"prompt_response"`
 	// BeforeTool / AfterTool nested tool object.
 	Tool struct {
 		Name  string         `json:"name"`
 		Input map[string]any `json:"input"`
 	} `json:"tool"`
+	// AfterModel LLM request/response fields (available when hook_event_name == "AfterModel").
+	LLMRequest  map[string]any `json:"llm_request,omitempty"`
+	LLMResponse map[string]any `json:"llm_response,omitempty"`
+}
+
+// harnessFromConfig bridges a *harness.HarnessConfig to the hooks.Harness int
+// using the HooksHarness field populated in slice 1. Returns HarnessClaude when
+// cfg is nil so callers always get a safe default.
+func harnessFromConfig(cfg *harness.HarnessConfig) Harness {
+	if cfg == nil {
+		return HarnessClaude
+	}
+	return Harness(cfg.HooksHarness)
 }
 
 // DetectHarness is the exported entry point for harness detection. It calls
@@ -82,18 +104,23 @@ func DetectHarness(payload []byte) Harness {
 }
 
 // detectHarness examines the raw payload bytes and the process environment to
-// determine the harness that sent them. The detection rules are:
+// determine the harness that sent them. The detection rules are (in priority order):
 //
-//   - HarnessClaude: CLAUDE_CODE_ENTRYPOINT env var is set (Claude Code sets this
+//  1. HarnessClaude: CLAUDE_CODE_ENTRYPOINT env var is set (Claude Code sets this
 //     in every hook invocation; Codex and Gemini do not). This takes priority over
 //     payload-based detection because Claude Code also sends "hook_event_name" in
 //     its payloads, which previously caused false Codex classification.
-//   - HarnessCodex:  CLAUDE_CODE_ENTRYPOINT is absent AND top-level
-//     "hook_event_name" field is present (Codex's discriminator when not inside
-//     a Claude Code session).
-//   - HarnessGemini: CLAUDE_CODE_ENTRYPOINT is absent AND top-level
-//     "invocation_id" field is present AND "hook_event_name" is absent.
-//   - HarnessClaude: default fallback when no discriminating signal is found.
+//  2. HarnessGemini: WIPNOTE_AGENT_ID=gemini (set by `wipnote gemini` launcher).
+//     This must be checked before payload fields because real Gemini hook payloads
+//     do NOT include "invocation_id" — the Gemini hook schema uses hook_event_name
+//     like Codex, making payload-only detection ambiguous.
+//  3. HarnessCodex:  WIPNOTE_AGENT_ID=codex (set by `wipnote codex` launcher).
+//  4. HarnessGemini: WIPNOTE_AGENT_ID absent AND top-level "invocation_id" present.
+//  5. HarnessGemini: hook_event_name is a Gemini-native value (BeforeAgent, AfterAgent,
+//     AfterModel, BeforeTool, AfterTool) — reliable payload-only discriminator when the
+//     wipnote launcher is not used (i.e. `gemini` run directly).
+//  6. HarnessCodex:  any other "hook_event_name" present.
+//  7. HarnessClaude: default fallback.
 func detectHarness(payload []byte) Harness {
 	return detectHarnessWithEnv(payload, os.Getenv)
 }
@@ -110,6 +137,23 @@ func detectHarnessWithEnv(payload []byte, getenv func(string) string) Harness {
 		return HarnessClaude
 	}
 
+	// WIPNOTE_AGENT_ID is set by the wipnote launcher before spawning the
+	// harness process (buildGeminiAgentEnv sets WIPNOTE_AGENT_ID=gemini;
+	// the Codex launcher sets WIPNOTE_AGENT_ID=codex). Use it as a reliable
+	// env-based discriminator when payload-shape alone is ambiguous.
+	//
+	// This is necessary because real Gemini CLI hook payloads do NOT include
+	// "invocation_id" — the official Gemini hook schema only has session_id,
+	// cwd, hook_event_name, timestamp, and event-specific fields. Without this
+	// check, every Gemini hook event is misclassified as HarnessCodex (because
+	// hook_event_name IS present), causing agent_id='codex' to be written to
+	// agent_events for Gemini sessions (the bug reported for session 8de1df19).
+	if id := getenv("WIPNOTE_AGENT_ID"); id != "" {
+		if cfg := harness.GetByAgentID(id); cfg != nil {
+			return Harness(cfg.HooksHarness)
+		}
+	}
+
 	if len(payload) == 0 {
 		return HarnessClaude
 	}
@@ -120,14 +164,31 @@ func detectHarnessWithEnv(payload []byte, getenv func(string) string) Harness {
 		return HarnessClaude
 	}
 
+	// Gemini: presence of "invocation_id" (future-proofing; real Gemini payloads omit it).
+	if _, ok := top["invocation_id"]; ok {
+		return HarnessGemini
+	}
+
+	// Gemini: hook_event_name values that Codex never emits. Gemini CLI uses its own
+	// event naming convention (BeforeAgent, AfterAgent, AfterModel, BeforeTool, AfterTool)
+	// rather than Codex's UserPromptSubmit / PreToolUse / PostToolUse names. This is the
+	// only reliable payload-only discriminator when WIPNOTE_AGENT_ID is not set (i.e. when
+	// `gemini` is run directly rather than via `wipnote gemini`).
+	// Event names are read from the registry (HookEventNames field) rather than
+	// hardcoded here — adding new Gemini events only requires updating registry_gemini.go.
+	if name, _ := top["hook_event_name"].(string); name != "" {
+		for _, cfg := range harness.All() {
+			for _, n := range cfg.HookEventNames {
+				if n == name {
+					return harnessFromConfig(cfg)
+				}
+			}
+		}
+	}
+
 	// Codex: presence of "hook_event_name" when not inside Claude Code.
 	if _, ok := top["hook_event_name"]; ok {
 		return HarnessCodex
-	}
-
-	// Gemini: presence of "invocation_id" (absent from Claude/Codex payloads).
-	if _, ok := top["invocation_id"]; ok {
-		return HarnessGemini
 	}
 
 	return HarnessClaude
@@ -148,27 +209,31 @@ func parseCodexEvent(raw []byte) (*CloudEvent, error) {
 		return nil, fmt.Errorf("parseCodexEvent: %w", err)
 	}
 
-	agentID := "codex"
-	if parent := strings.TrimSpace(os.Getenv("WIPNOTE_PARENT_AGENT")); parent != "" && parent != "codex" {
+	agentID := harness.GetByHooksHarness(harness.HooksCodex).AgentID
+	if parent := strings.TrimSpace(os.Getenv("WIPNOTE_PARENT_AGENT")); parent != "" && parent != agentID {
 		agentID = parent
 	}
 
 	ev := &CloudEvent{
-		AgentID:        agentID,
-		SessionID:      p.SessionID,
-		CWD:            p.CWD,
-		PermissionMode: p.PermissionMode,
-		Model:          p.Model,
-		TranscriptPath: p.TranscriptPath,
-		Source:         p.Source,
-		Prompt:         p.Prompt,
-		ToolName:       p.ToolName,
-		ToolInput:      p.ToolInput,
-		ToolUseID:      p.ToolUseID,
-		ToolResult:     p.ToolResult,
-		TaskID:         p.TaskID,
-		TaskData:       p.TaskData,
-		TaskSubject:    p.TaskSubject,
+		AgentID:              agentID,
+		SessionID:            p.SessionID,
+		CWD:                  p.CWD,
+		PermissionMode:       p.PermissionMode,
+		Timestamp:            p.Timestamp,
+		Model:                p.Model,
+		TranscriptPath:       p.TranscriptPath,
+		Source:               p.Source,
+		Prompt:               p.Prompt,
+		TurnID:               p.TurnID,
+		LastAssistantMessage: p.LastAssistantMessage,
+		StopReason:           p.StopReason,
+		ToolName:             p.ToolName,
+		ToolInput:            p.ToolInput,
+		ToolUseID:            p.ToolUseID,
+		ToolResult:           p.ToolResult,
+		TaskID:               p.TaskID,
+		TaskData:             p.TaskData,
+		TaskSubject:          p.TaskSubject,
 	}
 	return ev, nil
 }
@@ -185,16 +250,22 @@ func parseGeminiEvent(raw []byte) (*CloudEvent, error) {
 	}
 
 	ev := &CloudEvent{
-		AgentID: "gemini",
+		AgentID: harness.GetByHooksHarness(harness.HooksGemini).AgentID,
 		// Gemini may use "invocation_id" as the session identifier;
 		// fall back to session_id if present.
-		SessionID: p.SessionID,
-		CWD:       p.CWD,
-		Model:     p.Model,
-		Prompt:    p.Prompt,
+		SessionID:      p.SessionID,
+		CWD:            p.CWD,
+		Model:          p.Model,
+		TranscriptPath: p.TranscriptPath,
+		Timestamp:      p.Timestamp,
+		Prompt:         p.Prompt,
+		PromptResponse: p.PromptResponse,
 		// BeforeTool / AfterTool: tool name is nested under "tool".
 		ToolName:  p.Tool.Name,
 		ToolInput: p.Tool.Input,
+		// AfterModel: LLM request/response payloads.
+		LLMRequest:  p.LLMRequest,
+		LLMResponse: p.LLMResponse,
 	}
 	// If session_id is empty, use invocation_id as a surrogate so that
 	// session-scoped DB lookups have something to work with.

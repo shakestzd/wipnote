@@ -24,9 +24,18 @@ type CloudEvent struct {
 	SessionID      string `json:"session_id"`
 	CWD            string `json:"cwd"`
 	PermissionMode string `json:"permission_mode"` // "default", "plan", "auto", "bypassPermissions"
+	Timestamp      string `json:"timestamp"`
 
 	// UserPromptSubmit
 	Prompt string `json:"prompt"`
+
+	// Harness turn correlation / final response fields.
+	TurnID         string `json:"turn_id"`
+	PromptResponse string `json:"prompt_response"`
+
+	// AfterModel Gemini-specific fields (populated by parseGeminiEvent for AfterModel events).
+	LLMRequest  map[string]any `json:"llm_request,omitempty"`
+	LLMResponse map[string]any `json:"llm_response,omitempty"`
 
 	// PreToolUse / PostToolUse
 	ToolName  string         `json:"tool_name"`

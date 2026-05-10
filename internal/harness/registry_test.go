@@ -1,0 +1,259 @@
+package harness_test
+
+import (
+	"sort"
+	"strings"
+	"testing"
+
+	"github.com/shakestzd/wipnote/internal/harness"
+	"github.com/shakestzd/wipnote/internal/hooks"
+	"github.com/shakestzd/wipnote/internal/otel"
+)
+
+// TestRegistry_All_HasThree verifies that All() returns exactly three entries
+// with the expected harness IDs.
+func TestRegistry_All_HasThree(t *testing.T) {
+	all := harness.All()
+	if len(all) != 3 {
+		t.Fatalf("All() returned %d entries, want 3", len(all))
+	}
+
+	ids := make([]string, len(all))
+	for i, cfg := range all {
+		ids[i] = cfg.ID
+	}
+	sort.Strings(ids)
+
+	want := []string{"claude_code", "codex", "gemini_cli"}
+	for i, id := range want {
+		if ids[i] != id {
+			t.Errorf("All() IDs[%d] = %q, want %q", i, ids[i], id)
+		}
+	}
+}
+
+// TestRegistry_Get_ByID checks lookup by canonical harness ID.
+func TestRegistry_Get_ByID(t *testing.T) {
+	cfg := harness.Get("codex")
+	if cfg == nil {
+		t.Fatal("Get(\"codex\") returned nil")
+	}
+	if cfg.AgentID != "codex" {
+		t.Errorf("Get(\"codex\").AgentID = %q, want \"codex\"", cfg.AgentID)
+	}
+
+	if got := harness.Get("nonexistent"); got != nil {
+		t.Errorf("Get(\"nonexistent\") = %v, want nil", got)
+	}
+}
+
+// TestRegistry_GetByAgentID checks lookup by WIPNOTE_AGENT_ID value.
+func TestRegistry_GetByAgentID(t *testing.T) {
+	cfg := harness.GetByAgentID("gemini")
+	if cfg == nil {
+		t.Fatal("GetByAgentID(\"gemini\") returned nil")
+	}
+	if cfg.ID != "gemini_cli" {
+		t.Errorf("GetByAgentID(\"gemini\").ID = %q, want \"gemini_cli\"", cfg.ID)
+	}
+
+	if got := harness.GetByAgentID("nonexistent"); got != nil {
+		t.Errorf("GetByAgentID(\"nonexistent\") = %v, want nil", got)
+	}
+}
+
+// TestRegistry_GetByHooksHarness checks lookup by HooksHarness enum value.
+func TestRegistry_GetByHooksHarness(t *testing.T) {
+	cfg := harness.GetByHooksHarness(harness.HooksGemini)
+	if cfg == nil {
+		t.Fatal("GetByHooksHarness(HooksGemini) returned nil")
+	}
+	if cfg.ID != "gemini_cli" {
+		t.Errorf("GetByHooksHarness(HooksGemini).ID = %q, want \"gemini_cli\"", cfg.ID)
+	}
+}
+
+// TestRegistry_GeminiEventNames verifies the Gemini hook event names are populated.
+func TestRegistry_GeminiEventNames(t *testing.T) {
+	cfg := harness.Get("gemini_cli")
+	if cfg == nil {
+		t.Fatal("Get(\"gemini_cli\") returned nil")
+	}
+	if len(cfg.HookEventNames) == 0 {
+		t.Fatal("Get(\"gemini_cli\").HookEventNames is empty")
+	}
+
+	found := false
+	for _, name := range cfg.HookEventNames {
+		if name == "BeforeAgent" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("Get(\"gemini_cli\").HookEventNames does not contain \"BeforeAgent\"; got %v", cfg.HookEventNames)
+	}
+}
+
+// TestRegistry_IDsMatchOtelConsts bridges the harness package and otel package
+// via tests (harness itself does NOT import otel).
+func TestRegistry_IDsMatchOtelConsts(t *testing.T) {
+	tests := []struct {
+		otelConst otel.Harness
+		harnessID string
+	}{
+		{otel.HarnessClaude, "claude_code"},
+		{otel.HarnessCodex, "codex"},
+		{otel.HarnessGemini, "gemini_cli"},
+	}
+
+	for _, tt := range tests {
+		if string(tt.otelConst) != tt.harnessID {
+			t.Errorf("otel.%s = %q, want %q", tt.harnessID, string(tt.otelConst), tt.harnessID)
+		}
+		cfg := harness.Get(tt.harnessID)
+		if cfg == nil {
+			t.Errorf("harness.Get(%q) returned nil", tt.harnessID)
+			continue
+		}
+		if cfg.ID != string(tt.otelConst) {
+			t.Errorf("harness.Get(%q).ID = %q, want %q (otel const)", tt.harnessID, cfg.ID, string(tt.otelConst))
+		}
+	}
+}
+
+// TestRegistry_HooksHarnessMatchesHooksConst verifies iota ordering alignment
+// between internal/harness and internal/hooks.
+func TestRegistry_HooksHarnessMatchesHooksConst(t *testing.T) {
+	tests := []struct {
+		harnessVal harness.HooksHarness
+		hooksVal   hooks.Harness
+		name       string
+	}{
+		{harness.HooksClaude, hooks.HarnessClaude, "Claude"},
+		{harness.HooksCodex, hooks.HarnessCodex, "Codex"},
+		{harness.HooksGemini, hooks.HarnessGemini, "Gemini"},
+	}
+
+	for _, tt := range tests {
+		if int(tt.harnessVal) != int(tt.hooksVal) {
+			t.Errorf("%s: harness.Hooks%s=%d != hooks.Harness%s=%d",
+				tt.name, tt.name, int(tt.harnessVal), tt.name, int(tt.hooksVal))
+		}
+	}
+}
+
+// TestCodexOtelEnv verifies that the Codex OtelEnv function returns the
+// expected OTel environment variables including the service name and port.
+func TestCodexOtelEnv(t *testing.T) {
+	cfg := harness.Get("codex")
+	if cfg == nil {
+		t.Fatal("Get(\"codex\") returned nil")
+	}
+	if cfg.OtelEnv == nil {
+		t.Fatal("Get(\"codex\").OtelEnv is nil — must be non-nil for Codex")
+	}
+
+	got := cfg.OtelEnv(9999, "sess-abc")
+	if got == nil {
+		t.Fatal("OtelEnv(9999, \"sess-abc\") returned nil")
+	}
+
+	// Must contain OTEL_SERVICE_NAME=codex-cli.
+	foundServiceName := false
+	foundPort := false
+	for _, e := range got {
+		if e == "OTEL_SERVICE_NAME=codex-cli" {
+			foundServiceName = true
+		}
+		if strings.Contains(e, "9999") {
+			foundPort = true
+		}
+	}
+	if !foundServiceName {
+		t.Errorf("OtelEnv missing OTEL_SERVICE_NAME=codex-cli; got %v", got)
+	}
+	if !foundPort {
+		t.Errorf("OtelEnv missing entry containing port 9999; got %v", got)
+	}
+}
+
+// TestGeminiOtelEnv verifies that the Gemini OtelEnv function returns the
+// expected OTel environment variables including GEMINI_TELEMETRY_ENABLED=true.
+func TestGeminiOtelEnv(t *testing.T) {
+	cfg := harness.Get("gemini_cli")
+	if cfg == nil {
+		t.Fatal("Get(\"gemini_cli\") returned nil")
+	}
+	if cfg.OtelEnv == nil {
+		t.Fatal("Get(\"gemini_cli\").OtelEnv is nil — must be non-nil for Gemini")
+	}
+
+	got := cfg.OtelEnv(8080, "sess-xyz")
+	if got == nil {
+		t.Fatal("OtelEnv(8080, \"sess-xyz\") returned nil")
+	}
+
+	foundEnabled := false
+	for _, e := range got {
+		if e == "GEMINI_TELEMETRY_ENABLED=true" {
+			foundEnabled = true
+			break
+		}
+	}
+	if !foundEnabled {
+		t.Errorf("OtelEnv missing GEMINI_TELEMETRY_ENABLED=true; got %v", got)
+	}
+}
+
+// TestClaudeOtelEnv_Nil verifies that Claude's OtelEnv field is nil,
+// which is the documented contract (Claude Code injects its own OTel config).
+func TestClaudeOtelEnv_Nil(t *testing.T) {
+	cfg := harness.Get("claude_code")
+	if cfg == nil {
+		t.Fatal("Get(\"claude_code\") returned nil")
+	}
+	if cfg.OtelEnv != nil {
+		t.Error("Get(\"claude_code\").OtelEnv must be nil (Claude Code manages its own OTel config)")
+	}
+}
+
+// TestBuildAgentEnv_Codex verifies that BuildAgentEnv returns the correct
+// WIPNOTE_AGENT_ID and WIPNOTE_AGENT_TYPE values for Codex.
+func TestBuildAgentEnv_Codex(t *testing.T) {
+	cfg := harness.Get("codex")
+	if cfg == nil {
+		t.Fatal("Get(\"codex\") returned nil")
+	}
+
+	got := cfg.BuildAgentEnv()
+	want := []string{"WIPNOTE_AGENT_ID=codex", "WIPNOTE_AGENT_TYPE=codex"}
+	if len(got) != len(want) {
+		t.Fatalf("BuildAgentEnv() = %v, want %v", got, want)
+	}
+	for i, w := range want {
+		if got[i] != w {
+			t.Errorf("BuildAgentEnv()[%d] = %q, want %q", i, got[i], w)
+		}
+	}
+}
+
+// TestBuildAgentEnv_Gemini verifies that BuildAgentEnv returns the correct
+// WIPNOTE_AGENT_ID and WIPNOTE_AGENT_TYPE values for Gemini.
+func TestBuildAgentEnv_Gemini(t *testing.T) {
+	cfg := harness.Get("gemini_cli")
+	if cfg == nil {
+		t.Fatal("Get(\"gemini_cli\") returned nil")
+	}
+
+	got := cfg.BuildAgentEnv()
+	want := []string{"WIPNOTE_AGENT_ID=gemini", "WIPNOTE_AGENT_TYPE=gemini"}
+	if len(got) != len(want) {
+		t.Fatalf("BuildAgentEnv() = %v, want %v", got, want)
+	}
+	for i, w := range want {
+		if got[i] != w {
+			t.Errorf("BuildAgentEnv()[%d] = %q, want %q", i, got[i], w)
+		}
+	}
+}

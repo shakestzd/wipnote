@@ -320,6 +320,84 @@ func TestInsertAssistantTextSignal_Idempotent(t *testing.T) {
 	}
 }
 
+func TestInsertAssistantTextSignalFromHookPayload_CodexStop(t *testing.T) {
+	td := setupTestDB(t)
+	sessionID := "test-sess"
+	projectDir := t.TempDir()
+
+	event := &CloudEvent{
+		AgentID:              "codex",
+		SessionID:            sessionID,
+		TurnID:               "turn-1",
+		Model:                "gpt-5.4",
+		Timestamp:            "2026-05-08T10:00:00Z",
+		LastAssistantMessage: "Codex answer",
+		StopReason:           "end_turn",
+	}
+
+	if !insertAssistantTextSignalFromHookPayload(td.DB, projectDir, sessionID, event, event.LastAssistantMessage, "hook_payload") {
+		t.Fatal("expected hook payload assistant_text insert to succeed")
+	}
+	if !insertAssistantTextSignalFromHookPayload(td.DB, projectDir, sessionID, event, event.LastAssistantMessage, "hook_payload") {
+		t.Fatal("expected duplicate hook payload assistant_text insert to be treated as success")
+	}
+
+	var count int
+	if err := td.DB.QueryRow(`
+		SELECT COUNT(*) FROM otel_signals
+		WHERE session_id = ? AND canonical = 'assistant_text'`,
+		sessionID,
+	).Scan(&count); err != nil {
+		t.Fatalf("query count: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("expected one idempotent assistant_text row, got %d", count)
+	}
+
+	var harness, native, spanID, parentSpan, attrsRaw string
+	var tsMicros int64
+	if err := td.DB.QueryRow(`
+		SELECT harness, native, COALESCE(span_id,''), COALESCE(parent_span,''), ts_micros, attrs_json
+		FROM otel_signals
+		WHERE session_id = ? AND canonical = 'assistant_text'`,
+		sessionID,
+	).Scan(&harness, &native, &spanID, &parentSpan, &tsMicros, &attrsRaw); err != nil {
+		t.Fatalf("query assistant_text: %v", err)
+	}
+	if harness != "codex" {
+		t.Errorf("harness = %q, want codex", harness)
+	}
+	if native != "codex.assistant_turn" {
+		t.Errorf("native = %q, want codex.assistant_turn", native)
+	}
+	if spanID != "assistant:turn-1" {
+		t.Errorf("span_id = %q, want assistant:turn-1", spanID)
+	}
+	if parentSpan != "turn-1" {
+		t.Errorf("parent_span = %q, want turn-1", parentSpan)
+	}
+	if tsMicros != 1778234400000000 {
+		t.Errorf("ts_micros = %d, want 1778234400000000", tsMicros)
+	}
+
+	var attrs map[string]any
+	if err := json.Unmarshal([]byte(attrsRaw), &attrs); err != nil {
+		t.Fatalf("unmarshal attrs: %v", err)
+	}
+	if attrs["text"] != "Codex answer" {
+		t.Errorf("attrs[text] = %q, want Codex answer", attrs["text"])
+	}
+	if attrs["source"] != "hook_payload" {
+		t.Errorf("attrs[source] = %q, want hook_payload", attrs["source"])
+	}
+	if attrs["model"] != "gpt-5.4" {
+		t.Errorf("attrs[model] = %q, want gpt-5.4", attrs["model"])
+	}
+	if attrs["turn_id"] != "turn-1" {
+		t.Errorf("attrs[turn_id] = %q, want turn-1", attrs["turn_id"])
+	}
+}
+
 // TestInsertAssistantTextSignal_MissingFile verifies that a missing transcript
 // does not produce a row or an error (silent skip).
 func TestInsertAssistantTextSignal_MissingFile(t *testing.T) {

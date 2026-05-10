@@ -67,7 +67,16 @@ func eventsFeedHandler(database *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		merged := merge(otelEvents, hookEvents, limit)
+		messageEvents, err := queryMessageFeedEvents(database, limit)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		// Deduplicate messageEvents against otelEvents to avoid showing
+		// the same assistant response twice (once from otel_signals, once from messages).
+		deduped := deduplicateMessageEvents(otelEvents, messageEvents)
+		merged := merge(append(otelEvents, deduped...), hookEvents, limit)
 		respondJSON(w, map[string]any{"events": merged})
 	}
 }
@@ -75,7 +84,7 @@ func eventsFeedHandler(database *sql.DB) http.HandlerFunc {
 // queryOtelFeedEvents fetches relevant OTel spans and returns them as feedEvents.
 func queryOtelFeedEvents(database *sql.DB, limit int) ([]feedEvent, error) {
 	rows, err := database.Query(`
-		SELECT s.signal_id, COALESCE(s.harness, ''), s.trace_id, COALESCE(s.parent_span, ''),
+		SELECT s.signal_id, COALESCE(s.harness, ''), COALESCE(s.trace_id, ''), COALESCE(s.parent_span, ''),
 		       s.canonical, COALESCE(s.tool_name, '') AS tool_name,
 		       COALESCE(s.model, '') AS model,
 		       s.ts_micros, COALESCE(s.duration_ms, 0) AS duration_ms,
@@ -87,13 +96,17 @@ func queryOtelFeedEvents(database *sql.DB, limit int) ([]feedEvent, error) {
 		       COALESCE((SELECT f.title FROM features f WHERE f.id = s.feature_id LIMIT 1), '') AS feature_title,
 		       COALESCE(s.attrs_json, '{}') AS attrs_json
 		FROM otel_signals s
-		WHERE s.kind = 'span'
-		  AND s.canonical IN (
+		WHERE (
+			(s.kind = 'span' AND s.canonical IN (
 		      'interaction', 'api_request', 'tool_result',
 		      'tool_execution', 'tool_blocked_on_user', 'subagent_invocation'
-		  )
-		ORDER BY s.ts_micros DESC
-		LIMIT ?`, limit)
+		    ))
+			OR
+			(s.kind = 'log' AND s.canonical IN (
+		      'user_prompt', 'assistant_text', 'api_request', 'tool_result', 'tool_decision'
+		    ))
+		)
+		ORDER BY s.ts_micros DESC`)
 	if err != nil {
 		return nil, err
 	}
@@ -102,7 +115,7 @@ func queryOtelFeedEvents(database *sql.DB, limit int) ([]feedEvent, error) {
 	var out []feedEvent
 	for rows.Next() {
 		var ev feedEvent
-		var successVal sql.NullInt64
+		var successVal any
 		var attrsRaw string
 		var tsMicros int64
 
@@ -118,14 +131,12 @@ func queryOtelFeedEvents(database *sql.DB, limit int) ([]feedEvent, error) {
 			continue
 		}
 
-		if successVal.Valid {
-			b := successVal.Int64 == 1
+		if b, ok := decodeFeedSuccess(successVal); ok {
 			ev.Success = &b
 		}
 
 		ev.Source = "otel"
-		ev.tsMicros = tsMicros
-		ev.Timestamp = time.UnixMicro(tsMicros).UTC().Format(time.RFC3339)
+		ev.Timestamp, ev.tsMicros = feedTimestampFromOtel(tsMicros, attrsRaw)
 		ev.Summary = otelSummary(ev.Type, ev.ToolName, ev.Model, ev.TokensIn, ev.TokensOut, attrsRaw)
 
 		// Zero out empty optional fields to keep JSON tidy.
@@ -134,7 +145,126 @@ func queryOtelFeedEvents(database *sql.DB, limit int) ([]feedEvent, error) {
 		}
 		out = append(out, ev)
 	}
+	sort.SliceStable(out, func(i, j int) bool {
+		if out[i].tsMicros == out[j].tsMicros {
+			return out[i].ID > out[j].ID
+		}
+		return out[i].tsMicros > out[j].tsMicros
+	})
+	if len(out) > limit {
+		out = out[:limit]
+	}
 	return out, nil
+}
+
+func queryMessageFeedEvents(database *sql.DB, limit int) ([]feedEvent, error) {
+	rows, err := database.Query(`
+		SELECT m.id,
+			COALESCE(NULLIF(m.agent_id, ''), s.agent_assigned, ''),
+			COALESCE(m.timestamp, ''),
+			COALESCE(m.content, ''),
+			COALESCE(m.model, ''),
+			m.session_id
+		FROM messages m
+		LEFT JOIN sessions s ON s.session_id = m.session_id
+		WHERE m.role = 'assistant' AND TRIM(m.content) != ''
+		ORDER BY m.timestamp DESC
+		LIMIT ?`, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	out := []feedEvent{}
+	for rows.Next() {
+		var id int64
+		var harness, tsRaw, content, model, sessionID string
+		if err := rows.Scan(&id, &harness, &tsRaw, &content, &model, &sessionID); err != nil {
+			return nil, err
+		}
+		tsMicros := timestampStringToMicros(tsRaw)
+		if tsMicros == 0 {
+			continue
+		}
+		out = append(out, feedEvent{
+			ID:        "message:" + strconv.FormatInt(id, 10),
+			Source:    "message",
+			Type:      "assistant_text",
+			Harness:   harness,
+			Model:     model,
+			Timestamp: time.UnixMicro(tsMicros).UTC().Format(time.RFC3339),
+			SessionID: sessionID,
+			Summary:   truncateFeedText(content, 200),
+			tsMicros:  tsMicros,
+		})
+	}
+	return out, rows.Err()
+}
+
+func feedTimestampFromOtel(tsMicros int64, attrsRaw string) (string, int64) {
+	if tsMicros > 0 {
+		return time.UnixMicro(tsMicros).UTC().Format(time.RFC3339), tsMicros
+	}
+
+	var attrs map[string]any
+	if err := json.Unmarshal([]byte(attrsRaw), &attrs); err == nil {
+		if raw, ok := attrs["event.timestamp"]; ok {
+			if parsed, ok := parseFeedEventTimestamp(raw); ok {
+				return parsed.UTC().Format(time.RFC3339), parsed.UnixMicro()
+			}
+		}
+	}
+
+	return time.UnixMicro(tsMicros).UTC().Format(time.RFC3339), tsMicros
+}
+
+func parseFeedEventTimestamp(v any) (time.Time, bool) {
+	switch x := v.(type) {
+	case string:
+		if t, err := time.Parse(time.RFC3339, x); err == nil {
+			return t.UTC(), true
+		}
+		if t, err := time.Parse("2006-01-02T15:04:05.999999999Z07:00", x); err == nil {
+			return t.UTC(), true
+		}
+	case float64:
+		return time.UnixMicro(int64(x)), true
+	case int64:
+		return time.UnixMicro(x), true
+	case json.Number:
+		if n, err := x.Int64(); err == nil {
+			return time.UnixMicro(n), true
+		}
+	}
+	return time.Time{}, false
+}
+
+func decodeFeedSuccess(v any) (bool, bool) {
+	switch x := v.(type) {
+	case nil:
+		return false, false
+	case int64:
+		return x == 1, true
+	case int:
+		return x == 1, true
+	case bool:
+		return x, true
+	case []byte:
+		switch strings.ToLower(string(x)) {
+		case "1", "true":
+			return true, true
+		case "0", "false":
+			return false, true
+		}
+	case string:
+		switch strings.ToLower(x) {
+		case "1", "true":
+			return true, true
+		case "0", "false":
+			return false, true
+		}
+	}
+	return false, false
 }
 
 // queryHookFeedEvents fetches hook-only event types from agent_events.
@@ -259,6 +389,11 @@ func otelSummary(canonical, toolName, model string, tokensIn, tokensOut int64, a
 			return "User prompt (turn " + turn + ")"
 		}
 		return "User prompt"
+	case "assistant_text":
+		if text := pull("text"); text != "" {
+			return truncateFeedText(text, 200)
+		}
+		return "Assistant response"
 	case "tool_blocked_on_user":
 		return "Permission request"
 	default:
@@ -272,6 +407,13 @@ func hookSummary(outputSummary, inputSummary string) string {
 		return outputSummary
 	}
 	return inputSummary
+}
+
+func truncateFeedText(s string, n int) string {
+	if len(s) <= n {
+		return s
+	}
+	return s[:n] + "..."
 }
 
 // formatTokens returns a concise token count string like "1.2k in / 512 out".
@@ -356,4 +498,57 @@ func legacyAgentID(ev feedEvent) string {
 	default:
 		return ""
 	}
+}
+
+// deduplicateMessageEvents filters out message table entries that have a
+// corresponding otel_signals assistant_text event. A match is detected when
+// the session_id and type are both "assistant_text" and timestamps are within
+// ±5 seconds of each other.
+func deduplicateMessageEvents(otelEvents, messageEvents []feedEvent) []feedEvent {
+	// Build a set of (session_id, timestamp_micros) pairs from otel events.
+	// We use a 5-second window to account for minor timestamp skew.
+	const windowMicros int64 = 5_000_000 // 5 seconds in microseconds
+
+	otelSet := make(map[string]struct{}) // key: "session_id:type"
+	otelTimestamps := make(map[string][]int64)
+
+	for _, ev := range otelEvents {
+		if ev.Type == "assistant_text" && ev.SessionID != "" {
+			key := ev.SessionID + ":" + ev.Type
+			otelSet[key] = struct{}{}
+			otelTimestamps[key] = append(otelTimestamps[key], ev.tsMicros)
+		}
+	}
+
+	var deduped []feedEvent
+	for _, msg := range messageEvents {
+		if msg.Type != "assistant_text" || msg.SessionID == "" {
+			// Keep non-assistant or missing session messages.
+			deduped = append(deduped, msg)
+			continue
+		}
+
+		key := msg.SessionID + ":" + msg.Type
+		if _, found := otelSet[key]; !found {
+			// No otel event for this session+type; keep the message event.
+			deduped = append(deduped, msg)
+			continue
+		}
+
+		// Check if any otel timestamp is within ±5 seconds of this message.
+		isDuplicate := false
+		for _, otelTs := range otelTimestamps[key] {
+			if diff := msg.tsMicros - otelTs; diff >= -windowMicros && diff <= windowMicros {
+				isDuplicate = true
+				break
+			}
+		}
+
+		if !isDuplicate {
+			// No otel event within ±5s; keep the message event.
+			deduped = append(deduped, msg)
+		}
+	}
+
+	return deduped
 }

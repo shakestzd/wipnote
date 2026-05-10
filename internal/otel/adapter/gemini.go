@@ -3,6 +3,7 @@ package adapter
 import (
 	"time"
 
+	"github.com/shakestzd/wipnote/internal/harness"
 	"github.com/shakestzd/wipnote/internal/otel"
 )
 
@@ -29,7 +30,17 @@ func NewGeminiAdapter() *GeminiAdapter {
 func (g *GeminiAdapter) Name() otel.Harness { return otel.HarnessGemini }
 
 func (g *GeminiAdapter) Identify(res OTLPResource) bool {
-	return AttrString(res.Attrs, "service.name") == "gemini-cli"
+	cfg := harness.Get(string(otel.HarnessGemini))
+	if cfg == nil {
+		return false
+	}
+	svc := AttrString(res.Attrs, "service.name")
+	for _, name := range cfg.ServiceNames {
+		if name == svc {
+			return true
+		}
+	}
+	return false
 }
 
 // ConvertMetric maps Gemini metric data points into canonical signals.
@@ -156,6 +167,9 @@ func (g *GeminiAdapter) ConvertSpan(res OTLPResource, scope OTLPScope, s OTLPSpa
 		if base.ToolName == "" {
 			base.ToolName = AttrString(s.Attrs, "gen_ai.tool.name")
 		}
+		// Available when GEMINI_TELEMETRY_TRACES=true:
+		base.ToolInput = AttrString(s.Attrs, "gen_ai.tool.call.arguments")
+		base.ToolOutput = AttrString(s.Attrs, "gen_ai.tool.call.result")
 	default:
 		base.CanonicalName = otel.CanonicalUnknown
 	}
@@ -164,20 +178,24 @@ func (g *GeminiAdapter) ConvertSpan(res OTLPResource, scope OTLPScope, s OTLPSpa
 }
 
 // baseSignal populates the correlation IDs common to all Gemini signals.
-// SessionID is sourced from the signal-level session.id attribute,
-// falling back to the resource-level session.id when absent (mirrors
-// the Claude adapter's session.id resource fallback at claude.go:246-249).
+// SessionID is sourced from the registry-defined SessionAttr (session.id),
+// falling back to the resource-level attribute when absent (mirrors
+// the Claude adapter's session.id resource fallback).
 func (g *GeminiAdapter) baseSignal(
 	res OTLPResource, scope OTLPScope, kind otel.Kind, name string,
 	ts time.Time, attrs map[string]any,
 ) otel.UnifiedSignal {
+	sessionAttr := "session.id" // safe default
+	if cfg := harness.Get(string(otel.HarnessGemini)); cfg != nil {
+		sessionAttr = cfg.SessionAttr
+	}
 	sig := otel.UnifiedSignal{
 		Harness:        otel.HarnessGemini,
 		HarnessVersion: AttrString(res.Attrs, "service.version"),
 		Kind:           kind,
 		NativeName:     name,
 		Timestamp:      ts,
-		SessionID:      ResolveSessionID(attrs, res.Attrs, "session.id"),
+		SessionID:      ResolveSessionID(attrs, res.Attrs, sessionAttr),
 		PromptID:       AttrString(attrs, "gen_ai.prompt_id"),
 		RawAttrs:       copyAttrs(attrs),
 	}

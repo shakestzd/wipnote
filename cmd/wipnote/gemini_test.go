@@ -8,6 +8,90 @@ import (
 	"testing"
 )
 
+func TestExecGeminiDryRunDoesNotWriteLaunchMarker(t *testing.T) {
+	tests := []struct {
+		name string
+		mode geminiLaunchMode
+	}{
+		{name: "default", mode: geminiLaunchModeDefault},
+		{name: "dev", mode: geminiLaunchModeDev},
+		{name: "continue", mode: geminiLaunchModeContinue},
+		{name: "init", mode: geminiLaunchModeInit},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			projectRoot := t.TempDir()
+			if err := os.MkdirAll(filepath.Join(projectRoot, ".wipnote"), 0755); err != nil {
+				t.Fatalf("MkdirAll: %v", err)
+			}
+
+			markerPath := filepath.Join(projectRoot, ".wipnote", ".launch-mode")
+			if _, err := os.Stat(markerPath); err == nil {
+				t.Fatalf("unexpected pre-existing marker at %s", markerPath)
+			}
+
+			cmdErr := execGemini(geminiLaunchOpts{
+				ProjectRoot: projectRoot,
+				Mode:        tt.mode,
+				DryRun:      true,
+			})
+			if cmdErr != nil {
+				t.Fatalf("execGemini dry-run returned error: %v", cmdErr)
+			}
+
+			if _, err := os.Stat(markerPath); !os.IsNotExist(err) {
+				t.Fatalf("dry-run unexpectedly wrote launch marker at %s: %v", markerPath, err)
+			}
+		})
+	}
+}
+
+func TestGeminiContinueAndResumeDryRunSkipExtensionSetupWhenMissing(t *testing.T) {
+	originalEnsure := ensureGeminiExtensionOnLaunchFn
+	originalInstalled := isGeminiExtensionInstalledFn
+	originalPrompt := interactiveGeminiExtensionInstallFn
+	defer func() {
+		ensureGeminiExtensionOnLaunchFn = originalEnsure
+		isGeminiExtensionInstalledFn = originalInstalled
+		interactiveGeminiExtensionInstallFn = originalPrompt
+	}()
+
+	ensureCalls := 0
+	checkCalls := 0
+	promptCalls := 0
+	ensureGeminiExtensionOnLaunchFn = func() {
+		ensureCalls++
+		if !isGeminiExtensionInstalledFn() {
+			interactiveGeminiExtensionInstallFn()
+		}
+	}
+	isGeminiExtensionInstalledFn = func() bool {
+		checkCalls++
+		return false
+	}
+	interactiveGeminiExtensionInstallFn = func() {
+		promptCalls++
+	}
+
+	if err := launchGeminiContinue(nil, true); err != nil {
+		t.Fatalf("launchGeminiContinue dry-run returned error: %v", err)
+	}
+	if err := launchGeminiResume("3", nil, true); err != nil {
+		t.Fatalf("launchGeminiResume dry-run returned error: %v", err)
+	}
+
+	if ensureCalls != 0 {
+		t.Fatalf("ensureGeminiExtensionOnLaunchFn called during dry-run: %d", ensureCalls)
+	}
+	if checkCalls != 0 {
+		t.Fatalf("isGeminiExtensionInstalledFn called during dry-run: %d", checkCalls)
+	}
+	if promptCalls != 0 {
+		t.Fatalf("interactiveGeminiExtensionInstallFn called during dry-run: %d", promptCalls)
+	}
+}
+
 // TestGeminiHelpRenders verifies that geminiCmd().Execute() with --help
 // doesn't error and prints help text.
 func TestGeminiHelpRenders(t *testing.T) {
@@ -414,7 +498,7 @@ Use ${read_file_ToolName}, ${replace_ToolName}, ${write_file_ToolName}, ${grep_s
 Keep these: ${AgentSkills}, ${SubAgents}, ${AvailableTools}.
 Also: ${web_fetch_ToolName}, ${google_web_search_ToolName}.`
 
-	output := renderGeminiSystemPrompt(input)
+	output := renderGeminiSystemPrompt(input, geminiLaunchModeDefault)
 
 	// Verify tool-name placeholders are replaced.
 	toolNames := []string{"read_file", "replace", "write_file", "grep_search", "glob", "run_shell_command", "web_fetch", "google_web_search"}
@@ -441,7 +525,7 @@ Also: ${web_fetch_ToolName}, ${google_web_search_ToolName}.`
 // TestGeminiSystemPromptHasNoToolNamePlaceholders verifies that the actual
 // geminiSystemPrompt (after rendering) contains no ${<name>_ToolName} tokens.
 func TestGeminiSystemPromptHasNoToolNamePlaceholders(t *testing.T) {
-	rendered := renderGeminiSystemPrompt(geminiSystemPrompt)
+	rendered := renderGeminiSystemPrompt(geminiSystemPrompt, geminiLaunchModeDefault)
 
 	// Assert no ${<anything>_ToolName} pattern remains (regex: \$\{[a-z_]+_ToolName\})
 	if strings.Contains(rendered, "_ToolName}") {
@@ -452,7 +536,7 @@ func TestGeminiSystemPromptHasNoToolNamePlaceholders(t *testing.T) {
 // TestGeminiSystemPromptPreservesSectionPlaceholders verifies that
 // renderGeminiSystemPrompt leaves section placeholders unchanged.
 func TestGeminiSystemPromptPreservesSectionPlaceholders(t *testing.T) {
-	rendered := renderGeminiSystemPrompt(geminiSystemPrompt)
+	rendered := renderGeminiSystemPrompt(geminiSystemPrompt, geminiLaunchModeDefault)
 
 	sectionPlaceholders := []string{"${AgentSkills}", "${SubAgents}", "${AvailableTools}"}
 	for _, placeholder := range sectionPlaceholders {
@@ -465,7 +549,7 @@ func TestGeminiSystemPromptPreservesSectionPlaceholders(t *testing.T) {
 // TestGeminiSystemPromptFileWritten verifies that writeGeminiSystemPrompt creates a
 // temp file containing orchestrator marker text.
 func TestGeminiSystemPromptFileWritten(t *testing.T) {
-	path, err := writeGeminiSystemPrompt()
+	path, err := writeGeminiSystemPrompt(geminiLaunchModeDefault)
 	if err != nil {
 		t.Fatalf("writeGeminiSystemPrompt: %v", err)
 	}

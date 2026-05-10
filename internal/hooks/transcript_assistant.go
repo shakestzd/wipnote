@@ -214,6 +214,122 @@ func assistantTextSignalID(uuid string) string {
 	return fmt.Sprintf("%x", h.Sum(nil))[:32]
 }
 
+func insertAssistantTextSignalFromHookPayload(
+	database *sql.DB,
+	projectDir string,
+	sessionID string,
+	event *CloudEvent,
+	text string,
+	source string,
+) bool {
+	text = strings.TrimSpace(text)
+	if text == "" {
+		return false
+	}
+
+	tsMicros := parseHookTimestampMicros(event.Timestamp)
+	if tsMicros == 0 {
+		tsMicros = time.Now().UnixMicro()
+	}
+
+	spanID := ""
+	parentSpan := ""
+	if event.TurnID != "" {
+		parentSpan = event.TurnID
+		spanID = "assistant:" + event.TurnID
+	} else {
+		spanID = "assistant:" + sessionID + ":" + fmt.Sprintf("%d", tsMicros) + ":" + assistantTextHash(text)
+	}
+
+	attrsMap := map[string]any{
+		"text":   text,
+		"source": source,
+	}
+	if event.Model != "" {
+		attrsMap["model"] = event.Model
+	}
+	if event.TurnID != "" {
+		attrsMap["turn_id"] = event.TurnID
+	}
+	if event.StopReason != "" {
+		attrsMap["stop_reason"] = event.StopReason
+		if event.StopReason != "end_turn" {
+			attrsMap["interrupted"] = true
+		}
+	}
+
+	attrsJSON, err := json.Marshal(attrsMap)
+	if err != nil {
+		debugLog(projectDir, "[assistant-text] marshal hook payload attrs: %v", err)
+		return false
+	}
+
+	var featureID sql.NullString
+	_ = database.QueryRow(
+		`SELECT work_item_id FROM active_work_items WHERE session_id = ? AND agent_id = ?`,
+		sessionID, "__root__",
+	).Scan(&featureID)
+
+	_, dbErr := database.Exec(`
+		INSERT OR IGNORE INTO otel_signals (
+			signal_id, harness, session_id,
+			span_id, parent_span,
+			kind, canonical, native, ts_micros,
+			attrs_json, feature_id
+		) VALUES (?, ?, ?, ?, ?, 'log', 'assistant_text', ?, ?, ?, ?)`,
+		assistantTextSignalID(spanID),
+		assistantTextHarness(event),
+		sessionID,
+		nullableStr(spanID), nullableStr(parentSpan),
+		assistantTextNativeName(event),
+		tsMicros,
+		string(attrsJSON),
+		featureID,
+	)
+	if dbErr != nil {
+		debugLog(projectDir, "[assistant-text] insert hook payload signal: %v", dbErr)
+		return false
+	}
+	return true
+}
+
+func parseHookTimestampMicros(raw string) int64 {
+	if raw == "" {
+		return 0
+	}
+	if ts, err := time.Parse(time.RFC3339Nano, raw); err == nil {
+		return ts.UnixMicro()
+	}
+	return 0
+}
+
+func assistantTextHash(text string) string {
+	sum := sha256.Sum256([]byte(text))
+	return fmt.Sprintf("%x", sum[:])[:12]
+}
+
+func assistantTextHarness(event *CloudEvent) string {
+	switch event.AgentID {
+	case "codex":
+		return "codex"
+	case "gemini":
+		return "gemini_cli"
+	default:
+		return "claude_code"
+	}
+}
+
+func assistantTextNativeName(event *CloudEvent) string {
+	switch event.AgentID {
+	case "codex":
+		return "codex.assistant_turn"
+	case "gemini":
+		return "gemini_cli.assistant_turn"
+	default:
+		return "claude_code.assistant_turn"
+	}
+}
+
 // insertAssistantTextSignal writes an assistant_text otel_signals row derived
 // from the last assistant record in the transcript file. It is called by the
 // Stop hook handler. Non-fatal: errors are logged to debug.log only.

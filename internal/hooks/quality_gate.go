@@ -122,9 +122,10 @@ func measureFuncLength(lines []string, startIdx int, declarationLine string) int
 
 	// Count opening braces on the declaration line itself.
 	for _, ch := range lines[startIdx] {
-		if ch == '{' {
+		switch ch {
+		case '{':
 			openBraces++
-		} else if ch == '}' {
+		case '}':
 			openBraces--
 		}
 	}
@@ -134,9 +135,10 @@ func measureFuncLength(lines []string, startIdx int, declarationLine string) int
 		count++
 
 		for _, ch := range line {
-			if ch == '{' {
+			switch ch {
+			case '{':
 				openBraces++
-			} else if ch == '}' {
+			case '}':
 				openBraces--
 			}
 		}

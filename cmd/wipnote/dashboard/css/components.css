@@ -100,9 +100,11 @@
 }
 .badge-cli-claude-code { background: rgba(168,85,247,0.2);  color: #c084fc; }
 .badge-cli-codex       { background: rgba(34,197,94,0.2);   color: #4ade80; }
+.badge-cli-openai      { background: rgba(249,115,22,0.18);  color: #fdba74; }
 .badge-cli-gemini      { background: rgba(59,130,246,0.2);  color: #60a5fa; }
 [data-theme="light"] .badge-cli-claude-code { background: rgba(168,85,247,0.12); color: #7c3aed; }
 [data-theme="light"] .badge-cli-codex       { background: rgba(22,163,74,0.12);  color: #15803d; }
+[data-theme="light"] .badge-cli-openai      { background: rgba(249,115,22,0.12);  color: #ea580c; }
 [data-theme="light"] .badge-cli-gemini      { background: rgba(37,99,235,0.12);  color: #1d4ed8; }
 
 /* Preview disclosure row */
@@ -258,6 +260,34 @@
 .event-row.accent-claude { border-left-color: rgba(168,85,247,0.55); }
 .event-row.accent-codex { border-left-color: rgba(34,197,94,0.55); }
 .event-row.accent-gemini { border-left-color: rgba(59,130,246,0.55); }
+.cli-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  margin: 0 4px 0 2px;
+  line-height: 1;
+  vertical-align: middle;
+  color: var(--text-muted);
+  opacity: 0.92;
+}
+.cli-logo-icon {
+  width: 14px;
+  height: 14px;
+  display: block;
+  fill: currentColor;
+  flex: 0 0 auto;
+}
+.cli-logo-claude-code { color: #d4a373; }
+.cli-logo-codex,
+.cli-logo-openai { color: #8b949e; }
+.cli-logo-gemini { color: #60a5fa; }
+[data-theme="light"] .cli-logo-claude-code { color: #8b5e34; }
+[data-theme="light"] .cli-logo-codex,
+[data-theme="light"] .cli-logo-openai { color: #343a40; }
+[data-theme="light"] .cli-logo-gemini { color: #2563eb; }
 .event-row.accent-user { border-left-color: rgba(88,166,255,0.65); }
 .event-row.accent-system { border-left-color: rgba(148,163,184,0.35); }
 

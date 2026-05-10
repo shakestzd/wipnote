@@ -619,7 +619,17 @@
       "Bash(sudo apt-get install -y python3-pil -q)",
       "Bash(wipnote session *)",
       "Bash(wipnote relevant *)",
-      "Bash(wipnote status *)"
+      "Bash(wipnote status *)",
+      "Bash(wipnote recommend *)",
+      "Bash(wipnote show *)",
+      "Bash(GOTMPDIR=/workspaces/wipnote/.gotmp go test *)",
+      "Bash(convert Screenshot_2026-05-09_at_1.36.36_PM.png -resize 1800x1800\\\\> /tmp/screenshot-small.png)",
+      "Bash(GOTMPDIR=/workspaces/wipnote/.gotmp go build ./...)",
+      "Bash(GOTMPDIR=/workspaces/wipnote/.gotmp go vet ./...)",
+      "Bash(GOTMPDIR=/workspaces/wipnote/.gotmp go vet *)",
+      "Bash(golangci-lint run *)",
+      "Bash(convert Screenshot_2026-05-09_at_2.00.40_PM.png -resize 1800x Screenshot_resized.png)",
+      "Bash(wipnote spike *)"
     ]
   },
   "enabledPlugins": {

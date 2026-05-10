@@ -88,6 +88,30 @@ func TestCodexAdapterConvertLog_TokenUsageFromSSEEvent(t *testing.T) {
 	}
 }
 
+func TestCodexAdapterConvertLog_UsesEventTimestampFallback(t *testing.T) {
+	a := adapter.NewCodexAdapter()
+	res := adapter.OTLPResource{Attrs: map[string]any{"service.name": "codex_cli_rs"}}
+	scope := adapter.OTLPScope{Name: "codex"}
+	want := time.Date(2026, 5, 8, 12, 34, 56, 789000000, time.UTC)
+
+	log := adapter.OTLPLog{
+		Name: "event otel/src/events/session_telemetry.rs:999",
+		Attrs: map[string]any{
+			"conversation.id": "codex-session",
+			"event.name":      "user_prompt",
+			"event.timestamp": want.Format(time.RFC3339Nano),
+		},
+	}
+
+	sig := a.ConvertLog(res, scope, log)[0]
+	if !sig.Timestamp.Equal(want) {
+		t.Fatalf("Timestamp = %s, want %s", sig.Timestamp, want)
+	}
+	if sig.CanonicalName != otel.CanonicalUserPrompt {
+		t.Fatalf("CanonicalName = %q, want %q", sig.CanonicalName, otel.CanonicalUserPrompt)
+	}
+}
+
 func TestCodexAdapterConvertSpan_MCPToolsCall(t *testing.T) {
 	a := adapter.NewCodexAdapter()
 	res := adapter.OTLPResource{Attrs: map[string]any{"service.name": "codex_cli_rs"}}

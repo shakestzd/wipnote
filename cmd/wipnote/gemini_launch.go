@@ -3,9 +3,50 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
 
+	"github.com/shakestzd/wipnote/internal/harness"
 	"github.com/shakestzd/wipnote/internal/otel/collector"
 )
+
+type geminiLaunchMode string
+
+const (
+	geminiLaunchModeDefault  geminiLaunchMode = "default"
+	geminiLaunchModeDev      geminiLaunchMode = "dev"
+	geminiLaunchModeContinue geminiLaunchMode = "continue"
+	geminiLaunchModeInit     geminiLaunchMode = "init"
+)
+
+// geminiLaunchOpts controls how the Gemini CLI is launched.
+type geminiLaunchOpts struct {
+	// ResumeLast, when true, passes --resume latest to gemini.
+	ResumeLast bool
+	// ResumeIndex, if non-empty, passes --resume <N> to gemini.
+	// Takes precedence over ResumeLast.
+	ResumeIndex string
+	// Extension, if non-empty, passes -e <extension> to gemini (isolate mode).
+	Extension string
+	// ListSessions, when true, passes --list-sessions to gemini and exits.
+	ListSessions bool
+	// ExtraArgs are forwarded to the gemini process.
+	ExtraArgs []string
+	// ProjectRoot is the absolute path to the project root (or worktree path).
+	// When set, gemini is started in this directory and WIPNOTE_PROJECT_DIR is injected.
+	ProjectRoot string
+	// WorktreeRoot, when non-empty, overrides the working directory for the
+	// Gemini process. WIPNOTE_PROJECT_DIR is set to WipnoteRoot instead.
+	WorktreeRoot string
+	// WipnoteRoot is the canonical project root containing .wipnote/.
+	// Used to set WIPNOTE_PROJECT_DIR when running in a worktree.
+	WipnoteRoot string
+	// Mode is the launch mode (default, dev, continue).
+	Mode geminiLaunchMode
+	// DryRun, when true, prints the command that would be executed without running it.
+	DryRun bool
+}
 
 // spawnGeminiOtelCollector spawns a per-session OTel collector and returns the
 // port, session ID, and a cleanup function. On failure it writes a warning to
@@ -39,19 +80,208 @@ func spawnGeminiOtelCollector(projectDir string) (port int, sessionID string, cl
 // buildGeminiOtelEnv returns a copy of base with Gemini telemetry variables set
 // for the Gemini CLI child process. port and sessionID come from
 // spawnGeminiOtelCollector; when port is 0 the base env is returned unchanged.
+// Env var assembly is delegated to the harness registry to avoid hardcoding.
 func buildGeminiOtelEnv(base []string, port int, sessionID string) []string {
 	if port == 0 {
 		return base
 	}
-	endpoint := fmt.Sprintf("http://127.0.0.1:%d", port)
 	env := make([]string, len(base))
 	copy(env, base)
-	env = appendOrReplaceEnv(env,
-		"GEMINI_TELEMETRY_ENABLED=true",
-		"GEMINI_TELEMETRY_USE_COLLECTOR=true",
-		"GEMINI_TELEMETRY_OTLP_ENDPOINT="+endpoint,
-		"GEMINI_TELEMETRY_OTLP_PROTOCOL=http",
-		"WIPNOTE_OTEL_SESSION="+sessionID,
-	)
+	otelVars := harness.Get("gemini_cli").OtelEnv(port, sessionID)
+	env = appendOrReplaceEnv(env, otelVars...)
 	return env
 }
+
+func buildGeminiAgentEnv(base []string) []string {
+	agentVars := harness.Get("gemini_cli").BuildAgentEnv()
+	return appendOrReplaceEnv(base, agentVars...)
+}
+
+// renderGeminiSystemPrompt pre-processes the embedded orchestrator prompt by
+// substituting tool-name placeholders with literal tool names.
+func renderGeminiSystemPrompt(content string, mode geminiLaunchMode) string {
+	toolNameReplacements := map[string]string{
+		"${read_file_ToolName}":         "read_file",
+		"${replace_ToolName}":           "replace",
+		"${write_file_ToolName}":        "write_file",
+		"${grep_search_ToolName}":       "grep_search",
+		"${glob_ToolName}":              "glob",
+		"${run_shell_command_ToolName}": "run_shell_command",
+		"${web_fetch_ToolName}":         "web_fetch",
+		"${google_web_search_ToolName}": "google_web_search",
+	}
+
+	result := content
+	for placeholder, literal := range toolNameReplacements {
+		result = strings.ReplaceAll(result, placeholder, literal)
+	}
+
+	// Add mode-specific addendum.
+	addendum := geminiInstructionAddendum(mode)
+	if addendum != "" {
+		result += "\n\n# wipnote " + geminiInstructionModeTitle(mode) + " Addendum\n\n" + addendum
+	}
+
+	return result
+}
+
+// writeGeminiSystemPrompt writes the embedded orchestrator prompt to a temp file
+// and returns the absolute path.
+func writeGeminiSystemPrompt(mode geminiLaunchMode) (string, error) {
+	f, err := os.CreateTemp("", "wipnote-gemini-system-*.md")
+	if err != nil {
+		return "", fmt.Errorf("creating temp file: %w", err)
+	}
+	// Pre-render tool-name placeholders before writing.
+	rendered := renderGeminiSystemPrompt(geminiSystemPrompt, mode)
+	if _, err := f.WriteString(rendered); err != nil {
+		f.Close()
+		return "", fmt.Errorf("writing gemini system prompt: %w", err)
+	}
+	if err := f.Close(); err != nil {
+		return "", fmt.Errorf("closing temp file: %w", err)
+	}
+	abs, err := filepath.Abs(f.Name())
+	if err != nil {
+		return "", fmt.Errorf("resolving absolute path for temp file: %w", err)
+	}
+	return abs, nil
+}
+
+// execGemini builds the gemini argv and runs it, replacing the current process.
+func execGemini(opts geminiLaunchOpts) error {
+	var geminiArgs []string
+
+	if opts.ListSessions {
+		geminiArgs = append(geminiArgs, "--list-sessions")
+	} else if opts.ResumeIndex != "" {
+		geminiArgs = append(geminiArgs, "--resume", opts.ResumeIndex)
+	} else if opts.ResumeLast {
+		geminiArgs = append(geminiArgs, "--resume", "latest")
+	}
+
+	if opts.Extension != "" {
+		geminiArgs = append(geminiArgs, "-e", opts.Extension)
+	}
+
+	geminiArgs = append(geminiArgs, opts.ExtraArgs...)
+
+	// Write the embedded orchestrator prompt to a tmpfile and inject via GEMINI_SYSTEM_MD.
+	systemMdPath, err := writeGeminiSystemPrompt(opts.Mode)
+	if err != nil {
+		return fmt.Errorf("failed to prepare GEMINI_SYSTEM_MD: %w", err)
+	}
+
+	if opts.DryRun {
+		fmt.Printf("[dry-run] GEMINI_SYSTEM_MD=%s\n", systemMdPath)
+		fmt.Printf("[dry-run] gemini %s\n", strings.Join(geminiArgs, " "))
+		if opts.ProjectRoot != "" {
+			fmt.Printf("[dry-run] in directory: %s\n", opts.ProjectRoot)
+		}
+		return nil
+	}
+
+	// Write launch marker to the main project root, not the worktree.
+	markerRoot := opts.ProjectRoot
+	if opts.WipnoteRoot != "" {
+		markerRoot = opts.WipnoteRoot
+	}
+	writeLaunchMarker(string(opts.Mode), markerRoot)
+
+	geminiPath, err := exec.LookPath("gemini")
+	if err != nil {
+		return fmt.Errorf("gemini not found in PATH: %w\nInstall Gemini CLI first: https://github.com/google-gemini/gemini-cli", err)
+	}
+
+	// Resolve the effective project dir for OTel collector spawning.
+	effectiveProjDir := opts.ProjectRoot
+	if opts.WipnoteRoot != "" {
+		effectiveProjDir = opts.WipnoteRoot
+	}
+
+	// Show the one-time OTel first-launch notice.
+	MaybeShowOtelNotice(effectiveProjDir)
+
+	// Auto-start a detached `wipnote serve` for the dashboard.
+	ensureServeForDashboard(effectiveProjDir)
+
+	// Spawn a per-session OTel collector when a project dir is known and OTel
+	// is not explicitly disabled. Non-fatal: falls back gracefully on failure.
+	var otelPort int
+	var otelSessionID string
+	var otelCleanup func()
+	if effectiveProjDir != "" && !isExplicitlyDisabled(os.Getenv("WIPNOTE_OTEL_ENABLED")) {
+		otelPort, otelSessionID, otelCleanup = spawnGeminiOtelCollector(effectiveProjDir)
+		if otelCleanup != nil {
+			defer otelCleanup()
+		}
+	}
+
+	c := exec.Command(geminiPath, geminiArgs...)
+	c.Stdin = os.Stdin
+	c.Stdout = os.Stdout
+	c.Stderr = os.Stderr
+
+	// Build the child env.
+	env := os.Environ()
+	switch {
+	case opts.WorktreeRoot != "":
+		projectDir := opts.WipnoteRoot
+		if projectDir == "" {
+			projectDir = opts.ProjectRoot
+		}
+		env = setOrReplaceEnv(env, "WIPNOTE_PROJECT_DIR", projectDir)
+		c.Dir = opts.WorktreeRoot
+	case opts.ProjectRoot != "":
+		env = setOrReplaceEnv(env, "WIPNOTE_PROJECT_DIR", opts.ProjectRoot)
+		c.Dir = opts.ProjectRoot
+	}
+	env = buildGeminiAgentEnv(env)
+	env = append(env, "WIPNOTE_AGENT=gemini")
+	env = append(env, "GEMINI_SYSTEM_MD="+systemMdPath)
+	env = buildGeminiOtelEnv(env, otelPort, otelSessionID)
+	c.Env = env
+
+	return runHarnessWithCleanup(c, otelCleanup)
+}
+
+func geminiInstructionModeTitle(mode geminiLaunchMode) string {
+	switch mode {
+	case geminiLaunchModeDev:
+		return "Dev"
+	case geminiLaunchModeContinue:
+		return "Continue"
+	case geminiLaunchModeInit:
+		return "Init"
+	default:
+		return "Orchestrator"
+	}
+}
+
+func geminiInstructionAddendum(mode geminiLaunchMode) string {
+	switch mode {
+	case geminiLaunchModeDev:
+		return strings.TrimSpace(geminiDevInstructions)
+	case geminiLaunchModeContinue:
+		return strings.TrimSpace(geminiContinueInstructions)
+	default:
+		return ""
+	}
+}
+
+const geminiDevInstructions = `## Gemini Dev Mode
+
+This session was launched with ` + "`wipnote gemini --dev`" + `.
+
+- You are using the local ` + "`packages/gemini-extension/`" + ` source.
+- Prefer editing the source of truth: ` + "`packages/plugin-core/manifest.json`" + ` and shared plugin assets under ` + "`plugin/`" + `.
+- After plugin asset or manifest changes, rebuild generated ports with ` + "`wipnote plugin build-ports`" + ` before validating Gemini behavior.
+- Use ` + "`wipnote gemini --dev --isolate`" + ` to ensure other extensions don't interfere with your tools.`
+
+const geminiContinueInstructions = `## Gemini Continue Mode
+
+This session is resuming an existing Gemini conversation.
+
+- Preserve the resumed session's prior intent and active work item unless the user explicitly redirects.
+- Before starting new work, recover current context from the conversation, ` + "`wipnote status`" + `, and the active work item hints.
+- Do not recreate setup or restart already-completed tasks just because the launcher resumed the session.`

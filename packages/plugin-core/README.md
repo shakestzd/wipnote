@@ -160,14 +160,19 @@ Three places, always in this order:
 Then run `wipnote plugin build-ports && wipnote build` and update the
 **Hook event matrix** table above.
 
-### Add a new target
+### Add a new harness — complete checklist
 
-Gemini CLI is the current reference — see `internal/pluginbuild/gemini.go` for
-the canonical sub-emitter registration pattern.
+A new harness requires changes in both the plugin build layer (steps 1–3) and
+the Go runtime layer (steps 4–6). Follow the steps in order; validate at the end.
 
-1. **Manifest** — add a `targets.<name>` entry. Alongside `outDir`,
-   `manifestPath`, `hooksPath`, and the optional `mcpPath`, the schema also
-   supports:
+Gemini CLI is the current reference for the plugin build layer —
+see `internal/pluginbuild/gemini.go` for the canonical sub-emitter pattern.
+
+**Plugin build layer**
+
+1. **Manifest** — add a `targets.<name>` entry to
+   `packages/plugin-core/manifest.json`. Alongside `outDir`, `manifestPath`,
+   `hooksPath`, and the optional `mcpPath`, the schema also supports:
 
    - `contextFile` — path (relative to the repo root) of a context/instruction
      file that should be copied into the target tree. Gemini uses this for its
@@ -191,7 +196,10 @@ the canonical sub-emitter registration pattern.
    Then tag each applicable hook event in `hooks.events` with `"mytool"` in its
    `targets` list.
 
-2. **Adapter** — implement the `Adapter` interface in a new file under
+2. **Hook events** — in the manifest, tag relevant hook events with the new
+   target name in their `targets` list so the build emits hook configs for it.
+
+3. **Plugin adapter** — implement the `Adapter` interface in a new file under
    `internal/pluginbuild/` (model it on `claude.go` / `codex.go` / `gemini.go`):
 
    ```go
@@ -230,9 +238,45 @@ the canonical sub-emitter registration pattern.
    `internal/pluginbuild/gemini.go` for the canonical registration pattern
    (the `geminiSubEmitters` slice and `GeminiSubEmitter` signature).
 
-3. **Regenerate and verify**:
+**Go runtime layer**
+
+4. **Harness registry** — create `internal/harness/registry_<name>.go`
+   registering a `HarnessConfig` via `init()`:
+
+   - `ID` — DB-canonical identifier written to `agent_events.harness`; must
+     match the corresponding `otel.Harness*` constant (verified by test).
+   - `AgentID` — value set in `WIPNOTE_AGENT_ID` by the launcher; used by
+     `detectHarnessWithEnv` for disambiguation.
+   - `ServiceNames` — OTel `resource.service.name` values emitted by this
+     harness. Use a slice if the harness has multiple variants.
+   - `SessionAttr` — OTel attribute key whose value becomes `SessionID` in
+     `UnifiedSignal`. Claude and Gemini use `"session.id"`; Codex uses
+     `"conversation.id"`.
+   - `HookEventNames` — native `hook_event_name` values emitted by this
+     harness. Non-empty for Gemini only; Claude and Codex leave it nil.
+   - `HooksHarness` — a new iota constant added to
+     `internal/harness/registry.go`. The ordering MUST match
+     `hooks.HarnessClaude/Codex/Gemini` exactly; verified by
+     `TestRegistry_HooksHarnessMatchesHooksConst`.
+   - `OtelEnv` — func returning OTel env vars to inject at launch time; must
+     be non-nil for every harness except Claude.
+
+5. **OTel adapter** — add `internal/otel/adapter/<name>.go` implementing
+   `otel.Adapter`. The `Identify()` method reads
+   `harness.Get(<id>).ServiceNames`; session ID resolution reads
+   `harness.Get(<id>).SessionAttr`. Do NOT hardcode service names or attribute
+   keys — read them from the registry.
+
+6. **Launcher** — add `cmd/wipnote/<name>_launch.go`. Inject OTel env vars via
+   `harness.Get(<id>).OtelEnv(port, sessionID)` and agent attribution vars via
+   `harness.Get(<id>).BuildAgentEnv()`. Do NOT hardcode env var names.
+
+**Validate**
+
+7. Run the full quality gate and confirm the new harness appears:
 
    ```bash
-   wipnote build
-   wipnote plugin build-ports --target mytool
+   wipnote plugin build-ports
+   go build ./... && go vet ./... && go test ./...
+   wipnote harness list   # confirm the new harness row appears
    ```
