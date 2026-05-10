@@ -1,0 +1,45 @@
+meta:
+    id: plan-2063d78a
+    track_id: trk-c27a61a6
+    title: YAML Test Plan
+    description: test plan
+    created_at: "2026-05-10"
+    status: finalized
+    priority: medium
+    version: 3
+design:
+    problem: We need to solve this problem
+    goals: []
+    constraints: []
+    approved: false
+    comment: ""
+slices:
+    - id: slic-99b857f1
+      feature_id: feat-a3eb4c91
+      num: 1
+      title: Slice I
+      what: do something
+      why: because reasons
+      files: []
+      deps: []
+      done_when: []
+      effort: ""
+      risk: ""
+      tests: ""
+      approved: false
+      comment: ""
+    - id: slic-9c75c34d
+      feature_id: feat-aac88db8
+      num: 2
+      title: Slice II
+      what: do something
+      why: because reasons
+      files: []
+      deps: []
+      done_when: []
+      effort: ""
+      risk: ""
+      tests: ""
+      approved: false
+      comment: ""
+questions: []
