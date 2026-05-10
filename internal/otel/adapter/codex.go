@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/shakestzd/wipnote/internal/harness"
 	"github.com/shakestzd/wipnote/internal/otel"
 )
 
@@ -32,12 +33,17 @@ func NewCodexAdapter() *CodexAdapter {
 func (c *CodexAdapter) Name() otel.Harness { return otel.HarnessCodex }
 
 func (c *CodexAdapter) Identify(res OTLPResource) bool {
-	switch AttrString(res.Attrs, "service.name") {
-	case "codex-cli", "codex_cli_rs":
-		return true
-	default:
+	cfg := harness.Get(string(otel.HarnessCodex))
+	if cfg == nil {
 		return false
 	}
+	svc := AttrString(res.Attrs, "service.name")
+	for _, name := range cfg.ServiceNames {
+		if name == svc {
+			return true
+		}
+	}
+	return false
 }
 
 // ConvertMetric maps Codex metric data points into canonical signals.
@@ -197,20 +203,24 @@ func (c *CodexAdapter) ConvertSpan(res OTLPResource, scope OTLPScope, s OTLPSpan
 }
 
 // baseSignal populates the correlation IDs common to all Codex signals.
-// SessionID is sourced from the signal-level conversation.id attribute,
-// falling back to the resource-level conversation.id when absent (mirrors
-// the Claude adapter's session.id resource fallback at claude.go:246-249).
+// SessionID is sourced from the registry-defined SessionAttr (conversation.id),
+// falling back to the resource-level attribute when absent (mirrors
+// the Claude adapter's session.id resource fallback).
 func (c *CodexAdapter) baseSignal(
 	res OTLPResource, scope OTLPScope, kind otel.Kind, name string,
 	ts time.Time, attrs map[string]any,
 ) otel.UnifiedSignal {
+	sessionAttr := "conversation.id" // safe default
+	if cfg := harness.Get(string(otel.HarnessCodex)); cfg != nil {
+		sessionAttr = cfg.SessionAttr
+	}
 	sig := otel.UnifiedSignal{
 		Harness:        otel.HarnessCodex,
 		HarnessVersion: AttrString(res.Attrs, "service.version"),
 		Kind:           kind,
 		NativeName:     name,
 		Timestamp:      ts,
-		SessionID:      ResolveSessionID(attrs, res.Attrs, "conversation.id"),
+		SessionID:      ResolveSessionID(attrs, res.Attrs, sessionAttr),
 		PromptID:       AttrString(attrs, "gen_ai.prompt_id"),
 		RawAttrs:       copyAttrs(attrs),
 	}

@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/shakestzd/wipnote/internal/harness"
 	"github.com/shakestzd/wipnote/internal/otel/collector"
 )
 
@@ -80,23 +81,21 @@ func spawnCodexOtelCollector(projectDir string) (port int, sessionID string, cle
 // buildCodexOtelEnv returns a copy of base with OTel exporter variables set
 // for the Codex CLI child process. port and sessionID come from
 // spawnCodexOtelCollector; when port is 0 the base env is returned unchanged.
+// Env var assembly is delegated to the harness registry to avoid hardcoding.
 func buildCodexOtelEnv(base []string, port int, sessionID string) []string {
 	if port == 0 {
 		return base
 	}
-	endpoint := fmt.Sprintf("http://127.0.0.1:%d", port)
 	env := make([]string, len(base))
 	copy(env, base)
-	env = appendOrReplaceEnv(env,
-		"OTEL_EXPORTER_OTLP_ENDPOINT="+endpoint,
-		"OTEL_SERVICE_NAME=codex-cli",
-		"WIPNOTE_OTEL_SESSION="+sessionID,
-	)
+	otelVars := harness.Get("codex").OtelEnv(port, sessionID)
+	env = appendOrReplaceEnv(env, otelVars...)
 	return env
 }
 
 func buildCodexAgentEnv(base []string) []string {
-	return appendOrReplaceEnv(base, "WIPNOTE_AGENT_ID=codex", "WIPNOTE_AGENT_TYPE=codex")
+	agentVars := harness.Get("codex").BuildAgentEnv()
+	return appendOrReplaceEnv(base, agentVars...)
 }
 
 func buildCodexOtelConfigArgs(port int) []string {

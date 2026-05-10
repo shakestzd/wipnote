@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/shakestzd/wipnote/internal/harness"
 	"github.com/shakestzd/wipnote/internal/otel/collector"
 )
 
@@ -79,26 +80,21 @@ func spawnGeminiOtelCollector(projectDir string) (port int, sessionID string, cl
 // buildGeminiOtelEnv returns a copy of base with Gemini telemetry variables set
 // for the Gemini CLI child process. port and sessionID come from
 // spawnGeminiOtelCollector; when port is 0 the base env is returned unchanged.
+// Env var assembly is delegated to the harness registry to avoid hardcoding.
 func buildGeminiOtelEnv(base []string, port int, sessionID string) []string {
 	if port == 0 {
 		return base
 	}
-	endpoint := fmt.Sprintf("http://127.0.0.1:%d", port)
 	env := make([]string, len(base))
 	copy(env, base)
-	env = appendOrReplaceEnv(env,
-		"GEMINI_TELEMETRY_ENABLED=true",
-		"GEMINI_TELEMETRY_USE_COLLECTOR=true",
-		"GEMINI_TELEMETRY_TRACES=true",
-		"GEMINI_TELEMETRY_OTLP_ENDPOINT="+endpoint,
-		"GEMINI_TELEMETRY_OTLP_PROTOCOL=http",
-		"WIPNOTE_OTEL_SESSION="+sessionID,
-	)
+	otelVars := harness.Get("gemini_cli").OtelEnv(port, sessionID)
+	env = appendOrReplaceEnv(env, otelVars...)
 	return env
 }
 
 func buildGeminiAgentEnv(base []string) []string {
-	return appendOrReplaceEnv(base, "WIPNOTE_AGENT_ID=gemini", "WIPNOTE_AGENT_TYPE=gemini")
+	agentVars := harness.Get("gemini_cli").BuildAgentEnv()
+	return appendOrReplaceEnv(base, agentVars...)
 }
 
 // renderGeminiSystemPrompt pre-processes the embedded orchestrator prompt by

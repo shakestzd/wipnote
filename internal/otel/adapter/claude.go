@@ -3,6 +3,7 @@ package adapter
 import (
 	"time"
 
+	"github.com/shakestzd/wipnote/internal/harness"
 	"github.com/shakestzd/wipnote/internal/otel"
 	"github.com/shakestzd/wipnote/internal/pricing"
 )
@@ -52,7 +53,17 @@ func NewClaudeAdapter() *ClaudeAdapter {
 func (c *ClaudeAdapter) Name() otel.Harness { return otel.HarnessClaude }
 
 func (c *ClaudeAdapter) Identify(res OTLPResource) bool {
-	return AttrString(res.Attrs, "service.name") == "claude-code"
+	cfg := harness.Get(string(otel.HarnessClaude))
+	if cfg == nil {
+		return false
+	}
+	svc := AttrString(res.Attrs, "service.name")
+	for _, name := range cfg.ServiceNames {
+		if name == svc {
+			return true
+		}
+	}
+	return false
 }
 
 // ConvertMetric fans out per-type token.usage points and maps every
@@ -236,13 +247,17 @@ func (c *ClaudeAdapter) baseSignal(
 	res OTLPResource, scope OTLPScope, kind otel.Kind, name string,
 	ts time.Time, attrs map[string]any,
 ) otel.UnifiedSignal {
+	sessionAttr := "session.id" // safe default
+	if cfg := harness.Get(string(otel.HarnessClaude)); cfg != nil {
+		sessionAttr = cfg.SessionAttr
+	}
 	sig := otel.UnifiedSignal{
 		Harness:        otel.HarnessClaude,
 		HarnessVersion: AttrString(res.Attrs, "service.version"),
 		Kind:           kind,
 		NativeName:     name,
 		Timestamp:      ts,
-		SessionID:      ResolveSessionID(attrs, res.Attrs, "session.id"),
+		SessionID:      ResolveSessionID(attrs, res.Attrs, sessionAttr),
 		PromptID:       AttrString(attrs, "prompt.id"),
 		RawAttrs:       copyAttrs(attrs),
 	}
