@@ -7,7 +7,7 @@ meta:
     created_at: "2026-05-09"
     status: finalized
     created_by: claude-sonnet
-    version: 8
+    version: 9
 design:
     problem: |
         Per-harness configuration is scattered across at least 8 locations with no single source of truth: (1) Two parallel harness identity systems — hooks.HarnessClaude int in internal/hooks/harness.go and otel.HarnessClaude string in internal/otel/signal.go — can drift independently. (2) Telemetry env var names are hardcoded in separate launcher files using completely different conventions (GEMINI_TELEMETRY_* vs OTEL_EXPORTER_OTLP_*), making adding a new harness a multi-file hunt. (3) The OTEL_SERVICE_NAME value "codex-cli" is hardcoded in both codex_launch.go:92 and adapter/codex.go:36 — they must stay in sync manually. (4) Gemini native hook event names (BeforeAgent, AfterAgent, AfterModel, BeforeTool, AfterTool) used for harness detection in harness.go are duplicated from the geminiEventName fields already in manifest.json. (5) The per-harness session ID attribute key ("session.id" vs "conversation.id") is hardcoded per adapter. (6) WIPNOTE_AGENT_ID literal values "gemini" and "codex" appear in three files (gemini_launch.go, codex_launch.go, harness.go) with no shared constant. (7) The README's "add a new harness" recipe covers only the plugin build step; the 6 required Go-layer changes are undocumented. The result: every bug fix touching harness identification requires auditing multiple files, and adding a new harness requires reading source to find all the places that need updating.
@@ -196,6 +196,7 @@ slices:
           severity: HIGH
           summary: 'OtelEnvFunc as a bare func field creates nil-panic risk if a test binary doesn''t import the registry init files. Fixed: added nil guard in GetByHooksHarness; documented nil-only-for-Claude contract explicitly in done_when; test verifies non-nil without cmd imports.'
     - id: slice-3
+      feature_id: feat-ea949327
       num: 3
       title: Detection and adapter Identify() from registry — data-driven, no hardcoded event names
       what: |
@@ -284,7 +285,7 @@ slices:
       approved: false
       comment: ""
       approval_status: approved
-      execution_status: not_started
+      execution_status: promoted
       critic_revisions:
         - source: sonnet
           severity: DANGER
