@@ -86,6 +86,16 @@ type geminiPayload struct {
 	LLMResponse map[string]any `json:"llm_response,omitempty"`
 }
 
+// harnessFromConfig bridges a *harness.HarnessConfig to the hooks.Harness int
+// using the HooksHarness field populated in slice 1. Returns HarnessClaude when
+// cfg is nil so callers always get a safe default.
+func harnessFromConfig(cfg *harness.HarnessConfig) Harness {
+	if cfg == nil {
+		return HarnessClaude
+	}
+	return Harness(cfg.HooksHarness)
+}
+
 // DetectHarness is the exported entry point for harness detection. It calls
 // detectHarness with the provided payload bytes. This is the function called
 // from cmd/wipnote/hook.go.
@@ -164,10 +174,15 @@ func detectHarnessWithEnv(payload []byte, getenv func(string) string) Harness {
 	// rather than Codex's UserPromptSubmit / PreToolUse / PostToolUse names. This is the
 	// only reliable payload-only discriminator when WIPNOTE_AGENT_ID is not set (i.e. when
 	// `gemini` is run directly rather than via `wipnote gemini`).
+	// Event names are read from the registry (HookEventNames field) rather than
+	// hardcoded here — adding new Gemini events only requires updating registry_gemini.go.
 	if name, _ := top["hook_event_name"].(string); name != "" {
-		switch name {
-		case "BeforeAgent", "AfterAgent", "AfterModel", "BeforeTool", "AfterTool":
-			return HarnessGemini
+		for _, cfg := range harness.All() {
+			for _, n := range cfg.HookEventNames {
+				if n == name {
+					return harnessFromConfig(cfg)
+				}
+			}
 		}
 	}
 
