@@ -1,0 +1,17 @@
+meta:
+    id: plan-3a6f9865
+    track_id: trk-c4615ad2
+    title: Centralized harness registry — DRY per-harness config
+    description: Replace 8 scattered per-harness config locations (two parallel Harness constant sets, per-harness OTel env var names in separate launcher files, detection heuristics in harness.go, service-name strings duplicated between launchers and adapters) with a single internal/harness/registry.go that owns all per-harness facts. Launchers, adapters, and detection logic all derive from the registry.
+    created_at: "2026-05-10"
+    status: draft
+    priority: medium
+    version: 2
+design:
+    problem: ""
+    goals: []
+    constraints: []
+    approved: false
+    comment: ""
+slices: []
+questions: []
