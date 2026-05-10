@@ -31,16 +31,19 @@ func harnessListCmd() *cobra.Command {
 
 func runHarnessList(out io.Writer) error {
 	w := tabwriter.NewWriter(out, 0, 0, 2, ' ', 0)
-	defer w.Flush()
-	fmt.Fprintln(w, "ID\tAgentID\tServiceNames\tSessionAttr\tHookEventNames")
+	if _, err := fmt.Fprintln(w, "ID\tAgentID\tServiceNames\tSessionAttr\tHookEventNames"); err != nil {
+		return err
+	}
 	for _, cfg := range harness.All() {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
+		if _, err := fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
 			cfg.ID,
 			cfg.AgentID,
 			strings.Join(cfg.ServiceNames, ","),
 			cfg.SessionAttr,
 			strings.Join(cfg.HookEventNames, ","),
-		)
+		); err != nil {
+			return err
+		}
 	}
-	return nil
+	return w.Flush()
 }
