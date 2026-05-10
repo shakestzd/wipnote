@@ -606,17 +606,23 @@ func deduplicateMessageEvents(otelEvents, messageEvents []feedEvent) []feedEvent
 }
 
 // deduplicateUserPromptLogs suppresses user_prompt OTel log events for
-// gemini_cli sessions that already have OTel coverage. Gemini emits both:
+// gemini_cli sessions that have other OTel coverage (api_request,
+// assistant_text, tool_result, etc.). Gemini emits both:
 //   1. hook check_point events that render the user's prompt with tool children
 //   2. a gemini_cli.user_prompt OTel log with the same prompt text and 0 tools
 //
-// Suppression is gated to gemini_cli harness only — any other harness with a
-// user_prompt log (e.g. Codex, which has no interaction span) keeps its events.
+// If any non-user_prompt gemini_cli OTel signal exists for a session, the hook
+// path already covers that turn and the user_prompt log is redundant.
+// Excluding user_prompt from the coverage map prevents a prompt-only session
+// from suppressing its own only record.
+//
+// Suppression is gated to gemini_cli harness only — Codex and other harnesses
+// keep their user_prompt logs intact.
 func deduplicateUserPromptLogs(events []feedEvent) []feedEvent {
-	// Collect sessions that have any gemini_cli OTel signal.
+	// Collect sessions that have any gemini_cli OTel signal OTHER than user_prompt.
 	geminiOtelSessions := make(map[string]bool)
 	for _, ev := range events {
-		if ev.Source == "otel" && ev.Harness == "gemini_cli" {
+		if ev.Source == "otel" && ev.Harness == "gemini_cli" && ev.Type != "user_prompt" {
 			geminiOtelSessions[ev.SessionID] = true
 		}
 	}

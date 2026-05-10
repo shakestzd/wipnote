@@ -223,6 +223,23 @@ func TestDeduplicateUserPromptLogs(t *testing.T) {
 				1: "user_prompt",  // codex event preserved (gemini user_prompt suppressed)
 			},
 		},
+		{
+			name: "gemini: user_prompt-only session preserved",
+			events: []feedEvent{
+				{
+					ID:        "ev1",
+					Type:      "user_prompt",
+					Source:    "otel",
+					Harness:   "gemini_cli",
+					SessionID: "sess-prompt-only",
+					tsMicros:  4000,
+				},
+			},
+			wantLen: 1,
+			wantType: map[int]string{
+				0: "user_prompt",
+			},
+		},
 	}
 
 	for _, tt := range tests {
