@@ -139,3 +139,97 @@ func TestEventsFeedHandler_IncludesAssistantMessages(t *testing.T) {
 		t.Fatalf("summary = %q", payload.Events[0].Summary)
 	}
 }
+
+func TestDeduplicateUserPromptLogs(t *testing.T) {
+	tests := []struct {
+		name     string
+		events   []feedEvent
+		wantLen  int
+		wantType map[int]string // index -> type, only for preserved events
+	}{
+		{
+			name: "gemini: interaction suppresses user_prompt",
+			events: []feedEvent{
+				{
+					ID:        "ev1",
+					Type:      "interaction",
+					Harness:   "gemini_cli",
+					SessionID: "sess-1",
+					tsMicros:  1000,
+				},
+				{
+					ID:        "ev2",
+					Type:      "user_prompt",
+					Harness:   "gemini_cli",
+					SessionID: "sess-1",
+					tsMicros:  1001,
+				},
+			},
+			wantLen: 1,
+			wantType: map[int]string{
+				0: "interaction",
+			},
+		},
+		{
+			name: "codex: no interaction span keeps user_prompt",
+			events: []feedEvent{
+				{
+					ID:        "ev1",
+					Type:      "user_prompt",
+					Harness:   "codex",
+					SessionID: "sess-2",
+					tsMicros:  2000,
+				},
+			},
+			wantLen: 1,
+			wantType: map[int]string{
+				0: "user_prompt",
+			},
+		},
+		{
+			name: "mixed: only gemini session affected",
+			events: []feedEvent{
+				{
+					ID:        "ev1",
+					Type:      "interaction",
+					Harness:   "gemini_cli",
+					SessionID: "sess-gemini",
+					tsMicros:  3000,
+				},
+				{
+					ID:        "ev2",
+					Type:      "user_prompt",
+					Harness:   "gemini_cli",
+					SessionID: "sess-gemini",
+					tsMicros:  3001,
+				},
+				{
+					ID:        "ev3",
+					Type:      "user_prompt",
+					Harness:   "codex",
+					SessionID: "sess-codex",
+					tsMicros:  3002,
+				},
+			},
+			wantLen: 2,
+			wantType: map[int]string{
+				0: "interaction", // preserved in original order
+				1: "user_prompt", // codex event preserved (gemini user_prompt suppressed)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := deduplicateUserPromptLogs(tt.events)
+			if len(result) != tt.wantLen {
+				t.Fatalf("got %d events, want %d", len(result), tt.wantLen)
+			}
+			for idx, wantEventType := range tt.wantType {
+				if result[idx].Type != wantEventType {
+					t.Fatalf("event[%d].Type = %q, want %q", idx, result[idx].Type, wantEventType)
+				}
+			}
+		})
+	}
+}
