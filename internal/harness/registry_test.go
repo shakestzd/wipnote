@@ -206,15 +206,56 @@ func TestGeminiOtelEnv(t *testing.T) {
 	}
 }
 
-// TestClaudeOtelEnv_Nil verifies that Claude's OtelEnv field is nil,
-// which is the documented contract (Claude Code injects its own OTel config).
-func TestClaudeOtelEnv_Nil(t *testing.T) {
+// TestRegistry_ClaudeOtelEnv_NoLongerNil verifies that Claude's OtelEnv field
+// is non-nil — the registry now centralizes Claude OTel config alongside Codex
+// and Gemini.
+func TestRegistry_ClaudeOtelEnv_NoLongerNil(t *testing.T) {
 	cfg := harness.Get("claude_code")
 	if cfg == nil {
 		t.Fatal("Get(\"claude_code\") returned nil")
 	}
-	if cfg.OtelEnv != nil {
-		t.Error("Get(\"claude_code\").OtelEnv must be nil (Claude Code manages its own OTel config)")
+	if cfg.OtelEnv == nil {
+		t.Error("Get(\"claude_code\").OtelEnv is nil — must be non-nil (centralized in registry)")
+	}
+}
+
+// TestRegistry_ClaudeOtelEnv_HasAllKeys verifies that claudeOtelEnv returns
+// all 10 expected KEY=VALUE pairs with the endpoint pointing at the given port.
+func TestRegistry_ClaudeOtelEnv_HasAllKeys(t *testing.T) {
+	cfg := harness.Get("claude_code")
+	if cfg == nil {
+		t.Fatal("Get(\"claude_code\") returned nil")
+	}
+	if cfg.OtelEnv == nil {
+		t.Fatal("Get(\"claude_code\").OtelEnv is nil")
+	}
+
+	got := cfg.OtelEnv(9999, "")
+	if len(got) != 10 {
+		t.Fatalf("OtelEnv(9999, \"\") returned %d entries, want 10; got %v", len(got), got)
+	}
+
+	wantPairs := []string{
+		"CLAUDE_CODE_ENABLE_TELEMETRY=1",
+		"CLAUDE_CODE_ENHANCED_TELEMETRY_BETA=1",
+		"OTEL_METRICS_EXPORTER=otlp",
+		"OTEL_LOGS_EXPORTER=otlp",
+		"OTEL_TRACES_EXPORTER=otlp",
+		"OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf",
+		"OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:9999",
+		"OTEL_LOG_TOOL_DETAILS=1",
+		"OTEL_LOG_USER_PROMPTS=1",
+		"OTEL_LOG_TOOL_CONTENT=1",
+	}
+
+	gotSet := make(map[string]bool, len(got))
+	for _, kv := range got {
+		gotSet[kv] = true
+	}
+	for _, want := range wantPairs {
+		if !gotSet[want] {
+			t.Errorf("OtelEnv(9999, \"\") missing %q; got %v", want, got)
+		}
 	}
 }
 

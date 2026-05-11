@@ -89,24 +89,25 @@ func buildClaudeLaunchEnv(wipnoteProjectDir string, overrides *otelEnvOverrides)
 		return env // no collector, no embedded receiver — skip OTel injection
 	}
 
-	// User-set values always win — only add our default if missing.
-	env = addIfUnset(env, "CLAUDE_CODE_ENABLE_TELEMETRY", "1")
-	env = addIfUnset(env, "CLAUDE_CODE_ENHANCED_TELEMETRY_BETA", "1")
-	env = addIfUnset(env, "OTEL_METRICS_EXPORTER", "otlp")
-	env = addIfUnset(env, "OTEL_LOGS_EXPORTER", "otlp")
-	env = addIfUnset(env, "OTEL_TRACES_EXPORTER", "otlp")
-	env = addIfUnset(env, "OTEL_EXPORTER_OTLP_PROTOCOL", "http/protobuf")
-	// The launcher's computed endpoint must win because it's derived from the same
-	// WIPNOTE_OTEL_* config the receiver reads in LoadConfigFromEnv. Inherited env
-	// values from a parent session whose hash resolved to a different port would silently
-	// drop spans. Users who need to point Claude Code at a non-wipnote receiver can
-	// steer via WIPNOTE_OTEL_HTTP_PORT / WIPNOTE_OTEL_BIND.
-	env = setOrReplaceEnv(env, "OTEL_EXPORTER_OTLP_ENDPOINT", endpoint)
-	// Tool details include bash commands, skill names, MCP tool names —
-	// non-sensitive by default. Turn off by setting to "0" before launch.
-	env = addIfUnset(env, "OTEL_LOG_TOOL_DETAILS", "1")
-	env = addIfUnset(env, "OTEL_LOG_USER_PROMPTS", "1")
-	env = addIfUnset(env, "OTEL_LOG_TOOL_CONTENT", "1")
+	// Pull defaults from the registry (centralized per-harness config).
+	cfg := harness.Get("claude_code")
+	otelVars := cfg.OtelEnv(overrides.CollectorPort, "")
+	for _, kv := range otelVars {
+		idx := strings.Index(kv, "=")
+		if idx <= 0 {
+			continue
+		}
+		key, value := kv[:idx], kv[idx+1:]
+		if key == "OTEL_EXPORTER_OTLP_ENDPOINT" {
+			// Force-replace: launcher's endpoint must win because it's derived
+			// from WIPNOTE_OTEL_HTTP_PORT and inherited values would silently
+			// drop spans. Users who need to point Claude Code at a non-wipnote
+			// receiver can steer via WIPNOTE_OTEL_HTTP_PORT / WIPNOTE_OTEL_BIND.
+			env = setOrReplaceEnv(env, key, value)
+		} else {
+			env = addIfUnset(env, key, value)
+		}
+	}
 
 	// Probe receiver reachability — print a warning if unreachable. Does not block launch.
 	probeReceiverReachability(endpoint)

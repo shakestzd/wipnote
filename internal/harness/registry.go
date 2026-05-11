@@ -12,8 +12,8 @@ package harness
 import "sync"
 
 // OtelEnvFunc returns env vars to inject before launching this harness.
-// Must be non-nil for Codex and Gemini; nil is valid only for Claude
-// (Claude Code injects its own OTel config via its own mechanisms).
+// Must be non-nil for all three harnesses (Claude, Codex, Gemini).
+// Each harness init() panics at startup if its OtelEnv is nil.
 type OtelEnvFunc func(port int, sessionID string) []string
 
 // HooksHarness mirrors the hooks.Harness int without importing internal/hooks.
@@ -60,9 +60,8 @@ type HarnessConfig struct {
 	HooksHarness HooksHarness
 
 	// OtelEnv returns the OTel-related environment variables to inject when
-	// launching this harness. Must be non-nil for Codex and Gemini; nil is
-	// valid only for Claude (Claude Code injects its own OTel config).
-	// Codex and Gemini registry init() functions panic at startup if their
+	// launching this harness. Must be non-nil for all three harnesses
+	// (Claude, Codex, Gemini). Each registry init() panics at startup if
 	// OtelEnv is nil, preventing silent misconfiguration.
 	OtelEnv OtelEnvFunc
 
