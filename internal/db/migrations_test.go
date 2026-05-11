@@ -1,0 +1,494 @@
+package db_test
+
+import (
+	"database/sql"
+	"fmt"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/shakestzd/wipnote/internal/db"
+	_ "modernc.org/sqlite"
+)
+
+// fileDBPath returns a per-test on-disk SQLite path. In-memory databases reset
+// user_version on each connection, which defeats the purpose of these tests.
+func fileDBPath(t *testing.T, name string) string {
+	t.Helper()
+	return filepath.Join(t.TempDir(), name)
+}
+
+// openRaw opens a SQLite file directly (no Open wrapper, no pragmas, no
+// migrations) — used to seed fixtures at specific user_version states.
+func openRaw(t *testing.T, path string) *sql.DB {
+	t.Helper()
+	database, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatalf("sql.Open raw: %v", err)
+	}
+	return database
+}
+
+// queryUserVersion reads PRAGMA user_version from a *sql.DB.
+func queryUserVersion(t *testing.T, database *sql.DB) int {
+	t.Helper()
+	var v int
+	if err := database.QueryRow("PRAGMA user_version").Scan(&v); err != nil {
+		t.Fatalf("PRAGMA user_version: %v", err)
+	}
+	return v
+}
+
+// TestCurrentSchemaVersion_PositiveAfterOpen confirms that opening a brand-new
+// DB sets PRAGMA user_version to the package's currentSchemaVersion (> 0).
+func TestCurrentSchemaVersion_PositiveAfterOpen(t *testing.T) {
+	path := fileDBPath(t, "fresh.db")
+	database, err := db.Open(path)
+	if err != nil {
+		t.Fatalf("Open fresh: %v", err)
+	}
+	defer database.Close()
+
+	v := queryUserVersion(t, database)
+	if v <= 0 {
+		t.Fatalf("PRAGMA user_version after fresh Open = %d, want > 0", v)
+	}
+	if v != db.CurrentSchemaVersion() {
+		t.Fatalf("PRAGMA user_version after fresh Open = %d, want %d",
+			v, db.CurrentSchemaVersion())
+	}
+}
+
+// TestOpenWarmDB_SkipsDDL verifies that a second Open of an already-migrated
+// database executes ZERO migration steps (no CREATE, ALTER, DROP, trigger, or
+// normalization UPDATE statements).
+//
+// The migration observer hook fires on every migration step, so a zero-call
+// recording proves the fast warm path was taken.
+func TestOpenWarmDB_SkipsDDL(t *testing.T) {
+	path := fileDBPath(t, "warm.db")
+
+	// Cold open: applies all migrations and lands at currentSchemaVersion.
+	cold, err := db.Open(path)
+	if err != nil {
+		t.Fatalf("cold Open: %v", err)
+	}
+	cold.Close()
+
+	// Warm open: must invoke ZERO migration hooks.
+	recorder := &migrationCallRecorder{}
+	db.SetMigrationObserver(recorder.Record)
+	defer db.SetMigrationObserver(nil)
+
+	warm, err := db.Open(path)
+	if err != nil {
+		t.Fatalf("warm Open: %v", err)
+	}
+	defer warm.Close()
+
+	calls := recorder.Calls()
+	if len(calls) != 0 {
+		t.Fatalf("warm Open invoked migration hooks (want 0): %v", calls)
+	}
+
+	// user_version must remain at currentSchemaVersion.
+	if v := queryUserVersion(t, warm); v != db.CurrentSchemaVersion() {
+		t.Fatalf("user_version after warm Open = %d, want %d",
+			v, db.CurrentSchemaVersion())
+	}
+}
+
+// TestMigrateFromUserVersion0_EmptyDB applies migrations to an empty DB at
+// user_version=0 (the legacy/fresh case) and verifies that ALL migrations run
+// in order and user_version ends at currentSchemaVersion.
+func TestMigrateFromUserVersion0_EmptyDB(t *testing.T) {
+	path := fileDBPath(t, "v0_empty.db")
+
+	// Seed: open raw, force user_version=0 (already the default), close.
+	raw := openRaw(t, path)
+	if _, err := raw.Exec("PRAGMA user_version = 0"); err != nil {
+		t.Fatalf("seed user_version=0: %v", err)
+	}
+	if v := queryUserVersion(t, raw); v != 0 {
+		t.Fatalf("seeded user_version = %d, want 0", v)
+	}
+	raw.Close()
+
+	// Track which migrations apply.
+	recorder := &migrationCallRecorder{}
+	db.SetMigrationObserver(recorder.Record)
+	defer db.SetMigrationObserver(nil)
+
+	database, err := db.Open(path)
+	if err != nil {
+		t.Fatalf("Open v0 empty: %v", err)
+	}
+	defer database.Close()
+
+	// All declared step names should have fired in order.
+	calls := recorder.Calls()
+	wantNames := db.MigrationStepNames()
+	if len(calls) != len(wantNames) {
+		t.Fatalf("step count mismatch: got %d (%v), want %d (%v)",
+			len(calls), calls, len(wantNames), wantNames)
+	}
+	for i, want := range wantNames {
+		if calls[i] != want {
+			t.Errorf("step[%d] = %q, want %q", i, calls[i], want)
+		}
+	}
+
+	// user_version landed at the current schema version.
+	if v := queryUserVersion(t, database); v != db.CurrentSchemaVersion() {
+		t.Fatalf("user_version after migrate = %d, want %d",
+			v, db.CurrentSchemaVersion())
+	}
+}
+
+// TestMigrateFromUserVersionNMinus1 applies only the final migration step to a
+// DB pre-staged at user_version = currentSchemaVersion - 1. Verifies that only
+// the last step runs and that user_version advances by exactly one.
+func TestMigrateFromUserVersionNMinus1(t *testing.T) {
+	current := db.CurrentSchemaVersion()
+	if current < 2 {
+		t.Skipf("currentSchemaVersion=%d < 2; cannot test N-1 migration", current)
+	}
+
+	path := fileDBPath(t, "v_nminus1.db")
+
+	// Cold-migrate, then forcibly rewind to currentSchemaVersion-1 to simulate
+	// a DB that already has the current full schema but is "one step behind".
+	cold, err := db.Open(path)
+	if err != nil {
+		t.Fatalf("cold seed Open: %v", err)
+	}
+	// SQLite does not support parameter binding for PRAGMA values, so the
+	// literal target version is rendered into the statement.
+	if _, err := cold.Exec(fmt.Sprintf("PRAGMA user_version = %d", current-1)); err != nil {
+		t.Fatalf("rewind user_version: %v", err)
+	}
+	cold.Close()
+
+	recorder := &migrationCallRecorder{}
+	db.SetMigrationObserver(recorder.Record)
+	defer db.SetMigrationObserver(nil)
+
+	warm, err := db.Open(path)
+	if err != nil {
+		t.Fatalf("warm Open at N-1: %v", err)
+	}
+	defer warm.Close()
+
+	calls := recorder.Calls()
+	want := db.MigrationStepNames()
+	wantLast := want[len(want)-1:]
+	if len(calls) != 1 || calls[0] != wantLast[0] {
+		t.Fatalf("warm Open at N-1 ran %v; want exactly [%s]", calls, wantLast[0])
+	}
+
+	if v := queryUserVersion(t, warm); v != current {
+		t.Fatalf("user_version after N-1 migrate = %d, want %d", v, current)
+	}
+}
+
+// TestMigrateFromPreCopySwap simulates a legacy DB whose agent_events table
+// was created WITHOUT the CHECK constraint and WITH the self-referential
+// parent_event_id foreign key. After Open runs migrations, the table must have
+// the CHECK constraint and must not have the parent_event_id FK, and the
+// migration must run AT MOST ONCE.
+func TestMigrateFromPreCopySwap(t *testing.T) {
+	path := fileDBPath(t, "pre_copy_swap.db")
+
+	// Seed: create a legacy schema. We construct the agent_events table without
+	// the CHECK constraint and WITH the parent_event_id FK; everything else is
+	// a minimal viable schema needed by the FK targets.
+	raw := openRaw(t, path)
+	_, err := raw.Exec(`CREATE TABLE sessions (
+		session_id TEXT PRIMARY KEY,
+		agent_assigned TEXT NOT NULL,
+		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		total_events INTEGER DEFAULT 0,
+		status TEXT NOT NULL DEFAULT 'active'
+	)`)
+	if err != nil {
+		t.Fatalf("seed sessions: %v", err)
+	}
+	_, err = raw.Exec(`CREATE TABLE features (
+		id TEXT PRIMARY KEY,
+		type TEXT NOT NULL,
+		title TEXT NOT NULL,
+		status TEXT NOT NULL DEFAULT 'todo',
+		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+	)`)
+	if err != nil {
+		t.Fatalf("seed features: %v", err)
+	}
+	// Legacy agent_events: no CHECK, has self-FK on parent_event_id. The
+	// column list mirrors the original wipnote schema before the CHECK
+	// constraint was added — in particular feature_id was always present (it
+	// participates in the FK to features), but the parent_event_id
+	// self-referential FK existed (this is what the swap is meant to drop).
+	_, err = raw.Exec(`CREATE TABLE agent_events (
+		event_id TEXT PRIMARY KEY,
+		agent_id TEXT NOT NULL,
+		event_type TEXT NOT NULL,
+		timestamp DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		tool_name TEXT,
+		session_id TEXT NOT NULL,
+		feature_id TEXT,
+		parent_event_id TEXT,
+		FOREIGN KEY (session_id) REFERENCES sessions(session_id),
+		FOREIGN KEY (feature_id) REFERENCES features(id),
+		FOREIGN KEY (parent_event_id) REFERENCES agent_events(event_id)
+	)`)
+	if err != nil {
+		t.Fatalf("seed legacy agent_events: %v", err)
+	}
+	// Force user_version=0 so the migration runner treats this as a legacy DB.
+	if _, err := raw.Exec("PRAGMA user_version = 0"); err != nil {
+		t.Fatalf("seed user_version=0: %v", err)
+	}
+	raw.Close()
+
+	// First Open: migrations run end-to-end.
+	recorder1 := &migrationCallRecorder{}
+	db.SetMigrationObserver(recorder1.Record)
+
+	database, err := db.Open(path)
+	if err != nil {
+		db.SetMigrationObserver(nil)
+		t.Fatalf("first Open of legacy fixture: %v", err)
+	}
+	db.SetMigrationObserver(nil)
+
+	// agent_events must now have the CHECK constraint.
+	var ddl string
+	if err := database.QueryRow(
+		`SELECT sql FROM sqlite_master WHERE type='table' AND name='agent_events'`,
+	).Scan(&ddl); err != nil {
+		database.Close()
+		t.Fatalf("read agent_events DDL: %v", err)
+	}
+	if !strings.Contains(ddl, "tool_name != 'UserQuery'") {
+		database.Close()
+		t.Fatalf("agent_events DDL missing CHECK constraint after migrate; got:\n%s", ddl)
+	}
+	if strings.Contains(ddl, "REFERENCES agent_events(event_id)") {
+		database.Close()
+		t.Fatalf("agent_events DDL still has self-referential FK; got:\n%s", ddl)
+	}
+
+	// One of the recorded step names must be the copy-swap step.
+	swapStep := db.CopySwapStepName()
+	if swapStep == "" {
+		database.Close()
+		t.Fatal("CopySwapStepName returned empty — runner did not expose copy-swap step")
+	}
+	firstCalls := recorder1.Calls()
+	if !contains(firstCalls, swapStep) {
+		database.Close()
+		t.Fatalf("first Open did not invoke %q; got %v", swapStep, firstCalls)
+	}
+
+	// user_version landed at current.
+	if v := queryUserVersion(t, database); v != db.CurrentSchemaVersion() {
+		database.Close()
+		t.Fatalf("user_version after first migrate = %d, want %d",
+			v, db.CurrentSchemaVersion())
+	}
+	database.Close()
+
+	// Second Open: copy-swap step must NOT fire again.
+	recorder2 := &migrationCallRecorder{}
+	db.SetMigrationObserver(recorder2.Record)
+	defer db.SetMigrationObserver(nil)
+
+	database2, err := db.Open(path)
+	if err != nil {
+		t.Fatalf("second Open after migrate: %v", err)
+	}
+	defer database2.Close()
+
+	secondCalls := recorder2.Calls()
+	if contains(secondCalls, swapStep) {
+		t.Fatalf("second Open re-ran %q; got %v", swapStep, secondCalls)
+	}
+	if len(secondCalls) != 0 {
+		t.Fatalf("second Open ran migrations: %v (want none)", secondCalls)
+	}
+}
+
+// TestMigrateFromPreCopySwap_IndexesRestored verifies that agent_events
+// indexes are reinstalled after the copy-and-swap migration drops the table.
+// Without this restore step, lookups by agent_id, session_id, etc. would do
+// full table scans after migration.
+func TestMigrateFromPreCopySwap_IndexesRestored(t *testing.T) {
+	path := fileDBPath(t, "pre_copy_swap_indexes.db")
+
+	// Reuse the legacy seed from TestMigrateFromPreCopySwap.
+	raw := openRaw(t, path)
+	_, err := raw.Exec(`CREATE TABLE sessions (
+		session_id TEXT PRIMARY KEY,
+		agent_assigned TEXT NOT NULL,
+		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		total_events INTEGER DEFAULT 0,
+		status TEXT NOT NULL DEFAULT 'active'
+	)`)
+	if err != nil {
+		t.Fatalf("seed sessions: %v", err)
+	}
+	_, err = raw.Exec(`CREATE TABLE features (
+		id TEXT PRIMARY KEY,
+		type TEXT NOT NULL,
+		title TEXT NOT NULL,
+		status TEXT NOT NULL DEFAULT 'todo',
+		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+	)`)
+	if err != nil {
+		t.Fatalf("seed features: %v", err)
+	}
+	_, err = raw.Exec(`CREATE TABLE agent_events (
+		event_id TEXT PRIMARY KEY,
+		agent_id TEXT NOT NULL,
+		event_type TEXT NOT NULL,
+		timestamp DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		tool_name TEXT,
+		session_id TEXT NOT NULL,
+		feature_id TEXT,
+		parent_event_id TEXT,
+		FOREIGN KEY (session_id) REFERENCES sessions(session_id),
+		FOREIGN KEY (feature_id) REFERENCES features(id),
+		FOREIGN KEY (parent_event_id) REFERENCES agent_events(event_id)
+	)`)
+	if err != nil {
+		t.Fatalf("seed legacy agent_events: %v", err)
+	}
+	if _, err := raw.Exec("PRAGMA user_version = 0"); err != nil {
+		t.Fatalf("seed user_version=0: %v", err)
+	}
+	raw.Close()
+
+	database, err := db.Open(path)
+	if err != nil {
+		t.Fatalf("Open legacy fixture: %v", err)
+	}
+	defer database.Close()
+
+	// Sample required indexes — these must exist after migration.
+	requiredIndexes := []string{
+		"idx_agent_events_session_ts_desc",
+		"idx_agent_events_agent_ts_desc",
+		"idx_agent_events_agent",
+		"idx_agent_events_type",
+		"idx_agent_events_timestamp",
+	}
+	for _, name := range requiredIndexes {
+		var got string
+		err := database.QueryRow(
+			`SELECT name FROM sqlite_master WHERE type='index' AND name=?`, name,
+		).Scan(&got)
+		if err != nil {
+			t.Errorf("index %q missing after migrate: %v", name, err)
+			continue
+		}
+		if got != name {
+			t.Errorf("index lookup for %q returned %q", name, got)
+		}
+	}
+}
+
+// TestOpenWarmDB_NoWriteLockOnContention verifies the warm-open fast path
+// does not acquire the write lock. We hold a long-lived writer (an open BEGIN
+// IMMEDIATE transaction) on the DB, then perform a warm Open from a second
+// handle. If Open attempts any DDL it will hit SQLITE_BUSY (the busy_timeout
+// is 5s and the contended write lock is held by the parent). A successful
+// warm Open with no SQLITE_BUSY proves zero writes.
+func TestOpenWarmDB_NoWriteLockOnContention(t *testing.T) {
+	path := fileDBPath(t, "warm_contention.db")
+
+	// First Open: run migrations to completion.
+	primary, err := db.Open(path)
+	if err != nil {
+		t.Fatalf("primary Open: %v", err)
+	}
+	defer primary.Close()
+
+	// Hold a write lock on the primary handle. BEGIN IMMEDIATE acquires the
+	// RESERVED lock right away, so any other writer attempting to commit must
+	// wait. Use a tx so we can defer the rollback.
+	tx, err := primary.Begin()
+	if err != nil {
+		t.Fatalf("primary Begin: %v", err)
+	}
+	if _, err := tx.Exec(`INSERT OR IGNORE INTO metadata (key, value) VALUES ('lock_holder', '1')`); err != nil {
+		tx.Rollback()
+		t.Fatalf("primary INSERT to hold lock: %v", err)
+	}
+
+	// Warm Open from a second handle. Must NOT attempt any write — and must
+	// therefore succeed in well under the 5s busy_timeout. If it tries to run
+	// DDL it will block on the write lock and either fail with SQLITE_BUSY or
+	// take a long time.
+	done := make(chan error, 1)
+	go func() {
+		secondary, err := db.Open(path)
+		if err != nil {
+			done <- err
+			return
+		}
+		secondary.Close()
+		done <- nil
+	}()
+
+	// Warm Open must complete quickly because the fast path issues only reads.
+	// A 2s budget is generous (busy_timeout for a contended write is 5s).
+	select {
+	case err := <-done:
+		if err != nil {
+			tx.Rollback()
+			t.Fatalf("warm Open under writer-held lock: %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		tx.Rollback()
+		t.Fatal("warm Open did not complete within 2s under writer-held lock — fast path likely attempted a write")
+	}
+
+	// Cleanup.
+	if err := tx.Rollback(); err != nil {
+		t.Fatalf("rollback: %v", err)
+	}
+}
+
+// TestMigrationsAreOrdered confirms the migration registry presents step
+// versions in strictly increasing order, with the last version equal to
+// CurrentSchemaVersion. Catches an accidental gap or duplicate.
+func TestMigrationsAreOrdered(t *testing.T) {
+	versions := db.MigrationStepVersions()
+	if len(versions) == 0 {
+		t.Fatal("no migrations registered")
+	}
+	for i := 1; i < len(versions); i++ {
+		if versions[i] <= versions[i-1] {
+			t.Fatalf("migration versions not strictly increasing at index %d: %v",
+				i, versions)
+		}
+	}
+	if last := versions[len(versions)-1]; last != db.CurrentSchemaVersion() {
+		t.Fatalf("last migration version = %d, want CurrentSchemaVersion = %d",
+			last, db.CurrentSchemaVersion())
+	}
+}
+
+// contains reports whether haystack contains needle.
+func contains(haystack []string, needle string) bool {
+	for _, s := range haystack {
+		if s == needle {
+			return true
+		}
+	}
+	return false
+}
+

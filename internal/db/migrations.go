@@ -1,0 +1,317 @@
+package db
+
+import (
+	"database/sql"
+	"fmt"
+	"log"
+	"strings"
+)
+
+// currentSchemaVersion is the highest migration step version. Bump by 1 when
+// adding a new migration step to the migrations slice below. PRAGMA
+// user_version on a fully-migrated database is equal to currentSchemaVersion.
+//
+// Versioning replaces the unconditional DDL re-execution that previously ran on
+// every Open. The fast warm-open path (when user_version == currentSchemaVersion)
+// executes ZERO CREATE / ALTER / DROP / trigger / normalisation statements —
+// avoiding the write-lock acquisition that caused SQLITE_BUSY in short-lived
+// hook processes.
+const currentSchemaVersion = 5
+
+// copySwapStepName is the name of the agent_events copy-and-swap migration
+// step. Exposed via CopySwapStepName() so tests can assert it runs at most
+// once per database.
+const copySwapStepName = "004_agent_events_copy_swap"
+
+// migrationStep represents one ordered, idempotent schema migration. apply
+// MUST be safe to call on a database whose live schema is already at or beyond
+// the step's intended state — every step is guarded by user_version, but
+// idempotent apply functions are belt-and-suspenders insurance against partial
+// rollbacks.
+type migrationStep struct {
+	version int    // user_version after this step applies
+	name    string // stable identifier (recorded via the migration observer)
+	apply   func(*sql.DB) error
+}
+
+// migrations is the ordered registry of every schema migration. Steps are
+// applied in slice order. The runner skips steps whose version is <= the
+// database's current user_version.
+//
+// Adding a new step:
+//  1. Append a migrationStep with version = currentSchemaVersion + 1.
+//  2. Bump currentSchemaVersion to match.
+//  3. Make the apply function idempotent — it may run on legacy DBs whose
+//     live schema already reflects part of the change.
+var migrations = []migrationStep{
+	{
+		version: 1,
+		name:    "001_initial_schema",
+		apply:   stepCreateBaseTables,
+	},
+	{
+		version: 2,
+		name:    "002_create_indexes",
+		apply:   stepCreateIndexes,
+	},
+	{
+		version: 3,
+		name:    "003_post_initial_columns_and_tables",
+		apply:   stepPostInitialColumnsAndTables,
+	},
+	{
+		version: 4,
+		name:    copySwapStepName,
+		apply:   stepAgentEventsCopySwap,
+	},
+	{
+		version: 5,
+		name:    "005_normalize_plan_feedback",
+		apply:   stepNormalizePlanFeedback,
+	},
+}
+
+// CurrentSchemaVersion returns the highest migration step version. Exposed for
+// tests; production code should not branch on it.
+func CurrentSchemaVersion() int { return currentSchemaVersion }
+
+// MigrationStepNames returns the ordered list of step names exposed by the
+// migration runner. Tests use this to assert exact migrations applied.
+func MigrationStepNames() []string {
+	out := make([]string, len(migrations))
+	for i, m := range migrations {
+		out[i] = m.name
+	}
+	return out
+}
+
+// MigrationStepVersions returns the ordered list of step versions. Tests use
+// this to assert strictly-increasing version ordering.
+func MigrationStepVersions() []int {
+	out := make([]int, len(migrations))
+	for i, m := range migrations {
+		out[i] = m.version
+	}
+	return out
+}
+
+// CopySwapStepName returns the name of the agent_events copy-and-swap
+// migration step so tests can assert it runs at most once per DB.
+func CopySwapStepName() string { return copySwapStepName }
+
+// readUserVersion returns the database's current PRAGMA user_version. A fresh
+// database reports 0. Errors propagate to the caller (e.g. for fail-fast Open).
+func readUserVersion(db *sql.DB) (int, error) {
+	var v int
+	if err := db.QueryRow("PRAGMA user_version").Scan(&v); err != nil {
+		return 0, fmt.Errorf("read user_version: %w", err)
+	}
+	return v, nil
+}
+
+// writeUserVersion sets PRAGMA user_version. SQLite does not support parameter
+// binding for PRAGMA values, so the literal is rendered into the statement.
+func writeUserVersion(db *sql.DB, v int) error {
+	if _, err := db.Exec(fmt.Sprintf("PRAGMA user_version = %d", v)); err != nil {
+		return fmt.Errorf("write user_version=%d: %w", v, err)
+	}
+	return nil
+}
+
+// runMigrations applies every migration step whose version is greater than the
+// database's current user_version. Steps are applied in slice order and the
+// user_version PRAGMA is bumped after each successful step so a mid-chain
+// failure leaves the database at the last completed step (forward progress is
+// preserved across process restarts).
+//
+// Each step is responsible for its own transactional discipline. Schema-altering
+// steps that combine multiple DDL operations wrap them in BEGIN/COMMIT
+// internally; trivial single-statement steps may run outside a transaction
+// because SQLite's autocommit already provides atomicity for one DDL.
+func runMigrations(db *sql.DB) error {
+	current, err := readUserVersion(db)
+	if err != nil {
+		return err
+	}
+	if current >= currentSchemaVersion {
+		return nil
+	}
+
+	for _, step := range migrations {
+		if step.version <= current {
+			continue
+		}
+		notifyMigration(step.name)
+		if err := step.apply(db); err != nil {
+			return fmt.Errorf("migration %s (v%d): %w", step.name, step.version, err)
+		}
+		if err := writeUserVersion(db, step.version); err != nil {
+			return fmt.Errorf("after %s: %w", step.name, err)
+		}
+	}
+	return nil
+}
+
+// ---- migration step implementations -----------------------------------------
+
+// stepCreateBaseTables creates every wipnote table (CreateAllTables) and the
+// OTel ingestion tables (CreateOtelTables). All statements are idempotent
+// (CREATE TABLE IF NOT EXISTS), so the step is safe to run against a legacy DB
+// whose tables already exist.
+func stepCreateBaseTables(db *sql.DB) error {
+	if err := CreateAllTables(db); err != nil {
+		return fmt.Errorf("create base tables: %w", err)
+	}
+	if err := CreateOtelTables(db); err != nil {
+		return fmt.Errorf("create otel tables: %w", err)
+	}
+	return nil
+}
+
+// stepCreateIndexes installs all performance indexes. Both index sets use
+// CREATE INDEX IF NOT EXISTS, so the step is idempotent.
+func stepCreateIndexes(db *sql.DB) error {
+	if err := CreateAllIndexes(db); err != nil {
+		return fmt.Errorf("create base indexes: %w", err)
+	}
+	if err := CreateOtelIndexes(db); err != nil {
+		return fmt.Errorf("create otel indexes: %w", err)
+	}
+	return nil
+}
+
+// stepPostInitialColumnsAndTables collects every column / table / trigger that
+// was added after the initial schema landed. Each operation is independently
+// idempotent (ALTER TABLE ADD COLUMN swallows "duplicate column"; CREATE TABLE
+// IF NOT EXISTS, CREATE INDEX IF NOT EXISTS, CREATE TRIGGER IF NOT EXISTS, and
+// DROP TABLE IF EXISTS are all no-ops on second run).
+//
+// This step does NOT include the agent_events copy-and-swap (step 4) or the
+// post-swap columns (teammate_name / team_name / prompt_id, which must run
+// AFTER the swap to avoid being lost during the column copy). Those live in
+// step 4.
+func stepPostInitialColumnsAndTables(db *sql.DB) error {
+	// Idempotent column additions on existing tables.
+	addCols := []string{
+		`ALTER TABLE sessions ADD COLUMN title TEXT`,
+		`ALTER TABLE sessions ADD COLUMN active_feature_id TEXT`,
+		`ALTER TABLE sessions ADD COLUMN updated_at DATETIME`,
+		`ALTER TABLE agent_events ADD COLUMN subagent_type TEXT`,
+		`ALTER TABLE agent_events ADD COLUMN reason TEXT`,
+		`ALTER TABLE sessions ADD COLUMN git_remote_url TEXT`,
+		`ALTER TABLE sessions ADD COLUMN project_dir TEXT`,
+		`ALTER TABLE tool_calls ADD COLUMN feature_id TEXT`,
+		`ALTER TABLE messages ADD COLUMN agent_id TEXT`,
+		`ALTER TABLE claims ADD COLUMN claimed_by_agent_id TEXT DEFAULT ""`,
+	}
+	for _, stmt := range addCols {
+		if _, err := db.Exec(stmt); err != nil {
+			if !isDuplicateColumnError(err) {
+				log.Printf("schema migrate (non-fatal): %v", err)
+			}
+		}
+	}
+
+	// active_work_items: per-agent claim attribution.
+	if _, err := db.Exec(`CREATE TABLE IF NOT EXISTS active_work_items (
+		session_id    TEXT NOT NULL,
+		agent_id      TEXT NOT NULL,
+		work_item_id  TEXT NOT NULL,
+		claimed_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		PRIMARY KEY (session_id, agent_id)
+	)`); err != nil {
+		return fmt.Errorf("create active_work_items: %w", err)
+	}
+	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_active_work_items_work_item
+		ON active_work_items(work_item_id)`); err != nil {
+		return fmt.Errorf("create idx_active_work_items_work_item: %w", err)
+	}
+
+	// Drop deprecated tables replaced by the claims system.
+	if _, err := db.Exec(`DROP TABLE IF EXISTS agent_collaboration`); err != nil {
+		return fmt.Errorf("drop agent_collaboration: %w", err)
+	}
+	if _, err := db.Exec(`DROP TABLE IF EXISTS agent_presence`); err != nil {
+		return fmt.Errorf("drop agent_presence: %w", err)
+	}
+
+	// Trigger: auto-increment sessions.total_events on each agent_event insert.
+	if _, err := db.Exec(`CREATE TRIGGER IF NOT EXISTS trg_increment_total_events
+		AFTER INSERT ON agent_events
+		FOR EACH ROW
+		BEGIN
+			UPDATE sessions
+			SET total_events = total_events + 1
+			WHERE session_id = NEW.session_id;
+		END`); err != nil {
+		return fmt.Errorf("create trg_increment_total_events: %w", err)
+	}
+
+	// Backfill total_events for sessions that pre-date the trigger.
+	if _, err := db.Exec(`UPDATE sessions SET total_events = (
+		SELECT COUNT(*) FROM agent_events WHERE agent_events.session_id = sessions.session_id
+	) WHERE total_events = 0 AND EXISTS (
+		SELECT 1 FROM agent_events WHERE agent_events.session_id = sessions.session_id
+	)`); err != nil {
+		return fmt.Errorf("backfill total_events: %w", err)
+	}
+	return nil
+}
+
+// stepAgentEventsCopySwap runs the agent_events CHECK-constraint + self-FK-drop
+// migration and the three post-swap columns (teammate_name, team_name,
+// prompt_id) that must be added AFTER the swap so they aren't dropped during
+// the column copy. The copy-swap helper checks the live DDL and short-circuits
+// when no changes are required, so this step is idempotent on already-migrated
+// DBs.
+//
+// agent_events indexes are reinstalled after the swap because the DROP TABLE
+// inside migrateAgentEventsAddCheckConstraint discards the table's indexes.
+// CreateAllIndexes uses CREATE INDEX IF NOT EXISTS for all index sets, so it
+// is safe to re-run for every table (the only ones that actually missed indexes
+// are the agent_events set).
+func stepAgentEventsCopySwap(db *sql.DB) error {
+	if err := migrateAgentEventsAddCheckConstraint(db); err != nil {
+		return fmt.Errorf("agent_events copy-swap: %w", err)
+	}
+
+	postSwapCols := []string{
+		`ALTER TABLE agent_events ADD COLUMN teammate_name TEXT`,
+		`ALTER TABLE agent_events ADD COLUMN team_name TEXT`,
+		// OTel correlation: stable per-turn identifier bridged from OTel signals.
+		`ALTER TABLE agent_events ADD COLUMN prompt_id TEXT`,
+	}
+	for _, stmt := range postSwapCols {
+		if _, err := db.Exec(stmt); err != nil {
+			if !isDuplicateColumnError(err) {
+				log.Printf("schema migrate (non-fatal): %v", err)
+			}
+		}
+	}
+
+	// Reinstall indexes lost during the DROP TABLE inside the swap.
+	// CreateAllIndexes is fully idempotent (CREATE INDEX IF NOT EXISTS).
+	if err := CreateAllIndexes(db); err != nil {
+		return fmt.Errorf("reinstall indexes after copy-swap: %w", err)
+	}
+	return nil
+}
+
+// stepNormalizePlanFeedback rewrites legacy plan_feedback value strings
+// ('approved' / 'rejected' / 'changes_requested') to the canonical boolean
+// strings ('true' / 'false'). Idempotent: once migrated no rows match the
+// WHERE clauses.
+func stepNormalizePlanFeedback(db *sql.DB) error {
+	return NormalizePlanFeedbackValues(db)
+}
+
+// isDuplicateColumnError reports whether err is the "duplicate column" error
+// that SQLite returns when ALTER TABLE ADD COLUMN names an already-present
+// column. The migration runner uses this to keep the apply function quiet on
+// idempotent re-runs.
+func isDuplicateColumnError(err error) bool {
+	if err == nil {
+		return false
+	}
+	return strings.Contains(err.Error(), "duplicate column name")
+}

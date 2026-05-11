@@ -3,7 +3,6 @@ package db
 import (
 	"database/sql"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,7 +11,18 @@ import (
 )
 
 // Open opens (or creates) an wipnote SQLite database at the given path,
-// applies performance PRAGMAs, and ensures the schema exists.
+// applies performance PRAGMAs, and runs any pending schema migrations.
+//
+// Migrations are version-gated by PRAGMA user_version: a database whose
+// user_version already equals currentSchemaVersion takes the warm-open fast
+// path and executes ZERO CREATE / ALTER / DROP / trigger / normalisation
+// statements. This eliminates the write-lock contention that DDL re-execution
+// caused in short-lived hook and CLI processes.
+//
+// Brand-new databases (user_version = 0) run every registered migration in
+// order, then land at currentSchemaVersion. Legacy databases at any
+// intermediate version run only the missing migrations and advance to current.
+// The full migration registry lives in migrations.go.
 func Open(dbPath string) (*sql.DB, error) {
 	dir := filepath.Dir(dbPath)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -40,114 +50,9 @@ func Open(dbPath string) (*sql.DB, error) {
 		return nil, fmt.Errorf("applying pragmas: %w", err)
 	}
 
-	notifyMigration("CreateAllTables")
-	if err := CreateAllTables(db); err != nil {
+	if err := runMigrations(db); err != nil {
 		db.Close()
-		return nil, fmt.Errorf("creating tables: %w", err)
-	}
-
-	notifyMigration("CreateAllIndexes")
-	if err := CreateAllIndexes(db); err != nil {
-		db.Close()
-		return nil, fmt.Errorf("creating indexes: %w", err)
-	}
-
-	notifyMigration("CreateOtelTables")
-	if err := CreateOtelTables(db); err != nil {
-		db.Close()
-		return nil, fmt.Errorf("creating OTel tables: %w", err)
-	}
-
-	notifyMigration("CreateOtelIndexes")
-	if err := CreateOtelIndexes(db); err != nil {
-		db.Close()
-		return nil, fmt.Errorf("creating OTel indexes: %w", err)
-	}
-
-	// Idempotent migrations for columns added after initial schema.
-	notifyMigration("alter-columns")
-	db.Exec(`ALTER TABLE sessions ADD COLUMN title TEXT`)
-	db.Exec(`ALTER TABLE sessions ADD COLUMN active_feature_id TEXT`)
-	db.Exec(`ALTER TABLE sessions ADD COLUMN updated_at DATETIME`)
-	db.Exec(`ALTER TABLE agent_events ADD COLUMN subagent_type TEXT`)
-	db.Exec(`ALTER TABLE agent_events ADD COLUMN reason TEXT`)
-	db.Exec(`ALTER TABLE sessions ADD COLUMN git_remote_url TEXT`)
-	db.Exec(`ALTER TABLE sessions ADD COLUMN project_dir TEXT`)
-	db.Exec(`ALTER TABLE tool_calls ADD COLUMN feature_id TEXT`)
-	db.Exec(`ALTER TABLE messages ADD COLUMN agent_id TEXT`)
-
-	// Per-agent work attribution: each subagent records its identity on claims.
-	db.Exec(`ALTER TABLE claims ADD COLUMN claimed_by_agent_id TEXT DEFAULT ""`)
-
-	// Per-agent active work item attribution: one slot per (session, agent).
-	// Replaces the single sessions.active_feature_id which caused write contention
-	// when N parallel subagents all claimed different features in the same session.
-	// Sentinel: agent_id = '__root__' when WIPNOTE_AGENT_ID is unset (top-level session).
-	db.Exec(`CREATE TABLE IF NOT EXISTS active_work_items (
-		session_id    TEXT NOT NULL,
-		agent_id      TEXT NOT NULL,
-		work_item_id  TEXT NOT NULL,
-		claimed_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-		PRIMARY KEY (session_id, agent_id)
-	)`)
-	db.Exec(`CREATE INDEX IF NOT EXISTS idx_active_work_items_work_item
-		ON active_work_items(work_item_id)`)
-
-	// Drop deprecated tables replaced by claims system.
-	db.Exec(`DROP TABLE IF EXISTS agent_collaboration`)
-	db.Exec(`DROP TABLE IF EXISTS agent_presence`)
-
-	// Trigger: auto-increment sessions.total_events on each agent_event insert.
-	db.Exec(`CREATE TRIGGER IF NOT EXISTS trg_increment_total_events
-		AFTER INSERT ON agent_events
-		FOR EACH ROW
-		BEGIN
-			UPDATE sessions
-			SET total_events = total_events + 1
-			WHERE session_id = NEW.session_id;
-		END`)
-
-	// Backfill total_events for existing sessions that were created before the trigger.
-	db.Exec(`UPDATE sessions SET total_events = (
-		SELECT COUNT(*) FROM agent_events WHERE agent_events.session_id = sessions.session_id
-	) WHERE total_events = 0 AND EXISTS (
-		SELECT 1 FROM agent_events WHERE agent_events.session_id = sessions.session_id
-	)`)
-
-	// Migration: add CHECK constraint to agent_events that prevents misattributed
-	// tool_call events (agent_id='human' with non-UserQuery tool_name).
-	// SQLite cannot add CHECK constraints via ALTER TABLE, so we use copy-and-swap
-	// guarded by the metadata table to make it idempotent.
-	notifyMigration("migrateAgentEventsAddCheckConstraint")
-	if err := migrateAgentEventsAddCheckConstraint(db); err != nil {
-		db.Close()
-		return nil, fmt.Errorf("migrate agent_events check constraint: %w", err)
-	}
-
-	// Agent Teams: teammate identity on events.
-	// Must run AFTER copy-and-swap migration to avoid column loss.
-	if _, err := db.Exec(`ALTER TABLE agent_events ADD COLUMN teammate_name TEXT`); err != nil {
-		if !strings.Contains(err.Error(), "duplicate column name") {
-			log.Printf("schema migrate (non-fatal): %v", err)
-		}
-	}
-	if _, err := db.Exec(`ALTER TABLE agent_events ADD COLUMN team_name TEXT`); err != nil {
-		if !strings.Contains(err.Error(), "duplicate column name") {
-			log.Printf("schema migrate (non-fatal): %v", err)
-		}
-	}
-
-	// OTel correlation: stable per-turn identifier bridged from OTel user_prompt signals.
-	if _, err := db.Exec(`ALTER TABLE agent_events ADD COLUMN prompt_id TEXT`); err != nil {
-		if !strings.Contains(err.Error(), "duplicate column name") {
-			log.Printf("schema migrate (non-fatal): %v", err)
-		}
-	}
-
-	notifyMigration("NormalizePlanFeedbackValues")
-	if err := NormalizePlanFeedbackValues(db); err != nil {
-		db.Close()
-		return nil, fmt.Errorf("normalize plan_feedback values: %w", err)
+		return nil, fmt.Errorf("running migrations: %w", err)
 	}
 
 	return db, nil
