@@ -1,0 +1,46 @@
+meta:
+    id: plan-176404ae
+    track_id: trk-49f4b743
+    title: Dep Done
+    description: ""
+    created_at: "2026-05-11"
+    status: active
+    priority: medium
+    version: 3
+design:
+    problem: ""
+    goals: []
+    constraints: []
+    approved: false
+    comment: ""
+slices:
+    - id: slic-46ca67ed
+      num: 1
+      title: S1
+      what: w
+      why: ""
+      files: []
+      deps: []
+      done_when: []
+      effort: ""
+      risk: ""
+      tests: ""
+      approved: false
+      comment: ""
+    - id: slic-f75bbe5c
+      feature_id: feat-651f1f69
+      num: 2
+      title: S2
+      what: w
+      why: ""
+      files: []
+      deps:
+        - 1
+      done_when: []
+      effort: ""
+      risk: ""
+      tests: ""
+      approved: false
+      comment: ""
+      execution_status: promoted
+questions: []
