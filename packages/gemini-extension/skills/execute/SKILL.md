@@ -114,7 +114,24 @@ ToolSearch(query="select:SendMessage", max_results=1)
 
 **If the result is empty or "No matching deferred tools found":**
 
-SendMessage is not available (gated behind `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`). Print a warning — do NOT abort:
+SendMessage is not available (gated behind `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`). First, check the strict gating env var:
+
+```
+Bash(command="printenv WIPNOTE_EXECUTE_REQUIRE_SENDMESSAGE 2>/dev/null || echo ''")
+```
+
+If the output is `"1"`, print this abort message and STOP — do NOT proceed to dispatch:
+
+```
+/wipnote:execute: WIPNOTE_EXECUTE_REQUIRE_SENDMESSAGE=1 is set and SendMessage
+is not loaded. Strict gating mode is active — aborting parallel dispatch.
+
+To proceed, either:
+  (a) unset WIPNOTE_EXECUTE_REQUIRE_SENDMESSAGE
+  (b) enable agent-teams mode (CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1)
+```
+
+Otherwise (env var unset, empty, or any value other than `"1"`), print this WARNING and continue to step 1.7:
 
 ```
 WARNING: SendMessage is not available in this session.
@@ -136,11 +153,6 @@ Proceeding with parallel dispatch. Review your recovery options above before sta
 **If the result lists SendMessage:** proceed to the dispatch loop. (Note: paused
 worktree subagents cannot be resumed via SendMessage per Claude Code issue #42596;
 SendMessage only benefits agent-teams mode.)
-
-**Strict gating (optional):** If you want to enforce the old behavior (abort on missing
-SendMessage), set `WIPNOTE_EXECUTE_REQUIRE_SENDMESSAGE=1` in your environment and
-the orchestrator will respect it. Otherwise, the warning above is informational only
-and dispatch proceeds.
 
 > Note: SendMessage availability affects recovery of paused sub-agents during
 > parallel execution. Absence does not prevent first-pass execution; it affects
