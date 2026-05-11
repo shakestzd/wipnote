@@ -1,0 +1,32 @@
+meta:
+    id: plan-0ecc8f1b
+    track_id: trk-b1e7b6bd
+    title: ExecStatus Test
+    description: ""
+    created_at: "2026-05-11"
+    status: active
+    priority: medium
+    version: 3
+design:
+    problem: ""
+    goals: []
+    constraints: []
+    approved: false
+    comment: ""
+slices:
+    - id: slic-a7e8613f
+      feature_id: feat-c75d869d
+      num: 1
+      title: S
+      what: w
+      why: ""
+      files: []
+      deps: []
+      done_when: []
+      effort: ""
+      risk: ""
+      tests: ""
+      approved: false
+      comment: ""
+      execution_status: promoted
+questions: []
