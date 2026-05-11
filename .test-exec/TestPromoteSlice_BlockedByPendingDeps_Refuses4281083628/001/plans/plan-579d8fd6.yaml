@@ -1,0 +1,46 @@
+meta:
+    id: plan-579d8fd6
+    track_id: trk-204445ca
+    title: Deps Test
+    description: ""
+    created_at: "2026-05-11"
+    status: active
+    priority: medium
+    version: 3
+design:
+    problem: ""
+    goals: []
+    constraints: []
+    approved: false
+    comment: ""
+slices:
+    - id: slic-47ef00fe
+      num: 1
+      title: S1
+      what: w
+      why: ""
+      files: []
+      deps: []
+      done_when: []
+      effort: ""
+      risk: ""
+      tests: ""
+      approved: false
+      comment: ""
+    - id: slic-da8ae955
+      feature_id: feat-4f342cd5
+      num: 2
+      title: S2
+      what: w
+      why: ""
+      files: []
+      deps:
+        - 1
+      done_when: []
+      effort: ""
+      risk: ""
+      tests: ""
+      approved: false
+      comment: ""
+      execution_status: promoted
+questions: []
