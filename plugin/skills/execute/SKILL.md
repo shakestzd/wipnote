@@ -102,9 +102,9 @@ For each unblocked feature candidate, run `wipnote trace <feat-id>` to get its a
 
 ---
 
-## Step 1.6: Precondition Check — Verify SendMessage Availability
+## Step 1.6: Precondition Check — SendMessage Availability (Diagnostic)
 
-Before dispatching ANY agents in parallel, verify that the `SendMessage` tool is available. Without it, paused sub-agents cannot be resumed, making the parallel dispatch unrecoverable.
+Before dispatching ANY agents in parallel, check whether the `SendMessage` tool is available. This diagnostic informs your recovery strategy if a sub-agent pauses on tool budget.
 
 **Run this check BEFORE step 2:**
 
@@ -114,28 +114,39 @@ ToolSearch(query="select:SendMessage", max_results=1)
 
 **If the result is empty or "No matching deferred tools found":**
 
-Print the following error and STOP — do not proceed to dispatch:
+SendMessage is not available (gated behind `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`). Print a warning — do NOT abort:
 
 ```
-/wipnote:execute requires SendMessage to be loaded so paused sub-agents can be
-resumed. SendMessage is gated behind `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`
-and is only available in agent-teams sessions.
+WARNING: SendMessage is not available in this session.
 
-Note: even with the env var set, worktree subagents cannot be resumed via
-SendMessage (Claude Code issue #42596). This check is a minimum bar — it does
-not guarantee recoverability.
+Implications:
+- Parallel dispatch will proceed (first-pass execution works normally).
+- If any sub-agent pauses on tool budget mid-execution, it cannot be resumed
+  automatically. You must either:
+    (a) Accept the paused task as failed-needs-rerun and continue with other tasks.
+    (b) Fall back to sequential dispatch: `wipnote yolo --feature <id>` per feature.
+    (c) Enable agent-teams mode (`CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`) to load
+        SendMessage (note: even with SendMessage, worktree subagents cannot be
+        resumed per Claude Code issue #42596 — SendMessage only helps agent-teams
+        mode).
 
-Aborting parallel dispatch. Options:
-  (a) Enable agent-teams mode and dispatch as a team rather than worktree subagents.
-  (b) Reduce slice scope so a single-shot dispatch fits within the tool budget.
-  (c) Run `wipnote yolo --feature <id>` sequentially per feature.
+Proceeding with parallel dispatch. Review your recovery options above before starting.
 ```
 
-**If the result lists SendMessage:** proceed to the dispatch loop.
+**If the result lists SendMessage:** proceed to the dispatch loop. (Note: paused
+worktree subagents cannot be resumed via SendMessage per Claude Code issue #42596;
+SendMessage only benefits agent-teams mode.)
 
-> Note: SendMessage being present does not fully solve the problem. Worktree
-> subagents still cannot be resumed via SendMessage per Claude Code issue #42596.
-> This check is a minimum bar only.
+**Strict gating (optional):** If you want to enforce the old behavior (abort on missing
+SendMessage), set `WIPNOTE_EXECUTE_REQUIRE_SENDMESSAGE=1` in your environment and
+the orchestrator will respect it. Otherwise, the warning above is informational only
+and dispatch proceeds.
+
+> Note: SendMessage availability affects recovery of paused sub-agents during
+> parallel execution. Absence does not prevent first-pass execution; it affects
+> what happens if a sub-agent exhausts tool budget mid-task. Worktree subagents
+> still cannot be resumed via SendMessage per Claude Code issue #42596; this is
+> a limitation of the underlying implementation, not this check.
 
 ---
 
