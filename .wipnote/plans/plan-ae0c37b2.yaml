@@ -8,7 +8,7 @@ meta:
     status: finalized
     priority: high
     created_by: codex
-    version: 22
+    version: 23
 design:
     problem: |
         Recurring SQLITE_BUSY failures block routine CLI operations such as plan critique while dashboard, collectors, hooks, or indexers are active. The current architecture opens SQLite for commands that should be able to read canonical YAML/HTML directly, runs DDL and migrations on every db.Open, and allows several independent processes to compete as writers. The project is local-first and must remain self-contained; PostgreSQL or another external service is not an acceptable fix.
@@ -304,6 +304,7 @@ slices:
           severity: LOW
           summary: Boundary test only covers in-repo Go source. MCP / external-tool direct DB opens are an unenforceable surface — documented as a known limitation in slice scope.
     - id: slice-6
+      feature_id: feat-f3bcbcef
       num: 6
       title: Single local writer transport for event/index writes
       what: |
@@ -344,7 +345,7 @@ slices:
       approved: false
       comment: ""
       approval_status: approved
-      execution_status: not_started
+      execution_status: promoted
       questions:
         - id: q-service-owner
           text: Should the single writer remain inside `wipnote serve` for v1, or graduate to a separate `wipnote daemon` process after the queue contract is proven?
