@@ -8,7 +8,7 @@ meta:
     status: finalized
     priority: high
     created_by: codex
-    version: 23
+    version: 24
 design:
     problem: |
         Recurring SQLITE_BUSY failures block routine CLI operations such as plan critique while dashboard, collectors, hooks, or indexers are active. The current architecture opens SQLite for commands that should be able to read canonical YAML/HTML directly, runs DDL and migrations on every db.Open, and allows several independent processes to compete as writers. The project is local-first and must remain self-contained; PostgreSQL or another external service is not an acceptable fix.
@@ -363,6 +363,7 @@ slices:
           severity: MED
           summary: The 4MiB per-tick indexer budget (commit e16095482) is in production. Slice 6 must coexist with it during rollout; complete removal is governed by q-budget-retention after slice 10's stress gate certifies the queue.
     - id: slice-7
+      feature_id: feat-33c26c74
       num: 7
       title: Hook and indexer integration with canonical-first fallback
       what: |
@@ -401,7 +402,7 @@ slices:
       approved: false
       comment: ""
       approval_status: approved
-      execution_status: not_started
+      execution_status: promoted
       critic_revisions:
         - source: execution-critic
           severity: HIGH
