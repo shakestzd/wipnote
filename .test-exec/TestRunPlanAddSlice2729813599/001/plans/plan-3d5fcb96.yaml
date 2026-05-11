@@ -1,0 +1,29 @@
+meta:
+    id: plan-3d5fcb96
+    title: Test Plan
+    description: A test plan
+    created_at: "2026-05-11"
+    status: draft
+    priority: medium
+    version: 3
+design:
+    problem: ""
+    goals: []
+    constraints: []
+    approved: false
+    comment: ""
+slices:
+    - id: slic-031bb19c
+      num: 1
+      title: Implement error handling
+      what: Handle errors
+      why: ""
+      files: []
+      deps: []
+      done_when: []
+      effort: S
+      risk: Low
+      tests: ""
+      approved: false
+      comment: ""
+questions: []
