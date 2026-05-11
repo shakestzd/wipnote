@@ -2,16 +2,210 @@ meta:
     id: plan-6ee9b0c8
     track_id: trk-0677c709
     title: Sub-agent tool_calls ingestion + attribution
-    description: 'Fix bug-fbadab6d: auto-ingest sub-agent JSONL transcripts on SubagentStop hook and correct tool_calls.session_id attribution so the orchestrator UUID is the join key and subagent_session_id holds the short agent ID.'
-    created_at: "2026-05-11"
-    status: draft
-    priority: medium
-    version: 2
+    description: |
+        Fix bug-fbadab6d. Sub-agent JSONL transcripts exist on disk but `tool_calls` has zero rows for sub-agent sessions because (a) `wipnote ingest` is never auto-triggered for sub-agent JSONLs and (b) the existing ingest path would still mis-attribute `tool_calls.session_id` to the short agent ID instead of the parent orchestrator UUID. Plan delivers ingest auto-trigger plus correct attribution so dashboards, cost queries, and stuck-agent diagnostics see sub-agent activity.
+    created_at: "2026-05-10"
+    status: active
+    created_by: claude-opus
+    version: 1
 design:
-    problem: ""
-    goals: []
-    constraints: []
+    problem: |
+        `tool_calls` is an ingest-only table populated by `wipnote ingest` reading JSONL transcripts. Hooks (PreToolUse / PostToolUse) write to `agent_events`, not `tool_calls`. Sub-agent JSONLs land at `<session-dir>/subagents/agent-<id>.jsonl` and `DiscoverSubagents()` can find them, but nothing auto-runs ingest for live sessions, so `tool_calls` stays empty for every sub-agent. Even if ingest is run manually, `storeParseResult` currently writes `tool_calls.session_id = agentID` (the short sub-agent ID) and `tool_calls.subagent_session_id = agentID` (same value), which makes cross-session queries against the orchestrator's UUID impossible. The schema clearly intended `session_id = orchestrator UUID` and `subagent_session_id = agent short ID`.
+    goals:
+        - '**Coverage** — every sub-agent JSONL transcript is parsed into `tool_calls` rows automatically, no manual `wipnote ingest` needed'
+        - '**Attribution** — `tool_calls.session_id` holds the parent orchestrator UUID and `subagent_session_id` holds the short agent ID, so existing dashboard queries grouping by orchestrator session pick up sub-agent activity'
+        - '**Idempotency** — re-running auto-ingest on a sub-agent that has already been ingested does not duplicate rows'
+    constraints:
+        - No new dependencies — use existing `ingest.go` and hook handler code
+        - No schema migration — `subagent_session_id` column already exists; only writes change
+        - Auto-ingest must not block the sub-agent stop hook return — slow ingest cannot delay Claude Code
     approved: false
     comment: ""
-slices: []
-questions: []
+slices:
+    - id: slice-1
+      num: 1
+      title: Fix tool_calls attribution in storeParseResult for sub-agent rows
+      what: |
+        In `cmd/wipnote/ingest.go`, modify `storeParseResult` so that when a
+        `parseResult` originates from a sub-agent JSONL (the file lives under
+        `<session-dir>/subagents/`), it writes:
+
+          - `tool_calls.session_id = <parent orchestrator UUID>`
+          - `tool_calls.subagent_session_id = <agent short ID>`
+
+        Today (around line 253–267) it writes `tc.SessionID = sessionID` where
+        `sessionID` is the agent short ID, and `tc.SubagentSessionID = agentID`
+        where `agentID` is the same value. The orchestrator UUID is not
+        currently threaded into `ingestSubagents → ingestFileWithAgent →
+        storeParseResult`.
+
+        Implementation:
+          1. Add an optional `parentSessionID string` parameter to
+             `ingestFileWithAgent` (or a sibling sub-agent–specific variant).
+          2. `ingestSubagents` looks up the parent UUID from the directory
+             name of the JSONL file or from the existing `sessions` row
+             (`parent_session_id` column on the sub-agent session) and passes
+             it down.
+          3. `storeParseResult` uses `parentSessionID` for `tc.SessionID`
+             when non-empty, and assigns `agentID` to `tc.SubagentSessionID`.
+             When `parentSessionID` is empty (regular non-sub-agent ingest),
+             behavior is unchanged.
+
+        The same correction applies to `messages` writes if they also key on
+        `session_id` and are intended to be queryable by orchestrator — but
+        check first whether the `messages` table already has a parent column
+        and only touch the `tool_calls` path if `messages` is out of scope.
+      why: |
+        Goal "Attribution". Without this, even after auto-ingest fires
+        (slice 2), every dashboard query that joins `tool_calls` against
+        orchestrator sessions still returns zero sub-agent rows. The schema
+        already has `subagent_session_id` — slice 1 honors that intent.
+      files:
+        - cmd/wipnote/ingest.go
+      deps: []
+      done_when:
+        - After ingesting a sub-agent JSONL, `SELECT COUNT(*) FROM tool_calls WHERE session_id = '<parent UUID>' AND subagent_session_id = '<agent short ID>'` returns the correct row count
+        - Non-sub-agent ingest is unaffected — `tool_calls.subagent_session_id` is NULL for non-sub-agent rows; `tool_calls.session_id` still equals the orchestrator's session UUID
+        - Re-running ingest on the same JSONL does not create duplicate `tool_calls` rows (idempotency via the existing `tool_use_id` uniqueness or equivalent)
+      effort: M
+      risk: Med
+      tests: |
+        Unit: TestStoreParseResult_SubagentAttribution — feed a parseResult with a parentSessionID and an agentID; assert tool_calls rows have session_id=parent and subagent_session_id=agent
+        Unit: TestStoreParseResult_RegularSession_Unchanged — feed a parseResult with empty parentSessionID; assert behavior matches current main (session_id=sessionID, subagent_session_id=NULL)
+        Integration: TestIngestSubagents_AttributionFromParentDir — set up a fake session directory with a `subagents/agent-X.jsonl` file, run `ingestSubagents`, query the DB and assert attribution is correct
+        Regression: existing TestIngestFile_* and TestStoreParseResult_* tests must still pass
+      approved: false
+      comment: ""
+      approval_status: pending
+      execution_status: not_started
+    - id: slice-2
+      num: 2
+      title: Auto-ingest sub-agent JSONL on SubagentStop hook
+      what: |
+        In `internal/hooks/subagent_stop.go` (or wherever the SubagentStop
+        handler lives — verify exact filename), invoke `ingestSubagents`
+        (or `ingestFileWithAgent` directly) for the sub-agent that just
+        stopped. The hook receives the sub-agent's `session_id` (which is
+        really the agent short ID, per the bug report) and the parent
+        `session_id` UUID; both are available in the CloudEvent or
+        derivable from the existing `sessions` row.
+
+        Key implementation details:
+          - Resolve the JSONL path from the `Stop` event payload
+            (`transcript_path` field) or via `DiscoverSubagents` on the
+            parent session directory.
+          - Run ingest in a goroutine so the hook returns immediately
+            (`go func() { ingestSubagents(...) }()`). This satisfies the
+            "do not block hook" constraint.
+          - Log errors via the existing hook logger but do not propagate
+            them as hook failures — ingest failure is a telemetry issue,
+            not a hook contract violation.
+
+        Slice 1 must land first because the auto-ingest depends on
+        correct attribution to be useful — otherwise we'd just populate
+        mis-attributed rows.
+      why: |
+        Goal "Coverage". This is the trigger that makes sub-agent rows
+        appear in `tool_calls` for live sessions without requiring the
+        user to remember to run `wipnote ingest`.
+      files:
+        - internal/hooks/subagent_stop.go
+        - cmd/wipnote/ingest.go
+      deps:
+        - 1
+      done_when:
+        - After a sub-agent finishes (SubagentStop fires), `tool_calls` contains rows for that sub-agent's session within ~5 seconds (allowing for goroutine scheduling)
+        - Hook return latency is unchanged — auto-ingest does not block the response to Claude Code
+        - If the JSONL is mid-write (still open by Claude), the ingest either skips it cleanly or treats it as a partial parse — no panic, no corrupted DB rows
+      effort: M
+      risk: Med
+      tests: |
+        Unit: TestSubagentStopHook_TriggersIngest — fake CloudEvent for SubagentStop, mock the ingest call, assert it is invoked with the correct parent UUID and JSONL path
+        Integration: TestSubagentStop_E2E — spin up the hook handler in a test harness, feed a SubagentStop event, sleep briefly, assert tool_calls rows exist with correct attribution
+        Regression: existing TestSubagentStop_* tests must still pass; existing PostToolUse/Stop hook tests must still pass
+      approved: false
+      comment: ""
+      approval_status: pending
+      execution_status: not_started
+    - id: slice-3
+      num: 3
+      title: Verify dashboard / snapshot queries pick up sub-agent rows
+      what: |
+        Audit the dashboard SQL queries and `wipnote snapshot` aggregation
+        queries that GROUP BY or JOIN on `tool_calls.session_id`. Two
+        possible outcomes:
+
+        (a) Most queries already group by orchestrator UUID; with slice 1
+            attribution fix they automatically pick up sub-agent rows
+            because `tool_calls.session_id` is now the orchestrator UUID.
+            → No code change needed; just verify and document.
+
+        (b) Some queries explicitly key on `subagent_session_id` (or should,
+            to distinguish "parent did this tool call" vs "a sub-agent did
+            this tool call"). For these, update the query to UNION or
+            LEFT JOIN on `subagent_session_id`.
+
+        Concrete audit targets:
+          - `cmd/wipnote/api_feed.go` (activity feed)
+          - `cmd/wipnote/api_tree.go` (event tree)
+          - `cmd/wipnote/snapshot.go` (snapshot aggregations)
+          - `cmd/wipnote/sessions.go` (session detail)
+          - Any cost / token rollups (search for `SUM(.*tokens` in cmd/)
+
+        For each, document whether sub-agent rows now appear correctly and
+        whether the user-visible labelling distinguishes
+        "orchestrator did X" vs "sub-agent did X".
+      why: |
+        Goal "Coverage" implies user-visible visibility, not just DB rows.
+        Without this audit we could land slices 1+2 and discover the
+        dashboard still hides sub-agent activity because a query filters
+        on `is_subagent = 0` somewhere.
+      files:
+        - cmd/wipnote/api_feed.go
+        - cmd/wipnote/api_tree.go
+        - cmd/wipnote/snapshot.go
+        - cmd/wipnote/sessions.go
+      deps:
+        - 1
+        - 2
+      done_when:
+        - Activity feed displays sub-agent tool_call events grouped under the orchestrator session, with a clear sub-agent label or indent
+        - '`wipnote snapshot` total tool_use count includes sub-agent tool uses'
+        - At least one regression test added that asserts a sub-agent's tool_calls appear in the relevant query result
+      effort: M
+      risk: Low
+      tests: |
+        Unit: TestActivityFeed_IncludesSubagentToolCalls — insert one orchestrator tool_call and one sub-agent tool_call in the test DB; query the feed handler; assert both appear
+        Integration: TestSnapshotCount_IncludesSubagentToolUses — same setup, assert `wipnote snapshot --summary` total count reflects both
+        Regression: all existing api_feed and snapshot tests must still pass
+      approved: false
+      comment: ""
+      approval_status: pending
+      execution_status: not_started
+questions:
+    - id: q-jsonl-locking
+      text: How do we handle the case where SubagentStop fires while Claude is still writing the final lines of the JSONL?
+      description: |
+        Claude Code may emit SubagentStop before fsync completes on the JSONL. If we ingest immediately we might miss the final tool_call. Options: (a) sleep briefly before ingest, (b) trust that the parser tolerates EOF mid-line and re-ingest later if needed, (c) tail-watch the JSONL until inactive.
+      recommended: option-b
+      options:
+        - key: option-a
+          label: 'A: 500ms sleep before goroutine ingest — simple, may still race'
+        - key: option-b
+          label: 'B: Trust parser EOF tolerance + add a final re-ingest on session_end — robust, two writes'
+        - key: option-c
+          label: 'C: fsnotify tail-watch — most accurate, most complex'
+      answer: null
+    - id: q-error-attribution
+      text: Should we backfill attribution for existing sub-agent rows that were ingested under the wrong session_id?
+      description: |
+        Slice 1 fixes new ingests. Existing rows in production DBs already have `session_id = <short agent ID>`. Options: (a) write a one-time backfill migration, (b) leave existing rows wrong and document, (c) add a UNION fallback to dashboard queries that handles both shapes.
+      recommended: option-b
+      options:
+        - key: option-a
+          label: 'A: One-time backfill — clean state, requires schema-aware migration'
+        - key: option-b
+          label: 'B: Leave old rows, document — pragmatic; affects only history'
+        - key: option-c
+          label: 'C: Dashboard UNION fallback — covers both, makes queries uglier'
+      answer: null
