@@ -5,7 +5,7 @@ meta:
     created_at: "2026-05-11"
     status: draft
     priority: medium
-    version: 5
+    version: 6
 design:
     problem: ""
     goals: []
@@ -43,6 +43,19 @@ slices:
       num: 3
       title: S3
       what: Do S3
+      why: ""
+      files: []
+      deps: []
+      done_when: []
+      effort: S
+      risk: Low
+      tests: ""
+      approved: false
+      comment: ""
+    - id: slic-7f70083d
+      num: 4
+      title: S4
+      what: Do S4
       why: ""
       files: []
       deps: []
