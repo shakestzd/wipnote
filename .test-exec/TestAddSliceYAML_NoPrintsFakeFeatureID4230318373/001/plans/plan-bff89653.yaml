@@ -1,0 +1,29 @@
+meta:
+    id: plan-bff89653
+    title: test
+    description: ""
+    created_at: "2026-05-11"
+    status: draft
+    priority: medium
+    version: 3
+design:
+    problem: ""
+    goals: []
+    constraints: []
+    approved: false
+    comment: ""
+slices:
+    - id: slic-16db630b
+      num: 1
+      title: My Slice
+      what: impl detail
+      why: ""
+      files: []
+      deps: []
+      done_when: []
+      effort: S
+      risk: Low
+      tests: ""
+      approved: false
+      comment: ""
+questions: []
