@@ -59,10 +59,18 @@ type writeSiteClassification string
 const (
 	// daemonRoutedPendingSlice6 marks call sites currently opening writable
 	// DB handles directly that MUST move to the slice-6 writer service.
-	// Their presence here is intentional — the inventory locks the current
-	// state. Slice 7 (feat-33c26c74) will migrate runner.go + indexer.go +
-	// receiver writer.go off this classification.
+	// Slice 6 (feat-f3bcbcef) has landed for the writer service itself;
+	// slice 7 (feat-33c26c74) will migrate runner.go (hook.go entries)
+	// off this classification.
 	daemonRoutedPendingSlice6 writeSiteClassification = "daemon-routed-pending-slice-6"
+
+	// daemonRoutedWriterService marks the slice-6 writer service's own
+	// internal `Open` — the single writable SQLite handle that the queue
+	// worker uses to apply all serialized writes. There is exactly one
+	// such site per project DB by architectural invariant. This is the
+	// terminal classification: producers that route through the queue
+	// no longer need their own entry in this inventory.
+	daemonRoutedWriterService writeSiteClassification = "daemon-routed-writer-service"
 
 	// intentionalCLIMutation marks user-driven CLI commands that legitimately
 	// mutate work items (e.g., wipnote feature start). These keep direct
@@ -138,8 +146,8 @@ var approvedWriteSites = []writeSite{
 		Line:           66,
 		Function:       "NewWriter",
 		OpenExpr:       "sql.Open",
-		Classification: daemonRoutedPendingSlice6,
-		Note:           "OTLP receiver Writer pins a MaxOpenConns=1 handle today; slice 6 turns this into the single writer service implementation.",
+		Classification: daemonRoutedWriterService,
+		Note:           "Slice 6 writer service (feat-f3bcbcef): the single writable SQLite handle owned by the writequeue worker inside `wipnote serve`. Indexer + OTLP receiver no longer open writable handles directly — they submit batches through internal/db/writequeue to this writer.",
 	},
 
 	// ----------------------------------------------------------------------
@@ -211,7 +219,7 @@ var approvedWriteSites = []writeSite{
 	},
 	{
 		File:           "cmd/wipnote/serve_child.go",
-		Line:           62,
+		Line:           80,
 		Function:       "runServeChild",
 		OpenExpr:       "dbpkg.Open",
 		Classification: intentionalCLIMutation,
@@ -399,22 +407,27 @@ func TestWritableDBOpenBoundary(t *testing.T) {
 		}
 	}
 
-	// 3. Forbidden-path entries must be daemon-routed-pending-slice-6.
+	// 3. Forbidden-path entries must be either daemon-routed-pending-slice-6
+	// (still awaiting migration onto the writer service) or
+	// daemon-routed-writer-service (the writer service's own internal
+	// Open — terminal state for slice 6). Any other classification on a
+	// forbidden path means someone added a direct writable open in the
+	// hook/indexer/receiver/collector tree that bypasses the queue.
 	var misclassified []writeSite
 	for _, ws := range approvedWriteSites {
 		if !isForbiddenPath(ws.File) {
 			continue
 		}
-		if ws.Classification != daemonRoutedPendingSlice6 {
+		if !isForbiddenPathClassification(ws.Classification) {
 			misclassified = append(misclassified, ws)
 		}
 	}
 
 	// 4. Forbidden-path call sites discovered by the scan must also live
-	// in the inventory under daemon-routed-pending-slice-6 — catches the
-	// case where someone removes the inventory entry but leaves the
-	// direct open in place (this is also caught by check #1 above; this
-	// check is explicit so the failure message is precise).
+	// in the inventory under one of the daemon-routed classifications —
+	// catches the case where someone removes the inventory entry but
+	// leaves the direct open in place (this is also caught by check #1
+	// above; this check is explicit so the failure message is precise).
 	var unannotatedForbidden []foundSite
 	for _, fs := range found {
 		if !isForbiddenPath(fs.File) {
@@ -425,7 +438,7 @@ func TestWritableDBOpenBoundary(t *testing.T) {
 			// Will already be reported under newSites.
 			continue
 		}
-		if ws.Classification != daemonRoutedPendingSlice6 {
+		if !isForbiddenPathClassification(ws.Classification) {
 			unannotatedForbidden = append(unannotatedForbidden, fs)
 		}
 	}
@@ -465,10 +478,11 @@ func TestWritableDBOpenBoundary(t *testing.T) {
 		}
 		if len(misclassified) > 0 {
 			fmt.Fprintf(&b, "MISCLASSIFIED forbidden-path entries (%d):\n", len(misclassified))
-			fmt.Fprintf(&b, "  Hook / indexer / receiver / event-capture paths must use classification %q.\n", daemonRoutedPendingSlice6)
+			fmt.Fprintf(&b, "  Hook / indexer / receiver / event-capture paths must use either %q (awaiting migration) or %q (writer service internal).\n",
+				daemonRoutedPendingSlice6, daemonRoutedWriterService)
 			for _, ws := range misclassified {
-				fmt.Fprintf(&b, "  ! %s:%d  func=%s  class=%s  (must be %s)\n",
-					ws.File, ws.Line, ws.Function, ws.Classification, daemonRoutedPendingSlice6)
+				fmt.Fprintf(&b, "  ! %s:%d  func=%s  class=%s\n",
+					ws.File, ws.Line, ws.Function, ws.Classification)
 			}
 			b.WriteString("\n")
 		}
@@ -503,6 +517,7 @@ func TestWriteSiteInventoryComplete(t *testing.T) {
 	// Verify every classification is a known constant.
 	known := map[writeSiteClassification]bool{
 		daemonRoutedPendingSlice6: true,
+		daemonRoutedWriterService: true,
 		intentionalCLIMutation:    true,
 		reindexOnly:               true,
 		migrationOnly:             true,
@@ -794,6 +809,15 @@ func isForbiddenPath(relPath string) bool {
 		}
 	}
 	return false
+}
+
+// isForbiddenPathClassification reports whether a classification is
+// permitted on a forbidden-path entry. Slice 6 introduces a second
+// acceptable label — the writer service's own internal Open — so the
+// boundary check now allows either daemon-routed-pending-slice-6 or
+// daemon-routed-writer-service.
+func isForbiddenPathClassification(c writeSiteClassification) bool {
+	return c == daemonRoutedPendingSlice6 || c == daemonRoutedWriterService
 }
 
 // isExcludedPath returns true when path lives under one of excludedDirs,
