@@ -149,3 +149,13 @@ func CheckIntegrity(db *sql.DB) (bool, error) {
 	}
 	return true, rows.Err()
 }
+
+// QueryJournalMode returns the effective journal_mode of the database
+// connection. Returns "unknown" if the query fails.
+func QueryJournalMode(db *sql.DB) string {
+	var mode string
+	if err := db.QueryRow("PRAGMA journal_mode").Scan(&mode); err != nil {
+		return "unknown"
+	}
+	return mode
+}

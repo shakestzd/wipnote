@@ -83,15 +83,18 @@ func runStatus(_ *cobra.Command, _ []string) error {
 		}
 	}
 
-	// Attribution rate from git_commits table.
-	if dbPath, pathErr := storage.CanonicalDBPath(filepath.Dir(dir)); pathErr == nil {
-		fmt.Printf("\nDB: %s\n", dbPath)
-		if database, dbErr := dbpkg.Open(dbPath); dbErr == nil {
+	// DB path, filesystem type, journal_mode, and attribution diagnostics.
+	if dbInfo, pathErr := storage.CanonicalDBPathWithInfo(filepath.Dir(dir)); pathErr == nil {
+		fmt.Printf("\nDB: %s\n", dbInfo.Path)
+		fmt.Printf("  fstype=%s  reason: %s\n", dbInfo.FsType, dbInfo.Reason)
+		if database, dbErr := dbpkg.Open(dbInfo.Path); dbErr == nil {
 			defer database.Close()
+			jm := dbpkg.QueryJournalMode(database)
+			fmt.Printf("  journal_mode=%s\n", jm)
 			total, attributed := dbpkg.CommitAttributionRate(database)
 			if total > 0 {
 				pct := float64(attributed) / float64(total) * 100
-				fmt.Printf("Attribution: %d/%d commits (%.1f%%)\n", attributed, total, pct)
+				fmt.Printf("  attribution: %d/%d commits (%.1f%%)\n", attributed, total, pct)
 			}
 		}
 	}
