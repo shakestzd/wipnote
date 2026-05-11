@@ -117,10 +117,10 @@ ToolSearch(query="select:SendMessage", max_results=1)
 SendMessage is not available (gated behind `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`). First, check the strict gating env var:
 
 ```
-Bash(command="printenv WIPNOTE_EXECUTE_REQUIRE_SENDMESSAGE 2>/dev/null || echo ''")
+Bash(command="[ \"$WIPNOTE_EXECUTE_REQUIRE_SENDMESSAGE\" = \"1\" ] && echo strict || echo lax")
 ```
 
-If the output is `"1"`, print this abort message and STOP — do NOT proceed to dispatch:
+If the output is `strict`, print this abort message and STOP — do NOT proceed to dispatch:
 
 ```
 /wipnote:execute: WIPNOTE_EXECUTE_REQUIRE_SENDMESSAGE=1 is set and SendMessage
@@ -131,7 +131,7 @@ To proceed, either:
   (b) enable agent-teams mode (CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1)
 ```
 
-Otherwise (env var unset, empty, or any value other than `"1"`), print this WARNING and continue to step 1.7:
+Otherwise (output is `lax`), print this WARNING and continue to step 1.7:
 
 ```
 WARNING: SendMessage is not available in this session.
