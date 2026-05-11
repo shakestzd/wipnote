@@ -8,7 +8,7 @@ meta:
     status: finalized
     priority: high
     created_by: codex
-    version: 20
+    version: 21
 design:
     problem: |
         Recurring SQLITE_BUSY failures block routine CLI operations such as plan critique while dashboard, collectors, hooks, or indexers are active. The current architecture opens SQLite for commands that should be able to read canonical YAML/HTML directly, runs DDL and migrations on every db.Open, and allows several independent processes to compete as writers. The project is local-first and must remain self-contained; PostgreSQL or another external service is not an acceptable fix.
@@ -168,6 +168,7 @@ slices:
           severity: MED
           summary: Migration tests need explicit fixtures and step-name assertions rather than vague "representative old schemas".
     - id: slice-4
+      feature_id: feat-67d59e43
       num: 4
       title: WAL-safe cache path selection and diagnostics
       what: |
@@ -209,7 +210,7 @@ slices:
       approved: false
       comment: ""
       approval_status: approved
-      execution_status: not_started
+      execution_status: promoted
       questions:
         - id: q-ephemeral-cache
           text: May wipnote prefer tmpfs for the derived SQLite cache when user cache is WAL-unsafe?
