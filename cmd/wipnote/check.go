@@ -28,6 +28,24 @@ Detects which languages are present and runs the appropriate gates:
   Go:     go build ./...  |  go vet ./...  |  go test ./...
   Python: uv run ruff check --fix  |  uv run ruff format  |  uv run mypy src/  |  uv run pytest
 
+Launch-readiness contention gate (plan-ae0c37b2, feat-156e0a1a):
+
+  The SQLITE_BUSY contention stress fixture is a launch gate, not a
+  routine quality gate — it is heavy (20 producers × 30 seconds × 3
+  consecutive runs) and is skipped by default to keep iteration fast.
+  Run it explicitly before tagging a release:
+
+      go test -run TestSQLiteContentionStress -count=3 ./cmd/wipnote/
+
+  Pass criterion: ZERO SQLITE_BUSY from first-party producers
+  (hook_writer / indexer / cli_mutation / writer_service) across all
+  three runs. External producers (MCP, user-installed tools) are not
+  gated — see the boundary inventory in cmd/wipnote/sqlite_write_boundary_test.go.
+
+  This complements the always-on writable-open boundary
+  (TestWritableDBOpenBoundary) which fails CI if any direct writable
+  open is added in hook/indexer/receiver/event-capture paths.
+
 Returns exit code 0 if all gates pass, 1 if any fail.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			projectRoot, err := resolveProjectRoot()
@@ -52,6 +70,12 @@ Returns exit code 0 if all gates pass, 1 if any fail.`,
 				fmt.Println("No supported project detected (Go: look for go.mod at project root or subdirectories).")
 				return nil
 			}
+
+			// Slice-10 reminder: even when `wipnote check` passes the
+			// routine gates, the contention stress fixture must be run
+			// before a release. We surface this as a soft reminder
+			// rather than a hard failure so iteration speed stays high.
+			defer printContentionGateReminder()
 
 			return printResults(results)
 		},
@@ -124,6 +148,20 @@ func runPythonGates(root string, skipTests bool) []gateResult {
 		gates = append(gates, runGate("pytest", root, "uv", "run", "pytest"))
 	}
 	return gates
+}
+
+// printContentionGateReminder prints the slice-10 launch readiness
+// reminder after every `wipnote check` run. The contention stress
+// fixture is too heavy to run by default (~90 seconds for 3 passes) so
+// we surface it as a soft notice rather than wiring it into the gate
+// table. The full release flow (./scripts/deploy-all.sh) is expected to
+// invoke the stress test explicitly before tagging.
+func printContentionGateReminder() {
+	fmt.Println()
+	fmt.Println("Launch readiness (plan-ae0c37b2):")
+	fmt.Println("  Run the SQLITE_BUSY contention stress fixture before tagging a release:")
+	fmt.Println("    go test -run TestSQLiteContentionStress -count=3 ./cmd/wipnote/")
+	fmt.Println("  Pass criterion: zero first-party SQLITE_BUSY across 3 consecutive runs.")
 }
 
 // printResults displays a summary table and returns an error if any gate failed.

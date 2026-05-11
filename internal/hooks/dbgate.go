@@ -122,6 +122,12 @@ func RecordFallback(handler, sessionID string, reason FallbackReason, detail str
 func OpenHookDB(handler, sessionID, dbPath string) (*sql.DB, FallbackReason) {
 	database, err := db.Open(dbPath)
 	if err != nil {
+		// Slice-10 contention observability: classify open failures by
+		// hook_writer subsystem so the launch gate can assert zero BUSY
+		// from the hook tree. Non-BUSY open failures (e.g., schema lock,
+		// disk full) bypass the counter; the structured fallback log
+		// upstream captures those.
+		db.Record(db.SubsystemHookWriter, err)
 		RecordFallback(handler, sessionID, FallbackWriterUnavailable, err.Error())
 		return nil, FallbackWriterUnavailable
 	}

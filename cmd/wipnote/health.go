@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	dbpkg "github.com/shakestzd/wipnote/internal/db"
 	"github.com/spf13/cobra"
 )
 
@@ -70,10 +71,26 @@ func runHealth(path string, goOnly, pythonOnly, jsonOut, failOnWarn bool) error 
 		}
 	}
 	if jsonOut {
+		// Surface the contention counters in the JSON output too so
+		// dashboards and CI can read them without an extra status call.
+		// Embedded under a top-level "runtime" key to keep the existing
+		// schema intact for callers that only consume violations.
+		envelope := struct {
+			healthResult
+			Runtime runtimeHealth `json:"runtime"`
+		}{
+			healthResult: *result,
+			Runtime:      collectRuntimeHealth(),
+		}
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
-		return enc.Encode(result)
+		return enc.Encode(envelope)
 	}
+	// Slice-10 contention observability: surface runtime SQLITE_BUSY
+	// counters + writer queue depth BEFORE the code-size report so
+	// `wipnote health | head` captures the launch-gate signal even
+	// when the user pipes through truncation.
+	printRuntimeHealth()
 	printHealthReport(*result)
 	if result.Failures > 0 {
 		return fmt.Errorf("health check failed: %d failure(s) — see violations above\nUse 'wipnote health --json' for machine-readable output.", result.Failures)
@@ -82,6 +99,46 @@ func runHealth(path string, goOnly, pythonOnly, jsonOut, failOnWarn bool) error 
 		return fmt.Errorf("health check failed: %d warning(s)", result.Warnings)
 	}
 	return nil
+}
+
+// runtimeHealth is the JSON envelope for the runtime portion of the
+// `wipnote health --json` output. Subsystems is keyed by subsystem label.
+type runtimeHealth struct {
+	JournalMode         string                       `json:"journal_mode,omitempty"`
+	FirstPartyBusyTotal int64                        `json:"first_party_busy_total"`
+	BusySubsystems      map[string]int64             `json:"busy_subsystems,omitempty"`
+	WriterQueue         WriterServiceStatus          `json:"writer_queue"`
+}
+
+// collectRuntimeHealth returns a snapshot of the slice-10 contention
+// observability counters for embedding in `wipnote health --json`.
+func collectRuntimeHealth() runtimeHealth {
+	subs := dbpkg.BusyCounts()
+	stringy := make(map[string]int64, len(subs))
+	for k, v := range subs {
+		stringy[string(k)] = v
+	}
+	return runtimeHealth{
+		FirstPartyBusyTotal: dbpkg.FirstPartyBusyTotal(),
+		BusySubsystems:      stringy,
+		WriterQueue:         readWriterServiceStatus(writerService.queue),
+	}
+}
+
+// printRuntimeHealth writes a 3-4 line runtime block to stdout before
+// the code-size report so `head -10` captures the launch-gate signal.
+func printRuntimeHealth() {
+	rt := collectRuntimeHealth()
+	fmt.Println("Runtime Health")
+	fmt.Println("--------------")
+	fmt.Printf("SQLITE_BUSY (first-party): %d\n", rt.FirstPartyBusyTotal)
+	for k, v := range rt.BusySubsystems {
+		fmt.Printf("  %-16s %d\n", k, v)
+	}
+	fmt.Printf("Writer queue: state=%s depth=%d/%d rejected=%d errors=%d\n",
+		rt.WriterQueue.State, rt.WriterQueue.Depth, rt.WriterQueue.Capacity,
+		rt.WriterQueue.Rejected, rt.WriterQueue.Errors)
+	fmt.Println()
 }
 
 func printHealthReport(r healthResult) {

@@ -239,6 +239,14 @@ func (w *Writer) WriteBatch(
 		return 0, nil
 	}
 
+	// Slice-10 contention observability: classify any error returned from
+	// this WriteBatch under the writer_service subsystem. The launch gate
+	// asserts this counter remains zero across the contention stress
+	// fixture. See internal/db/busy_counter.go for the subsystem taxonomy.
+	defer func() {
+		db.Record(db.SubsystemWriterService, err)
+	}()
+
 	w.mu.Lock()
 	defer w.mu.Unlock()
 

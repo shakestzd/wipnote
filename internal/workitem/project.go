@@ -82,8 +82,21 @@ func Open(projectDir, agent string) (*Project, error) {
 			break
 		}
 		if attempt < dbOpenAttempts && strings.Contains(err.Error(), "database is locked") {
+			// Slice-10 contention observability: classify CLI-mutation
+			// retries under the cli_mutation subsystem so the launch
+			// gate detects user-facing contention. We classify on each
+			// failing attempt — the retry loop's three-tries-with-sleep
+			// indicates exactly the kind of contention the gate cares
+			// about. Successful retries leave the counter incremented
+			// so operators see the contention happened even if the user
+			// got a working DB on attempt 2/3.
+			dbpkg.Record(dbpkg.SubsystemCLIMutation, err)
 			time.Sleep(200 * time.Millisecond)
 			continue
+		}
+		if err != nil {
+			// Final attempt — bump the counter once before returning.
+			dbpkg.Record(dbpkg.SubsystemCLIMutation, err)
 		}
 		return nil, fmt.Errorf("open database: %w", err)
 	}

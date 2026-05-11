@@ -99,6 +99,13 @@ func runStatus(_ *cobra.Command, _ []string) error {
 		}
 	}
 
+	// Slice-10 contention observability: surface the in-process BUSY
+	// counters + writer queue depth so operators can see contention at
+	// a glance. The counters are first-party-only (per the slice-5
+	// boundary); external producers like MCP are excluded from the
+	// launch criterion.
+	printContentionStatus()
+
 	fmt.Printf("\nTotal: %d work items\n", len(nodes))
 
 	// Collector health — scan .wipnote/sessions/ for recent PID files.
@@ -109,6 +116,51 @@ func runStatus(_ *cobra.Command, _ []string) error {
 	}
 
 	return nil
+}
+
+// printContentionStatus prints the slice-10 SQLITE_BUSY counter snapshot
+// plus the slice-6 writer queue depth (when wired in this process). The
+// counters are process-local — in a long-running `wipnote serve` they
+// reflect cumulative contention since startup; in a short-lived CLI
+// invocation they only reflect the current process. Either is useful
+// for the launch readiness check.
+func printContentionStatus() {
+	counts := dbpkg.BusyCounts()
+	firstPartyTotal := dbpkg.FirstPartyBusyTotal()
+
+	// Always print the header line so the absence of contention is itself
+	// a visible signal — "0 SQLITE_BUSY" beats silent omission for the
+	// launch gate.
+	fmt.Printf("\nContention: %d SQLITE_BUSY (first-party)", firstPartyTotal)
+	if len(counts) == 0 {
+		fmt.Println("  [no contention recorded]")
+	} else {
+		fmt.Println()
+		// Stable subsystem order: first-party labels first, then external.
+		ordered := []dbpkg.BusySubsystem{
+			dbpkg.SubsystemHookWriter,
+			dbpkg.SubsystemIndexer,
+			dbpkg.SubsystemCLIMutation,
+			dbpkg.SubsystemWriterService,
+			dbpkg.SubsystemExternal,
+		}
+		for _, s := range ordered {
+			if c, ok := counts[s]; ok && c > 0 {
+				fmt.Printf("  %-16s %d\n", string(s), c)
+			}
+		}
+	}
+
+	// Writer queue depth — only meaningful when a writer service is
+	// constructed (i.e., inside `wipnote serve`); short-lived CLI
+	// invocations of status will see writerService.queue == nil and we
+	// print "disabled" so operators know it's not a missing-feature
+	// problem.
+	queueStatus := readWriterServiceStatus(writerService.queue)
+	fmt.Printf("Writer queue: state=%s depth=%d/%d enq=%d deq=%d rej=%d err=%d\n",
+		queueStatus.State, queueStatus.Depth, queueStatus.Capacity,
+		queueStatus.Enqueued, queueStatus.Dequeued,
+		queueStatus.Rejected, queueStatus.Errors)
 }
 
 // printCollectorHealth lists per-session collector status for any session

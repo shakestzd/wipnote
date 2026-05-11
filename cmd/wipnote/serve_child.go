@@ -96,6 +96,14 @@ func runServeChild(port int) error {
 		q := writequeue.New(writequeue.Config{
 			Capacity: writequeue.DefaultCapacity,
 			OnError: func(err error) {
+				// Slice-10 contention observability: BUSY classification
+				// already lands at the WriteBatch boundary in
+				// internal/otel/receiver/writer.go under the writer_service
+				// subsystem (which captures the actual SQL contention
+				// site). Counting again here would double-bill the same
+				// event. We keep the OnError hook as the log-only path
+				// so operators can correlate the queue depth surfaced via
+				// /api/collector-status with worker errors.
 				log.Printf("writequeue: op error: %v", err)
 			},
 		})

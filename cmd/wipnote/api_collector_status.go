@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	dbpkg "github.com/shakestzd/wipnote/internal/db"
 	"github.com/shakestzd/wipnote/internal/db/writequeue"
 	"github.com/shakestzd/wipnote/internal/otel/collector"
 )
@@ -24,16 +25,23 @@ import (
 // the dashboard surfaces; Enqueued / Dequeued / Rejected / Errors are
 // monotonic counters useful for the contention-observability gate
 // (slice 10).
+//
+// Slice-10 additions (additive — existing dashboard fields untouched):
+//   - BusySubsystems / FirstPartyBusyTotal: process-level SQLITE_BUSY
+//     classification keyed by subsystem; the launch criterion is
+//     FirstPartyBusyTotal == 0 across the contention stress fixture.
 type WriterServiceStatus struct {
-	State             string  `json:"state"`
-	Depth             int     `json:"depth"`
-	Capacity          int     `json:"capacity"`
-	Enqueued          int64   `json:"enqueued"`
-	Dequeued          int64   `json:"dequeued"`
-	Rejected          int64   `json:"rejected"`
-	Errors            int64   `json:"errors"`
-	EnqueueRatePerSec float64 `json:"enqueue_rate_per_sec"`
-	DequeueRatePerSec float64 `json:"dequeue_rate_per_sec"`
+	State               string           `json:"state"`
+	Depth               int              `json:"depth"`
+	Capacity            int              `json:"capacity"`
+	Enqueued            int64            `json:"enqueued"`
+	Dequeued            int64            `json:"dequeued"`
+	Rejected            int64            `json:"rejected"`
+	Errors              int64            `json:"errors"`
+	EnqueueRatePerSec   float64          `json:"enqueue_rate_per_sec"`
+	DequeueRatePerSec   float64          `json:"dequeue_rate_per_sec"`
+	BusySubsystems      map[string]int64 `json:"busy_subsystems,omitempty"`
+	FirstPartyBusyTotal int64            `json:"first_party_busy_total"`
 }
 
 // collectorWriterStatusHandler returns the live writer-queue status as
@@ -54,21 +62,39 @@ func collectorWriterStatusHandler() http.Handler {
 // readWriterServiceStatus converts queue.Stats into the wire shape
 // the dashboard expects. Exposed so the test file can probe it without
 // instantiating an HTTP recorder.
+//
+// Slice-10: every response also carries the process-level BUSY counters
+// regardless of queue state — the counters are independent of the
+// writer-service lifecycle (they accumulate even if the queue is
+// "disabled" because callers from `wipnote serve` early-startup still
+// record into them).
 func readWriterServiceStatus(q *writequeue.Queue) WriterServiceStatus {
+	busy := dbpkg.BusyCounts()
+	subsystems := make(map[string]int64, len(busy))
+	for k, v := range busy {
+		subsystems[string(k)] = v
+	}
+	firstPartyTotal := dbpkg.FirstPartyBusyTotal()
 	if q == nil {
-		return WriterServiceStatus{State: "disabled"}
+		return WriterServiceStatus{
+			State:               "disabled",
+			BusySubsystems:      subsystems,
+			FirstPartyBusyTotal: firstPartyTotal,
+		}
 	}
 	s := q.Stats()
 	return WriterServiceStatus{
-		State:             string(s.State),
-		Depth:             s.Depth,
-		Capacity:          s.Capacity,
-		Enqueued:          s.Enqueued,
-		Dequeued:          s.Dequeued,
-		Rejected:          s.Rejected,
-		Errors:            s.Errors,
-		EnqueueRatePerSec: s.EnqueueRatePerSec,
-		DequeueRatePerSec: s.DequeueRatePerSec,
+		State:               string(s.State),
+		Depth:               s.Depth,
+		Capacity:            s.Capacity,
+		Enqueued:            s.Enqueued,
+		Dequeued:            s.Dequeued,
+		Rejected:            s.Rejected,
+		Errors:              s.Errors,
+		EnqueueRatePerSec:   s.EnqueueRatePerSec,
+		DequeueRatePerSec:   s.DequeueRatePerSec,
+		BusySubsystems:      subsystems,
+		FirstPartyBusyTotal: firstPartyTotal,
 	}
 }
 
