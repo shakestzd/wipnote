@@ -1,0 +1,45 @@
+meta:
+    id: plan-df4c8153
+    track_id: trk-19c99d69
+    title: Status Test
+    description: ""
+    created_at: "2026-05-11"
+    status: active
+    priority: medium
+    version: 3
+design:
+    problem: ""
+    goals: []
+    constraints: []
+    approved: false
+    comment: ""
+slices:
+    - id: slic-0b3da7ab
+      feature_id: feat-1f7004c1
+      num: 1
+      title: S1
+      what: w
+      why: ""
+      files: []
+      deps: []
+      done_when: []
+      effort: ""
+      risk: ""
+      tests: ""
+      approved: false
+      comment: ""
+      execution_status: promoted
+    - id: slic-7463b257
+      num: 2
+      title: S2
+      what: w
+      why: ""
+      files: []
+      deps: []
+      done_when: []
+      effort: ""
+      risk: ""
+      tests: ""
+      approved: false
+      comment: ""
+questions: []
