@@ -42,6 +42,7 @@ func clearOtelEnv(t *testing.T) {
 		"CLAUDE_PROJECT_DIR",
 		"CLAUDE_CODE_ENABLE_TELEMETRY",
 		"CLAUDE_CODE_ENHANCED_TELEMETRY_BETA",
+		"CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS",
 		"OTEL_METRICS_EXPORTER",
 		"OTEL_LOGS_EXPORTER",
 		"OTEL_TRACES_EXPORTER",
@@ -156,4 +157,26 @@ func TestIsExplicitlyDisabled(t *testing.T) {
 			t.Errorf("isExplicitlyDisabled(%q) = false, want true (whitespace)", s)
 		}
 	}
+}
+
+// TestBuildClaudeLaunchEnv_InjectsAgentTeamsByDefault verifies that
+// CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 is set in the returned env
+// even when no OTel collector is active.
+func TestBuildClaudeLaunchEnv_InjectsAgentTeamsByDefault(t *testing.T) {
+	clearOtelEnv(t)
+	t.Setenv("CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS", "")
+
+	env := buildClaudeLaunchEnv("", nil)
+	assertEnvContains(t, env, "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS", "1")
+}
+
+// TestBuildClaudeLaunchEnv_UserOverrideOfAgentTeamsWins verifies that a
+// user-set value for CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS is not overwritten
+// by the registry default (addIfUnset semantics).
+func TestBuildClaudeLaunchEnv_UserOverrideOfAgentTeamsWins(t *testing.T) {
+	clearOtelEnv(t)
+	t.Setenv("CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS", "0")
+
+	env := buildClaudeLaunchEnv("", nil)
+	assertEnvContains(t, env, "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS", "0")
 }

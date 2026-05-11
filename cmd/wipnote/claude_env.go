@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/shakestzd/wipnote/internal/harness"
 )
 
 // effectiveProjectDir resolves the project dir for OTel port derivation.
@@ -33,7 +35,9 @@ func effectiveProjectDir(explicit string) string {
 //
 //  1. WIPNOTE_PROJECT_DIR — set when the launcher runs inside a
 //     worktree, so hooks resolve to the main .wipnote/ directory.
-//  2. OTel exporter vars — enabled by default (default-on). Set
+//  2. Harness-specific launch env from the registry (e.g.
+//     CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1). User-set values win.
+//  3. OTel exporter vars — enabled by default (default-on). Set
 //     WIPNOTE_OTEL_ENABLED=0 to opt out. User-set OTel vars win:
 //     we never clobber an explicit OTEL_* choice.
 //
@@ -56,6 +60,16 @@ func buildClaudeLaunchEnv(wipnoteProjectDir string, overrides *otelEnvOverrides)
 	// Inject session ID when provided by the collector spawn path.
 	if overrides != nil && overrides.SessionID != "" {
 		env = setOrReplaceEnv(env, "WIPNOTE_SESSION_ID", overrides.SessionID)
+	}
+
+	// Layer harness-specific launch env vars from the registry. User-set values
+	// always win — we use addIfUnset, matching the OTel injection policy above.
+	if cfg := harness.Get("claude_code"); cfg != nil {
+		for _, kv := range cfg.LaunchEnv {
+			if idx := strings.Index(kv, "="); idx > 0 {
+				env = addIfUnset(env, kv[:idx], kv[idx+1:])
+			}
+		}
 	}
 
 	// OTel injection is default-on. Opt out by setting WIPNOTE_OTEL_ENABLED=0

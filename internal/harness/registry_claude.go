@@ -18,5 +18,6 @@ func init() {
 		SessionAttr:    "session.id",
 		HookEventNames: nil,
 		HooksHarness:   HooksClaude,
+		LaunchEnv:      []string{"CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1"},
 	})
 }

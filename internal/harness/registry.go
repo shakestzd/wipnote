@@ -65,6 +65,13 @@ type HarnessConfig struct {
 	// Codex and Gemini registry init() functions panic at startup if their
 	// OtelEnv is nil, preventing silent misconfiguration.
 	OtelEnv OtelEnvFunc
+
+	// LaunchEnv holds harness-specific env vars to inject at launch time,
+	// beyond the OTel and agent-ID injections. Each entry is "KEY=VALUE".
+	// Examples: CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 for Claude.
+	// These are layered on top of os.Environ() by the launcher via
+	// addIfUnset semantics — explicit user-set values always win.
+	LaunchEnv []string
 }
 
 // BuildAgentEnv returns the WIPNOTE_AGENT_ID and WIPNOTE_AGENT_TYPE env vars

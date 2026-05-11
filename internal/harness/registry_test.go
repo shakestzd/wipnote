@@ -257,3 +257,45 @@ func TestBuildAgentEnv_Gemini(t *testing.T) {
 		}
 	}
 }
+
+// TestRegistry_LaunchEnv_Claude verifies that the Claude harness registry entry
+// contains exactly the expected LaunchEnv values and that Codex and Gemini leave
+// LaunchEnv empty/nil.
+func TestRegistry_LaunchEnv_Claude(t *testing.T) {
+	cfg := harness.Get("claude_code")
+	if cfg == nil {
+		t.Fatal("Get(\"claude_code\") returned nil")
+	}
+
+	want := []string{"CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1"}
+	if len(cfg.LaunchEnv) != len(want) {
+		t.Fatalf("Get(\"claude_code\").LaunchEnv = %v, want %v", cfg.LaunchEnv, want)
+	}
+	for i, w := range want {
+		if cfg.LaunchEnv[i] != w {
+			t.Errorf("Get(\"claude_code\").LaunchEnv[%d] = %q, want %q", i, cfg.LaunchEnv[i], w)
+		}
+	}
+}
+
+// TestRegistry_LaunchEnv_CodexEmpty verifies that the Codex harness has no LaunchEnv.
+func TestRegistry_LaunchEnv_CodexEmpty(t *testing.T) {
+	cfg := harness.Get("codex")
+	if cfg == nil {
+		t.Fatal("Get(\"codex\") returned nil")
+	}
+	if len(cfg.LaunchEnv) != 0 {
+		t.Errorf("Get(\"codex\").LaunchEnv = %v, want empty/nil", cfg.LaunchEnv)
+	}
+}
+
+// TestRegistry_LaunchEnv_GeminiEmpty verifies that the Gemini harness has no LaunchEnv.
+func TestRegistry_LaunchEnv_GeminiEmpty(t *testing.T) {
+	cfg := harness.Get("gemini_cli")
+	if cfg == nil {
+		t.Fatal("Get(\"gemini_cli\") returned nil")
+	}
+	if len(cfg.LaunchEnv) != 0 {
+		t.Errorf("Get(\"gemini_cli\").LaunchEnv = %v, want empty/nil", cfg.LaunchEnv)
+	}
+}
