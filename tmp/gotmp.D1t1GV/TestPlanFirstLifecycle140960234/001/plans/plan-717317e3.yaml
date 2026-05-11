@@ -1,0 +1,29 @@
+meta:
+    id: plan-717317e3
+    title: Auth Middleware Rewrite
+    description: Rewrite auth for compliance
+    created_at: "2026-05-11"
+    status: draft
+    priority: medium
+    version: 3
+design:
+    problem: ""
+    goals: []
+    constraints: []
+    approved: false
+    comment: ""
+slices:
+    - id: slic-dc28eb69
+      num: 1
+      title: Error handling layer
+      what: Implement Error handling layer
+      why: ""
+      files: []
+      deps: []
+      done_when: []
+      effort: S
+      risk: Low
+      tests: ""
+      approved: false
+      comment: ""
+questions: []
