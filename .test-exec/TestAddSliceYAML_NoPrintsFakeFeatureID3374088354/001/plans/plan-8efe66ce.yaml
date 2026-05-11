@@ -1,0 +1,29 @@
+meta:
+    id: plan-8efe66ce
+    title: test
+    description: ""
+    created_at: "2026-05-11"
+    status: draft
+    priority: medium
+    version: 3
+design:
+    problem: ""
+    goals: []
+    constraints: []
+    approved: false
+    comment: ""
+slices:
+    - id: slic-bba8bbd5
+      num: 1
+      title: My Slice
+      what: impl detail
+      why: ""
+      files: []
+      deps: []
+      done_when: []
+      effort: S
+      risk: Low
+      tests: ""
+      approved: false
+      comment: ""
+questions: []
