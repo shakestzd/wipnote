@@ -519,3 +519,182 @@ func TestCleanLegacyDBIfSafe_WIPNOTE_DB_PATH_PointingAtLegacy(t *testing.T) {
 		t.Errorf("expected no output when WIPNOTE_DB_PATH points at legacy file, got: %q", buf.String())
 	}
 }
+
+// ---- WAL-safe path selection tests (Slice 4) ----
+
+// TestCanonicalDBPath_PrefersWalSafeCandidate injects a probe that marks
+// overlayfs as unsafe and tmpfs as safe. When XDG_RUNTIME_DIR is unset and
+// TMPDIR points at a tmpfs-backed dir, the selected path must be under TMPDIR,
+// not the user-cache dir which is overlayfs.
+func TestCanonicalDBPath_PrefersWalSafeCandidate(t *testing.T) {
+	t.Setenv("WIPNOTE_DB_PATH", "")
+	t.Setenv("XDG_RUNTIME_DIR", "")
+
+	tmpBase := t.TempDir()
+	t.Setenv("TMPDIR", tmpBase)
+
+	// Inject probe: tmpBase → tmpfs (safe); cacheBase → overlayfs (unsafe).
+	origProber := storage.FsTypeProber
+	t.Cleanup(func() { storage.FsTypeProber = origProber })
+	storage.FsTypeProber = func(path string) (string, bool) {
+		if strings.HasPrefix(path, tmpBase) {
+			return "tmpfs", true
+		}
+		return "overlayfs", false
+	}
+
+	// We can't control UserCacheDir, but we can verify the returned path is
+	// under tmpBase (TMPDIR), which the probe marks as safe.
+	info, err := storage.CanonicalDBPathWithInfo("/some/project")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.HasPrefix(info.Path, tmpBase) {
+		t.Errorf("expected path under tmpBase %q, got %q", tmpBase, info.Path)
+	}
+	if !info.WalSafe {
+		t.Errorf("expected WalSafe=true for tmpfs candidate")
+	}
+	if info.FsType != "tmpfs" {
+		t.Errorf("expected FsType=tmpfs, got %q", info.FsType)
+	}
+	if !strings.Contains(info.Reason, "tmpfs") {
+		t.Errorf("expected reason to mention tmpfs, got %q", info.Reason)
+	}
+}
+
+// TestCanonicalDBPath_OverrideWins verifies that WIPNOTE_DB_PATH is returned
+// verbatim regardless of what the fstype probe returns.
+func TestCanonicalDBPath_OverrideWins(t *testing.T) {
+	t.Setenv("WIPNOTE_DB_PATH", "/custom/path/wipnote.db")
+
+	origProber := storage.FsTypeProber
+	t.Cleanup(func() { storage.FsTypeProber = origProber })
+	// Even if we inject a probe that always says unsafe, the override must win.
+	storage.FsTypeProber = func(path string) (string, bool) {
+		return "overlayfs", false
+	}
+
+	info, err := storage.CanonicalDBPathWithInfo("/any/project")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if info.Path != "/custom/path/wipnote.db" {
+		t.Errorf("expected override path, got %q", info.Path)
+	}
+	if info.Reason != "WIPNOTE_DB_PATH override" {
+		t.Errorf("expected reason=WIPNOTE_DB_PATH override, got %q", info.Reason)
+	}
+
+	// CanonicalDBPath (non-info variant) must also respect the override.
+	got, err := storage.CanonicalDBPath("/any/project")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != "/custom/path/wipnote.db" {
+		t.Errorf("CanonicalDBPath: expected override, got %q", got)
+	}
+}
+
+// TestCanonicalDBPath_UnknownProbeDeterministic injects a probe that always
+// returns ("unknown", false). The function must return a deterministic path and
+// emit an "unknown" fstype in diagnostics.
+func TestCanonicalDBPath_UnknownProbeDeterministic(t *testing.T) {
+	t.Setenv("WIPNOTE_DB_PATH", "")
+	t.Setenv("XDG_RUNTIME_DIR", "")
+
+	origProber := storage.FsTypeProber
+	t.Cleanup(func() { storage.FsTypeProber = origProber })
+	storage.FsTypeProber = func(_ string) (string, bool) {
+		return "unknown", false
+	}
+
+	info1, err := storage.CanonicalDBPathWithInfo("/project/alpha")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// Call a second time — must return the same path (deterministic).
+	info2, err := storage.CanonicalDBPathWithInfo("/project/alpha")
+	if err != nil {
+		t.Fatalf("unexpected error (second call): %v", err)
+	}
+	if info1.Path != info2.Path {
+		t.Errorf("path not deterministic: %q vs %q", info1.Path, info2.Path)
+	}
+	// Diagnostics must flag unknown.
+	if !strings.Contains(info1.FsType, "unknown") {
+		t.Errorf("expected FsType to contain 'unknown', got %q", info1.FsType)
+	}
+	if !strings.Contains(info1.Reason, "unknown") {
+		t.Errorf("expected Reason to mention 'unknown', got %q", info1.Reason)
+	}
+	// WalSafe must be false.
+	if info1.WalSafe {
+		t.Errorf("expected WalSafe=false for unknown fstype")
+	}
+}
+
+// TestCanonicalDBPath_AllUnsafeFallsBackToUserCache verifies that when all
+// candidate roots are unsafe, the function falls back deterministically to a
+// path under UserCacheDir and the reason mentions DELETE mode.
+func TestCanonicalDBPath_AllUnsafeFallsBackToUserCache(t *testing.T) {
+	t.Setenv("WIPNOTE_DB_PATH", "")
+	t.Setenv("XDG_RUNTIME_DIR", "")
+
+	origProber := storage.FsTypeProber
+	t.Cleanup(func() { storage.FsTypeProber = origProber })
+	storage.FsTypeProber = func(_ string) (string, bool) {
+		return "overlayfs", false
+	}
+
+	info, err := storage.CanonicalDBPathWithInfo("/project/alpha")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(info.Reason, "DELETE mode") {
+		t.Errorf("expected reason to mention DELETE mode, got %q", info.Reason)
+	}
+	if info.WalSafe {
+		t.Errorf("expected WalSafe=false for all-unsafe scenario")
+	}
+	// Path must end with the canonical DB filename.
+	if filepath.Base(info.Path) != storage.DBFileName {
+		t.Errorf("expected path to end with %q, got %q", storage.DBFileName, info.Path)
+	}
+}
+
+// TestDBPathInfo_Fields verifies that DBPathInfo fields are populated from
+// CanonicalDBPathWithInfo.
+func TestDBPathInfo_Fields(t *testing.T) {
+	t.Setenv("WIPNOTE_DB_PATH", "")
+	t.Setenv("XDG_RUNTIME_DIR", "")
+
+	tmpBase := t.TempDir()
+	t.Setenv("TMPDIR", tmpBase)
+
+	origProber := storage.FsTypeProber
+	t.Cleanup(func() { storage.FsTypeProber = origProber })
+	storage.FsTypeProber = func(path string) (string, bool) {
+		if strings.HasPrefix(path, tmpBase) {
+			return "ext4", true
+		}
+		return "overlayfs", false
+	}
+
+	info, err := storage.CanonicalDBPathWithInfo("/my/project")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if info.Path == "" {
+		t.Error("Path must not be empty")
+	}
+	if info.FsType == "" {
+		t.Error("FsType must not be empty")
+	}
+	if info.Reason == "" {
+		t.Error("Reason must not be empty")
+	}
+	if filepath.Base(info.Path) != storage.DBFileName {
+		t.Errorf("Path must end with %q, got %q", storage.DBFileName, info.Path)
+	}
+}

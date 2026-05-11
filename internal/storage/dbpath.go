@@ -14,6 +14,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	dbpkg "github.com/shakestzd/wipnote/internal/db"
 )
 
 // DBFileName is the canonical SQLite filename. Use the constant; never
@@ -24,22 +26,69 @@ const DBFileName = "wipnote.db"
 // about project-local SQLite files written before the wipnote rename.
 const legacyHTMLGraphDBFileName = "htmlgraph.db"
 
-// CanonicalDBPath returns the absolute path to the SQLite read-index for
-// the given project. The DB lives in the host's OS cache directory keyed
-// by project-path hash — never inside the project tree — so it always
-// sits on a filesystem that supports SQLite WAL/SHM mmap (ext4, APFS, etc.)
-// regardless of how the project itself is mounted (virtiofs, osxfs, NFS).
-//
-// SQLite is a derived index in wipnote: HTML files and NDJSON events
-// are the canonical store. Losing the cache file is harmless — the
-// indexer rebuilds it.
-//
-// Override with WIPNOTE_DB_PATH for CI, tests, or unusual setups.
-// All callers MUST use this; do not construct DB paths inline.
-func CanonicalDBPath(projectDir string) (string, error) {
-	if override := os.Getenv("WIPNOTE_DB_PATH"); override != "" {
-		return override, nil
+// FsTypeProber is the function used to probe filesystem type for path selection.
+// It returns the type name (e.g. "ext4", "tmpfs", "overlayfs", "unknown") and
+// whether WAL mode is safe on that filesystem. Exported so tests can inject a
+// deterministic stub.
+var FsTypeProber = func(path string) (fstype string, walSafe bool) {
+	return dbpkg.ProbeFsType(path)
+}
+
+// DBPathInfo carries the path-selection result including diagnostics. It is
+// returned by CanonicalDBPathWithInfo so that callers (e.g. wipnote status)
+// can surface the selection reason without re-running the probe.
+type DBPathInfo struct {
+	// Path is the selected absolute DB path.
+	Path string
+	// FsType is the filesystem type name of the selected path's mount.
+	FsType string
+	// WalSafe reports whether the selected path's filesystem supports WAL mode.
+	WalSafe bool
+	// Reason is a short human-readable explanation of why this path was selected.
+	// Examples:
+	//   "WIPNOTE_DB_PATH override"
+	//   "tmpfs (volatile, preferred for WAL safety)"
+	//   "ext4 (WAL safe)"
+	//   "overlayfs (DELETE mode — no WAL-safe path found)"
+	//   "unknown (DELETE mode — fstype probe failed, using fallback)"
+	Reason string
+}
+
+// candidateRoot describes a candidate cache-root directory.
+type candidateRoot struct {
+	dir   string
+	label string
+}
+
+// candidateRoots returns the ordered list of candidate root directories for
+// the DB cache. Priority:
+//  1. $XDG_RUNTIME_DIR (often tmpfs on Linux, tied to user session)
+//  2. $TMPDIR / /tmp  (tmpfs on most Linux systems; volatile but WAL-safe)
+//  3. os.UserCacheDir()  (overlayfs in devcontainers — safe fallback)
+func candidateRoots() []candidateRoot {
+	var roots []candidateRoot
+
+	if xdg := os.Getenv("XDG_RUNTIME_DIR"); xdg != "" {
+		roots = append(roots, candidateRoot{dir: xdg, label: "XDG_RUNTIME_DIR"})
 	}
+
+	// Prefer $TMPDIR if set; otherwise use /tmp.
+	tmpDir := os.Getenv("TMPDIR")
+	if tmpDir == "" {
+		tmpDir = "/tmp"
+	}
+	roots = append(roots, candidateRoot{dir: tmpDir, label: "tmp"})
+
+	if cacheDir, err := os.UserCacheDir(); err == nil {
+		roots = append(roots, candidateRoot{dir: cacheDir, label: "user-cache"})
+	}
+
+	return roots
+}
+
+// projectKey computes a 16-hex-character key from the project directory
+// path, after resolving symlinks. It is stable across equivalent paths.
+func projectKey(projectDir string) (string, error) {
 	abs, err := filepath.Abs(projectDir)
 	if err != nil {
 		return "", fmt.Errorf("resolve project dir: %w", err)
@@ -52,13 +101,109 @@ func CanonicalDBPath(projectDir string) (string, error) {
 	if resolved, evalErr := filepath.EvalSymlinks(abs); evalErr == nil {
 		abs = resolved
 	}
-	cache, err := os.UserCacheDir()
-	if err != nil {
-		return "", fmt.Errorf("locate user cache dir: %w", err)
-	}
 	sum := sha256.Sum256([]byte(abs))
 	key := hex.EncodeToString(sum[:])[:16]
-	return filepath.Join(cache, "wipnote", key, DBFileName), nil
+	return key, nil
+}
+
+// CanonicalDBPathWithInfo returns the selected DB path together with
+// filesystem diagnostics. Call this when you need to surface path-selection
+// reason and fstype to users (e.g. wipnote status).
+//
+// Selection priority:
+//  1. WIPNOTE_DB_PATH env var — always wins, never silently moved.
+//  2. First candidate root (XDG_RUNTIME_DIR, /tmp, UserCacheDir) whose
+//     backing filesystem is WAL-safe.
+//  3. If no WAL-safe path is found, fall back to UserCacheDir (or /tmp) with
+//     DELETE-mode diagnostics noting that no WAL-safe path was available.
+func CanonicalDBPathWithInfo(projectDir string) (DBPathInfo, error) {
+	// 1. Explicit override — never silently moved.
+	if override := os.Getenv("WIPNOTE_DB_PATH"); override != "" {
+		fstype, walSafe := FsTypeProber(override)
+		return DBPathInfo{
+			Path:    override,
+			FsType:  fstype,
+			WalSafe: walSafe,
+			Reason:  "WIPNOTE_DB_PATH override",
+		}, nil
+	}
+
+	key, err := projectKey(projectDir)
+	if err != nil {
+		return DBPathInfo{}, err
+	}
+
+	// 2. Probe candidate roots in priority order; pick first WAL-safe one.
+	candidates := candidateRoots()
+	for _, c := range candidates {
+		if c.dir == "" {
+			continue
+		}
+		candidatePath := filepath.Join(c.dir, "wipnote", key, DBFileName)
+		fstype, walSafe := FsTypeProber(candidatePath)
+		if walSafe {
+			reason := buildWalSafeReason(fstype)
+			return DBPathInfo{
+				Path:    candidatePath,
+				FsType:  fstype,
+				WalSafe: true,
+				Reason:  reason,
+			}, nil
+		}
+	}
+
+	// 3. No WAL-safe candidate found. Use UserCacheDir or /tmp as deterministic
+	// fallback with DELETE-mode diagnostics.
+	fallbackDir, err := os.UserCacheDir()
+	if err != nil {
+		if tmpDir := os.Getenv("TMPDIR"); tmpDir != "" {
+			fallbackDir = tmpDir
+		} else {
+			fallbackDir = "/tmp"
+		}
+	}
+
+	fallbackPath := filepath.Join(fallbackDir, "wipnote", key, DBFileName)
+	fstype, _ := FsTypeProber(fallbackPath)
+	return DBPathInfo{
+		Path:    fallbackPath,
+		FsType:  fstype,
+		WalSafe: false,
+		Reason:  buildDeleteModeReason(fstype),
+	}, nil
+}
+
+// buildWalSafeReason constructs a human-readable selection reason for a
+// WAL-safe path.
+func buildWalSafeReason(fstype string) string {
+	if fstype == "tmpfs" {
+		return "tmpfs (volatile, preferred for WAL safety)"
+	}
+	return fmt.Sprintf("%s (WAL safe)", fstype)
+}
+
+// buildDeleteModeReason constructs a human-readable reason when no WAL-safe
+// path was found. It is always explicit that DELETE mode is intentional.
+func buildDeleteModeReason(fstype string) string {
+	if strings.HasPrefix(fstype, "unknown") {
+		return fmt.Sprintf("%s (DELETE mode — fstype probe failed, using fallback)", fstype)
+	}
+	return fmt.Sprintf("%s (DELETE mode — no WAL-safe filesystem found)", fstype)
+}
+
+// CanonicalDBPath returns the absolute path to the SQLite read-index for
+// the given project. It selects the first WAL-safe candidate root (see
+// CanonicalDBPathWithInfo for full priority). Use CanonicalDBPathWithInfo
+// when you need diagnostics.
+//
+// Override with WIPNOTE_DB_PATH for CI, tests, or unusual setups.
+// All callers MUST use this; do not construct DB paths inline.
+func CanonicalDBPath(projectDir string) (string, error) {
+	info, err := CanonicalDBPathWithInfo(projectDir)
+	if err != nil {
+		return "", err
+	}
+	return info.Path, nil
 }
 
 // LegacyProjectDBPaths returns the two pre-cache-migration project-local
