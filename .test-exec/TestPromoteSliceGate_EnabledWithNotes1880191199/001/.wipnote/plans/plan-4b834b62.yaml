@@ -1,0 +1,35 @@
+meta:
+    id: plan-4b834b62
+    track_id: trk-de6a0884
+    title: Gate Test
+    description: ""
+    created_at: "2026-05-11"
+    status: active
+    priority: medium
+    version: 3
+design:
+    problem: x
+    goals: []
+    constraints: []
+    approved: false
+    comment: ""
+slices:
+    - id: slic-d99cae70
+      feature_id: feat-b2737336
+      num: 1
+      title: Slice One
+      what: do
+      why: because
+      files: []
+      deps: []
+      done_when: []
+      effort: ""
+      risk: ""
+      tests: ""
+      approved: false
+      comment: ""
+      execution_status: promoted
+      decisions_notes: |-
+        ### Decisions
+        We picked X.
+questions: []
