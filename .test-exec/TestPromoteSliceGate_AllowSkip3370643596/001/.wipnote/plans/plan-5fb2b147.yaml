@@ -1,0 +1,32 @@
+meta:
+    id: plan-5fb2b147
+    track_id: trk-62e0161a
+    title: Gate Test
+    description: ""
+    created_at: "2026-05-11"
+    status: active
+    priority: medium
+    version: 3
+design:
+    problem: x
+    goals: []
+    constraints: []
+    approved: false
+    comment: ""
+slices:
+    - id: slic-cc16f5a5
+      feature_id: feat-e442677b
+      num: 1
+      title: Slice One
+      what: do
+      why: because
+      files: []
+      deps: []
+      done_when: []
+      effort: ""
+      risk: ""
+      tests: ""
+      approved: false
+      comment: '[2026-05-11T16:41:30Z] promote-slice --allow-spec-skip: promoted without decisions_notes'
+      execution_status: promoted
+questions: []
