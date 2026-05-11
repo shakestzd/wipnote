@@ -461,6 +461,57 @@ func TestWriteQueue_NoPanicOnSubmitDuringStop(t *testing.T) {
 		nilCount, unavailCount, otherCount, nilCount+unavailCount+otherCount)
 }
 
+// TestWriteQueue_SubmitSync_ReturnsOpResult verifies the blocking
+// variant (roborev #1501 plumbing) waits for the consumer to run the op
+// and surfaces the op's actual error verbatim — not nil, not a
+// queue-level shim. The indexer's checkpoint advance relies on this.
+func TestWriteQueue_SubmitSync_ReturnsOpResult(t *testing.T) {
+	q := New(Config{Capacity: 4})
+	if err := q.Start(context.Background()); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	defer q.Stop(time.Second)
+
+	// Success path.
+	var ran atomic.Bool
+	if err := q.SubmitSync(context.Background(), func(context.Context) error {
+		ran.Store(true)
+		return nil
+	}); err != nil {
+		t.Fatalf("SubmitSync success path returned %v, want nil", err)
+	}
+	if !ran.Load() {
+		t.Error("SubmitSync returned before op ran")
+	}
+
+	// Failure path — op error must surface verbatim.
+	wantErr := errors.New("simulated commit failure")
+	if err := q.SubmitSync(context.Background(), func(context.Context) error {
+		return wantErr
+	}); !errors.Is(err, wantErr) {
+		t.Errorf("SubmitSync failure path returned %v, want %v", err, wantErr)
+	}
+}
+
+// TestWriteQueue_SubmitSync_StoppedQueueRejects verifies SubmitSync
+// returns ErrWriterUnavailable when the queue has already been Stop()'d,
+// so callers (indexer) can refuse to advance their checkpoint.
+func TestWriteQueue_SubmitSync_StoppedQueueRejects(t *testing.T) {
+	q := New(Config{Capacity: 2})
+	if err := q.Start(context.Background()); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	q.Stop(time.Second)
+
+	err := q.SubmitSync(context.Background(), func(context.Context) error {
+		t.Error("op should not have run on a stopped queue")
+		return nil
+	})
+	if !errors.Is(err, ErrWriterUnavailable) {
+		t.Errorf("SubmitSync on stopped queue returned %v, want ErrWriterUnavailable", err)
+	}
+}
+
 // safeRecoverString turns a recover() value into a string for test
 // assertions without panicking if it's not stringer-compatible.
 func safeRecoverString(r any) string {

@@ -259,6 +259,63 @@ func (q *Queue) Submit(ctx context.Context, op WriteOp) error {
 	}
 }
 
+// SubmitSync enqueues op and blocks until the consumer goroutine has
+// finished executing it. Returns the op's error (which may be nil) or a
+// queue-level error (ErrQueueFull / ErrWriterUnavailable / ctx.Err()).
+//
+// SubmitSync exists so callers that durably depend on the write outcome
+// — most notably the indexer's `.index-offset` checkpoint advance
+// (roborev #1501) — can wait for commit before declaring success.
+// Async producers (hook handlers, OTLP receiver) should continue using
+// Submit; only paths whose correctness hinges on "DB row exists before
+// I move my own state forward" need this variant.
+//
+// Implementation: wraps op in a closure that writes the op's return
+// value to a 1-slot result channel after running. The blocking wait
+// observes ctx, q.quit, and the result channel. On queue rejection
+// (full / unavailable) we return the rejection error without ever
+// scheduling the op — callers must treat that as "the write did NOT
+// happen" and refrain from advancing their checkpoint.
+func (q *Queue) SubmitSync(ctx context.Context, op WriteOp) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if op == nil {
+		return nil
+	}
+	// Buffered so the consumer never blocks on its send even if the
+	// caller's ctx fires before we reach the receive below.
+	resultCh := make(chan error, 1)
+	wrapped := func(opCtx context.Context) error {
+		err := op(opCtx)
+		resultCh <- err
+		return err
+	}
+	if err := q.Submit(ctx, wrapped); err != nil {
+		return err
+	}
+	// At this point the op is in the channel; the consumer will run it
+	// even if Stop has fired (drain phase). Wait on result, ctx, and
+	// q.done so we never deadlock if the consumer exits unexpectedly.
+	select {
+	case err := <-resultCh:
+		return err
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-q.done:
+		// Consumer exited without executing our op. Drain phase should
+		// have run everything in q.ch before closing done, so this is a
+		// non-graceful shutdown path. Surface as ErrWriterUnavailable so
+		// the caller does not advance its checkpoint.
+		select {
+		case err := <-resultCh:
+			return err
+		default:
+			return ErrWriterUnavailable
+		}
+	}
+}
+
 // SubmitWithTimeout enqueues op, waiting up to timeout for a slot to
 // open. Returns ErrTimeout if the deadline elapses, ErrWriterUnavailable
 // if the queue stops mid-wait, or ctx.Err() if the context is cancelled.

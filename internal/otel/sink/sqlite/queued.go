@@ -82,11 +82,55 @@ func (s *QueuedSink) WriteBatch(ctx context.Context, harness otel.Harness, resou
 	return err
 }
 
+// WriteBatchSync submits the batch through the queue and BLOCKS until
+// the consumer commits it (or the queue rejects/cancels). Returns the
+// inner Writer's actual error so callers can distinguish "indexed
+// successfully" from "queue full / writer unavailable / op error".
+//
+// Unlike WriteBatch — which fire-and-forgets after Submit and swallows
+// queue rejection errors as nil to preserve the canonical-first
+// contract — WriteBatchSync exists for callers whose own durable state
+// depends on the SQLite commit succeeding. The indexer's
+// `.index-offset` checkpoint is the canonical example: advancing it
+// must follow, not precede, the actual DB write (roborev #1501).
+//
+// Callers must NOT advance their checkpoint when this returns a
+// non-nil error. On ErrQueueFull / ErrWriterUnavailable / ErrTimeout
+// the indexer should retry on the next tick — the canonical NDJSON
+// is unchanged, so a retry is safe and idempotent (INSERT OR IGNORE
+// in the underlying Writer).
+func (s *QueuedSink) WriteBatchSync(ctx context.Context, harness otel.Harness, resourceAttrs map[string]any, signals []otel.UnifiedSignal) error {
+	if len(signals) == 0 {
+		return nil
+	}
+	op := func(opCtx context.Context) error {
+		_, err := s.inner.WriteBatch(opCtx, harness, resourceAttrs, signals)
+		return err
+	}
+	return s.queue.SubmitSync(ctx, op)
+}
+
 // Close releases the underlying writer. The caller MUST stop the queue
 // FIRST (via queue.Stop) so the consumer drains any pending ops before
 // the writer's prepared statements are torn down — otherwise an
 // in-flight op would see a closed *sql.Conn and fail.
 func (s *QueuedSink) Close() error { return s.inner.Close() }
+
+// SyncSignalSink is an optional interface that signal sinks may
+// implement to expose a synchronous write path. Callers (notably the
+// indexer) can type-assert and use the sync variant when correctness
+// requires "DB commit before I move my checkpoint forward".
+//
+// Defined in this package rather than internal/otel/sink to keep that
+// package free of writequeue knowledge — the sink package is a thin
+// abstraction; sync semantics are an implementation concern of the
+// queued sqlite sink.
+type SyncSignalSink interface {
+	WriteBatchSync(ctx context.Context, harness otel.Harness, resourceAttrs map[string]any, signals []otel.UnifiedSignal) error
+}
+
+// Compile-time check that QueuedSink satisfies SyncSignalSink.
+var _ SyncSignalSink = (*QueuedSink)(nil)
 
 // Queue exposes the underlying queue so the dashboard collector-status
 // handler can read Stats without holding a separate reference.

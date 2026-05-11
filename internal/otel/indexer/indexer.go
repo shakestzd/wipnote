@@ -16,6 +16,18 @@ import (
 	"github.com/shakestzd/wipnote/internal/otel/sink"
 )
 
+// syncSink is the optional interface implemented by sinks that expose a
+// synchronous write path (currently sqlite.QueuedSink). When the
+// configured sink satisfies it, the indexer routes batches through the
+// sync path so it can wait for the SQLite commit before advancing
+// `.index-offset`. Without the sync path, the underlying queue is
+// fire-and-forget and a queue rejection / late op error would silently
+// strand records as "indexed" in the checkpoint while the SQLite insert
+// never happened (roborev #1501).
+type syncSink interface {
+	WriteBatchSync(ctx context.Context, harness otel.Harness, resourceAttrs map[string]any, signals []otel.UnifiedSignal) error
+}
+
 const pollInterval = 500 * time.Millisecond
 
 // maxBytesPerTick caps the amount of NDJSON data processed per session per tick.
@@ -257,14 +269,29 @@ func (idx *Indexer) readNewSignals(ndjsonPath string, offset, readUpTo int64) ([
 // in the SQLite writer functions correctly. After persisting each signal it
 // attempts to bridge prompt_id from user_prompt log records back to the
 // matching UserQuery row in agent_events (best-effort, silently skipped on failure).
+//
+// When the sink supports a synchronous path (sqlite.QueuedSink does), we
+// use it so the caller can refuse to advance the `.index-offset`
+// checkpoint until the SQLite commit succeeds. This closes roborev
+// #1501: WriteBatch on the QueuedSink is fire-and-forget, so without
+// the sync variant a queue rejection (full / unavailable / timeout) or
+// a late op error would let processSession checkpoint records as
+// "indexed" while the DB write never happened.
 func (idx *Indexer) writeParsedBatch(ctx context.Context, parsed []parsedSignal) error {
+	sync, useSync := idx.snk.(syncSink)
 	for _, p := range parsed {
 		h := p.Signal.Harness
 		if h == "" {
 			h = otel.HarnessClaude
 		}
 		signals := []otel.UnifiedSignal{p.Signal}
-		if err := idx.snk.WriteBatch(ctx, h, p.ResourceAttrs, signals); err != nil {
+		var err error
+		if useSync {
+			err = sync.WriteBatchSync(ctx, h, p.ResourceAttrs, signals)
+		} else {
+			err = idx.snk.WriteBatch(ctx, h, p.ResourceAttrs, signals)
+		}
+		if err != nil {
 			return err
 		}
 		idx.maybeSetPromptID(p.Signal)
