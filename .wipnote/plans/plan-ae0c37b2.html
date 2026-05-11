@@ -469,6 +469,13 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
       </a>
     </li>
     
+    <li>
+      <a href="#slice-11" class="slice-nav-item" data-slice-nav="11">
+        <span class="slice-nav-dot" data-approval="pending" data-dot-for="11"></span>
+        <span>#11 Orphan session NDJSON pruning</span>
+      </a>
+    </li>
+    
   </ul>
   
   <a href="#questions" class="nav-link" data-spy="questions" data-initial="Q">Decisions</a>
@@ -487,7 +494,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
 </p>
   <div class="meta">
     <span class="badge badge-revision">Active</span>
-    <span style="font-size:.75rem;color:var(--text-muted)">v3 · 10 slices · Created 2026-05-11</span>
+    <span style="font-size:.75rem;color:var(--text-muted)">v5 · 11 slices · Created 2026-05-11</span>
   </div>
 </header>
 <button id="themeToggle" style="position:fixed;top:16px;right:16px;z-index:100;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:6px 12px;color:var(--text);font-family:var(--mono);font-size:0.75rem;cursor:pointer;">
@@ -516,7 +523,8 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     <div data-node="7" data-name="Hook and indexer integration with canonical-first fallback" data-status="pending" data-deps="6" data-files="6"></div>
     <div data-node="8" data-name="Canonical command audit and fail-loud DB dependency" data-status="pending" data-deps="1,2" data-files="6"></div>
     <div data-node="9" data-name="Reindex rebuild guarantees for dashboard-critical rows" data-status="pending" data-deps="7,8" data-files="6"></div>
-    <div data-node="10" data-name="Contention observability and regression gate" data-status="pending" data-deps="7,9" data-files="6"></div>
+    <div data-node="10" data-name="Contention observability and regression gate" data-status="pending" data-deps="7,9,11" data-files="6"></div>
+    <div data-node="11" data-name="Orphan session NDJSON pruning" data-status="pending" data-deps="5" data-files="4"></div>
     
     <!--PLAN_GRAPH_NODES-->
   </div>
@@ -531,6 +539,8 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
   <div class="section-body">
     <h4>Problem</h4>
 <div data-markdown>Recurring SQLITE_BUSY failures block routine CLI operations such as plan critique while dashboard, collectors, hooks, or indexers are active. The current architecture opens SQLite for commands that should be able to read canonical YAML/HTML directly, runs DDL and migrations on every db.Open, and allows several independent processes to compete as writers. The project is local-first and must remain self-contained; PostgreSQL or another external service is not an acceptable fix.
+
+A concrete instance was diagnosed on 2026-05-11: the OTel indexer was looping with `BEGIN IMMEDIATE: database is locked` because (a) one session&#39;s `events.ndjson` had grown to 366MB and one tick monopolized the writer lock long enough for the next tick to collide, and (b) the indexer enumerated orphan session directories that had no DB row at all. Commit `e16095482` shipped a per-tick 4MiB read budget that breaks the symptom but does not address single-writer ownership or orphan pruning. This plan replaces that defense-in-depth patch with a durable architecture.
 </div>
 <h4>Goals</h4>
 <ol>
@@ -538,6 +548,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
 <li data-markdown>**Fast warm opens** — a healthy existing DB opens without DDL, copy-and-swap, or normalization writes.</li>
 <li data-markdown>**WAL when actually safe** — DB path selection verifies the backing filesystem, not just the parent directory convention.</li>
 <li data-markdown>**Single-writer derived index** — hooks, collectors, indexers, and CLI mutations no longer race as independent SQLite writers.</li>
+<li data-markdown>**No orphan ingestion** — the indexer never processes session directories that have no corresponding DB session row.</li>
 <li data-markdown>**Self-contained deployment** — no PostgreSQL, server dependency, or cloud database requirement.</li>
 </ol>
 <h4>Constraints</h4>
@@ -547,6 +558,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
 <li data-markdown>No user data loss if the SQLite cache is deleted or rebuilt.</li>
 <li data-markdown>No mandatory network service or external database.</li>
 <li data-markdown>Changes must preserve existing dashboard APIs while migration proceeds incrementally.</li>
+<li data-markdown>The 4MiB per-tick indexer budget (commit `e16095482`) is in production and stays as a complementary defense unless slice 11 explicitly removes it.</li>
 </ul>
 
     <div class="approval-row">
@@ -995,7 +1007,7 @@ standard SQLite pattern for keeping warm opens cheap and predictable.</p>
           <span class="badge badge-revision badge-sm">Med</span>
           <span class="badge badge-pending badge-sm" title="Execution: not_started">Not Started</span>
           <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-4">Pending</span>
-          <span class="badge badge-sm badge-issues" title="2 critic issue(s)">2 issues</span>
+          <span class="badge badge-sm badge-issues" title="3 critic issue(s)">3 issues</span>
           <span class="badge badge-sm badge-questions" title="2 open question(s)">2 Q</span>
         </span>
         <span class="slice-actions" onclick="event.stopPropagation()">
@@ -1110,6 +1122,12 @@ from canonical-first persistence and the single-writer model.</p>
           <span class="critic-revision-summary">Add deterministic unknown-fstype behavior and diagnostics for platform-specific probe failures.</span>
         </div>
         
+        <div class="critic-revision">
+          <span class="badge badge-revision critic-revision-badge">MED</span>
+          <span class="critic-revision-source">review-2026-05-11</span>
+          <span class="critic-revision-summary">q-ephemeral-cache and q-cold-reindex-cost had no recommendations in v3; added so slice can advance to approval without further elicitation.</span>
+        </div>
+        
       </div>
     </div>
     
@@ -1121,23 +1139,38 @@ from canonical-first persistence and the single-writer model.</p>
         
         <div class="question-block slice-question-block">
           <p>May wipnote prefer tmpfs for the derived SQLite cache when user cache is WAL-unsafe?</p>
+          <p class="question-desc">tmpfs is WAL-safe (ext4-class semantics) but is wiped on host reboot.
+Choosing it improves concurrency at the cost of cold-start reindex.
+Recommended: yes, on Linux only, with explicit opt-out via
+WIPNOTE_DB_PATH and a status diagnostic showing &#34;tmpfs (volatile)&#34;.
+</p>
           
-          
-          <textarea
-            data-section="slice-4-question-q-ephemeral-cache"
-            data-comment-for="slice-4-question-q-ephemeral-cache"
-            placeholder="Answer question q-ephemeral-cache..."></textarea>
+            
+            
+            
+            
+            <label class="recommended"><input type="radio" name="slice-4-question-q-ephemeral-cache" data-section="slice-4-question-q-ephemeral-cache" data-action="answer" value="option-a"> A: Yes, prefer tmpfs on Linux; document volatile semantics <span class="rec-tag">recommended</span></label>
+            
+            <label><input type="radio" name="slice-4-question-q-ephemeral-cache" data-section="slice-4-question-q-ephemeral-cache" data-action="answer" value="option-b"> B: No, only WIPNOTE_DB_PATH or user cache; never auto-tmpfs</label>
+            
           
         </div>
         
         <div class="question-block slice-question-block">
           <p>Is an ephemeral tmpfs cache acceptable if it increases cold-start reindex frequency?</p>
+          <p class="question-desc">Acceptable iff `wipnote reindex` cost is bounded (slice 9 ensures
+rebuild from canonical). Recommended yes if reindex p95 &lt; 30s on a
+typical project; otherwise prefer persistent cache.
+</p>
           
-          
-          <textarea
-            data-section="slice-4-question-q-cold-reindex-cost"
-            data-comment-for="slice-4-question-q-cold-reindex-cost"
-            placeholder="Answer question q-cold-reindex-cost..."></textarea>
+            
+            
+            
+            
+            <label class="recommended"><input type="radio" name="slice-4-question-q-cold-reindex-cost" data-section="slice-4-question-q-cold-reindex-cost" data-action="answer" value="option-a"> A: Acceptable if reindex p95 &lt; 30s — re-evaluate at slice-9 acceptance <span class="rec-tag">recommended</span></label>
+            
+            <label><input type="radio" name="slice-4-question-q-cold-reindex-cost" data-section="slice-4-question-q-cold-reindex-cost" data-action="answer" value="option-b"> B: Not acceptable — persistent cache only</label>
+            
           
         </div>
         
@@ -1167,7 +1200,7 @@ from canonical-first persistence and the single-writer model.</p>
           <span class="badge badge-blocked badge-sm">High</span>
           <span class="badge badge-pending badge-sm" title="Execution: not_started">Not Started</span>
           <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-5">Pending</span>
-          <span class="badge badge-sm badge-issues" title="1 critic issue(s)">1 issue</span>
+          <span class="badge badge-sm badge-issues" title="2 critic issue(s)">2 issues</span>
           
         </span>
         <span class="slice-actions" onclick="event.stopPropagation()">
@@ -1205,6 +1238,12 @@ CLI work-item mutation. Add an enforcement test/static check that fails
 when hook, collector, indexer, or event-capture paths open a writable DB
 directly outside the approved boundary. Document the approved write paths
 in code comments near the DB open helpers.</p>
+<p>Scope clarification: the boundary test scans first-party Go source under
+<code>cmd/</code>, <code>internal/</code>, and <code>plugin/</code>. MCP servers, third-party plugins, and
+external tools that open the DB file directly are explicitly OUT of
+scope — those are user-installed and uncontrollable from the wipnote
+repo. Document this as a known limitation; if observed in practice, file
+a follow-up bug rather than expanding this slice.</p>
 </div>
           <label for="slice-5-what-reveal" class="reveal-label">Show full description</label>
           
@@ -1234,7 +1273,7 @@ the same SQLITE_BUSY class.</p>
       
       <div class="slice-field">
         <div class="slice-field-label">Done when</div>
-        <ul class="slice-done-list"><li>All writable SQLite call sites are listed and classified in a checked-in inventory or test fixture.</li><li>Hook, collector, indexer, and event-capture paths have no direct migrated writable DB opens.</li><li>Enforcement test fails on new direct writable opens in forbidden paths.</li><li>Reindex and migration paths are explicitly exempted and documented.</li></ul>
+        <ul class="slice-done-list"><li>All writable SQLite call sites are listed and classified in a checked-in inventory or test fixture.</li><li>Hook, collector, indexer, and event-capture paths have no direct migrated writable DB opens.</li><li>Enforcement test fails on new direct writable opens in forbidden paths.</li><li>Reindex and migration paths are explicitly exempted and documented.</li><li>The inventory documents that MCP / external-tool writers are out of scope.</li></ul>
       </div>
       
     
@@ -1274,6 +1313,12 @@ the same SQLITE_BUSY class.</p>
           <span class="critic-revision-summary">Exactly-one-writer must be enforceable across all producers, not aspirational or limited to new queue users.</span>
         </div>
         
+        <div class="critic-revision">
+          <span class="badge badge-pending critic-revision-badge">LOW</span>
+          <span class="critic-revision-source">review-2026-05-11</span>
+          <span class="critic-revision-summary">Boundary test only covers in-repo Go source. MCP / external-tool direct DB opens are an unenforceable surface — documented as a known limitation in slice scope.</span>
+        </div>
+        
       </div>
     </div>
     
@@ -1302,7 +1347,7 @@ the same SQLITE_BUSY class.</p>
           <span class="badge badge-blocked badge-sm">High</span>
           <span class="badge badge-pending badge-sm" title="Execution: not_started">Not Started</span>
           <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-6">Pending</span>
-          <span class="badge badge-sm badge-issues" title="2 critic issue(s)">2 issues</span>
+          <span class="badge badge-sm badge-issues" title="4 critic issue(s)">4 issues</span>
           <span class="badge badge-sm badge-questions" title="1 open question(s)">1 Q</span>
         </span>
         <span class="slice-actions" onclick="event.stopPropagation()">
@@ -1369,7 +1414,7 @@ problem before the queue contract is proven.</p>
       
       <div class="slice-field">
         <div class="slice-field-label">Done when</div>
-        <ul class="slice-done-list"><li>During a normal dashboard session, event/index writes have exactly one writable SQLite owner.</li><li>Queue accepts concurrent producer submissions and commits them in one serialized transaction stream.</li><li>Queue is bounded and exposes queue_full/timeout/writer_unavailable outcomes.</li><li>No event/index write path can acknowledge success before canonical persistence.</li></ul>
+        <ul class="slice-done-list"><li>During a normal dashboard session, event/index writes have exactly one writable SQLite owner.</li><li>Queue accepts concurrent producer submissions and commits them in one serialized transaction stream.</li><li>Queue is bounded and exposes queue_full/timeout/writer_unavailable outcomes.</li><li>No event/index write path can acknowledge success before canonical persistence.</li><li>The OTel indexer&#39;s 4MiB per-tick budget (commit `e16095482`) remains in place as a complementary defense; q-budget-retention decides its long-term fate.</li></ul>
       </div>
       
     
@@ -1388,8 +1433,8 @@ problem before the queue contract is proven.</p>
           </div>
           
           <div class="test-group" data-kind="integration">
-            <span class="test-chip">INTEGRATION &middot; 1</span>
-            <ul><li>active dashboard plus concurrent event producers produce no direct SQLITE_BUSY from event/index writes.</li></ul>
+            <span class="test-chip">INTEGRATION &middot; 2</span>
+            <ul><li>active dashboard plus concurrent event producers produce no direct SQLITE_BUSY from event/index writes.</li><li>TestWriterTransport_WithIndexerBudget verifies that even with the 4MiB indexer budget active, the writer queue ingests the chunked NDJSON correctly.</li></ul>
           </div>
           
         </div>
@@ -1413,6 +1458,18 @@ problem before the queue contract is proven.</p>
           <span class="badge badge-revision critic-revision-badge">MED</span>
           <span class="critic-revision-source">architecture-critic</span>
           <span class="critic-revision-summary">Single-writer correctness must not depend on WAL-safe cache path selection.</span>
+        </div>
+        
+        <div class="critic-revision">
+          <span class="badge badge-revision critic-revision-badge">MED</span>
+          <span class="critic-revision-source">review-2026-05-11</span>
+          <span class="critic-revision-summary">Interaction with bug-fbadab6d plan (plan-6ee9b0c8) — sub-agent SubagentStop auto-ingest is a new writer producer. Confirm the writer queue handles bursts when many sub-agents stop simultaneously (e.g. parallel research agents).</span>
+        </div>
+        
+        <div class="critic-revision">
+          <span class="badge badge-revision critic-revision-badge">MED</span>
+          <span class="critic-revision-source">review-2026-05-11</span>
+          <span class="critic-revision-summary">The 4MiB per-tick indexer budget (commit e16095482) is in production. Slice 6 must coexist with it during rollout; complete removal is governed by q-budget-retention after slice 10&#39;s stress gate certifies the queue.</span>
         </div>
         
       </div>
@@ -1461,7 +1518,7 @@ problem before the queue contract is proven.</p>
           <span class="badge badge-blocked badge-sm">High</span>
           <span class="badge badge-pending badge-sm" title="Execution: not_started">Not Started</span>
           <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-7">Pending</span>
-          <span class="badge badge-sm badge-issues" title="2 critic issue(s)">2 issues</span>
+          <span class="badge badge-sm badge-issues" title="3 critic issue(s)">3 issues</span>
           
         </span>
         <span class="slice-actions" onclick="event.stopPropagation()">
@@ -1527,7 +1584,7 @@ from writer outages and keeps reindex as the recovery mechanism.</p>
       
       <div class="slice-field">
         <div class="slice-field-label">Done when</div>
-        <ul class="slice-done-list"><li>If writer RPC/IPC fails, hook/event ingestion still returns success after appending canonical HTML/NDJSON.</li><li>If the queue is full, hook/event ingestion falls back without user-visible hook failure.</li><li>Fallback path records a reason: `writer_unavailable`, `queue_full`, or `timeout`.</li><li>Replay/reindex from fallback artifacts is idempotent.</li></ul>
+        <ul class="slice-done-list"><li>If writer RPC/IPC fails, hook/event ingestion still returns success after appending canonical HTML/NDJSON.</li><li>If the queue is full, hook/event ingestion falls back without user-visible hook failure.</li><li>Fallback path records a reason: `writer_unavailable`, `queue_full`, or `timeout`.</li><li>Replay/reindex from fallback artifacts is idempotent.</li><li>Writer crash mid-queue: pending in-flight writes are recoverable from canonical NDJSON on the next reindex; no data is lost from the user&#39;s perspective.</li></ul>
       </div>
       
     
@@ -1541,8 +1598,8 @@ from writer outages and keeps reindex as the recovery mechanism.</p>
         <div class="test-strategy">
           
           <div class="test-group" data-kind="integration">
-            <span class="test-chip">INTEGRATION &middot; 3</span>
-            <ul><li>TestWriterUnavailable_FallsBackToCanonicalAppend disables the writer and verifies canonical append plus successful hook return.</li><li>TestQueueFull_FallsBackWithoutUserVisibleFailure fills the queue and verifies fallback reason is recorded.</li><li>TestReplayAfterFallback_IsIdempotent replays fallback artifacts twice and verifies no duplicate derived rows.</li></ul>
+            <span class="test-chip">INTEGRATION &middot; 4</span>
+            <ul><li>TestWriterUnavailable_FallsBackToCanonicalAppend disables the writer and verifies canonical append plus successful hook return.</li><li>TestQueueFull_FallsBackWithoutUserVisibleFailure fills the queue and verifies fallback reason is recorded.</li><li>TestReplayAfterFallback_IsIdempotent replays fallback artifacts twice and verifies no duplicate derived rows.</li><li>TestWriterCrashMidQueue_RecoversFromCanonical kills the writer process while N writes are in-flight; restart and reindex; assert all N rows are eventually present.</li></ul>
           </div>
           
         </div>
@@ -1566,6 +1623,12 @@ from writer outages and keeps reindex as the recovery mechanism.</p>
           <span class="badge badge-blocked critic-revision-badge">HIGH</span>
           <span class="critic-revision-source">architecture-critic</span>
           <span class="critic-revision-summary">No event/index write path may use SQLite as the only durable copy.</span>
+        </div>
+        
+        <div class="critic-revision">
+          <span class="badge badge-revision critic-revision-badge">MED</span>
+          <span class="critic-revision-source">review-2026-05-11</span>
+          <span class="critic-revision-summary">Writer crash mid-queue was not covered. Added a done_when criterion and integration test — if the writer dies with N writes queued, reindex from canonical NDJSON must restore them.</span>
         </div>
         
       </div>
@@ -1865,7 +1928,7 @@ than a slogan.</p>
           <span class="badge badge-revision badge-sm">Med</span>
           <span class="badge badge-pending badge-sm" title="Execution: not_started">Not Started</span>
           <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-10">Pending</span>
-          <span class="badge badge-sm badge-issues" title="2 critic issue(s)">2 issues</span>
+          <span class="badge badge-sm badge-issues" title="3 critic issue(s)">3 issues</span>
           
         </span>
         <span class="slice-actions" onclick="event.stopPropagation()">
@@ -1896,12 +1959,19 @@ than a slogan.</p>
         <div class="slice-field-label">What</div>
         <div class="slice-field-value">
           
-          <div class="markdown-block serif-prose"><p>Add lightweight observability for SQLite contention: count SQLITE_BUSY
+          <input type="checkbox" id="slice-10-what-reveal" class="reveal-toggle">
+          <div class="markdown-block reveal-content serif-prose"><p>Add lightweight observability for SQLite contention: count SQLITE_BUSY
 occurrences by command/subsystem, record effective journal mode, expose
 queue depth when the single writer is enabled, and add a stress command or
 test fixture that runs dashboard/indexer/hooks/CLI operations together.
 Use this as a release gate for Launch Readiness.</p>
+<p>Threshold tuning: the stress-fixture pass criterion is &#34;zero SQLITE_BUSY
+from in-repo writer/indexer/hook paths.&#34; That is distinct from &#34;zero
+SQLITE_BUSY anywhere&#34; — external producers (MCP, user-installed tools)
+can still produce BUSY and are not gated by this slice (see slice 5
+scope clarification).</p>
 </div>
+          <label for="slice-10-what-reveal" class="reveal-label">Show full description</label>
           
         </div>
       </div>
@@ -1928,7 +1998,7 @@ before launch.</p>
       
       <div class="slice-field">
         <div class="slice-field-label">Done when</div>
-        <ul class="slice-done-list"><li>`wipnote status` or `wipnote health` reports recent SQLITE_BUSY count and journal mode.</li><li>Stress fixture reproduces the old multi-writer workload with 20 producers for 30 seconds across hooks, indexer, dashboard reads, and CLI writes.</li><li>Stress fixture passes with zero SQLITE_BUSY across 3 consecutive runs after the single-writer path is enabled.</li><li>Regression test fails if any direct writable DB open remains in hook/collector/event paths.</li><li>Launch readiness checklist references this gate before release.</li></ul>
+        <ul class="slice-done-list"><li>`wipnote status` or `wipnote health` reports recent SQLITE_BUSY count and journal mode.</li><li>Stress fixture reproduces the old multi-writer workload with 20 producers for 30 seconds across hooks, indexer, dashboard reads, and CLI writes.</li><li>Stress fixture passes with zero SQLITE_BUSY from first-party producers across 3 consecutive runs after the single-writer path is enabled.</li><li>Regression test fails if any direct writable DB open remains in hook/collector/event paths.</li><li>Launch readiness checklist references this gate before release.</li></ul>
       </div>
       
     
@@ -1943,7 +2013,7 @@ before launch.</p>
           
           <div class="test-group" data-kind="integration">
             <span class="test-chip">INTEGRATION &middot; 1</span>
-            <ul><li>TestSQLiteContentionStress starts dashboard/indexer plus concurrent CLI writes and expects zero SQLITE_BUSY.</li></ul>
+            <ul><li>TestSQLiteContentionStress starts dashboard/indexer plus concurrent CLI writes and expects zero SQLITE_BUSY from first-party paths.</li></ul>
           </div>
           
           <div class="test-group" data-kind="unit">
@@ -1979,18 +2049,170 @@ before launch.</p>
           <span class="critic-revision-summary">Stress workload needs explicit producer count, duration, and pass threshold to avoid flaky CI semantics.</span>
         </div>
         
+        <div class="critic-revision">
+          <span class="badge badge-pending critic-revision-badge">LOW</span>
+          <span class="critic-revision-source">review-2026-05-11</span>
+          <span class="critic-revision-summary">&#34;Zero SQLITE_BUSY&#34; qualified to first-party producers — external/MCP writers are out of scope (slice 5). Decision to deprecate the 4MiB indexer budget after slice 10 passes is owned by q-budget-retention.</span>
+        </div>
+        
       </div>
     </div>
     
 
     
 
-    <div class="slice-deps">Dependencies: slices 7,9</div>
+    <div class="slice-deps">Dependencies: slices 7,9,11</div>
 
     <details class="comment-collapse">
       <summary class="comment-collapse-trigger">+ Leave a comment</summary>
       <div class="comment-collapse-body">
         <textarea data-section="slice-10" data-comment-for="slice-10" placeholder="Comments on slice 10..."></textarea>
+      </div>
+    </details>
+  </div>
+</details>
+<details class="slice-card" id="slice-11" data-slice="11" data-slice-name="slice-11" data-status="pending" data-approval="pending">
+  <summary class="slice-summary" aria-label="Slice 11: Orphan session NDJSON pruning">
+    <span class="slice-num">#11</span>
+    <span class="slice-title-col">
+      <span class="slice-name">Orphan session NDJSON pruning</span>
+      <span class="slice-preview">Add filesystem hygiene so the OTel indexer (and any other consumer that</span>
+      <span class="slice-meta-row">
+        <span class="slice-summary-badges">
+          <span class="badge badge-revision badge-sm">M</span>
+          <span class="badge badge-revision badge-sm">Med</span>
+          <span class="badge badge-pending badge-sm" title="Execution: not_started">Not Started</span>
+          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-11">Pending</span>
+          <span class="badge badge-sm badge-issues" title="1 critic issue(s)">1 issue</span>
+          
+        </span>
+        <span class="slice-actions" onclick="event.stopPropagation()">
+          <span class="approval-segmented" role="group" aria-label="Approval action">
+            <label class="seg-btn seg-approve" title="Approve">
+              <input type="radio" name="slice-11-approval" value="approved" data-section="slice-11" data-action="approve" aria-label="Approve slice 11">
+              &#10003;
+            </label>
+            <label class="seg-btn seg-changes" title="Request changes">
+              <input type="radio" name="slice-11-approval" value="changes_requested" data-section="slice-11" data-action="approve" aria-label="Request changes for slice 11">
+              &#8635;
+            </label>
+            <label class="seg-btn seg-reject" title="Reject">
+              <input type="radio" name="slice-11-approval" value="rejected" data-section="slice-11" data-action="approve" aria-label="Reject slice 11">
+              &#10005;
+            </label>
+          </span>
+        </span>
+      </span>
+    </span>
+    <span class="slice-chevron" aria-hidden="true"></span>
+  </summary>
+
+  <div class="slice-body">
+    
+      
+      <div class="slice-field slice-what">
+        <div class="slice-field-label">What</div>
+        <div class="slice-field-value">
+          
+          <input type="checkbox" id="slice-11-what-reveal" class="reveal-toggle">
+          <div class="markdown-block reveal-content serif-prose"><p>Add filesystem hygiene so the OTel indexer (and any other consumer that
+enumerates <code>.wipnote/sessions/&lt;id&gt;/</code>) never processes session directories
+that have no corresponding row in the <code>sessions</code> table. Concretely:</p>
+<ol>
+<li>In <code>internal/otel/indexer/indexer.go</code>, gate <code>discoverSessions()</code> on
+a DB check: skip directories where <code>sessions.session_id</code> is absent.</li>
+<li>Provide <code>wipnote cleanup orphan-sessions</code> that lists candidate
+orphan directories (&gt;= 24h old, no DB row, no recent writes) and
+prompts before deletion. Default behavior is list-only.</li>
+<li>Decide a retention policy in code (e.g. 14 days) after which orphan
+session NDJSONs are auto-deleted by a scheduled cleanup task in the
+writer service (slice 6 owns scheduling).</li>
+</ol>
+<p>Today the indexer eagerly tails every <code>events.ndjson</code> it finds. Two
+sessions in production were orphan (no DB row) and the indexer kept
+retrying them every 30s, contributing to the BUSY loop. Even with the
+4MiB budget (commit e16095482) and the future single-writer queue,
+spending writer cycles on orphan data is waste.</p>
+</div>
+          <label for="slice-11-what-reveal" class="reveal-label">Show full description</label>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field slice-why">
+        <div class="slice-field-label">Why</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>Goal &#34;No orphan ingestion.&#34; Closes a root cause of bug-faf8e395 that
+every other slice papers over rather than fixes. Bounded retention also
+prevents disk bloat from abandoned sessions.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Files</div>
+        <div class="slice-field-value"><code>internal/otel/indexer/indexer.go, cmd/wipnote/cleanup.go, cmd/wipnote/cleanup_orphan_sessions.go, cmd/wipnote/cleanup_test.go</code></div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Done when</div>
+        <ul class="slice-done-list"><li>The indexer skips session directories with no corresponding `sessions` row in the DB.</li><li>`wipnote cleanup orphan-sessions --list` outputs candidates without deleting anything.</li><li>`wipnote cleanup orphan-sessions --delete` requires confirmation and removes only directories with no DB row, no recent writes, and an age past the retention policy.</li><li>The 4 orphan sessions identified in bug-faf8e395 (sample IDs in the bug report) are no longer touched by the indexer after this slice ships.</li><li>Retention policy is documented in code with a constant or config option.</li></ul>
+      </div>
+      
+    
+
+    
+    <div class="slice-field slice-tests-field">
+      <div class="slice-field-label">Test Strategy</div>
+      <div class="slice-field-value">
+        
+        
+        <div class="test-strategy">
+          
+          <div class="test-group" data-kind="unit">
+            <span class="test-chip">UNIT &middot; 3</span>
+            <ul><li>TestDiscoverSessions_SkipsOrphans seeds the FS with 5 directories and the DB with 3 corresponding sessions; assert only the 3 in-DB sessions are returned.</li><li>TestCleanupOrphanSessions_DryRunListsOnly verifies --list does not delete.</li><li>TestCleanupOrphanSessions_RespectsRetention verifies a directory younger than retention is skipped even if orphan.</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="integration">
+            <span class="test-chip">INTEGRATION &middot; 1</span>
+            <ul><li>TestOrphanSession_NoIndexerRetry — write an orphan NDJSON, run the indexer for 2 ticks, assert no INSERT attempts for it.</li></ul>
+          </div>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+
+    
+    <div class="slice-field slice-critic-revisions">
+      <div class="slice-field-label">Critic Revisions</div>
+      <div class="slice-field-value">
+        
+        <div class="critic-revision">
+          <span class="badge badge-blocked critic-revision-badge">HIGH</span>
+          <span class="critic-revision-source">review-2026-05-11</span>
+          <span class="critic-revision-summary">New slice — bug-faf8e395 root cause analysis found that 2 of 4 stuck sessions had no DB row. No slice in v3 addressed pruning the orphan directories from the indexer&#39;s enumeration.</span>
+        </div>
+        
+      </div>
+    </div>
+    
+
+    
+
+    <div class="slice-deps">Dependencies: slices 5</div>
+
+    <details class="comment-collapse">
+      <summary class="comment-collapse-trigger">+ Leave a comment</summary>
+      <div class="comment-collapse-body">
+        <textarea data-section="slice-11" data-comment-for="slice-11" placeholder="Comments on slice 11..."></textarea>
       </div>
     </details>
   </div>
@@ -2012,8 +2234,8 @@ before launch.</p>
   <h2>Feedback Summary</h2>
   <div class="progress-stats">
     <div class="progress-stat"><strong id="approvedCount">0</strong> approved</div>
-    <div class="progress-stat"><strong id="totalSections">11</strong> sections</div>
-    <div class="progress-stat"><strong id="pendingCount">11</strong> pending</div>
+    <div class="progress-stat"><strong id="totalSections">12</strong> sections</div>
+    <div class="progress-stat"><strong id="pendingCount">12</strong> pending</div>
   </div>
   <div class="progress-bar-track"><div class="progress-bar-fill" id="progressFill" style="width:0%"></div></div>
   <div class="comments-summary">
@@ -2093,7 +2315,7 @@ var planId=(function(){var a=document.querySelector('article[id]');return a?a.id
 
 (function(){
   'use strict';
-  var SECTIONS=/*PLAN_SECTIONS_JSON*/["design","slice-1","slice-2","slice-3","slice-4","slice-5","slice-6","slice-7","slice-8","slice-9","slice-10"]/*END_PLAN_SECTIONS_JSON*/;
+  var SECTIONS=/*PLAN_SECTIONS_JSON*/["design","slice-1","slice-2","slice-3","slice-4","slice-5","slice-6","slice-7","slice-8","slice-9","slice-10","slice-11"]/*END_PLAN_SECTIONS_JSON*/;
 
   function setBadge(el,ok){
     el.className='badge badge-'+(ok?'approved':'pending');

@@ -8,15 +8,18 @@ meta:
     status: active
     priority: high
     created_by: codex
-    version: 3
+    version: 5
 design:
     problem: |
         Recurring SQLITE_BUSY failures block routine CLI operations such as plan critique while dashboard, collectors, hooks, or indexers are active. The current architecture opens SQLite for commands that should be able to read canonical YAML/HTML directly, runs DDL and migrations on every db.Open, and allows several independent processes to compete as writers. The project is local-first and must remain self-contained; PostgreSQL or another external service is not an acceptable fix.
+
+        A concrete instance was diagnosed on 2026-05-11: the OTel indexer was looping with `BEGIN IMMEDIATE: database is locked` because (a) one session's `events.ndjson` had grown to 366MB and one tick monopolized the writer lock long enough for the next tick to collide, and (b) the indexer enumerated orphan session directories that had no DB row at all. Commit `e16095482` shipped a per-tick 4MiB read budget that breaks the symptom but does not address single-writer ownership or orphan pruning. This plan replaces that defense-in-depth patch with a durable architecture.
     goals:
         - '**DB-free canonical reads** — commands that can answer from YAML/HTML/NDJSON do not open SQLite.'
         - '**Fast warm opens** — a healthy existing DB opens without DDL, copy-and-swap, or normalization writes.'
         - '**WAL when actually safe** — DB path selection verifies the backing filesystem, not just the parent directory convention.'
         - '**Single-writer derived index** — hooks, collectors, indexers, and CLI mutations no longer race as independent SQLite writers.'
+        - '**No orphan ingestion** — the indexer never processes session directories that have no corresponding DB session row.'
         - '**Self-contained deployment** — no PostgreSQL, server dependency, or cloud database requirement.'
     constraints:
         - Canonical state remains `.wipnote/*.html`, plan YAML, and session NDJSON; SQLite is rebuildable.
@@ -24,6 +27,7 @@ design:
         - No user data loss if the SQLite cache is deleted or rebuilt.
         - No mandatory network service or external database.
         - Changes must preserve existing dashboard APIs while migration proceeds incrementally.
+        - The 4MiB per-tick indexer budget (commit `e16095482`) is in production and stays as a complementary defense unless slice 11 explicitly removes it.
     approved: false
     comment: ""
 slices:
@@ -206,8 +210,29 @@ slices:
       questions:
         - id: q-ephemeral-cache
           text: May wipnote prefer tmpfs for the derived SQLite cache when user cache is WAL-unsafe?
+          description: |
+            tmpfs is WAL-safe (ext4-class semantics) but is wiped on host reboot.
+            Choosing it improves concurrency at the cost of cold-start reindex.
+            Recommended: yes, on Linux only, with explicit opt-out via
+            WIPNOTE_DB_PATH and a status diagnostic showing "tmpfs (volatile)".
+          recommended: option-a
+          options:
+            - key: option-a
+              label: 'A: Yes, prefer tmpfs on Linux; document volatile semantics'
+            - key: option-b
+              label: 'B: No, only WIPNOTE_DB_PATH or user cache; never auto-tmpfs'
         - id: q-cold-reindex-cost
           text: Is an ephemeral tmpfs cache acceptable if it increases cold-start reindex frequency?
+          description: |
+            Acceptable iff `wipnote reindex` cost is bounded (slice 9 ensures
+            rebuild from canonical). Recommended yes if reindex p95 < 30s on a
+            typical project; otherwise prefer persistent cache.
+          recommended: option-a
+          options:
+            - key: option-a
+              label: 'A: Acceptable if reindex p95 < 30s — re-evaluate at slice-9 acceptance'
+            - key: option-b
+              label: 'B: Not acceptable — persistent cache only'
       critic_revisions:
         - source: architecture-critic
           severity: MED
@@ -215,6 +240,9 @@ slices:
         - source: execution-critic
           severity: MED
           summary: Add deterministic unknown-fstype behavior and diagnostics for platform-specific probe failures.
+        - source: review-2026-05-11
+          severity: MED
+          summary: q-ephemeral-cache and q-cold-reindex-cost had no recommendations in v3; added so slice can advance to approval without further elicitation.
     - id: slice-5
       num: 5
       title: Writable SQLite call-site inventory and enforcement boundary
@@ -225,6 +253,13 @@ slices:
         when hook, collector, indexer, or event-capture paths open a writable DB
         directly outside the approved boundary. Document the approved write paths
         in code comments near the DB open helpers.
+
+        Scope clarification: the boundary test scans first-party Go source under
+        `cmd/`, `internal/`, and `plugin/`. MCP servers, third-party plugins, and
+        external tools that open the DB file directly are explicitly OUT of
+        scope — those are user-installed and uncontrollable from the wipnote
+        repo. Document this as a known limitation; if observed in practice, file
+        a follow-up bug rather than expanding this slice.
       why: |
         A single writer service only removes contention if stray writers are
         found and prevented. Without an inventory and enforcement boundary, the
@@ -245,6 +280,7 @@ slices:
         - Hook, collector, indexer, and event-capture paths have no direct migrated writable DB opens.
         - Enforcement test fails on new direct writable opens in forbidden paths.
         - Reindex and migration paths are explicitly exempted and documented.
+        - The inventory documents that MCP / external-tool writers are out of scope.
       effort: M
       risk: High
       tests: |
@@ -259,6 +295,9 @@ slices:
         - source: architecture-critic
           severity: HIGH
           summary: Exactly-one-writer must be enforceable across all producers, not aspirational or limited to new queue users.
+        - source: review-2026-05-11
+          severity: LOW
+          summary: Boundary test only covers in-repo Go source. MCP / external-tool direct DB opens are an unenforceable surface — documented as a known limitation in slice scope.
     - id: slice-6
       num: 6
       title: Single local writer transport for event/index writes
@@ -289,12 +328,14 @@ slices:
         - Queue accepts concurrent producer submissions and commits them in one serialized transaction stream.
         - Queue is bounded and exposes queue_full/timeout/writer_unavailable outcomes.
         - No event/index write path can acknowledge success before canonical persistence.
+        - The OTel indexer's 4MiB per-tick budget (commit `e16095482`) remains in place as a complementary defense; q-budget-retention decides its long-term fate.
       effort: M
       risk: High
       tests: |
         Unit: TestWriteQueue_SerializesConcurrentProducers runs many producers and asserts one transaction stream.
         Unit: TestWriteQueue_BoundedBackpressure verifies queue_full and timeout outcomes.
         Integration: active dashboard plus concurrent event producers produce no direct SQLITE_BUSY from event/index writes.
+        Integration: TestWriterTransport_WithIndexerBudget verifies that even with the 4MiB indexer budget active, the writer queue ingests the chunked NDJSON correctly.
       approved: false
       comment: ""
       approval_status: pending
@@ -309,6 +350,12 @@ slices:
         - source: architecture-critic
           severity: MED
           summary: Single-writer correctness must not depend on WAL-safe cache path selection.
+        - source: review-2026-05-11
+          severity: MED
+          summary: Interaction with bug-fbadab6d plan (plan-6ee9b0c8) — sub-agent SubagentStop auto-ingest is a new writer producer. Confirm the writer queue handles bursts when many sub-agents stop simultaneously (e.g. parallel research agents).
+        - source: review-2026-05-11
+          severity: MED
+          summary: The 4MiB per-tick indexer budget (commit e16095482) is in production. Slice 6 must coexist with it during rollout; complete removal is governed by q-budget-retention after slice 10's stress gate certifies the queue.
     - id: slice-7
       num: 7
       title: Hook and indexer integration with canonical-first fallback
@@ -337,12 +384,14 @@ slices:
         - If the queue is full, hook/event ingestion falls back without user-visible hook failure.
         - 'Fallback path records a reason: `writer_unavailable`, `queue_full`, or `timeout`.'
         - Replay/reindex from fallback artifacts is idempotent.
+        - 'Writer crash mid-queue: pending in-flight writes are recoverable from canonical NDJSON on the next reindex; no data is lost from the user''s perspective.'
       effort: L
       risk: High
       tests: |
         Integration: TestWriterUnavailable_FallsBackToCanonicalAppend disables the writer and verifies canonical append plus successful hook return.
         Integration: TestQueueFull_FallsBackWithoutUserVisibleFailure fills the queue and verifies fallback reason is recorded.
         Integration: TestReplayAfterFallback_IsIdempotent replays fallback artifacts twice and verifies no duplicate derived rows.
+        Integration: TestWriterCrashMidQueue_RecoversFromCanonical kills the writer process while N writes are in-flight; restart and reindex; assert all N rows are eventually present.
       approved: false
       comment: ""
       approval_status: pending
@@ -354,6 +403,9 @@ slices:
         - source: architecture-critic
           severity: HIGH
           summary: No event/index write path may use SQLite as the only durable copy.
+        - source: review-2026-05-11
+          severity: MED
+          summary: Writer crash mid-queue was not covered. Added a done_when criterion and integration test — if the writer dies with N writes queued, reindex from canonical NDJSON must restore them.
     - id: slice-8
       num: 8
       title: Canonical command audit and fail-loud DB dependency
@@ -452,6 +504,12 @@ slices:
         queue depth when the single writer is enabled, and add a stress command or
         test fixture that runs dashboard/indexer/hooks/CLI operations together.
         Use this as a release gate for Launch Readiness.
+
+        Threshold tuning: the stress-fixture pass criterion is "zero SQLITE_BUSY
+        from in-repo writer/indexer/hook paths." That is distinct from "zero
+        SQLITE_BUSY anywhere" — external producers (MCP, user-installed tools)
+        can still produce BUSY and are not gated by this slice (see slice 5
+        scope clarification).
       why: |
         The issue has recurred because fixes addressed symptoms without a durable
         regression signal. A contention stress gate makes future regressions obvious
@@ -466,16 +524,17 @@ slices:
       deps:
         - 7
         - 9
+        - 11
       done_when:
         - '`wipnote status` or `wipnote health` reports recent SQLITE_BUSY count and journal mode.'
         - Stress fixture reproduces the old multi-writer workload with 20 producers for 30 seconds across hooks, indexer, dashboard reads, and CLI writes.
-        - Stress fixture passes with zero SQLITE_BUSY across 3 consecutive runs after the single-writer path is enabled.
+        - Stress fixture passes with zero SQLITE_BUSY from first-party producers across 3 consecutive runs after the single-writer path is enabled.
         - Regression test fails if any direct writable DB open remains in hook/collector/event paths.
         - Launch readiness checklist references this gate before release.
       effort: M
       risk: Med
       tests: |
-        Integration: TestSQLiteContentionStress starts dashboard/indexer plus concurrent CLI writes and expects zero SQLITE_BUSY.
+        Integration: TestSQLiteContentionStress starts dashboard/indexer plus concurrent CLI writes and expects zero SQLITE_BUSY from first-party paths.
         Unit: TestBusyCounterClassifiesErrors verifies wrapped SQLite lock errors increment the right counter.
         Regression: TestNoDirectWritableDBOpenInEventPaths fails on forbidden direct writable DB opens.
         Regression: health/status output remains stable for existing callers.
@@ -490,4 +549,97 @@ slices:
         - source: execution-critic
           severity: LOW
           summary: Stress workload needs explicit producer count, duration, and pass threshold to avoid flaky CI semantics.
-questions: []
+        - source: review-2026-05-11
+          severity: LOW
+          summary: '"Zero SQLITE_BUSY" qualified to first-party producers — external/MCP writers are out of scope (slice 5). Decision to deprecate the 4MiB indexer budget after slice 10 passes is owned by q-budget-retention.'
+    - id: slice-11
+      num: 11
+      title: Orphan session NDJSON pruning
+      what: |
+        Add filesystem hygiene so the OTel indexer (and any other consumer that
+        enumerates `.wipnote/sessions/<id>/`) never processes session directories
+        that have no corresponding row in the `sessions` table. Concretely:
+
+          1. In `internal/otel/indexer/indexer.go`, gate `discoverSessions()` on
+             a DB check: skip directories where `sessions.session_id` is absent.
+          2. Provide `wipnote cleanup orphan-sessions` that lists candidate
+             orphan directories (>= 24h old, no DB row, no recent writes) and
+             prompts before deletion. Default behavior is list-only.
+          3. Decide a retention policy in code (e.g. 14 days) after which orphan
+             session NDJSONs are auto-deleted by a scheduled cleanup task in the
+             writer service (slice 6 owns scheduling).
+
+        Today the indexer eagerly tails every `events.ndjson` it finds. Two
+        sessions in production were orphan (no DB row) and the indexer kept
+        retrying them every 30s, contributing to the BUSY loop. Even with the
+        4MiB budget (commit e16095482) and the future single-writer queue,
+        spending writer cycles on orphan data is waste.
+      why: |
+        Goal "No orphan ingestion." Closes a root cause of bug-faf8e395 that
+        every other slice papers over rather than fixes. Bounded retention also
+        prevents disk bloat from abandoned sessions.
+      files:
+        - internal/otel/indexer/indexer.go
+        - cmd/wipnote/cleanup.go
+        - cmd/wipnote/cleanup_orphan_sessions.go
+        - cmd/wipnote/cleanup_test.go
+      deps:
+        - 5
+      done_when:
+        - The indexer skips session directories with no corresponding `sessions` row in the DB.
+        - '`wipnote cleanup orphan-sessions --list` outputs candidates without deleting anything.'
+        - '`wipnote cleanup orphan-sessions --delete` requires confirmation and removes only directories with no DB row, no recent writes, and an age past the retention policy.'
+        - The 4 orphan sessions identified in bug-faf8e395 (sample IDs in the bug report) are no longer touched by the indexer after this slice ships.
+        - Retention policy is documented in code with a constant or config option.
+      effort: M
+      risk: Med
+      tests: |
+        Unit: TestDiscoverSessions_SkipsOrphans seeds the FS with 5 directories and the DB with 3 corresponding sessions; assert only the 3 in-DB sessions are returned.
+        Unit: TestCleanupOrphanSessions_DryRunListsOnly verifies --list does not delete.
+        Unit: TestCleanupOrphanSessions_RespectsRetention verifies a directory younger than retention is skipped even if orphan.
+        Integration: TestOrphanSession_NoIndexerRetry — write an orphan NDJSON, run the indexer for 2 ticks, assert no INSERT attempts for it.
+      approved: false
+      comment: ""
+      approval_status: pending
+      execution_status: not_started
+      critic_revisions:
+        - source: review-2026-05-11
+          severity: HIGH
+          summary: New slice — bug-faf8e395 root cause analysis found that 2 of 4 stuck sessions had no DB row. No slice in v3 addressed pruning the orphan directories from the indexer's enumeration.
+questions:
+    - id: q-budget-retention
+      text: Once slice 10's stress gate certifies the single-writer queue (slice 6), should the OTel indexer's 4MiB per-tick budget (commit `e16095482`) be removed, kept as defense-in-depth, or be gated by a feature flag?
+      description: |
+        The 4MiB budget is a complementary defense that prevents one large
+        session NDJSON from monopolizing the writer lock. With slice 6 in place
+        the writer queue is single-owned, so monopolization is no longer
+        possible — but partial-tick draining still serves other goals:
+        bounded memory per tick, smoother dashboard liveness, recoverable
+        progress after restart. Recommended: KEEP as defense-in-depth, no flag,
+        review again at v1.0 once production telemetry shows whether it ever
+        actually triggers under single-writer conditions.
+      recommended: option-keep
+      options:
+        - key: option-remove
+          label: Remove the budget after slice 10 passes — single-writer makes it redundant
+        - key: option-keep
+          label: Keep as unconditional defense — bounded per-tick work is healthy regardless
+        - key: option-flag
+          label: Gate behind WIPNOTE_INDEXER_TICK_BUDGET env var — testable both ways
+      answer: null
+    - id: q-orphan-retention-days
+      text: How many days should an orphan session NDJSON live before slice-11's auto-cleanup deletes it?
+      description: |
+        Some orphan directories may be valuable forensic data (sessions that
+        crashed before SubagentStart fired but produced partial events).
+        Recommended: 14 days. Conservative enough that intentional recovery is
+        possible; short enough that disk usage stays bounded on dev machines.
+      recommended: option-14d
+      options:
+        - key: option-7d
+          label: 7 days — aggressive cleanup, minimal disk usage
+        - key: option-14d
+          label: 14 days — balanced; allows forensic recovery
+        - key: option-30d
+          label: 30 days — conservative; risks disk bloat on dev machines
+      answer: null
