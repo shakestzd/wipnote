@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>SQLite write boundary classifier loosened; budget interaction untested</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-ec0c99ff"
+             data-type="bug"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-05-11T19:42:19.735674"
+             data-updated="2026-05-11T19:43:29.988693" data-agent-assigned="claude-code" data-track-id="trk-0677c709" data-created-by-agent="human" data-created-by-model="claude-opus-4-7[1m]" data-created-by-cli-version="0.58.0-562-g459f47779">
+
+        <header>
+            <h1>SQLite write boundary classifier loosened; budget interaction untested</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="caused_by">
+                <h3>Caused By:</h3>
+                <ul>
+                    <li><a href="feat-156e0a1a.html" data-relationship="caused_by" data-since="2026-05-11T19:42:19.744922">feat-156e0a1a</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-0677c709.html" data-relationship="part_of" data-since="2026-05-11T19:42:19.746271">trk-0677c709</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="relates_to">
+                <h3>Relates To:</h3>
+                <ul>
+                    <li><a href="feat-33c26c74.html" data-relationship="relates_to" data-since="2026-05-11T19:43:29.988218">Hook and indexer integration with canonical-first fallback</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Roborev #1500 (1 MED, 1 LOW): (MED) isForbiddenPathClassification allows 'daemon-routed-writer-service' for any forbidden-path open — future direct writable open in hook/indexer/receiver could be approved under terminal writer-service label and still pass boundary test. Fix: site-aware check; allow daemonRoutedWriterService ONLY for actual writer-service open; enforce exactly one such inventory entry. cmd/wipnote/sqlite_write_boundary_test.go:819. (LOW) TestWriterTransport_WithIndexerBudget claims 4 MiB per-tick budget coverage but writes < 1 tick of data — only single-tick path tested. Fix: generate > maxBytesPerTick of NDJSON or seam for smaller budget; assert ingestion across multiple ticks without drops/duplicates. cmd/wipnote/writer_transport_test.go:166.</p>
+        </section>
+    </article>
+</body>
+</html>

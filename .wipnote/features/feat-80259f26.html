@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Version-gated migrations with PRAGMA user_version</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-80259f26"
+             data-type="feature"
+             data-status="done"
+             data-priority="medium"
+             data-created="2026-05-11T13:03:53.586884"
+             data-updated="2026-05-11T14:48:57.399247" data-agent-assigned="claude-code" data-track-id="trk-0677c709">
+
+        <header>
+            <h1>Version-gated migrations with PRAGMA user_version</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="91971d7c-e6f1-49b9-addf-28eb6f721357.html" data-relationship="implemented_in" data-since="2026-05-11T14:36:07.196642">session 91971d7c-e6f1-49b9-addf-28eb6f721357</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="planned_in">
+                <h3>Planned In:</h3>
+                <ul>
+                    <li><a href="plan-ae0c37b2.html" data-relationship="planned_in" data-since="2026-05-11T13:03:53.597587">plan-ae0c37b2</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="blocked_by">
+                <h3>Blocked By:</h3>
+                <ul>
+                    <li><a href="feat-2f15d303.html" data-relationship="blocked_by" data-since="2026-05-11T13:03:53.602618">feat-2f15d303</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-0677c709.html" data-relationship="part_of" data-since="2026-05-11T13:03:53.590286">trk-0677c709</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Move schema migrations out of the unconditional `Open` body and into an
+ordered migration runner guarded by `PRAGMA user_version`. On warm open
+when `user_version == currentSchemaVersion`, skip CREATE INDEX, ALTER
+TABLE, DROP TABLE, trigger creation, copy-and-swap, and
+`NormalizePlanFeedbackValues`. On cold/new DB creation, create the full
+current schema and set the version. On old DBs, run only missing
+migrations in order.</p>
+        </section>
+    </article>
+</body>
+</html>

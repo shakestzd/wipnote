@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Complete add-a-harness recipe — README &#43; wipnote harness list command</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-f5ec4554"
+             data-type="feature"
+             data-status="done"
+             data-priority="medium"
+             data-created="2026-05-10T02:34:24.81137"
+             data-updated="2026-05-10T08:19:56.449007" data-agent-assigned="claude-code" data-track-id="trk-c4615ad2">
+
+        <header>
+            <h1>Complete add-a-harness recipe — README &#43; wipnote harness list command</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="a165b891-e9c7-48c9-a228-f4374aa8d325.html" data-relationship="implemented_in" data-since="2026-05-10T02:58:21.689727">session a165b891-e9c7-48c9-a228-f4374aa8d325</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-c4615ad2.html" data-relationship="part_of" data-since="2026-05-10T02:34:24.81632">trk-c4615ad2</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="planned_in">
+                <h3>Planned In:</h3>
+                <ul>
+                    <li><a href="plan-3a6f9865.html" data-relationship="planned_in" data-since="2026-05-10T02:34:24.824901">plan-3a6f9865</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="blocked_by">
+                <h3>Blocked By:</h3>
+                <ul>
+                    <li><a href="feat-7295fd01.html" data-relationship="blocked_by" data-since="2026-05-10T02:34:24.82904">feat-7295fd01</a></li>
+                    <li><a href="feat-e7920796.html" data-relationship="blocked_by" data-since="2026-05-10T02:34:24.833158">feat-e7920796</a></li>
+                    <li><a href="feat-ea949327.html" data-relationship="blocked_by" data-since="2026-05-10T02:34:24.837232">feat-ea949327</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Update packages/plugin-core/README.md "Add a new target" section to include
+the complete Go-layer checklist alongside the existing plugin build steps:
+
+  1. Add targets. to manifest.json
+  2. Tag hook events with new target
+  3. Implement pluginbuild.Adapter interface in internal/pluginbuild/.go
+  4. Add internal/harness/registry_.go with HarnessConfig (OtelEnv,
+     ServiceNames, SessionAttr, HookEventNames, HooksHarness)
+  5. Add internal/otel/adapter/.go implementing otel.Adapter;
+     import internal/harness to read ServiceNames and SessionAttr
+  6. Add cmd/wipnote/_launch.go; call harness.Get().OtelEnv()
+     and BuildAgentEnv() instead of hardcoding env vars
+  7. Run: wipnote plugin build-ports && go build ./... && go test ./...
+
+Add cmd/wipnote/harness_cmd.go implementing `wipnote harness list` that
+prints a table: ID | AgentID | ServiceNames | SessionAttr | HookEventNames.
+Wire it into the root command.</p>
+        </section>
+    </article>
+</body>
+</html>

@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Migrations: copy-swap drops trg_increment_total_events &#43; non-fatal ALTER errors bump version</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-045124a6"
+             data-type="bug"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-05-11T19:42:41.845918"
+             data-updated="2026-05-11T19:43:30.135843" data-agent-assigned="claude-code" data-track-id="trk-0677c709" data-created-by-agent="human" data-created-by-model="claude-opus-4-7[1m]" data-created-by-cli-version="0.58.0-562-g459f47779">
+
+        <header>
+            <h1>Migrations: copy-swap drops trg_increment_total_events &#43; non-fatal ALTER errors bump version</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="caused_by">
+                <h3>Caused By:</h3>
+                <ul>
+                    <li><a href="feat-156e0a1a.html" data-relationship="caused_by" data-since="2026-05-11T19:42:41.851026">feat-156e0a1a</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-0677c709.html" data-relationship="part_of" data-since="2026-05-11T19:42:41.852556">trk-0677c709</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="relates_to">
+                <h3>Relates To:</h3>
+                <ul>
+                    <li><a href="feat-80259f26.html" data-relationship="relates_to" data-since="2026-05-11T19:43:30.135193">Version-gated migrations with PRAGMA user_version</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Roborev #1509 (2 MED): (MED) internal/db/migrations.go:239 — trg_increment_total_events is created BEFORE stepAgentEventsCopySwap, which drops agent_events (and attached triggers). Migrated legacy DBs advance user_version and skip future recreation, so sessions.total_events stops updating. Fix: recreate the trigger after the copy-swap, or move trigger creation/backfill after migrateAgentEventsAddCheckConstraint. (MED) internal/db/migrations.go:208 (and :285) — non-duplicate ALTER TABLE ADD COLUMN failures are logged non-fatal, but user_version still advances. Transient lock/schema/SQLite errors permanently mark required columns as applied and prevent retries. Fix: return errors for non-duplicate column-add failures, or verify required columns exist before bumping user_version.</p>
+        </section>
+    </article>
+</body>
+</html>

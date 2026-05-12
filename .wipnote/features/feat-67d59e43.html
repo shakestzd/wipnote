@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>WAL-safe cache path selection and diagnostics</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-67d59e43"
+             data-type="feature"
+             data-status="done"
+             data-priority="medium"
+             data-created="2026-05-11T13:03:53.916586"
+             data-updated="2026-05-11T15:09:50.519241" data-agent-assigned="claude-code" data-track-id="trk-0677c709">
+
+        <header>
+            <h1>WAL-safe cache path selection and diagnostics</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="blocked_by">
+                <h3>Blocked By:</h3>
+                <ul>
+                    <li><a href="feat-2f15d303.html" data-relationship="blocked_by" data-since="2026-05-11T13:03:53.930313">feat-2f15d303</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="91971d7c-e6f1-49b9-addf-28eb6f721357.html" data-relationship="implemented_in" data-since="2026-05-11T14:56:11.217417">session 91971d7c-e6f1-49b9-addf-28eb6f721357</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-0677c709.html" data-relationship="part_of" data-since="2026-05-11T13:03:53.92003">trk-0677c709</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="planned_in">
+                <h3>Planned In:</h3>
+                <ul>
+                    <li><a href="plan-ae0c37b2.html" data-relationship="planned_in" data-since="2026-05-11T13:03:53.926695">plan-ae0c37b2</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Update `internal/storage.CanonicalDBPath` and DB diagnostics so wipnote
+selects a SQLite cache root backed by a WAL-safe filesystem when possible.
+Prefer explicit `WIPNOTE_DB_PATH`; otherwise probe candidate roots such as
+`XDG_RUNTIME_DIR`, `/tmp`, and `os.UserCacheDir()`. Record why a path was
+chosen and expose journal mode/fstype in `wipnote status` or a diagnostic
+helper. If no safe path exists, intentionally choose DELETE mode and rely
+on the single-writer design rather than pretending concurrency is solved.</p>
+        </section>
+    </article>
+</body>
+</html>

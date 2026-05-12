@@ -57,10 +57,10 @@ const geminiSessionStartJSON = `{
 // indistinguishable from a Codex payload (both have hook_event_name), causing
 // the bug where Gemini agent_events rows were written with agent_id='codex'.
 const geminiSessionStartNoInvocationIDJSON = `{
-	"session_id": "8de1df19-68e7-43c3-938e-20a2f1322363",
+	"session_id": "00000000-0000-0000-0000-000000000000",
 	"cwd": "/workspaces/wipnote",
 	"hook_event_name": "SessionStart",
-	"timestamp": "2026-05-09T10:00:00Z",
+	"timestamp": "2000-01-01T00:00:00Z",
 	"source": "startup"
 }`
 

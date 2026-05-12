@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Reindex &#39;writer-crash&#39; test does not actually simulate a crash</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-34af58e9"
+             data-type="bug"
+             data-status="todo"
+             data-priority="low"
+             data-created="2026-05-11T19:42:05.745475"
+             data-updated="2026-05-11T19:43:29.916389" data-agent-assigned="claude-code" data-track-id="trk-0677c709" data-created-by-agent="human" data-created-by-model="claude-opus-4-7[1m]" data-created-by-cli-version="0.58.0-562-g459f47779">
+
+        <header>
+            <h1>Reindex &#39;writer-crash&#39; test does not actually simulate a crash</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-low">Low Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="caused_by">
+                <h3>Caused By:</h3>
+                <ul>
+                    <li><a href="feat-156e0a1a.html" data-relationship="caused_by" data-since="2026-05-11T19:42:05.752832">feat-156e0a1a</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-0677c709.html" data-relationship="part_of" data-since="2026-05-11T19:42:05.754402">trk-0677c709</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="relates_to">
+                <h3>Relates To:</h3>
+                <ul>
+                    <li><a href="feat-229f3333.html" data-relationship="relates_to" data-since="2026-05-11T19:43:29.915637">Reindex rebuild guarantees for dashboard-critical rows</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Roborev #1497 (1 LOW): cmd/wipnote/reindex_rebuild_test.go:470 — writer-crash simulation never routes any queued operation through the OTel writer and cancels the queue with ops that immediately unblock/drain. Test would pass identically if the queue/writer block were removed, giving false confidence about crash recovery. Fix: either remove the dead queue simulation and rename to focus on canonical NDJSON replay, or wire real QueuedSink/writer ops and assert recovery after intentionally dropping unflushed derived writes.</p>
+        </section>
+    </article>
+</body>
+</html>

@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Plan validate/critique: YAML errors silently fall back to legacy or downgraded</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-5a683944"
+             data-type="bug"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-05-11T19:42:48.698012"
+             data-updated="2026-05-11T19:43:30.187063" data-agent-assigned="claude-code" data-track-id="trk-0677c709" data-created-by-agent="human" data-created-by-model="claude-opus-4-7[1m]" data-created-by-cli-version="0.58.0-562-g459f47779">
+
+        <header>
+            <h1>Plan validate/critique: YAML errors silently fall back to legacy or downgraded</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="caused_by">
+                <h3>Caused By:</h3>
+                <ul>
+                    <li><a href="feat-156e0a1a.html" data-relationship="caused_by" data-since="2026-05-11T19:42:48.706291">feat-156e0a1a</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-0677c709.html" data-relationship="part_of" data-since="2026-05-11T19:42:48.707852">trk-0677c709</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="relates_to">
+                <h3>Relates To:</h3>
+                <ul>
+                    <li><a href="feat-813b2b8c.html" data-relationship="relates_to" data-since="2026-05-11T19:43:30.186639">DB-free plan critique and validation</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Roborev #1511 (2 MED): (MED) cmd/wipnote/plan_validate.go:65 and plan_critique.go:73 — any planyaml.Load error falls back to legacy workitem/SQLite path, so an existing but malformed/unreadable YAML plan can silently validate/critique stale HTML data instead of surfacing the YAML error. Fix: check YAML existence separately; only fall back when file is ABSENT; return load/parse errors for existing YAML files. (MED) cmd/wipnote/plan_validate.go:96 — validatePlanFromYAML converts every planyaml.Validate finding into a warning, so hard schema errors still return valid:true. Fix: classify structural/schema violations as errors while keeping intended work-in-progress completeness gaps as warnings.</p>
+        </section>
+    </article>
+</body>
+</html>

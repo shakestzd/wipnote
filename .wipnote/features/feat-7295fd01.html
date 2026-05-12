@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>HarnessConfig registry — identity constants and hooks Harness int mapping</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-7295fd01"
+             data-type="feature"
+             data-status="done"
+             data-priority="medium"
+             data-created="2026-05-10T02:34:19.632853"
+             data-updated="2026-05-10T08:19:56.332689" data-agent-assigned="claude-code" data-track-id="trk-c4615ad2">
+
+        <header>
+            <h1>HarnessConfig registry — identity constants and hooks Harness int mapping</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="planned_in">
+                <h3>Planned In:</h3>
+                <ul>
+                    <li><a href="plan-3a6f9865.html" data-relationship="planned_in" data-since="2026-05-10T02:34:19.646645">plan-3a6f9865</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-c4615ad2.html" data-relationship="part_of" data-since="2026-05-10T02:34:19.638387">trk-c4615ad2</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="a165b891-e9c7-48c9-a228-f4374aa8d325.html" data-relationship="implemented_in" data-since="2026-05-10T02:45:10.117121">session a165b891-e9c7-48c9-a228-f4374aa8d325</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Create `internal/harness/registry.go` (leaf package — imports only stdlib):
+
+```go
+package harness
+
+type HooksHarness int // mirrors hooks.Harness int without importing it
+const (
+    HooksClaude HooksHarness = iota
+    HooksCodex
+    HooksGemini
+)
+
+type HarnessConfig struct {
+    ID             string       // DB value: "claude_code" | "codex" | "gemini_cli"
+    AgentID        string       // WIPNOTE_AGENT_ID: "claude" | "codex" | "gemini"
+    ServiceNames   []string     // OTel resource service.name values (codex has 2 variants)
+    SessionAttr    string       // OTel attribute key for session ID
+    HookEventNames []string     // native hook_event_name values (Gemini only)
+    HooksHarness   HooksHarness // bridges to hooks.Harness int without import
+}
+
+var all []*HarnessConfig
+
+func Register(cfg *HarnessConfig) { all = append(all, cfg) }
+func Get(id string) *HarnessConfig { ... }
+func GetByAgentID(agentID string) *HarnessConfig { ... }
+func GetByHooksHarness(h HooksHarness) *HarnessConfig { ... }
+func All() []*HarnessConfig { return all }
+```
+
+Register in three companion files: registry_claude.go, registry_codex.go,
+registry_gemini.go. Each init() calls Register() with the config for its
+harness.
+
+Keep `otel.HarnessClaude/Codex/Gemini` in internal/otel/signal.go as
+unchanged const values — do NOT import internal/harness there. Instead,
+add a validation init() in each registry_*.go that asserts its ID matches
+the otel constant string using a string literal comparison:
+```go
+// registry_claude.go init() guard
+const _claudeOtelID = "claude_code" // must match otel.HarnessClaude
+```
+This keeps signal.go dependency-free while catching drift at startup.
+
+In internal/hooks/harness.go:
+- Replace `agentID := "codex"` with `harness.GetByHooksHarness(HooksCodex).AgentID`
+- Replace `AgentID: "gemini"` with `harness.GetByHooksHarness(HooksGemini).AgentID`
+- Replace WIPNOTE_AGENT_ID switch cases with a loop over `harness.All()` matching AgentID</p>
+        </section>
+    </article>
+</body>
+</html>

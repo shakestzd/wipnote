@@ -22,157 +22,378 @@ slices:
     - id: slice-001
       num: 1
       title: BLOCKER 1 — Add root LICENSE file (MIT)
-      what: ""
-      why: ""
-      files: []
+      what: >-
+        Add a root MIT LICENSE file using the canonical MIT text and the project
+        copyright holder/year used for public release. Confirm packaging and docs
+        point users at this license.
+      why: >-
+        A public open-source launch without a license creates legal ambiguity for
+        contributors, users, Homebrew packaging, and HN/LinkedIn readers who want
+        to inspect or reuse the code.
+      files:
+        - LICENSE
+        - README.md
+        - docs/index.md
       deps: []
-      done_when: []
-      effort: ""
-      risk: ""
-      tests: ""
+      done_when:
+        - Root LICENSE exists and contains the standard MIT License text.
+        - README/docs reference the MIT license without stale HtmlGraph/erinn naming.
+        - No duplicate or conflicting license file remains under generated plugin ports.
+      effort: S
+      risk: Low
+      tests: >-
+        Manual verification: inspect LICENSE and search for stale license references
+        with `rg -n "license|MIT|HtmlGraph|erinn" README.md docs plugin packages`.
       approved: false
       comment: ""
     - id: slice-002
       num: 2
       title: BLOCKER 2 — Fix wipnote-aliases.sh (hg- to wn-)
-      what: ""
-      why: ""
-      files: []
-      deps: []
-      done_when: []
-      effort: ""
-      risk: ""
-      tests: ""
+      what: >-
+        Update the shell aliases helper so public aliases use `wn`/`wipnote`
+        names, not legacy `hg`/`htmlgraph` names. Include the canonical `wn`
+        shortcut expected from install paths.
+      why: >-
+        The alias file is a first-run affordance. Stale prefixes create immediate
+        brand confusion and make install docs look unreliable.
+      files:
+        - wipnote-aliases.sh
+        - install.sh
+        - README.md
+        - docs/index.md
+      deps:
+        - 3
+      done_when:
+        - "`wipnote-aliases.sh` defines `wn` aliases and no user-facing `hg-` aliases."
+        - Install/docs examples use `wipnote` or `wn`.
+        - A shell syntax check passes for the alias file.
+      effort: S
+      risk: Low
+      tests: >-
+        Run `zsh -n wipnote-aliases.sh` and `rg -n "hg-|htmlgraph|erinn"
+        wipnote-aliases.sh install.sh README.md docs`.
       approved: false
       comment: ""
     - id: slice-003
       num: 3
       title: BLOCKER 3 — Complete rename (feat-913bf7a6 + feat-b02a559b)
-      what: ""
-      why: ""
-      files: []
+      what: >-
+        Verify the completed htmlgraph→erinn and erinn→wipnote rename work across
+        source, docs, release packaging, plugin manifests, generated ports, cache
+        paths, env vars, and command examples. Close any remaining public-facing
+        rename artifacts before release.
+      why: >-
+        The rename features are marked done, but launch-readiness depends on the
+        observable product surface being consistently `wipnote`/`wn`.
+      files:
+        - go.mod
+        - cmd/wipnote
+        - internal
+        - plugin
+        - packages/plugin-core/manifest.json
+        - packages/codex-marketplace
+        - packages/gemini-extension
+        - packages/homebrew
+        - .goreleaser.yml
+        - mkdocs.yml
+        - docs
+        - README.md
       deps: []
-      done_when: []
-      effort: ""
-      risk: ""
-      tests: ""
+      done_when:
+        - "`feat-913bf7a6` and `feat-b02a559b` remain done and have no reopen-worthy rename gaps."
+        - Public docs, install scripts, Homebrew formula, GoReleaser config, and plugin manifests use wipnote naming.
+        - Intentional historical references, if any, are clearly historical and not product instructions.
+        - Generated Codex/Gemini ports are rebuilt after any plugin source-of-truth changes.
+      effort: M
+      risk: Med
+      tests: >-
+        Run targeted stale-name searches, then `wipnote plugin build-ports` if
+        plugin assets changed. Finish with Go quality gates before release.
       approved: false
       comment: ""
     - id: slice-004
       num: 4
       title: 'BLOCKER 4 — Fix claim-breaking bug: OTel collector dies mid-session (bug-28a9d7a7)'
-      what: ""
-      why: ""
-      files: []
-      deps: []
-      done_when: []
-      effort: ""
-      risk: ""
-      tests: ""
+      what: >-
+        Finish `bug-28a9d7a7`: remove the orphaned server-based OTel receiver path,
+        preserve `ConvertAll` behavior for the session-scoped collector, and update
+        stale comments/warnings that still describe the old embedded receiver.
+      why: >-
+        Public launch copy depends on reliable live observability. A collector that
+        dies mid-session or a duplicate receiver path causing SQLite contention is a
+        claim-breaking defect.
+      files:
+        - cmd/wipnote/otel_collect_handler.go
+        - cmd/wipnote/otel_collect.go
+        - cmd/wipnote/serve.go
+        - cmd/wipnote/claude_env.go
+        - cmd/wipnote/claude_env_test.go
+        - internal/otel
+        - internal/otel/receiver
+      deps:
+        - 3
+      done_when:
+        - "`internal/otel/receiver` is deleted or proven unreachable and harmless."
+        - No production code imports the old receiver package.
+        - "`ConvertAll` behavior is preserved for OTLP ingestion."
+        - Collector startup failure is visible and does not silently disable capture.
+        - Manual smoke shows exactly one session-scoped collector and clean shutdown.
+      effort: M
+      risk: High
+      tests: >-
+        `go build ./...`, `go vet ./...`, `go test -timeout 180s ./...`, plus
+        targeted OTel collector tests and a scratch-session manual smoke.
       approved: false
       comment: ""
     - id: slice-005
       num: 5
       title: 'BLOCKER 5 — Fix claim-breaking bug: Gemini hooks never fire (bug-4a3a27ee)'
-      what: ""
-      why: ""
-      files: []
-      deps: []
-      done_when: []
-      effort: ""
-      risk: ""
-      tests: ""
+      what: >-
+        Implement the durable Gemini hook install path: `wipnote gemini --init`
+        must write the required hooks into `~/.gemini/settings.json#hooks` or the
+        dev-isolated equivalent, because hooks bundled only under the extension
+        directory are not loaded by Gemini CLI.
+      why: >-
+        Gemini support is part of the cross-harness launch story. If Gemini hooks
+        never fire, work tracking and observability claims are false for that harness.
+      files:
+        - cmd/wipnote/gemini.go
+        - cmd/wipnote/gemini_launch.go
+        - packages/gemini-extension
+        - packages/plugin-core/manifest.json
+        - plugin/hooks
+      deps:
+        - 3
+      done_when:
+        - "`wipnote gemini --init` installs hooks into the Gemini settings location Gemini CLI actually reads."
+        - Existing user hooks are preserved/merged rather than overwritten.
+        - Dev/isolate mode writes to the intended isolated settings path.
+        - A Gemini smoke run emits expected wipnote hook events.
+      effort: M
+      risk: High
+      tests: >-
+        Unit-test settings merge behavior, run generated-port rebuild if plugin
+        source changes, then smoke Gemini hook execution in an isolated home/config dir.
       approved: false
       comment: ""
     - id: slice-006
       num: 6
       title: 'BLOCKER 6 — Fix claim-breaking bug: Yolo guard misfires (bug-c4e3551d)'
-      what: ""
-      why: ""
-      files: []
-      deps: []
-      done_when: []
-      effort: ""
-      risk: ""
-      tests: ""
+      what: >-
+        Fix the YOLO PreToolUse research-first guard so it does not block after
+        real research has happened, and either make its source of truth resistant
+        to direct SQLite row injection or explicitly downgrade it to advisory with
+        visible warnings.
+      why: >-
+        A guard that both misfires and can be bypassed by inserting fake events is
+        worse than no guard: it creates friction, encourages unsafe workarounds, and
+        undermines launch claims about coordinated agent safety.
+      files:
+        - internal/hooks
+        - internal/db
+        - cmd/wipnote/yolo.go
+        - plugin/hooks
+        - packages/plugin-core/manifest.json
+      deps:
+        - 3
+      done_when:
+        - Integration test reproduces the yolo misfire and passes with the fix.
+        - Guard counts reliable research signals across Read/Grep/Glob/Bash inspection flows.
+        - Direct SQLite insertion no longer trivially satisfies the guard, or the guard clearly logs that it is advisory-only.
+        - Failure-open and failure-closed behavior is documented in hook output/tests.
+      effort: M
+      risk: High
+      tests: >-
+        Add integration tests for the misfire and bypass scenarios, then run hook
+        package tests and full Go quality gates.
       approved: false
       comment: ""
     - id: slice-007
       num: 7
       title: RELEASE — Fix gh-pages docs title (bug-3f5922c8)
-      what: ""
-      why: ""
-      files: []
-      deps: []
-      done_when: []
-      effort: ""
-      risk: ""
-      tests: ""
+      what: >-
+        Fix the published documentation title and metadata so gh-pages no longer
+        says "HtmlGraph - erinn" or other stale brand text.
+      why: >-
+        Docs are a first-impression surface. A stale title immediately tells launch
+        readers the rename/release was rushed.
+      files:
+        - mkdocs.yml
+        - docs
+        - README.md
+        - packages/plugin-core/manifest.json
+      deps:
+        - 3
+      done_when:
+        - Site title, nav title, meta description, and docs landing page use wipnote.
+        - Local docs build has no stale HtmlGraph/erinn title.
+        - gh-pages publish input is ready for the release commit.
+      effort: S
+      risk: Low
+      tests: >-
+        Run docs build if available, and search generated/site sources for
+        `HtmlGraph`, `Erinn`, and `erinn` before release.
       approved: false
       comment: ""
     - id: slice-008
       num: 8
       title: RELEASE — Update Homebrew formula to current version (feat-c8bb337e)
-      what: ""
-      why: ""
-      files: []
-      deps: []
-      done_when: []
-      effort: ""
-      risk: ""
-      tests: ""
+      what: >-
+        Update the Homebrew formula and release packaging so `brew install` exposes
+        the `wipnote` binary and `wn` symlink at the intended launch version.
+      why: >-
+        Homebrew is the default macOS install path for many launch readers. A stale
+        formula or old binary name makes the launch post non-actionable.
+      files:
+        - packages/homebrew
+        - .goreleaser.yml
+        - install.sh
+        - README.md
+        - docs
+      deps:
+        - 1
+        - 2
+        - 3
+        - 7
+      done_when:
+        - Formula name, binary name, symlink, version, URL, and checksum match the release artifact plan.
+        - Install docs show the current tap/formula command.
+        - Formula does not reference htmlgraph or erinn except in intentional migration notes.
+        - Local formula audit/test plan is documented for the release cut.
+      effort: S
+      risk: Med
+      tests: >-
+        Run formula syntax/audit locally where available, inspect generated release
+        archive names, and verify install docs match formula behavior.
       approved: false
       comment: ""
     - id: slice-009
       num: 9
       title: RELEASE — Tag v0.59.0, push origin/main, cut GitHub release (feat-c40942d3)
-      what: ""
-      why: ""
-      files: []
-      deps: []
-      done_when: []
-      effort: ""
-      risk: ""
-      tests: ""
+      what: >-
+        Execute the release only after blockers are closed: final quality gates,
+        version/tag verification, push to origin/main, create GitHub release, and
+        confirm generated packages/docs/Homebrew artifacts are correct.
+      why: >-
+        This is the irreversible launch gate. Tagging before blocker closure bakes
+        broken install paths, stale docs, or claim-breaking bugs into the public release.
+      files:
+        - cmd/wipnote/main.go
+        - packages/plugin-core/manifest.json
+        - packages/homebrew
+        - .goreleaser.yml
+        - docs
+        - CHANGELOG.md
+      deps:
+        - 1
+        - 2
+        - 3
+        - 4
+        - 5
+        - 6
+        - 7
+        - 8
+      done_when:
+        - All release blockers are done or explicitly waived in the plan.
+        - Working tree contains only intentional release changes.
+        - "`go build`, `go vet`, and `go test` pass with repo-local temp/cache dirs."
+        - Version references agree across CLI, plugin manifest, docs, Homebrew, and release notes.
+        - GitHub release and docs publish are verified after tag.
+      effort: M
+      risk: High
+      tests: >-
+        Full Go quality gates, release dry-run if available, Homebrew formula check,
+        docs build, and post-release install smoke.
       approved: false
       comment: ""
     - id: slice-010
       num: 10
       title: CONTENT — Record demo video (feat-4ae13f3c)
-      what: ""
-      why: ""
-      files: []
-      deps: []
-      done_when: []
-      effort: ""
-      risk: ""
-      tests: ""
+      what: >-
+        Record a 3-4 minute technical demo showing the launch story: why agent
+        coordination matters, the dashboard, plan/session/graph navigation, and
+        real hook activity. Use current wipnote branding and release-ready install paths.
+      why: >-
+        The launch needs a concrete artifact that proves the product works and lets
+        readers understand the value without installing first.
+      files:
+        - private/htmlgraph-blog/assets
+        - docs
+        - README.md
+      deps:
+        - 9
+      done_when:
+        - Demo script uses wipnote/wn naming only.
+        - Recording shows a real project/session with dashboard and CLI graph navigation.
+        - Video is reviewed once for audio, pacing, stale branding, and broken claims.
+        - Final MP4 path/URL is ready for the blog and LinkedIn post.
+      effort: M
+      risk: Med
+      tests: >-
+        Manual review checklist: branding, install commands, dashboard accuracy,
+        audio/video quality, and no secrets or private data visible.
       approved: false
       comment: ""
     - id: slice-011
       num: 11
       title: CONTENT — Write blog post draft (feat-e505e51c)
-      what: ""
-      why: ""
-      files: []
-      deps: []
-      done_when: []
-      effort: ""
-      risk: ""
-      tests: ""
+      what: >-
+        Write the launch blog post around the MVP-to-canonical-sessions arc,
+        updated for final wipnote naming, current release version, install commands,
+        and the repaired launch blockers.
+      why: >-
+        The blog post is the deep-link for HN and the substance behind the LinkedIn
+        announcement. It must be accurate, technical, and aligned with the shipped product.
+      files:
+        - private/htmlgraph-blog/posts
+        - private/htmlgraph-blog/assets
+        - README.md
+        - docs
+      deps:
+        - 9
+        - 10
+      done_when:
+        - Draft explains the problem, architecture arc, failure/recovery story, and current install path.
+        - All product names, screenshots/video links, and version references are current.
+        - Claims about Claude/Codex/Gemini support match verified behavior.
+        - Draft has a final HN-friendly title and LinkedIn excerpt.
+      effort: M
+      risk: Med
+      tests: >-
+        Editorial pass for stale branding, unsupported claims, broken links, and
+        consistency with the release notes/demo video.
       approved: false
       comment: ""
     - id: slice-012
       num: 12
       title: LAUNCH — LinkedIn post + HN submission (feat-ec81c370)
-      what: ""
-      why: ""
-      files: []
-      deps: []
-      done_when: []
-      effort: ""
-      risk: ""
-      tests: ""
+      what: >-
+        Publish the launch: LinkedIn post with native video and HN submission
+        pointing at the blog post. Keep the copy plain, technical, and grounded in
+        the shipped release.
+      why: >-
+        This is the public announcement moment. It should happen only after the
+        product, install path, docs, demo, and blog are all credible.
+      files:
+        - private/htmlgraph-blog/posts
+        - private/htmlgraph-blog/assets
+        - docs
+        - README.md
+      deps:
+        - 9
+        - 10
+        - 11
+      done_when:
+        - Blog post is live and reachable.
+        - Demo video is uploaded and linked from the post or LinkedIn copy.
+        - LinkedIn post is published with current wipnote positioning.
+        - HN submission uses a plain technical title and links to the blog post.
+        - First 30-60 minutes of comments/questions are monitored for install/doc issues.
+      effort: S
+      risk: Med
+      tests: >-
+        Preflight all public links in an incognito browser, run one fresh install
+        smoke, and keep release/docs rollback notes nearby during the launch window.
       approved: false
       comment: ""
 questions: []

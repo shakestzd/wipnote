@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Writable SQLite call-site inventory and enforcement boundary</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-3a9d142d"
+             data-type="feature"
+             data-status="done"
+             data-priority="medium"
+             data-created="2026-05-11T13:03:54.233453"
+             data-updated="2026-05-11T15:24:44.863191" data-agent-assigned="claude-code" data-track-id="trk-0677c709">
+
+        <header>
+            <h1>Writable SQLite call-site inventory and enforcement boundary</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="blocked_by">
+                <h3>Blocked By:</h3>
+                <ul>
+                    <li><a href="feat-2f15d303.html" data-relationship="blocked_by" data-since="2026-05-11T13:03:54.246235">feat-2f15d303</a></li>
+                    <li><a href="feat-80259f26.html" data-relationship="blocked_by" data-since="2026-05-11T13:03:54.2491">feat-80259f26</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-0677c709.html" data-relationship="part_of" data-since="2026-05-11T13:03:54.236693">trk-0677c709</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="91971d7c-e6f1-49b9-addf-28eb6f721357.html" data-relationship="implemented_in" data-since="2026-05-11T15:10:36.47967">session 91971d7c-e6f1-49b9-addf-28eb6f721357</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="planned_in">
+                <h3>Planned In:</h3>
+                <ul>
+                    <li><a href="plan-ae0c37b2.html" data-relationship="planned_in" data-since="2026-05-11T13:03:54.243573">plan-ae0c37b2</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Audit every writable SQLite call site and classify it as one of:
+daemon-routed, canonical-only, reindex-only, migration-only, or intentional
+CLI work-item mutation. Add an enforcement test/static check that fails
+when hook, collector, indexer, or event-capture paths open a writable DB
+directly outside the approved boundary. Document the approved write paths
+in code comments near the DB open helpers.
+
+Scope clarification: the boundary test scans first-party Go source under
+`cmd/`, `internal/`, and `plugin/`. MCP servers, third-party plugins, and
+external tools that open the DB file directly are explicitly OUT of
+scope — those are user-installed and uncontrollable from the wipnote
+repo. Document this as a known limitation; if observed in practice, file
+a follow-up bug rather than expanding this slice.</p>
+        </section>
+    </article>
+</body>
+</html>

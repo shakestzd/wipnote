@@ -10,26 +10,20 @@
 <body>
     <article id="bug-68f66cd6"
              data-type="bug"
-             data-status="in-progress"
+             data-status="done"
              data-priority="high"
              data-created="2026-05-07T04:13:54.201196"
-             data-updated="2026-05-07T05:11:33.387341" data-agent-assigned="claude-code" data-track-id="trk-0677c709">
+             data-updated="2026-05-11T13:52:28.330696" data-agent-assigned="claude-code" data-track-id="trk-0677c709">
 
         <header>
             <h1>Claim machinery does not guarantee serialized canonical work item mutation</h1>
             <div class="metadata">
-                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge status-done">Done</span>
                 <span class="badge priority-high">High Priority</span>
             </div>
         </header>
 
         <nav data-graph-edges>
-            <section data-edge-type="part_of">
-                <h3>Part Of:</h3>
-                <ul>
-                    <li><a href="trk-0677c709.html" data-relationship="part_of" data-since="2026-05-07T04:13:54.206653">trk-0677c709</a></li>
-                </ul>
-            </section>
             <section data-edge-type="implemented_in">
                 <h3>Implemented In:</h3>
                 <ul>
@@ -42,17 +36,23 @@
                     <li><a href="feat-73cd46aa.html" data-relationship="caused_by" data-since="2026-05-07T04:13:54.205192">feat-73cd46aa</a></li>
                 </ul>
             </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-0677c709.html" data-relationship="part_of" data-since="2026-05-07T04:13:54.206653">trk-0677c709</a></li>
+                </ul>
+            </section>
         </nav>
 
         <section data-steps>
             <h3>Implementation Steps</h3>
             <ol>
-                <li data-completed="false" data-step-id="step-bug-68f66cd6-0">⏳ Add concurrency tests for same-item start complete link add add-step and edit paths</li>
-                <li data-completed="false" data-step-id="step-bug-68f66cd6-1">⏳ Confirm repeated transitions are idempotent and independent mutations are not lost</li>
-                <li data-completed="false" data-step-id="step-bug-68f66cd6-2">⏳ Add per-item canonical mutation locking or equivalent claim-backed serialization if tests expose lost updates</li>
-                <li data-completed="false" data-step-id="step-bug-68f66cd6-3">⏳ Investigate PreToolUse hook failure: unsupported stopReason</li>
-                <li data-completed="false" data-step-id="step-bug-68f66cd6-4">⏳ Address roborev job 2 finding: keep SQLite derived writes ordered inside the per-item canonical lock</li>
-                <li data-completed="false" data-step-id="step-bug-68f66cd6-5">⏳ Address roborev job 4 finding: preserve EditBuilder notes after content setters regardless of chain order</li>
+                <li data-completed="true" data-step-id="step-bug-68f66cd6-0" data-agent="claude-code" data-created-by-agent="claude-code">✅ Add concurrency tests for same-item start complete link add add-step and edit paths</li>
+                <li data-completed="true" data-step-id="step-bug-68f66cd6-1" data-agent="claude-code" data-created-by-agent="claude-code">✅ Confirm repeated transitions are idempotent and independent mutations are not lost</li>
+                <li data-completed="true" data-step-id="step-bug-68f66cd6-2" data-agent="claude-code" data-created-by-agent="claude-code">✅ Add per-item canonical mutation locking or equivalent claim-backed serialization if tests expose lost updates</li>
+                <li data-completed="true" data-step-id="step-bug-68f66cd6-3" data-agent="claude-code" data-created-by-agent="claude-code">✅ Investigate PreToolUse hook failure: unsupported stopReason</li>
+                <li data-completed="true" data-step-id="step-bug-68f66cd6-4" data-agent="claude-code" data-created-by-agent="claude-code">✅ Address roborev job 2 finding: keep SQLite derived writes ordered inside the per-item canonical lock</li>
+                <li data-completed="true" data-step-id="step-bug-68f66cd6-5" data-agent="claude-code" data-created-by-agent="claude-code">✅ Address roborev job 4 finding: preserve EditBuilder notes after content setters regardless of chain order</li>
             </ol>
         </section>
 

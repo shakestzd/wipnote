@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>QueuedSink: batch captured by reference races with consumer if caller mutates inputs</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-603a7aa2"
+             data-type="bug"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-05-11T19:42:22.034614"
+             data-updated="2026-05-11T19:43:30.005623" data-agent-assigned="claude-code" data-track-id="trk-0677c709" data-created-by-agent="human" data-created-by-model="claude-opus-4-7[1m]" data-created-by-cli-version="0.58.0-562-g459f47779">
+
+        <header>
+            <h1>QueuedSink: batch captured by reference races with consumer if caller mutates inputs</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="caused_by">
+                <h3>Caused By:</h3>
+                <ul>
+                    <li><a href="feat-156e0a1a.html" data-relationship="caused_by" data-since="2026-05-11T19:42:22.042016">feat-156e0a1a</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-0677c709.html" data-relationship="part_of" data-since="2026-05-11T19:42:22.043841">trk-0677c709</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="relates_to">
+                <h3>Relates To:</h3>
+                <ul>
+                    <li><a href="feat-f3bcbcef.html" data-relationship="relates_to" data-since="2026-05-11T19:43:30.003719">Single local writer transport for event/index writes</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Roborev #1502 (1 MED): internal/otel/sink/sqlite/queued.go:60 — queued closure captures resourceAttrs and signals by reference and runs AFTER WriteBatch returns. Callers that reuse or mutate the slice, signal structs, or attribute maps after the call can race with the queue worker or persist corrupted/stale data. Fix: snapshot the batch before submitting — copy the signals slice; clone mutable maps/fields such as resourceAttrs, RawAttrs, and Success so the queued op owns its inputs.</p>
+        </section>
+    </article>
+</body>
+</html>

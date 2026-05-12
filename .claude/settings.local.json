@@ -671,7 +671,21 @@
       "Bash(mount)",
       "Bash(GOTMPDIR=/workspaces/wipnote/.gotmp-exec go test -count=1 ./internal/hooks/)",
       "Bash(GOTMPDIR=/workspaces/wipnote/.gotmp-exec go test -count=1 ./cmd/wipnote/)",
-      "Bash(GOTMPDIR=/workspaces/wipnote/.gotmp-exec go test -count=1 -run TestRequireWipnoteOnPathAcceptsWipnoteBinary ./cmd/wipnote/)"
+      "Bash(GOTMPDIR=/workspaces/wipnote/.gotmp-exec go test -count=1 -run TestRequireWipnoteOnPathAcceptsWipnoteBinary ./cmd/wipnote/)",
+      "Bash(apt-cache show *)",
+      "Bash(sudo apt-get install -y chromium -q)",
+      "Bash(convert Screenshot_2026-05-10_at_5.11.58_AM.png -resize 1800x1800\\\\> /tmp/ss-small.png)",
+      "Bash(ffmpeg -i Screenshot_2026-05-10_at_5.11.58_AM.png -vf scale=1800:-1 /tmp/ss-small.png -y)",
+      "WebFetch(domain:google-gemini.github.io)",
+      "WebFetch(domain:opentelemetry.io)",
+      "WebFetch(domain:signoz.io)",
+      "Bash(TMPDIR=/workspaces/wipnote/.tmp go test *)",
+      "Bash(TMPDIR=/tmp/gotest go test ./cmd/wipnote -run TestDeduplicateUserPromptLogs -v)",
+      "Bash(/tmp/wipnote.test *)",
+      "Bash(TMPDIR=/workspaces/wipnote/.build-cache go test *)",
+      "Bash(dd if=/workspaces/wipnote/.wipnote/sessions/019e1244a4875e27bc7eeb21cc26/events.ndjson bs=1 skip=6764000 count=500)",
+      "Bash(dd if=/workspaces/wipnote/.wipnote/sessions/019e1342209ae28b0d4710501510/events.ndjson bs=1 skip=2673800 count=500)",
+      "Bash(wipnote sweep *)"
     ]
   },
   "enabledPlugins": {

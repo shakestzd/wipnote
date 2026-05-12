@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Gemini sessions recorded as codex — invocation_id check must precede hook_event_name in detectHarnessWithEnv</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-57c86318"
+             data-type="bug"
+             data-status="done"
+             data-priority="medium"
+             data-created="2026-05-09T17:42:21.448635"
+             data-updated="2026-05-09T17:45:32.409578" data-agent-assigned="claude-code" data-track-id="trk-c4615ad2" data-created-by-agent="human" data-created-by-model="claude-sonnet-4-6" data-created-by-cli-version="0.58.0-220-gc7a15b5a5">
+
+        <header>
+            <h1>Gemini sessions recorded as codex — invocation_id check must precede hook_event_name in detectHarnessWithEnv</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-c4615ad2.html" data-relationship="part_of" data-since="2026-05-09T17:42:21.463151">trk-c4615ad2</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="ed1fc339-cd8a-412a-8c0c-dee68b0736e5.html" data-relationship="implemented_in" data-since="2026-05-09T17:42:25.923258">session ed1fc339-cd8a-412a-8c0c-dee68b0736e5</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>detectHarnessWithEnv in internal/hooks/harness.go checks hook_event_name before invocation_id. Gemini payloads carry both fields, so the Codex branch fires first and sets AgentID=codex. Fix: move invocation_id check above hook_event_name check.</p>
+        </section>
+    </article>
+</body>
+</html>

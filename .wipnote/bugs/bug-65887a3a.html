@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>dbpath: hard-coded /tmp fallback breaks on non-Unix when TMPDIR unset</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-65887a3a"
+             data-type="bug"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-05-11T19:42:32.289684"
+             data-updated="2026-05-11T19:43:30.101378" data-agent-assigned="claude-code" data-track-id="trk-0677c709" data-created-by-agent="human" data-created-by-model="claude-opus-4-7[1m]" data-created-by-cli-version="0.58.0-562-g459f47779">
+
+        <header>
+            <h1>dbpath: hard-coded /tmp fallback breaks on non-Unix when TMPDIR unset</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="caused_by">
+                <h3>Caused By:</h3>
+                <ul>
+                    <li><a href="feat-156e0a1a.html" data-relationship="caused_by" data-since="2026-05-11T19:42:32.297181">feat-156e0a1a</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-0677c709.html" data-relationship="part_of" data-since="2026-05-11T19:42:32.298332">trk-0677c709</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="relates_to">
+                <h3>Relates To:</h3>
+                <ul>
+                    <li><a href="feat-67d59e43.html" data-relationship="relates_to" data-since="2026-05-11T19:43:30.100957">WAL-safe cache path selection and diagnostics</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Roborev #1507 (1 MED): internal/storage/dbpath.go:78 — candidateRoots falls back to literal '/tmp' when TMPDIR is unset. On non-Unix platforms (especially Windows where ProbeFsType reports all paths as WAL-safe), this can select an unexpected rooted '\tmp\wipnote\...' path instead of the platform cache directory. Fix: use os.TempDir() for the temp fallback, or only add the hard-coded '/tmp' candidate on Unix-like platforms.</p>
+        </section>
+    </article>
+</body>
+</html>

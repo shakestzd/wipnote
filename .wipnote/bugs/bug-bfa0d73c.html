@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Hook fallback counters lost across subprocesses &#43; unreachable timeout reason</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-bfa0d73c"
+             data-type="bug"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-05-11T19:42:13.297039"
+             data-updated="2026-05-11T19:43:29.973353" data-agent-assigned="claude-code" data-track-id="trk-0677c709" data-created-by-agent="human" data-created-by-model="claude-opus-4-7[1m]" data-created-by-cli-version="0.58.0-562-g459f47779">
+
+        <header>
+            <h1>Hook fallback counters lost across subprocesses &#43; unreachable timeout reason</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="caused_by">
+                <h3>Caused By:</h3>
+                <ul>
+                    <li><a href="feat-156e0a1a.html" data-relationship="caused_by" data-since="2026-05-11T19:42:13.31496">feat-156e0a1a</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-0677c709.html" data-relationship="part_of" data-since="2026-05-11T19:42:13.31715">trk-0677c709</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="relates_to">
+                <h3>Relates To:</h3>
+                <ul>
+                    <li><a href="feat-33c26c74.html" data-relationship="relates_to" data-since="2026-05-11T19:43:29.972973">Hook and indexer integration with canonical-first fallback</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Roborev #1499 (1 MED, 1 LOW): (MED) Fallback counters are process-local atomics; main hook path runs in short-lived 'wipnote hook' subprocesses, so writer_unavailable counts vanish on exit — dashboard/status calling FallbackCounts() observes nothing. Fix: persist to per-project durable store/log that dashboard aggregates, or route subprocess reporting through long-running service. internal/hooks/dbgate.go:59. (LOW) FallbackTimeout unreachable: SubmitDerivedOp always calls non-blocking q.Submit(context.Background()), which cannot return ErrTimeout. Fix: add SubmitWithTimeout path with configured deadline, or remove the timeout reason. internal/hooks/dbgate.go:159.</p>
+        </section>
+    </article>
+</body>
+</html>

@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Write-boundary AST scanner: false negatives on per-call DSN &#43; aliased imports</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-fd53109a"
+             data-type="bug"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-05-11T19:42:30.099926"
+             data-updated="2026-05-11T19:43:30.080222" data-agent-assigned="claude-code" data-track-id="trk-0677c709" data-created-by-agent="human" data-created-by-model="claude-opus-4-7[1m]" data-created-by-cli-version="0.58.0-562-g459f47779">
+
+        <header>
+            <h1>Write-boundary AST scanner: false negatives on per-call DSN &#43; aliased imports</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="caused_by">
+                <h3>Caused By:</h3>
+                <ul>
+                    <li><a href="feat-156e0a1a.html" data-relationship="caused_by" data-since="2026-05-11T19:42:30.108861">feat-156e0a1a</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-0677c709.html" data-relationship="part_of" data-since="2026-05-11T19:42:30.110232">trk-0677c709</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="relates_to">
+                <h3>Relates To:</h3>
+                <ul>
+                    <li><a href="feat-3a9d142d.html" data-relationship="relates_to" data-since="2026-05-11T19:43:30.079725">Writable SQLite call-site inventory and enforcement boundary</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Roborev #1506 (2 MED): (MED) funcBodyDeclaresReadOnlyDSN suppresses every sql.Open in a function if ANY string literal in that function contains 'mode=ro' — a function with both read-only and writable SQLite opens can bypass the inventory. Fix: determine read-only status per sql.Open call by inspecting the actual DSN argument, or add scoped data-flow for the variable. cmd/wipnote/sqlite_write_boundary_test.go:773. (MED) Direct database/sql opens only detected when package identifier is exactly 'sql'; an aliased import like 'stdsql "database/sql"' with stdsql.Open("sqlite", ...) evades the boundary test. Fix: track aliases for database/sql the way internal/db aliases are tracked. cmd/wipnote/sqlite_write_boundary_test.go:772.</p>
+        </section>
+    </article>
+</body>
+</html>

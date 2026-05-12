@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Reindex rebuild guarantees for dashboard-critical rows</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-229f3333"
+             data-type="feature"
+             data-status="done"
+             data-priority="medium"
+             data-created="2026-05-11T13:03:57.101227"
+             data-updated="2026-05-11T18:08:59.022136" data-agent-assigned="claude-code" data-track-id="trk-0677c709">
+
+        <header>
+            <h1>Reindex rebuild guarantees for dashboard-critical rows</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="91971d7c-e6f1-49b9-addf-28eb6f721357.html" data-relationship="implemented_in" data-since="2026-05-11T16:47:14.52305">session 91971d7c-e6f1-49b9-addf-28eb6f721357</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-0677c709.html" data-relationship="part_of" data-since="2026-05-11T13:03:57.10418">trk-0677c709</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="planned_in">
+                <h3>Planned In:</h3>
+                <ul>
+                    <li><a href="plan-ae0c37b2.html" data-relationship="planned_in" data-since="2026-05-11T13:03:57.111111">plan-ae0c37b2</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="blocked_by">
+                <h3>Blocked By:</h3>
+                <ul>
+                    <li><a href="feat-33c26c74.html" data-relationship="blocked_by" data-since="2026-05-11T13:03:57.114744">feat-33c26c74</a></li>
+                    <li><a href="feat-985d02ed.html" data-relationship="blocked_by" data-since="2026-05-11T13:03:57.117605">feat-985d02ed</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Improve `wipnote reindex` so deleting the SQLite cache and rebuilding from
+canonical files restores a named minimal dashboard dataset: plans, work
+items, graph edges, sessions, recent agent events, OTel-derived events,
+and collector status where canonical artifacts contain the needed data.
+Document any data that is intentionally cache-only and remove it from
+launch-critical views.</p>
+        </section>
+    </article>
+</body>
+</html>

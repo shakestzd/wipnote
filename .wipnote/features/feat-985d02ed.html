@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Canonical command audit and fail-loud DB dependency</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-985d02ed"
+             data-type="feature"
+             data-status="done"
+             data-priority="medium"
+             data-created="2026-05-11T13:03:56.595258"
+             data-updated="2026-05-11T14:56:02.374082" data-agent-assigned="claude-code" data-track-id="trk-0677c709">
+
+        <header>
+            <h1>Canonical command audit and fail-loud DB dependency</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="91971d7c-e6f1-49b9-addf-28eb6f721357.html" data-relationship="implemented_in" data-since="2026-05-11T14:36:31.432618">session 91971d7c-e6f1-49b9-addf-28eb6f721357</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="blocked_by">
+                <h3>Blocked By:</h3>
+                <ul>
+                    <li><a href="feat-813b2b8c.html" data-relationship="blocked_by" data-since="2026-05-11T13:03:56.627003">feat-813b2b8c</a></li>
+                    <li><a href="feat-2f15d303.html" data-relationship="blocked_by" data-since="2026-05-11T13:03:56.632551">feat-2f15d303</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-0677c709.html" data-relationship="part_of" data-since="2026-05-11T13:03:56.605626">trk-0677c709</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="planned_in">
+                <h3>Planned In:</h3>
+                <ul>
+                    <li><a href="plan-ae0c37b2.html" data-relationship="planned_in" data-since="2026-05-11T13:03:56.62182">plan-ae0c37b2</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Audit core CLI commands and classify whether they can answer from
+YAML/HTML/NDJSON without SQLite. Convert the highest-value commands to
+canonical-first behavior and make remaining SQLite-dependent commands fail
+loudly with a clear reason plus retry/reindex guidance when the DB is
+locked or missing.</p>
+        </section>
+    </article>
+</body>
+</html>

@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>writequeue tests: defer order makes Stop wait for blocker timeout</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-3adb62a5"
+             data-type="bug"
+             data-status="todo"
+             data-priority="low"
+             data-created="2026-05-11T19:42:24.207168"
+             data-updated="2026-05-11T19:43:30.046495" data-agent-assigned="claude-code" data-track-id="trk-0677c709" data-created-by-agent="human" data-created-by-model="claude-opus-4-7[1m]" data-created-by-cli-version="0.58.0-562-g459f47779">
+
+        <header>
+            <h1>writequeue tests: defer order makes Stop wait for blocker timeout</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-low">Low Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="caused_by">
+                <h3>Caused By:</h3>
+                <ul>
+                    <li><a href="feat-156e0a1a.html" data-relationship="caused_by" data-since="2026-05-11T19:42:24.214501">feat-156e0a1a</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-0677c709.html" data-relationship="part_of" data-since="2026-05-11T19:42:24.216271">trk-0677c709</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="relates_to">
+                <h3>Relates To:</h3>
+                <ul>
+                    <li><a href="feat-f3bcbcef.html" data-relationship="relates_to" data-since="2026-05-11T19:43:30.0457">Single local writer transport for event/index writes</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Roborev #1503 (1 LOW): internal/db/writequeue/queue_test.go:141 and :180 — 'defer q.Stop(time.Second)' is deferred AFTER 'defer close(blockingDone)', so defer order runs Stop while the blocker is still waiting. Tests sit through the full timeout and may let queued work drain after the test returns. Fix: unblock before stopping, e.g. 'defer func() { close(blockingDone); q.Stop(time.Second) }()'.</p>
+        </section>
+    </article>
+</body>
+</html>

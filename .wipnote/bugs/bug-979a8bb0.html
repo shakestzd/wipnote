@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Codex events missing from dashboard</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-979a8bb0"
+             data-type="bug"
+             data-status="done"
+             data-priority="medium"
+             data-created="2026-05-08T12:19:59.343945"
+             data-updated="2026-05-08T15:10:15.9394" data-agent-assigned="claude-code" data-track-id="trk-c4615ad2" data-created-by-agent="codex" data-created-by-role="codex" data-created-by-cli-version="0.58.0-220-gc7a15b5a5">
+
+        <header>
+            <h1>Codex events missing from dashboard</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="019e076b265e234f6e219024598f.html" data-relationship="implemented_in" data-since="2026-05-08T12:20:30.056759">session 019e076b265e234f6e219024598f</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-c4615ad2.html" data-relationship="part_of" data-since="2026-05-08T12:19:59.35584">trk-c4615ad2</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="true" data-step-id="step-bug-979a8bb0-0" data-agent="claude-code" data-created-by-agent="claude-code">✅ Documented researched assistant-response capture design: keep assistant_text as the dashboard contract, but prefer documented hook payload fields over transcript parsing. Claude Stop/SubagentStop should use last_assistant_message first and transcript fallback; Codex Stop should use last_assistant_message plus turn_id correlation and transcript fallback; Gemini should use AfterAgent prompt_response as the primary per-turn capture path, with SessionEnd only for cleanup/backfill; Gemini OTel gemini_cli.api_response response_text can also map to assistant_text when present. Sources checked: Claude Code hooks docs, OpenAI Codex hooks docs, Gemini hooks reference, Gemini telemetry docs.</li>
+            </ol>
+        </section>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>User reported live Codex events are still not visible in the dashboard. Diagnose and fix why Codex session events from this dev-mode run do not appear in the wipnote dashboard activity feed.</p>
+        </section>
+    </article>
+</body>
+</html>

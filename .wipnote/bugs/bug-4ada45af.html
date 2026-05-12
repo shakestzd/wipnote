@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Reindex rebuild: error accounting &#43; stale plan edges leave cache inconsistent</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-4ada45af"
+             data-type="bug"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-05-11T19:42:10.628851"
+             data-updated="2026-05-11T19:43:29.946462" data-agent-assigned="claude-code" data-track-id="trk-0677c709" data-created-by-agent="human" data-created-by-model="claude-opus-4-7[1m]" data-created-by-cli-version="0.58.0-562-g459f47779">
+
+        <header>
+            <h1>Reindex rebuild: error accounting &#43; stale plan edges leave cache inconsistent</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="caused_by">
+                <h3>Caused By:</h3>
+                <ul>
+                    <li><a href="feat-156e0a1a.html" data-relationship="caused_by" data-since="2026-05-11T19:42:10.640148">feat-156e0a1a</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="relates_to">
+                <h3>Relates To:</h3>
+                <ul>
+                    <li><a href="feat-229f3333.html" data-relationship="relates_to" data-since="2026-05-11T19:43:29.945658">Reindex rebuild guarantees for dashboard-critical rows</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-0677c709.html" data-relationship="part_of" data-since="2026-05-11T19:42:10.64369">trk-0677c709</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Roborev #1498 (3 MED): (MED) last_indexed_commit written before OTel replay; plan/otel errors ignored in command result — failed full rebuild can mark DB current and skip future recovery. Fix: move metadata update after all phases + include planErrs/otelErrs in success decision. cmd/wipnote/reindex.go:142. (MED) reindexOtelEvents always returns zero errors and treats stable lag as success without checking Indexer.Status().LastError or zero lag. Persistent parse/write failures exit success with missing rows. Fix: inspect indexer status; require zero lag; error on stalls or maxIterations. cmd/wipnote/reindex_otel_events.go:99. (MED) Plan edge rebuild upserts but never deletes obsolete planned_in/blocked_by edges; removed dependencies survive. Fix: delete plan-scoped edges before re-inserting current YAML edges. cmd/wipnote/reindex_plan_edges.go:70.</p>
+        </section>
+    </article>
+</body>
+</html>

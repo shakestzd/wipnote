@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Graph query errors return raw &#43; dead find spy in regression tests</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-461c1fdb"
+             data-type="bug"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-05-11T19:42:35.821099"
+             data-updated="2026-05-11T19:43:30.117913" data-agent-assigned="claude-code" data-track-id="trk-0677c709" data-created-by-agent="human" data-created-by-model="claude-opus-4-7[1m]" data-created-by-cli-version="0.58.0-562-g459f47779">
+
+        <header>
+            <h1>Graph query errors return raw &#43; dead find spy in regression tests</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="caused_by">
+                <h3>Caused By:</h3>
+                <ul>
+                    <li><a href="feat-156e0a1a.html" data-relationship="caused_by" data-since="2026-05-11T19:42:35.829842">feat-156e0a1a</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-0677c709.html" data-relationship="part_of" data-since="2026-05-11T19:42:35.83113">trk-0677c709</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="relates_to">
+                <h3>Relates To:</h3>
+                <ul>
+                    <li><a href="feat-985d02ed.html" data-relationship="relates_to" data-since="2026-05-11T19:43:30.117155">Canonical command audit and fail-loud DB dependency</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Roborev #1508 (1 MED, 1 LOW): (MED) Graph query failures after a successful OpenReadOnly are returned raw; existing-but-stale/empty/corrupt DB can pass open then fail in DBDetectCycles/DBShortestPath/FindOrphans without the new reindex guidance. Fail-loud only covers missing/open failures. Fix: wrap every graph query error with graphDBError(...) / query-specific helper + add regression test with existing invalid/stale DB file. cmd/wipnote/graph.go:83. (LOW) findProjectOpener is never used by production code, so spy tests don't actually intercept a reintroduction of direct workitem.Open(...) in runFind — passes only because the unused variable is never invoked. Fix: remove dead spy or route project-opening through findProjectOpener; otherwise test via observable env/filesystem behavior. cmd/wipnote/find.go:24.</p>
+        </section>
+    </article>
+</body>
+</html>

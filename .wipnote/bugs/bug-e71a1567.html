@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Open modes: WAL/mode=ro can fail &#43; no migration &#43; writable creates empty DB</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-e71a1567"
+             data-type="bug"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-05-11T19:42:45.943943"
+             data-updated="2026-05-11T19:43:30.160931" data-agent-assigned="claude-code" data-track-id="trk-0677c709" data-created-by-agent="human" data-created-by-model="claude-opus-4-7[1m]" data-created-by-cli-version="0.58.0-562-g459f47779">
+
+        <header>
+            <h1>Open modes: WAL/mode=ro can fail &#43; no migration &#43; writable creates empty DB</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="caused_by">
+                <h3>Caused By:</h3>
+                <ul>
+                    <li><a href="feat-156e0a1a.html" data-relationship="caused_by" data-since="2026-05-11T19:42:45.950894">feat-156e0a1a</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="relates_to">
+                <h3>Relates To:</h3>
+                <ul>
+                    <li><a href="feat-2f15d303.html" data-relationship="relates_to" data-since="2026-05-11T19:43:30.160326">Split SQLite open modes</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-0677c709.html" data-relationship="part_of" data-since="2026-05-11T19:42:45.952049">trk-0677c709</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Roborev #1510 (2 MED, 1 LOW): (MED) internal/db/open_modes.go:137 — OpenReadOnly uses SQLite mode=ro, but the canonical DB is often WAL. Read-only WAL opens can fail when -wal/-shm sidecars are absent, so converted CLI commands fail before querying. Fix: use mode=rw with PRAGMA query_only=ON, or handle and test the WAL sidecar case. (MED) cmd/wipnote/graph.go:75 — converted read commands no longer run migrations; existing cache with older schema can open but fail later with missing-table/column errors. Fix: check schema/user_version before querying and emit migration/reindex guidance, or keep migrated open path for commands that require current schema. (LOW) internal/db/open_modes.go:114 — OpenWritable is documented for an existing schema-current DB, but opening a bare path can create a new empty SQLite file. Fix: use mode=rw or os.Stat guard so missing DBs fail fast.</p>
+        </section>
+    </article>
+</body>
+</html>

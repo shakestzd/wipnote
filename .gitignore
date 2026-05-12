@@ -147,7 +147,6 @@ docs/api/*.html
 docs/api/*.js
 
 .contextune/
-.claude/settings.local.json
 
 # Prevent root clutter from accumulating
 # Screenshots and temp images
@@ -182,3 +181,7 @@ chrome/*.zip
 
 # Subagent worktrees (transient; created by Claude Code Agent tool)
 .claude/worktrees/
+
+# Go test fixtures and temporary directories
+/.gotmp/
+/.tmp-go/

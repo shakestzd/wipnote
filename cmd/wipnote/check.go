@@ -43,13 +43,17 @@ Returns exit code 0 if all gates pass, 1 if any fail.`,
 				results = append(results, runGoGates(projectRoot, skipTests)...)
 			}
 
+			if !pythonOnly && hasNodeProject(projectRoot) {
+				ranAny = true
+			}
+
 			if !goOnly && hasPythonProject(projectRoot) {
 				ranAny = true
 				results = append(results, runPythonGates(projectRoot, skipTests)...)
 			}
 
 			if !ranAny {
-				fmt.Println("No supported project detected (Go: look for go.mod at project root or subdirectories).")
+				fmt.Println("No supported project detected (Go: look for go.mod at project root or subdirectories; Python: src/python; Node: package.json).")
 				return nil
 			}
 
@@ -83,7 +87,15 @@ func resolveProjectRoot() (string, error) {
 }
 
 func hasGoProject(root string) bool {
+	if _, err := os.Stat(filepath.Join(root, "go.mod")); err == nil {
+		return true
+	}
 	_, err := os.Stat(filepath.Join(root, "packages", "go", "go.mod"))
+	return err == nil
+}
+
+func hasNodeProject(root string) bool {
+	_, err := os.Stat(filepath.Join(root, "package.json"))
 	return err == nil
 }
 
