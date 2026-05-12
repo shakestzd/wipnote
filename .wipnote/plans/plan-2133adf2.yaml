@@ -1,0 +1,17 @@
+meta:
+    id: plan-2133adf2
+    track_id: trk-08dcbb33
+    title: Path Normalization for Worktree-Resilient Lineage
+    description: 'Normalize every path stored by wipnote (HTML, SQLite, session captures, agent provenance) against the canonical repo root so causal lineage survives worktrees, host changes, and CWD switches. Closes defensibility-audit finding #1 (path drift breaks lineage queries from a different working directory than where work was captured).'
+    created_at: "2026-05-12"
+    status: draft
+    priority: medium
+    version: 2
+design:
+    problem: ""
+    goals: []
+    constraints: []
+    approved: false
+    comment: ""
+slices: []
+questions: []
