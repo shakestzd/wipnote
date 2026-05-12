@@ -7,7 +7,7 @@ meta:
     created_at: "2026-05-11"
     status: finalized
     created_by: claude-opus
-    version: 13
+    version: 14
 design:
     problem: |
         wipnote's causal lineage is host-locked. Hooks, the indexer, and provenance capture record paths as the agent observed them — often absolute (`/workspaces/wipnote/foo.go`, `/tmp/worktree-abc/foo.go`) or worktree- relative. When the same repo is queried from a different working directory (worktree orchestrators like our own `Agent({isolation: "worktree"})` or Conductor; same repo on a different host like Codespace → local) the lineage chain breaks: file references don't resolve, blame queries miss commits, and `wipnote lineage <id>` returns partial chains.
@@ -368,6 +368,7 @@ slices:
           severity: HIGH
           summary: Missed `sessions.project_dir` SQLite column at `internal/db/session_repo.go:16-23` (written at session_start.go:351). Added as a third call site. Files list updated. New done_when criterion for SQLite/HTML consistency.
     - id: slice-5
+      feature_id: feat-4417b8df
       num: 5
       title: Normalize CLI --files input on workitem create
       what: |
@@ -408,7 +409,7 @@ slices:
       approved: false
       comment: ""
       approval_status: approved
-      execution_status: not_started
+      execution_status: promoted
       critic_revisions:
         - source: risk-critique
           severity: HIGH
