@@ -397,6 +397,59 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
   <a href="#design" class="nav-link active" data-spy="design" data-initial="D">Design</a>
   <a href="#slices" class="nav-link" data-spy="slices" data-initial="S">Slices</a>
   
+  <ul class="slice-nav-list" id="slice-nav-list">
+    
+    <li>
+      <a href="#slice-1" class="slice-nav-item" data-slice-nav="1">
+        <span class="slice-nav-dot" data-approval="pending" data-dot-for="1"></span>
+        <span>#1 Canonical write-time path normalizer in internal/paths</span>
+      </a>
+    </li>
+    
+    <li>
+      <a href="#slice-2" class="slice-nav-item" data-slice-nav="2">
+        <span class="slice-nav-dot" data-approval="pending" data-dot-for="2"></span>
+        <span>#2 Normalize tool_input file paths in PreToolUse/PostToolUse</span>
+      </a>
+    </li>
+    
+    <li>
+      <a href="#slice-3" class="slice-nav-item" data-slice-nav="3">
+        <span class="slice-nav-dot" data-approval="pending" data-dot-for="3"></span>
+        <span>#3 Normalize WorktreePath in worktree events</span>
+      </a>
+    </li>
+    
+    <li>
+      <a href="#slice-4" class="slice-nav-item" data-slice-nav="4">
+        <span class="slice-nav-dot" data-approval="pending" data-dot-for="4"></span>
+        <span>#4 Normalize SessionStart and SubagentStart CWD attribution</span>
+      </a>
+    </li>
+    
+    <li>
+      <a href="#slice-5" class="slice-nav-item" data-slice-nav="5">
+        <span class="slice-nav-dot" data-approval="pending" data-dot-for="5"></span>
+        <span>#5 Normalize CLI --files input on workitem create</span>
+      </a>
+    </li>
+    
+    <li>
+      <a href="#slice-6" class="slice-nav-item" data-slice-nav="6">
+        <span class="slice-nav-dot" data-approval="pending" data-dot-for="6"></span>
+        <span>#6 Idempotent migration rewriter for 178 pre-existing records</span>
+      </a>
+    </li>
+    
+    <li>
+      <a href="#slice-7" class="slice-nav-item" data-slice-nav="7">
+        <span class="slice-nav-dot" data-approval="pending" data-dot-for="7"></span>
+        <span>#7 Worktree round-trip regression gate</span>
+      </a>
+    </li>
+    
+  </ul>
+  
   <a href="#questions" class="nav-link" data-spy="questions" data-initial="Q">Decisions</a>
   <a href="#critique" class="nav-link" data-spy="critique" data-initial="C">Critique</a>
   <a href="#feedback-summary" class="nav-link" data-spy="feedback-summary" data-initial="P">Progress</a>
@@ -404,15 +457,16 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
 </nav>
 <div class="plan-layout">
 <div class="plan-content">
-<article id="plan-2133adf2" data-type="plan" data-plan-id="plan-2133adf2" data-feature-id="trk-08dcbb33" data-status="draft" data-priority="medium">
+<article id="plan-2133adf2" data-type="plan" data-plan-id="plan-2133adf2" data-feature-id="trk-08dcbb33" data-status="active" data-priority="medium">
 
 <!-- Plan Header -->
 <header class="plan-header">
   <h1>Plan: Path Normalization for Worktree-Resilient Lineage</h1>
-  <p style="color:var(--text-dim)">Normalize every path stored by wipnote (HTML, SQLite, session captures, agent provenance) against the canonical repo root so causal lineage survives worktrees, host changes, and CWD switches. Closes defensibility-audit finding #1 (path drift breaks lineage queries from a different working directory than where work was captured).</p>
+  <p style="color:var(--text-dim)">Normalize every path stored by wipnote (HTML, SQLite, session captures, agent provenance) against the canonical repo root so causal lineage survives worktrees, host changes, and CWD switches. Closes defensibility-audit finding #1.
+</p>
   <div class="meta">
-    <span class="badge badge-pending">Draft</span>
-    <span style="font-size:.75rem;color:var(--text-muted)">v2 · 0 slices · Created 2026-05-12</span>
+    <span class="badge badge-revision">Active</span>
+    <span style="font-size:.75rem;color:var(--text-muted)">v1 · 7 slices · Created 2026-05-11</span>
   </div>
 </header>
 <button id="themeToggle" style="position:fixed;top:16px;right:16px;z-index:100;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:6px 12px;color:var(--text);font-family:var(--mono);font-size:0.75rem;cursor:pointer;">
@@ -432,6 +486,13 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
 <section class="dep-graph" data-zone="dependency-graph">
   <h2>Dependency Graph</h2>
   <div id="graph-data" style="display:none">
+    <div data-node="1" data-name="Canonical write-time path normalizer in internal/paths" data-status="pending" data-deps="" data-files="4"></div>
+    <div data-node="2" data-name="Normalize tool_input file paths in PreToolUse/PostToolUse" data-status="pending" data-deps="1" data-files="6"></div>
+    <div data-node="3" data-name="Normalize WorktreePath in worktree events" data-status="pending" data-deps="1" data-files="2"></div>
+    <div data-node="4" data-name="Normalize SessionStart and SubagentStart CWD attribution" data-status="pending" data-deps="1" data-files="6"></div>
+    <div data-node="5" data-name="Normalize CLI --files input on workitem create" data-status="pending" data-deps="1" data-files="2"></div>
+    <div data-node="6" data-name="Idempotent migration rewriter for 178 pre-existing records" data-status="pending" data-deps="1,2,3,4,5" data-files="4"></div>
+    <div data-node="7" data-name="Worktree round-trip regression gate" data-status="pending" data-deps="2,3,4,5" data-files="2"></div>
     
     <!--PLAN_GRAPH_NODES-->
   </div>
@@ -444,17 +505,48 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
 <details id="design" class="section-card" open data-phase="design" data-status="pending">
   <summary><span>Design</span><span class="badge badge-pending" data-badge-for="design">Pending</span></summary>
   <div class="section-body">
-    <!--PLAN_DESIGN_CONTENT-->
-    <div class="sub-section">
-      <h4>Open Questions</h4>
-      <!--PLAN_QUESTIONS-->
-    </div>
+    <h4>Problem</h4>
+<div data-markdown>wipnote&#39;s causal lineage is host-locked. Hooks, the indexer, and provenance capture record paths as the agent observed them — often absolute (`/workspaces/wipnote/foo.go`, `/tmp/worktree-abc/foo.go`) or worktree- relative. When the same repo is queried from a different working directory (worktree orchestrators like our own `Agent({isolation: &#34;worktree&#34;})` or Conductor; same repo on a different host like Codespace → local) the lineage chain breaks: file references don&#39;t resolve, blame queries miss commits, and `wipnote lineage &lt;id&gt;` returns partial chains.
+Existing partial mitigation: the `check-host-paths` precommit gate (`cmd/wipnote/check_host_paths.go:23-28`) rejects absolute host paths in `--description`/`--body` at creation time. That gate does nothing for runtime capture by hooks/indexer/session ingest, which is where the overwhelming majority of paths enter the store.
+Researcher mapped 7 capture surfaces:
+  1. PreToolUse — `agent_events.tool_input` (JSON containing absolute
+     `file_path` keys; doubly encoded)
+  2. PostToolUse — `feature_files.file_path` (verbatim absolute)
+  3. SessionStart/End — `sessions.transcript_path` (out-of-scope: Claude&#39;s
+     private store)
+  4. SessionStart — `&lt;article data-project-dir=&#34;...&#34;&gt;` in session HTML
+     (currently deliberately verbatim)
+  5. WorktreeCreate/Remove — `agent_events.input_summary` free-text
+     containing absolute `WorktreePath`
+  6. SubagentStart — `pending_subagent_starts.cwd`
+  7. CLI `--files` flag — verbatim into HTML `affected_files`
+
+Existing partial helper: `internal/migrate/tracks.go:281 normalizePath` (read-time, anchor-based, wipnote-specific). The right extension point is `internal/paths/resolve.go` which already has `ResolveViaGitCommonDir` for worktree → main repo. 178 existing `.wipnote/*.html` files contain absolute paths and need a one-shot migration.
+</div>
+<h4>Goals</h4>
+<ol>
+<li data-markdown>**Write-time normalization** — every path captured by a hook, indexer, or CLI write is stored repo-relative against `git rev-parse --git-common-dir`, falling back to walk-up to `.wipnote/`.</li>
+<li data-markdown>**Single normalizer** — one helper in `internal/paths/` used by every writer; no per-call-site implementations.</li>
+<li data-markdown>**Worktree round-trip** — a feature implemented via `Agent({isolation: &#34;worktree&#34;})`, after the worktree is removed, returns full lineage with all referenced files resolvable from the main repo root.</li>
+<li data-markdown>**Migration completeness** — all 178 pre-existing `.wipnote/*.html` records are rewritten idempotently; re-running the migration is a no-op.</li>
+<li data-markdown>**No new false negatives** — `transcript_path` (Claude&#39;s private store) is explicitly out-of-scope and remains absolute; the `--allow-host-paths` escape hatch on creation flows still works.</li>
+</ol>
+<h4>Constraints</h4>
+<ul>
+<li data-markdown>Reuse the regex from `cmd/wipnote/check_host_paths.go:23-28` as the single source of truth for what counts as a host path.</li>
+<li data-markdown>Worktrees: use `git rev-parse --git-common-dir` (or extend `ResolveViaGitCommonDir`), not `--show-toplevel` (which returns the worktree dir, not the canonical root).</li>
+<li data-markdown>`transcript_path` is out-of-scope — it points to `~/.claude/projects/&lt;encoded&gt;/&lt;uuid&gt;.jsonl` which is intentionally machine-local. Leave absolute.</li>
+<li data-markdown>Backwards compatibility on read: lineage queries must continue to resolve records written before this plan. Either rewrite on read or rely on the migration in slice-6.</li>
+<li data-markdown>`tool_input` is doubly JSON-encoded (JSON object encoded as a JSON string, stored in a TEXT column). Normalization must unmarshal twice and re-encode.</li>
+</ul>
+
     <div class="approval-row">
       <label><input type="checkbox" data-section="design" data-action="approve"> Approve design</label>
       <textarea data-section="design" data-comment-for="design" placeholder="Comments on design decisions..."></textarea>
     </div>
   </div>
 </details>
+
 
 <!-- Structure Outline (hidden when empty) -->
 
@@ -463,23 +555,1057 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
 <details id="slices" class="section-card" open data-phase="slices" data-status="pending">
   <summary><span>Slices</span><span class="badge badge-pending" data-badge-for="slices">Pending</span></summary>
   <div class="section-body">
+    <details class="slice-card" id="slice-1" data-slice="1" data-slice-name="slice-1" data-status="pending" data-approval="pending">
+  <summary class="slice-summary" aria-label="Slice 1: Canonical write-time path normalizer in internal/paths">
+    <span class="slice-num">#1</span>
+    <span class="slice-title-col">
+      <span class="slice-name">Canonical write-time path normalizer in internal/paths</span>
+      <span class="slice-preview">Add NormalizeToRepoRelative(absPath, repoRoot string) (relPath string, ok bool)</span>
+      <span class="slice-meta-row">
+        <span class="slice-summary-badges">
+          <span class="badge badge-revision badge-sm">M</span>
+          <span class="badge badge-pending badge-sm">Low</span>
+          <span class="badge badge-pending badge-sm" title="Execution: not_started">Not Started</span>
+          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-1">Pending</span>
+          
+          <span class="badge badge-sm badge-questions" title="1 open question(s)">1 Q</span>
+        </span>
+        <span class="slice-actions" onclick="event.stopPropagation()">
+          <span class="approval-segmented" role="group" aria-label="Approval action">
+            <label class="seg-btn seg-approve" title="Approve">
+              <input type="radio" name="slice-1-approval" value="approved" data-section="slice-1" data-action="approve" aria-label="Approve slice 1">
+              &#10003;
+            </label>
+            <label class="seg-btn seg-changes" title="Request changes">
+              <input type="radio" name="slice-1-approval" value="changes_requested" data-section="slice-1" data-action="approve" aria-label="Request changes for slice 1">
+              &#8635;
+            </label>
+            <label class="seg-btn seg-reject" title="Reject">
+              <input type="radio" name="slice-1-approval" value="rejected" data-section="slice-1" data-action="approve" aria-label="Reject slice 1">
+              &#10005;
+            </label>
+          </span>
+        </span>
+      </span>
+    </span>
+    <span class="slice-chevron" aria-hidden="true"></span>
+  </summary>
+
+  <div class="slice-body">
     
+      
+      <div class="slice-field slice-what">
+        <div class="slice-field-label">What</div>
+        <div class="slice-field-value">
+          
+          <input type="checkbox" id="slice-1-what-reveal" class="reveal-toggle">
+          <div class="markdown-block reveal-content serif-prose"><p>Add <code>NormalizeToRepoRelative(absPath, repoRoot string) (relPath string, ok bool)</code>
+to <code>internal/paths/resolve.go</code>. It:</p>
+<ol>
+<li>If <code>absPath</code> is already relative, return <code>(absPath, true)</code>.</li>
+<li>Resolves the canonical repo root via the existing
+<code>ResolveViaGitCommonDir</code> helper (handles worktrees correctly).</li>
+<li>Returns <code>filepath.Rel(canonicalRoot, absPath)</code> if the result does
+not start with <code>..</code> (i.e. path is inside the repo).</li>
+<li>If the path matches the <code>hostPathPattern</code> regex
+(<code>cmd/wipnote/check_host_paths.go:23-28</code>) but is NOT inside the
+repo, returns <code>(&#34;&#34;, false)</code> so callers can decide whether to drop
+the path or store it verbatim with an <code>unresolved:</code> prefix.</li>
+</ol>
+<p>Promote the <code>hostPathPattern</code> regex out of <code>cmd/wipnote/</code> into
+<code>internal/paths/</code> (or a sibling package) so both the precommit gate and
+the runtime normalizer reference the same definition.</p>
+<p>Add a sibling <code>MustNormalize(path string) string</code> convenience that
+logs at debug level when normalization fails and returns the original
+path — for use in hot paths where we don&#39;t want to error.</p>
+</div>
+          <label for="slice-1-what-reveal" class="reveal-label">Show full description</label>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field slice-why">
+        <div class="slice-field-label">Why</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>Single source of truth for normalization (constraint #1). All
+subsequent slices wire this in at one call site each. Without a
+shared helper, each writer will drift its own logic and the gate
+will be re-implemented per file.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Files</div>
+        <div class="slice-field-value"><code>internal/paths/resolve.go, internal/paths/resolve_test.go, internal/paths/hostpattern.go, cmd/wipnote/check_host_paths.go</code></div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Done when</div>
+        <ul class="slice-done-list"><li>`internal/paths.NormalizeToRepoRelative(&#34;/workspaces/wipnote/foo.go&#34;, &#34;/workspaces/wipnote&#34;)` returns `(&#34;foo.go&#34;, true)`</li><li>From inside `&lt;repo&gt;/.claude/worktrees/feat-x/`, `NormalizeToRepoRelative(&#34;/workspaces/wipnote/.claude/worktrees/feat-x/internal/foo.go&#34;, &#34;&lt;auto&gt;&#34;)` returns `(&#34;internal/foo.go&#34;, true)` (canonical root resolved via `ResolveViaGitCommonDir`)</li><li>`NormalizeToRepoRelative(&#34;/Users/alice/other-repo/foo.go&#34;, &#34;/workspaces/wipnote&#34;)` returns `(&#34;&#34;, false)`</li><li>`hostPathPattern` regex is defined in one place; `cmd/wipnote/check_host_paths.go` imports it from `internal/paths/` (no duplication)</li><li>`go vet ./...` and `go test ./internal/paths/...` pass</li></ul>
+      </div>
+      
+    
+
+    
+    <div class="slice-field slice-tests-field">
+      <div class="slice-field-label">Test Strategy</div>
+      <div class="slice-field-value">
+        
+        
+        <div class="test-strategy">
+          
+          <div class="test-group" data-kind="other">
+            <span class="test-chip">OTHER &middot; 7</span>
+            <ul><li>Unit (`internal/paths/resolve_test.go`):</li><li>TestNormalize_AbsoluteInsideRepo — input `/workspaces/wipnote/foo.go`, root `/workspaces/wipnote`, expect `(&#34;foo.go&#34;, true)`</li><li>TestNormalize_WorktreePathInsideRepo — input `/workspaces/wipnote/.claude/worktrees/feat-x/foo.go`, root resolved via git-common-dir, expect `(&#34;foo.go&#34;, true)` after relativization (NOT `.claude/worktrees/feat-x/foo.go`)</li><li>TestNormalize_AlreadyRelative — input `internal/foo.go`, expect `(&#34;internal/foo.go&#34;, true)` unchanged</li><li>TestNormalize_OutsideRepo — input `/Users/alice/other/foo.go`, expect `(&#34;&#34;, false)`</li><li>TestNormalize_HostPathOutsideRepo — input `/home/bob/notes.md`, expect `(&#34;&#34;, false)`</li><li>TestHostPattern_SingleDefinition — `internal/paths.HostPathPattern` and `cmd/wipnote.hostPathPattern` reference the same value (via import, not duplication)</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="regression">
+            <span class="test-chip">REGRESSION &middot; 1</span>
+            <ul><li>existing `check-host-paths` precommit gate test (`cmd/wipnote/check_host_paths_test.go`) must still pass after the regex moves.</li></ul>
+          </div>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+
+    
+
+    
+    <div class="slice-field slice-questions">
+      <div class="slice-field-label">Open Questions</div>
+      <div class="slice-field-value">
+        
+        <div class="question-block slice-question-block">
+          <p>When `repoRoot` is passed empty/`&lt;auto&gt;`, how should the helper resolve it?</p>
+          <p class="question-desc">Three options for callers that don&#39;t know the canonical root:
+(a) Walk up from CWD looking for `.wipnote/` directory
+(b) Call `git rev-parse --git-common-dir` and take its parent
+(c) Require the caller to always pass it (no auto-resolution)
+ResolveViaGitCommonDir today uses (b). Option (a) is faster but
+fails when called outside the repo.
+</p>
+          
+          <textarea
+            data-section="slice-1-question-q-canonical-root-source"
+            data-comment-for="slice-1-question-q-canonical-root-source"
+            placeholder="Answer question q-canonical-root-source..."></textarea>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+
+    <div class="slice-deps">Dependencies: none</div>
+
+    <details class="comment-collapse">
+      <summary class="comment-collapse-trigger">+ Leave a comment</summary>
+      <div class="comment-collapse-body">
+        <textarea data-section="slice-1" data-comment-for="slice-1" placeholder="Comments on slice 1..."></textarea>
+      </div>
+    </details>
+  </div>
+</details>
+<details class="slice-card" id="slice-2" data-slice="2" data-slice-name="slice-2" data-status="pending" data-approval="pending">
+  <summary class="slice-summary" aria-label="Slice 2: Normalize tool_input file paths in PreToolUse/PostToolUse">
+    <span class="slice-num">#2</span>
+    <span class="slice-title-col">
+      <span class="slice-name">Normalize tool_input file paths in PreToolUse/PostToolUse</span>
+      <span class="slice-preview">Wire paths.NormalizeToRepoRelative into the two hot-path hooks:</span>
+      <span class="slice-meta-row">
+        <span class="slice-summary-badges">
+          <span class="badge badge-revision badge-sm">M</span>
+          <span class="badge badge-revision badge-sm">Med</span>
+          <span class="badge badge-pending badge-sm" title="Execution: not_started">Not Started</span>
+          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-2">Pending</span>
+          
+          <span class="badge badge-sm badge-questions" title="1 open question(s)">1 Q</span>
+        </span>
+        <span class="slice-actions" onclick="event.stopPropagation()">
+          <span class="approval-segmented" role="group" aria-label="Approval action">
+            <label class="seg-btn seg-approve" title="Approve">
+              <input type="radio" name="slice-2-approval" value="approved" data-section="slice-2" data-action="approve" aria-label="Approve slice 2">
+              &#10003;
+            </label>
+            <label class="seg-btn seg-changes" title="Request changes">
+              <input type="radio" name="slice-2-approval" value="changes_requested" data-section="slice-2" data-action="approve" aria-label="Request changes for slice 2">
+              &#8635;
+            </label>
+            <label class="seg-btn seg-reject" title="Reject">
+              <input type="radio" name="slice-2-approval" value="rejected" data-section="slice-2" data-action="approve" aria-label="Reject slice 2">
+              &#10005;
+            </label>
+          </span>
+        </span>
+      </span>
+    </span>
+    <span class="slice-chevron" aria-hidden="true"></span>
+  </summary>
+
+  <div class="slice-body">
+    
+      
+      <div class="slice-field slice-what">
+        <div class="slice-field-label">What</div>
+        <div class="slice-field-value">
+          
+          <input type="checkbox" id="slice-2-what-reveal" class="reveal-toggle">
+          <div class="markdown-block reveal-content serif-prose"><p>Wire <code>paths.NormalizeToRepoRelative</code> into the two hot-path hooks:</p>
+<p><code>internal/hooks/pretooluse.go:218-230</code> — before writing
+<code>event.ToolInput</code> to <code>agent_events.tool_input</code>, walk the JSON object
+and normalize any <code>file_path</code> / <code>path</code> / <code>notebook_path</code> values to
+repo-relative. Helper: <code>paths.NormalizeToolInputPaths(toolInput map[string]any, repoRoot string) map[string]any</code> —
+iterates known path keys, applies normalizer, leaves unknown keys
+untouched. Returns a new map (don&#39;t mutate caller&#39;s input).</p>
+<p><code>internal/hooks/posttooluse.go:123-131</code> — replace the raw
+<code>extractFilePath(event.ToolInput)</code> write with
+<code>paths.MustNormalize(extractFilePath(...))</code> so <code>feature_files.file_path</code>
+stores repo-relative.</p>
+<p>The <code>repoRoot</code> for both call sites comes from the existing
+<code>resolveProjectDir(event.CWD)</code> (already called elsewhere in the hook
+flow) — pass it through.</p>
+</div>
+          <label for="slice-2-what-reveal" class="reveal-label">Show full description</label>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field slice-why">
+        <div class="slice-field-label">Why</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>These two hooks are the highest-volume path captures in the system.
+Every Write/Edit/Read/MultiEdit goes through them. Without
+normalization here, lineage chains are broken for every active feature.
+Addresses goals #1 (write-time normalization) and #3 (worktree
+round-trip).</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Files</div>
+        <div class="slice-field-value"><code>internal/hooks/pretooluse.go, internal/hooks/posttooluse.go, internal/hooks/quality_gate.go, internal/paths/toolinput.go, internal/hooks/pretooluse_test.go, internal/hooks/posttooluse_test.go</code></div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Done when</div>
+        <ul class="slice-done-list"><li>Synthetic PreToolUse event with `tool_input={&#34;file_path&#34;:&#34;/workspaces/wipnote/.claude/worktrees/feat-x/internal/foo.go&#34;}` fired from within the worktree results in SQLite `agent_events.tool_input` JSON containing `internal/foo.go` (not the absolute worktree path)</li><li>Synthetic PostToolUse for the same input results in `feature_files.file_path = &#34;internal/foo.go&#34;`</li><li>Tool inputs whose paths are outside the repo (e.g. `/Users/alice/other.go`) are stored verbatim — no data loss</li><li>Non-path keys in tool_input (e.g. `command`, `pattern`) are unchanged</li><li>Existing PreToolUse/PostToolUse tests pass; new tests added per the tests block</li></ul>
+      </div>
+      
+    
+
+    
+    <div class="slice-field slice-tests-field">
+      <div class="slice-field-label">Test Strategy</div>
+      <div class="slice-field-value">
+        
+        
+        <div class="test-strategy">
+          
+          <div class="test-group" data-kind="other">
+            <span class="test-chip">OTHER &middot; 9</span>
+            <ul><li>Unit (`internal/paths/toolinput_test.go`):</li><li>TestNormalizeToolInputPaths_Write — input `{&#34;file_path&#34;:&#34;/workspaces/wipnote/.claude/worktrees/x/foo.go&#34;}`, expect `{&#34;file_path&#34;:&#34;foo.go&#34;}`</li><li>TestNormalizeToolInputPaths_Edit — same with `path` key</li><li>TestNormalizeToolInputPaths_PreservesUnknownKeys — `command`, `pattern` unchanged</li><li>TestNormalizeToolInputPaths_OutsideRepo — `/Users/...` left verbatim</li><li>Integration (`internal/hooks/pretooluse_test.go`):</li><li>TestPreToolUse_NormalizesToolInputFromWorktree — set CWD to a fake worktree, fire Write event, assert SQLite row has relative path inside the stored JSON</li><li>Integration (`internal/hooks/posttooluse_test.go`):</li><li>TestPostToolUse_NormalizesFeatureFilesPath — same setup, assert `feature_files.file_path` is relative</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="regression">
+            <span class="test-chip">REGRESSION &middot; 1</span>
+            <ul><li>all existing `internal/hooks/...` tests must pass.</li></ul>
+          </div>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+
+    
+
+    
+    <div class="slice-field slice-questions">
+      <div class="slice-field-label">Open Questions</div>
+      <div class="slice-field-value">
+        
+        <div class="question-block slice-question-block">
+          <p>Normalize tool_input at write time (proposed), or store raw and normalize at every read?</p>
+          <p class="question-desc">Write-time (proposed): one normalization per event, simple reads,
+but historical data needs migration (slice-6).
+Read-time: zero write cost, but every `wipnote lineage`/`blame`
+call pays the normalization cost, and queries need adapter logic.
+Default proposed: write-time (matches goal #1).
+</p>
+          
+          <textarea
+            data-section="slice-2-question-q-normalize-write-vs-read"
+            data-comment-for="slice-2-question-q-normalize-write-vs-read"
+            placeholder="Answer question q-normalize-write-vs-read..."></textarea>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+
+    <div class="slice-deps">Dependencies: slices 1</div>
+
+    <details class="comment-collapse">
+      <summary class="comment-collapse-trigger">+ Leave a comment</summary>
+      <div class="comment-collapse-body">
+        <textarea data-section="slice-2" data-comment-for="slice-2" placeholder="Comments on slice 2..."></textarea>
+      </div>
+    </details>
+  </div>
+</details>
+<details class="slice-card" id="slice-3" data-slice="3" data-slice-name="slice-3" data-status="pending" data-approval="pending">
+  <summary class="slice-summary" aria-label="Slice 3: Normalize WorktreePath in worktree events">
+    <span class="slice-num">#3</span>
+    <span class="slice-title-col">
+      <span class="slice-name">Normalize WorktreePath in worktree events</span>
+      <span class="slice-preview">internal/hooks/missingevents.go:324-340 — the WorktreeCreate and</span>
+      <span class="slice-meta-row">
+        <span class="slice-summary-badges">
+          <span class="badge badge-pending badge-sm">S</span>
+          <span class="badge badge-pending badge-sm">Low</span>
+          <span class="badge badge-pending badge-sm" title="Execution: not_started">Not Started</span>
+          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-3">Pending</span>
+          
+          
+        </span>
+        <span class="slice-actions" onclick="event.stopPropagation()">
+          <span class="approval-segmented" role="group" aria-label="Approval action">
+            <label class="seg-btn seg-approve" title="Approve">
+              <input type="radio" name="slice-3-approval" value="approved" data-section="slice-3" data-action="approve" aria-label="Approve slice 3">
+              &#10003;
+            </label>
+            <label class="seg-btn seg-changes" title="Request changes">
+              <input type="radio" name="slice-3-approval" value="changes_requested" data-section="slice-3" data-action="approve" aria-label="Request changes for slice 3">
+              &#8635;
+            </label>
+            <label class="seg-btn seg-reject" title="Reject">
+              <input type="radio" name="slice-3-approval" value="rejected" data-section="slice-3" data-action="approve" aria-label="Reject slice 3">
+              &#10005;
+            </label>
+          </span>
+        </span>
+      </span>
+    </span>
+    <span class="slice-chevron" aria-hidden="true"></span>
+  </summary>
+
+  <div class="slice-body">
+    
+      
+      <div class="slice-field slice-what">
+        <div class="slice-field-label">What</div>
+        <div class="slice-field-value">
+          
+          <input type="checkbox" id="slice-3-what-reveal" class="reveal-toggle">
+          <div class="markdown-block reveal-content serif-prose"><p><code>internal/hooks/missing_events.go:324-340</code> — the WorktreeCreate and
+WorktreeRemove handlers embed <code>event.WorktreePath</code> verbatim into
+<code>agent_events.input_summary</code> as free text
+(<code>&#34;Worktree created: &lt;abs-path&gt;&#34;</code>).</p>
+<p>Change: before formatting, run
+<code>paths.NormalizeToRepoRelative(event.WorktreePath, repoRoot)</code> and
+embed the relative form (e.g. <code>.claude/worktrees/feat-x</code>). Since
+wipnote always creates worktrees at <code>&lt;repoRoot&gt;/.claude/worktrees/&lt;id&gt;</code>
+(per <code>internal/worktree/worktree.go:92</code>), normalization will always
+succeed for wipnote-managed worktrees.</p>
+<p>Also update the additional-context message returned by
+WorktreeRemove (injected into the conversation at line 337-340) to
+use the relative path so the agent sees consistent paths.</p>
+</div>
+          <label for="slice-3-what-reveal" class="reveal-label">Show full description</label>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field slice-why">
+        <div class="slice-field-label">Why</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>Worktree create/remove events are how the lineage chain knows that a
+feature was implemented in an isolated tree. If the embedded path is
+absolute, post-hoc queries (<code>wipnote lineage feat-x</code>) from main repo
+print broken paths and can&#39;t link the recorded path back to the
+current repo. Addresses goal #3.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Files</div>
+        <div class="slice-field-value"><code>internal/hooks/missing_events.go, internal/hooks/missing_events_test.go</code></div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Done when</div>
+        <ul class="slice-done-list"><li>WorktreeCreate event with `WorktreePath=/workspaces/wipnote/.claude/worktrees/feat-x` is stored as `&#34;Worktree created: .claude/worktrees/feat-x&#34;` in `agent_events.input_summary`</li><li>WorktreeRemove additional-context string uses the relative path</li><li>Existing missing_events tests pass; new tests cover both events from inside a worktree CWD and from main repo CWD</li></ul>
+      </div>
+      
+    
+
+    
+    <div class="slice-field slice-tests-field">
+      <div class="slice-field-label">Test Strategy</div>
+      <div class="slice-field-value">
+        
+        
+        <div class="test-strategy">
+          
+          <div class="test-group" data-kind="other">
+            <span class="test-chip">OTHER &middot; 4</span>
+            <ul><li>Unit (`internal/hooks/missing_events_test.go`):</li><li>TestWorktreeCreate_NormalizesPath — synthetic event with absolute WorktreePath, expect relative in input_summary</li><li>TestWorktreeRemove_NormalizesContext — same, plus AdditionalContext field</li><li>TestWorktreeCreate_PathOutsideRepo — exotic case (worktree at /tmp/...), expect verbatim (unresolved fallback)</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="regression">
+            <span class="test-chip">REGRESSION &middot; 1</span>
+            <ul><li>existing missing_events tests pass.</li></ul>
+          </div>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+
+    
+
+    
+
+    <div class="slice-deps">Dependencies: slices 1</div>
+
+    <details class="comment-collapse">
+      <summary class="comment-collapse-trigger">+ Leave a comment</summary>
+      <div class="comment-collapse-body">
+        <textarea data-section="slice-3" data-comment-for="slice-3" placeholder="Comments on slice 3..."></textarea>
+      </div>
+    </details>
+  </div>
+</details>
+<details class="slice-card" id="slice-4" data-slice="4" data-slice-name="slice-4" data-status="pending" data-approval="pending">
+  <summary class="slice-summary" aria-label="Slice 4: Normalize SessionStart and SubagentStart CWD attribution">
+    <span class="slice-num">#4</span>
+    <span class="slice-title-col">
+      <span class="slice-name">Normalize SessionStart and SubagentStart CWD attribution</span>
+      <span class="slice-preview">Two related call sites:</span>
+      <span class="slice-meta-row">
+        <span class="slice-summary-badges">
+          <span class="badge badge-revision badge-sm">M</span>
+          <span class="badge badge-revision badge-sm">Med</span>
+          <span class="badge badge-pending badge-sm" title="Execution: not_started">Not Started</span>
+          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-4">Pending</span>
+          
+          <span class="badge badge-sm badge-questions" title="1 open question(s)">1 Q</span>
+        </span>
+        <span class="slice-actions" onclick="event.stopPropagation()">
+          <span class="approval-segmented" role="group" aria-label="Approval action">
+            <label class="seg-btn seg-approve" title="Approve">
+              <input type="radio" name="slice-4-approval" value="approved" data-section="slice-4" data-action="approve" aria-label="Approve slice 4">
+              &#10003;
+            </label>
+            <label class="seg-btn seg-changes" title="Request changes">
+              <input type="radio" name="slice-4-approval" value="changes_requested" data-section="slice-4" data-action="approve" aria-label="Request changes for slice 4">
+              &#8635;
+            </label>
+            <label class="seg-btn seg-reject" title="Reject">
+              <input type="radio" name="slice-4-approval" value="rejected" data-section="slice-4" data-action="approve" aria-label="Reject slice 4">
+              &#10005;
+            </label>
+          </span>
+        </span>
+      </span>
+    </span>
+    <span class="slice-chevron" aria-hidden="true"></span>
+  </summary>
+
+  <div class="slice-body">
+    
+      
+      <div class="slice-field slice-what">
+        <div class="slice-field-label">What</div>
+        <div class="slice-field-value">
+          
+          <input type="checkbox" id="slice-4-what-reveal" class="reveal-toggle">
+          <div class="markdown-block reveal-content serif-prose"><p>Two related call sites:</p>
+<p><code>internal/hooks/session_html.go:88-89</code> — <code>data-project-dir</code> is set
+from <code>canonicalProjectDir</code> (resolved from <code>event.CWD</code>). Currently
+stored as the canonical <em>original</em> path (see deliberate comment at
+session_html.go:53-57).</p>
+<p><code>internal/hooks/subagent_start.go:80</code> — <code>pending_subagent_starts.cwd</code>
+written as the resolved <code>projectDir</code> (absolute).</p>
+<p>Change the design rule:</p>
+<ul>
+<li>If <code>event.CWD</code> resolves (via <code>ResolveViaGitCommonDir</code>) to a repo
+root that is the same as the local <code>.wipnote/</code> repo root, store
+the canonical root path normalized as <code>&#34;.&#34;</code> or as the basename
+of the repo. Worktree CWDs collapse to the canonical root, which
+is the goal.</li>
+<li>If <code>event.CWD</code> resolves to a <em>different</em> canonical root (foreign-
+machine ingest, multi-repo session), store verbatim — this is
+the case the current comment was protecting.</li>
+</ul>
+<p>Helper: <code>paths.CanonicalProjectDir(cwd string) (canonical string, isLocal bool)</code>.
+Returns the canonical root + a flag indicating whether it matches the
+current repo. Callers use the flag to decide whether to normalize.</p>
+<p>The deliberate-verbatim comment in <code>session_html.go:53-57</code> needs to
+be rewritten to explain the new rule.</p>
+</div>
+          <label for="slice-4-what-reveal" class="reveal-label">Show full description</label>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field slice-why">
+        <div class="slice-field-label">Why</div>
+        <div class="slice-field-value">
+          
+          <input type="checkbox" id="slice-4-why-reveal" class="reveal-toggle">
+          <div class="markdown-block reveal-content serif-prose"><p>Session attribution is the entry point for the entire lineage chain.
+If a worktree session embeds the worktree path in <code>data-project-dir</code>,
+every downstream query (<code>wipnote session show</code>, <code>wipnote trace</code>,
+<code>wipnote lineage</code>) shows a path that doesn&#39;t resolve from the main
+repo. Addresses goal #3.</p>
+<p>The slice has design subtlety because of the existing intentional-
+verbatim behavior for foreign-machine ingest — the new rule must
+preserve that property.</p>
+</div>
+          <label for="slice-4-why-reveal" class="reveal-label">Show full description</label>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Files</div>
+        <div class="slice-field-value"><code>internal/hooks/session_html.go, internal/hooks/session_start.go, internal/hooks/subagent_start.go, internal/paths/resolve.go, internal/hooks/session_html_test.go, internal/hooks/subagent_start_test.go</code></div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Done when</div>
+        <ul class="slice-done-list"><li>SessionStart event from `&lt;repo&gt;/.claude/worktrees/feat-x/` stores `data-project-dir` as the canonical repo root (not the worktree path)</li><li>SessionStart event from a foreign-machine path (e.g. `/Users/alice/other-repo`) stores `data-project-dir` verbatim — foreign-ingest behavior preserved</li><li>`pending_subagent_starts.cwd` matches the same rule</li><li>The deliberate-verbatim comment in session_html.go is updated to describe both cases</li></ul>
+      </div>
+      
+    
+
+    
+    <div class="slice-field slice-tests-field">
+      <div class="slice-field-label">Test Strategy</div>
+      <div class="slice-field-value">
+        
+        
+        <div class="test-strategy">
+          
+          <div class="test-group" data-kind="other">
+            <span class="test-chip">OTHER &middot; 8</span>
+            <ul><li>Unit (`internal/paths/resolve_test.go`):</li><li>TestCanonicalProjectDir_Worktree — CWD in worktree, expect canonical root &#43; isLocal=true</li><li>TestCanonicalProjectDir_Foreign — CWD pointing to non-existent foreign path, expect verbatim &#43; isLocal=false</li><li>Integration (`internal/hooks/session_html_test.go`):</li><li>TestSessionStart_FromWorktree_NormalizesProjectDir</li><li>TestSessionStart_FromForeignPath_PreservesVerbatim</li><li>Integration (`internal/hooks/subagent_start_test.go`):</li><li>TestSubagentStart_NormalizesCwd</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="regression">
+            <span class="test-chip">REGRESSION &middot; 1</span>
+            <ul><li>existing session HTML golden tests pass; foreign-ingest fixtures still match.</li></ul>
+          </div>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+
+    
+
+    
+    <div class="slice-field slice-questions">
+      <div class="slice-field-label">Open Questions</div>
+      <div class="slice-field-value">
+        
+        <div class="question-block slice-question-block">
+          <p>How do we detect a &#39;foreign&#39; CWD (one we shouldn&#39;t normalize)?</p>
+          <p class="question-desc">(a) `ResolveViaGitCommonDir` returns different root than the local
+    `.wipnote/` repo root → foreign
+(b) Path doesn&#39;t exist on this filesystem → foreign
+(c) Path exists but is outside the local repo&#39;s worktree tree → foreign
+Default proposed: (a). Cleanest invariant — the canonical root is
+either ours or not.
+</p>
+          
+          <textarea
+            data-section="slice-4-question-q-foreign-cwd-detection"
+            data-comment-for="slice-4-question-q-foreign-cwd-detection"
+            placeholder="Answer question q-foreign-cwd-detection..."></textarea>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+
+    <div class="slice-deps">Dependencies: slices 1</div>
+
+    <details class="comment-collapse">
+      <summary class="comment-collapse-trigger">+ Leave a comment</summary>
+      <div class="comment-collapse-body">
+        <textarea data-section="slice-4" data-comment-for="slice-4" placeholder="Comments on slice 4..."></textarea>
+      </div>
+    </details>
+  </div>
+</details>
+<details class="slice-card" id="slice-5" data-slice="5" data-slice-name="slice-5" data-status="pending" data-approval="pending">
+  <summary class="slice-summary" aria-label="Slice 5: Normalize CLI --files input on workitem create">
+    <span class="slice-num">#5</span>
+    <span class="slice-title-col">
+      <span class="slice-name">Normalize CLI --files input on workitem create</span>
+      <span class="slice-preview">cmd/wipnote/workitemcreate.go:131 — --files is currently passed</span>
+      <span class="slice-meta-row">
+        <span class="slice-summary-badges">
+          <span class="badge badge-pending badge-sm">S</span>
+          <span class="badge badge-pending badge-sm">Low</span>
+          <span class="badge badge-pending badge-sm" title="Execution: not_started">Not Started</span>
+          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-5">Pending</span>
+          
+          
+        </span>
+        <span class="slice-actions" onclick="event.stopPropagation()">
+          <span class="approval-segmented" role="group" aria-label="Approval action">
+            <label class="seg-btn seg-approve" title="Approve">
+              <input type="radio" name="slice-5-approval" value="approved" data-section="slice-5" data-action="approve" aria-label="Approve slice 5">
+              &#10003;
+            </label>
+            <label class="seg-btn seg-changes" title="Request changes">
+              <input type="radio" name="slice-5-approval" value="changes_requested" data-section="slice-5" data-action="approve" aria-label="Request changes for slice 5">
+              &#8635;
+            </label>
+            <label class="seg-btn seg-reject" title="Reject">
+              <input type="radio" name="slice-5-approval" value="rejected" data-section="slice-5" data-action="approve" aria-label="Reject slice 5">
+              &#10005;
+            </label>
+          </span>
+        </span>
+      </span>
+    </span>
+    <span class="slice-chevron" aria-hidden="true"></span>
+  </summary>
+
+  <div class="slice-body">
+    
+      
+      <div class="slice-field slice-what">
+        <div class="slice-field-label">What</div>
+        <div class="slice-field-value">
+          
+          <input type="checkbox" id="slice-5-what-reveal" class="reveal-toggle">
+          <div class="markdown-block reveal-content serif-prose"><p><code>cmd/wipnote/workitem_create.go:131</code> — <code>--files</code> is currently passed
+verbatim to <code>edit.SetProperty(&#34;affected_files&#34;, o.files)</code>.</p>
+<p>Change: split the comma-separated input, run each through
+<code>paths.NormalizeToRepoRelative</code>, rejoin. Paths that can&#39;t be
+normalized (outside-repo) get an <code>unresolved:</code> prefix so they survive
+the round-trip but are visually distinct in HTML.</p>
+<p>Update help text on the <code>--files</code> flag to note that paths are
+stored repo-relative.</p>
+</div>
+          <label for="slice-5-what-reveal" class="reveal-label">Show full description</label>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field slice-why">
+        <div class="slice-field-label">Why</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p><code>--files</code> is the user-facing surface for declaring affected paths.
+If a user runs <code>wipnote feature create --files /workspaces/wipnote/internal/foo.go</code>
+from a worktree, today it stores the absolute path; tomorrow from
+main repo it doesn&#39;t resolve. Small surface, easy fix, completes the
+&#34;every writer normalizes&#34; invariant from goal #2.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Files</div>
+        <div class="slice-field-value"><code>cmd/wipnote/workitem_create.go, cmd/wipnote/workitem_create_test.go</code></div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Done when</div>
+        <ul class="slice-done-list"><li>`wipnote feature create --files /workspaces/wipnote/internal/foo.go` (run from main repo) stores `affected_files: internal/foo.go` in the feature HTML</li><li>`wipnote feature create --files internal/foo.go,internal/bar.go` stores the input unchanged (already relative)</li><li>`wipnote feature create --files /tmp/scratch.txt` (outside repo) stores `affected_files: unresolved:/tmp/scratch.txt` and prints a stderr note</li><li>Existing workitem create tests pass</li></ul>
+      </div>
+      
+    
+
+    
+    <div class="slice-field slice-tests-field">
+      <div class="slice-field-label">Test Strategy</div>
+      <div class="slice-field-value">
+        
+        
+        <div class="test-strategy">
+          
+          <div class="test-group" data-kind="other">
+            <span class="test-chip">OTHER &middot; 4</span>
+            <ul><li>Unit (`cmd/wipnote/workitem_create_test.go`):</li><li>TestCreate_NormalizesAbsoluteFiles</li><li>TestCreate_PreservesAlreadyRelative</li><li>TestCreate_MarksOutsideRepoUnresolved</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="regression">
+            <span class="test-chip">REGRESSION &middot; 1</span>
+            <ul><li>existing create tests pass.</li></ul>
+          </div>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+
+    
+
+    
+
+    <div class="slice-deps">Dependencies: slices 1</div>
+
+    <details class="comment-collapse">
+      <summary class="comment-collapse-trigger">+ Leave a comment</summary>
+      <div class="comment-collapse-body">
+        <textarea data-section="slice-5" data-comment-for="slice-5" placeholder="Comments on slice 5..."></textarea>
+      </div>
+    </details>
+  </div>
+</details>
+<details class="slice-card" id="slice-6" data-slice="6" data-slice-name="slice-6" data-status="pending" data-approval="pending">
+  <summary class="slice-summary" aria-label="Slice 6: Idempotent migration rewriter for 178 pre-existing records">
+    <span class="slice-num">#6</span>
+    <span class="slice-title-col">
+      <span class="slice-name">Idempotent migration rewriter for 178 pre-existing records</span>
+      <span class="slice-preview">New CLI subcommand wipnote migrate normalize-paths that walks</span>
+      <span class="slice-meta-row">
+        <span class="slice-summary-badges">
+          <span class="badge badge-blocked badge-sm">L</span>
+          <span class="badge badge-revision badge-sm">Med</span>
+          <span class="badge badge-pending badge-sm" title="Execution: not_started">Not Started</span>
+          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-6">Pending</span>
+          
+          <span class="badge badge-sm badge-questions" title="1 open question(s)">1 Q</span>
+        </span>
+        <span class="slice-actions" onclick="event.stopPropagation()">
+          <span class="approval-segmented" role="group" aria-label="Approval action">
+            <label class="seg-btn seg-approve" title="Approve">
+              <input type="radio" name="slice-6-approval" value="approved" data-section="slice-6" data-action="approve" aria-label="Approve slice 6">
+              &#10003;
+            </label>
+            <label class="seg-btn seg-changes" title="Request changes">
+              <input type="radio" name="slice-6-approval" value="changes_requested" data-section="slice-6" data-action="approve" aria-label="Request changes for slice 6">
+              &#8635;
+            </label>
+            <label class="seg-btn seg-reject" title="Reject">
+              <input type="radio" name="slice-6-approval" value="rejected" data-section="slice-6" data-action="approve" aria-label="Reject slice 6">
+              &#10005;
+            </label>
+          </span>
+        </span>
+      </span>
+    </span>
+    <span class="slice-chevron" aria-hidden="true"></span>
+  </summary>
+
+  <div class="slice-body">
+    
+      
+      <div class="slice-field slice-what">
+        <div class="slice-field-label">What</div>
+        <div class="slice-field-value">
+          
+          <input type="checkbox" id="slice-6-what-reveal" class="reveal-toggle">
+          <div class="markdown-block reveal-content serif-prose"><p>New CLI subcommand <code>wipnote migrate normalize-paths</code> that walks
+<code>.wipnote/</code> and rewrites absolute paths to repo-relative in place.</p>
+<p>Targets (per researcher map):</p>
+<ol>
+<li><code>agent_events.tool_input</code> (SQLite TEXT column, doubly-JSON-encoded)
+— unmarshal, walk path keys, re-encode.</li>
+<li><code>feature_files.file_path</code> (SQLite TEXT)</li>
+<li><code>agent_events.input_summary</code> free-text WorktreePath embeds —
+regex-replace <code>/&lt;host-prefix&gt;/.claude/worktrees/&lt;id&gt;</code> →
+<code>.claude/worktrees/&lt;id&gt;</code>.</li>
+<li><code>pending_subagent_starts.cwd</code></li>
+<li><code>&lt;article data-project-dir&gt;</code> attribute in <code>.wipnote/sessions/*.html</code>
+— apply the slice-4 canonical-vs-foreign rule.</li>
+<li><code>affected_files</code> properties in <code>.wipnote/{features,bugs,spikes}/*.html</code>
+(parse property table, normalize each comma-separated path).</li>
+</ol>
+<p>Idempotency: re-running on already-relative records is a no-op.
+Achieved by skipping any value that doesn&#39;t match <code>hostPathPattern</code>.</p>
+<p>Safety: takes a <code>--backup</code> flag (default on) that copies the touched
+HTML files to <code>.wipnote/.backup-&lt;timestamp&gt;/</code> before modifying. Dry
+run via <code>--dry-run</code> prints proposed changes without writing.</p>
+<p>Print a summary at the end: N files rewritten, M values normalized,
+K skipped as already-relative, J marked unresolved.</p>
+</div>
+          <label for="slice-6-what-reveal" class="reveal-label">Show full description</label>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field slice-why">
+        <div class="slice-field-label">Why</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>Without migration, slices 1-5 fix the future but leave the existing
+178 records broken — <code>wipnote lineage</code> queries still hit absolute
+paths in older records and silently fail to resolve. Addresses goal
+#4 (migration completeness).</p>
+<p>Idempotency lets the user (or CI) run it safely; dry-run + backup
+protect against catastrophic corruption.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Files</div>
+        <div class="slice-field-value"><code>cmd/wipnote/migrate_normalize.go, cmd/wipnote/migrate_normalize_test.go, internal/paths/walk_html.go, internal/paths/walk_sqlite.go</code></div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Done when</div>
+        <ul class="slice-done-list"><li>`wipnote migrate normalize-paths --dry-run` prints a diff of intended changes without writing</li><li>`wipnote migrate normalize-paths` (no flags) creates a backup directory and rewrites all 6 target surfaces</li><li>Running the command twice in a row: second invocation reports 0 changes (idempotent)</li><li>After migration, `wipnote lineage` queries on a representative legacy feature (e.g. `feat-156e0a1a`) resolve all referenced file paths</li><li>Doubly-encoded JSON in `agent_events.tool_input` is correctly unmarshaled, normalized, and re-encoded (round-trip preserves all non-path keys)</li></ul>
+      </div>
+      
+    
+
+    
+    <div class="slice-field slice-tests-field">
+      <div class="slice-field-label">Test Strategy</div>
+      <div class="slice-field-value">
+        
+        
+        <div class="test-strategy">
+          
+          <div class="test-group" data-kind="other">
+            <span class="test-chip">OTHER &middot; 8</span>
+            <ul><li>Unit (`cmd/wipnote/migrate_normalize_test.go`):</li><li>TestMigrate_DryRunNoWrites — capture diff, assert no file mtimes change</li><li>TestMigrate_HTMLAffectedFiles — fixture HTML with absolute affected_files property, assert relative after</li><li>TestMigrate_DoublyEncodedToolInput — fixture SQLite row with absolute path inside JSON-in-JSON, assert correctly normalized</li><li>TestMigrate_Idempotent — run twice on same fixture, second run reports 0 changes</li><li>TestMigrate_SessionDataProjectDir — applies slice-4 canonical-vs-foreign rule</li><li>TestMigrate_WorktreePathRegex — input_summary &#34;Worktree created: /workspaces/wipnote/.claude/worktrees/feat-x&#34; → &#34;.claude/worktrees/feat-x&#34;</li><li>Build a fixture .wipnote/ with one record of each target surface, run the migration, golden-compare resulting files.</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="integration">
+            <span class="test-chip">INTEGRATION &middot; 1</span>
+            <ul><li></li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="regression">
+            <span class="test-chip">REGRESSION &middot; 1</span>
+            <ul><li>all existing CLI tests pass; backup directory cleanup is tested.</li></ul>
+          </div>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+
+    
+
+    
+    <div class="slice-field slice-questions">
+      <div class="slice-field-label">Open Questions</div>
+      <div class="slice-field-value">
+        
+        <div class="question-block slice-question-block">
+          <p>When should the migration run — manual CLI, auto on next hook, or pre-deploy gate?</p>
+          <p class="question-desc">(a) Manual only — user runs `wipnote migrate normalize-paths` once
+(b) Auto-prompt on first hook event after upgrade — gentle nudge
+(c) Pre-deploy gate — fail `deploy-all.sh` until migrated
+Default proposed: (a). Migration touches committed HTML; user
+should decide when to commit the resulting diff.
+</p>
+          
+          <textarea
+            data-section="slice-6-question-q-migration-when"
+            data-comment-for="slice-6-question-q-migration-when"
+            placeholder="Answer question q-migration-when..."></textarea>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+
+    <div class="slice-deps">Dependencies: slices 1,2,3,4,5</div>
+
+    <details class="comment-collapse">
+      <summary class="comment-collapse-trigger">+ Leave a comment</summary>
+      <div class="comment-collapse-body">
+        <textarea data-section="slice-6" data-comment-for="slice-6" placeholder="Comments on slice 6..."></textarea>
+      </div>
+    </details>
+  </div>
+</details>
+<details class="slice-card" id="slice-7" data-slice="7" data-slice-name="slice-7" data-status="pending" data-approval="pending">
+  <summary class="slice-summary" aria-label="Slice 7: Worktree round-trip regression gate">
+    <span class="slice-num">#7</span>
+    <span class="slice-title-col">
+      <span class="slice-name">Worktree round-trip regression gate</span>
+      <span class="slice-preview">Add an end-to-end integration test that proves the definition of</span>
+      <span class="slice-meta-row">
+        <span class="slice-summary-badges">
+          <span class="badge badge-revision badge-sm">M</span>
+          <span class="badge badge-pending badge-sm">Low</span>
+          <span class="badge badge-pending badge-sm" title="Execution: not_started">Not Started</span>
+          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-7">Pending</span>
+          
+          
+        </span>
+        <span class="slice-actions" onclick="event.stopPropagation()">
+          <span class="approval-segmented" role="group" aria-label="Approval action">
+            <label class="seg-btn seg-approve" title="Approve">
+              <input type="radio" name="slice-7-approval" value="approved" data-section="slice-7" data-action="approve" aria-label="Approve slice 7">
+              &#10003;
+            </label>
+            <label class="seg-btn seg-changes" title="Request changes">
+              <input type="radio" name="slice-7-approval" value="changes_requested" data-section="slice-7" data-action="approve" aria-label="Request changes for slice 7">
+              &#8635;
+            </label>
+            <label class="seg-btn seg-reject" title="Reject">
+              <input type="radio" name="slice-7-approval" value="rejected" data-section="slice-7" data-action="approve" aria-label="Reject slice 7">
+              &#10005;
+            </label>
+          </span>
+        </span>
+      </span>
+    </span>
+    <span class="slice-chevron" aria-hidden="true"></span>
+  </summary>
+
+  <div class="slice-body">
+    
+      
+      <div class="slice-field slice-what">
+        <div class="slice-field-label">What</div>
+        <div class="slice-field-value">
+          
+          <input type="checkbox" id="slice-7-what-reveal" class="reveal-toggle">
+          <div class="markdown-block reveal-content serif-prose"><p>Add an end-to-end integration test that proves the definition of
+done:</p>
+<ol>
+<li>From <code>/workspaces/wipnote/</code> (main repo), spawn a feature via
+<code>Agent({isolation: &#34;worktree&#34;})</code> that creates a worktree at
+<code>&lt;repo&gt;/.claude/worktrees/feat-test-N/</code>.</li>
+<li>Inside the worktree, fire a Write tool event modifying
+<code>internal/example.go</code>.</li>
+<li>Complete the feature via <code>wipnote feature complete</code>.</li>
+<li>Remove the worktree (<code>git worktree remove</code>).</li>
+<li>From the main repo root, run <code>wipnote lineage feat-test-N</code>,
+<code>wipnote trace feat-test-N</code>, <code>wipnote feature show feat-test-N</code>.</li>
+<li>Assert: all printed file paths are repo-relative and resolve
+against the main repo; no <code>/workspaces/.../worktrees/...</code>
+prefixes appear anywhere in output.</li>
+</ol>
+<p>Live in <code>internal/integration/worktree_lineage_test.go</code> and run as
+part of <code>go test ./...</code>.</p>
+<p>Tagged <code>//go:build integration</code> if the test is slow (&gt;2s); otherwise
+run by default. Use a temp SQLite DB and <code>.wipnote/</code> so the test
+doesn&#39;t pollute the real store.</p>
+</div>
+          <label for="slice-7-what-reveal" class="reveal-label">Show full description</label>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field slice-why">
+        <div class="slice-field-label">Why</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>Without a regression gate, future refactors can silently re-introduce
+host-locked paths in new capture surfaces. This test is the lock on
+the value prop: a passing test means causal lineage survives
+worktrees by construction. Addresses goal #3 directly and serves as
+the def-of-done.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Files</div>
+        <div class="slice-field-value"><code>internal/integration/worktree_lineage_test.go, internal/integration/fixtures/worktree_setup.go</code></div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Done when</div>
+        <ul class="slice-done-list"><li>Test passes locally and in CI</li><li>Test fails (with a clear diff) if any of slices 2-5 are reverted — verified by mutation-testing during development</li><li>Test runtime is &lt;10s on the dev container</li><li>Test cleans up its temp worktree and `.wipnote/` even on failure</li></ul>
+      </div>
+      
+    
+
+    
+    <div class="slice-field slice-tests-field">
+      <div class="slice-field-label">Test Strategy</div>
+      <div class="slice-field-value">
+        
+        
+        <div class="test-strategy">
+          
+          <div class="test-group" data-kind="unit">
+            <span class="test-chip">UNIT &middot; 1</span>
+            <ul><li>n/a — this slice IS the test.</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="regression">
+            <span class="test-chip">REGRESSION &middot; 1</span>
+            <ul><li>full `go test ./...` passes including the new test.</li></ul>
+          </div>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+
+    
+
+    
+
+    <div class="slice-deps">Dependencies: slices 2,3,4,5</div>
+
+    <details class="comment-collapse">
+      <summary class="comment-collapse-trigger">+ Leave a comment</summary>
+      <div class="comment-collapse-body">
+        <textarea data-section="slice-7" data-comment-for="slice-7" placeholder="Comments on slice 7..."></textarea>
+      </div>
+    </details>
+  </div>
+</details>
+
     <!--PLAN_SLICE_CARDS-->
   </div>
 </details>
 
 <!-- Design Decisions (hidden for v2 plans — slice cards carry their own questions) -->
-<details id="questions" class="section-card" data-phase="questions" data-status="pending">
-  <summary><span>Design Decisions</span><span class="badge badge-pending" data-badge-for="questions">Pending</span></summary>
-  <div class="section-body">
-    <table class="q-table">
-      <thead><tr><th>Question</th><th>Selected</th><th>Status</th></tr></thead>
-      <tbody id="questionsRecap">
-        <!--PLAN_QUESTIONS_RECAP-->
-      </tbody>
-    </table>
-  </div>
-</details>
+
 
 
 
@@ -490,8 +1616,8 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
   <h2>Feedback Summary</h2>
   <div class="progress-stats">
     <div class="progress-stat"><strong id="approvedCount">0</strong> approved</div>
-    <div class="progress-stat"><strong id="totalSections">1</strong> sections</div>
-    <div class="progress-stat"><strong id="pendingCount">1</strong> pending</div>
+    <div class="progress-stat"><strong id="totalSections">8</strong> sections</div>
+    <div class="progress-stat"><strong id="pendingCount">8</strong> pending</div>
   </div>
   <div class="progress-bar-track"><div class="progress-bar-fill" id="progressFill" style="width:0%"></div></div>
   <div class="comments-summary">
@@ -571,7 +1697,7 @@ var planId=(function(){var a=document.querySelector('article[id]');return a?a.id
 
 (function(){
   'use strict';
-  var SECTIONS=/*PLAN_SECTIONS_JSON*/["design"]/*END_PLAN_SECTIONS_JSON*/;
+  var SECTIONS=/*PLAN_SECTIONS_JSON*/["design","slice-1","slice-2","slice-3","slice-4","slice-5","slice-6","slice-7"]/*END_PLAN_SECTIONS_JSON*/;
 
   function setBadge(el,ok){
     el.className='badge badge-'+(ok?'approved':'pending');

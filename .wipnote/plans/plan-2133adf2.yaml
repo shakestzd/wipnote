@@ -2,16 +2,477 @@ meta:
     id: plan-2133adf2
     track_id: trk-08dcbb33
     title: Path Normalization for Worktree-Resilient Lineage
-    description: 'Normalize every path stored by wipnote (HTML, SQLite, session captures, agent provenance) against the canonical repo root so causal lineage survives worktrees, host changes, and CWD switches. Closes defensibility-audit finding #1 (path drift breaks lineage queries from a different working directory than where work was captured).'
-    created_at: "2026-05-12"
-    status: draft
-    priority: medium
-    version: 2
+    description: |
+        Normalize every path stored by wipnote (HTML, SQLite, session captures, agent provenance) against the canonical repo root so causal lineage survives worktrees, host changes, and CWD switches. Closes defensibility-audit finding #1.
+    created_at: "2026-05-11"
+    status: active
+    created_by: claude-opus
+    version: 1
 design:
-    problem: ""
-    goals: []
-    constraints: []
+    problem: |
+        wipnote's causal lineage is host-locked. Hooks, the indexer, and provenance capture record paths as the agent observed them — often absolute (`/workspaces/wipnote/foo.go`, `/tmp/worktree-abc/foo.go`) or worktree- relative. When the same repo is queried from a different working directory (worktree orchestrators like our own `Agent({isolation: "worktree"})` or Conductor; same repo on a different host like Codespace → local) the lineage chain breaks: file references don't resolve, blame queries miss commits, and `wipnote lineage <id>` returns partial chains.
+        Existing partial mitigation: the `check-host-paths` precommit gate (`cmd/wipnote/check_host_paths.go:23-28`) rejects absolute host paths in `--description`/`--body` at creation time. That gate does nothing for runtime capture by hooks/indexer/session ingest, which is where the overwhelming majority of paths enter the store.
+        Researcher mapped 7 capture surfaces:
+          1. PreToolUse — `agent_events.tool_input` (JSON containing absolute
+             `file_path` keys; doubly encoded)
+          2. PostToolUse — `feature_files.file_path` (verbatim absolute)
+          3. SessionStart/End — `sessions.transcript_path` (out-of-scope: Claude's
+             private store)
+          4. SessionStart — `<article data-project-dir="...">` in session HTML
+             (currently deliberately verbatim)
+          5. WorktreeCreate/Remove — `agent_events.input_summary` free-text
+             containing absolute `WorktreePath`
+          6. SubagentStart — `pending_subagent_starts.cwd`
+          7. CLI `--files` flag — verbatim into HTML `affected_files`
+
+        Existing partial helper: `internal/migrate/tracks.go:281 normalizePath` (read-time, anchor-based, wipnote-specific). The right extension point is `internal/paths/resolve.go` which already has `ResolveViaGitCommonDir` for worktree → main repo. 178 existing `.wipnote/*.html` files contain absolute paths and need a one-shot migration.
+    goals:
+        - '**Write-time normalization** — every path captured by a hook, indexer, or CLI write is stored repo-relative against `git rev-parse --git-common-dir`, falling back to walk-up to `.wipnote/`.'
+        - '**Single normalizer** — one helper in `internal/paths/` used by every writer; no per-call-site implementations.'
+        - '**Worktree round-trip** — a feature implemented via `Agent({isolation: "worktree"})`, after the worktree is removed, returns full lineage with all referenced files resolvable from the main repo root.'
+        - '**Migration completeness** — all 178 pre-existing `.wipnote/*.html` records are rewritten idempotently; re-running the migration is a no-op.'
+        - '**No new false negatives** — `transcript_path` (Claude''s private store) is explicitly out-of-scope and remains absolute; the `--allow-host-paths` escape hatch on creation flows still works.'
+    constraints:
+        - Reuse the regex from `cmd/wipnote/check_host_paths.go:23-28` as the single source of truth for what counts as a host path.
+        - 'Worktrees: use `git rev-parse --git-common-dir` (or extend `ResolveViaGitCommonDir`), not `--show-toplevel` (which returns the worktree dir, not the canonical root).'
+        - '`transcript_path` is out-of-scope — it points to `~/.claude/projects/<encoded>/<uuid>.jsonl` which is intentionally machine-local. Leave absolute.'
+        - 'Backwards compatibility on read: lineage queries must continue to resolve records written before this plan. Either rewrite on read or rely on the migration in slice-6.'
+        - '`tool_input` is doubly JSON-encoded (JSON object encoded as a JSON string, stored in a TEXT column). Normalization must unmarshal twice and re-encode.'
     approved: false
     comment: ""
-slices: []
+slices:
+    - id: slice-1
+      num: 1
+      title: Canonical write-time path normalizer in internal/paths
+      what: |
+        Add `NormalizeToRepoRelative(absPath, repoRoot string) (relPath string, ok bool)`
+        to `internal/paths/resolve.go`. It:
+          1. If `absPath` is already relative, return `(absPath, true)`.
+          2. Resolves the canonical repo root via the existing
+             `ResolveViaGitCommonDir` helper (handles worktrees correctly).
+          3. Returns `filepath.Rel(canonicalRoot, absPath)` if the result does
+             not start with `..` (i.e. path is inside the repo).
+          4. If the path matches the `hostPathPattern` regex
+             (`cmd/wipnote/check_host_paths.go:23-28`) but is NOT inside the
+             repo, returns `("", false)` so callers can decide whether to drop
+             the path or store it verbatim with an `unresolved:` prefix.
+
+        Promote the `hostPathPattern` regex out of `cmd/wipnote/` into
+        `internal/paths/` (or a sibling package) so both the precommit gate and
+        the runtime normalizer reference the same definition.
+
+        Add a sibling `MustNormalize(path string) string` convenience that
+        logs at debug level when normalization fails and returns the original
+        path — for use in hot paths where we don't want to error.
+      why: |
+        Single source of truth for normalization (constraint #1). All
+        subsequent slices wire this in at one call site each. Without a
+        shared helper, each writer will drift its own logic and the gate
+        will be re-implemented per file.
+      files:
+        - internal/paths/resolve.go
+        - internal/paths/resolve_test.go
+        - internal/paths/hostpattern.go
+        - cmd/wipnote/check_host_paths.go
+      deps: []
+      done_when:
+        - '`internal/paths.NormalizeToRepoRelative("/workspaces/wipnote/foo.go", "/workspaces/wipnote")` returns `("foo.go", true)`'
+        - From inside `<repo>/.claude/worktrees/feat-x/`, `NormalizeToRepoRelative("/workspaces/wipnote/.claude/worktrees/feat-x/internal/foo.go", "<auto>")` returns `("internal/foo.go", true)` (canonical root resolved via `ResolveViaGitCommonDir`)
+        - '`NormalizeToRepoRelative("/Users/alice/other-repo/foo.go", "/workspaces/wipnote")` returns `("", false)`'
+        - '`hostPathPattern` regex is defined in one place; `cmd/wipnote/check_host_paths.go` imports it from `internal/paths/` (no duplication)'
+        - '`go vet ./...` and `go test ./internal/paths/...` pass'
+      effort: M
+      risk: Low
+      tests: |
+        Unit (`internal/paths/resolve_test.go`):
+          TestNormalize_AbsoluteInsideRepo — input `/workspaces/wipnote/foo.go`, root `/workspaces/wipnote`, expect `("foo.go", true)`
+          TestNormalize_WorktreePathInsideRepo — input `/workspaces/wipnote/.claude/worktrees/feat-x/foo.go`, root resolved via git-common-dir, expect `("foo.go", true)` after relativization (NOT `.claude/worktrees/feat-x/foo.go`)
+          TestNormalize_AlreadyRelative — input `internal/foo.go`, expect `("internal/foo.go", true)` unchanged
+          TestNormalize_OutsideRepo — input `/Users/alice/other/foo.go`, expect `("", false)`
+          TestNormalize_HostPathOutsideRepo — input `/home/bob/notes.md`, expect `("", false)`
+          TestHostPattern_SingleDefinition — `internal/paths.HostPathPattern` and `cmd/wipnote.hostPathPattern` reference the same value (via import, not duplication)
+        Regression: existing `check-host-paths` precommit gate test (`cmd/wipnote/check_host_paths_test.go`) must still pass after the regex moves.
+      approved: false
+      comment: ""
+      approval_status: pending
+      execution_status: not_started
+      questions:
+        - id: q-canonical-root-source
+          text: When `repoRoot` is passed empty/`<auto>`, how should the helper resolve it?
+          description: |
+            Three options for callers that don't know the canonical root:
+            (a) Walk up from CWD looking for `.wipnote/` directory
+            (b) Call `git rev-parse --git-common-dir` and take its parent
+            (c) Require the caller to always pass it (no auto-resolution)
+            ResolveViaGitCommonDir today uses (b). Option (a) is faster but
+            fails when called outside the repo.
+    - id: slice-2
+      num: 2
+      title: Normalize tool_input file paths in PreToolUse/PostToolUse
+      what: |
+        Wire `paths.NormalizeToRepoRelative` into the two hot-path hooks:
+
+        `internal/hooks/pretooluse.go:218-230` — before writing
+        `event.ToolInput` to `agent_events.tool_input`, walk the JSON object
+        and normalize any `file_path` / `path` / `notebook_path` values to
+        repo-relative. Helper: `paths.NormalizeToolInputPaths(toolInput map[string]any, repoRoot string) map[string]any` —
+        iterates known path keys, applies normalizer, leaves unknown keys
+        untouched. Returns a new map (don't mutate caller's input).
+
+        `internal/hooks/posttooluse.go:123-131` — replace the raw
+        `extractFilePath(event.ToolInput)` write with
+        `paths.MustNormalize(extractFilePath(...))` so `feature_files.file_path`
+        stores repo-relative.
+
+        The `repoRoot` for both call sites comes from the existing
+        `resolveProjectDir(event.CWD)` (already called elsewhere in the hook
+        flow) — pass it through.
+      why: |
+        These two hooks are the highest-volume path captures in the system.
+        Every Write/Edit/Read/MultiEdit goes through them. Without
+        normalization here, lineage chains are broken for every active feature.
+        Addresses goals #1 (write-time normalization) and #3 (worktree
+        round-trip).
+      files:
+        - internal/hooks/pretooluse.go
+        - internal/hooks/posttooluse.go
+        - internal/hooks/quality_gate.go
+        - internal/paths/toolinput.go
+        - internal/hooks/pretooluse_test.go
+        - internal/hooks/posttooluse_test.go
+      deps:
+        - 1
+      done_when:
+        - Synthetic PreToolUse event with `tool_input={"file_path":"/workspaces/wipnote/.claude/worktrees/feat-x/internal/foo.go"}` fired from within the worktree results in SQLite `agent_events.tool_input` JSON containing `internal/foo.go` (not the absolute worktree path)
+        - Synthetic PostToolUse for the same input results in `feature_files.file_path = "internal/foo.go"`
+        - Tool inputs whose paths are outside the repo (e.g. `/Users/alice/other.go`) are stored verbatim — no data loss
+        - Non-path keys in tool_input (e.g. `command`, `pattern`) are unchanged
+        - Existing PreToolUse/PostToolUse tests pass; new tests added per the tests block
+      effort: M
+      risk: Med
+      tests: |
+        Unit (`internal/paths/toolinput_test.go`):
+          TestNormalizeToolInputPaths_Write — input `{"file_path":"/workspaces/wipnote/.claude/worktrees/x/foo.go"}`, expect `{"file_path":"foo.go"}`
+          TestNormalizeToolInputPaths_Edit — same with `path` key
+          TestNormalizeToolInputPaths_PreservesUnknownKeys — `command`, `pattern` unchanged
+          TestNormalizeToolInputPaths_OutsideRepo — `/Users/...` left verbatim
+        Integration (`internal/hooks/pretooluse_test.go`):
+          TestPreToolUse_NormalizesToolInputFromWorktree — set CWD to a fake worktree, fire Write event, assert SQLite row has relative path inside the stored JSON
+        Integration (`internal/hooks/posttooluse_test.go`):
+          TestPostToolUse_NormalizesFeatureFilesPath — same setup, assert `feature_files.file_path` is relative
+        Regression: all existing `internal/hooks/...` tests must pass.
+      approved: false
+      comment: ""
+      approval_status: pending
+      execution_status: not_started
+      questions:
+        - id: q-normalize-write-vs-read
+          text: Normalize tool_input at write time (proposed), or store raw and normalize at every read?
+          description: |
+            Write-time (proposed): one normalization per event, simple reads,
+            but historical data needs migration (slice-6).
+            Read-time: zero write cost, but every `wipnote lineage`/`blame`
+            call pays the normalization cost, and queries need adapter logic.
+            Default proposed: write-time (matches goal #1).
+    - id: slice-3
+      num: 3
+      title: Normalize WorktreePath in worktree events
+      what: |
+        `internal/hooks/missing_events.go:324-340` — the WorktreeCreate and
+        WorktreeRemove handlers embed `event.WorktreePath` verbatim into
+        `agent_events.input_summary` as free text
+        (`"Worktree created: <abs-path>"`).
+
+        Change: before formatting, run
+        `paths.NormalizeToRepoRelative(event.WorktreePath, repoRoot)` and
+        embed the relative form (e.g. `.claude/worktrees/feat-x`). Since
+        wipnote always creates worktrees at `<repoRoot>/.claude/worktrees/<id>`
+        (per `internal/worktree/worktree.go:92`), normalization will always
+        succeed for wipnote-managed worktrees.
+
+        Also update the additional-context message returned by
+        WorktreeRemove (injected into the conversation at line 337-340) to
+        use the relative path so the agent sees consistent paths.
+      why: |
+        Worktree create/remove events are how the lineage chain knows that a
+        feature was implemented in an isolated tree. If the embedded path is
+        absolute, post-hoc queries (`wipnote lineage feat-x`) from main repo
+        print broken paths and can't link the recorded path back to the
+        current repo. Addresses goal #3.
+      files:
+        - internal/hooks/missing_events.go
+        - internal/hooks/missing_events_test.go
+      deps:
+        - 1
+      done_when:
+        - 'WorktreeCreate event with `WorktreePath=/workspaces/wipnote/.claude/worktrees/feat-x` is stored as `"Worktree created: .claude/worktrees/feat-x"` in `agent_events.input_summary`'
+        - WorktreeRemove additional-context string uses the relative path
+        - Existing missing_events tests pass; new tests cover both events from inside a worktree CWD and from main repo CWD
+      effort: S
+      risk: Low
+      tests: |
+        Unit (`internal/hooks/missing_events_test.go`):
+          TestWorktreeCreate_NormalizesPath — synthetic event with absolute WorktreePath, expect relative in input_summary
+          TestWorktreeRemove_NormalizesContext — same, plus AdditionalContext field
+          TestWorktreeCreate_PathOutsideRepo — exotic case (worktree at /tmp/...), expect verbatim (unresolved fallback)
+        Regression: existing missing_events tests pass.
+      approved: false
+      comment: ""
+      approval_status: pending
+      execution_status: not_started
+    - id: slice-4
+      num: 4
+      title: Normalize SessionStart and SubagentStart CWD attribution
+      what: |
+        Two related call sites:
+
+        `internal/hooks/session_html.go:88-89` — `data-project-dir` is set
+        from `canonicalProjectDir` (resolved from `event.CWD`). Currently
+        stored as the canonical *original* path (see deliberate comment at
+        session_html.go:53-57).
+
+        `internal/hooks/subagent_start.go:80` — `pending_subagent_starts.cwd`
+        written as the resolved `projectDir` (absolute).
+
+        Change the design rule:
+          - If `event.CWD` resolves (via `ResolveViaGitCommonDir`) to a repo
+            root that is the same as the local `.wipnote/` repo root, store
+            the canonical root path normalized as `"."` or as the basename
+            of the repo. Worktree CWDs collapse to the canonical root, which
+            is the goal.
+          - If `event.CWD` resolves to a *different* canonical root (foreign-
+            machine ingest, multi-repo session), store verbatim — this is
+            the case the current comment was protecting.
+
+        Helper: `paths.CanonicalProjectDir(cwd string) (canonical string, isLocal bool)`.
+        Returns the canonical root + a flag indicating whether it matches the
+        current repo. Callers use the flag to decide whether to normalize.
+
+        The deliberate-verbatim comment in `session_html.go:53-57` needs to
+        be rewritten to explain the new rule.
+      why: |
+        Session attribution is the entry point for the entire lineage chain.
+        If a worktree session embeds the worktree path in `data-project-dir`,
+        every downstream query (`wipnote session show`, `wipnote trace`,
+        `wipnote lineage`) shows a path that doesn't resolve from the main
+        repo. Addresses goal #3.
+
+        The slice has design subtlety because of the existing intentional-
+        verbatim behavior for foreign-machine ingest — the new rule must
+        preserve that property.
+      files:
+        - internal/hooks/session_html.go
+        - internal/hooks/session_start.go
+        - internal/hooks/subagent_start.go
+        - internal/paths/resolve.go
+        - internal/hooks/session_html_test.go
+        - internal/hooks/subagent_start_test.go
+      deps:
+        - 1
+      done_when:
+        - SessionStart event from `<repo>/.claude/worktrees/feat-x/` stores `data-project-dir` as the canonical repo root (not the worktree path)
+        - SessionStart event from a foreign-machine path (e.g. `/Users/alice/other-repo`) stores `data-project-dir` verbatim — foreign-ingest behavior preserved
+        - '`pending_subagent_starts.cwd` matches the same rule'
+        - The deliberate-verbatim comment in session_html.go is updated to describe both cases
+      effort: M
+      risk: Med
+      tests: |
+        Unit (`internal/paths/resolve_test.go`):
+          TestCanonicalProjectDir_Worktree — CWD in worktree, expect canonical root + isLocal=true
+          TestCanonicalProjectDir_Foreign — CWD pointing to non-existent foreign path, expect verbatim + isLocal=false
+        Integration (`internal/hooks/session_html_test.go`):
+          TestSessionStart_FromWorktree_NormalizesProjectDir
+          TestSessionStart_FromForeignPath_PreservesVerbatim
+        Integration (`internal/hooks/subagent_start_test.go`):
+          TestSubagentStart_NormalizesCwd
+        Regression: existing session HTML golden tests pass; foreign-ingest fixtures still match.
+      approved: false
+      comment: ""
+      approval_status: pending
+      execution_status: not_started
+      questions:
+        - id: q-foreign-cwd-detection
+          text: How do we detect a 'foreign' CWD (one we shouldn't normalize)?
+          description: |
+            (a) `ResolveViaGitCommonDir` returns different root than the local
+                `.wipnote/` repo root → foreign
+            (b) Path doesn't exist on this filesystem → foreign
+            (c) Path exists but is outside the local repo's worktree tree → foreign
+            Default proposed: (a). Cleanest invariant — the canonical root is
+            either ours or not.
+    - id: slice-5
+      num: 5
+      title: Normalize CLI --files input on workitem create
+      what: |
+        `cmd/wipnote/workitem_create.go:131` — `--files` is currently passed
+        verbatim to `edit.SetProperty("affected_files", o.files)`.
+
+        Change: split the comma-separated input, run each through
+        `paths.NormalizeToRepoRelative`, rejoin. Paths that can't be
+        normalized (outside-repo) get an `unresolved:` prefix so they survive
+        the round-trip but are visually distinct in HTML.
+
+        Update help text on the `--files` flag to note that paths are
+        stored repo-relative.
+      why: |
+        `--files` is the user-facing surface for declaring affected paths.
+        If a user runs `wipnote feature create --files /workspaces/wipnote/internal/foo.go`
+        from a worktree, today it stores the absolute path; tomorrow from
+        main repo it doesn't resolve. Small surface, easy fix, completes the
+        "every writer normalizes" invariant from goal #2.
+      files:
+        - cmd/wipnote/workitem_create.go
+        - cmd/wipnote/workitem_create_test.go
+      deps:
+        - 1
+      done_when:
+        - '`wipnote feature create --files /workspaces/wipnote/internal/foo.go` (run from main repo) stores `affected_files: internal/foo.go` in the feature HTML'
+        - '`wipnote feature create --files internal/foo.go,internal/bar.go` stores the input unchanged (already relative)'
+        - '`wipnote feature create --files /tmp/scratch.txt` (outside repo) stores `affected_files: unresolved:/tmp/scratch.txt` and prints a stderr note'
+        - Existing workitem create tests pass
+      effort: S
+      risk: Low
+      tests: |
+        Unit (`cmd/wipnote/workitem_create_test.go`):
+          TestCreate_NormalizesAbsoluteFiles
+          TestCreate_PreservesAlreadyRelative
+          TestCreate_MarksOutsideRepoUnresolved
+        Regression: existing create tests pass.
+      approved: false
+      comment: ""
+      approval_status: pending
+      execution_status: not_started
+    - id: slice-6
+      num: 6
+      title: Idempotent migration rewriter for 178 pre-existing records
+      what: |
+        New CLI subcommand `wipnote migrate normalize-paths` that walks
+        `.wipnote/` and rewrites absolute paths to repo-relative in place.
+
+        Targets (per researcher map):
+          1. `agent_events.tool_input` (SQLite TEXT column, doubly-JSON-encoded)
+             — unmarshal, walk path keys, re-encode.
+          2. `feature_files.file_path` (SQLite TEXT)
+          3. `agent_events.input_summary` free-text WorktreePath embeds —
+             regex-replace `/<host-prefix>/.claude/worktrees/<id>` →
+             `.claude/worktrees/<id>`.
+          4. `pending_subagent_starts.cwd`
+          5. `<article data-project-dir>` attribute in `.wipnote/sessions/*.html`
+             — apply the slice-4 canonical-vs-foreign rule.
+          6. `affected_files` properties in `.wipnote/{features,bugs,spikes}/*.html`
+             (parse property table, normalize each comma-separated path).
+
+        Idempotency: re-running on already-relative records is a no-op.
+        Achieved by skipping any value that doesn't match `hostPathPattern`.
+
+        Safety: takes a `--backup` flag (default on) that copies the touched
+        HTML files to `.wipnote/.backup-<timestamp>/` before modifying. Dry
+        run via `--dry-run` prints proposed changes without writing.
+
+        Print a summary at the end: N files rewritten, M values normalized,
+        K skipped as already-relative, J marked unresolved.
+      why: |
+        Without migration, slices 1-5 fix the future but leave the existing
+        178 records broken — `wipnote lineage` queries still hit absolute
+        paths in older records and silently fail to resolve. Addresses goal
+        #4 (migration completeness).
+
+        Idempotency lets the user (or CI) run it safely; dry-run + backup
+        protect against catastrophic corruption.
+      files:
+        - cmd/wipnote/migrate_normalize.go
+        - cmd/wipnote/migrate_normalize_test.go
+        - internal/paths/walk_html.go
+        - internal/paths/walk_sqlite.go
+      deps:
+        - 1
+        - 2
+        - 3
+        - 4
+        - 5
+      done_when:
+        - '`wipnote migrate normalize-paths --dry-run` prints a diff of intended changes without writing'
+        - '`wipnote migrate normalize-paths` (no flags) creates a backup directory and rewrites all 6 target surfaces'
+        - 'Running the command twice in a row: second invocation reports 0 changes (idempotent)'
+        - After migration, `wipnote lineage` queries on a representative legacy feature (e.g. `feat-156e0a1a`) resolve all referenced file paths
+        - Doubly-encoded JSON in `agent_events.tool_input` is correctly unmarshaled, normalized, and re-encoded (round-trip preserves all non-path keys)
+      effort: L
+      risk: Med
+      tests: |
+        Unit (`cmd/wipnote/migrate_normalize_test.go`):
+          TestMigrate_DryRunNoWrites — capture diff, assert no file mtimes change
+          TestMigrate_HTMLAffectedFiles — fixture HTML with absolute affected_files property, assert relative after
+          TestMigrate_DoublyEncodedToolInput — fixture SQLite row with absolute path inside JSON-in-JSON, assert correctly normalized
+          TestMigrate_Idempotent — run twice on same fixture, second run reports 0 changes
+          TestMigrate_SessionDataProjectDir — applies slice-4 canonical-vs-foreign rule
+          TestMigrate_WorktreePathRegex — input_summary "Worktree created: /workspaces/wipnote/.claude/worktrees/feat-x" → ".claude/worktrees/feat-x"
+        Integration:
+          Build a fixture .wipnote/ with one record of each target surface, run the migration, golden-compare resulting files.
+        Regression: all existing CLI tests pass; backup directory cleanup is tested.
+      approved: false
+      comment: ""
+      approval_status: pending
+      execution_status: not_started
+      questions:
+        - id: q-migration-when
+          text: When should the migration run — manual CLI, auto on next hook, or pre-deploy gate?
+          description: |
+            (a) Manual only — user runs `wipnote migrate normalize-paths` once
+            (b) Auto-prompt on first hook event after upgrade — gentle nudge
+            (c) Pre-deploy gate — fail `deploy-all.sh` until migrated
+            Default proposed: (a). Migration touches committed HTML; user
+            should decide when to commit the resulting diff.
+    - id: slice-7
+      num: 7
+      title: Worktree round-trip regression gate
+      what: |
+        Add an end-to-end integration test that proves the definition of
+        done:
+          1. From `/workspaces/wipnote/` (main repo), spawn a feature via
+             `Agent({isolation: "worktree"})` that creates a worktree at
+             `<repo>/.claude/worktrees/feat-test-N/`.
+          2. Inside the worktree, fire a Write tool event modifying
+             `internal/example.go`.
+          3. Complete the feature via `wipnote feature complete`.
+          4. Remove the worktree (`git worktree remove`).
+          5. From the main repo root, run `wipnote lineage feat-test-N`,
+             `wipnote trace feat-test-N`, `wipnote feature show feat-test-N`.
+          6. Assert: all printed file paths are repo-relative and resolve
+             against the main repo; no `/workspaces/.../worktrees/...`
+             prefixes appear anywhere in output.
+
+        Live in `internal/integration/worktree_lineage_test.go` and run as
+        part of `go test ./...`.
+
+        Tagged `//go:build integration` if the test is slow (>2s); otherwise
+        run by default. Use a temp SQLite DB and `.wipnote/` so the test
+        doesn't pollute the real store.
+      why: |
+        Without a regression gate, future refactors can silently re-introduce
+        host-locked paths in new capture surfaces. This test is the lock on
+        the value prop: a passing test means causal lineage survives
+        worktrees by construction. Addresses goal #3 directly and serves as
+        the def-of-done.
+      files:
+        - internal/integration/worktree_lineage_test.go
+        - internal/integration/fixtures/worktree_setup.go
+      deps:
+        - 2
+        - 3
+        - 4
+        - 5
+      done_when:
+        - Test passes locally and in CI
+        - Test fails (with a clear diff) if any of slices 2-5 are reverted — verified by mutation-testing during development
+        - Test runtime is <10s on the dev container
+        - Test cleans up its temp worktree and `.wipnote/` even on failure
+      effort: M
+      risk: Low
+      tests: |
+        Unit: n/a — this slice IS the test.
+        Regression: full `go test ./...` passes including the new test.
+      approved: false
+      comment: ""
+      approval_status: pending
+      execution_status: not_started
 questions: []
