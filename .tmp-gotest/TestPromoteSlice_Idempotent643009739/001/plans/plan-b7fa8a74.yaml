@@ -1,0 +1,31 @@
+meta:
+    id: plan-b7fa8a74
+    track_id: trk-286173a0
+    title: Idempotent Test
+    description: ""
+    created_at: "2026-05-12"
+    status: active
+    version: 3
+design:
+    problem: ""
+    goals: []
+    constraints: []
+    approved: false
+    comment: ""
+slices:
+    - id: slic-1955367c
+      feature_id: feat-3687d783
+      num: 1
+      title: S
+      what: w
+      why: ""
+      files: []
+      deps: []
+      done_when: []
+      effort: ""
+      risk: ""
+      tests: ""
+      approved: false
+      comment: ""
+      execution_status: promoted
+questions: []
