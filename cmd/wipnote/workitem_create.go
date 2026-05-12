@@ -4,11 +4,13 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	dbpkg "github.com/shakestzd/wipnote/internal/db"
 	"github.com/shakestzd/wipnote/internal/hooks"
 	"github.com/shakestzd/wipnote/internal/models"
+	"github.com/shakestzd/wipnote/internal/paths"
 	"github.com/shakestzd/wipnote/internal/provenance"
 	"github.com/shakestzd/wipnote/internal/workitem"
 	"github.com/spf13/cobra"
@@ -49,7 +51,7 @@ func wiCreateCmd(typeName, _ string) *cobra.Command {
 	cmd.Flags().StringVar(&opts.description, "description", "", "description text")
 	cmd.Flags().BoolVar(&opts.start, "start", false, "immediately mark as in-progress")
 	cmd.Flags().BoolVar(&opts.noLink, "no-link", false, "skip auto-linking (e.g. bug to active feature)")
-	cmd.Flags().StringVar(&opts.files, "files", "", "comma-separated affected file paths")
+	cmd.Flags().StringVar(&opts.files, "files", "", "comma-separated affected file paths. Paths are stored repo-relative; absolute paths are normalized at write time.")
 	cmd.Flags().StringVar(&opts.steps, "steps", "", "comma-separated implementation steps")
 	cmd.Flags().BoolVar(&opts.allowHostPaths, "allow-host-paths", false, "bypass host-local path check in --description")
 	cmd.Flags().StringVar(&opts.createdByModel, "created-by-model", "",
@@ -128,7 +130,8 @@ func runWiCreate(typeName, title string, o *wiCreateOpts) error {
 			edit = edit.SetProperty("created_in_session", sessionID)
 		}
 		if o.files != "" && typeName != "bug" {
-			edit = edit.SetProperty("affected_files", o.files)
+			normalized := normalizeFilesInput(o.files, filepath.Dir(dir))
+			edit = edit.SetProperty("affected_files", normalized)
 		}
 		if hasProvenance {
 			edit = edit.SetProvenance(prov.Agent, prov.Model, prov.Role, prov.CLIVersion)
@@ -215,6 +218,29 @@ func resolveCreateProvenance(wipnoteDir, sessionID string, o *wiCreateOpts) prov
 	// Layer: flag → session → env. Session inherits beat env defaults (e.g.
 	// "dev" cli-version should not shadow "1.2.3" recorded in the session).
 	return flagProv.Merge(sessionProv).Merge(envProv)
+}
+
+// normalizeFilesInput splits the comma-separated --files value, trims whitespace
+// from each segment, drops empty segments, normalizes each path to be repo-relative
+// via paths.MustNormalize (absolute outside-repo paths receive the "unresolved:"
+// prefix per the slice-1 policy), and rejoins with commas.
+//
+// When input is empty the empty string is returned immediately without calling the
+// normalizer.
+func normalizeFilesInput(input, repoRoot string) string {
+	if input == "" {
+		return ""
+	}
+	parts := strings.Split(input, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		seg := strings.TrimSpace(p)
+		if seg == "" {
+			continue
+		}
+		out = append(out, paths.MustNormalize(seg, repoRoot))
+	}
+	return strings.Join(out, ",")
 }
 
 func createNode(p *workitem.Project, typeName, title string, o *wiCreateOpts) (*models.Node, error) {
