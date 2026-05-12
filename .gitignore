@@ -184,8 +184,10 @@ chrome/*.zip
 
 # Go test scratch space (used to avoid /tmp noexec in devcontainers)
 .test-exec/
+.test-tmp/
 .gotmp/
 .tmp-go/
 .tmp-gotest/
 tmp/go-tmp/
+tmp/gotmp.*/
 .build-cache/
