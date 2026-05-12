@@ -130,7 +130,11 @@ func runWiCreate(typeName, title string, o *wiCreateOpts) error {
 			edit = edit.SetProperty("created_in_session", sessionID)
 		}
 		if o.files != "" && typeName != "bug" {
-			normalized := normalizeFilesInput(o.files, filepath.Dir(dir))
+			// Empty repoRoot lets paths.MustNormalize discover the local
+			// worktree anchor via git, so a path under a linked worktree
+			// normalises to its stable repo-relative form (e.g. cmd/foo.go)
+			// instead of .claude/worktrees/<wt>/cmd/foo.go.
+			normalized := normalizeFilesInput(o.files, "")
 			edit = edit.SetProperty("affected_files", normalized)
 		}
 		if hasProvenance {

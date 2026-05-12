@@ -386,8 +386,10 @@ func projectDirNormalize(dir, repoRoot string) string {
 		if dir == repoRoot {
 			return "."
 		}
-		if rel, err := filepath.Rel(repoRoot, dir); err == nil && !strings.HasPrefix(rel, "..") {
-			return filepath.ToSlash(rel)
+		if rel, err := filepath.Rel(repoRoot, dir); err == nil {
+			if rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+				return filepath.ToSlash(rel)
+			}
 		}
 	}
 	// Fall back to the shared resolver — handles foreign-machine sessions.

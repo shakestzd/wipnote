@@ -227,6 +227,25 @@ func TestNormalize_RelStartsWithDotDot_MarksUnresolved(t *testing.T) {
 	}
 }
 
+// TestNormalize_DotDotPrefixedFilename_NotMistakenForTraversal verifies that
+// an in-repo path whose first component starts with two dots (e.g.
+// "..data/file.go") is normalised as a legitimate in-repo path and is NOT
+// flagged as outside-repo. The earlier strings.HasPrefix(rel, "..") check
+// was over-broad; the precise check is rel == ".." || prefix "../" only.
+func TestNormalize_DotDotPrefixedFilename_NotMistakenForTraversal(t *testing.T) {
+	repo := makeWipnoteRepo(t)
+	abs := filepath.Join(repo, "..data", "file.go")
+
+	got, ok := paths.NormalizeToRepoRelative(abs, repo)
+	if !ok {
+		t.Fatalf("expected ok=true, got false")
+	}
+	want := "..data/file.go"
+	if got != want {
+		t.Errorf("normalize(..data/file.go) = %q, want %q", got, want)
+	}
+}
+
 // TestNormalize_NonExistentAbsPath_DoesNotCrash verifies that EvalSymlinks
 // failure (path doesn't exist on disk yet — tool_input is full of these)
 // falls back to the raw paths and still produces a sensible result.

@@ -8,14 +8,14 @@ import (
 )
 
 // pathKeysToNormalize lists the tool_input keys that may contain file-system
-// paths and should be stored repo-relative. "command" (Bash) is deliberately
-// absent — commands often contain absolute paths and must be preserved verbatim
-// for debugging fidelity.
+// paths and should be stored repo-relative. "command" (Bash) and "pattern"
+// (Grep) are deliberately absent — commands and regex search patterns often
+// contain absolute-path-like substrings and must be preserved verbatim for
+// debugging fidelity.
 var pathKeysToNormalize = []string{
 	"file_path",
 	"notebook_path",
 	"path",
-	"pattern",
 }
 
 // normalizeToolInputPaths returns a JSON string of the tool_input map with
@@ -27,8 +27,9 @@ var pathKeysToNormalize = []string{
 //   - Each key in pathKeysToNormalize whose value is a non-empty string is
 //     passed through paths.NormalizeWithResolver (or paths.MustNormalize when
 //     resolver is nil). Already-relative values pass through unchanged.
-//   - Only "pattern" for Grep-like tools is normalized when its value is an
-//     absolute path; for other tools it is also normalized if present.
+//   - "pattern" (Grep) is left untouched: it is a search pattern, not a path,
+//     and normalising it would corrupt the captured query (e.g. searching
+//     for "/workspaces/myrepo/internal" must be preserved verbatim).
 //   - Marshal/unmarshal errors cause the caller to fall back to the original
 //     raw tool_input JSON (caller responsibility).
 //

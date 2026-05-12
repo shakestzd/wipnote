@@ -228,7 +228,10 @@ func NormalizeWithResolver(absPath, repoRoot string, resolver func(dir string) s
 		// outside-repo.
 		return "unresolved:" + absPath, true
 	}
-	if strings.HasPrefix(rel, "..") {
+	// Exact traversal check: paths whose first component starts with two dots
+	// (e.g. "..data/foo.go") are legitimate in-repo paths and must not be
+	// flagged as outside-repo. Only treat ".." or "../..." as traversal.
+	if rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
 		return "unresolved:" + absPath, true
 	}
 	return filepath.ToSlash(rel), true

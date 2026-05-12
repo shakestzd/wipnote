@@ -145,9 +145,11 @@ func TestNormalizeToolInput_MultiplePathKeys(t *testing.T) {
 	}
 }
 
-// TestNormalizeToolInput_GrepPatternAbsPath verifies that an absolute path in
-// the "pattern" field of Grep is normalized when it looks like an abs path.
-func TestNormalizeToolInput_GrepPatternAbsPath(t *testing.T) {
+// TestNormalizeToolInput_GrepPatternNotMutated verifies that Grep's "pattern"
+// field is left verbatim. The pattern is a search query, not a file path:
+// normalising "/workspaces/myrepo/internal" to "internal" would silently
+// corrupt the captured query and lose the user's intent.
+func TestNormalizeToolInput_GrepPatternNotMutated(t *testing.T) {
 	repoRoot := "/workspaces/myrepo"
 	input := map[string]any{
 		"pattern": "/workspaces/myrepo/internal",
@@ -160,7 +162,8 @@ func TestNormalizeToolInput_GrepPatternAbsPath(t *testing.T) {
 	if err := json.Unmarshal([]byte(got), &result); err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}
-	if result["pattern"] != "internal" {
-		t.Errorf("pattern = %q, want %q", result["pattern"], "internal")
+	if result["pattern"] != "/workspaces/myrepo/internal" {
+		t.Errorf("pattern = %q, want unchanged %q",
+			result["pattern"], "/workspaces/myrepo/internal")
 	}
 }
