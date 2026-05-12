@@ -14,6 +14,7 @@ import (
 
 	"github.com/shakestzd/wipnote/internal/ingest"
 	"github.com/shakestzd/wipnote/internal/models"
+	"github.com/shakestzd/wipnote/internal/paths"
 	"github.com/shakestzd/wipnote/internal/provenance"
 )
 
@@ -52,10 +53,16 @@ func CreateSessionHTML(projectDir string, s *models.Session) {
 	// projectDir IS the source project. (bug found in roborev review of
 	// d2731bec — without this guard, ingested sessions would canonicalize
 	// the wrong project_dir and reindex would propagate it forward.)
-	canonicalProjectDir := s.ProjectDir
-	if canonicalProjectDir == "" {
-		canonicalProjectDir = projectDir
+	//
+	// Normalize to canonical root for local sessions (e.g. "."); mark with
+	// "unresolved:" prefix for sessions ingested from foreign machines where
+	// the canonical root differs from the local repo, preserving the foreign
+	// origin so it remains queryable without silently mangling the path.
+	raw := s.ProjectDir
+	if raw == "" {
+		raw = projectDir
 	}
+	canonicalProjectDir := paths.NormalizeProjectDir(raw)
 
 	isSubagent := "false"
 	if s.IsSubagent {

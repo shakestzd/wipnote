@@ -77,7 +77,9 @@ func SubagentStart(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 			AgentID:       event.AgentID,
 			AgentType:     agentType,
 			SessionID:     sessionID,
-			CWD:           projectDir,
+			// Normalize CWD to repo-relative so pending rows remain stable
+			// across worktrees and machines (same policy as sessions.project_dir).
+			CWD:           paths.NormalizeProjectDir(projectDir),
 			ParentAgentID: os.Getenv("WIPNOTE_AGENT_ID"),
 			CreatedAt:     time.Now().UnixMicro(),
 		}

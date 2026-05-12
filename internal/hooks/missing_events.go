@@ -10,7 +10,43 @@ import (
 	"github.com/google/uuid"
 	"github.com/shakestzd/wipnote/internal/db"
 	"github.com/shakestzd/wipnote/internal/models"
+	"github.com/shakestzd/wipnote/internal/paths"
 )
+
+// worktreePathResolver is the resolver function passed to
+// paths.NormalizeWithResolver for worktree path normalization.  It receives
+// a directory and must return the repo root anchor for that directory, or ""
+// when the directory is not inside any wipnote-aware git repo.
+//
+// Production value: paths.ResolveWipnoteAnchorForDir (git-based resolver).
+// Tests override this var with a stub that returns a synthetic repo root
+// without shelling to git.
+var worktreePathResolver = paths.ResolveWipnoteAnchorForDir
+
+// normalizeWorktreePath converts an absolute WorktreePath to a
+// repo-relative, forward-slash form using the paths.NormalizeWithResolver
+// contract.  Already-relative paths pass through unchanged.  Foreign paths
+// (outside any wipnote repo) receive the "unresolved:" prefix.  Empty input
+// is returned as-is (no-op / no panic).
+//
+// The resolver is invoked directly on filepath.Dir(worktreePath) so that
+// worktrees that have already been removed from disk (WorktreeRemove case)
+// can still be normalized — we never need the path to exist on disk.
+func normalizeWorktreePath(worktreePath string) string {
+	if worktreePath == "" {
+		return ""
+	}
+	if !filepath.IsAbs(worktreePath) {
+		return worktreePath
+	}
+	// Resolve the repo root from the parent directory of the worktree path.
+	// We call the resolver explicitly rather than relying on NormalizeWithResolver's
+	// internal nearestExistingDir walk so that already-removed worktree directories
+	// (not on disk) are still normalized correctly.
+	repoRoot := worktreePathResolver(filepath.Dir(worktreePath))
+	norm, _ := paths.NormalizeWithResolver(worktreePath, repoRoot, worktreePathResolver)
+	return norm
+}
 
 // recordSimpleEvent is a shared helper for hook handlers that record a single
 // agent_event and always return Continue. It resolves the session and feature
@@ -322,7 +358,8 @@ func ConfigChange(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 func WorktreeCreate(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 	summary := "Worktree created"
 	if event.WorktreePath != "" {
-		summary = fmt.Sprintf("Worktree created: %s", event.WorktreePath)
+		normPath := normalizeWorktreePath(event.WorktreePath)
+		summary = fmt.Sprintf("Worktree created: %s", normPath)
 	}
 	return recordSimpleEvent(models.EventCheckPoint, "WorktreeCreate", summary, "recorded", event, database)
 }
@@ -335,7 +372,8 @@ func WorktreeCreate(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 func WorktreeRemove(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 	summary := "Worktree removed"
 	if event.WorktreePath != "" {
-		summary = fmt.Sprintf("Worktree removed: %s", event.WorktreePath)
+		normPath := normalizeWorktreePath(event.WorktreePath)
+		summary = fmt.Sprintf("Worktree removed: %s", normPath)
 	}
 
 	result, err := recordSimpleEvent(models.EventCheckPoint, "WorktreeRemove", summary, "recorded", event, database)

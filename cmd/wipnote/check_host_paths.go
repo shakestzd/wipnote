@@ -9,23 +9,16 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/shakestzd/wipnote/internal/paths"
 	"github.com/shakestzd/wipnote/internal/storage"
 	"github.com/spf13/cobra"
 )
 
-// hostPathPattern matches absolute paths that are specific to a developer's machine:
-//   - /Users/<name>/        — macOS home directories
-//   - /home/<name>/         — Linux home directories
-//   - /workspaces/<name>/   — GitHub Codespaces per-user workspace paths
-//   - /private/var/folders/ — macOS temp directory (always machine-specific)
-//
-// /home/runner/ (GitHub Actions CI user) is filtered out after matching via ciAllowPattern.
-var hostPathPattern = regexp.MustCompile(
-	`/Users/[^/\s]+/` +
-		`|/home/[^/\s]+/` +
-		`|/workspaces/[^/\s]+/` +
-		`|/private/var/folders/`,
-)
+// hostPathPattern is the precommit-gate alias for paths.HostPathPattern.
+// The canonical definition lives in internal/paths/hostpattern.go so the
+// runtime normalizer (NormalizeToRepoRelative) and the precommit gate
+// always agree on what counts as a host-local path.
+var hostPathPattern = paths.HostPathPattern
 
 // ciAllowPattern matches paths that should be excluded from violations even though
 // they match hostPathPattern — specifically /home/runner/ used by GitHub Actions CI.

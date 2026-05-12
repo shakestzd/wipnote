@@ -180,8 +180,13 @@ func SessionStart(event *CloudEvent, database *sql.DB, projectDir string) (*Hook
 		// subagent-start hook writing sessions+agent_lineage_trace directly.
 		ParentSessionID: os.Getenv("WIPNOTE_PARENT_SESSION"),
 		ParentEventID:   os.Getenv("WIPNOTE_PARENT_EVENT"),
-		GitRemoteURL:    paths.GetGitRemoteURL(projectDir),
-		ProjectDir:      projectDir,
+		GitRemoteURL: paths.GetGitRemoteURL(projectDir),
+		// Normalize to repo-relative so session records remain stable across
+		// worktrees and machines. Local sessions get a relative path (e.g. ".");
+		// sessions ingested from foreign machines (where the canonical root
+		// differs from the local repo) are stored with an "unresolved:" prefix
+		// so they are queryable without silently mangling the original path.
+		ProjectDir: paths.NormalizeProjectDir(projectDir),
 	}
 
 	// Prefer CloudEvent fields over env vars (more reliable).

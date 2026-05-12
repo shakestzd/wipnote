@@ -20,6 +20,8 @@ func migrateCmd() *cobra.Command {
 		Short: "One-shot data migrations",
 	}
 	cmd.AddCommand(migrateSessionsCmd())
+	cmd.AddCommand(migrateNormalizePathsCmd())
+	cmd.AddCommand(migrateRestorePathsCmd())
 	addAttributionFixCmd(cmd)
 	return cmd
 }
