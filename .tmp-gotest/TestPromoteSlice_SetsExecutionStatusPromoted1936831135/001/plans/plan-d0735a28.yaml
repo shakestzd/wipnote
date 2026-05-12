@@ -1,0 +1,31 @@
+meta:
+    id: plan-d0735a28
+    track_id: trk-18918d27
+    title: ExecStatus Test
+    description: ""
+    created_at: "2026-05-12"
+    status: active
+    version: 3
+design:
+    problem: ""
+    goals: []
+    constraints: []
+    approved: false
+    comment: ""
+slices:
+    - id: slic-dd3697be
+      feature_id: feat-132a905a
+      num: 1
+      title: S
+      what: w
+      why: ""
+      files: []
+      deps: []
+      done_when: []
+      effort: ""
+      risk: ""
+      tests: ""
+      approved: false
+      comment: ""
+      execution_status: promoted
+questions: []
