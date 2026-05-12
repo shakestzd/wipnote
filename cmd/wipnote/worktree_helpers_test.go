@@ -14,6 +14,26 @@ import (
 func setupWorktreeGitRepo(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
+	return initWorktreeGitRepo(t, dir)
+}
+
+// setupWorktreeGitRepoIn creates a git repo inside parentDir with an initial
+// commit and returns its path. Use this variant when t.TempDir() would return
+// a path inside the project tree (e.g. .test-tmp/) that could walk up into the
+// real .git directory — pass a parentDir under /tmp instead.
+func setupWorktreeGitRepoIn(t *testing.T, parentDir string) string {
+	t.Helper()
+	dir, err := os.MkdirTemp(parentDir, "git-repo-*")
+	if err != nil {
+		t.Fatalf("MkdirTemp %s: %v", parentDir, err)
+	}
+	t.Cleanup(func() { os.RemoveAll(dir) })
+	return initWorktreeGitRepo(t, dir)
+}
+
+// initWorktreeGitRepo initializes a git repo in dir with an initial commit.
+func initWorktreeGitRepo(t *testing.T, dir string) string {
+	t.Helper()
 
 	cmds := [][]string{
 		{"git", "init"},

@@ -249,7 +249,7 @@ func openCachedDB(t *testing.T, projectDir string) *sql.DB {
 	return database
 }
 
-func cachedDBPath(t *testing.T, projectDir string) string {
+func cachedDBPath(t *testing.T, _ string) string {
 	t.Helper()
 	override := os.Getenv("WIPNOTE_DB_PATH")
 	if override == "" {

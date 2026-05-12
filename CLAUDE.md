@@ -158,6 +158,21 @@ When upstream contracts change, the fix lands in `plugin/hooks/hooks.json`, `int
 
 ---
 
+## Worktrees and .wipnote/ Artifact Commits
+
+Conductor-managed worktrees (and any worktree created by `wipnote yolo`) install a per-worktree
+gitignore entry that excludes `.wipnote/` from the worktree's own `git status`. This is intentional
+noise-reduction. The artifact is still committed: `wipnote feature/bug/spike complete` calls
+`commitWipnoteArtifact` which uses `git -C <repoRoot>` with an explicit absolute path to stage and
+commit the HTML in the main repository, bypassing the exclusion.
+
+**Conductor limitation:** Conductor archives worktrees directly without invoking `wipnote * complete`.
+To ensure your work item artifact is committed, you must call `wipnote feature complete <id>` (or
+`bug`/`spike`) from within the workspace before Conductor tears down the worktree. wipnote cannot
+intercept Conductor's archive step.
+
+---
+
 ## Dogfooding
 
 This project uses wipnote to develop itself. `.wipnote/` contains real work items — not demos.

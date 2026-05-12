@@ -310,7 +310,7 @@ func worktreeOnBranch(repoRoot, branchName string) string {
 // directory that is a git worktree checked out on branchName. Returns the path if
 // found, empty string otherwise. This prevents "branch already checked out" errors
 // when a track title is renamed after the worktree was first created.
-func findExistingWorktreeForBranch(repoRoot, branchName string, w io.Writer) string {
+func findExistingWorktreeForBranch(repoRoot, branchName string, _ io.Writer) string {
 	worktreesDir := filepath.Join(repoRoot, ".claude", "worktrees")
 	entries, err := os.ReadDir(worktreesDir)
 	if err != nil {
@@ -379,6 +379,14 @@ func resolveTrackForFeature(featureID, projectRoot string) string {
 
 // excludeWipnoteFromWorktree adds .wipnote/ to the worktree's local git exclude file.
 // Best-effort: errors are written to w but do not abort.
+//
+// Note on the design intent: the exclusion prevents .wipnote/ mutations that
+// occur inside the worktree from appearing in `git status` noise within that
+// worktree. It does NOT prevent the main-repo artifact from being committed.
+// When a work item is completed via `wipnote feature/bug/spike complete`,
+// commitWipnoteArtifact (cmd/wipnote/workitem_commit.go) uses `git -C <repoRoot>`
+// with an explicit absolute path to stage and commit the HTML directly in the
+// main repository, bypassing the per-worktree exclude entirely.
 func excludeWipnoteFromWorktree(worktreePath string, w io.Writer) {
 	gitFile := filepath.Join(worktreePath, ".git")
 	content, err := os.ReadFile(gitFile)
