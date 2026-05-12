@@ -437,7 +437,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     <li>
       <a href="#slice-6" class="slice-nav-item" data-slice-nav="6">
         <span class="slice-nav-dot" data-approval="pending" data-dot-for="6"></span>
-        <span>#6 Idempotent migration rewriter for 178 pre-existing records</span>
+        <span>#6 Idempotent migration rewriter with collision detection and dirty-tree guard</span>
       </a>
     </li>
     
@@ -486,13 +486,13 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
 <section class="dep-graph" data-zone="dependency-graph">
   <h2>Dependency Graph</h2>
   <div id="graph-data" style="display:none">
-    <div data-node="1" data-name="Canonical write-time path normalizer in internal/paths" data-status="pending" data-deps="" data-files="4"></div>
-    <div data-node="2" data-name="Normalize tool_input file paths in PreToolUse/PostToolUse" data-status="pending" data-deps="1" data-files="6"></div>
+    <div data-node="1" data-name="Canonical write-time path normalizer in internal/paths" data-status="pending" data-deps="" data-files="5"></div>
+    <div data-node="2" data-name="Normalize tool_input file paths in PreToolUse/PostToolUse" data-status="pending" data-deps="1" data-files="7"></div>
     <div data-node="3" data-name="Normalize WorktreePath in worktree events" data-status="pending" data-deps="1" data-files="2"></div>
     <div data-node="4" data-name="Normalize SessionStart and SubagentStart CWD attribution" data-status="pending" data-deps="1" data-files="6"></div>
     <div data-node="5" data-name="Normalize CLI --files input on workitem create" data-status="pending" data-deps="1" data-files="2"></div>
-    <div data-node="6" data-name="Idempotent migration rewriter for 178 pre-existing records" data-status="pending" data-deps="1,2,3,4,5" data-files="4"></div>
-    <div data-node="7" data-name="Worktree round-trip regression gate" data-status="pending" data-deps="2,3,4,5" data-files="2"></div>
+    <div data-node="6" data-name="Idempotent migration rewriter with collision detection and dirty-tree guard" data-status="pending" data-deps="1,2,3,4,5" data-files="6"></div>
+    <div data-node="7" data-name="Worktree round-trip regression gate" data-status="pending" data-deps="2,3,4,5" data-files="3"></div>
     
     <!--PLAN_GRAPH_NODES-->
   </div>
@@ -508,16 +508,17 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     <h4>Problem</h4>
 <div data-markdown>wipnote&#39;s causal lineage is host-locked. Hooks, the indexer, and provenance capture record paths as the agent observed them — often absolute (`/workspaces/wipnote/foo.go`, `/tmp/worktree-abc/foo.go`) or worktree- relative. When the same repo is queried from a different working directory (worktree orchestrators like our own `Agent({isolation: &#34;worktree&#34;})` or Conductor; same repo on a different host like Codespace → local) the lineage chain breaks: file references don&#39;t resolve, blame queries miss commits, and `wipnote lineage &lt;id&gt;` returns partial chains.
 Existing partial mitigation: the `check-host-paths` precommit gate (`cmd/wipnote/check_host_paths.go:23-28`) rejects absolute host paths in `--description`/`--body` at creation time. That gate does nothing for runtime capture by hooks/indexer/session ingest, which is where the overwhelming majority of paths enter the store.
-Researcher mapped 7 capture surfaces:
-  1. PreToolUse — `agent_events.tool_input` (JSON containing absolute
-     `file_path` keys; doubly encoded)
+Researcher mapped 7 runtime capture surfaces plus one omitted by the initial pass (`sessions.project_dir`, surfaced by the implementation critique):
+  1. PreToolUse — `agent_events.tool_input` (JSON object stored as a
+     JSON-encoded string; SINGLE-encoded, not double — corrected from
+     initial design)
   2. PostToolUse — `feature_files.file_path` (verbatim absolute)
   3. SessionStart/End — `sessions.transcript_path` (out-of-scope: Claude&#39;s
      private store)
-  4. SessionStart — `&lt;article data-project-dir=&#34;...&#34;&gt;` in session HTML
-     (currently deliberately verbatim)
-  5. WorktreeCreate/Remove — `agent_events.input_summary` free-text
-     containing absolute `WorktreePath`
+  4. SessionStart — `&lt;article data-project-dir=&#34;...&#34;&gt;` in session HTML +
+     `sessions.project_dir` SQLite column
+  5. WorktreeCreate/Remove — `agent_events.input_summary` free-text +
+     `AdditionalContext` agent-facing message
   6. SubagentStart — `pending_subagent_starts.cwd`
   7. CLI `--files` flag — verbatim into HTML `affected_files`
 
@@ -525,19 +526,22 @@ Existing partial helper: `internal/migrate/tracks.go:281 normalizePath` (read-ti
 </div>
 <h4>Goals</h4>
 <ol>
-<li data-markdown>**Write-time normalization** — every path captured by a hook, indexer, or CLI write is stored repo-relative against `git rev-parse --git-common-dir`, falling back to walk-up to `.wipnote/`.</li>
-<li data-markdown>**Single normalizer** — one helper in `internal/paths/` used by every writer; no per-call-site implementations.</li>
-<li data-markdown>**Worktree round-trip** — a feature implemented via `Agent({isolation: &#34;worktree&#34;})`, after the worktree is removed, returns full lineage with all referenced files resolvable from the main repo root.</li>
-<li data-markdown>**Migration completeness** — all 178 pre-existing `.wipnote/*.html` records are rewritten idempotently; re-running the migration is a no-op.</li>
-<li data-markdown>**No new false negatives** — `transcript_path` (Claude&#39;s private store) is explicitly out-of-scope and remains absolute; the `--allow-host-paths` escape hatch on creation flows still works.</li>
+<li data-markdown>**Write-time normalization** — every path captured by a hook, indexer, or CLI write is stored repo-relative against the canonical repo root resolved via `git rev-parse --git-common-dir` with walk-up fallback.</li>
+<li data-markdown>**Single normalizer with cache** — one helper in `internal/paths/` used by every writer, with a process-scoped cache so `git rev-parse` is invoked at most once per unique CWD per process lifetime.</li>
+<li data-markdown>**Worktree round-trip** — a feature implemented in a wipnote-managed worktree, after the worktree is removed, returns full lineage with all referenced files resolvable from the main repo root.</li>
+<li data-markdown>**Migration completeness** — all 178 pre-existing `.wipnote/*.html` records plus the relevant SQLite columns are rewritten idempotently with collision detection; re-running the migration is a no-op.</li>
+<li data-markdown>**No new false negatives** — `transcript_path` (Claude&#39;s private store) is explicitly out-of-scope and remains absolute; the `--allow-host-paths` escape hatch on creation flows still works; foreign-machine ingested sessions preserve their original paths.</li>
+<li data-markdown>**Safe by default** — migration aborts on a dirty `.wipnote/` working tree, takes a timestamped backup, supports `--dry-run`, and has a paired `wipnote migrate restore-paths` companion for rollback.</li>
 </ol>
 <h4>Constraints</h4>
 <ul>
 <li data-markdown>Reuse the regex from `cmd/wipnote/check_host_paths.go:23-28` as the single source of truth for what counts as a host path.</li>
-<li data-markdown>Worktrees: use `git rev-parse --git-common-dir` (or extend `ResolveViaGitCommonDir`), not `--show-toplevel` (which returns the worktree dir, not the canonical root).</li>
+<li data-markdown>Worktrees: use `git rev-parse --git-common-dir` (or extend `ResolveViaGitCommonDir`), not `--show-toplevel` (which returns the worktree dir, not the canonical root). When `git rev-parse` returns `.git` (the main worktree case), fall back to walk-up resolution.</li>
 <li data-markdown>`transcript_path` is out-of-scope — it points to `~/.claude/projects/&lt;encoded&gt;/&lt;uuid&gt;.jsonl` which is intentionally machine-local. Leave absolute.</li>
-<li data-markdown>Backwards compatibility on read: lineage queries must continue to resolve records written before this plan. Either rewrite on read or rely on the migration in slice-6.</li>
-<li data-markdown>`tool_input` is doubly JSON-encoded (JSON object encoded as a JSON string, stored in a TEXT column). Normalization must unmarshal twice and re-encode.</li>
+<li data-markdown>Backwards compatibility on read: lineage and blame queries must continue to resolve records written before this plan. Query callers normalize their *inputs* at lookup time as well, so the SQLite store can contain a mix of absolute (legacy) and relative (post-migration) paths without surface breakage.</li>
+<li data-markdown>All stored relative paths use forward-slash separators (`filepath.ToSlash`) regardless of host OS, so cross-platform queries match.</li>
+<li data-markdown>Symlinks in `repoRoot` and `absPath` are resolved via `filepath.EvalSymlinks` before relativization, matching the existing pattern in `internal/dbpath`.</li>
+<li data-markdown>One policy for outside-repo paths, defined in slice-1 and inherited by every writer: paths outside the repo are stored with an `unresolved:` prefix (not verbatim, not dropped). Rendering layers strip the prefix for display and never construct a filesystem path from the suffix.</li>
 </ul>
 
     <div class="approval-row">
@@ -564,10 +568,10 @@ Existing partial helper: `internal/migrate/tracks.go:281 normalizePath` (read-ti
       <span class="slice-meta-row">
         <span class="slice-summary-badges">
           <span class="badge badge-revision badge-sm">M</span>
-          <span class="badge badge-pending badge-sm">Low</span>
+          <span class="badge badge-revision badge-sm">Med</span>
           <span class="badge badge-pending badge-sm" title="Execution: not_started">Not Started</span>
           <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-1">Pending</span>
-          
+          <span class="badge badge-sm badge-issues" title="6 critic issue(s)">6 issues</span>
           <span class="badge badge-sm badge-questions" title="1 open question(s)">1 Q</span>
         </span>
         <span class="slice-actions" onclick="event.stopPropagation()">
@@ -602,22 +606,34 @@ Existing partial helper: `internal/migrate/tracks.go:281 normalizePath` (read-ti
           <div class="markdown-block reveal-content serif-prose"><p>Add <code>NormalizeToRepoRelative(absPath, repoRoot string) (relPath string, ok bool)</code>
 to <code>internal/paths/resolve.go</code>. It:</p>
 <ol>
-<li>If <code>absPath</code> is already relative, return <code>(absPath, true)</code>.</li>
-<li>Resolves the canonical repo root via the existing
-<code>ResolveViaGitCommonDir</code> helper (handles worktrees correctly).</li>
-<li>Returns <code>filepath.Rel(canonicalRoot, absPath)</code> if the result does
-not start with <code>..</code> (i.e. path is inside the repo).</li>
-<li>If the path matches the <code>hostPathPattern</code> regex
-(<code>cmd/wipnote/check_host_paths.go:23-28</code>) but is NOT inside the
-repo, returns <code>(&#34;&#34;, false)</code> so callers can decide whether to drop
-the path or store it verbatim with an <code>unresolved:</code> prefix.</li>
+<li>If <code>absPath</code> is already relative, return <code>(absPath, true)</code>
+unchanged.</li>
+<li>If <code>repoRoot == &#34;&#34;</code>, resolve canonically:
+a. Try <code>ResolveViaGitCommonDir(filepath.Dir(absPath))</code>.
+b. If that returns <code>.git</code> (main worktree case) or empty, walk up
+from <code>filepath.Dir(absPath)</code> looking for the nearest
+<code>.wipnote/</code> directory.
+c. If both fail and <code>absPath</code> matches <code>HostPathPattern</code>, return
+<code>(&#34;unresolved:&#34; + absPath, true)</code>. Otherwise return
+<code>(absPath, true)</code> (treat as already-relative-but-exotic).</li>
+<li>Apply <code>filepath.EvalSymlinks</code> to both <code>repoRoot</code> and <code>absPath</code>
+before relativization.</li>
+<li>Compute <code>filepath.Rel(canonicalRoot, evaledAbsPath)</code>; if the
+result starts with <code>..</code>, return <code>(&#34;unresolved:&#34; + absPath, true)</code>.</li>
+<li>Convert the relative path to forward slashes via
+<code>filepath.ToSlash</code> and return <code>(rel, true)</code>.</li>
 </ol>
+<p>Add a process-scoped cache (<code>sync.Map</code> keyed by <code>filepath.Dir(absPath)</code>)
+so <code>git rev-parse</code> is invoked at most once per unique directory per
+process lifetime — critical because slice-2 wires this into hot-path
+hooks (PreToolUse/PostToolUse fire on every tool call).</p>
 <p>Promote the <code>hostPathPattern</code> regex out of <code>cmd/wipnote/</code> into
-<code>internal/paths/</code> (or a sibling package) so both the precommit gate and
-the runtime normalizer reference the same definition.</p>
-<p>Add a sibling <code>MustNormalize(path string) string</code> convenience that
-logs at debug level when normalization fails and returns the original
-path — for use in hot paths where we don&#39;t want to error.</p>
+<code>internal/paths/hostpattern.go</code> so both the precommit gate and the
+runtime normalizer reference the same definition.</p>
+<p>Add a sibling <code>MustNormalize(absPath, repoRoot string) string</code> that
+returns the normalized path on success or the original <code>absPath</code> on
+failure, logging at debug level. Use this in hot paths where the hook
+shouldn&#39;t fail on a normalization edge case.</p>
 </div>
           <label for="slice-1-what-reveal" class="reveal-label">Show full description</label>
           
@@ -629,10 +645,11 @@ path — for use in hot paths where we don&#39;t want to error.</p>
         <div class="slice-field-label">Why</div>
         <div class="slice-field-value">
           
-          <div class="markdown-block serif-prose"><p>Single source of truth for normalization (constraint #1). All
-subsequent slices wire this in at one call site each. Without a
-shared helper, each writer will drift its own logic and the gate
-will be re-implemented per file.</p>
+          <div class="markdown-block serif-prose"><p>Single source of truth for normalization (constraint #1). All subsequent
+slices wire this in at one call site each. Without a shared helper,
+each writer will drift its own logic and the foreign-machine / outside-
+repo / symlink / Windows-separator edge cases will be re-handled (and
+mis-handled) per call site.</p>
 </div>
           
         </div>
@@ -641,13 +658,13 @@ will be re-implemented per file.</p>
       
       <div class="slice-field">
         <div class="slice-field-label">Files</div>
-        <div class="slice-field-value"><code>internal/paths/resolve.go, internal/paths/resolve_test.go, internal/paths/hostpattern.go, cmd/wipnote/check_host_paths.go</code></div>
+        <div class="slice-field-value"><code>internal/paths/resolve.go, internal/paths/resolve_test.go, internal/paths/hostpattern.go, internal/paths/cache.go, cmd/wipnote/check_host_paths.go</code></div>
       </div>
       
       
       <div class="slice-field">
         <div class="slice-field-label">Done when</div>
-        <ul class="slice-done-list"><li>`internal/paths.NormalizeToRepoRelative(&#34;/workspaces/wipnote/foo.go&#34;, &#34;/workspaces/wipnote&#34;)` returns `(&#34;foo.go&#34;, true)`</li><li>From inside `&lt;repo&gt;/.claude/worktrees/feat-x/`, `NormalizeToRepoRelative(&#34;/workspaces/wipnote/.claude/worktrees/feat-x/internal/foo.go&#34;, &#34;&lt;auto&gt;&#34;)` returns `(&#34;internal/foo.go&#34;, true)` (canonical root resolved via `ResolveViaGitCommonDir`)</li><li>`NormalizeToRepoRelative(&#34;/Users/alice/other-repo/foo.go&#34;, &#34;/workspaces/wipnote&#34;)` returns `(&#34;&#34;, false)`</li><li>`hostPathPattern` regex is defined in one place; `cmd/wipnote/check_host_paths.go` imports it from `internal/paths/` (no duplication)</li><li>`go vet ./...` and `go test ./internal/paths/...` pass</li></ul>
+        <ul class="slice-done-list slice-done-list--grid"><li>`NormalizeToRepoRelative(&#34;/workspaces/wipnote/foo.go&#34;, &#34;/workspaces/wipnote&#34;)` returns `(&#34;foo.go&#34;, true)`</li><li>From inside `&lt;repo&gt;/.claude/worktrees/feat-x/`, `NormalizeToRepoRelative(&#34;/workspaces/wipnote/.claude/worktrees/feat-x/internal/foo.go&#34;, &#34;&#34;)` resolves the canonical root via git-common-dir and returns `(&#34;internal/foo.go&#34;, true)`</li><li>When `git rev-parse --git-common-dir` returns `.git` (main worktree, no linked worktree), walk-up to `.wipnote/` resolves the root and normalization succeeds</li><li>`NormalizeToRepoRelative(&#34;/Users/alice/other-repo/foo.go&#34;, &#34;/workspaces/wipnote&#34;)` returns `(&#34;unresolved:/Users/alice/other-repo/foo.go&#34;, true)`</li><li>On a symlinked repo (`/workspaces/wipnote` → `/private/var/.../wipnote`), normalization correctly produces forward-slash relative paths</li><li>Repeated calls with the same `filepath.Dir(absPath)` invoke `git rev-parse` at most once (verified via a fake `git` exec counter in tests)</li><li>`HostPathPattern` regex is defined in one place; `cmd/wipnote/check_host_paths.go` imports it from `internal/paths/` (no duplication)</li><li>`go vet ./...` and `go test ./internal/paths/...` pass</li></ul>
       </div>
       
     
@@ -661,13 +678,13 @@ will be re-implemented per file.</p>
         <div class="test-strategy">
           
           <div class="test-group" data-kind="other">
-            <span class="test-chip">OTHER &middot; 7</span>
-            <ul><li>Unit (`internal/paths/resolve_test.go`):</li><li>TestNormalize_AbsoluteInsideRepo — input `/workspaces/wipnote/foo.go`, root `/workspaces/wipnote`, expect `(&#34;foo.go&#34;, true)`</li><li>TestNormalize_WorktreePathInsideRepo — input `/workspaces/wipnote/.claude/worktrees/feat-x/foo.go`, root resolved via git-common-dir, expect `(&#34;foo.go&#34;, true)` after relativization (NOT `.claude/worktrees/feat-x/foo.go`)</li><li>TestNormalize_AlreadyRelative — input `internal/foo.go`, expect `(&#34;internal/foo.go&#34;, true)` unchanged</li><li>TestNormalize_OutsideRepo — input `/Users/alice/other/foo.go`, expect `(&#34;&#34;, false)`</li><li>TestNormalize_HostPathOutsideRepo — input `/home/bob/notes.md`, expect `(&#34;&#34;, false)`</li><li>TestHostPattern_SingleDefinition — `internal/paths.HostPathPattern` and `cmd/wipnote.hostPathPattern` reference the same value (via import, not duplication)</li></ul>
+            <span class="test-chip">OTHER &middot; 10</span>
+            <ul><li>Unit (`internal/paths/resolve_test.go`):</li><li>TestNormalize_AbsoluteInsideRepo</li><li>TestNormalize_WorktreePath — canonical-root via git-common-dir</li><li>TestNormalize_MainWorktreeFallback — git returns &#34;.git&#34;, walk-up resolves to .wipnote/</li><li>TestNormalize_AlreadyRelative</li><li>TestNormalize_OutsideRepoUnresolvedPrefix — input `/Users/alice/other/foo.go`, expect `(&#34;unresolved:/Users/alice/other/foo.go&#34;, true)`</li><li>TestNormalize_Symlinks — repo at /var/foo symlinked to /private/var/foo, both forms normalize identically</li><li>TestNormalize_WindowsSeparators — relative result always uses forward slashes (run via filepath.ToSlash on the result)</li><li>TestNormalize_CacheHit — fake git exec, assert ≤1 call across 10 normalizations of the same dir</li><li>Unit (`cmd/wipnote/check_host_paths_test.go`): existing tests pass after the regex moves to internal/paths/.</li></ul>
           </div>
           
           <div class="test-group" data-kind="regression">
             <span class="test-chip">REGRESSION &middot; 1</span>
-            <ul><li>existing `check-host-paths` precommit gate test (`cmd/wipnote/check_host_paths_test.go`) must still pass after the regex moves.</li></ul>
+            <ul><li>`go test ./...` green.</li></ul>
           </div>
           
         </div>
@@ -677,6 +694,49 @@ will be re-implemented per file.</p>
     
 
     
+    <div class="slice-field slice-critic-revisions">
+      <div class="slice-field-label">Critic Revisions</div>
+      <div class="slice-field-value">
+        
+        <div class="critic-revision">
+          <span class="badge badge-blocked critic-revision-badge">HIGH</span>
+          <span class="critic-revision-source">impl-critique</span>
+          <span class="critic-revision-summary">ResolveViaGitCommonDir shells out to git per call. PreToolUse fires 50–200x per session — uncached, that is 50–200 forks per session. Plan now includes a process-scoped sync.Map cache keyed by filepath.Dir(absPath).</span>
+        </div>
+        
+        <div class="critic-revision">
+          <span class="badge badge-blocked critic-revision-badge">HIGH</span>
+          <span class="critic-revision-source">impl-critique</span>
+          <span class="critic-revision-summary">Slice-2 needs foreign-machine guard to function correctly. Originally lived in slice-4. Moved here so slice-2 can depend only on slice-1 and inherit the contract consistently.</span>
+        </div>
+        
+        <div class="critic-revision">
+          <span class="badge badge-blocked critic-revision-badge">HIGH</span>
+          <span class="critic-revision-source">risk-critique</span>
+          <span class="critic-revision-summary">Outside-repo path encoding was inconsistent between slice-2 (verbatim) and slice-5 (unresolved: prefix). Plan now defines a single policy here: always `unresolved:` prefix. Constraint #7 added.</span>
+        </div>
+        
+        <div class="critic-revision">
+          <span class="badge badge-revision critic-revision-badge">MED</span>
+          <span class="critic-revision-source">risk-critique</span>
+          <span class="critic-revision-summary">filepath.Rel returns OS-native separators (\ on Windows). All callers run filepath.ToSlash on the result so cross-platform queries match. Now in step 5 of the helper.</span>
+        </div>
+        
+        <div class="critic-revision">
+          <span class="badge badge-revision critic-revision-badge">MED</span>
+          <span class="critic-revision-source">risk-critique</span>
+          <span class="critic-revision-summary">Symlinks in repoRoot (e.g. /workspaces → /private/var on macOS) cause filepath.Rel to return ../ paths. Helper now applies filepath.EvalSymlinks before relativization, matching the pattern in internal/dbpath.</span>
+        </div>
+        
+        <div class="critic-revision">
+          <span class="badge badge-revision critic-revision-badge">MED</span>
+          <span class="critic-revision-source">risk-critique</span>
+          <span class="critic-revision-summary">git rev-parse --git-common-dir returns `.git` in the main worktree, causing fall-through to empty. Fallback to walk-up search for `.wipnote/` now explicit. q-canonical-root-source reframed as confirmation rather than open.</span>
+        </div>
+        
+      </div>
+    </div>
+    
 
     
     <div class="slice-field slice-questions">
@@ -684,13 +744,15 @@ will be re-implemented per file.</p>
       <div class="slice-field-value">
         
         <div class="question-block slice-question-block">
-          <p>When `repoRoot` is passed empty/`&lt;auto&gt;`, how should the helper resolve it?</p>
-          <p class="question-desc">Three options for callers that don&#39;t know the canonical root:
-(a) Walk up from CWD looking for `.wipnote/` directory
-(b) Call `git rev-parse --git-common-dir` and take its parent
-(c) Require the caller to always pass it (no auto-resolution)
-ResolveViaGitCommonDir today uses (b). Option (a) is faster but
-fails when called outside the repo.
+          <p>When `repoRoot` is empty, resolution order is git-common-dir → walk-up → unresolved-prefix. Confirm?</p>
+          <p class="question-desc">Proposed (per implementation critique): hybrid resolution.
+(1) `ResolveViaGitCommonDir(dir)` first — handles linked worktrees.
+(2) If that returns `.git` or empty, walk up looking for `.wipnote/`.
+(3) If both fail, return the path with an `unresolved:` prefix.
+The risk critique flagged that leaving this open was a defect; the
+proposed order is now baked into the `what` field above. This
+question exists to confirm the resolution order is correct, not to
+choose between (a)/(b)/(c) as originally posed.
 </p>
           
           <textarea
@@ -726,7 +788,7 @@ fails when called outside the repo.
           <span class="badge badge-revision badge-sm">Med</span>
           <span class="badge badge-pending badge-sm" title="Execution: not_started">Not Started</span>
           <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-2">Pending</span>
-          
+          <span class="badge badge-sm badge-issues" title="2 critic issue(s)">2 issues</span>
           <span class="badge badge-sm badge-questions" title="1 open question(s)">1 Q</span>
         </span>
         <span class="slice-actions" onclick="event.stopPropagation()">
@@ -759,19 +821,23 @@ fails when called outside the repo.
           
           <input type="checkbox" id="slice-2-what-reveal" class="reveal-toggle">
           <div class="markdown-block reveal-content serif-prose"><p>Wire <code>paths.NormalizeToRepoRelative</code> into the two hot-path hooks:</p>
-<p><code>internal/hooks/pretooluse.go:218-230</code> — before writing
-<code>event.ToolInput</code> to <code>agent_events.tool_input</code>, walk the JSON object
-and normalize any <code>file_path</code> / <code>path</code> / <code>notebook_path</code> values to
-repo-relative. Helper: <code>paths.NormalizeToolInputPaths(toolInput map[string]any, repoRoot string) map[string]any</code> —
-iterates known path keys, applies normalizer, leaves unknown keys
-untouched. Returns a new map (don&#39;t mutate caller&#39;s input).</p>
+<p><code>internal/hooks/pretooluse.go:217-220</code> — <code>event.ToolInput</code> arrives as
+<code>map[string]any</code> and is SINGLE-encoded via <code>json.Marshal</code> before
+storage in <code>agent_events.tool_input</code>. Before encoding, walk the map
+with a new helper <code>paths.NormalizeToolInputPaths(toolInput map[string]any, repoRoot string) map[string]any</code>
+that normalizes the known path keys (<code>file_path</code>, <code>path</code>,
+<code>notebook_path</code>) and leaves unknown keys untouched. Returns a new map
+(no caller-mutation).</p>
+<p>Correction from initial design: the column is NOT doubly-encoded. The
+stored value is a normal JSON object string. The normalizer needs a
+single <code>json.Marshal</code>/<code>Unmarshal</code> cycle, not two.</p>
 <p><code>internal/hooks/posttooluse.go:123-131</code> — replace the raw
 <code>extractFilePath(event.ToolInput)</code> write with
-<code>paths.MustNormalize(extractFilePath(...))</code> so <code>feature_files.file_path</code>
-stores repo-relative.</p>
-<p>The <code>repoRoot</code> for both call sites comes from the existing
-<code>resolveProjectDir(event.CWD)</code> (already called elsewhere in the hook
-flow) — pass it through.</p>
+<code>paths.MustNormalize(extractFilePath(...), repoRoot)</code> so
+<code>feature_files.file_path</code> stores repo-relative.</p>
+<p>The <code>repoRoot</code> for both call sites comes from
+<code>resolveProjectDir(event.CWD)</code> (already called in the hook flow).
+Pass it through; do not re-resolve.</p>
 </div>
           <label for="slice-2-what-reveal" class="reveal-label">Show full description</label>
           
@@ -796,13 +862,13 @@ round-trip).</p>
       
       <div class="slice-field">
         <div class="slice-field-label">Files</div>
-        <div class="slice-field-value"><code>internal/hooks/pretooluse.go, internal/hooks/posttooluse.go, internal/hooks/quality_gate.go, internal/paths/toolinput.go, internal/hooks/pretooluse_test.go, internal/hooks/posttooluse_test.go</code></div>
+        <div class="slice-field-value"><code>internal/hooks/pretooluse.go, internal/hooks/posttooluse.go, internal/hooks/quality_gate.go, internal/paths/toolinput.go, internal/paths/toolinput_test.go, internal/hooks/pretooluse_test.go, internal/hooks/posttooluse_test.go</code></div>
       </div>
       
       
       <div class="slice-field">
         <div class="slice-field-label">Done when</div>
-        <ul class="slice-done-list"><li>Synthetic PreToolUse event with `tool_input={&#34;file_path&#34;:&#34;/workspaces/wipnote/.claude/worktrees/feat-x/internal/foo.go&#34;}` fired from within the worktree results in SQLite `agent_events.tool_input` JSON containing `internal/foo.go` (not the absolute worktree path)</li><li>Synthetic PostToolUse for the same input results in `feature_files.file_path = &#34;internal/foo.go&#34;`</li><li>Tool inputs whose paths are outside the repo (e.g. `/Users/alice/other.go`) are stored verbatim — no data loss</li><li>Non-path keys in tool_input (e.g. `command`, `pattern`) are unchanged</li><li>Existing PreToolUse/PostToolUse tests pass; new tests added per the tests block</li></ul>
+        <ul class="slice-done-list"><li>Synthetic PreToolUse event with `tool_input={&#34;file_path&#34;:&#34;/workspaces/wipnote/.claude/worktrees/feat-x/internal/foo.go&#34;}` fired from within the worktree results in SQLite `agent_events.tool_input` JSON containing `&#34;file_path&#34;:&#34;internal/foo.go&#34;`</li><li>Synthetic PostToolUse for the same input results in `feature_files.file_path = &#34;internal/foo.go&#34;`</li><li>Tool inputs whose paths are outside the repo are stored with `unresolved:` prefix (per the slice-1 contract)</li><li>Non-path keys in tool_input (e.g. `command`, `pattern`) are unchanged</li><li>Existing PreToolUse/PostToolUse tests pass; new tests added per the tests block</li></ul>
       </div>
       
     
@@ -816,8 +882,8 @@ round-trip).</p>
         <div class="test-strategy">
           
           <div class="test-group" data-kind="other">
-            <span class="test-chip">OTHER &middot; 9</span>
-            <ul><li>Unit (`internal/paths/toolinput_test.go`):</li><li>TestNormalizeToolInputPaths_Write — input `{&#34;file_path&#34;:&#34;/workspaces/wipnote/.claude/worktrees/x/foo.go&#34;}`, expect `{&#34;file_path&#34;:&#34;foo.go&#34;}`</li><li>TestNormalizeToolInputPaths_Edit — same with `path` key</li><li>TestNormalizeToolInputPaths_PreservesUnknownKeys — `command`, `pattern` unchanged</li><li>TestNormalizeToolInputPaths_OutsideRepo — `/Users/...` left verbatim</li><li>Integration (`internal/hooks/pretooluse_test.go`):</li><li>TestPreToolUse_NormalizesToolInputFromWorktree — set CWD to a fake worktree, fire Write event, assert SQLite row has relative path inside the stored JSON</li><li>Integration (`internal/hooks/posttooluse_test.go`):</li><li>TestPostToolUse_NormalizesFeatureFilesPath — same setup, assert `feature_files.file_path` is relative</li></ul>
+            <span class="test-chip">OTHER &middot; 10</span>
+            <ul><li>Unit (`internal/paths/toolinput_test.go`):</li><li>TestNormalizeToolInputPaths_Write — `{&#34;file_path&#34;:&#34;/workspaces/wipnote/.claude/worktrees/x/foo.go&#34;}` → `{&#34;file_path&#34;:&#34;foo.go&#34;}`</li><li>TestNormalizeToolInputPaths_Edit — same with `path` key</li><li>TestNormalizeToolInputPaths_PreservesUnknownKeys — `command`, `pattern` unchanged</li><li>TestNormalizeToolInputPaths_OutsideRepoUnresolved — `/Users/alice/...` becomes `unresolved:/Users/alice/...`</li><li>TestNormalizeToolInputPaths_SingleEncoded — confirms output is a plain JSON object string, not a JSON-encoded string (regression against the initial double-encoding misdiagnosis)</li><li>Integration (`internal/hooks/pretooluse_test.go`):</li><li>TestPreToolUse_NormalizesToolInputFromWorktree</li><li>Integration (`internal/hooks/posttooluse_test.go`):</li><li>TestPostToolUse_NormalizesFeatureFilesPath</li></ul>
           </div>
           
           <div class="test-group" data-kind="regression">
@@ -832,6 +898,25 @@ round-trip).</p>
     
 
     
+    <div class="slice-field slice-critic-revisions">
+      <div class="slice-field-label">Critic Revisions</div>
+      <div class="slice-field-value">
+        
+        <div class="critic-revision">
+          <span class="badge badge-blocked critic-revision-badge">DANGER</span>
+          <span class="critic-revision-source">impl-critique</span>
+          <span class="critic-revision-summary">Initial design claimed `tool_input` is doubly JSON-encoded. Verified false against `pretooluse.go:217-220`: it is single-encoded via one json.Marshal of a map[string]any. All double-unmarshal language removed from `what` and `tests`; a new regression test `TestNormalizeToolInputPaths_SingleEncoded` guards against the misdiagnosis recurring.</span>
+        </div>
+        
+        <div class="critic-revision">
+          <span class="badge badge-blocked critic-revision-badge">HIGH</span>
+          <span class="critic-revision-source">impl-critique</span>
+          <span class="critic-revision-summary">Slice was implicitly dependent on slice-4&#39;s CanonicalProjectDir helper for foreign-machine handling. Slice-1 now owns that contract directly; slice-2 inherits it via paths.NormalizeToRepoRelative.</span>
+        </div>
+        
+      </div>
+    </div>
+    
 
     
     <div class="slice-field slice-questions">
@@ -841,10 +926,10 @@ round-trip).</p>
         <div class="question-block slice-question-block">
           <p>Normalize tool_input at write time (proposed), or store raw and normalize at every read?</p>
           <p class="question-desc">Write-time (proposed): one normalization per event, simple reads,
-but historical data needs migration (slice-6).
-Read-time: zero write cost, but every `wipnote lineage`/`blame`
-call pays the normalization cost, and queries need adapter logic.
-Default proposed: write-time (matches goal #1).
+but historical data needs migration (slice-6). Mixed-state
+backward-compat requires query-time normalization of *inputs* too
+(constraint #4) but storage is uniform.
+Default proposed: write-time &#43; query-input normalization.
 </p>
           
           <textarea
@@ -873,14 +958,14 @@ Default proposed: write-time (matches goal #1).
     <span class="slice-num">#3</span>
     <span class="slice-title-col">
       <span class="slice-name">Normalize WorktreePath in worktree events</span>
-      <span class="slice-preview">internal/hooks/missingevents.go:324-340 — the WorktreeCreate and</span>
+      <span class="slice-preview">internal/hooks/missingevents.go:324-368 — the WorktreeCreate and</span>
       <span class="slice-meta-row">
         <span class="slice-summary-badges">
           <span class="badge badge-pending badge-sm">S</span>
           <span class="badge badge-pending badge-sm">Low</span>
           <span class="badge badge-pending badge-sm" title="Execution: not_started">Not Started</span>
           <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-3">Pending</span>
-          
+          <span class="badge badge-sm badge-issues" title="1 critic issue(s)">1 issue</span>
           
         </span>
         <span class="slice-actions" onclick="event.stopPropagation()">
@@ -912,19 +997,19 @@ Default proposed: write-time (matches goal #1).
         <div class="slice-field-value">
           
           <input type="checkbox" id="slice-3-what-reveal" class="reveal-toggle">
-          <div class="markdown-block reveal-content serif-prose"><p><code>internal/hooks/missing_events.go:324-340</code> — the WorktreeCreate and
+          <div class="markdown-block reveal-content serif-prose"><p><code>internal/hooks/missing_events.go:324-368</code> — the WorktreeCreate and
 WorktreeRemove handlers embed <code>event.WorktreePath</code> verbatim into
-<code>agent_events.input_summary</code> as free text
-(<code>&#34;Worktree created: &lt;abs-path&gt;&#34;</code>).</p>
+<code>agent_events.input_summary</code> as free text. The WorktreeRemove handler
+also embeds it (and <code>projectRoot</code>) into the <code>AdditionalContext</code> string
+at line 368 that is injected into the conversation.</p>
 <p>Change: before formatting, run
 <code>paths.NormalizeToRepoRelative(event.WorktreePath, repoRoot)</code> and
-embed the relative form (e.g. <code>.claude/worktrees/feat-x</code>). Since
-wipnote always creates worktrees at <code>&lt;repoRoot&gt;/.claude/worktrees/&lt;id&gt;</code>
-(per <code>internal/worktree/worktree.go:92</code>), normalization will always
-succeed for wipnote-managed worktrees.</p>
-<p>Also update the additional-context message returned by
-WorktreeRemove (injected into the conversation at line 337-340) to
-use the relative path so the agent sees consistent paths.</p>
+embed the relative form (e.g. <code>.claude/worktrees/feat-x</code>).
+<code>extractBranchFromWorktreePath</code> keeps working because
+<code>filepath.Base(&#34;.claude/worktrees/feat-x&#34;)</code> still returns <code>feat-x</code>.</p>
+<p>Apply the same normalization in BOTH the <code>input_summary</code> write AND
+the <code>AdditionalContext</code> agent-facing message, so the agent and the
+stored record see identical paths.</p>
 </div>
           <label for="slice-3-what-reveal" class="reveal-label">Show full description</label>
           
@@ -936,7 +1021,7 @@ use the relative path so the agent sees consistent paths.</p>
         <div class="slice-field-label">Why</div>
         <div class="slice-field-value">
           
-          <div class="markdown-block serif-prose"><p>Worktree create/remove events are how the lineage chain knows that a
+          <div class="markdown-block serif-prose"><p>Worktree create/remove events are how the lineage chain knows a
 feature was implemented in an isolated tree. If the embedded path is
 absolute, post-hoc queries (<code>wipnote lineage feat-x</code>) from main repo
 print broken paths and can&#39;t link the recorded path back to the
@@ -955,7 +1040,7 @@ current repo. Addresses goal #3.</p>
       
       <div class="slice-field">
         <div class="slice-field-label">Done when</div>
-        <ul class="slice-done-list"><li>WorktreeCreate event with `WorktreePath=/workspaces/wipnote/.claude/worktrees/feat-x` is stored as `&#34;Worktree created: .claude/worktrees/feat-x&#34;` in `agent_events.input_summary`</li><li>WorktreeRemove additional-context string uses the relative path</li><li>Existing missing_events tests pass; new tests cover both events from inside a worktree CWD and from main repo CWD</li></ul>
+        <ul class="slice-done-list"><li>WorktreeCreate event with `WorktreePath=/workspaces/wipnote/.claude/worktrees/feat-x` is stored as `&#34;Worktree created: .claude/worktrees/feat-x&#34;` in `agent_events.input_summary`</li><li>WorktreeRemove `AdditionalContext` (line 368) uses the relative path for both WorktreePath and projectRoot embeds</li><li>extractBranchFromWorktreePath still returns the correct branch after normalization</li><li>Existing missing_events tests pass; new tests cover both events from inside a worktree CWD and from main repo CWD, plus the AdditionalContext string assertion</li></ul>
       </div>
       
     
@@ -969,8 +1054,8 @@ current repo. Addresses goal #3.</p>
         <div class="test-strategy">
           
           <div class="test-group" data-kind="other">
-            <span class="test-chip">OTHER &middot; 4</span>
-            <ul><li>Unit (`internal/hooks/missing_events_test.go`):</li><li>TestWorktreeCreate_NormalizesPath — synthetic event with absolute WorktreePath, expect relative in input_summary</li><li>TestWorktreeRemove_NormalizesContext — same, plus AdditionalContext field</li><li>TestWorktreeCreate_PathOutsideRepo — exotic case (worktree at /tmp/...), expect verbatim (unresolved fallback)</li></ul>
+            <span class="test-chip">OTHER &middot; 5</span>
+            <ul><li>Unit (`internal/hooks/missing_events_test.go`):</li><li>TestWorktreeCreate_NormalizesPath — assert input_summary contains relative path</li><li>TestWorktreeRemove_NormalizesContext — assert BOTH input_summary AND AdditionalContext string at line 368</li><li>TestWorktreeRemove_ExtractBranchStillWorks — confirm extractBranchFromWorktreePath gives correct branch after normalization</li><li>TestWorktreeCreate_PathOutsideRepo — exotic case (/tmp/...), expect `unresolved:` prefix per slice-1 policy</li></ul>
           </div>
           
           <div class="test-group" data-kind="regression">
@@ -984,6 +1069,19 @@ current repo. Addresses goal #3.</p>
     </div>
     
 
+    
+    <div class="slice-field slice-critic-revisions">
+      <div class="slice-field-label">Critic Revisions</div>
+      <div class="slice-field-value">
+        
+        <div class="critic-revision">
+          <span class="badge badge-revision critic-revision-badge">MED</span>
+          <span class="critic-revision-source">impl-critique</span>
+          <span class="critic-revision-summary">AdditionalContext embed at missing_events.go:368 was implied but not explicitly called out in the test block. Added explicit done_when criterion and a dedicated test (`TestWorktreeRemove_NormalizesContext`) for the agent-facing string.</span>
+        </div>
+        
+      </div>
+    </div>
     
 
     
@@ -1003,14 +1101,14 @@ current repo. Addresses goal #3.</p>
     <span class="slice-num">#4</span>
     <span class="slice-title-col">
       <span class="slice-name">Normalize SessionStart and SubagentStart CWD attribution</span>
-      <span class="slice-preview">Two related call sites:</span>
+      <span class="slice-preview">Three related call sites:</span>
       <span class="slice-meta-row">
         <span class="slice-summary-badges">
           <span class="badge badge-revision badge-sm">M</span>
           <span class="badge badge-revision badge-sm">Med</span>
           <span class="badge badge-pending badge-sm" title="Execution: not_started">Not Started</span>
           <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-4">Pending</span>
-          
+          <span class="badge badge-sm badge-issues" title="2 critic issue(s)">2 issues</span>
           <span class="badge badge-sm badge-questions" title="1 open question(s)">1 Q</span>
         </span>
         <span class="slice-actions" onclick="event.stopPropagation()">
@@ -1042,29 +1140,25 @@ current repo. Addresses goal #3.</p>
         <div class="slice-field-value">
           
           <input type="checkbox" id="slice-4-what-reveal" class="reveal-toggle">
-          <div class="markdown-block reveal-content serif-prose"><p>Two related call sites:</p>
+          <div class="markdown-block reveal-content serif-prose"><p>Three related call sites:</p>
 <p><code>internal/hooks/session_html.go:88-89</code> — <code>data-project-dir</code> is set
 from <code>canonicalProjectDir</code> (resolved from <code>event.CWD</code>). Currently
-stored as the canonical <em>original</em> path (see deliberate comment at
-session_html.go:53-57).</p>
-<p><code>internal/hooks/subagent_start.go:80</code> — <code>pending_subagent_starts.cwd</code>
-written as the resolved <code>projectDir</code> (absolute).</p>
-<p>Change the design rule:</p>
-<ul>
-<li>If <code>event.CWD</code> resolves (via <code>ResolveViaGitCommonDir</code>) to a repo
-root that is the same as the local <code>.wipnote/</code> repo root, store
-the canonical root path normalized as <code>&#34;.&#34;</code> or as the basename
-of the repo. Worktree CWDs collapse to the canonical root, which
-is the goal.</li>
-<li>If <code>event.CWD</code> resolves to a <em>different</em> canonical root (foreign-
-machine ingest, multi-repo session), store verbatim — this is
-the case the current comment was protecting.</li>
-</ul>
-<p>Helper: <code>paths.CanonicalProjectDir(cwd string) (canonical string, isLocal bool)</code>.
-Returns the canonical root + a flag indicating whether it matches the
-current repo. Callers use the flag to decide whether to normalize.</p>
-<p>The deliberate-verbatim comment in <code>session_html.go:53-57</code> needs to
-be rewritten to explain the new rule.</p>
+verbatim (see deliberate-verbatim comment at session_html.go:53-57).</p>
+<p><code>internal/db/session_repo.go:16-23</code> + <code>session_start.go:351</code> —
+<code>sessions.project_dir</code> SQLite column, also absolute.</p>
+<p><code>internal/hooks/subagent_start.go:80</code> — <code>pending_subagent_starts.cwd</code>,
+absolute.</p>
+<p>Change: all three call sites use <code>paths.NormalizeToRepoRelative</code> with
+the slice-1 outside-repo policy. Worktree CWDs collapse to the
+canonical root. Foreign-machine CWDs (where <code>git rev-parse</code> returns
+a different canonical root than the local <code>.wipnote/</code> repo) get the
+<code>unresolved:</code> prefix — this preserves the foreign-ingest invariant
+from the deliberate-verbatim comment while still making the foreign
+origin queryable.</p>
+<p>Rewrite the deliberate-verbatim comment in <code>session_html.go:53-57</code> to
+describe the new rule: &#34;normalize to canonical root for local
+sessions; mark with <code>unresolved:</code> for sessions ingested from foreign
+machines (different canonical root).&#34;</p>
 </div>
           <label for="slice-4-what-reveal" class="reveal-label">Show full description</label>
           
@@ -1076,17 +1170,12 @@ be rewritten to explain the new rule.</p>
         <div class="slice-field-label">Why</div>
         <div class="slice-field-value">
           
-          <input type="checkbox" id="slice-4-why-reveal" class="reveal-toggle">
-          <div class="markdown-block reveal-content serif-prose"><p>Session attribution is the entry point for the entire lineage chain.
+          <div class="markdown-block serif-prose"><p>Session attribution is the entry point for the entire lineage chain.
 If a worktree session embeds the worktree path in <code>data-project-dir</code>,
-every downstream query (<code>wipnote session show</code>, <code>wipnote trace</code>,
-<code>wipnote lineage</code>) shows a path that doesn&#39;t resolve from the main
-repo. Addresses goal #3.</p>
-<p>The slice has design subtlety because of the existing intentional-
-verbatim behavior for foreign-machine ingest — the new rule must
-preserve that property.</p>
+every downstream query shows a path that doesn&#39;t resolve from the
+main repo. The intentional-verbatim behavior for foreign ingest is
+preserved via the <code>unresolved:</code> policy. Addresses goal #3.</p>
 </div>
-          <label for="slice-4-why-reveal" class="reveal-label">Show full description</label>
           
         </div>
       </div>
@@ -1094,13 +1183,13 @@ preserve that property.</p>
       
       <div class="slice-field">
         <div class="slice-field-label">Files</div>
-        <div class="slice-field-value"><code>internal/hooks/session_html.go, internal/hooks/session_start.go, internal/hooks/subagent_start.go, internal/paths/resolve.go, internal/hooks/session_html_test.go, internal/hooks/subagent_start_test.go</code></div>
+        <div class="slice-field-value"><code>internal/hooks/session_html.go, internal/hooks/session_start.go, internal/hooks/subagent_start.go, internal/db/session_repo.go, internal/hooks/session_html_test.go, internal/hooks/subagent_start_test.go</code></div>
       </div>
       
       
       <div class="slice-field">
         <div class="slice-field-label">Done when</div>
-        <ul class="slice-done-list"><li>SessionStart event from `&lt;repo&gt;/.claude/worktrees/feat-x/` stores `data-project-dir` as the canonical repo root (not the worktree path)</li><li>SessionStart event from a foreign-machine path (e.g. `/Users/alice/other-repo`) stores `data-project-dir` verbatim — foreign-ingest behavior preserved</li><li>`pending_subagent_starts.cwd` matches the same rule</li><li>The deliberate-verbatim comment in session_html.go is updated to describe both cases</li></ul>
+        <ul class="slice-done-list"><li>SessionStart from `&lt;repo&gt;/.claude/worktrees/feat-x/` stores `data-project-dir` AND `sessions.project_dir` as the canonical repo root (relativized to `.` or basename)</li><li>SessionStart from a foreign-machine path stores both with the `unresolved:` prefix — foreign-ingest behavior preserved, queries still work</li><li>`pending_subagent_starts.cwd` matches the same rule</li><li>The deliberate-verbatim comment in session_html.go is updated to describe both cases</li></ul>
       </div>
       
     
@@ -1114,13 +1203,13 @@ preserve that property.</p>
         <div class="test-strategy">
           
           <div class="test-group" data-kind="other">
-            <span class="test-chip">OTHER &middot; 8</span>
-            <ul><li>Unit (`internal/paths/resolve_test.go`):</li><li>TestCanonicalProjectDir_Worktree — CWD in worktree, expect canonical root &#43; isLocal=true</li><li>TestCanonicalProjectDir_Foreign — CWD pointing to non-existent foreign path, expect verbatim &#43; isLocal=false</li><li>Integration (`internal/hooks/session_html_test.go`):</li><li>TestSessionStart_FromWorktree_NormalizesProjectDir</li><li>TestSessionStart_FromForeignPath_PreservesVerbatim</li><li>Integration (`internal/hooks/subagent_start_test.go`):</li><li>TestSubagentStart_NormalizesCwd</li></ul>
+            <span class="test-chip">OTHER &middot; 6</span>
+            <ul><li>Integration (`internal/hooks/session_html_test.go`):</li><li>TestSessionStart_FromWorktree_NormalizesProjectDir</li><li>TestSessionStart_FromForeignPath_UnresolvedPrefix</li><li>TestSessionStart_StoresBothSQLiteAndHTMLConsistently</li><li>Integration (`internal/hooks/subagent_start_test.go`):</li><li>TestSubagentStart_NormalizesCwd</li></ul>
           </div>
           
           <div class="test-group" data-kind="regression">
             <span class="test-chip">REGRESSION &middot; 1</span>
-            <ul><li>existing session HTML golden tests pass; foreign-ingest fixtures still match.</li></ul>
+            <ul><li>existing session HTML golden tests pass; foreign-ingest fixtures still match (foreign-origin sessions distinguishable by `unresolved:` prefix).</li></ul>
           </div>
           
         </div>
@@ -1130,6 +1219,25 @@ preserve that property.</p>
     
 
     
+    <div class="slice-field slice-critic-revisions">
+      <div class="slice-field-label">Critic Revisions</div>
+      <div class="slice-field-value">
+        
+        <div class="critic-revision">
+          <span class="badge badge-blocked critic-revision-badge">HIGH</span>
+          <span class="critic-revision-source">impl-critique</span>
+          <span class="critic-revision-summary">Slice originally introduced CanonicalProjectDir helper, but that contract has been moved to slice-1 so slice-2 can use it too. Slice-4 now just consumes paths.NormalizeToRepoRelative and depends only on slice-1.</span>
+        </div>
+        
+        <div class="critic-revision">
+          <span class="badge badge-blocked critic-revision-badge">HIGH</span>
+          <span class="critic-revision-source">impl-critique</span>
+          <span class="critic-revision-summary">Missed `sessions.project_dir` SQLite column at `internal/db/session_repo.go:16-23` (written at session_start.go:351). Added as a third call site. Files list updated. New done_when criterion for SQLite/HTML consistency.</span>
+        </div>
+        
+      </div>
+    </div>
+    
 
     
     <div class="slice-field slice-questions">
@@ -1137,13 +1245,11 @@ preserve that property.</p>
       <div class="slice-field-value">
         
         <div class="question-block slice-question-block">
-          <p>How do we detect a &#39;foreign&#39; CWD (one we shouldn&#39;t normalize)?</p>
-          <p class="question-desc">(a) `ResolveViaGitCommonDir` returns different root than the local
-    `.wipnote/` repo root → foreign
-(b) Path doesn&#39;t exist on this filesystem → foreign
-(c) Path exists but is outside the local repo&#39;s worktree tree → foreign
-Default proposed: (a). Cleanest invariant — the canonical root is
-either ours or not.
+          <p>Detect foreign CWD via canonical-root mismatch — confirm?</p>
+          <p class="question-desc">Proposed: `ResolveViaGitCommonDir(cwd)` returns different root than
+the local `.wipnote/` repo&#39;s canonical root → foreign → apply
+`unresolved:` prefix. Cleanest invariant per the implementation
+critique.
 </p>
           
           <textarea
@@ -1179,7 +1285,7 @@ either ours or not.
           <span class="badge badge-pending badge-sm">Low</span>
           <span class="badge badge-pending badge-sm" title="Execution: not_started">Not Started</span>
           <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-5">Pending</span>
-          
+          <span class="badge badge-sm badge-issues" title="1 critic issue(s)">1 issue</span>
           
         </span>
         <span class="slice-actions" onclick="event.stopPropagation()">
@@ -1214,11 +1320,11 @@ either ours or not.
           <div class="markdown-block reveal-content serif-prose"><p><code>cmd/wipnote/workitem_create.go:131</code> — <code>--files</code> is currently passed
 verbatim to <code>edit.SetProperty(&#34;affected_files&#34;, o.files)</code>.</p>
 <p>Change: split the comma-separated input, run each through
-<code>paths.NormalizeToRepoRelative</code>, rejoin. Paths that can&#39;t be
-normalized (outside-repo) get an <code>unresolved:</code> prefix so they survive
-the round-trip but are visually distinct in HTML.</p>
-<p>Update help text on the <code>--files</code> flag to note that paths are
-stored repo-relative.</p>
+<code>paths.NormalizeToRepoRelative</code>, rejoin. Outside-repo paths get the
+<code>unresolved:</code> prefix per the slice-1 contract (consistent with slice-2
+and slice-4).</p>
+<p>Update help text on the <code>--files</code> flag to note that paths are stored
+repo-relative.</p>
 </div>
           <label for="slice-5-what-reveal" class="reveal-label">Show full description</label>
           
@@ -1249,7 +1355,7 @@ main repo it doesn&#39;t resolve. Small surface, easy fix, completes the
       
       <div class="slice-field">
         <div class="slice-field-label">Done when</div>
-        <ul class="slice-done-list"><li>`wipnote feature create --files /workspaces/wipnote/internal/foo.go` (run from main repo) stores `affected_files: internal/foo.go` in the feature HTML</li><li>`wipnote feature create --files internal/foo.go,internal/bar.go` stores the input unchanged (already relative)</li><li>`wipnote feature create --files /tmp/scratch.txt` (outside repo) stores `affected_files: unresolved:/tmp/scratch.txt` and prints a stderr note</li><li>Existing workitem create tests pass</li></ul>
+        <ul class="slice-done-list"><li>`wipnote feature create --files /workspaces/wipnote/internal/foo.go` stores `affected_files: internal/foo.go`</li><li>`wipnote feature create --files internal/foo.go,internal/bar.go` is unchanged (already relative)</li><li>`wipnote feature create --files /tmp/scratch.txt` stores `affected_files: unresolved:/tmp/scratch.txt` AND prints a stderr note explaining the prefix</li><li>Existing workitem create tests pass</li></ul>
       </div>
       
     
@@ -1264,7 +1370,7 @@ main repo it doesn&#39;t resolve. Small surface, easy fix, completes the
           
           <div class="test-group" data-kind="other">
             <span class="test-chip">OTHER &middot; 4</span>
-            <ul><li>Unit (`cmd/wipnote/workitem_create_test.go`):</li><li>TestCreate_NormalizesAbsoluteFiles</li><li>TestCreate_PreservesAlreadyRelative</li><li>TestCreate_MarksOutsideRepoUnresolved</li></ul>
+            <ul><li>Unit (`cmd/wipnote/workitem_create_test.go`):</li><li>TestCreate_NormalizesAbsoluteFiles</li><li>TestCreate_PreservesAlreadyRelative</li><li>TestCreate_MarksOutsideRepoUnresolved — confirms identical policy to slice-2 (no drift)</li></ul>
           </div>
           
           <div class="test-group" data-kind="regression">
@@ -1278,6 +1384,19 @@ main repo it doesn&#39;t resolve. Small surface, easy fix, completes the
     </div>
     
 
+    
+    <div class="slice-field slice-critic-revisions">
+      <div class="slice-field-label">Critic Revisions</div>
+      <div class="slice-field-value">
+        
+        <div class="critic-revision">
+          <span class="badge badge-blocked critic-revision-badge">HIGH</span>
+          <span class="critic-revision-source">risk-critique</span>
+          <span class="critic-revision-summary">Initial design had slice-5 using `unresolved:` prefix but slice-2 storing verbatim — inconsistent semantics for the same conceptual field (feature_files / affected_files). Slice-1 now owns a single policy; both slices inherit it identically.</span>
+        </div>
+        
+      </div>
+    </div>
     
 
     
@@ -1293,18 +1412,18 @@ main repo it doesn&#39;t resolve. Small surface, easy fix, completes the
   </div>
 </details>
 <details class="slice-card" id="slice-6" data-slice="6" data-slice-name="slice-6" data-status="pending" data-approval="pending">
-  <summary class="slice-summary" aria-label="Slice 6: Idempotent migration rewriter for 178 pre-existing records">
+  <summary class="slice-summary" aria-label="Slice 6: Idempotent migration rewriter with collision detection and dirty-tree guard">
     <span class="slice-num">#6</span>
     <span class="slice-title-col">
-      <span class="slice-name">Idempotent migration rewriter for 178 pre-existing records</span>
+      <span class="slice-name">Idempotent migration rewriter with collision detection and dirty-tree guard</span>
       <span class="slice-preview">New CLI subcommand wipnote migrate normalize-paths that walks</span>
       <span class="slice-meta-row">
         <span class="slice-summary-badges">
           <span class="badge badge-blocked badge-sm">L</span>
-          <span class="badge badge-revision badge-sm">Med</span>
+          <span class="badge badge-blocked badge-sm">High</span>
           <span class="badge badge-pending badge-sm" title="Execution: not_started">Not Started</span>
           <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-6">Pending</span>
-          
+          <span class="badge badge-sm badge-issues" title="8 critic issue(s)">8 issues</span>
           <span class="badge badge-sm badge-questions" title="1 open question(s)">1 Q</span>
         </span>
         <span class="slice-actions" onclick="event.stopPropagation()">
@@ -1338,27 +1457,50 @@ main repo it doesn&#39;t resolve. Small surface, easy fix, completes the
           <input type="checkbox" id="slice-6-what-reveal" class="reveal-toggle">
           <div class="markdown-block reveal-content serif-prose"><p>New CLI subcommand <code>wipnote migrate normalize-paths</code> that walks
 <code>.wipnote/</code> and rewrites absolute paths to repo-relative in place.</p>
-<p>Targets (per researcher map):</p>
+<p>Safety preconditions (must pass before any write):
+a. Working tree clean — run <code>git -C &lt;repoRoot&gt; status --porcelain .wipnote/</code>;
+abort with a clear error if dirty. Use <code>--allow-dirty</code> to bypass
+(records audit reason).
+b. Collision check — for <code>feature_files</code> (which has
+<code>UNIQUE(feature_id, file_path)</code>), pre-scan: if two rows for the
+same feature would normalize to the same relative path, list
+them in the dry-run output. Default behavior is to MERGE (take
+earliest <code>first_seen</code>, sum sessions); <code>--no-merge-collisions</code>
+causes the migration to abort instead.</p>
+<p>Targets (7, corrected from initial 6):</p>
 <ol>
-<li><code>agent_events.tool_input</code> (SQLite TEXT column, doubly-JSON-encoded)
-— unmarshal, walk path keys, re-encode.</li>
-<li><code>feature_files.file_path</code> (SQLite TEXT)</li>
-<li><code>agent_events.input_summary</code> free-text WorktreePath embeds —
-regex-replace <code>/&lt;host-prefix&gt;/.claude/worktrees/&lt;id&gt;</code> →
-<code>.claude/worktrees/&lt;id&gt;</code>.</li>
+<li><code>agent_events.tool_input</code> — SINGLE-encoded JSON; unmarshal once,
+walk path keys, re-marshal. (Initial plan said doubly-encoded;
+that was wrong.)</li>
+<li><code>feature_files.file_path</code> (SQLite TEXT) — with collision detection.</li>
+<li><code>agent_events.input_summary</code> free-text — regex-replace WorktreePath embeds.</li>
 <li><code>pending_subagent_starts.cwd</code></li>
-<li><code>&lt;article data-project-dir&gt;</code> attribute in <code>.wipnote/sessions/*.html</code>
-— apply the slice-4 canonical-vs-foreign rule.</li>
-<li><code>affected_files</code> properties in <code>.wipnote/{features,bugs,spikes}/*.html</code>
-(parse property table, normalize each comma-separated path).</li>
+<li><code>sessions.project_dir</code> (SQLite) — newly added; missed in initial design.</li>
+<li><code>&lt;article data-project-dir&gt;</code> in <code>.wipnote/sessions/*.html</code></li>
+<li><code>affected_files</code> properties in <code>.wipnote/{features,bugs,spikes}/*.html</code></li>
 </ol>
+<p>Out-of-scope (documented explicitly):</p>
+<ul>
+<li><code>sessions.transcript_path</code> — Claude&#39;s private machine-local store.</li>
+<li><code>.wipnote/.active-session</code> — transient per-session JSON; rewritten
+on next SessionStart anyway.</li>
+</ul>
 <p>Idempotency: re-running on already-relative records is a no-op.
-Achieved by skipping any value that doesn&#39;t match <code>hostPathPattern</code>.</p>
-<p>Safety: takes a <code>--backup</code> flag (default on) that copies the touched
-HTML files to <code>.wipnote/.backup-&lt;timestamp&gt;/</code> before modifying. Dry
-run via <code>--dry-run</code> prints proposed changes without writing.</p>
-<p>Print a summary at the end: N files rewritten, M values normalized,
-K skipped as already-relative, J marked unresolved.</p>
+Achieved by skipping any value that doesn&#39;t match <code>HostPathPattern</code>.</p>
+<p>Backup + dry-run + restore:</p>
+<ul>
+<li><code>--backup</code> (default on): copies touched HTML to <code>.wipnote/.backup-&lt;timestamp&gt;/</code>.</li>
+<li><code>--dry-run</code>: prints proposed changes and pending collisions; no writes.</li>
+<li>Companion: <code>wipnote migrate restore-paths --from .wipnote/.backup-&lt;timestamp&gt;/</code>
+copies backups back into place.</li>
+</ul>
+<p>Print summary: N files rewritten, M values normalized, K skipped as
+already-relative, J marked unresolved, P collisions merged, A
+collisions aborted (if --no-merge-collisions).</p>
+<p>Rendering audit: confirm <code>wipnote feature show</code>, <code>wipnote blame</code>,
+<code>wipnote lineage</code>, and the dashboard template render relative paths
+correctly (resolve against current repo root for display, strip
+<code>unresolved:</code> prefix). Update each call site as needed.</p>
 </div>
           <label for="slice-6-what-reveal" class="reveal-label">Show full description</label>
           
@@ -1370,13 +1512,18 @@ K skipped as already-relative, J marked unresolved.</p>
         <div class="slice-field-label">Why</div>
         <div class="slice-field-value">
           
-          <div class="markdown-block serif-prose"><p>Without migration, slices 1-5 fix the future but leave the existing
+          <input type="checkbox" id="slice-6-why-reveal" class="reveal-toggle">
+          <div class="markdown-block reveal-content serif-prose"><p>Without migration, slices 1-5 fix the future but leave the existing
 178 records broken — <code>wipnote lineage</code> queries still hit absolute
-paths in older records and silently fail to resolve. Addresses goal
-#4 (migration completeness).</p>
-<p>Idempotency lets the user (or CI) run it safely; dry-run + backup
-protect against catastrophic corruption.</p>
+paths in older records. Addresses goal #4.</p>
+<p>Collision detection is critical because <code>feature_files</code> has a UNIQUE
+constraint; a naive <code>UPDATE</code> would silently merge rows and lose
+<code>first_seen</code> attribution.</p>
+<p>Dirty-tree guard prevents the migration from interleaving with
+in-progress edits. The <code>--backup</code> + <code>restore-paths</code> pair gives a
+complete rollback story.</p>
 </div>
+          <label for="slice-6-why-reveal" class="reveal-label">Show full description</label>
           
         </div>
       </div>
@@ -1384,13 +1531,13 @@ protect against catastrophic corruption.</p>
       
       <div class="slice-field">
         <div class="slice-field-label">Files</div>
-        <div class="slice-field-value"><code>cmd/wipnote/migrate_normalize.go, cmd/wipnote/migrate_normalize_test.go, internal/paths/walk_html.go, internal/paths/walk_sqlite.go</code></div>
+        <div class="slice-field-value"><code>cmd/wipnote/migrate_normalize.go, cmd/wipnote/migrate_restore.go, cmd/wipnote/migrate_normalize_test.go, internal/paths/walk_html.go, internal/paths/walk_sqlite.go, internal/paths/collision.go</code></div>
       </div>
       
       
       <div class="slice-field">
         <div class="slice-field-label">Done when</div>
-        <ul class="slice-done-list"><li>`wipnote migrate normalize-paths --dry-run` prints a diff of intended changes without writing</li><li>`wipnote migrate normalize-paths` (no flags) creates a backup directory and rewrites all 6 target surfaces</li><li>Running the command twice in a row: second invocation reports 0 changes (idempotent)</li><li>After migration, `wipnote lineage` queries on a representative legacy feature (e.g. `feat-156e0a1a`) resolve all referenced file paths</li><li>Doubly-encoded JSON in `agent_events.tool_input` is correctly unmarshaled, normalized, and re-encoded (round-trip preserves all non-path keys)</li></ul>
+        <ul class="slice-done-list slice-done-list--grid"><li>`wipnote migrate normalize-paths --dry-run` prints proposed changes AND pending collisions without writing</li><li>Migration aborts on dirty `.wipnote/` working tree with a clear error message (overridable with `--allow-dirty`)</li><li>`wipnote migrate normalize-paths` (no flags) creates a backup, detects&#43;merges collisions, rewrites all 7 target surfaces</li><li>Running twice in a row: second invocation reports 0 changes</li><li>After migration, `wipnote lineage` on a representative legacy feature (`feat-156e0a1a`) resolves all referenced file paths</li><li>`wipnote feature show` and the dashboard render relative paths correctly (display resolves them against current repo root; `unresolved:` prefix is stripped from display, never used for filesystem construction)</li><li>`wipnote migrate restore-paths --from &lt;backup-dir&gt;` restores all touched files</li><li>Single-encoded JSON in `agent_events.tool_input` is correctly unmarshaled and re-encoded (round-trip preserves all non-path keys)</li></ul>
       </div>
       
     
@@ -1404,8 +1551,8 @@ protect against catastrophic corruption.</p>
         <div class="test-strategy">
           
           <div class="test-group" data-kind="other">
-            <span class="test-chip">OTHER &middot; 8</span>
-            <ul><li>Unit (`cmd/wipnote/migrate_normalize_test.go`):</li><li>TestMigrate_DryRunNoWrites — capture diff, assert no file mtimes change</li><li>TestMigrate_HTMLAffectedFiles — fixture HTML with absolute affected_files property, assert relative after</li><li>TestMigrate_DoublyEncodedToolInput — fixture SQLite row with absolute path inside JSON-in-JSON, assert correctly normalized</li><li>TestMigrate_Idempotent — run twice on same fixture, second run reports 0 changes</li><li>TestMigrate_SessionDataProjectDir — applies slice-4 canonical-vs-foreign rule</li><li>TestMigrate_WorktreePathRegex — input_summary &#34;Worktree created: /workspaces/wipnote/.claude/worktrees/feat-x&#34; → &#34;.claude/worktrees/feat-x&#34;</li><li>Build a fixture .wipnote/ with one record of each target surface, run the migration, golden-compare resulting files.</li></ul>
+            <span class="test-chip">OTHER &middot; 14</span>
+            <ul><li>Unit (`cmd/wipnote/migrate_normalize_test.go`):</li><li>TestMigrate_DryRunNoWrites</li><li>TestMigrate_DirtyTreeAborts — fixture with uncommitted .wipnote/ change, expect abort</li><li>TestMigrate_DirtyTreeAllowDirtyOverride</li><li>TestMigrate_HTMLAffectedFiles</li><li>TestMigrate_SingleEncodedToolInput — corrected from initial double-encoded test</li><li>TestMigrate_Idempotent</li><li>TestMigrate_SessionDataProjectDir</li><li>TestMigrate_SessionsProjectDirColumn — SQLite column rewrite</li><li>TestMigrate_WorktreePathRegex</li><li>TestMigrate_CollisionDetection — feature_files has two rows that normalize to same path, expect merge</li><li>TestMigrate_CollisionAbort — same with --no-merge-collisions</li><li>TestRestore_RoundTrip — migrate, then restore, assert original state recovered</li><li>Build a fixture .wipnote/ with one record of each target surface, run migration, golden-compare. Restore from backup, golden-compare original.</li></ul>
           </div>
           
           <div class="test-group" data-kind="integration">
@@ -1415,7 +1562,7 @@ protect against catastrophic corruption.</p>
           
           <div class="test-group" data-kind="regression">
             <span class="test-chip">REGRESSION &middot; 1</span>
-            <ul><li>all existing CLI tests pass; backup directory cleanup is tested.</li></ul>
+            <ul><li>existing CLI tests pass.</li></ul>
           </div>
           
         </div>
@@ -1425,6 +1572,61 @@ protect against catastrophic corruption.</p>
     
 
     
+    <div class="slice-field slice-critic-revisions">
+      <div class="slice-field-label">Critic Revisions</div>
+      <div class="slice-field-value">
+        
+        <div class="critic-revision">
+          <span class="badge badge-blocked critic-revision-badge">DANGER</span>
+          <span class="critic-revision-source">impl-critique</span>
+          <span class="critic-revision-summary">Initial design treated `agent_events.tool_input` as doubly JSON-encoded. Verified false. Migration target #1 corrected to single-encoded; test fixture renamed `TestMigrate_SingleEncodedToolInput`.</span>
+        </div>
+        
+        <div class="critic-revision">
+          <span class="badge badge-blocked critic-revision-badge">HIGH</span>
+          <span class="critic-revision-source">impl-critique</span>
+          <span class="critic-revision-summary">Missed `sessions.project_dir` SQLite column. Added as migration target #5; new test `TestMigrate_SessionsProjectDirColumn`.</span>
+        </div>
+        
+        <div class="critic-revision">
+          <span class="badge badge-blocked critic-revision-badge">DANGER</span>
+          <span class="critic-revision-source">risk-critique</span>
+          <span class="critic-revision-summary">feature_files UNIQUE(feature_id, file_path) constraint means naive normalization can silently merge rows and lose first_seen attribution. Added explicit collision detection with default merge behavior, `--no-merge-collisions` opt-out, and dry-run surfacing of pending collisions.</span>
+        </div>
+        
+        <div class="critic-revision">
+          <span class="badge badge-blocked critic-revision-badge">DANGER</span>
+          <span class="critic-revision-source">risk-critique</span>
+          <span class="critic-revision-summary">Original plan had no dirty-tree guard. Migration rewriting committed HTML alongside in-progress edits could corrupt the working tree silently. Added `git status --porcelain .wipnote/` precondition with `--allow-dirty` override.</span>
+        </div>
+        
+        <div class="critic-revision">
+          <span class="badge badge-blocked critic-revision-badge">HIGH</span>
+          <span class="critic-revision-source">risk-critique</span>
+          <span class="critic-revision-summary">Backward-compat gap during slice-1→slice-6 deployment window. Mixed-state DB (absolute &#43; relative paths). Constraint #4 updated: query callers (blame, lineage) normalize their *inputs* at lookup time too, so the storage mix is invisible to users.</span>
+        </div>
+        
+        <div class="critic-revision">
+          <span class="badge badge-revision critic-revision-badge">MED</span>
+          <span class="critic-revision-source">risk-critique</span>
+          <span class="critic-revision-summary">Rendering layer audit was missing. Added a done_when for `wipnote feature show` / dashboard to confirm they render relative paths correctly and strip `unresolved:` for display.</span>
+        </div>
+        
+        <div class="critic-revision">
+          <span class="badge badge-revision critic-revision-badge">MED</span>
+          <span class="critic-revision-source">risk-critique</span>
+          <span class="critic-revision-summary">No rollback companion. Added `wipnote migrate restore-paths --from &lt;backup-dir&gt;` with round-trip test.</span>
+        </div>
+        
+        <div class="critic-revision">
+          <span class="badge badge-pending critic-revision-badge">LOW</span>
+          <span class="critic-revision-source">impl-critique</span>
+          <span class="critic-revision-summary">Effort sizing L may still under-size given 7 targets &#43; collision &#43; dirty-tree &#43; backup &#43; restore. Risk bumped from Med to High. If implementation overruns the 600-line file rule, split into 6a (HTML walker) and 6b (SQLite walker) at execution time.</span>
+        </div>
+        
+      </div>
+    </div>
+    
 
     
     <div class="slice-field slice-questions">
@@ -1432,12 +1634,10 @@ protect against catastrophic corruption.</p>
       <div class="slice-field-value">
         
         <div class="question-block slice-question-block">
-          <p>When should the migration run — manual CLI, auto on next hook, or pre-deploy gate?</p>
-          <p class="question-desc">(a) Manual only — user runs `wipnote migrate normalize-paths` once
-(b) Auto-prompt on first hook event after upgrade — gentle nudge
-(c) Pre-deploy gate — fail `deploy-all.sh` until migrated
-Default proposed: (a). Migration touches committed HTML; user
-should decide when to commit the resulting diff.
+          <p>Manual CLI only — confirm?</p>
+          <p class="question-desc">Proposed: manual only. User decides when to commit the resulting
+diff. Auto-on-hook would interleave with active work; pre-deploy
+gate is too aggressive for a one-time migration.
 </p>
           
           <textarea
@@ -1466,14 +1666,14 @@ should decide when to commit the resulting diff.
     <span class="slice-num">#7</span>
     <span class="slice-title-col">
       <span class="slice-name">Worktree round-trip regression gate</span>
-      <span class="slice-preview">Add an end-to-end integration test that proves the definition of</span>
+      <span class="slice-preview">Add an end-to-end integration test in</span>
       <span class="slice-meta-row">
         <span class="slice-summary-badges">
           <span class="badge badge-revision badge-sm">M</span>
           <span class="badge badge-pending badge-sm">Low</span>
           <span class="badge badge-pending badge-sm" title="Execution: not_started">Not Started</span>
           <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-7">Pending</span>
-          
+          <span class="badge badge-sm badge-issues" title="2 critic issue(s)">2 issues</span>
           
         </span>
         <span class="slice-actions" onclick="event.stopPropagation()">
@@ -1505,27 +1705,34 @@ should decide when to commit the resulting diff.
         <div class="slice-field-value">
           
           <input type="checkbox" id="slice-7-what-reveal" class="reveal-toggle">
-          <div class="markdown-block reveal-content serif-prose"><p>Add an end-to-end integration test that proves the definition of
-done:</p>
+          <div class="markdown-block reveal-content serif-prose"><p>Add an end-to-end integration test in
+<code>internal/integration/worktree_lineage_test.go</code> that proves the
+definition of done by simulating the worktree flow without the
+harness (which is not callable from <code>go test</code>):</p>
 <ol>
-<li>From <code>/workspaces/wipnote/</code> (main repo), spawn a feature via
-<code>Agent({isolation: &#34;worktree&#34;})</code> that creates a worktree at
-<code>&lt;repo&gt;/.claude/worktrees/feat-test-N/</code>.</li>
-<li>Inside the worktree, fire a Write tool event modifying
-<code>internal/example.go</code>.</li>
-<li>Complete the feature via <code>wipnote feature complete</code>.</li>
+<li>Create a temp <code>.wipnote/</code> and SQLite DB.</li>
+<li>Call <code>worktree.EnsureForFeature</code> directly to create a worktree
+at <code>&lt;tmpRepo&gt;/.claude/worktrees/feat-test-N/</code>.</li>
+<li>Fire synthetic hook events through the hook handler functions:
+<ul>
+<li><code>WorktreeCreate</code> with the worktree path</li>
+<li><code>SessionStart</code> with CWD = worktree path</li>
+<li><code>PreToolUse</code> and <code>PostToolUse</code> with <code>tool_input</code> containing
+a worktree-absolute <code>file_path</code></li>
+<li><code>WorktreeRemove</code></li>
+</ul>
+</li>
 <li>Remove the worktree (<code>git worktree remove</code>).</li>
-<li>From the main repo root, run <code>wipnote lineage feat-test-N</code>,
-<code>wipnote trace feat-test-N</code>, <code>wipnote feature show feat-test-N</code>.</li>
-<li>Assert: all printed file paths are repo-relative and resolve
-against the main repo; no <code>/workspaces/.../worktrees/...</code>
-prefixes appear anywhere in output.</li>
+<li>From the temp repo root, run <code>wipnote lineage feat-test-N</code>,
+<code>wipnote trace feat-test-N</code>, <code>wipnote feature show feat-test-N</code>
+via direct CLI invocation against the test DB.</li>
+<li>Assert: every printed file path is repo-relative; no
+<code>/workspaces/.../worktrees/...</code> substring appears in any output.</li>
 </ol>
-<p>Live in <code>internal/integration/worktree_lineage_test.go</code> and run as
-part of <code>go test ./...</code>.</p>
-<p>Tagged <code>//go:build integration</code> if the test is slow (&gt;2s); otherwise
-run by default. Use a temp SQLite DB and <code>.wipnote/</code> so the test
-doesn&#39;t pollute the real store.</p>
+<p>Tagged <code>//go:build integration</code> if needed. Use <code>t.Cleanup</code> for
+worktree removal. Add a <code>TestMain</code> that scans for stale worktrees
+from prior crashed runs at startup and cleans them up (handles the
+SIGKILL case where <code>t.Cleanup</code> doesn&#39;t run).</p>
 </div>
           <label for="slice-7-what-reveal" class="reveal-label">Show full description</label>
           
@@ -1550,13 +1757,13 @@ the def-of-done.</p>
       
       <div class="slice-field">
         <div class="slice-field-label">Files</div>
-        <div class="slice-field-value"><code>internal/integration/worktree_lineage_test.go, internal/integration/fixtures/worktree_setup.go</code></div>
+        <div class="slice-field-value"><code>internal/integration/worktree_lineage_test.go, internal/integration/fixtures/worktree_setup.go, internal/integration/main_test.go</code></div>
       </div>
       
       
       <div class="slice-field">
         <div class="slice-field-label">Done when</div>
-        <ul class="slice-done-list"><li>Test passes locally and in CI</li><li>Test fails (with a clear diff) if any of slices 2-5 are reverted — verified by mutation-testing during development</li><li>Test runtime is &lt;10s on the dev container</li><li>Test cleans up its temp worktree and `.wipnote/` even on failure</li></ul>
+        <ul class="slice-done-list"><li>Test passes locally and in CI</li><li>Test fails (with a clear diff) if any of slices 2-5&#39;s normalization is reverted in code</li><li>Test runtime &lt;10s on the dev container</li><li>Test cleans up its temp worktree and `.wipnote/` on Pass/Fail (via t.Cleanup) and on prior-crash startup (via TestMain stale-worktree scan)</li></ul>
       </div>
       
     
@@ -1585,6 +1792,25 @@ the def-of-done.</p>
     </div>
     
 
+    
+    <div class="slice-field slice-critic-revisions">
+      <div class="slice-field-label">Critic Revisions</div>
+      <div class="slice-field-value">
+        
+        <div class="critic-revision">
+          <span class="badge badge-revision critic-revision-badge">MED</span>
+          <span class="critic-revision-source">impl-critique</span>
+          <span class="critic-revision-summary">Original `what` said &#39;spawn a feature via Agent({isolation: &#34;worktree&#34;})&#39; but the Claude Code Agent tool is a harness API not callable from go test. Rewritten step-1 through step-6 to use direct helper calls (`worktree.EnsureForFeature`, synthetic hook events, direct CLI invocation against test DB). The aspirational &#39;mutation-testing&#39; done_when is replaced with a concrete revert-test criterion.</span>
+        </div>
+        
+        <div class="critic-revision">
+          <span class="badge badge-pending critic-revision-badge">LOW</span>
+          <span class="critic-revision-source">risk-critique</span>
+          <span class="critic-revision-summary">t.Cleanup doesn&#39;t run on SIGKILL/OOM. Added TestMain stale-worktree scan at startup to recover from prior crashed runs.</span>
+        </div>
+        
+      </div>
+    </div>
     
 
     
