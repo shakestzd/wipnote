@@ -216,7 +216,10 @@ func recordEventAndAllow(event *CloudEvent, ctx *toolUseContext, database *sql.D
 	var toolInputStr string
 	if event.ToolInput != nil {
 		if b, err := json.Marshal(event.ToolInput); err == nil {
-			toolInputStr = string(b)
+			// Normalize path fields to repo-relative before storage so that
+			// captured artifacts remain stable across machines and worktrees.
+			// Bash "command" fields are deliberately excluded (see normalizeToolInputPaths).
+			toolInputStr = normalizeToolInputJSON(string(b), event.ToolName)
 		}
 	}
 
