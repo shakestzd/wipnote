@@ -1,0 +1,135 @@
+name: Bootstrap Smoke Test
+
+# Validates that plugin/hooks/bin/bootstrap.sh can download the latest
+# published wipnote release binary and execute it successfully on Linux
+# and macOS. Catches artifact-naming regressions before they reach users.
+#
+# EXPECTED FAILURE NOTE (Phase 8a of goreleaser consolidation):
+#   This workflow is expected to fail on main until Phase 1 of the
+#   goreleaser consolidation lands. The current published release
+#   (v0.58.0) ships archives named `htmlgraph_<version>_<os>_<arch>.tar.gz`
+#   while bootstrap.sh expects `wipnote-<os>-<arch>.tar.gz`. The naming
+#   drift is exactly the bug class this workflow is intended to surface.
+#   Once Phase 1 aligns .goreleaser.yml and bootstrap.sh on a single
+#   naming convention and a release is published with the new names,
+#   this workflow will pass.
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  bootstrap-smoke:
+    name: bootstrap.sh on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Clean install locations
+        # Force bootstrap into the cold-cache path so the test exercises
+        # the full download + extract + exec pipeline against the
+        # currently-published release.
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.local/bin" "$HOME/.local/share/wipnote"
+          rm -f "$HOME/.local/bin/wipnote"
+          rm -f "$HOME/.local/share/wipnote/.binary-version"
+          # Ensure ~/.local/bin precedes any preinstalled wipnote on PATH
+          # (bootstrap prefers a PATH-installed binary when versions match,
+          # which would mask download regressions).
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Run bootstrap (cold cache) — wipnote version
+        id: version
+        shell: bash
+        env:
+          CLAUDE_PLUGIN_ROOT: ${{ github.workspace }}/plugin
+        run: |
+          set -uo pipefail
+          # Capture stdout, stderr, and exit code independently so we can
+          # assert on each (bootstrap MUST NOT emit stderr — Claude Code
+          # surfaces stderr as "hook error" in the UI).
+          out="$(plugin/hooks/bin/bootstrap.sh version 2>stderr.log)"
+          rc=$?
+          err="$(cat stderr.log || true)"
+
+          echo "--- bootstrap stdout ---"
+          printf '%s\n' "$out"
+          echo "--- bootstrap stderr ---"
+          printf '%s\n' "$err"
+          echo "--- exit code: $rc ---"
+
+          if [ "$rc" -ne 0 ]; then
+            echo "::error::bootstrap exited $rc (expected 0)"
+            echo ""
+            echo "Likely cause: artifact-naming drift between bootstrap.sh"
+            echo "and the published release. bootstrap.sh expects"
+            echo "  wipnote-<os>-<arch>.tar.gz"
+            echo "but the latest GitHub release may publish a different"
+            echo "name (e.g. htmlgraph_<version>_<os>_<arch>.tar.gz, or"
+            echo "wipnote_<version>_<os>_<arch>.tar.gz). Phase 1 of the"
+            echo "goreleaser consolidation must land before this passes."
+            exit 1
+          fi
+
+          if ! printf '%s\n' "$out" | grep -Eq '^wipnote[[:space:]]+[0-9]+\.[0-9]+\.[0-9]+'; then
+            echo "::error::stdout did not match '^wipnote\s+\d+\.\d+\.\d+'"
+            exit 1
+          fi
+
+      - name: Run bootstrap — help (assert silent stderr)
+        shell: bash
+        env:
+          CLAUDE_PLUGIN_ROOT: ${{ github.workspace }}/plugin
+        run: |
+          set -uo pipefail
+          # On a warm cache (the previous step downloaded the binary)
+          # bootstrap should exec the cached binary directly without
+          # emitting anything to stderr. Hook handlers run on every
+          # event, so any stderr noise becomes user-visible noise.
+          out="$(plugin/hooks/bin/bootstrap.sh help 2>stderr.log)"
+          rc=$?
+          err="$(cat stderr.log || true)"
+
+          echo "--- bootstrap stdout (first 20 lines) ---"
+          printf '%s\n' "$out" | head -n 20
+          echo "--- bootstrap stderr ---"
+          printf '%s\n' "$err"
+          echo "--- exit code: $rc ---"
+
+          if [ "$rc" -ne 0 ]; then
+            echo "::error::bootstrap help exited $rc (expected 0)"
+            exit 1
+          fi
+
+          if [ -n "$err" ]; then
+            echo "::error::bootstrap emitted stderr on warm-cache path"
+            echo "Claude Code surfaces hook stderr as a 'hook error' in"
+            echo "the UI. The warm-cache path (cached binary, matching"
+            echo "version) must be completely silent on stderr."
+            exit 1
+          fi
+
+  version-drift:
+    name: scripts/verify-versions.sh
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify version drift
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -uo pipefail
+          # --quiet suppresses success output; mismatch output is always
+          # printed. Exit 1 fails the job and surfaces the drift table.
+          ./scripts/verify-versions.sh --quiet
