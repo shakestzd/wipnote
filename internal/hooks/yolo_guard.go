@@ -721,7 +721,7 @@ func hasRecentResearch(database *sql.DB, sessionID, agentID, projectDir string) 
 	useAgentID := agentID != "" && !isGenericAgentID(agentID)
 
 	// Compose the research query.
-	researchQuery, researchArgs := buildResearchQuery(inClause, inArgs, useAgentID, agentID)
+	researchQuery, researchArgs := buildResearchQuery(inClause, inArgs, useAgentID, agentID, projectDir)
 
 	var researchCount int
 	database.QueryRow(researchQuery, researchArgs...).Scan(&researchCount)
@@ -732,7 +732,7 @@ func hasRecentResearch(database *sql.DB, sessionID, agentID, projectDir string) 
 	// Research count is 0 — determine whether that's because no tool calls were
 	// recorded at all (recording gap → fail-open) or because tool calls ran but
 	// none were research-y (genuine no-research → block).
-	toolCallQuery, toolCallArgs := buildToolCallQuery(inClause, inArgs, useAgentID, agentID)
+	toolCallQuery, toolCallArgs := buildToolCallQuery(inClause, inArgs, useAgentID, agentID, projectDir)
 	var toolCallCount int
 	database.QueryRow(toolCallQuery, toolCallArgs...).Scan(&toolCallCount)
 
@@ -769,8 +769,10 @@ func buildInClause(ids []string) (string, []any) {
 // buildResearchQuery builds the research detection SQL and its argument slice.
 // It matches Read/Grep/Glob (and equivalents) under any of the related session
 // IDs, and optionally also by agentID when useAgentID is true.
-func buildResearchQuery(inClause string, inArgs []any, useAgentID bool, agentID string) (string, []any) {
-	sessionFilter, args := sessionOrAgentFilter(inClause, inArgs, useAgentID, agentID)
+// When agentID is used, the query is scoped to events from the same project
+// and from the last 24 hours to prevent cross-project and stale event leakage.
+func buildResearchQuery(inClause string, inArgs []any, useAgentID bool, agentID, projectDir string) (string, []any) {
+	sessionFilter, args := sessionOrAgentFilter(inClause, inArgs, useAgentID, agentID, projectDir)
 	query := fmt.Sprintf(`
 		SELECT COUNT(*) FROM agent_events
 		WHERE %s
@@ -798,8 +800,10 @@ func buildResearchQuery(inClause string, inArgs []any, useAgentID bool, agentID 
 // buildToolCallQuery builds a query that counts all tool_call events (any tool)
 // matching the session/agent filter. Used to distinguish a recording gap from
 // a genuine no-research case.
-func buildToolCallQuery(inClause string, inArgs []any, useAgentID bool, agentID string) (string, []any) {
-	sessionFilter, args := sessionOrAgentFilter(inClause, inArgs, useAgentID, agentID)
+// When agentID is used, the query is scoped to events from the same project
+// and from the last 24 hours to prevent cross-project and stale event leakage.
+func buildToolCallQuery(inClause string, inArgs []any, useAgentID bool, agentID, projectDir string) (string, []any) {
+	sessionFilter, args := sessionOrAgentFilter(inClause, inArgs, useAgentID, agentID, projectDir)
 	query := fmt.Sprintf(`
 		SELECT COUNT(*) FROM agent_events
 		WHERE %s
@@ -810,15 +814,34 @@ func buildToolCallQuery(inClause string, inArgs []any, useAgentID bool, agentID 
 
 // sessionOrAgentFilter builds a SQL WHERE fragment that matches rows belonging
 // to any of the related sessions OR (optionally) to the specific agentID.
-func sessionOrAgentFilter(inClause string, inArgs []any, useAgentID bool, agentID string) (string, []any) {
+// When agentID is used, additional scoping constraints are applied:
+//  1. Time window: only match events from the last 24 hours
+//  2. Project scope: only match events whose session_id belongs to the same project
+// The session_id IN (...) branch (lineage-resolved sessions) is NOT filtered by
+// these constraints — lineage is authoritative.
+func sessionOrAgentFilter(inClause string, inArgs []any, useAgentID bool, agentID, projectDir string) (string, []any) {
 	if !useAgentID {
 		return fmt.Sprintf("session_id IN %s", inClause), inArgs
 	}
+
+	// Build time window: 24 hours ago
+	cutoffTime := time.Now().UTC().Add(-24 * time.Hour).Format(time.RFC3339)
+
+	// Build the agent_id branch with time and project scoping
 	filter := fmt.Sprintf(
-		"(session_id IN %s OR (agent_id IS NOT NULL AND agent_id != '' AND agent_id = ?))",
+		"(session_id IN %s OR (agent_id IS NOT NULL AND agent_id != '' AND agent_id = ? AND created_at > ?",
 		inClause,
 	)
-	args := append(append([]any{}, inArgs...), agentID)
+
+	// Add project scope if projectDir is not empty
+	args := append(append([]any{}, inArgs...), agentID, cutoffTime)
+	if projectDir != "" {
+		normalizedDir := paths.NormalizeProjectDir(projectDir)
+		filter += " AND session_id IN (SELECT session_id FROM sessions WHERE project_dir = ?)"
+		args = append(args, normalizedDir)
+	}
+
+	filter += "))"
 	return filter, args
 }
 
