@@ -455,11 +455,6 @@ func bashCommandTargetsExternalPath(cmd, projectRoot string) bool {
 			return true
 		}
 		if strings.HasPrefix(field, "/") {
-			// Whitelist /tmp/: allowed for ephemeral artifacts.
-			if strings.HasPrefix(field, "/tmp/") {
-				continue
-			}
-
 			// Resolve against project root: if the path is inside the project,
 			// it is internal — not an external write.
 			if projectRoot != "" {
@@ -814,11 +809,17 @@ func buildToolCallQuery(inClause string, inArgs []any, useAgentID bool, agentID,
 
 // sessionOrAgentFilter builds a SQL WHERE fragment that matches rows belonging
 // to any of the related sessions OR (optionally) to the specific agentID.
-// When agentID is used, additional scoping constraints are applied:
+// When agentID is used (i.e. useAgentID is true), additional scoping
+// constraints are applied to ALL matched rows — including those matched via
+// session_id IN (...):
 //  1. Time window: only match events from the last 24 hours
-//  2. Project scope: only match events whose session_id belongs to the same project
-// The session_id IN (...) branch (lineage-resolved sessions) is NOT filtered by
-// these constraints — lineage is authoritative.
+//  2. Project scope (agent_id branch only): only match agent_id events whose
+//     session_id belongs to the same project
+//
+// The 24h window is applied as an outer AND so that stale Reads in the
+// current session don't bypass the freshness check just because the session
+// happens to be long-running. The project scope is only enforced on the
+// agent_id fallback branch — session lineage is project-authoritative.
 func sessionOrAgentFilter(inClause string, inArgs []any, useAgentID bool, agentID, projectDir string) (string, []any) {
 	if !useAgentID {
 		return fmt.Sprintf("session_id IN %s", inClause), inArgs
@@ -827,21 +828,23 @@ func sessionOrAgentFilter(inClause string, inArgs []any, useAgentID bool, agentI
 	// Build time window: 24 hours ago
 	cutoffTime := time.Now().UTC().Add(-24 * time.Hour).Format(time.RFC3339)
 
-	// Build the agent_id branch with time and project scoping
-	filter := fmt.Sprintf(
-		"(session_id IN %s OR (agent_id IS NOT NULL AND agent_id != '' AND agent_id = ? AND created_at > ?",
-		inClause,
-	)
-
-	// Add project scope if projectDir is not empty
-	args := append(append([]any{}, inArgs...), agentID, cutoffTime)
+	// Build the agent_id branch with project scoping. The 24h time window is
+	// applied as an outer AND below so it constrains both branches.
+	agentBranch := "(agent_id IS NOT NULL AND agent_id != '' AND agent_id = ?"
+	args := append([]any{}, inArgs...)
+	args = append(args, agentID)
 	if projectDir != "" {
 		normalizedDir := paths.NormalizeProjectDir(projectDir)
-		filter += " AND session_id IN (SELECT session_id FROM sessions WHERE project_dir = ?)"
+		agentBranch += " AND session_id IN (SELECT session_id FROM sessions WHERE project_dir = ?)"
 		args = append(args, normalizedDir)
 	}
+	agentBranch += ")"
 
-	filter += "))"
+	filter := fmt.Sprintf(
+		"((session_id IN %s OR %s) AND created_at > ?)",
+		inClause, agentBranch,
+	)
+	args = append(args, cutoffTime)
 	return filter, args
 }
 

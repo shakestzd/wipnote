@@ -317,7 +317,7 @@ var approvedWriteSites = []writeSite{
 	},
 	{
 		File:           "cmd/wipnote/migrate.go",
-		Line:           57,
+		Line:           59,
 		Function:       "runMigrateSessions",
 		OpenExpr:       "dbpkg.Open",
 		Classification: migrationOnly,
@@ -330,6 +330,14 @@ var approvedWriteSites = []writeSite{
 		OpenExpr:       "dbpkg.Open",
 		Classification: migrationOnly,
 		Note:           "`wipnote migrate attribution-fix` schema upgrade command.",
+	},
+	{
+		File:           "cmd/wipnote/migrate_normalize.go",
+		Line:           88,
+		Function:       "runMigrateNormalize",
+		OpenExpr:       "dbpkg.Open",
+		Classification: migrationOnly,
+		Note:           "`wipnote migrate normalize-paths` (feat-39b81fa6): one-shot data migration that rewrites absolute host paths in .wipnote/ artefacts to repo-relative form. Run-once foreground CLI command; same shape as the other migration entries.",
 	},
 }
 
