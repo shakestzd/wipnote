@@ -1,0 +1,201 @@
+package main
+
+import (
+	"fmt"
+	"io"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"regexp"
+	"strings"
+
+	"github.com/spf13/cobra"
+)
+
+// workItemFileRe matches canonical work-item HTML filenames inside
+// .wipnote/<type>s/<id>.html, capturing the id stem. Used to derive a
+// single-item commit message variant.
+var workItemFileRe = regexp.MustCompile(`^\.wipnote/(features|bugs|spikes|tracks|plans|specs)/([A-Za-z]+-[A-Za-z0-9]+)\.html$`)
+
+// preMergeBackupRe matches paths under .wipnote/.pre-merge-backup-*/. These
+// directories are durability snapshots written by external merge tooling
+// (see bug-5a938a9e) and must be excluded from sync — re-committing them
+// would resurrect superseded artifacts into history.
+var preMergeBackupRe = regexp.MustCompile(`^\.wipnote/\.pre-merge-backup-[^/]+/`)
+
+func syncCmd() *cobra.Command {
+	var dryRun bool
+	cmd := &cobra.Command{
+		Use:   "sync",
+		Short: "Batch-commit any dirty .wipnote/ files in a single commit",
+		Long: `Stage and commit any modified or untracked files under .wipnote/ as
+one batch commit. Closes the durability gap between state-transition commits
+(create/start/complete) by flushing mid-flight add-step/edit mutations to git.
+
+The commit message is "wipnote: sync <id>" when a single work-item HTML is
+flushed, or "wipnote: sync <N> items" otherwise.
+
+Files under .wipnote/.pre-merge-backup-*/ are excluded — those are durability
+snapshots produced by external merge tooling and must not be re-committed.
+
+Use --dry-run to list planned operations without staging or committing.`,
+		RunE: func(_ *cobra.Command, _ []string) error {
+			wipnoteDir, err := findWipnoteDir()
+			if err != nil {
+				return err
+			}
+			n, err := runSync(wipnoteDir, dryRun, os.Stdout)
+			if err != nil {
+				return err
+			}
+			if n == 0 && !dryRun {
+				fmt.Println("wipnote sync: nothing to sync")
+			}
+			return nil
+		},
+	}
+	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "list planned operations without staging or committing")
+	return cmd
+}
+
+// runSync stages and commits any dirty files under wipnoteDir/ in a single
+// commit. Returns the number of files included.
+//
+// Filtering rules:
+//   - Skip when wipnoteDir matches isTestTmpPath (defense-in-depth — tests
+//     must never fire real git mutations).
+//   - Skip when wipnoteDir is not inside a git repo (non-fatal; logged).
+//   - Skip files under .wipnote/.pre-merge-backup-*/ (durability snapshots
+//     from external merge tooling — re-committing them would resurrect
+//     superseded artifacts; see bug-5a938a9e).
+//
+// Dry-run (dryRun=true) prints the would-stage list to out and returns the
+// count without any git mutation.
+//
+// Non-fatal contract (matches commitWipnoteArtifact): if `git commit` fails
+// for any reason other than "nothing to commit" (hook rejection, locked
+// index, etc.), the function logs to stderr and returns nil so callers and
+// SessionEnd auto-flush do not roll back on a git-side concern. Only
+// `git status` and filesystem errors are returned as fatal.
+func runSync(wipnoteDir string, dryRun bool, out io.Writer) (int, error) {
+	absWipnote, err := filepath.Abs(wipnoteDir)
+	if err != nil {
+		absWipnote = wipnoteDir
+	}
+	if isTestTmpPath(absWipnote) {
+		if os.Getenv("WIPNOTE_DEBUG") == "1" {
+			fmt.Fprintf(stderr, "wipnote sync skipped: path looks like a test temp dir: %s\n", absWipnote)
+		}
+		return 0, nil
+	}
+
+	repoRoot := filepath.Dir(wipnoteDir)
+	if !isGitRepo(repoRoot) {
+		fmt.Fprintf(stderr, "wipnote sync skipped: %s is not inside a git repository\n", repoRoot)
+		return 0, nil
+	}
+
+	files, err := dirtyWipnoteFiles(repoRoot)
+	if err != nil {
+		return 0, err
+	}
+	if len(files) == 0 {
+		return 0, nil
+	}
+
+	if dryRun {
+		fmt.Fprintf(out, "wipnote sync --dry-run: would commit %d file(s):\n", len(files))
+		for _, f := range files {
+			fmt.Fprintf(out, "  %s\n", f)
+		}
+		return len(files), nil
+	}
+
+	// Stage each path explicitly. `git -C <repoRoot> add -- <relPath>` bypasses
+	// any per-worktree exclude on .wipnote/ (see commitWipnoteArtifact for the
+	// design rationale).
+	addArgs := append([]string{"-C", repoRoot, "add", "--"}, files...)
+	if addOut, err := exec.Command("git", addArgs...).CombinedOutput(); err != nil {
+		return 0, fmt.Errorf("wipnote sync: git add: %s: %w", strings.TrimSpace(string(addOut)), err)
+	}
+
+	msg := syncCommitMessage(files)
+	commitArgs := append([]string{"-C", repoRoot, "commit", "-m", msg, "--"}, files...)
+	commitOut, err := exec.Command("git", commitArgs...).CombinedOutput()
+	if err != nil {
+		outStr := string(commitOut)
+		if strings.Contains(outStr, "nothing to commit") || strings.Contains(outStr, "no changes added") {
+			return 0, nil
+		}
+		fmt.Fprintf(stderr, "wipnote sync warning: git commit failed (files staged — please commit manually): %s\n",
+			strings.TrimSpace(outStr))
+		return 0, nil
+	}
+
+	fmt.Fprintf(out, "wipnote sync: committed %d file(s) — %s\n", len(files), msg)
+	return len(files), nil
+}
+
+// dirtyWipnoteFiles returns repo-relative paths of any modified or untracked
+// files under .wipnote/ inside repoRoot, with pre-merge-backup snapshots
+// filtered out. Uses `git status --porcelain` so the result reflects exactly
+// what git considers dirty (respecting .gitignore but bypassing the per-
+// worktree exclude on .wipnote/ via the explicit pathspec).
+func dirtyWipnoteFiles(repoRoot string) ([]string, error) {
+	// --untracked-files=all expands directories so we get individual file
+	// paths to stage, not the parent dir. The -- .wipnote/ pathspec scopes
+	// the walk to wipnote artifacts.
+	out, err := exec.Command(
+		"git", "-C", repoRoot, "status", "--porcelain", "--untracked-files=all", "--", ".wipnote/",
+	).CombinedOutput()
+	if err != nil {
+		return nil, fmt.Errorf("git status: %s: %w", strings.TrimSpace(string(out)), err)
+	}
+
+	var files []string
+	for _, line := range strings.Split(string(out), "\n") {
+		if len(line) < 4 {
+			continue
+		}
+		// Porcelain v1 format: "XY path" where XY is the 2-char status code.
+		path := strings.TrimSpace(line[3:])
+		// Rename entries have the shape "old -> new"; take the new path.
+		if idx := strings.Index(path, " -> "); idx >= 0 {
+			path = path[idx+len(" -> "):]
+		}
+		// Strip surrounding quotes that git uses for paths with special chars.
+		path = strings.Trim(path, `"`)
+		if !strings.HasPrefix(path, ".wipnote/") {
+			continue
+		}
+		if preMergeBackupRe.MatchString(path) {
+			continue
+		}
+		files = append(files, path)
+	}
+	return files, nil
+}
+
+// syncCommitMessage builds the commit subject. When the batch is exactly one
+// work-item HTML file with a derivable ID, use "wipnote: sync <id>" — that
+// gives `git log` a clean per-item trail for the common single-item case.
+// Otherwise use "wipnote: sync <N> items".
+func syncCommitMessage(files []string) string {
+	if len(files) == 1 {
+		if id := extractWorkItemID(files[0]); id != "" {
+			return "wipnote: sync " + id
+		}
+	}
+	return fmt.Sprintf("wipnote: sync %d items", len(files))
+}
+
+// extractWorkItemID returns the work-item ID encoded in the filename when
+// path matches the canonical .wipnote/<type>s/<id>.html shape. Returns ""
+// for paths that do not encode an ID (config files, placeholders, notes).
+func extractWorkItemID(path string) string {
+	m := workItemFileRe.FindStringSubmatch(path)
+	if m == nil {
+		return ""
+	}
+	return m[2]
+}
