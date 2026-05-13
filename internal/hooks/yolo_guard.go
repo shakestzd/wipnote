@@ -614,66 +614,221 @@ func isCodeHealthCheckedFile(path string) bool {
 	return false
 }
 
-// hasRecentResearch checks if Read/Grep/Glob was used in this session
-// or its parent session. Also checks if the session has any events at all —
-// if not, the event recording pipeline is likely broken (e.g. DB mismatch
-// in worktrees) and we fail-open rather than blocking valid work.
-func hasRecentResearch(database *sql.DB, sessionID string) bool {
-	if database == nil || sessionID == "" {
-		return true // fail-open: can't verify, don't block
-	}
-	// Check this session and its parent (worktree subagents inherit context).
-	sessionIDs := getSessionAndParent(database, sessionID)
-	for _, sid := range sessionIDs {
-		var count int
-		// Expand the research check to include:
-		//  1. Canonical Claude Code tools (Read, Grep, Glob)
-		//  2. Gemini/Codex equivalents (read_file, grep_search, glob, list_directory)
-		//  3. Web research tools (web_fetch, web_search, google_web_search)
-		//  4. Read-only Bash commands (ls, find, cat, etc.)
-		database.QueryRow(`
-			SELECT COUNT(*) FROM agent_events
-			WHERE session_id = ? AND (
-				tool_name IN (
-					'Read', 'Grep', 'Glob',
-					'read_file', 'grep_search', 'glob', 'list_directory',
-					'web_fetch', 'web_search', 'google_web_search'
-				) OR (
-					tool_name = 'Bash' AND (
-						input_summary LIKE 'ls %' OR input_summary = 'ls'
-						OR input_summary LIKE 'find %'
-						OR input_summary LIKE 'cat %'
-						OR input_summary LIKE 'grep %'
-						OR input_summary LIKE 'head %'
-						OR input_summary LIKE 'tail %'
-						OR input_summary LIKE 'stat %'
-					)
-				)
-			)
-			LIMIT 1`,
-			sid,
-		).Scan(&count)
-		if count > 0 {
+// genericAgentIDs lists harness-level agent identifiers that must not be used
+// as a cross-session bridge — they appear in many unrelated sessions.
+var genericAgentIDs = []string{"claude-code", "codex", "gemini", "human"}
+
+// isGenericAgentID returns true when id is one of the well-known harness
+// identifiers that should never be used for cross-session matching.
+func isGenericAgentID(id string) bool {
+	for _, g := range genericAgentIDs {
+		if id == g {
 			return true
 		}
 	}
-	// If the session has zero events total, event recording is broken —
-	// fail-open to avoid blocking valid work.
-	var totalEvents int
-	for _, sid := range sessionIDs {
-		var c int
-		database.QueryRow(`SELECT COUNT(*) FROM agent_events WHERE session_id = ? LIMIT 1`, sid).Scan(&c)
-		totalEvents += c
-	}
-	if totalEvents == 0 {
-		return true // no events recorded at all — recording issue, not laziness
-	}
 	return false
+}
+
+// collectRelatedSessionIDs builds a deduplicated slice of session IDs that
+// are related to sessionID via two mechanisms:
+//
+//  1. Transitive parent walk: follows sessions.parent_session_id upward until
+//     NULL or a cycle (capped at maxLineageHops hops).
+//  2. Lineage trace fallback: for any session ID in the walking set, if an
+//     agent_lineage_trace row exists with session_id = that ID, its
+//     root_session_id is added too. This catches cases where
+//     sessions.parent_session_id is NULL but SubagentStart wrote a trace row.
+const maxLineageHops = 8
+
+func collectRelatedSessionIDs(database *sql.DB, sessionID string) []string {
+	if database == nil || sessionID == "" {
+		return []string{sessionID}
+	}
+	seen := map[string]struct{}{}
+	result := []string{}
+
+	add := func(id string) bool {
+		if id == "" {
+			return false
+		}
+		if _, ok := seen[id]; ok {
+			return false
+		}
+		seen[id] = struct{}{}
+		result = append(result, id)
+		return true
+	}
+
+	// Transitive parent walk.
+	current := sessionID
+	for hop := 0; hop <= maxLineageHops; hop++ {
+		if !add(current) {
+			break // cycle detected or already visited
+		}
+		var parentID string
+		database.QueryRow(
+			`SELECT COALESCE(parent_session_id, '') FROM sessions WHERE session_id = ?`,
+			current,
+		).Scan(&parentID)
+		if parentID == "" {
+			break
+		}
+		current = parentID
+	}
+
+	// Lineage trace fallback: for each ID we already have, check if it has a
+	// trace row pointing to a root we haven't seen yet.
+	snapshot := make([]string, len(result))
+	copy(snapshot, result)
+	for _, sid := range snapshot {
+		var rootID string
+		database.QueryRow(
+			`SELECT COALESCE(root_session_id, '') FROM agent_lineage_trace WHERE session_id = ? LIMIT 1`,
+			sid,
+		).Scan(&rootID)
+		add(rootID) // no-op if empty or already present
+	}
+
+	return result
+}
+
+// hasRecentResearch checks if Read/Grep/Glob (or equivalent research tools)
+// were used in this session, any ancestor session, or by the same agent across
+// sessions. It also handles two failure modes that previously caused misfires:
+//
+//  1. Agent-ID mismatch: sub-agent Reads are stored under the orchestrator's
+//     session_id with the sub-agent's agent_id. The agentID parameter is used
+//     as an additional match key so those events are found even when the
+//     session walk misses them.
+//
+//  2. Orphaned sessions: when sessions.parent_session_id is NULL but a lineage
+//     trace exists, collectRelatedSessionIDs follows the trace to the root.
+//
+// When the event recording pipeline is broken (zero tool_call events across all
+// related IDs), the function fails open and emits a debug-log warning rather
+// than silently blocking valid work.
+func hasRecentResearch(database *sql.DB, sessionID, agentID, projectDir string) bool {
+	if database == nil || sessionID == "" {
+		return true // fail-open: can't verify, don't block
+	}
+
+	relatedSIDs := collectRelatedSessionIDs(database, sessionID)
+
+	// Build the parameterized IN clause for session IDs.
+	inClause, inArgs := buildInClause(relatedSIDs)
+
+	// Determine whether agentID is usable as a cross-session bridge.
+	useAgentID := agentID != "" && !isGenericAgentID(agentID)
+
+	// Compose the research query.
+	researchQuery, researchArgs := buildResearchQuery(inClause, inArgs, useAgentID, agentID)
+
+	var researchCount int
+	database.QueryRow(researchQuery, researchArgs...).Scan(&researchCount)
+	if researchCount > 0 {
+		return true
+	}
+
+	// Research count is 0 — determine whether that's because no tool calls were
+	// recorded at all (recording gap → fail-open) or because tool calls ran but
+	// none were research-y (genuine no-research → block).
+	toolCallQuery, toolCallArgs := buildToolCallQuery(inClause, inArgs, useAgentID, agentID)
+	var toolCallCount int
+	database.QueryRow(toolCallQuery, toolCallArgs...).Scan(&toolCallCount)
+
+	if toolCallCount == 0 {
+		// No tool_call events at all — likely a recording-pipeline gap (e.g. FK
+		// failures, DB mismatch in worktrees, fresh session where only a SessionStart
+		// event has been recorded).
+		debugLog(projectDir,
+			"[wipnote] research-gate fail-open: no tool_call events recorded for session=%s agent=%s — recording pipeline may be broken",
+			sessionID, agentID)
+		return true
+	}
+
+	// Tool calls were recorded but none qualify as research → block.
+	return false
+}
+
+// buildInClause returns a SQL fragment like "(?, ?, ?)" and the matching args
+// slice. If ids is empty the clause is "(NULL)" so the query is syntactically
+// valid but matches nothing.
+func buildInClause(ids []string) (string, []any) {
+	if len(ids) == 0 {
+		return "(NULL)", nil
+	}
+	placeholders := make([]string, len(ids))
+	args := make([]any, len(ids))
+	for i, id := range ids {
+		placeholders[i] = "?"
+		args[i] = id
+	}
+	return "(" + strings.Join(placeholders, ", ") + ")", args
+}
+
+// buildResearchQuery builds the research detection SQL and its argument slice.
+// It matches Read/Grep/Glob (and equivalents) under any of the related session
+// IDs, and optionally also by agentID when useAgentID is true.
+func buildResearchQuery(inClause string, inArgs []any, useAgentID bool, agentID string) (string, []any) {
+	sessionFilter, args := sessionOrAgentFilter(inClause, inArgs, useAgentID, agentID)
+	query := fmt.Sprintf(`
+		SELECT COUNT(*) FROM agent_events
+		WHERE %s
+		  AND (
+			tool_name IN (
+				'Read', 'Grep', 'Glob',
+				'read_file', 'grep_search', 'glob', 'list_directory',
+				'web_fetch', 'web_search', 'google_web_search'
+			) OR (
+				tool_name = 'Bash' AND (
+					input_summary LIKE 'ls %%' OR input_summary = 'ls'
+					OR input_summary LIKE 'find %%'
+					OR input_summary LIKE 'cat %%'
+					OR input_summary LIKE 'grep %%'
+					OR input_summary LIKE 'head %%'
+					OR input_summary LIKE 'tail %%'
+					OR input_summary LIKE 'stat %%'
+				)
+			)
+		  )
+		LIMIT 1`, sessionFilter)
+	return query, args
+}
+
+// buildToolCallQuery builds a query that counts all tool_call events (any tool)
+// matching the session/agent filter. Used to distinguish a recording gap from
+// a genuine no-research case.
+func buildToolCallQuery(inClause string, inArgs []any, useAgentID bool, agentID string) (string, []any) {
+	sessionFilter, args := sessionOrAgentFilter(inClause, inArgs, useAgentID, agentID)
+	query := fmt.Sprintf(`
+		SELECT COUNT(*) FROM agent_events
+		WHERE %s
+		  AND event_type = 'tool_call'
+		LIMIT 1`, sessionFilter)
+	return query, args
+}
+
+// sessionOrAgentFilter builds a SQL WHERE fragment that matches rows belonging
+// to any of the related sessions OR (optionally) to the specific agentID.
+func sessionOrAgentFilter(inClause string, inArgs []any, useAgentID bool, agentID string) (string, []any) {
+	if !useAgentID {
+		return fmt.Sprintf("session_id IN %s", inClause), inArgs
+	}
+	filter := fmt.Sprintf(
+		"(session_id IN %s OR (agent_id IS NOT NULL AND agent_id != '' AND agent_id = ?))",
+		inClause,
+	)
+	args := append(append([]any{}, inArgs...), agentID)
+	return filter, args
 }
 
 // getSessionAndParent returns the current session ID plus its parent session
 // ID (if any). Worktree subagents inherit context from the outer orchestrator
 // session that spawned them.
+//
+// Callers that need full transitive lineage should use collectRelatedSessionIDs
+// instead. This function is preserved for existing callers (e.g.
+// getClaimFromParentChain) that only need one level of parent resolution.
 func getSessionAndParent(database *sql.DB, sessionID string) []string {
 	sessionIDs := []string{sessionID}
 	var parentID string

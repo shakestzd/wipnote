@@ -149,7 +149,7 @@ func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 			}, nil
 		}
 		// Research-first: require at least one Read/Grep/Glob before writing.
-		hasResearch := hasRecentResearch(database, ctx.SessionID)
+		hasResearch := hasRecentResearch(database, ctx.SessionID, ctx.AgentID, ctx.ProjectDir)
 		if warn := checkYoloResearchGuard(event.ToolName, ctx.IsYoloMode, hasResearch); warn != "" {
 			return &HookResult{Decision: "block", Reason: warn}, nil
 		}
