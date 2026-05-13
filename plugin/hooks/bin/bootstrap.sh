@@ -102,7 +102,7 @@ detect_platform() {
 # ---------------------------------------------------------------------------
 download_binary() {
     _version="$1"
-    _archive="wipnote-${PLATFORM_OS}-${PLATFORM_ARCH}.tar.gz"
+    _archive="wipnote_${_version}_${PLATFORM_OS}_${PLATFORM_ARCH}.tar.gz"
     _url="https://github.com/shakestzd/wipnote/releases/download/v${_version}/${_archive}"
 
     log_err "Downloading binary v${_version} for ${PLATFORM_OS}/${PLATFORM_ARCH}..."
@@ -131,18 +131,14 @@ download_binary() {
         bail
     fi
 
-    # Extract — archive contains binary named "wipnote-${os}-${arch}"
+    # Extract — goreleaser archive contains binary named "wipnote" at root.
     if ! tar xzf "${_tarball}" -C "${_tmpdir}" 2>/dev/null; then
         rm -rf "${_tmpdir}"
         log_err "Failed to extract archive."
         bail
     fi
 
-    # Move extracted binary into place (archive names it wipnote-${os}-${arch})
-    _extracted="${_tmpdir}/wipnote-${PLATFORM_OS}-${PLATFORM_ARCH}"
-    if [ -f "${_extracted}" ]; then
-        mv "${_extracted}" "${BINARY}"
-    elif [ -f "${_tmpdir}/wipnote" ]; then
+    if [ -f "${_tmpdir}/wipnote" ]; then
         mv "${_tmpdir}/wipnote" "${BINARY}"
     else
         rm -rf "${_tmpdir}"

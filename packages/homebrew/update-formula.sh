@@ -18,7 +18,7 @@ if [ $# -ne 1 ]; then
 fi
 
 VERSION="$1"
-CHECKSUMS_URL="https://github.com/shakestzd/wipnote/releases/download/go/v${VERSION}/wipnote_${VERSION}_checksums.txt"
+CHECKSUMS_URL="https://github.com/shakestzd/wipnote/releases/download/v${VERSION}/wipnote_${VERSION}_checksums.txt"
 
 echo "Fetching checksums for v${VERSION}..."
 CHECKSUMS=$(curl -fsSL "$CHECKSUMS_URL") || {
