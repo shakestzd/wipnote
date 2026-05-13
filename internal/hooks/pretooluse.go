@@ -669,6 +669,13 @@ func checkProjectDivergence(event *CloudEvent, database *sql.DB, sessionID strin
 		// No stored project_dir — nothing to compare against.
 		return nil
 	}
+	// A relative or shell-meta sentinel ("." / "./") in the session row is
+	// uninformative — there is no reliable way to resolve it without knowing
+	// the cwd it was captured from. Treat it as missing rather than risk a
+	// false-positive block (bug-a1993e6b).
+	if sess.ProjectDir == "." || sess.ProjectDir == "./" {
+		return nil
+	}
 
 	eventProjectDir := ResolveProjectDir(event.CWD, event.SessionID)
 	sessionProjectDir := sess.ProjectDir
@@ -719,27 +726,31 @@ func checkProjectDivergence(event *CloudEvent, database *sql.DB, sessionID strin
 // don't trigger a false-positive "different project" block.
 //
 // Behaviour:
+//   - Relative paths are first resolved to absolute via filepath.Abs so that
+//     "." doesn't depend on the hook process's CWD at invocation time.
 //   - For a linked worktree, paths.ResolveViaGitCommonDir returns the main
 //     repo root (parent of the shared .git dir).
 //   - For the main checkout (or any non-worktree path that already has its
 //     own .git), ResolveViaGitCommonDir returns "" — in that case we treat
-//     dir itself as the canonical root after cleaning + symlink resolution.
+//     the absolute path itself as the canonical root after symlink resolution.
 //
-// Two paths in the same logical project will produce the same canonical
-// root via this helper; two paths in unrelated projects will produce
-// different roots.
+// Two paths in the same logical project produce the same canonical root via
+// this helper; paths in unrelated projects produce different roots.
 func canonicalRepoRoot(dir string) string {
-	if main := paths.ResolveViaGitCommonDir(dir); main != "" {
-		if eval, err := filepath.EvalSymlinks(main); err == nil {
+	abs, err := filepath.Abs(dir)
+	if err != nil {
+		abs = filepath.Clean(dir)
+	}
+	if eval, evalErr := filepath.EvalSymlinks(abs); evalErr == nil {
+		abs = eval
+	}
+	if main := paths.ResolveViaGitCommonDir(abs); main != "" {
+		if eval, evalErr := filepath.EvalSymlinks(main); evalErr == nil {
 			return eval
 		}
 		return main
 	}
-	clean := filepath.Clean(dir)
-	if eval, err := filepath.EvalSymlinks(clean); err == nil {
-		return eval
-	}
-	return clean
+	return abs
 }
 
 // checkSubagentWorkItemGuard blocks Write/Edit/MultiEdit from subagents when

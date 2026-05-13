@@ -4,23 +4,25 @@ import (
 	"database/sql"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"time"
 )
 
 // selfBinary returns the path to the wipnote binary for self-invocation.
+//
 // Resolution order:
-//  1. CLAUDE_PLUGIN_ROOT env var (always correct in hook context)
-//  2. os.Executable() (correct when called from the binary itself)
-//  3. "wipnote" on PATH (fallback)
+//  1. os.Executable() — the binary currently running (which is whatever
+//     resolved on PATH when Claude Code invoked the hook command). This is
+//     the canonical answer: if `wipnote hook X` is running, self-invoking
+//     `wipnote Y` should use the same binary.
+//  2. "wipnote" on PATH (fallback when os.Executable() fails, rare).
+//
+// Note: previous versions checked `$CLAUDE_PLUGIN_ROOT/hooks/bin/wipnote`
+// first. That fallback was removed because (a) hooks.json invokes the PATH
+// `wipnote` directly, so the hook process already IS the PATH binary;
+// (b) a stale binary lingering under plugin/hooks/bin/ could silently
+// shadow the current install. Trust PATH — single source of truth.
 func selfBinary() string {
-	if root := os.Getenv("CLAUDE_PLUGIN_ROOT"); root != "" {
-		candidate := filepath.Join(root, "hooks", "bin", "wipnote")
-		if _, err := os.Stat(candidate); err == nil {
-			return candidate
-		}
-	}
 	if exe, err := os.Executable(); err == nil {
 		return exe
 	}
