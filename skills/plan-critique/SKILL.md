@@ -23,14 +23,15 @@ Invoke this skill **after** the plan is drafted via `wipnote:plan` (slices laid 
 
 ## Invocation
 
-```bash
-wipnote plan critique <plan-id>
-```
+There is no `wipnote plan critique <plan-id>` subcommand. The agent invokes this skill directly, runs both critic prompts against the plan YAML, and writes findings back into the slice cards.
 
-The CLI dispatches two agent runs against `.wipnote/plans/<plan-id>.yaml`:
+The agent:
 
-- **DESIGN CRITIC** — Haiku model. Reads the plan as a design document. Looks for missing slices, scope gaps, unclear acceptance criteria, conflicting goals, undefined lifecycle states, and reviewer ergonomics issues (will a human actually understand and approve this?).
-- **FEASIBILITY CRITIC** — Sonnet model. Reads the plan as an implementation contract. Verifies cited files exist, line ranges match, existing patterns are reused not reinvented, gates and regex/SQL constraints accommodate the proposed sections, and that each done_when entry is testable from the listed files alone.
+1. Loads `.wipnote/plans/<plan-id>.yaml` and reads each slice card.
+2. Runs two critic passes itself (no separate CLI dispatch):
+   - **DESIGN CRITIC** — Haiku model. Reads the plan as a design document. Looks for missing slices, scope gaps, unclear acceptance criteria, conflicting goals, undefined lifecycle states, and reviewer ergonomics issues (will a human actually understand and approve this?).
+   - **FEASIBILITY CRITIC** — Sonnet model. Reads the plan as an implementation contract. Verifies cited files exist, line ranges match, existing patterns are reused not reinvented, gates and regex/SQL constraints accommodate the proposed sections, and that each done_when entry is testable from the listed files alone.
+3. Applies findings by editing the YAML directly and re-running `wipnote plan validate <plan-id>`, or by using `wipnote plan edit <plan-id>` to write `critic_revisions` back into the affected slice cards.
 
 Both critics produce structured output: a list of findings tagged with a per-slice scope (the slice `num` they target), a severity (`success | warn | danger | info`), and a one-line summary.
 
@@ -60,7 +61,7 @@ The dashboard renders each `critic_revision` as a compact badge inside the slice
 
 ## Workflow
 
-1. `wipnote plan critique <plan-id>` — runs both critics, writes draft revisions
+1. Agent runs both critic passes against the plan YAML (see Invocation above) — there is no `wipnote plan critique` CLI command.
 2. Agent reviews each finding:
    - `success` — informational, no action
    - `warn` — consider addressing before human review
@@ -118,7 +119,7 @@ Critique state stored in `plan_feedback` uses these section keys (mirrored in `p
 | `slice-<num>` | Per-slice critic findings (action=`add_critic_revision`) |
 | `critique` | Top-level critique section approval / acknowledgment |
 
-The CLI maps `<slice-num>` to the section key automatically.
+The agent maps `<slice-num>` to the section key when writing findings back to the YAML.
 
 ---
 

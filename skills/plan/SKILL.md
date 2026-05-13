@@ -18,7 +18,7 @@ Before any slice content, classify the work. The classification drives both the 
 | Complexity | Interview stages | Mandatory deltas vs default |
 |---|---|---|
 | `trivial` | 0 stages | `what`/`done_when`/`tests`/`decisions_notes` all optional |
-| `standard` | 2 stages (Requirements, Done-when) | `decisions_notes` >=50 chars |
+| `standard` | 3 stages (Requirements, Scope & state, Done-when) | `what`, `decisions_notes` >=50 chars |
 | `complex`  | 4 stages (all) | `decisions_notes` >=50 chars; >=2 `done_when` entries; >=1 slice-local question with an answer |
 
 Set `complexity: trivial|standard|complex` on each slice card. The field is read by `internal/planyaml/validate.go` via `effectiveComplexity`; an unset value defaults to `standard` for back-compat.
@@ -36,7 +36,7 @@ Before emitting any slice, run this `AskUserQuestion` (paste-ready):
       "multiSelect": false,
       "options": [
         {"label": "Trivial — one-shot patch, no design risk", "description": "Skip interview. Produce a minimal slice card."},
-        {"label": "Standard — needs design clarity but scope is bounded", "description": "Run 2 interview stages (Requirements, Done-when)."},
+        {"label": "Standard — needs design clarity but scope is bounded", "description": "Run 3 interview stages (Requirements, Scope & state, Done-when)."},
         {"label": "Complex — non-trivial system design, multiple unknowns", "description": "Run all 4 interview stages (Requirements, Scope, Contract, Done-when)."},
         {"label": "Skip interview — I'll paste the spec", "description": "User supplies the full spec directly; agent drafts the YAML from it."}
       ]
@@ -47,7 +47,7 @@ Before emitting any slice, run this `AskUserQuestion` (paste-ready):
 
 ---
 
-## The Interview (standard = stages 1+4; complex = all 4)
+## The Interview (standard = stages 1, 2, 4; complex = all 4)
 
 | Stage | Goal | Slice fields it populates | Typical AUQ shape |
 |---|---|---|---|
