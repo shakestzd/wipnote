@@ -53,6 +53,11 @@ type PlanDesign struct {
 //
 // Agents should write multiline what/why/tests fields using YAML literal
 // blocks (|) for Markdown-capable content — see the planning skill for examples.
+//
+// The Complexity field (added in the triage-gated interview redesign) drives
+// validator branching for the per-slice required-field checks. Empty string is
+// treated as "standard" for back-compat with v2 plans written before the field
+// existed — see internal/planyaml/validate.go for the branching table.
 type PlanSlice struct {
 	ID        string   `yaml:"id"`
 	FeatureID string   `yaml:"feature_id,omitempty"` // populated after plan finalize
@@ -66,8 +71,18 @@ type PlanSlice struct {
 	Effort    string   `yaml:"effort"` // S | M | L
 	Risk      string   `yaml:"risk"`   // Low | Med | High
 	Tests     string   `yaml:"tests"`
-	Approved  bool     `yaml:"approved"`
-	Comment   string   `yaml:"comment"`
+
+	// Complexity is the triage-driven classification for a slice. Drives validator
+	// branching: trivial relaxes what/done_when/tests requirements; standard and
+	// complex require decisions_notes (>=50 chars) and (for complex) >=1
+	// slice-local question with an answer.
+	//
+	// Empty string is treated as "standard" for back-compat with v2 plans written
+	// before this field existed.
+	Complexity string `yaml:"complexity,omitempty"`
+
+	Approved bool   `yaml:"approved"`
+	Comment  string `yaml:"comment"`
 
 	// V2 lifecycle fields (additive — legacy plans omit these and remain valid).
 	ApprovalStatus  string `yaml:"approval_status,omitempty"`  // pending | approved | rejected | changes_requested
