@@ -669,13 +669,6 @@ func checkProjectDivergence(event *CloudEvent, database *sql.DB, sessionID strin
 		// No stored project_dir — nothing to compare against.
 		return nil
 	}
-	// A relative or shell-meta sentinel ("." / "./") in the session row is
-	// uninformative — there is no reliable way to resolve it without knowing
-	// the cwd it was captured from. Treat it as missing rather than risk a
-	// false-positive block (bug-a1993e6b).
-	if sess.ProjectDir == "." || sess.ProjectDir == "./" {
-		return nil
-	}
 
 	eventProjectDir := ResolveProjectDir(event.CWD, event.SessionID)
 	sessionProjectDir := sess.ProjectDir

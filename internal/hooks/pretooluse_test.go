@@ -135,6 +135,77 @@ func TestCheckProjectDivergence_WorktreeOfSameRepo_Allows(t *testing.T) {
 	}
 }
 
+// TestCheckProjectDivergence_RelativeSessionDir_BlocksDifferentProject is the
+// regression test for roborev #1693 (bug-b33e95e3). A prior fix attempt
+// short-circuited the divergence check whenever sess.ProjectDir was the
+// literal "." — that disabled cross-project protection for any session
+// whose stored project_dir happened to be relative. This test pins the
+// correct behaviour: a "." session_dir must still block writes to a
+// genuinely different project.
+//
+// The mechanism that makes this work is canonicalRepoRoot's filepath.Abs()
+// call, which resolves "." to the hook process's cwd. If hook cwd is the
+// session's project, the comparison passes; if hook cwd is outside the
+// project (the bad case roborev flagged), the comparison fails and the
+// write is blocked as expected.
+func TestCheckProjectDivergence_RelativeSessionDir_BlocksDifferentProject(t *testing.T) {
+	// Build two genuinely different projects so the divergence check has
+	// something real to compare against.
+	parent, err := os.MkdirTemp("/tmp", "wipnote-rel-session-test-*")
+	if err != nil {
+		t.Fatalf("MkdirTemp: %v", err)
+	}
+	t.Cleanup(func() { os.RemoveAll(parent) })
+
+	otherProject := filepath.Join(parent, "other")
+	if err := os.MkdirAll(filepath.Join(otherProject, ".wipnote"), 0o755); err != nil {
+		t.Fatalf("mkdir other .wipnote: %v", err)
+	}
+
+	// Force the hook process's cwd to a directory OUTSIDE otherProject —
+	// canonicalRepoRoot("." ) must then resolve to something other than
+	// otherProject, so the comparison must declare them different.
+	notTheOther := filepath.Join(parent, "anchor")
+	if err := os.MkdirAll(notTheOther, 0o755); err != nil {
+		t.Fatalf("mkdir anchor: %v", err)
+	}
+	origCwd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd: %v", err)
+	}
+	if err := os.Chdir(notTheOther); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(origCwd) })
+
+	// Isolate env so ResolveProjectDir doesn't pick up the developer's machine.
+	t.Setenv("CLAUDE_PROJECT_DIR", "")
+	t.Setenv("WIPNOTE_PROJECT_DIR", "")
+	t.Setenv("WIPNOTE_SESSION_ID", "")
+
+	sessionID := "sess-rel-session-dir"
+	database := makeSessionDB(t, sessionID, ".") // <-- the smoking gun
+
+	event := &CloudEvent{
+		ToolName: "Write",
+		CWD:      otherProject,
+		ToolInput: map[string]any{
+			"path":    filepath.Join(otherProject, "foo.go"),
+			"content": "package main",
+		},
+	}
+	result := checkProjectDivergence(event, database, sessionID)
+	if result == nil {
+		t.Fatalf("expected block when sess.ProjectDir='.' resolves to a different project than event.CWD, got nil")
+	}
+	if result.Decision != "block" {
+		t.Errorf("expected decision=block, got %q", result.Decision)
+	}
+	if !strings.Contains(result.Reason, "different project") {
+		t.Errorf("expected 'different project' in reason, got: %q", result.Reason)
+	}
+}
+
 // runGitCmds runs a sequence of git commands in dir; returns on first error.
 func runGitCmds(t *testing.T, dir string, cmds ...[]string) error {
 	t.Helper()
