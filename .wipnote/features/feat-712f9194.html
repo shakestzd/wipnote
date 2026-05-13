@@ -10,26 +10,20 @@
 <body>
     <article id="feat-712f9194"
              data-type="feature"
-             data-status="in-progress"
+             data-status="done"
              data-priority="high"
              data-created="2026-05-13T04:03:57.065005"
-             data-updated="2026-05-13T04:45:11.936029" data-agent-assigned="claude-code" data-track-id="trk-08dcbb33" data-created-by-agent="human" data-created-by-model="claude-opus-4-7[1m]" data-created-by-cli-version="0.58.0-1820-g8bd77dc43">
+             data-updated="2026-05-13T04:48:23.491551" data-agent-assigned="claude-code" data-track-id="trk-08dcbb33" data-created-by-agent="human" data-created-by-model="claude-opus-4-7[1m]" data-created-by-cli-version="0.58.0-1820-g8bd77dc43">
 
         <header>
             <h1>Auto-commit .wipnote/ artifact on every state transition (create/start/complete/reopen)</h1>
             <div class="metadata">
-                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge status-done">Done</span>
                 <span class="badge priority-high">High Priority</span>
             </div>
         </header>
 
         <nav data-graph-edges>
-            <section data-edge-type="part_of">
-                <h3>Part Of:</h3>
-                <ul>
-                    <li><a href="trk-08dcbb33.html" data-relationship="part_of" data-since="2026-05-13T04:03:57.070305">trk-08dcbb33</a></li>
-                </ul>
-            </section>
             <section data-edge-type="relates_to">
                 <h3>Relates To:</h3>
                 <ul>
@@ -40,6 +34,12 @@
                 <h3>Implemented In:</h3>
                 <ul>
                     <li><a href="e5179b35-6359-4fe4-b95a-3b0e86dd85cc.html" data-relationship="implemented_in" data-since="2026-05-13T04:06:53.450425">session e5179b35-6359-4fe4-b95a-3b0e86dd85cc</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-08dcbb33.html" data-relationship="part_of" data-since="2026-05-13T04:03:57.070305">trk-08dcbb33</a></li>
                 </ul>
             </section>
         </nav>
@@ -61,6 +61,10 @@
                 <li data-completed="true" data-step-id="task-13" data-agent="claude-code" data-created-by-agent="claude-code">✅ Add tests for create / start / reopen transitions</li>
                 <li data-completed="true" data-step-id="task-14" data-agent="claude-code" data-created-by-agent="claude-code">✅ Build, run quality gates, verify no pollution</li>
                 <li data-completed="true" data-step-id="task-15" data-agent="claude-code" data-created-by-agent="claude-code">✅ Commit via copilot</li>
+                <li data-completed="true" data-step-id="task-16" data-agent="claude-code" data-created-by-agent="claude-code">✅ Wire commitWipnoteArtifact into feature_reopen.go</li>
+                <li data-completed="true" data-step-id="task-17" data-agent="claude-code" data-created-by-agent="claude-code">✅ Wire commitWipnoteArtifact into feature_reset.go executeReset</li>
+                <li data-completed="true" data-step-id="task-18" data-agent="claude-code" data-created-by-agent="claude-code">✅ Add os import to feature_reopen.go (needed for os.Stderr)</li>
+                <li data-completed="true" data-step-id="task-19" data-agent="claude-code" data-created-by-agent="claude-code">✅ Build &#43; vet &#43; focused tests &#43; commit &#43; close roborev 1678</li>
             </ol>
         </section>
 
