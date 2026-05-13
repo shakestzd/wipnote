@@ -455,11 +455,6 @@ func bashCommandTargetsExternalPath(cmd, projectRoot string) bool {
 			return true
 		}
 		if strings.HasPrefix(field, "/") {
-			// Whitelist /tmp/: allowed for ephemeral artifacts.
-			if strings.HasPrefix(field, "/tmp/") {
-				continue
-			}
-
 			// Resolve against project root: if the path is inside the project,
 			// it is internal — not an external write.
 			if projectRoot != "" {
