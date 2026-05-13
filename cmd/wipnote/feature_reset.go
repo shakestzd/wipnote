@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 
 	dbpkg "github.com/shakestzd/wipnote/internal/db"
 	"github.com/shakestzd/wipnote/internal/models"
@@ -69,6 +70,14 @@ func executeReset(typeName, id string) (string, error) {
 
 	if p.DB != nil {
 		_ = dbpkg.UpdateFeatureStatus(p.DB, id, string(models.StatusTodo))
+	}
+
+	// Auto-commit the reset HTML so the state transition is durable
+	// (feat-712f9194 / roborev #1678). Non-fatal — failures log to stderr.
+	if shouldAutocommitWorkitemArtifact(typeName) {
+		if commitErr := commitWipnoteArtifact(wipnoteDir, typeName, id, "reset"); commitErr != nil {
+			fmt.Fprintf(os.Stderr, "autocommit warning: %v\n", commitErr)
+		}
 	}
 
 	return node.Title, nil
