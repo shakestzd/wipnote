@@ -157,6 +157,7 @@ type SliceCard struct {
 	Tests       string   // Test strategy text (Markdown source)
 	Effort      string   // "S", "M", "L"
 	Risk        string   // "Low", "Med", "High"
+	Complexity  string   // "trivial" | "standard" | "complex" (empty = legacy plan, render no badge)
 	Deps        string   // comma-separated slice numbers
 	Files       string   // comma-separated file paths
 	Status      string
@@ -168,6 +169,7 @@ type SliceCard struct {
 	// V2 slice-local spec fields.
 	Questions       []planyaml.SliceQuestion  // slice-local open questions
 	CriticRevisions []planyaml.CriticRevision // critic feedback specific to this slice
+	DecisionsNotes  string                    // free-text Markdown captured by elicit-decisions
 }
 
 // IssueCount returns the number of critic revisions (issues) for this slice.
@@ -249,6 +251,44 @@ func (sc *SliceCard) RiskClass() string {
 	default:
 		return "badge-pending"
 	}
+}
+
+// ComplexityClass returns the CSS badge class for the complexity tier. Empty
+// complexity returns empty (the template branch suppresses the badge).
+func (sc *SliceCard) ComplexityClass() string {
+	switch sc.Complexity {
+	case "trivial":
+		return "badge-pending"
+	case "standard":
+		return "badge-discuss"
+	case "complex":
+		return "badge-revision"
+	default:
+		return ""
+	}
+}
+
+// ComplexityLabel returns the title-cased display label for the complexity tier.
+func (sc *SliceCard) ComplexityLabel() string {
+	switch sc.Complexity {
+	case "trivial":
+		return "Trivial"
+	case "standard":
+		return "Standard"
+	case "complex":
+		return "Complex"
+	default:
+		return ""
+	}
+}
+
+// DecisionsNotesHTML returns the DecisionsNotes field rendered as sanitized HTML.
+func (sc *SliceCard) DecisionsNotesHTML() template.HTML { return RenderMd(sc.DecisionsNotes) }
+
+// DecisionsNotesNeedsReveal returns true when DecisionsNotes content is long
+// enough to warrant a "Show full description" toggle.
+func (sc *SliceCard) DecisionsNotesNeedsReveal() bool {
+	return len(sc.DecisionsNotes) > revealThreshold
 }
 
 // DepsLabel returns a human-readable dependency string.
@@ -362,6 +402,7 @@ func SliceCardFromPlanSlice(s planyaml.PlanSlice) SliceCard {
 		Tests:           s.Tests,
 		Effort:          s.Effort,
 		Risk:            s.Risk,
+		Complexity:      s.Complexity,
 		Deps:            depsStr,
 		Files:           filesStr,
 		Status:          "pending",
@@ -369,5 +410,6 @@ func SliceCardFromPlanSlice(s planyaml.PlanSlice) SliceCard {
 		ExecutionStatus: s.ExecutionStatus,
 		Questions:       s.Questions,
 		CriticRevisions: s.CriticRevisions,
+		DecisionsNotes:  s.DecisionsNotes,
 	}
 }

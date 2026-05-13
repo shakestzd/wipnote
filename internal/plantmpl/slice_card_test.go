@@ -1046,3 +1046,119 @@ func TestSliceCard_FreeformQuestionFallbackTextarea(t *testing.T) {
 		t.Errorf("expected slice-scoped data-section in textarea output:\n%s", html)
 	}
 }
+
+// ---------------------------------------------------------------------------
+// SliceCard.Render — complexity badge
+// ---------------------------------------------------------------------------
+
+func TestSliceCardRenderComplexityTrivial(t *testing.T) {
+	sc := &plantmpl.SliceCard{Num: 1, ID: "feat-c", Complexity: "trivial"}
+	var buf bytes.Buffer
+	if err := sc.Render(&buf); err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+	html := buf.String()
+	if !strings.Contains(html, "badge-complexity") {
+		t.Errorf("expected badge-complexity marker class in output:\n%s", html)
+	}
+	if !strings.Contains(html, ">Trivial<") {
+		t.Errorf("expected Trivial label in complexity badge:\n%s", html)
+	}
+}
+
+func TestSliceCardRenderComplexityStandard(t *testing.T) {
+	sc := &plantmpl.SliceCard{Num: 1, ID: "feat-c", Complexity: "standard"}
+	var buf bytes.Buffer
+	if err := sc.Render(&buf); err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+	html := buf.String()
+	if !strings.Contains(html, ">Standard<") {
+		t.Errorf("expected Standard label in complexity badge:\n%s", html)
+	}
+	if !strings.Contains(html, "badge-discuss") {
+		t.Errorf("standard complexity should use badge-discuss class:\n%s", html)
+	}
+}
+
+func TestSliceCardRenderComplexityComplex(t *testing.T) {
+	sc := &plantmpl.SliceCard{Num: 1, ID: "feat-c", Complexity: "complex"}
+	var buf bytes.Buffer
+	if err := sc.Render(&buf); err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+	html := buf.String()
+	if !strings.Contains(html, ">Complex<") {
+		t.Errorf("expected Complex label in complexity badge:\n%s", html)
+	}
+	if !strings.Contains(html, "badge-revision") {
+		t.Errorf("complex complexity should use badge-revision class:\n%s", html)
+	}
+}
+
+func TestSliceCardRenderComplexityEmptyOmitted(t *testing.T) {
+	sc := &plantmpl.SliceCard{Num: 1, ID: "feat-noc", Complexity: ""}
+	var buf bytes.Buffer
+	if err := sc.Render(&buf); err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+	html := buf.String()
+	if strings.Contains(html, "badge-complexity") {
+		t.Errorf("empty complexity should not render a complexity badge:\n%s", html)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// SliceCard.Render — decisions_notes
+// ---------------------------------------------------------------------------
+
+func TestSliceCardRenderDecisionsNotes(t *testing.T) {
+	sc := &plantmpl.SliceCard{
+		Num:            1,
+		ID:             "feat-dn",
+		DecisionsNotes: "Scope: small refactor. Decisions: keep API stable.",
+	}
+	var buf bytes.Buffer
+	if err := sc.Render(&buf); err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+	html := buf.String()
+	if !strings.Contains(html, "slice-decisions-notes") {
+		t.Errorf("expected slice-decisions-notes class in output:\n%s", html)
+	}
+	if !strings.Contains(html, "Decisions") {
+		t.Errorf("expected Decisions label in output:\n%s", html)
+	}
+	if !strings.Contains(html, "keep API stable") {
+		t.Errorf("expected decisions_notes content rendered:\n%s", html)
+	}
+}
+
+func TestSliceCardRenderEmptyDecisionsNotesOmitted(t *testing.T) {
+	sc := &plantmpl.SliceCard{Num: 1, ID: "feat-nodn", DecisionsNotes: ""}
+	var buf bytes.Buffer
+	if err := sc.Render(&buf); err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+	html := buf.String()
+	if strings.Contains(html, "slice-decisions-notes") {
+		t.Errorf("empty decisions_notes should not render section:\n%s", html)
+	}
+}
+
+func TestSliceCardFromPlanSliceMapsComplexityAndDecisionsNotes(t *testing.T) {
+	src := planyaml.PlanSlice{
+		Num:            7,
+		ID:             "feat-map",
+		Title:          "Map fields",
+		Complexity:     "complex",
+		DecisionsNotes: "Important context here.",
+	}
+	sc := plantmpl.SliceCardFromPlanSlice(src)
+	if sc.Complexity != "complex" {
+		t.Errorf("Complexity not mapped: got %q want %q", sc.Complexity, "complex")
+	}
+	if sc.DecisionsNotes != "Important context here." {
+		t.Errorf("DecisionsNotes not mapped: got %q", sc.DecisionsNotes)
+	}
+}

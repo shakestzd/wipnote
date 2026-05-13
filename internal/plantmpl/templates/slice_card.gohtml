@@ -8,6 +8,7 @@
         <span class="slice-summary-badges">
           {{if .Effort}}<span class="badge {{.EffortClass}} badge-sm">{{.Effort}}</span>{{end}}
           {{if .Risk}}<span class="badge {{.RiskClass}} badge-sm">{{.Risk}}</span>{{end}}
+          {{if .Complexity}}<span class="badge {{.ComplexityClass}} badge-sm badge-complexity" title="Complexity: {{.Complexity}}">{{.ComplexityLabel}}</span>{{end}}
           {{if .ExecutionStatus}}<span class="badge {{.ExecutionStatusClass}} badge-sm" title="Execution: {{.ExecutionStatus}}">{{.ExecutionStatusLabel}}</span>{{end}}
           <span class="badge {{.ApprovalStatusClass}} badge-sm slice-approval-badge" data-badge-for="slice-{{.Num}}">{{.ApprovalStatusLabel}}</span>
           {{if gt .IssueCount 0}}<span class="badge badge-sm badge-issues" title="{{.IssueCount}} critic issue(s)">{{.IssueCount}} issue{{if gt .IssueCount 1}}s{{end}}</span>{{end}}
@@ -97,6 +98,21 @@
         <div class="slice-field-value"><code>{{.Files}}</code></div>
       </div>
       {{end}}
+    {{end}}
+
+    {{if .DecisionsNotes}}
+    <div class="slice-field slice-decisions-notes">
+      <div class="slice-field-label">Decisions</div>
+      <div class="slice-field-value">
+        {{if .DecisionsNotesNeedsReveal}}
+        <input type="checkbox" id="slice-{{.Num}}-decisions-reveal" class="reveal-toggle">
+        <div class="markdown-block reveal-content serif-prose">{{.DecisionsNotesHTML}}</div>
+        <label for="slice-{{.Num}}-decisions-reveal" class="reveal-label">Show full decisions</label>
+        {{else}}
+        <div class="markdown-block serif-prose">{{.DecisionsNotesHTML}}</div>
+        {{end}}
+      </div>
+    </div>
     {{end}}
 
     {{if .Tests}}

@@ -1,6 +1,11 @@
 # /wipnote:plan-review
 
-Open a YAML plan in the interactive marimo review notebook for human review and approval.
+Open a plan in the `wipnote serve` web dashboard for human review and approval.
+
+The legacy marimo review notebook has been retired. Plan review now happens
+entirely in the local web dashboard, which renders the plan's slice cards
+(complexity, decisions, effort/risk, approval controls) directly from the
+canonical YAML source.
 
 ## Usage
 
@@ -17,12 +22,6 @@ Open a YAML plan in the interactive marimo review notebook for human review and 
 ```bash
 /wipnote:plan-review plan-3a88d8a9
 ```
-Open the Agent-Agnostic Lazy Session Registration plan for review
-
-```bash
-/wipnote:plan-review plan-31cd5de1
-```
-Open the Codex Interoperability plan for review
 
 ## Instructions for Claude
 
@@ -32,30 +31,30 @@ Open the Codex Interoperability plan for review
    ```
    If not found, suggest `/wipnote:plan-list` to see available plans.
 
-2. Launch the review notebook:
+2. Make sure the dashboard is running. In a devcontainer:
    ```bash
-   wipnote plan review <plan-id> --port 3001
+   wipnote serve --bind 0.0.0.0 --port 8088
    ```
-   This runs `marimo run` with the plan pre-selected, env vars set, and sandbox mode enabled.
-
-3. Tell the user:
+   On a regular host:
+   ```bash
+   wipnote serve
    ```
-   Plan review opened at http://localhost:3001
 
-   The notebook shows:
-   - A. Design Discussion — review problem, goals, constraints
-   - B. Vertical Slices — approve/reject each slice
-   - C. Open Questions — answer design questions
-   - D. AI Critique — review assumptions and risks
-   - E. Amendments — accept/reject chat-proposed changes
-   - F. Feedback Summary — progress and decisions
-   - G. Plan Discussion — chat with AI about the plan
+3. Tell the user to open the plan in the Plans view:
+   ```
+   Plan review available at:
 
-   Click Finalize when all sections are reviewed.
+     devcontainer: http://127.0.0.1:8088/#plans
+     host:         http://127.0.0.1:8080/#plans
+
+   Click the plan in the sidebar to load it. Each slice card shows
+   complexity (trivial/standard/complex), effort, risk, decisions
+   notes, open questions, critic revisions, and an approve / request
+   changes / reject control. Click Finalize when all sections are
+   approved.
    ```
 
 4. Wait for the user to finalize. Check progress with:
    ```bash
-   sqlite3 .wipnote/wipnote.db \
-     "SELECT COUNT(*) FROM plan_feedback WHERE plan_id='<plan-id>' AND action='approve' AND value='True'"
+   wipnote plan status <plan-id>
    ```
