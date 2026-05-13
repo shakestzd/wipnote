@@ -184,6 +184,35 @@ func TestCompleteCommitsWipnoteArtifact_SkipsWhenNoGitRepo(t *testing.T) {
 	}
 }
 
+// TestShouldAutocommitWorkitemArtifact verifies the allowlist that gates the
+// auto-commit call site in wiSetStatusWithAgent (workitem.go). Plans are
+// excluded because they use commitPlanChange (plan_yaml_cmds.go:42-90) to
+// atomically commit both YAML and HTML; auto-committing only the rendered
+// HTML would leave plan state inconsistent (roborev #1662). Unknown types
+// must default to false so a future work-item type cannot silently inherit
+// the wrong behavior — adding it requires touching the helper.
+func TestShouldAutocommitWorkitemArtifact(t *testing.T) {
+	cases := []struct {
+		typeName string
+		want     bool
+	}{
+		{"feature", true},
+		{"bug", true},
+		{"spike", true},
+		{"plan", false},
+		{"track", false},
+		{"spec", false},
+		{"", false},
+		{"unknown", false},
+		{"FEATURE", false}, // case-sensitive
+	}
+	for _, c := range cases {
+		if got := shouldAutocommitWorkitemArtifact(c.typeName); got != c.want {
+			t.Errorf("shouldAutocommitWorkitemArtifact(%q) = %v, want %v", c.typeName, got, c.want)
+		}
+	}
+}
+
 // gitCommitCount returns the number of commits in the repo at dir.
 func gitCommitCount(t *testing.T, dir string) int {
 	t.Helper()

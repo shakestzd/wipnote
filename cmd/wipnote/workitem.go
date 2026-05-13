@@ -308,9 +308,12 @@ func wiSetStatusWithAgent(typeName, id, status, sessionID, agentID string) error
 	// non-fatal: if git is unavailable or the commit fails for any reason
 	// (hook rejection, nothing to commit, non-git project), we log to stderr
 	// and continue. Completion of the work item does not depend on this.
-	if status == "done" {
+	// Gate with an explicit allowlist via shouldAutocommitWorkitemArtifact:
+	// plans have their own atomic commit path (commitPlanChange in
+	// plan_yaml_cmds.go) that handles YAML+HTML together.
+	if status == "done" && shouldAutocommitWorkitemArtifact(typeName) {
 		if err := commitWipnoteArtifact(dir, typeName, id); err != nil {
-			fmt.Fprintf(stderr, "autocommit warning: %v\n", err)
+			fmt.Fprintf(os.Stderr, "autocommit warning: %v\n", err)
 		}
 	}
 

@@ -116,3 +116,17 @@ func commitWipnoteArtifact(wipnoteDir, typeName, id string) error {
 
 	return nil
 }
+
+// shouldAutocommitWorkitemArtifact returns true when commitWipnoteArtifact
+// should run for the given typeName. Plans are excluded because they have
+// their own atomic YAML+HTML commit path (commitPlanChange in plan_yaml_cmds.go);
+// auto-committing only the rendered HTML would leave the authoritative YAML
+// out of sync (roborev #1662). Future work-item types must opt in explicitly.
+func shouldAutocommitWorkitemArtifact(typeName string) bool {
+	switch typeName {
+	case "feature", "bug", "spike":
+		return true
+	default:
+		return false
+	}
+}
