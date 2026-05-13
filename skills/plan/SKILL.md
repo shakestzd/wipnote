@@ -23,6 +23,8 @@ Before any slice content, classify the work. The classification drives both the 
 
 Set `complexity: trivial|standard|complex` on each slice card. The field is read by `internal/planyaml/validate.go` via `effectiveComplexity`; an unset value defaults to `standard` for back-compat.
 
+Every plan you create must include `meta.schema_version: v3`. This enables strict validation including the decisions_notes requirement for standard/complex slices — even when `complexity` is omitted from a slice (which defaults to standard).
+
 ### Triage AUQ template
 
 Before emitting any slice, run this `AskUserQuestion` (paste-ready):
@@ -137,6 +139,11 @@ For standard and complex slices, the validator requires `decisions_notes` >= 50 
 ## Trivial Slice Example
 
 ```yaml
+meta:
+  id: plan-<generated>
+  title: "Fix typo in serve.go log message"
+  status: draft
+  schema_version: v3
 slices:
   - id: slice-1
     num: 1
@@ -155,6 +162,11 @@ That's it. No `what`, `done_when`, `tests`, or `decisions_notes` required.
 ## Complex Slice Example (abbreviated)
 
 ```yaml
+meta:
+  id: plan-<generated>
+  title: "Rate-limit /api/ingest"
+  status: draft
+  schema_version: v3
 slices:
   - id: slice-1
     num: 1
