@@ -35,6 +35,8 @@ func workitemCmd(typeName, dirName string) *cobra.Command {
 	cmd.AddCommand(wiCompleteCmd(typeName))
 	cmd.AddCommand(wiDeleteCmd(typeName))
 	cmd.AddCommand(wiAddStepCmd(typeName))
+	cmd.AddCommand(wiAddTaskStepCmd(typeName))
+	cmd.AddCommand(wiCompleteTaskStepCmd(typeName))
 	cmd.AddCommand(wiUpdateCmd(typeName))
 	cmd.AddCommand(setDescriptionCmd(typeName))
 	if typeName != "track" {
@@ -457,6 +459,80 @@ func runWiAddStep(typeName, id, description string, allowHostPaths bool) error {
 		return fmt.Errorf("add step: %w", err)
 	}
 	fmt.Printf("Added step to %s: %s\n", id, description)
+	return nil
+}
+
+// wiAddTaskStepCmd registers `add-task-step` — a hook-only command that adds a
+// step with StepID="task-<taskID>" so CompleteTaskStep can find and tick it later.
+// Used by internal/hooks/task_tracking.go addTaskStep (TaskCreated hook).
+func wiAddTaskStepCmd(typeName string) *cobra.Command {
+	return &cobra.Command{
+		Use:    "add-task-step <id> <task-id> <description>",
+		Short:  "Add a task-associated step (hook-only)",
+		Args:   cobra.ExactArgs(3),
+		Hidden: true,
+		RunE: func(_ *cobra.Command, args []string) error {
+			return runWiAddTaskStep(typeName, args[0], args[1], args[2])
+		},
+	}
+}
+
+func runWiAddTaskStep(typeName, id, taskID, description string) error {
+	dir, err := findWipnoteDir()
+	if err != nil {
+		return err
+	}
+	id, err = resolveID(dir, id)
+	if err != nil {
+		return err
+	}
+	p, err := workitem.Open(dir, "claude-code")
+	if err != nil {
+		return fmt.Errorf("open project: %w", err)
+	}
+	defer p.Close()
+
+	col := collectionFor(p, typeName)
+	if err := col.AddTaskStep(id, taskID, description); err != nil {
+		return fmt.Errorf("add task step: %w", err)
+	}
+	return nil
+}
+
+// wiCompleteTaskStepCmd registers `complete-task-step` — a hook-only command
+// that flips data-completed=true on the step with StepID="task-<taskID>".
+// Used by internal/hooks/task_tracking.go completeTaskStep (TaskCompleted hook).
+func wiCompleteTaskStepCmd(typeName string) *cobra.Command {
+	return &cobra.Command{
+		Use:    "complete-task-step <id> <task-id>",
+		Short:  "Mark a task-associated step as completed (hook-only)",
+		Args:   cobra.ExactArgs(2),
+		Hidden: true,
+		RunE: func(_ *cobra.Command, args []string) error {
+			return runWiCompleteTaskStep(typeName, args[0], args[1])
+		},
+	}
+}
+
+func runWiCompleteTaskStep(typeName, id, taskID string) error {
+	dir, err := findWipnoteDir()
+	if err != nil {
+		return err
+	}
+	id, err = resolveID(dir, id)
+	if err != nil {
+		return err
+	}
+	p, err := workitem.Open(dir, "claude-code")
+	if err != nil {
+		return fmt.Errorf("open project: %w", err)
+	}
+	defer p.Close()
+
+	col := collectionFor(p, typeName)
+	if err := col.CompleteTaskStep(id, taskID); err != nil {
+		return fmt.Errorf("complete task step: %w", err)
+	}
 	return nil
 }
 

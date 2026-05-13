@@ -27,36 +27,43 @@ func selfBinary() string {
 	return "wipnote"
 }
 
-// addTaskStep shells out to the wipnote CLI to add a step to the active
-// feature. This avoids importing the workitem package (architectural constraint:
-// hooks must not import workitem to prevent spike creation policy violations).
+// addTaskStep shells out to the wipnote CLI to add a task-associated step to
+// the active feature. The CLI sets StepID="task-<taskID>" so completeTaskStep
+// can find and tick it. Shells out rather than importing workitem directly
+// (architectural constraint: hooks must not import workitem).
 func addTaskStep(_ *sql.DB, _ string, featureID, taskID, subject, teammateName string) {
 	if subject == "" {
 		subject = "Task " + taskID
 	}
-	stepDesc := subject + " [task:" + taskID + "]"
+	stepDesc := subject
 	if teammateName != "" {
 		stepDesc = "[" + teammateName + "] " + stepDesc
 	}
 	typeName := inferTypeName(featureID)
 
-	// wipnote <type> add-step <id> "<description>"
-	cmd := exec.Command(selfBinary(), typeName, "add-step", featureID, stepDesc)
+	// wipnote <type> add-task-step <id> <task-id> "<description>"
+	cmd := exec.Command(selfBinary(), typeName, "add-task-step", featureID, taskID, stepDesc)
 	_ = cmd.Run()
 }
 
-// completeTaskStep marks a step as done by updating the step counters in SQLite.
-// Full HTML step completion requires the workitem package, so we only update the
-// database counters here. The HTML will be reconciled on next reindex.
-func completeTaskStep(database *sql.DB, _ string, featureID, _, _ string) {
+// completeTaskStep flips data-completed=true on the step with
+// StepID="task-<taskID>" via the CLI. The CLI call (which uses
+// workitem.Collection.CompleteTaskStep) is the canonical update — it mutates
+// HTML and updates SQLite counters in one transaction.
+func completeTaskStep(database *sql.DB, _ string, featureID, taskID, _ string) {
+	typeName := inferTypeName(featureID)
+	cmd := exec.Command(selfBinary(), typeName, "complete-task-step", featureID, taskID)
+	_ = cmd.Run()
+
 	if database == nil {
 		return
 	}
-	// Increment steps_completed counter.
+	// Bump updated_at so query consumers see freshness (CLI also updates this,
+	// but the hook may run before/after the CLI completes — this is a no-op
+	// when the CLI already touched the row).
 	_, _ = database.Exec(`
 		UPDATE features
-		SET steps_completed = MIN(steps_completed + 1, steps_total),
-		    updated_at = ?
+		SET updated_at = ?
 		WHERE id = ?`,
 		time.Now().UTC().Format(time.RFC3339), featureID)
 }
