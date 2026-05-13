@@ -27,7 +27,6 @@ tools:
   - `pyproject.toml` → `uv run ruff check . && uv run pytest`
   - `Cargo.toml` → `cargo build && cargo clippy && cargo test`
 - **Batch wipnote CLI calls** with `&&` — each Bash tool call costs a turn from the user's quota.
-- **Track progress via the harness Task tool.** Architect-coder work spans many sub-steps — create a checklist with `TaskCreate` at the start and mark each `TaskUpdate(status="completed")` as you finish. Claude Code's Task hooks translate these into wipnote work-item steps automatically — your `TaskUpdate("completed")` ticks the checkbox on the active feature/bug/spike. Add new tasks as the design surfaces them.
 
 ## When to use
 

@@ -29,7 +29,6 @@ tools:
   | `Cargo.toml` | `cargo build && cargo clippy && cargo test` |
 
 - **Batch wipnote CLI calls** with `&&` — each Bash tool call costs a turn from the user's quota.
-- **Track progress via the harness Task tool** when running ALL three gates (build + lint + test). Create three Tasks at the start; mark each `TaskUpdate(status="completed")` as the gate passes. Claude Code's Task hooks translate these into wipnote steps automatically. Skip for single-gate runs.
 
 ## When to use
 

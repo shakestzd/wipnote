@@ -26,7 +26,6 @@ tools:
   - `pyproject.toml` → `uv run ruff check . && uv run pytest`
   - `Cargo.toml` → `cargo build && cargo clippy && cargo test`
 - **Batch wipnote CLI calls** with `&&` — each Bash tool call costs a turn from the user's quota.
-- **Track progress via the harness Task tool.** For tasks spanning 3+ distinct sub-steps, create a checklist with `TaskCreate` at the start and mark each `TaskUpdate(status="completed")` as you finish. Claude Code's Task hooks translate these into wipnote work-item steps automatically — your `TaskUpdate("completed")` ticks the checkbox on the active feature/bug/spike. Skip for trivial 1-2 step work.
 
 ## When to use
 

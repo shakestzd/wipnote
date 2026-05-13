@@ -57,6 +57,42 @@ Applies to `feature/bug/spike/track/plan create|start|complete|add-step`, `link 
 
 ---
 
+## Step Tracking via Task Tool (Orchestrator Only)
+
+The active work item's step checklist is updated automatically when the orchestrator calls `TaskCreate` and `TaskUpdate`. wipnote's `TaskCreated` hook (`internal/hooks/task_tracking.go`) shells out to `wipnote feature add-step` on every TaskCreate; the `TaskCompleted` hook increments the step counter on TaskUpdate(status="completed").
+
+**Important: subagents do NOT have `TaskCreate`/`TaskUpdate` in their tools allowlist.** These are MCP/agent-teams tools available only to the orchestrator. Telling a subagent "use the Task tool" in its prompt does nothing — the tool isn't there.
+
+**Use TaskCreate when:**
+- Dispatching subagent work that maps to a step on the active work item
+- Starting any multi-step task with 3+ distinct sub-steps you can name in advance
+- About to spawn multiple parallel subagents — one TaskCreate per dispatched subagent
+
+**Use TaskUpdate(status="completed") when:**
+- A subagent returns with the step done
+- You verify quality gates pass for that step
+- The unit of work matches a slice in the work item's design
+
+**Skip TaskCreate when:**
+- The work is a single trivial action (one Bash call, one file read)
+- You're in conversation/clarification mode, not execution mode
+- The user's request is purely informational
+
+**Concrete pattern:**
+
+```
+TaskCreate(subject="Strip skills frontmatter from 5 agent files",
+           description="Edit plugin/agents/{patch,feature,architect,researcher,test-runner}.md")
+→ subject + task ID become a step on the active feature
+→ dispatch the subagent
+→ on return, TaskUpdate(taskId, status="completed")
+→ wipnote step counter increments
+```
+
+Verify via `wipnote feature show <id>` — `Steps: N/M complete` should reflect the TaskUpdate calls. Steps remain unchecked if you skipped TaskCreate.
+
+---
+
 ## CRITICAL: Cost-First Delegation (IMPERATIVE)
 
 **Claude Code is EXPENSIVE. You MUST delegate to FREE/CHEAP AIs first.**

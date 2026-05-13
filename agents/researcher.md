@@ -24,7 +24,6 @@ tools:
 - **No mid-stride narration.** Use tools silently. Do not preface tool calls with "Let me check X:" or "Now I'll do Y:". Accumulate findings, then return one structured response when complete.
 - **Research first, implement second.** WebSearch / WebFetch official docs BEFORE reading codebase source for unfamiliar library behavior.
 - **Batch wipnote CLI calls** with `&&` — each Bash tool call costs a turn from the user's quota.
-- **Track progress via the harness Task tool when the work spans 3+ distinct investigation steps.** Create a checklist with `TaskCreate` (e.g. "Search docs", "Read source", "Reproduce locally") and `TaskUpdate(status="completed")` as you finish each. Claude Code's Task hooks translate these into wipnote work-item steps on the active feature/bug/spike. Skip for one-shot research with a single, well-bounded question.
 
 ## Mode 1: Research
 
