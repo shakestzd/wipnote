@@ -5,6 +5,10 @@ import (
 	"testing"
 )
 
+// fiftyCharsNotes is a >=50 char placeholder used to satisfy the
+// triage-gated decisions_notes requirement in test fixtures.
+const fiftyCharsNotes = "Rationale captured during the staged interview phase."
+
 // validPlan returns a fully-populated valid plan for use in tests.
 func validPlan() *PlanYAML {
 	return &PlanYAML{
@@ -20,26 +24,28 @@ func validPlan() *PlanYAML {
 		},
 		Slices: []PlanSlice{
 			{
-				Num:      1,
-				What:     "Build the thing.",
-				Why:      "Because it matters.",
-				Files:    []string{"internal/foo/bar.go"},
-				DoneWhen: []string{"Tests pass"},
-				Tests:    "Unit: it works",
-				Effort:   "S",
-				Risk:     "Low",
-				Deps:     []int{},
+				Num:            1,
+				What:           "Build the thing.",
+				Why:            "Because it matters.",
+				Files:          []string{"internal/foo/bar.go"},
+				DoneWhen:       []string{"Tests pass"},
+				Tests:          "Unit: it works",
+				Effort:         "S",
+				Risk:           "Low",
+				Deps:           []int{},
+				DecisionsNotes: fiftyCharsNotes,
 			},
 			{
-				Num:      2,
-				What:     "Integrate the thing.",
-				Why:      "Because end-to-end matters.",
-				Files:    []string{"internal/foo/baz.go"},
-				DoneWhen: []string{"Integration test passes"},
-				Tests:    "Integration: full flow works",
-				Effort:   "M",
-				Risk:     "Med",
-				Deps:     []int{1},
+				Num:            2,
+				What:           "Integrate the thing.",
+				Why:            "Because end-to-end matters.",
+				Files:          []string{"internal/foo/baz.go"},
+				DoneWhen:       []string{"Integration test passes"},
+				Tests:          "Integration: full flow works",
+				Effort:         "M",
+				Risk:           "Med",
+				Deps:           []int{1},
+				DecisionsNotes: fiftyCharsNotes,
 			},
 		},
 		Questions: []PlanQuestion{
@@ -323,6 +329,7 @@ func validV2Plan() *PlanYAML {
 				Effort:          "S",
 				Risk:            "Low",
 				Deps:            []int{},
+				DecisionsNotes:  fiftyCharsNotes,
 				ApprovalStatus:  "approved",
 				ExecutionStatus: "done",
 				Questions: []SliceQuestion{
@@ -349,6 +356,7 @@ func validV2Plan() *PlanYAML {
 				Effort:          "M",
 				Risk:            "Med",
 				Deps:            []int{1},
+				DecisionsNotes:  fiftyCharsNotes,
 				ApprovalStatus:  "pending",
 				ExecutionStatus: "not_started",
 				Questions:       []SliceQuestion{},
@@ -497,13 +505,382 @@ func TestValidate_ValidExecutionStatuses(t *testing.T) {
 	}
 }
 
+// ---- triage-gated complexity validator tests ----
+
+// minimalPlan returns a non-finalized plan with a single slice in the given
+// complexity tier, with only the unconditionally-required fields populated.
+// Helper for triage-gated validator tests.
+func minimalPlan(_ string, slice PlanSlice) *PlanYAML {
+	return &PlanYAML{
+		Meta: PlanMeta{
+			ID:     "plan-triage001",
+			Title:  "Triage Test Plan",
+			Status: "draft",
+		},
+		Design: PlanDesign{
+			Problem:     "A problem.",
+			Goals:       []string{"Goal 1"},
+			Constraints: []string{"Constraint 1"},
+		},
+		Slices:    []PlanSlice{slice},
+		Questions: []PlanQuestion{},
+	}
+}
+
+func TestValidate_TrivialSlice_MinimalFieldsOK(t *testing.T) {
+	// Trivial slice with only the unconditional fields (title/why/files/
+	// effort/risk) validates clean — no what/done_when/tests/decisions_notes.
+	plan := minimalPlan("trivial", PlanSlice{
+		Num:        1,
+		Title:      "Trivial change",
+		Why:        "Quick polish.",
+		Files:      []string{"internal/foo/bar.go"},
+		Effort:     "S",
+		Risk:       "Low",
+		Complexity: "trivial",
+		Deps:       []int{},
+	})
+	errs := Validate(plan)
+	if len(errs) != 0 {
+		t.Errorf("trivial slice with minimal fields should validate clean, got: %v", errs)
+	}
+}
+
+func TestValidate_TrivialSlice_MissingWhatOK(t *testing.T) {
+	plan := minimalPlan("trivial", PlanSlice{
+		Num:        1,
+		Why:        "Quick polish.",
+		Files:      []string{"internal/foo/bar.go"},
+		Effort:     "S",
+		Risk:       "Low",
+		Complexity: "trivial",
+	})
+	errs := Validate(plan)
+	for _, e := range errs {
+		if strings.Contains(e, "what") {
+			t.Errorf("trivial slice should not require what, got error: %s", e)
+		}
+	}
+}
+
+func TestValidate_EmptyComplexity_DefaultsToStandard(t *testing.T) {
+	// A slice with unset Complexity (empty string) should get standard
+	// rules — missing `what` errors as it would for an explicit "standard".
+	plan := minimalPlan("", PlanSlice{
+		Num:            1,
+		Why:            "Why this matters.",
+		Files:          []string{"internal/foo/bar.go"},
+		DoneWhen:       []string{"It works"},
+		Tests:          "Unit: works",
+		Effort:         "S",
+		Risk:           "Low",
+		DecisionsNotes: fiftyCharsNotes,
+		// What is omitted — should error under standard rules.
+	})
+	errs := Validate(plan)
+	assertContainsError(t, errs, "slices[0].what")
+}
+
+func TestValidate_StandardSlice_MissingDecisionsNotes_NotFinalized_Errors(t *testing.T) {
+	plan := minimalPlan("standard", PlanSlice{
+		Num:        1,
+		What:       "Build the standard thing.",
+		Why:        "Standard reason.",
+		Files:      []string{"internal/foo/bar.go"},
+		DoneWhen:   []string{"It works"},
+		Tests:      "Unit: works",
+		Effort:     "M",
+		Risk:       "Med",
+		Complexity: "standard",
+	})
+	errs := Validate(plan)
+	assertContainsError(t, errs, "decisions_notes")
+}
+
+func TestValidate_StandardSlice_MissingDecisionsNotes_Finalized_OK(t *testing.T) {
+	// Back-compat exemption: a finalized plan without decisions_notes is
+	// still valid (existing finalized plans pre-date the requirement).
+	plan := minimalPlan("standard", PlanSlice{
+		Num:        1,
+		What:       "Build the standard thing.",
+		Why:        "Standard reason.",
+		Files:      []string{"internal/foo/bar.go"},
+		DoneWhen:   []string{"It works"},
+		Tests:      "Unit: works",
+		Effort:     "M",
+		Risk:       "Med",
+		Complexity: "standard",
+	})
+	plan.Meta.Status = "finalized"
+	errs := Validate(plan)
+	for _, e := range errs {
+		if strings.Contains(e, "decisions_notes") {
+			t.Errorf("finalized plan should not require decisions_notes, got error: %s", e)
+		}
+	}
+}
+
+func TestValidate_ComplexSlice_DoneWhenLengthOne_Errors(t *testing.T) {
+	plan := minimalPlan("complex", PlanSlice{
+		Num:            1,
+		What:           "Build the complex thing.",
+		Why:            "Complex reason.",
+		Files:          []string{"internal/foo/bar.go"},
+		DoneWhen:       []string{"Only one criterion"},
+		Tests:          "Unit: works",
+		Effort:         "L",
+		Risk:           "High",
+		Complexity:     "complex",
+		DecisionsNotes: fiftyCharsNotes,
+		Questions: []SliceQuestion{
+			{ID: "sq-1", Text: "Which approach?", Answer: "option-a"},
+		},
+	})
+	errs := Validate(plan)
+	assertContainsError(t, errs, "done_when must have at least 2")
+}
+
+func TestValidate_ComplexSlice_NoAnsweredQuestion_Errors(t *testing.T) {
+	plan := minimalPlan("complex", PlanSlice{
+		Num:            1,
+		What:           "Build the complex thing.",
+		Why:            "Complex reason.",
+		Files:          []string{"internal/foo/bar.go"},
+		DoneWhen:       []string{"Criterion 1", "Criterion 2"},
+		Tests:          "Unit: works",
+		Effort:         "L",
+		Risk:           "High",
+		Complexity:     "complex",
+		DecisionsNotes: fiftyCharsNotes,
+		Questions: []SliceQuestion{
+			{ID: "sq-1", Text: "Which approach?", Answer: ""},
+		},
+	})
+	errs := Validate(plan)
+	assertContainsError(t, errs, "non-empty answer")
+}
+
+func TestValidate_ComplexSlice_Valid(t *testing.T) {
+	plan := minimalPlan("complex", PlanSlice{
+		Num:            1,
+		What:           "Build the complex thing.",
+		Why:            "Complex reason.",
+		Files:          []string{"internal/foo/bar.go"},
+		DoneWhen:       []string{"Criterion 1", "Criterion 2"},
+		Tests:          "Unit: works",
+		Effort:         "L",
+		Risk:           "High",
+		Complexity:     "complex",
+		DecisionsNotes: fiftyCharsNotes,
+		Questions: []SliceQuestion{
+			{ID: "sq-1", Text: "Which approach?", Answer: "option-a"},
+		},
+	})
+	errs := Validate(plan)
+	if len(errs) != 0 {
+		t.Errorf("valid complex slice should validate clean, got: %v", errs)
+	}
+}
+
+func TestValidate_InvalidComplexity_Errors(t *testing.T) {
+	plan := minimalPlan("medium", PlanSlice{
+		Num:            1,
+		What:           "Build the thing.",
+		Why:            "Reason.",
+		Files:          []string{"internal/foo/bar.go"},
+		DoneWhen:       []string{"It works"},
+		Tests:          "Unit: works",
+		Effort:         "S",
+		Risk:           "Low",
+		Complexity:     "medium",
+		DecisionsNotes: fiftyCharsNotes,
+	})
+	errs := Validate(plan)
+	found := false
+	for _, e := range errs {
+		if strings.Contains(e, "complexity") && strings.Contains(e, "medium") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("expected error mentioning complexity and value 'medium', got: %v", errs)
+	}
+}
+
+func TestValidate_ExistingFinalizedPlan_1c14d560(t *testing.T) {
+	// Regression: the on-disk plan-1c14d560.yaml (status=finalized) must
+	// continue to validate clean after the triage-gated rules ship — it
+	// pre-dates decisions_notes and ships finalized.
+	plan, err := Load("../../.wipnote/plans/plan-1c14d560.yaml")
+	if err != nil {
+		t.Fatalf("failed to load plan-1c14d560.yaml: %v", err)
+	}
+	errs := Validate(plan)
+	if len(errs) != 0 {
+		t.Errorf("plan-1c14d560.yaml (finalized) must validate clean, got: %v", errs)
+	}
+}
+
+func TestValidate_LegacyDraftPlan_NoComplexity_NoDecisionsNotes(t *testing.T) {
+	// Legacy non-finalized plans that predate the complexity field must not be
+	// required to supply decisions_notes. When slice.Complexity == "" the
+	// decisions_notes gate is skipped entirely, preserving back-compat.
+	plan := &PlanYAML{
+		Meta: PlanMeta{
+			ID:     "plan-legacy02",
+			Title:  "Legacy Draft Plan",
+			Status: "draft",
+		},
+		Design: PlanDesign{
+			Problem:     "An old problem.",
+			Goals:       []string{"Legacy goal"},
+			Constraints: []string{"Legacy constraint"},
+		},
+		Slices: []PlanSlice{
+			{
+				Num:      1,
+				What:     "Do the legacy thing.",
+				Why:      "Because legacy.",
+				Files:    []string{"internal/legacy/foo.go"},
+				DoneWhen: []string{"It works"},
+				Tests:    "Manual: smoke test",
+				Effort:   "M",
+				Risk:     "High",
+				Deps:     []int{},
+				// Complexity and DecisionsNotes intentionally absent — legacy plan.
+			},
+		},
+		Questions: []PlanQuestion{},
+	}
+	errs := Validate(plan)
+	if len(errs) != 0 {
+		t.Errorf("legacy draft plan without complexity/decisions_notes should validate clean, got: %v", errs)
+	}
+}
+
+// ---- schema_version=v3 strict-model tests ----
+
+// v3MinimalPlan returns a non-finalized plan with schema_version=v3 and a
+// single slice whose Complexity is intentionally left empty (defaults to
+// "standard" via effectiveComplexity). All standard mandatory fields except
+// decisions_notes are populated so tests can toggle that field independently.
+func v3MinimalPlan(decisionsNotes string) *PlanYAML {
+	return &PlanYAML{
+		Meta: PlanMeta{
+			ID:            "plan-v3test01",
+			Title:         "V3 Strict Test Plan",
+			Status:        "draft",
+			SchemaVersion: "v3",
+		},
+		Design: PlanDesign{
+			Problem:     "A problem.",
+			Goals:       []string{"Goal 1"},
+			Constraints: []string{"Constraint 1"},
+		},
+		Slices: []PlanSlice{
+			{
+				Num:            1,
+				What:           "Build the thing.",
+				Why:            "Because it matters.",
+				Files:          []string{"internal/foo/bar.go"},
+				DoneWhen:       []string{"Tests pass"},
+				Tests:          "Unit: it works",
+				Effort:         "S",
+				Risk:           "Low",
+				Deps:           []int{},
+				DecisionsNotes: decisionsNotes,
+				// Complexity intentionally absent — defaults to "standard".
+			},
+		},
+		Questions: []PlanQuestion{},
+	}
+}
+
+func TestValidate_V3Plan_StandardSliceWithoutComplexity_RequiresDecisionsNotes(t *testing.T) {
+	// v3 strict model: slice with no complexity field (defaults to standard)
+	// and no decisions_notes must produce an error.
+	plan := v3MinimalPlan("")
+	errs := Validate(plan)
+	assertContainsError(t, errs, "decisions_notes")
+}
+
+func TestValidate_V3Plan_StandardSliceWithoutComplexity_WithDecisionsNotes_Passes(t *testing.T) {
+	// v3 strict model: slice with no complexity field and sufficient
+	// decisions_notes must validate clean.
+	plan := v3MinimalPlan(fiftyCharsNotes)
+	errs := Validate(plan)
+	if len(errs) != 0 {
+		t.Errorf("v3 plan with decisions_notes should validate clean, got: %v", errs)
+	}
+}
+
+func TestValidate_V3Plan_ExplicitTrivialComplexity_NoDecisionsNotesRequired(t *testing.T) {
+	// v3 strict model: trivial slices are always exempt from decisions_notes,
+	// regardless of schema_version.
+	plan := &PlanYAML{
+		Meta: PlanMeta{
+			ID:            "plan-v3triv01",
+			Title:         "V3 Trivial Test",
+			Status:        "draft",
+			SchemaVersion: "v3",
+		},
+		Design: PlanDesign{
+			Problem:     "A problem.",
+			Goals:       []string{"Goal 1"},
+			Constraints: []string{"Constraint 1"},
+		},
+		Slices: []PlanSlice{
+			{
+				Num:        1,
+				Why:        "Quick polish.",
+				Files:      []string{"internal/foo/bar.go"},
+				Effort:     "S",
+				Risk:       "Low",
+				Complexity: "trivial",
+				Deps:       []int{},
+				// No decisions_notes — trivial is exempt.
+			},
+		},
+		Questions: []PlanQuestion{},
+	}
+	errs := Validate(plan)
+	for _, e := range errs {
+		if strings.Contains(e, "decisions_notes") {
+			t.Errorf("trivial slice in v3 plan should not require decisions_notes, got error: %s", e)
+		}
+	}
+}
+
+func TestValidate_InvalidSchemaVersion_Rejected(t *testing.T) {
+	// Any non-empty schema_version other than "v3" must be rejected.
+	for _, bad := range []string{"v2", "future", "1"} {
+		plan := v3MinimalPlan(fiftyCharsNotes)
+		plan.Meta.SchemaVersion = bad
+		errs := Validate(plan)
+		found := false
+		for _, e := range errs {
+			if strings.Contains(e, "schema_version") && strings.Contains(e, bad) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("schema_version %q should be rejected with a message containing the bad value; got: %v", bad, errs)
+		}
+	}
+}
+
 func TestValidate_LegacyPlanRegression(t *testing.T) {
-	// A legacy plan (no v2 fields) should still validate without errors.
+	// A legacy plan (no v2 fields, status=finalized) should still validate
+	// without errors. The triage-gated decisions_notes requirement is
+	// exempted for finalized plans for back-compat with historical plans
+	// that pre-date the field (e.g., plan-1c14d560).
 	plan := &PlanYAML{
 		Meta: PlanMeta{
 			ID:     "plan-legacy01",
 			Title:  "Legacy Plan",
-			Status: "draft",
+			Status: "finalized",
 		},
 		Design: PlanDesign{
 			Problem:     "An old problem.",

@@ -23,13 +23,14 @@ var planAtomicSeq atomic.Int64
 func NewPlan(id, title, description string) *PlanYAML {
 	return &PlanYAML{
 		Meta: PlanMeta{
-			ID:          id,
-			Title:       title,
-			Description: description,
-			CreatedAt:   time.Now().UTC().Format("2006-01-02"),
-			Status:      "draft",
-			Priority:    "medium",
-			Version:     1,
+			ID:            id,
+			Title:         title,
+			Description:   description,
+			CreatedAt:     time.Now().UTC().Format("2006-01-02"),
+			Status:        "draft",
+			Priority:      "medium",
+			SchemaVersion: "v3",
+			Version:       1,
 		},
 		Design:    PlanDesign{},
 		Slices:    []PlanSlice{},

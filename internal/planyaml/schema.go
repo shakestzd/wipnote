@@ -21,8 +21,19 @@ type PlanMeta struct {
 	CreatedAt   string `yaml:"created_at"`
 	Status      string `yaml:"status"` // draft | review | finalized | active | completed
 	Priority    string `yaml:"priority,omitempty"`
-	CreatedBy   string `yaml:"created_by,omitempty"`
-	Version     int    `yaml:"version"`
+
+	// SchemaVersion identifies which plan-authoring model produced this plan.
+	// Empty = legacy (pre-triage). "v3" = triage-gated interview model with
+	// decisions_notes as the rationale spine.
+	//
+	// Empty SchemaVersion preserves back-compat: legacy plans validate under
+	// pre-v3 rules. Setting SchemaVersion="v3" enables strict validation:
+	// decisions_notes becomes required for all standard/complex slices, even
+	// when slice.Complexity is left empty (defaulting to "standard").
+	SchemaVersion string `yaml:"schema_version,omitempty"`
+
+	CreatedBy string `yaml:"created_by,omitempty"`
+	Version   int    `yaml:"version"`
 }
 
 // PlanDesign captures the problem statement, goals, constraints, and
@@ -53,6 +64,11 @@ type PlanDesign struct {
 //
 // Agents should write multiline what/why/tests fields using YAML literal
 // blocks (|) for Markdown-capable content — see the planning skill for examples.
+//
+// The Complexity field (added in the triage-gated interview redesign) drives
+// validator branching for the per-slice required-field checks. Empty string is
+// treated as "standard" for back-compat with v2 plans written before the field
+// existed — see internal/planyaml/validate.go for the branching table.
 type PlanSlice struct {
 	ID        string   `yaml:"id"`
 	FeatureID string   `yaml:"feature_id,omitempty"` // populated after plan finalize
@@ -66,8 +82,18 @@ type PlanSlice struct {
 	Effort    string   `yaml:"effort"` // S | M | L
 	Risk      string   `yaml:"risk"`   // Low | Med | High
 	Tests     string   `yaml:"tests"`
-	Approved  bool     `yaml:"approved"`
-	Comment   string   `yaml:"comment"`
+
+	// Complexity is the triage-driven classification for a slice. Drives validator
+	// branching: trivial relaxes what/done_when/tests requirements; standard and
+	// complex require decisions_notes (>=50 chars) and (for complex) >=1
+	// slice-local question with an answer.
+	//
+	// Empty string is treated as "standard" for back-compat with v2 plans written
+	// before this field existed.
+	Complexity string `yaml:"complexity,omitempty"`
+
+	Approved bool   `yaml:"approved"`
+	Comment  string `yaml:"comment"`
 
 	// V2 lifecycle fields (additive — legacy plans omit these and remain valid).
 	ApprovalStatus  string `yaml:"approval_status,omitempty"`  // pending | approved | rejected | changes_requested
