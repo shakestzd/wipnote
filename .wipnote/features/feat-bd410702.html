@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Tighten subagent definitions: strip skills, anti-narration, calibrated maxTurns</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-bd410702"
+             data-type="feature"
+             data-status="done"
+             data-priority="high"
+             data-created="2026-05-13T00:55:55.866111"
+             data-updated="2026-05-13T03:24:27.08415" data-agent-assigned="claude-code" data-track-id="trk-08dcbb33" data-created-by-agent="human" data-created-by-model="claude-opus-4-7[1m]" data-created-by-cli-version="0.58.0-1440-ga2fa3e672">
+
+        <header>
+            <h1>Tighten subagent definitions: strip skills, anti-narration, calibrated maxTurns</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="e5179b35-6359-4fe4-b95a-3b0e86dd85cc.html" data-relationship="implemented_in" data-since="2026-05-13T01:32:44.464551">session e5179b35-6359-4fe4-b95a-3b0e86dd85cc</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-08dcbb33.html" data-relationship="part_of" data-since="2026-05-13T00:55:55.957351">trk-08dcbb33</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="true" data-step-id="step-feat-bd410702-0" data-agent="claude-code" data-created-by-agent="claude-code">✅ Strip skills: frontmatter from all 5 wipnote agent .md files and inline only the 3-5 essential rules per agent</li>
+                <li data-completed="true" data-step-id="step-feat-bd410702-1" data-agent="claude-code" data-created-by-agent="claude-code">✅ Add explicit anti-narration directive to each agent body (&#39;Accumulate findings silently. Do not narrate intermediate steps. Return one structured response when complete.&#39;)</li>
+                <li data-completed="true" data-step-id="step-feat-bd410702-2" data-agent="claude-code" data-created-by-agent="claude-code">✅ Calibrate maxTurns to conservative-but-tighter values: patch-coder 20 (was 40) feature-coder 40 (was 60) test-runner keep 20 architect-coder keep 120</li>
+                <li data-completed="true" data-step-id="step-feat-bd410702-3" data-agent="claude-code" data-created-by-agent="claude-code">✅ Add timeout_mins overrides where Gemini default (10 min) is too tight: architect-coder timeout_mins 30</li>
+                <li data-completed="true" data-step-id="step-feat-bd410702-4" data-agent="claude-code" data-created-by-agent="claude-code">✅ Regenerate Codex&#43;Gemini target trees via wipnote plugin build-ports</li>
+                <li data-completed="true" data-step-id="step-feat-bd410702-5" data-agent="claude-code" data-created-by-agent="claude-code">✅ Quality gates: go build/vet/test pass</li>
+                <li data-completed="true" data-step-id="step-feat-bd410702-6" data-agent="claude-code" data-created-by-agent="claude-code">✅ Dogfood: dispatch one trivial task to each of patch-coder/feature-coder/researcher/test-runner and confirm no mid-stride truncation</li>
+                <li data-completed="true" data-step-id="step-feat-bd410702-7" data-agent="claude-code" data-created-by-agent="claude-code">✅ If truncation persists adjust maxTurns upward in 10-turn increments and document the calibration</li>
+                <li data-completed="true" data-step-id="step-feat-bd410702-8" data-agent="claude-code" data-created-by-agent="claude-code">✅ Verify TaskCreate fires wipnote hook [task:1]</li>
+                <li data-completed="true" data-step-id="step-feat-bd410702-9" data-agent="claude-code" data-created-by-agent="claude-code">✅ Find existing Collection step-completion API [task:2]</li>
+                <li data-completed="true" data-step-id="step-feat-bd410702-10" data-agent="claude-code" data-created-by-agent="claude-code">✅ Add CompleteTaskStep to workitem.Collection [task:3]</li>
+                <li data-completed="true" data-step-id="step-feat-bd410702-11" data-agent="claude-code" data-created-by-agent="claude-code">✅ Add wipnote feature complete-task-step CLI command [task:4]</li>
+                <li data-completed="true" data-step-id="step-feat-bd410702-12" data-agent="claude-code" data-created-by-agent="claude-code">✅ Wire completeTaskStep hook to new CLI [task:5]</li>
+                <li data-completed="true" data-step-id="step-feat-bd410702-13" data-agent="claude-code" data-created-by-agent="claude-code">✅ Rebuild, retest, commit [task:6]</li>
+                <li data-completed="true" data-step-id="task-7" data-agent="claude-code" data-created-by-agent="claude-code">✅ Live test of the fix</li>
+                <li data-completed="true" data-step-id="task-8" data-agent="claude-code" data-created-by-agent="claude-code">✅ Design durability gap fix</li>
+            </ol>
+        </section>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Address the delegation breakdown observed on 2026-05-12 where 5 subagent dispatches truncated mid-stride (durations 4m-128m, ending in colons mid-sentence). Researcher audit (a128ce023) verified against Claude Code, Codex, and Gemini official subagent docs identified three compounding causes: (1) skills: frontmatter injects 3-6KB of full skill content at startup before the agent reads its first user message — most of it irrelevant orchestration noise; (2) zero anti-narration directives across all 5 agent bodies — the 'Let me check X:' truncation is the model narrating intended actions rather than executing them; (3) maxTurns wildly out of proportion to stated scope (patch-coder allows 40 turns for 1-2 file tasks; architect-coder allows 120 turns with no Gemini timeout_mins, will be SIGKILL'd at 10 min). Start with the researcher's calibration but expect to relax maxTurns upward if real-world tasks hit the limit — current values are likely too low for some legitimate work. Plan-build-ports regeneration required after edits to propagate to Codex and Gemini trees.</p>
+        </section>
+    </article>
+</body>
+</html>
