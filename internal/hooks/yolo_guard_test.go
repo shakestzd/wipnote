@@ -899,6 +899,8 @@ func TestIsBashFileWrite_ReadOnlyCommandsNotBlocked(t *testing.T) {
 		{"file", "file somefile"},
 		{"wc", "wc -l file.txt"},
 		{"du", "du -sh dir/"},
+		{"mkdir", "mkdir -p dir/"},
+		{"touch", "touch file.txt"},
 		// Search and discovery
 		{"find no exec", "find . -name '*.go'"},
 		{"grep", "grep -r pattern dir/"},
@@ -956,8 +958,6 @@ func TestIsBashFileWrite_WriteIntentCommandsBlocked(t *testing.T) {
 		{"cp", "cp a b"},
 		{"mv", "mv a b"},
 		{"rm", "rm a"},
-		{"mkdir", "mkdir -p dir/"},
-		{"touch", "touch file.txt"},
 		{"ln", "ln -s src dst"},
 		{"install", "install -m 755 bin /usr/local/bin/"},
 		// Permission changes
@@ -1110,6 +1110,10 @@ func TestBashCommandTargetsExternalPath(t *testing.T) {
 		{"home dotfile", "echo x > ~/.claude/tasks/x", true},
 		// Relative paths are never classified as external.
 		{"relative path", "sed -i 's/x/y/' main.go", false},
+		// New whitelist cases.
+		{"whitelist gotest", "mkdir -p ~/.gotest", false},
+		{"whitelist tmp", "rm -rf ~/.tmp/foo", false},
+		{"whitelist workspaces subdir", "mkdir -p /workspaces/go-tests", false},
 	}
 
 	for _, tt := range tests {

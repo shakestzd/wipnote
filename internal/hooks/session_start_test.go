@@ -8,6 +8,7 @@ import (
 
 	"github.com/shakestzd/wipnote/internal/db"
 	"github.com/shakestzd/wipnote/internal/models"
+	"github.com/shakestzd/wipnote/internal/paths"
 )
 
 func TestSessionStartStoresProjectDir(t *testing.T) {
@@ -45,8 +46,8 @@ func TestSessionStartStoresProjectDir(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetSession: %v", err)
 	}
-	if got.ProjectDir != projectDir {
-		t.Errorf("project_dir mismatch: got %q, want %q", got.ProjectDir, projectDir)
+	if want := paths.NormalizeProjectDir(projectDir); got.ProjectDir != want {
+		t.Errorf("project_dir mismatch: got %q, want %q", got.ProjectDir, want)
 	}
 }
 

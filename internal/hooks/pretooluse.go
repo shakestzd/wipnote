@@ -532,10 +532,6 @@ var bashFileWritePattern = regexp.MustCompile(
 		`|` +
 		`\bmv\s` +
 		`|` +
-		`\btouch\s` +
-		`|` +
-		`\bmkdir\s` +
-		`|` +
 		`\bln\s` +
 		`|` +
 		`\binstall\s` +
@@ -672,6 +668,13 @@ func checkProjectDivergence(event *CloudEvent, database *sql.DB, sessionID strin
 
 	eventProjectDir := ResolveProjectDir(event.CWD, event.SessionID)
 	sessionProjectDir := sess.ProjectDir
+
+	// Strip the "unresolved:" sentinel that NormalizeProjectDir adds when the
+	// project root is a host-path with no anchor (typical in test tempdirs).
+	// ResolveProjectDir returns raw paths; comparing must happen on the same
+	// shape.
+	sessionProjectDir = strings.TrimPrefix(sessionProjectDir, "unresolved:")
+	eventProjectDir = strings.TrimPrefix(eventProjectDir, "unresolved:")
 
 	if eventProjectDir == sessionProjectDir {
 		return nil
