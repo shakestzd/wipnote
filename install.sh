@@ -26,6 +26,9 @@ set -e
 REPO="shakestzd/wipnote"
 DEFAULT_INSTALL_DIR="${HOME}/.local/bin"
 BINARY_NAME="wipnote"
+# Plugin tree from the release tarball is laid out under this directory.
+# Phase B will flip `wipnote claude` to load from here via --plugin-dir.
+DEFAULT_DATA_DIR="${HOME}/.local/share/wipnote"
 
 # ---------------------------------------------------------------------------
 # Logging helpers
@@ -321,6 +324,34 @@ download_and_install() {
 
     ln -sfn "${INSTALL_DIR}/${BINARY_NAME}" "${INSTALL_DIR}/wn"
     log_info "Created alias: wn -> wipnote"
+
+    # Lay down the bundled plugin tree at ~/.local/share/wipnote/plugin so
+    # the binary and its plugin assets stay in lockstep. Releases >= v0.59
+    # ship plugin/ at the archive root; older releases simply skip this step.
+    if [ -d "${_tmpdir}/plugin" ]; then
+        mkdir -p "${DEFAULT_DATA_DIR}"
+        rm -rf "${DEFAULT_DATA_DIR}/plugin"
+        mv "${_tmpdir}/plugin" "${DEFAULT_DATA_DIR}/plugin"
+        log_info "Installed plugin tree to ${DEFAULT_DATA_DIR}/plugin"
+    fi
+
+    # Same pattern for the Codex CLI marketplace tree. Releases >= v0.59 ship
+    # codex-marketplace/ at the archive root; older releases simply skip.
+    if [ -d "${_tmpdir}/codex-marketplace" ]; then
+        mkdir -p "${DEFAULT_DATA_DIR}"
+        rm -rf "${DEFAULT_DATA_DIR}/codex-marketplace"
+        mv "${_tmpdir}/codex-marketplace" "${DEFAULT_DATA_DIR}/codex-marketplace"
+        log_info "Installed codex-marketplace tree to ${DEFAULT_DATA_DIR}/codex-marketplace"
+    fi
+
+    # Same pattern for the Gemini CLI extension tree. Releases >= v0.59 ship
+    # gemini-extension/ at the archive root; older releases simply skip.
+    if [ -d "${_tmpdir}/gemini-extension" ]; then
+        mkdir -p "${DEFAULT_DATA_DIR}"
+        rm -rf "${DEFAULT_DATA_DIR}/gemini-extension"
+        mv "${_tmpdir}/gemini-extension" "${DEFAULT_DATA_DIR}/gemini-extension"
+        log_info "Installed gemini-extension tree to ${DEFAULT_DATA_DIR}/gemini-extension"
+    fi
 
     log_info "Installed ${BINARY_NAME} to ${INSTALL_DIR}/${BINARY_NAME}"
 }

@@ -176,7 +176,8 @@ download_binary() {
         bail
     fi
 
-    # Extract — goreleaser archive contains binary named "wipnote" at root.
+    # Extract — goreleaser archive contains the binary "wipnote" at root and
+    # (since v0.59) the plugin tree under plugin/.
     if ! tar xzf "${_tarball}" -C "${_tmpdir}" 2>/dev/null; then
         rm -rf "${_tmpdir}"
         log_err "Failed to extract archive."
@@ -192,6 +193,41 @@ download_binary() {
     mv "${_tmpdir}/wipnote" "${BINARY}"
     chmod +x "${BINARY}"
     echo "${_version}" > "${VERSION_FILE}"
+
+    # Lay down the bundled plugin tree at ~/.local/share/wipnote/plugin so the
+    # binary and its plugin assets stay in lockstep. Phase B will flip
+    # `wipnote claude` to load from this path via --plugin-dir.
+    #
+    # We extracted into ${_tmpdir} (not the destination) precisely so we never
+    # delete the directory we may currently be running from — bootstrap.sh in
+    # the legacy marketplace flow lives at
+    #   ~/.claude/plugins/marketplaces/wipnote/plugin/hooks/bin/bootstrap.sh
+    # and in the new bundled flow lives at
+    #   ~/.local/share/wipnote/plugin/hooks/bin/bootstrap.sh
+    # Removing the destination here is fine because tarball contents are
+    # already fully extracted to ${_tmpdir} before the swap.
+    if [ -d "${_tmpdir}/plugin" ]; then
+        rm -rf "${META_DIR}/plugin"
+        mv "${_tmpdir}/plugin" "${META_DIR}/plugin"
+        log_err "Installed plugin tree v${_version} to ${META_DIR}/plugin."
+    fi
+
+    # Same pattern for the Codex CLI marketplace tree. bootstrap.sh runs from
+    # the Claude hooks path so Codex/Gemini sessions don't normally trigger it,
+    # but extracting all three trees on Claude's first run is harmless (disk
+    # cost is negligible) and keeps the layout identical to install.sh.
+    if [ -d "${_tmpdir}/codex-marketplace" ]; then
+        rm -rf "${META_DIR}/codex-marketplace"
+        mv "${_tmpdir}/codex-marketplace" "${META_DIR}/codex-marketplace"
+        log_err "Installed codex-marketplace tree v${_version} to ${META_DIR}/codex-marketplace."
+    fi
+
+    # Same pattern for the Gemini CLI extension tree.
+    if [ -d "${_tmpdir}/gemini-extension" ]; then
+        rm -rf "${META_DIR}/gemini-extension"
+        mv "${_tmpdir}/gemini-extension" "${META_DIR}/gemini-extension"
+        log_err "Installed gemini-extension tree v${_version} to ${META_DIR}/gemini-extension."
+    fi
 
     rm -rf "${_tmpdir}"
     log_err "Installed wipnote v${_version} to ${BINARY}."

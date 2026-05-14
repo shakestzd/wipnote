@@ -101,11 +101,20 @@ func runUpgrade(out io.Writer, checkOnly bool, pinVersion string) error {
 		return fmt.Errorf("verifying archive checksum: %w", err)
 	}
 
-	// Extract binary from tarball.
+	// Extract archive into an "extracted" subdir of the temp dir. This gives
+	// us both the wipnote binary and the bundled plugin tree (since v0.59).
+	extractRoot := filepath.Join(tmpDir, "extracted")
+	if err := os.MkdirAll(extractRoot, 0o755); err != nil {
+		return fmt.Errorf("creating extract dir: %w", err)
+	}
+	if err := extractArchive(tarballPath, extractRoot); err != nil {
+		return fmt.Errorf("extracting archive: %w", err)
+	}
+
 	binaryName := "wipnote"
-	extractedPath := filepath.Join(tmpDir, binaryName)
-	if err := extractBinary(tarballPath, binaryName, extractedPath); err != nil {
-		return fmt.Errorf("extracting binary: %w", err)
+	extractedPath := filepath.Join(extractRoot, binaryName)
+	if _, err := os.Stat(extractedPath); err != nil {
+		return fmt.Errorf("binary %q not found in archive: %w", binaryName, err)
 	}
 
 	// Determine install destination.
@@ -129,6 +138,42 @@ func runUpgrade(out io.Writer, checkOnly bool, pinVersion string) error {
 	// Atomic replace: try os.Rename; fall back to copy on cross-device.
 	if err := atomicReplace(extractedPath, currentBin); err != nil {
 		return fmt.Errorf("replacing binary: %w", err)
+	}
+
+	// Install the bundled plugin tree, if present, to keep the binary and
+	// plugin assets in lockstep. Older release archives (< v0.59) had no
+	// plugin/ subdirectory; in that case we silently skip.
+	extractedPlugin := filepath.Join(extractRoot, "plugin")
+	if info, err := os.Stat(extractedPlugin); err == nil && info.IsDir() {
+		if err := installPluginTree(extractedPlugin); err != nil {
+			fmt.Fprintf(out, "warning: failed to install bundled plugin tree: %v\n", err)
+		} else {
+			fmt.Fprintln(out, "Installed bundled plugin tree to ~/.local/share/wipnote/plugin")
+		}
+	}
+
+	// Install the bundled Codex CLI marketplace tree, if present. Same Phase A
+	// rationale: keep binary and harness assets in lockstep. Older archives
+	// (< v0.59) had no codex-marketplace/ subdirectory; silently skip.
+	extractedCodex := filepath.Join(extractRoot, "codex-marketplace")
+	if info, err := os.Stat(extractedCodex); err == nil && info.IsDir() {
+		if err := installCodexTree(extractedCodex); err != nil {
+			fmt.Fprintf(out, "warning: failed to install bundled codex-marketplace tree: %v\n", err)
+		} else {
+			fmt.Fprintln(out, "Installed bundled codex-marketplace tree to ~/.local/share/wipnote/codex-marketplace")
+		}
+	}
+
+	// Install the bundled Gemini CLI extension tree, if present. Same Phase A
+	// rationale: keep binary and harness assets in lockstep. Older archives
+	// (< v0.59) had no gemini-extension/ subdirectory; silently skip.
+	extractedGemini := filepath.Join(extractRoot, "gemini-extension")
+	if info, err := os.Stat(extractedGemini); err == nil && info.IsDir() {
+		if err := installGeminiTree(extractedGemini); err != nil {
+			fmt.Fprintf(out, "warning: failed to install bundled gemini-extension tree: %v\n", err)
+		} else {
+			fmt.Fprintln(out, "Installed bundled gemini-extension tree to ~/.local/share/wipnote/gemini-extension")
+		}
 	}
 
 	// Update ~/.local/share/wipnote/.binary-version so bootstrap fast-path works.
@@ -221,8 +266,16 @@ func downloadFile(url, dest string) error {
 	return err
 }
 
-// extractBinary extracts a single named file from a .tar.gz archive.
-func extractBinary(tarball, binaryName, dest string) error {
+// extractArchive extracts a .tar.gz archive into destRoot, preserving the
+// archive's internal directory layout. Used to lift out both the top-level
+// wipnote binary and the bundled plugin/ tree (since v0.59) in a single pass.
+//
+// Hardens against path-traversal entries ("../") by rejecting any name that
+// escapes destRoot. Regular files inherit the tar header's mode (with 0o600
+// minimum so we can still read what we write). Directories are created with
+// 0o755. Other entry types (symlinks, devices) are ignored — we control the
+// archive and don't produce them.
+func extractArchive(tarball, destRoot string) error {
 	f, err := os.Open(tarball)
 	if err != nil {
 		return err
@@ -235,6 +288,11 @@ func extractBinary(tarball, binaryName, dest string) error {
 	}
 	defer gr.Close()
 
+	absRoot, err := filepath.Abs(destRoot)
+	if err != nil {
+		return fmt.Errorf("resolving extract root: %w", err)
+	}
+
 	tr := tar.NewReader(gr)
 	for {
 		hdr, err := tr.Next()
@@ -244,19 +302,161 @@ func extractBinary(tarball, binaryName, dest string) error {
 		if err != nil {
 			return fmt.Errorf("reading tar: %w", err)
 		}
-		if filepath.Base(hdr.Name) == binaryName {
-			out, err := os.OpenFile(dest, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o755)
+
+		// Skip entries with absolute paths or "../" traversal.
+		clean := filepath.Clean(hdr.Name)
+		if filepath.IsAbs(clean) || strings.HasPrefix(clean, ".."+string(filepath.Separator)) || clean == ".." {
+			continue
+		}
+		target := filepath.Join(absRoot, clean)
+		// Defense in depth: confirm the resolved target is under destRoot.
+		if !strings.HasPrefix(target+string(filepath.Separator), absRoot+string(filepath.Separator)) && target != absRoot {
+			continue
+		}
+
+		switch hdr.Typeflag {
+		case tar.TypeDir:
+			if err := os.MkdirAll(target, 0o755); err != nil {
+				return fmt.Errorf("mkdir %s: %w", target, err)
+			}
+		case tar.TypeReg:
+			if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+				return fmt.Errorf("mkdir parent of %s: %w", target, err)
+			}
+			mode := os.FileMode(hdr.Mode) & 0o777
+			if mode == 0 {
+				mode = 0o644
+			}
+			out, err := os.OpenFile(target, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, mode)
+			if err != nil {
+				return fmt.Errorf("creating %s: %w", target, err)
+			}
+			if _, err := io.Copy(out, tr); err != nil {
+				out.Close()
+				return fmt.Errorf("writing %s: %w", target, err)
+			}
+			if err := out.Close(); err != nil {
+				return fmt.Errorf("closing %s: %w", target, err)
+			}
+		default:
+			// Symlinks/devices: not produced by goreleaser for this archive.
+		}
+	}
+	return nil
+}
+
+// installPluginTree replaces ~/.local/share/wipnote/plugin atomically by
+// moving srcPluginDir into place after removing any prior contents. Mirrors
+// the bootstrap.sh logic so that upgrades via either path leave identical
+// on-disk state.
+func installPluginTree(srcPluginDir string) error {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return fmt.Errorf("resolve home dir: %w", err)
+	}
+	metaDir := filepath.Join(home, ".local", "share", "wipnote")
+	destPlugin := filepath.Join(metaDir, "plugin")
+
+	if err := os.MkdirAll(metaDir, 0o755); err != nil {
+		return fmt.Errorf("create %s: %w", metaDir, err)
+	}
+	if err := os.RemoveAll(destPlugin); err != nil {
+		return fmt.Errorf("remove existing %s: %w", destPlugin, err)
+	}
+	// Try rename first (atomic on same filesystem). Fall back to recursive
+	// copy on cross-device — temp dirs and ~/.local/share can live on
+	// different volumes (e.g. inside containers).
+	if err := os.Rename(srcPluginDir, destPlugin); err == nil {
+		return nil
+	}
+	return copyDirRecursive(srcPluginDir, destPlugin)
+}
+
+// installCodexTree replaces ~/.local/share/wipnote/codex-marketplace atomically
+// by moving srcCodexDir into place after removing any prior contents. Mirrors
+// installPluginTree so the upgrade and bootstrap paths leave identical on-disk
+// state across all three harness trees.
+func installCodexTree(srcCodexDir string) error {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return fmt.Errorf("resolve home dir: %w", err)
+	}
+	metaDir := filepath.Join(home, ".local", "share", "wipnote")
+	destCodex := filepath.Join(metaDir, "codex-marketplace")
+
+	if err := os.MkdirAll(metaDir, 0o755); err != nil {
+		return fmt.Errorf("create %s: %w", metaDir, err)
+	}
+	if err := os.RemoveAll(destCodex); err != nil {
+		return fmt.Errorf("remove existing %s: %w", destCodex, err)
+	}
+	if err := os.Rename(srcCodexDir, destCodex); err == nil {
+		return nil
+	}
+	return copyDirRecursive(srcCodexDir, destCodex)
+}
+
+// installGeminiTree replaces ~/.local/share/wipnote/gemini-extension atomically
+// by moving srcGeminiDir into place after removing any prior contents. Mirrors
+// installPluginTree so the upgrade and bootstrap paths leave identical on-disk
+// state across all three harness trees.
+func installGeminiTree(srcGeminiDir string) error {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return fmt.Errorf("resolve home dir: %w", err)
+	}
+	metaDir := filepath.Join(home, ".local", "share", "wipnote")
+	destGemini := filepath.Join(metaDir, "gemini-extension")
+
+	if err := os.MkdirAll(metaDir, 0o755); err != nil {
+		return fmt.Errorf("create %s: %w", metaDir, err)
+	}
+	if err := os.RemoveAll(destGemini); err != nil {
+		return fmt.Errorf("remove existing %s: %w", destGemini, err)
+	}
+	if err := os.Rename(srcGeminiDir, destGemini); err == nil {
+		return nil
+	}
+	return copyDirRecursive(srcGeminiDir, destGemini)
+}
+
+// copyDirRecursive walks src and copies every entry into dst, preserving file
+// modes. Symlinks are skipped (the plugin tree doesn't contain any).
+func copyDirRecursive(src, dst string) error {
+	return filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, err := filepath.Rel(src, path)
+		if err != nil {
+			return err
+		}
+		target := filepath.Join(dst, rel)
+		switch {
+		case info.IsDir():
+			return os.MkdirAll(target, info.Mode().Perm()|0o700)
+		case info.Mode().IsRegular():
+			if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+				return err
+			}
+			in, err := os.Open(path)
 			if err != nil {
 				return err
 			}
-			if _, err = io.Copy(out, tr); err != nil {
+			defer in.Close()
+			out, err := os.OpenFile(target, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, info.Mode().Perm())
+			if err != nil {
+				return err
+			}
+			if _, err := io.Copy(out, in); err != nil {
 				out.Close()
 				return err
 			}
 			return out.Close()
+		default:
+			return nil
 		}
-	}
-	return fmt.Errorf("binary %q not found in archive", binaryName)
+	})
 }
 
 // atomicReplace replaces dest with src. Tries os.Rename first (atomic on same
