@@ -34,6 +34,21 @@ release:
     name: wipnote
   name_template: "Go v{{.Version}}"
 
+brews:
+  - name: wipnote
+    repository:
+      owner: shakestzd
+      name: homebrew-wipnote
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    homepage: https://github.com/shakestzd/wipnote
+    description: "Local-first observability and coordination platform for AI-assisted development"
+    license: MIT
+    install: |
+      bin.install "wipnote"
+      bin.install_symlink "wipnote" => "wn"
+    test: |
+      assert_match version.to_s, shell_output("#{bin}/wipnote version")
+
 git:
   tag_sort: -version:refname
 
