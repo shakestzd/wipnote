@@ -6,7 +6,7 @@ meta:
     status: draft
     priority: medium
     schema_version: v3
-    version: 3
+    version: 4
 design:
     problem: ""
     goals: []
@@ -18,6 +18,19 @@ slices:
       num: 1
       title: S1
       what: Do S1
+      why: ""
+      files: []
+      deps: []
+      done_when: []
+      effort: S
+      risk: Low
+      tests: ""
+      approved: false
+      comment: ""
+    - id: slic-9b91005c
+      num: 2
+      title: S2
+      what: Do S2
       why: ""
       files: []
       deps: []
