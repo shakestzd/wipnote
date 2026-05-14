@@ -81,8 +81,65 @@ func runBuild() error {
 		return fmt.Errorf("write %s: %w", versionFile, err)
 	}
 
+	// Mirror the source plugin tree into ~/.local/share/wipnote/plugin so a
+	// dev-built binary lays out the same bundle as a release-installed one.
+	// This is what Phase B will read from when `wipnote claude` (no --dev)
+	// flips to loading the bundled tree via --plugin-dir. `--dev` mode keeps
+	// using $(pwd)/plugin/ directly — unchanged.
+	srcPlugin := filepath.Join(projectRoot, "plugin")
+	destPlugin := filepath.Join(metaDir, "plugin")
+	if err := mirrorPluginTree(srcPlugin, destPlugin); err != nil {
+		return fmt.Errorf("mirror plugin tree: %w", err)
+	}
+
+	// Mirror the Codex CLI marketplace tree alongside the plugin tree. Phase B
+	// will flip `wipnote codex` to load from this bundled path; until then it
+	// just keeps dev and release layouts in sync.
+	srcCodex := filepath.Join(projectRoot, "packages", "codex-marketplace")
+	destCodex := filepath.Join(metaDir, "codex-marketplace")
+	if err := mirrorPluginTree(srcCodex, destCodex); err != nil {
+		return fmt.Errorf("mirror codex-marketplace tree: %w", err)
+	}
+
+	// Mirror the Gemini CLI extension tree alongside the plugin tree. Phase B
+	// will flip `wipnote gemini` to load from this bundled path; until then it
+	// just keeps dev and release layouts in sync.
+	srcGemini := filepath.Join(projectRoot, "packages", "gemini-extension")
+	destGemini := filepath.Join(metaDir, "gemini-extension")
+	if err := mirrorPluginTree(srcGemini, destGemini); err != nil {
+		return fmt.Errorf("mirror gemini-extension tree: %w", err)
+	}
+
 	fmt.Printf("Installed: %s (v%s)\n", binaryPath, version)
 	fmt.Printf("Alias:     %s -> wipnote\n", aliasPath)
+	fmt.Printf("Plugin:    %s\n", destPlugin)
+	fmt.Printf("Codex:     %s\n", destCodex)
+	fmt.Printf("Gemini:    %s\n", destGemini)
+	return nil
+}
+
+// mirrorPluginTree replaces dst with a fresh copy of src. Uses `cp -a` so
+// file modes (e.g. executable hooks/bin/*.sh) are preserved without us
+// reimplementing permission handling. Idempotent: removes dst first.
+func mirrorPluginTree(src, dst string) error {
+	if _, err := os.Stat(src); err != nil {
+		// Source plugin/ directory missing — surface a clear error rather
+		// than silently leaving the dest stale. This should never happen
+		// in a healthy worktree.
+		return fmt.Errorf("plugin source %s not found: %w", src, err)
+	}
+	if err := os.RemoveAll(dst); err != nil {
+		return fmt.Errorf("remove %s: %w", dst, err)
+	}
+	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+		return fmt.Errorf("create %s: %w", filepath.Dir(dst), err)
+	}
+	cp := exec.Command("cp", "-a", src, dst)
+	cp.Stdout = os.Stdout
+	cp.Stderr = os.Stderr
+	if err := cp.Run(); err != nil {
+		return fmt.Errorf("cp -a %s %s: %w", src, dst, err)
+	}
 	return nil
 }
 
