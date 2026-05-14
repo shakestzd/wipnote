@@ -10,6 +10,7 @@ import (
 
 	"github.com/shakestzd/wipnote/internal/db"
 	"github.com/shakestzd/wipnote/internal/models"
+	"github.com/shakestzd/wipnote/internal/paths"
 )
 
 // setupLifecycleDB creates a temp project dir with .wipnote/ and a real
@@ -65,8 +66,8 @@ func TestHookLifecycle(t *testing.T) {
 	if sess.Status != "active" {
 		t.Errorf("expected session status=active, got %q", sess.Status)
 	}
-	if sess.ProjectDir != projectDir {
-		t.Errorf("project_dir mismatch: got %q, want %q", sess.ProjectDir, projectDir)
+	if want := paths.NormalizeProjectDir(projectDir); sess.ProjectDir != want {
+		t.Errorf("project_dir mismatch: got %q, want %q", sess.ProjectDir, want)
 	}
 
 	// --- Step 2: UserPromptSubmit ---

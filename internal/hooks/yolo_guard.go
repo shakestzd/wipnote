@@ -452,9 +452,17 @@ func bashCommandTargetsExternalPath(cmd, projectRoot string) bool {
 	// Look for the first argument that looks like a path (starts with ~ or /).
 	for _, field := range strings.Fields(cmd) {
 		if strings.HasPrefix(field, "~/") || strings.HasPrefix(field, "~\\") {
+			// Allow common test/temp directories in home
+			if strings.HasPrefix(field, "~/.gotest") || strings.HasPrefix(field, "~/.tmp") || strings.HasPrefix(field, "~/.cache") {
+				return false
+			}
 			return true
 		}
 		if strings.HasPrefix(field, "/") {
+			// Allow siblings in /workspaces/ if the project itself is in /workspaces/
+			if strings.HasPrefix(projectRoot, "/workspaces/") && strings.HasPrefix(field, "/workspaces/") {
+				return false
+			}
 			// Resolve against project root: if the path is inside the project,
 			// it is internal — not an external write.
 			if projectRoot != "" {
