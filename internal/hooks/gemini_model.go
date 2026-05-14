@@ -79,6 +79,17 @@ func AfterModel(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 		insertAssistantTextSignalFromHookPayload(database, projectDir, sessionID, event, responseText, "after_model")
 	}
 
+	// Skip intermediate streaming chunks. Per geminicli.com docs, AfterModel
+	// fires "for every chunk" — only the final chunk carries finishReason and
+	// usageMetadata.totalTokenCount. Recording every chunk produces ~65% noise
+	// in agent_events (bug-55a17fc2). The durable fix is to migrate hooks.json
+	// from AfterModel to AfterAgent (the docs-canonical turn-level hook) once
+	// gemini-cli issue #15468 (AfterAgent premature-fire) is confirmed fixed
+	// in shipped versions; until then this guard keeps the timeline clean.
+	if finishReason == "" && totalTokens == 0 {
+		return &HookResult{Continue: true}, nil
+	}
+
 	// Record a lightweight agent_event so model+token info appears in the timeline.
 	summary := buildAfterModelSummary(model, totalTokens, finishReason)
 	return recordSimpleEvent(models.EventCheckPoint, "AfterModel", summary, "recorded", event, database)
