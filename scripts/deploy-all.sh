@@ -19,6 +19,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 PLUGIN_JSON="$PROJECT_ROOT/plugin/.claude-plugin/plugin.json"
+MANIFEST_JSON="$PROJECT_ROOT/packages/plugin-core/manifest.json"
 GO_DIR="$PROJECT_ROOT"
 
 # Colors
@@ -153,14 +154,16 @@ if [[ -n "$VERSION" && "$VERSION" != "$CURRENT_VERSION" ]]; then
     step "Bumping version: $CURRENT_VERSION → $VERSION"
 
     if $DRY_RUN; then
-        ok "[dry-run] Would update $PLUGIN_JSON"
+        ok "[dry-run] Would update $PLUGIN_JSON and $MANIFEST_JSON"
     else
         if [[ "$OSTYPE" == "darwin"* ]]; then
             sed -i '' "s/\"version\": \"$CURRENT_VERSION\"/\"version\": \"$VERSION\"/" "$PLUGIN_JSON"
+            sed -i '' "s/\"version\": \"$CURRENT_VERSION\"/\"version\": \"$VERSION\"/" "$MANIFEST_JSON"
         else
             sed -i "s/\"version\": \"$CURRENT_VERSION\"/\"version\": \"$VERSION\"/" "$PLUGIN_JSON"
+            sed -i "s/\"version\": \"$CURRENT_VERSION\"/\"version\": \"$VERSION\"/" "$MANIFEST_JSON"
         fi
-        ok "Updated plugin.json"
+        ok "Updated plugin.json + manifest.json"
     fi
 fi
 
@@ -174,8 +177,8 @@ if $DRY_RUN; then
         ok "[dry-run] Would tag v$VERSION"
     fi
 else
-    # Stage version file + any other tracked changes
-    git add "$PLUGIN_JSON"
+    # Stage version files + any other tracked changes
+    git add "$PLUGIN_JSON" "$MANIFEST_JSON"
 
     if git diff --cached --quiet; then
         ok "No changes to commit"
