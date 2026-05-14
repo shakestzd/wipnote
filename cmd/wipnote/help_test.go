@@ -256,9 +256,10 @@ var internalPlumbingAllowlist = map[string]bool{
 	"plugin":    true,
 	"projects":  true,
 	"init":      true,
-	"setup":     true,
-	"setup-cli": true,
-	"harness":   true, // debugging/inspection tool for harness registry
+	"setup":       true,
+	"setup-cli":   true,
+	"harness":     true, // debugging/inspection tool for harness registry
+	"shell-alias": true, // opt-in alias snippet printer; not a routine workflow command
 }
 
 // TestPlanReview_IsDeprecatedViaCobraField verifies that plan review uses

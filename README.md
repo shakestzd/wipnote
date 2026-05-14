@@ -23,18 +23,49 @@ HTML is the source of truth; SQLite is derived. If they drift, `wipnote reindex`
 ## Install
 
 ```bash
-# Install (universal)
-curl -fsSL https://raw.githubusercontent.com/shakestzd/wipnote/main/install.sh | sh
+# Homebrew (macOS / Linux)
+brew install shakestzd/wipnote/wipnote
 
-# Or as a Claude Code plugin
-claude plugin install wipnote
+# Or universal curl install
+curl -fsSL https://raw.githubusercontent.com/shakestzd/wipnote/main/install.sh | sh
 
 # Or build from source
 git clone https://github.com/shakestzd/wipnote.git
 cd wipnote && go build -o wipnote ./cmd/wipnote/
 ```
 
-For subsequent rebuilds after the binary is on your PATH, use `wipnote build` instead.
+The release tarball (and the Homebrew formula) bundle the plugin trees for
+Claude Code, Codex CLI, and Gemini CLI alongside the `wipnote` binary. There is
+no separate `claude plugin install` step — `wipnote claude` loads the bundled
+plugin via `--plugin-dir` automatically.
+
+For subsequent rebuilds after the binary is on your PATH, use `wipnote build`
+(it rebuilds the binary AND mirrors the plugin trees into
+`~/.local/share/wipnote/`).
+
+### Using wipnote with each harness
+
+```bash
+wipnote claude   # Claude Code with bundled plugin
+wipnote codex    # Codex CLI with bundled marketplace
+wipnote gemini   # Gemini CLI with bundled extension
+```
+
+Each launcher resolves the bundled tree (from `~/.local/share/wipnote/` for the
+curl/dev install or `$(brew --prefix)/share/wipnote/` for Homebrew) and points
+the harness at it. Override the resolved path per-tree with
+`WIPNOTE_PLUGIN_DIR`, `WIPNOTE_CODEX_DIR`, or `WIPNOTE_GEMINI_DIR`.
+
+For users who want the bare `claude` / `codex` / `gemini` commands to route
+through wipnote, opt in via shell aliases:
+
+```bash
+wipnote shell-alias >> ~/.zshrc    # or ~/.bashrc
+```
+
+This is intentionally opt-in — per-project `wipnote claude` invocation is the
+recommended flow because it avoids surprising shell behavior in non-wipnote
+projects.
 
 ### Upgrading
 

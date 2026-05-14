@@ -228,30 +228,23 @@ fi
 step "Update local install"
 
 if $DRY_RUN; then
-    ok "[dry-run] Would pull marketplace clone"
-    ok "[dry-run] Would rebuild CLI binary via 'wipnote build'"
+    ok "[dry-run] Would rebuild CLI binary + mirror bundled plugin trees via 'wipnote build'"
 else
-    # 1. Pull the marketplace clone so `claude plugin update` sees the new version.
-    #    Claude Code's marketplace is a local git clone; without a pull the
-    #    update command compares against the stale checkout and reports "already
-    #    at latest."
-    MARKETPLACE_DIR="$HOME/.claude/plugins/marketplaces/wipnote"
-    if [[ -d "$MARKETPLACE_DIR/.git" ]]; then
-        (cd "$MARKETPLACE_DIR" && git pull origin main --quiet 2>/dev/null) \
-            && ok "Marketplace clone updated" \
-            || warn "Marketplace pull failed (non-fatal)"
-    else
-        warn "Marketplace clone not found at $MARKETPLACE_DIR — skipping pull"
-    fi
-
-    # 2. Rebuild CLI binary so ~/.local/bin/wipnote matches the release.
-    #    Plugin hooks use `wipnote` (PATH lookup), not the bundled binary.
-    #    No plugin reinstall needed — the marketplace clone update (above)
-    #    is sufficient. Reinstalling interferes with dev mode (--plugin-dir).
-    #    Bootstrap from source via `go run` so we don't depend on a pre-existing
-    #    wipnote binary in PATH (chicken-and-egg).
+    # Phase B of the marketplace-to-bundled-plugin migration: `wipnote claude`,
+    # `wipnote codex`, and `wipnote gemini` now resolve the bundled harness
+    # trees laid down by `wipnote build` (locally) or `brew install wipnote` /
+    # the release tarball (production). There is no longer a separate
+    # marketplace clone to pull or a marketplace plugin to uninstall/install.
+    #
+    # `wipnote build` does both: it compiles the new binary into ~/.local/bin
+    # AND mirrors plugin/, packages/codex-marketplace/, and
+    # packages/gemini-extension/ into ~/.local/share/wipnote/. The launchers
+    # pick those up automatically on next invocation.
+    #
+    # Bootstrap from source via `go run` so we don't depend on a pre-existing
+    # wipnote binary in PATH (chicken-and-egg).
     (cd "$PROJECT_ROOT" && go run ./cmd/wipnote build 2>&1 | tail -1)
-    ok "CLI binary rebuilt"
+    ok "CLI binary + bundled plugin trees refreshed"
 fi
 
 # ── Post-release ───────────────────────────────────────────────

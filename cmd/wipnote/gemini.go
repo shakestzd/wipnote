@@ -68,36 +68,56 @@ func resolveGeminiExtensionRef(override string) (string, error) {
 
 // runGeminiInit installs the wipnote Gemini extension, idempotently.
 // Corresponds to: wipnote gemini --init [--ref <ref>] [--force] [--dry-run]
+//
+// Phase B of the marketplace-to-bundled-plugin migration: --init now links
+// the bundled local extension tree resolved via
+// resolveSharedTreePath("gemini-extension") instead of downloading the
+// extension from GitHub. The Gemini extension tree is shipped alongside the
+// wipnote binary (in the release tarball or via brew install) and mirrored
+// by `wipnote build`. The --ref flag is accepted but ignored; a deprecation
+// notice prints when it is supplied.
 func runGeminiInit(ref string, force, dryRun bool) error {
 	installDir := geminiExtensionInstallDir()
 
-	// Check idempotency BEFORE resolving ref. For dev builds (version == "dev"),
-	// skipping ref resolution avoids a network call when already installed.
-	if isGeminiExtensionInstalled() && !force {
-		fmt.Printf("wipnote Gemini extension is already installed at %s\n", installDir)
+	bundled, err := resolveSharedTreePath("gemini-extension")
+	if err != nil {
+		return fmt.Errorf("resolving bundled Gemini extension: %w", err)
+	}
+
+	if ref != "" {
+		fmt.Fprintf(os.Stderr,
+			"warning: --ref %q is ignored under bundled-extension mode (extension is shipped with the wipnote binary)\n", ref)
+	}
+
+	// Check idempotency: if the extension is already linked to the bundled
+	// path, skip. `--force` re-links unconditionally.
+	if !force && isExtensionAlreadyLinkedToLocalPath(bundled) {
+		fmt.Printf("wipnote Gemini extension is already linked to bundled path: %s\n", bundled)
 		fmt.Println("To reinstall: wipnote gemini --init --force")
 		fmt.Println("To launch:    wipnote gemini")
 		return nil
 	}
 
-	resolvedRef, err := resolveGeminiExtensionRef(ref)
-	if err != nil {
-		return err
+	// If there is an existing install (GitHub-installed or linked elsewhere),
+	// uninstall it first so the link can take. Mirrors the launchGeminiDev
+	// logic that handles stale installs.
+	if isGeminiExtensionInstalled() && !dryRun {
+		geminiPath, gErr := exec.LookPath("gemini")
+		if gErr != nil {
+			return fmt.Errorf("gemini not found in PATH: %w\nInstall Gemini CLI first: https://github.com/google-gemini/gemini-cli", gErr)
+		}
+		fmt.Printf("Replacing existing wipnote Gemini extension install at %s\n", installDir)
+		if out, uErr := exec.Command(geminiPath, "extensions", "uninstall", "wipnote").CombinedOutput(); uErr != nil {
+			return fmt.Errorf("gemini extensions uninstall failed: %w\n%s", uErr, strings.TrimSpace(string(out)))
+		}
 	}
 
-	installArgs := []string{
-		"extensions", "install",
-		"shakestzd/wipnote",
-		"--ref", resolvedRef,
-		"--consent",
-		"--skip-settings",
-	}
-
-	fmt.Printf("Installing wipnote Gemini extension...\n")
-	fmt.Printf("  ref: %s\n", resolvedRef)
+	linkArgs := buildGeminiLinkArgs(bundled)
+	fmt.Printf("Linking wipnote Gemini extension (bundled)...\n")
+	fmt.Printf("  path: %s\n", bundled)
 
 	if dryRun {
-		fmt.Printf("[dry-run] gemini %s\n", strings.Join(installArgs, " "))
+		fmt.Printf("[dry-run] gemini %s\n", strings.Join(linkArgs, " "))
 		return nil
 	}
 
@@ -106,18 +126,22 @@ func runGeminiInit(ref string, force, dryRun bool) error {
 		return fmt.Errorf("gemini not found in PATH: %w\nInstall Gemini CLI first: https://github.com/google-gemini/gemini-cli", err)
 	}
 
-	out, runErr := exec.Command(geminiPath, installArgs...).CombinedOutput()
+	out, runErr := exec.Command(geminiPath, linkArgs...).CombinedOutput()
 	if runErr != nil {
-		return fmt.Errorf("gemini extensions install failed: %w\n%s", runErr, strings.TrimSpace(string(out)))
+		return fmt.Errorf("gemini extensions link failed: %w\n%s", runErr, strings.TrimSpace(string(out)))
 	}
 
-	fmt.Println("wipnote Gemini extension installed.")
+	fmt.Println("wipnote Gemini extension linked (bundled).")
 	fmt.Println()
 	fmt.Println("Setup complete. Run: wipnote gemini")
 	return nil
 }
 
 // interactiveGeminiExtensionInstall prompts the user to install the extension.
+//
+// Phase B: under bundled-extension mode the prompt is suppressed; the launcher
+// auto-links the bundled tree. This stub is retained for tests/backcompat but
+// becomes a no-op when called.
 func interactiveGeminiExtensionInstall() {
 	fmt.Println()
 	fmt.Println("wipnote extension is not installed for Gemini CLI.")
@@ -143,16 +167,58 @@ func interactiveGeminiExtensionInstall() {
 	fmt.Println()
 }
 
+// ensureGeminiExtensionLinked auto-links the bundled Gemini extension tree
+// when no extension is installed yet, or when the existing install does not
+// point at the bundled path. Idempotent on the happy path; logs warnings but
+// does not block the launch on failure. Phase B replacement for the
+// interactive install prompt.
+func ensureGeminiExtensionLinked() {
+	bundled, err := resolveSharedTreePath("gemini-extension")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "warning: could not resolve bundled Gemini extension: %v\n", err)
+		fmt.Fprintln(os.Stderr, "  Install via 'brew install wipnote' or 'wipnote build', or run 'wipnote gemini --init' manually.")
+		return
+	}
+	if isExtensionAlreadyLinkedToLocalPath(bundled) {
+		return
+	}
+	if isGeminiExtensionInstalled() {
+		// Different install (GitHub-installed or linked elsewhere). Tear it down so we can re-link.
+		geminiPath, gErr := exec.LookPath("gemini")
+		if gErr != nil {
+			fmt.Fprintf(os.Stderr, "warning: gemini not in PATH; skipping extension link: %v\n", gErr)
+			return
+		}
+		if out, uErr := exec.Command(geminiPath, "extensions", "uninstall", "wipnote").CombinedOutput(); uErr != nil {
+			fmt.Fprintf(os.Stderr, "warning: could not uninstall previous wipnote Gemini extension: %v\n%s\n", uErr, strings.TrimSpace(string(out)))
+			return
+		}
+	}
+	geminiPath, gErr := exec.LookPath("gemini")
+	if gErr != nil {
+		fmt.Fprintf(os.Stderr, "warning: gemini not in PATH; skipping extension link: %v\n", gErr)
+		return
+	}
+	linkArgs := buildGeminiLinkArgs(bundled)
+	if out, lErr := exec.Command(geminiPath, linkArgs...).CombinedOutput(); lErr != nil {
+		fmt.Fprintf(os.Stderr, "warning: gemini extensions link failed: %v\n%s\n", lErr, strings.TrimSpace(string(out)))
+		fmt.Fprintln(os.Stderr, "  Run manually: wipnote gemini --init")
+		return
+	}
+	fmt.Printf("wipnote Gemini extension linked (bundled): %s\n", bundled)
+}
+
 // ensureGeminiExtensionOnLaunch is called by the default launcher.
 var ensureGeminiExtensionOnLaunchFn = ensureGeminiExtensionOnLaunch
 var isGeminiExtensionInstalledFn = isGeminiExtensionInstalled
 var interactiveGeminiExtensionInstallFn = interactiveGeminiExtensionInstall
 
-// ensureGeminiExtensionOnLaunch is called by the default launcher.
+// ensureGeminiExtensionOnLaunch ensures the wipnote Gemini extension is
+// available before launching. Phase B: auto-link the bundled tree instead
+// of prompting the user; the interactive helper is retained for callers
+// that still want to opt in (e.g. tests).
 func ensureGeminiExtensionOnLaunch() {
-	if !isGeminiExtensionInstalledFn() {
-		interactiveGeminiExtensionInstallFn()
-	}
+	ensureGeminiExtensionLinked()
 }
 
 func maybeEnsureGeminiExtensionOnLaunch(dryRun bool) {

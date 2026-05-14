@@ -222,7 +222,10 @@ func launchYoloDefault(permMode, trackID, featureID string, noWorktree bool, res
 		projectRoot = filepath.Dir(wipnoteDir)
 	}
 
-	ensurePluginOnLaunch()
+	pluginDir, err := resolveBundledPluginDir()
+	if err != nil {
+		return err
+	}
 
 	// No work item provided — fall back to planning mode.
 	if trackID == "" && featureID == "" {
@@ -294,6 +297,7 @@ func launchYoloDefault(permMode, trackID, featureID string, noWorktree bool, res
 
 	return launchClaude(LaunchOpts{
 		Mode:             "yolo",
+		PluginDir:        pluginDir,
 		ResumeID:         resumeID,
 		SystemPromptFile: tmpFile.Name(),
 		PermissionMode:   permMode,
@@ -421,11 +425,15 @@ func launchYoloContinue(extraArgs []string, resumeID string) error {
 		projectRoot = filepath.Dir(wipnoteDir)
 	}
 
-	ensurePluginOnLaunch()
+	pluginDir, err := resolveBundledPluginDir()
+	if err != nil {
+		return err
+	}
 	fmt.Println("Resuming last YOLO session...")
 
 	return launchClaude(LaunchOpts{
 		Mode:           "yolo-continue",
+		PluginDir:      pluginDir,
 		Resume:         true,
 		ResumeID:       resumeID,
 		PermissionMode: "bypassPermissions",

@@ -232,7 +232,10 @@ func autoPermissionMode(enabled bool) string {
 func launchClaudeAuto(extraArgs []string, resumeID, name string) error {
 	projectRoot, _ := resolveProjectRoot()
 	cleanupStaleDev(projectRoot)
-	ensurePluginOnLaunch()
+	pluginDir, err := resolveBundledPluginDir()
+	if err != nil {
+		return err
+	}
 	sessionName := name
 	// Only synthesize a default name for new sessions. When resuming an existing
 	// session, skip default-name generation so we don't rename or conflict with
@@ -245,6 +248,7 @@ func launchClaudeAuto(extraArgs []string, resumeID, name string) error {
 	fmt.Printf("  Session: %s\n", sessionName)
 	return launchClaude(LaunchOpts{
 		Mode:               "auto",
+		PluginDir:          pluginDir,
 		ResumeID:           resumeID,
 		InjectSystemPrompt: true,
 		EnableAutoMode:     true,
@@ -367,7 +371,10 @@ func launchClaudeInit(extraArgs []string, resumeID, name string) error {
 	// have .wipnote/ yet. Walk-up would anchor to the wrong project.
 	projectRoot, _ := os.Getwd()
 	cleanupStaleDev(projectRoot)
-	ensurePluginOnLaunch()
+	pluginDir, err := resolveBundledPluginDir()
+	if err != nil {
+		return err
+	}
 	sessionName := name
 	// Only synthesize a default name for new sessions. When resuming an existing
 	// session, skip default-name generation so we don't rename or conflict with
@@ -375,10 +382,12 @@ func launchClaudeInit(extraArgs []string, resumeID, name string) error {
 	if sessionName == "" && resumeID == "" {
 		sessionName = defaultSessionName(projectRoot)
 	}
-	fmt.Println("Launching Claude Code with marketplace plugin (init mode)...")
+	fmt.Println("Launching Claude Code with bundled wipnote plugin (init mode)...")
+	fmt.Printf("  Plugin: %s\n", pluginDir)
 	fmt.Printf("  Session: %s\n", sessionName)
 	return launchClaude(LaunchOpts{
 		Mode:               "init",
+		PluginDir:          pluginDir,
 		ResumeID:           resumeID,
 		InjectSystemPrompt: true,
 		Name:               sessionName,
@@ -390,10 +399,14 @@ func launchClaudeInit(extraArgs []string, resumeID, name string) error {
 func launchClaudeContinue(extraArgs []string, resumeID string) error {
 	projectRoot, _ := resolveProjectRoot()
 	cleanupStaleDev(projectRoot)
-	ensurePluginOnLaunch()
+	pluginDir, err := resolveBundledPluginDir()
+	if err != nil {
+		return err
+	}
 	fmt.Println("Resuming last Claude Code session (continue mode)...")
 	return launchClaude(LaunchOpts{
 		Mode:        "continue",
+		PluginDir:   pluginDir,
 		Resume:      true,
 		ResumeID:    resumeID,
 		ExtraArgs:   extraArgs,
@@ -404,7 +417,10 @@ func launchClaudeContinue(extraArgs []string, resumeID string) error {
 func launchClaudeDefault(extraArgs []string, resumeID, name string) error {
 	projectRoot, _ := resolveProjectRoot()
 	cleanupStaleDev(projectRoot)
-	ensurePluginOnLaunch()
+	pluginDir, err := resolveBundledPluginDir()
+	if err != nil {
+		return err
+	}
 	sessionName := name
 	// Only synthesize a default name for new sessions. When resuming an existing
 	// session, skip default-name generation so we don't rename or conflict with
@@ -413,15 +429,25 @@ func launchClaudeDefault(extraArgs []string, resumeID, name string) error {
 		sessionName = defaultSessionName(projectRoot)
 	}
 	fmt.Println("Launching Claude Code (default mode)...")
+	fmt.Printf("  Plugin: %s\n", pluginDir)
 	fmt.Printf("  Session: %s\n", sessionName)
 	return launchClaude(LaunchOpts{
 		Mode:               "default",
+		PluginDir:          pluginDir,
 		ResumeID:           resumeID,
 		InjectSystemPrompt: true,
 		Name:               sessionName,
 		ExtraArgs:          extraArgs,
 		ProjectRoot:        projectRoot,
 	})
+}
+
+// resolveBundledPluginDir resolves the path to the bundled wipnote Claude
+// plugin tree installed by `wipnote build` or `brew install wipnote`. It
+// is the Phase-B replacement for relying on the marketplace plugin install.
+// Dev mode (--dev) bypasses this and uses the in-tree plugin/ directly.
+func resolveBundledPluginDir() (string, error) {
+	return resolveSharedTreePath("plugin")
 }
 
 const wipnoteMarketplaceRepo = "shakestzd/wipnote"

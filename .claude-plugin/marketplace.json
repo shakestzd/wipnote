@@ -1,18 +1,18 @@
 {
-  "name": "htmlgraph",
+  "name": "wipnote",
   "owner": {
     "name": "Shakes Dlamini",
     "email": "shakestzd@gmail.com",
     "url": "https://github.com/shakestzd"
   },
-  "description": "Local-first observability and coordination platform for AI-assisted development. Go binary hooks for near-zero cold start.",
-  "version": "0.37.1",
+  "description": "wipnote — install via 'brew install wipnote', then run 'wipnote claude' in your project. This marketplace listing is retained for backward compatibility; new installs should use the binary distribution which bundles the plugin tree alongside the CLI.",
+  "version": "0.58.1",
   "plugins": [
     {
-      "name": "htmlgraph",
-      "version": "0.37.1",
+      "name": "wipnote",
+      "version": "0.58.1",
       "source": "./plugin",
-      "description": "Local-first observability with Go binary hooks \u2014 near-zero cold start, no Python runtime needed",
+      "description": "Local-first observability for AI-assisted development. Recommended install: 'brew install wipnote' (bundles plugin + CLI). This entry is kept so 'claude plugin update' continues working for existing installs; 'wipnote claude' loads the bundled tree via --plugin-dir and takes precedence.",
       "category": "Development Tools",
       "tags": [
         "observability",
@@ -29,8 +29,8 @@
         "email": "shakestzd@gmail.com",
         "url": "https://github.com/shakestzd"
       },
-      "repository": "https://github.com/shakestzd/htmlgraph",
-      "homepage": "https://github.com/shakestzd/htmlgraph#readme",
+      "repository": "https://github.com/shakestzd/wipnote",
+      "homepage": "https://github.com/shakestzd/wipnote#readme",
       "license": "MIT",
       "keywords": [
         "observability",
@@ -38,7 +38,7 @@
         "workflow",
         "session-tracking",
         "agent-coordination",
-        "html-graph",
+        "wipnote",
         "git-based",
         "offline-first"
       ],

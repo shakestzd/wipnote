@@ -35,19 +35,29 @@ Use `/wipnote:code-quality-skill` for the complete pre-commit workflow.
 ./scripts/deploy-all.sh X.Y.Z --no-confirm   # full pipeline
 ```
 
-Or `/wipnote:deploy X.Y.Z`. CLI binary and plugin are independent installs — the deploy script updates both. Never update one without the other.
+Or `/wipnote:deploy X.Y.Z`. The release tarball (and the Homebrew formula) bundle the plugin tree alongside the `wipnote` binary; the deploy script rebuilds and mirrors both atomically. There is no separate `claude plugin install` step.
+
+## Launching Claude with wipnote
+
+```bash
+wipnote claude   # uses the bundled plugin in ~/.local/share/wipnote/plugin/
+```
+
+The launcher resolves the plugin tree (env override → `~/.local/share/wipnote/plugin/` → `$(brew --prefix)/share/wipnote/plugin/` → dev source) and passes it to Claude Code via `--plugin-dir`. Hooks, agents, skills, and slash commands all load from the bundled tree.
+
+For users who want bare `claude` to route through wipnote globally, opt-in via `wipnote shell-alias >> ~/.zshrc`. Per-project `wipnote claude` is the recommended flow.
 
 ---
 
 ## Dev Mode
 
 ```bash
-wipnote claude --dev   # loads plugin from source via --plugin-dir
+wipnote claude --dev   # loads plugin from in-tree plugin/ via --plugin-dir
 ```
 
-Dev mode uninstalls the marketplace plugin, clears cache, and launches with `claude --plugin-dir plugin/`. This ensures agents, skills, tools, and hooks all load from your local source — not stale marketplace copies. The marketplace plugin is reinstalled on exit.
+Dev mode bypasses the bundled tree resolver and instead points Claude Code at the in-tree `plugin/` directory directly — so agent, skill, hook, and command edits in the working tree are picked up immediately. It also clears any legacy marketplace install so it cannot shadow the dev source.
 
-**Why full removal is required:** Disabling a marketplace plugin only affects hooks. Agent definitions and skill content continue loading from `~/.claude/plugins/marketplaces/`, silently shadowing dev source changes.
+**Why full removal of legacy installs is required:** Disabling a legacy marketplace plugin only affects hooks. Agent definitions and skill content continue loading from `~/.claude/plugins/marketplaces/`, silently shadowing dev source changes.
 
 ## Resuming a Specific Session
 

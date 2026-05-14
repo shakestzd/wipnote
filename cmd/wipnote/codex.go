@@ -15,10 +15,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// codexMarketplaceRepo is the GitHub repo that hosts the codex marketplace.
+// codexMarketplaceRepo and codexMarketplaceSparse are retained for backward
+// compatibility with tests and any external code; the production launchers
+// no longer use them as of Phase B (bundled-tree migration) — the Codex
+// marketplace is now resolved via resolveSharedTreePath("codex-marketplace").
 const codexMarketplaceRepo = "shakestzd/wipnote"
-
-// codexMarketplaceSparse is the sparse path within the monorepo.
 const codexMarketplaceSparse = "packages/codex-marketplace"
 
 // codexConfigPath returns the path to ~/.codex/config.toml.
@@ -725,20 +726,42 @@ Session IDs come from ~/.codex/session_index.jsonl.`,
 // Corresponds to: wipnote codex --init
 // Phase 1: Install / verify marketplace (idempotent).
 // Phase 2: Check hooks feature flag — prompt user if not set.
+//
+// Phase B of the marketplace-to-bundled-plugin migration: --init now points
+// Codex at the bundled local marketplace tree resolved via
+// resolveSharedTreePath("codex-marketplace") instead of cloning the marketplace
+// from GitHub. The Codex plugin tree is shipped alongside the wipnote binary
+// (in the release tarball or via brew install) and mirrored by `wipnote build`.
 func runCodexInit(yes, dryRun bool) error {
 	configPath := codexConfigPath()
 
-	// Phase 1: Install or verify marketplace.
-	marketplaceInstalled := isCodexMarketplaceInstalledAt(configPath)
-	if !marketplaceInstalled {
-		addArgs := []string{
-			"plugin", "marketplace", "add",
-			codexMarketplaceRepo,
-			"--sparse", codexMarketplaceSparse,
-		}
-		fmt.Printf("Installing wipnote Codex marketplace...\n")
-		fmt.Printf("  repo: %s  sparse: %s\n", codexMarketplaceRepo, codexMarketplaceSparse)
+	bundledMarketplace, bundleErr := resolveSharedTreePath("codex-marketplace")
+	if bundleErr != nil {
+		return fmt.Errorf("resolving bundled Codex marketplace: %w", bundleErr)
+	}
 
+	// Phase 1: Install or verify marketplace. If a different marketplace is
+	// already registered (e.g. from a previous GitHub-clone-based --init), we
+	// rewrite the registration to point at the bundled local path.
+	registeredPath := getCodexMarketplacePathAt(configPath)
+	registeredAbs, _ := filepath.Abs(registeredPath)
+	bundledAbs, _ := filepath.Abs(bundledMarketplace)
+
+	if registeredAbs != "" && registeredAbs != bundledAbs {
+		fmt.Printf("Replacing existing Codex marketplace registration (%s)\n", registeredPath)
+		if dryRun {
+			fmt.Printf("[dry-run] would remove wipnote registrations from %s\n", configPath)
+		} else if _, rmErr := removeCodexWipnoteRegistrations(configPath); rmErr != nil {
+			return fmt.Errorf("removing stale Codex marketplace registration: %w", rmErr)
+		}
+		registeredPath = ""
+		registeredAbs = ""
+	}
+
+	if registeredAbs != bundledAbs {
+		addArgs := []string{"plugin", "marketplace", "add", bundledMarketplace}
+		fmt.Printf("Installing wipnote Codex marketplace (bundled)...\n")
+		fmt.Printf("  path: %s\n", bundledMarketplace)
 		if dryRun {
 			fmt.Printf("[dry-run] codex %s\n", strings.Join(addArgs, " "))
 		} else {
@@ -748,7 +771,7 @@ func runCodexInit(yes, dryRun bool) error {
 			fmt.Println("wipnote Codex marketplace installed.")
 		}
 	} else {
-		fmt.Println("wipnote Codex marketplace is already installed.")
+		fmt.Println("wipnote Codex marketplace is already installed (bundled).")
 	}
 
 	// Phase 2: Check and optionally enable the hooks feature flag.
@@ -827,9 +850,28 @@ func runCodexInit(yes, dryRun bool) error {
 
 // launchCodexDefault launches Codex interactively with wipnote env injection.
 // Corresponds to: wipnote codex
+//
+// Phase B: if no marketplace is registered, auto-register the bundled local
+// marketplace tree resolved via resolveSharedTreePath("codex-marketplace").
+// This replaces the historical "user must run --init first" path with the
+// brew/curl-install bundled tree.
 func launchCodexDefault(resumeID, trackID, featureID, worktreePath, workItem string, noWorktree, yolo bool, extraArgs []string) error {
 	projectRoot, _ := resolveProjectRoot()
 	configPath := codexConfigPath()
+
+	// Auto-register the bundled marketplace if not registered. Silent on
+	// success; warn-only on failure (so missing bundled tree degrades to the
+	// old "no marketplace" behavior rather than blocking the launch).
+	if !isCodexMarketplaceInstalledAt(configPath) {
+		if bundled, err := resolveSharedTreePath("codex-marketplace"); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: could not resolve bundled Codex marketplace: %v\n", err)
+		} else if out, addErr := exec.Command("codex", "plugin", "marketplace", "add", bundled).CombinedOutput(); addErr != nil {
+			fmt.Fprintf(os.Stderr, "warning: codex marketplace add failed: %v\n%s\n", addErr, strings.TrimSpace(string(out)))
+		} else {
+			fmt.Printf("wipnote Codex marketplace registered (bundled): %s\n", bundled)
+		}
+	}
+
 	if isCodexMarketplaceInstalledAt(configPath) && !isCodexHooksEnabledAt(configPath) {
 		if err := ensureCodexHooksEnabled(configPath); err != nil {
 			fmt.Fprintf(os.Stderr, "warning: could not enable hooks feature flag: %v\n", err)
