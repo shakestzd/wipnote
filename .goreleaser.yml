@@ -83,6 +83,10 @@ release:
     owner: shakestzd
     name: wipnote
   name_template: "Go v{{.Version}}"
+  # Allow workflow reruns to overwrite assets uploaded by a previous failed
+  # attempt; without this, retries after a partial-success run hit 422
+  # already_exists and abort before downstream steps (e.g. Homebrew tap push).
+  replace_existing_artifacts: true
 
 brews:
   - name: wipnote
