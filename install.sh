@@ -19,6 +19,7 @@
 #   - curl first, wget fallback
 #   - Checksum verification when sha256sum/shasum available
 #   - Idempotent: skip download if already on the requested version
+#   - Optional cosign signature verification when cosign is installed
 
 set -e
 
@@ -218,6 +219,57 @@ verify_checksum() {
     fi
 
     log_info "Checksum verified."
+
+    # Optional cosign keyless signature verification of the checksums file.
+    # Soft-fails (warns and continues) so users without cosign keep working.
+    verify_signature "${_tmpfile}" "${_version}"
+}
+
+# ---------------------------------------------------------------------------
+# Optional cosign keyless signature verification of the checksums file.
+# Verifies that the checksums file was signed by the wipnote GitHub Actions
+# release workflow via Sigstore's transparency log. Soft-fails when cosign
+# is not installed — SHA256 checksum verification remains the default.
+# ---------------------------------------------------------------------------
+verify_signature() {
+    _checksums_file="$1"
+    _version="$2"
+
+    if ! command -v cosign >/dev/null 2>&1; then
+        log_info "cosign not installed; skipping signature verification."
+        log_info "  (Optional: install cosign for stronger provenance — https://docs.sigstore.dev/cosign/installation/ )"
+        return 0
+    fi
+
+    _sig_url="https://github.com/${REPO}/releases/download/v${_version}/wipnote_${_version}_checksums.txt.sig"
+    _cert_url="https://github.com/${REPO}/releases/download/v${_version}/wipnote_${_version}_checksums.txt.pem"
+    _sig_file="${_checksums_file}.sig"
+    _cert_file="${_checksums_file}.pem"
+
+    log_info "Downloading cosign signature and certificate..."
+    if ! http_get "${_sig_url}" "${_sig_file}" 2>/dev/null; then
+        log_info "Signature file unavailable for v${_version}; skipping cosign verification."
+        return 0
+    fi
+    if ! http_get "${_cert_url}" "${_cert_file}" 2>/dev/null; then
+        log_info "Certificate file unavailable for v${_version}; skipping cosign verification."
+        return 0
+    fi
+
+    log_info "Verifying cosign signature..."
+    # NOTE: identity-regexp matches any workflow ref under shakestzd/wipnote/.
+    # When the release workflow path is known to be stable, tighten this to:
+    #   --certificate-identity-regexp '^https://github.com/shakestzd/wipnote/\.github/workflows/release-go\.yml@'
+    if ! cosign verify-blob \
+        --certificate "${_cert_file}" \
+        --signature "${_sig_file}" \
+        --certificate-identity-regexp '^https://github.com/shakestzd/wipnote/' \
+        --certificate-oidc-issuer 'https://token.actions.githubusercontent.com' \
+        "${_checksums_file}" >/dev/null 2>&1; then
+        die "cosign signature verification failed for checksums file."
+    fi
+
+    log_info "Signature verified (cosign keyless, GitHub OIDC)."
 }
 
 # ---------------------------------------------------------------------------
