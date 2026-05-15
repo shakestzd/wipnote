@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Activity feed: nest &lt;task-notification&gt; wake-turns under originating tool row</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-485c328e"
+             data-type="bug"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-05-15T18:06:49.668384"
+             data-updated="2026-05-15T18:06:49.675037" data-agent-assigned="claude-code" data-track-id="trk-0677c709" data-created-by-agent="human" data-created-by-model="claude-opus-4-7[1m]" data-created-by-cli-version="0.59.1-54-g8e91ddee1">
+
+        <header>
+            <h1>Activity feed: nest &lt;task-notification&gt; wake-turns under originating tool row</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="caused_by">
+                <h3>Caused By:</h3>
+                <ul>
+                    <li><a href="bug-44ee9dd8.html" data-relationship="caused_by" data-since="2026-05-15T18:06:49.672593">bug-44ee9dd8</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-0677c709.html" data-relationship="part_of" data-since="2026-05-15T18:06:49.674572">trk-0677c709</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>When a background task completes, the harness re-invokes the agent with a  system message. The feed renders this resumption turn as a top-level row whose title is the raw  ... ... XML. It should instead nest under the row containing the originating background tool call (correlated by tool-use-id), and never display raw notification XML as a row title.</p>
+        </section>
+    </article>
+</body>
+</html>
