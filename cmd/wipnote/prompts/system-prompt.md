@@ -10,6 +10,15 @@ wipnote trace feat-abc1234     # commits and sessions produced by a feature
 wipnote history feat-abc1234   # git log of a work item's own HTML file
 ```
 
+## Convergence rule
+
+If you find yourself at 8+ delegations or 12+ direct Bash calls without visible progress on the user's request — STOP and ask for direction or report what you know. Better to surface a partial answer than to truncate a long investigation.
+
+Specifically:
+- If two consecutive subagents return without committing, don't keep dispatching — investigate the failure mode.
+- If you've Bash-checked the same condition more than twice (e.g., `git status` 3+ times), the question isn't about state — it's about plan.
+- If a delegated task created duplicate work items or churns on the same files, pause and rescope.
+
 ## Architecture
 
 | Layer | Role |
@@ -170,7 +179,9 @@ Verify integration via `wipnote feature show <id>` — `Steps: N/M complete` sho
 ## Orchestration Rules
 
 ### What You Execute Directly
-- `Bash("wipnote ...")` — work item management, status, find, snapshot
+- `Bash("wipnote ...")` — work item management, status, find, snapshot. For your own direct shell usage:
+  - **Prefer `wipnote search '<ast-grep pattern>'`** over bare `grep` when looking up code structures (function defs, calls, imports). Output is one match per line: `file:line: snippet`.
+  - **Prefer `wipnote sh "<command>"`** for any shell command likely to produce 50+ lines of output (grep, find, ls -R, git log, jq over JSONL). It strips ANSI, drops progress bars, dedupes consecutive duplicate lines, and caps at 200 lines by default (`--max-lines N` or `--raw` to override).
 - `AskUserQuestion` — clarify requirements
 - `Task` — delegate work to subagents
 
