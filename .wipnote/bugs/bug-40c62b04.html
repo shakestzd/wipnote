@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Fix roborev 2749: nested wake-turns vanish for OTel-backed rows &#43; stale parent stats</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-40c62b04"
+             data-type="bug"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-05-15T19:28:34.210912"
+             data-updated="2026-05-15T19:28:34.22513" data-agent-assigned="claude-code" data-track-id="trk-0677c709" data-created-by-agent="human" data-created-by-model="claude-opus-4-7[1m]" data-created-by-cli-version="0.59.1-54-g8e91ddee1">
+
+        <header>
+            <h1>Fix roborev 2749: nested wake-turns vanish for OTel-backed rows &#43; stale parent stats</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-0677c709.html" data-relationship="part_of" data-since="2026-05-15T19:28:34.224658">trk-0677c709</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>roborev job 2749 on 137fb65e8 found: (HIGH) matched task-notification turns are removed from top-level and stored only in turn.Children, but OTel-backed rows render from spans not hook-derived Children, so nested wake turns can disappear from the feed entirely. (LOW) parent turn Stats not recomputed after appending the wake node, underreporting tool/error counts.</p>
+        </section>
+    </article>
+</body>
+</html>
