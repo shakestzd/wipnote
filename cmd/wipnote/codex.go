@@ -859,14 +859,13 @@ func launchCodexDefault(resumeID, trackID, featureID, worktreePath, workItem str
 	projectRoot, _ := resolveProjectRoot()
 	configPath := codexConfigPath()
 
-	// Auto-register the bundled marketplace if not registered. Silent on
-	// success; warn-only on failure (so missing bundled tree degrades to the
-	// old "no marketplace" behavior rather than blocking the launch).
+	// Auto-register the bundled marketplace if not registered.
 	if !isCodexMarketplaceInstalledAt(configPath) {
 		if bundled, err := resolveSharedTreePath("codex-marketplace"); err != nil {
-			fmt.Fprintf(os.Stderr, "warning: could not resolve bundled Codex marketplace: %v\n", err)
+			return fmt.Errorf("resolving bundled Codex marketplace: %w", err)
 		} else if out, addErr := exec.Command("codex", "plugin", "marketplace", "add", bundled).CombinedOutput(); addErr != nil {
-			fmt.Fprintf(os.Stderr, "warning: codex marketplace add failed: %v\n%s\n", addErr, strings.TrimSpace(string(out)))
+			outStr := strings.TrimSpace(string(out))
+			return fmt.Errorf("WIPNOTE AGENTS NOT LOADED\n─────────────────────────\nFailed to register the wipnote marketplace with Codex CLI:\n  %v\n\nThe Codex session will run WITHOUT wipnote agents (researcher, feature-coder, etc.).\n\nTry:\n  - Run `wipnote codex --init` manually to retry the setup\n  - Check ~/.codex/config.toml for a stale marketplace entry under [plugins.\"wipnote@wipnote\"]\n  - Report this at https://github.com/shakestzd/wipnote/issues\n\nOutput:\n%s", addErr, outStr)
 		} else {
 			fmt.Printf("wipnote Codex marketplace registered (bundled): %s\n", bundled)
 		}
