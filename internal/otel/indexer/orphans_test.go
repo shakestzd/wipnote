@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/shakestzd/wipnote/internal/db"
-	"github.com/shakestzd/wipnote/internal/otel/receiver"
 	sqls "github.com/shakestzd/wipnote/internal/otel/sink/sqlite"
 )
 
@@ -387,6 +386,3 @@ func TestFilterSessionsByDB_NilDB(t *testing.T) {
 		t.Errorf("nil DB should return all candidates, got %d", len(result))
 	}
 }
-
-// Ensure receiver package import is used.
-var _ *receiver.Writer

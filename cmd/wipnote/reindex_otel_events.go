@@ -9,7 +9,6 @@ import (
 
 	dbpkg "github.com/shakestzd/wipnote/internal/db"
 	"github.com/shakestzd/wipnote/internal/otel/indexer"
-	otelreceiver "github.com/shakestzd/wipnote/internal/otel/receiver"
 	otelsqlite "github.com/shakestzd/wipnote/internal/otel/sink/sqlite"
 )
 
@@ -23,14 +22,14 @@ import (
 //
 //  1. Resets every per-session checkpoint file (.index-offset) to 0 so the
 //     indexer treats each NDJSON file as new on its next pass.
-//  2. Opens the receiver Writer directly and wraps it as a SignalSink.
+//  2. Opens the sqlite Writer directly and wraps it as a SignalSink.
 //  3. Constructs an indexer instance attached to that sink and a read-only
 //     DB handle for prompt_id bridging.
 //  4. Calls Indexer.runOnce in a loop until every session is fully drained.
 //     The 4 MiB per-tick cap (bug-faf8e395) means very large files require
 //     several iterations; the loop terminates when no progress is made.
 //
-// IDEMPOTENCY: receiver.Writer.WriteBatch uses INSERT OR IGNORE keyed on
+// IDEMPOTENCY: sqlite.Writer.WriteBatch uses INSERT OR IGNORE keyed on
 // signal_id, so resetting the checkpoints and replaying is safe even when
 // otel_signals already contains rows.
 //
@@ -52,7 +51,7 @@ func reindexOtelEvents(dbPath, wipnoteDir string) (int, int, int) {
 		return 0, 0, 0
 	}
 
-	writer, werr := otelreceiver.NewWriter(dbPath)
+	writer, werr := otelsqlite.NewWriter(dbPath)
 	if werr != nil {
 		log.Printf("reindex otel: open writer: %v", werr)
 		return 0, 0, 1
@@ -63,14 +62,14 @@ func reindexOtelEvents(dbPath, wipnoteDir string) (int, int, int) {
 	// Bridge handle: the indexer uses *sql.DB for two reads — orphan
 	// filtering (filterSessionsByDB) and prompt_id bridging
 	// (maybeSetPromptID). We give it the same writable handle the
-	// receiver Writer is bound to: this avoids the dual-writer contention
+	// sqlite Writer is bound to: this avoids the dual-writer contention
 	// pattern slice 6 is designed to prevent (a second dbpkg.Open here
 	// would acquire a separate writable handle on the same DB file). The
 	// indexer never writes through this handle, so sharing it is safe.
 	//
 	// Open through dbpkg.Open (not OpenReadOnly) because the bridge does
 	// use SetPromptID which issues an UPDATE on agent_events. The bridge
-	// handle is the bridge's writer; the receiver.Writer is the OTel
+	// handle is the bridge's writer; the sqlite.Writer is the OTel
 	// signals writer. Both operate on disjoint tables, so they do not
 	// race for the same rows.
 	bridgeDB, bridgeErr := dbpkg.Open(dbPath)

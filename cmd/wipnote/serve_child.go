@@ -13,7 +13,6 @@ import (
 	dbpkg "github.com/shakestzd/wipnote/internal/db"
 	"github.com/shakestzd/wipnote/internal/db/writequeue"
 	"github.com/shakestzd/wipnote/internal/otel/indexer"
-	otelreceiver "github.com/shakestzd/wipnote/internal/otel/receiver"
 	"github.com/shakestzd/wipnote/internal/otel/retention"
 	sqls "github.com/shakestzd/wipnote/internal/otel/sink/sqlite"
 	"github.com/shakestzd/wipnote/internal/registry"
@@ -90,7 +89,7 @@ func runServeChild(port int) error {
 	// This is the architectural fix for the SQLITE_BUSY contention the
 	// plan targets — see plan q-service-owner for the post-launch
 	// `wipnote daemon` graduation path.
-	if writer, err := otelreceiver.NewWriter(dbPath); err != nil {
+	if writer, err := sqls.NewWriter(dbPath); err != nil {
 		fmt.Fprintf(os.Stderr, "writer service init: %v\n", err)
 	} else {
 		q := writequeue.New(writequeue.Config{
@@ -98,7 +97,7 @@ func runServeChild(port int) error {
 			OnError: func(err error) {
 				// Slice-10 contention observability: BUSY classification
 				// already lands at the WriteBatch boundary in
-				// internal/otel/receiver/writer.go under the writer_service
+				// internal/otel/sink/sqlite/writer.go under the writer_service
 				// subsystem (which captures the actual SQL contention
 				// site). Counting again here would double-bill the same
 				// event. We keep the OnError hook as the log-only path

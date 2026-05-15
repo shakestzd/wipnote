@@ -99,7 +99,7 @@ func buildSingleProjectMux(database *sql.DB, wipnoteDir string) *http.ServeMux {
 	mux.Handle("/api/graph/sessions", sessionsForFeatureHandler(database))
 
 	// OTel telemetry endpoints — query otel_signals and otel_session_rollup
-	// populated by the embedded OTLP receiver (see internal/otel/receiver).
+	// populated by the per-session otel-collect subprocess writing directly to the canonical DB.
 	mux.Handle("/api/otel/rollup", otelRollupHandler(database))
 	mux.Handle("/api/otel/prompts", otelPromptsHandler(database))
 	mux.Handle("/api/otel/cost", otelCostHandler(database))

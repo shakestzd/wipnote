@@ -12,12 +12,11 @@ import (
 
 	"github.com/shakestzd/wipnote/internal/db"
 	"github.com/shakestzd/wipnote/internal/otel"
-	"github.com/shakestzd/wipnote/internal/otel/receiver"
 	sqls "github.com/shakestzd/wipnote/internal/otel/sink/sqlite"
 )
 
 // setupIndexerDB creates a temporary SQLite DB with OTel schema and returns writer + db path.
-func setupIndexerDB(t *testing.T) (*receiver.Writer, string) {
+func setupIndexerDB(t *testing.T) (*sqls.Writer, string) {
 	t.Helper()
 	dbPath := filepath.Join(t.TempDir(), "otel.db")
 	readDB, err := db.Open(dbPath)
@@ -25,9 +24,9 @@ func setupIndexerDB(t *testing.T) (*receiver.Writer, string) {
 		t.Fatalf("db.Open: %v", err)
 	}
 	readDB.Close()
-	w, err := receiver.NewWriter(dbPath)
+	w, err := sqls.NewWriter(dbPath)
 	if err != nil {
-		t.Fatalf("receiver.NewWriter: %v", err)
+		t.Fatalf("sqls.NewWriter: %v", err)
 	}
 	t.Cleanup(func() { w.Close() })
 	return w, dbPath
@@ -53,7 +52,7 @@ func writeNDJSONFixture(t *testing.T, wipnoteDir, sessionID string, lines []stri
 }
 
 // countSignals returns the number of rows in otel_signals for the given session.
-func countSignals(t *testing.T, w *receiver.Writer, sessionID string) int {
+func countSignals(t *testing.T, w *sqls.Writer, sessionID string) int {
 	t.Helper()
 	var n int
 	row := w.DB().QueryRow(`SELECT COUNT(*) FROM otel_signals WHERE session_id = ?`, sessionID)
