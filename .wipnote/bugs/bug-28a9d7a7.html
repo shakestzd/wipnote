@@ -10,33 +10,20 @@
 <body>
     <article id="bug-28a9d7a7"
              data-type="bug"
-             data-status="in-progress"
+             data-status="done"
              data-priority="high"
              data-created="2026-04-26T12:39:31.284862"
-             data-updated="2026-05-15T05:22:45.635634" data-agent-assigned="claude-code" data-track-id="trk-c4615ad2">
+             data-updated="2026-05-15T05:32:01.641748" data-agent-assigned="claude-code" data-track-id="trk-c4615ad2">
 
         <header>
             <h1>Session OTel collector dies mid-session and is duplicated by _serve-child receiver</h1>
             <div class="metadata">
-                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge status-done">Done</span>
                 <span class="badge priority-high">High Priority</span>
             </div>
         </header>
 
         <nav data-graph-edges>
-            <section data-edge-type="part_of">
-                <h3>Part Of:</h3>
-                <ul>
-                    <li><a href="trk-c4615ad2.html" data-relationship="part_of" data-since="2026-04-26T12:39:31.292788">trk-c4615ad2</a></li>
-                    <li><a href="trk-bf3f8aa4.html" data-relationship="part_of" data-since="2026-05-07T19:27:29.686971">Public Launch 2026-05 — Erinn AI rename &#43; announcement</a></li>
-                </ul>
-            </section>
-            <section data-edge-type="relates_to">
-                <h3>Relates To:</h3>
-                <ul>
-                    <li><a href="feat-56aa1d48.html" data-relationship="relates_to" data-since="2026-04-26T12:39:34.992991">htmlgraph otel-collect subcommand</a></li>
-                </ul>
-            </section>
             <section data-edge-type="implemented_in">
                 <h3>Implemented In:</h3>
                 <ul>
@@ -58,23 +45,36 @@
                     <li><a href="feat-c40942d3.html" data-relationship="blocks" data-since="2026-05-07T19:27:05.117506">Tag v0.59.0, push origin/main, cut GitHub release</a></li>
                 </ul>
             </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-c4615ad2.html" data-relationship="part_of" data-since="2026-04-26T12:39:31.292788">trk-c4615ad2</a></li>
+                    <li><a href="trk-bf3f8aa4.html" data-relationship="part_of" data-since="2026-05-07T19:27:29.686971">Public Launch 2026-05 — Erinn AI rename &#43; announcement</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="relates_to">
+                <h3>Relates To:</h3>
+                <ul>
+                    <li><a href="feat-56aa1d48.html" data-relationship="relates_to" data-since="2026-04-26T12:39:34.992991">htmlgraph otel-collect subcommand</a></li>
+                </ul>
+            </section>
         </nav>
 
         <section data-steps>
             <h3>Implementation Steps</h3>
             <ol>
-                <li data-completed="false" data-step-id="step-bug-28a9d7a7-0">⏳ Step 1: Audit internal/otel/indexer for any dependency on the soon-to-be-deleted internal/otel/receiver/writer.go. Run grep -rn &#39;internal/otel/receiver&#39; internal/otel/indexer/ and read each hit. Report findings before touching code — if indexer depends on writer, expand scope to include indexer migration.</li>
-                <li data-completed="false" data-step-id="step-bug-28a9d7a7-1">⏳ Step 2: Relocate receiver.ConvertAll. Read internal/otel/receiver/receiver.go to understand ConvertAll&#39;s signature, dependencies, and any internal package references. Move the function (and its minimal supporting types) to internal/otel/convert.go (new file) under package otel, OR inline it at its single caller cmd/htmlgraph/otel_collect_handler.go if it is small and self-contained. Update the import at otel_collect_handler.go:12 accordingly.</li>
-                <li data-completed="false" data-step-id="step-bug-28a9d7a7-2">⏳ Step 3: Verify zero production callers remain. Run grep -rn &#39;internal/otel/receiver&#39; cmd/ internal/ — output must be empty (or only the package itself &#43; its own test files). If any non-test caller appears, stop and re-scope before deletion.</li>
-                <li data-completed="false" data-step-id="step-bug-28a9d7a7-3">⏳ Step 4: Delete the receiver package source files: rm internal/otel/receiver/receiver.go internal/otel/receiver/writer.go.</li>
-                <li data-completed="false" data-step-id="step-bug-28a9d7a7-4">⏳ Step 5: Delete the receiver package test files: rm internal/otel/receiver/receiver_test.go internal/otel/receiver/writer_test.go internal/otel/receiver/http_test.go internal/otel/receiver/signalid_test.go. If the package directory becomes empty, remove the directory itself.</li>
-                <li data-completed="false" data-step-id="step-bug-28a9d7a7-5">⏳ Step 6: Strip the stale comment at cmd/htmlgraph/serve.go:102 (&#39;populated by the embedded OTLP receiver (see internal/otel/receiver)&#39;). Replace with a one-line comment that accurately describes the current source: rows are populated by the per-session otel-collect subprocess writing directly to the canonical DB.</li>
-                <li data-completed="false" data-step-id="step-bug-28a9d7a7-6">⏳ Step 7: Strip the stale warning at cmd/htmlgraph/claude_env.go:184 (&#39;Start htmlgraph serve or HTMLGRAPH_OTEL_HTTP_PORT is wrong&#39;). Replace with guidance pointing at the session-scoped collector handshake (or remove entirely if the surrounding code path is now unreachable). Also clean up references at claude_env.go:86-89 and remove the isTruthy helper at line 143 if it is only justified by the deleted package.</li>
-                <li data-completed="false" data-step-id="step-bug-28a9d7a7-7">⏳ Step 8: Update cmd/htmlgraph/claude_env_test.go — remove or rewrite test cases that assert the stale warning message about htmlgraph serve. Preserve any tests that exercise the handshake-based endpoint discovery path.</li>
-                <li data-completed="false" data-step-id="step-bug-28a9d7a7-8">⏳ Step 9: Quality gates. Run in order, fix any failure before proceeding: (a) go build ./... (b) go vet ./... (c) go test -count=1 -timeout 180s ./... (d) go test -count=3 -timeout 120s -run &#39;TestPlanLifecycle_NoSlices|TestAutocommitPlan&#39; ./cmd/htmlgraph/ — regression guard against the bug-de827cbf hang.</li>
-                <li data-completed="false" data-step-id="step-bug-28a9d7a7-9">⏳ Step 10: Stage only the files touched in steps 2 and 4-8 (use git add with explicit paths, not git add -A — the working tree contains many unrelated modifications). Commit with message: &#39;refactor(otel): remove orphaned server-based receiver, keep session-scoped collector (bug-28a9d7a7)&#39;. Body should explain that the runtime path was already removed and this commit deletes the dead code &#43; stale comments. Do NOT push. Do NOT use --no-verify. Do NOT add Co-Authored-By lines.</li>
-                <li data-completed="false" data-step-id="step-bug-28a9d7a7-10">⏳ SCOPE CHANGE 2026-04-26: User chose Option C (durable refactor — collector and indexer share one canonical writer) over the minimal rip-out. Additionally, phase 2 of OTel migration aims to reduce/eliminate SQLite dependence. Steps 1-10 above are SUPERSEDED — do not execute as written. New plan pending; will be tracked under a new feature scoped to the OTel track (trk-c4615ad2). This bug remains in-progress as the trigger but execution will move to the new feature once planned.</li>
-                <li data-completed="false" data-step-id="step-bug-28a9d7a7-11">⏳ FINDING 1 — Collector never started for pid 58306: spawnCollector failed silently at startup (non-fatal path), leaving no session dir under .htmlgraph/sessions/ newer than 06:00; the 06:34 session has zero .collector-pid file and pid 31202 (the 06:00 session&#39;s collector) is already dead. Root guard at claude.go:500 checks opts.ProjectRoot != &#39;&#39; and !isExplicitlyDisabled(HTMLGRAPH_OTEL_ENABLED) — both pass for --dev mode — so spawn was attempted but spawnCollector returned otelEnvOverrides{} (zero-value) on failure, silently skipping the collector without any user-visible error beyond a stderr warning.</li>
+                <li data-completed="true" data-step-id="step-bug-28a9d7a7-0" data-agent="claude-code" data-created-by-agent="claude-code">✅ Step 1: Audit internal/otel/indexer for any dependency on the soon-to-be-deleted internal/otel/receiver/writer.go. Run grep -rn &#39;internal/otel/receiver&#39; internal/otel/indexer/ and read each hit. Report findings before touching code — if indexer depends on writer, expand scope to include indexer migration.</li>
+                <li data-completed="true" data-step-id="step-bug-28a9d7a7-1" data-agent="claude-code" data-created-by-agent="claude-code">✅ Step 2: Relocate receiver.ConvertAll. Read internal/otel/receiver/receiver.go to understand ConvertAll&#39;s signature, dependencies, and any internal package references. Move the function (and its minimal supporting types) to internal/otel/convert.go (new file) under package otel, OR inline it at its single caller cmd/htmlgraph/otel_collect_handler.go if it is small and self-contained. Update the import at otel_collect_handler.go:12 accordingly.</li>
+                <li data-completed="true" data-step-id="step-bug-28a9d7a7-2" data-agent="claude-code" data-created-by-agent="claude-code">✅ Step 3: Verify zero production callers remain. Run grep -rn &#39;internal/otel/receiver&#39; cmd/ internal/ — output must be empty (or only the package itself &#43; its own test files). If any non-test caller appears, stop and re-scope before deletion.</li>
+                <li data-completed="true" data-step-id="step-bug-28a9d7a7-3" data-agent="claude-code" data-created-by-agent="claude-code">✅ Step 4: Delete the receiver package source files: rm internal/otel/receiver/receiver.go internal/otel/receiver/writer.go.</li>
+                <li data-completed="true" data-step-id="step-bug-28a9d7a7-4" data-agent="claude-code" data-created-by-agent="claude-code">✅ Step 5: Delete the receiver package test files: rm internal/otel/receiver/receiver_test.go internal/otel/receiver/writer_test.go internal/otel/receiver/http_test.go internal/otel/receiver/signalid_test.go. If the package directory becomes empty, remove the directory itself.</li>
+                <li data-completed="true" data-step-id="step-bug-28a9d7a7-5" data-agent="claude-code" data-created-by-agent="claude-code">✅ Step 6: Strip the stale comment at cmd/htmlgraph/serve.go:102 (&#39;populated by the embedded OTLP receiver (see internal/otel/receiver)&#39;). Replace with a one-line comment that accurately describes the current source: rows are populated by the per-session otel-collect subprocess writing directly to the canonical DB.</li>
+                <li data-completed="true" data-step-id="step-bug-28a9d7a7-6" data-agent="claude-code" data-created-by-agent="claude-code">✅ Step 7: Strip the stale warning at cmd/htmlgraph/claude_env.go:184 (&#39;Start htmlgraph serve or HTMLGRAPH_OTEL_HTTP_PORT is wrong&#39;). Replace with guidance pointing at the session-scoped collector handshake (or remove entirely if the surrounding code path is now unreachable). Also clean up references at claude_env.go:86-89 and remove the isTruthy helper at line 143 if it is only justified by the deleted package.</li>
+                <li data-completed="true" data-step-id="step-bug-28a9d7a7-7" data-agent="claude-code" data-created-by-agent="claude-code">✅ Step 8: Update cmd/htmlgraph/claude_env_test.go — remove or rewrite test cases that assert the stale warning message about htmlgraph serve. Preserve any tests that exercise the handshake-based endpoint discovery path.</li>
+                <li data-completed="true" data-step-id="step-bug-28a9d7a7-8" data-agent="claude-code" data-created-by-agent="claude-code">✅ Step 9: Quality gates. Run in order, fix any failure before proceeding: (a) go build ./... (b) go vet ./... (c) go test -count=1 -timeout 180s ./... (d) go test -count=3 -timeout 120s -run &#39;TestPlanLifecycle_NoSlices|TestAutocommitPlan&#39; ./cmd/htmlgraph/ — regression guard against the bug-de827cbf hang.</li>
+                <li data-completed="true" data-step-id="step-bug-28a9d7a7-9" data-agent="claude-code" data-created-by-agent="claude-code">✅ Step 10: Stage only the files touched in steps 2 and 4-8 (use git add with explicit paths, not git add -A — the working tree contains many unrelated modifications). Commit with message: &#39;refactor(otel): remove orphaned server-based receiver, keep session-scoped collector (bug-28a9d7a7)&#39;. Body should explain that the runtime path was already removed and this commit deletes the dead code &#43; stale comments. Do NOT push. Do NOT use --no-verify. Do NOT add Co-Authored-By lines.</li>
+                <li data-completed="true" data-step-id="step-bug-28a9d7a7-10" data-agent="claude-code" data-created-by-agent="claude-code">✅ SCOPE CHANGE 2026-04-26: User chose Option C (durable refactor — collector and indexer share one canonical writer) over the minimal rip-out. Additionally, phase 2 of OTel migration aims to reduce/eliminate SQLite dependence. Steps 1-10 above are SUPERSEDED — do not execute as written. New plan pending; will be tracked under a new feature scoped to the OTel track (trk-c4615ad2). This bug remains in-progress as the trigger but execution will move to the new feature once planned.</li>
+                <li data-completed="true" data-step-id="step-bug-28a9d7a7-11" data-agent="claude-code" data-created-by-agent="claude-code">✅ FINDING 1 — Collector never started for pid 58306: spawnCollector failed silently at startup (non-fatal path), leaving no session dir under .htmlgraph/sessions/ newer than 06:00; the 06:34 session has zero .collector-pid file and pid 31202 (the 06:00 session&#39;s collector) is already dead. Root guard at claude.go:500 checks opts.ProjectRoot != &#39;&#39; and !isExplicitlyDisabled(HTMLGRAPH_OTEL_ENABLED) — both pass for --dev mode — so spawn was attempted but spawnCollector returned otelEnvOverrides{} (zero-value) on failure, silently skipping the collector without any user-visible error beyond a stderr warning.</li>
             </ol>
         </section>
 
