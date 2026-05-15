@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Single source of truth for per-harness frontmatter field matrix</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-1aa74046"
+             data-type="feature"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-05-15T08:35:58.386418"
+             data-updated="2026-05-15T08:35:58.39018" data-agent-assigned="claude-code" data-track-id="trk-0677c709" data-created-by-agent="human" data-created-by-model="claude-opus-4-7[1m]" data-created-by-role="codex" data-created-by-cli-version="0.59.1-54-g8e91ddee1">
+
+        <header>
+            <h1>Single source of truth for per-harness frontmatter field matrix</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-0677c709.html" data-relationship="part_of" data-since="2026-05-15T08:35:58.389849">trk-0677c709</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Scope: define one machine-consumable source of truth for supported agent frontmatter fields across Claude Code, Codex, and Gemini, then drive both generation and verification from it. Investigate internal/pluginbuild/agent_frontmatter.go, including sharedAgentFrontmatterFields, per-harness lists, and the review-noted hazard where allowlist membership and order lists can drift independently. Problem: the supported-field matrix currently exists as hand-maintained Go allowlists plus prose in .claude/rules/plugin-development.md, CLAUDE.md Monitoring Upstream Harnesses, and audit findings. Because the spec is not singular and machine-readable, a recent implementation reconstructed the matrix from inference and omitted color from the Claude set, causing a silent-failure bug fixed in commit 24afa252d. Proposed behavior: introduce a checked-in declarative spec, either YAML/JSON or a typed Go table, that is THE source for the build-ports allowlist and for a wipnote doc-audit or verification command/researcher checklist. Each field entry should carry field name, supported harnesses, upstream documentation URL proving support, optional notes, and any per-harness translation such as maxTurns to max_turns for Gemini. The generator should derive Claude, Codex, and Gemini allowed fields and ordering from this spec rather than parallel hardcoded lists. Acceptance criteria: 1. There is exactly one authoritative field matrix used by internal/pluginbuild to decide which frontmatter fields are emitted per harness. 2. Every field entry records supported harnesses and at least one upstream doc URL or explicit provenance note. 3. Name translations such as maxTurns to max_turns are represented in the spec and covered by tests. 4. Tests fail if a harness allowlist/order output drifts from the spec or if a field lacks required provenance. 5. A doc-audit/verification path or documented researcher checklist consumes the same spec and references the periodic upstream doc-audit cadence already documented in CLAUDE.md. Likely files touched: internal/pluginbuild/agent_frontmatter.go, internal/pluginbuild/ tests, a new spec file under packages/plugin-core/ or internal/pluginbuild/, .claude/rules/plugin-development.md, CLAUDE.md, cmd/wipnote/ if a verification command is added. Risks: upstream harness docs can drift without notice, so provenance can become stale even when the local spec is internally consistent; mitigate by tying the spec to the documented periodic doc-audit cadence and making missing or ambiguous documentation explicit rather than inferred.</p>
+        </section>
+    </article>
+</body>
+</html>
