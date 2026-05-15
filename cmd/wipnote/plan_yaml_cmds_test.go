@@ -248,10 +248,15 @@ func TestAutocommitPlan_StaleHtmlRegeneratedBeforeCommit(t *testing.T) {
 
 func TestAutocommitPlan_CommitHookFailureIsNonFatal(t *testing.T) {
 	// t.TempDir() uses /tmp which may have noexec — hooks would be silently ignored.
-	// Use GOTMPDIR (set in CI to /home/vscode) so hooks can execute.
+	// Prefer GOTMPDIR (set in CI) or the user home dir (always exec-capable) over
+	// t.TempDir() so the pre-commit hook script can actually run.
 	base := os.Getenv("GOTMPDIR")
 	if base == "" {
-		base = t.TempDir()
+		if home, err := os.UserHomeDir(); err == nil {
+			base = home
+		} else {
+			base = t.TempDir()
+		}
 	}
 	dir, err := os.MkdirTemp(base, "TestAutocommitHook*")
 	if err != nil {
