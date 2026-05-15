@@ -1069,6 +1069,145 @@ func TestNestTaskNotificationTurns_DeduplicateThenNest(t *testing.T) {
 	}
 }
 
+// TestNestTaskNotificationTurns_OtelBackedParentFallsBackToRelabel verifies
+// that when the originating row is OTel-span-rendered (otel_backed=true), the
+// wake-turn is NOT nested (it would vanish because the frontend renders OTel
+// spans, not Children). Instead it stays top-level with a clean relabeled title.
+// Invariants: no raw XML visible anywhere, wake-turn is never silently dropped.
+func TestNestTaskNotificationTurns_OtelBackedParentFallsBackToRelabel(t *testing.T) {
+	base := time.Now().UTC()
+	// OTel-backed originating turn: frontend renders spans, not turn.Children.
+	otelTurn := turn{
+		SessionID: "sess-otel",
+		UserQuery: map[string]any{
+			"event_id":      "otel-uq-1",
+			"input_summary": "run background task via otel session",
+			"timestamp":     base.Add(-2 * time.Minute).Format(time.RFC3339),
+			"otel_backed":   true, // key discriminator: frontend uses spans, not Children
+		},
+		Children: []map[string]any{
+			{
+				"event_id":    "bash-child-otel",
+				"tool_name":   "Bash",
+				"tool_use_id": "toolu_OTEL_BG",
+				"children":    []map[string]any{},
+			},
+		},
+	}
+	notifTurn := turn{
+		SessionID: "sess-otel",
+		UserQuery: map[string]any{
+			"event_id":      "uq-otel-notif",
+			"input_summary": "<task-notification><task-id>otel-task-abc</task-id><tool-use-id>toolu_OTEL_BG</tool-use-id></task-notification>",
+			"timestamp":     base.Format(time.RFC3339),
+		},
+		Children: []map[string]any{
+			{"event_id": "wake-child-1", "tool_name": "Bash", "children": []map[string]any{}},
+		},
+	}
+
+	result := nestTaskNotificationTurns([]turn{otelTurn, notifTurn})
+
+	// Both rows must remain top-level: nesting under an OTel-backed parent
+	// would silently drop the wake-turn from the feed.
+	if len(result) != 2 {
+		t.Fatalf("got %d top-level turns, want 2 (wake-turn must NOT be nested under OTel-backed parent)", len(result))
+	}
+
+	// The OTel-backed parent must be untouched — no children were appended.
+	var otelResult turn
+	for _, r := range result {
+		if id, _ := r.UserQuery["event_id"].(string); id == "otel-uq-1" {
+			otelResult = r
+		}
+	}
+	if len(otelResult.Children) != 1 {
+		t.Errorf("OTel-backed parent children = %d, want 1 (wake-turn must not be appended)", len(otelResult.Children))
+	}
+
+	// The wake-turn must appear top-level, relabeled with clean (non-XML) title.
+	var wakeResult turn
+	found := false
+	for _, r := range result {
+		if id, _ := r.UserQuery["event_id"].(string); id == "uq-otel-notif" {
+			wakeResult = r
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("wake-turn missing from result — it was silently dropped (data-loss bug)")
+	}
+	title, _ := wakeResult.UserQuery["input_summary"].(string)
+	if containsStr(title, "<") {
+		t.Errorf("wake-turn title contains raw XML: %q", title)
+	}
+	if title == "" {
+		t.Errorf("wake-turn title is empty, want a descriptive relabeled title")
+	}
+	if !containsStr(title, "otel-task-abc") {
+		t.Errorf("wake-turn title does not contain task-id %q: %q", "otel-task-abc", title)
+	}
+}
+
+// TestNestTaskNotificationTurns_ParentStatsRecomputedAfterNest verifies that
+// after a wake-turn is nested under a hook-derived parent, the parent's Stats
+// are recomputed to include the new child (LOW finding from roborev 2749).
+func TestNestTaskNotificationTurns_ParentStatsRecomputedAfterNest(t *testing.T) {
+	base := time.Now().UTC()
+	origChild := map[string]any{
+		"event_id":    "bash-stats-child",
+		"tool_name":   "Bash",
+		"tool_use_id": "toolu_STATS_TEST",
+		"event_type":  "tool_call",
+		"status":      "recorded",
+		"children":    []map[string]any{},
+	}
+	// Hook-derived parent with 1 existing child and stats reflecting that.
+	origTurn := turn{
+		SessionID: "sess-stats",
+		UserQuery: map[string]any{
+			"event_id":      "uq-stats-1",
+			"input_summary": "start background work",
+			"timestamp":     base.Add(-2 * time.Minute).Format(time.RFC3339),
+			// No otel_backed key → hook-derived, renders Children.
+		},
+		Children: []map[string]any{origChild},
+		Stats:    turnStats{ToolCount: 1}, // pre-nest stats: 1 tool
+	}
+	notifTurn := turn{
+		SessionID: "sess-stats",
+		UserQuery: map[string]any{
+			"event_id":      "uq-stats-notif",
+			"input_summary": "<task-notification><task-id>stats-task-xyz</task-id><tool-use-id>toolu_STATS_TEST</tool-use-id></task-notification>",
+			"timestamp":     base.Format(time.RFC3339),
+		},
+		Children: []map[string]any{
+			{
+				"event_id":   "wake-tool-child",
+				"tool_name":  "Read",
+				"event_type": "tool_call",
+				"status":     "recorded",
+				"children":   []map[string]any{},
+			},
+		},
+	}
+
+	result := nestTaskNotificationTurns([]turn{origTurn, notifTurn})
+
+	if len(result) != 1 {
+		t.Fatalf("got %d top-level turns, want 1 after nesting", len(result))
+	}
+
+	parent := result[0]
+	// After nesting: parent has 2 children (original bash + wake node).
+	// Wake node itself has 1 child (wake-tool-child).
+	// computeStats walks all children recursively → ToolCount = 2 + 1 = 3.
+	// (origChild=1, wakeNode=1, wake-tool-child=1)
+	if parent.Stats.ToolCount < 2 {
+		t.Errorf("parent Stats.ToolCount = %d after nesting, want ≥ 2 (stale stats not recomputed)", parent.Stats.ToolCount)
+	}
+}
+
 func TestComputeStats_CountsNestedChildren(t *testing.T) {
 	children := []map[string]any{
 		{

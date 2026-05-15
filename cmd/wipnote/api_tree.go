@@ -333,6 +333,12 @@ func buildEventTreeOtel(database *sql.DB, limit int) ([]turn, error) {
 			"subagent_type":   "",
 			"tool_use_id":     "",
 			"model":           "",
+			// otel_backed signals that this row renders from OTel spans
+			// rather than hook-derived Children. nestTaskNotificationTurns
+			// uses this flag to avoid nesting wake-turns under parents that
+			// won't render their Children field (which would silently drop
+			// the wake-turn from the feed entirely).
+			"otel_backed": true,
 		}
 
 		// Fetch hook-based children: the frontend already renders OTel spans
@@ -445,6 +451,8 @@ func buildEventTreeOtelLogFallback(database *sql.DB, limit int) ([]turn, error) 
 				"subagent_type":   "",
 				"tool_use_id":     anchor.PromptID,
 				"model":           "",
+				// otel_backed: see comment in buildEventTreeOtel.
+				"otel_backed": true,
 			},
 			Children: children,
 			Stats:    stats,
@@ -1097,9 +1105,23 @@ func nestTaskNotificationTurns(turns []turn) []turn {
 		// Build a clean child node from the notification turn.
 		cleanTitle := taskNotificationTitle(n.taskID)
 
-		if m.found {
-			// Nest the notification's own children under the originating row,
-			// then attach a summary child representing the wake event itself.
+		// Determine whether the matching parent will render its Children
+		// field in the frontend. OTel-backed rows prefer OTel spans from
+		// /api/otel/spans over hook-derived turn.Children (see event-tree.js
+		// renderTurn: spans take priority, Children only used as fallback).
+		// Nesting a wake-turn under an OTel-backed parent appends it to
+		// Children, which the frontend will never render — the wake-turn
+		// silently vanishes. Use the otel_backed flag set by
+		// buildEventTreeOtel/buildEventTreeOtelLogFallback to detect this.
+		parentIsOtelBacked := m.found && func() bool {
+			v, _ := normal[m.normalIdx].UserQuery["otel_backed"].(bool)
+			return v
+		}()
+
+		if m.found && !parentIsOtelBacked {
+			// Safe to nest: the parent renders Children (hook-derived row).
+			// Attach a summary child representing the wake event itself, with
+			// the notification's own children nested beneath it.
 			wakeNode := map[string]any{
 				"event_id":        n.t.UserQuery["event_id"],
 				"agent_id":        n.t.UserQuery["agent_id"],
@@ -1119,9 +1141,14 @@ func nestTaskNotificationTurns(turns []turn) []turn {
 				"children":        n.t.Children,
 			}
 			normal[m.normalIdx].Children = append(normal[m.normalIdx].Children, wakeNode)
+			// Recompute parent stats so tool/error counts reflect the new child.
+			normal[m.normalIdx].Stats = computeStats(normal[m.normalIdx].Children)
 		} else {
-			// No originating row found in the current window; keep as top-level
-			// but with a clean, non-XML title.
+			// Either no originating row matched, or the matched parent is
+			// OTel-backed (renders spans, not Children). Keep the wake-turn
+			// top-level with a clean, non-XML title. This is the safe
+			// fallback: the wake-turn is never silently dropped, and no raw
+			// XML is ever shown as a visible title.
 			notifCopy := n.t
 			notifCopy.UserQuery = make(map[string]any, len(n.t.UserQuery))
 			for k, v := range n.t.UserQuery {
