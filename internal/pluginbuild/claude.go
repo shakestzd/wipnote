@@ -57,6 +57,17 @@ func writeClaudeManifest(m *Manifest, path string) error {
 	})
 }
 
+func translateClaudeAgentFrontmatter(filename string, raw []byte) ([]byte, error) {
+	fm, body, hasFM, err := parseAgentFrontmatter(raw)
+	if err != nil {
+		return nil, err
+	}
+	if !hasFM {
+		return raw, nil
+	}
+	return renderAgentMarkdown(filterAgentFrontmatter(filename, "claude", fm), body)
+}
+
 // Claude hooks.json schema:
 //
 //	{ "hooks": { "<EventName>": [ { "matcher": "...", "hooks": [ {type, command, timeout?} ] } ] } }

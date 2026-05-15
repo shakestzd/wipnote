@@ -36,8 +36,8 @@ tools:
 	}
 	s := string(out)
 
-	// KEEP: name, description; MAP: Claude model aliases to Gemini model aliases.
-	for _, want := range []string{"name: myagent", "description: A test agent", "model: pro"} {
+	// KEEP: name, description; MAP: Claude model aliases to full Gemini model IDs.
+	for _, want := range []string{"name: myagent", "description: A test agent", "model: gemini-3.1-pro-preview"} {
 		if !strings.Contains(s, want) {
 			t.Errorf("expected %q in output:\n%s", want, s)
 		}
@@ -122,9 +122,9 @@ func TestMapGeminiAgentModelAliases(t *testing.T) {
 		model string
 		want  string
 	}{
-		{name: "fast", model: "haiku", want: "flash-lite"},
-		{name: "balanced", model: "sonnet", want: "flash"},
-		{name: "deep", model: "opus", want: "pro"},
+		{name: "fast", model: "haiku", want: "gemini-2.5-flash-lite"},
+		{name: "balanced", model: "sonnet", want: "gemini-3-flash-preview"},
+		{name: "deep", model: "opus", want: "gemini-3.1-pro-preview"},
 		{name: "native", model: "gemini-3-flash-preview", want: "gemini-3-flash-preview"},
 		{name: "inherit", model: "", want: ""},
 	}
@@ -219,6 +219,34 @@ tools:
 	// Original tool names must not appear.
 	if strings.Contains(s, "WebSearch") || strings.Contains(s, "WebFetch") {
 		t.Errorf("original tool names should have been translated:\n%s", s)
+	}
+}
+
+func TestGeminiAgentWarnsOnUnknownFrontmatterField(t *testing.T) {
+	input := `---
+name: myagent
+description: A test agent
+permissionMode: bypassPermissions
+tools:
+  - Read
+---
+# Body content
+`
+	var logBuf bytes.Buffer
+	origOut := log.Writer()
+	log.SetOutput(&logBuf)
+	defer log.SetOutput(origOut)
+
+	out, err := translateAgentFrontmatter("myagent.md", []byte(input))
+	if err != nil {
+		t.Fatalf("translateAgentFrontmatter: %v", err)
+	}
+	s := string(out)
+	if strings.Contains(s, "permissionMode:") {
+		t.Fatalf("unknown frontmatter field should be dropped:\n%s", s)
+	}
+	if !strings.Contains(logBuf.String(), `frontmatter field "permissionMode" is not recognized in shared source; omitting from gemini output`) {
+		t.Fatalf("expected gemini unknown-field warning, got %q", logBuf.String())
 	}
 }
 

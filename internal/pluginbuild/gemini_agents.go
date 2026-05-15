@@ -108,19 +108,16 @@ func emitGeminiAgents(m *Manifest, repoRoot, outDir string, t Target) error {
 // frontmatter. The markdown body after the closing --- delimiter is preserved
 // verbatim.
 func translateAgentFrontmatter(filename string, raw []byte) ([]byte, error) {
-	fm, body, hasFM := splitFrontmatter(raw)
+	claudeFM, body, hasFM, err := parseAgentFrontmatter(raw)
 	if !hasFM {
 		// No frontmatter — pass through unchanged. Gemini will read the body as
 		// a bare markdown agent without additional metadata.
 		return raw, nil
 	}
-
-	// Parse Claude frontmatter as a generic map so unknown fields don't cause
-	// errors. We only extract the fields we care about.
-	var claudeFM map[string]interface{}
-	if err := yaml.Unmarshal([]byte(fm), &claudeFM); err != nil {
-		return nil, fmt.Errorf("parse frontmatter YAML: %w", err)
+	if err != nil {
+		return nil, err
 	}
+	claudeFM = filterAgentFrontmatter(filename, "gemini", claudeFM)
 
 	gFM := geminiAgentFrontmatter{}
 

@@ -1,9 +1,12 @@
 package pluginbuild
 
 import (
+	"bytes"
 	"encoding/json"
+	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -82,6 +85,57 @@ func TestClaudeAdapterEmitsManifestAndHooks(t *testing.T) {
 	// Asset copy
 	if _, err := os.Stat(filepath.Join(outDir, "commands", "hello.md")); err != nil {
 		t.Errorf("expected copied command: %v", err)
+	}
+}
+
+func TestClaudeAdapterStripsUnsupportedAgentFrontmatter(t *testing.T) {
+	repoRoot := t.TempDir()
+	seedAssets(t, repoRoot)
+	agentDir := filepath.Join(repoRoot, "plugin", "agents")
+	if err := os.WriteFile(filepath.Join(agentDir, "researcher.md"), []byte(`---
+name: researcher
+description: Research agent
+model: sonnet
+color: blue
+tools:
+  - Read
+memory: project
+timeout_mins: 12
+---
+
+# Researcher Agent
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	outDir := filepath.Join(repoRoot, "claude-out")
+	var logBuf bytes.Buffer
+	origOut := log.Writer()
+	log.SetOutput(&logBuf)
+	defer log.SetOutput(origOut)
+
+	if err := (claudeAdapter{}).Emit(fixtureManifest(), repoRoot, outDir); err != nil {
+		t.Fatalf("Emit: %v", err)
+	}
+
+	data, err := os.ReadFile(filepath.Join(outDir, "agents", "researcher.md"))
+	if err != nil {
+		t.Fatalf("read emitted agent: %v", err)
+	}
+	s := string(data)
+	if strings.Contains(s, "timeout_mins:") {
+		t.Fatalf("claude output should not include timeout_mins:\n%s", s)
+	}
+	for _, want := range []string{"name: researcher", "color: blue", "memory: project", "# Researcher Agent"} {
+		if !strings.Contains(s, want) {
+			t.Fatalf("claude output missing %q:\n%s", want, s)
+		}
+	}
+	if strings.Contains(logBuf.String(), `frontmatter field "color" is unsupported`) {
+		t.Fatalf("claude should support color field, but got warning: %s", logBuf.String())
+	}
+	if !strings.Contains(logBuf.String(), `frontmatter field "timeout_mins" is unsupported for claude output`) {
+		t.Fatalf("expected claude unsupported-field warning, got %q", logBuf.String())
 	}
 }
 

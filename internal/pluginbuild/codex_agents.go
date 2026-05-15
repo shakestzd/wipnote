@@ -88,7 +88,10 @@ func emitCodexAgents(m *Manifest, repoRoot, outDir string, knownRoles map[string
 }
 
 func translateCodexAgent(filename string, raw []byte) (codexAgentTOML, error) {
-	fm, body, hasFM := splitFrontmatter(raw)
+	fm, body, hasFM, err := parseAgentFrontmatter(raw)
+	if err != nil {
+		return codexAgentTOML{}, err
+	}
 	if !hasFM {
 		name := strings.TrimSuffix(filename, filepath.Ext(filename))
 		return codexAgentTOML{
@@ -100,8 +103,13 @@ func translateCodexAgent(filename string, raw []byte) (codexAgentTOML, error) {
 		}, nil
 	}
 
+	filtered := filterAgentFrontmatter(filename, "codex", fm)
+	filteredYAML, err := marshalAgentFrontmatter(filtered)
+	if err != nil {
+		return codexAgentTOML{}, err
+	}
 	var asset AgentAsset
-	if err := yaml.Unmarshal([]byte(fm), &asset); err != nil {
+	if err := yaml.Unmarshal(filteredYAML, &asset); err != nil {
 		return codexAgentTOML{}, fmt.Errorf("parse frontmatter YAML: %w", err)
 	}
 	if asset.Name == "" {

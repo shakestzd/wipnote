@@ -2,6 +2,7 @@ package pluginbuild
 
 import (
 	"bytes"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -56,6 +57,38 @@ Implement code changes.
 	}
 	if !strings.Contains(agent.DeveloperInstructions, "## Initial Prompt\n\nRun wipnote agent-init.") {
 		t.Errorf("developer_instructions missing initial prompt:\n%s", agent.DeveloperInstructions)
+	}
+}
+
+func TestTranslateCodexAgentWarnsOnUnsupportedField(t *testing.T) {
+	raw := []byte(`---
+name: feature-coder
+description: Balanced code execution agent
+timeout_mins: 15
+tools:
+  - Read
+---
+
+# Feature Coder Agent
+`)
+
+	var logBuf bytes.Buffer
+	origOut := log.Writer()
+	log.SetOutput(&logBuf)
+	defer log.SetOutput(origOut)
+
+	agent, err := translateCodexAgent("feature-coder.md", raw)
+	if err != nil {
+		t.Fatalf("translateCodexAgent: %v", err)
+	}
+	if agent.Name != "wipnote-feature-coder" {
+		t.Fatalf("translated wrong agent: %+v", agent)
+	}
+	if strings.Contains(agent.DeveloperInstructions, "timeout_mins") {
+		t.Fatalf("developer instructions should only contain body content:\n%s", agent.DeveloperInstructions)
+	}
+	if !strings.Contains(logBuf.String(), `frontmatter field "timeout_mins" is unsupported for codex output`) {
+		t.Fatalf("expected codex unsupported-field warning, got %q", logBuf.String())
 	}
 }
 
