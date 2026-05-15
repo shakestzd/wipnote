@@ -123,12 +123,12 @@ func TestRenderCompactHelp_HasHeaderAndHint(t *testing.T) {
 	}
 }
 
-func TestRenderCompactHelp_RealTree_Under50Lines(t *testing.T) {
+func TestRenderCompactHelp_RealTree_Under55Lines(t *testing.T) {
 	root := buildRoot()
 	out := renderCompactHelp(root)
 	lines := strings.Split(strings.TrimRight(out, "\n"), "\n")
-	if len(lines) > 50 {
-		t.Errorf("real CLI output exceeds 50 lines: got %d lines\noutput:\n%s", len(lines), out)
+	if len(lines) > 55 {
+		t.Errorf("real CLI output exceeds 55 lines: got %d lines\noutput:\n%s", len(lines), out)
 	}
 }
 

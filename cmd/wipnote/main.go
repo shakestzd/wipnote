@@ -192,6 +192,10 @@ func buildRoot() *cobra.Command {
 	executePreview.GroupID = "query"
 	root.AddCommand(executePreview)
 
+	search := searchCmd()
+	search.GroupID = "query"
+	root.AddCommand(search)
+
 	// quality group
 	check := checkCmd()
 	check.GroupID = "quality"
