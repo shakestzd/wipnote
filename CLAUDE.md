@@ -152,7 +152,7 @@ wipnote ships to three independently-evolving CLIs: Claude Code, Codex CLI, and 
 - **Plugin system / agent manifest** — formats, frontmatter schema, marketplace/config lookup paths
 - **Hooks** — event names, payload shapes, exit-code semantics (Claude Code only)
 - **Skills** — frontmatter fields, activation triggers, invocation patterns (Claude Code only)
-- **Agent configuration** — frontmatter schema (name, description, model, tools, timeout/maxTurns, memory, max_depth)
+- **Agent configuration** — frontmatter schema (name, description, model, color, tools, timeout/maxTurns, memory, max_depth)
 - **Observability** — session metadata, telemetry, cost/token reporting, transcript format
 - **Tool interfaces** — available tools per harness (Claude Code ≠ Codex ≠ Gemini), invocation signatures
 
@@ -175,7 +175,7 @@ wipnote ships to three independently-evolving CLIs: Claude Code, Codex CLI, and 
 - Gemini agent .md frontmatter: max_turns (snake_case), tools (Gemini tool names like run_shell_command/read_file), timeout_mins (documented, default 10min), model (full IDs e.g. gemini-3-flash-preview)
 - https://ai.google.dev/gemini-api/docs/models — current model identifiers
 
-**Re-verify on a cadence, not just on suspicion.** These schemas drift silently — a field you set may stop being honored with no error. Re-run the cross-harness doc-verification audit at least every release cycle (or via a scheduled routine). When a contract changes, the fix lands in `plugin/agents/*.md`, `packages/plugin-core/manifest.json`, `internal/pluginbuild/`, or `cmd/wipnote/prompts/system-prompt.md` — never in user-facing docs like AGENTS.md or CLAUDE.md (those describe, they don't configure).
+**Re-verify on a cadence, not just on suspicion.** These schemas drift silently — a field you set may stop being honored with no error. Re-run the cross-harness doc-verification audit at least every release cycle (or via a scheduled routine), using `agentFrontmatterFieldSpecs` in `internal/pluginbuild/agent_frontmatter.go` as the checklist for agent frontmatter fields, supported harnesses, output-name translations, and provenance links. When a contract changes, the fix lands in `plugin/agents/*.md`, `packages/plugin-core/manifest.json`, `internal/pluginbuild/`, or `cmd/wipnote/prompts/system-prompt.md` — never in user-facing docs like AGENTS.md or CLAUDE.md (those describe, they don't configure).
 
 ---
 
