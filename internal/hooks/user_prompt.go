@@ -20,6 +20,15 @@ func UserPrompt(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 		return &HookResult{Continue: true}, nil
 	}
 
+	// Skip subagent-dispatched prompts. Subagent prompts are already captured via
+	// the SubagentStart handler's task_delegation event, which links to the
+	// orchestrator's UserQuery as parent. Recording a separate UserQuery row for
+	// the subagent would create a duplicate top-level turn. The task_delegation
+	// and subsequent subagent tool calls provide full lineage and prompt context.
+	if isSubagentEvent(event) {
+		return &HookResult{Continue: true}, nil
+	}
+
 	// Backfill: ensure this session has a row in SQLite. The SessionStart hook
 	// may not have fired (session started before plugin loaded, or hook failed).
 	// This is idempotent — INSERT OR IGNORE won't overwrite existing rows.

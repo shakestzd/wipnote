@@ -1230,3 +1230,54 @@ func TestComputeStats_CountsNestedChildren(t *testing.T) {
 		t.Errorf("ErrorCount = %d, want 1", stats.ErrorCount)
 	}
 }
+
+// TestBuildEventTree_SubagentUserQueryNotTopLevel verifies that subagent-dispatched
+// UserQuery rows (agent_id != "claude-code") do not appear as top-level turns.
+// They are captured via the Task/task_delegation/SubagentStart path, so the
+// redundant UserQuery row should not create a duplicate turn.
+func TestBuildEventTree_SubagentUserQueryNotTopLevel(t *testing.T) {
+	database := openTreeTestDB(t)
+	defer database.Close()
+
+	now := time.Now().UTC()
+	ts := now.Format(time.RFC3339)
+
+	// Insert orchestrator UserQuery (agent_id = "claude-code").
+	mustExec(t, database,
+		`INSERT INTO agent_events (event_id, agent_id, event_type, timestamp, tool_name, session_id, status)
+		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		"uq-orch", "claude-code", "tool_call", ts, "UserQuery", "sess-test", "recorded")
+
+	// Insert task_delegation/Task as child of orchestrator UserQuery.
+	mustExec(t, database,
+		`INSERT INTO agent_events (event_id, agent_id, event_type, timestamp, tool_name, session_id, status, parent_event_id, subagent_type)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		"td-sub", "claude-code", "task_delegation", ts, "Task", "sess-test", "recorded", "uq-orch", "researcher")
+
+	// Insert subagent UserQuery (agent_id = subagent UUID, not "claude-code").
+	// This mimics the redundant UserQuery that the bug causes.
+	mustExec(t, database,
+		`INSERT INTO agent_events (event_id, agent_id, event_type, timestamp, tool_name, session_id, status)
+		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		"uq-sub", "sub-agent-uuid-123", "tool_call", ts, "UserQuery", "sess-test", "recorded")
+
+	turns, err := buildEventTree(database, 50)
+	if err != nil {
+		t.Fatalf("buildEventTree: %v", err)
+	}
+
+	// Should have exactly 1 top-level turn (the orchestrator's UserQuery).
+	// The subagent's UserQuery should NOT appear as a second top-level turn.
+	if len(turns) != 1 {
+		t.Fatalf("got %d top-level turns, want 1 (subagent UserQuery should not be top-level)", len(turns))
+	}
+
+	// Verify the turn is the orchestrator's UserQuery.
+	topTurn := turns[0]
+	if eventID, _ := topTurn.UserQuery["event_id"].(string); eventID != "uq-orch" {
+		t.Errorf("top-level UserQuery event_id = %q, want uq-orch", eventID)
+	}
+	if agentID, _ := topTurn.UserQuery["agent_id"].(string); agentID != "claude-code" {
+		t.Errorf("top-level UserQuery agent_id = %q, want claude-code", agentID)
+	}
+}

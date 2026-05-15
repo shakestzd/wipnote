@@ -578,6 +578,7 @@ func buildEventTreeHookUnanchored(database *sql.DB, limit int) ([]turn, error) {
 		SELECT `+eventColumns+`
 		FROM agent_events e
 		WHERE e.tool_name = 'UserQuery'
+		  AND (e.agent_id = '' OR e.agent_id = 'claude-code')
 		  AND NOT EXISTS (
 		    SELECT 1 FROM otel_signals s
 		    WHERE s.kind = 'span' AND s.canonical = 'interaction'
