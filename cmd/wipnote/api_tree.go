@@ -107,6 +107,11 @@ func buildEventTree(database *sql.DB, limit int) ([]turn, error) {
 	// is a safety-net layer that operates purely on the merged Go slice.
 	merged = collapseDuplicateTurns(merged)
 
+	// Post-dedup: nest task-notification wake-turns under the row that
+	// contains the originating background tool call, matched by tool-use-id.
+	// This must run AFTER collapseDuplicateTurns so only canonical rows remain.
+	merged = nestTaskNotificationTurns(merged)
+
 	// Sort DESC by timestamp (RFC3339 strings are lexicographically sortable
 	// in ascending chronological order; reverse for newest-first).
 	sort.SliceStable(merged, func(i, j int) bool {
@@ -942,4 +947,190 @@ func walkChildren(children []map[string]any, stats *turnStats, models map[string
 			walkChildren(sub, stats, models)
 		}
 	}
+}
+
+// parseTaskNotification extracts the tool-use-id and task-id from a
+// <task-notification> wake message. Returns empty strings when the text does
+// not look like a task-notification message.
+//
+// Example payload (abbreviated):
+//
+//	<task-notification><task-id>bt8yi6rhf</task-id><tool-use-id>toolu_01XYZ</tool-use-id>...</task-notification>
+func parseTaskNotification(text string) (toolUseID, taskID string) {
+	if !containsStr(text, "<task-notification>") {
+		return "", ""
+	}
+	toolUseID = extractXMLTag(text, "tool-use-id")
+	taskID = extractXMLTag(text, "task-id")
+	return toolUseID, taskID
+}
+
+// extractXMLTag returns the first inner text of <tag>…</tag> in s.
+// It is intentionally minimal — it does not handle nested tags or attributes.
+func extractXMLTag(s, tag string) string {
+	open := "<" + tag + ">"
+	close := "</" + tag + ">"
+	start := indexStr(s, open)
+	if start < 0 {
+		return ""
+	}
+	start += len(open)
+	end := indexStr(s[start:], close)
+	if end < 0 {
+		return ""
+	}
+	return s[start : start+end]
+}
+
+// containsStr reports whether s contains substr (avoids importing strings).
+func containsStr(s, substr string) bool {
+	return indexStr(s, substr) >= 0
+}
+
+// indexStr returns the index of the first instance of substr in s, or -1.
+func indexStr(s, substr string) int {
+	n := len(substr)
+	if n == 0 {
+		return 0
+	}
+	if n > len(s) {
+		return -1
+	}
+	for i := 0; i <= len(s)-n; i++ {
+		if s[i:i+n] == substr {
+			return i
+		}
+	}
+	return -1
+}
+
+// taskNotificationTitle returns a clean, non-XML title for a wake turn.
+// Format: "↩ resumed: background task <taskID> completed"
+// If taskID is empty, it returns "↩ resumed: background task completed".
+func taskNotificationTitle(taskID string) string {
+	if taskID != "" {
+		return "↩ resumed: background task " + taskID + " completed"
+	}
+	return "↩ resumed: background task completed"
+}
+
+// findToolUseInChildren walks the children tree of a turn and returns true
+// when any child event has tool_use_id == id.
+func findToolUseInChildren(children []map[string]any, id string) bool {
+	for _, c := range children {
+		if tid, _ := c["tool_use_id"].(string); tid == id {
+			return true
+		}
+		if sub, ok := c["children"].([]map[string]any); ok {
+			if findToolUseInChildren(sub, id) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// nestTaskNotificationTurns is a post-dedup pass that moves task-notification
+// wake turns out of the top-level list and nests them as children of the turn
+// that contains the originating background tool call (matched by tool-use-id).
+//
+// Matching strategy:
+//  1. Parse <tool-use-id> from the notification text → primary key.
+//  2. Walk every non-notification turn's children tree looking for that id.
+//  3. When found: append the notification turn's children to the originating
+//     row's children, relabel its input_summary to a clean title, then attach
+//     it as a child of the originating turn's user_query node.
+//  4. Fallback (no match): relabel the notification's input_summary to the
+//     clean title and leave it as a top-level row — never display raw XML.
+//
+// This function is additive and orthogonal to collapseDuplicateTurns.
+// It must be called AFTER collapseDuplicateTurns and BEFORE the final sort.
+func nestTaskNotificationTurns(turns []turn) []turn {
+	// Separate notification turns from normal turns.
+	type notifTurn struct {
+		t          turn
+		toolUseID  string
+		taskID     string
+	}
+
+	var normal []turn
+	var notifs []notifTurn
+
+	for _, t := range turns {
+		raw, _ := t.UserQuery["input_summary"].(string)
+		toolUseID, taskID := parseTaskNotification(raw)
+		if toolUseID != "" || taskID != "" {
+			notifs = append(notifs, notifTurn{t: t, toolUseID: toolUseID, taskID: taskID})
+		} else {
+			normal = append(normal, t)
+		}
+	}
+
+	if len(notifs) == 0 {
+		return turns // fast path — nothing to do
+	}
+
+	// For each notification, try to find the originating turn in normal.
+	// Build an index: tool_use_id → index in normal slice.
+	// We walk children trees, so this index maps an id to a normal-turn index.
+	type matchResult struct {
+		normalIdx int
+		found     bool
+	}
+
+	matchNotif := func(n notifTurn) matchResult {
+		if n.toolUseID != "" {
+			for i := range normal {
+				if findToolUseInChildren(normal[i].Children, n.toolUseID) {
+					return matchResult{i, true}
+				}
+			}
+		}
+		// Fallback: task-id match not implemented (too ambiguous without tool_use_id).
+		return matchResult{-1, false}
+	}
+
+	// Track which normal turns have received a nested notification (for
+	// children merge ordering).
+	for _, n := range notifs {
+		m := matchNotif(n)
+		// Build a clean child node from the notification turn.
+		cleanTitle := taskNotificationTitle(n.taskID)
+
+		if m.found {
+			// Nest the notification's own children under the originating row,
+			// then attach a summary child representing the wake event itself.
+			wakeNode := map[string]any{
+				"event_id":        n.t.UserQuery["event_id"],
+				"agent_id":        n.t.UserQuery["agent_id"],
+				"event_type":      "tool_call",
+				"timestamp":       n.t.UserQuery["timestamp"],
+				"tool_name":       "UserQuery",
+				"input_summary":   cleanTitle,
+				"output_summary":  "",
+				"session_id":      n.t.UserQuery["session_id"],
+				"feature_id":      n.t.UserQuery["feature_id"],
+				"feature_title":   n.t.UserQuery["feature_title"],
+				"status":          "recorded",
+				"parent_event_id": "",
+				"subagent_type":   "",
+				"tool_use_id":     "",
+				"model":           "",
+				"children":        n.t.Children,
+			}
+			normal[m.normalIdx].Children = append(normal[m.normalIdx].Children, wakeNode)
+		} else {
+			// No originating row found in the current window; keep as top-level
+			// but with a clean, non-XML title.
+			notifCopy := n.t
+			notifCopy.UserQuery = make(map[string]any, len(n.t.UserQuery))
+			for k, v := range n.t.UserQuery {
+				notifCopy.UserQuery[k] = v
+			}
+			notifCopy.UserQuery["input_summary"] = cleanTitle
+			normal = append(normal, notifCopy)
+		}
+	}
+
+	return normal
 }

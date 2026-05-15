@@ -832,6 +832,243 @@ func TestCollapseDuplicateTurns_EmptyPromptNotCollapsed(t *testing.T) {
 	}
 }
 
+// --- nestTaskNotificationTurns tests ---
+
+// TestNestTaskNotificationTurns_NestedUnderOriginatingRow verifies that a
+// notification turn whose text contains <tool-use-id>T</tool-use-id> is
+// removed from the top-level list and attached as a child of the turn
+// containing tool_use_id T, and its title contains no raw angle-bracket XML.
+func TestNestTaskNotificationTurns_NestedUnderOriginatingRow(t *testing.T) {
+	base := time.Now().UTC()
+	origChild := map[string]any{
+		"event_id":    "bash-child-1",
+		"tool_name":   "Bash",
+		"tool_use_id": "toolu_ORIGINATING",
+		"children":    []map[string]any{},
+	}
+	origTurn := turn{
+		SessionID: "sess-bg",
+		UserQuery: map[string]any{
+			"event_id":      "uq-1",
+			"input_summary": "run the server in background",
+			"timestamp":     base.Add(-2 * time.Minute).Format(time.RFC3339),
+		},
+		Children: []map[string]any{origChild},
+	}
+	notifTurn := turn{
+		SessionID: "sess-bg",
+		UserQuery: map[string]any{
+			"event_id":      "uq-notif",
+			"input_summary": "<task-notification><task-id>bt8yi6rhf</task-id><tool-use-id>toolu_ORIGINATING</tool-use-id></task-notification>",
+			"timestamp":     base.Format(time.RFC3339),
+		},
+		Children: []map[string]any{
+			{"event_id": "notif-child-bash", "tool_name": "Bash", "children": []map[string]any{}},
+		},
+	}
+
+	result := nestTaskNotificationTurns([]turn{origTurn, notifTurn})
+
+	// Notification must not be a top-level row.
+	if len(result) != 1 {
+		t.Fatalf("got %d top-level turns, want 1 (notification must be nested)", len(result))
+	}
+	remaining := result[0]
+	if id, _ := remaining.UserQuery["event_id"].(string); id != "uq-1" {
+		t.Fatalf("remaining top-level turn event_id = %v, want uq-1", id)
+	}
+
+	// Originating turn must have 2 children: the original bash child + the wake node.
+	if len(remaining.Children) != 2 {
+		t.Fatalf("originating turn children = %d, want 2 (original + wake node)", len(remaining.Children))
+	}
+
+	// Find the wake node (the newly appended child).
+	var wakeNode map[string]any
+	for _, c := range remaining.Children {
+		if id, _ := c["event_id"].(string); id == "uq-notif" {
+			wakeNode = c
+		}
+	}
+	if wakeNode == nil {
+		t.Fatal("wake node not found in originating turn children")
+	}
+
+	// Wake node title must not contain angle-bracket XML.
+	title, _ := wakeNode["input_summary"].(string)
+	if containsStr(title, "<") {
+		t.Errorf("wake node title contains raw XML angle brackets: %q", title)
+	}
+	if !containsStr(title, "bt8yi6rhf") {
+		t.Errorf("wake node title does not contain task-id: %q", title)
+	}
+
+	// Wake node must have the notification's own children attached.
+	wakeChildren, _ := wakeNode["children"].([]map[string]any)
+	if len(wakeChildren) != 1 || wakeChildren[0]["event_id"] != "notif-child-bash" {
+		t.Errorf("wake node children = %v, want the notification's original children", wakeChildren)
+	}
+}
+
+// TestNestTaskNotificationTurns_FallbackRelabelsWhenNoMatch verifies that a
+// notification turn with no matching originating row stays top-level but has
+// its title relabeled to clean text (no raw XML).
+func TestNestTaskNotificationTurns_FallbackRelabelsWhenNoMatch(t *testing.T) {
+	base := time.Now().UTC()
+	notifTurn := turn{
+		SessionID: "sess-orphan",
+		UserQuery: map[string]any{
+			"event_id":      "uq-orphan-notif",
+			"input_summary": "<task-notification><task-id>xyz123</task-id><tool-use-id>toolu_MISSING</tool-use-id></task-notification>",
+			"timestamp":     base.Format(time.RFC3339),
+		},
+		Children: []map[string]any{},
+	}
+	normalTurn := turn{
+		SessionID: "sess-orphan",
+		UserQuery: map[string]any{
+			"event_id":      "uq-normal",
+			"input_summary": "some normal prompt",
+			"timestamp":     base.Add(-1 * time.Minute).Format(time.RFC3339),
+		},
+		Children: []map[string]any{},
+	}
+
+	result := nestTaskNotificationTurns([]turn{normalTurn, notifTurn})
+
+	// Both rows should remain — the notification cannot be nested.
+	if len(result) != 2 {
+		t.Fatalf("got %d top-level turns, want 2 (orphan stays top-level)", len(result))
+	}
+
+	// Find the notification row.
+	var notifResult turn
+	found := false
+	for _, r := range result {
+		if id, _ := r.UserQuery["event_id"].(string); id == "uq-orphan-notif" {
+			notifResult = r
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("notification turn missing from result")
+	}
+
+	title, _ := notifResult.UserQuery["input_summary"].(string)
+	if containsStr(title, "<") {
+		t.Errorf("fallback title contains raw XML: %q", title)
+	}
+	if title == "" {
+		t.Errorf("fallback title is empty, want descriptive text")
+	}
+}
+
+// TestNestTaskNotificationTurns_NormalTurnUntouched verifies that a normal
+// user prompt turn (no <task-notification>) is not modified.
+func TestNestTaskNotificationTurns_NormalTurnUntouched(t *testing.T) {
+	base := time.Now().UTC()
+	normal := turn{
+		SessionID: "sess-normal",
+		UserQuery: map[string]any{
+			"event_id":      "uq-regular",
+			"input_summary": "please implement the feature",
+			"timestamp":     base.Format(time.RFC3339),
+		},
+		Children: []map[string]any{
+			{"event_id": "child-1", "tool_name": "Read", "children": []map[string]any{}},
+		},
+	}
+
+	result := nestTaskNotificationTurns([]turn{normal})
+
+	if len(result) != 1 {
+		t.Fatalf("got %d turns, want 1 (normal turn untouched)", len(result))
+	}
+	if id, _ := result[0].UserQuery["event_id"].(string); id != "uq-regular" {
+		t.Errorf("turn event_id = %v, want uq-regular", id)
+	}
+	if summary, _ := result[0].UserQuery["input_summary"].(string); summary != "please implement the feature" {
+		t.Errorf("input_summary changed: %q", summary)
+	}
+	if len(result[0].Children) != 1 {
+		t.Errorf("children length changed: %d", len(result[0].Children))
+	}
+}
+
+// TestNestTaskNotificationTurns_DeduplicateThenNest verifies that dedup
+// (collapseDuplicateTurns) followed by nestTaskNotificationTurns correctly
+// collapses a duplicate pair AND nests a notification turn.
+func TestNestTaskNotificationTurns_DeduplicateThenNest(t *testing.T) {
+	base := time.Now().UTC().Truncate(time.Second)
+
+	// Two duplicates of the same prompt (rich + poor).
+	richTurn := turn{
+		SessionID: "sess-rich",
+		UserQuery: map[string]any{
+			"event_id":      "uq-rich",
+			"input_summary": "run tests in background",
+			"agent_id":      "claude_code",
+			"timestamp":     base.Add(-30 * time.Second).Format(time.RFC3339),
+		},
+		Children: []map[string]any{
+			{
+				"event_id":    "bash-bg",
+				"tool_name":   "Bash",
+				"tool_use_id": "toolu_BG_TASK",
+				"children":    []map[string]any{},
+			},
+		},
+		Stats: turnStats{ToolCount: 5},
+	}
+	poorTurn := turn{
+		SessionID: "sess-poor",
+		UserQuery: map[string]any{
+			"event_id":      "uq-poor",
+			"input_summary": "run tests in background",
+			"agent_id":      "",
+			"timestamp":     base.Add(-29 * time.Second).Format(time.RFC3339),
+		},
+		Children: []map[string]any{},
+		Stats:    turnStats{ToolCount: 0},
+	}
+
+	// A notification wake turn matching the rich turn's tool_use_id.
+	notifTurn := turn{
+		SessionID: "sess-rich",
+		UserQuery: map[string]any{
+			"event_id":      "uq-wake",
+			"input_summary": "<task-notification><task-id>taskABC</task-id><tool-use-id>toolu_BG_TASK</tool-use-id></task-notification>",
+			"agent_id":      "claude_code",
+			"timestamp":     base.Format(time.RFC3339),
+		},
+		Children: []map[string]any{},
+	}
+
+	// Step 1: dedup.
+	afterDedup := collapseDuplicateTurns([]turn{richTurn, poorTurn, notifTurn})
+	// Should have 2 rows: rich (dedup winner) + notif (unique prompt text).
+	if len(afterDedup) != 2 {
+		t.Fatalf("after dedup: got %d turns, want 2", len(afterDedup))
+	}
+
+	// Step 2: nest.
+	afterNest := nestTaskNotificationTurns(afterDedup)
+	// Notification nested → only 1 top-level row remaining.
+	if len(afterNest) != 1 {
+		t.Fatalf("after nest: got %d top-level turns, want 1", len(afterNest))
+	}
+
+	// The surviving row must be the rich dedup winner.
+	if id, _ := afterNest[0].UserQuery["event_id"].(string); id != "uq-rich" {
+		t.Errorf("surviving turn event_id = %v, want uq-rich", id)
+	}
+
+	// It must now have 2 children: original bash-bg + wake node.
+	if len(afterNest[0].Children) != 2 {
+		t.Fatalf("originating turn children = %d, want 2", len(afterNest[0].Children))
+	}
+}
+
 func TestComputeStats_CountsNestedChildren(t *testing.T) {
 	children := []map[string]any{
 		{
