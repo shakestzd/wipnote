@@ -283,6 +283,10 @@ func buildRoot() *cobra.Command {
 	agentInit.GroupID = "dev"
 	root.AddCommand(agentInit)
 
+	sh := shCmd()
+	sh.GroupID = "dev"
+	root.AddCommand(sh)
+
 	// ungrouped (internal plumbing — omitted from compact help)
 	root.AddCommand(versionCmd())
 	root.AddCommand(statuslineCmd())
