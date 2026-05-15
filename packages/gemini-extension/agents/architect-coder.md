@@ -2,7 +2,7 @@
 name: architect-coder
 description: Deep reasoning code execution agent for complex tasks
 model: pro
-max_turns: 120
+max_turns: 40
 timeout_mins: 60
 tools:
     - read_file

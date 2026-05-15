@@ -8,7 +8,7 @@ tools:
   - Grep
   - Glob
   - Bash
-maxTurns: 20
+maxTurns: 15
 timeout_mins: 30
 ---
 
