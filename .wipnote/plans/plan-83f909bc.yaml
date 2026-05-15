@@ -7,12 +7,445 @@ meta:
     status: draft
     priority: medium
     schema_version: v3
-    version: 2
+    version: 3
 design:
-    problem: ""
-    goals: []
-    constraints: []
+    problem: |
+        wipnote's development practices (commit-what-you-close, regenerate ports
+        after generator edits, run the real gate, link duplicates, never present a
+        glance as proof) are currently enforced only by advisory prose in
+        CLAUDE.md/AGENTS.md and skill text. This session produced direct evidence
+        that prose enforcement fails: Codex left 6 items done with evaporable /
+        never-committed artifacts; feat-e78221c7 shipped without build-ports
+        leaving generated trees stale; partial -run-filtered test runs were
+        presented as a passing gate; byte-identical bugs (bug-7b5339cc /
+        bug-d67e695e) were closed independently. The existing complete-path guard
+        (checkUncommittedSourceCompleteGate) only rejects unrelated dirty source
+        OUTSIDE .wipnote/ - it never verifies the item's OWN artifact commit
+        actually landed, and none of the practices are enforced identically across
+        the three harnesses.
+    goals:
+        - Make status-flip and artifact-commit transactional so no item can reach done with an uncommitted or never-committed artifact.
+        - Mechanically block stale generated trees from being committed or shipped.
+        - Require commit/gate provenance before completion of code-bearing items, reusing trace/lineage primitives wipnote already has.
+        - Add session-exit reconciliation that self-heals bookkeeping drift and blocks ambiguous source drift, on every harness.
+        - Detect duplicate work items at creation time.
+        - Guarantee slice-1..6 enforcement is harness-identical via the shared Go binary invoked by the per-harness hook matrix, and make weak-harness regressions visible as a tracked per-session adherence metric.
+    constraints:
+        - Enforcement MUST live in the shared Go binary (cmd/ + internal/) invoked by the per-harness hook matrix in packages/plugin-core/manifest.json - never in per-harness bespoke logic and never as more advisory prose in CLAUDE.md/AGENTS.md (the CLAUDE.md philosophy says fixes land in the binary/hooks, never descriptive docs; advisory text is exactly what failed).
+        - No new canonical state outside .wipnote/*.html artifacts; the SQLite read index is derived and not committed, so scorecards/metrics must be derivable at query time from existing session/commit/lineage data.
+        - Generated trees (plugin/.claude-plugin, plugin/hooks/hooks.json, packages/codex-plugin, packages/gemini-extension) are regenerated, never hand-edited; the drift gate must full-regenerate-and-diff, not checksum.
+        - No new runtime dependency - stdlib only (e.g. similarity metric).
+        - Stop/SessionEnd hooks on Codex/Gemini are thinner than Claude (no exit-2 block guarantee); the design must degrade to a loud structured warning surfaced via next-session context injection on those harnesses.
     approved: false
     comment: ""
-slices: []
+slices:
+    - id: slice-1
+      num: 1
+      title: Transactional wipnote * complete (artifact-commit-or-rollback)
+      what: |
+        In the complete path (cmd/wipnote/workitem.go wiSetStatusWithAgent /
+        workitem.go ~line 329 commitWipnoteArtifact call, plus
+        cmd/wipnote/workitem_commit.go commitWipnoteArtifact at line 66),
+        capture pre-commit HEAD before the status mutation is persisted. After
+        commitWipnoteArtifact runs, assert two invariants: (a) the artifact path
+        is clean (no unstaged/uncommitted changes to the item's own
+        .wipnote/<type>/<id>.html), and (b) git log -1 --format=%H --
+        <artifact> advanced versus the captured pre-commit HEAD (the commit
+        touching the artifact actually landed). On failure: revert the
+        in-process status field write so the item is NOT left done, then exit
+        non-zero printing the exact remediation command. Make status-flip +
+        artifact-commit transactional: both succeed or neither. Leave
+        checkUncommittedSourceCompleteGate (the outside-.wipnote dirty-source
+        guard) untouched in behavior.
+      why: |
+        Highest-leverage, evidence-backed. The existing guard only rejects
+        unrelated dirty source OUTSIDE .wipnote/; it never verifies the item's
+        OWN artifact commit landed. Confirmed live this session - Codex left 6
+        items done yet evaporable; bug-6a925774's completion only persisted
+        because it happened to go through the proper path.
+      files:
+        - cmd/wipnote/workitem.go
+        - cmd/wipnote/workitem_commit.go
+        - cmd/wipnote/workitem_commit_test.go
+      deps: []
+      done_when:
+        - complete exits non-zero and reverts status when the artifact commit does not land
+        - an item can never reach done with an uncommitted/never-committed artifact (regression test proves it)
+        - the existing outside-.wipnote dirty-source guard still behaves unchanged
+      effort: M
+      risk: Med
+      tests: |
+        Add to cmd/wipnote/workitem_commit_test.go: (1) regression test that
+        injects a commit failure (read-only .git or stubbed commit step) and
+        asserts complete returns non-zero AND the artifact status reverted to
+        its prior value (not done); (2) happy-path test that pre-HEAD !=
+        post-HEAD for the artifact and status is done; (3) test that
+        checkUncommittedSourceCompleteGate behavior is byte-identical. Run
+        go test ./cmd/wipnote/...
+      complexity: complex
+      approved: false
+      comment: ""
+      questions:
+        - id: q-rollback
+          text: Roll back status in-process or via a deferred git-state check?
+          answer: 'Roll back in-process: capture pre-commit HEAD, attempt commit, verify, and revert the status field write before returning the non-zero exit - atomic within the single complete invocation.'
+      decisions_notes: |
+        **Trigger:** complete path persists status done then calls
+        commitWipnoteArtifact; commit can silently fail leaving an evaporable item.
+        **State:** durable git state - pre-commit HEAD captured in-process plus
+        git log -1 --format=%H -- <artifact>; no session state (per the
+        file/branch-state hook rule).
+        **Payload:** on failure, non-zero exit + exact remediation command on
+        stdout; status field write reverted in the same complete invocation.
+        **Rejected:** deferred git-state check after return (rejected - not
+        atomic within the invocation, leaves a window where the item is done);
+        more CLAUDE.md/AGENTS.md prose telling agents to verify commits
+        (rejected - advisory text is exactly the failure mode; CLAUDE.md
+        philosophy says fixes land in the binary/hooks, never descriptive docs).
+    - id: slice-2
+      num: 2
+      title: Pre-commit wipnote plugin check-ports drift gate
+      what: |
+        Add a wipnote plugin check-ports subcommand (alongside
+        cmd/wipnote/plugin_build_ports.go) that regenerates ALL target trees
+        into a tempdir using internal/pluginbuild, diffs the tempdir against the
+        committed trees (plugin/.claude-plugin, plugin/hooks/hooks.json,
+        packages/codex-plugin, packages/gemini-extension), and exits non-zero on
+        any drift, printing the drifted paths. Wire it into the repo pre-commit
+        hook (.githooks/pre-commit) alongside the existing check-host-paths
+        gate, and add it to scripts/deploy-all.sh and CI so stale generated
+        trees can neither be committed nor shipped.
+      why: |
+        Mechanically eliminates the "forgot build-ports after a generator edit"
+        class on every harness with zero agent reliance (the feat-e78221c7
+        failure mode).
+      files:
+        - cmd/wipnote/plugin_build_ports.go
+        - cmd/wipnote/plugin_check_ports.go
+        - internal/pluginbuild/core.go
+        - .githooks/pre-commit
+        - scripts/deploy-all.sh
+      deps: []
+      done_when:
+        - check-ports exits non-zero when packages/ or plugin/ drift from a fresh build-ports
+        - a commit touching internal/pluginbuild or manifest.json without regenerating trees is rejected pre-commit
+        - deploy-all.sh aborts on port drift
+      effort: M
+      risk: Low
+      tests: |
+        Add cmd/wipnote/plugin_check_ports_test.go: (1) clean tree -> exit 0;
+        (2) mutate a committed generated file -> check-ports exits non-zero and
+        names the drifted path; (3) edit manifest.json without regenerating ->
+        drift detected. Shell-level smoke test that .githooks/pre-commit invokes
+        wipnote plugin check-ports and aborts on non-zero. Run
+        go test ./cmd/wipnote/... ./internal/pluginbuild/...
+      complexity: complex
+      approved: false
+      comment: ""
+      questions:
+        - id: q-scope
+          text: Full regenerate-and-diff or checksum manifest?
+          answer: Full regenerate to tempdir then diff - authoritative, no separate checksum to drift; acceptable cost for a pre-commit gate.
+      decisions_notes: |
+        **Trigger:** a commit/deploy touching internal/pluginbuild or
+        manifest.json without regenerating the generated target trees.
+        **State:** durable filesystem - full regenerate into a tempdir, then
+        recursive diff against committed trees; no checksum/manifest cache.
+        **Payload:** non-zero exit listing each drifted path; wired into
+        .githooks/pre-commit, scripts/deploy-all.sh, and CI.
+        **Rejected:** checksum-manifest approach (rejected - the checksum itself
+        drifts and adds a second source of truth); per-harness bespoke drift
+        checks (rejected - drifts, defeats parity; the diff must run from the
+        single shared build-ports generator).
+    - id: slice-3
+      num: 3
+      title: Provenance-required completion (zero-commit block + advisory override)
+      what: |
+        In the complete path for code-bearing bug/feature items, consult
+        existing trace/lineage (internal/db/lineage_repo.go - the Commits()
+        primitive complete never consulted). If the item has zero linked source
+        commits (Commits(0)), block completion unless
+        --accepted-advisory "<reason>" is passed (new flag on wiCompleteCmd in
+        cmd/wipnote/workitem.go). Record the reason on the .wipnote artifact and
+        surface it in wipnote snapshot and wipnote check / compliance output.
+      why: |
+        Kills "snapshot/live-API glance presented as fix proof." Reuses
+        primitives wipnote already has (trace/lineage) that complete simply
+        never consulted.
+      files:
+        - cmd/wipnote/workitem.go
+        - internal/db/lineage_repo.go
+        - cmd/wipnote/check.go
+      deps:
+        - 1
+      done_when:
+        - completing a code-bearing item with zero source commits is blocked without --accepted-advisory
+        - --accepted-advisory records the reason and it appears in snapshot and compliance output
+        - non-code items and overridden items complete normally
+      effort: M
+      risk: Med
+      tests: |
+        cmd/wipnote/workitem_test.go: (1) code-bearing item, Commits(0), no
+        flag -> blocked non-zero; (2) same with --accepted-advisory "reason" ->
+        completes, reason persisted on artifact and present in snapshot + check
+        output; (3) pure-.wipnote/doc item with zero commits -> completes
+        normally (exempt); (4) code-bearing item with >=1 linked commit ->
+        completes normally. Run go test ./cmd/wipnote/... ./internal/db/...
+      complexity: complex
+      approved: false
+      comment: ""
+      questions:
+        - id: q-codebearing
+          text: How to classify code-bearing?
+          answer: Item whose trace touches any non-.wipnote source path; pure-.wipnote/doc items are exempt.
+      decisions_notes: |
+        **Trigger:** complete invoked on a code-bearing item whose trace has
+        zero linked source commits.
+        **State:** durable lineage - internal/db/lineage_repo.go Commits() over
+        the item's trace; classification by trace-touched paths, not session.
+        **Payload:** block + remediation unless --accepted-advisory "<reason>";
+        reason written to the .wipnote artifact and surfaced in snapshot/check.
+        **Rejected:** trusting the agent's narrative as proof (rejected - that
+        is the exact glance-as-proof failure); more AGENTS.md prose requiring
+        commits (rejected - advisory-only is what failed; enforcement belongs in
+        the binary, never descriptive docs).
+    - id: slice-4
+      num: 4
+      title: Gate-record-required completion (SHA-pinned signed gate result)
+      what: |
+        Add wipnote check --gate (cmd/wipnote/check.go) that detects the project
+        manifest (go.mod/package.json/pyproject.toml/Cargo.toml) and runs the
+        project's full build/vet/test, writing a signed result (HEAD SHA +
+        worktree hash + pass/fail + timestamp) under .wipnote. complete
+        (cmd/wipnote/workitem.go) refuses code-bearing items lacking a passing
+        record for the current tree SHA. Include an env-flake allowlist
+        (plugin/config) with a recorded per-entry justification so known
+        environmental failures (the /tmp noexec class hit twice this session)
+        don't mask genuine failures and can't be a blanket excuse; report
+        allowlist hits in the gate output.
+      why: |
+        Kills -run-filtered partial validation presented as a passing gate.
+      files:
+        - cmd/wipnote/check.go
+        - cmd/wipnote/workitem.go
+        - cmd/wipnote/check_incomplete.go
+        - plugin/config
+      deps:
+        - 1
+      done_when:
+        - wipnote check --gate writes a HEAD-SHA-pinned pass/fail record under .wipnote
+        - complete refuses a code-bearing item with no passing gate record for the current SHA
+        - env-flake allowlist entries require a recorded justification and are reported in the gate output
+      effort: L
+      risk: Med
+      tests: |
+        check_incomplete.go-adjacent tests: (1) check --gate on a go.mod project
+        writes a record pinned to HEAD SHA + worktree hash; (2) complete on a
+        code-bearing item with no passing record for current SHA -> refused;
+        with a matching passing record -> allowed; (3) dirty worktree marks the
+        record stale and complete refuses; (4) an env-flake-allowlisted failure
+        without a justification is rejected; with a justification it is reported
+        but does not mask other failures. Run go test ./cmd/wipnote/...
+      complexity: complex
+      approved: false
+      comment: ""
+      questions:
+        - id: q-staleness
+          text: What invalidates a gate record?
+          answer: Any change to tracked source SHA - record is pinned to the exact HEAD/worktree hash; dirty worktree marks it stale.
+      decisions_notes: |
+        **Trigger:** complete invoked on a code-bearing item with no passing
+        full-gate record for the exact current tree SHA.
+        **State:** durable - signed gate record pinned to HEAD/worktree hash
+        under .wipnote; any tracked-source SHA change or dirty worktree marks
+        it stale.
+        **Payload:** wipnote check --gate runs the real full build/vet/test
+        (manifest-detected) and writes the record; allowlist hits reported,
+        never silently absorbed.
+        **Rejected:** trusting a -run-filtered partial test run (rejected -
+        that is the exact partial-gate failure); a blanket env-flake skip
+        (rejected - would mask genuine failures; each allowlist entry needs a
+        recorded justification); per-harness gate scripts (rejected - drifts,
+        defeats parity).
+    - id: slice-5
+      num: 5
+      title: Session-exit reconciliation (wipnote reconcile --strict + Stop/SessionEnd hook)
+      what: |
+        Add wipnote reconcile --strict plus a Stop/SessionEnd hook handler
+        (internal/hooks/session_end.go and the Stop path) that runs it on
+        session exit. reconcile detects three classes: done-but-uncommitted
+        items (auto-commit the artifact - deterministic bookkeeping - and
+        report), generator-touched-without-build-ports drift (reuse slice-2
+        check-ports), and started-but-orphaned items. Exit-2 blocks on Claude
+        Code; on Codex/Gemini (thinner hooks per
+        packages/plugin-core/manifest.json) emit a loud structured warning
+        surfaced via the next session's context injection
+        (internal/hooks/session_start.go).
+      why: |
+        Defense-in-depth so a session that violated invariants is caught before
+        the agent walks away, on every harness.
+      files:
+        - cmd/wipnote/reconcile.go
+        - internal/hooks/session_end.go
+        - internal/hooks/session_start.go
+        - packages/plugin-core/manifest.json
+        - internal/hooks/missing_events.go
+      deps:
+        - 1
+      done_when:
+        - reconcile --strict detects done-but-uncommitted items and generator-without-build-ports drift
+        - Stop/SessionEnd hook fires reconcile and exit-2 blocks on Claude Code
+        - Codex/Gemini path emits a structured warning that next-session context injection surfaces
+      effort: L
+      risk: Med
+      tests: |
+        internal/hooks/session_end_*_test.go and a new
+        cmd/wipnote/reconcile_test.go: (1) done-but-uncommitted item ->
+        reconcile auto-commits and reports; (2) generator-touched without
+        build-ports -> reconcile reports drift; (3) Claude Stop path with
+        unresolved ambiguous source drift -> exit-2 block; (4) Codex/Gemini
+        path -> exit 0 with structured warning payload that session_start
+        injection renders next session. Run
+        go test ./cmd/wipnote/... ./internal/hooks/...
+      complexity: complex
+      approved: false
+      comment: ""
+      questions:
+        - id: q-autocommit
+          text: Auto-commit or block on done-but-uncommitted?
+          answer: Auto-commit the artifact (it is bookkeeping, deterministic) and report; block only on ambiguous source drift.
+      decisions_notes: |
+        **Trigger:** session Stop/SessionEnd with done-but-uncommitted items,
+        generator-without-build-ports drift, or orphaned started items.
+        **State:** durable - git working tree, artifact commit state, slice-2
+        port diff; not session history.
+        **Payload:** auto-commit deterministic bookkeeping + report; exit-2
+        block on Claude for ambiguous source drift; structured warning on
+        Codex/Gemini surfaced via next-session context injection.
+        **Rejected:** blocking on all done-but-uncommitted (rejected - artifact
+        commit is deterministic bookkeeping, auto-commit is safe; block only on
+        ambiguous source drift); per-harness bespoke reconcile (rejected -
+        drifts, defeats parity; one shared entrypoint invoked by the
+        per-harness hook matrix).
+    - id: slice-6
+      num: 6
+      title: Dedup check at create (similarity-based relates_to + needs-triage-dup)
+      what: |
+        On bug/feature create (cmd/wipnote/workitem_create.go), run normalized
+        title+description similarity against open and recently-closed items
+        (query via internal/db). On a strong match, auto-attach a relates_to
+        edge and a needs-triage-dup tag that the dashboard and wipnote check
+        surface; when a TTY is present, show an interactive confirm prompt
+        first. Similarity is stdlib-only (normalized token/trigram), tuned to a
+        threshold that avoids false positives.
+      why: |
+        bug-7b5339cc / bug-d67e695e were byte-identical yet closed
+        independently; trivially detectable at creation.
+      files:
+        - cmd/wipnote/workitem_create.go
+        - internal/db/feature_repo.go
+        - cmd/wipnote/check.go
+        - plugin/static/components.js
+      deps: []
+      done_when:
+        - creating an item near-identical to an existing one auto-attaches relates_to + needs-triage-dup
+        - the dashboard and wipnote check surface needs-triage-dup clusters
+        - dissimilar items create with no false-positive link
+      effort: M
+      risk: Low
+      tests: |
+        cmd/wipnote/workitem_create.go tests: (1) create an item byte-identical
+        to bug-7b5339cc/bug-d67e695e -> relates_to edge + needs-triage-dup tag
+        attached; (2) create a clearly unrelated item -> no link (no false
+        positive at the tuned threshold); (3) TTY-present path prompts,
+        TTY-absent path auto-attaches non-interactively; (4) wipnote check and
+        the dashboard surface the needs-triage-dup cluster. Run
+        go test ./cmd/wipnote/... ./internal/db/...
+      complexity: complex
+      approved: false
+      comment: ""
+      questions:
+        - id: q-sim
+          text: Similarity metric?
+          answer: Normalized token/trigram similarity on title+description with a tuned threshold; no new runtime dependency (stdlib only).
+      decisions_notes: |
+        **Trigger:** bug/feature create whose title+description is near-identical
+        to an open or recently-closed item.
+        **State:** durable - query existing items from the read index/artifacts;
+        decision is content-based, not session-based.
+        **Payload:** auto-attach relates_to edge + needs-triage-dup tag;
+        interactive confirm only when a TTY is present; surfaced in dashboard
+        and wipnote check.
+        **Rejected:** a new fuzzy-match runtime dependency (rejected - stdlib
+        normalized token/trigram is sufficient and the constraint forbids new
+        deps); relying on agents to manually search before creating (rejected -
+        advisory-only is what failed; detection belongs in the binary).
+    - id: slice-7
+      num: 7
+      title: Cross-harness parity audit + per-session adherence scorecard
+      what: |
+        Audit packages/plugin-core/manifest.json hook-event matrix so the
+        Stop/PreCommit/SessionEnd equivalents invoke the SAME wipnote
+        reconcile/check entrypoints on Codex and Gemini at the same lifecycle
+        events as Claude (not just Claude), reconciling with the slice-5 hook
+        wiring. Add a per-session adherence scorecard to wipnote session show
+        (cmd/wipnote/session.go sessionShowCmd) and the dashboard API
+        (cmd/wipnote/serve.go + a new handler): did the session commit what it
+        closed? run the gate? regenerate ports when it touched the generator?
+        link duplicates? Derive the scorecard at query time from existing
+        session/commit/lineage data in the SQLite read index - no new canonical
+        state in .wipnote/. Expose a per-harness adherence trend in the
+        dashboard.
+      why: |
+        The systemic umbrella - guarantees the slice-1..6 enforcement is
+        harness-identical and makes weak-harness regressions visible as data,
+        not anecdote.
+      files:
+        - packages/plugin-core/manifest.json
+        - cmd/wipnote/session.go
+        - cmd/wipnote/serve.go
+        - internal/db/lineage_repo.go
+        - plugin/static/components.js
+      deps:
+        - 1
+        - 2
+        - 3
+        - 4
+        - 5
+        - 6
+      done_when:
+        - the manifest hook matrix wires reconcile/check entrypoints for Codex and Gemini at the same lifecycle events as Claude
+        - wipnote session show emits a per-session adherence scorecard
+        - the dashboard exposes per-harness adherence trend
+      effort: L
+      risk: Med
+      tests: |
+        internal/pluginbuild parity tests + new manifest assertions: Codex and
+        Gemini Stop/SessionEnd entries map to the same reconcile/check handler
+        as Claude. cmd/wipnote/session.go test: session show emits the
+        scorecard fields (committed-what-it-closed / ran-gate /
+        regenerated-ports / linked-dups). serve test: the dashboard endpoint
+        returns a per-harness adherence trend derived purely from the read
+        index. Run go test ./cmd/wipnote/... ./internal/pluginbuild/... ./internal/db/...
+      complexity: complex
+      approved: false
+      comment: ""
+      questions:
+        - id: q-score
+          text: Where does the scorecard live?
+          answer: Derived at query time from existing session/commit/lineage data in the SQLite read index; no new canonical state in .wipnote/.
+      decisions_notes: |
+        **Trigger:** need to guarantee slice-1..6 enforcement is harness-identical
+        and to make weak-harness regressions visible as data.
+        **State:** derived - scorecard computed at query time from existing
+        session/commit/lineage rows in the SQLite read index; manifest hook
+        matrix is the parity source of truth.
+        **Payload:** Codex/Gemini Stop/SessionEnd wired to the same shared
+        reconcile/check entrypoints as Claude; session show + dashboard
+        per-harness adherence trend.
+        **Rejected:** new canonical scorecard state in .wipnote/ (rejected -
+        violates the derived-index constraint; query-time derivation is
+        sufficient); per-harness bespoke enforcement/scoring (rejected - drifts,
+        defeats parity; enforcement must be in the shared Go binary invoked by
+        the per-harness hook matrix).
 questions: []

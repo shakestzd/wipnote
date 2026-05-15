@@ -397,6 +397,59 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
   <a href="#design" class="nav-link active" data-spy="design" data-initial="D">Design</a>
   <a href="#slices" class="nav-link" data-spy="slices" data-initial="S">Slices</a>
   
+  <ul class="slice-nav-list" id="slice-nav-list">
+    
+    <li>
+      <a href="#slice-1" class="slice-nav-item" data-slice-nav="1">
+        <span class="slice-nav-dot" data-approval="pending" data-dot-for="1"></span>
+        <span>#1 Transactional wipnote * complete (artifact-commit-or-rollback)</span>
+      </a>
+    </li>
+    
+    <li>
+      <a href="#slice-2" class="slice-nav-item" data-slice-nav="2">
+        <span class="slice-nav-dot" data-approval="pending" data-dot-for="2"></span>
+        <span>#2 Pre-commit wipnote plugin check-ports drift gate</span>
+      </a>
+    </li>
+    
+    <li>
+      <a href="#slice-3" class="slice-nav-item" data-slice-nav="3">
+        <span class="slice-nav-dot" data-approval="pending" data-dot-for="3"></span>
+        <span>#3 Provenance-required completion (zero-commit block + advisory override)</span>
+      </a>
+    </li>
+    
+    <li>
+      <a href="#slice-4" class="slice-nav-item" data-slice-nav="4">
+        <span class="slice-nav-dot" data-approval="pending" data-dot-for="4"></span>
+        <span>#4 Gate-record-required completion (SHA-pinned signed gate result)</span>
+      </a>
+    </li>
+    
+    <li>
+      <a href="#slice-5" class="slice-nav-item" data-slice-nav="5">
+        <span class="slice-nav-dot" data-approval="pending" data-dot-for="5"></span>
+        <span>#5 Session-exit reconciliation (wipnote reconcile --strict + Stop/SessionEnd hook)</span>
+      </a>
+    </li>
+    
+    <li>
+      <a href="#slice-6" class="slice-nav-item" data-slice-nav="6">
+        <span class="slice-nav-dot" data-approval="pending" data-dot-for="6"></span>
+        <span>#6 Dedup check at create (similarity-based relates_to + needs-triage-dup)</span>
+      </a>
+    </li>
+    
+    <li>
+      <a href="#slice-7" class="slice-nav-item" data-slice-nav="7">
+        <span class="slice-nav-dot" data-approval="pending" data-dot-for="7"></span>
+        <span>#7 Cross-harness parity audit + per-session adherence scorecard</span>
+      </a>
+    </li>
+    
+  </ul>
+  
   <a href="#questions" class="nav-link" data-spy="questions" data-initial="Q">Decisions</a>
   <a href="#critique" class="nav-link" data-spy="critique" data-initial="C">Critique</a>
   <a href="#feedback-summary" class="nav-link" data-spy="feedback-summary" data-initial="P">Progress</a>
@@ -412,7 +465,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
   <p style="color:var(--text-dim)">Move wipnote dev practices from advisory prose to machine-enforced, self-healing invariants in the Go binary + hook matrix so adherence is harness-identical across Claude Code, Codex, and Gemini. Seven slices: transactional complete, pre-commit check-ports drift gate, provenance-required completion, gate-record-required completion, session-exit reconciliation, dedup-on-create, cross-harness parity + adherence scorecard.</p>
   <div class="meta">
     <span class="badge badge-pending">Draft</span>
-    <span style="font-size:.75rem;color:var(--text-muted)">v2 · 0 slices · Created 2026-05-15</span>
+    <span style="font-size:.75rem;color:var(--text-muted)">v3 · 7 slices · Created 2026-05-15</span>
   </div>
 </header>
 <button id="themeToggle" style="position:fixed;top:16px;right:16px;z-index:100;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:6px 12px;color:var(--text);font-family:var(--mono);font-size:0.75rem;cursor:pointer;">
@@ -432,6 +485,13 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
 <section class="dep-graph" data-zone="dependency-graph">
   <h2>Dependency Graph</h2>
   <div id="graph-data" style="display:none">
+    <div data-node="1" data-name="Transactional wipnote * complete (artifact-commit-or-rollback)" data-status="pending" data-deps="" data-files="3"></div>
+    <div data-node="2" data-name="Pre-commit wipnote plugin check-ports drift gate" data-status="pending" data-deps="" data-files="5"></div>
+    <div data-node="3" data-name="Provenance-required completion (zero-commit block + advisory override)" data-status="pending" data-deps="1" data-files="3"></div>
+    <div data-node="4" data-name="Gate-record-required completion (SHA-pinned signed gate result)" data-status="pending" data-deps="1" data-files="4"></div>
+    <div data-node="5" data-name="Session-exit reconciliation (wipnote reconcile --strict + Stop/SessionEnd hook)" data-status="pending" data-deps="1" data-files="5"></div>
+    <div data-node="6" data-name="Dedup check at create (similarity-based relates_to + needs-triage-dup)" data-status="pending" data-deps="" data-files="4"></div>
+    <div data-node="7" data-name="Cross-harness parity audit + per-session adherence scorecard" data-status="pending" data-deps="1,2,3,4,5,6" data-files="5"></div>
     
     <!--PLAN_GRAPH_NODES-->
   </div>
@@ -444,17 +504,46 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
 <details id="design" class="section-card" open data-phase="design" data-status="pending">
   <summary><span>Design</span><span class="badge badge-pending" data-badge-for="design">Pending</span></summary>
   <div class="section-body">
-    <!--PLAN_DESIGN_CONTENT-->
-    <div class="sub-section">
-      <h4>Open Questions</h4>
-      <!--PLAN_QUESTIONS-->
-    </div>
+    <h4>Problem</h4>
+<div data-markdown>wipnote&#39;s development practices (commit-what-you-close, regenerate ports
+after generator edits, run the real gate, link duplicates, never present a
+glance as proof) are currently enforced only by advisory prose in
+CLAUDE.md/AGENTS.md and skill text. This session produced direct evidence
+that prose enforcement fails: Codex left 6 items done with evaporable /
+never-committed artifacts; feat-e78221c7 shipped without build-ports
+leaving generated trees stale; partial -run-filtered test runs were
+presented as a passing gate; byte-identical bugs (bug-7b5339cc /
+bug-d67e695e) were closed independently. The existing complete-path guard
+(checkUncommittedSourceCompleteGate) only rejects unrelated dirty source
+OUTSIDE .wipnote/ - it never verifies the item&#39;s OWN artifact commit
+actually landed, and none of the practices are enforced identically across
+the three harnesses.
+</div>
+<h4>Goals</h4>
+<ol>
+<li data-markdown>Make status-flip and artifact-commit transactional so no item can reach done with an uncommitted or never-committed artifact.</li>
+<li data-markdown>Mechanically block stale generated trees from being committed or shipped.</li>
+<li data-markdown>Require commit/gate provenance before completion of code-bearing items, reusing trace/lineage primitives wipnote already has.</li>
+<li data-markdown>Add session-exit reconciliation that self-heals bookkeeping drift and blocks ambiguous source drift, on every harness.</li>
+<li data-markdown>Detect duplicate work items at creation time.</li>
+<li data-markdown>Guarantee slice-1..6 enforcement is harness-identical via the shared Go binary invoked by the per-harness hook matrix, and make weak-harness regressions visible as a tracked per-session adherence metric.</li>
+</ol>
+<h4>Constraints</h4>
+<ul>
+<li data-markdown>Enforcement MUST live in the shared Go binary (cmd/ + internal/) invoked by the per-harness hook matrix in packages/plugin-core/manifest.json - never in per-harness bespoke logic and never as more advisory prose in CLAUDE.md/AGENTS.md (the CLAUDE.md philosophy says fixes land in the binary/hooks, never descriptive docs; advisory text is exactly what failed).</li>
+<li data-markdown>No new canonical state outside .wipnote/*.html artifacts; the SQLite read index is derived and not committed, so scorecards/metrics must be derivable at query time from existing session/commit/lineage data.</li>
+<li data-markdown>Generated trees (plugin/.claude-plugin, plugin/hooks/hooks.json, packages/codex-plugin, packages/gemini-extension) are regenerated, never hand-edited; the drift gate must full-regenerate-and-diff, not checksum.</li>
+<li data-markdown>No new runtime dependency - stdlib only (e.g. similarity metric).</li>
+<li data-markdown>Stop/SessionEnd hooks on Codex/Gemini are thinner than Claude (no exit-2 block guarantee); the design must degrade to a loud structured warning surfaced via next-session context injection on those harnesses.</li>
+</ul>
+
     <div class="approval-row">
       <label><input type="checkbox" data-section="design" data-action="approve"> Approve design</label>
       <textarea data-section="design" data-comment-for="design" placeholder="Comments on design decisions..."></textarea>
     </div>
   </div>
 </details>
+
 
 <!-- Structure Outline (hidden when empty) -->
 
@@ -463,23 +552,1154 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
 <details id="slices" class="section-card" open data-phase="slices" data-status="pending">
   <summary><span>Slices</span><span class="badge badge-pending" data-badge-for="slices">Pending</span></summary>
   <div class="section-body">
+    <details class="slice-card" id="slice-1" data-slice="1" data-slice-name="slice-1" data-status="pending" data-approval="pending">
+  <summary class="slice-summary" aria-label="Slice 1: Transactional wipnote * complete (artifact-commit-or-rollback)">
+    <span class="slice-num">#1</span>
+    <span class="slice-title-col">
+      <span class="slice-name">Transactional wipnote * complete (artifact-commit-or-rollback)</span>
+      <span class="slice-preview">In the complete path (cmd/wipnote/workitem.go wiSetStatusWithAgent /</span>
+      <span class="slice-meta-row">
+        <span class="slice-summary-badges">
+          <span class="badge badge-revision badge-sm">M</span>
+          <span class="badge badge-revision badge-sm">Med</span>
+          <span class="badge badge-revision badge-sm badge-complexity" title="Complexity: complex">Complex</span>
+          
+          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-1">Pending</span>
+          
+          <span class="badge badge-sm badge-questions" title="1 open question(s)">1 Q</span>
+        </span>
+        <span class="slice-actions" onclick="event.stopPropagation()">
+          <span class="approval-segmented" role="group" aria-label="Approval action">
+            <label class="seg-btn seg-approve" title="Approve">
+              <input type="radio" name="slice-1-approval" value="approved" data-section="slice-1" data-action="approve" aria-label="Approve slice 1">
+              &#10003;
+            </label>
+            <label class="seg-btn seg-changes" title="Request changes">
+              <input type="radio" name="slice-1-approval" value="changes_requested" data-section="slice-1" data-action="approve" aria-label="Request changes for slice 1">
+              &#8635;
+            </label>
+            <label class="seg-btn seg-reject" title="Reject">
+              <input type="radio" name="slice-1-approval" value="rejected" data-section="slice-1" data-action="approve" aria-label="Reject slice 1">
+              &#10005;
+            </label>
+          </span>
+        </span>
+      </span>
+    </span>
+    <span class="slice-chevron" aria-hidden="true"></span>
+  </summary>
+
+  <div class="slice-body">
     
+      
+      <div class="slice-field slice-what">
+        <div class="slice-field-label">What</div>
+        <div class="slice-field-value">
+          
+          <input type="checkbox" id="slice-1-what-reveal" class="reveal-toggle">
+          <div class="markdown-block reveal-content serif-prose"><p>In the complete path (cmd/wipnote/workitem.go wiSetStatusWithAgent /
+workitem.go ~line 329 commitWipnoteArtifact call, plus
+cmd/wipnote/workitem_commit.go commitWipnoteArtifact at line 66),
+capture pre-commit HEAD before the status mutation is persisted. After
+commitWipnoteArtifact runs, assert two invariants: (a) the artifact path
+is clean (no unstaged/uncommitted changes to the item&#39;s own
+.wipnote//.html), and (b) git log -1 --format=%H --
+ advanced versus the captured pre-commit HEAD (the commit
+touching the artifact actually landed). On failure: revert the
+in-process status field write so the item is NOT left done, then exit
+non-zero printing the exact remediation command. Make status-flip +
+artifact-commit transactional: both succeed or neither. Leave
+checkUncommittedSourceCompleteGate (the outside-.wipnote dirty-source
+guard) untouched in behavior.</p>
+</div>
+          <label for="slice-1-what-reveal" class="reveal-label">Show full description</label>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field slice-why">
+        <div class="slice-field-label">Why</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>Highest-leverage, evidence-backed. The existing guard only rejects
+unrelated dirty source OUTSIDE .wipnote/; it never verifies the item&#39;s
+OWN artifact commit landed. Confirmed live this session - Codex left 6
+items done yet evaporable; bug-6a925774&#39;s completion only persisted
+because it happened to go through the proper path.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Files</div>
+        <div class="slice-field-value"><code>cmd/wipnote/workitem.go, cmd/wipnote/workitem_commit.go, cmd/wipnote/workitem_commit_test.go</code></div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Done when</div>
+        <ul class="slice-done-list"><li>complete exits non-zero and reverts status when the artifact commit does not land</li><li>an item can never reach done with an uncommitted/never-committed artifact (regression test proves it)</li><li>the existing outside-.wipnote dirty-source guard still behaves unchanged</li></ul>
+      </div>
+      
+    
+
+    
+    <div class="slice-field slice-decisions-notes">
+      <div class="slice-field-label">Decisions</div>
+      <div class="slice-field-value">
+        
+        <input type="checkbox" id="slice-1-decisions-reveal" class="reveal-toggle">
+        <div class="markdown-block reveal-content serif-prose"><p><strong>Trigger:</strong> complete path persists status done then calls
+commitWipnoteArtifact; commit can silently fail leaving an evaporable item.
+<strong>State:</strong> durable git state - pre-commit HEAD captured in-process plus
+git log -1 --format=%H -- ; no session state (per the
+file/branch-state hook rule).
+<strong>Payload:</strong> on failure, non-zero exit + exact remediation command on
+stdout; status field write reverted in the same complete invocation.
+<strong>Rejected:</strong> deferred git-state check after return (rejected - not
+atomic within the invocation, leaves a window where the item is done);
+more CLAUDE.md/AGENTS.md prose telling agents to verify commits
+(rejected - advisory text is exactly the failure mode; CLAUDE.md
+philosophy says fixes land in the binary/hooks, never descriptive docs).</p>
+</div>
+        <label for="slice-1-decisions-reveal" class="reveal-label">Show full decisions</label>
+        
+      </div>
+    </div>
+    
+
+    
+    <div class="slice-field slice-tests-field">
+      <div class="slice-field-label">Test Strategy</div>
+      <div class="slice-field-value">
+        
+        
+        <div class="markdown-block slice-tests"><p>Add to cmd/wipnote/workitem_commit_test.go: (1) regression test that
+injects a commit failure (read-only .git or stubbed commit step) and
+asserts complete returns non-zero AND the artifact status reverted to
+its prior value (not done); (2) happy-path test that pre-HEAD !=
+post-HEAD for the artifact and status is done; (3) test that
+checkUncommittedSourceCompleteGate behavior is byte-identical. Run
+go test ./cmd/wipnote/...</p>
+</div>
+        
+      </div>
+    </div>
+    
+
+    
+
+    
+    <div class="slice-field slice-questions">
+      <div class="slice-field-label">Open Questions</div>
+      <div class="slice-field-value">
+        
+        <div class="question-block slice-question-block">
+          <p>Roll back status in-process or via a deferred git-state check?</p>
+          
+          
+          <textarea
+            data-section="slice-1-question-q-rollback"
+            data-comment-for="slice-1-question-q-rollback"
+            placeholder="Answer question q-rollback...">Roll back in-process: capture pre-commit HEAD, attempt commit, verify, and revert the status field write before returning the non-zero exit - atomic within the single complete invocation.</textarea>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+
+    <div class="slice-deps">Dependencies: none</div>
+
+    <details class="comment-collapse">
+      <summary class="comment-collapse-trigger">+ Leave a comment</summary>
+      <div class="comment-collapse-body">
+        <textarea data-section="slice-1" data-comment-for="slice-1" placeholder="Comments on slice 1..."></textarea>
+      </div>
+    </details>
+  </div>
+</details>
+<details class="slice-card" id="slice-2" data-slice="2" data-slice-name="slice-2" data-status="pending" data-approval="pending">
+  <summary class="slice-summary" aria-label="Slice 2: Pre-commit wipnote plugin check-ports drift gate">
+    <span class="slice-num">#2</span>
+    <span class="slice-title-col">
+      <span class="slice-name">Pre-commit wipnote plugin check-ports drift gate</span>
+      <span class="slice-preview">Add a wipnote plugin check-ports subcommand (alongside</span>
+      <span class="slice-meta-row">
+        <span class="slice-summary-badges">
+          <span class="badge badge-revision badge-sm">M</span>
+          <span class="badge badge-pending badge-sm">Low</span>
+          <span class="badge badge-revision badge-sm badge-complexity" title="Complexity: complex">Complex</span>
+          
+          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-2">Pending</span>
+          
+          <span class="badge badge-sm badge-questions" title="1 open question(s)">1 Q</span>
+        </span>
+        <span class="slice-actions" onclick="event.stopPropagation()">
+          <span class="approval-segmented" role="group" aria-label="Approval action">
+            <label class="seg-btn seg-approve" title="Approve">
+              <input type="radio" name="slice-2-approval" value="approved" data-section="slice-2" data-action="approve" aria-label="Approve slice 2">
+              &#10003;
+            </label>
+            <label class="seg-btn seg-changes" title="Request changes">
+              <input type="radio" name="slice-2-approval" value="changes_requested" data-section="slice-2" data-action="approve" aria-label="Request changes for slice 2">
+              &#8635;
+            </label>
+            <label class="seg-btn seg-reject" title="Reject">
+              <input type="radio" name="slice-2-approval" value="rejected" data-section="slice-2" data-action="approve" aria-label="Reject slice 2">
+              &#10005;
+            </label>
+          </span>
+        </span>
+      </span>
+    </span>
+    <span class="slice-chevron" aria-hidden="true"></span>
+  </summary>
+
+  <div class="slice-body">
+    
+      
+      <div class="slice-field slice-what">
+        <div class="slice-field-label">What</div>
+        <div class="slice-field-value">
+          
+          <input type="checkbox" id="slice-2-what-reveal" class="reveal-toggle">
+          <div class="markdown-block reveal-content serif-prose"><p>Add a wipnote plugin check-ports subcommand (alongside
+cmd/wipnote/plugin_build_ports.go) that regenerates ALL target trees
+into a tempdir using internal/pluginbuild, diffs the tempdir against the
+committed trees (plugin/.claude-plugin, plugin/hooks/hooks.json,
+packages/codex-plugin, packages/gemini-extension), and exits non-zero on
+any drift, printing the drifted paths. Wire it into the repo pre-commit
+hook (.githooks/pre-commit) alongside the existing check-host-paths
+gate, and add it to scripts/deploy-all.sh and CI so stale generated
+trees can neither be committed nor shipped.</p>
+</div>
+          <label for="slice-2-what-reveal" class="reveal-label">Show full description</label>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field slice-why">
+        <div class="slice-field-label">Why</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>Mechanically eliminates the &#34;forgot build-ports after a generator edit&#34;
+class on every harness with zero agent reliance (the feat-e78221c7
+failure mode).</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Files</div>
+        <div class="slice-field-value"><code>cmd/wipnote/plugin_build_ports.go, cmd/wipnote/plugin_check_ports.go, internal/pluginbuild/core.go, .githooks/pre-commit, scripts/deploy-all.sh</code></div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Done when</div>
+        <ul class="slice-done-list"><li>check-ports exits non-zero when packages/ or plugin/ drift from a fresh build-ports</li><li>a commit touching internal/pluginbuild or manifest.json without regenerating trees is rejected pre-commit</li><li>deploy-all.sh aborts on port drift</li></ul>
+      </div>
+      
+    
+
+    
+    <div class="slice-field slice-decisions-notes">
+      <div class="slice-field-label">Decisions</div>
+      <div class="slice-field-value">
+        
+        <input type="checkbox" id="slice-2-decisions-reveal" class="reveal-toggle">
+        <div class="markdown-block reveal-content serif-prose"><p><strong>Trigger:</strong> a commit/deploy touching internal/pluginbuild or
+manifest.json without regenerating the generated target trees.
+<strong>State:</strong> durable filesystem - full regenerate into a tempdir, then
+recursive diff against committed trees; no checksum/manifest cache.
+<strong>Payload:</strong> non-zero exit listing each drifted path; wired into
+.githooks/pre-commit, scripts/deploy-all.sh, and CI.
+<strong>Rejected:</strong> checksum-manifest approach (rejected - the checksum itself
+drifts and adds a second source of truth); per-harness bespoke drift
+checks (rejected - drifts, defeats parity; the diff must run from the
+single shared build-ports generator).</p>
+</div>
+        <label for="slice-2-decisions-reveal" class="reveal-label">Show full decisions</label>
+        
+      </div>
+    </div>
+    
+
+    
+    <div class="slice-field slice-tests-field">
+      <div class="slice-field-label">Test Strategy</div>
+      <div class="slice-field-value">
+        
+        
+        <div class="markdown-block slice-tests"><p>Add cmd/wipnote/plugin_check_ports_test.go: (1) clean tree -&gt; exit 0;
+(2) mutate a committed generated file -&gt; check-ports exits non-zero and
+names the drifted path; (3) edit manifest.json without regenerating -&gt;
+drift detected. Shell-level smoke test that .githooks/pre-commit invokes
+wipnote plugin check-ports and aborts on non-zero. Run
+go test ./cmd/wipnote/... ./internal/pluginbuild/...</p>
+</div>
+        
+      </div>
+    </div>
+    
+
+    
+
+    
+    <div class="slice-field slice-questions">
+      <div class="slice-field-label">Open Questions</div>
+      <div class="slice-field-value">
+        
+        <div class="question-block slice-question-block">
+          <p>Full regenerate-and-diff or checksum manifest?</p>
+          
+          
+          <textarea
+            data-section="slice-2-question-q-scope"
+            data-comment-for="slice-2-question-q-scope"
+            placeholder="Answer question q-scope...">Full regenerate to tempdir then diff - authoritative, no separate checksum to drift; acceptable cost for a pre-commit gate.</textarea>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+
+    <div class="slice-deps">Dependencies: none</div>
+
+    <details class="comment-collapse">
+      <summary class="comment-collapse-trigger">+ Leave a comment</summary>
+      <div class="comment-collapse-body">
+        <textarea data-section="slice-2" data-comment-for="slice-2" placeholder="Comments on slice 2..."></textarea>
+      </div>
+    </details>
+  </div>
+</details>
+<details class="slice-card" id="slice-3" data-slice="3" data-slice-name="slice-3" data-status="pending" data-approval="pending">
+  <summary class="slice-summary" aria-label="Slice 3: Provenance-required completion (zero-commit block &#43; advisory override)">
+    <span class="slice-num">#3</span>
+    <span class="slice-title-col">
+      <span class="slice-name">Provenance-required completion (zero-commit block &#43; advisory override)</span>
+      <span class="slice-preview">In the complete path for code-bearing bug/feature items, consult</span>
+      <span class="slice-meta-row">
+        <span class="slice-summary-badges">
+          <span class="badge badge-revision badge-sm">M</span>
+          <span class="badge badge-revision badge-sm">Med</span>
+          <span class="badge badge-revision badge-sm badge-complexity" title="Complexity: complex">Complex</span>
+          
+          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-3">Pending</span>
+          
+          <span class="badge badge-sm badge-questions" title="1 open question(s)">1 Q</span>
+        </span>
+        <span class="slice-actions" onclick="event.stopPropagation()">
+          <span class="approval-segmented" role="group" aria-label="Approval action">
+            <label class="seg-btn seg-approve" title="Approve">
+              <input type="radio" name="slice-3-approval" value="approved" data-section="slice-3" data-action="approve" aria-label="Approve slice 3">
+              &#10003;
+            </label>
+            <label class="seg-btn seg-changes" title="Request changes">
+              <input type="radio" name="slice-3-approval" value="changes_requested" data-section="slice-3" data-action="approve" aria-label="Request changes for slice 3">
+              &#8635;
+            </label>
+            <label class="seg-btn seg-reject" title="Reject">
+              <input type="radio" name="slice-3-approval" value="rejected" data-section="slice-3" data-action="approve" aria-label="Reject slice 3">
+              &#10005;
+            </label>
+          </span>
+        </span>
+      </span>
+    </span>
+    <span class="slice-chevron" aria-hidden="true"></span>
+  </summary>
+
+  <div class="slice-body">
+    
+      
+      <div class="slice-field slice-what">
+        <div class="slice-field-label">What</div>
+        <div class="slice-field-value">
+          
+          <input type="checkbox" id="slice-3-what-reveal" class="reveal-toggle">
+          <div class="markdown-block reveal-content serif-prose"><p>In the complete path for code-bearing bug/feature items, consult
+existing trace/lineage (internal/db/lineage_repo.go - the Commits()
+primitive complete never consulted). If the item has zero linked source
+commits (Commits(0)), block completion unless
+--accepted-advisory &#34;&#34; is passed (new flag on wiCompleteCmd in
+cmd/wipnote/workitem.go). Record the reason on the .wipnote artifact and
+surface it in wipnote snapshot and wipnote check / compliance output.</p>
+</div>
+          <label for="slice-3-what-reveal" class="reveal-label">Show full description</label>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field slice-why">
+        <div class="slice-field-label">Why</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>Kills &#34;snapshot/live-API glance presented as fix proof.&#34; Reuses
+primitives wipnote already has (trace/lineage) that complete simply
+never consulted.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Files</div>
+        <div class="slice-field-value"><code>cmd/wipnote/workitem.go, internal/db/lineage_repo.go, cmd/wipnote/check.go</code></div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Done when</div>
+        <ul class="slice-done-list"><li>completing a code-bearing item with zero source commits is blocked without --accepted-advisory</li><li>--accepted-advisory records the reason and it appears in snapshot and compliance output</li><li>non-code items and overridden items complete normally</li></ul>
+      </div>
+      
+    
+
+    
+    <div class="slice-field slice-decisions-notes">
+      <div class="slice-field-label">Decisions</div>
+      <div class="slice-field-value">
+        
+        <input type="checkbox" id="slice-3-decisions-reveal" class="reveal-toggle">
+        <div class="markdown-block reveal-content serif-prose"><p><strong>Trigger:</strong> complete invoked on a code-bearing item whose trace has
+zero linked source commits.
+<strong>State:</strong> durable lineage - internal/db/lineage_repo.go Commits() over
+the item&#39;s trace; classification by trace-touched paths, not session.
+<strong>Payload:</strong> block + remediation unless --accepted-advisory &#34;&#34;;
+reason written to the .wipnote artifact and surfaced in snapshot/check.
+<strong>Rejected:</strong> trusting the agent&#39;s narrative as proof (rejected - that
+is the exact glance-as-proof failure); more AGENTS.md prose requiring
+commits (rejected - advisory-only is what failed; enforcement belongs in
+the binary, never descriptive docs).</p>
+</div>
+        <label for="slice-3-decisions-reveal" class="reveal-label">Show full decisions</label>
+        
+      </div>
+    </div>
+    
+
+    
+    <div class="slice-field slice-tests-field">
+      <div class="slice-field-label">Test Strategy</div>
+      <div class="slice-field-value">
+        
+        
+        <div class="markdown-block slice-tests"><p>cmd/wipnote/workitem_test.go: (1) code-bearing item, Commits(0), no
+flag -&gt; blocked non-zero; (2) same with --accepted-advisory &#34;reason&#34; -&gt;
+completes, reason persisted on artifact and present in snapshot + check
+output; (3) pure-.wipnote/doc item with zero commits -&gt; completes
+normally (exempt); (4) code-bearing item with &gt;=1 linked commit -&gt;
+completes normally. Run go test ./cmd/wipnote/... ./internal/db/...</p>
+</div>
+        
+      </div>
+    </div>
+    
+
+    
+
+    
+    <div class="slice-field slice-questions">
+      <div class="slice-field-label">Open Questions</div>
+      <div class="slice-field-value">
+        
+        <div class="question-block slice-question-block">
+          <p>How to classify code-bearing?</p>
+          
+          
+          <textarea
+            data-section="slice-3-question-q-codebearing"
+            data-comment-for="slice-3-question-q-codebearing"
+            placeholder="Answer question q-codebearing...">Item whose trace touches any non-.wipnote source path; pure-.wipnote/doc items are exempt.</textarea>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+
+    <div class="slice-deps">Dependencies: slices 1</div>
+
+    <details class="comment-collapse">
+      <summary class="comment-collapse-trigger">+ Leave a comment</summary>
+      <div class="comment-collapse-body">
+        <textarea data-section="slice-3" data-comment-for="slice-3" placeholder="Comments on slice 3..."></textarea>
+      </div>
+    </details>
+  </div>
+</details>
+<details class="slice-card" id="slice-4" data-slice="4" data-slice-name="slice-4" data-status="pending" data-approval="pending">
+  <summary class="slice-summary" aria-label="Slice 4: Gate-record-required completion (SHA-pinned signed gate result)">
+    <span class="slice-num">#4</span>
+    <span class="slice-title-col">
+      <span class="slice-name">Gate-record-required completion (SHA-pinned signed gate result)</span>
+      <span class="slice-preview">Add wipnote check --gate (cmd/wipnote/check.go) that detects the project</span>
+      <span class="slice-meta-row">
+        <span class="slice-summary-badges">
+          <span class="badge badge-blocked badge-sm">L</span>
+          <span class="badge badge-revision badge-sm">Med</span>
+          <span class="badge badge-revision badge-sm badge-complexity" title="Complexity: complex">Complex</span>
+          
+          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-4">Pending</span>
+          
+          <span class="badge badge-sm badge-questions" title="1 open question(s)">1 Q</span>
+        </span>
+        <span class="slice-actions" onclick="event.stopPropagation()">
+          <span class="approval-segmented" role="group" aria-label="Approval action">
+            <label class="seg-btn seg-approve" title="Approve">
+              <input type="radio" name="slice-4-approval" value="approved" data-section="slice-4" data-action="approve" aria-label="Approve slice 4">
+              &#10003;
+            </label>
+            <label class="seg-btn seg-changes" title="Request changes">
+              <input type="radio" name="slice-4-approval" value="changes_requested" data-section="slice-4" data-action="approve" aria-label="Request changes for slice 4">
+              &#8635;
+            </label>
+            <label class="seg-btn seg-reject" title="Reject">
+              <input type="radio" name="slice-4-approval" value="rejected" data-section="slice-4" data-action="approve" aria-label="Reject slice 4">
+              &#10005;
+            </label>
+          </span>
+        </span>
+      </span>
+    </span>
+    <span class="slice-chevron" aria-hidden="true"></span>
+  </summary>
+
+  <div class="slice-body">
+    
+      
+      <div class="slice-field slice-what">
+        <div class="slice-field-label">What</div>
+        <div class="slice-field-value">
+          
+          <input type="checkbox" id="slice-4-what-reveal" class="reveal-toggle">
+          <div class="markdown-block reveal-content serif-prose"><p>Add wipnote check --gate (cmd/wipnote/check.go) that detects the project
+manifest (go.mod/package.json/pyproject.toml/Cargo.toml) and runs the
+project&#39;s full build/vet/test, writing a signed result (HEAD SHA +
+worktree hash + pass/fail + timestamp) under .wipnote. complete
+(cmd/wipnote/workitem.go) refuses code-bearing items lacking a passing
+record for the current tree SHA. Include an env-flake allowlist
+(plugin/config) with a recorded per-entry justification so known
+environmental failures (the /tmp noexec class hit twice this session)
+don&#39;t mask genuine failures and can&#39;t be a blanket excuse; report
+allowlist hits in the gate output.</p>
+</div>
+          <label for="slice-4-what-reveal" class="reveal-label">Show full description</label>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field slice-why">
+        <div class="slice-field-label">Why</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>Kills -run-filtered partial validation presented as a passing gate.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Files</div>
+        <div class="slice-field-value"><code>cmd/wipnote/check.go, cmd/wipnote/workitem.go, cmd/wipnote/check_incomplete.go, plugin/config</code></div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Done when</div>
+        <ul class="slice-done-list"><li>wipnote check --gate writes a HEAD-SHA-pinned pass/fail record under .wipnote</li><li>complete refuses a code-bearing item with no passing gate record for the current SHA</li><li>env-flake allowlist entries require a recorded justification and are reported in the gate output</li></ul>
+      </div>
+      
+    
+
+    
+    <div class="slice-field slice-decisions-notes">
+      <div class="slice-field-label">Decisions</div>
+      <div class="slice-field-value">
+        
+        <input type="checkbox" id="slice-4-decisions-reveal" class="reveal-toggle">
+        <div class="markdown-block reveal-content serif-prose"><p><strong>Trigger:</strong> complete invoked on a code-bearing item with no passing
+full-gate record for the exact current tree SHA.
+<strong>State:</strong> durable - signed gate record pinned to HEAD/worktree hash
+under .wipnote; any tracked-source SHA change or dirty worktree marks
+it stale.
+<strong>Payload:</strong> wipnote check --gate runs the real full build/vet/test
+(manifest-detected) and writes the record; allowlist hits reported,
+never silently absorbed.
+<strong>Rejected:</strong> trusting a -run-filtered partial test run (rejected -
+that is the exact partial-gate failure); a blanket env-flake skip
+(rejected - would mask genuine failures; each allowlist entry needs a
+recorded justification); per-harness gate scripts (rejected - drifts,
+defeats parity).</p>
+</div>
+        <label for="slice-4-decisions-reveal" class="reveal-label">Show full decisions</label>
+        
+      </div>
+    </div>
+    
+
+    
+    <div class="slice-field slice-tests-field">
+      <div class="slice-field-label">Test Strategy</div>
+      <div class="slice-field-value">
+        
+        
+        <div class="markdown-block slice-tests"><p>check_incomplete.go-adjacent tests: (1) check --gate on a go.mod project
+writes a record pinned to HEAD SHA + worktree hash; (2) complete on a
+code-bearing item with no passing record for current SHA -&gt; refused;
+with a matching passing record -&gt; allowed; (3) dirty worktree marks the
+record stale and complete refuses; (4) an env-flake-allowlisted failure
+without a justification is rejected; with a justification it is reported
+but does not mask other failures. Run go test ./cmd/wipnote/...</p>
+</div>
+        
+      </div>
+    </div>
+    
+
+    
+
+    
+    <div class="slice-field slice-questions">
+      <div class="slice-field-label">Open Questions</div>
+      <div class="slice-field-value">
+        
+        <div class="question-block slice-question-block">
+          <p>What invalidates a gate record?</p>
+          
+          
+          <textarea
+            data-section="slice-4-question-q-staleness"
+            data-comment-for="slice-4-question-q-staleness"
+            placeholder="Answer question q-staleness...">Any change to tracked source SHA - record is pinned to the exact HEAD/worktree hash; dirty worktree marks it stale.</textarea>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+
+    <div class="slice-deps">Dependencies: slices 1</div>
+
+    <details class="comment-collapse">
+      <summary class="comment-collapse-trigger">+ Leave a comment</summary>
+      <div class="comment-collapse-body">
+        <textarea data-section="slice-4" data-comment-for="slice-4" placeholder="Comments on slice 4..."></textarea>
+      </div>
+    </details>
+  </div>
+</details>
+<details class="slice-card" id="slice-5" data-slice="5" data-slice-name="slice-5" data-status="pending" data-approval="pending">
+  <summary class="slice-summary" aria-label="Slice 5: Session-exit reconciliation (wipnote reconcile --strict &#43; Stop/SessionEnd hook)">
+    <span class="slice-num">#5</span>
+    <span class="slice-title-col">
+      <span class="slice-name">Session-exit reconciliation (wipnote reconcile --strict &#43; Stop/SessionEnd hook)</span>
+      <span class="slice-preview">Add wipnote reconcile --strict plus a Stop/SessionEnd hook handler</span>
+      <span class="slice-meta-row">
+        <span class="slice-summary-badges">
+          <span class="badge badge-blocked badge-sm">L</span>
+          <span class="badge badge-revision badge-sm">Med</span>
+          <span class="badge badge-revision badge-sm badge-complexity" title="Complexity: complex">Complex</span>
+          
+          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-5">Pending</span>
+          
+          <span class="badge badge-sm badge-questions" title="1 open question(s)">1 Q</span>
+        </span>
+        <span class="slice-actions" onclick="event.stopPropagation()">
+          <span class="approval-segmented" role="group" aria-label="Approval action">
+            <label class="seg-btn seg-approve" title="Approve">
+              <input type="radio" name="slice-5-approval" value="approved" data-section="slice-5" data-action="approve" aria-label="Approve slice 5">
+              &#10003;
+            </label>
+            <label class="seg-btn seg-changes" title="Request changes">
+              <input type="radio" name="slice-5-approval" value="changes_requested" data-section="slice-5" data-action="approve" aria-label="Request changes for slice 5">
+              &#8635;
+            </label>
+            <label class="seg-btn seg-reject" title="Reject">
+              <input type="radio" name="slice-5-approval" value="rejected" data-section="slice-5" data-action="approve" aria-label="Reject slice 5">
+              &#10005;
+            </label>
+          </span>
+        </span>
+      </span>
+    </span>
+    <span class="slice-chevron" aria-hidden="true"></span>
+  </summary>
+
+  <div class="slice-body">
+    
+      
+      <div class="slice-field slice-what">
+        <div class="slice-field-label">What</div>
+        <div class="slice-field-value">
+          
+          <input type="checkbox" id="slice-5-what-reveal" class="reveal-toggle">
+          <div class="markdown-block reveal-content serif-prose"><p>Add wipnote reconcile --strict plus a Stop/SessionEnd hook handler
+(internal/hooks/session_end.go and the Stop path) that runs it on
+session exit. reconcile detects three classes: done-but-uncommitted
+items (auto-commit the artifact - deterministic bookkeeping - and
+report), generator-touched-without-build-ports drift (reuse slice-2
+check-ports), and started-but-orphaned items. Exit-2 blocks on Claude
+Code; on Codex/Gemini (thinner hooks per
+packages/plugin-core/manifest.json) emit a loud structured warning
+surfaced via the next session&#39;s context injection
+(internal/hooks/session_start.go).</p>
+</div>
+          <label for="slice-5-what-reveal" class="reveal-label">Show full description</label>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field slice-why">
+        <div class="slice-field-label">Why</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>Defense-in-depth so a session that violated invariants is caught before
+the agent walks away, on every harness.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Files</div>
+        <div class="slice-field-value"><code>cmd/wipnote/reconcile.go, internal/hooks/session_end.go, internal/hooks/session_start.go, packages/plugin-core/manifest.json, internal/hooks/missing_events.go</code></div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Done when</div>
+        <ul class="slice-done-list"><li>reconcile --strict detects done-but-uncommitted items and generator-without-build-ports drift</li><li>Stop/SessionEnd hook fires reconcile and exit-2 blocks on Claude Code</li><li>Codex/Gemini path emits a structured warning that next-session context injection surfaces</li></ul>
+      </div>
+      
+    
+
+    
+    <div class="slice-field slice-decisions-notes">
+      <div class="slice-field-label">Decisions</div>
+      <div class="slice-field-value">
+        
+        <input type="checkbox" id="slice-5-decisions-reveal" class="reveal-toggle">
+        <div class="markdown-block reveal-content serif-prose"><p><strong>Trigger:</strong> session Stop/SessionEnd with done-but-uncommitted items,
+generator-without-build-ports drift, or orphaned started items.
+<strong>State:</strong> durable - git working tree, artifact commit state, slice-2
+port diff; not session history.
+<strong>Payload:</strong> auto-commit deterministic bookkeeping + report; exit-2
+block on Claude for ambiguous source drift; structured warning on
+Codex/Gemini surfaced via next-session context injection.
+<strong>Rejected:</strong> blocking on all done-but-uncommitted (rejected - artifact
+commit is deterministic bookkeeping, auto-commit is safe; block only on
+ambiguous source drift); per-harness bespoke reconcile (rejected -
+drifts, defeats parity; one shared entrypoint invoked by the
+per-harness hook matrix).</p>
+</div>
+        <label for="slice-5-decisions-reveal" class="reveal-label">Show full decisions</label>
+        
+      </div>
+    </div>
+    
+
+    
+    <div class="slice-field slice-tests-field">
+      <div class="slice-field-label">Test Strategy</div>
+      <div class="slice-field-value">
+        
+        
+        <div class="markdown-block slice-tests"><p>internal/hooks/session_end_*_test.go and a new
+cmd/wipnote/reconcile_test.go: (1) done-but-uncommitted item -&gt;
+reconcile auto-commits and reports; (2) generator-touched without
+build-ports -&gt; reconcile reports drift; (3) Claude Stop path with
+unresolved ambiguous source drift -&gt; exit-2 block; (4) Codex/Gemini
+path -&gt; exit 0 with structured warning payload that session_start
+injection renders next session. Run
+go test ./cmd/wipnote/... ./internal/hooks/...</p>
+</div>
+        
+      </div>
+    </div>
+    
+
+    
+
+    
+    <div class="slice-field slice-questions">
+      <div class="slice-field-label">Open Questions</div>
+      <div class="slice-field-value">
+        
+        <div class="question-block slice-question-block">
+          <p>Auto-commit or block on done-but-uncommitted?</p>
+          
+          
+          <textarea
+            data-section="slice-5-question-q-autocommit"
+            data-comment-for="slice-5-question-q-autocommit"
+            placeholder="Answer question q-autocommit...">Auto-commit the artifact (it is bookkeeping, deterministic) and report; block only on ambiguous source drift.</textarea>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+
+    <div class="slice-deps">Dependencies: slices 1</div>
+
+    <details class="comment-collapse">
+      <summary class="comment-collapse-trigger">+ Leave a comment</summary>
+      <div class="comment-collapse-body">
+        <textarea data-section="slice-5" data-comment-for="slice-5" placeholder="Comments on slice 5..."></textarea>
+      </div>
+    </details>
+  </div>
+</details>
+<details class="slice-card" id="slice-6" data-slice="6" data-slice-name="slice-6" data-status="pending" data-approval="pending">
+  <summary class="slice-summary" aria-label="Slice 6: Dedup check at create (similarity-based relates_to &#43; needs-triage-dup)">
+    <span class="slice-num">#6</span>
+    <span class="slice-title-col">
+      <span class="slice-name">Dedup check at create (similarity-based relates_to &#43; needs-triage-dup)</span>
+      <span class="slice-preview">On bug/feature create (cmd/wipnote/workitemcreate.go), run normalized</span>
+      <span class="slice-meta-row">
+        <span class="slice-summary-badges">
+          <span class="badge badge-revision badge-sm">M</span>
+          <span class="badge badge-pending badge-sm">Low</span>
+          <span class="badge badge-revision badge-sm badge-complexity" title="Complexity: complex">Complex</span>
+          
+          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-6">Pending</span>
+          
+          <span class="badge badge-sm badge-questions" title="1 open question(s)">1 Q</span>
+        </span>
+        <span class="slice-actions" onclick="event.stopPropagation()">
+          <span class="approval-segmented" role="group" aria-label="Approval action">
+            <label class="seg-btn seg-approve" title="Approve">
+              <input type="radio" name="slice-6-approval" value="approved" data-section="slice-6" data-action="approve" aria-label="Approve slice 6">
+              &#10003;
+            </label>
+            <label class="seg-btn seg-changes" title="Request changes">
+              <input type="radio" name="slice-6-approval" value="changes_requested" data-section="slice-6" data-action="approve" aria-label="Request changes for slice 6">
+              &#8635;
+            </label>
+            <label class="seg-btn seg-reject" title="Reject">
+              <input type="radio" name="slice-6-approval" value="rejected" data-section="slice-6" data-action="approve" aria-label="Reject slice 6">
+              &#10005;
+            </label>
+          </span>
+        </span>
+      </span>
+    </span>
+    <span class="slice-chevron" aria-hidden="true"></span>
+  </summary>
+
+  <div class="slice-body">
+    
+      
+      <div class="slice-field slice-what">
+        <div class="slice-field-label">What</div>
+        <div class="slice-field-value">
+          
+          <input type="checkbox" id="slice-6-what-reveal" class="reveal-toggle">
+          <div class="markdown-block reveal-content serif-prose"><p>On bug/feature create (cmd/wipnote/workitem_create.go), run normalized
+title+description similarity against open and recently-closed items
+(query via internal/db). On a strong match, auto-attach a relates_to
+edge and a needs-triage-dup tag that the dashboard and wipnote check
+surface; when a TTY is present, show an interactive confirm prompt
+first. Similarity is stdlib-only (normalized token/trigram), tuned to a
+threshold that avoids false positives.</p>
+</div>
+          <label for="slice-6-what-reveal" class="reveal-label">Show full description</label>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field slice-why">
+        <div class="slice-field-label">Why</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>bug-7b5339cc / bug-d67e695e were byte-identical yet closed
+independently; trivially detectable at creation.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Files</div>
+        <div class="slice-field-value"><code>cmd/wipnote/workitem_create.go, internal/db/feature_repo.go, cmd/wipnote/check.go, plugin/static/components.js</code></div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Done when</div>
+        <ul class="slice-done-list"><li>creating an item near-identical to an existing one auto-attaches relates_to &#43; needs-triage-dup</li><li>the dashboard and wipnote check surface needs-triage-dup clusters</li><li>dissimilar items create with no false-positive link</li></ul>
+      </div>
+      
+    
+
+    
+    <div class="slice-field slice-decisions-notes">
+      <div class="slice-field-label">Decisions</div>
+      <div class="slice-field-value">
+        
+        <input type="checkbox" id="slice-6-decisions-reveal" class="reveal-toggle">
+        <div class="markdown-block reveal-content serif-prose"><p><strong>Trigger:</strong> bug/feature create whose title+description is near-identical
+to an open or recently-closed item.
+<strong>State:</strong> durable - query existing items from the read index/artifacts;
+decision is content-based, not session-based.
+<strong>Payload:</strong> auto-attach relates_to edge + needs-triage-dup tag;
+interactive confirm only when a TTY is present; surfaced in dashboard
+and wipnote check.
+<strong>Rejected:</strong> a new fuzzy-match runtime dependency (rejected - stdlib
+normalized token/trigram is sufficient and the constraint forbids new
+deps); relying on agents to manually search before creating (rejected -
+advisory-only is what failed; detection belongs in the binary).</p>
+</div>
+        <label for="slice-6-decisions-reveal" class="reveal-label">Show full decisions</label>
+        
+      </div>
+    </div>
+    
+
+    
+    <div class="slice-field slice-tests-field">
+      <div class="slice-field-label">Test Strategy</div>
+      <div class="slice-field-value">
+        
+        
+        <div class="markdown-block slice-tests"><p>cmd/wipnote/workitem_create.go tests: (1) create an item byte-identical
+to bug-7b5339cc/bug-d67e695e -&gt; relates_to edge + needs-triage-dup tag
+attached; (2) create a clearly unrelated item -&gt; no link (no false
+positive at the tuned threshold); (3) TTY-present path prompts,
+TTY-absent path auto-attaches non-interactively; (4) wipnote check and
+the dashboard surface the needs-triage-dup cluster. Run
+go test ./cmd/wipnote/... ./internal/db/...</p>
+</div>
+        
+      </div>
+    </div>
+    
+
+    
+
+    
+    <div class="slice-field slice-questions">
+      <div class="slice-field-label">Open Questions</div>
+      <div class="slice-field-value">
+        
+        <div class="question-block slice-question-block">
+          <p>Similarity metric?</p>
+          
+          
+          <textarea
+            data-section="slice-6-question-q-sim"
+            data-comment-for="slice-6-question-q-sim"
+            placeholder="Answer question q-sim...">Normalized token/trigram similarity on title&#43;description with a tuned threshold; no new runtime dependency (stdlib only).</textarea>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+
+    <div class="slice-deps">Dependencies: none</div>
+
+    <details class="comment-collapse">
+      <summary class="comment-collapse-trigger">+ Leave a comment</summary>
+      <div class="comment-collapse-body">
+        <textarea data-section="slice-6" data-comment-for="slice-6" placeholder="Comments on slice 6..."></textarea>
+      </div>
+    </details>
+  </div>
+</details>
+<details class="slice-card" id="slice-7" data-slice="7" data-slice-name="slice-7" data-status="pending" data-approval="pending">
+  <summary class="slice-summary" aria-label="Slice 7: Cross-harness parity audit &#43; per-session adherence scorecard">
+    <span class="slice-num">#7</span>
+    <span class="slice-title-col">
+      <span class="slice-name">Cross-harness parity audit &#43; per-session adherence scorecard</span>
+      <span class="slice-preview">Audit packages/plugin-core/manifest.json hook-event matrix so the</span>
+      <span class="slice-meta-row">
+        <span class="slice-summary-badges">
+          <span class="badge badge-blocked badge-sm">L</span>
+          <span class="badge badge-revision badge-sm">Med</span>
+          <span class="badge badge-revision badge-sm badge-complexity" title="Complexity: complex">Complex</span>
+          
+          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-7">Pending</span>
+          
+          <span class="badge badge-sm badge-questions" title="1 open question(s)">1 Q</span>
+        </span>
+        <span class="slice-actions" onclick="event.stopPropagation()">
+          <span class="approval-segmented" role="group" aria-label="Approval action">
+            <label class="seg-btn seg-approve" title="Approve">
+              <input type="radio" name="slice-7-approval" value="approved" data-section="slice-7" data-action="approve" aria-label="Approve slice 7">
+              &#10003;
+            </label>
+            <label class="seg-btn seg-changes" title="Request changes">
+              <input type="radio" name="slice-7-approval" value="changes_requested" data-section="slice-7" data-action="approve" aria-label="Request changes for slice 7">
+              &#8635;
+            </label>
+            <label class="seg-btn seg-reject" title="Reject">
+              <input type="radio" name="slice-7-approval" value="rejected" data-section="slice-7" data-action="approve" aria-label="Reject slice 7">
+              &#10005;
+            </label>
+          </span>
+        </span>
+      </span>
+    </span>
+    <span class="slice-chevron" aria-hidden="true"></span>
+  </summary>
+
+  <div class="slice-body">
+    
+      
+      <div class="slice-field slice-what">
+        <div class="slice-field-label">What</div>
+        <div class="slice-field-value">
+          
+          <input type="checkbox" id="slice-7-what-reveal" class="reveal-toggle">
+          <div class="markdown-block reveal-content serif-prose"><p>Audit packages/plugin-core/manifest.json hook-event matrix so the
+Stop/PreCommit/SessionEnd equivalents invoke the SAME wipnote
+reconcile/check entrypoints on Codex and Gemini at the same lifecycle
+events as Claude (not just Claude), reconciling with the slice-5 hook
+wiring. Add a per-session adherence scorecard to wipnote session show
+(cmd/wipnote/session.go sessionShowCmd) and the dashboard API
+(cmd/wipnote/serve.go + a new handler): did the session commit what it
+closed? run the gate? regenerate ports when it touched the generator?
+link duplicates? Derive the scorecard at query time from existing
+session/commit/lineage data in the SQLite read index - no new canonical
+state in .wipnote/. Expose a per-harness adherence trend in the
+dashboard.</p>
+</div>
+          <label for="slice-7-what-reveal" class="reveal-label">Show full description</label>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field slice-why">
+        <div class="slice-field-label">Why</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>The systemic umbrella - guarantees the slice-1..6 enforcement is
+harness-identical and makes weak-harness regressions visible as data,
+not anecdote.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Files</div>
+        <div class="slice-field-value"><code>packages/plugin-core/manifest.json, cmd/wipnote/session.go, cmd/wipnote/serve.go, internal/db/lineage_repo.go, plugin/static/components.js</code></div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Done when</div>
+        <ul class="slice-done-list"><li>the manifest hook matrix wires reconcile/check entrypoints for Codex and Gemini at the same lifecycle events as Claude</li><li>wipnote session show emits a per-session adherence scorecard</li><li>the dashboard exposes per-harness adherence trend</li></ul>
+      </div>
+      
+    
+
+    
+    <div class="slice-field slice-decisions-notes">
+      <div class="slice-field-label">Decisions</div>
+      <div class="slice-field-value">
+        
+        <input type="checkbox" id="slice-7-decisions-reveal" class="reveal-toggle">
+        <div class="markdown-block reveal-content serif-prose"><p><strong>Trigger:</strong> need to guarantee slice-1..6 enforcement is harness-identical
+and to make weak-harness regressions visible as data.
+<strong>State:</strong> derived - scorecard computed at query time from existing
+session/commit/lineage rows in the SQLite read index; manifest hook
+matrix is the parity source of truth.
+<strong>Payload:</strong> Codex/Gemini Stop/SessionEnd wired to the same shared
+reconcile/check entrypoints as Claude; session show + dashboard
+per-harness adherence trend.
+<strong>Rejected:</strong> new canonical scorecard state in .wipnote/ (rejected -
+violates the derived-index constraint; query-time derivation is
+sufficient); per-harness bespoke enforcement/scoring (rejected - drifts,
+defeats parity; enforcement must be in the shared Go binary invoked by
+the per-harness hook matrix).</p>
+</div>
+        <label for="slice-7-decisions-reveal" class="reveal-label">Show full decisions</label>
+        
+      </div>
+    </div>
+    
+
+    
+    <div class="slice-field slice-tests-field">
+      <div class="slice-field-label">Test Strategy</div>
+      <div class="slice-field-value">
+        
+        
+        <div class="markdown-block slice-tests"><p>internal/pluginbuild parity tests + new manifest assertions: Codex and
+Gemini Stop/SessionEnd entries map to the same reconcile/check handler
+as Claude. cmd/wipnote/session.go test: session show emits the
+scorecard fields (committed-what-it-closed / ran-gate /
+regenerated-ports / linked-dups). serve test: the dashboard endpoint
+returns a per-harness adherence trend derived purely from the read
+index. Run go test ./cmd/wipnote/... ./internal/pluginbuild/... ./internal/db/...</p>
+</div>
+        
+      </div>
+    </div>
+    
+
+    
+
+    
+    <div class="slice-field slice-questions">
+      <div class="slice-field-label">Open Questions</div>
+      <div class="slice-field-value">
+        
+        <div class="question-block slice-question-block">
+          <p>Where does the scorecard live?</p>
+          
+          
+          <textarea
+            data-section="slice-7-question-q-score"
+            data-comment-for="slice-7-question-q-score"
+            placeholder="Answer question q-score...">Derived at query time from existing session/commit/lineage data in the SQLite read index; no new canonical state in .wipnote/.</textarea>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+
+    <div class="slice-deps">Dependencies: slices 1,2,3,4,5,6</div>
+
+    <details class="comment-collapse">
+      <summary class="comment-collapse-trigger">+ Leave a comment</summary>
+      <div class="comment-collapse-body">
+        <textarea data-section="slice-7" data-comment-for="slice-7" placeholder="Comments on slice 7..."></textarea>
+      </div>
+    </details>
+  </div>
+</details>
+
     <!--PLAN_SLICE_CARDS-->
   </div>
 </details>
 
 <!-- Design Decisions (hidden for v2 plans — slice cards carry their own questions) -->
-<details id="questions" class="section-card" data-phase="questions" data-status="pending">
-  <summary><span>Design Decisions</span><span class="badge badge-pending" data-badge-for="questions">Pending</span></summary>
-  <div class="section-body">
-    <table class="q-table">
-      <thead><tr><th>Question</th><th>Selected</th><th>Status</th></tr></thead>
-      <tbody id="questionsRecap">
-        <!--PLAN_QUESTIONS_RECAP-->
-      </tbody>
-    </table>
-  </div>
-</details>
+
 
 
 
@@ -490,8 +1710,8 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
   <h2>Feedback Summary</h2>
   <div class="progress-stats">
     <div class="progress-stat"><strong id="approvedCount">0</strong> approved</div>
-    <div class="progress-stat"><strong id="totalSections">1</strong> sections</div>
-    <div class="progress-stat"><strong id="pendingCount">1</strong> pending</div>
+    <div class="progress-stat"><strong id="totalSections">8</strong> sections</div>
+    <div class="progress-stat"><strong id="pendingCount">8</strong> pending</div>
   </div>
   <div class="progress-bar-track"><div class="progress-bar-fill" id="progressFill" style="width:0%"></div></div>
   <div class="comments-summary">
@@ -571,7 +1791,7 @@ var planId=(function(){var a=document.querySelector('article[id]');return a?a.id
 
 (function(){
   'use strict';
-  var SECTIONS=/*PLAN_SECTIONS_JSON*/["design"]/*END_PLAN_SECTIONS_JSON*/;
+  var SECTIONS=/*PLAN_SECTIONS_JSON*/["design","slice-1","slice-2","slice-3","slice-4","slice-5","slice-6","slice-7"]/*END_PLAN_SECTIONS_JSON*/;
 
   function setBadge(el,ok){
     el.className='badge badge-'+(ok?'approved':'pending');
