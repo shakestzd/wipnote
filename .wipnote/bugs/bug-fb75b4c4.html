@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>indexer: .index-offset advances before queue commit confirmed</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-fb75b4c4"
+             data-type="bug"
+             data-status="done"
+             data-priority="high"
+             data-created="2026-05-12T01:05:31.123397"
+             data-updated="2026-05-12T01:05:48.315478" data-agent-assigned="claude-code" data-track-id="trk-0677c709" data-created-by-agent="human" data-created-by-model="claude-opus-4-7[1m]" data-created-by-cli-version="0.58.0-1440-ga2fa3e672">
+
+        <header>
+            <h1>indexer: .index-offset advances before queue commit confirmed</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-0677c709.html" data-relationship="part_of" data-since="2026-05-12T01:05:31.130037">trk-0677c709</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="caused_by">
+                <h3>Caused By:</h3>
+                <ul>
+                    <li><a href="feat-f3bcbcef.html" data-relationship="caused_by" data-since="2026-05-12T01:05:31.128454">feat-f3bcbcef</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="e5179b35-6359-4fe4-b95a-3b0e86dd85cc.html" data-relationship="implemented_in" data-since="2026-05-12T01:05:48.22605">session e5179b35-6359-4fe4-b95a-3b0e86dd85cc</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Indexer .index-offset was persisted before the queue commit was confirmed, risking data loss if the process crashed mid-flush. Found by roborev job #1501 (HIGH severity) during review of feat-f3bcbcef. Fixed in commit 93c3c3bcc by blocking on queue commit before advancing the offset.</p>
+        </section>
+    </article>
+</body>
+</html>
