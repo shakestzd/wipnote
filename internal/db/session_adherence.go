@@ -250,6 +250,9 @@ func commitFeatureSet(database *sql.DB, sessionID string) (map[string]struct{}, 
 		  AND feature_id IS NOT NULL
 		  AND feature_id != ''`, sessionID)
 	if err != nil {
+		if strings.Contains(err.Error(), "no such table") {
+			return map[string]struct{}{}, nil
+		}
 		return nil, fmt.Errorf("query session commits: %w", err)
 	}
 	defer rows.Close()
@@ -273,6 +276,9 @@ func featureFilesForSession(database *sql.DB, sessionID string) ([]string, error
 		  AND file_path IS NOT NULL
 		  AND file_path != ''`, sessionID)
 	if err != nil {
+		if strings.Contains(err.Error(), "no such table") {
+			return nil, nil
+		}
 		return nil, fmt.Errorf("query session feature files: %w", err)
 	}
 	defer rows.Close()
