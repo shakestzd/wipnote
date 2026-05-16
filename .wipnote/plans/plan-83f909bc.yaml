@@ -7,7 +7,7 @@ meta:
     status: finalized
     priority: medium
     schema_version: v3
-    version: 13
+    version: 14
 design:
     problem: |
         wipnote's development practices (commit-what-you-close, regenerate ports
@@ -279,6 +279,7 @@ slices:
         proof (rejected — exact glance-as-proof failure); more AGENTS.md prose
         (rejected — advisory-only is what failed; enforcement in the binary).
     - id: slice-4
+      feature_id: feat-b2d1dc2e
       num: 4
       title: Gate-record-required completion (session-local indexable gate record)
       what: |
@@ -324,6 +325,7 @@ slices:
       approved: false
       comment: ""
       approval_status: approved
+      execution_status: promoted
       questions:
         - id: q-staleness
           text: What invalidates a gate record?
