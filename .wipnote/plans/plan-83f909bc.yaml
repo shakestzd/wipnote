@@ -7,7 +7,7 @@ meta:
     status: finalized
     priority: medium
     schema_version: v3
-    version: 14
+    version: 15
 design:
     problem: |
         wipnote's development practices (commit-what-you-close, regenerate ports
@@ -356,6 +356,7 @@ slices:
         failures; each allowlist entry needs a recorded justification);
         per-harness gate scripts (rejected — drifts, defeats parity).
     - id: slice-5
+      feature_id: feat-f93fe770
       num: 5
       title: Session-exit reconciliation (reconcile --strict + harness-discriminated Stop/SessionEnd)
       what: |
@@ -412,6 +413,7 @@ slices:
       approved: false
       comment: ""
       approval_status: approved
+      execution_status: promoted
       questions:
         - id: q-autocommit
           text: Auto-commit or block on done-but-uncommitted?
