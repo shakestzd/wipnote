@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>writequeue: Submit/Stop send-on-closed-channel race</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-2025543d"
+             data-type="bug"
+             data-status="done"
+             data-priority="high"
+             data-created="2026-05-12T01:05:31.081816"
+             data-updated="2026-05-12T01:05:48.191337" data-agent-assigned="claude-code" data-track-id="trk-0677c709" data-created-by-agent="human" data-created-by-model="claude-opus-4-7[1m]" data-created-by-cli-version="0.58.0-1440-ga2fa3e672">
+
+        <header>
+            <h1>writequeue: Submit/Stop send-on-closed-channel race</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-0677c709.html" data-relationship="part_of" data-since="2026-05-12T01:05:31.091012">trk-0677c709</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="caused_by">
+                <h3>Caused By:</h3>
+                <ul>
+                    <li><a href="feat-f3bcbcef.html" data-relationship="caused_by" data-since="2026-05-12T01:05:31.087342">feat-f3bcbcef</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="e5179b35-6359-4fe4-b95a-3b0e86dd85cc.html" data-relationship="implemented_in" data-since="2026-05-12T01:05:48.102398">session e5179b35-6359-4fe4-b95a-3b0e86dd85cc</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Race in internal/writequeue between Submit and Stop allowed a send on a closed channel, panicking the writer goroutine. Found by roborev job #1504 (HIGH severity) during review of feat-f3bcbcef. Fixed in commit a4147becf by synchronizing Submit/Stop.</p>
+        </section>
+    </article>
+</body>
+</html>
