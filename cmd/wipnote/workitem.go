@@ -174,6 +174,36 @@ func wiStartCmd(typeName string) *cobra.Command {
 var wiAllowSpecSkip bool
 var wiAllowDirtyComplete bool
 
+// wiAcceptedAdvisory carries the --accepted-advisory reason. When non-empty
+// it provides an audited override of the provenance completion gate: a
+// code-bearing item may be completed with zero linked source commits, but
+// the operator-supplied rationale is recorded on the .wipnote artifact and
+// surfaced by `wipnote check accepted-advisory` and `wipnote show`.
+var wiAcceptedAdvisory string
+
+// acceptedAdvisoryMarker prefixes the content note the override rationale is
+// persisted under. Node.Properties does NOT round-trip through the canonical
+// HTML writer/parser (only edge properties do), but Node.Content does (via
+// section[data-content]); so the audited reason is stored as a content note
+// with this stable, parseable prefix and recovered with acceptedAdvisoryOf.
+const acceptedAdvisoryMarker = "accepted-advisory (provenance override): "
+
+// acceptedAdvisoryOf returns the recorded provenance-advisory reason for a
+// node, or "" if none. The reason was written into the node content as a
+// note prefixed with acceptedAdvisoryMarker.
+func acceptedAdvisoryOf(n *models.Node) string {
+	if n == nil || n.Content == "" {
+		return ""
+	}
+	for _, line := range strings.Split(n.Content, "\n") {
+		s := strings.TrimSpace(stripHTMLTags(line))
+		if idx := strings.Index(s, acceptedAdvisoryMarker); idx >= 0 {
+			return strings.TrimSpace(s[idx+len(acceptedAdvisoryMarker):])
+		}
+	}
+	return ""
+}
+
 func wiCompleteCmd(typeName string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "complete <id>",
@@ -190,6 +220,8 @@ func wiCompleteCmd(typeName string) *cobra.Command {
 	if shouldAutocommitWorkitemArtifact(typeName) {
 		cmd.Flags().BoolVar(&wiAllowDirtyComplete, "allow-dirty", false,
 			"bypass the uncommitted source gate; intended for intentional dirty-tree completion only")
+		cmd.Flags().StringVar(&wiAcceptedAdvisory, "accepted-advisory", "",
+			"audited override of the zero-commit provenance gate; records the rationale on the artifact")
 	}
 	return cmd
 }
@@ -241,6 +273,19 @@ func wiSetStatusWithAgent(typeName, id, status, sessionID, agentID string) error
 
 	if status == "done" && shouldAutocommitWorkitemArtifact(typeName) {
 		if err := checkUncommittedSourceCompleteGate(dir, id, wiAllowDirtyComplete); err != nil {
+			return err
+		}
+	}
+
+	// Provenance completion gate (feat-7b593272). Type-agnostic: covers
+	// code-bearing feature/bug/spike items. Runs BEFORE col.Complete and
+	// slice-1's transactional commit path so a blocked item never reaches
+	// the "done" transition — composing cleanly with the transactional
+	// complete (no compensating re-open needed because no transition fired).
+	// --accepted-advisory provides an audited override that records the
+	// rationale on the .wipnote artifact for compliance/snapshot tooling.
+	if status == "done" && shouldAutocommitWorkitemArtifact(typeName) {
+		if err := checkProvenanceCompleteGate(p, col, typeName, id, wiAcceptedAdvisory); err != nil {
 			return err
 		}
 	}
@@ -392,6 +437,9 @@ func wiSetStatusWithAgent(typeName, id, status, sessionID, agentID string) error
 		verb = "Blocked"
 	}
 	fmt.Printf("%s: %s  %s\n", verb, node.ID, node.Title)
+	if status == "done" && strings.TrimSpace(wiAcceptedAdvisory) != "" {
+		fmt.Printf("  accepted-advisory: %s\n", strings.TrimSpace(wiAcceptedAdvisory))
+	}
 
 	// On start, print a session-label hint tailored to the active harness.
 	if status == "in-progress" {
@@ -657,6 +705,10 @@ func printNodeDetail(n *models.Node) {
 	}
 	fmt.Printf("  Created by  %s\n", prov.HumanString())
 
+	if adv := acceptedAdvisoryOf(n); adv != "" {
+		fmt.Printf("  Accepted-advisory  %s\n", adv)
+	}
+
 	if len(n.Steps) > 0 {
 		done := 0
 		for _, s := range n.Steps {
@@ -717,6 +769,78 @@ func kindFromPrefix(id string) string {
 		return "spec"
 	}
 	return "work item"
+}
+
+// checkProvenanceCompleteGate is the type-agnostic provenance gate for
+// code-bearing bug/feature/spike completion. It runs as a pre-completion
+// gate (before col.Complete and slice-1's transactional commit) so a
+// blocked item is never transitioned to "done".
+//
+// Decision:
+//   - Item not code-bearing (no non-.wipnote file recorded in
+//     feature_files, or no DB) → exempt, complete normally.
+//   - Code-bearing AND >=1 linked source commit
+//     (db.GetCommitsByFeature) → complete normally.
+//   - Code-bearing AND zero linked commits AND no advisory → BLOCK with a
+//     non-zero error carrying the --accepted-advisory remediation.
+//   - Code-bearing AND zero linked commits AND advisory set → complete,
+//     persisting the rationale on the .wipnote artifact (Properties +
+//     audit note) and emitting a stderr warning.
+func checkProvenanceCompleteGate(p *workitem.Project, col *workitem.Collection, typeName, id, advisory string) error {
+	if p == nil || p.DB == nil {
+		// No read index available — cannot evaluate provenance. Do not
+		// block: the canonical store stays the source of truth and the
+		// uncommitted-source gate already covers dirty trees.
+		return nil
+	}
+
+	codePaths, err := dbpkg.CodeBearingPaths(p.DB, id)
+	if err != nil {
+		return fmt.Errorf("provenance gate: inspect code-bearing paths for %s: %w", id, err)
+	}
+	if len(codePaths) == 0 {
+		// Pure-.wipnote/doc item — exempt.
+		return nil
+	}
+
+	commits, err := dbpkg.GetCommitsByFeature(p.DB, id)
+	if err != nil {
+		return fmt.Errorf("provenance gate: inspect linked commits for %s: %w", id, err)
+	}
+	if len(commits) > 0 {
+		// At least one linked source commit — provenance satisfied.
+		return nil
+	}
+
+	advisory = strings.TrimSpace(advisory)
+	if advisory == "" {
+		preview := codePaths
+		if len(preview) > 5 {
+			preview = preview[:5]
+		}
+		return fmt.Errorf(
+			"refusing to complete %s %s: it is code-bearing (touched %d source path(s) outside .wipnote/, e.g. %s) "+
+				"but has zero linked source commits — no durable provenance for the implementation.\n"+
+				"Commit the implementation and link it, then rerun:\n  wipnote %s complete %s\n"+
+				"To intentionally accept completion without a source commit (records an audited rationale on the artifact), rerun with:\n"+
+				"  wipnote %s complete %s --accepted-advisory \"<reason>\"",
+			typeName, id, len(codePaths), strings.Join(preview, ", "),
+			typeName, id, typeName, id)
+	}
+
+	// Audited override: persist the rationale on the canonical artifact so
+	// `wipnote check accepted-advisory`, `wipnote show`, and snapshot tooling
+	// surface it. Persist BEFORE col.Complete so the property survives the
+	// completion flush and the transactional commit captures it.
+	if err := col.Edit(id).
+		AddNote(acceptedAdvisoryMarker + advisory).
+		Save(); err != nil {
+		return fmt.Errorf("provenance gate: record accepted-advisory on %s: %w", id, err)
+	}
+	fmt.Fprintf(os.Stderr,
+		"accepted-advisory warning: completing code-bearing %s %s with zero linked source commits.\n  reason: %s\n",
+		typeName, id, advisory)
+	return nil
 }
 
 // checkFeatureCompleteSpecGate enforces config.spec_enforcement.feature_complete:

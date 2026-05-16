@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/shakestzd/wipnote/internal/models"
@@ -217,6 +218,48 @@ func GetCommitsByFeature(database *sql.DB, featureID string) ([]models.GitCommit
 		commits = append(commits, c)
 	}
 	return commits, rows.Err()
+}
+
+// CodeBearingPaths returns the distinct non-.wipnote file paths recorded
+// against an item in feature_files. The feature_files table is keyed by a
+// generic item ID column (feature_id), so this works type-agnostically for
+// features, bugs, and spikes alike.
+//
+// An item is "code-bearing" iff this returns a non-empty slice: its trace
+// touched at least one source path outside .wipnote/. Pure-.wipnote/doc
+// items (or items with no recorded files) return an empty slice and are
+// exempt from the provenance completion gate.
+func CodeBearingPaths(database *sql.DB, featureID string) ([]string, error) {
+	rows, err := database.Query(`
+		SELECT DISTINCT file_path
+		FROM feature_files
+		WHERE feature_id = ?
+		ORDER BY file_path`, featureID)
+	if err != nil {
+		return nil, fmt.Errorf("code-bearing paths for %s: %w", featureID, err)
+	}
+	defer rows.Close()
+
+	var paths []string
+	for rows.Next() {
+		var p string
+		if err := rows.Scan(&p); err != nil {
+			return nil, err
+		}
+		if isWipnoteScopedPath(p) {
+			continue
+		}
+		paths = append(paths, p)
+	}
+	return paths, rows.Err()
+}
+
+// isWipnoteScopedPath reports whether a recorded file path is internal to
+// the .wipnote canonical store (or its rendered dashboard assets) and so
+// does NOT count as source code for provenance purposes.
+func isWipnoteScopedPath(p string) bool {
+	p = strings.TrimPrefix(strings.ReplaceAll(p, "\\", "/"), "./")
+	return p == ".wipnote" || strings.HasPrefix(p, ".wipnote/")
 }
 
 // TraceResult holds the result of tracing a commit back through the attribution chain.
