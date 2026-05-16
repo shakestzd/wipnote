@@ -1,9 +1,11 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -15,6 +17,12 @@ import (
 	"github.com/shakestzd/wipnote/internal/workitem"
 	"github.com/spf13/cobra"
 )
+
+// needsTriageDupTag is the marker carried on the auto-attached relates_to
+// edge's Title so the duplicate flag survives in canonical HTML (edge link
+// text round-trips through the parser) and is queryable from graph_edges.
+// `wipnote check` and the dashboard detect clusters by this prefix.
+const needsTriageDupTag = "needs-triage-dup"
 
 type wiCreateOpts struct {
 	trackID          string
@@ -180,6 +188,16 @@ func runWiCreate(typeName, title string, o *wiCreateOpts) error {
 		}
 	}
 
+	// Dedup-at-create (slice-6, feat-e8879220): for bug/feature only, compare
+	// against open + recently-closed items and auto-attach a relates_to edge
+	// carrying the needs-triage-dup marker on a strong similarity match. This
+	// is strictly best-effort: any failure (including a missing/empty read
+	// index on a fresh clone or in CI) is a silent no-op — `create` must
+	// never fail because of dedup.
+	if typeName == "bug" || typeName == "feature" {
+		maybeAttachDedupRelation(p, typeName, node, o.description)
+	}
+
 	// Auto-commit the freshly-created HTML so in-progress lineage starts on
 	// commit-1 rather than waiting for completion. Gated by the same allowlist
 	// that gates the complete-time commit; plans use commitPlanChange instead.
@@ -263,6 +281,96 @@ func normalizeFilesInput(input, repoRoot string) string {
 		out = append(out, paths.MustNormalize(seg, repoRoot))
 	}
 	return strings.Join(out, ",")
+}
+
+// dedupWindowDays resolves the closed-item lookback window. Default is
+// dbpkg.DedupDefaultWindowDays (~30d); operators override via the
+// WIPNOTE_DEDUP_WINDOW_DAYS env var. The rationale for keeping the *window*
+// configurable (but the similarity *threshold* a fixed code constant) lives
+// in internal/db/feature_repo.go.
+func dedupWindowDays() int {
+	if raw := strings.TrimSpace(os.Getenv("WIPNOTE_DEDUP_WINDOW_DAYS")); raw != "" {
+		if n, err := strconv.Atoi(raw); err == nil && n > 0 {
+			return n
+		}
+	}
+	return dbpkg.DedupDefaultWindowDays
+}
+
+// maybeAttachDedupRelation runs the similarity check and, on a strong match,
+// attaches a relates_to edge whose Title carries the needs-triage-dup marker.
+//
+// TTY present  → interactive y/N confirm BEFORE attaching.
+// TTY absent   → auto-attach non-interactively (CI / agent runs).
+//
+// All errors are swallowed (best-effort, non-fatal) so `create` never fails
+// because of dedup. The read index being empty/absent is the common case on a
+// fresh clone and is handled as a graceful no-op by ListDedupCandidates.
+func maybeAttachDedupRelation(p *workitem.Project, typeName string, node *models.Node, desc string) {
+	if p == nil || node == nil || p.DB == nil {
+		return
+	}
+	candidates, err := dbpkg.ListDedupCandidates(p.DB, typeName, dedupWindowDays())
+	if err != nil || len(candidates) == 0 {
+		return // graceful no-op: unbuilt index, empty index, or query error
+	}
+	// Exclude the just-created node from its own candidate set.
+	filtered := candidates[:0]
+	for _, c := range candidates {
+		if c.ID != node.ID {
+			filtered = append(filtered, c)
+		}
+	}
+	match := dbpkg.FindDuplicate(node.Title, desc, filtered)
+	if match == nil {
+		return
+	}
+
+	if isTerminal() {
+		if !confirmDedupAttach(node.ID, match) {
+			fmt.Printf("  (skipped duplicate link to %s)\n", match.ID)
+			return
+		}
+	}
+
+	edge := models.Edge{
+		TargetID:     match.ID,
+		Relationship: models.RelRelatesTo,
+		// Title prefix is the durable, HTML-canonical dup marker.
+		Title: fmt.Sprintf("%s: %s", needsTriageDupTag, match.ID),
+		Since: time.Now().UTC(),
+		Properties: map[string]string{
+			"tag":              needsTriageDupTag,
+			"similarity_score": strconv.FormatFloat(match.Score, 'f', 3, 64),
+		},
+	}
+	col := collectionFor(p, typeName)
+	if _, addErr := col.AddEdge(node.ID, edge); addErr != nil {
+		fmt.Fprintf(os.Stderr, "Warning: dedup auto-link failed: %v\n", addErr)
+		return
+	}
+	fmt.Printf("  (possible duplicate of %s — tagged %s, score %.2f)\n",
+		match.ID, needsTriageDupTag, match.Score)
+}
+
+// confirmDedupAttach prompts on a TTY and returns true if the user accepts the
+// auto-link. Any read error or non-affirmative answer returns false (safe
+// default: do not silently link when a human is present and declines).
+func confirmDedupAttach(newID string, match *dbpkg.DedupCandidate) bool {
+	fmt.Printf("Possible duplicate: %s looks similar to %s %q (score %.2f).\n",
+		newID, match.ID, truncate(match.Title, 50), match.Score)
+	fmt.Printf("Attach relates_to + %s tag? [y/N]: ", needsTriageDupTag)
+	reader := bufio.NewReader(os.Stdin)
+	line, err := reader.ReadString('\n')
+	if err != nil {
+		return false
+	}
+	switch strings.ToLower(strings.TrimSpace(line)) {
+	case "y", "yes":
+		return true
+	default:
+		return false
+	}
 }
 
 func createNode(p *workitem.Project, typeName, title string, o *wiCreateOpts) (*models.Node, error) {

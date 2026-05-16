@@ -9,20 +9,37 @@ class HgWorkItem extends HTMLElement {
     const priority = this.dataset.priority || 'medium';
     const title = this.dataset.title || id;
 
+    // Slice-6 (feat-e8879220): surface needs-triage-dup clusters. The
+    // dedup-at-create flow attaches a relates_to edge tagged
+    // "needs-triage-dup"; the dashboard exposes that via data-tags (a
+    // comma/space separated list) and optionally data-dup-of (the matched
+    // item id). When present, render a prominent triage badge + link.
+    const tags = (this.dataset.tags || '').toLowerCase();
+    const isDup = tags.split(/[\s,]+/).includes('needs-triage-dup');
+    const dupOf = this.dataset.dupOf || '';
+    const dupBadge = isDup
+      ? `<span class="hg-badge hg-badge-dup" title="Flagged as a possible duplicate at create time">needs-triage-dup</span>`
+      : '';
+    const dupLink = (isDup && dupOf)
+      ? `<a class="hg-card-dup-link" href="${dupOf}.html">possible duplicate of ${dupOf}</a>`
+      : '';
+
     this.innerHTML = `
-      <div class="hg-card" data-status="${status}" data-priority="${priority}" data-type="${type}">
+      <div class="hg-card" data-status="${status}" data-priority="${priority}" data-type="${type}"${isDup ? ' data-needs-triage-dup="true"' : ''}>
         <div class="hg-card-header">
           <span class="hg-badge hg-badge-type">${type}</span>
           <span class="hg-badge hg-badge-status">${status}</span>
           <span class="hg-badge hg-badge-priority">${priority}</span>
+          ${dupBadge}
         </div>
         <h3 class="hg-card-title">${title}</h3>
         <code class="hg-card-id">${id}</code>
+        ${dupLink}
       </div>
     `;
   }
 
-  static get observedAttributes() { return ['data-status', 'data-priority', 'data-title']; }
+  static get observedAttributes() { return ['data-status', 'data-priority', 'data-title', 'data-tags', 'data-dup-of']; }
   attributeChangedCallback() { if (this.isConnected) this.connectedCallback(); }
 }
 customElements.define('hg-work-item', HgWorkItem);
