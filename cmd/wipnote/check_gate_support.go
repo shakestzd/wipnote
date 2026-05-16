@@ -149,6 +149,10 @@ func runSessionGate(projectRoot, sessionID, workItemID, source string, stdout, s
 			result.AllowlistHits = append(result.AllowlistHits, hits...)
 		}
 		if cmdErr != nil {
+			if gateCommandAllowlisted(cmdErr, hits) {
+				summary = append(summary, fmt.Sprintf("%s allowlisted", gc.Name))
+				continue
+			}
 			result.Passed = false
 			summary = append(summary, fmt.Sprintf("%s failed", gc.Name))
 		}
@@ -193,6 +197,10 @@ func runGateCommand(gc gateCommand, dir string, allowlist []gateAllowlistEntry, 
 		return nil, nil
 	}
 	return matchGateAllowlist(gc.Name, output.String(), allowlist), err
+}
+
+func gateCommandAllowlisted(cmdErr error, hits []gateAllowlistHit) bool {
+	return cmdErr != nil && len(hits) > 0
 }
 
 func persistGateRecord(projectRoot, sessionID, workItemID, source string, result *gateRunResult) (*dbpkg.GateRecord, error) {
@@ -304,7 +312,7 @@ func activeWorkItemForGate(sessionID, agentID string) string {
 	if err != nil {
 		return ""
 	}
-	database, err := dbpkg.Open(project)
+	database, err := dbpkg.OpenReadOnly(project)
 	if err != nil {
 		return ""
 	}

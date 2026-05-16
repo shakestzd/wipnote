@@ -28,14 +28,14 @@
 //
 // HOW TO EXTEND:
 //
-//  - New canonical-first command: no inventory change needed (does not open DB).
-//  - New CLI command that legitimately mutates work items: add to inventory
-//    with classification "intentional-cli-mutation".
-//  - New reindex command: add with "reindex-only".
-//  - New schema migration runner: add with "migration-only".
-//  - New hook / collector / indexer write path: STOP. Route it through the
-//    writer service introduced by slice 6 (feat-f3bcbcef). Do not add a
-//    direct open here.
+//   - New canonical-first command: no inventory change needed (does not open DB).
+//   - New CLI command that legitimately mutates work items: add to inventory
+//     with classification "intentional-cli-mutation".
+//   - New reindex command: add with "reindex-only".
+//   - New schema migration runner: add with "migration-only".
+//   - New hook / collector / indexer write path: STOP. Route it through the
+//     writer service introduced by slice 6 (feat-f3bcbcef). Do not add a
+//     direct open here.
 package main
 
 import (
@@ -212,6 +212,14 @@ var approvedWriteSites = []writeSite{
 		Note:           "User-driven plan amendment apply; short-lived foreground process.",
 	},
 	{
+		File:           "cmd/wipnote/check_gate_support.go",
+		Line:           220,
+		Function:       "persistGateRecord",
+		OpenExpr:       "dbpkg.Open",
+		Classification: intentionalCLIMutation,
+		Note:           "`wipnote check --gate` persists the session-local gate record after foreground build/vet/test execution completes.",
+	},
+	{
 		File:           "cmd/wipnote/plan_yaml_extras.go",
 		Line:           623,
 		Function:       "runReadFeedbackYAML",
@@ -229,7 +237,7 @@ var approvedWriteSites = []writeSite{
 	},
 	{
 		File:           "cmd/wipnote/serve_child.go",
-		Line:           79,
+		Line:           80,
 		Function:       "runServeChild",
 		OpenExpr:       "dbpkg.Open",
 		Classification: intentionalCLIMutation,
@@ -305,7 +313,7 @@ var approvedWriteSites = []writeSite{
 	},
 	{
 		File:           "cmd/wipnote/reindex_otel_events.go",
-		Line:           75,
+		Line:           76,
 		Function:       "reindexOtelEvents",
 		OpenExpr:       "dbpkg.Open",
 		Classification: reindexOnly,

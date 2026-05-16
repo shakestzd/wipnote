@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -79,6 +80,51 @@ func prepProject(t *testing.T) (tmpDir, hgDir string) {
 	return tmpDir, hgDir
 }
 
+func seedPassingGateRecord(t *testing.T, projectRoot, sessionID, workItemID string) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Join(projectRoot, "plugin", "config"), 0o755); err != nil {
+		t.Fatalf("mkdir gate config: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(projectRoot, "go.mod"), []byte("module example.com/provenancegatetest\n\ngo 1.24\n"), 0o644); err != nil {
+		t.Fatalf("write go.mod: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(projectRoot, "main.go"), []byte("package main\n\nfunc main() {}\n"), 0o644); err != nil {
+		t.Fatalf("write main.go: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(projectRoot, "plugin", "config", "quality-gate-flake-allowlist.json"), []byte(`[
+  {
+    "id": "tmp-noexec",
+    "match_all": ["/tmp/", "permission denied"],
+    "justification": "Test fixture justification"
+  },
+  {
+    "id": "listener-socket-sandbox",
+    "match_all": ["listen tcp", "socket: operation not permitted"],
+    "justification": "Test fixture listener sandbox justification"
+  }
+]`), 0o644); err != nil {
+		t.Fatalf("write gate allowlist: %v", err)
+	}
+
+	tmpBase := filepath.Join("/home/vscode/.codex/memories", "wipnote-gotmp")
+	for _, dir := range []string{"gotmp-exec", "gocache"} {
+		if err := os.MkdirAll(filepath.Join(tmpBase, dir), 0o755); err != nil {
+			t.Fatalf("mkdir external %s: %v", dir, err)
+		}
+	}
+	t.Setenv("TMPDIR", filepath.Join(tmpBase, "gotmp-exec"))
+	t.Setenv("GOTMPDIR", filepath.Join(tmpBase, "gotmp-exec"))
+	t.Setenv("GOCACHE", filepath.Join(tmpBase, "gocache"))
+
+	result, err := runSessionGate(projectRoot, sessionID, workItemID, "check", os.Stdout, os.Stderr)
+	if err != nil {
+		t.Fatalf("runSessionGate: %v", err)
+	}
+	if result == nil || !result.Passed || result.Record == nil || !result.Record.SignatureValid() {
+		t.Fatalf("expected valid passing gate record, got %+v", result)
+	}
+}
+
 // 1. Code-bearing feature, zero commits, no flag → blocked non-zero.
 func TestProvenanceGate_CodeBearingFeatureZeroCommits_Blocked(t *testing.T) {
 	_, hgDir := prepProject(t)
@@ -127,10 +173,11 @@ func TestProvenanceGate_CodeBearingBugAndSpikeZeroCommits_Blocked(t *testing.T) 
 
 // 3. Same with --accepted-advisory → completes, reason persisted + in check.
 func TestProvenanceGate_AdvisoryOverrideCompletesAndPersists(t *testing.T) {
-	_, hgDir := prepProject(t)
+	tmpDir, hgDir := prepProject(t)
 	trackID := testSetupTrack(t, hgDir)
 	id := createItem(t, hgDir, "feature", "Advisory Feature", trackID)
 	seedFeatureFile(t, hgDir, id, "internal/foo/bar.go")
+	seedPassingGateRecord(t, tmpDir, "test-session-prov", id)
 
 	const reason = "infra-only refactor, no source commit by design"
 	wiAcceptedAdvisory = reason
@@ -161,11 +208,12 @@ func TestProvenanceGate_AdvisoryOverrideCompletesAndPersists(t *testing.T) {
 
 // 4. Pure-.wipnote/doc item, zero commits → completes normally (exempt).
 func TestProvenanceGate_PureWipnoteItemExempt(t *testing.T) {
-	_, hgDir := prepProject(t)
+	tmpDir, hgDir := prepProject(t)
 	trackID := testSetupTrack(t, hgDir)
 	id := createItem(t, hgDir, "feature", "Docs Feature", trackID)
 	// Only a .wipnote path touched → NOT code-bearing.
 	seedFeatureFile(t, hgDir, id, ".wipnote/features/"+id+".html")
+	seedPassingGateRecord(t, tmpDir, "test-session-prov", id)
 
 	wiAcceptedAdvisory = ""
 	if err := runWiSetStatus("feature", id, "done"); err != nil {
@@ -179,11 +227,12 @@ func TestProvenanceGate_PureWipnoteItemExempt(t *testing.T) {
 
 // 5. Item with >=1 commit row → completes normally.
 func TestProvenanceGate_HasCommitsCompletes(t *testing.T) {
-	_, hgDir := prepProject(t)
+	tmpDir, hgDir := prepProject(t)
 	trackID := testSetupTrack(t, hgDir)
 	id := createItem(t, hgDir, "feature", "Committed Feature", trackID)
 	seedFeatureFile(t, hgDir, id, "internal/foo/bar.go")
 	seedProvCommit(t, hgDir, id, "deadbeefcafe0001")
+	seedPassingGateRecord(t, tmpDir, "test-session-prov", id)
 
 	wiAcceptedAdvisory = ""
 	if err := runWiSetStatus("feature", id, "done"); err != nil {

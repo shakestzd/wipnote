@@ -152,9 +152,9 @@ func TestRunSessionGate_ReportsAndPersistsAllowlistHits(t *testing.T) {
 	}
 
 	result := &gateRunResult{
-		Plan: gatePlan{ProjectType: "go"},
-		Commands: []string{"go build -buildvcs=false ./...", "go vet ./...", "go test -buildvcs=false ./..."},
-		Passed: false,
+		Plan:          gatePlan{ProjectType: "go"},
+		Commands:      []string{"go build -buildvcs=false ./...", "go vet ./...", "go test -buildvcs=false ./..."},
+		Passed:        false,
 		AllowlistHits: hits,
 		OutputSummary: "go test failed",
 	}
@@ -181,6 +181,24 @@ func TestRunSessionGate_ReportsAndPersistsAllowlistHits(t *testing.T) {
 	}
 	if !strings.Contains(record.AllowlistHitsJSON, "listener-socket-sandbox") {
 		t.Fatalf("allowlist hits JSON = %s, want listener entry", record.AllowlistHitsJSON)
+	}
+}
+
+func TestGateCommandAllowlisted(t *testing.T) {
+	hits := []gateAllowlistHit{{
+		ID:            "listener-socket-sandbox",
+		Command:       "go test",
+		Justification: "listener sandbox",
+	}}
+
+	if gateCommandAllowlisted(nil, hits) {
+		t.Fatal("nil error must not be treated as allowlisted")
+	}
+	if gateCommandAllowlisted(os.ErrPermission, nil) {
+		t.Fatal("error without allowlist hits must not be treated as allowlisted")
+	}
+	if !gateCommandAllowlisted(os.ErrPermission, hits) {
+		t.Fatal("expected matching error + allowlist hits to be treated as allowlisted")
 	}
 }
 
