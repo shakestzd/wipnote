@@ -54,6 +54,46 @@ type Session struct {
 	CreatedByModel      string `json:"created_by_model,omitempty"`
 	CreatedByRole       string `json:"created_by_role,omitempty"`
 	CreatedByCLIVersion string `json:"created_by_cli_version,omitempty"`
+
+	Adherence *SessionAdherence `json:"adherence,omitempty"`
+}
+
+type SessionAdherenceStatus string
+
+const (
+	SessionAdherencePass SessionAdherenceStatus = "pass"
+	SessionAdherenceFail SessionAdherenceStatus = "fail"
+	SessionAdherenceWarn SessionAdherenceStatus = "warn"
+	SessionAdherenceNA   SessionAdherenceStatus = "not_applicable"
+)
+
+type SessionAdherenceCheck struct {
+	Key     string                 `json:"key"`
+	Label   string                 `json:"label"`
+	Status  SessionAdherenceStatus `json:"status"`
+	Summary string                 `json:"summary,omitempty"`
+	Count   int                    `json:"count,omitempty"`
+	Items   []string               `json:"items,omitempty"`
+}
+
+type SessionAdherence struct {
+	Score      int                     `json:"score"`
+	Applicable int                     `json:"applicable"`
+	Passed     int                     `json:"passed"`
+	Warned     int                     `json:"warned"`
+	Failed     int                     `json:"failed"`
+	Checks     []SessionAdherenceCheck `json:"checks,omitempty"`
+}
+
+type SessionAdherenceTrendPoint struct {
+	SessionID  string    `json:"session_id"`
+	Harness    string    `json:"harness"`
+	CreatedAt  time.Time `json:"created_at"`
+	CompletedAt time.Time `json:"completed_at,omitempty"`
+	Score      int       `json:"score"`
+	Passed     int       `json:"passed"`
+	Warned     int       `json:"warned"`
+	Failed     int       `json:"failed"`
 }
 
 // ActivityEntry is a lightweight view used in dashboard activity feeds.

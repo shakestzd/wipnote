@@ -92,6 +92,70 @@
 .session-row.live.harness-claude-code td:first-child,
 .session-row.live.harness-codex td:first-child,
 .session-row.live.harness-gemini td:first-child { border-left: 3px solid var(--status-done); }
+
+.session-trend-panel {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-secondary);
+}
+.session-trend-panel.loading { opacity: 0.75; }
+.session-trend-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.session-trend-title {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-primary);
+}
+.session-trend-meta,
+.session-trend-empty {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.session-trend-chart {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.session-trend-row {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr) 40px;
+  gap: 8px;
+  align-items: center;
+}
+.session-trend-label,
+.session-trend-value {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.session-trend-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.session-trend-value {
+  text-align: right;
+}
+.session-trend-track {
+  height: 8px;
+  background: var(--bg-tertiary);
+  border-radius: 9999px;
+  overflow: hidden;
+}
+.session-trend-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--status-done));
+  border-radius: 9999px;
+}
 /* CLI origin badge */
 .badge-cli {
   font-size: 9px; padding: 1px 5px; border-radius: 3px;

@@ -95,8 +95,13 @@ func recentEventsHandler(database *sql.DB) http.HandlerFunc {
 }
 
 // sessionsHandler returns the 20 most recent sessions.
-func sessionsHandler(database *sql.DB, projectDir string) http.HandlerFunc {
+func sessionsHandler(database *sql.DB, projectDir, wipnoteDir string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		nodes, err := dbpkg.LoadSessionAdherenceNodes(wipnoteDir)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 		// Scope to the current project. Legacy rows with empty project_dir
 		// (ingested from Claude Code transcripts without attribution) are
 		// hidden from the per-project dashboard. Tracked separately as a
@@ -152,6 +157,11 @@ func sessionsHandler(database *sql.DB, projectDir string) http.HandlerFunc {
 				&totalEvents, &featureID, &model, &title, &firstMsg, &msgCount, &sessionLaunchMode, &sessionPlanID); err != nil {
 				continue
 			}
+			adherence, err := dbpkg.DeriveSessionAdherence(database, sid, nodes)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
 			sessions = append(sessions, map[string]any{
 				"session_id":    sid,
 				"agent":         agent,
@@ -166,10 +176,27 @@ func sessionsHandler(database *sql.DB, projectDir string) http.HandlerFunc {
 				"message_count": msgCount,
 				"launch_mode":   sessionLaunchMode,
 				"plan_id":       sessionPlanID,
+				"adherence":     adherence,
 			})
 		}
 
 		respondJSON(w, sessions)
+	}
+}
+
+func sessionAdherenceTrendHandler(database *sql.DB, projectDir, wipnoteDir string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		nodes, err := dbpkg.LoadSessionAdherenceNodes(wipnoteDir)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		points, err := dbpkg.ListSessionAdherenceTrend(database, projectDir, nodes, 24)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		respondJSON(w, map[string]any{"points": points})
 	}
 }
 

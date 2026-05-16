@@ -46,6 +46,8 @@ func fixtureManifest() *Manifest {
 			{Name: "UserPromptSubmit", Handler: "user-prompt", Targets: []string{"claude", "codex"}},
 			{Name: "Stop", Handler: "stop", Targets: []string{"claude"}},
 			{Name: "TaskStarted", Handler: "task-started", Targets: []string{"codex"}},
+			{Name: "TaskComplete", Handler: "stop", Targets: []string{"codex"}, Timeout: 90},
+			{Name: "TaskComplete", Handler: "session-end", Targets: []string{"codex"}, Timeout: 90},
 			{Name: "SessionStart", Command: "date", Timeout: 2, Targets: []string{"claude"}, Matcher: "resume"},
 		}},
 	}
@@ -178,7 +180,10 @@ func TestCodexAdapterEmitsManifestHooksAndMCP(t *testing.T) {
 	}
 	s := string(hooksRaw)
 	// Codex-only events present, Claude-only absent.
-	for _, want := range []string{`"SessionStart"`, `"UserPromptSubmit"`, `"TaskStarted"`, `"wipnote hook task-started"`} {
+	for _, want := range []string{
+		`"SessionStart"`, `"UserPromptSubmit"`, `"TaskStarted"`, `"wipnote hook task-started"`,
+		`"TaskComplete"`, `"wipnote hook stop"`, `"wipnote hook session-end"`,
+	} {
 		if !contains(s, want) {
 			t.Errorf("codex hooks missing %q:\n%s", want, s)
 		}

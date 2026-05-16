@@ -5,6 +5,8 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"fmt"
+	"io"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -239,60 +241,81 @@ func runSessionShow(sessionID string) error {
 	if err != nil {
 		return fmt.Errorf("session %q not found: %w\nRun 'wipnote session list' to see known sessions.", sessionID, err)
 	}
+	nodes, err := dbpkg.LoadSessionAdherenceNodes(dir)
+	if err != nil {
+		return err
+	}
+	adherence, err := dbpkg.DeriveSessionAdherence(db, sessionID, nodes)
+	if err != nil {
+		return err
+	}
+	s.Adherence = adherence
 
+	return renderSessionShow(os.Stdout, db, s)
+}
+
+func renderSessionShow(w io.Writer, db *sql.DB, s *models.Session) error {
 	sep := strings.Repeat("─", 60)
 	shortID := truncate(s.SessionID, 14)
-	fmt.Println(sep)
-	fmt.Printf("  Session %s\n", shortID)
-	fmt.Println(sep)
-	fmt.Printf("  ID        %s\n", s.SessionID)
-	fmt.Printf("  Status    %s\n", s.Status)
-	fmt.Printf("  Agent     %s\n", s.AgentAssigned)
+	fmt.Fprintln(w, sep)
+	fmt.Fprintf(w, "  Session %s\n", shortID)
+	fmt.Fprintln(w, sep)
+	fmt.Fprintf(w, "  ID        %s\n", s.SessionID)
+	fmt.Fprintf(w, "  Status    %s\n", s.Status)
+	fmt.Fprintf(w, "  Agent     %s\n", s.AgentAssigned)
 	if s.Model != "" {
-		fmt.Printf("  Model     %s\n", s.Model)
+		fmt.Fprintf(w, "  Model     %s\n", s.Model)
 	}
-	fmt.Printf("  Started   %s\n", s.CreatedAt.Local().Format("2006-01-02 15:04:05"))
-	fmt.Printf("  Duration  %s\n", sessionDuration(s))
+	fmt.Fprintf(w, "  Started   %s\n", s.CreatedAt.Local().Format("2006-01-02 15:04:05"))
+	fmt.Fprintf(w, "  Duration  %s\n", sessionDuration(s))
 	if s.StartCommit != "" {
-		fmt.Printf("  Start     %s\n", truncate(s.StartCommit, 10))
+		fmt.Fprintf(w, "  Start     %s\n", truncate(s.StartCommit, 10))
 	}
 	if s.EndCommit != "" {
-		fmt.Printf("  End       %s\n", truncate(s.EndCommit, 10))
+		fmt.Fprintf(w, "  End       %s\n", truncate(s.EndCommit, 10))
 	}
 	if s.ActiveFeatureID != "" {
-		fmt.Printf("  Feature   %s\n", s.ActiveFeatureID)
+		fmt.Fprintf(w, "  Feature   %s\n", s.ActiveFeatureID)
 	}
 	if s.IsSubagent {
-		fmt.Printf("  Subagent  yes (parent: %s)\n", truncate(s.ParentSessionID, 14))
+		fmt.Fprintf(w, "  Subagent  yes (parent: %s)\n", truncate(s.ParentSessionID, 14))
+	}
+	if s.Adherence != nil {
+		fmt.Fprintf(w, "  Adherence %d%% (%d pass, %d warn, %d fail)\n",
+			s.Adherence.Score, s.Adherence.Passed, s.Adherence.Warned, s.Adherence.Failed)
+		for _, check := range s.Adherence.Checks {
+			fmt.Fprintf(w, "    %-18s  %-14s  %s\n",
+				check.Key, string(check.Status), check.Summary)
+		}
 	}
 
 	// Commits made during this session.
-	commits, _ := dbpkg.GetCommitsBySession(db, sessionID)
+	commits, _ := dbpkg.GetCommitsBySession(db, s.SessionID)
 	if len(commits) > 0 {
-		fmt.Println("\nCommits:")
+		fmt.Fprintln(w, "\nCommits:")
 		for _, c := range commits {
 			hash := truncate(c.CommitHash, 10)
-			fmt.Printf("  %s  %s\n", hash, truncate(c.Message, 60))
+			fmt.Fprintf(w, "  %s  %s\n", hash, truncate(c.Message, 60))
 		}
 	}
 
 	// Features worked on (distinct from agent_events).
-	feats, _ := dbpkg.DistinctFeatureIDs(db, sessionID)
+	feats, _ := dbpkg.DistinctFeatureIDs(db, s.SessionID)
 	if len(feats) > 0 {
-		fmt.Println("\nFeatures Worked On:")
+		fmt.Fprintln(w, "\nFeatures Worked On:")
 		for _, f := range feats {
-			fmt.Printf("  %s\n", f)
+			fmt.Fprintf(w, "  %s\n", f)
 		}
 	}
 
 	// Event summary by tool.
-	counts, _ := dbpkg.CountEventsByTool(db, sessionID)
+	counts, _ := dbpkg.CountEventsByTool(db, s.SessionID)
 	if len(counts) > 0 {
 		total := 0
 		for _, c := range counts {
 			total += c
 		}
-		fmt.Printf("\nEvents by Tool (%d total):\n", total)
+		fmt.Fprintf(w, "\nEvents by Tool (%d total):\n", total)
 		// Sort by count descending for display.
 		type toolCount struct {
 			name  string
@@ -310,7 +333,7 @@ func runSessionShow(sessionID string) error {
 			}
 		}
 		for _, tc := range sorted {
-			fmt.Printf("  %-12s %d\n", tc.name, tc.count)
+			fmt.Fprintf(w, "  %-12s %d\n", tc.name, tc.count)
 		}
 	}
 

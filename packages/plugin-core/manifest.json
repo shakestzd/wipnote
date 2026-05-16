@@ -88,7 +88,8 @@
       { "name": "PermissionRequest",  "handler": "permission-request",  "targets": ["claude"] },
       { "name": "ConfigChange",       "handler": "config-change",       "targets": ["claude"] },
       { "name": "TaskStarted",        "handler": "task-started",        "targets": ["codex"] },
-      { "name": "TaskComplete",       "handler": "stop",                "targets": ["codex"] },
+      { "name": "TaskComplete",       "handler": "stop",                "targets": ["codex"], "timeout": 90 },
+      { "name": "TaskComplete",       "handler": "session-end",         "targets": ["codex"], "timeout": 90 },
       { "name": "TurnAborted",        "handler": "task-aborted",        "targets": ["codex"] }
     ]
   }

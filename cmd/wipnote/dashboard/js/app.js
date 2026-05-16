@@ -5,6 +5,7 @@ var sessions = [];
 var features = [];
 var plans = [];
 var stats = {};
+var sessionAdherenceTrend = [];
 var currentView = 'activity';
 var seenEventIds = new Set();
 var groupByTrack = localStorage.getItem('wipnote-kanban-group-by-track') === 'true';
@@ -32,6 +33,7 @@ document.querySelector('.nav').addEventListener('click', function(e) {
   document.querySelectorAll('.nav-btn').forEach(function(b) { b.classList.toggle('active', b === btn); });
   document.querySelectorAll('.view').forEach(function(v) { v.classList.toggle('active', v.id === 'v-' + view); });
   if (view === 'sessions' && sessions.length === 0) fetchSessions();
+  if (view === 'sessions') fetchSessionAdherenceTrend();
   if (view === 'work' && features.length === 0) fetchFeatures();
   if (view === 'plans' && plans.length === 0) fetchPlans();
   if (view === 'graph') fetchGraph();
@@ -112,6 +114,28 @@ function fetchSessions() {
       renderSessions();
     });
   }).catch(function() {});
+}
+
+function fetchSessionAdherenceTrend() {
+  var panel = document.getElementById('session-trend-panel');
+  if (!panel || isDoorwayLanding()) return Promise.resolve();
+  panel.classList.add('loading');
+  return fetch(buildProjectUrl('sessions/adherence-trend'))
+    .then(function(r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    })
+    .then(function(data) {
+      sessionAdherenceTrend = (data && data.points) || [];
+      renderSessionAdherenceTrend();
+    })
+    .catch(function() {
+      sessionAdherenceTrend = [];
+      renderSessionAdherenceTrend(true);
+    })
+    .finally(function() {
+      panel.classList.remove('loading');
+    });
 }
 
 function fetchFeatures() {
@@ -404,6 +428,7 @@ function renderSessions() {
   var body = document.getElementById('sessions-body');
   var empty = document.getElementById('sessions-empty');
   document.getElementById('sessions-count').textContent = sessions.length;
+  renderSessionAdherenceTrend();
   body.textContent = '';
   if (sessions.length === 0) { empty.style.display = ''; return; }
   empty.style.display = 'none';
@@ -538,6 +563,64 @@ function renderSessions() {
     frag.appendChild(previewRow);
   });
   body.appendChild(frag);
+}
+
+function renderSessionAdherenceTrend(forceEmpty) {
+  var panel = document.getElementById('session-trend-panel');
+  if (!panel) return;
+  panel.textContent = '';
+
+  var points = sessionAdherenceTrend || [];
+  if (forceEmpty || points.length === 0) {
+    var empty = document.createElement('div');
+    empty.className = 'session-trend-empty';
+    empty.textContent = 'No adherence trend available yet.';
+    panel.appendChild(empty);
+    return;
+  }
+
+  var header = document.createElement('div');
+  header.className = 'session-trend-header';
+  var title = document.createElement('div');
+  title.className = 'session-trend-title';
+  title.textContent = 'Adherence Trend';
+  header.appendChild(title);
+  var meta = document.createElement('div');
+  meta.className = 'session-trend-meta';
+  meta.textContent = points.length + ' completed sessions';
+  header.appendChild(meta);
+  panel.appendChild(header);
+
+  var chart = document.createElement('div');
+  chart.className = 'session-trend-chart';
+  var maxScore = 100;
+  points.forEach(function(point) {
+    var row = document.createElement('div');
+    row.className = 'session-trend-row';
+
+    var label = document.createElement('span');
+    label.className = 'session-trend-label';
+    label.textContent = relTime(point.created_at || point.completed_at || '');
+    label.title = point.session_id || '';
+    row.appendChild(label);
+
+    var track = document.createElement('div');
+    track.className = 'session-trend-track';
+    var fill = document.createElement('div');
+    fill.className = 'session-trend-fill';
+    fill.style.width = Math.max(0, Math.min(100, point.score || 0)) + '%';
+    fill.title = (point.session_id || 'session') + ' - ' + (point.score || 0) + '%';
+    track.appendChild(fill);
+    row.appendChild(track);
+
+    var value = document.createElement('span');
+    value.className = 'session-trend-value';
+    value.textContent = (point.score || 0) + '%';
+    row.appendChild(value);
+
+    chart.appendChild(row);
+  });
+  panel.appendChild(chart);
 }
 
 /* ── Rendering: Work (Kanban) ──────────────────────────────── */
