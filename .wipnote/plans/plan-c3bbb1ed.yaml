@@ -1,18 +1,241 @@
 meta:
     id: plan-c3bbb1ed
-    track_id: trk-cd61bbae
     title: Cross-session file visibility for concurrent CLI sessions
-    description: 'Surface and reconcile which concurrent CLI sessions are editing which files in a shared wipnote project. Tiered: roster surfacing, live overlap detection, file-aware claims, cross-harness liveness.'
-    created_at: "2026-05-16"
+    description: ""
+    created_at: ""
     status: draft
-    priority: medium
     schema_version: v3
-    version: 2
+    version: 1
 design:
-    problem: ""
-    goals: []
-    constraints: []
+    problem: Concurrent CLI sessions (Claude/Codex/Gemini) edit overlapping files invisibly — users cannot see which files other active sessions are touching, causing attribution mix-ups and coordination failures in shared projects.
+    goals:
+        - Surface which concurrent sessions are editing which files (read-only roster)
+        - Detect and warn on live file overlaps before edits are made
+        - Build first-class file-ownership semantics via claims.write_scope
+        - Establish honest session liveness and cross-harness lifecycle hooks
+    constraints:
+        - Zero write amplification on the PreToolUse/PostToolUse hot path (feat-156e0a1a SQLITE_BUSY gate must stay at zero)
+        - Use only existing DB columns and tables; no new session_files or file_lock tables
+        - Roster and overlap detection must be pull-queries (explicit CLI/API calls), not a live-watch daemon
+        - Codex/Gemini SessionEnd hooks are required; cross-harness parity with Claude
     approved: false
     comment: ""
-slices: []
+slices:
+    - id: slice-1
+      num: 1
+      title: 'Tier 0 — Surface session→files: wipnote who + session show + API + dashboard'
+      what: |
+        Add read-only surfacing of data wipnote already captures. New `wipnote
+        who` command lists every active session in the current project (joined
+        sessions + claims + feature_files) with agent, model, active work item,
+        claim lease remaining, and the files that session has touched
+        (feature_files.session_id already exists — internal/db/schema.go:301).
+        Extend `wipnote session show <id>` with a Files section. Add a `files[]`
+        array per session to GET /api/sessions (cmd/wipnote/api.go:97). Add an
+        "Active sessions & files" dashboard panel. No new tables, no writes.
+      why: |
+        Track trk-cd61bbae (Local cockpit — parallel sessions). Concurrent
+        Claude/Codex/Gemini sessions edit overlapping files invisibly — this
+        session a concurrent Codex session committed feat-b2d1dc2e WIP next to
+        an unrelated bug fix, unseen, causing an attribution mix-up. Forward
+        sibling of closed bug-e8b8900b. Highest ROI: pure surfacing of
+        already-captured data, zero lifecycle/contention risk.
+      files:
+        - cmd/wipnote/who.go
+        - cmd/wipnote/session.go
+        - cmd/wipnote/api.go
+        - internal/db/session_repo.go
+        - internal/db/feature_files_repo.go
+        - cmd/wipnote/static
+      deps: []
+      done_when:
+        - '`wipnote who` lists each active session in the current project with agent, model, active work item, claim lease remaining, and touched files'
+        - '`wipnote session show <id>` includes a Files section (path, operation, last_seen)'
+        - GET /api/sessions returns a `files` array per session
+        - Dashboard renders an Active sessions & files panel
+      effort: M
+      risk: Low
+      tests: |
+        Unit: TestSessionFiles_Query — SELECT file_path FROM feature_files WHERE session_id=?
+        Integration: TestWhoCommand — spawn binary, seed two sessions, assert roster + files
+        API: /api/sessions response includes files[]
+        Regression: existing cmd/wipnote/session_test.go must still pass
+      complexity: complex
+      approved: false
+      comment: ""
+      questions:
+        - id: q-scope
+          text: Scope `wipnote who` to the current project only, or all projects?
+          answer: Current project only — the SQLite DB is per project-path-hash; cross-project rollup is out of scope and would need a separate aggregation path.
+      decisions_notes: |
+        **Trigger:** explicit CLI invocation (`wipnote who`, `session show`) and
+        GET /api/sessions request — no hook, off the hot path.
+        **State:** derived read only; joins existing sessions + claims +
+        feature_files. No new table; nothing persisted.
+        **Payload:** per-session roster row + files[] (path, operation,
+        last_seen); /api/sessions gains files[].
+        **Track:** trk-cd61bbae.
+        **Rejected:** new session_files table (data already in feature_files —
+        DRY); a live-watch daemon (out of scope for Tier 0; a pull query
+        suffices and adds no process).
+    - id: slice-2
+      num: 2
+      title: 'Tier 1 — Live file-overlap detection: who ⚠ flag + PreToolUse advisory'
+      what: |
+        Compute intersection of recently-touched file sets (feature_files,
+        last_seen within a window) across active sessions. `wipnote who` marks
+        files touched by >=2 active sessions with ⚠ and the other session id.
+        Add a PreToolUse check: before Edit/Write, a single indexed SELECT for
+        the same path touched by another live session within the window emits a
+        non-blocking advisory into hook output. Config: `warn_on_file_overlap`
+        (default true, advisory) and `block_on_file_overlap` (default false →
+        exit code 2), mirroring the existing
+        `block_task_completion_on_quality_failure` pattern.
+      why: |
+        Track trk-cd61bbae. Detect collisions in real time, before the edit,
+        not just in a post-hoc roster — the failure mode that caused the
+        feat-b2d1dc2e mix-up.
+      files:
+        - cmd/wipnote/who.go
+        - internal/hooks/pretooluse.go
+        - internal/db/feature_files_repo.go
+        - internal/config
+      deps:
+        - 1
+      done_when:
+        - '`wipnote who` marks files touched by >=2 active sessions with ⚠ and the other session id'
+        - PreToolUse prints an advisory when editing a file another live session touched within the window (non-blocking by default)
+        - '`block_on_file_overlap: true` makes PreToolUse return exit code 2 with a recovery hint'
+        - The overlap check is a single indexed SELECT with zero writes — feat-156e0a1a zero-SQLITE_BUSY gate stays green
+      effort: M
+      risk: Med
+      tests: |
+        Unit: TestOverlapQuery — intersecting feature_files by recent last_seen
+        Hook: TestPreToolUseOverlapAdvisory — advisory + block-mode exit 2
+        Contention regression: feat-156e0a1a SQLITE_BUSY assertion remains zero
+      complexity: complex
+      approved: false
+      comment: ""
+      questions:
+        - id: q-window
+          text: How long is the overlap recency window?
+          answer: Default 15 minutes, configurable — aligned to the claim heartbeat/lease cadence so it tracks genuinely-live work and excludes stale ghosts.
+      decisions_notes: |
+        **Trigger:** PreToolUse on Edit/Write tool calls only.
+        **State:** derived read from feature_files; no new table, no write on
+        the hot path.
+        **Payload:** advisory text naming the conflicting session+file;
+        config-gated exit code 2 when blocking enabled.
+        **Track:** trk-cd61bbae.
+        **Rejected:** blocking-by-default (too disruptive for parallel
+        dogfooding); a dedicated file-lock table (write amplification on the
+        PreToolUse hot path violates the feat-156e0a1a zero-SQLITE_BUSY
+        contract).
+    - id: slice-3
+      num: 3
+      title: Tier 2 — Populate claims.write_scope.Paths from PostToolUse edits
+      what: |
+        On PostToolUse file edit, append the edited path to the owning claim's
+        write_scope.Paths. The models.WriteScope{Paths,Directories,Branch,
+        Worktree} struct and claims.write_scope JSON column already exist
+        (internal/models/claim.go:38-44) but are never populated — this is the
+        reserved socket. Dedupe + cap the list; piggyback the existing
+        PostToolUse claim-heartbeat UPDATE (no extra write). Surface scope in
+        `wipnote claim list` / `claim show`.
+      why: |
+        Track trk-97f85b3b (Passive Session Ingestion). Turns the indirect
+        session→feature→files chain into a first-class claimed-files concept,
+        enabling lease-based file ownership and a stronger overlap signal.
+      files:
+        - internal/hooks/posttooluse.go
+        - internal/db/claim_repo.go
+        - internal/models/claim.go
+        - cmd/wipnote/claim.go
+      deps:
+        - 1
+      done_when:
+        - PostToolUse file edit appends the path to the owning claim's write_scope.Paths (deduped, capped)
+        - '`wipnote claim list`/`show` displays the claimed file scope per claim'
+        - write_scope is cleared on claim release/expiry
+        - No write amplification beyond the existing PostToolUse heartbeat UPDATE (single UPDATE)
+      effort: M
+      risk: Med
+      tests: |
+        Unit: TestWriteScopePopulation — append/dedupe/cap
+        Unit: TestClaimListShowsScope
+        Contention: assert a single UPDATE per PostToolUse (no extra write)
+      complexity: complex
+      approved: false
+      comment: ""
+      questions:
+        - id: q-cap
+          text: What is the per-claim path cap?
+          answer: 200 paths/claim, FIFO-trim — covers realistic feature scope without unbounded JSON growth in the claims row.
+      decisions_notes: |
+        **Trigger:** PostToolUse on Edit/Write when an owning claim exists.
+        **State:** claims.write_scope JSON (existing column) — derived,
+        cleared on release/expiry.
+        **Payload:** deduped, FIFO-capped Paths[] on the claim.
+        **Track:** trk-97f85b3b.
+        **Rejected:** a separate file_claims table (write amplification
+        violates the feat-156e0a1a contention contract); populating in
+        PreToolUse (the write is not yet confirmed at PreToolUse time).
+    - id: slice-4
+      num: 4
+      title: Tier 3 — Honest liveness + claimless visibility + cross-harness release
+      what: |
+        (a) Derive 'live' in who/roster from claim-heartbeat recency, not
+        sessions.status, so stale 'active' rows are excluded. (b) Session-scoped
+        file ledger: attribute PostToolUse file touches even when
+        ctx.FeatureID=="" (the gate at internal/hooks/posttooluse.go:120
+        currently drops them), so claimless Codex/Gemini sessions are visible.
+        (c) Add SessionEnd (and Stop) hook handlers to the codex + gemini
+        targets in packages/plugin-core/manifest.json (today Claude-only,
+        manifest lines 68,76-77) so claims/sessions release on exit;
+        regenerate ports. Folds in open bug-6c3e8252 (9 stale active sessions).
+      why: |
+        Track trk-97f85b3b. The roster is only as honest as the session
+        lifecycle; cross-harness gaps make it lie — ghost Codex/Gemini
+        sessions and invisible claimless sessions defeat Tiers 0-2.
+      files:
+        - packages/plugin-core/manifest.json
+        - internal/hooks/posttooluse.go
+        - internal/hooks/sessionend.go
+        - internal/db/session_repo.go
+        - internal/db/claim_repo.go
+      deps:
+        - 1
+      done_when:
+        - '`wipnote who` filters sessions by heartbeat recency; stale ''active'' rows are excluded'
+        - Codex/Gemini SessionEnd releases claims and marks the session completed
+        - A claimless Codex/Gemini session's file touches are attributed and visible in `wipnote who`
+        - '`wipnote plugin build-ports` regenerates codex/gemini trees with the new SessionEnd/Stop events'
+        - 'bug-6c3e8252: no new stale status=active sessions accumulate after a Codex/Gemini run exits'
+      effort: L
+      risk: Med
+      tests: |
+        Unit: TestLivenessByHeartbeat
+        Unit: TestClaimlessSessionFileLedger
+        Integration: TestCodexSessionEndRelease
+        Port regen: manifest build-ports emits SessionEnd for codex+gemini
+        Repro: bug-6c3e8252 stale-active reproduction harness → 0 after fix
+      complexity: complex
+      approved: false
+      comment: ""
+      questions:
+        - id: q-stale
+          text: What heartbeat age marks a session as not-live?
+          answer: Greater than 2x the heartbeat interval since last heartbeat (derived from the lease/heartbeat cadence, ~2 min), tunable via config — short enough to drop ghosts, long enough to tolerate a slow tool call.
+      decisions_notes: |
+        **Trigger:** SessionEnd/Stop (now codex+gemini, not Claude-only) plus
+        PostToolUse on the claimless path.
+        **State:** sessions + claims (SQLite) plus a session-scoped file
+        attribution (feature_files with null/unset feature, or a session_files
+        ledger) — derived, rebuildable.
+        **Payload:** liveness boolean derived from heartbeat age; claim
+        release on cross-harness session end.
+        **Track:** trk-97f85b3b. Folds bug-6c3e8252.
+        **Rejected:** keeping the ctx.FeatureID!="" gate (claimless sessions
+        stay invisible — defeats the goal); trusting sessions.status for
+        liveness (unreliable for non-Claude — the root cause of bug-6c3e8252).
 questions: []

@@ -397,6 +397,38 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
   <a href="#design" class="nav-link active" data-spy="design" data-initial="D">Design</a>
   <a href="#slices" class="nav-link" data-spy="slices" data-initial="S">Slices</a>
   
+  <ul class="slice-nav-list" id="slice-nav-list">
+    
+    <li>
+      <a href="#slice-1" class="slice-nav-item" data-slice-nav="1">
+        <span class="slice-nav-dot" data-approval="pending" data-dot-for="1"></span>
+        <span>#1 Tier 0 — Surface session→files: wipnote who + session show + API + dashboard</span>
+      </a>
+    </li>
+    
+    <li>
+      <a href="#slice-2" class="slice-nav-item" data-slice-nav="2">
+        <span class="slice-nav-dot" data-approval="pending" data-dot-for="2"></span>
+        <span>#2 Tier 1 — Live file-overlap detection: who ⚠ flag + PreToolUse advisory</span>
+      </a>
+    </li>
+    
+    <li>
+      <a href="#slice-3" class="slice-nav-item" data-slice-nav="3">
+        <span class="slice-nav-dot" data-approval="pending" data-dot-for="3"></span>
+        <span>#3 Tier 2 — Populate claims.write_scope.Paths from PostToolUse edits</span>
+      </a>
+    </li>
+    
+    <li>
+      <a href="#slice-4" class="slice-nav-item" data-slice-nav="4">
+        <span class="slice-nav-dot" data-approval="pending" data-dot-for="4"></span>
+        <span>#4 Tier 3 — Honest liveness + claimless visibility + cross-harness release</span>
+      </a>
+    </li>
+    
+  </ul>
+  
   <a href="#questions" class="nav-link" data-spy="questions" data-initial="Q">Decisions</a>
   <a href="#critique" class="nav-link" data-spy="critique" data-initial="C">Critique</a>
   <a href="#feedback-summary" class="nav-link" data-spy="feedback-summary" data-initial="P">Progress</a>
@@ -404,15 +436,15 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
 </nav>
 <div class="plan-layout">
 <div class="plan-content">
-<article id="plan-c3bbb1ed" data-type="plan" data-plan-id="plan-c3bbb1ed" data-feature-id="trk-cd61bbae" data-status="draft" data-priority="medium">
+<article id="plan-c3bbb1ed" data-type="plan" data-plan-id="plan-c3bbb1ed" data-feature-id="" data-status="draft" data-priority="medium">
 
 <!-- Plan Header -->
 <header class="plan-header">
   <h1>Plan: Cross-session file visibility for concurrent CLI sessions</h1>
-  <p style="color:var(--text-dim)">Surface and reconcile which concurrent CLI sessions are editing which files in a shared wipnote project. Tiered: roster surfacing, live overlap detection, file-aware claims, cross-harness liveness.</p>
+  
   <div class="meta">
     <span class="badge badge-pending">Draft</span>
-    <span style="font-size:.75rem;color:var(--text-muted)">v2 · 0 slices · Created 2026-05-16</span>
+    <span style="font-size:.75rem;color:var(--text-muted)">v1 · 4 slices · Created 2026-05-16</span>
   </div>
 </header>
 <button id="themeToggle" style="position:fixed;top:16px;right:16px;z-index:100;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:6px 12px;color:var(--text);font-family:var(--mono);font-size:0.75rem;cursor:pointer;">
@@ -432,6 +464,10 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
 <section class="dep-graph" data-zone="dependency-graph">
   <h2>Dependency Graph</h2>
   <div id="graph-data" style="display:none">
+    <div data-node="1" data-name="Tier 0 — Surface session→files: wipnote who + session show + API + dashboard" data-status="pending" data-deps="" data-files="6"></div>
+    <div data-node="2" data-name="Tier 1 — Live file-overlap detection: who ⚠ flag + PreToolUse advisory" data-status="pending" data-deps="1" data-files="4"></div>
+    <div data-node="3" data-name="Tier 2 — Populate claims.write_scope.Paths from PostToolUse edits" data-status="pending" data-deps="1" data-files="4"></div>
+    <div data-node="4" data-name="Tier 3 — Honest liveness + claimless visibility + cross-harness release" data-status="pending" data-deps="1" data-files="5"></div>
     
     <!--PLAN_GRAPH_NODES-->
   </div>
@@ -444,17 +480,30 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
 <details id="design" class="section-card" open data-phase="design" data-status="pending">
   <summary><span>Design</span><span class="badge badge-pending" data-badge-for="design">Pending</span></summary>
   <div class="section-body">
-    <!--PLAN_DESIGN_CONTENT-->
-    <div class="sub-section">
-      <h4>Open Questions</h4>
-      <!--PLAN_QUESTIONS-->
-    </div>
+    <h4>Problem</h4>
+<div data-markdown>Concurrent CLI sessions (Claude/Codex/Gemini) edit overlapping files invisibly — users cannot see which files other active sessions are touching, causing attribution mix-ups and coordination failures in shared projects.</div>
+<h4>Goals</h4>
+<ol>
+<li data-markdown>Surface which concurrent sessions are editing which files (read-only roster)</li>
+<li data-markdown>Detect and warn on live file overlaps before edits are made</li>
+<li data-markdown>Build first-class file-ownership semantics via claims.write_scope</li>
+<li data-markdown>Establish honest session liveness and cross-harness lifecycle hooks</li>
+</ol>
+<h4>Constraints</h4>
+<ul>
+<li data-markdown>Zero write amplification on the PreToolUse/PostToolUse hot path (feat-156e0a1a SQLITE_BUSY gate must stay at zero)</li>
+<li data-markdown>Use only existing DB columns and tables; no new session_files or file_lock tables</li>
+<li data-markdown>Roster and overlap detection must be pull-queries (explicit CLI/API calls), not a live-watch daemon</li>
+<li data-markdown>Codex/Gemini SessionEnd hooks are required; cross-harness parity with Claude</li>
+</ul>
+
     <div class="approval-row">
       <label><input type="checkbox" data-section="design" data-action="approve"> Approve design</label>
       <textarea data-section="design" data-comment-for="design" placeholder="Comments on design decisions..."></textarea>
     </div>
   </div>
 </details>
+
 
 <!-- Structure Outline (hidden when empty) -->
 
@@ -463,23 +512,700 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
 <details id="slices" class="section-card" open data-phase="slices" data-status="pending">
   <summary><span>Slices</span><span class="badge badge-pending" data-badge-for="slices">Pending</span></summary>
   <div class="section-body">
+    <details class="slice-card" id="slice-1" data-slice="1" data-slice-name="slice-1" data-status="pending" data-approval="pending">
+  <summary class="slice-summary" aria-label="Slice 1: Tier 0 — Surface session→files: wipnote who &#43; session show &#43; API &#43; dashboard">
+    <span class="slice-num">#1</span>
+    <span class="slice-title-col">
+      <span class="slice-name">Tier 0 — Surface session→files: wipnote who &#43; session show &#43; API &#43; dashboard</span>
+      <span class="slice-preview">Add read-only surfacing of data wipnote already captures.</span>
+      <span class="slice-meta-row">
+        <span class="slice-summary-badges">
+          <span class="badge badge-revision badge-sm">M</span>
+          <span class="badge badge-pending badge-sm">Low</span>
+          <span class="badge badge-revision badge-sm badge-complexity" title="Complexity: complex">Complex</span>
+          
+          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-1">Pending</span>
+          
+          <span class="badge badge-sm badge-questions" title="1 open question(s)">1 Q</span>
+        </span>
+        <span class="slice-actions" onclick="event.stopPropagation()">
+          <span class="approval-segmented" role="group" aria-label="Approval action">
+            <label class="seg-btn seg-approve" title="Approve">
+              <input type="radio" name="slice-1-approval" value="approved" data-section="slice-1" data-action="approve" aria-label="Approve slice 1">
+              &#10003;
+            </label>
+            <label class="seg-btn seg-changes" title="Request changes">
+              <input type="radio" name="slice-1-approval" value="changes_requested" data-section="slice-1" data-action="approve" aria-label="Request changes for slice 1">
+              &#8635;
+            </label>
+            <label class="seg-btn seg-reject" title="Reject">
+              <input type="radio" name="slice-1-approval" value="rejected" data-section="slice-1" data-action="approve" aria-label="Reject slice 1">
+              &#10005;
+            </label>
+          </span>
+        </span>
+      </span>
+    </span>
+    <span class="slice-chevron" aria-hidden="true"></span>
+  </summary>
+
+  <div class="slice-body">
     
+      
+      <div class="slice-field slice-what">
+        <div class="slice-field-label">What</div>
+        <div class="slice-field-value">
+          
+          <input type="checkbox" id="slice-1-what-reveal" class="reveal-toggle">
+          <div class="markdown-block reveal-content serif-prose"><p>Add read-only surfacing of data wipnote already captures. New <code>wipnote who</code> command lists every active session in the current project (joined
+sessions + claims + feature_files) with agent, model, active work item,
+claim lease remaining, and the files that session has touched
+(feature_files.session_id already exists — internal/db/schema.go:301).
+Extend <code>wipnote session show &lt;id&gt;</code> with a Files section. Add a <code>files[]</code>
+array per session to GET /api/sessions (cmd/wipnote/api.go:97). Add an
+&#34;Active sessions &amp; files&#34; dashboard panel. No new tables, no writes.</p>
+</div>
+          <label for="slice-1-what-reveal" class="reveal-label">Show full description</label>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field slice-why">
+        <div class="slice-field-label">Why</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>Track trk-cd61bbae (Local cockpit — parallel sessions). Concurrent
+Claude/Codex/Gemini sessions edit overlapping files invisibly — this
+session a concurrent Codex session committed feat-b2d1dc2e WIP next to
+an unrelated bug fix, unseen, causing an attribution mix-up. Forward
+sibling of closed bug-e8b8900b. Highest ROI: pure surfacing of
+already-captured data, zero lifecycle/contention risk.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Files</div>
+        <div class="slice-field-value"><code>cmd/wipnote/who.go, cmd/wipnote/session.go, cmd/wipnote/api.go, internal/db/session_repo.go, internal/db/feature_files_repo.go, cmd/wipnote/static</code></div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Done when</div>
+        <ul class="slice-done-list"><li>`wipnote who` lists each active session in the current project with agent, model, active work item, claim lease remaining, and touched files</li><li>`wipnote session show &lt;id&gt;` includes a Files section (path, operation, last_seen)</li><li>GET /api/sessions returns a `files` array per session</li><li>Dashboard renders an Active sessions &amp; files panel</li></ul>
+      </div>
+      
+    
+
+    
+    <div class="slice-field slice-decisions-notes">
+      <div class="slice-field-label">Decisions</div>
+      <div class="slice-field-value">
+        
+        <input type="checkbox" id="slice-1-decisions-reveal" class="reveal-toggle">
+        <div class="markdown-block reveal-content serif-prose"><p><strong>Trigger:</strong> explicit CLI invocation (<code>wipnote who</code>, <code>session show</code>) and
+GET /api/sessions request — no hook, off the hot path.
+<strong>State:</strong> derived read only; joins existing sessions + claims +
+feature_files. No new table; nothing persisted.
+<strong>Payload:</strong> per-session roster row + files[] (path, operation,
+last_seen); /api/sessions gains files[].
+<strong>Track:</strong> trk-cd61bbae.
+<strong>Rejected:</strong> new session_files table (data already in feature_files —
+DRY); a live-watch daemon (out of scope for Tier 0; a pull query
+suffices and adds no process).</p>
+</div>
+        <label for="slice-1-decisions-reveal" class="reveal-label">Show full decisions</label>
+        
+      </div>
+    </div>
+    
+
+    
+    <div class="slice-field slice-tests-field">
+      <div class="slice-field-label">Test Strategy</div>
+      <div class="slice-field-value">
+        
+        
+        <div class="test-strategy">
+          
+          <div class="test-group" data-kind="unit">
+            <span class="test-chip">UNIT &middot; 1</span>
+            <ul><li>TestSessionFiles_Query — SELECT file_path FROM feature_files WHERE session_id=?</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="integration">
+            <span class="test-chip">INTEGRATION &middot; 1</span>
+            <ul><li>TestWhoCommand — spawn binary, seed two sessions, assert roster &#43; files</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="api">
+            <span class="test-chip">API &middot; 1</span>
+            <ul><li>/api/sessions response includes files[]</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="regression">
+            <span class="test-chip">REGRESSION &middot; 1</span>
+            <ul><li>existing cmd/wipnote/session_test.go must still pass</li></ul>
+          </div>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+
+    
+
+    
+    <div class="slice-field slice-questions">
+      <div class="slice-field-label">Open Questions</div>
+      <div class="slice-field-value">
+        
+        <div class="question-block slice-question-block">
+          <p>Scope `wipnote who` to the current project only, or all projects?</p>
+          
+          
+          <textarea
+            data-section="slice-1-question-q-scope"
+            data-comment-for="slice-1-question-q-scope"
+            placeholder="Answer question q-scope...">Current project only — the SQLite DB is per project-path-hash; cross-project rollup is out of scope and would need a separate aggregation path.</textarea>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+
+    <div class="slice-deps">Dependencies: none</div>
+
+    <details class="comment-collapse">
+      <summary class="comment-collapse-trigger">+ Leave a comment</summary>
+      <div class="comment-collapse-body">
+        <textarea data-section="slice-1" data-comment-for="slice-1" placeholder="Comments on slice 1..."></textarea>
+      </div>
+    </details>
+  </div>
+</details>
+<details class="slice-card" id="slice-2" data-slice="2" data-slice-name="slice-2" data-status="pending" data-approval="pending">
+  <summary class="slice-summary" aria-label="Slice 2: Tier 1 — Live file-overlap detection: who ⚠ flag &#43; PreToolUse advisory">
+    <span class="slice-num">#2</span>
+    <span class="slice-title-col">
+      <span class="slice-name">Tier 1 — Live file-overlap detection: who ⚠ flag &#43; PreToolUse advisory</span>
+      <span class="slice-preview">Compute intersection of recently-touched file sets (featurefiles,</span>
+      <span class="slice-meta-row">
+        <span class="slice-summary-badges">
+          <span class="badge badge-revision badge-sm">M</span>
+          <span class="badge badge-revision badge-sm">Med</span>
+          <span class="badge badge-revision badge-sm badge-complexity" title="Complexity: complex">Complex</span>
+          
+          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-2">Pending</span>
+          
+          <span class="badge badge-sm badge-questions" title="1 open question(s)">1 Q</span>
+        </span>
+        <span class="slice-actions" onclick="event.stopPropagation()">
+          <span class="approval-segmented" role="group" aria-label="Approval action">
+            <label class="seg-btn seg-approve" title="Approve">
+              <input type="radio" name="slice-2-approval" value="approved" data-section="slice-2" data-action="approve" aria-label="Approve slice 2">
+              &#10003;
+            </label>
+            <label class="seg-btn seg-changes" title="Request changes">
+              <input type="radio" name="slice-2-approval" value="changes_requested" data-section="slice-2" data-action="approve" aria-label="Request changes for slice 2">
+              &#8635;
+            </label>
+            <label class="seg-btn seg-reject" title="Reject">
+              <input type="radio" name="slice-2-approval" value="rejected" data-section="slice-2" data-action="approve" aria-label="Reject slice 2">
+              &#10005;
+            </label>
+          </span>
+        </span>
+      </span>
+    </span>
+    <span class="slice-chevron" aria-hidden="true"></span>
+  </summary>
+
+  <div class="slice-body">
+    
+      
+      <div class="slice-field slice-what">
+        <div class="slice-field-label">What</div>
+        <div class="slice-field-value">
+          
+          <input type="checkbox" id="slice-2-what-reveal" class="reveal-toggle">
+          <div class="markdown-block reveal-content serif-prose"><p>Compute intersection of recently-touched file sets (feature_files,
+last_seen within a window) across active sessions. <code>wipnote who</code> marks
+files touched by &gt;=2 active sessions with ⚠ and the other session id.
+Add a PreToolUse check: before Edit/Write, a single indexed SELECT for
+the same path touched by another live session within the window emits a
+non-blocking advisory into hook output. Config: <code>warn_on_file_overlap</code>
+(default true, advisory) and <code>block_on_file_overlap</code> (default false →
+exit code 2), mirroring the existing
+<code>block_task_completion_on_quality_failure</code> pattern.</p>
+</div>
+          <label for="slice-2-what-reveal" class="reveal-label">Show full description</label>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field slice-why">
+        <div class="slice-field-label">Why</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>Track trk-cd61bbae. Detect collisions in real time, before the edit,
+not just in a post-hoc roster — the failure mode that caused the
+feat-b2d1dc2e mix-up.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Files</div>
+        <div class="slice-field-value"><code>cmd/wipnote/who.go, internal/hooks/pretooluse.go, internal/db/feature_files_repo.go, internal/config</code></div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Done when</div>
+        <ul class="slice-done-list"><li>`wipnote who` marks files touched by &gt;=2 active sessions with ⚠ and the other session id</li><li>PreToolUse prints an advisory when editing a file another live session touched within the window (non-blocking by default)</li><li>`block_on_file_overlap: true` makes PreToolUse return exit code 2 with a recovery hint</li><li>The overlap check is a single indexed SELECT with zero writes — feat-156e0a1a zero-SQLITE_BUSY gate stays green</li></ul>
+      </div>
+      
+    
+
+    
+    <div class="slice-field slice-decisions-notes">
+      <div class="slice-field-label">Decisions</div>
+      <div class="slice-field-value">
+        
+        <input type="checkbox" id="slice-2-decisions-reveal" class="reveal-toggle">
+        <div class="markdown-block reveal-content serif-prose"><p><strong>Trigger:</strong> PreToolUse on Edit/Write tool calls only.
+<strong>State:</strong> derived read from feature_files; no new table, no write on
+the hot path.
+<strong>Payload:</strong> advisory text naming the conflicting session+file;
+config-gated exit code 2 when blocking enabled.
+<strong>Track:</strong> trk-cd61bbae.
+<strong>Rejected:</strong> blocking-by-default (too disruptive for parallel
+dogfooding); a dedicated file-lock table (write amplification on the
+PreToolUse hot path violates the feat-156e0a1a zero-SQLITE_BUSY
+contract).</p>
+</div>
+        <label for="slice-2-decisions-reveal" class="reveal-label">Show full decisions</label>
+        
+      </div>
+    </div>
+    
+
+    
+    <div class="slice-field slice-tests-field">
+      <div class="slice-field-label">Test Strategy</div>
+      <div class="slice-field-value">
+        
+        
+        <div class="test-strategy">
+          
+          <div class="test-group" data-kind="unit">
+            <span class="test-chip">UNIT &middot; 1</span>
+            <ul><li>TestOverlapQuery — intersecting feature_files by recent last_seen</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="hook">
+            <span class="test-chip">HOOK &middot; 1</span>
+            <ul><li>TestPreToolUseOverlapAdvisory — advisory &#43; block-mode exit 2</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="contention regression">
+            <span class="test-chip">CONTENTION REGRESSION &middot; 1</span>
+            <ul><li>feat-156e0a1a SQLITE_BUSY assertion remains zero</li></ul>
+          </div>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+
+    
+
+    
+    <div class="slice-field slice-questions">
+      <div class="slice-field-label">Open Questions</div>
+      <div class="slice-field-value">
+        
+        <div class="question-block slice-question-block">
+          <p>How long is the overlap recency window?</p>
+          
+          
+          <textarea
+            data-section="slice-2-question-q-window"
+            data-comment-for="slice-2-question-q-window"
+            placeholder="Answer question q-window...">Default 15 minutes, configurable — aligned to the claim heartbeat/lease cadence so it tracks genuinely-live work and excludes stale ghosts.</textarea>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+
+    <div class="slice-deps">Dependencies: slices 1</div>
+
+    <details class="comment-collapse">
+      <summary class="comment-collapse-trigger">+ Leave a comment</summary>
+      <div class="comment-collapse-body">
+        <textarea data-section="slice-2" data-comment-for="slice-2" placeholder="Comments on slice 2..."></textarea>
+      </div>
+    </details>
+  </div>
+</details>
+<details class="slice-card" id="slice-3" data-slice="3" data-slice-name="slice-3" data-status="pending" data-approval="pending">
+  <summary class="slice-summary" aria-label="Slice 3: Tier 2 — Populate claims.write_scope.Paths from PostToolUse edits">
+    <span class="slice-num">#3</span>
+    <span class="slice-title-col">
+      <span class="slice-name">Tier 2 — Populate claims.write_scope.Paths from PostToolUse edits</span>
+      <span class="slice-preview">On PostToolUse file edit, append the edited path to the owning claim&#39;s</span>
+      <span class="slice-meta-row">
+        <span class="slice-summary-badges">
+          <span class="badge badge-revision badge-sm">M</span>
+          <span class="badge badge-revision badge-sm">Med</span>
+          <span class="badge badge-revision badge-sm badge-complexity" title="Complexity: complex">Complex</span>
+          
+          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-3">Pending</span>
+          
+          <span class="badge badge-sm badge-questions" title="1 open question(s)">1 Q</span>
+        </span>
+        <span class="slice-actions" onclick="event.stopPropagation()">
+          <span class="approval-segmented" role="group" aria-label="Approval action">
+            <label class="seg-btn seg-approve" title="Approve">
+              <input type="radio" name="slice-3-approval" value="approved" data-section="slice-3" data-action="approve" aria-label="Approve slice 3">
+              &#10003;
+            </label>
+            <label class="seg-btn seg-changes" title="Request changes">
+              <input type="radio" name="slice-3-approval" value="changes_requested" data-section="slice-3" data-action="approve" aria-label="Request changes for slice 3">
+              &#8635;
+            </label>
+            <label class="seg-btn seg-reject" title="Reject">
+              <input type="radio" name="slice-3-approval" value="rejected" data-section="slice-3" data-action="approve" aria-label="Reject slice 3">
+              &#10005;
+            </label>
+          </span>
+        </span>
+      </span>
+    </span>
+    <span class="slice-chevron" aria-hidden="true"></span>
+  </summary>
+
+  <div class="slice-body">
+    
+      
+      <div class="slice-field slice-what">
+        <div class="slice-field-label">What</div>
+        <div class="slice-field-value">
+          
+          <input type="checkbox" id="slice-3-what-reveal" class="reveal-toggle">
+          <div class="markdown-block reveal-content serif-prose"><p>On PostToolUse file edit, append the edited path to the owning claim&#39;s
+write_scope.Paths. The models.WriteScope{Paths,Directories,Branch,
+Worktree} struct and claims.write_scope JSON column already exist
+(internal/models/claim.go:38-44) but are never populated — this is the
+reserved socket. Dedupe + cap the list; piggyback the existing
+PostToolUse claim-heartbeat UPDATE (no extra write). Surface scope in
+<code>wipnote claim list</code> / <code>claim show</code>.</p>
+</div>
+          <label for="slice-3-what-reveal" class="reveal-label">Show full description</label>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field slice-why">
+        <div class="slice-field-label">Why</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>Track trk-97f85b3b (Passive Session Ingestion). Turns the indirect
+session→feature→files chain into a first-class claimed-files concept,
+enabling lease-based file ownership and a stronger overlap signal.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Files</div>
+        <div class="slice-field-value"><code>internal/hooks/posttooluse.go, internal/db/claim_repo.go, internal/models/claim.go, cmd/wipnote/claim.go</code></div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Done when</div>
+        <ul class="slice-done-list"><li>PostToolUse file edit appends the path to the owning claim&#39;s write_scope.Paths (deduped, capped)</li><li>`wipnote claim list`/`show` displays the claimed file scope per claim</li><li>write_scope is cleared on claim release/expiry</li><li>No write amplification beyond the existing PostToolUse heartbeat UPDATE (single UPDATE)</li></ul>
+      </div>
+      
+    
+
+    
+    <div class="slice-field slice-decisions-notes">
+      <div class="slice-field-label">Decisions</div>
+      <div class="slice-field-value">
+        
+        <input type="checkbox" id="slice-3-decisions-reveal" class="reveal-toggle">
+        <div class="markdown-block reveal-content serif-prose"><p><strong>Trigger:</strong> PostToolUse on Edit/Write when an owning claim exists.
+<strong>State:</strong> claims.write_scope JSON (existing column) — derived,
+cleared on release/expiry.
+<strong>Payload:</strong> deduped, FIFO-capped Paths[] on the claim.
+<strong>Track:</strong> trk-97f85b3b.
+<strong>Rejected:</strong> a separate file_claims table (write amplification
+violates the feat-156e0a1a contention contract); populating in
+PreToolUse (the write is not yet confirmed at PreToolUse time).</p>
+</div>
+        <label for="slice-3-decisions-reveal" class="reveal-label">Show full decisions</label>
+        
+      </div>
+    </div>
+    
+
+    
+    <div class="slice-field slice-tests-field">
+      <div class="slice-field-label">Test Strategy</div>
+      <div class="slice-field-value">
+        
+        
+        <div class="test-strategy">
+          
+          <div class="test-group" data-kind="unit">
+            <span class="test-chip">UNIT &middot; 2</span>
+            <ul><li>TestWriteScopePopulation — append/dedupe/cap</li><li>TestClaimListShowsScope</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="contention">
+            <span class="test-chip">CONTENTION &middot; 1</span>
+            <ul><li>assert a single UPDATE per PostToolUse (no extra write)</li></ul>
+          </div>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+
+    
+
+    
+    <div class="slice-field slice-questions">
+      <div class="slice-field-label">Open Questions</div>
+      <div class="slice-field-value">
+        
+        <div class="question-block slice-question-block">
+          <p>What is the per-claim path cap?</p>
+          
+          
+          <textarea
+            data-section="slice-3-question-q-cap"
+            data-comment-for="slice-3-question-q-cap"
+            placeholder="Answer question q-cap...">200 paths/claim, FIFO-trim — covers realistic feature scope without unbounded JSON growth in the claims row.</textarea>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+
+    <div class="slice-deps">Dependencies: slices 1</div>
+
+    <details class="comment-collapse">
+      <summary class="comment-collapse-trigger">+ Leave a comment</summary>
+      <div class="comment-collapse-body">
+        <textarea data-section="slice-3" data-comment-for="slice-3" placeholder="Comments on slice 3..."></textarea>
+      </div>
+    </details>
+  </div>
+</details>
+<details class="slice-card" id="slice-4" data-slice="4" data-slice-name="slice-4" data-status="pending" data-approval="pending">
+  <summary class="slice-summary" aria-label="Slice 4: Tier 3 — Honest liveness &#43; claimless visibility &#43; cross-harness release">
+    <span class="slice-num">#4</span>
+    <span class="slice-title-col">
+      <span class="slice-name">Tier 3 — Honest liveness &#43; claimless visibility &#43; cross-harness release</span>
+      <span class="slice-preview">(a) Derive &#39;live&#39; in who/roster from claim-heartbeat recency, not</span>
+      <span class="slice-meta-row">
+        <span class="slice-summary-badges">
+          <span class="badge badge-blocked badge-sm">L</span>
+          <span class="badge badge-revision badge-sm">Med</span>
+          <span class="badge badge-revision badge-sm badge-complexity" title="Complexity: complex">Complex</span>
+          
+          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-4">Pending</span>
+          
+          <span class="badge badge-sm badge-questions" title="1 open question(s)">1 Q</span>
+        </span>
+        <span class="slice-actions" onclick="event.stopPropagation()">
+          <span class="approval-segmented" role="group" aria-label="Approval action">
+            <label class="seg-btn seg-approve" title="Approve">
+              <input type="radio" name="slice-4-approval" value="approved" data-section="slice-4" data-action="approve" aria-label="Approve slice 4">
+              &#10003;
+            </label>
+            <label class="seg-btn seg-changes" title="Request changes">
+              <input type="radio" name="slice-4-approval" value="changes_requested" data-section="slice-4" data-action="approve" aria-label="Request changes for slice 4">
+              &#8635;
+            </label>
+            <label class="seg-btn seg-reject" title="Reject">
+              <input type="radio" name="slice-4-approval" value="rejected" data-section="slice-4" data-action="approve" aria-label="Reject slice 4">
+              &#10005;
+            </label>
+          </span>
+        </span>
+      </span>
+    </span>
+    <span class="slice-chevron" aria-hidden="true"></span>
+  </summary>
+
+  <div class="slice-body">
+    
+      
+      <div class="slice-field slice-what">
+        <div class="slice-field-label">What</div>
+        <div class="slice-field-value">
+          
+          <input type="checkbox" id="slice-4-what-reveal" class="reveal-toggle">
+          <div class="markdown-block reveal-content serif-prose"><p>(a) Derive &#39;live&#39; in who/roster from claim-heartbeat recency, not
+sessions.status, so stale &#39;active&#39; rows are excluded. (b) Session-scoped
+file ledger: attribute PostToolUse file touches even when
+ctx.FeatureID==&#34;&#34; (the gate at internal/hooks/posttooluse.go:120
+currently drops them), so claimless Codex/Gemini sessions are visible.
+(c) Add SessionEnd (and Stop) hook handlers to the codex + gemini
+targets in packages/plugin-core/manifest.json (today Claude-only,
+manifest lines 68,76-77) so claims/sessions release on exit;
+regenerate ports. Folds in open bug-6c3e8252 (9 stale active sessions).</p>
+</div>
+          <label for="slice-4-what-reveal" class="reveal-label">Show full description</label>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field slice-why">
+        <div class="slice-field-label">Why</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>Track trk-97f85b3b. The roster is only as honest as the session
+lifecycle; cross-harness gaps make it lie — ghost Codex/Gemini
+sessions and invisible claimless sessions defeat Tiers 0-2.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Files</div>
+        <div class="slice-field-value"><code>packages/plugin-core/manifest.json, internal/hooks/posttooluse.go, internal/hooks/sessionend.go, internal/db/session_repo.go, internal/db/claim_repo.go</code></div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Done when</div>
+        <ul class="slice-done-list"><li>`wipnote who` filters sessions by heartbeat recency; stale &#39;active&#39; rows are excluded</li><li>Codex/Gemini SessionEnd releases claims and marks the session completed</li><li>A claimless Codex/Gemini session&#39;s file touches are attributed and visible in `wipnote who`</li><li>`wipnote plugin build-ports` regenerates codex/gemini trees with the new SessionEnd/Stop events</li><li>bug-6c3e8252: no new stale status=active sessions accumulate after a Codex/Gemini run exits</li></ul>
+      </div>
+      
+    
+
+    
+    <div class="slice-field slice-decisions-notes">
+      <div class="slice-field-label">Decisions</div>
+      <div class="slice-field-value">
+        
+        <input type="checkbox" id="slice-4-decisions-reveal" class="reveal-toggle">
+        <div class="markdown-block reveal-content serif-prose"><p><strong>Trigger:</strong> SessionEnd/Stop (now codex+gemini, not Claude-only) plus
+PostToolUse on the claimless path.
+<strong>State:</strong> sessions + claims (SQLite) plus a session-scoped file
+attribution (feature_files with null/unset feature, or a session_files
+ledger) — derived, rebuildable.
+<strong>Payload:</strong> liveness boolean derived from heartbeat age; claim
+release on cross-harness session end.
+<strong>Track:</strong> trk-97f85b3b. Folds bug-6c3e8252.
+<strong>Rejected:</strong> keeping the ctx.FeatureID!=&#34;&#34; gate (claimless sessions
+stay invisible — defeats the goal); trusting sessions.status for
+liveness (unreliable for non-Claude — the root cause of bug-6c3e8252).</p>
+</div>
+        <label for="slice-4-decisions-reveal" class="reveal-label">Show full decisions</label>
+        
+      </div>
+    </div>
+    
+
+    
+    <div class="slice-field slice-tests-field">
+      <div class="slice-field-label">Test Strategy</div>
+      <div class="slice-field-value">
+        
+        
+        <div class="test-strategy">
+          
+          <div class="test-group" data-kind="unit">
+            <span class="test-chip">UNIT &middot; 2</span>
+            <ul><li>TestLivenessByHeartbeat</li><li>TestClaimlessSessionFileLedger</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="integration">
+            <span class="test-chip">INTEGRATION &middot; 1</span>
+            <ul><li>TestCodexSessionEndRelease</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="port regen">
+            <span class="test-chip">PORT REGEN &middot; 1</span>
+            <ul><li>manifest build-ports emits SessionEnd for codex&#43;gemini</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="repro">
+            <span class="test-chip">REPRO &middot; 1</span>
+            <ul><li>bug-6c3e8252 stale-active reproduction harness → 0 after fix</li></ul>
+          </div>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+
+    
+
+    
+    <div class="slice-field slice-questions">
+      <div class="slice-field-label">Open Questions</div>
+      <div class="slice-field-value">
+        
+        <div class="question-block slice-question-block">
+          <p>What heartbeat age marks a session as not-live?</p>
+          
+          
+          <textarea
+            data-section="slice-4-question-q-stale"
+            data-comment-for="slice-4-question-q-stale"
+            placeholder="Answer question q-stale...">Greater than 2x the heartbeat interval since last heartbeat (derived from the lease/heartbeat cadence, ~2 min), tunable via config — short enough to drop ghosts, long enough to tolerate a slow tool call.</textarea>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+
+    <div class="slice-deps">Dependencies: slices 1</div>
+
+    <details class="comment-collapse">
+      <summary class="comment-collapse-trigger">+ Leave a comment</summary>
+      <div class="comment-collapse-body">
+        <textarea data-section="slice-4" data-comment-for="slice-4" placeholder="Comments on slice 4..."></textarea>
+      </div>
+    </details>
+  </div>
+</details>
+
     <!--PLAN_SLICE_CARDS-->
   </div>
 </details>
 
 <!-- Design Decisions (hidden for v2 plans — slice cards carry their own questions) -->
-<details id="questions" class="section-card" data-phase="questions" data-status="pending">
-  <summary><span>Design Decisions</span><span class="badge badge-pending" data-badge-for="questions">Pending</span></summary>
-  <div class="section-body">
-    <table class="q-table">
-      <thead><tr><th>Question</th><th>Selected</th><th>Status</th></tr></thead>
-      <tbody id="questionsRecap">
-        <!--PLAN_QUESTIONS_RECAP-->
-      </tbody>
-    </table>
-  </div>
-</details>
+
 
 
 
@@ -490,8 +1216,8 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
   <h2>Feedback Summary</h2>
   <div class="progress-stats">
     <div class="progress-stat"><strong id="approvedCount">0</strong> approved</div>
-    <div class="progress-stat"><strong id="totalSections">1</strong> sections</div>
-    <div class="progress-stat"><strong id="pendingCount">1</strong> pending</div>
+    <div class="progress-stat"><strong id="totalSections">5</strong> sections</div>
+    <div class="progress-stat"><strong id="pendingCount">5</strong> pending</div>
   </div>
   <div class="progress-bar-track"><div class="progress-bar-fill" id="progressFill" style="width:0%"></div></div>
   <div class="comments-summary">
@@ -571,7 +1297,7 @@ var planId=(function(){var a=document.querySelector('article[id]');return a?a.id
 
 (function(){
   'use strict';
-  var SECTIONS=/*PLAN_SECTIONS_JSON*/["design"]/*END_PLAN_SECTIONS_JSON*/;
+  var SECTIONS=/*PLAN_SECTIONS_JSON*/["design","slice-1","slice-2","slice-3","slice-4"]/*END_PLAN_SECTIONS_JSON*/;
 
   function setBadge(el,ok){
     el.className='badge badge-'+(ok?'approved':'pending');
