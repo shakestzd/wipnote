@@ -127,6 +127,149 @@ func commitWipnoteArtifact(wipnoteDir, typeName, id, action string) error {
 	return nil
 }
 
+// commitWipnoteArtifactStrict is the fatal-on-failure variant of
+// commitWipnoteArtifact, used ONLY from the complete path so that a failed
+// artifact commit can trigger a compensating re-open instead of leaving the
+// item silently "done" with no durable record.
+//
+// It mirrors commitWipnoteArtifact's staging/commit logic but RETURNS an error
+// when `git add` or `git commit` fails for a real reason (hook rejection,
+// locked index, permission denied). The genuinely benign cases —
+// non-git project, test-tmp path, or "nothing to commit" because the file is
+// already committed and unchanged — are NOT failures: they return (false, nil)
+// where the bool reports whether a new commit was actually created.
+//
+// The committed bool lets the caller distinguish a legitimate idempotent no-op
+// (HEAD must NOT have advanced) from an expected commit (HEAD MUST advance),
+// so the post-commit invariants do not false-fail the no-op path.
+func commitWipnoteArtifactStrict(wipnoteDir, typeName, id, action string) (committed bool, err error) {
+	repoRoot := filepath.Dir(wipnoteDir)
+
+	absWipnote, aerr := filepath.Abs(wipnoteDir)
+	if aerr != nil {
+		absWipnote = wipnoteDir
+	}
+	if isTestTmpPath(absWipnote) {
+		if os.Getenv("WIPNOTE_DEBUG") == "1" {
+			fmt.Fprintf(stderr, "autocommit skipped: path looks like a test temp dir: %s\n", absWipnote)
+		}
+		return false, nil
+	}
+
+	if !isGitRepo(repoRoot) {
+		fmt.Fprintf(stderr, "autocommit skipped: %s is not inside a git repository\n", repoRoot)
+		return false, nil
+	}
+
+	subDir := typeName + "s"
+	relPath := filepath.Join(".wipnote", subDir, id+".html")
+	absPath := filepath.Join(wipnoteDir, subDir, id+".html")
+
+	// Stage the file. Use an explicit path to avoid sweeping unrelated changes.
+	addOut, err := exec.Command("git", "-C", repoRoot, "add", "--", absPath).CombinedOutput()
+	if err != nil {
+		return false, fmt.Errorf("strict autocommit: git add %s: %s: %w", relPath, strings.TrimSpace(string(addOut)), err)
+	}
+
+	// Nothing staged for this file → legitimate idempotent no-op, not a failure.
+	if err := exec.Command("git", "-C", repoRoot, "diff", "--cached", "--quiet", "--", absPath).Run(); err == nil {
+		return false, nil
+	}
+
+	if action == "" {
+		action = "update"
+	}
+	msg := "wipnote: " + action + " " + id
+	commitOut, err := exec.Command(
+		"git", "-C", repoRoot, "commit", "-m", msg, "--", absPath,
+	).CombinedOutput()
+	if err != nil {
+		outStr := string(commitOut)
+		if strings.Contains(outStr, "nothing to commit") || strings.Contains(outStr, "no changes added") {
+			return false, nil
+		}
+		return false, fmt.Errorf("strict autocommit: git commit failed for %s: %s: %w",
+			id, strings.TrimSpace(outStr), err)
+	}
+
+	return true, nil
+}
+
+// strictCommitFn is the injection seam for the strict artifact commit used by
+// the transactional complete path. Tests override it to force a failure
+// without needing a real read-only .git. Production code never reassigns it.
+var strictCommitFn = commitWipnoteArtifactStrict
+
+// artifactHeadCommit returns the SHA of the most recent commit that touched the
+// work-item artifact at absPath, or "" when the file has no commit history yet
+// (or git errors — treated as "no history" so a first-ever commit still reads
+// as an advance). It anchors to repoRoot so it works from inside a worktree.
+func artifactHeadCommit(repoRoot, absPath string) string {
+	out, err := exec.Command(
+		"git", "-C", repoRoot, "log", "-1", "--format=%H", "--", absPath,
+	).CombinedOutput()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(out))
+}
+
+// artifactPathDirty reports whether the work-item artifact at absPath has any
+// unstaged or uncommitted changes (i.e. `git status --porcelain` for that
+// single path is non-empty). Used as post-commit invariant (a): after a
+// successful strict commit the item's own artifact must be clean.
+func artifactPathDirty(repoRoot, absPath string) bool {
+	out, err := exec.Command(
+		"git", "-C", repoRoot, "status", "--porcelain", "--", absPath,
+	).CombinedOutput()
+	if err != nil {
+		// If we cannot determine cleanliness, treat as dirty so the
+		// transactional path errs toward the compensating re-open.
+		return true
+	}
+	return strings.TrimSpace(string(out)) != ""
+}
+
+// commitArtifactTransactional runs the strict artifact commit for the complete
+// path and asserts the two post-commit invariants:
+//
+//	(a) the item's own artifact path is clean (no unstaged/uncommitted file)
+//	(b) the artifact's HEAD commit advanced past preHead — but ONLY when a
+//	    commit was actually expected (something was staged). A legitimate
+//	    idempotent no-op (file already committed and unchanged) leaves HEAD
+//	    unmoved and is NOT a failure.
+//
+// On any failure it returns a non-nil error; the caller is responsible for the
+// compensating re-open. preHead is the artifact's HEAD SHA captured BEFORE
+// col.Complete flushed the canonical HTML to disk.
+func commitArtifactTransactional(wipnoteDir, typeName, id, preHead string) error {
+	committed, err := strictCommitFn(wipnoteDir, typeName, id, "complete")
+	if err != nil {
+		return err
+	}
+
+	repoRoot := filepath.Dir(wipnoteDir)
+	if !isGitRepo(repoRoot) {
+		// Non-git project: the artifact lives on disk only; there is no
+		// commit to assert. Completion proceeds (mirrors the non-fatal
+		// contract's non-git skip — not a transactional failure).
+		return nil
+	}
+	absPath := filepath.Join(wipnoteDir, typeName+"s", id+".html")
+
+	if artifactPathDirty(repoRoot, absPath) {
+		return fmt.Errorf("post-commit invariant (a) failed: %s still has uncommitted changes after strict commit", filepath.Join(".wipnote", typeName+"s", id+".html"))
+	}
+
+	if committed {
+		postHead := artifactHeadCommit(repoRoot, absPath)
+		if postHead == "" || postHead == preHead {
+			return fmt.Errorf("post-commit invariant (b) failed: artifact HEAD did not advance for %s (pre=%q post=%q)", id, preHead, postHead)
+		}
+	}
+	return nil
+}
+
 // checkUncommittedSourceCompleteGate refuses completion when tracked files
 // outside .wipnote/ have uncommitted changes. Completion auto-commits only the
 // work-item artifact, so allowing dirty source by default makes the "done"

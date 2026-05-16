@@ -245,6 +245,17 @@ func wiSetStatusWithAgent(typeName, id, status, sessionID, agentID string) error
 		}
 	}
 
+	// Capture the artifact's pre-commit HEAD BEFORE col.Complete flushes the
+	// canonical HTML to disk. The transactional complete path compares this
+	// against the post-commit HEAD to assert the commit actually advanced.
+	transactionalComplete := status == "done" && shouldAutocommitWorkitemArtifact(typeName)
+	var artifactPreHead string
+	if transactionalComplete {
+		repoRoot := filepath.Dir(dir)
+		absArtifact := filepath.Join(dir, typeName+"s", id+".html")
+		artifactPreHead = artifactHeadCommit(repoRoot, absArtifact)
+	}
+
 	var node *models.Node
 	switch status {
 	case "in-progress":
@@ -324,7 +335,42 @@ func wiSetStatusWithAgent(typeName, id, status, sessionID, agentID string) error
 	// Gate with an explicit allowlist via shouldAutocommitWorkitemArtifact:
 	// plans have their own atomic commit path (commitPlanChange in
 	// plan_yaml_cmds.go) that handles YAML+HTML together.
-	if shouldAutocommitWorkitemArtifact(typeName) {
+	if transactionalComplete {
+		// Complete path is transactional: a failed artifact commit must NOT
+		// leave the item silently "done" with no durable record. On failure
+		// perform a compensating re-open (status → in-progress) so the item's
+		// state matches reality, then exit non-zero with the exact remediation
+		// command. The re-open's own side effects (lineage edges, session
+		// events, attribution) are accepted and coherent with a re-open.
+		if cerr := commitArtifactTransactional(dir, typeName, id, artifactPreHead); cerr != nil {
+			// Compensating re-open: use col.Start, the codebase's canonical
+			// revert transition. Unlike Edit().SetStatus(), Start dual-writes
+			// status "in-progress" to SQLite so the HTML (canonical) and the
+			// read index stay coherent — a re-open that updated only the HTML
+			// would leave the DB falsely reporting "done".
+			_, reopenErr := col.Start(id)
+			if p.DB != nil {
+				_, _ = p.DB.Exec(
+					`UPDATE sessions SET active_feature_id = '' WHERE active_feature_id = ?`,
+					id,
+				)
+			}
+			WriteStatuslineCache(dir, id)
+			remediation := fmt.Sprintf("wipnote %s complete %s", typeName, id)
+			if reopenErr != nil {
+				return fmt.Errorf(
+					"completion aborted: artifact commit failed for %s (%v) and the compensating re-open ALSO failed (%v).\n"+
+						"The item may be left in an inconsistent state — inspect with 'wipnote %s show %s', "+
+						"manually restore the artifact, then rerun:\n  %s",
+					id, cerr, reopenErr, typeName, id, remediation)
+			}
+			return fmt.Errorf(
+				"completion aborted: artifact commit failed for %s: %v\n"+
+					"The item has been re-opened (status: in-progress) so its state matches reality. "+
+					"Resolve the commit blocker (e.g. unlock the git index, fix a rejecting hook, or commit manually), then rerun:\n  %s",
+				id, cerr, remediation)
+		}
+	} else if shouldAutocommitWorkitemArtifact(typeName) {
 		action := actionFromStatus(status)
 		if err := commitWipnoteArtifact(dir, typeName, id, action); err != nil {
 			fmt.Fprintf(os.Stderr, "autocommit warning: %v\n", err)
