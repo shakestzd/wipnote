@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Codex codex_hooks deprecation stale config never migrated</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-73eab79f"
+             data-type="bug"
+             data-status="todo"
+             data-priority="high"
+             data-created="2026-05-16T14:00:46.33728"
+             data-updated="2026-05-16T14:00:46.342112" data-agent-assigned="claude-code" data-track-id="trk-0677c709" data-created-by-agent="human" data-created-by-model="claude-opus-4-7[1m]" data-created-by-cli-version="0.59.1-147-g13bb16b5e">
+
+        <header>
+            <h1>Codex codex_hooks deprecation stale config never migrated</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-0677c709.html" data-relationship="part_of" data-since="2026-05-16T14:00:46.341808">trk-0677c709</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>isCodexHooksEnabledAt treats legacy codex_hooks key as hooks-already-enabled, short-circuiting ensureCodexHooksEnabled. The idempotent migration never runs against stale config, so Codex CLI keeps printing the codex_hooks deprecation warning. Fix narrows enabled-check to canonical hooks key only; keep codex_hooks recognized for detection. Also migrate the live codex config.toml.</p>
+        </section>
+    </article>
+</body>
+</html>
