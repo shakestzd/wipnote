@@ -11,19 +11,24 @@ meta:
 design:
     problem: |
         wipnote can currently launch multiple AI CLIs directly from a mutable checkout. That is convenient, but it allows long-running local stacks, generated plugin changes, work-item bookkeeping, and merged upstream work to accumulate on local main. The result is avoidable divergence, hard-to-review commits, and fragile reconciliation after PR merges. The obvious fix is to launch mutating sessions in isolated branches or worktrees by default, but that changes the shape of project identity, session continuity, active-session fallback state, event capture, subagent attribution, and dashboard grouping. The design must also account for the difference between production host installs and devcontainer sessions, where ports, bind addresses, filesystem permissions, plugin paths, and temp execution policy differ.
+        Note: collector/event-writer concurrency (parallel NDJSON flush, SQLite busy-timeout hardening, indexer checkpoint monotonicity) is owned and solved by plan-ae0c37b2's single-writer queue (`internal/db/writequeue/`); not in scope here.
     goals:
         - '**Protect main** — mutating Claude, Codex, and Gemini sessions do not dirty or diverge local main by default.'
         - '**Preserve observability** — dashboard sessions, event trees, NDJSON, SQLite indexes, and lineage remain grouped under one canonical project even when execution happens in worktrees.'
         - '**Coordinate parallelism** — multiple CLIs and their subagents can run concurrently in the same project without clobbering attribution, active-session fallback state, collectors, branch names, or work-item claims.'
         - '**Deploy safely** — host installs, devcontainers, local plugin development, and production launcher paths have explicit mode detection, defaults, and test coverage.'
         - '**Migrate incrementally** — existing yolo/worktree helpers, session rows, and dashboard APIs are reused and hardened without breaking current users.'
+        - '**Feed visibility surfaces** — launcher/session/claim identity becomes the substrate consumed by cross-session file visibility and Kanban work-board status in plan-c3bbb1ed.'
     constraints:
-        - Canonical project identity must remain the main repo root containing .wipnote, not an arbitrary linked worktree path.
+        - 'Canonical project identity must remain the main repo root containing .wipnote, not an arbitrary linked worktree path. DELIVERED SUBSTRATE: write-time path normalization for storage is enforced by plan-2133adf2 (paths.NormalizeToRepoRelative, ResolveViaGitCommonDir); this plan scope is launcher-side env construction (slice-3).'
         - Fresh worktrees are execution directories only; event storage and dashboard project grouping stay anchored to the canonical root.
         - The launcher must offer an explicit in-place escape hatch for intentional local-main work.
-        - Branch naming must remain compatible with existing work-item completion and lineage conventions until explicit metadata replaces branch-name inference.
+        - 'Branch naming must remain compatible with existing work-item completion and lineage conventions until explicit metadata replaces branch-name inference. DELIVERED SUBSTRATE: branch-name-completion transition is delivered by plan-83f909bc slice-3 provenance gate (feat-7b593272); this plan does not re-implement it.'
         - Devcontainer defaults must bind dashboard services to 0.0.0.0:8088, while host installs keep the production default of 127.0.0.1:8080.
-        - No implementation slice may rely solely on global mutable fallback files when parallel CLI sessions are expected.
+        - 'No implementation slice may rely solely on global mutable fallback files when parallel CLI sessions are expected. DELIVERED SUBSTRATE: SQLite single-writer contention is solved by plan-ae0c37b2 single-writer queue; this plan does not re-implement it.'
+        - 'Dashboard work-board and wipnote who visibility belong in plan-c3bbb1ed, but this plan must expose the stable identity/claim/session fields those views consume.'
+        - 'Cross-plan provenance: slice-3 depends on plan-2133adf2 (feat-edbc978b, feat-3973e948); slice-5 depends on plan-83f909bc (feat-7b593272); slices 9/10 depend on plan-ae0c37b2 (feat-2c631aa9, feat-156e0a1a, feat-f3bcbcef).'
+        - 'Surviving critical path: slice-1 (launcher mode contract) -> slice-2 (gated worktree launch) -> slice-4 (session-family). Slices 1, 4, and 8 are kept unchanged in intent.'
     approved: true
     comment: ""
 slices:
@@ -87,6 +92,11 @@ slices:
         host production profiles it starts as warn-only until doctor/migration and
         session-family hardening have landed.
 
+        Note: `wipnote yolo` already implements worktree-per-track/feature with
+        `--no-worktree` (`cmd/wipnote/yolo.go`). This slice generalizes that model
+        to claude/codex/gemini and adds the dirty-main guard — it does not build
+        worktree plumbing from scratch.
+
         Reuse existing `internal/worktree` and command-level worktree helpers.
         Add explicit flags:
 
@@ -145,48 +155,42 @@ slices:
       num: 3
       title: Canonical project identity across worktrees
       what: |
-        Formalize and harden the rule that `WIPNOTE_PROJECT_DIR`,
-        `sessions.project_dir`, DB cache keys, NDJSON event paths, and dashboard
-        project filters use the canonical main repo root even when execution CWD is
-        a worktree.
+        Scope: launcher-side env construction only. When a harness is launched from
+        a managed worktree, ensure `WIPNOTE_PROJECT_DIR` is set to the canonical
+        main repo root (not the worktree path) by consuming the existing
+        `internal/paths` normalizer (`paths.NormalizeToRepoRelative`,
+        `ResolveViaGitCommonDir`) when constructing launcher env for worktree
+        launches.
 
-        Add a small `ProjectIdentity` value that carries both:
-
-        - `CanonicalRoot` for tracking/storage/dashboard
-        - `ExecutionRoot` for process cwd and file edits
-
-        Thread it through launcher env construction, hook resolution, session
-        start, storage path resolution, and dashboard handlers where raw paths are
-        currently compared.
+        Do NOT introduce a parallel identity type (`ProjectIdentity{CanonicalRoot,
+        ExecutionRoot}` or equivalent). The write-time path normalization for
+        `sessions.project_dir`, DB cache keys, NDJSON event paths, SQLite
+        cache-key normalization, and divergence-guard canonical comparison are
+        delivered by plan-2133adf2 slices 1 and 4 (feat-edbc978b, feat-3973e948).
+        This slice's boundary is strictly the launcher env construction step that
+        ensures downstream hook/storage code receives the right canonical root in
+        the environment.
       why: |
         Worktree-per-launch is safe only if worktrees do not become separate
-        projects. If project identity is keyed by each worktree path, the
-        dashboard fragments sessions, SQLite indexes split, and divergence guards
-        start flagging normal cross-worktree activity as project drift.
+        projects. Plan-2133adf2 delivers the storage/write-time normalization;
+        this slice closes the remaining gap in launcher env construction so that
+        `WIPNOTE_PROJECT_DIR` is correct before any hook or collector starts.
       files:
-        - internal/paths/resolve.go
-        - internal/storage/dbpath.go
-        - internal/hooks/session_start.go
-        - internal/hooks/runner.go
-        - internal/hooks/pretooluse.go
-        - cmd/wipnote/api.go
         - cmd/wipnote/claude.go
         - cmd/wipnote/codex.go
         - cmd/wipnote/gemini.go
+        - cmd/wipnote/yolo.go
       deps:
         - 1
         - 2
       done_when:
-        - Sessions launched from linked worktrees store the canonical root in `sessions.project_dir`.
-        - Dashboard project/session filters show worktree-launched sessions under the main project.
-        - SQLite cache paths do not multiply by worktree path when canonical root is available.
-        - Divergence guards compare canonical roots rather than raw execution directories.
-      effort: L
-      risk: High
+        - All harness launchers set `WIPNOTE_PROJECT_DIR` to the canonical root resolved via `paths.ResolveViaGitCommonDir` when the CWD is a linked worktree.
+        - No new `ProjectIdentity` type or parallel identity abstraction is introduced; existing `internal/paths` normalizers are reused.
+        - Existing project resolution and cache path tests still pass.
+      effort: S
+      risk: Med
       tests: |
-        Unit: TestResolveProjectIdentity_LinkedWorktree returns canonical and execution roots.
-        Unit: TestSessionStart_StoresCanonicalProjectDir covers worktree launch env.
-        Integration: TestDashboardSessions_WorktreeGroupedUnderCanonicalProject verifies API filtering.
+        Unit: TestLauncherEnv_WorktreeCanonicalRoot verifies WIPNOTE_PROJECT_DIR resolves to main repo root when CWD is a linked worktree.
         Regression: existing project resolution and cache path tests still pass.
       approved: false
       comment: ""
@@ -254,20 +258,29 @@ slices:
       num: 5
       title: Parallel attribution and claim coordination
       what: |
-        Harden work-item attribution for multiple CLIs and their simultaneous
-        subagents. Add a coordination layer that records:
+        Harden work-item attribution for concurrent parallel root CLIs and their
+        simultaneous subagents. Scope is limited to:
 
-        - root launcher session to work item claim
-        - subagent spawn event to parent session and work item
-        - branch/worktree path to work item
-        - explicit claim owner and heartbeat
-        - collision policy when two CLIs claim the same work item
+        - concurrent claim collision-vs-collaboration UX when two root CLI sessions
+          claim the same work item simultaneously
+        - subagent out-of-order attribution: hook handlers write best-effort events
+          even when parent records arrive later
+        - identity/claim fields exported for plan-c3bbb1ed: claim owner, session
+          family, harness, work item, and execution root exposed in /api/features,
+          `wipnote who`, Kanban cards, and dashboard session/file panels
 
-        Prefer existing claim machinery and lineage edges, but stop relying on
-        branch names alone for completion/attribution. No launcher may depend on
-        arbitrary fresh-worktree branch names for completion once metadata-based
-        completion is available. Make hook handlers write best-effort events even
-        when parent records arrive later.
+        Out of scope (delivered by other plans):
+        - Branch-name-completion transition: delivered by plan-83f909bc slice-3
+          provenance gate (feat-7b593272); completion no longer requires branch-name
+          inference is already true post plan-83f909bc.
+        - Dedup and reconcile concerns: delivered by plan-83f909bc slices 5/6
+          (feat-f93fe770 `wipnote reconcile`); do not re-implement here.
+
+        Prefer existing claim machinery and lineage edges. Claude TaskCreated/
+        TaskCompleted, Codex TaskStarted/TaskComplete, and Gemini tool/session
+        events must either map into the same canonical step/progress fields when a
+        work item is active or be explicitly reported as unsupported so the
+        dashboard does not imply live step tracking.
       why: |
         Worktree isolation prevents git conflicts, but it does not solve
         attribution conflicts. Parallel Claude, Codex, and Gemini sessions can all
@@ -288,8 +301,9 @@ slices:
       done_when:
         - Two root CLI sessions claiming the same work item produce a visible collision or collaboration state.
         - Subagent events retain parent/session/work-item attribution even when event ordering is out of order.
-        - Completion no longer requires branch-name inference when session/work-item metadata is present.
         - Lineage output shows root CLI, child agents, branch/worktree, commits, and work item in one chain.
+        - Claim/collaboration state is available to `wipnote who`, /api/features, Kanban cards, and dashboard session/file panels.
+        - Step/task lifecycle events are attributed to session family, work item, and harness, or a visible unsupported-state is available per harness.
       effort: L
       risk: High
       tests: |
@@ -308,71 +322,9 @@ slices:
         - source: observability-critique
           severity: MED
           summary: Tighten transition away from branch-name completion; metadata-based completion must be live before arbitrary fresh-worktree branch names are allowed.
-    - id: slice-6
-      num: 6
-      title: Collector and event-writer concurrency hardening
-      what: |
-        Audit and harden NDJSON, OTel collector, SQLite index, and child-process
-        helpers for many parallel root sessions and subagents.
-
-        Choose and document the collector model explicitly: preserve the current
-        session-scoped collector model, but harden many parallel collectors under
-        one canonical project root. Do not redesign to a shared per-project
-        collector in this plan unless a later plan deliberately changes that
-        architecture.
-
-        Ensure:
-
-        - many session-scoped collectors can safely write under one canonical
-          project root
-        - per-session NDJSON files flush and fsync sentinel events
-        - SQLite writes use busy timeouts and return errors instead of silent empty
-          results
-        - helper scripts/tests avoid noexec temp mounts by using exec-capable temp
-          roots
-        - orphan events are repaired or surfaced rather than silently dropped
-        - index checkpoints are monotonic and replay is restart-safe with no
-          duplicate or lost events across collector restarts
-      why: |
-        Worktree isolation increases concurrency. Event capture must remain durable
-        under host sleep, devcontainer restarts, bursty subagent spawns, and
-        sandboxed temp files. Otherwise the dashboard will look clean while losing
-        the causal trail the feature is meant to protect.
-      files:
-        - internal/otel/sink/ndjson/ndjson.go
-        - internal/otel/collector/lifecycle.go
-        - internal/otel/indexer/indexer.go
-        - internal/db/pragmas.go
-        - internal/childproc/childproc_test.go
-        - cmd/wipnote/otel_collect.go
-        - cmd/wipnote/api_collector_status.go
-      deps:
-        - 3
-        - 4
-      done_when:
-        - Parallel session-scoped collectors can write events without interleaving or losing NDJSON records.
-        - Collector status identifies canonical project, active session families, and stale session collectors.
-        - Tests no longer execute generated helpers from noexec temp locations.
-        - SQLite busy/locked paths are surfaced as errors or retries, not silent empty dashboard states.
-        - Indexer checkpoints advance monotonically and restart replay produces no duplicate or missing events.
-      effort: L
-      risk: High
-      tests: |
-        Unit: TestNDJSONParallelFlush writes concurrent sessions and validates complete JSON lines.
-        Unit: TestChildprocFakeBinary_ExecCapableTempRoot avoids /tmp noexec failures.
-        Integration: TestCollectorParallelWorktrees sends events from multiple execution roots to one canonical collector.
-        Regression: existing OTel receiver/indexer/materializer tests still pass.
-      approved: false
-      comment: ""
-      approval_status: pending
-      execution_status: not_started
-      critic_revisions:
-        - source: observability-critique
-          severity: HIGH
-          summary: Current architecture is session-scoped collectors, not one shared project collector; choose that model explicitly and harden it.
-        - source: observability-critique
+        - source: codex
           severity: MED
-          summary: Add restart-safe index checkpoint and duplicate/loss prevention criteria for parallel ingestion.
+          summary: 'Cross-session visibility plan plan-c3bbb1ed consumes claim/session/step identity here; slice now exports those fields explicitly for `wipnote who`, /api/features, and Kanban.'
     - id: slice-7
       num: 7
       title: Dashboard worktree/session-family UX
@@ -383,15 +335,23 @@ slices:
         - canonical project root versus execution worktree
         - branch/work-item/session-family badge on active sessions
         - collision or collaboration status for work-item claims
-        - stale collector and stale worktree warnings
+        - stale collector and stale worktree warnings (collector/stale warnings are
+          framed around plan-ae0c37b2's writer-queue and collector-status APIs,
+          not the deleted slice-6 assumptions)
         - filters by harness, work item, branch, session family, and execution root
         - explicit default grouping semantics for sessions list, activity feed,
           and event tree: canonical project first, session family second,
           individual session drilldown third
+        - Work/Kanban board identity fields consumed by plan-c3bbb1ed: active
+          CLI/session/model on cards, step progress, conflict/overlap status,
+          recently moved/reassigned markers, and track-level active/stale/
+          collision counts
 
         Keep the first screen operational, not explanatory: the dashboard should
-        show what is running, where it is running, what it is editing, and why it
-        is attributed to a work item.
+        show what is running, where it is running, what it is editing, what work
+        item it belongs to, and why it is attributed there. Full file-overlap and
+        Kanban rendering behavior is delivered by plan-c3bbb1ed; this slice
+        guarantees the launcher/session-family API fields are available.
       why: |
         Isolation only helps if the operator can see it. When several CLIs and
         subagents run in parallel, the dashboard must answer "which branch,
@@ -408,11 +368,12 @@ slices:
       deps:
         - 4
         - 5
-        - 6
       done_when:
         - Dashboard active sessions display harness, canonical project, execution root, branch/worktree, work item, and session family.
         - Sessions list, activity feed, and event tree have documented defaults for project/family/session grouping.
-        - Claim collisions and stale collectors are visible as operational warnings.
+        - Claim collisions and stale collectors are visible as operational warnings (sourced from plan-ae0c37b2 writer-queue and collector-status APIs).
+        - Dashboard APIs expose the stable session-family, claim, and execution-root fields needed by plan-c3bbb1ed Kanban and `wipnote who` views.
+        - Work/Kanban board API payloads can associate each active work item with owner session, harness/model, claim/collision state, and execution root.
         - Existing single-session dashboard views remain readable and unchanged in normal host installs.
       effort: L
       risk: Med
@@ -429,6 +390,9 @@ slices:
         - source: observability-critique
           severity: MED
           summary: Pin down dashboard grouping semantics and required API fields instead of leaving family grouping as an optional view.
+        - source: codex
+          severity: MED
+          summary: 'Dashboard UX now reserves the Work/Kanban identity data contract consumed by plan-c3bbb1ed, while leaving detailed card rendering to that visibility plan.'
     - id: slice-8
       num: 8
       title: Host, devcontainer, and production deployment profiles
@@ -468,6 +432,7 @@ slices:
         - Install/deploy scripts do not require devcontainer-only paths or assumptions.
         - Devcontainer verification checks launcher mode, port convention, and exec-capable temp root.
         - Host production remains warn-only/config-gated until migration tooling and release runbooks are present.
+        - Devcontainer bind-default selection (0.0.0.0:8088) is consistent with plan-ae0c37b2 slice-4's `wipnote status` fstype/journal-mode diagnostics; this profile output does not duplicate that status output.
       effort: M
       risk: Med
       tests: |
@@ -493,20 +458,27 @@ slices:
         Add migration and cleanup commands for users with existing divergent local
         main states and stale worktrees.
 
-        Provide:
+        `wipnote launcher doctor` is the primary deliverable. It:
+        - detects local main ahead/behind origin with dirty worktree
+        - lists stale managed worktrees and provides safe prune guidance
+        - reports launcher/worktree-divergence diagnostics (canonical root mismatch,
+          split canonical root across sessions)
+        - delegates orphan-session cleanup to `wipnote cleanup orphan-sessions`
+          (delivered by plan-ae0c37b2 slice-11, feat-2c631aa9 — do not re-implement)
+        - delegates session-exit reconciliation to `wipnote reconcile`
+          (delivered by plan-83f909bc slice-5, feat-f93fe770 — do not re-implement)
+        - adds only launcher/worktree-divergence diagnostics on top of the
+          delegated commands
+        - prints non-destructive remediation steps by default
+        - provides compatibility handling for old sessions without session families
+        - contains the rollout gate that allows host production to move from
+          warn-only to worktree-by-default once doctor checks pass
 
-        - `wipnote launcher doctor` or similar diagnostic command
-        - detection of local main ahead/behind origin with dirty worktree
-        - suggestions to create backup branches, stash, or move work into managed
-          worktrees
-        - stale managed-worktree listing and safe prune guidance
-        - compatibility handling for old sessions without session families
-        - release migration docs and dashboard warning links
-        - diagnostics for legacy/global fallback use, sessions missing family
-          linkage, collector PID without index advancement, and dashboard-visible
-          sessions split across unexpected canonical roots
-        - the rollout gate that allows host production to move from warn-only to
-          worktree-by-default once identity, fallback, and doctor checks pass
+        Out of scope (shipped):
+        - Orphan-session-cleanup responsibility: plan-ae0c37b2 slice-11
+          `wipnote cleanup orphan-sessions`, feat-2c631aa9.
+        - Generic session-exit reconciliation: plan-83f909bc slice-5
+          `wipnote reconcile`, feat-f93fe770.
       why: |
         Changing launcher defaults does not help users who already have messy
         repositories, stale worktrees, or historical sessions. Migration tooling
@@ -527,9 +499,10 @@ slices:
       done_when:
         - Doctor command reports dirty main, ahead/behind, stale worktrees, and missing canonical identity metadata.
         - Doctor command prints non-destructive remediation steps by default.
+        - Doctor delegates to `wipnote reconcile` (plan-83f909bc/feat-f93fe770) and `wipnote cleanup orphan-sessions` (plan-ae0c37b2/feat-2c631aa9) rather than reimplementing those capabilities.
         - Dashboard can link stale/isolation warnings to the doctor command.
         - Old sessions without session-family metadata remain visible and are labeled as legacy rather than broken.
-        - Doctor reports fallback/session-family/collector-index health in addition to git/worktree state.
+        - Doctor reports launcher/worktree-divergence health (canonical root mismatch, split roots) in addition to git/worktree state.
         - Host production default flip is gated on passing doctor/migration checks and documented release guidance.
       effort: M
       risk: Med
@@ -554,8 +527,13 @@ slices:
       title: Parallel stress harness and release gates
       what: |
         Build an end-to-end stress harness and production release gate for the new
-        launcher model. The harness should start multiple fake or real harness
-        sessions in parallel:
+        launcher model. The harness layers git-isolation, lineage, and
+        parallel-launcher assertions onto the existing SQLite-contention fixture
+        (plan-ae0c37b2 slice-10, `cmd/wipnote/sqlite_contention_test.go`,
+        feat-156e0a1a) — it does NOT build a standalone contention harness (the
+        SQLite-contention dimension is shipped and out of scope here).
+
+        The harness should start multiple fake or real harness sessions in parallel:
 
         - Claude, Codex, and Gemini roots in one canonical project
         - multiple subagents per root
@@ -583,7 +561,6 @@ slices:
         - docs/runbook/launcher-isolation.md
       deps:
         - 5
-        - 6
         - 7
         - 8
         - 9
@@ -593,6 +570,7 @@ slices:
         - Lineage output links work item, root session, subagents, branches/worktrees, and commits.
         - CI and release runbooks include a small production acceptance harness and a documented larger stress harness.
         - Environment-sensitive socket/process tests declare the profile they require and use exec-capable temp roots.
+        - Git-isolation and lineage assertions build on (not duplicate) the contention fixture from plan-ae0c37b2 slice-10.
       effort: L
       risk: High
       tests: |

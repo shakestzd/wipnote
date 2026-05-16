@@ -435,13 +435,6 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     </li>
     
     <li>
-      <a href="#slice-6" class="slice-nav-item" data-slice-nav="6">
-        <span class="slice-nav-dot" data-approval="pending" data-dot-for="6"></span>
-        <span>#6 Collector and event-writer concurrency hardening</span>
-      </a>
-    </li>
-    
-    <li>
       <a href="#slice-7" class="slice-nav-item" data-slice-nav="7">
         <span class="slice-nav-dot" data-approval="pending" data-dot-for="7"></span>
         <span>#7 Dashboard worktree/session-family UX</span>
@@ -486,8 +479,8 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
   <p style="color:var(--text-dim)">Design production-ready launcher isolation across Claude, Codex, and Gemini: default branch/worktree behavior, devcontainer versus host deployment modes, and robust attribution/event capture for parallel CLIs and subagents.
 </p>
   <div class="meta">
-    <span class="badge badge-pending">Draft</span>
-    <span style="font-size:.75rem;color:var(--text-muted)">v1 · 10 slices · Created 2026-05-08</span>
+    <span class="badge badge-revision">Active</span>
+    <span style="font-size:.75rem;color:var(--text-muted)">v1 · 9 slices · Created 2026-05-08</span>
   </div>
 </header>
 <button id="themeToggle" style="position:fixed;top:16px;right:16px;z-index:100;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:6px 12px;color:var(--text);font-family:var(--mono);font-size:0.75rem;cursor:pointer;">
@@ -509,14 +502,13 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
   <div id="graph-data" style="display:none">
     <div data-node="1" data-name="Launcher mode contract and environment detection" data-status="pending" data-deps="" data-files="6"></div>
     <div data-node="2" data-name="Gated isolated worktree launch plumbing and dirty-main guard" data-status="pending" data-deps="1" data-files="7"></div>
-    <div data-node="3" data-name="Canonical project identity across worktrees" data-status="pending" data-deps="1,2" data-files="9"></div>
+    <div data-node="3" data-name="Canonical project identity across worktrees" data-status="pending" data-deps="1,2" data-files="4"></div>
     <div data-node="4" data-name="Session-family continuity and per-session fallback state" data-status="pending" data-deps="3" data-files="8"></div>
     <div data-node="5" data-name="Parallel attribution and claim coordination" data-status="pending" data-deps="4" data-files="8"></div>
-    <div data-node="6" data-name="Collector and event-writer concurrency hardening" data-status="pending" data-deps="3,4" data-files="7"></div>
-    <div data-node="7" data-name="Dashboard worktree/session-family UX" data-status="pending" data-deps="4,5,6" data-files="7"></div>
+    <div data-node="7" data-name="Dashboard worktree/session-family UX" data-status="pending" data-deps="4,5" data-files="7"></div>
     <div data-node="8" data-name="Host, devcontainer, and production deployment profiles" data-status="pending" data-deps="1,2,3" data-files="8"></div>
     <div data-node="9" data-name="Migration, cleanup, and compatibility tooling" data-status="pending" data-deps="2,3,4" data-files="7"></div>
-    <div data-node="10" data-name="Parallel stress harness and release gates" data-status="pending" data-deps="5,6,7,8,9" data-files="8"></div>
+    <div data-node="10" data-name="Parallel stress harness and release gates" data-status="pending" data-deps="5,7,8,9" data-files="8"></div>
     
     <!--PLAN_GRAPH_NODES-->
   </div>
@@ -531,6 +523,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
   <div class="section-body">
     <h4>Problem</h4>
 <div data-markdown>wipnote can currently launch multiple AI CLIs directly from a mutable checkout. That is convenient, but it allows long-running local stacks, generated plugin changes, work-item bookkeeping, and merged upstream work to accumulate on local main. The result is avoidable divergence, hard-to-review commits, and fragile reconciliation after PR merges. The obvious fix is to launch mutating sessions in isolated branches or worktrees by default, but that changes the shape of project identity, session continuity, active-session fallback state, event capture, subagent attribution, and dashboard grouping. The design must also account for the difference between production host installs and devcontainer sessions, where ports, bind addresses, filesystem permissions, plugin paths, and temp execution policy differ.
+Note: collector/event-writer concurrency (parallel NDJSON flush, SQLite busy-timeout hardening, indexer checkpoint monotonicity) is owned and solved by plan-ae0c37b2&#39;s single-writer queue (`internal/db/writequeue/`); not in scope here.
 </div>
 <h4>Goals</h4>
 <ol>
@@ -539,15 +532,19 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
 <li data-markdown>**Coordinate parallelism** — multiple CLIs and their subagents can run concurrently in the same project without clobbering attribution, active-session fallback state, collectors, branch names, or work-item claims.</li>
 <li data-markdown>**Deploy safely** — host installs, devcontainers, local plugin development, and production launcher paths have explicit mode detection, defaults, and test coverage.</li>
 <li data-markdown>**Migrate incrementally** — existing yolo/worktree helpers, session rows, and dashboard APIs are reused and hardened without breaking current users.</li>
+<li data-markdown>**Feed visibility surfaces** — launcher/session/claim identity becomes the substrate consumed by cross-session file visibility and Kanban work-board status in plan-c3bbb1ed.</li>
 </ol>
 <h4>Constraints</h4>
 <ul>
-<li data-markdown>Canonical project identity must remain the main repo root containing .wipnote, not an arbitrary linked worktree path.</li>
+<li data-markdown>Canonical project identity must remain the main repo root containing .wipnote, not an arbitrary linked worktree path. DELIVERED SUBSTRATE: write-time path normalization for storage is enforced by plan-2133adf2 (paths.NormalizeToRepoRelative, ResolveViaGitCommonDir); this plan scope is launcher-side env construction (slice-3).</li>
 <li data-markdown>Fresh worktrees are execution directories only; event storage and dashboard project grouping stay anchored to the canonical root.</li>
 <li data-markdown>The launcher must offer an explicit in-place escape hatch for intentional local-main work.</li>
-<li data-markdown>Branch naming must remain compatible with existing work-item completion and lineage conventions until explicit metadata replaces branch-name inference.</li>
+<li data-markdown>Branch naming must remain compatible with existing work-item completion and lineage conventions until explicit metadata replaces branch-name inference. DELIVERED SUBSTRATE: branch-name-completion transition is delivered by plan-83f909bc slice-3 provenance gate (feat-7b593272); this plan does not re-implement it.</li>
 <li data-markdown>Devcontainer defaults must bind dashboard services to 0.0.0.0:8088, while host installs keep the production default of 127.0.0.1:8080.</li>
-<li data-markdown>No implementation slice may rely solely on global mutable fallback files when parallel CLI sessions are expected.</li>
+<li data-markdown>No implementation slice may rely solely on global mutable fallback files when parallel CLI sessions are expected. DELIVERED SUBSTRATE: SQLite single-writer contention is solved by plan-ae0c37b2 single-writer queue; this plan does not re-implement it.</li>
+<li data-markdown>Dashboard work-board and wipnote who visibility belong in plan-c3bbb1ed, but this plan must expose the stable identity/claim/session fields those views consume.</li>
+<li data-markdown>Cross-plan provenance: slice-3 depends on plan-2133adf2 (feat-edbc978b, feat-3973e948); slice-5 depends on plan-83f909bc (feat-7b593272); slices 9/10 depend on plan-ae0c37b2 (feat-2c631aa9, feat-156e0a1a, feat-f3bcbcef).</li>
+<li data-markdown>Surviving critical path: slice-1 (launcher mode contract) -&gt; slice-2 (gated worktree launch) -&gt; slice-4 (session-family). Slices 1, 4, and 8 are kept unchanged in intent.</li>
 </ul>
 
     <div class="approval-row">
@@ -575,6 +572,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
         <span class="slice-summary-badges">
           <span class="badge badge-revision badge-sm">M</span>
           <span class="badge badge-revision badge-sm">Med</span>
+          
           <span class="badge badge-pending badge-sm" title="Execution: not_started">Not Started</span>
           <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-1">Pending</span>
           
@@ -657,6 +655,8 @@ changes are introduced.</p>
     
 
     
+
+    
     <div class="slice-field slice-tests-field">
       <div class="slice-field-label">Test Strategy</div>
       <div class="slice-field-value">
@@ -727,6 +727,7 @@ changes are introduced.</p>
         <span class="slice-summary-badges">
           <span class="badge badge-blocked badge-sm">L</span>
           <span class="badge badge-blocked badge-sm">High</span>
+          
           <span class="badge badge-pending badge-sm" title="Execution: not_started">Not Started</span>
           <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-2">Pending</span>
           <span class="badge badge-sm badge-issues" title="2 critic issue(s)">2 issues</span>
@@ -767,6 +768,10 @@ unconditionally in this slice. For devcontainer/local-dev profiles the
 plan may default to managed worktrees behind an explicit config gate; for
 host production profiles it starts as warn-only until doctor/migration and
 session-family hardening have landed.</p>
+<p>Note: <code>wipnote yolo</code> already implements worktree-per-track/feature with
+<code>--no-worktree</code> (<code>cmd/wipnote/yolo.go</code>). This slice generalizes that model
+to claude/codex/gemini and adds the dirty-main guard — it does not build
+worktree plumbing from scratch.</p>
 <p>Reuse existing <code>internal/worktree</code> and command-level worktree helpers.
 Add explicit flags:</p>
 <ul>
@@ -811,6 +816,8 @@ visible warning path before enforcement.</p>
         <ul class="slice-done-list"><li>Launcher planning can select managed-worktree, warn-only, or explicit in-place mode from profile/config.</li><li>Devcontainer/local-dev profiles can opt into managed-worktree defaults without changing host production defaults.</li><li>Launching with `--in-place` preserves existing behavior and records that the user opted out of isolation.</li><li>Dirty protected branches produce a clear warning or refusal according to rollout mode.</li><li>Worktree branch names remain deterministic and compatible with existing work-item branch conventions.</li></ul>
       </div>
       
+    
+
     
 
     
@@ -898,11 +905,12 @@ visible warning path before enforcement.</p>
     <span class="slice-num">#3</span>
     <span class="slice-title-col">
       <span class="slice-name">Canonical project identity across worktrees</span>
-      <span class="slice-preview">Formalize and harden the rule that WIPNOTEPROJECTDIR,</span>
+      <span class="slice-preview">Scope: launcher-side env construction only.</span>
       <span class="slice-meta-row">
         <span class="slice-summary-badges">
-          <span class="badge badge-blocked badge-sm">L</span>
-          <span class="badge badge-blocked badge-sm">High</span>
+          <span class="badge badge-pending badge-sm">S</span>
+          <span class="badge badge-revision badge-sm">Med</span>
+          
           <span class="badge badge-pending badge-sm" title="Execution: not_started">Not Started</span>
           <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-3">Pending</span>
           
@@ -937,18 +945,19 @@ visible warning path before enforcement.</p>
         <div class="slice-field-value">
           
           <input type="checkbox" id="slice-3-what-reveal" class="reveal-toggle">
-          <div class="markdown-block reveal-content serif-prose"><p>Formalize and harden the rule that <code>WIPNOTE_PROJECT_DIR</code>,
-<code>sessions.project_dir</code>, DB cache keys, NDJSON event paths, and dashboard
-project filters use the canonical main repo root even when execution CWD is
-a worktree.</p>
-<p>Add a small <code>ProjectIdentity</code> value that carries both:</p>
-<ul>
-<li><code>CanonicalRoot</code> for tracking/storage/dashboard</li>
-<li><code>ExecutionRoot</code> for process cwd and file edits</li>
-</ul>
-<p>Thread it through launcher env construction, hook resolution, session
-start, storage path resolution, and dashboard handlers where raw paths are
-currently compared.</p>
+          <div class="markdown-block reveal-content serif-prose"><p>Scope: launcher-side env construction only. When a harness is launched from
+a managed worktree, ensure <code>WIPNOTE_PROJECT_DIR</code> is set to the canonical
+main repo root (not the worktree path) by consuming the existing
+<code>internal/paths</code> normalizer (<code>paths.NormalizeToRepoRelative</code>,
+<code>ResolveViaGitCommonDir</code>) when constructing launcher env for worktree
+launches.</p>
+<p>Do NOT introduce a parallel identity type (<code>ProjectIdentity{CanonicalRoot, ExecutionRoot}</code> or equivalent). The write-time path normalization for
+<code>sessions.project_dir</code>, DB cache keys, NDJSON event paths, SQLite
+cache-key normalization, and divergence-guard canonical comparison are
+delivered by plan-2133adf2 slices 1 and 4 (feat-edbc978b, feat-3973e948).
+This slice&#39;s boundary is strictly the launcher env construction step that
+ensures downstream hook/storage code receives the right canonical root in
+the environment.</p>
 </div>
           <label for="slice-3-what-reveal" class="reveal-label">Show full description</label>
           
@@ -961,9 +970,9 @@ currently compared.</p>
         <div class="slice-field-value">
           
           <div class="markdown-block serif-prose"><p>Worktree-per-launch is safe only if worktrees do not become separate
-projects. If project identity is keyed by each worktree path, the
-dashboard fragments sessions, SQLite indexes split, and divergence guards
-start flagging normal cross-worktree activity as project drift.</p>
+projects. Plan-2133adf2 delivers the storage/write-time normalization;
+this slice closes the remaining gap in launcher env construction so that
+<code>WIPNOTE_PROJECT_DIR</code> is correct before any hook or collector starts.</p>
 </div>
           
         </div>
@@ -972,15 +981,17 @@ start flagging normal cross-worktree activity as project drift.</p>
       
       <div class="slice-field">
         <div class="slice-field-label">Files</div>
-        <div class="slice-field-value"><code>internal/paths/resolve.go, internal/storage/dbpath.go, internal/hooks/session_start.go, internal/hooks/runner.go, internal/hooks/pretooluse.go, cmd/wipnote/api.go, cmd/wipnote/claude.go, cmd/wipnote/codex.go, cmd/wipnote/gemini.go</code></div>
+        <div class="slice-field-value"><code>cmd/wipnote/claude.go, cmd/wipnote/codex.go, cmd/wipnote/gemini.go, cmd/wipnote/yolo.go</code></div>
       </div>
       
       
       <div class="slice-field">
         <div class="slice-field-label">Done when</div>
-        <ul class="slice-done-list"><li>Sessions launched from linked worktrees store the canonical root in `sessions.project_dir`.</li><li>Dashboard project/session filters show worktree-launched sessions under the main project.</li><li>SQLite cache paths do not multiply by worktree path when canonical root is available.</li><li>Divergence guards compare canonical roots rather than raw execution directories.</li></ul>
+        <ul class="slice-done-list"><li>All harness launchers set `WIPNOTE_PROJECT_DIR` to the canonical root resolved via `paths.ResolveViaGitCommonDir` when the CWD is a linked worktree.</li><li>No new `ProjectIdentity` type or parallel identity abstraction is introduced; existing `internal/paths` normalizers are reused.</li><li>Existing project resolution and cache path tests still pass.</li></ul>
       </div>
       
+    
+
     
 
     
@@ -992,13 +1003,8 @@ start flagging normal cross-worktree activity as project drift.</p>
         <div class="test-strategy">
           
           <div class="test-group" data-kind="unit">
-            <span class="test-chip">UNIT &middot; 2</span>
-            <ul><li>TestResolveProjectIdentity_LinkedWorktree returns canonical and execution roots.</li><li>TestSessionStart_StoresCanonicalProjectDir covers worktree launch env.</li></ul>
-          </div>
-          
-          <div class="test-group" data-kind="integration">
-            <span class="test-chip">INTEGRATION &middot; 1</span>
-            <ul><li>TestDashboardSessions_WorktreeGroupedUnderCanonicalProject verifies API filtering.</li></ul>
+            <span class="test-chip">UNIT &middot; 1</span>
+            <ul><li>TestLauncherEnv_WorktreeCanonicalRoot verifies WIPNOTE_PROJECT_DIR resolves to main repo root when CWD is a linked worktree.</li></ul>
           </div>
           
           <div class="test-group" data-kind="regression">
@@ -1036,6 +1042,7 @@ start flagging normal cross-worktree activity as project drift.</p>
         <span class="slice-summary-badges">
           <span class="badge badge-blocked badge-sm">L</span>
           <span class="badge badge-blocked badge-sm">High</span>
+          
           <span class="badge badge-pending badge-sm" title="Execution: not_started">Not Started</span>
           <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-4">Pending</span>
           <span class="badge badge-sm badge-issues" title="1 critic issue(s)">1 issue</span>
@@ -1119,6 +1126,8 @@ env propagation is incomplete.</p>
     
 
     
+
+    
     <div class="slice-field slice-tests-field">
       <div class="slice-field-label">Test Strategy</div>
       <div class="slice-field-value">
@@ -1197,14 +1206,15 @@ env propagation is incomplete.</p>
     <span class="slice-num">#5</span>
     <span class="slice-title-col">
       <span class="slice-name">Parallel attribution and claim coordination</span>
-      <span class="slice-preview">Harden work-item attribution for multiple CLIs and their simultaneous</span>
+      <span class="slice-preview">Harden work-item attribution for concurrent parallel root CLIs and their</span>
       <span class="slice-meta-row">
         <span class="slice-summary-badges">
           <span class="badge badge-blocked badge-sm">L</span>
           <span class="badge badge-blocked badge-sm">High</span>
+          
           <span class="badge badge-pending badge-sm" title="Execution: not_started">Not Started</span>
           <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-5">Pending</span>
-          <span class="badge badge-sm badge-issues" title="1 critic issue(s)">1 issue</span>
+          <span class="badge badge-sm badge-issues" title="2 critic issue(s)">2 issues</span>
           <span class="badge badge-sm badge-questions" title="1 open question(s)">1 Q</span>
         </span>
         <span class="slice-actions" onclick="event.stopPropagation()">
@@ -1236,20 +1246,30 @@ env propagation is incomplete.</p>
         <div class="slice-field-value">
           
           <input type="checkbox" id="slice-5-what-reveal" class="reveal-toggle">
-          <div class="markdown-block reveal-content serif-prose"><p>Harden work-item attribution for multiple CLIs and their simultaneous
-subagents. Add a coordination layer that records:</p>
+          <div class="markdown-block reveal-content serif-prose"><p>Harden work-item attribution for concurrent parallel root CLIs and their
+simultaneous subagents. Scope is limited to:</p>
 <ul>
-<li>root launcher session to work item claim</li>
-<li>subagent spawn event to parent session and work item</li>
-<li>branch/worktree path to work item</li>
-<li>explicit claim owner and heartbeat</li>
-<li>collision policy when two CLIs claim the same work item</li>
+<li>concurrent claim collision-vs-collaboration UX when two root CLI sessions
+claim the same work item simultaneously</li>
+<li>subagent out-of-order attribution: hook handlers write best-effort events
+even when parent records arrive later</li>
+<li>identity/claim fields exported for plan-c3bbb1ed: claim owner, session
+family, harness, work item, and execution root exposed in /api/features,
+<code>wipnote who</code>, Kanban cards, and dashboard session/file panels</li>
 </ul>
-<p>Prefer existing claim machinery and lineage edges, but stop relying on
-branch names alone for completion/attribution. No launcher may depend on
-arbitrary fresh-worktree branch names for completion once metadata-based
-completion is available. Make hook handlers write best-effort events even
-when parent records arrive later.</p>
+<p>Out of scope (delivered by other plans):</p>
+<ul>
+<li>Branch-name-completion transition: delivered by plan-83f909bc slice-3
+provenance gate (feat-7b593272); completion no longer requires branch-name
+inference is already true post plan-83f909bc.</li>
+<li>Dedup and reconcile concerns: delivered by plan-83f909bc slices 5/6
+(feat-f93fe770 <code>wipnote reconcile</code>); do not re-implement here.</li>
+</ul>
+<p>Prefer existing claim machinery and lineage edges. Claude TaskCreated/
+TaskCompleted, Codex TaskStarted/TaskComplete, and Gemini tool/session
+events must either map into the same canonical step/progress fields when a
+work item is active or be explicitly reported as unsupported so the
+dashboard does not imply live step tracking.</p>
 </div>
           <label for="slice-5-what-reveal" class="reveal-label">Show full description</label>
           
@@ -1280,9 +1300,11 @@ intentional collaboration or accidental collision.</p>
       
       <div class="slice-field">
         <div class="slice-field-label">Done when</div>
-        <ul class="slice-done-list"><li>Two root CLI sessions claiming the same work item produce a visible collision or collaboration state.</li><li>Subagent events retain parent/session/work-item attribution even when event ordering is out of order.</li><li>Completion no longer requires branch-name inference when session/work-item metadata is present.</li><li>Lineage output shows root CLI, child agents, branch/worktree, commits, and work item in one chain.</li></ul>
+        <ul class="slice-done-list"><li>Two root CLI sessions claiming the same work item produce a visible collision or collaboration state.</li><li>Subagent events retain parent/session/work-item attribution even when event ordering is out of order.</li><li>Lineage output shows root CLI, child agents, branch/worktree, commits, and work item in one chain.</li><li>Claim/collaboration state is available to `wipnote who`, /api/features, Kanban cards, and dashboard session/file panels.</li><li>Step/task lifecycle events are attributed to session family, work item, and harness, or a visible unsupported-state is available per harness.</li></ul>
       </div>
       
+    
+
     
 
     
@@ -1325,6 +1347,12 @@ intentional collaboration or accidental collision.</p>
           <span class="critic-revision-summary">Tighten transition away from branch-name completion; metadata-based completion must be live before arbitrary fresh-worktree branch names are allowed.</span>
         </div>
         
+        <div class="critic-revision">
+          <span class="badge badge-revision critic-revision-badge">MED</span>
+          <span class="critic-revision-source">codex</span>
+          <span class="critic-revision-summary">Cross-session visibility plan plan-c3bbb1ed consumes claim/session/step identity here; slice now exports those fields explicitly for `wipnote who`, /api/features, and Kanban.</span>
+        </div>
+        
       </div>
     </div>
     
@@ -1359,166 +1387,6 @@ intentional collaboration or accidental collision.</p>
     </details>
   </div>
 </details>
-<details class="slice-card" id="slice-6" data-slice="6" data-slice-name="slice-6" data-status="pending" data-approval="pending">
-  <summary class="slice-summary" aria-label="Slice 6: Collector and event-writer concurrency hardening">
-    <span class="slice-num">#6</span>
-    <span class="slice-title-col">
-      <span class="slice-name">Collector and event-writer concurrency hardening</span>
-      <span class="slice-preview">Audit and harden NDJSON, OTel collector, SQLite index, and child-process</span>
-      <span class="slice-meta-row">
-        <span class="slice-summary-badges">
-          <span class="badge badge-blocked badge-sm">L</span>
-          <span class="badge badge-blocked badge-sm">High</span>
-          <span class="badge badge-pending badge-sm" title="Execution: not_started">Not Started</span>
-          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-6">Pending</span>
-          <span class="badge badge-sm badge-issues" title="2 critic issue(s)">2 issues</span>
-          
-        </span>
-        <span class="slice-actions" onclick="event.stopPropagation()">
-          <span class="approval-segmented" role="group" aria-label="Approval action">
-            <label class="seg-btn seg-approve" title="Approve">
-              <input type="radio" name="slice-6-approval" value="approved" data-section="slice-6" data-action="approve" aria-label="Approve slice 6">
-              &#10003;
-            </label>
-            <label class="seg-btn seg-changes" title="Request changes">
-              <input type="radio" name="slice-6-approval" value="changes_requested" data-section="slice-6" data-action="approve" aria-label="Request changes for slice 6">
-              &#8635;
-            </label>
-            <label class="seg-btn seg-reject" title="Reject">
-              <input type="radio" name="slice-6-approval" value="rejected" data-section="slice-6" data-action="approve" aria-label="Reject slice 6">
-              &#10005;
-            </label>
-          </span>
-        </span>
-      </span>
-    </span>
-    <span class="slice-chevron" aria-hidden="true"></span>
-  </summary>
-
-  <div class="slice-body">
-    
-      
-      <div class="slice-field slice-what">
-        <div class="slice-field-label">What</div>
-        <div class="slice-field-value">
-          
-          <input type="checkbox" id="slice-6-what-reveal" class="reveal-toggle">
-          <div class="markdown-block reveal-content serif-prose"><p>Audit and harden NDJSON, OTel collector, SQLite index, and child-process
-helpers for many parallel root sessions and subagents.</p>
-<p>Choose and document the collector model explicitly: preserve the current
-session-scoped collector model, but harden many parallel collectors under
-one canonical project root. Do not redesign to a shared per-project
-collector in this plan unless a later plan deliberately changes that
-architecture.</p>
-<p>Ensure:</p>
-<ul>
-<li>many session-scoped collectors can safely write under one canonical
-project root</li>
-<li>per-session NDJSON files flush and fsync sentinel events</li>
-<li>SQLite writes use busy timeouts and return errors instead of silent empty
-results</li>
-<li>helper scripts/tests avoid noexec temp mounts by using exec-capable temp
-roots</li>
-<li>orphan events are repaired or surfaced rather than silently dropped</li>
-<li>index checkpoints are monotonic and replay is restart-safe with no
-duplicate or lost events across collector restarts</li>
-</ul>
-</div>
-          <label for="slice-6-what-reveal" class="reveal-label">Show full description</label>
-          
-        </div>
-      </div>
-      
-      
-      <div class="slice-field slice-why">
-        <div class="slice-field-label">Why</div>
-        <div class="slice-field-value">
-          
-          <div class="markdown-block serif-prose"><p>Worktree isolation increases concurrency. Event capture must remain durable
-under host sleep, devcontainer restarts, bursty subagent spawns, and
-sandboxed temp files. Otherwise the dashboard will look clean while losing
-the causal trail the feature is meant to protect.</p>
-</div>
-          
-        </div>
-      </div>
-      
-      
-      <div class="slice-field">
-        <div class="slice-field-label">Files</div>
-        <div class="slice-field-value"><code>internal/otel/sink/ndjson/ndjson.go, internal/otel/collector/lifecycle.go, internal/otel/indexer/indexer.go, internal/db/pragmas.go, internal/childproc/childproc_test.go, cmd/wipnote/otel_collect.go, cmd/wipnote/api_collector_status.go</code></div>
-      </div>
-      
-      
-      <div class="slice-field">
-        <div class="slice-field-label">Done when</div>
-        <ul class="slice-done-list"><li>Parallel session-scoped collectors can write events without interleaving or losing NDJSON records.</li><li>Collector status identifies canonical project, active session families, and stale session collectors.</li><li>Tests no longer execute generated helpers from noexec temp locations.</li><li>SQLite busy/locked paths are surfaced as errors or retries, not silent empty dashboard states.</li><li>Indexer checkpoints advance monotonically and restart replay produces no duplicate or missing events.</li></ul>
-      </div>
-      
-    
-
-    
-    <div class="slice-field slice-tests-field">
-      <div class="slice-field-label">Test Strategy</div>
-      <div class="slice-field-value">
-        
-        
-        <div class="test-strategy">
-          
-          <div class="test-group" data-kind="unit">
-            <span class="test-chip">UNIT &middot; 2</span>
-            <ul><li>TestNDJSONParallelFlush writes concurrent sessions and validates complete JSON lines.</li><li>TestChildprocFakeBinary_ExecCapableTempRoot avoids /tmp noexec failures.</li></ul>
-          </div>
-          
-          <div class="test-group" data-kind="integration">
-            <span class="test-chip">INTEGRATION &middot; 1</span>
-            <ul><li>TestCollectorParallelWorktrees sends events from multiple execution roots to one canonical collector.</li></ul>
-          </div>
-          
-          <div class="test-group" data-kind="regression">
-            <span class="test-chip">REGRESSION &middot; 1</span>
-            <ul><li>existing OTel receiver/indexer/materializer tests still pass.</li></ul>
-          </div>
-          
-        </div>
-        
-      </div>
-    </div>
-    
-
-    
-    <div class="slice-field slice-critic-revisions">
-      <div class="slice-field-label">Critic Revisions</div>
-      <div class="slice-field-value">
-        
-        <div class="critic-revision">
-          <span class="badge badge-blocked critic-revision-badge">HIGH</span>
-          <span class="critic-revision-source">observability-critique</span>
-          <span class="critic-revision-summary">Current architecture is session-scoped collectors, not one shared project collector; choose that model explicitly and harden it.</span>
-        </div>
-        
-        <div class="critic-revision">
-          <span class="badge badge-revision critic-revision-badge">MED</span>
-          <span class="critic-revision-source">observability-critique</span>
-          <span class="critic-revision-summary">Add restart-safe index checkpoint and duplicate/loss prevention criteria for parallel ingestion.</span>
-        </div>
-        
-      </div>
-    </div>
-    
-
-    
-
-    <div class="slice-deps">Dependencies: slices 3,4</div>
-
-    <details class="comment-collapse">
-      <summary class="comment-collapse-trigger">+ Leave a comment</summary>
-      <div class="comment-collapse-body">
-        <textarea data-section="slice-6" data-comment-for="slice-6" placeholder="Comments on slice 6..."></textarea>
-      </div>
-    </details>
-  </div>
-</details>
 <details class="slice-card" id="slice-7" data-slice="7" data-slice-name="slice-7" data-status="pending" data-approval="pending">
   <summary class="slice-summary" aria-label="Slice 7: Dashboard worktree/session-family UX">
     <span class="slice-num">#7</span>
@@ -1529,9 +1397,10 @@ the causal trail the feature is meant to protect.</p>
         <span class="slice-summary-badges">
           <span class="badge badge-blocked badge-sm">L</span>
           <span class="badge badge-revision badge-sm">Med</span>
+          
           <span class="badge badge-pending badge-sm" title="Execution: not_started">Not Started</span>
           <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-7">Pending</span>
-          <span class="badge badge-sm badge-issues" title="1 critic issue(s)">1 issue</span>
+          <span class="badge badge-sm badge-issues" title="2 critic issue(s)">2 issues</span>
           
         </span>
         <span class="slice-actions" onclick="event.stopPropagation()">
@@ -1569,15 +1438,23 @@ the project view. Add API fields and UI affordances for:</p>
 <li>canonical project root versus execution worktree</li>
 <li>branch/work-item/session-family badge on active sessions</li>
 <li>collision or collaboration status for work-item claims</li>
-<li>stale collector and stale worktree warnings</li>
+<li>stale collector and stale worktree warnings (collector/stale warnings are
+framed around plan-ae0c37b2&#39;s writer-queue and collector-status APIs,
+not the deleted slice-6 assumptions)</li>
 <li>filters by harness, work item, branch, session family, and execution root</li>
 <li>explicit default grouping semantics for sessions list, activity feed,
 and event tree: canonical project first, session family second,
 individual session drilldown third</li>
+<li>Work/Kanban board identity fields consumed by plan-c3bbb1ed: active
+CLI/session/model on cards, step progress, conflict/overlap status,
+recently moved/reassigned markers, and track-level active/stale/
+collision counts</li>
 </ul>
 <p>Keep the first screen operational, not explanatory: the dashboard should
-show what is running, where it is running, what it is editing, and why it
-is attributed to a work item.</p>
+show what is running, where it is running, what it is editing, what work
+item it belongs to, and why it is attributed there. Full file-overlap and
+Kanban rendering behavior is delivered by plan-c3bbb1ed; this slice
+guarantees the launcher/session-family API fields are available.</p>
 </div>
           <label for="slice-7-what-reveal" class="reveal-label">Show full description</label>
           
@@ -1607,9 +1484,11 @@ forcing users to inspect git state manually.</p>
       
       <div class="slice-field">
         <div class="slice-field-label">Done when</div>
-        <ul class="slice-done-list"><li>Dashboard active sessions display harness, canonical project, execution root, branch/worktree, work item, and session family.</li><li>Sessions list, activity feed, and event tree have documented defaults for project/family/session grouping.</li><li>Claim collisions and stale collectors are visible as operational warnings.</li><li>Existing single-session dashboard views remain readable and unchanged in normal host installs.</li></ul>
+        <ul class="slice-done-list slice-done-list--grid"><li>Dashboard active sessions display harness, canonical project, execution root, branch/worktree, work item, and session family.</li><li>Sessions list, activity feed, and event tree have documented defaults for project/family/session grouping.</li><li>Claim collisions and stale collectors are visible as operational warnings (sourced from plan-ae0c37b2 writer-queue and collector-status APIs).</li><li>Dashboard APIs expose the stable session-family, claim, and execution-root fields needed by plan-c3bbb1ed Kanban and `wipnote who` views.</li><li>Work/Kanban board API payloads can associate each active work item with owner session, harness/model, claim/collision state, and execution root.</li><li>Existing single-session dashboard views remain readable and unchanged in normal host installs.</li></ul>
       </div>
       
+    
+
     
 
     
@@ -1652,13 +1531,19 @@ forcing users to inspect git state manually.</p>
           <span class="critic-revision-summary">Pin down dashboard grouping semantics and required API fields instead of leaving family grouping as an optional view.</span>
         </div>
         
+        <div class="critic-revision">
+          <span class="badge badge-revision critic-revision-badge">MED</span>
+          <span class="critic-revision-source">codex</span>
+          <span class="critic-revision-summary">Dashboard UX now reserves the Work/Kanban identity data contract consumed by plan-c3bbb1ed, while leaving detailed card rendering to that visibility plan.</span>
+        </div>
+        
       </div>
     </div>
     
 
     
 
-    <div class="slice-deps">Dependencies: slices 4,5,6</div>
+    <div class="slice-deps">Dependencies: slices 4,5</div>
 
     <details class="comment-collapse">
       <summary class="comment-collapse-trigger">+ Leave a comment</summary>
@@ -1678,6 +1563,7 @@ forcing users to inspect git state manually.</p>
         <span class="slice-summary-badges">
           <span class="badge badge-revision badge-sm">M</span>
           <span class="badge badge-revision badge-sm">Med</span>
+          
           <span class="badge badge-pending badge-sm" title="Execution: not_started">Not Started</span>
           <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-8">Pending</span>
           <span class="badge badge-sm badge-issues" title="1 critic issue(s)">1 issue</span>
@@ -1753,9 +1639,11 @@ on devcontainer-only paths or volumes.</p>
       
       <div class="slice-field">
         <div class="slice-field-label">Done when</div>
-        <ul class="slice-done-list"><li>Profile plumbing distinguishes host versus devcontainer dashboard defaults and launcher behavior.</li><li>Install/deploy scripts do not require devcontainer-only paths or assumptions.</li><li>Devcontainer verification checks launcher mode, port convention, and exec-capable temp root.</li><li>Host production remains warn-only/config-gated until migration tooling and release runbooks are present.</li></ul>
+        <ul class="slice-done-list"><li>Profile plumbing distinguishes host versus devcontainer dashboard defaults and launcher behavior.</li><li>Install/deploy scripts do not require devcontainer-only paths or assumptions.</li><li>Devcontainer verification checks launcher mode, port convention, and exec-capable temp root.</li><li>Host production remains warn-only/config-gated until migration tooling and release runbooks are present.</li><li>Devcontainer bind-default selection (0.0.0.0:8088) is consistent with plan-ae0c37b2 slice-4&#39;s `wipnote status` fstype/journal-mode diagnostics; this profile output does not duplicate that status output.</li></ul>
       </div>
       
+    
+
     
 
     
@@ -1847,6 +1735,7 @@ on devcontainer-only paths or volumes.</p>
         <span class="slice-summary-badges">
           <span class="badge badge-revision badge-sm">M</span>
           <span class="badge badge-revision badge-sm">Med</span>
+          
           <span class="badge badge-pending badge-sm" title="Execution: not_started">Not Started</span>
           <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-9">Pending</span>
           <span class="badge badge-sm badge-issues" title="2 critic issue(s)">2 issues</span>
@@ -1883,20 +1772,29 @@ on devcontainer-only paths or volumes.</p>
           <input type="checkbox" id="slice-9-what-reveal" class="reveal-toggle">
           <div class="markdown-block reveal-content serif-prose"><p>Add migration and cleanup commands for users with existing divergent local
 main states and stale worktrees.</p>
-<p>Provide:</p>
+<p><code>wipnote launcher doctor</code> is the primary deliverable. It:</p>
 <ul>
-<li><code>wipnote launcher doctor</code> or similar diagnostic command</li>
-<li>detection of local main ahead/behind origin with dirty worktree</li>
-<li>suggestions to create backup branches, stash, or move work into managed
-worktrees</li>
-<li>stale managed-worktree listing and safe prune guidance</li>
-<li>compatibility handling for old sessions without session families</li>
-<li>release migration docs and dashboard warning links</li>
-<li>diagnostics for legacy/global fallback use, sessions missing family
-linkage, collector PID without index advancement, and dashboard-visible
-sessions split across unexpected canonical roots</li>
-<li>the rollout gate that allows host production to move from warn-only to
-worktree-by-default once identity, fallback, and doctor checks pass</li>
+<li>detects local main ahead/behind origin with dirty worktree</li>
+<li>lists stale managed worktrees and provides safe prune guidance</li>
+<li>reports launcher/worktree-divergence diagnostics (canonical root mismatch,
+split canonical root across sessions)</li>
+<li>delegates orphan-session cleanup to <code>wipnote cleanup orphan-sessions</code>
+(delivered by plan-ae0c37b2 slice-11, feat-2c631aa9 — do not re-implement)</li>
+<li>delegates session-exit reconciliation to <code>wipnote reconcile</code>
+(delivered by plan-83f909bc slice-5, feat-f93fe770 — do not re-implement)</li>
+<li>adds only launcher/worktree-divergence diagnostics on top of the
+delegated commands</li>
+<li>prints non-destructive remediation steps by default</li>
+<li>provides compatibility handling for old sessions without session families</li>
+<li>contains the rollout gate that allows host production to move from
+warn-only to worktree-by-default once doctor checks pass</li>
+</ul>
+<p>Out of scope (shipped):</p>
+<ul>
+<li>Orphan-session-cleanup responsibility: plan-ae0c37b2 slice-11
+<code>wipnote cleanup orphan-sessions</code>, feat-2c631aa9.</li>
+<li>Generic session-exit reconciliation: plan-83f909bc slice-5
+<code>wipnote reconcile</code>, feat-f93fe770.</li>
 </ul>
 </div>
           <label for="slice-9-what-reveal" class="reveal-label">Show full description</label>
@@ -1927,9 +1825,11 @@ observable workflow.</p>
       
       <div class="slice-field">
         <div class="slice-field-label">Done when</div>
-        <ul class="slice-done-list slice-done-list--grid"><li>Doctor command reports dirty main, ahead/behind, stale worktrees, and missing canonical identity metadata.</li><li>Doctor command prints non-destructive remediation steps by default.</li><li>Dashboard can link stale/isolation warnings to the doctor command.</li><li>Old sessions without session-family metadata remain visible and are labeled as legacy rather than broken.</li><li>Doctor reports fallback/session-family/collector-index health in addition to git/worktree state.</li><li>Host production default flip is gated on passing doctor/migration checks and documented release guidance.</li></ul>
+        <ul class="slice-done-list slice-done-list--grid"><li>Doctor command reports dirty main, ahead/behind, stale worktrees, and missing canonical identity metadata.</li><li>Doctor command prints non-destructive remediation steps by default.</li><li>Doctor delegates to `wipnote reconcile` (plan-83f909bc/feat-f93fe770) and `wipnote cleanup orphan-sessions` (plan-ae0c37b2/feat-2c631aa9) rather than reimplementing those capabilities.</li><li>Dashboard can link stale/isolation warnings to the doctor command.</li><li>Old sessions without session-family metadata remain visible and are labeled as legacy rather than broken.</li><li>Doctor reports launcher/worktree-divergence health (canonical root mismatch, split roots) in addition to git/worktree state.</li><li>Host production default flip is gated on passing doctor/migration checks and documented release guidance.</li></ul>
       </div>
       
+    
+
     
 
     
@@ -2004,6 +1904,7 @@ observable workflow.</p>
         <span class="slice-summary-badges">
           <span class="badge badge-blocked badge-sm">L</span>
           <span class="badge badge-blocked badge-sm">High</span>
+          
           <span class="badge badge-pending badge-sm" title="Execution: not_started">Not Started</span>
           <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-10">Pending</span>
           <span class="badge badge-sm badge-issues" title="2 critic issue(s)">2 issues</span>
@@ -2039,8 +1940,12 @@ observable workflow.</p>
           
           <input type="checkbox" id="slice-10-what-reveal" class="reveal-toggle">
           <div class="markdown-block reveal-content serif-prose"><p>Build an end-to-end stress harness and production release gate for the new
-launcher model. The harness should start multiple fake or real harness
-sessions in parallel:</p>
+launcher model. The harness layers git-isolation, lineage, and
+parallel-launcher assertions onto the existing SQLite-contention fixture
+(plan-ae0c37b2 slice-10, <code>cmd/wipnote/sqlite_contention_test.go</code>,
+feat-156e0a1a) — it does NOT build a standalone contention harness (the
+SQLite-contention dimension is shipped and out of scope here).</p>
+<p>The harness should start multiple fake or real harness sessions in parallel:</p>
 <ul>
 <li>Claude, Codex, and Gemini roots in one canonical project</li>
 <li>multiple subagents per root</li>
@@ -2081,9 +1986,11 @@ deployment a concrete readiness signal.</p>
       
       <div class="slice-field">
         <div class="slice-field-label">Done when</div>
-        <ul class="slice-done-list"><li>Stress harness proves local main stays clean while parallel sessions edit isolated branches/worktrees.</li><li>Dashboard APIs show all parallel root and subagent sessions under one canonical project.</li><li>Lineage output links work item, root session, subagents, branches/worktrees, and commits.</li><li>CI and release runbooks include a small production acceptance harness and a documented larger stress harness.</li><li>Environment-sensitive socket/process tests declare the profile they require and use exec-capable temp roots.</li></ul>
+        <ul class="slice-done-list slice-done-list--grid"><li>Stress harness proves local main stays clean while parallel sessions edit isolated branches/worktrees.</li><li>Dashboard APIs show all parallel root and subagent sessions under one canonical project.</li><li>Lineage output links work item, root session, subagents, branches/worktrees, and commits.</li><li>CI and release runbooks include a small production acceptance harness and a documented larger stress harness.</li><li>Environment-sensitive socket/process tests declare the profile they require and use exec-capable temp roots.</li><li>Git-isolation and lineage assertions build on (not duplicate) the contention fixture from plan-ae0c37b2 slice-10.</li></ul>
       </div>
       
+    
+
     
 
     
@@ -2143,7 +2050,7 @@ deployment a concrete readiness signal.</p>
 
     
 
-    <div class="slice-deps">Dependencies: slices 5,6,7,8,9</div>
+    <div class="slice-deps">Dependencies: slices 5,7,8,9</div>
 
     <details class="comment-collapse">
       <summary class="comment-collapse-trigger">+ Leave a comment</summary>
@@ -2170,8 +2077,8 @@ deployment a concrete readiness signal.</p>
   <h2>Feedback Summary</h2>
   <div class="progress-stats">
     <div class="progress-stat"><strong id="approvedCount">0</strong> approved</div>
-    <div class="progress-stat"><strong id="totalSections">11</strong> sections</div>
-    <div class="progress-stat"><strong id="pendingCount">11</strong> pending</div>
+    <div class="progress-stat"><strong id="totalSections">10</strong> sections</div>
+    <div class="progress-stat"><strong id="pendingCount">10</strong> pending</div>
   </div>
   <div class="progress-bar-track"><div class="progress-bar-fill" id="progressFill" style="width:0%"></div></div>
   <div class="comments-summary">
@@ -2251,7 +2158,7 @@ var planId=(function(){var a=document.querySelector('article[id]');return a?a.id
 
 (function(){
   'use strict';
-  var SECTIONS=/*PLAN_SECTIONS_JSON*/["design","slice-1","slice-2","slice-3","slice-4","slice-5","slice-6","slice-7","slice-8","slice-9","slice-10"]/*END_PLAN_SECTIONS_JSON*/;
+  var SECTIONS=/*PLAN_SECTIONS_JSON*/["design","slice-1","slice-2","slice-3","slice-4","slice-5","slice-7","slice-8","slice-9","slice-10"]/*END_PLAN_SECTIONS_JSON*/;
 
   function setBadge(el,ok){
     el.className='badge badge-'+(ok?'approved':'pending');
