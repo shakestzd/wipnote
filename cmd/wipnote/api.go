@@ -212,6 +212,7 @@ func featuresHandler(database *sql.DB, projectDir string) http.HandlerFunc {
 		} else {
 			mergeProvenanceFromHTML(features, projectDir)
 		}
+		mergeClaimAttributionFromDB(features, database)
 		respondJSON(w, features)
 	}
 }
@@ -291,6 +292,60 @@ func mergeProvenanceFromHTML(features []map[string]any, projectDir string) {
 			features[i]["created_by_role"] = pf.role
 			features[i]["created_by_cli_ver"] = pf.cliVer
 		}
+	}
+}
+
+// mergeClaimAttributionFromDB merges claim ownership, collaboration state,
+// session family, and harness fields into features returned by featuresFromDB or
+// featuresFromHTML. This exposes identity fields to /api/features consumers
+// (Kanban cards, dashboard session/file panels, plan-c3bbb1ed). Best-effort:
+// missing claims leave the feature unchanged (backward-compatible).
+func mergeClaimAttributionFromDB(features []map[string]any, database *sql.DB) {
+	for i := range features {
+		id, _ := features[i]["id"].(string)
+		if id == "" {
+			continue
+		}
+		coll, err := dbpkg.DetectCollaboration(database, id)
+		if err != nil {
+			continue
+		}
+		if len(coll.Claimants) == 0 {
+			features[i]["claim_owner"] = ""
+			features[i]["claim_session_family"] = ""
+			features[i]["claim_harness"] = ""
+			features[i]["claim_status"] = ""
+			features[i]["claim_collision"] = false
+			continue
+		}
+		// Primary claimant is the oldest (first by created_at).
+		primary := coll.Claimants[0]
+		features[i]["claim_owner"] = primary.OwnerSessionID
+		features[i]["claim_harness"] = primary.OwnerAgent
+		features[i]["claim_status"] = string(primary.Status)
+		features[i]["claim_collision"] = coll.HasCollision
+		// Session family for the primary claimant.
+		var familyID string
+		if err := database.QueryRow(
+			`SELECT COALESCE(session_family_id, session_id) FROM sessions WHERE session_id = ?`,
+			primary.OwnerSessionID,
+		).Scan(&familyID); err == nil {
+			features[i]["claim_session_family"] = familyID
+		} else {
+			features[i]["claim_session_family"] = primary.OwnerSessionID
+		}
+		// Claimant list for dashboard collision panels.
+		claimants := make([]map[string]any, 0, len(coll.Claimants))
+		for _, c := range coll.Claimants {
+			claimants = append(claimants, map[string]any{
+				"claim_id":   c.ClaimID,
+				"session_id": c.OwnerSessionID,
+				"harness":    c.OwnerAgent,
+				"status":     string(c.Status),
+				"claimed_at": c.LeasedAt.UTC().Format(time.RFC3339),
+			})
+		}
+		features[i]["claimants"] = claimants
 	}
 }
 

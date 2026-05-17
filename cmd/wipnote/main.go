@@ -307,6 +307,9 @@ func buildRoot() *cobra.Command {
 	root.AddCommand(ciCmd())
 	root.AddCommand(helpCmd())
 	root.AddCommand(claimCmd())
+	who := whoCmd()
+	who.GroupID = "query"
+	root.AddCommand(who)
 	root.AddCommand(purgeSpikesCmd())
 	root.AddCommand(traceCmd())
 	root.AddCommand(graphCmd())

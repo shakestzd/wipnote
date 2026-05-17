@@ -170,6 +170,14 @@ func insertSubagentLineage(database *sql.DB, parentSessionID, agentID, agentType
 			parentSessionID[:minSessionLen(parentSessionID)], err)
 		return
 	}
+	// Out-of-order attribution: if the child session row already existed
+	// (created by a prior hook before SubagentStart fired), backfill the
+	// parent_session_id so the lineage chain is complete regardless of
+	// arrival order. BackfillParentSession is idempotent (no-op when already set).
+	if err := db.BackfillParentSession(database, agentID, parentSessionID); err != nil {
+		debugLog(projectDir, "[warn] handler=subagent-start session=%s: backfill parent: %v",
+			parentSessionID[:minSessionLen(parentSessionID)], err)
+	}
 
 	trace := &models.LineageTrace{
 		TraceID:       agentID,
