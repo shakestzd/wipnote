@@ -48,7 +48,7 @@ func applyLaunchPlan(repoRoot, workItemID string, inPlace bool, w io.Writer) pla
 		WorkItemID:  workItemID,
 		RuntimeMode: m.Runtime,
 		InPlace:     inPlace,
-		// EnforceIsolation: false — gated off until slice-9 (migration/doctor).
+		EnforceIsolation: os.Getenv("WIPNOTE_ENFORCE_ISOLATION") == "true",
 	})
 	if err != nil {
 		return p

@@ -3975,3 +3975,19 @@ function dashSidebarTeardown() {
   var fr = document.getElementById('dash-finalize-result');
   if (fr) { fr.style.display = 'none'; fr.innerHTML = ''; }
 }
+
+/* ── Launcher Doctor hint ───────────────────────────────────── */
+// renderDoctorHint returns a small inline element linking to the launcher
+// doctor command. Call this from any stale-session or isolation-warning
+// context to surface actionable guidance without navigating away.
+// The link is informational — it copies the command to a terminal hint;
+// it does NOT auto-invoke any CLI command.
+// slice-9 (feat-dbe359c1): minimal additive hook; dashboard visual QA deferred.
+function renderDoctorHint() {
+  var hint = document.createElement('span');
+  hint.className = 'doctor-hint';
+  hint.title = 'Run this command in your terminal to diagnose launcher/worktree health';
+  hint.textContent = 'Run: wipnote launcher doctor';
+  hint.style.cssText = 'font-size:.78rem;color:var(--text-dim,#888);margin-left:8px;cursor:help;';
+  return hint;
+}

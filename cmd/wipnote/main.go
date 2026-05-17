@@ -323,6 +323,9 @@ func buildRoot() *cobra.Command {
 	root.AddCommand(shellAliasCmd())
 	root.AddCommand(pricingCmd())
 	root.AddCommand(harnessCmd())
+	launcher := launcherCmd()
+	launcher.GroupID = "quality"
+	root.AddCommand(launcher)
 
 	return root
 }

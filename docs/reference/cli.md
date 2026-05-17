@@ -171,3 +171,40 @@ dashboard is reachable at `http://127.0.0.1:8088` from your browser.
 **Status output:** The `wipnote status` command reports fstype and journal-mode diagnostics
 independently (plan-ae0c37b2 slice-4). Deployment profile information is a launcher concern
 and does not duplicate that output.
+
+---
+
+## Launcher Doctor
+
+`wipnote launcher doctor` diagnoses launcher/worktree health and prints
+non-destructive remediation steps.
+
+```bash
+wipnote launcher doctor
+```
+
+**What it checks:**
+
+| Check | Description |
+|-------|-------------|
+| Git state | Dirty main branch, ahead/behind origin |
+| Managed worktrees | Stale entries whose directory has been removed |
+| Session family | Legacy sessions (no family-id), canonical-root mismatch |
+| Rollout gate | Whether `WIPNOTE_ENFORCE_ISOLATION` is active |
+
+**Delegation:** The doctor reports that you should run
+`wipnote cleanup orphan-sessions` and `wipnote reconcile` — it does NOT
+run them automatically. This keeps it non-destructive by default.
+
+**Legacy sessions:** Sessions created before `session_family_id` was
+introduced are labeled **"legacy"** in the doctor output. They remain fully
+visible in the dashboard and require no migration.
+
+**Rollout gate:** Host-production stays warn-only by default. To advance to
+enforced isolation after doctor checks pass:
+
+```bash
+export WIPNOTE_ENFORCE_ISOLATION=true
+```
+
+See `docs/runbook/launcher-isolation.md` for the full step-by-step guide.
