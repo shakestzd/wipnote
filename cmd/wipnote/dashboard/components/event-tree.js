@@ -2137,3 +2137,26 @@ document.addEventListener('click', function(e) {
     return;
   }
 });
+
+/* ── Slice-7: documented grouping contract ──────────────────────────────────
+ *
+ * Default grouping across the dashboard (canonical→family→session):
+ *   Level 1 — canonical_project (sessions.project_dir)
+ *             Exposed by /api/sessions/parallel as the top-level "groups" key.
+ *   Level 2 — session_family_id
+ *             Exposed by /api/sessions (session_family_id field) and
+ *             /api/sessions/family-info; family members returned by
+ *             /api/sessions/family (turn tree filtered to family).
+ *   Level 3 — individual session drilldown (this component's default view)
+ *             Turns keyed by session_id; filter by session_family_id using
+ *             the /api/sessions/family endpoint.
+ *
+ * This component renders Level 3 (per-session turn tree). Levels 1 & 2 are
+ * rendered by the sessions panel (renderSessions + renderSessionFilterRow in
+ * app.js) and exposed as API for plan-c3bbb1ed Kanban consumption.
+ *
+ * plan-c3bbb1ed identity fields available per turn via user_query:
+ *   - session_id   → join to /api/sessions for exec_root, harness, model
+ *   - feature_id   → join to /api/features for claim_collision, claimants[]
+ *   - agent_id     → harness discriminator
+ * ──────────────────────────────────────────────────────────────────────────*/

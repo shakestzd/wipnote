@@ -92,6 +92,7 @@ func buildSingleProjectMux(database *sql.DB, wipnoteDir string) *http.ServeMux {
 	mux.Handle("/api/initial-stats", initialStatsHandler(database))
 	mux.Handle("/api/timeline", timelineHandler(database))
 	mux.Handle("/api/transcript", transcriptHandler(database, wipnoteDir))
+	mux.Handle("/api/sessions/parallel", parallelSessionsHandler(database))
 	mux.Handle("/api/sessions/", sessionIngestHandler(database))
 	mux.Handle("/api/features/", featureActivityRouter(database, wipnoteDir))
 	mux.Handle("/api/graph", graphAPIHandler(database))

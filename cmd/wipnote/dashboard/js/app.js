@@ -3991,3 +3991,180 @@ function renderDoctorHint() {
   hint.style.cssText = 'font-size:.78rem;color:var(--text-dim,#888);margin-left:8px;cursor:help;';
   return hint;
 }
+
+/* ── Slice-7: isolation-visibility extensions ─────────────────────────────── */
+
+// _sessionFamilyFilter is the currently-active family filter value, or '' for none.
+var _sessionFamilyFilter = '';
+// _sessionHarnessFilter is the currently-active harness filter value, or '' for none.
+var _sessionHarnessFilter = '';
+// _sessionCollisionFilter is true when showing only sessions with claim collisions.
+var _sessionCollisionFilter = false;
+
+// renderSessionFilterRow injects a filter-pill row above the sessions table.
+// Filters: harness pills + "Collision only" toggle. Additive — no existing
+// table markup changed; the row is inserted before the sessions-body.
+function renderSessionFilterRow() {
+  var existing = document.getElementById('session-filter-row');
+  if (existing) existing.remove();
+
+  var harnesses = {};
+  sessions.forEach(function(s) {
+    if (s.harness || s.agent) harnesses[s.harness || s.agent] = true;
+  });
+  var harnessKeys = Object.keys(harnesses);
+  if (harnessKeys.length < 2 && !_sessionCollisionFilter) return; // single harness: filters not needed
+
+  var row = document.createElement('div');
+  row.id = 'session-filter-row';
+  row.className = 'session-filter-row';
+
+  // "All" pill
+  var allPill = document.createElement('button');
+  allPill.className = 'session-filter-pill' + (_sessionHarnessFilter === '' && !_sessionCollisionFilter ? ' active' : '');
+  allPill.textContent = 'All';
+  allPill.addEventListener('click', function() {
+    _sessionHarnessFilter = '';
+    _sessionCollisionFilter = false;
+    renderSessions();
+  });
+  row.appendChild(allPill);
+
+  // One pill per harness
+  var _harnessLabels = {'claude-code': 'Claude', 'codex': 'Codex', 'gemini': 'Gemini'};
+  harnessKeys.forEach(function(h) {
+    var pill = document.createElement('button');
+    pill.className = 'session-filter-pill' + (_sessionHarnessFilter === h ? ' active' : '');
+    pill.textContent = _harnessLabels[h] || h;
+    pill.addEventListener('click', function() {
+      _sessionHarnessFilter = (_sessionHarnessFilter === h) ? '' : h;
+      _sessionCollisionFilter = false;
+      renderSessions();
+    });
+    row.appendChild(pill);
+  });
+
+  // Collision filter pill (only show if any collision exists)
+  var hasAnyCollision = sessions.some(function(s) { return s.claim_collision; });
+  if (hasAnyCollision) {
+    var colPill = document.createElement('button');
+    colPill.className = 'session-filter-pill' + (_sessionCollisionFilter ? ' active' : '');
+    colPill.textContent = 'Collision';
+    colPill.addEventListener('click', function() {
+      _sessionCollisionFilter = !_sessionCollisionFilter;
+      _sessionHarnessFilter = '';
+      renderSessions();
+    });
+    row.appendChild(colPill);
+  }
+
+  // Insert before the sessions table
+  var tbl = document.querySelector('#v-sessions table');
+  if (tbl && tbl.parentNode) tbl.parentNode.insertBefore(row, tbl);
+}
+
+// applySessionFilters returns the filtered session list for renderSessions.
+function applySessionFilters(list) {
+  return list.filter(function(s) {
+    if (_sessionHarnessFilter && (s.harness || s.agent) !== _sessionHarnessFilter) return false;
+    if (_sessionCollisionFilter && !s.claim_collision) return false;
+    return true;
+  });
+}
+
+// renderCollectorWarningBanner fetches /api/collector-status for the given
+// sessionID and renders a stale warning when the collector is dead and the
+// session is still active. Additive — shown above the session table or in
+// a parent container; never replaces existing content.
+function renderCollectorWarningBanner(sessionID, container) {
+  if (!sessionID || !container) return;
+  fetch(buildProjectUrl('otel/status', 'session=' + sessionID))
+    .then(function(r) { return r.ok ? r.json() : null; })
+    .then(function(data) {
+      if (!data) return;
+      if (data.alive) return; // healthy — no banner
+      var banner = document.createElement('div');
+      banner.className = 'collector-stale-banner';
+      banner.textContent = 'OTel collector offline for session ' + sessionID.slice(0, 8) + ' — telemetry paused';
+      banner.appendChild(renderDoctorHint());
+      container.insertBefore(banner, container.firstChild);
+    })
+    .catch(function() {});
+}
+
+// Patch renderSessions to:
+//   1. Apply harness/collision filters.
+//   2. Append session-family and collision badges after the harness badge.
+//   3. Insert the filter row above the table.
+//
+// This wraps the original renderSessions rather than replacing it so the
+// existing single-session view behaviour is unchanged.
+(function() {
+  var _originalRenderSessions = renderSessions;
+  renderSessions = function() {
+    _originalRenderSessions();
+    // Post-render pass: inject filter row and slice-7 badges.
+    renderSessionFilterRow();
+    _injectSlice7Badges();
+  };
+})();
+
+// _injectSlice7Badges walks the rendered session rows and adds family and
+// collision badges where the API fields are set. Operates on the live DOM
+// after renderSessions() has built it; never rebuilds the table.
+function _injectSlice7Badges() {
+  var body = document.getElementById('sessions-body');
+  if (!body) return;
+
+  // Build a lookup from session_id to session data.
+  var lookup = {};
+  sessions.forEach(function(s) { lookup[s.session_id] = s; });
+
+  var rows = body.querySelectorAll('tr.session-row');
+  rows.forEach(function(tr) {
+    var sid = tr.getAttribute('data-session-id');
+    var s = sid && lookup[sid];
+    if (!s) return;
+
+    var titleTd = tr.querySelector('td:first-child');
+    if (!titleTd) return;
+
+    // Remove any previously-injected slice-7 badges to avoid doubling.
+    titleTd.querySelectorAll('.badge-family,.badge-collision').forEach(function(b) { b.remove(); });
+
+    // Family badge — show short suffix of family ID when it differs from session_id.
+    var fid = s.session_family_id;
+    if (fid && fid !== s.session_id) {
+      var famBadge = document.createElement('span');
+      famBadge.className = 'badge-family';
+      famBadge.textContent = 'fam:' + fid.slice(-6);
+      famBadge.title = 'Session family: ' + fid;
+      titleTd.appendChild(famBadge);
+    }
+
+    // Collision badge — shown when claim_collision is true.
+    if (s.claim_collision) {
+      var colBadge = document.createElement('span');
+      colBadge.className = 'badge-collision';
+      colBadge.textContent = 'COLLISION';
+      colBadge.title = 'Claim collision: multiple sessions own this work item (' + (s.feature_id || '') + ')';
+      titleTd.appendChild(colBadge);
+    }
+  });
+
+  // Apply harness/collision filters: hide non-matching rows.
+  rows.forEach(function(tr) {
+    var sid = tr.getAttribute('data-session-id');
+    var s = sid && lookup[sid];
+    if (!s) return;
+    var visible = true;
+    if (_sessionHarnessFilter && (s.harness || s.agent) !== _sessionHarnessFilter) visible = false;
+    if (_sessionCollisionFilter && !s.claim_collision) visible = false;
+    tr.style.display = visible ? '' : 'none';
+    // Also hide the preview row below this row.
+    var next = tr.nextElementSibling;
+    if (next && next.classList.contains('session-preview-row')) {
+      next.style.display = (visible && next.style.display !== 'none') ? next.style.display : 'none';
+    }
+  });
+}

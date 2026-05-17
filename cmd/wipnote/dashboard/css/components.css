@@ -2474,3 +2474,81 @@ p.numbered-step { padding-left: 1.5em; text-indent: -1.5em; }
 [data-theme="light"] .terminal-pane {
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
 }
+
+/* ── Slice-7: isolation-visibility badges ─────────────────────────────────── */
+
+/* Session-family badge: groups sessions that share a session_family_id */
+.badge-family {
+  display: inline-block;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 1px 5px;
+  border-radius: 3px;
+  margin-left: 6px;
+  background: rgba(20,184,166,0.18);
+  color: #2dd4bf;
+  vertical-align: middle;
+  white-space: nowrap;
+  max-width: 9ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+[data-theme="light"] .badge-family { background: rgba(13,148,136,0.12); color: #0f766e; }
+
+/* Collision badge: two or more sessions own the same work item */
+.badge-collision {
+  display: inline-block;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 1px 5px;
+  border-radius: 3px;
+  margin-left: 6px;
+  background: rgba(239,68,68,0.2);
+  color: #f87171;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+[data-theme="light"] .badge-collision { background: rgba(220,38,38,0.12); color: #dc2626; }
+
+/* Stale-collector warning banner — shown below session header */
+.collector-stale-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: rgba(234,179,8,0.12);
+  border: 1px solid rgba(234,179,8,0.3);
+  border-radius: 4px;
+  font-size: 0.78rem;
+  color: #eab308;
+  margin-bottom: 8px;
+}
+[data-theme="light"] .collector-stale-banner { background: rgba(161,98,7,0.08); border-color: rgba(161,98,7,0.25); color: #92400e; }
+
+/* Filter pill row for session-family / harness / collision filters */
+.session-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 4px 0 8px 0;
+  align-items: center;
+}
+.session-filter-pill {
+  font-size: 0.7rem;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border, #333);
+  background: transparent;
+  color: var(--text-secondary, #aaa);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  font-family: var(--font-sans, inherit);
+}
+.session-filter-pill.active {
+  background: var(--accent, #6366f1);
+  border-color: var(--accent, #6366f1);
+  color: #fff;
+}
+.session-filter-pill:hover:not(.active) { background: var(--bg-secondary, #1a1a1a); }

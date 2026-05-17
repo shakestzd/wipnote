@@ -124,7 +124,10 @@ func sessionsHandler(database *sql.DB, projectDir, wipnoteDir string) http.Handl
 			       COALESCE(json_extract(s.metadata, '$.launch_mode'), '') AS launch_mode,
 			       COALESCE((SELECT pf.plan_id FROM plan_feedback pf
 			                 WHERE pf.action = 'session_id' AND pf.value = s.session_id
-			                 LIMIT 1), '') AS plan_id
+			                 LIMIT 1), '') AS plan_id,
+			       COALESCE(s.session_family_id, s.session_id) AS family_id,
+			       COALESCE(s.project_dir, '') AS canonical_project,
+			       COALESCE(s.parent_session_id, '') AS parent_session_id
 			FROM sessions s
 			WHERE s.project_dir = ?
 			  AND (s.total_events > 0
@@ -153,8 +156,11 @@ func sessionsHandler(database *sql.DB, projectDir, wipnoteDir string) http.Handl
 			var featureID, model, title, firstMsg string
 			var msgCount int
 			var sessionLaunchMode, sessionPlanID string
+			var familyID, canonicalProject, parentSessionID string
 			if err := rows.Scan(&sid, &agent, &status, &created, &completed,
-				&totalEvents, &featureID, &model, &title, &firstMsg, &msgCount, &sessionLaunchMode, &sessionPlanID); err != nil {
+				&totalEvents, &featureID, &model, &title, &firstMsg, &msgCount,
+				&sessionLaunchMode, &sessionPlanID,
+				&familyID, &canonicalProject, &parentSessionID); err != nil {
 				continue
 			}
 			adherence, err := dbpkg.DeriveSessionAdherence(database, sid, nodes)
@@ -162,21 +168,49 @@ func sessionsHandler(database *sql.DB, projectDir, wipnoteDir string) http.Handl
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
+			// exec_root: root execution context. Subagents use parent; root sessions use self.
+			execRoot := sid
+			if parentSessionID != "" {
+				execRoot = parentSessionID
+			}
+			// Claim/collision — best-effort, never fatal. Stable plan-c3bbb1ed contract.
+			claimCollision := false
+			claimStatus := ""
+			claimSessionFamily := familyID
+			if featureID != "" {
+				if coll, cerr := dbpkg.DetectCollaboration(database, featureID); cerr == nil {
+					claimCollision = coll.HasCollision
+					if len(coll.Claimants) > 0 {
+						claimStatus = string(coll.Claimants[0].Status)
+					}
+				}
+			}
+			if id, cerr := dbpkg.GetClaimIdentity(database, sid); cerr == nil && id != nil && id.SessionFamilyID != "" {
+				claimSessionFamily = id.SessionFamilyID
+			}
 			sessions = append(sessions, map[string]any{
-				"session_id":    sid,
-				"agent":         agent,
-				"status":        status,
-				"created_at":    created,
-				"completed_at":  completed,
-				"total_events":  totalEvents,
-				"feature_id":    featureID,
-				"model":         model,
-				"title":         title,
-				"first_message": firstMsg,
-				"message_count": msgCount,
-				"launch_mode":   sessionLaunchMode,
-				"plan_id":       sessionPlanID,
-				"adherence":     adherence,
+				"session_id":           sid,
+				"agent":                agent,
+				"harness":              agent,
+				"status":               status,
+				"created_at":           created,
+				"completed_at":         completed,
+				"total_events":         totalEvents,
+				"feature_id":           featureID,
+				"model":                model,
+				"title":                title,
+				"first_message":        firstMsg,
+				"message_count":        msgCount,
+				"launch_mode":          sessionLaunchMode,
+				"plan_id":              sessionPlanID,
+				"adherence":            adherence,
+				// Isolation-visibility fields (slice-7). Stable plan-c3bbb1ed contract.
+				"session_family_id":    familyID,
+				"canonical_project":    canonicalProject,
+				"exec_root":            execRoot,
+				"claim_collision":      claimCollision,
+				"claim_status":         claimStatus,
+				"claim_session_family": claimSessionFamily,
 			})
 		}
 
