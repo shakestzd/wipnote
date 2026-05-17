@@ -7,7 +7,7 @@ meta:
     created_at: "2026-05-08"
     status: finalized
     created_by: codex
-    version: 10
+    version: 11
 design:
     problem: |
         wipnote can currently launch multiple AI CLIs directly from a mutable checkout. That is convenient, but it allows long-running local stacks, generated plugin changes, work-item bookkeeping, and merged upstream work to accumulate on local main. The result is avoidable divergence, hard-to-review commits, and fragile reconciliation after PR merges. The obvious fix is to launch mutating sessions in isolated branches or worktrees by default, but that changes the shape of project identity, session continuity, active-session fallback state, event capture, subagent attribution, and dashboard grouping. The design must also account for the difference between production host installs and devcontainer sessions, where ports, bind addresses, filesystem permissions, plugin paths, and temp execution policy differ.
@@ -576,6 +576,7 @@ slices:
           severity: LOW
           summary: Doctor should report session-family, fallback, collector, and split-canonical-root health, not only git/worktree state.
     - id: slice-10
+      feature_id: feat-7835351a
       num: 10
       title: Parallel stress harness and release gates
       what: |
@@ -634,7 +635,7 @@ slices:
       approved: false
       comment: ""
       approval_status: pending
-      execution_status: not_started
+      execution_status: promoted
       critic_revisions:
         - source: deployment-critique
           severity: MED
