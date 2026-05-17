@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Parallel stress harness and release gates</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-7835351a"
+             data-type="feature"
+             data-status="in-progress"
+             data-priority="medium"
+             data-created="2026-05-17T18:55:20.652692"
+             data-updated="2026-05-17T18:56:25.086266" data-agent-assigned="claude-code" data-track-id="trk-a30e8df4">
+
+        <header>
+            <h1>Parallel stress harness and release gates</h1>
+            <div class="metadata">
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-a30e8df4.html" data-relationship="part_of" data-since="2026-05-17T18:55:20.659587">trk-a30e8df4</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="planned_in">
+                <h3>Planned In:</h3>
+                <ul>
+                    <li><a href="plan-1670cacd.html" data-relationship="planned_in" data-since="2026-05-17T18:55:20.669836">plan-1670cacd</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="blocked_by">
+                <h3>Blocked By:</h3>
+                <ul>
+                    <li><a href="feat-6d8110b1.html" data-relationship="blocked_by" data-since="2026-05-17T18:55:20.672508">feat-6d8110b1</a></li>
+                    <li><a href="feat-30687f8c.html" data-relationship="blocked_by" data-since="2026-05-17T18:55:20.674955">feat-30687f8c</a></li>
+                    <li><a href="feat-6700ad3e.html" data-relationship="blocked_by" data-since="2026-05-17T18:55:20.677317">feat-6700ad3e</a></li>
+                    <li><a href="feat-dbe359c1.html" data-relationship="blocked_by" data-since="2026-05-17T18:55:20.679787">feat-dbe359c1</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="82d9294a-1f15-46b4-9180-7c8b499aca65.html" data-relationship="implemented_in" data-since="2026-05-17T18:56:25.085826">session 82d9294a-1f15-46b4-9180-7c8b499aca65</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Build an end-to-end stress harness and production release gate for the new
+launcher model. The harness layers git-isolation, lineage, and
+parallel-launcher assertions onto the existing SQLite-contention fixture
+(plan-ae0c37b2 slice-10, `cmd/wipnote/sqlite_contention_test.go`,
+feat-156e0a1a) — it does NOT build a standalone contention harness (the
+SQLite-contention dimension is shipped and out of scope here).
+
+The harness should start multiple fake or real harness sessions in parallel:
+
+- Claude, Codex, and Gemini roots in one canonical project
+- multiple subagents per root
+- overlapping work-item claims
+- one session resumed/continued
+- one stale collector/worktree scenario
+- one noexec temp-root profile check
+
+Validate git state, event capture, dashboard APIs, lineage, and cleanup
+commands. Add CI-safe versions using fake harness binaries and mark
+environment-sensitive socket/process tests so they run in the right mode.</p>
+        </section>
+    </article>
+</body>
+</html>
