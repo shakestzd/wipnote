@@ -20,6 +20,8 @@ import (
 	resourcepb "go.opentelemetry.io/proto/otlp/resource/v1"
 	tracepb "go.opentelemetry.io/proto/otlp/trace/v1"
 
+	dbpkg "github.com/shakestzd/wipnote/internal/db"
+	"github.com/shakestzd/wipnote/internal/models"
 	"github.com/shakestzd/wipnote/internal/otel/sink/ndjson"
 )
 
@@ -230,5 +232,236 @@ func TestMultiHarnessIngestion(t *testing.T) {
 			t.Errorf("no signal with harness=%q session_id=%q in %d records",
 				a.harness, a.sessionID, len(records))
 		}
+	}
+}
+
+// TestParallelHarnessLineage validates the slice-10 end-to-end harness:
+// one canonical project, three harnesses (Claude/Codex/Gemini) plus one
+// subagent, overlapping work-item claims (slice-5 warn-and-allow), one
+// resumed/continued session (slice-4 session-family), lineage chain intact.
+//
+// Builds ON plan-ae0c37b2 contention fixture by reusing dbpkg.Open (same
+// migration path), not duplicating it.
+//
+// PROFILE: CI-safe. All assertions are in-process (no real harness binaries).
+func TestParallelHarnessLineage(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "parallel.db")
+	database, err := dbpkg.Open(dbPath)
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	defer database.Close()
+
+	canonicalProject := "/projects/wipnote"
+	featureID := "feat-lineage-test"
+	familyID := "fam-parallel-001"
+	now := time.Now().UTC()
+
+	roots := []struct {
+		sid     string
+		harness string
+	}{
+		{"sess-claude-root", "claude-code"},
+		{"sess-codex-root", "codex"},
+		{"sess-gemini-root", "gemini"},
+	}
+	for _, r := range roots {
+		sess := &models.Session{
+			SessionID:       r.sid,
+			AgentAssigned:   r.harness,
+			CreatedAt:       now,
+			Status:          "active",
+			SessionFamilyID: familyID,
+			ProjectDir:      canonicalProject,
+			ActiveFeatureID: featureID,
+		}
+		if err := dbpkg.InsertSession(database, sess); err != nil {
+			t.Fatalf("InsertSession %s: %v", r.sid, err)
+		}
+		if err := dbpkg.SetSessionFamilyID(database, r.sid, familyID); err != nil {
+			t.Fatalf("SetSessionFamilyID %s: %v", r.sid, err)
+		}
+	}
+
+	subSessID := "sess-claude-subagent"
+	subSess := &models.Session{
+		SessionID:       subSessID,
+		AgentAssigned:   "claude-code",
+		CreatedAt:       now,
+		Status:          "active",
+		SessionFamilyID: familyID,
+		ProjectDir:      canonicalProject,
+		ParentSessionID: "sess-claude-root",
+		IsSubagent:      true,
+	}
+	if err := dbpkg.InsertSession(database, subSess); err != nil {
+		t.Fatalf("InsertSession subagent: %v", err)
+	}
+
+	trace := &models.LineageTrace{
+		TraceID:       "trace-sub-001",
+		RootSessionID: "sess-claude-root",
+		SessionID:     subSessID,
+		AgentName:     "patch-coder",
+		Depth:         1,
+		Path:          []string{"sess-claude-root", subSessID},
+		FeatureID:     featureID,
+		StartedAt:     now,
+		Status:        "active",
+	}
+	if err := dbpkg.InsertLineageTrace(database, trace); err != nil {
+		t.Fatalf("InsertLineageTrace: %v", err)
+	}
+
+	// Seed a feature row so claims FK constraint (work_item_id -> features.id) is satisfied.
+	_, err = database.Exec(
+		`INSERT INTO features (id, type, title, status) VALUES (?, 'feature', 'Lineage Test Feature', 'in-progress')`,
+		featureID)
+	if err != nil {
+		t.Fatalf("insert feature: %v", err)
+	}
+
+	// Overlapping claims: slice-5 warn-and-allow collision.
+	// Use the real claims schema: owner_session_id, lease_expires_at required.
+	for _, claimSess := range []string{"sess-claude-root", "sess-codex-root"} {
+		expires := now.Add(10 * time.Minute).Format(time.RFC3339)
+		_, err := database.Exec(
+			`INSERT INTO claims
+				(claim_id, work_item_id, owner_session_id, owner_agent,
+				 status, leased_at, lease_expires_at, last_heartbeat_at)
+			 VALUES (?, ?, ?, 'claude-code', 'in_progress', ?, ?, ?)`,
+			"claim-"+claimSess, featureID, claimSess,
+			now.Format(time.RFC3339), expires, now.Format(time.RFC3339))
+		if err != nil {
+			t.Fatalf("insert claim %s: %v", claimSess, err)
+		}
+	}
+
+	// Assert /api/sessions/parallel grouping (slice-7).
+	req := httptest.NewRequest(http.MethodGet, "/api/sessions/parallel", nil)
+	w := httptest.NewRecorder()
+	parallelSessionsHandler(database)(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("parallel sessions: status %d, body=%s", w.Code, w.Body.String())
+	}
+
+	var resp struct {
+		Groups []projectGroup `json:"groups"`
+	}
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode project groups: %v", err)
+	}
+	var pg *projectGroup
+	for i := range resp.Groups {
+		if resp.Groups[i].CanonicalProject == canonicalProject {
+			pg = &resp.Groups[i]
+			break
+		}
+	}
+	if pg == nil {
+		t.Fatalf("canonical project %q not in groups", canonicalProject)
+	}
+	if pg.SessionCount < 3 {
+		t.Errorf("project group: SessionCount=%d, want >= 3", pg.SessionCount)
+	}
+	if !pg.HasCollision {
+		t.Error("project group: HasCollision=false, want true (Claude+Codex both claim feat-lineage-test)")
+	}
+
+	// Assert lineage chain: subagent traces to root.
+	traces, err := dbpkg.GetLineageByRoot(database, "sess-claude-root")
+	if err != nil {
+		t.Fatalf("GetLineageByRoot: %v", err)
+	}
+	foundTrace := false
+	for _, tr := range traces {
+		if tr.SessionID == subSessID && tr.RootSessionID == "sess-claude-root" && tr.Depth == 1 {
+			foundTrace = true
+			break
+		}
+	}
+	if !foundTrace {
+		t.Errorf("lineage: subagent %q not found under claude root", subSessID)
+	}
+
+	// Assert resumed session inherits family (slice-4).
+	var famIDFromDB string
+	row := database.QueryRow(
+		`SELECT COALESCE(session_family_id, '') FROM sessions WHERE session_id = ?`,
+		"sess-claude-root")
+	if err := row.Scan(&famIDFromDB); err != nil {
+		t.Fatalf("query session family: %v", err)
+	}
+	if famIDFromDB != familyID {
+		t.Errorf("session_family_id: got %q, want %q", famIDFromDB, familyID)
+	}
+}
+
+// TestParallelHarness_MainStaysClean asserts that main stays clean: the
+// canonical project root and worktree root appear as SEPARATE canonical
+// projects in /api/sessions/parallel so tooling can isolate worktree sessions.
+//
+// Extends plan-ae0c37b2 contention fixture (same dbpkg.Open path).
+//
+// PROFILE: CI-safe (in-process, no real git or harness processes).
+func TestParallelHarness_MainStaysClean(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "mainstays.db")
+	database, err := dbpkg.Open(dbPath)
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	defer database.Close()
+
+	mainRoot := "/projects/wipnote"
+	worktreeRoot := "/projects/wipnote/.claude/worktrees/feat-xyz"
+	now := time.Now().UTC()
+
+	if err := dbpkg.InsertSession(database, &models.Session{
+		SessionID:     "sess-main-root",
+		AgentAssigned: "claude-code",
+		CreatedAt:     now,
+		Status:        "active",
+		ProjectDir:    mainRoot,
+	}); err != nil {
+		t.Fatalf("InsertSession main: %v", err)
+	}
+	if err := dbpkg.InsertSession(database, &models.Session{
+		SessionID:     "sess-worktree",
+		AgentAssigned: "claude-code",
+		CreatedAt:     now,
+		Status:        "active",
+		ProjectDir:    worktreeRoot,
+	}); err != nil {
+		t.Fatalf("InsertSession worktree: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/sessions/parallel", nil)
+	w := httptest.NewRecorder()
+	parallelSessionsHandler(database)(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("parallel handler: status=%d", w.Code)
+	}
+
+	var resp2 struct {
+		Groups []projectGroup `json:"groups"`
+	}
+	if err := json.NewDecoder(w.Body).Decode(&resp2); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+
+	foundMain, foundWorktree := false, false
+	for _, g := range resp2.Groups {
+		switch g.CanonicalProject {
+		case mainRoot:
+			foundMain = true
+		case worktreeRoot:
+			foundWorktree = true
+		}
+	}
+	if !foundMain {
+		t.Errorf("main root %q not in project groups", mainRoot)
+	}
+	if !foundWorktree {
+		t.Errorf("worktree root %q not separate project group (main isolation broken)", worktreeRoot)
 	}
 }

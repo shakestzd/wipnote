@@ -21,3 +21,13 @@ jobs:
         run: go vet ./...
       - name: Test
         run: go test ./...
+      - name: Acceptance harness (CI-safe, fake binaries)
+        # Runs the small CI-safe subset of the parallel-launcher acceptance
+        # harness (plan-1670cacd slice-10, feat-7835351a). Uses fake DB rows
+        # and the existing API handlers — no real harness binaries, no network.
+        # The larger stress harness (TestSQLiteContentionStress) is opt-in:
+        #   go test -run TestSQLiteContentionStress -count=3 ./cmd/wipnote/
+        # See docs/runbook/launcher-isolation.md for the full release gate.
+        run: |
+          export TMPDIR=/tmp
+          go test -short -run 'TestParallelHarnessLineage|TestParallelHarness_MainStaysClean|TestMultiHarnessIngestion' ./cmd/wipnote/

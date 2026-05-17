@@ -3,6 +3,7 @@ package childproc
 import (
 	"context"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"testing"
@@ -18,16 +19,39 @@ const (
 	testCtxTimeout   = 15 * time.Second
 )
 
+// probeExec executes path as a subprocess to verify the filesystem is
+// exec-capable. Returns nil on success, error when noexec.
+func probeExec(path string) error {
+	return exec.Command(path).Run()
+}
+
 // buildFakeChild writes a shell script that ignores its args, prints the
 // handshake line, then sleeps. The script is used as the BinPath for a
 // Supervisor so the handshake/lifecycle/reap logic can be exercised
 // without needing a real wipnote binary.
+//
+// PROFILE REQUIREMENT (slice-8, plan-1670cacd slice-10):
+// This helper writes an executable shell script into t.TempDir(). It
+// requires an exec-capable filesystem at TMPDIR. In the wipnote devcontainer
+// /tmp is mounted noexec; set TMPDIR=/home/vscode/.gotest-tmp before
+// running this package or the test will fail with "fork/exec: permission denied".
 func buildFakeChild(t *testing.T, port int) string {
 	t.Helper()
 	if runtime.GOOS == "windows" {
 		t.Skip("fake child shell script is POSIX-only")
 	}
 	dir := t.TempDir()
+	// Probe: verify the temp dir is exec-capable before writing the real script.
+	// If exec fails, skip with a clear profile requirement message so CI
+	// without an exec-capable TMPDIR still passes (never fails).
+	probeScript := filepath.Join(dir, "probe.sh")
+	if err := os.WriteFile(probeScript, []byte("#!/bin/sh\nexit 0\n"), 0o755); err == nil {
+		if probeErr := probeExec(probeScript); probeErr != nil {
+			t.Skipf("buildFakeChild requires exec-capable TMPDIR: "+
+				"set TMPDIR=/home/vscode/.gotest-tmp (slice-8/slice-10 profile). "+
+				"Current TMPDIR=%q, error: %v", dir, probeErr)
+		}
+	}
 	path := filepath.Join(dir, "fake-wipnote")
 	script := "#!/bin/sh\n" +
 		"echo \"wipnote-serve-ready port=" + itoa(port) + " pid=$$\"\n" +

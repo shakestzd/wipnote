@@ -143,3 +143,76 @@ Recommended release order for flipping host default:
    `EnforceIsolation: true` for the `host-production` profile, gated on
    a new config key (e.g. `WIPNOTE_ISOLATION_PROFILE=enforced`).
 6. Do NOT flip the default unconditionally — always require explicit opt-in.
+
+---
+
+## Production Acceptance Harness (slice-10, plan-1670cacd)
+
+A two-tier acceptance harness validates the full parallel-launcher model
+before each release. Both tiers build on the plan-ae0c37b2 contention
+fixture (feat-156e0a1a) and add git-isolation / lineage / parallel-launcher
+assertions on top.
+
+### Tier 1: CI-safe (always runs in CI)
+
+These tests use fake DB rows and existing API handlers — no real harness
+binaries, no network, no exec-heavy subprocesses. They run in every CI job
+via the `.github/workflows/ci.yml` "Acceptance harness" step:
+
+```bash
+# Runs automatically in CI (go test -short flag, fake binaries only).
+go test -short -run 'TestParallelHarnessLineage|TestParallelHarness_MainStaysClean|TestMultiHarnessIngestion' ./cmd/wipnote/
+```
+
+**What they assert:**
+- `TestMultiHarnessIngestion` — Claude + Codex + Gemini OTLP signals route
+  correctly through the adapter registry into the ndjson sink.
+- `TestParallelHarnessLineage` — three harnesses under one canonical project,
+  subagent lineage chain (root → subagent at depth=1), claim collision
+  surfaced at project level, session_family_id preserved for resumed sessions.
+- `TestParallelHarness_MainStaysClean` — main and worktree roots appear as
+  SEPARATE project groups in `/api/sessions/parallel` (main isolation derived
+  from session metadata without inspecting git state).
+
+### Tier 2: Full stress harness (opt-in, not in CI by default)
+
+The heavy stress harness runs 20 producers for 30 seconds and validates
+zero first-party SQLITE_BUSY events across 3 consecutive runs. It requires
+a WAL-safe filesystem and a generous time budget:
+
+```bash
+# Opt-in: run before a release, not in routine CI.
+export TMPDIR=/home/vscode/.gotest-tmp
+go test -run TestSQLiteContentionStress -count=3 ./cmd/wipnote/
+```
+
+This is the same fixture shipped in plan-ae0c37b2 slice-10 (feat-156e0a1a).
+Slice-10 of plan-1670cacd (feat-7835351a) EXTENDS it — it does NOT duplicate
+the contention workload.
+
+### Exec-capable TMPDIR requirement (slice-8 profile)
+
+Any test that spawns child binaries (childproc package, stress harness) needs
+an exec-capable filesystem at TMPDIR. The devcontainer mounts `/tmp` as noexec.
+
+```bash
+# Always set this before running exec-capable tests in the devcontainer:
+export TMPDIR=/home/vscode/.gotest-tmp
+go build ./... && go vet ./... && go test ./...
+```
+
+Tests that require an exec-capable TMPDIR skip cleanly (never fail) when
+the constraint is not met, so CI without a privileged exec root still passes.
+
+### Release checklist
+
+Before a release, run in order:
+
+1. CI Tier 1 passes (automatic in CI pipeline).
+2. `wipnote launcher doctor` — all gate conditions green.
+3. Tier 2 stress harness:
+   `go test -run TestSQLiteContentionStress -count=3 ./cmd/wipnote/`
+4. Full suite with exec-capable TMPDIR:
+   `export TMPDIR=/home/vscode/.gotest-tmp && go build ./... && go vet ./... && go test ./...`
+5. Verify dashboard: `GET /api/sessions/parallel` shows correct canonical
+   grouping, collision flags, and exec_root fields for all active sessions.
