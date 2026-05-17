@@ -103,6 +103,60 @@ func TestHostProfile_StaysWarnOnly(t *testing.T) {
 	}
 }
 
+// TestLauncherPlan_InPlaceSuppressesDirtyWarning verifies the slice-2 contract
+// (roborev job 3071): --in-place must NOT emit the dirty-main warning, even on
+// a dirty protected branch. The InPlace short-circuit runs before the
+// dirty-main guard, so DirtyMainWarning stays empty.
+func TestLauncherPlan_InPlaceSuppressesDirtyWarning(t *testing.T) {
+	dir := setupGitRepo(t)
+	makeDirty(t, dir)
+
+	in := plan.Input{
+		RepoRoot:    dir,
+		WorkItemID:  "feat-abc12345",
+		RuntimeMode: mode.RuntimeHost,
+		InPlace:     true,
+	}
+	p, err := plan.PlanLaunch(in)
+	if err != nil {
+		t.Fatalf("PlanLaunch: %v", err)
+	}
+	if p.IsolationMode != plan.IsolationExplicitInPlace {
+		t.Errorf("--in-place: want IsolationExplicitInPlace, got %v", p.IsolationMode)
+	}
+	if p.DirtyMainWarning != "" {
+		t.Errorf("--in-place on dirty main: want NO DirtyMainWarning, got %q", p.DirtyMainWarning)
+	}
+	if p.RefuseLaunch {
+		t.Error("--in-place: must never RefuseLaunch (explicit opt-out)")
+	}
+}
+
+// TestLauncherPlan_InPlaceNoRefuseEvenWhenEnforced verifies --in-place wins over
+// EnforceIsolation: an explicit opt-out is honored and never refused/warned.
+func TestLauncherPlan_InPlaceNoRefuseEvenWhenEnforced(t *testing.T) {
+	dir := setupGitRepo(t)
+	makeDirty(t, dir)
+
+	in := plan.Input{
+		RepoRoot:         dir,
+		WorkItemID:       "feat-abc12345",
+		RuntimeMode:      mode.RuntimeHost,
+		InPlace:          true,
+		EnforceIsolation: true,
+	}
+	p, err := plan.PlanLaunch(in)
+	if err != nil {
+		t.Fatalf("PlanLaunch: %v", err)
+	}
+	if p.RefuseLaunch {
+		t.Error("--in-place + EnforceIsolation: explicit opt-out must not be refused")
+	}
+	if p.DirtyMainWarning != "" {
+		t.Errorf("--in-place: want NO DirtyMainWarning, got %q", p.DirtyMainWarning)
+	}
+}
+
 func TestLauncherPlan_DirtyMainWarns(t *testing.T) {
 	dir := setupGitRepo(t)
 	makeDirty(t, dir)
@@ -145,6 +199,33 @@ func TestWorktreeLaunch_PreservesCanonicalRoot(t *testing.T) {
 	}
 	if p.CanonicalRoot != dir {
 		t.Errorf("CanonicalRoot: want %q, got %q", dir, p.CanonicalRoot)
+	}
+}
+
+// TestLauncherPlan_EnforceIsolationRefusesDirtyMain verifies the slice-9 gate:
+// when EnforceIsolation is on AND the protected branch is dirty, the plan sets
+// RefuseLaunch=true so callers can abort. This is the precondition the
+// launcher-side enforceLaunchPlan depends on (roborev job 3091 HIGH).
+func TestLauncherPlan_EnforceIsolationRefusesDirtyMain(t *testing.T) {
+	dir := setupGitRepo(t)
+	makeDirty(t, dir)
+
+	in := plan.Input{
+		RepoRoot:         dir,
+		WorkItemID:       "feat-abc12345",
+		RuntimeMode:      mode.RuntimeHost,
+		InPlace:          false,
+		EnforceIsolation: true,
+	}
+	p, err := plan.PlanLaunch(in)
+	if err != nil {
+		t.Fatalf("PlanLaunch: %v", err)
+	}
+	if !p.RefuseLaunch {
+		t.Error("EnforceIsolation + dirty main: want RefuseLaunch=true (slice-9 gate)")
+	}
+	if p.DirtyMainWarning == "" {
+		t.Error("EnforceIsolation + dirty main: expected DirtyMainWarning to be set")
 	}
 }
 

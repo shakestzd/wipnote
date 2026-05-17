@@ -79,6 +79,14 @@ func PlanLaunch(in Input) (LaunchPlan, error) {
 		CanonicalRoot: in.RepoRoot,
 	}
 
+	// --in-place explicitly overrides everything, including the dirty-main
+	// guard. applyLaunchPlan documents that inPlace=true => no warning, so the
+	// InPlace short-circuit must run BEFORE any DirtyMainWarning is computed.
+	if in.InPlace {
+		p.IsolationMode = IsolationExplicitInPlace
+		return p, nil
+	}
+
 	// Determine the current branch for dirty-main guard.
 	branch := currentBranch(in.RepoRoot)
 	dirty := isProtectedAndDirty(in.RepoRoot, branch)
@@ -94,12 +102,6 @@ func PlanLaunch(in Input) (LaunchPlan, error) {
 		if in.EnforceIsolation {
 			p.RefuseLaunch = true
 		}
-	}
-
-	// --in-place explicitly overrides everything.
-	if in.InPlace {
-		p.IsolationMode = IsolationExplicitInPlace
-		return p, nil
 	}
 
 	// Without a work-item ID we cannot create a deterministically-named branch.

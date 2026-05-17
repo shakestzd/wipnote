@@ -220,19 +220,17 @@ func launchYoloPlanningMode(projectRoot string, extraArgs []string) error {
 }
 
 func launchYoloDefault(permMode, trackID, featureID string, noWorktree bool, resumeID, name string, extraArgs []string) error {
-	// Compute launcher mode for preflight logging/inspection (no behavior change).
-	// Worktree path and devPlugin are resolved below; pass empty/false here for the initial compute.
-	_ = computeLauncherMode("", false, false)
-
 	projectRoot := ""
 	if wipnoteDir, err := findWipnoteDir(); err == nil {
 		projectRoot = filepath.Dir(wipnoteDir)
 	}
 	// Resolve canonical main repo root when CWD is a linked worktree (slice-3).
-	// This normalizes projectRoot before worktree creation so WipnoteRoot is always
-	// the canonical main root, not the worktree copy.
+	// Do NOT overwrite projectRoot: it stays the child working directory for
+	// --no-worktree/planning launches. Only WIPNOTE_PROJECT_DIR (WipnoteRoot)
+	// and worktree creation use the canonical main root.
+	canonicalRoot := projectRoot
 	if canonical := canonicalProjectRoot(projectRoot); canonical != "" {
-		projectRoot = canonical
+		canonicalRoot = canonical
 	}
 
 	pluginDir, err := resolveBundledPluginDir()
@@ -240,41 +238,51 @@ func launchYoloDefault(permMode, trackID, featureID string, noWorktree bool, res
 		return err
 	}
 
-	// No work item provided — fall back to planning mode.
+	// No work item provided — fall back to planning mode. The child cwd is the
+	// (un-rewritten) projectRoot per the slice-3 contract.
 	if trackID == "" && featureID == "" {
+		_ = computeLauncherMode("", false, false)
 		return launchYoloPlanningMode(projectRoot, extraArgs)
 	}
 
 	// Validate the provided work item exists.
-	id, kind, err := validateWorkItem(trackID, featureID, projectRoot)
+	id, kind, err := validateWorkItem(trackID, featureID, canonicalRoot)
 	if err != nil {
 		return err
 	}
 
-	// Resolve track title once — used for both the session name and the worktree directory.
-	trackTitle := resolveTrackTitle(trackID, featureID, projectRoot)
+	// Honor the isolation plan (slice-9): a RefuseLaunch plan aborts before the
+	// harness starts. The validated work item id drives the dirty-main/enforce guard.
+	launchPlan := applyLaunchPlan(canonicalRoot, id, noWorktree, os.Stderr)
+	if err := enforceLaunchPlan(launchPlan, os.Stderr); err != nil {
+		return err
+	}
 
-	// Create a worktree for isolation (skip for --no-worktree).
+	// Resolve track title once — used for both the session name and the worktree directory.
+	trackTitle := resolveTrackTitle(trackID, featureID, canonicalRoot)
+
+	// Create a worktree for isolation (skip for --no-worktree). Worktrees are
+	// always created under the canonical main root, never a linked worktree copy.
 	workDir := projectRoot
-	if !noWorktree && projectRoot != "" {
+	if !noWorktree && canonicalRoot != "" {
 		if trackID != "" {
-			worktreePath, wtErr := EnsureForTrackWithTitle(trackTitle, trackID, projectRoot, os.Stdout)
+			worktreePath, wtErr := EnsureForTrackWithTitle(trackTitle, trackID, canonicalRoot, os.Stdout)
 			if wtErr != nil {
 				return wtErr
 			}
 			workDir = worktreePath
 		} else if featureID != "" {
 			// Resolve the parent track so features use the titled track worktree.
-			parentTrackID := resolveTrackForFeature(featureID, projectRoot)
+			parentTrackID := resolveTrackForFeature(featureID, canonicalRoot)
 			if parentTrackID != "" {
-				parentTitle := resolveTrackTitle(parentTrackID, "", projectRoot)
-				worktreePath, wtErr := EnsureForTrackWithTitle(parentTitle, parentTrackID, projectRoot, os.Stdout)
+				parentTitle := resolveTrackTitle(parentTrackID, "", canonicalRoot)
+				worktreePath, wtErr := EnsureForTrackWithTitle(parentTitle, parentTrackID, canonicalRoot, os.Stdout)
 				if wtErr != nil {
 					return wtErr
 				}
 				workDir = worktreePath
 			} else {
-				worktreePath, wtErr := EnsureForFeature(featureID, projectRoot, os.Stdout)
+				worktreePath, wtErr := EnsureForFeature(featureID, canonicalRoot, os.Stdout)
 				if wtErr != nil {
 					return wtErr
 				}
@@ -283,12 +291,22 @@ func launchYoloDefault(permMode, trackID, featureID string, noWorktree bool, res
 		}
 	}
 
+	// Compute launcher mode for preflight logging AFTER the effective worktree
+	// path is resolved (slice-1 fix): passing the resolved workDir means
+	// WIPNOTE_DEBUG reports execution=worktree for isolated YOLO instead of
+	// always reporting execution=in-place.
+	effectiveWorktree := ""
+	if workDir != projectRoot {
+		effectiveWorktree = workDir
+	}
+	_ = computeLauncherMode(effectiveWorktree, false, false)
+
 	sessionName := name
 	// Only synthesize a default name for new sessions. When resuming an existing
 	// session, skip default-name generation so we don't rename or conflict with
 	// the resumed session. The user can still override with an explicit --name.
 	if sessionName == "" && resumeID == "" {
-		sessionName = yoloDefaultName(trackID, featureID, projectRoot)
+		sessionName = yoloDefaultName(trackID, featureID, canonicalRoot)
 	}
 	yoloPrompt := buildYoloSystemPrompt(id, kind)
 
@@ -317,7 +335,7 @@ func launchYoloDefault(permMode, trackID, featureID string, noWorktree bool, res
 		Name:             sessionName,
 		ExtraArgs:        extraArgs,
 		ProjectRoot:      workDir,
-		WipnoteRoot:      projectRoot,
+		WipnoteRoot:      canonicalRoot,
 	})
 }
 

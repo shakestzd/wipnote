@@ -867,9 +867,12 @@ func runCodexInit(yes, dryRun bool) error {
 // brew/curl-install bundled tree.
 func launchCodexDefault(resumeID, trackID, featureID, worktreePath, workItem string, noWorktree, yolo bool, extraArgs []string) error {
 	projectRoot, _ := resolveProjectRoot()
-	// Apply isolation plan: compute dirty-main guard warning, record isolation decision.
-	// noWorktree here is effectiveInPlace (--in-place || --no-worktree).
-	applyLaunchPlan(projectRoot, workItem, noWorktree, os.Stderr)
+	// Apply isolation plan and HONOR it (slice-9): a RefuseLaunch plan aborts
+	// before Codex starts. noWorktree here is effectiveInPlace (--in-place || --no-worktree).
+	launchPlan := applyLaunchPlan(projectRoot, workItem, noWorktree, os.Stderr)
+	if err := enforceLaunchPlan(launchPlan, os.Stderr); err != nil {
+		return err
+	}
 	configPath := codexConfigPath()
 
 	// Auto-register the bundled marketplace if not registered.
@@ -928,27 +931,47 @@ func launchCodexDefault(resumeID, trackID, featureID, worktreePath, workItem str
 	// Resolve worktree path.
 	// canonicalProjectRoot detects when CWD is already a linked worktree (slice-3):
 	// returns the canonical main repo root, or "" when in the main worktree.
+	// canonicalRoot is the value injected as WIPNOTE_PROJECT_DIR AND used as the
+	// base for worktree creation — it must always be the canonical main root,
+	// never the linked worktree copy (slice-3 contract).
+	canonicalRoot := projectRoot
+	if c := canonicalProjectRoot(projectRoot); c != "" {
+		canonicalRoot = c
+	}
 	workDir := projectRoot
 	wipnoteRoot := canonicalProjectRoot(projectRoot)
+	resolved := false
 	switch {
 	case worktreePath != "":
 		// Explicit path — use as-is; set WIPNOTE_PROJECT_DIR to canonical root.
 		workDir = worktreePath
-		wipnoteRoot = projectRoot
+		wipnoteRoot = canonicalRoot
+		resolved = true
 	case !noWorktree && trackID != "":
-		wt, err := EnsureForTrack(trackID, projectRoot, os.Stdout)
+		wt, err := EnsureForTrack(trackID, canonicalRoot, os.Stdout)
 		if err != nil {
 			return err
 		}
 		workDir = wt
-		wipnoteRoot = projectRoot
+		wipnoteRoot = canonicalRoot
+		resolved = true
 	case !noWorktree && featureID != "":
-		wt, err := EnsureForFeature(featureID, projectRoot, os.Stdout)
+		wt, err := EnsureForFeature(featureID, canonicalRoot, os.Stdout)
 		if err != nil {
 			return err
 		}
 		workDir = wt
-		wipnoteRoot = projectRoot
+		wipnoteRoot = canonicalRoot
+		resolved = true
+	}
+
+	// Honor a managed-worktree plan (slice-9) when no explicit/track/feature
+	// worktree was resolved above. WIPNOTE_PROJECT_DIR stays the canonical root.
+	if wt, werr := resolveManagedWorktree(launchPlan, canonicalRoot, trackID, featureID, workItem, workDir, resolved, os.Stdout); werr != nil {
+		return werr
+	} else if wt != "" && wt != workDir {
+		workDir = wt
+		wipnoteRoot = canonicalRoot
 	}
 
 	fmt.Println("Launching Codex CLI with wipnote context...")

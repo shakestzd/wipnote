@@ -438,15 +438,31 @@ func launchClaudeDefault(extraArgs []string, resumeID, name, workItem string, in
 	projectRoot, _ := resolveProjectRoot()
 	cleanupStaleDev(projectRoot)
 
-	// Run the isolation planner (slice-2). The plan is computed and any warning
-	// is printed; the actual worktree is not yet created here (that happens when
-	// slice-3 canonical identity and slice-4 session-family land). For now we
-	// record the decision and emit the dirty-main guard warning.
-	applyLaunchPlan(projectRoot, workItem, inPlace, os.Stderr)
+	// Run the isolation planner (slice-2). The plan is computed, any warning
+	// is printed, and the plan is now HONORED (slice-9): a RefuseLaunch plan
+	// aborts before the harness starts, and an IsolationManagedWorktree plan
+	// routes the child into a managed worktree.
+	launchPlan := applyLaunchPlan(projectRoot, workItem, inPlace, os.Stderr)
+	if err := enforceLaunchPlan(launchPlan, os.Stderr); err != nil {
+		return err
+	}
 
 	// Resolve canonical main repo root when CWD is a linked worktree (slice-3).
 	// canonicalProjectRoot returns "" for the main worktree (no override needed).
 	wipnoteRoot := canonicalProjectRoot(projectRoot)
+
+	// Honor a managed-worktree plan: when isolation is enforced (devcontainer/CI
+	// or enforced host with a work item) create/reuse the managed worktree and
+	// run the child there, while WIPNOTE_PROJECT_DIR stays the canonical root.
+	childDir := projectRoot
+	if wt, werr := resolveManagedWorktree(launchPlan, projectRoot, "", "", workItem, projectRoot, false, os.Stdout); werr != nil {
+		return werr
+	} else if wt != "" && wt != projectRoot {
+		childDir = wt
+		if wipnoteRoot == "" {
+			wipnoteRoot = projectRoot
+		}
+	}
 
 	pluginDir, err := resolveBundledPluginDir()
 	if err != nil {
@@ -469,7 +485,7 @@ func launchClaudeDefault(extraArgs []string, resumeID, name, workItem string, in
 		InjectSystemPrompt: true,
 		Name:               sessionName,
 		ExtraArgs:          extraArgs,
-		ProjectRoot:        projectRoot,
+		ProjectRoot:        childDir,
 		WipnoteRoot:        wipnoteRoot,
 	})
 }

@@ -65,6 +65,53 @@ func applyLaunchPlan(repoRoot, workItemID string, inPlace bool, w io.Writer) pla
 	return p
 }
 
+// enforceLaunchPlan honors the LaunchPlan returned by applyLaunchPlan. When the
+// plan's RefuseLaunch flag is set (EnforceIsolation gate triggered on a dirty
+// protected branch), it returns a non-nil error so the caller ABORTS the launch
+// before any harness process is started. On the default host profile
+// (EnforceIsolation off) RefuseLaunch is always false and this is a no-op.
+//
+// This closes the slice-9 gate: previously callers discarded the plan and the
+// WIPNOTE_ENFORCE_ISOLATION=true guard was non-functional (launch proceeded
+// in-place regardless).
+func enforceLaunchPlan(p plan.LaunchPlan, w io.Writer) error {
+	if !p.RefuseLaunch {
+		return nil
+	}
+	if p.DirtyMainWarning != "" {
+		fmt.Fprintln(w, p.DirtyMainWarning)
+	}
+	return fmt.Errorf(
+		"launch refused: WIPNOTE_ENFORCE_ISOLATION=true and the protected branch is dirty.\n"+
+			"  Commit or stash changes, or pass --in-place to opt out of isolation,\n"+
+			"  or rerun with a work item so a managed worktree can be created.")
+}
+
+// resolveManagedWorktree honors the IsolationManagedWorktree decision in the
+// plan. When the plan selects a managed worktree (devcontainer/CI, or an
+// enforced host with a work item) AND no explicit worktree/track/feature
+// worktree has already been resolved by the caller, it creates the managed
+// worktree for the given work item and returns its path. Otherwise it returns
+// the caller-supplied fallbackDir unchanged.
+//
+// trackID/featureID select the EnsureFor* helper; when only a bare workItemID
+// is known (e.g. a bug- id) it is treated as a feature-style worktree so the
+// enforced-host path still isolates mutations.
+func resolveManagedWorktree(p plan.LaunchPlan, projectRoot, trackID, featureID, workItemID, fallbackDir string, alreadyResolved bool, w io.Writer) (string, error) {
+	if p.IsolationMode != plan.IsolationManagedWorktree || alreadyResolved {
+		return fallbackDir, nil
+	}
+	switch {
+	case trackID != "":
+		return EnsureForTrack(trackID, projectRoot, w)
+	case featureID != "":
+		return EnsureForFeature(featureID, projectRoot, w)
+	case workItemID != "":
+		return EnsureForFeature(workItemID, projectRoot, w)
+	}
+	return fallbackDir, nil
+}
+
 // canonicalProjectRoot returns the canonical main repo root when projectRoot is
 // a linked git worktree, or "" when it is the main worktree (or not a git repo).
 //
