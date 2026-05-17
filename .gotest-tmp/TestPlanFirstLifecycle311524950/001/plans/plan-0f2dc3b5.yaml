@@ -6,7 +6,7 @@ meta:
     status: draft
     priority: medium
     schema_version: v3
-    version: 4
+    version: 5
 design:
     problem: ""
     goals: []
@@ -31,6 +31,19 @@ slices:
       num: 2
       title: Token validation
       what: Implement Token validation
+      why: ""
+      files: []
+      deps: []
+      done_when: []
+      effort: S
+      risk: Low
+      tests: ""
+      approved: false
+      comment: ""
+    - id: slic-d677dd11
+      num: 3
+      title: Migration script
+      what: Implement Migration script
       why: ""
       files: []
       deps: []
