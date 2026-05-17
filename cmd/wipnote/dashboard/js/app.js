@@ -35,7 +35,7 @@ document.querySelector('.nav').addEventListener('click', function(e) {
   if (view === 'sessions' && sessions.length === 0) fetchSessions();
   if (view === 'sessions') fetchSessionAdherenceTrend();
   if (view === 'work' && features.length === 0) fetchFeatures();
-  if (view === 'plans' && plans.length === 0) fetchPlans();
+  if (view === 'plans') fetchPlans();
   if (view === 'graph') fetchGraph();
 });
 
@@ -3728,6 +3728,8 @@ function dashSidebarBuildRail(planId, body) {
           btn.style.background = 'var(--approved, #22c55e)';
           return r.json().then(function(data) {
             renderFinalizeResult(data);
+            plans = [];
+            fetchPlans();
           });
         } else {
           return r.text().then(function(body) {
