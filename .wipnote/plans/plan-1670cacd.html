@@ -1,13 +1,15 @@
-<!DOCTYPE html><html lang="en"><head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<meta name="wipnote-version" content="1.0"/>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="wipnote-version" content="1.0">
 <title>Plan: Launcher isolation, deployment modes, and parallel attribution</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"/>
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin=""/>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&amp;family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&amp;family=Source+Serif+4:ital,opsz,wght@0,8..60,300;0,8..60,400;0,8..60,500;1,8..60,300;1,8..60,400&amp;display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/github-dark.min.css" id="hljs-dark"/>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/github.min.css" id="hljs-light" disabled=""/>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,300;0,8..60,400;0,8..60,500;1,8..60,300;1,8..60,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/github-dark.min.css" id="hljs-dark">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/github.min.css" id="hljs-light" disabled>
 <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/highlight.min.js"></script>
 <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/languages/go.min.js"></script>
 <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/languages/yaml.min.js"></script>
@@ -390,7 +392,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
 <nav class="plan-sidebar" id="plan-sidebar">
   <div class="brand-row">
     <a href="/" class="brand">wipnote</a>
-    <button class="sidebar-toggle" id="left-sidebar-toggle" title="Collapse sidebar" aria-label="Toggle left sidebar">‹</button>
+    <button class="sidebar-toggle" id="left-sidebar-toggle" title="Collapse sidebar" aria-label="Toggle left sidebar">&#8249;</button>
   </div>
   <a href="#design" class="nav-link active" data-spy="design" data-initial="D">Design</a>
   <a href="#slices" class="nav-link" data-spy="slices" data-initial="S">Slices</a>
@@ -465,7 +467,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
   <a href="#questions" class="nav-link" data-spy="questions" data-initial="Q">Decisions</a>
   <a href="#critique" class="nav-link" data-spy="critique" data-initial="C">Critique</a>
   <a href="#feedback-summary" class="nav-link" data-spy="feedback-summary" data-initial="P">Progress</a>
-  <a href="#chat-panel" class="nav-link" data-spy="chat-panel" data-initial="♡">Chat</a>
+  <a href="#chat-panel" class="nav-link" data-spy="chat-panel" data-initial="&#9825;">Chat</a>
 </nav>
 <div class="plan-layout">
 <div class="plan-content">
@@ -477,12 +479,12 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
   <p style="color:var(--text-dim)">Design production-ready launcher isolation across Claude, Codex, and Gemini: default branch/worktree behavior, devcontainer versus host deployment modes, and robust attribution/event capture for parallel CLIs and subagents.
 </p>
   <div class="meta">
-    <span class="badge badge-revision">Active</span>
-    <span style="font-size:.75rem;color:var(--text-muted)">v1 · 9 slices · Created 2026-05-08</span>
+    <span class="badge badge-approved">Done</span>
+    <span style="font-size:.75rem;color:var(--text-muted)">v3 · 9 slices · Created 2026-05-08</span>
   </div>
 </header>
 <button id="themeToggle" style="position:fixed;top:16px;right:16px;z-index:100;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:6px 12px;color:var(--text);font-family:var(--mono);font-size:0.75rem;cursor:pointer;">
-  ☀ Light
+  &#9728; Light
 </button>
 
 <!-- Related Work -->
@@ -491,7 +493,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
 <!-- Plan YAML source (collapsible) -->
 <details class="yaml-viewer" id="yaml-viewer">
     <summary>View Plan YAML</summary>
-    <pre><code class="language-yaml" id="yaml-content">Loading…</code></pre>
+    <pre><code class="language-yaml" id="yaml-content">Loading&#x2026;</code></pre>
 </details>
 
 <!-- ZONE 1: Dependency Graph -->
@@ -516,37 +518,37 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
 <!-- ZONE 2: Interactive Sections -->
 
 <!-- Design -->
-<details id="design" class="section-card" open="" data-phase="design" data-status="pending">
+<details id="design" class="section-card" open data-phase="design" data-status="pending">
   <summary><span>Design</span><span class="badge badge-pending" data-badge-for="design">Pending</span></summary>
   <div class="section-body">
     <h4>Problem</h4>
-<div data-markdown="">wipnote can currently launch multiple AI CLIs directly from a mutable checkout. That is convenient, but it allows long-running local stacks, generated plugin changes, work-item bookkeeping, and merged upstream work to accumulate on local main. The result is avoidable divergence, hard-to-review commits, and fragile reconciliation after PR merges. The obvious fix is to launch mutating sessions in isolated branches or worktrees by default, but that changes the shape of project identity, session continuity, active-session fallback state, event capture, subagent attribution, and dashboard grouping. The design must also account for the difference between production host installs and devcontainer sessions, where ports, bind addresses, filesystem permissions, plugin paths, and temp execution policy differ.
+<div data-markdown>wipnote can currently launch multiple AI CLIs directly from a mutable checkout. That is convenient, but it allows long-running local stacks, generated plugin changes, work-item bookkeeping, and merged upstream work to accumulate on local main. The result is avoidable divergence, hard-to-review commits, and fragile reconciliation after PR merges. The obvious fix is to launch mutating sessions in isolated branches or worktrees by default, but that changes the shape of project identity, session continuity, active-session fallback state, event capture, subagent attribution, and dashboard grouping. The design must also account for the difference between production host installs and devcontainer sessions, where ports, bind addresses, filesystem permissions, plugin paths, and temp execution policy differ.
 Note: collector/event-writer concurrency (parallel NDJSON flush, SQLite busy-timeout hardening, indexer checkpoint monotonicity) is owned and solved by plan-ae0c37b2&#39;s single-writer queue (`internal/db/writequeue/`); not in scope here.
 </div>
 <h4>Goals</h4>
 <ol>
-<li data-markdown="">**Protect main** — mutating Claude, Codex, and Gemini sessions do not dirty or diverge local main by default.</li>
-<li data-markdown="">**Preserve observability** — dashboard sessions, event trees, NDJSON, SQLite indexes, and lineage remain grouped under one canonical project even when execution happens in worktrees.</li>
-<li data-markdown="">**Coordinate parallelism** — multiple CLIs and their subagents can run concurrently in the same project without clobbering attribution, active-session fallback state, collectors, branch names, or work-item claims.</li>
-<li data-markdown="">**Deploy safely** — host installs, devcontainers, local plugin development, and production launcher paths have explicit mode detection, defaults, and test coverage.</li>
-<li data-markdown="">**Migrate incrementally** — existing yolo/worktree helpers, session rows, and dashboard APIs are reused and hardened without breaking current users.</li>
-<li data-markdown="">**Feed visibility surfaces** — launcher/session/claim identity becomes the substrate consumed by cross-session file visibility and Kanban work-board status in plan-c3bbb1ed.</li>
+<li data-markdown>**Protect main** — mutating Claude, Codex, and Gemini sessions do not dirty or diverge local main by default.</li>
+<li data-markdown>**Preserve observability** — dashboard sessions, event trees, NDJSON, SQLite indexes, and lineage remain grouped under one canonical project even when execution happens in worktrees.</li>
+<li data-markdown>**Coordinate parallelism** — multiple CLIs and their subagents can run concurrently in the same project without clobbering attribution, active-session fallback state, collectors, branch names, or work-item claims.</li>
+<li data-markdown>**Deploy safely** — host installs, devcontainers, local plugin development, and production launcher paths have explicit mode detection, defaults, and test coverage.</li>
+<li data-markdown>**Migrate incrementally** — existing yolo/worktree helpers, session rows, and dashboard APIs are reused and hardened without breaking current users.</li>
+<li data-markdown>**Feed visibility surfaces** — launcher/session/claim identity becomes the substrate consumed by cross-session file visibility and Kanban work-board status in plan-c3bbb1ed.</li>
 </ol>
 <h4>Constraints</h4>
 <ul>
-<li data-markdown="">Canonical project identity must remain the main repo root containing .wipnote, not an arbitrary linked worktree path. DELIVERED SUBSTRATE: write-time path normalization for storage is enforced by plan-2133adf2 (paths.NormalizeToRepoRelative, ResolveViaGitCommonDir); this plan scope is launcher-side env construction (slice-3).</li>
-<li data-markdown="">Fresh worktrees are execution directories only; event storage and dashboard project grouping stay anchored to the canonical root.</li>
-<li data-markdown="">The launcher must offer an explicit in-place escape hatch for intentional local-main work.</li>
-<li data-markdown="">Branch naming must remain compatible with existing work-item completion and lineage conventions until explicit metadata replaces branch-name inference. DELIVERED SUBSTRATE: branch-name-completion transition is delivered by plan-83f909bc slice-3 provenance gate (feat-7b593272); this plan does not re-implement it.</li>
-<li data-markdown="">Devcontainer defaults must bind dashboard services to 0.0.0.0:8088, while host installs keep the production default of 127.0.0.1:8080.</li>
-<li data-markdown="">No implementation slice may rely solely on global mutable fallback files when parallel CLI sessions are expected. DELIVERED SUBSTRATE: SQLite single-writer contention is solved by plan-ae0c37b2 single-writer queue; this plan does not re-implement it.</li>
-<li data-markdown="">Dashboard work-board and wipnote who visibility belong in plan-c3bbb1ed, but this plan must expose the stable identity/claim/session fields those views consume.</li>
-<li data-markdown="">Cross-plan provenance: slice-3 depends on plan-2133adf2 (feat-edbc978b, feat-3973e948); slice-5 depends on plan-83f909bc (feat-7b593272); slices 9/10 depend on plan-ae0c37b2 (feat-2c631aa9, feat-156e0a1a, feat-f3bcbcef).</li>
-<li data-markdown="">Surviving critical path: slice-1 (launcher mode contract) -&gt; slice-2 (gated worktree launch) -&gt; slice-4 (session-family). Slices 1, 4, and 8 are kept unchanged in intent.</li>
+<li data-markdown>Canonical project identity must remain the main repo root containing .wipnote, not an arbitrary linked worktree path. DELIVERED SUBSTRATE: write-time path normalization for storage is enforced by plan-2133adf2 (paths.NormalizeToRepoRelative, ResolveViaGitCommonDir); this plan scope is launcher-side env construction (slice-3).</li>
+<li data-markdown>Fresh worktrees are execution directories only; event storage and dashboard project grouping stay anchored to the canonical root.</li>
+<li data-markdown>The launcher must offer an explicit in-place escape hatch for intentional local-main work.</li>
+<li data-markdown>Branch naming must remain compatible with existing work-item completion and lineage conventions until explicit metadata replaces branch-name inference. DELIVERED SUBSTRATE: branch-name-completion transition is delivered by plan-83f909bc slice-3 provenance gate (feat-7b593272); this plan does not re-implement it.</li>
+<li data-markdown>Devcontainer defaults must bind dashboard services to 0.0.0.0:8088, while host installs keep the production default of 127.0.0.1:8080.</li>
+<li data-markdown>No implementation slice may rely solely on global mutable fallback files when parallel CLI sessions are expected. DELIVERED SUBSTRATE: SQLite single-writer contention is solved by plan-ae0c37b2 single-writer queue; this plan does not re-implement it.</li>
+<li data-markdown>Dashboard work-board and wipnote who visibility belong in plan-c3bbb1ed, but this plan must expose the stable identity/claim/session fields those views consume.</li>
+<li data-markdown>Cross-plan provenance: slice-3 depends on plan-2133adf2 (feat-edbc978b, feat-3973e948); slice-5 depends on plan-83f909bc (feat-7b593272); slices 9/10 depend on plan-ae0c37b2 (feat-2c631aa9, feat-156e0a1a, feat-f3bcbcef).</li>
+<li data-markdown>Surviving critical path: slice-1 (launcher mode contract) -&gt; slice-2 (gated worktree launch) -&gt; slice-4 (session-family). Slices 1, 4, and 8 are kept unchanged in intent.</li>
 </ul>
 
     <div class="approval-row">
-      <label><input type="checkbox" data-section="design" data-action="approve" checked="checked"/> Approve design</label>
+      <label><input type="checkbox" data-section="design" data-action="approve"> Approve design</label>
       <textarea data-section="design" data-comment-for="design" placeholder="Comments on design decisions..."></textarea>
     </div>
   </div>
@@ -557,7 +559,7 @@ Note: collector/event-writer concurrency (parallel NDJSON flush, SQLite busy-tim
 
 
 <!-- Slices -->
-<details id="slices" class="section-card" open="" data-phase="slices" data-status="pending">
+<details id="slices" class="section-card" open data-phase="slices" data-status="pending">
   <summary><span>Slices</span><span class="badge badge-pending" data-badge-for="slices">Pending</span></summary>
   <div class="section-body">
     <details class="slice-card" id="slice-1" data-slice="1" data-slice-name="slice-1" data-status="pending" data-approval="pending">
@@ -571,7 +573,7 @@ Note: collector/event-writer concurrency (parallel NDJSON flush, SQLite busy-tim
           <span class="badge badge-revision badge-sm">M</span>
           <span class="badge badge-revision badge-sm">Med</span>
           
-          <span class="badge badge-pending badge-sm" title="Execution: not_started">Not Started</span>
+          <span class="badge badge-revision badge-sm" title="Execution: promoted">Promoted</span>
           <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-1">Pending</span>
           
           <span class="badge badge-sm badge-questions" title="1 open question(s)">1 Q</span>
@@ -579,16 +581,16 @@ Note: collector/event-writer concurrency (parallel NDJSON flush, SQLite busy-tim
         <span class="slice-actions" onclick="event.stopPropagation()">
           <span class="approval-segmented" role="group" aria-label="Approval action">
             <label class="seg-btn seg-approve" title="Approve">
-              <input type="radio" name="slice-1-approval" value="approved" data-section="slice-1" data-action="approve" aria-label="Approve slice 1" checked="checked"/>
-              ✓
+              <input type="radio" name="slice-1-approval" value="approved" data-section="slice-1" data-action="approve" aria-label="Approve slice 1">
+              &#10003;
             </label>
             <label class="seg-btn seg-changes" title="Request changes">
-              <input type="radio" name="slice-1-approval" value="changes_requested" data-section="slice-1" data-action="approve" aria-label="Request changes for slice 1"/>
-              ↻
+              <input type="radio" name="slice-1-approval" value="changes_requested" data-section="slice-1" data-action="approve" aria-label="Request changes for slice 1">
+              &#8635;
             </label>
             <label class="seg-btn seg-reject" title="Reject">
-              <input type="radio" name="slice-1-approval" value="rejected" data-section="slice-1" data-action="approve" aria-label="Reject slice 1"/>
-              ✕
+              <input type="radio" name="slice-1-approval" value="rejected" data-section="slice-1" data-action="approve" aria-label="Reject slice 1">
+              &#10005;
             </label>
           </span>
         </span>
@@ -604,7 +606,7 @@ Note: collector/event-writer concurrency (parallel NDJSON flush, SQLite busy-tim
         <div class="slice-field-label">What</div>
         <div class="slice-field-value">
           
-          <input type="checkbox" id="slice-1-what-reveal" class="reveal-toggle"/>
+          <input type="checkbox" id="slice-1-what-reveal" class="reveal-toggle">
           <div class="markdown-block reveal-content serif-prose"><p>Define a shared launcher mode contract used by Claude, Codex, Gemini, yolo,
 and dashboard terminal launch paths. Add an <code>internal/launcher/mode</code> package
 or equivalent small helper that computes:</p>
@@ -663,17 +665,17 @@ changes are introduced.</p>
         <div class="test-strategy">
           
           <div class="test-group" data-kind="unit">
-            <span class="test-chip">UNIT · 2</span>
+            <span class="test-chip">UNIT &middot; 2</span>
             <ul><li>TestDetectRuntimeMode_HostDevcontainerCI covers marker files and env vars.</li><li>TestDashboardBindDefaults covers host versus devcontainer bind/port.</li></ul>
           </div>
           
           <div class="test-group" data-kind="regression">
-            <span class="test-chip">REGRESSION · 1</span>
+            <span class="test-chip">REGRESSION &middot; 1</span>
             <ul><li>existing launcher command construction tests still pass.</li></ul>
           </div>
           
           <div class="test-group" data-kind="integration">
-            <span class="test-chip">INTEGRATION · 1</span>
+            <span class="test-chip">INTEGRATION &middot; 1</span>
             <ul><li>a launcher preflight test asserts all three harnesses return a mode object without starting a CLI.</li></ul>
           </div>
           
@@ -698,11 +700,11 @@ changes are introduced.</p>
             
             
             
-            <label class="recommended"><input type="radio" name="slice-1-question-q-devcontainer-detect" data-section="slice-1-question-q-devcontainer-detect" data-action="answer" value="reuse-existing-detector"/> Reuse existing detector — /.dockerenv, CODESPACES, REMOTE_CONTAINERS (already in defaultDevcontainerDetector) <span class="rec-tag">recommended</span></label>
+            <label class="recommended"><input type="radio" name="slice-1-question-q-devcontainer-detect" data-section="slice-1-question-q-devcontainer-detect" data-action="answer" value="reuse-existing-detector"> Reuse existing detector — /.dockerenv, CODESPACES, REMOTE_CONTAINERS (already in defaultDevcontainerDetector) <span class="rec-tag">recommended</span></label>
             
-            <label><input type="radio" name="slice-1-question-q-devcontainer-detect" data-section="slice-1-question-q-devcontainer-detect" data-action="answer" value="explicit-env-override"/> Explicit env var — WIPNOTE_LAUNCH_MODE=devcontainer overrides auto-detect</label>
+            <label><input type="radio" name="slice-1-question-q-devcontainer-detect" data-section="slice-1-question-q-devcontainer-detect" data-action="answer" value="explicit-env-override"> Explicit env var — WIPNOTE_LAUNCH_MODE=devcontainer overrides auto-detect</label>
             
-            <label><input type="radio" name="slice-1-question-q-devcontainer-detect" data-section="slice-1-question-q-devcontainer-detect" data-action="answer" value="filesystem-probe"/> Filesystem probe — check for .devcontainer/ directory in repo root</label>
+            <label><input type="radio" name="slice-1-question-q-devcontainer-detect" data-section="slice-1-question-q-devcontainer-detect" data-action="answer" value="filesystem-probe"> Filesystem probe — check for .devcontainer/ directory in repo root</label>
             
           
         </div>
@@ -740,16 +742,16 @@ changes are introduced.</p>
         <span class="slice-actions" onclick="event.stopPropagation()">
           <span class="approval-segmented" role="group" aria-label="Approval action">
             <label class="seg-btn seg-approve" title="Approve">
-              <input type="radio" name="slice-2-approval" value="approved" data-section="slice-2" data-action="approve" aria-label="Approve slice 2" checked="checked"/>
-              ✓
+              <input type="radio" name="slice-2-approval" value="approved" data-section="slice-2" data-action="approve" aria-label="Approve slice 2">
+              &#10003;
             </label>
             <label class="seg-btn seg-changes" title="Request changes">
-              <input type="radio" name="slice-2-approval" value="changes_requested" data-section="slice-2" data-action="approve" aria-label="Request changes for slice 2"/>
-              ↻
+              <input type="radio" name="slice-2-approval" value="changes_requested" data-section="slice-2" data-action="approve" aria-label="Request changes for slice 2">
+              &#8635;
             </label>
             <label class="seg-btn seg-reject" title="Reject">
-              <input type="radio" name="slice-2-approval" value="rejected" data-section="slice-2" data-action="approve" aria-label="Reject slice 2"/>
-              ✕
+              <input type="radio" name="slice-2-approval" value="rejected" data-section="slice-2" data-action="approve" aria-label="Reject slice 2">
+              &#10005;
             </label>
           </span>
         </span>
@@ -765,7 +767,7 @@ changes are introduced.</p>
         <div class="slice-field-label">What</div>
         <div class="slice-field-value">
           
-          <input type="checkbox" id="slice-2-what-reveal" class="reveal-toggle"/>
+          <input type="checkbox" id="slice-2-what-reveal" class="reveal-toggle">
           <div class="markdown-block reveal-content serif-prose"><p>Add the launch planning and guard machinery needed for mutating launchers
 to run in managed worktrees, but do not flip host production defaults
 unconditionally in this slice. For devcontainer/local-dev profiles the
@@ -833,17 +835,17 @@ visible warning path before enforcement.</p>
         <div class="test-strategy">
           
           <div class="test-group" data-kind="unit">
-            <span class="test-chip">UNIT · 2</span>
+            <span class="test-chip">UNIT &middot; 2</span>
             <ul><li>TestLauncherPlan_DefaultsToWorktreeOnMain validates command planning without starting a harness.</li><li>TestLauncherPlan_InPlaceEscapeHatch validates explicit in-place mode.</li></ul>
           </div>
           
           <div class="test-group" data-kind="integration">
-            <span class="test-chip">INTEGRATION · 1</span>
+            <span class="test-chip">INTEGRATION &middot; 1</span>
             <ul><li>TestWorktreeLaunch_PreservesCanonicalRoot starts a fake harness in a managed worktree.</li></ul>
           </div>
           
           <div class="test-group" data-kind="regression">
-            <span class="test-chip">REGRESSION · 1</span>
+            <span class="test-chip">REGRESSION &middot; 1</span>
             <ul><li>existing yolo worktree reuse and branch-already-exists tests still pass.</li></ul>
           </div>
           
@@ -887,11 +889,11 @@ visible warning path before enforcement.</p>
             
             
             
-            <label class="recommended"><input type="radio" name="slice-2-question-q-default" data-section="slice-2-question-q-default" data-action="answer" value="yes-as-framed"/> Yes — host production warn-only, devcontainer/local-dev config-gated worktree-by-default <span class="rec-tag">recommended</span></label>
+            <label class="recommended"><input type="radio" name="slice-2-question-q-default" data-section="slice-2-question-q-default" data-action="answer" value="yes-as-framed"> Yes — host production warn-only, devcontainer/local-dev config-gated worktree-by-default <span class="rec-tag">recommended</span></label>
             
-            <label><input type="radio" name="slice-2-question-q-default" data-section="slice-2-question-q-default" data-action="answer" value="worktree-everywhere"/> Worktree-by-default everywhere — all mutating launches isolated immediately</label>
+            <label><input type="radio" name="slice-2-question-q-default" data-section="slice-2-question-q-default" data-action="answer" value="worktree-everywhere"> Worktree-by-default everywhere — all mutating launches isolated immediately</label>
             
-            <label><input type="radio" name="slice-2-question-q-default" data-section="slice-2-question-q-default" data-action="answer" value="warn-only-everywhere"/> Warn-only everywhere — detect dirty main but never change launch location</label>
+            <label><input type="radio" name="slice-2-question-q-default" data-section="slice-2-question-q-default" data-action="answer" value="warn-only-everywhere"> Warn-only everywhere — detect dirty main but never change launch location</label>
             
           
         </div>
@@ -929,16 +931,16 @@ visible warning path before enforcement.</p>
         <span class="slice-actions" onclick="event.stopPropagation()">
           <span class="approval-segmented" role="group" aria-label="Approval action">
             <label class="seg-btn seg-approve" title="Approve">
-              <input type="radio" name="slice-3-approval" value="approved" data-section="slice-3" data-action="approve" aria-label="Approve slice 3" checked="checked"/>
-              ✓
+              <input type="radio" name="slice-3-approval" value="approved" data-section="slice-3" data-action="approve" aria-label="Approve slice 3">
+              &#10003;
             </label>
             <label class="seg-btn seg-changes" title="Request changes">
-              <input type="radio" name="slice-3-approval" value="changes_requested" data-section="slice-3" data-action="approve" aria-label="Request changes for slice 3"/>
-              ↻
+              <input type="radio" name="slice-3-approval" value="changes_requested" data-section="slice-3" data-action="approve" aria-label="Request changes for slice 3">
+              &#8635;
             </label>
             <label class="seg-btn seg-reject" title="Reject">
-              <input type="radio" name="slice-3-approval" value="rejected" data-section="slice-3" data-action="approve" aria-label="Reject slice 3"/>
-              ✕
+              <input type="radio" name="slice-3-approval" value="rejected" data-section="slice-3" data-action="approve" aria-label="Reject slice 3">
+              &#10005;
             </label>
           </span>
         </span>
@@ -954,7 +956,7 @@ visible warning path before enforcement.</p>
         <div class="slice-field-label">What</div>
         <div class="slice-field-value">
           
-          <input type="checkbox" id="slice-3-what-reveal" class="reveal-toggle"/>
+          <input type="checkbox" id="slice-3-what-reveal" class="reveal-toggle">
           <div class="markdown-block reveal-content serif-prose"><p>Scope: launcher-side env construction only. When a harness is launched from
 a managed worktree, ensure <code>WIPNOTE_PROJECT_DIR</code> is set to the canonical
 main repo root (not the worktree path) by consuming the existing
@@ -1013,12 +1015,12 @@ this slice closes the remaining gap in launcher env construction so that
         <div class="test-strategy">
           
           <div class="test-group" data-kind="unit">
-            <span class="test-chip">UNIT · 1</span>
+            <span class="test-chip">UNIT &middot; 1</span>
             <ul><li>TestLauncherEnv_WorktreeCanonicalRoot verifies WIPNOTE_PROJECT_DIR resolves to main repo root when CWD is a linked worktree.</li></ul>
           </div>
           
           <div class="test-group" data-kind="regression">
-            <span class="test-chip">REGRESSION · 1</span>
+            <span class="test-chip">REGRESSION &middot; 1</span>
             <ul><li>existing project resolution and cache path tests still pass.</li></ul>
           </div>
           
@@ -1061,16 +1063,16 @@ this slice closes the remaining gap in launcher env construction so that
         <span class="slice-actions" onclick="event.stopPropagation()">
           <span class="approval-segmented" role="group" aria-label="Approval action">
             <label class="seg-btn seg-approve" title="Approve">
-              <input type="radio" name="slice-4-approval" value="approved" data-section="slice-4" data-action="approve" aria-label="Approve slice 4" checked="checked"/>
-              ✓
+              <input type="radio" name="slice-4-approval" value="approved" data-section="slice-4" data-action="approve" aria-label="Approve slice 4">
+              &#10003;
             </label>
             <label class="seg-btn seg-changes" title="Request changes">
-              <input type="radio" name="slice-4-approval" value="changes_requested" data-section="slice-4" data-action="approve" aria-label="Request changes for slice 4"/>
-              ↻
+              <input type="radio" name="slice-4-approval" value="changes_requested" data-section="slice-4" data-action="approve" aria-label="Request changes for slice 4">
+              &#8635;
             </label>
             <label class="seg-btn seg-reject" title="Reject">
-              <input type="radio" name="slice-4-approval" value="rejected" data-section="slice-4" data-action="approve" aria-label="Reject slice 4"/>
-              ✕
+              <input type="radio" name="slice-4-approval" value="rejected" data-section="slice-4" data-action="approve" aria-label="Reject slice 4">
+              &#10005;
             </label>
           </span>
         </span>
@@ -1086,7 +1088,7 @@ this slice closes the remaining gap in launcher env construction so that
         <div class="slice-field-label">What</div>
         <div class="slice-field-value">
           
-          <input type="checkbox" id="slice-4-what-reveal" class="reveal-toggle"/>
+          <input type="checkbox" id="slice-4-what-reveal" class="reveal-toggle">
           <div class="markdown-block reveal-content serif-prose"><p>Replace the project-global active-session fallback with a concurrency-safe
 session-family model.</p>
 <p>Add or wire:</p>
@@ -1146,17 +1148,17 @@ env propagation is incomplete.</p>
         <div class="test-strategy">
           
           <div class="test-group" data-kind="unit">
-            <span class="test-chip">UNIT · 2</span>
+            <span class="test-chip">UNIT &middot; 2</span>
             <ul><li>TestActiveSessionIndex_ParallelFamilies verifies two roots can coexist.</li><li>TestSessionFamily_ContinuedFrom links resumed sessions without relying on harness-specific IDs.</li></ul>
           </div>
           
           <div class="test-group" data-kind="integration">
-            <span class="test-chip">INTEGRATION · 1</span>
+            <span class="test-chip">INTEGRATION &middot; 1</span>
             <ul><li>TestEventTree_SessionFamilyGrouping creates root plus subagent sessions and asserts tree continuity.</li></ul>
           </div>
           
           <div class="test-group" data-kind="regression">
-            <span class="test-chip">REGRESSION · 1</span>
+            <span class="test-chip">REGRESSION &middot; 1</span>
             <ul><li>existing Claude Rosetta session_start behavior still works.</li></ul>
           </div>
           
@@ -1194,11 +1196,11 @@ env propagation is incomplete.</p>
             
             
             
-            <label class="recommended"><input type="radio" name="slice-4-question-q-family-field" data-section="slice-4-question-q-family-field" data-action="answer" value="add-session-family-id"/> Add session_family_id — explicit root grouping for N parallel/resumed sessions <span class="rec-tag">recommended</span></label>
+            <label class="recommended"><input type="radio" name="slice-4-question-q-family-field" data-section="slice-4-question-q-family-field" data-action="answer" value="add-session-family-id"> Add session_family_id — explicit root grouping for N parallel/resumed sessions <span class="rec-tag">recommended</span></label>
             
-            <label><input type="radio" name="slice-4-question-q-family-field" data-section="slice-4-question-q-family-field" data-action="answer" value="reuse-continued-from"/> Reuse continued_from — minimal schema change, single-parent link only</label>
+            <label><input type="radio" name="slice-4-question-q-family-field" data-section="slice-4-question-q-family-field" data-action="answer" value="reuse-continued-from"> Reuse continued_from — minimal schema change, single-parent link only</label>
             
-            <label><input type="radio" name="slice-4-question-q-family-field" data-section="slice-4-question-q-family-field" data-action="answer" value="hybrid"/> Hybrid — derive family_id transitively from continued_from at query time</label>
+            <label><input type="radio" name="slice-4-question-q-family-field" data-section="slice-4-question-q-family-field" data-action="answer" value="hybrid"> Hybrid — derive family_id transitively from continued_from at query time</label>
             
           
         </div>
@@ -1236,16 +1238,16 @@ env propagation is incomplete.</p>
         <span class="slice-actions" onclick="event.stopPropagation()">
           <span class="approval-segmented" role="group" aria-label="Approval action">
             <label class="seg-btn seg-approve" title="Approve">
-              <input type="radio" name="slice-5-approval" value="approved" data-section="slice-5" data-action="approve" aria-label="Approve slice 5" checked="checked"/>
-              ✓
+              <input type="radio" name="slice-5-approval" value="approved" data-section="slice-5" data-action="approve" aria-label="Approve slice 5">
+              &#10003;
             </label>
             <label class="seg-btn seg-changes" title="Request changes">
-              <input type="radio" name="slice-5-approval" value="changes_requested" data-section="slice-5" data-action="approve" aria-label="Request changes for slice 5"/>
-              ↻
+              <input type="radio" name="slice-5-approval" value="changes_requested" data-section="slice-5" data-action="approve" aria-label="Request changes for slice 5">
+              &#8635;
             </label>
             <label class="seg-btn seg-reject" title="Reject">
-              <input type="radio" name="slice-5-approval" value="rejected" data-section="slice-5" data-action="approve" aria-label="Reject slice 5"/>
-              ✕
+              <input type="radio" name="slice-5-approval" value="rejected" data-section="slice-5" data-action="approve" aria-label="Reject slice 5">
+              &#10005;
             </label>
           </span>
         </span>
@@ -1261,7 +1263,7 @@ env propagation is incomplete.</p>
         <div class="slice-field-label">What</div>
         <div class="slice-field-value">
           
-          <input type="checkbox" id="slice-5-what-reveal" class="reveal-toggle"/>
+          <input type="checkbox" id="slice-5-what-reveal" class="reveal-toggle">
           <div class="markdown-block reveal-content serif-prose"><p>Harden work-item attribution for concurrent parallel root CLIs and their
 simultaneous subagents. Scope is limited to:</p>
 <ul>
@@ -1332,17 +1334,17 @@ intentional collaboration or accidental collision.</p>
         <div class="test-strategy">
           
           <div class="test-group" data-kind="unit">
-            <span class="test-chip">UNIT · 2</span>
+            <span class="test-chip">UNIT &middot; 2</span>
             <ul><li>TestClaimCollisionPolicy covers exclusive and collaborative claim modes.</li><li>TestSubagentAttribution_OutOfOrderParent preserves child events before parent insert.</li></ul>
           </div>
           
           <div class="test-group" data-kind="integration">
-            <span class="test-chip">INTEGRATION · 1</span>
+            <span class="test-chip">INTEGRATION &middot; 1</span>
             <ul><li>TestParallelHarnessClaims starts fake Claude/Codex/Gemini roots against one work item and asserts lineage.</li></ul>
           </div>
           
           <div class="test-group" data-kind="regression">
-            <span class="test-chip">REGRESSION · 1</span>
+            <span class="test-chip">REGRESSION &middot; 1</span>
             <ul><li>existing `wipnote lineage`, `trace`, and `history` tests still pass.</li></ul>
           </div>
           
@@ -1386,11 +1388,11 @@ intentional collaboration or accidental collision.</p>
             
             
             
-            <label class="recommended"><input type="radio" name="slice-5-question-q-claim-policy" data-section="slice-5-question-q-claim-policy" data-action="answer" value="warn-and-allow-collaboration"/> Warn and allow — visible collision with attribution, no hard block; second claimant recorded with timestamp <span class="rec-tag">recommended</span></label>
+            <label class="recommended"><input type="radio" name="slice-5-question-q-claim-policy" data-section="slice-5-question-q-claim-policy" data-action="answer" value="warn-and-allow-collaboration"> Warn and allow — visible collision with attribution, no hard block; second claimant recorded with timestamp <span class="rec-tag">recommended</span></label>
             
-            <label><input type="radio" name="slice-5-question-q-claim-policy" data-section="slice-5-question-q-claim-policy" data-action="answer" value="hard-exclusive-lock"/> Hard exclusive — block second mutating session unless --force-claim is passed</label>
+            <label><input type="radio" name="slice-5-question-q-claim-policy" data-section="slice-5-question-q-claim-policy" data-action="answer" value="hard-exclusive-lock"> Hard exclusive — block second mutating session unless --force-claim is passed</label>
             
-            <label><input type="radio" name="slice-5-question-q-claim-policy" data-section="slice-5-question-q-claim-policy" data-action="answer" value="allow-silent"/> Allow silently — attribution only, no collision UX</label>
+            <label><input type="radio" name="slice-5-question-q-claim-policy" data-section="slice-5-question-q-claim-policy" data-action="answer" value="allow-silent"> Allow silently — attribution only, no collision UX</label>
             
           
         </div>
@@ -1428,16 +1430,16 @@ intentional collaboration or accidental collision.</p>
         <span class="slice-actions" onclick="event.stopPropagation()">
           <span class="approval-segmented" role="group" aria-label="Approval action">
             <label class="seg-btn seg-approve" title="Approve">
-              <input type="radio" name="slice-7-approval" value="approved" data-section="slice-7" data-action="approve" aria-label="Approve slice 7" checked="checked"/>
-              ✓
+              <input type="radio" name="slice-7-approval" value="approved" data-section="slice-7" data-action="approve" aria-label="Approve slice 7">
+              &#10003;
             </label>
             <label class="seg-btn seg-changes" title="Request changes">
-              <input type="radio" name="slice-7-approval" value="changes_requested" data-section="slice-7" data-action="approve" aria-label="Request changes for slice 7"/>
-              ↻
+              <input type="radio" name="slice-7-approval" value="changes_requested" data-section="slice-7" data-action="approve" aria-label="Request changes for slice 7">
+              &#8635;
             </label>
             <label class="seg-btn seg-reject" title="Reject">
-              <input type="radio" name="slice-7-approval" value="rejected" data-section="slice-7" data-action="approve" aria-label="Reject slice 7"/>
-              ✕
+              <input type="radio" name="slice-7-approval" value="rejected" data-section="slice-7" data-action="approve" aria-label="Reject slice 7">
+              &#10005;
             </label>
           </span>
         </span>
@@ -1453,7 +1455,7 @@ intentional collaboration or accidental collision.</p>
         <div class="slice-field-label">What</div>
         <div class="slice-field-value">
           
-          <input type="checkbox" id="slice-7-what-reveal" class="reveal-toggle"/>
+          <input type="checkbox" id="slice-7-what-reveal" class="reveal-toggle">
           <div class="markdown-block reveal-content serif-prose"><p>Update dashboard APIs and UI to make isolation visible without fragmenting
 the project view. Add API fields and UI affordances for:</p>
 <ul>
@@ -1522,17 +1524,17 @@ forcing users to inspect git state manually.</p>
         <div class="test-strategy">
           
           <div class="test-group" data-kind="unit">
-            <span class="test-chip">UNIT · 2</span>
+            <span class="test-chip">UNIT &middot; 2</span>
             <ul><li>TestSessionsAPI_IncludesExecutionRootAndFamily validates response fields.</li><li>dashboard JS component tests render worktree/session-family badges without layout overflow.</li></ul>
           </div>
           
           <div class="test-group" data-kind="integration">
-            <span class="test-chip">INTEGRATION · 1</span>
+            <span class="test-chip">INTEGRATION &middot; 1</span>
             <ul><li>TestDashboardParallelSessionsAPI builds a fake multi-harness event graph.</li></ul>
           </div>
           
           <div class="test-group" data-kind="regression">
-            <span class="test-chip">REGRESSION · 1</span>
+            <span class="test-chip">REGRESSION &middot; 1</span>
             <ul><li>existing activity feed and event-tree tests still pass.</li></ul>
           </div>
           
@@ -1594,16 +1596,16 @@ forcing users to inspect git state manually.</p>
         <span class="slice-actions" onclick="event.stopPropagation()">
           <span class="approval-segmented" role="group" aria-label="Approval action">
             <label class="seg-btn seg-approve" title="Approve">
-              <input type="radio" name="slice-8-approval" value="approved" data-section="slice-8" data-action="approve" aria-label="Approve slice 8" checked="checked"/>
-              ✓
+              <input type="radio" name="slice-8-approval" value="approved" data-section="slice-8" data-action="approve" aria-label="Approve slice 8">
+              &#10003;
             </label>
             <label class="seg-btn seg-changes" title="Request changes">
-              <input type="radio" name="slice-8-approval" value="changes_requested" data-section="slice-8" data-action="approve" aria-label="Request changes for slice 8"/>
-              ↻
+              <input type="radio" name="slice-8-approval" value="changes_requested" data-section="slice-8" data-action="approve" aria-label="Request changes for slice 8">
+              &#8635;
             </label>
             <label class="seg-btn seg-reject" title="Reject">
-              <input type="radio" name="slice-8-approval" value="rejected" data-section="slice-8" data-action="approve" aria-label="Reject slice 8"/>
-              ✕
+              <input type="radio" name="slice-8-approval" value="rejected" data-section="slice-8" data-action="approve" aria-label="Reject slice 8">
+              &#10005;
             </label>
           </span>
         </span>
@@ -1619,7 +1621,7 @@ forcing users to inspect git state manually.</p>
         <div class="slice-field-label">What</div>
         <div class="slice-field-value">
           
-          <input type="checkbox" id="slice-8-what-reveal" class="reveal-toggle"/>
+          <input type="checkbox" id="slice-8-what-reveal" class="reveal-toggle">
           <div class="markdown-block reveal-content serif-prose"><p>Add explicit deployment profile plumbing for launcher isolation:</p>
 <ul>
 <li>host production install</li>
@@ -1677,22 +1679,22 @@ on devcontainer-only paths or volumes.</p>
         <div class="test-strategy">
           
           <div class="test-group" data-kind="unit">
-            <span class="test-chip">UNIT · 1</span>
+            <span class="test-chip">UNIT &middot; 1</span>
             <ul><li>script shell checks for devcontainer and deploy scripts.</li></ul>
           </div>
           
           <div class="test-group" data-kind="integration">
-            <span class="test-chip">INTEGRATION · 1</span>
+            <span class="test-chip">INTEGRATION &middot; 1</span>
             <ul><li>TestLauncherProfiles validates host/devcontainer/CI profile outputs.</li></ul>
           </div>
           
           <div class="test-group" data-kind="regression">
-            <span class="test-chip">REGRESSION · 1</span>
+            <span class="test-chip">REGRESSION &middot; 1</span>
             <ul><li>plugin build ports still produce Claude, Codex, and Gemini artifacts.</li></ul>
           </div>
           
           <div class="test-group" data-kind="manual">
-            <span class="test-chip">MANUAL · 1</span>
+            <span class="test-chip">MANUAL &middot; 1</span>
             <ul><li>run devcontainer verification and host `wipnote serve` smoke test before release.</li></ul>
           </div>
           
@@ -1730,11 +1732,11 @@ on devcontainer-only paths or volumes.</p>
             
             
             
-            <label class="recommended"><input type="radio" name="slice-8-question-q-rollout" data-section="slice-8-question-q-rollout" data-action="answer" value="staged-rollout"/> Staged — warn-only first, then config-gated opt-in, then default-on after doctor gate passes <span class="rec-tag">recommended</span></label>
+            <label class="recommended"><input type="radio" name="slice-8-question-q-rollout" data-section="slice-8-question-q-rollout" data-action="answer" value="staged-rollout"> Staged — warn-only first, then config-gated opt-in, then default-on after doctor gate passes <span class="rec-tag">recommended</span></label>
             
-            <label><input type="radio" name="slice-8-question-q-rollout" data-section="slice-8-question-q-rollout" data-action="answer" value="immediate-flip"/> Immediate flip — worktree default on in first release</label>
+            <label><input type="radio" name="slice-8-question-q-rollout" data-section="slice-8-question-q-rollout" data-action="answer" value="immediate-flip"> Immediate flip — worktree default on in first release</label>
             
-            <label><input type="radio" name="slice-8-question-q-rollout" data-section="slice-8-question-q-rollout" data-action="answer" value="opt-in-only"/> Opt-in only — never flip default; users must set config explicitly</label>
+            <label><input type="radio" name="slice-8-question-q-rollout" data-section="slice-8-question-q-rollout" data-action="answer" value="opt-in-only"> Opt-in only — never flip default; users must set config explicitly</label>
             
           
         </div>
@@ -1772,16 +1774,16 @@ on devcontainer-only paths or volumes.</p>
         <span class="slice-actions" onclick="event.stopPropagation()">
           <span class="approval-segmented" role="group" aria-label="Approval action">
             <label class="seg-btn seg-approve" title="Approve">
-              <input type="radio" name="slice-9-approval" value="approved" data-section="slice-9" data-action="approve" aria-label="Approve slice 9" checked="checked"/>
-              ✓
+              <input type="radio" name="slice-9-approval" value="approved" data-section="slice-9" data-action="approve" aria-label="Approve slice 9">
+              &#10003;
             </label>
             <label class="seg-btn seg-changes" title="Request changes">
-              <input type="radio" name="slice-9-approval" value="changes_requested" data-section="slice-9" data-action="approve" aria-label="Request changes for slice 9"/>
-              ↻
+              <input type="radio" name="slice-9-approval" value="changes_requested" data-section="slice-9" data-action="approve" aria-label="Request changes for slice 9">
+              &#8635;
             </label>
             <label class="seg-btn seg-reject" title="Reject">
-              <input type="radio" name="slice-9-approval" value="rejected" data-section="slice-9" data-action="approve" aria-label="Reject slice 9"/>
-              ✕
+              <input type="radio" name="slice-9-approval" value="rejected" data-section="slice-9" data-action="approve" aria-label="Reject slice 9">
+              &#10005;
             </label>
           </span>
         </span>
@@ -1797,7 +1799,7 @@ on devcontainer-only paths or volumes.</p>
         <div class="slice-field-label">What</div>
         <div class="slice-field-value">
           
-          <input type="checkbox" id="slice-9-what-reveal" class="reveal-toggle"/>
+          <input type="checkbox" id="slice-9-what-reveal" class="reveal-toggle">
           <div class="markdown-block reveal-content serif-prose"><p>Add migration and cleanup commands for users with existing divergent local
 main states and stale worktrees.</p>
 <p><code>wipnote launcher doctor</code> is the primary deliverable. It:</p>
@@ -1869,17 +1871,17 @@ observable workflow.</p>
         <div class="test-strategy">
           
           <div class="test-group" data-kind="unit">
-            <span class="test-chip">UNIT · 2</span>
+            <span class="test-chip">UNIT &middot; 2</span>
             <ul><li>TestLauncherDoctor_DivergedMain reports ahead/behind and dirty state.</li><li>TestLauncherDoctor_StaleWorktree reports removed or broken gitdir worktrees.</li></ul>
           </div>
           
           <div class="test-group" data-kind="integration">
-            <span class="test-chip">INTEGRATION · 1</span>
+            <span class="test-chip">INTEGRATION &middot; 1</span>
             <ul><li>TestLegacySessionFamilyFallback keeps old sessions visible in dashboard APIs.</li></ul>
           </div>
           
           <div class="test-group" data-kind="regression">
-            <span class="test-chip">REGRESSION · 1</span>
+            <span class="test-chip">REGRESSION &middot; 1</span>
             <ul><li>existing worktree repair tests still pass.</li></ul>
           </div>
           
@@ -1941,16 +1943,16 @@ observable workflow.</p>
         <span class="slice-actions" onclick="event.stopPropagation()">
           <span class="approval-segmented" role="group" aria-label="Approval action">
             <label class="seg-btn seg-approve" title="Approve">
-              <input type="radio" name="slice-10-approval" value="approved" data-section="slice-10" data-action="approve" aria-label="Approve slice 10" checked="checked"/>
-              ✓
+              <input type="radio" name="slice-10-approval" value="approved" data-section="slice-10" data-action="approve" aria-label="Approve slice 10">
+              &#10003;
             </label>
             <label class="seg-btn seg-changes" title="Request changes">
-              <input type="radio" name="slice-10-approval" value="changes_requested" data-section="slice-10" data-action="approve" aria-label="Request changes for slice 10"/>
-              ↻
+              <input type="radio" name="slice-10-approval" value="changes_requested" data-section="slice-10" data-action="approve" aria-label="Request changes for slice 10">
+              &#8635;
             </label>
             <label class="seg-btn seg-reject" title="Reject">
-              <input type="radio" name="slice-10-approval" value="rejected" data-section="slice-10" data-action="approve" aria-label="Reject slice 10"/>
-              ✕
+              <input type="radio" name="slice-10-approval" value="rejected" data-section="slice-10" data-action="approve" aria-label="Reject slice 10">
+              &#10005;
             </label>
           </span>
         </span>
@@ -1966,7 +1968,7 @@ observable workflow.</p>
         <div class="slice-field-label">What</div>
         <div class="slice-field-value">
           
-          <input type="checkbox" id="slice-10-what-reveal" class="reveal-toggle"/>
+          <input type="checkbox" id="slice-10-what-reveal" class="reveal-toggle">
           <div class="markdown-block reveal-content serif-prose"><p>Build an end-to-end stress harness and production release gate for the new
 launcher model. The harness layers git-isolation, lineage, and
 parallel-launcher assertions onto the existing SQLite-contention fixture
@@ -2030,22 +2032,22 @@ deployment a concrete readiness signal.</p>
         <div class="test-strategy">
           
           <div class="test-group" data-kind="unit">
-            <span class="test-chip">UNIT · 1</span>
+            <span class="test-chip">UNIT &middot; 1</span>
             <ul><li>fake harness helpers cover deterministic event emission and exit modes.</li></ul>
           </div>
           
           <div class="test-group" data-kind="integration">
-            <span class="test-chip">INTEGRATION · 1</span>
+            <span class="test-chip">INTEGRATION &middot; 1</span>
             <ul><li>TestParallelLauncherIsolation starts multiple harness roots and validates git/dash/lineage state.</li></ul>
           </div>
           
           <div class="test-group" data-kind="regression">
-            <span class="test-chip">REGRESSION · 1</span>
+            <span class="test-chip">REGRESSION &middot; 1</span>
             <ul><li>full Go quality gates pass in an exec-capable environment.</li></ul>
           </div>
           
           <div class="test-group" data-kind="manual">
-            <span class="test-chip">MANUAL · 1</span>
+            <span class="test-chip">MANUAL &middot; 1</span>
             <ul><li>pre-release run of stress-launch against devcontainer and host profiles.</li></ul>
           </div>
           
@@ -2114,7 +2116,7 @@ deployment a concrete readiness signal.</p>
     <div id="commentsFeed"><p style="font-size:.8rem;color:var(--text-muted);font-style:italic">No comments yet.</p></div>
   </div>
   <div class="finalize-area">
-    <button class="btn-finalize" id="finalizeBtn" disabled="">Finalize Plan</button>
+    <button class="btn-finalize" id="finalizeBtn" disabled>Finalize Plan</button>
     <p style="font-size:.75rem;color:var(--text-muted);margin-top:6px">All sections must be approved before finalizing.</p>
   </div>
 </section>
@@ -2956,7 +2958,6 @@ syncHljsTheme();
     .catch(function(){});
 })();
 </script>
-<!-- .plan-content -->
-
-
-</body></html>
+</div><!-- .plan-content -->
+</body>
+</html>
