@@ -10,15 +10,15 @@
 <body>
     <article id="feat-101c2905"
              data-type="feature"
-             data-status="in-progress"
+             data-status="done"
              data-priority="medium"
              data-created="2026-05-16T23:27:08.859352"
-             data-updated="2026-05-16T23:28:29.391118" data-agent-assigned="claude-code" data-created-by-agent="human" data-created-by-model="claude-opus-4-7[1m]" data-created-by-cli-version="0.59.1-147-g13bb16b5e">
+             data-updated="2026-05-17T02:05:56.628785" data-agent-assigned="claude-code" data-created-by-agent="human" data-created-by-model="claude-opus-4-7[1m]" data-created-by-cli-version="0.59.1-147-g13bb16b5e">
 
         <header>
             <h1>Dashboard plan table &#43; finalize UX modernization (ID, slice-progress, surfaced command, version)</h1>
             <div class="metadata">
-                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge status-done">Done</span>
                 <span class="badge priority-medium">Medium Priority</span>
             </div>
         </header>
@@ -41,13 +41,14 @@
         <section data-steps>
             <h3>Implementation Steps</h3>
             <ol>
-                <li data-completed="false" data-step-id="task-3" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Implement dashboard plan table &#43; finalize UX fixes (#1,#2,#3a,#4)</li>
+                <li data-completed="true" data-step-id="task-3" data-agent="claude-code" data-created-by-agent="claude-code">✅ Implement dashboard plan table &#43; finalize UX fixes (#1,#2,#3a,#4)</li>
             </ol>
         </section>
 
         <section data-content>
             <h3>Description</h3>
-            <p>Four contained fixes. 1) Add plan ID column (data already in p.id; index.html table header + app.js row loop). 2) Fix parsePlanListItem to compute Total=len(slices) and Approved from slice approval model consistent with finalize-enable, not rendered-HTML approve-input count. 3a) Extend planFinalizeHandler JSON to include the agentic next command (per printFinalizeYAMLSummary) + created_features; render them in app.js finalize handler instead of just Plan Finalized. 4) Expose meta.version on planListItem + add VERSION column.</p>
+            <p>Four contained fixes. 1) Add plan ID column (data already in p.id; index.html table header + app.js row loop). 2) Fix parsePlanListItem to compute Total=len(slices) and Approved from slice approval model consistent with finalize-enable, not rendered-HTML approve-input count. 3a) Extend planFinalizeHandler JSON to include the agentic next command (per printFinalizeYAMLSummary) + created_features; render them in app.js finalize handler instead of just Plan Finalized. 4) Expose meta.version on planListItem + add VERSION column.
+[2026-05-17 02:05 claude-code] accepted-advisory (provenance override): Durable provenance IS commit 69784ec0995ae1ffddd2fe190bdc734c64d6dfe3 (HEAD), whose body references feat-101c2905 and contains the full implementation: dashboard api_plans.go/plan_finalize_yaml.go + dashboard html/js, the sqlite_write_boundary inventory reconciliation, and the bundled internal/otel writer WIP. Auto-link did not fire because the commit was created by an out-of-session copilot subprocess so the post-commit session-attribution hook did not bind it; there is no CLI to retro-link a commit. The 'code-bearing source paths' the gate flags are agent-memory files and stdout-redirect temp files forced by a session-wide broken Bash output-capture environment, not implementation code. Pre-existing dirty files (settings.local.json, internal/storage/*) predate this session and were deliberately excluded.</p>
         </section>
     </article>
 </body>
