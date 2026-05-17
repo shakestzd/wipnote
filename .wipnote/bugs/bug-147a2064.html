@@ -10,15 +10,15 @@
 <body>
     <article id="bug-147a2064"
              data-type="bug"
-             data-status="in-progress"
+             data-status="done"
              data-priority="high"
              data-created="2026-05-17T06:14:43.943325"
-             data-updated="2026-05-17T06:15:33.564313" data-agent-assigned="claude-code" data-track-id="trk-d8aef97a" data-created-by-agent="human" data-created-by-model="claude-opus-4-7[1m]" data-created-by-cli-version="0.59.1-147-g13bb16b5e">
+             data-updated="2026-05-17T07:03:54.643295" data-agent-assigned="claude-code" data-track-id="trk-d8aef97a" data-created-by-agent="human" data-created-by-model="claude-opus-4-7[1m]" data-created-by-cli-version="0.59.1-147-g13bb16b5e">
 
         <header>
             <h1>Dashboard plans table not refreshed after finalize (stale client cache)</h1>
             <div class="metadata">
-                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge status-done">Done</span>
                 <span class="badge priority-high">High Priority</span>
             </div>
         </header>
@@ -41,13 +41,15 @@
         <section data-steps>
             <h3>Implementation Steps</h3>
             <ol>
-                <li data-completed="false" data-step-id="task-4" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Fix dashboard finalize not refreshing plans table</li>
+                <li data-completed="true" data-step-id="task-4" data-agent="claude-code" data-created-by-agent="claude-code">✅ Fix dashboard finalize not refreshing plans table</li>
             </ol>
         </section>
 
         <section data-content>
             <h3>Description</h3>
-            <p>Finalized plan shows DRAFT/v1/0-of-9 in dashboard though server /p//api/plans correctly returns finalized/v2/9-of-9. app.js finalize success handler (~3729) renders result but never invalidates the cached plans array; app.js:38 only fetches when plans.length===0. Delete handler app.js:263 already does the correct plans=[];fetchPlans(). Fix: mirror in finalize branch + drop the length===0 guard. parsePlanListItem verified correct. Pre-existing gap, not a 69784ec regression.</p>
+            <p>Finalized plan shows DRAFT/v1/0-of-9 in dashboard though server /p//api/plans correctly returns finalized/v2/9-of-9. app.js finalize success handler (~3729) renders result but never invalidates the cached plans array; app.js:38 only fetches when plans.length===0. Delete handler app.js:263 already does the correct plans=[];fetchPlans(). Fix: mirror in finalize branch + drop the length===0 guard. parsePlanListItem verified correct. Pre-existing gap, not a 69784ec regression.
+[2026-05-17 06:59 claude-code] accepted-advisory (provenance override): Durable provenance IS commit c6f1857b723ee3d58f0963611c206d6f771102f5 (HEAD), whose message references bug-147a2064 and contains the full fix: cmd/wipnote/dashboard/js/app.js refreshes the plans table after finalize (plans=[];fetchPlans()) and drops the stale-cache nav guard. Auto-link did not fire because the commit was created via an agent git invocation outside the in-session post-commit attribution path; no CLI exists to retro-link a commit. The flagged out-of-store source paths are agent-memory files and stdout-redirect temp files forced by a session-wide broken Bash output-capture environment, not implementation code. Pre-existing dirty internal/storage WIP predates this session and was deliberately excluded. Fix verified live: served /js/app.js carries it; server returns finalized/v2/9-of-9.
+[2026-05-17 07:03 claude-code] accepted-advisory (provenance override): Durable provenance IS commit c6f1857b723ee3d58f0963611c206d6f771102f5 (HEAD); message references bug-147a2064, contains the full fix in cmd/wipnote/dashboard/js/app.js (plans=[];fetchPlans() after finalize + dropped stale-cache nav guard). Auto-link did not fire (agent git invocation outside in-session post-commit attribution path; no retro-link CLI). Flagged out-of-store paths are agent-memory + stdout-redirect temp files from a broken Bash output-capture env, not code. Pre-existing internal/storage WIP predates session. Fix verified live; quality gate recorded passing this session.</p>
         </section>
     </article>
 </body>
