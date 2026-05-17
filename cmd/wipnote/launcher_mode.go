@@ -7,6 +7,7 @@ import (
 
 	"github.com/shakestzd/wipnote/internal/launcher/mode"
 	"github.com/shakestzd/wipnote/internal/launcher/plan"
+	"github.com/shakestzd/wipnote/internal/paths"
 )
 
 // LauncherModeResult is the computed mode object exposed to preflight paths.
@@ -62,4 +63,18 @@ func applyLaunchPlan(repoRoot, workItemID string, inPlace bool, w io.Writer) pla
 		)
 	}
 	return p
+}
+
+// canonicalProjectRoot returns the canonical main repo root when projectRoot is
+// a linked git worktree, or "" when it is the main worktree (or not a git repo).
+//
+// Use this to populate WipnoteRoot / wipnoteRoot in launcher opts so that
+// WIPNOTE_PROJECT_DIR always points at the canonical main repo root regardless
+// of whether the user ran wipnote from inside a linked worktree. It wraps
+// paths.ResolveViaGitCommonDir and adds no new identity abstraction.
+//
+// Callers must preserve projectRoot as the working directory for the child
+// process; only WIPNOTE_PROJECT_DIR (controlled via WipnoteRoot) is changed.
+func canonicalProjectRoot(projectRoot string) string {
+	return paths.ResolveViaGitCommonDir(projectRoot)
 }

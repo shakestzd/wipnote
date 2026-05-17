@@ -228,6 +228,12 @@ func launchYoloDefault(permMode, trackID, featureID string, noWorktree bool, res
 	if wipnoteDir, err := findWipnoteDir(); err == nil {
 		projectRoot = filepath.Dir(wipnoteDir)
 	}
+	// Resolve canonical main repo root when CWD is a linked worktree (slice-3).
+	// This normalizes projectRoot before worktree creation so WipnoteRoot is always
+	// the canonical main root, not the worktree copy.
+	if canonical := canonicalProjectRoot(projectRoot); canonical != "" {
+		projectRoot = canonical
+	}
 
 	pluginDir, err := resolveBundledPluginDir()
 	if err != nil {

@@ -926,8 +926,10 @@ func launchCodexDefault(resumeID, trackID, featureID, worktreePath, workItem str
 	}
 
 	// Resolve worktree path.
+	// canonicalProjectRoot detects when CWD is already a linked worktree (slice-3):
+	// returns the canonical main repo root, or "" when in the main worktree.
 	workDir := projectRoot
-	wipnoteRoot := ""
+	wipnoteRoot := canonicalProjectRoot(projectRoot)
 	switch {
 	case worktreePath != "":
 		// Explicit path — use as-is; set WIPNOTE_PROJECT_DIR to canonical root.

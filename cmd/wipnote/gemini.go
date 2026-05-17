@@ -255,8 +255,10 @@ func launchGeminiDefault(trackID, featureID, worktreePath, workItem string, noWo
 	}
 
 	// Resolve worktree path.
+	// canonicalProjectRoot detects when CWD is already a linked worktree (slice-3):
+	// returns the canonical main repo root, or "" when in the main worktree.
 	workDir := projectRoot
-	wipnoteRoot := ""
+	wipnoteRoot := canonicalProjectRoot(projectRoot)
 	switch {
 	case worktreePath != "":
 		workDir = worktreePath

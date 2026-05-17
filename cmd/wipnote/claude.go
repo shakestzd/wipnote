@@ -243,6 +243,8 @@ func autoPermissionMode(enabled bool) string {
 func launchClaudeAuto(extraArgs []string, resumeID, name string) error {
 	projectRoot, _ := resolveProjectRoot()
 	cleanupStaleDev(projectRoot)
+	// Resolve canonical main repo root when CWD is a linked worktree (slice-3).
+	wipnoteRoot := canonicalProjectRoot(projectRoot)
 	pluginDir, err := resolveBundledPluginDir()
 	if err != nil {
 		return err
@@ -267,6 +269,7 @@ func launchClaudeAuto(extraArgs []string, resumeID, name string) error {
 		Name:               sessionName,
 		ExtraArgs:          extraArgs,
 		ProjectRoot:        projectRoot,
+		WipnoteRoot:        wipnoteRoot,
 	})
 }
 
@@ -382,6 +385,8 @@ func launchClaudeInit(extraArgs []string, resumeID, name string) error {
 	// have .wipnote/ yet. Walk-up would anchor to the wrong project.
 	projectRoot, _ := os.Getwd()
 	cleanupStaleDev(projectRoot)
+	// Resolve canonical main repo root when CWD is a linked worktree (slice-3).
+	wipnoteRoot := canonicalProjectRoot(projectRoot)
 	pluginDir, err := resolveBundledPluginDir()
 	if err != nil {
 		return err
@@ -404,12 +409,15 @@ func launchClaudeInit(extraArgs []string, resumeID, name string) error {
 		Name:               sessionName,
 		ExtraArgs:          extraArgs,
 		ProjectRoot:        projectRoot,
+		WipnoteRoot:        wipnoteRoot,
 	})
 }
 
 func launchClaudeContinue(extraArgs []string, resumeID string) error {
 	projectRoot, _ := resolveProjectRoot()
 	cleanupStaleDev(projectRoot)
+	// Resolve canonical main repo root when CWD is a linked worktree (slice-3).
+	wipnoteRoot := canonicalProjectRoot(projectRoot)
 	pluginDir, err := resolveBundledPluginDir()
 	if err != nil {
 		return err
@@ -422,6 +430,7 @@ func launchClaudeContinue(extraArgs []string, resumeID string) error {
 		ResumeID:    resumeID,
 		ExtraArgs:   extraArgs,
 		ProjectRoot: projectRoot,
+		WipnoteRoot: wipnoteRoot,
 	})
 }
 
@@ -434,6 +443,10 @@ func launchClaudeDefault(extraArgs []string, resumeID, name, workItem string, in
 	// slice-3 canonical identity and slice-4 session-family land). For now we
 	// record the decision and emit the dirty-main guard warning.
 	applyLaunchPlan(projectRoot, workItem, inPlace, os.Stderr)
+
+	// Resolve canonical main repo root when CWD is a linked worktree (slice-3).
+	// canonicalProjectRoot returns "" for the main worktree (no override needed).
+	wipnoteRoot := canonicalProjectRoot(projectRoot)
 
 	pluginDir, err := resolveBundledPluginDir()
 	if err != nil {
@@ -457,6 +470,7 @@ func launchClaudeDefault(extraArgs []string, resumeID, name, workItem string, in
 		Name:               sessionName,
 		ExtraArgs:          extraArgs,
 		ProjectRoot:        projectRoot,
+		WipnoteRoot:        wipnoteRoot,
 	})
 }
 
