@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Dashboard plans table not refreshed after finalize (stale client cache)</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-147a2064"
+             data-type="bug"
+             data-status="todo"
+             data-priority="high"
+             data-created="2026-05-17T06:14:43.943325"
+             data-updated="2026-05-17T06:14:43.952626" data-agent-assigned="claude-code" data-track-id="trk-d8aef97a" data-created-by-agent="human" data-created-by-model="claude-opus-4-7[1m]" data-created-by-cli-version="0.59.1-147-g13bb16b5e">
+
+        <header>
+            <h1>Dashboard plans table not refreshed after finalize (stale client cache)</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-d8aef97a.html" data-relationship="part_of" data-since="2026-05-17T06:14:43.952385">trk-d8aef97a</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Finalized plan shows DRAFT/v1/0-of-9 in dashboard though server /p//api/plans correctly returns finalized/v2/9-of-9. app.js finalize success handler (~3729) renders result but never invalidates the cached plans array; app.js:38 only fetches when plans.length===0. Delete handler app.js:263 already does the correct plans=[];fetchPlans(). Fix: mirror in finalize branch + drop the length===0 guard. parsePlanListItem verified correct. Pre-existing gap, not a 69784ec regression.</p>
+        </section>
+    </article>
+</body>
+</html>
