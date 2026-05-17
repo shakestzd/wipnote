@@ -146,3 +146,28 @@ Commands for autonomous development, building, serving, agent configuration, and
 | Spike | `spk-` | Time-boxed investigations |
 | Track | `trk-` | Initiatives grouping related work |
 | Plan | `plan-` | CRISPI implementation plans |
+---
+
+## Deployment Profiles
+
+wipnote launchers apply per-profile defaults based on the detected runtime environment.
+Profiles are derived automatically — no manual configuration required for basic use.
+
+| Profile | Runtime | Dashboard Default | Rollout Mode | Cleanup |
+|---------|---------|-------------------|--------------|---------|
+| `host-production` | Host / bare metal | `127.0.0.1:8080` | warn-only | manual |
+| `devcontainer-dev` | VS Code devcontainer / Codespace | `0.0.0.0:8088` | config-gated | auto-worktree |
+| `local-plugin-dev` | Host + `--dev` / generated port | `127.0.0.1:8080` | warn-only | manual |
+| `ci-test` | CI / GitHub Actions | `127.0.0.1:8080` | config-gated | auto-worktree |
+
+**Staged rollout:** Host production stays warn-only until slice-9 migration tooling and runbooks
+exist. Devcontainer and CI profiles are config-gated: isolation enforcement is off by default
+and may be opted into via a config key. No profile flips to default-on in this release.
+
+**Devcontainer port convention:** `wipnote serve` inside a devcontainer defaults to
+`0.0.0.0:8088`. The container's `devcontainer.json` forwards port 8088 to the host so the
+dashboard is reachable at `http://127.0.0.1:8088` from your browser.
+
+**Status output:** The `wipnote status` command reports fstype and journal-mode diagnostics
+independently (plan-ae0c37b2 slice-4). Deployment profile information is a launcher concern
+and does not duplicate that output.
