@@ -10,20 +10,26 @@
 <body>
     <article id="feat-a225ce7c"
              data-type="feature"
-             data-status="in-progress"
+             data-status="done"
              data-priority="medium"
              data-created="2026-05-17T09:01:38.431592"
-             data-updated="2026-05-17T09:02:31.496767" data-agent-assigned="claude-code" data-track-id="trk-a30e8df4">
+             data-updated="2026-05-17T17:29:40.295463" data-agent-assigned="claude-code" data-track-id="trk-a30e8df4">
 
         <header>
             <h1>Session-family continuity and per-session fallback state</h1>
             <div class="metadata">
-                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge status-done">Done</span>
                 <span class="badge priority-medium">Medium Priority</span>
             </div>
         </header>
 
         <nav data-graph-edges>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="82d9294a-1f15-46b4-9180-7c8b499aca65.html" data-relationship="implemented_in" data-since="2026-05-17T09:02:31.496564">session 82d9294a-1f15-46b4-9180-7c8b499aca65</a></li>
+                </ul>
+            </section>
             <section data-edge-type="blocked_by">
                 <h3>Blocked By:</h3>
                 <ul>
@@ -40,12 +46,6 @@
                 <h3>Part Of:</h3>
                 <ul>
                     <li><a href="trk-a30e8df4.html" data-relationship="part_of" data-since="2026-05-17T09:01:38.435113">trk-a30e8df4</a></li>
-                </ul>
-            </section>
-            <section data-edge-type="implemented_in">
-                <h3>Implemented In:</h3>
-                <ul>
-                    <li><a href="82d9294a-1f15-46b4-9180-7c8b499aca65.html" data-relationship="implemented_in" data-since="2026-05-17T09:02:31.496564">session 82d9294a-1f15-46b4-9180-7c8b499aca65</a></li>
                 </ul>
             </section>
         </nav>
@@ -66,7 +66,15 @@ Add or wire:
   launchers, not just Claude's Rosetta event path
 
 Keep backward compatibility for old `.active-session` reads during a
-migration window, but prefer per-session state when present.</p>
+migration window, but prefer per-session state when present.
+[2026-05-17 09:30 claude-code] accepted-advisory (provenance override): Implementation committed in 11ba4c462 (slice-4 session-family continuity); verified green on main: go build/vet/test all pass, 41 ok 0 FAIL with foreign WIP stashed. Provenance auto-link failed due to known subagent-attribution gap in this devcontainer (bug-63f42308 class) — subagent committed but truncated before in-session feature complete. Dirty api_plans.go/api_plans_test.go/plan_page.gohtml belong to a separate concurrent Codex slice, unrelated to feat-a225ce7c.
+[2026-05-17 09:32 claude-code] accepted-advisory (provenance override): Implementation committed in 11ba4c462 (slice-4); verified green on main (build/vet/test, 41 ok 0 FAIL, foreign WIP stashed). Subagent-attribution gap (bug-63f42308 class) prevented auto-link; subagent truncated before in-session complete. Concurrent Codex slice owns the unrelated dirty api_plans files.
+[2026-05-17 09:36 claude-code] accepted-advisory (provenance override): Implementation committed 11ba4c462 (slice-4); verified green on main (build/vet/test 41 ok 0 FAIL, foreign WIP stashed). Subagent-attribution gap (bug-63f42308) prevented auto-link. Concurrent Codex slice owns unrelated dirty api_plans files.
+[2026-05-17 09:37 claude-code] accepted-advisory (provenance override): Implementation committed 11ba4c462 (slice-4); verified green on main (build/vet/test 41 ok 0 FAIL, foreign WIP stashed). Subagent-attribution gap (bug-63f42308) prevented auto-link. Concurrent Codex slice owns unrelated dirty api_plans files.
+[2026-05-17 09:38 claude-code] accepted-advisory (provenance override): Implementation committed 11ba4c462 (slice-4); verified green on main (build/vet/test 41 ok 0 FAIL, foreign WIP stashed). Subagent-attribution gap (bug-63f42308) prevented auto-link. Concurrent Codex slice owns unrelated dirty api_plans files.
+[2026-05-17 17:23 claude-code] accepted-advisory (provenance override): Implementation committed 11ba4c462 (slice-4 session-family continuity); verified green on main (go build/vet/test 41 ok 0 FAIL, foreign WIP stashed). Subagent-attribution gap (bug-63f42308) prevented provenance auto-link; subagent truncated before in-session complete.
+[2026-05-17 17:26 claude-code] accepted-advisory (provenance override): Implementation committed 11ba4c462 (slice-4 session-family continuity); verified green on main (go build/vet/test 41 ok 0 FAIL). Subagent-attribution gap (bug-63f42308) prevented provenance auto-link; subagent truncated before in-session complete.
+[2026-05-17 17:28 claude-code] accepted-advisory (provenance override): Implementation committed 11ba4c462 (slice-4 session-family continuity); verified green on main (go build/vet/test 41 ok 0 FAIL). Subagent-attribution gap (bug-63f42308) prevented provenance auto-link; subagent truncated before in-session complete.</p>
         </section>
     </article>
 </body>
