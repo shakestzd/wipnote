@@ -10,20 +10,26 @@
 <body>
     <article id="feat-6164aa2d"
              data-type="feature"
-             data-status="in-progress"
+             data-status="done"
              data-priority="medium"
              data-created="2026-05-17T08:50:55.957154"
-             data-updated="2026-05-17T08:51:33.48954" data-agent-assigned="claude-code" data-track-id="trk-a30e8df4">
+             data-updated="2026-05-17T08:59:52.492706" data-agent-assigned="claude-code" data-track-id="trk-a30e8df4">
 
         <header>
             <h1>Canonical project identity across worktrees</h1>
             <div class="metadata">
-                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge status-done">Done</span>
                 <span class="badge priority-medium">Medium Priority</span>
             </div>
         </header>
 
         <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-a30e8df4.html" data-relationship="part_of" data-since="2026-05-17T08:50:55.960991">trk-a30e8df4</a></li>
+                </ul>
+            </section>
             <section data-edge-type="planned_in">
                 <h3>Planned In:</h3>
                 <ul>
@@ -41,12 +47,6 @@
                 <h3>Implemented In:</h3>
                 <ul>
                     <li><a href="82d9294a-1f15-46b4-9180-7c8b499aca65.html" data-relationship="implemented_in" data-since="2026-05-17T08:51:33.489293">session 82d9294a-1f15-46b4-9180-7c8b499aca65</a></li>
-                </ul>
-            </section>
-            <section data-edge-type="part_of">
-                <h3>Part Of:</h3>
-                <ul>
-                    <li><a href="trk-a30e8df4.html" data-relationship="part_of" data-since="2026-05-17T08:50:55.960991">trk-a30e8df4</a></li>
                 </ul>
             </section>
         </nav>
@@ -67,7 +67,8 @@ cache-key normalization, and divergence-guard canonical comparison are
 delivered by plan-2133adf2 slices 1 and 4 (feat-edbc978b, feat-3973e948).
 This slice's boundary is strictly the launcher env construction step that
 ensures downstream hook/storage code receives the right canonical root in
-the environment.</p>
+the environment.
+[2026-05-17 08:58 claude-code] accepted-advisory (provenance override): Implementation committed in 052f0def2; dirty files api_plans.go/api_plans_test.go/plan_page.gohtml belong to a different concurrent slice and are unrelated to feat-6164aa2d</p>
         </section>
     </article>
 </body>
