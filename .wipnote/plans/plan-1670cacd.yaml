@@ -7,7 +7,7 @@ meta:
     created_at: "2026-05-08"
     status: finalized
     created_by: codex
-    version: 9
+    version: 10
 design:
     problem: |
         wipnote can currently launch multiple AI CLIs directly from a mutable checkout. That is convenient, but it allows long-running local stacks, generated plugin changes, work-item bookkeeping, and merged upstream work to accumulate on local main. The result is avoidable divergence, hard-to-review commits, and fragile reconciliation after PR merges. The obvious fix is to launch mutating sessions in isolated branches or worktrees by default, but that changes the shape of project identity, session continuity, active-session fallback state, event capture, subagent attribution, and dashboard grouping. The design must also account for the difference between production host installs and devcontainer sessions, where ports, bind addresses, filesystem permissions, plugin paths, and temp execution policy differ.
@@ -367,6 +367,7 @@ slices:
           severity: MED
           summary: Cross-session visibility plan plan-c3bbb1ed consumes claim/session/step identity here; slice now exports those fields explicitly for `wipnote who`, /api/features, and Kanban.
     - id: slice-7
+      feature_id: feat-30687f8c
       num: 7
       title: Dashboard worktree/session-family UX
       what: |
@@ -426,7 +427,7 @@ slices:
       approved: false
       comment: ""
       approval_status: pending
-      execution_status: not_started
+      execution_status: promoted
       critic_revisions:
         - source: observability-critique
           severity: MED
