@@ -140,3 +140,50 @@ func All() []*HarnessConfig {
 	copy(out, allSlice)
 	return out
 }
+
+// DisplayName is the canonical user-facing harness name (the primary OTel
+// service.name): "claude-code" | "codex-cli" | "gemini-cli". This is the name
+// `wipnote who` and per-harness capability tables key on.
+func (c *HarnessConfig) DisplayName() string {
+	if len(c.ServiceNames) > 0 {
+		return c.ServiceNames[0]
+	}
+	return c.ID
+}
+
+// NormalizeDisplayName resolves any raw harness/agent token to its canonical
+// display name (ServiceNames[0]). It accepts every form a token can take in
+// the wild:
+//
+//   - launcher WIPNOTE_AGENT_ID / WIPNOTE_AGENT_TYPE values: "claude" |
+//     "codex" | "gemini" (AgentID)
+//   - DB-canonical IDs written to agent_events.harness: "claude_code" |
+//     "codex" | "gemini_cli" (ID)
+//   - already-canonical OTel service names: "claude-code" | "codex-cli" |
+//     "codex_cli_rs" | "gemini-cli" (ServiceNames)
+//
+// Resolution is registry-driven (no hardcoded string table) so it stays
+// correct as harnesses are added/renamed. Returns the input unchanged when no
+// registered harness matches — callers then surface it as an unknown harness
+// rather than misreporting it as a known one.
+func NormalizeDisplayName(raw string) string {
+	if raw == "" {
+		return raw
+	}
+	mu.RLock()
+	defer mu.RUnlock()
+	if cfg := byAgent[raw]; cfg != nil {
+		return cfg.DisplayName()
+	}
+	if cfg := byID[raw]; cfg != nil {
+		return cfg.DisplayName()
+	}
+	for _, cfg := range allSlice {
+		for _, sn := range cfg.ServiceNames {
+			if sn == raw {
+				return cfg.DisplayName()
+			}
+		}
+	}
+	return raw
+}

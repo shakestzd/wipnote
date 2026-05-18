@@ -33,7 +33,10 @@ type feedEvent struct {
 	TraceID      string  `json:"trace_id,omitempty"`
 	ParentSpan   string  `json:"parent_span,omitempty"`
 	Summary      string  `json:"summary,omitempty"`
-	FeatureTitle string  `json:"feature_title,omitempty"`
+	FeatureTitle    string  `json:"feature_title,omitempty"`
+	// SessionFamilyID groups this event's session with continuation sessions.
+	// Exposed so feed consumers (plan-c3bbb1ed, wipnote who) can group by family.
+	SessionFamilyID string  `json:"session_family_id,omitempty"`
 	// tsMicros is used internally for sorting and is not serialised.
 	tsMicros int64
 }
@@ -107,6 +110,7 @@ func queryOtelFeedEvents(database *sql.DB, limit int) ([]feedEvent, error) {
 		       COALESCE(s.session_id, '') AS session_id,
 		       COALESCE(s.feature_id, '') AS feature_id,
 		       COALESCE((SELECT f.title FROM features f WHERE f.id = s.feature_id LIMIT 1), '') AS feature_title,
+		       COALESCE((SELECT sess.session_family_id FROM sessions sess WHERE sess.session_id = s.session_id LIMIT 1), '') AS session_family_id,
 		       COALESCE(s.attrs_json, '{}') AS attrs_json
 		FROM otel_signals s
 		WHERE (
@@ -139,6 +143,7 @@ func queryOtelFeedEvents(database *sql.DB, limit int) ([]feedEvent, error) {
 			&ev.TokensIn, &ev.TokensOut, &ev.CostUSD,
 			&successVal, &ev.Decision,
 			&ev.SessionID, &ev.FeatureID, &ev.FeatureTitle,
+			&ev.SessionFamilyID,
 			&attrsRaw,
 		); err != nil {
 			continue

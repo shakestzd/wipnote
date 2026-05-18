@@ -1,0 +1,366 @@
+package main
+
+import (
+	"database/sql"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"path/filepath"
+	"testing"
+	"time"
+
+	dbpkg "github.com/shakestzd/wipnote/internal/db"
+	"github.com/shakestzd/wipnote/internal/models"
+)
+
+// insertParallelSession inserts a session for parallel-session grouping tests.
+func insertParallelSession(t *testing.T, database *sql.DB, sid, agent, projectDir, familyID, status, model string) {
+	t.Helper()
+	now := time.Now().UTC()
+	sess := &models.Session{
+		SessionID:       sid,
+		AgentAssigned:   agent,
+		CreatedAt:       now,
+		Status:          status,
+		SessionFamilyID: familyID,
+		Model:           model,
+		ProjectDir:      projectDir,
+	}
+	if err := dbpkg.InsertSession(database, sess); err != nil {
+		t.Fatalf("InsertSession %s: %v", sid, err)
+	}
+	if familyID != "" {
+		if err := dbpkg.SetSessionFamilyID(database, sid, familyID); err != nil {
+			t.Fatalf("SetSessionFamilyID %s: %v", sid, err)
+		}
+	}
+}
+
+// TestSessionsAPI_IncludesExecutionRootAndFamily asserts that /api/sessions
+// response includes exec_root and session_family_id fields for each session.
+func TestSessionsAPI_IncludesExecutionRootAndFamily(t *testing.T) {
+	database, err := dbpkg.Open(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	defer database.Close()
+
+	projectDir := "/test/project"
+	insertParallelSession(t, database, "sess-a1", "claude-code", projectDir, "fam-001", "active", "claude-sonnet-4-5")
+
+	for i := 0; i < 5; i++ {
+		_, _ = database.Exec(
+			`INSERT INTO messages (session_id, role, content, ordinal) VALUES (?, ?, ?, ?)`,
+			"sess-a1", "user", "hello", i+1,
+		)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/sessions", nil)
+	w := httptest.NewRecorder()
+	sessionsHandler(database, projectDir, "/test/project/.wipnote")(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("status %d, want 200", w.Code)
+	}
+
+	var sessions []map[string]any
+	if err := json.NewDecoder(w.Body).Decode(&sessions); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(sessions) == 0 {
+		t.Fatal("expected at least one session in response")
+	}
+
+	s := sessions[0]
+
+	famID, hasFam := s["session_family_id"]
+	if !hasFam {
+		t.Error("session_family_id field missing from sessions API response")
+	}
+	if famID != "fam-001" {
+		t.Errorf("session_family_id = %v, want fam-001", famID)
+	}
+
+	if _, ok := s["exec_root"]; !ok {
+		t.Error("exec_root field missing from sessions API response")
+	}
+	if _, ok := s["canonical_project"]; !ok {
+		t.Error("canonical_project field missing from sessions API response")
+	}
+	if _, ok := s["harness"]; !ok {
+		t.Error("harness field missing from sessions API response")
+	}
+}
+
+// TestDashboardParallelSessionsAPI asserts that /api/sessions/parallel returns
+// active sessions grouped canonical project -> session family -> session with
+// identity fields for plan-c3bbb1ed consumption.
+//
+// Documented default grouping:
+//
+//	Level 1: canonical_project (sessions.project_dir)
+//	Level 2: session_family_id
+//	Level 3: individual session with full identity fields
+func TestDashboardParallelSessionsAPI(t *testing.T) {
+	database, err := dbpkg.Open(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	defer database.Close()
+
+	projectDir := "/repo/myproject"
+	insertParallelSession(t, database, "s-claude", "claude-code", projectDir, "fam-x", "active", "claude-sonnet")
+	insertParallelSession(t, database, "s-codex", "codex", projectDir, "fam-x", "active", "gpt-4o")
+	insertParallelSession(t, database, "s-solo", "gemini", projectDir, "fam-y", "active", "gemini-2")
+
+	req := httptest.NewRequest(http.MethodGet, "/api/sessions/parallel", nil)
+	w := httptest.NewRecorder()
+	parallelSessionsHandler(database)(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("status %d, want 200", w.Code)
+	}
+
+	var resp map[string]any
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+
+	if _, ok := resp["groups"]; !ok {
+		t.Error("response missing 'groups' field")
+	}
+	if _, ok := resp["active_count"]; !ok {
+		t.Error("response missing 'active_count' field")
+	}
+
+	groups, ok := resp["groups"].([]any)
+	if !ok || len(groups) == 0 {
+		t.Fatal("groups is not a non-empty array")
+	}
+
+	g := groups[0].(map[string]any)
+	if _, ok := g["canonical_project"]; !ok {
+		t.Error("group missing canonical_project")
+	}
+	if _, ok := g["families"]; !ok {
+		t.Error("group missing families")
+	}
+
+	families := g["families"].([]any)
+	for _, fAny := range families {
+		f := fAny.(map[string]any)
+		if _, ok := f["session_family_id"]; !ok {
+			t.Error("family missing session_family_id")
+		}
+		sessionsAny, ok := f["sessions"].([]any)
+		if !ok {
+			t.Error("family missing sessions array")
+			continue
+		}
+		for _, sAny := range sessionsAny {
+			sess := sAny.(map[string]any)
+			for _, field := range []string{
+				"session_id", "harness", "model", "exec_root", "claim_collision",
+			} {
+				if _, ok := sess[field]; !ok {
+					t.Errorf("session in parallel API missing field %q", field)
+				}
+			}
+		}
+	}
+}
+
+// TestParallelSessionsAPI_ActiveWorkItemsOwnership asserts that work_item_id
+// in /api/sessions/parallel is resolved from active_work_items (preferred) with
+// fallback to sessions.active_feature_id. This verifies the fix for roborev
+// job-3095 slice-7 finding: sessions that claim via active_work_items were
+// previously reported as having no work_item_id (and thus no claim status/
+// collision) in the parallel endpoint.
+func TestParallelSessionsAPI_ActiveWorkItemsOwnership(t *testing.T) {
+	database, err := dbpkg.Open(filepath.Join(t.TempDir(), "awi.db"))
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	defer database.Close()
+
+	projectDir := "/repo/awi-project"
+	// Insert two sessions: one claims via active_work_items, one via
+	// sessions.active_feature_id (legacy). Both should surface work_item_id.
+	insertParallelSession(t, database, "s-awi-1", "claude-code", projectDir, "fam-awi", "active", "claude-haiku")
+	insertParallelSession(t, database, "s-legacy", "codex", projectDir, "fam-awi", "active", "gpt-4o-mini")
+
+	// Seed the feature row for FK constraint.
+	_, _ = database.Exec(`INSERT INTO features (id, type, title, status) VALUES (?, 'feature', 'AWI Test', 'in-progress')`, "feat-awi-001")
+
+	// Write via active_work_items (the Batch B path — SetActiveWorkItem).
+	if err := dbpkg.SetActiveWorkItem(database, "s-awi-1", dbpkg.AgentRootSentinel, "feat-awi-001"); err != nil {
+		t.Fatalf("SetActiveWorkItem: %v", err)
+	}
+	// Write legacy path directly on sessions table for s-legacy.
+	_, err = database.Exec(`UPDATE sessions SET active_feature_id = ? WHERE session_id = ?`, "feat-awi-001", "s-legacy")
+	if err != nil {
+		t.Fatalf("UPDATE active_feature_id: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/sessions/parallel", nil)
+	w := httptest.NewRecorder()
+	parallelSessionsHandler(database)(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status %d", w.Code)
+	}
+
+	var resp struct {
+		Groups []projectGroup `json:"groups"`
+	}
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(resp.Groups) == 0 {
+		t.Fatal("no project groups returned")
+	}
+
+	// Collect all sessions from all groups and families.
+	byID := map[string]parallelSessionIdentity{}
+	for _, pg := range resp.Groups {
+		for _, fg := range pg.Families {
+			for _, s := range fg.Sessions {
+				byID[s.SessionID] = s
+			}
+		}
+	}
+
+	// s-awi-1 must surface feat-awi-001 via active_work_items.
+	if s, ok := byID["s-awi-1"]; !ok {
+		t.Error("s-awi-1 not in response")
+	} else if s.WorkItemID != "feat-awi-001" {
+		t.Errorf("s-awi-1 work_item_id = %q, want feat-awi-001 (active_work_items path)", s.WorkItemID)
+	}
+
+	// s-legacy must surface feat-awi-001 via sessions.active_feature_id fallback.
+	if s, ok := byID["s-legacy"]; !ok {
+		t.Error("s-legacy not in response")
+	} else if s.WorkItemID != "feat-awi-001" {
+		t.Errorf("s-legacy work_item_id = %q, want feat-awi-001 (active_feature_id fallback)", s.WorkItemID)
+	}
+}
+
+// TestParallelSessionsAPI_SubagentVisibility asserts that /api/sessions/parallel
+// includes subagent rows and sets exec_root from parent_session_id, as required
+// by the documented response contract. Fixes roborev job-3095 slice-7 finding
+// where is_subagent=FALSE excluded subagents from Level 3 data entirely.
+func TestParallelSessionsAPI_SubagentVisibility(t *testing.T) {
+	database, err := dbpkg.Open(filepath.Join(t.TempDir(), "subagent.db"))
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	defer database.Close()
+
+	projectDir := "/repo/subagent-project"
+	now := time.Now().UTC()
+
+	// Insert root session.
+	root := &models.Session{
+		SessionID:     "s-root",
+		AgentAssigned: "claude-code",
+		CreatedAt:     now,
+		Status:        "active",
+		ProjectDir:    projectDir,
+	}
+	if err := dbpkg.InsertSession(database, root); err != nil {
+		t.Fatalf("InsertSession root: %v", err)
+	}
+
+	// Insert subagent session under root.
+	sub := &models.Session{
+		SessionID:       "s-subagent",
+		AgentAssigned:   "claude-code",
+		CreatedAt:       now.Add(time.Second),
+		Status:          "active",
+		ProjectDir:      projectDir,
+		ParentSessionID: "s-root",
+		IsSubagent:      true,
+	}
+	if err := dbpkg.InsertSession(database, sub); err != nil {
+		t.Fatalf("InsertSession subagent: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/sessions/parallel", nil)
+	w := httptest.NewRecorder()
+	parallelSessionsHandler(database)(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status %d", w.Code)
+	}
+
+	var resp struct {
+		Groups []projectGroup `json:"groups"`
+	}
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+
+	byID := map[string]parallelSessionIdentity{}
+	for _, pg := range resp.Groups {
+		for _, fg := range pg.Families {
+			for _, s := range fg.Sessions {
+				byID[s.SessionID] = s
+			}
+		}
+	}
+
+	// Root session must appear.
+	if s, ok := byID["s-root"]; !ok {
+		t.Error("root session s-root not in parallel response")
+	} else if s.ExecRoot != "s-root" {
+		t.Errorf("s-root exec_root = %q, want s-root", s.ExecRoot)
+	}
+
+	// Subagent must appear with exec_root pointing to root (not itself).
+	if s, ok := byID["s-subagent"]; !ok {
+		t.Error("subagent s-subagent not in parallel response (subagent visibility fix required)")
+	} else if s.ExecRoot != "s-root" {
+		t.Errorf("s-subagent exec_root = %q, want s-root (parent_session_id)", s.ExecRoot)
+	}
+}
+
+// TestSessionsAPI_CollisionFieldPresent verifies claim_collision and
+// claim_status are present in sessions list (stable contract for plan-c3bbb1ed).
+func TestSessionsAPI_CollisionFieldPresent(t *testing.T) {
+	database, err := dbpkg.Open(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	defer database.Close()
+
+	projectDir := "/proj/alpha"
+	insertParallelSession(t, database, "sess-col1", "claude-code", projectDir, "fam-col", "active", "claude-haiku")
+	for i := 0; i < 5; i++ {
+		_, _ = database.Exec(
+			`INSERT INTO messages (session_id, role, content, ordinal) VALUES (?, ?, ?, ?)`,
+			"sess-col1", "user", "msg", i+1,
+		)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/sessions", nil)
+	w := httptest.NewRecorder()
+	sessionsHandler(database, projectDir, "/proj/alpha/.wipnote")(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("status %d", w.Code)
+	}
+
+	var sessions []map[string]any
+	if err := json.NewDecoder(w.Body).Decode(&sessions); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(sessions) == 0 {
+		t.Fatal("expected sessions")
+	}
+
+	s := sessions[0]
+	if _, ok := s["claim_collision"]; !ok {
+		t.Error("claim_collision missing from sessions API")
+	}
+	if _, ok := s["claim_status"]; !ok {
+		t.Error("claim_status missing from sessions API")
+	}
+}

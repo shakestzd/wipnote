@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/shakestzd/wipnote/internal/agent"
 	"github.com/shakestzd/wipnote/internal/db"
 	"github.com/shakestzd/wipnote/internal/models"
 	"github.com/shakestzd/wipnote/internal/otel"
@@ -258,6 +259,27 @@ func SessionStart(event *CloudEvent, database *sql.DB, projectDir string) (*Hook
 	}
 	if err := db.InsertEvent(database, ev); err != nil {
 		debugLog(projectDir, "[error] handler=session-start session=%s: insert event: %v", shortID, err)
+	}
+
+	// Session-family continuity (slice-4, feat-a225ce7c):
+	// Wire the harness-neutral session_family_id for Claude, Codex, and Gemini.
+	// Launchers inject WIPNOTE_SESSION_FAMILY_ID; the hook is the authoritative
+	// DB write path for all harnesses. Per-session state + the family index are
+	// also written here as a durability layer (they survive hook restarts).
+	{
+		familyID := os.Getenv("WIPNOTE_SESSION_FAMILY_ID")
+		if familyID == "" {
+			// No family env — treat this session as its own family.
+			familyID = sessionID
+		}
+		// DB write: set session_family_id on this session row.
+		if err := db.SetSessionFamilyID(database, sessionID, familyID); err != nil {
+			debugLog(projectDir, "[session-start] set session_family_id: %v", err)
+		}
+		// File writes: family index + per-session state (harness-neutral).
+		agentID := s.AgentAssigned
+		_ = agent.RegisterSessionFamily(projectDir, sessionID, familyID)
+		_ = agent.WriteSessionState(projectDir, sessionID, agentID, familyID)
 	}
 
 	// Surface (and consume) any durable reconcile warnings persisted by a

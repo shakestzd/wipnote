@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Gated isolated worktree launch plumbing and dirty-main guard</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-47997082"
+             data-type="feature"
+             data-status="done"
+             data-priority="medium"
+             data-created="2026-05-17T08:36:12.676866"
+             data-updated="2026-05-17T08:48:54.500774" data-agent-assigned="claude-code" data-track-id="trk-a30e8df4">
+
+        <header>
+            <h1>Gated isolated worktree launch plumbing and dirty-main guard</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-a30e8df4.html" data-relationship="part_of" data-since="2026-05-17T08:36:12.686669">trk-a30e8df4</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="planned_in">
+                <h3>Planned In:</h3>
+                <ul>
+                    <li><a href="plan-1670cacd.html" data-relationship="planned_in" data-since="2026-05-17T08:36:12.698577">plan-1670cacd</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="blocked_by">
+                <h3>Blocked By:</h3>
+                <ul>
+                    <li><a href="feat-d0c910ec.html" data-relationship="blocked_by" data-since="2026-05-17T08:36:12.702299">feat-d0c910ec</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="82d9294a-1f15-46b4-9180-7c8b499aca65.html" data-relationship="implemented_in" data-since="2026-05-17T08:37:16.944768">session 82d9294a-1f15-46b4-9180-7c8b499aca65</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Add the launch planning and guard machinery needed for mutating launchers
+to run in managed worktrees, but do not flip host production defaults
+unconditionally in this slice. For devcontainer/local-dev profiles the
+plan may default to managed worktrees behind an explicit config gate; for
+host production profiles it starts as warn-only until doctor/migration and
+session-family hardening have landed.
+
+Note: `wipnote yolo` already implements worktree-per-track/feature with
+`--no-worktree` (`cmd/wipnote/yolo.go`). This slice generalizes that model
+to claude/codex/gemini and adds the dirty-main guard — it does not build
+worktree plumbing from scratch.
+
+Reuse existing `internal/worktree` and command-level worktree helpers.
+Add explicit flags:
+
+- `--worktree` / `--no-worktree`
+- `--in-place` as an alias for intentional local checkout mutation
+- `--base ` for advanced users
+- `--work-item ` as a harness-neutral spelling for feature/bug/track
+
+Add a dirty-main guard that explains the managed-worktree recommendation
+and refuses mutating in-place launch only when the configured rollout mode
+says enforcement is enabled. The mode contract must record whether the
+launch used isolation, warn-only, or explicit in-place override.
+[2026-05-17 08:47 claude-code] accepted-advisory (provenance override): Implementation committed at 591510d15 (feat: gated worktree launch plumbing, feat-47997082); remaining dirty files (api_plans.go, api_plans_test.go, plan_page.gohtml) are pre-existing unrelated changes from other in-flight work.</p>
+        </section>
+    </article>
+</body>
+</html>

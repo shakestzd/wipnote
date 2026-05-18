@@ -240,6 +240,22 @@ func execGemini(opts geminiLaunchOpts) error {
 	env = append(env, "WIPNOTE_AGENT=gemini")
 	env = append(env, "GEMINI_SYSTEM_MD="+systemMdPath)
 	env = buildGeminiOtelEnv(env, otelPort, otelSessionID)
+
+	// Session-family continuity (slice-4, feat-a225ce7c):
+	// Resolve which family this Gemini session belongs to, then inject
+	// WIPNOTE_SESSION_FAMILY_ID so the SessionStart hook can write the DB column.
+	// Also persist the launcher-side state file immediately (concrete write path
+	// that survives even when hooks are not configured).
+	if otelSessionID != "" && effectiveProjDir != "" {
+		isResume := opts.ResumeLast || opts.ResumeIndex != ""
+		// Gemini resume is a numeric --resume <N> index, never a wipnote
+		// session ID, so no concrete resumed session ID is available here;
+		// resolveSessionFamilyID uses the ordered most-recent-session family.
+		familyID := resolveSessionFamilyID(effectiveProjDir, otelSessionID, "", isResume)
+		env = setOrReplaceEnv(env, "WIPNOTE_SESSION_FAMILY_ID", familyID)
+		persistLauncherSessionFamily(effectiveProjDir, otelSessionID, "gemini", familyID)
+	}
+
 	c.Env = env
 
 	return runHarnessWithCleanup(c, otelCleanup)

@@ -61,6 +61,10 @@ type LaunchOpts struct {
 func claudeCmd() *cobra.Command {
 	var dev, init_, continue_, auto, tmux bool
 	var resumeID, name string
+	// Isolation flags (slice-2). --no-worktree and --in-place are mutually equivalent;
+	// --in-place is the preferred semantic name going forward.
+	var noWorktree, inPlace bool
+	var workItem, baseBranch string
 
 	cmd := &cobra.Command{
 		Use:   "claude",
@@ -75,6 +79,9 @@ func claudeCmd() *cobra.Command {
 			if err := maybeTmuxWrap("wipnote-dev"); err != nil {
 				return err
 			}
+			// --no-worktree is a legacy alias for --in-place.
+			effectiveInPlace := inPlace || noWorktree
+			_ = baseBranch // reserved for slice-3+; accepted but not yet acted on
 			switch {
 			case dev:
 				return launchClaudeDev(args, auto, resumeID, name)
@@ -85,7 +92,7 @@ func claudeCmd() *cobra.Command {
 			case continue_:
 				return launchClaudeContinue(args, resumeID)
 			default:
-				return launchClaudeDefault(args, resumeID, name)
+				return launchClaudeDefault(args, resumeID, name, workItem, effectiveInPlace)
 			}
 		},
 	}
@@ -94,8 +101,12 @@ func claudeCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&init_, "init", false, "Launch with marketplace plugin installation")
 	cmd.Flags().BoolVar(&continue_, "continue", false, "Resume last session with marketplace plugin")
 	cmd.Flags().BoolVar(&tmux, "tmux", false, "Wrap in a tmux session named 'wipnote-dev' (survives disconnects; reattaches on re-run)")
+	cmd.Flags().BoolVar(&noWorktree, "no-worktree", false, "Skip worktree creation; run in project root (alias for --in-place)")
+	cmd.Flags().BoolVar(&inPlace, "in-place", false, "Intentional in-place mutation; preserves existing behavior, records opt-out of isolation")
 	cmd.Flags().StringVar(&resumeID, "resume", "", "Resume a specific Claude Code session by ID")
 	cmd.Flags().StringVar(&name, "name", "", "Session label shown in Claude TUI (default: <project>-<timestamp>)")
+	cmd.Flags().StringVar(&workItem, "work-item", "", "Work item ID for isolation planning (e.g. feat-15c458aa, trk-3719d8f3)")
+	cmd.Flags().StringVar(&baseBranch, "base", "", "Base branch for managed worktree (advanced; default: current HEAD)")
 	cmd.AddCommand(yoloCmd())
 	return cmd
 }
@@ -232,6 +243,8 @@ func autoPermissionMode(enabled bool) string {
 func launchClaudeAuto(extraArgs []string, resumeID, name string) error {
 	projectRoot, _ := resolveProjectRoot()
 	cleanupStaleDev(projectRoot)
+	// Resolve canonical main repo root when CWD is a linked worktree (slice-3).
+	wipnoteRoot := canonicalProjectRoot(projectRoot)
 	pluginDir, err := resolveBundledPluginDir()
 	if err != nil {
 		return err
@@ -256,6 +269,7 @@ func launchClaudeAuto(extraArgs []string, resumeID, name string) error {
 		Name:               sessionName,
 		ExtraArgs:          extraArgs,
 		ProjectRoot:        projectRoot,
+		WipnoteRoot:        wipnoteRoot,
 	})
 }
 
@@ -371,6 +385,8 @@ func launchClaudeInit(extraArgs []string, resumeID, name string) error {
 	// have .wipnote/ yet. Walk-up would anchor to the wrong project.
 	projectRoot, _ := os.Getwd()
 	cleanupStaleDev(projectRoot)
+	// Resolve canonical main repo root when CWD is a linked worktree (slice-3).
+	wipnoteRoot := canonicalProjectRoot(projectRoot)
 	pluginDir, err := resolveBundledPluginDir()
 	if err != nil {
 		return err
@@ -393,12 +409,15 @@ func launchClaudeInit(extraArgs []string, resumeID, name string) error {
 		Name:               sessionName,
 		ExtraArgs:          extraArgs,
 		ProjectRoot:        projectRoot,
+		WipnoteRoot:        wipnoteRoot,
 	})
 }
 
 func launchClaudeContinue(extraArgs []string, resumeID string) error {
 	projectRoot, _ := resolveProjectRoot()
 	cleanupStaleDev(projectRoot)
+	// Resolve canonical main repo root when CWD is a linked worktree (slice-3).
+	wipnoteRoot := canonicalProjectRoot(projectRoot)
 	pluginDir, err := resolveBundledPluginDir()
 	if err != nil {
 		return err
@@ -411,12 +430,40 @@ func launchClaudeContinue(extraArgs []string, resumeID string) error {
 		ResumeID:    resumeID,
 		ExtraArgs:   extraArgs,
 		ProjectRoot: projectRoot,
+		WipnoteRoot: wipnoteRoot,
 	})
 }
 
-func launchClaudeDefault(extraArgs []string, resumeID, name string) error {
+func launchClaudeDefault(extraArgs []string, resumeID, name, workItem string, inPlace bool) error {
 	projectRoot, _ := resolveProjectRoot()
 	cleanupStaleDev(projectRoot)
+
+	// Run the isolation planner (slice-2). The plan is computed, any warning
+	// is printed, and the plan is now HONORED (slice-9): a RefuseLaunch plan
+	// aborts before the harness starts, and an IsolationManagedWorktree plan
+	// routes the child into a managed worktree.
+	launchPlan := applyLaunchPlan(projectRoot, workItem, inPlace, os.Stderr)
+	if err := enforceLaunchPlan(launchPlan, os.Stderr); err != nil {
+		return err
+	}
+
+	// Resolve canonical main repo root when CWD is a linked worktree (slice-3).
+	// canonicalProjectRoot returns "" for the main worktree (no override needed).
+	wipnoteRoot := canonicalProjectRoot(projectRoot)
+
+	// Honor a managed-worktree plan: when isolation is enforced (devcontainer/CI
+	// or enforced host with a work item) create/reuse the managed worktree and
+	// run the child there, while WIPNOTE_PROJECT_DIR stays the canonical root.
+	childDir := projectRoot
+	if wt, werr := resolveManagedWorktree(launchPlan, projectRoot, "", "", workItem, projectRoot, false, os.Stdout); werr != nil {
+		return werr
+	} else if wt != "" && wt != projectRoot {
+		childDir = wt
+		if wipnoteRoot == "" {
+			wipnoteRoot = projectRoot
+		}
+	}
+
 	pluginDir, err := resolveBundledPluginDir()
 	if err != nil {
 		return err
@@ -438,7 +485,8 @@ func launchClaudeDefault(extraArgs []string, resumeID, name string) error {
 		InjectSystemPrompt: true,
 		Name:               sessionName,
 		ExtraArgs:          extraArgs,
-		ProjectRoot:        projectRoot,
+		ProjectRoot:        childDir,
+		WipnoteRoot:        wipnoteRoot,
 	})
 }
 
@@ -473,6 +521,10 @@ func ensureWipnotePlugin() error {
 
 // launchClaude is the shared launcher used by all modes.
 func launchClaude(opts LaunchOpts) error {
+	// Compute launcher mode for preflight logging/inspection (no behavior change).
+	// devPlugin is true when a PluginDir was supplied in go/dev mode.
+	_ = computeLauncherMode(opts.WipnoteRoot, opts.PluginDir != "" && opts.Mode == "go", false)
+
 	// Write launch marker to the main project root, not the worktree.
 	markerRoot := opts.ProjectRoot
 	if opts.WipnoteRoot != "" {

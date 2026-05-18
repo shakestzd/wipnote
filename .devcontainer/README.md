@@ -111,7 +111,7 @@ wipnote claude --dev
 
 # Start the dashboard to inspect the container-local .wipnote/:
 wipnote serve
-# Dashboard forwarded to http://localhost:8088 on your host (container port 8080).
+# Dashboard binds 0.0.0.0:8088 inside the container; VS Code forwards port 8088 to host.
 ```
 
 ## What changed from the previous devcontainer
@@ -127,3 +127,22 @@ forwarded six host API keys into the container. This version:
   Codespaces secrets.
 - Keeps tracked `.wipnote` work items in the repo while ignoring runtime
   artifacts, so dogfood state is available when wipnote sessions close.
+## Deployment Profiles
+
+wipnote detects four deployment profiles at launcher startup. The devcontainer
+uses the `devcontainer-dev` profile automatically — no configuration needed.
+
+| Profile | Dashboard default | Rollout mode |
+|---------|-------------------|--------------|
+| `host-production` | `127.0.0.1:8080` | warn-only (no enforcement until slice-9) |
+| `devcontainer-dev` | `0.0.0.0:8088` | config-gated opt-in |
+| `local-plugin-dev` | `127.0.0.1:8080` | warn-only |
+| `ci-test` | `127.0.0.1:8080` | config-gated opt-in |
+
+The devcontainer dashboard binds `0.0.0.0:8088` so VS Code's port-forward
+(configured via `forwardPorts: [8088]` in `devcontainer.json`) can reach it on
+`http://127.0.0.1:8088` from your host browser. Do not use port 8080 for
+dashboard sessions inside this devcontainer — that is the host production default.
+
+Run `scripts/devcontainer-verify.sh` to validate that the launcher mode,
+port convention, and exec-capable temp root all pass in this container.

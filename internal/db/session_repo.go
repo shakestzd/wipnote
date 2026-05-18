@@ -254,3 +254,41 @@ func nullStr(s string) sql.NullString {
 	}
 	return sql.NullString{String: s, Valid: true}
 }
+
+// SetSessionFamilyID sets the session_family_id for the given session. If the
+// family ID is empty, the session's own ID is used (self-as-family backfill).
+func SetSessionFamilyID(db *sql.DB, sessionID, familyID string) error {
+	if familyID == "" {
+		familyID = sessionID
+	}
+	_, err := db.Exec(
+		`UPDATE sessions SET session_family_id = ? WHERE session_id = ?`,
+		familyID, sessionID,
+	)
+	if err != nil {
+		return fmt.Errorf("set session_family_id %s: %w", sessionID, err)
+	}
+	return nil
+}
+
+// GetSessionsByFamily returns all session_ids that belong to the given family.
+// Results are ordered by created_at DESC so the most recent session is first.
+func GetSessionsByFamily(db *sql.DB, familyID string) ([]string, error) {
+	rows, err := db.Query(
+		`SELECT session_id FROM sessions WHERE session_family_id = ? ORDER BY created_at DESC`,
+		familyID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("get sessions by family %s: %w", familyID, err)
+	}
+	defer rows.Close()
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("scan session id: %w", err)
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
+}

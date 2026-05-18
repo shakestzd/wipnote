@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Canonical project identity across worktrees</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-6164aa2d"
+             data-type="feature"
+             data-status="done"
+             data-priority="medium"
+             data-created="2026-05-17T08:50:55.957154"
+             data-updated="2026-05-17T08:59:52.492706" data-agent-assigned="claude-code" data-track-id="trk-a30e8df4">
+
+        <header>
+            <h1>Canonical project identity across worktrees</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-a30e8df4.html" data-relationship="part_of" data-since="2026-05-17T08:50:55.960991">trk-a30e8df4</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="planned_in">
+                <h3>Planned In:</h3>
+                <ul>
+                    <li><a href="plan-1670cacd.html" data-relationship="planned_in" data-since="2026-05-17T08:50:55.96899">plan-1670cacd</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="blocked_by">
+                <h3>Blocked By:</h3>
+                <ul>
+                    <li><a href="feat-d0c910ec.html" data-relationship="blocked_by" data-since="2026-05-17T08:50:55.972359">feat-d0c910ec</a></li>
+                    <li><a href="feat-47997082.html" data-relationship="blocked_by" data-since="2026-05-17T08:50:55.975377">feat-47997082</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="82d9294a-1f15-46b4-9180-7c8b499aca65.html" data-relationship="implemented_in" data-since="2026-05-17T08:51:33.489293">session 82d9294a-1f15-46b4-9180-7c8b499aca65</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Scope: launcher-side env construction only. When a harness is launched from
+a managed worktree, ensure `WIPNOTE_PROJECT_DIR` is set to the canonical
+main repo root (not the worktree path) by consuming the existing
+`internal/paths` normalizer (`paths.NormalizeToRepoRelative`,
+`ResolveViaGitCommonDir`) when constructing launcher env for worktree
+launches.
+
+Do NOT introduce a parallel identity type (`ProjectIdentity{CanonicalRoot,
+ExecutionRoot}` or equivalent). The write-time path normalization for
+`sessions.project_dir`, DB cache keys, NDJSON event paths, SQLite
+cache-key normalization, and divergence-guard canonical comparison are
+delivered by plan-2133adf2 slices 1 and 4 (feat-edbc978b, feat-3973e948).
+This slice's boundary is strictly the launcher env construction step that
+ensures downstream hook/storage code receives the right canonical root in
+the environment.
+[2026-05-17 08:58 claude-code] accepted-advisory (provenance override): Implementation committed in 052f0def2; dirty files api_plans.go/api_plans_test.go/plan_page.gohtml belong to a different concurrent slice and are unrelated to feat-6164aa2d</p>
+        </section>
+    </article>
+</body>
+</html>

@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Migration, cleanup, and compatibility tooling</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-dbe359c1"
+             data-type="feature"
+             data-status="done"
+             data-priority="medium"
+             data-created="2026-05-17T18:05:12.837585"
+             data-updated="2026-05-17T18:18:05.723274" data-agent-assigned="claude-code" data-track-id="trk-a30e8df4">
+
+        <header>
+            <h1>Migration, cleanup, and compatibility tooling</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-a30e8df4.html" data-relationship="part_of" data-since="2026-05-17T18:05:12.842239">trk-a30e8df4</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="82d9294a-1f15-46b4-9180-7c8b499aca65.html" data-relationship="implemented_in" data-since="2026-05-17T18:06:23.93848">session 82d9294a-1f15-46b4-9180-7c8b499aca65</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="planned_in">
+                <h3>Planned In:</h3>
+                <ul>
+                    <li><a href="plan-1670cacd.html" data-relationship="planned_in" data-since="2026-05-17T18:05:12.849672">plan-1670cacd</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="blocked_by">
+                <h3>Blocked By:</h3>
+                <ul>
+                    <li><a href="feat-47997082.html" data-relationship="blocked_by" data-since="2026-05-17T18:05:12.853051">feat-47997082</a></li>
+                    <li><a href="feat-6164aa2d.html" data-relationship="blocked_by" data-since="2026-05-17T18:05:12.855911">feat-6164aa2d</a></li>
+                    <li><a href="feat-a225ce7c.html" data-relationship="blocked_by" data-since="2026-05-17T18:05:12.858289">feat-a225ce7c</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Add migration and cleanup commands for users with existing divergent local
+main states and stale worktrees.
+
+`wipnote launcher doctor` is the primary deliverable. It:
+- detects local main ahead/behind origin with dirty worktree
+- lists stale managed worktrees and provides safe prune guidance
+- reports launcher/worktree-divergence diagnostics (canonical root mismatch,
+  split canonical root across sessions)
+- delegates orphan-session cleanup to `wipnote cleanup orphan-sessions`
+  (delivered by plan-ae0c37b2 slice-11, feat-2c631aa9 — do not re-implement)
+- delegates session-exit reconciliation to `wipnote reconcile`
+  (delivered by plan-83f909bc slice-5, feat-f93fe770 — do not re-implement)
+- adds only launcher/worktree-divergence diagnostics on top of the
+  delegated commands
+- prints non-destructive remediation steps by default
+- provides compatibility handling for old sessions without session families
+- contains the rollout gate that allows host production to move from
+  warn-only to worktree-by-default once doctor checks pass
+
+Out of scope (shipped):
+- Orphan-session-cleanup responsibility: plan-ae0c37b2 slice-11
+  `wipnote cleanup orphan-sessions`, feat-2c631aa9.
+- Generic session-exit reconciliation: plan-83f909bc slice-5
+  `wipnote reconcile`, feat-f93fe770.</p>
+        </section>
+    </article>
+</body>
+</html>

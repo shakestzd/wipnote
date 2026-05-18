@@ -7,7 +7,7 @@ meta:
     created_at: "2026-05-08"
     status: finalized
     created_by: codex
-    version: 2
+    version: 11
 design:
     problem: |
         wipnote can currently launch multiple AI CLIs directly from a mutable checkout. That is convenient, but it allows long-running local stacks, generated plugin changes, work-item bookkeeping, and merged upstream work to accumulate on local main. The result is avoidable divergence, hard-to-review commits, and fragile reconciliation after PR merges. The obvious fix is to launch mutating sessions in isolated branches or worktrees by default, but that changes the shape of project identity, session continuity, active-session fallback state, event capture, subagent attribution, and dashboard grouping. The design must also account for the difference between production host installs and devcontainer sessions, where ports, bind addresses, filesystem permissions, plugin paths, and temp execution policy differ.
@@ -33,6 +33,7 @@ design:
     comment: ""
 slices:
     - id: slice-1
+      feature_id: feat-d0c910ec
       num: 1
       title: Launcher mode contract and environment detection
       what: |
@@ -77,7 +78,7 @@ slices:
       approved: false
       comment: ""
       approval_status: pending
-      execution_status: not_started
+      execution_status: promoted
       questions:
         - id: q-devcontainer-detect
           text: Which signal should define devcontainer mode?
@@ -91,6 +92,7 @@ slices:
             - key: filesystem-probe
               label: Filesystem probe — check for .devcontainer/ directory in repo root
     - id: slice-2
+      feature_id: feat-47997082
       num: 2
       title: Gated isolated worktree launch plumbing and dirty-main guard
       what: |
@@ -149,7 +151,7 @@ slices:
       approved: false
       comment: ""
       approval_status: pending
-      execution_status: not_started
+      execution_status: promoted
       questions:
         - id: q-default
           text: Should host production start in warn-only mode while devcontainer/local-dev starts config-gated worktree-by-default?
@@ -170,6 +172,7 @@ slices:
           severity: HIGH
           summary: Do not enforce fresh-worktree defaults before canonical identity and per-session fallback/session-family hardening are available.
     - id: slice-3
+      feature_id: feat-6164aa2d
       num: 3
       title: Canonical project identity across worktrees
       what: |
@@ -213,8 +216,9 @@ slices:
       approved: false
       comment: ""
       approval_status: pending
-      execution_status: not_started
+      execution_status: promoted
     - id: slice-4
+      feature_id: feat-a225ce7c
       num: 4
       title: Session-family continuity and per-session fallback state
       what: |
@@ -264,7 +268,7 @@ slices:
       approved: false
       comment: ""
       approval_status: pending
-      execution_status: not_started
+      execution_status: promoted
       questions:
         - id: q-family-field
           text: Should we add `session_family_id` or standardize on existing `continued_from`?
@@ -282,6 +286,7 @@ slices:
           severity: HIGH
           summary: Specify concrete Codex and Gemini resume/family write paths; dashboard inference alone would leave session continuity harness-skewed.
     - id: slice-5
+      feature_id: feat-6d8110b1
       num: 5
       title: Parallel attribution and claim coordination
       what: |
@@ -341,7 +346,7 @@ slices:
       approved: false
       comment: ""
       approval_status: pending
-      execution_status: not_started
+      execution_status: promoted
       questions:
         - id: q-claim-policy
           text: Should same-work-item parallel sessions be blocked by default, warned, or allowed as collaboration?
@@ -362,6 +367,7 @@ slices:
           severity: MED
           summary: Cross-session visibility plan plan-c3bbb1ed consumes claim/session/step identity here; slice now exports those fields explicitly for `wipnote who`, /api/features, and Kanban.
     - id: slice-7
+      feature_id: feat-30687f8c
       num: 7
       title: Dashboard worktree/session-family UX
       what: |
@@ -421,7 +427,7 @@ slices:
       approved: false
       comment: ""
       approval_status: pending
-      execution_status: not_started
+      execution_status: promoted
       critic_revisions:
         - source: observability-critique
           severity: MED
@@ -430,6 +436,7 @@ slices:
           severity: MED
           summary: Dashboard UX now reserves the Work/Kanban identity data contract consumed by plan-c3bbb1ed, while leaving detailed card rendering to that visibility plan.
     - id: slice-8
+      feature_id: feat-6700ad3e
       num: 8
       title: Host, devcontainer, and production deployment profiles
       what: |
@@ -479,7 +486,7 @@ slices:
       approved: false
       comment: ""
       approval_status: pending
-      execution_status: not_started
+      execution_status: promoted
       questions:
         - id: q-rollout
           text: Should production releases flip the worktree default immediately or ship warning-only first?
@@ -497,6 +504,7 @@ slices:
           severity: MED
           summary: Keep behavior/profile plumbing separate from full documentation and release runbooks so rollout gates are reviewable.
     - id: slice-9
+      feature_id: feat-dbe359c1
       num: 9
       title: Migration, cleanup, and compatibility tooling
       what: |
@@ -559,7 +567,7 @@ slices:
       approved: false
       comment: ""
       approval_status: pending
-      execution_status: not_started
+      execution_status: promoted
       critic_revisions:
         - source: deployment-critique
           severity: HIGH
@@ -568,6 +576,7 @@ slices:
           severity: LOW
           summary: Doctor should report session-family, fallback, collector, and split-canonical-root health, not only git/worktree state.
     - id: slice-10
+      feature_id: feat-7835351a
       num: 10
       title: Parallel stress harness and release gates
       what: |
@@ -626,7 +635,7 @@ slices:
       approved: false
       comment: ""
       approval_status: pending
-      execution_status: not_started
+      execution_status: promoted
       critic_revisions:
         - source: deployment-critique
           severity: MED

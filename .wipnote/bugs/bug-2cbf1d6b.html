@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Fix roborev findings on plan-1670cacd (2 High, 9 Med, 6 Low)</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-2cbf1d6b"
+             data-type="bug"
+             data-status="done"
+             data-priority="high"
+             data-created="2026-05-17T23:15:18.886657"
+             data-updated="2026-05-18T00:26:15.009427" data-agent-assigned="claude-code" data-track-id="trk-a30e8df4" data-created-by-agent="human" data-created-by-model="claude-opus-4-7[1m]" data-created-by-cli-version="0.59.1-398-g883056121">
+
+        <header>
+            <h1>Fix roborev findings on plan-1670cacd (2 High, 9 Med, 6 Low)</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="82d9294a-1f15-46b4-9180-7c8b499aca65.html" data-relationship="implemented_in" data-since="2026-05-17T23:16:28.143028">session 82d9294a-1f15-46b4-9180-7c8b499aca65</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-a30e8df4.html" data-relationship="part_of" data-since="2026-05-17T23:15:18.902619">trk-a30e8df4</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="true" data-step-id="task-10" data-agent="claude-code" data-created-by-agent="claude-code">✅ Batch A — launcher-path findings (slices 1,2,3,9 incl. slice-9 HIGH)</li>
+                <li data-completed="true" data-step-id="task-11" data-agent="claude-code" data-created-by-agent="claude-code">✅ Batch B — session-family &amp; claim findings (slices 4 HIGH, 5)</li>
+                <li data-completed="true" data-step-id="task-12" data-agent="claude-code" data-created-by-agent="claude-code">✅ Batch C — dashboard API/JS &#43; CI/test findings (slices 7,10)</li>
+            </ol>
+        </section>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Post-review remediation of roborev findings across plan-1670cacd slices 1-10 (slice-8 clean). 2 High: session-family cross-process race (internal/agent/session_family.go), enforce-isolation gate not honored by launcher callers (cmd/wipnote/launcher_mode.go). Plus 9 Medium + 6 Low. Original slice features are done; this bug carries the fix work.
+[2026-05-18 00:13 claude-code] accepted-advisory (provenance override): Fixes committed in d13984e1d (Batch A: slice-9 HIGH + 1/2/3), 67e60fb95 (Batch B: slice-4 HIGH race + slice-5), 22cc62891 (Batch C: slice-7/10); verified green on main (build/vet/test 42 ok 0 FAIL fresh -count=1). Subagent-attribution gap (bug-63f42308) prevented auto-link. All 8 roborev jobs commented+closed.
+[2026-05-18 00:22 claude-code] accepted-advisory (provenance override): Fixes committed d13984e1d (Batch A: slice-9 HIGH gate + 1/2/3), 67e60fb95 (Batch B: slice-4 HIGH flock race + slice-5), 22cc62891 (Batch C: slice-7/10); verified green on main (build/vet/test 42 ok 0 FAIL fresh -count=1); all 8 roborev jobs commented+closed. Subagent-attribution gap (bug-63f42308) prevented provenance auto-link.
+[2026-05-18 00:23 claude-code] accepted-advisory (provenance override): Fixes committed d13984e1d (Batch A: slice-9 HIGH gate + 1/2/3), 67e60fb95 (Batch B: slice-4 HIGH flock race + slice-5), 22cc62891 (Batch C: slice-7/10); verified green on main (build/vet/test 42 ok 0 FAIL fresh -count=1); all 8 roborev jobs commented+closed. Subagent-attribution gap (bug-63f42308) prevented provenance auto-link.
+[2026-05-18 00:24 claude-code] accepted-advisory (provenance override): Fixes committed d13984e1d (Batch A: slice-9 HIGH gate + 1/2/3), 67e60fb95 (Batch B: slice-4 HIGH flock race + slice-5), 22cc62891 (Batch C: slice-7/10); verified green on main (build/vet/test 42 ok 0 FAIL fresh -count=1); all 8 roborev jobs commented+closed. Subagent-attribution gap (bug-63f42308) prevented provenance auto-link.
+[2026-05-18 00:25 claude-code] accepted-advisory (provenance override): Fixes committed d13984e1d (Batch A: slice-9 HIGH gate + 1/2/3), 67e60fb95 (Batch B: slice-4 HIGH flock race + slice-5), 22cc62891 (Batch C: slice-7/10); verified green on main (build/vet/test 42 ok 0 FAIL fresh -count=1); all 8 roborev jobs commented+closed. Subagent-attribution gap (bug-63f42308) prevented provenance auto-link.</p>
+        </section>
+    </article>
+</body>
+</html>

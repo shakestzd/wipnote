@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Parallel attribution and claim coordination</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-6d8110b1"
+             data-type="feature"
+             data-status="done"
+             data-priority="medium"
+             data-created="2026-05-17T17:30:07.029621"
+             data-updated="2026-05-17T17:51:13.380413" data-agent-assigned="claude-code" data-track-id="trk-a30e8df4">
+
+        <header>
+            <h1>Parallel attribution and claim coordination</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="blocked_by">
+                <h3>Blocked By:</h3>
+                <ul>
+                    <li><a href="feat-a225ce7c.html" data-relationship="blocked_by" data-since="2026-05-17T17:30:07.048377">feat-a225ce7c</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-a30e8df4.html" data-relationship="part_of" data-since="2026-05-17T17:30:07.035098">trk-a30e8df4</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="planned_in">
+                <h3>Planned In:</h3>
+                <ul>
+                    <li><a href="plan-1670cacd.html" data-relationship="planned_in" data-since="2026-05-17T17:30:07.044888">plan-1670cacd</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="82d9294a-1f15-46b4-9180-7c8b499aca65.html" data-relationship="implemented_in" data-since="2026-05-17T17:31:34.631413">session 82d9294a-1f15-46b4-9180-7c8b499aca65</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Harden work-item attribution for concurrent parallel root CLIs and their
+simultaneous subagents. Scope is limited to:
+
+- concurrent claim collision-vs-collaboration UX when two root CLI sessions
+  claim the same work item simultaneously
+- subagent out-of-order attribution: hook handlers write best-effort events
+  even when parent records arrive later
+- identity/claim fields exported for plan-c3bbb1ed: claim owner, session
+  family, harness, work item, and execution root exposed in /api/features,
+  `wipnote who`, Kanban cards, and dashboard session/file panels
+
+Out of scope (delivered by other plans):
+- Branch-name-completion transition: delivered by plan-83f909bc slice-3
+  provenance gate (feat-7b593272); completion no longer requires branch-name
+  inference is already true post plan-83f909bc.
+- Dedup and reconcile concerns: delivered by plan-83f909bc slices 5/6
+  (feat-f93fe770 `wipnote reconcile`); do not re-implement here.
+
+Prefer existing claim machinery and lineage edges. Claude TaskCreated/
+TaskCompleted, Codex TaskStarted/TaskComplete, and Gemini tool/session
+events must either map into the same canonical step/progress fields when a
+work item is active or be explicitly reported as unsupported so the
+dashboard does not imply live step tracking.</p>
+        </section>
+    </article>
+</body>
+</html>

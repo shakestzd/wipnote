@@ -16,7 +16,7 @@ import (
 // executes ZERO CREATE / ALTER / DROP / trigger / normalisation statements —
 // avoiding the write-lock acquisition that caused SQLITE_BUSY in short-lived
 // hook processes.
-const currentSchemaVersion = 6
+const currentSchemaVersion = 7
 
 // copySwapStepName is the name of the agent_events copy-and-swap migration
 // step. Exposed via CopySwapStepName() so tests can assert it runs at most
@@ -73,6 +73,11 @@ var migrations = []migrationStep{
 		version: 6,
 		name:    "006_gate_records",
 		apply:   stepGateRecords,
+	},
+	{
+		version: 7,
+		name:    "007_session_family_id",
+		apply:   stepSessionFamilyID,
 	},
 }
 
@@ -348,4 +353,27 @@ func isDuplicateColumnError(err error) bool {
 		return false
 	}
 	return strings.Contains(err.Error(), "duplicate column name")
+}
+
+// stepSessionFamilyID adds the session_family_id column to sessions and creates
+// an index for efficient family-based lookups. Also backfills existing rows so
+// that any session without a family_id uses its own session_id as the family
+// (each pre-existing session is its own family of one). Idempotent: the ALTER
+// TABLE ADD COLUMN is swallowed by isDuplicateColumnError on re-run.
+func stepSessionFamilyID(db *sql.DB) error {
+	if _, err := db.Exec("ALTER TABLE sessions ADD COLUMN session_family_id TEXT"); err != nil {
+		if !isDuplicateColumnError(err) {
+			return fmt.Errorf("add session_family_id: %w", err)
+		}
+	}
+	// Backfill: existing sessions without a family get their own session_id as
+	// the family_id so they remain queryable by family without NULL handling.
+	if _, err := db.Exec("UPDATE sessions SET session_family_id = session_id WHERE session_family_id IS NULL OR session_family_id = ''"); err != nil {
+		return fmt.Errorf("backfill session_family_id: %w", err)
+	}
+	// Index for efficient family-based grouping queries.
+	if _, err := db.Exec("CREATE INDEX IF NOT EXISTS idx_sessions_family ON sessions(session_family_id)"); err != nil {
+		return fmt.Errorf("create idx_sessions_family: %w", err)
+	}
+	return nil
 }

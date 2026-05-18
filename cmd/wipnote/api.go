@@ -124,7 +124,10 @@ func sessionsHandler(database *sql.DB, projectDir, wipnoteDir string) http.Handl
 			       COALESCE(json_extract(s.metadata, '$.launch_mode'), '') AS launch_mode,
 			       COALESCE((SELECT pf.plan_id FROM plan_feedback pf
 			                 WHERE pf.action = 'session_id' AND pf.value = s.session_id
-			                 LIMIT 1), '') AS plan_id
+			                 LIMIT 1), '') AS plan_id,
+			       COALESCE(s.session_family_id, s.session_id) AS family_id,
+			       COALESCE(s.project_dir, '') AS canonical_project,
+			       COALESCE(s.parent_session_id, '') AS parent_session_id
 			FROM sessions s
 			WHERE s.project_dir = ?
 			  AND (s.total_events > 0
@@ -153,8 +156,11 @@ func sessionsHandler(database *sql.DB, projectDir, wipnoteDir string) http.Handl
 			var featureID, model, title, firstMsg string
 			var msgCount int
 			var sessionLaunchMode, sessionPlanID string
+			var familyID, canonicalProject, parentSessionID string
 			if err := rows.Scan(&sid, &agent, &status, &created, &completed,
-				&totalEvents, &featureID, &model, &title, &firstMsg, &msgCount, &sessionLaunchMode, &sessionPlanID); err != nil {
+				&totalEvents, &featureID, &model, &title, &firstMsg, &msgCount,
+				&sessionLaunchMode, &sessionPlanID,
+				&familyID, &canonicalProject, &parentSessionID); err != nil {
 				continue
 			}
 			adherence, err := dbpkg.DeriveSessionAdherence(database, sid, nodes)
@@ -162,21 +168,49 @@ func sessionsHandler(database *sql.DB, projectDir, wipnoteDir string) http.Handl
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
+			// exec_root: root execution context. Subagents use parent; root sessions use self.
+			execRoot := sid
+			if parentSessionID != "" {
+				execRoot = parentSessionID
+			}
+			// Claim/collision — best-effort, never fatal. Stable plan-c3bbb1ed contract.
+			claimCollision := false
+			claimStatus := ""
+			claimSessionFamily := familyID
+			if featureID != "" {
+				if coll, cerr := dbpkg.DetectCollaboration(database, featureID); cerr == nil {
+					claimCollision = coll.HasCollision
+					if len(coll.Claimants) > 0 {
+						claimStatus = string(coll.Claimants[0].Status)
+					}
+				}
+			}
+			if id, cerr := dbpkg.GetClaimIdentity(database, sid); cerr == nil && id != nil && id.SessionFamilyID != "" {
+				claimSessionFamily = id.SessionFamilyID
+			}
 			sessions = append(sessions, map[string]any{
-				"session_id":    sid,
-				"agent":         agent,
-				"status":        status,
-				"created_at":    created,
-				"completed_at":  completed,
-				"total_events":  totalEvents,
-				"feature_id":    featureID,
-				"model":         model,
-				"title":         title,
-				"first_message": firstMsg,
-				"message_count": msgCount,
-				"launch_mode":   sessionLaunchMode,
-				"plan_id":       sessionPlanID,
-				"adherence":     adherence,
+				"session_id":           sid,
+				"agent":                agent,
+				"harness":              agent,
+				"status":               status,
+				"created_at":           created,
+				"completed_at":         completed,
+				"total_events":         totalEvents,
+				"feature_id":           featureID,
+				"model":                model,
+				"title":                title,
+				"first_message":        firstMsg,
+				"message_count":        msgCount,
+				"launch_mode":          sessionLaunchMode,
+				"plan_id":              sessionPlanID,
+				"adherence":            adherence,
+				// Isolation-visibility fields (slice-7). Stable plan-c3bbb1ed contract.
+				"session_family_id":    familyID,
+				"canonical_project":    canonicalProject,
+				"exec_root":            execRoot,
+				"claim_collision":      claimCollision,
+				"claim_status":         claimStatus,
+				"claim_session_family": claimSessionFamily,
 			})
 		}
 
@@ -212,6 +246,7 @@ func featuresHandler(database *sql.DB, projectDir string) http.HandlerFunc {
 		} else {
 			mergeProvenanceFromHTML(features, projectDir)
 		}
+		mergeClaimAttributionFromDB(features, database)
 		respondJSON(w, features)
 	}
 }
@@ -291,6 +326,60 @@ func mergeProvenanceFromHTML(features []map[string]any, projectDir string) {
 			features[i]["created_by_role"] = pf.role
 			features[i]["created_by_cli_ver"] = pf.cliVer
 		}
+	}
+}
+
+// mergeClaimAttributionFromDB merges claim ownership, collaboration state,
+// session family, and harness fields into features returned by featuresFromDB or
+// featuresFromHTML. This exposes identity fields to /api/features consumers
+// (Kanban cards, dashboard session/file panels, plan-c3bbb1ed). Best-effort:
+// missing claims leave the feature unchanged (backward-compatible).
+func mergeClaimAttributionFromDB(features []map[string]any, database *sql.DB) {
+	for i := range features {
+		id, _ := features[i]["id"].(string)
+		if id == "" {
+			continue
+		}
+		coll, err := dbpkg.DetectCollaboration(database, id)
+		if err != nil {
+			continue
+		}
+		if len(coll.Claimants) == 0 {
+			features[i]["claim_owner"] = ""
+			features[i]["claim_session_family"] = ""
+			features[i]["claim_harness"] = ""
+			features[i]["claim_status"] = ""
+			features[i]["claim_collision"] = false
+			continue
+		}
+		// Primary claimant is the oldest (first by created_at).
+		primary := coll.Claimants[0]
+		features[i]["claim_owner"] = primary.OwnerSessionID
+		features[i]["claim_harness"] = primary.OwnerAgent
+		features[i]["claim_status"] = string(primary.Status)
+		features[i]["claim_collision"] = coll.HasCollision
+		// Session family for the primary claimant.
+		var familyID string
+		if err := database.QueryRow(
+			`SELECT COALESCE(session_family_id, session_id) FROM sessions WHERE session_id = ?`,
+			primary.OwnerSessionID,
+		).Scan(&familyID); err == nil {
+			features[i]["claim_session_family"] = familyID
+		} else {
+			features[i]["claim_session_family"] = primary.OwnerSessionID
+		}
+		// Claimant list for dashboard collision panels.
+		claimants := make([]map[string]any, 0, len(coll.Claimants))
+		for _, c := range coll.Claimants {
+			claimants = append(claimants, map[string]any{
+				"claim_id":   c.ClaimID,
+				"session_id": c.OwnerSessionID,
+				"harness":    c.OwnerAgent,
+				"status":     string(c.Status),
+				"claimed_at": c.LeasedAt.UTC().Format(time.RFC3339),
+			})
+		}
+		features[i]["claimants"] = claimants
 	}
 }
 

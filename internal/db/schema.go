@@ -157,6 +157,7 @@ func CreateAllTables(db *sql.DB) error {
 			blockers JSON,
 			recommended_context JSON,
 			continued_from TEXT,
+			session_family_id TEXT,
 			cost_budget REAL,
 			cost_threshold_breached INTEGER DEFAULT 0,
 			predicted_cost REAL DEFAULT 0.0,
@@ -396,6 +397,7 @@ func CreateAllIndexes(db *sql.DB) error {
 		"CREATE INDEX IF NOT EXISTS idx_features_created ON features(created_at DESC)",
 		// sessions
 		"CREATE INDEX IF NOT EXISTS idx_sessions_agent_created ON sessions(agent_assigned, created_at DESC)",
+		"CREATE INDEX IF NOT EXISTS idx_sessions_family ON sessions(session_family_id)",
 		"CREATE INDEX IF NOT EXISTS idx_sessions_status_created ON sessions(status, created_at DESC)",
 		"CREATE INDEX IF NOT EXISTS idx_sessions_parent ON sessions(parent_session_id, created_at DESC)",
 		"CREATE INDEX IF NOT EXISTS idx_sessions_created ON sessions(created_at DESC)",

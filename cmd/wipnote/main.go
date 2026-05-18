@@ -307,6 +307,9 @@ func buildRoot() *cobra.Command {
 	root.AddCommand(ciCmd())
 	root.AddCommand(helpCmd())
 	root.AddCommand(claimCmd())
+	who := whoCmd()
+	who.GroupID = "query"
+	root.AddCommand(who)
 	root.AddCommand(purgeSpikesCmd())
 	root.AddCommand(traceCmd())
 	root.AddCommand(graphCmd())
@@ -320,6 +323,9 @@ func buildRoot() *cobra.Command {
 	root.AddCommand(shellAliasCmd())
 	root.AddCommand(pricingCmd())
 	root.AddCommand(harnessCmd())
+	launcher := launcherCmd()
+	launcher.GroupID = "quality"
+	root.AddCommand(launcher)
 
 	return root
 }
@@ -365,6 +371,13 @@ func persistentPreRunE(cmd *cobra.Command, _ []string) error {
 		if p.Name() == "hook" {
 			return nil
 		}
+	}
+	// Skip the `launcher` diagnostic subtree (e.g. `wipnote launcher doctor`).
+	// These commands are advertised as non-destructive: they must NOT trigger
+	// the legacy-DB clean, opportunistic cache prune, session-row write, or
+	// registry upsert that persistentPreRunE performs for normal commands.
+	if isLauncherDiagnosticSubtree(cmd) {
+		return nil
 	}
 	// Degrade gracefully: commands must not fail because session
 	// registration is unavailable.
@@ -419,6 +432,20 @@ func persistentPreRunE(cmd *cobra.Command, _ []string) error {
 func inCacheSubtree(cmd *cobra.Command) bool {
 	for p := cmd; p != nil; p = p.Parent() {
 		if p.Name() == "cache" {
+			return true
+		}
+	}
+	return false
+}
+
+// isLauncherDiagnosticSubtree reports whether cmd or any ancestor is the
+// `launcher` command. The launcher subtree (currently `launcher doctor`) is a
+// read-only diagnostic surface; persistentPreRunE skips its destructive
+// side-effects so `wipnote launcher doctor` never mutates the DB, cache, or
+// project registry while it is merely reporting health.
+func isLauncherDiagnosticSubtree(cmd *cobra.Command) bool {
+	for p := cmd; p != nil; p = p.Parent() {
+		if p.Name() == "launcher" {
 			return true
 		}
 	}

@@ -56,6 +56,12 @@ type Session struct {
 	CreatedByCLIVersion string `json:"created_by_cli_version,omitempty"`
 
 	Adherence *SessionAdherence `json:"adherence,omitempty"`
+
+	// SessionFamilyID groups N sessions that are continuations of each other
+	// (resumed, parallel roots in the same logical work context). Unlike
+	// ContinuedFrom (a single-parent FK), multiple sessions may share one family.
+	// When empty, the dashboard falls back to treating the session as its own family.
+	SessionFamilyID string `json:"session_family_id,omitempty"`
 }
 
 type SessionAdherenceStatus string

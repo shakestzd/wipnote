@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Dashboard worktree/session-family UX</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-30687f8c"
+             data-type="feature"
+             data-status="done"
+             data-priority="medium"
+             data-created="2026-05-17T18:19:54.939891"
+             data-updated="2026-05-17T18:52:12.657495" data-agent-assigned="claude-code" data-track-id="trk-a30e8df4">
+
+        <header>
+            <h1>Dashboard worktree/session-family UX</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="trk-a30e8df4.html" data-relationship="part_of" data-since="2026-05-17T18:19:54.944466">trk-a30e8df4</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="planned_in">
+                <h3>Planned In:</h3>
+                <ul>
+                    <li><a href="plan-1670cacd.html" data-relationship="planned_in" data-since="2026-05-17T18:19:54.951345">plan-1670cacd</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="82d9294a-1f15-46b4-9180-7c8b499aca65.html" data-relationship="implemented_in" data-since="2026-05-17T18:22:00.795182">session 82d9294a-1f15-46b4-9180-7c8b499aca65</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="blocked_by">
+                <h3>Blocked By:</h3>
+                <ul>
+                    <li><a href="feat-a225ce7c.html" data-relationship="blocked_by" data-since="2026-05-17T18:19:54.954105">feat-a225ce7c</a></li>
+                    <li><a href="feat-6d8110b1.html" data-relationship="blocked_by" data-since="2026-05-17T18:19:54.958707">feat-6d8110b1</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Update dashboard APIs and UI to make isolation visible without fragmenting
+the project view. Add API fields and UI affordances for:
+
+- canonical project root versus execution worktree
+- branch/work-item/session-family badge on active sessions
+- collision or collaboration status for work-item claims
+- stale collector and stale worktree warnings (collector/stale warnings are
+  framed around plan-ae0c37b2's writer-queue and collector-status APIs,
+  not the deleted slice-6 assumptions)
+- filters by harness, work item, branch, session family, and execution root
+- explicit default grouping semantics for sessions list, activity feed,
+  and event tree: canonical project first, session family second,
+  individual session drilldown third
+- Work/Kanban board identity fields consumed by plan-c3bbb1ed: active
+  CLI/session/model on cards, step progress, conflict/overlap status,
+  recently moved/reassigned markers, and track-level active/stale/
+  collision counts
+
+Keep the first screen operational, not explanatory: the dashboard should
+show what is running, where it is running, what it is editing, what work
+item it belongs to, and why it is attributed there. Full file-overlap and
+Kanban rendering behavior is delivered by plan-c3bbb1ed; this slice
+guarantees the launcher/session-family API fields are available.</p>
+        </section>
+    </article>
+</body>
+</html>

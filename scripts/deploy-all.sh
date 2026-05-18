@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# deploy-all.sh — wipnote release pipeline (dev-only)
+# deploy-all.sh — wipnote release pipeline (host production only)
+#
+# Run on a host install (bar metal / VM), not inside the devcontainer.
+# The devcontainer is a development/test environment; releases are cut from
+# a clean host checkout where credentials and signing keys are available.
 #
 # Usage:
 #   ./scripts/deploy-all.sh VERSION [FLAGS]

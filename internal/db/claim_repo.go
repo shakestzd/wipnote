@@ -102,10 +102,15 @@ func ClaimItem(db *sql.DB, claim *models.Claim, leaseDuration time.Duration) err
 }
 
 // ClaimItemOrRenew creates a new claim or renews the lease on an existing one.
-// If an active claim already exists for the same (work_item_id, claimed_by_agent_id),
-// the lease is refreshed in-place (no duplicate row). Otherwise a new claim is inserted.
-// This is idempotent: calling it N times on the same item/agent is safe and always
-// results in exactly one live claim row with a fresh lease.
+// The renewal identity is (work_item_id, claimed_by_agent_id, owner_session_id):
+// an active claim is refreshed in-place only when the SAME session re-claims.
+// A DIFFERENT session inserts a new claimant row even when it shares
+// claimed_by_agent_id (e.g. two root sessions from the same harness, where
+// claimed_by_agent_id is identically empty) — without owner_session_id in the
+// identity the second root would silently renew the first's row and
+// DetectCollaboration would never see the "two root sessions, same work item"
+// collision. This remains idempotent: calling it N times from one session on
+// the same item/agent always yields exactly one live row with a fresh lease.
 func ClaimItemOrRenew(db *sql.DB, claim *models.Claim, leaseDuration time.Duration) error {
 	if _, err := ReapExpiredClaims(db); err != nil {
 		return fmt.Errorf("reap before claim: %w", err)
@@ -115,24 +120,27 @@ func ClaimItemOrRenew(db *sql.DB, claim *models.Claim, leaseDuration time.Durati
 	newExpiry := now.Add(leaseDuration)
 	activeList := activeStatusList()
 
-	// Try to renew an existing active claim first.
+	// Try to renew an existing active claim first. The renewal must match the
+	// owning session too, so a second root session (same harness, same empty
+	// claimed_by_agent_id) does not renew the first session's row.
 	renewQuery := fmt.Sprintf(`
 		UPDATE claims
 		SET last_heartbeat_at = ?, lease_expires_at = ?, updated_at = ?
 		WHERE work_item_id = ?
 		  AND claimed_by_agent_id = ?
+		  AND owner_session_id = ?
 		  AND status IN (%s)`, activeList)
 
 	result, err := db.Exec(renewQuery,
 		now.Format(time.RFC3339), newExpiry.Format(time.RFC3339),
 		now.Format(time.RFC3339),
-		claim.WorkItemID, claim.ClaimedByAgentID,
+		claim.WorkItemID, claim.ClaimedByAgentID, claim.OwnerSessionID,
 	)
 	if err != nil {
-		return fmt.Errorf("renew claim for %s/%s: %w", claim.WorkItemID, claim.ClaimedByAgentID, err)
+		return fmt.Errorf("renew claim for %s/%s/%s: %w", claim.WorkItemID, claim.ClaimedByAgentID, claim.OwnerSessionID, err)
 	}
 	if rows, _ := result.RowsAffected(); rows > 0 {
-		// Existing live claim refreshed — done.
+		// Existing live claim for THIS session refreshed — done.
 		return nil
 	}
 

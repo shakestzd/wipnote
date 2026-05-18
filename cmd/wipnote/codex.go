@@ -678,8 +678,8 @@ func promptYesNo(question string, yes bool) bool {
 
 // codexCmd returns the cobra command for `wipnote codex`.
 func codexCmd() *cobra.Command {
-	var init_, continue_, dev, cleanup, dryRun, yes, noWorktree, yolo bool
-	var resumeID, trackID, featureID, worktreePath, workItem string
+	var init_, continue_, dev, cleanup, dryRun, yes, noWorktree, inPlace, yolo bool
+	var resumeID, trackID, featureID, worktreePath, workItem, baseBranch string
 
 	cmd := &cobra.Command{
 		Use:   "codex",
@@ -706,7 +706,9 @@ Session IDs come from ~/.codex/session_index.jsonl.`,
 			case continue_:
 				return launchCodexContinue(resumeID, yolo, args)
 			default:
-				return launchCodexDefault(resumeID, trackID, featureID, worktreePath, workItem, noWorktree, yolo, args)
+				effectiveInPlace := inPlace || noWorktree
+				_ = baseBranch // reserved for slice-3+
+				return launchCodexDefault(resumeID, trackID, featureID, worktreePath, workItem, effectiveInPlace, yolo, args)
 			}
 		},
 	}
@@ -717,13 +719,15 @@ Session IDs come from ~/.codex/session_index.jsonl.`,
 	cmd.Flags().BoolVar(&cleanup, "cleanup", false, "With --dev: unregister the local marketplace on exit")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Print what would happen without executing")
 	cmd.Flags().BoolVar(&yes, "yes", false, "Answer yes to all prompts (non-interactive)")
-	cmd.Flags().BoolVar(&noWorktree, "no-worktree", false, "Skip worktree creation (run in project root)")
+	cmd.Flags().BoolVar(&noWorktree, "no-worktree", false, "Skip worktree creation; run in project root (alias for --in-place)")
+	cmd.Flags().BoolVar(&inPlace, "in-place", false, "Intentional in-place mutation; records opt-out of isolation")
 	cmd.Flags().BoolVar(&yolo, "yolo", false, "Pass Codex --dangerously-bypass-approvals-and-sandbox")
 	cmd.Flags().StringVar(&resumeID, "resume", "", "Resume a specific Codex session by ID")
 	cmd.Flags().StringVar(&trackID, "track", "", "Track ID to work on (e.g., trk-3719d8f3)")
 	cmd.Flags().StringVar(&featureID, "feature", "", "Feature ID to work on (e.g., feat-15c458aa)")
 	cmd.Flags().StringVar(&worktreePath, "worktree", "", "Explicit worktree path (overrides --track/--feature resolution)")
 	cmd.Flags().StringVar(&workItem, "work-item", "", "Work item ID for attribution prefix (e.g., feat-15c458aa)")
+	cmd.Flags().StringVar(&baseBranch, "base", "", "Base branch for managed worktree (advanced; default: current HEAD)")
 
 	return cmd
 }
@@ -863,6 +867,12 @@ func runCodexInit(yes, dryRun bool) error {
 // brew/curl-install bundled tree.
 func launchCodexDefault(resumeID, trackID, featureID, worktreePath, workItem string, noWorktree, yolo bool, extraArgs []string) error {
 	projectRoot, _ := resolveProjectRoot()
+	// Apply isolation plan and HONOR it (slice-9): a RefuseLaunch plan aborts
+	// before Codex starts. noWorktree here is effectiveInPlace (--in-place || --no-worktree).
+	launchPlan := applyLaunchPlan(projectRoot, workItem, noWorktree, os.Stderr)
+	if err := enforceLaunchPlan(launchPlan, os.Stderr); err != nil {
+		return err
+	}
 	configPath := codexConfigPath()
 
 	// Auto-register the bundled marketplace if not registered.
@@ -919,27 +929,49 @@ func launchCodexDefault(resumeID, trackID, featureID, worktreePath, workItem str
 	}
 
 	// Resolve worktree path.
+	// canonicalProjectRoot detects when CWD is already a linked worktree (slice-3):
+	// returns the canonical main repo root, or "" when in the main worktree.
+	// canonicalRoot is the value injected as WIPNOTE_PROJECT_DIR AND used as the
+	// base for worktree creation — it must always be the canonical main root,
+	// never the linked worktree copy (slice-3 contract).
+	canonicalRoot := projectRoot
+	if c := canonicalProjectRoot(projectRoot); c != "" {
+		canonicalRoot = c
+	}
 	workDir := projectRoot
-	wipnoteRoot := ""
+	wipnoteRoot := canonicalProjectRoot(projectRoot)
+	resolved := false
 	switch {
 	case worktreePath != "":
 		// Explicit path — use as-is; set WIPNOTE_PROJECT_DIR to canonical root.
 		workDir = worktreePath
-		wipnoteRoot = projectRoot
+		wipnoteRoot = canonicalRoot
+		resolved = true
 	case !noWorktree && trackID != "":
-		wt, err := EnsureForTrack(trackID, projectRoot, os.Stdout)
+		wt, err := EnsureForTrack(trackID, canonicalRoot, os.Stdout)
 		if err != nil {
 			return err
 		}
 		workDir = wt
-		wipnoteRoot = projectRoot
+		wipnoteRoot = canonicalRoot
+		resolved = true
 	case !noWorktree && featureID != "":
-		wt, err := EnsureForFeature(featureID, projectRoot, os.Stdout)
+		wt, err := EnsureForFeature(featureID, canonicalRoot, os.Stdout)
 		if err != nil {
 			return err
 		}
 		workDir = wt
-		wipnoteRoot = projectRoot
+		wipnoteRoot = canonicalRoot
+		resolved = true
+	}
+
+	// Honor a managed-worktree plan (slice-9) when no explicit/track/feature
+	// worktree was resolved above. WIPNOTE_PROJECT_DIR stays the canonical root.
+	if wt, werr := resolveManagedWorktree(launchPlan, canonicalRoot, trackID, featureID, workItem, workDir, resolved, os.Stdout); werr != nil {
+		return werr
+	} else if wt != "" && wt != workDir {
+		workDir = wt
+		wipnoteRoot = canonicalRoot
 	}
 
 	fmt.Println("Launching Codex CLI with wipnote context...")
@@ -997,6 +1029,9 @@ func launchCodexContinue(resumeID string, yolo bool, extraArgs []string) error {
 // If a mismatched marketplace is already registered (e.g., from a prior --init),
 // it is removed and replaced with the local path.
 func launchCodexDev(resumeID string, cleanup, dryRun, yolo bool, extraArgs []string) error {
+	// Compute launcher mode for preflight logging/inspection (no behavior change).
+	_ = computeLauncherMode("", true, false)
+
 	// Resolve the local marketplace path relative to the project root.
 	localMarketplace, err := resolveLocalCodexMarketplace()
 	if err != nil {
@@ -1259,6 +1294,23 @@ func execCodex(opts codexLaunchOpts) error {
 	}
 	env = buildCodexOtelEnv(env, otelPort, otelSessionID)
 	env = buildCodexAgentEnv(env)
+
+	// Session-family continuity (slice-4, feat-a225ce7c):
+	// Resolve which family this Codex session belongs to, then inject
+	// WIPNOTE_SESSION_FAMILY_ID so the SessionStart hook can write the DB column.
+	// Also persist the launcher-side state file immediately (concrete write path
+	// that survives even when hooks are not configured).
+	if otelSessionID != "" && effectiveProjDir != "" {
+		isResume := opts.ResumeID != "" || opts.ResumeLast
+		// opts.ResumeID is the Codex-native session ID. It only matches a
+		// wipnote family-index key in the rare case the two coincide; when it
+		// does not, resolveSessionFamilyID falls through to the ordered
+		// most-recent-session family (correct for "resume last").
+		familyID := resolveSessionFamilyID(effectiveProjDir, otelSessionID, opts.ResumeID, isResume)
+		env = setOrReplaceEnv(env, "WIPNOTE_SESSION_FAMILY_ID", familyID)
+		persistLauncherSessionFamily(effectiveProjDir, otelSessionID, "codex", familyID)
+	}
+
 	c.Env = env
 	if workDir != "" {
 		c.Dir = workDir
