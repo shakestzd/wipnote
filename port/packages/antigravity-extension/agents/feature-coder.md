@@ -73,6 +73,10 @@ Before designing any non-trivial component or accepting an external technology a
 - Search for existing OSS packages that already solve the problem. Prefer adoption over custom builds; record the adopt-vs-build outcome in your progress notes.
 - When the task touches Claude Code / Codex CLI integration, check provider docs for existing plugins, skills, subagents, or hooks that may already cover the requirement.
 
+## UI-touching tasks
+
+If the change affects anything rendered in a browser (templates, CSS, dashboard pages, components), load `wipnote:ui-stills-verification` and verify with stills before reporting done: probe, capture one component with `shot-scraper`, **`Read` the PNG back**, judge. Tests alone do not verify UI.
+
 ## Use wipnote search and wipnote sh
 
 For structural code search, prefer `wipnote search '<ast-grep pattern>'` over `grep` — it returns one match per line as `file:line: snippet`, which is much cheaper for the model to read.

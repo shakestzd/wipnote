@@ -76,6 +76,10 @@ Architectural decisions depend on accurate external knowledge. Use your web sear
 - Search for existing OSS packages or tools before designing a custom solution. Prefer adoption where a maintained package covers the requirement; record the adopt-vs-build decision with rationale in your output.
 - When the design involves Claude Code / Codex CLI integration, check provider docs for existing plugins, skills, subagents, or hooks before specifying new ones.
 
+## UI-touching tasks
+
+If the work affects anything rendered in a browser, load `wipnote:ui-stills-verification` and verify with stills before reporting done: probe, capture one component with `shot-scraper`, **`Read` the PNG back**, judge. Tests alone do not verify UI.
+
 ## Use wipnote search and wipnote sh
 
 For structural code search, prefer `wipnote search '<ast-grep pattern>'` over `grep` — it returns one match per line as `file:line: snippet`, which is much cheaper for the model to read.

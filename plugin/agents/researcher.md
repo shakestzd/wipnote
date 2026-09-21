@@ -77,16 +77,28 @@ Form a hypothesis from evidence, then test it with one targeted change. Implemen
 
 ## Mode 3: Visual QA
 
-After UI changes, before marking done:
+After UI changes, before marking done. **Default method: stills via `shot-scraper`** — load
+`wipnote:ui-stills-verification` (the `Skill` tool) and follow it. It is headless, needs no
+extension or browser session, and is the method to use whenever `mcp__claude-in-chrome__computer`
+is unavailable (which is the common case for dispatched subagents and every non-Claude harness).
+Use the Chrome MCP only when it is actually available and the task needs live interaction that
+`--javascript` driving cannot reproduce.
 
 1. **Determine target URL** — provided URL, or auto-detect by probing common dev ports.
-2. **Navigate** — `mcp__claude-in-chrome__computer` with `action=navigate`.
-3. **Discover pages** — find nav links and menu items.
-4. **Screenshot** each page — save to `ui-review/<name>.png`.
-5. **Analyze** — layout, readability, data correctness, visual hierarchy, responsiveness.
-6. **Report** with severity ratings.
+2. **Probe** — `shot-scraper javascript URL "…"` to list headings/panels (wait inside the
+   expression; there is no `--wait` on this subcommand). Never guess selectors.
+3. **Discover pages** — nav links and menu items, from the probe output.
+4. **Capture one component at a time** — `shot-scraper shot URL -o ui-review/<name>.png
+   --width 1440 --wait 8000 --selector '#target' --javascript "…tag it…"`; use `--height`
+   for viewport shots so you never get an unreadable full-page image.
+5. **Read every PNG back** — `Read /abs/path/ui-review/<name>.png`. A screenshot you have
+   not opened with the image tool is not evidence and must not appear in the report.
+6. **Analyze** — layout, readability, data correctness, visual hierarchy, responsiveness.
+7. **Report** with severity ratings, one judgement per image written after the read-back.
 
 Severity: **CRITICAL** (broken/data missing), **MAJOR** (significant layout/usability issue), **MINOR** (polish), **OK**.
+
+Never capture real user data into a saved still — use a sample profile or seeded fixtures.
 
 ## Anti-patterns to avoid
 
