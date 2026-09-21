@@ -16,7 +16,10 @@ func planReopenCmd() *cobra.Command {
 		Short: "Unlock a finalized plan so slices can be edited",
 		Long: `Reopen a finalized plan by setting its status back to 'todo'.
 Promoted features are NOT deleted — they have their own lifecycle.
-Adding or editing slices after reopen will create NEW features on the next finalize.
+On the next finalize-yaml, slices that already have a feature_id keep their
+existing feature; only newly added slices get a new feature. Editing a slice
+does not rewrite its feature (features are independent work items once
+created). Use 'finalize-yaml --regenerate' to mint fresh features instead.
 
 Example:
   wipnote plan reopen plan-a1b2c3d4`,
@@ -30,7 +33,7 @@ Example:
 				return err
 			}
 			fmt.Printf("Plan %s reopened (status: todo).\n", args[0])
-			fmt.Println("Warning: promoted features are not deleted; editing slices will create NEW features on next finalize.")
+			fmt.Println("Note: promoted features are kept and reused on the next finalize; only newly added slices create features (use finalize-yaml --regenerate to mint fresh ones).")
 			return nil
 		},
 	}
