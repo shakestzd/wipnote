@@ -345,35 +345,17 @@ func NormaliseSessionID(raw string) string {
 //  1. CloudEvent session_id (always correct for hook invocations)
 //  2. Harness-native live ID (CODEX_THREAD_ID / GEMINI_SESSION_ID /
 //     ANTIGRAVITY_SESSION_ID), preferred over WIPNOTE_SESSION_ID when a
-//     non-Claude harness launcher is detected via WIPNOTE_HARNESS, because
-//     WIPNOTE_SESSION_ID may carry a stale ID inherited from a parent Claude
-//     orchestrator shell (issue #144). Delegates to agent.HarnessNativeEnvSessionID.
+//     non-Claude harness is detected, because WIPNOTE_SESSION_ID may carry a
+//     stale ID inherited from a parent Claude orchestrator shell (issue #144).
 //  3. WIPNOTE_SESSION_ID env var (for CLI commands without a CloudEvent)
-//  4. .wipnote/.active-session file (last resort for edge cases)
+//  4. .wipnote/.active-session file, only when written by this harness or
+//     untagged (issue #148)
+//
+// It is a thin wrapper over ResolveSessionID (session_resolve.go), the single
+// resolver shared with `wipnote who` and `wipnote <type> start`.
 func EnvSessionID(eventSessionID string) string {
-	// CloudEvent session_id is always correct for this hook invocation.
-	// It takes priority over the env var, which can be overwritten by a
-	// concurrent subagent's writeEnvVars call.
-	if sid := agent.NormaliseSessionID(eventSessionID); sid != "" {
-		return sid
-	}
-	// Prefer harness-native live ID over a (possibly stale) WIPNOTE_SESSION_ID.
-	if v := agent.HarnessNativeEnvSessionID(); v != "" {
-		return v
-	}
-	// Env var fallback — used by CLI commands that don't have a CloudEvent.
-	if v := os.Getenv("WIPNOTE_SESSION_ID"); v != "" {
-		return v
-	}
-	// Last resort: .active-session file.
-	cwd, _ := os.Getwd()
-	projectDir := ResolveProjectDir(cwd, "")
-	if projectDir != "" {
-		if as := ReadActiveSession(projectDir); as != nil && as.SessionID != "" {
-			return as.SessionID
-		}
-	}
-	return ""
+	id, _ := ResolveSessionID(eventSessionID)
+	return id
 }
 
 // resolveSessionIDWithHarness resolves the session ID using harness-aware logic.

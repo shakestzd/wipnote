@@ -96,24 +96,67 @@ func NormaliseSessionID(raw string) string {
 	return raw
 }
 
+// Harness name constants shared by DetectEnvHarness and its callers. They
+// match the closed enum the SessionStart hook accepts for WIPNOTE_HARNESS.
+const (
+	HarnessClaude      = "claude"
+	HarnessCodex       = "codex"
+	HarnessGemini      = "gemini"
+	HarnessAntigravity = "antigravity"
+)
+
+// DetectEnvHarness returns the harness the CURRENT process is running under,
+// or "" when nothing in the environment identifies one.
+//
+// Precedence:
+//  1. WIPNOTE_HARNESS — stamped by every wipnote launcher and authoritative,
+//     because a nested launch (Codex task → `wipnote claude`) inherits the
+//     parent harness's native variables (CODEX_THREAD_ID) alongside its own.
+//  2. CLAUDE_CODE_ENTRYPOINT / CLAUDECODE / CLAUDE_CODE — set by Claude Code in
+//     every hook invocation and Bash tool shell.
+//  3. CODEX_THREAD_ID → GEMINI_SESSION_ID → ANTIGRAVITY_SESSION_ID — the
+//     harness-native identity variables, which a plugin-only session (no
+//     wipnote launcher, e.g. a Codex desktop task) exposes without any
+//     WIPNOTE_HARNESS stamp (issue #148).
+func DetectEnvHarness() string {
+	switch h := strings.ToLower(strings.TrimSpace(os.Getenv("WIPNOTE_HARNESS"))); h {
+	case HarnessClaude, HarnessCodex, HarnessGemini, HarnessAntigravity:
+		return h
+	}
+	if os.Getenv("CLAUDE_CODE_ENTRYPOINT") != "" || os.Getenv("CLAUDECODE") != "" || os.Getenv("CLAUDE_CODE") != "" {
+		return HarnessClaude
+	}
+	if strings.TrimSpace(os.Getenv("CODEX_THREAD_ID")) != "" {
+		return HarnessCodex
+	}
+	if strings.TrimSpace(os.Getenv("GEMINI_SESSION_ID")) != "" {
+		return HarnessGemini
+	}
+	if strings.TrimSpace(os.Getenv("ANTIGRAVITY_SESSION_ID")) != "" {
+		return HarnessAntigravity
+	}
+	return ""
+}
+
 // HarnessNativeEnvSessionID returns the live session/thread ID stamped by the
-// current harness launcher. WIPNOTE_HARNESS is set to the harness name by the
-// wipnote launcher (codex, gemini, antigravity). When a non-Claude harness is
-// detected, the harness-native ID is preferred over WIPNOTE_SESSION_ID because
-// the latter may be inherited (stale) from a parent Claude orchestrator shell
-// (issue #144). Returns "" when no harness-native ID is found, or when running
-// under Claude (where WIPNOTE_SESSION_ID is always current via writeEnvVars).
+// current harness. The harness comes from DetectEnvHarness: the launcher's
+// WIPNOTE_HARNESS stamp first, then the harness's own environment markers, so
+// a plugin-only Codex desktop task (no wipnote launcher) still resolves its
+// CODEX_THREAD_ID (issue #148). When a non-Claude harness is detected, the
+// harness-native ID is preferred over WIPNOTE_SESSION_ID because the latter may
+// be inherited (stale) from a parent Claude orchestrator shell (issue #144).
+// Returns "" when no harness-native ID is found, or when running under Claude
+// (where WIPNOTE_SESSION_ID is always current via writeEnvVars).
 //
 // Precedence: CODEX_THREAD_ID → GEMINI_SESSION_ID → ANTIGRAVITY_SESSION_ID
-// depending on the value of WIPNOTE_HARNESS.
+// depending on the detected harness.
 func HarnessNativeEnvSessionID() string {
-	harness := strings.ToLower(strings.TrimSpace(os.Getenv("WIPNOTE_HARNESS")))
-	switch harness {
-	case "codex":
+	switch DetectEnvHarness() {
+	case HarnessCodex:
 		return strings.TrimSpace(os.Getenv("CODEX_THREAD_ID"))
-	case "gemini":
+	case HarnessGemini:
 		return strings.TrimSpace(os.Getenv("GEMINI_SESSION_ID"))
-	case "antigravity":
+	case HarnessAntigravity:
 		return strings.TrimSpace(os.Getenv("ANTIGRAVITY_SESSION_ID"))
 	}
 	return ""

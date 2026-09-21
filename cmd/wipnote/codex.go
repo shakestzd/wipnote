@@ -782,7 +782,7 @@ func promptYesNo(question string, yes bool) bool {
 
 // codexCmd returns the cobra command for `wipnote codex`.
 func codexCmd() *cobra.Command {
-	var init_, continue_, dev, cleanup, dryRun, yes, noWorktree, inPlace, yolo bool
+	var init_, continue_, dev, cleanup, dryRun, yes, noWorktree, inPlace, yolo, allowNonInteractive bool
 	var resumeID, trackID, featureID, worktreePath, workItem, baseBranch string
 
 	cmd := &cobra.Command{
@@ -802,6 +802,15 @@ Modes:
 
 Session IDs come from ~/.codex/session_index.jsonl.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// --init only installs the marketplace and --dry-run only prints;
+			// every other mode execs an interactive Codex TUI, so refuse a
+			// non-TTY stdin BEFORE any launch marker, serve/collector spawn,
+			// worktree or session write happens (issue #148).
+			if !init_ && !dryRun {
+				if err := requireInteractiveLaunch(harnessCodex, allowNonInteractive, args); err != nil {
+					return err
+				}
+			}
 			switch {
 			case init_:
 				return runCodexInit(yes, dryRun)
@@ -834,6 +843,8 @@ Session IDs come from ~/.codex/session_index.jsonl.`,
 	cmd.Flags().StringVar(&worktreePath, "worktree", "", "Explicit worktree path (overrides --track/--feature resolution)")
 	cmd.Flags().StringVar(&workItem, "work-item", "", "Work item ID for attribution prefix (e.g., feat-15c458aa)")
 	cmd.Flags().StringVar(&baseBranch, "base", "", "Base branch for managed worktree (advanced; default: current HEAD)")
+	cmd.Flags().BoolVar(&allowNonInteractive, allowNonInteractiveFlag, false,
+		"Launch even when stdin is not a terminal (default: refuse; env "+allowNonTTYEnv+"=1 is equivalent)")
 
 	return cmd
 }

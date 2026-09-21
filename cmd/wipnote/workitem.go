@@ -261,7 +261,10 @@ func wiCompleteCmd(typeName string) *cobra.Command {
 }
 
 func runWiSetStatus(typeName, id, status string) error {
-	sessionID := hooks.EnvSessionID("")
+	// Shared resolver: the same one `wipnote who` prints and the PreToolUse
+	// gate enforces against, so a claim can never bind to a session the hook
+	// will not recognise (issue #148).
+	sessionID, _ := hooks.ResolveSessionID("")
 	agentID := dbpkg.NormaliseAgentID(os.Getenv("WIPNOTE_AGENT_ID"))
 	return wiSetStatusWithAgent(typeName, id, status, sessionID, agentID)
 }
