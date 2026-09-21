@@ -74,21 +74,11 @@ func runLinkCommit(typeName, itemID, sha string) error {
 
 	repoRoot := filepath.Dir(wipnoteDir)
 
-	// Resolve the full SHA and extract commit metadata from git.
-	fullHash, msg, ts, err := resolveCommitFromRepo(repoRoot, sha)
-	if err != nil {
-		return fmt.Errorf("resolve commit %s: %w", sha, err)
-	}
-
-	// Idempotency check reads the canonical file directly: AddEdge appends
-	// unconditionally, so without this a re-run would stack duplicate edges.
+	// The idempotency check reads the canonical file directly: AddEdge appends
+	// unconditionally, so without it a re-run would stack duplicate edges.
 	node, err := htmlparse.ParseFile(nodePath)
 	if err != nil {
 		return fmt.Errorf("read %s: %w", resolvedID, err)
-	}
-	if hasCommitEdge(node, fullHash) {
-		fmt.Printf("Already linked: %s → %s (skipped)\n", truncate(fullHash, 12), resolvedID)
-		return nil
 	}
 
 	p, err := workitem.Open(wipnoteDir, "claude-code")
@@ -102,18 +92,41 @@ func runLinkCommit(typeName, itemID, sha string) error {
 		return fmt.Errorf("cannot determine collection for %s (%s)", resolvedID, typeName)
 	}
 
+	fullHash, msg, added, err := writeCommitEdge(col, node, resolvedID, repoRoot, sha)
+	if err != nil {
+		return err
+	}
+	if !added {
+		fmt.Printf("Already linked: %s → %s (skipped)\n", truncate(fullHash, 12), resolvedID)
+		return nil
+	}
+	fmt.Printf("Linked: %s → %s\n  message: %s\n", truncate(fullHash, 12), resolvedID, msg)
+	return nil
+}
+
+// writeCommitEdge is the single committed_in edge writer, shared by
+// `link-commit` and the auto-link step of completion (bug-0816b822). It
+// resolves sha against the repo, skips when node already carries the edge,
+// and otherwise appends it to itemID's canonical HTML. Returns the full hash,
+// the commit subject, and whether an edge was written.
+func writeCommitEdge(col edgeCollection, node *models.Node, itemID, repoRoot, sha string) (fullHash, msg string, added bool, err error) {
+	fullHash, msg, ts, err := resolveCommitFromRepo(repoRoot, sha)
+	if err != nil {
+		return "", "", false, fmt.Errorf("resolve commit %s: %w", sha, err)
+	}
+	if hasCommitEdge(node, fullHash) {
+		return fullHash, msg, false, nil
+	}
 	edge := models.Edge{
 		TargetID:     fullHash,
 		Relationship: RelCommittedIn,
 		Title:        msg,
 		Since:        ts,
 	}
-	if _, addErr := col.AddEdge(resolvedID, edge); addErr != nil {
-		return fmt.Errorf("link commit %s to %s: %w", truncate(fullHash, 10), resolvedID, addErr)
+	if _, addErr := col.AddEdge(itemID, edge); addErr != nil {
+		return fullHash, msg, false, fmt.Errorf("link commit %s to %s: %w", truncate(fullHash, 10), itemID, addErr)
 	}
-
-	fmt.Printf("Linked: %s → %s\n  message: %s\n", truncate(fullHash, 12), resolvedID, msg)
-	return nil
+	return fullHash, msg, true, nil
 }
 
 // hasCommitEdge reports whether node already declares a committed_in edge to

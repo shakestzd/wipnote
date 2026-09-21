@@ -276,6 +276,9 @@ the orchestrator will resolve merge conflicts after all agents complete:
 ## TDD Protocol
 Follow the TDD protocol from /wipnote:tdd-protocol — write failing tests first, run quality gates (`go build && go vet && go test`), commit per the documented format, attribute via `wipnote feature start` / `complete`.
 
+## Commit Message Convention
+Name the work item in every commit: put `{feature_id}` in the subject (`fix({feature_id}): …`, `{feature_id}: …`, or `… ({feature_id})`) or in a `Refs: {feature_id}` / `Fixes: {feature_id}` trailer. `wipnote feature complete` links those commits to the item automatically as `committed_in` edges and the provenance gate passes on them — no `--accepted-advisory` and no manual `link-commit` after merge. A commit that omits the id must be linked by hand: `wipnote feature link-commit {feature_id} <sha>`.
+
 Report: files changed, lines added, tests passing, test names.
 ```
 

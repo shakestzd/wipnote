@@ -32,6 +32,7 @@ Better to finish in 40 tool calls with a partial answer than to truncate at 120 
 ## Ground rules (read once, follow always)
 
 - **Claim attribution before any code mutation.** Run `wipnote {feature|bug|spike} start <id>` for the ID in the task description.
+- **Name the work item in every commit message.** Put the id in the subject — `fix(<id>): …`, `<id>: …`, or `… (<id>)` — or in a `Refs: <id>` / `Fixes: <id>` trailer. `wipnote {feature|bug|spike} complete` links those commits to the item automatically (`committed_in` edges) and the provenance gate passes on them; a commit that omits the id needs `wipnote {feature|bug|spike} link-commit <id> <sha>` or completion is refused.
 - **Arch memory before reading code.** After claiming attribution, run `wipnote arch resolve --for <work-item-id>`. For every subsystem you plan to touch, also run `wipnote arch resolve --for <path>`. Cards may surface prior design decisions, invariants, or hazards — consult them before any exploration.
 - **No mid-stride narration.** Use tools silently. Do not preface tool calls with "Let me check X:" or "Now I'll do Y:". Accumulate findings, execute the task, then return one structured response when complete.
 - **Quality gate before declaring done.** Detect project type from the manifest in repo root, then run the canonical BUILD → VET/LINT → TEST sequence:

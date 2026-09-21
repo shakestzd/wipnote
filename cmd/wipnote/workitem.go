@@ -420,6 +420,12 @@ func wiSetStatusWithAgent(typeName, id, status, sessionID, agentID string) error
 	// When completing a work item, clear active_work_items and the legacy
 	// active_feature_id on any session still pointing at it.
 	if status == "done" {
+		// Persist the commits whose messages name this item as committed_in
+		// edges, BEFORE the artifact commit below so the durable record carries
+		// them (bug-0816b822). Non-fatal.
+		if shouldAutocommitWorkitemArtifact(typeName) {
+			autoLinkMessageDerivedCommits(os.Stderr, col, filepath.Dir(dir), id)
+		}
 		if sessionID != "" {
 			// Close the claim episode in place, giving the interval its end.
 			recordClaimEpisodeClose(nil, dir, sessionID, agentID, id, claimledger.OutcomeCompleted)
