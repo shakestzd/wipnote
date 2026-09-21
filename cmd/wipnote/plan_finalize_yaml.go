@@ -27,7 +27,8 @@ type planAmendment struct {
 
 // planFinalizeYAMLCmd creates track + features from approved slices in a YAML plan.
 func planFinalizeYAMLCmd() *cobra.Command {
-	return &cobra.Command{
+	var regenerate bool
+	cmd := &cobra.Command{
 		Use:   "finalize-yaml <plan-id>",
 		Short: "Create track and features from approved YAML plan slices (dashboard flow)",
 		Long: `Read a YAML plan + SQLite plan_feedback approvals, create a track and
@@ -41,27 +42,35 @@ when one does not yet exist.
 For the simpler hierarchy-only flow that requires an existing track and
 promotes every slice unconditionally, use 'plan finalize' instead.
 
+Re-finalizing after 'plan reopen' is additive: slices that already carry a
+feature_id keep their feature (like promote-slice), and only slices without
+one get a new feature. Pass --regenerate to mint fresh features for every
+approved slice instead (the old features are left on the track, not deleted).
+
 Example:
   wipnote plan finalize-yaml plan-a1b2c3d4`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
-			return runFinalizeYAML(args[0])
+			return runFinalizeYAML(args[0], finalizeYAMLOptions{Regenerate: regenerate})
 		},
 	}
+	cmd.Flags().BoolVar(&regenerate, "regenerate", false,
+		"create NEW features for every approved slice even if it already has a feature_id (old features are orphaned, not deleted)")
+	return cmd
 }
 
-func runFinalizeYAML(planID string) error {
+func runFinalizeYAML(planID string, opts finalizeYAMLOptions) error {
 	wipnoteDir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}
-	return finalizeYAML(wipnoteDir, planID)
+	return finalizeYAML(wipnoteDir, planID, opts)
 }
 
 // finalizeYAML is the testable inner implementation of runFinalizeYAML.
 // It takes an explicit wipnoteDir rather than resolving it from the environment.
-func finalizeYAML(wipnoteDir, planID string) error {
-	featIDs, _, err := finalizeYAMLCanonical(wipnoteDir, planID)
+func finalizeYAML(wipnoteDir, planID string, opts finalizeYAMLOptions) error {
+	featIDs, _, err := finalizeYAMLCanonicalOpts(wipnoteDir, planID, opts)
 	if err != nil {
 		return err
 	}
@@ -92,7 +101,13 @@ func finalizeYAML(wipnoteDir, planID string) error {
 	return nil
 }
 
+// finalizeYAMLCanonical is finalizeYAMLCanonicalOpts with the default
+// (feature-reusing) options.
 func finalizeYAMLCanonical(wipnoteDir, planID string) (createdIDs []string, failures []finalizeFailure, err error) {
+	return finalizeYAMLCanonicalOpts(wipnoteDir, planID, finalizeYAMLOptions{})
+}
+
+func finalizeYAMLCanonicalOpts(wipnoteDir, planID string, opts finalizeYAMLOptions) (createdIDs []string, failures []finalizeFailure, err error) {
 	planPath := filepath.Join(wipnoteDir, "plans", planID+".yaml")
 
 	// Hold the lock across the whole load→mutate→save window (defect 4,
@@ -135,7 +150,11 @@ func finalizeYAMLCanonical(wipnoteDir, planID string) (createdIDs []string, fail
 	if err != nil {
 		return nil, nil, err
 	}
-	numToFeat, failures := createApprovedPlanFeatures(p, plan, track, approvals, answers)
+	priorIDs := sliceFeatureIDsByNum(plan.Slices)
+	numToFeat, failures := createApprovedPlanFeatures(p, plan, track, approvals, answers, opts.Regenerate)
+	if opts.Regenerate {
+		warnRegeneratedFeatures(priorIDs, numToFeat)
+	}
 	linkPlanFinalizationEdges(p, planID, track.ID, plan.Slices, numToFeat)
 	if saveErr := saveFinalizedPlan(planPath, plan, track.ID, approvals, numToFeat); saveErr != nil {
 		return nil, failures, saveErr
@@ -340,17 +359,26 @@ func ensurePlanTrack(p *workitem.Project, plan *planyaml.PlanYAML) (*models.Node
 	return track, nil
 }
 
+// createApprovedPlanFeatures resolves a feature for every approved slice.
+// A slice whose feature_id still points at an existing feature keeps it
+// (promote-slice Rule 3, GH-#116) unless regenerate is set; only slices
+// without a live feature get one created.
 func createApprovedPlanFeatures(
 	p *workitem.Project,
 	plan *planyaml.PlanYAML,
 	track *models.Node,
 	approvals map[string]bool,
 	answers map[string]string,
+	regenerate bool,
 ) (map[int]finalizedFeature, []finalizeFailure) {
 	numToFeat := map[int]finalizedFeature{}
 	var failures []finalizeFailure
 	for _, s := range plan.Slices {
 		if !approvals[fmt.Sprintf("slice-%d", s.Num)] {
+			continue
+		}
+		if existing := reusableSliceFeature(p, s.FeatureID, regenerate); existing != nil {
+			numToFeat[s.Num] = *existing
 			continue
 		}
 		content := buildFeatureContent(s.What, plan.Questions, answers)
@@ -377,7 +405,9 @@ func linkPlanFinalizationEdges(
 	slices []planyaml.PlanSlice,
 	numToFeat map[int]finalizedFeature,
 ) {
-	p.Plans.AddEdge(planID, models.Edge{TargetID: trackID, Relationship: models.RelImplementedIn, Title: trackID, Since: time.Now().UTC()})
+	// Idempotent: reused features (finalize after reopen) already carry these
+	// edges, and Node.AddEdge appends unconditionally.
+	addPlanEdgeOnce(p, planID, models.Edge{TargetID: trackID, Relationship: models.RelImplementedIn, Title: trackID, Since: time.Now().UTC()})
 	for _, s := range slices {
 		cf, ok := numToFeat[s.Num]
 		if !ok {
@@ -385,7 +415,7 @@ func linkPlanFinalizationEdges(
 		}
 		for _, depNum := range s.Deps {
 			if depCF, ok := numToFeat[depNum]; ok {
-				p.Features.AddEdge(cf.id, models.Edge{TargetID: depCF.id, Relationship: "blocked_by"})
+				addFeatureEdgeOnce(p, cf.id, models.Edge{TargetID: depCF.id, Relationship: "blocked_by"})
 			}
 		}
 	}
