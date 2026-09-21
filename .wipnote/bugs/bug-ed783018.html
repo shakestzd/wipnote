@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Canonical current-session resolution across who/start/hooks; refuse interactive launch on non-TTY</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-ed783018"
+             data-type="bug"
+             data-status="todo"
+             data-priority="high"
+             data-created="2026-09-21T03:21:09.769438"
+             data-updated="2026-09-21T03:21:09.773076" data-agent-assigned="claude-code" data-track-id="trk-99de4f33" data-created-by-cli-version="dev">
+
+        <header>
+            <h1>Canonical current-session resolution across who/start/hooks; refuse interactive launch on non-TTY</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-99de4f33.html" data-relationship="part_of" data-since="2026-09-21T03:21:09.772952">trk-99de4f33</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="false" data-step-id="step-bug-ed783018-0" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Refuse or require an explicit flag for interactive launch in claude.go and codex.go when stdin is not a terminal; abort before any attribution writes on bootstrap failure</li>
+                <li data-completed="false" data-step-id="step-bug-ed783018-1" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Tag .active-session with harness and liveness so EnvSessionID skips entries from a different harness than the caller</li>
+                <li data-completed="false" data-step-id="step-bug-ed783018-2" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Make runWiSetStatus; runWho and checkYoloWorkItemGuard share one resolver and print which source resolved the id</li>
+                <li data-completed="false" data-step-id="step-bug-ed783018-3" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Add an integration test where a Codex payload session plus a stale Claude .active-session results in the Codex session being claimed</li>
+            </ol>
+        </section>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>EnvSessionID in core/hooks/runner.go falls back to .wipnote/.active-session, which any harness SessionStart overwrites via WriteActiveSession, so wipnote bug start and wipnote who can bind claims to a nested launcher&#39;s Claude session while PreToolUse enforces against the payload session id. wipnote claude also launches Claude when stdin and stdout are not TTYs because the TTY check only gates the chooser. Make the resolver canonical by preferring the harness-native or payload id and treating .active-session as harness-tagged and stale-aware, and refuse interactive nested launches when non-interactive. GitHub issue #148.</p>
+        </section>
+    </article>
+</body>
+</html>

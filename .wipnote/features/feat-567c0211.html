@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Orchestrator strict mode: honor orchestrator.json in PreToolUse (Skill and non-whitelisted tools)</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-567c0211"
+             data-type="feature"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-09-21T03:21:10.086412"
+             data-updated="2026-09-21T03:21:10.089973" data-agent-assigned="claude-code" data-track-id="trk-99de4f33" data-created-by-cli-version="dev">
+
+        <header>
+            <h1>Orchestrator strict mode: honor orchestrator.json in PreToolUse (Skill and non-whitelisted tools)</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-99de4f33.html" data-relationship="part_of" data-since="2026-09-21T03:21:10.089863">trk-99de4f33</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="false" data-step-id="step-feat-567c0211-0" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Move orchestratorConfig loading from cmd/wipnote/orchestrator.go into core/hooks and load it in the PreToolUse tool-use context</li>
+                <li data-completed="false" data-step-id="step-feat-567c0211-1" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Add checkOrchestratorStrictGuard for non-subagent sessions covering Skill and other non-whitelisted tools with advisory in guidance mode and block in strict mode</li>
+                <li data-completed="false" data-step-id="step-feat-567c0211-2" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Persist the violation count and escalate from warn to block at max_violations; reset on orchestrator enable</li>
+                <li data-completed="false" data-step-id="step-feat-567c0211-3" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Add tests in core/hooks/pretooluse_test.go for whitelist; escalation threshold; subagent exemption and guidance-mode no-op</li>
+            </ol>
+        </section>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>wipnote orchestrator enable --strict writes .wipnote/orchestrator.json (mode, violations, max_violations) but no hook reads it: the PreToolUse hook (core/hooks/pretooluse.go) never sees the Skill tool and only debug-logs orchestrator write violations, so strict mode is a no-op for Skill, Bash, Read and Edit from the root session. Load the config in the PreToolUse tool-use context and, for non-subagent sessions in strict mode, warn via additionalContext on non-whitelisted tools (Task, AskUserQuestion, TodoWrite, TaskCreate/Update and Bash wipnote invocations are whitelisted), count violations in orchestrator.json, and block with a delegate-via-Task message once max_violations is reached. Keep the bug-c8ac6a11 rescue path whitelisted. GitHub issues #19 and #20.</p>
+        </section>
+    </article>
+</body>
+</html>

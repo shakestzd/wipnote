@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Sub-agent commit-on-main guard inert: ParentSessionID never resolved from canonical state</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-2e5081b4"
+             data-type="bug"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-09-21T03:22:54.867393"
+             data-updated="2026-09-21T03:22:54.871179" data-agent-assigned="claude-code" data-track-id="trk-99de4f33" data-created-by-cli-version="dev">
+
+        <header>
+            <h1>Sub-agent commit-on-main guard inert: ParentSessionID never resolved from canonical state</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-99de4f33.html" data-relationship="part_of" data-since="2026-09-21T03:22:54.87103">trk-99de4f33</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="false" data-step-id="step-bug-2e5081b4-0" data-agent="claude-code" data-created-by-agent="claude-code">⏳ In resolveToolUseContext backfill parentSessionID from agent.SessionFamilyFor or WIPNOTE_PARENT_SESSION when the projection row is nil</li>
+                <li data-completed="false" data-step-id="step-bug-2e5081b4-1" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Alternatively gate checkSubagentCommitGuard on ctx.IsSubagent or family-root differing from session</li>
+                <li data-completed="false" data-step-id="step-bug-2e5081b4-2" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Add a pretooluse-level test with the ephemeral projection plus session-families.json proving a subagent git commit on main is blocked</li>
+            </ol>
+        </section>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>checkSubagentCommitGuard (core/hooks/worktree_commit_guard.go) gates on ctx.ParentSessionID, which resolveToolUseContext reads from the sessions table of the empty hook projection introduced by feat-fc3cc9e0, so the GitHub #88 protection against subagents committing on main silently never fires in a real session. Subagent identity is already available without the DB via isSubagentEvent and the family root via agent.SessionFamilyFor.</p>
+        </section>
+    </article>
+</body>
+</html>

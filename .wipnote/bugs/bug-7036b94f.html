@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>YOLO subagent work-item guard ignores canonical claim ledger (parent-chain walk inert)</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-7036b94f"
+             data-type="bug"
+             data-status="todo"
+             data-priority="high"
+             data-created="2026-09-21T03:22:54.833265"
+             data-updated="2026-09-21T03:22:54.837365" data-agent-assigned="claude-code" data-track-id="trk-99de4f33" data-created-by-cli-version="dev">
+
+        <header>
+            <h1>YOLO subagent work-item guard ignores canonical claim ledger (parent-chain walk inert)</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-99de4f33.html" data-relationship="part_of" data-since="2026-09-21T03:22:54.837214">trk-99de4f33</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="false" data-step-id="step-bug-7036b94f-0" data-agent="claude-code" data-created-by-agent="claude-code">⏳ In pretooluse.go replace the getClaimFromParentChain DB walk with canonicalOpenClaim using the family root from agent.SessionFamilyFor to populate claimedItem and hasAgentClaim</li>
+                <li data-completed="false" data-step-id="step-bug-7036b94f-1" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Make checkYoloSubagentGrace derive the parent and parent-has-claim from the session-family index and claim ledger instead of the sessions and claims tables</li>
+                <li data-completed="false" data-step-id="step-bug-7036b94f-2" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Add a pretooluse test that seeds .wipnote/claims for the root session; opens the ephemeral projection and asserts a subagent Write is allowed in YOLO mode</li>
+                <li data-completed="false" data-step-id="step-bug-7036b94f-3" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Delete or canonicalise getClaimFromParentChain so the dead path cannot be reintroduced</li>
+            </ol>
+        </section>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Since feat-fc3cc9e0 the PreToolUse hook opens an empty in-memory projection (OpenHookDBReadOnly in core/hooks/dbgate.go), so getClaimFromParentChain and ctx.ClaimedItem from core/hooks/tooluse_shared.go are always empty. checkYoloWorkItemGuard was repaired via canonicalOpenClaim (bug-369da005) but checkSubagentWorkItemGuard and checkYoloSubagentGrace in core/hooks/pretooluse.go still depend on the dead DB path, so a worktree subagent Write or Edit in YOLO mode is blocked with no claimed work item regardless of the orchestrator&#39;s claim, re-creating the GitHub #87 symptom through a different dead read.</p>
+        </section>
+    </article>
+</body>
+</html>

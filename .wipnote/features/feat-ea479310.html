@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Add a ui-stills-verification skill (probe, capture, read back) for coder and researcher agents</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-ea479310"
+             data-type="feature"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-09-21T03:21:10.116128"
+             data-updated="2026-09-21T03:21:10.119359" data-agent-assigned="claude-code" data-track-id="trk-99de4f33" data-created-by-cli-version="dev">
+
+        <header>
+            <h1>Add a ui-stills-verification skill (probe, capture, read back) for coder and researcher agents</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-99de4f33.html" data-relationship="part_of" data-since="2026-09-21T03:21:10.11925">trk-99de4f33</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="false" data-step-id="step-feat-ea479310-0" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Create plugin/skills/ui-stills-verification/SKILL.md with the methodology including the mandatory read-back step and no-real-data note</li>
+                <li data-completed="false" data-step-id="step-feat-ea479310-1" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Update plugin/agents/researcher.md to prefer shot-scraper when no browser MCP is available and point coder agents at the skill for UI-touching tasks</li>
+                <li data-completed="false" data-step-id="step-feat-ea479310-2" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Optionally add a guard-profile advisory when the diff touches web-UI paths</li>
+                <li data-completed="false" data-step-id="step-feat-ea479310-3" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Run wipnote plugin build-ports and add a test that the skill lands in all targets</li>
+            </ol>
+        </section>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>No wipnote skill or agent teaches the probe, capture-one-component, read-the-PNG-back, judge loop; the researcher agent&#39;s visual-QA mode in plugin/agents/researcher.md assumes a Chrome MCP with no headless fallback. Add plugin/skills/ui-stills-verification/SKILL.md from the methodology in the issue, reference it from the coder agents and the researcher&#39;s visual-QA mode as the headless default, and regenerate the port trees. GitHub issue #165.</p>
+        </section>
+    </article>
+</body>
+</html>

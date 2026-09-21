@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>TaskCreated hook attaches orchestrator steps to unrelated active work item</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-664276df"
+             data-type="bug"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-09-21T03:21:09.937133"
+             data-updated="2026-09-21T03:21:09.940231" data-agent-assigned="claude-code" data-track-id="trk-99de4f33" data-created-by-cli-version="dev">
+
+        <header>
+            <h1>TaskCreated hook attaches orchestrator steps to unrelated active work item</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-99de4f33.html" data-relationship="part_of" data-since="2026-09-21T03:21:09.94011">trk-99de4f33</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="false" data-step-id="step-bug-664276df-0" data-agent="claude-code" data-created-by-agent="claude-code">⏳ In TaskCreated extract a work-item ID from the task subject/description and only call addTaskStep when one is found</li>
+                <li data-completed="false" data-step-id="step-bug-664276df-1" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Add an opt-out such as WIPNOTE_TASK_STEPS=off honoured by TaskCreated and TaskCompleted</li>
+                <li data-completed="false" data-step-id="step-bug-664276df-2" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Mirror the same resolution rule in TaskCompleted</li>
+                <li data-completed="false" data-step-id="step-bug-664276df-3" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Add tests in core/hooks covering an unrelated-subject task producing no step</li>
+            </ol>
+        </section>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>core/hooks/missing_events.go TaskCreated mirrors every Claude TaskCreate as a step on the session&#39;s active work item (cachedGetActiveFeatureID), so orchestrator process tasks like Draft the plan YAML land on whatever bug or feature was last started and its step counter never advances. Step attachment should require an explicit target (a work-item ID in the task subject or description) or be skipped when the task cannot be attributed, while still recording the agent_event. GitHub issue #169.</p>
+        </section>
+    </article>
+</body>
+</html>

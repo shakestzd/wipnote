@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Store guard: block git add/rm/mv of .wipnote/ and stop matching heredoc or string mentions</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-f6bf6761"
+             data-type="bug"
+             data-status="todo"
+             data-priority="high"
+             data-created="2026-09-21T03:21:09.559579"
+             data-updated="2026-09-21T03:21:09.563634" data-agent-assigned="claude-code" data-track-id="trk-99de4f33" data-created-by-cli-version="dev">
+
+        <header>
+            <h1>Store guard: block git add/rm/mv of .wipnote/ and stop matching heredoc or string mentions</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-99de4f33.html" data-relationship="part_of" data-since="2026-09-21T03:21:09.563482">trk-99de4f33</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="false" data-step-id="step-bug-f6bf6761-0" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Split the command with splitShellCommandSegments; drop heredoc bodies and quoted literals; match only argument or redirect targets inside .wipnote/</li>
+                <li data-completed="false" data-step-id="step-bug-f6bf6761-1" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Add a git case blocking add/rm/mv/restore/checkout/stash push against .wipnote/ unless the segment is a wipnote CLI invocation</li>
+                <li data-completed="false" data-step-id="step-bug-f6bf6761-2" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Rewrite TestIsBashwipnoteWrite_DoesNotBypassOnMention and add cases for git add blocked and heredoc mention allowed</li>
+                <li data-completed="false" data-step-id="step-bug-f6bf6761-3" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Confirm commitWipnoteArtifact in cmd/wipnote/workitem_commit.go stays exempt</li>
+            </ol>
+        </section>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>isBashwipnoteWrite in core/hooks/pretooluse.go decides by regex over the whole command string, so git add .wipnote/ followed by git commit passes through and undermines the commit-queue outbox invariant, while any heredoc or quoted text that mentions rm, cp or mv with the store path is blocked. Rework the guard to resolve operation targets per shell segment, strip heredoc bodies and quoted literals before matching, and add an explicit git-subcommand case for path-taking mutations. GitHub issue #180.</p>
+        </section>
+    </article>
+</body>
+</html>

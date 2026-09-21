@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Stop advertising WIPNOTE_GUARDS_OFF in guard block messages and audit its use</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-9ddaf8d7"
+             data-type="bug"
+             data-status="todo"
+             data-priority="high"
+             data-created="2026-09-21T03:21:09.592666"
+             data-updated="2026-09-21T03:21:09.595899" data-agent-assigned="claude-code" data-track-id="trk-99de4f33" data-created-by-cli-version="dev">
+
+        <header>
+            <h1>Stop advertising WIPNOTE_GUARDS_OFF in guard block messages and audit its use</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-99de4f33.html" data-relationship="part_of" data-since="2026-09-21T03:21:09.59576">trk-99de4f33</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="false" data-step-id="step-bug-9ddaf8d7-0" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Delete the GUARDS_OFF sentences from the block messages in pretooluse.go; commit_research_guard.go and yolo_guard.go</li>
+                <li data-completed="false" data-step-id="step-bug-9ddaf8d7-1" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Emit a structured guard_override agent_event plus stderr warning and a note on the active work item in the kill-switch branch</li>
+                <li data-completed="false" data-step-id="step-bug-9ddaf8d7-2" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Gate the env var on an interactive terminal or replace it with a config key</li>
+                <li data-completed="false" data-step-id="step-bug-9ddaf8d7-3" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Document the override and add tests asserting block messages no longer contain GUARDS_OFF</li>
+            </ol>
+        </section>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>The file-overlap, research and commit guards (core/hooks/pretooluse.go, commit_research_guard.go, yolo_guard.go) embed the WIPNOTE_GUARDS_OFF=1 emergency override in the same block message an agent reads, and the kill switch in PreToolUse is honoured silently with no log, agent_event or work-item note. Remove the override from agent-visible text, record every honoured override, and consider requiring a config-file key or interactive TTY instead of a bare env var. GitHub issue #164.</p>
+        </section>
+    </article>
+</body>
+</html>

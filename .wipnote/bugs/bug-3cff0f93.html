@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Auto-flush own deferred intents in check --gate and complete; commit-code-first ritual</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-3cff0f93"
+             data-type="bug"
+             data-status="todo"
+             data-priority="high"
+             data-created="2026-09-21T03:21:09.680481"
+             data-updated="2026-09-21T03:21:09.683868" data-agent-assigned="claude-code" data-track-id="trk-99de4f33" data-created-by-cli-version="dev">
+
+        <header>
+            <h1>Auto-flush own deferred intents in check --gate and complete; commit-code-first ritual</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-99de4f33.html" data-relationship="part_of" data-since="2026-09-21T03:21:09.683749">trk-99de4f33</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="false" data-step-id="step-bug-3cff0f93-0" data-agent="claude-code" data-created-by-agent="claude-code">⏳ In check --gate flush intents scoped to the work item before failing</li>
+                <li data-completed="false" data-step-id="step-bug-3cff0f93-1" data-agent="claude-code" data-created-by-agent="claude-code">⏳ In the deferred complete path attempt a non-fatal inline flush of the item&#39;s intents after enqueue</li>
+                <li data-completed="false" data-step-id="step-bug-3cff0f93-2" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Update plugin/agents/*-coder.md and the system prompt with a commit-implementation-first step</li>
+                <li data-completed="false" data-step-id="step-bug-3cff0f93-3" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Add a test where start then check --gate passes without a manual flush and complete leaves the outbox empty</li>
+            </ol>
+        </section>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>With defer as the default artifact-commit policy, feature start leaves a pending intent that check --gate --work-item refuses on, forcing every subagent to spend extra tool calls on commit-queue flush at task end, and complete then queues yet another intent. Have the gate and complete drain the calling work item&#39;s own intents inline under the existing git lock, and put an explicit commit-source-code-before-bookkeeping step in the coder agents&#39; completion ritual. GitHub issue #160.</p>
+        </section>
+    </article>
+</body>
+</html>

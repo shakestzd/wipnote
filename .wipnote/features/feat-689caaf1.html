@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>wip reset: add --dead, --session &lt;id&gt;, --orphaned and --dry-run scoping flags</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-689caaf1"
+             data-type="feature"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-09-21T03:21:10.147932"
+             data-updated="2026-09-21T03:21:10.151488" data-agent-assigned="claude-code" data-track-id="trk-99de4f33" data-created-by-cli-version="dev">
+
+        <header>
+            <h1>wip reset: add --dead, --session &lt;id&gt;, --orphaned and --dry-run scoping flags</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-99de4f33.html" data-relationship="part_of" data-since="2026-09-21T03:21:10.151377">trk-99de4f33</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="false" data-step-id="step-feat-689caaf1-0" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Add the flags to wipResetCmd and thread a filter into runWipReset that reuses wipLiveSessions and wipGroupBySession</li>
+                <li data-completed="false" data-step-id="step-feat-689caaf1-1" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Implement --dry-run printing the would-reset list and exiting without calling resetNodeToTodo</li>
+                <li data-completed="false" data-step-id="step-feat-689caaf1-2" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Document the flags in help text and the plugin guidance</li>
+                <li data-completed="false" data-step-id="step-feat-689caaf1-3" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Add wip_test.go cases for dead-only; session-scoped and dry-run</li>
+            </ol>
+        </section>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>wipnote wip reset --force resets every in-progress item (cmd/wipnote/wip.go runWipReset), so the only recovery command also clobbers the live session&#39;s items. wip show already derives per-session liveness from the session ledger via wipLiveSessions and wipGroupBySession, so the same predicate can scope the reset. Add --dead (owner session not open in the ledger), --session &lt;id&gt;, --orphaned (items with no implemented_in session), and --dry-run that prints the target list without writing. GitHub issue #176.</p>
+        </section>
+    </article>
+</body>
+</html>

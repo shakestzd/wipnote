@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Bash research guard: osascript payloads with HTML hit the fd-1 redirect regex</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-9972133d"
+             data-type="bug"
+             data-status="todo"
+             data-priority="low"
+             data-created="2026-09-21T03:22:54.933187"
+             data-updated="2026-09-21T03:22:54.936508" data-agent-assigned="claude-code" data-track-id="trk-99de4f33" data-created-by-cli-version="dev">
+
+        <header>
+            <h1>Bash research guard: osascript payloads with HTML hit the fd-1 redirect regex</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-low">Low Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-99de4f33.html" data-relationship="part_of" data-since="2026-09-21T03:22:54.93639">trk-99de4f33</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="false" data-step-id="step-bug-9972133d-0" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Anchor the fd-1 redirect pattern so it requires leading whitespace or start of segment and no longer matches h1 tags</li>
+                <li data-completed="false" data-step-id="step-bug-9972133d-1" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Exempt osascript invocations in isBashFileWrite and checkYoloBashResearchGuard rather than only in the message helper</li>
+                <li data-completed="false" data-step-id="step-bug-9972133d-2" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Skip the Bash research guard when the first path target is outside the project root mirroring pathIsOutsideProject</li>
+                <li data-completed="false" data-step-id="step-bug-9972133d-3" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Add table tests using the three commands from the issue</li>
+            </ol>
+        </section>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>The osascript exemption added for GitHub #97 lives in bashCommandTargetsExternalPath, which only tailors the block message; isBashFileWrite still decides the block and the fd-1 redirect alternative in bashFileWritePattern (core/hooks/pretooluse.go) matches the 1&gt; inside an h1 tag in AppleScript or HTML payloads. Bash writes to absolute paths outside the project such as /tmp are also still gated, unlike the Write-tool path which skips pathIsOutsideProject targets. Latent today because the research guard is inert at HEAD.</p>
+        </section>
+    </article>
+</body>
+</html>

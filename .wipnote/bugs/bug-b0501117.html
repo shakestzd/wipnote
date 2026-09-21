@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>arch validate: flag verified_at SHAs that are missing or unreachable from HEAD</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-b0501117"
+             data-type="bug"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-09-21T03:21:09.967745"
+             data-updated="2026-09-21T03:21:09.971092" data-agent-assigned="claude-code" data-track-id="trk-99de4f33" data-created-by-cli-version="dev">
+
+        <header>
+            <h1>arch validate: flag verified_at SHAs that are missing or unreachable from HEAD</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-99de4f33.html" data-relationship="part_of" data-since="2026-09-21T03:21:09.970958">trk-99de4f33</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="false" data-step-id="step-bug-b0501117-0" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Add a git-aware pass in runArchValidateAll/runArchValidateOne (cmd/wipnote/arch_cmds.go) using a gitCommitReachable helper that emits ERROR for missing and WARN for unreachable SHAs</li>
+                <li data-completed="false" data-step-id="step-bug-b0501117-1" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Validate the SHA in runArchEdit when --verified-at is set unless --force</li>
+                <li data-completed="false" data-step-id="step-bug-b0501117-2" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Add --commit-map &lt;path&gt; to arch repair that rewrites matching VerifiedAt values via store.Update</li>
+                <li data-completed="false" data-step-id="step-bug-b0501117-3" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Add tests in cmd/wipnote/arch_cmds_test.go with an orphaned-commit fixture</li>
+            </ol>
+        </section>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>wipnote arch validate reports All arch cards are valid even when a card&#39;s verified_at points at a commit that no longer exists or is unreachable after a history rewrite, because Store.ValidateAll in core/arch only checks name, kind, word count and path shape. Validation should resolve each verified_at with git cat-file -e and git merge-base --is-ancestor and report failures, arch edit --verified-at should reject non-existent SHAs, and arch repair should accept --commit-map to re-pin cards in one pass. GitHub issue #173.</p>
+        </section>
+    </article>
+</body>
+</html>
