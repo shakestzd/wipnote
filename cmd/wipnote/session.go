@@ -72,11 +72,10 @@ func runSessionList(activeOnly bool, limit int) error {
 		return nil
 	}
 
-	fmt.Printf("%-16s  %-18s  %-10s  %-22s  %s\n",
-		"SESSION", "AGENT", "STATUS", "STARTED", "DURATION")
-	fmt.Println(strings.Repeat("-", 85))
+	printSessionListHeader(os.Stdout)
+	now := time.Now()
 	for _, s := range sessions {
-		printSessionRow(s)
+		printSessionRow(os.Stdout, s, sessionActivityFor(dir, s.SessionID), now)
 	}
 	fmt.Printf("\n%d session(s)\n", len(sessions))
 	return nil
@@ -127,13 +126,25 @@ func sessionModelFromLedger(r sessionledger.Record) *models.Session {
 	}
 }
 
-func printSessionRow(s *models.Session) {
+// sessionListRowFormat lays out one `session list` row. CALLS and LAST CALL
+// come from the per-session hook data (see sessionActivity) so an
+// orchestrator can spot an agent that never made a tool call, or one that
+// finished and was never stopped, without inferring it (GH-#179).
+const sessionListRowFormat = "%-16s  %-18s  %-10s  %-22s  %-10s  %-6s  %s\n"
+
+func printSessionListHeader(w io.Writer) {
+	fmt.Fprintf(w, sessionListRowFormat,
+		"SESSION", "AGENT", "STATUS", "STARTED", "DURATION", "CALLS", "LAST CALL")
+	fmt.Fprintln(w, strings.Repeat("-", 104))
+}
+
+func printSessionRow(w io.Writer, s *models.Session, act sessionActivity, now time.Time) {
 	id := truncate(s.SessionID, 14)
 	agent := truncate(s.AgentAssigned, 18)
 	started := s.CreatedAt.Local().Format("2006-01-02 15:04:05")
 	duration := sessionDuration(s)
-	fmt.Printf("%-16s  %-18s  %-10s  %-22s  %s\n",
-		id, agent, s.Status, started, duration)
+	fmt.Fprintf(w, sessionListRowFormat,
+		id, agent, s.Status, started, duration, act.callsColumn(), act.lastCallColumn(now))
 }
 
 func sessionDuration(s *models.Session) string {
@@ -348,7 +359,8 @@ func runSessionShow(sessionID string) error {
 		return err
 	}
 
-	return renderSessionShowCanonical(os.Stdout, s, features, gates)
+	act := sessionActivityFor(dir, sessionID)
+	return renderSessionShowCanonical(os.Stdout, s, act, features, gates)
 }
 
 func claimFeaturesForSession(wipnoteDir, sessionID string) ([]string, error) {
@@ -388,10 +400,11 @@ func gatesForSession(wipnoteDir, sessionID string) ([]gateledger.Record, error) 
 	return out, nil
 }
 
-func renderSessionShowCanonical(w io.Writer, s *models.Session, features []string, gates []gateledger.Record) error {
+func renderSessionShowCanonical(w io.Writer, s *models.Session, act sessionActivity, features []string, gates []gateledger.Record) error {
 	if err := renderSessionSummary(w, s); err != nil {
 		return err
 	}
+	renderSessionActivity(w, act, time.Now())
 	if len(features) > 0 {
 		fmt.Fprintln(w, "\nFeatures Worked On:")
 		for _, f := range features {
@@ -426,6 +439,13 @@ func renderSessionSummary(w io.Writer, s *models.Session) error {
 		fmt.Fprintf(w, "  Feature   %s\n", s.ActiveFeatureID)
 	}
 	return nil
+}
+
+// renderSessionActivity prints the tool-call count and time since the last
+// call under the summary block (GH-#179).
+func renderSessionActivity(w io.Writer, act sessionActivity, now time.Time) {
+	fmt.Fprintf(w, "  Calls     %s\n", act.callsColumn())
+	fmt.Fprintf(w, "  Last call %s\n", act.describeLastCall(now))
 }
 
 func renderSessionShow(w io.Writer, db *sql.DB, s *models.Session) error {

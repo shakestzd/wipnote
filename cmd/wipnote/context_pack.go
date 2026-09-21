@@ -249,6 +249,11 @@ func renderContextPack(
 
 	fmt.Fprintf(&buf, "# Context Pack: %s\n\n", node.ID)
 
+	// Section 0: Act-first preamble (GH-#179). Agents whose brief opens with
+	// reading and judgement can stall for many minutes without a single tool
+	// call; a brief whose first instruction is a concrete command does not.
+	buf.WriteString(renderActFirstPreamble(node))
+
 	// Section 1: Claim command
 	fmt.Fprintln(&buf, "## 1. Claim Command")
 	fmt.Fprintf(&buf, "\n```\nwipnote %s start %s\n```\n\n", node.Type, node.ID)
@@ -353,6 +358,34 @@ func renderContextPack(
 		fmt.Fprintln(&buf)
 	}
 
+	return buf.String()
+}
+
+// contextPackProgressPath is where a dispatched agent keeps its running
+// progress note. It sits under .wipnote/logs/, which the managed
+// .wipnote/.gitignore already excludes, so the note is project-local and
+// readable by the orchestrator (`cat`) without ever being committed.
+func contextPackProgressPath(id string) string {
+	return ".wipnote/logs/progress/" + id + ".md"
+}
+
+// renderActFirstPreamble emits the "do this before reading anything" block:
+// claim the item, then create the progress note, both as literal commands, so
+// the agent's first turn is a tool call rather than a plan (GH-#179).
+func renderActFirstPreamble(node *models.Node) string {
+	var buf bytes.Buffer
+	progress := contextPackProgressPath(node.ID)
+	fmt.Fprintln(&buf, "## 0. Act First — Before Reading Anything Else")
+	fmt.Fprintln(&buf)
+	fmt.Fprintln(&buf, "Run these as your FIRST tool calls, before reading any file or forming a plan:")
+	fmt.Fprintf(&buf, "\n```\nwipnote %s start %s\nmkdir -p %s && printf '%%s started %s\\n' \"$(date -u +%%FT%%TZ)\" >> %s\n```\n\n",
+		node.Type, node.ID, filepath.Dir(progress), node.ID, progress)
+	fmt.Fprintln(&buf, "Then keep working in the same shape:")
+	fmt.Fprintln(&buf)
+	fmt.Fprintf(&buf, "- Append one line to `%s` after every unit of work (a file read that changed the plan, a file written, a test run). Partial progress must survive if you are stopped.\n", progress)
+	fmt.Fprintln(&buf, "- Write deliverables incrementally — commit or write partial output as you go; never hold everything for one reveal at the end.")
+	fmt.Fprintln(&buf, "- Prove the first thing end-to-end before scaling: one file, one test, one page — then the rest.")
+	fmt.Fprintln(&buf)
 	return buf.String()
 }
 

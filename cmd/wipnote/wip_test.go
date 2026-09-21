@@ -39,7 +39,7 @@ func TestWipResetWithoutForceError(t *testing.T) {
 	}
 
 	// Try to reset without --force
-	err := runWipReset(false)
+	err := runWipReset(false, wipResetScope{})
 	if err == nil {
 		t.Fatal("expected error when calling runWipReset without --force, got nil")
 	}
@@ -83,7 +83,7 @@ func TestWipResetWithoutForceErrorMultipleItems(t *testing.T) {
 	}
 
 	// Try to reset without --force
-	err := runWipReset(false)
+	err := runWipReset(false, wipResetScope{})
 	if err == nil {
 		t.Fatal("expected error when calling runWipReset without --force, got nil")
 	}
@@ -121,7 +121,7 @@ func TestWipResetWithForceSucceeds(t *testing.T) {
 	}
 
 	// Reset with --force should succeed
-	err := runWipReset(true)
+	err := runWipReset(true, wipResetScope{})
 	if err != nil {
 		t.Fatalf("expected success with --force, got error: %v", err)
 	}
