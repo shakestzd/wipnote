@@ -218,13 +218,20 @@ const acceptedAdvisoryMarker = "accepted-advisory (provenance override): "
 // node, or "" if none. The reason was written into the node content as a
 // note prefixed with acceptedAdvisoryMarker.
 func acceptedAdvisoryOf(n *models.Node) string {
+	return markedNoteOf(n, acceptedAdvisoryMarker)
+}
+
+// markedNoteOf returns the text following marker on the first content-note
+// line that carries it, or "". Shared by the audited-override readers
+// (acceptedAdvisoryOf, allowOrphanOf).
+func markedNoteOf(n *models.Node, marker string) string {
 	if n == nil || n.Content == "" {
 		return ""
 	}
 	for _, line := range strings.Split(n.Content, "\n") {
 		s := strings.TrimSpace(stripHTMLTags(line))
-		if idx := strings.Index(s, acceptedAdvisoryMarker); idx >= 0 {
-			return strings.TrimSpace(s[idx+len(acceptedAdvisoryMarker):])
+		if idx := strings.Index(s, marker); idx >= 0 {
+			return strings.TrimSpace(s[idx+len(marker):])
 		}
 	}
 	return ""
@@ -248,6 +255,8 @@ func wiCompleteCmd(typeName string) *cobra.Command {
 			"bypass the uncommitted source gate; intended for intentional dirty-tree completion only")
 		cmd.Flags().StringVar(&wiAcceptedAdvisory, "accepted-advisory", "",
 			"audited override of the zero-commit provenance gate; records the rationale on the artifact")
+		cmd.Flags().StringVar(&wiAllowOrphan, "allow-orphan", "",
+			"audited override of the merged-upstream gate for intentionally branch-local work; records the rationale on the artifact")
 		cmd.Flags().StringArrayVar(&wiResearchURL, "research-url", nil,
 			"http(s) URL of the docs/changelog verifying a dependency change; required (or --research-waiver) when the item changes a dependency manifest. Repeatable.")
 		cmd.Flags().StringVar(&wiResearchWaiver, "research-waiver", "",
@@ -328,6 +337,16 @@ func wiSetStatusWithAgent(typeName, id, status, sessionID, agentID string) error
 	// rationale on the .wipnote artifact for compliance/snapshot tooling.
 	if status == "done" && shouldAutocommitWorkitemArtifact(typeName) {
 		if err := checkProvenanceCompleteGate(p, col, typeName, id, wiAcceptedAdvisory); err != nil {
+			return err
+		}
+	}
+
+	// Merged-upstream completion gate (feat-be42685c). A linked commit that
+	// only exists on an unmerged branch is provenance but not delivery: at
+	// least one must be reachable from the upstream default branch, or the
+	// operator records an --allow-orphan rationale. Skipped without a remote.
+	if status == "done" && shouldAutocommitWorkitemArtifact(typeName) {
+		if err := checkMergedUpstreamCompleteGate(p, col, typeName, id, wiAllowOrphan); err != nil {
 			return err
 		}
 	}
