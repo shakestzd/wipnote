@@ -18,6 +18,8 @@ Specifically:
 - If two consecutive subagents return without committing, don't keep dispatching — investigate the failure mode.
 - If you've Bash-checked the same condition more than twice (e.g., `git status` 3+ times), the question isn't about state — it's about plan.
 - If a delegated task created duplicate work items or churns on the same files, pause and rescope.
+- If a dispatched agent has produced **no hook events after ~3 minutes** (no session row, or `CALLS -` in `wipnote session list` / `Calls -` in `wipnote session show <id>`), it has not begun — a stall inside the model's turn, before any tool call. Stop it and re-dispatch with a tighter brief whose first instruction is a literal command (see the brief-shape rule in `wipnote:orchestrator-directives-skill`); do not wait it out.
+- **Stop an agent the moment its output is verified.** A finished agent left running is indistinguishable from a stuck one in the agent list; check `LAST CALL` in `wipnote session list` when unsure.
 
 ## Architecture
 
