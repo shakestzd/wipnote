@@ -17,17 +17,26 @@ type workitemArtifactCommitPolicy string
 const (
 	workitemArtifactCommitPolicySeparate workitemArtifactCommitPolicy = "separate"
 	workitemArtifactCommitPolicyDefer    workitemArtifactCommitPolicy = "defer"
+	// workitemArtifactCommitPolicyNone skips artifact commits AND queueing
+	// entirely (GH#149): the canonical .wipnote write is the whole transition
+	// and the operator commits .wipnote/ by hand. For projects whose policy is
+	// "never auto-commit" and for sandboxes where the per-user cache (and so
+	// the outbox) is unwritable.
+	workitemArtifactCommitPolicyNone workitemArtifactCommitPolicy = "none"
 )
 
 // workitemArtifactCommitPolicyForEnv returns the commit policy requested by
 // WIPNOTE_ARTIFACT_COMMIT_POLICY. defer is the default so deferred artifact
-// commits are on by default; "separate" is an explicit legacy opt-in.
+// commits are on by default; "separate" is an explicit legacy opt-in; "none"
+// disables both the commit and the queue.
 func workitemArtifactCommitPolicyForEnv() workitemArtifactCommitPolicy {
 	switch strings.ToLower(strings.TrimSpace(os.Getenv("WIPNOTE_ARTIFACT_COMMIT_POLICY"))) {
 	case "", string(workitemArtifactCommitPolicyDefer):
 		return workitemArtifactCommitPolicyDefer
 	case string(workitemArtifactCommitPolicySeparate):
 		return workitemArtifactCommitPolicySeparate
+	case string(workitemArtifactCommitPolicyNone):
+		return workitemArtifactCommitPolicyNone
 	default:
 		return workitemArtifactCommitPolicyDefer
 	}
@@ -52,6 +61,10 @@ func persistWorkitemArtifactTransition(wipnoteDir, typeName, id, action string) 
 	switch workitemArtifactCommitPolicyForEnv() {
 	case workitemArtifactCommitPolicyDefer:
 		return enqueueWorkitemArtifactCommitIntent(wipnoteDir, typeName, id, action)
+	case workitemArtifactCommitPolicyNone:
+		fmt.Fprintf(stderr, "artifact commit skipped by WIPNOTE_ARTIFACT_COMMIT_POLICY=none for %s; commit %s manually\n",
+			id, workitemArtifactRelPath(typeName, id))
+		return nil
 	default:
 		return commitWipnoteArtifact(wipnoteDir, typeName, id, action)
 	}

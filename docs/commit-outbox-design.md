@@ -119,6 +119,19 @@ wipnote commit-queue flush                  # drain FIFO under the advisory lock
 wipnote commit-queue flush --max-attempts N # override dead-letter threshold
 ```
 
+## Commit policy (`WIPNOTE_ARTIFACT_COMMIT_POLICY`)
+
+| Value | Behaviour |
+|-------|-----------|
+| `defer` (default) | write the artifact, record an intent, commit on `flush` |
+| `separate` | legacy: commit the artifact directly on every transition |
+| `none` | write the artifact only — no commit, no intent; commit `.wipnote/` by hand. For "never auto-commit" projects and sandboxes whose per-user cache is unwritable |
+
+Under `defer`, an unwritable outbox (EPERM/EACCES/EROFS — e.g. a Codex
+workspace-write sandbox where `~/Library/Caches` is off-limits, GH#149) does
+not reopen a completed item: the canonical artifact is already written, so the
+item stays done and a pending-sync warning names the manual commit command.
+
 ## Scope and follow-ups (out of scope here)
 
 This change ADDS the outbox mechanism, the `recordCommitIntent` producer API,
