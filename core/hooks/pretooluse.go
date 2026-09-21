@@ -20,7 +20,11 @@ import (
 // It inserts a tool_call agent_event row and allows the tool to proceed.
 func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 	// Kill switch: WIPNOTE_GUARDS_OFF=1 disables ALL guards for emergency use.
-	if os.Getenv("WIPNOTE_GUARDS_OFF") == "1" {
+	// It is operator-only and never advertised in block messages; every time it
+	// is honoured it is recorded loudly (stderr, debug log, GuardOverride
+	// agent_event) so the bypass is part of the lineage (GH-#164).
+	if guardOverrideEnabled() {
+		recordGuardOverride(event, database)
 		return &HookResult{}, nil
 	}
 
@@ -447,9 +451,8 @@ func checkFileOverlapAdvisory(event *CloudEvent, ctx *toolUseContext, database *
 			"File-overlap block: %s was touched within the last %s by another "+
 				"live session: %s.\n"+
 				"Recovery: coordinate with the other session, or re-run after it "+
-				"completes. To proceed anyway, set block_on_file_overlap=false in "+
-				".wipnote/config.json (or export WIPNOTE_GUARDS_OFF=1 for an "+
-				"emergency override).",
+				"completes, or ask the operator to relax block_on_file_overlap in "+
+				".wipnote/config.json.",
 			target, window.String(), sessions),
 		}
 	}

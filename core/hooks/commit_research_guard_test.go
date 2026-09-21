@@ -139,6 +139,10 @@ func TestR5_StagedGoModNoWebResearch_Blocks(t *testing.T) {
 	if !strings.Contains(warn, "go.mod") || !strings.Contains(warn, "RESEARCH-WAIVER") {
 		t.Errorf("block message should name go.mod and the waiver override; got %q", warn)
 	}
+	// GH-#164: the operator-only kill switch must never be advertised.
+	if strings.Contains(warn, "GUARDS_OFF") {
+		t.Errorf("block message advertises the kill switch: %q", warn)
+	}
 }
 
 // TestR5_StagedGoModWithWebResearch_Allows proves: with prior web research the

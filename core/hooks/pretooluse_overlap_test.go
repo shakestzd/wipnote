@@ -139,6 +139,11 @@ func TestPreToolUseOverlapAdvisory(t *testing.T) {
 		if !strings.Contains(blockErr.Message, "sess-other") {
 			t.Fatalf("block message missing other session id: %q", blockErr.Message)
 		}
+		// GH-#164: the operator-only kill switch must never be advertised in
+		// the text an agent reads.
+		if strings.Contains(blockErr.Message, "GUARDS_OFF") {
+			t.Fatalf("block message advertises the kill switch: %q", blockErr.Message)
+		}
 		// PINNED (bug-c6b550fa): Codex treats exit code 2 with EMPTY stderr as
 		// ALLOW, not deny. runHookNamed writes blockErr.Message verbatim to
 		// stderr before exiting 2, so this checks the invariant directly

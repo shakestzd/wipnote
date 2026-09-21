@@ -731,7 +731,7 @@ func checkExternalTechResearchGuard(toolName string, hasWebResearch bool, target
 		filepath.Base(targetFile) + " adds or changes an external technology, so " +
 		"verify current official docs/changelogs via the web (WebSearch/WebFetch, " +
 		"`gh search`) this session before writing — a local file read does NOT " +
-		"satisfy this gate. Emergency override: WIPNOTE_GUARDS_OFF=1."
+		"satisfy this gate."
 }
 
 // harnessContractPathSignals are path substrings that mark a file as encoding an
@@ -797,8 +797,7 @@ func checkHarnessContractResearchGuard(toolName string, hasWebResearch bool, tar
 		filepath.Base(targetFile) + " changes a Claude Code / Codex / Gemini " +
 		"integration contract, which drifts silently across vendor releases — " +
 		"verify the current provider docs with WebSearch/WebFetch (or `gh search`) " +
-		"this session before writing. A local file read does NOT satisfy this gate. " +
-		"Emergency override: WIPNOTE_GUARDS_OFF=1."
+		"this session before writing. A local file read does NOT satisfy this gate."
 }
 
 // checkYoloBashResearchGuard extends the research guard to Bash file-write commands.
