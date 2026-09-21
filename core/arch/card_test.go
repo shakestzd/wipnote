@@ -199,6 +199,9 @@ func TestValidate_BodyOverWordLimit(t *testing.T) {
 	if !strings.Contains(err.Error(), "word") {
 		t.Errorf("error should mention word limit, got: %v", err)
 	}
+	if !strings.Contains(err.Error(), `text past word 120: "word"`) {
+		t.Errorf("error should quote the overflow, got: %v", err)
+	}
 }
 
 func TestValidate_SupersededByInvalidSlug(t *testing.T) {
