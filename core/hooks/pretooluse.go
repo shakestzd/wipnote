@@ -20,7 +20,11 @@ import (
 // It inserts a tool_call agent_event row and allows the tool to proceed.
 func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 	// Kill switch: WIPNOTE_GUARDS_OFF=1 disables ALL guards for emergency use.
-	if os.Getenv("WIPNOTE_GUARDS_OFF") == "1" {
+	// It is operator-only and never advertised in block messages; every time it
+	// is honoured it is recorded loudly (stderr, debug log, GuardOverride
+	// agent_event) so the bypass is part of the lineage (GH-#164).
+	if guardOverrideEnabled() {
+		recordGuardOverride(event, database)
 		return &HookResult{}, nil
 	}
 
@@ -447,9 +451,8 @@ func checkFileOverlapAdvisory(event *CloudEvent, ctx *toolUseContext, database *
 			"File-overlap block: %s was touched within the last %s by another "+
 				"live session: %s.\n"+
 				"Recovery: coordinate with the other session, or re-run after it "+
-				"completes. To proceed anyway, set block_on_file_overlap=false in "+
-				".wipnote/config.json (or export WIPNOTE_GUARDS_OFF=1 for an "+
-				"emergency override).",
+				"completes, or ask the operator to relax block_on_file_overlap in "+
+				".wipnote/config.json.",
 			target, window.String(), sessions),
 		}
 	}
@@ -621,9 +624,11 @@ func containsWipnoteDir(path string) bool {
 	return path == ".wipnote"
 }
 
-// isBashwipnoteWrite detects Bash commands that directly manipulate
-// .wipnote/ files (rm, sed, echo/cat redirect, python -c, mv, cp, etc.).
-// These bypass the structured Write/Edit tools and must be blocked.
+// isBashwipnoteWrite detects Bash commands that mutate .wipnote/ files
+// directly (rm, sed -i, redirects, mv, cp, git add/rm/mv/restore/checkout/
+// stash, python -c, …). These bypass the wipnote CLI and the commit-queue
+// outbox and must be blocked. The decision is made per shell segment on the
+// resolved operation targets — see store_guard.go (GH-#180).
 func isBashwipnoteWrite(event *CloudEvent) bool {
 	if !isShellTool(event.ToolName) {
 		return false
@@ -632,11 +637,7 @@ func isBashwipnoteWrite(event *CloudEvent) bool {
 	if cmd == "" {
 		return false
 	}
-	// Skip commands that are wipnote CLI invocations — those are allowed.
-	if isWipnoteCLICommand(cmd) {
-		return false
-	}
-	return bashwipnoteWritePattern.MatchString(cmd)
+	return bashCommandWritesWipnoteStore(cmd)
 }
 
 // isWipnoteCLICommand returns true when every shell command segment invokes the
@@ -697,37 +698,6 @@ func segmentStartsWithWipnoteCLI(segment string) bool {
 	}
 	return false
 }
-
-// bashwipnoteWritePattern matches Bash commands that write to .wipnote/.
-// Covers: rm, sed -i, echo/cat/tee redirects (> or >>), mv, cp, python -c,
-// touch, chmod, mkdir, and any other direct manipulation.
-var bashwipnoteWritePattern = regexp.MustCompile(
-	`(?:` +
-		`\brm\s+.*\.wipnote/` +
-		`|` +
-		`\bsed\s+-i.*\.wipnote/` +
-		`|` +
-		`\d?>\s*\S*\.wipnote/` +
-		`|` +
-		`\d?>>\s*\S*\.wipnote/` +
-		`|` +
-		`&>>?\s*\S*\.wipnote/` +
-		`|` +
-		`\btee\s+\S*\.wipnote/` +
-		`|` +
-		`\bmv\s+.*\.wipnote/` +
-		`|` +
-		`\bcp\s+.*\.wipnote/` +
-		`|` +
-		`\btouch\s+\S*\.wipnote/` +
-		`|` +
-		`\bchmod\s+.*\.wipnote/` +
-		`|` +
-		`\bmkdir\s+.*\.wipnote/` +
-		`|` +
-		`\bpython[23]?\s+-c\s+.*\.wipnote/` +
-		`)`,
-)
 
 // isBashFileWrite detects Bash commands that modify source files (as opposed
 // to read-only commands like git status, ls, grep, etc.). Used by YOLO guards

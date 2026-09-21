@@ -195,8 +195,10 @@ func stagedDependencyManifests(staged []string) []string {
 //
 // Always-on (not YOLO-gated), consistent with checkPortDriftCommitGuard. Fast
 // path: one `git diff --cached --name-only` when the command is a git commit;
-// returns "" immediately for any other command. Explicit overrides: a
-// RESEARCH-WAIVER trailer in the commit message, or WIPNOTE_GUARDS_OFF=1.
+// returns "" immediately for any other command. Explicit override: a
+// RESEARCH-WAIVER trailer in the commit message. (The operator-only
+// WIPNOTE_GUARDS_OFF kill switch also applies but is deliberately never named
+// in agent-visible text — GH-#164; see docs/guard-profiles.md.)
 func checkDependencyResearchCommitGuard(event *CloudEvent, database *sql.DB, ctx *toolUseContext) string {
 	if !isShellTool(event.ToolName) {
 		return ""
@@ -237,6 +239,5 @@ func checkDependencyResearchCommitGuard(event *CloudEvent, database *sql.DB, ctx
 		"Verify the new/changed dependency against current official docs/changelogs " +
 		"with WebSearch/WebFetch (or `gh search`) before committing — a local file " +
 		"read does not satisfy this gate. To intentionally waive, add a " +
-		"`RESEARCH-WAIVER: <reason>` trailer to the commit message; for an emergency " +
-		"override set WIPNOTE_GUARDS_OFF=1."
+		"`RESEARCH-WAIVER: <reason>` trailer to the commit message."
 }
