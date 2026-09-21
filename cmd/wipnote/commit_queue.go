@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"path/filepath"
 	"strings"
 
@@ -38,13 +39,19 @@ func recordCommitIntent(repoRoot string, relPaths []string, message, workItemID,
 	if err != nil {
 		return err
 	}
-	return ob.AppendCoalescingByRelPath(commitqueue.Intent{
+	if err := ob.AppendCoalescingByRelPath(commitqueue.Intent{
 		RepoRoot:   repoRoot,
 		RelPaths:   relPaths,
 		Message:    message,
 		WorkItemID: workItemID,
 		Action:     action,
-	})
+	}); err != nil {
+		return err
+	}
+	// GH#172: say at enqueue time when the path can never be committed
+	// because git ignores it, instead of letting the intent retry blind.
+	warnIfIntentPathsIgnored(stderr, repoRoot, relPaths)
+	return nil
 }
 
 // outboxCommitter is the production Committer: it stages and commits the
@@ -79,6 +86,11 @@ func outboxCommitter(i commitqueue.Intent) error {
 	if err != nil {
 		if isNothingToCommit(string(out)) {
 			return nil // idempotent no-op (e.g. artifact already committed)
+		}
+		// GH#172: a path git ignores is a misconfiguration, not a poison
+		// commit — classify it so the flush neither counts nor dead-letters it.
+		if ignErr := gitIgnoredIntentError(i.RepoRoot, i.RelPaths); ignErr != nil {
+			return ignErr
 		}
 		return fmt.Errorf("commit-queue: git add+commit: %s: %w", string(out), err)
 	}
@@ -139,8 +151,9 @@ func commitQueueFlushCmd() *cobra.Command {
 				return err
 			}
 			fmt.Fprintf(cmd.OutOrStdout(),
-				"commit-queue flush: committed=%d failed=%d dead-lettered=%d remaining=%d dead-letter-depth=%d\n",
-				res.Committed, res.Failed, res.DeadLettered, res.RemainingDepth, res.DeadLetterDepth)
+				"commit-queue flush: committed=%d failed=%d dead-lettered=%d ignored=%d remaining=%d dead-letter-depth=%d\n",
+				res.Committed, res.Failed, res.DeadLettered, len(res.Ignored), res.RemainingDepth, res.DeadLetterDepth)
+			printIgnoredIntents(cmd.OutOrStdout(), res.Ignored)
 			if res.DeadLetterDepth > 0 {
 				fmt.Fprint(cmd.OutOrStdout(), deadLetterWarningLine(res.DeadLetterDepth))
 			}
@@ -150,6 +163,19 @@ func commitQueueFlushCmd() *cobra.Command {
 	cmd.Flags().IntVar(&maxAttempts, "max-attempts", commitqueue.MaxAttempts,
 		"consecutive failures before an intent is dead-lettered")
 	return cmd
+}
+
+// printIgnoredIntents prints one line per intent whose artifact path git
+// ignores (GH#172). These are left queued untouched by the flush, so without
+// this line the operator would only see "remaining=N" with no cause.
+func printIgnoredIntents(w io.Writer, ignored []commitqueue.IntentFailure) {
+	for _, f := range ignored {
+		label := f.Intent.WorkItemID
+		if label == "" {
+			label = strings.Join(f.Intent.RelPaths, ", ")
+		}
+		fmt.Fprintf(w, "  ignored (not retried, not dead-lettered): %s: %v\n", label, f.Err)
+	}
 }
 
 func commitQueueStatusCmd() *cobra.Command {

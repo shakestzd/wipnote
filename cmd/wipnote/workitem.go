@@ -473,24 +473,20 @@ func wiSetStatusWithAgent(typeName, id, status, sessionID, agentID string) error
 				id, cerr, remediation)
 		}
 	} else if deferredComplete {
-		if err := persistWorkitemArtifactTransition(dir, typeName, id, "complete"); err != nil {
-			_, reopenErr := col.Start(id)
-			WriteStatuslineCache(dir, id)
-			remediation := fmt.Sprintf("wipnote %s complete %s", typeName, id)
-			if reopenErr != nil {
-				return fmt.Errorf(
-					"completion aborted: failed to queue deferred artifact commit for %s (%v) and the compensating re-open ALSO failed (%v).\n"+
-						"The item may be left in an inconsistent state — inspect with 'wipnote %s show %s', then rerun:\n  %s",
-					id, err, reopenErr, typeName, id, remediation)
+		if err := persistArtifactTransitionFn(dir, typeName, id, "complete"); err != nil {
+			// Environmental (unwritable cache / read-only FS, GH#149): the
+			// canonical artifact is on disk and the item is logically done —
+			// do NOT reopen. Warn that the commit is pending and carry on so
+			// the completion still reports (and attaches any learning).
+			if !isEnvironmentalOutboxError(err) {
+				return abortDeferredComplete(col, dir, typeName, id, err)
 			}
-			return fmt.Errorf(
-				"completion aborted: failed to queue deferred artifact commit for %s: %v\n"+
-					"The item has been re-opened (status: in-progress). Resolve the queue/outbox problem, then rerun:\n  %s",
-				id, err, remediation)
+			warnDeferredCommitUnavailable(os.Stderr, typeName, id, err)
+		} else {
+			fmt.Fprintf(os.Stderr,
+				"artifact commit deferred by WIPNOTE_ARTIFACT_COMMIT_POLICY=defer for %s.\n  pending intent recorded; run: wipnote commit-queue flush\n",
+				id)
 		}
-		fmt.Fprintf(os.Stderr,
-			"artifact commit deferred by WIPNOTE_ARTIFACT_COMMIT_POLICY=defer for %s.\n  pending intent recorded; run: wipnote commit-queue flush\n",
-			id)
 	} else if shouldAutocommitWorkitemArtifact(typeName) {
 		action := actionFromStatus(status)
 		if err := persistWorkitemArtifactTransition(dir, typeName, id, action); err != nil {
