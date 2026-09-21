@@ -57,7 +57,7 @@ func archAddCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&kind, "kind", "", "Card kind: subsystem-map, invariant, hazard, decision (required)")
-	cmd.Flags().StringSliceVar(&paths, "paths", nil, "Glob patterns for affected paths (repeatable)")
+	cmd.Flags().StringSliceVar(&paths, "paths", nil, "Glob patterns for affected paths (repeatable). The (kind, glob set) pair must be unique among active cards; cards of different kinds may share the same paths")
 	cmd.Flags().StringVar(&verifiedAt, "verified-at", "", "Git SHA at which this card was last verified")
 	cmd.Flags().StringSliceVar(&links, "links", nil, "Work item IDs this card is linked to (repeatable)")
 	cmd.Flags().StringVar(&createdBy, "created-by", "", "Author identifier (required)")
@@ -108,7 +108,7 @@ func archEditCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&kind, "kind", "", "New card kind")
-	cmd.Flags().StringSliceVar(&paths, "paths", nil, "New glob patterns (replaces existing; use --paths= to clear)")
+	cmd.Flags().StringSliceVar(&paths, "paths", nil, "New glob patterns (replaces existing; use --paths= to clear). The (kind, glob set) pair must be unique among active cards; cards of different kinds may share the same paths")
 	cmd.Flags().StringVar(&verifiedAt, "verified-at", "", "New verified-at git SHA (use --verified-at= to clear)")
 	cmd.Flags().StringSliceVar(&links, "links", nil, "New linked work item IDs (replaces existing; use --links= to clear)")
 	cmd.Flags().StringVar(&body, "body", "", "New card body")

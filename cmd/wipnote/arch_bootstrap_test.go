@@ -178,19 +178,45 @@ func TestArchAdd_DuplicateGlobSetRejected(t *testing.T) {
 		t.Fatalf("add first card: %v", err)
 	}
 
-	// Same glob set (same order) — must be rejected.
+	// Same kind + same glob set (same order) — must be rejected.
 	err := runArch(t,
 		"add", "second-card",
-		"--kind", "invariant",
+		"--kind", "subsystem-map",
 		"--created-by", "agent",
 		"--body", "Second card, same globs.",
 		"--paths", "internal/**,cmd/**",
 	)
 	if err == nil {
-		t.Fatal("expected error for duplicate glob set (same order)")
+		t.Fatal("expected error for duplicate kind + glob set (same order)")
 	}
-	if !strings.Contains(err.Error(), "glob") && !strings.Contains(err.Error(), "paths") {
-		t.Errorf("error should mention glob/paths conflict, got: %v", err)
+	if !strings.Contains(err.Error(), "same kind and paths as \"first-card\"") {
+		t.Errorf("error should mention kind+paths conflict, got: %v", err)
+	}
+}
+
+// TestArchAdd_SamePathsDifferentKindAllowed is the regression test for
+// GH-#168: a decision and a hazard about the same file must both be
+// recordable without padding --paths with unrelated globs.
+func TestArchAdd_SamePathsDifferentKindAllowed(t *testing.T) {
+	setupArchTestDir(t)
+
+	if err := runArch(t,
+		"add", "card-one",
+		"--kind", "decision",
+		"--created-by", "me",
+		"--body", "Why we chose this approach.",
+		"--paths", "src/foo.py",
+	); err != nil {
+		t.Fatalf("add card-one: %v", err)
+	}
+	if err := runArch(t,
+		"add", "card-two",
+		"--kind", "hazard",
+		"--created-by", "me",
+		"--body", "A failure mode in the same file.",
+		"--paths", "src/foo.py",
+	); err != nil {
+		t.Fatalf("add card-two (different kind, same paths) should succeed: %v", err)
 	}
 }
 
@@ -209,10 +235,10 @@ func TestArchAdd_DuplicateGlobSetOrderInsensitive(t *testing.T) {
 		t.Fatalf("add card-a: %v", err)
 	}
 
-	// Reversed order — must still be rejected.
+	// Same kind, reversed order — must still be rejected.
 	err := runArch(t,
 		"add", "card-b",
-		"--kind", "hazard",
+		"--kind", "subsystem-map",
 		"--created-by", "agent",
 		"--body", "Card B, reversed globs.",
 		"--paths", "cmd/**,internal/**",

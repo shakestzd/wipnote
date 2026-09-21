@@ -140,8 +140,9 @@ func (s *Store) List(includeRetired bool) ([]*Card, error) {
 
 // Create validates and writes a new card.
 // Returns ErrDuplicateSlug when a card with the same name already exists.
-// Returns ErrDuplicateGlobSet when an existing active card has the exact same
-// set of non-empty path globs (order-insensitive). Empty glob sets are exempt.
+// Returns ErrDuplicateGlobSet when an existing active card of the same kind
+// has the exact same set of non-empty path globs (order-insensitive). Empty
+// glob sets are exempt.
 func (s *Store) Create(card *Card) error {
 	if err := Validate(card); err != nil {
 		return err
@@ -160,7 +161,7 @@ func (s *Store) Create(card *Card) error {
 		if dup, err := s.findGlobSetDuplicate(card); err != nil {
 			return err
 		} else if dup != "" {
-			return fmt.Errorf("%w: same paths as %q", ErrDuplicateGlobSet, dup)
+			return fmt.Errorf("%w: same kind and paths as %q", ErrDuplicateGlobSet, dup)
 		}
 	}
 	now := time.Now().UTC()
@@ -177,8 +178,10 @@ func (s *Store) Create(card *Card) error {
 	return s.write(card, "")
 }
 
-// findGlobSetDuplicate returns the slug of an existing active card whose path
-// glob set is equal (order-insensitive) to card.Paths, or "" if none.
+// findGlobSetDuplicate returns the slug of an existing active card of the
+// same Kind whose path glob set is equal (order-insensitive) to card.Paths,
+// or "" if none. Cards of a different kind may share a glob set: one file can
+// legitimately carry a decision, a hazard and an invariant (GH-#168).
 func (s *Store) findGlobSetDuplicate(card *Card) (string, error) {
 	existing, err := s.List(false) // active cards only
 	if err != nil {
@@ -189,7 +192,7 @@ func (s *Store) findGlobSetDuplicate(card *Card) (string, error) {
 		if len(c.Paths) == 0 {
 			continue
 		}
-		if c.Name == card.Name {
+		if c.Name == card.Name || c.Kind != card.Kind {
 			continue
 		}
 		if normalizeGlobSet(c.Paths) == target {
@@ -210,8 +213,9 @@ func normalizeGlobSet(paths []string) string {
 
 // Update validates and overwrites an existing card.
 // Returns ErrNotFound when the card does not exist.
-// Returns ErrDuplicateGlobSet when another active card has the exact same
-// set of non-empty path globs (order-insensitive). Empty glob sets are exempt.
+// Returns ErrDuplicateGlobSet when another active card of the same kind has
+// the exact same set of non-empty path globs (order-insensitive). Empty glob
+// sets are exempt.
 func (s *Store) Update(card *Card) error {
 	if err := Validate(card); err != nil {
 		return err
@@ -230,7 +234,7 @@ func (s *Store) Update(card *Card) error {
 		if dup, err := s.findGlobSetDuplicate(card); err != nil {
 			return err
 		} else if dup != "" {
-			return fmt.Errorf("%w: same paths as %q", ErrDuplicateGlobSet, dup)
+			return fmt.Errorf("%w: same kind and paths as %q", ErrDuplicateGlobSet, dup)
 		}
 	}
 	card.UpdatedAt = time.Now().UTC()

@@ -47,7 +47,7 @@ wipnote arch add <slug> \
 - Body: max 120 words
 - Slug: lowercase letters, digits, hyphens only
 - Globs: use `**` for recursive match (e.g. `internal/**`, `cmd/wipnote/*.go`)
-- Name and path-glob set must each be unique across all cards
+- Name must be unique across all cards; the (kind, path-glob set) pair must be unique among active cards — cards of different kinds may share the same paths
 
 Aim for 3–8 cards covering the top subsystems visible in the hotspot list.
 
