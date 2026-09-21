@@ -675,3 +675,44 @@ func TestCountDeadLetterMatches(t *testing.T) {
 		t.Fatalf("CountDeadLetterMatches(\"missing\") = (%d, %v), want (0, nil)", n, err)
 	}
 }
+
+// TestFlushIgnoredPathIsNeitherCountedNorDeadLettered pins the GH#172
+// classification: a committer that reports ErrPathIgnored describes a repo
+// configured to refuse the artifact, not a poison commit. Across many passes
+// the intent must stay queued with Attempts untouched, never dead-letter, and
+// be reported per intent so the operator sees the cause.
+func TestFlushIgnoredPathIsNeitherCountedNorDeadLettered(t *testing.T) {
+	o := newTestOutbox(t)
+	_ = o.Append(sampleIntent("feat-ignored"))
+	_ = o.Append(sampleIntent("feat-ok"))
+
+	commit := func(i Intent) error {
+		if i.WorkItemID == "feat-ignored" {
+			return fmt.Errorf(".wipnote/features/feat-ignored.html ignored by .gitignore:1:.wipnote/: %w", ErrPathIgnored)
+		}
+		return nil
+	}
+	const maxAttempts = 2
+	for pass := 1; pass <= maxAttempts+1; pass++ {
+		res, err := o.Flush(commit, maxAttempts)
+		if err != nil {
+			t.Fatalf("pass %d: %v", pass, err)
+		}
+		if res.Failed != 0 || res.DeadLettered != 0 {
+			t.Fatalf("pass %d: ignored path counted as failure: %+v", pass, res)
+		}
+		if len(res.Ignored) != 1 || res.Ignored[0].Intent.WorkItemID != "feat-ignored" {
+			t.Fatalf("pass %d: Ignored = %+v, want the one ignored intent", pass, res.Ignored)
+		}
+		if res.RemainingDepth != 1 {
+			t.Fatalf("pass %d: RemainingDepth = %d, want 1", pass, res.RemainingDepth)
+		}
+	}
+	pending, _ := o.Pending()
+	if len(pending) != 1 || pending[0].WorkItemID != "feat-ignored" || pending[0].Attempts != 0 {
+		t.Fatalf("ignored intent must stay queued with Attempts=0, got %+v", pending)
+	}
+	if dl, _ := o.DeadLetterDepth(); dl != 0 {
+		t.Fatalf("ignored intent must never dead-letter, depth = %d", dl)
+	}
+}

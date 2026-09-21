@@ -222,7 +222,7 @@ func failIfPendingDeferredArtifactCommits(projectRoot, workItemID string, w io.W
 	}
 	var remediation []string
 	if len(pendingWorkItemIntents) > 0 {
-		remediation = append(remediation, "run `wipnote commit-queue flush` for pending intents")
+		remediation = append(remediation, pendingIntentRemediation(projectRoot, pendingWorkItemIntents))
 	}
 	if len(deadLetteredWorkItemIntents) > 0 {
 		remediation = append(remediation, "manually commit or revert the dead-lettered artifact changes, then clear the dead-letter entry")
@@ -231,6 +231,19 @@ func failIfPendingDeferredArtifactCommits(projectRoot, workItemID string, w io.W
 		"quality gate blocked by %d unresolved deferred work-item artifact commit intent(s): %s\nResolve: %s.",
 		len(workItemIntents), strings.Join(details, ", "), strings.Join(remediation, "; "),
 	)
+}
+
+// pendingIntentRemediation names the action that will actually unblock the
+// gate. When a pending intent's artifact path is ignored by git, "run flush"
+// is the one action that cannot work (GH#172) — so the gitignore explanation
+// is printed instead.
+func pendingIntentRemediation(projectRoot string, pending []commitqueue.Intent) string {
+	for _, intent := range pending {
+		if err := gitIgnoredIntentError(projectRoot, intent.RelPaths); err != nil {
+			return "fix .gitignore first — " + err.Error()
+		}
+	}
+	return "run `wipnote commit-queue flush` for pending intents"
 }
 
 func isWorkitemArtifactCommitIntent(intent commitqueue.Intent) bool {

@@ -1,6 +1,25 @@
 package commitqueue
 
-import "time"
+import (
+	"errors"
+	"time"
+)
+
+// ErrPathIgnored is the sentinel a Committer wraps when an intent's artifact
+// path is ignored by git (a repo-level `.wipnote/` rule, for example — GH#172).
+// Such an intent is not poison: it is a correct intent against a repository
+// configured to refuse it. flushLocked therefore treats it as a
+// MISCONFIGURATION rather than a failure — no Attempts increment, never
+// dead-lettered — and reports it per intent so the operator sees the cause
+// instead of an ever-growing retry count.
+var ErrPathIgnored = errors.New("commitqueue: artifact path is ignored by git")
+
+// IntentFailure pairs an intent with the error its commit attempt produced,
+// so callers can print one actionable line per intent.
+type IntentFailure struct {
+	Intent Intent
+	Err    error
+}
 
 // Committer performs the actual git commit for one intent. It returns nil on
 // success (including the idempotent "nothing to commit" no-op) and a non-nil
@@ -25,6 +44,12 @@ type FlushResult struct {
 	DeadLettered    int // intents moved to the dead-letter log this pass
 	RemainingDepth  int // pending intents still queued after this pass
 	DeadLetterDepth int // total dead-lettered intents after this pass
+
+	// Ignored lists intents whose commit was refused because git ignores
+	// their artifact path (ErrPathIgnored). They stay queued untouched —
+	// no Attempts increment, no dead-letter — because retrying cannot help;
+	// only a .gitignore change can (GH#172).
+	Ignored []IntentFailure
 }
 
 // Flush drains the outbox in FIFO order, committing each intent via commit.
@@ -83,6 +108,14 @@ func (o *Outbox) flushLocked(commit Committer, maxAttempts int, res *FlushResult
 		commitErr := commit(intent)
 		if commitErr == nil {
 			res.Committed++
+			continue
+		}
+		if errors.Is(commitErr, ErrPathIgnored) {
+			// Misconfiguration, not a poison commit: keep the intent exactly
+			// as it was so it neither ages toward dead-letter nor loses the
+			// state it records (GH#172).
+			res.Ignored = append(res.Ignored, IntentFailure{Intent: intent, Err: commitErr})
+			remaining = append(remaining, intent)
 			continue
 		}
 		// Commit failed: count the attempt.
