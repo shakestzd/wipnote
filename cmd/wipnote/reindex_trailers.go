@@ -126,6 +126,14 @@ func splitTrailerBlocks(output string) []commitBlock {
 // e.g. "(feat-abc12345)". This is the primary wipnote commit convention.
 var parenWorkItemRe = regexp.MustCompile(`\(\s*((?:feat|bug|spk|trk|pln|spc|plan|spec)-[0-9a-f]{8})\s*\)`)
 
+// bareWorkItemRe matches a bare, fully-formed work item id token anywhere in
+// a commit message — "feat-abc12345: add thing", "bug-def45678 fix", a branch
+// name like "wip/feat-abc12345" — bounded so that "xfeat-abc12345",
+// "feat-abc12345x" and an id with the wrong hex length never match. Only the
+// three code-bearing prefixes count: an agent that commits with the item id
+// anywhere in the subject or body has named its provenance (bug-0816b822).
+var bareWorkItemRe = regexp.MustCompile(`\b((?:feat|bug|spk)-[0-9a-f]{8})\b`)
+
 // parseTrailers extracts work item IDs from a git commit message.
 // Supported formats:
 //
@@ -133,12 +141,22 @@ var parenWorkItemRe = regexp.MustCompile(`\(\s*((?:feat|bug|spk|trk|pln|spc|plan
 //	Fixes: bug-def456
 //	Refs: feat-abc123, feat-def456
 //	fix: resolve crash (feat-abc12345)     — parenthesized convention
+//	feat-abc12345: resolve crash           — bare id anywhere in subject/body
 func parseTrailers(message string) []string {
 	var ids []string
 	seen := make(map[string]bool)
 
 	// Parenthesized work item refs — the primary wipnote convention.
 	for _, m := range parenWorkItemRe.FindAllStringSubmatch(message, -1) {
+		id := m[1]
+		if !seen[id] {
+			ids = append(ids, id)
+			seen[id] = true
+		}
+	}
+
+	// Bare feat-/bug-/spk- ids, word-bounded.
+	for _, m := range bareWorkItemRe.FindAllStringSubmatch(message, -1) {
 		id := m[1]
 		if !seen[id] {
 			ids = append(ids, id)

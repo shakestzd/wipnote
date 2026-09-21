@@ -143,6 +143,42 @@ func TestParseTrailers_ParenthesizedRefs(t *testing.T) {
 	}
 }
 
+// TestParseTrailers_BareIDs pins the bare-id convention (bug-0816b822): a
+// fully-formed feat-/bug-/spk- id anywhere in the subject or body links,
+// while near-miss tokens and non-code prefixes do not.
+func TestParseTrailers_BareIDs(t *testing.T) {
+	tests := []struct {
+		name string
+		msg  string
+		want []string
+	}{
+		{"subject prefix", "feat-abc12345: add thing", []string{"feat-abc12345"}},
+		{"conventional scope", "fix(bug-def45678): guard nil", []string{"bug-def45678"}},
+		{"mid sentence", "docs: mentions spk-aaa11111 in passing", []string{"spk-aaa11111"}},
+		{"body only", "wip\n\nimplements feat-abc12345 end to end", []string{"feat-abc12345"}},
+		{"branch-like", "merge wip/feat-abc12345-editor", []string{"feat-abc12345"}},
+		{"dedup with paren", "fix: thing (feat-abc12345)\n\nfeat-abc12345 again", []string{"feat-abc12345"}},
+		{"wrong hex length", "feat-abc1234 and feat-abc123456", nil},
+		{"glued prefix", "xfeat-abc12345", nil},
+		{"glued suffix", "feat-abc12345x", nil},
+		{"non-hex", "feat-abcdefgh", nil},
+		{"track id is not code-bearing", "trk-abc12345 rollup", nil},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ids := parseTrailers(tc.msg)
+			if len(ids) != len(tc.want) {
+				t.Fatalf("got %v, want %v", ids, tc.want)
+			}
+			for i := range ids {
+				if ids[i] != tc.want[i] {
+					t.Errorf("ids[%d] = %q, want %q", i, ids[i], tc.want[i])
+				}
+			}
+		})
+	}
+}
+
 func TestReindexCommitTrailers_ParenthesizedCommit(t *testing.T) {
 	tmpDir := t.TempDir()
 

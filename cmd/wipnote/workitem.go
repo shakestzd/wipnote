@@ -420,6 +420,12 @@ func wiSetStatusWithAgent(typeName, id, status, sessionID, agentID string) error
 	// When completing a work item, clear active_work_items and the legacy
 	// active_feature_id on any session still pointing at it.
 	if status == "done" {
+		// Persist the commits whose messages name this item as committed_in
+		// edges, BEFORE the artifact commit below so the durable record carries
+		// them (bug-0816b822). Non-fatal.
+		if shouldAutocommitWorkitemArtifact(typeName) {
+			autoLinkMessageDerivedCommits(os.Stderr, col, filepath.Dir(dir), id)
+		}
 		if sessionID != "" {
 			// Close the claim episode in place, giving the interval its end.
 			recordClaimEpisodeClose(nil, dir, sessionID, agentID, id, claimledger.OutcomeCompleted)
@@ -1147,7 +1153,7 @@ func checkProvenanceCompleteGate(p *workitem.Project, col *workitem.Collection, 
 	repoRoot := filepath.Dir(p.ProjectDir)
 	node, _ := col.Get(id)
 	commits := canonicalLinkedCommits(repoRoot, id, node)
-	codePaths := canonicalCodeBearingPaths(repoRoot, p.ProjectDir, id, node, commits)
+	codePaths, scope := canonicalCodeBearingPathsScoped(repoRoot, p.ProjectDir, id, node, commits)
 	if len(codePaths) == 0 {
 		// Pure-.wipnote/doc item — exempt.
 		return nil
@@ -1166,11 +1172,11 @@ func checkProvenanceCompleteGate(p *workitem.Project, col *workitem.Collection, 
 		}
 		return fmt.Errorf(
 			"refusing to complete %s %s: it is code-bearing (touched %d source path(s) outside .wipnote/, e.g. %s) "+
-				"but has zero linked source commits — no durable provenance for the implementation.\n"+
+				"but has zero linked source commits — no durable provenance for the implementation.%s\n"+
 				"Commit the implementation and link it, then rerun:\n  wipnote %s complete %s\n"+
 				"To intentionally accept completion without a source commit (records an audited rationale on the artifact), rerun with:\n"+
 				"  wipnote %s complete %s --accepted-advisory \"<reason>\"",
-			typeName, id, len(codePaths), strings.Join(preview, ", "),
+			typeName, id, len(codePaths), strings.Join(preview, ", "), scannedTreeNote(scope),
 			typeName, id, typeName, id)
 	}
 
