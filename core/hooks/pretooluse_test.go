@@ -1107,13 +1107,32 @@ func TestIsWipnoteCLICommandAnchorsExecutable(t *testing.T) {
 	}
 }
 
+// TestIsBashwipnoteWrite_DoesNotBypassOnMention pins the store guard's
+// target-based decision (GH-#180): a direct write is blocked even when the
+// command mentions "wipnote", `git add .wipnote/` is blocked, and a heredoc or
+// quoted mention of the store path written elsewhere is allowed.
 func TestIsBashwipnoteWrite_DoesNotBypassOnMention(t *testing.T) {
-	event := &CloudEvent{
-		ToolName:  "Bash",
-		ToolInput: map[string]any{"command": "echo wipnote > .wipnote/features/feat-abc.html"},
+	tests := []struct {
+		name string
+		tool string
+		cmd  string
+		want bool
+	}{
+		{"direct write mentioning wipnote", "Bash", "echo wipnote > .wipnote/features/feat-abc.html", true},
+		{"git add store then commit", "Bash", `git add .wipnote/ && git commit -m "x"`, true},
+		{"codex exec_command rm", "exec_command", "rm -f .wipnote/features/feat-abc.html", true},
+		{"heredoc mention written elsewhere", "Bash", "cat > ~/some/other/notes.md <<'TXT'\nNever run git add against .wipnote/ by hand.\nTXT", false},
+		{"quoted mention", "Bash", `echo "do not rm -rf .wipnote/ manually" >> docs/rules.md`, false},
+		{"wipnote CLI", "Bash", "wipnote feature complete feat-abc", false},
+		{"non-shell tool", "Read", "rm -rf .wipnote/", false},
 	}
-	if !isBashwipnoteWrite(event) {
-		t.Fatal("direct .wipnote write that merely mentions wipnote should be blocked")
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			event := &CloudEvent{ToolName: tc.tool, ToolInput: map[string]any{"command": tc.cmd}}
+			if got := isBashwipnoteWrite(event); got != tc.want {
+				t.Errorf("isBashwipnoteWrite(%s %q) = %v, want %v", tc.tool, tc.cmd, got, tc.want)
+			}
+		})
 	}
 }
 
