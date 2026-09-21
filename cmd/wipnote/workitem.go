@@ -1151,7 +1151,7 @@ func checkProvenanceCompleteGate(p *workitem.Project, col *workitem.Collection, 
 	repoRoot := filepath.Dir(p.ProjectDir)
 	node, _ := col.Get(id)
 	commits := canonicalLinkedCommits(repoRoot, id, node)
-	codePaths := canonicalCodeBearingPaths(repoRoot, p.ProjectDir, id, node, commits)
+	codePaths, scope := canonicalCodeBearingPathsScoped(repoRoot, p.ProjectDir, id, node, commits)
 	if len(codePaths) == 0 {
 		// Pure-.wipnote/doc item — exempt.
 		return nil
@@ -1170,11 +1170,11 @@ func checkProvenanceCompleteGate(p *workitem.Project, col *workitem.Collection, 
 		}
 		return fmt.Errorf(
 			"refusing to complete %s %s: it is code-bearing (touched %d source path(s) outside .wipnote/, e.g. %s) "+
-				"but has zero linked source commits — no durable provenance for the implementation.\n"+
+				"but has zero linked source commits — no durable provenance for the implementation.%s\n"+
 				"Commit the implementation and link it, then rerun:\n  wipnote %s complete %s\n"+
 				"To intentionally accept completion without a source commit (records an audited rationale on the artifact), rerun with:\n"+
 				"  wipnote %s complete %s --accepted-advisory \"<reason>\"",
-			typeName, id, len(codePaths), strings.Join(preview, ", "),
+			typeName, id, len(codePaths), strings.Join(preview, ", "), scannedTreeNote(scope),
 			typeName, id, typeName, id)
 	}
 
