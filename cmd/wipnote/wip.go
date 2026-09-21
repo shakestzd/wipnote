@@ -177,22 +177,46 @@ func wipSortedSessionKeys(bySession map[string][]*models.Node) []string {
 	return keys
 }
 
-// wipResetCmd marks all in-progress items as todo.
+// wipResetCmd marks in-progress items as todo, optionally scoped to dead
+// sessions, one session, or orphaned items (GH-#176).
 func wipResetCmd() *cobra.Command {
 	var force bool
+	var scope wipResetScope
 
 	cmd := &cobra.Command{
 		Use:   "reset",
-		Short: "Reset all in-progress items to todo (cleans stale WIP)",
+		Short: "Reset in-progress items to todo (cleans stale WIP)",
+		Long: `Reset in-progress items to todo.
+
+With no scoping flag every in-progress item is reset. Scoping flags narrow the
+set and may be combined (union):
+
+  --dead          items whose owning session is not open in the session
+                  ledger — exactly the sessions 'wip show' marks SESSION DEAD?
+                  (items with no session at all are NOT included; see --orphaned)
+  --session <id>  items owned by one session id
+  --orphaned      items with no implemented_in session ('unknown' in 'wip show')
+
+--dry-run prints the would-reset list (ID, TYPE, SESSION, TITLE) and writes
+nothing; it does not need --force. Any real reset requires --force.
+
+Examples:
+  wipnote wip reset --dead --dry-run
+  wipnote wip reset --dead --orphaned --force
+  wipnote wip reset --session 455daac1-7ac9-4104-91ab-0e2d7a1c9f3e --force`,
 		RunE: func(_ *cobra.Command, _ []string) error {
-			return runWipReset(force)
+			return runWipReset(force, scope)
 		},
 	}
 	cmd.Flags().BoolVar(&force, "force", false, "Required: confirm destructive reset")
+	cmd.Flags().BoolVar(&scope.Dead, "dead", false, "Only items whose owning session is not open in the session ledger (SESSION DEAD? in 'wip show')")
+	cmd.Flags().StringVar(&scope.Session, "session", "", "Only items owned by this session id")
+	cmd.Flags().BoolVar(&scope.Orphaned, "orphaned", false, "Only items with no implemented_in session ('unknown' in 'wip show')")
+	cmd.Flags().BoolVar(&scope.DryRun, "dry-run", false, "Print the would-reset list and write nothing")
 	return cmd
 }
 
-func runWipReset(force bool) error {
+func runWipReset(force bool, scope wipResetScope) error {
 	dir, err := findWipnoteDir()
 	if err != nil {
 		return err
@@ -203,13 +227,24 @@ func runWipReset(force bool) error {
 		return err
 	}
 
-	if !force {
-		count := len(items)
-		return fmt.Errorf("%d items are in-progress. This will reset all to todo.\nRun 'wipnote wip reset --force' to confirm, or 'wipnote wip show' to review first.", count)
+	live := wipLiveSessions(dir)
+	targets := wipResetTargets(items, live, scope)
+
+	if scope.DryRun {
+		printWipResetDryRun(os.Stdout, targets, live)
+		return nil
 	}
 
-	if len(items) == 0 {
-		fmt.Println("No in-progress items found.")
+	if !force {
+		return wipResetForceError(len(targets), scope)
+	}
+
+	if len(targets) == 0 {
+		if scope.Scoped() {
+			fmt.Printf("No in-progress items match scope (%s).\n", scope.Describe())
+		} else {
+			fmt.Println("No in-progress items found.")
+		}
 		return nil
 	}
 
@@ -219,15 +254,25 @@ func runWipReset(force bool) error {
 	}
 	defer p.Close()
 
-	for _, n := range items {
-		if err := resetNodeToTodo(p, n); err != nil {
-			fmt.Fprintf(os.Stderr, "warning: reset %s: %v\n", n.ID, err)
+	reset := 0
+	for _, t := range targets {
+		if err := resetNodeToTodo(p, t.Node); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: reset %s: %v\n", t.Node.ID, err)
 			continue
 		}
-		fmt.Printf("Reset: %s  %s\n", n.ID, truncate(n.Title, 50))
+		reset++
+		fmt.Printf("Reset: %s  %s\n", t.Node.ID, truncate(t.Node.Title, 50))
 	}
-	fmt.Printf("\n%d item(s) reset to todo\n", len(items))
+	fmt.Printf("\n%d item(s) reset to todo\n", reset)
 	return nil
+}
+
+// wipResetForceError is the refusal returned when --force is missing.
+func wipResetForceError(count int, scope wipResetScope) error {
+	if scope.Scoped() {
+		return fmt.Errorf("%d in-progress item(s) match scope (%s). This will reset them to todo.\nAdd --force to confirm, or --dry-run to list them first.", count, scope.Describe())
+	}
+	return fmt.Errorf("%d items are in-progress. This will reset all to todo.\nRun 'wipnote wip reset --force' to confirm, 'wipnote wip reset --dry-run' to list, or 'wipnote wip show' to review first.\nScope with --dead, --session <id>, or --orphaned to keep live sessions' items.", count)
 }
 
 // resetNodeToTodo writes the node back with status=todo and cleared agent.

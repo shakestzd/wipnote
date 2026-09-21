@@ -240,7 +240,7 @@ wipnote help --compact   # reprint this list at any time
 |---------|---------|
 | `feature\|bug\|spike\|track\|plan` | `create\|show\|start\|complete\|list\|add-step\|delete` |
 | `find <query>` | Search work items by title/id |
-| `wip` | Show in-progress items |
+| `wip [show\|reset]` | Show in-progress items per session; `reset --dead\|--session <id>\|--orphaned` scopes a reset, `--dry-run` previews it |
 | `status` | Quick project status |
 | `snapshot [--summary]` | Full project overview |
 | `link [add\|remove\|list]` | Typed edges between items |
