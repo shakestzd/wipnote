@@ -87,7 +87,7 @@ func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 	// hydrated on the hook read path.
 	subagentGrace := checkYoloSubagentGrace(
 		ctx.IsYoloMode, ctx.IsSubagent,
-		subagentStartedAt(ctx), subagentParentSession(ctx), ctx.HgDir,
+		subagentStartedAt(ctx), ctx.ParentSessionID, ctx.HgDir,
 	)
 	if subagentGrace {
 		debugLog(ctx.ProjectDir, "[wipnote] subagent grace period active for session %s — allowing write before claim",

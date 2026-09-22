@@ -51,7 +51,10 @@ func getClaimFromParentChain(wipnoteDir, sessionID, claimedItem string) (string,
 
 // canonicalParentSessionID derives the parent session of sessionID from
 // canonical state, replacing the sessions.parent_session_id column the hook
-// projection no longer hydrates.
+// projection no longer hydrates. resolveToolUseContext calls it to backfill
+// toolUseContext.ParentSessionID (bug-2e5081b4), so every guard that gates on
+// "has a parent" — the sub-agent commit guard above all — sees the real
+// lineage instead of the empty projection's "".
 //
 // Resolution order:
 //  1. WIPNOTE_PARENT_SESSION when it names a DIFFERENT session and the nesting
@@ -83,16 +86,6 @@ func canonicalParentSessionID(projectDir, sessionID string, isSubagent bool) str
 		return root
 	}
 	return sessionID
-}
-
-// subagentParentSession is the parent session for ctx's subagent guards: the
-// projection-supplied value when a hydrated row provided one, else the
-// canonical derivation.
-func subagentParentSession(ctx *toolUseContext) string {
-	if ctx.ParentSessionID != "" {
-		return ctx.ParentSessionID
-	}
-	return canonicalParentSessionID(ctx.ProjectDir, ctx.SessionID, ctx.IsSubagent)
 }
 
 // subagentStartedAt is the start time for ctx's grace window: the
