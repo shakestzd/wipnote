@@ -415,6 +415,10 @@ func wiSetStatusWithAgent(typeName, id, status, sessionID, agentID string) error
 	// When starting a work item, update per-agent attribution, create a claim
 	// with per-agent attribution, and create an implemented_in edge.
 	if status == "in-progress" {
+		// Non-blocking already-fixed advisory (feat-89d7b057): an item with
+		// linked commits, or whose id is cited in source, may have been fixed
+		// and never closed. Print before any dispatch happens; never refuse.
+		emitAlreadyFixedAdvisory(os.Stderr, filepath.Dir(dir), id, node)
 		if sessionID != "" {
 			// Durable claim history (feat-21d12cdb). This sits BESIDE the claim
 			// row, not inside it: claims/active_work_items are single-slot current
