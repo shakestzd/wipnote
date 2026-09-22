@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>plan finalize-yaml: reuse existing slice feature_id after reopen instead of regenerating</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-66f54ec8"
+             data-type="bug"
+             data-status="todo"
+             data-priority="high"
+             data-created="2026-09-21T03:21:09.796367"
+             data-updated="2026-09-21T03:21:09.799335" data-agent-assigned="claude-code" data-track-id="trk-99de4f33" data-created-by-cli-version="dev">
+
+        <header>
+            <h1>plan finalize-yaml: reuse existing slice feature_id after reopen instead of regenerating</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-99de4f33.html" data-relationship="part_of" data-since="2026-09-21T03:21:09.799244">trk-99de4f33</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="false" data-step-id="step-bug-66f54ec8-0" data-agent="claude-code" data-created-by-agent="claude-code">⏳ In createApprovedPlanFeatures reuse s.FeatureID when the feature still exists and only Create for slices without one</li>
+                <li data-completed="false" data-step-id="step-bug-66f54ec8-1" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Make linkPlanFinalizationEdges idempotent for reused ids</li>
+                <li data-completed="false" data-step-id="step-bug-66f54ec8-2" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Add a --regenerate flag for the destructive path and fix the plan reopen help text</li>
+                <li data-completed="false" data-step-id="step-bug-66f54ec8-3" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Add TestFinalizeYAML_ReopenAddSliceReusesFeatureIDs</li>
+            </ol>
+        </section>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>After plan reopen resets status to todo, createApprovedPlanFeatures in cmd/wipnote/plan_finalize_yaml.go creates a fresh feature for every approved slice and ignores PlanSlice.FeatureID, so previously promoted features become orphaned duplicates and their edges point at stale IDs. finalize-yaml should mirror promote-slice Rule 3: reuse an existing, still-present feature_id and only create features for slices without one, wiring blocked_by edges against the reused IDs. GitHub issue #116.</p>
+        </section>
+    </article>
+</body>
+</html>

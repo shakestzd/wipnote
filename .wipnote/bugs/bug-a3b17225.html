@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Research and UI-validation guards read the empty hook projection and never fire</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-a3b17225"
+             data-type="bug"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-09-21T03:22:54.901537"
+             data-updated="2026-09-21T03:22:54.905129" data-agent-assigned="claude-code" data-track-id="trk-99de4f33" data-created-by-cli-version="dev">
+
+        <header>
+            <h1>Research and UI-validation guards read the empty hook projection and never fire</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-99de4f33.html" data-relationship="part_of" data-since="2026-09-21T03:22:54.904958">trk-99de4f33</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="false" data-step-id="step-bug-a3b17225-0" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Decide per guard: hydrate the current session&#39;s agent_events from canonical NDJSON in the read-only hook path with a bounded tail; or read a canonical research/screenshot marker</li>
+                <li data-completed="false" data-step-id="step-bug-a3b17225-1" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Wire hasRecentResearch and checkYoloUIValidationGuard to that source and keep fail-open on a recording gap</li>
+                <li data-completed="false" data-step-id="step-bug-a3b17225-2" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Add tests that exercise the real OpenHookDBReadOnly path and assert the guards block when no research or screenshot exists</li>
+                <li data-completed="false" data-step-id="step-bug-a3b17225-3" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Update bug-369da005 follow-up notes and the yolo-guard docs</li>
+            </ol>
+        </section>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Commit 9e0afae6d (bug-369da005) repaired checkYoloWorkItemGuard after the SQLite cutover left the hot-hook projection empty, but noted the sibling research guard merely went inert. At HEAD hasRecentResearch (core/hooks/yolo_guard.go) and checkYoloUIValidationGuard still query agent_events on the never-hydrated projection returned by OpenHookDBReadOnly, so the research-required guard (GitHub #94) and the pre-commit visual-validation gate (GitHub #89) enforce nothing. Give these guards a canonical source (session NDJSON tail or a bounded hydration of the current session&#39;s events) or a documented removal so their tests stop pinning dead behaviour.</p>
+        </section>
+    </article>
+</body>
+</html>

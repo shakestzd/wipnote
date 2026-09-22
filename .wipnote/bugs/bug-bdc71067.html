@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>check --gate --work-item: separate or suppress repo-wide advisories</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-bdc71067"
+             data-type="bug"
+             data-status="todo"
+             data-priority="low"
+             data-created="2026-09-21T03:21:09.996106"
+             data-updated="2026-09-21T03:21:09.999457" data-agent-assigned="claude-code" data-track-id="trk-99de4f33" data-created-by-cli-version="dev">
+
+        <header>
+            <h1>check --gate --work-item: separate or suppress repo-wide advisories</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-low">Low Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-99de4f33.html" data-relationship="part_of" data-since="2026-09-21T03:21:09.999363">trk-99de4f33</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="false" data-step-id="step-bug-bdc71067-0" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Emit reportDeferredArtifactQueueHealth and printContentionGateReminder under a repo-wide header only when no work item is given or behind a flag</li>
+                <li data-completed="false" data-step-id="step-bug-bdc71067-1" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Skip printContentionGateReminder when --work-item is set</li>
+                <li data-completed="false" data-step-id="step-bug-bdc71067-2" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Update check_test.go expectations</li>
+            </ol>
+        </section>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>After the #150 and #154 fixes the remaining unrelated text in check --gate --work-item output is the repo-wide deferred-queue advisory from reportDeferredArtifactQueueHealth and, in wipnote&#39;s own repo, the launch-readiness reminder. Print such global advisories under a clearly labelled trailer or only when no --work-item is given so agents can ignore them mechanically. GitHub issue #163.</p>
+        </section>
+    </article>
+</body>
+</html>

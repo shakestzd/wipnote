@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>feature complete: require a linked commit reachable from upstream default (or --allow-orphan)</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-be42685c"
+             data-type="feature"
+             data-status="todo"
+             data-priority="high"
+             data-created="2026-09-21T03:21:09.822804"
+             data-updated="2026-09-21T03:21:09.825724" data-agent-assigned="claude-code" data-track-id="trk-99de4f33" data-created-by-cli-version="dev">
+
+        <header>
+            <h1>feature complete: require a linked commit reachable from upstream default (or --allow-orphan)</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-99de4f33.html" data-relationship="part_of" data-since="2026-09-21T03:21:09.825616">trk-99de4f33</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="false" data-step-id="step-feat-be42685c-0" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Add resolveUpstreamDefault and commitReachableFromUpstream (git merge-base --is-ancestor) helpers in cmd/wipnote/workitem_provenance_canonical.go</li>
+                <li data-completed="false" data-step-id="step-feat-be42685c-1" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Add checkMergedUpstreamCompleteGate after the provenance gate; skipped when no remote exists or --allow-orphan is passed</li>
+                <li data-completed="false" data-step-id="step-feat-be42685c-2" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Wire the --allow-orphan flag on complete and persist the rationale on the artifact like acceptedAdvisoryMarker</li>
+                <li data-completed="false" data-step-id="step-feat-be42685c-3" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Add tests covering unmerged branch blocks; merged commit passes; override records a note</li>
+            </ol>
+        </section>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>checkProvenanceCompleteGate in cmd/wipnote/workitem.go accepts any commit found via git log --all, so work sitting on an unmerged worktree branch still lets feature complete mark the item done, wipnote status drifts from origin/main, and orphan branches accrue silently. Add a merged-upstream precondition that checks whether at least one linked commit is an ancestor of the upstream default branch, with an audited --allow-orphan reason override recorded on the artifact like --accepted-advisory. GitHub issue #93.</p>
+        </section>
+    </article>
+</body>
+</html>

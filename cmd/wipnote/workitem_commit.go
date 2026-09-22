@@ -17,17 +17,26 @@ type workitemArtifactCommitPolicy string
 const (
 	workitemArtifactCommitPolicySeparate workitemArtifactCommitPolicy = "separate"
 	workitemArtifactCommitPolicyDefer    workitemArtifactCommitPolicy = "defer"
+	// workitemArtifactCommitPolicyNone skips artifact commits AND queueing
+	// entirely (GH#149): the canonical .wipnote write is the whole transition
+	// and the operator commits .wipnote/ by hand. For projects whose policy is
+	// "never auto-commit" and for sandboxes where the per-user cache (and so
+	// the outbox) is unwritable.
+	workitemArtifactCommitPolicyNone workitemArtifactCommitPolicy = "none"
 )
 
 // workitemArtifactCommitPolicyForEnv returns the commit policy requested by
 // WIPNOTE_ARTIFACT_COMMIT_POLICY. defer is the default so deferred artifact
-// commits are on by default; "separate" is an explicit legacy opt-in.
+// commits are on by default; "separate" is an explicit legacy opt-in; "none"
+// disables both the commit and the queue.
 func workitemArtifactCommitPolicyForEnv() workitemArtifactCommitPolicy {
 	switch strings.ToLower(strings.TrimSpace(os.Getenv("WIPNOTE_ARTIFACT_COMMIT_POLICY"))) {
 	case "", string(workitemArtifactCommitPolicyDefer):
 		return workitemArtifactCommitPolicyDefer
 	case string(workitemArtifactCommitPolicySeparate):
 		return workitemArtifactCommitPolicySeparate
+	case string(workitemArtifactCommitPolicyNone):
+		return workitemArtifactCommitPolicyNone
 	default:
 		return workitemArtifactCommitPolicyDefer
 	}
@@ -52,6 +61,10 @@ func persistWorkitemArtifactTransition(wipnoteDir, typeName, id, action string) 
 	switch workitemArtifactCommitPolicyForEnv() {
 	case workitemArtifactCommitPolicyDefer:
 		return enqueueWorkitemArtifactCommitIntent(wipnoteDir, typeName, id, action)
+	case workitemArtifactCommitPolicyNone:
+		fmt.Fprintf(stderr, "artifact commit skipped by WIPNOTE_ARTIFACT_COMMIT_POLICY=none for %s; commit %s manually\n",
+			id, workitemArtifactRelPath(typeName, id))
+		return nil
 	default:
 		return commitWipnoteArtifact(wipnoteDir, typeName, id, action)
 	}
@@ -379,13 +392,18 @@ func commitArtifactTransactional(wipnoteDir, typeName, id, preHead string) error
 // outside .wipnote/ have uncommitted changes. Completion auto-commits only the
 // work-item artifact, so allowing dirty source by default makes the "done"
 // signal stronger than the durable implementation state.
+//
+// The scan is scoped to the completing agent's own worktree (bug-6c953712):
+// a clean linked worktree must not be blocked by files dirty in the .wipnote
+// owner's checkout or in a sibling agent's tree.
 func checkUncommittedSourceCompleteGate(wipnoteDir, id string, allowDirty bool) error {
 	repoRoot := filepath.Dir(wipnoteDir)
 	if !isGitRepo(repoRoot) {
 		return nil
 	}
+	scope := resolveCompletionWorktree(repoRoot)
 
-	files, err := dirtyTrackedSourceFiles(repoRoot)
+	files, err := dirtyTrackedSourceFiles(scope.Root)
 	if err != nil {
 		return err
 	}
@@ -401,8 +419,9 @@ func checkUncommittedSourceCompleteGate(wipnoteDir, id string, allowDirty bool) 
 	}
 
 	return fmt.Errorf(
-		"refusing to complete %s with uncommitted source changes outside .wipnote/:\n%s\n\nCommit the implementation first, for example:\n  git add %s && git commit -m %q\n\nTo bypass intentionally, rerun with --allow-dirty",
+		"refusing to complete %s with uncommitted source changes outside .wipnote/ (scanned %s):\n%s\n\nCommit the implementation first, for example:\n  git add %s && git commit -m %q\n\nTo bypass intentionally, rerun with --allow-dirty",
 		id,
+		scope.describe(),
 		formatPathList(files),
 		strings.Join(shellQuotePaths(files), " "),
 		id+": commit implementation",

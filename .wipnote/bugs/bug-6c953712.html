@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Scope provenance gate uncommitted-path fallback to the completing worktree and branch</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-6c953712"
+             data-type="bug"
+             data-status="todo"
+             data-priority="high"
+             data-created="2026-09-21T03:21:09.710631"
+             data-updated="2026-09-21T03:21:09.713934" data-agent-assigned="claude-code" data-track-id="trk-99de4f33" data-created-by-cli-version="dev">
+
+        <header>
+            <h1>Scope provenance gate uncommitted-path fallback to the completing worktree and branch</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-99de4f33.html" data-relationship="part_of" data-since="2026-09-21T03:21:09.713785">trk-99de4f33</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="false" data-step-id="step-bug-6c953712-0" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Add a resolveCompletionWorktree helper using git rev-parse --show-toplevel from CWD or the session exec worktree path and pass it to uncommittedSourcePaths</li>
+                <li data-completed="false" data-step-id="step-bug-6c953712-1" data-agent="claude-code" data-created-by-agent="claude-code">⏳ When in a linked worktree add the branch diff against merge-base as committed-but-unlinked evidence and drop files not touched there</li>
+                <li data-completed="false" data-step-id="step-bug-6c953712-2" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Print which tree and branch was scanned in the block message</li>
+                <li data-completed="false" data-step-id="step-bug-6c953712-3" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Add a two-worktree test where dirty files in B do not block completing A</li>
+            </ol>
+        </section>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>The zero-commit fallback in canonicalCodeBearingPaths (cmd/wipnote/workitem_provenance_canonical.go) runs git status against the shared project root derived from the .wipnote location rather than the worktree the completing agent is in, so under concurrent worktree dispatch a docs-only feature inherits a sibling&#39;s dirty files and is falsely blocked. Resolve the git working tree from the caller&#39;s CWD or the session&#39;s persisted exec worktree path and, when a branch is known, restrict candidate paths to that branch&#39;s diff against its merge base. GitHub issue #161.</p>
+        </section>
+    </article>
+</body>
+</html>

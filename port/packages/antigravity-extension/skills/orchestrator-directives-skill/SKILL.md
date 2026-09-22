@@ -432,6 +432,19 @@ Use Gemini agent invocation with:
 
 ---
 
+## Brief Shape (MANDATORY for every subagent brief)
+
+Two dispatched agents once sat for 22 and 24 minutes with **zero tool calls** — the stall happened inside the model's turn, before it ever acted, so no hook could catch it. Relaunching the same tasks with a differently shaped brief produced 12 and 23 calls in the first minute (GH-#179). The brief's shape is the variable, so every brief follows these rules regardless of which spawner runs it:
+
+1. **The first instruction is a concrete tool call or file write — never reading, never judgement.** Open the brief with a literal command the agent runs verbatim, e.g. `wipnote feature start <id>` followed by `mkdir -p .wipnote/logs/progress && echo started >> .wipnote/logs/progress/<id>.md`. `wipnote context-pack <id>` already emits this as section 0; paste it, do not paraphrase it into prose.
+2. **Deliverables are written incrementally.** Ask for a file write after every unit of work (a line appended to the progress note, a partial report, a commit), so partial progress survives if the agent is stopped. A brief that reads many files and asks for one ranked report at the end is the exact shape that stalls.
+3. **Name the one thing to prove first.** A research or multi-part brief says which single case to complete end-to-end before scaling — one page before seventeen, one skill before eleven, one test before the suite.
+4. **Keep the front of the brief short.** Long preambles of context to absorb before acting push the first tool call later. Put the action first and the context after it.
+
+**Detecting the agent that never started:** `wipnote session list` shows a `CALLS` and `LAST CALL` column and `wipnote session show <id>` prints `Calls` / `Last call`, both derived from the hook log. An agent with no session row or `CALLS -` a few minutes after dispatch has not begun — stop it and re-dispatch with a tighter brief rather than waiting. Stop every agent the moment its output is verified, so a finished agent never looks like a stuck one.
+
+---
+
 ## Delegation Patterns & Examples
 
 <details>

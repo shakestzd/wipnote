@@ -382,9 +382,14 @@ func TaskCreated(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 		debugLog(projectDir, "[error] handler=TaskCreated session=%s: insert event: %v", sessionID[:minSessionLen(sessionID)], err)
 	}
 
-	// Mirror as a step on the active feature so the task survives session end.
-	if featureID != "" && taskID != "" {
-		addTaskStep(database, sessionID, featureID, taskID, subject, event.TeammateName)
+	// Mirror as a step on the active feature so the task survives session end
+	// — but only when the task names a work-item ID (bug-XXXXXXXX, feat-…, …),
+	// so orchestrator-internal process tasks ("Draft the plan YAML") aren't
+	// misattributed to whatever item happens to be active (GH-#169,
+	// bug-664276df). WIPNOTE_TASK_STEPS=off disables step-mirroring entirely;
+	// the agent_event above is still recorded either way.
+	if featureID != "" && taskID != "" && !taskStepsDisabled() && taskNamesWorkItem(subject, description) {
+		addTaskStepFn(database, sessionID, featureID, taskID, subject, event.TeammateName)
 	}
 
 	return &HookResult{Continue: true}, nil
@@ -404,6 +409,10 @@ func TaskCompleted(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 	subject := event.TaskSubject
 	if subject == "" {
 		subject, _ = event.TaskData["subject"].(string)
+	}
+	description := event.TaskDescription
+	if description == "" {
+		description, _ = event.TaskData["description"].(string)
 	}
 
 	summary := "Task completed"
@@ -455,9 +464,12 @@ func TaskCompleted(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 		}
 	}
 
-	// Mark the step as completed on the feature HTML.
-	if featureID != "" && taskID != "" {
-		completeTaskStep(database, sessionID, featureID, taskID, event.TeammateName)
+	// Mark the step as completed on the feature HTML. Mirrors the same
+	// work-item-id resolution rule as TaskCreated's addTaskStep gate (GH-#169,
+	// bug-664276df): a step is only ticked if it could have been created,
+	// i.e. the task names a work-item ID and step-mirroring isn't disabled.
+	if featureID != "" && taskID != "" && !taskStepsDisabled() && taskNamesWorkItem(subject, description) {
+		completeTaskStepFn(database, sessionID, featureID, taskID, event.TeammateName)
 	}
 
 	return &HookResult{Continue: true}, nil

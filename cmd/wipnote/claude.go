@@ -68,7 +68,7 @@ type LaunchOpts struct {
 }
 
 func claudeCmd() *cobra.Command {
-	var dev, init_, continue_, auto, tmux bool
+	var dev, init_, continue_, auto, tmux, allowNonInteractive bool
 	var resumeID, name string
 	// Isolation flags (slice-2). --no-worktree and --in-place are mutually equivalent;
 	// --in-place is the preferred semantic name going forward.
@@ -86,6 +86,12 @@ func claudeCmd() *cobra.Command {
 			// If we are already inside tmux (TMUX env set), this is a no-op.
 			_ = tmux // flag is consumed via os.Args inspection in maybeTmuxWrap
 			if err := maybeTmuxWrap("wipnote-dev"); err != nil {
+				return err
+			}
+			// Every mode below launches an interactive Claude TUI. Refuse when
+			// stdin is not a terminal BEFORE any launch marker, serve/collector
+			// spawn, worktree or session write happens (issue #148).
+			if err := requireInteractiveLaunch(harnessClaude, allowNonInteractive, args); err != nil {
 				return err
 			}
 			// --no-worktree is a legacy alias for --in-place.
@@ -116,6 +122,8 @@ func claudeCmd() *cobra.Command {
 	cmd.Flags().StringVar(&name, "name", "", "Session label shown in Claude TUI (default: <project>-<timestamp>)")
 	cmd.Flags().StringVar(&workItem, "work-item", "", "Work item ID for isolation planning (e.g. feat-15c458aa, trk-3719d8f3)")
 	cmd.Flags().StringVar(&baseBranch, "base", "", "Base branch for managed worktree (advanced; default: current HEAD)")
+	cmd.Flags().BoolVar(&allowNonInteractive, allowNonInteractiveFlag, false,
+		"Launch even when stdin is not a terminal (default: refuse; env "+allowNonTTYEnv+"=1 is equivalent)")
 	cmd.AddCommand(yoloCmd())
 	return cmd
 }

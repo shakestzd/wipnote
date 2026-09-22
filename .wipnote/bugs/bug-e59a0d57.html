@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>commit-queue: detect gitignored artifact paths and explain instead of retrying to dead-letter</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-e59a0d57"
+             data-type="bug"
+             data-status="todo"
+             data-priority="high"
+             data-created="2026-09-21T03:21:09.622396"
+             data-updated="2026-09-21T03:21:09.625635" data-agent-assigned="claude-code" data-track-id="trk-99de4f33" data-created-by-cli-version="dev">
+
+        <header>
+            <h1>commit-queue: detect gitignored artifact paths and explain instead of retrying to dead-letter</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-99de4f33.html" data-relationship="part_of" data-since="2026-09-21T03:21:09.625505">trk-99de4f33</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="false" data-step-id="step-bug-e59a0d57-0" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Add an isGitIgnored helper (git check-ignore -q) called from recordCommitIntent and outboxCommitter returning a sentinel ErrPathIgnored naming the rule</li>
+                <li data-completed="false" data-step-id="step-bug-e59a0d57-1" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Treat ErrPathIgnored as non-counting in internal/commitqueue flushLocked and print it per intent from flush; make check --gate print the gitignore explanation instead of run flush</li>
+                <li data-completed="false" data-step-id="step-bug-e59a0d57-2" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Extend wipnote init and launcher doctor to detect a repo-level .wipnote/ rule and suggest the .wipnote/sessions/ pattern with the negation caveat</li>
+                <li data-completed="false" data-step-id="step-bug-e59a0d57-3" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Add docs covering prompt privacy vs artifact-commit requirements</li>
+            </ol>
+        </section>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>When a repo ignores .wipnote/, every artifact commit intent fails git add, retries 5 times with no per-intent error shown, dead-letters, and wipnote check --gate stays red while pointing at commit-queue flush, the one action that cannot work. Add a git check-ignore probe at enqueue (recordCommitIntent in cmd/wipnote/commit_queue.go) and on flush failure (outboxCommitter), classify the intent as misconfigured rather than poison, and print a targeted message naming the ignore rule and the recommended sessions-only pattern. Scaffold and validate that pattern from wipnote init and launcher doctor. GitHub issue #172.</p>
+        </section>
+    </article>
+</body>
+</html>

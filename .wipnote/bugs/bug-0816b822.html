@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Auto-link worktree commits on complete: bare-id messages and persisted committed_in edges</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-0816b822"
+             data-type="bug"
+             data-status="todo"
+             data-priority="high"
+             data-created="2026-09-21T03:21:09.73997"
+             data-updated="2026-09-21T03:21:09.743289" data-agent-assigned="claude-code" data-track-id="trk-99de4f33" data-created-by-cli-version="dev">
+
+        <header>
+            <h1>Auto-link worktree commits on complete: bare-id messages and persisted committed_in edges</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-99de4f33.html" data-relationship="part_of" data-since="2026-09-21T03:21:09.743166">trk-99de4f33</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="false" data-step-id="step-bug-0816b822-0" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Extend parseTrailers with a word-boundary bare-id match and update reindex tests</li>
+                <li data-completed="false" data-step-id="step-bug-0816b822-1" data-agent="claude-code" data-created-by-agent="claude-code">⏳ On complete write idempotent committed_in edges for each message-derived hash via the runLinkCommit edge writer</li>
+                <li data-completed="false" data-step-id="step-bug-0816b822-2" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Document the commit-message convention in plugin/agents/*-coder.md and plugin/skills/execute/SKILL.md</li>
+                <li data-completed="false" data-step-id="step-bug-0816b822-3" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Add a test where a worktree-branch commit with a bare-id subject passes complete and the artifact shows committed_in</li>
+            </ol>
+        </section>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>At HEAD the provenance gate sees worktree-branch commits only when the message uses a parenthesised id or Refs/Fixes trailers (parseTrailers in cmd/wipnote/reindex_trailers.go), and it never persists the derived commits as committed_in edges on the artifact, so lineage still needs manual link-commit. Extend parseTrailers and the gate to accept a bare work-item id token in the subject or body, and on successful completion write committed_in edges for the derived commits. GitHub issue #162.</p>
+        </section>
+    </article>
+</body>
+</html>

@@ -517,3 +517,33 @@ func contextPackFindRepoRoot() string {
 	}
 	return ""
 }
+
+// TestContextPack_ActFirstPreamble verifies the GH-#179 act-first block: it
+// precedes the claim section, opens with literal commands (claim, then the
+// progress-note write), and asks for incremental writes and one-thing-first.
+func TestContextPack_ActFirstPreamble(t *testing.T) {
+	node := &models.Node{ID: "bug-12345678", Type: "bug", Title: "Act first bug"}
+	out := renderContextPack(node, "main", 0, 0, nil, nil, nil)
+
+	preambleIdx := strings.Index(out, "## 0. Act First")
+	claimIdx := strings.Index(out, "## 1. Claim Command")
+	if preambleIdx < 0 || claimIdx < 0 || preambleIdx > claimIdx {
+		t.Fatalf("act-first preamble must precede the claim section:\n%s", out)
+	}
+	for _, want := range []string{
+		"FIRST tool calls",
+		"wipnote bug start bug-12345678",
+		"mkdir -p .wipnote/logs/progress",
+		">> .wipnote/logs/progress/bug-12345678.md",
+		"after every unit of work",
+		"incrementally",
+		"Prove the first thing end-to-end before scaling",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("preamble missing %q:\n%s", want, out)
+		}
+	}
+	if !strings.HasSuffix(contextPackProgressPath("feat-1"), "/feat-1.md") {
+		t.Errorf("progress path: %q", contextPackProgressPath("feat-1"))
+	}
+}

@@ -726,7 +726,7 @@ func TestVisualValidation_SkipsWhenNoUIFilesStaged(t *testing.T) {
 		ToolName:  "Bash",
 		ToolInput: map[string]any{"command": "git commit -m 'backend only'"},
 	}
-	result := checkYoloUIValidationGuard(event, true, nil, "sess-go-only")
+	result := checkYoloUIValidationGuard(event, true, nil, "sess-go-only", "")
 	if result != "" {
 		t.Errorf("expected allow for backend-only commit, got: %s", result)
 	}
@@ -758,7 +758,7 @@ func TestVisualValidation_FiresWhenUIFilesStaged(t *testing.T) {
 		ToolName:  "Bash",
 		ToolInput: map[string]any{"command": "git commit -m 'ui change'"},
 	}
-	result := checkYoloUIValidationGuard(event, true, tdb.DB, "test-sess")
+	result := checkYoloUIValidationGuard(event, true, tdb.DB, "test-sess", "")
 	if result == "" {
 		t.Error("expected block when HTML file staged but no screenshot recorded")
 	}
@@ -796,7 +796,7 @@ func TestVisualValidation_AcceptsChromeMcpScreenshot(t *testing.T) {
 		ToolName:  "Bash",
 		ToolInput: map[string]any{"command": "git commit -m 'ui with screenshot'"},
 	}
-	result := checkYoloUIValidationGuard(event, true, tdb.DB, "test-sess")
+	result := checkYoloUIValidationGuard(event, true, tdb.DB, "test-sess", "")
 	if result != "" {
 		t.Errorf("expected allow after Chrome MCP screenshot, got: %s", result)
 	}
@@ -811,7 +811,7 @@ func TestVisualValidation_IgnoresNonGitCommitBash(t *testing.T) {
 		ToolInput: map[string]any{"command": "gh issue create --title 'foo'"},
 	}
 	// nil DB is safe here — the function must return before touching it.
-	result := checkYoloUIValidationGuard(event, true, nil, "sess-gh")
+	result := checkYoloUIValidationGuard(event, true, nil, "sess-gh", "")
 	if result != "" {
 		t.Errorf("expected allow for non-git-commit bash, got: %s", result)
 	}
@@ -826,7 +826,7 @@ func TestVisualValidation_GitCommitTreeNotGated(t *testing.T) {
 		ToolInput: map[string]any{"command": "git commit-tree HEAD~1"},
 	}
 	// nil DB is safe — the function must return before touching it.
-	result := checkYoloUIValidationGuard(event, true, nil, "sess-plumbing")
+	result := checkYoloUIValidationGuard(event, true, nil, "sess-plumbing", "")
 	if result != "" {
 		t.Errorf("expected allow for git commit-tree, got: %s", result)
 	}
@@ -866,7 +866,7 @@ func TestUIValidationGuard_BrowserBatchScreenshotCounts(t *testing.T) {
 		ToolName:  "Bash",
 		ToolInput: map[string]any{"command": "git commit -m 'ui with browser_batch screenshot'"},
 	}
-	result := checkYoloUIValidationGuard(event, true, tdb.DB, "test-sess")
+	result := checkYoloUIValidationGuard(event, true, tdb.DB, "test-sess", "")
 	if result != "" {
 		t.Errorf("expected allow after browser_batch screenshot, got: %s", result)
 	}
@@ -1081,10 +1081,12 @@ func TestCheckYoloBashResearchGuard_ReadOnlyNotBlocked(t *testing.T) {
 	}
 }
 
-// TestCheckYoloBashResearchGuard_ExternalPathMessage verifies the error message
-// for write commands targeting paths outside the project does NOT suggest
-// Read/Grep/Glob (which can't reach external paths) — bug-d0c8b1e2.
-func TestCheckYoloBashResearchGuard_ExternalPathMessage(t *testing.T) {
+// TestCheckYoloBashResearchGuard_ExternalPathSkipped verifies that write
+// commands whose first path target lies outside the project are NOT gated by
+// the code-research guard, mirroring the pathIsOutsideProject skip on the
+// Write/Edit path (bug-d0c8b1e2, GH-#97). Read/Grep/Glob cannot reach these
+// paths, so there is no research an agent could do to satisfy the gate.
+func TestCheckYoloBashResearchGuard_ExternalPathSkipped(t *testing.T) {
 	externalWrites := []struct {
 		name string
 		cmd  string
@@ -1093,6 +1095,7 @@ func TestCheckYoloBashResearchGuard_ExternalPathMessage(t *testing.T) {
 		{"cp to home", "cp file.txt ~/backup/"},
 		{"write to absolute path", "echo x > /tmp/y"},
 		{"rm from home", "rm ~/.claude/tasks/foo/bar.txt"},
+		{"heredoc to tmp html", "cat > /tmp/anthony_call_script.html <<'EOF'\n<h1>Call</h1>\nEOF"},
 	}
 
 	for _, tc := range externalWrites {
@@ -1101,14 +1104,55 @@ func TestCheckYoloBashResearchGuard_ExternalPathMessage(t *testing.T) {
 				ToolName:  "Bash",
 				ToolInput: map[string]any{"command": tc.cmd},
 			}
-			result := checkYoloBashResearchGuard(event, true, false)
-			if result == "" {
-				t.Errorf("expected block for write command %q", tc.cmd)
-				return
+			if result := checkYoloBashResearchGuard(event, true, false); result != "" {
+				t.Errorf("external-path write %q should not be gated, got: %s", tc.cmd, result)
 			}
-			// Must NOT suggest Read/Grep/Glob for external paths
-			if strings.Contains(result, "Read, Grep, or Glob") {
-				t.Errorf("message for external-path write should not suggest Read/Grep/Glob, got: %s", result)
+		})
+	}
+}
+
+// TestBashResearchGuard_OsascriptAndHTMLPayloads pins the GH-#97 reproducers:
+// osascript app-control invocations (inline -e and heredoc) carrying HTML are
+// neither classified as file writes nor gated, and a bare "<h1>" in any
+// command no longer trips the fd-1 redirect alternative.
+func TestBashResearchGuard_OsascriptAndHTMLPayloads(t *testing.T) {
+	tests := []struct {
+		name      string
+		cmd       string
+		wantWrite bool
+		wantGate  bool
+	}{
+		{
+			"osascript -e with html body",
+			`osascript -e 'tell application "Notes" to tell account "iCloud" to set body of (first note whose name is "Call Script") to "<h1>Call Script</h1><p>Hi Anthony</p>"'`,
+			false, false,
+		},
+		{
+			"osascript heredoc with html body",
+			"osascript <<'EOF'\ntell application \"Notes\"\n  set targetNote to first note whose name is \"Call Script\"\n  set body of targetNote to \"<h1>Call Script</h1><p>Hi</p>\"\nend tell\nEOF",
+			false, false,
+		},
+		{
+			"osascript multi -e with continuations",
+			"osascript \\\n  -e 'tell application \"Notes\"' \\\n  -e 'make new note with properties {name:\"x\", body:\"<h1>y</h1>\"}' \\\n  -e 'end tell'",
+			false, false,
+		},
+		{"grep for h1 tag", `grep -rn "<h1>" docs/`, false, false},
+		{"echo h1 without redirect", `echo "<h1>Title</h1>"`, false, false},
+		{"fd dup is not a write", "cmd 1>&2", false, false},
+		{"real fd-1 redirect still write", "echo x 1>out.html", true, true},
+		{"osascript chained with rm not exempt", "osascript -e 'beep' && rm main.go", true, true},
+		{"osascript-like name not exempt", "osascriptx -e 'x' > main.go", true, true},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			event := &CloudEvent{ToolName: "Bash", ToolInput: map[string]any{"command": tc.cmd}}
+			if got := isBashFileWrite(event); got != tc.wantWrite {
+				t.Errorf("isBashFileWrite(%q) = %v, want %v", tc.cmd, got, tc.wantWrite)
+			}
+			gated := checkYoloBashResearchGuard(event, true, false) != ""
+			if gated != tc.wantGate {
+				t.Errorf("checkYoloBashResearchGuard(%q) gated = %v, want %v", tc.cmd, gated, tc.wantGate)
 			}
 		})
 	}
@@ -1180,59 +1224,46 @@ func TestBashCommandTargetsExternalPath_EmptyProjectRoot(t *testing.T) {
 
 // TestGetClaimFromParentChain verifies that sub-agent sessions inherit the
 // parent orchestrator's claim when they have no claim of their own.
+//
+// bug-7036b94f: the walk reads the CANONICAL claim ledger and session-family
+// index, not the sessions/claims tables of the hook projection (which the
+// read-only hook path never hydrates, so the old SQL walk was inert and every
+// worktree subagent Write was blocked with "claim=none" — GH-#87).
 func TestGetClaimFromParentChain(t *testing.T) {
-	tdb := setupTestDB(t)
-	defer tdb.DB.Close()
+	projectRoot := t.TempDir()
+	wipnoteDir := filepath.Join(projectRoot, ".wipnote")
+	if err := os.MkdirAll(wipnoteDir, 0o755); err != nil {
+		t.Fatalf("mkdir .wipnote: %v", err)
+	}
 
-	// Insert parent (orchestrator) session.
-	parentSessID := "orch-sess-claim"
-	if err := db.InsertSession(tdb.DB, &models.Session{
+	// Codex-style lineage: the subagent owns a distinct session ID registered
+	// under the orchestrator's family.
+	const parentSessID = "orch-sess-claim"
+	const childSessID = "child-sess-claim"
+	if err := agent.RegisterSessionFamily(projectRoot, childSessID, parentSessID); err != nil {
+		t.Fatalf("RegisterSessionFamily: %v", err)
+	}
+
+	// No claim yet — nothing to inherit.
+	got, gotParent := getClaimFromParentChain(wipnoteDir, childSessID, "")
+	if got != "" || gotParent != "" {
+		t.Errorf("expected no inherited claim before parent claim, got claim=%q parent=%q", got, gotParent)
+	}
+
+	// Orchestrator claims the feature under its session ID (root shard).
+	store := claimledger.NewStore(wipnoteDir)
+	if _, _, err := store.Open(parentSessID, claimledger.Episode{
+		WorkItemID:    "feat-parent-claim",
 		SessionID:     parentSessID,
-		AgentAssigned: "claude-code",
-		Status:        "active",
-		CreatedAt:     tdb.now,
+		RootSessionID: parentSessID,
+		AgentID:       db.AgentRootSentinel,
+		StartedAt:     time.Now().UTC(),
 	}); err != nil {
-		t.Fatalf("InsertSession(parent): %v", err)
+		t.Fatalf("open claim episode: %v", err)
 	}
 
-	// Insert child (sub-agent) session with parent_session_id set.
-	childSessID := "child-sess-claim"
-	if err := db.InsertSession(tdb.DB, &models.Session{
-		SessionID:       childSessID,
-		AgentAssigned:   "claude-code",
-		Status:          "active",
-		CreatedAt:       tdb.now,
-		ParentSessionID: parentSessID,
-	}); err != nil {
-		t.Fatalf("InsertSession(child): %v", err)
-	}
-
-	// Insert the feature that the orchestrator will claim.
-	tdb.addFeature("feat-parent-claim", "feature", "Parent feature", "in-progress")
-
-	// No claim yet — getClaimFromParentChain should return "".
-	got, gotParent := getClaimFromParentChain(tdb.DB, childSessID, "")
-	if got != "" {
-		t.Errorf("expected no inherited claim before parent claim, got %q", got)
-	}
-	if gotParent != "" {
-		t.Errorf("expected no parent session before parent claim, got %q", gotParent)
-	}
-
-	// Orchestrator claims the feature under its session ID.
-	claim := &models.Claim{
-		ClaimID:        "claim-parent-chain",
-		WorkItemID:     "feat-parent-claim",
-		OwnerSessionID: parentSessID,
-		OwnerAgent:     "claude-code",
-		Status:         models.ClaimInProgress,
-	}
-	if err := db.ClaimItem(tdb.DB, claim, 30*time.Minute); err != nil {
-		t.Fatalf("ClaimItem: %v", err)
-	}
-
-	// Child session (no direct claim) should now inherit the parent's claim.
-	got, gotParent = getClaimFromParentChain(tdb.DB, childSessID, "")
+	// Child session (no direct claim) now inherits the parent's claim.
+	got, gotParent = getClaimFromParentChain(wipnoteDir, childSessID, "")
 	if got != "feat-parent-claim" {
 		t.Errorf("expected inherited claim=feat-parent-claim, got %q", got)
 	}
@@ -1240,8 +1271,15 @@ func TestGetClaimFromParentChain(t *testing.T) {
 		t.Errorf("expected parent session=%q, got %q", parentSessID, gotParent)
 	}
 
-	// When child already has its own claim, the function should pass it through unchanged.
-	gotWithOwn, gotParentWithOwn := getClaimFromParentChain(tdb.DB, childSessID, "feat-own-claim")
+	// Claude Code lineage: the subagent SHARES the orchestrator's session ID.
+	// The claim is still inherited, and the holder is that shared session.
+	got, gotParent = getClaimFromParentChain(wipnoteDir, parentSessID, "")
+	if got != "feat-parent-claim" || gotParent != parentSessID {
+		t.Errorf("shared-session inheritance: got claim=%q parent=%q", got, gotParent)
+	}
+
+	// When the child already has its own claim, it passes through unchanged.
+	gotWithOwn, gotParentWithOwn := getClaimFromParentChain(wipnoteDir, childSessID, "feat-own-claim")
 	if gotWithOwn != "feat-own-claim" {
 		t.Errorf("expected own claim unchanged, got %q", gotWithOwn)
 	}
@@ -1249,10 +1287,18 @@ func TestGetClaimFromParentChain(t *testing.T) {
 		t.Errorf("expected no parent session when own claim set, got %q", gotParentWithOwn)
 	}
 
-	// nil DB → returns empty, no panic.
-	gotNil, gotNilParent := getClaimFromParentChain(nil, childSessID, "")
-	if gotNil != "" || gotNilParent != "" {
-		t.Errorf("expected empty for nil db, got claim=%q parent=%q", gotNil, gotNilParent)
+	// Closing the episode ends inheritance: the walk tracks claim lifecycle.
+	if _, err := store.Close(parentSessID, parentSessID, db.AgentRootSentinel, "feat-parent-claim",
+		claimledger.OutcomeCompleted, time.Now().UTC()); err != nil {
+		t.Fatalf("close claim episode: %v", err)
+	}
+	if got, _ := getClaimFromParentChain(wipnoteDir, childSessID, ""); got != "" {
+		t.Errorf("expected no inherited claim after the episode closed, got %q", got)
+	}
+
+	// Empty ledger dir / session → empty, no panic.
+	if got, parent := getClaimFromParentChain("", childSessID, ""); got != "" || parent != "" {
+		t.Errorf("expected empty for empty wipnoteDir, got claim=%q parent=%q", got, parent)
 	}
 }
 

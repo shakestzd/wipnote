@@ -99,8 +99,11 @@ Returns exit code 0 if all gates pass, 1 if any fail.`,
 				// bug-b3d49476 (#154): wipnote's own internal launch-readiness
 				// roster must never leak into an unrelated user project's gate
 				// output — only surface it when the gate is running inside
-				// wipnote's own repository (dogfooding).
-				if isWipnoteSelfRepo(projectRoot) {
+				// wipnote's own repository (dogfooding). bug-bdc71067 (#163):
+				// it is also repo-wide, not about the current work item, so a
+				// --work-item-scoped gate run skips it entirely rather than
+				// mixing it into per-item output.
+				if showLaunchReadinessReminder(isWipnoteSelfRepo(projectRoot), workItemID) {
 					defer printContentionGateReminder()
 				}
 				return nil
@@ -174,6 +177,10 @@ func failIfPendingDeferredArtifactCommits(projectRoot, workItemID string, w io.W
 	if err != nil {
 		return err
 	}
+	// GH#160: drain THIS item's own pending intents inline before deciding
+	// whether anything still blocks — so `start` → `check --gate` passes
+	// without a manual flush. Best-effort; whatever remains is judged below.
+	flushWorkItemIntentsInline(ob, workItemID, w)
 	pending, err := ob.Pending()
 	if err != nil {
 		return err
@@ -205,7 +212,7 @@ func failIfPendingDeferredArtifactCommits(projectRoot, workItemID string, w io.W
 		}
 	}
 
-	reportDeferredArtifactQueueHealth(w, repoWidePending, repoWideDeadLettered)
+	reportDeferredArtifactQueueHealth(w, workItemID, repoWidePending, repoWideDeadLettered)
 
 	workItemIntents := append([]commitqueue.Intent{}, pendingWorkItemIntents...)
 	workItemIntents = append(workItemIntents, deadLetteredWorkItemIntents...)
@@ -222,7 +229,7 @@ func failIfPendingDeferredArtifactCommits(projectRoot, workItemID string, w io.W
 	}
 	var remediation []string
 	if len(pendingWorkItemIntents) > 0 {
-		remediation = append(remediation, "run `wipnote commit-queue flush` for pending intents")
+		remediation = append(remediation, pendingIntentRemediation(projectRoot, pendingWorkItemIntents))
 	}
 	if len(deadLetteredWorkItemIntents) > 0 {
 		remediation = append(remediation, "manually commit or revert the dead-lettered artifact changes, then clear the dead-letter entry")
@@ -231,6 +238,19 @@ func failIfPendingDeferredArtifactCommits(projectRoot, workItemID string, w io.W
 		"quality gate blocked by %d unresolved deferred work-item artifact commit intent(s): %s\nResolve: %s.",
 		len(workItemIntents), strings.Join(details, ", "), strings.Join(remediation, "; "),
 	)
+}
+
+// pendingIntentRemediation names the action that will actually unblock the
+// gate. When a pending intent's artifact path is ignored by git, "run flush"
+// is the one action that cannot work (GH#172) — so the gitignore explanation
+// is printed instead.
+func pendingIntentRemediation(projectRoot string, pending []commitqueue.Intent) string {
+	for _, intent := range pending {
+		if err := gitIgnoredIntentError(projectRoot, intent.RelPaths); err != nil {
+			return "fix .gitignore first — " + err.Error()
+		}
+	}
+	return "run `wipnote commit-queue flush` for pending intents"
 }
 
 func isWorkitemArtifactCommitIntent(intent commitqueue.Intent) bool {

@@ -492,6 +492,9 @@ func runGateCommand(ctx context.Context, gc Command, dir string, allowlist []All
 	if IsLikelyNoexecFailure(output) {
 		fmt.Fprintf(stderr, "\nhint: this looks like a noexec temp-dir failure. Retry with an exec-capable temp dir:\n  %s\n", GateTmpRemediation(runDir))
 	}
+	if IsLikelyCacheSandboxFailure(output) {
+		fmt.Fprintf(stderr, "\nhint: this looks like a sandboxed cache access failure (e.g. uv's global cache blocked under a managed sandbox). Retry with a workspace-local cache:\n  %s\n", GateCacheRemediation(runDir))
+	}
 	return MatchAllowlist(gc.Name, output, allowlist), err
 }
 

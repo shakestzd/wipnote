@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Orchestrator briefs: act-first rule, never-started detection, and session idle columns</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-a4f1332a"
+             data-type="feature"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-09-21T03:21:10.208386"
+             data-updated="2026-09-21T03:21:10.21175" data-agent-assigned="claude-code" data-track-id="trk-99de4f33" data-created-by-cli-version="dev">
+
+        <header>
+            <h1>Orchestrator briefs: act-first rule, never-started detection, and session idle columns</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-99de4f33.html" data-relationship="part_of" data-since="2026-09-21T03:21:10.21166">trk-99de4f33</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="false" data-step-id="step-feat-a4f1332a-0" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Add a brief-shape rule to plugin/skills/orchestrator-directives-skill/SKILL.md and extend the convergence rule in the system prompt with a no-hook-events stop rule</li>
+                <li data-completed="false" data-step-id="step-feat-a4f1332a-1" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Prepend an act-first claim and progress-file instruction in cmd/wipnote/context_pack.go output</li>
+                <li data-completed="false" data-step-id="step-feat-a4f1332a-2" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Add tool-call count and time-since-last-call to session show and an IDLE column to session list</li>
+                <li data-completed="false" data-step-id="step-feat-a4f1332a-3" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Regenerate ports and add tests for the new session columns</li>
+            </ol>
+        </section>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>The orchestrator convergence rule in cmd/wipnote/prompts/system-prompt.md and the orchestrator-directives skill only address agents that return badly; they say nothing about agents that never make a tool call, and briefs from wipnote context-pack do not lead with an action or ask for incremental writes. wipnote session list/show expose no tool-call count or idle time, so the orchestrator has no cheap external check. Add the directive text, an act-first preamble in context-pack, and CALLS/LAST CALL columns in session list/show. GitHub issue #179.</p>
+        </section>
+    </article>
+</body>
+</html>

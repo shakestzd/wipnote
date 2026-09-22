@@ -86,6 +86,31 @@ from pending. The drain continues with the next intent in the SAME pass, so one
 poison commit can never freeze the ordered queue. `commit-queue flush` and
 `commit-queue status` both surface the dead-letter depth.
 
+## `.gitignore` and `.wipnote/` — what may be ignored, what must be committed
+
+Every queued intent names a work-item artifact, so an intent against a path git
+ignores can never succeed (GH#172). The privacy instinct behind ignoring
+`.wipnote/` is right — session transcripts contain prompts verbatim — but the
+rule must be targeted:
+
+| Path | Git status | Why |
+|------|-----------|-----|
+| `.wipnote/features/`, `bugs/`, `spikes/`, `tracks/`, `plans/`, `*.html` work items | **must be committed** | canonical work-item state; every artifact-commit intent points here |
+| `.wipnote/sessions/`, `events/`, `logs/`, `*.db*`, `*.jsonl`, `*.log`, pid/lock/offset markers | **may be ignored** | runtime telemetry and prompt transcripts; already listed in the managed `.wipnote/.gitignore` |
+
+Ignore the runtime paths by name in the repo's own `.gitignore` (for example
+`.wipnote/sessions/`) rather than relying only on `.wipnote/.gitignore`, which
+wipnote may regenerate. Never ignore `.wipnote/` or `.wipnote` wholesale.
+Caveat: a trailing-slash `.wipnote/` rule stops git descending, so any `!`
+negation beneath it is silently ignored; only `.wipnote/*` lets a
+`!.wipnote/features/` negation apply.
+
+When wipnote detects an ignored artifact path it says so: `wipnote init` warns
+about an over-broad repo-level rule, the enqueue prints the matching rule, a
+flush reports the intent as `ignored` (it is neither retried nor
+dead-lettered — retrying cannot help), and `check --gate` prints the gitignore
+explanation instead of suggesting a flush.
+
 ## CLI
 
 ```
@@ -93,6 +118,19 @@ wipnote commit-queue status                 # pending / dead-letter depths + pat
 wipnote commit-queue flush                  # drain FIFO under the advisory lock
 wipnote commit-queue flush --max-attempts N # override dead-letter threshold
 ```
+
+## Commit policy (`WIPNOTE_ARTIFACT_COMMIT_POLICY`)
+
+| Value | Behaviour |
+|-------|-----------|
+| `defer` (default) | write the artifact, record an intent, commit on `flush` |
+| `separate` | legacy: commit the artifact directly on every transition |
+| `none` | write the artifact only — no commit, no intent; commit `.wipnote/` by hand. For "never auto-commit" projects and sandboxes whose per-user cache is unwritable |
+
+Under `defer`, an unwritable outbox (EPERM/EACCES/EROFS — e.g. a Codex
+workspace-write sandbox where `~/Library/Caches` is off-limits, GH#149) does
+not reopen a completed item: the canonical artifact is already written, so the
+item stays done and a pending-sync warning names the manual commit command.
 
 ## Scope and follow-ups (out of scope here)
 

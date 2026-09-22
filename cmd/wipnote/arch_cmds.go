@@ -47,28 +47,37 @@ func archAddCmd() *cobra.Command {
 		links      []string
 		createdBy  string
 		body       string
+		truncate   bool
 	)
 	cmd := &cobra.Command{
 		Use:   "add <slug>",
 		Short: "Create a new architectural memory card",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
-			return runArchAdd(args[0], kind, paths, verifiedAt, links, createdBy, body)
+			return runArchAdd(args[0], kind, paths, verifiedAt, links, createdBy, body, truncate)
 		},
 	}
+	cmd.Flags().BoolVar(&truncate, "truncate", false, "If --body exceeds the word limit, cut it at the last sentence boundary under the cap (prints a WARN) instead of failing")
 	cmd.Flags().StringVar(&kind, "kind", "", "Card kind: subsystem-map, invariant, hazard, decision (required)")
-	cmd.Flags().StringSliceVar(&paths, "paths", nil, "Glob patterns for affected paths (repeatable)")
+	cmd.Flags().StringSliceVar(&paths, "paths", nil, "Glob patterns for affected paths (repeatable). The (kind, glob set) pair must be unique among active cards; cards of different kinds may share the same paths")
 	cmd.Flags().StringVar(&verifiedAt, "verified-at", "", "Git SHA at which this card was last verified")
 	cmd.Flags().StringSliceVar(&links, "links", nil, "Work item IDs this card is linked to (repeatable)")
 	cmd.Flags().StringVar(&createdBy, "created-by", "", "Author identifier (required)")
-	cmd.Flags().StringVar(&body, "body", "", "Card body (markdown, max 120 words, required)")
+	cmd.Flags().StringVar(&body, "body", "", "Card body (markdown, required). Max 120 prose words: inline `code` spans and http(s) URLs are not counted; the rejection names the text past word 120 (see --truncate)")
 	return cmd
 }
 
-func runArchAdd(slug, kind string, paths []string, verifiedAt string, links []string, createdBy, body string) error {
+func runArchAdd(slug, kind string, paths []string, verifiedAt string, links []string, createdBy, body string, truncate bool) error {
 	wipnoteDir, err := findWipnoteDir()
 	if err != nil {
 		return err
+	}
+	if truncate {
+		if trimmed, cut := corearch.TruncateBody(body); cut {
+			fmt.Fprintf(os.Stderr, "WARN --truncate: body cut from %d to %d words at the last sentence boundary under the %d-word limit\n",
+				corearch.CountBodyWords(body), corearch.CountBodyWords(trimmed), corearch.MaxBodyWords)
+			body = trimmed
+		}
 	}
 	store, err := corearch.NewStore(wipnoteDir)
 	if err != nil {
@@ -98,27 +107,34 @@ func archEditCmd() *cobra.Command {
 		verifiedAt string
 		links      []string
 		body       string
+		force      bool
 	)
 	cmd := &cobra.Command{
 		Use:   "edit <slug>",
 		Short: "Update an existing architectural memory card",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runArchEdit(cmd, args[0], kind, paths, verifiedAt, links, body)
+			return runArchEdit(cmd, args[0], kind, paths, verifiedAt, links, body, force)
 		},
 	}
+	cmd.Flags().BoolVar(&force, "force", false, "Set --verified-at even when the commit does not exist in this repository")
 	cmd.Flags().StringVar(&kind, "kind", "", "New card kind")
-	cmd.Flags().StringSliceVar(&paths, "paths", nil, "New glob patterns (replaces existing; use --paths= to clear)")
-	cmd.Flags().StringVar(&verifiedAt, "verified-at", "", "New verified-at git SHA (use --verified-at= to clear)")
+	cmd.Flags().StringSliceVar(&paths, "paths", nil, "New glob patterns (replaces existing; use --paths= to clear). The (kind, glob set) pair must be unique among active cards; cards of different kinds may share the same paths")
+	cmd.Flags().StringVar(&verifiedAt, "verified-at", "", "New verified-at git SHA; must exist in this repository unless --force (use --verified-at= to clear)")
 	cmd.Flags().StringSliceVar(&links, "links", nil, "New linked work item IDs (replaces existing; use --links= to clear)")
 	cmd.Flags().StringVar(&body, "body", "", "New card body")
 	return cmd
 }
 
-func runArchEdit(cmd *cobra.Command, slug, kind string, paths []string, verifiedAt string, links []string, body string) error {
+func runArchEdit(cmd *cobra.Command, slug, kind string, paths []string, verifiedAt string, links []string, body string, force bool) error {
 	wipnoteDir, err := findWipnoteDir()
 	if err != nil {
 		return err
+	}
+	if cmd.Flags().Changed("verified-at") {
+		if err := checkEditVerifiedAt(filepath.Dir(wipnoteDir), verifiedAt, force); err != nil {
+			return err
+		}
 	}
 	store, err := corearch.NewStore(wipnoteDir)
 	if err != nil {
@@ -281,6 +297,10 @@ func runArchValidateOne(slug string) error {
 	if err := corearch.Validate(card); err != nil {
 		return fmt.Errorf("card %s: %w", slug, err)
 	}
+	// GH-#173: a verified_at that no longer resolves is not a valid claim.
+	if reportVerifiedAt(filepath.Dir(wipnoteDir), card) {
+		return fmt.Errorf("card %s: verified_at does not resolve to a commit", slug)
+	}
 	fmt.Printf("arch card %s: ok\n", slug)
 	return nil
 }
@@ -304,14 +324,37 @@ func runArchValidateAll() error {
 			fmt.Fprintf(os.Stderr, "WARN card %s: %s\n", slug, w)
 		}
 	}
-	if len(errs) == 0 {
+	// GH-#173: resolve every verified_at against git. Missing commits are
+	// errors (the claim cannot be true after a history rewrite); commits
+	// that exist but are unreachable from HEAD are warnings.
+	shaErrors, err := validateVerifiedAtAll(store, filepath.Dir(wipnoteDir))
+	if err != nil {
+		return err
+	}
+	if len(errs) == 0 && shaErrors == 0 {
 		fmt.Println("All arch cards are valid.")
 		return nil
 	}
 	for slug, e := range errs {
 		fmt.Fprintf(os.Stderr, "ERROR card %s: %v\n", slug, e)
 	}
-	return fmt.Errorf("%d card(s) failed validation", len(errs))
+	return fmt.Errorf("%d card(s) failed validation", len(errs)+shaErrors)
+}
+
+// validateVerifiedAtAll reports verified_at problems for every active card
+// and returns the number of cards with an ERROR.
+func validateVerifiedAtAll(store *corearch.Store, repoRoot string) (int, error) {
+	cards, err := store.List(false)
+	if err != nil {
+		return 0, err
+	}
+	failed := 0
+	for _, card := range cards {
+		if reportVerifiedAt(repoRoot, card) {
+			failed++
+		}
+	}
+	return failed, nil
 }
 
 // archDeprecateCmd retires a card.
@@ -750,7 +793,10 @@ func mergeUnique(existing, additional []string) []string {
 
 // archRepairCmd implements `wipnote arch repair [--dry-run]`.
 func archRepairCmd() *cobra.Command {
-	var dryRun bool
+	var (
+		dryRun    bool
+		commitMap string
+	)
 	cmd := &cobra.Command{
 		Use:   "repair",
 		Short: "Repair arch cards that contain garbage paths (absolute, unresolved:, dead worktrees)",
@@ -759,17 +805,23 @@ the repo root. Paths that remain absolute, unresolved:, or ../-escaping are
 repaired by resolving the card's linked work-item IDs via the three-tier
 fallback chain (feature_files -> git diff-tree -> git log --grep). Paths that
 cannot be recovered are dropped. The card file is rewritten and a per-card
-change summary is printed.`,
+change summary is printed.
+
+With --commit-map <file> (one "old new" SHA pair per line, the format
+git-filter-repo writes to filter-repo/commit-map), every card whose
+verified_at matches an old SHA is re-pinned to the new SHA first, so a
+history rewrite can be repaired in one pass.`,
 		RunE: func(_ *cobra.Command, _ []string) error {
-			return runArchRepair(dryRun)
+			return runArchRepair(dryRun, commitMap)
 		},
 	}
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Print what would change without writing any files")
+	cmd.Flags().StringVar(&commitMap, "commit-map", "", "Path to an \"old new\" SHA map; re-pins matching verified_at values")
 	return cmd
 }
 
 // runArchRepair is the implementation of `wipnote arch repair`.
-func runArchRepair(dryRun bool) error {
+func runArchRepair(dryRun bool, commitMapPath string) error {
 	wipnoteDir, err := findWipnoteDir()
 	if err != nil {
 		return err
@@ -778,14 +830,26 @@ func runArchRepair(dryRun bool) error {
 	if err != nil {
 		return err
 	}
+	repaired := 0
+	var updateFailures int
+	if commitMapPath != "" {
+		commitMap, err := loadCommitMap(commitMapPath)
+		if err != nil {
+			return err
+		}
+		repinned, failed, err := applyCommitMap(store, commitMap, dryRun)
+		if err != nil {
+			return err
+		}
+		repaired += repinned
+		updateFailures += failed
+	}
 	cards, err := store.List(false) // active cards only
 	if err != nil {
 		return err
 	}
 	repoRoot := filepath.Dir(wipnoteDir)
 
-	repaired := 0
-	var updateFailures int
 	for _, card := range cards {
 		changed, newPaths, err := repairCardPaths(card, repoRoot, wipnoteDir)
 		if err != nil {

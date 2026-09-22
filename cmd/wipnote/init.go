@@ -36,6 +36,10 @@ func runInit(_ *cobra.Command, _ []string) error {
 		return err
 	}
 
+	// GH#172: an over-broad repo-level .gitignore rule silently defeats
+	// every artifact commit; say so now rather than at the first stuck gate.
+	warnIfRepoGitignoreIgnoresWipnote(os.Stderr, cwd)
+
 	fmt.Printf("Initialized wipnote in %s\n", graphDir)
 	fmt.Println()
 	fmt.Println("  .wipnote/features/")

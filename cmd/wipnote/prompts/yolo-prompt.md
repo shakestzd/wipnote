@@ -18,6 +18,7 @@ Permission prompts are disabled. You must self-enforce quality at every step.
 - NEVER use `wipnote show <id>` — there is no top-level show command
 - Subcommands: `create|show|start|complete|list|add-step|update|move|delete`
 - Lookup: `find <query>` · `wip show` · `status` · `snapshot --summary`
+- Stale WIP: `wip reset --dead --dry-run` (preview), then `--force`; `--session <id>` / `--orphaned` also scope it — never bare `wip reset --force`, it clobbers live sessions
 - Edges: `link add <from> <to> --rel <type>`
 - Quality: `check` · `health` · `spec|tdd|review|compliance <id>`
 - Data: `reindex` · `ingest` · `batch apply`

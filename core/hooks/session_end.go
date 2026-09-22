@@ -570,7 +570,7 @@ func SessionResume(event *CloudEvent, database *sql.DB, projectDir string) (*Hoo
 	updateSessionPIDAnchor(projectDir, sessDir)
 
 	// Re-export env vars so downstream hooks have the session ID.
-	writeEnvVars(sessionID, projectDir)
+	writeEnvVars(sessionID, projectDir, activeSessionHarness(event))
 
 	// Fetch active feature for context message.
 	var featID sql.NullString

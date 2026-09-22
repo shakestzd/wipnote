@@ -26,6 +26,19 @@ func gitInitRepo(t *testing.T, root string) {
 	run("init", "-q")
 	run("config", "user.email", "t@t")
 	run("config", "user.name", "t")
+	// Disable git's own background auto-maintenance for this fixture. A
+	// commit large enough to cross gc.auto's loose-object threshold (e.g.
+	// TestReconcileDrain_Uncapped_ReconcilesOldDirtyBeyond500's 510-file
+	// commit) makes `git commit` fork a detached `git gc --auto` process
+	// (gc.autoDetach defaults to true) that keeps writing under .git/ after
+	// our `cmd.CombinedOutput()` call has already returned. Go's exec API
+	// gives us no handle to that forked, disowned process — there is no
+	// subprocess or goroutine of our own to wait on — so it can still be
+	// running when t.TempDir()'s cleanup calls RemoveAll, which then fails
+	// with "directory not empty". Turning off the auto-trigger removes the
+	// race at its source instead of trying to synchronize with a process we
+	// structurally cannot observe.
+	run("config", "gc.auto", "0")
 	if err := os.WriteFile(filepath.Join(root, "README"), []byte("x\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}

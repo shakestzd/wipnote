@@ -395,31 +395,42 @@ func TestCanonicalCodeBearingPaths_ExcludesWipnote(t *testing.T) {
 // TestCanonicalLinkedCommits_IgnoresIncidentalMention pins that linkage follows
 // wipnote's commit convention rather than a bare substring match: a commit that
 // merely names the ID in prose is not provenance for it.
-func TestCanonicalLinkedCommits_IgnoresIncidentalMention(t *testing.T) {
+// TestCanonicalLinkedCommits_BareMentionLinksNearMissDoesNot pins the
+// message-derived linkage rules after bug-0816b822: a bare, fully-formed id
+// anywhere in the message IS provenance (an agent naming the item it worked
+// on), while a token that merely contains the id — glued to other characters
+// — is not, so `--grep` candidates are still confirmed by parseTrailers.
+func TestCanonicalLinkedCommits_BareMentionLinksNearMissDoesNot(t *testing.T) {
 	tmpDir, hgDir := prepProject(t)
 	trackID := testSetupTrack(t, hgDir)
 	id := createItem(t, hgDir, "feature", "Mention Only", trackID)
 
+	// A glued token is a --grep hit but not an id under the convention.
+	provGit(t, tmpDir, "commit", "-q", "--allow-empty", "-m", "docs: see x"+id+"y for context")
+	if got := canonicalLinkedCommits(tmpDir, id, nil); len(got) != 0 {
+		t.Errorf("a glued near-miss must not count as linkage, got %v", got)
+	}
+
+	// A bare mention in prose links.
 	if err := os.WriteFile(filepath.Join(tmpDir, "note.txt"),
 		[]byte("scratch\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	provGit(t, tmpDir, "add", "--", "note.txt")
 	provGit(t, tmpDir, "commit", "-q", "-m", "docs: mentions "+id+" in passing")
-
-	if got := canonicalLinkedCommits(tmpDir, id, nil); len(got) != 0 {
-		t.Errorf("an incidental mention must not count as linkage, got %v", got)
+	if got := canonicalLinkedCommits(tmpDir, id, nil); len(got) != 1 {
+		t.Errorf("a bare id in the subject must link, got %v", got)
 	}
 
-	// The parenthesised convention does link.
+	// The parenthesised convention links.
 	provGit(t, tmpDir, "commit", "-q", "--allow-empty", "-m", "fix: real work ("+id+")")
-	if got := canonicalLinkedCommits(tmpDir, id, nil); len(got) != 1 {
+	if got := canonicalLinkedCommits(tmpDir, id, nil); len(got) != 2 {
 		t.Errorf("expected the parenthesised convention to link, got %v", got)
 	}
 
 	// So does an explicit Refs: trailer.
 	provGit(t, tmpDir, "commit", "-q", "--allow-empty", "-m", "chore: more\n\nRefs: "+id)
-	if got := canonicalLinkedCommits(tmpDir, id, nil); len(got) != 2 {
+	if got := canonicalLinkedCommits(tmpDir, id, nil); len(got) != 3 {
 		t.Errorf("expected the Refs: trailer to link, got %v", got)
 	}
 }

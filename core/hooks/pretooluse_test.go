@@ -1107,13 +1107,79 @@ func TestIsWipnoteCLICommandAnchorsExecutable(t *testing.T) {
 	}
 }
 
-func TestIsBashwipnoteWrite_DoesNotBypassOnMention(t *testing.T) {
-	event := &CloudEvent{
-		ToolName:  "Bash",
-		ToolInput: map[string]any{"command": "echo wipnote > .wipnote/features/feat-abc.html"},
+// TestSplitShellCommandSegments_RespectsQuotes pins that a separator
+// character inside a single- or double-quoted span is never a segment
+// boundary — callers like isWipnoteCLICommand and bashCommandWritesWipnoteStore
+// depend on this to avoid misclassifying quoted prose as a second command.
+func TestSplitShellCommandSegments_RespectsQuotes(t *testing.T) {
+	tests := []struct {
+		name string
+		cmd  string
+		want []string
+	}{
+		{"no quotes, splits normally", "a; b && c", []string{"a", "b", "c"}},
+		{
+			"semicolon inside double quotes is not a boundary",
+			`printf '%s\n' "Never; rm .wipnote/x" > docs/rules.md`,
+			[]string{`printf '%s\n' "Never; rm .wipnote/x" > docs/rules.md`},
+		},
+		{
+			"pipe inside double quotes is not a boundary",
+			`echo "a | b" > f`,
+			[]string{`echo "a | b" > f`},
+		},
+		{
+			"&& inside single quotes is not a boundary",
+			`echo 'safe && unsafe' > f`,
+			[]string{`echo 'safe && unsafe' > f`},
+		},
+		{
+			"real separator after a closed quote still splits",
+			`echo "a; b" && echo c`,
+			[]string{`echo "a; b"`, `echo c`},
+		},
 	}
-	if !isBashwipnoteWrite(event) {
-		t.Fatal("direct .wipnote write that merely mentions wipnote should be blocked")
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := splitShellCommandSegments(tc.cmd)
+			if len(got) != len(tc.want) {
+				t.Fatalf("splitShellCommandSegments(%q) = %q, want %q", tc.cmd, got, tc.want)
+			}
+			for i := range got {
+				if got[i] != tc.want[i] {
+					t.Errorf("segment %d = %q, want %q", i, got[i], tc.want[i])
+				}
+			}
+		})
+	}
+}
+
+// TestIsBashwipnoteWrite_DoesNotBypassOnMention pins the store guard's
+// target-based decision (GH-#180): a direct write is blocked even when the
+// command mentions "wipnote", `git add .wipnote/` is blocked, and a heredoc or
+// quoted mention of the store path written elsewhere is allowed.
+func TestIsBashwipnoteWrite_DoesNotBypassOnMention(t *testing.T) {
+	tests := []struct {
+		name string
+		tool string
+		cmd  string
+		want bool
+	}{
+		{"direct write mentioning wipnote", "Bash", "echo wipnote > .wipnote/features/feat-abc.html", true},
+		{"git add store then commit", "Bash", `git add .wipnote/ && git commit -m "x"`, true},
+		{"codex exec_command rm", "exec_command", "rm -f .wipnote/features/feat-abc.html", true},
+		{"heredoc mention written elsewhere", "Bash", "cat > ~/some/other/notes.md <<'TXT'\nNever run git add against .wipnote/ by hand.\nTXT", false},
+		{"quoted mention", "Bash", `echo "do not rm -rf .wipnote/ manually" >> docs/rules.md`, false},
+		{"wipnote CLI", "Bash", "wipnote feature complete feat-abc", false},
+		{"non-shell tool", "Read", "rm -rf .wipnote/", false},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			event := &CloudEvent{ToolName: tc.tool, ToolInput: map[string]any{"command": tc.cmd}}
+			if got := isBashwipnoteWrite(event); got != tc.want {
+				t.Errorf("isBashwipnoteWrite(%s %q) = %v, want %v", tc.tool, tc.cmd, got, tc.want)
+			}
+		})
 	}
 }
 

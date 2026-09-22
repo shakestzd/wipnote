@@ -151,8 +151,11 @@ func TestResolveSessionID_GeneratesCLI(t *testing.T) {
 // --- HarnessNativeEnvSessionID tests ---
 
 // TestHarnessNativeEnvSessionID verifies the canonical harness-native session-id
-// resolver: WIPNOTE_HARNESS selects the right env var, and Claude / no-harness
-// both fall through to "" so callers can then consult WIPNOTE_SESSION_ID.
+// resolver: WIPNOTE_HARNESS selects the right env var. This table covers the
+// Codex/Gemini/Antigravity branches and the no-harness case, all of which fall
+// through to "" so callers can then consult WIPNOTE_SESSION_ID; the Claude
+// branch (CLAUDE_CODE_SESSION_ID / CLAUDE_SESSION_ID, issue #125) is covered
+// separately by TestHarnessNativeEnvSessionID_Claude in detect_harness_test.go.
 func TestHarnessNativeEnvSessionID(t *testing.T) {
 	tests := []struct {
 		name         string
@@ -206,6 +209,10 @@ func TestHarnessNativeEnvSessionID(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			// Isolate from the Claude Code session running this test binary
+			// (issue #125 made CLAUDE_CODE_SESSION_ID a Claude-native id).
+			t.Setenv("CLAUDE_CODE_SESSION_ID", "")
+			t.Setenv("CLAUDE_SESSION_ID", "")
 			t.Setenv("WIPNOTE_HARNESS", tc.harness)
 			t.Setenv("CODEX_THREAD_ID", tc.codexThread)
 			t.Setenv("GEMINI_SESSION_ID", tc.geminiSess)

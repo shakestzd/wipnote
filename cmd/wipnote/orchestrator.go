@@ -3,21 +3,17 @@ package main
 // Register in main.go: rootCmd.AddCommand(orchestratorCmd())
 
 import (
-	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
 
 	"github.com/spf13/cobra"
+
+	"github.com/shakestzd/wipnote/core/hooks"
 )
 
-// orchestratorConfig mirrors the JSON stored in .wipnote/orchestrator.json.
-type orchestratorConfig struct {
-	Enabled       bool   `json:"enabled"`
-	Mode          string `json:"mode,omitempty"`
-	Violations    int    `json:"violations,omitempty"`
-	MaxViolations int    `json:"max_violations,omitempty"`
-}
+// orchestratorConfig is the canonical config type, owned by core/hooks so the
+// PreToolUse guard that enforces it and this CLI cannot drift apart
+// (feat-567c0211).
+type orchestratorConfig = hooks.OrchestratorConfig
 
 func orchestratorCmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -86,15 +82,17 @@ func runOrchestratorStatus() error {
 }
 
 func runOrchestratorEnable(strict bool) error {
-	mode := "guidance"
+	mode := hooks.OrchestratorModeGuidance
 	if strict {
-		mode = "strict"
+		mode = hooks.OrchestratorModeStrict
 	}
+	// Violations reset to 0 here: enabling is the documented way to clear an
+	// escalation that has reached max_violations.
 	cfg := orchestratorConfig{
 		Enabled:       true,
 		Mode:          mode,
 		Violations:    0,
-		MaxViolations: 3,
+		MaxViolations: hooks.OrchestratorDefaultMaxViolations,
 	}
 	if err := saveOrchestratorConfig(cfg); err != nil {
 		return err
@@ -112,41 +110,23 @@ func runOrchestratorDisable() error {
 	return nil
 }
 
-func orchestratorConfigPath() (string, error) {
-	dir, err := findWipnoteDir()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(dir, "orchestrator.json"), nil
-}
-
 func loadOrchestratorConfig() (orchestratorConfig, error) {
-	path, err := orchestratorConfigPath()
+	dir, err := findWipnoteDir()
 	if err != nil {
 		return orchestratorConfig{}, err
 	}
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return orchestratorConfig{}, fmt.Errorf("read config: %w", err)
-	}
-	var cfg orchestratorConfig
-	if err := json.Unmarshal(data, &cfg); err != nil {
-		return orchestratorConfig{}, fmt.Errorf("parse config: %w", err)
+	cfg, ok := hooks.LoadOrchestratorConfig(dir)
+	if !ok {
+		return orchestratorConfig{}, fmt.Errorf("read config: %s not present or unreadable",
+			hooks.OrchestratorConfigPath(dir))
 	}
 	return cfg, nil
 }
 
 func saveOrchestratorConfig(cfg orchestratorConfig) error {
-	path, err := orchestratorConfigPath()
+	dir, err := findWipnoteDir()
 	if err != nil {
 		return err
 	}
-	data, err := json.MarshalIndent(cfg, "", "  ")
-	if err != nil {
-		return fmt.Errorf("marshal config: %w", err)
-	}
-	if err := os.WriteFile(path, append(data, '\n'), 0o644); err != nil {
-		return fmt.Errorf("write config: %w", err)
-	}
-	return nil
+	return hooks.SaveOrchestratorConfig(dir, cfg)
 }

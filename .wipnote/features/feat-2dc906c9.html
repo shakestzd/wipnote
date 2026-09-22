@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>arch add: show which text breaks the 120-word cap; ignore code and URL tokens</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-2dc906c9"
+             data-type="feature"
+             data-status="todo"
+             data-priority="low"
+             data-created="2026-09-21T03:21:10.237909"
+             data-updated="2026-09-21T03:21:10.2417" data-agent-assigned="claude-code" data-track-id="trk-99de4f33" data-created-by-cli-version="dev">
+
+        <header>
+            <h1>arch add: show which text breaks the 120-word cap; ignore code and URL tokens</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-low">Low Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-99de4f33.html" data-relationship="part_of" data-since="2026-09-21T03:21:10.241567">trk-99de4f33</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="false" data-step-id="step-feat-2dc906c9-0" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Extend countWords in core/arch/card.go to skip backtick spans and URL tokens and update TestValidate word-limit cases</li>
+                <li data-completed="false" data-step-id="step-feat-2dc906c9-1" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Include the overflow excerpt after the 120th counted word in the Validate error</li>
+                <li data-completed="false" data-step-id="step-feat-2dc906c9-2" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Add an optional --truncate flag to arch add that trims at a sentence boundary and prints a WARN</li>
+                <li data-completed="false" data-step-id="step-feat-2dc906c9-3" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Update the --body flag help to describe the counting rule</li>
+            </ol>
+        </section>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>core/arch Validate rejects over-long card bodies with only a total count (body exceeds 120-word limit), forcing agents to re-compose blind, and countWords charges inline code identifiers and URLs against the prose budget. Improve the rejection to name the trailing text past word 120, make the counter skip backtick spans and http(s) tokens, and optionally add --truncate on arch add that cuts at the last sentence boundary under the cap with a warning. GitHub issue #170.</p>
+        </section>
+    </article>
+</body>
+</html>

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>arch add: scope glob-set uniqueness to (kind, paths) instead of paths alone</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-dc783930"
+             data-type="bug"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-09-21T03:21:09.904979"
+             data-updated="2026-09-21T03:21:09.908956" data-agent-assigned="claude-code" data-track-id="trk-99de4f33" data-created-by-cli-version="dev">
+
+        <header>
+            <h1>arch add: scope glob-set uniqueness to (kind, paths) instead of paths alone</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-99de4f33.html" data-relationship="part_of" data-since="2026-09-21T03:21:09.90879">trk-99de4f33</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="false" data-step-id="step-bug-dc783930-0" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Make findGlobSetDuplicate in core/arch/store.go skip candidates of a different Kind (or add --allow-duplicate-paths on arch add/edit)</li>
+                <li data-completed="false" data-step-id="step-bug-dc783930-1" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Update the ErrDuplicateGlobSet text to say same kind and paths</li>
+                <li data-completed="false" data-step-id="step-bug-dc783930-2" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Update TestStore_DuplicateGlobSet and TestArchAdd_DuplicateGlobSetRejected to same-kind pairs and add a different-kind same-paths passing test</li>
+                <li data-completed="false" data-step-id="step-bug-dc783930-3" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Document the rule in the --paths flag help in cmd/wipnote/arch_cmds.go</li>
+            </ol>
+        </section>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>findGlobSetDuplicate in core/arch/store.go rejects any new active card whose sorted path-glob set equals another card&#39;s, even when the kinds differ (decision vs hazard vs invariant about the same file). Users work around it by padding --paths with unrelated globs, which corrupts arch resolve --for results. The check should key on (kind, normalized glob set), or downgrade to a warning, so several distinct facts can be recorded against one file. GitHub issue #168.</p>
+        </section>
+    </article>
+</body>
+</html>

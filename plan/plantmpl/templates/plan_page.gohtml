@@ -192,6 +192,7 @@ textarea::placeholder{color:var(--text-muted)}
 .slice-preview{color:var(--text-muted);font-size:.82rem;line-height:1.4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .slice-meta-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:4px;flex-wrap:wrap}
 .slice-summary-badges{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.slice-legend{font-family:var(--mono);font-size:.72rem;color:var(--text-muted);margin:0 0 10px;letter-spacing:.03em}
 .badge-sm{font-size:.68rem;padding:2px 7px;letter-spacing:.04em}
 .badge-issues{background:rgba(239,68,68,.12);color:#f87171;border-color:rgba(239,68,68,.25)}
 .badge-questions{background:rgba(167,139,250,.12);color:var(--discuss);border-color:rgba(167,139,250,.25)}
@@ -582,7 +583,8 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
 <details id="slices" class="section-card" open data-phase="slices" data-status="pending">
   <summary><span>Slices</span><span class="badge badge-pending" data-badge-for="slices">Pending</span></summary>
   <div class="section-body">
-    {{if .Slices}}{{renderSlices .Slices}}{{end}}
+    {{if .Slices}}<p class="slice-legend" id="slice-legend">Effort: S = Small &middot; M = Medium &middot; L = Large &nbsp;|&nbsp; Risk: Low &middot; Med &middot; High</p>
+    {{renderSlices .Slices}}{{end}}
     <!--PLAN_SLICE_CARDS-->
   </div>
 </details>

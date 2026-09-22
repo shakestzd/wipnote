@@ -218,13 +218,20 @@ const acceptedAdvisoryMarker = "accepted-advisory (provenance override): "
 // node, or "" if none. The reason was written into the node content as a
 // note prefixed with acceptedAdvisoryMarker.
 func acceptedAdvisoryOf(n *models.Node) string {
+	return markedNoteOf(n, acceptedAdvisoryMarker)
+}
+
+// markedNoteOf returns the text following marker on the first content-note
+// line that carries it, or "". Shared by the audited-override readers
+// (acceptedAdvisoryOf, allowOrphanOf).
+func markedNoteOf(n *models.Node, marker string) string {
 	if n == nil || n.Content == "" {
 		return ""
 	}
 	for _, line := range strings.Split(n.Content, "\n") {
 		s := strings.TrimSpace(stripHTMLTags(line))
-		if idx := strings.Index(s, acceptedAdvisoryMarker); idx >= 0 {
-			return strings.TrimSpace(s[idx+len(acceptedAdvisoryMarker):])
+		if idx := strings.Index(s, marker); idx >= 0 {
+			return strings.TrimSpace(s[idx+len(marker):])
 		}
 	}
 	return ""
@@ -248,6 +255,8 @@ func wiCompleteCmd(typeName string) *cobra.Command {
 			"bypass the uncommitted source gate; intended for intentional dirty-tree completion only")
 		cmd.Flags().StringVar(&wiAcceptedAdvisory, "accepted-advisory", "",
 			"audited override of the zero-commit provenance gate; records the rationale on the artifact")
+		cmd.Flags().StringVar(&wiAllowOrphan, "allow-orphan", "",
+			"audited override of the merged-upstream gate for intentionally branch-local work; records the rationale on the artifact")
 		cmd.Flags().StringArrayVar(&wiResearchURL, "research-url", nil,
 			"http(s) URL of the docs/changelog verifying a dependency change; required (or --research-waiver) when the item changes a dependency manifest. Repeatable.")
 		cmd.Flags().StringVar(&wiResearchWaiver, "research-waiver", "",
@@ -261,7 +270,10 @@ func wiCompleteCmd(typeName string) *cobra.Command {
 }
 
 func runWiSetStatus(typeName, id, status string) error {
-	sessionID := hooks.EnvSessionID("")
+	// Shared resolver: the same one `wipnote who` prints and the PreToolUse
+	// gate enforces against, so a claim can never bind to a session the hook
+	// will not recognise (issue #148).
+	sessionID, _ := hooks.ResolveSessionID("")
 	agentID := dbpkg.NormaliseAgentID(os.Getenv("WIPNOTE_AGENT_ID"))
 	return wiSetStatusWithAgent(typeName, id, status, sessionID, agentID)
 }
@@ -332,6 +344,16 @@ func wiSetStatusWithAgent(typeName, id, status, sessionID, agentID string) error
 		}
 	}
 
+	// Merged-upstream completion gate (feat-be42685c). A linked commit that
+	// only exists on an unmerged branch is provenance but not delivery: at
+	// least one must be reachable from the upstream default branch, or the
+	// operator records an --allow-orphan rationale. Skipped without a remote.
+	if status == "done" && shouldAutocommitWorkitemArtifact(typeName) {
+		if err := checkMergedUpstreamCompleteGate(p, col, typeName, id, wiAllowOrphan); err != nil {
+			return err
+		}
+	}
+
 	// Dependency-research completion gate (feat-d1bcbf10). When the item's
 	// code-bearing paths include a dependency manifest (go.mod/package.json/…),
 	// completion must cite a research URL or record an explicit waiver — mirroring
@@ -396,6 +418,10 @@ func wiSetStatusWithAgent(typeName, id, status, sessionID, agentID string) error
 	// When starting a work item, update per-agent attribution, create a claim
 	// with per-agent attribution, and create an implemented_in edge.
 	if status == "in-progress" {
+		// Non-blocking already-fixed advisory (feat-89d7b057): an item with
+		// linked commits, or whose id is cited in source, may have been fixed
+		// and never closed. Print before any dispatch happens; never refuse.
+		emitAlreadyFixedAdvisory(os.Stderr, filepath.Dir(dir), id, node)
 		if sessionID != "" {
 			// Durable claim history (feat-21d12cdb). This sits BESIDE the claim
 			// row, not inside it: claims/active_work_items are single-slot current
@@ -420,6 +446,12 @@ func wiSetStatusWithAgent(typeName, id, status, sessionID, agentID string) error
 	// When completing a work item, clear active_work_items and the legacy
 	// active_feature_id on any session still pointing at it.
 	if status == "done" {
+		// Persist the commits whose messages name this item as committed_in
+		// edges, BEFORE the artifact commit below so the durable record carries
+		// them (bug-0816b822). Non-fatal.
+		if shouldAutocommitWorkitemArtifact(typeName) {
+			autoLinkMessageDerivedCommits(os.Stderr, col, filepath.Dir(dir), id)
+		}
 		if sessionID != "" {
 			// Close the claim episode in place, giving the interval its end.
 			recordClaimEpisodeClose(nil, dir, sessionID, agentID, id, claimledger.OutcomeCompleted)
@@ -473,24 +505,20 @@ func wiSetStatusWithAgent(typeName, id, status, sessionID, agentID string) error
 				id, cerr, remediation)
 		}
 	} else if deferredComplete {
-		if err := persistWorkitemArtifactTransition(dir, typeName, id, "complete"); err != nil {
-			_, reopenErr := col.Start(id)
-			WriteStatuslineCache(dir, id)
-			remediation := fmt.Sprintf("wipnote %s complete %s", typeName, id)
-			if reopenErr != nil {
-				return fmt.Errorf(
-					"completion aborted: failed to queue deferred artifact commit for %s (%v) and the compensating re-open ALSO failed (%v).\n"+
-						"The item may be left in an inconsistent state — inspect with 'wipnote %s show %s', then rerun:\n  %s",
-					id, err, reopenErr, typeName, id, remediation)
+		if err := persistArtifactTransitionFn(dir, typeName, id, "complete"); err != nil {
+			// Environmental (unwritable cache / read-only FS, GH#149): the
+			// canonical artifact is on disk and the item is logically done —
+			// do NOT reopen. Warn that the commit is pending and carry on so
+			// the completion still reports (and attaches any learning).
+			if !isEnvironmentalOutboxError(err) {
+				return abortDeferredComplete(col, dir, typeName, id, err)
 			}
-			return fmt.Errorf(
-				"completion aborted: failed to queue deferred artifact commit for %s: %v\n"+
-					"The item has been re-opened (status: in-progress). Resolve the queue/outbox problem, then rerun:\n  %s",
-				id, err, remediation)
+			warnDeferredCommitUnavailable(os.Stderr, typeName, id, err)
+		} else {
+			// GH#160: drain this item's own intent right away so the outbox
+			// is empty for it and no manual flush is needed. Non-fatal.
+			flushOwnIntentsAfterComplete(dir, id, os.Stderr)
 		}
-		fmt.Fprintf(os.Stderr,
-			"artifact commit deferred by WIPNOTE_ARTIFACT_COMMIT_POLICY=defer for %s.\n  pending intent recorded; run: wipnote commit-queue flush\n",
-			id)
 	} else if shouldAutocommitWorkitemArtifact(typeName) {
 		action := actionFromStatus(status)
 		if err := persistWorkitemArtifactTransition(dir, typeName, id, action); err != nil {
@@ -1151,7 +1179,7 @@ func checkProvenanceCompleteGate(p *workitem.Project, col *workitem.Collection, 
 	repoRoot := filepath.Dir(p.ProjectDir)
 	node, _ := col.Get(id)
 	commits := canonicalLinkedCommits(repoRoot, id, node)
-	codePaths := canonicalCodeBearingPaths(repoRoot, p.ProjectDir, id, node, commits)
+	codePaths, scope := canonicalCodeBearingPathsScoped(repoRoot, p.ProjectDir, id, node, commits)
 	if len(codePaths) == 0 {
 		// Pure-.wipnote/doc item — exempt.
 		return nil
@@ -1170,11 +1198,11 @@ func checkProvenanceCompleteGate(p *workitem.Project, col *workitem.Collection, 
 		}
 		return fmt.Errorf(
 			"refusing to complete %s %s: it is code-bearing (touched %d source path(s) outside .wipnote/, e.g. %s) "+
-				"but has zero linked source commits — no durable provenance for the implementation.\n"+
+				"but has zero linked source commits — no durable provenance for the implementation.%s\n"+
 				"Commit the implementation and link it, then rerun:\n  wipnote %s complete %s\n"+
 				"To intentionally accept completion without a source commit (records an audited rationale on the artifact), rerun with:\n"+
 				"  wipnote %s complete %s --accepted-advisory \"<reason>\"",
-			typeName, id, len(codePaths), strings.Join(preview, ", "),
+			typeName, id, len(codePaths), strings.Join(preview, ", "), scannedTreeNote(scope),
 			typeName, id, typeName, id)
 	}
 

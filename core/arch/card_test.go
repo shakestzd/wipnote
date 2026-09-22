@@ -1,6 +1,7 @@
 package arch
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -198,6 +199,9 @@ func TestValidate_BodyOverWordLimit(t *testing.T) {
 	if !strings.Contains(err.Error(), "word") {
 		t.Errorf("error should mention word limit, got: %v", err)
 	}
+	if !strings.Contains(err.Error(), `text past word 120: "word"`) {
+		t.Errorf("error should quote the overflow, got: %v", err)
+	}
 }
 
 func TestValidate_SupersededByInvalidSlug(t *testing.T) {
@@ -341,15 +345,19 @@ func TestStore_DuplicateGlobSet(t *testing.T) {
 		t.Fatalf("Create first: %v", err)
 	}
 
-	// Same glob set, different name — must be rejected.
+	// Same kind, same glob set, different name — must be rejected.
 	second := validCard()
 	second.Name = "second-card"
+	second.Kind = first.Kind
 	err := store.Create(second)
 	if err == nil {
-		t.Fatal("expected ErrDuplicateGlobSet for same path glob set")
+		t.Fatal("expected ErrDuplicateGlobSet for same kind + path glob set")
 	}
-	if !strings.Contains(err.Error(), "glob") && !strings.Contains(err.Error(), "paths") {
-		t.Errorf("error should mention glob/paths, got: %v", err)
+	if !errors.Is(err, ErrDuplicateGlobSet) {
+		t.Errorf("expected ErrDuplicateGlobSet, got: %v", err)
+	}
+	if !strings.Contains(err.Error(), "same kind and paths as \"first-card\"") {
+		t.Errorf("error should name the kind+paths conflict, got: %v", err)
 	}
 
 	// Order-insensitive: reversed glob set must also be rejected.
@@ -361,6 +369,41 @@ func TestStore_DuplicateGlobSet(t *testing.T) {
 	err = store.Create(third)
 	if err == nil {
 		t.Fatal("expected ErrDuplicateGlobSet for identical single-element set")
+	}
+}
+
+// TestStore_DuplicateGlobSet_DifferentKindAllowed: one file may carry several
+// distinct facts (decision, hazard, invariant) — dedup keys on (kind, paths),
+// not paths alone (GH-#168).
+func TestStore_DuplicateGlobSet_DifferentKindAllowed(t *testing.T) {
+	dir := t.TempDir()
+	store, _ := NewStore(dir)
+
+	paths := []string{"src/foo.py"}
+	for _, tc := range []struct {
+		name string
+		kind Kind
+	}{
+		{"foo-decision", KindDecision},
+		{"foo-hazard", KindHazard},
+		{"foo-invariant", KindInvariant},
+	} {
+		c := validCard()
+		c.Name = tc.name
+		c.Kind = tc.kind
+		c.Paths = paths
+		if err := store.Create(c); err != nil {
+			t.Fatalf("Create %s (%s) with shared paths should be allowed: %v", tc.name, tc.kind, err)
+		}
+	}
+
+	// A second decision on the very same paths is still a duplicate.
+	dup := validCard()
+	dup.Name = "foo-decision-2"
+	dup.Kind = KindDecision
+	dup.Paths = paths
+	if err := store.Create(dup); !errors.Is(err, ErrDuplicateGlobSet) {
+		t.Errorf("same kind + same paths should still be rejected, got: %v", err)
 	}
 }
 
@@ -642,8 +685,14 @@ func TestStore_Update_DuplicateGlobSet(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected ErrDuplicateGlobSet when updating to another card's path set")
 	}
-	if !strings.Contains(err.Error(), "same path glob set already exists") {
+	if !strings.Contains(err.Error(), "same kind and path glob set already exists") {
 		t.Errorf("expected duplicate glob set error, got: %v", err)
+	}
+
+	// Different kind, same path set — allowed (GH-#168).
+	card2.Kind = KindHazard
+	if err := store.Update(card2); err != nil {
+		t.Errorf("update to same paths with a different kind should be allowed: %v", err)
 	}
 }
 

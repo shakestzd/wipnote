@@ -53,8 +53,17 @@ Step/task event support per harness:
 }
 
 // whoOutput is the stable JSON schema for `wipnote who --json`.
+// whoSourceMostRecentActive labels a session id `who` picked from the derived
+// index because nothing in the environment resolved (see hooks.ResolveSessionID
+// for the other source labels).
+const whoSourceMostRecentActive = "most-recent-active-session (index)"
+
 type whoOutput struct {
-	SessionID       string `json:"session_id"`
+	SessionID string `json:"session_id"`
+	// SessionSource names how SessionID was resolved (hook payload, harness
+	// env, WIPNOTE_SESSION_ID, .active-session, or the index fallback) so a
+	// cross-harness mis-attribution is visible instead of silent (issue #148).
+	SessionSource   string `json:"session_source"`
 	SessionFamilyID string `json:"session_family_id"`
 	Harness         string `json:"harness"`
 	WorkItem        string `json:"work_item,omitempty"`
@@ -114,10 +123,15 @@ func runWho(jsonOut bool) error {
 	}
 	defer database.Close()
 
-	// Resolve session ID: prefer env var, fall back to most-recent active.
-	sessionID := hooks.EnvSessionID("")
+	// Resolve session ID through the shared resolver (the same one `bug start`
+	// and the PreToolUse gate use, issue #148), falling back to the most-recent
+	// active session. The source is surfaced so a wrong pick is diagnosable.
+	sessionID, sessionSource := hooks.ResolveSessionID("")
 	if sessionID == "" {
 		sessionID, _ = dbpkg.MostRecentActiveSession(database)
+		if sessionID != "" {
+			sessionSource = whoSourceMostRecentActive
+		}
 	}
 
 	// Detect the raw harness token from the environment. The launcher sets
@@ -233,6 +247,7 @@ func runWho(jsonOut bool) error {
 
 	out := whoOutput{
 		SessionID:       sessionID,
+		SessionSource:   sessionSource,
 		SessionFamilyID: familyID,
 		Harness:         displayHarness,
 		IsSubagent:      false,
@@ -309,6 +324,9 @@ func renderWhoText(out whoOutput) error {
 	fmt.Printf("  Session Identity\n")
 	fmt.Println(sep)
 	fmt.Printf("  Session ID:      %s\n", out.SessionID)
+	if out.SessionSource != "" {
+		fmt.Printf("  Resolved via:    %s\n", out.SessionSource)
+	}
 	fmt.Printf("  Family ID:       %s\n", out.SessionFamilyID)
 	fmt.Printf("  Harness:         %s\n", out.Harness)
 	if out.IsSubagent {

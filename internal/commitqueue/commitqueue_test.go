@@ -511,6 +511,39 @@ func TestFlushRecordsReasonOnInvalidIntent(t *testing.T) {
 	}
 }
 
+// TestFlushRecordsLastErrorOnRetainedIntent pins GH#174: an intent that has
+// failed but is still under MaxAttempts (so it is retained, not
+// dead-lettered) must still carry LastError/FailedAt — before this fix, only
+// a dead-lettered intent recorded any failure text, so the "1-4 failures"
+// window was silent.
+func TestFlushRecordsLastErrorOnRetainedIntent(t *testing.T) {
+	o := newTestOutbox(t)
+	_ = o.Append(sampleIntent("flaky"))
+
+	before := time.Now().UTC()
+	const maxAttempts = 5
+	if _, err := o.Flush(func(Intent) error { return fmt.Errorf("index locked") }, maxAttempts); err != nil {
+		t.Fatalf("Flush: %v", err)
+	}
+
+	pending, err := o.Pending()
+	if err != nil {
+		t.Fatalf("Pending: %v", err)
+	}
+	if len(pending) != 1 {
+		t.Fatalf("expected the under-threshold intent to stay pending, got %d", len(pending))
+	}
+	if pending[0].Attempts != 1 {
+		t.Fatalf("Attempts = %d, want 1", pending[0].Attempts)
+	}
+	if pending[0].LastError != "index locked" {
+		t.Fatalf("LastError = %q, want %q", pending[0].LastError, "index locked")
+	}
+	if pending[0].FailedAt.Before(before) {
+		t.Fatalf("FailedAt = %v, want >= %v", pending[0].FailedAt, before)
+	}
+}
+
 // TestRetryDeadLetterReEnqueuesAndResets is the round-trip: dead-letter an
 // intent, retry it by work-item-id, and verify it lands back on the pending
 // queue with Attempts/Reason/DeadLetteredAt reset for a fresh run.
@@ -544,8 +577,9 @@ func TestRetryDeadLetterReEnqueuesAndResets(t *testing.T) {
 	if len(pending) != 1 || pending[0].WorkItemID != "poison" {
 		t.Fatalf("retried intent not re-enqueued: %+v", pending)
 	}
-	if pending[0].Attempts != 0 || pending[0].Reason != "" || !pending[0].DeadLetteredAt.IsZero() {
-		t.Fatalf("retried intent must reset Attempts/Reason/DeadLetteredAt: %+v", pending[0])
+	if pending[0].Attempts != 0 || pending[0].Reason != "" || !pending[0].DeadLetteredAt.IsZero() ||
+		pending[0].LastError != "" || !pending[0].FailedAt.IsZero() {
+		t.Fatalf("retried intent must reset Attempts/LastError/FailedAt/Reason/DeadLetteredAt: %+v", pending[0])
 	}
 
 	// Now flushing with a working committer should drain it clean.
@@ -673,5 +707,99 @@ func TestCountDeadLetterMatches(t *testing.T) {
 	}
 	if n, err := o.CountDeadLetterMatches("missing"); err != nil || n != 0 {
 		t.Fatalf("CountDeadLetterMatches(\"missing\") = (%d, %v), want (0, nil)", n, err)
+	}
+}
+
+// TestFlushMatchingDrainsOnlyMatchingIntents pins the GH#160 scoped drain:
+// only the matching work item's intents are committed; every other intent is
+// left queued, untouched and in its original order.
+func TestFlushMatchingDrainsOnlyMatchingIntents(t *testing.T) {
+	o := newTestOutbox(t)
+	for _, id := range []string{"feat-other-1", "feat-mine", "feat-other-2"} {
+		_ = o.Append(sampleIntent(id))
+	}
+	var committed []Intent
+	res, err := o.FlushMatching(okCommitter(&committed), MaxAttempts,
+		func(i Intent) bool { return i.WorkItemID == "feat-mine" })
+	if err != nil {
+		t.Fatalf("FlushMatching: %v", err)
+	}
+	if res.Committed != 1 || len(committed) != 1 || committed[0].WorkItemID != "feat-mine" {
+		t.Fatalf("expected only feat-mine committed, got res=%+v committed=%+v", res, committed)
+	}
+	if res.RemainingDepth != 2 {
+		t.Fatalf("RemainingDepth = %d, want 2 (strangers untouched)", res.RemainingDepth)
+	}
+	pending, _ := o.Pending()
+	if len(pending) != 2 || pending[0].WorkItemID != "feat-other-1" || pending[1].WorkItemID != "feat-other-2" {
+		t.Fatalf("strangers must keep their order, got %+v", pending)
+	}
+	for _, p := range pending {
+		if p.Attempts != 0 {
+			t.Fatalf("out-of-scope intent must not be attempted: %+v", p)
+		}
+	}
+}
+
+// TestFlushReportsFailuresPerIntent verifies FlushResult.Failures carries one
+// entry per counted failure with the incremented Attempts and the cause.
+func TestFlushReportsFailuresPerIntent(t *testing.T) {
+	o := newTestOutbox(t)
+	_ = o.Append(sampleIntent("feat-bad"))
+	_ = o.Append(sampleIntent("feat-ok"))
+	commit := func(i Intent) error {
+		if i.WorkItemID == "feat-bad" {
+			return fmt.Errorf("index locked")
+		}
+		return nil
+	}
+	res, err := o.Flush(commit, MaxAttempts)
+	if err != nil {
+		t.Fatalf("Flush: %v", err)
+	}
+	if len(res.Failures) != 1 || res.Failures[0].Intent.WorkItemID != "feat-bad" ||
+		res.Failures[0].Intent.Attempts != 1 || res.Failures[0].Err.Error() != "index locked" {
+		t.Fatalf("Failures = %+v, want one feat-bad entry at attempt 1 with cause", res.Failures)
+	}
+}
+
+// TestFlushIgnoredPathIsNeitherCountedNorDeadLettered pins the GH#172
+// classification: a committer that reports ErrPathIgnored describes a repo
+// configured to refuse the artifact, not a poison commit. Across many passes
+// the intent must stay queued with Attempts untouched, never dead-letter, and
+// be reported per intent so the operator sees the cause.
+func TestFlushIgnoredPathIsNeitherCountedNorDeadLettered(t *testing.T) {
+	o := newTestOutbox(t)
+	_ = o.Append(sampleIntent("feat-ignored"))
+	_ = o.Append(sampleIntent("feat-ok"))
+
+	commit := func(i Intent) error {
+		if i.WorkItemID == "feat-ignored" {
+			return fmt.Errorf(".wipnote/features/feat-ignored.html ignored by .gitignore:1:.wipnote/: %w", ErrPathIgnored)
+		}
+		return nil
+	}
+	const maxAttempts = 2
+	for pass := 1; pass <= maxAttempts+1; pass++ {
+		res, err := o.Flush(commit, maxAttempts)
+		if err != nil {
+			t.Fatalf("pass %d: %v", pass, err)
+		}
+		if res.Failed != 0 || res.DeadLettered != 0 {
+			t.Fatalf("pass %d: ignored path counted as failure: %+v", pass, res)
+		}
+		if len(res.Ignored) != 1 || res.Ignored[0].Intent.WorkItemID != "feat-ignored" {
+			t.Fatalf("pass %d: Ignored = %+v, want the one ignored intent", pass, res.Ignored)
+		}
+		if res.RemainingDepth != 1 {
+			t.Fatalf("pass %d: RemainingDepth = %d, want 1", pass, res.RemainingDepth)
+		}
+	}
+	pending, _ := o.Pending()
+	if len(pending) != 1 || pending[0].WorkItemID != "feat-ignored" || pending[0].Attempts != 0 {
+		t.Fatalf("ignored intent must stay queued with Attempts=0, got %+v", pending)
+	}
+	if dl, _ := o.DeadLetterDepth(); dl != 0 {
+		t.Fatalf("ignored intent must never dead-letter, depth = %d", dl)
 	}
 }

@@ -133,8 +133,18 @@ func canonicalLinkedCommits(repoRoot, workItemID string, node *models.Node) []st
 // canonicalLinkedCommits — passed in so the provenance gate does not run the
 // git log walk twice.
 func canonicalCodeBearingPaths(repoRoot, wipnoteDir, workItemID string, node *models.Node, commits []string) []string {
+	paths, _ := canonicalCodeBearingPathsScoped(repoRoot, wipnoteDir, workItemID, node, commits)
+	return paths
+}
+
+// canonicalCodeBearingPathsScoped is canonicalCodeBearingPaths plus the
+// completionScope its zero-commit fallback scanned, so a blocking gate can say
+// which tree and branch the evidence came from. The scope is the zero value
+// when the fallback did not run.
+func canonicalCodeBearingPathsScoped(repoRoot, wipnoteDir, workItemID string, node *models.Node, commits []string) ([]string, completionScope) {
+	var scope completionScope
 	if repoRoot == "" || !isGitRepo(repoRoot) {
-		return nil
+		return nil, scope
 	}
 
 	seen := map[string]bool{}
@@ -158,14 +168,24 @@ func canonicalCodeBearingPaths(repoRoot, wipnoteDir, workItemID string, node *mo
 	// the item. When commits exist the provenance gate passes on them alone, so
 	// widening the path set with working-tree noise would buy nothing and would
 	// feed unrelated files to the dependency-research gate downstream.
+	//
+	// The scan is scoped to the COMPLETING agent's worktree (bug-6c953712):
+	// under concurrent worktree dispatch the .wipnote owner's tree belongs to
+	// somebody else. In a linked worktree the branch's own diff against its
+	// base is added as committed-but-unlinked evidence; files touched in any
+	// other tree are never candidates.
 	if len(out) == 0 && workItemImplemented(wipnoteDir, workItemID, node) {
-		for _, p := range uncommittedSourcePaths(repoRoot) {
+		scope = resolveCompletionWorktree(repoRoot)
+		for _, p := range uncommittedSourcePaths(scope.Root) {
+			add(p)
+		}
+		for _, p := range branchTouchedPaths(scope) {
 			add(p)
 		}
 	}
 
 	sort.Strings(out)
-	return out
+	return out, scope
 }
 
 // workItemImplemented reports whether canonical state records that an agent

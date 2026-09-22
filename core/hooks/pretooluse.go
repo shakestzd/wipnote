@@ -20,7 +20,11 @@ import (
 // It inserts a tool_call agent_event row and allows the tool to proceed.
 func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 	// Kill switch: WIPNOTE_GUARDS_OFF=1 disables ALL guards for emergency use.
-	if os.Getenv("WIPNOTE_GUARDS_OFF") == "1" {
+	// It is operator-only and never advertised in block messages; every time it
+	// is honoured it is recorded loudly (stderr, debug log, GuardOverride
+	// agent_event) so the bypass is part of the lineage (GH-#164).
+	if guardOverrideEnabled() {
+		recordGuardOverride(event, database)
 		return &HookResult{}, nil
 	}
 
@@ -73,18 +77,31 @@ func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 
 	orchestrationResearchAdvisory := checkOrchestratorResearchDelegationAdvisory(event, ctx, database)
 
+	// Orchestrator mode enforcement (feat-567c0211, GH-#19 / GH-#20). Runs for
+	// the root session only: in strict mode a non-whitelisted tool — Skill and
+	// non-`wipnote` Bash above all — is counted and, past max_violations,
+	// blocked. Guidance mode advises without counting. The bug-c8ac6a11 rescue
+	// escape hatch is honoured inside the guard.
+	orchestratorAdvice, orchestratorBlock := checkOrchestratorStrictGuard(event, ctx)
+	if orchestratorBlock != "" {
+		return &HookResult{Decision: "block", Reason: orchestratorBlock}, nil
+	}
+
 	// Guard: block Write/Edit/MultiEdit from subagents when THIS AGENT has no
 	// active claim. Subagents are checked per-agent via claimed_by_agent_id in
 	// the claims table (now supplied by the batch context query); the
 	// orchestrator falls back to session-scoped FeatureID.
 	// YOLO mode enforcement: subagents get a short grace period on session
 	// start to claim a work item before guards fire — the parent session's
-	// active feature serves as confirmation that the orchestrator has already
-	// registered intent. This MUST run before the subagent work item guard
-	// so that freshly spawned subagents aren't blocked before they can claim.
+	// open canonical claim serves as confirmation that the orchestrator has
+	// already registered intent. This MUST run before the subagent work item
+	// guard so that freshly spawned subagents aren't blocked before they can
+	// claim. Both inputs are canonical (bug-7036b94f): the projection's
+	// sessions row that used to carry created_at + parent_session_id is never
+	// hydrated on the hook read path.
 	subagentGrace := checkYoloSubagentGrace(
 		ctx.IsYoloMode, ctx.IsSubagent,
-		ctx.SessionCreatedAt, ctx.ParentSessionID, database,
+		subagentStartedAt(ctx), ctx.ParentSessionID, ctx.HgDir,
 	)
 	if subagentGrace {
 		debugLog(ctx.ProjectDir, "[wipnote] subagent grace period active for session %s — allowing write before claim",
@@ -96,12 +113,14 @@ func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 	// blocked by this guard (bug-ba6d1e1c).
 	// Skipped during grace period (subagent just spawned, needs time to claim).
 	//
-	// Parent-chain claim walk (feat-ecd82f68): when the sub-agent has no direct
-	// claim, check the parent session chain. The orchestrator may have run
-	// `wipnote feature start` and holds the claim under its session ID.
+	// Parent-chain claim walk (feat-ecd82f68, canonicalised in bug-7036b94f):
+	// when the sub-agent has no direct claim, consult the canonical claim
+	// ledger for an open episode held by this session or its family root. The
+	// orchestrator may have run `wipnote feature start` and holds the claim
+	// under its session ID (GH-#87).
 	claimedItem := ctx.ClaimedItem
 	if ctx.IsSubagent && claimedItem == "" {
-		inherited, parentSessID := getClaimFromParentChain(database, ctx.SessionID, claimedItem)
+		inherited, parentSessID := getClaimFromParentChain(ctx.HgDir, ctx.SessionID, claimedItem)
 		if inherited != "" {
 			claimedItem = inherited
 			if ctx.FeatureID == "" {
@@ -242,7 +261,7 @@ func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 		if warn := checkYoloDiffReviewGuard(event, ctx.IsYoloMode, hasRecentDiffReview(database, ctx.SessionID)); warn != "" {
 			return &HookResult{Decision: "block", Reason: warn}, nil
 		}
-		if warn := checkYoloUIValidationGuard(event, ctx.IsYoloMode, database, ctx.SessionID); warn != "" {
+		if warn := checkYoloUIValidationGuard(event, ctx.IsYoloMode, database, ctx.SessionID, ctx.ProjectDir); warn != "" {
 			return &HookResult{Decision: "block", Reason: warn}, nil
 		}
 		if warn := checkYoloBudgetGuard(event, ctx.IsYoloMode); warn != "" {
@@ -271,6 +290,7 @@ func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 		result, err := recordEventAndAllow(event, ctx, database)
 		if err == nil && result != nil {
 			appendAdditionalContext(result, orchestrationResearchAdvisory)
+			appendAdditionalContext(result, orchestratorAdvice)
 			appendAdditionalContext(result, advisory)
 		}
 		return result, err
@@ -280,6 +300,7 @@ func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 	result, err := recordEventAndAllow(event, ctx, database)
 	if err == nil && result != nil {
 		appendAdditionalContext(result, orchestrationResearchAdvisory)
+		appendAdditionalContext(result, orchestratorAdvice)
 	}
 	return result, err
 }
@@ -447,9 +468,8 @@ func checkFileOverlapAdvisory(event *CloudEvent, ctx *toolUseContext, database *
 			"File-overlap block: %s was touched within the last %s by another "+
 				"live session: %s.\n"+
 				"Recovery: coordinate with the other session, or re-run after it "+
-				"completes. To proceed anyway, set block_on_file_overlap=false in "+
-				".wipnote/config.json (or export WIPNOTE_GUARDS_OFF=1 for an "+
-				"emergency override).",
+				"completes, or ask the operator to relax block_on_file_overlap in "+
+				".wipnote/config.json.",
 			target, window.String(), sessions),
 		}
 	}
@@ -501,6 +521,18 @@ func recordEventAndAllow(event *CloudEvent, ctx *toolUseContext, database *sql.D
 	// the daemon is reachable and degrades to a <1s bounded fallback otherwise.
 	// Best-effort/advisory like the prior db.InsertEvent — never blocks the hook.
 	_ = RouteInsertEvent("pretooluse", ctx.ProjectDir, ctx.SessionID, ev, database)
+
+	// Canonical mirror of the same tool call (bug-a3b17225). The row above only
+	// ever lands in the real index; the read-only hook path that the research
+	// and UI-validation guards run on opens an EMPTY projection and can never
+	// read it back, which left those guards permanently fail-open. This short
+	// append gives them a durable file source. Best-effort and bounded.
+	appendCanonicalToolEvent(ctx.ProjectDir, ctx.SessionID, canonicalToolEvent{
+		Tool:    event.ToolName,
+		Agent:   ctx.AgentID,
+		Summary: inputSummary,
+		Input:   toolInputStr,
+	})
 
 	// Claim bookkeeping (bug-d792aee6 finding 2): route BOTH claim writes through
 	// the daemon-first enqueue-only seam (RouteHookWrite) instead of issuing them
@@ -621,9 +653,11 @@ func containsWipnoteDir(path string) bool {
 	return path == ".wipnote"
 }
 
-// isBashwipnoteWrite detects Bash commands that directly manipulate
-// .wipnote/ files (rm, sed, echo/cat redirect, python -c, mv, cp, etc.).
-// These bypass the structured Write/Edit tools and must be blocked.
+// isBashwipnoteWrite detects Bash commands that mutate .wipnote/ files
+// directly (rm, sed -i, redirects, mv, cp, git add/rm/mv/restore/checkout/
+// stash, python -c, …). These bypass the wipnote CLI and the commit-queue
+// outbox and must be blocked. The decision is made per shell segment on the
+// resolved operation targets — see store_guard.go (GH-#180).
 func isBashwipnoteWrite(event *CloudEvent) bool {
 	if !isShellTool(event.ToolName) {
 		return false
@@ -632,11 +666,7 @@ func isBashwipnoteWrite(event *CloudEvent) bool {
 	if cmd == "" {
 		return false
 	}
-	// Skip commands that are wipnote CLI invocations — those are allowed.
-	if isWipnoteCLICommand(cmd) {
-		return false
-	}
-	return bashwipnoteWritePattern.MatchString(cmd)
+	return bashCommandWritesWipnoteStore(cmd)
 }
 
 // isWipnoteCLICommand returns true when every shell command segment invokes the
@@ -655,12 +685,31 @@ func isWipnoteCLICommand(cmd string) bool {
 	return true
 }
 
+// splitShellCommandSegments splits cmd on unquoted ;, |, &&, and newlines.
+// A single- or double-quoted span is never split, even if it contains a
+// separator character — "Never; rm .wipnote/x" is one word, not a command
+// boundary, matching how a real shell would parse it. Only the SAME quote
+// character that opened a span closes it; nested different-quote-inside-
+// same-quote and backslash-escaped quotes are not modeled, matching the
+// simplifications tokenizeShellWords already makes for word-splitting.
 func splitShellCommandSegments(cmd string) []string {
 	var segments []string
 	start := 0
+	var quote byte
 	for i := 0; i < len(cmd); i++ {
+		c := cmd[i]
+		if quote != 0 {
+			if c == quote {
+				quote = 0
+			}
+			continue
+		}
+		if c == '\'' || c == '"' {
+			quote = c
+			continue
+		}
 		sepLen := 0
-		switch cmd[i] {
+		switch c {
 		case '\n', ';', '|':
 			sepLen = 1
 		case '&':
@@ -698,37 +747,6 @@ func segmentStartsWithWipnoteCLI(segment string) bool {
 	return false
 }
 
-// bashwipnoteWritePattern matches Bash commands that write to .wipnote/.
-// Covers: rm, sed -i, echo/cat/tee redirects (> or >>), mv, cp, python -c,
-// touch, chmod, mkdir, and any other direct manipulation.
-var bashwipnoteWritePattern = regexp.MustCompile(
-	`(?:` +
-		`\brm\s+.*\.wipnote/` +
-		`|` +
-		`\bsed\s+-i.*\.wipnote/` +
-		`|` +
-		`\d?>\s*\S*\.wipnote/` +
-		`|` +
-		`\d?>>\s*\S*\.wipnote/` +
-		`|` +
-		`&>>?\s*\S*\.wipnote/` +
-		`|` +
-		`\btee\s+\S*\.wipnote/` +
-		`|` +
-		`\bmv\s+.*\.wipnote/` +
-		`|` +
-		`\bcp\s+.*\.wipnote/` +
-		`|` +
-		`\btouch\s+\S*\.wipnote/` +
-		`|` +
-		`\bchmod\s+.*\.wipnote/` +
-		`|` +
-		`\bmkdir\s+.*\.wipnote/` +
-		`|` +
-		`\bpython[23]?\s+-c\s+.*\.wipnote/` +
-		`)`,
-)
-
 // isBashFileWrite detects Bash commands that modify source files (as opposed
 // to read-only commands like git status, ls, grep, etc.). Used by YOLO guards
 // to extend Write/Edit/MultiEdit protections to Bash file manipulation.
@@ -740,7 +758,29 @@ func isBashFileWrite(event *CloudEvent) bool {
 	if cmd == "" {
 		return false
 	}
+	// osascript drives macOS apps (Notes, Mail, …) over Apple events; its
+	// AppleScript/HTML payloads are not filesystem writes (GH-#97).
+	if isOsascriptCommand(cmd) {
+		return false
+	}
 	return bashFileWritePattern.MatchString(cmd)
+}
+
+// isOsascriptCommand reports whether every segment of cmd (after joining
+// backslash continuations and dropping heredoc bodies) invokes osascript. A
+// compound command that chains osascript with anything else is NOT exempt.
+func isOsascriptCommand(cmd string) bool {
+	joined := strings.ReplaceAll(cmd, "\\\n", " ")
+	segments := splitShellCommandSegments(stripHeredocBodies(joined))
+	if len(segments) == 0 {
+		return false
+	}
+	for _, segment := range segments {
+		if name, _ := splitShellCommandArgs(tokenizeShellWords(segment)); name != "osascript" {
+			return false
+		}
+	}
+	return true
 }
 
 // isShellTool reports whether toolName is the harness-native shell invocation
@@ -782,10 +822,11 @@ func shellCommand(input map[string]any) string {
 // Redirect detection:
 //   - `(?:^|\s|;|&&|\|\|)>>?\s*[^&\s]` matches plain shell output redirects
 //     (> and >>) preceded by a word boundary. Handles both `cmd > file` and `cmd >file`.
-//   - `1>>?\s*[^\s]` matches explicit fd-1 (stdout) redirects: `1>file`, `1>>file`.
-//     We target fd 1 specifically to avoid false-positives on benign `2>/dev/null`
-//     patterns (the existing exclusion for `2>/dev/null`-shape stderr redirects is
-//     preserved since we don't add a generic `[0-9]+>` pattern).
+//   - `(?:^|\s|;|&&|\|\|)1>>?\s*[^&\s]` matches explicit fd-1 (stdout) redirects:
+//     `1>file`, `1>>file`. It is anchored to a word start so `<h1>` in a payload
+//     does not match. We target fd 1 specifically to avoid false-positives on
+//     benign `2>/dev/null` patterns (the existing exclusion for `2>/dev/null`-shape
+//     stderr redirects is preserved since we don't add a generic `[0-9]+>` pattern).
 //   - `&>>?\s*[^\s]` matches `&>file` and `&>>file` (stdout+stderr combined redirect).
 //     Excludes fd-to-fd `>&N` because the `&` must immediately precede `>`.
 //   - fd-to-fd redirects like `>&2` are excluded because the existing pattern requires
@@ -803,9 +844,12 @@ var bashFileWritePattern = regexp.MustCompile(
 		// Shell output redirects (both > and >>), handling spaces around >
 		`(?:^|\s|;|&&|\|\|)>>?\s*[^&\s]` +
 		`|` +
-		// Explicit fd-1 (stdout) redirects: 1>file, 1>>file
-		// We use fd 1 specifically to avoid matching benign 2>/dev/null patterns.
-		`1>>?\s*[^\s]` +
+		// Explicit fd-1 (stdout) redirects: 1>file, 1>>file. Anchored to the
+		// start of a word so the "1>" inside an HTML/AppleScript payload such
+		// as "<h1>Title</h1>" does not match (GH-#97), and excluding "&" so the
+		// fd-dup form 1>&2 is not treated as a file write. fd 1 specifically
+		// avoids matching benign 2>/dev/null patterns.
+		`(?:^|\s|;|&&|\|\|)1>>?\s*[^&\s]` +
 		`|` +
 		// Combined stdout+stderr redirects: &>file and &>>file
 		// Excludes >&N (fd-to-fd) because that form has > after &, not & before >.

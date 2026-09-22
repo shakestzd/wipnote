@@ -152,7 +152,8 @@ func Validate(c *Card) error {
 
 	wc := countWords(c.Body)
 	if wc > MaxBodyWords {
-		errs = append(errs, fmt.Sprintf("body exceeds %d-word limit (%d words)", MaxBodyWords, wc))
+		errs = append(errs, fmt.Sprintf("body exceeds %d-word limit (%d words; inline code and URLs are not counted); text past word %d: %q",
+			MaxBodyWords, wc, MaxBodyWords, overflowExcerpt(c.Body, MaxBodyWords)))
 	}
 
 	if c.SupersededBy != "" && !isValidSlug(c.SupersededBy) {
@@ -266,26 +267,6 @@ func splitFrontmatter(data []byte) (fm []byte, body string, err error) {
 	return []byte(fmStr), bodyStr, nil
 }
 
-// countWords counts whitespace-separated words in s.
-func countWords(s string) int {
-	if strings.TrimSpace(s) == "" {
-		return 0
-	}
-	count := 0
-	inWord := false
-	for _, r := range s {
-		if unicode.IsSpace(r) {
-			inWord = false
-		} else {
-			if !inWord {
-				count++
-				inWord = true
-			}
-		}
-	}
-	return count
-}
-
 // isValidSlug returns true when s consists only of lowercase letters, digits,
 // and hyphens, is non-empty, and does not start or end with a hyphen.
 func isValidSlug(s string) bool {
@@ -309,6 +290,7 @@ var ErrNotFound = errors.New("card not found")
 // ErrDuplicateSlug is returned when a card with the same name already exists.
 var ErrDuplicateSlug = errors.New("card with this slug already exists")
 
-// ErrDuplicateGlobSet is returned when a card with the exact same (non-empty)
-// set of path globs already exists. Order of globs is ignored.
-var ErrDuplicateGlobSet = errors.New("card with the same path glob set already exists")
+// ErrDuplicateGlobSet is returned when a card of the same kind with the exact
+// same (non-empty) set of path globs already exists. Order of globs is
+// ignored; cards of different kinds may share a glob set.
+var ErrDuplicateGlobSet = errors.New("card with the same kind and path glob set already exists")

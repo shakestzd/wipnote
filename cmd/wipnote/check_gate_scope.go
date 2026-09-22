@@ -26,11 +26,32 @@ func workItemScopedIntent(intent commitqueue.Intent, workItemID string) bool {
 // never fails the gate — it exists so an operator running WIPNOTE_ARTIFACT_COMMIT_POLICY=defer
 // still sees accumulating backlog from other work items without every later
 // gate inheriting a stranger's failure state.
-func reportDeferredArtifactQueueHealth(w io.Writer, pendingCount, deadLetteredCount int) {
+//
+// When workItemID is set (this gate run is scoped to one item), the advisory
+// covers OTHER items' backlog too, so it is printed under a clearly labelled
+// "repo-wide (not this item)" trailer — agents dispatched with --work-item
+// can then skip it mechanically instead of reasoning about it (GH#163).
+// When workItemID is empty there is no single item to distinguish it from,
+// so it is printed as a plain advisory with no trailer.
+func reportDeferredArtifactQueueHealth(w io.Writer, workItemID string, pendingCount, deadLetteredCount int) {
 	if pendingCount == 0 && deadLetteredCount == 0 {
 		return
 	}
+	if strings.TrimSpace(workItemID) != "" {
+		fmt.Fprint(w, "--- repo-wide (not this item) ---\n")
+	}
 	fmt.Fprintf(w, "advisory: %d repo-wide pending / %d dead-lettered deferred work-item artifact commit intent(s) queued (not blocking this gate — scoped to the current work item only). Run `wipnote commit-queue flush` to drain the backlog.\n", pendingCount, deadLetteredCount)
+}
+
+// showLaunchReadinessReminder decides whether the internal launch-readiness
+// roster (bug-b3d49476, #154) should print for a `check --gate` run. It is
+// repo-wide advisory text with nothing to do with any single work item, so a
+// run scoped to one (workItemID set) skips it entirely instead of mixing it
+// into that item's output (bug-bdc71067, #163) — unlike
+// reportDeferredArtifactQueueHealth, which still has a count worth surfacing
+// under a trailer, this reminder is pure noise for a scoped run.
+func showLaunchReadinessReminder(selfRepo bool, workItemID string) bool {
+	return selfRepo && strings.TrimSpace(workItemID) == ""
 }
 
 // wipnoteSelfModulePath is wipnote's own Go module path (see go.mod at repo
