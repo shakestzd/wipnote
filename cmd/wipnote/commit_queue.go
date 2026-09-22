@@ -5,6 +5,7 @@ import (
 	"io"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -153,6 +154,7 @@ func commitQueueFlushCmd() *cobra.Command {
 			fmt.Fprintf(cmd.OutOrStdout(),
 				"commit-queue flush: committed=%d failed=%d dead-lettered=%d ignored=%d remaining=%d dead-letter-depth=%d\n",
 				res.Committed, res.Failed, res.DeadLettered, len(res.Ignored), res.RemainingDepth, res.DeadLetterDepth)
+			printFailedIntents(cmd.OutOrStdout(), res.Failures)
 			printIgnoredIntents(cmd.OutOrStdout(), res.Ignored)
 			if res.DeadLetterDepth > 0 {
 				fmt.Fprint(cmd.OutOrStdout(), deadLetterWarningLine(res.DeadLetterDepth))
@@ -178,8 +180,25 @@ func printIgnoredIntents(w io.Writer, ignored []commitqueue.IntentFailure) {
 	}
 }
 
+// printFailedIntents prints one line per intent whose commit failed this pass
+// (GH#174) — retained under MaxAttempts and dead-lettered alike — so
+// "failed=N dead-lettered=M" is never a bare count with no cause. Without
+// this an operator (or an agent hitting a red gate) had to go dig the reason
+// out of the dead-letter log by hand, or wait for MaxAttempts consecutive
+// silent failures before seeing anything at all.
+func printFailedIntents(w io.Writer, failures []commitqueue.IntentFailure) {
+	for _, f := range failures {
+		label := f.Intent.WorkItemID
+		if label == "" {
+			label = strings.Join(f.Intent.RelPaths, ", ")
+		}
+		fmt.Fprintf(w, "  failed (attempt %d): %s: %v\n", f.Intent.Attempts, label, f.Err)
+	}
+}
+
 func commitQueueStatusCmd() *cobra.Command {
-	return &cobra.Command{
+	var verbose bool
+	cmd := &cobra.Command{
 		Use:   "status",
 		Short: "Show outbox and dead-letter depths",
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -191,7 +210,7 @@ func commitQueueStatusCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			depth, err := ob.Depth()
+			pending, err := ob.Pending()
 			if err != nil {
 				return err
 			}
@@ -201,11 +220,39 @@ func commitQueueStatusCmd() *cobra.Command {
 			}
 			fmt.Fprintf(cmd.OutOrStdout(),
 				"commit-queue: pending=%d dead-letter=%d\n  outbox: %s\n",
-				depth, dlDepth, ob.Path())
+				len(pending), dlDepth, ob.Path())
+			if verbose {
+				printPendingIntentsVerbose(cmd.OutOrStdout(), pending)
+			}
 			if dlDepth > 0 {
 				fmt.Fprint(cmd.OutOrStdout(), deadLetterWarningLine(dlDepth))
 			}
 			return nil
 		},
+	}
+	cmd.Flags().BoolVar(&verbose, "verbose", false,
+		"list each pending intent with its attempt count and last error (GH#174)")
+	return cmd
+}
+
+// printPendingIntentsVerbose lists every pending intent with its attempts and
+// last failure (GH#174), so `status --verbose` can explain a queue that is
+// non-empty but not yet dead-lettered — the window #174 reported as
+// diagnosable only by hand-editing the outbox NDJSON.
+func printPendingIntentsVerbose(w io.Writer, pending []commitqueue.Intent) {
+	if len(pending) == 0 {
+		return
+	}
+	for _, i := range pending {
+		label := i.WorkItemID
+		if label == "" {
+			label = strings.Join(i.RelPaths, ", ")
+		}
+		if i.LastError == "" {
+			fmt.Fprintf(w, "  %s: attempts=%d (no failures yet)\n", label, i.Attempts)
+			continue
+		}
+		fmt.Fprintf(w, "  %s: attempts=%d last_error=%q failed_at=%s\n",
+			label, i.Attempts, i.LastError, i.FailedAt.Format(time.RFC3339))
 	}
 }

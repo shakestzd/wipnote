@@ -99,8 +99,11 @@ Returns exit code 0 if all gates pass, 1 if any fail.`,
 				// bug-b3d49476 (#154): wipnote's own internal launch-readiness
 				// roster must never leak into an unrelated user project's gate
 				// output — only surface it when the gate is running inside
-				// wipnote's own repository (dogfooding).
-				if isWipnoteSelfRepo(projectRoot) {
+				// wipnote's own repository (dogfooding). bug-bdc71067 (#163):
+				// it is also repo-wide, not about the current work item, so a
+				// --work-item-scoped gate run skips it entirely rather than
+				// mixing it into per-item output.
+				if showLaunchReadinessReminder(isWipnoteSelfRepo(projectRoot), workItemID) {
 					defer printContentionGateReminder()
 				}
 				return nil
@@ -174,6 +177,10 @@ func failIfPendingDeferredArtifactCommits(projectRoot, workItemID string, w io.W
 	if err != nil {
 		return err
 	}
+	// GH#160: drain THIS item's own pending intents inline before deciding
+	// whether anything still blocks — so `start` → `check --gate` passes
+	// without a manual flush. Best-effort; whatever remains is judged below.
+	flushWorkItemIntentsInline(ob, workItemID, w)
 	pending, err := ob.Pending()
 	if err != nil {
 		return err
@@ -205,7 +212,7 @@ func failIfPendingDeferredArtifactCommits(projectRoot, workItemID string, w io.W
 		}
 	}
 
-	reportDeferredArtifactQueueHealth(w, repoWidePending, repoWideDeadLettered)
+	reportDeferredArtifactQueueHealth(w, workItemID, repoWidePending, repoWideDeadLettered)
 
 	workItemIntents := append([]commitqueue.Intent{}, pendingWorkItemIntents...)
 	workItemIntents = append(workItemIntents, deadLetteredWorkItemIntents...)

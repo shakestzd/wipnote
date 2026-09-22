@@ -50,6 +50,9 @@ type FlushResult struct {
 	// no Attempts increment, no dead-letter — because retrying cannot help;
 	// only a .gitignore change can (GH#172).
 	Ignored []IntentFailure
+	// Failures lists every counted failure this pass (retained AND
+	// dead-lettered), so callers can print one cause per intent.
+	Failures []IntentFailure
 }
 
 // Flush drains the outbox in FIFO order, committing each intent via commit.
@@ -70,6 +73,15 @@ type FlushResult struct {
 //
 // maxAttempts <= 0 falls back to the package default MaxAttempts.
 func (o *Outbox) Flush(commit Committer, maxAttempts int) (FlushResult, error) {
+	return o.FlushMatching(commit, maxAttempts, nil)
+}
+
+// FlushMatching is Flush restricted to the intents for which match returns
+// true; every other intent is left queued untouched, in its original
+// position. A nil match drains everything. It exists so a caller that owns
+// one work item (`check --gate --work-item`, `complete`) can drain that
+// item's own intents inline without touching a stranger's backlog (GH#160).
+func (o *Outbox) FlushMatching(commit Committer, maxAttempts int, match func(Intent) bool) (FlushResult, error) {
 	if maxAttempts <= 0 {
 		maxAttempts = MaxAttempts
 	}
@@ -77,13 +89,13 @@ func (o *Outbox) Flush(commit Committer, maxAttempts int) (FlushResult, error) {
 	// cycle so a concurrent Append (or a second Flush) cannot have its intent
 	// dropped by the stale-snapshot rewrite (roborev finding on feat-76504033).
 	var res FlushResult
-	err := o.withLock(func() error { return o.flushLocked(commit, maxAttempts, &res) })
+	err := o.withLock(func() error { return o.flushLocked(commit, maxAttempts, match, &res) })
 	return res, err
 }
 
 // flushLocked is the drain body; callers MUST hold o.withLock. It is split out
 // of Flush only so the locking is expressed once at the boundary.
-func (o *Outbox) flushLocked(commit Committer, maxAttempts int, res *FlushResult) error {
+func (o *Outbox) flushLocked(commit Committer, maxAttempts int, match func(Intent) bool, res *FlushResult) error {
 	pending, err := o.Pending()
 	if err != nil {
 		return err
@@ -92,6 +104,10 @@ func (o *Outbox) flushLocked(commit Committer, maxAttempts int, res *FlushResult
 	var remaining []Intent
 
 	for idx, intent := range pending {
+		if match != nil && !match(intent) {
+			remaining = append(remaining, intent) // out of scope: keep as-is
+			continue
+		}
 		if err := intent.Validate(); err != nil {
 			intent.Attempts = maxAttempts
 			intent.Reason = err.Error()
@@ -118,8 +134,14 @@ func (o *Outbox) flushLocked(commit Committer, maxAttempts int, res *FlushResult
 			remaining = append(remaining, intent)
 			continue
 		}
-		// Commit failed: count the attempt.
+		// Commit failed: count the attempt and persist why (GH#174) — this
+		// runs on EVERY failure, not just the one that finally dead-letters,
+		// so an intent still under MaxAttempts also carries a diagnosable
+		// cause instead of a bare, silent Attempts count.
 		intent.Attempts++
+		intent.LastError = commitErr.Error()
+		intent.FailedAt = time.Now().UTC()
+		res.Failures = append(res.Failures, IntentFailure{Intent: intent, Err: commitErr})
 		if intent.Attempts >= maxAttempts {
 			// Capture why the commit kept failing so dead-letter list has
 			// something more useful than a bare count (GH#155).

@@ -45,7 +45,10 @@ const MaxAttempts = 5
 // artifact paths to stage/commit, relative to RepoRoot. Message is the full
 // commit subject. WorkItemID and Action are carried for observability/auditing.
 // EnqueuedAt records when the intent was appended; Attempts counts how many
-// times a flush has tried (and failed) to commit it. Reason and
+// times a flush has tried (and failed) to commit it. LastError and FailedAt
+// are set on EVERY failed attempt (GH#174) — while an intent is still under
+// MaxAttempts and stays queued, they are the only record of why it hasn't
+// committed yet; `commit-queue status --verbose` reads them. Reason and
 // DeadLetteredAt are populated only when an intent is moved to the
 // dead-letter log (GH#155) — they carry the last failure's error text and
 // the moment the intent gave up on retrying, so `dead-letter list` has
@@ -58,6 +61,8 @@ type Intent struct {
 	Action         string    `json:"action,omitempty"`
 	EnqueuedAt     time.Time `json:"enqueued_at"`
 	Attempts       int       `json:"attempts,omitempty"`
+	LastError      string    `json:"last_error,omitempty"`
+	FailedAt       time.Time `json:"failed_at,omitempty"`
 	Reason         string    `json:"reason,omitempty"`
 	DeadLetteredAt time.Time `json:"dead_lettered_at,omitempty"`
 }
