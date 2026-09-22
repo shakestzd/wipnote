@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -318,8 +319,13 @@ func TestCheckCompletionGateRecord_RequiresCurrentSessionRecord(t *testing.T) {
 	}
 }
 
+// TestFailIfPendingDeferredArtifactCommits pins the block for an intent the
+// inline drain (GH#160) could NOT commit: the project is a git repo but the
+// artifact the intent names does not exist, so `git add` fails, the intent
+// stays pending, and the gate must still refuse with the flush remediation.
 func TestFailIfPendingDeferredArtifactCommits(t *testing.T) {
 	projectRoot := setupGateTestProject(t)
+	initWorktreeGitRepo(t, projectRoot)
 	tmpOutbox := t.TempDir()
 	origOutboxPath := commitOutboxPath
 	commitOutboxPath = func(string) (string, error) {
@@ -341,7 +347,8 @@ func TestFailIfPendingDeferredArtifactCommits(t *testing.T) {
 		t.Fatalf("Append: %v", err)
 	}
 
-	err = failIfPendingDeferredArtifactCommits(projectRoot, "feat-gate", &strings.Builder{})
+	var notes strings.Builder
+	err = failIfPendingDeferredArtifactCommits(projectRoot, "feat-gate", &notes)
 	if err == nil {
 		t.Fatal("expected pending deferred artifact commit to block the gate")
 	}
@@ -350,6 +357,59 @@ func TestFailIfPendingDeferredArtifactCommits(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "feat-gate") {
 		t.Fatalf("error should mention the pending work item, got: %v", err)
+	}
+	if !strings.Contains(notes.String(), "still failing (attempt 1)") {
+		t.Fatalf("inline drain should report why the intent is still pending, got: %q", notes.String())
+	}
+}
+
+// TestFailIfPendingDeferredArtifactCommits_FlushesOwnIntentInline is the
+// GH#160 regression: `start` leaves a pending intent for the item; the gate
+// drains it inline (committing the artifact) instead of refusing and sending
+// the agent off to run `commit-queue flush` by hand.
+func TestFailIfPendingDeferredArtifactCommits_FlushesOwnIntentInline(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("/tmp", "wipnote-gate-inline-*")
+	if err != nil {
+		t.Fatalf("MkdirTemp /tmp: %v", err)
+	}
+	t.Cleanup(func() { os.RemoveAll(tmpDir) })
+	projectRoot := setupWorktreeGitRepoIn(t, tmpDir)
+	gitMustCommitInitial(t, projectRoot)
+	seedGateWorkItemArtifact(t, projectRoot, "feat-inline", "in-progress")
+
+	tmpOutbox := t.TempDir()
+	origOutboxPath := commitOutboxPath
+	commitOutboxPath = func(string) (string, error) {
+		return filepath.Join(tmpOutbox, "commit-outbox.ndjson"), nil
+	}
+	t.Cleanup(func() { commitOutboxPath = origOutboxPath })
+	ob, err := openCommitOutbox(projectRoot)
+	if err != nil {
+		t.Fatalf("openCommitOutbox: %v", err)
+	}
+	for _, in := range []commitqueue.Intent{
+		{RepoRoot: projectRoot, RelPaths: []string{".wipnote/features/feat-inline.html"}, Message: "wipnote: start feat-inline", WorkItemID: "feat-inline", Action: "start"},
+		{RepoRoot: projectRoot, RelPaths: []string{".wipnote/features/feat-stranger.html"}, Message: "wipnote: start feat-stranger", WorkItemID: "feat-stranger", Action: "start"},
+	} {
+		if err := ob.Append(in); err != nil {
+			t.Fatalf("Append: %v", err)
+		}
+	}
+
+	var out strings.Builder
+	if err := failIfPendingDeferredArtifactCommits(projectRoot, "feat-inline", &out); err != nil {
+		t.Fatalf("gate must pass after draining the item's own intent inline, got: %v\n%s", err, out.String())
+	}
+	if !strings.Contains(out.String(), "flushed 1 deferred artifact commit intent(s) for feat-inline inline") {
+		t.Fatalf("expected inline flush notice, got: %q", out.String())
+	}
+	logOut, _ := exec.Command("git", "-C", projectRoot, "log", "--format=%s").CombinedOutput()
+	if !strings.Contains(string(logOut), "wipnote: start feat-inline") {
+		t.Fatalf("inline flush should have committed the artifact:\n%s", logOut)
+	}
+	pending, _ := ob.Pending()
+	if len(pending) != 1 || pending[0].WorkItemID != "feat-stranger" || pending[0].Attempts != 0 {
+		t.Fatalf("only the stranger's intent should remain, untouched; got %+v", pending)
 	}
 }
 
@@ -605,6 +665,9 @@ func TestFailIfPendingDeferredArtifactCommits_BlocksDeadLetteredArtifactIntentWi
 
 func TestCheckCmd_GateFailsWhenDeferredArtifactIntentPending(t *testing.T) {
 	projectRoot := setupGateTestProject(t)
+	// A git repo whose intent names a MISSING artifact: the inline drain
+	// (GH#160) cannot commit it, so the gate must still refuse.
+	initWorktreeGitRepo(t, projectRoot)
 	tmpOutbox := t.TempDir()
 	origOutboxPath := commitOutboxPath
 	commitOutboxPath = func(string) (string, error) {
@@ -651,6 +714,9 @@ func TestCheckCmd_GateFailsWhenDeferredArtifactIntentPending(t *testing.T) {
 func failIfPendingDeferredArtifactCommitsWithIntentForTest(t *testing.T, intent commitqueue.Intent) error {
 	t.Helper()
 	projectRoot := setupGateTestProject(t)
+	// Git repo with no artifact on disk, so the inline drain (GH#160) leaves
+	// the intent pending and the scoping logic under test is still exercised.
+	initWorktreeGitRepo(t, projectRoot)
 	tmpOutbox := t.TempDir()
 	origOutboxPath := commitOutboxPath
 	commitOutboxPath = func(string) (string, error) {

@@ -174,6 +174,10 @@ func failIfPendingDeferredArtifactCommits(projectRoot, workItemID string, w io.W
 	if err != nil {
 		return err
 	}
+	// GH#160: drain THIS item's own pending intents inline before deciding
+	// whether anything still blocks — so `start` → `check --gate` passes
+	// without a manual flush. Best-effort; whatever remains is judged below.
+	flushWorkItemIntentsInline(ob, workItemID, w)
 	pending, err := ob.Pending()
 	if err != nil {
 		return err

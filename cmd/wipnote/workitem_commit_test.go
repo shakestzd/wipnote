@@ -733,6 +733,9 @@ func TestTransactionalComplete_DeferQueuesIntentAndWarns(t *testing.T) {
 	}
 	t.Cleanup(func() { commitOutboxPath = origOutboxPath })
 	t.Setenv("WIPNOTE_ARTIFACT_COMMIT_POLICY", "defer")
+	// The claim-ledger producer seam is installed by buildRoot() in the real
+	// binary; install it here so the test does not depend on run order.
+	initClaimLedgerCommitSeam()
 
 	origStderr := os.Stderr
 	r, w, err := os.Pipe()
@@ -765,15 +768,11 @@ func TestTransactionalComplete_DeferQueuesIntentAndWarns(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Pending: %v", err)
 	}
-	// TWO intents are expected, for two different canonical files: the work-item
-	// artifact, and the claim-episode ledger shard that the start/complete pair
-	// wrote (feat-21d12cdb). Both of the ledger's own mutations coalesce into one
-	// intent because AppendCoalescingByRelPath keys on the repo-relative path and
-	// a session has exactly one shard — which is precisely the batching that
-	// keeps episode churn from producing a commit per mutation.
-	if len(pending) != 2 {
-		t.Fatalf("expected 2 pending deferred intents (artifact + claim ledger), got %d: %+v", len(pending), pending)
-	}
+	// GH#160: the item's OWN "complete" intent is drained inline, so the
+	// outbox is empty for this item and the commit exists. The claim-episode
+	// ledger shard (feat-21d12cdb) is recorded with no WorkItemID — it is a
+	// stranger to the scoped drain and stays queued, untouched, exactly as the
+	// pre-#160 batching intended (one intent per session shard).
 	var artifactIntent, claimIntent *commitqueue.Intent
 	for i := range pending {
 		switch {
@@ -783,25 +782,24 @@ func TestTransactionalComplete_DeferQueuesIntentAndWarns(t *testing.T) {
 			claimIntent = &pending[i]
 		}
 	}
-	if artifactIntent == nil {
-		t.Fatalf("no work-item artifact intent among pending: %+v", pending)
-	}
-	if artifactIntent.Message != "wipnote: complete "+featID {
-		t.Fatalf("deferred completion intent message = %q", artifactIntent.Message)
+	if artifactIntent != nil {
+		t.Fatalf("work-item artifact intent should have been drained inline, still pending: %+v", *artifactIntent)
 	}
 	if claimIntent == nil {
-		t.Fatalf("no claim-ledger intent among pending: %+v", pending)
+		t.Fatalf("claim-ledger intent (no work item id) must be left queued by the scoped drain: %+v", pending)
 	}
 
 	logOut, _ := exec.Command("git", "-C", repoRoot, "log", "--format=%s").CombinedOutput()
-	if strings.Contains(string(logOut), "wipnote: complete "+featID) {
-		t.Fatalf("repo must not contain a separate 'complete' commit in defer mode:\n%s", logOut)
+	if !strings.Contains(string(logOut), "wipnote: complete "+featID) {
+		t.Fatalf("inline drain should have committed the 'complete' artifact:\n%s", logOut)
 	}
 
 	stderrText := string(stderrBytes)
-	if !strings.Contains(stderrText, "WIPNOTE_ARTIFACT_COMMIT_POLICY=defer") ||
-		!strings.Contains(stderrText, "wipnote commit-queue flush") {
-		t.Fatalf("expected explicit deferred-commit guidance on stderr, got:\n%s", stderrText)
+	if !strings.Contains(stderrText, "flushed 1 deferred artifact commit intent(s) for "+featID+" inline") {
+		t.Fatalf("expected inline-flush notice on stderr, got:\n%s", stderrText)
+	}
+	if strings.Contains(stderrText, "run: wipnote commit-queue flush") {
+		t.Fatalf("no manual flush should be requested after an inline drain, got:\n%s", stderrText)
 	}
 }
 

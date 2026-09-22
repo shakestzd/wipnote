@@ -483,9 +483,9 @@ func wiSetStatusWithAgent(typeName, id, status, sessionID, agentID string) error
 			}
 			warnDeferredCommitUnavailable(os.Stderr, typeName, id, err)
 		} else {
-			fmt.Fprintf(os.Stderr,
-				"artifact commit deferred by WIPNOTE_ARTIFACT_COMMIT_POLICY=defer for %s.\n  pending intent recorded; run: wipnote commit-queue flush\n",
-				id)
+			// GH#160: drain this item's own intent right away so the outbox
+			// is empty for it and no manual flush is needed. Non-fatal.
+			flushOwnIntentsAfterComplete(dir, id, os.Stderr)
 		}
 	} else if shouldAutocommitWorkitemArtifact(typeName) {
 		action := actionFromStatus(status)

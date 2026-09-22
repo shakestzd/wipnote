@@ -676,6 +676,59 @@ func TestCountDeadLetterMatches(t *testing.T) {
 	}
 }
 
+// TestFlushMatchingDrainsOnlyMatchingIntents pins the GH#160 scoped drain:
+// only the matching work item's intents are committed; every other intent is
+// left queued, untouched and in its original order.
+func TestFlushMatchingDrainsOnlyMatchingIntents(t *testing.T) {
+	o := newTestOutbox(t)
+	for _, id := range []string{"feat-other-1", "feat-mine", "feat-other-2"} {
+		_ = o.Append(sampleIntent(id))
+	}
+	var committed []Intent
+	res, err := o.FlushMatching(okCommitter(&committed), MaxAttempts,
+		func(i Intent) bool { return i.WorkItemID == "feat-mine" })
+	if err != nil {
+		t.Fatalf("FlushMatching: %v", err)
+	}
+	if res.Committed != 1 || len(committed) != 1 || committed[0].WorkItemID != "feat-mine" {
+		t.Fatalf("expected only feat-mine committed, got res=%+v committed=%+v", res, committed)
+	}
+	if res.RemainingDepth != 2 {
+		t.Fatalf("RemainingDepth = %d, want 2 (strangers untouched)", res.RemainingDepth)
+	}
+	pending, _ := o.Pending()
+	if len(pending) != 2 || pending[0].WorkItemID != "feat-other-1" || pending[1].WorkItemID != "feat-other-2" {
+		t.Fatalf("strangers must keep their order, got %+v", pending)
+	}
+	for _, p := range pending {
+		if p.Attempts != 0 {
+			t.Fatalf("out-of-scope intent must not be attempted: %+v", p)
+		}
+	}
+}
+
+// TestFlushReportsFailuresPerIntent verifies FlushResult.Failures carries one
+// entry per counted failure with the incremented Attempts and the cause.
+func TestFlushReportsFailuresPerIntent(t *testing.T) {
+	o := newTestOutbox(t)
+	_ = o.Append(sampleIntent("feat-bad"))
+	_ = o.Append(sampleIntent("feat-ok"))
+	commit := func(i Intent) error {
+		if i.WorkItemID == "feat-bad" {
+			return fmt.Errorf("index locked")
+		}
+		return nil
+	}
+	res, err := o.Flush(commit, MaxAttempts)
+	if err != nil {
+		t.Fatalf("Flush: %v", err)
+	}
+	if len(res.Failures) != 1 || res.Failures[0].Intent.WorkItemID != "feat-bad" ||
+		res.Failures[0].Intent.Attempts != 1 || res.Failures[0].Err.Error() != "index locked" {
+		t.Fatalf("Failures = %+v, want one feat-bad entry at attempt 1 with cause", res.Failures)
+	}
+}
+
 // TestFlushIgnoredPathIsNeitherCountedNorDeadLettered pins the GH#172
 // classification: a committer that reports ErrPathIgnored describes a repo
 // configured to refuse the artifact, not a poison commit. Across many passes

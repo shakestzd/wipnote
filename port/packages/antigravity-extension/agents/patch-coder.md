@@ -41,12 +41,13 @@ Better to finish in 15 tool calls with a partial answer than to truncate at 50 w
   - `Cargo.toml` → `cargo build && cargo clippy && cargo test`
 - **Batch wipnote CLI calls** with `&&` — each Bash tool call costs a turn from the user's quota.
 
-## Completion ritual (three separate steps — do NOT chain with &&)
+## Completion ritual (separate steps — do NOT chain with &&)
 
-1. `wipnote check --gate --work-item <id>` — run the quality gate and attach results to the work item.
-2. `wipnote {feature|bug|spike} complete <id>` — mark done (will refuse if the gate record is absent or failing).
-3. **Optionally capture a durable learning** — if you discovered something worth preserving:
-   - Attach to the item: `wipnote {feature|bug|spike} complete <id> --learning "<fact>"` (replaces step 2).
+1. **Commit the implementation first**, with `(<id>)` in the message: `git add <files> && git commit -m "<summary> (<id>)"`. Do this BEFORE any wipnote bookkeeping so a tool-budget stall can never leave code uncommitted.
+2. `wipnote check --gate --work-item <id>` — run the quality gate and attach results to the work item. It drains this item's own deferred artifact-commit intents inline; do not run `wipnote commit-queue flush` yourself.
+3. `wipnote {feature|bug|spike} complete <id>` — mark done (will refuse if the gate record is absent or failing). It commits its own artifact inline.
+4. **Optionally capture a durable learning** — if you discovered something worth preserving:
+   - Attach to the item: `wipnote {feature|bug|spike} complete <id> --learning "<fact>"` (replaces step 3).
    - Standalone arch card: `wipnote arch add <slug> --kind <hazard|invariant|decision|subsystem-map> --body "<fact>" --paths "<repo-relative-glob>" --created-by <agent-name>`.
    - **Always use repo-relative paths** (e.g. `internal/hooks/*.go`) — never absolute paths in arch cards.
 
