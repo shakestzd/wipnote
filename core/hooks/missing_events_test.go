@@ -1,6 +1,7 @@
 package hooks
 
 import (
+	"database/sql"
 	"encoding/json"
 	"io"
 	"os"
@@ -688,6 +689,125 @@ func TestTaskCreated_NoSubject_FallsBackToTaskID(t *testing.T) {
 	}
 }
 
+// setActiveFeature inserts a feature row and sets it as sessionID's active
+// feature — cachedGetActiveFeatureID / GetActiveFeatureID read
+// sessions.active_feature_id (not active_work_items), so this is the
+// precondition under which a buggy TaskCreated/TaskCompleted would
+// misattribute a step to unrelated work (GH-#169, bug-664276df).
+func setActiveFeature(t *testing.T, td *testDB, sessionID, featureID string) {
+	t.Helper()
+	if _, err := td.DB.Exec(
+		`INSERT INTO features (id, type, title, status) VALUES (?, 'feature', 'Unrelated Active Work', 'in-progress')`,
+		featureID,
+	); err != nil {
+		t.Fatalf("insert feature: %v", err)
+	}
+	if err := UpdateActiveFeature(td.DB, sessionID, featureID); err != nil {
+		t.Fatalf("UpdateActiveFeature: %v", err)
+	}
+}
+
+// stubTaskStepFns replaces addTaskStepFn/completeTaskStepFn with counters for
+// the duration of the test, restoring the real functions on cleanup — avoids
+// shelling out to a real wipnote binary while observing whether a
+// step-mirroring call happened.
+func stubTaskStepFns(t *testing.T) (addCalls, completeCalls *int) {
+	t.Helper()
+	addCalls, completeCalls = new(int), new(int)
+	prevAdd, prevComplete := addTaskStepFn, completeTaskStepFn
+	addTaskStepFn = func(_ *sql.DB, _ string, _, _, _, _ string) { *addCalls++ }
+	completeTaskStepFn = func(_ *sql.DB, _ string, _, _, _ string) { *completeCalls++ }
+	t.Cleanup(func() {
+		addTaskStepFn = prevAdd
+		completeTaskStepFn = prevComplete
+	})
+	return addCalls, completeCalls
+}
+
+// TestTaskCreated_SkipsStepWhenNoWorkItemNamed is the GH-#169 (bug-664276df)
+// regression guard: an orchestrator-internal task subject that names no
+// work-item ID must NOT attach a step to whatever item happens to be active
+// — the agent_event is still recorded for telemetry.
+func TestTaskCreated_SkipsStepWhenNoWorkItemNamed(t *testing.T) {
+	td, sessionID := setupMissingEventsDB(t)
+	setActiveFeature(t, td, sessionID, "feat-unrelated-1")
+	addCalls, _ := stubTaskStepFns(t)
+
+	event := &CloudEvent{
+		SessionID:   sessionID,
+		CWD:         t.TempDir(),
+		TaskID:      "task-plan",
+		TaskSubject: "Draft the blocks-first plan YAML",
+	}
+
+	result, err := TaskCreated(event, td.DB)
+	if err != nil {
+		t.Fatalf("TaskCreated: %v", err)
+	}
+	if result == nil || !result.Continue {
+		t.Error("expected Continue=true")
+	}
+	if *addCalls != 0 {
+		t.Errorf("expected addTaskStep NOT called for an unattributable subject, got %d call(s)", *addCalls)
+	}
+
+	var count int
+	if err := td.DB.QueryRow(
+		`SELECT COUNT(*) FROM agent_events WHERE session_id = ? AND tool_name = 'TaskCreate'`,
+		sessionID,
+	).Scan(&count); err != nil {
+		t.Fatalf("query agent_events: %v", err)
+	}
+	if count != 1 {
+		t.Errorf("expected the TaskCreate agent_event to still be recorded, got %d", count)
+	}
+}
+
+// TestTaskCreated_AttachesStepWhenWorkItemNamed verifies a task whose subject
+// names a work-item ID DOES attach a step.
+func TestTaskCreated_AttachesStepWhenWorkItemNamed(t *testing.T) {
+	td, sessionID := setupMissingEventsDB(t)
+	setActiveFeature(t, td, sessionID, "bug-9972133d")
+	addCalls, _ := stubTaskStepFns(t)
+
+	event := &CloudEvent{
+		SessionID:   sessionID,
+		CWD:         t.TempDir(),
+		TaskID:      "task-fix",
+		TaskSubject: "Fix bug-9972133d redirect regex",
+	}
+
+	if _, err := TaskCreated(event, td.DB); err != nil {
+		t.Fatalf("TaskCreated: %v", err)
+	}
+	if *addCalls != 1 {
+		t.Errorf("expected addTaskStep called once for a subject naming a work item, got %d", *addCalls)
+	}
+}
+
+// TestTaskCreated_TaskStepsDisabled_SkipsStepEvenWhenNamed verifies the
+// WIPNOTE_TASK_STEPS=off opt-out overrides the id-detection gate.
+func TestTaskCreated_TaskStepsDisabled_SkipsStepEvenWhenNamed(t *testing.T) {
+	td, sessionID := setupMissingEventsDB(t)
+	setActiveFeature(t, td, sessionID, "bug-9972133d")
+	addCalls, _ := stubTaskStepFns(t)
+	t.Setenv("WIPNOTE_TASK_STEPS", "off")
+
+	event := &CloudEvent{
+		SessionID:   sessionID,
+		CWD:         t.TempDir(),
+		TaskID:      "task-fix",
+		TaskSubject: "Fix bug-9972133d redirect regex",
+	}
+
+	if _, err := TaskCreated(event, td.DB); err != nil {
+		t.Fatalf("TaskCreated: %v", err)
+	}
+	if *addCalls != 0 {
+		t.Errorf("expected addTaskStep NOT called when WIPNOTE_TASK_STEPS=off, got %d", *addCalls)
+	}
+}
+
 // --- TaskCompleted ---
 
 // TestTaskCompleted_RecordsEventWithSubject verifies that TaskCompleted records
@@ -754,6 +874,68 @@ func TestTaskCompleted_NoSubject_FallsBackToTaskID(t *testing.T) {
 	}
 	if inputSummary != "Task completed: task_id=task-abc" {
 		t.Errorf("unexpected input_summary: %q", inputSummary)
+	}
+}
+
+// TestTaskCompleted_SkipsStepWhenNoWorkItemNamed mirrors
+// TestTaskCreated_SkipsStepWhenNoWorkItemNamed for the completion path
+// (GH-#169, bug-664276df): completeTaskStep must not fire for a task that
+// was never attributable to a work item in the first place.
+func TestTaskCompleted_SkipsStepWhenNoWorkItemNamed(t *testing.T) {
+	td, sessionID := setupMissingEventsDB(t)
+	setActiveFeature(t, td, sessionID, "feat-unrelated-2")
+	_, completeCalls := stubTaskStepFns(t)
+
+	event := &CloudEvent{
+		SessionID:   sessionID,
+		CWD:         t.TempDir(),
+		TaskID:      "task-critique",
+		TaskSubject: "Validate the plan and run critique",
+	}
+
+	result, err := TaskCompleted(event, td.DB)
+	if err != nil {
+		t.Fatalf("TaskCompleted: %v", err)
+	}
+	if result == nil || !result.Continue {
+		t.Error("expected Continue=true")
+	}
+	if *completeCalls != 0 {
+		t.Errorf("expected completeTaskStep NOT called for an unattributable subject, got %d call(s)", *completeCalls)
+	}
+
+	var count int
+	if err := td.DB.QueryRow(
+		`SELECT COUNT(*) FROM agent_events WHERE session_id = ? AND tool_name = 'TaskComplete'`,
+		sessionID,
+	).Scan(&count); err != nil {
+		t.Fatalf("query agent_events: %v", err)
+	}
+	if count != 1 {
+		t.Errorf("expected the TaskComplete agent_event to still be recorded, got %d", count)
+	}
+}
+
+// TestTaskCompleted_AttachesStepWhenWorkItemNamed verifies a completed task
+// whose description names a work-item ID DOES complete the step.
+func TestTaskCompleted_AttachesStepWhenWorkItemNamed(t *testing.T) {
+	td, sessionID := setupMissingEventsDB(t)
+	setActiveFeature(t, td, sessionID, "bug-9972133d")
+	_, completeCalls := stubTaskStepFns(t)
+
+	event := &CloudEvent{
+		SessionID:       sessionID,
+		CWD:             t.TempDir(),
+		TaskID:          "task-fix",
+		TaskSubject:     "Fix the redirect regex",
+		TaskDescription: "See bug-9972133d for the repro steps",
+	}
+
+	if _, err := TaskCompleted(event, td.DB); err != nil {
+		t.Fatalf("TaskCompleted: %v", err)
+	}
+	if *completeCalls != 1 {
+		t.Errorf("expected completeTaskStep called once for a description naming a work item, got %d", *completeCalls)
 	}
 }
 

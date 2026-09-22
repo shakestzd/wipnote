@@ -4,9 +4,38 @@ import (
 	"database/sql"
 	"os"
 	"os/exec"
+	"regexp"
 	"strings"
 	"time"
 )
+
+// workItemIDInTextPattern matches a wipnote work-item ID (e.g. "bug-9972133d")
+// anywhere in free text. The prefix list and "8 lowercase-hex-chars" shape
+// mirror the ID grammar cmd/wipnote/reindex_trailers.go uses to parse commit
+// trailers (parenWorkItemRe / isWorkItemID) — copied here, rather than
+// imported, because core/hooks lives in the core module and cannot import
+// the cmd/wipnote main package (see .claude/rules/code-hygiene.md's
+// cmd -> internal import-direction rule). Unlike parenWorkItemRe this does
+// NOT require surrounding parentheses: task subjects/descriptions reference
+// work items inline (e.g. "Fix bug-9972133d's redirect regex"), not in the
+// parenthesized commit-trailer convention.
+var workItemIDInTextPattern = regexp.MustCompile(`\b(?:feat|bug|spk|trk|pln|spc|plan|spec)-[0-9a-f]{8}\b`)
+
+// taskNamesWorkItem reports whether subject or description names a wipnote
+// work-item ID, i.e. the task describes specific tracked work rather than an
+// orchestrator-internal process step (e.g. "Draft the plan YAML") that
+// happens to run while some unrelated item is active (GH-#169, bug-664276df).
+func taskNamesWorkItem(subject, description string) bool {
+	return workItemIDInTextPattern.MatchString(subject) || workItemIDInTextPattern.MatchString(description)
+}
+
+// taskStepsDisabled reports whether step-mirroring for TaskCreated/TaskCompleted
+// has been opted out of via WIPNOTE_TASK_STEPS=off. The agent_event recording
+// in both handlers is unaffected — this only gates the addTaskStep/completeTaskStep
+// side effect.
+func taskStepsDisabled() bool {
+	return strings.EqualFold(strings.TrimSpace(os.Getenv("WIPNOTE_TASK_STEPS")), "off")
+}
 
 // selfBinary returns the path to the wipnote binary for self-invocation.
 //
@@ -63,6 +92,12 @@ func selfBinary() string {
 // the active feature. The CLI sets StepID="task-<taskID>" so completeTaskStep
 // can find and tick it. Shells out rather than importing workitem directly
 // (architectural constraint: hooks must not import workitem).
+//
+// Indirected through addTaskStepFn (default: this function) so tests can
+// observe whether a step-mirroring call happened without actually shelling
+// out to a wipnote binary.
+var addTaskStepFn = addTaskStep
+
 func addTaskStep(_ *sql.DB, _ string, featureID, taskID, subject, teammateName string) {
 	if subject == "" {
 		subject = "Task " + taskID
@@ -82,6 +117,11 @@ func addTaskStep(_ *sql.DB, _ string, featureID, taskID, subject, teammateName s
 // StepID="task-<taskID>" via the CLI. The CLI call (which uses
 // workitem.Collection.CompleteTaskStep) is the canonical update — it mutates
 // HTML and updates SQLite counters in one transaction.
+//
+// Indirected through completeTaskStepFn (default: this function) — see
+// addTaskStepFn for why.
+var completeTaskStepFn = completeTaskStep
+
 func completeTaskStep(database *sql.DB, _ string, featureID, taskID, _ string) {
 	typeName := inferTypeName(featureID)
 	cmd := exec.Command(selfBinary(), typeName, "complete-task-step", featureID, taskID)

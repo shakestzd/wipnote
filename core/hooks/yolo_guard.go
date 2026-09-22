@@ -804,14 +804,15 @@ func checkHarnessContractResearchGuard(toolName string, hasWebResearch bool, tar
 }
 
 // checkYoloBashResearchGuard extends the research guard to Bash file-write commands.
-// Always enforced. wipnote CLI commands are always exempt.
+// Always enforced. wipnote CLI commands and osascript invocations are exempt.
 //
-// When the write targets a path outside the project tree (e.g. ~/.config/…),
-// the message omits the "use Read/Grep/Glob" suggestion — those tools cannot
-// reach paths outside the project root (bug-d0c8b1e2).
+// Writes whose first path target lies outside the project tree (e.g. /tmp/…,
+// ~/.config/…) are skipped, mirroring the pathIsOutsideProject skip on the
+// Write/Edit research guard: the code-research gate protects project source,
+// and Read/Grep/Glob cannot reach external paths anyway (bug-d0c8b1e2, GH-#97).
 func checkYoloBashResearchGuard(event *CloudEvent, _ bool, hasResearch bool) string {
 	cmd := shellCommand(event.ToolInput)
-	if isWipnoteCLICommand(cmd) {
+	if isWipnoteCLICommand(cmd) || isOsascriptCommand(cmd) {
 		return ""
 	}
 	if !isBashFileWrite(event) {
@@ -822,8 +823,7 @@ func checkYoloBashResearchGuard(event *CloudEvent, _ bool, hasResearch bool) str
 	}
 	projectRoot := ResolveProjectDir(event.CWD, event.SessionID)
 	if bashCommandTargetsExternalPath(cmd, projectRoot) {
-		return "Research is required before modifying files outside the project. " +
-			"Review the target files with Bash (cat, head, stat) before making changes."
+		return ""
 	}
 	return "Research is required before writing code via Bash. " +
 		"Read the relevant code (Read/Grep/Glob) and/or consult official docs, " +
@@ -877,21 +877,14 @@ func pathIsOutsideProject(path, projectRoot string) bool {
 
 // bashCommandTargetsExternalPath returns true when the Bash command's first
 // path-like argument starts with a home-directory shorthand (~) or is an absolute
-// path that falls outside the project root. This is a best-effort heuristic used
-// to tailor error messages — it does not gate execution and must err on the side
-// of false negatives.
+// path that falls outside the project root. It is a best-effort heuristic that
+// stops at the FIRST path-like token and must err on the side of false
+// negatives (a false negative only means the research guard still applies).
 //
 // projectRoot is used to classify absolute paths: paths inside the project root
 // are considered internal (returns false); paths outside are external (returns true).
 // When projectRoot is empty, any absolute path is treated as external.
 func bashCommandTargetsExternalPath(cmd, projectRoot string) bool {
-	// Whitelist osascript: typically used to drive macOS apps (Notes, Mail, etc.)
-	// via AppleScript. While it can write files, its primary use in research
-	// is app-control and doesn't warrant a filesystem-protection block.
-	if strings.HasPrefix(cmd, "osascript") {
-		return false
-	}
-
 	// Look for the first argument that looks like a path (starts with ~ or /).
 	for _, field := range strings.Fields(cmd) {
 		if pathIsOutsideProject(field, projectRoot) {
