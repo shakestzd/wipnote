@@ -299,12 +299,17 @@ func (s *Supervisor) spawnLocked(ctx context.Context, projectID, projectDir stri
 	select {
 	case hs = <-hsC:
 	case <-handshakeCtx.Done():
-		_ = cmd.Process.Kill()
+		// Group-kill, not cmd.Process.Kill(): a child that times out mid-
+		// hydration has live git subprocesses of its own (hydrateCompatibilityDB's
+		// per-file `git log --follow` calls). Killing only the direct child
+		// leaves those running as orphans, still touching the project's .git
+		// directory, after we have already given up on it.
+		_ = killChildProcessGroup(cmd.Process.Pid)
 		cancel()
 		return nil, fmt.Errorf("handshake timeout after %s", s.spawnTimeout)
 	}
 	if hs.err != nil {
-		_ = cmd.Process.Kill()
+		_ = killChildProcessGroup(cmd.Process.Pid)
 		cancel()
 		return nil, hs.err
 	}
@@ -395,7 +400,7 @@ func (s *Supervisor) Shutdown(ctx context.Context) {
 			select {
 			case <-c.exitC:
 			case <-ctx.Done():
-				_ = c.cmd.Process.Kill()
+				_ = killChildProcessGroup(c.cmd.Process.Pid)
 				<-c.exitC
 			}
 		}(c)
@@ -452,7 +457,7 @@ func (s *Supervisor) reapIdleOnce() {
 			case <-c.exitC:
 				// Process exited cleanly; nothing to do.
 			case <-time.After(100 * time.Millisecond):
-				_ = c.cmd.Process.Kill()
+				_ = killChildProcessGroup(c.cmd.Process.Pid)
 			}
 		}(c)
 	}

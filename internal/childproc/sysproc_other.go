@@ -23,3 +23,11 @@ func childSysProcAttr() *syscall.SysProcAttr {
 func WriterSysProcAttr() *syscall.SysProcAttr {
 	return childSysProcAttr()
 }
+
+// killChildProcessGroup force-kills pid's entire process group, not just pid
+// itself. See the Linux variant's doc comment for why: a plain
+// cmd.Process.Kill() leaves any subprocess the child forked (e.g. hydration's
+// per-file `git log --follow` calls) running as an orphan.
+func killChildProcessGroup(pid int) error {
+	return syscall.Kill(-pid, syscall.SIGKILL)
+}
