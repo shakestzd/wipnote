@@ -6,8 +6,8 @@
       {{$preview := .Preview}}{{if $preview}}<span class="slice-preview">{{$preview}}</span>{{end}}
       <span class="slice-meta-row">
         <span class="slice-summary-badges">
-          {{if .Effort}}<span class="badge {{.EffortClass}} badge-sm">{{.Effort}}</span>{{end}}
-          {{if .Risk}}<span class="badge {{.RiskClass}} badge-sm">{{.Risk}}</span>{{end}}
+          {{if .Effort}}<span class="badge {{.EffortClass}} badge-sm badge-effort" title="{{.EffortTitle}}" aria-label="{{.EffortTitle}}">{{.Effort}}</span>{{end}}
+          {{if .Risk}}<span class="badge {{.RiskClass}} badge-sm badge-risk" title="Risk: {{.Risk}}">{{.Risk}}</span>{{end}}
           {{if .Complexity}}<span class="badge {{.ComplexityClass}} badge-sm badge-complexity" title="Complexity: {{.Complexity}}">{{.ComplexityLabel}}</span>{{end}}
           {{if .ExecutionStatus}}<span class="badge {{.ExecutionStatusClass}} badge-sm" title="Execution: {{.ExecutionStatus}}">{{.ExecutionStatusLabel}}</span>{{end}}
           <span class="badge {{.ApprovalStatusClass}} badge-sm slice-approval-badge" data-badge-for="slice-{{.Num}}">{{.ApprovalStatusLabel}}</span>

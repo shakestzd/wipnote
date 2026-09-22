@@ -150,6 +150,43 @@ func TestSliceCardRenderEffortLarge(t *testing.T) {
 	}
 }
 
+// TestSliceCardRenderEffortTitle: the bare S/M/L badge sits next to a
+// Low/Med/High risk badge, so "L" read as "Low" (GH-#32). The badge must
+// carry the expanded label as a title tooltip.
+func TestSliceCardRenderEffortTitle(t *testing.T) {
+	cases := []struct {
+		effort    string
+		wantLabel string
+	}{
+		{"S", "Small"},
+		{"M", "Medium"},
+		{"L", "Large"},
+		{"XL", "XL"}, // unknown codes pass through unchanged
+	}
+	for _, tc := range cases {
+		t.Run(tc.effort, func(t *testing.T) {
+			sc := &plantmpl.SliceCard{Num: 1, ID: "feat-e", Effort: tc.effort, Risk: "High"}
+			if got := sc.EffortLabel(); got != tc.wantLabel {
+				t.Errorf("EffortLabel() = %q, want %q", got, tc.wantLabel)
+			}
+			if got := sc.EffortTitle(); got != "Effort: "+tc.wantLabel {
+				t.Errorf("EffortTitle() = %q, want %q", got, "Effort: "+tc.wantLabel)
+			}
+			var buf bytes.Buffer
+			if err := sc.Render(&buf); err != nil {
+				t.Fatalf("Render: %v", err)
+			}
+			html := buf.String()
+			if !strings.Contains(html, `title="Effort: `+tc.wantLabel+`"`) {
+				t.Errorf("effort badge should carry title=\"Effort: %s\"; got:\n%s", tc.wantLabel, html)
+			}
+			if !strings.Contains(html, `title="Risk: High"`) {
+				t.Errorf("risk badge should carry title=\"Risk: High\"")
+			}
+		})
+	}
+}
+
 func TestSliceCardRenderEmptyEffortOmitted(t *testing.T) {
 	sc := &plantmpl.SliceCard{Num: 1, ID: "feat-noeffort", Effort: ""}
 
