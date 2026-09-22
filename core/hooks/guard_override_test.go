@@ -86,10 +86,10 @@ func TestPreToolUse_GuardsOff_NilDB_DoesNotPanic(t *testing.T) {
 func TestGuardBlockMessages_DoNotAdvertiseOverride(t *testing.T) {
 	root := "/proj"
 	messages := map[string]string{
-		"external tech":     checkExternalTechResearchGuard("Write", false, filepath.Join(root, "go.mod"), root),
-		"harness contract":  checkHarnessContractResearchGuard("Write", false, filepath.Join(root, "plugin/agents/coder.md"), root),
-		"bash research":     checkYoloBashResearchGuard(&CloudEvent{ToolName: "Bash", ToolInput: map[string]any{"command": "sed -i 's/a/b/' main.go"}}, true, false),
-		"bash research ext": checkYoloBashResearchGuard(&CloudEvent{ToolName: "Bash", ToolInput: map[string]any{"command": "cp x ~/.config/y"}}, true, false),
+		"external tech":         checkExternalTechResearchGuard("Write", false, filepath.Join(root, "go.mod"), root),
+		"harness contract":      checkHarnessContractResearchGuard("Write", false, filepath.Join(root, "plugin/agents/coder.md"), root),
+		"bash research":         checkYoloBashResearchGuard(&CloudEvent{ToolName: "Bash", ToolInput: map[string]any{"command": "sed -i 's/a/b/' main.go"}}, true, false),
+		"bash research relmove": checkYoloBashResearchGuard(&CloudEvent{ToolName: "Bash", ToolInput: map[string]any{"command": "cp x notes.html"}}, true, false),
 	}
 	for name, msg := range messages {
 		if msg == "" {
