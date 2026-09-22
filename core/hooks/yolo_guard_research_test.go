@@ -482,3 +482,45 @@ func TestHasRecentResearch_CrossHarnessShellTools(t *testing.T) {
 		})
 	}
 }
+
+// TestHasRecentResearch_SedReadOnlyCounts verifies that a read-only `sed`
+// invocation (e.g. `sed -n '1,20p' file`) counts as research, but an in-place
+// write form (`sed -i ...` / `sed --in-place ...`) does NOT — that is a file
+// mutation, not a read, and crediting it would let the research guard be
+// satisfied by the very write it exists to gate (issue #125).
+func TestHasRecentResearch_SedReadOnlyCounts(t *testing.T) {
+	cases := []struct {
+		name         string
+		inputSummary string
+		wantResearch bool
+	}{
+		{"sed -n print range counts", "sed -n '1,20p' core/hooks/yolo_guard.go", true},
+		{"plain sed substitution to stdout counts", "sed 's/foo/bar/' file.go", true},
+		{"sed -i in-place does NOT count", "sed -i 's/foo/bar/' file.go", false},
+		{"sed --in-place does NOT count", "sed --in-place 's/foo/bar/' file.go", false},
+	}
+
+	for i, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			tdb := setupTestDB(t)
+			defer tdb.DB.Close()
+
+			sessID := fmt.Sprintf("sed-test-sess-%02d", i)
+			agentID := fmt.Sprintf("sed-test-agent-%02d", i)
+
+			insertResearchTestSessionWithProject(t, tdb, sessID, "", ".")
+			insertAgentEventFull(t, tdb, fmt.Sprintf("evt-sed-%02d", i), sessID, agentID, "tool_call", "Bash", tc.inputSummary)
+
+			// When wantResearch=false, add a second tool_call so the
+			// zero-tool_calls fail-open path does not mask a false positive.
+			if !tc.wantResearch {
+				insertAgentEventFull(t, tdb, fmt.Sprintf("evt-sed-other-%02d", i), sessID, agentID, "tool_call", "Write", "out.txt")
+			}
+
+			got := hasRecentResearch(tdb.DB, sessID, agentID, "")
+			if got != tc.wantResearch {
+				t.Errorf("hasRecentResearch for cmd=%q = %v, want %v", tc.inputSummary, got, tc.wantResearch)
+			}
+		})
+	}
+}

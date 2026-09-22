@@ -626,7 +626,10 @@ func checkYoloResearchGuard(toolName string, _ bool, hasResearch bool, targetFil
 	return "Research is required before writing code. " +
 		"Read the relevant code (Read/Grep/Glob) and/or consult official docs, " +
 		"GitHub issues, or the web (WebSearch/WebFetch, `gh search`) — especially " +
-		"for external libraries, upstream tools, or unfamiliar error messages."
+		"for external libraries, upstream tools, or unfamiliar error messages. " +
+		"Bash read commands also count: `ls`, `find`, `cat`, `grep`, `head`, `tail`, " +
+		"`stat`, `sed` (read-only, not `sed -i`), `gh`, `curl`, `wipnote sh`, and " +
+		"`wipnote search`."
 }
 
 // isExternalTechEdit reports whether a Write/Edit target is a dependency
@@ -1275,6 +1278,7 @@ func buildResearchQuery(inClause string, inArgs []any, useAgentID bool, agentID,
 					OR input_summary LIKE 'head %%'
 					OR input_summary LIKE 'tail %%'
 					OR input_summary LIKE 'stat %%'
+					OR (input_summary LIKE 'sed %%' AND input_summary NOT LIKE 'sed -i%%' AND input_summary NOT LIKE 'sed --in-place%%')
 					OR input_summary LIKE 'gh %%'
 					OR input_summary LIKE 'curl %%'
 					OR input_summary LIKE 'wipnote sh %%'
