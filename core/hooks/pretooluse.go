@@ -73,6 +73,16 @@ func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 
 	orchestrationResearchAdvisory := checkOrchestratorResearchDelegationAdvisory(event, ctx, database)
 
+	// Orchestrator mode enforcement (feat-567c0211, GH-#19 / GH-#20). Runs for
+	// the root session only: in strict mode a non-whitelisted tool — Skill and
+	// non-`wipnote` Bash above all — is counted and, past max_violations,
+	// blocked. Guidance mode advises without counting. The bug-c8ac6a11 rescue
+	// escape hatch is honoured inside the guard.
+	orchestratorAdvice, orchestratorBlock := checkOrchestratorStrictGuard(event, ctx)
+	if orchestratorBlock != "" {
+		return &HookResult{Decision: "block", Reason: orchestratorBlock}, nil
+	}
+
 	// Guard: block Write/Edit/MultiEdit from subagents when THIS AGENT has no
 	// active claim. Subagents are checked per-agent via claimed_by_agent_id in
 	// the claims table (now supplied by the batch context query); the
@@ -276,6 +286,7 @@ func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 		result, err := recordEventAndAllow(event, ctx, database)
 		if err == nil && result != nil {
 			appendAdditionalContext(result, orchestrationResearchAdvisory)
+			appendAdditionalContext(result, orchestratorAdvice)
 			appendAdditionalContext(result, advisory)
 		}
 		return result, err
@@ -285,6 +296,7 @@ func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 	result, err := recordEventAndAllow(event, ctx, database)
 	if err == nil && result != nil {
 		appendAdditionalContext(result, orchestrationResearchAdvisory)
+		appendAdditionalContext(result, orchestratorAdvice)
 	}
 	return result, err
 }
