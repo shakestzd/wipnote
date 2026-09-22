@@ -47,28 +47,37 @@ func archAddCmd() *cobra.Command {
 		links      []string
 		createdBy  string
 		body       string
+		truncate   bool
 	)
 	cmd := &cobra.Command{
 		Use:   "add <slug>",
 		Short: "Create a new architectural memory card",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
-			return runArchAdd(args[0], kind, paths, verifiedAt, links, createdBy, body)
+			return runArchAdd(args[0], kind, paths, verifiedAt, links, createdBy, body, truncate)
 		},
 	}
+	cmd.Flags().BoolVar(&truncate, "truncate", false, "If --body exceeds the word limit, cut it at the last sentence boundary under the cap (prints a WARN) instead of failing")
 	cmd.Flags().StringVar(&kind, "kind", "", "Card kind: subsystem-map, invariant, hazard, decision (required)")
 	cmd.Flags().StringSliceVar(&paths, "paths", nil, "Glob patterns for affected paths (repeatable). The (kind, glob set) pair must be unique among active cards; cards of different kinds may share the same paths")
 	cmd.Flags().StringVar(&verifiedAt, "verified-at", "", "Git SHA at which this card was last verified")
 	cmd.Flags().StringSliceVar(&links, "links", nil, "Work item IDs this card is linked to (repeatable)")
 	cmd.Flags().StringVar(&createdBy, "created-by", "", "Author identifier (required)")
-	cmd.Flags().StringVar(&body, "body", "", "Card body (markdown, max 120 words, required)")
+	cmd.Flags().StringVar(&body, "body", "", "Card body (markdown, required). Max 120 prose words: inline `code` spans and http(s) URLs are not counted; the rejection names the text past word 120 (see --truncate)")
 	return cmd
 }
 
-func runArchAdd(slug, kind string, paths []string, verifiedAt string, links []string, createdBy, body string) error {
+func runArchAdd(slug, kind string, paths []string, verifiedAt string, links []string, createdBy, body string, truncate bool) error {
 	wipnoteDir, err := findWipnoteDir()
 	if err != nil {
 		return err
+	}
+	if truncate {
+		if trimmed, cut := corearch.TruncateBody(body); cut {
+			fmt.Fprintf(os.Stderr, "WARN --truncate: body cut from %d to %d words at the last sentence boundary under the %d-word limit\n",
+				corearch.CountBodyWords(body), corearch.CountBodyWords(trimmed), corearch.MaxBodyWords)
+			body = trimmed
+		}
 	}
 	store, err := corearch.NewStore(wipnoteDir)
 	if err != nil {

@@ -249,6 +249,49 @@ func TestArchBodyWordLimitRejected(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for body exceeding 120-word limit")
 	}
+	if !strings.Contains(err.Error(), "text past word 120") {
+		t.Errorf("rejection should name the overflow text, got: %v", err)
+	}
+}
+
+// TestArchAdd_TruncateCutsAtSentenceBoundary covers `arch add --truncate`
+// (GH-#170): an over-long body is trimmed at the last sentence boundary
+// under the cap instead of failing, and the stored card validates.
+func TestArchAdd_TruncateCutsAtSentenceBoundary(t *testing.T) {
+	dir := setupArchTestDir(t)
+
+	first := strings.TrimSpace(strings.Repeat("alpha ", 100)) + "."
+	second := strings.TrimSpace(strings.Repeat("beta ", 40)) + "."
+	if err := runArch(t,
+		"add", "truncated",
+		"--kind", "decision",
+		"--created-by", "agent",
+		"--body", first+" "+second,
+		"--truncate",
+	); err != nil {
+		t.Fatalf("add --truncate should succeed: %v", err)
+	}
+	store, err := corearch.NewStore(filepath.Join(dir, ".wipnote"))
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	card, err := store.Get("truncated")
+	if err != nil {
+		t.Fatalf("get card: %v", err)
+	}
+	if card.Body != first {
+		t.Errorf("body should be cut after the first sentence, got %d words: %q", corearch.CountBodyWords(card.Body), card.Body)
+	}
+
+	// Without --truncate the same body is still rejected.
+	if err := runArch(t,
+		"add", "not-truncated",
+		"--kind", "decision",
+		"--created-by", "agent",
+		"--body", first+" "+second,
+	); err == nil {
+		t.Error("add without --truncate should still reject an over-long body")
+	}
 }
 
 // TestArchVerify tests the `arch verify` subcommand which re-pins verified_at
