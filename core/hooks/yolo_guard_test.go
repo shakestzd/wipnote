@@ -726,7 +726,7 @@ func TestVisualValidation_SkipsWhenNoUIFilesStaged(t *testing.T) {
 		ToolName:  "Bash",
 		ToolInput: map[string]any{"command": "git commit -m 'backend only'"},
 	}
-	result := checkYoloUIValidationGuard(event, true, nil, "sess-go-only")
+	result := checkYoloUIValidationGuard(event, true, nil, "sess-go-only", "")
 	if result != "" {
 		t.Errorf("expected allow for backend-only commit, got: %s", result)
 	}
@@ -758,7 +758,7 @@ func TestVisualValidation_FiresWhenUIFilesStaged(t *testing.T) {
 		ToolName:  "Bash",
 		ToolInput: map[string]any{"command": "git commit -m 'ui change'"},
 	}
-	result := checkYoloUIValidationGuard(event, true, tdb.DB, "test-sess")
+	result := checkYoloUIValidationGuard(event, true, tdb.DB, "test-sess", "")
 	if result == "" {
 		t.Error("expected block when HTML file staged but no screenshot recorded")
 	}
@@ -796,7 +796,7 @@ func TestVisualValidation_AcceptsChromeMcpScreenshot(t *testing.T) {
 		ToolName:  "Bash",
 		ToolInput: map[string]any{"command": "git commit -m 'ui with screenshot'"},
 	}
-	result := checkYoloUIValidationGuard(event, true, tdb.DB, "test-sess")
+	result := checkYoloUIValidationGuard(event, true, tdb.DB, "test-sess", "")
 	if result != "" {
 		t.Errorf("expected allow after Chrome MCP screenshot, got: %s", result)
 	}
@@ -811,7 +811,7 @@ func TestVisualValidation_IgnoresNonGitCommitBash(t *testing.T) {
 		ToolInput: map[string]any{"command": "gh issue create --title 'foo'"},
 	}
 	// nil DB is safe here — the function must return before touching it.
-	result := checkYoloUIValidationGuard(event, true, nil, "sess-gh")
+	result := checkYoloUIValidationGuard(event, true, nil, "sess-gh", "")
 	if result != "" {
 		t.Errorf("expected allow for non-git-commit bash, got: %s", result)
 	}
@@ -826,7 +826,7 @@ func TestVisualValidation_GitCommitTreeNotGated(t *testing.T) {
 		ToolInput: map[string]any{"command": "git commit-tree HEAD~1"},
 	}
 	// nil DB is safe — the function must return before touching it.
-	result := checkYoloUIValidationGuard(event, true, nil, "sess-plumbing")
+	result := checkYoloUIValidationGuard(event, true, nil, "sess-plumbing", "")
 	if result != "" {
 		t.Errorf("expected allow for git commit-tree, got: %s", result)
 	}
@@ -866,7 +866,7 @@ func TestUIValidationGuard_BrowserBatchScreenshotCounts(t *testing.T) {
 		ToolName:  "Bash",
 		ToolInput: map[string]any{"command": "git commit -m 'ui with browser_batch screenshot'"},
 	}
-	result := checkYoloUIValidationGuard(event, true, tdb.DB, "test-sess")
+	result := checkYoloUIValidationGuard(event, true, tdb.DB, "test-sess", "")
 	if result != "" {
 		t.Errorf("expected allow after browser_batch screenshot, got: %s", result)
 	}

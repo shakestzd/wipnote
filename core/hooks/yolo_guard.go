@@ -1180,9 +1180,17 @@ func hasRecentResearch(database *sql.DB, sessionID, agentID, projectDir string) 
 	database.QueryRow(toolCallQuery, toolCallArgs...).Scan(&toolCallCount)
 
 	if toolCallCount == 0 {
-		// No tool_call events at all — likely a recording-pipeline gap (e.g. FK
-		// failures, DB mismatch in worktrees, fresh session where only a SessionStart
-		// event has been recorded).
+		// No tool_call events at all. On the read-only hook path this is ALWAYS
+		// the case — the projection is empty by construction — so consult the
+		// canonical per-session tool log before conceding (bug-a3b17225).
+		if seen, ok := canonicalAnySeen(projectDir, sessionID, isCanonicalResearchEvent); ok {
+			debugLog(projectDir,
+				"[wipnote] research-gate canonical fallback: session=%s research=%v", sessionID, seen)
+			return seen
+		}
+		// Nothing canonical either — a genuine recording-pipeline gap (FK
+		// failures, DB mismatch in worktrees, fresh session where only a
+		// SessionStart event has been recorded). Fail open.
 		debugLog(projectDir,
 			"[wipnote] research-gate fail-open: no tool_call events recorded for session=%s agent=%s — recording pipeline may be broken",
 			sessionID, agentID)
@@ -1546,14 +1554,8 @@ func hasStagedUIFiles() bool {
 //     Now also checks tool_name = 'mcp__claude-in-chrome__computer' with
 //     "action":"screenshot" in the tool_input JSON column. Existing
 //     take_screenshot patterns are retained for other MCP server flavours.
-func checkYoloUIValidationGuard(event *CloudEvent, yolo bool, database *sql.DB, sessionID string) string {
+func checkYoloUIValidationGuard(event *CloudEvent, yolo bool, database *sql.DB, sessionID, projectDir string) string {
 	if !yolo || !isShellTool(event.ToolName) {
-		return ""
-	}
-	// Nil-DB-safe (roborev-478 finding 1): guard-only dispatch may pass a nil
-	// DB. Without the derived index we cannot confirm UI work was screenshotted,
-	// so fail-open (don't block) rather than panic on QueryRow.
-	if database == nil {
 		return ""
 	}
 	cmd := shellCommand(event.ToolInput)
@@ -1568,50 +1570,96 @@ func checkYoloUIValidationGuard(event *CloudEvent, yolo bool, database *sql.DB, 
 		return ""
 	}
 
-	// Check if any UI files were modified in this session.
-	// Exclude .wipnote/ work item HTML files — those are data, not UI.
-	var uiFileCount int
-	database.QueryRow(`
-		SELECT COUNT(*) FROM agent_events
-		WHERE session_id = ? AND tool_name IN ('Write', 'Edit', 'MultiEdit')
-		  AND (input_summary LIKE '%.html%' OR input_summary LIKE '%.css%'
-		    OR input_summary LIKE '%.js%'  OR input_summary LIKE '%.ts%'
-		    OR input_summary LIKE '%.tsx%' OR input_summary LIKE '%.vue%'
-		    OR input_summary LIKE '%.svelte%')
-		  AND input_summary NOT LIKE '%.wipnote/%'
-		  AND status = 'completed'`,
-		sessionID,
-	).Scan(&uiFileCount)
-
-	if uiFileCount == 0 {
-		return "" // no UI files touched in this session
+	if !sessionTouchedUIFiles(database, sessionID, projectDir) {
+		return "" // no UI files touched in this session (or cannot verify)
+	}
+	if sessionHasVisualValidation(database, sessionID, projectDir) {
+		return ""
 	}
 
-	// Fix 3: check for screenshot / UI validation in session (+ parent).
-	// Supported screenshot patterns:
-	//   - tool_input contains "action":"screenshot" (Chrome MCP, including browser_batch)
-	//   - tool_name matches *take_screenshot* or *screenshot* (other MCP server flavours)
-	// This generalization covers browser_batch and other batch-style MCP tools that
-	// nest screenshot actions inside tool_input rather than exposing them as top-level tool_name.
+	return "UI files were modified but no visual validation was performed. " +
+		"Take a screenshot before committing."
+}
+
+// sessionTouchedUIFiles reports whether this session edited a UI file.
+// .wipnote/ HTML is work-item data, not UI, and is excluded.
+//
+// The derived index is consulted first, then the canonical tool log
+// (bug-a3b17225): on the read-only hook path the projection is empty, so the
+// SQL count is always 0 and the gate was inert. When neither source can answer
+// — nil DB, or no canonical log — this returns false and the gate stays open.
+func sessionTouchedUIFiles(database *sql.DB, sessionID, projectDir string) bool {
+	var uiFileCount int
+	if database != nil {
+		database.QueryRow(`
+			SELECT COUNT(*) FROM agent_events
+			WHERE session_id = ? AND tool_name IN ('Write', 'Edit', 'MultiEdit')
+			  AND (input_summary LIKE '%.html%' OR input_summary LIKE '%.css%'
+			    OR input_summary LIKE '%.js%'  OR input_summary LIKE '%.ts%'
+			    OR input_summary LIKE '%.tsx%' OR input_summary LIKE '%.vue%'
+			    OR input_summary LIKE '%.svelte%')
+			  AND input_summary NOT LIKE '%.wipnote/%'
+			  AND status = 'completed'`,
+			sessionID,
+		).Scan(&uiFileCount)
+	}
+	if uiFileCount > 0 {
+		return true
+	}
+	seen, ok := canonicalAnySeen(projectDir, sessionID, isCanonicalUIEditEvent)
+	return ok && seen
+}
+
+// sessionHasVisualValidation reports whether a screenshot was taken in this
+// session or its parent. Supported patterns:
+//   - tool_input contains "action":"screenshot" (Chrome MCP, including browser_batch)
+//   - tool_name matches *take_screenshot* or *screenshot* (other MCP flavours)
+//
+// It fails OPEN (true) when neither the index nor the canonical log can answer,
+// so a recording gap never blocks a commit.
+func sessionHasVisualValidation(database *sql.DB, sessionID, projectDir string) bool {
 	for _, sid := range getSessionAndParent(database, sessionID) {
 		var validationCount int
+		if database == nil {
+			break
+		}
 		database.QueryRow(`
 			SELECT COUNT(*) FROM agent_events
 			WHERE session_id = ?
 			  AND (
-			    -- Chrome MCP and batch tools: action discriminator in tool_input JSON.
 			    tool_input LIKE '%"action":"screenshot"%'
-			    -- Other MCP servers that expose a dedicated screenshot tool.
 			    OR tool_name LIKE '%take_screenshot%'
 			    OR tool_name LIKE '%screenshot%'
 			  )`,
 			sid,
 		).Scan(&validationCount)
 		if validationCount > 0 {
-			return ""
+			return true
 		}
 	}
+	// A hydrated index that recorded tool calls for this session but no
+	// screenshot is an authoritative "no visual validation" — block.
+	if sessionRecordedEvents(database, sessionID) {
+		return false
+	}
+	seen, ok := canonicalAnySeen(projectDir, sessionID, isCanonicalScreenshotEvent)
+	if !ok {
+		return true // recording gap — cannot verify, do not block
+	}
+	return seen
+}
 
-	return "UI files were modified but no visual validation was performed. " +
-		"Take a screenshot before committing."
+// sessionRecordedEvents reports whether the derived index holds ANY agent_event
+// for this session. It is the same recording-gap probe hasRecentResearch uses:
+// zero rows means the index cannot answer (on the read-only hook path it is
+// empty by construction), not that nothing happened.
+func sessionRecordedEvents(database *sql.DB, sessionID string) bool {
+	if database == nil || sessionID == "" {
+		return false
+	}
+	var n int
+	database.QueryRow(
+		`SELECT COUNT(*) FROM agent_events WHERE session_id = ? LIMIT 1`, sessionID,
+	).Scan(&n)
+	return n > 0
 }

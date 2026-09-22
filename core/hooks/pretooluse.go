@@ -247,7 +247,7 @@ func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 		if warn := checkYoloDiffReviewGuard(event, ctx.IsYoloMode, hasRecentDiffReview(database, ctx.SessionID)); warn != "" {
 			return &HookResult{Decision: "block", Reason: warn}, nil
 		}
-		if warn := checkYoloUIValidationGuard(event, ctx.IsYoloMode, database, ctx.SessionID); warn != "" {
+		if warn := checkYoloUIValidationGuard(event, ctx.IsYoloMode, database, ctx.SessionID, ctx.ProjectDir); warn != "" {
 			return &HookResult{Decision: "block", Reason: warn}, nil
 		}
 		if warn := checkYoloBudgetGuard(event, ctx.IsYoloMode); warn != "" {
@@ -506,6 +506,18 @@ func recordEventAndAllow(event *CloudEvent, ctx *toolUseContext, database *sql.D
 	// the daemon is reachable and degrades to a <1s bounded fallback otherwise.
 	// Best-effort/advisory like the prior db.InsertEvent — never blocks the hook.
 	_ = RouteInsertEvent("pretooluse", ctx.ProjectDir, ctx.SessionID, ev, database)
+
+	// Canonical mirror of the same tool call (bug-a3b17225). The row above only
+	// ever lands in the real index; the read-only hook path that the research
+	// and UI-validation guards run on opens an EMPTY projection and can never
+	// read it back, which left those guards permanently fail-open. This short
+	// append gives them a durable file source. Best-effort and bounded.
+	appendCanonicalToolEvent(ctx.ProjectDir, ctx.SessionID, canonicalToolEvent{
+		Tool:    event.ToolName,
+		Agent:   ctx.AgentID,
+		Summary: inputSummary,
+		Input:   toolInputStr,
+	})
 
 	// Claim bookkeeping (bug-d792aee6 finding 2): route BOTH claim writes through
 	// the daemon-first enqueue-only seam (RouteHookWrite) instead of issuing them
