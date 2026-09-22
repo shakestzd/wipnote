@@ -271,6 +271,28 @@ func (sc *SliceCard) EffortClass() string {
 	}
 }
 
+// EffortLabel expands the S/M/L effort code to Small/Medium/Large. Unknown
+// codes are returned unchanged so the tooltip never lies about the data.
+func (sc *SliceCard) EffortLabel() string {
+	switch sc.Effort {
+	case "S":
+		return "Small"
+	case "M":
+		return "Medium"
+	case "L":
+		return "Large"
+	default:
+		return sc.Effort
+	}
+}
+
+// EffortTitle is the tooltip for the effort badge ("Effort: Large"). The bare
+// "L" badge sits next to a Low/Med/High risk badge and was read as "Low"
+// (GH-#32), so the expansion is always rendered as a title attribute.
+func (sc *SliceCard) EffortTitle() string {
+	return "Effort: " + sc.EffortLabel()
+}
+
 // RiskClass returns the CSS class for the risk badge.
 func (sc *SliceCard) RiskClass() string {
 	switch sc.Risk {

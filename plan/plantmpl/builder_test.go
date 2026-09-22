@@ -282,6 +282,44 @@ func TestPlanPageRenderWithAllZones(t *testing.T) {
 	}
 }
 
+// TestPlanPageRenderSliceLegend: the slice list carries a one-line legend
+// that spells out S/M/L so the effort badge cannot be misread as a risk
+// level (GH-#32). The legend is omitted when there are no slices.
+func TestPlanPageRenderSliceLegend(t *testing.T) {
+	const legend = "Effort: S = Small &middot; M = Medium &middot; L = Large"
+
+	withSlices := &plantmpl.PlanPage{
+		PlanID: "plan-legend01", Title: "Legend", Status: "draft",
+		Slices: []plantmpl.SliceCard{{Num: 1, ID: "feat-l1", Title: "Big one", Effort: "L", Risk: "Low"}},
+	}
+	var buf bytes.Buffer
+	if err := withSlices.Render(&buf); err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+	html := buf.String()
+	if !strings.Contains(html, legend) {
+		t.Errorf("plan page with slices should show the effort legend; got:\n%s", html)
+	}
+	if !strings.Contains(html, "Risk: Low &middot; Med &middot; High") {
+		t.Error("legend should also spell out the risk scale")
+	}
+	if !strings.Contains(html, `title="Effort: Large"`) {
+		t.Error("slice card inside the page should carry the Effort: Large tooltip")
+	}
+	if idx := strings.Index(html, `id="slice-legend"`); idx < 0 || idx > strings.Index(html, `data-slice="1"`) {
+		t.Error("legend should render before the first slice card")
+	}
+
+	noSlices := &plantmpl.PlanPage{PlanID: "plan-legend02", Title: "Empty", Status: "draft"}
+	buf.Reset()
+	if err := noSlices.Render(&buf); err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+	if strings.Contains(buf.String(), legend) {
+		t.Error("plan page without slices should not show the effort legend")
+	}
+}
+
 // ---------------------------------------------------------------------------
 // Static dependency graph on the assembled page
 // ---------------------------------------------------------------------------
