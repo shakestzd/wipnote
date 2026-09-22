@@ -1107,6 +1107,53 @@ func TestIsWipnoteCLICommandAnchorsExecutable(t *testing.T) {
 	}
 }
 
+// TestSplitShellCommandSegments_RespectsQuotes pins that a separator
+// character inside a single- or double-quoted span is never a segment
+// boundary — callers like isWipnoteCLICommand and bashCommandWritesWipnoteStore
+// depend on this to avoid misclassifying quoted prose as a second command.
+func TestSplitShellCommandSegments_RespectsQuotes(t *testing.T) {
+	tests := []struct {
+		name string
+		cmd  string
+		want []string
+	}{
+		{"no quotes, splits normally", "a; b && c", []string{"a", "b", "c"}},
+		{
+			"semicolon inside double quotes is not a boundary",
+			`printf '%s\n' "Never; rm .wipnote/x" > docs/rules.md`,
+			[]string{`printf '%s\n' "Never; rm .wipnote/x" > docs/rules.md`},
+		},
+		{
+			"pipe inside double quotes is not a boundary",
+			`echo "a | b" > f`,
+			[]string{`echo "a | b" > f`},
+		},
+		{
+			"&& inside single quotes is not a boundary",
+			`echo 'safe && unsafe' > f`,
+			[]string{`echo 'safe && unsafe' > f`},
+		},
+		{
+			"real separator after a closed quote still splits",
+			`echo "a; b" && echo c`,
+			[]string{`echo "a; b"`, `echo c`},
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := splitShellCommandSegments(tc.cmd)
+			if len(got) != len(tc.want) {
+				t.Fatalf("splitShellCommandSegments(%q) = %q, want %q", tc.cmd, got, tc.want)
+			}
+			for i := range got {
+				if got[i] != tc.want[i] {
+					t.Errorf("segment %d = %q, want %q", i, got[i], tc.want[i])
+				}
+			}
+		})
+	}
+}
+
 // TestIsBashwipnoteWrite_DoesNotBypassOnMention pins the store guard's
 // target-based decision (GH-#180): a direct write is blocked even when the
 // command mentions "wipnote", `git add .wipnote/` is blocked, and a heredoc or

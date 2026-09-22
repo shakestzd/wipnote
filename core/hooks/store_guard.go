@@ -9,9 +9,12 @@ import (
 // store (GH-#180). The decision is made per shell segment on resolved operation
 // targets — redirect destinations, arguments of file-mutating commands, and the
 // pathspecs of path-taking git subcommands — never on the store path merely
-// appearing somewhere in the command text. Heredoc bodies are dropped before
-// segmenting and quoted prose ("never run git add against .wipnote/") is never a
-// target, so documenting the rule cannot trip the guard.
+// appearing somewhere in the command text. Heredoc bodies are dropped and
+// segments are never split inside a quoted span before segmenting, so quoted
+// prose ("never run git add against .wipnote/", or "Never; rm .wipnote/x")
+// is never a target and documenting the rule cannot trip the guard. Runtime
+// scratch directories the store never commits (.wipnote/logs/) are exempt —
+// see isWipnoteRuntimeExemptPath.
 
 // bashCommandWritesWipnoteStore reports whether any segment of cmd mutates the
 // store. Segments that invoke the wipnote CLI itself are exempt: the CLI is the
@@ -143,18 +146,40 @@ func isWipnoteStorePath(arg string) bool {
 	if arg == "" || strings.ContainsAny(arg, " \t\n") {
 		return false
 	}
-	if arg == ".wipnote" || strings.HasSuffix(arg, "/.wipnote") || strings.HasPrefix(arg, ".wipnote/") {
-		return true
+	if arg == ".wipnote" || strings.HasSuffix(arg, "/.wipnote") {
+		return true // the store root itself, not a runtime subpath under it
+	}
+	if rel, ok := strings.CutPrefix(arg, ".wipnote/"); ok {
+		return !isWipnoteRuntimeExemptPath(rel)
 	}
 	for idx := strings.Index(arg, ".wipnote/"); idx > 0; {
 		if prev := arg[idx-1]; prev == '/' || prev == '=' {
-			return true
+			return !isWipnoteRuntimeExemptPath(arg[idx+len(".wipnote/"):])
 		}
 		next := strings.Index(arg[idx+1:], ".wipnote/")
 		if next < 0 {
 			break
 		}
 		idx += 1 + next
+	}
+	return false
+}
+
+// wipnoteRuntimeExemptPrefixes are .wipnote/ subdirectories that are
+// gitignored runtime scratch space (see .wipnote/.gitignore's "Runtime/
+// session directories" section) rather than committed store content — the
+// guard's job is protecting the canonical, git-tracked work-item artifacts,
+// and a plain Bash write under one of these can never mutate anything that
+// exists to protect. "logs/" is the concrete case: the context-pack Act-First
+// preamble (feat-a4f1332a) mandates `mkdir`/`>>` into .wipnote/logs/progress/
+// as an agent's literal first tool call, before `wipnote start` has even run.
+var wipnoteRuntimeExemptPrefixes = []string{"logs/"}
+
+func isWipnoteRuntimeExemptPath(rel string) bool {
+	for _, prefix := range wipnoteRuntimeExemptPrefixes {
+		if strings.HasPrefix(rel, prefix) {
+			return true
+		}
 	}
 	return false
 }

@@ -82,6 +82,12 @@ func TestCanonicalToolEventClassifiers(t *testing.T) {
 		{Tool: "Bash", Summary: "grep -rn foo ."},
 		{Tool: "Bash", Summary: "ls"},
 		{Tool: "exec_command", Summary: "cat go.mod"},
+		// Read-only sed mirrors buildResearchQuery's `sed %` AND NOT `sed -i%`
+		// AND NOT `sed --in-place%` SQL clause on this canonical fallback
+		// path, which is the one production actually takes (the SQL
+		// projection is empty on the hot hook path).
+		{Tool: "Bash", Summary: "sed -n '1,20p' main.go"},
+		{Tool: "Bash", Summary: "sed 's/foo/bar/' main.go"},
 	}
 	for _, ev := range research {
 		if !isCanonicalResearchEvent(ev) {
@@ -93,6 +99,8 @@ func TestCanonicalToolEventClassifiers(t *testing.T) {
 		{Tool: "Bash", Summary: "go build ./..."},
 		{Tool: "Bash", Summary: "rm -rf build"},
 		{Tool: "TodoWrite", Summary: "plan"},
+		{Tool: "Bash", Summary: "sed -i 's/foo/bar/' main.go"},
+		{Tool: "Bash", Summary: "sed --in-place 's/foo/bar/' main.go"},
 	}
 	for _, ev := range notResearch {
 		if isCanonicalResearchEvent(ev) {

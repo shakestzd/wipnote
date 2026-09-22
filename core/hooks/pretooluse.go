@@ -685,12 +685,31 @@ func isWipnoteCLICommand(cmd string) bool {
 	return true
 }
 
+// splitShellCommandSegments splits cmd on unquoted ;, |, &&, and newlines.
+// A single- or double-quoted span is never split, even if it contains a
+// separator character — "Never; rm .wipnote/x" is one word, not a command
+// boundary, matching how a real shell would parse it. Only the SAME quote
+// character that opened a span closes it; nested different-quote-inside-
+// same-quote and backslash-escaped quotes are not modeled, matching the
+// simplifications tokenizeShellWords already makes for word-splitting.
 func splitShellCommandSegments(cmd string) []string {
 	var segments []string
 	start := 0
+	var quote byte
 	for i := 0; i < len(cmd); i++ {
+		c := cmd[i]
+		if quote != 0 {
+			if c == quote {
+				quote = 0
+			}
+			continue
+		}
+		if c == '\'' || c == '"' {
+			quote = c
+			continue
+		}
 		sepLen := 0
-		switch cmd[i] {
+		switch c {
 		case '\n', ';', '|':
 			sepLen = 1
 		case '&':

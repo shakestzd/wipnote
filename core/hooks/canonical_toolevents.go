@@ -211,6 +211,14 @@ func isCanonicalResearchEvent(ev canonicalToolEvent) bool {
 			return true
 		}
 	}
+	// Read-only sed mirrors buildResearchQuery's `sed %` AND NOT `sed -i%`
+	// AND NOT `sed --in-place%` clause: a substitution printed to stdout is
+	// research, an in-place edit is not.
+	if strings.HasPrefix(summary, "sed ") &&
+		!strings.HasPrefix(summary, "sed -i") &&
+		!strings.HasPrefix(summary, "sed --in-place") {
+		return true
+	}
 	return false
 }
 

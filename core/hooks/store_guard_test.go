@@ -75,6 +75,22 @@ func TestBashCommandWritesWipnoteStore(t *testing.T) {
 		{"redirect elsewhere", "echo x > wipnote.log", false},
 		{"stderr to devnull", "wipnote-ish-tool 2>/dev/null", false},
 		{"empty", "", false},
+
+		// --- allowed: a semicolon inside a quoted argument is not a segment
+		// boundary, so the "rm .wipnote/x" fragment is never split out as
+		// its own segment and misclassified as a real rm target ---
+		{"quoted semicolon not a boundary", `printf '%s\n' "Never; rm .wipnote/x" > docs/rules.md`, false},
+		{"quoted pipe not a boundary", `echo "a | rm .wipnote/x" > docs/rules.md`, false},
+		{"quoted && not a boundary", `echo "safe && rm .wipnote/x" > docs/rules.md`, false},
+
+		// --- allowed: .wipnote/logs/ is gitignored runtime scratch space,
+		// never part of the committed store, so the context-pack Act-First
+		// preamble's mandated mkdir/append can run under a Bash guard ---
+		{"mkdir logs progress dir", "mkdir -p .wipnote/logs/progress", false},
+		{"append to logs progress note", "printf 'started\\n' >> .wipnote/logs/progress/feat-abc.md", false},
+
+		// --- blocked: logs/ is exempt, but the rest of the store is not ---
+		{"redirect into features despite logs exemption elsewhere", "echo x > .wipnote/features/feat-abc.html", true},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

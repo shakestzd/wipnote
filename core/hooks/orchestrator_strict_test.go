@@ -48,6 +48,7 @@ func TestOrchestratorStrictGuard_Whitelist(t *testing.T) {
 		{ToolName: "TaskUpdate"},
 		{ToolName: "TaskList"},
 		{ToolName: "TaskGet"},
+		{ToolName: "SendMessage"},
 		bashEvent("wipnote feature start feat-1"),
 		bashEvent("  wipnote snapshot --summary"),
 	}
@@ -72,6 +73,11 @@ func TestOrchestratorStrictGuard_Whitelist(t *testing.T) {
 		{ToolName: "Edit", ToolInput: map[string]any{"file_path": "main.go"}},
 		bashEvent("gh issue create --title x"),
 		bashEvent("grep -rn github ."),
+		// A compound command starting with "wipnote" is not whitelisted just
+		// because its first word is — every segment must be a wipnote
+		// invocation (isWipnoteCLICommand), or a direct-execution segment
+		// like the gofmt call here would slip through uncounted.
+		bashEvent("wipnote status && gofmt -w main.go"),
 	}
 	for _, event := range denied {
 		projectDir := orchestratorFixture(t, OrchestratorConfig{

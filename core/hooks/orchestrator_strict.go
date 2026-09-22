@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 )
 
 // Orchestrator mode enforcement (feat-567c0211, GH-#19 / GH-#20).
@@ -79,25 +78,31 @@ func SaveOrchestratorConfig(wipnoteDir string, cfg OrchestratorConfig) error {
 }
 
 // orchestratorWhitelist is the set of tools an orchestrator may call directly:
-// delegation itself, user interaction, and task bookkeeping. Skill is
-// deliberately absent — invoking a skill runs its work in the orchestrator's
-// own context, which is exactly the bypass GH-#19 reported.
+// delegation itself, user interaction, task bookkeeping, and resuming a
+// budget-paused subagent (SendMessage — the orchestrator-directives skill's
+// documented Pattern A recovery, which must never itself count as a direct-
+// execution violation). Skill is deliberately absent — invoking a skill runs
+// its work in the orchestrator's own context, which is exactly the bypass
+// GH-#19 reported.
 var orchestratorWhitelist = map[string]bool{
 	"Task": true, "Agent": true,
 	"AskUserQuestion": true,
 	"TodoWrite":       true,
 	"TaskCreate":      true, "TaskUpdate": true, "TaskList": true, "TaskGet": true,
+	"SendMessage": true,
 }
 
 // isOrchestratorWhitelistedTool reports whether an orchestrator may run this
-// tool call directly. Shell tools qualify only when the command is a `wipnote`
-// invocation — the SDK operations the directives have always exempted.
+// tool call directly. Shell tools qualify only when EVERY segment of the
+// command is a `wipnote` invocation (isWipnoteCLICommand) — a raw string
+// prefix check would let a compound command like `wipnote status && rm -rf x`
+// slip through on its first word alone.
 func isOrchestratorWhitelistedTool(toolName string, toolInput map[string]any) bool {
 	if orchestratorWhitelist[toolName] {
 		return true
 	}
 	if isShellTool(toolName) {
-		return strings.HasPrefix(strings.TrimSpace(shellCommand(toolInput)), "wipnote")
+		return isWipnoteCLICommand(shellCommand(toolInput))
 	}
 	return false
 }
