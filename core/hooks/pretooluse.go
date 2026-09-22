@@ -77,18 +77,31 @@ func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 
 	orchestrationResearchAdvisory := checkOrchestratorResearchDelegationAdvisory(event, ctx, database)
 
+	// Orchestrator mode enforcement (feat-567c0211, GH-#19 / GH-#20). Runs for
+	// the root session only: in strict mode a non-whitelisted tool — Skill and
+	// non-`wipnote` Bash above all — is counted and, past max_violations,
+	// blocked. Guidance mode advises without counting. The bug-c8ac6a11 rescue
+	// escape hatch is honoured inside the guard.
+	orchestratorAdvice, orchestratorBlock := checkOrchestratorStrictGuard(event, ctx)
+	if orchestratorBlock != "" {
+		return &HookResult{Decision: "block", Reason: orchestratorBlock}, nil
+	}
+
 	// Guard: block Write/Edit/MultiEdit from subagents when THIS AGENT has no
 	// active claim. Subagents are checked per-agent via claimed_by_agent_id in
 	// the claims table (now supplied by the batch context query); the
 	// orchestrator falls back to session-scoped FeatureID.
 	// YOLO mode enforcement: subagents get a short grace period on session
 	// start to claim a work item before guards fire — the parent session's
-	// active feature serves as confirmation that the orchestrator has already
-	// registered intent. This MUST run before the subagent work item guard
-	// so that freshly spawned subagents aren't blocked before they can claim.
+	// open canonical claim serves as confirmation that the orchestrator has
+	// already registered intent. This MUST run before the subagent work item
+	// guard so that freshly spawned subagents aren't blocked before they can
+	// claim. Both inputs are canonical (bug-7036b94f): the projection's
+	// sessions row that used to carry created_at + parent_session_id is never
+	// hydrated on the hook read path.
 	subagentGrace := checkYoloSubagentGrace(
 		ctx.IsYoloMode, ctx.IsSubagent,
-		ctx.SessionCreatedAt, ctx.ParentSessionID, database,
+		subagentStartedAt(ctx), ctx.ParentSessionID, ctx.HgDir,
 	)
 	if subagentGrace {
 		debugLog(ctx.ProjectDir, "[wipnote] subagent grace period active for session %s — allowing write before claim",
@@ -100,12 +113,14 @@ func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 	// blocked by this guard (bug-ba6d1e1c).
 	// Skipped during grace period (subagent just spawned, needs time to claim).
 	//
-	// Parent-chain claim walk (feat-ecd82f68): when the sub-agent has no direct
-	// claim, check the parent session chain. The orchestrator may have run
-	// `wipnote feature start` and holds the claim under its session ID.
+	// Parent-chain claim walk (feat-ecd82f68, canonicalised in bug-7036b94f):
+	// when the sub-agent has no direct claim, consult the canonical claim
+	// ledger for an open episode held by this session or its family root. The
+	// orchestrator may have run `wipnote feature start` and holds the claim
+	// under its session ID (GH-#87).
 	claimedItem := ctx.ClaimedItem
 	if ctx.IsSubagent && claimedItem == "" {
-		inherited, parentSessID := getClaimFromParentChain(database, ctx.SessionID, claimedItem)
+		inherited, parentSessID := getClaimFromParentChain(ctx.HgDir, ctx.SessionID, claimedItem)
 		if inherited != "" {
 			claimedItem = inherited
 			if ctx.FeatureID == "" {
@@ -246,7 +261,7 @@ func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 		if warn := checkYoloDiffReviewGuard(event, ctx.IsYoloMode, hasRecentDiffReview(database, ctx.SessionID)); warn != "" {
 			return &HookResult{Decision: "block", Reason: warn}, nil
 		}
-		if warn := checkYoloUIValidationGuard(event, ctx.IsYoloMode, database, ctx.SessionID); warn != "" {
+		if warn := checkYoloUIValidationGuard(event, ctx.IsYoloMode, database, ctx.SessionID, ctx.ProjectDir); warn != "" {
 			return &HookResult{Decision: "block", Reason: warn}, nil
 		}
 		if warn := checkYoloBudgetGuard(event, ctx.IsYoloMode); warn != "" {
@@ -275,6 +290,7 @@ func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 		result, err := recordEventAndAllow(event, ctx, database)
 		if err == nil && result != nil {
 			appendAdditionalContext(result, orchestrationResearchAdvisory)
+			appendAdditionalContext(result, orchestratorAdvice)
 			appendAdditionalContext(result, advisory)
 		}
 		return result, err
@@ -284,6 +300,7 @@ func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 	result, err := recordEventAndAllow(event, ctx, database)
 	if err == nil && result != nil {
 		appendAdditionalContext(result, orchestrationResearchAdvisory)
+		appendAdditionalContext(result, orchestratorAdvice)
 	}
 	return result, err
 }
@@ -504,6 +521,18 @@ func recordEventAndAllow(event *CloudEvent, ctx *toolUseContext, database *sql.D
 	// the daemon is reachable and degrades to a <1s bounded fallback otherwise.
 	// Best-effort/advisory like the prior db.InsertEvent — never blocks the hook.
 	_ = RouteInsertEvent("pretooluse", ctx.ProjectDir, ctx.SessionID, ev, database)
+
+	// Canonical mirror of the same tool call (bug-a3b17225). The row above only
+	// ever lands in the real index; the read-only hook path that the research
+	// and UI-validation guards run on opens an EMPTY projection and can never
+	// read it back, which left those guards permanently fail-open. This short
+	// append gives them a durable file source. Best-effort and bounded.
+	appendCanonicalToolEvent(ctx.ProjectDir, ctx.SessionID, canonicalToolEvent{
+		Tool:    event.ToolName,
+		Agent:   ctx.AgentID,
+		Summary: inputSummary,
+		Input:   toolInputStr,
+	})
 
 	// Claim bookkeeping (bug-d792aee6 finding 2): route BOTH claim writes through
 	// the daemon-first enqueue-only seam (RouteHookWrite) instead of issuing them

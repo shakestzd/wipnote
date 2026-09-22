@@ -16,7 +16,6 @@ import (
 
 	"github.com/shakestzd/wipnote/core/agent"
 	"github.com/shakestzd/wipnote/core/claimledger"
-	"github.com/shakestzd/wipnote/core/db"
 	"github.com/shakestzd/wipnote/core/paths"
 )
 
@@ -294,8 +293,17 @@ func checkYoloWorkItemGuard(toolName, featureID string, _ bool, sessionID string
 // read error yields ok=false, which callers must treat as "cannot verify" and
 // fail open.
 func canonicalOpenClaim(wipnoteDir, sessionID string) (workItem string, ok bool) {
+	ep, ok := canonicalOpenClaimEpisode(wipnoteDir, sessionID)
+	return ep.WorkItemID, ok
+}
+
+// canonicalOpenClaimEpisode is canonicalOpenClaim returning the whole episode,
+// so callers that need to know WHICH session holds the inherited claim (the
+// subagent guards in pretooluse.go, see getClaimFromParentChain) can report it.
+// The zero Episode with ok=true means "ledger consulted, no open claim".
+func canonicalOpenClaimEpisode(wipnoteDir, sessionID string) (ep claimledger.Episode, ok bool) {
 	if wipnoteDir == "" || sessionID == "" {
-		return "", false
+		return claimledger.Episode{}, false
 	}
 	roots := []string{sessionID}
 	// Only distinct when sessionID is a descendant; yoloFamilyRoot returns ""
@@ -323,11 +331,11 @@ func canonicalOpenClaim(wipnoteDir, sessionID string) (workItem string, ok bool)
 			// does and this session is a descendant inheriting it — the
 			// canonical mirror of check 3's parent-chain fallback.
 			if e.SessionID == sessionID || e.SessionID == root {
-				return e.WorkItemID, true
+				return e, true
 			}
 		}
 	}
-	return "", consulted
+	return claimledger.Episode{}, consulted
 }
 
 func latestProjectClaim(database *sql.DB, projectRoot string) (string, string) {
@@ -357,20 +365,29 @@ const yoloSubagentGracePeriod = 30 * time.Second
 
 // checkYoloSubagentGrace returns true when the session qualifies for the
 // subagent grace period: it must be a subagent (nesting_depth > 0 per
-// is_subagent flag), the session must be younger than yoloSubagentGracePeriod,
-// and the parent session must have an active feature. When these conditions
-// hold the caller should allow the write with a warning instead of blocking.
-func checkYoloSubagentGrace(yolo, isSubagent bool, sessionCreatedAt time.Time, parentSessionID string, database *sql.DB) bool {
+// is_subagent flag), the subagent must have started less than
+// yoloSubagentGracePeriod ago, and the parent session must hold an OPEN claim
+// in the canonical claim ledger. When these conditions hold the caller should
+// allow the write with a warning instead of blocking.
+//
+// startedAt and parentSessionID come from canonical state (see
+// canonicalSubagentStartedAt / canonicalParentSessionID): the sessions row the
+// hook projection used to supply both from is never hydrated any more, which
+// left this window permanently closed (bug-7036b94f). A zero startedAt means
+// the start could not be established and is treated as "outside the window"
+// — the guard stays ON rather than being skipped on missing evidence.
+func checkYoloSubagentGrace(yolo, isSubagent bool, startedAt time.Time, parentSessionID, wipnoteDir string) bool {
 	if !yolo || !isSubagent {
 		return false
 	}
-	if time.Since(sessionCreatedAt) >= yoloSubagentGracePeriod {
+	if startedAt.IsZero() || time.Since(startedAt) >= yoloSubagentGracePeriod {
 		return false
 	}
-	if parentSessionID == "" || database == nil {
+	if parentSessionID == "" || wipnoteDir == "" {
 		return false
 	}
-	return db.GetActiveFeatureIDForSession(database, parentSessionID) != ""
+	workItem, _ := canonicalOpenClaim(wipnoteDir, parentSessionID)
+	return workItem != ""
 }
 
 // sessionHasLinkedFeature returns true when the given session has a feature
@@ -1158,9 +1175,17 @@ func hasRecentResearch(database *sql.DB, sessionID, agentID, projectDir string) 
 	database.QueryRow(toolCallQuery, toolCallArgs...).Scan(&toolCallCount)
 
 	if toolCallCount == 0 {
-		// No tool_call events at all — likely a recording-pipeline gap (e.g. FK
-		// failures, DB mismatch in worktrees, fresh session where only a SessionStart
-		// event has been recorded).
+		// No tool_call events at all. On the read-only hook path this is ALWAYS
+		// the case — the projection is empty by construction — so consult the
+		// canonical per-session tool log before conceding (bug-a3b17225).
+		if seen, ok := canonicalAnySeen(projectDir, sessionID, isCanonicalResearchEvent); ok {
+			debugLog(projectDir,
+				"[wipnote] research-gate canonical fallback: session=%s research=%v", sessionID, seen)
+			return seen
+		}
+		// Nothing canonical either — a genuine recording-pipeline gap (FK
+		// failures, DB mismatch in worktrees, fresh session where only a
+		// SessionStart event has been recorded). Fail open.
 		debugLog(projectDir,
 			"[wipnote] research-gate fail-open: no tool_call events recorded for session=%s agent=%s — recording pipeline may be broken",
 			sessionID, agentID)
@@ -1374,8 +1399,10 @@ func sessionOrAgentFilter(inClause string, inArgs []any, useAgentID bool, agentI
 // session that spawned them.
 //
 // Callers that need full transitive lineage should use collectRelatedSessionIDs
-// instead. This function is preserved for existing callers (e.g.
-// getClaimFromParentChain) that only need one level of parent resolution.
+// instead. This function is preserved for existing callers (the diff-review,
+// test-run and UI-validation gates) that only need one level of parent
+// resolution. Claim inheritance no longer goes through here: see the canonical
+// getClaimFromParentChain in canonical_context.go.
 func getSessionAndParent(database *sql.DB, sessionID string) []string {
 	sessionIDs := []string{sessionID}
 	// Nil-DB-safe (roborev-478 finding 1): guard-only hook dispatch may pass a
@@ -1393,40 +1420,6 @@ func getSessionAndParent(database *sql.DB, sessionID string) []string {
 		sessionIDs = append(sessionIDs, parentID)
 	}
 	return sessionIDs
-}
-
-// getClaimFromParentChain walks the parent session chain for sessionID and
-// returns the work_item_id of the first active claim found on an ancestor
-// session. Only walks when the current session has no claim of its own
-// (claimedItem == ""). Returns "" when no ancestor claim is found.
-//
-// This allows sub-agent sessions to inherit the orchestrator's claim so that
-// Write/Edit guards don't block agents dispatched by an orchestrator that ran
-// `wipnote feature start`.
-func getClaimFromParentChain(database *sql.DB, sessionID, claimedItem string) (string, string) {
-	if claimedItem != "" || database == nil || sessionID == "" {
-		return claimedItem, ""
-	}
-	// Walk the parent chain: check parent session for an active claim.
-	sessionIDs := getSessionAndParent(database, sessionID)
-	if len(sessionIDs) < 2 {
-		return "", ""
-	}
-	activeList := "'proposed','claimed','in_progress','blocked','handoff_pending'"
-	for _, sid := range sessionIDs[1:] { // skip current session (index 0)
-		var inherited string
-		query := fmt.Sprintf(`
-			SELECT work_item_id FROM claims
-			WHERE owner_session_id = ?
-			  AND status IN (%s)
-			ORDER BY leased_at DESC
-			LIMIT 1`, activeList)
-		database.QueryRow(query, sid).Scan(&inherited)
-		if inherited != "" {
-			return inherited, sid
-		}
-	}
-	return "", ""
 }
 
 // hasRecentDiffReview checks if git diff was run in this session or its
@@ -1557,14 +1550,8 @@ func hasStagedUIFiles() bool {
 //     Now also checks tool_name = 'mcp__claude-in-chrome__computer' with
 //     "action":"screenshot" in the tool_input JSON column. Existing
 //     take_screenshot patterns are retained for other MCP server flavours.
-func checkYoloUIValidationGuard(event *CloudEvent, yolo bool, database *sql.DB, sessionID string) string {
+func checkYoloUIValidationGuard(event *CloudEvent, yolo bool, database *sql.DB, sessionID, projectDir string) string {
 	if !yolo || !isShellTool(event.ToolName) {
-		return ""
-	}
-	// Nil-DB-safe (roborev-478 finding 1): guard-only dispatch may pass a nil
-	// DB. Without the derived index we cannot confirm UI work was screenshotted,
-	// so fail-open (don't block) rather than panic on QueryRow.
-	if database == nil {
 		return ""
 	}
 	cmd := shellCommand(event.ToolInput)
@@ -1579,50 +1566,96 @@ func checkYoloUIValidationGuard(event *CloudEvent, yolo bool, database *sql.DB, 
 		return ""
 	}
 
-	// Check if any UI files were modified in this session.
-	// Exclude .wipnote/ work item HTML files — those are data, not UI.
-	var uiFileCount int
-	database.QueryRow(`
-		SELECT COUNT(*) FROM agent_events
-		WHERE session_id = ? AND tool_name IN ('Write', 'Edit', 'MultiEdit')
-		  AND (input_summary LIKE '%.html%' OR input_summary LIKE '%.css%'
-		    OR input_summary LIKE '%.js%'  OR input_summary LIKE '%.ts%'
-		    OR input_summary LIKE '%.tsx%' OR input_summary LIKE '%.vue%'
-		    OR input_summary LIKE '%.svelte%')
-		  AND input_summary NOT LIKE '%.wipnote/%'
-		  AND status = 'completed'`,
-		sessionID,
-	).Scan(&uiFileCount)
-
-	if uiFileCount == 0 {
-		return "" // no UI files touched in this session
+	if !sessionTouchedUIFiles(database, sessionID, projectDir) {
+		return "" // no UI files touched in this session (or cannot verify)
+	}
+	if sessionHasVisualValidation(database, sessionID, projectDir) {
+		return ""
 	}
 
-	// Fix 3: check for screenshot / UI validation in session (+ parent).
-	// Supported screenshot patterns:
-	//   - tool_input contains "action":"screenshot" (Chrome MCP, including browser_batch)
-	//   - tool_name matches *take_screenshot* or *screenshot* (other MCP server flavours)
-	// This generalization covers browser_batch and other batch-style MCP tools that
-	// nest screenshot actions inside tool_input rather than exposing them as top-level tool_name.
+	return "UI files were modified but no visual validation was performed. " +
+		"Take a screenshot before committing."
+}
+
+// sessionTouchedUIFiles reports whether this session edited a UI file.
+// .wipnote/ HTML is work-item data, not UI, and is excluded.
+//
+// The derived index is consulted first, then the canonical tool log
+// (bug-a3b17225): on the read-only hook path the projection is empty, so the
+// SQL count is always 0 and the gate was inert. When neither source can answer
+// — nil DB, or no canonical log — this returns false and the gate stays open.
+func sessionTouchedUIFiles(database *sql.DB, sessionID, projectDir string) bool {
+	var uiFileCount int
+	if database != nil {
+		database.QueryRow(`
+			SELECT COUNT(*) FROM agent_events
+			WHERE session_id = ? AND tool_name IN ('Write', 'Edit', 'MultiEdit')
+			  AND (input_summary LIKE '%.html%' OR input_summary LIKE '%.css%'
+			    OR input_summary LIKE '%.js%'  OR input_summary LIKE '%.ts%'
+			    OR input_summary LIKE '%.tsx%' OR input_summary LIKE '%.vue%'
+			    OR input_summary LIKE '%.svelte%')
+			  AND input_summary NOT LIKE '%.wipnote/%'
+			  AND status = 'completed'`,
+			sessionID,
+		).Scan(&uiFileCount)
+	}
+	if uiFileCount > 0 {
+		return true
+	}
+	seen, ok := canonicalAnySeen(projectDir, sessionID, isCanonicalUIEditEvent)
+	return ok && seen
+}
+
+// sessionHasVisualValidation reports whether a screenshot was taken in this
+// session or its parent. Supported patterns:
+//   - tool_input contains "action":"screenshot" (Chrome MCP, including browser_batch)
+//   - tool_name matches *take_screenshot* or *screenshot* (other MCP flavours)
+//
+// It fails OPEN (true) when neither the index nor the canonical log can answer,
+// so a recording gap never blocks a commit.
+func sessionHasVisualValidation(database *sql.DB, sessionID, projectDir string) bool {
 	for _, sid := range getSessionAndParent(database, sessionID) {
 		var validationCount int
+		if database == nil {
+			break
+		}
 		database.QueryRow(`
 			SELECT COUNT(*) FROM agent_events
 			WHERE session_id = ?
 			  AND (
-			    -- Chrome MCP and batch tools: action discriminator in tool_input JSON.
 			    tool_input LIKE '%"action":"screenshot"%'
-			    -- Other MCP servers that expose a dedicated screenshot tool.
 			    OR tool_name LIKE '%take_screenshot%'
 			    OR tool_name LIKE '%screenshot%'
 			  )`,
 			sid,
 		).Scan(&validationCount)
 		if validationCount > 0 {
-			return ""
+			return true
 		}
 	}
+	// A hydrated index that recorded tool calls for this session but no
+	// screenshot is an authoritative "no visual validation" — block.
+	if sessionRecordedEvents(database, sessionID) {
+		return false
+	}
+	seen, ok := canonicalAnySeen(projectDir, sessionID, isCanonicalScreenshotEvent)
+	if !ok {
+		return true // recording gap — cannot verify, do not block
+	}
+	return seen
+}
 
-	return "UI files were modified but no visual validation was performed. " +
-		"Take a screenshot before committing."
+// sessionRecordedEvents reports whether the derived index holds ANY agent_event
+// for this session. It is the same recording-gap probe hasRecentResearch uses:
+// zero rows means the index cannot answer (on the read-only hook path it is
+// empty by construction), not that nothing happened.
+func sessionRecordedEvents(database *sql.DB, sessionID string) bool {
+	if database == nil || sessionID == "" {
+		return false
+	}
+	var n int
+	database.QueryRow(
+		`SELECT COUNT(*) FROM agent_events WHERE session_id = ? LIMIT 1`, sessionID,
+	).Scan(&n)
+	return n > 0
 }
