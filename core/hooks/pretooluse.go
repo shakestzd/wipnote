@@ -79,12 +79,15 @@ func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 	// orchestrator falls back to session-scoped FeatureID.
 	// YOLO mode enforcement: subagents get a short grace period on session
 	// start to claim a work item before guards fire — the parent session's
-	// active feature serves as confirmation that the orchestrator has already
-	// registered intent. This MUST run before the subagent work item guard
-	// so that freshly spawned subagents aren't blocked before they can claim.
+	// open canonical claim serves as confirmation that the orchestrator has
+	// already registered intent. This MUST run before the subagent work item
+	// guard so that freshly spawned subagents aren't blocked before they can
+	// claim. Both inputs are canonical (bug-7036b94f): the projection's
+	// sessions row that used to carry created_at + parent_session_id is never
+	// hydrated on the hook read path.
 	subagentGrace := checkYoloSubagentGrace(
 		ctx.IsYoloMode, ctx.IsSubagent,
-		ctx.SessionCreatedAt, ctx.ParentSessionID, database,
+		subagentStartedAt(ctx), subagentParentSession(ctx), ctx.HgDir,
 	)
 	if subagentGrace {
 		debugLog(ctx.ProjectDir, "[wipnote] subagent grace period active for session %s — allowing write before claim",
@@ -96,12 +99,14 @@ func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 	// blocked by this guard (bug-ba6d1e1c).
 	// Skipped during grace period (subagent just spawned, needs time to claim).
 	//
-	// Parent-chain claim walk (feat-ecd82f68): when the sub-agent has no direct
-	// claim, check the parent session chain. The orchestrator may have run
-	// `wipnote feature start` and holds the claim under its session ID.
+	// Parent-chain claim walk (feat-ecd82f68, canonicalised in bug-7036b94f):
+	// when the sub-agent has no direct claim, consult the canonical claim
+	// ledger for an open episode held by this session or its family root. The
+	// orchestrator may have run `wipnote feature start` and holds the claim
+	// under its session ID (GH-#87).
 	claimedItem := ctx.ClaimedItem
 	if ctx.IsSubagent && claimedItem == "" {
-		inherited, parentSessID := getClaimFromParentChain(database, ctx.SessionID, claimedItem)
+		inherited, parentSessID := getClaimFromParentChain(ctx.HgDir, ctx.SessionID, claimedItem)
 		if inherited != "" {
 			claimedItem = inherited
 			if ctx.FeatureID == "" {

@@ -16,7 +16,6 @@ import (
 
 	"github.com/shakestzd/wipnote/core/agent"
 	"github.com/shakestzd/wipnote/core/claimledger"
-	"github.com/shakestzd/wipnote/core/db"
 	"github.com/shakestzd/wipnote/core/paths"
 )
 
@@ -294,8 +293,17 @@ func checkYoloWorkItemGuard(toolName, featureID string, _ bool, sessionID string
 // read error yields ok=false, which callers must treat as "cannot verify" and
 // fail open.
 func canonicalOpenClaim(wipnoteDir, sessionID string) (workItem string, ok bool) {
+	ep, ok := canonicalOpenClaimEpisode(wipnoteDir, sessionID)
+	return ep.WorkItemID, ok
+}
+
+// canonicalOpenClaimEpisode is canonicalOpenClaim returning the whole episode,
+// so callers that need to know WHICH session holds the inherited claim (the
+// subagent guards in pretooluse.go, see getClaimFromParentChain) can report it.
+// The zero Episode with ok=true means "ledger consulted, no open claim".
+func canonicalOpenClaimEpisode(wipnoteDir, sessionID string) (ep claimledger.Episode, ok bool) {
 	if wipnoteDir == "" || sessionID == "" {
-		return "", false
+		return claimledger.Episode{}, false
 	}
 	roots := []string{sessionID}
 	// Only distinct when sessionID is a descendant; yoloFamilyRoot returns ""
@@ -323,11 +331,11 @@ func canonicalOpenClaim(wipnoteDir, sessionID string) (workItem string, ok bool)
 			// does and this session is a descendant inheriting it — the
 			// canonical mirror of check 3's parent-chain fallback.
 			if e.SessionID == sessionID || e.SessionID == root {
-				return e.WorkItemID, true
+				return e, true
 			}
 		}
 	}
-	return "", consulted
+	return claimledger.Episode{}, consulted
 }
 
 func latestProjectClaim(database *sql.DB, projectRoot string) (string, string) {
@@ -357,20 +365,29 @@ const yoloSubagentGracePeriod = 30 * time.Second
 
 // checkYoloSubagentGrace returns true when the session qualifies for the
 // subagent grace period: it must be a subagent (nesting_depth > 0 per
-// is_subagent flag), the session must be younger than yoloSubagentGracePeriod,
-// and the parent session must have an active feature. When these conditions
-// hold the caller should allow the write with a warning instead of blocking.
-func checkYoloSubagentGrace(yolo, isSubagent bool, sessionCreatedAt time.Time, parentSessionID string, database *sql.DB) bool {
+// is_subagent flag), the subagent must have started less than
+// yoloSubagentGracePeriod ago, and the parent session must hold an OPEN claim
+// in the canonical claim ledger. When these conditions hold the caller should
+// allow the write with a warning instead of blocking.
+//
+// startedAt and parentSessionID come from canonical state (see
+// canonicalSubagentStartedAt / canonicalParentSessionID): the sessions row the
+// hook projection used to supply both from is never hydrated any more, which
+// left this window permanently closed (bug-7036b94f). A zero startedAt means
+// the start could not be established and is treated as "outside the window"
+// — the guard stays ON rather than being skipped on missing evidence.
+func checkYoloSubagentGrace(yolo, isSubagent bool, startedAt time.Time, parentSessionID, wipnoteDir string) bool {
 	if !yolo || !isSubagent {
 		return false
 	}
-	if time.Since(sessionCreatedAt) >= yoloSubagentGracePeriod {
+	if startedAt.IsZero() || time.Since(startedAt) >= yoloSubagentGracePeriod {
 		return false
 	}
-	if parentSessionID == "" || database == nil {
+	if parentSessionID == "" || wipnoteDir == "" {
 		return false
 	}
-	return db.GetActiveFeatureIDForSession(database, parentSessionID) != ""
+	workItem, _ := canonicalOpenClaim(wipnoteDir, parentSessionID)
+	return workItem != ""
 }
 
 // sessionHasLinkedFeature returns true when the given session has a feature
@@ -1378,8 +1395,10 @@ func sessionOrAgentFilter(inClause string, inArgs []any, useAgentID bool, agentI
 // session that spawned them.
 //
 // Callers that need full transitive lineage should use collectRelatedSessionIDs
-// instead. This function is preserved for existing callers (e.g.
-// getClaimFromParentChain) that only need one level of parent resolution.
+// instead. This function is preserved for existing callers (the diff-review,
+// test-run and UI-validation gates) that only need one level of parent
+// resolution. Claim inheritance no longer goes through here: see the canonical
+// getClaimFromParentChain in canonical_context.go.
 func getSessionAndParent(database *sql.DB, sessionID string) []string {
 	sessionIDs := []string{sessionID}
 	// Nil-DB-safe (roborev-478 finding 1): guard-only hook dispatch may pass a
@@ -1397,40 +1416,6 @@ func getSessionAndParent(database *sql.DB, sessionID string) []string {
 		sessionIDs = append(sessionIDs, parentID)
 	}
 	return sessionIDs
-}
-
-// getClaimFromParentChain walks the parent session chain for sessionID and
-// returns the work_item_id of the first active claim found on an ancestor
-// session. Only walks when the current session has no claim of its own
-// (claimedItem == ""). Returns "" when no ancestor claim is found.
-//
-// This allows sub-agent sessions to inherit the orchestrator's claim so that
-// Write/Edit guards don't block agents dispatched by an orchestrator that ran
-// `wipnote feature start`.
-func getClaimFromParentChain(database *sql.DB, sessionID, claimedItem string) (string, string) {
-	if claimedItem != "" || database == nil || sessionID == "" {
-		return claimedItem, ""
-	}
-	// Walk the parent chain: check parent session for an active claim.
-	sessionIDs := getSessionAndParent(database, sessionID)
-	if len(sessionIDs) < 2 {
-		return "", ""
-	}
-	activeList := "'proposed','claimed','in_progress','blocked','handoff_pending'"
-	for _, sid := range sessionIDs[1:] { // skip current session (index 0)
-		var inherited string
-		query := fmt.Sprintf(`
-			SELECT work_item_id FROM claims
-			WHERE owner_session_id = ?
-			  AND status IN (%s)
-			ORDER BY leased_at DESC
-			LIMIT 1`, activeList)
-		database.QueryRow(query, sid).Scan(&inherited)
-		if inherited != "" {
-			return inherited, sid
-		}
-	}
-	return "", ""
 }
 
 // hasRecentDiffReview checks if git diff was run in this session or its
