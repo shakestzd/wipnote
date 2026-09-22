@@ -32,15 +32,30 @@ type ActiveSessionData struct {
 	ProjectDir    string  `json:"project_dir,omitempty"`
 	GitRemoteURL  string  `json:"git_remote_url,omitempty"`
 	Timestamp     float64 `json:"timestamp"`
+	// Harness names the harness whose SessionStart wrote this entry
+	// ("claude", "codex", "gemini", "antigravity"). Every harness's
+	// SessionStart overwrites the same file, so a reader running under a
+	// different harness must not adopt the entry (issue #148). Empty on files
+	// written by older wipnote versions; readers treat those as untagged and
+	// keep the pre-tag behaviour.
+	Harness string `json:"harness,omitempty"`
 }
 
 // WriteActiveSession writes session context to .wipnote/.active-session so
 // worktree subagent hooks can read session ID even when CLAUDE_ENV_FILE is unset.
+// The entry is tagged with the harness detected from the environment; use
+// WriteActiveSessionForHarness when the caller already knows the harness.
+func WriteActiveSession(sessionID, projectDir string) {
+	WriteActiveSessionForHarness(sessionID, projectDir, resolveHarness())
+}
+
+// WriteActiveSessionForHarness is WriteActiveSession with an explicit harness
+// tag (see ActiveSessionData.Harness).
 //
 // Writes are atomic (write-to-temp + rename) so concurrent readers never see
 // a torn/empty file, and concurrent writers cannot corrupt each other
 // (bug-d2d3fb3f: parallel agents stomped .active-session).
-func WriteActiveSession(sessionID, projectDir string) {
+func WriteActiveSessionForHarness(sessionID, projectDir, harness string) {
 	if projectDir == "" {
 		return
 	}
@@ -52,6 +67,7 @@ func WriteActiveSession(sessionID, projectDir string) {
 		ProjectDir:    projectDir,
 		GitRemoteURL:  paths.GetGitRemoteURL(projectDir),
 		Timestamp:     float64(time.Now().UnixNano()) / 1e9,
+		Harness:       normalizeHarness(harness),
 	}
 	b, err := json.Marshal(data)
 	if err != nil {
@@ -186,8 +202,10 @@ func SessionStart(event *CloudEvent, database *sql.DB, projectDir string) (*Hook
 		go RetentionSweepFn(projectDir, sessionID)
 	}
 
-	// Propagate session ID to downstream hooks while git is running.
-	writeEnvVars(sessionID, projectDir)
+	// Propagate session ID to downstream hooks while git is running. The
+	// .active-session entry is tagged with THIS event's harness so a later
+	// reader under another harness never adopts it (issue #148).
+	writeEnvVars(sessionID, projectDir, activeSessionHarness(event))
 
 	// Emit the Rosetta correlation event: maps launcher-minted OTel session ID
 	// to Claude Code's own session_id so the dashboard can follow --resume flows.
@@ -740,9 +758,9 @@ func upsertSession(database *sql.DB, s *models.Session) error {
 // writes .wipnote/.active-session as a backup. The .active-session file
 // ensures downstream hooks can resolve the session ID even when CLAUDE_ENV_FILE
 // is unavailable (YOLO mode, worktree subagents, plugin-dir launches).
-func writeEnvVars(sessionID, projectDir string) {
+func writeEnvVars(sessionID, projectDir, harness string) {
 	// Always write .active-session as backup — prevents stale session IDs.
-	WriteActiveSession(sessionID, projectDir)
+	WriteActiveSessionForHarness(sessionID, projectDir, harness)
 
 	envFile := os.Getenv("CLAUDE_ENV_FILE")
 	if envFile == "" {
@@ -804,6 +822,22 @@ func resolveHarness() string {
 		return "claude"
 	}
 	return ""
+}
+
+// activeSessionHarness picks the harness tag for the .active-session entry a
+// SessionStart writes. The launcher stamp (WIPNOTE_HARNESS) is authoritative;
+// otherwise the harness the hook runner parsed the payload under wins over the
+// bare CLAUDE_CODE_ENTRYPOINT heuristic, because a Codex or Gemini process
+// spawned from a Claude Bash tool inherits that variable while its own
+// SessionStart payload is unmistakably non-Claude.
+func activeSessionHarness(event *CloudEvent) string {
+	if h := normalizeHarness(os.Getenv("WIPNOTE_HARNESS")); h != "" {
+		return h
+	}
+	if event != nil {
+		return event.Harness.String()
+	}
+	return resolveHarness()
 }
 
 func execDirOrDefault(cwd, projectDir string) string {
