@@ -75,3 +75,39 @@ func TestHarnessNativeEnvSessionID_InferredCodex(t *testing.T) {
 		t.Fatalf("HarnessNativeEnvSessionID() under Claude = %q, want empty", got)
 	}
 }
+
+// TestHarnessNativeEnvSessionID_Claude pins the Claude branch (issue #125):
+// CLAUDE_CODE_SESSION_ID is the harness-native id the PreToolUse hook keys on,
+// so it must be returned ahead of WIPNOTE_SESSION_ID, normalised from Claude's
+// path-style form and validated as a session id.
+func TestHarnessNativeEnvSessionID_Claude(t *testing.T) {
+	const live = "bdc7f0a4-fcba-4068-b8db-ef515ac1e7c8"
+	tests := []struct {
+		name          string
+		codeSessionID string
+		sessionID     string
+		want          string
+	}{
+		{name: "CLAUDE_CODE_SESSION_ID wins", codeSessionID: live, sessionID: "other-id", want: live},
+		{name: "falls back to CLAUDE_SESSION_ID", sessionID: live, want: live},
+		{name: "path-style id is normalised", codeSessionID: "/mock/claude/-Users-x-/" + live, want: live},
+		{name: "ULID-style ids are accepted", codeSessionID: "019ed551558d5a88c3826a7e66ad", want: "019ed551558d5a88c3826a7e66ad"},
+		{name: "surrounding whitespace trimmed", codeSessionID: "  " + live + "  ", want: live},
+		{name: "embedded whitespace rejected, fallback used", codeSessionID: "not a session", sessionID: live, want: live},
+		{name: "path traversal rejected", codeSessionID: "../../etc", want: ""},
+		{name: "shell metacharacters rejected", codeSessionID: "abc;rm", want: ""},
+		{name: "nothing set", want: ""},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			clearHarnessEnv(t)
+			t.Setenv("CLAUDECODE", "1")
+			t.Setenv("WIPNOTE_SESSION_ID", "stale-wipnote-id")
+			t.Setenv("CLAUDE_CODE_SESSION_ID", tc.codeSessionID)
+			t.Setenv("CLAUDE_SESSION_ID", tc.sessionID)
+			if got := agent.HarnessNativeEnvSessionID(); got != tc.want {
+				t.Errorf("HarnessNativeEnvSessionID() = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}

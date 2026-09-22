@@ -145,19 +145,45 @@ func DetectEnvHarness() string {
 // CODEX_THREAD_ID (issue #148). When a non-Claude harness is detected, the
 // harness-native ID is preferred over WIPNOTE_SESSION_ID because the latter may
 // be inherited (stale) from a parent Claude orchestrator shell (issue #144).
-// Returns "" when no harness-native ID is found, or when running under Claude
-// (where WIPNOTE_SESSION_ID is always current via writeEnvVars).
+// Returns "" when no harness-native ID is found.
 //
-// Precedence: CODEX_THREAD_ID → GEMINI_SESSION_ID → ANTIGRAVITY_SESSION_ID
-// depending on the detected harness.
+// Under Claude Code the native id is CLAUDE_CODE_SESSION_ID (fallback
+// CLAUDE_SESSION_ID): it is the session_id the PreToolUse hook receives, and in
+// child sessions it can differ from WIPNOTE_SESSION_ID, which is inherited from
+// the parent's CLAUDE_ENV_FILE. Claiming under WIPNOTE_SESSION_ID there made
+// the claim invisible to the work-item gate (issue #125).
+//
+// Precedence: CLAUDE_CODE_SESSION_ID / CODEX_THREAD_ID / GEMINI_SESSION_ID /
+// ANTIGRAVITY_SESSION_ID depending on the detected harness.
 func HarnessNativeEnvSessionID() string {
 	switch DetectEnvHarness() {
+	case HarnessClaude:
+		return claudeEnvSessionID()
 	case HarnessCodex:
 		return strings.TrimSpace(os.Getenv("CODEX_THREAD_ID"))
 	case HarnessGemini:
 		return strings.TrimSpace(os.Getenv("GEMINI_SESSION_ID"))
 	case HarnessAntigravity:
 		return strings.TrimSpace(os.Getenv("ANTIGRAVITY_SESSION_ID"))
+	}
+	return ""
+}
+
+// sessionIDPattern is the shape a harness session id must have to be trusted
+// from the environment: a UUID, a Codex-style ULID, or any similar opaque
+// token — no whitespace, path separators or shell metacharacters.
+var sessionIDPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$`)
+
+// claudeEnvSessionID returns the Claude Code session id from the environment
+// (CLAUDE_CODE_SESSION_ID, then CLAUDE_SESSION_ID), normalised from Claude's
+// path-style form and validated with sessionIDPattern. Returns "" when neither
+// variable carries a usable id.
+func claudeEnvSessionID() string {
+	for _, key := range []string{"CLAUDE_CODE_SESSION_ID", "CLAUDE_SESSION_ID"} {
+		sid := NormaliseSessionID(strings.TrimSpace(os.Getenv(key)))
+		if sessionIDPattern.MatchString(sid) {
+			return sid
+		}
 	}
 	return ""
 }

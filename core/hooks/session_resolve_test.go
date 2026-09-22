@@ -135,6 +135,36 @@ func TestResolveSessionID_PayloadWins(t *testing.T) {
 	}
 }
 
+// TestResolveSessionID_ClaudeChildSessionPrefersHarnessID is the issue #125
+// regression: in a Claude Code child session WIPNOTE_SESSION_ID (inherited
+// from the parent's CLAUDE_ENV_FILE) differs from CLAUDE_CODE_SESSION_ID (the
+// id the PreToolUse hook receives). The CLI must resolve the harness id so
+// `feature start` claims under the session the gate checks.
+func TestResolveSessionID_ClaudeChildSessionPrefersHarnessID(t *testing.T) {
+	isolateSessionEnv(t)
+	const (
+		stale = "019ed551558d5a88c3826a7e66ad"
+		live  = "bdc7f0a4-fcba-4068-b8db-ef515ac1e7c8"
+	)
+	t.Setenv("CLAUDECODE", "1")
+	t.Setenv("CLAUDE_CODE_CHILD_SESSION", "1")
+	t.Setenv("WIPNOTE_SESSION_ID", stale)
+	t.Setenv("CLAUDE_CODE_SESSION_ID", live)
+	id, src := ResolveSessionID("")
+	if id != live || src != SessionSourceHarnessEnv {
+		t.Fatalf("ResolveSessionID() = (%q, %q), want (%q, %q)", id, src, live, SessionSourceHarnessEnv)
+	}
+	// The hook path with a payload agrees with the CLI path.
+	if hookID := EnvSessionID(live); hookID != id {
+		t.Fatalf("hook resolved %q, CLI resolved %q — they must agree", hookID, id)
+	}
+	// Without the harness id, WIPNOTE_SESSION_ID still applies (unchanged).
+	t.Setenv("CLAUDE_CODE_SESSION_ID", "")
+	if id, src = ResolveSessionID(""); id != stale || src != SessionSourceWipnoteEnv {
+		t.Fatalf("fallback = (%q, %q), want (%q, %q)", id, src, stale, SessionSourceWipnoteEnv)
+	}
+}
+
 func TestActiveSessionMatchesCaller(t *testing.T) {
 	tests := []struct {
 		entry, caller string
