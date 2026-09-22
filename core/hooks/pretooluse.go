@@ -710,7 +710,29 @@ func isBashFileWrite(event *CloudEvent) bool {
 	if cmd == "" {
 		return false
 	}
+	// osascript drives macOS apps (Notes, Mail, …) over Apple events; its
+	// AppleScript/HTML payloads are not filesystem writes (GH-#97).
+	if isOsascriptCommand(cmd) {
+		return false
+	}
 	return bashFileWritePattern.MatchString(cmd)
+}
+
+// isOsascriptCommand reports whether every segment of cmd (after joining
+// backslash continuations and dropping heredoc bodies) invokes osascript. A
+// compound command that chains osascript with anything else is NOT exempt.
+func isOsascriptCommand(cmd string) bool {
+	joined := strings.ReplaceAll(cmd, "\\\n", " ")
+	segments := splitShellCommandSegments(stripHeredocBodies(joined))
+	if len(segments) == 0 {
+		return false
+	}
+	for _, segment := range segments {
+		if name, _ := splitShellCommandArgs(tokenizeShellWords(segment)); name != "osascript" {
+			return false
+		}
+	}
+	return true
 }
 
 // isShellTool reports whether toolName is the harness-native shell invocation
@@ -752,10 +774,11 @@ func shellCommand(input map[string]any) string {
 // Redirect detection:
 //   - `(?:^|\s|;|&&|\|\|)>>?\s*[^&\s]` matches plain shell output redirects
 //     (> and >>) preceded by a word boundary. Handles both `cmd > file` and `cmd >file`.
-//   - `1>>?\s*[^\s]` matches explicit fd-1 (stdout) redirects: `1>file`, `1>>file`.
-//     We target fd 1 specifically to avoid false-positives on benign `2>/dev/null`
-//     patterns (the existing exclusion for `2>/dev/null`-shape stderr redirects is
-//     preserved since we don't add a generic `[0-9]+>` pattern).
+//   - `(?:^|\s|;|&&|\|\|)1>>?\s*[^&\s]` matches explicit fd-1 (stdout) redirects:
+//     `1>file`, `1>>file`. It is anchored to a word start so `<h1>` in a payload
+//     does not match. We target fd 1 specifically to avoid false-positives on
+//     benign `2>/dev/null` patterns (the existing exclusion for `2>/dev/null`-shape
+//     stderr redirects is preserved since we don't add a generic `[0-9]+>` pattern).
 //   - `&>>?\s*[^\s]` matches `&>file` and `&>>file` (stdout+stderr combined redirect).
 //     Excludes fd-to-fd `>&N` because the `&` must immediately precede `>`.
 //   - fd-to-fd redirects like `>&2` are excluded because the existing pattern requires
@@ -773,9 +796,12 @@ var bashFileWritePattern = regexp.MustCompile(
 		// Shell output redirects (both > and >>), handling spaces around >
 		`(?:^|\s|;|&&|\|\|)>>?\s*[^&\s]` +
 		`|` +
-		// Explicit fd-1 (stdout) redirects: 1>file, 1>>file
-		// We use fd 1 specifically to avoid matching benign 2>/dev/null patterns.
-		`1>>?\s*[^\s]` +
+		// Explicit fd-1 (stdout) redirects: 1>file, 1>>file. Anchored to the
+		// start of a word so the "1>" inside an HTML/AppleScript payload such
+		// as "<h1>Title</h1>" does not match (GH-#97), and excluding "&" so the
+		// fd-dup form 1>&2 is not treated as a file write. fd 1 specifically
+		// avoids matching benign 2>/dev/null patterns.
+		`(?:^|\s|;|&&|\|\|)1>>?\s*[^&\s]` +
 		`|` +
 		// Combined stdout+stderr redirects: &>file and &>>file
 		// Excludes >&N (fd-to-fd) because that form has > after &, not & before >.

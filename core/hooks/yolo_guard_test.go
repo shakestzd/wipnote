@@ -1081,10 +1081,12 @@ func TestCheckYoloBashResearchGuard_ReadOnlyNotBlocked(t *testing.T) {
 	}
 }
 
-// TestCheckYoloBashResearchGuard_ExternalPathMessage verifies the error message
-// for write commands targeting paths outside the project does NOT suggest
-// Read/Grep/Glob (which can't reach external paths) — bug-d0c8b1e2.
-func TestCheckYoloBashResearchGuard_ExternalPathMessage(t *testing.T) {
+// TestCheckYoloBashResearchGuard_ExternalPathSkipped verifies that write
+// commands whose first path target lies outside the project are NOT gated by
+// the code-research guard, mirroring the pathIsOutsideProject skip on the
+// Write/Edit path (bug-d0c8b1e2, GH-#97). Read/Grep/Glob cannot reach these
+// paths, so there is no research an agent could do to satisfy the gate.
+func TestCheckYoloBashResearchGuard_ExternalPathSkipped(t *testing.T) {
 	externalWrites := []struct {
 		name string
 		cmd  string
@@ -1093,6 +1095,7 @@ func TestCheckYoloBashResearchGuard_ExternalPathMessage(t *testing.T) {
 		{"cp to home", "cp file.txt ~/backup/"},
 		{"write to absolute path", "echo x > /tmp/y"},
 		{"rm from home", "rm ~/.claude/tasks/foo/bar.txt"},
+		{"heredoc to tmp html", "cat > /tmp/anthony_call_script.html <<'EOF'\n<h1>Call</h1>\nEOF"},
 	}
 
 	for _, tc := range externalWrites {
@@ -1101,14 +1104,55 @@ func TestCheckYoloBashResearchGuard_ExternalPathMessage(t *testing.T) {
 				ToolName:  "Bash",
 				ToolInput: map[string]any{"command": tc.cmd},
 			}
-			result := checkYoloBashResearchGuard(event, true, false)
-			if result == "" {
-				t.Errorf("expected block for write command %q", tc.cmd)
-				return
+			if result := checkYoloBashResearchGuard(event, true, false); result != "" {
+				t.Errorf("external-path write %q should not be gated, got: %s", tc.cmd, result)
 			}
-			// Must NOT suggest Read/Grep/Glob for external paths
-			if strings.Contains(result, "Read, Grep, or Glob") {
-				t.Errorf("message for external-path write should not suggest Read/Grep/Glob, got: %s", result)
+		})
+	}
+}
+
+// TestBashResearchGuard_OsascriptAndHTMLPayloads pins the GH-#97 reproducers:
+// osascript app-control invocations (inline -e and heredoc) carrying HTML are
+// neither classified as file writes nor gated, and a bare "<h1>" in any
+// command no longer trips the fd-1 redirect alternative.
+func TestBashResearchGuard_OsascriptAndHTMLPayloads(t *testing.T) {
+	tests := []struct {
+		name      string
+		cmd       string
+		wantWrite bool
+		wantGate  bool
+	}{
+		{
+			"osascript -e with html body",
+			`osascript -e 'tell application "Notes" to tell account "iCloud" to set body of (first note whose name is "Call Script") to "<h1>Call Script</h1><p>Hi Anthony</p>"'`,
+			false, false,
+		},
+		{
+			"osascript heredoc with html body",
+			"osascript <<'EOF'\ntell application \"Notes\"\n  set targetNote to first note whose name is \"Call Script\"\n  set body of targetNote to \"<h1>Call Script</h1><p>Hi</p>\"\nend tell\nEOF",
+			false, false,
+		},
+		{
+			"osascript multi -e with continuations",
+			"osascript \\\n  -e 'tell application \"Notes\"' \\\n  -e 'make new note with properties {name:\"x\", body:\"<h1>y</h1>\"}' \\\n  -e 'end tell'",
+			false, false,
+		},
+		{"grep for h1 tag", `grep -rn "<h1>" docs/`, false, false},
+		{"echo h1 without redirect", `echo "<h1>Title</h1>"`, false, false},
+		{"fd dup is not a write", "cmd 1>&2", false, false},
+		{"real fd-1 redirect still write", "echo x 1>out.html", true, true},
+		{"osascript chained with rm not exempt", "osascript -e 'beep' && rm main.go", true, true},
+		{"osascript-like name not exempt", "osascriptx -e 'x' > main.go", true, true},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			event := &CloudEvent{ToolName: "Bash", ToolInput: map[string]any{"command": tc.cmd}}
+			if got := isBashFileWrite(event); got != tc.wantWrite {
+				t.Errorf("isBashFileWrite(%q) = %v, want %v", tc.cmd, got, tc.wantWrite)
+			}
+			gated := checkYoloBashResearchGuard(event, true, false) != ""
+			if gated != tc.wantGate {
+				t.Errorf("checkYoloBashResearchGuard(%q) gated = %v, want %v", tc.cmd, gated, tc.wantGate)
 			}
 		})
 	}
