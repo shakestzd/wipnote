@@ -18,6 +18,29 @@ import (
 	"github.com/shakestzd/wipnote/internal/registry"
 )
 
+// serveDefaultSpawnTimeout bounds a cold serve_child's handshake window.
+// childproc.DefaultSpawnTimeout (5s) is sized for a trivial project; it is far
+// too short once hydrateCompatibilityDB's per-file `git log --follow` calls
+// scale with corpus size — measured at ~71s on a ~1,430-work-item project.
+// Under the old 5s default that meant every cold spawn on a project that size
+// timed out, so the parent killed the child mid-hydration on every request,
+// which the proxy surfaced as a 502. 90s comfortably covers that measured
+// cost with headroom; WIPNOTE_SERVE_SPAWN_TIMEOUT overrides it for operators
+// with even larger corpora.
+const serveDefaultSpawnTimeout = 90 * time.Second
+
+// serveSpawnTimeout resolves the childproc supervisor's per-project cold-
+// spawn handshake deadline, honouring WIPNOTE_SERVE_SPAWN_TIMEOUT (e.g. "3m")
+// and otherwise falling back to serveDefaultSpawnTimeout.
+func serveSpawnTimeout() time.Duration {
+	if v := os.Getenv("WIPNOTE_SERVE_SPAWN_TIMEOUT"); v != "" {
+		if d, err := time.ParseDuration(v); err == nil && d > 0 {
+			return d
+		}
+	}
+	return serveDefaultSpawnTimeout
+}
+
 // isValidProjectID rejects empty, ".", "..", path separators, null bytes,
 // and anything outside the project-ID character set. A defense-in-depth
 // guard against path traversal in the proxy router.
@@ -137,7 +160,8 @@ func runParentServer(bind string, port int) error {
 	}
 
 	sup := childproc.NewSupervisor(childproc.Options{
-		PIDFileDir: parentProjectDir,
+		PIDFileDir:   parentProjectDir,
+		SpawnTimeout: serveSpawnTimeout(),
 	})
 
 	// Belt-and-suspenders stale-child reap: before binding the listen

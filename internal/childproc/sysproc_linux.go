@@ -27,3 +27,13 @@ func childSysProcAttr() *syscall.SysProcAttr {
 func WriterSysProcAttr() *syscall.SysProcAttr {
 	return childSysProcAttr()
 }
+
+// killChildProcessGroup force-kills pid's entire process group, not just pid
+// itself. childSysProcAttr sets Setpgid, so the child becomes its own group
+// leader (pgid == pid) — a plain cmd.Process.Kill() only signals that one
+// process, leaving any subprocess it forked (e.g. the per-file `git log
+// --follow` calls hydrateCompatibilityDB makes) to run on as an orphan after
+// the supervisor already believes the child is gone.
+func killChildProcessGroup(pid int) error {
+	return syscall.Kill(-pid, syscall.SIGKILL)
+}
