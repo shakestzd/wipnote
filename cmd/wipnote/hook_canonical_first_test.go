@@ -30,47 +30,25 @@ import (
 	"github.com/shakestzd/wipnote/core/models"
 )
 
-// TestOpenHookDB_IgnoresPathAndYieldsUsableEphemeralProjection retires a
-// premise rather than an assertion.
-//
-// This test used to hand OpenHookDB a DIRECTORY, on the reasoning that SQLite
-// cannot bind to one, and assert the resulting (nil, writer_unavailable) pair.
-// That branch is unreachable now: OpenHookDB ignores dbPath entirely and returns
-// a process-local in-memory projection (feat-fc3cc9e0), so there is no
-// path-driven failure mode left to provoke. Asserting the old shape would only
-// have measured that the cutover had not happened.
-//
-// What is worth pinning instead is the property the cutover created, and it is
-// pinned with the same hostile input: a path that could never work as a SQLite
-// file must still yield a USABLE handle, must report no fallback, and must
-// leave nothing behind on disk at that path. Reintroduce a path-backed open and
-// every one of those fails.
-func TestOpenHookDB_IgnoresPathAndYieldsUsableEphemeralProjection(t *testing.T) {
+// TestOpenHookDB_BadPathReturnsWriterUnavailable pins the canonical-fallback
+// contract restored by the hook DB-path fix: OpenHookDB now opens the shared
+// canonical SQLite file again, so an unopenable path must degrade as
+// writer_unavailable rather than silently yielding an isolated projection.
+func TestOpenHookDB_BadPathReturnsWriterUnavailable(t *testing.T) {
 	hooks.ResetFallbackCounts()
 
 	// A directory: unopenable as a SQLite file by construction.
 	badPath := t.TempDir()
 
 	database, reason := hooks.OpenHookDB("test", "sess-writer-unavailable", filepath.Join(badPath))
-	if database == nil {
-		t.Fatalf("want a usable handle regardless of path, got nil (reason=%q)", reason)
+	if database != nil {
+		t.Fatalf("want nil DB for an unopenable path, got non-nil handle (reason=%q)", reason)
 	}
-	t.Cleanup(func() { database.Close() })
-	if reason != "" {
-		t.Fatalf("want no fallback reason on a successful open, got %q", reason)
-	}
-
-	// Usable means migrated, not merely non-nil: a handle that cannot answer a
-	// schema query would fail every caller at the first read.
-	var n int
-	if err := database.QueryRow(`SELECT COUNT(*) FROM sessions`).Scan(&n); err != nil {
-		t.Fatalf("projection is not schema-migrated: %v", err)
-	}
-	if n != 0 {
-		t.Fatalf("a fresh projection must start empty, got %d sessions", n)
+	if reason != hooks.FallbackWriterUnavailable {
+		t.Fatalf("reason = %q, want %q", reason, hooks.FallbackWriterUnavailable)
 	}
 
-	// The whole point of the cutover: nothing was created at the path.
+	// A failed open must not create artifacts at the supplied directory path.
 	entries, err := os.ReadDir(badPath)
 	if err != nil {
 		t.Fatalf("read %s: %v", badPath, err)
@@ -79,9 +57,8 @@ func TestOpenHookDB_IgnoresPathAndYieldsUsableEphemeralProjection(t *testing.T) 
 		t.Fatalf("OpenHookDB created artifacts at the supplied path: %v", entries)
 	}
 
-	// A successful open is not a degradation and must not be counted as one.
-	if wu, _, _ := hooks.FallbackCounts(); wu != 0 {
-		t.Errorf("writer_unavailable counter: want 0 after a successful open, got %d", wu)
+	if wu, _, _ := hooks.FallbackCounts(); wu != 1 {
+		t.Errorf("writer_unavailable counter: want 1 after failed open, got %d", wu)
 	}
 }
 

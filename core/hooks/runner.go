@@ -18,6 +18,7 @@ import (
 	"github.com/shakestzd/wipnote/core/agent"
 	"github.com/shakestzd/wipnote/core/db/writequeue"
 	"github.com/shakestzd/wipnote/core/paths"
+	"github.com/shakestzd/wipnote/core/storage"
 )
 
 // Runner bundles the optional dependencies needed by in-process hook
@@ -325,13 +326,12 @@ func IswipnoteProject(projectDir string) bool {
 	return err == nil
 }
 
-// DBPath is retained for hook call-shape compatibility during the cutover from
-// persistent project SQLite. Hook DB open helpers now ignore the value and use a
-// private in-memory compatibility projection, so resolving this path must never
-// create or require a per-project cache directory.
+// DBPath resolves the canonical SQLite path for this project. Hook fallback
+// writes must target the SAME DB the rest of the process reads, otherwise the
+// daemon-miss path writes rows into an isolated database that the caller never
+// sees (the regression behind the quality-gates failure on PR #181).
 func DBPath(projectDir string) (string, error) {
-	_ = projectDir
-	return ":memory:", nil
+	return storage.CanonicalDBPath(projectDir)
 }
 
 // NormaliseSessionID extracts a UUID from a path-style session_id that Claude
