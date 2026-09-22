@@ -11,10 +11,10 @@ import "time"
 
 // RetryDeadLetter re-enqueues dead-lettered intents matching workItemID back
 // onto the pending queue for another flush attempt. An empty workItemID
-// matches every dead-lettered intent. Attempts, Reason, and DeadLetteredAt
-// are reset so the retried intent gets a full fresh run of maxAttempts on
-// the next flush. Returns the number of intents re-enqueued (0 if nothing
-// matched — not an error).
+// matches every dead-lettered intent. Attempts, LastError, FailedAt, Reason,
+// and DeadLetteredAt are reset so the retried intent gets a full fresh run of
+// maxAttempts on the next flush. Returns the number of intents re-enqueued (0
+// if nothing matched — not an error).
 func (o *Outbox) RetryDeadLetter(workItemID string) (int, error) {
 	var n int
 	err := o.withLock(func() error {
@@ -29,6 +29,8 @@ func (o *Outbox) RetryDeadLetter(workItemID string) (int, error) {
 				continue
 			}
 			i.Attempts = 0
+			i.LastError = ""
+			i.FailedAt = time.Time{}
 			i.Reason = ""
 			i.DeadLetteredAt = time.Time{}
 			toRetry = append(toRetry, i)

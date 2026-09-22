@@ -511,6 +511,39 @@ func TestFlushRecordsReasonOnInvalidIntent(t *testing.T) {
 	}
 }
 
+// TestFlushRecordsLastErrorOnRetainedIntent pins GH#174: an intent that has
+// failed but is still under MaxAttempts (so it is retained, not
+// dead-lettered) must still carry LastError/FailedAt — before this fix, only
+// a dead-lettered intent recorded any failure text, so the "1-4 failures"
+// window was silent.
+func TestFlushRecordsLastErrorOnRetainedIntent(t *testing.T) {
+	o := newTestOutbox(t)
+	_ = o.Append(sampleIntent("flaky"))
+
+	before := time.Now().UTC()
+	const maxAttempts = 5
+	if _, err := o.Flush(func(Intent) error { return fmt.Errorf("index locked") }, maxAttempts); err != nil {
+		t.Fatalf("Flush: %v", err)
+	}
+
+	pending, err := o.Pending()
+	if err != nil {
+		t.Fatalf("Pending: %v", err)
+	}
+	if len(pending) != 1 {
+		t.Fatalf("expected the under-threshold intent to stay pending, got %d", len(pending))
+	}
+	if pending[0].Attempts != 1 {
+		t.Fatalf("Attempts = %d, want 1", pending[0].Attempts)
+	}
+	if pending[0].LastError != "index locked" {
+		t.Fatalf("LastError = %q, want %q", pending[0].LastError, "index locked")
+	}
+	if pending[0].FailedAt.Before(before) {
+		t.Fatalf("FailedAt = %v, want >= %v", pending[0].FailedAt, before)
+	}
+}
+
 // TestRetryDeadLetterReEnqueuesAndResets is the round-trip: dead-letter an
 // intent, retry it by work-item-id, and verify it lands back on the pending
 // queue with Attempts/Reason/DeadLetteredAt reset for a fresh run.
@@ -544,8 +577,9 @@ func TestRetryDeadLetterReEnqueuesAndResets(t *testing.T) {
 	if len(pending) != 1 || pending[0].WorkItemID != "poison" {
 		t.Fatalf("retried intent not re-enqueued: %+v", pending)
 	}
-	if pending[0].Attempts != 0 || pending[0].Reason != "" || !pending[0].DeadLetteredAt.IsZero() {
-		t.Fatalf("retried intent must reset Attempts/Reason/DeadLetteredAt: %+v", pending[0])
+	if pending[0].Attempts != 0 || pending[0].Reason != "" || !pending[0].DeadLetteredAt.IsZero() ||
+		pending[0].LastError != "" || !pending[0].FailedAt.IsZero() {
+		t.Fatalf("retried intent must reset Attempts/LastError/FailedAt/Reason/DeadLetteredAt: %+v", pending[0])
 	}
 
 	// Now flushing with a working committer should drain it clean.

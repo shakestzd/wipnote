@@ -134,8 +134,13 @@ func (o *Outbox) flushLocked(commit Committer, maxAttempts int, match func(Inten
 			remaining = append(remaining, intent)
 			continue
 		}
-		// Commit failed: count the attempt.
+		// Commit failed: count the attempt and persist why (GH#174) — this
+		// runs on EVERY failure, not just the one that finally dead-letters,
+		// so an intent still under MaxAttempts also carries a diagnosable
+		// cause instead of a bare, silent Attempts count.
 		intent.Attempts++
+		intent.LastError = commitErr.Error()
+		intent.FailedAt = time.Now().UTC()
 		res.Failures = append(res.Failures, IntentFailure{Intent: intent, Err: commitErr})
 		if intent.Attempts >= maxAttempts {
 			// Capture why the commit kept failing so dead-letter list has
