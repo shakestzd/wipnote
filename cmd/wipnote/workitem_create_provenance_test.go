@@ -38,6 +38,12 @@ func TestFeatureCreate_RecordsProvenanceFromFlags(t *testing.T) {
 	t.Setenv("CLAUDE_MODEL", "")
 	t.Setenv("WIPNOTE_AGENT_TYPE", "")
 	t.Setenv("WIPNOTE_SESSION_ID", "")
+	// Isolate from this test binary's own ambient Claude Code session: since
+	// bug-c179a0a5, HarnessNativeEnvSessionID prefers CLAUDE_CODE_SESSION_ID
+	// over WIPNOTE_SESSION_ID, so running `go test` inside a live Claude Code
+	// session would otherwise leak the outer session's real ID in here.
+	t.Setenv("CLAUDE_CODE_SESSION_ID", "")
+	t.Setenv("CLAUDE_SESSION_ID", "")
 	provenance.SetCLIVersion("dev") // keep predictable
 
 	opts := &wiCreateOpts{
@@ -100,6 +106,12 @@ func TestFeatureCreate_InheritsProvenanceFromActiveSession(t *testing.T) {
 	t.Setenv("CLAUDE_MODEL", "")
 	t.Setenv("WIPNOTE_AGENT_TYPE", "")
 	t.Setenv("WIPNOTE_SESSION_ID", sessionID)
+	// Isolate from this test binary's own ambient Claude Code session: since
+	// bug-c179a0a5, HarnessNativeEnvSessionID prefers CLAUDE_CODE_SESSION_ID
+	// over WIPNOTE_SESSION_ID, so this fixture's sessionID would otherwise
+	// lose to the outer session's real ID when tests run inside Claude Code.
+	t.Setenv("CLAUDE_CODE_SESSION_ID", "")
+	t.Setenv("CLAUDE_SESSION_ID", "")
 	provenance.SetCLIVersion("dev")
 
 	opts := &wiCreateOpts{
