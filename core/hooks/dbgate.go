@@ -146,8 +146,7 @@ func RecordFallback(handler, sessionID string, reason FallbackReason, detail str
 // (class canonicalFirstHookFallback). Do not add new db.Open call sites in
 // core/hooks/ or cmd/wipnote/hook.go.
 func OpenHookDB(handler, sessionID, dbPath string) (*sql.DB, FallbackReason) {
-	_ = dbPath
-	database, err := db.OpenEphemeralProjection()
+	database, err := db.Open(dbPath)
 	if err != nil {
 		// Slice-10 contention observability: classify open failures by
 		// hook_writer subsystem so the launch gate can assert zero BUSY
@@ -228,13 +227,11 @@ const SessionStartBusyTimeout = 750 * time.Millisecond
 // under hook_writer, logged + counted as writer_unavailable, and returns a nil
 // handle the caller MUST treat as a signal to return canonical-success.
 //
-// CURRENT BEHAVIOUR (feat-fc3cc9e0): busyTimeout is ignored along with dbPath.
-// The handle is the process-local in-memory projection, which takes no file
-// lock, so there is no busy timeout to bound. The parameter is retained so the
-// session-start call site keeps documenting its latency intent.
+// Unlike OpenHookDBReadOnly, the writable daemon-miss fallback MUST open the
+// canonical SQLite DB, because callers expect the fallback write to be visible
+// to the same database handle they already hold.
 func OpenHookDBWithBusyTimeout(handler, sessionID, dbPath string, busyTimeout time.Duration) (*sql.DB, FallbackReason) {
-	_, _ = dbPath, busyTimeout
-	database, err := db.OpenEphemeralProjection()
+	database, err := db.OpenWithBusyTimeout(dbPath, busyTimeout)
 	if err != nil {
 		db.Record(db.SubsystemHookWriter, err)
 		RecordFallback(handler, sessionID, FallbackWriterUnavailable, err.Error())
