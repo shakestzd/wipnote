@@ -185,11 +185,26 @@ func TestCodexAdapterEmitsManifestHooksAndMCP(t *testing.T) {
 	s := string(hooksRaw)
 	// Codex-targeted events present; events registered for claude only absent.
 	for _, want := range []string{
-		`"SessionStart"`, `"UserPromptSubmit"`, `"SessionEnd"`, `"wipnote hook session-end"`,
-		`"PreToolUse"`, `"wipnote hook pretooluse"`,
+		`"SessionStart"`, `"UserPromptSubmit"`, `"SessionEnd"`, `"wipnote hook session-end --harness codex"`,
+		`"PreToolUse"`, `"wipnote hook pretooluse --harness codex"`,
 	} {
 		if !contains(s, want) {
 			t.Errorf("codex hooks missing %q:\n%s", want, s)
+		}
+	}
+	// Every generated command pins the Codex wire format with --harness so an
+	// inherited CLAUDE_CODE_ENTRYPOINT can't flip it to Claude (issue #184).
+	var parsed struct {
+		Hooks map[string][]claudeMatcherGroup `json:"hooks"`
+	}
+	readJSON(t, filepath.Join(pluginDir, "hooks.json"), &parsed)
+	for event, groups := range parsed.Hooks {
+		for _, g := range groups {
+			for _, h := range g.Hooks {
+				if !strings.HasSuffix(h.Command, " --harness codex") {
+					t.Errorf("codex %s hook command %q lacks --harness codex", event, h.Command)
+				}
+			}
 		}
 	}
 	// Stop is valid codex vocabulary but the fixture registers it for claude

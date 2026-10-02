@@ -762,6 +762,49 @@ func TestBuildCodexAgentConfigArgs(t *testing.T) {
 	}
 }
 
+// TestPruneCodexGlobalHooksInstalledRemovesLegacyFlaglessMirror covers the
+// upgrade path for issue #184: the plugin now registers
+// `wipnote hook <h> --harness codex`, but mirrors written by older versions
+// carry the flag-less command and must still be pruned so they don't run as a
+// second, mis-detected copy of the hook.
+func TestPruneCodexGlobalHooksInstalledRemovesLegacyFlaglessMirror(t *testing.T) {
+	tmpdir := t.TempDir()
+	pluginDir := filepath.Join(tmpdir, "plugin")
+	if err := os.MkdirAll(pluginDir, 0755); err != nil {
+		t.Fatalf("MkdirAll plugin: %v", err)
+	}
+	pluginHooks := `{"hooks":{"SessionStart":[{"matcher":"","hooks":[{"type":"command","command":"wipnote hook session-start --harness codex"}]}]}}`
+	if err := os.WriteFile(filepath.Join(pluginDir, "hooks.json"), []byte(pluginHooks), 0644); err != nil {
+		t.Fatalf("WriteFile plugin hooks: %v", err)
+	}
+	hooksPath := filepath.Join(tmpdir, ".codex", "hooks.json")
+	globalHooks := `{"hooks":{"SessionStart":[{"matcher":"","hooks":[{"type":"command","command":"wipnote hook session-start"}]},{"matcher":"","hooks":[{"type":"command","command":"echo user-start"}]}]}}`
+	if err := os.MkdirAll(filepath.Dir(hooksPath), 0755); err != nil {
+		t.Fatalf("MkdirAll hooks dir: %v", err)
+	}
+	if err := os.WriteFile(hooksPath, []byte(globalHooks), 0644); err != nil {
+		t.Fatalf("WriteFile global hooks: %v", err)
+	}
+
+	changed, err := pruneCodexGlobalHooksInstalled(hooksPath, pluginDir)
+	if err != nil {
+		t.Fatalf("pruneCodexGlobalHooksInstalled: %v", err)
+	}
+	if !changed {
+		t.Fatalf("expected legacy flag-less mirror to be pruned")
+	}
+	data, err := os.ReadFile(hooksPath)
+	if err != nil {
+		t.Fatalf("ReadFile hooks: %v", err)
+	}
+	if strings.Contains(string(data), "wipnote hook session-start") {
+		t.Fatalf("legacy mirror not pruned:\n%s", data)
+	}
+	if !strings.Contains(string(data), "echo user-start") {
+		t.Fatalf("user hook lost:\n%s", data)
+	}
+}
+
 func TestPruneCodexGlobalHooksInstalledRemovesOnlyWipnoteHooks(t *testing.T) {
 	tmpdir := t.TempDir()
 	pluginDir := filepath.Join(tmpdir, "plugin")

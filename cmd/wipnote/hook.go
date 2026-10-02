@@ -12,6 +12,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// hookHarnessOverride is bound to the persistent --harness flag. Generated
+// non-Claude hooks.json files pass it (e.g. `wipnote hook session-start
+// --harness codex`) so the response wire format never depends on environment
+// variables inherited from a parent harness (GitHub issue #184).
+var hookHarnessOverride string
+
 // hookCmd returns the "wipnote hook" parent command with all subcommands.
 func hookCmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -35,6 +41,8 @@ Usage in hooks.json:
 			provenance.SetCLIVersion(version)
 		},
 	}
+	cmd.PersistentFlags().StringVar(&hookHarnessOverride, "harness", "",
+		"harness that invoked the hook (claude, codex, antigravity); overrides payload/env detection")
 
 	// Shared fallback results used across commands.
 	continueResult := &hooks.HookResult{Continue: true}
@@ -394,12 +402,14 @@ func runHookNamed(subcommand string, handler func(*hooks.CloudEvent) (*hooks.Hoo
 	rawPayload, err := hooks.ReadRawStdin()
 	if err != nil {
 		hooks.LogError("runHook", "", fmt.Sprintf("read stdin: %v", err))
-		// Detect harness fails gracefully to Claude when payload is unreadable.
-		return hooks.WriteResultForHarness(hooks.HarnessClaude, hooks.AllowForHarness(hooks.HarnessClaude))
+		// Fall back to the --harness override, else Claude, when stdin is unreadable.
+		h, _ := hooks.ParseHarnessName(hookHarnessOverride)
+		return hooks.WriteResultForHarness(h, hooks.AllowForHarness(h))
 	}
 
-	// Detect the harness from the raw payload shape.
-	harness := hooks.DetectHarness(rawPayload)
+	// An explicit --harness from the generated hooks.json wins; otherwise
+	// detect the harness from the environment and raw payload shape.
+	harness := hooks.DetectHarnessWithOverride(rawPayload, hookHarnessOverride)
 
 	// Parse the event using the harness-specific input adapter.
 	event, err := hooks.ParseEventForHarness(harness, rawPayload)

@@ -179,6 +179,37 @@ func DetectHarness(payload []byte) Harness {
 	return detectHarness(payload)
 }
 
+// DetectHarnessWithOverride returns the harness named by override when it is a
+// known harness agent ID ("claude", "codex", "antigravity", ...), and falls
+// back to DetectHarness otherwise.
+//
+// The override comes from the `--harness` flag that each generated non-Claude
+// hooks.json passes on its hook command lines. That flag is the only signal
+// that can't leak in from a parent process: CLAUDE_CODE_ENTRYPOINT and
+// WIPNOTE_AGENT_ID are inherited, so `codex exec` started from inside a Claude
+// Code session was classified as Claude and answered with Claude-shaped JSON
+// (top-level "additionalContext") that Codex's strict output schema rejects,
+// reporting "hook: SessionStart Failed" with no reason (GitHub issue #184).
+func DetectHarnessWithOverride(payload []byte, override string) Harness {
+	if h, ok := ParseHarnessName(override); ok {
+		return h
+	}
+	return detectHarness(payload)
+}
+
+// ParseHarnessName maps a harness agent ID to its Harness. ok is false for an
+// empty or unknown name.
+func ParseHarnessName(name string) (Harness, bool) {
+	name = strings.ToLower(strings.TrimSpace(name))
+	if name == "" {
+		return HarnessClaude, false
+	}
+	if cfg := harness.GetByAgentID(name); cfg != nil {
+		return Harness(cfg.HooksHarness), true
+	}
+	return HarnessClaude, false
+}
+
 // detectHarness examines the raw payload bytes and the process environment to
 // determine the harness that sent them. The detection rules are (in priority order):
 //
@@ -445,6 +476,7 @@ type codexHookSpecificOutput struct {
 // codexResponse is the top-level wire-format shape of a Codex hook response.
 type codexResponse struct {
 	Continue           *bool                    `json:"continue,omitempty"`
+	StopReason         string                   `json:"stopReason,omitempty"`
 	SystemMessage      string                   `json:"systemMessage,omitempty"`
 	Decision           string                   `json:"decision,omitempty"`
 	Reason             string                   `json:"reason,omitempty"`
@@ -485,12 +517,22 @@ func emitCodexResponseForEvent(w io.Writer, hookEventName string, result *HookRe
 	}
 
 	if result.Decision == "block" || result.Decision == "deny" {
-		if hookEventName == "PreToolUse" {
+		switch {
+		case hookEventName == "PreToolUse":
 			hookOutput.PermissionDecision = "deny"
 			hookOutput.PermissionDecisionReason = result.Reason
-		} else {
-			resp.Decision = result.Decision
+		case codexEventAcceptsDecision(hookEventName):
+			// Codex's BlockDecisionWire only knows "block"; "deny" fails parsing.
+			resp.Decision = "block"
 			resp.Reason = result.Reason
+		default:
+			// SessionStart and the other universal-only events reject a
+			// top-level decision/reason, and Codex reports the whole output
+			// as "Failed" with no text. continue:false + stopReason is the
+			// universal way to stop and still name the cause.
+			continueFalse := false
+			resp.Continue = &continueFalse
+			resp.StopReason = result.Reason
 		}
 	} else if hookEventName != "PreToolUse" {
 		resp.Continue = &continueTrue
@@ -501,6 +543,20 @@ func emitCodexResponseForEvent(w io.Writer, hookEventName string, result *HookRe
 	}
 
 	return json.NewEncoder(w).Encode(resp)
+}
+
+// codexEventAcceptsDecision reports whether Codex's output schema for
+// hookEventName has top-level "decision"/"reason" fields. Codex rejects unknown
+// fields, so emitting them for any other event fails the hook. An empty name
+// (no event known) keeps the historical decision/reason shape.
+// Source: codex-rs/hooks/src/schema.rs *CommandOutputWire structs.
+func codexEventAcceptsDecision(hookEventName string) bool {
+	switch hookEventName {
+	case "", "PostToolUse", "UserPromptSubmit", "Stop", "SubagentStop":
+		return true
+	default:
+		return false
+	}
 }
 
 // emitGeminiResponse writes the Gemini CLI wire-format JSON to w.
