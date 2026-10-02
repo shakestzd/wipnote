@@ -11,10 +11,10 @@ import (
 	"time"
 
 	dbpkg "github.com/shakestzd/wipnote/core/db"
-	"github.com/shakestzd/wipnote/core/sessionledger"
 	"github.com/shakestzd/wipnote/core/hooks"
 	"github.com/shakestzd/wipnote/core/htmlparse"
 	"github.com/shakestzd/wipnote/core/models"
+	"github.com/shakestzd/wipnote/core/sessionledger"
 	"github.com/shakestzd/wipnote/core/workitem"
 )
 
@@ -1928,21 +1928,14 @@ func TestFeatureStart_StaleCollision_Allows(t *testing.T) {
 		t.Fatalf("holder start: %v", err)
 	}
 
-	// Now back-date ALL heartbeats for the holder session so liveness check fails.
-	database2, err := dbpkg.Open(dbPath)
-	if err != nil {
-		t.Fatalf("open db2: %v", err)
+	// End the holder's session in the canonical sessions ledger. Liveness for a
+	// claim is "root session not ended" (bug-ec1ff126): the claim ledger has no
+	// heartbeat, so an ended session's still-open episode is reclaimable.
+	if err := sessionledger.NewStore(hgDir).Close(holderSessionID, time.Now().UTC()); err != nil {
+		t.Fatalf("end holder session: %v", err)
 	}
-	ancient := time.Now().UTC().Add(-10 * time.Minute).Format(time.RFC3339)
-	if _, err := database2.Exec(
-		`UPDATE claims SET last_heartbeat_at = ? WHERE owner_session_id = ?`,
-		ancient, holderSessionID,
-	); err != nil {
-		t.Fatalf("set stale heartbeat: %v", err)
-	}
-	database2.Close()
 
-	// Caller must succeed because holder's heartbeat is stale.
+	// Caller must succeed because the holder's session has ended.
 	wiForceStart = false
 	defer func() { wiForceStart = false }()
 	if err := wiSetStatusWithAgent("feature", featID, "in-progress", callerSessionID, agentID); err != nil {

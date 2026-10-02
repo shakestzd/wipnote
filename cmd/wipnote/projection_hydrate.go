@@ -86,6 +86,9 @@ func hydrateEdgePasses(database *sql.DB, wipnoteDir string, validIDs map[string]
 	// reindexActiveWorkItems (the value to set) — this is the first point where
 	// both exist.
 	applyActiveFeatureIDFromClaims(database, false)
+	// claims has foreign keys to sessions and features, so this needs the
+	// sessions ledger rows above and the node phase's features (bug-ec1ff126).
+	reindexClaimsFromEpisodes(database, false)
 	collectPlanIDs(wipnoteDir, validIDs)
 	collectSessionIDs(database, validIDs)
 	reindexEdges(database, wipnoteDir, validIDs)

@@ -6,11 +6,13 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/shakestzd/wipnote/core/claimledger"
 	dbpkg "github.com/shakestzd/wipnote/core/db"
 	"github.com/shakestzd/wipnote/core/hooks"
+	"github.com/shakestzd/wipnote/core/sessionledger"
 )
 
 // initClaimLedgerCommitSeam installs the commit producer for canonical claim
@@ -158,4 +160,78 @@ func claimLedgerLivePredicate(database *sql.DB, projectDir string) claimledger.L
 		}
 		return dbpkg.SessionLivenessByHeartbeat(database, rootSessionID, window)
 	}
+}
+
+// liveForeignClaims returns the open claim episodes on workItemID held by a
+// session other than callerSessionID whose root session is still running
+// (bug-ec1ff126). It reads the canonical claim ledger and sessions ledger
+// directly rather than the derived projection, so `feature start` pays no
+// hydrate and the answer cannot be stale.
+//
+// LIVENESS RULE: an episode is live while its root session has no EndedAt in
+// the sessions ledger. The ledger carries no heartbeat, so a session that
+// crashed without recording its end stays live until reconcile closes it; the
+// refusal message points at --force for that case. A root session missing
+// from the sessions ledger is treated as live, the conservative choice shared
+// with claimLedgerLivePredicate: refusing costs a --force, while letting two
+// live sessions both claim the item silently splits its attribution.
+//
+// ok is false when either ledger could not be read. Callers must treat that as
+// "cannot verify" and fail open, per arch:unhydrated-table-guards-fail-open.
+func liveForeignClaims(wipnoteDir, workItemID, callerSessionID string) (live []claimledger.Episode, ok bool) {
+	episodes, err := claimledger.NewStore(wipnoteDir).ReadAll()
+	if err != nil {
+		return nil, false
+	}
+	var candidates []claimledger.Episode
+	for _, e := range episodes {
+		if !e.IsOpen() || e.WorkItemID != workItemID {
+			continue
+		}
+		if callerSessionID != "" && (e.SessionID == callerSessionID || e.RootSessionID == callerSessionID) {
+			continue // the caller's own family reclaiming is not a collision
+		}
+		candidates = append(candidates, e)
+	}
+	if len(candidates) == 0 {
+		return nil, true
+	}
+
+	sessions, err := sessionledger.NewStore(wipnoteDir).ReadAll()
+	if err != nil {
+		return nil, false
+	}
+	ended := make(map[string]bool, len(sessions))
+	for _, r := range sessions {
+		ended[r.SessionID] = !r.IsOpen()
+	}
+	for _, e := range candidates {
+		root := e.RootSessionID
+		if root == "" {
+			root = e.SessionID
+		}
+		if !ended[root] {
+			live = append(live, e)
+		}
+	}
+	return live, true
+}
+
+// checkLiveCollisionGate refuses to start workItemID while another live
+// session holds it (feat-5a9839fb). --force bypasses the gate; an unreadable
+// ledger fails open.
+func checkLiveCollisionGate(wipnoteDir, workItemID, callerSessionID string) error {
+	live, ok := liveForeignClaims(wipnoteDir, workItemID, callerSessionID)
+	if !ok || len(live) == 0 {
+		return nil
+	}
+	lines := make([]string, 0, len(live))
+	for _, e := range live {
+		lines = append(lines, fmt.Sprintf(
+			"%s is actively claimed by session %s (agent %s, since %s).\n"+
+				"Coordinate, or re-run with --force to claim anyway (e.g. if that session crashed).",
+			workItemID, e.SessionID, e.AgentID, e.StartedAt.UTC().Format(time.RFC3339),
+		))
+	}
+	return errors.New(strings.Join(lines, "\n"))
 }

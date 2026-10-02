@@ -397,8 +397,14 @@ func wiSetStatusWithAgent(typeName, id, status, sessionID, agentID string) error
 
 	// Live-collision gate (feat-5a9839fb): before acquiring the claim, check
 	// whether another live session already holds this item. A live collision
-	// (foreign session with recent heartbeat) is a HARD REFUSAL unless --force
-	// was supplied. A stale/dead claim is NOT a refusal — the item is reclaimable.
+	// (foreign session whose root is still open in the sessions ledger) is a
+	// HARD REFUSAL unless --force was supplied. A claim whose session has
+	// ended is NOT a refusal — the item is reclaimable. See liveForeignClaims.
+	if status == "in-progress" && !wiForceStart {
+		if err := checkLiveCollisionGate(dir, id, sessionID); err != nil {
+			return err
+		}
+	}
 	var node *models.Node
 	switch status {
 	case "in-progress":
