@@ -968,6 +968,14 @@ func TestFeatureStart_DifferentFeatures(t *testing.T) {
 	if err := runWiSetStatus("feature", idB, "in-progress"); err != nil {
 		t.Fatalf("start B: %v", err)
 	}
+	// openDB returns an in-memory projection hydrated at open time, so the
+	// handle opened after start A is a snapshot that can never see start B.
+	// Reopen to read the projection as it stands now.
+	database.Close()
+	database, err = openDB(hgDir)
+	if err != nil {
+		t.Fatalf("reopen db: %v", err)
+	}
 	if got := dbpkg.GetActiveFeatureIDForSession(database, sessionID); got != idB {
 		t.Errorf("after start B: active_feature_id = %q, want %q", got, idB)
 	}
