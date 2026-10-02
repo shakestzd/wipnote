@@ -237,7 +237,11 @@ func writeCodexHooks(m *Manifest, path string) error {
 		}
 		cmd := e.Command
 		if cmd == "" {
-			cmd = "wipnote hook " + e.Handler
+			// --harness pins the Codex wire format. Without it, a Codex run
+			// launched from inside Claude Code inherits CLAUDE_CODE_ENTRYPOINT,
+			// gets Claude-shaped JSON back, and Codex marks the hook Failed
+			// (GitHub issue #184).
+			cmd = "wipnote hook " + e.Handler + " --harness codex"
 		}
 		group := claudeMatcherGroup{
 			Matcher: e.Matcher,

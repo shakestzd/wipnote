@@ -7,7 +7,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "WIPNOTE_AGENT_ID=antigravity WIPNOTE_AGENT_TYPE=antigravity wipnote hook user-prompt"
+            "command": "WIPNOTE_AGENT_ID=antigravity WIPNOTE_AGENT_TYPE=antigravity wipnote hook user-prompt --harness antigravity"
           }
         ]
       }
@@ -18,7 +18,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "WIPNOTE_AGENT_ID=antigravity WIPNOTE_AGENT_TYPE=antigravity wipnote hook after-agent"
+            "command": "WIPNOTE_AGENT_ID=antigravity WIPNOTE_AGENT_TYPE=antigravity wipnote hook after-agent --harness antigravity"
           }
         ]
       }
@@ -29,7 +29,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "WIPNOTE_AGENT_ID=antigravity WIPNOTE_AGENT_TYPE=antigravity wipnote hook pretooluse"
+            "command": "WIPNOTE_AGENT_ID=antigravity WIPNOTE_AGENT_TYPE=antigravity wipnote hook pretooluse --harness antigravity"
           }
         ]
       }
@@ -40,7 +40,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "WIPNOTE_AGENT_ID=antigravity WIPNOTE_AGENT_TYPE=antigravity wipnote hook posttooluse"
+            "command": "WIPNOTE_AGENT_ID=antigravity WIPNOTE_AGENT_TYPE=antigravity wipnote hook posttooluse --harness antigravity"
           }
         ]
       }
@@ -51,7 +51,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "WIPNOTE_AGENT_ID=antigravity WIPNOTE_AGENT_TYPE=antigravity wipnote hook stop",
+            "command": "WIPNOTE_AGENT_ID=antigravity WIPNOTE_AGENT_TYPE=antigravity wipnote hook stop --harness antigravity",
             "timeout": 90
           }
         ]

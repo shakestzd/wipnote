@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "wipnote hook session-start"
+            "command": "wipnote hook session-start --harness codex"
           }
         ]
       }
@@ -17,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "wipnote hook session-end",
+            "command": "wipnote hook session-end --harness codex",
             "timeout": 90
           }
         ]
@@ -29,7 +29,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "wipnote hook user-prompt"
+            "command": "wipnote hook user-prompt --harness codex"
           }
         ]
       }
@@ -40,7 +40,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "wipnote hook pretooluse"
+            "command": "wipnote hook pretooluse --harness codex"
           }
         ]
       }
@@ -51,7 +51,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "wipnote hook posttooluse"
+            "command": "wipnote hook posttooluse --harness codex"
           }
         ]
       }
@@ -62,7 +62,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "wipnote hook subagent-start"
+            "command": "wipnote hook subagent-start --harness codex"
           }
         ]
       }
@@ -73,7 +73,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "wipnote hook subagent-stop"
+            "command": "wipnote hook subagent-stop --harness codex"
           }
         ]
       }
@@ -84,7 +84,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "wipnote hook stop",
+            "command": "wipnote hook stop --harness codex",
             "timeout": 90
           }
         ]

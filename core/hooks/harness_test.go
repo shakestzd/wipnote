@@ -248,6 +248,78 @@ func TestDetectHarness_AgentIDPreservedThroughClaudeHarness(t *testing.T) {
 	}
 }
 
+// TestDetectHarnessWithOverride_FlagBeatsInheritedClaudeEnv covers GitHub
+// issue #184: `codex exec` launched from inside a Claude Code session inherits
+// CLAUDE_CODE_ENTRYPOINT, which env-based detection reads as Claude. The
+// --harness flag from the generated Codex hooks.json must win.
+func TestDetectHarnessWithOverride_FlagBeatsInheritedClaudeEnv(t *testing.T) {
+	t.Setenv("CLAUDE_CODE_ENTRYPOINT", "cli")
+	t.Setenv("WIPNOTE_AGENT_ID", "claude")
+	payload := []byte(`{"session_id":"s","transcript_path":null,"cwd":"/tmp","hook_event_name":"SessionStart","model":"gpt-5","permission_mode":"default","source":"startup"}`)
+
+	if got := DetectHarness(payload); got != HarnessClaude {
+		t.Fatalf("precondition: DetectHarness = %v, want HarnessClaude from inherited env", got)
+	}
+	cases := map[string]Harness{
+		"codex":       HarnessCodex,
+		" Codex ":     HarnessCodex,
+		"antigravity": HarnessAntigravity,
+		"claude":      HarnessClaude,
+		"":            HarnessClaude, // no override → detection
+		"bogus":       HarnessClaude, // unknown override → detection
+	}
+	for override, want := range cases {
+		if got := DetectHarnessWithOverride(payload, override); got != want {
+			t.Errorf("DetectHarnessWithOverride(%q) = %v, want %v", override, got, want)
+		}
+	}
+}
+
+// TestCodexEmitter_BlockOnUniversalOnlyEventUsesStopReason pins that events
+// whose Codex output schema has no top-level decision/reason (SessionStart,
+// SubagentStart, ...) get continue:false + stopReason instead. Codex rejects
+// unknown fields, so decision/reason there turned into a reasonless "Failed".
+func TestCodexEmitter_BlockOnUniversalOnlyEventUsesStopReason(t *testing.T) {
+	for _, event := range []string{"SessionStart", "SubagentStart"} {
+		var buf bytes.Buffer
+		result := &HookResult{Decision: "block", Reason: "daemon unavailable"}
+		if err := emitCodexResponseForEvent(&buf, event, result); err != nil {
+			t.Fatalf("%s: emit: %v", event, err)
+		}
+		var got map[string]any
+		if err := json.Unmarshal(buf.Bytes(), &got); err != nil {
+			t.Fatalf("%s: unmarshal: %v", event, err)
+		}
+		for _, banned := range []string{"decision", "reason"} {
+			if _, ok := got[banned]; ok {
+				t.Errorf("%s: %q must not be emitted (Codex schema rejects it): %s", event, banned, buf.String())
+			}
+		}
+		if got["continue"] != false || got["stopReason"] != "daemon unavailable" {
+			t.Errorf("%s: want continue:false + stopReason, got %s", event, buf.String())
+		}
+	}
+}
+
+// TestCodexEmitter_DenyBecomesBlockOnDecisionEvents pins that a "deny"
+// decision is emitted as "block", the only value Codex's BlockDecisionWire
+// accepts.
+func TestCodexEmitter_DenyBecomesBlockOnDecisionEvents(t *testing.T) {
+	for _, event := range []string{"UserPromptSubmit", "PostToolUse", "Stop", "SubagentStop"} {
+		var buf bytes.Buffer
+		if err := emitCodexResponseForEvent(&buf, event, &HookResult{Decision: "deny", Reason: "no"}); err != nil {
+			t.Fatalf("%s: emit: %v", event, err)
+		}
+		var got map[string]any
+		if err := json.Unmarshal(buf.Bytes(), &got); err != nil {
+			t.Fatalf("%s: unmarshal: %v", event, err)
+		}
+		if got["decision"] != "block" || got["reason"] != "no" {
+			t.Errorf("%s: want decision:block reason:no, got %s", event, buf.String())
+		}
+	}
+}
+
 // --- parseCodexEvent tests ---
 
 func TestParseCodexSessionStart(t *testing.T) {

@@ -513,6 +513,10 @@ type codexHookEntry struct {
 	Timeout int    `json:"timeout,omitempty"`
 }
 
+// codexHookHarnessFlag is the suffix the Codex plugin generator appends to
+// every `wipnote hook <handler>` command (see port/pluginbuild/codex.go).
+const codexHookHarnessFlag = " --harness codex"
+
 func pruneCodexGlobalHooksInstalled(hooksPath, pluginDir string) (bool, error) {
 	if pluginDir == "" {
 		return false, nil
@@ -533,6 +537,11 @@ func pruneCodexGlobalHooksInstalled(hooksPath, pluginDir string) (bool, error) {
 				cmd := strings.TrimSpace(hook.Command)
 				if cmd != "" {
 					commands[cmd] = struct{}{}
+					// Mirrors written by older wipnote versions predate the
+					// --harness flag; match their flag-less form too.
+					if legacy := strings.TrimSuffix(cmd, codexHookHarnessFlag); legacy != cmd {
+						commands[legacy] = struct{}{}
+					}
 				}
 			}
 		}
