@@ -223,6 +223,9 @@ func TestArchive_UnionIDPropagatesScanErrors(t *testing.T) {
 	os.MkdirAll(bugsDir, 0o755)
 	os.Chmod(bugsDir, 0o000)
 	defer os.Chmod(bugsDir, 0o755)
+	if _, err := os.ReadDir(bugsDir); err == nil {
+		t.Skip("unreadable directory is still readable (running as root)")
+	}
 
 	// Exact match on an existing feature should still work (doesn't scan bugs).
 	node, err := resolveNodeByUnionID(wipnoteDir, "feat-abcd1234")

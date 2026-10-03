@@ -29,7 +29,13 @@ import (
 //     developer's real repository. Tests that need their own project can
 //     override via isolateProjectDir(t, dir), which layers on with t.Setenv
 //     exactly as the DB-path override does.
-//  5. Cleans up the binary temp dir created by buildOtelCollectTestBinary.
+//  5. Clears the harness-native session ids (harnessNativeSessionEnvVars).
+//     Session resolution prefers them over WIPNOTE_SESSION_ID, so a `go test`
+//     run inside Claude Code / Codex / Antigravity would otherwise attribute
+//     every test's writes to the developer's own live session and override
+//     the WIPNOTE_SESSION_ID each test sets. Tests that need one set it with
+//     t.Setenv.
+//  6. Cleans up the binary temp dir created by buildOtelCollectTestBinary.
 //
 // Cleanup runs explicitly before os.Exit; deferred cleanups would never fire
 // because os.Exit skips deferred functions.
@@ -90,6 +96,10 @@ func TestMain(m *testing.M) {
 		}
 	}
 
+	for _, key := range harnessNativeSessionEnvVars {
+		os.Unsetenv(key) //nolint:errcheck
+	}
+
 	// Suppress the headless-writer daemon fork for the whole unit suite:
 	// workitem.Open -> SubmitOrSpawn must not spawn a background writer during
 	// tests (checked at core/daemon/spawn.go). Set process-wide before m.Run.
@@ -124,6 +134,16 @@ func TestMain(m *testing.M) {
 		_ = os.RemoveAll(filepath.Dir(otelCollectTestBinary))
 	}
 	os.Exit(code)
+}
+
+// harnessNativeSessionEnvVars are the env vars agent.HarnessNativeEnvSessionID
+// reads. They outrank WIPNOTE_SESSION_ID in hooks.ResolveSessionID.
+var harnessNativeSessionEnvVars = []string{
+	"CLAUDE_CODE_SESSION_ID",
+	"CLAUDE_SESSION_ID",
+	"CODEX_THREAD_ID",
+	"GEMINI_SESSION_ID",
+	"ANTIGRAVITY_SESSION_ID",
 }
 
 // resolveSharedGOCACHE returns the ambient Go build-cache directory: the GOCACHE
@@ -190,6 +210,17 @@ func TestMain_IsolatesProjectDirFromRealRepo(t *testing.T) {
 	if wd, wdErr := os.Getwd(); wdErr == nil {
 		if realRoot := filepath.Dir(filepath.Dir(wd)); resolveForCompare(realRoot) == gotRoot {
 			t.Fatalf("project resolution reached the real repository at %q", realRoot)
+		}
+	}
+}
+
+// TestMain_ClearsHarnessNativeSessionIDs guards item 5 of TestMain: an
+// ambient harness session id must not leak into tests, where it would outrank
+// the WIPNOTE_SESSION_ID they set.
+func TestMain_ClearsHarnessNativeSessionIDs(t *testing.T) {
+	for _, key := range harnessNativeSessionEnvVars {
+		if v, ok := os.LookupEnv(key); ok {
+			t.Errorf("%s = %q leaked into the test process; TestMain must clear it", key, v)
 		}
 	}
 }

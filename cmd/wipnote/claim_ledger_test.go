@@ -4,11 +4,13 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/shakestzd/wipnote/core/claimledger"
 	dbpkg "github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/sessionledger"
 	"github.com/shakestzd/wipnote/core/worktree"
 )
 
@@ -409,4 +411,66 @@ func gitCheckIgnore(t *testing.T, repoRoot, path string) bool {
 	}
 	t.Fatalf("git check-ignore %s: %v", path, err)
 	return false
+}
+
+// TestLiveForeignClaims_LedgerLivenessRule pins the canonical live-collision
+// rule (bug-ec1ff126): an open episode is live while its root session has not
+// ended in the sessions ledger, a session missing from that ledger counts as
+// live, and the caller's own claim is never foreign.
+func TestLiveForeignClaims_LedgerLivenessRule(t *testing.T) {
+	hgDir := filepath.Join(t.TempDir(), ".wipnote")
+	if err := os.MkdirAll(hgDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	const item = "feat-0000live"
+	open := func(session string) {
+		t.Helper()
+		if _, _, err := claimledger.NewStore(hgDir).Open(session, claimledger.Episode{
+			WorkItemID:    item,
+			SessionID:     session,
+			RootSessionID: session,
+			AgentID:       dbpkg.AgentRootSentinel,
+			StartedAt:     time.Now().UTC(),
+		}); err != nil {
+			t.Fatalf("open episode for %s: %v", session, err)
+		}
+	}
+	sessions := sessionledger.NewStore(hgDir)
+	for _, sid := range []string{"019ee378-abcd-7000-8000-0000000003a1", "019ee378-abcd-7000-8000-0000000003a2"} {
+		if _, err := sessions.Open(sessionledger.Record{SessionID: sid, Harness: "claude-code", StartedAt: time.Now().UTC()}); err != nil {
+			t.Fatalf("seed session %s: %v", sid, err)
+		}
+	}
+	const (
+		liveHolder  = "019ee378-abcd-7000-8000-0000000003a1"
+		endedHolder = "019ee378-abcd-7000-8000-0000000003a2"
+		unknown     = "019ee378-abcd-7000-8000-0000000003a3" // never in the sessions ledger
+		caller      = "019ee378-abcd-7000-8000-0000000003a4"
+	)
+	for _, sid := range []string{liveHolder, endedHolder, unknown, caller} {
+		open(sid)
+	}
+	if err := sessions.Close(endedHolder, time.Now().UTC()); err != nil {
+		t.Fatalf("end session: %v", err)
+	}
+
+	live, ok := liveForeignClaims(hgDir, item, caller)
+	if !ok {
+		t.Fatal("liveForeignClaims reported an unreadable ledger")
+	}
+	got := map[string]bool{}
+	for _, e := range live {
+		got[e.SessionID] = true
+	}
+	want := map[string]bool{liveHolder: true, unknown: true}
+	if len(got) != len(want) || !got[liveHolder] || !got[unknown] {
+		t.Fatalf("live foreign claimants = %v, want %v (ended and caller excluded)", got, want)
+	}
+
+	if err := checkLiveCollisionGate(hgDir, item, caller); err == nil || !strings.Contains(err.Error(), "--force") {
+		t.Fatalf("checkLiveCollisionGate = %v, want a refusal naming --force", err)
+	}
+	if err := checkLiveCollisionGate(hgDir, "feat-unclaimed", caller); err != nil {
+		t.Fatalf("unclaimed item must not be refused: %v", err)
+	}
 }

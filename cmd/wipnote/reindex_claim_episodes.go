@@ -226,3 +226,15 @@ func applyActiveFeatureIDFromClaims(database *sql.DB, verbose bool) {
 		fmt.Printf("reindex active work items: set sessions.active_feature_id: %v\n", err)
 	}
 }
+
+// reindexClaimsFromEpisodes projects open claim episodes into the claims
+// table so live-collision detection and collision warnings can see them. See
+// dbpkg.ProjectClaimsFromEpisodes for the liveness contract.
+func reindexClaimsFromEpisodes(database *sql.DB, verbose bool) {
+	if database == nil {
+		return
+	}
+	if _, err := dbpkg.ProjectClaimsFromEpisodes(database); err != nil && verbose {
+		fmt.Printf("reindex claims: %v\n", err)
+	}
+}

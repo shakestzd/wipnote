@@ -686,3 +686,65 @@ func ensureSessionRow(db *sql.DB, sessionID, agent string) {
 		VALUES (?, ?, 'active', ?)`,
 		sessionID, agent, now.Format(time.RFC3339))
 }
+
+// LedgerClaimIDPrefix marks claims rows projected from the canonical claim
+// ledger by ProjectClaimsFromEpisodes; the rest of the id is the episode id.
+const LedgerClaimIDPrefix = "clm-ledger-"
+
+// ledgerNoHeartbeat and ledgerNoLeaseExpiry fill the NOT NULL heartbeat and
+// lease columns of a ledger-projected claim. The ledger records neither, and
+// started_at must not stand in for a heartbeat: every heartbeat reader
+// (SessionLivenessByHeartbeat, the reaper, reconcile's live predicate) has to
+// keep seeing such a session as not heartbeating, exactly as it did when the
+// table was empty. That includes LiveCollision, so `wipnote continue` still
+// resumes the transcript of a session that crashed without recording its end.
+// The ledger liveness rule (root session not ended) is applied only by the
+// `feature start` gate, which reads the canonical ledgers directly.
+const (
+	ledgerNoHeartbeat   = "1970-01-01T00:00:00Z"
+	ledgerNoLeaseExpiry = "9999-12-31T23:59:59Z"
+)
+
+// IsLedgerClaim reports whether c was projected from the canonical claim
+// ledger rather than written directly.
+func IsLedgerClaim(c models.Claim) bool {
+	return strings.HasPrefix(c.ClaimID, LedgerClaimIDPrefix)
+}
+
+// ProjectClaimsFromEpisodes hydrates the claims table from the open episodes
+// in claim_episodes (bug-ec1ff126). Before this, nothing populated claims in
+// a projection, so every claims reader — live-collision detection, collision
+// warnings, `wipnote who` — saw zero rows.
+//
+// It must run after claim_episodes and the sessions ledger are projected:
+// claims has foreign keys to sessions and features, so an episode whose
+// session or work item is absent from the projection is skipped rather than
+// failing the whole pass. Previously projected ledger claims are replaced;
+// directly written claims are left alone.
+func ProjectClaimsFromEpisodes(database *sql.DB) (int64, error) {
+	if _, err := database.Exec(
+		`DELETE FROM claims WHERE claim_id LIKE ? || '%'`, LedgerClaimIDPrefix,
+	); err != nil {
+		return 0, fmt.Errorf("purge ledger claims: %w", err)
+	}
+	res, err := database.Exec(`
+		INSERT OR IGNORE INTO claims (
+			claim_id, work_item_id, owner_session_id, owner_agent,
+			claimed_by_agent_id, status, leased_at, lease_expires_at,
+			last_heartbeat_at, created_at, updated_at
+		)
+		SELECT ? || ce.episode_id, ce.work_item_id, ce.session_id,
+		       COALESCE(NULLIF(s.agent_assigned, ''), 'claude-code'),
+		       ce.agent_id, ?, ce.started_at, ?,
+		       ?, ce.started_at, ce.started_at
+		FROM claim_episodes ce
+		JOIN sessions s ON s.session_id = ce.session_id
+		WHERE ce.ended_at = ''
+		  AND EXISTS (SELECT 1 FROM features f WHERE f.id = ce.work_item_id)`,
+		LedgerClaimIDPrefix, string(models.ClaimInProgress), ledgerNoLeaseExpiry, ledgerNoHeartbeat,
+	)
+	if err != nil {
+		return 0, fmt.Errorf("project ledger claims: %w", err)
+	}
+	return res.RowsAffected()
+}
