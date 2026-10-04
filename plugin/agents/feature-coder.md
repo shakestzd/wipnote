@@ -2,6 +2,7 @@
 name: feature-coder
 description: Balanced code execution agent for moderate complexity tasks
 model: sonnet
+effort: medium
 color: blue
 tools:
   - Read

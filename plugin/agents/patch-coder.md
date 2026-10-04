@@ -2,6 +2,7 @@
 name: patch-coder
 description: Fast, efficient code execution agent for simple tasks
 model: haiku
+effort: low
 color: green
 tools:
   - Read

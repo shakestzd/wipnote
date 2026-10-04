@@ -2,6 +2,7 @@
 name: test-runner
 description: Quality assurance agent. Use after code changes to run tests, type checks, linting, and validate that quality gates pass.
 model: haiku
+effort: low
 color: yellow
 tools:
   - Read
