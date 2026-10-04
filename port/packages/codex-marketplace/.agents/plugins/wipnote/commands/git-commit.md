@@ -24,51 +24,14 @@ Commit changes using Bash-copilot first, patch-coder as fallback.
 
 ## Instructions
 
-**MANDATORY: You MUST follow these steps in order. Do NOT skip to direct git.**
+Goal: commit the intended source changes with a good message, without the orchestrator running git itself. Commits trigger pre-commit hooks, conflicts, and retries, which belong in a subagent's context rather than yours.
 
-### Step 1: Analyze what to commit
-
-```bash
-git diff --stat HEAD; git status --short
-```
-
-Select source files to stage. Exclude `.wipnote/` directory unless explicitly requested.
-
-If no message was provided, draft one from the diff using conventional commit format.
-
-### Step 2: Check copilot availability
-
-```bash
-which copilot 2>/dev/null && echo "COPILOT AVAILABLE" || echo "COPILOT NOT FOUND"
-```
-
-**This check is MANDATORY.** You must run it before proceeding.
-
-### Step 3: Commit (follow priority order strictly)
-
-**If copilot is available (Step 2 returned AVAILABLE) — use it:**
-
-```bash
-copilot -p "Stage files: <list>. Commit with message: '<message>'. Do NOT push." \
-  --allow-all-tools --no-color --add-dir . 2>&1
-```
-
-If `--push` was passed, add: "Then push to origin." to the prompt.
-
-**Only if copilot failed, timed out, or was not found — delegate to patch-coder:**
-
-```text
-Call spawn_agent with:
-Call spawn_agent with agent_type "wipnote-patch-coder" and message containing: description="Commit: <message>"; prompt="Stage these files: <list>. Commit with message: '<message>'. Do NOT push.".
-```
-
-**Only if BOTH copilot and patch-coder failed — use direct git as last resort:**
-
-```bash
-git add <files> && git commit -m "<message>"
-```
-
-**NEVER use direct git without first trying copilot.** If you find yourself writing `git add && git commit` without having run `which copilot` first, STOP and go back to Step 2.
+Constraints:
+- Inspect `git diff --stat HEAD; git status --short` and stage only source files; leave `.wipnote/` out unless explicitly requested. If no message was given, draft a conventional-commit message from the diff.
+- Executor preference, in order: the `copilot` CLI if installed (check with `which copilot`), then `wipnote-patch-coder`, and direct `git add <files> && git commit -m "<message>"` only if both fail. Direct git is the last resort because it puts the retries in your own context, so run the availability check rather than skipping to it.
+  - Copilot: `copilot -p "Stage files: <list>. Commit with message: '<message>'. Do NOT push." --allow-all-tools --no-color --add-dir . 2>&1`
+  - Patch-coder: `call spawn_agent with agent_type "wipnote-patch-coder"`
+- Push only when `--push` was passed (add "Then push to origin." to the prompt).
 
 ## Commit Message Format
 
