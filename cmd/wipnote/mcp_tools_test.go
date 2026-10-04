@@ -403,3 +403,91 @@ func TestReportCLI(t *testing.T) {
 		t.Errorf("unknown tool error = %v", err)
 	}
 }
+
+// TestReportSnapshot runs `wipnote report snapshot` through the cobra tree: it
+// must write one {generated_at, payload} document per artifact view and
+// window, a batch.json that lists them for ArtifactData, keep files private,
+// never leak planted secrets, and reject bad windows.
+func TestReportSnapshot(t *testing.T) {
+	dir := seedToolsProject(t)
+	t.Setenv("WIPNOTE_PROJECT_DIR", filepath.Dir(dir))
+	oldNow := mcpNow
+	mcpNow = func() time.Time { return mcpTestNow }
+	defer func() { mcpNow = oldNow }()
+
+	out := filepath.Join(t.TempDir(), "snap")
+	run := func(args ...string) (string, error) {
+		root := buildRoot()
+		var stdout, stderr bytes.Buffer
+		root.SetOut(&stdout)
+		root.SetErr(&stderr)
+		root.SetArgs(args)
+		err := root.Execute()
+		return stdout.String(), err
+	}
+
+	stdout, err := run("report", "snapshot", "--dir", out, "--windows", "24,168")
+	if err != nil {
+		t.Fatalf("snapshot: %v", err)
+	}
+	var summary struct {
+		Dir   string   `json:"dir"`
+		Batch string   `json:"batch"`
+		Docs  []string `json:"docs"`
+	}
+	dec := json.NewDecoder(strings.NewReader(stdout))
+	if err := dec.Decode(&summary); err != nil || dec.More() {
+		t.Fatalf("stdout is not one JSON document: %v\n%s", err, stdout)
+	}
+	if len(summary.Docs) != 10 { // 5 views x 2 windows
+		t.Fatalf("docs = %v", summary.Docs)
+	}
+	for _, id := range []string{"overview-24h", "cost_day-168h", "cost_model-24h", "work-168h", "work_stale-24h"} {
+		raw, err := os.ReadFile(filepath.Join(out, id+".json"))
+		if err != nil {
+			t.Fatalf("missing %s: %v", id, err)
+		}
+		var doc struct {
+			GeneratedAt string `json:"generated_at"`
+			Payload     struct {
+				SchemaVersion int `json:"schema_version"`
+			} `json:"payload"`
+		}
+		if err := json.Unmarshal(raw, &doc); err != nil || doc.GeneratedAt == "" || doc.Payload.SchemaVersion != 1 {
+			t.Errorf("%s malformed: %v %+v", id, err, doc)
+		}
+		if strings.Contains(string(raw), secretPrompt) {
+			t.Errorf("secret leaked into %s", id)
+		}
+		if fi, _ := os.Stat(filepath.Join(out, id+".json")); fi.Mode().Perm() != 0o600 {
+			t.Errorf("%s mode = %v, want 0600", id, fi.Mode().Perm())
+		}
+	}
+	var batch struct {
+		Writes []struct {
+			Op, Collection string
+			DocID          string `json:"doc_id"`
+			FilePath       string `json:"file_path"`
+		} `json:"writes"`
+	}
+	raw, err := os.ReadFile(summary.Batch)
+	if err != nil || json.Unmarshal(raw, &batch) != nil || len(batch.Writes) != 10 {
+		t.Fatalf("batch.json = %s (%v)", raw, err)
+	}
+	for _, w := range batch.Writes {
+		if w.Op != "set" || w.Collection != "snapshots" || !filepath.IsAbs(w.FilePath) {
+			t.Errorf("bad write %+v", w)
+		}
+	}
+
+	for _, bad := range [][]string{
+		{"report", "snapshot", "--dir", out, "--windows", "0"},
+		{"report", "snapshot", "--dir", out, "--windows", "721"},
+		{"report", "snapshot", "--dir", out, "--windows", "24,24"},
+		{"report", "snapshot", "--dir", out, "--windows", "1,2,3,4,5,6,7"},
+	} {
+		if _, err := run(bad...); err == nil {
+			t.Errorf("expected error for %v", bad)
+		}
+	}
+}

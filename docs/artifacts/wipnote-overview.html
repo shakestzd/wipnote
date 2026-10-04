@@ -164,9 +164,9 @@ td.title .ref { font-family: var(--font-mono); font-size: 11.5px; color: var(--m
   var AUTHZ = { needs_reauth: 1, not_in_manifest: 1, blocked_by_policy: 1, approval_required: 1, server_not_connected: 1 };
   var NS = "http://www.w3.org/2000/svg";
 
-  var S = { tab: "overview", hours: 24, data: {}, errs: {}, at: null, snap: null, conn: "connecting", serverIdx: 0,
+  var S = { tab: "overview", hours: 24, data: {}, errs: {}, at: null, snaps: {}, conn: "connecting", serverIdx: 0,
             filter: "all", showAll: false, sort: "cost", stale: false, trace: null, hasDb: false, toast: "" };
-  var mcp = null, db = null, perms = null, unwatch = {}, unsnap = null, toastTimer = null;
+  var mcp = null, db = null, perms = null, unwatch = {}, unsnap = [], toastTimer = null;
 
   try {
     var h0 = parseInt(localStorage.getItem("wn.hours"), 10); if ([24, 168, 720].indexOf(h0) >= 0) S.hours = h0;
@@ -206,9 +206,11 @@ td.title .ref { font-family: var(--font-mono); font-size: 11.5px; color: var(--m
   }
 
   /* ---------- data ---------- */
-  function overviewData() {
-    if (S.data.overview) return { data: S.data.overview, source: "live" };
-    if (S.snap) return { data: S.snap.payload, source: "snapshot", at: S.snap.at };
+  function snapKey(k) { return k === "work" && S.stale ? "work_stale" : k; }
+  function dataFor(k) {
+    if (S.data[k]) return { data: S.data[k], source: "live" };
+    var sn = S.snaps[snapKey(k)];
+    if (sn) return { data: sn.payload, source: "snapshot", at: sn.at };
     return null;
   }
   function tabErr() {
@@ -256,17 +258,22 @@ td.title .ref { font-family: var(--font-mono); font-size: 11.5px; color: var(--m
     render();
   }
 
+  function snapKeys() {
+    return S.tab === "overview" ? ["overview"] : S.tab === "cost" ? ["cost_day", "cost_model"] : [S.stale ? "work_stale" : "work"];
+  }
   function watchSnapshot() {
-    if (unsnap) { try { unsnap(); } catch (e) {} unsnap = null; }
-    S.snap = null;
+    unsnap.forEach(function (u) { try { u(); } catch (e) {} });
+    unsnap = []; S.snaps = {};
     if (!db) return;
-    try {
-      unsnap = db.doc("snapshots/overview-" + S.hours + "h").onSnapshot(function (snap) {
-        var d = snap.exists ? snap.data() : null;
-        S.snap = d && d.payload ? { payload: d.payload, at: d.generated_at } : null;
-        render();
-      }, function () { S.snap = null; render(); });
-    } catch (e) {}
+    snapKeys().forEach(function (k) {
+      try {
+        unsnap.push(db.doc("snapshots/" + k + "-" + S.hours + "h").onSnapshot(function (snap) {
+          var d = snap.exists ? snap.data() : null;
+          if (d && d.payload) S.snaps[k] = { payload: d.payload, at: d.generated_at }; else delete S.snaps[k];
+          render();
+        }, function () { delete S.snaps[k]; render(); }));
+      } catch (e) {}
+    });
   }
 
   function setHours(h) {
@@ -280,6 +287,7 @@ td.title .ref { font-family: var(--font-mono); font-size: 11.5px; color: var(--m
     if (t === S.tab) return;
     S.tab = t; S.trace = null;
     try { localStorage.setItem("wn.tab", t); } catch (e) {}
+    watchSnapshot();
     if (mcp && S.conn !== "offline") startTab(); else render();
   }
 
@@ -308,10 +316,10 @@ td.title .ref { font-family: var(--font-mono); font-size: 11.5px; color: var(--m
 
   /* ---------- rendering ---------- */
   function chip() {
-    var snap = !S.data.overview && S.snap && S.tab === "overview";
+    var d = dataFor(KEYS[S.tab][0]);
     var label, state;
-    if (S.conn === "live") { state = "live"; label = "Live · " + ago(S.at); }
-    else if (snap) { state = "snapshot"; label = "Snapshot · " + (S.snap.at ? ago(Date.parse(S.snap.at)) : "saved"); }
+    if (d && d.source === "snapshot") { state = "snapshot"; label = "Snapshot · " + (d.at ? ago(Date.parse(d.at)) : "saved"); }
+    else if (S.conn === "live") { state = "live"; label = "Live · " + ago(S.at); }
     else if (S.conn === "connecting") { state = "connecting"; label = "Connecting to wipnote…"; }
     else { state = "offline"; label = "Not connected"; }
     var c = el("span", "chip", null, { "data-state": state, id: "conn" });
@@ -344,24 +352,42 @@ td.title .ref { font-family: var(--font-mono); font-size: 11.5px; color: var(--m
     return t;
   }
 
+  function refreshButton() {
+    var rb = el("button", "btn", "Copy refresh prompt", { type: "button", title: "Paste this to Claude in a session that has wipnote and this artifact" });
+    rb.addEventListener("click", function () { copy("Refresh the wipnote Overview artifact: run `wipnote report snapshot --dir /tmp/wipnote-snapshot`, then upload every document listed in batch.json to this artifact\u0027s snapshots collection with one ArtifactData batch call."); });
+    return rb;
+  }
+  function setupDetails() {
+    var det = el("details");
+    det.appendChild(el("summary", null, "Connect wipnote for live data"));
+    add(det, el("p", null, "Live data needs the Claude desktop app on the computer that has your wipnote project. Register the server once, then open this page in the app."));
+    var line = el("div", "codeline"); line.appendChild(el("code", null, "claude mcp add wipnote -- wipnote mcp"));
+    var cb = el("button", "btn", "Copy", { type: "button" });
+    cb.addEventListener("click", function () { copy("claude mcp add wipnote -- wipnote mcp"); });
+    line.appendChild(cb); det.appendChild(line);
+    return det;
+  }
   function banner() {
     var e = tabErr();
+    var d = dataFor(KEYS[S.tab][0]);
+    var showingSnap = !!(d && d.source === "snapshot");
     if (!e && S.conn !== "offline") return null;
     var code = e ? e.code : "server_not_connected";
-    var showingSnap = S.tab === "overview" && !S.data.overview && !!S.snap;
+    var notLive = code === "server_not_connected" || code === "unavailable" || code === "capability_disabled" || code === "not_granted" || !e;
     var b = el("div", "banner", null, { "data-tone": (tabHasLive() || showingSnap) ? "warn" : "crit" });
     var title, body, extra = null;
     var missingTool = (code === "tool_error" || code === "bad_request") && /unknown|not found|no such/i.test((e && e.message) || "");
     if (missingTool) {
       title = "This wipnote version does not have this view";
       body = "Rebuild wipnote from main (the cost and work tools are newer than your install), then reload this page.";
-    } else if (code === "server_not_connected" || code === "unavailable" || code === "capability_disabled" || code === "not_granted") {
-      title = "wipnote is not connected in this view";
-      body = "This page reads your local wipnote through the Claude desktop app. Add the server once, then open this page in the app (a browser tab cannot reach a local server).";
-      extra = add(el("div", "codeline"), el("code", null, "claude mcp add wipnote -- wipnote mcp"));
-      var cb = el("button", "btn", "Copy", { type: "button" });
-      cb.addEventListener("click", function () { copy("claude mcp add wipnote -- wipnote mcp"); });
-      extra.appendChild(cb);
+    } else if (notLive && showingSnap) {
+      title = "Showing a saved snapshot";
+      body = "This is wipnote as it was last saved here" + (d.at ? " (" + ago(Date.parse(d.at)) + ")" : "") + ". Ask Claude to refresh it, or connect wipnote for live data.";
+      extra = el("div", "codeline"); extra.appendChild(refreshButton());
+    } else if (notLive) {
+      title = "No data yet";
+      body = "Ask Claude to save a snapshot of your wipnote data into this page, or connect wipnote for live data.";
+      extra = el("div", "codeline"); extra.appendChild(refreshButton());
     } else if (code === "not_in_manifest") {
       title = "Access to wipnote was declined for this page";
       body = "Allow the wipnote connector for this page to see live data.";
@@ -381,7 +407,7 @@ td.title .ref { font-family: var(--font-mono); font-size: 11.5px; color: var(--m
       title = "Could not reach wipnote (" + code + ")"; body = "Showing the last data we have. This page retries every 30 seconds.";
     }
     add(b, el("h3", null, title), el("p", null, body), extra);
-    if (showingSnap) b.appendChild(el("p", null, "Showing a saved snapshot instead of live data."));
+    if (notLive) b.appendChild(setupDetails());
     return b;
   }
 
@@ -589,7 +615,7 @@ td.title .ref { font-family: var(--font-mono); font-size: 11.5px; color: var(--m
     return svg;
   }
   function costView() {
-    var day = S.data.cost_day, model = S.data.cost_model, out = [];
+    var dd = dataFor("cost_day"), dm = dataFor("cost_model"), day = dd && dd.data, model = dm && dm.data, out = [];
     var p = panel("Cost per day", day ? usd(day.total_usd) + " in the last " + (day.window ? day.window.hours : S.hours) + "h" : "");
     if (!day) p.appendChild(el("div", "empty", S.conn === "connecting" ? "Loading…" : "Needs a live connection to wipnote."));
     else if (day.telemetry && day.telemetry.available === false) p.appendChild(el("div", "empty", day.telemetry.note || "No OTel telemetry found for this window."));
@@ -613,12 +639,12 @@ td.title .ref { font-family: var(--font-mono); font-size: 11.5px; color: var(--m
   }
 
   function workView() {
-    var d = S.data.work;
+    var dw = dataFor("work"), d = dw && dw.data;
     var p = panel("Work items by cost", d ? int(d.items_returned) + " of " + int(d.items_matched) + " matching" : "");
     var lab = el("label", "toggle");
     var cb = el("input", null, null, { type: "checkbox", id: "stale-only" });
     cb.checked = S.stale;
-    cb.addEventListener("change", function () { S.stale = cb.checked; S.data.work = null; startTab(); });
+    cb.addEventListener("change", function () { S.stale = cb.checked; S.data.work = null; watchSnapshot(); if (mcp && S.conn !== "offline") startTab(); else render(); });
     add(lab, cb, el("span", null, "Only items untouched for 30+ days"));
     p.appendChild(lab);
     if (!d) { p.appendChild(el("div", "empty", S.conn === "connecting" ? "Loading…" : "Needs a live connection to wipnote.")); return [p]; }
@@ -644,7 +670,7 @@ td.title .ref { font-family: var(--font-mono); font-size: 11.5px; color: var(--m
     var app = document.getElementById("app");
     var kids = [header(), tabs(), banner()];
     if (S.tab === "overview") {
-      var cur = overviewData();
+      var cur = dataFor("overview");
       if (cur) {
         var d = cur.data;
         kids.push(add(el("div", "layout"), attention(d), add(el("div", "stack"), costSummary(d), workSummary(d))));

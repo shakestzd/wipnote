@@ -294,7 +294,7 @@ func persistentPreRunE(cmd *cobra.Command, args []string) error {
 	// is the read-only MCP tool snapshot: same rules as `mcp`, stdout must stay
 	// clean JSON. `report [session-id]` keeps its original behaviour.
 	case "report":
-		if len(args) > 0 && isMCPToolName(args[0]) {
+		if len(args) > 0 && (isMCPToolName(args[0]) || args[0] == reportSnapshotArg) {
 			return nil
 		}
 	// Internal process commands: otel-collect and _serve-child are spawned as

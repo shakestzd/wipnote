@@ -1,26 +1,42 @@
 # wipnote Overview artifact
 
 `wipnote-overview.html` is the source of the Claude Artifact that shows what needs attention in your
-wipnote projects: needs-attention list, cost per day and per model, work items by cost, and a
-per-session trace. It reads your local wipnote through the read-only `wipnote mcp` server and refreshes
-every 30 seconds, so the artifact is published once and never regenerated.
+wipnote projects: a needs-attention list, cost per day and per model, work items by cost, and (when
+live) a per-session trace. It is published once and keeps its data in the artifact's own database, so
+nobody regenerates the page.
 
-## Use it
+## Two ways data reaches the page
 
-1. Build wipnote from a revision that includes `wipnote mcp` (`wipnote build`).
-2. Register the server once: `claude mcp add wipnote -- wipnote mcp`.
-3. Open the artifact in the **Claude desktop app**. A local server is reachable only from the app, and
-   only by the artifact's owner. The first call asks for consent.
+| Path | Works where | Freshness | Needs |
+|---|---|---|---|
+| **Snapshots** in the artifact database (`snapshots/<view>-<hours>h`) | Any browser or phone | As fresh as the last upload; the page updates live when documents change | A Claude session that has the artifact tools and your wipnote project |
+| **Live** through the local `wipnote mcp` server | Claude desktop app only, owner only | Every 30 s | `claude mcp add wipnote -- wipnote mcp` on the computer that runs the app |
 
-Outside the app the page shows a banner with the setup command, and the Overview tab falls back to a
-saved snapshot if one exists in the artifact's `snapshots/overview-<hours>h` documents
-(`{generated_at, payload}`, where `payload` is the output of `wipnote report overview`).
+The page prefers live data when it is connected and falls back to the snapshot, always showing the
+snapshot's age. Session traces are live only.
 
-## Update it
+## Refresh the snapshots
 
-Publish from a **local** Claude session, passing the artifact URL so the same link is kept. A cloud
-session cannot add local tools to an artifact that already declares a local server, so new tools in
-`wipnote mcp` need a local publish. The artifact declares these capabilities:
+In a Claude session that has the artifact tools and your wipnote project:
+
+```bash
+wipnote report snapshot --dir /tmp/wipnote-snapshot          # windows 24h, 7d, 30d by default
+```
+
+This writes one `{generated_at, payload}` document per view and window plus `batch.json`. Upload them
+with a single `ArtifactData` batch call using the `writes` array from `batch.json` (documents that
+already exist need `if_version`). Views: `overview`, `cost_day`, `cost_model`, `work`, `work_stale`.
+Files are written 0600 because they contain work-item titles. Cost and session data come from OTel
+files under `.wipnote/sessions/`, which are not in git, so a session running on a clone without them
+gets work-item data only.
+
+The page's "Copy refresh prompt" button copies a ready-made instruction for this.
+
+## Update the page
+
+Publish from a **local** Claude session, passing the artifact URL so the link is kept. A cloud session
+cannot add local tools to an artifact that already declares a local server, so new MCP tools need a
+local publish. Capabilities the artifact declares:
 
 ```json
 {
@@ -36,5 +52,5 @@ session cannot add local tools to an artifact that already declares a local serv
 plugin-registered server (`plugin/.mcp.json`) would be named; whether artifacts can reach a
 plugin-registered server has not been verified.
 
-Tool schemas live in `docs/design/artifact-report.md`. The page renders only ids, counts, durations and
-USD, and shows work-item titles as plain text (they are untrusted).
+Tool schemas live in `docs/design/artifact-report.md`. The page shows only ids, counts, durations and
+USD, and renders work-item titles as plain text (they are untrusted).
