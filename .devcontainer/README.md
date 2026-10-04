@@ -18,7 +18,7 @@ work across other projects. The two are fully independent.
 
 | Tool | Source |
 |------|--------|
-| Go 1.24 | Devcontainer base image |
+| Go 1.25 | Devcontainer base image |
 | Node.js 22 | `ghcr.io/devcontainers/features/node` |
 | GitHub CLI | `ghcr.io/devcontainers/features/github-cli` |
 | Claude Code CLI | `npm install -g @anthropic-ai/claude-code` |
@@ -120,7 +120,7 @@ longer exists, never built the Go binary, never enabled the plugin, and
 forwarded six host API keys into the container. This version:
 
 - Builds `wipnote` from source and installs it to `~/.local/bin/`.
-- Uses the Go 1.24 devcontainer base image (Python base dropped).
+- Uses the Go 1.25 devcontainer base image (Python base dropped).
 - Forwards no host API keys — all authentication is interactive or via
   Codespaces secrets.
 - Keeps tracked `.wipnote` work items in the repo while ignoring runtime

@@ -1,8 +1,11 @@
 # syntax=docker/dockerfile:1.7
 
-FROM mcr.microsoft.com/devcontainers/go:1-1.24-bookworm
+FROM mcr.microsoft.com/devcontainers/go:1.25-bookworm
 
 ENV DEBIAN_FRONTEND=noninteractive
+# go.mod can move ahead of the base image; let go fetch the toolchain it needs
+# instead of failing with "requires go >= X (GOTOOLCHAIN=local)".
+ENV GOTOOLCHAIN=auto
 ENV PATH="/home/vscode/.local/bin:${PATH}"
 
 RUN rm -f /etc/apt/sources.list.d/yarn.list \
