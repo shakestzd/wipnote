@@ -24,6 +24,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 PLUGIN_JSON="$PROJECT_ROOT/plugin/.claude-plugin/plugin.json"
 MANIFEST_JSON="$PROJECT_ROOT/packages/plugin-core/manifest.json"
+MARKETPLACE_JSON="$PROJECT_ROOT/.claude-plugin/marketplace.json"
 GO_DIR="$PROJECT_ROOT"
 
 # Colors
@@ -183,11 +184,13 @@ if [[ -n "$VERSION" && "$VERSION" != "$CURRENT_VERSION" ]]; then
         if [[ "$OSTYPE" == "darwin"* ]]; then
             sed -i '' "s/\"version\": \"$CURRENT_VERSION\"/\"version\": \"$VERSION\"/" "$PLUGIN_JSON"
             sed -i '' "s/\"version\": \"$CURRENT_VERSION\"/\"version\": \"$VERSION\"/" "$MANIFEST_JSON"
+            sed -i '' "s/\"version\": \"[0-9][0-9.]*\"/\"version\": \"$VERSION\"/" "$MARKETPLACE_JSON"
         else
             sed -i "s/\"version\": \"$CURRENT_VERSION\"/\"version\": \"$VERSION\"/" "$PLUGIN_JSON"
             sed -i "s/\"version\": \"$CURRENT_VERSION\"/\"version\": \"$VERSION\"/" "$MANIFEST_JSON"
+            sed -i "s/\"version\": \"[0-9][0-9.]*\"/\"version\": \"$VERSION\"/" "$MARKETPLACE_JSON"
         fi
-        ok "Updated plugin.json + manifest.json"
+        ok "Updated plugin.json + manifest.json + marketplace.json"
     fi
 fi
 
@@ -217,7 +220,7 @@ if $DRY_RUN; then
     fi
 else
     # Stage version files + regenerated port trees + any other tracked changes
-    git add "$PLUGIN_JSON" "$MANIFEST_JSON" port/packages/codex-marketplace port/packages/antigravity-extension
+    git add "$PLUGIN_JSON" "$MANIFEST_JSON" "$MARKETPLACE_JSON" port/packages/codex-marketplace port/packages/antigravity-extension
 
     if git diff --cached --quiet; then
         ok "No changes to commit"

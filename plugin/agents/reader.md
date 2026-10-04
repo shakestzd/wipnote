@@ -2,6 +2,7 @@
 name: reader
 description: Zero-skill file retrieval agent. Use for multi-file reads, glob+read patterns, and structured data retrieval (YAML, JSON, HTML, logs, markdown). No skill injection overhead — boots in <5s. Does not analyze or modify files.
 model: haiku
+effort: low
 color: magenta
 tools:
   - Read

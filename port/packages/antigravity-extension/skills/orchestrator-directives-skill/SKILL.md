@@ -1,14 +1,10 @@
 ---
-id: orchestrator-directives
 name: Orchestrator Directives Skill
 description: >-
   wipnote orchestration patterns for AI-assisted development. Use when working on code in an
   wipnote project — provides delegation patterns, model selection, quality gates, and work
   tracking guidance. Activate when planning work, delegating to agents, debugging, building
   features, or managing tasks.
-trigger: "when user asks about delegation, orchestration, or cost optimization"
-visibility: "always"
-tags: ["delegation", "orchestration", "cost-optimization", "multi-ai", "spawners"]
 ---
 
 # Orchestrator Directives Skill

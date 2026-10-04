@@ -2,6 +2,7 @@
 name: architect-coder
 description: Deep reasoning code execution agent for complex tasks
 model: opus
+effort: high
 color: purple
 tools:
   - Read
