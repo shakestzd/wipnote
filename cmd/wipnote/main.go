@@ -124,6 +124,7 @@ func buildRoot() *cobra.Command {
 			{GroupID: "query", Command: wipCmd()},
 			{GroupID: "query", Command: statusCmd()},
 			{GroupID: "query", Command: snapshotCmd()},
+			{GroupID: "query", Command: mcpCmd()},
 			{GroupID: "query", Command: linkCmd()},
 			{GroupID: "query", Command: sessionCmd()},
 			{GroupID: "query", Command: sessionsCmd()},
@@ -283,6 +284,11 @@ func persistentPreRunE(cmd *cobra.Command, _ []string) error {
 	// Skip commands that must work without .wipnote/.
 	switch cmd.Name() {
 	case "version", "help", "init", "build", "install-hooks", "setup", "setup-cli", "projects", "upgrade", "update":
+		return nil
+	// `wipnote mcp` is a strictly read-only stdio server: it must not register
+	// a session, upsert the project registry, or print anything to stdout
+	// (stdout is the JSON-RPC channel).
+	case "mcp":
 		return nil
 	// Internal process commands: otel-collect and _serve-child are spawned as
 	// child processes by the parent supervisor. They must not open the SQLite DB
