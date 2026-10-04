@@ -47,6 +47,42 @@ type sessionTelemetry struct {
 	APIErrors        int64   `json:"api_errors"`
 	Compactions      int64   `json:"compactions"`
 	Subagents        int64   `json:"subagent_invocations"`
+	Harness          string  `json:"harness,omitempty" jsonschema:"harness that produced the shard (claude, codex, ...)"`
+
+	// Folds used by wipnote_cost / wipnote_work_items. Never serialised.
+	byModel map[string]*costBucket
+	byDay   map[string]*costBucket
+	points  []costPoint
+}
+
+// costBucket is a cost fold over api_request logs.
+type costBucket struct {
+	CostUSD   float64
+	Requests  int64
+	TokensIn  int64
+	TokensOut int64
+	Unpriced  int64
+}
+
+func (b *costBucket) add(o costBucket) {
+	b.CostUSD += o.CostUSD
+	b.Requests += o.Requests
+	b.TokensIn += o.TokensIn
+	b.TokensOut += o.TokensOut
+	b.Unpriced += o.Unpriced
+}
+
+// costPoint is one priced api_request, kept only for sessions that hold claim
+// episodes so cost can be attributed to work items by interval.
+type costPoint struct {
+	ts time.Time
+	b  costBucket
+}
+
+// scanOptions tunes one scan.
+type scanOptions struct {
+	// pointsFor reports whether per-request cost points are needed for a shard.
+	pointsFor func(sessionID string) bool
 }
 
 // telemetryScan is the result of scanning the in-window shards.
@@ -94,6 +130,10 @@ func recentShards(sessionsDir string, since time.Time) ([]shardFile, error) {
 // `wipnote serve` hang on large histories. Shards are scanned in parallel, one
 // goroutine per core, each in a single streaming pass.
 func scanTelemetry(wipnoteDir string, since time.Time) (telemetryScan, error) {
+	return scanTelemetryOpts(wipnoteDir, since, scanOptions{})
+}
+
+func scanTelemetryOpts(wipnoteDir string, since time.Time, opts scanOptions) (telemetryScan, error) {
 	sessionsDir := filepath.Join(wipnoteDir, "sessions")
 	shards, err := recentShards(sessionsDir, since)
 	if err != nil {
@@ -122,7 +162,7 @@ func scanTelemetry(wipnoteDir string, since time.Time) (telemetryScan, error) {
 			defer wg.Done()
 			for i := range jobs {
 				path := filepath.Join(sessionsDir, shards[i].id, shardFileName)
-				st, ok := aggregateShard(path, shards[i].id, since)
+				st, ok := aggregateShard(path, shards[i].id, since, opts.pointsFor != nil && opts.pointsFor(shards[i].id))
 				results[i] = result{st, ok}
 			}
 		}()
@@ -145,14 +185,14 @@ func scanTelemetry(wipnoteDir string, since time.Time) (telemetryScan, error) {
 // them without decoding.
 var shardPaths = []string{
 	"canonical", "kind", "ts", "cost_usd", "tokens_input", "tokens_output",
-	"tool_use_id", "signal_id", "success", "duration_ms",
+	"tool_use_id", "signal_id", "success", "duration_ms", "model", "harness",
 }
 
 // aggregateShard streams one shard once. ok is false when the shard is
 // unreadable or has no signals inside the window. Tool calls are de-duplicated
 // on tool_use_id because Claude emits both a span and a log per tool call.
-func aggregateShard(path, id string, since time.Time) (sessionTelemetry, bool) {
-	st := sessionTelemetry{SessionID: id}
+func aggregateShard(path, id string, since time.Time, wantPoints bool) (sessionTelemetry, bool) {
+	st := sessionTelemetry{SessionID: id, byModel: map[string]*costBucket{}, byDay: map[string]*costBucket{}}
 	f, err := os.Open(path)
 	if err != nil {
 		return st, false
@@ -179,7 +219,13 @@ func aggregateShard(path, id string, since time.Time) (sessionTelemetry, bool) {
 		if key == "" {
 			key = strings.Clone(v[7].String())
 		}
+		if st.Harness == "" {
+			st.Harness = cleanName(v[11].String())
+		}
 		applySignal(&st, v, key, tools, failed, blocked)
+		if v[0].String() == "api_request" && v[1].String() == "log" {
+			foldCost(&st, v, ts, wantPoints)
+		}
 	}
 	if first.IsZero() {
 		return st, false
@@ -231,3 +277,47 @@ func applySignal(st *sessionTelemetry, v []gjson.Result, key string, tools, fail
 
 // roundUSD trims float accumulation noise (24.984999999999992) to micro-dollars.
 func roundUSD(v float64) float64 { return math.Round(v*1e6) / 1e6 }
+
+// foldCost records one api_request log into the per-model, per-day and
+// (optionally) per-request folds.
+func foldCost(st *sessionTelemetry, v []gjson.Result, ts time.Time, wantPoints bool) {
+	b := costBucket{Requests: 1, TokensIn: v[4].Int(), TokensOut: v[5].Int()}
+	if v[3].Exists() {
+		b.CostUSD = v[3].Float()
+	} else {
+		b.Unpriced = 1
+	}
+	model := cleanName(v[10].String())
+	if model == "" {
+		model = "unknown"
+	}
+	day := ts.UTC().Format("2006-01-02")
+	for _, f := range []struct {
+		m map[string]*costBucket
+		k string
+	}{{st.byModel, model}, {st.byDay, day}} {
+		if f.m[f.k] == nil {
+			f.m[f.k] = &costBucket{}
+		}
+		f.m[f.k].add(b)
+	}
+	if wantPoints && b.CostUSD != 0 {
+		st.points = append(st.points, costPoint{ts: ts, b: b})
+	}
+}
+
+// cleanName restricts machine identifiers that originate in a transcript (tool
+// names, model names, harness names) to a safe charset and length, so a hostile
+// MCP server name cannot smuggle prose into a result.
+func cleanName(s string) string {
+	if len(s) > 64 {
+		s = s[:64]
+	}
+	return strings.Map(func(r rune) rune {
+		switch {
+		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9', r == '_', r == '-', r == '.', r == ':', r == '/':
+			return r
+		}
+		return '_'
+	}, s)
+}

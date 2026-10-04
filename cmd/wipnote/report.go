@@ -13,6 +13,7 @@ import (
 
 func reportCmd() *cobra.Command {
 	var summaryOnly bool
+	var toolArgs string
 
 	cmd := &cobra.Command{
 		Use:   "report [session-id]",
@@ -24,9 +25,17 @@ If no session-id is given, the most recent session is used.
 Example:
   wipnote report
   wipnote report sess-abc123
-  wipnote report --summary`,
+  wipnote report --summary
+
+If the argument names a read-only MCP tool (overview, sessions, session_trace,
+work_items, cost), the tool runs in-process and its structured JSON is printed
+to stdout instead (see mcp_report.go):
+  wipnote report cost --args '{"group_by":"model"}'`,
 		Args: cobra.MaximumNArgs(1),
-		RunE: func(_ *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(args) == 1 && isMCPToolName(args[0]) {
+				return runReportTool(cmd.OutOrStdout(), args[0], toolArgs)
+			}
 			sessionID := ""
 			if len(args) > 0 {
 				sessionID = args[0]
@@ -35,6 +44,7 @@ Example:
 		},
 	}
 	cmd.Flags().BoolVar(&summaryOnly, "summary", false, "Print only summary stats (no timeline)")
+	cmd.Flags().StringVar(&toolArgs, "args", "", "JSON object of arguments when running an MCP tool")
 	return cmd
 }
 
