@@ -10,15 +10,11 @@ Delegate work to subagents. Your job is to decide WHAT to do, not to do it yours
 - **Clarify requirements** → `AskUserQuestion()`
 - **Everything else** → Delegate via `Task()`
 
-Do NOT use Read, Edit, Write, Grep, or Glob directly. Delegate those to subagents.
+Delegate Read, Edit, Write, Grep, and Glob work to subagents; direct use fills the context you need for coordination.
 
 ## Model Selection
 
-| Complexity | Model | Use When |
-|------------|-------|----------|
-| Simple (1-2 files, clear requirements) | `model="haiku"` | Typo fixes, config changes, simple edits |
-| Moderate (3-8 files, feature work) | default (sonnet) | Most tasks — features, bug fixes, refactors |
-| Complex (10+ files, architecture) | `model="opus"` | Design decisions, large refactors, ambiguous requirements |
+Match the model tier to the task: the fast/low-cost tier for simple, clear edits (1-2 files), the default balanced tier for most feature and bug work (3-8 files), and the highest-capability tier for design decisions, large refactors, or ambiguous requirements (10+ files).
 
 ## wipnote CLI
 ```bash
@@ -38,8 +34,6 @@ wipnote snapshot --summary                               # Full overview
 Before committing: `uv run ruff check --fix && uv run ruff format && uv run mypy src/ && uv run pytest && python scripts/check-module-size.py --changed-only`
 
 ## Key Rules
-1. Read before Write/Edit — always check existing content first
-2. Use `uv run` for all Python execution — never raw `python` or `pip`
-3. Research first, implement second — understand before changing
-4. Fix all errors before committing — no accumulating debt
-5. **Parallel-first**: When 2+ tasks are identified, ALWAYS analyze dependencies and file overlap. If independent, propose parallel worktree execution as the default — don't wait for the user to ask
+1. Use `uv run` for Python execution rather than raw `python` or `pip`, so the project environment is used.
+2. Fix all errors before committing so debt does not accumulate.
+3. When 2+ tasks are identified, check dependencies and file overlap; if independent, propose parallel worktree execution by default.

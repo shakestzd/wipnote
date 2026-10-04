@@ -490,3 +490,720 @@ wipnote feature complete <feat-id>
 - Cognitive clarity (strategic focus)
 
 **When in doubt, DELEGATE.**
+
+
+---
+
+## Moved from SKILL.md (patterns, examples, and long-form procedures)
+
+The core skill keeps the decision rules; the detailed examples live below.
+
+## Spawner details (external CLIs)
+
+External CLIs are optional sidecars; fall back to the in-harness agent when one is missing or fails. For nested `codex exec`, choose a small/fast model with `-m <model>` (check `codex --help` for current names; the default flagship model is slower and costlier than most delegated tasks need).
+
+### Antigravity CLI — agy (exploration)
+```bash
+agy -p "Analyze codebase for:
+- All authentication patterns
+- OAuth implementations
+- Session management
+- JWT usage" --dangerously-skip-permissions 2>&1
+```
+
+**If agy fails/unavailable → fallback to patch-coder**
+
+**Best for:**
+- File searching 
+- Pattern analysis 
+- Documentation research 
+- Understanding unfamiliar systems 
+
+### Codex CLI (code)
+```bash
+codex exec "Implement OAuth authentication:
+- Add JWT token generation
+- Include error handling
+- Write unit tests" --full-auto --json -m <fast-model> -C . 2>&1
+```
+
+**In Codex, prefer native `wipnote-feature-coder` / `wipnote-patch-coder` / `wipnote-test-runner` first. If native subagents are unavailable or fail → use `codex exec`, then fallback to feature-coder.**
+
+**Best for:**
+- Code generation
+- Bug fixes
+- Test writing
+- Refactoring
+- Sandboxed execution
+
+### Copilot CLI (git)
+```bash
+copilot -p "Commit changes:
+- Message: 'feat: add OAuth authentication'
+- Files: src/auth/*.py, tests/test_auth.py
+- Do NOT push" --allow-all-tools --no-color --add-dir . 2>&1
+```
+
+**If copilot fails/unavailable → fallback to patch-coder**
+
+**Best for:**
+- Git commits 
+- PR creation
+- Branch management
+- GitHub integration
+- Resolving conflicts
+
+### Task() with feature-coder/architect-coder (Strategic)
+```python
+Task(
+    prompt="Design authentication architecture...",
+    subagent_type="feature-coder"  # or "architect-coder" for deep reasoning
+)
+```
+
+**feature-coder (Mid-tier):**
+- Coordinate complex workflows
+- Multi-agent orchestration
+- Fallback when spawners fail
+
+**architect-coder (Expensive):**
+- Deep reasoning
+- Architecture decisions
+- Strategic planning
+- When quality matters more than cost
+
+
+---
+
+## Delegation Patterns & Examples
+
+<details>
+<summary><strong>Basic Delegation Pattern</strong></summary>
+
+**Simple exploration (try CLI first):**
+```bash
+agy -p "Search codebase for authentication patterns and summarize findings" \
+  --dangerously-skip-permissions 2>&1
+# fallback → Agent(subagent_type="wipnote:patch-coder", ...)
+```
+
+**Code implementation (try CLI first):**
+```bash
+codex exec "Implement OAuth authentication endpoint with JWT support" \
+  --full-auto --json -m <fast-model> -C . 2>&1
+# fallback → Agent(subagent_type="wipnote:feature-coder", ...)
+```
+
+**Code implementation (Codex-native preferred when available):**
+```text
+Spawn the native `wipnote-feature-coder` subagent for implementation work.
+Use nested `codex exec` only when the native Codex subagent surface is unavailable.
+```
+
+**Git operations (try CLI first):**
+```bash
+copilot -p "Commit changes with message: 'feat: add OAuth authentication'. Do NOT push." \
+  --allow-all-tools --no-color --add-dir . 2>&1
+# fallback → Agent(subagent_type="wipnote:patch-coder", ...)
+```
+
+</details>
+
+<details>
+<summary><strong>Git/Code Operations (Bash-first, patch-coder fallback)</strong></summary>
+
+**Try the Copilot CLI directly via Bash first, then delegate to patch-coder if unavailable.**
+
+```bash
+# Priority 1: Bash-copilot (preferred)
+copilot -p "Stage files: <list>. Commit with message: '<message>'. Do NOT push." \
+  --allow-all-tools --no-color --add-dir . 2>&1
+```
+
+```python
+# Priority 2: patch-coder fallback (if copilot fails or not installed)
+Agent(
+    subagent_type="wipnote:patch-coder",
+    description="Commit and push changes",
+    prompt="Stage files: <list>. Commit with message: 'feat: add X'. Do NOT push.",
+)
+```
+
+**Pattern:** orchestrator tries the CLI directly, falls back to a coder agent.
+
+</details>
+
+<details>
+<summary><strong>Code Generation (Bash-first, feature-coder fallback)</strong></summary>
+
+**For implementation, refactoring, and structured output tasks:**
+
+```bash
+# Priority 1 outside Codex-native sessions: Bash-codex
+codex exec "TASK_DESCRIPTION" --full-auto --json -m <fast-model> -C . 2>&1
+```
+
+```python
+# Priority 1 in Codex-native sessions, or Priority 2 elsewhere
+Agent(
+    subagent_type="wipnote:feature-coder",
+    description="Implement feature X",
+    prompt="Add OAuth authentication to the login endpoint.",
+)
+```
+
+**Pattern:** in Codex native multi-agent sessions, use `wipnote-feature-coder` first; otherwise try the CLI directly, then fall back to a coder agent.
+Pass a small/fast model via `-m` for nested `codex exec`.
+
+</details>
+
+<details>
+<summary><strong>Research & Analysis (Bash-first, patch-coder fallback)</strong></summary>
+
+**For codebase exploration, documentation research, and large-context analysis:**
+
+```bash
+# Priority 1: Bash-agy (preferred )
+agy -p "TASK_DESCRIPTION" --dangerously-skip-permissions 2>&1
+```
+
+```python
+# Priority 2: patch-coder fallback (if agy fails or not installed)
+Agent(
+    subagent_type="wipnote:patch-coder",
+    description="Research auth patterns",
+    prompt="Analyze all authentication patterns in this codebase. Find security gaps.",
+)
+```
+
+**Pattern:** orchestrator tries the CLI directly, falls back to a coder agent.
+
+</details>
+
+<details>
+<summary><strong>Parallel Delegation (Multiple Independent Tasks)</strong></summary>
+
+**Analyze parallelizability when 2+ tasks are identified.**
+
+Before presenting recommendations or starting multi-task work, ALWAYS:
+1. Check dependency graph — do any tasks depend on outputs of others?
+2. Check file overlap — do tasks touch the same files/modules?
+3. If independent → propose parallel worktree execution as the DEFAULT
+4. If dependent → identify the critical path and parallelize what you can
+
+**Decision matrix:**
+
+| Dependency? | File Overlap? | Action |
+|-------------|---------------|--------|
+| No | No | Parallel worktrees (DEFAULT) |
+| No | Yes | Sequential (same files = merge conflicts) |
+| Yes | No | Pipeline (parallel where deps allow) |
+| Yes | Yes | Sequential |
+
+**Pattern: Spawn all at once in isolated worktrees**
+
+```python
+# Launch parallel agents in worktrees — one per feature
+Agent(
+    subagent_type="wipnote:feature-coder",
+    description="Feature A",
+    prompt="Implement feature A...",
+    isolation="worktree",
+    run_in_background=True,
+)
+
+Agent(
+    subagent_type="wipnote:feature-coder",
+    description="Feature B",
+    prompt="Implement feature B...",
+    isolation="worktree",
+    run_in_background=True,
+)
+
+Agent(
+    subagent_type="wipnote:patch-coder",
+    description="Feature C (simple)",
+    prompt="Implement feature C...",
+    isolation="worktree",
+    run_in_background=True,
+)
+```
+
+**Benefits:**
+- 3 tasks in parallel: time = max(T1, T2, T3) instead of T1+T2+T3
+- Cost optimization: Uses cheapest model for each task
+- Worktree isolation: No merge conflicts during execution
+- Independent results: Each task tracked separately
+
+**After completion:** Merge worktree branches to main, run quality gates, clean up.
+
+</details>
+
+<details>
+<summary><strong>Sequential Delegation with Dependencies</strong></summary>
+
+**Pattern: Chain dependent tasks in sequence**
+
+```python
+# 1. Research existing patterns (free agy research sidecar)
+Bash('agy -p "Find all OAuth implementations in codebase..." --dangerously-skip-permissions 2>&1')
+# fallback → Agent(subagent_type="wipnote:patch-coder", ...)
+
+# 2. Wait for research, then implement
+# (In next message after reading result)
+research_findings = "..."  # Read from previous task result
+
+Task(
+    subagent_type="codex",
+    description="Implement OAuth based on research",
+    prompt=f"""
+    Implement OAuth using discovered patterns:
+    {research_findings}
+    """
+)
+
+# 3. Wait for implementation, then commit
+Task(
+    subagent_type="copilot",
+    description="Commit implementation",
+    prompt="Commit OAuth implementation..."
+)
+```
+
+**When to use:** When later tasks depend on earlier results
+
+</details>
+
+<details>
+<summary><strong>wipnote Result Retrieval</strong></summary>
+
+**Subagents report findings automatically:**
+
+When a Task() completes, findings are available via CLI:
+```bash
+# Check recent spikes
+wipnote spike list
+
+# View specific spike
+wipnote spike show <id>
+```
+
+**Pattern: Read findings after Task completes**
+
+```bash
+# 1. Delegate exploration (try the agy CLI first)
+agy -p "Find all authentication patterns..." --dangerously-skip-permissions 2>&1
+# fallback → Agent(subagent_type="wipnote:patch-coder", ...)
+```
+
+```bash
+# 2. The subagent creates a spike with findings
+# Read findings via: wipnote spike list (then spike show <id>)
+
+# 3. Use findings in next delegation
+# In Codex native sessions: spawn `wipnote-feature-coder`
+# Otherwise: try codex CLI first, then fallback → Agent(subagent_type="wipnote:feature-coder", ...)
+```
+
+</details>
+
+<details>
+<summary><strong>Debugging Delegation Order (Third-Party Libraries)</strong></summary>
+
+## Debugging Delegation Order
+
+When debugging third-party library issues, enforce this order:
+
+1. **Reproduce the failure** — run Bash commands to confirm the error message
+2. **Delegate doc search to researcher** — WebSearch for official docs (via agy or the researcher agent)
+3. **Delegate GitHub issues search to researcher** — check for known issues or recent changes
+4. **Only THEN delegate source code reading** — last resort if docs and issues didn't resolve it
+
+Do NOT delegate source code reading as the first debugging step.
+
+**Pattern:**
+```bash
+# Step 1: Reproduce (direct Bash)
+Bash("run command that triggers the error")
+
+# Step 2 & 3: Delegate research (try the agy CLI first )
+agy -p "Search official docs and GitHub issues for: <library> <error message>" \
+  --dangerously-skip-permissions 2>&1
+# fallback → researcher agent with WebSearch
+```
+
+</details>
+
+<details>
+<summary><strong>Error Handling & Retries</strong></summary>
+
+**Let subagents handle retries:**
+
+```python
+# WRONG - Don't retry directly as orchestrator
+bash_result = Bash(command="git commit -m 'feat: new'")
+if failed:
+    # Retry directly (context pollution)
+    Bash(command="git pull && git commit")  # More context used
+
+# CORRECT - Subagent handles retries
+Task(
+    subagent_type="copilot",
+    description="Commit changes with retry",
+    prompt="""
+    Commit changes:
+    Message: "feat: new feature"
+
+    If commit fails:
+    1. Pull latest changes
+    2. Resolve conflicts if any
+    3. Retry commit
+    4. Handle pre-commit hooks
+
+    Report final status: success or failure
+    """
+)
+```
+
+**Benefits:**
+- Subagent context handles retries (not your context)
+- Cleaner error reporting
+- Automatic recovery attempts
+- You get clean success/failure
+
+</details>
+
+---
+
+## Subagent Budget-Pause Handling
+
+<details>
+<summary><strong>Pattern A: Auto-Resume Budget-Paused Subagents</strong></summary>
+
+In some harness environments (notably VS Code devcontainer / agent-teams runtime), a delegated subagent may pause at a low tool budget and return an INTERMEDIATE, non-final message with NO completion. This is harness/runtime behavior, not a task failure. The message may be mid-sentence, lack a final report, or trail with "let me now…" — clear signs the work is not actually finished.
+
+**Detection & Recovery:**
+1. **Detect non-final return:** Message ends mid-step, no completion summary, no final SHA or deliverable list, trailing incomplete sentence
+2. **DO NOT treat as done:** This is NOT a task failure; it's a pause condition
+3. **DO NOT re-dispatch a fresh agent:** Re-dispatch loses all prior context and forces the agent to restart from scratch
+4. **MUST resume the SAME agent via your harness's agent-resume mechanism** with a restated, explicit finish-line. Do NOT re-dispatch (that loses context). The exact primitive depends on your harness:
+   
+   **Claude Code:** Use `SendMessage` to send a continuation message to the paused agent by its `agentId` (available in the original task result):
+   ```
+   SendMessage({ to: <agentId> }, "Continue and finish the work. You paused mid-task. Complete the remaining steps: <restate exact deliverables>. Report final status with commit SHA or summary.")
+   ```
+   
+   **Codex CLI:** Use Codex's subagent continuation mechanism (check your Codex version's documentation for re-engaging the same spawned agent instance to continue work without re-dispatch).
+   
+   **Gemini CLI:** Use Gemini's agent-messaging API to continue the paused agent (refer to your Gemini CLI docs for message-passing or agent-resume mechanisms).
+
+5. **Expect multiple resume cycles:** May require 2-3 additional messages/resumes before a genuine final report is returned
+
+**Why this matters:**
+- Harness tool budgets are per-session — temporary, not permanent
+- Resuming the same agent keeps context and avoids restarting
+- Multiple resumes are normal and expected in this condition
+
+**Pattern (harness-agnostic pseudocode):**
+```
+Task(subagent_type="...", prompt="...")
+  → returns intermediate result, no completion
+  
+→ Resume(same_agent, "Continue and finish: <deliverables>")
+  → returns partial progress
+  
+→ Resume(same_agent, "Still not done. Complete: <deliverables>. Report final SHA/summary.")
+  → finally returns complete result
+```
+
+</details>
+
+<details>
+<summary><strong>Pattern B: Completion Gate for Subagent-Delegated Code</strong></summary>
+
+When code for a work item was written by a delegated subagent, completing the item (`wipnote <type> complete <id>`) is DOUBLE-GATED. The orchestrator MUST perform both:
+
+**(a) Run its OWN session-scoped quality gate:**
+```bash
+wipnote check --gate
+```
+A subagent's gate record does NOT count toward work-item completion — gate records are session-bound. You (the orchestrator in the main session) must run the gate yourself.
+
+**(b) Pass explicit completion rationale with committed SHAs:**
+```bash
+wipnote feature complete <feat-id> --accepted-advisory "Subagent implementation verified. Commits: <SHA1>, <SHA2> (cite real SHAs from git log, no host paths)."
+```
+Subagent commits are not auto-linked to the work item in the current schema. You must cite the real commit SHAs in the completion advisory so reviewers can trace implementation back to the work.
+
+**Why double-gating is necessary:**
+
+The underlying defect is tracked in **bug-3718b630**: the harness/hook system currently lacks:
+- Auto-linking of subagent commits to the work item they implement
+- Orchestrator-visible gate records (subagent gates are session-local, not visible to orchestrator)
+
+Both are durable fixes that belong in the binary and hooks, not in per-user guidance. Until those fixes land, completion is gated twice: (a) verifies code quality in orchestrator context, (b) documents the subagent's commits for future traceability.
+
+**Example:**
+```bash
+# Subagent finishes: feat-abc
+wipnote feature show feat-abc  # check commit history
+git log --oneline --grep="feat-abc" | head -3
+# Output: a1b2c3d feat: implementation detail
+#         x9y8z7w docs: added guide
+
+# Orchestrator runs quality gate
+wipnote check --gate
+# ✓ build, vet, tests pass
+
+# Orchestrator completes with rationale
+wipnote feature complete feat-abc --accepted-advisory \
+  "Subagent implementation validated. Commits: a1b2c3d, x9y8z7w. Quality gate passed."
+```
+
+</details>
+
+---
+
+## Known Issues / Environment
+
+**Devcontainer subagent budget-pause behavior:** In the VS Code devcontainer runtime, delegated subagents may pause at low tool budgets and return intermediate (non-final) results. This is harness/runtime behavior, not a code error. **See Pattern A (Auto-Resume) above** for detection and recovery steps.
+
+**Subagent commit linkage gap (bug-3718b630):** Subagent commits are not auto-linked to the work item they implement, and subagent quality-gate records are session-local and invisible to the orchestrator. This blocks full automation of completion gates. **See Pattern B (Completion Gate) above** for the interim workaround (double-gating + explicit SHAs in advisory). The durable fix belongs in the binary and hooks.
+
+**Codex exec sandbox failures in devcontainers (bwrap/bubblewrap):** In VS Code devcontainers and GitHub Codespaces, `codex exec` may fail immediately because the container lacks bubblewrap (bwrap) privileges — the nested session cannot run even `pwd`. Failure signatures: "bwrap", "bubblewrap", "Operation not permitted", "cannot create namespace". On ANY of these in `codex exec` output, treat the environment as permanently incompatible with nested Codex execution: skip `codex exec` for the rest of the session and delegate directly to in-harness agents (e.g. `wipnote:feature-coder`). Do not retry.
+
+**Full Go suite is silent ~6 min by design:** `go test ./...` buffers per-package output; `cmd/wipnote` (~320s from cold) prints first, so the run produces no output until it completes. Do not treat silence as a stall and do not kill the run — budget ≥10 min. Need progress? `go test -json ./...` or split: `go test ./internal/... && go test ./cmd/...`. (Cached runs finish in seconds.)
+
+---
+
+## Advanced: Post-Compact Persistence
+
+<details>
+<summary><strong>Orchestrator Activation After Compact</strong></summary>
+
+**How it works:**
+
+1. Before compact, SDK sets environment variable: `CLAUDE_ORCHESTRATOR_ACTIVE=true`
+2. SessionStart hook detects post-compact state
+3. Orchestrator Directives Skill auto-activates
+4. This skill section appears automatically (first time post-compact)
+
+**Why:** Preserve orchestration discipline after context compact
+
+**What you see:**
+- Skill automatically activates (no manual invocation needed)
+- Quick start section visible by default
+- Expand detailed sections as needed
+- Full guidance available without re-reading docs
+
+**To manually trigger:**
+```
+/orchestrator-directives
+```
+
+**Environment variable:**
+```bash
+CLAUDE_ORCHESTRATOR_ACTIVE=true  # Set by SDK
+```
+
+</details>
+
+<details>
+<summary><strong>Session Continuity Across Compacts</strong></summary>
+
+**Features preserved across compact:**
+- Work items in wipnote
+- Feature/spike tracking
+- Delegation patterns
+- Model selection guidance
+- This skill's guidance
+
+**What's lost:**
+- Your context (that's why compact happens)
+- Intermediate tool outputs
+- Local variables
+
+**Re-activation pattern:**
+
+```
+Before compact:
+- Work on features, track in wipnote
+- Delegate with clear prompts
+- Use SDK to save progress
+
+After compact:
+- Orchestrator Skill auto-activates
+- Re-read recent spikes for context
+- Continue delegations
+- Use Task IDs for parallel coordination
+```
+
+</details>
+
+---
+
+## Multi-agent Git Isolation
+
+When multiple agents or CLIs work on the same repository concurrently, follow this operating model to avoid Git index contention and interleaved commits:
+
+**Source edits** must happen in **per-agent worktrees or isolated clones**, never in the shared main checkout. Create an isolated worktree for each agent:
+```bash
+wipnote yolo --feature <feat-id>   # creates a managed linked worktree
+# or manually: git worktree add .claude/worktrees/<id> -b <branch>
+```
+
+**Metadata commits** (wipnote HTML artifacts, session data) are automatically serialized via the repo-scoped advisory lock (`runGitMutation` in feat-3f66d83f). This lock is safe from any worktree because it lives in the per-user cache directory, not in `.git/` or `.wipnote/`.
+
+**Git lock file cleanup** is opt-in only — never automatic. Use `wipnote launcher git-lock --fix` (requires an age threshold and a no-live-writer check) to clean stale lock files. Do NOT remove `.git/index.lock` manually unless you have confirmed no process is writing.
+
+**Diagnosis:** Run `wipnote launcher doctor` to check whether you're in the primary worktree (warns if so) or a properly isolated linked worktree.
+
+---
+
+---
+
+## Architectural Memory
+
+wipnote maintains a queryable store of architectural facts in `.wipnote/arch/` (cards with
+kinds: `hazard`, `invariant`, `subsystem-map`, `decision`). The facts are relevance-filtered
+into subagent prompts under a hard word budget. Using this store saves each coder agent
+the 15-25 min research tax of re-deriving the same facts from code.
+
+### Dispatch-Time Ritual (MANDATORY for every subagent dispatch)
+
+Before composing a subagent prompt, run:
+
+```bash
+wipnote arch resolve --for <work-item-id>
+# or for path-based queries:
+wipnote arch resolve --for "cmd/wipnote/arch_cmds.go,internal/arch/"
+```
+
+Paste the output verbatim into the subagent's prompt under a heading like
+`## Architectural context`. The output is already budget-capped (~450 words) and
+annotated with UNVERIFIED drift markers. The subagent must treat UNVERIFIED cards
+as advisory only and verify assumptions in code.
+
+If no cards match, the command prints "No arch cards matched." — skip the heading entirely.
+
+### Post-Completion Distillation (AFTER every work item completes)
+
+When a subagent returns or you complete a work item yourself, distill durable learnings
+into arch cards using one of two paths:
+
+**Path A — Completion-time (recommended, single step):**
+```bash
+wipnote feature complete <feat-id> --learning "Body text: max 120 words." \
+  --learning-kind invariant   # or: hazard, decision, subsystem-map
+```
+The `--learning` flag validates the body BEFORE marking done. A failed validation
+aborts the completion with a clear error — the learning is never silently lost.
+
+**Path B — Manual add (for learnings discovered outside completion):**
+```bash
+wipnote arch add <slug> --kind invariant --body "Body text." \
+  --paths "cmd/wipnote/**" --links <work-item-id> --created-by "agent"
+```
+
+### Post-Completion Nudge
+
+After a successful completion, wipnote prints drift-suspect arch cards whose globs
+overlap the item's touched paths. Act on the nudge:
+
+```bash
+wipnote arch verify <slug>      # re-pins verified_at to HEAD; card is trustworthy again
+wipnote arch edit <slug> --body "Updated body."   # update stale content then verify
+```
+
+### Trust Model
+
+- Active cards (no drift marker): authoritative — include in prompt without caveat.
+- UNVERIFIED cards (drift marker or empty verified_at): advisory — include but tell the
+  subagent to verify assumptions in code.
+- Retired/superseded cards: excluded from resolve output by default.
+
+---
+
+---
+
+## Agent Teams vs Subagents
+
+Claude Code v2.1.32+ ships an experimental **agent teams** feature where independent Claude instances self-claim work from a shared task list and message each other directly. This section helps you decide when to use teams vs traditional subagent delegation.
+
+### Decision Criteria
+
+| Dimension | Agent Teams | Subagents |
+|-----------|-------------|-----------|
+| **Ownership** | Parallel — each teammate claims tasks independently | Sequential — orchestrator dispatches one-at-a-time |
+| **Communication** | Teammates message each other directly | Subagents report back to orchestrator only |
+| **Best for** | Competing-hypothesis debugging, multi-lens review, feature ownership splitting | Sequential task chains, research→implement, isolated single-task work |
+| **wipnote tracking** | Automatic — TeammateIdle/TaskCreated/TaskCompleted hooks fire per teammate | Manual — orchestrator attributes via `wipnote feature start/complete` |
+| **Context isolation** | Each teammate has its own context window | Subagents inherit orchestrator's context model |
+| **Cost model** | N teammates × full session cost | Orchestrator + N smaller subagent calls |
+
+### Opt-In Requirements
+
+Agent teams require explicit opt-in:
+
+1. **Environment variable:** `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`
+2. **Minimum version:** Claude Code **2.1.32** or later
+3. The wipnote plugin works with or without teams enabled — hooks gracefully no-op when no team is active
+
+### How to Spawn a Team
+
+There is no SDK API for teams. Spawn via natural language:
+
+```
+Create an agent team to <describe the work and how to divide it>
+```
+
+Claude Code will create teammates, assign them work from a shared task list, and let them coordinate directly.
+
+### Caveats
+
+- **`skills:` and `mcpServers:` frontmatter are NOT applied to teammates** — do not rely on skill injection or MCP servers in agent definitions used as teammates. Teammates run with base capabilities only.
+- **No session resume** — teammates exit via the `exit-code-2` block-and-return contract; Claude Code's `/resume` is not currently wired through this path. If a teammate is blocked (e.g., by a quality gate), the teammate is stranded. Always provide manual recovery instructions in stderr.
+- **One team per session** — you cannot spawn multiple teams in a single Claude Code session.
+- **No nested teams** — a teammate cannot create its own team.
+- **`/wipnote:execute` is unchanged** — the parallel dispatch skill continues to use subagents with worktree isolation. This plan does not convert it to use teams.
+
+### Example Prompts
+
+**1. Multi-lens PR review:**
+```
+Create an agent team: one teammate reviews for correctness,
+one for performance, one for security. Each writes findings
+to a shared review.md under their section heading.
+```
+
+**2. Competing-hypothesis debugging:**
+```
+Create an agent team to debug the flaky test in internal/hooks/.
+One teammate investigates timing issues, one investigates state
+pollution, one investigates resource contention. First to find
+root cause messages the others.
+```
+
+**3. Feature ownership splitting:**
+```
+Create an agent team for track trk-XXXX. Each teammate claims
+one unblocked feature and works it to completion. Use
+wipnote feature start/complete for attribution.
+```
+
+### What wipnote Captures
+
+When agent teams are active, wipnote automatically records:
+
+- **Teammate identity** — every TeammateIdle, TaskCreated, and TaskCompleted event includes `teammate_name`
+- **Step attribution** — feature steps are prefixed with `[teammate-name]` so `wipnote snapshot` shows who did what
+- **Optional quality gate** — TaskCompleted can run build/test gates before allowing task completion. Opt-in via `.wipnote/config.json`:
+
+```json
+{
+  "block_task_completion_on_quality_failure": true
+}
+```
+
+> **WARNING:** Enabling the quality gate can strand teammates. Blocked teammates cannot be `/resume`d. When blocking occurs, stderr includes a manual recovery command: `wipnote feature complete <feature-id>`.
+

@@ -1,75 +1,34 @@
 # YOLO Autonomous Development Mode
 
-You are running in YOLO mode — autonomous development with enforced quality guardrails.
-Permission prompts are disabled. You must self-enforce quality at every step.
+You are running in YOLO mode: autonomous development with permission prompts disabled. Nobody reviews your work as you go, so you enforce the quality bar yourself. YOLO removes prompts, not standards: research before building, tests that pass, no broken commits, and a diff that contains only this feature.
 
-## Mandatory Workflow for Each Feature
+## Goal for each feature
 
-### Step 0 — Work Item (BEFORE anything else)
-0. **Discover first:** `wipnote relevant <topic-or-file>` — surface existing features so you don't create an orphan
-1. Create one of:
-   - `wipnote feature create "title" --plan <plan-id> --description "what you're building"` (preferred — links to plan + its track)
-   - `wipnote feature create "title" --standalone "<reason>"` (last resort: hotfix or pre-plan work)
-2. Start: Record the active feature for attribution
-3. Isolate: Use a git worktree for each feature — never edit main directly
+Ship one feature, bug fix, or spike that is attributed to a work item, researched, specified, tested, quality-gated, and committed in isolation.
 
-**CLI Quick Reference** (run `wipnote help --compact` to reprint):
-- Work items require type prefix: `wipnote feature show <id>`, `wipnote bug show <id>`, `wipnote track show <id>`
-- NEVER use `wipnote show <id>` — there is no top-level show command
-- Subcommands: `create|show|start|complete|list|add-step|update|move|delete`
-- Lookup: `find <query>` · `wip show` · `status` · `snapshot --summary`
-- Stale WIP: `wip reset --dead --dry-run` (preview), then `--force`; `--session <id>` / `--orphaned` also scope it — never bare `wip reset --force`, it clobbers live sessions
-- Edges: `link add <from> <to> --rel <type>`
-- Quality: `check` · `health` · `spec|tdd|review|compliance <id>`
-- Data: `reindex` · `ingest` · `batch apply`
-- NEVER use bare `cd` in Bash — always use subshells: `(cd dir && command)`
+## Constraints
 
-### Step 1 — Research
-Before writing any code, answer these questions with evidence:
+**Work item and isolation (before anything else).** Attribution is how the next session and the dashboard know what you did.
+- Run `wipnote relevant <topic-or-file>` first so you do not create an orphan duplicate of existing work.
+- Create the item, preferring a plan link: `wipnote feature create "title" --plan <plan-id> --description "what you're building"`. Use `--standalone "<reason>"` only for hotfix or pre-plan work. Then start it so work is attributed.
+- Use a git worktree per feature; never edit main directly.
 
-**Mandatory searches:**
-1. Grep the codebase for similar functionality: does this already exist?
-   `grep -r "keyword" cmd/ internal/` or use the Grep tool
-2. Check the project manifest (`go.mod`, `package.json`, `pyproject.toml`) — is there an available dependency that does this?
-3. Search for established libraries (pkg.go.dev, npmjs.com, pypi.org) that solve the problem
-4. Check shared utility directories (`internal/`, `lib/`, `src/utils/`) — does the project already have a utility for this?
+**CLI notes** (`wipnote help --compact` reprints the reference):
+- Work items need a type prefix: `wipnote feature show <id>`, `wipnote bug show <id>`, `wipnote track show <id>`. There is no top-level `wipnote show`.
+- Stale WIP: `wip reset --dead --dry-run` to preview, then `--force`; `--session <id>` and `--orphaned` also scope it. A bare `wip reset --force` clobbers live sessions.
+- Avoid bare `cd` in Bash; use a subshell `(cd dir && command)` so the working directory does not drift.
 
-**Document findings:**
-- Record: what libraries exist, what patterns are already used, what the decision was
-- If building from scratch: explicitly document WHY (no library exists / too heavy / already have stdlib)
+**Research before code**, with evidence, so you do not rebuild what exists:
+- Search the codebase and shared utility directories (`internal/`, `lib/`, `src/utils/`) for similar functionality.
+- Check the manifest (`go.mod`, `package.json`, `pyproject.toml`) and established libraries (pkg.go.dev, npmjs.com, pypi.org) for something that already does the job.
+- Record what you found and the decision; if building from scratch, say why (no library exists, too heavy, stdlib already covers it).
+- Skip this only for trivial changes (<10 lines, one file), bugs with an already-identified root cause, and documentation-only changes.
 
-**Skip research only for:**
-- Trivial changes (<10 lines, single file)
-- Bug fixes where the root cause is already identified
-- Documentation-only changes
+**Spec and tests first.** Write acceptance criteria (problem, measurable criteria, interface sketch), then failing tests (unit tests for core logic plus a happy-path integration test) that compile and fail before you implement.
 
-**Examples of research-first:**
-- Before adding an HTTP client: check if `net/http` or `httpx` is already imported
-- Before writing a parser: search the codebase for existing parsers
-- Before adding a dependency: verify the stdlib does not already have an equivalent
+**Implementation standards.** Functions under 50 lines, modules under 500, no duplicated helpers (reuse or extract), simplest solution that passes the tests, only what is needed now, one purpose per module. No TODO comments or debug prints in committed code, and prefer O(n) algorithms, documenting any unavoidable higher complexity.
 
-### Step 2 — Spec
-Write acceptance criteria before coding:
-- What problem does this solve?
-- Measurable acceptance criteria
-- API surface / interface sketch
-
-### Step 3 — Tests First (TDD)
-Write failing tests before implementation:
-- Unit tests for core logic
-- Integration test for happy path
-- Tests must compile and fail before you write implementation
-
-### Step 4 — Implement
-- Functions: <50 lines | Modules: <500 lines
-- DRY: search for existing utilities before creating new ones
-- KISS: simplest solution that passes tests
-- YAGNI: only what is needed now
-- Separation of concerns: one purpose per module
-
-### Step 5 — Quality Gate (MANDATORY before any commit)
-
-Detect the project type from manifest files in the repository root:
+**Quality gate before any commit.** Detect the project from its manifest and do not commit with failures:
 
 | File | Commands |
 |------|----------|
@@ -78,76 +37,19 @@ Detect the project type from manifest files in the repository root:
 | `pyproject.toml` / `requirements.txt` | `uv run ruff check . && uv run pytest` |
 | `Cargo.toml` | `cargo build && cargo clippy && cargo test` |
 
-Do NOT commit with failures.
+**UI validation when you change rendered output** (`.html`, `.css`, `.js`, `.tsx`, `.vue`, `.svelte`, templates, dashboard files; skip for backend, docs, and test-only changes). Tests do not show what a user sees, so view it: start the app if needed (`wipnote serve`), capture a screenshot with an available tool (`mcp__claude-in-chrome__take_screenshot` or `mcp__plugin_playwright_playwright__browser_take_screenshot`), and check alignment and clipping, readable text and contrast, 1280px and 768px widths, correct (non-placeholder) data, and interactive styling. With no screenshot tool, ask the user to verify before committing.
 
-### Step 6 — UI Validation (if UI changes)
+**Diff review before committing.** Run `git diff --stat`; every change must belong to this feature. Stage with `git add -p` rather than `git add -A` so stray files do not slip in. Then commit with a descriptive message and mark the work item complete.
 
-**When to trigger:** Changed any `.html`, `.css`, `.js`, `.tsx`, `.vue`, `.svelte`, template, or dashboard file — anything that renders visual output.
+## Step tracking
 
-**Skip when:** Backend-only changes (Go hooks, CLI commands), documentation changes, or test-only changes.
+The wipnote step list is the status board: there is no human ticking boxes, and after a crash the next session resumes from the first incomplete step.
+- After creating the work item, call `TaskCreate` once per planned step. Subjects normally match the phases: Research, Spec, Tests First, Implement, Quality Gate, UI Validation, Diff Review, Commit and Complete (finer-grained is fine).
+- Call `TaskUpdate(taskId, status="completed")` as each step finishes; each completion fires the `TaskCompleted` hook, which increments the feature's step counter.
+- Only you have these tools. Subagents do not, so call `TaskUpdate` yourself after a dispatched agent returns.
 
-**Workflow:**
-1. Start the dev server if needed: `wipnote serve` (or `open index.html` for static files)
-2. Navigate to the affected page
-3. Take a screenshot using available MCP tools:
-   - Chrome DevTools: `mcp__claude-in-chrome__take_screenshot`
-   - Playwright: `mcp__plugin_playwright_playwright__browser_take_screenshot`
-4. Review the screenshot against the checklist below
+## Budget limits
 
-**Validation checklist:**
-- Layout: elements properly aligned, no overlapping or clipping
-- Text: readable font sizes, sufficient contrast
-- Responsive: check at 1280px width and 768px width
-- Data: correct values displayed, no placeholder or stale content
-- Interactive: buttons and links look clickable and correctly styled
-
-**If no MCP tools available:**
-- Open the file directly: `open index.html`
-- Ask the user to verify visual correctness before committing
-
-### Step 7 — Diff Review
-Run `git diff --stat` before committing. Every change must belong to this feature.
-Use `git add -p` — never `git add -A`.
-
-### Step 8 — Commit and Complete
-Commit with descriptive message. Mark feature done in wipnote.
-
-## Step Tracking via Task Tool (MANDATORY in YOLO)
-
-In autonomous mode there's no human ticking checkboxes — the wipnote step list is your status board. Use `TaskCreate`/`TaskUpdate` to keep it live.
-
-**At feature start (after Step 0):** call `TaskCreate` once per planned sub-step you intend to perform. Subjects should match the 8 workflow phases (Research, Spec, Tests First, Implement, Quality Gate, UI Validation, Diff Review, Commit and Complete) — or finer-grained if the work decomposes naturally.
-
-**As each step finishes:** call `TaskUpdate(taskId, status="completed")`. Each completion fires the wipnote `TaskCompleted` hook, which increments the active feature's step counter. After Step 8 the feature shows `Steps: 8/8 complete` automatically.
-
-**Why this matters in YOLO:** if you crash, the next session reads the step list and resumes from the first incomplete task. Skipping TaskCreate means the next session has no breadcrumb trail.
-
-**Subagents do NOT have these tools** — only you (the YOLO orchestrator) do. Do not delegate step tracking to the subagent you dispatched for Implement / Quality Gate / etc. — call TaskUpdate yourself after the subagent returns.
-
-## Budget Limits
-
-### Advisory (slow down and review)
-- 10 files changed per feature
-- 300 new lines per feature
-
-### Hard limit (STOP and split into sub-features)
-- 20 files changed per feature
-- 600 new lines per feature
-
-If approaching the advisory limit, review whether the scope is correct.
-If hitting the hard limit, STOP — create sub-features and split the work.
-
-## Code Health Rules
-- No function >50 lines
-- No module >500 lines
-- No duplication — extract shared helpers
-- No TODO comments in committed code
-- No debug print statements in commits
-- Prefer O(n) algorithms; document when higher complexity is unavoidable
-
-## What YOLO Mode Does NOT Mean
-- Does NOT mean skip research
-- Does NOT mean commit broken code
-- Does NOT mean ignore test failures
-- Does NOT mean bypass code review
-- It means: no permission prompts, but FULL quality enforcement
+Large diffs are hard to review and likely mean the scope is wrong.
+- Advisory at 10 files or 300 new lines per feature: pause and check the scope.
+- Hard stop at 20 files or 600 new lines: create sub-features and split the work.
