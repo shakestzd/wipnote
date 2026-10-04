@@ -25,6 +25,7 @@ type sigSpec struct {
 	cost                             *float64
 	success                          *bool
 	durationMs                       int64
+	model, agentType                 string
 	offset                           time.Duration
 }
 
@@ -48,6 +49,12 @@ func writeShard(t *testing.T, wipnoteDir, id string, sigs []sigSpec) {
 			"tool_name": s.tool, "tool_use_id": s.toolUseID,
 			"duration_ms": s.durationMs, "error_msg": secretPrompt,
 			"attrs": map[string]any{"prompt": secretPrompt, "tool_input": secretPrompt},
+		}
+		if s.model != "" {
+			line["model"] = s.model
+		}
+		if s.agentType != "" {
+			line["agent_type"] = s.agentType
 		}
 		if s.cost != nil {
 			line["cost_usd"] = *s.cost

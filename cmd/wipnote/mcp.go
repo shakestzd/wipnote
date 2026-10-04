@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"os/signal"
@@ -64,20 +63,8 @@ func newMCPServer(wipnoteDir string) *mcp.Server {
 		&mcp.Implementation{Name: mcpServerName, Version: mcpServerVersion},
 		&mcp.ServerOptions{Instructions: mcpInstructions},
 	)
-	registerOverviewTool(s, wipnoteDir)
+	for _, t := range mcpToolSpecs() {
+		t.register(s, wipnoteDir)
+	}
 	return s
-}
-
-func registerOverviewTool(s *mcp.Server, wipnoteDir string) {
-	mcp.AddTool(s, &mcp.Tool{
-		Name: "wipnote_overview",
-		Description: "One-call project dashboard: work-item counts by status/type, a bounded " +
-			"needs-attention list (blocked or stale work items, claim collisions, failed tool " +
-			"calls, permission waits, API errors) and cost per session from OpenTelemetry " +
-			"(single source of truth for cost). Returns ids, counts, durations and USD only.",
-		Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true, IdempotentHint: true},
-	}, func(_ context.Context, _ *mcp.CallToolRequest, in overviewInput) (*mcp.CallToolResult, overviewResult, error) {
-		res, err := buildOverview(wipnoteDir, in, mcpNow())
-		return nil, res, err
-	})
 }
