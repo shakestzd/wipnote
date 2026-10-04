@@ -280,7 +280,7 @@ func init() {
 // cross-project registry at ~/.local/share/wipnote/projects.json. Both
 // operations degrade gracefully — registration failures never block a CLI
 // command from running.
-func persistentPreRunE(cmd *cobra.Command, _ []string) error {
+func persistentPreRunE(cmd *cobra.Command, args []string) error {
 	// Skip commands that must work without .wipnote/.
 	switch cmd.Name() {
 	case "version", "help", "init", "build", "install-hooks", "setup", "setup-cli", "projects", "upgrade", "update":
@@ -290,6 +290,13 @@ func persistentPreRunE(cmd *cobra.Command, _ []string) error {
 	// (stdout is the JSON-RPC channel).
 	case "mcp":
 		return nil
+	// `wipnote report <tool>` (overview|sessions|session_trace|work_items|cost)
+	// is the read-only MCP tool snapshot: same rules as `mcp`, stdout must stay
+	// clean JSON. `report [session-id]` keeps its original behaviour.
+	case "report":
+		if len(args) > 0 && (isMCPToolName(args[0]) || args[0] == reportSnapshotArg) {
+			return nil
+		}
 	// Internal process commands: otel-collect and _serve-child are spawned as
 	// child processes by the parent supervisor. They must not open the SQLite DB
 	// in persistentPreRunE because:

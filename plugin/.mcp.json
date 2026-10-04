@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "wipnote": {
+      "command": "wipnote",
+      "args": [
+        "mcp"
+      ]
+    }
+  }
+}

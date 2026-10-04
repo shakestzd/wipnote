@@ -1,0 +1,700 @@
+<title>wipnote Overview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: attention list leads on the left, cost and work-item summaries stack on the right, sessions table runs full width below. Dark first, matching the wipnote dashboard identity. */
+:root {
+  --bg: #0f0f13; --card: #18181c; --raised: #222228; --line: #3a3a42;
+  --fg: #f0f0ed; --fg-dim: #d0d0cc; --muted: #9898a0;
+  --accent: #cdff00; --accent-ink: #0f0f13; --accent-soft: rgba(205,255,0,.10);
+  --crit: #ff6b6b; --crit-soft: rgba(255,107,107,.12);
+  --warn: #f5b13d; --warn-soft: rgba(245,177,61,.12);
+  --good: #4fd69c; --info: #7aa7ff;
+  --faint: #55555e;
+  --font-ui: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #f4f3ef; --card: #ffffff; --raised: #eeeee8; --line: #d4d4cc;
+    --fg: #1a1a1e; --fg-dim: #3a3a40; --muted: #6a6a72;
+    --accent: #4a6e00; --accent-ink: #ffffff; --accent-soft: rgba(74,110,0,.09);
+    --crit: #b4232c; --crit-soft: rgba(180,35,44,.09);
+    --warn: #8a5a00; --warn-soft: rgba(138,90,0,.10);
+    --good: #1c7a50; --info: #2f5fc4;
+    --faint: #b9b9b0;
+    color-scheme: light;
+  }
+}
+:root[data-theme="light"] {
+  --bg: #f4f3ef; --card: #ffffff; --raised: #eeeee8; --line: #d4d4cc;
+  --fg: #1a1a1e; --fg-dim: #3a3a40; --muted: #6a6a72;
+  --accent: #4a6e00; --accent-ink: #ffffff; --accent-soft: rgba(74,110,0,.09);
+  --crit: #b4232c; --crit-soft: rgba(180,35,44,.09);
+  --warn: #8a5a00; --warn-soft: rgba(138,90,0,.10);
+  --good: #1c7a50; --info: #2f5fc4;
+  --faint: #b9b9b0;
+  color-scheme: light;
+}
+body { background: var(--bg); color: var(--fg); font: 14px/1.5 var(--font-ui); padding-inline: 16px; padding-block: 20px 48px; }
+* { box-sizing: border-box; }
+main { max-width: 1080px; margin-inline: auto; display: flex; flex-direction: column; gap: 20px; }
+button { font: inherit; color: inherit; cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.mono { font-family: var(--font-mono); }
+.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+header { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; justify-content: space-between; }
+.brand { display: flex; align-items: center; gap: 10px; font-family: var(--font-mono); font-weight: 600; font-size: 16px; letter-spacing: -.01em; }
+.brand svg { width: 18px; height: 18px; color: var(--accent); }
+.brand span { color: var(--muted); font-weight: 400; }
+.controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.seg button { background: transparent; border: 0; padding: 5px 12px; font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); font-weight: 600; }
+.chip { display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--line); border-radius: 999px; padding: 4px 11px; font-family: var(--font-mono); font-size: 12px; color: var(--fg-dim); }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--faint); }
+.chip[data-state="live"] .dot { background: var(--good); }
+.chip[data-state="stale"] .dot, .chip[data-state="snapshot"] .dot { background: var(--warn); }
+.chip[data-state="offline"] .dot { background: var(--crit); }
+
+.layout { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 860px) { .layout { grid-template-columns: minmax(0, 1fr); } }
+.stack { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+section.panel { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 16px; min-width: 0; }
+.panel h2 { margin: 0 0 12px; font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.panel h2 small { font-weight: 400; letter-spacing: 0; text-transform: none; font-family: var(--font-mono); font-size: 11px; }
+
+.banner { border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; background: var(--card); display: flex; flex-direction: column; gap: 8px; }
+.banner[data-tone="warn"] { border-color: var(--warn); background: var(--warn-soft); }
+.banner[data-tone="crit"] { border-color: var(--crit); background: var(--crit-soft); }
+.banner h3 { margin: 0; font-size: 14px; font-weight: 600; }
+.banner p { margin: 0; color: var(--fg-dim); max-width: 68ch; }
+.codeline { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.codeline code { font-family: var(--font-mono); background: var(--raised); border: 1px solid var(--line); border-radius: 5px; padding: 3px 8px; font-size: 12.5px; overflow-wrap: anywhere; }
+.btn { background: var(--raised); border: 1px solid var(--line); border-radius: 6px; padding: 4px 10px; font-size: 12px; }
+.btn:hover { border-color: var(--accent); }
+
+.filters { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.filters button { border: 1px solid var(--line); background: transparent; border-radius: 999px; padding: 3px 10px; font-size: 12px; color: var(--fg-dim); }
+.filters button[aria-pressed="true"] { border-color: var(--accent); color: var(--fg); background: var(--accent-soft); }
+.filters .n { font-family: var(--font-mono); color: var(--muted); margin-left: 5px; }
+ul.attn { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+ul.attn li { display: grid; grid-template-columns: 4px minmax(0, 1fr) auto; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); align-items: start; }
+ul.attn li:first-child { border-top: 0; padding-top: 0; }
+.stripe { align-self: stretch; border-radius: 2px; background: var(--faint); }
+li[data-sev="high"] .stripe { background: var(--crit); }
+li[data-sev="medium"] .stripe { background: var(--warn); }
+li[data-sev="low"] .stripe { background: var(--info); }
+.attn .kind { font-weight: 600; }
+.attn .detail { color: var(--fg-dim); overflow-wrap: anywhere; }
+.attn .ref { font-family: var(--font-mono); font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
+.sev { font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); padding-top: 2px; }
+.more { margin-top: 10px; }
+.empty { color: var(--fg-dim); padding: 8px 0; }
+
+.big { font-family: var(--font-mono); font-size: 30px; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+.sub { color: var(--muted); font-size: 12px; }
+.kv { display: grid; grid-template-columns: auto auto; justify-content: space-between; gap: 4px 16px; margin-top: 12px; font-size: 13px; }
+.kv dt { color: var(--muted); } .kv dd { margin: 0; text-align: right; }
+.bar { display: flex; height: 10px; border-radius: 5px; overflow: hidden; background: var(--raised); margin: 12px 0 10px; }
+.bar i { display: block; height: 100%; }
+.legend { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 4px 14px; font-size: 12.5px; }
+.legend li { display: flex; align-items: center; gap: 7px; min-width: 0; }
+.legend .sw { width: 9px; height: 9px; border-radius: 2px; flex: none; }
+.legend .n { margin-left: auto; font-family: var(--font-mono); color: var(--muted); }
+
+.tablewrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 620px; }
+th { text-align: right; font-weight: 500; color: var(--muted); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; padding: 6px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th:first-child, td:first-child { text-align: left; }
+td { text-align: right; padding: 9px 10px; border-bottom: 1px solid var(--line); font-family: var(--font-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+tr:last-child td { border-bottom: 0; }
+td.bad { color: var(--crit); }
+td.warnc { color: var(--warn); }
+.sessid { display: flex; align-items: center; gap: 8px; }
+.copy { background: transparent; border: 1px solid var(--line); border-radius: 5px; padding: 1px 7px; font-size: 11px; color: var(--muted); font-family: var(--font-ui); }
+.copy:hover { border-color: var(--accent); color: var(--fg); }
+.foot { color: var(--muted); font-size: 12px; display: flex; flex-direction: column; gap: 4px; }
+.toast { position: fixed; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); left: 50%; transform: translateX(-50%); background: var(--fg); color: var(--bg); padding: 6px 14px; border-radius: 6px; font-size: 12px; }
+
+.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); }
+.tabs button { background: transparent; border: 0; border-bottom: 2px solid transparent; padding: 8px 14px; margin-bottom: -1px; font-size: 13px; color: var(--muted); }
+.tabs button[aria-selected="true"] { color: var(--fg); border-bottom-color: var(--accent); font-weight: 600; }
+.chartwrap { max-width: 540px; }
+.axis { fill: var(--muted); font: 11px var(--font-mono); }
+.axisline { stroke: var(--line); stroke-width: 1; }
+.barrect { fill: var(--accent); }
+td.left, th.left { text-align: left; }
+td.title { text-align: left; white-space: normal; font-family: var(--font-ui); min-width: 220px; overflow-wrap: anywhere; }
+.trace { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 14px; display: flex; flex-direction: column; gap: 12px; }
+.trace h3 { margin: 0; font-size: 13px; font-weight: 600; display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }
+.trace h3 .mono { color: var(--accent); }
+.minis { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 12.5px; color: var(--fg-dim); }
+.minis b { font-family: var(--font-mono); font-weight: 600; color: var(--fg); }
+table.compact { min-width: 0; } table.compact th, table.compact td { padding-inline: 6px; }
+td.title .ref { font-family: var(--font-mono); font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+.toggle { display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--fg-dim); margin-bottom: 12px; }
+.toggle input { accent-color: var(--accent); }
+</style>
+
+<main id="app" aria-live="polite"></main>
+
+<script>
+(function () {
+  "use strict";
+  // Local MCP servers reached through the Claude desktop app. The first name matches
+  // `claude mcp add wipnote -- wipnote mcp`; the second is how a plugin-provided server is named.
+  var SERVERS = ["host:wipnote", "host:plugin_wipnote_wipnote"];
+  var POLL_MS = 30000;
+  var WINDOWS = [[24, "24h"], [168, "7d"], [720, "30d"]];
+  var TABS = [["overview", "Overview"], ["cost", "Cost"], ["work", "Work"]];
+  var KEYS = { overview: ["overview"], cost: ["cost_day", "cost_model"], work: ["work"] };
+  var KIND = {
+    failed_tool_calls: "Failed tool calls", permission_waits: "Permission waits", api_errors: "API errors",
+    blocked_work_item: "Blocked work item", stale_in_progress: "Stale in progress", claim_collision: "Claim collision"
+  };
+  var STATUS_COLOR = {
+    "done": "var(--good)", "completed": "var(--good)", "in-progress": "var(--accent)", "active": "var(--accent)",
+    "finalized": "var(--info)", "todo": "var(--faint)", "draft": "var(--muted)", "blocked": "var(--crit)"
+  };
+  var AUTHZ = { needs_reauth: 1, not_in_manifest: 1, blocked_by_policy: 1, approval_required: 1, server_not_connected: 1 };
+  var NS = "http://www.w3.org/2000/svg";
+
+  var S = { tab: "overview", hours: 24, data: {}, errs: {}, at: null, snaps: {}, conn: "connecting", serverIdx: 0,
+            filter: "all", showAll: false, sort: "cost", stale: false, trace: null, hasDb: false, toast: "" };
+  var mcp = null, db = null, perms = null, unwatch = {}, unsnap = [], toastTimer = null;
+
+  try {
+    var h0 = parseInt(localStorage.getItem("wn.hours"), 10); if ([24, 168, 720].indexOf(h0) >= 0) S.hours = h0;
+    var t0 = localStorage.getItem("wn.tab"); if (KEYS[t0]) S.tab = t0;
+  } catch (e) {}
+
+  /* ---------- tiny DOM helpers (all text goes through textContent) ---------- */
+  function el(tag, cls, text, attrs) {
+    var n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text != null) n.textContent = text;
+    if (attrs) for (var k in attrs) n.setAttribute(k, attrs[k]);
+    return n;
+  }
+  function add(parent) { for (var i = 1; i < arguments.length; i++) if (arguments[i]) parent.appendChild(arguments[i]); return parent; }
+  function usd(v) { return "$" + (v || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+  function int(v) { return (v || 0).toLocaleString(); }
+  function dur(ms) {
+    if (!ms) return "0m";
+    if (ms < 1000) return ms + "ms";
+    if (ms < 60000) return (ms / 1000).toFixed(1) + "s";
+    var m = Math.round(ms / 60000);
+    if (m < 60) return m + "m";
+    return Math.floor(m / 60) + "h " + (m % 60) + "m";
+  }
+  function ago(ts) {
+    if (!ts) return "";
+    var s = Math.max(0, Math.round((Date.now() - ts) / 1000));
+    if (s < 60) return s + "s ago";
+    if (s < 3600) return Math.round(s / 60) + "m ago";
+    if (s < 86400) return Math.round(s / 3600) + "h ago";
+    return Math.round(s / 86400) + "d ago";
+  }
+  function copy(text) {
+    function done(ok) { S.toast = ok ? "Copied" : "Select and copy manually"; render(); clearTimeout(toastTimer); toastTimer = setTimeout(function () { S.toast = ""; render(); }, 1800); }
+    try { navigator.clipboard.writeText(text).then(function () { done(true); }, function () { done(false); }); } catch (e) { done(false); }
+  }
+
+  /* ---------- data ---------- */
+  function snapKey(k) { return k === "work" && S.stale ? "work_stale" : k; }
+  function dataFor(k) {
+    if (S.data[k]) return { data: S.data[k], source: "live" };
+    var sn = S.snaps[snapKey(k)];
+    if (sn) return { data: sn.payload, source: "snapshot", at: sn.at };
+    return null;
+  }
+  function tabErr() {
+    var ks = KEYS[S.tab];
+    for (var i = 0; i < ks.length; i++) if (S.errs[ks[i]]) return S.errs[ks[i]];
+    return null;
+  }
+  function tabHasLive() { return KEYS[S.tab].some(function (k) { return !!S.data[k]; }); }
+
+  function stopAll() { Object.keys(unwatch).forEach(function (k) { try { unwatch[k](); } catch (e) {} }); unwatch = {}; }
+  function watch(key, tool, input) {
+    unwatch[key] = mcp.watchTool(SERVERS[S.serverIdx], tool, input, function (ev) { onEvent(key, ev); }, { refetchInterval: POLL_MS });
+  }
+  function startTab() {
+    stopAll();
+    if (!mcp) return;
+    var h = S.hours;
+    if (S.tab === "overview") watch("overview", "wipnote_overview", { since_hours: h, max_attention: 50, max_sessions: 10 });
+    else if (S.tab === "cost") {
+      watch("cost_day", "wipnote_cost", { group_by: "day", since_hours: h, limit: 31 });
+      watch("cost_model", "wipnote_cost", { group_by: "model", since_hours: h, limit: 10 });
+    } else {
+      var inp = { limit: 25, since_hours: h }; if (S.stale) inp.stale_days = 30;
+      watch("work", "wipnote_work_items", inp);
+    }
+    if (S.conn !== "live") S.conn = "connecting";
+    render();
+  }
+
+  function onEvent(key, ev) {
+    if (ev.type === "data") {
+      var p = ev.result && ev.result.payload;
+      if (p && typeof p === "object" && p.schema_version) {
+        S.data[key] = p; delete S.errs[key]; S.conn = "live";
+        S.at = ev.result.cache ? ev.result.cache.storedAt : Date.now();
+      } else {
+        S.errs[key] = { code: "bad_payload", message: "wipnote answered with an unexpected shape." };
+      }
+    } else {
+      var e = ev.error || { code: "upstream_error", message: "Unknown error" };
+      if (e.code === "server_not_connected" && S.serverIdx < SERVERS.length - 1) { S.serverIdx++; startTab(); return; }
+      S.errs[key] = e;
+      if (AUTHZ[e.code]) { S.data = {}; S.conn = "offline"; }
+    }
+    render();
+  }
+
+  function snapKeys() {
+    return S.tab === "overview" ? ["overview"] : S.tab === "cost" ? ["cost_day", "cost_model"] : [S.stale ? "work_stale" : "work"];
+  }
+  function watchSnapshot() {
+    unsnap.forEach(function (u) { try { u(); } catch (e) {} });
+    unsnap = []; S.snaps = {};
+    if (!db) return;
+    snapKeys().forEach(function (k) {
+      try {
+        unsnap.push(db.doc("snapshots/" + k + "-" + S.hours + "h").onSnapshot(function (snap) {
+          var d = snap.exists ? snap.data() : null;
+          if (d && d.payload) S.snaps[k] = { payload: d.payload, at: d.generated_at }; else delete S.snaps[k];
+          render();
+        }, function () { delete S.snaps[k]; render(); }));
+      } catch (e) {}
+    });
+  }
+
+  function setHours(h) {
+    if (h === S.hours) return;
+    S.hours = h; S.data = {}; S.errs = {}; S.filter = "all"; S.showAll = false; S.trace = null;
+    try { localStorage.setItem("wn.hours", String(h)); } catch (e) {}
+    watchSnapshot();
+    if (mcp && S.conn !== "offline") startTab(); else render();
+  }
+  function setTab(t) {
+    if (t === S.tab) return;
+    S.tab = t; S.trace = null;
+    try { localStorage.setItem("wn.tab", t); } catch (e) {}
+    watchSnapshot();
+    if (mcp && S.conn !== "offline") startTab(); else render();
+  }
+
+  function openTrace(id) {
+    if (!mcp || S.conn !== "live") { copy("Use wipnote to trace session " + id + ": what was slow, what failed, and what did it cost?"); return; }
+    S.trace = { id: id, loading: true };
+    render();
+    var tp = document.querySelector(".trace"); if (tp && tp.scrollIntoView) tp.scrollIntoView({ block: "nearest" });
+    mcp.callTool(SERVERS[S.serverIdx], "wipnote_session_trace", { session_id: id, top_n: 8 }, { cache: { staleTime: 60000 } }).then(function (r) {
+      if (S.trace && S.trace.id === id) { S.trace = { id: id, data: r.payload }; render(); }
+    }, function (e) {
+      if (S.trace && S.trace.id === id) { S.trace = { id: id, err: e }; render(); }
+    });
+  }
+
+  async function boot() {
+    render();
+    try { perms = await claude.use("permissions"); } catch (e) { perms = null; }
+    try { db = await claude.use("db"); } catch (e) { db = null; }
+    S.hasDb = !!db;
+    watchSnapshot();
+    try { mcp = await claude.use("mcp"); } catch (e) { mcp = null; }
+    if (!mcp) { S.conn = "offline"; S.errs.overview = { code: "unavailable", message: "Connectors are not available in this view." }; render(); return; }
+    startTab();
+  }
+
+  /* ---------- rendering ---------- */
+  function chip() {
+    var d = dataFor(KEYS[S.tab][0]);
+    var label, state;
+    if (d && d.source === "snapshot") { state = "snapshot"; label = "Snapshot · " + (d.at ? ago(Date.parse(d.at)) : "saved"); }
+    else if (S.conn === "live") { state = "live"; label = "Live · " + ago(S.at); }
+    else if (S.conn === "connecting") { state = "connecting"; label = "Connecting to wipnote…"; }
+    else { state = "offline"; label = "Not connected"; }
+    var c = el("span", "chip", null, { "data-state": state, id: "conn" });
+    add(c, el("span", "dot"), el("span", null, label, { id: "age" }));
+    return c;
+  }
+
+  function header() {
+    var head = el("header");
+    var brand = el("div", "brand");
+    brand.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>';
+    add(brand, el("div", null, "wipnote"), el("span", null, "overview"));
+    var seg = el("div", "seg", null, { role: "group", "aria-label": "Time window" });
+    WINDOWS.forEach(function (w) {
+      var b = el("button", null, w[1], { type: "button", "aria-pressed": String(S.hours === w[0]) });
+      b.addEventListener("click", function () { setHours(w[0]); });
+      seg.appendChild(b);
+    });
+    add(head, brand, add(el("div", "controls"), seg, chip()));
+    return head;
+  }
+
+  function tabs() {
+    var t = el("div", "tabs", null, { role: "tablist" });
+    TABS.forEach(function (x) {
+      var b = el("button", null, x[1], { type: "button", role: "tab", "aria-selected": String(S.tab === x[0]) });
+      b.addEventListener("click", function () { setTab(x[0]); });
+      t.appendChild(b);
+    });
+    return t;
+  }
+
+  function refreshButton() {
+    var rb = el("button", "btn", "Copy refresh prompt", { type: "button", title: "Paste this to Claude in a session that has wipnote and this artifact" });
+    rb.addEventListener("click", function () { copy("Refresh the wipnote Overview artifact: run `wipnote report snapshot --dir /tmp/wipnote-snapshot`, then upload every document listed in batch.json to this artifact\u0027s snapshots collection with one ArtifactData batch call."); });
+    return rb;
+  }
+  function setupDetails() {
+    var det = el("details");
+    det.appendChild(el("summary", null, "Connect wipnote for live data"));
+    add(det, el("p", null, "Live data needs the Claude desktop app on the computer that has your wipnote project. Register the server once, then open this page in the app."));
+    var line = el("div", "codeline"); line.appendChild(el("code", null, "claude mcp add wipnote -- wipnote mcp"));
+    var cb = el("button", "btn", "Copy", { type: "button" });
+    cb.addEventListener("click", function () { copy("claude mcp add wipnote -- wipnote mcp"); });
+    line.appendChild(cb); det.appendChild(line);
+    return det;
+  }
+  function banner() {
+    var e = tabErr();
+    var d = dataFor(KEYS[S.tab][0]);
+    var showingSnap = !!(d && d.source === "snapshot");
+    if (!e && S.conn !== "offline") return null;
+    var code = e ? e.code : "server_not_connected";
+    var notLive = code === "server_not_connected" || code === "unavailable" || code === "capability_disabled" || code === "not_granted" || !e;
+    var b = el("div", "banner", null, { "data-tone": (tabHasLive() || showingSnap) ? "warn" : "crit" });
+    var title, body, extra = null;
+    var missingTool = (code === "tool_error" || code === "bad_request") && /unknown|not found|no such/i.test((e && e.message) || "");
+    if (missingTool) {
+      title = "This wipnote version does not have this view";
+      body = "Rebuild wipnote from main (the cost and work tools are newer than your install), then reload this page.";
+    } else if (notLive && showingSnap) {
+      title = "Showing a saved snapshot";
+      body = "This is wipnote as it was last saved here" + (d.at ? " (" + ago(Date.parse(d.at)) + ")" : "") + ". Ask Claude to refresh it, or connect wipnote for live data.";
+      extra = el("div", "codeline"); extra.appendChild(refreshButton());
+    } else if (notLive) {
+      title = "No data yet";
+      body = "Ask Claude to save a snapshot of your wipnote data into this page, or connect wipnote for live data.";
+      extra = el("div", "codeline"); extra.appendChild(refreshButton());
+    } else if (code === "not_in_manifest") {
+      title = "Access to wipnote was declined for this page";
+      body = "Allow the wipnote connector for this page to see live data.";
+      if (perms && perms.manage) {
+        extra = el("div", "codeline");
+        var pb = el("button", "btn", "Open permissions", { type: "button" });
+        pb.addEventListener("click", function () { perms.manage().catch(function () {}); });
+        extra.appendChild(pb);
+      }
+    } else if (code === "needs_reauth") {
+      title = "Reconnect wipnote"; body = "The connection lapsed. Reconnect it from the Claude app settings, then reload this page.";
+    } else if (code === "blocked_by_policy" || code === "approval_required") {
+      title = "Your organization blocks this connector"; body = "An admin policy prevents this page from calling wipnote.";
+    } else if (code === "tool_error") {
+      title = "wipnote reported an error"; body = (e && e.message) || "The tool failed.";
+    } else {
+      title = "Could not reach wipnote (" + code + ")"; body = "Showing the last data we have. This page retries every 30 seconds.";
+    }
+    add(b, el("h3", null, title), el("p", null, body), extra);
+    if (notLive) b.appendChild(setupDetails());
+    return b;
+  }
+
+  function panel(title, small) {
+    var p = el("section", "panel");
+    var h = el("h2", null, title);
+    if (small) h.appendChild(el("small", null, small));
+    p.appendChild(h);
+    return p;
+  }
+
+  function attention(d) {
+    var items = d.needs_attention || [];
+    var p = panel("Needs attention", d.attention_total != null ? d.attention_total + " found" + (d.attention_truncated ? ", showing " + items.length : "") : "");
+    if (!items.length) { p.appendChild(el("div", "empty", "Nothing needs attention in the last " + (d.window ? d.window.hours : S.hours) + " hours.")); return p; }
+    var counts = {}; items.forEach(function (i) { counts[i.kind] = (counts[i.kind] || 0) + 1; });
+    var f = el("div", "filters", null, { role: "group", "aria-label": "Filter by kind" });
+    function fb(key, label, n) {
+      var b = el("button", null, label, { type: "button", "aria-pressed": String(S.filter === key) });
+      b.appendChild(el("span", "n", String(n)));
+      b.addEventListener("click", function () { S.filter = key; S.showAll = false; render(); });
+      f.appendChild(b);
+    }
+    fb("all", "All", items.length);
+    Object.keys(counts).forEach(function (k) { fb(k, KIND[k] || k, counts[k]); });
+    p.appendChild(f);
+    var rows = items.filter(function (i) { return S.filter === "all" || i.kind === S.filter; });
+    var shown = S.showAll ? rows : rows.slice(0, 8);
+    var ul = el("ul", "attn");
+    shown.forEach(function (i) {
+      var li = el("li", null, null, { "data-sev": i.severity || "low" });
+      var mid = el("div");
+      add(mid, el("div", "kind", KIND[i.kind] || i.kind), el("div", "detail", i.detail || ""));
+      mid.appendChild(el("div", "ref", (i.title ? i.title + " · " : "") + (i.ref_type || "") + " " + (i.ref || "")));
+      add(li, el("span", "stripe"), mid, el("span", "sev", i.severity || ""));
+      ul.appendChild(li);
+    });
+    p.appendChild(ul);
+    if (rows.length > 8) {
+      var m = el("button", "btn more", S.showAll ? "Show fewer" : "Show all " + rows.length, { type: "button" });
+      m.addEventListener("click", function () { S.showAll = !S.showAll; render(); });
+      p.appendChild(m);
+    }
+    return p;
+  }
+
+  function costSummary(d) {
+    var c = d.cost || {}, t = d.telemetry || {};
+    var p = panel("Cost", "last " + (d.window ? d.window.hours : S.hours) + "h");
+    if (t.available === false) { p.appendChild(el("div", "empty", t.note || "No OTel telemetry found for this window.")); return p; }
+    p.appendChild(el("div", "big", usd(c.total_usd)));
+    p.appendChild(el("div", "sub", "from OTel API requests"));
+    var kv = el("dl", "kv");
+    kv.appendChild(el("dt", null, "Sessions")); kv.appendChild(el("dd", "num", int(c.sessions_total)));
+    kv.appendChild(el("dt", null, "Telemetry shards")); kv.appendChild(el("dd", "num", int(t.shards_scanned) + " / " + int(t.shards_in_window)));
+    if (c.unpriced_requests) { kv.appendChild(el("dt", null, "Unpriced requests")); kv.appendChild(el("dd", "num", int(c.unpriced_requests))); }
+    p.appendChild(kv);
+    return p;
+  }
+
+  function statusBars(w) {
+    var by = w.by_status || {};
+    var keys = Object.keys(by).sort(function (a, b) { return by[b] - by[a]; });
+    var wrap = el("div");
+    var bar = el("div", "bar", null, { role: "img", "aria-label": "Work items by status" });
+    keys.forEach(function (k) {
+      var seg = el("i"); seg.style.width = (w.total ? (by[k] / w.total * 100) : 0) + "%"; seg.style.background = STATUS_COLOR[k] || "var(--muted)";
+      seg.title = k + ": " + by[k]; bar.appendChild(seg);
+    });
+    wrap.appendChild(bar);
+    var lg = el("ul", "legend");
+    keys.forEach(function (k) {
+      var li = el("li"); var sw = el("span", "sw"); sw.style.background = STATUS_COLOR[k] || "var(--muted)";
+      add(li, sw, el("span", null, k), el("span", "n", int(by[k]))); lg.appendChild(li);
+    });
+    wrap.appendChild(lg);
+    return wrap;
+  }
+  function workSummary(d) {
+    var w = d.work_items || {};
+    var p = panel("Work items", int(w.total) + " total");
+    p.appendChild(statusBars(w));
+    return p;
+  }
+
+  function sessionsPanel(d) {
+    var c = d.cost || {}, rows = (c.top_sessions || []).slice();
+    var p = panel("Top sessions", (c.sessions_returned || rows.length) + " of " + (c.sessions_total || rows.length));
+    if (!rows.length) { p.appendChild(el("div", "empty", "No sessions with telemetry in this window.")); return p; }
+    var keyOf = { cost: function (r) { return r.cost_usd; }, failures: function (r) { return r.failed_tool_calls; }, waits: function (r) { return r.permission_wait_ms; } };
+    rows.sort(function (a, b) { return keyOf[S.sort](b) - keyOf[S.sort](a); });
+    var seg = el("div", "seg", null, { role: "group", "aria-label": "Sort sessions", style: "margin-bottom:12px" });
+    [["cost", "Cost"], ["failures", "Failures"], ["waits", "Permission wait"]].forEach(function (o) {
+      var b = el("button", null, o[1], { type: "button", "aria-pressed": String(S.sort === o[0]) });
+      b.addEventListener("click", function () { S.sort = o[0]; render(); });
+      seg.appendChild(b);
+    });
+    p.appendChild(seg);
+    var wrap = el("div", "tablewrap"), tb = el("table"), thead = el("thead"), hr = el("tr");
+    ["Session", "Cost", "Tool calls", "Failed", "Permission waits", "API errors"].forEach(function (t) { hr.appendChild(el("th", null, t)); });
+    thead.appendChild(hr); tb.appendChild(thead);
+    var body = el("tbody");
+    rows.forEach(function (r) {
+      var tr = el("tr"), first = el("td"), id = el("div", "sessid");
+      var tbtn = el("button", "copy", "Trace", { type: "button", title: "Show slowest tools, models and subagents for this session" });
+      tbtn.addEventListener("click", function () { openTrace(r.session_id); });
+      var cb = el("button", "copy", "Ask Claude", { type: "button", title: "Copy a prompt that asks Claude to trace this session" });
+      cb.addEventListener("click", function () { copy("Use wipnote to trace session " + r.session_id + ": what was slow, what failed, and what did it cost?"); });
+      add(id, el("span", null, r.session_id), tbtn, cb); first.appendChild(id); tr.appendChild(first);
+      tr.appendChild(el("td", null, usd(r.cost_usd)));
+      tr.appendChild(el("td", null, int(r.tool_calls)));
+      tr.appendChild(el("td", r.failed_tool_calls ? "bad" : "", int(r.failed_tool_calls) + (r.tool_calls ? " (" + Math.round(r.failed_tool_calls / r.tool_calls * 100) + "%)" : "")));
+      tr.appendChild(el("td", r.permission_waits ? "warnc" : "", int(r.permission_waits) + " · " + dur(r.permission_wait_ms)));
+      tr.appendChild(el("td", r.api_errors ? "bad" : "", int(r.api_errors)));
+      body.appendChild(tr);
+    });
+    tb.appendChild(body); wrap.appendChild(tb); p.appendChild(wrap);
+    if (S.trace) p.appendChild(tracePanel());
+    return p;
+  }
+
+  function tracePanel() {
+    var t = S.trace, box = el("div", "trace");
+    var h = el("h3"); var ttl = el("span"); add(ttl, document.createTextNode("Trace "), el("span", "mono", t.id)); h.appendChild(ttl);
+    var close = el("button", "copy", "Close", { type: "button" });
+    close.addEventListener("click", function () { S.trace = null; render(); });
+    h.appendChild(close); box.appendChild(h);
+    if (t.loading) { box.appendChild(el("div", "empty", "Reading the session's telemetry…")); return box; }
+    if (t.err) {
+      var missing = /unknown|not found|no such/i.test(t.err.message || "");
+      box.appendChild(el("div", "empty", missing ? "This wipnote version cannot trace sessions. Rebuild wipnote from main." : "Could not load the trace (" + t.err.code + "). " + (t.err.message || "")));
+      return box;
+    }
+    var d = t.data || {}, s = d.session || {};
+    var mi = el("div", "minis");
+    [["Cost", usd(s.cost_usd)], ["Tool calls", int(s.tool_calls)], ["Failed", int(s.failed_tool_calls)], ["Permission waits", int(s.permission_waits) + " · " + dur(s.permission_wait_ms)],
+     ["Compactions", int((d.compaction_times || []).length)], ["API errors", int(s.api_errors)]].forEach(function (kv) {
+      var x = el("span"); add(x, document.createTextNode(kv[0] + " "), el("b", null, kv[1])); mi.appendChild(x);
+    });
+    box.appendChild(mi);
+    var tools = d.slowest_tools || [];
+    if (tools.length) {
+      var wrap = el("div", "tablewrap"), tb = el("table"), th = el("thead"), hr = el("tr");
+      ["Slowest tools", "Calls", "Failed", "Median", "Max", "Total"].forEach(function (x) { hr.appendChild(el("th", null, x)); });
+      th.appendChild(hr); tb.appendChild(th);
+      var bd = el("tbody");
+      tools.forEach(function (x) {
+        var tr = el("tr");
+        add(tr, el("td", null, x.name), el("td", null, int(x.calls)), el("td", x.failures ? "bad" : "", int(x.failures)),
+          el("td", null, dur(x.p50_ms)), el("td", null, dur(x.max_ms)), el("td", null, dur(x.total_ms)));
+        bd.appendChild(tr);
+      });
+      tb.appendChild(bd); wrap.appendChild(tb); box.appendChild(wrap);
+    }
+    var models = d.cost_by_model || [];
+    if (models.length) {
+      var mm = el("div", "minis");
+      models.forEach(function (m) { var x = el("span"); add(x, document.createTextNode(m.model + " "), el("b", null, usd(m.total_usd))); mm.appendChild(x); });
+      box.appendChild(mm);
+    }
+    var subs = d.subagents || [];
+    if (subs.length) {
+      var sm = el("div", "minis");
+      subs.forEach(function (m) { var x = el("span"); add(x, document.createTextNode(m.agent_type + " × "), el("b", null, int(m.invocations))); sm.appendChild(x); });
+      box.appendChild(sm);
+    }
+    return box;
+  }
+
+  function footer(d, source) {
+    var f = el("div", "foot");
+    var gen = d.generated_at ? "Generated " + d.generated_at + (d.elapsed_ms != null ? " in " + d.elapsed_ms + " ms" : "") : "";
+    f.appendChild(el("div", null, (source === "snapshot" ? "Saved snapshot. " : "") + gen));
+    if (d.telemetry && d.telemetry.note) f.appendChild(el("div", null, d.telemetry.note));
+    if (d.notice) f.appendChild(el("div", null, d.notice));
+    return f;
+  }
+
+  function svgEl(tag, attrs, cls) {
+    var n = document.createElementNS(NS, tag);
+    if (cls) n.setAttribute("class", cls);
+    for (var k in attrs) n.setAttribute(k, attrs[k]);
+    return n;
+  }
+  function dayChart(buckets) {
+    var W = 420, H = 190, padX = 8, padT = 24, padB = 26;
+    var svg = svgEl("svg", { viewBox: "0 0 " + W + " " + H, role: "img", "aria-label": "Cost per day" });
+    svg.style.width = "100%"; svg.style.height = "auto"; svg.style.display = "block";
+    var max = 0; buckets.forEach(function (b) { if (b.total_usd > max) max = b.total_usd; });
+    var n = buckets.length, slot = (W - 2 * padX) / n, gap = Math.min(8, slot * 0.25);
+    svg.appendChild(svgEl("line", { x1: padX, x2: W - padX, y1: H - padB, y2: H - padB }, "axisline"));
+    var every = Math.max(1, Math.ceil(n / 8));
+    buckets.forEach(function (b, i) {
+      var h = max ? (b.total_usd / max) * (H - padT - padB) : 0;
+      var x = padX + i * slot + gap / 2, w = slot - gap, y = H - padB - h;
+      svg.appendChild(svgEl("rect", { x: x, y: y, width: Math.max(w, 1), height: Math.max(h, 1), rx: 2 }, "barrect"));
+      var cx = x + w / 2;
+      if (i % every === 0 || i === n - 1) {
+        var lb = svgEl("text", { x: cx, y: H - 9, "text-anchor": "middle" }, "axis"); lb.textContent = (b.key || "").slice(5); svg.appendChild(lb);
+      }
+      if (n <= 10 || b.total_usd === max) {
+        var vl = svgEl("text", { x: cx, y: Math.max(y - 5, 12), "text-anchor": "middle" }, "axis"); vl.textContent = usd(b.total_usd); svg.appendChild(vl);
+      }
+    });
+    return svg;
+  }
+  function costView() {
+    var dd = dataFor("cost_day"), dm = dataFor("cost_model"), day = dd && dd.data, model = dm && dm.data, out = [];
+    var p = panel("Cost per day", day ? usd(day.total_usd) + " in the last " + (day.window ? day.window.hours : S.hours) + "h" : "");
+    if (!day) p.appendChild(el("div", "empty", S.conn === "connecting" ? "Loading…" : "Needs a live connection to wipnote."));
+    else if (day.telemetry && day.telemetry.available === false) p.appendChild(el("div", "empty", day.telemetry.note || "No OTel telemetry found for this window."));
+    else if (!(day.buckets || []).length) p.appendChild(el("div", "empty", "No cost recorded in this window."));
+    else { var cw = el("div", "chartwrap"); cw.appendChild(dayChart(day.buckets)); p.appendChild(cw); if (day.unpriced_requests) p.appendChild(el("div", "sub", int(day.unpriced_requests) + " requests have no known price and are not counted.")); }
+    out.push(p);
+    var q = panel("By model", model ? int((model.buckets || []).length) + " models" : "");
+    if (model && (model.buckets || []).length) {
+      var wrap = el("div", "tablewrap"), tb = el("table"), th = el("thead"), hr = el("tr");
+      ["Model", "Cost", "Requests", "Tokens in", "Tokens out"].forEach(function (x) { hr.appendChild(el("th", null, x)); });
+      th.appendChild(hr); tb.appendChild(th);
+      var bd = el("tbody");
+      model.buckets.forEach(function (m) {
+        var tr = el("tr"); add(tr, el("td", null, m.key), el("td", null, usd(m.total_usd)), el("td", null, int(m.api_requests)), el("td", null, int(m.tokens_in)), el("td", null, int(m.tokens_out)));
+        bd.appendChild(tr);
+      });
+      tb.appendChild(bd); wrap.appendChild(tb); q.appendChild(wrap);
+    } else q.appendChild(el("div", "empty", model ? "No model usage in this window." : "Needs a live connection to wipnote."));
+    out.push(q);
+    return out;
+  }
+
+  function workView() {
+    var dw = dataFor("work"), d = dw && dw.data;
+    var p = panel("Work items by cost", d ? int(d.items_returned) + " of " + int(d.items_matched) + " matching" : "");
+    var lab = el("label", "toggle");
+    var cb = el("input", null, null, { type: "checkbox", id: "stale-only" });
+    cb.checked = S.stale;
+    cb.addEventListener("change", function () { S.stale = cb.checked; S.data.work = null; watchSnapshot(); if (mcp && S.conn !== "offline") startTab(); else render(); });
+    add(lab, cb, el("span", null, "Only items untouched for 30+ days"));
+    p.appendChild(lab);
+    if (!d) { p.appendChild(el("div", "empty", S.conn === "connecting" ? "Loading…" : "Needs a live connection to wipnote.")); return [p]; }
+    if (!(d.items || []).length) { p.appendChild(el("div", "empty", "No matching work items.")); return [p]; }
+    var wrap = el("div", "tablewrap"), tb = el("table", "compact"), th = el("thead"), hr = el("tr");
+    [["Item", 1], ["Status", 1], ["Age", 0], ["Cost", 0]].forEach(function (x) { hr.appendChild(el("th", x[1] ? "left" : "", x[0])); });
+    th.appendChild(hr); tb.appendChild(th);
+    var bd = el("tbody");
+    d.items.forEach(function (i) {
+      var tr = el("tr"), first = el("td", "title");
+      add(first, el("div", null, i.title || i.id), el("div", "ref", i.id + " · " + i.type));
+      add(tr, first, el("td", "left", i.status), el("td", null, i.age_days != null ? i.age_days + "d" : ""), el("td", null, d.cost_available ? usd(i.cost_usd) : "n/a"));
+      bd.appendChild(tr);
+    });
+    tb.appendChild(bd); wrap.appendChild(tb); p.appendChild(wrap);
+    if (d.cost_available && d.unattributed_usd) p.appendChild(el("div", "sub", usd(d.unattributed_usd) + " of cost happened outside any claimed work item."));
+    var out = [p];
+    if (d.notice) out.push(el("div", "foot", d.notice));
+    return out;
+  }
+
+  function render() {
+    var app = document.getElementById("app");
+    var kids = [header(), tabs(), banner()];
+    if (S.tab === "overview") {
+      var cur = dataFor("overview");
+      if (cur) {
+        var d = cur.data;
+        kids.push(add(el("div", "layout"), attention(d), add(el("div", "stack"), costSummary(d), workSummary(d))));
+        kids.push(sessionsPanel(d));
+        kids.push(footer(d, cur.source));
+      } else {
+        kids.push(add(el("section", "panel"), el("div", "empty", S.conn === "connecting" ? "Connecting to wipnote…" :
+          S.hasDb ? "No data yet. Ask Claude in your session to save a snapshot, or connect wipnote above." : "No data yet. Connect wipnote above.")));
+      }
+    } else if (S.tab === "cost") {
+      costView().forEach(function (n) { kids.push(n); });
+    } else {
+      workView().forEach(function (n) { kids.push(n); });
+    }
+    if (S.toast) kids.push(el("div", "toast", S.toast, { role: "status" }));
+    app.replaceChildren.apply(app, kids.filter(Boolean));
+  }
+
+  setInterval(function () {
+    var a = document.getElementById("age");
+    if (a && S.conn === "live") a.textContent = "Live · " + ago(S.at);
+  }, 15000);
+
+  if (window.claude && typeof window.claude.use === "function") boot();
+  else { S.conn = "offline"; S.errs.overview = { code: "unavailable", message: "Open this page in Claude." }; render(); }
+})();
+</script>

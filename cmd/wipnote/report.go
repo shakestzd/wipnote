@@ -3,6 +3,8 @@ package main
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -13,6 +15,9 @@ import (
 
 func reportCmd() *cobra.Command {
 	var summaryOnly bool
+	var toolArgs string
+	var snapDir string
+	var snapWindows []int
 
 	cmd := &cobra.Command{
 		Use:   "report [session-id]",
@@ -24,9 +29,28 @@ If no session-id is given, the most recent session is used.
 Example:
   wipnote report
   wipnote report sess-abc123
-  wipnote report --summary`,
+  wipnote report --summary
+
+If the argument names a read-only MCP tool (overview, sessions, session_trace,
+work_items, cost), the tool runs in-process and its structured JSON is printed
+to stdout instead (see mcp_report.go):
+  wipnote report cost --args '{"group_by":"model"}'
+
+"report snapshot" writes the documents the wipnote Overview artifact reads (one
+per view and time window, plus batch.json) so a Claude session can upload them to
+the artifact's database in one call:
+  wipnote report snapshot --dir /tmp/wipnote-snapshot --windows 24,168,720`,
 		Args: cobra.MaximumNArgs(1),
-		RunE: func(_ *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(args) == 1 && args[0] == reportSnapshotArg {
+				if snapDir == "" {
+					snapDir = filepath.Join(os.TempDir(), "wipnote-snapshot")
+				}
+				return runReportSnapshot(cmd.OutOrStdout(), snapDir, snapWindows)
+			}
+			if len(args) == 1 && isMCPToolName(args[0]) {
+				return runReportTool(cmd.OutOrStdout(), args[0], toolArgs)
+			}
 			sessionID := ""
 			if len(args) > 0 {
 				sessionID = args[0]
@@ -35,6 +59,9 @@ Example:
 		},
 	}
 	cmd.Flags().BoolVar(&summaryOnly, "summary", false, "Print only summary stats (no timeline)")
+	cmd.Flags().StringVar(&toolArgs, "args", "", "JSON object of arguments when running an MCP tool")
+	cmd.Flags().StringVar(&snapDir, "dir", "", "Output directory for 'report snapshot' (default: a wipnote-snapshot folder in the temp dir)")
+	cmd.Flags().IntSliceVar(&snapWindows, "windows", []int{24, 168, 720}, "Time windows in hours for 'report snapshot'")
 	return cmd
 }
 

@@ -29,7 +29,8 @@
     "claude": {
       "outDir": "plugin",
       "manifestPath": ".claude-plugin/plugin.json",
-      "hooksPath": "hooks/hooks.json"
+      "hooksPath": "hooks/hooks.json",
+      "mcpPath": ".mcp.json"
     },
     "codex": {
       "outDir": "port/packages/codex-marketplace",
