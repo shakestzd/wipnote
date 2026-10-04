@@ -1,18 +1,13 @@
 {
   "permissions": {
     "allow": [
-      "Write(**)",
       "Edit(**)",
-      "NotebookEdit(**)",
-      "Bash(cd packages/go*)",
       "Bash(go build:*)",
       "Bash(go test:*)",
       "Bash(go vet:*)"
     ],
     "deny": [
-      "Write(.htmlgraph/**)",
-      "Edit(.htmlgraph/**)",
-      "NotebookEdit(.htmlgraph/**)"
+      "Edit(.wipnote/**)"
     ]
   },
   "statusLine": {
@@ -23,7 +18,7 @@
   "enabledPlugins": {
     "frontend-design@claude-plugins-official": true
   },
-  "plansDirectory": ".htmlgraph/plans/",
+  "plansDirectory": ".wipnote/plans/",
   "claudeMdExcludes": [
     "AGENTS.md"
   ]
