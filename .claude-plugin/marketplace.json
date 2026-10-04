@@ -6,11 +6,11 @@
     "url": "https://github.com/shakestzd"
   },
   "description": "wipnote — install via 'brew install wipnote', then run 'wipnote claude' in your project. This marketplace listing is retained for backward compatibility; new installs should use the binary distribution which bundles the plugin tree alongside the CLI.",
-  "version": "0.69.0",
+  "version": "0.70.0",
   "plugins": [
     {
       "name": "wipnote",
-      "version": "0.69.0",
+      "version": "0.70.0",
       "source": "./plugin",
       "description": "Local-first observability for AI-assisted development. Recommended install: 'brew install wipnote' (bundles plugin + CLI). This entry is kept so 'claude plugin update' continues working for existing installs; 'wipnote claude' loads the bundled tree via --plugin-dir and takes precedence.",
       "category": "Development Tools",
