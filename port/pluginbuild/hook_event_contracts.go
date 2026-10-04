@@ -39,7 +39,9 @@ type hookEventContractSpec struct {
 // hookEventContractSpecs is the authoritative table of every known Claude Code
 // hook event name and its stdout contract classification.
 //
-// Source: https://code.claude.com/docs/en/hooks (verified 2026-05-29)
+// Source: https://code.claude.com/docs/en/hooks (verified 2026-10-04).
+// NOTE: context is delivered ONLY via hookSpecificOutput.additionalContext;
+// a top-level additionalContext key is ignored by Claude Code.
 //
 // When a new Claude event is registered in manifest.json, its entry MUST be
 // added here. The test TestHookEventContracts enforces completeness.
@@ -64,7 +66,7 @@ var hookEventContractSpecs = map[string]hookEventContractSpec{
 	},
 	"PostToolUse": {
 		Classification: AdditiveControlling,
-		Note:           "CC reads JSON HookResult; additionalContext is injected into context. Safe to register observe-only.",
+		Note:           "CC reads JSON HookResult; hookSpecificOutput.additionalContext is injected into context. Safe to register observe-only.",
 	},
 	"UserPromptSubmit": {
 		Classification: AdditiveControlling,
@@ -107,8 +109,8 @@ var hookEventContractSpecs = map[string]hookEventContractSpec{
 	// stdout is ignored entirely. Observe-only is the only correct registration.
 
 	"SessionStart": {
-		Classification: Observational,
-		Note:           "stdout ignored; side-effects only (telemetry, setup).",
+		Classification: AdditiveControlling,
+		Note:           "CC reads hookSpecificOutput.additionalContext (model-visible); plain stdout is also added as context. Safe to register observe-only.",
 	},
 	"SessionEnd": {
 		Classification: Observational,
@@ -119,8 +121,8 @@ var hookEventContractSpecs = map[string]hookEventContractSpec{
 		Note:           "stdout ignored; side-effects only.",
 	},
 	"SubagentStart": {
-		Classification: Observational,
-		Note:           "stdout ignored; observe-only is the only correct use.",
+		Classification: AdditiveControlling,
+		Note:           "CC reads hookSpecificOutput.additionalContext (injected into the subagent). Safe to register observe-only.",
 	},
 	"InstructionsLoaded": {
 		Classification: Observational,

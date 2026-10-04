@@ -110,7 +110,7 @@ func TestOrchestratorStrictGuard_Escalates(t *testing.T) {
 		if block != "" {
 			t.Fatalf("violation %d blocked too early: %s", i, block)
 		}
-		if !strings.Contains(advisory, "of 3") {
+		if !strings.Contains(advisory, "/3") {
 			t.Errorf("violation %d advisory missing the escalation count: %q", i, advisory)
 		}
 	}
@@ -200,10 +200,13 @@ func TestOrchestratorGuidanceMode_AdvisoryOnly(t *testing.T) {
 		if block != "" {
 			t.Fatalf("guidance mode must never block, got: %s", block)
 		}
-		if advisory == "" {
-			t.Fatal("guidance mode should still advise")
+		if i == 0 && advisory == "" {
+			t.Fatal("guidance mode should advise on the first call")
 		}
-		if strings.Contains(advisory, "will block") {
+		if i > 0 && advisory != "" {
+			t.Fatalf("advisory must show once per session, repeated on call %d: %q", i, advisory)
+		}
+		if strings.Contains(advisory, "blocks at") {
 			t.Errorf("guidance advisory must not threaten a block: %q", advisory)
 		}
 	}
