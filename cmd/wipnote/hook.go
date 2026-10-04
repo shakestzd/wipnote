@@ -449,6 +449,12 @@ func runHookNamed(subcommand string, handler func(*hooks.CloudEvent) (*hooks.Hoo
 		"session": event.SessionID[:hooks.MinSessionLen(event.SessionID)],
 	}, start, "completed")
 
+	// Claude UserPromptSubmit also carries the current-time line that used to
+	// come from a separate `date` shell hook (one fewer process per prompt).
+	if subcommand == "user-prompt" && harness == hooks.HarnessClaude {
+		return hooks.EmitClaudeUserPrompt(os.Stdout, result, time.Now())
+	}
+
 	// Emit the result in the harness-appropriate wire format.
 	return hooks.WriteResultForHarnessEvent(harness, hookEventNameForResponse(subcommand, event), result)
 }

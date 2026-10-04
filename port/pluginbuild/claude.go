@@ -75,6 +75,23 @@ type claudeHookEntry struct {
 	Type    string `json:"type"`
 	Command string `json:"command"`
 	Timeout int    `json:"timeout,omitempty"`
+	Async   bool   `json:"async,omitempty"`
+	If      string `json:"if,omitempty"`
+}
+
+// hookEntryForTarget builds the emitted hook entry for e. Async and If are
+// Claude Code fields; every other target gets only type/command/timeout so its
+// (strict) parser never sees a key it does not document.
+func hookEntryForTarget(target string, e HookEvent, cmd string) claudeHookEntry {
+	entry := claudeHookEntry{Type: "command", Command: cmd, Timeout: e.Timeout}
+	if t, ok := e.TimeoutByTarget[target]; ok {
+		entry.Timeout = t
+	}
+	if target == "claude" {
+		entry.Async = e.Async
+		entry.If = e.If
+	}
+	return entry
 }
 
 type claudeMatcherGroup struct {
@@ -102,11 +119,7 @@ func writeClaudeHooks(m *Manifest, path string) error {
 		}
 		group := claudeMatcherGroup{
 			Matcher: e.Matcher,
-			Hooks: []claudeHookEntry{{
-				Type:    "command",
-				Command: cmd,
-				Timeout: e.Timeout,
-			}},
+			Hooks:   []claudeHookEntry{hookEntryForTarget("claude", e, cmd)},
 		}
 		if _, seen := hooks[e.Name]; !seen {
 			order = append(order, e.Name)
