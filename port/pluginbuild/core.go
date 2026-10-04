@@ -84,11 +84,24 @@ type HookMatrix struct {
 // hatch for shell-only hooks like the Claude timestamp injector. Targets is
 // the list of target names for which this entry is emitted.
 type HookEvent struct {
-	Name    string   `json:"name"`
-	Handler string   `json:"handler"`
-	Command string   `json:"command,omitempty"`
-	Matcher string   `json:"matcher,omitempty"`
-	Timeout int      `json:"timeout,omitempty"`
+	Name    string `json:"name"`
+	Handler string `json:"handler"`
+	Command string `json:"command,omitempty"`
+	Matcher string `json:"matcher,omitempty"`
+	Timeout int    `json:"timeout,omitempty"`
+	// TimeoutByTarget overrides Timeout for the named targets (seconds for
+	// claude). It lets a shared event carry a short Claude Code timeout without
+	// changing what Codex/Antigravity receive: their timeout units/semantics are
+	// not verified here.
+	TimeoutByTarget map[string]int `json:"timeoutByTarget,omitempty"`
+	// Async runs the command hook in the background (Claude Code `async`).
+	// Async hooks cannot block or inject context, so it is only valid for
+	// record-only handlers. Emitted for the claude target only; Codex and
+	// Antigravity do not document the field, so it is dropped for them.
+	Async bool `json:"async,omitempty"`
+	// If is a Claude Code permission-rule filter (e.g. "Bash(git *)") limiting
+	// a tool-event hook to matching calls. Emitted for the claude target only.
+	If      string   `json:"if,omitempty"`
 	Targets []string `json:"targets"`
 }
 
