@@ -445,11 +445,85 @@ func parseAntigravityEvent(raw []byte) (*CloudEvent, error) {
 // Emitters map these fields to the harness-specific wire format.
 type HookResponse = HookResult
 
-// emitClaudeResponse writes the Claude Code wire-format JSON to w.
-// Claude expects "additionalContext" (for injecting text) and "decision" for
-// blocking. An empty object "{}" means "no opinion / allow".
+// claudeContextEvents lists the Claude Code events whose hookSpecificOutput
+// accepts additionalContext (verified live with nested `claude -p` and against
+// https://code.claude.com/docs/en/hooks, 2026-10). Claude Code IGNORES a
+// top-level "additionalContext" key entirely; context only reaches the model
+// via hookSpecificOutput.additionalContext + hookEventName.
+var claudeContextEvents = map[string]bool{
+	"SessionStart": true, "SubagentStart": true, "UserPromptSubmit": true,
+	"UserPromptExpansion": true, "PreToolUse": true, "PostToolUse": true,
+	"PostToolUseFailure": true, "Stop": true, "SubagentStop": true,
+}
+
+// claudeResponse is the Claude Code wire format. Top-level additionalContext
+// is deliberately absent (it is silently dropped by Claude Code).
+type claudeResponse struct {
+	Continue           bool                `json:"continue,omitempty"`
+	Decision           string              `json:"decision,omitempty"`
+	Reason             string              `json:"reason,omitempty"`
+	Message            string              `json:"message,omitempty"`
+	LegacyContext      string              `json:"additionalContext,omitempty"` // only for events with no context channel
+	HookSpecificOutput *HookSpecificOutput `json:"hookSpecificOutput,omitempty"`
+}
+
+// emitClaudeResponse writes the event-less Claude wire format (legacy callers).
 func emitClaudeResponse(w io.Writer, result *HookResult) error {
-	return json.NewEncoder(w).Encode(result)
+	return emitClaudeResponseForEvent(w, "", result)
+}
+
+// emitClaudeResponseForEvent writes the Claude Code wire-format JSON to w.
+//   - AdditionalContext is mapped into hookSpecificOutput.additionalContext
+//     with hookEventName for events that accept it.
+//   - PreToolUse blocks use hookSpecificOutput.permissionDecision:"deny" +
+//     permissionDecisionReason; other events keep top-level decision/reason
+//     (UserPromptSubmit, PostToolUse, Stop, SubagentStop, ... per docs).
+//   - Existing HookSpecificOutput (PermissionRequest decision, updatedInput)
+//     is preserved. An empty result still encodes as "{}".
+func emitClaudeResponseForEvent(w io.Writer, hookEventName string, result *HookResult) error {
+	resp := claudeResponse{
+		Continue: result.Continue,
+		Decision: result.Decision,
+		Reason:   result.Reason,
+		Message:  result.Message,
+	}
+	var hso *HookSpecificOutput
+	if result.HookSpecificOutput != nil {
+		c := *result.HookSpecificOutput
+		hso = &c
+	}
+	event := hookEventName
+	if hso != nil && hso.HookEventName != "" {
+		event = hso.HookEventName
+	}
+	if hso != nil {
+		hso.AdditionalContext = capContext(hso.AdditionalContext, contextCapForEvent(event))
+	}
+	if ctx := capContext(result.AdditionalContext, contextCapForEvent(event)); ctx != "" {
+		if claudeContextEvents[event] {
+			if hso == nil {
+				hso = &HookSpecificOutput{}
+			}
+			hso.AdditionalContext = ctx
+		} else {
+			resp.LegacyContext = ctx
+		}
+	}
+	if event == "PreToolUse" && (result.Decision == "block" || result.Decision == "deny") {
+		if hso == nil {
+			hso = &HookSpecificOutput{}
+		}
+		hso.PermissionDecision = "deny"
+		hso.PermissionDecisionReason = result.Reason
+		resp.Decision, resp.Reason = "", ""
+	}
+	if hso != nil {
+		if hso.HookEventName == "" {
+			hso.HookEventName = event
+		}
+		resp.HookSpecificOutput = hso
+	}
+	return json.NewEncoder(w).Encode(resp)
 }
 
 // codexHookSpecificOutput is the wire-format shape of Codex's
@@ -632,7 +706,7 @@ func WriteResultForHarnessEvent(harness Harness, hookEventName string, result *H
 	case HarnessGemini:
 		return emitGeminiResponseForEvent(os.Stdout, hookEventName, result)
 	default:
-		return emitClaudeResponse(os.Stdout, result)
+		return emitClaudeResponseForEvent(os.Stdout, hookEventName, result)
 	}
 }
 

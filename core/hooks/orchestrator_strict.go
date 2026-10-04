@@ -134,7 +134,7 @@ func checkOrchestratorStrictGuard(event *CloudEvent, ctx *toolUseContext) (advis
 		return "", ""
 	}
 	if cfg.Mode != OrchestratorModeStrict {
-		return orchestratorAdvisory(event.ToolName, 0, 0), ""
+		return onceAdvisory(ctx, event.ToolName, 0, 0), ""
 	}
 
 	maxViolations := cfg.MaxViolations
@@ -149,18 +149,30 @@ func checkOrchestratorStrictGuard(event *CloudEvent, ctx *toolUseContext) (advis
 	if cfg.Violations >= maxViolations {
 		return "", orchestratorBlockReason(event.ToolName, cfg.Violations, maxViolations)
 	}
-	return orchestratorAdvisory(event.ToolName, cfg.Violations, maxViolations), ""
+	// The warning immediately before the block always shows; earlier ones
+	// show once per session.
+	if cfg.Violations == maxViolations-1 {
+		return orchestratorAdvisory(event.ToolName, cfg.Violations, maxViolations), ""
+	}
+	return onceAdvisory(ctx, event.ToolName, cfg.Violations, maxViolations), ""
+}
+
+// onceAdvisory returns the advisory only the first time in a session. Since
+// Claude Code now delivers hook context to the model, repeating it on every
+// direct tool call would burn context; counting is unaffected.
+func onceAdvisory(ctx *toolUseContext, toolName string, violations, maxViolations int) string {
+	if !claimSessionOnce(ctx.HgDir, ctx.SessionID, "orchestrator-advisory") {
+		return ""
+	}
+	return orchestratorAdvisory(toolName, violations, maxViolations)
 }
 
 // orchestratorAdvisory is the non-blocking nudge. maxViolations == 0 means
 // guidance mode, where nothing is counted.
 func orchestratorAdvisory(toolName string, violations, maxViolations int) string {
-	msg := fmt.Sprintf(
-		"wipnote orchestrator advisory: %s was called directly instead of being delegated. "+
-			"Orchestrators coordinate; subagents implement — wrap this in Task(...) to keep the "+
-			"orchestrator's context for coordination.", toolName)
+	msg := fmt.Sprintf("wipnote orchestrator advisory: delegate %s via Task(...).", toolName)
 	if maxViolations > 0 {
-		msg += fmt.Sprintf(" Violation %d of %d; at %d, strict mode will block.",
+		msg += fmt.Sprintf(" Violation %d/%d; strict mode blocks at %d.",
 			violations, maxViolations, maxViolations)
 	}
 	return msg

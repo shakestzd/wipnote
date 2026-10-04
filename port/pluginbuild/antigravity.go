@@ -443,11 +443,7 @@ func writeAntigravityHooks(m *Manifest, path string) error {
 
 		group := claudeMatcherGroup{
 			Matcher: matcher,
-			Hooks: []claudeHookEntry{{
-				Type:    "command",
-				Command: cmd,
-				Timeout: e.Timeout,
-			}},
+			Hooks:   []claudeHookEntry{hookEntryForTarget("antigravity", e, cmd)},
 		}
 		if _, seen := events[agyEvent]; !seen {
 			order = append(order, agyEvent)

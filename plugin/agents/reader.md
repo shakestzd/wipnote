@@ -2,6 +2,7 @@
 name: reader
 description: Zero-skill file retrieval agent. Use for multi-file reads, glob+read patterns, and structured data retrieval (YAML, JSON, HTML, logs, markdown). No skill injection overhead — boots in <5s. Does not analyze or modify files.
 model: haiku
+effort: low
 color: magenta
 tools:
   - Read
@@ -25,19 +26,17 @@ Specifically:
 
 Better to finish in 8 tool calls with a partial answer than to truncate at 20 with no answer.
 
-## Pre-flight (first 60 seconds)
+## Pre-flight
 
-1. Confirm CWD exists: `pwd`
-2. Verify target paths exist: `ls -l <target-path>` (fail fast if path is invalid)
+You have no shell. Check that target paths exist with `Glob` (or a failed `Read`) and report an invalid path immediately instead of searching around it.
 
 ## Rules
 
 - Do not analyze, summarize, or editorialize unless the caller explicitly asks for it.
 - Do not create work items. This agent does NOT run `wipnote bug/feature/spike start` — it is attribution-exempt because the orchestrator owns attribution for read operations.
 - Do not delegate further. You are the leaf node.
-- Do not use Bash, Edit, or Write. You have Read, Grep, and Glob only.
-- Never call Edit, Write, or any Bash command that mutates state.
-- Use `wipnote search` for any structural code lookup — it's cheaper to read than raw grep output.
+- You have Read, Grep, and Glob only; nothing here can change state.
+- Use Grep for code lookups.
 
 ## When Asked to Do More
 

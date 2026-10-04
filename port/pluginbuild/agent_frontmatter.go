@@ -45,6 +45,13 @@ var agentFrontmatterFieldSpecs = []agentFrontmatterFieldSpec{
 		},
 	},
 	{
+		Name:   "effort",
+		DocURL: "https://code.claude.com/docs/en/sub-agents",
+		Harnesses: map[string]string{
+			"claude": "effort",
+		},
+	},
+	{
 		Name:   "color",
 		DocURL: "https://code.claude.com/docs/en/sub-agents",
 		Harnesses: map[string]string{
@@ -69,14 +76,32 @@ var agentFrontmatterFieldSpecs = []agentFrontmatterFieldSpec{
 		},
 	},
 	{
-		Name:       "disallowedTools",
-		DocURL:     "https://code.claude.com/docs/en/sub-agents",
-		Provenance: "Recognized as a shared source field so unsupported target output is stripped with a specific warning.",
+		Name:   "disallowedTools",
+		DocURL: "https://code.claude.com/docs/en/sub-agents",
+		Harnesses: map[string]string{
+			"claude": "disallowedTools",
+		},
 	},
 	{
-		Name:       "skills",
-		DocURL:     "https://code.claude.com/docs/en/skills",
-		Provenance: "Recognized as plugin source metadata and stripped from generated agent frontmatter unless a target explicitly supports it.",
+		Name:   "skills",
+		DocURL: "https://code.claude.com/docs/en/sub-agents",
+		Harnesses: map[string]string{
+			"claude": "skills",
+		},
+	},
+	{
+		Name:   "isolation",
+		DocURL: "https://code.claude.com/docs/en/sub-agents",
+		Harnesses: map[string]string{
+			"claude": "isolation",
+		},
+	},
+	{
+		Name:   "background",
+		DocURL: "https://code.claude.com/docs/en/sub-agents",
+		Harnesses: map[string]string{
+			"claude": "background",
+		},
 	},
 	{
 		Name:   "initialPrompt",

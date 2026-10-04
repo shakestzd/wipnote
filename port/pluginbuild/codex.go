@@ -245,11 +245,7 @@ func writeCodexHooks(m *Manifest, path string) error {
 		}
 		group := claudeMatcherGroup{
 			Matcher: e.Matcher,
-			Hooks: []claudeHookEntry{{
-				Type:    "command",
-				Command: cmd,
-				Timeout: e.Timeout,
-			}},
+			Hooks:   []claudeHookEntry{hookEntryForTarget("codex", e, cmd)},
 		}
 		if _, seen := hooks[e.Name]; !seen {
 			order = append(order, e.Name)

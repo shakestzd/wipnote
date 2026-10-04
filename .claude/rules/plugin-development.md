@@ -60,11 +60,11 @@ Per the [Claude Code subagent docs](https://code.claude.com/docs/en/sub-agents),
 
 **Workaround:** If you need any of these fields, define them at the harness level (e.g., plugin-wide `hooks.json`, `.mcp.json`, system-prompt context) rather than per-agent.
 
-**Honored frontmatter fields for plugin-loaded subagents:** `name`, `description`, `model`, `color`, `tools`, `maxTurns`, `memory`, and the markdown body (system prompt).
+**Honored frontmatter fields for plugin-loaded subagents:** `name`, `description`, `model`, `effort`, `color`, `tools`, `disallowedTools`, `skills`, `isolation`, `background`, `maxTurns`, `memory`, and the markdown body (system prompt).
 
 `wipnote plugin build-ports` enforces per-harness frontmatter allowlists during agent generation and logs a build-time warning for any stripped field. The source of truth is `agentFrontmatterFieldSpecs` in `port/pluginbuild/agent_frontmatter.go`; it records supported harnesses, output-name translations, and upstream doc provenance for every shared source field. Current derived allowlists:
 
-- Claude: `name`, `description`, `model`, `color`, `tools`, `maxTurns`, `memory`
+- Claude: `name`, `description`, `model`, `effort`, `color`, `tools`, `disallowedTools`, `skills`, `isolation`, `background`, `maxTurns`, `memory`
 - Codex: `name`, `description`, `model`, `tools`, `initialPrompt`
 - Antigravity: `name`, `description`, `model`, `tools`, `max_turns`, `timeout_mins`
 

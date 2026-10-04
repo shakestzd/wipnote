@@ -886,7 +886,9 @@ func TestEmitClaudeResponseRegressionAdditionalContext(t *testing.T) {
 	result := &HookResult{
 		AdditionalContext: "regression check: must stay in additionalContext",
 	}
-	if err := emitClaudeResponse(&buf, result); err != nil {
+	// Claude Code ignores a top-level additionalContext; delivery requires
+	// hookSpecificOutput.additionalContext + hookEventName.
+	if err := emitClaudeResponseForEvent(&buf, "SessionStart", result); err != nil {
 		t.Fatalf("emitClaudeResponse: %v", err)
 	}
 
@@ -895,8 +897,12 @@ func TestEmitClaudeResponseRegressionAdditionalContext(t *testing.T) {
 		t.Fatalf("unmarshal claude response: %v", err)
 	}
 
-	if got["additionalContext"] != "regression check: must stay in additionalContext" {
-		t.Errorf("additionalContext = %v, want the injected text", got["additionalContext"])
+	if _, ok := got["additionalContext"]; ok {
+		t.Error("top-level additionalContext must not be emitted (Claude drops it)")
+	}
+	hso, _ := got["hookSpecificOutput"].(map[string]any)
+	if hso["additionalContext"] != "regression check: must stay in additionalContext" || hso["hookEventName"] != "SessionStart" {
+		t.Errorf("hookSpecificOutput = %v, want injected text + SessionStart", hso)
 	}
 	// Claude uses "additionalContext", not "systemMessage".
 	if _, ok := got["systemMessage"]; ok {
