@@ -338,3 +338,58 @@ func TestCodexAdapterRemovesStaleFiles(t *testing.T) {
 // TestCodexAdapterRemovesStaleFiles (cleanOwnedSubtrees is shared across
 // adapters). The Gemini-specific stale-file test was removed with the gemini
 // target (feat-02f25a24).
+
+func TestClaudeAdapterEmitsMCPConfig(t *testing.T) {
+	m := fixtureManifest()
+	tgt := m.Targets["claude"]
+	tgt.MCPPath = ".mcp.json"
+	m.Targets["claude"] = tgt
+
+	emit := func() []byte {
+		repoRoot := t.TempDir()
+		seedAssets(t, repoRoot)
+		outDir := filepath.Join(repoRoot, "plugin")
+		if err := (claudeAdapter{}).Emit(m, repoRoot, outDir); err != nil {
+			t.Fatalf("Emit: %v", err)
+		}
+		b, err := os.ReadFile(filepath.Join(outDir, ".mcp.json"))
+		if err != nil {
+			t.Fatalf("read .mcp.json: %v", err)
+		}
+		return b
+	}
+	got := emit()
+	want := "{\n  \"mcpServers\": {\n    \"wipnote\": {\n      \"command\": \"wipnote\",\n      \"args\": [\n        \"mcp\"\n      ]\n    }\n  }\n}\n"
+	if string(got) != want {
+		t.Fatalf("golden mismatch:\n%s", got)
+	}
+	if string(emit()) != string(got) {
+		t.Fatal("claude .mcp.json is not deterministic")
+	}
+}
+
+func TestClaudeAdapterOmitsMCPWithoutMCPPath(t *testing.T) {
+	repoRoot := t.TempDir()
+	seedAssets(t, repoRoot)
+	outDir := filepath.Join(repoRoot, "plugin")
+	if err := (claudeAdapter{}).Emit(fixtureManifest(), repoRoot, outDir); err != nil {
+		t.Fatalf("Emit: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(outDir, ".mcp.json")); !os.IsNotExist(err) {
+		t.Fatalf(".mcp.json should not be emitted without mcpPath (err=%v)", err)
+	}
+}
+
+func TestRealManifestClaudeMCPPath(t *testing.T) {
+	path, err := FindManifest(".")
+	if err != nil {
+		t.Skipf("manifest not found: %v", err)
+	}
+	m, err := Load(path)
+	if err != nil {
+		t.Fatalf("LoadManifest: %v", err)
+	}
+	if got := m.Targets["claude"].MCPPath; got != ".mcp.json" {
+		t.Fatalf("targets.claude.mcpPath = %q, want .mcp.json", got)
+	}
+}

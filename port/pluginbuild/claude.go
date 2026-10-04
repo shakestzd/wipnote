@@ -11,6 +11,7 @@ func init() { Register(claudeAdapter{}) }
 //
 //	<outDir>/.claude-plugin/plugin.json
 //	<outDir>/hooks/hooks.json
+//	<outDir>/.mcp.json (when target.mcpPath is set)
 //	<outDir>/{commands,agents,skills,templates,static,config}/
 type claudeAdapter struct{}
 
@@ -27,7 +28,35 @@ func (c claudeAdapter) Emit(m *Manifest, repoRoot, outDir string) error {
 	if err := writeClaudeHooks(m, filepath.Join(outDir, target.HooksPath)); err != nil {
 		return err
 	}
+	if target.MCPPath != "" {
+		if err := writeClaudeMCP(filepath.Join(outDir, target.MCPPath)); err != nil {
+			return err
+		}
+	}
 	return copyAssets(m, repoRoot, outDir)
+}
+
+// claudeMCPServer is one stdio entry in the plugin-root .mcp.json.
+type claudeMCPServer struct {
+	Command string   `json:"command"`
+	Args    []string `json:"args"`
+}
+
+// claudeMCPJSON is the Claude plugin .mcp.json schema:
+//
+//	{ "mcpServers": { "<name>": { "command": "...", "args": [...] } } }
+type claudeMCPJSON struct {
+	MCPServers map[string]claudeMCPServer `json:"mcpServers"`
+}
+
+// writeClaudeMCP always (re)writes the generated .mcp.json registering the
+// read-only `wipnote mcp` stdio server. Like the hooks (`wipnote hook ...`) it
+// assumes `wipnote` is on PATH rather than using ${CLAUDE_PLUGIN_ROOT}, because
+// the binary is not bundled inside the plugin tree.
+func writeClaudeMCP(path string) error {
+	return writeJSON(path, claudeMCPJSON{MCPServers: map[string]claudeMCPServer{
+		"wipnote": {Command: "wipnote", Args: []string{"mcp"}},
+	}})
 }
 
 // claudePluginJSON is the Claude-flavored plugin manifest schema.

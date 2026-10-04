@@ -62,13 +62,25 @@ Limitation: `host:` servers only answer when the viewer opens the artifact in th
 
 Fallback for web and remote viewers: a Claude session (or `/wipnote:report` below) calls the MCP tools or `wipnote mcp`-equivalent code, then writes the JSON into the artifact's `db` capability (a `snapshot` document, replaced each time). The page reads `db` instead of calling a tool and shows `generated_at` so staleness is visible. Same render code, different data source; the page can try `watchTool` first and fall back to `db` on failure.
 
-## Plugin registration (proposal, nothing edited)
+## Plugin registration (step 1 landed; skill and command still proposals)
 
 `packages/plugin-core/manifest.json` gives Codex and Antigravity an `mcpPath` (`.mcp.json`, `mcp_config.json`); the Claude target has none, so no MCP server is currently shipped to Claude Code. Proposal:
 
-1. Add `"mcpPath": ".mcp.json"` to `targets.claude` and teach `port/pluginbuild` to emit `{"mcpServers":{"wipnote":{"command":"wipnote","args":["mcp"]}}}` (the Claude plugin loader reads `.mcp.json` at the plugin root). Manifest owners to land this; other worktrees own the file.
+1. (Done: `targets.claude.mcpPath` is set and `port/pluginbuild/claude.go` emits `plugin/.mcp.json`; Codex/Antigravity scaffolds are unchanged and still empty.) Add `"mcpPath": ".mcp.json"` to `targets.claude` and teach `port/pluginbuild` to emit `{"mcpServers":{"wipnote":{"command":"wipnote","args":["mcp"]}}}` (the Claude plugin loader reads `.mcp.json` at the plugin root). Manifest owners to land this; other worktrees own the file.
 2. Add a skill `plugin/skills/artifact-report/SKILL.md` (existing skills are `SKILL.md` with `name`/`description` front matter, e.g. `visual-recap`). It would: call `wipnote_overview`, create or update ONE artifact (record its URL in a work-item or `.wipnote` note so later runs republish to the same URL), and for web viewers push the snapshot to `db`. A thin `/wipnote:report` command in `plugin/commands/` invokes the skill.
 3. `--project-dir` / `WIPNOTE_PROJECT_DIR` selects the project, since a desktop-launched server's CWD is arbitrary.
+
+### Two ways to register `wipnote mcp`, and the `host:` naming consequence
+
+| | Plugin (`plugin/.mcp.json`) | `claude mcp add wipnote -- wipnote mcp` |
+|---|---|---|
+| Server name | `plugin:wipnote:wipnote` | `wipnote` |
+| Tool names | `mcp__plugin_wipnote_wipnote__wipnote_overview` | `mcp__wipnote__wipnote_overview` |
+| Source in `mcp_servers` | `plugin` | `local` (or `user`/`project` with `--scope`) |
+
+Both assume `wipnote` is on `PATH` (as the hooks do); the binary is not bundled in the plugin tree, so `${CLAUDE_PLUGIN_ROOT}` is not used.
+
+Consequence for the artifact: a published artifact addresses a local server as `host:<name>`, where `<name>` is the segment between `mcp__` and the next `__` in the tool names, and only for servers from the user's MCP configuration. With `claude mcp add wipnote` that segment is `wipnote`, so `host:wipnote` (as written above) is right. For the plugin-provided server the segment would be `plugin_wipnote_wipnote`, and it is NOT confirmed that plugin-provided servers are exposed to artifacts at all. Until that is confirmed, treat `claude mcp add wipnote -- wipnote mcp` as the supported path for the live artifact, and keep the `db` fallback for everyone else. Tool allow-lists and hook matchers must use the full plugin tool name for the plugin route.
 
 ## Security notes
 
