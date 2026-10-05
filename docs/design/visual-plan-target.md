@@ -15,11 +15,14 @@ has real UI and a real flow, which is why it was chosen. Its estimates are illus
 2. How the session finds out: an explicit "Send to Claude" comment. A database write waking
    the session stays unverified and is not relied on.
 3. Approval after a slice is edited: it carries over if the edit is minor.
+4. What counts as a change: anything except whitespace.
 
-Decision 3 needed a rule, and the page uses a default that is not yet confirmed: an edit is
-material (and clears the approval) when `done-when`, `files`, `deps` or a block changed;
-wording-only changes to `what`, `why` and decision notes keep it. The approval is keyed to a
-hash of the material fields. Open question: whether `effort` and `risk` should count too.
+Together, 3 and 4 mean an approval survives whitespace-only edits and nothing else. It is
+keyed to a hash of the whitespace-normalised slice text, so there is no list of "material"
+fields to maintain. The cost is that a typo fix clears the approval, which is why the page
+leans toward showing a diff of what changed (open question). The broader rule considered
+earlier (only `done-when`, `files`, `deps` and blocks count) is kept as the toggle
+alternative on the page.
 
 ## Where the current blocks fall short
 

@@ -174,7 +174,7 @@ pre.out{background:var(--code);border-radius:8px;padding:10px 12px;white-space:p
 <!-- A ───────────────────────────────────────── -->
 <section id="decisions">
   <div class="sec-head"><span class="letter">A</span><h2>Decisions you will probably want to change</h2><span class="tag hi">High tweak likelihood</span></div>
-  <div class="banner"><b>Decided by you:</b> ① one document per slice · ② explicit Send to Claude comment · ③ an approval carries over if the edit is minor. Toggle any choice to compare it with the alternative. Choice ③ needs a definition of "minor"; the one used here is my default, so check it.</div>
+  <div class="banner"><b>Decided by you:</b> ① one document per slice · ② explicit Send to Claude comment · ③ an approval carries over if the edit is minor · ④ anything except whitespace counts as a change. Together, ③ and ④ mean an approval survives whitespace-only edits and nothing else. Toggle any choice to compare it with the alternative.</div>
   <p class="intro">Each flagged choice shows the alternative. Toggle it and the schema on the right changes with it.</p>
   <div class="dec">
     <div>
@@ -200,13 +200,13 @@ pre.out{background:var(--code);border-radius:8px;padding:10px 12px;white-space:p
       </div>
       <div class="choice" id="c3" data-variant="main">
         <div class="hd"><span><span class="flagtag">Choice ③</span> · Approval after the slice is edited <span class="tag ok">Decided</span></span><button class="btn" id="t3" type="button">View alternative →</button></div>
-        <div data-v="main"><div class="pick">Your pick · an approval carries over if the edit is minor</div>
-          <p><b>My default for "minor":</b> only the wording of <code>what</code>, <code>why</code> and the decision notes changed. If <code>done-when</code>, <code>files</code>, <code>deps</code> or any block changed, the edit is material and the slice needs a fresh decision.</p>
-          <ul><li>Fixing a typo or tightening prose does not cost a review round.</li><li>Anything that changes what "done" means is always re-reviewed.</li></ul>
-          <p class="cost"><b>Cost:</b> the page must compare material fields, and a reviewer can miss a wording change that shifted meaning.</p></div>
-        <div data-v="alt"><div class="pick alt">Alternative · any edit needs a fresh decision</div>
-          <p>The approval is tied to a hash of the whole slice text. Any change at all clears it.</p>
-          <p class="cost"><b>Pick this if:</b> reviewers are approving exact wording, not intent. Simplest to reason about, but every typo costs a re-approval.</p></div>
+        <div data-v="main"><div class="pick">Your picks ③ and ④ · whitespace-only edits keep the approval</div>
+          <p>The approval is tied to a hash of the slice text with whitespace normalised. Re-wrapping a line or fixing indentation keeps it. Any other change, even a typo, clears it.</p>
+          <ul><li>No judgement call about which fields matter.</li><li>A reviewer never approves text they have not seen.</li></ul>
+          <p class="cost"><b>Cost:</b> a typo fix costs a re-approval, so the page should show what changed.</p></div>
+        <div data-v="alt"><div class="pick alt">Alternative · wording-only edits also keep the approval</div>
+          <p>Only changes to <code>done-when</code>, <code>files</code>, <code>deps</code> or a block clear the approval. Changes to the wording of <code>what</code>, <code>why</code> and decision notes keep it.</p>
+          <p class="cost"><b>Pick this if:</b> typo fixes should not cost a review round. It needs a list of material fields, and a reviewer can miss a wording change that shifted meaning.</p></div>
       </div>
     </div>
     <div class="schema" id="schema" aria-label="Review document schema">
@@ -283,15 +283,16 @@ pre.out{background:var(--code);border-radius:8px;padding:10px 12px;white-space:p
     <li><span class="n">1</span><div><b>Render the review page from the plan YAML.</b><div class="dep">Static, no database. Plan HTML generation already exists, so this reuses it.</div></div><span class="est">1d</span></li>
     <li><span class="n">2</span><div><b>Reviewer controls, persistence and "Send to Claude".</b><div class="dep">After slice 1. Includes the spike that proves a reviewer's write reaches the session.</div></div><span class="est">1.5d</span></li>
     <li><span class="n">3</span><div><b>Session read-back.</b><div class="dep">After slice 2. Maps review documents to the existing feedback JSON so <code>plan feedback</code> can read either source.</div></div><span class="est">1d</span></li>
-    <li><span class="n">4</span><div><b>Republish loop, material-change flags, finalize gate.</b><div class="dep">After slice 3.</div></div><span class="est">1d</span></li>
+    <li><span class="n">4</span><div><b>Republish loop, changed-since-approval flags with a diff, finalize gate.</b><div class="dep">After slice 3.</div></div><span class="est">1d</span></li>
   </ol>
 </section>
 
 <!-- E ───────────────────────────────────────── -->
 <section id="mech">
   <div class="sec-head"><span class="letter" style="opacity:.6">E</span><h2>Mechanical work</h2><span class="tag ok">Low tweak likelihood</span></div>
-  <details class="mech"><summary>Boring but necessary · 4 tasks</summary>
+  <details class="mech"><summary>Boring but necessary · 5 tasks</summary>
     <ul><li>Render all slice and comment text with <code>textContent</code>, never as markup.</li>
+    <li>Normalise whitespace before hashing a slice.</li>
     <li>Add the review page to the plan-HTML golden tests.</li>
     <li>Keep the dashboard feedback source working until the artifact path is proven.</li>
     <li>Document the "Send to Claude" step in the plan skill.</li></ul>
@@ -303,7 +304,7 @@ pre.out{background:var(--code);border-radius:8px;padding:10px 12px;white-space:p
   <div class="sec-head"><span class="letter">F</span><h2>Risks and mitigations</h2></div>
   <div class="risks">
     <div class="risk"><div>The session never learns about a reviewer's decision because a database write does not wake it.</div><div><span class="sev high">HIGH</span></div><div>"Send to Claude" posts a comment, which is documented to wake the session. Run the spike in slice 2 before building on it.</div></div>
-    <div class="risk"><div>A plan is edited after someone approved a slice.</div><div><span class="sev med">MED</span></div><div>Key each approval to a hash of the slice's material fields (done-when, files, deps, blocks). Wording-only edits keep the approval. A material edit shows "changed since you approved" with what changed, and needs a fresh decision.</div></div>
+    <div class="risk"><div>A plan is edited after someone approved a slice.</div><div><span class="sev med">MED</span></div><div>Key each approval to a hash of the whitespace-normalised slice text. Whitespace-only edits keep the approval. Any other change shows "changed since you approved" with a diff, and needs a fresh decision.</div></div>
     <div class="risk"><div>Slice titles and reviewer comments are untrusted text.</div><div><span class="sev med">MED</span></div><div>Render only through <code>textContent</code>. No markup from data, ever.</div></div>
     <div class="risk"><div>Replacing the dashboard feedback path breaks existing plan reviews.</div><div><span class="sev med">MED</span></div><div>Support both sources behind one reader until the artifact path has run on a real plan.</div></div>
     <div class="risk"><div>The clipboard may be blocked inside an artifact.</div><div><span class="sev low">LOW</span></div><div>Fall back to a selected textarea. Not yet tested in an artifact.</div></div>
@@ -313,7 +314,7 @@ pre.out{background:var(--code);border-radius:8px;padding:10px 12px;white-space:p
 <!-- G ───────────────────────────────────────── -->
 <section id="open">
   <div class="sec-head"><span class="letter">G</span><h2>Open questions</h2></div>
-  <div class="q"><b>Which fields count as a material edit?</b><p class="cost">Default: done-when, files, deps and blocks. What, why and decision notes are wording. Should effort and risk count too? Pick below.</p><div class="owner">Decide with · you, before slice 4</div></div>
+  <div class="q"><b>Should the page show a diff of what changed since the reviewer approved?</b><p class="cost">Leaning yes. With any-change-clears-approval, a diff is what keeps a typo fix from feeling like a full re-review.</p><div class="owner">Decide with · you, before slice 4</div></div>
   <div class="q"><b>Who may review: only you, or anyone with the link?</b><p class="cost">This sets the sharing level and which writes the page allows.</p><div class="owner">Decide with · you, before slice 2</div></div>
 </section>
 
@@ -349,7 +350,7 @@ var v1="main",v2="main",v3="main";
 function renderSchema(){
   var rows=document.getElementById("schemaRows");rows.textContent="";
   document.getElementById("schemaName").textContent=v1==="main"?"reviews/{plan}/{slice}":"reviews/{plan}";
-  var R=v1==="main"?[["slice_id","text"],["decision","approved | changes | pending"],["comment","text"],(v3==="main"?["material_hash","hash of done-when, files, deps, blocks"]:["slice_hash","hash of the full slice text"]),["reviewer","user id"],["updated_at","timestamp"]]
+  var R=v1==="main"?[["slice_id","text"],["decision","approved | changes | pending"],["comment","text"],(v3==="main"?["content_hash","hash of slice text, whitespace normalised"]:["material_hash","hash of done-when, files, deps, blocks"]),["reviewer","user id"],["updated_at","timestamp"]]
                    :[["slices","map slice_id → decision"],["comments","map slice_id → text"],["reviewer","user id"],["updated_at","timestamp"]];
   if(v2==="main")R.push(["sent_to_claude_at","timestamp (set by the button)"]);
   R.forEach(function(r,i){var flag=(v2==="main"&&r[0]==="sent_to_claude_at");
@@ -376,7 +377,7 @@ var PRESETS={
  pending:{s:["pending","pending","pending","pending"],note:null,write:true},
  mixed:{s:["approved","changes","pending","pending"],note:null,write:true,c:{1:"Show how a conflict looks to the second reviewer."}},
  approved:{s:["approved","approved","approved","approved"],note:null,write:true},
- edited:{s:["approved","approved","stale","pending"],note:null,write:true,e:{1:{k:"minor",t:"Wording changed after you approved. Your approval is kept."},2:{k:"material",t:"Done-when changed after you approved: it now also requires reading from the legacy source. Approve again to continue."}}},
+ edited:{s:["approved","approved","stale","pending"],note:null,write:true,e:{1:{k:"minor",t:"Only whitespace changed after you approved. Your approval is kept."},2:{k:"material",t:"The done-when text changed after you approved: it now also requires reading the legacy source. Approve again to continue."}}},
  conflict:{s:["approved","pending","pending","pending"],note:{k:"warn",t:"Someone else updated this review. Reload to see their changes, then try again."},write:false},
  readonly:{s:["approved","changes","pending","pending"],note:{k:"info",t:"You can read this plan but not review it. Ask the owner for review access."},write:false}
 };
@@ -444,8 +445,8 @@ var N={
  live:{t:"Other viewers update live",s:"untested",run:"The database is described as a shared realtime store, so other open pages should update without a reload.",fail:"Not tested with this page. If it does not hold, viewers reload to see changes."},
  wake:{t:"Session hears about it",s:"untested",run:"Reliable path: the reviewer presses Send to Claude, which posts an artifact comment and wakes the session. Unproven path: a database write alone waking the session.",fail:"If only the comment path works, the review needs that one extra click. That is why choice ② defaults to the button."},
  read:{t:"Session reads the reviews",s:"untested",run:"The session lists the review documents and maps them to the feedback JSON that plan feedback returns today.",fail:"Reading depends on the session having artifact data access. Not tested for this page."},
- all:{t:"All slices approved?",s:"proposed",run:"Every slice must be approved, and no approval may be stale. An approval goes stale only when a material field changed (done-when, files, deps or a block); wording-only edits keep it.",fail:"Any pending, changes-requested or stale slice sends the plan back for revision."},
- revise:{t:"Apply changes, republish",s:"proposed",run:"The session edits the plan YAML, re-renders the page and republishes a new artifact version. Approvals carry over for unchanged slices and for wording-only edits.",fail:"If a material field changed, the approval is flagged stale and needs a fresh decision. Deciding what is material is a judgment call the reviewer should be able to inspect."},
+ all:{t:"All slices approved?",s:"proposed",run:"Every slice must be approved, and no approval may be stale. An approval goes stale when the slice text changes in any way except whitespace.",fail:"Any pending, changes-requested or stale slice sends the plan back for revision."},
+ revise:{t:"Apply changes, republish",s:"proposed",run:"The session edits the plan YAML, re-renders the page and republishes a new artifact version. Approvals carry over for unchanged slices and for whitespace-only edits.",fail:"If the text changed, the approval is flagged stale and needs a fresh decision. The page shows what changed so a typo fix is quick to re-approve."},
  finalize:{t:"plan finalize",s:"exists",run:"The existing finalize step. The slices then promote to features as they do today.",fail:"Existing behaviour and failure modes."}
 };
 var panel=document.getElementById("panel");
@@ -476,7 +477,7 @@ Array.prototype.forEach.call(document.querySelectorAll(".opts[data-k]"),function
     Array.prototype.forEach.call(g.querySelectorAll(".btn"),function(x){x.classList.remove("on");});b.classList.add("on");pick[k]=b.dataset.a;renderOut();});});});
 document.getElementById("copy").addEventListener("click",function(){copyText(this,plain());});
 renderOut();
-["shape","notify","stale"].forEach(function(k,j){var idx=[0,0,1][j];document.querySelectorAll(".opts[data-k="+k+"] .btn")[idx].click();});
+["shape","notify","stale","material"].forEach(function(k,j){var idx=[0,0,1,2][j];document.querySelectorAll(".opts[data-k="+k+"] .btn")[idx].click();});
 })();
 </script>
 </body>
