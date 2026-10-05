@@ -127,6 +127,18 @@ func recordClaimEpisodeClose(database *sql.DB, wipnoteDir, sessionID, agentID, w
 	}
 }
 
+// sweepClaimsOnCompletion closes episodes the caller's exact-match close could
+// not see (another session or agent, or completion with no session id). It must
+// run only once the completion has stuck: the transactional and deferred commit
+// paths reopen the item on failure, and sweeping before that would end another
+// holder's claim on an item that is back in progress.
+func sweepClaimsOnCompletion(wipnoteDir, workItemID, status string) {
+	if status != "done" {
+		return
+	}
+	recordWorkItemClaimsClosed(wipnoteDir, workItemID, claimledger.OutcomeCompleted)
+}
+
 // recordWorkItemClaimsClosed closes any episode still open on workItemID after
 // the caller's own episode was closed. Completion belongs to the item, so a
 // claim left by another session, another agent id, or no session at all must

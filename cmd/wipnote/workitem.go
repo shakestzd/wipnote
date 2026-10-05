@@ -462,10 +462,6 @@ func wiSetStatusWithAgent(typeName, id, status, sessionID, agentID string) error
 			// Close the claim episode in place, giving the interval its end.
 			recordClaimEpisodeClose(nil, dir, sessionID, agentID, id, claimledger.OutcomeCompleted)
 		}
-		// Sweep what the caller's exact-match close could not see: episodes
-		// opened by a different session or agent, or completion with no
-		// session id at all.
-		recordWorkItemClaimsClosed(dir, id, claimledger.OutcomeCompleted)
 	}
 
 	// Commit the artifact HTML to the main git repo on every state transition
@@ -494,6 +490,7 @@ func wiSetStatusWithAgent(typeName, id, status, sessionID, agentID string) error
 					"autocommit skipped: .git is read-only (sandboxed). Item marked done. "+
 						"Commit manually: git add %s && git commit -m %q\n",
 					relArtifact, "wipnote: complete "+id)
+				sweepClaimsOnCompletion(dir, id, status)
 				return nil
 			}
 			// Compensating re-open: use col.Start, the codebase's canonical
@@ -535,6 +532,9 @@ func wiSetStatusWithAgent(typeName, id, status, sessionID, agentID string) error
 			fmt.Fprintf(os.Stderr, "autocommit warning: %v\n", err)
 		}
 	}
+
+	// Every abort path above has returned by now, so the completion has stuck.
+	sweepClaimsOnCompletion(dir, id, status)
 
 	// Update status line cache for subagent visibility.
 	if status == "in-progress" {

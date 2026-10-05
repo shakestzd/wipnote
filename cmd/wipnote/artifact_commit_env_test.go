@@ -11,6 +11,9 @@ import (
 	"strings"
 	"syscall"
 	"testing"
+	"time"
+
+	"github.com/shakestzd/wipnote/core/claimledger"
 )
 
 func TestIsEnvironmentalOutboxError(t *testing.T) {
@@ -210,5 +213,66 @@ func TestDeferredComplete_ReadOnlyCacheDirKeepsItemDone(t *testing.T) {
 	}
 	if !strings.Contains(stderrText, "commit-queue unavailable") {
 		t.Fatalf("expected pending-sync warning, got:\n%s", stderrText)
+	}
+}
+
+// A foreign session's claim must survive a completion that gets rolled back by
+// a failed artifact commit, and be closed once a later completion sticks.
+// Sweeping before the persistence path (the original placement) ended the other
+// holder's episode on an item that had been reopened.
+func TestCompleteSweepsForeignClaimsOnlyAfterCompletionSticks(t *testing.T) {
+	if testing.Short() {
+		t.Skip("drives real git-backed work-item completion")
+	}
+	_, wipnoteDir, featID, sessionID, agentID := setupTransactionalCompleteRepo(t)
+	t.Setenv("WIPNOTE_ARTIFACT_COMMIT_POLICY", "defer")
+
+	store := claimledger.NewStore(wipnoteDir)
+	if _, _, err := store.Open("foreign-root", claimledger.Episode{
+		WorkItemID: featID, SessionID: "foreign-session", AgentID: "other-agent",
+		StartedAt: time.Now().UTC().Add(-time.Hour),
+	}); err != nil {
+		t.Fatalf("open foreign episode: %v", err)
+	}
+	foreignOpen := func() bool {
+		eps, err := store.ReadShard("foreign-root")
+		if err != nil {
+			t.Fatalf("ReadShard: %v", err)
+		}
+		for _, e := range eps {
+			if e.WorkItemID == featID && e.SessionID == "foreign-session" {
+				return e.IsOpen()
+			}
+		}
+		t.Fatal("foreign episode missing from ledger")
+		return false
+	}
+
+	orig := persistArtifactTransitionFn
+	t.Cleanup(func() { persistArtifactTransitionFn = orig })
+
+	persistArtifactTransitionFn = func(_, _, _, _ string) error {
+		return errors.New("commitqueue: parse intent line: unexpected EOF")
+	}
+	var runErr error
+	_ = captureOSStderr(t, func() {
+		runErr = wiSetStatusWithAgent("feature", featID, "done", sessionID, agentID)
+	})
+	if runErr == nil || !strings.Contains(runErr.Error(), "completion aborted") {
+		t.Fatalf("setup: expected an aborted completion, got: %v", runErr)
+	}
+	if !foreignOpen() {
+		t.Fatal("aborted completion closed another session's episode; the item was reopened")
+	}
+
+	persistArtifactTransitionFn = func(_, _, _, _ string) error { return nil }
+	_ = captureOSStderr(t, func() {
+		runErr = wiSetStatusWithAgent("feature", featID, "done", sessionID, agentID)
+	})
+	if runErr != nil {
+		t.Fatalf("second completion should succeed, got: %v", runErr)
+	}
+	if foreignOpen() {
+		t.Fatal("completed item still has another session's episode open")
 	}
 }
