@@ -12,7 +12,9 @@ import (
 	"github.com/shakestzd/wipnote/core/claimledger"
 	dbpkg "github.com/shakestzd/wipnote/core/db"
 	"github.com/shakestzd/wipnote/core/hooks"
+	"github.com/shakestzd/wipnote/core/models"
 	"github.com/shakestzd/wipnote/core/sessionledger"
+	"github.com/shakestzd/wipnote/core/workitem"
 )
 
 // initClaimLedgerCommitSeam installs the commit producer for canonical claim
@@ -139,6 +141,23 @@ func sweepClaimsOnCompletion(wipnoteDir, workItemID, status string, transitionSt
 		return
 	}
 	recordWorkItemClaimsClosed(wipnoteDir, workItemID, claimledger.OutcomeCompleted, transitionStartedAt)
+}
+
+// closeStartedClaimIfItemDone is the start-side half of the completion sweep's
+// ordering guarantee. Recording a claim happens after col.Start releases the
+// item lock, so a concurrent completion can finish between the two and sweep
+// before this claim exists. Re-reading the item once the claim is recorded
+// closes that gap: if the item is already done the claim is stale, so end it.
+// An item that was legitimately reopened reads in-progress and keeps its claim.
+func closeStartedClaimIfItemDone(col *workitem.Collection, wipnoteDir, sessionID, agentID, workItemID string) {
+	if sessionID == "" {
+		return
+	}
+	node, err := col.Get(workItemID)
+	if err != nil || node == nil || node.Status != models.StatusDone {
+		return
+	}
+	recordClaimEpisodeClose(nil, wipnoteDir, sessionID, agentID, workItemID, claimledger.OutcomeCompleted)
 }
 
 // recordWorkItemClaimsClosed closes any episode still open on workItemID after

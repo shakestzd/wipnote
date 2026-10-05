@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/shakestzd/wipnote/core/claimledger"
+	"github.com/shakestzd/wipnote/core/workitem"
 )
 
 func TestIsEnvironmentalOutboxError(t *testing.T) {
@@ -313,5 +314,50 @@ func TestCompleteSweepSparesClaimOpenedAfterTransition(t *testing.T) {
 	}
 	if len(eps) != 1 || !eps[0].IsOpen() {
 		t.Fatalf("claim opened after the transition was closed by the sweep: %+v", eps)
+	}
+}
+
+// Start-side half of the ordering guarantee: a claim recorded after a
+// concurrent completion already swept must end itself when it finds the item
+// done, and must keep itself when the item is still in progress.
+func TestCloseStartedClaimIfItemDone(t *testing.T) {
+	if testing.Short() {
+		t.Skip("drives real git-backed work-item completion")
+	}
+	_, wipnoteDir, featID, sessionID, agentID := setupTransactionalCompleteRepo(t)
+	store := claimledger.NewStore(wipnoteDir)
+	p, err := workitem.Open(wipnoteDir, "test-agent")
+	if err != nil {
+		t.Fatalf("workitem.Open: %v", err)
+	}
+	col := collectionFor(p, "feature")
+
+	ownOpen := func() bool {
+		eps, err := store.ReadAll()
+		if err != nil {
+			t.Fatalf("ReadAll: %v", err)
+		}
+		for _, e := range eps {
+			if e.WorkItemID == featID && e.SessionID == sessionID {
+				return e.IsOpen()
+			}
+		}
+		t.Fatal("setup episode missing from ledger")
+		return false
+	}
+
+	// Item still in progress: the claim is live and must be kept.
+	closeStartedClaimIfItemDone(col, wipnoteDir, sessionID, agentID, featID)
+	if !ownOpen() {
+		t.Fatal("claim on an in-progress item was closed")
+	}
+
+	// Item completed by someone else after this claim was recorded.
+	if _, err := col.Complete(featID); err != nil {
+		t.Fatalf("Complete: %v", err)
+	}
+	closeStartedClaimIfItemDone(col, wipnoteDir, sessionID, agentID, featID)
+	if ownOpen() {
+		t.Fatal("claim on a done item was left open")
 	}
 }
