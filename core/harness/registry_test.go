@@ -254,8 +254,8 @@ func TestRegistry_ClaudeOtelEnv_HasAllKeys(t *testing.T) {
 		"OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf",
 		"OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:9999",
 		"OTEL_LOG_TOOL_DETAILS=1",
-		"OTEL_LOG_USER_PROMPTS=1",
-		"OTEL_LOG_TOOL_CONTENT=1",
+		"OTEL_LOG_USER_PROMPTS=0",
+		"OTEL_LOG_TOOL_CONTENT=0",
 	}
 
 	gotSet := make(map[string]bool, len(got))

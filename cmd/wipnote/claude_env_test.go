@@ -51,6 +51,8 @@ func clearOtelEnv(t *testing.T) {
 		"OTEL_EXPORTER_OTLP_PROTOCOL",
 		"OTEL_EXPORTER_OTLP_ENDPOINT",
 		"OTEL_LOG_TOOL_DETAILS",
+		"OTEL_LOG_USER_PROMPTS",
+		"OTEL_LOG_TOOL_CONTENT",
 	} {
 		t.Setenv(key, "")
 	}
@@ -109,6 +111,20 @@ func TestBuildClaudeLaunchEnv_InjectsWhenCollectorActive(t *testing.T) {
 	assertEnvContains(t, env, "OTEL_EXPORTER_OTLP_PROTOCOL", "http/protobuf")
 	assertEnvContains(t, env, "OTEL_EXPORTER_OTLP_ENDPOINT", "http://127.0.0.1:9999")
 	assertEnvContains(t, env, "OTEL_LOG_TOOL_DETAILS", "1")
+	// Prompt text and tool payloads are private by default.
+	assertEnvContains(t, env, "OTEL_LOG_USER_PROMPTS", "0")
+	assertEnvContains(t, env, "OTEL_LOG_TOOL_CONTENT", "0")
+}
+
+func TestBuildClaudeLaunchEnv_ContentLoggingIsOptIn(t *testing.T) {
+	clearOtelEnv(t)
+	t.Setenv("WIPNOTE_OTEL_ENABLED", "1")
+	t.Setenv("OTEL_LOG_USER_PROMPTS", "1")
+	t.Setenv("OTEL_LOG_TOOL_CONTENT", "1")
+
+	env := buildClaudeLaunchEnv("", testOverrides(9999))
+	assertEnvContains(t, env, "OTEL_LOG_USER_PROMPTS", "1")
+	assertEnvContains(t, env, "OTEL_LOG_TOOL_CONTENT", "1")
 }
 
 func TestBuildClaudeLaunchEnv_RespectsUserOverrides(t *testing.T) {
