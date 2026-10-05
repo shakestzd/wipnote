@@ -86,7 +86,7 @@ Use only the block types and field names returned by `wipnote plan blocks` in St
 
 **Grounding rules (non-negotiable):**
 - `data-model` rows must use field names/types that exist (or will exist) in the codebase — do not invent schema.
-- A `data-model` titled with a route (e.g. `POST /api/ingest`) must name a route the slice will actually implement.
+- A `data-model` named with a route (e.g. `name: POST /api/ingest — 429 response`) must use a route the slice will actually implement. Put the route in `name`: a data-model's `title` is not rendered.
 - `file-tree` entries must list real files the slice touches (use the acceptance criteria and task description as source).
 - `wireframe` HTML must use `var(--wf-*)` design tokens only — never raw hex/rgb colors.
 
