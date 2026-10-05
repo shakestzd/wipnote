@@ -16,11 +16,13 @@ has real UI and a real flow, which is why it was chosen. Its estimates are illus
    the session stays unverified and is not relied on.
 3. Approval after a slice is edited: it carries over if the edit is minor.
 4. What counts as a change: anything except whitespace.
+5. When an approval is cleared, the page shows a diff of what changed since the reviewer
+   approved, so a typo fix is a quick re-approval instead of a full re-review.
 
 Together, 3 and 4 mean an approval survives whitespace-only edits and nothing else. It is
 keyed to a hash of the whitespace-normalised slice text, so there is no list of "material"
-fields to maintain. The cost is that a typo fix clears the approval, which is why the page
-leans toward showing a diff of what changed (open question). The broader rule considered
+fields to maintain. The cost is that a typo fix clears the approval, which is why decision 5
+shows a diff. The broader rule considered
 earlier (only `done-when`, `files`, `deps` and blocks count) is kept as the toggle
 alternative on the page.
 
