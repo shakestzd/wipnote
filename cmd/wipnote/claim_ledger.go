@@ -127,6 +127,19 @@ func recordClaimEpisodeClose(database *sql.DB, wipnoteDir, sessionID, agentID, w
 	}
 }
 
+// recordWorkItemClaimsClosed closes any episode still open on workItemID after
+// the caller's own episode was closed. Completion belongs to the item, so a
+// claim left by another session, another agent id, or no session at all must
+// not outlive it. Non-fatal for the same reason as the other ledger writers.
+func recordWorkItemClaimsClosed(wipnoteDir, workItemID string, outcome claimledger.Outcome) {
+	if workItemID == "" {
+		return
+	}
+	if _, err := claimLedgerStore(wipnoteDir).CloseWorkItem(workItemID, outcome, time.Now().UTC()); err != nil {
+		claimLedgerWarn("close remaining claims for %s: %v", workItemID, err)
+	}
+}
+
 // claimLedgerWarn reports a ledger failure without polluting stdout or breaking
 // hooks (Claude Code treats any hook stderr as an error), so it is gated behind
 // WIPNOTE_DEBUG like the other best-effort artifact paths.
