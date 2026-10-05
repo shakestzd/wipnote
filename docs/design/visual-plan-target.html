@@ -153,6 +153,8 @@ details.mech summary{cursor:pointer;font-weight:600}
 .opts{display:flex;gap:8px;flex-wrap:wrap}
 pre.out{background:var(--code);border-radius:8px;padding:10px 12px;white-space:pre-wrap;font:13px/1.5 ui-monospace,Menlo,monospace;margin:10px 0}
 .blank{color:var(--muted)}
+.manual{margin-top:10px}
+.manual textarea{width:100%;font:13px/1.5 ui-monospace,Menlo,monospace;background:var(--code);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:8px}
 .tw{display:flex;gap:10px;align-items:center;justify-content:space-between;border-top:1px solid var(--line);padding:8px 0}
 .tw:first-of-type{border-top:0}
 .tw span{font-size:14px}
@@ -344,8 +346,21 @@ function h(tag,attrs,kids){var e=document.createElement(tag);if(attrs)for(var k 
 function copyText(btn,text){
   var orig=btn.dataset.o||btn.textContent;btn.dataset.o=orig;
   function done(){btn.textContent="Copied";setTimeout(function(){btn.textContent=orig;},1500);}
-  function fb(){var t=document.createElement("textarea");t.value=text;t.setAttribute("readonly","");t.style.cssText="position:fixed;opacity:0";document.body.appendChild(t);t.select();try{document.execCommand("copy");}catch(e){}document.body.removeChild(t);done();}
-  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(text).then(done,fb);}else{fb();}
+  function manual(){
+    var box=document.getElementById("manual");
+    if(!box){box=h("div",{id:"manual",class:"manual"},[h("p",{class:"cost",role:"status",text:"Copying is blocked here. The text is selected below. Copy it with Ctrl+C or Cmd+C."}),h("textarea",{id:"manualText",readonly:"",rows:"6","aria-label":"Reply text to copy"})]);btn.parentNode.appendChild(box);}
+    var ta=box.querySelector("textarea");ta.value=text;box.hidden=false;ta.focus();ta.select();
+    btn.textContent="Copy blocked";setTimeout(function(){btn.textContent=orig;},2500);
+  }
+  function fb(){
+    var t=document.createElement("textarea");t.value=text;t.setAttribute("readonly","");t.style.cssText="position:fixed;opacity:0";document.body.appendChild(t);t.select();
+    var ok=false;try{ok=document.execCommand("copy");}catch(e){}
+    document.body.removeChild(t);
+    if(ok)done();else manual();
+  }
+  try{
+    if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(text).then(done,fb);}else{fb();}
+  }catch(e){fb();}
 }
 
 /* ---------- A: decisions + live schema ---------- */
