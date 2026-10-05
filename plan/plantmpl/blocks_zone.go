@@ -24,7 +24,7 @@ type renderedBlock struct {
 }
 
 // BlocksZone renders a slice's structured visual blocks (data-model,
-// api-endpoint, file-tree, wireframe) by adapting each planyaml.SliceBlock into
+// file-tree, wireframe, diagram, tabs) by adapting each planyaml.SliceBlock into
 // the matching shared plan/blocks renderer. Plan and recap therefore share ONE
 // block render code path — this zone contains no block markup of its own beyond
 // the per-block anchor wrapper.

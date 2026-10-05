@@ -172,7 +172,7 @@ type SliceCard struct {
 	DecisionsNotes  string                    // free-text Markdown captured by elicit-decisions
 
 	// Blocks is the slice's optional structured visual blocks (data-model,
-	// api-endpoint, file-tree, wireframe). They render via the shared plan/blocks
+	// file-tree, wireframe, diagram, tabs). They render via the shared plan/blocks
 	// renderers in the Blocks zone — see BlocksZoneHTML. Empty = no Blocks zone.
 	Blocks []planyaml.SliceBlock
 }
