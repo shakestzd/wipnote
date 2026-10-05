@@ -276,3 +276,42 @@ func TestCompleteSweepsForeignClaimsOnlyAfterCompletionSticks(t *testing.T) {
 		t.Fatal("completed item still has another session's episode open")
 	}
 }
+
+// A session that starts the item after the completion transition began holds a
+// new claim; the sweep must not mark it completed. The persistence hook runs
+// after the transition and before the sweep, so opening an episode from inside
+// it reproduces the race deterministically.
+func TestCompleteSweepSparesClaimOpenedAfterTransition(t *testing.T) {
+	if testing.Short() {
+		t.Skip("drives real git-backed work-item completion")
+	}
+	_, wipnoteDir, featID, sessionID, agentID := setupTransactionalCompleteRepo(t)
+	t.Setenv("WIPNOTE_ARTIFACT_COMMIT_POLICY", "defer")
+
+	store := claimledger.NewStore(wipnoteDir)
+	orig := persistArtifactTransitionFn
+	t.Cleanup(func() { persistArtifactTransitionFn = orig })
+	persistArtifactTransitionFn = func(_, _, _, _ string) error {
+		time.Sleep(5 * time.Millisecond)
+		_, _, err := store.Open("late-root", claimledger.Episode{
+			WorkItemID: featID, SessionID: "late-session", AgentID: "late-agent",
+			StartedAt: time.Now().UTC(),
+		})
+		return err
+	}
+
+	var runErr error
+	_ = captureOSStderr(t, func() {
+		runErr = wiSetStatusWithAgent("feature", featID, "done", sessionID, agentID)
+	})
+	if runErr != nil {
+		t.Fatalf("completion failed: %v", runErr)
+	}
+	eps, err := store.ReadShard("late-root")
+	if err != nil {
+		t.Fatalf("ReadShard: %v", err)
+	}
+	if len(eps) != 1 || !eps[0].IsOpen() {
+		t.Fatalf("claim opened after the transition was closed by the sweep: %+v", eps)
+	}
+}

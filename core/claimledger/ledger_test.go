@@ -488,7 +488,7 @@ func TestCloseWorkItemClosesAcrossShardsAndSessions(t *testing.T) {
 	mustOpen(t, s, "root-2", "child-x", "ag-x", "feat-done", start)
 	mustOpen(t, s, "root-1", "root-1", "__root__", "feat-other", start)
 
-	closed, err := s.CloseWorkItem("feat-done", OutcomeCompleted, start.Add(time.Hour))
+	closed, err := s.CloseWorkItem("feat-done", OutcomeCompleted, start.Add(time.Hour), time.Time{})
 	if err != nil {
 		t.Fatalf("CloseWorkItem: %v", err)
 	}
@@ -514,17 +514,48 @@ func TestCloseWorkItemClosesAcrossShardsAndSessions(t *testing.T) {
 	}
 
 	// A second call finds nothing open and writes nothing.
-	if again, err := s.CloseWorkItem("feat-done", OutcomeCompleted, start.Add(2*time.Hour)); err != nil || again != 0 {
+	if again, err := s.CloseWorkItem("feat-done", OutcomeCompleted, start.Add(2*time.Hour), time.Time{}); err != nil || again != 0 {
 		t.Errorf("repeat CloseWorkItem = (%d, %v), want (0, nil)", again, err)
+	}
+}
+
+// An episode opened after the completion transition began belongs to a new
+// start of the item and must survive the sweep.
+func TestCloseWorkItemSkipsEpisodesStartedAfterCutoff(t *testing.T) {
+	s := testStore(t)
+	start := time.Date(2026, 8, 8, 10, 0, 0, 0, time.UTC)
+	cutoff := start.Add(time.Hour)
+	mustOpen(t, s, "root-1", "old-session", "ag-old", "feat-x", start)
+	mustOpen(t, s, "root-2", "new-session", "ag-new", "feat-x", cutoff.Add(time.Minute))
+
+	closed, err := s.CloseWorkItem("feat-x", OutcomeCompleted, cutoff.Add(2*time.Minute), cutoff)
+	if err != nil {
+		t.Fatalf("CloseWorkItem: %v", err)
+	}
+	if closed != 1 {
+		t.Fatalf("closed %d episodes, want 1 (only the one started before the cutoff)", closed)
+	}
+	eps, _ := s.ReadAll()
+	for _, e := range eps {
+		switch e.SessionID {
+		case "old-session":
+			if e.IsOpen() {
+				t.Error("episode started before the cutoff was not closed")
+			}
+		case "new-session":
+			if !e.IsOpen() {
+				t.Error("episode started after the cutoff was closed")
+			}
+		}
 	}
 }
 
 func TestCloseWorkItemOnEmptyLedger(t *testing.T) {
 	s := testStore(t)
-	if n, err := s.CloseWorkItem("feat-none", OutcomeCompleted, time.Time{}); err != nil || n != 0 {
+	if n, err := s.CloseWorkItem("feat-none", OutcomeCompleted, time.Time{}, time.Time{}); err != nil || n != 0 {
 		t.Fatalf("CloseWorkItem on empty ledger = (%d, %v), want (0, nil)", n, err)
 	}
-	if _, err := s.CloseWorkItem("feat-none", Outcome("bogus"), time.Time{}); err == nil {
+	if _, err := s.CloseWorkItem("feat-none", Outcome("bogus"), time.Time{}, time.Time{}); err == nil {
 		t.Fatal("invalid outcome should be rejected")
 	}
 }

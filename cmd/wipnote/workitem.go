@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/shakestzd/wipnote/core/claimledger"
 	dbpkg "github.com/shakestzd/wipnote/core/db"
@@ -405,6 +406,9 @@ func wiSetStatusWithAgent(typeName, id, status, sessionID, agentID string) error
 			return err
 		}
 	}
+	// Taken before the transition so the claim sweep never reaches a claim that
+	// another session opens after this completion began.
+	transitionStartedAt := time.Now().UTC()
 	var node *models.Node
 	switch status {
 	case "in-progress":
@@ -490,7 +494,7 @@ func wiSetStatusWithAgent(typeName, id, status, sessionID, agentID string) error
 					"autocommit skipped: .git is read-only (sandboxed). Item marked done. "+
 						"Commit manually: git add %s && git commit -m %q\n",
 					relArtifact, "wipnote: complete "+id)
-				sweepClaimsOnCompletion(dir, id, status)
+				sweepClaimsOnCompletion(dir, id, status, transitionStartedAt)
 				return nil
 			}
 			// Compensating re-open: use col.Start, the codebase's canonical
@@ -534,7 +538,7 @@ func wiSetStatusWithAgent(typeName, id, status, sessionID, agentID string) error
 	}
 
 	// Every abort path above has returned by now, so the completion has stuck.
-	sweepClaimsOnCompletion(dir, id, status)
+	sweepClaimsOnCompletion(dir, id, status, transitionStartedAt)
 
 	// Update status line cache for subagent visibility.
 	if status == "in-progress" {

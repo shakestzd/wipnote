@@ -131,23 +131,25 @@ func recordClaimEpisodeClose(database *sql.DB, wipnoteDir, sessionID, agentID, w
 // not see (another session or agent, or completion with no session id). It must
 // run only once the completion has stuck: the transactional and deferred commit
 // paths reopen the item on failure, and sweeping before that would end another
-// holder's claim on an item that is back in progress.
-func sweepClaimsOnCompletion(wipnoteDir, workItemID, status string) {
+// holder's claim on an item that is back in progress. Only episodes that began
+// no later than transitionStartedAt are closed: a session that starts the item
+// after the transition holds a new claim, not a stale one.
+func sweepClaimsOnCompletion(wipnoteDir, workItemID, status string, transitionStartedAt time.Time) {
 	if status != "done" {
 		return
 	}
-	recordWorkItemClaimsClosed(wipnoteDir, workItemID, claimledger.OutcomeCompleted)
+	recordWorkItemClaimsClosed(wipnoteDir, workItemID, claimledger.OutcomeCompleted, transitionStartedAt)
 }
 
 // recordWorkItemClaimsClosed closes any episode still open on workItemID after
 // the caller's own episode was closed. Completion belongs to the item, so a
 // claim left by another session, another agent id, or no session at all must
 // not outlive it. Non-fatal for the same reason as the other ledger writers.
-func recordWorkItemClaimsClosed(wipnoteDir, workItemID string, outcome claimledger.Outcome) {
+func recordWorkItemClaimsClosed(wipnoteDir, workItemID string, outcome claimledger.Outcome, startedBy time.Time) {
 	if workItemID == "" {
 		return
 	}
-	if _, err := claimLedgerStore(wipnoteDir).CloseWorkItem(workItemID, outcome, time.Now().UTC()); err != nil {
+	if _, err := claimLedgerStore(wipnoteDir).CloseWorkItem(workItemID, outcome, time.Now().UTC(), startedBy); err != nil {
 		claimLedgerWarn("close remaining claims for %s: %v", workItemID, err)
 	}
 }

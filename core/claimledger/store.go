@@ -277,7 +277,12 @@ func (s *Store) CloseAllForSession(rootSessionID, onlySessionID string, outcome 
 // session and completed by another (orchestrator hand-off, a rotated session, a
 // shell with no session ID) otherwise keeps its episode open forever, and the
 // interval never gets an end. Shards are locked one at a time, never together.
-func (s *Store) CloseWorkItem(workItemID string, outcome Outcome, endedAt time.Time) (int, error) {
+//
+// startedBy, when non-zero, bounds the sweep to episodes that began no later
+// than that instant. A caller passes the moment its completion transition began,
+// so a claim another session opens after the transition (a legitimate fresh
+// start on a reopened item) is left alone instead of being marked completed.
+func (s *Store) CloseWorkItem(workItemID string, outcome Outcome, endedAt, startedBy time.Time) (int, error) {
 	if !outcome.valid() {
 		return 0, fmt.Errorf("claimledger: invalid outcome %q", outcome)
 	}
@@ -291,7 +296,7 @@ func (s *Store) CloseWorkItem(workItemID string, outcome Outcome, endedAt time.T
 	total := 0
 	var firstErr error
 	for _, path := range paths {
-		n, err := closeWorkItemInShard(s, path, workItemID, outcome, endedAt)
+		n, err := closeWorkItemInShard(s, path, workItemID, outcome, endedAt, startedBy)
 		total += n
 		if err != nil && firstErr == nil {
 			firstErr = err
@@ -300,7 +305,7 @@ func (s *Store) CloseWorkItem(workItemID string, outcome Outcome, endedAt time.T
 	return total, firstErr
 }
 
-func closeWorkItemInShard(s *Store, path, workItemID string, outcome Outcome, endedAt time.Time) (int, error) {
+func closeWorkItemInShard(s *Store, path, workItemID string, outcome Outcome, endedAt, startedBy time.Time) (int, error) {
 	release := filelock.Guard(path)
 	defer release()
 
@@ -311,6 +316,9 @@ func closeWorkItemInShard(s *Store, path, workItemID string, outcome Outcome, en
 	closed := 0
 	for i := range episodes {
 		if !episodes[i].IsOpen() || episodes[i].WorkItemID != workItemID {
+			continue
+		}
+		if !startedBy.IsZero() && episodes[i].StartedAt.After(startedBy) {
 			continue
 		}
 		end := endedAt
