@@ -12,7 +12,9 @@ import (
 	"github.com/shakestzd/wipnote/core/claimledger"
 	dbpkg "github.com/shakestzd/wipnote/core/db"
 	"github.com/shakestzd/wipnote/core/hooks"
+	"github.com/shakestzd/wipnote/core/models"
 	"github.com/shakestzd/wipnote/core/sessionledger"
+	"github.com/shakestzd/wipnote/core/workitem"
 )
 
 // initClaimLedgerCommitSeam installs the commit producer for canonical claim
@@ -124,6 +126,50 @@ func recordClaimEpisodeClose(database *sql.DB, wipnoteDir, sessionID, agentID, w
 	_, err := store.Close(root, sessionID, dbpkg.NormaliseAgentID(agentID), workItemID, outcome, time.Now().UTC())
 	if err != nil && !errors.Is(err, claimledger.ErrNoOpenEpisode) {
 		claimLedgerWarn("record claim end for %s: %v", workItemID, err)
+	}
+}
+
+// sweepClaimsOnCompletion closes episodes the caller's exact-match close could
+// not see (another session or agent, or completion with no session id). It must
+// run only once the completion has stuck: the transactional and deferred commit
+// paths reopen the item on failure, and sweeping before that would end another
+// holder's claim on an item that is back in progress. Only episodes that began
+// no later than transitionStartedAt are closed: a session that starts the item
+// after the transition holds a new claim, not a stale one.
+func sweepClaimsOnCompletion(wipnoteDir, workItemID, status string, transitionStartedAt time.Time) {
+	if status != "done" {
+		return
+	}
+	recordWorkItemClaimsClosed(wipnoteDir, workItemID, claimledger.OutcomeCompleted, transitionStartedAt)
+}
+
+// closeStartedClaimIfItemDone is the start-side half of the completion sweep's
+// ordering guarantee. Recording a claim happens after col.Start releases the
+// item lock, so a concurrent completion can finish between the two and sweep
+// before this claim exists. Re-reading the item once the claim is recorded
+// closes that gap: if the item is already done the claim is stale, so end it.
+// An item that was legitimately reopened reads in-progress and keeps its claim.
+func closeStartedClaimIfItemDone(col *workitem.Collection, wipnoteDir, sessionID, agentID, workItemID string) {
+	if sessionID == "" {
+		return
+	}
+	node, err := col.Get(workItemID)
+	if err != nil || node == nil || node.Status != models.StatusDone {
+		return
+	}
+	recordClaimEpisodeClose(nil, wipnoteDir, sessionID, agentID, workItemID, claimledger.OutcomeCompleted)
+}
+
+// recordWorkItemClaimsClosed closes any episode still open on workItemID after
+// the caller's own episode was closed. Completion belongs to the item, so a
+// claim left by another session, another agent id, or no session at all must
+// not outlive it. Non-fatal for the same reason as the other ledger writers.
+func recordWorkItemClaimsClosed(wipnoteDir, workItemID string, outcome claimledger.Outcome, startedBy time.Time) {
+	if workItemID == "" {
+		return
+	}
+	if _, err := claimLedgerStore(wipnoteDir).CloseWorkItem(workItemID, outcome, time.Now().UTC(), startedBy); err != nil {
+		claimLedgerWarn("close remaining claims for %s: %v", workItemID, err)
 	}
 }
 

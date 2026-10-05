@@ -11,6 +11,10 @@ import (
 	"strings"
 	"syscall"
 	"testing"
+	"time"
+
+	"github.com/shakestzd/wipnote/core/claimledger"
+	"github.com/shakestzd/wipnote/core/workitem"
 )
 
 func TestIsEnvironmentalOutboxError(t *testing.T) {
@@ -210,5 +214,150 @@ func TestDeferredComplete_ReadOnlyCacheDirKeepsItemDone(t *testing.T) {
 	}
 	if !strings.Contains(stderrText, "commit-queue unavailable") {
 		t.Fatalf("expected pending-sync warning, got:\n%s", stderrText)
+	}
+}
+
+// A foreign session's claim must survive a completion that gets rolled back by
+// a failed artifact commit, and be closed once a later completion sticks.
+// Sweeping before the persistence path (the original placement) ended the other
+// holder's episode on an item that had been reopened.
+func TestCompleteSweepsForeignClaimsOnlyAfterCompletionSticks(t *testing.T) {
+	if testing.Short() {
+		t.Skip("drives real git-backed work-item completion")
+	}
+	_, wipnoteDir, featID, sessionID, agentID := setupTransactionalCompleteRepo(t)
+	t.Setenv("WIPNOTE_ARTIFACT_COMMIT_POLICY", "defer")
+
+	store := claimledger.NewStore(wipnoteDir)
+	if _, _, err := store.Open("foreign-root", claimledger.Episode{
+		WorkItemID: featID, SessionID: "foreign-session", AgentID: "other-agent",
+		StartedAt: time.Now().UTC().Add(-time.Hour),
+	}); err != nil {
+		t.Fatalf("open foreign episode: %v", err)
+	}
+	foreignOpen := func() bool {
+		eps, err := store.ReadShard("foreign-root")
+		if err != nil {
+			t.Fatalf("ReadShard: %v", err)
+		}
+		for _, e := range eps {
+			if e.WorkItemID == featID && e.SessionID == "foreign-session" {
+				return e.IsOpen()
+			}
+		}
+		t.Fatal("foreign episode missing from ledger")
+		return false
+	}
+
+	orig := persistArtifactTransitionFn
+	t.Cleanup(func() { persistArtifactTransitionFn = orig })
+
+	persistArtifactTransitionFn = func(_, _, _, _ string) error {
+		return errors.New("commitqueue: parse intent line: unexpected EOF")
+	}
+	var runErr error
+	_ = captureOSStderr(t, func() {
+		runErr = wiSetStatusWithAgent("feature", featID, "done", sessionID, agentID)
+	})
+	if runErr == nil || !strings.Contains(runErr.Error(), "completion aborted") {
+		t.Fatalf("setup: expected an aborted completion, got: %v", runErr)
+	}
+	if !foreignOpen() {
+		t.Fatal("aborted completion closed another session's episode; the item was reopened")
+	}
+
+	persistArtifactTransitionFn = func(_, _, _, _ string) error { return nil }
+	_ = captureOSStderr(t, func() {
+		runErr = wiSetStatusWithAgent("feature", featID, "done", sessionID, agentID)
+	})
+	if runErr != nil {
+		t.Fatalf("second completion should succeed, got: %v", runErr)
+	}
+	if foreignOpen() {
+		t.Fatal("completed item still has another session's episode open")
+	}
+}
+
+// A session that starts the item after the completion transition began holds a
+// new claim; the sweep must not mark it completed. The persistence hook runs
+// after the transition and before the sweep, so opening an episode from inside
+// it reproduces the race deterministically.
+func TestCompleteSweepSparesClaimOpenedAfterTransition(t *testing.T) {
+	if testing.Short() {
+		t.Skip("drives real git-backed work-item completion")
+	}
+	_, wipnoteDir, featID, sessionID, agentID := setupTransactionalCompleteRepo(t)
+	t.Setenv("WIPNOTE_ARTIFACT_COMMIT_POLICY", "defer")
+
+	store := claimledger.NewStore(wipnoteDir)
+	orig := persistArtifactTransitionFn
+	t.Cleanup(func() { persistArtifactTransitionFn = orig })
+	persistArtifactTransitionFn = func(_, _, _, _ string) error {
+		time.Sleep(5 * time.Millisecond)
+		_, _, err := store.Open("late-root", claimledger.Episode{
+			WorkItemID: featID, SessionID: "late-session", AgentID: "late-agent",
+			StartedAt: time.Now().UTC(),
+		})
+		return err
+	}
+
+	var runErr error
+	_ = captureOSStderr(t, func() {
+		runErr = wiSetStatusWithAgent("feature", featID, "done", sessionID, agentID)
+	})
+	if runErr != nil {
+		t.Fatalf("completion failed: %v", runErr)
+	}
+	eps, err := store.ReadShard("late-root")
+	if err != nil {
+		t.Fatalf("ReadShard: %v", err)
+	}
+	if len(eps) != 1 || !eps[0].IsOpen() {
+		t.Fatalf("claim opened after the transition was closed by the sweep: %+v", eps)
+	}
+}
+
+// Start-side half of the ordering guarantee: a claim recorded after a
+// concurrent completion already swept must end itself when it finds the item
+// done, and must keep itself when the item is still in progress.
+func TestCloseStartedClaimIfItemDone(t *testing.T) {
+	if testing.Short() {
+		t.Skip("drives real git-backed work-item completion")
+	}
+	_, wipnoteDir, featID, sessionID, agentID := setupTransactionalCompleteRepo(t)
+	store := claimledger.NewStore(wipnoteDir)
+	p, err := workitem.Open(wipnoteDir, "test-agent")
+	if err != nil {
+		t.Fatalf("workitem.Open: %v", err)
+	}
+	col := collectionFor(p, "feature")
+
+	ownOpen := func() bool {
+		eps, err := store.ReadAll()
+		if err != nil {
+			t.Fatalf("ReadAll: %v", err)
+		}
+		for _, e := range eps {
+			if e.WorkItemID == featID && e.SessionID == sessionID {
+				return e.IsOpen()
+			}
+		}
+		t.Fatal("setup episode missing from ledger")
+		return false
+	}
+
+	// Item still in progress: the claim is live and must be kept.
+	closeStartedClaimIfItemDone(col, wipnoteDir, sessionID, agentID, featID)
+	if !ownOpen() {
+		t.Fatal("claim on an in-progress item was closed")
+	}
+
+	// Item completed by someone else after this claim was recorded.
+	if _, err := col.Complete(featID); err != nil {
+		t.Fatalf("Complete: %v", err)
+	}
+	closeStartedClaimIfItemDone(col, wipnoteDir, sessionID, agentID, featID)
+	if ownOpen() {
+		t.Fatal("claim on a done item was left open")
 	}
 }

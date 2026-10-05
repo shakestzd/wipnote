@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/shakestzd/wipnote/core/claimledger"
 	dbpkg "github.com/shakestzd/wipnote/core/db"
@@ -405,6 +406,11 @@ func wiSetStatusWithAgent(typeName, id, status, sessionID, agentID string) error
 			return err
 		}
 	}
+	// The claim sweep is bounded by the transition's own timestamp, read from the
+	// node Complete wrote inside the item lock. The wall clock here is only a
+	// fallback: a timestamp taken outside the lock cannot be ordered against a
+	// concurrent start.
+	transitionStartedAt := time.Now().UTC()
 	var node *models.Node
 	switch status {
 	case "in-progress":
@@ -416,6 +422,9 @@ func wiSetStatusWithAgent(typeName, id, status, sessionID, agentID string) error
 		}
 	default:
 		node, err = col.Complete(id)
+		if err == nil && node != nil && !node.UpdatedAt.IsZero() {
+			transitionStartedAt = node.UpdatedAt
+		}
 	}
 	if err != nil {
 		return fmt.Errorf("cannot set %s %s to %s: %w\nRun 'wipnote wip' to see active items or 'wipnote %s list' to see valid IDs.", typeName, id, status, err, typeName)
@@ -435,6 +444,7 @@ func wiSetStatusWithAgent(typeName, id, status, sessionID, agentID string) error
 			// time T has nothing to join against. Open is idempotent — a re-start
 			// or lease renewal writes no row.
 			recordClaimEpisodeOpen(nil, dir, sessionID, agentID, id)
+			closeStartedClaimIfItemDone(col, dir, sessionID, agentID, id)
 			autoImplementedInEdge(col, id, sessionID)
 			// Non-fatal advisory: warn when this session now owns >= wipPerSessionSoftLimit
 			// in-progress items. Never blocks; yolo/orchestrator may legitimately pre-start.
@@ -490,6 +500,7 @@ func wiSetStatusWithAgent(typeName, id, status, sessionID, agentID string) error
 					"autocommit skipped: .git is read-only (sandboxed). Item marked done. "+
 						"Commit manually: git add %s && git commit -m %q\n",
 					relArtifact, "wipnote: complete "+id)
+				sweepClaimsOnCompletion(dir, id, status, transitionStartedAt)
 				return nil
 			}
 			// Compensating re-open: use col.Start, the codebase's canonical
@@ -531,6 +542,9 @@ func wiSetStatusWithAgent(typeName, id, status, sessionID, agentID string) error
 			fmt.Fprintf(os.Stderr, "autocommit warning: %v\n", err)
 		}
 	}
+
+	// Every abort path above has returned by now, so the completion has stuck.
+	sweepClaimsOnCompletion(dir, id, status, transitionStartedAt)
 
 	// Update status line cache for subagent visibility.
 	if status == "in-progress" {

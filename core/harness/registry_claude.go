@@ -20,15 +20,16 @@ func claudeOtelEnv(port int, sessionID string) []string {
 		"OTEL_TRACES_EXPORTER=otlp",
 		"OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf",
 		"OTEL_EXPORTER_OTLP_ENDPOINT=" + endpoint,
-		// Privacy note: these three default-on flags cause Claude Code to emit
-		// potentially sensitive content via OTel. They mirror the launcher's
-		// historical default; users can override per-key to "0" before launch.
+		// Privacy: prompt text and tool input/output payloads are off by default
+		// because they routinely contain secrets and proprietary code, and the
+		// cost/failure/attribution views need only ids, counts and durations.
+		// Tool details stay on (skill and MCP tool names, bash commands) for
+		// attribution. Opt in per key by exporting OTEL_LOG_USER_PROMPTS=1 or
+		// OTEL_LOG_TOOL_CONTENT=1 before launch; launcher env wins over these.
 		//   OTEL_LOG_TOOL_DETAILS=0  → suppress bash commands, skill names, MCP tool names
-		//   OTEL_LOG_USER_PROMPTS=0  → suppress user prompt content
-		//   OTEL_LOG_TOOL_CONTENT=0  → suppress tool input/output payloads
 		"OTEL_LOG_TOOL_DETAILS=1",
-		"OTEL_LOG_USER_PROMPTS=1",
-		"OTEL_LOG_TOOL_CONTENT=1",
+		"OTEL_LOG_USER_PROMPTS=0",
+		"OTEL_LOG_TOOL_CONTENT=0",
 	}
 }
 

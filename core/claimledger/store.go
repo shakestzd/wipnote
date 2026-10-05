@@ -268,6 +268,77 @@ func (s *Store) CloseAllForSession(rootSessionID, onlySessionID string, outcome 
 	return closed, nil
 }
 
+// CloseWorkItem closes every open episode on workItemID, in whichever shard
+// holds it, and returns how many it closed.
+//
+// Close matches the exact (session, agent, work item) triple, which is right
+// for a session ending its own claim but wrong for completion: finishing an item
+// is a fact about the item, not about who finishes it. An item started by one
+// session and completed by another (orchestrator hand-off, a rotated session, a
+// shell with no session ID) otherwise keeps its episode open forever, and the
+// interval never gets an end. Shards are locked one at a time, never together.
+//
+// startedBy, when non-zero, bounds the sweep to episodes that began no later
+// than that instant. A caller passes the moment its completion transition began,
+// so a claim another session opens after the transition (a legitimate fresh
+// start on a reopened item) is left alone instead of being marked completed.
+func (s *Store) CloseWorkItem(workItemID string, outcome Outcome, endedAt, startedBy time.Time) (int, error) {
+	if !outcome.valid() {
+		return 0, fmt.Errorf("claimledger: invalid outcome %q", outcome)
+	}
+	if endedAt.IsZero() {
+		endedAt = time.Now().UTC()
+	}
+	paths, err := s.Shards()
+	if err != nil {
+		return 0, err
+	}
+	total := 0
+	var firstErr error
+	for _, path := range paths {
+		n, err := closeWorkItemInShard(s, path, workItemID, outcome, endedAt, startedBy)
+		total += n
+		if err != nil && firstErr == nil {
+			firstErr = err
+		}
+	}
+	return total, firstErr
+}
+
+func closeWorkItemInShard(s *Store, path, workItemID string, outcome Outcome, endedAt, startedBy time.Time) (int, error) {
+	release := filelock.Guard(path)
+	defer release()
+
+	episodes, err := readShard(path)
+	if err != nil {
+		return 0, err
+	}
+	closed := 0
+	for i := range episodes {
+		if !episodes[i].IsOpen() || episodes[i].WorkItemID != workItemID {
+			continue
+		}
+		if !startedBy.IsZero() && episodes[i].StartedAt.After(startedBy) {
+			continue
+		}
+		end := endedAt
+		if end.Before(episodes[i].StartedAt) {
+			end = episodes[i].StartedAt
+		}
+		episodes[i].EndedAt = end
+		episodes[i].Outcome = outcome
+		closed++
+	}
+	if closed == 0 {
+		return 0, nil
+	}
+	if err := writeAllLocked(path, episodes); err != nil {
+		return 0, err
+	}
+	s.notify(path, "release")
+	return closed, nil
+}
+
 // Shards returns the per-session shard paths, sorted, excluding the archive.
 func (s *Store) Shards() ([]string, error) {
 	entries, err := os.ReadDir(s.dir)
