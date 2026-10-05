@@ -9,6 +9,18 @@ The feature it plans is the plan review surface (reviewers approve or push back 
 slice by slice in a Claude Artifact, and the session reads the decisions back). That feature
 has real UI and a real flow, which is why it was chosen. Its estimates are illustrative.
 
+## Decisions so far (from the page's reply builder)
+
+1. Review data shape: one document per slice.
+2. How the session finds out: an explicit "Send to Claude" comment. A database write waking
+   the session stays unverified and is not relied on.
+3. Approval after a slice is edited: it carries over if the edit is minor.
+
+Decision 3 needed a rule, and the page uses a default that is not yet confirmed: an edit is
+material (and clears the approval) when `done-when`, `files`, `deps` or a block changed;
+wording-only changes to `what`, `why` and decision notes keep it. The approval is keyed to a
+hash of the material fields. Open question: whether `effort` and `risk` should count too.
+
 ## Where the current blocks fall short
 
 | Page region | Current block | Gap |

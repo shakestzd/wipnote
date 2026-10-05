@@ -81,14 +81,17 @@ ul{margin:6px 0 8px;padding-left:20px}
 .mock .li:hover{background:var(--bg-hover)}
 .mock .li.sel{background:var(--bg-tertiary);color:var(--text-primary);box-shadow:inset 3px 0 0 var(--accent)}
 .dot{width:9px;height:9px;border-radius:50%;background:var(--status-todo);flex:none}
-.dot.approved{background:var(--status-done)} .dot.changes{background:var(--warning)} .dot.pending{background:var(--status-todo)}
+.dot.approved{background:var(--status-done)} .dot.changes,.dot.stale{background:var(--warning)} .dot.pending{background:var(--status-todo)}
 .mock .detail{padding:14px 16px;min-width:0}
 .mock .detail h4{margin:0 0 8px;font-size:15px;color:var(--text-primary)}
 .mock .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);margin-top:10px}
 .mock .detail p{margin:2px 0 0;color:var(--text-secondary)}
 .mock .detail ul{margin:2px 0 0;color:var(--text-secondary)}
 .pill{display:inline-block;border-radius:999px;padding:1px 9px;font-size:11px;border:1px solid var(--border);color:var(--text-secondary)}
-.pill.approved{border-color:var(--status-done);color:var(--status-done)} .pill.changes{border-color:var(--warning);color:var(--warning)}
+.pill.approved{border-color:var(--status-done);color:var(--status-done)} .pill.changes,.pill.stale{border-color:var(--warning);color:var(--warning)}
+.mock .editnote{margin:10px 0 0;padding:8px 10px;border-radius:var(--radius);font-size:12px;border:1px solid var(--border)}
+.mock .editnote.minor{background:var(--accent-dim);color:var(--accent);border-color:var(--accent)}
+.mock .editnote.material{background:rgba(245,158,11,.12);color:var(--warning);border-color:var(--warning)}
 .mock .acts{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0 8px}
 .mock .mb{background:var(--bg-tertiary);color:var(--text-primary);border:1px solid var(--border);border-radius:var(--radius);padding:6px 12px;font:inherit}
 .mock .mb:hover:not(:disabled){background:var(--bg-hover)}
@@ -171,12 +174,13 @@ pre.out{background:var(--code);border-radius:8px;padding:10px 12px;white-space:p
 <!-- A ───────────────────────────────────────── -->
 <section id="decisions">
   <div class="sec-head"><span class="letter">A</span><h2>Decisions you will probably want to change</h2><span class="tag hi">High tweak likelihood</span></div>
+  <div class="banner"><b>Decided by you:</b> ① one document per slice · ② explicit Send to Claude comment · ③ an approval carries over if the edit is minor. Toggle any choice to compare it with the alternative. Choice ③ needs a definition of "minor"; the one used here is my default, so check it.</div>
   <p class="intro">Each flagged choice shows the alternative. Toggle it and the schema on the right changes with it.</p>
   <div class="dec">
     <div>
       <div class="choice" id="c1" data-variant="main">
-        <div class="hd"><span><span class="flagtag">Choice ①</span> · Review data shape</span><button class="btn" id="t1" type="button">View alternative →</button></div>
-        <div data-v="main"><div class="pick">Plan's pick · one document per slice</div>
+        <div class="hd"><span><span class="flagtag">Choice ①</span> · Review data shape <span class="tag ok">Decided</span></span><button class="btn" id="t1" type="button">View alternative →</button></div>
+        <div data-v="main"><div class="pick">Your pick · one document per slice</div>
           <p>Each slice gets its own review document, so two reviewers on different slices never write to the same document.</p>
           <ul><li>No write conflicts across slices.</li><li>Stale approvals can be flagged per slice.</li></ul>
           <p class="cost"><b>Cost:</b> reading a whole review means listing a collection instead of fetching one document.</p></div>
@@ -186,13 +190,23 @@ pre.out{background:var(--code);border-radius:8px;padding:10px 12px;white-space:p
           <p class="cost"><b>Pick this if:</b> there is only ever one reviewer. Two reviewers on different slices can overwrite each other.</p></div>
       </div>
       <div class="choice" id="c2" data-variant="main">
-        <div class="hd"><span><span class="flagtag">Choice ②</span> · How the session finds out</span><button class="btn" id="t2" type="button">View alternative →</button></div>
-        <div data-v="main"><div class="pick">Plan's pick · explicit "Send to Claude" comment</div>
+        <div class="hd"><span><span class="flagtag">Choice ②</span> · How the session finds out <span class="tag ok">Decided</span></span><button class="btn" id="t2" type="button">View alternative →</button></div>
+        <div data-v="main"><div class="pick">Your pick · explicit "Send to Claude" comment</div>
           <p>The reviewer presses a button that posts an artifact comment addressed to Claude. Waking the session on a comment is documented behaviour.</p>
           <p class="cost"><b>Cost:</b> one extra click per review round.</p></div>
         <div data-v="alt"><div class="pick alt">Alternative · rely on the database write waking the session</div>
           <p>No button. Every approval would notify the session directly.</p>
           <p class="cost"><b>Unverified:</b> I have not confirmed that a database write, as opposed to a republish or a comment, wakes the session. Do not choose this until it is tested.</p></div>
+      </div>
+      <div class="choice" id="c3" data-variant="main">
+        <div class="hd"><span><span class="flagtag">Choice ③</span> · Approval after the slice is edited <span class="tag ok">Decided</span></span><button class="btn" id="t3" type="button">View alternative →</button></div>
+        <div data-v="main"><div class="pick">Your pick · an approval carries over if the edit is minor</div>
+          <p><b>My default for "minor":</b> only the wording of <code>what</code>, <code>why</code> and the decision notes changed. If <code>done-when</code>, <code>files</code>, <code>deps</code> or any block changed, the edit is material and the slice needs a fresh decision.</p>
+          <ul><li>Fixing a typo or tightening prose does not cost a review round.</li><li>Anything that changes what "done" means is always re-reviewed.</li></ul>
+          <p class="cost"><b>Cost:</b> the page must compare material fields, and a reviewer can miss a wording change that shifted meaning.</p></div>
+        <div data-v="alt"><div class="pick alt">Alternative · any edit needs a fresh decision</div>
+          <p>The approval is tied to a hash of the whole slice text. Any change at all clears it.</p>
+          <p class="cost"><b>Pick this if:</b> reviewers are approving exact wording, not intent. Simplest to reason about, but every typo costs a re-approval.</p></div>
       </div>
     </div>
     <div class="schema" id="schema" aria-label="Review document schema">
@@ -211,6 +225,7 @@ pre.out{background:var(--code);border-radius:8px;padding:10px 12px;white-space:p
     <button class="btn" data-preset="pending" type="button">Fresh</button>
     <button class="btn" data-preset="mixed" type="button">In progress</button>
     <button class="btn" data-preset="approved" type="button">All approved</button>
+    <button class="btn" data-preset="edited" type="button">Plan edited</button>
     <button class="btn" data-preset="conflict" type="button">Conflict</button>
     <button class="btn" data-preset="readonly" type="button">Read-only</button>
     <span class="sp"></span>
@@ -268,7 +283,7 @@ pre.out{background:var(--code);border-radius:8px;padding:10px 12px;white-space:p
     <li><span class="n">1</span><div><b>Render the review page from the plan YAML.</b><div class="dep">Static, no database. Plan HTML generation already exists, so this reuses it.</div></div><span class="est">1d</span></li>
     <li><span class="n">2</span><div><b>Reviewer controls, persistence and "Send to Claude".</b><div class="dep">After slice 1. Includes the spike that proves a reviewer's write reaches the session.</div></div><span class="est">1.5d</span></li>
     <li><span class="n">3</span><div><b>Session read-back.</b><div class="dep">After slice 2. Maps review documents to the existing feedback JSON so <code>plan feedback</code> can read either source.</div></div><span class="est">1d</span></li>
-    <li><span class="n">4</span><div><b>Republish loop, stale-approval flags, finalize gate.</b><div class="dep">After slice 3.</div></div><span class="est">1d</span></li>
+    <li><span class="n">4</span><div><b>Republish loop, material-change flags, finalize gate.</b><div class="dep">After slice 3.</div></div><span class="est">1d</span></li>
   </ol>
 </section>
 
@@ -288,7 +303,7 @@ pre.out{background:var(--code);border-radius:8px;padding:10px 12px;white-space:p
   <div class="sec-head"><span class="letter">F</span><h2>Risks and mitigations</h2></div>
   <div class="risks">
     <div class="risk"><div>The session never learns about a reviewer's decision because a database write does not wake it.</div><div><span class="sev high">HIGH</span></div><div>"Send to Claude" posts a comment, which is documented to wake the session. Run the spike in slice 2 before building on it.</div></div>
-    <div class="risk"><div>A plan is edited after someone approved a slice.</div><div><span class="sev med">MED</span></div><div>Key each approval to a hash of the slice text. A changed slice shows "changed since you approved" and needs a fresh decision.</div></div>
+    <div class="risk"><div>A plan is edited after someone approved a slice.</div><div><span class="sev med">MED</span></div><div>Key each approval to a hash of the slice's material fields (done-when, files, deps, blocks). Wording-only edits keep the approval. A material edit shows "changed since you approved" with what changed, and needs a fresh decision.</div></div>
     <div class="risk"><div>Slice titles and reviewer comments are untrusted text.</div><div><span class="sev med">MED</span></div><div>Render only through <code>textContent</code>. No markup from data, ever.</div></div>
     <div class="risk"><div>Replacing the dashboard feedback path breaks existing plan reviews.</div><div><span class="sev med">MED</span></div><div>Support both sources behind one reader until the artifact path has run on a real plan.</div></div>
     <div class="risk"><div>The clipboard may be blocked inside an artifact.</div><div><span class="sev low">LOW</span></div><div>Fall back to a selected textarea. Not yet tested in an artifact.</div></div>
@@ -298,7 +313,7 @@ pre.out{background:var(--code);border-radius:8px;padding:10px 12px;white-space:p
 <!-- G ───────────────────────────────────────── -->
 <section id="open">
   <div class="sec-head"><span class="letter">G</span><h2>Open questions</h2></div>
-  <div class="q"><b>Should an approval survive an edit to its slice?</b><p class="cost">Leaning no: any edit asks for a fresh decision. Answer it in the reply below.</p><div class="owner">Decide with · you, before slice 2</div></div>
+  <div class="q"><b>Which fields count as a material edit?</b><p class="cost">Default: done-when, files, deps and blocks. What, why and decision notes are wording. Should effort and risk count too? Pick below.</p><div class="owner">Decide with · you, before slice 4</div></div>
   <div class="q"><b>Who may review: only you, or anyone with the link?</b><p class="cost">This sets the sharing level and which writes the page allows.</p><div class="owner">Decide with · you, before slice 2</div></div>
 </section>
 
@@ -310,6 +325,7 @@ pre.out{background:var(--code);border-radius:8px;padding:10px 12px;white-space:p
     <div class="grp"><div class="gq">① Review data shape</div><div class="opts" data-k="shape"><button class="btn" data-a="one document per slice" type="button">Per slice</button><button class="btn" data-a="one document per plan" type="button">Per plan</button></div></div>
     <div class="grp"><div class="gq">② How the session finds out</div><div class="opts" data-k="notify"><button class="btn" data-a="explicit Send to Claude comment" type="button">Send button</button><button class="btn" data-a="database write wakes the session (after it is tested)" type="button">DB write</button></div></div>
     <div class="grp"><div class="gq">③ Approval after the slice is edited</div><div class="opts" data-k="stale"><button class="btn" data-a="needs a fresh decision" type="button">Fresh decision</button><button class="btn" data-a="carries over if the edit is minor" type="button">Carries over</button></div></div>
+    <div class="grp"><div class="gq">④ What counts as a material edit</div><div class="opts" data-k="material"><button class="btn" data-a="done-when, files, deps and blocks" type="button">Done-when, files, deps, blocks</button><button class="btn" data-a="done-when, files, deps, blocks, effort and risk" type="button">Also effort and risk</button><button class="btn" data-a="any change except whitespace" type="button">Any change</button></div></div>
     <pre class="out" id="out"></pre>
     <button class="btn on" id="copy" type="button">Copy reply</button>
   </div>
@@ -329,11 +345,11 @@ function copyText(btn,text){
 }
 
 /* ---------- A: decisions + live schema ---------- */
-var v1="main",v2="main";
+var v1="main",v2="main",v3="main";
 function renderSchema(){
   var rows=document.getElementById("schemaRows");rows.textContent="";
   document.getElementById("schemaName").textContent=v1==="main"?"reviews/{plan}/{slice}":"reviews/{plan}";
-  var R=v1==="main"?[["slice_id","text"],["decision","approved | changes | pending"],["comment","text"],["slice_hash","text (staleness check)"],["reviewer","user id"],["updated_at","timestamp"]]
+  var R=v1==="main"?[["slice_id","text"],["decision","approved | changes | pending"],["comment","text"],(v3==="main"?["material_hash","hash of done-when, files, deps, blocks"]:["slice_hash","hash of the full slice text"]),["reviewer","user id"],["updated_at","timestamp"]]
                    :[["slices","map slice_id → decision"],["comments","map slice_id → text"],["reviewer","user id"],["updated_at","timestamp"]];
   if(v2==="main")R.push(["sent_to_claude_at","timestamp (set by the button)"]);
   R.forEach(function(r,i){var flag=(v2==="main"&&r[0]==="sent_to_claude_at");
@@ -342,35 +358,37 @@ function renderSchema(){
 function wireToggle(btnId,cardId,get,set){
   var b=document.getElementById(btnId),c=document.getElementById(cardId);
   b.addEventListener("click",function(){var next=get()==="main"?"alt":"main";set(next);c.setAttribute("data-variant",next);
-    b.textContent=next==="alt"?"← Back to the plan's pick":"View alternative →";renderSchema();});
+    b.textContent=next==="alt"?"← Back to your pick":"View alternative →";renderSchema();});
 }
 wireToggle("t1","c1",function(){return v1;},function(x){v1=x;});
 wireToggle("t2","c2",function(){return v2;},function(x){v2=x;});
+wireToggle("t3","c3",function(){return v3;},function(x){v3=x;});
 renderSchema();
 
 /* ---------- B: interactive mock ---------- */
 var SLICES=[
  {t:"Render the review page from the plan YAML",what:"Generate one self-contained page from the plan, with a review control for each slice.",why:"Reviewers need to see the plan before anything can be saved.",done:["Page renders from plan YAML with no database","Each slice shows what, why and done-when"]},
  {t:"Reviewer controls, persistence and Send to Claude",what:"Approve or request changes per slice, save the decision, and let the reviewer notify the session.",why:"This is the first point where a reviewer's decision can leave the page.",done:["A decision survives a reload","Send to Claude posts a comment the session can see"]},
- {t:"Session read-back",what:"Read review documents and map them to the existing feedback JSON.",why:"The session needs the same shape it gets from the dashboard today.",done:["plan feedback returns the same JSON from either source"]},
+ {t:"Session read-back",what:"Read review documents and map them to the existing feedback JSON.",why:"The session needs the same shape it gets from the dashboard today.",done:["plan feedback returns the same JSON from either source","Reviews saved in the legacy source are read too"]},
  {t:"Republish loop and finalize gate",what:"Apply requested changes, republish, flag stale approvals, then allow finalize.",why:"Closes the loop so the review ends in a finalized plan.",done:["A changed slice shows changed since you approved","Finalize is blocked until every slice is approved"]}
 ];
 var PRESETS={
  pending:{s:["pending","pending","pending","pending"],note:null,write:true},
  mixed:{s:["approved","changes","pending","pending"],note:null,write:true,c:{1:"Show how a conflict looks to the second reviewer."}},
  approved:{s:["approved","approved","approved","approved"],note:null,write:true},
+ edited:{s:["approved","approved","stale","pending"],note:null,write:true,e:{1:{k:"minor",t:"Wording changed after you approved. Your approval is kept."},2:{k:"material",t:"Done-when changed after you approved: it now also requires reading from the legacy source. Approve again to continue."}}},
  conflict:{s:["approved","pending","pending","pending"],note:{k:"warn",t:"Someone else updated this review. Reload to see their changes, then try again."},write:false},
  readonly:{s:["approved","changes","pending","pending"],note:{k:"info",t:"You can read this plan but not review it. Ask the owner for review access."},write:false}
 };
-var st={sel:0,s:[],c:{},note:null,write:true,phone:false,preset:"pending"};
+var st={sel:0,s:[],c:{},e:{},note:null,write:true,phone:false,preset:"pending"};
 var mock=document.getElementById("mock"),toast=document.getElementById("toast");
 function say(t){toast.textContent=t;}
-function apply(name){var p=PRESETS[name];st.preset=name;st.s=p.s.slice();st.c=JSON.parse(JSON.stringify(p.c||{}));st.note=p.note;st.write=p.write;st.sel=0;say("");render();syncBtns();}
+function apply(name){var p=PRESETS[name];st.preset=name;st.s=p.s.slice();st.c=JSON.parse(JSON.stringify(p.c||{}));st.e=JSON.parse(JSON.stringify(p.e||{}));st.note=p.note;st.write=p.write;st.sel=0;say("");render();syncBtns();}
 function syncBtns(){
   Array.prototype.forEach.call(document.querySelectorAll("[data-preset]"),function(b){b.classList.toggle("on",b.dataset.preset===st.preset);});
   document.getElementById("dev-d").classList.toggle("on",!st.phone);document.getElementById("dev-p").classList.toggle("on",st.phone);
 }
-function label(x){return x==="approved"?"Approved":x==="changes"?"Changes requested":"Pending";}
+function label(x){return x==="approved"?"Approved":x==="changes"?"Changes requested":x==="stale"?"Re-approval needed":"Pending";}
 function render(){
   mock.className="mock"+(st.phone?" phone":"");mock.textContent="";
   var done=st.s.filter(function(x){return x==="approved";}).length;
@@ -385,6 +403,7 @@ function render(){
   var d=h("div",{class:"detail"});
   d.appendChild(h("h4",{text:"Slice "+(i+1)+": "+s.t}));
   d.appendChild(h("span",{class:"pill "+cur,text:label(cur)}));
+  if(st.e[i])d.appendChild(h("div",{class:"editnote "+st.e[i].k,role:"note",text:st.e[i].t}));
   d.appendChild(h("div",{class:"lbl",text:"What"}));d.appendChild(h("p",{text:s.what}));
   d.appendChild(h("div",{class:"lbl",text:"Why"}));d.appendChild(h("p",{text:s.why}));
   d.appendChild(h("div",{class:"lbl",text:"Done when"}));d.appendChild(h("ul",{},s.done.map(function(x){return h("li",{text:x});})));
@@ -392,7 +411,7 @@ function render(){
   var ap=h("button",{class:"mb act-approve"+(cur==="approved"?" on":""),type:"button",text:"Approve"});
   var ch=h("button",{class:"mb act-changes"+(cur==="changes"?" on":""),type:"button",text:"Request changes"});
   if(!st.write){ap.disabled=true;ch.disabled=true;}
-  ap.addEventListener("click",function(){st.s[i]=cur==="approved"?"pending":"approved";say("Saved (mock).");render();});
+  ap.addEventListener("click",function(){st.s[i]=cur==="approved"?"pending":"approved";delete st.e[i];say("Saved (mock).");render();});
   ch.addEventListener("click",function(){st.s[i]=cur==="changes"?"pending":"changes";say("Saved (mock).");render();});
   acts.appendChild(ap);acts.appendChild(ch);d.appendChild(acts);
   d.appendChild(h("div",{class:"lbl",text:"Comment"}));
@@ -407,7 +426,7 @@ function render(){
   var all=done===SLICES.length;
   var fin=h("button",{class:"mb go",type:"button",text:"Finalize plan"});fin.disabled=!(all&&st.write);
   fin.addEventListener("click",function(){say("Would run: wipnote plan finalize (mock).");});
-  foot.appendChild(send);foot.appendChild(h("span",{class:"pill",text:all?"Ready to finalize":"Needs every slice approved"}));foot.appendChild(fin);
+  foot.appendChild(send);foot.appendChild(h("span",{class:"pill",text:all?"Ready to finalize":st.s.indexOf("stale")>=0?"A slice needs re-approval":"Needs every slice approved"}));foot.appendChild(fin);
   mock.appendChild(foot);
 }
 Array.prototype.forEach.call(document.querySelectorAll("[data-preset]"),function(b){b.addEventListener("click",function(){apply(b.dataset.preset);});});
@@ -425,8 +444,8 @@ var N={
  live:{t:"Other viewers update live",s:"untested",run:"The database is described as a shared realtime store, so other open pages should update without a reload.",fail:"Not tested with this page. If it does not hold, viewers reload to see changes."},
  wake:{t:"Session hears about it",s:"untested",run:"Reliable path: the reviewer presses Send to Claude, which posts an artifact comment and wakes the session. Unproven path: a database write alone waking the session.",fail:"If only the comment path works, the review needs that one extra click. That is why choice ② defaults to the button."},
  read:{t:"Session reads the reviews",s:"untested",run:"The session lists the review documents and maps them to the feedback JSON that plan feedback returns today.",fail:"Reading depends on the session having artifact data access. Not tested for this page."},
- all:{t:"All slices approved?",s:"proposed",run:"Every slice must be approved, and no approval may be stale against the current slice text.",fail:"Any pending, changes-requested or stale slice sends the plan back for revision."},
- revise:{t:"Apply changes, republish",s:"proposed",run:"The session edits the plan YAML, re-renders the page and republishes a new artifact version. Approvals for unchanged slices carry over.",fail:"If a slice changed, its approval is flagged stale and needs a fresh decision."},
+ all:{t:"All slices approved?",s:"proposed",run:"Every slice must be approved, and no approval may be stale. An approval goes stale only when a material field changed (done-when, files, deps or a block); wording-only edits keep it.",fail:"Any pending, changes-requested or stale slice sends the plan back for revision."},
+ revise:{t:"Apply changes, republish",s:"proposed",run:"The session edits the plan YAML, re-renders the page and republishes a new artifact version. Approvals carry over for unchanged slices and for wording-only edits.",fail:"If a material field changed, the approval is flagged stale and needs a fresh decision. Deciding what is material is a judgment call the reviewer should be able to inspect."},
  finalize:{t:"plan finalize",s:"exists",run:"The existing finalize step. The slices then promote to features as they do today.",fail:"Existing behaviour and failure modes."}
 };
 var panel=document.getElementById("panel");
@@ -444,8 +463,8 @@ Array.prototype.forEach.call(document.querySelectorAll(".fn"),function(g){
 });
 
 /* ---------- H: reply builder ---------- */
-var pick={shape:null,notify:null,stale:null};
-var LAB={shape:"Review data shape",notify:"How the session finds out",stale:"Approval after the slice is edited"};
+var pick={shape:null,notify:null,stale:null,material:null};
+var LAB={shape:"Review data shape",notify:"How the session finds out",stale:"Approval after the slice is edited",material:"What counts as a material edit"};
 var out=document.getElementById("out");
 function plain(){var n=0;return "My picks on the plan review surface:\n"+Object.keys(pick).map(function(k){n++;return n+". "+LAB[k]+": "+(pick[k]||"___");}).join("\n")+"\nOther notes: ___";}
 function renderOut(){out.textContent="";var n=0;Object.keys(pick).forEach(function(k){n++;
@@ -457,6 +476,7 @@ Array.prototype.forEach.call(document.querySelectorAll(".opts[data-k]"),function
     Array.prototype.forEach.call(g.querySelectorAll(".btn"),function(x){x.classList.remove("on");});b.classList.add("on");pick[k]=b.dataset.a;renderOut();});});});
 document.getElementById("copy").addEventListener("click",function(){copyText(this,plain());});
 renderOut();
+["shape","notify","stale"].forEach(function(k,j){var idx=[0,0,1][j];document.querySelectorAll(".opts[data-k="+k+"] .btn")[idx].click();});
 })();
 </script>
 </body>
