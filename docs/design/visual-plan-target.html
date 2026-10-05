@@ -1,0 +1,463 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Visual plan target page</title>
+<style>
+:root{
+  --bg:#f6f5f1;--card:#fff;--fg:#1c1c1a;--muted:#66655e;--line:#dedcd3;
+  --accent:#0f766e;--accent-bg:#e4f3f0;--warn:#a85a08;--warn-bg:#fcefdc;
+  --bad:#b42323;--bad-bg:#fbe9e9;--ok:#177a3c;--ok-bg:#e3f4e8;--code:#f0eee7;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#111215;--card:#191b1f;--fg:#ebeae4;--muted:#9a998f;--line:#2b2e34;
+  --accent:#5eead4;--accent-bg:#13302c;--warn:#f5a54a;--warn-bg:#35260f;
+  --bad:#f08a8a;--bad-bg:#3a1a1a;--ok:#6fd58e;--ok-bg:#12301d;--code:#22252a;
+}}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif}
+.page{max-width:980px;margin:0 auto;padding:24px 16px 80px}
+h1{font-size:30px;line-height:1.15;margin:6px 0 10px}
+h2{font-size:22px;margin:0}
+h3{font-size:17px;margin:0 0 6px}
+p{margin:0 0 10px}
+code{background:var(--code);padding:1px 6px;border-radius:4px;font:13px ui-monospace,Menlo,monospace}
+.eyebrow{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.banner{border:1px solid var(--line);background:var(--card);border-radius:10px;padding:12px 14px;margin:14px 0;color:var(--muted);font-size:14px}
+.banner b{color:var(--fg)}
+.chips{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:18px 0}
+.chip{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.chip .k{font-size:12px;color:var(--muted)} .chip .v{font-weight:600}
+.sort{display:flex;gap:12px;align-items:flex-start;background:var(--accent-bg);border:1px solid var(--accent);border-radius:10px;padding:12px 14px;margin:6px 0 26px;font-size:14px}
+.sort .g{font:700 12px/1.3 ui-monospace,monospace;color:var(--accent);white-space:pre}
+section{margin:38px 0}
+.sec-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+.letter{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:8px;background:var(--accent);color:var(--bg);font-weight:700}
+.tag{font-size:12px;border-radius:999px;padding:2px 10px;border:1px solid var(--line);color:var(--muted)}
+.tag.hi{background:var(--warn-bg);border-color:var(--warn);color:var(--warn)}
+.tag.ok{background:var(--ok-bg);border-color:var(--ok);color:var(--ok)}
+.tag.un{background:var(--warn-bg);border-color:var(--warn);color:var(--warn)}
+.intro{color:var(--muted);margin-bottom:14px}
+button{font:inherit;cursor:pointer}
+button:focus-visible,[tabindex]:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btn{border:1px solid var(--line);background:var(--card);color:var(--fg);border-radius:8px;padding:6px 12px;font-size:14px}
+.btn.on{background:var(--accent);border-color:var(--accent);color:var(--bg);font-weight:600}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+/* decisions */
+.dec{display:grid;grid-template-columns:1fr;gap:14px}
+@media(min-width:820px){.dec{grid-template-columns:1fr 1fr}}
+.schema{background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden;font:13px ui-monospace,Menlo,monospace}
+.schema .t{padding:8px 12px;background:var(--code);font-weight:700}
+.schema .r{display:flex;justify-content:space-between;gap:10px;padding:6px 12px;border-top:1px solid var(--line)}
+.schema .r span:last-child{color:var(--muted);text-align:right}
+.schema .flag{background:var(--warn-bg)}
+.choice{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:12px}
+.choice .hd{display:flex;gap:8px;justify-content:space-between;align-items:center;flex-wrap:wrap;margin-bottom:6px}
+.choice .flagtag{font-size:12px;font-weight:700;color:var(--warn)}
+.choice [data-v]{display:none}
+.choice[data-variant=main] [data-v=main],.choice[data-variant=alt] [data-v=alt]{display:block}
+.pick{font-size:12px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.05em}
+.pick.alt{color:var(--warn)}
+.cost{font-size:14px;color:var(--muted)}
+ul{margin:6px 0 8px;padding-left:20px}
+/* mock */
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+.toolbar .sp{flex:1}
+.frame{border:1px solid var(--line);border-radius:12px;padding:12px;background:var(--card)}
+.mock{--bg-primary:#151518;--bg-secondary:#1C1C20;--bg-tertiary:#252528;--bg-hover:#2A2A2F;--text-primary:#E0DED8;--text-secondary:#A0A0A0;--text-muted:#707070;--border:#333338;--accent:#CDFF00;--accent-dim:rgba(205,255,0,.15);--accent-text:#0A0A0A;--status-todo:#707070;--status-ip:#3b82f6;--status-done:#22c55e;--status-blocked:#ef4444;--warning:#f59e0b;--error:#ef4444;--radius:6px;--radius-sm:4px;--font-mono:'JetBrains Mono','Fira Code','SF Mono',ui-monospace,monospace;
+  background:var(--bg-primary);color:var(--text-primary);font:13px/1.5 var(--font-mono);border:1px solid var(--border);border-radius:8px;overflow:hidden;margin:0 auto}
+.mock.phone{max-width:390px}
+.mock .top{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--bg-secondary);border-bottom:1px solid var(--border);flex-wrap:wrap}
+.mock .top b{color:var(--accent)}
+.mock .body{display:grid;grid-template-columns:230px 1fr}
+.mock.phone .body{grid-template-columns:1fr}
+.mock .list{border-right:1px solid var(--border);background:var(--bg-secondary)}
+.mock.phone .list{border-right:0;border-bottom:1px solid var(--border);display:flex;overflow-x:auto}
+.mock .li{display:flex;gap:8px;align-items:center;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid var(--border);color:var(--text-secondary);padding:10px 12px;font:inherit}
+.mock.phone .li{width:auto;white-space:nowrap;border-bottom:0;border-right:1px solid var(--border)}
+.mock .li:hover{background:var(--bg-hover)}
+.mock .li.sel{background:var(--bg-tertiary);color:var(--text-primary);box-shadow:inset 3px 0 0 var(--accent)}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--status-todo);flex:none}
+.dot.approved{background:var(--status-done)} .dot.changes{background:var(--warning)} .dot.pending{background:var(--status-todo)}
+.mock .detail{padding:14px 16px;min-width:0}
+.mock .detail h4{margin:0 0 8px;font-size:15px;color:var(--text-primary)}
+.mock .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);margin-top:10px}
+.mock .detail p{margin:2px 0 0;color:var(--text-secondary)}
+.mock .detail ul{margin:2px 0 0;color:var(--text-secondary)}
+.pill{display:inline-block;border-radius:999px;padding:1px 9px;font-size:11px;border:1px solid var(--border);color:var(--text-secondary)}
+.pill.approved{border-color:var(--status-done);color:var(--status-done)} .pill.changes{border-color:var(--warning);color:var(--warning)}
+.mock .acts{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0 8px}
+.mock .mb{background:var(--bg-tertiary);color:var(--text-primary);border:1px solid var(--border);border-radius:var(--radius);padding:6px 12px;font:inherit}
+.mock .mb:hover:not(:disabled){background:var(--bg-hover)}
+.mock .mb.go{background:var(--accent);color:var(--accent-text);border-color:var(--accent);font-weight:700}
+.mock .mb.act-approve.on{border-color:var(--status-done);color:var(--status-done)}
+.mock .mb.act-changes.on{border-color:var(--warning);color:var(--warning)}
+.mock .mb:disabled{opacity:.4;cursor:not-allowed}
+.mock textarea{width:100%;min-height:64px;background:var(--bg-primary);color:var(--text-primary);border:1px solid var(--border);border-radius:var(--radius);padding:8px;font:inherit;resize:vertical}
+.mock .foot{display:flex;gap:10px;justify-content:space-between;align-items:center;padding:10px 12px;border-top:1px solid var(--border);background:var(--bg-secondary);flex-wrap:wrap}
+.mock .note{padding:8px 12px;font-size:12px;border-bottom:1px solid var(--border)}
+.mock .note.warn{background:rgba(245,158,11,.12);color:var(--warning)}
+.mock .note.err{background:rgba(239,68,68,.12);color:var(--error)}
+.mock .note.info{background:var(--accent-dim);color:var(--accent)}
+.toast{min-height:20px;margin-top:8px;font-size:13px;color:var(--accent)}
+/* flowchart */
+.flow{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px}
+.flow{overflow-x:auto}
+.flow svg{display:block;width:100%;min-width:600px;height:auto;max-width:700px;margin:0 auto}
+.hint{display:none;font-size:13px;color:var(--muted);margin:2px 2px 8px}
+@media(max-width:640px){.hint{display:block}}
+.fn rect,.fn polygon{fill:var(--card);stroke:var(--fg);stroke-width:1.4}
+.fn.proc rect{rx:8}
+.fn.dec polygon{fill:var(--accent-bg);stroke:var(--accent)}
+.fn.fail rect{fill:var(--bad-bg);stroke:var(--bad)}
+.fn.term rect{fill:var(--ok-bg);stroke:var(--ok);rx:22}
+.fn.un rect,.fn.un polygon{stroke-dasharray:5 3;stroke:var(--warn)}
+.fn text{fill:var(--fg);font:12.5px system-ui,sans-serif;text-anchor:middle;pointer-events:none}
+.fn{cursor:pointer}
+.fn:hover rect,.fn:hover polygon,.fn.sel rect,.fn.sel polygon{stroke-width:3}
+.edge{fill:none;stroke:var(--muted);stroke-width:1.6}
+.elabel{fill:var(--muted);font:12px system-ui,sans-serif}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--muted);margin:8px 2px 2px}
+.legend i{display:inline-block;width:14px;height:14px;border:1.5px solid var(--fg);border-radius:4px;vertical-align:-2px;margin-right:5px}
+.legend i.d{background:var(--accent-bg);border-color:var(--accent)} .legend i.f{background:var(--bad-bg);border-color:var(--bad)}
+.legend i.t{background:var(--ok-bg);border-color:var(--ok);border-radius:9px} .legend i.u{border-style:dashed;border-color:var(--warn)}
+.panel{margin-top:10px;background:var(--code);border-radius:10px;padding:12px 14px;min-height:96px}
+.panel .ph{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:4px}
+/* sequencing, risks, questions */
+.seq{list-style:none;padding:0;margin:0}
+.seq li{display:grid;grid-template-columns:34px 1fr auto;gap:10px;align-items:start;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:8px}
+.seq .n{font-weight:700;color:var(--accent)} .seq .est{font-size:13px;color:var(--muted);white-space:nowrap}
+.seq .dep{font-size:13px;color:var(--muted)}
+details.mech{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 14px}
+details.mech summary{cursor:pointer;font-weight:600}
+.risks{display:grid;gap:8px}
+.risk{display:grid;grid-template-columns:1fr;gap:6px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+@media(min-width:760px){.risk{grid-template-columns:1.1fr 70px 1.4fr;align-items:start}}
+.sev{font-size:12px;font-weight:700;border-radius:6px;padding:1px 8px;text-align:center;display:inline-block}
+.sev.high{background:var(--bad-bg);color:var(--bad)} .sev.med{background:var(--warn-bg);color:var(--warn)} .sev.low{background:var(--ok-bg);color:var(--ok)}
+.q{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:8px}
+.q .owner{font-size:13px;color:var(--muted)}
+/* reply builder */
+.reply{background:var(--card);border:1px solid var(--accent);border-radius:12px;padding:14px}
+.grp{margin:10px 0}.grp .gq{font-size:14px;margin-bottom:6px}
+.opts{display:flex;gap:8px;flex-wrap:wrap}
+pre.out{background:var(--code);border-radius:8px;padding:10px 12px;white-space:pre-wrap;font:13px/1.5 ui-monospace,Menlo,monospace;margin:10px 0}
+.blank{color:var(--muted)}
+.tw{display:flex;gap:10px;align-items:center;justify-content:space-between;border-top:1px solid var(--line);padding:8px 0}
+.tw:first-of-type{border-top:0}
+.tw span{font-size:14px}
+</style>
+</head>
+<body>
+<div class="page">
+
+<header>
+  <div class="eyebrow">Design target · hand-built · not generated</div>
+  <h1>Plan review surface for Claude Artifacts</h1>
+  <p>Reviewers approve or push back on a wipnote plan slice by slice, and the session reads their decisions back. This page is the <b>target</b> for what a visual plan should be able to show for an app feature: a real UI mock with states, a flowchart with branches and failure paths, and decisions you can flip. Numbers below are illustrative.</p>
+  <div class="chips">
+    <div class="chip"><div class="k">Slices</div><div class="v">4</div></div>
+    <div class="chip"><div class="k">Effort (illustrative)</div><div class="v">~4.5 days</div></div>
+    <div class="chip"><div class="k">Biggest unknown</div><div class="v">db write → session wake</div></div>
+    <div class="chip"><div class="k">Risk</div><div class="v">Medium</div></div>
+  </div>
+  <div class="sort"><div class="g">↑ tweak
+↓ trust</div><div><b>Sorted by how likely you are to change each part.</b> A holds the judgment calls, B is the UI you would be building, C is how it works end to end. Sequencing and mechanical work sit below because they follow from those.</div></div>
+</header>
+
+<!-- A ───────────────────────────────────────── -->
+<section id="decisions">
+  <div class="sec-head"><span class="letter">A</span><h2>Decisions you will probably want to change</h2><span class="tag hi">High tweak likelihood</span></div>
+  <p class="intro">Each flagged choice shows the alternative. Toggle it and the schema on the right changes with it.</p>
+  <div class="dec">
+    <div>
+      <div class="choice" id="c1" data-variant="main">
+        <div class="hd"><span><span class="flagtag">Choice ①</span> · Review data shape</span><button class="btn" id="t1" type="button">View alternative →</button></div>
+        <div data-v="main"><div class="pick">Plan's pick · one document per slice</div>
+          <p>Each slice gets its own review document, so two reviewers on different slices never write to the same document.</p>
+          <ul><li>No write conflicts across slices.</li><li>Stale approvals can be flagged per slice.</li></ul>
+          <p class="cost"><b>Cost:</b> reading a whole review means listing a collection instead of fetching one document.</p></div>
+        <div data-v="alt"><div class="pick alt">Alternative · one document per plan</div>
+          <p>A single document holds every slice's decision. One read gets the whole review.</p>
+          <ul><li>Simplest read-back.</li></ul>
+          <p class="cost"><b>Pick this if:</b> there is only ever one reviewer. Two reviewers on different slices can overwrite each other.</p></div>
+      </div>
+      <div class="choice" id="c2" data-variant="main">
+        <div class="hd"><span><span class="flagtag">Choice ②</span> · How the session finds out</span><button class="btn" id="t2" type="button">View alternative →</button></div>
+        <div data-v="main"><div class="pick">Plan's pick · explicit "Send to Claude" comment</div>
+          <p>The reviewer presses a button that posts an artifact comment addressed to Claude. Waking the session on a comment is documented behaviour.</p>
+          <p class="cost"><b>Cost:</b> one extra click per review round.</p></div>
+        <div data-v="alt"><div class="pick alt">Alternative · rely on the database write waking the session</div>
+          <p>No button. Every approval would notify the session directly.</p>
+          <p class="cost"><b>Unverified:</b> I have not confirmed that a database write, as opposed to a republish or a comment, wakes the session. Do not choose this until it is tested.</p></div>
+      </div>
+    </div>
+    <div class="schema" id="schema" aria-label="Review document schema">
+      <div class="t" id="schemaName">reviews/{plan}/{slice}</div>
+      <div id="schemaRows"></div>
+    </div>
+  </div>
+</section>
+
+<!-- B ───────────────────────────────────────── -->
+<section id="ui">
+  <div class="sec-head"><span class="letter">B</span><h2>The UI you would be building</h2><span class="tag hi">High tweak likelihood</span></div>
+  <p class="intro">A working mock, not a picture. Pick a state, switch device width, then try the buttons. It is drawn with the dashboard's real design tokens (<code>cmd/wipnote/dashboard/css/tokens.css</code>), so it looks like wipnote rather than a generic sketch. Everything here is fake data and nothing is saved.</p>
+  <div class="toolbar" role="group" aria-label="Mock controls">
+    <span class="tag">State</span>
+    <button class="btn" data-preset="pending" type="button">Fresh</button>
+    <button class="btn" data-preset="mixed" type="button">In progress</button>
+    <button class="btn" data-preset="approved" type="button">All approved</button>
+    <button class="btn" data-preset="conflict" type="button">Conflict</button>
+    <button class="btn" data-preset="readonly" type="button">Read-only</button>
+    <span class="sp"></span>
+    <button class="btn" id="dev-d" type="button">Desktop</button>
+    <button class="btn" id="dev-p" type="button">Phone</button>
+  </div>
+  <div class="frame"><div class="mock" id="mock"></div></div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+</section>
+
+<!-- C ───────────────────────────────────────── -->
+<section id="flow">
+  <div class="sec-head"><span class="letter">C</span><h2>How it works, including what goes wrong</h2><span class="tag">Medium tweak likelihood</span></div>
+  <p class="intro">Click any step for what runs, how it can fail, and whether I have verified it. Dashed outlines mark steps that depend on behaviour I have not tested.</p>
+  <div class="hint">Scroll the chart sideways to see all of it.</div>
+  <div class="flow">
+    <svg viewBox="0 0 700 790" role="img" aria-label="Flowchart of the plan review loop with two decisions and two failure paths">
+      <defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--muted)"/></marker></defs>
+      <g id="edges">
+        <path class="edge" d="M250 64V98" marker-end="url(#ar)"/>
+        <path class="edge" d="M250 144V178" marker-end="url(#ar)"/>
+        <path class="edge" d="M250 224V264" marker-end="url(#ar)"/>
+        <path class="edge" d="M375 300H438" marker-end="url(#ar)"/><text class="elabel" x="395" y="292">no</text>
+        <path class="edge" d="M540 278V202H377" marker-end="url(#ar)"/><text class="elabel" x="455" y="196">reload, retry once</text>
+        <path class="edge" d="M250 336V370" marker-end="url(#ar)"/><text class="elabel" x="258" y="357">yes</text>
+        <path class="edge" d="M250 416V450" marker-end="url(#ar)"/>
+        <path class="edge" d="M250 496V530" marker-end="url(#ar)"/>
+        <path class="edge" d="M250 576V614" marker-end="url(#ar)"/>
+        <path class="edge" d="M375 650H438" marker-end="url(#ar)"/><text class="elabel" x="395" y="642">no</text>
+        <path class="edge" d="M640 650H672V122H377" marker-end="url(#ar)"/><text class="elabel" x="560" y="116">next version</text>
+        <path class="edge" d="M250 686V722" marker-end="url(#ar)"/><text class="elabel" x="258" y="708">yes</text>
+      </g>
+      <g class="fn proc" data-n="publish" tabindex="0" role="button"><rect x="125" y="20" width="250" height="44"/><text x="250" y="46">Plan published as artifact</text></g>
+      <g class="fn proc" data-n="open" tabindex="0" role="button"><rect x="125" y="100" width="250" height="44"/><text x="250" y="126">Reviewer opens the page</text></g>
+      <g class="fn proc" data-n="decide" tabindex="0" role="button"><rect x="125" y="180" width="250" height="44"/><text x="250" y="206">Reviewer decides per slice</text></g>
+      <g class="fn dec" data-n="write" tabindex="0" role="button"><polygon points="250,264 375,300 250,336 125,300"/><text x="250" y="305">Write succeeds?</text></g>
+      <g class="fn fail" data-n="banner" tabindex="0" role="button"><rect x="440" y="278" width="200" height="44" rx="8"/><text x="540" y="304">Conflict or read-only banner</text></g>
+      <g class="fn proc un" data-n="live" tabindex="0" role="button"><rect x="125" y="372" width="250" height="44"/><text x="250" y="398">Other viewers update live</text></g>
+      <g class="fn proc un" data-n="wake" tabindex="0" role="button"><rect x="125" y="452" width="250" height="44"/><text x="250" y="478">Session hears about it</text></g>
+      <g class="fn proc un" data-n="read" tabindex="0" role="button"><rect x="125" y="532" width="250" height="44"/><text x="250" y="558">Session reads the reviews</text></g>
+      <g class="fn dec" data-n="all" tabindex="0" role="button"><polygon points="250,614 375,650 250,686 125,650"/><text x="250" y="655">All slices approved?</text></g>
+      <g class="fn proc" data-n="revise" tabindex="0" role="button"><rect x="440" y="628" width="200" height="44" rx="8"/><text x="540" y="654">Apply changes, republish</text></g>
+      <g class="fn term" data-n="finalize" tabindex="0" role="button"><rect x="125" y="722" width="250" height="44"/><text x="250" y="748">plan finalize</text></g>
+    </svg>
+    <div class="legend"><span><i></i>step</span><span><i class="d"></i>decision</span><span><i class="f"></i>failure path</span><span><i class="t"></i>end</span><span><i class="u"></i>depends on untested behaviour</span></div>
+  </div>
+  <div class="panel" id="panel" aria-live="polite"><div class="ph"><b>Select a step</b></div><p class="cost">Click or press Enter on any box above.</p></div>
+</section>
+
+<!-- D ───────────────────────────────────────── -->
+<section id="seq">
+  <div class="sec-head"><span class="letter">D</span><h2>Sequencing</h2><span class="tag">Execution order</span></div>
+  <p class="intro">The order I would build it in. Nothing reaches a reviewer until slice 2.</p>
+  <ol class="seq">
+    <li><span class="n">1</span><div><b>Render the review page from the plan YAML.</b><div class="dep">Static, no database. Plan HTML generation already exists, so this reuses it.</div></div><span class="est">1d</span></li>
+    <li><span class="n">2</span><div><b>Reviewer controls, persistence and "Send to Claude".</b><div class="dep">After slice 1. Includes the spike that proves a reviewer's write reaches the session.</div></div><span class="est">1.5d</span></li>
+    <li><span class="n">3</span><div><b>Session read-back.</b><div class="dep">After slice 2. Maps review documents to the existing feedback JSON so <code>plan feedback</code> can read either source.</div></div><span class="est">1d</span></li>
+    <li><span class="n">4</span><div><b>Republish loop, stale-approval flags, finalize gate.</b><div class="dep">After slice 3.</div></div><span class="est">1d</span></li>
+  </ol>
+</section>
+
+<!-- E ───────────────────────────────────────── -->
+<section id="mech">
+  <div class="sec-head"><span class="letter" style="opacity:.6">E</span><h2>Mechanical work</h2><span class="tag ok">Low tweak likelihood</span></div>
+  <details class="mech"><summary>Boring but necessary · 4 tasks</summary>
+    <ul><li>Render all slice and comment text with <code>textContent</code>, never as markup.</li>
+    <li>Add the review page to the plan-HTML golden tests.</li>
+    <li>Keep the dashboard feedback source working until the artifact path is proven.</li>
+    <li>Document the "Send to Claude" step in the plan skill.</li></ul>
+  </details>
+</section>
+
+<!-- F ───────────────────────────────────────── -->
+<section id="risks">
+  <div class="sec-head"><span class="letter">F</span><h2>Risks and mitigations</h2></div>
+  <div class="risks">
+    <div class="risk"><div>The session never learns about a reviewer's decision because a database write does not wake it.</div><div><span class="sev high">HIGH</span></div><div>"Send to Claude" posts a comment, which is documented to wake the session. Run the spike in slice 2 before building on it.</div></div>
+    <div class="risk"><div>A plan is edited after someone approved a slice.</div><div><span class="sev med">MED</span></div><div>Key each approval to a hash of the slice text. A changed slice shows "changed since you approved" and needs a fresh decision.</div></div>
+    <div class="risk"><div>Slice titles and reviewer comments are untrusted text.</div><div><span class="sev med">MED</span></div><div>Render only through <code>textContent</code>. No markup from data, ever.</div></div>
+    <div class="risk"><div>Replacing the dashboard feedback path breaks existing plan reviews.</div><div><span class="sev med">MED</span></div><div>Support both sources behind one reader until the artifact path has run on a real plan.</div></div>
+    <div class="risk"><div>The clipboard may be blocked inside an artifact.</div><div><span class="sev low">LOW</span></div><div>Fall back to a selected textarea. Not yet tested in an artifact.</div></div>
+  </div>
+</section>
+
+<!-- G ───────────────────────────────────────── -->
+<section id="open">
+  <div class="sec-head"><span class="letter">G</span><h2>Open questions</h2></div>
+  <div class="q"><b>Should an approval survive an edit to its slice?</b><p class="cost">Leaning no: any edit asks for a fresh decision. Answer it in the reply below.</p><div class="owner">Decide with · you, before slice 2</div></div>
+  <div class="q"><b>Who may review: only you, or anyone with the link?</b><p class="cost">This sets the sharing level and which writes the page allows.</p><div class="owner">Decide with · you, before slice 2</div></div>
+</section>
+
+<!-- H ───────────────────────────────────────── -->
+<section id="reply">
+  <div class="sec-head"><span class="letter">H</span><h2>Reply</h2></div>
+  <p class="intro">Pick, copy, paste into the session. The reply writes itself.</p>
+  <div class="reply">
+    <div class="grp"><div class="gq">① Review data shape</div><div class="opts" data-k="shape"><button class="btn" data-a="one document per slice" type="button">Per slice</button><button class="btn" data-a="one document per plan" type="button">Per plan</button></div></div>
+    <div class="grp"><div class="gq">② How the session finds out</div><div class="opts" data-k="notify"><button class="btn" data-a="explicit Send to Claude comment" type="button">Send button</button><button class="btn" data-a="database write wakes the session (after it is tested)" type="button">DB write</button></div></div>
+    <div class="grp"><div class="gq">③ Approval after the slice is edited</div><div class="opts" data-k="stale"><button class="btn" data-a="needs a fresh decision" type="button">Fresh decision</button><button class="btn" data-a="carries over if the edit is minor" type="button">Carries over</button></div></div>
+    <pre class="out" id="out"></pre>
+    <button class="btn on" id="copy" type="button">Copy reply</button>
+  </div>
+</section>
+
+</div>
+<script>
+(function(){
+"use strict";
+function h(tag,attrs,kids){var e=document.createElement(tag);if(attrs)for(var k in attrs){if(k==="class")e.className=attrs[k];else if(k==="text")e.textContent=attrs[k];else e.setAttribute(k,attrs[k]);}
+  (kids||[]).forEach(function(c){e.appendChild(typeof c==="string"?document.createTextNode(c):c);});return e;}
+function copyText(btn,text){
+  var orig=btn.dataset.o||btn.textContent;btn.dataset.o=orig;
+  function done(){btn.textContent="Copied";setTimeout(function(){btn.textContent=orig;},1500);}
+  function fb(){var t=document.createElement("textarea");t.value=text;t.setAttribute("readonly","");t.style.cssText="position:fixed;opacity:0";document.body.appendChild(t);t.select();try{document.execCommand("copy");}catch(e){}document.body.removeChild(t);done();}
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(text).then(done,fb);}else{fb();}
+}
+
+/* ---------- A: decisions + live schema ---------- */
+var v1="main",v2="main";
+function renderSchema(){
+  var rows=document.getElementById("schemaRows");rows.textContent="";
+  document.getElementById("schemaName").textContent=v1==="main"?"reviews/{plan}/{slice}":"reviews/{plan}";
+  var R=v1==="main"?[["slice_id","text"],["decision","approved | changes | pending"],["comment","text"],["slice_hash","text (staleness check)"],["reviewer","user id"],["updated_at","timestamp"]]
+                   :[["slices","map slice_id → decision"],["comments","map slice_id → text"],["reviewer","user id"],["updated_at","timestamp"]];
+  if(v2==="main")R.push(["sent_to_claude_at","timestamp (set by the button)"]);
+  R.forEach(function(r,i){var flag=(v2==="main"&&r[0]==="sent_to_claude_at");
+    rows.appendChild(h("div",{class:"r"+(flag?" flag":"")},[h("span",{text:r[0]}),h("span",{text:r[1]})]));});
+}
+function wireToggle(btnId,cardId,get,set){
+  var b=document.getElementById(btnId),c=document.getElementById(cardId);
+  b.addEventListener("click",function(){var next=get()==="main"?"alt":"main";set(next);c.setAttribute("data-variant",next);
+    b.textContent=next==="alt"?"← Back to the plan's pick":"View alternative →";renderSchema();});
+}
+wireToggle("t1","c1",function(){return v1;},function(x){v1=x;});
+wireToggle("t2","c2",function(){return v2;},function(x){v2=x;});
+renderSchema();
+
+/* ---------- B: interactive mock ---------- */
+var SLICES=[
+ {t:"Render the review page from the plan YAML",what:"Generate one self-contained page from the plan, with a review control for each slice.",why:"Reviewers need to see the plan before anything can be saved.",done:["Page renders from plan YAML with no database","Each slice shows what, why and done-when"]},
+ {t:"Reviewer controls, persistence and Send to Claude",what:"Approve or request changes per slice, save the decision, and let the reviewer notify the session.",why:"This is the first point where a reviewer's decision can leave the page.",done:["A decision survives a reload","Send to Claude posts a comment the session can see"]},
+ {t:"Session read-back",what:"Read review documents and map them to the existing feedback JSON.",why:"The session needs the same shape it gets from the dashboard today.",done:["plan feedback returns the same JSON from either source"]},
+ {t:"Republish loop and finalize gate",what:"Apply requested changes, republish, flag stale approvals, then allow finalize.",why:"Closes the loop so the review ends in a finalized plan.",done:["A changed slice shows changed since you approved","Finalize is blocked until every slice is approved"]}
+];
+var PRESETS={
+ pending:{s:["pending","pending","pending","pending"],note:null,write:true},
+ mixed:{s:["approved","changes","pending","pending"],note:null,write:true,c:{1:"Show how a conflict looks to the second reviewer."}},
+ approved:{s:["approved","approved","approved","approved"],note:null,write:true},
+ conflict:{s:["approved","pending","pending","pending"],note:{k:"warn",t:"Someone else updated this review. Reload to see their changes, then try again."},write:false},
+ readonly:{s:["approved","changes","pending","pending"],note:{k:"info",t:"You can read this plan but not review it. Ask the owner for review access."},write:false}
+};
+var st={sel:0,s:[],c:{},note:null,write:true,phone:false,preset:"pending"};
+var mock=document.getElementById("mock"),toast=document.getElementById("toast");
+function say(t){toast.textContent=t;}
+function apply(name){var p=PRESETS[name];st.preset=name;st.s=p.s.slice();st.c=JSON.parse(JSON.stringify(p.c||{}));st.note=p.note;st.write=p.write;st.sel=0;say("");render();syncBtns();}
+function syncBtns(){
+  Array.prototype.forEach.call(document.querySelectorAll("[data-preset]"),function(b){b.classList.toggle("on",b.dataset.preset===st.preset);});
+  document.getElementById("dev-d").classList.toggle("on",!st.phone);document.getElementById("dev-p").classList.toggle("on",st.phone);
+}
+function label(x){return x==="approved"?"Approved":x==="changes"?"Changes requested":"Pending";}
+function render(){
+  mock.className="mock"+(st.phone?" phone":"");mock.textContent="";
+  var done=st.s.filter(function(x){return x==="approved";}).length;
+  mock.appendChild(h("div",{class:"top"},[h("span",{},[h("b",{text:"plan review"}),document.createTextNode(" · Plan review surface")]),
+    h("span",{class:"pill",text:done+" of "+SLICES.length+" approved"})]));
+  if(st.note)mock.appendChild(h("div",{class:"note "+st.note.k,role:"alert",text:st.note.t}));
+  var list=h("div",{class:"list",role:"tablist","aria-label":"Slices"});
+  SLICES.forEach(function(s,i){
+    var b=h("button",{class:"li"+(i===st.sel?" sel":""),type:"button",role:"tab","aria-selected":String(i===st.sel)},[h("span",{class:"dot "+st.s[i]}),document.createTextNode("Slice "+(i+1)+(st.phone?"":" · "+s.t.slice(0,26)+(s.t.length>26?"…":"")))]);
+    b.addEventListener("click",function(){st.sel=i;render();});list.appendChild(b);});
+  var s=SLICES[st.sel],cur=st.s[st.sel],i=st.sel;
+  var d=h("div",{class:"detail"});
+  d.appendChild(h("h4",{text:"Slice "+(i+1)+": "+s.t}));
+  d.appendChild(h("span",{class:"pill "+cur,text:label(cur)}));
+  d.appendChild(h("div",{class:"lbl",text:"What"}));d.appendChild(h("p",{text:s.what}));
+  d.appendChild(h("div",{class:"lbl",text:"Why"}));d.appendChild(h("p",{text:s.why}));
+  d.appendChild(h("div",{class:"lbl",text:"Done when"}));d.appendChild(h("ul",{},s.done.map(function(x){return h("li",{text:x});})));
+  var acts=h("div",{class:"acts"});
+  var ap=h("button",{class:"mb act-approve"+(cur==="approved"?" on":""),type:"button",text:"Approve"});
+  var ch=h("button",{class:"mb act-changes"+(cur==="changes"?" on":""),type:"button",text:"Request changes"});
+  if(!st.write){ap.disabled=true;ch.disabled=true;}
+  ap.addEventListener("click",function(){st.s[i]=cur==="approved"?"pending":"approved";say("Saved (mock).");render();});
+  ch.addEventListener("click",function(){st.s[i]=cur==="changes"?"pending":"changes";say("Saved (mock).");render();});
+  acts.appendChild(ap);acts.appendChild(ch);d.appendChild(acts);
+  d.appendChild(h("div",{class:"lbl",text:"Comment"}));
+  var ta=h("textarea",{"aria-label":"Comment on this slice",placeholder:"Optional. Say what should change."});
+  ta.value=st.c[i]||"";if(!st.write)ta.disabled=true;
+  ta.addEventListener("input",function(){st.c[i]=ta.value;});
+  d.appendChild(ta);
+  var body=h("div",{class:"body"},[list,d]);mock.appendChild(body);
+  var foot=h("div",{class:"foot"});
+  var send=h("button",{class:"mb",type:"button",text:"Send to Claude"});if(!st.write)send.disabled=true;
+  send.addEventListener("click",function(){say("Would post an artifact comment addressed to Claude, listing "+done+" approved and "+st.s.filter(function(x){return x==="changes";}).length+" with changes requested (mock).");});
+  var all=done===SLICES.length;
+  var fin=h("button",{class:"mb go",type:"button",text:"Finalize plan"});fin.disabled=!(all&&st.write);
+  fin.addEventListener("click",function(){say("Would run: wipnote plan finalize (mock).");});
+  foot.appendChild(send);foot.appendChild(h("span",{class:"pill",text:all?"Ready to finalize":"Needs every slice approved"}));foot.appendChild(fin);
+  mock.appendChild(foot);
+}
+Array.prototype.forEach.call(document.querySelectorAll("[data-preset]"),function(b){b.addEventListener("click",function(){apply(b.dataset.preset);});});
+document.getElementById("dev-d").addEventListener("click",function(){st.phone=false;render();syncBtns();});
+document.getElementById("dev-p").addEventListener("click",function(){st.phone=true;render();syncBtns();});
+apply("mixed");
+
+/* ---------- C: flowchart ---------- */
+var N={
+ publish:{t:"Plan published as artifact",s:"proposed",run:"The plan YAML is rendered to HTML (this exists today) and published as a Claude Artifact with the database capability.",fail:"Publishing can be refused or the page can exceed size limits. Neither is expected for a plan page."},
+ open:{t:"Reviewer opens the page",s:"proposed",run:"The page loads the review documents for this plan and shows each slice's current decision.",fail:"A viewer without access sees the plan read-only (see the banner path)."},
+ decide:{t:"Reviewer decides per slice",s:"proposed",run:"Approve or request changes, with an optional comment. The decision is written as that slice's review document.",fail:"None until the write."},
+ write:{t:"Write succeeds?",s:"documented",run:"Overwriting an existing document needs the document's current version. The write also depends on the reviewer's access level.",fail:"A stale version is a conflict. A reviewer without write access is refused. Both end on the banner."},
+ banner:{t:"Conflict or read-only banner",s:"proposed",run:"The page tells the reviewer what happened. For a conflict it reloads the latest documents and retries once.",fail:"A second conflict stops and asks the reviewer to reload."},
+ live:{t:"Other viewers update live",s:"untested",run:"The database is described as a shared realtime store, so other open pages should update without a reload.",fail:"Not tested with this page. If it does not hold, viewers reload to see changes."},
+ wake:{t:"Session hears about it",s:"untested",run:"Reliable path: the reviewer presses Send to Claude, which posts an artifact comment and wakes the session. Unproven path: a database write alone waking the session.",fail:"If only the comment path works, the review needs that one extra click. That is why choice ② defaults to the button."},
+ read:{t:"Session reads the reviews",s:"untested",run:"The session lists the review documents and maps them to the feedback JSON that plan feedback returns today.",fail:"Reading depends on the session having artifact data access. Not tested for this page."},
+ all:{t:"All slices approved?",s:"proposed",run:"Every slice must be approved, and no approval may be stale against the current slice text.",fail:"Any pending, changes-requested or stale slice sends the plan back for revision."},
+ revise:{t:"Apply changes, republish",s:"proposed",run:"The session edits the plan YAML, re-renders the page and republishes a new artifact version. Approvals for unchanged slices carry over.",fail:"If a slice changed, its approval is flagged stale and needs a fresh decision."},
+ finalize:{t:"plan finalize",s:"exists",run:"The existing finalize step. The slices then promote to features as they do today.",fail:"Existing behaviour and failure modes."}
+};
+var panel=document.getElementById("panel");
+function showNode(k){
+  var n=N[k];Array.prototype.forEach.call(document.querySelectorAll(".fn"),function(g){g.classList.toggle("sel",g.dataset.n===k);});
+  panel.textContent="";
+  var cls=n.s==="untested"?"tag un":n.s==="exists"||n.s==="documented"?"tag ok":"tag";
+  panel.appendChild(h("div",{class:"ph"},[h("b",{text:n.t}),h("span",{class:cls,text:n.s})]));
+  panel.appendChild(h("p",{},[h("b",{text:"What runs. "}),document.createTextNode(n.run)]));
+  panel.appendChild(h("p",{class:"cost"},[h("b",{text:"How it fails. "}),document.createTextNode(n.fail)]));
+}
+Array.prototype.forEach.call(document.querySelectorAll(".fn"),function(g){
+  g.addEventListener("click",function(){showNode(g.dataset.n);});
+  g.addEventListener("keydown",function(e){if(e.key==="Enter"||e.key===" "){e.preventDefault();showNode(g.dataset.n);}});
+});
+
+/* ---------- H: reply builder ---------- */
+var pick={shape:null,notify:null,stale:null};
+var LAB={shape:"Review data shape",notify:"How the session finds out",stale:"Approval after the slice is edited"};
+var out=document.getElementById("out");
+function plain(){var n=0;return "My picks on the plan review surface:\n"+Object.keys(pick).map(function(k){n++;return n+". "+LAB[k]+": "+(pick[k]||"___");}).join("\n")+"\nOther notes: ___";}
+function renderOut(){out.textContent="";var n=0;Object.keys(pick).forEach(function(k){n++;
+  out.appendChild(document.createTextNode(n+". "+LAB[k]+": "));
+  out.appendChild(h("span",{class:pick[k]?"":"blank",text:pick[k]||"___ (pick above)"}));out.appendChild(document.createTextNode("\n"));});
+  out.appendChild(document.createTextNode("Other notes: "));out.appendChild(h("span",{class:"blank",text:"___"}));}
+Array.prototype.forEach.call(document.querySelectorAll(".opts[data-k]"),function(g){var k=g.dataset.k;
+  Array.prototype.forEach.call(g.querySelectorAll(".btn"),function(b){b.addEventListener("click",function(){
+    Array.prototype.forEach.call(g.querySelectorAll(".btn"),function(x){x.classList.remove("on");});b.classList.add("on");pick[k]=b.dataset.a;renderOut();});});});
+document.getElementById("copy").addEventListener("click",function(){copyText(this,plain());});
+renderOut();
+})();
+</script>
+</body>
+</html>
