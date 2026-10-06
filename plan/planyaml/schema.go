@@ -172,13 +172,13 @@ type PlanSlice struct {
 // deliberately generic so new block types can be added to BlockCatalog without
 // changing this struct:
 //
-//   - Type    selects the block kind (data-model | api-endpoint | file-tree |
-//     wireframe). It MUST be a key in BlockCatalog.
+//   - Type    selects the block kind (data-model | file-tree | wireframe |
+//     diagram | tabs). It MUST be a key in BlockCatalog.
 //   - Title   is an optional human-readable heading.
 //   - Fields  holds scalar key/value content (e.g. wireframe html, data-model
 //     name). Per-type required keys are declared by BlockCatalog[Type].Fields.
-//   - Rows    holds tabular content (e.g. data-model columns, api-endpoint
-//     params). Required when BlockCatalog[Type].RequiresRows is true.
+//   - Rows    holds tabular content (e.g. data-model columns, tabs
+//     panels). Required when BlockCatalog[Type].RequiresRows is true.
 //   - Entries holds an ordered string list (e.g. file-tree paths). Required
 //     when BlockCatalog[Type].RequiresEntries is true.
 //

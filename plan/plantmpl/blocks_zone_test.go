@@ -126,3 +126,25 @@ func TestBlocksZone_WireframeRejectsRawColors(t *testing.T) {
 		t.Errorf("expected raw-color wireframe to be rejected in the Blocks zone:\n%s", html)
 	}
 }
+
+// TestBlocksZone_DataModelShowsRouteFromName guards the plan skill's guidance for
+// HTTP contracts: since the api-endpoint block was removed, a contract is a
+// data-model whose `name` field carries the method and path. The renderer shows
+// `name` as the block heading, so the route must appear in the rendered plan.
+func TestBlocksZone_DataModelShowsRouteFromName(t *testing.T) {
+	s := planyaml.PlanSlice{
+		Num: 1,
+		Blocks: []planyaml.SliceBlock{
+			{Type: "data-model", Fields: map[string]string{"name": "POST /api/ingest \u2014 429 response"}, Rows: []map[string]string{
+				{"name": "error", "type": "string"},
+				{"name": "retry_after", "type": "int (seconds)"},
+			}},
+		},
+	}
+	html := renderCard(t, SliceCardFromPlanSlice(s))
+	for _, want := range []string{"POST /api/ingest", "429 response", "retry_after"} {
+		if !strings.Contains(html, want) {
+			t.Errorf("rendered data-model is missing %q\n%s", want, html)
+		}
+	}
+}

@@ -28,7 +28,7 @@ import (
 var templateFS embed.FS
 
 // blockTmpl parses all block templates once at init. Each block type renders via
-// its named template (data_model, api_endpoint, file_tree).
+// its named template (data_model, file_tree, wireframe, diagram, tabs).
 var blockTmpl = template.Must(template.ParseFS(templateFS, "templates/*.gohtml"))
 
 // Block is anything that can render itself into an HTML fragment. It mirrors the

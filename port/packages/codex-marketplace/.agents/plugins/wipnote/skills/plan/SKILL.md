@@ -1,13 +1,13 @@
 ---
 name: wipnote:plan
-description: Plan development work using a triage-gated, blocks-first interview. Classify scope as trivial/standard/complex, then run 0/3/4 staged interview rounds through the current harness native ask-user tool when available, or plain conversation when it is not. Each stage elicits the VISUAL block first (file-tree, api-endpoint, data-model, wireframe/diagram) and derives the prose slice fields (what/why/done_when) from it — blocks are authored inline as the YAML is built, not in a post-pass. Produces slice-card YAML with grounded visual blocks and visible research provenance for external claims; pauses for human review; promotes approved slices to features. Use when asked to plan, create a development plan, or build a feature with design clarity first.
+description: Plan development work using a triage-gated, blocks-first interview. Classify scope as trivial/standard/complex, then run 0/3/4 staged interview rounds through the current harness native ask-user tool when available, or plain conversation when it is not. Each stage elicits the VISUAL block first (file-tree, data-model, wireframe/diagram) and derives the prose slice fields (what/why/done_when) from it — blocks are authored inline as the YAML is built, not in a post-pass. Produces slice-card YAML with grounded visual blocks and visible research provenance for external claims; pauses for human review; promotes approved slices to features. Use when asked to plan, create a development plan, or build a feature with design clarity first.
 ---
 
 # wipnote Plan
 
 Treat plan creation as a **blocks-first** system design interview. You are the candidate; the user is the interviewer with requirements. Extract requirements via staged questions before producing slice YAML. Prefer the current harness native ask-user tool when one is available; otherwise ask the same questions in plain chat. Do not jump to a 9-field worksheet — earn each field through the interview, or explicitly mark fields as inferred/skipped when the user has supplied a complete spec and the harness lacks interactive tools.
 
-**Blocks-first is the defining discipline.** In each interview stage, author the VISUAL artifact FIRST — the file-tree of files the slice touches, the api-endpoint and data-model of its contract, the wireframe/diagram of its UI/flow — then DERIVE the prose fields (`what`/`why`/`done_when`) from those blocks. Blocks are written into the slice YAML INLINE as it is built; there is no separate visual pass. The blocks drive the design. (The separate `wipnote:visual-plan` skill is now only for after-the-fact enrichment of existing/legacy plans — never the primary path.)
+**Blocks-first is the defining discipline.** In each interview stage, author the VISUAL artifact FIRST — the file-tree of files the slice touches, the data-model of its contract (request/response bodies as typed entities, the route named in the block title), the wireframe/diagram of its UI/flow — then DERIVE the prose fields (`what`/`why`/`done_when`) from those blocks. Blocks are written into the slice YAML INLINE as it is built; there is no separate visual pass. The blocks drive the design. (The separate `wipnote:visual-plan` skill is now only for after-the-fact enrichment of existing/legacy plans — never the primary path.)
 
 **Trigger keywords:** create plan, development plan, parallel plan, plan tasks, plan this feature, review before building, generate plan, scaffold plan, slice plan, crispi
 
@@ -99,7 +99,7 @@ Each stage elicits the VISUAL block FIRST, then derives prose from it. The block
 |---|---|---|---|
 | 1. Requirements | `wireframe`/`diagram` (UI/flow work only; skip for non-visual slices) | `why`, `what` (from the sketched surface/flow), `decisions_notes` (rationale half) | "Sketch the user-visible surface/flow. What problem does it solve, for whom?" |
 | 2. Scope & state | `file-tree` of the real files this slice touches (new + edited) | `files`, `what` (scope half) — read straight off the tree | "List the files. Where does the state live? Any cross-slice ordering?" |
-| 3. API / contract | `api-endpoint` (method+path+params) and/or `data-model` (typed columns) | `what` (contract half), `done_when` (per route/entity), `decisions_notes` (interface picks) | "Author the route/entity. What's the firing rule? What does the response carry?" |
+| 3. API / contract | `data-model` (typed columns; model each request/response body as an entity and put the method+path in the block's `name` field, which is the heading the renderer shows; a data-model's `title` is not rendered) | `what` (contract half), `done_when` (per route/entity), `decisions_notes` (interface picks) | "Author the entity. What's the firing rule? What does the response carry?" |
 | 4. Done-when | (no new block — anchor acceptance criteria to the blocks above) | `done_when`, `tests`, `effort`, `risk` | "How will you tell each block's behavior works? Which existing tests must still pass?" |
 
 **Derivation, not duplication:** the prose fields restate the block in narrative form for the slice card; they must stay consistent with the block. If a stage has no natural visual artifact (e.g. a pure non-visual standard slice), say so and proceed to prose directly — do not invent a block to satisfy the form.
@@ -123,7 +123,7 @@ The per-slice interview question set already carries the blocks-first prompts fo
 A block is grounded when every field, route, and file path it names either ALREADY exists in the codebase or WILL exist as a direct output of this slice. Never invent schema, routes, or files to fill a block. If you cannot ground a block type for a slice without inventing data, skip that block type for that slice and note why in `decisions_notes`.
 
 - `data-model` rows: real or will-exist field names/types.
-- `api-endpoint` method/path: routes the slice will actually implement.
+- `data-model` named with a route (e.g. `name: POST /api/ingest — 429 response`): the method/path must be a route the slice will actually implement.
 - `file-tree` entries: real files the slice touches.
 - `wireframe` HTML: `var(--wf-*)` design tokens only — never raw hex/rgb.
 
@@ -132,8 +132,8 @@ A block is grounded when every field, route, and file path it names either ALREA
 | Complexity | Blocks expected |
 |---|---|
 | `trivial` | Minimal or none — trivial slices have no design surface to visualise; skip blocks. |
-| `standard` | Blocks expected when the slice is concrete enough to ground them (a real file-tree at minimum; api-endpoint/data-model where a contract exists). If the slice is genuinely underspecified, note the skip rather than invent. |
-| `complex` | Blocks expected — author every block type the slice justifies (file-tree always; api-endpoint/data-model/wireframe/diagram as the design warrants). |
+| `standard` | Blocks expected when the slice is concrete enough to ground them (a real file-tree at minimum; data-model where a contract exists). If the slice is genuinely underspecified, note the skip rather than invent. |
+| `complex` | Blocks expected — author every block type the slice justifies (file-tree always; data-model/wireframe/diagram as the design warrants). |
 
 **This is schema-enforced, not just advisory.** `wipnote plan validate-yaml` FAILS any standard/complex slice with zero blocks, unless `decisions_notes` carries an explicit `blocks_waiver: <reason>` marker line — the machine-checkable opt-out for a slice that is genuinely underspecified (never invent a block to satisfy the gate; see the grounding rule above). Trivial slices stay exempt. This gate applies whenever `meta.schema_version` is `v3` or `v4`, or the slice sets `complexity:` explicitly — i.e. any plan authored under this triage-gated model, per Step 0 above. (It does NOT retroactively apply to pre-triage legacy plans that carry neither `schema_version` nor an explicit `complexity:` — see `plan/planyaml/validate.go`'s blocks-gate comment for the measured back-compat rationale.) A superseded, purely-advisory version of this same signal remains available as `ValidateBlockAdvisories` for finalized plans, which the hard gate does not cover.
 
@@ -349,13 +349,14 @@ slices:
           - internal/ratelimit/limiter.go
           - cmd/wipnote/serve.go
       # Authored FIRST during the API/contract stage — `done_when` derived from it.
-      - type: api-endpoint
+      - type: data-model
         fields:
-          method: POST
-          path: /api/ingest
+          name: "POST /api/ingest — 429 response"
         rows:
-          - name: "429 body"
-            type: '{"error":"rate_limited","retry_after":1}'
+          - name: error
+            type: 'string ("rate_limited")'
+          - name: retry_after
+            type: int (seconds)
     done_when:
       - "Requests above the configured limit receive HTTP 429"
       - "Requests within the limit pass through unchanged"
