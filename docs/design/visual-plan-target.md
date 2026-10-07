@@ -12,8 +12,8 @@ has real UI and a real flow, which is why it was chosen. Its estimates are illus
 ## Decisions so far (from the page's reply builder)
 
 1. Review data shape: one document per slice.
-2. How the session finds out: an explicit "Send to Claude" comment. A database write waking
-   the session stays unverified and is not relied on.
+2. How the session finds out: an explicit "Send to Claude" comment. A database write does
+   not wake the session (tested in the spike), and only editors of the artifact can send.
 3. Approval after a slice is edited: it carries over if the edit is minor.
 4. What counts as a change: anything except whitespace.
 5. When an approval is cleared, the page shows a diff of what changed since the reviewer
@@ -100,6 +100,9 @@ its interactions behave (state presets, approve and finalize gating, decision to
 flowchart detail by mouse and keyboard, reply builder). Comment text is rendered as plain
 text.
 
-Not verified: the artifact behaviour the plan depends on (a database write waking the
-session, live updates for other viewers, the clipboard inside an artifact sandbox). The page
-marks those steps as untested instead of presenting them as fact.
+Tested in a spike (`plan-review-spike.md`): a page database write does not wake the
+session; a comment sent to Claude does, within about 20 seconds; only editors can send;
+page writes are last-writer-wins. The flowchart marks these steps "tested in the spike".
+
+Not verified: live updates for other viewers and the clipboard inside an artifact sandbox.
+The flowchart shows the live-update step dashed as untested instead of presenting it as fact.

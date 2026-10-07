@@ -1,0 +1,169 @@
+<title>Plan review spike</title>
+<style>
+:root{
+  --bg:#f6f5f1;--card:#fff;--fg:#1c1c1a;--muted:#66655e;--line:#dedcd3;
+  --accent:#0f766e;--accent-bg:#e4f3f0;--warn:#a85a08;--warn-bg:#fcefdc;
+  --bad:#b42323;--bad-bg:#fbe9e9;--ok:#177a3c;--ok-bg:#e3f4e8;--code:#f0eee7;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#111215;--card:#191b1f;--fg:#ebeae4;--muted:#9a998f;--line:#2b2e34;
+  --accent:#5eead4;--accent-bg:#13302c;--warn:#f5a54a;--warn-bg:#35260f;
+  --bad:#f08a8a;--bad-bg:#3a1a1a;--ok:#6fd58e;--ok-bg:#12301d;--code:#22252a;color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#111215;--card:#191b1f;--fg:#ebeae4;--muted:#9a998f;--line:#2b2e34;
+  --accent:#5eead4;--accent-bg:#13302c;--warn:#f5a54a;--warn-bg:#35260f;
+  --bad:#f08a8a;--bad-bg:#3a1a1a;--ok:#6fd58e;--ok-bg:#12301d;--code:#22252a;color-scheme:dark}
+body{background:var(--bg);color:var(--fg)}
+*{box-sizing:border-box}
+.page{max-width:760px;margin:0 auto;padding:20px 16px 64px;font:16px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+h1{font-size:26px;line-height:1.15;margin:4px 0 8px}
+h2{font-size:18px;margin:0 0 8px}
+p{margin:0 0 10px}
+.eyebrow{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.muted{color:var(--muted);font-size:14px}
+section{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin:16px 0}
+code{background:var(--code);padding:1px 6px;border-radius:4px;font:13px ui-monospace,Menlo,monospace}
+.rows{display:grid;gap:6px}
+.row{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;border-top:1px solid var(--line);padding-top:6px;min-width:0}
+.row:first-child{border-top:0;padding-top:0}
+.row span:first-child{min-width:0;overflow-wrap:anywhere}
+.tag{font-size:12px;border-radius:999px;padding:2px 10px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.tag.ok{background:var(--ok-bg);border-color:var(--ok);color:var(--ok)}
+.tag.no{background:var(--bad-bg);border-color:var(--bad);color:var(--bad)}
+.tag.un{background:var(--warn-bg);border-color:var(--warn);color:var(--warn)}
+.slice{border-top:1px solid var(--line);padding:10px 0}
+.slice:first-of-type{border-top:0}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+button{font:inherit;cursor:pointer;border:1px solid var(--line);background:var(--card);color:var(--fg);border-radius:8px;padding:6px 12px;font-size:14px}
+button.go{background:var(--accent);border-color:var(--accent);color:var(--bg);font-weight:600}
+button:disabled{opacity:.45;cursor:not-allowed}
+button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+pre{background:var(--code);border-radius:8px;padding:10px 12px;margin:8px 0 0;white-space:pre-wrap;overflow-wrap:anywhere;font:13px/1.5 ui-monospace,Menlo,monospace;max-height:240px;overflow:auto}
+</style>
+
+<div class="page">
+  <div class="eyebrow">Experiment · disposable</div>
+  <h1>Plan review spike</h1>
+  <p class="muted">Tests what a reviewer's action really does: what this view is allowed to do, whether a saved decision shows up live, and whether Send to Claude reaches the session. Nothing here is a real plan.</p>
+
+  <section id="caps" aria-labelledby="h-caps">
+    <h2 id="h-caps">1. What this view can do</h2>
+    <div class="rows" id="capRows"><div class="row"><span>Checking…</span><span class="tag">…</span></div></div>
+  </section>
+
+  <section id="reviews" aria-labelledby="h-rev">
+    <h2 id="h-rev">2. Review two slices</h2>
+    <p class="muted">Each click writes one document to <code>reviews/plan-spike/slices/&lt;slice&gt;</code>. Nothing is written until you click.</p>
+    <div id="slices"></div>
+  </section>
+
+  <section id="live" aria-labelledby="h-live">
+    <h2 id="h-live">3. Saved decisions, live</h2>
+    <p class="muted">Updates here without a reload when anyone writes, including Claude from the session.</p>
+    <div class="rows" id="liveRows"><div class="row"><span>Waiting for the first snapshot…</span><span class="tag">…</span></div></div>
+    <p class="muted" id="snapAt" role="status"></p>
+  </section>
+
+  <section id="notify" aria-labelledby="h-notify">
+    <h2 id="h-notify">4. Send to Claude</h2>
+    <p class="muted" id="notifyState">Checking…</p>
+    <div class="actions"><button id="sendBtn" type="button" disabled>Send review to Claude</button></div>
+    <p class="muted" id="sendResult" role="status"></p>
+  </section>
+
+  <section aria-labelledby="h-log">
+    <h2 id="h-log">Log</h2>
+    <pre id="log">Nothing yet.</pre>
+  </section>
+</div>
+
+<script>
+(function(){
+"use strict";
+var PLAN="plan-spike";
+var SLICES=[
+  {id:"slice-1",title:"Render the review page",text:"Generate one page from the plan with a review control per slice."},
+  {id:"slice-2",title:"Save decisions",text:"Save each decision as its own document, one per slice."}
+];
+var logEl=document.getElementById("log"),logLines=[];
+function log(msg){var t=new Date().toISOString().slice(11,19);logLines.unshift(t+"  "+msg);logLines=logLines.slice(0,40);logEl.textContent=logLines.join("\n");}
+function h(tag,attrs,kids){var e=document.createElement(tag);if(attrs)for(var k in attrs){if(k==="class")e.className=attrs[k];else if(k==="text")e.textContent=attrs[k];else e.setAttribute(k,attrs[k]);}(kids||[]).forEach(function(c){e.appendChild(typeof c==="string"?document.createTextNode(c):c);});return e;}
+function norm(s){return s.replace(/\s+/g," ").trim();}
+function hash(s){var x=2166136261;for(var i=0;i<s.length;i++){x^=s.charCodeAt(i);x=Math.imul(x,16777619);}return (x>>>0).toString(16);}
+function codeOf(e){return (e&&e.code)||(e&&e.message)||String(e);}
+
+var C=window.claude,db=null,user=null,comments=null,uid=null,state={};
+var capRows=document.getElementById("capRows");
+function cap(label,value,kind){capRows.appendChild(h("div",{class:"row"},[h("span",{text:label}),h("span",{class:"tag "+(kind||""),text:value})]));}
+
+function renderSlices(){
+  var box=document.getElementById("slices");box.textContent="";
+  SLICES.forEach(function(s){
+    var cur=state[s.id],label=cur?cur.decision:"no decision yet";
+    var a=h("button",{class:"go",type:"button",text:"Approve"}),c=h("button",{type:"button",text:"Request changes"});
+    if(!db||!uid){a.disabled=true;c.disabled=true;}
+    a.addEventListener("click",function(){decide(s,"approved");});
+    c.addEventListener("click",function(){decide(s,"changes");});
+    box.appendChild(h("div",{class:"slice"},[h("b",{text:s.title}),h("div",{class:"muted",text:s.text}),
+      h("div",{class:"muted",text:"Current: "+label}),h("div",{class:"actions"},[a,c])]));
+  });
+}
+function decide(s,decision){
+  if(!db||!uid)return;
+  var doc={slice_id:s.id,decision:decision,content_hash:hash(norm(s.text)),reviewer:uid,written_from:"page",updated_at:new Date().toISOString()};
+  log("write "+s.id+" = "+decision+" …");
+  db.collection("reviews/"+PLAN+"/slices").doc(s.id).set(doc).then(function(){log("write "+s.id+" ok (set, no version check)");},function(e){log("write "+s.id+" REJECTED: "+codeOf(e));});
+}
+function renderLive(snap){
+  var rows=document.getElementById("liveRows");rows.textContent="";
+  state={};
+  if(snap.empty){rows.appendChild(h("div",{class:"row"},[h("span",{text:"No documents yet."}),h("span",{class:"tag",text:"empty"})]));}
+  snap.docs.forEach(function(d){var v=d.data()||{};state[d.id]=v;
+    rows.appendChild(h("div",{class:"row"},[h("span",{text:d.id+" · "+(v.decision||"?")+" · by "+(v.written_from||"?")+" · "+(v.updated_at||"")}),
+      h("span",{class:"tag "+(v.decision==="approved"?"ok":v.decision==="changes"?"un":""),text:v.decision||"?"})]));});
+  document.getElementById("snapAt").textContent="Last snapshot received at "+new Date().toISOString().slice(11,19)+" UTC.";
+  renderSlices();
+}
+
+function setupSend(){
+  var btn=document.getElementById("sendBtn"),st=document.getElementById("notifyState"),res=document.getElementById("sendResult");
+  if(!comments){st.textContent="Comments are not available in this view, so the page cannot send anything to Claude.";return;}
+  comments.canSendToClaude().then(function(v){
+    var why={available:"Available: Claude can receive a comment from this page.",writers_only:"Not available: only editors of the artifact can send to Claude.",no_session:"Not available: no Claude session is watching this artifact right now.",off:"Not available: sending to Claude is off in this view."};
+    st.textContent=why[v]||("Unknown state: "+v);log("canSendToClaude = "+v);
+    btn.disabled=(v!=="available");
+  },function(e){st.textContent="Could not check: "+codeOf(e);log("canSendToClaude failed: "+codeOf(e));});
+  btn.addEventListener("click",function(){
+    var lines=SLICES.map(function(s){var v=state[s.id];return s.id+": "+(v?v.decision:"no decision");});
+    var text="Plan review spike. "+lines.join("; ")+".";
+    comments.anchorFor(document.getElementById("notify")).then(function(anchor){
+      return comments.sendToClaude({anchor:anchor,text:text});
+    }).then(function(r){res.textContent="Sent. Thread "+r.threadId+". Claude replies in the comment thread.";log("sendToClaude ok, thread "+r.threadId);},
+      function(e){res.textContent="Not sent ("+codeOf(e)+"). Nothing was posted if the code is claude_unavailable.";log("sendToClaude REJECTED: "+codeOf(e));});
+  });
+}
+
+function start(){
+  renderSlices();
+  if(!C||!C.use){cap("window.claude","missing","no");return;}
+  Promise.all([C.use("db"),C.use("user"),C.use("comments")]).then(function(r){
+    db=r[0];user=r[1];comments=r[2];
+    cap("db",db?"available":"unavailable",db?"ok":"no");
+    cap("user",user?"available":"unavailable",user?"ok":"no");
+    cap("comments",comments?"available":"unavailable",comments?"ok":"no");
+    if(user){
+      cap("isOwner()",String(user.isOwner()),user.isOwner()?"ok":"");
+      cap("canEdit() (admin level)",String(user.canEdit()),user.canEdit()?"ok":"");
+      var dw=user.can("data.write");cap('can("data.write")',dw===null?"not told":String(dw),dw?"ok":"un");
+      return user.id().then(function(id){uid=id;cap("viewer id",id?"present":"none",id?"ok":"no");});
+    }
+  }).then(function(){
+    renderSlices();setupSend();
+    if(db){
+      db.collection("reviews/"+PLAN+"/slices").onSnapshot(renderLive,function(e){log("snapshot error: "+codeOf(e));});
+    }else{document.getElementById("liveRows").textContent="The database is not available in this view.";}
+  },function(e){log("startup failed: "+codeOf(e));});
+}
+start();
+})();
+</script>
