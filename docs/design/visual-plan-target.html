@@ -122,6 +122,7 @@ ul{margin:6px 0 8px;padding-left:20px}
 .fn.fail rect{fill:var(--bad-bg);stroke:var(--bad)}
 .fn.term rect{fill:var(--ok-bg);stroke:var(--ok);rx:22}
 .fn.un rect,.fn.un polygon{stroke-dasharray:5 3;stroke:var(--warn)}
+.fn.tst rect,.fn.tst polygon{stroke:var(--ok);stroke-width:2.2}
 .fn text{fill:var(--fg);font:12.5px system-ui,sans-serif;text-anchor:middle;pointer-events:none}
 .fn{cursor:pointer}
 .fn:hover rect,.fn:hover polygon,.fn.sel rect,.fn.sel polygon{stroke-width:3}
@@ -130,7 +131,7 @@ ul{margin:6px 0 8px;padding-left:20px}
 .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--muted);margin:8px 2px 2px}
 .legend i{display:inline-block;width:14px;height:14px;border:1.5px solid var(--fg);border-radius:4px;vertical-align:-2px;margin-right:5px}
 .legend i.d{background:var(--accent-bg);border-color:var(--accent)} .legend i.f{background:var(--bad-bg);border-color:var(--bad)}
-.legend i.t{background:var(--ok-bg);border-color:var(--ok);border-radius:9px} .legend i.u{border-style:dashed;border-color:var(--warn)}
+.legend i.t{background:var(--ok-bg);border-color:var(--ok);border-radius:9px} .legend i.u{border-style:dashed;border-color:var(--warn)} .legend i.s{border-color:var(--ok);border-width:2.2px}
 .panel{margin-top:10px;background:var(--code);border-radius:10px;padding:12px 14px;min-height:96px}
 .panel .ph{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:4px}
 /* sequencing, risks, questions */
@@ -166,11 +167,11 @@ pre.out{background:var(--code);border-radius:8px;padding:10px 12px;white-space:p
 <header>
   <div class="eyebrow">Design target · hand-built · not generated</div>
   <h1>Plan review surface for Claude Artifacts</h1>
-  <p>Reviewers approve or push back on a wipnote plan slice by slice, and the session reads their decisions back. This page is the <b>target</b> for what a visual plan should be able to show for an app feature: a real UI mock with states, a flowchart with branches and failure paths, and decisions you can flip. Numbers below are illustrative.</p>
+  <p>Reviewers approve or push back on a wipnote plan slice by slice, and the session reads their decisions back. This page is the <b>target</b> for what a visual plan should be able to show for an app feature: a real UI mock with states, a flowchart with branches and failure paths, and decisions you can flip. Numbers below are illustrative. Steps outlined in green in section C were tested in a real spike artifact.</p>
   <div class="chips">
     <div class="chip"><div class="k">Slices</div><div class="v">4</div></div>
     <div class="chip"><div class="k">Effort (illustrative)</div><div class="v">~4.5 days</div></div>
-    <div class="chip"><div class="k">Biggest unknown</div><div class="v">db write → session wake</div></div>
+    <div class="chip"><div class="k">Main limit</div><div class="v">only editors can send</div></div>
     <div class="chip"><div class="k">Risk</div><div class="v">Medium</div></div>
   </div>
   <div class="sort"><div class="g">↑ tweak
@@ -188,7 +189,7 @@ pre.out{background:var(--code);border-radius:8px;padding:10px 12px;white-space:p
         <div class="hd"><span><span class="flagtag">Choice ①</span> · Review data shape <span class="tag ok">Decided</span></span><button class="btn" id="t1" type="button">View alternative →</button></div>
         <div data-v="main"><div class="pick">Your pick · one document per slice</div>
           <p>Each slice gets its own review document, so two reviewers on different slices never write to the same document.</p>
-          <ul><li>No write conflicts across slices.</li><li>Stale approvals can be flagged per slice.</li></ul>
+          <ul><li>Saves are last-writer-wins, so one document per slice stops reviewers overwriting each other.</li><li>Stale approvals can be flagged per slice.</li></ul>
           <p class="cost"><b>Cost:</b> reading a whole review means listing a collection instead of fetching one document.</p></div>
         <div data-v="alt"><div class="pick alt">Alternative · one document per plan</div>
           <p>A single document holds every slice's decision. One read gets the whole review.</p>
@@ -198,11 +199,11 @@ pre.out{background:var(--code);border-radius:8px;padding:10px 12px;white-space:p
       <div class="choice" id="c2" data-variant="main">
         <div class="hd"><span><span class="flagtag">Choice ②</span> · How the session finds out <span class="tag ok">Decided</span></span><button class="btn" id="t2" type="button">View alternative →</button></div>
         <div data-v="main"><div class="pick">Your pick · explicit "Send to Claude" comment</div>
-          <p>The reviewer presses a button that posts an artifact comment addressed to Claude. Waking the session on a comment is documented behaviour.</p>
-          <p class="cost"><b>Cost:</b> one extra click per review round.</p></div>
+          <p>The reviewer presses a button that posts an artifact comment addressed to Claude. Tested: it woke the session within 20 seconds, while saving a decision woke nothing.</p>
+          <p class="cost"><b>Cost:</b> one extra click per review round, and only editors of the artifact can send to Claude.</p></div>
         <div data-v="alt"><div class="pick alt">Alternative · rely on the database write waking the session</div>
           <p>No button. Every approval would notify the session directly.</p>
-          <p class="cost"><b>Unverified:</b> I have not confirmed that a database write, as opposed to a republish or a comment, wakes the session. Do not choose this until it is tested.</p></div>
+          <p class="cost"><b>Disproved:</b> two decisions saved from the page woke nothing. Only a republish or a comment sent to Claude wakes the session.</p></div>
       </div>
       <div class="choice" id="c3" data-variant="main">
         <div class="hd"><span><span class="flagtag">Choice ③</span> · Approval after the slice is edited <span class="tag ok">Decided</span></span><button class="btn" id="t3" type="button">View alternative →</button></div>
@@ -232,7 +233,7 @@ pre.out{background:var(--code);border-radius:8px;padding:10px 12px;white-space:p
     <button class="btn" data-preset="mixed" type="button">In progress</button>
     <button class="btn" data-preset="approved" type="button">All approved</button>
     <button class="btn" data-preset="edited" type="button">Plan edited</button>
-    <button class="btn" data-preset="conflict" type="button">Conflict</button>
+    <button class="btn" data-preset="conflict" type="button">Changed elsewhere</button>
     <button class="btn" data-preset="readonly" type="button">Read-only</button>
     <span class="sp"></span>
     <button class="btn" id="dev-d" type="button">Desktop</button>
@@ -245,7 +246,7 @@ pre.out{background:var(--code);border-radius:8px;padding:10px 12px;white-space:p
 <!-- C ───────────────────────────────────────── -->
 <section id="flow">
   <div class="sec-head"><span class="letter">C</span><h2>How it works, including what goes wrong</h2><span class="tag">Medium tweak likelihood</span></div>
-  <p class="intro">Click any step for what runs, how it can fail, and whether I have verified it. Dashed outlines mark steps that depend on behaviour I have not tested.</p>
+  <p class="intro">Click any step for what runs, how it can fail, and whether I have verified it. Green outlines were tested in a real spike artifact. The dashed outline is not tested yet.</p>
   <div class="hint">Scroll the chart sideways to see all of it.</div>
   <div class="flow">
     <svg viewBox="0 0 700 790" role="img" aria-label="Flowchart of the plan review loop with two decisions and two failure paths">
@@ -255,7 +256,7 @@ pre.out{background:var(--code);border-radius:8px;padding:10px 12px;white-space:p
         <path class="edge" d="M250 144V178" marker-end="url(#ar)"/>
         <path class="edge" d="M250 224V264" marker-end="url(#ar)"/>
         <path class="edge" d="M375 300H438" marker-end="url(#ar)"/><text class="elabel" x="395" y="292">no</text>
-        <path class="edge" d="M540 278V202H377" marker-end="url(#ar)"/><text class="elabel" x="455" y="196">reload, retry once</text>
+        <path class="edge" d="M540 278V202H377" marker-end="url(#ar)"/><text class="elabel" x="455" y="196">show latest, decide again</text>
         <path class="edge" d="M250 336V370" marker-end="url(#ar)"/><text class="elabel" x="258" y="357">yes</text>
         <path class="edge" d="M250 416V450" marker-end="url(#ar)"/>
         <path class="edge" d="M250 496V530" marker-end="url(#ar)"/>
@@ -264,19 +265,19 @@ pre.out{background:var(--code);border-radius:8px;padding:10px 12px;white-space:p
         <path class="edge" d="M640 650H672V122H377" marker-end="url(#ar)"/><text class="elabel" x="560" y="116">next version</text>
         <path class="edge" d="M250 686V722" marker-end="url(#ar)"/><text class="elabel" x="258" y="708">yes</text>
       </g>
-      <g class="fn proc" data-n="publish" tabindex="0" role="button"><rect x="125" y="20" width="250" height="44"/><text x="250" y="46">Plan published as artifact</text></g>
+      <g class="fn proc tst" data-n="publish" tabindex="0" role="button"><rect x="125" y="20" width="250" height="44"/><text x="250" y="46">Plan published as artifact</text></g>
       <g class="fn proc" data-n="open" tabindex="0" role="button"><rect x="125" y="100" width="250" height="44"/><text x="250" y="126">Reviewer opens the page</text></g>
-      <g class="fn proc" data-n="decide" tabindex="0" role="button"><rect x="125" y="180" width="250" height="44"/><text x="250" y="206">Reviewer decides per slice</text></g>
-      <g class="fn dec" data-n="write" tabindex="0" role="button"><polygon points="250,264 375,300 250,336 125,300"/><text x="250" y="305">Write succeeds?</text></g>
-      <g class="fn fail" data-n="banner" tabindex="0" role="button"><rect x="440" y="278" width="200" height="44" rx="8"/><text x="540" y="304">Conflict or read-only banner</text></g>
+      <g class="fn proc tst" data-n="decide" tabindex="0" role="button"><rect x="125" y="180" width="250" height="44"/><text x="250" y="206">Reviewer decides per slice</text></g>
+      <g class="fn dec tst" data-n="write" tabindex="0" role="button"><polygon points="250,264 375,300 250,336 125,300"/><text x="250" y="305">Write succeeds?</text></g>
+      <g class="fn fail" data-n="banner" tabindex="0" role="button"><rect x="440" y="278" width="200" height="44" rx="8"/><text x="540" y="304">Changed or read-only banner</text></g>
       <g class="fn proc un" data-n="live" tabindex="0" role="button"><rect x="125" y="372" width="250" height="44"/><text x="250" y="398">Other viewers update live</text></g>
-      <g class="fn proc un" data-n="wake" tabindex="0" role="button"><rect x="125" y="452" width="250" height="44"/><text x="250" y="478">Session hears about it</text></g>
-      <g class="fn proc un" data-n="read" tabindex="0" role="button"><rect x="125" y="532" width="250" height="44"/><text x="250" y="558">Session reads the reviews</text></g>
+      <g class="fn proc tst" data-n="wake" tabindex="0" role="button"><rect x="125" y="452" width="250" height="44"/><text x="250" y="478">Session hears about it</text></g>
+      <g class="fn proc tst" data-n="read" tabindex="0" role="button"><rect x="125" y="532" width="250" height="44"/><text x="250" y="558">Session reads the reviews</text></g>
       <g class="fn dec" data-n="all" tabindex="0" role="button"><polygon points="250,614 375,650 250,686 125,650"/><text x="250" y="655">All slices approved?</text></g>
       <g class="fn proc" data-n="revise" tabindex="0" role="button"><rect x="440" y="628" width="200" height="44" rx="8"/><text x="540" y="654">Apply changes, republish</text></g>
       <g class="fn term" data-n="finalize" tabindex="0" role="button"><rect x="125" y="722" width="250" height="44"/><text x="250" y="748">plan finalize</text></g>
     </svg>
-    <div class="legend"><span><i></i>step</span><span><i class="d"></i>decision</span><span><i class="f"></i>failure path</span><span><i class="t"></i>end</span><span><i class="u"></i>depends on untested behaviour</span></div>
+    <div class="legend"><span><i></i>step</span><span><i class="d"></i>decision</span><span><i class="f"></i>failure path</span><span><i class="t"></i>end</span><span><i class="s"></i>tested in the spike</span><span><i class="u"></i>not tested yet</span></div>
   </div>
   <div class="panel" id="panel" aria-live="polite"><div class="ph"><b>Select a step</b></div><p class="cost">Click or press Enter on any box above.</p></div>
 </section>
@@ -287,7 +288,7 @@ pre.out{background:var(--code);border-radius:8px;padding:10px 12px;white-space:p
   <p class="intro">The order I would build it in. Nothing reaches a reviewer until slice 2.</p>
   <ol class="seq">
     <li><span class="n">1</span><div><b>Render the review page from the plan YAML.</b><div class="dep">Static, no database. Plan HTML generation already exists, so this reuses it.</div></div><span class="est">1d</span></li>
-    <li><span class="n">2</span><div><b>Reviewer controls, persistence and "Send to Claude".</b><div class="dep">After slice 1. Includes the spike that proves a reviewer's write reaches the session.</div></div><span class="est">1.5d</span></li>
+    <li><span class="n">2</span><div><b>Reviewer controls, persistence and "Send to Claude".</b><div class="dep">After slice 1. The spike is done: Send to Claude reaches the session, and saving a decision does not.</div></div><span class="est">1.5d</span></li>
     <li><span class="n">3</span><div><b>Session read-back.</b><div class="dep">After slice 2. Maps review documents to the existing feedback JSON so <code>plan feedback</code> can read either source.</div></div><span class="est">1d</span></li>
     <li><span class="n">4</span><div><b>Republish loop, changed-since-approval flags with a diff, finalize gate.</b><div class="dep">After slice 3.</div></div><span class="est">1d</span></li>
   </ol>
@@ -309,7 +310,8 @@ pre.out{background:var(--code);border-radius:8px;padding:10px 12px;white-space:p
 <section id="risks">
   <div class="sec-head"><span class="letter">F</span><h2>Risks and mitigations</h2></div>
   <div class="risks">
-    <div class="risk"><div>The session never learns about a reviewer's decision because a database write does not wake it.</div><div><span class="sev high">HIGH</span></div><div>"Send to Claude" posts a comment, which is documented to wake the session. Run the spike in slice 2 before building on it.</div></div>
+    <div class="risk"><div>Only editors of the artifact can send to Claude, so a reviewer below editor access cannot notify the session.</div><div><span class="sev med">MED</span></div><div>Fine for you reviewing your own plans. For a team, an editor relays the decision, or a different notification path is needed. Decide before slice 2.</div></div>
+    <div class="risk"><div>Two reviewers saving the same document overwrite each other.</div><div><span class="sev low">LOW</span></div><div>One document per slice. If several reviewers share a slice, key the documents by reviewer id.</div></div>
     <div class="risk"><div>A plan is edited after someone approved a slice.</div><div><span class="sev med">MED</span></div><div>Key each approval to a hash of the whitespace-normalised slice text. Whitespace-only edits keep the approval. Any other change shows "changed since you approved" with a diff, and needs a fresh decision.</div></div>
     <div class="risk"><div>Slice titles and reviewer comments are untrusted text.</div><div><span class="sev med">MED</span></div><div>Render only through <code>textContent</code>. No markup from data, ever.</div></div>
     <div class="risk"><div>Replacing the dashboard feedback path breaks existing plan reviews.</div><div><span class="sev med">MED</span></div><div>Support both sources behind one reader until the artifact path has run on a real plan.</div></div>
@@ -320,7 +322,7 @@ pre.out{background:var(--code);border-radius:8px;padding:10px 12px;white-space:p
 <!-- G ───────────────────────────────────────── -->
 <section id="open">
   <div class="sec-head"><span class="letter">G</span><h2>Open questions</h2></div>
-    <div class="q"><b>Who may review: only you, or anyone with the link?</b><p class="cost">This sets the sharing level and which writes the page allows.</p><div class="owner">Decide with · you, before slice 2</div></div>
+    <div class="q"><b>Who may review: only you, or anyone with the link?</b><p class="cost">This sets the sharing level and which writes the page allows. Reviewers below editor access can approve slices but cannot use Send to Claude.</p><div class="owner">Decide with · you, before slice 2</div></div>
 </section>
 
 <!-- H ───────────────────────────────────────── -->
@@ -329,7 +331,7 @@ pre.out{background:var(--code);border-radius:8px;padding:10px 12px;white-space:p
   <p class="intro">Pick, copy, paste into the session. The reply writes itself.</p>
   <div class="reply">
     <div class="grp"><div class="gq">① Review data shape</div><div class="opts" data-k="shape"><button class="btn" data-a="one document per slice" type="button">Per slice</button><button class="btn" data-a="one document per plan" type="button">Per plan</button></div></div>
-    <div class="grp"><div class="gq">② How the session finds out</div><div class="opts" data-k="notify"><button class="btn" data-a="explicit Send to Claude comment" type="button">Send button</button><button class="btn" data-a="database write wakes the session (after it is tested)" type="button">DB write</button></div></div>
+    <div class="grp"><div class="gq">② How the session finds out</div><div class="opts" data-k="notify"><button class="btn" data-a="explicit Send to Claude comment" type="button">Send button</button><button class="btn" data-a="database write wakes the session (tested: it does not)" type="button">DB write (disproved)</button></div></div>
     <div class="grp"><div class="gq">③ Approval after the slice is edited</div><div class="opts" data-k="stale"><button class="btn" data-a="needs a fresh decision" type="button">Fresh decision</button><button class="btn" data-a="carries over if the edit is minor" type="button">Carries over</button></div></div>
     <div class="grp"><div class="gq">④ What counts as a material edit</div><div class="opts" data-k="material"><button class="btn" data-a="done-when, files, deps and blocks" type="button">Done-when, files, deps, blocks</button><button class="btn" data-a="done-when, files, deps, blocks, effort and risk" type="button">Also effort and risk</button><button class="btn" data-a="any change except whitespace" type="button">Any change</button></div></div>
     <pre class="out" id="out"></pre>
@@ -396,7 +398,7 @@ var PRESETS={
  mixed:{s:["approved","changes","pending","pending"],note:null,write:true,c:{1:"Show how a conflict looks to the second reviewer."}},
  approved:{s:["approved","approved","approved","approved"],note:null,write:true},
  edited:{s:["approved","approved","stale","pending"],note:null,write:true,e:{1:{k:"minor",t:"Only whitespace changed after you approved. Your approval is kept."},2:{k:"material",t:"The text changed after you approved. What changed is below. Approve again to continue.",diff:[{k:"ctx",t:"why"},{k:"del",t:"The session needs the same shape it gets from the dashbord today."},{k:"add",t:"The session needs the same shape it gets from the dashboard today."},{k:"ctx",t:"done-when"},{k:"add",t:"Reviews saved in the legacy source are read too"}]}}},
- conflict:{s:["approved","pending","pending","pending"],note:{k:"warn",t:"Someone else updated this review. Reload to see their changes, then try again."},write:false},
+ conflict:{s:["approved","pending","pending","pending"],note:{k:"warn",t:"This slice changed while you were reviewing it. Show the latest decision, then decide again.",action:"refresh"},write:false},
  readonly:{s:["approved","changes","pending","pending"],note:{k:"info",t:"You can read this plan but not review it. Ask the owner for review access."},write:false}
 };
 var st={sel:0,s:[],c:{},e:{},note:null,write:true,phone:false,preset:"pending"};
@@ -413,7 +415,10 @@ function render(){
   var done=st.s.filter(function(x){return x==="approved";}).length;
   mock.appendChild(h("div",{class:"top"},[h("span",{},[h("b",{text:"plan review"}),document.createTextNode(" · Plan review surface")]),
     h("span",{class:"pill",text:done+" of "+SLICES.length+" approved"})]));
-  if(st.note)mock.appendChild(h("div",{class:"note "+st.note.k,role:"alert",text:st.note.t}));
+  if(st.note){var nd=h("div",{class:"note "+st.note.k,role:"alert",text:st.note.t});
+    if(st.note.action==="refresh"){var rb=h("button",{class:"mb",type:"button",text:"Show latest"});rb.style.marginLeft="8px";
+      rb.addEventListener("click",function(){st.note=null;st.write=true;say("Showing the latest decisions.");render();});nd.appendChild(rb);}
+    mock.appendChild(nd);}
   var list=h("div",{class:"list",role:"tablist","aria-label":"Slices"});
   SLICES.forEach(function(s,i){
     var b=h("button",{class:"li"+(i===st.sel?" sel":""),type:"button",role:"tab","aria-selected":String(i===st.sel)},[h("span",{class:"dot "+st.s[i]}),document.createTextNode("Slice "+(i+1)+(st.phone?"":" · "+s.t.slice(0,26)+(s.t.length>26?"…":"")))]);
@@ -460,14 +465,14 @@ apply("mixed");
 
 /* ---------- C: flowchart ---------- */
 var N={
- publish:{t:"Plan published as artifact",s:"proposed",run:"The plan YAML is rendered to HTML (this exists today) and published as a Claude Artifact with the database capability.",fail:"Publishing can be refused or the page can exceed size limits. Neither is expected for a plan page."},
+ publish:{t:"Plan published as artifact",s:"tested",run:"The plan YAML is rendered to HTML (this exists today) and published as a Claude Artifact with the database, user and comments capabilities. A spike artifact with exactly those capabilities published without trouble.",fail:"Publishing can be refused or the page can exceed size limits. Neither is expected for a plan page."},
  open:{t:"Reviewer opens the page",s:"proposed",run:"The page loads the review documents for this plan and shows each slice's current decision.",fail:"A viewer without access sees the plan read-only (see the banner path)."},
- decide:{t:"Reviewer decides per slice",s:"proposed",run:"Approve or request changes, with an optional comment. The decision is written as that slice's review document.",fail:"None until the write."},
- write:{t:"Write succeeds?",s:"documented",run:"Overwriting an existing document needs the document's current version. The write also depends on the reviewer's access level.",fail:"A stale version is a conflict. A reviewer without write access is refused. Both end on the banner."},
- banner:{t:"Conflict or read-only banner",s:"proposed",run:"The page tells the reviewer what happened. For a conflict it reloads the latest documents and retries once.",fail:"A second conflict stops and asks the reviewer to reload."},
- live:{t:"Other viewers update live",s:"untested",run:"The database is described as a shared realtime store, so other open pages should update without a reload.",fail:"Not tested with this page. If it does not hold, viewers reload to see changes."},
- wake:{t:"Session hears about it",s:"untested",run:"Reliable path: the reviewer presses Send to Claude, which posts an artifact comment and wakes the session. Unproven path: a database write alone waking the session.",fail:"If only the comment path works, the review needs that one extra click. That is why choice ② defaults to the button."},
- read:{t:"Session reads the reviews",s:"untested",run:"The session lists the review documents and maps them to the feedback JSON that plan feedback returns today.",fail:"Reading depends on the session having artifact data access. Not tested for this page."},
+ decide:{t:"Reviewer decides per slice",s:"tested",run:"Approve or request changes. In the spike the page saved one document per slice, with the reviewer's id, a content hash and a timestamp, using a plain write with no version check.",fail:"None until the write."},
+ write:{t:"Write succeeds?",s:"tested",run:"The page saves with a plain write. Two saves from the owner both succeeded. Page writes are last-writer-wins, so two reviewers on one document overwrite each other, which is why there is one document per slice.",fail:"The failure to handle is a refused write: a reviewer without write access, a quota, or a rate limit. A stale version is not a failure here; version checks apply only to the session's own writes."},
+ banner:{t:"Changed or read-only banner",s:"proposed",run:"The page tells the reviewer what happened. If a slice changed while they were reviewing it, it shows the latest decision and asks them to decide again. If their write is refused, it shows the page as read-only.",fail:"A refused write is not retried; the page stays read-only for the visit."},
+ live:{t:"Other viewers update live",s:"untested",run:"The database is described as a shared realtime store, so other open pages should update without a reload.",fail:"Not tested yet. If it does not hold, viewers reload to see changes."},
+ wake:{t:"Session hears about it",s:"tested",run:"The reviewer presses Send to Claude, which posts a comment addressed to Claude and wakes the session. In the spike it arrived within 20 seconds. Saving a decision does not wake the session: two saves produced no notification.",fail:"Only editors of the artifact can send to Claude, and a session must be watching the artifact. A reviewer below editor access can approve slices but cannot notify the session."},
+ read:{t:"Session reads the reviews",s:"tested",run:"The session lists the review documents and reads the decisions, reviewer ids, timestamps and content hashes. In the spike it read both documents after the comment woke it, and recomputed both hashes to the same values.",fail:"Reading needs the session to have artifact data access. Reviewer names were not available to the session, only the opaque id."},
  all:{t:"All slices approved?",s:"proposed",run:"Every slice must be approved, and no approval may be stale. An approval goes stale when the slice text changes in any way except whitespace.",fail:"Any pending, changes-requested or stale slice sends the plan back for revision."},
  revise:{t:"Apply changes, republish",s:"proposed",run:"The session edits the plan YAML, re-renders the page and republishes a new artifact version. Approvals carry over for unchanged slices and for whitespace-only edits.",fail:"If the text changed, the approval is flagged stale and needs a fresh decision. The page shows what changed so a typo fix is quick to re-approve."},
  finalize:{t:"plan finalize",s:"exists",run:"The existing finalize step. The slices then promote to features as they do today.",fail:"Existing behaviour and failure modes."}
@@ -476,8 +481,8 @@ var panel=document.getElementById("panel");
 function showNode(k){
   var n=N[k];Array.prototype.forEach.call(document.querySelectorAll(".fn"),function(g){g.classList.toggle("sel",g.dataset.n===k);});
   panel.textContent="";
-  var cls=n.s==="untested"?"tag un":n.s==="exists"||n.s==="documented"?"tag ok":"tag";
-  panel.appendChild(h("div",{class:"ph"},[h("b",{text:n.t}),h("span",{class:cls,text:n.s})]));
+  var cls=n.s==="untested"?"tag un":(n.s==="exists"||n.s==="documented"||n.s==="tested")?"tag ok":"tag";
+  panel.appendChild(h("div",{class:"ph"},[h("b",{text:n.t}),h("span",{class:cls,text:n.s==="tested"?"tested in the spike":n.s})]));
   panel.appendChild(h("p",{},[h("b",{text:"What runs. "}),document.createTextNode(n.run)]));
   panel.appendChild(h("p",{class:"cost"},[h("b",{text:"How it fails. "}),document.createTextNode(n.fail)]));
 }
