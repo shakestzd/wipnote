@@ -15,9 +15,9 @@ Configure the Claude Code status line to use Oh My Posh with wipnote work item d
    - Pipes through to Oh My Posh for rendering
 
 2. **`~/.claude.omp.json`** — Oh My Posh theme with:
-   - Git repo/branch/status segment
-   - wipnote active work item segment (purple, uses `WIPNOTE_ACTIVE`)
-   - Claude model + token usage segment
+   - Two lines, so nothing is clipped on a narrow terminal (widest line about 70 columns)
+   - Line 1: repo path and git branch/status
+   - Line 2: wipnote active work item (purple, uses `WIPNOTE_ACTIVE`, hidden when nothing is active), then Claude model + token usage
 
 3. **`.claude/settings.json`** — Points `statusLine.command` at the wrapper
 
@@ -98,7 +98,7 @@ chmod +x ~/.claude/omp-claude-wrapper.sh
 
 ### Step 3: Write the OMP Theme
 
-Write `~/.claude.omp.json` — but ONLY if it doesn't already exist. If it exists, skip this step and tell the user their existing theme is preserved.
+Write `~/.claude.omp.json` — but ONLY if it doesn't already exist. If it exists, skip this step and tell the user their existing theme is preserved. If the existing theme puts everything in one `prompt` block (so the line clips on a narrow terminal), mention that the default below wraps onto two lines and offer to replace it, but never overwrite without their say-so.
 
 The default theme:
 
@@ -154,15 +154,24 @@ The default theme:
           "properties": {
             "branch_icon": "\ue0a0",
             "fetch_status": true
-          }
-        },
+          },
+          "trailing_diamond": "\ue0b4"
+        }
+      ]
+    },
+    {
+      "type": "prompt",
+      "alignment": "left",
+      "newline": true,
+      "segments": [
         {
           "type": "text",
           "style": "diamond",
-          "leading_diamond": "<parentBackground,background>\ue0b0</>",
+          "leading_diamond": "\ue0b6",
           "foreground": "p:white",
           "background": "#8B5CF6",
-          "template": " {{ if .Env.WIPNOTE_ACTIVE }}{{ .Env.WIPNOTE_ACTIVE }}{{ end }} "
+          "template": " {{ .Env.WIPNOTE_ACTIVE }} ",
+          "properties": {}
         },
         {
           "type": "claude",
