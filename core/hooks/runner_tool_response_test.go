@@ -58,3 +58,17 @@ func TestReadInputRaw_ClaudeToolResponse(t *testing.T) {
 		t.Errorf("summary = %q, want tool_result to take precedence", got)
 	}
 }
+
+// TestParseEventForHarness_ClaudeToolResponse covers the path the hook CLI
+// actually uses (runHookNamed -> ParseEventForHarness). The first fix only
+// touched ReadInputRaw, which has no production caller (Codex review, #208).
+func TestParseEventForHarness_ClaudeToolResponse(t *testing.T) {
+	ev, err := ParseEventForHarness(HarnessClaude, []byte(`{"hook_event_name":"PostToolUse","tool_name":"Bash",
+		"tool_response":{"stdout":"[main abc1234] feat: x","stderr":""}}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := summarizeToolOutput(ev.ToolResult); got != "[main abc1234] feat: x" {
+		t.Errorf("summary = %q, want the stdout text", got)
+	}
+}

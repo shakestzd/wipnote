@@ -826,6 +826,7 @@ func parseEventForHarness(harness Harness, raw []byte) (*CloudEvent, error) {
 		if err := json.Unmarshal(raw, &ev); err != nil {
 			return nil, fmt.Errorf("parsing CloudEvent: %w", err)
 		}
+		normalizeClaudeToolResult(&ev)
 		return &ev, nil
 	}
 }
