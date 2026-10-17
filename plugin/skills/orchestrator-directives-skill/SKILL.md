@@ -13,24 +13,24 @@ You coordinate; subagents execute. Delegation keeps retries, hook failures, and 
 
 ## Harness-Aware Research Delegation Contract
 
-Web/docs research and multi-file codebase exploration are tactical work. They MUST run in a sidecar context, not in the main orchestrator context, whenever a dispatch surface exists. Research-first means dispatching a researcher, reader, or external CLI sidecar before committing to an approach, not researching broadly yourself (it burns the context you need for decisions).
+Web/docs research and multi-file codebase exploration are tactical work. They MUST run in a sidecar context, not in the main orchestrator context, whenever a dispatch surface exists. Research-first means dispatching a researcher, Explore, or external CLI sidecar before committing to an approach, not researching broadly yourself (it burns the context you need for decisions).
 
 Inspect the active harness first:
 
-- **Claude Code**: `Task` / subagent dispatch.
-- **Codex**: when `multi_agent_v1` or native `wipnote-*` custom agents are exposed, prefer them (`wipnote-researcher`, `wipnote-patch-coder`, `wipnote-feature-coder`, `wipnote-test-runner`); use nested `codex exec` only when they are unavailable.
+- **Claude Code**: `Task` / subagent dispatch (native `Explore` for code reading).
+- **Codex**: when `multi_agent_v1` or native `wipnote-*` custom agents are exposed, prefer them (`explorer`, `wipnote-researcher`, `wipnote-patch-coder`, `wipnote-feature-coder`, `wipnote-test-runner`); use nested `codex exec` only when they are unavailable.
 - **Antigravity**: harness-native multi-agent or custom-agent spawn.
 - **External CLI sidecar**: `agy`, `codex exec`, or another documented CLI when native dispatch is unavailable and the sidecar fits the task.
 - **No dispatch surface**: stop and report `delegation unavailable in this harness/session`; do not quietly turn broad research into main-context work.
 
-Do not use main-context `web.search_query`, `web.open`, or broad local glob/search loops for docs gathering or repository exploration when a sidecar is expected. Narrow exceptions: the user explicitly asks you to browse or verify one fact; a higher-priority instruction requires latest-fact verification and no sidecar exists; or a sidecar failed and you do one confirmation before reporting the limitation. When you use an exception, keep it minimal and record why.
+Do not use main-context `web.search_query`, `web.open`, or broad local glob/search loops for docs gathering or repository exploration when a sidecar is expected. Narrow exceptions (keep them minimal and record why): the user asks you to verify one fact, no sidecar exists for a required latest-fact check, or one confirmation after a sidecar failed.
 
 ## Choosing the executor
 
 | Work | Executor | Why |
 |------|----------|-----|
-| Exploration, research, analysis | `wipnote:researcher`, or `agy` sidecar if installed | read-only investigation; wide reading stays out of your context |
-| Multi-file or glob reads, raw data retrieval | `wipnote:reader` | zero-skill, boots fast, no analysis |
+| Code exploration, multi-file or glob reads | native `Explore` (Claude) / `explorer` (Codex) | read-only; wide reading stays out of your context |
+| Research, analysis, external docs | `wipnote:researcher`, or `agy` sidecar if installed | investigation with judgement |
 | Fully specified 1-2 file edit | `wipnote:patch-coder` | fast tier; requirements need no investigation |
 | Feature work, ~3-8 files, mostly clear | `wipnote:feature-coder` | default balanced tier |
 | 10+ files, ambiguous scope, design choices | `wipnote:architect-coder` | highest-capability tier |
@@ -40,15 +40,13 @@ Do not use main-context `web.search_query`, `web.open`, or broad local glob/sear
 
 Each external CLI is optional: if it is missing or fails, dispatch the in-harness agent rather than retrying. Treat `codex exec` sandbox errors ("bwrap", "bubblewrap", "Operation not permitted", "cannot create namespace") as permanent for the session. Spawner command lines are in reference.md.
 
-Match the model to the work, not the other way round: a coder agent's tier is fixed by its definition, so pick the agent whose scope fits rather than overriding its model.
-
-You do not read source or write files yourself. The orchestrator hook counts direct `Read`/`Edit`/`Write`/`Grep`/`Glob` as violations; use `wipnote:reader` for one-off data-file reads.
+Read short files (≤200 lines, or one targeted offset/limit range) directly when you need exact text to decide. Delegate long files, multi-file reads and exploration to a subagent (Explore for code) to keep your context for coordination. Never `Edit`/`Write` yourself.
 
 When a task may spiral into retries (failing commit hooks, flaky tests, conflicts), delegate it and let the subagent handle the retries; you receive one clean success or failure.
 
 ## Writing a brief
 
-Two agents once sat for 22 and 24 minutes with zero tool calls: the stall happened inside the model's turn, before it acted, so no hook could catch it. The same tasks relaunched with a differently shaped brief made 12 and 23 calls in the first minute (GH-#179). Shape matters, so:
+Brief shape decides whether an agent stalls before its first tool call, where no hook can see it (GH-#179):
 
 1. **Open with a concrete command to run verbatim**, not reading or judgement, e.g. `wipnote feature start <id>` then `mkdir -p .wipnote/logs/progress && echo started >> .wipnote/logs/progress/<id>.md`. `wipnote context-pack <id>` emits this as section 0; paste it rather than paraphrasing.
 2. **Ask for incremental deliverables** (append a progress line, write a partial report, commit after each unit) so work survives if the agent is stopped. One ranked report at the end is the shape that stalls.
@@ -56,7 +54,7 @@ Two agents once sat for 22 and 24 minutes with zero tool calls: the stall happen
 4. **Keep the front short**: action first, context after.
 5. Include the work item ID, and restate in the brief itself that agents should use `wipnote search '<pattern>'` for structural code search and `wipnote sh "<command>"` for verbose output.
 
-**Dispatch-time context.** Run `wipnote arch resolve --for <work-item-id>` (or `--for "<path>,<path>"`) and paste the output under `## Architectural context`; it is already budget-capped and flags UNVERIFIED cards, which the agent should treat as leads to confirm in code. If it prints "No arch cards matched.", omit the heading. Do not restate environment hazards by hand; the arch cards carry fresher text.
+**Dispatch-time context.** Paste `wipnote arch resolve --for <work-item-id>` output under `## Architectural context` (omit the heading on "No arch cards matched."). UNVERIFIED cards are leads to confirm in code; do not restate environment hazards by hand.
 
 **Detecting a stall.** `wipnote session list` shows `CALLS` and `LAST CALL`; an agent with no row or `CALLS -` a few minutes after dispatch never started. Stop it and re-dispatch with a tighter brief. Stop every agent once its output is verified.
 
@@ -75,32 +73,21 @@ Source edits by concurrent agents belong in per-agent worktrees, never the share
 
 ## When an agent returns
 
-**Budget-paused agents.** Some runtimes (notably devcontainer / agent teams) pause a subagent at a low tool budget and return a non-final message: it ends mid-step with no summary, SHA, or deliverable list. That is a pause, not a failure or a finish. Resume the same agent (Claude Code: `SendMessage` to its `agentId`) with the exact remaining deliverables; a fresh dispatch loses its context. Expect 2-3 resumes.
+**Budget-paused agents.** A non-final return (mid-step, no summary, SHA, or deliverable list) is a runtime pause, not a failure or a finish. Resume the same agent (Claude Code: `SendMessage` to its `agentId`) with the exact remaining deliverables; a fresh dispatch loses its context. Expect 2-3 resumes.
 
 **Completing delegated work.** A subagent's gate record is session-local and its commits are not auto-linked (bug-3718b630), so completion needs two things from you: run `wipnote check --gate --work-item <id>` yourself, then complete with the real commit SHAs in the rationale, as separate calls:
 ```bash
 wipnote feature complete <id> --accepted-advisory "Subagent implementation verified. Commits: <sha1>, <sha2>."
 ```
-Capture durable learnings with `--learning "<max 120 words>" --learning-kind <hazard|invariant|decision|subsystem-map>` (validated before the item is marked done) or `wipnote arch add <slug> --kind <kind> --body "..." --paths "<glob>" --created-by agent`. If completion prints drift-suspect cards, run `wipnote arch verify <slug>` or `wipnote arch edit <slug> --body "..."`.
+Capture durable learnings with `--learning "<max 120 words>" --learning-kind <kind>` or `wipnote arch add`; act on drift-suspect cards with `wipnote arch verify|edit <slug>` (see reference.md).
 
-## Debugging third-party libraries
+## Hooks and edge cases
 
-Reproduce the failure first (a direct Bash run is fine). Then delegate, in this order: official docs search, GitHub issues search, and only then source reading. Source reading first is slow and usually unnecessary.
-
-## Pre-work validation (hook behavior)
-
-The PreToolUse hook denies a Write/Edit touching 3+ files when no work item is active, and warns on 1 file or on a spike. If denied, create and start a work item, then retry:
-```bash
-wipnote feature create "Title" --track <trk-id>
-wipnote feature start <feat-id>
-```
-Single file under ~30 minutes can proceed with the warning; 3+ files, new tests, or multi-component work gets a feature first.
-
-## Agent teams vs subagents
-
-Teams (`CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`, Claude Code 2.1.32+) suit competing-hypothesis debugging, multi-lens review, and splitting feature ownership; subagents suit sequential chains and isolated tasks. One team per session; teammates ignore `skills:`/`mcpServers:` frontmatter and cannot be `/resume`d. Setup, prompts, and caveats are in reference.md.
+- **Third-party library bugs:** reproduce first, then delegate docs search, then GitHub issues, and only then source reading.
+- **Pre-work validation:** the PreToolUse hook denies a Write/Edit touching 3+ files with no active work item (warns on 1 file or a spike). Create and start a work item, then retry.
+- **Agent teams** (`CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`) suit competing-hypothesis debugging, multi-lens review and feature ownership splitting; subagents suit chains and isolated tasks. Details in reference.md.
 
 ## More
 
-- [reference.md](./reference.md): spawner commands, delegation patterns and examples, budget-pause and completion-gate detail, post-compact behavior, git isolation, arch-memory procedures, agent-team details.
+- [reference.md](./reference.md): spawner commands, brief examples, budget-pause and completion-gate detail, git isolation, arch-memory procedures, agent-team details.
 - `/wipnote:code-quality-skill`: quality gates and pre-commit workflow.
