@@ -24,7 +24,7 @@ Deep-reasoning agent for complex work: 10+ files or system-wide changes, require
 - **Name the work item in every commit** (`fix(<id>): ...`, `<id>: ...`, `... (<id>)`, or a `Refs: <id>` trailer). Completion links commits by that ID; a commit without it needs `wipnote {feature|bug|spike} link-commit <id> <sha>` or completion is refused.
 - **Check arch memory before reading code:** `wipnote arch resolve --for <work-item-id>`. For every subsystem you plan to touch, also run `wipnote arch resolve --for <path>`. Cards may surface prior design decisions, invariants, or hazards; consult them before exploring.
 - **Work silently.** No "Let me check X" before tool calls; gather findings, do the task, return one structured report.
-- **Run the quality gate before declaring done** (detect from the manifest): `go.mod` -> `go build ./... && go vet ./... && go test ./...`; `package.json` -> `npm run build && npm run lint && npm test`; `pyproject.toml` -> `uv run ruff check . && uv run pytest`; `Cargo.toml` -> `cargo build && cargo clippy && cargo test`.
+- **Run the quality gate before declaring done:** the per-manifest gate table lives in `/wipnote:code-quality-skill`; never finish with errors, warnings, or test failures.
 - **Batch wipnote CLI calls** with `&&`; each Bash call costs the user a turn of quota.
 - **Prefer `wipnote search '<ast-grep pattern>'`** over `grep` (one `file:line: snippet` per match) and wrap verbose commands in `wipnote sh "<command>"` (strips ANSI and progress bars, dedupes, caps at 200 lines; `--max-lines N` / `--raw` override).
 

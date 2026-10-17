@@ -331,11 +331,7 @@ git merge --no-ff worktree-agent-XXXX -m "feat: merge {task title} ({feature_id}
 
 ## Step 4: Quality Gates After Merge
 
-Run full quality gates on the merged result:
-
-```bash
-go build ./... && go vet ./... && go test ./...
-```
+Run the full project gate from `/wipnote:code-quality-skill` on the merged result (record it with `wipnote check --gate`).
 
 If gates fail:
 1. Identify which merge introduced the failure (bisect if needed)
@@ -387,10 +383,9 @@ git merge --no-ff <branch> -m "feat: merge <track> — <title>"
 
 # If merge conflicts: resolve them (edits on main during merge are permitted)
 # Then: git add <resolved files> && git commit
-
-# Final quality gate on merged result
-go build ./... && go vet ./... && go test ./...
 ```
+
+Then run the project gate (`/wipnote:code-quality-skill`) on the merged result.
 
 ### 6c. Clean Up
 
@@ -531,10 +526,9 @@ git worktree prune && git worktree list
 
 # Remove a specific worktree and its branch (chain to avoid leaving orphans)
 git worktree remove <path> && git branch -D worktree-agent-XXXX
-
-# Final quality gates
-go build ./... && go vet ./... && go test ./...
 ```
+
+Finish with the project gate from `/wipnote:code-quality-skill`.
 
 ---
 

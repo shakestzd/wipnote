@@ -45,11 +45,9 @@ Write the minimum implementation to make all tests pass. Do not add code that is
 
 ## Step 4: Quality Gates (mandatory before commit)
 
-```bash
-go build ./... && go vet ./... && go test ./...
-```
+Run the project gate from `/wipnote:code-quality-skill` (for Go: build, vet, test).
 
-All three must pass. Fix any errors before committing — even pre-existing ones in files you touched.
+All phases must pass. Fix any errors before committing — even pre-existing ones in files you touched.
 
 ---
 
