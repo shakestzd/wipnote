@@ -15,6 +15,13 @@ var asyncSafeHandlers = map[string]bool{
 	"task-created":        true,
 	"instructions-loaded": true,
 	"config-change":       true,
+	// posttooluse-record (bug-07fd4a51 step 6): core/hooks.PostToolUseRecord
+	// returns a bare {Continue:true} on every path; it only upserts the
+	// tool_call row through routeHookWriteVia and appends the session HTML.
+	// Everything model-visible (CheckFileQuality warning, auto-complete
+	// notices, the work-item lookup loud block) stays in the sync, matcher-
+	// narrowed claude `posttooluse` entry (PostToolUseRespond).
+	"posttooluse-record": true,
 }
 
 func TestLiveManifestAsyncOnlyOnVerifiedRecordOnlyHandlers(t *testing.T) {
@@ -40,7 +47,10 @@ func TestLiveManifestHotHooksHaveClaudeTimeouts(t *testing.T) {
 	hot := map[string]bool{"pretooluse": true, "posttooluse": true, "user-prompt": true}
 	seen := map[string]bool{}
 	for _, e := range m.Hooks.Events {
-		if !hot[e.Handler] {
+		// Only the claude entries carry the claude timeout contract. Since
+		// bug-07fd4a51 step 6 posttooluse has a separate codex/antigravity
+		// entry (no matcher, both jobs) that never emits for claude.
+		if !hot[e.Handler] || !e.AppliesTo("claude") {
 			continue
 		}
 		seen[e.Handler] = true
@@ -93,6 +103,48 @@ func TestHookEntryForTargetClaudeOnlyFields(t *testing.T) {
 		o := hookEntryForTarget(target, e, "cmd")
 		if o.Timeout != 90 || o.Async || o.If != "" {
 			t.Errorf("%s entry must keep base timeout and drop async/if: %+v", target, o)
+		}
+	}
+}
+
+// TestLiveManifestPostToolUseSplit pins the bug-07fd4a51 step-6 layout: on
+// claude a sync, matcher-narrowed `posttooluse` (respond) plus an async
+// match-all `posttooluse-record` (record); on codex and antigravity exactly one
+// match-all `posttooluse` that does both, since neither has `async`.
+func TestLiveManifestPostToolUseSplit(t *testing.T) {
+	m := loadLiveManifest(t)
+	const claudeMatcher = "^(Write|Edit|MultiEdit|NotebookEdit|Bash)$"
+	count := map[string]int{}
+	for _, e := range m.Hooks.Events {
+		if e.Name != "PostToolUse" || (e.Handler != "posttooluse" && e.Handler != "posttooluse-record") {
+			continue
+		}
+		for _, target := range e.Targets {
+			count[target+"/"+e.Handler]++
+		}
+		switch {
+		case e.Handler == "posttooluse-record":
+			if len(e.Targets) != 1 || e.Targets[0] != "claude" || !e.Async || e.Matcher != "" {
+				t.Errorf("posttooluse-record must be claude-only, async, match-all: %+v", e)
+			}
+		case e.AppliesTo("claude"):
+			if len(e.Targets) != 1 || e.Matcher != claudeMatcher || e.Async {
+				t.Errorf("claude posttooluse must be claude-only, sync, matcher %q: %+v", claudeMatcher, e)
+			}
+		default:
+			if e.Matcher != "" || e.Async {
+				t.Errorf("codex/antigravity posttooluse must be sync and match-all: %+v", e)
+			}
+		}
+	}
+	for _, k := range []string{"claude/posttooluse", "claude/posttooluse-record", "codex/posttooluse", "antigravity/posttooluse"} {
+		if count[k] != 1 {
+			t.Errorf("%s entries = %d, want 1", k, count[k])
+		}
+	}
+	for _, k := range []string{"codex/posttooluse-record", "antigravity/posttooluse-record"} {
+		if count[k] != 0 {
+			t.Errorf("%s must not be registered (async is claude-only)", k)
 		}
 	}
 }

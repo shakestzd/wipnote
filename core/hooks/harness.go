@@ -131,6 +131,7 @@ type codexPayload struct {
 	ToolName             string          `json:"tool_name"`
 	ToolInput            map[string]any  `json:"tool_input"`
 	ToolUseID            string          `json:"tool_use_id"`
+	DurationMS           durationMS      `json:"duration_ms"`
 	ToolResponse         codexToolResult `json:"tool_response"`
 	ToolResult           codexToolResult `json:"tool_result"`
 	TaskData             map[string]any  `json:"task"`
@@ -357,6 +358,7 @@ func parseCodexEvent(raw []byte) (*CloudEvent, error) {
 		ToolName:             p.ToolName,
 		ToolInput:            p.ToolInput,
 		ToolUseID:            p.ToolUseID,
+		DurationMS:           p.DurationMS,
 		ToolResult:           toolResult,
 		TaskData:             p.TaskData,
 	}

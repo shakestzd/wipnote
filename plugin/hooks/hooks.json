@@ -80,7 +80,7 @@
     ],
     "PostToolUse": [
       {
-        "matcher": "",
+        "matcher": "^(Write|Edit|MultiEdit|NotebookEdit|Bash)$",
         "hooks": [
           {
             "type": "command",
@@ -90,6 +90,21 @@
               "posttooluse"
             ],
             "timeout": 15
+          }
+        ]
+      },
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "wipnote",
+            "args": [
+              "hook",
+              "posttooluse-record"
+            ],
+            "timeout": 15,
+            "async": true
           }
         ]
       },

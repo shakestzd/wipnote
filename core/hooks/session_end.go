@@ -249,19 +249,12 @@ func persistSessionEndHandoff(database *sql.DB, sessionID string, event *CloudEv
 		return nil
 	}
 
-	files, err := db.ListFilesBySession(database, sessionID)
-	if err != nil {
-		return err
-	}
-	filePointers := make([]string, 0, minLenInt(len(files), 5))
-	for _, f := range files {
-		if fp := normalizeSessionPointer(projectDir, snapshot.ProjectDir, f.FilePath); fp != "" {
-			filePointers = append(filePointers, fp)
-			if len(filePointers) == 5 {
-				break
-			}
-		}
-	}
+	// File pointers come from the canonical tool-events.ndjson log, not
+	// feature_files: posttooluse was that table's only writer and its rows
+	// landed on a handle no session-end reader shares (bug-07fd4a51).
+	filePointers := recentCanonicalFilePointers(projectDir, sessionID, func(p string) string {
+		return normalizeSessionPointer(projectDir, snapshot.ProjectDir, p)
+	})
 
 	sources := make([]string, 0, 2)
 	if snapshot.LastUserQuery != "" {
@@ -460,13 +453,6 @@ func firstNonEmpty(values ...string) string {
 		}
 	}
 	return ""
-}
-
-func minLenInt(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
 }
 
 // sessionEndWaits bounds the two waits SessionEnd makes: the collector drain

@@ -57,6 +57,21 @@ func TestIsGitIgnored(t *testing.T) {
 	}
 }
 
+// TestIsGitIgnored_NegatedRuleIsNotIgnored is the regression test for the
+// false warning on this repo's own .gitignore: `git check-ignore -v` reports a
+// path re-included by a `!` negation as a match and exits 0, so trusting the
+// verbose form flagged every new work item as uncommittable.
+func TestIsGitIgnored_NegatedRuleIsNotIgnored(t *testing.T) {
+	repoRoot, artifactRel := setupIgnoredWipnoteRepo(t)
+	gitignore := ".wipnote/*\n!.wipnote/features/\n!.wipnote/**/*.html\n"
+	if err := os.WriteFile(filepath.Join(repoRoot, ".gitignore"), []byte(gitignore), 0o644); err != nil {
+		t.Fatalf("write .gitignore: %v", err)
+	}
+	if rule, ignored := isGitIgnored(repoRoot, artifactRel); ignored {
+		t.Fatalf("%s is re-included by a negation, but was reported ignored by %q", artifactRel, rule)
+	}
+}
+
 func TestOutboxCommitterClassifiesIgnoredPath(t *testing.T) {
 	repoRoot, artifactRel := setupIgnoredWipnoteRepo(t)
 

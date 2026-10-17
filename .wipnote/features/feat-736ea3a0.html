@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Harness alignment phase 2: lighter per-tool-call hooks</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-736ea3a0"
+             data-type="feature"
+             data-status="in-progress"
+             data-priority="high"
+             data-created="2026-10-17T22:35:23.419917"
+             data-updated="2026-10-17T22:35:23.436659" data-agent-assigned="claude-code" data-track-id="trk-1db7bf72" data-created-by-cli-version="0.70.2-1-gf6bfe5e0f" data-created_in_session="e41f6acf-9ecd-5cf8-846b-fbd1203fe65e" data-standalone_reason="phase of the native-features plan">
+
+        <header>
+            <h1>Harness alignment phase 2: lighter per-tool-call hooks</h1>
+            <div class="metadata">
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-1db7bf72.html" data-relationship="part_of" data-since="2026-10-17T22:35:23.425565">trk-1db7bf72</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Cut overhead on hooks that fire for every tool call: narrow the PreToolUse matcher to guarded tools, pair pre/post by tool_use_id with duration_ms, drop dead posttooluse DB writes and move recording off the sync path where safe, read session-end file pointers from the canonical tool log, skip the redundant timestamp on Codex. Refs bug-6748306a.</p>
+        </section>
+    </article>
+</body>
+</html>

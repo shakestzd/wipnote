@@ -41,10 +41,18 @@ const wipnoteGitignoreAdvice = "wipnote needs its work-item artifacts committed.
 // is exactly the case where `git add` refuses the path. Any git error
 // (not a repo, git missing) reads as "not ignored" so the probe can never
 // block a commit that git itself would accept.
+//
+// The decision comes from plain `check-ignore -q`. The verbose form cannot
+// make it: `-v` also prints (and exits 0 for) a path whose last matching rule
+// is a `!` negation, so a repo that re-includes `!.wipnote/**/*.html` would be
+// reported as ignoring the very artifacts it un-ignores.
 func isGitIgnored(repoRoot, relPath string) (rule string, ignored bool) {
+	if exec.Command("git", "-C", repoRoot, "check-ignore", "-q", "--", relPath).Run() != nil {
+		return "", false // exit 1 = not ignored; 128 = not a repo/other error
+	}
 	out, err := exec.Command("git", "-C", repoRoot, "check-ignore", "-v", "--", relPath).Output()
 	if err != nil {
-		return "", false // exit 1 = not ignored; 128 = not a repo/other error
+		return "", false
 	}
 	line := strings.TrimSpace(string(out))
 	if line == "" {

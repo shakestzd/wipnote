@@ -60,11 +60,14 @@ Usage in hooks.json:
 		hookSubcmdWithProject("session-resume", "Handle SessionResume event", continueResult, hooks.SessionResume),
 
 		// Standard two-arg handlers (event + db only).
-		// roborev-473 finding 1 (VERIFIED per-handler): user-prompt and pretooluse
-		// route EVERY derived-index WRITE through the daemon and use their DB handle
-		// ONLY for READS, so they dispatch with a READ-ONLY handle
+		// roborev-473 finding 1 (VERIFIED per-handler): user-prompt, pretooluse and
+		// posttooluse route EVERY derived-index WRITE through the daemon and use
+		// their DB handle ONLY for READS, so they dispatch with a READ-ONLY handle
 		// (hookSubcmdReadOnly) — avoiding the writable open + cold-DB migration that
-		// blocked the hot hooks under contention.
+		// blocked the hot hooks under contention. posttooluse joined them once
+		// bug-07fd4a51 moved its event write to the daemon-routed completion upsert
+		// and dropped its dead on-disk writes; on a daemon miss routeHookWriteVia
+		// opens its own bounded writable handle.
 		//
 		// The following hot hooks KEEP a writable handle because grep confirmed they
 		// still issue DIRECT writes on the passed handle (correctness-first — forcing
@@ -79,7 +82,12 @@ Usage in hooks.json:
 		hookSubcmd("after-agent", "Handle Gemini AfterAgent event", continueResult, hooks.AfterAgent),
 		hookSubcmd("after-model", "Handle Gemini AfterModel event", continueResult, hooks.AfterModel),
 		hookSubcmdReadOnly("pretooluse", "Handle PreToolUse event", allowResult, hooks.PreToolUse),
-		hookSubcmd("posttooluse", "Handle PostToolUse event", continueResult, hooks.PostToolUse),
+		// posttooluse: on Claude it only responds (quality warning, auto-complete
+		// notices, loud block) behind a Write|Edit|MultiEdit|NotebookEdit|Bash
+		// matcher; recording moved to the async posttooluse-record hook. Codex
+		// and Antigravity keep one combined entry (PostToolUseForHarness).
+		hookSubcmdReadOnly("posttooluse", "Handle PostToolUse event", continueResult, hooks.PostToolUseForHarness),
+		hookSubcmdReadOnly("posttooluse-record", "Record a PostToolUse event (Claude async hook)", continueResult, hooks.PostToolUseRecord),
 		hookSubcmd("subagent-start", "Handle SubagentStart event", continueResult, hooks.SubagentStart),
 		hookSubcmd("subagent-stop", "Handle SubagentStop event", continueResult, hooks.SubagentStop),
 		hookSubcmd("stop", "Handle Stop event", continueResult, hooks.Stop),
@@ -495,7 +503,7 @@ func hookEventNameForResponse(subcommand string, event *hooks.CloudEvent) string
 		return "UserPromptSubmit"
 	case "pretooluse":
 		return "PreToolUse"
-	case "posttooluse":
+	case "posttooluse", "posttooluse-record":
 		return "PostToolUse"
 	case "after-agent":
 		return "AfterAgent"
