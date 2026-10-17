@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/pelletier/go-toml/v2"
 	"github.com/shakestzd/wipnote/internal/launcher"
 )
 
@@ -306,13 +307,13 @@ func TestBuildCodexArgs_PutsOtelConfigBeforeResume(t *testing.T) {
 func TestBuildCodexArgs_IncludesInstructionOverrideBeforeResume(t *testing.T) {
 	got := buildCodexArgs(codexLaunchOpts{
 		ResumeLast: true,
-	}, 0, []string{"-c", `model_instructions_file="/tmp/wipnote-codex.md"`})
+	}, 0, []string{"-c", `developer_instructions="wipnote"`})
 
 	resumeIdx := indexOf(got, "resume")
 	if resumeIdx < 0 {
 		t.Fatalf("expected resume subcommand in %v", got)
 	}
-	if got[0] != "-c" || got[1] != `model_instructions_file="/tmp/wipnote-codex.md"` {
+	if got[0] != "-c" || got[1] != `developer_instructions="wipnote"` {
 		t.Fatalf("expected instruction override before resume, got %v", got)
 	}
 	if resumeIdx < 2 {
@@ -397,26 +398,6 @@ func TestAppendUniqueCodexWritableRootDedupesCleanPaths(t *testing.T) {
 	got = appendUniqueCodexWritableRoot(got, "/tmp/other-cache")
 	if len(got) != 2 || got[1] != "/tmp/other-cache" {
 		t.Fatalf("expected distinct root to be appended, got %v", got)
-	}
-}
-
-func TestCodexRequestedModel(t *testing.T) {
-	tests := []struct {
-		name string
-		args []string
-		want string
-	}{
-		{name: "short", args: []string{"-m", "gpt-5.4"}, want: "gpt-5.4"},
-		{name: "long", args: []string{"--model", "gpt-5.5"}, want: "gpt-5.5"},
-		{name: "equals", args: []string{"--model=gpt-5.3-codex"}, want: "gpt-5.3-codex"},
-		{name: "absent", args: []string{"--sandbox", "workspace-write"}, want: ""},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := codexRequestedModel(tt.args); got != tt.want {
-				t.Fatalf("codexRequestedModel(%v) = %q, want %q", tt.args, got, tt.want)
-			}
-		})
 	}
 }
 
@@ -531,39 +512,64 @@ func TestResolveCodexSandboxMode_IgnoresNonBubblewrapFailures(t *testing.T) {
 	}
 }
 
-func TestSelectCodexBaseInstructions(t *testing.T) {
-	data := []byte(`{"models":[{"slug":"gpt-a","base_instructions":"base a"},{"slug":"gpt-b","base_instructions":"base b"}]}`)
+// parseCodexOverrideValue mirrors codex-rs/utils/cli/src/config_override.rs
+// parse_toml_value: Codex wraps each `-c key=value` value as `_x_ = <value>`
+// and parses it as TOML. A parse failure there silently degrades to a raw
+// string, so these tests assert the value parses cleanly as TOML.
+func parseCodexOverrideValue(t *testing.T, raw string) any {
+	t.Helper()
+	var table map[string]any
+	if err := toml.Unmarshal([]byte("_x_ = "+raw), &table); err != nil {
+		t.Fatalf("value is not valid TOML (Codex would silently mangle it): %v\n%s", err, raw)
+	}
+	return table["_x_"]
+}
 
-	if got, err := selectCodexBaseInstructions(data, "gpt-b"); err != nil || got != "base b" {
-		t.Fatalf("select specific = %q, %v; want base b, nil", got, err)
+func TestTomlBasicStringRoundTrips(t *testing.T) {
+	inputs := []string{
+		"plain",
+		"multi\nline\r\nprompt\twith tab",
+		`quotes "double" and 'single' and back\slash \n literal`,
+		"unicode — ü 日本 and control \x01\x1f\x7f",
+		"```go\nfunc x() {}\n```",
 	}
-	if got, err := selectCodexBaseInstructions(data, ""); err != nil || got != "base a" {
-		t.Fatalf("select default = %q, %v; want base a, nil", got, err)
-	}
-	if _, err := selectCodexBaseInstructions(data, "missing"); err == nil {
-		t.Fatalf("expected missing model error")
+	for _, in := range inputs {
+		got := parseCodexOverrideValue(t, tomlBasicString(in))
+		if got != in {
+			t.Fatalf("round trip mismatch:\n got %q\nwant %q", got, in)
+		}
 	}
 }
 
-func TestWriteCodexInstructionsFileComposesBaseAndWipnotePrompt(t *testing.T) {
-	path, err := writeCodexInstructionsFile("base instructions", "extra instructions", codexLaunchModeDefault)
-	if err != nil {
-		t.Fatalf("writeCodexInstructionsFile: %v", err)
-	}
-	t.Cleanup(func() { _ = os.Remove(path) })
-
-	data, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatalf("reading generated instructions: %v", err)
-	}
-	content := string(data)
-	for _, want := range []string{
-		"base instructions",
-		"# wipnote Orchestrator Addendum",
-		"extra instructions",
+// TestBuildCodexInstructionConfigArgsUsesDeveloperInstructions guards the
+// switch away from model_instructions_file (which replaced Codex's built-in
+// prompt) to developer_instructions (which adds a developer message).
+func TestBuildCodexInstructionConfigArgsUsesDeveloperInstructions(t *testing.T) {
+	for _, mode := range []codexLaunchMode{
+		codexLaunchModeDefault, codexLaunchModeDev, codexLaunchModeContinue,
+		codexLaunchModeYolo, codexLaunchModeYoloDev, codexLaunchModeYoloCont,
+		codexLaunchModeInit,
 	} {
-		if !strings.Contains(content, want) {
-			t.Fatalf("generated instructions missing %q:\n%s", want, content)
+		args := buildCodexInstructionConfigArgs(mode)
+		if len(args) != 2 || args[0] != "-c" {
+			t.Fatalf("mode %s: want exactly one -c override, got %v", mode, args)
+		}
+		key, raw, ok := strings.Cut(args[1], "=")
+		if !ok || key != "developer_instructions" {
+			t.Fatalf("mode %s: want developer_instructions key, got %q", mode, args[1])
+		}
+		if strings.Contains(args[1], "model_instructions_file") {
+			t.Fatalf("mode %s: must not replace Codex's base prompt: %q", mode, args[1])
+		}
+		text, _ := parseCodexOverrideValue(t, raw).(string)
+		for _, want := range []string{
+			"# wipnote " + codexInstructionModeTitle(mode) + " Instructions",
+			strings.TrimSpace(codexInstructionAddendum(mode)),
+			strings.TrimSpace(researchRoutingContent),
+		} {
+			if !strings.Contains(text, want) {
+				t.Fatalf("mode %s: decoded instructions missing %q", mode, want)
+			}
 		}
 	}
 }

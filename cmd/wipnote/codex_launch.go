@@ -1,11 +1,9 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 
 	"github.com/shakestzd/wipnote/internal/launcher"
@@ -202,15 +200,6 @@ func buildCodexOtelConfigArgs(port int) []string {
 	}
 }
 
-type codexModelCatalog struct {
-	Models []codexModelEntry `json:"models"`
-}
-
-type codexModelEntry struct {
-	Slug             string `json:"slug"`
-	BaseInstructions string `json:"base_instructions"`
-}
-
 func (opts codexLaunchOpts) effectiveMode() codexLaunchMode {
 	mode := opts.Mode
 	if mode == "" {
@@ -231,72 +220,69 @@ func (opts codexLaunchOpts) effectiveMode() codexLaunchMode {
 	return mode
 }
 
-func buildCodexInstructionConfigArgs(codexPath string, extraArgs []string, mode codexLaunchMode) ([]string, error) {
-	modelSlug := codexRequestedModel(extraArgs)
-	out, err := exec.Command(codexPath, "debug", "models").Output()
-	if err != nil {
-		return nil, fmt.Errorf("codex debug models: %w", err)
-	}
-
-	base, err := selectCodexBaseInstructions(out, modelSlug)
-	if err != nil {
-		return nil, err
-	}
-
+// buildCodexInstructionConfigArgs returns the `-c developer_instructions=...`
+// override that carries the wipnote orchestrator prompt for this launch mode.
+//
+// Why developer_instructions and not model_instructions_file: the latter
+// REPLACES Codex's built-in base prompt, which forced wipnote to shell out to
+// `codex debug models` on every launch, copy the model's base_instructions
+// into a temp file and append our addendum — pinning a stale copy of the
+// upstream prompt. `developer_instructions` is a top-level config key
+// (codex-rs/config/src/config_toml.rs:252-254) that Codex injects as a
+// separate developer-role message (codex-rs/core/src/session/mod.rs:4495-4499)
+// and leaves the built-in prompt intact. Codex has no
+// `developer_instructions_file` key, so the text is passed inline.
+func buildCodexInstructionConfigArgs(mode codexLaunchMode) []string {
 	addendum := codexInstructionAddendum(mode)
+	if addendum == "" {
+		return nil
+	}
 	// Append the shared research-routing disposition exactly once to the final
 	// composed instruction string (not per switch branch, so combined
 	// system+yolo modes don't double-append). Source of truth:
 	// cmd/wipnote/prompts/research-routing.md.
-	if addendum != "" {
-		addendum = strings.TrimSpace(addendum) + "\n\n" + strings.TrimSpace(researchRoutingContent)
-	}
-	path, err := writeCodexInstructionsFile(base, addendum, mode)
-	if err != nil {
-		return nil, err
-	}
-	return []string{"-c", fmt.Sprintf("model_instructions_file=%q", filepath.ToSlash(path))}, nil
+	text := fmt.Sprintf("# wipnote %s Instructions\n\n%s\n\n%s",
+		codexInstructionModeTitle(mode),
+		strings.TrimSpace(addendum),
+		strings.TrimSpace(researchRoutingContent))
+	return []string{"-c", "developer_instructions=" + tomlBasicString(text)}
 }
 
-func codexRequestedModel(args []string) string {
-	for i, arg := range args {
-		if arg == "-m" || arg == "--model" {
-			if i+1 < len(args) {
-				return args[i+1]
+// tomlBasicString encodes s as a single-line TOML basic string. Codex parses
+// each `-c key=value` value as TOML (codex-rs/utils/cli/src/config_override.rs
+// parse_overrides wraps it as `_x_ = <value>`) and, when that parse fails,
+// silently falls back to the raw text with surrounding quotes trimmed. A
+// multi-line prompt must therefore be escaped into one valid basic string or
+// it would be mangled with no error. Go's %q is not used because some of its
+// escapes (\a, \v, \xNN) are not valid TOML.
+func tomlBasicString(s string) string {
+	var b strings.Builder
+	b.Grow(len(s) + 2)
+	b.WriteByte('"')
+	for _, r := range s {
+		switch r {
+		case '"':
+			b.WriteString(`\"`)
+		case '\\':
+			b.WriteString(`\\`)
+		case '\n':
+			b.WriteString(`\n`)
+		case '\r':
+			b.WriteString(`\r`)
+		case '\t':
+			b.WriteString(`\t`)
+		default:
+			// TOML forbids raw control characters (U+0000-U+001F, U+007F)
+			// inside basic strings; everything else passes through as UTF-8.
+			if r < 0x20 || r == 0x7f {
+				fmt.Fprintf(&b, `\u%04X`, r)
+			} else {
+				b.WriteRune(r)
 			}
-			return ""
-		}
-		if strings.HasPrefix(arg, "--model=") {
-			return strings.TrimPrefix(arg, "--model=")
 		}
 	}
-	return ""
-}
-
-func selectCodexBaseInstructions(data []byte, modelSlug string) (string, error) {
-	var catalog codexModelCatalog
-	if err := json.Unmarshal(data, &catalog); err != nil {
-		return "", fmt.Errorf("parsing codex model catalog: %w", err)
-	}
-	if len(catalog.Models) == 0 {
-		return "", fmt.Errorf("codex model catalog is empty")
-	}
-
-	if modelSlug != "" {
-		for _, model := range catalog.Models {
-			if model.Slug == modelSlug && model.BaseInstructions != "" {
-				return model.BaseInstructions, nil
-			}
-		}
-		return "", fmt.Errorf("model %q has no base instructions in codex model catalog", modelSlug)
-	}
-
-	for _, model := range catalog.Models {
-		if model.BaseInstructions != "" {
-			return model.BaseInstructions, nil
-		}
-	}
-	return "", fmt.Errorf("codex model catalog has no base instructions")
+	b.WriteByte('"')
+	return b.String()
 }
 
 func codexInstructionAddendum(mode codexLaunchMode) string {
@@ -349,33 +335,6 @@ This mode is setup-only. It installs or repairs the wipnote Codex plugin, hook c
 
 - Do not perform product development as part of init setup.
 - After setup, start a separate ` + "`wipnote codex`" + `, ` + "`wipnote codex --dev`" + `, or ` + "`wipnote codex --continue`" + ` session for actual work.`
-
-func writeCodexInstructionsFile(baseInstructions, extraInstructions string, mode codexLaunchMode) (string, error) {
-	f, err := os.CreateTemp("", "wipnote-codex-instructions-*.md")
-	if err != nil {
-		return "", fmt.Errorf("creating codex instructions file: %w", err)
-	}
-	defer f.Close()
-
-	if _, err := f.WriteString(strings.TrimSpace(baseInstructions)); err != nil {
-		return "", fmt.Errorf("writing codex base instructions: %w", err)
-	}
-	if _, err := f.WriteString(fmt.Sprintf("\n\n# wipnote %s Addendum\n\n", codexInstructionModeTitle(mode))); err != nil {
-		return "", fmt.Errorf("writing codex instructions separator: %w", err)
-	}
-	if _, err := f.WriteString(strings.TrimSpace(extraInstructions)); err != nil {
-		return "", fmt.Errorf("writing wipnote orchestrator instructions: %w", err)
-	}
-	if _, err := f.WriteString("\n"); err != nil {
-		return "", fmt.Errorf("finalizing codex instructions file: %w", err)
-	}
-
-	abs, err := filepath.Abs(f.Name())
-	if err != nil {
-		return "", fmt.Errorf("resolving codex instructions file path: %w", err)
-	}
-	return abs, nil
-}
 
 func codexInstructionModeTitle(mode codexLaunchMode) string {
 	switch mode {

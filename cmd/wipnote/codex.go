@@ -1508,8 +1508,8 @@ type codexLaunchOpts struct {
 	// WipnoteRoot is the canonical project root containing .wipnote/.
 	// Used to set WIPNOTE_PROJECT_DIR when running in a worktree.
 	WipnoteRoot string
-	// Mode selects the wipnote instruction addendum composed into
-	// model_instructions_file.
+	// Mode selects the wipnote instruction addendum passed to Codex as
+	// developer_instructions.
 	Mode codexLaunchMode
 	// Yolo passes Codex's explicit approvals/sandbox bypass flag before any
 	// subcommand, matching Claude's bypassPermissions launcher behavior.
@@ -1567,10 +1567,7 @@ func execCodex(opts codexLaunchOpts) error {
 		}
 	}
 
-	instructionArgs, instructionErr := buildCodexInstructionConfigArgs(codexPath, opts.ExtraArgs, opts.effectiveMode())
-	if instructionErr != nil {
-		fmt.Fprintf(os.Stderr, "wipnote: warning: codex orchestrator instructions skipped: %v\n", instructionErr)
-	}
+	instructionArgs := buildCodexInstructionConfigArgs(opts.effectiveMode())
 	sandboxDegraded := false
 	if sandboxMode, notice := resolveCodexSandboxMode(codexPath, opts, isDevcontainer()); sandboxMode != "" {
 		opts.SandboxMode = sandboxMode
