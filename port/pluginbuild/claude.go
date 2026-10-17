@@ -99,13 +99,20 @@ func translateClaudeAgentFrontmatter(filename string, raw []byte) ([]byte, error
 
 // Claude hooks.json schema:
 //
-//	{ "hooks": { "<EventName>": [ { "matcher": "...", "hooks": [ {type, command, timeout?} ] } ] } }
+//	{ "hooks": { "<EventName>": [ { "matcher": "...", "hooks": [ {type, command, args?, timeout?} ] } ] } }
 type claudeHookEntry struct {
 	Type    string `json:"type"`
 	Command string `json:"command"`
-	Timeout int    `json:"timeout,omitempty"`
-	Async   bool   `json:"async,omitempty"`
-	If      string `json:"if,omitempty"`
+	// Args selects Claude Code's exec form (added in 2.1.139): when present,
+	// `command` is resolved as an executable on PATH and spawned directly
+	// with Args as its argv, with no `sh -c` in between. Only the claude
+	// target sets it; Codex and Antigravity keep shell form, since their
+	// parsers do not document `args` (and Antigravity's command carries env
+	// assignments that need a shell).
+	Args    []string `json:"args,omitempty"`
+	Timeout int      `json:"timeout,omitempty"`
+	Async   bool     `json:"async,omitempty"`
+	If      string   `json:"if,omitempty"`
 }
 
 // hookEntryForTarget builds the emitted hook entry for e. Async and If are
@@ -120,6 +127,21 @@ func hookEntryForTarget(target string, e HookEvent, cmd string) claudeHookEntry 
 		entry.Async = e.Async
 		entry.If = e.If
 	}
+	return entry
+}
+
+// claudeExecHookEntry builds the claude-target hook entry. The default
+// handler command `wipnote hook <handler>` uses no shell features (no pipes,
+// env assignments, redirects or variable expansion), so it is emitted in exec
+// form — "command": "wipnote", "args": ["hook", "<handler>"] — saving a
+// `sh -c` spawn on every hook firing. A manifest-supplied custom Command is
+// opaque and may rely on the shell, so it stays in shell form.
+func claudeExecHookEntry(e HookEvent) claudeHookEntry {
+	if e.Command != "" {
+		return hookEntryForTarget("claude", e, e.Command)
+	}
+	entry := hookEntryForTarget("claude", e, "wipnote")
+	entry.Args = []string{"hook", e.Handler}
 	return entry
 }
 
@@ -142,13 +164,9 @@ func writeClaudeHooks(m *Manifest, path string) error {
 		if !e.AppliesTo("claude") {
 			continue
 		}
-		cmd := e.Command
-		if cmd == "" {
-			cmd = "wipnote hook " + e.Handler
-		}
 		group := claudeMatcherGroup{
 			Matcher: e.Matcher,
-			Hooks:   []claudeHookEntry{hookEntryForTarget("claude", e, cmd)},
+			Hooks:   []claudeHookEntry{claudeExecHookEntry(e)},
 		}
 		if _, seen := hooks[e.Name]; !seen {
 			order = append(order, e.Name)

@@ -59,6 +59,27 @@ func TestLiveManifestHotHooksHaveClaudeTimeouts(t *testing.T) {
 	}
 }
 
+// TestClaudeExecHookEntry pins exec form for the default handler command
+// (Claude Code 2.1.139+ `args`) and shell form for a custom Command, which
+// may depend on shell features.
+func TestClaudeExecHookEntry(t *testing.T) {
+	e := HookEvent{Name: "PreToolUse", Handler: "pretooluse", Targets: []string{"claude"}, Timeout: 10}
+	got := claudeExecHookEntry(e)
+	if got.Command != "wipnote" || len(got.Args) != 2 || got.Args[0] != "hook" || got.Args[1] != "pretooluse" || got.Timeout != 10 {
+		t.Errorf("default handler must be exec form wipnote [hook pretooluse]: %+v", got)
+	}
+	e.Command = "wipnote hook pretooluse || true"
+	got = claudeExecHookEntry(e)
+	if got.Command != e.Command || got.Args != nil {
+		t.Errorf("custom command must stay shell form: %+v", got)
+	}
+	for _, target := range []string{"codex", "antigravity"} {
+		if o := hookEntryForTarget(target, e, "cmd"); o.Args != nil {
+			t.Errorf("%s entry must not carry args (shell form only): %+v", target, o)
+		}
+	}
+}
+
 func TestHookEntryForTargetClaudeOnlyFields(t *testing.T) {
 	e := HookEvent{
 		Name: "PostToolUse", Handler: "x", Targets: []string{"claude", "codex", "antigravity"},
