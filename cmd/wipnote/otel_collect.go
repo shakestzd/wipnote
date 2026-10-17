@@ -146,11 +146,32 @@ func writeCollectorStartEvent(snk *ndjson.Sink, sessionID string, port int) erro
 	return snk.WriteBatch(context.Background(), "wipnote", nil, []otel.UnifiedSignal{sig})
 }
 
+// orphanCheckInterval is how often a launcher-managed collector checks that
+// its launcher is still alive.
+var orphanCheckInterval = 2 * time.Second
+
+// collectorParentPID reports the current parent PID; a test seam.
+var collectorParentPID = os.Getppid
+
 // awaitShutdown blocks until SIGTERM or idle timeout, then gracefully shuts down.
 // When noIdleTimeout is true the idle-timeout check is effectively disabled
 // (ceiling set to 24 h) so the collector stays alive for the full session.
+//
+// That mode is the launcher-managed one, and there the collector also exits
+// once it is orphaned — its parent PID changes because the launcher died
+// without the SIGTERM cleanup (SIGKILL, crash, closed terminal). macOS has no
+// Pdeathsig, so without this check an orphaned collector lived on for the 24h
+// ceiling, one per dead session (issue #183).
 func awaitShutdown(ctx context.Context, cancel context.CancelFunc, srv *http.Server, snk *ndjson.Sink, lastActivity *atomic.Int64, noIdleTimeout bool) error {
 	idleTimeout := parseIdleTimeout(noIdleTimeout)
+
+	var orphanC <-chan time.Time
+	startParent := collectorParentPID()
+	if noIdleTimeout {
+		orphanTicker := time.NewTicker(orphanCheckInterval)
+		defer orphanTicker.Stop()
+		orphanC = orphanTicker.C
+	}
 
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGTERM, syscall.SIGINT)
@@ -166,6 +187,11 @@ func awaitShutdown(ctx context.Context, cancel context.CancelFunc, srv *http.Ser
 		case <-ticker.C:
 			elapsed := time.Since(time.UnixMilli(lastActivity.Load()))
 			if elapsed >= idleTimeout {
+				cancel()
+				return gracefulShutdown(srv, snk)
+			}
+		case <-orphanC:
+			if collectorParentPID() != startParent {
 				cancel()
 				return gracefulShutdown(srv, snk)
 			}

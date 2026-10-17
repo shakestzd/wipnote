@@ -13,7 +13,7 @@
              data-status="todo"
              data-priority="medium"
              data-created="2026-10-17T19:34:49.143391"
-             data-updated="2026-10-17T19:34:49.145923" data-agent-assigned="claude-code" data-track-id="trk-91673dda" data-created-by-cli-version="dev" data-created_in_session="e41f6acf-9ecd-5cf8-846b-fbd1203fe65e">
+             data-updated="2026-10-17T20:11:28.13926" data-agent-assigned="claude-code" data-track-id="trk-91673dda" data-created-by-cli-version="dev" data-created_in_session="e41f6acf-9ecd-5cf8-846b-fbd1203fe65e">
 
         <header>
             <h1>OpenHookDB opens a writable on-disk SQLite handle on every hot hook call, not only on daemon miss</h1>
@@ -34,7 +34,13 @@
 
         <section data-content>
             <h3>Description</h3>
-            <p>Codex review finding (deferred earlier). hookSubcmd calls OpenHookDB unconditionally for ~18 hooks (posttooluse, stop, subagent-start/stop, task-*): db.Open with WAL, busy_timeout 5000, _txlock=immediate and a migration check. The doc comment calls it a rare daemon-miss fallback. Contributes to #183-style sluggishness under many sessions (busy waits up to 5s per hook) but is not the serve freeze (serve_child uses in-memory projections). Needs the daemon-first refactor across the handler call sites; not folded into the #183 PR.</p>
+            <p>Codex review finding (deferred earlier). hookSubcmd calls OpenHookDB unconditionally for ~18 hooks (posttooluse, stop, subagent-start/stop, task-*): db.Open on storage.CanonicalDBPath with WAL, busy_timeout 5000, _txlock=immediate and a migration check. Its doc comment calls it a rare daemon-miss fallback; it is not.
+
+Audit (Oct 2026, trk-91673dda): the on-disk DB is now opened ONLY by the hook tree (hook.go hookSubcmd / worktree-create / session-start). Every other reader and writer uses an in-memory projection: serve_child, the writer daemon (serve_child.go writeDB), CLI openDB (session.go), reindex. So the file is a hook-private cache, and it has diverged from where the rest of the system reads and writes:
+- pretooluse (read-only, in-memory) routes its started-event INSERT to the daemon&#39;s in-memory DB, but posttooluse looks the row up with db.FindStartedEvent in the ON-DISK DB, so it only finds rows written by a daemon-miss fallback.
+- posttooluse writes feature_files / session_files / git_commits / claim agent ids directly to the on-disk DB, which no dashboard or CLI reader sees (they hydrate from canonical HTML/NDJSON), and pretooluse&#39;s overlap advisory reads feature_files from its empty in-memory handle.
+
+Not a simple switch to hookSubcmdReadOnly: posttooluse/subagent-start/subagent-stop/stop do direct writes and cross-hook reads through the handle. The fix is the daemon-first design decision: route these writes and reads to the daemon (or canonical state) and retire the on-disk file, or keep it as an explicit hook-shared store with a lazily opened handle. Needs an owner decision before implementation.</p>
         </section>
     </article>
 </body>
