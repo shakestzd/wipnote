@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Tests leak ambient WIPNOTE_AGENT_ID: TestFeatureStart_* fail in subagent/worktree sessions (#194)</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-f5039c00"
+             data-type="bug"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-10-17T19:34:33.302229"
+             data-updated="2026-10-17T19:34:33.304255" data-agent-assigned="claude-code" data-track-id="trk-91673dda" data-created-by-cli-version="dev" data-created_in_session="e41f6acf-9ecd-5cf8-846b-fbd1203fe65e">
+
+        <header>
+            <h1>Tests leak ambient WIPNOTE_AGENT_ID: TestFeatureStart_* fail in subagent/worktree sessions (#194)</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-91673dda.html" data-relationship="part_of" data-since="2026-10-17T19:34:33.304116">trk-91673dda</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>GitHub #194. Root cause is not the worktree: it is WIPNOTE_AGENT_ID, which wipnote exports into subagent sessions (worktree sessions are usually subagents). cmd/wipnote TestMain cleared only the harness-native session ids, so every runWiSetStatus start was attributed to a subagent and active_feature_id was never set. Reproduced: WIPNOTE_AGENT_ID=wipnote-feature-coder go test ./cmd/wipnote -run TestFeatureStart_Idempotent fails at workitem_test.go:881. Fix: new core/testenv.ClearAmbientSession (all WIPNOTE_* by prefix + named harness project/session/detection vars), called first in TestMain.</p>
+        </section>
+    </article>
+</body>
+</html>

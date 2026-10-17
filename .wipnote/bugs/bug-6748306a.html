@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>OpenHookDB opens a writable on-disk SQLite handle on every hot hook call, not only on daemon miss</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-6748306a"
+             data-type="bug"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-10-17T19:34:49.143391"
+             data-updated="2026-10-17T19:34:49.145923" data-agent-assigned="claude-code" data-track-id="trk-91673dda" data-created-by-cli-version="dev" data-created_in_session="e41f6acf-9ecd-5cf8-846b-fbd1203fe65e">
+
+        <header>
+            <h1>OpenHookDB opens a writable on-disk SQLite handle on every hot hook call, not only on daemon miss</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-91673dda.html" data-relationship="part_of" data-since="2026-10-17T19:34:49.145777">trk-91673dda</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Codex review finding (deferred earlier). hookSubcmd calls OpenHookDB unconditionally for ~18 hooks (posttooluse, stop, subagent-start/stop, task-*): db.Open with WAL, busy_timeout 5000, _txlock=immediate and a migration check. The doc comment calls it a rare daemon-miss fallback. Contributes to #183-style sluggishness under many sessions (busy waits up to 5s per hook) but is not the serve freeze (serve_child uses in-memory projections). Needs the daemon-first refactor across the handler call sites; not folded into the #183 PR.</p>
+        </section>
+    </article>
+</body>
+</html>
