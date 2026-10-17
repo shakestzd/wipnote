@@ -57,9 +57,9 @@ Current mapping:
 
 | Role | Purpose | Claude model alias | Codex model | Antigravity model |
 |------|---------|--------------------|-------------|--------------|
-| `patch-coder` | Small, clear edits | `haiku` | `gpt-5.4-mini`, low effort | `flash-lite` |
-| `feature-coder` | Moderate implementation | `sonnet` | `gpt-5.4`, medium effort | `flash` |
-| `architect-coder` | Complex architecture/high risk | `opus` | `gpt-5.5`, high effort | `pro` |
+| `patch-coder` | Small, clear edits | `haiku` | `gpt-6-luna`, low effort | `flash-lite` |
+| `feature-coder` | Moderate implementation | `sonnet` | `gpt-6.1-sol`, medium effort | `flash` |
+| `architect-coder` | Complex architecture/high risk | `opus` | `gpt-6-astra`, high effort | `pro` |
 
 This follows each harness's documented shape: Claude subagents use a role `name`
 plus separate model configuration, Codex custom-agent TOML identifies agents by

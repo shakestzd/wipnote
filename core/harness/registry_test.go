@@ -318,7 +318,7 @@ func TestRegistry_LaunchEnv_Claude(t *testing.T) {
 		t.Fatal("Get(\"claude_code\") returned nil")
 	}
 
-	want := []string{"CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1"}
+	want := []string{"CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1", "CLAUDE_CODE_ENABLE_TODO_TOOLS=1"}
 	if len(cfg.LaunchEnv) != len(want) {
 		t.Fatalf("Get(\"claude_code\").LaunchEnv = %v, want %v", cfg.LaunchEnv, want)
 	}

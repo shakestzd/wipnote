@@ -47,6 +47,7 @@ func clearOtelEnv(t *testing.T) {
 		"CLAUDE_CODE_ENABLE_TELEMETRY",
 		"CLAUDE_CODE_ENHANCED_TELEMETRY_BETA",
 		"CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS",
+		"CLAUDE_CODE_ENABLE_TODO_TOOLS",
 		"OTEL_METRICS_EXPORTER",
 		"OTEL_LOGS_EXPORTER",
 		"OTEL_TRACES_EXPORTER",
@@ -190,6 +191,14 @@ func TestBuildClaudeLaunchEnv_InjectsAgentTeamsByDefault(t *testing.T) {
 
 	env := buildClaudeLaunchEnv("", nil)
 	assertEnvContains(t, env, "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS", "1")
+}
+
+// The launcher re-enables Claude Code's task tools, which current models no
+// longer get by default; wipnote's step tracking depends on them.
+func TestBuildClaudeLaunchEnv_EnablesTodoTools(t *testing.T) {
+	clearOtelEnv(t)
+	env := buildClaudeLaunchEnv("", nil)
+	assertEnvContains(t, env, "CLAUDE_CODE_ENABLE_TODO_TOOLS", "1")
 }
 
 // TestBuildClaudeLaunchEnv_UserOverrideOfAgentTeamsWins verifies that a

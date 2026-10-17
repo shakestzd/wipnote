@@ -29,7 +29,7 @@
           {
             "type": "command",
             "command": "wipnote hook session-end",
-            "timeout": 90
+            "timeout": 60
           }
         ]
       }

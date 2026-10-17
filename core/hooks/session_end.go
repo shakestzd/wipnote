@@ -13,6 +13,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/shakestzd/wipnote/core/agent"
 	"github.com/shakestzd/wipnote/core/claimledger"
 	"github.com/shakestzd/wipnote/core/db"
 	"github.com/shakestzd/wipnote/core/paths"
@@ -468,15 +469,29 @@ func minLenInt(a, b int) int {
 	return b
 }
 
+// sessionEndWaits bounds the two waits SessionEnd makes: the collector drain
+// and the indexer catch-up. Codex caps a SessionEnd hook at 3s (default 1s;
+// codex-rs hooks/src/events/session_end.rs) and kills it past that, so the
+// default 3s + 2s would have the hook killed before the OTel rollup runs. Under
+// Codex both waits shrink to fit, leaving headroom for materialize; Claude
+// Code allows SessionEnd up to 60s.
+func sessionEndWaits() (collectorDrain, indexerCatchUp time.Duration) {
+	if agent.DetectEnvHarness() == agent.HarnessCodex {
+		return 1200 * time.Millisecond, 800 * time.Millisecond
+	}
+	return 3 * time.Second, 2 * time.Second
+}
+
 // waitForIndexerCatchUp polls until .index-offset reaches events.ndjson size,
-// or 2s elapses. Best-effort — if the indexer is behind, materialize will
+// or the indexer catch-up budget (sessionEndWaits) elapses. Best-effort — if the indexer is behind, materialize will
 // use whatever signals have been indexed so far.
 func waitForIndexerCatchUp(projectDir, sessionID string) {
 	sessDir := filepath.Join(projectDir, ".wipnote", "sessions", sessionID)
 	ndjsonPath := filepath.Join(sessDir, "events.ndjson")
 	offsetPath := filepath.Join(sessDir, ".index-offset")
 
-	deadline := time.Now().Add(2 * time.Second)
+	_, catchUp := sessionEndWaits()
+	deadline := time.Now().Add(catchUp)
 	for time.Now().Before(deadline) {
 		info, err := os.Stat(ndjsonPath)
 		if err != nil {
@@ -493,7 +508,8 @@ func waitForIndexerCatchUp(projectDir, sessionID string) {
 }
 
 // signalCollector reads the .collector-pid file for this session, sends SIGTERM,
-// waits up to 3 seconds for a clean drain, then falls back to SIGKILL.
+// waits up to the collector drain budget (sessionEndWaits; 3s outside Codex)
+// for a clean drain, then falls back to SIGKILL.
 // All errors are silently logged — the collector PID file is best-effort.
 func signalCollector(projectDir, sessionID string) {
 	pidPath := filepath.Join(projectDir, ".wipnote", "sessions", sessionID, ".collector-pid")
@@ -524,15 +540,16 @@ func signalCollector(projectDir, sessionID string) {
 	}
 	debugLog(projectDir, "[session-end] sent SIGTERM to collector pid=%d (session=%s)", pid, sessionID[:minLen(sessionID, 8)])
 
-	// Poll for up to 3s using kill(pid, 0) — we can't Wait() on a non-child.
-	deadline := time.Now().Add(3 * time.Second)
+	// Poll using kill(pid, 0) — we can't Wait() on a non-child.
+	drain, _ := sessionEndWaits()
+	deadline := time.Now().Add(drain)
 	for time.Now().Before(deadline) {
 		if err := proc.Signal(syscall.Signal(0)); err != nil {
 			break // process exited
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
-	// If still alive after 3s, escalate to SIGKILL.
+	// If still alive after the drain budget, escalate to SIGKILL.
 	if err := proc.Signal(syscall.Signal(0)); err == nil {
 		debugLog(projectDir, "[session-end] collector drain timeout — sending SIGKILL pid=%d", pid)
 		_ = proc.Signal(syscall.SIGKILL)
