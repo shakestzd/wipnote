@@ -524,6 +524,9 @@ func interviewChatHandler(db *sql.DB, wipnoteDir, planID string, buildContext fu
 		w.Header().Set("Content-Type", "text/event-stream")
 		w.Header().Set("Cache-Control", "no-cache")
 		w.Header().Set("Connection", "keep-alive")
+		// Commit the headers now: the proxy bounds its wait for response
+		// headers, and a stream may not have an event to send for a while.
+		flusher.Flush()
 
 		chunks, errCh := backend.Send(r.Context(), req.Message)
 		var full strings.Builder
