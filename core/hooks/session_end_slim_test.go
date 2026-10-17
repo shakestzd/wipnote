@@ -429,13 +429,12 @@ func TestSessionEnd_WritesStructuredHandoff(t *testing.T) {
 		}
 	}
 
-	if _, err := database.Exec(`
-		INSERT INTO feature_files (id, feature_id, file_path, operation, session_id)
-		VALUES (?, ?, ?, ?, ?)`,
-		"ff-handoff-001", "feat-b5411a1d", "core/hooks/session_end.go", "read", sessionID,
-	); err != nil {
-		t.Fatalf("insert feature_files: %v", err)
-	}
+	// File pointers are read from the canonical tool-events log (the same
+	// record PreToolUse appends), not feature_files.
+	appendCanonicalToolEvent(projectDir, sessionID, canonicalToolEvent{
+		Tool: "Edit", Summary: "core/hooks/session_end.go",
+		Input: `{"file_path":"core/hooks/session_end.go","new_string":"a","old_string":"b"}`,
+	})
 
 	if _, err := SessionEnd(&CloudEvent{SessionID: sessionID, CWD: projectDir, Reason: "prompt_input_exit"}, database, projectDir); err != nil {
 		t.Fatalf("SessionEnd: %v", err)
@@ -479,5 +478,54 @@ func TestSessionEnd_WritesStructuredHandoff(t *testing.T) {
 	files, _ := recommendedContext["files"].([]any)
 	if len(files) == 0 || files[0] != "core/hooks/session_end.go" {
 		t.Fatalf("recommended_context.files = %v, want core/hooks/session_end.go", files)
+	}
+}
+
+// TestRecentCanonicalFilePointers covers the canonical-log derivation of the
+// session-end file pointers: only edit tools count, newest first, distinct,
+// capped at five, truncated JSON tolerated, apply_patch headers parsed, and the
+// existing path normalization applied.
+func TestRecentCanonicalFilePointers(t *testing.T) {
+	projectDir := t.TempDir()
+	sid := "sess-pointers-001"
+	add := func(ev canonicalToolEvent) { appendCanonicalToolEvent(projectDir, sid, ev) }
+
+	// Oldest first. Write's keys marshal content-first, so a long body pushes
+	// file_path past the 400-byte cut: only the summary survives.
+	long := strings.Repeat("x", 600)
+	add(canonicalToolEvent{Tool: "Edit", Input: `{"file_path":"old/dropped.go"}`})
+	add(canonicalToolEvent{Tool: "Write", Summary: "pkg/written.go", Input: `{"content":"` + long + `","file_path":"pkg/written.go"}`})
+	add(canonicalToolEvent{Tool: "Read", Input: `{"file_path":"pkg/read-only.go"}`})
+	add(canonicalToolEvent{Tool: "Bash", Input: `{"command":"vim pkg/bash.go"}`})
+	add(canonicalToolEvent{Tool: "MultiEdit", Input: `{"file_path":"` + filepath.Join(projectDir, "pkg/abs.go") + `","edits":[`})
+	add(canonicalToolEvent{Tool: "NotebookEdit", Input: `{"cell_id":"c1","notebook_path":"nb/analysis.ipynb","new_source":"y"}`})
+	add(canonicalToolEvent{Tool: "apply_patch", Input: `{"patch":"*** Begin Patch\n*** Update File: core/a.go\n@@\n-x\n+y\n*** Add File: core/b.go\n+z\n*** End Patch\n"}`})
+	add(canonicalToolEvent{Tool: "apply_patch", Input: `{"patch":"*** Begin Patch\n*** Update File: core/trunc.go\n@@\n-` + long + `"}`})
+	add(canonicalToolEvent{Tool: "Edit", Input: `{"file_path":"pkg/written.go","new_string":"q"}`})
+
+	got := recentCanonicalFilePointers(projectDir, sid, func(p string) string {
+		return normalizeSessionPointer(projectDir, "", p)
+	})
+	want := []string{"pkg/written.go", "core/trunc.go", "core/a.go", "core/b.go", "nb/analysis.ipynb"}
+	if strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Fatalf("pointers = %v, want %v", got, want)
+	}
+
+	// Truncated Write (summary fallback) and an absolute MultiEdit path that
+	// normalizes to repo-relative; the dropped/written duplicates collapse.
+	sid2 := "sess-pointers-002"
+	add2 := func(ev canonicalToolEvent) { appendCanonicalToolEvent(projectDir, sid2, ev) }
+	add2(canonicalToolEvent{Tool: "Write", Summary: "pkg/written.go", Input: `{"content":"` + long + `","file_path":"pkg/written.go"}`})
+	add2(canonicalToolEvent{Tool: "MultiEdit", Input: `{"edits":[],"file_path":"` + filepath.Join(projectDir, "pkg/abs.go") + `"}`})
+	add2(canonicalToolEvent{Tool: "Edit", Input: `{"file_path":"pkg/abs.go","old_string":"` + long + `"}`})
+	got = recentCanonicalFilePointers(projectDir, sid2, func(p string) string {
+		return normalizeSessionPointer(projectDir, "", p)
+	})
+	if want := "pkg/abs.go,pkg/written.go"; strings.Join(got, ",") != want {
+		t.Fatalf("pointers = %v, want %s", got, want)
+	}
+
+	if got := recentCanonicalFilePointers(projectDir, "no-such-session", func(p string) string { return p }); len(got) != 0 {
+		t.Fatalf("missing log must yield no pointers, got %v", got)
 	}
 }
