@@ -1,6 +1,7 @@
 ---
 name: wipnote:arch-bootstrap
 description: Bootstrap architectural memory for a repo — generates starter cards from a structured brief
+disable-model-invocation: true
 ---
 
 # Architectural Memory Bootstrap

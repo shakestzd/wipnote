@@ -1,7 +1,7 @@
 ---
-disable-model-invocation: true
 name: wipnote:report-issue
 description: Report a wipnote bug or issue to the development team from any supported harness. Use when the user asks to report an issue, file a bug, or says the report-issue slash command is unavailable.
+disable-model-invocation: true
 ---
 
 # wipnote Report Issue

@@ -1,6 +1,7 @@
 ---
 name: wipnote:plan-critique
 description: Dual-critic review pass for a drafted plan. Runs DESIGN CRITIC and FEASIBILITY CRITIC agents in parallel against the plan YAML, then writes findings as critic_revisions on the affected slices. Use when asked to critique this plan, review plan, run plan critic pass, or before human review of a multi-slice plan.
+context: fork
 ---
 
 # wipnote Plan Critique

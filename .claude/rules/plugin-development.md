@@ -98,9 +98,9 @@ verification. Verified vocabularies:
   `PostToolUseFailure`, `Stop`, `SubagentStart`, `SubagentStop`, `PreCompact`, `PostCompact`,
   `PermissionRequest`, `TeammateIdle`, `TaskCreated`, `TaskCompleted`, `InstructionsLoaded`,
   `ConfigChange`, `WorktreeCreate`, `WorktreeRemove`
-- **Codex** (0.147.0 — exactly 11): `SessionStart`, `SessionEnd`, `UserPromptSubmit`,
+- **Codex** (0.163.0 — exactly 12): `SessionStart`, `SessionEnd`, `UserPromptSubmit`,
   `PreToolUse`, `PostToolUse`, `PermissionRequest`, `PreCompact`, `PostCompact`,
-  `SubagentStart`, `SubagentStop`, `Stop`
+  `SubagentStart`, `SubagentStop`, `Stop`, `Interrupt` (added in 0.150.0)
 - **Antigravity** (agy v1.0.8 — 5, translated on emit): `UserPromptSubmit`→`PreInvocation`,
   `AfterAgent`→`PostInvocation`, `PreToolUse`, `PostToolUse`, `Stop`
 

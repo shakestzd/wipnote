@@ -1,6 +1,7 @@
 ---
 name: guard-authoring
 description: Author, approve, and maintain project guard profiles (.wipnote/guard-profile.yaml). Use for custom quality/completion/yolo gates, polyglot monorepo per-directory guards, re-approving after drift, and understanding the trust boundary and autodetection fallback.
+disable-model-invocation: true
 ---
 
 # Guard Authoring Skill

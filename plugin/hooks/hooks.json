@@ -6,7 +6,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "wipnote hook session-start",
+            "command": "wipnote",
+            "args": [
+              "hook",
+              "session-start"
+            ],
             "timeout": 30
           }
         ]
@@ -16,7 +20,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "wipnote hook session-resume",
+            "command": "wipnote",
+            "args": [
+              "hook",
+              "session-resume"
+            ],
             "timeout": 15
           }
         ]
@@ -28,7 +36,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "wipnote hook session-end",
+            "command": "wipnote",
+            "args": [
+              "hook",
+              "session-end"
+            ],
             "timeout": 60
           }
         ]
@@ -40,7 +52,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "wipnote hook user-prompt",
+            "command": "wipnote",
+            "args": [
+              "hook",
+              "user-prompt"
+            ],
             "timeout": 15
           }
         ]
@@ -52,7 +68,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "wipnote hook pretooluse",
+            "command": "wipnote",
+            "args": [
+              "hook",
+              "pretooluse"
+            ],
             "timeout": 15
           }
         ]
@@ -64,7 +84,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "wipnote hook posttooluse",
+            "command": "wipnote",
+            "args": [
+              "hook",
+              "posttooluse"
+            ],
             "timeout": 15
           }
         ]
@@ -74,7 +98,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "wipnote hook exit-plan-mode",
+            "command": "wipnote",
+            "args": [
+              "hook",
+              "exit-plan-mode"
+            ],
             "timeout": 30
           }
         ]
@@ -86,7 +114,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "wipnote hook subagent-start",
+            "command": "wipnote",
+            "args": [
+              "hook",
+              "subagent-start"
+            ],
             "timeout": 30
           }
         ]
@@ -98,7 +130,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "wipnote hook subagent-stop",
+            "command": "wipnote",
+            "args": [
+              "hook",
+              "subagent-stop"
+            ],
             "timeout": 30
           }
         ]
@@ -110,7 +146,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "wipnote hook stop",
+            "command": "wipnote",
+            "args": [
+              "hook",
+              "stop"
+            ],
             "timeout": 90
           }
         ]
@@ -122,7 +162,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "wipnote hook posttooluse-failure",
+            "command": "wipnote",
+            "args": [
+              "hook",
+              "posttooluse-failure"
+            ],
             "timeout": 15,
             "async": true
           }
@@ -135,7 +179,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "wipnote hook pre-compact",
+            "command": "wipnote",
+            "args": [
+              "hook",
+              "pre-compact"
+            ],
             "timeout": 15,
             "async": true
           }
@@ -148,7 +196,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "wipnote hook teammate-idle",
+            "command": "wipnote",
+            "args": [
+              "hook",
+              "teammate-idle"
+            ],
             "timeout": 15,
             "async": true
           }
@@ -161,7 +213,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "wipnote hook task-completed"
+            "command": "wipnote",
+            "args": [
+              "hook",
+              "task-completed"
+            ]
           }
         ]
       }
@@ -172,7 +228,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "wipnote hook instructions-loaded",
+            "command": "wipnote",
+            "args": [
+              "hook",
+              "instructions-loaded"
+            ],
             "timeout": 15,
             "async": true
           }
@@ -185,7 +245,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "wipnote hook worktree-create",
+            "command": "wipnote",
+            "args": [
+              "hook",
+              "worktree-create"
+            ],
             "timeout": 60
           }
         ]
@@ -197,7 +261,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "wipnote hook worktree-remove",
+            "command": "wipnote",
+            "args": [
+              "hook",
+              "worktree-remove"
+            ],
             "timeout": 30
           }
         ]
@@ -209,7 +277,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "wipnote hook post-compact",
+            "command": "wipnote",
+            "args": [
+              "hook",
+              "post-compact"
+            ],
             "timeout": 15,
             "async": true
           }
@@ -222,7 +294,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "wipnote hook task-created",
+            "command": "wipnote",
+            "args": [
+              "hook",
+              "task-created"
+            ],
             "timeout": 15,
             "async": true
           }
@@ -235,7 +311,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "wipnote hook permission-request",
+            "command": "wipnote",
+            "args": [
+              "hook",
+              "permission-request"
+            ],
             "timeout": 10
           }
         ]
@@ -247,7 +327,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "wipnote hook config-change",
+            "command": "wipnote",
+            "args": [
+              "hook",
+              "config-change"
+            ],
             "timeout": 15,
             "async": true
           }
