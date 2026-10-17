@@ -83,6 +83,11 @@ type CloudEvent struct {
 	// PostToolUse result
 	ToolResult map[string]any `json:"tool_result"`
 
+	// PostToolUse duration_ms (optional): wall time the tool took. Used to
+	// back-date the completion row's start time. Tolerant decode — see
+	// durationMS.
+	DurationMS durationMS `json:"duration_ms"`
+
 	// SubagentStart / SubagentStop
 	AgentID   string `json:"agent_id"`
 	AgentType string `json:"agent_type"`

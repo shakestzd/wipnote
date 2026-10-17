@@ -11,13 +11,13 @@ import (
 
 	"github.com/shakestzd/wipnote/core/daemon"
 	"github.com/shakestzd/wipnote/core/db"
-	"github.com/shakestzd/wipnote/core/ingest"
 	"github.com/shakestzd/wipnote/core/models"
 )
 
 // PostToolUse handles the PostToolUse Claude Code hook event.
-// It finds the most recent "started" event for this session/tool and marks it completed.
-// Note: env vars don't persist between hook processes, so we query the DB instead.
+// It writes the completed/failed tool_call row (upserting the started row
+// PreToolUse wrote under the same tool_use_id-derived id), then runs the
+// session-HTML, attribution, quality and auto-complete side effects.
 func PostToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 	// PostToolUse trusts WIPNOTE_PARENT_PROMPT_EVENT set by the paired PreToolUse
 	// (trustParentEnvVar=true) to avoid the race where a new UserQuery arrives while
@@ -35,32 +35,13 @@ func PostToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 
 	outputSummary := summariseToolOutput(event.ToolName, event.ToolInput, event.ToolResult, success)
 
-	// For subagent events, scope the lookup to this specific agent to avoid
-	// completing events belonging to a different concurrent agent.
-	var (
-		eventID string
-		err     error
-	)
-	if ctx.IsSubagent {
-		eventID, err = db.FindStartedEventByAgent(database, ctx.SessionID, event.ToolName, ctx.AgentID)
-		if err != nil {
-			// Fall back to unscoped lookup when no agent-specific event exists.
-			eventID, err = db.FindStartedEvent(database, ctx.SessionID, event.ToolName)
-		}
-	} else {
-		eventID, err = db.FindStartedEvent(database, ctx.SessionID, event.ToolName)
-	}
-	if err == nil {
-		_ = db.UpdateEventFields(database, eventID, status, outputSummary)
-	} else {
-		// bug-07fd4a51: a lookup miss is the NORMAL production case — pretooluse
-		// runs on the read-only projection and routes its started row to the
-		// daemon, so this disk handle never sees it. Never return early here:
-		// everything below (session HTML, sweep, commit linking, quality
-		// warning, attribution, auto-complete) must still run. Fall back to the
-		// deterministic per-call id so the HTML entry is still keyed.
-		eventID = ingest.EventID(ctx.SessionID, event.ToolUseID, event.ToolName, 0)
-	}
+	// bug-07fd4a51: write the COMPLETE event row ourselves, keyed on the
+	// tool_use_id-derived id PreToolUse also uses, through the daemon-routed
+	// path. The old FindStartedEvent lookup ran on this hook's own handle, which
+	// never holds the started row PreToolUse routed to the daemon, and it paired
+	// by "newest started row with this tool name", which mis-pairs parallel
+	// calls to the same tool.
+	eventID := recordToolCompletion(event, ctx, database, status, outputSummary)
 
 	// Append event to session HTML activity log (non-critical, errors silently logged).
 	AppendEventToSessionHTML(ctx.ProjectDir, ctx.SessionID, SessionEvent{
@@ -75,6 +56,12 @@ func PostToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 	// Lazy orphan sweep for this session — picks up any prior PreToolUse
 	// that never saw a PostToolUse (tool crash, Claude Code kill) and
 	// closes it out with a synthetic aborted entry. Non-critical.
+	//
+	// It only sees rows on THIS handle, i.e. started rows that a daemon-miss
+	// PreToolUse wrote through the bounded disk fallback. It runs AFTER
+	// recordToolCompletion so the current call's row (same id, same store on a
+	// double daemon miss) is already completed and cannot be swept. Rows routed
+	// to the daemon projection are invisible here and are never marked aborted.
 	SweepOrphanedEventsForSession(database, ctx.ProjectDir, ctx.SessionID)
 
 	// Record orchestrator direct-tool usage for analytics.
