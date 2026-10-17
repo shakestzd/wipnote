@@ -1,7 +1,6 @@
 ---
 name: wipnote:visual-recap
 description: Generate a grounded visual recap for a work item, git range, or session. Runs wipnote recap to produce a self-contained HTML artifact grounded in the real diff, reads the artifact, writes an outcome narrative (secrets redacted), and links to the dashboard recap URL. Use when asked to recap, summarize, or visualize completed work.
-context: fork
 ---
 
 # wipnote Visual Recap
