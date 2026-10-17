@@ -28,14 +28,7 @@ Ship one feature, bug fix, or spike that is attributed to a work item, researche
 
 **Implementation standards.** Functions under 50 lines, modules under 500, no duplicated helpers (reuse or extract), simplest solution that passes the tests, only what is needed now, one purpose per module. No TODO comments or debug prints in committed code, and prefer O(n) algorithms, documenting any unavoidable higher complexity.
 
-**Quality gate before any commit.** Detect the project from its manifest and do not commit with failures:
-
-| File | Commands |
-|------|----------|
-| `go.mod` | `go build ./... && go vet ./... && go test ./...` |
-| `package.json` | `npm run build && npm run lint && npm test` |
-| `pyproject.toml` / `requirements.txt` | `uv run ruff check . && uv run pytest` |
-| `Cargo.toml` | `cargo build && cargo clippy && cargo test` |
+**Quality gate before any commit.** Run the project gate from `/wipnote:code-quality-skill` (detected from the manifest) and record it with `wipnote check --gate`; do not commit with failures.
 
 **UI validation when you change rendered output** (`.html`, `.css`, `.js`, `.tsx`, `.vue`, `.svelte`, templates, dashboard files; skip for backend, docs, and test-only changes). Tests do not show what a user sees, so view it: start the app if needed (`wipnote serve`), capture a screenshot with an available tool (`mcp__claude-in-chrome__take_screenshot` or `mcp__plugin_playwright_playwright__browser_take_screenshot`), and check alignment and clipping, readable text and contrast, 1280px and 768px widths, correct (non-placeholder) data, and interactive styling. With no screenshot tool, ask the user to verify before committing.
 
