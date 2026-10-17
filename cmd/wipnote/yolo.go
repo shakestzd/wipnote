@@ -396,7 +396,7 @@ func launchYoloDefault(permMode, trackID, featureID string, noWorktree bool, res
 	emitYoloBanner(fmt.Sprintf("Launching Claude Code in YOLO mode (%s)...", permMode), pluginDir, sessionName, id, bannerDirtyWarning(launchPlan, willCreateWorktree), os.Stdout)
 
 	// Write the combined prompt to a temp file so launchClaude can pass it via
-	// --append-system-prompt without needing a new field.
+	// --append-system-prompt-file without needing a new field.
 	tmpFile, err := os.CreateTemp("", "yolo-prompt-*.md")
 	if err != nil {
 		return fmt.Errorf("could not create temp prompt file: %w", err)
