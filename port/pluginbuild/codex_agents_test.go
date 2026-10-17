@@ -92,9 +92,9 @@ tools:
 	}
 }
 
-func TestTranslateCodexAgentReaderSandbox(t *testing.T) {
+func TestTranslateCodexAgentReadOnlySandbox(t *testing.T) {
 	raw := []byte(`---
-name: reader
+name: scout
 description: Read-only file retrieval agent
 model: haiku
 tools:
@@ -104,10 +104,10 @@ tools:
 maxTurns: 10
 ---
 
-# Reader Agent
+# Scout Agent
 `)
 
-	agent, err := translateCodexAgent("reader.md", raw)
+	agent, err := translateCodexAgent("scout.md", raw)
 	if err != nil {
 		t.Fatalf("translateCodexAgent: %v", err)
 	}
