@@ -1541,7 +1541,20 @@ func execCodex(opts codexLaunchOpts) error {
 		}
 	}
 
-	instructionArgs := buildCodexInstructionConfigArgs(opts.effectiveMode())
+	launchDir := opts.WorktreeRoot
+	if launchDir == "" {
+		launchDir = opts.ProjectRoot
+	}
+	instructionArgs := buildCodexInstructionConfigArgs(opts.effectiveMode(),
+		configuredCodexDeveloperInstructions(codexConfigPath(), launchDir))
+	// The setup-time cleanup scans the current checkout only; a launch into a
+	// different worktree must not keep legacy project copies that shadow
+	// ~/.codex/agents (project config outranks the user layer).
+	if launchDir != "" {
+		if _, err := removeCodexProjectAgentCopies(launchDir); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: could not remove legacy project wipnote Codex agents in %s: %v\n", launchDir, err)
+		}
+	}
 	sandboxDegraded := false
 	if sandboxMode, notice := resolveCodexSandboxMode(codexPath, opts, isDevcontainer()); sandboxMode != "" {
 		opts.SandboxMode = sandboxMode

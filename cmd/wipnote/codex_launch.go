@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
+	toml "github.com/pelletier/go-toml/v2"
 	"github.com/shakestzd/wipnote/internal/launcher"
 	"github.com/shakestzd/wipnote/observe/otel/collector"
 )
@@ -232,7 +234,12 @@ func (opts codexLaunchOpts) effectiveMode() codexLaunchMode {
 // separate developer-role message (codex-rs/core/src/session/mod.rs:4495-4499)
 // and leaves the built-in prompt intact. Codex has no
 // `developer_instructions_file` key, so the text is passed inline.
-func buildCodexInstructionConfigArgs(mode codexLaunchMode) []string {
+//
+// The key is a single string and a `-c` session flag outranks the user and
+// project config layers, so the override would silently discard any
+// developer_instructions the user configured. existing (see
+// configuredCodexDeveloperInstructions) is therefore kept, ahead of ours.
+func buildCodexInstructionConfigArgs(mode codexLaunchMode, existing string) []string {
 	addendum := codexInstructionAddendum(mode)
 	if addendum == "" {
 		return nil
@@ -245,7 +252,36 @@ func buildCodexInstructionConfigArgs(mode codexLaunchMode) []string {
 		codexInstructionModeTitle(mode),
 		strings.TrimSpace(addendum),
 		strings.TrimSpace(researchRoutingContent))
+	if existing = strings.TrimSpace(existing); existing != "" {
+		text = existing + "\n\n" + text
+	}
 	return []string{"-c", "developer_instructions=" + tomlBasicString(text)}
+}
+
+// configuredCodexDeveloperInstructions returns the developer_instructions the
+// launch would see without wipnote's override: the project layer
+// (<launchDir>/.codex/config.toml) wins over the user layer (userConfig), as
+// in Codex's own config layering. Unreadable or unparsable files count as
+// unset; Codex reports those itself.
+func configuredCodexDeveloperInstructions(userConfig, launchDir string) string {
+	paths := []string{userConfig}
+	if launchDir != "" {
+		paths = append(paths, filepath.Join(launchDir, ".codex", "config.toml"))
+	}
+	value := ""
+	for _, p := range paths {
+		data, err := os.ReadFile(p)
+		if err != nil {
+			continue
+		}
+		var cfg struct {
+			DeveloperInstructions string `toml:"developer_instructions"`
+		}
+		if toml.Unmarshal(data, &cfg) == nil && strings.TrimSpace(cfg.DeveloperInstructions) != "" {
+			value = cfg.DeveloperInstructions
+		}
+	}
+	return value
 }
 
 // tomlBasicString encodes s as a single-line TOML basic string. Codex parses

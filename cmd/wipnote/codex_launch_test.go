@@ -550,7 +550,7 @@ func TestBuildCodexInstructionConfigArgsUsesDeveloperInstructions(t *testing.T) 
 		codexLaunchModeYolo, codexLaunchModeYoloDev, codexLaunchModeYoloCont,
 		codexLaunchModeInit,
 	} {
-		args := buildCodexInstructionConfigArgs(mode)
+		args := buildCodexInstructionConfigArgs(mode, "")
 		if len(args) != 2 || args[0] != "-c" {
 			t.Fatalf("mode %s: want exactly one -c override, got %v", mode, args)
 		}
@@ -855,4 +855,41 @@ func indexOf(values []string, want string) int {
 		}
 	}
 	return -1
+}
+
+// TestBuildCodexInstructionConfigArgsKeepsConfiguredInstructions guards the
+// Codex review finding on PR #207: developer_instructions is one string and a
+// -c flag outranks user/project config, so the override must carry the
+// user's configured value instead of replacing it.
+func TestBuildCodexInstructionConfigArgsKeepsConfiguredInstructions(t *testing.T) {
+	home := t.TempDir()
+	userCfg := filepath.Join(home, "config.toml")
+	if err := os.WriteFile(userCfg, []byte("developer_instructions = \"user rule\"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	launch := t.TempDir()
+
+	if got := configuredCodexDeveloperInstructions(userCfg, launch); got != "user rule" {
+		t.Fatalf("user layer: got %q", got)
+	}
+	if err := os.MkdirAll(filepath.Join(launch, ".codex"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(launch, ".codex", "config.toml"), []byte("developer_instructions = \"project rule\"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	existing := configuredCodexDeveloperInstructions(userCfg, launch)
+	if existing != "project rule" {
+		t.Fatalf("project layer should win, got %q", existing)
+	}
+
+	args := buildCodexInstructionConfigArgs(codexLaunchModeDefault, existing)
+	_, raw, _ := strings.Cut(args[1], "=")
+	text, _ := parseCodexOverrideValue(t, raw).(string)
+	if !strings.HasPrefix(text, "project rule\n\n# wipnote ") {
+		t.Fatalf("configured instructions must lead the override, got %q", text[:min(len(text), 80)])
+	}
+	if got := configuredCodexDeveloperInstructions(filepath.Join(home, "missing.toml"), ""); got != "" {
+		t.Fatalf("missing config must read as unset, got %q", got)
+	}
 }
