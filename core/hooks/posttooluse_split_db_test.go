@@ -134,6 +134,22 @@ func (h *splitDBHarness) runPre(t *testing.T, ev *CloudEvent) *HookResult {
 	return res
 }
 
+// runPost dispatches PostToolUse on a fresh read-only projection handle, the
+// way hookSubcmdReadOnly dispatches it in production since bug-07fd4a51 step 5.
+func (h *splitDBHarness) runPost(t *testing.T, ev *CloudEvent) *HookResult {
+	t.Helper()
+	ro, reason := OpenHookDBReadOnly("posttooluse", h.sessionID, h.diskPath)
+	if ro == nil {
+		t.Fatalf("OpenHookDBReadOnly: nil (reason=%s)", reason)
+	}
+	defer ro.Close()
+	res, err := PostToolUse(ev, ro)
+	if err != nil {
+		t.Fatalf("PostToolUse: %v", err)
+	}
+	return res
+}
+
 func (h *splitDBHarness) sessionHTML(t *testing.T) string {
 	t.Helper()
 	b, err := os.ReadFile(filepath.Join(h.projectDir, ".wipnote", "sessions", h.sessionID+".html"))
@@ -197,5 +213,61 @@ func TestPostToolUse_SplitDB_SideEffectsRun(t *testing.T) {
 	}
 	if html := h.sessionHTML(t); !strings.Contains(html, `data-tool="Write"`) {
 		t.Errorf("session HTML was not appended for the Write call")
+	}
+}
+
+// TestPostToolUse_ReadOnlyHandle_SideEffectsRun is the step-5 counterpart of
+// the regression test above: posttooluse on the read-only projection (its
+// production handle now) still returns the quality warning, appends the
+// session HTML and completes the daemon row.
+func TestPostToolUse_ReadOnlyHandle_SideEffectsRun(t *testing.T) {
+	h := newSplitDBHarness(t, "split-db-ro-001")
+	bigFile := writeOversizedFile(t, t.TempDir())
+	input := map[string]any{"file_path": bigFile, "content": "x"}
+	ev := &CloudEvent{SessionID: h.sessionID, CWD: h.projectDir, ToolName: "Write", ToolUseID: "toolu_ro_001", ToolInput: input}
+	h.runPre(t, ev)
+
+	post := *ev
+	post.ToolResult = map[string]any{"output": "ok"}
+	res := h.runPost(t, &post)
+	if res == nil || !strings.Contains(res.AdditionalContext, "[Quality]") {
+		t.Errorf("file-quality warning missing: %+v", res)
+	}
+	if !strings.Contains(h.sessionHTML(t), `data-event-id="`+toolCallEventID(h.sessionID, "toolu_ro_001")+`"`) {
+		t.Errorf("session HTML entry missing or not keyed by the shared event id")
+	}
+	var status string
+	_ = h.daemonDB.QueryRow(`SELECT status FROM agent_events WHERE event_id = ?`, toolCallEventID(h.sessionID, "toolu_ro_001")).Scan(&status)
+	if status != "completed" {
+		t.Errorf("daemon row status = %q, want completed", status)
+	}
+}
+
+// TestPostToolUse_ReadOnlyHandle_DaemonMissFallsBackToDisk: with the daemon
+// unreachable for both halves, pretooluse and posttooluse each fall back to
+// their own bounded writable handle on the disk DB, and the completion
+// upserts the started row there instead of failing on the read-only handle.
+func TestPostToolUse_ReadOnlyHandle_DaemonMissFallsBackToDisk(t *testing.T) {
+	h := newSplitDBHarness(t, "split-db-miss-001")
+	stubRouteSQLAsync(t, false)
+	if err := db.InsertSession(h.diskDB, &models.Session{
+		SessionID: h.sessionID, AgentAssigned: "claude-code", Status: "active",
+		CreatedAt: time.Now().UTC(), ProjectDir: h.projectDir,
+	}); err != nil {
+		t.Fatalf("seed disk session: %v", err)
+	}
+	in := map[string]any{"file_path": "/tmp/miss.go"}
+	h.runPre(t, &CloudEvent{SessionID: h.sessionID, CWD: h.projectDir, ToolName: "Read", ToolUseID: "toolu_miss", ToolInput: in})
+	h.runPost(t, &CloudEvent{SessionID: h.sessionID, CWD: h.projectDir, ToolName: "Read", ToolUseID: "toolu_miss", ToolInput: in,
+		ToolResult: map[string]any{"output": "x"}})
+
+	r, ok := readEventRow(t, h.diskDB, toolCallEventID(h.sessionID, "toolu_miss"))
+	if !ok || r.status != "completed" {
+		t.Fatalf("disk row = %+v (found=%v), want completed", r, ok)
+	}
+	var n int
+	_ = h.diskDB.QueryRow(`SELECT COUNT(*) FROM agent_events WHERE session_id = ?`, h.sessionID).Scan(&n)
+	if n != 1 {
+		t.Errorf("disk rows = %d, want 1 (upsert in place)", n)
 	}
 }

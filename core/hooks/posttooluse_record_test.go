@@ -117,12 +117,10 @@ func TestPostToolUse_SplitDB_PairsParallelCallsByToolUseID(t *testing.T) {
 	}
 	post := func(id string, isErr bool, durMS int64) {
 		t.Helper()
-		if _, err := PostToolUse(&CloudEvent{
+		h.runPost(t, &CloudEvent{
 			SessionID: h.sessionID, CWD: h.projectDir, ToolName: "Read", ToolUseID: id, ToolInput: in,
 			ToolResult: map[string]any{"output": "x", "is_error": isErr}, DurationMS: durationMS(durMS),
-		}, h.diskDB); err != nil {
-			t.Fatalf("PostToolUse(%s): %v", id, err)
-		}
+		})
 	}
 
 	pre("toolu_A")
@@ -176,12 +174,10 @@ func TestPostToolUse_SplitDB_WritesCompleteRowWithoutPre(t *testing.T) {
 	run := func(id, parentEnv string) eventRow {
 		t.Helper()
 		t.Setenv("WIPNOTE_PARENT_PROMPT_EVENT", parentEnv)
-		if _, err := PostToolUse(&CloudEvent{
+		h.runPost(t, &CloudEvent{
 			SessionID: h.sessionID, CWD: h.projectDir, ToolName: "Glob", ToolUseID: id,
 			ToolInput: map[string]any{"pattern": "*.go"}, ToolResult: map[string]any{"output": "a.go"},
-		}, h.diskDB); err != nil {
-			t.Fatalf("PostToolUse: %v", err)
-		}
+		})
 		r, ok := readEventRow(t, h.daemonDB, toolCallEventID(h.sessionID, id))
 		if !ok {
 			t.Fatalf("completion row for %s missing from daemon projection", id)

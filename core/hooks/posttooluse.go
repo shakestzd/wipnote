@@ -51,16 +51,12 @@ func PostToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 		Summary:   SummariseInput(event.ToolName, event.ToolInput),
 	})
 
-	// Lazy orphan sweep for this session — picks up any prior PreToolUse
-	// that never saw a PostToolUse (tool crash, Claude Code kill) and
-	// closes it out with a synthetic aborted entry. Non-critical.
-	//
-	// It only sees rows on THIS handle, i.e. started rows that a daemon-miss
-	// PreToolUse wrote through the bounded disk fallback. It runs AFTER
-	// recordToolCompletion so the current call's row (same id, same store on a
-	// double daemon miss) is already completed and cannot be swept. Rows routed
-	// to the daemon projection are invisible here and are never marked aborted.
-	SweepOrphanedEventsForSession(database, ctx.ProjectDir, ctx.SessionID)
+	// No per-call orphan sweep here any more. posttooluse dispatches with the
+	// read-only empty projection (hookSubcmdReadOnly), where
+	// SweepOrphanedEventsForSession can see no rows and could not mark one
+	// aborted anyway. Started rows a daemon-miss pretooluse left on the disk
+	// fallback are still swept by session-start's capped project-wide sweep;
+	// daemon-routed rows are completed in place by recordToolCompletion.
 
 	// bug-07fd4a51 step 4: the git_commits insert, the claim agent-id tag and
 	// the feature_files / session_files attribution upserts that used to live
