@@ -67,7 +67,7 @@
     "events": [
       { "name": "SessionStart",       "handler": "session-start",       "targets": ["claude", "codex"], "timeoutByTarget": {"claude": 30} },
       { "name": "SessionStart",       "handler": "session-resume",      "targets": ["claude"], "matcher": "resume", "timeout": 15 },
-      { "name": "SessionEnd",         "handler": "session-end",         "targets": ["claude", "codex"], "timeout": 90 },
+      { "name": "SessionEnd",         "handler": "session-end",         "targets": ["claude", "codex"], "timeoutByTarget": {"claude": 60, "codex": 3} },
       { "name": "UserPromptSubmit",   "handler": "user-prompt",         "targets": ["claude", "codex", "antigravity"], "timeoutByTarget": {"claude": 15} },
       { "name": "AfterAgent",         "handler": "after-agent",         "targets": ["antigravity"] },
       { "name": "PreToolUse",         "handler": "pretooluse",          "targets": ["claude", "codex", "antigravity"], "timeoutByTarget": {"claude": 15} },

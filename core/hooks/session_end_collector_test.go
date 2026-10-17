@@ -112,3 +112,17 @@ func TestSignalCollector_LiveProcess(t *testing.T) {
 		}
 	}
 }
+
+// Codex kills a SessionEnd hook after 3s, so its waits must fit with
+// headroom; other harnesses keep the full drain.
+func TestSessionEndWaits_FitCodexCap(t *testing.T) {
+	t.Setenv("WIPNOTE_HARNESS", "codex")
+	drain, catchUp := sessionEndWaits()
+	if total := drain + catchUp; total >= 3*time.Second {
+		t.Fatalf("codex SessionEnd waits total %s, must stay under the 3s cap", total)
+	}
+	t.Setenv("WIPNOTE_HARNESS", "claude")
+	if drain, _ := sessionEndWaits(); drain != 3*time.Second {
+		t.Fatalf("claude collector drain = %s, want 3s", drain)
+	}
+}

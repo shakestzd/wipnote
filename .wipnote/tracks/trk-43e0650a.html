@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Native-feature alignment — Claude Code &amp; Codex (Oct 2026)</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="trk-43e0650a"
+             data-type="track"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-10-17T21:03:42.811651"
+             data-updated="2026-10-17T21:03:42.936802" data-agent-assigned="claude-code" data-created-by-cli-version="dev" data-created_in_session="e41f6acf-9ecd-5cf8-846b-fbd1203fe65e">
+
+        <header>
+            <h1>Native-feature alignment — Claude Code &amp; Codex (Oct 2026)</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="contains">
+                <h3>Contains:</h3>
+                <ul>
+                    <li><a href="../bugs/bug-391dfb32.html" data-relationship="contains" data-since="2026-10-17T21:03:42.839519">Step tracking dead on current Claude models: TaskCreate tools not offered without CLAUDE_CODE_ENABLE_TODO_TOOLS</a></li>
+                    <li><a href="../bugs/bug-2f77b825.html" data-relationship="contains" data-since="2026-10-17T21:03:42.871418">Codex agent models retired or superseded: gpt-5.5 retired 2026-10-14; gpt-5.6-luna/-terra upgraded in catalog</a></li>
+                    <li><a href="../bugs/bug-8301d3db.html" data-relationship="contains" data-since="2026-10-17T21:03:42.901705">Codex ignores sandbox_mode in agent role files; read-only agents were never sandboxed</a></li>
+                    <li><a href="../bugs/bug-af53f11c.html" data-relationship="contains" data-since="2026-10-17T21:03:42.935629">SessionEnd timeout 90 is beyond both harness caps; Codex kills the hook at 3s before the OTel rollup</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Cut wipnote overhead and lean on native Claude Code 2.1.302 / Codex 0.163 features, from the Oct 2026 audits. Phase 0: broken now. Phase 1: low-risk launcher/generator wins and deletes. Phase 2: hot-path hook redesign (posttooluse read-only, matcher narrowing, tool_use_id pairing, async recording). Phase 3: slim system prompt / execute / plan / directives onto native plan mode, Explore, /batch, Workflows. Phase 4: prototypes (shared OTel receiver, PostToolBatch, HTTP hooks, mods).</p>
+        </section>
+    </article>
+</body>
+</html>

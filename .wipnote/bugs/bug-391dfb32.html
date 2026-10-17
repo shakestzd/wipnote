@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Step tracking dead on current Claude models: TaskCreate tools not offered without CLAUDE_CODE_ENABLE_TODO_TOOLS</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-391dfb32"
+             data-type="bug"
+             data-status="todo"
+             data-priority="high"
+             data-created="2026-10-17T21:03:42.837572"
+             data-updated="2026-10-17T21:03:42.839613" data-agent-assigned="claude-code" data-track-id="trk-43e0650a" data-created-by-cli-version="dev" data-created_in_session="e41f6acf-9ecd-5cf8-846b-fbd1203fe65e">
+
+        <header>
+            <h1>Step tracking dead on current Claude models: TaskCreate tools not offered without CLAUDE_CODE_ENABLE_TODO_TOOLS</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-43e0650a.html" data-relationship="part_of" data-since="2026-10-17T21:03:42.839519">trk-43e0650a</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Claude Code 2.1.233 removed TaskCreate/TaskUpdate/TodoWrite for Opus 4.8, Sonnet 5, Fable 5 and newer (2.1.268 narrowed them to Claude 3.x/Opus&lt;=4.7/Sonnet&lt;=4.6/Haiku 4.5) unless CLAUDE_CODE_ENABLE_TODO_TOOLS=1. wipnote&#39;s system prompt, yolo prompt and execute skill drive step tracking through them via the TaskCreated/TaskCompleted hooks, so Steps stays 0/M. Phase 0 fix: the launcher sets the opt-in (registry_claude.go LaunchEnv, add-if-unset). Phase 3 follow-up: move to wipnote add-step/complete-step so bare claude and other harnesses work too.</p>
+        </section>
+    </article>
+</body>
+</html>

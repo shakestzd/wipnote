@@ -18,7 +18,7 @@
           {
             "type": "command",
             "command": "wipnote hook session-end --harness codex",
-            "timeout": 90
+            "timeout": 3
           }
         ]
       }

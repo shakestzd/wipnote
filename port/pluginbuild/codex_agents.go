@@ -30,7 +30,6 @@ type codexAgentTOML struct {
 	Description           string   `toml:"description"`
 	Model                 string   `toml:"model,omitempty"`
 	ModelReasoningEffort  string   `toml:"model_reasoning_effort,omitempty"`
-	SandboxMode           string   `toml:"sandbox_mode,omitempty"`
 	NicknameCandidates    []string `toml:"nickname_candidates,omitempty"`
 	DeveloperInstructions string   `toml:"developer_instructions"`
 }
@@ -97,9 +96,8 @@ func translateCodexAgent(filename string, raw []byte) (codexAgentTOML, error) {
 		return codexAgentTOML{
 			Name:                  codexAgentName(name),
 			Description:           "wipnote agent",
-			SandboxMode:           "read-only",
 			NicknameCandidates:    nicknameCandidates(name),
-			DeveloperInstructions: strings.TrimSpace(string(raw)),
+			DeveloperInstructions: withReadOnlyNotice(strings.TrimSpace(string(raw)), true),
 		}, nil
 	}
 
@@ -128,9 +126,8 @@ func translateCodexAgent(filename string, raw []byte) (codexAgentTOML, error) {
 		Description:           asset.Description,
 		Model:                 model,
 		ModelReasoningEffort:  effort,
-		SandboxMode:           codexSandboxMode(asset),
 		NicknameCandidates:    nicknameCandidates(asset.Name),
-		DeveloperInstructions: codexDeveloperInstructions(body, asset.InitialPrompt),
+		DeveloperInstructions: withReadOnlyNotice(codexDeveloperInstructions(body, asset.InitialPrompt), codexReadOnlyRole(asset)),
 	}, nil
 }
 
@@ -160,14 +157,37 @@ func codexDeveloperInstructions(body []byte, initialPrompt string) string {
 	return strings.Join(parts, "\n\n")
 }
 
-func codexSandboxMode(asset AgentAsset) string {
+// codexReadOnlyRole reports whether an agent has no write-capable tool.
+//
+// Codex does not let a custom agent role set its sandbox: role files are read
+// through an allowlist (developer_instructions, model, reasoning effort, ...;
+// codex-rs/core/src/agent/role.rs apply_role_to_config) and sandbox_mode is
+// dropped, so the `sandbox_mode = "read-only"` this generator used to emit was
+// never enforced. The restriction is therefore stated in the instructions,
+// which Codex does deliver.
+func codexReadOnlyRole(asset AgentAsset) bool {
 	for _, tool := range asset.Tools {
 		switch tool {
 		case "Edit", "Write", "Bash":
-			return "workspace-write"
+			return false
 		}
 	}
-	return "read-only"
+	return true
+}
+
+// codexReadOnlyNotice leads the developer instructions of a read-only role.
+const codexReadOnlyNotice = "**Read-only role.** Codex does not sandbox agent roles, so this is yours to keep: " +
+	"never create, edit, move or delete files, and never run a command that changes the repository or system state. " +
+	"If a change is needed, report the exact change instead."
+
+func withReadOnlyNotice(instructions string, readOnly bool) string {
+	if !readOnly {
+		return instructions
+	}
+	if instructions == "" {
+		return codexReadOnlyNotice
+	}
+	return codexReadOnlyNotice + "\n\n" + instructions
 }
 
 func mapCodexAgentModel(model string) (string, string, error) {
@@ -176,13 +196,18 @@ func mapCodexAgentModel(model string) (string, string, error) {
 	if model == "" {
 		return "", "", nil
 	}
+	// Tier mapping against Codex's bundled model catalog
+	// (codex-rs/models-manager/models.json). Re-verify with `codex debug models`
+	// on each Codex release: gpt-5.5 was retired for ChatGPT sign-in on
+	// 2026-10-14, and the catalog now marks gpt-5.6-luna/-terra as upgraded to
+	// gpt-6-luna/gpt-6-sol.
 	switch model {
 	case "haiku":
-		return "gpt-5.6-luna", "low", nil
+		return "gpt-6-luna", "low", nil // "Fast and affordable model for easier tasks."
 	case "sonnet":
-		return "gpt-5.6-terra", "medium", nil
+		return "gpt-6.1-sol", "medium", nil // "Latest workhorse model for coding and everyday work."
 	case "opus":
-		return "gpt-5.5", "high", nil
+		return "gpt-6-astra", "high", nil // "Frontier intelligence for the most demanding work."
 	}
 	if strings.HasPrefix(model, "gpt-") {
 		return model, "", nil
