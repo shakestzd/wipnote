@@ -29,6 +29,15 @@ import (
 // with even larger corpora.
 const serveDefaultSpawnTimeout = 90 * time.Second
 
+// serveSpawnWait bounds how long one request waits for a cold child before it
+// is answered 503 + Retry-After. The spawn itself is not cancelled — it runs
+// up to serveSpawnTimeout — so the next request finds the child warm. Kept
+// under common client timeouts (curl/browser fetch ~30s).
+var serveSpawnWait = 20 * time.Second
+
+// serveChildHealthPath is the _serve-child endpoint the supervisor probes.
+const serveChildHealthPath = "/api/health"
+
 // serveSpawnTimeout resolves the childproc supervisor's per-project cold-
 // spawn handshake deadline, honouring WIPNOTE_SERVE_SPAWN_TIMEOUT (e.g. "3m")
 // and otherwise falling back to serveDefaultSpawnTimeout.
@@ -59,6 +68,7 @@ func isValidProjectID(id string) bool {
 //	404 — unknown project ID (not in registry)
 //	500 — registry load failure
 //	502 — child spawn or reach failure (supervisor error or proxy error)
+//	503 — child still cold-starting after serveSpawnWait (Retry-After set)
 func proxyHandler(sup *childproc.Supervisor) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		projectID, remainder, ok := daemonpkg.ParseProjectProxyPath(r.URL.Path)
@@ -85,7 +95,17 @@ func proxyHandler(sup *childproc.Supervisor) http.HandlerFunc {
 			return
 		}
 
-		child, err := sup.GetOrSpawn(r.Context(), projectID, matched.ProjectDir)
+		spawnCtx, cancel := context.WithTimeout(r.Context(), serveSpawnWait)
+		child, err := sup.GetOrSpawn(spawnCtx, projectID, matched.ProjectDir)
+		cancel()
+		if errors.Is(err, childproc.ErrSpawnPending) {
+			// The cold start (index hydration) is still running and keeps
+			// running; answer instead of holding the request open past
+			// typical client timeouts (issue #189).
+			w.Header().Set("Retry-After", "5")
+			http.Error(w, "project is warming up (building its index); retry shortly", http.StatusServiceUnavailable)
+			return
+		}
 		if err != nil {
 			http.Error(w, "spawn child: "+err.Error(), http.StatusBadGateway)
 			return
@@ -162,6 +182,10 @@ func runParentServer(bind string, port int) error {
 	sup := childproc.NewSupervisor(childproc.Options{
 		PIDFileDir:   parentProjectDir,
 		SpawnTimeout: serveSpawnTimeout(),
+		// A child that stays alive but stops answering is evicted and
+		// respawned on the next request instead of wedging the dashboard
+		// until the user kills it by hand (issue #183).
+		HealthPath: serveChildHealthPath,
 	})
 
 	// Belt-and-suspenders stale-child reap: before binding the listen
@@ -173,6 +197,7 @@ func runParentServer(bind string, port int) error {
 	reaperCtx, stopReaper := context.WithCancel(context.Background())
 	defer stopReaper()
 	go sup.RunIdleReaper(reaperCtx)
+	go sup.RunHealthProbe(reaperCtx)
 
 	mux := buildParentMux(sup)
 
@@ -223,6 +248,9 @@ func runParentServer(bind string, port int) error {
 	server := &http.Server{
 		Addr:    addr,
 		Handler: mux,
+		// Bound only the header read: SSE responses stream indefinitely, so
+		// no Write/Idle timeout is set here.
+		ReadHeaderTimeout: 10 * time.Second,
 	}
 	server.RegisterOnShutdown(func() {
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

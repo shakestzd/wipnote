@@ -726,11 +726,7 @@ func launchClaude(opts LaunchOpts) error {
 	// pipeline points at the wipnote serve receiver. See
 	// claude_env.go:buildClaudeLaunchEnv for precedence rules (user-set
 	// OTEL_* always wins).
-	var worktreeOverride string
-	if opts.WipnoteRoot != "" && opts.WipnoteRoot != opts.ProjectRoot {
-		worktreeOverride = opts.WipnoteRoot
-	}
-	c.Env = buildClaudeLaunchEnv(worktreeOverride, &envOverrides)
+	c.Env = buildClaudeLaunchEnv(claudeEnvProjectDir(opts), &envOverrides)
 	c.Env = mergeLauncherEnv(c.Env, opts.ExtraEnv...)
 
 	// Guarantee the work-item daemon and publish its socket into the session
@@ -748,6 +744,21 @@ func launchClaude(opts LaunchOpts) error {
 	}
 
 	return runHarnessWithCleanup(c, envOverrides.Cleanup)
+}
+
+// claudeEnvProjectDir is the WIPNOTE_PROJECT_DIR exported to the Claude
+// process: the canonical root when Claude runs in a worktree, else the root
+// Claude is started in (c.Dir). It is always explicit — never left to
+// effectiveProjectDir's os.Getwd fallback. Launched from a linked worktree,
+// project resolution yields the MAIN checkout (git-common-dir), so Claude runs
+// there; falling back to the launcher's cwd exported the worktree instead, and
+// every hook then read the worktree's .wipnote/ while Claude worked in the main
+// checkout (issue #202).
+func claudeEnvProjectDir(opts LaunchOpts) string {
+	if opts.WipnoteRoot != "" {
+		return opts.WipnoteRoot
+	}
+	return opts.ProjectRoot
 }
 
 // Harness identifiers for the WIPNOTE_HARNESS env var (feat-9348de66 slice 1).

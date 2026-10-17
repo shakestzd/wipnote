@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Serve parent has no proxy timeouts or child health check; a hung _serve-child wedges the dashboard (#183)</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-e160ef40"
+             data-type="bug"
+             data-status="todo"
+             data-priority="high"
+             data-created="2026-10-17T19:34:49.102903"
+             data-updated="2026-10-17T19:34:49.105378" data-agent-assigned="claude-code" data-track-id="trk-91673dda" data-created-by-cli-version="dev" data-created_in_session="e41f6acf-9ecd-5cf8-846b-fbd1203fe65e">
+
+        <header>
+            <h1>Serve parent has no proxy timeouts or child health check; a hung _serve-child wedges the dashboard (#183)</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-91673dda.html" data-relationship="part_of" data-since="2026-10-17T19:34:49.105237">trk-91673dda</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>GitHub #183 (partial). The reverse proxy uses DefaultTransport (no ResponseHeaderTimeout), the parent http.Server has no ReadHeaderTimeout, and childproc only detects child death. A child that hangs after the handshake keeps receiving traffic (LastRequest bumps keep the idle reaper away) until the user kills it. Scoped fix: proxy header timeout (SSE exempt), parent ReadHeaderTimeout, and a health probe that evicts and kills a child after consecutive misses. Deferred: shared/capped otel-collect, doctor --restart-all, the O(N*H) git cost in hydrate.</p>
+        </section>
+    </article>
+</body>
+</html>

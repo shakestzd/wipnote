@@ -474,6 +474,7 @@ func runServeChild(port int) error {
 	// the daemon, so writerService.queue is nil here; readWriterServiceStatus
 	// is nil-safe and still reports the process-level BUSY counters.
 	mux.Handle("/api/collector-status", collectorWriterStatusHandler())
+	mux.Handle(serveChildHealthPath, serveChildHealthHandler(database))
 
 	ln, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port))
 	if err != nil {
@@ -617,5 +618,20 @@ func ensureWriterDaemon(projectRoot string) func() {
 			_ = cmd.Process.Kill()
 			<-stopped
 		}
+	}
+}
+
+// serveChildHealthHandler answers the supervisor's liveness probe. It runs a
+// trivial query so a child whose single projection connection is wedged
+// reads as unhealthy, not just one whose HTTP loop has stopped (issue #183).
+func serveChildHealthHandler(database *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var one int
+		if err := database.QueryRowContext(r.Context(), "SELECT 1").Scan(&one); err != nil {
+			http.Error(w, "projection unavailable: "+err.Error(), http.StatusServiceUnavailable)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"status":"ok"}`))
 	}
 }

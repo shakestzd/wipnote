@@ -1,7 +1,6 @@
 package hooks
 
 import (
-	"fmt"
 	"io"
 	"time"
 )
@@ -20,31 +19,23 @@ func TimestampLine(now time.Time) string {
 // the current timestamp folded in, replacing the standalone `date` hook (one
 // fewer process per prompt).
 //
-// Claude Code adds plain (non-JSON) stdout from a UserPromptSubmit hook to the
-// model's context. For a context-only result (nothing but AdditionalContext, or
-// nothing at all) the timestamp and any guidance are therefore emitted as plain
-// text, which does not depend on the JSON hookSpecificOutput shape. Any result
-// that carries a decision, reason, message or structured output must stay JSON;
-// there the timestamp is prepended to AdditionalContext instead.
+// Every result goes through the one Claude emitter as JSON, with the timestamp
+// prepended to AdditionalContext, so the hookSpecificOutput mapping and the
+// per-event context cap (context_budget.go) apply to both the context-only and
+// the decision case (issue #196). The earlier plain-stdout branch for
+// context-only results bypassed the cap, and the JSON branch passed no event
+// name, which put the context in the top-level additionalContext field Claude
+// Code drops — so a decision result lost its timestamp and guidance.
 func EmitClaudeUserPrompt(w io.Writer, result *HookResult, now time.Time) error {
+	var r HookResult
+	if result != nil {
+		r = *result
+	}
 	ts := TimestampLine(now)
-	if result == nil {
-		result = &HookResult{}
-	}
-	if result.Decision == "" && result.Reason == "" && result.Message == "" &&
-		result.HookSpecificOutput == nil {
-		out := ts + "\n"
-		if result.AdditionalContext != "" {
-			out += result.AdditionalContext + "\n"
-		}
-		_, err := fmt.Fprint(w, out)
-		return err
-	}
-	r := *result
 	if r.AdditionalContext != "" {
 		r.AdditionalContext = ts + "\n" + r.AdditionalContext
 	} else {
 		r.AdditionalContext = ts
 	}
-	return emitClaudeResponse(w, &r)
+	return emitClaudeResponseForEvent(w, "UserPromptSubmit", &r)
 }

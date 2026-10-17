@@ -640,6 +640,9 @@ func planChatHandler(_ *sql.DB, wipnoteDir string) http.HandlerFunc {
 		w.Header().Set("Cache-Control", "no-cache")
 		w.Header().Set("Connection", "keep-alive")
 		w.Header().Set("Access-Control-Allow-Origin", "*")
+		// Commit the headers now: the proxy bounds its wait for response
+		// headers, and a stream may not have an event to send for a while.
+		flusher.Flush()
 
 		// Stream response.
 		chunks, errCh := backend.Send(r.Context(), req.Message)
@@ -932,6 +935,9 @@ func planEventsHandler(wipnoteDir string) http.HandlerFunc {
 		w.Header().Set("Cache-Control", "no-cache")
 		w.Header().Set("Connection", "keep-alive")
 		w.Header().Set("Access-Control-Allow-Origin", "*")
+		// Commit the headers now: the proxy bounds its wait for response
+		// headers, and a stream may not have an event to send for a while.
+		flusher.Flush()
 
 		seen := make(map[string]time.Time)
 		ticker := time.NewTicker(2 * time.Second)

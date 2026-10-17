@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Claude UserPromptSubmit: unify on the hookSpecificOutput emitter; decision path dropped context, plain path skipped caps (#196)</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-074c32b4"
+             data-type="bug"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-10-17T19:34:33.412892"
+             data-updated="2026-10-17T19:34:33.415489" data-agent-assigned="claude-code" data-track-id="trk-91673dda" data-created-by-cli-version="dev" data-created_in_session="e41f6acf-9ecd-5cf8-846b-fbd1203fe65e">
+
+        <header>
+            <h1>Claude UserPromptSubmit: unify on the hookSpecificOutput emitter; decision path dropped context, plain path skipped caps (#196)</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-91673dda.html" data-relationship="part_of" data-since="2026-10-17T19:34:33.415361">trk-91673dda</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>GitHub #196. EmitClaudeUserPrompt had two shapes: plain stdout for context-only results (bypassing context_budget caps) and JSON via emitClaudeResponse with an EMPTY event name, which put the timestamp+guidance in top-level additionalContext — a field Claude Code drops (verified live with nested claude -p: marker not seen). Fix: always emit through emitClaudeResponseForEvent(&#34;UserPromptSubmit&#34;), timestamp prepended. Live claude -p marker test confirmed the new shape is delivered.</p>
+        </section>
+    </article>
+</body>
+</html>

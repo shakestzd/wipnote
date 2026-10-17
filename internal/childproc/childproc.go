@@ -10,10 +10,13 @@
 //
 // # Concurrency model
 //
-// Per-project cold spawns use sync.Once to ensure that concurrent requests
-// for the same new project join a single exec.Command call instead of
-// racing to spawn multiple children for the same project. Warm lookups
-// take the supervisor mutex only briefly to read the map.
+// Per-project cold spawns run as one in-flight spawn per project, detached
+// from any request: concurrent requests for the same new project join it
+// instead of racing to spawn multiple children, and a request that stops
+// waiting (client timeout, disconnect) neither kills the child nor restarts
+// its cold start — the spawn runs to completion or SpawnTimeout and every
+// waiter shares its result (issue #189). Warm lookups take the supervisor
+// mutex only briefly to read the map.
 //
 // # Lifecycle
 //
@@ -38,7 +41,13 @@
 // If a child dies (segfault, OOM, explicit SIGKILL), the reaper goroutine
 // removes its entry from the map. The next request through the proxy
 // calls GetOrSpawn, which observes the missing entry and spawns a fresh
-// child. No per-request health check is required.
+// child.
+//
+// A child that stays alive but stops answering is not caught by the reaper.
+// RunHealthProbe covers it: it probes each child's HealthPath and evicts and
+// group-kills a child after HealthMaxMisses consecutive failures, so the next
+// request respawns it instead of hanging on it (issue #183). The proxy also
+// bounds how long it waits for a child's response headers.
 package childproc
 
 import (
@@ -88,6 +97,19 @@ type Options struct {
 	// parent startup can reap any orphans that survived a hard kill.
 	// When empty, PID-file tracking is disabled.
 	PIDFileDir string
+	// ProxyHeaderTimeout bounds how long the reverse proxy waits for a
+	// child's response headers. Zero uses DefaultProxyHeaderTimeout; a
+	// negative value disables the bound. Streaming (SSE) handlers must flush
+	// their headers up front to stay under it.
+	ProxyHeaderTimeout time.Duration
+	// HealthPath is the child endpoint RunHealthProbe requests. Empty
+	// disables health probing.
+	HealthPath string
+	// HealthInterval, HealthTimeout and HealthMaxMisses tune RunHealthProbe.
+	// Zero values use the Default* constants.
+	HealthInterval  time.Duration
+	HealthTimeout   time.Duration
+	HealthMaxMisses int
 }
 
 // DefaultIdleTimeout is the IdleTimeout used when Options.IdleTimeout is
@@ -98,6 +120,23 @@ const DefaultIdleTimeout = 10 * time.Minute
 // is zero.
 const DefaultSpawnTimeout = 5 * time.Second
 
+// DefaultProxyHeaderTimeout is the ProxyHeaderTimeout used when
+// Options.ProxyHeaderTimeout is zero.
+const DefaultProxyHeaderTimeout = 60 * time.Second
+
+// Health-probe defaults: a child is evicted after DefaultHealthMaxMisses
+// consecutive probes that each failed to answer within DefaultHealthTimeout.
+const (
+	DefaultHealthInterval  = 30 * time.Second
+	DefaultHealthTimeout   = 10 * time.Second
+	DefaultHealthMaxMisses = 3
+)
+
+// ErrSpawnPending is returned by GetOrSpawn when the caller's context ends
+// while the project's cold spawn is still running. The spawn continues; a
+// later call joins it or finds the warm child.
+var ErrSpawnPending = errors.New("childproc: child is still starting")
+
 // Child represents one running wipnote _serve-child process.
 type Child struct {
 	ID          string
@@ -107,21 +146,41 @@ type Child struct {
 	LastRequest atomic.Int64 // unix seconds
 	Proxy       *httputil.ReverseProxy
 
-	cmd    *exec.Cmd
-	cancel context.CancelFunc
-	exitC  chan struct{}
+	cmd        *exec.Cmd
+	cancel     context.CancelFunc
+	exitC      chan struct{}
+	healthMiss int // consecutive failed probes; owned by RunHealthProbe
+}
+
+// spawnFlight is one in-flight cold spawn. done is closed once child/err are
+// set.
+type spawnFlight struct {
+	done  chan struct{}
+	child *Child
+	err   error
 }
 
 // Supervisor owns the child process map and spawn lifecycle.
 type Supervisor struct {
 	mu          sync.Mutex
 	children    map[string]*Child
-	spawnGroups map[string]*sync.Once
+	spawnGroups map[string]*spawnFlight
 
 	binPath      string
 	idleTimeout  time.Duration
 	spawnTimeout time.Duration
 	pidFilePath  string // absolute path to .serve-children.pid; empty = disabled
+
+	// lifetime is cancelled by Shutdown; in-flight spawns derive their
+	// handshake deadline from it, so shutdown aborts a cold start too.
+	lifetime     context.Context
+	stopLifetime context.CancelFunc
+
+	proxyTransport  *http.Transport
+	healthPath      string
+	healthInterval  time.Duration
+	healthTimeout   time.Duration
+	healthMaxMisses int
 }
 
 // NewSupervisor constructs a Supervisor with the given options.
@@ -144,14 +203,36 @@ func NewSupervisor(opts Options) *Supervisor {
 	if opts.PIDFileDir != "" {
 		pidFilePath = pidFilePath_(opts.PIDFileDir)
 	}
-	return &Supervisor{
-		children:     make(map[string]*Child),
-		spawnGroups:  make(map[string]*sync.Once),
-		binPath:      binPath,
-		idleTimeout:  idle,
-		spawnTimeout: spawn,
-		pidFilePath:  pidFilePath,
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	switch {
+	case opts.ProxyHeaderTimeout > 0:
+		transport.ResponseHeaderTimeout = opts.ProxyHeaderTimeout
+	case opts.ProxyHeaderTimeout == 0:
+		transport.ResponseHeaderTimeout = DefaultProxyHeaderTimeout
 	}
+	lifetime, stopLifetime := context.WithCancel(context.Background())
+	return &Supervisor{
+		lifetime:        lifetime,
+		stopLifetime:    stopLifetime,
+		children:        make(map[string]*Child),
+		spawnGroups:     make(map[string]*spawnFlight),
+		binPath:         binPath,
+		idleTimeout:     idle,
+		spawnTimeout:    spawn,
+		pidFilePath:     pidFilePath,
+		proxyTransport:  transport,
+		healthPath:      opts.HealthPath,
+		healthInterval:  orDefault(opts.HealthInterval, DefaultHealthInterval),
+		healthTimeout:   orDefault(opts.HealthTimeout, DefaultHealthTimeout),
+		healthMaxMisses: max(opts.HealthMaxMisses, 0),
+	}
+}
+
+func orDefault(d, def time.Duration) time.Duration {
+	if d > 0 {
+		return d
+	}
+	return def
 }
 
 // pidFilePath_ returns the absolute path for the serve-children PID file
@@ -170,61 +251,52 @@ func pidFilePath_(projectDir string) string {
 var handshakeRE = regexp.MustCompile(`^wipnote-serve-ready port=(\d+) pid=(\d+)$`)
 
 // GetOrSpawn returns an existing warm Child for projectID or spawns a new
-// one. Concurrent callers for the same projectID share a single
-// exec.Command invocation via sync.Once.
+// one. Concurrent callers for the same projectID share a single in-flight
+// spawn. The spawn is not bound to ctx: when ctx ends first, GetOrSpawn
+// returns ErrSpawnPending and the spawn carries on for the next caller.
 func (s *Supervisor) GetOrSpawn(ctx context.Context, projectID, projectDir string) (*Child, error) {
-	// Fast path: warm child.
 	s.mu.Lock()
 	if c, ok := s.children[projectID]; ok {
 		s.mu.Unlock()
 		c.LastRequest.Store(time.Now().Unix())
 		return c, nil
 	}
-	// Acquire (or reuse) the per-project spawn gate.
-	once, ok := s.spawnGroups[projectID]
+	f, ok := s.spawnGroups[projectID]
 	if !ok {
-		once = &sync.Once{}
-		s.spawnGroups[projectID] = once
+		f = &spawnFlight{done: make(chan struct{})}
+		s.spawnGroups[projectID] = f
+		go s.runSpawn(f, projectID, projectDir)
 	}
 	s.mu.Unlock()
 
-	var spawnErr error
-	once.Do(func() {
-		child, err := s.spawnLocked(ctx, projectID, projectDir)
-		if err != nil {
-			spawnErr = err
-			// Clear the sync.Once so the next caller retries. sync.Once
-			// itself is not resettable — we delete the map entry so the
-			// next GetOrSpawn allocates a fresh one.
-			s.mu.Lock()
-			delete(s.spawnGroups, projectID)
-			s.mu.Unlock()
-			return
-		}
-		s.mu.Lock()
-		s.children[projectID] = child
-		delete(s.spawnGroups, projectID)
-		s.mu.Unlock()
-	})
-	if spawnErr != nil {
-		return nil, spawnErr
+	select {
+	case <-f.done:
+	case <-ctx.Done():
+		return nil, fmt.Errorf("%w: %v", ErrSpawnPending, ctx.Err())
 	}
+	if f.err != nil {
+		return nil, f.err
+	}
+	f.child.LastRequest.Store(time.Now().Unix())
+	return f.child, nil
+}
 
+// runSpawn performs one cold spawn and publishes its result to every waiter.
+func (s *Supervisor) runSpawn(f *spawnFlight, projectID, projectDir string) {
+	child, err := s.spawnLocked(projectID, projectDir)
 	s.mu.Lock()
-	c, ok := s.children[projectID]
-	s.mu.Unlock()
-	if !ok {
-		// Another goroutine's Once completed but the child already died.
-		// Retry once.
-		return s.GetOrSpawn(ctx, projectID, projectDir)
+	if err == nil {
+		s.children[projectID] = child
 	}
-	c.LastRequest.Store(time.Now().Unix())
-	return c, nil
+	delete(s.spawnGroups, projectID)
+	s.mu.Unlock()
+	f.child, f.err = child, err
+	close(f.done)
 }
 
 // spawnLocked forks wipnote _serve-child for the given project. The
 // caller must NOT hold s.mu — this function takes child-level locks only.
-func (s *Supervisor) spawnLocked(ctx context.Context, projectID, projectDir string) (*Child, error) {
+func (s *Supervisor) spawnLocked(projectID, projectDir string) (*Child, error) {
 	if s.binPath == "" {
 		return nil, errors.New("childproc: BinPath is empty and os.Executable() failed")
 	}
@@ -261,8 +333,10 @@ func (s *Supervisor) spawnLocked(ctx context.Context, projectID, projectDir stri
 		return nil, fmt.Errorf("start child: %w", err)
 	}
 
-	// Read the handshake line synchronously with a deadline.
-	handshakeCtx, handshakeCancel := context.WithTimeout(ctx, s.spawnTimeout)
+	// Read the handshake line with a deadline. It deliberately does not derive
+	// from any request context: a client giving up must not kill a child that
+	// is part-way through its cold start (issue #189). Shutdown still aborts it.
+	handshakeCtx, handshakeCancel := context.WithTimeout(s.lifetime, s.spawnTimeout)
 	defer handshakeCancel()
 
 	type handshakeResult struct {
@@ -304,13 +378,11 @@ func (s *Supervisor) spawnLocked(ctx context.Context, projectID, projectDir stri
 		// per-file `git log --follow` calls). Killing only the direct child
 		// leaves those running as orphans, still touching the project's .git
 		// directory, after we have already given up on it.
-		_ = killChildProcessGroup(cmd.Process.Pid)
-		cancel()
+		abandonChild(cmd, cancel)
 		return nil, fmt.Errorf("handshake timeout after %s", s.spawnTimeout)
 	}
 	if hs.err != nil {
-		_ = killChildProcessGroup(cmd.Process.Pid)
-		cancel()
+		abandonChild(cmd, cancel)
 		return nil, hs.err
 	}
 
@@ -325,6 +397,7 @@ func (s *Supervisor) spawnLocked(ctx context.Context, projectID, projectDir stri
 	// Build the reverse proxy.
 	target, _ := url.Parse(fmt.Sprintf("http://127.0.0.1:%d", hs.port))
 	proxy := httputil.NewSingleHostReverseProxy(target)
+	proxy.Transport = s.proxyTransport
 	proxy.FlushInterval = 100 * time.Millisecond // SSE-friendly
 	proxy.ErrorHandler = func(w http.ResponseWriter, _ *http.Request, err error) {
 		w.WriteHeader(http.StatusBadGateway)
@@ -381,9 +454,100 @@ func (s *Supervisor) spawnLocked(ctx context.Context, projectID, projectDir stri
 	return child, nil
 }
 
+// abandonChild group-kills a child that failed its handshake and reaps it, so
+// a failed spawn leaves neither orphaned git subprocesses nor a zombie.
+func abandonChild(cmd *exec.Cmd, cancel context.CancelFunc) {
+	_ = killChildProcessGroup(cmd.Process.Pid)
+	cancel()
+	go func() { _ = cmd.Wait() }()
+}
+
+// RunHealthProbe probes every live child's HealthPath each HealthInterval and
+// evicts a child that misses HealthMaxMisses probes in a row: it is removed
+// from the map (so the next request spawns a replacement) and its process
+// group is killed. A no-op when HealthPath is empty. Blocks until ctx is
+// cancelled.
+func (s *Supervisor) RunHealthProbe(ctx context.Context) {
+	if s.healthPath == "" {
+		return
+	}
+	t := time.NewTicker(s.healthInterval)
+	defer t.Stop()
+	client := &http.Client{Timeout: s.healthTimeout}
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+			s.probeHealthOnce(ctx, client)
+		}
+	}
+}
+
+// probeHealthOnce runs one probe pass over the current children.
+func (s *Supervisor) probeHealthOnce(ctx context.Context, client *http.Client) {
+	misses := s.healthMaxMisses
+	if misses == 0 {
+		misses = DefaultHealthMaxMisses
+	}
+	s.mu.Lock()
+	children := make([]*Child, 0, len(s.children))
+	for _, c := range s.children {
+		children = append(children, c)
+	}
+	s.mu.Unlock()
+
+	var wg sync.WaitGroup
+	for _, c := range children {
+		wg.Add(1)
+		go func(c *Child) {
+			defer wg.Done()
+			if probeChild(ctx, client, c.Port, s.healthPath) {
+				c.healthMiss = 0
+				return
+			}
+			c.healthMiss++
+			if c.healthMiss >= misses {
+				s.evict(c)
+			}
+		}(c)
+	}
+	wg.Wait()
+}
+
+// probeChild reports whether the child answered path with a 2xx.
+func probeChild(ctx context.Context, client *http.Client, port int, path string) bool {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet,
+		fmt.Sprintf("http://127.0.0.1:%d%s", port, path), nil)
+	if err != nil {
+		return false
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return false
+	}
+	_, _ = io.Copy(io.Discard, resp.Body)
+	_ = resp.Body.Close()
+	return resp.StatusCode >= 200 && resp.StatusCode < 300
+}
+
+// evict drops an unresponsive child from the map and kills its process group.
+// The reaper goroutine still runs on exit; it finds the entry already gone.
+func (s *Supervisor) evict(c *Child) {
+	s.mu.Lock()
+	if existing, ok := s.children[c.ID]; ok && existing == c {
+		delete(s.children, c.ID)
+	}
+	s.mu.Unlock()
+	fmt.Fprintf(os.Stderr, "childproc: evicting unresponsive child %s (pid %d) after %d failed health probes\n",
+		c.ID, c.PID, c.healthMiss)
+	_ = killChildProcessGroup(c.cmd.Process.Pid)
+}
+
 // Shutdown SIGTERMs all children in parallel, waits with a deadline, then
 // SIGKILLs any survivors. Safe to call multiple times.
 func (s *Supervisor) Shutdown(ctx context.Context) {
+	s.stopLifetime()
 	s.mu.Lock()
 	children := make([]*Child, 0, len(s.children))
 	for _, c := range s.children {

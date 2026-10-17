@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>wipnote claude from a linked worktree exports the worktree as WIPNOTE_PROJECT_DIR while Claude runs in the main checkout (#202)</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-e86b6d0a"
+             data-type="bug"
+             data-status="todo"
+             data-priority="high"
+             data-created="2026-10-17T19:34:33.374501"
+             data-updated="2026-10-17T19:34:33.377096" data-agent-assigned="claude-code" data-track-id="trk-91673dda" data-created-by-cli-version="dev" data-created_in_session="e41f6acf-9ecd-5cf8-846b-fbd1203fe65e">
+
+        <header>
+            <h1>wipnote claude from a linked worktree exports the worktree as WIPNOTE_PROJECT_DIR while Claude runs in the main checkout (#202)</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-91673dda.html" data-relationship="part_of" data-since="2026-10-17T19:34:33.376968">trk-91673dda</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>GitHub #202. From a worktree cwd, findWipnoteDir resolves the main checkout via git-common-dir, so c.Dir = main. canonicalProjectRoot(main) is empty, so launchClaude passed no override and buildClaudeLaunchEnv fell back to effectiveProjectDir -&gt; os.Getwd() = the worktree. Fix: claudeEnvProjectDir(opts) always passes the explicit root (WipnoteRoot, else ProjectRoot = c.Dir), matching the Codex/Antigravity launchers. Regression test drives a real repo + linked worktree.</p>
+        </section>
+    </article>
+</body>
+</html>

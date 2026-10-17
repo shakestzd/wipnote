@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Claim episode open is not ordered with the work-item transition lock; restart racing a completion leaves no live claim (#199)</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-a9612efb"
+             data-type="bug"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-10-17T19:34:49.026831"
+             data-updated="2026-10-17T19:34:49.029524" data-agent-assigned="claude-code" data-track-id="trk-91673dda" data-created-by-cli-version="dev" data-created_in_session="e41f6acf-9ecd-5cf8-846b-fbd1203fe65e">
+
+        <header>
+            <h1>Claim episode open is not ordered with the work-item transition lock; restart racing a completion leaves no live claim (#199)</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-91673dda.html" data-relationship="part_of" data-since="2026-10-17T19:34:49.029398">trk-91673dda</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>GitHub #199. recordClaimEpisodeOpen runs after col.Start releases the item lock, and claimledger.Open is idempotent so a restart keeps the pre-completion StartedAt; the completion sweep (cutoff = completion UpdatedAt) then closes the restarted claim. Fix: Collection.Start/Complete accept an OnLocked hook run inside mutateNode&#39;s lock; the start-side episode open moves there and opens a FRESH episode (StartedAt = node.UpdatedAt) when the item was not already in progress. The post-commit sweep stays post-commit (rollback safety, TestCompleteSweepsForeignClaimsOnlyAfterCompletionSticks) but re-takes the item lock. closeStartedClaimIfItemDone becomes redundant.</p>
+        </section>
+    </article>
+</body>
+</html>
