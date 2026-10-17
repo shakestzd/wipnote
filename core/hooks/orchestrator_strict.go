@@ -1,6 +1,7 @@
 package hooks
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -97,14 +98,72 @@ var orchestratorWhitelist = map[string]bool{
 // command is a `wipnote` invocation (isWipnoteCLICommand) — a raw string
 // prefix check would let a compound command like `wipnote status && rm -rf x`
 // slip through on its first word alone.
-func isOrchestratorWhitelistedTool(toolName string, toolInput map[string]any) bool {
+//
+// Read qualifies only when the read is short (feat-0e560d63): the orchestrator
+// may glance at a short file itself, but long files must still be delegated
+// to preserve its context. Grep and Glob stay non-whitelisted — they are
+// exploration, which belongs to a subagent.
+func isOrchestratorWhitelistedTool(toolName string, toolInput map[string]any, projectDir string) bool {
 	if orchestratorWhitelist[toolName] {
 		return true
 	}
 	if isShellTool(toolName) {
 		return isWipnoteCLICommand(shellCommand(toolInput))
 	}
+	if toolName == "Read" {
+		return isShortRead(toolInput, projectDir)
+	}
 	return false
+}
+
+const (
+	// orchestratorShortReadLines is the largest read an orchestrator may make
+	// directly, either as an explicit limit or as the file's total length.
+	orchestratorShortReadLines = 200
+	// orchestratorShortReadMaxBytes caps the newline count: a file at least
+	// this large is treated as long without reading it.
+	orchestratorShortReadMaxBytes = 64 * 1024
+)
+
+// orchestratorReadGuidance explains the short-read allowance; it is appended
+// to Read advisories and to the block message.
+const orchestratorReadGuidance = "Read short files (≤200 lines, or one offset/limit range ≤200) directly; " +
+	"delegate long files, multi-file reads and exploration to a subagent (Explore for code)."
+
+// isShortRead reports whether a Read call reads at most
+// orchestratorShortReadLines lines: an explicit limit in range, or a target
+// file that is itself that short. A file that cannot be inspected counts as
+// long, so the guard fails closed.
+func isShortRead(toolInput map[string]any, projectDir string) bool {
+	if limit := toInt(toolInput["limit"]); limit > 0 && limit <= orchestratorShortReadLines {
+		return true
+	}
+	path, _ := toolInput["file_path"].(string)
+	if path == "" {
+		return false
+	}
+	if !filepath.IsAbs(path) && projectDir != "" {
+		path = filepath.Join(projectDir, path)
+	}
+	return fileHasAtMostLines(path, orchestratorShortReadLines)
+}
+
+// fileHasAtMostLines stats first so a large file is never read; a small one
+// is read whole and its lines counted (a final unterminated line counts).
+func fileHasAtMostLines(path string, maxLines int) bool {
+	info, err := os.Stat(path)
+	if err != nil || !info.Mode().IsRegular() || info.Size() >= orchestratorShortReadMaxBytes {
+		return false
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return false
+	}
+	lines := bytes.Count(data, []byte{'\n'})
+	if len(data) > 0 && data[len(data)-1] != '\n' {
+		lines++
+	}
+	return lines <= maxLines
 }
 
 // checkOrchestratorStrictGuard enforces orchestrator mode for the root session.
@@ -130,7 +189,7 @@ func checkOrchestratorStrictGuard(event *CloudEvent, ctx *toolUseContext) (advis
 	if !ok || !cfg.Enabled || event.ToolName == "" {
 		return "", ""
 	}
-	if isOrchestratorWhitelistedTool(event.ToolName, event.ToolInput) {
+	if isOrchestratorWhitelistedTool(event.ToolName, event.ToolInput, ctx.ProjectDir) {
 		return "", ""
 	}
 	if cfg.Mode != OrchestratorModeStrict {
@@ -175,6 +234,9 @@ func orchestratorAdvisory(toolName string, violations, maxViolations int) string
 		msg += fmt.Sprintf(" Violation %d/%d; strict mode blocks at %d.",
 			violations, maxViolations, maxViolations)
 	}
+	if toolName == "Read" {
+		msg += " " + orchestratorReadGuidance
+	}
 	return msg
 }
 
@@ -184,8 +246,9 @@ func orchestratorBlockReason(toolName string, violations, maxViolations int) str
 	return fmt.Sprintf(
 		"Orchestrator strict mode: %s blocked after %d/%d direct-execution violations.\n"+
 			"Delegate via Task(subagent_type=..., prompt=...) instead of running this tool yourself.\n"+
-			"Allowed directly: Task, Agent, AskUserQuestion, TodoWrite, Task* bookkeeping, and `wipnote ...` commands.\n"+
+			"Allowed directly: Task, Agent, AskUserQuestion, TodoWrite, Task* bookkeeping, short Reads, and `wipnote ...` commands.\n"+
+			"%s\n"+
 			"To reset the counter: wipnote orchestrator enable [--strict]\n"+
 			"To take over from a failed subagent: %s=1 in the environment.",
-		toolName, violations, maxViolations, OrchestratorRescueEnv)
+		toolName, violations, maxViolations, orchestratorReadGuidance, OrchestratorRescueEnv)
 }

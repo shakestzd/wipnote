@@ -294,3 +294,68 @@ func TestPreToolUse_OrchestratorStrictAdvisesBeforeBlocking(t *testing.T) {
 		t.Errorf("expected the advisory in additionalContext, got %q", result.AdditionalContext)
 	}
 }
+
+// TestOrchestratorStrictGuard_ShortReads pins feat-0e560d63: the orchestrator
+// may Read a short file (or a short limit range) directly, while long or
+// uninspectable reads remain violations.
+func TestOrchestratorStrictGuard_ShortReads(t *testing.T) {
+	t.Setenv(OrchestratorRescueEnv, "")
+	cases := []struct {
+		name    string
+		lines   int // 0 = do not create the file
+		limit   any
+		allowed bool
+	}{
+		{name: "short file", lines: 200, allowed: true},
+		{name: "long file", lines: 201, allowed: false},
+		{name: "limit within range on long file", lines: 5000, limit: float64(200), allowed: true},
+		{name: "missing file", lines: 0, allowed: false},
+		{name: "limit over range on long file", lines: 5000, limit: float64(201), allowed: false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			projectDir := orchestratorFixture(t, OrchestratorConfig{
+				Enabled: true, Mode: OrchestratorModeStrict, MaxViolations: 3,
+			})
+			path := filepath.Join(projectDir, "target.go")
+			if tc.lines > 0 {
+				body := strings.Repeat("line\n", tc.lines)
+				if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+					t.Fatalf("write target: %v", err)
+				}
+			}
+			input := map[string]any{"file_path": path}
+			if tc.limit != nil {
+				input["limit"] = tc.limit
+			}
+			event := &CloudEvent{ToolName: "Read", ToolInput: input}
+			advisory, block := checkOrchestratorStrictGuard(event, orchestratorCtx(projectDir, false))
+			cfg, _ := LoadOrchestratorConfig(filepath.Join(projectDir, ".wipnote"))
+			if tc.allowed {
+				if advisory != "" || block != "" || cfg.Violations != 0 {
+					t.Errorf("want allowed, got advisory=%q block=%q violations=%d",
+						advisory, block, cfg.Violations)
+				}
+				return
+			}
+			if cfg.Violations != 1 || block != "" {
+				t.Errorf("want one counted violation, got violations=%d block=%q", cfg.Violations, block)
+			}
+			if !strings.Contains(advisory, "Read short files") {
+				t.Errorf("advisory should carry short-read guidance, got %q", advisory)
+			}
+		})
+	}
+}
+
+// TestFileHasAtMostLines_LargeFileIsLong pins that a file at the byte cap
+// counts as long without its lines being counted.
+func TestFileHasAtMostLines_LargeFileIsLong(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "big.txt")
+	if err := os.WriteFile(path, make([]byte, orchestratorShortReadMaxBytes), 0o644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	if fileHasAtMostLines(path, orchestratorShortReadLines) {
+		t.Error("a file at the byte cap must count as long")
+	}
+}
