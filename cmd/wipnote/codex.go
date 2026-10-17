@@ -591,11 +591,6 @@ func pruneCodexGlobalHooksFromCache() (bool, error) {
 	return pruneCodexGlobalHooksInstalled(codexHooksPath(), codexInstalledPluginDirAt(codexPluginCachePath()))
 }
 
-type codexCustomAgentHeader struct {
-	Name        string `toml:"name"`
-	Description string `toml:"description"`
-}
-
 func ensureCodexAgentsFromCache() (bool, error) {
 	return ensureCodexCustomAgentsInstalled(codexInstalledPluginDirAt(codexPluginCachePath()), codexAgentsPath())
 }
@@ -675,31 +670,41 @@ func sameFileContent(a, b string) bool {
 	return string(left) == string(right)
 }
 
-func buildCodexAgentConfigArgs(agentsDir string) []string {
+// removeCodexProjectAgentCopies deletes wipnote-*.toml files that older
+// wipnote versions copied into <project>/.codex/agents. wipnote now
+// registers its agents only once, in ~/.codex/agents: Codex discovers roles
+// from every config layer's `agents/` folder
+// (codex-rs/agent-roles/src/loader.rs:75-79), so the user-level copy is
+// already visible in every project. A leftover project copy is worse than
+// redundant — the project layer sits above the user layer and its role
+// replaces the user one (loader.rs:100-112), so a stale project file would
+// shadow the freshly-synced user-level agent. Only wipnote-*.toml files are
+// touched (wipnote overwrote them on every launch, so they hold no user
+// edits); anything else in the directory is left alone.
+func removeCodexProjectAgentCopies(projectRoot string) (bool, error) {
+	agentsDir := codexProjectAgentsPath(projectRoot)
+	if agentsDir == "" {
+		return false, nil
+	}
 	entries, err := os.ReadDir(agentsDir)
 	if err != nil {
-		return nil
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		return false, fmt.Errorf("reading project Codex agents %s: %w", agentsDir, err)
 	}
-	var args []string
+	changed := false
 	for _, entry := range entries {
-		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".toml") {
+		name := entry.Name()
+		if entry.IsDir() || !strings.HasPrefix(name, "wipnote-") || !strings.HasSuffix(name, ".toml") {
 			continue
 		}
-		path := filepath.Join(agentsDir, entry.Name())
-		data, err := os.ReadFile(path)
-		if err != nil {
-			continue
+		if err := os.Remove(filepath.Join(agentsDir, name)); err != nil {
+			return changed, fmt.Errorf("removing project Codex agent copy %s: %w", name, err)
 		}
-		var header codexCustomAgentHeader
-		if err := toml.Unmarshal(data, &header); err != nil || header.Name == "" {
-			continue
-		}
-		if header.Description != "" {
-			args = append(args, "-c", fmt.Sprintf("agents.%s.description=%q", header.Name, header.Description))
-		}
-		args = append(args, "-c", fmt.Sprintf("agents.%s.config_file=%q", header.Name, filepath.ToSlash(path)))
+		changed = true
 	}
-	return args
+	return changed, nil
 }
 
 func copyDir(src, dst string) error {
@@ -1320,11 +1325,14 @@ func refreshCodexPluginCacheBestEffort(configPath string, setup *[]launchtui.Ban
 	} else if changed {
 		*setup = append(*setup, launchtui.BannerDetail{Label: "User agents", Value: "installed in ~/.codex/agents"})
 	}
+	// No project-level copy: Codex already discovers ~/.codex/agents for
+	// every project. Clean up copies left by older wipnote versions so they
+	// cannot shadow the user-level agents (see removeCodexProjectAgentCopies).
 	projectRoot, _ := resolveProjectRoot()
-	if changed, err := ensureCodexCustomAgentsInstalled(pluginDir, codexProjectAgentsPath(projectRoot)); err != nil {
-		fmt.Fprintf(os.Stderr, "warning: could not install project wipnote Codex agents: %v\n", err)
+	if changed, err := removeCodexProjectAgentCopies(projectRoot); err != nil {
+		fmt.Fprintf(os.Stderr, "warning: could not remove legacy project wipnote Codex agents: %v\n", err)
 	} else if changed {
-		*setup = append(*setup, launchtui.BannerDetail{Label: "Project agents", Value: "installed in .codex/agents"})
+		*setup = append(*setup, launchtui.BannerDetail{Label: "Project agents", Value: "removed legacy copies from .codex/agents"})
 	}
 	return nil
 }
@@ -1420,11 +1428,13 @@ func refreshCodexPluginCacheDev(configPath string) ([]launchtui.BannerDetail, er
 	} else if changed {
 		setup = append(setup, launchtui.BannerDetail{Label: "User agents", Value: "installed in ~/.codex/agents"})
 	}
+	// No project-level copy (see refreshCodexPluginCacheBestEffort); only
+	// remove legacy copies so they cannot shadow the user-level agents.
 	projectRoot, _ := resolveProjectRoot()
-	if changed, err := ensureCodexCustomAgentsInstalled(pluginDir, codexProjectAgentsPath(projectRoot)); err != nil {
-		return nil, fmt.Errorf("installing project wipnote Codex agents: %w", err)
+	if changed, err := removeCodexProjectAgentCopies(projectRoot); err != nil {
+		return nil, fmt.Errorf("removing legacy project wipnote Codex agents: %w", err)
 	} else if changed {
-		setup = append(setup, launchtui.BannerDetail{Label: "Project agents", Value: "installed in .codex/agents"})
+		setup = append(setup, launchtui.BannerDetail{Label: "Project agents", Value: "removed legacy copies from .codex/agents"})
 	}
 	return setup, nil
 }
@@ -1538,12 +1548,12 @@ func execCodex(opts codexLaunchOpts) error {
 		sandboxDegraded = true
 		fmt.Fprintln(os.Stderr, renderCodexWarningBanner(notice))
 	}
-	configArgs := append([]string{}, instructionArgs...)
-	configArgs = append(configArgs, buildCodexAgentConfigArgs(codexAgentsPath())...)
-	if opts.ProjectRoot != "" {
-		configArgs = append(configArgs, buildCodexAgentConfigArgs(codexProjectAgentsPath(opts.ProjectRoot))...)
-	}
-	codexArgs := buildCodexArgs(opts, otelPort, configArgs)
+	// No `-c agents.<name>.*` flags: Codex discovers roles from each config
+	// layer's agents/ folder (codex-rs/agent-roles/src/loader.rs:75-79), so
+	// the TOMLs synced into ~/.codex/agents are registered natively. The old
+	// flags re-registered every TOML (the user's own agents included) a
+	// second time at the session-flags layer.
+	codexArgs := buildCodexArgs(opts, otelPort, instructionArgs)
 	c := exec.Command(codexPath, codexArgs...)
 	c.Stdin = os.Stdin
 	c.Stdout = os.Stdout

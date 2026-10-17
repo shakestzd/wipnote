@@ -599,34 +599,50 @@ func TestEnsureCodexCustomAgentsInstalledPrunesStaleWipnoteAgents(t *testing.T) 
 	}
 }
 
-func TestBuildCodexAgentConfigArgs(t *testing.T) {
-	tmpdir := t.TempDir()
-	agentsDir := filepath.Join(tmpdir, ".codex", "agents")
-	if err := os.MkdirAll(agentsDir, 0755); err != nil {
-		t.Fatalf("MkdirAll agents dir: %v", err)
+// TestRemoveCodexProjectAgentCopies verifies that legacy wipnote-*.toml
+// copies in <project>/.codex/agents are removed (they would shadow the
+// user-level agents) while the user's own project agents are preserved.
+func TestRemoveCodexProjectAgentCopies(t *testing.T) {
+	projectRoot := t.TempDir()
+
+	// No .codex/agents dir: no-op, no error, nothing created.
+	if changed, err := removeCodexProjectAgentCopies(projectRoot); err != nil || changed {
+		t.Fatalf("missing dir: changed=%v err=%v; want false, nil", changed, err)
 	}
-	agentPath := filepath.Join(agentsDir, "wipnote-test-runner.toml")
-	body := "name = \"wipnote-test-runner\"\ndescription = \"Run focused checks\"\ndeveloper_instructions = \"Run tests.\"\n"
-	if err := os.WriteFile(agentPath, []byte(body), 0644); err != nil {
-		t.Fatalf("WriteFile agent: %v", err)
+	if _, err := os.Stat(filepath.Join(projectRoot, ".codex")); !os.IsNotExist(err) {
+		t.Fatalf("must not create .codex, stat err=%v", err)
 	}
-	if err := os.WriteFile(filepath.Join(agentsDir, "broken.toml"), []byte("not toml ="), 0644); err != nil {
-		t.Fatalf("WriteFile broken agent: %v", err)
+	if changed, err := removeCodexProjectAgentCopies(""); err != nil || changed {
+		t.Fatalf("empty root: changed=%v err=%v; want false, nil", changed, err)
 	}
 
-	got := buildCodexAgentConfigArgs(agentsDir)
-	joined := strings.Join(got, "\n")
-	for _, want := range []string{
-		"-c",
-		`agents.wipnote-test-runner.description="Run focused checks"`,
-		`agents.wipnote-test-runner.config_file="` + filepath.ToSlash(agentPath) + `"`,
-	} {
-		if !strings.Contains(joined, want) {
-			t.Fatalf("agent config args missing %q in %v", want, got)
+	agentsDir := filepath.Join(projectRoot, ".codex", "agents")
+	if err := os.MkdirAll(agentsDir, 0755); err != nil {
+		t.Fatalf("MkdirAll: %v", err)
+	}
+	for _, name := range []string{"wipnote-test-runner.toml", "wipnote-researcher.toml", "my-agent.toml", "wipnote-notes.md"} {
+		if err := os.WriteFile(filepath.Join(agentsDir, name), []byte("name = \"x\"\n"), 0644); err != nil {
+			t.Fatalf("WriteFile %s: %v", name, err)
 		}
 	}
-	if strings.Contains(joined, "broken") {
-		t.Fatalf("broken TOML should not produce config args: %v", got)
+
+	changed, err := removeCodexProjectAgentCopies(projectRoot)
+	if err != nil || !changed {
+		t.Fatalf("changed=%v err=%v; want true, nil", changed, err)
+	}
+	for _, gone := range []string{"wipnote-test-runner.toml", "wipnote-researcher.toml"} {
+		if _, err := os.Stat(filepath.Join(agentsDir, gone)); !os.IsNotExist(err) {
+			t.Fatalf("legacy copy %s should be removed, stat err=%v", gone, err)
+		}
+	}
+	for _, kept := range []string{"my-agent.toml", "wipnote-notes.md"} {
+		if _, err := os.Stat(filepath.Join(agentsDir, kept)); err != nil {
+			t.Fatalf("%s must be preserved: %v", kept, err)
+		}
+	}
+
+	if changed, err := removeCodexProjectAgentCopies(projectRoot); err != nil || changed {
+		t.Fatalf("second run: changed=%v err=%v; want false, nil", changed, err)
 	}
 }
 
