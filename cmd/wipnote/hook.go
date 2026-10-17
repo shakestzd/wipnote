@@ -91,8 +91,9 @@ Usage in hooks.json:
 		hookSubcmd("teammate-idle", "Handle TeammateIdle event", continueResult, hooks.TeammateIdle),
 		hookSubcmd("task-completed", "Handle TaskCompleted event", continueResult, hooks.TaskCompleted),
 		hookSubcmd("task-created", "Handle TaskCreated event", continueResult, hooks.TaskCreated),
-		// task-started / task-aborted are NOT registered for any harness in
-		// packages/plugin-core/manifest.json and never were reachable: they were
+		// task-started is NOT registered for any harness in
+		// packages/plugin-core/manifest.json (task-aborted now is: Codex
+		// Interrupt, see below). Both were originally unreachable: they were
 		// bound to the Codex names TaskStarted and TurnAborted, neither of which
 		// Codex dispatches (bug-e39d408f — TaskStarted appears zero times in the
 		// 0.147.0 binary; TurnAborted is an internal ThreadEvent telemetry
@@ -107,7 +108,9 @@ Usage in hooks.json:
 			func(event *hooks.CloudEvent, database *sql.DB) (*hooks.HookResult, error) {
 				return hooks.TrackEvent("TaskStarted", event, database)
 			}),
-		hookSubcmd("task-aborted", "Record a turn-abort checkpoint (not wired to any harness event)", continueResult,
+		// task-aborted is now wired to Codex's Interrupt event (0.150.0+), the
+		// real turn-cancel signal it was kept for; a cancelled turn skips Stop.
+		hookSubcmd("task-aborted", "Record a turn-abort checkpoint (Codex Interrupt)", continueResult,
 			func(event *hooks.CloudEvent, database *sql.DB) (*hooks.HookResult, error) {
 				return hooks.TrackEvent("TurnAborted", event, database)
 			}),

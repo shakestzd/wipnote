@@ -1177,3 +1177,29 @@ func TestAllowForHarnessEmitsGeminiContinue(t *testing.T) {
 		t.Errorf("Gemini allow response continue = %v, want true", got["continue"])
 	}
 }
+
+// Codex's Interrupt output schema is deny_unknown_fields with systemMessage as
+// its only field; the universal "continue" would fail the hook.
+func TestEmitCodexResponse_InterruptOnlySystemMessage(t *testing.T) {
+	for name, res := range map[string]*HookResult{
+		"empty":   {},
+		"message": {Message: "turn cancelled", Continue: true, AdditionalContext: "ignored"},
+	} {
+		var buf bytes.Buffer
+		if err := emitCodexResponseForEvent(&buf, "Interrupt", res); err != nil {
+			t.Fatal(err)
+		}
+		var out map[string]any
+		if err := json.Unmarshal(buf.Bytes(), &out); err != nil {
+			t.Fatalf("%s: not JSON: %v", name, err)
+		}
+		for k := range out {
+			if k != "systemMessage" {
+				t.Errorf("%s: Interrupt output carries %q; Codex accepts only systemMessage: %s", name, k, buf.String())
+			}
+		}
+		if res.Message != "" && out["systemMessage"] != res.Message {
+			t.Errorf("%s: systemMessage = %v, want %q", name, out["systemMessage"], res.Message)
+		}
+	}
+}

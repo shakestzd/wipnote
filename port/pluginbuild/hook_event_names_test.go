@@ -138,7 +138,10 @@ func TestFixtureManifestPassesHookEventGate(t *testing.T) {
 	}
 }
 
-// TestCodexHookEventVocabulary locks the verified Codex 0.147.0 event set.
+// TestCodexHookEventVocabulary locks the verified Codex event set: the 11 of
+// 0.147.0 plus Interrupt, added in 0.150.0 (HOOK_EVENT_NAMES in
+// codex-rs/hooks/src/lib.rs, re-checked at rust-v0.150.0 and rust-v0.163.0 on
+// 2026-10-17; it is absent at rust-v0.147.0).
 // Ground truth (trk-1db7bf72) was established three independent ways: the
 // HookEventNameWire enum plus 11 embedded JSON schemas extracted from the Rust
 // binary, a live black-box ~/.codex/hooks.json dispatch test, and
@@ -149,7 +152,7 @@ func TestCodexHookEventVocabulary(t *testing.T) {
 		"SessionStart": {}, "SessionEnd": {}, "UserPromptSubmit": {},
 		"PreToolUse": {}, "PostToolUse": {}, "PermissionRequest": {},
 		"PreCompact": {}, "PostCompact": {}, "SubagentStart": {},
-		"SubagentStop": {}, "Stop": {},
+		"SubagentStop": {}, "Stop": {}, "Interrupt": {},
 	}
 	got := harnessHookEventNames["codex"]
 	if len(got) != len(want) {
@@ -163,7 +166,7 @@ func TestCodexHookEventVocabulary(t *testing.T) {
 	}
 	for name := range got {
 		if _, ok := want[name]; !ok {
-			t.Errorf("codex vocabulary has unverified event %q; Codex 0.147.0 dispatches exactly 11", name)
+			t.Errorf("codex vocabulary has unverified event %q; Codex 0.163.0 dispatches exactly 12", name)
 		}
 	}
 }

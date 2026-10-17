@@ -79,7 +79,10 @@ type hookEventNameSpec struct {
 //	              (2026-08-07, trk-1db7bf72): the HookEventNameWire enum and 11
 //	              embedded JSON schemas extracted from the Rust binary; a live
 //	              black-box ~/.codex/hooks.json dispatch test; and
-//	              learn.chatgpt.com/docs/hooks. Exactly 11 events, no more.
+//	              learn.chatgpt.com/docs/hooks. Exactly 11 events in 0.147.0;
+//	              0.150.0 added a 12th, Interrupt (codex-rs/hooks/src/lib.rs
+//	              HOOK_EVENT_NAMES, checked against the rust-v0.150.0 and
+//	              rust-v0.163.0 tags, 2026-10-17).
 //	antigravity — Antigravity CLI (agy) v1.0.8, verified live (feat-c08b20a6):
 //	              only five names register a command handler.
 //
@@ -124,6 +127,12 @@ var hookEventNameSpecs = []hookEventNameSpec{
 		DocURL:     "https://code.claude.com/docs/en/hooks",
 		Provenance: "Claude Code hooks doc; Codex 0.147.0 HookEventNameWire; agy v1.0.8 uses the same name.",
 		Harnesses:  map[string]string{"claude": "Stop", "codex": "Stop", "antigravity": "Stop"},
+	},
+	{
+		Name:       "Interrupt",
+		DocURL:     "https://learn.chatgpt.com/docs/hooks",
+		Provenance: "Codex 0.150.0+ HOOK_EVENT_NAMES (codex-rs/hooks/src/lib.rs at rust-v0.150.0 and rust-v0.163.0); fires when the user cancels a turn, which skips Stop. Output schema is systemMessage only; timeout defaults to 1s, capped at 3s.",
+		Harnesses:  map[string]string{"codex": "Interrupt"},
 	},
 	{
 		Name:       "SubagentStart",
