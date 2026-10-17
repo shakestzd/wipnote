@@ -70,4 +70,4 @@ Do not use the production default port 8080 for devcontainer dashboard sessions.
 
 ## Temporal Awareness
 
-A `UserPromptSubmit` hook injects the current local timestamp (with timezone) on every user prompt. Use it to reason about elapsed time between messages — detect stale context in long sessions, recognize when a session has been resumed after a gap, and avoid treating old references as fresh.
+On Claude Code, a `UserPromptSubmit` hook injects the current local timestamp (with timezone) on every user prompt. Codex supplies the current date and timezone in its own environment context, so wipnote adds none there. Use it to reason about elapsed time between messages — detect stale context in long sessions, recognize when a session has been resumed after a gap, and avoid treating old references as fresh.
