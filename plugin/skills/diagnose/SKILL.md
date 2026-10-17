@@ -2,6 +2,7 @@
 name: diagnose
 description: "Diagnose bugs, errors, and issues with root cause analysis. Use when asked to diagnose, debug, investigate, or find root cause of any problem — whether a wipnote bug ID, error message, unexpected behavior, or delegation audit."
 user-invocable: true
+context: fork
 ---
 
 # /wipnote:diagnose
