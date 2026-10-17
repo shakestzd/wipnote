@@ -11,6 +11,7 @@ import (
 
 	"github.com/shakestzd/wipnote/core/daemon"
 	"github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/ingest"
 	"github.com/shakestzd/wipnote/core/models"
 )
 
@@ -49,11 +50,17 @@ func PostToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 	} else {
 		eventID, err = db.FindStartedEvent(database, ctx.SessionID, event.ToolName)
 	}
-	if err != nil {
-		return &HookResult{Continue: true}, nil
+	if err == nil {
+		_ = db.UpdateEventFields(database, eventID, status, outputSummary)
+	} else {
+		// bug-07fd4a51: a lookup miss is the NORMAL production case — pretooluse
+		// runs on the read-only projection and routes its started row to the
+		// daemon, so this disk handle never sees it. Never return early here:
+		// everything below (session HTML, sweep, commit linking, quality
+		// warning, attribution, auto-complete) must still run. Fall back to the
+		// deterministic per-call id so the HTML entry is still keyed.
+		eventID = ingest.EventID(ctx.SessionID, event.ToolUseID, event.ToolName, 0)
 	}
-
-	_ = db.UpdateEventFields(database, eventID, status, outputSummary)
 
 	// Append event to session HTML activity log (non-critical, errors silently logged).
 	AppendEventToSessionHTML(ctx.ProjectDir, ctx.SessionID, SessionEvent{
