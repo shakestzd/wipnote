@@ -1,29 +1,28 @@
 package harness
 
-import (
-	"fmt"
-)
-
 // _codexOtelID must match otel.HarnessCodex ("codex").
 // Cross-package assertion is in registry_test.go (TestRegistry_IDsMatchOtelConsts).
 const _codexOtelID = "codex"
 
-// Env var name constants for the Codex OTel env injection.
-// Declared here so the names are co-located with the function that uses them.
-const (
-	codexEnvOTLPEndpoint = "OTEL_EXPORTER_OTLP_ENDPOINT"
-	codexEnvServiceName  = "OTEL_SERVICE_NAME"
-	codexEnvOtelSession  = "WIPNOTE_OTEL_SESSION"
-)
+// codexEnvOtelSession carries the wipnote collector session ID to wipnote's
+// own hook subprocesses; it is not an OTel SDK variable.
+const codexEnvOtelSession = "WIPNOTE_OTEL_SESSION"
 
-// codexOtelEnv returns the OTel-related environment variables to inject when
-// launching the Codex CLI. The port and sessionID come from the per-session
-// collector spawned by the launcher.
-func codexOtelEnv(port int, sessionID string) []string {
-	endpoint := fmt.Sprintf("http://127.0.0.1:%d", port)
+// codexOtelEnv returns the environment variables to inject when launching the
+// Codex CLI. The sessionID comes from the per-session collector spawned by the
+// launcher; port is unused (see below) and kept only for the OtelEnvFunc
+// signature.
+//
+// Deliberately NO OTEL_EXPORTER_OTLP_ENDPOINT / OTEL_SERVICE_NAME: Codex is
+// configured only through its [otel] config, which the launcher passes as
+// `-c otel.*` (buildCodexOtelConfigArgs). Codex sets the exporter endpoint
+// explicitly from that config (codex-rs/otel/src/provider.rs:475 with_endpoint)
+// and the service name explicitly in code (provider.rs:364-365
+// with_service_name), and nothing in codex-rs reads either env var. Setting
+// them did nothing for Codex but leaked into every tool subprocess Codex runs,
+// where any OTel-instrumented program would export to wipnote's collector.
+func codexOtelEnv(_ int, sessionID string) []string {
 	return []string{
-		codexEnvOTLPEndpoint + "=" + endpoint,
-		codexEnvServiceName + "=codex-cli",
 		codexEnvOtelSession + "=" + sessionID,
 	}
 }

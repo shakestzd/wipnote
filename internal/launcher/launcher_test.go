@@ -3,6 +3,7 @@ package launcher
 import (
 	"os"
 	"os/exec"
+	"strings"
 	"syscall"
 	"testing"
 )
@@ -37,10 +38,10 @@ func TestBuildHarnessOtelEnv_ZeroPortReturnsBase(t *testing.T) {
 func TestBuildHarnessOtelEnv_AddsHarnessVars(t *testing.T) {
 	got := BuildHarnessOtelEnv(nil, "codex", 4317, "sess-abc")
 
+	// Codex takes its exporter config only from `-c otel.*` overrides, so its
+	// harness env carries just the wipnote session ID (no OTEL_* vars).
 	expect := map[string]bool{
-		"OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4317": false,
-		"OTEL_SERVICE_NAME=codex-cli":                       false,
-		"WIPNOTE_OTEL_SESSION=sess-abc":                     false,
+		"WIPNOTE_OTEL_SESSION=sess-abc": false,
 	}
 	for _, entry := range got {
 		if _, ok := expect[entry]; ok {
@@ -50,6 +51,11 @@ func TestBuildHarnessOtelEnv_AddsHarnessVars(t *testing.T) {
 	for entry, seen := range expect {
 		if !seen {
 			t.Fatalf("missing env entry %q in %#v", entry, got)
+		}
+	}
+	for _, entry := range got {
+		if strings.HasPrefix(entry, "OTEL_") {
+			t.Fatalf("codex env must not carry OTel SDK vars, got %q", entry)
 		}
 	}
 }

@@ -37,10 +37,11 @@ The command writes each target's tree under the `outDir` declared in
 Codex custom agents have a second runtime step: `wipnote codex --init`,
 `wipnote codex`, and `wipnote codex --dev` mirror the generated
 `port/packages/codex-marketplace/.agents/plugins/wipnote/agents/*.toml` files into
-Codex's documented custom-agent lookup directory. Normal installs use
-`~/.codex/agents`; dev launches also refresh project-local `.codex/agents`.
-The launcher additionally passes explicit `-c agents.<name>.config_file=...`
-overrides so fresh Codex CLI sessions do not rely only on plugin-cache discovery.
+Codex's user-level custom-agent lookup directory, `~/.codex/agents`, which
+Codex scans natively (codex-rs agent-roles loader). Nothing is written to the
+project's `.codex/agents`: the project layer outranks the user layer, so a copy
+there would shadow updates, and the launcher removes stale `wipnote-*.toml`
+left there by older versions. No `-c agents.*` overrides are passed.
 
 Current limitation: some tool-backed Codex sessions still expose only generic
 `default`, `explorer`, and `worker` spawn roles even when custom-agent TOML files

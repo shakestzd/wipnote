@@ -95,11 +95,19 @@ func isCodexMarketplaceInstalledAt(configPath string) bool {
 		strings.Contains(content, `[plugins."wipnote@wipnote"]`)
 }
 
-// isCodexHooksEnabledAt reports whether Codex hooks are enabled in config.toml.
-// Returns true ONLY when the canonical [features].hooks key is enabled.
-// The legacy codex_hooks key is recognized by ensureCodexHooksEnabled during
-// migration, but does not suppress the migration check here.
-func isCodexHooksEnabledAt(configPath string) bool {
+// isCodexHooksExplicitlyDisabledAt reports whether the user's config.toml
+// turns Codex hooks OFF. wipnote no longer writes `[features] hooks = true`:
+// the hooks feature is Stage::Stable with default_enabled: true
+// (codex-rs/features/src/lib.rs:1357-1362), so an absent key already means
+// "on", and rewriting the user's config on every launch was needless churn.
+// The only case left to handle is a deliberate opt-out, which we respect and
+// merely warn about (see warnIfCodexHooksDisabled).
+//
+// Resolution mirrors Codex: `codex_hooks` is a deprecated alias of the same
+// feature (codex-rs/features/src/legacy.rs:48-51) and Features::apply_map
+// walks a BTreeMap (codex-rs/features/src/lib.rs:644-645), so "codex_hooks"
+// is applied before "hooks" and the canonical key wins when both are set.
+func isCodexHooksExplicitlyDisabledAt(configPath string) bool {
 	data, err := os.ReadFile(configPath)
 	if err != nil {
 		return false
@@ -114,13 +122,23 @@ func isCodexHooksEnabledAt(configPath string) bool {
 	if !ok {
 		return false
 	}
-	// Only return true for the canonical hooks key, not the legacy codex_hooks.
-	// This ensures configs with only codex_hooks=true are treated as "not enabled"
-	// and will trigger migration via ensureCodexHooksEnabled.
-	if enabled, ok := features["hooks"].(bool); ok && enabled {
-		return true
+	if enabled, ok := features["hooks"].(bool); ok {
+		return !enabled
+	}
+	if enabled, ok := features["codex_hooks"].(bool); ok {
+		return !enabled
 	}
 	return false
+}
+
+// warnIfCodexHooksDisabled prints a stderr warning (never rewrites the
+// config) when the user has explicitly disabled Codex hooks, since every
+// wipnote Codex integration — attribution, guards, session tracking — rides
+// on hooks and would otherwise fail silently.
+func warnIfCodexHooksDisabled(configPath string) {
+	if isCodexHooksExplicitlyDisabledAt(configPath) {
+		fmt.Fprintf(os.Stderr, "wipnote: warning: Codex hooks are disabled in %s ([features] hooks = false); wipnote hooks will not run. Remove that line or set it to true to enable them.\n", configPath)
+	}
 }
 
 // isCodexPluginEnabledAt returns true when the wipnote plugin itself is enabled.
@@ -317,46 +335,6 @@ func removeCodexWipnoteRegistrations(configPath string) (bool, error) {
 	}
 
 	return true, nil
-}
-
-// ensureCodexHooksEnabled parses the config.toml file, merges hooks = true into
-// the [features] table (creating the section if absent), removes the deprecated
-// codex_hooks key, and writes it back. This is idempotent.
-func ensureCodexHooksEnabled(configPath string) error {
-	// Read existing config, if any
-	data, err := os.ReadFile(configPath)
-	if err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("reading %s: %w", configPath, err)
-	}
-
-	// Parse or create the TOML tree
-	tree := make(map[string]any)
-	if err == nil && len(data) > 0 {
-		if err := toml.Unmarshal(data, &tree); err != nil {
-			return fmt.Errorf("parsing %s: %w", configPath, err)
-		}
-	}
-
-	// Ensure [features] table exists and set hooks = true.
-	features, ok := tree["features"].(map[string]any)
-	if !ok {
-		features = make(map[string]any)
-		tree["features"] = features
-	}
-	features["hooks"] = true
-	delete(features, "codex_hooks")
-
-	// Marshal back to TOML and write
-	newData, err := toml.Marshal(tree)
-	if err != nil {
-		return fmt.Errorf("marshaling TOML: %w", err)
-	}
-
-	if err := os.WriteFile(configPath, newData, 0644); err != nil {
-		return fmt.Errorf("writing %s: %w", configPath, err)
-	}
-
-	return nil
 }
 
 // ensureCodexPluginEnabled enables the installed marketplace plugin so Codex
@@ -613,11 +591,6 @@ func pruneCodexGlobalHooksFromCache() (bool, error) {
 	return pruneCodexGlobalHooksInstalled(codexHooksPath(), codexInstalledPluginDirAt(codexPluginCachePath()))
 }
 
-type codexCustomAgentHeader struct {
-	Name        string `toml:"name"`
-	Description string `toml:"description"`
-}
-
 func ensureCodexAgentsFromCache() (bool, error) {
 	return ensureCodexCustomAgentsInstalled(codexInstalledPluginDirAt(codexPluginCachePath()), codexAgentsPath())
 }
@@ -697,31 +670,41 @@ func sameFileContent(a, b string) bool {
 	return string(left) == string(right)
 }
 
-func buildCodexAgentConfigArgs(agentsDir string) []string {
+// removeCodexProjectAgentCopies deletes wipnote-*.toml files that older
+// wipnote versions copied into <project>/.codex/agents. wipnote now
+// registers its agents only once, in ~/.codex/agents: Codex discovers roles
+// from every config layer's `agents/` folder
+// (codex-rs/agent-roles/src/loader.rs:75-79), so the user-level copy is
+// already visible in every project. A leftover project copy is worse than
+// redundant — the project layer sits above the user layer and its role
+// replaces the user one (loader.rs:100-112), so a stale project file would
+// shadow the freshly-synced user-level agent. Only wipnote-*.toml files are
+// touched (wipnote overwrote them on every launch, so they hold no user
+// edits); anything else in the directory is left alone.
+func removeCodexProjectAgentCopies(projectRoot string) (bool, error) {
+	agentsDir := codexProjectAgentsPath(projectRoot)
+	if agentsDir == "" {
+		return false, nil
+	}
 	entries, err := os.ReadDir(agentsDir)
 	if err != nil {
-		return nil
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		return false, fmt.Errorf("reading project Codex agents %s: %w", agentsDir, err)
 	}
-	var args []string
+	changed := false
 	for _, entry := range entries {
-		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".toml") {
+		name := entry.Name()
+		if entry.IsDir() || !strings.HasPrefix(name, "wipnote-") || !strings.HasSuffix(name, ".toml") {
 			continue
 		}
-		path := filepath.Join(agentsDir, entry.Name())
-		data, err := os.ReadFile(path)
-		if err != nil {
-			continue
+		if err := os.Remove(filepath.Join(agentsDir, name)); err != nil {
+			return changed, fmt.Errorf("removing project Codex agent copy %s: %w", name, err)
 		}
-		var header codexCustomAgentHeader
-		if err := toml.Unmarshal(data, &header); err != nil || header.Name == "" {
-			continue
-		}
-		if header.Description != "" {
-			args = append(args, "-c", fmt.Sprintf("agents.%s.description=%q", header.Name, header.Description))
-		}
-		args = append(args, "-c", fmt.Sprintf("agents.%s.config_file=%q", header.Name, filepath.ToSlash(path)))
+		changed = true
 	}
-	return args
+	return changed, nil
 }
 
 func copyDir(src, dst string) error {
@@ -861,7 +844,11 @@ Session IDs come from ~/.codex/session_index.jsonl.`,
 // runCodexInit installs the wipnote Codex marketplace plugin, idempotently.
 // Corresponds to: wipnote codex --init
 // Phase 1: Install / verify marketplace (idempotent).
-// Phase 2: Check hooks feature flag — prompt user if not set.
+// Phase 2: Warn (never rewrite) if the user explicitly disabled Codex hooks.
+//
+// `yes` no longer drives any prompt here (the hooks-flag prompt was the only
+// one), but the parameter and the --yes flag are kept so existing scripts
+// that pass `wipnote codex --init --yes` keep working.
 //
 // Phase B of the marketplace-to-bundled-plugin migration: --init now points
 // Codex at the bundled local marketplace tree resolved via
@@ -915,22 +902,11 @@ func runCodexInit(yes, dryRun bool) error {
 		setup = append(setup, launchtui.BannerDetail{Label: "Marketplace", Value: "already installed (bundled)"})
 	}
 
-	// Phase 2: Check and optionally enable the hooks feature flag.
-	// This runs on every --init so partial setups can be repaired.
-	if !isCodexHooksEnabledAt(configPath) {
-		if promptYesNo("Enable the hooks feature flag in ~/.codex/config.toml?", yes) {
-			if dryRun {
-				setup = append(setup, launchtui.BannerDetail{Label: "Hooks flag", Value: "[dry-run] would enable hooks = true in ~/.codex/config.toml"})
-			} else {
-				if err := ensureCodexHooksEnabled(configPath); err != nil {
-					fmt.Fprintf(os.Stderr, "warning: could not enable hooks feature flag: %v\n", err)
-				} else {
-					setup = append(setup, launchtui.BannerDetail{Label: "Hooks flag", Value: "enabled"})
-				}
-			}
-		}
-	} else {
-		setup = append(setup, launchtui.BannerDetail{Label: "Hooks flag", Value: "already enabled"})
+	// Phase 2: hooks are on by default in Codex, so --init no longer writes
+	// [features] hooks = true; it only reports an explicit user opt-out.
+	if isCodexHooksExplicitlyDisabledAt(configPath) {
+		warnIfCodexHooksDisabled(configPath)
+		setup = append(setup, launchtui.BannerDetail{Label: "Hooks flag", Value: "disabled by user config (not changed)"})
 	}
 
 	// Phase 3: enable the actual plugin. Without this, the marketplace is
@@ -1312,13 +1288,9 @@ func prepareCodexBundledMarketplace(configPath string) ([]launchtui.BannerDetail
 		}
 		setup = append(setup, launchtui.BannerDetail{Label: "Marketplace", Value: "registered (bundled): " + bundledDir})
 	}
-	if !isCodexHooksEnabledAt(configPath) {
-		if err := ensureCodexHooksEnabled(configPath); err != nil {
-			fmt.Fprintf(os.Stderr, "warning: could not enable hooks feature flag: %v\n", err)
-		} else {
-			setup = append(setup, launchtui.BannerDetail{Label: "Hooks flag", Value: "enabled"})
-		}
-	}
+	// Hooks are on by default in Codex; never rewrite config.toml for them,
+	// only warn when the user explicitly turned them off.
+	warnIfCodexHooksDisabled(configPath)
 	if !isCodexPluginEnabledAt(configPath) {
 		if err := ensureCodexPluginEnabled(configPath); err != nil {
 			fmt.Fprintf(os.Stderr, "warning: could not enable wipnote Codex plugin: %v\n", err)
@@ -1353,11 +1325,14 @@ func refreshCodexPluginCacheBestEffort(configPath string, setup *[]launchtui.Ban
 	} else if changed {
 		*setup = append(*setup, launchtui.BannerDetail{Label: "User agents", Value: "installed in ~/.codex/agents"})
 	}
+	// No project-level copy: Codex already discovers ~/.codex/agents for
+	// every project. Clean up copies left by older wipnote versions so they
+	// cannot shadow the user-level agents (see removeCodexProjectAgentCopies).
 	projectRoot, _ := resolveProjectRoot()
-	if changed, err := ensureCodexCustomAgentsInstalled(pluginDir, codexProjectAgentsPath(projectRoot)); err != nil {
-		fmt.Fprintf(os.Stderr, "warning: could not install project wipnote Codex agents: %v\n", err)
+	if changed, err := removeCodexProjectAgentCopies(projectRoot); err != nil {
+		fmt.Fprintf(os.Stderr, "warning: could not remove legacy project wipnote Codex agents: %v\n", err)
 	} else if changed {
-		*setup = append(*setup, launchtui.BannerDetail{Label: "Project agents", Value: "installed in .codex/agents"})
+		*setup = append(*setup, launchtui.BannerDetail{Label: "Project agents", Value: "removed legacy copies from .codex/agents"})
 	}
 	return nil
 }
@@ -1407,12 +1382,9 @@ func prepareCodexDevMarketplace(configPath string, dryRun bool) ([]launchtui.Ban
 	} else {
 		setup = append(setup, launchtui.BannerDetail{Label: "Marketplace", Value: "already registered (local)"})
 	}
-	if !dryRun && !isCodexHooksEnabledAt(configPath) {
-		if err := ensureCodexHooksEnabled(configPath); err != nil {
-			return nil, fmt.Errorf("enabling hooks feature flag in %s: %w", configPath, err)
-		}
-		setup = append(setup, launchtui.BannerDetail{Label: "Hooks flag", Value: "enabled"})
-	}
+	// Hooks are on by default in Codex; never rewrite config.toml for them,
+	// only warn when the user explicitly turned them off.
+	warnIfCodexHooksDisabled(configPath)
 	if !dryRun && !isCodexPluginEnabledAt(configPath) {
 		if err := ensureCodexPluginEnabled(configPath); err != nil {
 			return nil, fmt.Errorf("enabling local wipnote plugin in %s: %w", configPath, err)
@@ -1456,11 +1428,13 @@ func refreshCodexPluginCacheDev(configPath string) ([]launchtui.BannerDetail, er
 	} else if changed {
 		setup = append(setup, launchtui.BannerDetail{Label: "User agents", Value: "installed in ~/.codex/agents"})
 	}
+	// No project-level copy (see refreshCodexPluginCacheBestEffort); only
+	// remove legacy copies so they cannot shadow the user-level agents.
 	projectRoot, _ := resolveProjectRoot()
-	if changed, err := ensureCodexCustomAgentsInstalled(pluginDir, codexProjectAgentsPath(projectRoot)); err != nil {
-		return nil, fmt.Errorf("installing project wipnote Codex agents: %w", err)
+	if changed, err := removeCodexProjectAgentCopies(projectRoot); err != nil {
+		return nil, fmt.Errorf("removing legacy project wipnote Codex agents: %w", err)
 	} else if changed {
-		setup = append(setup, launchtui.BannerDetail{Label: "Project agents", Value: "installed in .codex/agents"})
+		setup = append(setup, launchtui.BannerDetail{Label: "Project agents", Value: "removed legacy copies from .codex/agents"})
 	}
 	return setup, nil
 }
@@ -1508,8 +1482,8 @@ type codexLaunchOpts struct {
 	// WipnoteRoot is the canonical project root containing .wipnote/.
 	// Used to set WIPNOTE_PROJECT_DIR when running in a worktree.
 	WipnoteRoot string
-	// Mode selects the wipnote instruction addendum composed into
-	// model_instructions_file.
+	// Mode selects the wipnote instruction addendum passed to Codex as
+	// developer_instructions.
 	Mode codexLaunchMode
 	// Yolo passes Codex's explicit approvals/sandbox bypass flag before any
 	// subcommand, matching Claude's bypassPermissions launcher behavior.
@@ -1567,22 +1541,19 @@ func execCodex(opts codexLaunchOpts) error {
 		}
 	}
 
-	instructionArgs, instructionErr := buildCodexInstructionConfigArgs(codexPath, opts.ExtraArgs, opts.effectiveMode())
-	if instructionErr != nil {
-		fmt.Fprintf(os.Stderr, "wipnote: warning: codex orchestrator instructions skipped: %v\n", instructionErr)
-	}
+	instructionArgs := buildCodexInstructionConfigArgs(opts.effectiveMode())
 	sandboxDegraded := false
 	if sandboxMode, notice := resolveCodexSandboxMode(codexPath, opts, isDevcontainer()); sandboxMode != "" {
 		opts.SandboxMode = sandboxMode
 		sandboxDegraded = true
 		fmt.Fprintln(os.Stderr, renderCodexWarningBanner(notice))
 	}
-	configArgs := append([]string{}, instructionArgs...)
-	configArgs = append(configArgs, buildCodexAgentConfigArgs(codexAgentsPath())...)
-	if opts.ProjectRoot != "" {
-		configArgs = append(configArgs, buildCodexAgentConfigArgs(codexProjectAgentsPath(opts.ProjectRoot))...)
-	}
-	codexArgs := buildCodexArgs(opts, otelPort, configArgs)
+	// No `-c agents.<name>.*` flags: Codex discovers roles from each config
+	// layer's agents/ folder (codex-rs/agent-roles/src/loader.rs:75-79), so
+	// the TOMLs synced into ~/.codex/agents are registered natively. The old
+	// flags re-registered every TOML (the user's own agents included) a
+	// second time at the session-flags layer.
+	codexArgs := buildCodexArgs(opts, otelPort, instructionArgs)
 	c := exec.Command(codexPath, codexArgs...)
 	c.Stdin = os.Stdin
 	c.Stdout = os.Stdout

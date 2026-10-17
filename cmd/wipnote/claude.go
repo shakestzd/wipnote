@@ -38,15 +38,13 @@ type LaunchOpts struct {
 	// Takes precedence over Resume.
 	ResumeID string
 	// InjectSystemPrompt, when true, appends the embedded system prompt via
-	// --append-system-prompt. Ignored when SystemPromptFile is set.
+	// --append-system-prompt-file. Ignored when SystemPromptFile is set.
 	InjectSystemPrompt bool
 	// SystemPromptFile, if set, reads this file and appends it as system prompt.
 	// Takes precedence over InjectSystemPrompt.
 	SystemPromptFile string
 	// PermissionMode, if set, passes --permission-mode to claude (e.g. "bypassPermissions").
 	PermissionMode string
-	// EnableAutoMode, when true, passes --enable-auto-mode to claude.
-	EnableAutoMode bool
 	// Name, if set, passes --name to claude for session naming.
 	Name string
 	// ExtraArgs are forwarded to the claude process.
@@ -313,7 +311,6 @@ func launchClaudeDev(extraArgs []string, auto bool, resumeID, name, workItem str
 		Resume:             continue_,
 		ResumeID:           resumeID,
 		InjectSystemPrompt: true,
-		EnableAutoMode:     auto,
 		PermissionMode:     autoPermissionMode(auto),
 		Name:               sessionName,
 		ExtraArgs:          extraArgs,
@@ -344,8 +341,9 @@ func autoPermissionMode(enabled bool) string {
 }
 
 // launchClaudeAuto launches Claude Code with auto mode enabled for autonomous operation.
-// It uses the marketplace plugin (like normal mode) but adds --enable-auto-mode and
-// --permission-mode auto so Claude starts in autonomous operation immediately.
+// It uses the bundled plugin (like normal mode) but adds --permission-mode auto so
+// Claude starts in autonomous operation immediately. (--enable-auto-mode is no
+// longer passed: Claude Code 2.1.111 removed it — auto mode no longer requires it.)
 func launchClaudeAuto(extraArgs []string, resumeID, name string) error {
 	projectRoot, _ := resolveProjectRoot()
 	cleanupStaleDev(projectRoot)
@@ -374,7 +372,6 @@ func launchClaudeAuto(extraArgs []string, resumeID, name string) error {
 		PluginDir:          pluginDir,
 		ResumeID:           resumeID,
 		InjectSystemPrompt: true,
-		EnableAutoMode:     true,
 		PermissionMode:     "auto",
 		Name:               sessionName,
 		ExtraArgs:          extraArgs,
@@ -648,28 +645,22 @@ func launchClaude(opts LaunchOpts) error {
 		systemPrompt = strings.TrimSpace(systemPrompt) + "\n\n" + strings.TrimSpace(researchRoutingContent) + "\n"
 	}
 
-	var claudeArgs []string
-	if opts.ResumeID != "" {
-		claudeArgs = append(claudeArgs, "--resume", opts.ResumeID)
-	} else if opts.Resume {
-		claudeArgs = append(claudeArgs, "--resume")
-	}
-	if opts.PluginDir != "" {
-		claudeArgs = append(claudeArgs, "--plugin-dir", opts.PluginDir)
-	}
-	if opts.EnableAutoMode {
-		claudeArgs = append(claudeArgs, "--enable-auto-mode")
-	}
-	if opts.PermissionMode != "" {
-		claudeArgs = append(claudeArgs, "--permission-mode", opts.PermissionMode)
-	}
-	if opts.Name != "" {
-		claudeArgs = append(claudeArgs, "--name", opts.Name)
-	}
+	// Pass the prompt by file, not argv: large prompts fail as a single argv
+	// element, and Claude Code's guidance for wrappers is
+	// --append-system-prompt-file. The file is private (os.CreateTemp is 0600)
+	// and removed once claude exits — via the deferred Remove on early returns
+	// and via harnessCleanup, which runHarnessWithCleanup runs even on the
+	// os.Exit / signal re-raise paths where defers are skipped.
+	var systemPromptFile string
 	if systemPrompt != "" {
-		claudeArgs = append(claudeArgs, "--append-system-prompt", systemPrompt)
+		path, err := writeClaudeSystemPromptFile(systemPrompt)
+		if err != nil {
+			return err
+		}
+		systemPromptFile = path
+		defer os.Remove(path) //nolint:errcheck
 	}
-	claudeArgs = append(claudeArgs, opts.ExtraArgs...)
+	claudeArgs := buildClaudeArgs(opts, systemPromptFile)
 
 	claudePath, err := exec.LookPath("claude")
 	if err != nil {
@@ -743,7 +734,63 @@ func launchClaude(opts LaunchOpts) error {
 		c.Dir = opts.ProjectRoot
 	}
 
-	return runHarnessWithCleanup(c, envOverrides.Cleanup)
+	harnessCleanup := func() {
+		if systemPromptFile != "" {
+			os.Remove(systemPromptFile) //nolint:errcheck
+		}
+		if envOverrides.Cleanup != nil {
+			envOverrides.Cleanup()
+		}
+	}
+	return runHarnessWithCleanup(c, harnessCleanup)
+}
+
+// writeClaudeSystemPromptFile writes prompt to a private temp file (0600, via
+// os.CreateTemp) and returns its path for --append-system-prompt-file. The
+// caller removes it after claude exits.
+func writeClaudeSystemPromptFile(prompt string) (string, error) {
+	f, err := os.CreateTemp("", "wipnote-claude-system-*.md")
+	if err != nil {
+		return "", fmt.Errorf("creating system prompt file: %w", err)
+	}
+	if _, err := f.WriteString(prompt); err != nil {
+		f.Close()
+		os.Remove(f.Name()) //nolint:errcheck
+		return "", fmt.Errorf("writing system prompt file: %w", err)
+	}
+	if err := f.Close(); err != nil {
+		os.Remove(f.Name()) //nolint:errcheck
+		return "", fmt.Errorf("closing system prompt file: %w", err)
+	}
+	return f.Name(), nil
+}
+
+// buildClaudeArgs assembles the claude argv from opts. Split out of
+// launchClaude so the argument shape is unit-testable without spawning claude.
+// systemPromptFile, when non-empty, is the path of the already-written prompt
+// file passed via --append-system-prompt-file.
+func buildClaudeArgs(opts LaunchOpts, systemPromptFile string) []string {
+	var claudeArgs []string
+	if opts.ResumeID != "" {
+		claudeArgs = append(claudeArgs, "--resume", opts.ResumeID)
+	} else if opts.Resume {
+		claudeArgs = append(claudeArgs, "--resume")
+	}
+	if opts.PluginDir != "" {
+		claudeArgs = append(claudeArgs, "--plugin-dir", opts.PluginDir)
+	}
+	// Auto mode is selected by --permission-mode auto alone; the former
+	// --enable-auto-mode opt-in flag was removed upstream in Claude Code 2.1.111.
+	if opts.PermissionMode != "" {
+		claudeArgs = append(claudeArgs, "--permission-mode", opts.PermissionMode)
+	}
+	if opts.Name != "" {
+		claudeArgs = append(claudeArgs, "--name", opts.Name)
+	}
+	if systemPromptFile != "" {
+		claudeArgs = append(claudeArgs, "--append-system-prompt-file", systemPromptFile)
+	}
+	return append(claudeArgs, opts.ExtraArgs...)
 }
 
 // claudeEnvProjectDir is the WIPNOTE_PROJECT_DIR exported to the Claude

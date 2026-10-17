@@ -557,6 +557,11 @@ type codexResponse struct {
 	HookSpecificOutput *codexHookSpecificOutput `json:"hookSpecificOutput,omitempty"`
 }
 
+// codexInterruptResponse is the whole of Codex's Interrupt output schema.
+type codexInterruptResponse struct {
+	SystemMessage string `json:"systemMessage,omitempty"`
+}
+
 // emitCodexResponse writes the Codex CLI wire-format JSON to w.
 // Codex expects:
 //   - "continue": true/false for lifecycle events
@@ -568,6 +573,14 @@ func emitCodexResponse(w io.Writer, result *HookResult) error {
 }
 
 func emitCodexResponseForEvent(w io.Writer, hookEventName string, result *HookResult) error {
+	// Interrupt (Codex 0.150.0+, fired when the user cancels a turn) has the
+	// narrowest output schema of any event: interrupt.command.output is
+	// deny_unknown_fields with systemMessage as its only field
+	// (codex-rs/hooks/src/schema.rs InterruptCommandOutputWire). The universal
+	// "continue" this emitter otherwise adds would fail the hook.
+	if hookEventName == "Interrupt" {
+		return json.NewEncoder(w).Encode(codexInterruptResponse{SystemMessage: result.Message})
+	}
 	continueTrue := true
 	resp := codexResponse{}
 	if result.Message != "" {

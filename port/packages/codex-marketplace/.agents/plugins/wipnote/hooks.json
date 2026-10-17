@@ -89,6 +89,18 @@
           }
         ]
       }
+    ],
+    "Interrupt": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "wipnote hook task-aborted --harness codex",
+            "timeout": 3
+          }
+        ]
+      }
     ]
   }
 }

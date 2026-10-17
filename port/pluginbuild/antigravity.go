@@ -90,8 +90,10 @@ func (a antigravityAdapter) Emit(m *Manifest, repoRoot, outDir string) error {
 // antigravityDisableModelInvocationSkills lists wipnote skills that must only
 // run on explicit user invocation — never via autonomous model activation.
 // agy honors disable-model-invocation in SKILL.md frontmatter (verified live
-// against agy v1.0.8, spk-0698d585); it is the only wipnote target harness that
-// does, so the flag is injected here rather than in the shared skill source.
+// against agy v1.0.8, spk-0698d585). Claude Code honors it too, so most
+// explicit-only skills now carry the flag in the shared source (Codex ignores
+// unknown SKILL.md keys); this injector is a backstop guaranteeing the agy tree
+// keeps the flag for this set even if a source skill drops it.
 // The set is deliberately conservative: destructive (deploy ships releases),
 // high-cost (execute fans out many agents), and externally-visible
 // (report-issue transmits data) workflows.

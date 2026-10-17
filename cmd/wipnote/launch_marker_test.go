@@ -89,22 +89,14 @@ func TestWriteLaunchMarker_EmptyProjectRootSkipsWrite(t *testing.T) {
 // the os.Stat below.
 //
 // codex is stubbed on PATH so this never talks to a real Codex CLI or model:
-// execCodex's only external calls before exec'ing the child are
-// `codex debug models` (to build model-instructions config args) and the
-// final launch invocation itself — both handled by exiting 0 (with a minimal
-// model catalog for the former, since a `debug models` failure is logged and
-// otherwise ignored, but keeping it green keeps the test representative of a
-// real run rather than a degraded one).
+// the only codex invocation is the final launch itself, handled by exiting 0.
+// (execCodex no longer shells out to `codex debug models`; the orchestrator
+// prompt is passed as developer_instructions instead.)
 func TestExecCodexWritesFreshLaunchMarker(t *testing.T) {
 	projectRoot := t.TempDir()
 	binDir := t.TempDir()
 
-	stub := "#!/bin/sh\n" +
-		"if [ \"$1\" = debug ] && [ \"$2\" = models ]; then\n" +
-		"  echo '{\"models\":[{\"slug\":\"test-model\",\"base_instructions\":\"test instructions\"}]}'\n" +
-		"  exit 0\n" +
-		"fi\n" +
-		"exit 0\n"
+	stub := "#!/bin/sh\nexit 0\n"
 	if err := os.WriteFile(filepath.Join(binDir, "codex"), []byte(stub), 0o755); err != nil {
 		t.Fatalf("write fake codex: %v", err)
 	}

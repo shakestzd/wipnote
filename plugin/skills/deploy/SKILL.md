@@ -38,12 +38,19 @@ When the user asks to deploy or release:
 1. **Check for a version argument.** If not provided, read the current version from
    `plugin/.claude-plugin/plugin.json` and suggest the next patch/minor/major bump.
 
-2. **Run the deploy script:**
+2. **Ensure all source changes are committed** before deploying:
+   ```bash
+   git status --porcelain -- cmd/ internal/ go.mod plugin/
+   ```
+   If there are uncommitted changes, commit them first (ask the user for a commit
+   message if unclear).
+
+3. **Run the deploy script:**
    ```bash
    ./scripts/deploy-all.sh VERSION --no-confirm
    ```
 
-3. **If the script doesn't exist** (user is not in the wipnote dev repo), guide them
+4. **If the script doesn't exist** (user is not in the wipnote dev repo), guide them
    through manual steps:
    ```bash
    # 1. Run quality gates
@@ -58,15 +65,31 @@ When the user asks to deploy or release:
    git push origin main --tags
    ```
 
-4. **After deployment**, check CI status:
+5. **After deployment**, check CI status:
    ```bash
+   gh run list --workflow=ci.yml --limit 1
    gh run list --workflow=release-go.yml --limit 3
    ```
 
-5. **Verify the release:**
+6. **Verify the release and that installed versions match:**
    ```bash
    gh release view vVERSION
+   grep '"version"' plugin/.claude-plugin/plugin.json
+   cat ~/.local/share/wipnote/.binary-version
    ```
+
+## If Deployment Fails
+
+- **Quality gate failure** — fix the issue, re-run the script
+- **Git push failure** — check the branch is main and there are no upstream conflicts
+- **Build failure** — run `wipnote build` directly to see the error
+
+## Rules
+
+- NEVER deploy without passing quality gates
+- NEVER drop `--no-confirm` in automation (interactive prompts block the run)
+- ALWAYS verify post-deployment that the CLI and plugin versions match
+- Patch (X.Y.Z+1) for bug fixes, Minor (X.Y+1.0) for features, Major (X+1.0.0) for breaking changes
 
 ## Other Modes
 

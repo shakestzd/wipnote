@@ -1,11 +1,12 @@
 ---
 name: agent-context
 description: "Reference copy of rules shared by wipnote agents: work attribution, safety rules, research routing, truncation-resilient reporting. Not auto-loaded; agent definitions carry the rules they need inline."
+disable-model-invocation: true
 ---
 
 # Shared Agent Context
 
-This skill is a reference. The plugin build strips `skills:` frontmatter, so agents do not preload it; each agent file carries the rules it needs, and an agent or orchestrator can load this skill on demand for the full text.
+This skill is a reference. The plugin build strips `skills:` frontmatter, so agents do not preload it; each agent file carries the rules it needs, and an agent or orchestrator can read this SKILL.md file on demand for the full text (it is `disable-model-invocation: true`, so only a user can invoke it as a skill).
 
 ## Work Attribution
 
