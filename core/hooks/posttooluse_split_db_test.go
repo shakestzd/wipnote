@@ -271,3 +271,49 @@ func TestPostToolUse_ReadOnlyHandle_DaemonMissFallsBackToDisk(t *testing.T) {
 		t.Errorf("disk rows = %d, want 1 (upsert in place)", n)
 	}
 }
+
+// TestPostToolUseForHarness_ClaudeSplit: on Claude the sync `posttooluse`
+// subcommand only responds (the async posttooluse-record hook records), while
+// PostToolUseRecord records and never returns context. Codex runs both jobs.
+func TestPostToolUseForHarness_ClaudeSplit(t *testing.T) {
+	h := newSplitDBHarness(t, "split-db-harness-001")
+	bigFile := writeOversizedFile(t, t.TempDir())
+	mk := func(id string, harness Harness) *CloudEvent {
+		return &CloudEvent{SessionID: h.sessionID, CWD: h.projectDir, ToolName: "Write", ToolUseID: id,
+			ToolInput: map[string]any{"file_path": bigFile, "content": "x"}, ToolResult: map[string]any{"output": "ok"}, Harness: harness}
+	}
+	status := func(id string) string {
+		var s string
+		_ = h.daemonDB.QueryRow(`SELECT status FROM agent_events WHERE event_id = ?`, toolCallEventID(h.sessionID, id)).Scan(&s)
+		return s
+	}
+	ro := func() *sql.DB {
+		d, _ := OpenHookDBReadOnly("posttooluse", h.sessionID, h.diskPath)
+		t.Cleanup(func() { d.Close() })
+		return d
+	}
+
+	// Claude respond half: warning, but no row and no HTML entry.
+	res, _ := PostToolUseForHarness(mk("toolu_claude", HarnessClaude), ro())
+	if !strings.Contains(res.AdditionalContext, "[Quality]") {
+		t.Errorf("claude posttooluse lost the quality warning: %+v", res)
+	}
+	if status("toolu_claude") != "" || strings.Contains(h.sessionHTML(t), toolCallEventID(h.sessionID, "toolu_claude")) {
+		t.Error("claude posttooluse must not record; posttooluse-record does")
+	}
+
+	// Claude record half: row + HTML, no context.
+	res, _ = PostToolUseRecord(mk("toolu_claude", HarnessClaude), ro())
+	if res.AdditionalContext != "" || res.Decision != "" {
+		t.Errorf("posttooluse-record must never return context or a decision: %+v", res)
+	}
+	if status("toolu_claude") != "completed" || !strings.Contains(h.sessionHTML(t), toolCallEventID(h.sessionID, "toolu_claude")) {
+		t.Error("posttooluse-record did not record the call")
+	}
+
+	// Codex: one handler does both.
+	res, _ = PostToolUseForHarness(mk("toolu_codex", HarnessCodex), ro())
+	if !strings.Contains(res.AdditionalContext, "[Quality]") || status("toolu_codex") != "completed" {
+		t.Errorf("codex posttooluse must both respond and record: res=%+v status=%q", res, status("toolu_codex"))
+	}
+}

@@ -82,7 +82,12 @@ Usage in hooks.json:
 		hookSubcmd("after-agent", "Handle Gemini AfterAgent event", continueResult, hooks.AfterAgent),
 		hookSubcmd("after-model", "Handle Gemini AfterModel event", continueResult, hooks.AfterModel),
 		hookSubcmdReadOnly("pretooluse", "Handle PreToolUse event", allowResult, hooks.PreToolUse),
-		hookSubcmdReadOnly("posttooluse", "Handle PostToolUse event", continueResult, hooks.PostToolUse),
+		// posttooluse: on Claude it only responds (quality warning, auto-complete
+		// notices, loud block) behind a Write|Edit|MultiEdit|NotebookEdit|Bash
+		// matcher; recording moved to the async posttooluse-record hook. Codex
+		// and Antigravity keep one combined entry (PostToolUseForHarness).
+		hookSubcmdReadOnly("posttooluse", "Handle PostToolUse event", continueResult, hooks.PostToolUseForHarness),
+		hookSubcmdReadOnly("posttooluse-record", "Record a PostToolUse event (Claude async hook)", continueResult, hooks.PostToolUseRecord),
 		hookSubcmd("subagent-start", "Handle SubagentStart event", continueResult, hooks.SubagentStart),
 		hookSubcmd("subagent-stop", "Handle SubagentStop event", continueResult, hooks.SubagentStop),
 		hookSubcmd("stop", "Handle Stop event", continueResult, hooks.Stop),
@@ -498,7 +503,7 @@ func hookEventNameForResponse(subcommand string, event *hooks.CloudEvent) string
 		return "UserPromptSubmit"
 	case "pretooluse":
 		return "PreToolUse"
-	case "posttooluse":
+	case "posttooluse", "posttooluse-record":
 		return "PostToolUse"
 	case "after-agent":
 		return "AfterAgent"
