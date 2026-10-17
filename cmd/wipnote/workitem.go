@@ -414,7 +414,7 @@ func wiSetStatusWithAgent(typeName, id, status, sessionID, agentID string) error
 	var node *models.Node
 	switch status {
 	case "in-progress":
-		node, err = col.Start(id)
+		node, err = col.Start(id, claimEpisodeOnStart(dir, sessionID, agentID, id))
 	case "blocked":
 		err = col.Edit(id).SetStatus("blocked").Save()
 		if err == nil {
@@ -438,13 +438,8 @@ func wiSetStatusWithAgent(typeName, id, status, sessionID, agentID string) error
 		// and never closed. Print before any dispatch happens; never refuse.
 		emitAlreadyFixedAdvisory(os.Stderr, filepath.Dir(dir), id, node)
 		if sessionID != "" {
-			// Durable claim history (feat-21d12cdb). This sits BESIDE the claim
-			// row, not inside it: claims/active_work_items are single-slot current
-			// state that forget the moment a claim moves, so a signal emitted at
-			// time T has nothing to join against. Open is idempotent — a re-start
-			// or lease renewal writes no row.
-			recordClaimEpisodeOpen(nil, dir, sessionID, agentID, id)
-			closeStartedClaimIfItemDone(col, dir, sessionID, agentID, id)
+			// Durable claim history (feat-21d12cdb) was recorded inside col.Start's
+			// item lock by claimEpisodeOnStart, ordered with the transition.
 			autoImplementedInEdge(col, id, sessionID)
 			// Non-fatal advisory: warn when this session now owns >= wipPerSessionSoftLimit
 			// in-progress items. Never blocks; yolo/orchestrator may legitimately pre-start.

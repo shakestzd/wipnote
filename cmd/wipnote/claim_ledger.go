@@ -97,7 +97,7 @@ func rootSessionFor(database *sql.DB, sessionID string) string {
 // recordClaimEpisodeOpen records the start of a claim episode when a work item
 // is started. It is deliberately non-fatal: the claim ledger is observability,
 // and a work item must never fail to start because history could not be written.
-func recordClaimEpisodeOpen(database *sql.DB, wipnoteDir, sessionID, agentID, workItemID string) {
+func recordClaimEpisodeOpen(database *sql.DB, wipnoteDir, sessionID, agentID, workItemID string, startedAt time.Time) {
 	if sessionID == "" || workItemID == "" {
 		return
 	}
@@ -108,9 +108,35 @@ func recordClaimEpisodeOpen(database *sql.DB, wipnoteDir, sessionID, agentID, wo
 		SessionID:     sessionID,
 		RootSessionID: root,
 		AgentID:       dbpkg.NormaliseAgentID(agentID),
-		StartedAt:     time.Now().UTC(),
+		StartedAt:     startedAt.UTC(),
 	}); err != nil {
 		claimLedgerWarn("record claim start for %s: %v", workItemID, err)
+	}
+}
+
+// claimEpisodeOnStart returns the hook col.Start runs inside the item lock to
+// record the start's claim episode, so the record is ordered with the status
+// transition itself (issue #199).
+//
+// Open is idempotent: it keeps an already-open episode for the same session,
+// agent and item. That is right for a renewal of an item that stayed in
+// progress, but not for a restart: an episode still open from before the item
+// left in-progress (a completion whose sweep has not run yet, or a reset)
+// carries the old StartedAt, so the completion sweep — bounded by the
+// completion's UpdatedAt — would end the restarted claim and leave an
+// in-progress item with no live claim. A restart therefore ends that stale
+// episode and opens a fresh one stamped with this transition's UpdatedAt,
+// which Start makes strictly later than the completion's.
+func claimEpisodeOnStart(wipnoteDir, sessionID, agentID, workItemID string) workitem.LockedHook {
+	return func(prev models.NodeStatus, node *models.Node) {
+		if prev != models.StatusInProgress {
+			outcome := claimledger.OutcomeReleased
+			if prev == models.StatusDone {
+				outcome = claimledger.OutcomeCompleted
+			}
+			recordClaimEpisodeClose(nil, wipnoteDir, sessionID, agentID, workItemID, outcome)
+		}
+		recordClaimEpisodeOpen(nil, wipnoteDir, sessionID, agentID, workItemID, node.UpdatedAt)
 	}
 }
 
@@ -141,23 +167,6 @@ func sweepClaimsOnCompletion(wipnoteDir, workItemID, status string, transitionSt
 		return
 	}
 	recordWorkItemClaimsClosed(wipnoteDir, workItemID, claimledger.OutcomeCompleted, transitionStartedAt)
-}
-
-// closeStartedClaimIfItemDone is the start-side half of the completion sweep's
-// ordering guarantee. Recording a claim happens after col.Start releases the
-// item lock, so a concurrent completion can finish between the two and sweep
-// before this claim exists. Re-reading the item once the claim is recorded
-// closes that gap: if the item is already done the claim is stale, so end it.
-// An item that was legitimately reopened reads in-progress and keeps its claim.
-func closeStartedClaimIfItemDone(col *workitem.Collection, wipnoteDir, sessionID, agentID, workItemID string) {
-	if sessionID == "" {
-		return
-	}
-	node, err := col.Get(workItemID)
-	if err != nil || node == nil || node.Status != models.StatusDone {
-		return
-	}
-	recordClaimEpisodeClose(nil, wipnoteDir, sessionID, agentID, workItemID, claimledger.OutcomeCompleted)
 }
 
 // recordWorkItemClaimsClosed closes any episode still open on workItemID after

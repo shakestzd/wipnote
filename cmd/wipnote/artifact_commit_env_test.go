@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/shakestzd/wipnote/core/claimledger"
-	"github.com/shakestzd/wipnote/core/workitem"
 )
 
 func TestIsEnvironmentalOutboxError(t *testing.T) {
@@ -317,47 +316,93 @@ func TestCompleteSweepSparesClaimOpenedAfterTransition(t *testing.T) {
 	}
 }
 
-// Start-side half of the ordering guarantee: a claim recorded after a
-// concurrent completion already swept must end itself when it finds the item
-// done, and must keep itself when the item is still in progress.
-func TestCloseStartedClaimIfItemDone(t *testing.T) {
+// openEpisodes returns the ledger's open episodes for (sessionID, featID).
+func openEpisodes(t *testing.T, store *claimledger.Store, sessionID, featID string) []claimledger.Episode {
+	t.Helper()
+	eps, err := store.ReadAll()
+	if err != nil {
+		t.Fatalf("ReadAll: %v", err)
+	}
+	var open []claimledger.Episode
+	for _, e := range eps {
+		if e.WorkItemID == featID && e.SessionID == sessionID && e.IsOpen() {
+			open = append(open, e)
+		}
+	}
+	return open
+}
+
+// Issue #199, order A: the claim holder restarts the item while another
+// session's completion is between its locked transition and its claim sweep.
+// The persistence hook runs exactly there, so restarting from inside it
+// reproduces the race deterministically. Before the start-side episode moved
+// into the item lock, the restart re-used the pre-completion episode (Open is
+// idempotent) and the sweep then closed it: the item ended in progress with
+// no live claim.
+func TestClaimEpisode_RestartDuringCompletionKeepsLiveClaim(t *testing.T) {
 	if testing.Short() {
 		t.Skip("drives real git-backed work-item completion")
 	}
 	_, wipnoteDir, featID, sessionID, agentID := setupTransactionalCompleteRepo(t)
+	t.Setenv("WIPNOTE_ARTIFACT_COMMIT_POLICY", "defer")
 	store := claimledger.NewStore(wipnoteDir)
-	p, err := workitem.Open(wipnoteDir, "test-agent")
-	if err != nil {
-		t.Fatalf("workitem.Open: %v", err)
+	if n := len(openEpisodes(t, store, sessionID, featID)); n != 1 {
+		t.Fatalf("setup: %d open episodes for the holder, want 1", n)
 	}
-	col := collectionFor(p, "feature")
 
-	ownOpen := func() bool {
-		eps, err := store.ReadAll()
+	orig := persistArtifactTransitionFn
+	t.Cleanup(func() { persistArtifactTransitionFn = orig })
+	var restartErr error
+	persistArtifactTransitionFn = func(_, _, _, _ string) error {
+		persistArtifactTransitionFn = orig // restart once, not recursively
+		restartErr = wiSetStatusWithAgent("feature", featID, "in-progress", sessionID, agentID)
+		return nil
+	}
+
+	var runErr error
+	_ = captureOSStderr(t, func() {
+		runErr = wiSetStatusWithAgent("feature", featID, "done", "completer-session", "completer-agent")
+	})
+	if runErr != nil || restartErr != nil {
+		t.Fatalf("complete err = %v, restart err = %v", runErr, restartErr)
+	}
+	if got := diskStatus(t, wipnoteDir, featID); got != "in-progress" {
+		t.Fatalf("final status = %q, want in-progress (the restart came last)", got)
+	}
+	if n := len(openEpisodes(t, store, sessionID, featID)); n != 1 {
+		t.Fatalf("in-progress item has %d open episodes for its holder, want 1", n)
+	}
+}
+
+// Issue #199, order B: completion first, restart after. The restart must hold
+// exactly one live claim, and a later completion must end it.
+func TestClaimEpisode_RestartAfterCompletionThenCompleteAgain(t *testing.T) {
+	if testing.Short() {
+		t.Skip("drives real git-backed work-item completion")
+	}
+	_, wipnoteDir, featID, sessionID, agentID := setupTransactionalCompleteRepo(t)
+	t.Setenv("WIPNOTE_ARTIFACT_COMMIT_POLICY", "defer")
+	store := claimledger.NewStore(wipnoteDir)
+
+	step := func(status, sid, agent string) {
+		t.Helper()
+		var err error
+		_ = captureOSStderr(t, func() { err = wiSetStatusWithAgent("feature", featID, status, sid, agent) })
 		if err != nil {
-			t.Fatalf("ReadAll: %v", err)
+			t.Fatalf("%s by %s: %v", status, sid, err)
 		}
-		for _, e := range eps {
-			if e.WorkItemID == featID && e.SessionID == sessionID {
-				return e.IsOpen()
-			}
-		}
-		t.Fatal("setup episode missing from ledger")
-		return false
 	}
 
-	// Item still in progress: the claim is live and must be kept.
-	closeStartedClaimIfItemDone(col, wipnoteDir, sessionID, agentID, featID)
-	if !ownOpen() {
-		t.Fatal("claim on an in-progress item was closed")
+	step("done", "completer-session", "completer-agent")
+	if n := len(openEpisodes(t, store, sessionID, featID)); n != 0 {
+		t.Fatalf("completed item has %d open episodes, want 0", n)
 	}
-
-	// Item completed by someone else after this claim was recorded.
-	if _, err := col.Complete(featID); err != nil {
-		t.Fatalf("Complete: %v", err)
+	step("in-progress", sessionID, agentID)
+	if n := len(openEpisodes(t, store, sessionID, featID)); n != 1 {
+		t.Fatalf("restarted item has %d open episodes for its holder, want 1", n)
 	}
-	closeStartedClaimIfItemDone(col, wipnoteDir, sessionID, agentID, featID)
-	if ownOpen() {
-		t.Fatal("claim on a done item was left open")
+	step("done", "completer-session", "completer-agent")
+	if n := len(openEpisodes(t, store, sessionID, featID)); n != 0 {
+		t.Fatalf("re-completed item has %d open episodes, want 0", n)
 	}
 }
