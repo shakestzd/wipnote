@@ -627,24 +627,6 @@ func nullJSON(raw json.RawMessage) sql.NullString {
 	return sql.NullString{String: string(raw), Valid: true}
 }
 
-// UpdateClaimAgentID sets claimed_by_agent_id on the most recent active claim
-// for the given work item. This is called by PostToolUse when a subagent runs
-// "wipnote feature start <id>" — the hook knows the agent_id from the
-// CloudEvent but the CLI doesn't have it in its environment.
-func UpdateClaimAgentID(database *sql.DB, workItemID, agentID string) error {
-	_, err := database.Exec(
-		`UPDATE claims SET claimed_by_agent_id = ?, updated_at = ?
-		 WHERE claim_id = (
-		     SELECT claim_id FROM claims
-		     WHERE work_item_id = ? AND status IN ('proposed','claimed','in_progress')
-		     AND (claimed_by_agent_id = '' OR claimed_by_agent_id IS NULL)
-		     ORDER BY created_at DESC LIMIT 1
-		 )`,
-		agentID, time.Now().UTC().Format(time.RFC3339), workItemID,
-	)
-	return err
-}
-
 // ensureFeatureRow creates a placeholder feature row if it doesn't exist.
 // This handles the case where a feature is created via HTML but not yet indexed
 // into the database, or when tests create features without database indexing.

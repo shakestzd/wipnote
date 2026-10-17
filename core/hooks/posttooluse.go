@@ -1,7 +1,6 @@
 package hooks
 
 import (
-	"crypto/sha256"
 	"database/sql"
 	"fmt"
 	"os/exec"
@@ -11,7 +10,6 @@ import (
 
 	"github.com/shakestzd/wipnote/core/daemon"
 	"github.com/shakestzd/wipnote/core/db"
-	"github.com/shakestzd/wipnote/core/models"
 )
 
 // PostToolUse handles the PostToolUse Claude Code hook event.
@@ -64,50 +62,13 @@ func PostToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 	// to the daemon projection are invisible here and are never marked aborted.
 	SweepOrphanedEventsForSession(database, ctx.ProjectDir, ctx.SessionID)
 
-	// Record orchestrator direct-tool usage for analytics.
-	// Subagents are excluded — only direct orchestrator use is interesting here.
-	if !ctx.IsSubagent {
-		// Orchestrator analytics removed — stderr caused "hook error" in Claude Code UI.
-	}
-	// Capture git commits and link to the active work item.
-	if event.ToolName == "Bash" {
-		if cmd := extractBashCommand(event.ToolInput); looksLikeGitCommit(cmd) {
-			if hash, msg := parseGitCommitOutput(summarizeToolOutput(event.ToolResult)); hash != "" {
-				featureID := ctx.FeatureID
-				// Fallback: when session has no active work item, derive the ID from commit message.
-				// Extract the first work-item ID from the commit message if present.
-				// Only use this when ctx.FeatureID is empty (never override an active session attribution).
-				if featureID == "" && msg != "" {
-					ids := extractClosingIDs(msg)
-					if len(ids) > 0 {
-						featureID = ids[0]
-					}
-				}
-				commit := &models.GitCommit{
-					CommitHash:  hash,
-					SessionID:   ctx.SessionID,
-					FeatureID:   featureID,
-					ToolEventID: eventID,
-					Message:     msg,
-					Timestamp:   time.Now().UTC(),
-				}
-				_ = db.InsertGitCommit(database, commit)
-			}
-		}
-	}
-
-	// Tag claims with agent ID when a subagent runs "wipnote feature start <id>".
-	// The CLI doesn't know the agent_id, but the PostToolUse hook sees both.
-	if ctx.IsSubagent && event.ToolName == "Bash" {
-		if cmd, ok := event.ToolInput["command"].(string); ok {
-			if m := featureStartRe.FindStringSubmatch(cmd); len(m) > 1 {
-				workItemID := m[1]
-				if err := db.UpdateClaimAgentID(database, workItemID, event.AgentID); err == nil {
-					debugLog(ctx.ProjectDir, "[posttooluse] tagged claim for %s with agent %s", workItemID, event.AgentID)
-				}
-			}
-		}
-	}
+	// bug-07fd4a51 step 4: the git_commits insert, the claim agent-id tag and
+	// the feature_files / session_files attribution upserts that used to live
+	// here were removed. They wrote to this hook's on-disk handle, and every
+	// reader of those tables (graph/lineage/provenance, who, api, session show,
+	// the session-end handoff) reads an in-memory projection that never sees
+	// that file: git_commits is rebuilt from commit trailers by
+	// reindex_trailers, claims and file touches from canonical state.
 
 	result := &HookResult{Continue: true}
 
@@ -117,37 +78,6 @@ func PostToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 		if filePath := extractFilePath(event.ToolInput); filePath != "" {
 			if warnings := CheckFileQuality(filePath); warnings != "" {
 				result.AdditionalContext = warnings
-			}
-		}
-	}
-
-	// Record file attribution when Edit/Write tools are used with an active feature.
-	if ctx.FeatureID != "" {
-		switch event.ToolName {
-		case "Edit", "Write", "MultiEdit":
-			if filePath := extractFilePath(event.ToolInput); filePath != "" {
-				ff := &models.FeatureFile{
-					ID:        ctx.FeatureID + "-" + filePathHash(filePath),
-					FeatureID: ctx.FeatureID,
-					FilePath:  filePath,
-					Operation: strings.ToLower(event.ToolName),
-					SessionID: ctx.SessionID,
-				}
-				_ = db.UpsertFeatureFile(database, ff)
-			}
-		}
-	} else if event.ToolName == "Edit" || event.ToolName == "Write" || event.ToolName == "MultiEdit" {
-		// Claimless visibility (feat-793844bd slice-4): previously this branch
-		// only debugLog'd and DROPPED the attribution when there was no active
-		// feature, making cross-session file work invisible. Instead record the
-		// touch in the lightweight session_files ledger keyed on
-		// (session_id,file_path). feature_files cannot hold these rows
-		// (feature_id is NOT NULL with UNIQUE(feature_id,file_path)). This is
-		// exactly ONE upsert — the only new write on the claimless hot path,
-		// preserving the feat-156e0a1a zero-SQLITE_BUSY guarantee.
-		if filePath := extractFilePath(event.ToolInput); filePath != "" {
-			if err := db.UpsertSessionFile(database, ctx.SessionID, filePath, strings.ToLower(event.ToolName)); err != nil {
-				debugLog(ctx.ProjectDir, "[posttooluse] session_files upsert failed for %s: %v", filePath, err)
 			}
 		}
 	}
@@ -310,9 +240,6 @@ func completeIfInProgressImpl(id string, database *sql.DB) bool {
 	return true
 }
 
-// featureStartRe matches "wipnote (feature|bug|spike) start <id>" in a Bash command.
-var featureStartRe = regexp.MustCompile(`wipnote\s+(?:feature|bug|spike)\s+start\s+(\S+)`)
-
 // gitCommitOutputRe matches the commit line from git commit output, e.g.:
 // "[main abc1234] commit message here"
 var gitCommitOutputRe = regexp.MustCompile(`\[[\w/\-]+\s+([0-9a-f]{7,40})\]\s+(.*)`)
@@ -439,13 +366,6 @@ func summarizeToolOutput(result map[string]any) string {
 		}
 	}
 	return ""
-}
-
-// filePathHash returns an 8-char hex digest of a file path, used to generate
-// deterministic IDs for feature_files rows.
-func filePathHash(filePath string) string {
-	h := sha256.Sum256([]byte(filePath))
-	return fmt.Sprintf("%x", h[:4])
 }
 
 // isSuccess returns false when the tool result contains an explicit error flag.
