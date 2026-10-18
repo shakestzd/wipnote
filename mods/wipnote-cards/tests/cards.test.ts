@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { CARD_TTL_MS, classifyExit, failureText, needsFetch, parseCard, parseWho, showArgv, splitRefs, statusLine, stepBar, stepCount } from '../hooks/cards'
+import { CARD_TTL_MS, classifyExit, failureText, needsFetch, parseCard, parseWho, pickRefresh, refsInMessages, showArgv, splitRefs, statusLine, stepBar, stepCount } from '../hooks/cards'
 
 test('splits a closed wipnote-ref fence out of the text', () => {
   const md = 'Done.\n\n```wipnote-ref\nfeat-65bcc27c\n```\nThanks.'
@@ -88,4 +88,26 @@ test('an unreadable who result is unknown, not "no claim"', () => {
   expect(parseWho('{"session_id":"s","work_item":"feat-1a2b3c"}')).toBe('feat-1a2b3c')
   expect(parseWho('{"session_id":"s"}')).toBe('')
   expect(parseWho('not json')).toBe(null)
+})
+
+test('the refresh cap takes the stalest open cards, so none is starved', () => {
+  const card = (id: string, status: string) => ({ id, title: id, status, type: 'feature', steps: [] })
+  const entries: [string, import('../types').CardEntry][] = [
+    ['feat-aaaaaa', { state: 'loaded', card: card('feat-aaaaaa', 'in-progress'), at: 300 }],
+    ['feat-bbbbbb', { state: 'loaded', card: card('feat-bbbbbb', 'done'), at: 100 }],
+    ['feat-cccccc', { state: 'failed', reason: 'missing', at: 200 }],
+    ['feat-dddddd', { state: 'loaded', card: card('feat-dddddd', 'todo'), at: 50 }],
+  ]
+  expect(pickRefresh(entries, 2)).toEqual(['feat-dddddd', 'feat-cccccc'])
+  expect(pickRefresh(entries, 10)).toEqual(['feat-dddddd', 'feat-cccccc', 'feat-aaaaaa'])
+})
+
+test('saved assistant references are read back from the transcript', () => {
+  const msgs = [
+    { role: 'user', text: '```wipnote-ref\nfeat-111111\n```' },
+    { role: 'assistant', text: 'Done.\n```wipnote-ref\nfeat-222222\n```' },
+    { role: 'assistant', text: '```wipnote-ref\nbug-333333\nfeat-222222\n```' },
+  ]
+  expect(refsInMessages(msgs, 10)).toEqual(['bug-333333', 'feat-222222'])
+  expect(refsInMessages(msgs, 1)).toEqual(['feat-222222'])
 })

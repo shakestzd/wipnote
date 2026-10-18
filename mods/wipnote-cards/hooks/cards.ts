@@ -1,7 +1,7 @@
 // Pure helpers for wipnote-cards: fence parsing, CLI argv and text formats.
 // No `$` here, so the tests run them directly.
 
-import type { Card, FailKind, Step } from '../types'
+import type { Card, CardEntry, FailKind, Step } from '../types'
 
 /** A work-item id: kind prefix, a dash, 6+ hex digits (feat-1a2b3c4d). */
 const ID = /\b(feat|bug|spk|trk|plan)-[0-9a-f]{6,}\b/g
@@ -132,4 +132,37 @@ export function parseWho(stdout: string): string | null {
   } catch {
     return null
   }
+}
+
+/**
+ * The cards to refresh after a turn: open (not done) or failed ones, stalest
+ * first, at most `max`. Ordering by age rotates the cap across every card, so
+ * none is starved.
+ */
+export function pickRefresh(entries: [string, CardEntry][], max: number): string[] {
+  return entries
+    .filter(([, e]) => e.state === 'failed' || (e.state === 'loaded' && e.card.status !== 'done'))
+    .sort(([, a], [, b]) => a.at - b.at)
+    .slice(0, max)
+    .map(([id]) => id)
+}
+
+/**
+ * The ids referenced by wipnote-ref fences in the assistant messages, newest
+ * last, deduped, at most `max` (the newest ones).
+ */
+export function refsInMessages(messages: { role: string; text: string }[], max: number): string[] {
+  const ids: string[] = []
+  for (const m of messages) {
+    if (m.role !== 'assistant') continue
+    for (const s of splitRefs(m.text)) {
+      if (s.kind !== 'refs') continue
+      for (const id of s.ids) {
+        const at = ids.indexOf(id)
+        if (at >= 0) ids.splice(at, 1)
+        ids.push(id)
+      }
+    }
+  }
+  return ids.slice(-max)
 }

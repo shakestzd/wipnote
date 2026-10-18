@@ -18,7 +18,7 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
 import type { Card, CardEntry, FailKind } from '../types'
-import { REF_RULE, classifyExit, failureText, needsFetch, parseCard, parseWho, showArgv, splitRefs, statusLine, stepBar, stepCount } from './cards'
+import { REF_RULE, classifyExit, failureText, needsFetch, parseCard, parseWho, pickRefresh, refsInMessages, showArgv, splitRefs, statusLine, stepBar, stepCount } from './cards'
 import type { CliResult } from './cards'
 
 const cards = atom({ plugin: 'wipnote-cards', key: 'cards' } as const, {})
@@ -88,14 +88,23 @@ async function refreshStatus($: EngineInterface): Promise<void> {
  */
 async function refreshOpenCards($: EngineInterface): Promise<void> {
   const all = await read($, cards)
-  const ids = Object.entries(all)
-    .filter(([, e]) => e.state === 'failed' || (e.state === 'loaded' && e.card.status !== 'done'))
-    .map(([id]) => id)
-    .slice(-MAX_REFRESH)
-  for (const id of ids) void loadCard($, id)
+  for (const id of pickRefresh(Object.entries(all), MAX_REFRESH)) void loadCard($, id)
+}
+
+/**
+ * Loads the cards the transcript already references. The cards atom starts
+ * empty in a new or resumed session, and session.append sees only new
+ * replies, so saved references are read back from the transcript.
+ */
+async function hydrate($: EngineInterface): Promise<void> {
+  const messages = await $.session.messages()
+  if (!Array.isArray(messages)) return
+  const ids = refsInMessages(messages.slice(-SCAN_MESSAGES), MAX_REFRESH)
+  if (ids.length > 0) await loadStale($, ids)
 }
 
 const MAX_REFRESH = 10
+const SCAN_MESSAGES = 200
 
 const STATUS_COLOR: Record<string, string> = {
   done: 'success', 'in-progress': 'warning', blocked: 'error', todo: 'subtle',
@@ -104,12 +113,16 @@ const STATUS_COLOR: Record<string, string> = {
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     void refreshStatus($)
+    void hydrate($)
     return next(e)
   })
 
+  // After each turn: the status line, the open cards (stalest first), and any
+  // card the transcript references but the atom lacks (a resumed conversation).
   on('turn.complete', async ($, e, next) => {
     void refreshStatus($)
     void refreshOpenCards($)
+    void hydrate($)
     return next(e)
   })
 
