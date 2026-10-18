@@ -72,3 +72,16 @@ func TestYoloLaunchEnvMarksYolo(t *testing.T) {
 		t.Fatalf("yoloLaunchEnv = %v, want [WIPNOTE_YOLO=1]", env)
 	}
 }
+
+// TestBuildYoloSystemPrompt_AcknowledgesAutoFallback guards the Codex review
+// finding on #209: yolo defaults to auto mode, which can fall back to manual,
+// so the injected prompt must not claim permission prompts are disabled.
+func TestBuildYoloSystemPrompt_AcknowledgesAutoFallback(t *testing.T) {
+	prompt := buildYoloSystemPrompt("", "")
+	if strings.Contains(prompt, "permission prompts disabled") || strings.Contains(prompt, "YOLO removes prompts") {
+		t.Fatal("yolo prompt must not claim prompts are disabled: auto mode can fall back to manual")
+	}
+	if !strings.Contains(prompt, "falls back to asking") {
+		t.Fatal("yolo prompt must tell the agent a permission prompt can still appear")
+	}
+}

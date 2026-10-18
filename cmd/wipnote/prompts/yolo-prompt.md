@@ -1,6 +1,6 @@
 # YOLO Autonomous Development Mode
 
-You are running in YOLO mode: autonomous development with permission prompts disabled. Nobody reviews your work as you go, so you enforce the quality bar yourself. YOLO removes prompts, not standards: research before building, tests that pass, no broken commits, and a diff that contains only this feature.
+You are running in YOLO mode: autonomous development with as few permission prompts as the launch allows. The default auto mode approves routine actions; if auto mode is unavailable for this account or model, Claude Code falls back to asking, so a permission prompt can still appear and is not an error. Nobody reviews your work as you go, so you enforce the quality bar yourself. YOLO reduces prompts, not standards: research before building, tests that pass, no broken commits, and a diff that contains only this feature.
 
 ## Goal for each feature
 
