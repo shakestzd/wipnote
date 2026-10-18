@@ -9,37 +9,42 @@
 //
 // The one-line rule that asks for the fence is sent only while this mod is
 // loaded (prompt.compose), so the model never writes fences nobody draws.
+//
+// A render hook never writes state, so cards are fetched from events: when a
+// reply is stored (session.append) and after each turn (turn.complete). The
+// render hook only reads the cards atom and draws.
 
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
-import type { Card, CardEntry } from '../types'
-import { REF_RULE, needsFetch, parseCard, showArgv, splitRefs, statusLine, stepBar, stepCount } from './cards'
+import type { Card, CardEntry, FailKind } from '../types'
+import { REF_RULE, classifyExit, failureText, needsFetch, parseCard, parseWho, showArgv, splitRefs, statusLine, stepBar, stepCount } from './cards'
+import type { CliResult } from './cards'
 
 const cards = atom({ plugin: 'wipnote-cards', key: 'cards' } as const, {})
 const CLI_TIMEOUT_MS = 15_000
 
-/** Runs a read-only wipnote command; null when it fails or is missing. */
-async function wipnoteJSON($: EngineInterface, argv: string[]): Promise<string | null> {
+/** Runs a read-only wipnote command; a spawn failure or timeout is 'unavailable'. */
+async function wipnoteJSON($: EngineInterface, argv: string[]): Promise<CliResult> {
   try {
     const sessionId = await $.session.id()
     const r = await $.process.run(argv, {
       timeoutMs: CLI_TIMEOUT_MS,
       env: { CLAUDE_CODE_SESSION_ID: sessionId },
     })
-    return r.exitCode === 0 ? r.stdout : null
+    return classifyExit(r.exitCode, r.stdout, r.stderr)
   } catch {
-    return null
+    return { ok: false, kind: 'unavailable' }
   }
 }
 
-async function fetchCard($: EngineInterface, id: string): Promise<Card | null> {
-  const out = await wipnoteJSON($, showArgv(id))
-  if (out === null) return null
+async function fetchCard($: EngineInterface, id: string): Promise<{ card: Card } | { fail: FailKind }> {
+  const r = await wipnoteJSON($, showArgv(id))
+  if (!r.ok) return { fail: r.kind }
   try {
-    return parseCard(id, out)
+    return { card: parseCard(id, r.stdout) }
   } catch {
-    return null
+    return { fail: 'error' }
   }
 }
 
@@ -50,21 +55,28 @@ function setEntry($: EngineInterface, id: string, entry: CardEntry): Promise<unk
 /** Loads one card into the atom; the write redraws every message that reads it. */
 async function loadCard($: EngineInterface, id: string): Promise<void> {
   await setEntry($, id, { state: 'loading', at: await $.clock.now() })
-  const card = await fetchCard($, id)
+  const r = await fetchCard($, id)
   const at = await $.clock.now()
-  await setEntry($, id, card ? { state: 'loaded', card, at } : { state: 'failed', reason: 'wipnote show failed', at })
+  await setEntry($, id, 'card' in r ? { state: 'loaded', card: r.card, at } : { state: 'failed', reason: r.fail, at })
 }
 
-/** Sets the status line from the session's claimed work item. */
+/** Starts a fetch for every id that is missing or stale. */
+async function loadStale($: EngineInterface, ids: string[]): Promise<void> {
+  const all = await read($, cards)
+  const now = await $.clock.now()
+  for (const id of ids) if (needsFetch(all[id], now)) void loadCard($, id)
+}
+
+/**
+ * Sets the status line from the session's claimed work item. When `who`
+ * itself fails, the last status stays: an unknown claim is not "no claim".
+ */
 async function refreshStatus($: EngineInterface): Promise<void> {
   const who = await wipnoteJSON($, ['wipnote', 'who', '--json'])
-  let workItem = ''
-  try {
-    workItem = who ? String((JSON.parse(who) as { work_item?: string }).work_item ?? '') : ''
-  } catch {
-    workItem = ''
-  }
-  const card = workItem ? await fetchCard($, workItem) : null
+  const workItem = who.ok ? parseWho(who.stdout) : null
+  if (workItem === null) return
+  const r = workItem ? await fetchCard($, workItem) : null
+  const card = r && 'card' in r ? r.card : null
   $.ui.status(statusLine(card, workItem))
   if (card) await setEntry($, card.id, { state: 'loaded', card, at: await $.clock.now() })
 }
@@ -101,6 +113,18 @@ export const register: Register = on => {
     return next(e)
   })
 
+  // A stored reply with a wipnote-ref fence starts the card fetches; the
+  // render hook below only reads the result.
+  on('session.append', { door: 'response' }, async ($, e, next) => {
+    const r = await next(e)
+    const text = e.message.content
+      .map(b => (b.type === 'text' && typeof b.text === 'string' ? b.text : ''))
+      .join('\n')
+    const ids = splitRefs(text).flatMap(s => (s.kind === 'refs' ? s.ids : []))
+    if (ids.length > 0) void loadStale($, ids)
+    return r
+  })
+
   on('prompt.compose', async ($, e, next) => {
     const r = await next(e)
     return { sections: [...r.sections, { id: 'wipnote-cards:ref-rule', text: REF_RULE, scope: 'session' }] }
@@ -112,11 +136,6 @@ export const register: Register = on => {
 
     const { Box, Text, Markdown } = $.ui.resolve(e)
     const all = await read($, cards)
-    const now = await $.clock.now()
-    for (const s of segments) {
-      if (s.kind !== 'refs') continue
-      for (const id of s.ids) if (needsFetch(all[id], now)) void loadCard($, id)
-    }
 
     return (
       <Box flexDirection="column">
@@ -127,11 +146,10 @@ export const register: Register = on => {
             <Box key={`r${i}`} flexDirection="column">
               {s.ids.map(id => {
                 const entry = all[id]
-                if (!entry || entry.state === 'loading') {
-                  return <Text key={id} dimColor>⧗ {id}</Text>
-                }
+                if (!entry) return <Text key={id} dimColor>{id}</Text>
+                if (entry.state === 'loading') return <Text key={id} dimColor>⧗ {id}</Text>
                 if (entry.state === 'failed') {
-                  return <Text key={id} dimColor>{id} · not in this checkout (pull to update)</Text>
+                  return <Text key={id} dimColor>{failureText(id, entry.reason)}</Text>
                 }
                 const c = entry.card
                 return (

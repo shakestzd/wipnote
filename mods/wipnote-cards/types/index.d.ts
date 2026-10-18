@@ -1,3 +1,6 @@
+/** Why a card lookup failed: the item is absent, wipnote could not run, or another error. */
+export type FailKind = 'missing' | 'unavailable' | 'error'
+
 export type Step = { description: string; completed: boolean }
 
 /** One work item as `wipnote <kind> show <id> --format json` reports it. */
@@ -16,7 +19,7 @@ export type Card = {
 export type CardEntry =
   | { state: 'loaded'; card: Card; at: number }
   | { state: 'loading'; at: number }
-  | { state: 'failed'; reason: string; at: number }
+  | { state: 'failed'; reason: FailKind; at: number }
 
 declare module 'claude-code' {
   interface PluginState {

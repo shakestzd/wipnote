@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { CARD_TTL_MS, needsFetch, parseCard, showArgv, splitRefs, statusLine, stepBar, stepCount } from '../hooks/cards'
+import { CARD_TTL_MS, classifyExit, failureText, needsFetch, parseCard, parseWho, showArgv, splitRefs, statusLine, stepBar, stepCount } from '../hooks/cards'
 
 test('splits a closed wipnote-ref fence out of the text', () => {
   const md = 'Done.\n\n```wipnote-ref\nfeat-65bcc27c\n```\nThanks.'
@@ -69,4 +69,23 @@ test('cards are fetched when missing or older than the TTL', () => {
   expect(needsFetch({ state: 'loaded', at: 1_000 }, 1_001 + CARD_TTL_MS)).toBe(true)
   expect(needsFetch({ state: 'failed', at: 1_000 }, 1_001 + CARD_TTL_MS)).toBe(true)
   expect(needsFetch({ state: 'loading', at: 1_000 }, 2_000)).toBe(false)
+})
+
+// Output captured from `wipnote feature show feat-deadbeef --format json` (exit 1).
+const MISSING = 'work item "feat-deadbeef" not found on disk — the ID resolved but the HTML file is missing'
+
+test('a missing item is told apart from other failures', () => {
+  expect(classifyExit(0, '{}', '')).toEqual({ ok: true, stdout: '{}' })
+  expect(classifyExit(1, '', MISSING)).toEqual({ ok: false, kind: 'missing' })
+  expect(classifyExit(1, MISSING, '')).toEqual({ ok: false, kind: 'missing' })
+  expect(classifyExit(1, '', 'database is locked')).toEqual({ ok: false, kind: 'error' })
+  expect(failureText('feat-1a2b3c', 'missing')).toBe('feat-1a2b3c · not in this checkout (pull to update)')
+  expect(failureText('feat-1a2b3c', 'unavailable')).toBe('feat-1a2b3c · wipnote unavailable')
+  expect(failureText('feat-1a2b3c', 'error')).toBe('feat-1a2b3c · details unavailable')
+})
+
+test('an unreadable who result is unknown, not "no claim"', () => {
+  expect(parseWho('{"session_id":"s","work_item":"feat-1a2b3c"}')).toBe('feat-1a2b3c')
+  expect(parseWho('{"session_id":"s"}')).toBe('')
+  expect(parseWho('not json')).toBe(null)
 })

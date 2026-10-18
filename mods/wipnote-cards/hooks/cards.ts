@@ -1,7 +1,7 @@
 // Pure helpers for wipnote-cards: fence parsing, CLI argv and text formats.
 // No `$` here, so the tests run them directly.
 
-import type { Card, Step } from '../types'
+import type { Card, FailKind, Step } from '../types'
 
 /** A work-item id: kind prefix, a dash, 6+ hex digits (feat-1a2b3c4d). */
 const ID = /\b(feat|bug|spk|trk|plan)-[0-9a-f]{6,}\b/g
@@ -99,3 +99,37 @@ export const REF_RULE =
   'When you report on a wipnote work item, end the reply with a fenced code block whose ' +
   'info string is `wipnote-ref` and whose only line is the item id (for example feat-1a2b3c4d). ' +
   'The UI draws that block as a card with the title, status and steps, so do not repeat them in prose.'
+
+/** What a wipnote call returned: its output, or why it failed. */
+export type CliResult = { ok: true; stdout: string } | { ok: false; kind: FailKind }
+
+/**
+ * Classifies a finished wipnote process. A nonzero exit that says "not found"
+ * is a missing item (pulling may help); any other nonzero exit is an error.
+ * A process that could not run or timed out is reported by the caller as
+ * 'unavailable'.
+ */
+export function classifyExit(exitCode: number, stdout: string, stderr: string): CliResult {
+  if (exitCode === 0) return { ok: true, stdout }
+  return { ok: false, kind: /not found/i.test(`${stderr}\n${stdout}`) ? 'missing' : 'error' }
+}
+
+/** The one-line text drawn for a card whose lookup failed. */
+export function failureText(id: string, kind: FailKind): string {
+  if (kind === 'missing') return `${id} · not in this checkout (pull to update)`
+  if (kind === 'unavailable') return `${id} · wipnote unavailable`
+  return `${id} · details unavailable`
+}
+
+/**
+ * The work item `wipnote who --json` reports: the id, '' for no claim, or
+ * null when the output cannot be read (the caller keeps its last status).
+ */
+export function parseWho(stdout: string): string | null {
+  try {
+    const raw = JSON.parse(stdout) as { work_item?: unknown }
+    return typeof raw.work_item === 'string' ? raw.work_item : ''
+  } catch {
+    return null
+  }
+}
