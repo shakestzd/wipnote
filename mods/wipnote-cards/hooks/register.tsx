@@ -112,7 +112,7 @@ export const register: Register = on => {
                   return <Text key={id} dimColor>⧗ {id}</Text>
                 }
                 if (entry.state === 'failed') {
-                  return <Text key={id} dimColor>{id} (not found)</Text>
+                  return <Text key={id} dimColor>{id} · not in this checkout (pull to update)</Text>
                 }
                 const c = entry.card
                 return (
