@@ -177,7 +177,7 @@ func resolveCurrentSessionIDs(projectRoot string) []string {
 	// more specific harness marker.
 	//
 	// agent.HarnessNativeEnvSessionID() is the canonical shared implementation
-	// (WIPNOTE_HARNESS=codex→CODEX_THREAD_ID, gemini→GEMINI_SESSION_ID,
+	// (WIPNOTE_HARNESS=codex→CODEX_THREAD_ID, then CODEX_SESSION_ID; gemini→GEMINI_SESSION_ID,
 	// antigravity→ANTIGRAVITY_SESSION_ID). Chooser-specific secondary IDs
 	// (WIPNOTE_OTEL_SESSION, CLAUDE_CODE_SESSION_ID, CLAUDE_SESSION_ID) are
 	// handled in the residual switch below.
@@ -198,6 +198,7 @@ func resolveCurrentSessionIDs(projectRoot string) []string {
 		"CLAUDE_CODE_SESSION_ID",
 		"CLAUDE_SESSION_ID",
 		"CODEX_THREAD_ID",
+		"CODEX_SESSION_ID",
 		"GEMINI_SESSION_ID",
 		"ANTIGRAVITY_SESSION_ID",
 		"WIPNOTE_OTEL_SESSION",

@@ -35,6 +35,7 @@ var ClearedNames = []string{
 	"CLAUDE_CODE_SESSION_ID",
 	"CLAUDE_SESSION_ID",
 	"CODEX_THREAD_ID",
+	"CODEX_SESSION_ID",
 	"GEMINI_SESSION_ID",
 	"ANTIGRAVITY_SESSION_ID",
 	// Harness detection markers (agent.DetectEnvHarness).

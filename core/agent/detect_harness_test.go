@@ -13,7 +13,7 @@ func clearHarnessEnv(t *testing.T) {
 	t.Helper()
 	for _, k := range []string{
 		"WIPNOTE_HARNESS", "CLAUDE_CODE_ENTRYPOINT", "CLAUDECODE", "CLAUDE_CODE",
-		"CODEX_THREAD_ID", "GEMINI_SESSION_ID", "ANTIGRAVITY_SESSION_ID",
+		"CODEX_THREAD_ID", "CODEX_SESSION_ID", "GEMINI_SESSION_ID", "ANTIGRAVITY_SESSION_ID",
 		"CLAUDE_CODE_SESSION_ID", "CLAUDE_SESSION_ID", "WIPNOTE_SESSION_ID",
 	} {
 		t.Setenv(k, "")
@@ -45,6 +45,8 @@ func TestDetectEnvHarness(t *testing.T) {
 		{name: "CODEX_THREAD_ID alone: codex (plugin-only desktop task)",
 			env: map[string]string{"CODEX_THREAD_ID": "019f-thread"}, want: "codex"},
 		{name: "whitespace CODEX_THREAD_ID is not a marker", env: map[string]string{"CODEX_THREAD_ID": "  "}, want: ""},
+		{name: "CODEX_SESSION_ID alone: codex (exec without thread metadata)",
+			env: map[string]string{"CODEX_SESSION_ID": "019f-root"}, want: "codex"},
 		{name: "GEMINI_SESSION_ID alone: gemini", env: map[string]string{"GEMINI_SESSION_ID": "g-1"}, want: "gemini"},
 		{name: "ANTIGRAVITY_SESSION_ID alone: antigravity", env: map[string]string{"ANTIGRAVITY_SESSION_ID": "a-1"}, want: "antigravity"},
 	}
@@ -69,6 +71,19 @@ func TestHarnessNativeEnvSessionID_InferredCodex(t *testing.T) {
 	if got := agent.HarnessNativeEnvSessionID(); got != "019f-codex-thread" {
 		t.Fatalf("HarnessNativeEnvSessionID() = %q, want CODEX_THREAD_ID", got)
 	}
+	// CODEX_THREAD_ID names the current thread; CODEX_SESSION_ID (the root
+	// thread) must not override it, or a subagent thread would claim under
+	// its parent.
+	t.Setenv("CODEX_SESSION_ID", "019f-codex-root")
+	if got := agent.HarnessNativeEnvSessionID(); got != "019f-codex-thread" {
+		t.Fatalf("HarnessNativeEnvSessionID() with both = %q, want CODEX_THREAD_ID", got)
+	}
+	// Without a thread id, the root session id is the fallback.
+	t.Setenv("CODEX_THREAD_ID", "")
+	if got := agent.HarnessNativeEnvSessionID(); got != "019f-codex-root" {
+		t.Fatalf("HarnessNativeEnvSessionID() root only = %q, want CODEX_SESSION_ID", got)
+	}
+	t.Setenv("CODEX_THREAD_ID", "019f-codex-thread")
 	// A Claude marker makes the inherited thread id irrelevant.
 	t.Setenv("CLAUDECODE", "1")
 	if got := agent.HarnessNativeEnvSessionID(); got != "" {
