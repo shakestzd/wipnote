@@ -277,6 +277,9 @@ eq "review: one text fence in clean.md" "$(grep -c '^```text$' "$D/clean.md")" 1
 has "review: the progress is in clean.md" "current changes" "$D/clean.md"
 has "review: raw.log keeps the banner" "OpenAI Codex v" "$D/raw.log"
 fencecheck "$D/clean.md" review
+SIMREVIEW=1 run "codex review > '$T/verdict.txt'"
+eq "review redirected: the caller's file gets the verdict" "$(cat "$T/verdict.txt" 2>/dev/null)" "The verdict."
+SIMREVIEW=1 run 'codex review'
 has "review: pane title names what is reviewed" "Codex review: current changes" "$D/label"
 eq "review: the pane is renamed after it starts" "$(grep -n -e '^herdr pane run' -e '^herdr pane rename' "$T/log" | cut -d: -f2 | cut -c1-16 | tr '\n' ,)" "herdr pane run w,herdr pane renam,"
 

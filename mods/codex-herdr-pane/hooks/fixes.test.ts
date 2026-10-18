@@ -88,7 +88,7 @@ test('a ccx run waits for the launch lock and claims only when no other log is u
 // 0.7.2, issue 219
 test('a standalone review sends its final message to the answer file; a chained one keeps stdout', () => {
   const text = buildWrapper('codex review', defaults)
-  expect(text).toContain('[ -z "${__CODEX_CHAIN:-}" ] && [ "$1" = review ]; then')
+  expect(text).toContain('[ -z "${__CODEX_CHAIN:-}" ] && [ "$1" = review ] && [ -p /dev/stdout ]; then') // a caller's redirect wins
   expect(text).toContain('command codex "$@" > "$__CODEX_LAST"')
 })
 
