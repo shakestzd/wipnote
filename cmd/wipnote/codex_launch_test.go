@@ -935,6 +935,13 @@ func TestConfiguredCodexDeveloperInstructions_Layers(t *testing.T) {
 		t.Fatalf("-p profile should override the config's profile, got %q", got)
 	}
 
+	// Codex 0.163 profile V2: $CODEX_HOME/<name>.config.toml beside the user
+	// config wins over the legacy [profiles.<name>] table.
+	write("home.config.toml", "developer_instructions = \"home v2 rule\"\n")
+	if got := configuredCodexDeveloperInstructions(codexInstructionLayers{System: system, User: user, Profile: "home"}); got != "home v2 rule" {
+		t.Fatalf("V2 profile file should win over the legacy table, got %q", got)
+	}
+
 	t.Setenv("CODEX_HOME", filepath.Join(dir, "codexhome"))
 	if got := codexHomeConfigPath(); got != filepath.Join(dir, "codexhome", "config.toml") {
 		t.Fatalf("CODEX_HOME not honored: %q", got)

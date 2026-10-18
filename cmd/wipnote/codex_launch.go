@@ -289,7 +289,7 @@ func codexProfileFromArgs(args []string) string {
 type codexInstructionLayers struct {
 	System, User string
 	LaunchDir    string // its .codex/config.toml counts only when trusted
-	Profile      string // from the command line; else the config's `profile`
+	Profile      string // from -p/--profile; else the legacy `profile` key
 }
 
 // configuredCodexDeveloperInstructions returns the developer_instructions the
@@ -338,6 +338,10 @@ func configuredCodexDeveloperInstructions(l codexInstructionLayers) string {
 		}
 	}
 
+	// Profiles: Codex 0.163 layers `--profile <name>` as
+	// $CODEX_HOME/<name>.config.toml (CONFIG_PROFILE_V2). The `profile` key and
+	// [profiles.<name>] tables are legacy (still read, no longer written), so
+	// they are honored only when no V2 profile file supplies a value.
 	profile := l.Profile
 	if profile == "" {
 		profile = user.Profile
@@ -348,6 +352,9 @@ func configuredCodexDeveloperInstructions(l codexInstructionLayers) string {
 	if profile != "" {
 		set(system.Profiles[profile].DeveloperInstructions)
 		set(user.Profiles[profile].DeveloperInstructions)
+		if l.User != "" {
+			set(read(filepath.Join(filepath.Dir(l.User), profile+".config.toml")).DeveloperInstructions)
+		}
 	}
 	return value
 }
