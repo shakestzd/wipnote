@@ -261,9 +261,6 @@ func buildCodexInstructionConfigArgs(mode codexLaunchMode, existing string) []st
 // codexHomeConfigPath is $CODEX_HOME/config.toml, falling back to
 // ~/.codex/config.toml, which is where Codex reads its user layer.
 func codexHomeConfigPath() string {
-	if home := strings.TrimSpace(os.Getenv("CODEX_HOME")); home != "" {
-		return filepath.Join(home, "config.toml")
-	}
 	return codexConfigPath()
 }
 

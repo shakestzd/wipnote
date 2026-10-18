@@ -1262,51 +1262,30 @@ func TestLockfile_Concurrent(t *testing.T) {
 	}
 }
 
-// TestForkGuardEnv verifies WIPNOTE_AUTO_COMPLIANCE_RUNNING=1 is in request env.
-// NOTE: Cannot call t.Parallel().
-func TestForkGuardEnv(t *testing.T) {
-	envSet := false
-	orig := headlessInvoker
-	headlessInvoker = func(_ context.Context, req headlessRequest) (*headlessResult, error) {
-		// We can't inspect cmd.Env directly in the stubbed path, but we verify
-		// the realHeadlessInvoker sets the env by checking via a minimal process.
-		// For this unit test, we verify the contract at the realHeadlessInvoker level
-		// by invoking it with a mock that checks the env through exec.
-		_ = req
-		envSet = true
-		return &headlessResult{text: validFindingJSON(70), costUSD: 0.01}, nil
+// TestRealHeadlessInvokerSetsHeadlessEnv runs realHeadlessInvoker against a
+// fake `claude` on PATH that echoes WIPNOTE_HEADLESS back in its JSON result,
+// so the spawned process really carries the marker that makes wipnote hooks
+// exit at once.
+// NOTE: Cannot call t.Parallel() (t.Setenv).
+func TestRealHeadlessInvokerSetsHeadlessEnv(t *testing.T) {
+	bin := t.TempDir()
+	script := "#!/bin/sh\nprintf '{\"type\":\"result\",\"subtype\":\"success\",\"result\":\"headless=%s\",\"total_cost_usd\":0}' \"$WIPNOTE_HEADLESS\"\n"
+	if err := os.WriteFile(filepath.Join(bin, "claude"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
 	}
-	defer func() { headlessInvoker = orig }()
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	t.Setenv(headlessHookEnv, "")
 
-	// Verify that realHeadlessInvoker sets the env var.
-	// We do this by running `env` as the command and checking output.
-	// Create a minimal request.
-	req := headlessRequest{
-		model:        "test",
-		effort:       "low",
-		maxTurns:     1,
-		maxBudgetUSD: 0.01,
-		maxWallClock: 1 * time.Second,
-		systemPrompt: "test",
-		userPrompt:   "test",
-	}
-
-	// We can't easily invoke realHeadlessInvoker without a real claude binary,
-	// so we verify the contract by building a mock subprocess that echoes its env.
-	// Instead, test that the env var injection code path is correct.
-	// This is a contract test: the env var must be present in any real invocation.
-	cmd := exec.Command("env")
-	cmd.Env = append(os.Environ(), "WIPNOTE_AUTO_COMPLIANCE_RUNNING=1")
-	out, err := cmd.Output()
+	res, err := realHeadlessInvoker(context.Background(), headlessRequest{
+		model: "test", effort: "low", maxTurns: 1, maxBudgetUSD: 0.01,
+		maxWallClock: 10 * time.Second, systemPrompt: "s", userPrompt: "u",
+	})
 	if err != nil {
-		t.Fatalf("env command failed: %v", err)
+		t.Fatalf("realHeadlessInvoker: %v", err)
 	}
-	if !strings.Contains(string(out), "WIPNOTE_AUTO_COMPLIANCE_RUNNING=1") {
-		t.Error("WIPNOTE_AUTO_COMPLIANCE_RUNNING=1 not found in subprocess env")
+	if res.text != "headless=1" {
+		t.Fatalf("spawned claude must see %s=1, got result %q", headlessHookEnv, res.text)
 	}
-
-	_ = req
-	_ = envSet
 }
 
 // TestStderrContainment verifies that stderr from the headless invoker doesn't leak.
@@ -1738,4 +1717,53 @@ func min(a, b int) int {
 		return a
 	}
 	return b
+}
+
+// TestSupportedClaudeLeanFlags guards the Codex review finding on #210: an
+// older claude without --safe-mode rejects the flag, so a lean flag is added
+// only when `claude --help` lists it.
+func TestSupportedClaudeLeanFlags(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		help string
+		want []string
+	}{
+		{"new CLI", "  --safe-mode   ...\n  --no-session-persistence  ...", []string{"--safe-mode", "--no-session-persistence"}},
+		{"before safe-mode", "  --no-session-persistence  ...", []string{"--no-session-persistence"}},
+		{"no claude", "", nil},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			origHelp := claudeHelpText
+			claudeHelpText = func(context.Context) string { return tc.help }
+			supportedLeanFlagsOnce, supportedLeanFlags = sync.Once{}, nil
+			t.Cleanup(func() {
+				claudeHelpText = origHelp
+				supportedLeanFlagsOnce, supportedLeanFlags = sync.Once{}, nil
+			})
+			got := supportedClaudeLeanFlags(context.Background())
+			if strings.Join(got, " ") != strings.Join(tc.want, " ") {
+				t.Fatalf("got %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
+// TestClaudeHelpTextHonorsCancellation guards the Codex review finding on
+// #210: the capability probe runs before the grading timer, so a wedged
+// `claude --help` must not block past the caller's context.
+func TestClaudeHelpTextHonorsCancellation(t *testing.T) {
+	bin := t.TempDir()
+	if err := os.WriteFile(filepath.Join(bin, "claude"), []byte("#!/bin/sh\nsleep 30\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	defer cancel()
+	start := time.Now()
+	if got := claudeHelpText(ctx); got != "" {
+		t.Fatalf("a probe that times out must fail open to \"\", got %q", got)
+	}
+	if elapsed := time.Since(start); elapsed > 5*time.Second {
+		t.Fatalf("probe ignored the caller's context: took %v", elapsed)
+	}
 }

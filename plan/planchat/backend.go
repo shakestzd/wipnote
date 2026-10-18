@@ -213,6 +213,10 @@ func (b *Backend) sendViaSubprocess(ctx context.Context, claudePath, message str
 	if b.ProjectDir != "" {
 		cmd.Dir = b.ProjectDir
 	}
+	// Plan chat keeps CLAUDE.md and its resumable session, but wipnote's own
+	// hooks must not record or gate it: WIPNOTE_HEADLESS=1 makes every wipnote
+	// hook allow and return at once (cmd/wipnote headlessHookEnv).
+	cmd.Env = append(os.Environ(), "WIPNOTE_HEADLESS=1")
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {

@@ -152,7 +152,12 @@ func hookWorktreeCreateCmd() *cobra.Command {
 				fmt.Fprintln(os.Stderr, err)
 				return err
 			}
-			hooks.TraceInvocation(use, rawPayload, event)
+			// A headless run still needs its worktree, but records nothing: no
+			// trace and no checkpoint (WorktreeCreate accepts a nil handle).
+			headless := os.Getenv(headlessHookEnv) == "1"
+			if !headless {
+				hooks.TraceInvocation(use, rawPayload, event)
+			}
 
 			projectDir := hooks.ResolveProjectDir(event.CWD, event.SessionID)
 			if !hooks.IswipnoteProject(projectDir) {
@@ -175,11 +180,15 @@ func hookWorktreeCreateCmd() *cobra.Command {
 			// reindex on the next serve cycle. A genuine failure (missing
 			// worktree_name / worktree_base_path, or a worktree creation error)
 			// still returns a non-zero error with no JSON on stdout.
-			database, reason := hooks.OpenHookDB(use, event.SessionID, dbPath)
-			if database != nil {
-				defer database.Close()
-			} else {
-				_ = reason // already logged + counted inside OpenHookDB
+			var database *sql.DB
+			if !headless {
+				var reason hooks.FallbackReason
+				database, reason = hooks.OpenHookDB(use, event.SessionID, dbPath)
+				if database != nil {
+					defer database.Close()
+				} else {
+					_ = reason // already logged + counted inside OpenHookDB
+				}
 			}
 
 			path, err := hooks.WorktreeCreate(event, database)
@@ -300,8 +309,9 @@ func hookSubcmdWithProject(
 		Use:   use,
 		Short: short,
 		RunE: func(_ *cobra.Command, _ []string) error {
-			// session-start gets a fresh trace file before anything else.
-			if use == "session-start" {
+			// session-start gets a fresh trace file before anything else; a
+			// headless child must not wipe the interactive session's trace.
+			if use == "session-start" && os.Getenv(headlessHookEnv) != "1" {
 				hooks.TruncateTraceFile()
 			}
 			return runHookNamed(use, func(event *hooks.CloudEvent) (*hooks.HookResult, error) {
@@ -406,6 +416,10 @@ func hookTrackEventCmd(fallback *hooks.HookResult) *cobra.Command {
 // Gemini payloads are parsed with their own dialect adapters and responses are
 // emitted in the harness-appropriate wire format. Claude is the default path and
 // its behaviour is unchanged.
+// headlessHookEnv marks a CLI process wipnote started headlessly. Every
+// wipnote hook in that process allows and returns at once.
+const headlessHookEnv = "WIPNOTE_HEADLESS"
+
 func runHookNamed(subcommand string, handler func(*hooks.CloudEvent) (*hooks.HookResult, error)) error {
 	start := time.Now()
 
@@ -427,6 +441,20 @@ func runHookNamed(subcommand string, handler func(*hooks.CloudEvent) (*hooks.Hoo
 	if err != nil {
 		hooks.LogError("runHook", "", fmt.Sprintf("parse event (%s): %v", harness, err))
 		return hooks.WriteResultForHarness(harness, hooks.AllowForHarness(harness))
+	}
+
+	// A headless run that wipnote itself started (compliance grading, plan
+	// chat, the headless-runs mod) must not record or gate anything. The
+	// allow carries the event name: Antigravity reads a bare {} on PreToolUse
+	// as a deny (emitAntigravityResponseForEvent).
+	// PermissionRequest keeps its auto-approval: the headless child has no one
+	// to answer a prompt, so dropping the decision would deny or stall it.
+	if os.Getenv(headlessHookEnv) == "1" {
+		result := hooks.AllowForHarness(harness)
+		if subcommand == "permission-request" {
+			result = hooks.PermissionDecisionOnly(event)
+		}
+		return hooks.WriteResultForHarnessEvent(harness, hookEventNameForResponse(subcommand, event), result)
 	}
 
 	hooks.TraceInvocation(subcommand, rawPayload, event)
