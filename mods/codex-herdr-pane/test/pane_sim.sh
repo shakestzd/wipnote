@@ -214,5 +214,23 @@ CAP=60 run 'echo before; codex exec "hello"; echo "chain-out"'
 has "chained short: returned unchanged under the cap" "chain-out" <(echo "$OUT")
 nothas "chained short: no pointer" "more lines in" <(echo "$OUT")
 
+# --- 0.7.1: two ccx runs at once, the later one's log appears first; each pane follows its own ---
+rm -rf "$T/tmp" "$T/runs" "$T/log"*; mkdir -p "$T/tmp"
+node --experimental-strip-types "$ROOT/test/gen.ts" 'ccx task "alpha"' "$ROOT" > "$T/wa.sh" 2>/dev/null
+node --experimental-strip-types "$ROOT/test/gen.ts" 'ccx task "bravo"' "$ROOT" > "$T/wb.sh" 2>/dev/null
+ENVS="HERDR_ENV=1 TMPDIR=$T/tmp SIMLOG=$T/log CCX_RUNS_DIR=$T/runs HOME=$T PATH=$ROOT/test/stubs:$PATH"
+env $ENVS SIMLOGDELAY=2 bash "$T/wa.sh" > "$T/out.a" 2>&1 & PA=$!
+sleep 0.5
+env $ENVS bash "$T/wb.sh" > "$T/out.b" 2>&1 & PB=$!
+wait $PA $PB; sleep 1.5
+for d in "$T"/tmp/codex-herdr.*; do
+  if grep -q alpha "$d/orig.sh"; then DA=$d; else DB=$d; fi
+done
+has "ccx concurrent: the first run's pane shows its own log" "thinking about alpha" "$DA/clean.log"
+nothas "ccx concurrent: the first run's pane does not show the other log" "thinking about bravo" "$DA/clean.log"
+has "ccx concurrent: the second run's pane shows its own log" "thinking about bravo" "$DB/clean.log"
+nothas "ccx concurrent: the second run's pane does not show the other log" "thinking about alpha" "$DB/clean.log"
+eq "ccx concurrent: no launch lock left" "$(ls -d "$T"/tmp/codex-herdr-ccx-claims/launch.lock 2>/dev/null | wc -l | tr -d ' ')" 0
+
 rm -rf "$T"
 [ "$fails" = 0 ] && echo "pane simulation passed" || { echo "$fails failed"; exit 1; }

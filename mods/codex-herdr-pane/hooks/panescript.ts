@@ -62,7 +62,8 @@ const CODEX_CHAIN_RUN = [
 // stderr to err.log. A follower finds the run's stream-json log: a *.jsonl that was not in
 // the runs directory when the pane started and that no other pane has claimed (an atomic
 // mkdir per log name), so two overlapping runs never follow the same log and no timestamp
-// comparison is needed. It renders each complete line through stream.jq (text
+// comparison is needed. A launch lock lets only one run at a time wait for its new log, so
+// the log a run claims is the one it started. It renders each complete line through stream.jq (text
 // into clean.log, Markdown into clean.md). It polls by line count, so a half-written line waits for its newline
 // and the final pass after the command ends takes whatever is left. The Markdown is rendered
 // from line 1 each time (a call and its result are paired across lines, so a chunk alone is
@@ -71,6 +72,17 @@ const CODEX_CHAIN_RUN = [
 const CCX_RUN = [
   '  RUNS="${CCX_RUNS_DIR:-}"; [ -n "$RUNS" ] || RUNS=__RUNS__; : > "$D/clean.log"',
   '  CLAIMS="${TMPDIR:-/tmp}/codex-herdr-ccx-claims"; mkdir -p "$CLAIMS" 2>/dev/null',
+  // One ccx run at a time waits for its new log: the launch lock is held from the snapshot
+  // until this run claims its log (or 30 s pass, or the command ends), so a new log can only
+  // be this run's. Others wait their turn; a holder that died is broken by its pid.
+  '  LOCK="$CLAIMS/launch.lock"; waited=0',
+  '  for i in $(seq 1 1200); do',
+  '    if mkdir "$LOCK" 2>/dev/null; then echo $$ > "$LOCK/pid"; break; fi',
+  '    p=$(cat "$LOCK/pid" 2>/dev/null); if [ -n "$p" ] && ! kill -0 "$p" 2>/dev/null; then rm -rf "$LOCK"; continue; fi',
+  '    [ "$waited" = 0 ] && { echo "*waiting for another ccx run to start its log*" | tee -a "$D/clean.log" >> "$D/clean.md"; waited=1; }',
+  '    sleep 0.1',
+  '  done',
+  '  release() { [ "$(cat "$LOCK/pid" 2>/dev/null)" = "$$" ] && rm -rf "$LOCK"; return 0; }',
   '  ls -1 "$RUNS" 2>/dev/null | grep "\\.jsonl$" > "$D/before"',
   '  if [ ! -d "$RUNS" ]; then printf "*ccx runs directory not found: %s (set ccxRunsDir or CCX_RUNS_DIR)*\\n" "$RUNS" | tee -a "$D/clean.log" >> "$D/clean.md"; fi',
   '  claim() { ls -1 "$RUNS" 2>/dev/null | grep "\\.jsonl$" | grep -vxFf "$D/before" | while IFS= read -r c; do mkdir "$CLAIMS/$c" 2>/dev/null && { printf "%s\\n" "$RUNS/$c"; break; }; done; }',
@@ -79,10 +91,11 @@ const CCX_RUN = [
   '  render() { sed -n "$1,$2p" "$f" > "$D/chunk"; jqs view < "$D/chunk" >> "$D/clean.log"',
   '    sed -n "1,$2p" "$f" | jqs "$3" > "$D/md.tmp"; tail -c +"$((W+1))" "$D/md.tmp" >> "$D/clean.md"; W=$(wc -c < "$D/md.tmp" | tr -d " "); }',
   '  (',
-  '    f=""; n=0',
+  '    f=""; n=0; T0=$(date +%s)',
   '    while :; do',
   '      done=0; [ -f "$D/cmddone" ] && done=1',
   '      [ -z "$f" ] && f=$(claim)',
+  '      { [ -n "$f" ] || [ $(( $(date +%s) - T0 )) -ge 30 ]; } && release',
   '      if [ -n "$f" ]; then',
   '        t=$(wc -l < "$f" | tr -d " ")',
   '        [ "$done" = 1 ] && render "$((n+1))" \'$\' md',
@@ -91,12 +104,13 @@ const CCX_RUN = [
   '      [ "$done" = 1 ] && break',
   '      sleep 0.3',
   '    done',
+  '    release',
   '  ) &',
   '  FOLLOW=$!',
   '  if [ "$CHAIN" = 1 ]; then run_orig bash "$D/orig.sh"; X=$?; mkrest; cp "$D/rest.out" "$D/out.txt"; cp "$D/rest.err" "$D/err.log"',
   '  else bash "$D/orig.sh" > "$D/out.txt" 2> "$D/err.log"; X=$?; fi',
   '  cat "$D/err.log" > "$D/raw.log"',
-  '  touch "$D/cmddone"; wait $FOLLOW',
+  '  touch "$D/cmddone"; wait $FOLLOW; release',
   '  { printf "> %s\\n\\n" "$(head -n 1 "$D/out.txt")"; tail -n +2 "$D/out.txt"; } > "$D/last.md"',
   '  echo "$X" > "$D/exit.tmp"; date +%s > "$D/end"; mv "$D/exit.tmp" "$D/exit"',
 ]

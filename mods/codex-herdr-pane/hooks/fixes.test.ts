@@ -65,3 +65,11 @@ test('layout auto keeps the legacy direction behaviour', { options: { layout: 'a
   expect(text).toContain('--direction down')
   expect(text).not.toContain('__REG=')
 })
+
+test('ccx runs take a launch lock until their own log is claimed', () => {
+  const text = buildWrapper('ccx task "x"', defaults)
+  expect(text).toContain('LOCK="$CLAIMS/launch.lock"')
+  expect(text.indexOf('mkdir "$LOCK"')).toBeLessThan(text.indexOf('> "$D/before"')) // lock before the snapshot
+  expect(text).toContain('{ [ -n "$f" ] || [ $(( $(date +%s) - T0 )) -ge 30 ]; } && release')
+  expect(text).toContain('touch "$D/cmddone"; wait $FOLLOW; release')
+})
