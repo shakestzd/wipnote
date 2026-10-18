@@ -98,8 +98,11 @@ func truncatedApplyPatchPaths(raw string) []string {
 // tool-events.ndjson log. normalize maps each raw path to its handoff form
 // ("" drops it); dedupe is on the normalized form.
 func recentCanonicalFilePointers(projectDir, sessionID string, normalize func(string) string) []string {
-	events, ok := readCanonicalToolEvents(projectDir, sessionID)
-	if !ok {
+	events, _ := readCanonicalToolEvents(projectDir, sessionID)
+	// Edits made after the log hit its cap live in the overflow ledger; they
+	// are the newest, so they go last and are read first.
+	events = append(events, readRecentEditOverflow(recentEditOverflowPath(canonicalToolLogPath(projectDir, sessionID)))...)
+	if len(events) == 0 {
 		return []string{}
 	}
 	seen := make(map[string]bool)

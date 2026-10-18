@@ -24,15 +24,16 @@ Every project enforces the same three-phase pattern. Only commit when all three 
 
 ### Step 1: Detect Project Type
 
-Check for a project manifest in the repository root:
+Check for a project manifest in the repository root. This is the canonical gate table; other wipnote prompts, agents and skills point here instead of copying it.
 
-| File | Language/Runtime |
-|------|-----------------|
-| `go.mod` | Go |
-| `package.json` | JavaScript / TypeScript (Node) |
-| `pyproject.toml` or `requirements.txt` | Python |
-| `Cargo.toml` | Rust |
-| `pom.xml` or `build.gradle` | Java / JVM |
+| File | Gate command |
+|------|--------------|
+| `go.mod` | `go build ./... && go vet ./... && go test ./...` |
+| `package.json` | `npm run build && npm run lint && npm test` |
+| `pyproject.toml` / `requirements.txt` | `uv run ruff check . && uv run pytest` |
+| `Cargo.toml` | `cargo build && cargo clippy && cargo test` |
+| `pom.xml` | `mvn compile && mvn checkstyle:check && mvn test` |
+| `build.gradle` / `build.gradle.kts` | `./gradlew assemble && ./gradlew check` |
 
 Multiple manifests may coexist (e.g., a Go backend with a `package.json` frontend) — run quality gates for each.
 
@@ -89,6 +90,15 @@ mvn compile              # BUILD
 mvn checkstyle:check     # LINT
 mvn test                 # TEST
 ```
+
+#### Java / Kotlin — Gradle (`build.gradle` / `build.gradle.kts`)
+
+```bash
+./gradlew assemble       # BUILD
+./gradlew check          # LINT + TEST — runs test plus any configured lint tasks (checkstyle, detekt, ktlint)
+```
+
+Use `gradle` instead of `./gradlew` only when the repository has no wrapper.
 
 ---
 

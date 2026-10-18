@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
+	toml "github.com/pelletier/go-toml/v2"
 	"github.com/shakestzd/wipnote/internal/launcher"
 	"github.com/shakestzd/wipnote/observe/otel/collector"
 )
@@ -232,7 +234,12 @@ func (opts codexLaunchOpts) effectiveMode() codexLaunchMode {
 // separate developer-role message (codex-rs/core/src/session/mod.rs:4495-4499)
 // and leaves the built-in prompt intact. Codex has no
 // `developer_instructions_file` key, so the text is passed inline.
-func buildCodexInstructionConfigArgs(mode codexLaunchMode) []string {
+//
+// The key is a single string and a `-c` session flag outranks the user and
+// project config layers, so the override would silently discard any
+// developer_instructions the user configured. existing (see
+// configuredCodexDeveloperInstructions) is therefore kept, ahead of ours.
+func buildCodexInstructionConfigArgs(mode codexLaunchMode, existing string) []string {
 	addendum := codexInstructionAddendum(mode)
 	if addendum == "" {
 		return nil
@@ -245,7 +252,127 @@ func buildCodexInstructionConfigArgs(mode codexLaunchMode) []string {
 		codexInstructionModeTitle(mode),
 		strings.TrimSpace(addendum),
 		strings.TrimSpace(researchRoutingContent))
+	if existing = strings.TrimSpace(existing); existing != "" {
+		text = existing + "\n\n" + text
+	}
 	return []string{"-c", "developer_instructions=" + tomlBasicString(text)}
+}
+
+// codexHomeConfigPath is $CODEX_HOME/config.toml, falling back to
+// ~/.codex/config.toml, which is where Codex reads its user layer.
+func codexHomeConfigPath() string {
+	if home := strings.TrimSpace(os.Getenv("CODEX_HOME")); home != "" {
+		return filepath.Join(home, "config.toml")
+	}
+	return codexConfigPath()
+}
+
+// codexSystemConfigPath is Codex's system config layer (Unix).
+const codexSystemConfigPath = "/etc/codex/config.toml"
+
+// codexProfileFromArgs returns the profile selected by -p/--profile in the
+// args forwarded to codex, or "".
+func codexProfileFromArgs(args []string) string {
+	for i, a := range args {
+		switch {
+		case (a == "-p" || a == "--profile") && i+1 < len(args):
+			return args[i+1]
+		case strings.HasPrefix(a, "--profile="):
+			return strings.TrimPrefix(a, "--profile=")
+		}
+	}
+	return ""
+}
+
+// codexInstructionLayers are the config files configuredCodexDeveloperInstructions
+// reads, lowest precedence first.
+type codexInstructionLayers struct {
+	System, User string
+	Profile      string // from -p/--profile; else the legacy `profile` key
+}
+
+// configuredCodexDeveloperInstructions returns the developer_instructions the
+// launch would see from the non-project layers, following Codex's layering
+// (codex-rs/config/src/loader): system, then user ($CODEX_HOME), then the
+// active profile. Unreadable or unparsable files count as unset.
+//
+// The project layer (.codex/config.toml) is deliberately never read. Codex
+// decides whether that layer is trusted from a stack wipnote cannot fully see
+// (managed and MDM configuration take precedence over user trust), and
+// re-injecting an untrusted project's instructions through -c would bypass
+// that decision. Failing closed means a trusted project's own
+// developer_instructions are replaced for the session; the launcher says so
+// (codexProjectSetsDeveloperInstructions).
+func configuredCodexDeveloperInstructions(l codexInstructionLayers) string {
+	// *string so an explicit `developer_instructions = ""` (present, empty)
+	// clears lower layers, as Codex's own merge does, while an absent key
+	// leaves them alone.
+	type profileConfig struct {
+		DeveloperInstructions *string `toml:"developer_instructions"`
+	}
+	type layerConfig struct {
+		DeveloperInstructions *string                  `toml:"developer_instructions"`
+		Profile               string                   `toml:"profile"`
+		Profiles              map[string]profileConfig `toml:"profiles"`
+	}
+	read := func(path string) layerConfig {
+		var cfg layerConfig
+		if path == "" {
+			return cfg
+		}
+		if data, err := os.ReadFile(path); err == nil {
+			_ = toml.Unmarshal(data, &cfg)
+		}
+		return cfg
+	}
+
+	value := ""
+	set := func(v *string) {
+		if v != nil {
+			value = strings.TrimSpace(*v)
+		}
+	}
+	system, user := read(l.System), read(l.User)
+	set(system.DeveloperInstructions)
+	set(user.DeveloperInstructions)
+
+	// Profiles sit above the user layer (codex-rs/config/src/loader/README.md,
+	// "Layering model"). Codex 0.163 layers `--profile <name>` as
+	// $CODEX_HOME/<name>.config.toml (CONFIG_PROFILE_V2); the `profile` key and
+	// [profiles.<name>] tables are legacy (still read, no longer written), so
+	// the V2 file wins over them.
+	profile := l.Profile
+	if profile == "" {
+		profile = user.Profile
+	}
+	if profile == "" {
+		profile = system.Profile
+	}
+	if profile != "" {
+		set(system.Profiles[profile].DeveloperInstructions)
+		set(user.Profiles[profile].DeveloperInstructions)
+		if l.User != "" {
+			set(read(filepath.Join(filepath.Dir(l.User), profile+".config.toml")).DeveloperInstructions)
+		}
+	}
+	return value
+}
+
+// codexProjectSetsDeveloperInstructions reports whether launchDir's
+// .codex/config.toml sets developer_instructions, which wipnote's -c override
+// replaces for the session (see configuredCodexDeveloperInstructions).
+func codexProjectSetsDeveloperInstructions(launchDir string) bool {
+	if launchDir == "" {
+		return false
+	}
+	data, err := os.ReadFile(filepath.Join(launchDir, ".codex", "config.toml"))
+	if err != nil {
+		return false
+	}
+	var cfg struct {
+		DeveloperInstructions *string `toml:"developer_instructions"`
+	}
+	return toml.Unmarshal(data, &cfg) == nil && cfg.DeveloperInstructions != nil
 }
 
 // tomlBasicString encodes s as a single-line TOML basic string. Codex parses

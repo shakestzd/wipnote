@@ -5,9 +5,11 @@ description: Plan development work using a triage-gated, blocks-first interview.
 
 # wipnote Plan
 
-Treat plan creation as a **blocks-first** system design interview. You are the candidate; the user is the interviewer with requirements. Extract requirements via staged questions before producing slice YAML. Prefer the current harness native ask-user tool when one is available; otherwise ask the same questions in plain chat. Do not jump to a 9-field worksheet — earn each field through the interview, or explicitly mark fields as inferred/skipped when the user has supplied a complete spec and the harness lacks interactive tools.
+Treat plan creation as a **blocks-first** system design interview: you are the candidate, the user is the interviewer with requirements. Extract requirements through staged questions before producing slice YAML, using the harness's native ask-user tool when available and plain chat otherwise. Earn each field through the interview, or mark it inferred/skipped when the user supplied a complete spec and the harness has no interactive tools.
 
-**Blocks-first is the defining discipline.** In each interview stage, author the VISUAL artifact FIRST — the file-tree of files the slice touches, the data-model of its contract (request/response bodies as typed entities, the route named in the block title), the wireframe/diagram of its UI/flow — then DERIVE the prose fields (`what`/`why`/`done_when`) from those blocks. Blocks are written into the slice YAML INLINE as it is built; there is no separate visual pass. The blocks drive the design. (The separate `wipnote:visual-plan` skill is now only for after-the-fact enrichment of existing/legacy plans — never the primary path.)
+**Blocks-first is the defining discipline.** In each stage, author the VISUAL artifact first (the file-tree the slice touches, the data-model of its contract with the route in the block name, the wireframe/diagram of its UI/flow), then DERIVE `what`/`why`/`done_when` from it. Blocks go into the slice YAML inline as it is built; there is no separate visual pass (`wipnote:visual-plan` is only for enriching existing or legacy plans).
+
+**Native plan mode:** in plan mode, do triage, research and the interview, then present the outline with ExitPlanMode, and write YAML only afterwards.
 
 **Trigger keywords:** create plan, development plan, parallel plan, plan tasks, plan this feature, review before building, generate plan, scaffold plan, slice plan, crispi
 
@@ -23,13 +25,13 @@ Before any slice content, classify the work. The classification drives both the 
 | `standard` | 3 stages (Requirements, Scope & state, Done-when) | `what`, `decisions_notes` >=50 chars, >=1 visual block **or** an explicit `blocks_waiver:` |
 | `complex`  | 4 stages (all) | `decisions_notes` >=50 chars; >=2 `done_when` entries; >=1 slice-local question with an answer; >=1 visual block **or** an explicit `blocks_waiver:` |
 
-Set `complexity: trivial|standard|complex` on each slice card. The field is read by `plan/planyaml/validate.go` via `effectiveComplexity`; an unset value defaults to `standard` for back-compat.
+Set `complexity: trivial|standard|complex` on each slice card (read by `effectiveComplexity` in `plan/planyaml/validate.go`; unset defaults to `standard`).
 
-Every plan you create must include `meta.schema_version: v4`. This enables strict validation including the decisions_notes requirement for standard/complex slices (even when `complexity` is omitted, which defaults to standard), **the blocks gate** (below): every standard/complex slice must carry >=1 visual block or an explicit `blocks_waiver:`, and **the research gate** (below): every standard/complex slice must carry cited `research:` or an explicit `research_waiver:`, and `design.research` must cite at least one source. `v3` plans are still accepted for back-compat and get the same strict decisions_notes/blocks enforcement, but research stays advisory-only until `v4` — new plans must be `v4` so research is enforced too, not optional.
+Every new plan sets `meta.schema_version: v4`, which enforces the decisions_notes requirement, **the blocks gate** and **the research gate** (both below) for standard/complex slices. `v3` plans are still accepted with the same decisions_notes/blocks enforcement, but research is only advisory there.
 
 ### Triage question template
 
-Before emitting any slice, ask this question with the native ask-user tool when available. In Codex or any harness without such a tool, render it as plain chat and wait for the user answer unless the user already supplied enough detail to classify the work:
+Ask this before emitting any slice (native ask-user tool, or plain chat where there is none), unless the user already supplied enough detail to classify the work:
 
 ```json
 {
@@ -53,21 +55,15 @@ Before emitting any slice, ask this question with the native ask-user tool when 
 
 ## Mandatory Research (ENFORCED for v4 plans)
 
-Before drafting slices, run live web research using your web search / web fetch tools — do not rely on training-data knowledge for version-sensitive details:
+Before drafting slices, run live web research (web search / web fetch); training data goes stale on version-sensitive details:
 
-1. **Latest official docs and standards** — for every technology the plan touches (libraries, protocols, APIs), fetch or search current documentation.
-2. **Existing OSS packages and tools** — before designing a custom implementation for any non-trivial component, search for well-maintained packages that already solve the problem (pkg.go.dev, npm, PyPI, crates.io). Capture the adopt-vs-build decision: if adopting, cite the package; if building custom, cite what you evaluated and why it was rejected. The goal is **no reinventing the wheel**.
-3. **Provider docs for harness integration** — for agent/hook/skill/plugin work against Claude Code, Codex CLI, or Antigravity, check the provider docs for existing primitives that may already cover the requirement.
+1. **Current official docs and standards** for every technology the plan touches.
+2. **Existing OSS packages** (pkg.go.dev, npm, PyPI, crates.io) for any non-trivial component. Record adopt-vs-build: cite the adopted package, or what you evaluated and why it was rejected. The goal is **no reinventing the wheel**.
+3. **Provider docs** for Claude Code, Codex CLI, or Antigravity integration work, to find existing primitives.
 
 ### The research gate (schema-enforced)
 
-Research is **not optional discipline — the validator enforces it** for `v4` plans (`plan/planyaml/validate.go`):
-
-- **`design.research`** must cite ≥1 source (the plan-wide research basis).
-- **Every standard/complex slice** must carry ≥1 `research:` source **or** an explicit `research_waiver:`. Trivial slices are exempt.
-- Every source `url` must be `http(s)`.
-
-A plan that violates this fails `wipnote plan validate-yaml` (and finalize). Record research in the **structured** `research:` field — not buried in prose:
+For `v4` plans the validator enforces it: `design.research` cites ≥1 source; every standard/complex slice carries ≥1 `research:` source or an explicit `research_waiver:` (trivial slices are exempt); every `url` is `http(s)`. Violations fail `wipnote plan validate-yaml` and finalize. Record research in the structured field, not in prose:
 
 ```yaml
 design:
@@ -87,7 +83,7 @@ slices:
     research_waiver: stdlib net/http only — no external dependency or standard applies.
 ```
 
-If research genuinely doesn't apply to a slice, use `research_waiver:` with the reason — never leave it silently empty. Mark any unverifiable external assumption as `unverified`; do not present it as a confirmed fact.
+Never leave research silently empty; use `research_waiver:` with the reason. Mark any unverifiable external assumption `unverified`.
 
 ---
 
@@ -102,73 +98,55 @@ Each stage elicits the VISUAL block FIRST, then derives prose from it. The block
 | 3. API / contract | `data-model` (typed columns; model each request/response body as an entity and put the method+path in the block's `name` field, which is the heading the renderer shows; a data-model's `title` is not rendered) | `what` (contract half), `done_when` (per route/entity), `decisions_notes` (interface picks) | "Author the entity. What's the firing rule? What does the response carry?" |
 | 4. Done-when | (no new block — anchor acceptance criteria to the blocks above) | `done_when`, `tests`, `effort`, `risk` | "How will you tell each block's behavior works? Which existing tests must still pass?" |
 
-**Derivation, not duplication:** the prose fields restate the block in narrative form for the slice card; they must stay consistent with the block. If a stage has no natural visual artifact (e.g. a pure non-visual standard slice), say so and proceed to prose directly — do not invent a block to satisfy the form.
+**Derivation, not duplication:** prose restates the block and must stay consistent with it. If a stage has no natural visual artifact, say so and go straight to prose; never invent a block. Keep `what` under 56 words (a hard cap, see Prose-Length Caps). Each stage is the block-authoring step plus 1-3 questions in one ask-user call or one compact chat question set.
 
-**Keep `what` under 56 words** as you accumulate it across stages 1–3 — it's a hard cap in `wipnote plan validate-yaml` (see Prose-Length Caps below). Read straight off the blocks and stop; push elaboration and rejected alternatives into `decisions_notes` instead of padding `what`.
+### Block-authoring prep (read the live catalog once, up front)
 
-Each stage = the block authoring step + 1-3 questions, in a single native ask-user call where available, or one compact chat question set where it is not.
-
-### Block-authoring prep (read the live catalog ONCE, up front)
-
-Block elicitation is folded into the interview — but the **vocabulary** of block types still has a single source of truth. Before the first slice, read the live catalog so you author with current tags/fields and never hardcode them:
-
-```bash
-wipnote plan blocks            # the supported block types + required fields/row keys
-```
-
-The per-slice interview question set already carries the blocks-first prompts for you — `wipnote plan interview-questions <plan-id> <slice-num>` emits, per stage, a `blocks` array (each with `type`, the catalog `description`, and a `prompt` for what to capture). Render those prompts alongside the stage questions so the authoring step is explicit in whatever surface you use.
+Run `wipnote plan blocks` for the supported block types and required fields; never hardcode them. `wipnote plan interview-questions <plan-id> <slice-num>` emits, per stage, a `blocks` array (`type`, catalog `description`, and a `prompt`); render those prompts alongside the stage questions.
 
 ### Grounding rule (enforced discipline)
 
-A block is grounded when every field, route, and file path it names either ALREADY exists in the codebase or WILL exist as a direct output of this slice. Never invent schema, routes, or files to fill a block. If you cannot ground a block type for a slice without inventing data, skip that block type for that slice and note why in `decisions_notes`.
+A block is grounded when every field, route, and file path it names already exists or will exist as a direct output of this slice. Never invent schema, routes, or files; skip an ungroundable block type and note why in `decisions_notes`.
 
 - `data-model` rows: real or will-exist field names/types.
 - `data-model` named with a route (e.g. `name: POST /api/ingest — 429 response`): the method/path must be a route the slice will actually implement.
 - `file-tree` entries: real files the slice touches.
 - `wireframe` HTML: `var(--wf-*)` design tokens only — never raw hex/rgb.
 
-### Triage gating for blocks
+### Triage gating for blocks (the blocks gate)
 
-| Complexity | Blocks expected |
-|---|---|
-| `trivial` | Minimal or none — trivial slices have no design surface to visualise; skip blocks. |
-| `standard` | Blocks expected when the slice is concrete enough to ground them (a real file-tree at minimum; data-model where a contract exists). If the slice is genuinely underspecified, note the skip rather than invent. |
-| `complex` | Blocks expected — author every block type the slice justifies (file-tree always; data-model/wireframe/diagram as the design warrants). |
+Trivial slices skip blocks. Standard slices carry blocks when concrete enough to ground them (a real file-tree at minimum; a data-model where a contract exists). Complex slices carry every block type the design justifies.
 
-**This is schema-enforced, not just advisory.** `wipnote plan validate-yaml` FAILS any standard/complex slice with zero blocks, unless `decisions_notes` carries an explicit `blocks_waiver: <reason>` marker line — the machine-checkable opt-out for a slice that is genuinely underspecified (never invent a block to satisfy the gate; see the grounding rule above). Trivial slices stay exempt. This gate applies whenever `meta.schema_version` is `v3` or `v4`, or the slice sets `complexity:` explicitly — i.e. any plan authored under this triage-gated model, per Step 0 above. (It does NOT retroactively apply to pre-triage legacy plans that carry neither `schema_version` nor an explicit `complexity:` — see `plan/planyaml/validate.go`'s blocks-gate comment for the measured back-compat rationale.) A superseded, purely-advisory version of this same signal remains available as `ValidateBlockAdvisories` for finalized plans, which the hard gate does not cover.
+This is schema-enforced: `wipnote plan validate-yaml` FAILS any standard/complex slice with zero blocks unless `decisions_notes` carries a `blocks_waiver: <reason>` line, for plans with `schema_version` v3/v4 or an explicit `complexity:` (pre-triage legacy plans are exempt; see the blocks-gate comment in `plan/planyaml/validate.go`).
 
 ```yaml
 slices:
   - num: 4
     complexity: standard
     decisions_notes: |
-      Pure refactor of the retry loop's backoff constant — no new file, route,
+      Pure refactor of the retry loop's backoff constant; no new file, route,
       or schema surface to visualise.
       blocks_waiver: refactor-only slice, nothing to ground a block against.
 ```
 
-If the skip reason is genuine, `blocks_waiver:` on its own line inside `decisions_notes` satisfies the gate — never leave blocks silently empty.
-
 ### Rendering the interview (cross-harness)
 
-**One workflow, lowest-friction renderer.** The questions have a single canonical source — the binary — and you render them with whatever mechanism the *current* harness supports, preferring the one that keeps the user in place. Don't default to the web form; it's a context switch.
-
-Get the canonical set (one source of truth, never hand-maintained):
+The questions have one canonical source, the binary; render them with the lowest-friction mechanism the current harness supports:
 
     wipnote plan interview-questions <plan-id>            # upfront: triage + problem/goals/constraints
     wipnote plan interview-questions <plan-id> <slice-num>  # per-slice: template + the slice's open questions
 
 Render it by capability, in this preference order:
 
-1. **Native ask-user tool, inline** — e.g. Claude `AskUserQuestion`, Gemini/Antigravity `ask_user` when exposed. Map each stage's questions to one tool call. No context switch. Preferred whenever the harness has it.
-2. **Plain conversational, non-interactive** — harnesses with no ask-user tool (e.g. Codex): just ask the questions as text in your turn (present each question + its options); the user answers in their reply. Still no context switch. **Triage is always done this way or via the tool — never a form** (it's one question).
-3. **Web form (optional)** — only when a richer visual surface genuinely helps (a long complex interview) or the user asks for it: `wipnote plan interview-questions … | wipnote plan interview … --questions -`. The form blocks, persists on submit, and embeds the plan-review chat panel. It's an enhancement, not the default path.
+1. **Native ask-user tool, inline** (Claude `AskUserQuestion`, Antigravity `ask_user` when exposed): one tool call per stage. Preferred.
+2. **Plain chat** where there is no ask-user tool (e.g. Codex): present each question and its options; the user answers in their reply. Triage is always asked this way or via the tool, never a form.
+3. **Web form (optional)**, only for a long complex interview or on request: `wipnote plan interview-questions … | wipnote plan interview … --questions -`. It blocks, persists on submit, and embeds the plan-review chat panel.
 
 Then **persist non-interactively** (the form does this itself; for the inline/conversational paths you write the answers):
 - Upfront intake → `wipnote plan set-design-yaml <plan> --problem … --goals … --constraints …`, then draft slice cards using the assessed complexity.
 - Per-slice → `wipnote plan elicit-decisions <plan> <slice> --scope … --decisions … --context …`.
 
-**Adaptive follow-ups** stay in the same channel — after persisting, judge whether a mandatory field is unmet or something's ambiguous; if so, ask the gap questions again via the *same* mechanism (tool / conversation / another form round). You own the round-to-round adaptivity; nothing keeps state between rounds.
+**Adaptive follow-ups** use the same channel: after persisting, ask gap questions for any unmet mandatory field or ambiguity. Nothing keeps state between rounds; you own the adaptivity.
 
 ### Codex-compatible fallback
 
@@ -179,13 +157,7 @@ Codex may not expose `AskUserQuestion`, Task tools, or Claude-style agent dispat
 3. Run mandatory live web research before drafting slices, and record each finding in the structured `research:` fields (`design.research` + per-slice `research:`/`research_waiver:`).
 4. Validate locally with `wipnote plan validate-yaml <plan-id>` before requesting human review — for v4 plans this fails on any standard/complex slice missing `research:`/`research_waiver:` or a `design.research` basis.
 
-Acceptance criteria for generated plans:
-
-- No Codex-facing plan instructions depend on Claude-only model aliases or Claude-only Task/AUQ tools.
-- `meta.schema_version: v4`, and every standard/complex slice carries cited `research:` (http(s) URLs) or an explicit `research_waiver:`; `design.research` cites the plan-wide basis. Unverifiable assumptions are marked `unverified`, not asserted.
-- Adopt-vs-build was researched for every non-trivial component — a battle-tested package is cited when one fits, or the rejection reason is recorded (no reinventing the wheel).
-- Any skipped interview stage is named and explained in the slice's `decisions_notes`.
-
+Generated plans must not depend on Claude-only model aliases or Task/AUQ tools, must be `v4` with cited `research:` or `research_waiver:` on every standard/complex slice, must record adopt-vs-build for every non-trivial component, and must name and explain any skipped interview stage in `decisions_notes`.
 
 **`--questions` JSON schema:**
 
@@ -202,16 +174,14 @@ Acceptance criteria for generated plans:
        ]}
     ]}
 
-- `blocks` (optional, per stage) — the blocks-first authoring prompts: `type` (a key from `wipnote plan blocks`), the catalog `description`, and a `prompt` for what to capture. Author the block(s) FIRST, then answer the questions to sharpen the derived prose. `wipnote plan interview-questions` populates this array from the live catalog.
-- `bucket` ∈ `Scope` | `Decisions` | `Context` — routes the stage's answers into that `decisions_notes` subsection.
+- `blocks` (optional, per stage): `type` (a key from `wipnote plan blocks`), catalog `description`, and a `prompt`; populated from the live catalog.
+- `bucket` ∈ `Scope` | `Decisions` | `Context`: routes answers into that `decisions_notes` subsection.
 - `type` ∈ `choice` (needs `options`, optional `multiSelect`) | `text` | `yesno`.
-- Question `id`s must be unique; the form posts answers back under them and composes into the same `### Scope` / `### Decisions` / `### Context` markdown the AUQ path produces — so downstream (`validate-yaml`, `spec generate --insert`, `promote-slice`, `finalize`) is identical regardless of renderer.
+- Question `id`s must be unique; answers compose into the same `### Scope` / `### Decisions` / `### Context` markdown as the AUQ path, so downstream commands behave identically regardless of renderer.
 
 ### Example AUQs
 
-In each stage, lead with the block-authoring step (per `wipnote plan interview-questions`' `blocks` array), then render these questions. The questions sharpen the prose you derive from the block.
-
-**Stage 1 — Requirements:**
+Lead each stage with its block-authoring step, then ask its questions. Stage 1 example:
 
 ```json
 {
@@ -224,75 +194,28 @@ In each stage, lead with the block-authoring step (per `wipnote plan interview-q
     {"question": "What's the hard constraint?", "header": "Constraint", "multiSelect": false, "options": [
       {"label": "Performance budget", "description": "p99, throughput, or memory ceiling."},
       {"label": "Backward compatibility", "description": "Existing on-disk data must keep working."},
-      {"label": "No new runtime dependency", "description": "Stdlib + existing go.mod only."},
-      {"label": "Other — I'll describe in chat", "description": ""}
+      {"label": "No new runtime dependency", "description": "Stdlib + existing go.mod only."}
     ]}
   ]
 }
 ```
 
-**Stage 2 — Scope & state:**
-
-```json
-{
-  "questions": [
-    {"question": "Where does the state live?", "header": "State", "multiSelect": false, "options": [
-      {"label": "In .wipnote/<kind>/*.html", "description": "Canonical work-item / arch state — committed with the repo."},
-      {"label": "In a .wipnote ledger or NDJSON", "description": "Append-only canonical record: session / claim / gate ledgers, per-session events."},
-      {"label": "Derived from git", "description": "Commit and file attribution — recomputed on demand, never stored."},
-      {"label": "In-memory only", "description": "No persistence; lifecycle = process. This is where the SQLite projection lives."},
-      {"label": "On the filesystem outside .wipnote/", "description": "e.g., session transcripts, hook artifacts."}
-    ]}
-  ]
-}
-```
-
-**Stage 3 — API / contract:**
-
-```json
-{
-  "questions": [
-    {"question": "What's the firing rule for this event?", "header": "Trigger", "multiSelect": false, "options": [
-      {"label": "On every tool call", "description": "PreToolUse / PostToolUse hook."},
-      {"label": "On user prompt submission", "description": "UserPromptSubmit hook."},
-      {"label": "On session lifecycle", "description": "SessionStart / SessionEnd hook."},
-      {"label": "On explicit CLI invocation only", "description": "Not a hook — wipnote subcommand."}
-    ]}
-  ]
-}
-```
-
-**Stage 4 — Done-when:**
-
-```json
-{
-  "questions": [
-    {"question": "How will you tell it works?", "header": "Acceptance", "multiSelect": false, "options": [
-      {"label": "Unit test on the smallest function", "description": "Pure function — input/output check."},
-      {"label": "Integration test through the CLI", "description": "Spawn the binary, assert exit code + side effects."},
-      {"label": "Manual smoke test against the dashboard", "description": "Operator-visible behavior; no auto-assertion."}
-    ]}
-  ]
-}
-```
+Later stages follow the same shape:
+- **Stage 2 — State:** where does the state live? `.wipnote/<kind>/*.html` (canonical, committed) / a `.wipnote` ledger or NDJSON (append-only) / derived from git / in-memory only (where the SQLite projection lives) / filesystem outside `.wipnote/`.
+- **Stage 3 — Trigger:** every tool call (PreToolUse/PostToolUse) / user prompt (UserPromptSubmit) / session lifecycle (SessionStart/SessionEnd) / explicit CLI only.
+- **Stage 4 — Acceptance:** unit test on the smallest function / integration test through the CLI / manual dashboard smoke test.
 
 ---
 
 ## decisions_notes Discipline
 
-Write `decisions_notes` inline as the Q&A unfolds — don't retrofit at the end. Capture both the chosen option AND the rejected ones, with a one-line reason for each rejection. Structure with `**Trigger:**` / `**State:**` / `**Payload:**` / `**Rejected:**` headings so `wipnote spec generate --insert` can weave the prose into the spec's `## Decisions` section verbatim.
-
-For standard and complex slices, the validator requires `decisions_notes` >= 50 characters (after `TrimSpace`) when `meta.status != "finalized"`. Empty/short decisions_notes fail `wipnote plan validate-yaml`.
+Write `decisions_notes` inline as the Q&A unfolds, capturing the chosen option and each rejected one with a one-line reason. Use `**Trigger:**` / `**State:**` / `**Payload:**` / `**Rejected:**` headings so `wipnote spec generate --insert` can weave them into the spec's `## Decisions` verbatim. Standard/complex slices need ≥50 characters unless the plan is finalized.
 
 ---
 
 ## Prose-Length Caps
 
-A corpus audit found `what` alone accounted for 33% of all slice-prose words across every plan in `.wipnote/plans/*.yaml`, at a median of 96 words/slice — prose was inflating instead of staying scannable. `wipnote plan validate-yaml` now enforces a **56-word hard cap on `what`** (`plan/planyaml/validate.go`, the corpus's 25th percentile): over the cap fails validation with the field and actual word count in the message, unless `meta.status == "finalized"` (historical plans are exempt — the cap only ever constrains new authoring). 14-32 words is a demonstrated working range: plan-f8c02547's own blocks-first slices land there and were never flagged as unclear.
-
-Write `what` tight: state the change and where it lands, then move rationale, rejected alternatives, and elaboration into `decisions_notes` — that field has no length cap and is exactly where that detail belongs.
-
-`why`, `done_when`, and `tests` are **advisory only** — `wipnote plan validate-yaml` warns when they run unusually long (each field's own 75th-percentile norm in the same corpus audit: `why` > 48 words, `tests` > 53 words, `done_when` > 77 words summed across its entries) but never fails the build. Treat the warning as a prompt to trim, not a gate.
+`wipnote plan validate-yaml` enforces a **56-word hard cap on `what`** (`plan/planyaml/validate.go`; finalized plans are exempt). 14-32 words is a proven working range: state the change and where it lands, and move rationale and rejected alternatives into `decisions_notes`, which has no cap. `why` (>48 words), `tests` (>53) and `done_when` (>77 summed) only warn; treat the warning as a prompt to trim.
 
 ---
 
@@ -395,9 +318,9 @@ Note the returned plan ID. Write the YAML to `.wipnote/plans/<plan-id>.yaml` via
 wipnote plan validate-yaml <plan-id>
 ```
 
-Fix schema errors before continuing. Because blocks were authored inline during the interview (Step 0/the interview above), the YAML you wrote already carries grounded `blocks:` for qualifying slices — there is **no separate visual pass**. `validate-yaml` FAILS any standard/complex slice that still has no blocks (see "The blocks gate" above) unless `decisions_notes` carries a `blocks_waiver: <reason>` marker; treat a failure as a prompt to revisit the blocks-first interview for that slice (or, for a legacy/already-drafted plan, run `wipnote:visual-plan` to enrich it after the fact, or record the waiver if the slice is genuinely underspecified).
+Fix schema errors before continuing. A blocks-gate failure means revisiting that slice's interview (or `wipnote:visual-plan` for a legacy plan, or a genuine `blocks_waiver:`).
 
-After the plan is drafted, run `/wipnote:plan-critique <plan-id>` for the dual role-based design/feasibility review pass. See `plugin/skills/plan-critique/SKILL.md`. If critique changes a slice's design, update its blocks-first in the same edit (re-author the block, then re-derive the prose) so blocks and prose stay consistent.
+Then run `/wipnote:plan-critique <plan-id>` for the design/feasibility review. If critique changes a slice's design, re-author its block and re-derive the prose in the same edit.
 
 Then:
 
@@ -450,5 +373,5 @@ The `answer-slice-question` command maps `<slice-num>` and `<question-id>` to th
 ## Related Skills
 
 - `plugin/skills/plan-critique/SKILL.md` — dual-critic review pass (run after the plan is drafted)
-- `plugin/skills/visual-plan/SKILL.md` — SECONDARY/enrichment path: add or revise grounded visual blocks on an EXISTING plan (including legacy plans drafted before blocks-first, or ad-hoc later additions). Blocks-first is now built into THIS skill's interview; use visual-plan only for after-the-fact enrichment, not primary planning.
+- `plugin/skills/visual-plan/SKILL.md` — enrichment only: add or revise blocks on an existing or legacy plan.
 - `plugin/skills/plan/LEGACY.md` — v1 plan compatibility notes (referenced by validator errors when an old plan is loaded)

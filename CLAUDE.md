@@ -146,7 +146,7 @@ new target) and `.claude/rules/plugin-development.md` for full plugin structure 
 
 ## Orchestration
 
-Delegate ALL operations except `Task()`, `AskUserQuestion()`, `TodoWrite()`, SDK operations.
+Read short files (≤200 lines, or one targeted offset/limit range) directly when you need exact text to decide. Delegate long files, multi-file reads and exploration to a subagent (Explore for code) to keep your context for coordination.
 
 Use `/wipnote:orchestrator-directives-skill` for delegation patterns and model selection.
 

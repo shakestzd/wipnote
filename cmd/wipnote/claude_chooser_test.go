@@ -490,16 +490,19 @@ func TestYoloLaunch_ChooserWiring(t *testing.T) {
 	}
 
 	bannerCalled := false
-	var capturedHeadline string
+	var capturedHeadline, capturedWarning string
 	yoloEmitBannerFn = func(headline, pluginSource, session, workItem, warning string, w io.Writer) {
 		bannerCalled = true
 		capturedHeadline = headline
+		capturedWarning = warning
 	}
 
 	// Drive emitYoloBanner directly — the full launch path requires a real git repo.
 	// emitYoloBanner is the thin wrapper around yoloEmitBannerFn that yolo.go calls.
+	// yolo defaults to auto mode, which carries the manual-mode fallback warning.
 	var out strings.Builder
-	emitYoloBanner("Launching Claude Code in YOLO mode (bypassPermissions)...", "/plugins/wipnote", "sess-abc", "feat-abc", "", &out)
+	emitYoloBanner("Launching Claude Code in YOLO mode (auto)...", "/plugins/wipnote", "sess-abc", "feat-abc",
+		yoloPermissionWarning(yoloDefaultPermissionMode), &out)
 
 	if tuiCalled {
 		t.Fatal("runSelectTUIFn was called inside the yolo banner path; chooser must not block yolo")
@@ -510,11 +513,14 @@ func TestYoloLaunch_ChooserWiring(t *testing.T) {
 	if capturedHeadline == "" {
 		t.Fatal("banner headline was empty; yolo must pass a non-empty headline to the banner")
 	}
+	if !strings.Contains(capturedWarning, "--permission-mode bypassPermissions") {
+		t.Fatalf("auto-mode yolo banner must name the bypassPermissions opt-out, got %q", capturedWarning)
+	}
 
 	// 3. Non-TTY bypass: emitYoloBanner must not invoke TUI even with a bytes.Buffer out.
 	tuiCalled = false
 	var bufOut bytes.Buffer
-	emitYoloBanner("Launching Claude Code in YOLO mode (bypassPermissions)...", "", "", "", "", &bufOut)
+	emitYoloBanner("Launching Claude Code in YOLO mode (auto)...", "", "", "", "", &bufOut)
 	if tuiCalled {
 		t.Fatal("TUI called for non-TTY writer in yolo banner path")
 	}

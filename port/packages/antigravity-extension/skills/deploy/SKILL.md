@@ -53,8 +53,7 @@ When the user asks to deploy or release:
 4. **If the script doesn't exist** (user is not in the wipnote dev repo), guide them
    through manual steps:
    ```bash
-   # 1. Run quality gates
-   go build ./... && go vet ./... && go test ./...
+   # 1. Run quality gates (see /wipnote:code-quality-skill)
 
    # 2. Bump version in plugin.json
 

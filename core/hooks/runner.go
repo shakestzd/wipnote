@@ -288,11 +288,18 @@ func ReadInputRaw() (*CloudEvent, []byte, error) {
 	if err := json.Unmarshal(data, &ev); err != nil {
 		return nil, data, fmt.Errorf("parsing CloudEvent: %w", err)
 	}
+	normalizeClaudeToolResult(&ev)
+	return &ev, data, nil
+}
+
+// normalizeClaudeToolResult folds Claude's tool_response into ToolResult, the
+// one field every consumer reads. Both Claude parse paths call it:
+// ReadInputRaw and parseEventForHarness, which the hook CLI uses.
+func normalizeClaudeToolResult(ev *CloudEvent) {
 	if ev.ToolResult == nil && ev.ToolResponse != nil {
 		ev.ToolResult = map[string]any(ev.ToolResponse)
 	}
 	ev.ToolResult = withOutputFromStdout(ev.ToolResult)
-	return &ev, data, nil
 }
 
 // claudeToolResponse decodes Claude Code's tool_response, whose shape varies

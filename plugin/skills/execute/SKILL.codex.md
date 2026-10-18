@@ -111,14 +111,9 @@ Use `wipnote-patch-coder` for tiny, tightly scoped edits and `wipnote-feature-co
 
 Immediately record the handles returned by `spawn_agent`.
 
-Maintain a live table in your notes with:
+Maintain a live table in your notes with the work item id, agent handle, intended files, and dispatch time.
 
-- work item id
-- agent handle
-- intended files
-- dispatch time
-
-This keeps the execution state easy to resume.
+Codex has no Task tools, so record progress on the work item itself: `wipnote feature add-step <feat-id> "<step>"` for each dispatched slice, and `wipnote feature complete-step <feat-id> <step-number>` once it is merged and its gate passes. This keeps the execution state resumable after a crash.
 
 ## Step 5: Wait and Unblock
 

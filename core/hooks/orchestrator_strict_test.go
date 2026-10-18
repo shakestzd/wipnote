@@ -294,3 +294,181 @@ func TestPreToolUse_OrchestratorStrictAdvisesBeforeBlocking(t *testing.T) {
 		t.Errorf("expected the advisory in additionalContext, got %q", result.AdditionalContext)
 	}
 }
+
+// TestOrchestratorStrictGuard_ShortReads pins feat-0e560d63: the orchestrator
+// may Read a short file (or a short limit range) directly, while long or
+// uninspectable reads remain violations.
+func TestOrchestratorStrictGuard_ShortReads(t *testing.T) {
+	t.Setenv(OrchestratorRescueEnv, "")
+	cases := []struct {
+		name    string
+		lines   int // 0 = do not create the file
+		limit   any
+		allowed bool
+	}{
+		{name: "short file", lines: 200, allowed: true},
+		{name: "long file", lines: 201, allowed: false},
+		{name: "limit within range on long file", lines: 5000, limit: float64(200), allowed: true},
+		{name: "missing file", lines: 0, allowed: false},
+		{name: "limit over range on long file", lines: 5000, limit: float64(201), allowed: false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			projectDir := orchestratorFixture(t, OrchestratorConfig{
+				Enabled: true, Mode: OrchestratorModeStrict, MaxViolations: 3,
+			})
+			path := filepath.Join(projectDir, "target.go")
+			if tc.lines > 0 {
+				body := strings.Repeat("line\n", tc.lines)
+				if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+					t.Fatalf("write target: %v", err)
+				}
+			}
+			input := map[string]any{"file_path": path}
+			if tc.limit != nil {
+				input["limit"] = tc.limit
+			}
+			event := &CloudEvent{ToolName: "Read", ToolInput: input}
+			advisory, block := checkOrchestratorStrictGuard(event, orchestratorCtx(projectDir, false))
+			cfg, _ := LoadOrchestratorConfig(filepath.Join(projectDir, ".wipnote"))
+			if tc.allowed {
+				if advisory != "" || block != "" || cfg.Violations != 0 {
+					t.Errorf("want allowed, got advisory=%q block=%q violations=%d",
+						advisory, block, cfg.Violations)
+				}
+				return
+			}
+			if cfg.Violations != 1 || block != "" {
+				t.Errorf("want one counted violation, got violations=%d block=%q", cfg.Violations, block)
+			}
+			if !strings.Contains(advisory, "Read short files") {
+				t.Errorf("advisory should carry short-read guidance, got %q", advisory)
+			}
+		})
+	}
+}
+
+// TestFileHasAtMostLines_LargeFileIsLong pins that a file at the byte cap
+// counts as long without its lines being counted.
+func TestFileHasAtMostLines_LargeFileIsLong(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "big.txt")
+	if err := os.WriteFile(path, make([]byte, orchestratorShortReadMaxBytes), 0o644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	if fileHasAtMostLines(path, orchestratorShortReadLines) {
+		t.Error("a file at the byte cap must count as long")
+	}
+}
+
+// TestIsOrchestratorWhitelistedTool_AntigravityReadFile guards the Codex
+// review finding on #209: Antigravity sends reads as read_file (with
+// absolute_path), which must get the same short-read allowance as Read.
+func TestIsOrchestratorWhitelistedTool_AntigravityReadFile(t *testing.T) {
+	dir := t.TempDir()
+	short := filepath.Join(dir, "short.go")
+	long := filepath.Join(dir, "long.go")
+	if err := os.WriteFile(short, []byte(strings.Repeat("x\n", 10)), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(long, []byte(strings.Repeat("x\n", 500)), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if !isOrchestratorWhitelistedTool("read_file", map[string]any{"absolute_path": short}, dir) {
+		t.Error("short read_file must be allowed")
+	}
+	if isOrchestratorWhitelistedTool("read_file", map[string]any{"absolute_path": long}, dir) {
+		t.Error("long read_file must not be allowed")
+	}
+	if strings.Contains(orchestratorReadGuidance, "(Explore for code)") || !strings.Contains(orchestratorReadGuidance, "explorer on Codex") {
+		t.Errorf("guidance must name each harness's explorer: %q", orchestratorReadGuidance)
+	}
+}
+
+// TestIsShortShellRead guards the Codex review finding on #209: Codex reads
+// files through its shell tool ("Bash"), so plain short cat/head/tail/sed
+// reads must count as short reads, while anything chained, redirected or long
+// must not.
+func TestIsShortShellRead(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "short.go"), []byte(strings.Repeat("x\n", 20)), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "long.go"), []byte(strings.Repeat("x\n", 500)), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// One 100 KiB line: a small line count, but over the byte cap.
+	if err := os.WriteFile(filepath.Join(dir, "minified.json"), []byte(strings.Repeat("x", 100*1024)), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cases := map[string]bool{
+		"head -n 1 minified.json":     false,
+		"sed -n '1,1p' minified.json": false,
+		"head -n 1 /dev/zero":         false,
+		"head -n 1 " + dir:            false,
+		"cat short.go":                true,
+		"cat -n short.go":             true,
+		"cat long.go":                 false,
+		"cat missing.go":              false,
+		"head long.go":                true,
+		"head -n 50 long.go":          true,
+		"head -n50 long.go":           true,
+		"tail -40 long.go":            true,
+		"head -n 500 long.go":         false,
+		"tail -n +5 long.go":          false,
+		"tail -n +5 short.go":         true,
+		"sed -n '1,200p' long.go":     true,
+		"sed -n '1,500p' long.go":     false,
+		"sed -n '1,500p' short.go":    true,
+		"sed -n '1w out' short.go":    false,
+		"sed -i 's/x/y/' short.go":    false,
+		"cat short.go | sh":           false,
+		"cat short.go; rm -rf /":      false,
+		"cat short.go > copy.go":      false,
+		"cat $(echo short.go)":        false,
+		"cat *.go":                    false,
+		"cat short.go long.go":        false,
+		"grep -n x short.go":          false,
+		"head -n 5 short.go long.go":  false,
+	}
+	for cmd, want := range cases {
+		if got := isShortShellRead(cmd, dir); got != want {
+			t.Errorf("isShortShellRead(%q) = %v, want %v", cmd, got, want)
+		}
+	}
+	if !isOrchestratorWhitelistedTool("Bash", map[string]any{"command": "sed -n '1,80p' long.go"}, dir) {
+		t.Error("a bounded Codex shell read must be whitelisted")
+	}
+}
+
+// TestCheckOrchestratorStrictGuard_ReadResolvesAgainstCWD guards the Codex
+// review finding on #209: in a managed worktree ProjectDir is the main
+// checkout, so a relative read must resolve against the event's cwd.
+func TestCheckOrchestratorStrictGuard_ReadResolvesAgainstCWD(t *testing.T) {
+	t.Setenv(OrchestratorRescueEnv, "")
+	worktree := t.TempDir()
+	if err := os.WriteFile(filepath.Join(worktree, "f.go"), []byte("x\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		name     string
+		mainBody string
+		cwd      string
+		wantPass bool
+	}{
+		// f.go is short in the worktree but long on main: the worktree copy decides.
+		{"short in worktree", strings.Repeat("x\n", 500), worktree, true},
+		// No cwd: fall back to the canonical project dir (long there).
+		{"no cwd falls back", strings.Repeat("x\n", 500), "", false},
+	} {
+		mainDir := orchestratorFixture(t, OrchestratorConfig{Enabled: true, Mode: OrchestratorModeStrict, MaxViolations: 3})
+		if err := os.WriteFile(filepath.Join(mainDir, "f.go"), []byte(tc.mainBody), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		event := &CloudEvent{ToolName: "Read", CWD: tc.cwd, ToolInput: map[string]any{"file_path": "f.go"}}
+		checkOrchestratorStrictGuard(event, orchestratorCtx(mainDir, false))
+		cfg, _ := LoadOrchestratorConfig(filepath.Join(mainDir, ".wipnote"))
+		if got := cfg.Violations == 0; got != tc.wantPass {
+			t.Errorf("%s: allowed=%v, want %v (violations=%d)", tc.name, got, tc.wantPass, cfg.Violations)
+		}
+	}
+}
