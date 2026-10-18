@@ -1547,11 +1547,13 @@ func execCodex(opts codexLaunchOpts) error {
 	}
 	instructionArgs := buildCodexInstructionConfigArgs(opts.effectiveMode(),
 		configuredCodexDeveloperInstructions(codexInstructionLayers{
-			System:    codexSystemConfigPath,
-			User:      codexHomeConfigPath(),
-			LaunchDir: launchDir,
-			Profile:   codexProfileFromArgs(opts.ExtraArgs),
+			System:  codexSystemConfigPath,
+			User:    codexHomeConfigPath(),
+			Profile: codexProfileFromArgs(opts.ExtraArgs),
 		}))
+	if codexProjectSetsDeveloperInstructions(launchDir) {
+		fmt.Fprintf(os.Stderr, "note: %s/.codex/config.toml sets developer_instructions; wipnote's instructions replace it for this session\n", launchDir)
+	}
 	// The setup-time cleanup scans the current checkout only; a launch into a
 	// different worktree must not keep legacy project copies that shadow
 	// ~/.codex/agents (project config outranks the user layer).

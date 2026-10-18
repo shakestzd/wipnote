@@ -860,9 +860,9 @@ func indexOf(values []string, want string) int {
 
 // TestBuildCodexInstructionConfigArgsKeepsConfiguredInstructions guards the
 // Codex review findings on PR #207 and #209: the override must carry the
-// user's configured developer_instructions, and may carry a project's only
-// when the user config marks that project trusted (Codex loads an untrusted
-// project layer disabled; a -c flag would bypass that).
+// user's configured developer_instructions, and must never carry a project's,
+// trusted or not. Codex decides project trust from layers wipnote cannot fully
+// see (managed/MDM config), so a -c re-injection could bypass that decision.
 func TestBuildCodexInstructionConfigArgsKeepsConfiguredInstructions(t *testing.T) {
 	home := t.TempDir()
 	userCfg := filepath.Join(home, "config.toml")
@@ -876,30 +876,29 @@ func TestBuildCodexInstructionConfigArgsKeepsConfiguredInstructions(t *testing.T
 			t.Fatal(err)
 		}
 	}
-	writeFile(userCfg, "developer_instructions = \"user rule\"\n")
-	writeFile(filepath.Join(launch, ".codex", "config.toml"), "developer_instructions = \"project rule\"\n")
-
-	// Untrusted (unlisted) project: its instructions must not be elevated.
-	if got := configuredCodexDeveloperInstructions(codexInstructionLayers{User: userCfg, LaunchDir: launch}); got != "user rule" {
-		t.Fatalf("untrusted project must not contribute, got %q", got)
-	}
-	writeFile(userCfg, fmt.Sprintf("developer_instructions = \"user rule\"\n[projects.%q]\ntrust_level = \"untrusted\"\n", launch))
-	if got := configuredCodexDeveloperInstructions(codexInstructionLayers{User: userCfg, LaunchDir: launch}); got != "user rule" {
-		t.Fatalf("explicitly untrusted project must not contribute, got %q", got)
-	}
-
-	// Trusted project: its layer wins, as in Codex.
+	// Even a project the user config marks trusted contributes nothing.
 	writeFile(userCfg, fmt.Sprintf("developer_instructions = \"user rule\"\n[projects.%q]\ntrust_level = \"trusted\"\n", launch))
-	existing := configuredCodexDeveloperInstructions(codexInstructionLayers{User: userCfg, LaunchDir: launch})
-	if existing != "project rule" {
-		t.Fatalf("trusted project layer should win, got %q", existing)
+	existing := configuredCodexDeveloperInstructions(codexInstructionLayers{User: userCfg})
+	if existing != "user rule" {
+		t.Fatalf("want the user layer, got %q", existing)
+	}
+
+	if codexProjectSetsDeveloperInstructions(launch) {
+		t.Fatal("no project config yet: must not report project instructions")
+	}
+	writeFile(filepath.Join(launch, ".codex", "config.toml"), "developer_instructions = \"project rule\"\n")
+	if !codexProjectSetsDeveloperInstructions(launch) {
+		t.Fatal("project developer_instructions must be reported so the launcher can say they are replaced")
 	}
 
 	args := buildCodexInstructionConfigArgs(codexLaunchModeDefault, existing)
 	_, raw, _ := strings.Cut(args[1], "=")
 	text, _ := parseCodexOverrideValue(t, raw).(string)
-	if !strings.HasPrefix(text, "project rule\n\n# wipnote ") {
+	if !strings.HasPrefix(text, "user rule\n\n# wipnote ") {
 		t.Fatalf("configured instructions must lead the override, got %q", text[:min(len(text), 80)])
+	}
+	if strings.Contains(text, "project rule") {
+		t.Fatal("project instructions must never be re-injected through -c")
 	}
 	if got := configuredCodexDeveloperInstructions(codexInstructionLayers{User: filepath.Join(home, "missing.toml")}); got != "" {
 		t.Fatalf("missing config must read as unset, got %q", got)
@@ -908,7 +907,7 @@ func TestBuildCodexInstructionConfigArgsKeepsConfiguredInstructions(t *testing.T
 
 // TestConfiguredCodexDeveloperInstructions_Layers guards the third Codex
 // review finding on #209: the effective value comes from the whole stack
-// (system, $CODEX_HOME user layer, trusted project, active profile), not from
+// (system, $CODEX_HOME user layer, active profile), not from
 // ~/.codex/config.toml alone.
 func TestConfiguredCodexDeveloperInstructions_Layers(t *testing.T) {
 	dir := t.TempDir()
@@ -951,23 +950,6 @@ func TestConfiguredCodexDeveloperInstructions_Layers(t *testing.T) {
 	absent := write("absent.toml", "model = \"x\"\n")
 	if got := configuredCodexDeveloperInstructions(codexInstructionLayers{System: system, User: absent}); got != "system rule" {
 		t.Fatalf("absent user key must keep the system layer, got %q", got)
-	}
-
-	// The trusted project layer outranks the profile, and trust may come from
-	// the active profile (Codex review, #209).
-	proj := filepath.Join(dir, "proj")
-	if err := os.MkdirAll(filepath.Join(proj, ".codex"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(proj, ".codex", "config.toml"), []byte("developer_instructions = \"project rule\"\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	write("trusting.config.toml", fmt.Sprintf("developer_instructions = \"profile rule\"\n[projects.%q]\ntrust_level = \"trusted\"\n", proj))
-	if got := configuredCodexDeveloperInstructions(codexInstructionLayers{User: user, LaunchDir: proj, Profile: "trusting"}); got != "project rule" {
-		t.Fatalf("trusted project must outrank the profile (trust from the profile), got %q", got)
-	}
-	if got := configuredCodexDeveloperInstructions(codexInstructionLayers{User: user, LaunchDir: proj, Profile: "home"}); got != "home v2 rule" {
-		t.Fatalf("untrusted project must not override the profile, got %q", got)
 	}
 
 	t.Setenv("CODEX_HOME", filepath.Join(dir, "codexhome"))

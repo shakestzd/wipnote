@@ -288,17 +288,21 @@ func codexProfileFromArgs(args []string) string {
 // reads, lowest precedence first.
 type codexInstructionLayers struct {
 	System, User string
-	LaunchDir    string // its .codex/config.toml counts only when trusted
 	Profile      string // from -p/--profile; else the legacy `profile` key
 }
 
 // configuredCodexDeveloperInstructions returns the developer_instructions the
-// launch would see without wipnote's -c override, following Codex's layering
+// launch would see from the non-project layers, following Codex's layering
 // (codex-rs/config/src/loader): system, then user ($CODEX_HOME), then the
-// active profile, then the project layer. The project layer counts only when
-// the user config marks that exact directory trusted: Codex loads an
-// untrusted project layer disabled, and re-injecting it through -c would
-// bypass that check. Unreadable or unparsable files count as unset.
+// active profile. Unreadable or unparsable files count as unset.
+//
+// The project layer (.codex/config.toml) is deliberately never read. Codex
+// decides whether that layer is trusted from a stack wipnote cannot fully see
+// (managed and MDM configuration take precedence over user trust), and
+// re-injecting an untrusted project's instructions through -c would bypass
+// that decision. Failing closed means a trusted project's own
+// developer_instructions are replaced for the session; the launcher says so
+// (codexProjectSetsDeveloperInstructions).
 func configuredCodexDeveloperInstructions(l codexInstructionLayers) string {
 	// *string so an explicit `developer_instructions = ""` (present, empty)
 	// clears lower layers, as Codex's own merge does, while an absent key
@@ -310,9 +314,6 @@ func configuredCodexDeveloperInstructions(l codexInstructionLayers) string {
 		DeveloperInstructions *string                  `toml:"developer_instructions"`
 		Profile               string                   `toml:"profile"`
 		Profiles              map[string]profileConfig `toml:"profiles"`
-		Projects              map[string]struct {
-			TrustLevel string `toml:"trust_level"`
-		} `toml:"projects"`
 	}
 	read := func(path string) layerConfig {
 		var cfg layerConfig
@@ -335,11 +336,11 @@ func configuredCodexDeveloperInstructions(l codexInstructionLayers) string {
 	set(system.DeveloperInstructions)
 	set(user.DeveloperInstructions)
 
-	// Profiles sit above the user layer and below the project layer
-	// (codex-rs/config/src/loader/README.md, "Layering model"). Codex 0.163
-	// layers `--profile <name>` as $CODEX_HOME/<name>.config.toml
-	// (CONFIG_PROFILE_V2); the `profile` key and [profiles.<name>] tables are
-	// legacy (still read, no longer written), so the V2 file wins over them.
+	// Profiles sit above the user layer (codex-rs/config/src/loader/README.md,
+	// "Layering model"). Codex 0.163 layers `--profile <name>` as
+	// $CODEX_HOME/<name>.config.toml (CONFIG_PROFILE_V2); the `profile` key and
+	// [profiles.<name>] tables are legacy (still read, no longer written), so
+	// the V2 file wins over them.
 	profile := l.Profile
 	if profile == "" {
 		profile = user.Profile
@@ -347,30 +348,31 @@ func configuredCodexDeveloperInstructions(l codexInstructionLayers) string {
 	if profile == "" {
 		profile = system.Profile
 	}
-	var profileV2 layerConfig
 	if profile != "" {
 		set(system.Profiles[profile].DeveloperInstructions)
 		set(user.Profiles[profile].DeveloperInstructions)
 		if l.User != "" {
-			profileV2 = read(filepath.Join(filepath.Dir(l.User), profile+".config.toml"))
-			set(profileV2.DeveloperInstructions)
-		}
-	}
-
-	// The project layer comes last, and only when a non-project layer (the
-	// user config or the active profile) marks that exact directory trusted.
-	if l.LaunchDir != "" {
-		if abs, err := filepath.Abs(l.LaunchDir); err == nil {
-			trust := user.Projects[abs].TrustLevel
-			if t := profileV2.Projects[abs].TrustLevel; t != "" {
-				trust = t
-			}
-			if trust == "trusted" {
-				set(read(filepath.Join(abs, ".codex", "config.toml")).DeveloperInstructions)
-			}
+			set(read(filepath.Join(filepath.Dir(l.User), profile+".config.toml")).DeveloperInstructions)
 		}
 	}
 	return value
+}
+
+// codexProjectSetsDeveloperInstructions reports whether launchDir's
+// .codex/config.toml sets developer_instructions, which wipnote's -c override
+// replaces for the session (see configuredCodexDeveloperInstructions).
+func codexProjectSetsDeveloperInstructions(launchDir string) bool {
+	if launchDir == "" {
+		return false
+	}
+	data, err := os.ReadFile(filepath.Join(launchDir, ".codex", "config.toml"))
+	if err != nil {
+		return false
+	}
+	var cfg struct {
+		DeveloperInstructions *string `toml:"developer_instructions"`
+	}
+	return toml.Unmarshal(data, &cfg) == nil && cfg.DeveloperInstructions != nil
 }
 
 // tomlBasicString encodes s as a single-line TOML basic string. Codex parses
