@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { CARD_TTL_MS, classifyExit, failureText, needsFetch, parseCard, parseWho, pickRefresh, refsInMessages, showArgv, splitRefs, statusLine, stepBar, stepCount } from '../hooks/cards'
+import { CARD_TTL_MS, Latest, classifyExit, failureText, needsFetch, parseCard, parseWho, pickRefresh, refsInMessages, showArgv, splitRefs, statusLine, stepBar, stepCount } from '../hooks/cards'
 
 test('splits a closed wipnote-ref fence out of the text', () => {
   const md = 'Done.\n\n```wipnote-ref\nfeat-65bcc27c\n```\nThanks.'
@@ -110,4 +110,16 @@ test('saved assistant references are read back from the transcript', () => {
   ]
   expect(refsInMessages(msgs, 10)).toEqual(['bug-333333', 'feat-222222'])
   expect(refsInMessages(msgs, 1)).toEqual(['feat-222222'])
+})
+
+test('only the newest of overlapping lookups may write', () => {
+  const latest = new Latest()
+  const older = latest.take('status')
+  const newer = latest.take('status')
+  expect(latest.isNewest('status', older)).toBe(false)
+  expect(latest.isNewest('status', newer)).toBe(true)
+  // Keys are independent: a card lookup does not cancel the status lookup.
+  const card = latest.take('card:feat-1a2b3c')
+  expect(latest.isNewest('card:feat-1a2b3c', card)).toBe(true)
+  expect(latest.isNewest('status', newer)).toBe(true)
 })

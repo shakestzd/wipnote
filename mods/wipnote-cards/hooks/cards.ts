@@ -166,3 +166,21 @@ export function refsInMessages(messages: { role: string; text: string }[], max: 
   }
   return ids.slice(-max)
 }
+
+/**
+ * Hands out increasing tickets per key, so of several overlapping async calls
+ * only the newest one acts on its result.
+ */
+export class Latest {
+  private readonly last = new Map<string, number>()
+
+  take(key: string): number {
+    const ticket = (this.last.get(key) ?? 0) + 1
+    this.last.set(key, ticket)
+    return ticket
+  }
+
+  isNewest(key: string, ticket: number): boolean {
+    return this.last.get(key) === ticket
+  }
+}

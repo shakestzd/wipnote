@@ -18,7 +18,7 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
 import type { Card, CardEntry, FailKind } from '../types'
-import { REF_RULE, classifyExit, failureText, needsFetch, parseCard, parseWho, pickRefresh, refsInMessages, showArgv, splitRefs, statusLine, stepBar, stepCount } from './cards'
+import { Latest, REF_RULE, classifyExit, failureText, needsFetch, parseCard, parseWho, pickRefresh, refsInMessages, showArgv, splitRefs, statusLine, stepBar, stepCount } from './cards'
 import type { CliResult } from './cards'
 
 const cards = atom({ plugin: 'wipnote-cards', key: 'cards' } as const, {})
@@ -52,10 +52,16 @@ function setEntry($: EngineInterface, id: string, entry: CardEntry): Promise<unk
   return update($, cards, all => ({ ...all, [id]: entry }))
 }
 
+// Overlapping lookups finish in any order. Each one takes a ticket, and only
+// the newest ticket may write, so an older, slower lookup never wins.
+const latest = new Latest()
+
 /** Loads one card into the atom; the write redraws every message that reads it. */
 async function loadCard($: EngineInterface, id: string): Promise<void> {
+  const ticket = latest.take(`card:${id}`)
   await setEntry($, id, { state: 'loading', at: await $.clock.now() })
   const r = await fetchCard($, id)
+  if (!latest.isNewest(`card:${id}`, ticket)) return
   const at = await $.clock.now()
   await setEntry($, id, 'card' in r ? { state: 'loaded', card: r.card, at } : { state: 'failed', reason: r.fail, at })
 }
@@ -72,10 +78,12 @@ async function loadStale($: EngineInterface, ids: string[]): Promise<void> {
  * itself fails, the last status stays: an unknown claim is not "no claim".
  */
 async function refreshStatus($: EngineInterface): Promise<void> {
+  const ticket = latest.take('status')
   const who = await wipnoteJSON($, ['wipnote', 'who', '--json'])
   const workItem = who.ok ? parseWho(who.stdout) : null
   if (workItem === null) return
   const r = workItem ? await fetchCard($, workItem) : null
+  if (!latest.isNewest('status', ticket)) return
   const card = r && 'card' in r ? r.card : null
   $.ui.status(statusLine(card, workItem))
   if (card) await setEntry($, card.id, { state: 'loaded', card, at: await $.clock.now() })
