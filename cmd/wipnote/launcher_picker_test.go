@@ -46,6 +46,11 @@ func TestLatestClaudeTranscriptSession_NewestAcrossRootAndWorktrees(t *testing.T
 	otherDir := filepath.Join(projects, claudeProjectDirName("/repo/application")) // shares a prefix, not a project
 
 	writeTranscript(t, rootDir, "old", []string{`{"type":"user","cwd":"/repo/app","message":{"content":"older work"}}`}, now.Add(-3*time.Hour))
+	// Newer than everything else, but unusable: a sibling repository whose folder
+	// shares the prefix, and an aborted session with no prompt.
+	siblingDir := filepath.Join(projects, claudeProjectDirName("/repo/app-copy"))
+	writeTranscript(t, siblingDir, "sibling", []string{`{"type":"user","cwd":"/repo/app-copy","message":{"content":"other repo"}}`}, now.Add(time.Minute))
+	writeTranscript(t, rootDir, "aborted", []string{`{"type":"attachment","cwd":"/repo/app"}`}, now.Add(2*time.Minute))
 	writeTranscript(t, wtDir, "wt", []string{
 		`{"type":"attachment","cwd":"/repo/app/.claude/worktrees/feat-x"}`,
 		`{"type":"user","isMeta":true,"message":{"content":"meta text"}}`,
@@ -62,6 +67,18 @@ func TestLatestClaudeTranscriptSession_NewestAcrossRootAndWorktrees(t *testing.T
 	}
 	if got.ID != "wt" || got.Label != "fix the herdr Live tab" || got.Cwd != "/repo/app/.claude/worktrees/feat-x" {
 		t.Fatalf("got %+v, want the worktree session with its first typed prompt", got)
+	}
+}
+
+func TestLatestClaudeTranscriptSession_FallsBackPastUnusable(t *testing.T) {
+	projects := t.TempDir()
+	rootDir := filepath.Join(projects, claudeProjectDirName("/repo/app"))
+	now := time.Now()
+	writeTranscript(t, rootDir, "good", []string{`{"type":"user","cwd":"/repo/app/sub","message":{"content":"real work"}}`}, now.Add(-time.Hour))
+	writeTranscript(t, rootDir, "nocwd", []string{`{"type":"user","message":{"content":"no cwd"}}`}, now)
+	got := latestClaudeTranscriptSession(projects, "/repo/app")
+	if got == nil || got.ID != "good" {
+		t.Fatalf("got %+v, want the older session with a cwd under the root", got)
 	}
 }
 

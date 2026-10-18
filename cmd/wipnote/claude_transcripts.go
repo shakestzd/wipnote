@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 )
@@ -50,21 +51,32 @@ func claudeProjectDirName(path string) string {
 	return string(b)
 }
 
+// claudeTranscriptCandidates bounds how many transcripts are opened, newest
+// first, before giving up: enough to step past a few empty or aborted sessions.
+const claudeTranscriptCandidates = 20
+
 // latestClaudeTranscriptSession returns the most recently written Claude session
 // for projectRoot or any worktree under it (managed worktrees live in
-// <root>/.claude/worktrees, so their folders share the root's prefix). It returns
-// nil when there is none or the folder cannot be read.
+// <root>/.claude/worktrees, so their folders share the root's prefix). Folder
+// names are lossy (a sibling such as /repo/app-copy shares /repo/app's prefix),
+// so each candidate's recorded cwd must be the root or a directory under it.
+// Candidates are tried newest first, so an empty or aborted newest session does
+// not hide an older one. It returns nil when there is none.
 func latestClaudeTranscriptSession(projectsDir, projectRoot string) *claudeTranscriptSession {
 	if projectsDir == "" || strings.TrimSpace(projectRoot) == "" {
 		return nil
 	}
-	prefix := claudeProjectDirName(filepath.Clean(projectRoot))
+	root := filepath.Clean(projectRoot)
+	prefix := claudeProjectDirName(root)
 	dirs, err := os.ReadDir(projectsDir)
 	if err != nil {
 		return nil
 	}
-	var newestPath string
-	var newestTime time.Time
+	type candidate struct {
+		path    string
+		modTime time.Time
+	}
+	var candidates []candidate
 	for _, d := range dirs {
 		if !d.IsDir() || (d.Name() != prefix && !strings.HasPrefix(d.Name(), prefix+"-")) {
 			continue
@@ -82,21 +94,33 @@ func latestClaudeTranscriptSession(projectsDir, projectRoot string) *claudeTrans
 			if err != nil || info.Size() == 0 {
 				continue
 			}
-			if info.ModTime().After(newestTime) {
-				newestTime = info.ModTime()
-				newestPath = filepath.Join(projectsDir, d.Name(), name)
-			}
+			candidates = append(candidates, candidate{filepath.Join(projectsDir, d.Name(), name), info.ModTime()})
 		}
 	}
-	if newestPath == "" {
-		return nil
+	sort.Slice(candidates, func(i, j int) bool { return candidates[i].modTime.After(candidates[j].modTime) })
+	if len(candidates) > claudeTranscriptCandidates {
+		candidates = candidates[:claudeTranscriptCandidates]
 	}
-	s := readClaudeTranscriptSession(newestPath)
-	if s == nil {
-		return nil
+	for _, c := range candidates {
+		s := readClaudeTranscriptSession(c.path)
+		if s == nil || !withinRoot(s.Cwd, root) {
+			continue
+		}
+		s.ModTime = c.modTime
+		return s
 	}
-	s.ModTime = newestTime
-	return s
+	return nil
+}
+
+// withinRoot reports whether dir is root or a directory under it. An empty dir
+// (no cwd recorded) cannot be placed, so it does not count.
+func withinRoot(dir, root string) bool {
+	dir = strings.TrimSpace(dir)
+	if dir == "" {
+		return false
+	}
+	dir = filepath.Clean(dir)
+	return dir == root || strings.HasPrefix(dir, root+string(filepath.Separator))
 }
 
 // transcriptLine holds the few fields the label needs; everything else in a
