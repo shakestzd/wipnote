@@ -306,3 +306,78 @@ func seedHookWorktreeCreateSession(t *testing.T, repoRoot, sessionID string) {
 		t.Fatalf("InsertSession: %v", err)
 	}
 }
+
+// TestHookWorktreeCreate_HeadlessCreatesWorktreeButRecordsNothing guards the
+// Codex review finding on #210: worktree-create bypasses runHookNamed, so it
+// needs its own headless handling. Under WIPNOTE_HEADLESS=1 it still creates
+// the worktree and prints the bare path, but opens no wipnote database.
+func TestHookWorktreeCreate_HeadlessCreatesWorktreeButRecordsNothing(t *testing.T) {
+	t.Setenv("CLAUDE_CODE_ENTRYPOINT", "cli")
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+	t.Setenv(headlessHookEnv, "1")
+	repoRoot := setupGitRepoForHookWorktreeCreate(t)
+	basePath := filepath.Join(t.TempDir(), "claude-worktrees")
+	wantPath := filepath.Join(basePath, "feat-headless")
+
+	// A registered session, so a non-headless run would record its checkpoint.
+	seedPath, err := hooks.DBPath(repoRoot)
+	if err != nil {
+		t.Fatalf("DBPath: %v", err)
+	}
+	seed, err := db.Open(seedPath)
+	if err != nil {
+		t.Fatalf("db.Open: %v", err)
+	}
+	if err := db.InsertSession(seed, &models.Session{
+		SessionID: "test-hook-worktree-headless", AgentAssigned: "claude-code",
+		CreatedAt: time.Now().UTC(), Status: "active",
+	}); err != nil {
+		t.Fatalf("InsertSession: %v", err)
+	}
+	seed.Close()
+
+	prev := worktreepkg.SetReindexFnForTest(func(string, io.Writer) {})
+	t.Cleanup(func() { worktreepkg.SetReindexFnForTest(prev) })
+
+	payload, err := json.Marshal(map[string]string{
+		"session_id":         "test-hook-worktree-headless",
+		"hook_event_name":    "WorktreeCreate",
+		"cwd":                repoRoot,
+		"worktree_base_path": basePath,
+		"worktree_name":      "feat-headless",
+	})
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+	stdout, stderr, runErr := captureHookCommand(t, payload, func() error {
+		cmd := hookCmd()
+		cmd.SetArgs([]string{"worktree-create"})
+		return cmd.Execute()
+	})
+	if runErr != nil {
+		t.Fatalf("hook worktree-create: %v\nstderr=%s", runErr, stderr)
+	}
+	if stdout != wantPath+"\n" {
+		t.Fatalf("stdout = %q, want bare path %q", stdout, wantPath+"\n")
+	}
+	if info, err := os.Stat(wantPath); err != nil || !info.IsDir() {
+		t.Fatalf("headless run must still create the worktree: info=%v err=%v", info, err)
+	}
+	dbPath, err := hooks.DBPath(repoRoot)
+	if err != nil {
+		t.Fatalf("DBPath: %v", err)
+	}
+	database, err := db.Open(dbPath)
+	if err != nil {
+		t.Fatalf("db.Open: %v", err)
+	}
+	defer database.Close()
+	var n int
+	if err := database.QueryRow(`SELECT COUNT(*) FROM agent_events WHERE session_id = ?`,
+		"test-hook-worktree-headless").Scan(&n); err != nil {
+		t.Fatalf("count events: %v", err)
+	}
+	if n != 0 {
+		t.Fatalf("headless worktree-create must record no event, found %d", n)
+	}
+}

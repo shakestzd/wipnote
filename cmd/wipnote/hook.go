@@ -152,7 +152,12 @@ func hookWorktreeCreateCmd() *cobra.Command {
 				fmt.Fprintln(os.Stderr, err)
 				return err
 			}
-			hooks.TraceInvocation(use, rawPayload, event)
+			// A headless run still needs its worktree, but records nothing: no
+			// trace and no checkpoint (WorktreeCreate accepts a nil handle).
+			headless := os.Getenv(headlessHookEnv) == "1"
+			if !headless {
+				hooks.TraceInvocation(use, rawPayload, event)
+			}
 
 			projectDir := hooks.ResolveProjectDir(event.CWD, event.SessionID)
 			if !hooks.IswipnoteProject(projectDir) {
@@ -175,11 +180,15 @@ func hookWorktreeCreateCmd() *cobra.Command {
 			// reindex on the next serve cycle. A genuine failure (missing
 			// worktree_name / worktree_base_path, or a worktree creation error)
 			// still returns a non-zero error with no JSON on stdout.
-			database, reason := hooks.OpenHookDB(use, event.SessionID, dbPath)
-			if database != nil {
-				defer database.Close()
-			} else {
-				_ = reason // already logged + counted inside OpenHookDB
+			var database *sql.DB
+			if !headless {
+				var reason hooks.FallbackReason
+				database, reason = hooks.OpenHookDB(use, event.SessionID, dbPath)
+				if database != nil {
+					defer database.Close()
+				} else {
+					_ = reason // already logged + counted inside OpenHookDB
+				}
 			}
 
 			path, err := hooks.WorktreeCreate(event, database)
@@ -300,8 +309,9 @@ func hookSubcmdWithProject(
 		Use:   use,
 		Short: short,
 		RunE: func(_ *cobra.Command, _ []string) error {
-			// session-start gets a fresh trace file before anything else.
-			if use == "session-start" {
+			// session-start gets a fresh trace file before anything else; a
+			// headless child must not wipe the interactive session's trace.
+			if use == "session-start" && os.Getenv(headlessHookEnv) != "1" {
 				hooks.TruncateTraceFile()
 			}
 			return runHookNamed(use, func(event *hooks.CloudEvent) (*hooks.HookResult, error) {
