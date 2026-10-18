@@ -13,7 +13,7 @@ agy -p "Analyze codebase for:
 - Session management
 - JWT usage" --dangerously-skip-permissions 2>&1
 ```
-Best for file searching, pattern analysis, documentation research, and unfamiliar systems. If agy fails or is missing, use `wipnote:researcher` (or native Explore for pure code reading).
+Best for file searching, pattern analysis, documentation research, and unfamiliar systems. If agy fails or is missing, use `wipnote:researcher` (or the native code explorer — `Explore` on Claude Code, `explorer` on Codex — for pure code reading).
 
 ### Codex CLI (code)
 ```bash
