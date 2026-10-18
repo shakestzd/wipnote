@@ -72,6 +72,7 @@ func TestEnvSessionID_HarnessAware(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Setenv("WIPNOTE_HARNESS", tc.harness)
+			t.Setenv("CODEX_SESSION_ID", "")
 			t.Setenv("CODEX_THREAD_ID", tc.codexThread)
 			t.Setenv("GEMINI_SESSION_ID", tc.geminiSess)
 			t.Setenv("ANTIGRAVITY_SESSION_ID", tc.antigravSess)

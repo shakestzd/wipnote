@@ -43,6 +43,7 @@ func TestBugStart_CodexSessionIgnoresStaleClaudeActiveSession(t *testing.T) {
 		t.Setenv(k, "")
 	}
 	t.Setenv("WIPNOTE_PROJECT_DIR", tmpDir)
+	t.Setenv("CODEX_SESSION_ID", "")
 	t.Setenv("CODEX_THREAD_ID", codexThread)
 
 	// The stale entry a failed nested `wipnote claude` left behind.

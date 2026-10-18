@@ -32,6 +32,7 @@ func TestResolveCurrentSessionIDs_ExpandsFamily(t *testing.T) {
 	// Only the parent stub is known from the harness env.
 	t.Setenv("WIPNOTE_SESSION_ID", "sess-parent")
 	t.Setenv("WIPNOTE_HARNESS", "")
+	t.Setenv("CODEX_SESSION_ID", "")
 	t.Setenv("CODEX_THREAD_ID", "")
 	t.Setenv("WIPNOTE_OTEL_SESSION", "")
 	t.Setenv("GEMINI_SESSION_ID", "")
@@ -67,6 +68,7 @@ func TestResolveCurrentSessionIDs_CodexThreadBeatsInheritedParent(t *testing.T) 
 	}
 
 	t.Setenv("WIPNOTE_HARNESS", "codex")
+	t.Setenv("CODEX_SESSION_ID", "")
 	t.Setenv("CODEX_THREAD_ID", "codex-thread")
 	t.Setenv("WIPNOTE_OTEL_SESSION", "")
 	t.Setenv("WIPNOTE_SESSION_ID", "stale-claude-parent")
@@ -91,6 +93,7 @@ func TestResolveCurrentSessionIDs_CodexThreadBeatsInheritedParent(t *testing.T) 
 func TestResolveCurrentSessionIDs_UsesGenericSessionWhenNoHarnessNativeID(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("WIPNOTE_HARNESS", "codex")
+	t.Setenv("CODEX_SESSION_ID", "")
 	t.Setenv("CODEX_THREAD_ID", "")
 	t.Setenv("WIPNOTE_OTEL_SESSION", "")
 	t.Setenv("WIPNOTE_SESSION_ID", "generic-session")
