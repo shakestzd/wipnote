@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>feature complete: hint --allow-orphan when the work&#39;s commits live in another repository</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-f94df40b"
+             data-type="bug"
+             data-status="todo"
+             data-priority="low"
+             data-created="2026-10-18T08:16:28.819252"
+             data-updated="2026-10-18T08:16:28.823268" data-agent-assigned="claude-code" data-track-id="trk-0677c709" data-created-by-agent="claude-code" data-created-by-cli-version="0.70.2-7-g160ae1b84" data-created_in_session="e41f6acf-9ecd-5cf8-846b-fbd1203fe65e">
+
+        <header>
+            <h1>feature complete: hint --allow-orphan when the work&#39;s commits live in another repository</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-low">Low Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-0677c709.html" data-relationship="part_of" data-since="2026-10-18T08:16:28.823097">trk-0677c709</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="false" data-step-id="step-bug-f94df40b-0" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Detect the cross-repo case in the merged gate</li>
+                <li data-completed="false" data-step-id="step-bug-f94df40b-1" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Print the --allow-orphan hint</li>
+                <li data-completed="false" data-step-id="step-bug-f94df40b-2" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Test</li>
+            </ol>
+        </section>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>From GitHub issue #214 (side finding). wipnote feature complete refuses unlinked commits when the work&#39;s commits live in a different repository. --allow-orphan &#39;&lt;reason&gt;&#39; works, but the refusal does not say so for this case. Detect that the item has no commits in this repo (or names commits outside it) and print the --allow-orphan hint with an example reason.</p>
+        </section>
+    </article>
+</body>
+</html>
