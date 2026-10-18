@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -858,29 +859,40 @@ func indexOf(values []string, want string) int {
 }
 
 // TestBuildCodexInstructionConfigArgsKeepsConfiguredInstructions guards the
-// Codex review finding on PR #207: developer_instructions is one string and a
-// -c flag outranks user/project config, so the override must carry the
-// user's configured value instead of replacing it.
+// Codex review findings on PR #207 and #209: the override must carry the
+// user's configured developer_instructions, and may carry a project's only
+// when the user config marks that project trusted (Codex loads an untrusted
+// project layer disabled; a -c flag would bypass that).
 func TestBuildCodexInstructionConfigArgsKeepsConfiguredInstructions(t *testing.T) {
 	home := t.TempDir()
 	userCfg := filepath.Join(home, "config.toml")
-	if err := os.WriteFile(userCfg, []byte("developer_instructions = \"user rule\"\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
 	launch := t.TempDir()
+	writeFile := func(path, body string) {
+		t.Helper()
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	writeFile(userCfg, "developer_instructions = \"user rule\"\n")
+	writeFile(filepath.Join(launch, ".codex", "config.toml"), "developer_instructions = \"project rule\"\n")
 
+	// Untrusted (unlisted) project: its instructions must not be elevated.
 	if got := configuredCodexDeveloperInstructions(userCfg, launch); got != "user rule" {
-		t.Fatalf("user layer: got %q", got)
+		t.Fatalf("untrusted project must not contribute, got %q", got)
 	}
-	if err := os.MkdirAll(filepath.Join(launch, ".codex"), 0o755); err != nil {
-		t.Fatal(err)
+	writeFile(userCfg, fmt.Sprintf("developer_instructions = \"user rule\"\n[projects.%q]\ntrust_level = \"untrusted\"\n", launch))
+	if got := configuredCodexDeveloperInstructions(userCfg, launch); got != "user rule" {
+		t.Fatalf("explicitly untrusted project must not contribute, got %q", got)
 	}
-	if err := os.WriteFile(filepath.Join(launch, ".codex", "config.toml"), []byte("developer_instructions = \"project rule\"\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
+
+	// Trusted project: its layer wins, as in Codex.
+	writeFile(userCfg, fmt.Sprintf("developer_instructions = \"user rule\"\n[projects.%q]\ntrust_level = \"trusted\"\n", launch))
 	existing := configuredCodexDeveloperInstructions(userCfg, launch)
 	if existing != "project rule" {
-		t.Fatalf("project layer should win, got %q", existing)
+		t.Fatalf("trusted project layer should win, got %q", existing)
 	}
 
 	args := buildCodexInstructionConfigArgs(codexLaunchModeDefault, existing)

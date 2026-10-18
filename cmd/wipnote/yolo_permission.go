@@ -11,8 +11,10 @@ import (
 // bypassPermissions is still available, but only as an explicit opt-in.
 const yoloDefaultPermissionMode = "auto"
 
-// yoloPermissionModes are the values `claude --permission-mode` accepts.
-var yoloPermissionModes = []string{"acceptEdits", "auto", "bypassPermissions", "manual", "dontAsk", "plan"}
+// yoloPermissionModes are the values `claude --permission-mode` accepts:
+// `claude --help` lists manual, and the permissions docs name default as the
+// canonical key with manual as its alias, so both are accepted.
+var yoloPermissionModes = []string{"acceptEdits", "auto", "bypassPermissions", "default", "manual", "dontAsk", "plan"}
 
 // yoloPermissionModeHelp is the --permission-mode flag help text.
 var yoloPermissionModeHelp = fmt.Sprintf(

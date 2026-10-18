@@ -15,7 +15,7 @@ func TestYoloPermissionModeFlagDefaultsToAuto(t *testing.T) {
 	if flag.DefValue != "auto" {
 		t.Fatalf("--permission-mode default = %q, want auto", flag.DefValue)
 	}
-	for _, mode := range []string{"acceptEdits", "auto", "bypassPermissions", "manual", "dontAsk", "plan"} {
+	for _, mode := range []string{"acceptEdits", "auto", "bypassPermissions", "default", "manual", "dontAsk", "plan"} {
 		if !strings.Contains(flag.Usage, mode) {
 			t.Errorf("--permission-mode help should list %q, got %q", mode, flag.Usage)
 		}
@@ -28,7 +28,11 @@ func TestValidateYoloPermissionMode(t *testing.T) {
 			t.Errorf("%s: unexpected error %v", mode, err)
 		}
 	}
-	for _, mode := range []string{"", "bypass", "default", "Auto"} {
+	// "default" is the canonical key in the Claude Code permissions docs (Codex review, #209).
+	if err := validateYoloPermissionMode("default"); err != nil {
+		t.Errorf("default: unexpected error %v", err)
+	}
+	for _, mode := range []string{"", "bypass", "Default", "Auto"} {
 		if err := validateYoloPermissionMode(mode); err == nil {
 			t.Errorf("%q: want an error", mode)
 		}

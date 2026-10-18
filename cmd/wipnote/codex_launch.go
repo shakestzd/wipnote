@@ -259,26 +259,40 @@ func buildCodexInstructionConfigArgs(mode codexLaunchMode, existing string) []st
 }
 
 // configuredCodexDeveloperInstructions returns the developer_instructions the
-// launch would see without wipnote's override: the project layer
-// (<launchDir>/.codex/config.toml) wins over the user layer (userConfig), as
-// in Codex's own config layering. Unreadable or unparsable files count as
-// unset; Codex reports those itself.
+// launch would see without wipnote's override: the user layer (userConfig),
+// overridden by the project layer (<launchDir>/.codex/config.toml) only when
+// the user config marks launchDir trusted. Codex loads an untrusted project
+// layer disabled; reading it here and re-injecting it through a -c flag
+// would bypass that trust check, so an untrusted or unknown project
+// contributes nothing. Unreadable or unparsable files count as unset.
 func configuredCodexDeveloperInstructions(userConfig, launchDir string) string {
-	paths := []string{userConfig}
-	if launchDir != "" {
-		paths = append(paths, filepath.Join(launchDir, ".codex", "config.toml"))
+	type codexInstructionConfig struct {
+		DeveloperInstructions string `toml:"developer_instructions"`
+		Projects              map[string]struct {
+			TrustLevel string `toml:"trust_level"`
+		} `toml:"projects"`
 	}
-	value := ""
-	for _, p := range paths {
-		data, err := os.ReadFile(p)
-		if err != nil {
-			continue
+	read := func(path string) (codexInstructionConfig, bool) {
+		var cfg codexInstructionConfig
+		data, err := os.ReadFile(path)
+		if err != nil || toml.Unmarshal(data, &cfg) != nil {
+			return cfg, false
 		}
-		var cfg struct {
-			DeveloperInstructions string `toml:"developer_instructions"`
-		}
-		if toml.Unmarshal(data, &cfg) == nil && strings.TrimSpace(cfg.DeveloperInstructions) != "" {
-			value = cfg.DeveloperInstructions
+		return cfg, true
+	}
+
+	user, _ := read(userConfig)
+	value := strings.TrimSpace(user.DeveloperInstructions)
+	if launchDir == "" {
+		return value
+	}
+	abs, err := filepath.Abs(launchDir)
+	if err != nil || user.Projects[abs].TrustLevel != "trusted" {
+		return value
+	}
+	if project, ok := read(filepath.Join(abs, ".codex", "config.toml")); ok {
+		if v := strings.TrimSpace(project.DeveloperInstructions); v != "" {
+			value = v
 		}
 	}
 	return value
