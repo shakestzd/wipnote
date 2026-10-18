@@ -50,3 +50,28 @@ func TestRunHookNamed_HeadlessSkipsHandler(t *testing.T) {
 		t.Fatalf("headless hook must allow, got %q", out)
 	}
 }
+
+// TestRunHookNamed_HeadlessAllowsAntigravityPreToolUse guards the Codex review
+// finding on #210: Antigravity reads a bare {} on PreToolUse as a deny, so the
+// headless allow must carry the event name and emit allowTool:true.
+func TestRunHookNamed_HeadlessAllowsAntigravityPreToolUse(t *testing.T) {
+	t.Setenv(headlessHookEnv, "1")
+	orig := hookHarnessOverride
+	hookHarnessOverride = "antigravity"
+	t.Cleanup(func() { hookHarnessOverride = orig })
+
+	stdout, _, err := captureHookCommand(t,
+		[]byte(`{"hook_event_name":"PreToolUse","tool_name":"run_shell_command","tool_input":{"command":"ls"}}`),
+		func() error {
+			return runHookNamed("pretooluse", func(*hooks.CloudEvent) (*hooks.HookResult, error) {
+				t.Fatal("handler must not run when WIPNOTE_HEADLESS=1")
+				return nil, nil
+			})
+		})
+	if err != nil {
+		t.Fatalf("runHookNamed: %v", err)
+	}
+	if !strings.Contains(stdout, `"allowTool":true`) {
+		t.Fatalf("headless Antigravity PreToolUse must allow the tool, got %q", stdout)
+	}
+}

@@ -436,17 +436,19 @@ func runHookNamed(subcommand string, handler func(*hooks.CloudEvent) (*hooks.Hoo
 	// detect the harness from the environment and raw payload shape.
 	harness := hooks.DetectHarnessWithOverride(rawPayload, hookHarnessOverride)
 
-	// A headless run that wipnote itself started (compliance grading, plan
-	// chat, the headless-runs mod) must not record or gate anything.
-	if os.Getenv(headlessHookEnv) == "1" {
-		return hooks.WriteResultForHarness(harness, hooks.AllowForHarness(harness))
-	}
-
 	// Parse the event using the harness-specific input adapter.
 	event, err := hooks.ParseEventForHarness(harness, rawPayload)
 	if err != nil {
 		hooks.LogError("runHook", "", fmt.Sprintf("parse event (%s): %v", harness, err))
 		return hooks.WriteResultForHarness(harness, hooks.AllowForHarness(harness))
+	}
+
+	// A headless run that wipnote itself started (compliance grading, plan
+	// chat, the headless-runs mod) must not record or gate anything. The
+	// allow carries the event name: Antigravity reads a bare {} on PreToolUse
+	// as a deny (emitAntigravityResponseForEvent).
+	if os.Getenv(headlessHookEnv) == "1" {
+		return hooks.WriteResultForHarnessEvent(harness, hookEventNameForResponse(subcommand, event), hooks.AllowForHarness(harness))
 	}
 
 	hooks.TraceInvocation(subcommand, rawPayload, event)
