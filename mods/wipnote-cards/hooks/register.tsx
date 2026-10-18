@@ -62,8 +62,11 @@ async function loadCard($: EngineInterface, id: string): Promise<void> {
   await setEntry($, id, { state: 'loading', at: await $.clock.now() })
   const r = await fetchCard($, id)
   if (!latest.isNewest(`card:${id}`, ticket)) return
-  const at = await $.clock.now()
-  await setEntry($, id, 'card' in r ? { state: 'loaded', card: r.card, at } : { state: 'failed', reason: r.fail, at })
+  await setEntry($, id, entryFrom(r, await $.clock.now()))
+}
+
+function entryFrom(r: { card: Card } | { fail: FailKind }, at: number): CardEntry {
+  return 'card' in r ? { state: 'loaded', card: r.card, at } : { state: 'failed', reason: r.fail, at }
 }
 
 /** Starts a fetch for every id that is missing or stale. */
@@ -76,17 +79,23 @@ async function loadStale($: EngineInterface, ids: string[]): Promise<void> {
 /**
  * Sets the status line from the session's claimed work item. When `who`
  * itself fails, the last status stays: an unknown claim is not "no claim".
+ * The item's card lookup takes a card ticket too, so it shares one order with
+ * loadCard and an older lookup of either kind never overwrites a newer one.
  */
 async function refreshStatus($: EngineInterface): Promise<void> {
   const ticket = latest.take('status')
   const who = await wipnoteJSON($, ['wipnote', 'who', '--json'])
   const workItem = who.ok ? parseWho(who.stdout) : null
   if (workItem === null) return
-  const r = workItem ? await fetchCard($, workItem) : null
-  if (!latest.isNewest('status', ticket)) return
-  const card = r && 'card' in r ? r.card : null
-  $.ui.status(statusLine(card, workItem))
-  if (card) await setEntry($, card.id, { state: 'loaded', card, at: await $.clock.now() })
+  if (!workItem) {
+    if (latest.isNewest('status', ticket)) $.ui.status(statusLine(null, ''))
+    return
+  }
+  const cardKey = `card:${workItem}`
+  const cardTicket = latest.take(cardKey)
+  const r = await fetchCard($, workItem)
+  if (latest.isNewest(cardKey, cardTicket)) await setEntry($, workItem, entryFrom(r, await $.clock.now()))
+  if (latest.isNewest('status', ticket)) $.ui.status(statusLine('card' in r ? r.card : null, workItem))
 }
 
 /**
@@ -122,6 +131,16 @@ export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     void refreshStatus($)
     void hydrate($)
+    return next(e)
+  })
+
+  // /resume, /branch and /clear swap the conversation and reset the cards atom,
+  // but session.start does not fire again; the settings SessionStart does.
+  on('classic.SessionStart', async ($, e, next) => {
+    if (e.source !== 'startup') {
+      void refreshStatus($)
+      void hydrate($)
+    }
     return next(e)
   })
 
