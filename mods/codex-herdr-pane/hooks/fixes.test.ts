@@ -84,3 +84,31 @@ test('a ccx run waits for the launch lock and claims only when no other log is u
   expect(text).toContain(': > "$UNB/$$"; release; gaveup=1;') // a timed-out run is marked before it releases
   expect(text).toContain('release; rm -f "$UNB/$$"')
 })
+
+// 0.7.2, issue 219
+test('a standalone review sends its final message to the answer file; a chained one keeps stdout', () => {
+  const text = buildWrapper('codex review', defaults)
+  expect(text).toContain('[ -z "${__CODEX_CHAIN:-}" ] && [ "$1" = review ]; then')
+  expect(text).toContain('command codex "$@" > "$__CODEX_LAST"')
+})
+
+test('the Markdown log joins neighbouring text fences', () => {
+  expect(buildWrapper('codex review', defaults)).toContain('| awk -f "$ROOT/viewer/joinfence.awk"; }')
+})
+
+test('the pane sets its own title and clears the typed command before the log', () => {
+  expect(buildWrapper('codex exec "x"', defaults)).toContain('printf "\\033]0;%s\\007\\033[H\\033[2J" "$(cat "$D/label" 2>/dev/null)"')
+})
+
+test('the pane is renamed after herdr runs the pane script', () => {
+  const text = buildWrapper('codex exec "x"', defaults)
+  expect(text.indexOf('herdr pane rename')).toBeGreaterThan(text.indexOf('herdr pane run'))
+})
+
+test('old scripts, run directories and ccx claims are swept in the background', () => {
+  const text = buildWrapper('codex exec "x"', defaults)
+  expect(text).toContain("-name 'codex-herdr-run.*.sh' -mmin +60 -delete")
+  expect(text).toContain('K="${CODEX_HERDR_KEEP_DAYS:-7}"')
+  expect(text).toContain("-name 'codex-herdr.*' -mtime +\"$K\"")
+  expect(text).toContain(') >/dev/null 2>&1 &')
+})

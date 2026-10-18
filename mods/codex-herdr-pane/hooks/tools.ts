@@ -71,11 +71,21 @@ export function isStandalone(command: string): boolean {
 export const isDelegation = (command: string): boolean => toolFor(command) !== undefined
 export const isCodexDelegation = isDelegation
 
-// A short title for the pane: the start of the quoted prompt, else "running".
+// What a codex review with no prompt looks at, from its flags; plain `codex review` reviews the
+// working tree.
+function reviewTarget(command: string): string {
+  const flag = (name: string) => new RegExp(`--${name}(?:=|\\s+)([^\\s;&|]+)`).exec(command)?.[1]
+  const base = flag('base'), commit = flag('commit')
+  if (base) return `changes against ${base}`
+  if (commit) return `commit ${commit.slice(0, 12)}`
+  return 'current changes'
+}
+
+// A short title for the pane: the start of the quoted prompt, else what a review looks at, else "running".
 export function paneLabel(command: string): string {
   const tool = toolFor(command) ?? TOOLS.find((t) => t.loose.test(command)) ?? TOOLS[0]!
   const sub = tool.loose.exec(command)?.[1] ?? ''
   const prompt = new RegExp(`${tool.loose.source}[^"'\\n]*?(["'])((?:\\\\.|(?!\\2)[^\\\\\\n])+)\\2`).exec(command)
-  const text = prompt?.[3]?.replace(/\s+/g, ' ').trim()
+  const text = prompt?.[3]?.replace(/\s+/g, ' ').trim() || (sub === 'review' ? reviewTarget(command) : '')
   return `${tool.title(sub)}: ${text ? text.slice(0, 48).trim() : 'running'}`
 }

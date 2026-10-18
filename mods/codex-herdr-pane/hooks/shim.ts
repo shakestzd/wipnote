@@ -7,6 +7,9 @@ import { NL_FN, mdFunctions } from './mdpipe.ts'
 //   -p <profile>           the lean profile, only when ~/.codex/<profile>.config.toml
 //                          exists (codex review has no profile flag and is untouched)
 //   --json                 so the usage event can be read (codex.jq renders it)
+// A standalone review (it has no --json) writes its final message to stdout and its progress
+// to stderr: stdout goes to the answer file, so the call returns the verdict as exec does and
+// the log holds the progress once. A chained review keeps stdout for the caller.
 // CHAINED calls (see isStandalone in tools.ts) set __CODEX_CHAIN: the command's stdout
 // is the caller's, so for exec the shim sends codex's JSONL only to the pane
 // (raw.log, then codex.jq and clean.awk into clean.log) and prints the answer file to
@@ -37,6 +40,8 @@ export const SHIM = [
   '      rc="${PIPESTATUS[0]}"; cat "$__CODEX_LAST" 2>/dev/null; nl_if_open "$__CODEX_LAST"; return "$rc"',
   '    fi',
   '    command codex "$sub" "${pre[@]}" "$@"',
+  '  elif [ -n "${__CODEX_LAST:-}" ] && [ -z "${__CODEX_CHAIN:-}" ] && [ "$1" = review ]; then',
+  '    command codex "$@" > "$__CODEX_LAST"',
   '  else',
   '    command codex "$@"',
   '  fi',

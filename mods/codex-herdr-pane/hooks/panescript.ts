@@ -150,6 +150,9 @@ export function paneScript(o: WrapOptions, tool: DelegationTool, chained: boolea
     ...mdFunctions('$ROOT'),
     MKREST,
     'if [ "$CHAIN" = 1 ]; then export MCP_SEEN_MD="$D/mcp.md.seen" MCP_SEEN_LOG="$D/mcp.log.seen"; fi',
+    // The pane's own title (the shell set one for the typed command) and a clear screen, so the
+    // command line herdr typed does not stay above the log
+    'printf "\\033]0;%s\\007\\033[H\\033[2J" "$(cat "$D/label" 2>/dev/null)"',
     'date +%s > "$D/start"; : > "$D/clean.md"',
     '(',
     ...run,

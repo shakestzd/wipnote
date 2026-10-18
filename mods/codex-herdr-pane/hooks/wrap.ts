@@ -90,6 +90,15 @@ function closeSection(o: WrapOptions): string[] {
   ]
 }
 
+// Old leftovers in TMPDIR, removed in the background at each run: a script the hook wrote for
+// a call that never ran (a denied call) after an hour, and run directories and ccx claims
+// after CODEX_HERDR_KEEP_DAYS days (7).
+const SWEEP = '( T="${TMPDIR:-/tmp}"; K="${CODEX_HERDR_KEEP_DAYS:-7}"; '
+  + 'find "$T" -maxdepth 1 -type f -name \'' + SCRIPT_PREFIX + '*.sh\' -mmin +60 -delete; '
+  + 'find "$T" -maxdepth 1 -type d -name \'codex-herdr.*\' -mtime +"$K" -exec rm -rf {} +; '
+  + 'find "$T/codex-herdr-ccx-claims" -mindepth 1 -maxdepth 1 -type d -name \'*.jsonl\' -mtime +"$K" -exec rm -rf {} +; '
+  + ') >/dev/null 2>&1 &'
+
 export function buildWrapper(command: string, o: WrapOptions): string {
   const tool = toolFor(command) ?? TOOLS[0]!
   const chained = !isStandalone(command)
@@ -101,6 +110,7 @@ export function buildWrapper(command: string, o: WrapOptions): string {
     '__D=$(mktemp -d "${TMPDIR:-/tmp}/codex-herdr.XXXXXX") || exit 1',
     // A script the hook wrote (see stubFor) moves into the run directory, so it is kept with the logs
     'case "$0" in */' + SCRIPT_PREFIX + '*.sh) mv "$0" "$__D/wrapper.sh" 2>/dev/null;; esac',
+    SWEEP,
     ...heredoc('$__D/orig.sh', orig, [command]),
     // Outside herdr, or without the binary, run the command exactly as asked.
     'if [ "${HERDR_ENV:-}" != 1 ] || ! command -v herdr >/dev/null 2>&1; then exec bash "$__D/orig.sh"; fi',
@@ -109,8 +119,9 @@ export function buildWrapper(command: string, o: WrapOptions): string {
     `printf '%s' ${JSON.stringify(word(paneLabel(command)))} > "$__D/label"`,
     ...splitSection(o),
     'if [ -z "$__P" ]; then exec bash "$__D/orig.sh"; fi',
-    'herdr pane rename "$__P" "$(cat "$__D/label")" >/dev/null 2>&1 || true',
     `herdr pane run "$__P" bash "$__D/pane.sh" "$__D" ${shq(o.root)} ${o.viewer} ${chained ? 1 : 0} >/dev/null`,
+    // After the run, so the shell's own title for the typed command does not replace it
+    'herdr pane rename "$__P" "$(cat "$__D/label")" >/dev/null 2>&1 || true',
     'while [ ! -f "$__D/exit" ]; do',
     `  herdr pane get "$__P" >/dev/null 2>&1 || { ${unregisterCmd(o)}; echo "the herdr pane $__P was closed before ${tool.name} finished (log: $__D/raw.log)"; exit 130; }`,
     '  sleep 1',

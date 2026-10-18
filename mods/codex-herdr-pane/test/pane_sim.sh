@@ -260,5 +260,29 @@ has "ccx stale lock: the run follows its own log" "thinking about alpha" "$DA/cl
 has "ccx stale lock: ccx returned its result" "ccx task ok" "$T/out.a"
 eq "ccx stale lock: no lock is left" "$(ls -d "$T"/tmp/codex-herdr-ccx-claims/launch.lock 2>/dev/null | wc -l | tr -d ' ')" 0
 
+# --- 0.7.2 (issue 219): a standalone review is cleaned and returns its verdict ---
+SIMREVIEW=1 run 'codex review'
+eq "review: the verdict is returned as the answer" "$(echo "$OUT" | sed -n '2p')" "The verdict."
+nothas "review: no banner in clean.md" "OpenAI Codex v" "$D/clean.md"
+nothas "review: no MCP listing in clean.md" "list_mcp_resources" "$D/clean.md"
+eq "review: one text fence in clean.md" "$(grep -c '^```text$' "$D/clean.md")" 1
+has "review: the progress is in clean.md" "current changes" "$D/clean.md"
+has "review: raw.log keeps the banner" "OpenAI Codex v" "$D/raw.log"
+fencecheck "$D/clean.md" review
+has "review: pane title names what is reviewed" "Codex review: current changes" "$D/label"
+eq "review: the pane is renamed after it starts" "$(grep -n -e '^herdr pane run' -e '^herdr pane rename' "$T/log" | cut -d: -f2 | cut -c1-16 | tr '\n' ,)" "herdr pane run w,herdr pane renam,"
+
+# --- 0.7.2: old leftovers in TMPDIR are swept ---
+rm -rf "$T/tmp" "$T/runs" "$T/log"*; mkdir -p "$T/tmp/codex-herdr.old1" "$T/tmp/codex-herdr.new1" "$T/tmp/codex-herdr-ccx-claims/a.jsonl"
+touch "$T/tmp/codex-herdr-run.stale.sh" "$T/tmp/codex-herdr-run.fresh.sh"
+touch -d '2 hours ago' "$T/tmp/codex-herdr-run.stale.sh"; touch -d '8 days ago' "$T/tmp/codex-herdr.old1" "$T/tmp/codex-herdr-ccx-claims/a.jsonl"
+node --experimental-strip-types "$ROOT/test/gen.ts" 'codex exec "hello"' "$ROOT" > "$T/w.sh" 2>/dev/null
+env $ENVS bash "$T/w.sh" > /dev/null 2>&1; sleep 1.5
+eq "sweep: a script older than an hour is removed" "$(ls "$T/tmp/codex-herdr-run.stale.sh" 2>/dev/null | wc -l | tr -d ' ')" 0
+eq "sweep: a new script is kept" "$(ls "$T/tmp/codex-herdr-run.fresh.sh" 2>/dev/null | wc -l | tr -d ' ')" 1
+eq "sweep: a run directory older than 7 days is removed" "$(ls -d "$T/tmp/codex-herdr.old1" 2>/dev/null | wc -l | tr -d ' ')" 0
+eq "sweep: a newer run directory is kept" "$(ls -d "$T/tmp/codex-herdr.new1" 2>/dev/null | wc -l | tr -d ' ')" 1
+eq "sweep: an old ccx claim is removed" "$(ls -d "$T/tmp/codex-herdr-ccx-claims/a.jsonl" 2>/dev/null | wc -l | tr -d ' ')" 0
+
 rm -rf "$T"
 [ "$fails" = 0 ] && echo "pane simulation passed" || { echo "$fails failed"; exit 1; }
