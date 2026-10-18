@@ -59,7 +59,8 @@
     "skills": "plugin/skills",
     "templates": "plugin/templates",
     "static": "plugin/static",
-    "config": "plugin/config"
+    "config": "plugin/config",
+    "outputStyles": "plugin/output-styles"
   },
 
   "hooks": {

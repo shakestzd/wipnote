@@ -87,6 +87,7 @@ Present a concise, grounded summary to the user:
 ```
 
 Keep the narrative tight — 5-10 lines. The full artifact is in the dashboard for deep review.
+Write it in plain English, as the agent-context "Writing style" section describes: one idea per sentence, under 20 words, active voice.
 
 ---
 

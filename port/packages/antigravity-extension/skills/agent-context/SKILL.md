@@ -26,6 +26,10 @@ Use the work item ID from your task prompt (e.g. "Feature: feat-580dc00b") with 
 
 Final reports get truncated, so persist substance first: findings via `wipnote <kind> set-description <id> "..."`, progress via `wipnote <kind> add-step <id> "..."`, durable facts via `wipnote arch add`, code via `git commit` (only when your task includes committing and the gate passes). On long tasks (>30 calls) persist incrementally. The final message is a compact summary pointing at those artifacts.
 
+## Writing style
+
+Write final reports, `set-description` and `add-step` text in plain English (ASD-STE100-lite): one idea per sentence, sentences under 20 words, active voice, commands for steps, one word for one meaning. Code, commands, paths and quoted output stay exact. The main-conversation equivalent is the `wipnote:Plain English` output style; output styles do not reach subagents, so this section is the rule here.
+
 ## Principles
 
 DRY, single responsibility, KISS, YAGNI; functions <50 lines, files <500. Prefer CLI over skills over deferred MCP tools. Never author or overwrite a project's AGENTS.md, CLAUDE.md, or GEMINI.md.

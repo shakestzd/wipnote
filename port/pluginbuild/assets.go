@@ -16,6 +16,7 @@ func copyAssets(m *Manifest, repoRoot, outDir string) error {
 		{m.AssetSources.Templates, "templates"},
 		{m.AssetSources.Static, "static"},
 		{m.AssetSources.Config, "config"},
+		{m.AssetSources.OutputStyles, "output-styles"},
 	}
 	for _, p := range pairs {
 		if p.src == "" {

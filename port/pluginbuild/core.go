@@ -72,6 +72,10 @@ type AssetSources struct {
 	Templates string `json:"templates"`
 	Static    string `json:"static"`
 	Config    string `json:"config"`
+	// OutputStyles is Claude-only: Claude Code loads plugin output styles from
+	// output-styles/. Codex and Antigravity have no equivalent, so their
+	// emitters do not copy it.
+	OutputStyles string `json:"outputStyles"`
 }
 
 // HookMatrix is the ordered list of hook events declared across all targets.
