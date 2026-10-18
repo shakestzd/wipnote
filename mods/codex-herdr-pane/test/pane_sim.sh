@@ -295,11 +295,11 @@ eq "joinfence: a code block keeps its closing fence; two text blocks join" "$(aw
 # --- 0.7.2: old leftovers in TMPDIR are swept ---
 rm -rf "$T/tmp" "$T/runs" "$T/log"*; mkdir -p "$T/tmp/codex-herdr.old1" "$T/tmp/codex-herdr.new1" "$T/tmp/codex-herdr-ccx-claims-$(id -u)/a.jsonl"
 touch "$T/tmp/codex-herdr-run.stale.sh" "$T/tmp/codex-herdr-run.fresh.sh"
-touch -d '2 hours ago' "$T/tmp/codex-herdr-run.stale.sh"; touch -d '8 days ago' "$T/tmp/codex-herdr.old1" "$T/tmp/codex-herdr-ccx-claims-$(id -u)/a.jsonl"
+touch -d '8 days ago' "$T/tmp/codex-herdr-run.stale.sh"; touch -d '2 hours ago' "$T/tmp/codex-herdr-run.fresh.sh"; touch -d '8 days ago' "$T/tmp/codex-herdr.old1" "$T/tmp/codex-herdr-ccx-claims-$(id -u)/a.jsonl"
 node --experimental-strip-types "$ROOT/test/gen.ts" 'codex exec "hello"' "$ROOT" > "$T/w.sh" 2>/dev/null
 env $ENVS bash "$T/w.sh" > /dev/null 2>&1; sleep 1.5
-eq "sweep: a script older than an hour is removed" "$(ls "$T/tmp/codex-herdr-run.stale.sh" 2>/dev/null | wc -l | tr -d ' ')" 0
-eq "sweep: a new script is kept" "$(ls "$T/tmp/codex-herdr-run.fresh.sh" 2>/dev/null | wc -l | tr -d ' ')" 1
+eq "sweep: a script older than 7 days is removed" "$(ls "$T/tmp/codex-herdr-run.stale.sh" 2>/dev/null | wc -l | tr -d ' ')" 0
+eq "sweep: a script 2 hours old (a call that may still wait for approval) is kept" "$(ls "$T/tmp/codex-herdr-run.fresh.sh" 2>/dev/null | wc -l | tr -d ' ')" 1
 eq "sweep: a run directory older than 7 days is removed" "$(ls -d "$T/tmp/codex-herdr.old1" 2>/dev/null | wc -l | tr -d ' ')" 0
 eq "sweep: a newer run directory is kept" "$(ls -d "$T/tmp/codex-herdr.new1" 2>/dev/null | wc -l | tr -d ' ')" 1
 eq "sweep: an old ccx claim is removed" "$(ls -d "$T/tmp/codex-herdr-ccx-claims-$(id -u)/a.jsonl" 2>/dev/null | wc -l | tr -d ' ')" 0

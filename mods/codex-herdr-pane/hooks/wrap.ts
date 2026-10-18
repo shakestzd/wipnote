@@ -90,11 +90,12 @@ function closeSection(o: WrapOptions): string[] {
   ]
 }
 
-// Old leftovers in TMPDIR, removed in the background at each run: a script the hook wrote for
-// a call that never ran (a denied call) after an hour, and run directories and ccx claims
-// after CODEX_HERDR_KEEP_DAYS days (7).
+// Old leftovers in TMPDIR, removed in the background at each run after CODEX_HERDR_KEEP_DAYS days
+// (7): a script the hook wrote for a call that never ran (a denied call), run directories and
+// ccx claims. Days, not hours, for the scripts too: another session's call can wait a long time
+// at its approval prompt, and its script must still be there when it is approved.
 const SWEEP = '( T="${TMPDIR:-/tmp}"; K="${CODEX_HERDR_KEEP_DAYS:-7}"; '
-  + 'find "$T" -maxdepth 1 -type f -name \'' + SCRIPT_PREFIX + '*.sh\' -mmin +60 -delete; '
+  + 'find "$T" -maxdepth 1 -type f -name \'' + SCRIPT_PREFIX + '*.sh\' -mtime +"$K" -delete; '
   + 'find "$T" -maxdepth 1 -type d -name \'codex-herdr.*\' -mtime +"$K" -exec rm -rf {} +; '
   + 'find "$T/codex-herdr-ccx-claims-$(id -u)" -mindepth 1 -maxdepth 1 -type d -name \'*.jsonl\' -mtime +"$K" -exec rm -rf {} +; '
   + ') >/dev/null 2>&1 &'

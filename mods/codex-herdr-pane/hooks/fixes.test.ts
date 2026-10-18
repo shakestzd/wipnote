@@ -112,7 +112,8 @@ test('the pane is renamed after herdr runs the pane script', () => {
 
 test('old scripts, run directories and ccx claims are swept in the background', () => {
   const text = buildWrapper('codex exec "x"', defaults)
-  expect(text).toContain("-name 'codex-herdr-run.*.sh' -mmin +60 -delete")
+  expect(text).toContain("-name 'codex-herdr-run.*.sh' -mtime +\"$K\" -delete") // never while a call may wait for approval
+  expect(text).not.toContain('-mmin')
   expect(text).toContain('K="${CODEX_HERDR_KEEP_DAYS:-7}"')
   expect(text).toContain("-name 'codex-herdr.*' -mtime +\"$K\"")
   expect(text).toContain(') >/dev/null 2>&1 &')
