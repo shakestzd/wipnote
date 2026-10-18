@@ -102,17 +102,23 @@ var orchestratorWhitelist = map[string]bool{
 // Read qualifies only when the read is short (feat-0e560d63): the orchestrator
 // may glance at a short file itself, but long files must still be delegated
 // to preserve its context. Grep and Glob stay non-whitelisted — they are
-// exploration, which belongs to a subagent.
-func isOrchestratorWhitelistedTool(toolName string, toolInput map[string]any, projectDir string) bool {
+// exploration, which belongs to a subagent. Codex reads through its shell
+// tool, so a single short cat/head/tail/sed read qualifies too.
+//
+// baseDir resolves relative paths and must be the directory the tool runs in
+// (the event's cwd): in a managed worktree the canonical project dir points at
+// the main checkout, which may hold a different copy of the file.
+func isOrchestratorWhitelistedTool(toolName string, toolInput map[string]any, baseDir string) bool {
 	if orchestratorWhitelist[toolName] {
 		return true
 	}
 	if isShellTool(toolName) {
-		return isWipnoteCLICommand(shellCommand(toolInput))
+		cmd := shellCommand(toolInput)
+		return isWipnoteCLICommand(cmd) || isShortShellRead(cmd, baseDir)
 	}
 	// read_file is Antigravity's spelling of Read (pluginbuild gemini_compat.go).
 	if toolName == "Read" || toolName == "read_file" {
-		return isShortRead(toolInput, projectDir)
+		return isShortRead(toolInput, baseDir)
 	}
 	return false
 }
@@ -136,7 +142,7 @@ const orchestratorReadGuidance = "Read short files (≤200 lines, or one offset/
 // orchestratorShortReadLines lines: an explicit limit in range, or a target
 // file that is itself that short. A file that cannot be inspected counts as
 // long, so the guard fails closed.
-func isShortRead(toolInput map[string]any, projectDir string) bool {
+func isShortRead(toolInput map[string]any, baseDir string) bool {
 	if limit := toInt(toolInput["limit"]); limit > 0 && limit <= orchestratorShortReadLines {
 		return true
 	}
@@ -147,10 +153,7 @@ func isShortRead(toolInput map[string]any, projectDir string) bool {
 	if path == "" {
 		return false
 	}
-	if !filepath.IsAbs(path) && projectDir != "" {
-		path = filepath.Join(projectDir, path)
-	}
-	return fileHasAtMostLines(path, orchestratorShortReadLines)
+	return fileHasAtMostLines(resolveReadPath(path, baseDir), orchestratorShortReadLines)
 }
 
 // fileHasAtMostLines stats first so a large file is never read; a small one
@@ -194,7 +197,11 @@ func checkOrchestratorStrictGuard(event *CloudEvent, ctx *toolUseContext) (advis
 	if !ok || !cfg.Enabled || event.ToolName == "" {
 		return "", ""
 	}
-	if isOrchestratorWhitelistedTool(event.ToolName, event.ToolInput, ctx.ProjectDir) {
+	readDir := event.CWD
+	if readDir == "" {
+		readDir = ctx.ProjectDir
+	}
+	if isOrchestratorWhitelistedTool(event.ToolName, event.ToolInput, readDir) {
 		return "", ""
 	}
 	if cfg.Mode != OrchestratorModeStrict {
