@@ -359,3 +359,27 @@ func TestFileHasAtMostLines_LargeFileIsLong(t *testing.T) {
 		t.Error("a file at the byte cap must count as long")
 	}
 }
+
+// TestIsOrchestratorWhitelistedTool_AntigravityReadFile guards the Codex
+// review finding on #209: Antigravity sends reads as read_file (with
+// absolute_path), which must get the same short-read allowance as Read.
+func TestIsOrchestratorWhitelistedTool_AntigravityReadFile(t *testing.T) {
+	dir := t.TempDir()
+	short := filepath.Join(dir, "short.go")
+	long := filepath.Join(dir, "long.go")
+	if err := os.WriteFile(short, []byte(strings.Repeat("x\n", 10)), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(long, []byte(strings.Repeat("x\n", 500)), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if !isOrchestratorWhitelistedTool("read_file", map[string]any{"absolute_path": short}, dir) {
+		t.Error("short read_file must be allowed")
+	}
+	if isOrchestratorWhitelistedTool("read_file", map[string]any{"absolute_path": long}, dir) {
+		t.Error("long read_file must not be allowed")
+	}
+	if strings.Contains(orchestratorReadGuidance, "(Explore for code)") || !strings.Contains(orchestratorReadGuidance, "explorer on Codex") {
+		t.Errorf("guidance must name each harness's explorer: %q", orchestratorReadGuidance)
+	}
+}

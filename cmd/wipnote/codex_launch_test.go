@@ -953,6 +953,23 @@ func TestConfiguredCodexDeveloperInstructions_Layers(t *testing.T) {
 		t.Fatalf("absent user key must keep the system layer, got %q", got)
 	}
 
+	// The trusted project layer outranks the profile, and trust may come from
+	// the active profile (Codex review, #209).
+	proj := filepath.Join(dir, "proj")
+	if err := os.MkdirAll(filepath.Join(proj, ".codex"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(proj, ".codex", "config.toml"), []byte("developer_instructions = \"project rule\"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	write("trusting.config.toml", fmt.Sprintf("developer_instructions = \"profile rule\"\n[projects.%q]\ntrust_level = \"trusted\"\n", proj))
+	if got := configuredCodexDeveloperInstructions(codexInstructionLayers{User: user, LaunchDir: proj, Profile: "trusting"}); got != "project rule" {
+		t.Fatalf("trusted project must outrank the profile (trust from the profile), got %q", got)
+	}
+	if got := configuredCodexDeveloperInstructions(codexInstructionLayers{User: user, LaunchDir: proj, Profile: "home"}); got != "home v2 rule" {
+		t.Fatalf("untrusted project must not override the profile, got %q", got)
+	}
+
 	t.Setenv("CODEX_HOME", filepath.Join(dir, "codexhome"))
 	if got := codexHomeConfigPath(); got != filepath.Join(dir, "codexhome", "config.toml") {
 		t.Fatalf("CODEX_HOME not honored: %q", got)

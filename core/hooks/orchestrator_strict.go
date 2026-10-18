@@ -110,7 +110,8 @@ func isOrchestratorWhitelistedTool(toolName string, toolInput map[string]any, pr
 	if isShellTool(toolName) {
 		return isWipnoteCLICommand(shellCommand(toolInput))
 	}
-	if toolName == "Read" {
+	// read_file is Antigravity's spelling of Read (pluginbuild gemini_compat.go).
+	if toolName == "Read" || toolName == "read_file" {
 		return isShortRead(toolInput, projectDir)
 	}
 	return false
@@ -128,7 +129,8 @@ const (
 // orchestratorReadGuidance explains the short-read allowance; it is appended
 // to Read advisories and to the block message.
 const orchestratorReadGuidance = "Read short files (≤200 lines, or one offset/limit range ≤200) directly; " +
-	"delegate long files, multi-file reads and exploration to a subagent (Explore for code)."
+	"delegate long files, multi-file reads and exploration to a subagent " +
+	"(the native code explorer: Explore on Claude Code, explorer on Codex, researcher on Antigravity)."
 
 // isShortRead reports whether a Read call reads at most
 // orchestratorShortReadLines lines: an explicit limit in range, or a target
@@ -139,6 +141,9 @@ func isShortRead(toolInput map[string]any, projectDir string) bool {
 		return true
 	}
 	path, _ := toolInput["file_path"].(string)
+	if path == "" {
+		path, _ = toolInput["absolute_path"].(string) // Antigravity read_file
+	}
 	if path == "" {
 		return false
 	}
