@@ -106,6 +106,11 @@ func latestClaudeTranscriptSession(projectsDir, projectRoot string) *claudeTrans
 		if s == nil || !withinRoot(s.Cwd, root) {
 			continue
 		}
+		// A session whose worktree was removed cannot be resumed: Claude finds
+		// a transcript only from the directory it ran in.
+		if fi, err := os.Stat(s.Cwd); err != nil || !fi.IsDir() {
+			continue
+		}
 		s.ModTime = c.modTime
 		return s
 	}

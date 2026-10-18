@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
@@ -37,48 +38,67 @@ func TestClaudeProjectDirName(t *testing.T) {
 	}
 }
 
+// userLine is a transcript user message recorded in cwd.
+func userLine(cwd, prompt string) string {
+	return fmt.Sprintf(`{"type":"user","cwd":%q,"message":{"content":%q}}`, cwd, prompt)
+}
+
 func TestLatestClaudeTranscriptSession_NewestAcrossRootAndWorktrees(t *testing.T) {
 	projects := t.TempDir()
-	root := "/repo/app"
+	base := t.TempDir()
+	root := filepath.Join(base, "app")
+	wt := filepath.Join(root, ".claude", "worktrees", "feat-x")
+	sibling := filepath.Join(base, "app-copy") // its folder shares root's prefix
+	for _, d := range []string{wt, sibling} {
+		if err := os.MkdirAll(d, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
 	now := time.Now()
 	rootDir := filepath.Join(projects, claudeProjectDirName(root))
-	wtDir := filepath.Join(projects, claudeProjectDirName(root+"/.claude/worktrees/feat-x"))
-	otherDir := filepath.Join(projects, claudeProjectDirName("/repo/application")) // shares a prefix, not a project
+	wtDir := filepath.Join(projects, claudeProjectDirName(wt))
+	otherDir := filepath.Join(projects, claudeProjectDirName(base+"/application"))
 
-	writeTranscript(t, rootDir, "old", []string{`{"type":"user","cwd":"/repo/app","message":{"content":"older work"}}`}, now.Add(-3*time.Hour))
-	// Newer than everything else, but unusable: a sibling repository whose folder
-	// shares the prefix, and an aborted session with no prompt.
-	siblingDir := filepath.Join(projects, claudeProjectDirName("/repo/app-copy"))
-	writeTranscript(t, siblingDir, "sibling", []string{`{"type":"user","cwd":"/repo/app-copy","message":{"content":"other repo"}}`}, now.Add(time.Minute))
-	writeTranscript(t, rootDir, "aborted", []string{`{"type":"attachment","cwd":"/repo/app"}`}, now.Add(2*time.Minute))
+	writeTranscript(t, rootDir, "old", []string{userLine(root, "older work")}, now.Add(-3*time.Hour))
 	writeTranscript(t, wtDir, "wt", []string{
-		`{"type":"attachment","cwd":"/repo/app/.claude/worktrees/feat-x"}`,
+		fmt.Sprintf(`{"type":"attachment","cwd":%q}`, wt),
 		`{"type":"user","isMeta":true,"message":{"content":"meta text"}}`,
 		`{"type":"user","message":{"content":"<command-name>/clear</command-name>"}}`,
 		`{"type":"user","message":{"content":[{"type":"tool_result","content":"x"}]}}`,
 		`{"type":"user","message":{"content":[{"type":"text","text":"fix the   herdr\nLive tab"}]}}`,
 	}, now.Add(-time.Hour))
-	writeTranscript(t, otherDir, "other", []string{`{"type":"user","message":{"content":"not this project"}}`}, now)
-	writeTranscript(t, rootDir, "agent-sub", []string{`{"type":"user","message":{"content":"subagent"}}`}, now)
+	// Newer than the worktree session, but unusable: another project, a sibling
+	// repository whose folder shares the prefix, a subagent file, and an
+	// aborted session with no prompt.
+	writeTranscript(t, otherDir, "other", []string{userLine(base+"/application", "not this project")}, now)
+	writeTranscript(t, filepath.Join(projects, claudeProjectDirName(sibling)), "sibling", []string{userLine(sibling, "other repo")}, now.Add(time.Minute))
+	writeTranscript(t, rootDir, "agent-sub", []string{userLine(root, "subagent")}, now)
+	writeTranscript(t, rootDir, "aborted", []string{fmt.Sprintf(`{"type":"attachment","cwd":%q}`, root)}, now.Add(2*time.Minute))
 
 	got := latestClaudeTranscriptSession(projects, root)
 	if got == nil {
 		t.Fatal("no session found")
 	}
-	if got.ID != "wt" || got.Label != "fix the herdr Live tab" || got.Cwd != "/repo/app/.claude/worktrees/feat-x" {
+	if got.ID != "wt" || got.Label != "fix the herdr Live tab" || got.Cwd != wt {
 		t.Fatalf("got %+v, want the worktree session with its first typed prompt", got)
 	}
 }
 
 func TestLatestClaudeTranscriptSession_FallsBackPastUnusable(t *testing.T) {
 	projects := t.TempDir()
-	rootDir := filepath.Join(projects, claudeProjectDirName("/repo/app"))
+	root := t.TempDir()
+	sub := filepath.Join(root, "sub")
+	if err := os.MkdirAll(sub, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	gone := filepath.Join(root, ".claude", "worktrees", "removed") // never created
 	now := time.Now()
-	writeTranscript(t, rootDir, "good", []string{`{"type":"user","cwd":"/repo/app/sub","message":{"content":"real work"}}`}, now.Add(-time.Hour))
-	writeTranscript(t, rootDir, "nocwd", []string{`{"type":"user","message":{"content":"no cwd"}}`}, now)
-	got := latestClaudeTranscriptSession(projects, "/repo/app")
+	writeTranscript(t, filepath.Join(projects, claudeProjectDirName(root)), "good", []string{userLine(sub, "real work")}, now.Add(-time.Hour))
+	writeTranscript(t, filepath.Join(projects, claudeProjectDirName(root)), "nocwd", []string{`{"type":"user","message":{"content":"no cwd"}}`}, now)
+	writeTranscript(t, filepath.Join(projects, claudeProjectDirName(gone)), "gone", []string{userLine(gone, "worktree deleted")}, now.Add(time.Minute))
+	got := latestClaudeTranscriptSession(projects, root)
 	if got == nil || got.ID != "good" {
-		t.Fatalf("got %+v, want the older session with a cwd under the root", got)
+		t.Fatalf("got %+v, want the older session in a directory that still exists", got)
 	}
 }
 
@@ -216,5 +236,17 @@ func TestRecentlyActive(t *testing.T) {
 		if recentlyActive(dbpkg.ResumableSession{LastActivity: at}, now) {
 			t.Fatalf("%q should not count as recent", at)
 		}
+	}
+}
+
+func TestPromptLaunchIntent_BrowseOfferedWithEmptyShortlist(t *testing.T) {
+	var out bytes.Buffer
+	intent, err := promptLaunchIntent(strings.NewReader("2\n"), &out, "claude", dbpkg.HarnessGroupedResumableSessions{})
+	if err != nil || !intent.WantsBrowse() {
+		t.Fatalf("choice 2 with no rows = %+v, %v; want browse\n%s", intent, err, out.String())
+	}
+	out.Reset()
+	if intent, _ := promptLaunchIntent(strings.NewReader("2\n"), &out, "codex", dbpkg.HarnessGroupedResumableSessions{}); intent.Kind != launcher.LaunchIntentNew || out.Len() != 0 {
+		t.Fatalf("codex with no rows should start new work without a menu: %+v\n%s", intent, out.String())
 	}
 }

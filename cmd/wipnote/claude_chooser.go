@@ -72,7 +72,9 @@ func chooseLaunchIntent(projectRoot, canonicalRoot, harness string, in io.Reader
 	// current-session slot counts: it is the whole point of this path for a
 	// split-child session with no (or a completed) work item, which never
 	// appears in the same/cross-harness groups.
-	if !hasResumableOptions(grouped) {
+	// A harness with a session browser always has something to offer: the
+	// browser can find sessions the shortlist could not read.
+	if !hasResumableOptions(grouped) && !offersSessionBrowser(harness) {
 		return launcher.NewWorkIntent(), nil
 	}
 	return promptLaunchIntent(in, out, harness, grouped)
@@ -504,7 +506,7 @@ func isTTYWriter(w io.Writer) bool {
 // already ensures this function is only reached on interactive char-device stdin.
 func promptLaunchIntent(in io.Reader, out io.Writer, harness string, grouped dbpkg.HarnessGroupedResumableSessions) (launcher.LaunchIntent, error) {
 	orderedRows := orderedRowsFor(grouped)
-	if len(orderedRows) == 0 {
+	if len(orderedRows) == 0 && !offersSessionBrowser(harness) {
 		return launcher.NewWorkIntent(), nil
 	}
 
