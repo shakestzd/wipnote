@@ -1,0 +1,5 @@
+Reading additional input from stdin...
+2026-10-18T06:28:25.997975Z ERROR rmcp::transport::worker: worker quit with fatal: Transport channel closed, when Client(HttpRequest(HttpRequest("http/request failed: error sending request for url (https://mcp.example.invalid/mcp)")))
+2026-10-18T06:28:26.319755Z ERROR rmcp::transport::worker: worker quit with fatal: Transport channel closed, when Client(HttpRequest(HttpRequest("http/request failed: error sending request for url (https://mcp.example.invalid/mcp)")))
+2026-10-18T06:28:27.392852Z ERROR rmcp::transport::worker: worker quit with fatal: Transport channel closed, when Client(HttpRequest(HttpRequest("http/request failed: error sending request for url (https://mcp.example.invalid/mcp)")))
+230 entries in `test`; HEAD is `e26d6a1`; `package.json` starts with name `ionna-artifact-kit` and version `0.17.0`; nothing modified.

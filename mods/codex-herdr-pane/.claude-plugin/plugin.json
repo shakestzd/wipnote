@@ -1,0 +1,58 @@
+{
+  "name": "codex-herdr-pane",
+  "version": "0.7.0",
+  "description": "Runs every Codex delegation (codex exec, codex review) and every ccx task in a visible herdr pane with a live log and a rendered answer, and closes the pane when it finishes",
+  "userConfig": {
+    "direction": {
+      "type": "string",
+      "title": "Split direction",
+      "description": "Where the Codex pane opens, relative to the pane Claude Code runs in",
+      "default": "right",
+      "options": ["right", "down"]
+    },
+    "closePane": {
+      "type": "string",
+      "title": "Close the pane when Codex finishes",
+      "description": "always closes it after the delay; success keeps a failed run open; never leaves it for you",
+      "default": "always",
+      "options": ["always", "success", "never"]
+    },
+    "closeDelay": {
+      "type": "number",
+      "title": "Seconds to wait before closing",
+      "description": "A short pause so the final state can be read",
+      "default": 3
+    },
+    "viewer": {
+      "type": "string",
+      "title": "Pane view",
+      "description": "textual shows a live log and the answer as Markdown (needs uv; the first run downloads Textual); plain streams the cleaned log",
+      "default": "textual",
+      "options": ["textual", "plain"]
+    },
+    "tailLines": {
+      "type": "number",
+      "title": "Log lines returned to Claude when there is no answer file",
+      "description": "After a failure, or for codex review, the Bash call returns the end of the cleaned log",
+      "default": 200
+    },
+    "maxReturnLines": {
+      "type": "number",
+      "title": "Most lines returned to Claude per section",
+      "description": "The answer, the log tail after a failure and the output of the rest of a chained command are each cut to this many lines, with one line naming the file that holds the rest; the status line is never cut. 0 returns everything",
+      "default": 60
+    },
+    "leanProfile": {
+      "type": "boolean",
+      "title": "Use the lean Codex profile",
+      "description": "Adds -p <profile name> to codex exec calls that set no profile, when ~/.codex/<name>.config.toml exists; codex review is untouched",
+      "default": true
+    },
+    "leanProfileName": {
+      "type": "string",
+      "title": "Lean profile name",
+      "description": "The profile passed with -p; its file is ~/.codex/<name>.config.toml",
+      "default": "lean"
+    }
+  }
+}
