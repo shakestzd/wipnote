@@ -1546,7 +1546,12 @@ func execCodex(opts codexLaunchOpts) error {
 		launchDir = opts.ProjectRoot
 	}
 	instructionArgs := buildCodexInstructionConfigArgs(opts.effectiveMode(),
-		configuredCodexDeveloperInstructions(codexConfigPath(), launchDir))
+		configuredCodexDeveloperInstructions(codexInstructionLayers{
+			System:    codexSystemConfigPath,
+			User:      codexHomeConfigPath(),
+			LaunchDir: launchDir,
+			Profile:   codexProfileFromArgs(opts.ExtraArgs),
+		}))
 	// The setup-time cleanup scans the current checkout only; a launch into a
 	// different worktree must not keep legacy project copies that shadow
 	// ~/.codex/agents (project config outranks the user layer).

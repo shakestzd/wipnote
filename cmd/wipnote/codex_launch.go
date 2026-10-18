@@ -258,42 +258,96 @@ func buildCodexInstructionConfigArgs(mode codexLaunchMode, existing string) []st
 	return []string{"-c", "developer_instructions=" + tomlBasicString(text)}
 }
 
+// codexHomeConfigPath is $CODEX_HOME/config.toml, falling back to
+// ~/.codex/config.toml, which is where Codex reads its user layer.
+func codexHomeConfigPath() string {
+	if home := strings.TrimSpace(os.Getenv("CODEX_HOME")); home != "" {
+		return filepath.Join(home, "config.toml")
+	}
+	return codexConfigPath()
+}
+
+// codexSystemConfigPath is Codex's system config layer (Unix).
+const codexSystemConfigPath = "/etc/codex/config.toml"
+
+// codexProfileFromArgs returns the profile selected by -p/--profile in the
+// args forwarded to codex, or "".
+func codexProfileFromArgs(args []string) string {
+	for i, a := range args {
+		switch {
+		case (a == "-p" || a == "--profile") && i+1 < len(args):
+			return args[i+1]
+		case strings.HasPrefix(a, "--profile="):
+			return strings.TrimPrefix(a, "--profile=")
+		}
+	}
+	return ""
+}
+
+// codexInstructionLayers are the config files configuredCodexDeveloperInstructions
+// reads, lowest precedence first.
+type codexInstructionLayers struct {
+	System, User string
+	LaunchDir    string // its .codex/config.toml counts only when trusted
+	Profile      string // from the command line; else the config's `profile`
+}
+
 // configuredCodexDeveloperInstructions returns the developer_instructions the
-// launch would see without wipnote's override: the user layer (userConfig),
-// overridden by the project layer (<launchDir>/.codex/config.toml) only when
-// the user config marks launchDir trusted. Codex loads an untrusted project
-// layer disabled; reading it here and re-injecting it through a -c flag
-// would bypass that trust check, so an untrusted or unknown project
-// contributes nothing. Unreadable or unparsable files count as unset.
-func configuredCodexDeveloperInstructions(userConfig, launchDir string) string {
-	type codexInstructionConfig struct {
+// launch would see without wipnote's -c override, following Codex's layering
+// (codex-rs/config/src/loader): system, then user ($CODEX_HOME), then the
+// project layer, then the active profile. The project layer counts only when
+// the user config marks that exact directory trusted: Codex loads an
+// untrusted project layer disabled, and re-injecting it through -c would
+// bypass that check. Unreadable or unparsable files count as unset.
+func configuredCodexDeveloperInstructions(l codexInstructionLayers) string {
+	type profileConfig struct {
 		DeveloperInstructions string `toml:"developer_instructions"`
+	}
+	type layerConfig struct {
+		DeveloperInstructions string                   `toml:"developer_instructions"`
+		Profile               string                   `toml:"profile"`
+		Profiles              map[string]profileConfig `toml:"profiles"`
 		Projects              map[string]struct {
 			TrustLevel string `toml:"trust_level"`
 		} `toml:"projects"`
 	}
-	read := func(path string) (codexInstructionConfig, bool) {
-		var cfg codexInstructionConfig
-		data, err := os.ReadFile(path)
-		if err != nil || toml.Unmarshal(data, &cfg) != nil {
-			return cfg, false
+	read := func(path string) layerConfig {
+		var cfg layerConfig
+		if path == "" {
+			return cfg
 		}
-		return cfg, true
+		if data, err := os.ReadFile(path); err == nil {
+			_ = toml.Unmarshal(data, &cfg)
+		}
+		return cfg
 	}
 
-	user, _ := read(userConfig)
-	value := strings.TrimSpace(user.DeveloperInstructions)
-	if launchDir == "" {
-		return value
-	}
-	abs, err := filepath.Abs(launchDir)
-	if err != nil || user.Projects[abs].TrustLevel != "trusted" {
-		return value
-	}
-	if project, ok := read(filepath.Join(abs, ".codex", "config.toml")); ok {
-		if v := strings.TrimSpace(project.DeveloperInstructions); v != "" {
+	value := ""
+	set := func(v string) {
+		if v = strings.TrimSpace(v); v != "" {
 			value = v
 		}
+	}
+	system, user := read(l.System), read(l.User)
+	set(system.DeveloperInstructions)
+	set(user.DeveloperInstructions)
+
+	if l.LaunchDir != "" {
+		if abs, err := filepath.Abs(l.LaunchDir); err == nil && user.Projects[abs].TrustLevel == "trusted" {
+			set(read(filepath.Join(abs, ".codex", "config.toml")).DeveloperInstructions)
+		}
+	}
+
+	profile := l.Profile
+	if profile == "" {
+		profile = user.Profile
+	}
+	if profile == "" {
+		profile = system.Profile
+	}
+	if profile != "" {
+		set(system.Profiles[profile].DeveloperInstructions)
+		set(user.Profiles[profile].DeveloperInstructions)
 	}
 	return value
 }

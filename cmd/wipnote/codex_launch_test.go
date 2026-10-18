@@ -880,17 +880,17 @@ func TestBuildCodexInstructionConfigArgsKeepsConfiguredInstructions(t *testing.T
 	writeFile(filepath.Join(launch, ".codex", "config.toml"), "developer_instructions = \"project rule\"\n")
 
 	// Untrusted (unlisted) project: its instructions must not be elevated.
-	if got := configuredCodexDeveloperInstructions(userCfg, launch); got != "user rule" {
+	if got := configuredCodexDeveloperInstructions(codexInstructionLayers{User: userCfg, LaunchDir: launch}); got != "user rule" {
 		t.Fatalf("untrusted project must not contribute, got %q", got)
 	}
 	writeFile(userCfg, fmt.Sprintf("developer_instructions = \"user rule\"\n[projects.%q]\ntrust_level = \"untrusted\"\n", launch))
-	if got := configuredCodexDeveloperInstructions(userCfg, launch); got != "user rule" {
+	if got := configuredCodexDeveloperInstructions(codexInstructionLayers{User: userCfg, LaunchDir: launch}); got != "user rule" {
 		t.Fatalf("explicitly untrusted project must not contribute, got %q", got)
 	}
 
 	// Trusted project: its layer wins, as in Codex.
 	writeFile(userCfg, fmt.Sprintf("developer_instructions = \"user rule\"\n[projects.%q]\ntrust_level = \"trusted\"\n", launch))
-	existing := configuredCodexDeveloperInstructions(userCfg, launch)
+	existing := configuredCodexDeveloperInstructions(codexInstructionLayers{User: userCfg, LaunchDir: launch})
 	if existing != "project rule" {
 		t.Fatalf("trusted project layer should win, got %q", existing)
 	}
@@ -901,7 +901,55 @@ func TestBuildCodexInstructionConfigArgsKeepsConfiguredInstructions(t *testing.T
 	if !strings.HasPrefix(text, "project rule\n\n# wipnote ") {
 		t.Fatalf("configured instructions must lead the override, got %q", text[:min(len(text), 80)])
 	}
-	if got := configuredCodexDeveloperInstructions(filepath.Join(home, "missing.toml"), ""); got != "" {
+	if got := configuredCodexDeveloperInstructions(codexInstructionLayers{User: filepath.Join(home, "missing.toml")}); got != "" {
 		t.Fatalf("missing config must read as unset, got %q", got)
+	}
+}
+
+// TestConfiguredCodexDeveloperInstructions_Layers guards the third Codex
+// review finding on #209: the effective value comes from the whole stack
+// (system, $CODEX_HOME user layer, trusted project, active profile), not from
+// ~/.codex/config.toml alone.
+func TestConfiguredCodexDeveloperInstructions_Layers(t *testing.T) {
+	dir := t.TempDir()
+	write := func(name, body string) string {
+		t.Helper()
+		p := filepath.Join(dir, name)
+		if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		return p
+	}
+	system := write("system.toml", "developer_instructions = \"system rule\"\n")
+	if got := configuredCodexDeveloperInstructions(codexInstructionLayers{System: system}); got != "system rule" {
+		t.Fatalf("system layer alone: got %q", got)
+	}
+
+	user := write("user.toml", "developer_instructions = \"user rule\"\nprofile = \"work\"\n"+
+		"[profiles.work]\ndeveloper_instructions = \"work rule\"\n"+
+		"[profiles.home]\ndeveloper_instructions = \"home rule\"\n")
+	if got := configuredCodexDeveloperInstructions(codexInstructionLayers{System: system, User: user}); got != "work rule" {
+		t.Fatalf("config-selected profile should win, got %q", got)
+	}
+	if got := configuredCodexDeveloperInstructions(codexInstructionLayers{System: system, User: user, Profile: "home"}); got != "home rule" {
+		t.Fatalf("-p profile should override the config's profile, got %q", got)
+	}
+
+	t.Setenv("CODEX_HOME", filepath.Join(dir, "codexhome"))
+	if got := codexHomeConfigPath(); got != filepath.Join(dir, "codexhome", "config.toml") {
+		t.Fatalf("CODEX_HOME not honored: %q", got)
+	}
+	for _, tc := range []struct {
+		args []string
+		want string
+	}{
+		{[]string{"-p", "a"}, "a"},
+		{[]string{"--profile", "b", "--yolo"}, "b"},
+		{[]string{"--profile=c"}, "c"},
+		{[]string{"--model", "x"}, ""},
+	} {
+		if got := codexProfileFromArgs(tc.args); got != tc.want {
+			t.Errorf("codexProfileFromArgs(%v) = %q, want %q", tc.args, got, tc.want)
+		}
 	}
 }
