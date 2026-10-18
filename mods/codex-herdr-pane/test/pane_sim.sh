@@ -246,5 +246,16 @@ nothas "ccx timeout: the slow run does not take the later run's log" "thinking a
 has "ccx timeout: the later run follows its own log" "thinking about bravo" "$DB/clean.log"
 has "ccx timeout: the slow run still returns ccx's own result" "ccx task ok" "$T/out.a"
 
+# --- a run that cannot get the launch lock starts ccx but claims no log ---
+rm -rf "$T/tmp" "$T/runs" "$T/log"*; mkdir -p "$T/tmp/codex-herdr-ccx-claims/launch.lock"
+sleep 30 & HOLD=$!; echo "$HOLD" > "$T/tmp/codex-herdr-ccx-claims/launch.lock/pid"  # a live holder
+env $ENVS CODEX_HERDR_CCX_LOCKWAIT=1 bash "$T/wa.sh" > "$T/out.a" 2>&1
+sleep 1.5; kill "$HOLD" 2>/dev/null
+DA=$(ls -d "$T"/tmp/codex-herdr.*)
+has "ccx no lock: the pane says it has no live log" "held the launch lock too long" "$DA/clean.log"
+nothas "ccx no lock: no log was claimed" "thinking about" "$DA/clean.log"
+has "ccx no lock: ccx still ran and returned its result" "ccx task ok" "$T/out.a"
+eq "ccx no lock: the other holder's lock is untouched" "$(ls -d "$T"/tmp/codex-herdr-ccx-claims/launch.lock 2>/dev/null | wc -l | tr -d ' ')" 1
+
 rm -rf "$T"
 [ "$fails" = 0 ] && echo "pane simulation passed" || { echo "$fails failed"; exit 1; }

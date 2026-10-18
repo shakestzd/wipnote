@@ -75,13 +75,16 @@ const CCX_RUN = [
   // One ccx run at a time waits for its new log: the launch lock is held from the snapshot
   // until this run claims its log (or CODEX_HERDR_CCX_WAIT, 30 s, passes and it stops looking,
   // or the command ends), so a new log can only be this run's. Others wait their turn; a holder that died is broken by its pid.
-  '  LOCK="$CLAIMS/launch.lock"; waited=0',
-  '  for i in $(seq 1 1200); do',
-  '    if mkdir "$LOCK" 2>/dev/null; then echo $$ > "$LOCK/pid"; break; fi',
+  '  LOCK="$CLAIMS/launch.lock"; waited=0; HAVE=0',
+  '  for i in $(seq 1 $(( ${CODEX_HERDR_CCX_LOCKWAIT:-120} * 10 ))); do',
+  '    if mkdir "$LOCK" 2>/dev/null; then echo $$ > "$LOCK/pid"; HAVE=1; break; fi',
   '    p=$(cat "$LOCK/pid" 2>/dev/null); if [ -n "$p" ] && ! kill -0 "$p" 2>/dev/null; then rm -rf "$LOCK"; continue; fi',
   '    [ "$waited" = 0 ] && { echo "*waiting for another ccx run to start its log*" | tee -a "$D/clean.log" >> "$D/clean.md"; waited=1; }',
   '    sleep 0.1',
   '  done',
+  // Without the lock a run still starts ccx, but it never claims a log: a log it found could be
+  // another run's.
+  '  [ "$HAVE" = 1 ] || echo "*another ccx run held the launch lock too long: no live log for this run*" | tee -a "$D/clean.log" >> "$D/clean.md"',
   '  release() { [ "$(cat "$LOCK/pid" 2>/dev/null)" = "$$" ] && rm -rf "$LOCK"; return 0; }',
   '  ls -1 "$RUNS" 2>/dev/null | grep "\\.jsonl$" > "$D/before"',
   '  if [ ! -d "$RUNS" ]; then printf "*ccx runs directory not found: %s (set ccxRunsDir or CCX_RUNS_DIR)*\\n" "$RUNS" | tee -a "$D/clean.log" >> "$D/clean.md"; fi',
@@ -91,7 +94,7 @@ const CCX_RUN = [
   '  render() { sed -n "$1,$2p" "$f" > "$D/chunk"; jqs view < "$D/chunk" >> "$D/clean.log"',
   '    sed -n "1,$2p" "$f" | jqs "$3" > "$D/md.tmp"; tail -c +"$((W+1))" "$D/md.tmp" >> "$D/clean.md"; W=$(wc -c < "$D/md.tmp" | tr -d " "); }',
   '  (',
-  '    f=""; n=0; T0=$(date +%s); gaveup=0; WAIT="${CODEX_HERDR_CCX_WAIT:-30}"',
+  '    f=""; n=0; T0=$(date +%s); gaveup=$((1 - HAVE)); WAIT="${CODEX_HERDR_CCX_WAIT:-30}"',
   '    while :; do',
   '      done=0; [ -f "$D/cmddone" ] && done=1',
   '      [ -z "$f" ] && [ "$gaveup" = 0 ] && f=$(claim)',

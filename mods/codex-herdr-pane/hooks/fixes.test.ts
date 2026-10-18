@@ -74,3 +74,10 @@ test('ccx runs take a launch lock until their own log is claimed', () => {
   expect(text).toContain('release; gaveup=1;')
   expect(text).toContain('touch "$D/cmddone"; wait $FOLLOW; release')
 })
+
+test('a ccx run that never gets the launch lock does not claim a log', () => {
+  const text = buildWrapper('ccx task "x"', defaults)
+  expect(text).toContain('HAVE=1; break')
+  expect(text).toContain('gaveup=$((1 - HAVE))')
+  expect(text).toContain('held the launch lock too long: no live log for this run')
+})
