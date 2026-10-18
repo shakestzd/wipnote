@@ -197,14 +197,21 @@ func TestDescribeCurrentSession_UsesSessionFactsNotWorkItemTitle(t *testing.T) {
 			t.Fatalf("current-session description should not include work-item attribution %q: %q", bad, got)
 		}
 	}
-	for _, want := range []string{"1e97ab5e", "review and fix this issue", "Codex", "branch main", ".wipnote/worktrees/bug-active"} {
+	for _, want := range []string{`"review and fix this issue"`, "in bug-active"} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("current-session description missing %q: %q", want, got)
 		}
 	}
+	// With no prompt, the short session id says which session it is.
+	row.PromptLabel = ""
+	if got := describeCurrentSession(row); !strings.Contains(got, "1e97ab5e") {
+		t.Fatalf("current-session description without a prompt should show the short id: %q", got)
+	}
 }
 
-func TestDescribeResumableSession_UsesPromptLabelBeforeWorkItemTitle(t *testing.T) {
+// A work-item row is about the item: it shows the id and title, and the session
+// prompt only when the item has no title.
+func TestDescribeResumableSession_UsesWorkItemTitleBeforePromptLabel(t *testing.T) {
 	row := dbpkg.ResumableSession{
 		WorkItemID:    "feat-abc123",
 		Title:         "Work item title fallback",
@@ -215,24 +222,25 @@ func TestDescribeResumableSession_UsesPromptLabelBeforeWorkItemTitle(t *testing.
 		LastActivity:  "2000-01-02T03:04:05Z",
 	}
 	got := describeResumableSession(row, true)
-	if !strings.Contains(got, "last user prompt from the session") {
-		t.Fatalf("resumable row missing prompt label: %q", got)
+	if !strings.HasPrefix(got, "feat-abc123  Work item title fallback") {
+		t.Fatalf("work-item row should lead with id and title: %q", got)
 	}
-	if strings.Contains(got, "Work item title fallback") {
-		t.Fatalf("resumable row should prefer prompt label over title: %q", got)
+	if strings.Contains(got, "last user prompt") || strings.Contains(got, "from Codex") {
+		t.Fatalf("same-harness row with a title should show neither prompt nor source harness: %q", got)
 	}
-	if !strings.Contains(got, "feat-abc123 (feature)") {
-		t.Fatalf("resumable row should still include work item context: %q", got)
+	row.Title = ""
+	if got := describeResumableSession(row, false); !strings.Contains(got, "last user prompt") || !strings.Contains(got, "from Codex") {
+		t.Fatalf("untitled cross-harness row should show the prompt and its harness: %q", got)
 	}
 }
 
 func TestCurrentSessionActionLabel(t *testing.T) {
-	row := dbpkg.ResumableSession{Harness: "claude"}
-	if got := currentSessionActionLabel(row, "claude"); got != "Resume this session" {
-		t.Fatalf("same harness label = %q, want Resume this session", got)
+	row := &dbpkg.ResumableSession{Harness: "claude"}
+	if got := currentSessionActionLabel(dbpkg.HarnessGroupedResumableSessions{Current: row}); got != "Resume this session" {
+		t.Fatalf("launch-from session label = %q, want Resume this session", got)
 	}
-	if got := currentSessionActionLabel(row, "codex"); got != "Resume this session" {
-		t.Fatalf("current slot label = %q, want Resume this session", got)
+	if got := currentSessionActionLabel(dbpkg.HarnessGroupedResumableSessions{Current: row, CurrentIsLast: true}); got != "Continue last session" {
+		t.Fatalf("last-session label = %q, want Continue last session", got)
 	}
 }
 
@@ -421,8 +429,8 @@ func TestPromptLaunchIntent_CurrentSessionCrossHarnessRowNeverInserted(t *testin
 	if strings.Contains(rendered, "Resume this session") {
 		t.Fatalf("cross-harness row should not be rendered as current session:\n%s", rendered)
 	}
-	if !strings.Contains(rendered, "Continue from other harnesses") {
-		t.Fatalf("cross-harness continuation should stay in grouped section:\n%s", rendered)
+	if !strings.Contains(rendered, "Continue feat-a  Alpha · from Claude") {
+		t.Fatalf("cross-harness continuation should be a work-item row naming its harness:\n%s", rendered)
 	}
 	if intent.Kind != launcher.LaunchIntentContinue {
 		t.Fatalf("intent.Kind = %q, want continue", intent.Kind)
@@ -494,8 +502,11 @@ func TestBuildSelectOptions_IncludesCurrentSlot(t *testing.T) {
 		}},
 	}
 	opts := buildSelectOptions("claude", grouped)
-	if len(opts) != 3 {
-		t.Fatalf("len(opts) = %d, want 3 (new + current + same)", len(opts))
+	if len(opts) != 4 {
+		t.Fatalf("len(opts) = %d, want 4 (new + current + same + browse)", len(opts))
+	}
+	if opts[3].Key != browseSessionsLabel || opts[3].Value != 3 {
+		t.Fatalf("opts[3] = %q/%d, want the browse row last", opts[3].Key, opts[3].Value)
 	}
 	if !strings.Contains(opts[1].Key, "Resume this session") {
 		t.Fatalf("opts[1] = %q, want current-session slot", opts[1].Key)

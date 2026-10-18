@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"strings"
 )
 
 // claudeLaunchContext holds the resolved intent, isolation, and routing
@@ -95,6 +96,16 @@ func resolveClaudeIntentIsolation(projectRoot, wipnoteRoot, resumeID, workItem s
 	childDir := projectRoot
 	resolved := false
 	worktreeCreated := false
+	// "Continue last session" carries no work item, so the continue context does
+	// not validate a worktree for it. A session that ran in a worktree must
+	// resume there: Claude finds a transcript only from its own directory.
+	if continueCtx.WorktreePath == "" && workItem == "" && intentResult.intent.WantsContinue() {
+		if wt := strings.TrimSpace(intentResult.intent.WorktreePath); wt != "" {
+			if fi, serr := os.Stat(wt); serr == nil && fi.IsDir() {
+				continueCtx.WorktreePath = wt
+			}
+		}
+	}
 	if continueCtx.WorktreePath != "" {
 		childDir = continueCtx.WorktreePath
 		resolved = true
