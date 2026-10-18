@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { parseCard, showArgv, splitRefs, statusLine, stepBar, stepCount } from '../hooks/cards'
+import { CARD_TTL_MS, needsFetch, parseCard, showArgv, splitRefs, statusLine, stepBar, stepCount } from '../hooks/cards'
 
 test('splits a closed wipnote-ref fence out of the text', () => {
   const md = 'Done.\n\n```wipnote-ref\nfeat-65bcc27c\n```\nThanks.'
@@ -56,4 +56,17 @@ test('an item without steps and no active item read cleanly', () => {
   expect(stepCount(c.steps)).toBe('')
   expect(statusLine(c)).toBe('wipnote · feat-65bcc27c · done')
   expect(statusLine(null)).toBe('wipnote · no active work item')
+})
+
+test('a claimed item whose details failed still shows its id', () => {
+  expect(statusLine(null, 'feat-65bcc27c')).toBe('wipnote · feat-65bcc27c · details unavailable')
+  expect(statusLine(null, '')).toBe('wipnote · no active work item')
+})
+
+test('cards are fetched when missing or older than the TTL', () => {
+  expect(needsFetch(undefined, 1_000)).toBe(true)
+  expect(needsFetch({ state: 'loaded', at: 1_000 }, 1_000 + CARD_TTL_MS)).toBe(false)
+  expect(needsFetch({ state: 'loaded', at: 1_000 }, 1_001 + CARD_TTL_MS)).toBe(true)
+  expect(needsFetch({ state: 'failed', at: 1_000 }, 1_001 + CARD_TTL_MS)).toBe(true)
+  expect(needsFetch({ state: 'loading', at: 1_000 }, 2_000)).toBe(false)
 })

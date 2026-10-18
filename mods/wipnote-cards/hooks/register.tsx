@@ -14,7 +14,7 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
 import type { Card, CardEntry } from '../types'
-import { REF_RULE, parseCard, showArgv, splitRefs, statusLine, stepBar, stepCount } from './cards'
+import { REF_RULE, needsFetch, parseCard, showArgv, splitRefs, statusLine, stepBar, stepCount } from './cards'
 
 const cards = atom({ plugin: 'wipnote-cards', key: 'cards' } as const, {})
 const CLI_TIMEOUT_MS = 15_000
@@ -49,9 +49,10 @@ function setEntry($: EngineInterface, id: string, entry: CardEntry): Promise<unk
 
 /** Loads one card into the atom; the write redraws every message that reads it. */
 async function loadCard($: EngineInterface, id: string): Promise<void> {
-  await setEntry($, id, { state: 'loading' })
+  await setEntry($, id, { state: 'loading', at: await $.clock.now() })
   const card = await fetchCard($, id)
-  await setEntry($, id, card ? { state: 'loaded', card } : { state: 'failed', reason: 'wipnote show failed' })
+  const at = await $.clock.now()
+  await setEntry($, id, card ? { state: 'loaded', card, at } : { state: 'failed', reason: 'wipnote show failed', at })
 }
 
 /** Sets the status line from the session's claimed work item. */
@@ -64,9 +65,25 @@ async function refreshStatus($: EngineInterface): Promise<void> {
     workItem = ''
   }
   const card = workItem ? await fetchCard($, workItem) : null
-  $.ui.status(statusLine(card))
-  if (card) await setEntry($, card.id, { state: 'loaded', card })
+  $.ui.status(statusLine(card, workItem))
+  if (card) await setEntry($, card.id, { state: 'loaded', card, at: await $.clock.now() })
 }
+
+/**
+ * After a turn, re-fetches the cards that can still change: any not done, and
+ * any that failed (the user may have pulled). A done item rarely changes, so
+ * it waits for the TTL instead of costing a process every turn.
+ */
+async function refreshOpenCards($: EngineInterface): Promise<void> {
+  const all = await read($, cards)
+  const ids = Object.entries(all)
+    .filter(([, e]) => e.state === 'failed' || (e.state === 'loaded' && e.card.status !== 'done'))
+    .map(([id]) => id)
+    .slice(-MAX_REFRESH)
+  for (const id of ids) void loadCard($, id)
+}
+
+const MAX_REFRESH = 10
 
 const STATUS_COLOR: Record<string, string> = {
   done: 'success', 'in-progress': 'warning', blocked: 'error', todo: 'subtle',
@@ -80,6 +97,7 @@ export const register: Register = on => {
 
   on('turn.complete', async ($, e, next) => {
     void refreshStatus($)
+    void refreshOpenCards($)
     return next(e)
   })
 
@@ -94,9 +112,10 @@ export const register: Register = on => {
 
     const { Box, Text, Markdown } = $.ui.resolve(e)
     const all = await read($, cards)
+    const now = await $.clock.now()
     for (const s of segments) {
       if (s.kind !== 'refs') continue
-      for (const id of s.ids) if (!all[id]) void loadCard($, id)
+      for (const id of s.ids) if (needsFetch(all[id], now)) void loadCard($, id)
     }
 
     return (

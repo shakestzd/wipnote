@@ -71,10 +71,27 @@ export function stepBar(steps: Step[]): string {
   return '█'.repeat(done) + '░'.repeat(10 - done)
 }
 
-/** The status line: "wipnote · feat-x · in-progress · 3/5 steps". */
-export function statusLine(card: Card | null): string {
-  if (!card) return 'wipnote · no active work item'
-  return ['wipnote', card.id, card.status, stepCount(card.steps)].filter(Boolean).join(' · ')
+/**
+ * The status line: "wipnote · feat-x · in-progress · 3/5 steps". A claimed
+ * item whose details failed to load still shows its id, so a lookup failure
+ * never reads as "no active work item".
+ */
+export function statusLine(card: Card | null, workItem = ''): string {
+  if (card) return ['wipnote', card.id, card.status, stepCount(card.steps)].filter(Boolean).join(' · ')
+  if (workItem) return `wipnote · ${workItem} · details unavailable`
+  return 'wipnote · no active work item'
+}
+
+/** How long a loaded or failed card is shown before it is fetched again. */
+export const CARD_TTL_MS = 60_000
+
+/**
+ * Whether a card needs a (re)fetch: missing, or loaded/failed longer than the
+ * TTL ago. A loading entry is left alone unless it is stuck past the TTL.
+ */
+export function needsFetch(entry: { state: string; at: number } | undefined, now: number): boolean {
+  if (!entry) return true
+  return now - entry.at > CARD_TTL_MS
 }
 
 /** The model-facing rule, sent only while this mod is loaded. */

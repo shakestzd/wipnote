@@ -9,11 +9,14 @@ export type Card = {
   steps: Step[]
 }
 
-/** A card's fetch state: loaded, still loading, or failed with a reason. */
+/**
+ * A card's fetch state: loaded, still loading, or failed with a reason.
+ * `at` is when the entry was written (ms), so a stale one is fetched again.
+ */
 export type CardEntry =
-  | { state: 'loaded'; card: Card }
-  | { state: 'loading' }
-  | { state: 'failed'; reason: string }
+  | { state: 'loaded'; card: Card; at: number }
+  | { state: 'loading'; at: number }
+  | { state: 'failed'; reason: string; at: number }
 
 declare module 'claude-code' {
   interface PluginState {
