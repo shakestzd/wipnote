@@ -1,0 +1,59 @@
+import { expect, test } from 'claude-code/testing'
+
+import { parseCard, showArgv, splitRefs, statusLine, stepBar, stepCount } from '../hooks/cards'
+
+test('splits a closed wipnote-ref fence out of the text', () => {
+  const md = 'Done.\n\n```wipnote-ref\nfeat-65bcc27c\n```\nThanks.'
+  expect(splitRefs(md)).toEqual([
+    { kind: 'text', text: 'Done.\n\n' },
+    { kind: 'refs', ids: ['feat-65bcc27c'] },
+    { kind: 'text', text: '\nThanks.' },
+  ])
+})
+
+test('reads ids from the info line and dedupes them', () => {
+  const segs = splitRefs('```wipnote-ref bug-fa036758\nbug-fa036758 spk-5a716533\n```')
+  expect(segs).toEqual([{ kind: 'refs', ids: ['bug-fa036758', 'spk-5a716533'] }])
+})
+
+test('leaves an open (streaming) fence and other fences as text', () => {
+  const open = 'Working\n```wipnote-ref\nfeat-65bc'
+  expect(splitRefs(open)).toEqual([{ kind: 'text', text: open }])
+  const other = '```go\nfeat-65bcc27c\n```'
+  expect(splitRefs(other)).toEqual([{ kind: 'text', text: other }])
+  const empty = '```wipnote-ref\nnothing here\n```'
+  expect(splitRefs(empty)).toEqual([{ kind: 'text', text: empty }])
+})
+
+test('maps id prefixes to the read-only show command', () => {
+  expect(showArgv('feat-65bcc27c')).toEqual(['wipnote', 'feature', 'show', 'feat-65bcc27c', '--format', 'json'])
+  expect(showArgv('spk-5a716533')[1]).toBe('spike')
+  expect(showArgv('trk-0677c709')[1]).toBe('track')
+  expect(showArgv('bug-fa036758')[1]).toBe('bug')
+})
+
+// Shape captured from `wipnote feature show feat-03132978 --format json`.
+const SHOW = JSON.stringify({
+  id: 'feat-03132978', title: 'Add recommended answers', type: 'feature', status: 'in-progress',
+  steps: [
+    { step_id: 'task-1', description: 'a', completed: true },
+    { step_id: 'task-2', description: 'b', completed: false },
+    { step_id: 'task-3', description: 'c', completed: true },
+  ],
+})
+
+test('parses show JSON into a card with step progress', () => {
+  const c = parseCard('feat-03132978', SHOW)
+  expect(c.title).toBe('Add recommended answers')
+  expect(c.status).toBe('in-progress')
+  expect(stepCount(c.steps)).toBe('2/3 steps')
+  expect(stepBar(c.steps)).toBe('███████░░░')
+  expect(statusLine(c)).toBe('wipnote · feat-03132978 · in-progress · 2/3 steps')
+})
+
+test('an item without steps and no active item read cleanly', () => {
+  const c = parseCard('feat-65bcc27c', JSON.stringify({ id: 'feat-65bcc27c', title: 'x', status: 'done' }))
+  expect(stepCount(c.steps)).toBe('')
+  expect(statusLine(c)).toBe('wipnote · feat-65bcc27c · done')
+  expect(statusLine(null)).toBe('wipnote · no active work item')
+})
