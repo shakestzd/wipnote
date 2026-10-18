@@ -96,7 +96,7 @@ function closeSection(o: WrapOptions): string[] {
 const SWEEP = '( T="${TMPDIR:-/tmp}"; K="${CODEX_HERDR_KEEP_DAYS:-7}"; '
   + 'find "$T" -maxdepth 1 -type f -name \'' + SCRIPT_PREFIX + '*.sh\' -mmin +60 -delete; '
   + 'find "$T" -maxdepth 1 -type d -name \'codex-herdr.*\' -mtime +"$K" -exec rm -rf {} +; '
-  + 'find "$T/codex-herdr-ccx-claims" -mindepth 1 -maxdepth 1 -type d -name \'*.jsonl\' -mtime +"$K" -exec rm -rf {} +; '
+  + 'find "$T/codex-herdr-ccx-claims-$(id -u)" -mindepth 1 -maxdepth 1 -type d -name \'*.jsonl\' -mtime +"$K" -exec rm -rf {} +; '
   + ') >/dev/null 2>&1 &'
 
 export function buildWrapper(command: string, o: WrapOptions): string {

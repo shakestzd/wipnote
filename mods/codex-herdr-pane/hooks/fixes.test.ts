@@ -77,7 +77,7 @@ test('ccx runs take a launch lock until their own log is claimed', () => {
 
 test('a ccx run waits for the launch lock and claims only when no other log is unbound', () => {
   const text = buildWrapper('ccx task "x"', defaults)
-  expect(text).toContain('until mkdir "$LOCK" 2>/dev/null; do') // no time limit: a claimer's hold is bounded by its own wait
+  expect(text).toContain('while [ "$OK" = 1 ] && ! mkdir "$LOCK" 2>/dev/null; do') // no time limit: a claimer's hold is bounded by its own wait
   expect(text).not.toContain('LOCKWAIT')
   expect(text).toContain('CAN=0; : > "$UNB/$$"; release;') // another run is unbound: mark, release, claim nothing
   expect(text).toContain('gaveup=$((1 - CAN))')
@@ -111,4 +111,19 @@ test('old scripts, run directories and ccx claims are swept in the background', 
   expect(text).toContain('K="${CODEX_HERDR_KEEP_DAYS:-7}"')
   expect(text).toContain("-name 'codex-herdr.*' -mtime +\"$K\"")
   expect(text).toContain(') >/dev/null 2>&1 &')
+})
+
+test('the ccx claims folder is per OS user, and an unusable one stops the wait', () => {
+  const text = buildWrapper('ccx task "x"', defaults)
+  expect(text).toContain('CLAIMS="${TMPDIR:-/tmp}/codex-herdr-ccx-claims-$(id -u)"; mkdir -p -m 700 "$CLAIMS"')
+  expect(text).toContain('[ -d "$LOCK" ] || { OK=0; break; }') // a failed mkdir with no lock there is not contention
+  expect(text).toContain('CAN=$OK;')
+  expect(text).toContain('find "$T/codex-herdr-ccx-claims-$(id -u)"') // the sweep looks in the same folder
+})
+
+test('only one run at a time breaks a dead holder\'s lock, after checking its pid again', () => {
+  const text = buildWrapper('ccx task "x"', defaults)
+  expect(text).toContain('mkdir "$LOCK.break" 2>/dev/null; then')
+  expect(text).toContain('[ "$(cat "$LOCK/pid" 2>/dev/null)" = "$p" ] && rm -rf "$LOCK"; rmdir "$LOCK.break"; continue')
+  expect(text).not.toContain('kill -0 "$p" 2>/dev/null; then rm -rf "$LOCK"')
 })

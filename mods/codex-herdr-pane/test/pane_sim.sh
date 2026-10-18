@@ -232,7 +232,7 @@ nothas "ccx concurrent: the first run's pane does not show the other log" "think
 has "ccx concurrent: the second run's pane shows its own log" "thinking about bravo" "$DB/clean.log"
 nothas "ccx concurrent: the second run's pane does not show the other log" "thinking about alpha" "$DB/clean.log"
 has "ccx concurrent: the second run waited for the first to claim its log" "waiting for another ccx run" "$DB/clean.log"
-eq "ccx concurrent: no launch lock left" "$(ls -d "$T"/tmp/codex-herdr-ccx-claims/launch.lock 2>/dev/null | wc -l | tr -d ' ')" 0
+eq "ccx concurrent: no launch lock left" "$(ls -d "$T/tmp/codex-herdr-ccx-claims-$(id -u)"/launch.lock 2>/dev/null | wc -l | tr -d ' ')" 0
 
 # --- a run that gives up waiting for its log: no run takes another's log, though the late log appears first ---
 rm -rf "$T/tmp" "$T/runs" "$T/log"*; mkdir -p "$T/tmp"
@@ -249,16 +249,24 @@ nothas "ccx timeout: the later run does not take the slow run's late log" "think
 has "ccx timeout: the later run says why it has no live log" "not yet bound to its pane" "$DB/clean.log"
 has "ccx timeout: the slow run still returns ccx's own result" "ccx task ok" "$T/out.a"
 has "ccx timeout: the later run still returns ccx's own result" "ccx task ok" "$T/out.b"
-eq "ccx timeout: no unbound mark is left" "$(ls "$T"/tmp/codex-herdr-ccx-claims/unbound | wc -l | tr -d ' ')" 0
+eq "ccx timeout: no unbound mark is left" "$(ls "$T/tmp/codex-herdr-ccx-claims-$(id -u)"/unbound | wc -l | tr -d ' ')" 0
 
 # --- a lock left by a run that died is broken, and the run follows its own log ---
-rm -rf "$T/tmp" "$T/runs" "$T/log"*; mkdir -p "$T/tmp/codex-herdr-ccx-claims/launch.lock"
-sh -c 'exit 0' & DEAD=$!; wait $DEAD; echo "$DEAD" > "$T/tmp/codex-herdr-ccx-claims/launch.lock/pid"
+rm -rf "$T/tmp" "$T/runs" "$T/log"*; mkdir -p "$T/tmp/codex-herdr-ccx-claims-$(id -u)/launch.lock"
+sh -c 'exit 0' & DEAD=$!; wait $DEAD; echo "$DEAD" > "$T/tmp/codex-herdr-ccx-claims-$(id -u)/launch.lock/pid"
 env $ENVS bash "$T/wa.sh" > "$T/out.a" 2>&1
 sleep 1.5; DA=$(ls -d "$T"/tmp/codex-herdr.*)
 has "ccx stale lock: the run follows its own log" "thinking about alpha" "$DA/clean.log"
 has "ccx stale lock: ccx returned its result" "ccx task ok" "$T/out.a"
-eq "ccx stale lock: no lock is left" "$(ls -d "$T"/tmp/codex-herdr-ccx-claims/launch.lock 2>/dev/null | wc -l | tr -d ' ')" 0
+eq "ccx stale lock: no lock is left" "$(ls -d "$T/tmp/codex-herdr-ccx-claims-$(id -u)"/launch.lock 2>/dev/null | wc -l | tr -d ' ')" 0
+
+# --- a claims path that is not a usable folder: the run claims nothing and does not hang ---
+rm -rf "$T/tmp" "$T/runs" "$T/log"*; mkdir -p "$T/tmp"; : > "$T/tmp/codex-herdr-ccx-claims-$(id -u)"
+env $ENVS bash "$T/wa.sh" > "$T/out.a" 2>&1
+sleep 1.5; DA=$(ls -d "$T"/tmp/codex-herdr.*)
+has "ccx bad claims folder: the pane says why it has no live log" "ccx claims folder not usable" "$DA/clean.log"
+nothas "ccx bad claims folder: no log was claimed" "thinking about" "$DA/clean.log"
+has "ccx bad claims folder: ccx still ran and returned its result" "ccx task ok" "$T/out.a"
 
 # --- 0.7.2 (issue 219): a standalone review is cleaned and returns its verdict ---
 SIMREVIEW=1 run 'codex review'
@@ -273,16 +281,16 @@ has "review: pane title names what is reviewed" "Codex review: current changes" 
 eq "review: the pane is renamed after it starts" "$(grep -n -e '^herdr pane run' -e '^herdr pane rename' "$T/log" | cut -d: -f2 | cut -c1-16 | tr '\n' ,)" "herdr pane run w,herdr pane renam,"
 
 # --- 0.7.2: old leftovers in TMPDIR are swept ---
-rm -rf "$T/tmp" "$T/runs" "$T/log"*; mkdir -p "$T/tmp/codex-herdr.old1" "$T/tmp/codex-herdr.new1" "$T/tmp/codex-herdr-ccx-claims/a.jsonl"
+rm -rf "$T/tmp" "$T/runs" "$T/log"*; mkdir -p "$T/tmp/codex-herdr.old1" "$T/tmp/codex-herdr.new1" "$T/tmp/codex-herdr-ccx-claims-$(id -u)/a.jsonl"
 touch "$T/tmp/codex-herdr-run.stale.sh" "$T/tmp/codex-herdr-run.fresh.sh"
-touch -d '2 hours ago' "$T/tmp/codex-herdr-run.stale.sh"; touch -d '8 days ago' "$T/tmp/codex-herdr.old1" "$T/tmp/codex-herdr-ccx-claims/a.jsonl"
+touch -d '2 hours ago' "$T/tmp/codex-herdr-run.stale.sh"; touch -d '8 days ago' "$T/tmp/codex-herdr.old1" "$T/tmp/codex-herdr-ccx-claims-$(id -u)/a.jsonl"
 node --experimental-strip-types "$ROOT/test/gen.ts" 'codex exec "hello"' "$ROOT" > "$T/w.sh" 2>/dev/null
 env $ENVS bash "$T/w.sh" > /dev/null 2>&1; sleep 1.5
 eq "sweep: a script older than an hour is removed" "$(ls "$T/tmp/codex-herdr-run.stale.sh" 2>/dev/null | wc -l | tr -d ' ')" 0
 eq "sweep: a new script is kept" "$(ls "$T/tmp/codex-herdr-run.fresh.sh" 2>/dev/null | wc -l | tr -d ' ')" 1
 eq "sweep: a run directory older than 7 days is removed" "$(ls -d "$T/tmp/codex-herdr.old1" 2>/dev/null | wc -l | tr -d ' ')" 0
 eq "sweep: a newer run directory is kept" "$(ls -d "$T/tmp/codex-herdr.new1" 2>/dev/null | wc -l | tr -d ' ')" 1
-eq "sweep: an old ccx claim is removed" "$(ls -d "$T/tmp/codex-herdr-ccx-claims/a.jsonl" 2>/dev/null | wc -l | tr -d ' ')" 0
+eq "sweep: an old ccx claim is removed" "$(ls -d "$T/tmp/codex-herdr-ccx-claims-$(id -u)/a.jsonl" 2>/dev/null | wc -l | tr -d ' ')" 0
 
 rm -rf "$T"
 [ "$fails" = 0 ] && echo "pane simulation passed" || { echo "$fails failed"; exit 1; }

@@ -71,7 +71,8 @@ const CODEX_CHAIN_RUN = [
 // call that never got a result.
 const CCX_RUN = [
   '  RUNS="${CCX_RUNS_DIR:-}"; [ -n "$RUNS" ] || RUNS=__RUNS__; : > "$D/clean.log"',
-  '  CLAIMS="${TMPDIR:-/tmp}/codex-herdr-ccx-claims"; mkdir -p "$CLAIMS" 2>/dev/null',
+  // One claims folder per OS user, so another user's folder in a shared /tmp cannot block this one
+  '  CLAIMS="${TMPDIR:-/tmp}/codex-herdr-ccx-claims-$(id -u)"; mkdir -p -m 700 "$CLAIMS" 2>/dev/null',
   // Which log is whose: a run may claim a new log only while it holds the launch lock and no
   // other run's log is UNBOUND (a run in flight whose log could still appear). Waiters wait for
   // the lock, so nothing else launches while a claimer looks. A holder releases the lock when it
@@ -81,14 +82,24 @@ const CCX_RUN = [
   // its process is gone). A holder that died is broken by its pid.
   '  LOCK="$CLAIMS/launch.lock"; UNB="$CLAIMS/unbound"; mkdir -p "$UNB" 2>/dev/null; waited=0',
   '  note() { echo "*$1*" | tee -a "$D/clean.log" >> "$D/clean.md"; }',
-  '  until mkdir "$LOCK" 2>/dev/null; do',
-  '    p=$(cat "$LOCK/pid" 2>/dev/null); if [ -n "$p" ] && ! kill -0 "$p" 2>/dev/null; then rm -rf "$LOCK"; continue; fi',
+  // A lock that cannot be made, and is not there, is not contention: the folder is not usable, so
+  // the run claims nothing (OK=0). Only one run at a time may break a dead holder's lock (the
+  // .break folder), and it checks the pid again first, so it never deletes a successor's lock.
+  '  OK=1; [ -d "$CLAIMS" ] && [ -w "$CLAIMS" ] || OK=0',
+  '  while [ "$OK" = 1 ] && ! mkdir "$LOCK" 2>/dev/null; do',
+  '    [ -d "$LOCK" ] || { OK=0; break; }',
+  '    p=$(cat "$LOCK/pid" 2>/dev/null)',
+  '    if [ -n "$p" ] && ! kill -0 "$p" 2>/dev/null && mkdir "$LOCK.break" 2>/dev/null; then',
+  '      [ "$(cat "$LOCK/pid" 2>/dev/null)" = "$p" ] && rm -rf "$LOCK"; rmdir "$LOCK.break"; continue',
+  '    fi',
+  '    find "$CLAIMS" -maxdepth 1 -name launch.lock.break -mmin +1 -exec rmdir {} + 2>/dev/null',
   '    [ "$waited" = 0 ] && { note "waiting for another ccx run to start its log"; waited=1; }',
   '    sleep 0.1',
-  '  done; echo $$ > "$LOCK/pid"',
+  '  done; [ "$OK" = 1 ] && echo $$ > "$LOCK/pid"',
   '  release() { [ "$(cat "$LOCK/pid" 2>/dev/null)" = "$$" ] && rm -rf "$LOCK"; return 0; }',
   '  unbound() { for u in "$UNB"/*; do [ -e "$u" ] || continue; kill -0 "${u##*/}" 2>/dev/null && return 0; rm -f "$u"; done; return 1; }',
-  '  CAN=1; if unbound; then CAN=0; : > "$UNB/$$"; release; note "another ccx run has a log not yet bound to its pane: no live log for this run"; fi',
+  '  if [ "$OK" = 0 ]; then note "ccx claims folder not usable: $CLAIMS: no live log for this run"; fi',
+  '  CAN=$OK; if [ "$OK" = 1 ] && unbound; then CAN=0; : > "$UNB/$$"; release; note "another ccx run has a log not yet bound to its pane: no live log for this run"; fi',
   '  ls -1 "$RUNS" 2>/dev/null | grep "\\.jsonl$" > "$D/before"',
   '  if [ ! -d "$RUNS" ]; then printf "*ccx runs directory not found: %s (set ccxRunsDir or CCX_RUNS_DIR)*\\n" "$RUNS" | tee -a "$D/clean.log" >> "$D/clean.md"; fi',
   '  claim() { ls -1 "$RUNS" 2>/dev/null | grep "\\.jsonl$" | grep -vxFf "$D/before" | while IFS= read -r c; do mkdir "$CLAIMS/$c" 2>/dev/null && { printf "%s\\n" "$RUNS/$c"; break; }; done; }',
