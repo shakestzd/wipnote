@@ -68,6 +68,11 @@ export function isStandalone(command: string): boolean {
   return !/[;&|\n`(){}]|\$\(/.test(text)
 }
 
+// Whether the command sends stdout somewhere itself (>, >>, 1>, &>, >&), outside quoted text and
+// heredoc bodies. A standalone review that does keeps its stdout; the shim (shim.ts) is told so
+// by the wrapper, since the descriptor's type alone cannot tell the pane's pipe from the caller's.
+export const redirectsStdout = (command: string): boolean => /(?:^|[\s;&|])(?:1|&)?>/.test(blankText(command))
+
 export const isDelegation = (command: string): boolean => toolFor(command) !== undefined
 export const isCodexDelegation = isDelegation
 

@@ -40,7 +40,7 @@ const USAGE = [
 // After the run, `usage` gets the token split from the same codex.jq, else the
 // "tokens used" figure; the report and the viewer both read that one file.
 const CODEX_RUN = [
-  '  __CODEX_PROFILE="__PROFILE__" __CODEX_LAST="$D/last.md" bash -c \'. "$1/shim.sh"; . "$1/orig.sh"\' _ "$D" 2>&1 \\',
+  '  __CODEX_PROFILE="__PROFILE__" __CODEX_LAST="$D/last.md" __CODEX_REVIEW_LAST=__REVIEWLAST__ bash -c \'. "$1/shim.sh"; . "$1/orig.sh"\' _ "$D" 2>&1 \\',
   '    | tee "$D/raw.log" >(mdcodex >> "$D/clean.md") | jq --unbuffered -R -r -f "$ROOT/viewer/codex.jq" 2>/dev/null \\',
   '    | awk -v review=1 -f "$ROOT/viewer/clean.awk" > "$D/clean.log"',
   '  X="${PIPESTATUS[0]}"',
@@ -150,8 +150,11 @@ const profileName = (o: WrapOptions) => (o.leanProfile ? o.leanProfileName.repla
 const DEFAULT_RUNS = '"$HOME/work/_shared/claude-container/runs"'
 const shq = (s: string) => `'${s.replace(/'/g, `'\\''`)}'`
 
-export function paneScript(o: WrapOptions, tool: DelegationTool, chained: boolean): string[] {
-  const codex = (chained ? CODEX_CHAIN_RUN : CODEX_RUN).map((l) => l.replace('__PROFILE__', profileName(o)))
+// reviewToLast: a standalone call that does not redirect stdout itself, so a review's final message
+// may go to the answer file (shim.ts).
+export function paneScript(o: WrapOptions, tool: DelegationTool, chained: boolean, reviewToLast = !chained): string[] {
+  const codex = (chained ? CODEX_CHAIN_RUN : CODEX_RUN)
+    .map((l) => l.replace('__PROFILE__', profileName(o)).replace('__REVIEWLAST__', reviewToLast ? '1' : ''))
   const run = tool.filter === 'ccx'
     ? CCX_RUN.map((l) => l.replace('__RUNS__', () => (o.runsDir ? shq(o.runsDir) : DEFAULT_RUNS)))
     : codex
