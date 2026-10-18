@@ -16,6 +16,7 @@ tools:
 maxTurns: 100
 skills:
   - wipnote:agent-context
+  - wipnote:code-quality-skill
 ---
 
 # Feature Coder Agent

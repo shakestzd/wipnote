@@ -16,6 +16,7 @@ tools:
 maxTurns: 50
 skills:
   - wipnote:agent-context
+  - wipnote:code-quality-skill
 ---
 
 # Patch Coder Agent

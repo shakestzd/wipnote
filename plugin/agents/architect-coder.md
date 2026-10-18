@@ -16,6 +16,7 @@ tools:
 maxTurns: 120
 skills:
   - wipnote:agent-context
+  - wipnote:code-quality-skill
 ---
 
 # Architect Coder Agent
