@@ -59,24 +59,55 @@ const CODEX_CHAIN_RUN = [
 ]
 
 // For ccx: stdout (the status line and the result) goes to out.txt untouched and
-// stderr to err.log. A follower finds the run's stream-json log, the newest *.jsonl
-// created after the pane started, and renders each complete line through stream.jq (text
+// stderr to err.log. A follower finds the run's stream-json log: a *.jsonl that was not in
+// the runs directory when the pane started and that no other pane has claimed (an atomic
+// mkdir per log name), so two overlapping runs never follow the same log and no timestamp
+// comparison is needed. A launch lock lets only one run at a time wait for its new log, so
+// the log a run claims is the one it started. It renders each complete line through stream.jq (text
 // into clean.log, Markdown into clean.md). It polls by line count, so a half-written line waits for its newline
 // and the final pass after the command ends takes whatever is left. The Markdown is rendered
 // from line 1 each time (a call and its result are paired across lines, so a chunk alone is
 // not enough) and only the new bytes are appended; the final pass (mode md) also shows a
 // call that never got a result.
 const CCX_RUN = [
-  '  RUNS="${CCX_RUNS_DIR:-' + '__RUNS__' + '}"; touch "$D/mark"; : > "$D/clean.log"',
+  '  RUNS="${CCX_RUNS_DIR:-}"; [ -n "$RUNS" ] || RUNS=__RUNS__; : > "$D/clean.log"',
+  '  CLAIMS="${TMPDIR:-/tmp}/codex-herdr-ccx-claims"; mkdir -p "$CLAIMS" 2>/dev/null',
+  // Which log is whose: a run may claim a new log only while it holds the launch lock and no
+  // other run's log is UNBOUND (a run in flight whose log could still appear). Waiters wait for
+  // the lock, so nothing else launches while a claimer looks. A holder releases the lock when it
+  // has claimed its log, or when CODEX_HERDR_CCX_WAIT (30 s) passes: then it marks itself unbound
+  // first, so its late log is never taken. A run that finds an unbound run marks itself unbound,
+  // releases the lock at once and claims nothing. A mark lasts until that run's command ends (or
+  // its process is gone). A holder that died is broken by its pid.
+  '  LOCK="$CLAIMS/launch.lock"; UNB="$CLAIMS/unbound"; mkdir -p "$UNB" 2>/dev/null; waited=0',
+  '  note() { echo "*$1*" | tee -a "$D/clean.log" >> "$D/clean.md"; }',
+  '  until mkdir "$LOCK" 2>/dev/null; do',
+  '    p=$(cat "$LOCK/pid" 2>/dev/null); if [ -n "$p" ] && ! kill -0 "$p" 2>/dev/null; then rm -rf "$LOCK"; continue; fi',
+  '    [ "$waited" = 0 ] && { note "waiting for another ccx run to start its log"; waited=1; }',
+  '    sleep 0.1',
+  '  done; echo $$ > "$LOCK/pid"',
+  '  release() { [ "$(cat "$LOCK/pid" 2>/dev/null)" = "$$" ] && rm -rf "$LOCK"; return 0; }',
+  '  unbound() { for u in "$UNB"/*; do [ -e "$u" ] || continue; kill -0 "${u##*/}" 2>/dev/null && return 0; rm -f "$u"; done; return 1; }',
+  '  CAN=1; if unbound; then CAN=0; : > "$UNB/$$"; release; note "another ccx run has a log not yet bound to its pane: no live log for this run"; fi',
+  '  ls -1 "$RUNS" 2>/dev/null | grep "\\.jsonl$" > "$D/before"',
+  '  if [ ! -d "$RUNS" ]; then printf "*ccx runs directory not found: %s (set ccxRunsDir or CCX_RUNS_DIR)*\\n" "$RUNS" | tee -a "$D/clean.log" >> "$D/clean.md"; fi',
+  '  claim() { ls -1 "$RUNS" 2>/dev/null | grep "\\.jsonl$" | grep -vxFf "$D/before" | while IFS= read -r c; do mkdir "$CLAIMS/$c" 2>/dev/null && { printf "%s\\n" "$RUNS/$c"; break; }; done; }',
   '  jqs() { nf=; [ "$1" = view ] || nf=-n; jq --unbuffered $nf -R -r --arg mode "$1" -f "$ROOT/viewer/stream.jq" 2>/dev/null; }',
   '  W=0  # bytes of the Markdown render already in clean.md: it is only ever appended to',
   '  render() { sed -n "$1,$2p" "$f" > "$D/chunk"; jqs view < "$D/chunk" >> "$D/clean.log"',
   '    sed -n "1,$2p" "$f" | jqs "$3" > "$D/md.tmp"; tail -c +"$((W+1))" "$D/md.tmp" >> "$D/clean.md"; W=$(wc -c < "$D/md.tmp" | tr -d " "); }',
   '  (',
-  '    f=""; n=0',
+  '    f=""; n=0; T0=$(date +%s); gaveup=$((1 - CAN)); WAIT="${CODEX_HERDR_CCX_WAIT:-30}"',
   '    while :; do',
   '      done=0; [ -f "$D/cmddone" ] && done=1',
-  '      [ -z "$f" ] && f=$(find "$RUNS" -maxdepth 1 -name "*.jsonl" -newer "$D/mark" 2>/dev/null | xargs ls -t 2>/dev/null | head -1)',
+  '      [ -z "$f" ] && [ "$gaveup" = 0 ] && f=$(claim)',
+  '      [ -n "$f" ] && release',
+  // A run whose log has not appeared in time marks itself unbound, gives the lock up and stops
+  // claiming: it never takes a later run's log, and no later run takes its late log. Its answer
+  // still comes from out.txt.
+  '      if [ -z "$f" ] && [ "$gaveup" = 0 ] && [ $(( $(date +%s) - T0 )) -ge "$WAIT" ]; then',
+  '        : > "$UNB/$$"; release; gaveup=1; note "ccx did not start its log within ${WAIT} s: no live log for this run"',
+  '      fi',
   '      if [ -n "$f" ]; then',
   '        t=$(wc -l < "$f" | tr -d " ")',
   '        [ "$done" = 1 ] && render "$((n+1))" \'$\' md',
@@ -85,12 +116,13 @@ const CCX_RUN = [
   '      [ "$done" = 1 ] && break',
   '      sleep 0.3',
   '    done',
+  '    release',
   '  ) &',
   '  FOLLOW=$!',
   '  if [ "$CHAIN" = 1 ]; then run_orig bash "$D/orig.sh"; X=$?; mkrest; cp "$D/rest.out" "$D/out.txt"; cp "$D/rest.err" "$D/err.log"',
   '  else bash "$D/orig.sh" > "$D/out.txt" 2> "$D/err.log"; X=$?; fi',
   '  cat "$D/err.log" > "$D/raw.log"',
-  '  touch "$D/cmddone"; wait $FOLLOW',
+  '  touch "$D/cmddone"; wait $FOLLOW; release; rm -f "$UNB/$$"',
   '  { printf "> %s\\n\\n" "$(head -n 1 "$D/out.txt")"; tail -n +2 "$D/out.txt"; } > "$D/last.md"',
   '  echo "$X" > "$D/exit.tmp"; date +%s > "$D/end"; mv "$D/exit.tmp" "$D/exit"',
 ]
@@ -100,10 +132,16 @@ const CCX_RUN = [
 // Empty turns the profile off; the name is held to filename characters.
 const profileName = (o: WrapOptions) => (o.leanProfile ? o.leanProfileName.replace(/[^A-Za-z0-9_.-]/g, '') : '')
 
+// ccx's run-log directory when neither the ccxRunsDir setting nor CCX_RUNS_DIR names one: the
+// author's container layout, kept so existing setups keep working. A missing directory is
+// reported in the pane instead of leaving it empty.
+const DEFAULT_RUNS = '"$HOME/work/_shared/claude-container/runs"'
+const shq = (s: string) => `'${s.replace(/'/g, `'\\''`)}'`
+
 export function paneScript(o: WrapOptions, tool: DelegationTool, chained: boolean): string[] {
   const codex = (chained ? CODEX_CHAIN_RUN : CODEX_RUN).map((l) => l.replace('__PROFILE__', profileName(o)))
   const run = tool.filter === 'ccx'
-    ? CCX_RUN.map((l) => l.replace('__RUNS__', o.runsDir ?? '$HOME/work/_shared/claude-container/runs'))
+    ? CCX_RUN.map((l) => l.replace('__RUNS__', () => (o.runsDir ? shq(o.runsDir) : DEFAULT_RUNS)))
     : codex
   return [
     '#!/usr/bin/env bash',

@@ -21,6 +21,7 @@ from pathlib import Path
 
 from textual.app import App, ComposeResult
 from textual.binding import Binding
+from textual.css.query import NoMatches
 from textual.containers import VerticalScroll
 from textual.widgets import Footer, Markdown, MarkdownViewer, RichLog, Static, TabbedContent, TabPane
 
@@ -120,6 +121,12 @@ class CodexView(App):
             await stream.stop()
 
     async def tick(self) -> None:
+        try:
+            await self.step()
+        except NoMatches:  # the app is closing and its widgets are gone (a tick still in flight)
+            pass
+
+    async def step(self) -> None:
         if not await self.follow_md():
             self.follow_log()
         code = read(self.dir / "exit").strip()

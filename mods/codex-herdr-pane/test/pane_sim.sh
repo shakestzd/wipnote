@@ -161,8 +161,9 @@ eq "recognition: an already-wrapped stub is not a delegation" "$(node --experime
 eq "recognition: the original is" "$(node --experimental-strip-types -e "import('$ROOT/hooks/tools.ts').then((m) => console.log(m.isDelegation('$ORIGINAL')))" 2>/dev/null)" true
 SHORT_CAPPED=$(cat "$T/out.bin")
 CAP=0 run "$ORIGINAL"
-eq "short answer: returned byte for byte whether capped (60) or not (0), apart from the run directory name" \
-  "$(echo "$SHORT_CAPPED" | sed 's|/codex-herdr\.[A-Za-z0-9]*|/D|g')" "$(cat "$T/out.bin" | sed 's|/codex-herdr\.[A-Za-z0-9]*|/D|g')"
+# the run time can differ by a second between the two runs, so it is masked with the run directory
+eq "short answer: returned byte for byte whether capped (60) or not (0), apart from the run directory name and run time" \
+  "$(echo "$SHORT_CAPPED" | sed -E 's|/codex-herdr\.[A-Za-z0-9]*|/D|g; s|after [0-9]+s|after Ns|')" "$(cat "$T/out.bin" | sed -E 's|/codex-herdr\.[A-Za-z0-9]*|/D|g; s|after [0-9]+s|after Ns|')"
 
 CAP=60 SIMLONG=300 run "$ORIGINAL"
 eq "long answer: the status line is the first line and is not cut" "$(echo "$OUT" | head -n 1 | cut -c1-14)" "codex exited 0"
@@ -213,6 +214,51 @@ eq "chained cap 0: all 300 numbered lines" "$(echo "$OUT" | grep -c '^[0-9][0-9]
 CAP=60 run 'echo before; codex exec "hello"; echo "chain-out"'
 has "chained short: returned unchanged under the cap" "chain-out" <(echo "$OUT")
 nothas "chained short: no pointer" "more lines in" <(echo "$OUT")
+
+# --- 0.7.1: two ccx runs at once, the later one's log appears first; each pane follows its own ---
+rm -rf "$T/tmp" "$T/runs" "$T/log"*; mkdir -p "$T/tmp"
+node --experimental-strip-types "$ROOT/test/gen.ts" 'ccx task "alpha"' "$ROOT" > "$T/wa.sh" 2>/dev/null
+node --experimental-strip-types "$ROOT/test/gen.ts" 'ccx task "bravo"' "$ROOT" > "$T/wb.sh" 2>/dev/null
+ENVS="HERDR_ENV=1 TMPDIR=$T/tmp SIMLOG=$T/log CCX_RUNS_DIR=$T/runs HOME=$T PATH=$ROOT/test/stubs:$PATH"
+env $ENVS SIMLOGDELAY=2 bash "$T/wa.sh" > "$T/out.a" 2>&1 & PA=$!
+sleep 0.5
+env $ENVS bash "$T/wb.sh" > "$T/out.b" 2>&1 & PB=$!
+wait $PA $PB; sleep 1.5
+for d in "$T"/tmp/codex-herdr.*; do
+  if grep -q alpha "$d/orig.sh"; then DA=$d; else DB=$d; fi
+done
+has "ccx concurrent: the first run's pane shows its own log" "thinking about alpha" "$DA/clean.log"
+nothas "ccx concurrent: the first run's pane does not show the other log" "thinking about bravo" "$DA/clean.log"
+has "ccx concurrent: the second run's pane shows its own log" "thinking about bravo" "$DB/clean.log"
+nothas "ccx concurrent: the second run's pane does not show the other log" "thinking about alpha" "$DB/clean.log"
+has "ccx concurrent: the second run waited for the first to claim its log" "waiting for another ccx run" "$DB/clean.log"
+eq "ccx concurrent: no launch lock left" "$(ls -d "$T"/tmp/codex-herdr-ccx-claims/launch.lock 2>/dev/null | wc -l | tr -d ' ')" 0
+
+# --- a run that gives up waiting for its log: no run takes another's log, though the late log appears first ---
+rm -rf "$T/tmp" "$T/runs" "$T/log"*; mkdir -p "$T/tmp"
+env $ENVS CODEX_HERDR_CCX_WAIT=1 SIMLOGDELAY=4 bash "$T/wa.sh" > "$T/out.a" 2>&1 & PA=$!
+sleep 2
+env $ENVS SIMLOGDELAY=3 bash "$T/wb.sh" > "$T/out.b" 2>&1 & PB=$!
+wait $PA $PB; sleep 1.5
+for d in "$T"/tmp/codex-herdr.*; do
+  if grep -q alpha "$d/orig.sh"; then DA=$d; else DB=$d; fi
+done
+has "ccx timeout: the slow run says it has no live log" "no live log for this run" "$DA/clean.log"
+nothas "ccx timeout: the slow run does not take the later run's log" "thinking about bravo" "$DA/clean.log"
+nothas "ccx timeout: the later run does not take the slow run's late log" "thinking about alpha" "$DB/clean.log"
+has "ccx timeout: the later run says why it has no live log" "not yet bound to its pane" "$DB/clean.log"
+has "ccx timeout: the slow run still returns ccx's own result" "ccx task ok" "$T/out.a"
+has "ccx timeout: the later run still returns ccx's own result" "ccx task ok" "$T/out.b"
+eq "ccx timeout: no unbound mark is left" "$(ls "$T"/tmp/codex-herdr-ccx-claims/unbound | wc -l | tr -d ' ')" 0
+
+# --- a lock left by a run that died is broken, and the run follows its own log ---
+rm -rf "$T/tmp" "$T/runs" "$T/log"*; mkdir -p "$T/tmp/codex-herdr-ccx-claims/launch.lock"
+sh -c 'exit 0' & DEAD=$!; wait $DEAD; echo "$DEAD" > "$T/tmp/codex-herdr-ccx-claims/launch.lock/pid"
+env $ENVS bash "$T/wa.sh" > "$T/out.a" 2>&1
+sleep 1.5; DA=$(ls -d "$T"/tmp/codex-herdr.*)
+has "ccx stale lock: the run follows its own log" "thinking about alpha" "$DA/clean.log"
+has "ccx stale lock: ccx returned its result" "ccx task ok" "$T/out.a"
+eq "ccx stale lock: no lock is left" "$(ls -d "$T"/tmp/codex-herdr-ccx-claims/launch.lock 2>/dev/null | wc -l | tr -d ' ')" 0
 
 rm -rf "$T"
 [ "$fails" = 0 ] && echo "pane simulation passed" || { echo "$fails failed"; exit 1; }

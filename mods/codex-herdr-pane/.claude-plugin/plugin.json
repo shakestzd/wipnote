@@ -1,21 +1,49 @@
 {
   "name": "codex-herdr-pane",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "description": "Runs every Codex delegation (codex exec, codex review) and every ccx task in a visible herdr pane with a live log and a rendered answer, and closes the pane when it finishes",
+  "author": {
+    "name": "shakestzd"
+  },
   "userConfig": {
     "direction": {
       "type": "string",
       "title": "Split direction",
       "description": "Where the Codex pane opens, relative to the pane Claude Code runs in",
       "default": "right",
-      "options": ["right", "down"]
+      "options": [
+        "right",
+        "down"
+      ]
+    },
+    "layout": {
+      "type": "string",
+      "title": "Pane layout",
+      "description": "auto tiles, or splits Claude's pane downward when direction is down; tile places panes in a grid beside Claude (right of it first, then 2x2); right or down always splits Claude's pane that way",
+      "options": [
+        "auto",
+        "tile",
+        "right",
+        "down"
+      ],
+      "default": "auto"
+    },
+    "maxPanes": {
+      "type": "number",
+      "title": "Most delegation panes at once",
+      "description": "tile only: a run beyond this many live panes goes ahead without a pane and says so",
+      "default": 6
     },
     "closePane": {
       "type": "string",
       "title": "Close the pane when Codex finishes",
       "description": "always closes it after the delay; success keeps a failed run open; never leaves it for you",
       "default": "always",
-      "options": ["always", "success", "never"]
+      "options": [
+        "always",
+        "success",
+        "never"
+      ]
     },
     "closeDelay": {
       "type": "number",
@@ -28,7 +56,10 @@
       "title": "Pane view",
       "description": "textual shows a live log and the answer as Markdown (needs uv; the first run downloads Textual); plain streams the cleaned log",
       "default": "textual",
-      "options": ["textual", "plain"]
+      "options": [
+        "textual",
+        "plain"
+      ]
     },
     "tailLines": {
       "type": "number",
@@ -53,6 +84,12 @@
       "title": "Lean profile name",
       "description": "The profile passed with -p; its file is ~/.codex/<name>.config.toml",
       "default": "lean"
+    },
+    "ccxRunsDir": {
+      "type": "string",
+      "title": "ccx run-log directory",
+      "description": "Where ccx writes each run's stream-json log; the pane follows the new log a run creates. CCX_RUNS_DIR overrides it. Empty: $HOME/work/_shared/claude-container/runs",
+      "default": ""
     }
   }
 }

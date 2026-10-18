@@ -414,7 +414,7 @@ def static() -> None:
     root = V.parent
     req = re.search(r"TEXTUAL_REQ = '([^']+)'", (root / "hooks/panescript.ts").read_text()).group(1)
     check("static: viewer header repeats TEXTUAL_REQ", f'dependencies = ["{req}"]' in (V / "codex_view.py").read_text())
-    check("static: version is 0.7.0", json.loads((root / ".claude-plugin/plugin.json").read_text())["version"] == "0.7.0")
+    check("static: version is 0.7.1", json.loads((root / ".claude-plugin/plugin.json").read_text())["version"] == "0.7.1")
     for f in ("codex.jq", "stream.jq"):
         jq_src = (V / f).read_text()
         check(f"static: {f} has one events parser feeding txt and md",
