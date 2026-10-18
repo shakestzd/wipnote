@@ -1734,16 +1734,36 @@ func TestSupportedClaudeLeanFlags(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			origHelp := claudeHelpText
-			claudeHelpText = func() string { return tc.help }
+			claudeHelpText = func(context.Context) string { return tc.help }
 			supportedLeanFlagsOnce, supportedLeanFlags = sync.Once{}, nil
 			t.Cleanup(func() {
 				claudeHelpText = origHelp
 				supportedLeanFlagsOnce, supportedLeanFlags = sync.Once{}, nil
 			})
-			got := supportedClaudeLeanFlags()
+			got := supportedClaudeLeanFlags(context.Background())
 			if strings.Join(got, " ") != strings.Join(tc.want, " ") {
 				t.Fatalf("got %v, want %v", got, tc.want)
 			}
 		})
+	}
+}
+
+// TestClaudeHelpTextHonorsCancellation guards the Codex review finding on
+// #210: the capability probe runs before the grading timer, so a wedged
+// `claude --help` must not block past the caller's context.
+func TestClaudeHelpTextHonorsCancellation(t *testing.T) {
+	bin := t.TempDir()
+	if err := os.WriteFile(filepath.Join(bin, "claude"), []byte("#!/bin/sh\nsleep 30\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	defer cancel()
+	start := time.Now()
+	if got := claudeHelpText(ctx); got != "" {
+		t.Fatalf("a probe that times out must fail open to \"\", got %q", got)
+	}
+	if elapsed := time.Since(start); elapsed > 5*time.Second {
+		t.Fatalf("probe ignored the caller's context: took %v", elapsed)
 	}
 }

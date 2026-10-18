@@ -809,9 +809,24 @@ func buildHeadlessArgs(req headlessRequest) []string {
 // unlike --bare, which accepts only an API key or apiKeyHelper.
 var claudeLeanFlags = []string{"--safe-mode", "--no-session-persistence"}
 
-// claudeHelpText returns `claude --help`; a package var so tests can stub it.
-var claudeHelpText = func() string {
-	out, _ := exec.Command("claude", "--help").CombinedOutput()
+// claudeHelpProbeTimeout bounds the `claude --help` capability probe, which
+// runs before the grading call and its wall-clock timer exist.
+const claudeHelpProbeTimeout = 10 * time.Second
+
+// claudeHelpText returns `claude --help`, bounded by ctx and
+// claudeHelpProbeTimeout; "" on failure or timeout. A package var so tests can
+// stub it.
+var claudeHelpText = func(ctx context.Context) string {
+	ctx, cancel := context.WithTimeout(ctx, claudeHelpProbeTimeout)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "claude", "--help")
+	// A wrapper script's children can hold the output pipe open after the
+	// kill; stop waiting for them shortly after.
+	cmd.WaitDelay = time.Second
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return ""
+	}
 	return string(out)
 }
 
@@ -823,10 +838,11 @@ var (
 // supportedClaudeLeanFlags returns the claudeLeanFlags this claude install
 // lists in --help. --safe-mode is new in Claude Code 2.1.302 and an older CLI
 // rejects an unknown flag, so each one is added only when it is supported:
-// an older install still grades, just without the lean flags.
-func supportedClaudeLeanFlags() []string {
+// an older install still grades, just without the lean flags. A probe that
+// fails or times out fails open to the base flags.
+func supportedClaudeLeanFlags(ctx context.Context) []string {
 	supportedLeanFlagsOnce.Do(func() {
-		help := claudeHelpText()
+		help := claudeHelpText(ctx)
 		for _, f := range claudeLeanFlags {
 			if strings.Contains(help, f) {
 				supportedLeanFlags = append(supportedLeanFlags, f)
@@ -849,10 +865,12 @@ func supportedClaudeLeanFlags() []string {
 // --safe-mode (Claude Code 2.1.302) gives the same lean discovery and keeps
 // OAuth, so it is used instead (supportedClaudeLeanFlags).
 func realHeadlessInvoker(ctx context.Context, req headlessRequest) (*headlessResult, error) {
-	args := append(buildHeadlessArgs(req), supportedClaudeLeanFlags()...)
+	args := append(buildHeadlessArgs(req), supportedClaudeLeanFlags(ctx)...)
 
 	cmd := exec.CommandContext(ctx, "claude", args...)
 	cmd.Stdin = strings.NewReader(req.userPrompt)
+	// After a timeout kill, do not wait on children that still hold the pipes.
+	cmd.WaitDelay = time.Second
 
 	// Capture stdout and stderr; never leak to caller.
 	var stdoutBuf, stderrBuf bytes.Buffer
