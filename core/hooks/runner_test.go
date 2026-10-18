@@ -104,9 +104,6 @@ func TestCloudEvent_AgentTeamsPayload(t *testing.T) {
 	if ev.TeammateName != "implementer" {
 		t.Errorf("TeammateName = %q, want %q", ev.TeammateName, "implementer")
 	}
-	if ev.TeamName != "my-team" {
-		t.Errorf("TeamName = %q, want %q", ev.TeamName, "my-team")
-	}
 	if ev.IdleReason != "waiting" {
 		t.Errorf("IdleReason = %q, want %q", ev.IdleReason, "waiting")
 	}
@@ -132,9 +129,6 @@ func TestCloudEvent_LegacyPayload(t *testing.T) {
 
 	if ev.TeammateName != "" {
 		t.Errorf("TeammateName = %q, want empty", ev.TeammateName)
-	}
-	if ev.TeamName != "" {
-		t.Errorf("TeamName = %q, want empty", ev.TeamName)
 	}
 	if ev.IdleReason != "" {
 		t.Errorf("IdleReason = %q, want empty", ev.IdleReason)

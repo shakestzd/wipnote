@@ -80,6 +80,7 @@
       { "name": "Stop",               "handler": "stop",                "targets": ["claude", "codex", "antigravity"], "timeout": 90 },
       { "name": "Interrupt",          "handler": "task-aborted",        "targets": ["codex"], "timeout": 3 },
       { "name": "PostToolUseFailure", "handler": "posttooluse-failure", "targets": ["claude"], "timeout": 15, "async": true },
+      { "name": "StopFailure",        "handler": "stop-failure",        "targets": ["claude"], "timeout": 15, "async": true },
       { "name": "PreCompact", "handler": "pre-compact", "targets": ["claude"], "timeout": 15, "async": true },
       { "name": "TeammateIdle", "handler": "teammate-idle", "targets": ["claude"], "timeout": 15, "async": true },
       { "name": "TaskCompleted",      "handler": "task-completed",      "targets": ["claude"] },

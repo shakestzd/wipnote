@@ -188,6 +188,23 @@
         ]
       }
     ],
+    "StopFailure": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "wipnote",
+            "args": [
+              "hook",
+              "stop-failure"
+            ],
+            "timeout": 15,
+            "async": true
+          }
+        ]
+      }
+    ],
     "PreCompact": [
       {
         "matcher": "",

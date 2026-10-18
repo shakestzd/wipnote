@@ -120,6 +120,10 @@ var hookEventContractSpecs = map[string]hookEventContractSpec{
 		Classification: Observational,
 		Note:           "stdout ignored; side-effects only.",
 	},
+	"StopFailure": {
+		Classification: Observational,
+		Note:           "Runs instead of Stop when a turn ends on an API error; output and exit code ignored (except terminalSequence).",
+	},
 	"SubagentStart": {
 		Classification: AdditiveControlling,
 		Note:           "CC reads hookSpecificOutput.additionalContext (injected into the subagent). Safe to register observe-only.",

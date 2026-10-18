@@ -94,6 +94,7 @@ Usage in hooks.json:
 		hookSubcmd("posttooluse-failure", "Handle PostToolUseFailure event", continueResult, hooks.PostToolUseFailure),
 		hookSubcmd("pre-compact", "Handle PreCompact event", continueResult, hooks.PreCompact),
 		hookSubcmd("post-compact", "Handle PostCompact event", continueResult, hooks.PostCompact),
+		hookSubcmd("stop-failure", "Handle StopFailure event", continueResult, hooks.StopFailure),
 		hookWorktreeCreateCmd(),
 		hookSubcmd("worktree-remove", "Handle WorktreeRemove event", continueResult, hooks.WorktreeRemove),
 		hookSubcmd("teammate-idle", "Handle TeammateIdle event", continueResult, hooks.TeammateIdle),

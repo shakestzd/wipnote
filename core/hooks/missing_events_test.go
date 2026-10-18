@@ -1256,3 +1256,63 @@ func TestStop_FinalizesSessionHTML(t *testing.T) {
 		t.Error("data-status should NOT still be active after Stop")
 	}
 }
+
+// --- StopFailure ---
+
+// TestStopFailure_RecordsErrorEvent verifies that a StopFailure payload is
+// decoded and recorded as an error event carrying the error type, details and
+// rendered message.
+func TestStopFailure_RecordsErrorEvent(t *testing.T) {
+	td, sessionID := setupMissingEventsDB(t)
+
+	payload := `{"session_id":"` + sessionID + `","hook_event_name":"StopFailure",` +
+		`"error":"rate_limit","error_details":"429 Too Many Requests",` +
+		`"last_assistant_message":"API Error: Rate limit reached"}`
+	var event CloudEvent
+	if err := json.Unmarshal([]byte(payload), &event); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	event.CWD = t.TempDir()
+
+	result, err := StopFailure(&event, td.DB)
+	if err != nil {
+		t.Fatalf("StopFailure: %v", err)
+	}
+	if result == nil || !result.Continue {
+		t.Error("expected Continue=true from StopFailure")
+	}
+
+	var eventType, input, output, status string
+	if err := td.DB.QueryRow(
+		`SELECT event_type, input_summary, output_summary, status FROM agent_events WHERE session_id = ? AND tool_name = 'StopFailure'`,
+		sessionID,
+	).Scan(&eventType, &input, &output, &status); err != nil {
+		t.Fatalf("query agent_events: %v", err)
+	}
+	if eventType != "error" || status != "failed" {
+		t.Errorf("event_type/status = %q/%q, want error/failed", eventType, status)
+	}
+	if !strings.Contains(input, "rate_limit") {
+		t.Errorf("input_summary = %q, want it to name rate_limit", input)
+	}
+	if !strings.Contains(output, "429 Too Many Requests") || !strings.Contains(output, "API Error: Rate limit reached") {
+		t.Errorf("output_summary = %q, want details and message", output)
+	}
+}
+
+// TestCloudEvent_NonStringErrorDoesNotBreakDecode verifies that an `error`
+// key holding an object (as another harness might send) still decodes the
+// rest of the event.
+func TestCloudEvent_NonStringErrorDoesNotBreakDecode(t *testing.T) {
+	payload := `{"session_id":"s1","tool_name":"Bash","error":{"code":7,"message":"boom"}}`
+	var event CloudEvent
+	if err := json.Unmarshal([]byte(payload), &event); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if event.SessionID != "s1" || event.ToolName != "Bash" {
+		t.Errorf("decoded session/tool = %q/%q", event.SessionID, event.ToolName)
+	}
+	if string(event.StopError) != `{"code":7,"message":"boom"}` {
+		t.Errorf("StopError = %q", event.StopError)
+	}
+}
