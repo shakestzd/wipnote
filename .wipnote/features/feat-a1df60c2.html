@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Run-folder contract and pane hook so any harness UI can render a delegation</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-a1df60c2"
+             data-type="feature"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-10-18T08:16:28.757923"
+             data-updated="2026-10-18T08:16:28.763197" data-agent-assigned="claude-code" data-track-id="trk-2e707ed1" data-created-by-agent="claude-code" data-created-by-cli-version="0.70.2-7-g160ae1b84" data-affected_files="mods/" data-created_in_session="e41f6acf-9ecd-5cf8-846b-fbd1203fe65e" data-standalone_reason="split from issue #214">
+
+        <header>
+            <h1>Run-folder contract and pane hook so any harness UI can render a delegation</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-2e707ed1.html" data-relationship="part_of" data-since="2026-10-18T08:16:28.763065">trk-2e707ed1</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="false" data-step-id="step-feat-a1df60c2-0" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Write the run-folder contract spec</li>
+                <li data-completed="false" data-step-id="step-feat-a1df60c2-1" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Port the herdr-pane mod into mods/</li>
+                <li data-completed="false" data-step-id="step-feat-a1df60c2-2" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Add build-ports support for shipping mods</li>
+                <li data-completed="false" data-step-id="step-feat-a1df60c2-3" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Tests against stub herdr and codex</li>
+            </ol>
+        </section>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>From GitHub issue #214 (ask 3). Define one run-folder contract (raw.log, clean.log, clean.md, last.md, usage, exit, start, end, label) that every viewer reads: a herdr pane, a native Claude Code mod pane, or a plain tail. Ship the herdr-pane delegation mod from the #214 prototype as a wipnote mod: tool.call hook on Bash, pane per run, tiled 2x2 layout capped at 6, Markdown log with safe fencing, falls back to running the command unchanged. Depends on build-ports support for shipping mods (deferred from PR #213). Unverified in #214: the native in-Claude pane was never observed on screen.</p>
+        </section>
+    </article>
+</body>
+</html>
