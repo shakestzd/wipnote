@@ -310,6 +310,9 @@ func emitAntigravityAgents(m *Manifest, repoRoot, outDir string, t Target) error
 		if err != nil {
 			return fmt.Errorf("read agent %s: %w", e.Name(), err)
 		}
+		if raw, err = inlinePreloadedSkills(raw, filepath.Join(repoRoot, m.AssetSources.Skills)); err != nil {
+			return fmt.Errorf("agent %s: %w", e.Name(), err)
+		}
 		translated, err := translateAntigravityAgentFrontmatter(e.Name(), raw)
 		if err != nil {
 			return fmt.Errorf("translate agent %s: %w", e.Name(), err)

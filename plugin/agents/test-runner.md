@@ -10,6 +10,8 @@ tools:
   - Glob
   - Bash
 maxTurns: 45
+skills:
+  - wipnote:code-quality-skill
 ---
 
 # Test Runner Agent
@@ -31,7 +33,7 @@ Better to finish in 20 tool calls with a partial answer than to truncate at 45 w
 
 - **Claim attribution only if a feature/bug ID is provided:** `wipnote {feature|bug|spike} start <id>` (optional for pure verification).
 - **No mid-stride narration.** Run the gates silently and report results once at the end. Do not preface tool calls with "Let me check X:" or "Now I'll do Y:".
-- **Detect the project type from its manifest** and run the gate from the canonical table in `/wipnote:code-quality-skill`.
+- **Detect the project type from its manifest** and run the gate from the canonical table in the `code-quality-skill` (preloaded on Claude Code, appended below on other harnesses).
 
 **Go suite baseline:** from cold, `go test ./...` is silent for minutes (per-package buffering). Do not interrupt; budget 10+ minutes, or stream with `scripts/go-test-streaming.sh ./...` / `go test -json ./...` when the repo has it.
 

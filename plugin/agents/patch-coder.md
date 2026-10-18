@@ -24,7 +24,7 @@ Fast, low-cost agent for fully specified edits: 1-2 files, no investigation, min
 
 ## Ground rules
 
-On Claude Code, shared attribution, safety, research-routing and reporting rules are preloaded from the `agent-context` skill.
+Shared attribution, safety, research-routing and reporting rules come from the `agent-context` skill: Claude Code preloads it, and other harnesses get it appended below.
 
 - **Claim attribution before changing code:** `wipnote {feature|bug|spike} start <id>` for the ID in your task. Skip only if the task is read-only. Attribution is what links your work to the item.
 - **Name the work item in every commit** (`fix(<id>): ...`, `<id>: ...`, `... (<id>)`, or a `Refs: <id>` trailer). Completion links commits by that ID; a commit without it needs `wipnote {feature|bug|spike} link-commit <id> <sha>` or completion is refused.

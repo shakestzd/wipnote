@@ -300,11 +300,14 @@ type codexInstructionLayers struct {
 // untrusted project layer disabled, and re-injecting it through -c would
 // bypass that check. Unreadable or unparsable files count as unset.
 func configuredCodexDeveloperInstructions(l codexInstructionLayers) string {
+	// *string so an explicit `developer_instructions = ""` (present, empty)
+	// clears lower layers, as Codex's own merge does, while an absent key
+	// leaves them alone.
 	type profileConfig struct {
-		DeveloperInstructions string `toml:"developer_instructions"`
+		DeveloperInstructions *string `toml:"developer_instructions"`
 	}
 	type layerConfig struct {
-		DeveloperInstructions string                   `toml:"developer_instructions"`
+		DeveloperInstructions *string                  `toml:"developer_instructions"`
 		Profile               string                   `toml:"profile"`
 		Profiles              map[string]profileConfig `toml:"profiles"`
 		Projects              map[string]struct {
@@ -323,9 +326,9 @@ func configuredCodexDeveloperInstructions(l codexInstructionLayers) string {
 	}
 
 	value := ""
-	set := func(v string) {
-		if v = strings.TrimSpace(v); v != "" {
-			value = v
+	set := func(v *string) {
+		if v != nil {
+			value = strings.TrimSpace(*v)
 		}
 	}
 	system, user := read(l.System), read(l.User)

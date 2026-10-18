@@ -942,6 +942,17 @@ func TestConfiguredCodexDeveloperInstructions_Layers(t *testing.T) {
 		t.Fatalf("V2 profile file should win over the legacy table, got %q", got)
 	}
 
+	// An explicit empty value in a higher layer clears lower ones (Codex
+	// review, #209); an absent key leaves them.
+	cleared := write("cleared.toml", "developer_instructions = \"\"\n")
+	if got := configuredCodexDeveloperInstructions(codexInstructionLayers{System: system, User: cleared}); got != "" {
+		t.Fatalf("explicit empty user value must clear the system layer, got %q", got)
+	}
+	absent := write("absent.toml", "model = \"x\"\n")
+	if got := configuredCodexDeveloperInstructions(codexInstructionLayers{System: system, User: absent}); got != "system rule" {
+		t.Fatalf("absent user key must keep the system layer, got %q", got)
+	}
+
 	t.Setenv("CODEX_HOME", filepath.Join(dir, "codexhome"))
 	if got := codexHomeConfigPath(); got != filepath.Join(dir, "codexhome", "config.toml") {
 		t.Fatalf("CODEX_HOME not honored: %q", got)
