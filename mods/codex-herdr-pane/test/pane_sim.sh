@@ -161,8 +161,9 @@ eq "recognition: an already-wrapped stub is not a delegation" "$(node --experime
 eq "recognition: the original is" "$(node --experimental-strip-types -e "import('$ROOT/hooks/tools.ts').then((m) => console.log(m.isDelegation('$ORIGINAL')))" 2>/dev/null)" true
 SHORT_CAPPED=$(cat "$T/out.bin")
 CAP=0 run "$ORIGINAL"
-eq "short answer: returned byte for byte whether capped (60) or not (0), apart from the run directory name" \
-  "$(echo "$SHORT_CAPPED" | sed 's|/codex-herdr\.[A-Za-z0-9]*|/D|g')" "$(cat "$T/out.bin" | sed 's|/codex-herdr\.[A-Za-z0-9]*|/D|g')"
+# the run time can differ by a second between the two runs, so it is masked with the run directory
+eq "short answer: returned byte for byte whether capped (60) or not (0), apart from the run directory name and run time" \
+  "$(echo "$SHORT_CAPPED" | sed -E 's|/codex-herdr\.[A-Za-z0-9]*|/D|g; s|after [0-9]+s|after Ns|')" "$(cat "$T/out.bin" | sed -E 's|/codex-herdr\.[A-Za-z0-9]*|/D|g; s|after [0-9]+s|after Ns|')"
 
 CAP=60 SIMLONG=300 run "$ORIGINAL"
 eq "long answer: the status line is the first line and is not cut" "$(echo "$OUT" | head -n 1 | cut -c1-14)" "codex exited 0"
