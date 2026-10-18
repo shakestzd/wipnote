@@ -214,6 +214,7 @@ func TestHarnessNativeEnvSessionID(t *testing.T) {
 			t.Setenv("CLAUDE_CODE_SESSION_ID", "")
 			t.Setenv("CLAUDE_SESSION_ID", "")
 			t.Setenv("WIPNOTE_HARNESS", tc.harness)
+			t.Setenv("CODEX_SESSION_ID", "")
 			t.Setenv("CODEX_THREAD_ID", tc.codexThread)
 			t.Setenv("GEMINI_SESSION_ID", tc.geminiSess)
 			t.Setenv("ANTIGRAVITY_SESSION_ID", tc.antigravSess)

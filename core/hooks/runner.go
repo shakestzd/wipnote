@@ -101,9 +101,13 @@ type CloudEvent struct {
 	WorktreeBasePath string `json:"worktree_base_path"`
 	WorktreePath     string `json:"worktree_path"`
 
-	// Stop / SubagentStop
+	// Stop / SubagentStop / StopFailure
 	StopReason           string `json:"stop_reason"`
 	LastAssistantMessage string `json:"last_assistant_message"`
+
+	// StopFailure: error type (rate_limit, overloaded, ...) and optional details.
+	StopError    looseString `json:"error"`
+	ErrorDetails looseString `json:"error_details"`
 
 	// SessionStart / SessionEnd / Stop — common session fields
 	TranscriptPath string `json:"transcript_path"`
@@ -120,7 +124,6 @@ type CloudEvent struct {
 
 	// Agent Teams — teammate metadata (experimental, gracefully empty when not in a team)
 	TeammateName    string `json:"teammate_name"`
-	TeamName        string `json:"team_name"`
 	IdleReason      string `json:"idle_reason"`
 	TaskSubject     string `json:"task_subject"`
 	TaskDescription string `json:"task_description"`

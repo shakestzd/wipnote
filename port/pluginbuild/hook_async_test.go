@@ -22,6 +22,10 @@ var asyncSafeHandlers = map[string]bool{
 	// notices, the work-item lookup loud block) stays in the sync, matcher-
 	// narrowed claude `posttooluse` entry (PostToolUseRespond).
 	"posttooluse-record": true,
+	// stop-failure: core/hooks.StopFailure only records an error event via
+	// recordSimpleEventWithOutput, which returns {Continue:true} on every path;
+	// Claude Code ignores StopFailure output anyway.
+	"stop-failure": true,
 }
 
 func TestLiveManifestAsyncOnlyOnVerifiedRecordOnlyHandlers(t *testing.T) {

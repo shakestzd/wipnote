@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -32,6 +33,7 @@ func TestResolveCurrentSessionIDs_ExpandsFamily(t *testing.T) {
 	// Only the parent stub is known from the harness env.
 	t.Setenv("WIPNOTE_SESSION_ID", "sess-parent")
 	t.Setenv("WIPNOTE_HARNESS", "")
+	t.Setenv("CODEX_SESSION_ID", "")
 	t.Setenv("CODEX_THREAD_ID", "")
 	t.Setenv("WIPNOTE_OTEL_SESSION", "")
 	t.Setenv("GEMINI_SESSION_ID", "")
@@ -67,6 +69,7 @@ func TestResolveCurrentSessionIDs_CodexThreadBeatsInheritedParent(t *testing.T) 
 	}
 
 	t.Setenv("WIPNOTE_HARNESS", "codex")
+	t.Setenv("CODEX_SESSION_ID", "")
 	t.Setenv("CODEX_THREAD_ID", "codex-thread")
 	t.Setenv("WIPNOTE_OTEL_SESSION", "")
 	t.Setenv("WIPNOTE_SESSION_ID", "stale-claude-parent")
@@ -91,6 +94,7 @@ func TestResolveCurrentSessionIDs_CodexThreadBeatsInheritedParent(t *testing.T) 
 func TestResolveCurrentSessionIDs_UsesGenericSessionWhenNoHarnessNativeID(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("WIPNOTE_HARNESS", "codex")
+	t.Setenv("CODEX_SESSION_ID", "")
 	t.Setenv("CODEX_THREAD_ID", "")
 	t.Setenv("WIPNOTE_OTEL_SESSION", "")
 	t.Setenv("WIPNOTE_SESSION_ID", "generic-session")
@@ -500,5 +504,34 @@ func TestBuildSelectOptions_IncludesCurrentSlot(t *testing.T) {
 	// orderedRows[0] (the current session).
 	if opts[1].Value != 1 {
 		t.Fatalf("opts[1].Value = %d, want 1", opts[1].Value)
+	}
+}
+
+// TestResolveCurrentSessionIDs_CodexRootIsFallbackOnly pins CODEX_SESSION_ID
+// (the root thread) as a fallback: with CODEX_THREAD_ID present the root must
+// not be a candidate, or the chooser could offer the parent for resume.
+func TestResolveCurrentSessionIDs_CodexRootIsFallbackOnly(t *testing.T) {
+	root := t.TempDir()
+	for _, k := range []string{"WIPNOTE_OTEL_SESSION", "WIPNOTE_SESSION_ID", "CLAUDE_CODE_SESSION_ID",
+		"CLAUDE_SESSION_ID", "WIPNOTE_PARENT_SESSION", "WIPNOTE_SESSION_FAMILY_ID",
+		"GEMINI_SESSION_ID", "ANTIGRAVITY_SESSION_ID"} {
+		t.Setenv(k, "")
+	}
+	t.Setenv("WIPNOTE_HARNESS", "codex")
+	t.Setenv("CODEX_SESSION_ID", "codex-root")
+
+	t.Setenv("CODEX_THREAD_ID", "codex-subagent-thread")
+	ids := resolveCurrentSessionIDs(root)
+	if !slices.Contains(ids, "codex-subagent-thread") {
+		t.Fatalf("missing current thread in %v", ids)
+	}
+	if slices.Contains(ids, "codex-root") {
+		t.Fatalf("root CODEX_SESSION_ID must not compete with the thread id: %v", ids)
+	}
+
+	t.Setenv("CODEX_THREAD_ID", "")
+	ids = resolveCurrentSessionIDs(root)
+	if !slices.Contains(ids, "codex-root") {
+		t.Fatalf("root CODEX_SESSION_ID should be the fallback without a thread id: %v", ids)
 	}
 }
