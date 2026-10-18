@@ -73,8 +73,8 @@ const CCX_RUN = [
   '  RUNS="${CCX_RUNS_DIR:-}"; [ -n "$RUNS" ] || RUNS=__RUNS__; : > "$D/clean.log"',
   '  CLAIMS="${TMPDIR:-/tmp}/codex-herdr-ccx-claims"; mkdir -p "$CLAIMS" 2>/dev/null',
   // One ccx run at a time waits for its new log: the launch lock is held from the snapshot
-  // until this run claims its log (or 30 s pass, or the command ends), so a new log can only
-  // be this run's. Others wait their turn; a holder that died is broken by its pid.
+  // until this run claims its log (or CODEX_HERDR_CCX_WAIT, 30 s, passes and it stops looking,
+  // or the command ends), so a new log can only be this run's. Others wait their turn; a holder that died is broken by its pid.
   '  LOCK="$CLAIMS/launch.lock"; waited=0',
   '  for i in $(seq 1 1200); do',
   '    if mkdir "$LOCK" 2>/dev/null; then echo $$ > "$LOCK/pid"; break; fi',
@@ -91,11 +91,16 @@ const CCX_RUN = [
   '  render() { sed -n "$1,$2p" "$f" > "$D/chunk"; jqs view < "$D/chunk" >> "$D/clean.log"',
   '    sed -n "1,$2p" "$f" | jqs "$3" > "$D/md.tmp"; tail -c +"$((W+1))" "$D/md.tmp" >> "$D/clean.md"; W=$(wc -c < "$D/md.tmp" | tr -d " "); }',
   '  (',
-  '    f=""; n=0; T0=$(date +%s)',
+  '    f=""; n=0; T0=$(date +%s); gaveup=0; WAIT="${CODEX_HERDR_CCX_WAIT:-30}"',
   '    while :; do',
   '      done=0; [ -f "$D/cmddone" ] && done=1',
-  '      [ -z "$f" ] && f=$(claim)',
-  '      { [ -n "$f" ] || [ $(( $(date +%s) - T0 )) -ge 30 ]; } && release',
+  '      [ -z "$f" ] && [ "$gaveup" = 0 ] && f=$(claim)',
+  '      [ -n "$f" ] && release',
+  // A run whose log has not appeared in time gives the lock up AND stops claiming, so it can
+  // never take the log of a run that starts after it; its answer still comes from out.txt.
+  '      if [ -z "$f" ] && [ "$gaveup" = 0 ] && [ $(( $(date +%s) - T0 )) -ge "$WAIT" ]; then',
+  '        release; gaveup=1; echo "*ccx did not start its log within ${WAIT} s: no live log for this run*" | tee -a "$D/clean.log" >> "$D/clean.md"',
+  '      fi',
   '      if [ -n "$f" ]; then',
   '        t=$(wc -l < "$f" | tr -d " ")',
   '        [ "$done" = 1 ] && render "$((n+1))" \'$\' md',

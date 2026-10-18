@@ -232,5 +232,19 @@ has "ccx concurrent: the second run's pane shows its own log" "thinking about br
 nothas "ccx concurrent: the second run's pane does not show the other log" "thinking about alpha" "$DB/clean.log"
 eq "ccx concurrent: no launch lock left" "$(ls -d "$T"/tmp/codex-herdr-ccx-claims/launch.lock 2>/dev/null | wc -l | tr -d ' ')" 0
 
+# --- a run that gives up waiting for its log never takes a later run's log ---
+rm -rf "$T/tmp" "$T/runs" "$T/log"*; mkdir -p "$T/tmp"
+env $ENVS CODEX_HERDR_CCX_WAIT=1 SIMLOGDELAY=4 bash "$T/wa.sh" > "$T/out.a" 2>&1 & PA=$!
+sleep 2
+env $ENVS bash "$T/wb.sh" > "$T/out.b" 2>&1 & PB=$!
+wait $PA $PB; sleep 1.5
+for d in "$T"/tmp/codex-herdr.*; do
+  if grep -q alpha "$d/orig.sh"; then DA=$d; else DB=$d; fi
+done
+has "ccx timeout: the slow run says it has no live log" "no live log for this run" "$DA/clean.log"
+nothas "ccx timeout: the slow run does not take the later run's log" "thinking about bravo" "$DA/clean.log"
+has "ccx timeout: the later run follows its own log" "thinking about bravo" "$DB/clean.log"
+has "ccx timeout: the slow run still returns ccx's own result" "ccx task ok" "$T/out.a"
+
 rm -rf "$T"
 [ "$fails" = 0 ] && echo "pane simulation passed" || { echo "$fails failed"; exit 1; }

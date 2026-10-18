@@ -70,6 +70,7 @@ test('ccx runs take a launch lock until their own log is claimed', () => {
   const text = buildWrapper('ccx task "x"', defaults)
   expect(text).toContain('LOCK="$CLAIMS/launch.lock"')
   expect(text.indexOf('mkdir "$LOCK"')).toBeLessThan(text.indexOf('> "$D/before"')) // lock before the snapshot
-  expect(text).toContain('{ [ -n "$f" ] || [ $(( $(date +%s) - T0 )) -ge 30 ]; } && release')
+  expect(text).toContain('[ -z "$f" ] && [ "$gaveup" = 0 ] && f=$(claim)') // no claim after giving up
+  expect(text).toContain('release; gaveup=1;')
   expect(text).toContain('touch "$D/cmddone"; wait $FOLLOW; release')
 })
