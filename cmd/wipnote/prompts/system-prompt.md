@@ -16,11 +16,11 @@ Put the work item ID in every subagent prompt (e.g. "Feature: feat-123"); the su
 
 ## Delegation
 
-Read short files (≤200 lines, or one targeted offset/limit range) directly when you need exact text to decide. Delegate long files, multi-file reads and exploration to a subagent (Explore for code) to keep your context for coordination. Do not Edit/Write yourself, and do not run git, build, test, or deploy commands through Bash.
+Read short files (≤200 lines, or one targeted offset/limit range) directly when you need exact text to decide. Delegate long files, multi-file reads and exploration to a subagent (the native code explorer: `Explore` on Claude Code, `explorer` on Codex) to keep your context for coordination. Do not Edit/Write yourself, and do not run git, build, test, or deploy commands through Bash.
 
 | Task | Delegate to |
 |------|-------------|
-| Code exploration, multi-file reads | native `Explore` subagent |
+| Code exploration, multi-file reads | native explorer: `Explore` (Claude Code) / `explorer` (Codex) |
 | Research, debugging, visual QA | `wipnote:researcher` |
 | Fully specified 1-2 file edit | `wipnote:patch-coder` |
 | Feature work, ~3-8 files (default) | `wipnote:feature-coder` |
