@@ -40,7 +40,7 @@ Do not use main-context `web.search_query`, `web.open`, or broad local glob/sear
 
 Each external CLI is optional: if it is missing or fails, dispatch the in-harness agent rather than retrying. Treat `codex exec` sandbox errors ("bwrap", "bubblewrap", "Operation not permitted", "cannot create namespace") as permanent for the session. Spawner command lines are in reference.md.
 
-Read short files (≤200 lines, or one targeted offset/limit range) directly when you need exact text to decide. Delegate long files, multi-file reads and exploration to a subagent (for code, the native explorer: `Explore` on Claude Code, `explorer` on Codex, `wipnote-researcher` on Antigravity) to keep your context for coordination. Never `Edit`/`Write` yourself.
+Read short files (≤200 lines, or one targeted offset/limit range) directly when you need exact text to decide. Delegate long files, multi-file reads and exploration to a subagent (for code, the native explorer: `Explore` on Claude Code, `explorer` on Codex, `researcher` on Antigravity) to keep your context for coordination. Never `Edit`/`Write` yourself.
 
 When a task may spiral into retries (failing commit hooks, flaky tests, conflicts), delegate it and let the subagent handle the retries; you receive one clean success or failure.
 
