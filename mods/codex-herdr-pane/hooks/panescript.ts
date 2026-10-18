@@ -42,7 +42,7 @@ const USAGE = [
 const CODEX_RUN = [
   '  __CODEX_PROFILE="__PROFILE__" __CODEX_LAST="$D/last.md" bash -c \'. "$1/shim.sh"; . "$1/orig.sh"\' _ "$D" 2>&1 \\',
   '    | tee "$D/raw.log" >(mdcodex >> "$D/clean.md") | jq --unbuffered -R -r -f "$ROOT/viewer/codex.jq" 2>/dev/null \\',
-  '    | awk -f "$ROOT/viewer/clean.awk" > "$D/clean.log"',
+  '    | awk -v review=1 -f "$ROOT/viewer/clean.awk" > "$D/clean.log"',
   '  X="${PIPESTATUS[0]}"',
   '  mdcodex < "$D/raw.log" > "$D/clean.md.tmp" && mv "$D/clean.md.tmp" "$D/clean.md"',
   ...USAGE,
@@ -85,9 +85,10 @@ const CCX_RUN = [
   // A lock that cannot be made, and is not there, is not contention: the folder is not usable, so
   // the run claims nothing (OK=0). Only one run at a time may break a dead holder's lock (the
   // .break folder), and it checks the pid again first, so it never deletes a successor's lock.
-  '  OK=1; [ -d "$CLAIMS" ] && [ -w "$CLAIMS" ] || OK=0',
+  '  OK=1; r=0; [ -d "$CLAIMS" ] && [ -w "$CLAIMS" ] || OK=0',
   '  while [ "$OK" = 1 ] && ! mkdir "$LOCK" 2>/dev/null; do',
-  '    [ -d "$LOCK" ] || { OK=0; break; }',
+  // the lock was released between the mkdir and this check: try again (a few times, then give up)
+  '    [ -d "$LOCK" ] || { r=$((r+1)); [ "$r" -lt 50 ] && continue; OK=0; break; }',
   '    p=$(cat "$LOCK/pid" 2>/dev/null)',
   '    if [ -n "$p" ] && ! kill -0 "$p" 2>/dev/null && mkdir "$LOCK.break" 2>/dev/null; then',
   '      [ "$(cat "$LOCK/pid" 2>/dev/null)" = "$p" ] && rm -rf "$LOCK"; rmdir "$LOCK.break"; continue',

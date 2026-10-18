@@ -17,10 +17,10 @@
 // note is made once per run directory instead of once per process.
 export function mdFunctions(root: string): string[] {
   const jq = (mode: string) => `jq --unbuffered -R -r --arg mode ${mode} -f "${root}/viewer/codex.jq" 2>/dev/null`
-  const clean = (seen: string) => `awk -v seen="${seen}" -f "${root}/viewer/clean.awk"`
+  const clean = (seen: string, review = '') => `awk -v seen="${seen}"${review} -f "${root}/viewer/clean.awk"`
   const rest = `awk -v last="\${__CODEX_LAST:-}" -f "${root}/viewer/rest.awk"`
   return [
-    `mdcodex() { ${clean('${MCP_SEEN_MD:-}')} | ${jq('md')} | awk -f "${root}/viewer/joinfence.awk"; }`,
+    `mdcodex() { ${clean('${MCP_SEEN_MD:-}', ' -v review=1')} | ${jq('md')} | awk -f "${root}/viewer/joinfence.awk"; }`,
     `mdrest() { ${clean('${MCP_SEEN_MD:-}')} | ${rest} | ${jq('mdraw')}; }`,
     `restfilter() { ${clean('$1')} | ${rest} | jq --unbuffered -R -r --arg mode rest -f "${root}/viewer/codex.jq" 2>/dev/null; }`,
   ]

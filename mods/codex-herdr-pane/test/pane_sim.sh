@@ -283,6 +283,12 @@ SIMREVIEW=1 run 'codex review'
 has "review: pane title names what is reviewed" "Codex review: current changes" "$D/label"
 eq "review: the pane is renamed after it starts" "$(grep -n -e '^herdr pane run' -e '^herdr pane rename' "$T/log" | cut -d: -f2 | cut -c1-16 | tr '\n' ,)" "herdr pane run w,herdr pane renam,"
 
+run 'echo "OpenAI Codex v9 is a phrase"; echo "after the phrase"; codex exec "hello"'
+has "chained: a banner-like line in the rest of the command hides nothing" "after the phrase" <(echo "$OUT")
+has "chained: the line after it is in clean.md" "after the phrase" "$D/clean.md"
+printf '%s\n' '```bash' 'ls' '```' '' '```text' 'err' '```' '' '```text' 'more' '```' > "$T/fences.md"
+eq "joinfence: a code block keeps its closing fence; two text blocks join" "$(awk -f "$ROOT/viewer/joinfence.awk" "$T/fences.md" | tr '\n' '|')" '```bash|ls|```||```text|err|more|```|'
+
 # --- 0.7.2: old leftovers in TMPDIR are swept ---
 rm -rf "$T/tmp" "$T/runs" "$T/log"*; mkdir -p "$T/tmp/codex-herdr.old1" "$T/tmp/codex-herdr.new1" "$T/tmp/codex-herdr-ccx-claims-$(id -u)/a.jsonl"
 touch "$T/tmp/codex-herdr-run.stale.sh" "$T/tmp/codex-herdr-run.fresh.sh"

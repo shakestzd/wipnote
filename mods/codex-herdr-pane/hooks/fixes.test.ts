@@ -116,7 +116,7 @@ test('old scripts, run directories and ccx claims are swept in the background', 
 test('the ccx claims folder is per OS user, and an unusable one stops the wait', () => {
   const text = buildWrapper('ccx task "x"', defaults)
   expect(text).toContain('CLAIMS="${TMPDIR:-/tmp}/codex-herdr-ccx-claims-$(id -u)"; mkdir -p -m 700 "$CLAIMS"')
-  expect(text).toContain('[ -d "$LOCK" ] || { OK=0; break; }') // a failed mkdir with no lock there is not contention
+  expect(text).toContain('[ -d "$LOCK" ] || { r=$((r+1)); [ "$r" -lt 50 ] && continue; OK=0; break; }') // a failed mkdir with no lock there is not contention
   expect(text).toContain('CAN=$OK;')
   expect(text).toContain('find "$T/codex-herdr-ccx-claims-$(id -u)"') // the sweep looks in the same folder
 })
