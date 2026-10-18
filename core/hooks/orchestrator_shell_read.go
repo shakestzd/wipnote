@@ -1,6 +1,7 @@
 package hooks
 
 import (
+	"os"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -23,6 +24,9 @@ var sedPrintRange = regexp.MustCompile(`^([0-9]+)(?:,([0-9]+))?p$`)
 
 // isShortShellRead reports whether cmd is a single read of at most
 // orchestratorShortReadLines lines. Relative paths resolve against baseDir.
+// Every form first requires a regular file under orchestratorShortReadMaxBytes:
+// a line count alone does not bound the output (one minified line can be
+// megabytes, and /dev/zero never ends).
 func isShortShellRead(cmd, baseDir string) bool {
 	cmd = strings.TrimSpace(cmd)
 	if cmd == "" || strings.ContainsAny(cmd, shellReadUnsafeChars) {
@@ -54,6 +58,13 @@ func shellReadCat(args []string, baseDir string) bool {
 	return fileHasAtMostLines(resolveReadPath(args[0], baseDir), orchestratorShortReadLines)
 }
 
+// isSmallRegularFile reports whether path is a regular file under the
+// short-read byte cap.
+func isSmallRegularFile(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && info.Mode().IsRegular() && info.Size() < orchestratorShortReadMaxBytes
+}
+
 // shellReadHeadTail accepts `head|tail [-n N | -nN | -N] FILE`. A count in
 // range is short whatever the file; no count means the default 10 lines; a
 // `+N` start reads to the end, so the file itself must be short.
@@ -75,6 +86,9 @@ func shellReadHeadTail(args []string, baseDir string) bool {
 		return false
 	}
 	path := resolveReadPath(args[0], baseDir)
+	if !isSmallRegularFile(path) {
+		return false
+	}
 	if strings.HasPrefix(count, "+") {
 		return fileHasAtMostLines(path, orchestratorShortReadLines)
 	}
@@ -100,10 +114,14 @@ func shellReadSed(args []string, baseDir string) bool {
 	if m[2] != "" {
 		to, _ = strconv.Atoi(m[2])
 	}
+	path := resolveReadPath(args[2], baseDir)
+	if !isSmallRegularFile(path) {
+		return false
+	}
 	if from >= 1 && to >= from && to-from+1 <= orchestratorShortReadLines {
 		return true
 	}
-	return fileHasAtMostLines(resolveReadPath(args[2], baseDir), orchestratorShortReadLines)
+	return fileHasAtMostLines(path, orchestratorShortReadLines)
 }
 
 // resolveReadPath joins a relative path onto baseDir.

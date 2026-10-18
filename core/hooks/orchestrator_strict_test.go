@@ -396,31 +396,39 @@ func TestIsShortShellRead(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "long.go"), []byte(strings.Repeat("x\n", 500)), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	// One 100 KiB line: a small line count, but over the byte cap.
+	if err := os.WriteFile(filepath.Join(dir, "minified.json"), []byte(strings.Repeat("x", 100*1024)), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	cases := map[string]bool{
-		"cat short.go":               true,
-		"cat -n short.go":            true,
-		"cat long.go":                false,
-		"cat missing.go":             false,
-		"head long.go":               true,
-		"head -n 50 long.go":         true,
-		"head -n50 long.go":          true,
-		"tail -40 long.go":           true,
-		"head -n 500 long.go":        false,
-		"tail -n +5 long.go":         false,
-		"tail -n +5 short.go":        true,
-		"sed -n '1,200p' long.go":    true,
-		"sed -n '1,500p' long.go":    false,
-		"sed -n '1,500p' short.go":   true,
-		"sed -n '1w out' short.go":   false,
-		"sed -i 's/x/y/' short.go":   false,
-		"cat short.go | sh":          false,
-		"cat short.go; rm -rf /":     false,
-		"cat short.go > copy.go":     false,
-		"cat $(echo short.go)":       false,
-		"cat *.go":                   false,
-		"cat short.go long.go":       false,
-		"grep -n x short.go":         false,
-		"head -n 5 short.go long.go": false,
+		"head -n 1 minified.json":     false,
+		"sed -n '1,1p' minified.json": false,
+		"head -n 1 /dev/zero":         false,
+		"head -n 1 " + dir:            false,
+		"cat short.go":                true,
+		"cat -n short.go":             true,
+		"cat long.go":                 false,
+		"cat missing.go":              false,
+		"head long.go":                true,
+		"head -n 50 long.go":          true,
+		"head -n50 long.go":           true,
+		"tail -40 long.go":            true,
+		"head -n 500 long.go":         false,
+		"tail -n +5 long.go":          false,
+		"tail -n +5 short.go":         true,
+		"sed -n '1,200p' long.go":     true,
+		"sed -n '1,500p' long.go":     false,
+		"sed -n '1,500p' short.go":    true,
+		"sed -n '1w out' short.go":    false,
+		"sed -i 's/x/y/' short.go":    false,
+		"cat short.go | sh":           false,
+		"cat short.go; rm -rf /":      false,
+		"cat short.go > copy.go":      false,
+		"cat $(echo short.go)":        false,
+		"cat *.go":                    false,
+		"cat short.go long.go":        false,
+		"grep -n x short.go":          false,
+		"head -n 5 short.go long.go":  false,
 	}
 	for cmd, want := range cases {
 		if got := isShortShellRead(cmd, dir); got != want {
