@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>wipnote-cards: cut redundant wipnote processes per turn</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-7820b23b"
+             data-type="bug"
+             data-status="todo"
+             data-priority="low"
+             data-created="2026-10-18T08:02:27.114159"
+             data-updated="2026-10-18T08:02:27.11737" data-agent-assigned="claude-code" data-track-id="trk-43e0650a" data-created-by-agent="claude-code" data-created-by-cli-version="0.70.2-7-g160ae1b84" data-created_in_session="e41f6acf-9ecd-5cf8-846b-fbd1203fe65e">
+
+        <header>
+            <h1>wipnote-cards: cut redundant wipnote processes per turn</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-low">Low Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-43e0650a.html" data-relationship="part_of" data-since="2026-10-18T08:02:27.117118">trk-43e0650a</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="false" data-step-id="step-bug-7820b23b-0" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Exclude the claimed id from refreshOpenCards</li>
+                <li data-completed="false" data-step-id="step-bug-7820b23b-1" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Return early from turn.complete when e.agentId is set</li>
+                <li data-completed="false" data-step-id="step-bug-7820b23b-2" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Add tests for both</li>
+            </ol>
+        </section>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Two Codex P2s on PR #213 (comments 4306266433, 4306266438). (1) On turn.complete, refreshStatus and refreshOpenCards both run show for the claimed item, so one card costs three CLI processes per turn instead of two; exclude the claimed id from refreshOpenCards or reuse its lookup. (2) turn.complete also fires for subagent turns (e.agentId set); return early for those so multi-agent runs do not spawn who/show per subagent turn.</p>
+        </section>
+    </article>
+</body>
+</html>
