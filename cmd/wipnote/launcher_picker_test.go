@@ -250,3 +250,42 @@ func TestPromptLaunchIntent_BrowseOfferedWithEmptyShortlist(t *testing.T) {
 		t.Fatalf("codex with no rows should start new work without a menu: %+v\n%s", intent, out.String())
 	}
 }
+
+func TestApplyClaudeLaunchIntent_DropsNonClaudeResumeID(t *testing.T) {
+	legacy := launcher.ContinueWorkIntent("feat-a", "claude", "sess-legacy", "", true)
+	if r := applyClaudeLaunchIntent("", "", legacy); r.resumeID != "" || r.workItem != "feat-a" || r.mode != "continue" {
+		t.Fatalf("a legacy wipnote id must not reach --resume: %+v", r)
+	}
+	const uuid = "0f1e2d3c-4b5a-6978-8a9b-0c1d2e3f4a5b"
+	real := launcher.ContinueWorkIntent("", "claude", uuid, "", true)
+	if r := applyClaudeLaunchIntent("", "", real); r.resumeID != uuid {
+		t.Fatalf("a Claude session id should resume directly: %+v", r)
+	}
+}
+
+func TestPicksExistingSession(t *testing.T) {
+	browse := applyClaudeLaunchIntent("", "", launcher.BrowseSessionsIntent())
+	last := applyClaudeLaunchIntent("", "", launcher.ContinueWorkIntent("", "claude", "0f1e2d3c-4b5a-6978-8a9b-0c1d2e3f4a5b", "", true))
+	work := applyClaudeLaunchIntent("", "", launcher.ContinueWorkIntent("feat-a", "claude", "", "", true))
+	fresh := applyClaudeLaunchIntent("", "", launcher.NewWorkIntent())
+	if !picksExistingSession(browse, browse.workItem, browse.resumeID) || !picksExistingSession(last, last.workItem, last.resumeID) {
+		t.Fatal("browse and a last-session resume pick an existing session")
+	}
+	if picksExistingSession(work, work.workItem, work.resumeID) || picksExistingSession(fresh, fresh.workItem, fresh.resumeID) {
+		t.Fatal("a work item or new work may still get its own worktree")
+	}
+}
+
+func TestApplyLaunchPlanOpts_InPlacePlansNoAdhocWorktree(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, ".wipnote"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, ".wipnote", "config.json"), []byte(`{"launch_isolation":"auto"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var w bytes.Buffer
+	if p := applyLaunchPlanOpts(root, root, "", true, false, &w); p.PlannedWorktreePath != "" || p.RefuseLaunch {
+		t.Fatalf("in-place plan under auto isolation = %+v, want no worktree and no refusal", p)
+	}
+}

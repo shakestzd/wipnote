@@ -770,8 +770,11 @@ func applyClaudeLaunchIntent(resumeID, workItem string, intent launcher.LaunchIn
 	if result.workItem == "" && intent.WorkItemID != "" {
 		result.workItem = intent.WorkItemID
 	}
-	if result.resumeID == "" {
-		result.resumeID = intent.ResumeForHarness("claude")
+	// Only a real Claude session id goes straight to --resume. Older ledger rows
+	// recorded as "claude-code" can hold a wipnote or OTel id; leaving resumeID
+	// empty lets resolveContinueLaunchContext validate and rehydrate instead.
+	if id := intent.ResumeForHarness("claude"); result.resumeID == "" && isClaudeCodeSessionID(id) {
+		result.resumeID = id
 	}
 	return result
 }

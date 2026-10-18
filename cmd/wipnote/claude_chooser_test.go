@@ -534,11 +534,11 @@ func TestApplyClaudeLaunchIntent(t *testing.T) {
 		Explicit:        true,
 		WorkItemID:      "feat-a",
 		SessionHarness:  "claude",
-		ResumeSessionID: "sess-a",
+		ResumeSessionID: "0f1e2d3c-4b5a-6978-8a9b-0c1d2e3f4a5b",
 	}
 	got := applyClaudeLaunchIntent("", "", intent)
-	if got.resumeID != "sess-a" {
-		t.Fatalf("resumeID = %q, want sess-a", got.resumeID)
+	if got.resumeID != "0f1e2d3c-4b5a-6978-8a9b-0c1d2e3f4a5b" {
+		t.Fatalf("resumeID = %q, want the Claude session id", got.resumeID)
 	}
 	if got.workItem != "feat-a" {
 		t.Fatalf("workItem = %q, want feat-a", got.workItem)
