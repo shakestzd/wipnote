@@ -59,15 +59,21 @@ const CODEX_CHAIN_RUN = [
 ]
 
 // For ccx: stdout (the status line and the result) goes to out.txt untouched and
-// stderr to err.log. A follower finds the run's stream-json log, the newest *.jsonl
-// created after the pane started, and renders each complete line through stream.jq (text
+// stderr to err.log. A follower finds the run's stream-json log: a *.jsonl that was not in
+// the runs directory when the pane started and that no other pane has claimed (an atomic
+// mkdir per log name), so two overlapping runs never follow the same log and no timestamp
+// comparison is needed. It renders each complete line through stream.jq (text
 // into clean.log, Markdown into clean.md). It polls by line count, so a half-written line waits for its newline
 // and the final pass after the command ends takes whatever is left. The Markdown is rendered
 // from line 1 each time (a call and its result are paired across lines, so a chunk alone is
 // not enough) and only the new bytes are appended; the final pass (mode md) also shows a
 // call that never got a result.
 const CCX_RUN = [
-  '  RUNS="${CCX_RUNS_DIR:-' + '__RUNS__' + '}"; touch "$D/mark"; : > "$D/clean.log"',
+  '  RUNS="${CCX_RUNS_DIR:-}"; [ -n "$RUNS" ] || RUNS=__RUNS__; : > "$D/clean.log"',
+  '  CLAIMS="${TMPDIR:-/tmp}/codex-herdr-ccx-claims"; mkdir -p "$CLAIMS" 2>/dev/null',
+  '  ls -1 "$RUNS" 2>/dev/null | grep "\\.jsonl$" > "$D/before"',
+  '  if [ ! -d "$RUNS" ]; then printf "*ccx runs directory not found: %s (set ccxRunsDir or CCX_RUNS_DIR)*\\n" "$RUNS" | tee -a "$D/clean.log" >> "$D/clean.md"; fi',
+  '  claim() { ls -1 "$RUNS" 2>/dev/null | grep "\\.jsonl$" | grep -vxFf "$D/before" | while IFS= read -r c; do mkdir "$CLAIMS/$c" 2>/dev/null && { printf "%s\\n" "$RUNS/$c"; break; }; done; }',
   '  jqs() { nf=; [ "$1" = view ] || nf=-n; jq --unbuffered $nf -R -r --arg mode "$1" -f "$ROOT/viewer/stream.jq" 2>/dev/null; }',
   '  W=0  # bytes of the Markdown render already in clean.md: it is only ever appended to',
   '  render() { sed -n "$1,$2p" "$f" > "$D/chunk"; jqs view < "$D/chunk" >> "$D/clean.log"',
@@ -76,7 +82,7 @@ const CCX_RUN = [
   '    f=""; n=0',
   '    while :; do',
   '      done=0; [ -f "$D/cmddone" ] && done=1',
-  '      [ -z "$f" ] && f=$(find "$RUNS" -maxdepth 1 -name "*.jsonl" -newer "$D/mark" 2>/dev/null | xargs ls -t 2>/dev/null | head -1)',
+  '      [ -z "$f" ] && f=$(claim)',
   '      if [ -n "$f" ]; then',
   '        t=$(wc -l < "$f" | tr -d " ")',
   '        [ "$done" = 1 ] && render "$((n+1))" \'$\' md',
@@ -100,10 +106,16 @@ const CCX_RUN = [
 // Empty turns the profile off; the name is held to filename characters.
 const profileName = (o: WrapOptions) => (o.leanProfile ? o.leanProfileName.replace(/[^A-Za-z0-9_.-]/g, '') : '')
 
+// ccx's run-log directory when neither the ccxRunsDir setting nor CCX_RUNS_DIR names one: the
+// author's container layout, kept so existing setups keep working. A missing directory is
+// reported in the pane instead of leaving it empty.
+const DEFAULT_RUNS = '"$HOME/work/_shared/claude-container/runs"'
+const shq = (s: string) => `'${s.replace(/'/g, `'\\''`)}'`
+
 export function paneScript(o: WrapOptions, tool: DelegationTool, chained: boolean): string[] {
   const codex = (chained ? CODEX_CHAIN_RUN : CODEX_RUN).map((l) => l.replace('__PROFILE__', profileName(o)))
   const run = tool.filter === 'ccx'
-    ? CCX_RUN.map((l) => l.replace('__RUNS__', o.runsDir ?? '$HOME/work/_shared/claude-container/runs'))
+    ? CCX_RUN.map((l) => l.replace('__RUNS__', () => (o.runsDir ? shq(o.runsDir) : DEFAULT_RUNS)))
     : codex
   return [
     '#!/usr/bin/env bash',

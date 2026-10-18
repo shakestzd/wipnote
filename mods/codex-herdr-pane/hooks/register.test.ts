@@ -261,7 +261,7 @@ test('a bare single delegation is standalone, anything chained or piped is not',
 
 test('a standalone call keeps the old wrapper: no capture, no header, codex exited', () => {
   const text = buildWrapper('codex exec "x"', defaults)
-  expect(text).toContain('"$__D" "/mod" plain 0 >/dev/null')
+  expect(text).toContain(`"$__D" '/mod' plain 0 >/dev/null`)
   expect(text).not.toContain('output of the rest of the command')
   expect(text).toContain('echo "codex exited $__X')
   expect(text).not.toContain('__CODEX_CHAIN=1 ') // the shim stays in its plain mode

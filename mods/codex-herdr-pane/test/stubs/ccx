@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # SIMNOISE=1 adds the stdin line on stderr; SIMNONL=1 ends stdout without a newline.
-mkdir -p "$CCX_RUNS_DIR"; f="$CCX_RUNS_DIR/20261017-000000.jsonl"
+mkdir -p "$CCX_RUNS_DIR"; f="$CCX_RUNS_DIR/$(date +%Y%m%d-%H%M%S)-$$.jsonl"
 [ -n "$SIMNOISE" ] && echo "Reading additional input from stdin..." >&2
 echo '{"type":"system","subtype":"init"}' > "$f"; sleep 1
 echo '{"type":"assistant","message":{"content":[{"type":"text","text":"thinking about hello"},{"type":"tool_use","id":"toolu_1","name":"Bash","input":{"command":"echo hi"}}]}}' >> "$f"; sleep 1
