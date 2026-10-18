@@ -231,32 +231,34 @@ has "ccx concurrent: the first run's pane shows its own log" "thinking about alp
 nothas "ccx concurrent: the first run's pane does not show the other log" "thinking about bravo" "$DA/clean.log"
 has "ccx concurrent: the second run's pane shows its own log" "thinking about bravo" "$DB/clean.log"
 nothas "ccx concurrent: the second run's pane does not show the other log" "thinking about alpha" "$DB/clean.log"
+has "ccx concurrent: the second run waited for the first to claim its log" "waiting for another ccx run" "$DB/clean.log"
 eq "ccx concurrent: no launch lock left" "$(ls -d "$T"/tmp/codex-herdr-ccx-claims/launch.lock 2>/dev/null | wc -l | tr -d ' ')" 0
 
-# --- a run that gives up waiting for its log never takes a later run's log ---
+# --- a run that gives up waiting for its log: no run takes another's log, though the late log appears first ---
 rm -rf "$T/tmp" "$T/runs" "$T/log"*; mkdir -p "$T/tmp"
 env $ENVS CODEX_HERDR_CCX_WAIT=1 SIMLOGDELAY=4 bash "$T/wa.sh" > "$T/out.a" 2>&1 & PA=$!
 sleep 2
-env $ENVS bash "$T/wb.sh" > "$T/out.b" 2>&1 & PB=$!
+env $ENVS SIMLOGDELAY=3 bash "$T/wb.sh" > "$T/out.b" 2>&1 & PB=$!
 wait $PA $PB; sleep 1.5
 for d in "$T"/tmp/codex-herdr.*; do
   if grep -q alpha "$d/orig.sh"; then DA=$d; else DB=$d; fi
 done
 has "ccx timeout: the slow run says it has no live log" "no live log for this run" "$DA/clean.log"
 nothas "ccx timeout: the slow run does not take the later run's log" "thinking about bravo" "$DA/clean.log"
-has "ccx timeout: the later run follows its own log" "thinking about bravo" "$DB/clean.log"
+nothas "ccx timeout: the later run does not take the slow run's late log" "thinking about alpha" "$DB/clean.log"
+has "ccx timeout: the later run says why it has no live log" "not yet bound to its pane" "$DB/clean.log"
 has "ccx timeout: the slow run still returns ccx's own result" "ccx task ok" "$T/out.a"
+has "ccx timeout: the later run still returns ccx's own result" "ccx task ok" "$T/out.b"
+eq "ccx timeout: no unbound mark is left" "$(ls "$T"/tmp/codex-herdr-ccx-claims/unbound | wc -l | tr -d ' ')" 0
 
-# --- a run that cannot get the launch lock starts ccx but claims no log ---
+# --- a lock left by a run that died is broken, and the run follows its own log ---
 rm -rf "$T/tmp" "$T/runs" "$T/log"*; mkdir -p "$T/tmp/codex-herdr-ccx-claims/launch.lock"
-sleep 30 & HOLD=$!; echo "$HOLD" > "$T/tmp/codex-herdr-ccx-claims/launch.lock/pid"  # a live holder
-env $ENVS CODEX_HERDR_CCX_LOCKWAIT=1 bash "$T/wa.sh" > "$T/out.a" 2>&1
-sleep 1.5; kill "$HOLD" 2>/dev/null
-DA=$(ls -d "$T"/tmp/codex-herdr.*)
-has "ccx no lock: the pane says it has no live log" "held the launch lock too long" "$DA/clean.log"
-nothas "ccx no lock: no log was claimed" "thinking about" "$DA/clean.log"
-has "ccx no lock: ccx still ran and returned its result" "ccx task ok" "$T/out.a"
-eq "ccx no lock: the other holder's lock is untouched" "$(ls -d "$T"/tmp/codex-herdr-ccx-claims/launch.lock 2>/dev/null | wc -l | tr -d ' ')" 1
+sh -c 'exit 0' & DEAD=$!; wait $DEAD; echo "$DEAD" > "$T/tmp/codex-herdr-ccx-claims/launch.lock/pid"
+env $ENVS bash "$T/wa.sh" > "$T/out.a" 2>&1
+sleep 1.5; DA=$(ls -d "$T"/tmp/codex-herdr.*)
+has "ccx stale lock: the run follows its own log" "thinking about alpha" "$DA/clean.log"
+has "ccx stale lock: ccx returned its result" "ccx task ok" "$T/out.a"
+eq "ccx stale lock: no lock is left" "$(ls -d "$T"/tmp/codex-herdr-ccx-claims/launch.lock 2>/dev/null | wc -l | tr -d ' ')" 0
 
 rm -rf "$T"
 [ "$fails" = 0 ] && echo "pane simulation passed" || { echo "$fails failed"; exit 1; }

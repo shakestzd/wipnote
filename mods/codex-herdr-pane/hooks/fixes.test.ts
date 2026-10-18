@@ -75,9 +75,12 @@ test('ccx runs take a launch lock until their own log is claimed', () => {
   expect(text).toContain('touch "$D/cmddone"; wait $FOLLOW; release')
 })
 
-test('a ccx run that never gets the launch lock does not claim a log', () => {
+test('a ccx run waits for the launch lock and claims only when no other log is unbound', () => {
   const text = buildWrapper('ccx task "x"', defaults)
-  expect(text).toContain('HAVE=1; break')
-  expect(text).toContain('gaveup=$((1 - HAVE))')
-  expect(text).toContain('held the launch lock too long: no live log for this run')
+  expect(text).toContain('until mkdir "$LOCK" 2>/dev/null; do') // no time limit: a claimer's hold is bounded by its own wait
+  expect(text).not.toContain('LOCKWAIT')
+  expect(text).toContain('CAN=0; : > "$UNB/$$"; release;') // another run is unbound: mark, release, claim nothing
+  expect(text).toContain('gaveup=$((1 - CAN))')
+  expect(text).toContain(': > "$UNB/$$"; release; gaveup=1;') // a timed-out run is marked before it releases
+  expect(text).toContain('release; rm -f "$UNB/$$"')
 })
