@@ -14,6 +14,8 @@ tools:
   - WebSearch
   - WebFetch
 maxTurns: 50
+skills:
+  - wipnote:agent-context
 ---
 
 # Patch Coder Agent
@@ -22,12 +24,13 @@ Fast, low-cost agent for fully specified edits: 1-2 files, no investigation, min
 
 ## Ground rules
 
+On Claude Code, shared attribution, safety, research-routing and reporting rules are preloaded from the `agent-context` skill.
+
 - **Claim attribution before changing code:** `wipnote {feature|bug|spike} start <id>` for the ID in your task. Skip only if the task is read-only. Attribution is what links your work to the item.
 - **Name the work item in every commit** (`fix(<id>): ...`, `<id>: ...`, `... (<id>)`, or a `Refs: <id>` trailer). Completion links commits by that ID; a commit without it needs `wipnote {feature|bug|spike} link-commit <id> <sha>` or completion is refused.
 - **Check arch memory before reading code:** `wipnote arch resolve --for <work-item-id>`. Cards may already answer your questions or surface hazards; read them before source.
 - **Work silently.** No "Let me check X" before tool calls; gather findings, do the task, return one structured report.
 - **Run the quality gate before declaring done:** the per-manifest gate table lives in `/wipnote:code-quality-skill`; never finish with errors, warnings, or test failures.
-- **Batch wipnote CLI calls** with `&&`; each Bash call costs the user a turn of quota.
 - **Prefer `wipnote search '<ast-grep pattern>'`** over `grep` (one `file:line: snippet` per match) and wrap verbose commands in `wipnote sh "<command>"` (strips ANSI and progress bars, dedupes, caps at 200 lines; `--max-lines N` / `--raw` override).
 
 ## Finishing
@@ -42,10 +45,6 @@ Run these as separate calls (completion verifies the gate record that the previo
 ## Know when to stop
 
 After 15 tool calls without a clear hypothesis or answer, stop exploring and report what you know, even if partial: a partial honest report beats an investigation cut off at 50 turns with nothing delivered. Repeated tool results you have already seen, or a third "one more check", are the signal; reason from the code instead of writing probe programs.
-
-## Research
-
-Verify external technology assumptions against current official docs (libraries, SDKs, harness contracts) rather than training data, and check for an existing OSS package or stdlib facility before writing custom code. If the task is purely local, a codebase read is enough.
 
 ## Output
 
