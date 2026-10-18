@@ -1045,11 +1045,7 @@ func codexMessageText(content gjson.Result) string {
 }
 
 func findCodexTranscriptPath(sessionID string) string {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return ""
-	}
-	root := filepath.Join(home, ".codex", "sessions")
+	root := filepath.Join(codexHomeDir(), "sessions")
 	var found string
 	_ = filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
 		if err != nil || d.IsDir() || found != "" {

@@ -24,22 +24,30 @@ import (
 const codexMarketplaceRepo = "shakestzd/wipnote"
 const codexMarketplaceSparse = "port/packages/codex-marketplace"
 
-// codexConfigPath returns the path to ~/.codex/config.toml.
-func codexConfigPath() string {
+// codexHomeDir returns Codex's user directory: $CODEX_HOME when set, else
+// ~/.codex. Codex reads its config, hooks, agents, plugin cache and sessions
+// from here, so wipnote must write and read the same place.
+func codexHomeDir() string {
+	if dir := strings.TrimSpace(os.Getenv("CODEX_HOME")); dir != "" {
+		return dir
+	}
 	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".codex", "config.toml")
+	return filepath.Join(home, ".codex")
+}
+
+// codexConfigPath returns the user-level config.toml in codexHomeDir.
+func codexConfigPath() string {
+	return filepath.Join(codexHomeDir(), "config.toml")
 }
 
 // codexHooksPath returns the path Codex currently reads for user-level hooks.
 func codexHooksPath() string {
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".codex", "hooks.json")
+	return filepath.Join(codexHomeDir(), "hooks.json")
 }
 
 // codexAgentsPath returns the documented user-level custom agent directory.
 func codexAgentsPath() string {
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".codex", "agents")
+	return filepath.Join(codexHomeDir(), "agents")
 }
 
 func codexProjectAgentsPath(projectRoot string) string {
@@ -80,8 +88,7 @@ func renderCodexWarningBanner(warning string) string {
 
 // codexPluginCachePath returns Codex's cache location for the wipnote plugin.
 func codexPluginCachePath() string {
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".codex", "plugins", "cache", "wipnote", "wipnote")
+	return filepath.Join(codexHomeDir(), "plugins", "cache", "wipnote", "wipnote")
 }
 
 // isCodexMarketplaceInstalledAt is the testable core that reads the given path.

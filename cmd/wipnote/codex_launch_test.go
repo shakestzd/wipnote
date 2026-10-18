@@ -970,3 +970,25 @@ func TestConfiguredCodexDeveloperInstructions_Layers(t *testing.T) {
 		}
 	}
 }
+
+// TestCodexHomeDirHonorsCodexHome pins that every user-level Codex path
+// wipnote writes or reads follows $CODEX_HOME, as Codex itself does.
+func TestCodexHomeDirHonorsCodexHome(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("CODEX_HOME", dir)
+	for name, got := range map[string]string{
+		"config":  codexConfigPath(),
+		"hooks":   codexHooksPath(),
+		"agents":  codexAgentsPath(),
+		"plugins": codexPluginCachePath(),
+	} {
+		if !strings.HasPrefix(got, dir+string(filepath.Separator)) {
+			t.Errorf("%s path %q must live under CODEX_HOME %q", name, got, dir)
+		}
+	}
+	t.Setenv("CODEX_HOME", "")
+	home, _ := os.UserHomeDir()
+	if got := codexHomeDir(); got != filepath.Join(home, ".codex") {
+		t.Errorf("unset CODEX_HOME must fall back to ~/.codex, got %q", got)
+	}
+}
