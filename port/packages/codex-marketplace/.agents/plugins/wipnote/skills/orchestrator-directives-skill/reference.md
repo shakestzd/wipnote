@@ -6,7 +6,7 @@ Long-form detail for the decision rules in [SKILL.md](./SKILL.md): spawner comma
 
 External CLIs are optional sidecars; fall back to the in-harness agent when one is missing or fails. For nested `codex exec`, choose a small/fast model with `-m <model>` (check `codex --help` for current names; the flagship default is slower and costlier than most delegated tasks need).
 
-Run headless sidecars lean, so they load nothing the task does not need: no saved session, no hooks, apps, browser or computer use for `codex exec`; `--safe-mode --no-session-persistence` for `claude -p` (`--safe-mode` keeps the login; `--bare` needs an API key).
+Run headless sidecars lean, so they load nothing the task does not need: no saved session, no hooks, apps, browser or computer use for `codex exec`; `--safe-mode --no-session-persistence` for `claude -p` (`--safe-mode` needs Claude Code 2.1.302 or later and keeps the login; `--bare` needs an API key).
 
 ### Antigravity CLI — agy (research, exploration)
 ```bash

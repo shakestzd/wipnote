@@ -801,12 +801,39 @@ func buildHeadlessArgs(req headlessRequest) []string {
 		"--permission-mode", "dontAsk",
 		"--allowedTools", "Read",
 		"--system-prompt", req.systemPrompt,
-		// Lean headless run: no CLAUDE.md, skills, plugins, hooks or MCP, and
-		// no saved session. --safe-mode keeps the person's login, unlike
-		// --bare, which accepts only an API key or apiKeyHelper.
-		"--safe-mode",
-		"--no-session-persistence",
 	}
+}
+
+// claudeLeanFlags make a headless run lean: no CLAUDE.md, skills, plugins,
+// hooks or MCP, and no saved session. --safe-mode keeps the person's login,
+// unlike --bare, which accepts only an API key or apiKeyHelper.
+var claudeLeanFlags = []string{"--safe-mode", "--no-session-persistence"}
+
+// claudeHelpText returns `claude --help`; a package var so tests can stub it.
+var claudeHelpText = func() string {
+	out, _ := exec.Command("claude", "--help").CombinedOutput()
+	return string(out)
+}
+
+var (
+	supportedLeanFlagsOnce sync.Once
+	supportedLeanFlags     []string
+)
+
+// supportedClaudeLeanFlags returns the claudeLeanFlags this claude install
+// lists in --help. --safe-mode is new in Claude Code 2.1.302 and an older CLI
+// rejects an unknown flag, so each one is added only when it is supported:
+// an older install still grades, just without the lean flags.
+func supportedClaudeLeanFlags() []string {
+	supportedLeanFlagsOnce.Do(func() {
+		help := claudeHelpText()
+		for _, f := range claudeLeanFlags {
+			if strings.Contains(help, f) {
+				supportedLeanFlags = append(supportedLeanFlags, f)
+			}
+		}
+	})
+	return supportedLeanFlags
 }
 
 // realHeadlessInvoker spawns `claude -p` with the given request parameters,
@@ -820,9 +847,9 @@ func buildHeadlessArgs(req headlessRequest) []string {
 // Bare mode (bug-48b023e5): --bare also skips discovery but accepts only
 // ANTHROPIC_API_KEY or apiKeyHelper, so it would break subscription logins.
 // --safe-mode (Claude Code 2.1.302) gives the same lean discovery and keeps
-// OAuth, so it is used instead (buildHeadlessArgs).
+// OAuth, so it is used instead (supportedClaudeLeanFlags).
 func realHeadlessInvoker(ctx context.Context, req headlessRequest) (*headlessResult, error) {
-	args := buildHeadlessArgs(req)
+	args := append(buildHeadlessArgs(req), supportedClaudeLeanFlags()...)
 
 	cmd := exec.CommandContext(ctx, "claude", args...)
 	cmd.Stdin = strings.NewReader(req.userPrompt)

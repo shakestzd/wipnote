@@ -434,8 +434,6 @@ func TestBuildHeadlessArgs_GoldenFlags(t *testing.T) {
 		"--permission-mode", "dontAsk",
 		"--allowedTools", "Read",
 		"--system-prompt", "SYSTEM PROMPT TEXT",
-		"--safe-mode",
-		"--no-session-persistence",
 	}
 
 	if len(got) != len(want) {
@@ -1719,4 +1717,33 @@ func min(a, b int) int {
 		return a
 	}
 	return b
+}
+
+// TestSupportedClaudeLeanFlags guards the Codex review finding on #210: an
+// older claude without --safe-mode rejects the flag, so a lean flag is added
+// only when `claude --help` lists it.
+func TestSupportedClaudeLeanFlags(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		help string
+		want []string
+	}{
+		{"new CLI", "  --safe-mode   ...\n  --no-session-persistence  ...", []string{"--safe-mode", "--no-session-persistence"}},
+		{"before safe-mode", "  --no-session-persistence  ...", []string{"--no-session-persistence"}},
+		{"no claude", "", nil},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			origHelp := claudeHelpText
+			claudeHelpText = func() string { return tc.help }
+			supportedLeanFlagsOnce, supportedLeanFlags = sync.Once{}, nil
+			t.Cleanup(func() {
+				claudeHelpText = origHelp
+				supportedLeanFlagsOnce, supportedLeanFlags = sync.Once{}, nil
+			})
+			got := supportedClaudeLeanFlags()
+			if strings.Join(got, " ") != strings.Join(tc.want, " ") {
+				t.Fatalf("got %v, want %v", got, tc.want)
+			}
+		})
+	}
 }
