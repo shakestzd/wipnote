@@ -406,6 +406,10 @@ func hookTrackEventCmd(fallback *hooks.HookResult) *cobra.Command {
 // Gemini payloads are parsed with their own dialect adapters and responses are
 // emitted in the harness-appropriate wire format. Claude is the default path and
 // its behaviour is unchanged.
+// headlessHookEnv marks a CLI process wipnote started headlessly. Every
+// wipnote hook in that process allows and returns at once.
+const headlessHookEnv = "WIPNOTE_HEADLESS"
+
 func runHookNamed(subcommand string, handler func(*hooks.CloudEvent) (*hooks.HookResult, error)) error {
 	start := time.Now()
 
@@ -421,6 +425,12 @@ func runHookNamed(subcommand string, handler func(*hooks.CloudEvent) (*hooks.Hoo
 	// An explicit --harness from the generated hooks.json wins; otherwise
 	// detect the harness from the environment and raw payload shape.
 	harness := hooks.DetectHarnessWithOverride(rawPayload, hookHarnessOverride)
+
+	// A headless run that wipnote itself started (compliance grading, plan
+	// chat, the headless-runs mod) must not record or gate anything.
+	if os.Getenv(headlessHookEnv) == "1" {
+		return hooks.WriteResultForHarness(harness, hooks.AllowForHarness(harness))
+	}
 
 	// Parse the event using the harness-specific input adapter.
 	event, err := hooks.ParseEventForHarness(harness, rawPayload)

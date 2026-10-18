@@ -434,6 +434,8 @@ func TestBuildHeadlessArgs_GoldenFlags(t *testing.T) {
 		"--permission-mode", "dontAsk",
 		"--allowedTools", "Read",
 		"--system-prompt", "SYSTEM PROMPT TEXT",
+		"--safe-mode",
+		"--no-session-persistence",
 	}
 
 	if len(got) != len(want) {
@@ -1262,51 +1264,30 @@ func TestLockfile_Concurrent(t *testing.T) {
 	}
 }
 
-// TestForkGuardEnv verifies WIPNOTE_AUTO_COMPLIANCE_RUNNING=1 is in request env.
-// NOTE: Cannot call t.Parallel().
-func TestForkGuardEnv(t *testing.T) {
-	envSet := false
-	orig := headlessInvoker
-	headlessInvoker = func(_ context.Context, req headlessRequest) (*headlessResult, error) {
-		// We can't inspect cmd.Env directly in the stubbed path, but we verify
-		// the realHeadlessInvoker sets the env by checking via a minimal process.
-		// For this unit test, we verify the contract at the realHeadlessInvoker level
-		// by invoking it with a mock that checks the env through exec.
-		_ = req
-		envSet = true
-		return &headlessResult{text: validFindingJSON(70), costUSD: 0.01}, nil
+// TestRealHeadlessInvokerSetsHeadlessEnv runs realHeadlessInvoker against a
+// fake `claude` on PATH that echoes WIPNOTE_HEADLESS back in its JSON result,
+// so the spawned process really carries the marker that makes wipnote hooks
+// exit at once.
+// NOTE: Cannot call t.Parallel() (t.Setenv).
+func TestRealHeadlessInvokerSetsHeadlessEnv(t *testing.T) {
+	bin := t.TempDir()
+	script := "#!/bin/sh\nprintf '{\"type\":\"result\",\"subtype\":\"success\",\"result\":\"headless=%s\",\"total_cost_usd\":0}' \"$WIPNOTE_HEADLESS\"\n"
+	if err := os.WriteFile(filepath.Join(bin, "claude"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
 	}
-	defer func() { headlessInvoker = orig }()
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	t.Setenv(headlessHookEnv, "")
 
-	// Verify that realHeadlessInvoker sets the env var.
-	// We do this by running `env` as the command and checking output.
-	// Create a minimal request.
-	req := headlessRequest{
-		model:        "test",
-		effort:       "low",
-		maxTurns:     1,
-		maxBudgetUSD: 0.01,
-		maxWallClock: 1 * time.Second,
-		systemPrompt: "test",
-		userPrompt:   "test",
-	}
-
-	// We can't easily invoke realHeadlessInvoker without a real claude binary,
-	// so we verify the contract by building a mock subprocess that echoes its env.
-	// Instead, test that the env var injection code path is correct.
-	// This is a contract test: the env var must be present in any real invocation.
-	cmd := exec.Command("env")
-	cmd.Env = append(os.Environ(), "WIPNOTE_AUTO_COMPLIANCE_RUNNING=1")
-	out, err := cmd.Output()
+	res, err := realHeadlessInvoker(context.Background(), headlessRequest{
+		model: "test", effort: "low", maxTurns: 1, maxBudgetUSD: 0.01,
+		maxWallClock: 10 * time.Second, systemPrompt: "s", userPrompt: "u",
+	})
 	if err != nil {
-		t.Fatalf("env command failed: %v", err)
+		t.Fatalf("realHeadlessInvoker: %v", err)
 	}
-	if !strings.Contains(string(out), "WIPNOTE_AUTO_COMPLIANCE_RUNNING=1") {
-		t.Error("WIPNOTE_AUTO_COMPLIANCE_RUNNING=1 not found in subprocess env")
+	if res.text != "headless=1" {
+		t.Fatalf("spawned claude must see %s=1, got result %q", headlessHookEnv, res.text)
 	}
-
-	_ = req
-	_ = envSet
 }
 
 // TestStderrContainment verifies that stderr from the headless invoker doesn't leak.
