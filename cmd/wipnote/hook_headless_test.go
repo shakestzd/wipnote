@@ -75,3 +75,34 @@ func TestRunHookNamed_HeadlessAllowsAntigravityPreToolUse(t *testing.T) {
 		t.Fatalf("headless Antigravity PreToolUse must allow the tool, got %q", stdout)
 	}
 }
+
+// TestRunHookNamed_HeadlessKeepsPermissionAutoAllow guards the Codex review
+// finding on #210: a headless child has no one to answer a prompt, so the
+// PermissionRequest fast path must keep the read-only auto-allow decision
+// (while still recording nothing) and leave other requests undecided.
+func TestRunHookNamed_HeadlessKeepsPermissionAutoAllow(t *testing.T) {
+	t.Setenv(headlessHookEnv, "1")
+	orig := hookHarnessOverride
+	hookHarnessOverride = "claude"
+	t.Cleanup(func() { hookHarnessOverride = orig })
+
+	run := func(command string) string {
+		payload := `{"hook_event_name":"PermissionRequest","tool_name":"Bash","tool_input":{"command":"` + command + `"}}`
+		stdout, _, err := captureHookCommand(t, []byte(payload), func() error {
+			return runHookNamed("permission-request", func(*hooks.CloudEvent) (*hooks.HookResult, error) {
+				t.Fatal("the recording handler must not run when WIPNOTE_HEADLESS=1")
+				return nil, nil
+			})
+		})
+		if err != nil {
+			t.Fatalf("runHookNamed: %v", err)
+		}
+		return stdout
+	}
+	if out := run("wipnote status"); !strings.Contains(out, `"behavior":"allow"`) {
+		t.Fatalf("an allowlisted read-only command must stay auto-approved headless, got %q", out)
+	}
+	if out := run("rm -rf /tmp/x"); strings.Contains(out, `"behavior":"allow"`) {
+		t.Fatalf("a non-allowlisted command must not be auto-approved, got %q", out)
+	}
+}

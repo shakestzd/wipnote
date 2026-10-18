@@ -447,8 +447,14 @@ func runHookNamed(subcommand string, handler func(*hooks.CloudEvent) (*hooks.Hoo
 	// chat, the headless-runs mod) must not record or gate anything. The
 	// allow carries the event name: Antigravity reads a bare {} on PreToolUse
 	// as a deny (emitAntigravityResponseForEvent).
+	// PermissionRequest keeps its auto-approval: the headless child has no one
+	// to answer a prompt, so dropping the decision would deny or stall it.
 	if os.Getenv(headlessHookEnv) == "1" {
-		return hooks.WriteResultForHarnessEvent(harness, hookEventNameForResponse(subcommand, event), hooks.AllowForHarness(harness))
+		result := hooks.AllowForHarness(harness)
+		if subcommand == "permission-request" {
+			result = hooks.PermissionDecisionOnly(event)
+		}
+		return hooks.WriteResultForHarnessEvent(harness, hookEventNameForResponse(subcommand, event), result)
 	}
 
 	hooks.TraceInvocation(subcommand, rawPayload, event)
