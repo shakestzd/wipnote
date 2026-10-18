@@ -207,6 +207,13 @@ func resolveCurrentSessionIDs(projectRoot string) []string {
 		if nativeIDFound && env == "WIPNOTE_SESSION_ID" && currentHarness != "" {
 			continue
 		}
+		// CODEX_SESSION_ID is the root thread. It is a fallback only: with a
+		// thread id present it would offer the parent session for resume,
+		// because the resumable lookup orders candidates by activity, not by
+		// this list's precedence.
+		if env == "CODEX_SESSION_ID" && strings.TrimSpace(os.Getenv("CODEX_THREAD_ID")) != "" {
+			continue
+		}
 		add(os.Getenv(env))
 	}
 

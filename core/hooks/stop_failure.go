@@ -5,7 +5,10 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"time"
 
+	"github.com/google/uuid"
+	"github.com/shakestzd/wipnote/core/db"
 	"github.com/shakestzd/wipnote/core/models"
 )
 
@@ -38,9 +41,21 @@ func (s *looseString) UnmarshalJSON(data []byte) error {
 // StopFailure handles the StopFailure Claude Code hook event, which runs
 // instead of Stop when a turn ends on an API error (rate limit, overload,
 // auth, billing, ...). Claude Code ignores its output, so it only records an
-// error event: the error type goes in input_summary, and the details and the
-// rendered error text go in output_summary.
+// error event: the error type in input_summary, and the details and the
+// rendered error text in output_summary.
+//
+// Canonical first: the event goes to the session HTML activity log before the
+// SQLite insert, under the same event id, so a reindex rebuilds it and a
+// failed database open does not lose it.
 func StopFailure(event *CloudEvent, database *sql.DB) (*HookResult, error) {
+	sessionID := resolveSessionIDWithHarness(event)
+	if sessionID == "" {
+		sessionID = EnvSessionID(event.SessionID)
+	}
+	if sessionID == "" {
+		return &HookResult{Continue: true}, nil
+	}
+
 	errType := string(event.StopError)
 	if errType == "" {
 		errType = "unknown"
@@ -53,5 +68,40 @@ func StopFailure(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 		}
 		detail += msg
 	}
-	return recordSimpleEventWithOutput(models.EventError, "StopFailure", summary, detail, "failed", event, database)
+
+	projectDir := ResolveProjectDir(event.CWD, event.SessionID)
+	featureID := cachedGetActiveFeatureID(database, sessionID)
+	now := time.Now().UTC()
+	ev := &models.AgentEvent{
+		EventID:       uuid.New().String(),
+		AgentID:       resolveEventAgentID(event),
+		EventType:     models.EventError,
+		Timestamp:     now,
+		ToolName:      "StopFailure",
+		InputSummary:  summary,
+		OutputSummary: detail,
+		SessionID:     sessionID,
+		FeatureID:     featureID,
+		Status:        "failed",
+		Source:        "hook",
+		CreatedAt:     now,
+		UpdatedAt:     now,
+	}
+
+	AppendEventToSessionHTML(projectDir, sessionID, SessionEvent{
+		Timestamp: now,
+		ToolName:  ev.ToolName,
+		Success:   false,
+		EventID:   ev.EventID,
+		FeatureID: featureID,
+		Summary:   summary,
+		Status:    ev.Status,
+	})
+
+	if database != nil {
+		if err := db.InsertEvent(database, ev); err != nil {
+			debugLog(projectDir, "[error] handler=StopFailure session=%s: insert event: %v", sessionID[:minSessionLen(sessionID)], err)
+		}
+	}
+	return &HookResult{Continue: true}, nil
 }

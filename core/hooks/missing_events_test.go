@@ -1316,3 +1316,40 @@ func TestCloudEvent_NonStringErrorDoesNotBreakDecode(t *testing.T) {
 		t.Errorf("StopError = %q", event.StopError)
 	}
 }
+
+// TestStopFailure_PersistsToSessionHTMLWithoutDB verifies StopFailure writes
+// the canonical session HTML entry before (and without) the derived SQLite
+// insert, so a reindex can rebuild the event and a failed DB open loses nothing.
+func TestStopFailure_PersistsToSessionHTMLWithoutDB(t *testing.T) {
+	projectDir := t.TempDir()
+	sessionsDir := filepath.Join(projectDir, ".wipnote", "sessions")
+	if err := os.MkdirAll(sessionsDir, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	sessionID := "stop-failure-canonical-001"
+	CreateSessionHTML(projectDir, &models.Session{
+		SessionID: sessionID, AgentAssigned: "claude", Status: "active", CreatedAt: time.Now().UTC(),
+	})
+	t.Setenv("WIPNOTE_PROJECT_DIR", projectDir)
+	t.Setenv("WIPNOTE_SESSION_ID", sessionID)
+
+	event := &CloudEvent{SessionID: sessionID, CWD: projectDir, StopError: "overloaded"}
+	result, err := StopFailure(event, nil)
+	if err != nil {
+		t.Fatalf("StopFailure: %v", err)
+	}
+	if result == nil || !result.Continue {
+		t.Error("expected Continue=true from StopFailure")
+	}
+
+	data, err := os.ReadFile(filepath.Join(sessionsDir, sessionID+".html"))
+	if err != nil {
+		t.Fatalf("read session HTML: %v", err)
+	}
+	content := string(data)
+	for _, want := range []string{`data-tool="StopFailure"`, `data-success="false"`, `data-status="failed"`, "Turn ended on API error: overloaded"} {
+		if !strings.Contains(content, want) {
+			t.Errorf("session HTML missing %q", want)
+		}
+	}
+}
