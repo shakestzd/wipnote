@@ -232,7 +232,7 @@ nothas "ccx concurrent: the first run's pane does not show the other log" "think
 has "ccx concurrent: the second run's pane shows its own log" "thinking about bravo" "$DB/clean.log"
 nothas "ccx concurrent: the second run's pane does not show the other log" "thinking about alpha" "$DB/clean.log"
 has "ccx concurrent: the second run waited for the first to claim its log" "waiting for another ccx run" "$DB/clean.log"
-eq "ccx concurrent: no launch lock left" "$(ls -d "$T"/tmp/codex-herdr-ccx-claims/launch.lock 2>/dev/null | wc -l | tr -d ' ')" 0
+eq "ccx concurrent: no launch lock left" "$(ls -d "$T/tmp/codex-herdr-ccx-claims-$(id -u)"/launch.lock 2>/dev/null | wc -l | tr -d ' ')" 0
 
 # --- a run that gives up waiting for its log: no run takes another's log, though the late log appears first ---
 rm -rf "$T/tmp" "$T/runs" "$T/log"*; mkdir -p "$T/tmp"
@@ -249,16 +249,60 @@ nothas "ccx timeout: the later run does not take the slow run's late log" "think
 has "ccx timeout: the later run says why it has no live log" "not yet bound to its pane" "$DB/clean.log"
 has "ccx timeout: the slow run still returns ccx's own result" "ccx task ok" "$T/out.a"
 has "ccx timeout: the later run still returns ccx's own result" "ccx task ok" "$T/out.b"
-eq "ccx timeout: no unbound mark is left" "$(ls "$T"/tmp/codex-herdr-ccx-claims/unbound | wc -l | tr -d ' ')" 0
+eq "ccx timeout: no unbound mark is left" "$(ls "$T/tmp/codex-herdr-ccx-claims-$(id -u)"/unbound | wc -l | tr -d ' ')" 0
 
 # --- a lock left by a run that died is broken, and the run follows its own log ---
-rm -rf "$T/tmp" "$T/runs" "$T/log"*; mkdir -p "$T/tmp/codex-herdr-ccx-claims/launch.lock"
-sh -c 'exit 0' & DEAD=$!; wait $DEAD; echo "$DEAD" > "$T/tmp/codex-herdr-ccx-claims/launch.lock/pid"
+rm -rf "$T/tmp" "$T/runs" "$T/log"*; mkdir -p "$T/tmp/codex-herdr-ccx-claims-$(id -u)/launch.lock"
+sh -c 'exit 0' & DEAD=$!; wait $DEAD; echo "$DEAD" > "$T/tmp/codex-herdr-ccx-claims-$(id -u)/launch.lock/pid"
 env $ENVS bash "$T/wa.sh" > "$T/out.a" 2>&1
 sleep 1.5; DA=$(ls -d "$T"/tmp/codex-herdr.*)
 has "ccx stale lock: the run follows its own log" "thinking about alpha" "$DA/clean.log"
 has "ccx stale lock: ccx returned its result" "ccx task ok" "$T/out.a"
-eq "ccx stale lock: no lock is left" "$(ls -d "$T"/tmp/codex-herdr-ccx-claims/launch.lock 2>/dev/null | wc -l | tr -d ' ')" 0
+eq "ccx stale lock: no lock is left" "$(ls -d "$T/tmp/codex-herdr-ccx-claims-$(id -u)"/launch.lock 2>/dev/null | wc -l | tr -d ' ')" 0
+
+# --- a claims path that is not a usable folder: the run claims nothing and does not hang ---
+rm -rf "$T/tmp" "$T/runs" "$T/log"*; mkdir -p "$T/tmp"; : > "$T/tmp/codex-herdr-ccx-claims-$(id -u)"
+env $ENVS bash "$T/wa.sh" > "$T/out.a" 2>&1
+sleep 1.5; DA=$(ls -d "$T"/tmp/codex-herdr.*)
+has "ccx bad claims folder: the pane says why it has no live log" "ccx claims folder not usable" "$DA/clean.log"
+nothas "ccx bad claims folder: no log was claimed" "thinking about" "$DA/clean.log"
+has "ccx bad claims folder: ccx still ran and returned its result" "ccx task ok" "$T/out.a"
+
+# --- 0.7.2 (issue 219): a standalone review is cleaned and returns its verdict ---
+SIMREVIEW=1 run 'codex review'
+eq "review: the verdict is returned as the answer" "$(echo "$OUT" | sed -n '2p')" "The verdict."
+nothas "review: no banner in clean.md" "OpenAI Codex v" "$D/clean.md"
+nothas "review: no MCP listing in clean.md" "list_mcp_resources" "$D/clean.md"
+eq "review: one text fence in clean.md" "$(grep -c '^```text$' "$D/clean.md")" 1
+has "review: the progress is in clean.md" "current changes" "$D/clean.md"
+has "review: raw.log keeps the banner" "OpenAI Codex v" "$D/raw.log"
+fencecheck "$D/clean.md" review
+SIMREVIEW=1 run "codex review > '$T/verdict.txt'"
+eq "review redirected: the caller's file gets the verdict" "$(cat "$T/verdict.txt" 2>/dev/null)" "The verdict."
+mkfifo "$T/verdict.pipe"; ( cat "$T/verdict.pipe" > "$T/fifo.out" ) &
+SIMREVIEW=1 run "codex review > '$T/verdict.pipe'"; sleep 0.5
+eq "review redirected to a FIFO: the reader gets the verdict" "$(cat "$T/fifo.out" 2>/dev/null)" "The verdict."
+SIMREVIEW=1 run 'codex review'
+has "review: pane title names what is reviewed" "Codex review: current changes" "$D/label"
+eq "review: the pane is renamed after it starts" "$(grep -n -e '^herdr pane run' -e '^herdr pane rename' "$T/log" | cut -d: -f2 | cut -c1-16 | tr '\n' ,)" "herdr pane run w,herdr pane renam,"
+
+run 'echo "OpenAI Codex v9 is a phrase"; echo "after the phrase"; codex exec "hello"'
+has "chained: a banner-like line in the rest of the command hides nothing" "after the phrase" <(echo "$OUT")
+has "chained: the line after it is in clean.md" "after the phrase" "$D/clean.md"
+printf '%s\n' '```bash' 'ls' '```' '' '```text' 'err' '```' '' '```text' 'more' '```' > "$T/fences.md"
+eq "joinfence: a code block keeps its closing fence; two text blocks join" "$(awk -f "$ROOT/viewer/joinfence.awk" "$T/fences.md" | tr '\n' '|')" '```bash|ls|```||```text|err|more|```|'
+
+# --- 0.7.2: old leftovers in TMPDIR are swept ---
+rm -rf "$T/tmp" "$T/runs" "$T/log"*; mkdir -p "$T/tmp/codex-herdr.old1" "$T/tmp/codex-herdr.new1" "$T/tmp/codex-herdr-ccx-claims-$(id -u)/a.jsonl"
+touch "$T/tmp/codex-herdr-run.stale.sh" "$T/tmp/codex-herdr-run.fresh.sh"
+touch -d '8 days ago' "$T/tmp/codex-herdr-run.stale.sh"; touch -d '2 hours ago' "$T/tmp/codex-herdr-run.fresh.sh"; touch -d '8 days ago' "$T/tmp/codex-herdr.old1" "$T/tmp/codex-herdr-ccx-claims-$(id -u)/a.jsonl"
+node --experimental-strip-types "$ROOT/test/gen.ts" 'codex exec "hello"' "$ROOT" > "$T/w.sh" 2>/dev/null
+env $ENVS bash "$T/w.sh" > /dev/null 2>&1; sleep 1.5
+eq "sweep: a script older than 7 days is removed" "$(ls "$T/tmp/codex-herdr-run.stale.sh" 2>/dev/null | wc -l | tr -d ' ')" 0
+eq "sweep: a script 2 hours old (a call that may still wait for approval) is kept" "$(ls "$T/tmp/codex-herdr-run.fresh.sh" 2>/dev/null | wc -l | tr -d ' ')" 1
+eq "sweep: a run directory older than 7 days is removed" "$(ls -d "$T/tmp/codex-herdr.old1" 2>/dev/null | wc -l | tr -d ' ')" 0
+eq "sweep: a newer run directory is kept" "$(ls -d "$T/tmp/codex-herdr.new1" 2>/dev/null | wc -l | tr -d ' ')" 1
+eq "sweep: an old ccx claim is removed" "$(ls -d "$T/tmp/codex-herdr-ccx-claims-$(id -u)/a.jsonl" 2>/dev/null | wc -l | tr -d ' ')" 0
 
 rm -rf "$T"
 [ "$fails" = 0 ] && echo "pane simulation passed" || { echo "$fails failed"; exit 1; }

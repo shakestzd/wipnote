@@ -40,9 +40,9 @@ const USAGE = [
 // After the run, `usage` gets the token split from the same codex.jq, else the
 // "tokens used" figure; the report and the viewer both read that one file.
 const CODEX_RUN = [
-  '  __CODEX_PROFILE="__PROFILE__" __CODEX_LAST="$D/last.md" bash -c \'. "$1/shim.sh"; . "$1/orig.sh"\' _ "$D" 2>&1 \\',
+  '  __CODEX_PROFILE="__PROFILE__" __CODEX_LAST="$D/last.md" __CODEX_REVIEW_LAST=__REVIEWLAST__ bash -c \'. "$1/shim.sh"; . "$1/orig.sh"\' _ "$D" 2>&1 \\',
   '    | tee "$D/raw.log" >(mdcodex >> "$D/clean.md") | jq --unbuffered -R -r -f "$ROOT/viewer/codex.jq" 2>/dev/null \\',
-  '    | awk -f "$ROOT/viewer/clean.awk" > "$D/clean.log"',
+  '    | awk -v review=1 -f "$ROOT/viewer/clean.awk" > "$D/clean.log"',
   '  X="${PIPESTATUS[0]}"',
   '  mdcodex < "$D/raw.log" > "$D/clean.md.tmp" && mv "$D/clean.md.tmp" "$D/clean.md"',
   ...USAGE,
@@ -71,7 +71,8 @@ const CODEX_CHAIN_RUN = [
 // call that never got a result.
 const CCX_RUN = [
   '  RUNS="${CCX_RUNS_DIR:-}"; [ -n "$RUNS" ] || RUNS=__RUNS__; : > "$D/clean.log"',
-  '  CLAIMS="${TMPDIR:-/tmp}/codex-herdr-ccx-claims"; mkdir -p "$CLAIMS" 2>/dev/null',
+  // One claims folder per OS user, so another user's folder in a shared /tmp cannot block this one
+  '  CLAIMS="${TMPDIR:-/tmp}/codex-herdr-ccx-claims-$(id -u)"; mkdir -p -m 700 "$CLAIMS" 2>/dev/null',
   // Which log is whose: a run may claim a new log only while it holds the launch lock and no
   // other run's log is UNBOUND (a run in flight whose log could still appear). Waiters wait for
   // the lock, so nothing else launches while a claimer looks. A holder releases the lock when it
@@ -81,14 +82,25 @@ const CCX_RUN = [
   // its process is gone). A holder that died is broken by its pid.
   '  LOCK="$CLAIMS/launch.lock"; UNB="$CLAIMS/unbound"; mkdir -p "$UNB" 2>/dev/null; waited=0',
   '  note() { echo "*$1*" | tee -a "$D/clean.log" >> "$D/clean.md"; }',
-  '  until mkdir "$LOCK" 2>/dev/null; do',
-  '    p=$(cat "$LOCK/pid" 2>/dev/null); if [ -n "$p" ] && ! kill -0 "$p" 2>/dev/null; then rm -rf "$LOCK"; continue; fi',
+  // A lock that cannot be made, and is not there, is not contention: the folder is not usable, so
+  // the run claims nothing (OK=0). Only one run at a time may break a dead holder's lock (the
+  // .break folder), and it checks the pid again first, so it never deletes a successor's lock.
+  '  OK=1; r=0; [ -d "$CLAIMS" ] && [ -w "$CLAIMS" ] || OK=0',
+  '  while [ "$OK" = 1 ] && ! mkdir "$LOCK" 2>/dev/null; do',
+  // the lock was released between the mkdir and this check: try again (a few times, then give up)
+  '    [ -d "$LOCK" ] || { r=$((r+1)); [ "$r" -lt 50 ] && continue; OK=0; break; }',
+  '    p=$(cat "$LOCK/pid" 2>/dev/null)',
+  '    if [ -n "$p" ] && ! kill -0 "$p" 2>/dev/null && mkdir "$LOCK.break" 2>/dev/null; then',
+  '      [ "$(cat "$LOCK/pid" 2>/dev/null)" = "$p" ] && rm -rf "$LOCK"; rmdir "$LOCK.break"; continue',
+  '    fi',
+  '    find "$CLAIMS" -maxdepth 1 -name launch.lock.break -mmin +1 -exec rmdir {} + 2>/dev/null',
   '    [ "$waited" = 0 ] && { note "waiting for another ccx run to start its log"; waited=1; }',
   '    sleep 0.1',
-  '  done; echo $$ > "$LOCK/pid"',
+  '  done; [ "$OK" = 1 ] && echo $$ > "$LOCK/pid"',
   '  release() { [ "$(cat "$LOCK/pid" 2>/dev/null)" = "$$" ] && rm -rf "$LOCK"; return 0; }',
   '  unbound() { for u in "$UNB"/*; do [ -e "$u" ] || continue; kill -0 "${u##*/}" 2>/dev/null && return 0; rm -f "$u"; done; return 1; }',
-  '  CAN=1; if unbound; then CAN=0; : > "$UNB/$$"; release; note "another ccx run has a log not yet bound to its pane: no live log for this run"; fi',
+  '  if [ "$OK" = 0 ]; then note "ccx claims folder not usable: $CLAIMS: no live log for this run"; fi',
+  '  CAN=$OK; if [ "$OK" = 1 ] && unbound; then CAN=0; : > "$UNB/$$"; release; note "another ccx run has a log not yet bound to its pane: no live log for this run"; fi',
   '  ls -1 "$RUNS" 2>/dev/null | grep "\\.jsonl$" > "$D/before"',
   '  if [ ! -d "$RUNS" ]; then printf "*ccx runs directory not found: %s (set ccxRunsDir or CCX_RUNS_DIR)*\\n" "$RUNS" | tee -a "$D/clean.log" >> "$D/clean.md"; fi',
   '  claim() { ls -1 "$RUNS" 2>/dev/null | grep "\\.jsonl$" | grep -vxFf "$D/before" | while IFS= read -r c; do mkdir "$CLAIMS/$c" 2>/dev/null && { printf "%s\\n" "$RUNS/$c"; break; }; done; }',
@@ -138,8 +150,11 @@ const profileName = (o: WrapOptions) => (o.leanProfile ? o.leanProfileName.repla
 const DEFAULT_RUNS = '"$HOME/work/_shared/claude-container/runs"'
 const shq = (s: string) => `'${s.replace(/'/g, `'\\''`)}'`
 
-export function paneScript(o: WrapOptions, tool: DelegationTool, chained: boolean): string[] {
-  const codex = (chained ? CODEX_CHAIN_RUN : CODEX_RUN).map((l) => l.replace('__PROFILE__', profileName(o)))
+// reviewToLast: a standalone call that does not redirect stdout itself, so a review's final message
+// may go to the answer file (shim.ts).
+export function paneScript(o: WrapOptions, tool: DelegationTool, chained: boolean, reviewToLast = !chained): string[] {
+  const codex = (chained ? CODEX_CHAIN_RUN : CODEX_RUN)
+    .map((l) => l.replace('__PROFILE__', profileName(o)).replace('__REVIEWLAST__', reviewToLast ? '1' : ''))
   const run = tool.filter === 'ccx'
     ? CCX_RUN.map((l) => l.replace('__RUNS__', () => (o.runsDir ? shq(o.runsDir) : DEFAULT_RUNS)))
     : codex
@@ -150,6 +165,9 @@ export function paneScript(o: WrapOptions, tool: DelegationTool, chained: boolea
     ...mdFunctions('$ROOT'),
     MKREST,
     'if [ "$CHAIN" = 1 ]; then export MCP_SEEN_MD="$D/mcp.md.seen" MCP_SEEN_LOG="$D/mcp.log.seen"; fi',
+    // The pane's own title (the shell set one for the typed command) and a clear screen, so the
+    // command line herdr typed does not stay above the log
+    'printf "\\033]0;%s\\007\\033[H\\033[2J" "$(cat "$D/label" 2>/dev/null)"',
     'date +%s > "$D/start"; : > "$D/clean.md"',
     '(',
     ...run,

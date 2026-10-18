@@ -77,10 +77,59 @@ test('ccx runs take a launch lock until their own log is claimed', () => {
 
 test('a ccx run waits for the launch lock and claims only when no other log is unbound', () => {
   const text = buildWrapper('ccx task "x"', defaults)
-  expect(text).toContain('until mkdir "$LOCK" 2>/dev/null; do') // no time limit: a claimer's hold is bounded by its own wait
+  expect(text).toContain('while [ "$OK" = 1 ] && ! mkdir "$LOCK" 2>/dev/null; do') // no time limit: a claimer's hold is bounded by its own wait
   expect(text).not.toContain('LOCKWAIT')
   expect(text).toContain('CAN=0; : > "$UNB/$$"; release;') // another run is unbound: mark, release, claim nothing
   expect(text).toContain('gaveup=$((1 - CAN))')
   expect(text).toContain(': > "$UNB/$$"; release; gaveup=1;') // a timed-out run is marked before it releases
   expect(text).toContain('release; rm -f "$UNB/$$"')
+})
+
+// 0.7.2, issue 219
+test('a standalone review sends its final message to the answer file; a chained one keeps stdout', () => {
+  const text = buildWrapper('codex review', defaults)
+  expect(text).toContain('[ -n "${__CODEX_REVIEW_LAST:-}" ] && [ "$1" = review ]; then')
+  expect(text).toContain('__CODEX_REVIEW_LAST=1 bash')
+  for (const c of ['codex review > v.txt', 'codex review >> v.txt', 'codex review 1>v', 'codex review &> v', 'codex review >&3'])
+    expect(buildWrapper(c, defaults), c).toContain('__CODEX_REVIEW_LAST= bash') // a caller's redirect wins
+  for (const c of ['codex review 2>err.log', 'codex review "is a > b right?"', 'codex review 2>&1'])
+    expect(buildWrapper(c, defaults), c).toContain('__CODEX_REVIEW_LAST=1 bash')
+  expect(text).toContain('command codex "$@" > "$__CODEX_LAST"')
+})
+
+test('the Markdown log joins neighbouring text fences', () => {
+  expect(buildWrapper('codex review', defaults)).toContain('| awk -f "$ROOT/viewer/joinfence.awk"; }')
+})
+
+test('the pane sets its own title and clears the typed command before the log', () => {
+  expect(buildWrapper('codex exec "x"', defaults)).toContain('printf "\\033]0;%s\\007\\033[H\\033[2J" "$(cat "$D/label" 2>/dev/null)"')
+})
+
+test('the pane is renamed after herdr runs the pane script', () => {
+  const text = buildWrapper('codex exec "x"', defaults)
+  expect(text.indexOf('herdr pane rename')).toBeGreaterThan(text.indexOf('herdr pane run'))
+})
+
+test('old scripts, run directories and ccx claims are swept in the background', () => {
+  const text = buildWrapper('codex exec "x"', defaults)
+  expect(text).toContain("-name 'codex-herdr-run.*.sh' -mtime +\"$K\" -delete") // never while a call may wait for approval
+  expect(text).not.toContain('-mmin')
+  expect(text).toContain('K="${CODEX_HERDR_KEEP_DAYS:-7}"')
+  expect(text).toContain("-name 'codex-herdr.*' -mtime +\"$K\"")
+  expect(text).toContain(') >/dev/null 2>&1 &')
+})
+
+test('the ccx claims folder is per OS user, and an unusable one stops the wait', () => {
+  const text = buildWrapper('ccx task "x"', defaults)
+  expect(text).toContain('CLAIMS="${TMPDIR:-/tmp}/codex-herdr-ccx-claims-$(id -u)"; mkdir -p -m 700 "$CLAIMS"')
+  expect(text).toContain('[ -d "$LOCK" ] || { r=$((r+1)); [ "$r" -lt 50 ] && continue; OK=0; break; }') // a failed mkdir with no lock there is not contention
+  expect(text).toContain('CAN=$OK;')
+  expect(text).toContain('find "$T/codex-herdr-ccx-claims-$(id -u)"') // the sweep looks in the same folder
+})
+
+test('only one run at a time breaks a dead holder\'s lock, after checking its pid again', () => {
+  const text = buildWrapper('ccx task "x"', defaults)
+  expect(text).toContain('mkdir "$LOCK.break" 2>/dev/null; then')
+  expect(text).toContain('[ "$(cat "$LOCK/pid" 2>/dev/null)" = "$p" ] && rm -rf "$LOCK"; rmdir "$LOCK.break"; continue')
+  expect(text).not.toContain('kill -0 "$p" 2>/dev/null; then rm -rf "$LOCK"')
 })

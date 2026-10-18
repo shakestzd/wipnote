@@ -142,7 +142,10 @@ test('recognises delegations and ignores look-alikes', () => {
 test('the pane title comes from the prompt', () => {
   expect(paneLabel('codex exec -s read-only "Implement the sharded CI gate for feat-53536cda please"'))
     .toBe('Codex task: Implement the sharded CI gate for feat-53536cda')
-  expect(paneLabel('codex review --base main')).toBe('Codex review: running')
+  expect(paneLabel('codex review --base main')).toBe('Codex review: changes against main')
+  expect(paneLabel('codex review --commit 0123456789abcdef')).toBe('Codex review: commit 0123456789ab')
+  expect(paneLabel('codex review')).toBe('Codex review: current changes')
+  expect(paneLabel('codex review "check the locking"')).toBe('Codex review: check the locking')
   expect(paneLabel('codex exec "$(cat prompt.md)"')).toBe('Codex task: $(cat prompt.md)')
 })
 
@@ -306,17 +309,17 @@ test('the Textual range is defined once and the pane script uses it', () => {
 
 test('a codex pane writes clean.md beside clean.log from the same raw stream', () => {
   const text = buildWrapper('codex exec "x"', defaults)
-  expect(text).toContain('mdcodex() { awk -v seen="${MCP_SEEN_MD:-}" -f "$ROOT/viewer/clean.awk" | jq --unbuffered -R -r --arg mode md -f "$ROOT/viewer/codex.jq"')
+  expect(text).toContain('mdcodex() { awk -v seen="${MCP_SEEN_MD:-}" -v review=1 -f "$ROOT/viewer/clean.awk" | jq --unbuffered -R -r --arg mode md -f "$ROOT/viewer/codex.jq"')
   expect(text).toContain('tee "$D/raw.log" >(mdcodex >> "$D/clean.md") | jq') // a second consumer of the one tee
   expect(text).toContain('mdcodex < "$D/raw.log" > "$D/clean.md.tmp" && mv "$D/clean.md.tmp" "$D/clean.md"') // rebuilt whole at the end
-  expect(text).toContain('| awk -f "$ROOT/viewer/clean.awk" > "$D/clean.log"') // the text log is unchanged
+  expect(text).toContain('| awk -v review=1 -f "$ROOT/viewer/clean.awk" > "$D/clean.log"') // the text log is unchanged
   expect(text).toContain(': > "$D/clean.md"') // exists from the start, so the viewer does not fall back
 })
 
 test('a chained call feeds clean.md from the shim and from the rest of the command', () => {
   const text = buildWrapper('echo a; codex exec "x"', defaults)
   expect(text).toContain('tee -a "$__CODEX_D/raw.log" >(mdcodex >> "$__CODEX_D/clean.md")')
-  expect(text).toContain('mdcodex() { awk -v seen="${MCP_SEEN_MD:-}" -f "$__CODEX_ROOT/viewer/clean.awk"')
+  expect(text).toContain('mdcodex() { awk -v seen="${MCP_SEEN_MD:-}" -v review=1 -f "$__CODEX_ROOT/viewer/clean.awk"')
   expect(text).toContain('tee "$D/orig.err" >(mdrest >> "$D/clean.md") | restfilter "${MCP_SEEN_LOG:-}" >> "$D/clean.log"')
   expect(text).toContain('tee "$D/orig.out" >(mdrest >> "$D/clean.md") | restfilter "${MCP_SEEN_LOG:-}" >> "$D/clean.log"')
 })
