@@ -108,7 +108,7 @@ Siblings (do NOT implement): {ID + title + status}
 {files owned by concurrent tasks}
 
 ## Protocol
-Follow /wipnote:tdd-protocol: failing tests first, then the gate from /wipnote:code-quality-skill.
+Follow the `tdd-protocol` skill (if it is not in your skill list, read `${CLAUDE_PLUGIN_ROOT}/skills/tdd-protocol/SKILL.md`): failing tests first, then the gate from /wipnote:code-quality-skill.
 Name {feature_id} in every commit subject or a `Refs: {feature_id}` trailer so
 `wipnote feature complete` links it automatically; otherwise run
 `wipnote feature link-commit {feature_id} <sha>`.

@@ -1,10 +1,6 @@
 ---
 name: Orchestrator Directives Skill
-description: >-
-  Decision rules for acting as the wipnote orchestrator: choosing which agent or external CLI
-  gets a task, writing a subagent brief, dispatching in parallel, recovering a stalled or
-  budget-paused agent, and completing work that a subagent implemented. Not needed for
-  hands-on coding done directly in a non-orchestrator session.
+description: Rules for the wipnote orchestrator role - which agent gets a task, subagent briefs, parallel dispatch, stalled agents.
 ---
 
 # Orchestrator Directives

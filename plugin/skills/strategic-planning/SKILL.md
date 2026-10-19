@@ -1,6 +1,7 @@
 ---
 name: strategic-planning
 description: Use wipnote analytics to make smart work prioritization decisions. Activate when recommending work, finding bottlenecks, assessing risks, or analyzing project impact.
+disable-model-invocation: true
 ---
 
 # Strategic Planning Skill

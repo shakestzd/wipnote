@@ -1,6 +1,7 @@
 ---
 name: wipnote:visual-plan
 description: SECONDARY enrichment path — add or revise structured visual blocks (data-model, file-tree, wireframe, diagram, tabs) on an EXISTING wipnote plan. Use for legacy plans drafted before blocks-first existed, or for ad-hoc later block additions/revisions — NOT for primary planning. New plans get blocks authored inline during the wipnote:plan interview (blocks-first); only reach for this skill when a plan already exists and needs blocks added or changed after the fact. Reads the live block catalog from wipnote plan blocks, adds grounded blocks to slices, regenerates the plan HTML, and links to the dashboard.
+disable-model-invocation: true
 ---
 
 # wipnote Visual Plan (after-the-fact enrichment)

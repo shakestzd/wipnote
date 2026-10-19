@@ -1,6 +1,7 @@
 ---
 name: ui-stills-verification
 description: "Stills-based UI verification — probe the DOM, capture ONE component with shot-scraper, READ the PNG back with the image tool, judge. Use whenever a task touches web UI (templates, CSS, dashboard, LiveView, React, any rendered page) and before claiming UI work is done; also the researcher's default visual-QA method when no browser MCP is available. Headless, needs no extension or browser session."
+disable-model-invocation: true
 ---
 
 # UI Stills Verification
