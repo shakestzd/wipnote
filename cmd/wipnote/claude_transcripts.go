@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode/utf16"
 )
 
 // claudeTranscriptSession is the newest Claude Code session recorded for a
@@ -40,15 +41,23 @@ func claudeProjectsDir() string {
 }
 
 // claudeProjectDirName is Claude Code's folder name for a working directory:
-// every character other than an ASCII letter or digit becomes '-'.
+// every character other than an ASCII letter or digit becomes '-'. Claude does
+// this on a JavaScript string, so the unit is a UTF-16 code unit: one '-' per
+// character in the Basic Multilingual Plane, two for a character outside it
+// (an emoji), never one per UTF-8 byte.
 func claudeProjectDirName(path string) string {
-	b := []byte(path)
-	for i, c := range b {
-		if !(c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9') {
-			b[i] = '-'
+	var b strings.Builder
+	for _, r := range path {
+		switch {
+		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9':
+			b.WriteRune(r)
+		case utf16.RuneLen(r) == 2:
+			b.WriteString("--")
+		default:
+			b.WriteByte('-')
 		}
 	}
-	return string(b)
+	return b.String()
 }
 
 // claudeTranscriptCandidates bounds how many transcripts are opened, newest

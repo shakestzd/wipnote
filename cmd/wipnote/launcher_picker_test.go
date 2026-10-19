@@ -33,8 +33,14 @@ func writeTranscript(t *testing.T, dir, id string, lines []string, mod time.Time
 }
 
 func TestClaudeProjectDirName(t *testing.T) {
-	if got := claudeProjectDirName("/home/user/wip_note.v2"); got != "-home-user-wip-note-v2" {
-		t.Fatalf("claudeProjectDirName = %q", got)
+	for in, want := range map[string]string{
+		"/home/user/wip_note.v2": "-home-user-wip-note-v2",
+		"/home/café/日本":          "-home-caf----", // one '-' per character, not per byte
+		"/x/a😀b":                 "-x-a--b",       // a character outside the BMP is two UTF-16 units
+	} {
+		if got := claudeProjectDirName(in); got != want {
+			t.Fatalf("claudeProjectDirName(%q) = %q, want %q", in, got, want)
+		}
 	}
 }
 
