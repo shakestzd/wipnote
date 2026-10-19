@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Launcher: sibling project transcripts can use up the Continue-last-session candidate budget</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-21747548"
+             data-type="bug"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-10-19T00:23:44.656606"
+             data-updated="2026-10-19T00:23:44.659479" data-agent-assigned="claude-code" data-track-id="trk-0677c709" data-created-by-agent="claude-code" data-created-by-cli-version="0.70.2-7-g160ae1b84" data-created_in_session="e41f6acf-9ecd-5cf8-846b-fbd1203fe65e">
+
+        <header>
+            <h1>Launcher: sibling project transcripts can use up the Continue-last-session candidate budget</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-0677c709.html" data-relationship="part_of" data-since="2026-10-19T00:23:44.659353">trk-0677c709</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Codex P2 on PR #222 (comment 4309353512, cmd/wipnote/claude_transcripts.go latestClaudeTranscriptSession). The 20-candidate budget is applied to every prefix-matched folder before the recorded cwd is checked. If a sibling such as /repo/app-copy has 20 or more transcripts newer than /repo/app, all 20 are rejected and an older valid /repo/app transcript is never read, so Continue last session disappears. Fix: apply the budget only after the cwd check, for example with a cheap cwd probe (first lines only) before the full label read. Test with 21 newer sibling transcripts.</p>
+        </section>
+    </article>
+</body>
+</html>
