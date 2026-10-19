@@ -179,11 +179,14 @@ const PILLS: Record<string, string> = {
 
 /**
  * Cells the engine's mode pill and its ` · ` take left of the hint line, which is where a
- * tree drawn there starts. No pill when the hint does not open with its `(shift+tab …)` note.
+ * tree drawn there starts. The pill shows beside a `(shift+tab …)` hint, and also beside
+ * other hints (`1 shell · ← 6 agents`) whenever a known non-default mode is on; the idle
+ * `? for shortcuts` hint has no pill.
  */
 export function pillIndent(permissionMode: string | null, hint: string): number {
-  if (!hint.startsWith('(')) return 0
-  const pill = PILLS[permissionMode ?? 'auto'] ?? PILLS.auto ?? ''
+  const known = permissionMode !== null ? PILLS[permissionMode] : undefined
+  if (!hint.startsWith('(') && (known === undefined || hint.startsWith('?'))) return 0
+  const pill = known ?? PILLS.auto ?? ''
   return [...pill].length + 3
 }
 
