@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Launcher: work-item resume under launch_isolation auto runs claude --resume from a new worktree</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-4c0af790"
+             data-type="bug"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-10-19T00:23:44.612586"
+             data-updated="2026-10-19T00:23:44.615908" data-agent-assigned="claude-code" data-track-id="trk-0677c709" data-created-by-agent="claude-code" data-created-by-cli-version="0.70.2-7-g160ae1b84" data-created_in_session="e41f6acf-9ecd-5cf8-846b-fbd1203fe65e">
+
+        <header>
+            <h1>Launcher: work-item resume under launch_isolation auto runs claude --resume from a new worktree</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-0677c709.html" data-relationship="part_of" data-since="2026-10-19T00:23:44.615811">trk-0677c709</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Codex P2 on PR #222 (comment 4309353516, cmd/wipnote/claude_launch_intent.go picksExistingSession). With launch_isolation: auto, a same-harness work-item row whose session ran in the project root has a valid resumeID and a non-empty workItem, so isolation stays on, creates .claude/worktrees/&lt;item&gt;, and runs claude --resume &lt;id&gt; there. Claude finds a transcript only from the directory it ran in, so the resume fails. Legacy claude-code rows, now normalized to claude, reach this path too. Fix: run an accepted direct resume in its recorded directory, or drop the resume ID and rehydrate when isolation moves the launch. Test with launch_isolation auto and a root-scoped session on a work item.</p>
+        </section>
+    </article>
+</body>
+</html>

@@ -280,7 +280,8 @@ func launchClaudeDev(extraArgs []string, auto bool, resumeID, name, workItem str
 	}
 	resumeID = lctx.intentResult.resumeID
 
-	sessionName := resolveSessionName(name, resumeID, continue_, projectRoot)
+	browse := lctx.intentResult.browse
+	sessionName := resolveSessionName(name, resumeID, continue_ || browse, projectRoot)
 
 	devHeadline := "Launching Claude Code with local plugin (--plugin-dir mode)"
 	if auto {
@@ -308,7 +309,8 @@ func launchClaudeDev(extraArgs []string, auto bool, resumeID, name, workItem str
 		// Resume the most recent session when --dev --continue was requested
 		// (mirrors launchClaudeContinue). ResumeID, when set, still takes
 		// precedence in launchClaude's arg construction.
-		Resume:             continue_,
+		// "Browse all sessions" in the picker is the same bare --resume.
+		Resume:             continue_ || browse,
 		ResumeID:           resumeID,
 		InjectSystemPrompt: true,
 		PermissionMode:     autoPermissionMode(auto),
@@ -565,7 +567,7 @@ func launchClaudeDefault(extraArgs []string, resumeID, name, workItem string, in
 	if err != nil {
 		return err
 	}
-	sessionName := resolveSessionName(name, resumeID, false, projectRoot)
+	sessionName := resolveSessionName(name, resumeID, lctx.intentResult.browse, projectRoot)
 	fmt.Println(launchtui.RenderLaunchBanner(nil, launchtui.BannerInput{
 		Headline:        fmt.Sprintf("Launching Claude Code (%s mode)...", lctx.intentResult.mode),
 		PluginSource:    pluginDir,
@@ -574,8 +576,10 @@ func launchClaudeDefault(extraArgs []string, resumeID, name, workItem string, in
 		WarningSeverity: "amber",
 	}))
 	return launchClaude(LaunchOpts{
-		Mode:               lctx.intentResult.mode,
-		PluginDir:          pluginDir,
+		Mode:      lctx.intentResult.mode,
+		PluginDir: pluginDir,
+		// "Browse all sessions" opens Claude's own picker: a bare --resume.
+		Resume:             lctx.intentResult.browse,
 		ResumeID:           resumeID,
 		InjectSystemPrompt: true,
 		Name:               sessionName,

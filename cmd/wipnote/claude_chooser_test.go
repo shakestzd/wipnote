@@ -31,7 +31,7 @@ func TestPromptLaunchIntent_DefaultsToNewWork(t *testing.T) {
 	if intent.Kind != launcher.LaunchIntentNew {
 		t.Fatalf("intent.Kind = %q, want %q", intent.Kind, launcher.LaunchIntentNew)
 	}
-	if !strings.Contains(out.String(), "Choose how to launch Claude:") {
+	if !strings.Contains(out.String(), "Start or continue in Claude:") {
 		t.Fatalf("prompt output missing harness heading:\n%s", out.String())
 	}
 	if !strings.Contains(out.String(), "Start something new") {
@@ -130,14 +130,16 @@ func TestPromptLaunchIntent_GroupsSameHarnessBeforeCrossHarness(t *testing.T) {
 	}
 	rendered := out.String()
 	for _, want := range []string{
-		"Resume in Codex",
-		"Continue from other harnesses",
-		"feat-codex",
-		"feat-cross",
+		"2. Continue feat-codex  Codex Row",
+		"3. Continue feat-cross  Cross Row · from Claude",
 	} {
 		if !strings.Contains(rendered, want) {
 			t.Fatalf("prompt output missing %q:\n%s", want, rendered)
 		}
+	}
+	// Codex has no session browser yet, so no browse row is offered.
+	if strings.Contains(rendered, browseSessionsLabel) {
+		t.Fatalf("codex picker should not offer the browse row:\n%s", rendered)
 	}
 }
 
@@ -406,7 +408,7 @@ func TestPromptLaunchIntent_FallbackOnTUIError(t *testing.T) {
 	grouped := dbpkg.HarnessGroupedResumableSessions{SameHarness: []dbpkg.ResumableSession{same}}
 	orderedRows := []dbpkg.ResumableSession{same}
 	var out bytes.Buffer
-	intent, err := promptLaunchIntentNumeric(strings.NewReader("2\n"), &out, "claude", grouped, orderedRows, 1)
+	intent, err := promptLaunchIntentNumeric(strings.NewReader("2\n"), &out, "claude", grouped, orderedRows)
 	if err != nil {
 		t.Fatalf("unexpected error from numeric fallback: %v", err)
 	}
@@ -532,11 +534,11 @@ func TestApplyClaudeLaunchIntent(t *testing.T) {
 		Explicit:        true,
 		WorkItemID:      "feat-a",
 		SessionHarness:  "claude",
-		ResumeSessionID: "sess-a",
+		ResumeSessionID: "0f1e2d3c-4b5a-6978-8a9b-0c1d2e3f4a5b",
 	}
 	got := applyClaudeLaunchIntent("", "", intent)
-	if got.resumeID != "sess-a" {
-		t.Fatalf("resumeID = %q, want sess-a", got.resumeID)
+	if got.resumeID != "0f1e2d3c-4b5a-6978-8a9b-0c1d2e3f4a5b" {
+		t.Fatalf("resumeID = %q, want the Claude session id", got.resumeID)
 	}
 	if got.workItem != "feat-a" {
 		t.Fatalf("workItem = %q, want feat-a", got.workItem)

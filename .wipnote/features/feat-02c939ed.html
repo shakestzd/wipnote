@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Launcher picker: short start-or-continue menu</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-02c939ed"
+             data-type="feature"
+             data-status="in-progress"
+             data-priority="high"
+             data-created="2026-10-18T22:52:31.226396"
+             data-updated="2026-10-18T22:52:31.43303" data-agent-assigned="claude-code" data-track-id="trk-0677c709" data-created-by-agent="claude-code" data-created-by-cli-version="0.70.2-7-g160ae1b84" data-created_in_session="e41f6acf-9ecd-5cf8-846b-fbd1203fe65e">
+
+        <header>
+            <h1>Launcher picker: short start-or-continue menu</h1>
+            <div class="metadata">
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-0677c709.html" data-relationship="part_of" data-since="2026-10-18T22:52:31.239199">trk-0677c709</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="false" data-step-id="step-feat-02c939ed-0" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Read the picker code and tests</li>
+                <li data-completed="false" data-step-id="step-feat-02c939ed-1" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Fix claude-code harness normalization</li>
+                <li data-completed="false" data-step-id="step-feat-02c939ed-2" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Filter work-item rows to in-progress and 7 days and cap at 3</li>
+                <li data-completed="false" data-step-id="step-feat-02c939ed-3" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Last-session row from Claude transcripts</li>
+                <li data-completed="false" data-step-id="step-feat-02c939ed-4" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Browse-all row opens claude --resume</li>
+                <li data-completed="false" data-step-id="step-feat-02c939ed-5" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Update and add tests</li>
+                <li data-completed="false" data-step-id="step-feat-02c939ed-6" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Quality gates and PR</li>
+            </ol>
+        </section>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>The wipnote claude start-up picker lists every non-done work item touched in this project, with no age limit and no cap, and its session rows carry no prompt text, so users skip it and use /resume. Replace it with a short menu: Start something new; Continue last session (newest Claude transcript for this project, titled by its first prompt, resumed with --resume &lt;id&gt;); up to 3 in-progress work items active in the last 7 days; Browse all sessions (claude --resume with the plugin, Claude&#39;s native picker). Also fix: claude-code ledger rows normalized to claude so they resume instead of starting fresh; drop the stale latest-active-session fallback.</p>
+        </section>
+    </article>
+</body>
+</html>

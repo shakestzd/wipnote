@@ -606,6 +606,9 @@ type ResumableSession struct {
 	LastActivity     string `json:"last_activity"`
 	LastSessionID    string `json:"last_session_id"`
 	Live             bool   `json:"live"`
+	// Status is the work item's status (todo, in-progress, blocked, ...); the
+	// launcher picker offers only in-progress items. Empty for rows without one.
+	Status string `json:"status,omitempty"`
 }
 
 type HarnessGroupedResumableSessions struct {
@@ -615,9 +618,13 @@ type HarnessGroupedResumableSessions struct {
 	// deliberately bypasses the work_item_id and item_status gates the grouped
 	// listings apply, so a current session with no (or completed) work item is
 	// still offered. Nil when no current session can be resolved.
-	Current      *ResumableSession  `json:"current,omitempty"`
-	SameHarness  []ResumableSession `json:"same_harness"`
-	CrossHarness []ResumableSession `json:"cross_harness"`
+	Current *ResumableSession `json:"current,omitempty"`
+	// CurrentIsLast marks Current as the project's most recent session (read from
+	// the harness's own transcripts) rather than the session the launch runs
+	// inside, so the picker can label it "Continue last session".
+	CurrentIsLast bool               `json:"current_is_last,omitempty"`
+	SameHarness   []ResumableSession `json:"same_harness"`
+	CrossHarness  []ResumableSession `json:"cross_harness"`
 }
 
 // ListResumableSessions returns the most-recent session per incomplete work
@@ -804,6 +811,9 @@ normalized AS (
 		branch,
 		exec_worktree_path,
 		CASE
+			-- Older ledger rows record Claude as "claude-code"; they are Claude
+			-- sessions and must group (and resume) with the Claude harness.
+			WHEN LOWER(TRIM(harness)) IN ('claude-code', 'claude_code') THEN 'claude'
 			WHEN TRIM(harness) <> '' THEN LOWER(TRIM(harness))
 			WHEN LOWER(TRIM(agent_assigned)) LIKE '%antigravity%' THEN 'antigravity'
 			WHEN LOWER(TRIM(agent_assigned)) LIKE '%gemini%' THEN 'gemini'
@@ -845,7 +855,8 @@ SELECT
 		ELSE 0
 	END AS live,
 	agent_assigned,
-	harness_group
+	harness_group,
+	item_status
 FROM ranked
 WHERE row_num = 1
 ORDER BY harness_group ASC, last_activity DESC, work_item_id`, targetHarness, targetHarness, cutoff)
@@ -871,6 +882,7 @@ ORDER BY harness_group ASC, last_activity DESC, work_item_id`, targetHarness, ta
 			&live,
 			&agentAssigned,
 			&harnessGroup,
+			&item.Status,
 		); err != nil {
 			return grouped, fmt.Errorf("scan grouped resumable session: %w", err)
 		}
@@ -1079,7 +1091,11 @@ LIMIT 10`, sessionID, sessionID, sessionID)
 }
 
 func normalizeSessionHarness(raw, agentAssigned string) string {
-	if raw != "" {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "claude-code", "claude_code":
+		return "claude"
+	case "":
+	default:
 		return raw
 	}
 	v := strings.ToLower(strings.TrimSpace(agentAssigned))
