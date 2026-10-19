@@ -1,6 +1,14 @@
 {
   "name": "wipnote-orchestra",
   "version": "0.1.0",
-  "description": "A powerline-style band above the prompt: dir, git, context, cost, active work items and every subagent's live progress.",
-  "types": "./types/index.d.ts"
+  "description": "A powerline-style band under the prompt: usage limits, repo, git, model, context, wipnote work items and tracks, and every subagent's live progress.",
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "timeZone": {
+      "type": "string",
+      "title": "Time zone",
+      "description": "IANA time zone for the clock segment and the usage-limit reset times, such as America/New_York or Europe/London. An unknown zone falls back to America/New_York.",
+      "default": "America/New_York"
+    }
+  }
 }

@@ -13,6 +13,7 @@ export type BandData = {
   cards: WorkCard[]
   doing: string | null
   at: number
+  zone: string
 }
 
 export type BandRoom = {
@@ -57,6 +58,7 @@ function segmentsOf(
   cards: readonly WorkCard[],
   live: number,
   at: number,
+  zone: string,
 ): Segment[] {
   const out: Segment[] = []
   if (info !== null) {
@@ -85,14 +87,14 @@ function segmentsOf(
   if (live > 0) {
     out.push({ text: ` ◉ ${live} agent${live === 1 ? '' : 's'} `, bg: '#005f87', fg: '#ffffff' })
   }
-  if (at > 0) out.push({ text: ` \uF017 ${localTime(at)} `, bg: '#303030', fg: '#d0d0d0' })
+  if (at > 0) out.push({ text: ` \uF017 ${localTime(at, zone)} `, bg: '#303030', fg: '#d0d0d0' })
   return out
 }
 
 /** The band's tree, or null with nothing to show; drawn above or below the prompt alike. */
 export function drawBand({ Box, Text }: Elements, data: BandData, room: BandRoom) {
   const live = data.list.filter(row => isLive(row.status)).length
-  const segs = segmentsOf(data.info, data.work, data.cards, live, data.at)
+  const segs = segmentsOf(data.info, data.work, data.cards, live, data.at, data.zone)
   if (segs.length === 0) return null
 
   const draw = (key: string, spans: readonly Span[]) => (
@@ -107,7 +109,7 @@ export function drawBand({ Box, Text }: Elements, data: BandData, room: BandRoom
   const lines = wrapSegments(segs, room.width).map(lineSpans)
   const last = lines.at(-1)
   if (last !== undefined && room.isWorking && data.doing !== null) last.push({ text: ` ▶ ${data.doing}`, dim: true })
-  const limits = room.isCompact ? [] : limitSpans(data.info?.limits ?? [], data.at)
+  const limits = room.isCompact ? [] : limitSpans(data.info?.limits ?? [], data.at, data.zone)
   const bar = [...(limits.length > 0 ? [limits] : []), ...lines].map((spans, i) => draw(`line-${i}`, spans))
   if (room.isCompact || data.list.length === 0) return <Box flexDirection="column">{bar}</Box>
 

@@ -190,9 +190,9 @@ export function pillIndent(permissionMode: string | null, hint: string): number 
 /** One powerline segment: its text with a cell of padding each side, and its colors. */
 export type Segment = { text: string; bg: string; fg: string }
 
-export const CAP_LEFT = ''
-export const CAP_RIGHT = ''
-export const ARROW = ''
+export const CAP_LEFT = '\uE0B6'
+export const CAP_RIGHT = '\uE0B4'
+export const ARROW = '\uE0B0'
 
 /**
  * Lays segments into as few lines as `width` allows, breaking only between segments. A line is
@@ -233,8 +233,19 @@ export function lineSpans(line: readonly Segment[]): Span[] {
   return spans
 }
 
-/** The person's own zone: the container runs on UTC, the person on US Eastern (DST included). */
+/** The default zone, and the manifest's `timeZone` default: the container runs on UTC, the person on US Eastern (DST included). */
 export const TIME_ZONE = 'America/New_York'
+
+/** The `timeZone` option when Intl knows it, else TIME_ZONE, so a typo cannot throw while drawing. */
+export function zoneOf(option: unknown): string {
+  if (typeof option !== 'string' || option.trim() === '') return TIME_ZONE
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: option.trim() })
+    return option.trim()
+  } catch {
+    return TIME_ZONE
+  }
+}
 
 /** `6:28 PM` in `zone`, the 12-hour form the person's prompt uses. */
 export function localTime(ms: number, zone: string = TIME_ZONE): string {
@@ -292,13 +303,13 @@ export function resetLabel(iso: string, now: number, zone: string = TIME_ZONE): 
 }
 
 /** The usage-limits row: each window's used share, colored by how close it is, and when it resets. */
-export function limitSpans(limits: readonly Limit[], now: number): Span[] {
+export function limitSpans(limits: readonly Limit[], now: number, zone: string = TIME_ZONE): Span[] {
   if (limits.length === 0) return []
   const spans: Span[] = [{ text: ' \uF0E4 ', dim: true }]
   limits.forEach((limit, i) => {
     const pct = Math.round(limit.percentUsed)
     const color = pct >= 80 ? '#d70000' : pct >= 50 ? '#d7af00' : '#5faf00'
-    const reset = limit.resetsAt === undefined ? '' : resetLabel(limit.resetsAt, now)
+    const reset = limit.resetsAt === undefined ? '' : resetLabel(limit.resetsAt, now, zone)
     if (i > 0) spans.push({ text: '   ' })
     spans.push({ text: `${LIMIT_LABELS[limit.kind] ?? limit.kind} `, dim: true })
     spans.push({ text: `${pct}%`, color, bold: true })

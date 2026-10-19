@@ -60,3 +60,17 @@ test('the band sits below the prompt, keeps the hint, and /orchestra above moves
     await below.unmount()
   }
 })
+
+for (const [zone, shown] of [['UTC', '10:28 PM'], [undefined, '6:28 PM']] as const) {
+  test(`the clock segment reads the timeZone option (${zone ?? 'default'})`, zone === undefined ? {} : { options: { timeZone: zone } }, async ($, on) => {
+    mock.clock(on, { now: Date.UTC(2026, 9, 18, 22, 28) })
+    on('session.start', (_$, e) => ({ cwd: e.cwd }))
+    on('command.register', (_$, e) => ({ value: { command: e.name } }))
+    await $.session.start({ cwd: '/tmp', surface: null, isInteractive: true })
+    for (const surface of ['terminal', 'desktop'] as const) {
+      const ui = await $.ui.mount({ ...BAND, surface })
+      expect(await ui.find({ type: 'Text', text: new RegExp(shown) })).toBeDefined()
+      await ui.unmount()
+    }
+  })
+}

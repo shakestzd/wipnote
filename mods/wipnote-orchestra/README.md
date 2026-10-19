@@ -1,4 +1,4 @@
-# wipnote-orchestra
+# wipnote-orchestra (dev mod)
 
 A Claude Code mod (function hooks) that turns the line under the prompt into an orchestration band: where you are, what is being worked on, and what every subagent is doing right now.
 
@@ -34,7 +34,7 @@ Segments are powerline-style with rounded caps and **wrap between segments** to 
 ## Files
 
 ```
-.claude-plugin/plugin.json   manifest (name, types contract)
+.claude-plugin/plugin.json   manifest (name, types contract, timeZone option)
 hooks/hooks.json             { "modules": ["./register.tsx"] }
 hooks/register.tsx           hooks: session.start timer, agent.spawn, tool.call, classic.* (permission mode), ui.render
 hooks/band.tsx               the band's tree (pure: data + room → elements)
@@ -43,22 +43,43 @@ types/index.d.ts             $.state contract (PluginState['wipnote-orchestra'])
 tests/*.test.ts(x)           claude plugin test suites (pure helpers + mounted band on terminal and desktop)
 ```
 
-## Run and check
+## Run it
 
 ```bash
-claude --plugin-dir <path>/wipnote-orchestra          # load for one session
-claude plugin validate <path>/wipnote-orchestra
-claude plugin test <path>/wipnote-orchestra           # 16 tests
-tsc -p <path>/wipnote-orchestra                       # once loaded, the engine lays .claude-plugin/types/
+claude --plugin-dir mods/wipnote-orchestra
 ```
 
-Built and verified against Claude Code 2.1.292 (the function-hooks API is early access and moves between releases).
+Mods draw only where Claude Code itself draws: a local terminal or a local desktop
+session. A cloud session viewed in the Claude app has no drawing surface, so the band
+does not show there.
 
-## Known limits and settings
+## Check it
 
-- **Time zone** is fixed in `hooks/model.ts` (`TIME_ZONE = 'America/New_York'`); the container it was built in runs UTC. Candidate for a `userConfig` option.
+```bash
+claude plugin validate mods/wipnote-orchestra
+claude plugin test mods/wipnote-orchestra     # 19 tests
+tsc -p mods/wipnote-orchestra                 # after a load lays .claude-plugin/types/
+```
+
+Built on Claude Code 2.1.292 and checked on 2.1.303. The function-hooks API is early
+access and changes between releases. `.claude-plugin/types/` is generated on each load
+and is not committed.
+
+It is not yet part of the generated plugin tree; shipping mods needs `build-ports` support.
+
+## Settings
+
+| Option | Default | Effect |
+|---|---|---|
+| `timeZone` | `America/New_York` | IANA zone for the clock segment and the usage-limit reset times. An unknown zone falls back to the default. |
+
+Set it in `/config`, or in settings under `pluginConfigs["wipnote-orchestra"].options`
+(`wipnote-orchestra@inline` for a `--plugin-dir` load).
+
+## Known limits
+
 - **Mode pill alignment**: Claude Code draws the permission-mode pill beside the mod's tree, so the band rows are shifted left by the pill's width, computed from `permission_mode` (classic hook events). It is learned on the next prompt or tool call, so after shift+tab between two non-default modes the indent can lag by a cell or two.
 - **Usage limits** appear only with a subscription sign-in (an API key reports no windows) and after the first API response.
-- **Glyphs** need a Nerd Font (powerline arrows/caps `  `, branch ``, clock ``, gauge ``). Write them as `\u` escapes, never literal: a byte-level edit tool once double-encoded the file and the engine refused the tree.
+- **Glyphs** need a Nerd Font: powerline arrow and caps U+E0B0, U+E0B4, U+E0B6; branch U+E0A0; clock U+F017; gauge U+F0E4. The example above shows them as spaces. Write them as `\u` escapes in code, never literal: a byte-level edit tool once double-encoded the file and the engine refused the tree.
 - **Colors**: hex colors fall back to the 16 ANSI colors when the terminal advertises none (`TERM=xterm`, no `COLORTERM`); set `COLORTERM=truecolor`.
 - **State keys** are under the plugin name `wipnote-orchestra`: the `atom({ plugin: 'wipnote-orchestra', … })` refs in hooks/register.tsx and the `PluginState` key in types/index.d.ts change together with the manifest's `name`. The slash command stays `/orchestra`.

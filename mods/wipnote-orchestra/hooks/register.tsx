@@ -18,6 +18,7 @@ import {
   shortDir,
   visibleAgents,
   workItemIn,
+  zoneOf,
 } from './model'
 
 const prompt = atom({ plugin: 'wipnote-orchestra', key: 'prompt' } as const, null)
@@ -114,7 +115,7 @@ async function refreshCards($: EngineInterface) {
   await update($, cards, () => next)
 }
 
-async function bandData($: EngineInterface): Promise<BandData> {
+async function bandData($: EngineInterface, zone: string): Promise<BandData> {
   const [info, rows, work, known, doing, at] = await Promise.all([
     read($, prompt),
     read($, agents),
@@ -123,10 +124,11 @@ async function bandData($: EngineInterface): Promise<BandData> {
     read($, mainTool),
     read($, now),
   ])
-  return { info, list: visibleAgents(rows, at, KEEP_DONE_MS), work, cards: known, doing, at }
+  return { info, list: visibleAgents(rows, at, KEEP_DONE_MS), work, cards: known, doing, at, zone }
 }
 
-export const register: Register = on => {
+export const register: Register = (on, options) => {
+  const zone = zoneOf(options.timeZone)
   const pending = new Map<string, Hint>()
 
   on('session.start', async ($, e, next) => {
@@ -259,7 +261,7 @@ export const register: Register = on => {
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     const [shown, where] = await Promise.all([read($, mode), read($, placement)])
     if (e.props.hasSurvey || shown === 'off' || where !== 'above') return next(e)
-    const tree = drawBand($.ui.resolve(e), await bandData($), {
+    const tree = drawBand($.ui.resolve(e), await bandData($, zone), {
       width: e.props.bodyColumns,
       maxRows: e.props.maxRows,
       isWorking: e.props.isWorking,
@@ -272,7 +274,7 @@ export const register: Register = on => {
     const [shown, where] = await Promise.all([read($, mode), read($, placement)])
     if (shown === 'off' || where !== 'below') return next(e)
     const els = $.ui.resolve(e)
-    const tree = drawBand(els, await bandData($), {
+    const tree = drawBand(els, await bandData($, zone), {
       width: Math.max(20, (e.viewport?.columns ?? 100) - 2),
       maxRows: Math.max(2, Math.floor((e.viewport?.rows ?? 30) / 4) - 1),
       isWorking: e.props.isWorking,

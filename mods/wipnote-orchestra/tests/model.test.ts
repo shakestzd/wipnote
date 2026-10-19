@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { applyWipnote, baseName, describeCall, limitSpans, lineSpans, localTime, modelLabel, pillIndent, wrapSegments, elapsed, parseGitStatus, shortDir, visibleAgents, workItemIn } from '../hooks/model'
+import { applyWipnote, baseName, describeCall, limitSpans, lineSpans, localTime, modelLabel, pillIndent, wrapSegments, elapsed, parseGitStatus, shortDir, visibleAgents, workItemIn, zoneOf } from '../hooks/model'
 
 test('tracks wipnote work items started and completed in shell commands', async () => {
   const started = applyWipnote([], 'wipnote feature start feat-1234abcd && wipnote bug start bug-99aa00ff')
@@ -59,8 +59,8 @@ test('wraps segments between segments to the width, with rounded caps on every l
   expect(narrow.map(line => line.map(s => s.text.trim()))).toEqual([['ionna-rca', 'main !3'], ['Opus 5.5', 'ctx 33%']])
   for (const line of narrow) {
     const spans = lineSpans(line)
-    expect(spans[0]?.text).toBe('')
-    expect(spans.at(-1)?.text).toBe('')
+    expect(spans[0]?.text).toBe('\uE0B6')
+    expect(spans.at(-1)?.text).toBe('\uE0B4')
     expect(width(spans)).toBeLessThanOrEqual(26)
   }
   const [only] = wrapSegments([seg('a-very-long-branch-name-that-cannot-fit')], 20)
@@ -85,4 +85,15 @@ test('the usage-limits row shows each window, colored by use, with its local res
   expect(text).toBe(' \uF0E4 5h 42% resets 9:40 PM   7d 83% resets Fri 3:00 PM')
   expect(spans.find(s => s.text === '83%')?.color).toBe('#d70000')
   expect(limitSpans([], now)).toEqual([])
+})
+
+test('the timeZone option sets the zone, and an unknown zone falls back to US Eastern', async () => {
+  expect(zoneOf('Europe/London')).toBe('Europe/London')
+  expect(zoneOf(' UTC ')).toBe('UTC')
+  expect(zoneOf('Not/A_Zone')).toBe('America/New_York')
+  expect(zoneOf('')).toBe('America/New_York')
+  expect(zoneOf(undefined)).toBe('America/New_York')
+  expect(localTime(Date.UTC(2026, 9, 18, 22, 28), 'UTC')).toBe('10:28 PM')
+  const spans = limitSpans([{ kind: 'five_hour', percentUsed: 10, resetsAt: '2026-10-19T01:40:00Z' }], Date.UTC(2026, 9, 18, 23, 37), 'UTC')
+  expect(spans.map(s => s.text).join('')).toBe(' \uF0E4 5h 10% resets 1:40 AM')
 })
