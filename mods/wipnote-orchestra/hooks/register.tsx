@@ -4,6 +4,8 @@ import type { EngineInterface, Register } from 'claude-code'
 import type { AgentRow, Mode, PromptInfo, WorkCard } from '../types'
 import type { BandData } from './band'
 import { drawBand } from './band'
+import { hydrate, refreshAfterTurn, registerRefs, storeCard, wipnoteJSON } from './refcards'
+import { parseWho } from './refs'
 import {
   applyWipnote,
   baseName,
@@ -30,6 +32,7 @@ const now = atom({ plugin: 'wipnote-orchestra', key: 'now' } as const, 0)
 const mode = atom({ plugin: 'wipnote-orchestra', key: 'mode' } as const, 'full')
 const placement = atom({ plugin: 'wipnote-orchestra', key: 'placement' } as const, 'below')
 const permissionMode = atom({ plugin: 'wipnote-orchestra', key: 'permissionMode' } as const, null)
+const claim = atom({ plugin: 'wipnote-orchestra', key: 'claim' } as const, null)
 
 const KEEP_DONE_MS = 90_000
 
@@ -93,7 +96,7 @@ async function reconcileAgents($: EngineInterface, at: number, hints: ReadonlyMa
 
 /** Titles, status and track progress for the work items in view: the session's own and the agents'. */
 async function refreshCards($: EngineInterface) {
-  const [work, rows] = await Promise.all([read($, items), read($, agents)])
+  const [work, rows] = await Promise.all([activeItems($), read($, agents)])
   const ids = [...new Set([...work, ...rows.map(row => row.workItem).filter((id): id is string => id !== undefined)])]
   const found: WorkCard[] = []
   for (const id of ids.slice(0, 12)) {
@@ -101,7 +104,9 @@ async function refreshCards($: EngineInterface) {
     if (argv === undefined) continue
     const ran = await $.process.run(argv, { timeoutMs: 5000 }).catch(() => undefined)
     const item = ran?.exitCode === 0 ? parseItemJson(ran.stdout) : undefined
-    if (item !== undefined) found.push({ id, ...item })
+    if (item === undefined || ran === undefined) continue
+    found.push({ id, ...item })
+    await storeCard($, id, ran.stdout)
   }
   const tracks = new Map<string, ReturnType<typeof parseTrackText>>()
   for (const trackId of new Set(found.map(card => card.trackId).filter((id): id is string => id !== undefined))) {
@@ -115,11 +120,27 @@ async function refreshCards($: EngineInterface) {
   await update($, cards, () => next)
 }
 
+/**
+ * The session's claimed work item (`wipnote who`). When `who` cannot be read
+ * the last claim stays: an unknown claim is not "no claim".
+ */
+async function refreshClaim($: EngineInterface) {
+  const who = await wipnoteJSON($, ['wipnote', 'who', '--json'])
+  const id = who.ok ? parseWho(who.stdout) : null
+  if (id !== null) await update($, claim, () => (id === '' ? null : id))
+}
+
+/** The work items in view: the session's claim first, then the ones shell commands started. */
+async function activeItems($: EngineInterface): Promise<string[]> {
+  const [claimed, started] = await Promise.all([read($, claim), read($, items)])
+  return claimed === null ? started : [claimed, ...started.filter(id => id !== claimed)]
+}
+
 async function bandData($: EngineInterface, zone: string): Promise<BandData> {
   const [info, rows, work, known, doing, at] = await Promise.all([
     read($, prompt),
     read($, agents),
-    read($, items),
+    activeItems($),
     read($, cards),
     read($, mainTool),
     read($, now),
@@ -138,6 +159,8 @@ export const register: Register = (on, options) => {
       argumentHint: 'full|compact|off|above|below',
     })
     await refreshPrompt($).catch(() => undefined)
+    void refreshClaim($).catch(() => undefined)
+    void hydrate($).catch(() => undefined)
     const started = await $.clock.now()
     await update($, now, () => started)
     let tick = 0
@@ -255,8 +278,22 @@ export const register: Register = (on, options) => {
   on('turn.complete', async ($, e, next) => {
     await update($, mainTool, () => null)
     await refreshPrompt($).catch(() => undefined)
+    void refreshClaim($).catch(() => undefined)
+    refreshAfterTurn($)
     return next(e)
   })
+
+  // /resume, /branch and /clear swap the conversation, but session.start does
+  // not fire again; the settings SessionStart does.
+  on('classic.SessionStart', async ($, e, next) => {
+    if (e.source !== 'startup') {
+      void refreshClaim($).catch(() => undefined)
+      void hydrate($).catch(() => undefined)
+    }
+    return next(e)
+  })
+
+  registerRefs(on)
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     const [shown, where] = await Promise.all([read($, mode), read($, placement)])

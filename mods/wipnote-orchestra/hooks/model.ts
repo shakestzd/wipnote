@@ -260,17 +260,26 @@ export function showArgv(id: string): string[] | undefined {
   return kind === undefined ? undefined : ['wipnote', kind, 'show', id, '--format', 'json']
 }
 
-/** A work item's title, status and track from `wipnote <kind> show --format json`. */
-export function parseItemJson(text: string): { title: string; status: string; trackId?: string } | undefined {
+/** A work item's title, status, track and step progress from `wipnote <kind> show --format json`. */
+export function parseItemJson(
+  text: string,
+): { title: string; status: string; trackId?: string; stepsDone?: number; stepsTotal?: number } | undefined {
   try {
     const item = JSON.parse(text) as {
       title?: unknown
       status?: unknown
+      steps?: unknown
       edges?: { part_of?: { target_id?: unknown }[] }
     }
     if (typeof item.title !== 'string') return undefined
     const track = item.edges?.part_of?.map(edge => edge.target_id).find(id => typeof id === 'string' && id.startsWith('trk-'))
-    return { title: item.title, status: String(item.status ?? ''), trackId: track as string | undefined }
+    const steps = Array.isArray(item.steps) ? (item.steps as { completed?: unknown }[]) : []
+    return {
+      title: item.title,
+      status: String(item.status ?? ''),
+      trackId: track as string | undefined,
+      ...(steps.length > 0 ? { stepsDone: steps.filter(step => step.completed === true).length, stepsTotal: steps.length } : {}),
+    }
   } catch {
     return undefined
   }
