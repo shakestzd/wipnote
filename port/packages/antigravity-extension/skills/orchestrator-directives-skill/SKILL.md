@@ -1,15 +1,15 @@
 ---
 name: Orchestrator Directives Skill
-description: Rules for the wipnote orchestrator role - which agent gets a task, subagent briefs, parallel dispatch, stalled agents.
+description: Rules for the wipnote orchestrator role: which agent gets a task, subagent briefs, parallel dispatch, stalled agents. Use when delegating work to subagents.
 ---
 
 # Orchestrator Directives
 
-You coordinate; subagents execute. Delegation keeps retries, hook failures, and merge conflicts out of your context. Detailed examples, spawner commands, and long-form procedures are in [reference.md](./reference.md). The always-loaded system prompt already covers work tracking, batching, and step tracking.
+You coordinate; subagents execute. Delegation keeps retries, hook failures, and merge conflicts out of your context. Detailed examples, sidecar commands, and long-form procedures are in [reference.md](./reference.md). The always-loaded system prompt already covers work tracking, batching, and step tracking.
 
 ## Harness-Aware Research Delegation Contract
 
-Web/docs research and multi-file codebase exploration are tactical work. They MUST run in a sidecar context, not in the main orchestrator context, whenever a dispatch surface exists. Research-first means dispatching a researcher, the native code explorer, or an external CLI sidecar before committing to an approach, not researching broadly yourself (it burns the context you need for decisions).
+Web/docs research and multi-file codebase exploration are tactical work. They MUST run in a sidecar context, not in the main orchestrator context, whenever a sidecar is available. Research-first means dispatching a sidecar (researcher, the native code explorer, or an external CLI) before committing to an approach, not researching broadly yourself (it burns the context you need for decisions).
 
 Inspect the active harness first:
 
@@ -17,9 +17,9 @@ Inspect the active harness first:
 - **Codex**: when `multi_agent_v1` or native `wipnote-*` custom agents are exposed, prefer them (`explorer`, `wipnote-researcher`, `wipnote-patch-coder`, `wipnote-feature-coder`, `wipnote-test-runner`); use nested `codex exec` only when they are unavailable.
 - **Antigravity**: harness-native multi-agent or custom-agent spawn.
 - **External CLI sidecar**: `agy`, `codex exec`, or another documented CLI when native dispatch is unavailable and the sidecar fits the task.
-- **No dispatch surface**: stop and report `delegation unavailable in this harness/session`; do not quietly turn broad research into main-context work.
+- **No sidecar**: stop and report `delegation unavailable in this harness/session`; do not quietly turn broad research into main-context work.
 
-Do not use main-context `web.search_query`, `web.open`, or broad local glob/search loops for docs gathering or repository exploration when a sidecar is expected. Narrow exceptions (keep them minimal and record why): the user asks you to verify one fact, no sidecar exists for a required latest-fact check, or one confirmation after a sidecar failed.
+Do not use main-context `web.search_query` / `web.open` (Codex), `WebSearch` / `WebFetch` (Claude Code), or broad local glob/search loops for docs gathering or repository exploration when a sidecar is expected. Narrow exceptions (keep them minimal and record why): the user asks you to verify one fact, no sidecar exists for a required latest-fact check, or one confirmation after a sidecar failed.
 
 ## Choosing the executor
 
@@ -34,7 +34,7 @@ Do not use main-context `web.search_query`, `web.open`, or broad local glob/sear
 | Commits, PRs, branches | `copilot` CLI if installed, else `patch-coder` | git operations cascade (hooks, conflicts) and belong in a subagent |
 | Code generation outside Claude | `codex exec` (or native Codex agents) | fall back to feature-coder if unavailable |
 
-Each external CLI is optional: if it is missing or fails, dispatch the in-harness agent rather than retrying. Treat `codex exec` sandbox errors ("bwrap", "bubblewrap", "Operation not permitted", "cannot create namespace") as permanent for the session. Spawner command lines are in reference.md.
+Each external CLI is optional: if it is missing or fails, dispatch the in-harness agent rather than retrying. Treat `codex exec` sandbox errors ("bwrap", "bubblewrap", "Operation not permitted", "cannot create namespace") as permanent for the session. Sidecar command lines are in reference.md.
 
 Read short files (≤200 lines, or one targeted offset/limit range) directly when you need exact text to decide. Delegate long files, multi-file reads and exploration to a subagent (for code, the native explorer: `Explore` on Claude Code, `explorer` on Codex, `researcher` on Antigravity) to keep your context for coordination. Never `Edit`/`Write` yourself.
 
@@ -69,13 +69,9 @@ Source edits by concurrent agents belong in per-agent worktrees, never the share
 
 ## When an agent returns
 
-**Budget-paused agents.** A non-final return (mid-step, no summary, SHA, or deliverable list) is a runtime pause, not a failure or a finish. Resume the same agent (Claude Code: `SendMessage` to its `agentId`) with the exact remaining deliverables; a fresh dispatch loses its context. Expect 2-3 resumes.
+**Budget-paused agents.** A non-final return (mid-step, no summary, SHA, or deliverable list) is a runtime pause, not a failure or a finish. Resume the same agent with the exact remaining deliverables; a fresh dispatch loses its context. Procedure in reference.md.
 
-**Completing delegated work.** A subagent's gate record is session-local and its commits are not auto-linked (bug-3718b630), so completion needs two things from you: run `wipnote check --gate --work-item <id>` yourself, then complete with the real commit SHAs in the rationale, as separate calls:
-```bash
-wipnote feature complete <id> --accepted-advisory "Subagent implementation verified. Commits: <sha1>, <sha2>."
-```
-Capture durable learnings with `--learning "<max 120 words>" --learning-kind <kind>` or `wipnote arch add`; act on drift-suspect cards with `wipnote arch verify|edit <slug>` (see reference.md).
+**Completing delegated work.** The subagent runs `complete` after its gate passes. If the item is already done, skip. Otherwise run the gate yourself and complete with `--accepted-advisory` and the real commit SHAs: a subagent's gate record is session-local and its commits are not auto-linked (bug-3718b630). Procedure in reference.md. Capture durable learnings with `--learning "<max 120 words>" --learning-kind <kind>` or `wipnote arch add`; act on drift-suspect cards with `wipnote arch verify|edit <slug>` (see reference.md).
 
 ## Hooks and edge cases
 
@@ -85,5 +81,5 @@ Capture durable learnings with `--learning "<max 120 words>" --learning-kind <ki
 
 ## More
 
-- [reference.md](./reference.md): spawner commands, brief examples, budget-pause and completion-gate detail, git isolation, arch-memory procedures, agent-team details.
+- [reference.md](./reference.md): sidecar commands, brief examples, budget-pause and completion-gate detail, git isolation, arch-memory procedures, agent-team details.
 - `/wipnote:code-quality-skill`: quality gates and pre-commit workflow.

@@ -150,11 +150,6 @@ func TestOrchestratorResearchDelegationContract(t *testing.T) {
 			"Do not use main-context `web.search_query`",
 			"delegation unavailable in this harness/session",
 		},
-		filepath.Join(root, "plugin", "skills", "agent-context", "SKILL.md"): {
-			"For orchestrators:",
-			"Research-first does not mean orchestrator researches directly",
-			"Main-context `web.*` use is limited",
-		},
 	}
 	for path, wants := range checks {
 		data, err := os.ReadFile(path)

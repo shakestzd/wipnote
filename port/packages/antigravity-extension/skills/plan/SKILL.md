@@ -1,6 +1,6 @@
 ---
 name: wipnote:plan
-description: Plan development work using a triage-gated, blocks-first interview. Classify scope as trivial/standard/complex, then run 0/3/4 staged interview rounds through the current harness native ask-user tool when available, or plain conversation when it is not. Each stage elicits the VISUAL block first (file-tree, data-model, wireframe/diagram) and derives the prose slice fields (what/why/done_when) from it — blocks are authored inline as the YAML is built, not in a post-pass. Produces slice-card YAML with grounded visual blocks and visible research provenance for external claims; pauses for human review; promotes approved slices to features. Use when asked to plan, create a development plan, or build a feature with design clarity first.
+description: Plans development work through a triage-gated, blocks-first interview that produces slice-card YAML with grounded visual blocks and cited research, then takes slices through review and promotion. Use when asked to plan, scope, or design a feature before building it.
 disable-model-invocation: true
 ---
 
@@ -92,27 +92,18 @@ Never leave research silently empty; use `research_waiver:` with the reason. Mar
 
 Each stage elicits the VISUAL block FIRST, then derives prose from it. The block is authored INLINE into the slice's `blocks:` field as the YAML is built — never as a later pass.
 
-| Stage | Author this block FIRST | Then derive these prose fields | Typical AUQ shape |
+| Stage | Author this block FIRST | Then derive these prose fields | Typical ask-user question |
 |---|---|---|---|
 | 1. Requirements | `wireframe`/`diagram` (UI/flow work only; skip for non-visual slices) | `why`, `what` (from the sketched surface/flow), `decisions_notes` (rationale half) | "Sketch the user-visible surface/flow. What problem does it solve, for whom?" |
 | 2. Scope & state | `file-tree` of the real files this slice touches (new + edited) | `files`, `what` (scope half) — read straight off the tree | "List the files. Where does the state live? Any cross-slice ordering?" |
-| 3. API / contract | `data-model` (typed columns; model each request/response body as an entity and put the method+path in the block's `name` field, which is the heading the renderer shows; a data-model's `title` is not rendered) | `what` (contract half), `done_when` (per route/entity), `decisions_notes` (interface picks) | "Author the entity. What's the firing rule? What does the response carry?" |
+| 3. API / contract | `data-model` (typed columns; one entity per request/response body, method+path in `name`) | `what` (contract half), `done_when` (per route/entity), `decisions_notes` (interface picks) | "Author the entity. What's the firing rule? What does the response carry?" |
 | 4. Done-when | (no new block — anchor acceptance criteria to the blocks above) | `done_when`, `tests`, `effort`, `risk` | "How will you tell each block's behavior works? Which existing tests must still pass?" |
 
 **Derivation, not duplication:** prose restates the block and must stay consistent with it. If a stage has no natural visual artifact, say so and go straight to prose; never invent a block. Keep `what` under 56 words (a hard cap, see Prose-Length Caps). Each stage is the block-authoring step plus 1-3 questions in one ask-user call or one compact chat question set.
 
-### Block-authoring prep (read the live catalog once, up front)
+### Block authoring
 
-Run `wipnote plan blocks` for the supported block types and required fields; never hardcode them. `wipnote plan interview-questions <plan-id> <slice-num>` emits, per stage, a `blocks` array (`type`, catalog `description`, and a `prompt`); render those prompts alongside the stage questions.
-
-### Grounding rule (enforced discipline)
-
-A block is grounded when every field, route, and file path it names already exists or will exist as a direct output of this slice. Never invent schema, routes, or files; skip an ungroundable block type and note why in `decisions_notes`.
-
-- `data-model` rows: real or will-exist field names/types.
-- `data-model` named with a route (e.g. `name: POST /api/ingest — 429 response`): the method/path must be a route the slice will actually implement.
-- `file-tree` entries: real files the slice touches.
-- `wireframe` HTML: `var(--wf-*)` design tokens only — never raw hex/rgb.
+Before authoring any block, follow [BLOCK_GROUNDING.md](BLOCK_GROUNDING.md). It covers the live catalog (`wipnote plan blocks`) and the grounding rules. `wipnote plan interview-questions <plan-id> <slice-num>` emits a `blocks` array per stage; show its prompts with the stage questions.
 
 ### Triage gating for blocks (the blocks gate)
 
@@ -130,57 +121,11 @@ slices:
       blocks_waiver: refactor-only slice, nothing to ground a block against.
 ```
 
-### Rendering the interview (cross-harness)
+### Rendering the interview
 
-The questions have one canonical source, the binary; render them with the lowest-friction mechanism the current harness supports:
+Use the native ask-user tool, one call per stage. If the harness has no such tool (e.g. Codex), or you need the web form or a custom `--questions` set, read [INTERVIEW_RENDERING.md](INTERVIEW_RENDERING.md). It also covers how to persist answers.
 
-    wipnote plan interview-questions <plan-id>            # upfront: triage + problem/goals/constraints
-    wipnote plan interview-questions <plan-id> <slice-num>  # per-slice: template + the slice's open questions
-
-Render it by capability, in this preference order:
-
-1. **Native ask-user tool, inline** (Claude `AskUserQuestion`, Antigravity `ask_user` when exposed): one tool call per stage. Preferred.
-2. **Plain chat** where there is no ask-user tool (e.g. Codex): present each question and its options; the user answers in their reply. Triage is always asked this way or via the tool, never a form.
-3. **Web form (optional)**, only for a long complex interview or on request: `wipnote plan interview-questions … | wipnote plan interview … --questions -`. It blocks, persists on submit, and embeds the plan-review chat panel.
-
-Then **persist non-interactively** (the form does this itself; for the inline/conversational paths you write the answers):
-- Upfront intake → `wipnote plan set-design-yaml <plan> --problem … --goals … --constraints …`, then draft slice cards using the assessed complexity.
-- Per-slice → `wipnote plan elicit-decisions <plan> <slice> --scope … --decisions … --context …`.
-
-**Adaptive follow-ups** use the same channel: after persisting, ask gap questions for any unmet mandatory field or ambiguity. Nothing keeps state between rounds; you own the adaptivity.
-
-### Codex-compatible fallback
-
-Codex may not expose `AskUserQuestion`, Task tools, or Claude-style agent dispatch. In Codex:
-
-1. Ask triage and interview questions in plain chat, or infer answers from the supplied spec if the user explicitly asks you to proceed without more questions.
-2. Persist inferred/skipped answers in `decisions_notes` with labels such as `**Inferred:**` and `**Skipped:**` so reviewers can see where the interview was compressed.
-3. Run mandatory live web research before drafting slices, and record each finding in the structured `research:` fields (`design.research` + per-slice `research:`/`research_waiver:`).
-4. Validate locally with `wipnote plan validate-yaml <plan-id>` before requesting human review — for v4 plans this fails on any standard/complex slice missing `research:`/`research_waiver:` or a `design.research` basis.
-
-Generated plans must not depend on Claude-only model aliases or Task/AUQ tools, must be `v4` with cited `research:` or `research_waiver:` on every standard/complex slice, must record adopt-vs-build for every non-trivial component, and must name and explain any skipped interview stage in `decisions_notes`.
-
-**`--questions` JSON schema:**
-
-    {"stages": [
-      {"key": "scope", "title": "Scope & state", "bucket": "Scope",
-       "blocks": [
-         {"type": "file-tree", "description": "An ordered list of file paths the slice touches.",
-          "prompt": "FIRST author a file-tree block of the real files this slice touches; derive `files` and the scope half of `what` from it."}
-       ],
-       "questions": [
-         {"id": "scope.0", "header": "State", "type": "choice",
-          "prompt": "Where does the state live?",
-          "options": [{"label": "In .wipnote/ canonical files", "description": "HTML / plan YAML / ledgers — committed"}]}
-       ]}
-    ]}
-
-- `blocks` (optional, per stage): `type` (a key from `wipnote plan blocks`), catalog `description`, and a `prompt`; populated from the live catalog.
-- `bucket` ∈ `Scope` | `Decisions` | `Context`: routes answers into that `decisions_notes` subsection.
-- `type` ∈ `choice` (needs `options`, optional `multiSelect`) | `text` | `yesno`.
-- Question `id`s must be unique; answers compose into the same `### Scope` / `### Decisions` / `### Context` markdown as the AUQ path, so downstream commands behave identically regardless of renderer.
-
-### Example AUQs
+### Example ask-user questions
 
 Lead each stage with its block-authoring step, then ask its questions. Stage 1 example:
 
@@ -325,31 +270,10 @@ Then ask the user to run `/wipnote:plan-critique <plan-id>` for the design/feasi
 
 Then:
 
-```bash
-wipnote serve              # human reviews per-slice in dashboard
-wipnote plan read-feedback-yaml <plan-id>   # ingest feedback
-wipnote plan elicit-decisions <plan-id> <num> --scope ... --decisions ... --context ...
-wipnote plan promote-slice <plan-id> <num>  # creates feat-XXX
-wipnote spec generate <feat-id> --insert    # materialises spec section
-wipnote plan set-status <plan-id> completed # when all slices done
-```
-
----
-
-## Section-Naming Contract (load-bearing)
-
-State stored in `plan_feedback` uses these section keys — mirrored in
-`plan/planyaml/schema.go:43-55` and enforced by `validSectionRe` in
-`cmd/wipnote/api_plans.go`:
-
-| Key pattern | What it stores |
-|-------------|----------------|
-| `slice-<num>` | Slice-level approval (`action=approve`) and execution status (`action=set_execution_status`) |
-| `slice-<num>-question-<id>` | Answer to a slice-local question (`action=answer`) |
-| `design` | Design section approval |
-| `questions` | Plan-level question answers |
-
-The `answer-slice-question` command maps `<slice-num>` and `<question-id>` to the section key automatically.
+1. Human review: `wipnote serve`, then `wipnote plan read-feedback-yaml <plan-id>` to ingest feedback.
+2. For each approved slice, run `/wipnote:spec-from-slice <plan-id> <num>`. It captures decisions, and generates the spec once the slice is promoted.
+3. Promote: `wipnote plan promote-slice <plan-id> <num>` creates `feat-XXX`.
+4. When all slices are done: `wipnote plan set-status <plan-id> completed`.
 
 ---
 
@@ -375,4 +299,6 @@ The `answer-slice-question` command maps `<slice-num>` and `<question-id>` to th
 
 - `plugin/skills/plan-critique/SKILL.md` — dual-critic review pass (run after the plan is drafted)
 - `plugin/skills/visual-plan/SKILL.md` — enrichment only: add or revise blocks on an existing or legacy plan.
-- `plugin/skills/plan/LEGACY.md` — v1 plan compatibility notes (referenced by validator errors when an old plan is loaded)
+- `plugin/skills/plan/LEGACY.md` — v1 and v2 (pre-triage) plan compatibility and a validator-error cheatsheet.
+- `plugin/skills/plan/INTERVIEW_RENDERING.md` — interview rendering for harnesses without an ask-user tool, the web form, and the `--questions` schema.
+- `plugin/skills/plan/BLOCK_GROUNDING.md` — block grounding rules.

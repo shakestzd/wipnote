@@ -1,12 +1,23 @@
 # Orchestrator Directives - Reference
 
-Long-form detail for the decision rules in [SKILL.md](./SKILL.md): spawner commands, brief and delegation examples, budget-pause and completion-gate procedures, git isolation, architectural memory, and agent teams.
+Procedures for the rules in [SKILL.md](./SKILL.md).
 
-## Spawner details (external CLIs)
+## Contents
 
-External CLIs are optional sidecars; fall back to the in-harness agent when one is missing or fails. For nested `codex exec`, choose a small/fast model with `-m <model>` (check `codex --help` for current names; the flagship default is slower and costlier than most delegated tasks need).
+- [Sidecar commands (external CLIs)](#sidecar-commands-external-clis)
+- [Delegation patterns](#delegation-patterns)
+- [Subagent budget-pause handling](#subagent-budget-pause-handling)
+- [Completion gate for subagent-delegated code](#completion-gate-for-subagent-delegated-code)
+- [Known issues / environment](#known-issues--environment)
+- [Multi-agent git isolation](#multi-agent-git-isolation)
+- [Architectural memory](#architectural-memory)
+- [Agent teams vs subagents](#agent-teams-vs-subagents)
 
-Run headless sidecars lean, so they load nothing the task does not need: no saved session, no hooks, apps, browser or computer use for `codex exec`; `--safe-mode --no-session-persistence` for `claude -p` (`--safe-mode` needs Claude Code 2.1.302 or later and keeps the login; `--bare` needs an API key).
+## Sidecar commands (external CLIs)
+
+External CLIs are optional; fall back to the in-harness agent when one is missing or fails. For nested `codex exec`, choose a small/fast model with `-m <model>` (check `codex --help` for current names; the flagship default is slower and costlier than most delegated tasks need).
+
+Run headless sidecars lean, so they load nothing the task does not need: no saved session, no hooks, apps, browser or computer use for `codex exec`; `--safe-mode --no-session-persistence` for `claude -p` (`--safe-mode` needs a recent Claude Code and keeps the login; `--bare` needs an API key).
 
 ### Antigravity CLI — agy (research, exploration)
 ```bash
@@ -93,10 +104,11 @@ Some runtimes (notably the VS Code devcontainer / agent-teams runtime) pause a d
 
 ## Completion gate for subagent-delegated code
 
-Completing an item whose code a subagent wrote is double-gated, because subagent gate records are session-local and subagent commits are not auto-linked (bug-3718b630):
+The subagent runs `wipnote <kind> complete <id>` after its gate passes. If it was refused, the subagent reports its commit SHAs instead of retrying. Then:
 
-1. Run your own gate in the orchestrator session: `wipnote check --gate --work-item <id>`.
-2. Complete with the real commit SHAs in the rationale, as a separate call:
+1. Check the item: `wipnote <kind> show <id>`. If it is already done, stop.
+2. Run your own gate in the orchestrator session: `wipnote check --gate --work-item <id>`.
+3. Complete with the real commit SHAs in the rationale, as a separate call:
 ```bash
 git log --oneline --grep="feat-abc" | head -3
 wipnote feature complete feat-abc --accepted-advisory \
@@ -107,7 +119,7 @@ Cite SHAs from `git log`, never host paths. The durable fix belongs in the binar
 ## Known issues / environment
 
 - **Codex exec sandbox failures (bwrap/bubblewrap):** in devcontainers and Codespaces, nested `codex exec` can fail immediately ("bwrap", "bubblewrap", "Operation not permitted", "cannot create namespace"). Treat the environment as permanently incompatible for the session and delegate to in-harness agents; do not retry.
-- **Full Go suite is silent for minutes from cold:** `go test ./...` buffers per package. Budget 10+ minutes, or stream progress with `scripts/go-test-streaming.sh` / `go test -json`.
+- **Full Go suite is silent for minutes from cold:** see the Go suite notes in `/wipnote:code-quality-skill`.
 
 ---
 
@@ -135,7 +147,7 @@ Paste the output verbatim under `## Architectural context`. It is budget-capped 
 
 ### Post-completion distillation
 
-- **At completion (recommended):** `wipnote feature complete <id> --learning "Body, max 120 words." --learning-kind invariant` (or `hazard`, `decision`, `subsystem-map`). The learning is validated before the item is marked done; a failed validation aborts the completion.
+- **At completion (recommended):** `wipnote feature complete <id> --learning "Body, max 120 words." --learning-kind invariant` (or `hazard`, `decision`, `subsystem-map`). If the learning fails validation, wipnote warns and skips it; the completion still succeeds.
 - **Manual add:** `wipnote arch add <slug> --kind invariant --body "..." --paths "cmd/wipnote/**" --links <work-item-id> --created-by "agent"`.
 
 ### Post-completion nudge
@@ -150,7 +162,7 @@ Active cards are authoritative. UNVERIFIED cards (drift marker or empty `verifie
 
 ## Agent teams vs subagents
 
-Claude Code 2.1.32+ has experimental **agent teams** (`CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`): independent instances self-claim work from a shared task list and message each other.
+Claude Code has experimental **agent teams** (`CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`): independent instances self-claim work from a shared task list and message each other.
 
 | Dimension | Agent teams | Subagents |
 |-----------|-------------|-----------|

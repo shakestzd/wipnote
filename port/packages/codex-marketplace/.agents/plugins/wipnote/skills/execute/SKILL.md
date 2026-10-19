@@ -53,7 +53,7 @@ Use the preview payload as the source of truth.
 
 Treat linked features or bugs with pending status and no blockers as ready candidates. Keep blocked items out of the current dispatch set. Reuse the track title when describing the overall execution session.
 
-If the track does not yet have executable work items, stop and create or promote them first.
+If the track does not yet have executable work items, stop and create or promote them first. Attribute work to the `feat-…` id that `wipnote plan promote-slice` creates, never the plan's `slice-N` id.
 
 ## Step 2: Check File Overlap
 

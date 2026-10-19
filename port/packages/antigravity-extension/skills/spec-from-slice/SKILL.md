@@ -11,9 +11,8 @@ Use this skill to capture Scope, Decisions, and Context for one slice of an
 active plan, then materialise the resulting feature's OpenSpec-formatted spec
 into its HTML — in a single guided pass.
 
-This skill is a Claude-only convenience layer. The canonical interface is the
-cross-harness CLI command `wipnote plan elicit-decisions`, which works on
-Codex CLI and Antigravity without any of the steps below.
+The source of truth is the cross-harness CLI `wipnote plan elicit-decisions`.
+This skill wraps it with an interview and the spec generate step.
 
 ## When to invoke
 
@@ -40,7 +39,7 @@ user at `wipnote plan promote-slice` first.
    `decisions_notes` (if any).
 
 2. **Re-elicitation guard.** If `decisions_notes` is non-empty, ask the user
-   via `AskUserQuestion`:
+   (ask-user tool or chat):
    - **Re-elicit** — overwrite previous notes with new answers.
    - **Edit in place** — print the existing notes for the user to edit, then
      re-write verbatim.
@@ -53,16 +52,11 @@ user at `wipnote plan promote-slice` first.
    - **Context** — what else does the implementer need to know? Pre-existing
      constraints, related work, file ownership boundaries.
 
-   Render with the lowest-friction mechanism the harness has (all write the
-   same `decisions_notes`) — prefer staying in place over a context switch:
-   - **Native ask-user tool** — Claude `AskUserQuestion` / Antigravity `ask_user`,
-     one grouped block.
-   - **No such tool (e.g. Codex)** — just ask the three questions as text;
-     the user answers in their reply.
-   - **Web form (optional)** — only for a richer surface or on request:
-     `wipnote plan interview <plan-id> <slice-num>` (blocks, writes
-     `decisions_notes`, commits, returns — then skip step 4). See
-     [/wipnote:plan](/wipnote:plan) → "Rendering the interview".
+   Ask all three in one native ask-user call, or as plain chat if the
+   harness has none. For other options see
+   [`${CLAUDE_PLUGIN_ROOT}/skills/plan/INTERVIEW_RENDERING.md`](../plan/INTERVIEW_RENDERING.md).
+   If you use the web form (`wipnote plan interview <plan-id> <slice-num>`),
+   it writes `decisions_notes` itself; skip step 4.
 
    The user may answer each in free-form prose. Empty answers are allowed —
    the field is free text.
@@ -97,10 +91,6 @@ user at `wipnote plan promote-slice` first.
 
 ## Notes
 
-- The CLI command `wipnote plan elicit-decisions` is the source of truth.
-  This skill exists to make the interview ergonomic on Claude Code via
-  `AskUserQuestion`. Other harnesses (Codex CLI, Antigravity) call the CLI
-  directly — they do not need this skill.
 - `decisions_notes` is free text, not a typed schema. The renderer in
   `wipnote spec generate` weaves it verbatim into the generated spec's
   `## Decisions` section.
