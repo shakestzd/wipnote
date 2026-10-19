@@ -1,0 +1,6 @@
+{
+  "name": "wipnote-orchestra",
+  "version": "0.1.0",
+  "description": "A powerline-style band above the prompt: dir, git, context, cost, active work items and every subagent's live progress.",
+  "types": "./types/index.d.ts"
+}
