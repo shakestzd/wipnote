@@ -46,6 +46,8 @@ def clock(seconds: float) -> str:
 FOLD_OPEN = re.compile(r"^<!-- fold (open|closed): (.*) -->$")
 FOLD_END = "<!-- /fold -->"
 FENCE_OPEN = re.compile(r"^ {0,3}(`{3,}|~{3,})(.*)$")
+# The call's label (md.jq's toolline), which md.jq writes as the first line of a fold body
+LABEL = re.compile(r"^\*\*[A-Za-z0-9_.:-]+\*\*( .*)?$")
 
 
 def fence_step(state: tuple[str, int] | None, line: str) -> tuple[str, int] | None:
@@ -204,9 +206,18 @@ class CodexView(App):
                 await box.mount(self.fold_widget(part))
 
     @staticmethod
-    def fold_widget(f: Fold) -> Collapsible:
+    def fold_body(f: Fold) -> str:
+        """The fold's Markdown without the call's label, which repeats the title. A title that
+        was cut ("...") keeps the label, the only place the whole command is shown."""
+        lines = f.lines
+        if lines and "..." not in f.title and LABEL.match(lines[0].rstrip("\n")):
+            lines = lines[1:]
+        return "".join(lines).strip("\n") or "*(empty)*"
+
+    @classmethod
+    def fold_widget(cls, f: Fold) -> Collapsible:
         # Content, not a str: the title is the command, so markup in it must stay literal
-        return Collapsible(Markdown("".join(f.lines).strip("\n") or "*(empty)*"), title=Content(f.title),
+        return Collapsible(Markdown(cls.fold_body(f)), title=Content(f.title),
                            collapsed=not f.open, classes="failed" if f.open else "")
 
     def live_text(self) -> str:

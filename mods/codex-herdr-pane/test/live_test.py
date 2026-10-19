@@ -95,7 +95,7 @@ async def fallback() -> None:
 
 async def folded() -> None:
     d = newrun()
-    ok_fold = "<!-- fold closed: Bash: ls [b]x[/b] · exit 0 · 2 lines -->\n```\na\nb\n```\n<!-- /fold -->\n\n"
+    ok_fold = "<!-- fold closed: Bash: ls [b]x[/b] · exit 0 · 2 lines -->\n**Bash** `ls [b]x[/b]`\n\n```\na\nb\n```\n<!-- /fold -->\n\n"
     (d / "clean.md").write_text("### Assistant\n\nI will list the files.\n\n" + ok_fold)
     app = CodexView(d)
     async with app.run_test(size=(90, 30)) as pilot:
@@ -105,6 +105,7 @@ async def folded() -> None:
         check("fold: a passing result starts closed", fs and fs[0].collapsed)
         check("fold: the title is the marker's, markup kept literal", fs and "[b]x[/b]" in str(fs[0].title), fs and str(fs[0].title))
         check("fold: the markers are not shown", "<!--" not in src(app), src(app))
+        check("fold: the label that repeats the title is hidden", "**Bash**" not in src(app) and "a\nb" in src(app), src(app))
         check("fold: the prose before it is its own block", "I will list the files." in src(app))
         with (d / "clean.md").open("a") as f:  # a fold split across two reads, a marker inside its fence
             f.write("<!-- fold open: Bash: cat x · exit 1 · 3 lines -->\n> **error** exit 1\n\n````\n<!-- /fold -->\n")
@@ -128,12 +129,16 @@ async def folded() -> None:
             f.write("### Assistant\n\n```\n<!-- fold closed: fake -->\n```\n\n")
         await pilot.pause(0.9)
         check("fold: a marker inside a prose fence is not a fold", len(folds(app)) == 2 and "fake" in src(app))
+        with (d / "clean.md").open("a") as f:  # a cut title keeps the label: it holds the whole command
+            f.write("<!-- fold closed: Bash: long... · exit 0 · 1 line -->\n**Bash** `long command in full`\n\n```\ny\n```\n<!-- /fold -->\n\n")
+        await pilot.pause(0.9)
+        check("fold: a cut title keeps the label", "long command in full" in src(app), src(app)[-200:])
         with (d / "clean.md").open("a") as f:
             f.write("<!-- fold closed: never closed -->\n```\nz\n```\n")
         (d / "end").write_text(str(int(time.time())))
         (d / "exit").write_text("1")
         await pilot.pause(1.0)
-        check("fold: one the run never closed is shown when it finishes", len(folds(app)) == 3, str(len(folds(app))))
+        check("fold: one the run never closed is shown when it finishes", len(folds(app)) == 4, str(len(folds(app))))
         (d / "clean.md").write_text("### Turn\n\n")
         await pilot.pause(0.9)
         check("fold: a shorter replacement starts the view over", not folds(app) and src(app).startswith("### Turn"), src(app))
