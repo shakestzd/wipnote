@@ -11,7 +11,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "viewer"))
 from codex_view import CodexView  # noqa: E402
 from textual.containers import VerticalScroll  # noqa: E402
-from textual.widgets import Markdown, RichLog  # noqa: E402
+from textual.widgets import Collapsible, Markdown, RichLog  # noqa: E402
 
 FAILS: list[str] = []
 
@@ -23,7 +23,11 @@ def check(name: str, cond: bool, detail: str = "") -> None:
 
 
 def src(app: CodexView) -> str:
-    return app.query_one("#live_md", Markdown).source
+    return app.live_text()
+
+
+def folds(app: CodexView) -> list[Collapsible]:
+    return list(app.query("#livemd Collapsible").results(Collapsible))
 
 
 def newrun() -> Path:
@@ -89,9 +93,56 @@ async def fallback() -> None:
         check("fallback: switches to markdown when clean.md appears", app.query_one("#livemd").has_class("on") and "Turn" in src(app))
 
 
+async def folded() -> None:
+    d = newrun()
+    ok_fold = "<!-- fold closed: Bash: ls [b]x[/b] · exit 0 · 2 lines -->\n```\na\nb\n```\n<!-- /fold -->\n\n"
+    (d / "clean.md").write_text("### Assistant\n\nI will list the files.\n\n" + ok_fold)
+    app = CodexView(d)
+    async with app.run_test(size=(90, 30)) as pilot:
+        await pilot.pause(0.9)
+        fs = folds(app)
+        check("fold: a tool result becomes one collapsible", len(fs) == 1, str(len(fs)))
+        check("fold: a passing result starts closed", fs and fs[0].collapsed)
+        check("fold: the title is the marker's, markup kept literal", fs and "[b]x[/b]" in str(fs[0].title), fs and str(fs[0].title))
+        check("fold: the markers are not shown", "<!--" not in src(app), src(app))
+        check("fold: the prose before it is its own block", "I will list the files." in src(app))
+        with (d / "clean.md").open("a") as f:  # a fold split across two reads, a marker inside its fence
+            f.write("<!-- fold open: Bash: cat x · exit 1 · 3 lines -->\n> **error** exit 1\n\n````\n<!-- /fold -->\n")
+        await pilot.pause(0.9)
+        check("fold: an unfinished fold waits for its end marker", len(folds(app)) == 1, str(len(folds(app))))
+        with (d / "clean.md").open("a") as f:
+            f.write("still output\n````\n<!-- /fold -->\n\n### Assistant\n\nThe file is missing.\n\n")
+        await pilot.pause(0.9)
+        fs = folds(app)
+        check("fold: a marker inside the result's fence is output, not the end", len(fs) == 2 and "still output" in src(app) and src(app).count("<!-- /fold -->") == 1, src(app))
+        check("fold: a failed result starts open and is marked", len(fs) == 2 and not fs[1].collapsed and fs[1].has_class("failed"))
+        kids = list(app.query_one("#livemd", VerticalScroll).children)
+        check("fold: prose after a fold goes below it", isinstance(kids[-1], Markdown) and "The file is missing." in kids[-1].source, str(kids))
+        app.action_folds()
+        await pilot.pause(0.2)
+        check("fold: f opens every result", all(not c.collapsed for c in folds(app)))
+        app.action_folds()
+        await pilot.pause(0.2)
+        check("fold: f again closes them all", all(c.collapsed for c in folds(app)))
+        with (d / "clean.md").open("a") as f:  # a marker inside a prose fence stays prose
+            f.write("### Assistant\n\n```\n<!-- fold closed: fake -->\n```\n\n")
+        await pilot.pause(0.9)
+        check("fold: a marker inside a prose fence is not a fold", len(folds(app)) == 2 and "fake" in src(app))
+        with (d / "clean.md").open("a") as f:
+            f.write("<!-- fold closed: never closed -->\n```\nz\n```\n")
+        (d / "end").write_text(str(int(time.time())))
+        (d / "exit").write_text("1")
+        await pilot.pause(1.0)
+        check("fold: one the run never closed is shown when it finishes", len(folds(app)) == 3, str(len(folds(app))))
+        (d / "clean.md").write_text("### Turn\n\n")
+        await pilot.pause(0.9)
+        check("fold: a shorter replacement starts the view over", not folds(app) and src(app).startswith("### Turn"), src(app))
+
+
 async def main() -> None:
     await growing()
     await fallback()
+    await folded()
     print(f"\n{len(FAILS)} failed" if FAILS else "\nlive tab tests passed")
     sys.exit(1 if FAILS else 0)
 

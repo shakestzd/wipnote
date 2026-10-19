@@ -1,7 +1,7 @@
 # Turns `claude -p --output-format stream-json` lines into readable output for the pane.
 #   jq --unbuffered -R -r -f stream.jq                 text
 #   jq --unbuffered -n -R -r --arg mode md -f stream.jq      Markdown, a tool call and its result paired by
-#                                                            tool_use_id and shown together when the result arrives
+#                                                            tool_use_id and shown together, in one fold, when the result arrives
 #                                                            (a call never answered ends as "(no result)")
 #   ... --arg mode mdlive                                    the same, but a call still waiting is held back, not
 #                                                            flushed (a log still being written); md needs -n (inputs)
@@ -34,15 +34,18 @@ def txt:
   elif .k == "result" then "  = \(.text | clip(200))\(if .err then " (error)" else "" end)"
   elif .k == "done" then "--- \(.subtype)\(if .err then " (error)" else "" end) in \(.secs)s, \(.turns) turns, \(.in) in / \(.out) out tokens\(if .cost then ", $\(.cost)" else "" end) ---"
   else empty end;
+def block: (. as $r | $r.text | result(1500; $r.err; ""));
+def resulttail: " · " + (.text | resultsize) + (if .err then " · error" else "" end);
 def md:
   if .k == "say" then ("### Assistant\n\n" + (.text | prose) + "\n")
   elif .k == "call" then (toolline(.name; .arg) + "\n")
-  elif .k == "result" then (. as $r | $r.text | result(1500; $r.err; "")) + "\n"
+  elif .k == "result" then fold("result" + resulttail; .err; block) + "\n"
   elif .k == "done" then
     "*\(.subtype | esc)\(if .err then " (error)" else "" end) in \(.secs)s, \(.turns) turns, \(.in) in / \(.out) out tokens\(if .cost then ", $\(.cost)" else "" end)*\n"
   else empty end;
 def callline: toolline(.name; .arg);
-def block: (. as $r | $r.text | result(1500; $r.err; ""));
+# A call and its result as one collapsible section (md.jq's fold): a summary title, then the label and result
+def callfold($r): fold("\(.name): \(.arg)" + ($r | resulttail); $r.err; callline + "\n\n" + ($r | block));
 def pend_at($id): (.pend | map(.id) | index($id));
 # One step of the fold: .pend holds calls waiting for their result, .out what this step prints.
 def step($it; $flush):
@@ -50,7 +53,7 @@ def step($it; $flush):
   | if $it.k == "call" and ($it.id // "") != "" then .pend += [$it]
     elif $it.k == "result" and ($it.id // "") != "" and pend_at($it.id) != null then
       pend_at($it.id) as $i
-      | .out = ((.pend[$i] | callline) + "\n\n" + ($it | block) + "\n")
+      | .out = ((.pend[$i] | callfold($it)) + "\n")
       | .pend |= (.[:$i] + .[$i + 1:])
     elif $it.k == "eof" then
       .out = (if $flush and (.pend | length) > 0 then (.pend | map(callline + "\n\n*(no result)*\n") | join("\n")) else null end)

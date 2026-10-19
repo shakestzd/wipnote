@@ -4,6 +4,7 @@
 #   code     an inline code span, delimiter sized the same way
 #   esc      backslash-escapes Markdown punctuation in text that must stay inline
 #   prose    assistant text as written, with any fence it leaves open closed again
+#   fold     a tool result wrapped in the markers the Live tab shows as a collapsible section
 # Every function returns one complete block (opened and closed), so a stream cut
 # between two events never leaves a dangling fence.
 def collapse: gsub("\\s+"; " ");
@@ -47,10 +48,26 @@ def fence_step($l): . as $s |
   if . == null then ($l | fence_open) // null
   elif ($l | test("^ {0,3}" + $s.c + "{" + ($s.n | tostring) + ",}\\s*$")) then null
   else . end;
+# The fold markers around a tool result: the Live tab (codex_view.py) shows what lies between
+# them (the call's label, then its result) as one collapsible section titled by the marker. An HTML comment, so any other Markdown
+# reader hides the markers. The title is one line that cannot end the comment early; the body
+# is a complete block, so a fold never holds a fence open past its end marker. A failed result
+# opens expanded. The viewer reads markers only outside fences, and prose (assistant text) has
+# any marker-like line escaped, so only these functions can make one.
+def foldtitle: plain | collapse | cut(160) | gsub("--+>"; "->");
+def fold($title; $open; $body):
+  "<!-- fold \(if $open then "open" else "closed" end): \($title | foldtitle) -->\n\($body)\n<!-- /fold -->";
+def is_foldmark: test("^ {0,3}<!-- ?/?fold");
+# How many lines a result shows (xcrun noise not counted), for a fold's title.
+def resultsize:
+  (plain | sub("\n+$"; "") | split("\n") | map(select(length > 0 and (is_xcrun_noise | not))) | length) as $n
+  | if $n == 0 then "no output" elif $n == 1 then "1 line" else "\($n) lines" end;
 def prose:
   . as $t
-  | (reduce ($t | split("\n"))[] as $l (null; fence_step($l))) as $open
-  | if $open == null then $t else $t + "\n" + ($open.c * $open.n) end;
+  | (reduce ($t | split("\n"))[] as $l ({s: null, o: []};
+      .o += [if .s == null and ($l | is_foldmark) then ($l | sub("<!--"; "\\<!--")) else $l end]
+      | .s = (.s | fence_step($l)))) as $r
+  | ($r.o | join("\n")) + (if $r.s == null then "" else "\n" + ($r.s.c * $r.s.n) end);
 def passthrough: select(length > 0) | plain | fenced("text");
 # Markdown-only treatment of the stderr passthrough: the "Reading additional input from
 # stdin" line is dropped, clean.awk's one collapsed MCP warning becomes an italic note,

@@ -1,7 +1,7 @@
 # Renders `codex exec --json` events for the pane, and is the one place the token
 # split is parsed.
 #   jq --unbuffered -R -r -f codex.jq                      text (non-JSON lines pass through)
-#   jq --unbuffered -R -r --arg mode md -f codex.jq        Markdown (a command's label and result together, when it completes;
+#   jq --unbuffered -R -r --arg mode md -f codex.jq        Markdown (a command's label and result together in one fold, when it completes;
 #                                                           non-JSON lines in a text fence, stdin line dropped, MCP warning one italic note)
 #   jq --unbuffered -R -r --arg mode mdraw -f codex.jq     every line (even JSON) through mdline: the rest of a chained command
 #   jq -R -r --arg mode rest -f codex.jq                   plain text with the stdin line dropped (text returned to Claude)
@@ -48,9 +48,13 @@ def md:
   elif .k == "think" then ("**thinking**\n\n" + (.text | clip(200) | fenced) + "\n")
   elif .k == "call" and .bare then empty  # a command is shown once it completes, label and result together
   elif .k == "call" then (toolline(.name; .arg) + "\n")
-  elif .k == "result" then
-    (. as $r | (if $r.command != null then toolline("Bash"; $r.command | unwrap_shell | cut(160)) + "\n\n" else "" end)
-      + ($r.text | result(1500; $r.err; "exit \($r.code)"))) + "\n"
+  elif .k == "result" then  # one collapsible section per command: a summary title, then its label and output
+    (. as $r | ($r.command // null | if . == null then null else unwrap_shell end) as $c
+      | fold((if $c != null then "Bash: " + ($c | collapse | cut(120)) else "Bash" end)
+               + " · exit \($r.code) · " + ($r.text | resultsize);
+             $r.err;
+             (if $c != null then toolline("Bash"; $c | cut(160)) + "\n\n" else "" end)
+               + ($r.text | result(1500; $r.err; "exit \($r.code)")))) + "\n"
   elif .k == "turn" then "### Turn\n"
   elif .k == "done" then "*\(.usage | split)\(.usage | reasoning)*\n"
   else empty end;
