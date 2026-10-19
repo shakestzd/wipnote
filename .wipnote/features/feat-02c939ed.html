@@ -10,20 +10,32 @@
 <body>
     <article id="feat-02c939ed"
              data-type="feature"
-             data-status="in-progress"
+             data-status="done"
              data-priority="high"
              data-created="2026-10-18T22:52:31.226396"
-             data-updated="2026-10-18T22:52:31.43303" data-agent-assigned="claude-code" data-track-id="trk-0677c709" data-created-by-agent="claude-code" data-created-by-cli-version="0.70.2-7-g160ae1b84" data-created_in_session="e41f6acf-9ecd-5cf8-846b-fbd1203fe65e">
+             data-updated="2026-10-19T00:33:40.779585" data-agent-assigned="claude-code" data-track-id="trk-0677c709" data-created-by-agent="claude-code" data-created-by-cli-version="0.70.2-7-g160ae1b84" data-created_in_session="e41f6acf-9ecd-5cf8-846b-fbd1203fe65e" data-rollup-unavailable="no_read_index">
 
         <header>
             <h1>Launcher picker: short start-or-continue menu</h1>
             <div class="metadata">
-                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge status-done">Done</span>
                 <span class="badge priority-high">High Priority</span>
             </div>
         </header>
 
         <nav data-graph-edges>
+            <section data-edge-type="committed_in">
+                <h3>Committed In:</h3>
+                <ul>
+                    <li><a href="7b4b8c46e765f7f1bdb115686ad97c90073ea9ef.html" data-relationship="committed_in" data-since="2026-10-18T20:31:24">feat(launcher): short start-or-continue picker (#222)</a></li>
+                    <li><a href="9bbe40cf83994b5b3068f366752a52f1c781d71c.html" data-relationship="committed_in" data-since="2026-10-19T00:23:48">chore(wipnote): log Codex P2 follow-ups from #222 (bug-4c0af790, bug-21747548)</a></li>
+                    <li><a href="4e7f0bde03dacc461f7b9b126bf768180d209272.html" data-relationship="committed_in" data-since="2026-10-19T00:01:07">fix(launcher): encode Claude project folder names per UTF-16 unit</a></li>
+                    <li><a href="68e2ab1d63ee993ad289f817d6f64c90bd2641e9.html" data-relationship="committed_in" data-since="2026-10-18T23:42:33">fix(launcher): resume only real Claude ids; browse and last session stay in place</a></li>
+                    <li><a href="d0ecc0b1ef9a44896ce5919e777065490cd4429b.html" data-relationship="committed_in" data-since="2026-10-18T23:30:25">fix(launcher): keep Browse reachable; skip sessions whose worktree is gone</a></li>
+                    <li><a href="581284916a8e25c3967b445f88f3293c6f15e6e5.html" data-relationship="committed_in" data-since="2026-10-18T23:19:40">fix(launcher): last session must be in this project; skip unusable transcripts</a></li>
+                    <li><a href="54da560e2167dde51deafb81c267e7fe99f4da51.html" data-relationship="committed_in" data-since="2026-10-18T23:06:07">feat(launcher): short start-or-continue picker</a></li>
+                </ul>
+            </section>
             <section data-edge-type="part_of">
                 <h3>Part Of:</h3>
                 <ul>
@@ -35,13 +47,13 @@
         <section data-steps>
             <h3>Implementation Steps</h3>
             <ol>
-                <li data-completed="false" data-step-id="step-feat-02c939ed-0" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Read the picker code and tests</li>
-                <li data-completed="false" data-step-id="step-feat-02c939ed-1" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Fix claude-code harness normalization</li>
-                <li data-completed="false" data-step-id="step-feat-02c939ed-2" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Filter work-item rows to in-progress and 7 days and cap at 3</li>
-                <li data-completed="false" data-step-id="step-feat-02c939ed-3" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Last-session row from Claude transcripts</li>
-                <li data-completed="false" data-step-id="step-feat-02c939ed-4" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Browse-all row opens claude --resume</li>
-                <li data-completed="false" data-step-id="step-feat-02c939ed-5" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Update and add tests</li>
-                <li data-completed="false" data-step-id="step-feat-02c939ed-6" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Quality gates and PR</li>
+                <li data-completed="true" data-step-id="step-feat-02c939ed-0" data-agent="claude-code" data-created-by-agent="claude-code">✅ Read the picker code and tests</li>
+                <li data-completed="true" data-step-id="step-feat-02c939ed-1" data-agent="claude-code" data-created-by-agent="claude-code">✅ Fix claude-code harness normalization</li>
+                <li data-completed="true" data-step-id="step-feat-02c939ed-2" data-agent="claude-code" data-created-by-agent="claude-code">✅ Filter work-item rows to in-progress and 7 days and cap at 3</li>
+                <li data-completed="true" data-step-id="step-feat-02c939ed-3" data-agent="claude-code" data-created-by-agent="claude-code">✅ Last-session row from Claude transcripts</li>
+                <li data-completed="true" data-step-id="step-feat-02c939ed-4" data-agent="claude-code" data-created-by-agent="claude-code">✅ Browse-all row opens claude --resume</li>
+                <li data-completed="true" data-step-id="step-feat-02c939ed-5" data-agent="claude-code" data-created-by-agent="claude-code">✅ Update and add tests</li>
+                <li data-completed="true" data-step-id="step-feat-02c939ed-6" data-agent="claude-code" data-created-by-agent="claude-code">✅ Quality gates and PR</li>
             </ol>
         </section>
 
