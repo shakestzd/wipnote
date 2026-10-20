@@ -1,6 +1,7 @@
 ---
 name: wipnote:plan
 description: Plan development work using a triage-gated, blocks-first interview. Classify scope as trivial/standard/complex, then run 0/3/4 staged interview rounds through the current harness native ask-user tool when available, or plain conversation when it is not. Each stage elicits the VISUAL block first (file-tree, data-model, wireframe/diagram) and derives the prose slice fields (what/why/done_when) from it — blocks are authored inline as the YAML is built, not in a post-pass. Produces slice-card YAML with grounded visual blocks and visible research provenance for external claims; pauses for human review; promotes approved slices to features. Use when asked to plan, create a development plan, or build a feature with design clarity first.
+disable-model-invocation: true
 ---
 
 # wipnote Plan
@@ -320,7 +321,7 @@ wipnote plan validate-yaml <plan-id>
 
 Fix schema errors before continuing. A blocks-gate failure means revisiting that slice's interview (or `wipnote:visual-plan` for a legacy plan, or a genuine `blocks_waiver:`).
 
-Then run `/wipnote:plan-critique <plan-id>` for the design/feasibility review. If critique changes a slice's design, re-author its block and re-derive the prose in the same edit.
+Then ask the user to run `/wipnote:plan-critique <plan-id>` for the design/feasibility review (it is a slash command only; it runs as a forked subagent). If critique changes a slice's design, re-author its block and re-derive the prose in the same edit.
 
 Then:
 

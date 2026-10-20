@@ -44,7 +44,7 @@ After 30 tool calls without a clear hypothesis or answer, stop exploring and rep
 
 ## UI-touching tasks
 
-If the change affects anything rendered in a browser (templates, CSS, dashboard pages, components), load `wipnote:ui-stills-verification` and verify with stills before reporting done: probe, capture one component with `shot-scraper`, `Read` the PNG back, and judge it. Tests alone do not verify UI.
+If the change affects anything rendered in a browser (templates, CSS, dashboard pages, components), load the `ui-stills-verification` skill (if it is not in your skill list, run `wipnote skill show ui-stills-verification`) and verify with stills before reporting done: probe, capture one component with `shot-scraper`, `Read` the PNG back, and judge it. Tests alone do not verify UI.
 
 ## Output
 

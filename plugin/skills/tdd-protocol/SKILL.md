@@ -1,6 +1,7 @@
 ---
 name: wipnote:tdd-protocol
 description: TDD protocol for sub-agent implementation tasks — write failing tests first, run quality gates, commit format, attribution rules
+disable-model-invocation: true
 ---
 
 # TDD Protocol for Sub-Agent Implementation
