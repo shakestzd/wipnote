@@ -23,7 +23,8 @@ import (
 //     <project-root>/<sourceSubpath>. This makes `wipnote claude` Just Work
 //     in a checked-out wipnote repo without explicit --dev.
 //
-// treeName is one of "plugin", "codex-marketplace", or "antigravity-extension".
+// treeName is one of "plugin", "codex-marketplace", "antigravity-extension",
+// or "mods".
 // Returns an absolute path on success, or a clear error if nothing is found.
 func sharedTreeRefreshHint() string {
 	ver := strings.TrimPrefix(version, "v")
@@ -117,6 +118,8 @@ func sharedTreeMetadata(treeName string) (string, string, bool) {
 		return "WIPNOTE_CODEX_DIR", filepath.Join("port", "packages", "codex-marketplace"), true
 	case "antigravity-extension":
 		return "WIPNOTE_ANTIGRAVITY_DIR", filepath.Join("port", "packages", "antigravity-extension"), true
+	case "mods":
+		return "WIPNOTE_MODS_DIR", "mods", true
 	default:
 		return "", "", false
 	}
@@ -144,6 +147,8 @@ func isValidHarnessTree(path, treeName string) bool {
 		}
 	case "antigravity-extension":
 		sentinels = []string{"plugin.json"}
+	case "mods":
+		return isModsTree(path)
 	default:
 		return false
 	}

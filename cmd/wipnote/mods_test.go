@@ -19,7 +19,18 @@ func writeMod(t *testing.T, dir, name string) {
 	}
 }
 
+// isolateModsLookup keeps the shared-tree fallback from finding this
+// checkout's mods/ (from the working directory) or the real home's.
+func isolateModsLookup(t *testing.T) string {
+	t.Helper()
+	t.Chdir(t.TempDir())
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	return home
+}
+
 func TestResolveModsDirBesideThePlugin(t *testing.T) {
+	isolateModsLookup(t)
 	t.Setenv("WIPNOTE_NO_MODS", "")
 	t.Setenv("WIPNOTE_MODS_DIR", "")
 	share := t.TempDir()
@@ -40,12 +51,27 @@ func TestResolveModsDirBesideThePlugin(t *testing.T) {
 	if got, want := resolveModsDir(plugin), filepath.Join(share, "mods"); got != want {
 		t.Errorf("got %q, want %q", got, want)
 	}
-	if got := resolveModsDir(""); got != "" {
-		t.Errorf("no plugin dir: got %q, want none", got)
+}
+
+// A plugin install with no mods beside it (one laid down before mods
+// shipped) falls back to the shared-tree order, here ~/.local/share.
+func TestResolveModsDirFallsBackToTheSharedTrees(t *testing.T) {
+	t.Setenv("WIPNOTE_NO_MODS", "")
+	t.Setenv("WIPNOTE_MODS_DIR", "")
+	home := isolateModsLookup(t)
+	shared := filepath.Join(home, ".local", "share", "wipnote", "mods")
+	writeMod(t, shared, "codex-herdr-pane")
+	stale := filepath.Join(t.TempDir(), "plugin") // no mods/ beside it
+	if got := resolveModsDir(stale); got != shared {
+		t.Errorf("got %q, want the shared tree %q", got, shared)
+	}
+	if got := resolveModsDir(""); got != shared {
+		t.Errorf("no plugin dir: got %q, want the shared tree %q", got, shared)
 	}
 }
 
 func TestResolveModsDirOverrideAndOptOut(t *testing.T) {
+	isolateModsLookup(t)
 	share := t.TempDir()
 	writeMod(t, filepath.Join(share, "mods"), "codex-herdr-pane")
 	plugin := filepath.Join(share, "plugin")
@@ -59,7 +85,7 @@ func TestResolveModsDirOverrideAndOptOut(t *testing.T) {
 	}
 	t.Setenv("WIPNOTE_MODS_DIR", t.TempDir())
 	if got := resolveModsDir(plugin); got != "" {
-		t.Errorf("override with no mod: got %q, want none", got)
+		t.Errorf("override with no mod: got %q, want none (not the plugin's own)", got)
 	}
 	t.Setenv("WIPNOTE_MODS_DIR", "")
 	t.Setenv("WIPNOTE_NO_MODS", "1")
@@ -88,5 +114,67 @@ func TestRepoModsFolderHoldsMods(t *testing.T) {
 	}
 	if !isModsTree(filepath.Join(root, "mods")) {
 		t.Errorf("%s/mods holds no mod", root)
+	}
+}
+
+func TestMirrorModsTreeCopiesTrackedRuntimeFilesOnly(t *testing.T) {
+	root, err := filepath.Abs(filepath.Join("..", ".."))
+	if err != nil {
+		t.Fatal(err)
+	}
+	dst := filepath.Join(t.TempDir(), "mods")
+	if err := mirrorModsTree(root, dst); err != nil {
+		t.Fatalf("mirrorModsTree: %v", err)
+	}
+	if !isModsTree(dst) {
+		t.Fatalf("%s holds no mod after the mirror", dst)
+	}
+	for _, want := range []string{
+		filepath.Join("codex-herdr-pane", "hooks", "hooks.json"),
+		filepath.Join("codex-herdr-pane", "viewer", "codex.jq"),
+		filepath.Join("wipnote-orchestra", "hooks", "register.tsx"),
+	} {
+		if _, err := os.Stat(filepath.Join(dst, want)); err != nil {
+			t.Errorf("missing %s: %v", want, err)
+		}
+	}
+	err = filepath.Walk(dst, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, _ := filepath.Rel(dst, path)
+		if !info.IsDir() && isModTestFile(rel) {
+			t.Errorf("test file mirrored: %s", rel)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestMirrorModsTreeSkipsACheckoutWithoutMods(t *testing.T) {
+	dst := filepath.Join(t.TempDir(), "mods")
+	writeMod(t, dst, "kept")
+	if err := mirrorModsTree(t.TempDir(), dst); err != nil {
+		t.Fatalf("no mods/ must not fail the build: %v", err)
+	}
+	if !isModsTree(dst) {
+		t.Errorf("an existing mods tree must be left as it is")
+	}
+}
+
+func TestIsModTestFile(t *testing.T) {
+	for rel, want := range map[string]bool{
+		"a/hooks/register.ts":      false,
+		"a/hooks/register.test.ts": true,
+		"a/test/run.sh":            true,
+		"a/tests/band.test.tsx":    true,
+		"a/viewer/codex_view.py":   false,
+		"a/hooks/latest.ts":        false,
+	} {
+		if got := isModTestFile(rel); got != want {
+			t.Errorf("isModTestFile(%q) = %v, want %v", rel, got, want)
+		}
 	}
 }

@@ -130,9 +130,8 @@ func runBuild() error {
 
 	// Mirror the Claude Code mods beside the plugin tree: the launcher loads
 	// <share>/mods with a second --plugin-dir (resolveModsDir).
-	srcMods := filepath.Join(projectRoot, "mods")
 	destMods := filepath.Join(metaDir, "mods")
-	if err := mirrorPluginTree(srcMods, destMods); err != nil {
+	if err := mirrorModsTree(projectRoot, destMods); err != nil {
 		return fmt.Errorf("mirror mods tree: %w", err)
 	}
 

@@ -140,49 +140,19 @@ func runUpgrade(out io.Writer, checkOnly bool, pinVersion string) error {
 		return fmt.Errorf("replacing binary: %w", err)
 	}
 
-	// Install the bundled plugin tree, if present, to keep the binary and
-	// plugin assets in lockstep. Older release archives (< v0.59) had no
-	// plugin/ subdirectory; in that case we silently skip.
-	extractedPlugin := filepath.Join(extractRoot, "plugin")
-	if info, err := os.Stat(extractedPlugin); err == nil && info.IsDir() {
-		if err := installPluginTree(extractedPlugin); err != nil {
-			fmt.Fprintf(out, "warning: failed to install bundled plugin tree: %v\n", err)
-		} else {
-			fmt.Fprintln(out, "Installed bundled plugin tree to ~/.local/share/wipnote/plugin")
+	// Install every bundled tree the archive carries, to keep the binary and
+	// its assets in lockstep. Older archives lack some (plugin/ and
+	// codex-marketplace/ came in v0.59, antigravity-extension/ and mods/
+	// later); a missing one is skipped silently.
+	for _, tree := range bundledShareTrees {
+		extracted := filepath.Join(extractRoot, tree)
+		if info, err := os.Stat(extracted); err != nil || !info.IsDir() {
+			continue
 		}
-	}
-
-	// Install the bundled Codex CLI marketplace tree, if present. Same Phase A
-	// rationale: keep binary and harness assets in lockstep. Older archives
-	// (< v0.59) had no codex-marketplace/ subdirectory; silently skip.
-	extractedCodex := filepath.Join(extractRoot, "codex-marketplace")
-	if info, err := os.Stat(extractedCodex); err == nil && info.IsDir() {
-		if err := installCodexTree(extractedCodex); err != nil {
-			fmt.Fprintf(out, "warning: failed to install bundled codex-marketplace tree: %v\n", err)
+		if err := installShareTree(extracted, tree); err != nil {
+			fmt.Fprintf(out, "warning: failed to install bundled %s tree: %v\n", tree, err)
 		} else {
-			fmt.Fprintln(out, "Installed bundled codex-marketplace tree to ~/.local/share/wipnote/codex-marketplace")
-		}
-	}
-
-	// Install the bundled Antigravity extension tree, if present. Older
-	// archives had no antigravity-extension/ subdirectory; silently skip.
-	extractedAntigravity := filepath.Join(extractRoot, "antigravity-extension")
-	if info, err := os.Stat(extractedAntigravity); err == nil && info.IsDir() {
-		if err := installAntigravityTree(extractedAntigravity); err != nil {
-			fmt.Fprintf(out, "warning: failed to install bundled antigravity-extension tree: %v\n", err)
-		} else {
-			fmt.Fprintln(out, "Installed bundled antigravity-extension tree to ~/.local/share/wipnote/antigravity-extension")
-		}
-	}
-
-	// Install the bundled Claude Code mods, if present. Older archives had no
-	// mods/ subdirectory; silently skip.
-	extractedMods := filepath.Join(extractRoot, "mods")
-	if info, err := os.Stat(extractedMods); err == nil && info.IsDir() {
-		if err := installModsTree(extractedMods); err != nil {
-			fmt.Fprintf(out, "warning: failed to install bundled mods tree: %v\n", err)
-		} else {
-			fmt.Fprintln(out, "Installed bundled mods tree to ~/.local/share/wipnote/mods")
+			fmt.Fprintf(out, "Installed bundled %s tree to ~/.local/share/wipnote/%s\n", tree, tree)
 		}
 	}
 
@@ -358,102 +328,38 @@ func extractArchive(tarball, destRoot string) error {
 	return nil
 }
 
-// installPluginTree replaces ~/.local/share/wipnote/plugin atomically by
-// moving srcPluginDir into place after removing any prior contents. Mirrors
-// the bootstrap.sh logic so that upgrades via either path leave identical
-// on-disk state.
-func installPluginTree(srcPluginDir string) error {
+// bundledShareTrees are the trees a release archive carries beside the
+// binary, each installed to ~/.local/share/wipnote/<tree>.
+var bundledShareTrees = []string{"plugin", "codex-marketplace", "antigravity-extension", "mods"}
+
+// installShareTree replaces ~/.local/share/wipnote/<name> by moving srcDir
+// into place after removing any prior contents, the same way the install
+// scripts do, so upgrades via either path leave identical on-disk state.
+func installShareTree(srcDir, name string) error {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return fmt.Errorf("resolve home dir: %w", err)
 	}
 	metaDir := filepath.Join(home, ".local", "share", "wipnote")
-	destPlugin := filepath.Join(metaDir, "plugin")
+	dest := filepath.Join(metaDir, name)
 
 	if err := os.MkdirAll(metaDir, 0o755); err != nil {
 		return fmt.Errorf("create %s: %w", metaDir, err)
 	}
-	if err := os.RemoveAll(destPlugin); err != nil {
-		return fmt.Errorf("remove existing %s: %w", destPlugin, err)
+	if err := os.RemoveAll(dest); err != nil {
+		return fmt.Errorf("remove existing %s: %w", dest, err)
 	}
 	// Try rename first (atomic on same filesystem). Fall back to recursive
 	// copy on cross-device — temp dirs and ~/.local/share can live on
 	// different volumes (e.g. inside containers).
-	if err := os.Rename(srcPluginDir, destPlugin); err == nil {
+	if err := os.Rename(srcDir, dest); err == nil {
 		return nil
 	}
-	return copyDirRecursive(srcPluginDir, destPlugin)
+	return copyDirRecursive(srcDir, dest)
 }
 
-// installCodexTree replaces ~/.local/share/wipnote/codex-marketplace atomically
-// by moving srcCodexDir into place after removing any prior contents. Mirrors
-// installPluginTree so the upgrade and bootstrap paths leave identical on-disk
-// state across all three harness trees.
-func installCodexTree(srcCodexDir string) error {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return fmt.Errorf("resolve home dir: %w", err)
-	}
-	metaDir := filepath.Join(home, ".local", "share", "wipnote")
-	destCodex := filepath.Join(metaDir, "codex-marketplace")
-
-	if err := os.MkdirAll(metaDir, 0o755); err != nil {
-		return fmt.Errorf("create %s: %w", metaDir, err)
-	}
-	if err := os.RemoveAll(destCodex); err != nil {
-		return fmt.Errorf("remove existing %s: %w", destCodex, err)
-	}
-	if err := os.Rename(srcCodexDir, destCodex); err == nil {
-		return nil
-	}
-	return copyDirRecursive(srcCodexDir, destCodex)
-}
-
-// installAntigravityTree replaces ~/.local/share/wipnote/antigravity-extension
-// atomically by moving srcAntigravityDir into place after removing any prior
-// contents. Mirrors installPluginTree so upgrade and bootstrap paths leave
-// identical on-disk state across all harness trees.
-func installAntigravityTree(srcAntigravityDir string) error {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return fmt.Errorf("resolve home dir: %w", err)
-	}
-	metaDir := filepath.Join(home, ".local", "share", "wipnote")
-	destAntigravity := filepath.Join(metaDir, "antigravity-extension")
-
-	if err := os.MkdirAll(metaDir, 0o755); err != nil {
-		return fmt.Errorf("create %s: %w", metaDir, err)
-	}
-	if err := os.RemoveAll(destAntigravity); err != nil {
-		return fmt.Errorf("remove existing %s: %w", destAntigravity, err)
-	}
-	if err := os.Rename(srcAntigravityDir, destAntigravity); err == nil {
-		return nil
-	}
-	return copyDirRecursive(srcAntigravityDir, destAntigravity)
-}
-
-// installModsTree replaces ~/.local/share/wipnote/mods by moving srcModsDir
-// into place after removing any prior contents. Mirrors installPluginTree.
-func installModsTree(srcModsDir string) error {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return fmt.Errorf("resolve home dir: %w", err)
-	}
-	metaDir := filepath.Join(home, ".local", "share", "wipnote")
-	destMods := filepath.Join(metaDir, "mods")
-
-	if err := os.MkdirAll(metaDir, 0o755); err != nil {
-		return fmt.Errorf("create %s: %w", metaDir, err)
-	}
-	if err := os.RemoveAll(destMods); err != nil {
-		return fmt.Errorf("remove existing %s: %w", destMods, err)
-	}
-	if err := os.Rename(srcModsDir, destMods); err == nil {
-		return nil
-	}
-	return copyDirRecursive(srcModsDir, destMods)
-}
+// installPluginTree replaces ~/.local/share/wipnote/plugin (installShareTree).
+func installPluginTree(srcPluginDir string) error { return installShareTree(srcPluginDir, "plugin") }
 
 // copyDirRecursive walks src and copies every entry into dst, preserving file
 // modes. Symlinks are skipped (the plugin tree doesn't contain any).

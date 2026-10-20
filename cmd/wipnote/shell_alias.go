@@ -2,9 +2,9 @@ package main
 
 import (
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -20,7 +20,7 @@ import (
 // remains the recommended flow because it avoids surprising shell behavior
 // for users in non-wipnote projects.
 func shellAliasCmd() *cobra.Command {
-	var short, install bool
+	var short, install, uninstall bool
 	var rcFile string
 	cmd := &cobra.Command{
 		Use:   "shell-alias",
@@ -35,11 +35,17 @@ With --short they add short names instead and leave the bare commands alone:
   wcx  wipnote codex
   wag  wipnote antigravity
 
-To install, append the output to your shell rc file, or let --install do it
-(once: running it again adds nothing):
+--install adds one managed block to your shell rc file (~/.zshrc for zsh; for
+bash ~/.bash_profile on macOS, ~/.bashrc elsewhere; or --rc). The block loads
+the aliases from wipnote at shell start, so an upgrade that changes them needs
+no edit; installing again replaces the block, --uninstall removes it:
 
-  wipnote shell-alias --short --install          # ~/.zshrc or ~/.bashrc, by $SHELL
-  wipnote shell-alias --short >> ~/.zshrc        # the same by hand
+  wipnote shell-alias --short --install
+  wipnote shell-alias --uninstall
+
+  # >>> wipnote shell-alias >>>
+  command -v wipnote >/dev/null 2>&1 && eval "$(wipnote shell-alias --short)"
+  # <<< wipnote shell-alias <<<
 
 Or load them into the current shell session only:
 
@@ -51,7 +57,7 @@ Output is plain shell, safe to run multiple times.`,
 			if short {
 				snippet = shortAliasSnippet()
 			}
-			if !install {
+			if !install && !uninstall {
 				fmt.Fprint(cmd.OutOrStdout(), snippet)
 				return nil
 			}
@@ -61,23 +67,37 @@ Output is plain shell, safe to run multiple times.`,
 				if err != nil {
 					return fmt.Errorf("resolve home dir: %w", err)
 				}
-				path = shellRCPath(home, os.Getenv("SHELL"))
+				path = shellRCPath(home, os.Getenv("SHELL"), runtime.GOOS)
 			}
-			added, err := appendAliasesOnce(path, snippet)
+			if uninstall {
+				removed, err := writeAliasBlock(path, "")
+				if err != nil {
+					return err
+				}
+				if removed {
+					fmt.Fprintf(cmd.OutOrStdout(), "Removed the wipnote aliases from %s. Open a new shell to drop them.\n", path)
+				} else {
+					fmt.Fprintf(cmd.OutOrStdout(), "%s has no wipnote aliases; nothing removed.\n", path)
+				}
+				return nil
+			}
+			changed, err := writeAliasBlock(path, aliasBlock(short))
 			if err != nil {
 				return err
 			}
-			if added {
+			if changed {
 				fmt.Fprintf(cmd.OutOrStdout(), "Added the aliases to %s. Open a new shell, or run: source %s\n", path, path)
 			} else {
-				fmt.Fprintf(cmd.OutOrStdout(), "%s already has these aliases; nothing added.\n", path)
+				fmt.Fprintf(cmd.OutOrStdout(), "%s already loads these aliases; nothing changed.\n", path)
 			}
 			return nil
 		},
 	}
 	cmd.Flags().BoolVar(&short, "short", false, "short names (wcc, wcx, wag) instead of routing claude/codex/agy")
-	cmd.Flags().BoolVar(&install, "install", false, "append the aliases to your shell rc file, once")
-	cmd.Flags().StringVar(&rcFile, "rc", "", "rc file for --install (default: ~/.zshrc for zsh, else ~/.bashrc)")
+	cmd.Flags().BoolVar(&install, "install", false, "add (or replace) a block in your shell rc file that loads the aliases")
+	cmd.Flags().BoolVar(&uninstall, "uninstall", false, "remove that block from your shell rc file")
+	cmd.MarkFlagsMutuallyExclusive("install", "uninstall")
+	cmd.Flags().StringVar(&rcFile, "rc", "", "rc file for --install (default: ~/.zshrc for zsh; for bash ~/.bash_profile on macOS, ~/.bashrc elsewhere)")
 	return cmd
 }
 
@@ -105,38 +125,78 @@ alias wag='wipnote antigravity'
 }
 
 // shellRCPath is the rc file --install writes when --rc is not given:
-// ~/.zshrc for a zsh login shell, ~/.bashrc otherwise.
-func shellRCPath(home, shell string) string {
+// ~/.zshrc for zsh; for bash, ~/.bash_profile on macOS (Terminal and iTerm
+// open login shells, which read it and not ~/.bashrc) and ~/.bashrc elsewhere.
+func shellRCPath(home, shell, goos string) string {
 	if filepath.Base(shell) == "zsh" {
 		return filepath.Join(home, ".zshrc")
+	}
+	if goos == "darwin" {
+		return filepath.Join(home, ".bash_profile")
 	}
 	return filepath.Join(home, ".bashrc")
 }
 
-// appendAliasesOnce appends snippet to the file at path (creating it) unless
-// the file already holds the snippet's first line, the marker each snippet
-// opens with. Reports whether it added anything.
-func appendAliasesOnce(path, snippet string) (bool, error) {
-	marker, _, _ := strings.Cut(snippet, "\n")
-	existing, err := os.ReadFile(path)
+const (
+	aliasBlockBegin = "# >>> wipnote shell-alias >>>"
+	aliasBlockEnd   = "# <<< wipnote shell-alias <<<"
+)
+
+// aliasBlock is the managed block --install writes: it loads the aliases from
+// wipnote at shell start (a shell with no wipnote on PATH loads none).
+func aliasBlock(short bool) string {
+	args := "shell-alias"
+	if short {
+		args += " --short"
+	}
+	return aliasBlockBegin + "\n" +
+		`command -v wipnote >/dev/null 2>&1 && eval "$(wipnote ` + args + `)"` + "\n" +
+		aliasBlockEnd + "\n"
+}
+
+// writeAliasBlock puts block in the file at path in place of the managed
+// block it holds, or appends it after a blank line when it holds none; an
+// empty block removes the managed block. The file is created when missing
+// and something is to be written. Reports whether the file changed.
+func writeAliasBlock(path, block string) (bool, error) {
+	data, err := os.ReadFile(path)
 	if err != nil && !os.IsNotExist(err) {
 		return false, fmt.Errorf("read %s: %w", path, err)
 	}
-	if strings.Contains(string(existing), marker) {
+	text := string(data)
+	before, rest, found := strings.Cut(text, aliasBlockBegin+"\n")
+	var next string
+	switch {
+	case found:
+		_, after, closed := strings.Cut(rest, aliasBlockEnd+"\n")
+		if !closed {
+			return false, fmt.Errorf("%s has %q with no %q after it; fix it by hand", path, aliasBlockBegin, aliasBlockEnd)
+		}
+		if block == "" {
+			next = strings.TrimSuffix(before, "\n") + after
+			if strings.TrimSpace(next) != "" && !strings.HasSuffix(next, "\n") {
+				next += "\n"
+			}
+		} else {
+			next = before + block + after
+		}
+	case block == "":
+		return false, nil
+	case text == "":
+		next = block
+	case strings.HasSuffix(text, "\n"):
+		next = text + "\n" + block
+	default:
+		next = text + "\n\n" + block
+	}
+	if next == text {
 		return false, nil
 	}
-	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
-	if err != nil {
-		return false, fmt.Errorf("open %s: %w", path, err)
+	mode := os.FileMode(0o644)
+	if info, err := os.Stat(path); err == nil {
+		mode = info.Mode().Perm()
 	}
-	defer f.Close() //nolint:errcheck
-	lead := "\n"
-	if len(existing) == 0 || strings.HasSuffix(string(existing), "\n\n") {
-		lead = ""
-	} else if !strings.HasSuffix(string(existing), "\n") {
-		lead = "\n\n"
-	}
-	if _, err := io.WriteString(f, lead+snippet); err != nil {
+	if err := os.WriteFile(path, []byte(next), mode); err != nil {
 		return false, fmt.Errorf("write %s: %w", path, err)
 	}
 	return true, nil

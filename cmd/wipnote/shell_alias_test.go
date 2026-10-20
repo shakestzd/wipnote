@@ -47,43 +47,93 @@ func TestShortAliasSnippet_NamesTheLaunchers(t *testing.T) {
 }
 
 func TestShellRCPath(t *testing.T) {
-	if got := shellRCPath("/h", "/bin/zsh"); got != "/h/.zshrc" {
+	if got := shellRCPath("/h", "/bin/zsh", "darwin"); got != "/h/.zshrc" {
 		t.Errorf("zsh: got %q", got)
 	}
-	if got := shellRCPath("/h", "/usr/bin/bash"); got != "/h/.bashrc" {
-		t.Errorf("bash: got %q", got)
+	if got := shellRCPath("/h", "/usr/bin/bash", "linux"); got != "/h/.bashrc" {
+		t.Errorf("bash on linux: got %q", got)
 	}
-	if got := shellRCPath("/h", ""); got != "/h/.bashrc" {
+	if got := shellRCPath("/h", "/bin/bash", "darwin"); got != "/h/.bash_profile" {
+		t.Errorf("bash on macOS: got %q", got)
+	}
+	if got := shellRCPath("/h", "", "linux"); got != "/h/.bashrc" {
 		t.Errorf("unset: got %q", got)
 	}
 }
 
-func TestShellAliasInstallAppendsOnce(t *testing.T) {
+func runShellAlias(t *testing.T, args ...string) string {
+	t.Helper()
+	cmd := shellAliasCmd()
+	cmd.SetArgs(args)
+	var out strings.Builder
+	cmd.SetOut(&out)
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("shell-alias %v: %v", args, err)
+	}
+	return out.String()
+}
+
+func TestShellAliasInstallWritesOneManagedBlock(t *testing.T) {
 	rc := filepath.Join(t.TempDir(), ".zshrc")
-	if err := os.WriteFile(rc, []byte("export X=1"), 0o644); err != nil {
+	if err := os.WriteFile(rc, []byte("export X=1\nexport Y=2\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	for i := 0; i < 2; i++ {
-		cmd := shellAliasCmd()
-		cmd.SetArgs([]string{"--short", "--install", "--rc", rc})
-		cmd.SetOut(&strings.Builder{})
-		if err := cmd.Execute(); err != nil {
-			t.Fatalf("run %d: %v", i, err)
-		}
+	runShellAlias(t, "--short", "--install", "--rc", rc)
+	if out := runShellAlias(t, "--short", "--install", "--rc", rc); !strings.Contains(out, "nothing changed") {
+		t.Errorf("a second install must change nothing. Said: %s", out)
 	}
+	data, _ := os.ReadFile(rc)
+	want := "export X=1\nexport Y=2\n\n" + aliasBlock(true)
+	if string(data) != want {
+		t.Errorf("rc file:\n%s\nwant:\n%s", data, want)
+	}
+	if !strings.Contains(string(data), `eval "$(wipnote shell-alias --short)"`) {
+		t.Errorf("the block must load the short aliases from wipnote. Got:\n%s", data)
+	}
+	if info, _ := os.Stat(rc); info.Mode().Perm() != 0o600 {
+		t.Errorf("the rc file's mode must be kept, got %v", info.Mode().Perm())
+	}
+
+	// Installing the other set replaces the block in place.
+	if err := os.WriteFile(rc, append(data, []byte("alias ll='ls -l'\n")...), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	runShellAlias(t, "--install", "--rc", rc)
+	data, _ = os.ReadFile(rc)
+	want = "export X=1\nexport Y=2\n\n" + aliasBlock(false) + "alias ll='ls -l'\n"
+	if string(data) != want {
+		t.Errorf("after replacing:\n%s\nwant:\n%s", data, want)
+	}
+
+	runShellAlias(t, "--uninstall", "--rc", rc)
+	data, _ = os.ReadFile(rc)
+	if string(data) != "export X=1\nexport Y=2\nalias ll='ls -l'\n" {
+		t.Errorf("after uninstall:\n%q", data)
+	}
+	if out := runShellAlias(t, "--uninstall", "--rc", rc); !strings.Contains(out, "nothing removed") {
+		t.Errorf("a second uninstall must remove nothing. Said: %s", out)
+	}
+}
+
+func TestShellAliasInstallCreatesTheRCFile(t *testing.T) {
+	rc := filepath.Join(t.TempDir(), ".bashrc")
+	runShellAlias(t, "--short", "--install", "--rc", rc)
 	data, err := os.ReadFile(rc)
-	if err != nil {
+	if err != nil || string(data) != aliasBlock(true) {
+		t.Errorf("new rc file = %q, %v", data, err)
+	}
+}
+
+func TestShellAliasInstallRefusesAnOpenBlock(t *testing.T) {
+	rc := filepath.Join(t.TempDir(), ".zshrc")
+	if err := os.WriteFile(rc, []byte(aliasBlockBegin+"\nwhatever\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	got := string(data)
-	if !strings.HasPrefix(got, "export X=1\n\n# wipnote shell-alias --short") {
-		t.Errorf("the aliases must follow the existing text after a blank line. Got:\n%s", got)
-	}
-	if n := strings.Count(got, "alias wcc='wipnote claude'"); n != 1 {
-		t.Errorf("wcc alias written %d times, want 1. Got:\n%s", n, got)
-	}
-	// The other snippet has its own marker, so it still goes in.
-	if added, err := appendAliasesOnce(rc, shellAliasSnippet()); err != nil || !added {
-		t.Errorf("the default snippet beside the short one: added=%v err=%v", added, err)
+	cmd := shellAliasCmd()
+	cmd.SetArgs([]string{"--install", "--rc", rc})
+	cmd.SetOut(&strings.Builder{})
+	cmd.SetErr(&strings.Builder{})
+	if err := cmd.Execute(); err == nil {
+		t.Error("a begin marker with no end marker must be refused, not overwritten")
 	}
 }
