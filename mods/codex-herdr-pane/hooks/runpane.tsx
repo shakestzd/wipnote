@@ -1,19 +1,22 @@
-// The Claude Code pane: outside herdr (claudePane auto), a delegation runs headless into a run
-// directory (wrap.ts) and this follows it in a pane of Claude Code's own, one pane per run (the
-// panes are tabs). It reads the files the herdr viewer reads (clean.md, exit, usage, last.md),
-// polling while a run is live, and draws Live (prose, and each tool result as a fold: a Button
-// row that opens it) and Answer.
+// Follows each delegation's run directory (wrap.ts). Outside herdr (claudePane auto), a run is
+// headless and this draws it in a pane of Claude Code's own, one pane per run (the panes are tabs):
+// it reads the files the herdr viewer reads (clean.md, exit, usage, last.md), polling while a run
+// is live, and draws Live (prose, and each tool result as a fold: a Button row that opens it) and
+// Answer. Every run, herdr's too, gets run.html when it ends (runhtml.ts), the page Claude sends
+// where no surface draws panes.
 
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface as Api, On } from 'claude-code'
 import type { RunView } from '../types'
 import { parseRun, summarizeRun, type RunPart } from './livedoc.ts'
+import { runPage } from './runhtml.ts'
 import type { ClosePolicy } from './wrap.ts'
 
 
 export const PANE_PREFIX = 'codex-run-'
 const POLL_MS = 700
 const NO_HOST_MS = 60000 // a call that never ran (denied) leaves no host file
+const KEEP_DONE = 20
 const MAX_CHARS = 80000 // what one drawing shows: the newest parts that fit (the engine cuts at 100000)
 
 const runs = atom({ plugin: 'codex-herdr-pane', key: 'runs' } as const, {})
@@ -43,6 +46,9 @@ async function text($: Api, path: string) {
   try { return await $.fs.read(path) } catch { return undefined }
 }
 
+// The run's host decides what is followed: claude (headless, this pane draws it live) or herdr
+// (the herdr pane draws it; only its end is read, for the page). No host after a minute: the call
+// never ran, or ran bare (claudePane off, outside herdr), and left nothing to follow.
 async function step($: Api, r: RunView, now: number) {
   if (r.host === 'pending') {
     const host = (await text($, `${r.dir}/host`))?.trim()
@@ -52,15 +58,19 @@ async function step($: Api, r: RunView, now: number) {
       // Opened unasked, a surface may hold it undrawn (a narrow one); /codex-runs opens it as asked
       const opened = await $.ui.open({ id: paneId(r.id), title: label.slice(0, 60) })
       if (!opened.isPlaced) $.ui.log(`codex-herdr-pane: the run's pane waits undrawn (${opened.reason}); /codex-runs shows it`)
-    } else if (host === 'herdr' || now - r.registered > NO_HOST_MS) {
+    } else if (host === 'herdr') {
+      const label = (await text($, `${r.dir}/label`))?.trim() || r.label
+      await patch($, r.id, (c) => ({ ...c, host: 'herdr', label }))
+    } else if (now - r.registered > NO_HOST_MS) {
       await patch($, r.id, () => undefined)
     }
     return
   }
   if (r.exit !== undefined) return
+  const exit = (await text($, `${r.dir}/exit`))?.trim()
+  if (!exit && r.host === 'herdr') return // nothing to draw here until it ends
   const md = (await text($, `${r.dir}/clean.md`)) ?? r.md
   const start = Number((await text($, `${r.dir}/start`))?.trim()) || 0
-  const exit = (await text($, `${r.dir}/exit`))?.trim()
   if (!exit) {
     if (md !== r.md || (start && !r.started)) await patch($, r.id, (c) => ({ ...c, md, started: start * 1000 || c.started }))
     return
@@ -68,10 +78,16 @@ async function step($: Api, r: RunView, now: number) {
   const usage = (await text($, `${r.dir}/usage`))?.trim() || undefined
   const answer = ((await text($, `${r.dir}/last.md`)) ?? '').trim()
   const end = Number((await text($, `${r.dir}/end`))?.trim()) || Math.floor(now / 1000)
-  await patch($, r.id, (c) => ({
-    ...c, md, exit, usage, answer, started: start * 1000 || c.started, ended: end * 1000,
-    tab: exit === '0' && answer ? 'answer' : 'live',
-  }))
+  const done: RunView = { ...r, md, exit, usage, answer, started: start * 1000 || r.started, ended: end * 1000, tab: exit === '0' && answer ? 'answer' : 'live' }
+  const page = `${r.dir}/run.html`
+  try {
+    await $.fs.write(page, runPage({
+      label: done.label, status: runStatus(done, now), ok: exit === '0', parts: parseRun(md, true), answer, logPath: `${r.dir}/clean.md`,
+    }))
+    done.page = page
+  } catch (err) { $.ui.log(`codex-herdr-pane: run page not written: ${String(err)}`, { to: 'debug' }) }
+  await patch($, r.id, () => done)
+  if (r.host !== 'claude') return
   const close = opts.closePane === 'always' || (opts.closePane === 'success' && exit === '0')
   if (close) $.clock.after(Math.max(0, opts.closeDelay) * 1000, () => void $.ui.close({ id: paneId(r.id) }).catch(() => {}))
 }
@@ -90,13 +106,14 @@ function poll($: Api) {
 
 // /codex-runs: the newest followed run in its pane, opened as the person asked (placed at any width)
 async function showLatest($: Api) {
-  const latest = Object.values(await read($, runs)).filter((r) => r.host === 'claude').sort((a, b) => b.registered - a.registered)[0]
+  const latest = Object.values(await read($, runs)).filter((r) => r.host !== 'pending').sort((a, b) => b.registered - a.registered)[0]
   if (!latest) return { text: 'No delegation run is followed in this session yet.' }
   const opened = await $.ui.open({ id: paneId(latest.id), title: latest.label.slice(0, 60), focus: true })
   if (opened.isPlaced) return { text: `Showing ${latest.label}.` }
   // No surface draws the pane (a cloud session viewed in the app, a -p run): the run goes in the chat
   const now = await $.clock.now()
-  return { text: summarizeRun(parseRun(latest.md, latest.exit !== undefined), `${latest.label}: ${runStatus(latest, now)}`, latest.answer, `${latest.dir}/clean.md`) }
+  const page = latest.page ? `\n\nAs a page with collapsible tool results: ${latest.page}` : ''
+  return { text: summarizeRun(parseRun(latest.md, latest.exit !== undefined), `${latest.label}: ${runStatus(latest, now)}`, latest.answer, `${latest.dir}/clean.md`) + page }
 }
 
 function runStatus(r: RunView, now: number): string {
@@ -105,12 +122,30 @@ function runStatus(r: RunView, now: number): string {
   return `${r.exit === '0' ? 'finished' : `failed with exit ${r.exit}`} in ${took}${r.usage ? ` · ${r.usage}` : ''}`
 }
 
-// Called by the tool.call hook for each delegation it wraps while claudePane is on
+// Called by the tool.call hook for each delegation it wraps
 export async function trackRun($: Api, run: { id: string; dir: string; label: string }) {
   const now = await $.clock.now()
   const view: RunView = { ...run, host: 'pending', registered: now, md: '', answer: '', tab: 'live', open: {} }
-  await update($, runs, (all) => ({ ...all, [run.id]: view }))
+  // Every delegation is followed, so only the newest KEEP_DONE finished runs are kept
+  await update($, runs, (all) => {
+    const done = Object.values(all).filter((r) => r.exit !== undefined).sort((a, b) => b.registered - a.registered)
+    const drop = new Set(done.slice(KEEP_DONE).map((r) => r.id))
+    return { ...Object.fromEntries(Object.entries(all).filter(([id]) => !drop.has(id))), [run.id]: view }
+  })
   poll($)
+}
+
+// Called by the tool.call hook once a foreground call returned: reads the run's end now (rather
+// than at the next poll) so the page exists before the model reads the result. Its path, or
+// undefined when the run left no end (it ran bare, or failed before the wrapper's report).
+export async function settleRun($: Api, id: string): Promise<string | undefined> {
+  for (let i = 0; i < 2; i++) {
+    const r = (await read($, runs))[id]
+    if (!r) return undefined
+    if (r.page) return r.page
+    await step($, r, await $.clock.now())
+  }
+  return (await read($, runs))[id]?.page
 }
 
 export function runPane(on: On, o: PaneOptions) {

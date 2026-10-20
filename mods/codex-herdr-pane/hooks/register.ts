@@ -1,6 +1,6 @@
 import type { Register } from 'claude-code'
 import { buildWrapper, isDelegation, paneLabel, runDirPath, scriptPath, stubFor, type ClosePolicy } from './wrap.ts'
-import { runPane, trackRun } from './runpane.tsx'
+import { runPane, settleRun, trackRun } from './runpane.tsx'
 
 const FOREGROUND_MAX_MS = 600000
 
@@ -22,9 +22,10 @@ export const register: Register = (on, options) => {
   const leanProfile = options.leanProfile !== false
   const leanProfileName = typeof options.leanProfileName === 'string' && options.leanProfileName.trim() ? options.leanProfileName.trim() : 'lean'
   const runsDir = typeof options.ccxRunsDir === 'string' && options.ccxRunsDir.trim() ? options.ccxRunsDir.trim() : undefined
-  // auto: outside herdr, a run is followed in a Claude Code pane (runpane.tsx); off: run as asked
+  // auto: outside herdr, a run is followed in a Claude Code pane (runpane.tsx); off: run as asked.
+  // Every run is followed to its end either way, for its page (run.html).
   const claudePane = options.claudePane === 'auto'
-  if (claudePane) runPane(on, { closePane, closeDelay })
+  runPane(on, { closePane, closeDelay })
   let n = 0
 
   on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
@@ -34,13 +35,13 @@ export const register: Register = (on, options) => {
     $.ui.toast(claudePane ? 'Delegation: opening a pane' : 'Delegation: opening a herdr pane')
     let tmpdir: string | undefined
     try { tmpdir = await $.env.get('TMPDIR') } catch { /* /tmp */ }
-    const runDir = claudePane ? runDirPath(tmpdir, id) : undefined
+    const runDir = runDirPath(tmpdir, id)
     const script = buildWrapper(e.command, {
       direction, layout: fixed ? 'fixed' : 'tile', maxPanes, closePane, closeDelay, tailLines, maxReturnLines, viewer, leanProfile, leanProfileName, runsDir, root: $.plugin.root, id,
       claudePane, runDir,
     })
-    // The pane follows the run only if the script runs it outside herdr (it writes $dir/host)
-    if (runDir) await trackRun($, { id, dir: runDir, label: paneLabel(e.command) }).catch(() => {})
+    // Followed by what the script writes in $dir/host: claude (a Claude Code pane), herdr, or none (bare)
+    await trackRun($, { id, dir: runDir, label: paneLabel(e.command) }).catch(() => {})
     // The script goes to a file written here, so the call the harness shows (and quotes in the
     // notice of a background call) is the two-line stub. If the write fails or the file is not
     // there, the call carries the whole script, as before 0.7.0.
@@ -54,6 +55,21 @@ export const register: Register = (on, options) => {
     // longest wait the Bash tool allows. A timeout the caller set is kept, so a call meant
     // to give up early still does; the pane keeps running either way.
     const timeout = e.run_in_background || typeof e.timeout === 'number' ? e.timeout : FOREGROUND_MAX_MS
-    return next({ ...e, command, timeout })
+    const ran = await next({ ...e, command, timeout })
+    if (ran.result === undefined) return ran
+    // Tell the model where the run's page is (a background call: where it will be), and, where
+    // nothing draws mod panes, to show it to the person as a file. Never throws: the .catch below
+    // would run the delegation a second time.
+    try {
+      const page = e.run_in_background ? undefined : await settleRun($, id)
+      if (!e.run_in_background && !page) return ran
+      const where = page ? `is at ${page}` : `will be at ${runDir}/run.html when the run ends`
+      const noPanes = (await $.session.surfaces()).length === 0
+      const note = `codex-herdr-pane: the run as a page (the answer, then each tool result as a collapsible section) ${where}.`
+        + (noPanes ? ' Nothing in this session draws mod panes, so to show the run to the user, copy that file to a folder they can open (your scratchpad or the working directory) and send it to them as a file to render.' : '')
+      return { ...ran, context: [...(ran.context ?? []), note] }
+    } catch {
+      return ran
+    }
   }).catch((_$, e, next) => next(e)) // a failure here must never block the delegation
 }

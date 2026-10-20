@@ -5,8 +5,8 @@ export type RunView = {
   id: string
   dir: string // the run directory the wrapper writes (wrap.ts runDirPath)
   label: string
-  // pending until the wrapper writes $dir/host: claude (this pane follows it) or herdr (dropped)
-  host: 'pending' | 'claude'
+  // pending until the wrapper writes $dir/host: claude (this pane draws it) or herdr (only its end is read)
+  host: 'pending' | 'claude' | 'herdr'
   registered: number // ms, when the hook saw the call; a run with no host after a minute is dropped
   started?: number // ms, from $dir/start
   ended?: number // ms, from $dir/end
@@ -15,6 +15,7 @@ export type RunView = {
   usage?: string
   answer: string // last.md once the run ended
   tab: 'live' | 'answer'
+  page?: string // run.html, once written at the end
   open: Record<string, boolean> // fold index -> opened or closed by the person (else: open if it failed)
 }
 

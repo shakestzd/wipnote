@@ -1,5 +1,6 @@
 import { expect, mock, test } from 'claude-code/testing'
 import { parseRun, summarizeRun } from './livedoc.ts'
+import { mdToHtml, runPage } from './runhtml.ts'
 import { buildWrapper, runDirPath } from './wrap.ts'
 
 // /codex-runs as the person types it
@@ -14,7 +15,7 @@ const CLEAN = [
 
 // A delegation through the mod with claudePane on: the files the run writes are `files`, the
 // panes opened and closed are recorded.
-async function delegate($: any, on: any, placed = true) {
+async function delegate($: any, on: any, placed = true, ran?: (dir: string) => Record<string, string>, surfaces: string[] = ['terminal']) {
   const clock = mock.clock(on)
   mock.env(on, { TMPDIR: TMP })
   const files: Record<string, string> = {}
@@ -30,12 +31,18 @@ async function delegate($: any, on: any, placed = true) {
     return { value: placed ? { isPlaced: true } : { isPlaced: false, reason: 'no-surface: no surface is attached' } }
   })
   on('ui.close', {}, (_$: unknown, e: { id: string }) => { closed.push(e.id); return { value: undefined } })
+  on('session.surfaces', {}, () => ({ value: surfaces }))
   let command = ''
-  on('tool.call', { tool: 'Bash' }, (_$: unknown, e: { command: string }) => { command = e.command; return answer })
-  await $.tool.call({ tool: 'Bash', command: 'codex exec "list the files"' })
+  on('tool.call', { tool: 'Bash' }, (_$: unknown, e: { command: string }) => {
+    command = e.command
+    const runId = /codex-herdr-run\.([A-Za-z0-9]+)\.sh/.exec(command)?.[1] ?? ''
+    if (ran) Object.assign(files, ran(runDirPath(TMP, runId))) // what the run left when the call returns
+    return answer
+  })
+  const result = await $.tool.call({ tool: 'Bash', command: 'codex exec "list the files"' })
   const id = /codex-herdr-run\.([A-Za-z0-9]+)\.sh/.exec(command)?.[1] ?? ''
   const dir = runDirPath(TMP, id)
-  return { clock, files, opened, closed, id, dir, command }
+  return { clock, files, opened, closed, id, dir, command, result }
 }
 
 const PANE = (id: string, surface: 'terminal' | 'desktop' | 'vscode' | 'mobile') => ({
@@ -89,12 +96,52 @@ test('a run outside herdr is followed in a Claude Code pane, with folds and the 
   expect(closed).toEqual([`codex-run-${id}`])
 })
 
-test('a run herdr shows is dropped, no Claude Code pane opens', { options: { claudePane: 'auto' } }, async ($, on) => {
+test('a run herdr shows opens no Claude Code pane; its page is written when it ends', { options: { claudePane: 'auto' } }, async ($, on) => {
   const { clock, files, opened, dir } = await delegate($, on)
-  files[`${dir}/host`] = 'herdr\n'
+  Object.assign(files, { [`${dir}/host`]: 'herdr\n', [`${dir}/clean.md`]: CLEAN })
   await clock.advance(1500)
+  expect(`${dir}/run.html` in files).toBe(false)
+  Object.assign(files, { [`${dir}/exit`]: '0', [`${dir}/last.md`]: 'done' })
   await clock.advance(1500)
   expect(opened).toEqual([])
+  expect(files[`${dir}/run.html`]).toContain('<details class="failed" open><summary>Bash: cat x · exit 1 · 1 line</summary>')
+})
+
+const FINISHED = (dir: string) => ({ [`${dir}/host`]: 'herdr\n', [`${dir}/label`]: 'cdx: list the files', [`${dir}/clean.md`]: CLEAN,
+  [`${dir}/exit`]: '0', [`${dir}/start`]: '100', [`${dir}/end`]: '130', [`${dir}/last.md`]: '# Done\n\nall good' })
+
+test('a foreground call returns with its page written and a note for the model where nothing draws panes', async ($, on) => {
+  const { files, dir, result } = await delegate($, on, true, FINISHED, [])
+  expect(files[`${dir}/run.html`]).toContain('<h1>cdx: list the files</h1>')
+  const note = (result as { context?: string[] }).context?.join('\n') ?? ''
+  expect(note).toContain(`is at ${dir}/run.html`)
+  expect(note).toContain('copy that file to a folder they can open')
+})
+
+test('where a surface draws panes the note only names the page', async ($, on) => {
+  const { dir, result } = await delegate($, on, true, FINISHED, ['terminal'])
+  const note = (result as { context?: string[] }).context?.join('\n') ?? ''
+  expect(note).toContain(`is at ${dir}/run.html`)
+  expect(note).not.toContain('copy that file')
+})
+
+test('a run that left no end (bare, outside herdr) adds no note', async ($, on) => {
+  const { result } = await delegate($, on)
+  expect((result as { context?: string[] }).context ?? []).toEqual([])
+})
+
+test('runPage escapes everything from the run and opens on the answer only when it succeeded', () => {
+  const evil = '<script>alert(1)</script> "x" & <img src=x onerror=1>'
+  const html = runPage({ label: evil, status: evil, ok: false, answer: evil,
+    parts: [{ kind: 'prose', text: evil }, { kind: 'fold', title: evil, body: '```\n' + evil + '\n```', failed: true }], logPath: '/d/<x>' })
+  expect(html).not.toContain('<script>alert')
+  expect(html).not.toContain('<img')
+  expect(html.match(/<script>/g)?.length).toBe(1) // the page's own
+  expect(html).toContain('&lt;script&gt;alert(1)&lt;/script&gt;')
+  expect(html).toContain('data-first="live"')
+  expect(runPage({ label: 'l', status: 's', ok: true, answer: 'a', parts: [], logPath: '/d' })).toContain('data-first="answer"')
+  expect(mdToHtml('### H\n\n**b** `c` *i*\n\n- one\n- two\n\n> q\n\n```\n<x>\n```')).toBe(
+    '<h3>H</h3>\n<p><strong>b</strong> <code>c</code> <em>i</em></p>\n<ul><li>one</li><li>two</li></ul>\n<blockquote>q</blockquote>\n<pre>&lt;x&gt;</pre>')
 })
 
 test('a call that never runs (denied) is dropped after a minute', { options: { claudePane: 'auto' } }, async ($, on) => {
@@ -103,11 +150,12 @@ test('a call that never runs (denied) is dropped after a minute', { options: { c
   expect(opened).toEqual([])
 })
 
-test('claudePane off (the default) keeps the bare run outside herdr', async ($, on) => {
+test('claudePane off (the default) keeps the bare run outside herdr; herdr runs are still followed for the page', async ($, on) => {
   const { files, id } = await delegate($, on)
   const script = Object.entries(files).find(([p]) => p.endsWith(`codex-herdr-run.${id}.sh`))?.[1] ?? ''
   expect(script).toContain('then exec bash "$__D/orig.sh"; fi')
-  expect(script).not.toContain('/host')
+  expect(script).not.toContain('echo claude')
+  expect(script.indexOf('then exec bash "$__D/orig.sh"; fi')).toBeLessThan(script.indexOf('echo herdr > "$__D/host"'))
 })
 
 test('the headless run uses the same pipeline with no viewer, then the usual report', () => {

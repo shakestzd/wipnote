@@ -26,9 +26,10 @@ export type WrapOptions = {
   leanProfileName: string
   id: string
   runsDir?: string // ccx's run-log directory; the pane's CCX_RUNS_DIR overrides it
-  // Outside herdr, run the delegation headless into runDir (runDirPath) instead of running it
-  // bare, so the Claude Code pane (runpane.tsx) can follow it. runDir is where the hook looks.
+  // Outside herdr, run the delegation headless into runDir instead of running it bare, so the
+  // Claude Code pane (runpane.tsx) can follow it.
   claudePane?: boolean
+  // The run directory, named by the id (runDirPath) so the hook can follow the run to its end
   runDir?: string
 }
 
@@ -119,7 +120,7 @@ export function buildWrapper(command: string, o: WrapOptions): string {
   const mktemp = '__D=$(mktemp -d "${TMPDIR:-/tmp}/codex-herdr.XXXXXX") || exit 1'
   return [
     MARKER,
-    claude ? `__D=${shq(o.runDir!)}; mkdir -m 700 "$__D" 2>/dev/null || { ${mktemp}; }` : mktemp,
+    o.runDir ? `__D=${shq(o.runDir)}; mkdir -m 700 "$__D" 2>/dev/null || { ${mktemp}; }` : mktemp,
     // A script the hook wrote (see stubFor) moves into the run directory, so it is kept with the logs
     'case "$0" in */' + SCRIPT_PREFIX + '*.sh) mv "$0" "$__D/wrapper.sh" 2>/dev/null;; esac',
     SWEEP,
@@ -140,6 +141,7 @@ export function buildWrapper(command: string, o: WrapOptions): string {
     ] : [
       // Outside herdr, or without the binary, run the command exactly as asked.
       'if [ "${HERDR_ENV:-}" != 1 ] || ! command -v herdr >/dev/null 2>&1; then exec bash "$__D/orig.sh"; fi',
+      ...(o.runDir ? ['echo herdr > "$__D/host"'] : []), // the hook follows it to its end, for the page
       ...(tool.shim ? heredoc('$__D/shim.sh', shim, SHIM) : []),
       ...heredoc('$__D/pane.sh', pane, paneScript(o, tool, chained, !chained && !redirectsStdout(command))),
       `printf '%s' ${JSON.stringify(word(paneLabel(command)))} > "$__D/label"`,
