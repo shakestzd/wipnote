@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Stub of the dev helper: `dev exec [-d <dir>] <command...>` runs the command (here, not in a
+# container), logging "dev <args>" to $SIMLOG.dev.
+echo "dev $*" >> "$SIMLOG.dev"
+[ "$1" = exec ] && shift
+case "$1" in -d) shift 2;; -d?*) shift;; esac
+exec "$@"

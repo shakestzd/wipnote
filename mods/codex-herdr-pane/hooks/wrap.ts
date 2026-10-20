@@ -5,7 +5,7 @@ import { MARKER, TOOLS, isStandalone, redirectsStdout, toolFor, type DelegationT
 
 export { MARKER, isCodexDelegation, isDelegation, paneLabel } from './tools.ts'
 import { paneLabel } from './tools.ts'
-import { SHIM } from './shim.ts'
+import { CLAUDE_SHIM, SHIM } from './shim.ts'
 import { NL_FN } from './mdpipe.ts'
 import { paneScript } from './panescript.ts'
 import { splitSection, unregisterCmd } from './layout.ts'
@@ -56,7 +56,10 @@ function heredoc(path: string, delim: string, body: readonly string[]): string[]
   return [`cat > "${path}" <<'${delim}'`, ...body, delim]
 }
 
-// What the Bash call returns to Claude. Codex: the status, then the answer when
+// The shim the pane sources before the command (shim.ts), for a tool that has one
+const shimFor = (tool: DelegationTool): readonly string[] => (tool.filter === 'claude' ? CLAUDE_SHIM : SHIM)
+
+// What the Bash call returns to Claude. Codex (and headless claude, the same way): the status, then the answer when
 // there is one, else the tail of the cleaned log. ccx: what an unwrapped run
 // returns, its own stdout (status line and result) and its stderr.
 // A chained call (isStandalone in tools.ts) adds, for codex, a header and the whole
@@ -85,7 +88,7 @@ function report(o: WrapOptions, tool: DelegationTool, chained: boolean): string[
     return [...head, '__X=$(cat "$__D/exit")', 'cap_file "$__D/out.txt"', 'cat "$__D/err.log" >&2; nl_if_open "$__D/err.log" >&2', ...PAGE_LINE]
   }
   const tail = Math.max(1, Math.floor(o.tailLines))
-  const who = chained ? 'command' : 'codex'
+  const who = chained ? 'command' : tool.name
   return [
     ...head,
     '__X=$(cat "$__D/exit")',
@@ -142,7 +145,7 @@ export function buildWrapper(command: string, o: WrapOptions): string {
     SWEEP,
     ...heredoc('$__D/orig.sh', orig, [command]),
     ...(claude ? [
-      ...(tool.shim ? heredoc('$__D/shim.sh', shim, SHIM) : []),
+      ...(tool.shim ? heredoc('$__D/shim.sh', shim, shimFor(tool)) : []),
       ...heredoc('$__D/pane.sh', pane, paneScript(o, tool, chained, !chained && !redirectsStdout(command))),
       `printf '%s' ${JSON.stringify(word(paneLabel(command)))} > "$__D/label"`,
       // Outside herdr, or without the binary: the same run with no viewer, which the Claude Code
@@ -156,7 +159,7 @@ export function buildWrapper(command: string, o: WrapOptions): string {
     ] : [
       // Outside herdr, or without the binary, run the command exactly as asked.
       'if [ "${HERDR_ENV:-}" != 1 ] || ! command -v herdr >/dev/null 2>&1; then exec bash "$__D/orig.sh"; fi',
-      ...(tool.shim ? heredoc('$__D/shim.sh', shim, SHIM) : []),
+      ...(tool.shim ? heredoc('$__D/shim.sh', shim, shimFor(tool)) : []),
       ...heredoc('$__D/pane.sh', pane, paneScript(o, tool, chained, !chained && !redirectsStdout(command))),
       `printf '%s' ${JSON.stringify(word(paneLabel(command)))} > "$__D/label"`,
     ]),

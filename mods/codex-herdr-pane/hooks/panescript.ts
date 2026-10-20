@@ -2,7 +2,7 @@
 
 import type { DelegationTool } from './tools.ts'
 import type { WrapOptions } from './wrap.ts'
-import { mdFunctions } from './mdpipe.ts'
+import { claudeJq, mdFunctions } from './mdpipe.ts'
 
 // The Textual versions the viewer was tested on, defined once. The `uv run --with` in the pane
 // script uses it; codex_view.py's inline header repeats it because a script header cannot
@@ -56,6 +56,34 @@ const CODEX_CHAIN_RUN = [
   '  run_orig bash -c \'. "$1/shim.sh"; . "$1/orig.sh"\' _ "$D"; X=$?',
   '  mkrest',
   ...USAGE,
+]
+
+// For claude: the shim (shim.ts) adds stream-json, so codex's route serves with stream.jq in
+// codex.jq's place: the output (stderr merged) goes to raw.log untouched, then through
+// stream.jq's pane mode (events become text, any other line passes) into clean.log; its md
+// mode writes clean.md live and, once the run ends, whole from raw.log. The answer is the last
+// result event's text and the usage its tokens and cost. Chained: the shim feeds the logs and
+// writes the answer itself; __CODEX_LAST names the answer for rest.awk, which drops its copy
+// from the rest of the command.
+const CLAUDE_ENV = 'export __CLAUDE_LAST="$D/last.md" __CLAUDE_D="$D" __CLAUDE_ROOT="$ROOT"'
+const CLAUDE_END = [
+  '  [ -s "$D/last.md" ] || cjq answer < "$D/raw.log" > "$D/last.md"',
+  '  cjq usage < "$D/raw.log" > "$D/usage"',
+  '  echo "$X" > "$D/exit.tmp"; date +%s > "$D/end"; mv "$D/exit.tmp" "$D/exit"',
+]
+const CLAUDE_RUN = [
+  '  ' + CLAUDE_ENV,
+  '  bash -c \'. "$1/shim.sh"; . "$1/orig.sh"\' _ "$D" 2>&1 | tee "$D/raw.log" >(cjq md >> "$D/clean.md") | cjq pane > "$D/clean.log"',
+  '  X="${PIPESTATUS[0]}"',
+  '  cjq md < "$D/raw.log" > "$D/clean.md.tmp" && mv "$D/clean.md.tmp" "$D/clean.md"',
+  ...CLAUDE_END,
+]
+const CLAUDE_CHAIN_RUN = [
+  '  : > "$D/raw.log"; : > "$D/clean.log"',
+  '  ' + CLAUDE_ENV + ' __CLAUDE_CHAIN=1 __CODEX_LAST="$D/last.md"',
+  '  run_orig bash -c \'. "$1/shim.sh"; . "$1/orig.sh"\' _ "$D"; X=$?',
+  '  mkrest',
+  ...CLAUDE_END,
 ]
 
 // For ccx: stdout (the status line and the result) goes to out.txt untouched and
@@ -157,12 +185,13 @@ export function paneScript(o: WrapOptions, tool: DelegationTool, chained: boolea
     .map((l) => l.replace('__PROFILE__', profileName(o)).replace('__REVIEWLAST__', reviewToLast ? '1' : ''))
   const run = tool.filter === 'ccx'
     ? CCX_RUN.map((l) => l.replace('__RUNS__', () => (o.runsDir ? shq(o.runsDir) : DEFAULT_RUNS)))
-    : codex
+    : tool.filter === 'claude' ? (chained ? CLAUDE_CHAIN_RUN : CLAUDE_RUN) : codex
   return [
     '#!/usr/bin/env bash',
     'D="$1"; ROOT="$2"; VIEW="$3"; CHAIN="$4"',
     ...RUN_ORIG,
     ...mdFunctions('$ROOT'),
+    ...(tool.filter === 'claude' ? [claudeJq('$ROOT')] : []),
     MKREST,
     'if [ "$CHAIN" = 1 ]; then export MCP_SEEN_MD="$D/mcp.md.seen" MCP_SEEN_LOG="$D/mcp.log.seen"; fi',
     // The pane's own title (the shell set one for the typed command) and a clear screen, so the

@@ -1,4 +1,4 @@
-import { NL_FN, mdFunctions } from './mdpipe.ts'
+import { NL_FN, claudeJq, mdFunctions } from './mdpipe.ts'
 
 // The shell function that stands in for `codex` inside the pane. Pure text.
 //
@@ -62,5 +62,49 @@ export const SHIM = [
   '  else',
   '    command codex "$@"',
   '  fi',
+  '}',
+]
+
+// The shell functions that stand in for `claude` and `dev` inside the pane. Pure text.
+// A claude call in print mode (-p or --print among its words) that names no --output-format
+// gets `--output-format stream-json --verbose` (print mode refuses stream-json without
+// --verbose), so the pane shows each message, tool call and result as it happens (stream.jq).
+// A call that names its own format, or is not in print mode, runs exactly as asked. A
+// `dev exec [-d <dir>] claude ...` call gets the same flags after its claude word.
+// STANDALONE: the stream is the pane's stdout (raw.log, then stream.jq into clean.log) and the
+// pane script takes the answer from its last result event. CHAINED (__CLAUDE_CHAIN): the
+// command's stdout is the caller's, so the shim sends the stream to the pane only and prints the
+// answer (the result event's text), which is what a plain `claude -p` prints.
+export const CLAUDE_SHIM = [
+  claudeJq('$__CLAUDE_ROOT'),
+  NL_FN,
+  // __PRE: the flags to add, none when the call is not print mode or names its own format
+  '__claude_pre() {',
+  '  local a want="" p="" fmt="" v=""; __PRE=()',
+  '  for a in "$@"; do',
+  '    if [ -n "$want" ]; then fmt="$a"; want=""; continue; fi',
+  '    case "$a" in --) break;; -p|--print) p=1;; --verbose) v=1;; --output-format) fmt=set; want=1;; --output-format=*) fmt="${a#*=}";; esac',
+  '  done',
+  '  if [ -n "$p" ] && [ -z "$fmt" ]; then __PRE=(--output-format stream-json); [ -z "$v" ] && __PRE+=(--verbose); fi',
+  '  return 0',
+  '}',
+  // $1: how many words lead up to claude (command claude, or command dev exec ... claude); the rest are claude's own
+  '__claude_go() {',
+  '  local n="$1" rc; shift; local head=("${@:1:$n}"); shift "$n"',
+  '  __claude_pre "$@"',
+  '  if [ "${#__PRE[@]}" = 0 ] || [ -z "${__CLAUDE_LAST:-}" ]; then "${head[@]}" "$@"; return; fi',
+  '  if [ -z "${__CLAUDE_CHAIN:-}" ]; then "${head[@]}" "${__PRE[@]}" "$@"; return; fi',
+  '  : > "$__CLAUDE_D/call.log"',
+  '  "${head[@]}" "${__PRE[@]}" "$@" | tee -a "$__CLAUDE_D/raw.log" "$__CLAUDE_D/call.log" >(cjq md >> "$__CLAUDE_D/clean.md") | cjq pane >> "$__CLAUDE_D/clean.log"',
+  '  rc="${PIPESTATUS[0]}"; cjq answer < "$__CLAUDE_D/call.log" > "$__CLAUDE_LAST"; cat "$__CLAUDE_LAST"; nl_if_open "$__CLAUDE_LAST"; return "$rc"',
+  '}',
+  'claude() { __claude_go 2 command claude "$@"; }',
+  // dev exec: skip -d <dir> (or -d=<dir>, -d<dir>); a claude word next is the run, anything else runs untouched
+  'dev() {',
+  '  local i=2',
+  '  if [ "$1" = exec ]; then while [ "$i" -le "$#" ]; do case "${!i}" in -d) i=$((i+2));; -d?*) i=$((i+1));; *) break;; esac; done; fi',
+  '  if [ "$1" = exec ] && [ "$i" -le "$#" ] && case "${!i}" in claude|*/claude) true;; *) false;; esac; then',
+  '    __claude_go $((i+2)) command dev "$@"',
+  '  else command dev "$@"; fi',
   '}',
 ]

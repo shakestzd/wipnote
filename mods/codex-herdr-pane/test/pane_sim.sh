@@ -360,4 +360,37 @@ eq "sweep: a newer run directory is kept" "$(ls -d "$T/tmp/codex-herdr.new1" 2>/
 eq "sweep: an old ccx claim is removed" "$(ls -d "$T/tmp/codex-herdr-ccx-claims-$(id -u)/a.jsonl" 2>/dev/null | wc -l | tr -d ' ')" 0
 
 rm -rf "$T"
+# --- headless claude: stream-json added once, the answer returned, bare or behind dev exec ---
+A='`tsconfig.json` extends `./.claude-plugin/types/tsconfig.json`.'
+run 'claude -p "say ok" --allowedTools Read'
+has "claude: report header with usage" "claude exited 0 after" <(echo "$OUT")
+has "claude: usage from the result event" "4 in / 111 out tokens, \$0.1077" <(echo "$OUT")
+has "claude: the answer is returned" "$A" <(echo "$OUT")
+has "claude: stream-json and --verbose added before its own words" "claude --output-format stream-json --verbose -p say ok --allowedTools Read" "$T/log.claude"
+has "claude: clean.log shows the tool call" "> Read: tsconfig.json" "$D/clean.log"
+has "claude: clean.log ends with the result line" "--- success in 4s, 2 turns" "$D/clean.log"
+has "claude: clean.md folds the call with its result" '**Read** `tsconfig.json`' "$D/clean.md"
+eq "claude: last.md is the answer" "$(cat "$D/last.md")" "$A"
+eq "claude: label" "$(cat "$D/label")" "Claude task: say ok"
+nothas "claude: no raw JSON reaches the caller" '"type":' <(echo "$OUT")
+fencecheck "$D/clean.md" claude
+
+run 'dev exec -d svc/api claude -p "/code-review high a.ts" --allowedTools "Read,Grep,Glob"'
+has "dev exec: flags go after the claude word" "dev exec -d svc/api claude --output-format stream-json --verbose -p /code-review high a.ts" "$T/log.dev"
+has "dev exec: the answer is returned" "$A" <(echo "$OUT")
+eq "dev exec: review label" "$(cat "$D/label")" "Claude review: /code-review high a.ts"
+
+run 'claude -p "x" --verbose'
+eq "claude: --verbose the call has is not repeated" "$(grep -o -- --verbose "$T/log.claude" | wc -l | tr -d ' ')" 1
+
+run 'claude -p "x" --output-format json'
+nothas "claude: a call naming its own format runs as asked" "stream-json" "$T/log.claude"
+
+run 'echo BEFORE; claude -p "x" | tail -1; echo AFTER'
+has "claude chained: the rest of the command is returned" "AFTER" <(echo "$OUT")
+has "claude chained: the answer is returned" "$A" <(echo "$OUT")
+eq "claude chained: the answer once (rest.awk drops its copy)" "$(grep -cF -- "$A" <(echo "$OUT"))" 1
+nothas "claude chained: no raw JSON reaches the caller" '"type":' <(echo "$OUT")
+has "claude chained: clean.log shows the tool call" "> Read: tsconfig.json" "$D/clean.log"
+
 [ "$fails" = 0 ] && echo "pane simulation passed" || { echo "$fails failed"; exit 1; }

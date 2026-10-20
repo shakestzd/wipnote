@@ -1,7 +1,7 @@
 {
   "name": "codex-herdr-pane",
-  "version": "0.8.2",
-  "description": "Runs every Codex delegation (codex exec, codex review) and every ccx task with a live log and a rendered answer: in a herdr pane that closes when it finishes, or (claudePane auto) outside herdr in a Claude Code pane",
+  "version": "0.9.0",
+  "description": "Runs every Codex delegation (codex exec, codex review), every ccx task and every headless Claude run (claude -p / --print, bare or behind dev exec) with a live log and a rendered answer: in a herdr pane that closes when it finishes, or (claudePane auto) outside herdr in a Claude Code pane",
   "types": "./types/index.d.ts",
   "author": {
     "name": "shakestzd"

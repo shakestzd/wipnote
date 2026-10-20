@@ -26,6 +26,11 @@ export function mdFunctions(root: string): string[] {
   ]
 }
 
+// cjq <mode>: stream.jq (Claude's stream-json) in one of its modes; the modes that read the
+// whole stream (md, answer, usage) need -n.
+export const claudeJq = (root: string): string =>
+  `cjq() { local n=; case "$1" in md|mdlive|answer|usage) n=-n;; esac; jq --unbuffered $n -R -r --arg mode "$1" -f "${root}/viewer/stream.jq" 2>/dev/null; }`
+
 // Prints a newline when the file's last byte is not one (so a report never ends mid-line and
 // never gets a blank line it did not need). $(tail -c1) is empty exactly when the file is
 // empty or ends in a newline.

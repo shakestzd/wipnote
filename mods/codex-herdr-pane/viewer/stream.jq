@@ -5,6 +5,10 @@
 #                                                            (a call never answered ends as "(no result)")
 #   ... --arg mode mdlive                                    the same, but a call still waiting is held back, not
 #                                                            flushed (a log still being written); md needs -n (inputs)
+#   jq -R -r --arg mode pane -f stream.jq                    view, but a line that is not JSON (stderr, text
+#                                                            output) passes as it is: a headless claude in a pane
+#   jq -n -R -r --arg mode answer -f stream.jq               the last result event's text (what claude -p prints)
+#   jq -n -R -r --arg mode usage -f stream.jq                the last result event's tokens and cost, one line
 # Each step only appends to the output, so the output for the first N lines is a prefix of
 # the output for more lines: a follower can re-render and append just the new bytes.
 # fromjson? skips partial lines. `events` is the single parse into neutral items
@@ -62,7 +66,12 @@ def step($it; $flush):
 def mdstream($flush):
   foreach ((inputs | (try fromjson catch null) | select(type == "object") | events), {k: "eof"}) as $it
     ({pend: [], out: null}; step($it; $flush); .out | select(. != null));
+def lastresult: [inputs | (try fromjson catch null) | select(type == "object" and .type == "result")] | last;
 ($ARGS.named.mode // "view") as $mode
 | if $mode == "md" then mdstream(true)
   elif $mode == "mdlive" then mdstream(false)
+  elif $mode == "pane" then (. as $l | (try fromjson catch null) as $j | if ($j | type) == "object" then ($j | events | txt) else $l end)
+  elif $mode == "answer" then (lastresult | .result? // empty | strings)
+  elif $mode == "usage" then (lastresult | select(. != null)
+    | "\(.usage.input_tokens // 0) in / \(.usage.output_tokens // 0) out tokens\(if .total_cost_usd then ", $\(.total_cost_usd * 10000 | round / 10000)" else "" end)")
   else (fromjson? | events | txt) end

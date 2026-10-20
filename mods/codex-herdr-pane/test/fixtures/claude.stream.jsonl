@@ -1,0 +1,5 @@
+{"type":"system","subtype":"init","model":"claude-stub"}
+{"type":"assistant","message":{"content":[{"type":"tool_use","id":"toolu_1","name":"Read","input":{"file_path":"tsconfig.json"}}]}}
+{"type":"user","message":{"content":[{"tool_use_id":"toolu_1","type":"tool_result","content":"1\t{\n2\t  \"extends\": \"./.claude-plugin/types/tsconfig.json\"\n3\t}\n4\t"}]}}
+{"type":"assistant","message":{"content":[{"type":"text","text":"`tsconfig.json` extends `./.claude-plugin/types/tsconfig.json`."}]}}
+{"type":"result","subtype":"success","is_error":false,"result":"`tsconfig.json` extends `./.claude-plugin/types/tsconfig.json`.","num_turns":2,"duration_ms":4689,"usage":{"input_tokens":4,"output_tokens":111},"total_cost_usd":0.1076964}
