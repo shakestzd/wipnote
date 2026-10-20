@@ -168,6 +168,11 @@ test('a foreground call cut off by its timeout leaves its herdr run followed to 
   expect(d.files[`${d.dir()}/run.html`]).not.toContain('ended without an exit status')
 })
 
+test('a timed-out call whose run went bare is promised no page', async ($, on) => {
+  const d = await delegate($, on, { interrupted: true, surfaces: [] })
+  expect(note(d.result)).toBe('')
+})
+
 test('where a surface draws panes no note is added (the report names the page)', async ($, on) => {
   const d = await delegate($, on, { ran: FINISHED, surfaces: ['terminal'] })
   expect(d.files[`${d.dir()}/run.html`]).toBeDefined()

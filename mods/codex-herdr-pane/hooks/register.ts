@@ -1,7 +1,7 @@
 import type { EngineInterface as Api, Register } from 'claude-code'
 import { buildWrapper, isDelegation, paneLabel, runDirPath, scriptPath, stubFor, type ClosePolicy } from './wrap.ts'
 import { runPane } from './runpane.tsx'
-import { callEnded, settleRun, trackRun } from './runstate.ts'
+import { callEnded, settleRun, text, trackRun } from './runstate.ts'
 
 const FOREGROUND_MAX_MS = 600000
 
@@ -12,14 +12,19 @@ const SEND = 'copy it to a folder they can open (your scratchpad or the working 
 // For the model, where nothing in this session draws mod panes: how to show the run to the user.
 // A foreground call has ended, so its page exists or never will; a background one names its page
 // in its report (a "run page:" line) when it ends. Elsewhere the report's line is enough.
-// A call cut off by its timeout has returned for good while its run goes on (in a herdr pane):
-// no report will name the page, so the note names where the poller writes it.
+// A call cut off by its timeout has returned for good while its run goes on (in a pane):
+// no report will name the page, so the note names where the poller writes it. A bare run (no
+// host file: outside herdr, no pane to be had) ended with the call and gets no page.
 type CallEnd = 'done' | 'background' | 'interrupted'
 async function pageNote($: Api, id: string, end: CallEnd, dir: string): Promise<string | undefined> {
   const page = end === 'done' ? await settleRun($, id) : undefined // ends the run here even if it left no exit
   if ((await $.session.surfaces()).length > 0) return undefined
   if (end === 'background') return `codex-herdr-pane: nothing in this session draws mod panes. If this delegation's report ends with a "run page:" line, show the run to the user: ${SEND}`
-  if (end === 'interrupted') return `codex-herdr-pane: nothing in this session draws mod panes. This call timed out while the delegation runs on, so no report will follow. Once it ends, its page is ${dir}/run.html (the user can also type /codex-runs). When that file exists, show the run to the user: ${SEND}`
+  if (end === 'interrupted') {
+    const host = (await text($, `${dir}/host`))?.trim()
+    if (host !== 'herdr' && host !== 'claude') return undefined
+    return `codex-herdr-pane: nothing in this session draws mod panes. This call timed out while the delegation runs on, so no report will follow. Once it ends, its page is ${dir}/run.html (the user can also type /codex-runs). When that file exists, show the run to the user: ${SEND}`
+  }
   return page ? `codex-herdr-pane: nothing in this session draws mod panes, so show the run to the user through its page, ${page}: ${SEND}` : undefined
 }
 
