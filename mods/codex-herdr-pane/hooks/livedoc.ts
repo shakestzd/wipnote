@@ -70,3 +70,36 @@ export function parseRun(text: string, final = false): RunPart[] {
   if (fold && final) parts.push({ kind: 'fold', title: fold.title, failed: fold.failed, body: foldBody(fold.title, fold.lines) })
   return parts
 }
+
+// The run as plain text, for /codex-runs where no surface draws panes (the reply lands in the
+// chat): the assistant's text, one line per tool result (a failed one with the first lines of its
+// output), then the answer. Headings and fences are dropped so it reads as text; the newest part
+// is kept when it is long.
+const FAILED_LINES = 6
+const MAX_SUMMARY = 6000
+
+function plainLines(md: string): string[] {
+  // headings, fences, the thinking label and codex's token footer (the head already says it)
+  return md.split('\n').filter((l) => !/^#{1,6} /.test(l) && !/^ {0,3}(`{3,}|~{3,})/.test(l) && l !== '**thinking**' && !/^\*input [0-9,]+ .*\*$/.test(l))
+}
+
+export function summarizeRun(parts: RunPart[], head: string, answer: string, logPath: string): string {
+  const body: string[] = []
+  for (const p of parts) {
+    if (p.kind === 'prose') {
+      const text = plainLines(p.text).join('\n').replace(/\n{3,}/g, '\n\n').trim()
+      if (text) body.push(...(body.length ? [''] : []), text, '')
+      continue
+    }
+    body.push(`${p.failed ? '✗' : '✓'} ${p.title}`)
+    if (p.failed) {
+      const out = plainLines(p.body).filter((l) => l.trim() && !l.startsWith('> **error**') && !/^\*\*[A-Za-z0-9_.:-]+\*\*/.test(l))
+      body.push(...out.slice(0, FAILED_LINES).map((l) => `    ${l}`))
+      if (out.length > FAILED_LINES) body.push(`    ... ${out.length - FAILED_LINES} more lines`)
+    }
+  }
+  let text = body.join('\n').replace(/\n{3,}/g, '\n\n').trim()
+  if (text.length > MAX_SUMMARY) text = '... (earlier steps cut)\n' + text.slice(-MAX_SUMMARY)
+  const tail = answer.trim() ? `\n\n--- answer ---\n${answer.trim()}` : ''
+  return `${head}\n\n${text || '(no events yet)'}${tail}\n\nFull log: ${logPath}`
+}

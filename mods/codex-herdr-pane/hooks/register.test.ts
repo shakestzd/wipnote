@@ -141,12 +141,12 @@ test('recognises delegations and ignores look-alikes', () => {
 
 test('the pane title comes from the prompt', () => {
   expect(paneLabel('codex exec -s read-only "Implement the sharded CI gate for feat-53536cda please"'))
-    .toBe('Codex task: Implement the sharded CI gate for feat-53536cda')
-  expect(paneLabel('codex review --base main')).toBe('Codex review: changes against main')
-  expect(paneLabel('codex review --commit 0123456789abcdef')).toBe('Codex review: commit 0123456789ab')
-  expect(paneLabel('codex review')).toBe('Codex review: current changes')
-  expect(paneLabel('codex review "check the locking"')).toBe('Codex review: check the locking')
-  expect(paneLabel('codex exec "$(cat prompt.md)"')).toBe('Codex task: $(cat prompt.md)')
+    .toBe('cdx: Implement the sharded CI gate for feat-53536cda')
+  expect(paneLabel('codex review --base main')).toBe('cdx review: changes against main')
+  expect(paneLabel('codex review --commit 0123456789abcdef')).toBe('cdx review: commit 0123456789ab')
+  expect(paneLabel('codex review')).toBe('cdx review: current changes')
+  expect(paneLabel('codex review "check the locking"')).toBe('cdx review: check the locking')
+  expect(paneLabel('codex exec "$(cat prompt.md)"')).toBe('cdx: $(cat prompt.md)')
 })
 
 test('the wrapper keeps the original whole, shims the answer file and falls back outside herdr', () => {

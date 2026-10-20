@@ -1,7 +1,9 @@
 import { expect, mock, test } from 'claude-code/testing'
-import { parseRun } from './livedoc.ts'
+import { parseRun, summarizeRun } from './livedoc.ts'
 import { buildWrapper, runDirPath } from './wrap.ts'
 
+// /codex-runs as the person types it
+const RUNS_CMD = { command: 'codex-runs', args: '', origin: { kind: 'composer' }, presentation: { isFullscreen: false, columns: 80 } } as const
 const answer = { result: { stdout: '', stderr: '', interrupted: false } }
 const TMP = '/tmp/t'
 const CLEAN = [
@@ -12,7 +14,7 @@ const CLEAN = [
 
 // A delegation through the mod with claudePane on: the files the run writes are `files`, the
 // panes opened and closed are recorded.
-async function delegate($: any, on: any) {
+async function delegate($: any, on: any, placed = true) {
   const clock = mock.clock(on)
   mock.env(on, { TMPDIR: TMP })
   const files: Record<string, string> = {}
@@ -23,7 +25,10 @@ async function delegate($: any, on: any) {
     if (!(e.path in files)) throw new Error('ENOENT')
     return { value: files[e.path] }
   })
-  on('ui.open', {}, (_$: unknown, e: { id: string }) => { opened.push(e.id); return { value: { isPlaced: true } } })
+  on('ui.open', {}, (_$: unknown, e: { id: string }) => {
+    opened.push(e.id)
+    return { value: placed ? { isPlaced: true } : { isPlaced: false, reason: 'no-surface: no surface is attached' } }
+  })
   on('ui.close', {}, (_$: unknown, e: { id: string }) => { closed.push(e.id); return { value: undefined } })
   let command = ''
   on('tool.call', { tool: 'Bash' }, (_$: unknown, e: { command: string }) => { command = e.command; return answer })
@@ -131,4 +136,39 @@ test('parseRun: prose and folds, markers in fences are text, an unclosed fold wa
   expect(parseRun('one\ntw').map((p) => p.kind === 'prose' && p.text)).toEqual(['one']) // a partial line waits
   const cut = parseRun('<!-- fold closed: Bash: long... · exit 0 · 1 line -->\n**Bash** `long command`\n\n```\ny\n```\n<!-- /fold -->\n')[0]!
   expect(cut.kind === 'fold' && cut.body.startsWith('**Bash** `long command`')).toBe(true) // a cut title keeps the label
+})
+
+test('/codex-runs puts the run in the chat when no surface draws panes', { options: { claudePane: 'auto', closePane: 'never' } }, async ($, on) => {
+  const { clock, files, dir } = await delegate($, on, false)
+  Object.assign(files, { [`${dir}/host`]: 'claude\n', [`${dir}/label`]: 'Codex task: list the files', [`${dir}/clean.md`]: CLEAN,
+    [`${dir}/exit`]: '1', [`${dir}/end`]: String(Math.floor(clock.now() / 1000)), [`${dir}/last.md`]: '' })
+  await clock.advance(800)
+  await clock.advance(800)
+  const out = await $.command.run(RUNS_CMD)
+  const text = String((out as { text?: string }).text ?? '')
+  expect(text).toContain('Codex task: list the files: failed with exit 1')
+  expect(text).toContain('I will list the files.')
+  expect(text).toContain('✓ Bash: ls · exit 0 · 2 lines')
+  expect(text).toContain('✗ Bash: cat x · exit 1 · 1 line\n    nope')
+  expect(text).toContain(`Full log: ${dir}/clean.md`)
+  expect(text).not.toContain('<!--')
+})
+
+test('/codex-runs with no run followed says so', { options: { claudePane: 'auto' } }, async ($) => {
+  const out = await $.command.run(RUNS_CMD)
+  expect(String((out as { text?: string }).text)).toContain('No delegation run is followed')
+})
+
+test('summarizeRun: text, one line per result, failed output cut, the answer last, the newest kept', () => {
+  const parts = parseRun(CLEAN, true)
+  const text = summarizeRun(parts, 'head', 'the answer', '/d/clean.md')
+  expect(text.startsWith('head\n\nI will list the files.\n\n✓ Bash: ls')).toBe(true)
+  expect(text).not.toContain('**Bash**')
+  expect(text).not.toContain('```')
+  expect(text).toContain('--- answer ---\nthe answer\n\nFull log: /d/clean.md')
+  const long = parseRun(Array.from({ length: 400 }, (_, i) => `<!-- fold closed: Bash: step ${i} · exit 0 · 1 line -->\n\`\`\`\nx\n\`\`\`\n<!-- /fold -->\n`).join(''), true)
+  const cut = summarizeRun(long, 'h', '', '/d')
+  expect(cut).toContain('... (earlier steps cut)')
+  expect(cut).toContain('step 399')
+  expect(cut).not.toContain('step 0 ')
 })

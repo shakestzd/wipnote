@@ -334,7 +334,7 @@ mkfifo "$T/verdict.pipe"; ( cat "$T/verdict.pipe" > "$T/fifo.out" ) &
 SIMREVIEW=1 run "codex review > '$T/verdict.pipe'"; sleep 0.5
 eq "review redirected to a FIFO: the reader gets the verdict" "$(cat "$T/fifo.out" 2>/dev/null)" "The verdict."
 SIMREVIEW=1 run 'codex review'
-has "review: pane title names what is reviewed" "Codex review: current changes" "$D/label"
+has "review: pane title names what is reviewed" "cdx review: current changes" "$D/label"
 eq "review: the pane is renamed after it starts" "$(grep -n -e '^herdr pane run' -e '^herdr pane rename' "$T/log" | cut -d: -f2 | cut -c1-16 | tr '\n' ,)" "herdr pane run w,herdr pane renam,"
 
 run 'echo "OpenAI Codex v9 is a phrase"; echo "after the phrase"; codex exec "hello"'

@@ -7,7 +7,7 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface as Api, On } from 'claude-code'
 import type { RunView } from '../types'
-import { parseRun, type RunPart } from './livedoc.ts'
+import { parseRun, summarizeRun, type RunPart } from './livedoc.ts'
 import type { ClosePolicy } from './wrap.ts'
 
 
@@ -93,7 +93,16 @@ async function showLatest($: Api) {
   const latest = Object.values(await read($, runs)).filter((r) => r.host === 'claude').sort((a, b) => b.registered - a.registered)[0]
   if (!latest) return { text: 'No delegation run is followed in this session yet.' }
   const opened = await $.ui.open({ id: paneId(latest.id), title: latest.label.slice(0, 60), focus: true })
-  return { text: opened.isPlaced ? `Showing ${latest.label}.` : `The pane for ${latest.label} waits undrawn: ${opened.reason}` }
+  if (opened.isPlaced) return { text: `Showing ${latest.label}.` }
+  // No surface draws the pane (a cloud session viewed in the app, a -p run): the run goes in the chat
+  const now = await $.clock.now()
+  return { text: summarizeRun(parseRun(latest.md, latest.exit !== undefined), `${latest.label}: ${runStatus(latest, now)}`, latest.answer, `${latest.dir}/clean.md`) }
+}
+
+function runStatus(r: RunView, now: number): string {
+  const took = clock((r.ended ?? now) - (r.started ?? r.registered))
+  if (r.exit === undefined) return `running for ${took}`
+  return `${r.exit === '0' ? 'finished' : `failed with exit ${r.exit}`} in ${took}${r.usage ? ` · ${r.usage}` : ''}`
 }
 
 // Called by the tool.call hook for each delegation it wraps while claudePane is on
@@ -128,9 +137,7 @@ export function runPane(on: On, o: PaneOptions) {
     if (!r) return <Text dimColor>This run is no longer followed.</Text>
     const now = await $.clock.now()
     const ok = r.exit === '0'
-    const took = clock((r.ended ?? now) - (r.started ?? r.registered))
-    const status = r.exit === undefined ? `running for ${took}`
-      : `${ok ? 'finished' : `failed with exit ${r.exit}`} in ${took}${r.usage ? ` · ${r.usage}` : ''}`
+    const status = runStatus(r, now)
     const parts = parseRun(r.md, r.exit !== undefined)
     const isOpen = (i: number, p: Extract<RunPart, { kind: 'fold' }>) => r.open[String(i)] ?? p.failed
     const folds = parts.flatMap((p, i) => (p.kind === 'fold' ? [i] : []))
