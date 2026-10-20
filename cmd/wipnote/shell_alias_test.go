@@ -61,6 +61,30 @@ func TestShellRCPath(t *testing.T) {
 	}
 }
 
+// A macOS bash login shell reads only the first startup file that exists, so
+// the block joins that one instead of creating a ~/.bash_profile that would
+// hide it.
+func TestShellRCPathKeepsTheMacOSLoginFileInUse(t *testing.T) {
+	home := t.TempDir()
+	write := func(name string) {
+		if err := os.WriteFile(filepath.Join(home, name), []byte("export PATH=x\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write(".profile")
+	if got := shellRCPath(home, "/bin/bash", "darwin"); got != filepath.Join(home, ".profile") {
+		t.Errorf("only ~/.profile: got %q", got)
+	}
+	write(".bash_login")
+	if got := shellRCPath(home, "/bin/bash", "darwin"); got != filepath.Join(home, ".bash_login") {
+		t.Errorf("~/.bash_login and ~/.profile: got %q", got)
+	}
+	write(".bash_profile")
+	if got := shellRCPath(home, "/bin/bash", "darwin"); got != filepath.Join(home, ".bash_profile") {
+		t.Errorf("all three: got %q", got)
+	}
+}
+
 func runShellAlias(t *testing.T, args ...string) string {
 	t.Helper()
 	cmd := shellAliasCmd()

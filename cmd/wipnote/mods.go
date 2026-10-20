@@ -42,6 +42,11 @@ func resolveModsDir(pluginDir string) string {
 		debugLog("resolveModsDir: loading no mods: " + err.Error())
 		return ""
 	}
+	// Claude starts in the project root, not here: a relative override must
+	// name the same folder there.
+	if abs, err := filepath.Abs(dir); err == nil {
+		dir = abs
+	}
 	return dir
 }
 

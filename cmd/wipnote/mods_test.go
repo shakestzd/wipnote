@@ -83,6 +83,12 @@ func TestResolveModsDirOverrideAndOptOut(t *testing.T) {
 	if got := resolveModsDir(plugin); got != other {
 		t.Errorf("override: got %q, want %q", got, other)
 	}
+	// A relative override comes back absolute: Claude starts in another folder.
+	t.Chdir(filepath.Dir(other))
+	t.Setenv("WIPNOTE_MODS_DIR", filepath.Base(other))
+	if got := resolveModsDir(plugin); got != other {
+		t.Errorf("relative override: got %q, want %q", got, other)
+	}
 	t.Setenv("WIPNOTE_MODS_DIR", t.TempDir())
 	if got := resolveModsDir(plugin); got != "" {
 		t.Errorf("override with no mod: got %q, want none (not the plugin's own)", got)

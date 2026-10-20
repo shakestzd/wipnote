@@ -49,7 +49,7 @@ The launcher resolves the plugin tree (env override → `~/.local/share/wipnote/
 
 **Mods load with it.** The launcher also passes `--plugin-dir <mods>`, the folder of wipnote's Claude Code mods beside the plugin tree (`~/.local/share/wipnote/mods/`, `$(brew --prefix)/share/wipnote/mods/`, or in-tree `mods/` with `--dev`): `wipnote-orchestra` (the band under the prompt) and `codex-herdr-pane` (Codex delegations in a pane). Claude Code loads every child of that folder. `WIPNOTE_NO_MODS=1` skips them; `WIPNOTE_MODS_DIR=<path>` loads another folder.
 
-For users who want bare `claude` to route through wipnote globally, opt-in via `wipnote shell-alias >> ~/.zshrc`. For short names instead (`wcc` = `wipnote claude`, `wcx` = `wipnote codex`, `wag` = `wipnote antigravity`), run `wipnote shell-alias --short --install`: it adds one managed block to `~/.zshrc` (for bash, `~/.bash_profile` on macOS and `~/.bashrc` elsewhere) that loads them from wipnote at shell start; `wipnote shell-alias --uninstall` removes it. Per-project `wipnote claude` is the recommended flow.
+For users who want bare `claude` to route through wipnote globally, opt-in via `wipnote shell-alias >> ~/.zshrc`. For short names instead (`wcc` = `wipnote claude`, `wcx` = `wipnote codex`, `wag` = `wipnote antigravity`), run `wipnote shell-alias --short --install`: it adds one managed block to `~/.zshrc` (for bash, `~/.bashrc`, or on macOS the first of `~/.bash_profile`, `~/.bash_login`, `~/.profile` that exists) that loads them from wipnote at shell start; `wipnote shell-alias --uninstall` removes it. Per-project `wipnote claude` is the recommended flow.
 
 ---
 

@@ -36,7 +36,8 @@ With --short they add short names instead and leave the bare commands alone:
   wag  wipnote antigravity
 
 --install adds one managed block to your shell rc file (~/.zshrc for zsh; for
-bash ~/.bash_profile on macOS, ~/.bashrc elsewhere; or --rc). The block loads
+bash ~/.bashrc, or on macOS the first of ~/.bash_profile, ~/.bash_login and
+~/.profile that exists; or --rc). The block loads
 the aliases from wipnote at shell start, so an upgrade that changes them needs
 no edit; installing again replaces the block, --uninstall removes it:
 
@@ -97,7 +98,7 @@ Output is plain shell, safe to run multiple times.`,
 	cmd.Flags().BoolVar(&install, "install", false, "add (or replace) a block in your shell rc file that loads the aliases")
 	cmd.Flags().BoolVar(&uninstall, "uninstall", false, "remove that block from your shell rc file")
 	cmd.MarkFlagsMutuallyExclusive("install", "uninstall")
-	cmd.Flags().StringVar(&rcFile, "rc", "", "rc file for --install (default: ~/.zshrc for zsh; for bash ~/.bash_profile on macOS, ~/.bashrc elsewhere)")
+	cmd.Flags().StringVar(&rcFile, "rc", "", "rc file for --install (default: ~/.zshrc for zsh; for bash ~/.bashrc, or on macOS the login file in use)")
 	return cmd
 }
 
@@ -125,16 +126,24 @@ alias wag='wipnote antigravity'
 }
 
 // shellRCPath is the rc file --install writes when --rc is not given:
-// ~/.zshrc for zsh; for bash, ~/.bash_profile on macOS (Terminal and iTerm
-// open login shells, which read it and not ~/.bashrc) and ~/.bashrc elsewhere.
+// ~/.zshrc for zsh; for bash, ~/.bashrc, except on macOS, where Terminal and
+// iTerm open login shells. A bash login shell reads only the first of
+// ~/.bash_profile, ~/.bash_login and ~/.profile that exists, so the block goes
+// into that one: creating ~/.bash_profile beside an existing ~/.profile would
+// stop the shell reading ~/.profile (and the PATH it sets).
 func shellRCPath(home, shell, goos string) string {
 	if filepath.Base(shell) == "zsh" {
 		return filepath.Join(home, ".zshrc")
 	}
-	if goos == "darwin" {
-		return filepath.Join(home, ".bash_profile")
+	if goos != "darwin" {
+		return filepath.Join(home, ".bashrc")
 	}
-	return filepath.Join(home, ".bashrc")
+	for _, name := range []string{".bash_profile", ".bash_login", ".profile"} {
+		if _, err := os.Stat(filepath.Join(home, name)); err == nil {
+			return filepath.Join(home, name)
+		}
+	}
+	return filepath.Join(home, ".bash_profile")
 }
 
 const (
