@@ -152,7 +152,12 @@ async function tick($: Api) {
   ticking = true
   try {
     const live = Object.values(await read($, runs)).filter((r) => r.exit === undefined)
-    if (live.length === 0) { timer?.cancel(); timer = undefined; return }
+    if (live.length === 0) {
+      timer?.cancel(); timer = undefined
+      // a run registered while the state was read found the old timer and started none: start one
+      if (Object.values(await read($, runs)).some((r) => r.exit === undefined)) poll($)
+      return
+    }
     for (const r of live) await stepRun($, r.id)
   } finally { ticking = false }
 }

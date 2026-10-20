@@ -12,8 +12,11 @@ const SEND = 'copy it to a folder they can open (your scratchpad or the working 
 // For the model, where nothing in this session draws mod panes: how to show the run to the user.
 // A foreground call has ended, so its page exists or never will; a background one names its page
 // in its report (a "run page:" line) when it ends. Elsewhere the report's line is enough.
-async function pageNote($: Api, id: string, background: boolean): Promise<string | undefined> {
-  const page = background ? undefined : await settleRun($, id) // ends the run here even if it left no exit
+// `following`: the call returned before its run ended (a background call, or one cut off by its
+// timeout while a herdr pane runs on): the poller follows the run to its end instead.
+async function pageNote($: Api, id: string, following: boolean): Promise<string | undefined> {
+  const page = following ? undefined : await settleRun($, id) // ends the run here even if it left no exit
+  const background = following
   if ((await $.session.surfaces()).length > 0) return undefined
   if (background) return `codex-herdr-pane: nothing in this session draws mod panes. If this delegation's report ends with a "run page:" line, show the run to the user: ${SEND}`
   return page ? `codex-herdr-pane: nothing in this session draws mod panes, so show the run to the user through its page, ${page}: ${SEND}` : undefined
@@ -75,7 +78,8 @@ export const register: Register = (on, options) => {
     try {
       await callEnded($, id, ran.result === undefined)
       if (ran.result === undefined) return ran
-      const note = await pageNote($, id, Boolean(e.run_in_background))
+      const interrupted = Boolean((ran.result as { interrupted?: boolean }).interrupted)
+      const note = await pageNote($, id, Boolean(e.run_in_background) || interrupted)
       return note ? { ...ran, context: [...(ran.context ?? []), note] } : ran
     } catch {
       return ran
