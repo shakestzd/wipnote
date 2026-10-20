@@ -120,7 +120,7 @@ func promoteSliceFromYAML(wipnoteDir, planID string, sliceNum int, waiveDeps, al
 	enforcement := hooks.ReadSpecEnforcement(filepath.Dir(wipnoteDir))
 	if enforcement.PromoteSlice && strings.TrimSpace(slice.DecisionsNotes) == "" {
 		if !allowSpecSkip {
-			return "", fmt.Errorf("slice %d has no decisions; run `wipnote plan elicit-decisions %s %d` first (or invoke /wipnote:spec-from-slice on Claude). Override with --allow-spec-skip if intentional.",
+			return "", fmt.Errorf("slice %d has no decisions; run `wipnote plan elicit-decisions %s %d` first (or follow phase 5 of /wipnote:plan). Override with --allow-spec-skip if intentional.",
 				sliceNum, planID, sliceNum)
 		}
 		auditNote := fmt.Sprintf("[%s] promote-slice --allow-spec-skip: promoted without decisions_notes",

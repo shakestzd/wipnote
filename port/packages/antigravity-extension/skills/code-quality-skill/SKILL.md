@@ -22,7 +22,16 @@ This is the canonical gate table. Other wipnote prompts, agents and skills point
 
 Multiple manifests can coexist (for example a Go backend with a `package.json` frontend). Run the gate for each.
 
-Run the gate, fix the failures, and re-run until all phases pass.
+Run the gate, fix the failures, and re-run until all phases pass:
+
+```
+Quality gate:
+- [ ] Gate command chosen for every manifest
+- [ ] Build passes
+- [ ] Lint / vet passes
+- [ ] Tests pass
+- [ ] Clean re-run after the last fix
+```
 
 ### Go suite notes
 

@@ -1,30 +1,51 @@
 ---
 name: plan
-description: Plans development work through a triage-gated, blocks-first interview that produces slice-card YAML with grounded visual blocks and cited research, then takes slices through review and promotion. Use when asked to plan, scope, or design a feature before building it.
+description: "Runs the whole wipnote plan lifecycle: a triage-gated, blocks-first interview that produces slice-card YAML, then validation, critique, human review, per-slice decisions and specs, and promotion. Also adds visual blocks to existing plans. Use when asked to plan, scope, or design work before building it, to write a slice's decisions or spec, or to add blocks to an existing plan."
 disable-model-invocation: true
 ---
 
 # wipnote Plan
 
+One skill for the whole plan lifecycle. Start at the row that matches what you have:
+
+| You have | Start at |
+|---|---|
+| Work to plan | Phase 1: Draft (below) |
+| A drafted plan | Phase 3: Critique |
+| An approved slice that needs decisions or a spec | Phase 5: [SPEC.md](SPEC.md) |
+| An existing or legacy plan that needs visual blocks | [ENRICH.md](ENRICH.md) |
+
+## Lifecycle checklist
+
+Copy this checklist and tick it off. Do not start a phase until the one before it passes its check.
+
+```
+Plan lifecycle (plan-id):
+- [ ] Phase 1. Draft: triage, research, interview, YAML written
+- [ ] Phase 2. Validate: `wipnote plan validate-yaml` clean
+- [ ] Phase 3. Critique: every `danger` resolved (3+ slice or complex plans)
+- [ ] Phase 4. Review: human feedback ingested; slices approved
+- [ ] Phase 5. Spec: decisions and spec for each approved slice (SPEC.md)
+- [ ] Phase 6. Promote: each approved slice promoted to a feature
+- [ ] Phase 7. Close: plan set to completed when all slices are done
+```
+
+# Phase 1: Draft
+
 Treat plan creation as a **blocks-first** system design interview: you are the candidate, the user is the interviewer with requirements. Extract requirements through staged questions before producing slice YAML, using the harness's native ask-user tool when available and plain chat otherwise. Earn each field through the interview, or mark it inferred/skipped when the user supplied a complete spec and the harness has no interactive tools.
 
-**Blocks-first is the defining discipline.** In each stage, author the VISUAL artifact first (the file-tree the slice touches, the data-model of its contract with the route in the block name, the wireframe/diagram of its UI/flow), then DERIVE `what`/`why`/`done_when` from it. Blocks go into the slice YAML inline as it is built; there is no separate visual pass (`wipnote:visual-plan` is only for enriching existing or legacy plans).
+**Blocks-first is the defining discipline.** In each stage, author the VISUAL artifact first (the file-tree the slice touches, the data-model of its contract with the route in the block name, the wireframe/diagram of its UI/flow), then DERIVE `what`/`why`/`done_when` from it. Blocks go into the slice YAML inline as it is built; there is no separate visual pass ([ENRICH.md](ENRICH.md) is only for existing or legacy plans).
 
 **Native plan mode:** in plan mode, do triage, research and the interview, then present the outline with ExitPlanMode, and write YAML only afterwards.
 
-## Progress checklist
-
-Copy this checklist and tick it off as you go:
+### Draft checklist
 
 ```
-Plan progress:
+Phase 1 draft:
 - [ ] Step 0: Triage — complexity set for each slice
 - [ ] Research — design.research and per-slice research (or research_waiver) recorded
 - [ ] Interview — stages done for each slice's complexity, blocks authored first
 - [ ] Step 1: Plan YAML created and written with rewrite-yaml
-- [ ] Step 2: validate-yaml clean (fix and re-run until it is)
-- [ ] Critique requested for 3+ slice or complex plans
-- [ ] Human review, spec-from-slice, promote
 ```
 
 ---
@@ -192,26 +213,41 @@ wipnote plan create-yaml "<title>" --description "<description>" --track <trk-id
 
 Note the returned plan ID. Write the YAML to `.wipnote/plans/<plan-id>.yaml` via `wipnote plan rewrite-yaml <plan-id> --file /tmp/plan.yaml`.
 
-## Step 2: Validate, Critique, Review, Promote
+# Phase 2: Validate
 
 ```bash
 wipnote plan validate-yaml <plan-id>
 ```
 
-Fix schema errors before continuing. A blocks-gate failure means revisiting that slice's interview (or `wipnote:visual-plan` for a legacy plan, or a genuine `blocks_waiver:`).
+If it reports errors, fix the YAML, write it back with `rewrite-yaml`, and run it again. Continue only when it is clean. A blocks-gate failure means revisiting that slice's interview, or [ENRICH.md](ENRICH.md) for a legacy plan, or a genuine `blocks_waiver:`. [LEGACY.md](LEGACY.md) maps common validator errors to fixes.
 
-Then ask the user to run `/wipnote:plan-critique <plan-id>` for the design/feasibility review (it is a slash command only; it runs as a forked subagent). If critique changes a slice's design, re-author its block and re-derive the prose in the same edit.
+# Phase 3: Critique
 
-Then:
+Skip for trivial single-slice plans. For 3+ slices, or any `complexity: complex` slice, ask the user to run `/wipnote:plan-critique <plan-id>`. It is a slash command only, because it runs the design and feasibility critics in their own subagent. When it returns, every `danger` finding must be resolved. If a finding changes a slice's design, re-author its block, re-derive the prose in the same edit, and go back to Phase 2.
 
-1. Human review: `wipnote serve`, then `wipnote plan read-feedback-yaml <plan-id>` to ingest feedback.
-2. For each approved slice, run `/wipnote:spec-from-slice <plan-id> <num>`. It captures decisions, and generates the spec once the slice is promoted.
-3. Promote: `wipnote plan promote-slice <plan-id> <num>` creates `feat-XXX`.
-4. When all slices are done: `wipnote plan set-status <plan-id> completed`.
+# Phase 4: Review
+
+Run `wipnote serve` and ask the user to review the slices in the dashboard. Then run `wipnote plan read-feedback-yaml <plan-id>`. For each slice with `changes_requested`, revise it and go back to Phase 2. Continue when every slice is approved or rejected.
+
+# Phase 5: Spec
+
+For each approved slice, follow [SPEC.md](SPEC.md): capture decisions, then generate the spec once the slice is promoted.
+
+# Phase 6: Promote
+
+```bash
+wipnote plan promote-slice <plan-id> <num>
+```
+
+This creates the slice's `feat-…` feature. If it refuses (for example, missing decisions or unmet dependencies), fix the cause it names and run it again; use `--waive-deps` only when the user accepts it. Promoted slices are ready for `/wipnote:execute`.
+
+# Phase 7: Close
+
+When every slice is done, run `wipnote plan set-status <plan-id> completed`.
 
 ---
 
-## CLI Reference
+# CLI reference
 
 | Command | Effect |
 |---------|--------|
@@ -229,11 +265,13 @@ Then:
 
 ---
 
-## Reference files and related skills
+# Reference files and related skills
 
 - [EXAMPLES.md](EXAMPLES.md): a complete trivial and a complete complex slice card.
 - [BLOCK_GROUNDING.md](BLOCK_GROUNDING.md): block grounding rules.
 - [INTERVIEW_RENDERING.md](INTERVIEW_RENDERING.md): interview rendering without an ask-user tool, the web form, and the `--questions` schema.
 - [LEGACY.md](LEGACY.md): v1 and v2 (pre-triage) plan compatibility and a validator-error cheatsheet.
-- `/wipnote:plan-critique`: dual-critic review pass, run after the plan is drafted.
-- `/wipnote:visual-plan`: add or revise blocks on an existing or legacy plan only.
+- [SPEC.md](SPEC.md): Phase 5, slice decisions and spec.
+- [ENRICH.md](ENRICH.md): add or revise blocks on an existing or legacy plan.
+- `/wipnote:plan-critique`: Phase 3, the dual-critic review pass.
+- `/wipnote:execute`: runs promoted slices.

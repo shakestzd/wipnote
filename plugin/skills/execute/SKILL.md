@@ -7,6 +7,19 @@ description: "Runs a wipnote plan or track by dependency-driven parallel dispatc
 
 Execute development tasks in parallel with dependency-driven dispatch and worktree isolation.
 
+Copy this checklist and tick it off:
+
+```
+Execute (<track or plan id>):
+- [ ] 1. execute-preview read; active work item confirmed
+- [ ] 2. One task per promoted slice
+- [ ] 3. Wave dispatched: ready tasks with no file overlap
+- [ ] 4. Wave merged; gate passes (per-wave checklist below)
+- [ ] 5. Steps 3–4 repeated until no tasks remain
+- [ ] 6. /code-review run; medium+ findings addressed
+- [ ] 7. Feature branch merged; gate passes; worktrees cleaned up
+```
+
 ## Environment and efficiency
 
 In a worktree, `WIPNOTE_PROJECT_DIR` is set, so `wipnote` commands resolve to the main project's `.wipnote/`. Never use bare `cd` (the hook blocks it); use a subshell `(cd dir && command)`.
@@ -106,7 +119,7 @@ Siblings (do NOT implement): {ID + title + status}
 {files owned by concurrent tasks}
 
 ## Protocol
-Follow the `tdd-protocol` skill (if it is not in your skill list, run `wipnote skill show tdd-protocol`): failing tests first, then the gate from /wipnote:code-quality-skill.
+Follow the Implementation workflow in the `agent-context` skill (preloaded into coder agents; otherwise run `wipnote skill show agent-context`): failing tests first, then the gate from /wipnote:code-quality-skill.
 Name {feature_id} in every commit subject or a `Refs: {feature_id}` trailer so
 `wipnote feature complete` links it automatically; otherwise run
 `wipnote feature link-commit {feature_id} <sha>`.

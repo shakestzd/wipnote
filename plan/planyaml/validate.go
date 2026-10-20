@@ -604,7 +604,7 @@ func ValidateBlockAdvisories(plan *PlanYAML) []string {
 				id = fmt.Sprintf("num=%d", s.Num)
 			}
 			adv = append(adv, fmt.Sprintf(
-				"slices[%d] (%s, %s) has no visual blocks — blocks should be authored during the interview (blocks-first): add grounded data-model/file-tree/wireframe/diagram blocks, or run `wipnote:visual-plan` to enrich this slice after the fact",
+				"slices[%d] (%s, %s) has no visual blocks — blocks should be authored during the interview (blocks-first): add grounded data-model/file-tree/wireframe/diagram blocks, or follow ENRICH.md in the wipnote plan skill to enrich this slice after the fact",
 				i, id, complexity,
 			))
 		}

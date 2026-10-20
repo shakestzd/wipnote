@@ -8,6 +8,16 @@ disable-model-invocation: true
 
 Use this skill to populate a project's architectural memory from scratch. It runs the bootstrap command, reads the brief, and authors starter arch cards via the validated add path.
 
+Copy this checklist and tick it off:
+
+```
+Arch bootstrap:
+- [ ] 1. Brief generated and read in full
+- [ ] 2. 3–8 cards authored for the top subsystems, invariants and hazards
+- [ ] 3. `wipnote arch validate` clean
+- [ ] 4. Every card states a structural fact, not a process instruction
+```
+
 ## Step 1: Generate the Brief
 
 ```bash
@@ -69,4 +79,4 @@ wipnote arch list
 wipnote arch show <slug>
 ```
 
-Verify the cards describe real structural facts about the codebase, not process instructions.
+Verify the cards describe real structural facts about the codebase, not process instructions. If a card restates an instruction (for example, copied from CLAUDE.md), rewrite it with `wipnote arch edit <slug>` or delete it, then go back to Step 3.

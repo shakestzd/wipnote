@@ -9,6 +9,17 @@ disable-model-invocation: true
 Use this skill to generate a grounded, diff-backed recap for a work item, git range,
 or session — then surface the key outcome narrative and a direct link to the HTML artifact.
 
+Copy this checklist and tick it off:
+
+```
+Recap (<scope>):
+- [ ] 1. Scope identified (asked if ambiguous)
+- [ ] 2. `wipnote recap` succeeded; recap-id captured
+- [ ] 3. Artifact read; changes, reason and outcome extracted
+- [ ] 4. Secrets redacted; every claim traced to the artifact
+- [ ] 5. Narrative presented with the artifact path and dashboard link
+```
+
 ---
 
 ## Step 1: Identify the scope
@@ -86,7 +97,7 @@ Present a concise, grounded summary to the user:
 <work item ID + title if available, git range if range mode, session ID if session mode>
 ```
 
-Keep the narrative tight — 5-10 lines. The full artifact is in the dashboard for deep review.
+Before presenting, check each claim against the artifact and drop any you cannot point to. Keep the narrative tight — 5-10 lines. The full artifact is in the dashboard for deep review.
 Write in plain English:
 - One idea per sentence.
 - Keep sentences under 20 words.

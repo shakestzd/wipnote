@@ -21,7 +21,16 @@ var (
 	skillMaxBodyLines  = 500  // "Keep SKILL.md body under 500 lines"
 	skillMaxDescChars  = 1024 // frontmatter limit
 	skillTOCAfterLines = 100  // "reference files longer than 100 lines" need a table of contents
+	skillChecklist     = regexp.MustCompile("(?s)```[a-z]*\n[^`]*- \\[ \\] ")
 )
+
+// skillsWithoutWorkflow are reference skills: rules and catalogs with no
+// sequence of steps. Every other skill is a workflow and must offer a checklist
+// Claude can copy and tick off ("Use workflows for complex tasks").
+var skillsWithoutWorkflow = map[string]bool{
+	"orchestrator-directives-skill": true,
+	"skills":                        true,
+}
 
 type skillFrontmatter struct {
 	Name        string `yaml:"name"`
@@ -31,66 +40,82 @@ type skillFrontmatter struct {
 func TestSkillsFollowAuthoringSpec(t *testing.T) {
 	skillsDir, dirs := sharedSkillDirs(t)
 	for _, dir := range dirs {
-		t.Run(dir, func(t *testing.T) {
-			raw, err := os.ReadFile(filepath.Join(skillsDir, dir, "SKILL.md"))
-			if err != nil {
-				t.Fatalf("read: %v", err)
-			}
-			fmText, body, ok := splitFrontmatter(raw)
-			if !ok {
-				t.Fatal("SKILL.md has no YAML frontmatter")
-			}
-			var fm skillFrontmatter
-			if err := yaml.Unmarshal([]byte(fmText), &fm); err != nil {
-				t.Fatalf("frontmatter does not parse: %v", err)
-			}
-
-			// name: lowercase/digits/hyphens, no reserved words, equal to the
-			// directory so every harness resolves the same command.
-			if fm.Name != dir {
-				t.Errorf("name %q must equal the directory name %q", fm.Name, dir)
-			}
-			if !skillNamePattern.MatchString(fm.Name) {
-				t.Errorf("name %q must be 1-64 lowercase letters, digits or hyphens", fm.Name)
-			}
-			if strings.Contains(fm.Name, "claude") || strings.Contains(fm.Name, "anthropic") {
-				t.Errorf("name %q contains a reserved word", fm.Name)
-			}
-
-			// description: non-empty, <=1024 chars, no XML, third person, says when.
-			desc := strings.TrimSpace(fm.Description)
-			switch {
-			case desc == "":
-				t.Error("description is empty")
-			case len(desc) > skillMaxDescChars:
-				t.Errorf("description is %d chars; max %d", len(desc), skillMaxDescChars)
-			}
-			if strings.ContainsAny(desc, "<>") {
-				t.Error("description must not contain XML tags")
-			}
-			if m := skillFirstPerson.FindString(desc); m != "" {
-				t.Errorf("description must be third person; found %q", m)
-			}
-			if !strings.Contains(desc, "Use ") {
-				t.Error(`description must say when to use the skill ("Use when ...")`)
-			}
-
-			text := string(body)
-			if n := strings.Count(text, "\n"); n > skillMaxBodyLines {
-				t.Errorf("body is %d lines; split it below %d", n, skillMaxBodyLines)
-			}
-			// The body loads only after the skill is chosen, so trigger lists
-			// there never help discovery. Put triggers in the description.
-			if strings.Contains(text, "Trigger keywords:") || strings.Contains(text, "Trigger situations:") {
-				t.Error("body has a trigger list; move triggers into the description")
-			}
-			// Repo-relative paths do not exist once the plugin is installed.
-			if strings.Contains(text, "plugin/skills/") {
-				t.Error("body uses a repo-relative plugin/skills/ path; link files relative to the skill directory")
-			}
-			assertSkillLinksResolve(t, filepath.Join(skillsDir, dir), text)
-		})
+		// SKILL.<harness>.md variants (e.g. SKILL.codex.md) replace SKILL.md
+		// on that harness, so they must meet the same rules.
+		variants, err := filepath.Glob(filepath.Join(skillsDir, dir, "SKILL*.md"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, path := range variants {
+			t.Run(dir+"/"+filepath.Base(path), func(t *testing.T) {
+				assertSkillFileFollowsSpec(t, skillsDir, dir, path)
+			})
+		}
 	}
+}
+
+func assertSkillFileFollowsSpec(t *testing.T, skillsDir, dir, path string) {
+	t.Helper()
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read: %v", err)
+	}
+	fmText, body, ok := splitFrontmatter(raw)
+	if !ok {
+		t.Fatal("no YAML frontmatter")
+	}
+	var fm skillFrontmatter
+	if err := yaml.Unmarshal([]byte(fmText), &fm); err != nil {
+		t.Fatalf("frontmatter does not parse: %v", err)
+	}
+
+	// name: lowercase/digits/hyphens, no reserved words, equal to the
+	// directory so every harness resolves the same command.
+	if fm.Name != dir {
+		t.Errorf("name %q must equal the directory name %q", fm.Name, dir)
+	}
+	if !skillNamePattern.MatchString(fm.Name) {
+		t.Errorf("name %q must be 1-64 lowercase letters, digits or hyphens", fm.Name)
+	}
+	if strings.Contains(fm.Name, "claude") || strings.Contains(fm.Name, "anthropic") {
+		t.Errorf("name %q contains a reserved word", fm.Name)
+	}
+
+	// description: non-empty, <=1024 chars, no XML, third person, says when.
+	desc := strings.TrimSpace(fm.Description)
+	switch {
+	case desc == "":
+		t.Error("description is empty")
+	case len(desc) > skillMaxDescChars:
+		t.Errorf("description is %d chars; max %d", len(desc), skillMaxDescChars)
+	}
+	if strings.ContainsAny(desc, "<>") {
+		t.Error("description must not contain XML tags")
+	}
+	if m := skillFirstPerson.FindString(desc); m != "" {
+		t.Errorf("description must be third person; found %q", m)
+	}
+	if !strings.Contains(desc, "Use ") {
+		t.Error(`description must say when to use the skill ("Use when ...")`)
+	}
+
+	text := string(body)
+	if n := strings.Count(text, "\n"); n > skillMaxBodyLines {
+		t.Errorf("body is %d lines; split it below %d", n, skillMaxBodyLines)
+	}
+	// The body loads only after the skill is chosen, so trigger lists
+	// there never help discovery. Put triggers in the description.
+	if strings.Contains(text, "Trigger keywords:") || strings.Contains(text, "Trigger situations:") {
+		t.Error("body has a trigger list; move triggers into the description")
+	}
+	// Repo-relative paths do not exist once the plugin is installed.
+	if strings.Contains(text, "plugin/skills/") {
+		t.Error("body uses a repo-relative plugin/skills/ path; link files relative to the skill directory")
+	}
+	if !skillsWithoutWorkflow[dir] && !skillChecklist.MatchString(text) {
+		t.Error("workflow skill has no copyable checklist (a fenced block of \"- [ ] \" items)")
+	}
+	assertSkillLinksResolve(t, filepath.Join(skillsDir, dir), text)
 }
 
 // assertSkillLinksResolve checks that every relative markdown link in a skill

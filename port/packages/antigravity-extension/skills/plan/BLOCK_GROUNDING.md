@@ -1,6 +1,6 @@
 # Block Grounding Rules
 
-Shared by `/wipnote:plan` and `/wipnote:visual-plan`.
+Used by the draft interview (Phase 1) and by [ENRICH.md](ENRICH.md).
 
 Run `wipnote plan blocks` first. It lists the supported block types and their required fields. Never hardcode them.
 

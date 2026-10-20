@@ -13,6 +13,16 @@ It replaces wipnote's manifest autodetection with an explicit, version-controlle
 commands. Full reference:
 [docs/guard-profiles.md](https://github.com/shakestzd/wipnote/blob/main/docs/guard-profiles.md).
 
+Copy this checklist for every profile change:
+
+```
+Guard profile change:
+- [ ] 1. Profile edited (schema below)
+- [ ] 2. Re-approved with `wipnote guard init`
+- [ ] 3. `wipnote check --gate` output names the profile's guards
+- [ ] 4. Gate clean (see "Verify after every edit")
+```
+
 ---
 
 ## Schema

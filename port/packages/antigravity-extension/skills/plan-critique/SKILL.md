@@ -7,7 +7,7 @@ disable-model-invocation: true
 
 # wipnote Plan Critique
 
-Run this skill **after** the plan is drafted with `wipnote:plan` (slices laid out, decisions_notes captured) and **before** human review. It runs a design critic and a feasibility critic against the plan, fixes the affected slices, and records the critique.
+This is Phase 3 of `/wipnote:plan`. Run it **after** the plan is drafted (slices laid out, decisions_notes captured) and **before** human review. It runs a design critic and a feasibility critic against the plan, fixes the affected slices, and records the critique.
 
 ---
 
@@ -24,6 +24,19 @@ Run this skill **after** the plan is drafted with `wipnote:plan` (slices laid ou
 
 ## Steps
 
+Copy this checklist and tick it off:
+
+```
+Plan critique (plan-id):
+- [ ] 1. Plan and every slice card loaded
+- [ ] 2. Design critic and feasibility critic run
+- [ ] 3. Findings recorded with severity and evidence
+- [ ] 4. Severity triaged
+- [ ] 5. Slices revised; validate-yaml clean
+- [ ] 6. Top-level critique written
+- [ ] 7. Zero open `danger` items; handed to human review
+```
+
 1. **Load the plan.** Run `wipnote plan critique <plan-id>`. It prints JSON: title, status, complexity, `slice_count`, `critique_warranted` (false under 3 slices), and slice numbers and titles. It does not print slice bodies, so then read `.wipnote/plans/<plan-id>.yaml` for each slice card.
 2. **Run both critics yourself** (no separate CLI dispatch). The two critics are independent. Run them in parallel when the harness can dispatch subagents; otherwise run them one after the other.
    - **DESIGN CRITIC** reads the plan as a design document. It looks for missing slices, scope gaps, unclear acceptance criteria, conflicting goals, undefined lifecycle states, and reviewer ergonomics (will a human understand and approve this?).
@@ -37,9 +50,9 @@ Run this skill **after** the plan is drafted with `wipnote:plan` (slices laid ou
    - `success`, `info`: no action.
    - `warn`: consider fixing before human review.
    - `danger`: must fix before human review.
-5. **Fix slices in place:** `wipnote plan critique revise <plan-id> --slice <num> --what "…" --why "…" --tests "…"` (empty flags leave a field unchanged). The old wording stays in git history (`wipnote history <plan-id>`). Do not append `critic_revisions`; that field is deprecated. For other fields, edit the YAML and run `wipnote plan rewrite-yaml <plan-id> --file <path>`. Then run `wipnote plan validate-yaml <plan-id>`.
+5. **Fix slices in place:** `wipnote plan critique revise <plan-id> --slice <num> --what "…" --why "…" --tests "…"` (empty flags leave a field unchanged). The old wording stays in git history (`wipnote history <plan-id>`). Do not append `critic_revisions`; that field is deprecated. For other fields, edit the YAML and run `wipnote plan rewrite-yaml <plan-id> --file <path>`. Then run `wipnote plan validate-yaml <plan-id>`. If it fails, fix the slice and run it again; go on only when it is clean.
 6. **Write the top-level critique** for 3+ slice or complex plans (see below).
-7. **Hand off** to human review (`wipnote serve` → dashboard) only after every `danger` item is resolved.
+7. **Hand off** to human review (`wipnote serve` → dashboard) only after every `danger` item is resolved. If any `danger` remains, go back to step 5.
 
 ---
 
@@ -98,7 +111,7 @@ The orchestrator reads `synthesis` to decide if the plan is ready for review. Na
 
 ## Relationship to other skills
 
-- **`wipnote:plan`** produces the plan. Run it first.
-- **`wipnote:spec-from-slice`** runs after human approval, before promotion. It reads `decisions_notes`; merge critique findings into that prose before promotion.
+- **`/wipnote:plan`** owns the lifecycle. This skill is its Phase 3; the plan is drafted (Phase 1) and validated (Phase 2) first.
+- **Phase 5 of `/wipnote:plan`** (slice decisions and spec) runs after human approval. It reads `decisions_notes`, so merge critique findings into that prose before promotion.
 
 Do not run this skill during the interview. The interview captures requirements; the critique evaluates the resulting design.

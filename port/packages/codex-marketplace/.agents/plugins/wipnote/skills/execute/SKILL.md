@@ -1,11 +1,24 @@
 ---
-name: wipnote:execute
-description: Execute a parallel plan using dependency-driven dispatch. Coordinate ready work items, partition non-conflicting slices, and keep all spawned agents attributed and closed.
+name: execute
+description: "Runs a wipnote plan or track by dependency-driven parallel dispatch: partitions non-conflicting slices, keeps every spawned agent attributed, and closes them all. Use when asked to execute, run or implement a plan or track."
 ---
 
 # wipnote Parallel Execute
 
 Use this skill to execute development work in parallel with dependency-driven dispatch and isolated agents.
+
+Copy this checklist and tick it off:
+
+```
+Execute (<track or plan id>):
+- [ ] 1. Ready work found (Step 1)
+- [ ] 2. File overlap checked; non-conflicting set chosen (Step 2)
+- [ ] 3. Agents spawned and tracked (Steps 3–4)
+- [ ] 4. Agents waited on; blockers unblocked (Step 5)
+- [ ] 5. Merged; tests and checks pass (Step 6)
+- [ ] 6. Steps 1–5 repeated until done (Step 7)
+- [ ] 7. Completion checklist (end of this file) all ticked
+```
 
 ## Environment
 
@@ -161,11 +174,13 @@ Do not leave abandoned agent handles hanging around after a failed wave.
 
 ## Completion Checklist
 
-Before you declare execution finished:
+Before you declare execution finished, every item must be ticked:
 
-- every spawned agent has been waited on
-- any necessary clarifications were sent with `send_input`
-- completed handles were closed with `close_agent`
-- merged changes passed relevant tests and checks
-- work items were completed in `wipnote`
-- remaining blocked or deferred work is explicitly called out
+```
+- [ ] Every spawned agent has been waited on
+- [ ] Needed clarifications were sent with `send_input`
+- [ ] Completed handles were closed with `close_agent`
+- [ ] Merged changes passed relevant tests and checks
+- [ ] Work items were completed in `wipnote`
+- [ ] Remaining blocked or deferred work is called out
+```

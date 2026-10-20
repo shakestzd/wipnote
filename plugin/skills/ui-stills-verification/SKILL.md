@@ -9,6 +9,17 @@ disable-model-invocation: true
 Use `shot-scraper` (headless Playwright) to look at the UI you changed: probe the page,
 capture one component, read the PNG back with your image tool, judge, adjust.
 
+Copy this checklist and tick it off:
+
+```
+UI stills:
+- [ ] 1. Page probed with `shot-scraper javascript` (Step 1)
+- [ ] 2. One component captured with `--selector` and `--wait` (Step 2)
+- [ ] 3. Every PNG read back with the image tool (Step 3)
+- [ ] 4. Per-image judgement with severity; fixes re-captured (Step 4)
+- [ ] 5. Demo or fixture data only (Safety)
+```
+
 ---
 
 ## Setup (once per machine)
@@ -158,11 +169,3 @@ Stills outlive the session and get shared. Never capture real balances, names, m
 counterparty strings, tokens, or personal data into a saved artifact: use a sample/demo
 profile or seeded fixture data for every screenshot. If real data is needed to verify
 correctness, inspect it **read-only** via the probe and keep it out of saved images.
-
-## Checklist
-
-- [ ] Probed the page with `shot-scraper javascript` (Step 1)
-- [ ] Captured one component with `--selector` and `--wait` (Step 2)
-- [ ] Read every PNG back with the image tool (Step 3)
-- [ ] Wrote a per-image judgement with severity (Step 4)
-- [ ] Used demo or fixture data only (Safety)

@@ -17,6 +17,17 @@ disable-model-invocation: true
 
 ## Instructions
 
+Copy this checklist and tick it off (bug or symptom input):
+
+```
+Diagnose (<bug-id or symptom>):
+- [ ] 1. Input routed; bug started (created first for a symptom)
+- [ ] 2. Researcher dispatched with the structured prompt
+- [ ] 3. Root cause verified: cited file:line read and it explains the symptom
+- [ ] 4. Root cause recorded with set-description
+- [ ] 5. Findings presented; bug left open
+```
+
 ### Route by Input
 
 **If given a bug ID** (matches `bug-*`):
@@ -67,7 +78,9 @@ Diagnosis only. Record the root cause with `wipnote bug set-description <bug-id>
 Do not run `wipnote bug complete`: the bug stays open until a fix lands.
 ```
 
-After the agent reports back, present findings to the user in this format:
+After the agent reports back, verify before presenting. Read the cited `file:line` yourself and check that it explains the symptom. If the report has no location, or the code does not explain the symptom, send the researcher back with the specific gap. Repeat until the root cause holds up.
+
+Then present findings to the user in this format:
 
 ```markdown
 ## Diagnosis: <bug-id>
