@@ -1,6 +1,6 @@
 {
   "name": "codex-herdr-pane",
-  "version": "0.7.2",
+  "version": "0.7.3",
   "description": "Runs every Codex delegation (codex exec, codex review) and every ccx task in a visible herdr pane with a live log and a rendered answer, and closes the pane when it finishes",
   "author": {
     "name": "shakestzd"
