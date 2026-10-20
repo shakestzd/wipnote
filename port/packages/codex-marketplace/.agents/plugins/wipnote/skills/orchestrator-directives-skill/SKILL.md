@@ -1,6 +1,6 @@
 ---
-name: Orchestrator Directives Skill
-description: Rules for the wipnote orchestrator role: which agent gets a task, subagent briefs, parallel dispatch, stalled agents. Use when delegating work to subagents.
+name: orchestrator-directives-skill
+description: "Defines the rules for the wipnote orchestrator role: choosing the agent for a task, writing subagent briefs, parallel dispatch, and stalled agents. Use when delegating work to subagents."
 ---
 
 # Orchestrator Directives
@@ -13,7 +13,7 @@ Web/docs research and multi-file codebase exploration are tactical work. They MU
 
 Inspect the active harness first:
 
-- **Claude Code**: `Task` / subagent dispatch (native `Explore` for code reading).
+- **Claude Code**: the `Agent` tool (native `Explore` for code reading).
 - **Codex**: when `multi_agent_v1` or native `wipnote-*` custom agents are exposed, prefer them (`explorer`, `wipnote-researcher`, `wipnote-patch-coder`, `wipnote-feature-coder`, `wipnote-test-runner`); use nested `codex exec` only when they are unavailable.
 - **Antigravity**: harness-native multi-agent or custom-agent spawn.
 - **External CLI sidecar**: `agy`, `codex exec`, or another documented CLI when native dispatch is unavailable and the sidecar fits the task.

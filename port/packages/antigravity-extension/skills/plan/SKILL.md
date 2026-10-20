@@ -1,5 +1,5 @@
 ---
-name: wipnote:plan
+name: plan
 description: Plans development work through a triage-gated, blocks-first interview that produces slice-card YAML with grounded visual blocks and cited research, then takes slices through review and promotion. Use when asked to plan, scope, or design a feature before building it.
 disable-model-invocation: true
 ---
@@ -12,7 +12,20 @@ Treat plan creation as a **blocks-first** system design interview: you are the c
 
 **Native plan mode:** in plan mode, do triage, research and the interview, then present the outline with ExitPlanMode, and write YAML only afterwards.
 
-**Trigger keywords:** create plan, development plan, parallel plan, plan tasks, plan this feature, review before building, generate plan, scaffold plan, slice plan, crispi
+## Progress checklist
+
+Copy this checklist and tick it off as you go:
+
+```
+Plan progress:
+- [ ] Step 0: Triage — complexity set for each slice
+- [ ] Research — design.research and per-slice research (or research_waiver) recorded
+- [ ] Interview — stages done for each slice's complexity, blocks authored first
+- [ ] Step 1: Plan YAML created and written with rewrite-yaml
+- [ ] Step 2: validate-yaml clean (fix and re-run until it is)
+- [ ] Critique requested for 3+ slice or complex plans
+- [ ] Human review, spec-from-slice, promote
+```
 
 ---
 
@@ -165,88 +178,9 @@ Write `decisions_notes` inline as the Q&A unfolds, capturing the chosen option a
 
 ---
 
-## Trivial Slice Example
+## Slice examples
 
-```yaml
-meta:
-  id: plan-<generated>
-  title: "Fix typo in serve.go log message"
-  status: draft
-  schema_version: v4
-slices:
-  - id: slice-1
-    num: 1
-    title: "Fix typo in serve.go log message"
-    why: "User-facing log message reads 'lisening' instead of 'listening'."
-    files:
-      - cmd/wipnote/serve.go
-    effort: S
-    risk: Low
-    complexity: trivial
-    deps: []
-```
-
-That's it. No `what`, `done_when`, `tests`, or `decisions_notes` required.
-
-## Complex Slice Example (abbreviated)
-
-```yaml
-meta:
-  id: plan-<generated>
-  title: "Rate-limit /api/ingest"
-  status: draft
-  schema_version: v4
-slices:
-  - id: slice-1
-    num: 1
-    title: "Rate-limit /api/ingest per client IP"
-    what: |
-      Add token-bucket limiter in internal/ratelimit/limiter.go keyed by
-      client IP. Middleware in cmd/wipnote/serve.go returns HTTP 429 with
-      JSON body when bucket empty.
-    why: |
-      Protects the canonical event writer from burst overload (Goal 1 — throughput cap).
-    files:
-      - internal/ratelimit/limiter.go
-      - cmd/wipnote/serve.go
-    deps: []
-    blocks:
-      # Authored FIRST during the Scope stage — `files` was read off this tree.
-      - type: file-tree
-        title: Files touched
-        entries:
-          - internal/ratelimit/limiter.go
-          - cmd/wipnote/serve.go
-      # Authored FIRST during the API/contract stage — `done_when` derived from it.
-      - type: data-model
-        fields:
-          name: "POST /api/ingest — 429 response"
-        rows:
-          - name: error
-            type: 'string ("rate_limited")'
-          - name: retry_after
-            type: int (seconds)
-    done_when:
-      - "Requests above the configured limit receive HTTP 429"
-      - "Requests within the limit pass through unchanged"
-      - "Counter `wipnote_throttled_total` increments on each 429"
-    effort: M
-    risk: Med
-    tests: |
-      Unit: TestLimiter_Allow — 10 req/s burst, first 5 allow, next reject
-      Integration: TestServeRateLimit — spin up server, assert 429s
-    complexity: complex
-    decisions_notes: |
-      **Trigger:** middleware on /api/ingest, keyed by RemoteAddr.
-      **State:** in-memory map[ip]bucket, reset on process restart.
-      **Payload:** 429 + {"error":"rate_limited","retry_after":1}.
-      **Rejected:** file-backed counters (write amplification under load);
-        Redis (new runtime dep — violates constraint).
-    questions:
-      - id: q-key
-        text: "Key by RemoteAddr or X-Forwarded-For?"
-        answer: "RemoteAddr — wipnote runs behind localhost only; XFF would need explicit trust list."
-```
+See [EXAMPLES.md](EXAMPLES.md) for a complete trivial slice (no `what`, `done_when`, `tests` or `decisions_notes` needed) and a complete complex slice (blocks, `done_when`, `decisions_notes`, a slice-local question).
 
 ---
 
@@ -295,10 +229,11 @@ Then:
 
 ---
 
-## Related Skills
+## Reference files and related skills
 
-- `plugin/skills/plan-critique/SKILL.md` — dual-critic review pass (run after the plan is drafted)
-- `plugin/skills/visual-plan/SKILL.md` — enrichment only: add or revise blocks on an existing or legacy plan.
-- `plugin/skills/plan/LEGACY.md` — v1 and v2 (pre-triage) plan compatibility and a validator-error cheatsheet.
-- `plugin/skills/plan/INTERVIEW_RENDERING.md` — interview rendering for harnesses without an ask-user tool, the web form, and the `--questions` schema.
-- `plugin/skills/plan/BLOCK_GROUNDING.md` — block grounding rules.
+- [EXAMPLES.md](EXAMPLES.md): a complete trivial and a complete complex slice card.
+- [BLOCK_GROUNDING.md](BLOCK_GROUNDING.md): block grounding rules.
+- [INTERVIEW_RENDERING.md](INTERVIEW_RENDERING.md): interview rendering without an ask-user tool, the web form, and the `--questions` schema.
+- [LEGACY.md](LEGACY.md): v1 and v2 (pre-triage) plan compatibility and a validator-error cheatsheet.
+- `/wipnote:plan-critique`: dual-critic review pass, run after the plan is drafted.
+- `/wipnote:visual-plan`: add or revise blocks on an existing or legacy plan only.

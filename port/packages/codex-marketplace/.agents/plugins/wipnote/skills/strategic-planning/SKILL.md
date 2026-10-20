@@ -6,10 +6,6 @@ disable-model-invocation: true
 
 # Strategic Planning Skill
 
-**Trigger keywords:** what should I work on, recommend, prioritize, bottleneck, blocking, stuck, risk, impact, dependencies, roadmap
-
-**Trigger situations:** starting a session, choosing among several tasks, slow progress, planning a big change.
-
 ## Commands
 
 | Question | Command |

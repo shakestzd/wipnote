@@ -1,5 +1,5 @@
 ---
-name: wipnote:arch-bootstrap
+name: arch-bootstrap
 description: Bootstraps architectural memory for a repo by generating starter cards from a structured brief. Use when a repo has no arch cards yet or the user asks to seed architecture memory.
 disable-model-invocation: true
 ---

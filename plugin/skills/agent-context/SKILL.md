@@ -1,6 +1,6 @@
 ---
 name: agent-context
-description: "Shared rules for wipnote coder and researcher agents: work attribution and completion, safety, research routing, persisting results. Preloaded into those agents; read it when acting as one."
+description: "Defines the shared rules for wipnote coder and researcher agents: work attribution and completion, safety, research routing, and persisting results. Preloaded into those agents. Use when acting as a wipnote coder or researcher agent."
 user-invocable: false
 ---
 
@@ -8,7 +8,7 @@ user-invocable: false
 
 ## Work attribution and completion
 
-Use the work item ID from your task prompt (e.g. "Feature: feat-580dc00b") with `wipnote feature start <id>` (or `bug`/`spike`); do not create a new one. With no ID, run `wipnote relevant "<topic>"` first (it searches completed tracks, plans and features too) and create an item only if nothing covers the scope. Bugs need an owning track; `--standalone` is for features only. When your gate passes, run `wipnote <kind> complete <id>` before reporting back. If `complete` is refused, do not retry or work around it: report your commit SHAs and leave completion to the orchestrator. If wipnote is unavailable, proceed and report.
+Use the work item ID from your task prompt (e.g. "Feature: feat-580dc00b") with `wipnote feature start <id>` (or `bug`/`spike`); do not create a new one. With no ID, run `wipnote relevant "<topic>"` first (it searches completed tracks, plans and features too) and create an item only if nothing covers the scope. Bugs need an owning track; `--standalone` is for features only. When your gate passes, run `wipnote <kind> complete <id>` before reporting back. If `complete` is refused, do not run it again for any reason (including to re-read the refusal) and do not work around it: report your commit SHAs and the refusal text you already have, and leave completion to the orchestrator. If wipnote is unavailable, proceed and report.
 
 ## Safety
 

@@ -1,6 +1,6 @@
 ---
-name: wipnote:skills
-description: Catalog of every wipnote skill, including those hidden from the skill list (planning, diagnosis, recaps, UI checks, deploy). Use it to find the right wipnote workflow before starting one.
+name: skills
+description: "Lists every wipnote skill, including those hidden from the skill list (planning, diagnosis, recaps, UI checks, deploy), and how to load each one. Use to find the right wipnote workflow before starting one."
 ---
 
 # wipnote skills

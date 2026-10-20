@@ -1,6 +1,6 @@
 ---
-name: wipnote:visual-recap
-description: Generate a grounded visual recap for a work item, git range, or session. Runs wipnote recap to produce a self-contained HTML artifact grounded in the real diff, reads the artifact, writes an outcome narrative (secrets redacted), and links to the dashboard recap URL. Use when asked to recap, summarize, or visualize completed work.
+name: visual-recap
+description: "Generates a diff-grounded visual recap of a work item, git range, or session and summarizes its outcome. Use when asked to recap, summarize, or visualize completed work."
 disable-model-invocation: true
 ---
 
@@ -8,9 +8,6 @@ disable-model-invocation: true
 
 Use this skill to generate a grounded, diff-backed recap for a work item, git range,
 or session — then surface the key outcome narrative and a direct link to the HTML artifact.
-
-**Trigger keywords:** recap, summarize work, visual recap, show what was done, recap this feature,
-recap this session, show recap, diff recap
 
 ---
 

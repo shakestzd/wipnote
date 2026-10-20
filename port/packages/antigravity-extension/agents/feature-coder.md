@@ -56,7 +56,7 @@ Report files changed (with line counts), the exact quality-gate command and its 
 
 ## Work attribution and completion
 
-Use the work item ID from your task prompt (e.g. "Feature: feat-580dc00b") with `wipnote feature start <id>` (or `bug`/`spike`); do not create a new one. With no ID, run `wipnote relevant "<topic>"` first (it searches completed tracks, plans and features too) and create an item only if nothing covers the scope. Bugs need an owning track; `--standalone` is for features only. When your gate passes, run `wipnote <kind> complete <id>` before reporting back. If `complete` is refused, do not retry or work around it: report your commit SHAs and leave completion to the orchestrator. If wipnote is unavailable, proceed and report.
+Use the work item ID from your task prompt (e.g. "Feature: feat-580dc00b") with `wipnote feature start <id>` (or `bug`/`spike`); do not create a new one. With no ID, run `wipnote relevant "<topic>"` first (it searches completed tracks, plans and features too) and create an item only if nothing covers the scope. Bugs need an owning track; `--standalone` is for features only. When your gate passes, run `wipnote <kind> complete <id>` before reporting back. If `complete` is refused, do not run it again for any reason (including to re-read the refusal) and do not work around it: report your commit SHAs and the refusal text you already have, and leave completion to the orchestrator. If wipnote is unavailable, proceed and report.
 
 ## Safety
 
@@ -85,10 +85,6 @@ Prefer CLI over skills over deferred MCP tools. Never author or overwrite a proj
 
 # Code Quality Skill
 
-## Work Item Attribution
-
-Attribute gate runs to a work item. Check `wipnote status` for the active item. To fix a new bug, run `wipnote bug create "Fix: description" --track <trk-id>`, then `wipnote bug start <id>`.
-
 ## Quality Gate: BUILD → LINT → TEST
 
 Commit only when all three phases pass. Fix every error in code you touch, including pre-existing ones.
@@ -113,14 +109,6 @@ Run the gate, fix the failures, and re-run until all phases pass.
 - From cold, `go test ./...` is silent for about 5-6 minutes because output is buffered per package. Silence is not a stall. Budget 10 minutes before suspecting a hang.
 - `scripts/go-test-streaming.sh` streams `go test -json` output live and names the last test to start if the test binary dies mid-package (bug-61973a05). Any `go test` flags pass through, for example `scripts/go-test-streaming.sh ./cmd/wipnote/... -run X`.
 
-## Research First
+## Record the result
 
-Before implementing anything new:
-
-- Search the ecosystem (pkg.go.dev, npmjs.com, pypi.org, crates.io) for existing libraries.
-- Check the project manifest for dependencies that are already available.
-- Check shared utility directories (`internal/`, `lib/`, `src/utils/`) before duplicating logic.
-
-## Integration with wipnote
-
-Record quality work on the active item: `wipnote <kind> add-step <id> "..."` for progress, `wipnote <kind> set-description <id> "..."` for findings, `wipnote <kind> update <id>` for metadata.
+When the gate passes, run `wipnote check --gate` to record it on the active work item.

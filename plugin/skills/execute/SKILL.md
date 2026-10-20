@@ -1,13 +1,11 @@
 ---
-name: wipnote:execute
-description: Runs a wipnote plan or track by dependency-driven parallel dispatch: checks file overlap, dispatches non-conflicting tasks together, merges and gates each wave. Use when asked to execute, run or implement a plan or track.
+name: execute
+description: "Runs a wipnote plan or track by dependency-driven parallel dispatch: checks file overlap, dispatches non-conflicting tasks together, merges and gates each wave. Use when asked to execute, run or implement a plan or track."
 ---
 
 # wipnote Parallel Execute
 
 Execute development tasks in parallel with dependency-driven dispatch and worktree isolation.
-
-**Trigger keywords:** execute plan, run plan, run tasks, parallelize work, work in parallel, start execution, dispatch agents
 
 ## Environment and efficiency
 
@@ -151,4 +149,4 @@ Per-wave checklist:
 
 ## Related skills
 
-- **[/wipnote:plan](/wipnote:plan)** - Create the dependency graph before executing
+- `/wipnote:plan`: create the dependency graph before executing.

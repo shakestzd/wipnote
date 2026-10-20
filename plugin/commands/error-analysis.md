@@ -137,9 +137,9 @@ This command follows a research-first debugging methodology: capture the error, 
 
 6. **Dispatch codebase investigation:**
    If the error requires codebase investigation, dispatch the researcher agent immediately.
-   Use `Task(subagent_type="wipnote:researcher")` for researching documentation and prior art.
-   Use `Task(subagent_type="wipnote:researcher")` for systematic error investigation.
-   Use `Task(subagent_type="wipnote:test-runner")` to validate fixes.
+   Use `Agent(subagent_type="wipnote:researcher")` for researching documentation and prior art.
+   Use `Agent(subagent_type="wipnote:researcher")` for systematic error investigation.
+   Use `Agent(subagent_type="wipnote:test-runner")` to validate fixes.
 
 7. **Document investigation workflow:**
 

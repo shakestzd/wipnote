@@ -74,6 +74,6 @@ Complete the current active feature
 {top recommendation from `wipnote analytics summary`}
 
 **DELEGATION**: Delegate implementation based on complexity:
-- Simple fixes (1-2 files) → `Task(subagent_type="wipnote:patch-coder")`
-- Features (3-8 files) → `Task(subagent_type="wipnote:feature-coder")`
-- Architecture (10+ files) → `Task(subagent_type="wipnote:architect-coder")`
+- Simple fixes (1-2 files) → `Agent(subagent_type="wipnote:patch-coder")`
+- Features (3-8 files) → `Agent(subagent_type="wipnote:feature-coder")`
+- Architecture (10+ files) → `Agent(subagent_type="wipnote:architect-coder")`

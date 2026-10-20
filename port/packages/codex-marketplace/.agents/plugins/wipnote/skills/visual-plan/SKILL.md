@@ -1,5 +1,5 @@
 ---
-name: wipnote:visual-plan
+name: visual-plan
 description: Adds or revises grounded visual blocks (data-model, file-tree, wireframe, diagram) on an existing wipnote plan and regenerates its HTML. Use for legacy plans or later block changes, not for creating a new plan.
 disable-model-invocation: true
 ---
@@ -7,11 +7,6 @@ disable-model-invocation: true
 # wipnote Visual Plan (after-the-fact enrichment)
 
 New plans get blocks inline during the `wipnote:plan` interview. Use this skill only to add or revise blocks on an EXISTING plan, such as a legacy plan or a slice that needs a block changed later. To create a plan, use `wipnote:plan` instead.
-
-**Trigger keywords:** enrich existing plan, add visual blocks to existing plan, add blocks to
-a plan that already exists, revise blocks on a plan, backfill blocks on a legacy plan,
-visualize an existing plan slice, add wireframe to existing plan, add data model to existing
-plan, add api endpoint to existing plan, add file tree to existing plan
 
 ---
 

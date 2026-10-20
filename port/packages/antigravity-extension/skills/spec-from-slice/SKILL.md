@@ -1,6 +1,6 @@
 ---
-name: wipnote:spec-from-slice
-description: Elicit Scope/Decisions/Context for a plan slice and generate its OpenSpec-formatted feature spec. Use after a slice is approved but before promote-slice, or any time a slice needs decisions captured. Wraps the cross-harness `wipnote plan elicit-decisions` CLI plus `wipnote spec generate --insert`.
+name: spec-from-slice
+description: "Captures Scope, Decisions, and Context for an approved plan slice and generates its OpenSpec-formatted feature spec. Use after a slice is approved, before or after promote-slice, or when a slice's decisions change."
 user-invocable: true
 disable-model-invocation: true
 ---

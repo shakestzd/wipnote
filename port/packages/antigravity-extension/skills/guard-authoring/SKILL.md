@@ -1,6 +1,6 @@
 ---
 name: guard-authoring
-description: Author, approve, and maintain project guard profiles (.wipnote/guard-profile.yaml). Use for custom quality/completion/yolo gates, polyglot monorepo per-directory guards, re-approving after drift, and understanding the trust boundary and autodetection fallback.
+description: "Authors, approves, and maintains project guard profiles (.wipnote/guard-profile.yaml). Use when setting custom quality, completion, or yolo gates, scoping guards per directory in a monorepo, or re-approving a profile after it drifts."
 disable-model-invocation: true
 ---
 
@@ -10,8 +10,7 @@ disable-model-invocation: true
 
 `.wipnote/guard-profile.yaml` is a hand-maintained YAML file committed to the repository.
 It replaces wipnote's manifest autodetection with an explicit, version-controlled list of
-commands. Treat it like any other config file — diff it, review it in PRs, edit it when
-your toolchain changes. Full reference:
+commands. Full reference:
 [docs/guard-profiles.md](https://github.com/shakestzd/wipnote/blob/main/docs/guard-profiles.md).
 
 ---

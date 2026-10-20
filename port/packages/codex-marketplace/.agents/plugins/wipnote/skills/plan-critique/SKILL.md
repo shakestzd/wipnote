@@ -1,5 +1,5 @@
 ---
-name: wipnote:plan-critique
+name: plan-critique
 description: Runs a design critic and a feasibility critic on a drafted wipnote plan, in parallel when subagents are available, otherwise in sequence. Revises slice prose in place and records a top-level critique. Use after drafting and before human review.
 context: fork
 disable-model-invocation: true
@@ -8,8 +8,6 @@ disable-model-invocation: true
 # wipnote Plan Critique
 
 Run this skill **after** the plan is drafted with `wipnote:plan` (slices laid out, decisions_notes captured) and **before** human review. It runs a design critic and a feasibility critic against the plan, fixes the affected slices, and records the critique.
-
-**Trigger keywords:** critique this plan, review plan, plan critic pass, run critics, design critique, feasibility critique
 
 ---
 

@@ -1,6 +1,6 @@
 ---
-name: wipnote:tdd-protocol
-description: TDD steps for a delegated implementation task: failing test first, quality gate, commit format, completion. Use when implementing a feature or bug fix as a coder agent.
+name: tdd-protocol
+description: "Gives the test-first steps for a delegated implementation task: failing test first, quality gate, commit format, and completion. Use when implementing a feature or bug fix as a coder agent."
 disable-model-invocation: true
 ---
 

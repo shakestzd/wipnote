@@ -7,8 +7,6 @@ description: Execute a parallel plan using dependency-driven dispatch. Coordinat
 
 Use this skill to execute development work in parallel with dependency-driven dispatch and isolated agents.
 
-**Trigger keywords:** execute plan, run plan, run tasks, parallelize work, work in parallel, start execution, dispatch agents
-
 ## Environment
 
 When running in a worktree, `WIPNOTE_PROJECT_DIR` is set automatically. All `wipnote` CLI commands resolve to the main project's `.wipnote/`. Run commands directly unless a tool explicitly needs a different directory.

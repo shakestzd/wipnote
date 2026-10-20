@@ -1,13 +1,11 @@
 ---
 name: diagnose
-description: "Diagnose bugs, errors, and issues with root cause analysis. Use when asked to diagnose, debug, investigate, or find root cause of any problem — whether a wipnote bug ID, error message, unexpected behavior, or delegation audit."
+description: "Finds the root cause of a bug, error, or unexpected behavior by dispatching a researcher, and audits delegation compliance. Use when asked to diagnose, debug, or investigate a wipnote bug ID, an error message, or a symptom."
 user-invocable: true
 disable-model-invocation: true
 ---
 
 # /wipnote:diagnose
-
-General-purpose diagnostic skill for investigating bugs, errors, and unexpected behavior.
 
 ## Usage
 
@@ -42,7 +40,7 @@ General-purpose diagnostic skill for investigating bugs, errors, and unexpected 
 
 ### Bug Investigation (Primary Mode)
 
-Dispatch `Task(subagent_type="wipnote:researcher")` with a structured prompt:
+Dispatch `Agent(subagent_type="wipnote:researcher")` with a structured prompt:
 
 ```text
 ## Bug: <bug-id> — <title>
@@ -94,7 +92,7 @@ After the agent reports back, present findings to the user in this format:
 
 When `--delegation` is specified, audit the current session's delegation compliance:
 
-1. **Collect data**:
+1. **Collect data** (needs `jq`; if it is missing, read `events.ndjson` with the Read tool and count `tool_decision` events by `attrs.tool_name`):
 ```bash
 wipnote status
 # Tool counts for the most recent session, read from its canonical event log.
