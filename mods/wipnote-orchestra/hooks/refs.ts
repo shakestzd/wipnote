@@ -1,4 +1,4 @@
-// Pure helpers for wipnote-cards: fence parsing, CLI argv and text formats.
+// Pure helpers for wipnote-ref cards: fence parsing, CLI argv and text formats.
 // No `$` here, so the tests run them directly.
 
 import type { Card, CardEntry, FailKind, Step } from '../types'
@@ -71,17 +71,6 @@ export function stepBar(steps: Step[]): string {
   return '█'.repeat(done) + '░'.repeat(10 - done)
 }
 
-/**
- * The status line: "wipnote · feat-x · in-progress · 3/5 steps". A claimed
- * item whose details failed to load still shows its id, so a lookup failure
- * never reads as "no active work item".
- */
-export function statusLine(card: Card | null, workItem = ''): string {
-  if (card) return ['wipnote', card.id, card.status, stepCount(card.steps)].filter(Boolean).join(' · ')
-  if (workItem) return `wipnote · ${workItem} · details unavailable`
-  return 'wipnote · no active work item'
-}
-
 /** How long a loaded or failed card is shown before it is fetched again. */
 export const CARD_TTL_MS = 60_000
 
@@ -123,7 +112,7 @@ export function failureText(id: string, kind: FailKind): string {
 
 /**
  * The work item `wipnote who --json` reports: the id, '' for no claim, or
- * null when the output cannot be read (the caller keeps its last status).
+ * null when the output cannot be read (the caller keeps its last claim).
  */
 export function parseWho(stdout: string): string | null {
   try {

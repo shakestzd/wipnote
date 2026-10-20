@@ -33,11 +33,15 @@ const GLYPH: Record<string, [string, string]> = {
   killed: ['✘', '#d75f00'],
 }
 
+/** A work item segment's colour by its status; an unknown or unloaded status keeps the in-progress colour. */
+const ITEM_BG: Record<string, string> = { done: '#5f8700', blocked: '#af0000', todo: '#5f5f87' }
+
 /**
  * The session's work items as their track's progress (` Raw-data RCA agents [1/46] `, once per track) and
- * their own title (` → Routine setup script `); an item whose details have not loaded shows its id.
+ * their own title and steps (` → Routine setup script 2/5 `), coloured by status; an item whose details
+ * have not loaded shows its id.
  */
-function workSegments(work: readonly string[], cards: readonly WorkCard[]): Segment[] {
+export function workSegments(work: readonly string[], cards: readonly WorkCard[]): Segment[] {
   const out: Segment[] = []
   const tracks = new Set<string>()
   for (const id of work) {
@@ -47,7 +51,8 @@ function workSegments(work: readonly string[], cards: readonly WorkCard[]): Segm
       const progress = card.total !== undefined ? ` [${card.done ?? 0}/${card.total}]` : ''
       out.push({ text: ` ${clip(card.trackTitle, 32)}${progress} `, bg: '#5f5faf', fg: '#ffffff' })
     }
-    out.push({ text: ` → ${clip(card?.title ?? id, 40)} `, bg: '#875fd7', fg: '#ffffff' })
+    const steps = card?.stepsTotal !== undefined ? ` ${card.stepsDone ?? 0}/${card.stepsTotal}` : ''
+    out.push({ text: ` → ${clip(card?.title ?? id, 40)}${steps} `, bg: ITEM_BG[card?.status ?? ''] ?? '#875fd7', fg: '#ffffff' })
   }
   return out
 }

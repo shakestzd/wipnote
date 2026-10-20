@@ -179,11 +179,14 @@ const PILLS: Record<string, string> = {
 
 /**
  * Cells the engine's mode pill and its ` · ` take left of the hint line, which is where a
- * tree drawn there starts. No pill when the hint does not open with its `(shift+tab …)` note.
+ * tree drawn there starts. The pill shows beside a `(shift+tab …)` hint, and also beside
+ * other hints (`1 shell · ← 6 agents`) whenever a known non-default mode is on; the idle
+ * `? for shortcuts` hint has no pill.
  */
 export function pillIndent(permissionMode: string | null, hint: string): number {
-  if (!hint.startsWith('(')) return 0
-  const pill = PILLS[permissionMode ?? 'auto'] ?? PILLS.auto ?? ''
+  const known = permissionMode !== null ? PILLS[permissionMode] : undefined
+  if (!hint.startsWith('(') && (known === undefined || hint.startsWith('?'))) return 0
+  const pill = known ?? PILLS.auto ?? ''
   return [...pill].length + 3
 }
 
@@ -260,17 +263,26 @@ export function showArgv(id: string): string[] | undefined {
   return kind === undefined ? undefined : ['wipnote', kind, 'show', id, '--format', 'json']
 }
 
-/** A work item's title, status and track from `wipnote <kind> show --format json`. */
-export function parseItemJson(text: string): { title: string; status: string; trackId?: string } | undefined {
+/** A work item's title, status, track and step progress from `wipnote <kind> show --format json`. */
+export function parseItemJson(
+  text: string,
+): { title: string; status: string; trackId?: string; stepsDone?: number; stepsTotal?: number } | undefined {
   try {
     const item = JSON.parse(text) as {
       title?: unknown
       status?: unknown
+      steps?: unknown
       edges?: { part_of?: { target_id?: unknown }[] }
     }
     if (typeof item.title !== 'string') return undefined
     const track = item.edges?.part_of?.map(edge => edge.target_id).find(id => typeof id === 'string' && id.startsWith('trk-'))
-    return { title: item.title, status: String(item.status ?? ''), trackId: track as string | undefined }
+    const steps = Array.isArray(item.steps) ? (item.steps as { completed?: unknown }[]) : []
+    return {
+      title: item.title,
+      status: String(item.status ?? ''),
+      trackId: track as string | undefined,
+      ...(steps.length > 0 ? { stepsDone: steps.filter(step => step.completed === true).length, stepsTotal: steps.length } : {}),
+    }
   } catch {
     return undefined
   }

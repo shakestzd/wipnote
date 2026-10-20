@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { CARD_TTL_MS, Latest, classifyExit, failureText, needsFetch, parseCard, parseWho, pickRefresh, refsInMessages, showArgv, splitRefs, statusLine, stepBar, stepCount } from '../hooks/cards'
+import { CARD_TTL_MS, Latest, classifyExit, failureText, needsFetch, parseCard, parseWho, pickRefresh, refsInMessages, showArgv, splitRefs, stepBar, stepCount } from '../hooks/refs'
 
 test('splits a closed wipnote-ref fence out of the text', () => {
   const md = 'Done.\n\n```wipnote-ref\nfeat-65bcc27c\n```\nThanks.'
@@ -48,19 +48,12 @@ test('parses show JSON into a card with step progress', () => {
   expect(c.status).toBe('in-progress')
   expect(stepCount(c.steps)).toBe('2/3 steps')
   expect(stepBar(c.steps)).toBe('███████░░░')
-  expect(statusLine(c)).toBe('wipnote · feat-03132978 · in-progress · 2/3 steps')
 })
 
-test('an item without steps and no active item read cleanly', () => {
+test('an item without steps reads cleanly', () => {
   const c = parseCard('feat-65bcc27c', JSON.stringify({ id: 'feat-65bcc27c', title: 'x', status: 'done' }))
   expect(stepCount(c.steps)).toBe('')
-  expect(statusLine(c)).toBe('wipnote · feat-65bcc27c · done')
-  expect(statusLine(null)).toBe('wipnote · no active work item')
-})
-
-test('a claimed item whose details failed still shows its id', () => {
-  expect(statusLine(null, 'feat-65bcc27c')).toBe('wipnote · feat-65bcc27c · details unavailable')
-  expect(statusLine(null, '')).toBe('wipnote · no active work item')
+  expect(stepBar(c.steps)).toBe('')
 })
 
 test('cards are fetched when missing or older than the TTL', () => {
