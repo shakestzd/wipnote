@@ -112,6 +112,6 @@ The orchestrator reads `synthesis` to decide if the plan is ready for review. Na
 ## Relationship to other skills
 
 - **`/wipnote:plan`** owns the lifecycle. This skill is its Phase 3; the plan is drafted (Phase 1) and validated (Phase 2) first.
-- **Phase 5 of `/wipnote:plan`** (slice decisions and spec) runs after human approval. It reads `decisions_notes`, so merge critique findings into that prose before promotion.
+- **Phase 5 of `/wipnote:plan`** (slice decisions) runs after human approval. It reads `decisions_notes`, so merge critique findings into that prose before promotion.
 
 Do not run this skill during the interview. The interview captures requirements; the critique evaluates the resulting design.

@@ -1,6 +1,6 @@
 # Rendering the Interview (cross-harness)
 
-Used by the draft interview (Phase 1) and the slice spec phase ([SPEC.md](SPEC.md)).
+Used by the draft interview (Phase 1) and the slice decisions phase ([SPEC.md](SPEC.md), Part A).
 
 ## Contents
 

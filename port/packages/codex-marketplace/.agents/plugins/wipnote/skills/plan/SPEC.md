@@ -1,4 +1,4 @@
-# Phase 5: Slice decisions and spec
+# Phases 5 and 7: Slice decisions and feature spec
 
 Captures Scope, Decisions, and Context for one approved slice, then generates the feature's OpenSpec-formatted spec into its HTML. The source of truth is the cross-harness CLI `wipnote plan elicit-decisions`.
 
@@ -10,19 +10,26 @@ Run this phase when:
 
 Inputs: `<plan-id>` (the active plan) and `<slice-num>` (the slice's integer `num`).
 
+The work has two parts because promotion sits between them: `promote-slice` needs the decisions (Part A), and spec generation needs the feature that promotion creates (Part B).
+
 ## Checklist
 
 Copy this checklist and tick it off for each slice:
 
 ```
-Slice spec (plan-id / slice-num):
+Slice decisions and spec (plan-id / slice-num):
+Part A — Phase 5, before promotion
 - [ ] 1. Slice card read; existing decisions_notes noted
 - [ ] 2. Re-elicitation choice made (only if decisions_notes exists)
 - [ ] 3. Scope / Decisions / Context answered
 - [ ] 4. decisions_notes written with elicit-decisions
-- [ ] 5. Spec generated (or promote-slice named as the blocker)
+(Phase 6: wipnote plan promote-slice <plan-id> <slice-num>)
+Part B — Phase 7, after promotion
+- [ ] 5. Spec generated for the slice's feature_id
 - [ ] 6. Spec reads back: `wipnote compliance <feature-id>` lists its criteria
 ```
+
+# Part A: Decisions (Phase 5)
 
 ## Step 1: Read the slice card
 
@@ -34,7 +41,7 @@ Skip this step when `decisions_notes` is empty. Otherwise ask the user (ask-user
 
 - **Re-elicit**: overwrite the notes with new answers.
 - **Edit in place**: show the existing notes, let the user edit them, and write them back verbatim.
-- **Skip**: keep the notes and go to Step 5.
+- **Skip**: keep the notes; Part A is done.
 
 ## Step 3: Three-question interview
 
@@ -57,11 +64,13 @@ wipnote plan elicit-decisions <plan-id> <slice-num> \
   --context "<context answer>"
 ```
 
-This writes one Markdown blob to `slice.decisions_notes` atomically. If it fails, fix the reported problem and run it again.
+This writes one Markdown blob to `slice.decisions_notes` atomically. If it fails, fix the reported problem and run it again. Part A is done; the slice is ready for Phase 6 (promote).
+
+# Part B: Spec (Phase 7)
 
 ## Step 5: Generate the spec
 
-If the slice has no `feature_id`, stop here: tell the user to run `wipnote plan promote-slice <plan-id> <slice-num>`, then come back to this step.
+Read the slice's `feature_id` from the plan YAML. If it is empty, the slice is not promoted yet: do Phase 6 (`wipnote plan promote-slice <plan-id> <slice-num>`) first, then come back here.
 
 Otherwise:
 
@@ -77,7 +86,7 @@ The write is non-destructive. If the feature already has spec content, the comma
 wipnote compliance <feature-id>
 ```
 
-It reads the spec section back and lists its acceptance criteria. If it finds no spec section or no criteria, correct the decisions (Step 4) and generate again (Step 5). Continue only when the criteria are listed. Then report in 2-3 lines: which fields changed, where the spec was written, and the next step (usually `wipnote plan promote-slice`, or the next slice).
+It reads the spec section back and lists its acceptance criteria. If it finds no spec section or no criteria, correct the decisions (Step 4) and generate again (Step 5). Continue only when the criteria are listed. Then report in 2-3 lines: which fields changed, where the spec was written, and the next step (usually the next slice, or `/wipnote:execute`).
 
 ## Notes
 

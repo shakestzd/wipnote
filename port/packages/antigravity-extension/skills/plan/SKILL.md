@@ -12,7 +12,8 @@ One skill for the whole plan lifecycle. Start at the row that matches what you h
 |---|---|
 | Work to plan | Phase 1: Draft (below) |
 | A drafted plan | Phase 3: Critique |
-| An approved slice that needs decisions or a spec | Phase 5: [SPEC.md](SPEC.md) |
+| An approved slice that needs its decisions | Phase 5: [SPEC.md](SPEC.md), Part A |
+| A promoted slice that needs its spec | Phase 7: [SPEC.md](SPEC.md), Part B |
 | An existing or legacy plan that needs visual blocks | [ENRICH.md](ENRICH.md) |
 
 ## Lifecycle checklist
@@ -25,9 +26,10 @@ Plan lifecycle (plan-id):
 - [ ] Phase 2. Validate: `wipnote plan validate-yaml` clean
 - [ ] Phase 3. Critique: every `danger` resolved (3+ slice or complex plans)
 - [ ] Phase 4. Review: human feedback ingested; slices approved
-- [ ] Phase 5. Spec: decisions and spec for each approved slice (SPEC.md)
+- [ ] Phase 5. Decisions: decisions_notes for each approved slice (SPEC.md Part A)
 - [ ] Phase 6. Promote: each approved slice promoted to a feature
-- [ ] Phase 7. Close: plan set to completed when all slices are done
+- [ ] Phase 7. Spec: spec generated for each promoted feature (SPEC.md Part B)
+- [ ] Phase 8. Close: plan set to completed when all slices are done
 ```
 
 # Phase 1: Draft
@@ -229,9 +231,9 @@ Skip for trivial single-slice plans. For 3+ slices, or any `complexity: complex`
 
 Run `wipnote serve` and ask the user to review the slices in the dashboard. Then run `wipnote plan read-feedback-yaml <plan-id>`. For each slice with `changes_requested`, revise it and go back to Phase 2. Continue when every slice is approved or rejected.
 
-# Phase 5: Spec
+# Phase 5: Decisions
 
-For each approved slice, follow [SPEC.md](SPEC.md): capture decisions, then generate the spec once the slice is promoted.
+For each approved slice, follow Part A of [SPEC.md](SPEC.md) to capture Scope, Decisions and Context in `decisions_notes`. Promotion needs them, so this comes first.
 
 # Phase 6: Promote
 
@@ -239,9 +241,13 @@ For each approved slice, follow [SPEC.md](SPEC.md): capture decisions, then gene
 wipnote plan promote-slice <plan-id> <num>
 ```
 
-This creates the slice's `feat-…` feature. If it refuses (for example, missing decisions or unmet dependencies), fix the cause it names and run it again; use `--waive-deps` only when the user accepts it. Promoted slices are ready for `/wipnote:execute`.
+This creates the slice's `feat-…` feature. If it refuses (for example, missing decisions or unmet dependencies), fix the cause it names and run it again; use `--waive-deps` only when the user accepts it.
 
-# Phase 7: Close
+# Phase 7: Spec
+
+For each promoted feature, follow Part B of [SPEC.md](SPEC.md) to generate its spec and check that it reads back. Specced features are ready for `/wipnote:execute`.
+
+# Phase 8: Close
 
 When every slice is done, run `wipnote plan set-status <plan-id> completed`.
 
@@ -271,7 +277,7 @@ When every slice is done, run `wipnote plan set-status <plan-id> completed`.
 - [BLOCK_GROUNDING.md](BLOCK_GROUNDING.md): block grounding rules.
 - [INTERVIEW_RENDERING.md](INTERVIEW_RENDERING.md): interview rendering without an ask-user tool, the web form, and the `--questions` schema.
 - [LEGACY.md](LEGACY.md): v1 and v2 (pre-triage) plan compatibility and a validator-error cheatsheet.
-- [SPEC.md](SPEC.md): Phase 5, slice decisions and spec.
+- [SPEC.md](SPEC.md): Phase 5 (slice decisions, Part A) and Phase 7 (feature spec, Part B).
 - [ENRICH.md](ENRICH.md): add or revise blocks on an existing or legacy plan.
 - `/wipnote:plan-critique`: Phase 3, the dual-critic review pass.
 - `/wipnote:execute`: runs promoted slices.
