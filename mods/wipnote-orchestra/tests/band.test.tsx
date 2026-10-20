@@ -71,6 +71,22 @@ test('with no room left under the bar, no agent row and no "more" line is drawn'
   }
 })
 
+test('a session launched in a mode shifts the band past its pill before any prompt', async ($, on) => {
+  on('classic.SessionStart', () => ({}) as never)
+  on('tool.call', () => ({ result: { stdout: 'ok', stderr: '', interrupted: false } }) as never)
+  await $.tool.call({ tool: 'Bash', command: 'wipnote bug start bug-0000aaaa', description: 'start' } as never)
+  const hint = { ...BAND, props: { ...BAND.props, hint: '1 shell · ← 6 agents · ↓ to manage' } }
+  const before = await $.ui.mount({ ...hint, surface: 'terminal' })
+  const unshifted = JSON.stringify(await before.find({ key: 'band' }))
+  await before.unmount()
+  await $.classic.SessionStart({ source: 'startup', permission_mode: 'auto' } as never)
+  const after = await $.ui.mount({ ...hint, surface: 'terminal' })
+  const shifted = JSON.stringify(await after.find({ key: 'band' }))
+  await after.unmount()
+  expect(unshifted).not.toContain('-18')
+  expect(shifted).toContain('-18') // the pill and its " · ": "⏵⏵ auto mode on" is 15 cells, plus 3
+})
+
 test('the band sits below the prompt, keeps the hint, and /orchestra above moves it', async ($, on) => {
   on('ui.render', ($, e) => {
     const { Text } = $.ui.resolve(e)
