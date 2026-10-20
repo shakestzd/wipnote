@@ -1,14 +1,31 @@
 import type { EngineInterface } from 'claude-code'
 
-import type { AgentRow, PromptInfo, WorkCard } from '../types'
+import type { AgentRow, PromptInfo, Tally, WorkCard } from '../types'
 import type { Segment, Span } from './model'
-import { agentSpans, clip, columnsOf, elapsed, fit, isLive, limitSpans, lineSpans, localTime, wrapSegments } from './model'
+import {
+  attentionSpans,
+  clip,
+  clockText,
+  fit,
+  groupByItem,
+  groupSpans,
+  isLive,
+  limitSpans,
+  lineSpans,
+  needsAttention,
+  tallyText,
+  wrapSegments,
+} from './model'
 
 type Elements = ReturnType<EngineInterface['ui']['resolve']>
 
 export type BandData = {
   info: PromptInfo | null
-  list: AgentRow[]
+  /** Every agent the session has followed (the last 100). */
+  rows: AgentRow[]
+  tally: Tally
+  /** How long a finished agent stays counted in its work item's row. */
+  keepMs: number
   work: string[]
   cards: WorkCard[]
   doing: string | null
@@ -21,16 +38,6 @@ export type BandRoom = {
   maxRows: number
   isWorking: boolean
   isCompact: boolean
-}
-
-const GLYPH: Record<string, [string, string]> = {
-  running: ['●', '#5fd7ff'],
-  pending: ['◌', '#878787'],
-  waiting: ['◐', '#ffaf00'],
-  idle: ['○', '#878787'],
-  completed: ['✔', '#5faf00'],
-  failed: ['✘', '#d70000'],
-  killed: ['✘', '#d75f00'],
 }
 
 /** A work item segment's colour by its status; an unknown or unloaded status keeps the in-progress colour. */
@@ -62,8 +69,8 @@ function segmentsOf(
   work: readonly string[],
   cards: readonly WorkCard[],
   live: number,
-  at: number,
-  zone: string,
+  tally: string,
+  clock: string,
 ): Segment[] {
   const out: Segment[] = []
   if (info !== null) {
@@ -89,18 +96,25 @@ function segmentsOf(
     }
   }
   out.push(...workSegments(work, cards))
-  if (live > 0) {
-    out.push({ text: ` ◉ ${live} agent${live === 1 ? '' : 's'} `, bg: '#005f87', fg: '#ffffff' })
-  }
-  if (at > 0) out.push({ text: ` \uF017 ${localTime(at, zone)} `, bg: '#303030', fg: '#d0d0d0' })
+  const agents = [live > 0 ? `◉ ${live} agent${live === 1 ? '' : 's'}` : '', tally].filter(Boolean).join(' · ')
+  if (agents !== '') out.push({ text: ` ${agents} `, bg: '#005f87', fg: '#ffffff' })
+  if (clock !== '') out.push({ text: ` \uF017 ${clock} `, bg: '#303030', fg: '#d0d0d0' })
   return out
 }
 
-/** The band's tree, or null with nothing to show; drawn above or below the prompt alike. */
+/**
+ * The band's tree, or null with nothing to show; drawn above or below the prompt alike.
+ * Claude Code's own agent panel lists every agent (and opens one with Enter), so the band adds
+ * what it does not show: agents grouped by work item, and the ones that need a look.
+ */
 export function drawBand({ Box, Text }: Elements, data: BandData, room: BandRoom) {
-  const live = data.list.filter(row => isLive(row.status)).length
-  const segs = segmentsOf(data.info, data.work, data.cards, live, data.at, data.zone)
+  const live = data.rows.filter(row => isLive(row.status)).length
+  // The clock ends the usage-limits row; without that row (compact, or no limits known) it is a segment.
+  const limits = room.isCompact ? [] : limitSpans(data.info?.limits ?? [], data.at, data.zone)
+  const clock = data.at > 0 ? clockText(data.at, data.zone) : ''
+  const segs = segmentsOf(data.info, data.work, data.cards, live, tallyText(data.tally), limits.length > 0 ? '' : clock)
   if (segs.length === 0) return null
+  if (limits.length > 0 && clock !== '') limits.push({ text: '   ' }, { text: `\uF017 ${clock}`, color: '#d0d0d0' })
 
   const draw = (key: string, spans: readonly Span[]) => (
     <Text key={key} wrap="truncate-end">
@@ -114,24 +128,27 @@ export function drawBand({ Box, Text }: Elements, data: BandData, room: BandRoom
   const lines = wrapSegments(segs, room.width).map(lineSpans)
   const last = lines.at(-1)
   if (last !== undefined && room.isWorking && data.doing !== null) last.push({ text: ` ▶ ${data.doing}`, dim: true })
-  const limits = room.isCompact ? [] : limitSpans(data.info?.limits ?? [], data.at, data.zone)
   const bar = [...(limits.length > 0 ? [limits] : []), ...lines].map((spans, i) => draw(`line-${i}`, spans))
-  if (room.isCompact || data.list.length === 0) return <Box flexDirection="column">{bar}</Box>
+  if (room.isCompact) return <Box flexDirection="column">{bar}</Box>
 
+  const card = (id: string) => data.cards.find(one => one.id === id)
+  const flags = needsAttention(data.rows, data.at).map(flag => ({
+    key: `x-${flag.row.id}`,
+    spans: attentionSpans(flag, data.at),
+  }))
+  const groups = groupByItem(data.rows, data.at, data.keepMs).map(group => {
+    const it = card(group.item)
+    const steps = it?.stepsTotal !== undefined ? `${it.stepsDone ?? 0}/${it.stepsTotal} steps` : ''
+    return { key: `g-${group.item}`, spans: groupSpans(group, clip(it?.title ?? group.item, 40), steps) }
+  })
+  const rows = [...flags, ...groups]
   const fits = Math.max(0, room.maxRows - 1 - bar.length)
-  // An agent's row names its work item by title, not by id.
-  const titleOf = (id: string | undefined) => (id === undefined ? undefined : (data.cards.find(card => card.id === id)?.title ?? id))
-  const shown = data.list.slice(0, fits).map(row => ({ ...row, workItem: titleOf(row.workItem) }))
-  const cols = columnsOf(shown)
+  const shown = rows.length > fits ? rows.slice(0, Math.max(0, fits - 1)) : rows
   return (
     <Box flexDirection="column">
       {bar}
-      {shown.map((row, i) => {
-        const mark = i === shown.length - 1 && data.list.length <= fits ? '└' : '├'
-        const took = elapsed((row.endedAt ?? data.at) - row.startedAt)
-        return draw(`a-${row.id}`, agentSpans(row, cols, mark, GLYPH[row.status] ?? ['?', '#878787'], took))
-      })}
-      {data.list.length > fits && <Text dimColor>{`   … ${data.list.length - fits} more`}</Text>}
+      {shown.map(row => draw(row.key, row.spans))}
+      {shown.length < rows.length && <Text dimColor>{`   … ${rows.length - shown.length} more`}</Text>}
     </Box>
   )
 }

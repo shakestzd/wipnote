@@ -82,15 +82,6 @@ export function elapsed(ms: number): string {
 export const isLive = (status: string) =>
   status === 'running' || status === 'pending' || status === 'waiting' || status === 'idle'
 
-/** Live agents first (oldest first), then the most recently finished. */
-export function visibleAgents(rows: readonly AgentRow[], now: number, keepMs: number): AgentRow[] {
-  const live = rows.filter(row => isLive(row.status))
-  const done = rows
-    .filter(row => !isLive(row.status) && now - (row.endedAt ?? now) < keepMs)
-    .sort((a, b) => (b.endedAt ?? 0) - (a.endedAt ?? 0))
-  return [...live.sort((a, b) => a.startedAt - b.startedAt), ...done]
-}
-
 /** `claude-opus-5-5[1m]` → `Opus 5.5 1M`; anything unrecognized passes through. */
 export function modelLabel(id: string): string {
   const wide = /\[1m\]$/i.test(id) ? ' 1M' : ''
@@ -131,43 +122,98 @@ export function fit(spans: readonly Span[], width: number): Span[] {
   return out
 }
 
-export const padEnd = (text: string, width: number) => text + ' '.repeat(Math.max(0, width - cells(text)))
-export const padStart = (text: string, width: number) => ' '.repeat(Math.max(0, width - cells(text))) + text
+/** A running agent with no tool call for this long is flagged as stalled. */
+export const STALL_MS = 5 * 60_000
+/** A failed or stopped agent stays flagged this long (Claude Code's own panel drops it after 30 s). */
+export const FAILED_KEEP_MS = 10 * 60_000
 
-/** Widths for the agent table's fixed columns, so every row lines up. */
-export function columnsOf(rows: readonly AgentRow[]): { type: number; model: number; item: number } {
-  const widest = (pick: (row: AgentRow) => string | undefined, cap: number) =>
-    Math.min(cap, Math.max(0, ...rows.map(row => cells(pick(row) ?? ''))))
-  return {
-    type: widest(row => row.type, 24),
-    model: widest(row => row.model, 14),
-    item: widest(row => row.workItem, 28),
+const isFailed = (status: string) => status === 'failed' || status === 'killed'
+
+/** The agents on one work item: how many are in each state. */
+export type ItemGroup = { item: string; running: number; waiting: number; done: number; failed: number }
+
+/**
+ * The agents in view grouped by the work item their brief names, in the order each item's first
+ * agent started: live ones, and finished ones for `keepMs` (failed ones for FAILED_KEEP_MS).
+ * Agents on no work item are left out: Claude Code's own panel lists every agent.
+ */
+export function groupByItem(rows: readonly AgentRow[], now: number, keepMs: number): ItemGroup[] {
+  const groups = new Map<string, ItemGroup>()
+  for (const row of [...rows].sort((a, b) => a.startedAt - b.startedAt)) {
+    if (row.workItem === undefined) continue
+    const ended = now - (row.endedAt ?? now)
+    if (!isLive(row.status) && ended >= (isFailed(row.status) ? FAILED_KEEP_MS : keepMs)) continue
+    const group = groups.get(row.workItem) ?? { item: row.workItem, running: 0, waiting: 0, done: 0, failed: 0 }
+    if (isFailed(row.status)) group.failed += 1
+    else if (row.status === 'waiting') group.waiting += 1
+    else if (isLive(row.status)) group.running += 1
+    else group.done += 1
+    groups.set(row.workItem, group)
   }
+  return [...groups.values()]
 }
 
-/** One agent row: tree mark, status, fixed columns, then the free-length tail. */
-export function agentSpans(
-  row: AgentRow,
-  cols: { type: number; model: number; item: number },
-  mark: string,
-  glyph: [string, string],
-  took: string,
-): Span[] {
-  const isDone = !isLive(row.status)
-  const cut = (text: string, width: number) => (cells(text) > width ? `${[...text].slice(0, width - 1).join('')}…` : text)
-  const spans: Span[] = [
-    { text: ` ${mark} `, dim: true },
-    { text: `${glyph[0]} `, color: glyph[1] },
-    { text: padEnd(cut(row.type, cols.type), cols.type), bold: !isDone, dim: isDone, color: isDone ? undefined : '#5fd7ff' },
+/**
+ * An agent that needs a look: running and quiet for STALL_MS (on one long call, or between calls),
+ * or failed/stopped recently.
+ */
+export type Attention = { row: AgentRow; why: 'long-call' | 'stalled' | 'failed' | 'stopped'; since: number }
+
+/** The agents to flag, quiet ones first (longest quiet first), then failures (newest first). */
+export function needsAttention(rows: readonly AgentRow[], now: number): Attention[] {
+  const stalled = rows
+    .filter(row => row.status === 'running' && now - (row.lastAt ?? row.startedAt) >= STALL_MS)
+    .map(row => ({ row, why: (row.inFlight ?? 0) > 0 ? ('long-call' as const) : ('stalled' as const), since: row.lastAt ?? row.startedAt }))
+    .sort((a, b) => a.since - b.since)
+  const failed = rows
+    .filter(row => isFailed(row.status) && now - (row.endedAt ?? now) < FAILED_KEEP_MS)
+    .map(row => ({ row, why: row.status === 'killed' ? ('stopped' as const) : ('failed' as const), since: row.endedAt ?? now }))
+    .sort((a, b) => b.since - a.since)
+  return [...stalled, ...failed]
+}
+
+/** One work item's row: its title and step progress, then its agents by state. */
+export function groupSpans(group: ItemGroup, title: string, steps: string): Span[] {
+  const spans: Span[] = [{ text: '   ▸ ', dim: true }, { text: title, color: '#af87ff', bold: true }]
+  if (steps !== '') spans.push({ text: ` ${steps}`, dim: true })
+  const counts: [number, string, string][] = [
+    [group.running, '● {n} running', '#5fd7ff'],
+    [group.waiting, '◐ {n} waiting', '#ffaf00'],
+    [group.done, '✔ {n} done', '#5faf00'],
+    [group.failed, '✘ {n} failed', '#d70000'],
   ]
-  if (cols.model > 0) spans.push({ text: ` ${padEnd(row.model ?? '', cols.model)}`, color: '#d75f00', dim: isDone })
-  if (cols.item > 0) spans.push({ text: ` ${padEnd(row.workItem ?? '', cols.item)}`, color: '#af87ff', dim: isDone })
-  spans.push({ text: ` ${padStart(took, 6)} ${padStart(String(row.tools), 3)}t `, dim: true })
-  spans.push({ text: ` ${row.description}`, dim: isDone })
-  if (!isDone && row.lastTool !== undefined) spans.push({ text: `  ↳ ${row.lastTool}`, dim: true, italic: true })
+  spans.push({ text: ' ' })
+  for (const [n, label, color] of counts) if (n > 0) spans.push({ text: `  ${label.replace('{n}', String(n))}`, color })
   return spans
 }
 
+/** One flagged agent's row: why, who, what it was doing, and for how long. */
+export function attentionSpans(flag: Attention, now: number): Span[] {
+  const { row } = flag
+  const took = elapsed(now - flag.since)
+  const looks: Record<Attention['why'], [string, string, string]> = {
+    stalled: ['⚠', '#ffaf00', `no tool call for ${took}`],
+    'long-call': ['◷', '#d7af00', `one call running for ${took}`],
+    stopped: ['✘', '#d75f00', `stopped ${took} ago`],
+    failed: ['✘', '#d70000', `failed ${took} ago`],
+  }
+  const [mark, color, said] = looks[flag.why]
+  const spans: Span[] = [
+    { text: `   ${mark} `, color },
+    { text: row.type, color, bold: true },
+    { text: ` ${said}`, color },
+    { text: `  ${row.description}`, dim: true },
+  ]
+  const isQuiet = flag.why === 'stalled' || flag.why === 'long-call'
+  if (isQuiet && row.lastTool !== undefined) spans.push({ text: `  ↳ ${row.lastTool}`, dim: true, italic: true })
+  return spans
+}
+
+/** ` ✔ 12 ✘ 1 `: every agent this session has seen finish, by outcome; empty before the first. */
+export function tallyText(tally: { done: number; failed: number }): string {
+  if (tally.done + tally.failed === 0) return ''
+  return `✔ ${tally.done}${tally.failed > 0 ? ` ✘ ${tally.failed}` : ''}`
+}
 
 const PILLS: Record<string, string> = {
   auto: '⏵⏵ auto mode on',
@@ -253,6 +299,13 @@ export function zoneOf(option: unknown): string {
 /** `6:28 PM` in `zone`, the 12-hour form the person's prompt uses. */
 export function localTime(ms: number, zone: string = TIME_ZONE): string {
   return new Intl.DateTimeFormat('en-US', { timeZone: zone, hour: 'numeric', minute: '2-digit', hour12: true }).format(ms)
+}
+
+/** `Tue 20 · 6:28 PM` in `zone`: the weekday, the day of the month and the time. */
+export function clockText(ms: number, zone: string = TIME_ZONE): string {
+  const day = new Intl.DateTimeFormat('en-US', { timeZone: zone, weekday: 'short', day: 'numeric' }).formatToParts(ms)
+  const part = (type: string) => day.find(one => one.type === type)?.value ?? ''
+  return `${part('weekday')} ${part('day')} · ${localTime(ms, zone)}`
 }
 
 const KINDS: Record<string, string> = { feat: 'feature', bug: 'bug', spk: 'spike' }

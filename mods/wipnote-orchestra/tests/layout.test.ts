@@ -1,16 +1,23 @@
 import { expect, test } from 'claude-code/testing'
 
-import { agentSpans, columnsOf, fit } from '../hooks/model'
+import { attentionSpans, fit, groupSpans } from '../hooks/model'
 
-const row = (type: string, model: string, description: string) =>
-  ({ id: type, type, model, description, status: 'running', startedAt: 0, tools: 3, lastTool: 'Read a.ts' })
+const row = { id: 'a', type: 'wipnote:feature-coder', description: 'a much longer description', status: 'running', startedAt: 0, tools: 3, lastTool: 'Read a.ts' }
 
-test('agent rows line up and never pass the band width', async () => {
-  const rows = [row('Explore', 'Haiku 4.5', 'short'), row('wipnote:feature-coder', 'Opus 5.5', 'a much longer description')]
-  const cols = columnsOf(rows)
-  const lines = rows.map(one => agentSpans(one, cols, '├', ['●', '#fff'], '12s'))
-  const head = (spans: { text: string }[]) => spans.slice(0, -2).map(s => s.text).join('')
-  expect([...head(lines[0]!)].length).toBe([...head(lines[1]!)].length)
+test('work item and attention rows never pass the band width', async () => {
+  const lines = [
+    groupSpans({ item: 'feat-1', running: 2, waiting: 1, done: 3, failed: 1 }, 'Chase visits by hand', '2/5 steps'),
+    attentionSpans({ row, why: 'stalled', since: 0 }, 400_000),
+    attentionSpans({ row, why: 'failed', since: 0 }, 60_000),
+    attentionSpans({ row, why: 'long-call', since: 0 }, 400_000),
+  ]
+  const text = (spans: { text: string }[]) => spans.map(s => s.text).join('')
+  expect(text(lines[0]!)).toBe('   ▸ Chase visits by hand 2/5 steps   ● 2 running  ◐ 1 waiting  ✔ 3 done  ✘ 1 failed')
+  expect(text(lines[1]!)).toContain('no tool call for 6m40s')
+  expect(text(lines[1]!)).toContain('↳ Read a.ts')
+  expect(text(lines[2]!)).toContain('failed 1m00s ago')
+  expect(text(lines[2]!)).not.toContain('↳')
+  expect(text(lines[3]!)).toContain('one call running for 6m40s  a much longer description  ↳ Read a.ts')
   for (const spans of lines) {
     const cut = fit(spans, 40).map(s => s.text).join('')
     expect([...cut].length).toBeLessThanOrEqual(40)
