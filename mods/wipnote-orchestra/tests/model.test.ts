@@ -48,6 +48,10 @@ test('measures the mode pill the band shifts left past', async () => {
   expect(pillIndent('plan', '(shift+tab to cycle)')).toBe(17)
   expect(pillIndent(null, '(shift+tab to cycle)')).toBe(18)
   expect(pillIndent('auto', '? for shortcuts')).toBe(0)
+  // A background-task hint still sits beside the pill (seen in a live auto-mode session).
+  expect(pillIndent('auto', '1 shell · ← 6 agents · ↓ to manage')).toBe(18)
+  expect(pillIndent('default', '1 shell · ← 6 agents')).toBe(0)
+  expect(pillIndent(null, '1 shell · ← 6 agents')).toBe(0)
 })
 
 test('wraps segments between segments to the width, with rounded caps on every line', async () => {

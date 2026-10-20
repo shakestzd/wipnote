@@ -1,31 +1,36 @@
-// wipnote-cards: wipnote at a glance, for few model tokens.
-//
-// 1. Status line (no tokens): the session's claimed work item, its status and
-//    step progress, refreshed when the session starts and after each turn.
-// 2. Cards (~10 tokens): the model ends a report with a ```wipnote-ref fence
-//    holding only an id; this mod draws it as a card from `wipnote ... show
-//    --format json`. The stored message keeps the short fence, so later turns
-//    read ~10 tokens, and without the mod the fence still reads as an id.
+// wipnote-ref cards, for few model tokens: the model ends a report with a
+// ```wipnote-ref fence holding only an id, and this draws it as a card from
+// `wipnote ... show --format json`. The stored message keeps the short fence,
+// so later turns read ~10 tokens, and without the mod the fence still reads as
+// an id.
 //
 // The one-line rule that asks for the fence is sent only while this mod is
 // loaded (prompt.compose), so the model never writes fences nobody draws.
 //
 // A render hook never writes state, so cards are fetched from events: when a
-// reply is stored (session.append) and after each turn (turn.complete). The
-// render hook only reads the cards atom and draws.
+// reply is stored (session.append), after each turn (turn.complete), and on
+// start or resume (hydrate). The render hook only reads the refs atom.
 
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
 import type { Card, CardEntry, FailKind } from '../types'
-import { Latest, REF_RULE, classifyExit, failureText, needsFetch, parseCard, parseWho, pickRefresh, refsInMessages, showArgv, splitRefs, statusLine, stepBar, stepCount } from './cards'
-import type { CliResult } from './cards'
+import { Latest, REF_RULE, classifyExit, failureText, needsFetch, parseCard, pickRefresh, refsInMessages, showArgv, splitRefs, stepBar, stepCount } from './refs'
+import type { CliResult } from './refs'
 
-const cards = atom({ plugin: 'wipnote-cards', key: 'cards' } as const, {})
+type On = Parameters<Register>[0]
+
+const refs = atom({ plugin: 'wipnote-orchestra', key: 'refs' } as const, {})
 const CLI_TIMEOUT_MS = 15_000
+const MAX_REFRESH = 10
+const SCAN_MESSAGES = 200
 
-/** Runs a read-only wipnote command; a spawn failure or timeout is 'unavailable'. */
-async function wipnoteJSON($: EngineInterface, argv: string[]): Promise<CliResult> {
+const STATUS_COLOR: Record<string, string> = {
+  done: 'success', 'in-progress': 'warning', blocked: 'error', todo: 'subtle',
+}
+
+/** Runs a read-only wipnote command as this session; a spawn failure or timeout is 'unavailable'. */
+export async function wipnoteJSON($: EngineInterface, argv: string[]): Promise<CliResult> {
   try {
     const sessionId = await $.session.id()
     const r = await $.process.run(argv, {
@@ -49,12 +54,28 @@ async function fetchCard($: EngineInterface, id: string): Promise<{ card: Card }
 }
 
 function setEntry($: EngineInterface, id: string, entry: CardEntry): Promise<unknown> {
-  return update($, cards, all => ({ ...all, [id]: entry }))
+  return update($, refs, all => ({ ...all, [id]: entry }))
 }
 
 // Overlapping lookups finish in any order. Each one takes a ticket, and only
 // the newest ticket may write, so an older, slower lookup never wins.
 const latest = new Latest()
+
+/**
+ * Stores a card from `show` output the band already fetched, so an active
+ * item costs one lookup, not one for the band and one for its card. It takes
+ * a ticket like loadCard, so it never overwrites a newer lookup.
+ */
+export async function storeCard($: EngineInterface, id: string, stdout: string): Promise<void> {
+  const ticket = latest.take(`card:${id}`)
+  let card: Card
+  try {
+    card = parseCard(id, stdout)
+  } catch {
+    return
+  }
+  if (latest.isNewest(`card:${id}`, ticket)) await setEntry($, id, { state: 'loaded', card, at: await $.clock.now() })
+}
 
 /** Loads one card into the atom; the write redraws every message that reads it. */
 async function loadCard($: EngineInterface, id: string): Promise<void> {
@@ -62,40 +83,15 @@ async function loadCard($: EngineInterface, id: string): Promise<void> {
   await setEntry($, id, { state: 'loading', at: await $.clock.now() })
   const r = await fetchCard($, id)
   if (!latest.isNewest(`card:${id}`, ticket)) return
-  await setEntry($, id, entryFrom(r, await $.clock.now()))
-}
-
-function entryFrom(r: { card: Card } | { fail: FailKind }, at: number): CardEntry {
-  return 'card' in r ? { state: 'loaded', card: r.card, at } : { state: 'failed', reason: r.fail, at }
+  const at = await $.clock.now()
+  await setEntry($, id, 'card' in r ? { state: 'loaded', card: r.card, at } : { state: 'failed', reason: r.fail, at })
 }
 
 /** Starts a fetch for every id that is missing or stale. */
 async function loadStale($: EngineInterface, ids: string[]): Promise<void> {
-  const all = await read($, cards)
+  const all = await read($, refs)
   const now = await $.clock.now()
   for (const id of ids) if (needsFetch(all[id], now)) void loadCard($, id)
-}
-
-/**
- * Sets the status line from the session's claimed work item. When `who`
- * itself fails, the last status stays: an unknown claim is not "no claim".
- * The item's card lookup takes a card ticket too, so it shares one order with
- * loadCard and an older lookup of either kind never overwrites a newer one.
- */
-async function refreshStatus($: EngineInterface): Promise<void> {
-  const ticket = latest.take('status')
-  const who = await wipnoteJSON($, ['wipnote', 'who', '--json'])
-  const workItem = who.ok ? parseWho(who.stdout) : null
-  if (workItem === null) return
-  if (!workItem) {
-    if (latest.isNewest('status', ticket)) $.ui.status(statusLine(null, ''))
-    return
-  }
-  const cardKey = `card:${workItem}`
-  const cardTicket = latest.take(cardKey)
-  const r = await fetchCard($, workItem)
-  if (latest.isNewest(cardKey, cardTicket)) await setEntry($, workItem, entryFrom(r, await $.clock.now()))
-  if (latest.isNewest('status', ticket)) $.ui.status(statusLine('card' in r ? r.card : null, workItem))
 }
 
 /**
@@ -104,55 +100,34 @@ async function refreshStatus($: EngineInterface): Promise<void> {
  * it waits for the TTL instead of costing a process every turn.
  */
 async function refreshOpenCards($: EngineInterface): Promise<void> {
-  const all = await read($, cards)
+  const all = await read($, refs)
   for (const id of pickRefresh(Object.entries(all), MAX_REFRESH)) void loadCard($, id)
 }
 
 /**
- * Loads the cards the transcript already references. The cards atom starts
+ * Loads the cards the transcript already references. The refs atom starts
  * empty in a new or resumed session, and session.append sees only new
  * replies, so saved references are read back from the transcript.
  */
-async function hydrate($: EngineInterface): Promise<void> {
+export async function hydrate($: EngineInterface): Promise<void> {
   const messages = await $.session.messages()
   if (!Array.isArray(messages)) return
   const ids = refsInMessages(messages.slice(-SCAN_MESSAGES), MAX_REFRESH)
   if (ids.length > 0) await loadStale($, ids)
 }
 
-const MAX_REFRESH = 10
-const SCAN_MESSAGES = 200
-
-const STATUS_COLOR: Record<string, string> = {
-  done: 'success', 'in-progress': 'warning', blocked: 'error', todo: 'subtle',
+/** After a turn: the open cards (stalest first) and any the transcript references but the atom lacks. */
+export function refreshAfterTurn($: EngineInterface): void {
+  void refreshOpenCards($).catch(() => undefined)
+  void hydrate($).catch(() => undefined)
 }
 
-export const register: Register = on => {
-  on('session.start', async ($, e, next) => {
-    void refreshStatus($)
-    void hydrate($)
-    return next(e)
-  })
-
-  // /resume, /branch and /clear swap the conversation and reset the cards atom,
-  // but session.start does not fire again; the settings SessionStart does.
-  on('classic.SessionStart', async ($, e, next) => {
-    if (e.source !== 'startup') {
-      void refreshStatus($)
-      void hydrate($)
-    }
-    return next(e)
-  })
-
-  // After each turn: the status line, the open cards (stalest first), and any
-  // card the transcript references but the atom lacks (a resumed conversation).
-  on('turn.complete', async ($, e, next) => {
-    void refreshStatus($)
-    void refreshOpenCards($)
-    void hydrate($)
-    return next(e)
-  })
-
+/**
+ * The wipnote-ref hooks: fetch on reply, the model rule, and the card drawing.
+ * register.tsx owns session.start, classic.SessionStart and turn.complete (an
+ * event takes one unmatched hook per mod) and calls hydrate and refreshAfterTurn.
+ */
+export function registerRefs(on: On): void {
   // A stored reply with a wipnote-ref fence starts the card fetches; the
   // render hook below only reads the result.
   on('session.append', { door: 'response' }, async ($, e, next) => {
@@ -167,7 +142,7 @@ export const register: Register = on => {
 
   on('prompt.compose', async ($, e, next) => {
     const r = await next(e)
-    return { sections: [...r.sections, { id: 'wipnote-cards:ref-rule', text: REF_RULE, scope: 'session' }] }
+    return { sections: [...r.sections, { id: 'wipnote-orchestra:ref-rule', text: REF_RULE, scope: 'session' }] }
   })
 
   on('ui.render', { component: 'AssistantMessage' }, async ($, e, next) => {
@@ -175,7 +150,7 @@ export const register: Register = on => {
     if (!segments.some(s => s.kind === 'refs')) return next(e)
 
     const { Box, Text, Markdown } = $.ui.resolve(e)
-    const all = await read($, cards)
+    const all = await read($, refs)
 
     return (
       <Box flexDirection="column">
