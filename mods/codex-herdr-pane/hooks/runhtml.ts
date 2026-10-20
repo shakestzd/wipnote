@@ -4,7 +4,7 @@
 // taken from the run is escaped; the Markdown is a small subset (headings, fences, quotes, lists,
 // bold, italic and inline code), enough for what codex.jq, stream.jq and an answer write.
 
-import type { RunPart } from './livedoc.ts'
+import { fenceStep, type RunPart } from './livedoc.ts'
 
 export type RunPageInput = {
   label: string
@@ -17,10 +17,20 @@ export type RunPageInput = {
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 
-const inline = (t: string) => esc(t)
-  .replace(/`([^`]+)`/g, '<code>$1</code>')
+// Code spans are cut out first, so `*` and `**` inside them stay as written
+const emphasis = (t: string) => esc(t)
   .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
   .replace(/(^|[^*])\*([^*\s][^*]*)\*/g, '$1<em>$2</em>')
+// A code span opens and closes on backtick runs of the same length (CommonMark)
+const CODE_SPAN = /(`+)(?!`)([\s\S]*?[^`])\1(?!`)/g
+function inline(t: string): string {
+  let out = '', at = 0
+  for (const m of t.matchAll(CODE_SPAN)) {
+    out += emphasis(t.slice(at, m.index)) + `<code>${esc(m[2]!.trim() || m[2]!)}</code>`
+    at = m.index! + m[0].length
+  }
+  return out + emphasis(t.slice(at))
+}
 
 export function mdToHtml(src: string): string {
   const lines = src.replace(/\r/g, '').split('\n')
@@ -28,11 +38,11 @@ export function mdToHtml(src: string): string {
   let i = 0
   while (i < lines.length) {
     const l = lines[i]!
-    const fence = /^ {0,3}(`{3,}|~{3,})/.exec(l)
+    // the fence rule of livedoc.ts (CommonMark's), so the page and the pane agree on every block
+    let fence = fenceStep(null, l)
     if (fence) {
-      const close = new RegExp(`^ {0,3}${fence[1]![0] === '`' ? '`' : '~'}{${fence[1]!.length},}\\s*$`)
       const body: string[] = []
-      for (i++; i < lines.length && !close.test(lines[i]!); i++) body.push(lines[i]!)
+      for (i++; i < lines.length && (fence = fenceStep(fence, lines[i]!)) !== null; i++) body.push(lines[i]!)
       i++
       out.push(`<pre>${esc(body.join('\n'))}</pre>`)
       continue
@@ -52,7 +62,7 @@ export function mdToHtml(src: string): string {
     }
     if (!l.trim()) { i++; continue }
     const para: string[] = []
-    while (i < lines.length && lines[i]!.trim() && !/^( {0,3}(`{3,}|~{3,})|#{1,6} |> |[-*] )/.test(lines[i]!)) para.push(lines[i++]!)
+    while (i < lines.length && lines[i]!.trim() && !fenceStep(null, lines[i]!) && !/^(#{1,6} |> |[-*] )/.test(lines[i]!)) para.push(lines[i++]!)
     out.push(`<p>${inline(para.join(' '))}</p>`)
   }
   return out.join('\n')

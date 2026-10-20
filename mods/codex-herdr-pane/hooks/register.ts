@@ -1,10 +1,23 @@
-import type { Register } from 'claude-code'
+import type { EngineInterface as Api, Register } from 'claude-code'
 import { buildWrapper, isDelegation, paneLabel, runDirPath, scriptPath, stubFor, type ClosePolicy } from './wrap.ts'
-import { runPane, settleRun, trackRun } from './runpane.tsx'
+import { runPane } from './runpane.tsx'
+import { callEnded, settleRun, trackRun } from './runstate.ts'
 
 const FOREGROUND_MAX_MS = 600000
 
 const closePolicy = (v: unknown): ClosePolicy => (v === 'success' || v === 'never' ? v : 'always')
+
+const SEND = 'copy it to a folder they can open (your scratchpad or the working directory) and send it to them as a file to render.'
+
+// For the model, where nothing in this session draws mod panes: how to show the run to the user.
+// A foreground call has ended, so its page exists or never will; a background one names its page
+// in its report (a "run page:" line) when it ends. Elsewhere the report's line is enough.
+async function pageNote($: Api, id: string, background: boolean): Promise<string | undefined> {
+  const page = background ? undefined : await settleRun($, id) // ends the run here even if it left no exit
+  if ((await $.session.surfaces()).length > 0) return undefined
+  if (background) return `codex-herdr-pane: nothing in this session draws mod panes. If this delegation's report ends with a "run page:" line, show the run to the user: ${SEND}`
+  return page ? `codex-herdr-pane: nothing in this session draws mod panes, so show the run to the user through its page, ${page}: ${SEND}` : undefined
+}
 
 export const register: Register = (on, options) => {
   // layout right/down is a fixed split of Claude's pane; anything else tiles. `direction` is the
@@ -33,15 +46,16 @@ export const register: Register = (on, options) => {
     n += 1
     const id = `${Date.now().toString(36)}${n}`
     $.ui.toast(claudePane ? 'Delegation: opening a pane' : 'Delegation: opening a herdr pane')
-    let tmpdir: string | undefined
+    let tmpdir: string | undefined, home: string | undefined
     try { tmpdir = await $.env.get('TMPDIR') } catch { /* /tmp */ }
-    const runDir = runDirPath(tmpdir, id)
+    try { home = await $.env.get('HOME') } catch { /* not followed */ }
+    const runDir = runDirPath(home, id)
     const script = buildWrapper(e.command, {
       direction, layout: fixed ? 'fixed' : 'tile', maxPanes, closePane, closeDelay, tailLines, maxReturnLines, viewer, leanProfile, leanProfileName, runsDir, root: $.plugin.root, id,
       claudePane, runDir,
     })
     // Followed by what the script writes in $dir/host: claude (a Claude Code pane), herdr, or none (bare)
-    await trackRun($, { id, dir: runDir, label: paneLabel(e.command) }).catch(() => {})
+    if (runDir) await trackRun($, { id, dir: runDir, label: paneLabel(e.command) }).catch(() => {})
     // The script goes to a file written here, so the call the harness shows (and quotes in the
     // notice of a background call) is the two-line stub. If the write fails or the file is not
     // there, the call carries the whole script, as before 0.7.0.
@@ -56,18 +70,13 @@ export const register: Register = (on, options) => {
     // to give up early still does; the pane keeps running either way.
     const timeout = e.run_in_background || typeof e.timeout === 'number' ? e.timeout : FOREGROUND_MAX_MS
     const ran = await next({ ...e, command, timeout })
-    if (ran.result === undefined) return ran
-    // Tell the model where the run's page is (a background call: where it will be), and, where
-    // nothing draws mod panes, to show it to the person as a file. Never throws: the .catch below
-    // would run the delegation a second time.
+    if (!runDir) return ran
+    // Never throws: the .catch below would run the delegation a second time
     try {
-      const page = e.run_in_background ? undefined : await settleRun($, id)
-      if (!e.run_in_background && !page) return ran
-      const where = page ? `is at ${page}` : `will be at ${runDir}/run.html when the run ends`
-      const noPanes = (await $.session.surfaces()).length === 0
-      const note = `codex-herdr-pane: the run as a page (the answer, then each tool result as a collapsible section) ${where}.`
-        + (noPanes ? ' Nothing in this session draws mod panes, so to show the run to the user, copy that file to a folder they can open (your scratchpad or the working directory) and send it to them as a file to render.' : '')
-      return { ...ran, context: [...(ran.context ?? []), note] }
+      await callEnded($, id, ran.result === undefined)
+      if (ran.result === undefined) return ran
+      const note = await pageNote($, id, Boolean(e.run_in_background))
+      return note ? { ...ran, context: [...(ran.context ?? []), note] } : ran
     } catch {
       return ran
     }

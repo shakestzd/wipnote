@@ -29,7 +29,7 @@ export type WrapOptions = {
   // Outside herdr, run the delegation headless into runDir instead of running it bare, so the
   // Claude Code pane (runpane.tsx) can follow it.
   claudePane?: boolean
-  // The run directory, named by the id (runDirPath) so the hook can follow the run to its end
+  // The run directory (runDirPath), named by the id so the hook can follow the run to its end
   runDir?: string
 }
 
@@ -40,11 +40,13 @@ export const scriptPath = (tmpdir: string | undefined, id: string): string => {
   const dir = tmpdir && tmpdir.startsWith('/') ? tmpdir.replace(/\/+$/, '') : '/tmp'
   return `${dir || ''}/${SCRIPT_PREFIX}${id.replace(/[^A-Za-z0-9]/g, '')}.sh`
 }
-// The run directory of a run the Claude Code pane follows: named by the id, so the hook knows it
-// before the script runs. The script makes it with mkdir -m 700, which fails rather than reuse a
-// path that is already there (then the run gets a mktemp directory and no Claude Code pane).
-export const runDirPath = (tmpdir: string | undefined, id: string): string =>
-  scriptPath(tmpdir, id).replace(/\/[^/]*$/, `/codex-herdr.${id.replace(/[^A-Za-z0-9]/g, '')}`)
+// Where run directories live: under the user's own cache, never a shared /tmp, so no other user
+// can make one of these paths before the run does (the hook reads and writes there by name).
+export const runsRoot = (home: string): string => `${home.replace(/\/+$/, '')}/.cache/codex-herdr-pane/runs`
+// A run's directory, named by the id so the hook knows it before the script runs; undefined
+// without a usable HOME (then the run gets a mktemp directory and is not followed)
+export const runDirPath = (home: string | undefined, id: string): string | undefined =>
+  home && home.startsWith('/') ? `${runsRoot(home)}/${id.replace(/[^A-Za-z0-9]/g, '')}` : undefined
 const shq = (s: string) => `'${s.replace(/'/g, `'\\''`)}'`
 export const stubFor = (path: string): string => `${MARKER}\nexec bash ${shq(path)}`
 
@@ -68,11 +70,19 @@ const CAP_FN = 'cap_file() { local n; n=$(awk \'END{print NR}\' "$1"); if [ "$__
 // cap_tail is cap_file for a log's end, where the error is: the LAST __M lines, led by a line naming how many earlier ones $2 (the whole log) holds.
 const CAP_TAIL_FN = 'cap_tail() { local n t; n=$(awk \'END{print NR}\' "$1"); if [ "$__M" -gt 0 ] && [ "$n" -gt "$__M" ]; then t=$(awk \'END{print NR}\' "${2:-$1}"); echo "... $((t - __M)) earlier lines in ${2:-$1}"; tail -n "$__M" "$1"; else cat "$1"; fi; nl_if_open "$1"; }'
 
+// The run's page (run.html), named last in the report only once it exists. The hook writes it
+// moments after the run ends, so a followed run (one with a host file) waits for it up to
+// CODEX_HERDR_PAGE_WAIT tenths of a second (30).
+const PAGE_LINE = [
+  'if [ -s "$__D/host" ]; then __w=0; while [ ! -f "$__D/run.html" ] && [ "$__w" -lt "${CODEX_HERDR_PAGE_WAIT:-30}" ]; do sleep 0.1; __w=$((__w+1)); done; fi',
+  '[ -f "$__D/run.html" ] && echo "run page: $__D/run.html"',
+]
+
 function report(o: WrapOptions, tool: DelegationTool, chained: boolean): string[] {
   const cap = Math.max(0, Math.floor(o.maxReturnLines ?? 0)) || 0
   const head = [NL_FN, CAP_FN, CAP_TAIL_FN, `__M=${cap}`]
   if (tool.filter === 'ccx') {
-    return [...head, '__X=$(cat "$__D/exit")', 'cap_file "$__D/out.txt"', 'cat "$__D/err.log" >&2; nl_if_open "$__D/err.log" >&2']
+    return [...head, '__X=$(cat "$__D/exit")', 'cap_file "$__D/out.txt"', 'cat "$__D/err.log" >&2; nl_if_open "$__D/err.log" >&2', ...PAGE_LINE]
   }
   const tail = Math.max(1, Math.floor(o.tailLines))
   const who = chained ? 'command' : 'codex'
@@ -88,6 +98,7 @@ function report(o: WrapOptions, tool: DelegationTool, chained: boolean): string[
       // rest.out / rest.err: orig.out / orig.err with the pane's noise rules applied (panescript.ts)
       'if [ -s "$__D/rest.out" ] || [ -s "$__D/rest.err" ]; then echo "--- output of the rest of the command ---"; cap_file "$__D/rest.out"; cap_file "$__D/rest.err" >&2; fi',
     ] : []),
+    ...PAGE_LINE,
   ]
 }
 
@@ -108,6 +119,7 @@ const SWEEP = '( T="${TMPDIR:-/tmp}"; K="${CODEX_HERDR_KEEP_DAYS:-7}"; '
   + 'find "$T" -maxdepth 1 -type f -name \'' + SCRIPT_PREFIX + '*.sh\' -mtime +"$K" -delete; '
   + 'find "$T" -maxdepth 1 -type d -name \'codex-herdr.*\' -mtime +"$K" -exec rm -rf {} +; '
   + 'find "$T/codex-herdr-ccx-claims-$(id -u)" -mindepth 1 -maxdepth 1 -type d -name \'*.jsonl\' -mtime +"$K" -exec rm -rf {} +; '
+  + 'find "$HOME/.cache/codex-herdr-pane/runs" -mindepth 1 -maxdepth 1 -type d -mtime +"$K" -exec rm -rf {} +; '
   + ') >/dev/null 2>&1 &'
 
 export function buildWrapper(command: string, o: WrapOptions): string {
@@ -120,7 +132,11 @@ export function buildWrapper(command: string, o: WrapOptions): string {
   const mktemp = '__D=$(mktemp -d "${TMPDIR:-/tmp}/codex-herdr.XXXXXX") || exit 1'
   return [
     MARKER,
-    o.runDir ? `__D=${shq(o.runDir)}; mkdir -m 700 "$__D" 2>/dev/null || { ${mktemp}; }` : mktemp,
+    // mkdir without -p for the run itself: a path already there is never reused (mktemp instead,
+    // and the hook, finding no host file there, does not follow it)
+    o.runDir
+      ? `__R=${shq(o.runDir.replace(/\/[^/]*$/, ''))}; __D=${shq(o.runDir)}; { mkdir -p "$__R" && chmod 700 "$__R" && mkdir -m 700 "$__D"; } 2>/dev/null || { ${mktemp}; }`
+      : mktemp,
     // A script the hook wrote (see stubFor) moves into the run directory, so it is kept with the logs
     'case "$0" in */' + SCRIPT_PREFIX + '*.sh) mv "$0" "$__D/wrapper.sh" 2>/dev/null;; esac',
     SWEEP,
@@ -137,22 +153,22 @@ export function buildWrapper(command: string, o: WrapOptions): string {
       ...report(o, tool, chained).map((l) => '  ' + l),
       '  exit "$__X"',
       'fi',
-      'echo herdr > "$__D/host"',
     ] : [
       // Outside herdr, or without the binary, run the command exactly as asked.
       'if [ "${HERDR_ENV:-}" != 1 ] || ! command -v herdr >/dev/null 2>&1; then exec bash "$__D/orig.sh"; fi',
-      ...(o.runDir ? ['echo herdr > "$__D/host"'] : []), // the hook follows it to its end, for the page
       ...(tool.shim ? heredoc('$__D/shim.sh', shim, SHIM) : []),
       ...heredoc('$__D/pane.sh', pane, paneScript(o, tool, chained, !chained && !redirectsStdout(command))),
       `printf '%s' ${JSON.stringify(word(paneLabel(command)))} > "$__D/label"`,
     ]),
     ...splitSection(o),
     'if [ -z "$__P" ]; then exec bash "$__D/orig.sh"; fi',
+    // Only now is there a herdr pane that will end the run: the hook follows it to its end, for the page
+    'echo herdr > "$__D/host"',
     `herdr pane run "$__P" bash "$__D/pane.sh" "$__D" ${shq(o.root)} ${o.viewer} ${chained ? 1 : 0} >/dev/null`,
     // After the run, so the shell's own title for the typed command does not replace it
     'herdr pane rename "$__P" "$(cat "$__D/label")" >/dev/null 2>&1 || true',
     'while [ ! -f "$__D/exit" ]; do',
-    `  herdr pane get "$__P" >/dev/null 2>&1 || { ${unregisterCmd(o)}; echo "the herdr pane $__P was closed before ${tool.name} finished (log: $__D/raw.log)"; exit 130; }`,
+    `  herdr pane get "$__P" >/dev/null 2>&1 || { ${unregisterCmd(o)}; echo "the herdr pane $__P was closed before ${tool.name} finished (log: $__D/raw.log)"; date +%s > "$__D/end"; echo 130 > "$__D/exit"; exit 130; }`,
     '  sleep 1',
     'done',
     ...report(o, tool, chained),

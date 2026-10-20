@@ -3,6 +3,7 @@
 # checks clean.md beside clean.log and the report the Bash caller gets.
 # usage: bash test/pane_sim.sh
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"; T="$(mktemp -d)"; fails=0
+export CODEX_HERDR_PAGE_WAIT=0 # no hook writes run.html here: the report does not wait for it
 chmod +x "$ROOT"/test/stubs/*
 ok() { echo "ok   $1"; }; bad() { echo "FAIL $1"; fails=$((fails+1)); }
 run() { # $1 command -> sets OUT (returned text), D (run dir)
@@ -135,9 +136,10 @@ has "standalone own -o: the answer file has the answer" "hello back" "$D/last.md
 # --- 0.8.0: outside herdr with claudePane on, the run is headless and the Claude Code pane follows it ---
 crun() { # like run, without HERDR_ENV
   rm -rf "$T/tmp" "$T/log"*; mkdir -p "$T/tmp"
-  GEN_CLAUDE=1 GEN_CAP=60 GEN_STUB_DIR="$T/tmp" node --experimental-strip-types "$ROOT/test/gen.ts" "$1" "$ROOT" > "$T/w.sh" 2>/dev/null
+  rm -rf "$T/.cache"
+  GEN_CLAUDE=1 GEN_HOME="$T" GEN_CAP=60 GEN_STUB_DIR="$T/tmp" node --experimental-strip-types "$ROOT/test/gen.ts" "$1" "$ROOT" > "$T/w.sh" 2>/dev/null
   TMPDIR="$T/tmp" SIMLOG="$T/log" HOME="$T" PATH="$ROOT/test/stubs:$PATH" bash "$T/w.sh" > "$T/out.bin" 2>&1; RC=$?; OUT=$(cat "$T/out.bin")
-  D="$T/tmp/codex-herdr.sim"
+  D="$T/.cache/codex-herdr-pane/runs/sim"
 }
 crun 'codex exec "hello"'
 eq "claude pane: the run directory is the one the hook follows" "$(cat "$D/host" 2>/dev/null)" claude
@@ -153,10 +155,12 @@ fencecheck "$D/clean.md" "claude pane"
 crun 'echo before; codex exec "hello"; echo after; exit 4'
 eq "claude pane chained: exit status preserved" "$RC" 4
 has "claude pane chained: the rest of the command returned" "after" <(echo "$OUT")
-mkdir -p "$T/tmp"; rm -rf "$T/tmp/codex-herdr.sim"; mkdir "$T/tmp/codex-herdr.sim"; echo planted > "$T/tmp/codex-herdr.sim/clean.md"
-GEN_CLAUDE=1 GEN_CAP=60 GEN_STUB_DIR="$T/tmp" node --experimental-strip-types "$ROOT/test/gen.ts" 'codex exec "hello"' "$ROOT" > "$T/w.sh" 2>/dev/null
+eq "claude pane: the runs folder is private" "$(stat -c %a "$T/.cache/codex-herdr-pane/runs" 2>/dev/null || stat -f %Lp "$T/.cache/codex-herdr-pane/runs")" 700
+P="$T/.cache/codex-herdr-pane/runs"; rm -rf "$T/.cache"; mkdir -p "$P/sim"; echo planted > "$P/sim/clean.md"
+GEN_CLAUDE=1 GEN_HOME="$T" GEN_CAP=60 GEN_STUB_DIR="$T/tmp" node --experimental-strip-types "$ROOT/test/gen.ts" 'codex exec "hello"' "$ROOT" > "$T/w.sh" 2>/dev/null
 TMPDIR="$T/tmp" SIMLOG="$T/log" HOME="$T" PATH="$ROOT/test/stubs:$PATH" bash "$T/w.sh" > "$T/out.bin" 2>&1
-eq "claude pane: an existing directory is never reused" "$(cat "$T/tmp/codex-herdr.sim/clean.md")" planted
+eq "claude pane: an existing directory is never reused" "$(cat "$P/sim/clean.md")" planted
+eq "claude pane: nothing is written into it (no host file, so the hook does not follow it)" "$(ls "$P/sim")" clean.md
 has "claude pane: that run still completes in a fresh directory" "hello back" "$T/out.bin"
 
 run 'codex exec "hello"'
