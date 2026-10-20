@@ -26,6 +26,10 @@ export type WrapOptions = {
   leanProfileName: string
   id: string
   runsDir?: string // ccx's run-log directory; the pane's CCX_RUNS_DIR overrides it
+  // Outside herdr, run the delegation headless into runDir (runDirPath) instead of running it
+  // bare, so the Claude Code pane (runpane.tsx) can follow it. runDir is where the hook looks.
+  claudePane?: boolean
+  runDir?: string
 }
 
 // The hook writes the whole wrapper to <TMPDIR>/<SCRIPT_PREFIX><id>.sh itself and the Bash call
@@ -35,6 +39,11 @@ export const scriptPath = (tmpdir: string | undefined, id: string): string => {
   const dir = tmpdir && tmpdir.startsWith('/') ? tmpdir.replace(/\/+$/, '') : '/tmp'
   return `${dir || ''}/${SCRIPT_PREFIX}${id.replace(/[^A-Za-z0-9]/g, '')}.sh`
 }
+// The run directory of a run the Claude Code pane follows: named by the id, so the hook knows it
+// before the script runs. The script makes it with mkdir -m 700, which fails rather than reuse a
+// path that is already there (then the run gets a mktemp directory and no Claude Code pane).
+export const runDirPath = (tmpdir: string | undefined, id: string): string =>
+  scriptPath(tmpdir, id).replace(/\/[^/]*$/, `/codex-herdr.${id.replace(/[^A-Za-z0-9]/g, '')}`)
 const shq = (s: string) => `'${s.replace(/'/g, `'\\''`)}'`
 export const stubFor = (path: string): string => `${MARKER}\nexec bash ${shq(path)}`
 
@@ -106,18 +115,35 @@ export function buildWrapper(command: string, o: WrapOptions): string {
   const orig = `__CODEX_HERDR_ORIG_${o.id}__`
   const shim = `__CODEX_HERDR_SHIM_${o.id}__`
   const pane = `__CODEX_HERDR_PANE_${o.id}__`
+  const claude = Boolean(o.claudePane && o.runDir)
+  const mktemp = '__D=$(mktemp -d "${TMPDIR:-/tmp}/codex-herdr.XXXXXX") || exit 1'
   return [
     MARKER,
-    '__D=$(mktemp -d "${TMPDIR:-/tmp}/codex-herdr.XXXXXX") || exit 1',
+    claude ? `__D=${shq(o.runDir!)}; mkdir -m 700 "$__D" 2>/dev/null || { ${mktemp}; }` : mktemp,
     // A script the hook wrote (see stubFor) moves into the run directory, so it is kept with the logs
     'case "$0" in */' + SCRIPT_PREFIX + '*.sh) mv "$0" "$__D/wrapper.sh" 2>/dev/null;; esac',
     SWEEP,
     ...heredoc('$__D/orig.sh', orig, [command]),
-    // Outside herdr, or without the binary, run the command exactly as asked.
-    'if [ "${HERDR_ENV:-}" != 1 ] || ! command -v herdr >/dev/null 2>&1; then exec bash "$__D/orig.sh"; fi',
-    ...(tool.shim ? heredoc('$__D/shim.sh', shim, SHIM) : []),
-    ...heredoc('$__D/pane.sh', pane, paneScript(o, tool, chained, !chained && !redirectsStdout(command))),
-    `printf '%s' ${JSON.stringify(word(paneLabel(command)))} > "$__D/label"`,
+    ...(claude ? [
+      ...(tool.shim ? heredoc('$__D/shim.sh', shim, SHIM) : []),
+      ...heredoc('$__D/pane.sh', pane, paneScript(o, tool, chained, !chained && !redirectsStdout(command))),
+      `printf '%s' ${JSON.stringify(word(paneLabel(command)))} > "$__D/label"`,
+      // Outside herdr, or without the binary: the same run with no viewer, which the Claude Code
+      // pane follows (host tells it which runs are its own), then the same report.
+      'if [ "${HERDR_ENV:-}" != 1 ] || ! command -v herdr >/dev/null 2>&1; then',
+      '  echo claude > "$__D/host"',
+      `  bash "$__D/pane.sh" "$__D" ${shq(o.root)} none ${chained ? 1 : 0} </dev/null >/dev/null 2>&1`,
+      ...report(o, tool, chained).map((l) => '  ' + l),
+      '  exit "$__X"',
+      'fi',
+      'echo herdr > "$__D/host"',
+    ] : [
+      // Outside herdr, or without the binary, run the command exactly as asked.
+      'if [ "${HERDR_ENV:-}" != 1 ] || ! command -v herdr >/dev/null 2>&1; then exec bash "$__D/orig.sh"; fi',
+      ...(tool.shim ? heredoc('$__D/shim.sh', shim, SHIM) : []),
+      ...heredoc('$__D/pane.sh', pane, paneScript(o, tool, chained, !chained && !redirectsStdout(command))),
+      `printf '%s' ${JSON.stringify(word(paneLabel(command)))} > "$__D/label"`,
+    ]),
     ...splitSection(o),
     'if [ -z "$__P" ]; then exec bash "$__D/orig.sh"; fi',
     `herdr pane run "$__P" bash "$__D/pane.sh" "$__D" ${shq(o.root)} ${o.viewer} ${chained ? 1 : 0} >/dev/null`,

@@ -1,5 +1,6 @@
 import type { Register } from 'claude-code'
-import { buildWrapper, isDelegation, scriptPath, stubFor, type ClosePolicy } from './wrap.ts'
+import { buildWrapper, isDelegation, paneLabel, runDirPath, scriptPath, stubFor, type ClosePolicy } from './wrap.ts'
+import { runPane, trackRun } from './runpane.tsx'
 
 const FOREGROUND_MAX_MS = 600000
 
@@ -21,22 +22,31 @@ export const register: Register = (on, options) => {
   const leanProfile = options.leanProfile !== false
   const leanProfileName = typeof options.leanProfileName === 'string' && options.leanProfileName.trim() ? options.leanProfileName.trim() : 'lean'
   const runsDir = typeof options.ccxRunsDir === 'string' && options.ccxRunsDir.trim() ? options.ccxRunsDir.trim() : undefined
+  // auto: outside herdr, a run is followed in a Claude Code pane (runpane.tsx); off: run as asked
+  const claudePane = options.claudePane === 'auto'
+  if (claudePane) runPane(on, { closePane, closeDelay })
   let n = 0
 
   on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
     if (!isDelegation(e.command)) return next(e)
     n += 1
     const id = `${Date.now().toString(36)}${n}`
-    $.ui.toast('Delegation: opening a herdr pane')
+    $.ui.toast(claudePane ? 'Delegation: opening a pane' : 'Delegation: opening a herdr pane')
+    let tmpdir: string | undefined
+    try { tmpdir = await $.env.get('TMPDIR') } catch { /* /tmp */ }
+    const runDir = claudePane ? runDirPath(tmpdir, id) : undefined
     const script = buildWrapper(e.command, {
       direction, layout: fixed ? 'fixed' : 'tile', maxPanes, closePane, closeDelay, tailLines, maxReturnLines, viewer, leanProfile, leanProfileName, runsDir, root: $.plugin.root, id,
+      claudePane, runDir,
     })
+    // The pane follows the run only if the script runs it outside herdr (it writes $dir/host)
+    if (runDir) await trackRun($, { id, dir: runDir, label: paneLabel(e.command) }).catch(() => {})
     // The script goes to a file written here, so the call the harness shows (and quotes in the
     // notice of a background call) is the two-line stub. If the write fails or the file is not
     // there, the call carries the whole script, as before 0.7.0.
     let command = script
     try {
-      const path = scriptPath(await $.env.get('TMPDIR'), id)
+      const path = scriptPath(tmpdir, id)
       await $.fs.write(path, script)
       if (await $.fs.exists(path)) command = stubFor(path)
     } catch { /* keep the inline script */ }

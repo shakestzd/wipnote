@@ -132,6 +132,33 @@ has "standalone own -o: the caller's -o file has the answer" "hello back" "$OWN/
 has "standalone own -o: the report returns the answer, not the log tail" "# Answer" <(echo "$OUT")
 has "standalone own -o: the answer file has the answer" "hello back" "$D/last.md"
 
+# --- 0.8.0: outside herdr with claudePane on, the run is headless and the Claude Code pane follows it ---
+crun() { # like run, without HERDR_ENV
+  rm -rf "$T/tmp" "$T/log"*; mkdir -p "$T/tmp"
+  GEN_CLAUDE=1 GEN_CAP=60 GEN_STUB_DIR="$T/tmp" node --experimental-strip-types "$ROOT/test/gen.ts" "$1" "$ROOT" > "$T/w.sh" 2>/dev/null
+  TMPDIR="$T/tmp" SIMLOG="$T/log" HOME="$T" PATH="$ROOT/test/stubs:$PATH" bash "$T/w.sh" > "$T/out.bin" 2>&1; RC=$?; OUT=$(cat "$T/out.bin")
+  D="$T/tmp/codex-herdr.sim"
+}
+crun 'codex exec "hello"'
+eq "claude pane: the run directory is the one the hook follows" "$(cat "$D/host" 2>/dev/null)" claude
+eq "claude pane: mode 700" "$(stat -c %a "$D" 2>/dev/null || stat -f %Lp "$D")" 700
+has "claude pane: clean.md has the fold" "<!-- fold closed: Bash: echo hi" "$D/clean.md"
+has "claude pane: the answer is returned" "hello back" <(echo "$OUT")
+has "claude pane: the report header" "codex exited 0" <(echo "$OUT")
+nothas "claude pane: no screen escape in the returned text" "$(printf '\033')" "$T/out.bin"
+nothas "claude pane: no JSONL returned" '{"type":' "$T/out.bin"
+eq "claude pane: exit status 0" "$RC" 0
+[ -s "$D/exit" ] && ok "claude pane: exit file written" || bad "claude pane: exit file written"
+fencecheck "$D/clean.md" "claude pane"
+crun 'echo before; codex exec "hello"; echo after; exit 4'
+eq "claude pane chained: exit status preserved" "$RC" 4
+has "claude pane chained: the rest of the command returned" "after" <(echo "$OUT")
+mkdir -p "$T/tmp"; rm -rf "$T/tmp/codex-herdr.sim"; mkdir "$T/tmp/codex-herdr.sim"; echo planted > "$T/tmp/codex-herdr.sim/clean.md"
+GEN_CLAUDE=1 GEN_CAP=60 GEN_STUB_DIR="$T/tmp" node --experimental-strip-types "$ROOT/test/gen.ts" 'codex exec "hello"' "$ROOT" > "$T/w.sh" 2>/dev/null
+TMPDIR="$T/tmp" SIMLOG="$T/log" HOME="$T" PATH="$ROOT/test/stubs:$PATH" bash "$T/w.sh" > "$T/out.bin" 2>&1
+eq "claude pane: an existing directory is never reused" "$(cat "$T/tmp/codex-herdr.sim/clean.md")" planted
+has "claude pane: that run still completes in a fresh directory" "hello back" "$T/out.bin"
+
 run 'codex exec "hello"'
 eq "no noise, answer file with a newline: no blank line added" "$(tail -n 1 "$T/out.bin")" "hello back (profile=)"
 

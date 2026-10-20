@@ -167,13 +167,15 @@ export function paneScript(o: WrapOptions, tool: DelegationTool, chained: boolea
     'if [ "$CHAIN" = 1 ]; then export MCP_SEEN_MD="$D/mcp.md.seen" MCP_SEEN_LOG="$D/mcp.log.seen"; fi',
     // The pane's own title (the shell set one for the typed command) and a clear screen, so the
     // command line herdr typed does not stay above the log
-    'printf "\\033]0;%s\\007\\033[H\\033[2J" "$(cat "$D/label" 2>/dev/null)"',
+    // VIEW none: a headless run the Claude Code pane follows (runpane.tsx), nothing drawn here
+    '[ "$VIEW" = none ] || printf "\\033]0;%s\\007\\033[H\\033[2J" "$(cat "$D/label" 2>/dev/null)"',
     'date +%s > "$D/start"; : > "$D/clean.md"',
     '(',
     ...run,
     ') &',
     'RUN=$!',
-    'if [ "$VIEW" = textual ] && command -v uv >/dev/null 2>&1 \\',
+    'if [ "$VIEW" = none ]; then :',
+    'elif [ "$VIEW" = textual ] && command -v uv >/dev/null 2>&1 \\',
     '   && uv run --quiet --no-project --with "' + TEXTUAL_REQ + '" python "$ROOT/viewer/codex_view.py" "$D"; then :',
     'else',
     '  clear; touch "$D/clean.log"; tail -f "$D/clean.log" & T=$!',

@@ -1,7 +1,8 @@
 {
   "name": "codex-herdr-pane",
-  "version": "0.7.3",
-  "description": "Runs every Codex delegation (codex exec, codex review) and every ccx task in a visible herdr pane with a live log and a rendered answer, and closes the pane when it finishes",
+  "version": "0.8.0",
+  "description": "Runs every Codex delegation (codex exec, codex review) and every ccx task with a live log and a rendered answer: in a herdr pane that closes when it finishes, or (claudePane auto) outside herdr in a Claude Code pane",
+  "types": "./types/index.d.ts",
   "author": {
     "name": "shakestzd"
   },
@@ -90,6 +91,16 @@
       "title": "ccx run-log directory",
       "description": "Where ccx writes each run's stream-json log; the pane follows the new log a run creates. CCX_RUNS_DIR overrides it. Empty: $HOME/work/_shared/claude-container/runs",
       "default": ""
+    },
+    "claudePane": {
+      "type": "string",
+      "title": "Claude Code pane outside herdr",
+      "description": "auto: when Claude Code does not run inside herdr, run each delegation with the same live log and show it in a Claude Code pane (a tab per run; works in the terminal, desktop, VS Code and mobile); off: outside herdr, run the command exactly as asked",
+      "default": "off",
+      "options": [
+        "off",
+        "auto"
+      ]
     }
   }
 }
