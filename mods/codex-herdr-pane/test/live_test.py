@@ -12,6 +12,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "viewer"))
 from codex_view import CodexView  # noqa: E402
 from textual.containers import VerticalScroll  # noqa: E402
 from textual.widgets import Collapsible, Markdown, RichLog  # noqa: E402
+from textual.widgets._collapsible import CollapsibleTitle  # noqa: E402
 
 FAILS: list[str] = []
 
@@ -133,12 +134,17 @@ async def folded() -> None:
             f.write("<!-- fold closed: Bash: long... · exit 0 · 1 line -->\n**Bash** `long command in full`\n\n```\ny\n```\n<!-- /fold -->\n\n")
         await pilot.pause(0.9)
         check("fold: a cut title keeps the label", "long command in full" in src(app), src(app)[-200:])
+        with (d / "clean.md").open("a") as f:  # a title wider than the pane wraps onto more rows
+            f.write("<!-- fold closed: Bash: " + "y " * 90 + "· exit 0 · 1 line -->\n```\ny\n```\n<!-- /fold -->\n\n")
+        await pilot.pause(0.9)
+        long_title = folds(app)[-1].query_one(CollapsibleTitle)
+        check("fold: a long title wraps, not cut at the edge", long_title.size.height > 1 and long_title.size.width <= 90, str(long_title.size))
         with (d / "clean.md").open("a") as f:
             f.write("<!-- fold closed: never closed -->\n```\nz\n```\n")
         (d / "end").write_text(str(int(time.time())))
         (d / "exit").write_text("1")
         await pilot.pause(1.0)
-        check("fold: one the run never closed is shown when it finishes", len(folds(app)) == 4, str(len(folds(app))))
+        check("fold: one the run never closed is shown when it finishes", len(folds(app)) == 5, str(len(folds(app))))
         (d / "clean.md").write_text("### Turn\n\n")
         await pilot.pause(0.9)
         check("fold: a shorter replacement starts the view over", not folds(app) and src(app).startswith("### Turn"), src(app))

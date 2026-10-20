@@ -29,6 +29,10 @@ def item:
       if .type == "item.completed" then {k: "call", name: "web_search",
         arg: ($i.query // $i.action.query // ($i.action.queries // null | if type == "array" then join("; ") else null end))}
       else empty end
+    elif $i.type == "file_change" then  # the files it changed, each with its kind (add, update, delete)
+      if .type == "item.completed" then {k: "call", name: "file_change",
+        arg: ([($i.changes // [])[] | [.kind, .path] | map(select(. != null)) | join(" ")] | join(", ") | if . == "" then null else . end)}
+      else empty end
     elif .type == "item.completed" then {k: "call", name: ($i.type // "item"), arg: $i.path}
     else empty end;
 def events:
@@ -54,10 +58,10 @@ def md:
   elif .k == "call" then (toolline(.name; .arg) + "\n")
   elif .k == "result" then  # one collapsible section per command: a summary title, then its label and output
     (. as $r | ($r.command // null | if . == null then null else unwrap_shell end) as $c
-      | fold((if $c != null then "Bash: " + ($c | collapse | cut(120)) else "Bash" end)
+      | fold((if $c != null then "Bash: " + ($c | collapse | cut(240)) else "Bash" end)
                + " · exit \($r.code) · " + ($r.text | resultsize);
              $r.err;
-             (if $c != null then toolline("Bash"; $c | cut(160)) + "\n\n" else "" end)
+             (if $c != null then toolline("Bash"; $c | cut(2000)) + "\n\n" else "" end)
                + ($r.text | result(1500; $r.err; "exit \($r.code)")))) + "\n"
   elif .k == "turn" then "### Turn\n"
   elif .k == "done" then "*\(.usage | split)\(.usage | reasoning)*\n"

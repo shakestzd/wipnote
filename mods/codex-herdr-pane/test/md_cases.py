@@ -282,9 +282,9 @@ def wrappers() -> None:
     check("wrapper: hostile content stays one inline code span", inline_code(label) == "printf '%s' `x` '$y' ``` ~~~ # h | <b>" and kinds(label) == ["paragraph_open", "inline", "paragraph_close"], label)
     md = jq("codex.jq", "md", [cmd_item(1, hostile_cmd, "item.completed", "```\n`````\n# h")])
     check("wrapper: hostile command does not weaken the result fence", len(fences(md)) == 1 and len(fences(md)[0][0]) >= 6 and "heading_open" not in kinds(md), md)
-    long = label_of("/bin/zsh -lc '" + "a" * 400 + "'")
+    long = label_of("/bin/zsh -lc '" + "a" * 2500 + "'")
     code = inline_code(long)
-    check("wrapper: a very long command is cut with an ellipsis", code is not None and code.endswith("...") and len(code) == 163, str(len(code or "")))
+    check("wrapper: a very long command is cut with an ellipsis", code is not None and code.endswith("...") and len(code) == 2003, str(len(code or "")))
     check("wrapper: text mode keeps the wrapper byte for byte",
           jq("codex.jq", "view", [cmd_item(1, "/bin/zsh -lc 'ls'", "item.started")]) == "> /bin/zsh -lc 'ls'\n")
 
@@ -446,6 +446,27 @@ def web_searches() -> None:
     check("web_search: no query still names the search", md.rstrip().endswith("**web_search**"), md)
 
 
+def file_changes() -> None:
+    """A file change names its files and kinds, once, when it completes."""
+    md = jq("codex.jq", "md", [
+        item("file_change", "item.started", changes=[{"path": "compose.yaml", "kind": "update"}]),
+        item("file_change", "item.completed", changes=[{"path": "compose.yaml", "kind": "update"}, {"path": "dev/new.sh", "kind": "add"}]),
+        item("file_change", "item.completed"),
+    ])
+    check("file_change: kinds and paths follow the name", "**file_change** `update compose.yaml, add dev/new.sh`" in md, md)
+    check("file_change: shown once, when it completes", md.count("compose.yaml") == 1, md)
+    check("file_change: no changes still names it", md.rstrip().endswith("**file_change**"), md)
+
+
+def long_titles() -> None:
+    """A long command keeps 240 characters in its fold title (the pane wraps it) and its whole label."""
+    cmd = "echo " + "x" * 400
+    md = jq("codex.jq", "md", [item("command_execution", "item.completed", command=cmd, exit_code=0, aggregated_output="ok")])
+    title = md.split("\n", 1)[0]
+    check("long title: 240 characters of the command, then ...", "x" * 230 in title and "x" * 300 not in title and "..." in title, title)
+    check("long title: the label inside holds the whole command", "x" * 400 in md, md[:120])
+
+
 def write_tmp(text: str) -> str:
     import tempfile
     p = Path(tempfile.mkdtemp()) / "last.md"
@@ -458,7 +479,7 @@ def static() -> None:
     root = V.parent
     req = re.search(r"TEXTUAL_REQ = '([^']+)'", (root / "hooks/panescript.ts").read_text()).group(1)
     check("static: viewer header repeats TEXTUAL_REQ", f'dependencies = ["{req}"]' in (V / "codex_view.py").read_text())
-    check("static: version is 0.8.1", json.loads((root / ".claude-plugin/plugin.json").read_text())["version"] == "0.8.1")
+    check("static: version is 0.8.2", json.loads((root / ".claude-plugin/plugin.json").read_text())["version"] == "0.8.2")
     for f in ("codex.jq", "stream.jq"):
         jq_src = (V / f).read_text()
         check(f"static: {f} has one events parser feeding txt and md",
@@ -469,7 +490,7 @@ def static() -> None:
 
 
 if __name__ == "__main__":
-    for fn in (static, hostile, tilde_and_ticks, normal, truncated, errors, passthrough_and_prose, partial, stream_normal, pairing, stream_pairing, noise, wrappers, fixtures, xcrun, rest_noise, answer_dedupe, folds, web_searches):
+    for fn in (static, hostile, tilde_and_ticks, normal, truncated, errors, passthrough_and_prose, partial, stream_normal, pairing, stream_pairing, noise, wrappers, fixtures, xcrun, rest_noise, answer_dedupe, folds, web_searches, file_changes, long_titles):
         fn()
     print(f"\n{len(FAILS)} failed" if FAILS else "\nall md cases passed")
     sys.exit(1 if FAILS else 0)

@@ -54,7 +54,7 @@ def fence_step($l): . as $s |
 # is a complete block, so a fold never holds a fence open past its end marker. A failed result
 # opens expanded. The viewer reads markers only outside fences, and prose (assistant text) has
 # any marker-like line escaped, so only these functions can make one.
-def foldtitle: plain | collapse | cut(160) | gsub("--+>"; "->");
+def foldtitle: plain | collapse | cut(300) | gsub("--+>"; "->");
 def fold($title; $open; $body):
   "<!-- fold \(if $open then "open" else "closed" end): \($title | foldtitle) -->\n\($body)\n<!-- /fold -->";
 def is_foldmark: test("^ {0,3}<!-- ?/?fold");

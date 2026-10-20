@@ -120,6 +120,7 @@ class CodexView(App):
     #livemd Markdown { margin: 0; }
     #livemd Collapsible { margin: 0 0 1 0; padding-bottom: 0; }
     #livemd Collapsible.failed CollapsibleTitle { color: $error; }
+    #livemd CollapsibleTitle { width: 1fr; text-wrap: wrap; }  /* a long command wraps, not cut at the edge */
     #log.off { display: none; }
     """
     BINDINGS = [
