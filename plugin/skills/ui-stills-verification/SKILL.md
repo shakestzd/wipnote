@@ -6,20 +6,8 @@ disable-model-invocation: true
 
 # UI Stills Verification
 
-**Writing a PNG is not verification. Reading it back is.** Agents routinely ship UI they have
-never seen. This skill closes that loop with `shot-scraper` (headless Playwright): probe the
-page → capture one component → **read the PNG back with your image tool** → judge → adjust.
-
-The loop is four steps, and step 3 is the one people skip:
-
-1. Get the UI onto an HTTP URL.
-2. Drive it into the state you want to inspect.
-3. Write a PNG to disk — then **`Read` that PNG back so you actually see it**.
-4. Adjust and repeat.
-
-`shot-scraper` only writes a file; that does nothing on its own. Opening the file with your
-image-reading tool (`Read /abs/path/panel.png`) is what turns "I believe this renders" into
-"I have looked at it." A report that lists screenshot paths without a read-back is unverified.
+Use `shot-scraper` (headless Playwright) to look at the UI you changed: probe the page,
+capture one component, read the PNG back with your image tool, judge, adjust.
 
 ---
 
@@ -142,12 +130,14 @@ headless capture at all, so "click the menu then screenshot" can silently produc
 
 ## Step 3 — READ THE PNG BACK (mandatory)
 
+A PNG is not verification; reading it back is. `shot-scraper` only writes a file.
+
 ```
 Read /abs/path/panel.png
 ```
 
-This step is not optional and is not satisfied by `ls -l panel.png` or by the file existing.
-Open the image with your image-reading tool and look at it. Only then write the judgement:
+`ls -l panel.png` or the file existing does not count. A report that lists screenshot paths
+without a read-back is unverified. Open the image with your image-reading tool and look at it. Only then write the judgement:
 what is rendered, what is wrong (layout, readability, data correctness, hierarchy), severity.
 
 If you cannot read images in this harness, say so explicitly in the report and hand the PNG
@@ -169,16 +159,10 @@ counterparty strings, tokens, or personal data into a saved artifact: use a samp
 profile or seeded fixture data for every screenshot. If real data is needed to verify
 correctness, inspect it **read-only** via the probe and keep it out of saved images.
 
-## The short version
+## Checklist
 
-```bash
-# 1. what's on the page?
-shot-scraper javascript URL "new Promise(r=>setTimeout(()=>r(/* probe */),8000))"
-# 2. capture the component
-shot-scraper shot URL -o panel.png --width 1440 --wait 8000 --selector '#target' --javascript "/* tag it */"
-# 3. LOOK AT IT
-Read /abs/path/panel.png
-```
-
-Writing a PNG you never open is not verification, and claiming otherwise is worse than not
-checking at all.
+- [ ] Probed the page with `shot-scraper javascript` (Step 1)
+- [ ] Captured one component with `--selector` and `--wait` (Step 2)
+- [ ] Read every PNG back with the image tool (Step 3)
+- [ ] Wrote a per-image judgement with severity (Step 4)
+- [ ] Used demo or fixture data only (Safety)

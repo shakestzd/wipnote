@@ -1,6 +1,6 @@
 # Plan Legacy Compatibility
 
-This file is referenced by validator errors when an older plan is loaded against the current schema. It documents how legacy plans interact with the triage-gated v2+ schema.
+Validator errors point here when an older plan is loaded. This file covers v1 plans (pre slice-card) and v2 plans (pre-triage), and ends with a cheatsheet of common validator errors.
 
 ## v1 plans (pre slice-card)
 
@@ -24,3 +24,6 @@ If a draft/active v2 plan fails `validate-yaml` solely on `decisions_notes`, run
 | `slices[N].done_when must have at least 2 entries for complex slices` | Either downgrade `complexity` to `standard`, or add a second testable acceptance criterion |
 | `slices[N].questions must include at least 1 question with a non-empty answer for complex slices` | Add `questions: [{id: q-..., text: ..., answer: ...}]` to the slice |
 | `slices[N].complexity "<value>" must be trivial\|standard\|complex` | Fix the typo; valid values are exactly `trivial`, `standard`, `complex` (or empty for the default) |
+| `slices[N].blocks must have at least 1 visual block for <complexity> slices` | Add a grounded block, or add a `blocks_waiver: <reason>` line to `decisions_notes`. Applies to v3/v4 plans and slices with an explicit `complexity:` |
+| `slices[N].research must cite at least 1 web/doc source (or set research_waiver)` | Add `research: [{url, claim, accessed}]`, or `research_waiver: <reason>`. Enforced for v4 plans; advisory before v4 |
+| `design.research must cite at least 1 web/doc source for v4 plans` | Add `design.research` entries with an `http(s)` `url` |

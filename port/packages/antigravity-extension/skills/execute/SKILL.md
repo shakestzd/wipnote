@@ -1,7 +1,7 @@
 ---
 disable-model-invocation: true
 name: wipnote:execute
-description: Execute a parallel plan using dependency-driven dispatch. Checks file overlap among unblocked tasks, partitions into non-conflicting waves, and dispatches simultaneously. Merges completed work, then dispatches newly unblocked tasks. No manual wave sequencing.
+description: Runs a wipnote plan or track by dependency-driven parallel dispatch: checks file overlap, dispatches non-conflicting tasks together, merges and gates each wave. Use when asked to execute, run or implement a plan or track.
 ---
 
 # wipnote Parallel Execute
@@ -53,18 +53,18 @@ Dependency independence is not enough: two unblocked agents editing the same fil
 
 ### Paused agents
 
-SendMessage is the Claude Code resume primitive for budget-paused agents, but it only loads with agent teams and cannot resume worktree subagents (Claude Code issue #42596); without it, treat a paused task as needing a rerun or fall back to `wipnote yolo --feature <id>`.
+If SendMessage cannot resume a budget-paused agent, rerun the task or fall back to `wipnote yolo --feature <id>`.
 
 ## Populating tasks
 
-Create one task per approved slice, using the slice title as the subject (the execute log shows it as the badge label; a slice number or raw ID is unreadable):
+Create one task per promoted slice, using the slice title as the subject (the execute log shows it as the badge label; a slice number or raw ID is unreadable). `feature_id` is the `feat-…` id that `wipnote plan promote-slice` created (the slice's `feature_id` field), never the plan's `slice-N` id:
 
 ```
 TaskCreate(
     subject="<slice.title>",
     description="<slice.what, max 200 chars>",
     activeForm="Implementing <slice.title>",
-    metadata={"feature_id": "<slice.id>", "num": <slice.num>, "agent": "feature-coder"}
+    metadata={"feature_id": "<slice.feature_id>", "num": <slice.num>, "agent": "feature-coder"}
 )
 ```
 
@@ -94,7 +94,7 @@ wipnote feature start {feature_id}
 ## Plan context (omit if no plan)
 Part of plan {plan_id} on track {track_id}.
 Design decisions: {3-5 relevant answered questions from the plan YAML}
-Critique (HIGH/DANGER only): {items touching this slice}
+Critique (`danger` findings only): {items touching this slice}
 Siblings (do NOT implement): {ID + title + status}
 
 ## Goal
@@ -127,7 +127,15 @@ git merge --no-ff worktree-agent-XXXX -m "feat: merge {task title} ({feature_id}
 
 Conflicts in shared registration files are additive: keep every agent's lines. Conflicts in real logic mean a missed dependency: decide which change is right and add `addBlockedBy` for future runs.
 
-Run the project gate from `/wipnote:code-quality-skill` on the merged result and record it with `wipnote check --gate`. If it fails, find the breaking merge (`git log --oneline`), fix small breaks on main or `git revert` the merge and re-dispatch with a fix note. The gate must pass before dispatching blocked tasks. Then `TaskUpdate(status="completed")` the merged tasks and query `TaskList()` again.
+Run the project gate from `/wipnote:code-quality-skill` on the merged result and record it with `wipnote check --gate`. If it fails, find the breaking merge (`git log --oneline`), fix small breaks on main or `git revert` the merge and re-dispatch with a fix note. The gate must pass before dispatching blocked tasks.
+
+Per-wave checklist:
+
+- [ ] Merge each completed branch
+- [ ] Run the gate (`wipnote check --gate`)
+- [ ] On failure: fix on main, or revert the breaking merge
+- [ ] Re-run the gate until it passes
+- [ ] `TaskUpdate(status="completed")` the merged tasks, then `TaskList()` for the next wave
 
 ## Review, integrate, clean up
 

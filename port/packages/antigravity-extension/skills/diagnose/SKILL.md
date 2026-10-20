@@ -14,24 +14,8 @@ General-purpose diagnostic skill for investigating bugs, errors, and unexpected 
 ```
 /wipnote:diagnose <bug-id>              # Investigate a specific bug
 /wipnote:diagnose <error or symptom>    # Investigate an error or behavior
-/wipnote:diagnose --delegation          # Audit delegation compliance (legacy mode)
+/wipnote:diagnose --delegation          # Audit delegation compliance
 ```
-
-## When to Activate
-
-Trigger on:
-- "diagnose", "debug", "investigate", "root cause", "why is this broken"
-- A bug ID like `bug-5126e3cf`
-- An error message or symptom description
-- "why isn't X working", "what's wrong with", "figure out why"
-- "delegation audit", "delegation score" (routes to delegation mode)
-
-## Work Item Attribution
-
-All diagnostic work must be attributed:
-- Bug investigation: `wipnote bug start <bug-id>` before investigating
-- New errors: `wipnote bug create "Error: description" --track <trk-id>` then start it
-- Run `wipnote help` for available commands
 
 ## Instructions
 
@@ -40,16 +24,16 @@ All diagnostic work must be attributed:
 **If given a bug ID** (matches `bug-*`):
 1. Start attribution: `wipnote bug start <bug-id>`
 2. Fetch bug details: `wipnote bug show <bug-id>`
-3. Dispatch the debugger agent with the bug context
-4. Present findings and suggested fix
+3. Dispatch `researcher` with the bug context (see Bug Investigation)
+4. Present findings and suggested fix. Leave the bug open; it is done only when a fix lands.
 
 **If given an error message or symptom**:
 1. Create and start a bug: `wipnote bug create "<summary>" --track <trk-id>` then `wipnote bug start <id>`
-2. Dispatch the debugger agent with the error context
-3. Present findings and suggested fix
+2. Dispatch `researcher` with the error context (see Bug Investigation)
+3. Present findings and suggested fix. Leave the bug open; it is done only when a fix lands.
 
 **If `--delegation` flag**:
-1. Run the delegation audit (see Delegation Mode below)
+1. Run the delegation audit (see Delegation Audit Mode below)
 
 **If no arguments**:
 1. Check project health: `wipnote recommend --top 3`
@@ -79,6 +63,10 @@ Dispatch `use @researcher` with a structured prompt:
 - **Blast radius**: Does this affect other cases?
 - **Suggested fix**: What code change resolves it
 - **Verification**: How to confirm the fix works
+
+### Lifecycle
+Diagnosis only. Record the root cause with `wipnote bug set-description <bug-id> "..."`.
+Do not run `wipnote bug complete`: the bug stays open until a fix lands.
 ```
 
 After the agent reports back, present findings to the user in this format:
@@ -98,7 +86,7 @@ After the agent reports back, present findings to the user in this format:
 
 ### Next Steps
 - [ ] Implement fix
-- [ ] Run tests: `go test ./...`
+- [ ] Run the gate from `/wipnote:code-quality-skill`
 - [ ] Verify: <specific verification command>
 ```
 
@@ -117,10 +105,9 @@ jq -r 'select(.canonical=="tool_decision") | .attrs.tool_name // empty' \
   "$SESSION_DIR/events.ndjson" | sort | uniq -c | sort -rn
 ```
 
-2. **Compute score**: `delegations / (delegations + direct_impl + git_writes) * 100`
+2. **Compute score**: `delegations / (delegations + direct_impl) * 100`
    - Delegations = Task + Agent calls
    - Direct impl = Edit + Write calls
-   - Git writes = Bash calls containing git commit/push/merge
 
 3. **Present report**:
 ```markdown
