@@ -158,7 +158,8 @@ test('serial: work on one key never overlaps and runs in call order; other keys 
 
 test('a foreground call cut off by its timeout leaves its herdr run followed to its real end', async ($, on) => {
   const d = await delegate($, on, { interrupted: true, surfaces: [], ran: (dir) => ({ [`${dir}/host`]: 'herdr\n', [`${dir}/clean.md`]: CLEAN }) })
-  expect(note(d.result)).toContain('If this delegation\'s report ends with a "run page:" line') // no promise of a page
+  expect(note(d.result)).toContain(`its page is ${d.dir()}/run.html`) // no report will name it
+  expect(note(d.result)).not.toContain('"run page:" line')
   await d.clock.advance(1500)
   expect(`${d.dir()}/run.html` in d.files).toBe(false) // not ended as gone
   Object.assign(d.files, { [`${d.dir()}/exit`]: '0', [`${d.dir()}/last.md`]: 'the real answer' })
