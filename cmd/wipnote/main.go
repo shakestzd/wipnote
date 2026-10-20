@@ -129,6 +129,7 @@ func buildRoot() *cobra.Command {
 			{GroupID: "query", Command: sessionCmd()},
 			{GroupID: "query", Command: sessionsCmd()},
 			{GroupID: "query", Command: analyticsCmd()},
+			{GroupID: "query", Command: skillCmd()},
 			{GroupID: "query", Command: recommendCmd()},
 			{GroupID: "query", Command: relevantCmd()},
 			{GroupID: "query", Command: newHistoryCmd()},

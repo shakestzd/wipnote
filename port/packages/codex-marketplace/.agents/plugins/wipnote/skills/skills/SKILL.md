@@ -8,7 +8,7 @@ description: Catalog of every wipnote skill, including those hidden from the ski
 Most wipnote skills are hidden from the model's skill list to save context. They still exist. To use one:
 
 - **The person** types its slash command.
-- **You** read its file and follow it: `${CLAUDE_PLUGIN_ROOT}/skills/<dir>/SKILL.md` (the `skills/<dir>/SKILL.md` file of the wipnote plugin). For a skill marked *slash only*, ask the person to run the command instead.
+- **You** run `wipnote skill show <dir>` and follow what it prints. It works on every harness. For a skill marked *slash only*, ask the person to run the command instead.
 
 Always in the skill list: `execute`, `code-quality-skill`, `orchestrator-directives-skill`, and `agent-context` (preloaded into coder agents).
 
