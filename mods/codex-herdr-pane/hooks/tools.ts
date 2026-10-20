@@ -27,7 +27,7 @@ function invocation(name: string, subs: string, path: boolean) {
 export const TOOLS: readonly DelegationTool[] = [
   {
     name: 'codex', ...invocation('codex', 'exec|e|review', false),
-    title: (sub) => `Codex ${sub === 'review' ? 'review' : 'task'}`, shim: true, filter: 'codex',
+    title: (sub) => (sub === 'review' ? 'cdx review' : 'cdx'), shim: true, filter: 'codex', // short pane titles
   },
   {
     name: 'ccx', ...invocation('ccx', 'task', true),
