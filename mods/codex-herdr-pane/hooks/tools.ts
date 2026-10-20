@@ -87,11 +87,9 @@ function reviewTarget(command: string): string {
 }
 
 // A short title for the pane: the start of the quoted prompt, else what a review looks at, else "running".
-// The first line of text of the heredoc whose delimiter is `word` (any heredoc when no word is
-// given), or undefined.
-function heredocText(command: string, word?: string): string | undefined {
-  const esc = word === undefined ? '(\\w+)' : `(${word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`
-  const body = new RegExp(`<<-?\\s*(['"]?)${esc}\\1[^\\n]*\\n([\\s\\S]*?)\\n\\s*\\2(?=\\n|$|\\))`).exec(command)?.[3]
+// The first line of text of the first heredoc in the command, or undefined.
+function heredocText(command: string): string | undefined {
+  const body = new RegExp(`<<-?\\s*(['"]?)(\\w+)\\1[^\\n]*\\n([\\s\\S]*?)\\n\\s*\\2(?=\\n|$|\\))`).exec(command)?.[3]
   return body?.split('\n').map((l) => l.trim()).find((l) => l !== '')
 }
 
@@ -99,10 +97,10 @@ export function paneLabel(command: string): string {
   const tool = toolFor(command) ?? TOOLS.find((t) => t.loose.test(command)) ?? TOOLS[0]!
   const sub = tool.loose.exec(command)?.[1] ?? ''
   const prompt = new RegExp(`${tool.loose.source}[^"'\\n]*?(["'])((?:\\\\.|(?!\\2)[^\\\\\\n])+)\\2`).exec(command)
-  // A prompt fed by a heredoc (codex exec "$(cat <<'EOF' … EOF)", or codex exec - <<EOF) has no
-  // quoted text, or only its delimiter: its first line of text is the label instead
+  // A prompt fed by a heredoc (codex exec "$(cat <<'EOF' … EOF)", or codex exec - <<EOF) is the
+  // label, its first line of text: the first quoted text is then its delimiter or an option's
+  // value (-C "$PWD")
   const quoted = prompt?.[3]
-  const text = (quoted !== undefined && heredocText(command, quoted)) || quoted?.replace(/\s+/g, ' ').trim()
-    || heredocText(command) || (sub === 'review' ? reviewTarget(command) : '')
+  const text = heredocText(command) || quoted?.replace(/\s+/g, ' ').trim() || (sub === 'review' ? reviewTarget(command) : '')
   return `${tool.title(sub)}: ${text ? text.slice(0, 48).trim() : 'running'}`
 }

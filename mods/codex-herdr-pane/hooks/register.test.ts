@@ -151,6 +151,7 @@ test('the pane title comes from the prompt', () => {
   expect(paneLabel(`codex exec "$(cat <<'OUT'\n\n  Research shared devcontainers for worktrees\nmore\nOUT\n)"`))
     .toBe('cdx: Research shared devcontainers for worktrees')
   expect(paneLabel(`codex exec - <<EOF\nReview the band\nEOF`)).toBe('cdx: Review the band')
+  expect(paneLabel(`codex exec -C "$PWD" -m "gpt-x" "$(cat <<'EOF'\nReview the API\nEOF\n)"`)).toBe('cdx: Review the API')
   expect(paneLabel('codex exec --json')).toBe('cdx: running')
 })
 
