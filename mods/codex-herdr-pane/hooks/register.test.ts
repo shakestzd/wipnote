@@ -224,7 +224,7 @@ test('the shim treats -p, --profile and --profile= as the call setting a profile
 
 test('the shim does not repeat --json or the answer file the call names', () => {
   expect(shim).toContain('--json) has_j=1;;')
-  expect(shim).toContain('-o|--output-last-message|--output-last-message=*) has_o=1;;')
+  expect(shim).toContain('-o|--output-last-message) has_o=1; want=1;;')
   expect(shim).toContain('[ -z "$has_o" ] && pre+=(--output-last-message "$__CODEX_LAST")')
 })
 
@@ -287,9 +287,18 @@ test('a chained codex call captures the whole command and returns it after the r
 })
 
 test('the shim keeps JSONL off the caller in a chained call and prints the answer instead', () => {
-  expect(shim).toContain('[ -n "${__CODEX_CHAIN:-}" ] && [ -z "$has_o" ] && [ -z "$has_j" ]')
+  // issue 225: a chained call that names its own -o takes this route too; only its own --json opts out
+  expect(shim).toContain('[ -n "${__CODEX_CHAIN:-}" ] && [ -z "$has_j" ]; then')
+  expect(shim).not.toContain('[ -z "$has_o" ] && [ -z "$has_j" ]')
   expect(shim).toContain('tee -a "$__CODEX_D/raw.log"')
-  expect(shim).toContain('rc="${PIPESTATUS[0]}"; cat "$__CODEX_LAST" 2>/dev/null; nl_if_open "$__CODEX_LAST"')
+  expect(shim).toContain('rc="${PIPESTATUS[0]}"; own_to_last; cat "$__CODEX_LAST" 2>/dev/null; nl_if_open "$__CODEX_LAST"')
+})
+
+test('the shim reads the caller\'s own -o file in each spelling and copies it to the answer file', () => {
+  expect(shim).toContain('-o|--output-last-message) has_o=1; want=1;;')
+  expect(shim).toContain('--output-last-message=*) has_o=1; own="${a#*=}";;')
+  expect(shim).toContain('-o?*) has_o=1; own="${a#-o}"; own="${own#=}";;')
+  expect(shim).toContain('cp "$own" "$__CODEX_LAST"')
 })
 
 test('a chained ccx call returns its capture, which holds its own status line and result', () => {

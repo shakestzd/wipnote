@@ -12,7 +12,7 @@ if [ "$1" = review ] && [ -n "$SIMREVIEW" ]; then  # text mode as the real tool 
   echo "The verdict."; exit 0
 fi
 prof=""; json=""; out=""
-while [ $# -gt 0 ]; do case "$1" in --output-last-message) out=$2; shift;; -p|--profile) prof=$2; shift;; --json) json=1;; esac; shift; done
+while [ $# -gt 0 ]; do case "$1" in -o|--output-last-message) out=$2; shift;; --output-last-message=*) out=${1#*=};; -p|--profile) prof=$2; shift;; --json) json=1;; esac; shift; done
 echo "Reading additional input from stdin..." >&2
 if [ -n "$SIMNOISE" ]; then for i in 1 2 3; do
   echo "2026-10-18T06:28:2$i.997975Z ERROR rmcp::transport::worker: worker quit with fatal: Transport channel closed, when Client(HttpRequest(HttpRequest(\"http/request failed: error sending request for url (https://mcp.example.invalid/mcp)\")))" >&2

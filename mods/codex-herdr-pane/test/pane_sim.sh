@@ -108,6 +108,30 @@ run 'ccx task "hello"'
 eq "ccx standalone: report ends with a newline" "$(lastbyte "$T/out.bin")" '\n'
 has "ccx standalone: stderr passes through unchanged" "Reading additional input from stdin" <(echo "$OUT")
 unset SIMNOISE SIMNONL
+
+# --- issue 225: a chained call that writes a brief and names its own -o file ---
+OWN="$T/work"
+for spell in '-o own.md' '--output-last-message=own.md'; do
+  rm -rf "$OWN"; mkdir -p "$OWN"
+  run "cd '$OWN' && printf 'brief\n' > brief.md; codex exec -C /w $spell \"\$(cat brief.md)\"; echo chain-done"
+  nothas "own -o ($spell): no raw JSONL in the pane log" '{"type":"item.' "$D/clean.log"
+  nothas "own -o ($spell): no raw JSONL in clean.md" '{"type":"item.' "$D/clean.md"
+  has "own -o ($spell): events rendered in the pane log" "> echo hi" "$D/clean.log"
+  has "own -o ($spell): the caller's -o file has the answer" "hello back" "$OWN/own.md"
+  has "own -o ($spell): the command's stdout is the answer" "hello back" "$D/orig.out"
+  nothas "own -o ($spell): no JSONL on the command's stdout" '{"type":"' "$D/orig.out"
+  has "own -o ($spell): the report returns the answer" "hello back" <(echo "$OUT")
+  nothas "own -o ($spell): no JSONL returned to Claude" '{"type":"' <(echo "$OUT")
+  has "own -o ($spell): the rest of the command still returned" "chain-done" <(echo "$OUT")
+  has "own -o ($spell): the shim still asks for --json" "--json" "$T/log.codexargs"
+  has "own -o ($spell): the caller's -o reaches codex" "own.md" "$T/log.codexargs"
+done
+rm -rf "$OWN"; mkdir -p "$OWN"
+run "codex exec -o '$OWN/own.md' hello"
+has "standalone own -o: the caller's -o file has the answer" "hello back" "$OWN/own.md"
+has "standalone own -o: the report returns the answer, not the log tail" "# Answer" <(echo "$OUT")
+has "standalone own -o: the answer file has the answer" "hello back" "$D/last.md"
+
 run 'codex exec "hello"'
 eq "no noise, answer file with a newline: no blank line added" "$(tail -n 1 "$T/out.bin")" "hello back (profile=)"
 

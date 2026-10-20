@@ -48,6 +48,14 @@ def done(n: int = 5) -> str:
     return json.dumps({"type": "turn.completed", "usage": {"input_tokens": 13866, "cached_input_tokens": 0, "output_tokens": n}})
 
 
+FOLD = re.compile(r"^<!-- fold (?:open|closed): [^\n]* -->\n|^<!-- /fold -->\n", re.M)
+
+
+def unfold(md: str) -> str:
+    """md without the fold markers around each tool result (the Live tab's collapsible sections)."""
+    return FOLD.sub("", md)
+
+
 def fences(md: str) -> list[tuple[str, str]]:
     """(fence line, body) per fenced block according to markdown-it."""
     return [(t.markup, t.content) for t in MarkdownIt("gfm-like").parse(md) if t.type == "fence"]
@@ -76,9 +84,10 @@ def hostile() -> None:
     closers = [l for l in body.splitlines() if re.fullmatch(r" {0,3}`{%d,}\s*" % len(mark), l)]
     check("hostile: no inner line can close the fence", not closers and len(mark) > inner_max)
     ks = kinds(md)
-    bad = {"heading_open", "table_open", "hr", "html_block", "blockquote_open", "bullet_list_open"} & set(ks)
+    bad = {"heading_open", "table_open", "hr", "html_block", "blockquote_open", "bullet_list_open"} & set(kinds(unfold(md)))
     check("hostile: nothing injected outside the fence", not bad, str(ks))
-    check("hostile: the call is a bold label", md.startswith("**Bash** `cat f`\n"), md)
+    check("hostile: the only HTML is the two fold markers", ks.count("html_block") == 2 and ks[0] == ks[-1] == "html_block", str(ks))
+    check("hostile: the call is a bold label", unfold(md).startswith("**Bash** `cat f`\n"), md)
 
 
 def tilde_and_ticks() -> None:
@@ -115,13 +124,13 @@ def truncated() -> None:
 
 def errors() -> None:
     md = run_event("boom `x`", code=2)
-    check("error: leading error quote with exit", md.startswith("**Bash**") and "\n> **error** exit 2\n\n```" in md, md)
+    check("error: leading error quote with exit", unfold(md).startswith("**Bash**") and "\n> **error** exit 2\n\n```" in md, md)
     check("error: the output is still fenced", fences(md)[0][1].strip() == "boom `x`", md)
     ev = jq("codex.jq", "md", [json.dumps({"type": "error", "message": "bad *thing* # [x](y) <b>"})])
     check("error: event message is escaped, one quote line", ev.startswith("> **error** bad \\*thing\\* \\# \\[x\\](y) \\<b\\>\n"), ev)
     check("error: parsed as a blockquote only", {"heading_open", "html_block"}.isdisjoint(kinds(ev)) and "blockquote_open" in kinds(ev), str(kinds(ev)))
     sm = jq("stream.jq", "md", [json.dumps({"type": "user", "message": {"content": [{"type": "tool_result", "content": "nope", "is_error": True}]}})])
-    check("error: stream tool error flagged", sm.startswith("> **error**\n\n```\nnope\n```"), sm)
+    check("error: stream tool error flagged", unfold(sm).startswith("> **error**\n\n```\nnope\n```"), sm)
 
 
 def passthrough_and_prose() -> None:
@@ -195,7 +204,7 @@ def pairing() -> None:
     check("pairing: an unmatched start prints nothing (append-only stream cannot supersede)", unmatched == "", unmatched)
     err = jq("codex.jq", "md", [cmd_item(1, "false", "item.completed", "bad", 2)])
     check("pairing: a failed command keeps label, error quote, fence together",
-          err.startswith("**Bash** `false`\n\n> **error** exit 2\n\n```\nbad\n```"), err)
+          unfold(err).startswith("**Bash** `false`\n\n> **error** exit 2\n\n```\nbad\n```"), err)
 
 
 def stream_pairing() -> None:
@@ -236,7 +245,7 @@ def noise() -> None:
 
 def label_of(command: str) -> str:
     md = jq("codex.jq", "md", [cmd_item(1, command, "item.completed", "o")])
-    return md.split("\n\n", 1)[0]
+    return unfold(md).split("\n\n", 1)[0]
 
 
 def inline_code(label: str) -> str | None:
@@ -402,6 +411,25 @@ def answer_dedupe() -> None:
     check("answer dedupe: an empty answer file drops nothing", empty == "a\n\nb\n", empty)
 
 
+def folds() -> None:
+    """Each tool result is one fold: a one-line title, then its label and result, closed unless it failed."""
+    ok = jq("codex.jq", "md", [cmd_item(1, "/bin/zsh -lc 'ls -la'", "item.completed", "a\nb\n")])
+    check("fold: a codex result is wrapped", ok.startswith("<!-- fold closed: Bash: ls -la · exit 0 · 2 lines -->\n**Bash** `ls -la`\n") and ok.rstrip("\n").endswith("<!-- /fold -->"), ok)
+    bad = jq("codex.jq", "md", [cmd_item(1, "false", "item.completed", "", 1)])
+    check("fold: a failed result opens", bad.startswith("<!-- fold open: Bash: false · exit 1 · no output -->"), bad)
+    hostile = jq("codex.jq", "md", [cmd_item(1, "echo '-->' x\nline2", "item.completed", "<!-- /fold -->\n")])
+    title = hostile.split("\n", 1)[0]
+    check("fold: a title cannot end its comment early or span lines", title.count("-->") == 1 and title.endswith(" -->") and "line2" in title, title)
+    check("fold: an end marker in the output stays inside the fence", fences(hostile)[0][1] == "<!-- /fold -->\n" and hostile.count("<!-- /fold -->") == 2, hostile)
+    prose = jq("codex.jq", "md", [item("agent_message", "item.completed", text="a\n<!-- fold closed: x -->\n<!-- /fold -->\n```\n<!-- /fold -->\n```")])
+    check("fold: prose cannot make a marker outside a fence", not FOLD.search(prose.split("```")[0]) and "\\<!-- fold closed: x -->" in prose, prose)
+    check("fold: a marker inside a prose fence is kept as written", "```\n<!-- /fold -->\n```" in prose, prose)
+    call = json.dumps({"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t", "name": "Read", "input": {"file_path": "/a"}}]}})
+    res = json.dumps({"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t", "content": "x", "is_error": True}]}})
+    sm = jq("stream.jq", "md", [call, res])
+    check("fold: a ccx call and its result are one fold, open on error", sm.startswith("<!-- fold open: Read: /a · 1 line · error -->\n**Read** `/a`\n\n> **error**"), sm)
+
+
 def write_tmp(text: str) -> str:
     import tempfile
     p = Path(tempfile.mkdtemp()) / "last.md"
@@ -414,7 +442,7 @@ def static() -> None:
     root = V.parent
     req = re.search(r"TEXTUAL_REQ = '([^']+)'", (root / "hooks/panescript.ts").read_text()).group(1)
     check("static: viewer header repeats TEXTUAL_REQ", f'dependencies = ["{req}"]' in (V / "codex_view.py").read_text())
-    check("static: version is 0.7.2", json.loads((root / ".claude-plugin/plugin.json").read_text())["version"] == "0.7.2")
+    check("static: version is 0.7.3", json.loads((root / ".claude-plugin/plugin.json").read_text())["version"] == "0.7.3")
     for f in ("codex.jq", "stream.jq"):
         jq_src = (V / f).read_text()
         check(f"static: {f} has one events parser feeding txt and md",
@@ -425,7 +453,7 @@ def static() -> None:
 
 
 if __name__ == "__main__":
-    for fn in (static, hostile, tilde_and_ticks, normal, truncated, errors, passthrough_and_prose, partial, stream_normal, pairing, stream_pairing, noise, wrappers, fixtures, xcrun, rest_noise, answer_dedupe):
+    for fn in (static, hostile, tilde_and_ticks, normal, truncated, errors, passthrough_and_prose, partial, stream_normal, pairing, stream_pairing, noise, wrappers, fixtures, xcrun, rest_noise, answer_dedupe, folds):
         fn()
     print(f"\n{len(FAILS)} failed" if FAILS else "\nall md cases passed")
     sys.exit(1 if FAILS else 0)
