@@ -175,6 +175,17 @@ func runUpgrade(out io.Writer, checkOnly bool, pinVersion string) error {
 		}
 	}
 
+	// Install the bundled Claude Code mods, if present. Older archives had no
+	// mods/ subdirectory; silently skip.
+	extractedMods := filepath.Join(extractRoot, "mods")
+	if info, err := os.Stat(extractedMods); err == nil && info.IsDir() {
+		if err := installModsTree(extractedMods); err != nil {
+			fmt.Fprintf(out, "warning: failed to install bundled mods tree: %v\n", err)
+		} else {
+			fmt.Fprintln(out, "Installed bundled mods tree to ~/.local/share/wipnote/mods")
+		}
+	}
+
 	// Update ~/.local/share/wipnote/.binary-version so bootstrap fast-path works.
 	updateVersionFile(targetVer)
 
@@ -420,6 +431,28 @@ func installAntigravityTree(srcAntigravityDir string) error {
 		return nil
 	}
 	return copyDirRecursive(srcAntigravityDir, destAntigravity)
+}
+
+// installModsTree replaces ~/.local/share/wipnote/mods by moving srcModsDir
+// into place after removing any prior contents. Mirrors installPluginTree.
+func installModsTree(srcModsDir string) error {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return fmt.Errorf("resolve home dir: %w", err)
+	}
+	metaDir := filepath.Join(home, ".local", "share", "wipnote")
+	destMods := filepath.Join(metaDir, "mods")
+
+	if err := os.MkdirAll(metaDir, 0o755); err != nil {
+		return fmt.Errorf("create %s: %w", metaDir, err)
+	}
+	if err := os.RemoveAll(destMods); err != nil {
+		return fmt.Errorf("remove existing %s: %w", destMods, err)
+	}
+	if err := os.Rename(srcModsDir, destMods); err == nil {
+		return nil
+	}
+	return copyDirRecursive(srcModsDir, destMods)
 }
 
 // copyDirRecursive walks src and copies every entry into dst, preserving file

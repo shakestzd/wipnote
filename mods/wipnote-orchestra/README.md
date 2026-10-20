@@ -60,6 +60,8 @@ tests/*.test.ts(x)           claude plugin test suites (pure helpers + mounted b
 
 ## Run it
 
+`wipnote claude` loads it (with every mod in `mods/`) by default; `WIPNOTE_NO_MODS=1` skips the mods. On its own:
+
 ```bash
 claude --plugin-dir mods/wipnote-orchestra
 ```

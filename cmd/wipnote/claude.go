@@ -32,6 +32,10 @@ type LaunchOpts struct {
 	Mode string
 	// PluginDir, if non-empty, passes --plugin-dir to claude.
 	PluginDir string
+	// ModsDir, if non-empty, passes a second --plugin-dir: the folder of
+	// wipnote's Claude Code mods. launchClaude fills it from PluginDir
+	// (resolveModsDir) when left empty.
+	ModsDir string
 	// Resume adds --resume to claude args (for --continue mode).
 	Resume bool
 	// ResumeID, if non-empty, passes --resume <id> to claude to resume a specific session.
@@ -664,6 +668,9 @@ func launchClaude(opts LaunchOpts) error {
 		systemPromptFile = path
 		defer os.Remove(path) //nolint:errcheck
 	}
+	if opts.ModsDir == "" {
+		opts.ModsDir = resolveModsDir(opts.PluginDir)
+	}
 	claudeArgs := buildClaudeArgs(opts, systemPromptFile)
 
 	claudePath, err := exec.LookPath("claude")
@@ -782,6 +789,9 @@ func buildClaudeArgs(opts LaunchOpts, systemPromptFile string) []string {
 	}
 	if opts.PluginDir != "" {
 		claudeArgs = append(claudeArgs, "--plugin-dir", opts.PluginDir)
+	}
+	if opts.ModsDir != "" {
+		claudeArgs = append(claudeArgs, "--plugin-dir", opts.ModsDir)
 	}
 	// Auto mode is selected by --permission-mode auto alone; the former
 	// --enable-auto-mode opt-in flag was removed upstream in Claude Code 2.1.111.
