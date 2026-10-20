@@ -159,6 +159,12 @@ async function activeItems($: EngineInterface): Promise<string[]> {
   return claimed === null ? started : [claimed, ...started.filter(id => id !== claimed)]
 }
 
+/** Records the permission mode a main-loop classic event carries (a subagent's is its own). */
+async function noteMode($: EngineInterface, e: { permission_mode?: string; agent_id?: string }) {
+  const mode = e.permission_mode
+  if (mode !== undefined && e.agent_id === undefined) await update($, permissionMode, () => mode)
+}
+
 async function bandData($: EngineInterface, zone: string): Promise<BandData> {
   const [info, rows, ended, work, known, doing, at] = await Promise.all([
     read($, prompt),
@@ -302,15 +308,26 @@ export const register: Register = (on, options) => {
     }
   }).catch(($, e, next) => next(e))
 
+  // The mode pill Claude Code draws left of the band (the band shifts left past it, pillIndent):
+  // the hint's props do not carry it, so every main-loop event that does keeps it current. A
+  // shift+tab change shows from the next of them (a prompt, a tool call, the turn's end).
   on('classic.UserPromptSubmit', async ($, e, next) => {
-    const mode = e.permission_mode
-    if (mode !== undefined) await update($, permissionMode, () => mode)
+    await noteMode($, e)
     return next(e)
   })
 
   on('classic.PostToolUse', async ($, e, next) => {
-    const mode = e.permission_mode
-    if (mode !== undefined && e.agent_id === undefined) await update($, permissionMode, () => mode)
+    await noteMode($, e)
+    return next(e)
+  })
+
+  on('classic.Stop', async ($, e, next) => {
+    await noteMode($, e)
+    return next(e)
+  })
+
+  on('classic.Notification', async ($, e, next) => {
+    await noteMode($, e)
     return next(e)
   })
 
@@ -325,6 +342,7 @@ export const register: Register = (on, options) => {
   // /resume, /branch and /clear swap the conversation, but session.start does
   // not fire again; the settings SessionStart does.
   on('classic.SessionStart', async ($, e, next) => {
+    await noteMode($, e) // a launch in a mode (wipnote claude's auto) shows its pill before any prompt
     if (e.source !== 'startup') {
       void refreshClaim($).catch(() => undefined)
       void hydrate($).catch(() => undefined)

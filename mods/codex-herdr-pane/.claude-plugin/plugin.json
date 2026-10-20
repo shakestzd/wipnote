@@ -1,6 +1,6 @@
 {
   "name": "codex-herdr-pane",
-  "version": "0.8.0",
+  "version": "0.8.2",
   "description": "Runs every Codex delegation (codex exec, codex review) and every ccx task with a live log and a rendered answer: in a herdr pane that closes when it finishes, or (claudePane auto) outside herdr in a Claude Code pane",
   "types": "./types/index.d.ts",
   "author": {
