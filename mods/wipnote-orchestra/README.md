@@ -1,6 +1,6 @@
 # wipnote-orchestra (dev mod)
 
-A Claude Code mod (function hooks) that turns the line under the prompt into an orchestration band: where you are, what is being worked on, and what every subagent is doing right now.
+A Claude Code mod (function hooks) that turns the line under the prompt into an orchestration band: where you are, what is being worked on, and what every subagent is doing right now. It also draws `wipnote-ref` fences in replies as work-item cards. It replaces the former wipnote-cards mod.
 
 ```
 ⏵⏵ auto mode on · (shift+tab to cycle) · esc to interrupt · ← for agents        ← Claude Code's own hint line, unchanged
@@ -16,16 +16,26 @@ A Claude Code mod (function hooks) that turns the line under the prompt into an 
 |---|---|---|
 | Hint | Claude Code's hint line exactly as it draws it (the mode pill stays beside it) | `PromptHint` props |
 | Limits | each rate-limit window (`5h`, `7d`, `spend`): % used, green/amber/red at 50/80, local reset time | `$.session.usage().rateLimits` |
-| Segments | repo/worktree name · git branch, dirty count, ahead/behind · model · context % · per track: title `[done/total]` · per work item: `→ title` · live agent count · local time | `git`, `$.session.*`, `wipnote` |
+| Segments | repo/worktree name · git branch, dirty count, ahead/behind · model · context % · per track: title `[done/total]` · per work item: `→ title n/m` (steps), coloured by status · live agent count · local time | `git`, `$.session.*`, `wipnote` |
 | Agents | one aligned row per subagent: status, type, model, work item title, elapsed, tool calls, current call; finished agents stay 90 s, dimmed | `agent.spawn`, `tool.call`, `$.agent.list()` |
 
 Segments are powerline-style with rounded caps and **wrap between segments** to the pane width (re-laid out on every resize); a segment wider than the pane is cut with `…`. Every line is one truncated Text, so nothing wraps mid-row.
 
 ## wipnote integration
 
-- **Active work items** are tracked from shell commands any loop runs: `wipnote <feature|bug|spike|track> start <id>` adds, `… complete <id>` removes. A subagent's work item is the first `feat-/bug-/spk-/trk-` id in its brief.
-- **Titles and progress**: every 5 s, `wipnote <kind> show <id> --format json` per item (title, status, `part_of` track) and `wipnote track show <trk>` per track (title and `(n/m done)`, which only the text form carries). Up to 12 items.
-- The band never writes to wipnote.
+- **Active work items**: the session's claim from `wipnote who --json` comes first. It is read at session start, after `/resume`, `/branch` or `/clear`, and after each turn; when `who` fails, the last claim stays. Then come the items started by shell commands any loop runs: `wipnote <feature|bug|spike|track> start <id>` adds, `… complete <id>` removes. A subagent's work item is the first `feat-/bug-/spk-/trk-` id in its brief.
+- **Titles and progress**: every 5 s, `wipnote <kind> show <id> --format json` per item (title, status, steps, `part_of` track) and `wipnote track show <trk>` per track (title and `(n/m done)`, which only the text form carries). Up to 12 items.
+- The band and the cards never write to wipnote.
+
+## Cards (`wipnote-ref`)
+
+While the mod is loaded, a one-line rule asks the model to end a report on a work item with a fenced block whose info string is `wipnote-ref` and whose only line is the id. The mod draws that block as a card: title, coloured status, step bar. The saved message keeps only the short block (about 10 tokens), and without the mod it still reads as an id.
+
+- **Fetches**: when a reply with a fence is stored, after each turn (open or failed cards, stalest first, up to 10), and on start or resume for fences already in the transcript. A card is fetched again after 60 s.
+- **One lookup per item**: an item that is also in the band takes its card from the band's 5-second refresh.
+- **Failures** read as `not in this checkout (pull to update)`, `wipnote unavailable` or `details unavailable`.
+
+The former wipnote-cards status line (`wipnote · <id> · <status> · n/m steps`) is gone: the band shows the same fields.
 
 ## Commands
 
@@ -36,7 +46,9 @@ Segments are powerline-style with rounded caps and **wrap between segments** to 
 ```
 .claude-plugin/plugin.json   manifest (name, types contract, timeZone option)
 hooks/hooks.json             { "modules": ["./register.tsx"] }
-hooks/register.tsx           hooks: session.start timer, agent.spawn, tool.call, classic.* (permission mode), ui.render
+hooks/register.tsx           hooks: session.start timer, session claim, agent.spawn, tool.call, classic.* (permission mode, resume), ui.render
+hooks/refcards.tsx           wipnote-ref cards: fetch on reply and turn, the model rule, the AssistantMessage drawing
+hooks/refs.ts                pure helpers for cards: fence parsing, show argv, card parsing, TTL, refresh order
 hooks/band.tsx               the band's tree (pure: data + room → elements)
 hooks/model.ts               pure helpers: parsing (git, wipnote, hint), layout (wrap, columns, fit), formatting (time, limits)
 types/index.d.ts             $.state contract (PluginState['wipnote-orchestra'])
@@ -57,7 +69,7 @@ does not show there.
 
 ```bash
 claude plugin validate mods/wipnote-orchestra
-claude plugin test mods/wipnote-orchestra     # 19 tests
+claude plugin test mods/wipnote-orchestra     # 34 tests
 tsc -p mods/wipnote-orchestra                 # after a load lays .claude-plugin/types/
 ```
 

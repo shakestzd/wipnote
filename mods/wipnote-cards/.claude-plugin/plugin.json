@@ -1,6 +1,0 @@
-{
-  "name": "wipnote-cards",
-  "version": "0.1.0",
-  "description": "wipnote at a glance for few tokens: a status line for the session's work item, and cards drawn from wipnote-ref fences",
-  "types": "./types/index.d.ts"
-}

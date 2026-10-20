@@ -1,7 +1,7 @@
 {
   "name": "wipnote-orchestra",
   "version": "0.1.0",
-  "description": "A powerline-style band under the prompt: usage limits, repo, git, model, context, wipnote work items and tracks, and every subagent's live progress.",
+  "description": "A powerline-style band under the prompt (usage limits, repo, git, model, context, wipnote work items and tracks, every subagent's live progress) and wipnote-ref work-item cards in replies.",
   "types": "./types/index.d.ts",
   "userConfig": {
     "timeZone": {
