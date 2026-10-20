@@ -1,6 +1,6 @@
 ---
-name: wipnote:visual-recap
-description: Generate a grounded visual recap for a work item, git range, or session. Runs wipnote recap to produce a self-contained HTML artifact grounded in the real diff, reads the artifact, writes an outcome narrative (secrets redacted), and links to the dashboard recap URL. Use when asked to recap, summarize, or visualize completed work.
+name: visual-recap
+description: "Generates a diff-grounded visual recap of a work item, git range, or session and summarizes its outcome. Use when asked to recap, summarize, or visualize completed work."
 disable-model-invocation: true
 ---
 
@@ -9,8 +9,16 @@ disable-model-invocation: true
 Use this skill to generate a grounded, diff-backed recap for a work item, git range,
 or session — then surface the key outcome narrative and a direct link to the HTML artifact.
 
-**Trigger keywords:** recap, summarize work, visual recap, show what was done, recap this feature,
-recap this session, show recap, diff recap
+Copy this checklist and tick it off:
+
+```
+Recap (<scope>):
+- [ ] 1. Scope identified (asked if ambiguous)
+- [ ] 2. `wipnote recap` succeeded; recap-id captured
+- [ ] 3. Artifact read; changes, reason and outcome extracted
+- [ ] 4. Secrets redacted; every claim traced to the artifact
+- [ ] 5. Narrative presented with the artifact path and dashboard link
+```
 
 ---
 
@@ -89,7 +97,7 @@ Present a concise, grounded summary to the user:
 <work item ID + title if available, git range if range mode, session ID if session mode>
 ```
 
-Keep the narrative tight — 5-10 lines. The full artifact is in the dashboard for deep review.
+Before presenting, check each claim against the artifact and drop any you cannot point to. Keep the narrative tight — 5-10 lines. The full artifact is in the dashboard for deep review.
 Write in plain English:
 - One idea per sentence.
 - Keep sentences under 20 words.

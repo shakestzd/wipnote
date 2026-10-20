@@ -342,6 +342,9 @@ func copyAssetTreeCodex(srcDir, dstDir string, knownRoles map[string]struct{}) e
 		if err != nil {
 			return err
 		}
+		if isArchivedAssetDir(d) {
+			return filepath.SkipDir
+		}
 		if d.Type().IsRegular() && isCodexOverrideFile(d.Name()) {
 			return nil
 		}

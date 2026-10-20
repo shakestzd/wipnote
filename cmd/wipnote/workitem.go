@@ -1341,7 +1341,7 @@ func checkFeatureCompleteSpecGate(wipnoteDir, featureID string) error {
 	}
 	specContent := extractSpecSection(string(raw))
 	if specContent == "" {
-		return fmt.Errorf("feature %s has no spec section; run `wipnote spec generate %s --insert` first (or invoke /wipnote:spec-from-slice on Claude). Override with --allow-spec-skip if intentional.",
+		return fmt.Errorf("feature %s has no spec section; run `wipnote spec generate %s --insert` first (or follow phase 7 of /wipnote:plan). Override with --allow-spec-skip if intentional.",
 			featureID, featureID)
 	}
 	criteria := parseCriteria(unwrapPreBlock(specContent))

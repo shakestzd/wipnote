@@ -1,6 +1,6 @@
 ---
 name: ui-stills-verification
-description: "Stills-based UI verification — probe the DOM, capture ONE component with shot-scraper, READ the PNG back with the image tool, judge. Use whenever a task touches web UI (templates, CSS, dashboard, LiveView, React, any rendered page) and before claiming UI work is done; also the researcher's default visual-QA method when no browser MCP is available. Headless, needs no extension or browser session."
+description: "Verifies web UI changes with headless stills: probes the DOM, captures one component with shot-scraper, reads the PNG back, and judges it. Use when a task touches templates, CSS, dashboards, or any rendered page, before claiming UI work is done, and as the researcher's visual-QA method when no browser MCP is available."
 disable-model-invocation: true
 ---
 
@@ -8,6 +8,17 @@ disable-model-invocation: true
 
 Use `shot-scraper` (headless Playwright) to look at the UI you changed: probe the page,
 capture one component, read the PNG back with your image tool, judge, adjust.
+
+Copy this checklist and tick it off:
+
+```
+UI stills:
+- [ ] 1. Page probed with `shot-scraper javascript` (Step 1)
+- [ ] 2. One component captured with `--selector` and `--wait` (Step 2)
+- [ ] 3. Every PNG read back with the image tool (Step 3)
+- [ ] 4. Per-image judgement with severity; fixes re-captured (Step 4)
+- [ ] 5. Demo or fixture data only (Safety)
+```
 
 ---
 
@@ -158,11 +169,3 @@ Stills outlive the session and get shared. Never capture real balances, names, m
 counterparty strings, tokens, or personal data into a saved artifact: use a sample/demo
 profile or seeded fixture data for every screenshot. If real data is needed to verify
 correctness, inspect it **read-only** via the probe and keep it out of saved images.
-
-## Checklist
-
-- [ ] Probed the page with `shot-scraper javascript` (Step 1)
-- [ ] Captured one component with `--selector` and `--wait` (Step 2)
-- [ ] Read every PNG back with the image tool (Step 3)
-- [ ] Wrote a per-image judgement with severity (Step 4)
-- [ ] Used demo or fixture data only (Safety)

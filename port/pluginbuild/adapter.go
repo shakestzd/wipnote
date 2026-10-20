@@ -107,6 +107,9 @@ func copyAssetTree(srcDir, dstDir string) error {
 		if err != nil {
 			return err
 		}
+		if isArchivedAssetDir(d) {
+			return filepath.SkipDir
+		}
 		rel, err := filepath.Rel(srcDir, path)
 		if err != nil {
 			return err
@@ -117,6 +120,13 @@ func copyAssetTree(srcDir, dstDir string) error {
 		}
 		return copyFile(path, target)
 	})
+}
+
+// isArchivedAssetDir reports whether d is an `.archived` directory. Retired
+// skills and commands are parked there for history; they reference agents and
+// workflows that no longer exist, so they must not ship in any target tree.
+func isArchivedAssetDir(d os.DirEntry) bool {
+	return d.IsDir() && d.Name() == ".archived"
 }
 
 // samePath reports whether a and b refer to the same filesystem location after

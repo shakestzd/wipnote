@@ -1,13 +1,9 @@
 ---
-name: code-quality
+name: code-quality-skill
 description: Runs the quality gate (build, lint, typecheck, test) and fixes failures before a commit, for Go, JavaScript/TypeScript, Python, Rust and other languages. Use before committing or when a gate fails.
 ---
 
 # Code Quality Skill
-
-## Work Item Attribution
-
-Attribute gate runs to a work item. Check `wipnote status` for the active item. To fix a new bug, run `wipnote bug create "Fix: description" --track <trk-id>`, then `wipnote bug start <id>`.
 
 ## Quality Gate: BUILD → LINT → TEST
 
@@ -26,21 +22,22 @@ This is the canonical gate table. Other wipnote prompts, agents and skills point
 
 Multiple manifests can coexist (for example a Go backend with a `package.json` frontend). Run the gate for each.
 
-Run the gate, fix the failures, and re-run until all phases pass.
+Run the gate, fix the failures, and re-run until all phases pass:
+
+```
+Quality gate:
+- [ ] Gate command chosen for every manifest
+- [ ] Build passes
+- [ ] Lint / vet passes
+- [ ] Tests pass
+- [ ] Clean re-run after the last fix
+```
 
 ### Go suite notes
 
 - From cold, `go test ./...` is silent for about 5-6 minutes because output is buffered per package. Silence is not a stall. Budget 10 minutes before suspecting a hang.
 - `scripts/go-test-streaming.sh` streams `go test -json` output live and names the last test to start if the test binary dies mid-package (bug-61973a05). Any `go test` flags pass through, for example `scripts/go-test-streaming.sh ./cmd/wipnote/... -run X`.
 
-## Research First
+## Record the result
 
-Before implementing anything new:
-
-- Search the ecosystem (pkg.go.dev, npmjs.com, pypi.org, crates.io) for existing libraries.
-- Check the project manifest for dependencies that are already available.
-- Check shared utility directories (`internal/`, `lib/`, `src/utils/`) before duplicating logic.
-
-## Integration with wipnote
-
-Record quality work on the active item: `wipnote <kind> add-step <id> "..."` for progress, `wipnote <kind> set-description <id> "..."` for findings, `wipnote <kind> update <id>` for metadata.
+When the gate passes, run `wipnote check --gate` to record it on the active work item.

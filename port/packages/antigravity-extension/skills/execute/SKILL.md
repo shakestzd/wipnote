@@ -1,14 +1,25 @@
 ---
 disable-model-invocation: true
-name: wipnote:execute
-description: Runs a wipnote plan or track by dependency-driven parallel dispatch: checks file overlap, dispatches non-conflicting tasks together, merges and gates each wave. Use when asked to execute, run or implement a plan or track.
+name: execute
+description: "Runs a wipnote plan or track by dependency-driven parallel dispatch: checks file overlap, dispatches non-conflicting tasks together, merges and gates each wave. Use when asked to execute, run or implement a plan or track."
 ---
 
 # wipnote Parallel Execute
 
 Execute development tasks in parallel with dependency-driven dispatch and worktree isolation.
 
-**Trigger keywords:** execute plan, run plan, run tasks, parallelize work, work in parallel, start execution, dispatch agents
+Copy this checklist and tick it off:
+
+```
+Execute (<track or plan id>):
+- [ ] 1. execute-preview read; active work item confirmed
+- [ ] 2. One task per promoted slice
+- [ ] 3. Wave dispatched: ready tasks with no file overlap
+- [ ] 4. Wave merged; gate passes (per-wave checklist below)
+- [ ] 5. Steps 3–4 repeated until no tasks remain
+- [ ] 6. /code-review run; medium+ findings addressed
+- [ ] 7. Feature branch merged; gate passes; worktrees cleaned up
+```
 
 ## Environment and efficiency
 
@@ -108,7 +119,7 @@ Siblings (do NOT implement): {ID + title + status}
 {files owned by concurrent tasks}
 
 ## Protocol
-Follow the `tdd-protocol` skill (if it is not in your skill list, run `wipnote skill show tdd-protocol`): failing tests first, then the gate from /wipnote:code-quality-skill.
+Follow the Implementation workflow in the `agent-context` skill (preloaded into coder agents; otherwise run `wipnote skill show agent-context`): failing tests first, then the gate from /wipnote:code-quality-skill.
 Name {feature_id} in every commit subject or a `Refs: {feature_id}` trailer so
 `wipnote feature complete` links it automatically; otherwise run
 `wipnote feature link-commit {feature_id} <sha>`.
@@ -151,4 +162,4 @@ Per-wave checklist:
 
 ## Related skills
 
-- **[/wipnote:plan](/wipnote:plan)** - Create the dependency graph before executing
+- `/wipnote:plan`: create the dependency graph before executing.

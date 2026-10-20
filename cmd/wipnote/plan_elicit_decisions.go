@@ -18,7 +18,7 @@ import (
 //
 // Cross-harness: this command works on Claude Code and Codex CLI
 // without modification. The Claude-only convenience wrapper at
-// `plugin/skills/spec-from-slice/SKILL.md` calls into this same command.
+// `plugin/skills/plan/SPEC.md` (phase 5 of the plan skill) calls into this same command.
 func planElicitDecisionsCmd() *cobra.Command {
 	var scope, decisions, contextStr string
 	var fromStdin bool

@@ -1,13 +1,11 @@
 ---
 name: diagnose
-description: "Diagnose bugs, errors, and issues with root cause analysis. Use when asked to diagnose, debug, investigate, or find root cause of any problem — whether a wipnote bug ID, error message, unexpected behavior, or delegation audit."
+description: "Finds the root cause of a bug, error, or unexpected behavior by dispatching a researcher, and audits delegation compliance. Use when asked to diagnose, debug, or investigate a wipnote bug ID, an error message, or a symptom."
 user-invocable: true
 disable-model-invocation: true
 ---
 
 # /wipnote:diagnose
-
-General-purpose diagnostic skill for investigating bugs, errors, and unexpected behavior.
 
 ## Usage
 
@@ -18,6 +16,17 @@ General-purpose diagnostic skill for investigating bugs, errors, and unexpected 
 ```
 
 ## Instructions
+
+Copy this checklist and tick it off (bug or symptom input):
+
+```
+Diagnose (<bug-id or symptom>):
+- [ ] 1. Input routed; bug started (created first for a symptom)
+- [ ] 2. Researcher dispatched with the structured prompt
+- [ ] 3. Root cause verified: cited file:line read and it explains the symptom
+- [ ] 4. Root cause recorded with set-description
+- [ ] 5. Findings presented; bug left open
+```
 
 ### Route by Input
 
@@ -42,7 +51,7 @@ General-purpose diagnostic skill for investigating bugs, errors, and unexpected 
 
 ### Bug Investigation (Primary Mode)
 
-Dispatch `Task(subagent_type="wipnote:researcher")` with a structured prompt:
+Dispatch `Agent(subagent_type="wipnote:researcher")` with a structured prompt:
 
 ```text
 ## Bug: <bug-id> — <title>
@@ -69,7 +78,9 @@ Diagnosis only. Record the root cause with `wipnote bug set-description <bug-id>
 Do not run `wipnote bug complete`: the bug stays open until a fix lands.
 ```
 
-After the agent reports back, present findings to the user in this format:
+After the agent reports back, verify before presenting. Read the cited `file:line` yourself and check that it explains the symptom. If the report has no location, or the code does not explain the symptom, send the researcher back with the specific gap. Repeat until the root cause holds up.
+
+Then present findings to the user in this format:
 
 ```markdown
 ## Diagnosis: <bug-id>
@@ -94,7 +105,7 @@ After the agent reports back, present findings to the user in this format:
 
 When `--delegation` is specified, audit the current session's delegation compliance:
 
-1. **Collect data**:
+1. **Collect data** (needs `jq`; if it is missing, read `events.ndjson` with the Read tool and count `tool_decision` events by `attrs.tool_name`):
 ```bash
 wipnote status
 # Tool counts for the most recent session, read from its canonical event log.

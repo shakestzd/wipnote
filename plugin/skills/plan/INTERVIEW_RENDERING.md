@@ -1,6 +1,6 @@
 # Rendering the Interview (cross-harness)
 
-Shared by `/wipnote:plan` and `/wipnote:spec-from-slice`.
+Used by the draft interview (Phase 1) and the slice decisions phase ([SPEC.md](SPEC.md), Part A).
 
 ## Contents
 
