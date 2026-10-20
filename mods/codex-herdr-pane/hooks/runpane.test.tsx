@@ -16,7 +16,7 @@ const CLEAN = [
 ].join('\n')
 const dirOf = (command: string) => runDirPath(HOME, /codex-herdr-run\.([A-Za-z0-9]+)\.sh/.exec(command)?.[1] ?? '')!
 
-type Opts = { raceTick?: boolean; placed?: boolean; ran?: (dir: string) => Record<string, string>; surfaces?: string[]; gate?: Promise<unknown>; deny?: boolean; background?: boolean }
+type Opts = { interrupted?: boolean; raceTick?: boolean; placed?: boolean; ran?: (dir: string) => Record<string, string>; surfaces?: string[]; gate?: Promise<unknown>; deny?: boolean; background?: boolean }
 
 // A delegation through the mod: the files the run writes are `files`; panes opened and closed and
 // writes of run.html are recorded. `ran` is what the run left when the call returns; `gate` holds
@@ -53,7 +53,7 @@ async function delegate($: any, on: any, o: Opts = {}) {
     if (o.deny) return { deny: 'refused' }
     if (o.ran) Object.assign(files, o.ran(dirOf(command)))
     if (o.raceTick) { void clock.advance(700); void clock.advance(700) } // poll ticks as the call returns
-    return answer
+    return o.interrupted ? { result: { ...answer.result, interrupted: true } } : answer
   })
   const call = $.tool.call({ tool: 'Bash', command: 'codex exec "list the files"', ...(o.background ? { run_in_background: true } : {}) })
   const result = o.gate ? undefined : await call
@@ -154,6 +154,17 @@ test('serial: work on one key never overlaps and runs in call order; other keys 
   await serial('d', async () => { throw new Error('x') }).catch(() => {})
   await serial('d', work('d2', 1)) // a failed one does not block the next
   expect(log.at(-1)).toBe('end d2')
+})
+
+test('a foreground call cut off by its timeout leaves its herdr run followed to its real end', async ($, on) => {
+  const d = await delegate($, on, { interrupted: true, surfaces: [], ran: (dir) => ({ [`${dir}/host`]: 'herdr\n', [`${dir}/clean.md`]: CLEAN }) })
+  expect(note(d.result)).toContain('If this delegation\'s report ends with a "run page:" line') // no promise of a page
+  await d.clock.advance(1500)
+  expect(`${d.dir()}/run.html` in d.files).toBe(false) // not ended as gone
+  Object.assign(d.files, { [`${d.dir()}/exit`]: '0', [`${d.dir()}/last.md`]: 'the real answer' })
+  await d.clock.advance(1500)
+  expect(d.files[`${d.dir()}/run.html`]).toContain('the real answer')
+  expect(d.files[`${d.dir()}/run.html`]).not.toContain('ended without an exit status')
 })
 
 test('where a surface draws panes no note is added (the report names the page)', async ($, on) => {
