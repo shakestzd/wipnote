@@ -25,12 +25,12 @@ General-purpose diagnostic skill for investigating bugs, errors, and unexpected 
 1. Start attribution: `wipnote bug start <bug-id>`
 2. Fetch bug details: `wipnote bug show <bug-id>`
 3. Dispatch `wipnote:researcher` with the bug context (see Bug Investigation)
-4. Present findings and suggested fix
+4. Present findings and suggested fix. Leave the bug open; it is done only when a fix lands.
 
 **If given an error message or symptom**:
 1. Create and start a bug: `wipnote bug create "<summary>" --track <trk-id>` then `wipnote bug start <id>`
 2. Dispatch `wipnote:researcher` with the error context (see Bug Investigation)
-3. Present findings and suggested fix
+3. Present findings and suggested fix. Leave the bug open; it is done only when a fix lands.
 
 **If `--delegation` flag**:
 1. Run the delegation audit (see Delegation Audit Mode below)
@@ -63,6 +63,10 @@ Dispatch `Task(subagent_type="wipnote:researcher")` with a structured prompt:
 - **Blast radius**: Does this affect other cases?
 - **Suggested fix**: What code change resolves it
 - **Verification**: How to confirm the fix works
+
+### Lifecycle
+Diagnosis only. Record the root cause with `wipnote bug set-description <bug-id> "..."`.
+Do not run `wipnote bug complete`: the bug stays open until a fix lands.
 ```
 
 After the agent reports back, present findings to the user in this format:
