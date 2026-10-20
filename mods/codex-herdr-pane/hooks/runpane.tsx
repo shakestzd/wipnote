@@ -49,7 +49,9 @@ async function step($: Api, r: RunView, now: number) {
     if (host === 'claude') {
       const label = (await text($, `${r.dir}/label`))?.trim() || r.label
       await patch($, r.id, (c) => ({ ...c, host: 'claude', label }))
-      await $.ui.open({ id: paneId(r.id), title: label.slice(0, 60) })
+      // Opened unasked, a surface may hold it undrawn (a narrow one); /codex-runs opens it as asked
+      const opened = await $.ui.open({ id: paneId(r.id), title: label.slice(0, 60) })
+      if (!opened.isPlaced) $.ui.log(`codex-herdr-pane: the run's pane waits undrawn (${opened.reason}); /codex-runs shows it`)
     } else if (host === 'herdr' || now - r.registered > NO_HOST_MS) {
       await patch($, r.id, () => undefined)
     }
@@ -83,7 +85,15 @@ async function tick($: Api) {
 }
 
 function poll($: Api) {
-  timer ??= $.clock.every(POLL_MS, () => void tick($).catch(() => {}))
+  timer ??= $.clock.every(POLL_MS, () => void tick($).catch((err) => $.ui.log(`codex-herdr-pane: ${String(err)}`, { to: 'debug' })))
+}
+
+// /codex-runs: the newest followed run in its pane, opened as the person asked (placed at any width)
+async function showLatest($: Api) {
+  const latest = Object.values(await read($, runs)).filter((r) => r.host === 'claude').sort((a, b) => b.registered - a.registered)[0]
+  if (!latest) return { text: 'No delegation run is followed in this session yet.' }
+  const opened = await $.ui.open({ id: paneId(latest.id), title: latest.label.slice(0, 60), focus: true })
+  return { text: opened.isPlaced ? `Showing ${latest.label}.` : `The pane for ${latest.label} waits undrawn: ${opened.reason}` }
 }
 
 // Called by the tool.call hook for each delegation it wraps while claudePane is on
@@ -98,9 +108,12 @@ export function runPane(on: On, o: PaneOptions) {
   opts = o
   // A reload keeps $.state but not the timer: follow the runs still live
   on('session.start', async ($, e, next) => {
+    await $.command.register({ name: 'codex-runs', description: 'Show the newest Codex or ccx delegation run in a pane' })
     if (Object.values(await read($, runs)).some((r) => r.exit === undefined)) poll($)
     return next(e)
   })
+
+  on('command.run', { command: 'codex-runs' }, async ($) => showLatest($))
 
   on('ui.close', async ($, e, next) => {
     if (e.id.startsWith(PANE_PREFIX)) await patch($, e.id.slice(PANE_PREFIX.length), () => undefined)
