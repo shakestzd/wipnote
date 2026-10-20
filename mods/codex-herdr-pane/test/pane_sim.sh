@@ -3,6 +3,7 @@
 # checks clean.md beside clean.log and the report the Bash caller gets.
 # usage: bash test/pane_sim.sh
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"; T="$(mktemp -d)"; fails=0
+export CODEX_HERDR_PAGE_WAIT=0 # no hook writes run.html here: the report does not wait for it
 chmod +x "$ROOT"/test/stubs/*
 ok() { echo "ok   $1"; }; bad() { echo "FAIL $1"; fails=$((fails+1)); }
 run() { # $1 command -> sets OUT (returned text), D (run dir)
@@ -131,6 +132,36 @@ run "codex exec -o '$OWN/own.md' hello"
 has "standalone own -o: the caller's -o file has the answer" "hello back" "$OWN/own.md"
 has "standalone own -o: the report returns the answer, not the log tail" "# Answer" <(echo "$OUT")
 has "standalone own -o: the answer file has the answer" "hello back" "$D/last.md"
+
+# --- 0.8.0: outside herdr with claudePane on, the run is headless and the Claude Code pane follows it ---
+crun() { # like run, without HERDR_ENV
+  rm -rf "$T/tmp" "$T/log"*; mkdir -p "$T/tmp"
+  rm -rf "$T/.cache"
+  GEN_CLAUDE=1 GEN_HOME="$T" GEN_CAP=60 GEN_STUB_DIR="$T/tmp" node --experimental-strip-types "$ROOT/test/gen.ts" "$1" "$ROOT" > "$T/w.sh" 2>/dev/null
+  TMPDIR="$T/tmp" SIMLOG="$T/log" HOME="$T" PATH="$ROOT/test/stubs:$PATH" bash "$T/w.sh" > "$T/out.bin" 2>&1; RC=$?; OUT=$(cat "$T/out.bin")
+  D="$T/.cache/codex-herdr-pane/runs/sim"
+}
+crun 'codex exec "hello"'
+eq "claude pane: the run directory is the one the hook follows" "$(cat "$D/host" 2>/dev/null)" claude
+eq "claude pane: mode 700" "$(stat -c %a "$D" 2>/dev/null || stat -f %Lp "$D")" 700
+has "claude pane: clean.md has the fold" "<!-- fold closed: Bash: echo hi" "$D/clean.md"
+has "claude pane: the answer is returned" "hello back" <(echo "$OUT")
+has "claude pane: the report header" "codex exited 0" <(echo "$OUT")
+nothas "claude pane: no screen escape in the returned text" "$(printf '\033')" "$T/out.bin"
+nothas "claude pane: no JSONL returned" '{"type":' "$T/out.bin"
+eq "claude pane: exit status 0" "$RC" 0
+[ -s "$D/exit" ] && ok "claude pane: exit file written" || bad "claude pane: exit file written"
+fencecheck "$D/clean.md" "claude pane"
+crun 'echo before; codex exec "hello"; echo after; exit 4'
+eq "claude pane chained: exit status preserved" "$RC" 4
+has "claude pane chained: the rest of the command returned" "after" <(echo "$OUT")
+eq "claude pane: the runs folder is private" "$(stat -c %a "$T/.cache/codex-herdr-pane/runs" 2>/dev/null || stat -f %Lp "$T/.cache/codex-herdr-pane/runs")" 700
+P="$T/.cache/codex-herdr-pane/runs"; rm -rf "$T/.cache"; mkdir -p "$P/sim"; echo planted > "$P/sim/clean.md"
+GEN_CLAUDE=1 GEN_HOME="$T" GEN_CAP=60 GEN_STUB_DIR="$T/tmp" node --experimental-strip-types "$ROOT/test/gen.ts" 'codex exec "hello"' "$ROOT" > "$T/w.sh" 2>/dev/null
+TMPDIR="$T/tmp" SIMLOG="$T/log" HOME="$T" PATH="$ROOT/test/stubs:$PATH" bash "$T/w.sh" > "$T/out.bin" 2>&1
+eq "claude pane: an existing directory is never reused" "$(cat "$P/sim/clean.md")" planted
+eq "claude pane: nothing is written into it (no host file, so the hook does not follow it)" "$(ls "$P/sim")" clean.md
+has "claude pane: that run still completes in a fresh directory" "hello back" "$T/out.bin"
 
 run 'codex exec "hello"'
 eq "no noise, answer file with a newline: no blank line added" "$(tail -n 1 "$T/out.bin")" "hello back (profile=)"
@@ -307,7 +338,7 @@ mkfifo "$T/verdict.pipe"; ( cat "$T/verdict.pipe" > "$T/fifo.out" ) &
 SIMREVIEW=1 run "codex review > '$T/verdict.pipe'"; sleep 0.5
 eq "review redirected to a FIFO: the reader gets the verdict" "$(cat "$T/fifo.out" 2>/dev/null)" "The verdict."
 SIMREVIEW=1 run 'codex review'
-has "review: pane title names what is reviewed" "Codex review: current changes" "$D/label"
+has "review: pane title names what is reviewed" "cdx review: current changes" "$D/label"
 eq "review: the pane is renamed after it starts" "$(grep -n -e '^herdr pane run' -e '^herdr pane rename' "$T/log" | cut -d: -f2 | cut -c1-16 | tr '\n' ,)" "herdr pane run w,herdr pane renam,"
 
 run 'echo "OpenAI Codex v9 is a phrase"; echo "after the phrase"; codex exec "hello"'
