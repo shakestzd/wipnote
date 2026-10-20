@@ -142,13 +142,15 @@ export function drawBand({ Box, Text }: Elements, data: BandData, room: BandRoom
     return { key: `g-${group.item}`, spans: groupSpans(group, clip(it?.title ?? group.item, 40), steps) }
   })
   const rows = [...flags, ...groups]
+  // Rows past the room left: the last one that fits says how many more there are
   const fits = Math.max(0, room.maxRows - 1 - bar.length)
   const shown = rows.length > fits ? rows.slice(0, Math.max(0, fits - 1)) : rows
+  const hidden = rows.length - shown.length
   return (
     <Box flexDirection="column">
       {bar}
       {shown.map(row => draw(row.key, row.spans))}
-      {shown.length < rows.length && <Text dimColor>{`   … ${rows.length - shown.length} more`}</Text>}
+      {hidden > 0 && fits > 0 && <Text dimColor>{`   … ${hidden} more`}</Text>}
     </Box>
   )
 }

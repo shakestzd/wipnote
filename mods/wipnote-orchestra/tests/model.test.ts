@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { applyWipnote, baseName, describeCall, limitSpans, lineSpans, localTime, modelLabel, pillIndent, wrapSegments, elapsed, parseGitStatus, shortDir, workItemIn, zoneOf, groupByItem, needsAttention, tallyText, clockText, STALL_MS, FAILED_KEEP_MS } from '../hooks/model'
+import { applyWipnote, baseName, describeCall, limitSpans, lineSpans, localTime, modelLabel, pillIndent, wrapSegments, elapsed, parseGitStatus, shortDir, workItemIn, zoneOf, groupByItem, needsAttention, tallyText, clockText, keepFor, STALL_MS, FAILED_KEEP_MS } from '../hooks/model'
 
 test('tracks wipnote work items started and completed in shell commands', async () => {
   const started = applyWipnote([], 'wipnote feature start feat-1234abcd && wipnote bug start bug-99aa00ff')
@@ -71,6 +71,12 @@ test('flags agents silent past the stall time and recent failures, nothing else'
     now,
   )
   expect(flags.map(f => `${f.row.id}:${f.why}`)).toEqual(['never:stalled', 'slow:long-call', 'quiet:stalled', 'stop:stopped', 'broke:failed'])
+})
+
+test('a finished agent stays in view for the keep time, a failed or stopped one for FAILED_KEEP_MS', async () => {
+  expect(keepFor('completed', 90_000)).toBe(90_000)
+  expect(keepFor('failed', 90_000)).toBe(FAILED_KEEP_MS)
+  expect(keepFor('killed', 90_000)).toBe(FAILED_KEEP_MS)
 })
 
 test('tallies finished agents only once there is one', async () => {

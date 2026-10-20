@@ -13,6 +13,10 @@ export type AgentRow = {
   lastAt?: number
   /** Its tool calls still running: quiet with one running reads as a long call, with none as a stall. */
   inFlight?: number
+  /** `$.agent.list()` has shown it: its leaving the list means it ended. */
+  listed?: boolean
+  /** Counted in the session tally (once per agent). */
+  counted?: boolean
 }
 
 /** Every agent the session has seen finish, by outcome. */

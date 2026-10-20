@@ -7,7 +7,8 @@ import { drawBand } from './band'
 import { hydrate, refreshAfterTurn, registerRefs, storeCard, wipnoteJSON } from './refcards'
 import { parseWho } from './refs'
 import {
-  FAILED_KEEP_MS,
+  STALL_MS,
+  keepFor,
   applyWipnote,
   baseName,
   modelLabel,
@@ -64,22 +65,29 @@ async function refreshPrompt($: EngineInterface) {
   await update($, prompt, () => info)
 }
 
+/**
+ * Syncs the rows with `$.agent.list()`. A row the list has shown and no longer shows ended (the
+ * engine dropped its task) and counts as done. A row only tool calls made (an agent the list never
+ * showed, such as a workflow's) is closed uncounted once it has been quiet for STALL_MS with no
+ * call running. Each agent is counted in the tally once.
+ */
 async function reconcileAgents($: EngineInterface, at: number, hints: ReadonlyMap<string, Hint>) {
   const listed = await $.agent.list()
   const ended: Tally = { done: 0, failed: 0 }
-  const count = (status: string) => {
-    if (status === 'failed' || status === 'killed') ended.failed += 1
-    else ended.done += 1
-  }
   await update($, agents, rows => {
     ended.done = 0
     ended.failed = 0
+    const close = (row: AgentRow, status: string): AgentRow => {
+      if (row.counted === true) return { ...row, status, endedAt: row.endedAt ?? at }
+      if (status === 'failed' || status === 'killed') ended.failed += 1
+      else ended.done += 1
+      return { ...row, status, endedAt: at, counted: true }
+    }
     const byId = new Map(rows.map(row => [row.id, row]))
     for (const info of listed) {
       const row = byId.get(info.id)
       const wasLive = row === undefined || isLive(row.status)
-      if (wasLive && !isLive(info.status)) count(info.status)
-      byId.set(info.id, {
+      const next: AgentRow = {
         tools: 0,
         startedAt: at,
         ...row,
@@ -89,14 +97,16 @@ async function reconcileAgents($: EngineInterface, at: number, hints: ReadonlyMa
         workItem: row?.workItem ?? hints.get(info.description)?.workItem,
         model: row?.model ?? hints.get(info.description)?.model,
         status: info.status,
-        endedAt: wasLive && !isLive(info.status) ? at : row?.endedAt,
-      })
+        listed: true,
+      }
+      byId.set(info.id, wasLive && !isLive(info.status) ? close(next, info.status) : next)
     }
     const seen = new Set(listed.map(info => info.id))
     for (const row of byId.values()) {
-      if (!seen.has(row.id) && isLive(row.status)) {
-        byId.set(row.id, { ...row, status: 'completed', endedAt: at })
-        count('completed')
+      if (seen.has(row.id) || !isLive(row.status)) continue
+      if (row.listed === true) byId.set(row.id, close(row, 'completed'))
+      else if ((row.inFlight ?? 0) === 0 && at - (row.lastAt ?? row.startedAt) >= STALL_MS) {
+        byId.set(row.id, { ...row, status: 'completed', endedAt: at, counted: true })
       }
     }
     return [...byId.values()].slice(-100)
@@ -183,7 +193,7 @@ export const register: Register = (on, options) => {
       void (async () => {
         const at = await $.clock.now()
         const rows = await read($, agents)
-        const isBusy = rows.some(row => isLive(row.status) || at - (row.endedAt ?? 0) < FAILED_KEEP_MS)
+        const isBusy = rows.some(row => isLive(row.status) || at - (row.endedAt ?? 0) < keepFor(row.status, KEEP_DONE_MS))
         if (isBusy || tick % 30 === 0) {
           await update($, now, () => at)
         }
@@ -274,20 +284,22 @@ export const register: Register = (on, options) => {
       const command = e.command
       await update($, items, list => applyWipnote(list, command))
     }
-    const ran = await next(e)
-    // Never throws: the .catch below would run the call a second time
-    const id = e.agentId
-    if (id !== undefined) {
-      try {
-        const at = await $.clock.now()
-        await update($, agents, rows =>
-          rows.map(row => (row.id === id ? { ...row, lastAt: at, inFlight: Math.max(0, (row.inFlight ?? 1) - 1) } : row)),
-        )
-      } catch {
-        /* the next call or the list sets it again */
+    try {
+      return await next(e)
+    } finally {
+      // The call ended, answered or thrown: one fewer running for its agent
+      const id = e.agentId
+      if (id !== undefined) {
+        try {
+          const at = await $.clock.now()
+          await update($, agents, rows =>
+            rows.map(row => (row.id === id ? { ...row, lastAt: at, inFlight: Math.max(0, (row.inFlight ?? 1) - 1) } : row)),
+          )
+        } catch {
+          /* the next call or the list sets it again */
+        }
       }
     }
-    return ran
   }).catch(($, e, next) => next(e))
 
   on('classic.UserPromptSubmit', async ($, e, next) => {

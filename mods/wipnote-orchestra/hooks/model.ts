@@ -129,6 +129,9 @@ export const FAILED_KEEP_MS = 10 * 60_000
 
 const isFailed = (status: string) => status === 'failed' || status === 'killed'
 
+/** How long a finished agent stays in view: FAILED_KEEP_MS when it failed or was stopped, else `keepMs`. */
+export const keepFor = (status: string, keepMs: number) => (isFailed(status) ? FAILED_KEEP_MS : keepMs)
+
 /** The agents on one work item: how many are in each state. */
 export type ItemGroup = { item: string; running: number; waiting: number; done: number; failed: number }
 
@@ -142,7 +145,7 @@ export function groupByItem(rows: readonly AgentRow[], now: number, keepMs: numb
   for (const row of [...rows].sort((a, b) => a.startedAt - b.startedAt)) {
     if (row.workItem === undefined) continue
     const ended = now - (row.endedAt ?? now)
-    if (!isLive(row.status) && ended >= (isFailed(row.status) ? FAILED_KEEP_MS : keepMs)) continue
+    if (!isLive(row.status) && ended >= keepFor(row.status, keepMs)) continue
     const group = groups.get(row.workItem) ?? { item: row.workItem, running: 0, waiting: 0, done: 0, failed: 0 }
     if (isFailed(row.status)) group.failed += 1
     else if (row.status === 'waiting') group.waiting += 1

@@ -58,6 +58,19 @@ test('a subagent quiet past the stall time is flagged, and one on a long call sa
   await after.unmount()
 })
 
+test('with no room left under the bar, no agent row and no "more" line is drawn', async ($, on) => {
+  mock.clock(on, { now: 1000 })
+  on('agent.spawn', () => ({ model: 'claude-haiku-4-5-20251001', agentId: 'a1' }) as never)
+  await $.agent.spawn({ subagentType: 'Explore', description: 'Survey types', prompt: 'Feature: feat-abcdef12' } as never)
+  await $.command.run({ command: 'orchestra', args: 'above' } as never)
+  for (const surface of ['terminal', 'desktop'] as const) {
+    const tight = await $.ui.mount({ ...ABOVE, surface, props: { ...ABOVE.props, maxRows: 2 } })
+    expect(await tight.find({ type: 'Text', text: /◉ 1 agent/ })).toBeDefined()
+    expect(await tight.find({ type: 'Text', text: /▸ feat-abcdef12|more/ })).toBeUndefined()
+    await tight.unmount()
+  }
+})
+
 test('the band sits below the prompt, keeps the hint, and /orchestra above moves it', async ($, on) => {
   on('ui.render', ($, e) => {
     const { Text } = $.ui.resolve(e)
