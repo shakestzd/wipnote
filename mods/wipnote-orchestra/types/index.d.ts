@@ -9,7 +9,18 @@ export type AgentRow = {
   endedAt?: number
   tools: number
   lastTool?: string
+  /** When a tool call of its last started or ended (ms): a running agent quiet for long is flagged. */
+  lastAt?: number
+  /** Its tool calls still running: quiet with one running reads as a long call, with none as a stall. */
+  inFlight?: number
+  /** `$.agent.list()` has shown it: its leaving the list means it ended. */
+  listed?: boolean
+  /** Counted in the session tally (once per agent). */
+  counted?: boolean
 }
+
+/** Every agent the session has seen finish, by outcome. */
+export type Tally = { done: number; failed: number }
 
 export type Limit = { kind: string; percentUsed: number; resetsAt?: string }
 
@@ -76,6 +87,7 @@ declare module 'claude-code' {
       permissionMode: string | null
       refs: Record<string, CardEntry>
       claim: string | null
+      tally: Tally
     }
   }
 }

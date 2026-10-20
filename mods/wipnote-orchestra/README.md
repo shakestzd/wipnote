@@ -1,13 +1,13 @@
 # wipnote-orchestra (dev mod)
 
-A Claude Code mod (function hooks) that turns the line under the prompt into an orchestration band: where you are, what is being worked on, and what every subagent is doing right now. It also draws `wipnote-ref` fences in replies as work-item cards. It replaces the former wipnote-cards mod.
+A Claude Code mod (function hooks) that turns the line under the prompt into an orchestration band: where you are, what is being worked on, and how the subagents are getting on with it. It also draws `wipnote-ref` fences in replies as work-item cards. It replaces the former wipnote-cards mod.
 
 ```
 ⏵⏵ auto mode on · (shift+tab to cycle) · esc to interrupt · ← for agents        ← Claude Code's own hint line, unchanged
-  5h 42% resets 9:40 PM   7d 83% resets Fri 3:00 PM                            ← usage limits
- ionna-rca   main !3 ⇡1  ✻ Opus 5.5  ctx 33%  Raw-data RCA agents [1/46]  → Routine setup script   7:40 PM 
- ├ ● Explore              Haiku 4.5  Routine setup script     43s  12t  Survey workbench types  ↳ Read app.mts
- └ ✔ wipnote:patch-coder  Opus 5.5   Git hooks hygiene      1m42s  19t  Truecolor env in devcontainer
+  5h 42% resets 9:40 PM   7d 83% resets Fri 3:00 PM    Tue 20 · 7:40 PM        ← usage limits, then the clock
+ ionna-rca   main !3 ⇡1  ✻ Opus 5.5  ctx 33%  Raw-data RCA agents [1/46]  → Routine setup script  ◉ 3 agents · ✔ 12 ✘ 1 
+   ⚠ Explore no tool call for 6m12s  Survey workbench types  ↳ $ npm test         ← needs a look
+   ▸ Routine setup script 2/5 steps   ● 2 running  ✔ 1 done                     ← agents by work item
 ```
 
 ## What it shows
@@ -15,9 +15,12 @@ A Claude Code mod (function hooks) that turns the line under the prompt into an 
 | Row | Content | Source |
 |---|---|---|
 | Hint | Claude Code's hint line exactly as it draws it (the mode pill stays beside it) | `PromptHint` props |
-| Limits | each rate-limit window (`5h`, `7d`, `spend`): % used, green/amber/red at 50/80, local reset time | `$.session.usage().rateLimits` |
-| Segments | repo/worktree name · git branch, dirty count, ahead/behind · model · context % · per track: title `[done/total]` · per work item: `→ title n/m` (steps), coloured by status · live agent count · local time | `git`, `$.session.*`, `wipnote` |
-| Agents | one aligned row per subagent: status, type, model, work item title, elapsed, tool calls, current call; finished agents stay 90 s, dimmed | `agent.spawn`, `tool.call`, `$.agent.list()` |
+| Limits | each rate-limit window (`5h`, `7d`, `spend`): % used, green/amber/red at 50/80, local reset time; then the clock: weekday, day of the month, local time (without a limits row, in compact or before limits are known, the clock is the last segment) | `$.session.usage().rateLimits`, `timeZone` |
+| Segments | repo/worktree name · git branch, dirty count, ahead/behind · model · context % · per track: title `[done/total]` · per work item: `→ title n/m` (steps), coloured by status · live agent count and the session's finished tally (`✔ done ✘ failed`) | `git`, `$.session.*`, `wipnote` |
+| Needs a look | a running agent quiet for 5 min: on one call that long (`◷ one call running for …`) or with no tool call at all (`⚠ no tool call for …`), with its last call; and a failed or stopped agent for 10 min (`✘`) | `tool.call`, `$.agent.list()` |
+| Work items | one row per work item the agents' briefs name: title, steps, and how many of its agents are running, waiting, done, failed (finished ones counted 90 s) | `agent.spawn`, `$.agent.list()`, `wipnote` |
+
+**No row per agent.** Claude Code's own agent panel under the prompt already lists every subagent with its time, tokens and current activity, and opens one with Enter (or from `/tasks`). The band only adds what that panel does not show: agents grouped by work item, a stall warning, failures that stay past the panel's 30 s, and a session tally.
 
 Segments are powerline-style with rounded caps and **wrap between segments** to the pane width (re-laid out on every resize); a segment wider than the pane is cut with `…`. Every line is one truncated Text, so nothing wraps mid-row.
 
@@ -39,7 +42,7 @@ The former wipnote-cards status line (`wipnote · <id> · <status> · n/m steps`
 
 ## Commands
 
-`/orchestra full | compact | off | above | below` — full band, one segment line, hidden; draw under the prompt (default) or in the band above it.
+`/orchestra full | compact | off | above | below` — full band (with the needs-a-look and work-item rows), one segment line, hidden; draw under the prompt (default) or in the band above it.
 
 ## Files
 
@@ -50,12 +53,14 @@ hooks/register.tsx           hooks: session.start timer, session claim, agent.sp
 hooks/refcards.tsx           wipnote-ref cards: fetch on reply and turn, the model rule, the AssistantMessage drawing
 hooks/refs.ts                pure helpers for cards: fence parsing, show argv, card parsing, TTL, refresh order
 hooks/band.tsx               the band's tree (pure: data + room → elements)
-hooks/model.ts               pure helpers: parsing (git, wipnote, hint), layout (wrap, columns, fit), formatting (time, limits)
+hooks/model.ts               pure helpers: parsing (git, wipnote, hint), agents (by work item, needs a look, tally), layout (wrap, fit), formatting (time, limits)
 types/index.d.ts             $.state contract (PluginState['wipnote-orchestra'])
 tests/*.test.ts(x)           claude plugin test suites (pure helpers + mounted band on terminal and desktop)
 ```
 
 ## Run it
+
+`wipnote claude` loads it (with every mod in `mods/`) by default; `WIPNOTE_NO_MODS=1` skips the mods. On its own:
 
 ```bash
 claude --plugin-dir mods/wipnote-orchestra

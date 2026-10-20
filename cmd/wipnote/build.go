@@ -128,11 +128,19 @@ func runBuild() error {
 		return fmt.Errorf("mirror antigravity-extension tree: %w", err)
 	}
 
+	// Mirror the Claude Code mods beside the plugin tree: the launcher loads
+	// <share>/mods with a second --plugin-dir (resolveModsDir).
+	destMods := filepath.Join(metaDir, "mods")
+	if err := mirrorModsTree(projectRoot, destMods); err != nil {
+		return fmt.Errorf("mirror mods tree: %w", err)
+	}
+
 	fmt.Printf("Installed: %s (v%s)\n", binaryPath, version)
 	fmt.Printf("Alias:     %s -> wipnote\n", aliasPath)
 	fmt.Printf("Plugin:    %s\n", destPlugin)
 	fmt.Printf("Codex:     %s\n", destCodex)
 	fmt.Printf("Antigravity: %s\n", destAntigravity)
+	fmt.Printf("Mods:      %s\n", destMods)
 	return nil
 }
 

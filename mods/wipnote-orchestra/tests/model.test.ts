@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { applyWipnote, baseName, describeCall, limitSpans, lineSpans, localTime, modelLabel, pillIndent, wrapSegments, elapsed, parseGitStatus, shortDir, visibleAgents, workItemIn, zoneOf } from '../hooks/model'
+import { applyWipnote, baseName, describeCall, limitSpans, lineSpans, localTime, modelLabel, pillIndent, wrapSegments, elapsed, parseGitStatus, shortDir, workItemIn, zoneOf, groupByItem, needsAttention, tallyText, clockText, keepFor, STALL_MS, FAILED_KEEP_MS } from '../hooks/model'
 
 test('tracks wipnote work items started and completed in shell commands', async () => {
   const started = applyWipnote([], 'wipnote feature start feat-1234abcd && wipnote bug start bug-99aa00ff')
@@ -32,15 +32,63 @@ test('shortens dirs and describes calls', async () => {
   expect(modelLabel('gpt-x')).toBe('gpt-x')
 })
 
-test('lists live agents first and drops long-finished ones', async () => {
-  const row = (id: string, status: string, startedAt: number, endedAt?: number) =>
-    ({ id, type: 't', description: '', status, startedAt, endedAt, tools: 0 })
-  const shown = visibleAgents(
-    [row('old', 'completed', 0, 1000), row('b', 'running', 50), row('done', 'completed', 10, 99_000), row('a', 'running', 20)],
-    100_000,
+const agent = (id: string, status: string, extra: Record<string, unknown> = {}) =>
+  ({ id, type: 'Explore', description: `task ${id}`, status, startedAt: 0, tools: 0, ...extra })
+
+test('groups agents by work item, counting each state, and leaves out the ones on no item', async () => {
+  const now = 200_000
+  const groups = groupByItem(
+    [
+      agent('a', 'running', { workItem: 'feat-1', startedAt: 10 }),
+      agent('b', 'waiting', { workItem: 'feat-1', startedAt: 20 }),
+      agent('c', 'completed', { workItem: 'feat-1', endedAt: now - 1000 }),
+      agent('d', 'completed', { workItem: 'feat-1', endedAt: now - 100_000 }), // finished long ago
+      agent('e', 'failed', { workItem: 'bug-2', startedAt: 30, endedAt: now - 100_000 }), // failures stay longer
+      agent('f', 'running'),
+    ],
+    now,
     90_000,
   )
-  expect(shown.map(one => one.id)).toEqual(['a', 'b', 'done'])
+  expect(groups).toEqual([
+    { item: 'feat-1', running: 1, waiting: 1, done: 1, failed: 0 },
+    { item: 'bug-2', running: 0, waiting: 0, done: 0, failed: 1 },
+  ])
+})
+
+test('flags agents silent past the stall time and recent failures, nothing else', async () => {
+  const now = 1_000_000
+  const flags = needsAttention(
+    [
+      agent('quiet', 'running', { lastAt: now - STALL_MS - 1 }),
+      agent('slow', 'running', { lastAt: now - STALL_MS - 2, inFlight: 1 }), // on one long call
+      agent('busy', 'running', { lastAt: now - 1000 }),
+      agent('never', 'running', { startedAt: now - STALL_MS * 2 }), // no tool call at all
+      agent('waits', 'waiting', { lastAt: 0 }), // Claude Code shows who waits on the person
+      agent('broke', 'failed', { endedAt: now - 5000 }),
+      agent('stop', 'killed', { endedAt: now - 1000 }),
+      agent('old', 'failed', { endedAt: now - FAILED_KEEP_MS }),
+    ],
+    now,
+  )
+  expect(flags.map(f => `${f.row.id}:${f.why}`)).toEqual(['never:stalled', 'slow:long-call', 'quiet:stalled', 'stop:stopped', 'broke:failed'])
+})
+
+test('a finished agent stays in view for the keep time, a failed or stopped one for FAILED_KEEP_MS', async () => {
+  expect(keepFor('completed', 90_000)).toBe(90_000)
+  expect(keepFor('failed', 90_000)).toBe(FAILED_KEEP_MS)
+  expect(keepFor('killed', 90_000)).toBe(FAILED_KEEP_MS)
+})
+
+test('tallies finished agents only once there is one', async () => {
+  expect(tallyText({ done: 0, failed: 0 })).toBe('')
+  expect(tallyText({ done: 12, failed: 0 })).toBe('✔ 12')
+  expect(tallyText({ done: 12, failed: 1 })).toBe('✔ 12 ✘ 1')
+})
+
+test('the clock reads the weekday, the day of the month and the time in the zone', async () => {
+  const at = Date.UTC(2026, 9, 20, 2, 5) // Tue 20 Oct 02:05 UTC is Mon 19 Oct in New York
+  expect(clockText(at, 'UTC')).toBe('Tue 20 · 2:05 AM')
+  expect(clockText(at, 'America/New_York')).toBe('Mon 19 · 10:05 PM')
 })
 
 test('measures the mode pill the band shifts left past', async () => {

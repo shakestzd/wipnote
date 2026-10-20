@@ -1,12 +1,14 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
-import type { AgentRow, Mode, PromptInfo, WorkCard } from '../types'
+import type { AgentRow, Mode, PromptInfo, Tally, WorkCard } from '../types'
 import type { BandData } from './band'
 import { drawBand } from './band'
 import { hydrate, refreshAfterTurn, registerRefs, storeCard, wipnoteJSON } from './refcards'
 import { parseWho } from './refs'
 import {
+  STALL_MS,
+  keepFor,
   applyWipnote,
   baseName,
   modelLabel,
@@ -18,7 +20,6 @@ import {
   showArgv,
   pillIndent,
   shortDir,
-  visibleAgents,
   workItemIn,
   zoneOf,
 } from './model'
@@ -33,6 +34,7 @@ const mode = atom({ plugin: 'wipnote-orchestra', key: 'mode' } as const, 'full')
 const placement = atom({ plugin: 'wipnote-orchestra', key: 'placement' } as const, 'below')
 const permissionMode = atom({ plugin: 'wipnote-orchestra', key: 'permissionMode' } as const, null)
 const claim = atom({ plugin: 'wipnote-orchestra', key: 'claim' } as const, null)
+const tally = atom({ plugin: 'wipnote-orchestra', key: 'tally' } as const, { done: 0, failed: 0 })
 
 const KEEP_DONE_MS = 90_000
 
@@ -63,14 +65,29 @@ async function refreshPrompt($: EngineInterface) {
   await update($, prompt, () => info)
 }
 
+/**
+ * Syncs the rows with `$.agent.list()`. A row the list has shown and no longer shows ended (the
+ * engine dropped its task) and counts as done. A row only tool calls made (an agent the list never
+ * showed, such as a workflow's) is closed uncounted once it has been quiet for STALL_MS with no
+ * call running. Each agent is counted in the tally once.
+ */
 async function reconcileAgents($: EngineInterface, at: number, hints: ReadonlyMap<string, Hint>) {
   const listed = await $.agent.list()
+  const ended: Tally = { done: 0, failed: 0 }
   await update($, agents, rows => {
+    ended.done = 0
+    ended.failed = 0
+    const close = (row: AgentRow, status: string): AgentRow => {
+      if (row.counted === true) return { ...row, status, endedAt: row.endedAt ?? at }
+      if (status === 'failed' || status === 'killed') ended.failed += 1
+      else ended.done += 1
+      return { ...row, status, endedAt: at, counted: true }
+    }
     const byId = new Map(rows.map(row => [row.id, row]))
     for (const info of listed) {
       const row = byId.get(info.id)
       const wasLive = row === undefined || isLive(row.status)
-      byId.set(info.id, {
+      const next: AgentRow = {
         tools: 0,
         startedAt: at,
         ...row,
@@ -80,17 +97,23 @@ async function reconcileAgents($: EngineInterface, at: number, hints: ReadonlyMa
         workItem: row?.workItem ?? hints.get(info.description)?.workItem,
         model: row?.model ?? hints.get(info.description)?.model,
         status: info.status,
-        endedAt: wasLive && !isLive(info.status) ? at : row?.endedAt,
-      })
+        listed: true,
+      }
+      byId.set(info.id, wasLive && !isLive(info.status) ? close(next, info.status) : next)
     }
     const seen = new Set(listed.map(info => info.id))
     for (const row of byId.values()) {
-      if (!seen.has(row.id) && isLive(row.status)) {
-        byId.set(row.id, { ...row, status: 'completed', endedAt: at })
+      if (seen.has(row.id) || !isLive(row.status)) continue
+      if (row.listed === true) byId.set(row.id, close(row, 'completed'))
+      else if ((row.inFlight ?? 0) === 0 && at - (row.lastAt ?? row.startedAt) >= STALL_MS) {
+        byId.set(row.id, { ...row, status: 'completed', endedAt: at, counted: true })
       }
     }
     return [...byId.values()].slice(-100)
   })
+  if (ended.done + ended.failed > 0) {
+    await update($, tally, t => ({ done: t.done + ended.done, failed: t.failed + ended.failed }))
+  }
 }
 
 
@@ -137,15 +160,16 @@ async function activeItems($: EngineInterface): Promise<string[]> {
 }
 
 async function bandData($: EngineInterface, zone: string): Promise<BandData> {
-  const [info, rows, work, known, doing, at] = await Promise.all([
+  const [info, rows, ended, work, known, doing, at] = await Promise.all([
     read($, prompt),
     read($, agents),
+    read($, tally),
     activeItems($),
     read($, cards),
     read($, mainTool),
     read($, now),
   ])
-  return { info, list: visibleAgents(rows, at, KEEP_DONE_MS), work, cards: known, doing, at, zone }
+  return { info, rows, tally: ended, keepMs: KEEP_DONE_MS, work, cards: known, doing, at, zone }
 }
 
 export const register: Register = (on, options) => {
@@ -155,7 +179,7 @@ export const register: Register = (on, options) => {
   on('session.start', async ($, e, next) => {
     await $.command.register({
       name: 'orchestra',
-      description: 'Orchestra band: full (agents + last tool), compact (one line), off; above or below the prompt',
+      description: 'Orchestra band: full (agents by work item, stalled or failed ones), compact (one line), off; above or below the prompt',
       argumentHint: 'full|compact|off|above|below',
     })
     await refreshPrompt($).catch(() => undefined)
@@ -169,7 +193,7 @@ export const register: Register = (on, options) => {
       void (async () => {
         const at = await $.clock.now()
         const rows = await read($, agents)
-        const isBusy = rows.some(row => isLive(row.status) || at - (row.endedAt ?? 0) < KEEP_DONE_MS)
+        const isBusy = rows.some(row => isLive(row.status) || at - (row.endedAt ?? 0) < keepFor(row.status, KEEP_DONE_MS))
         if (isBusy || tick % 30 === 0) {
           await update($, now, () => at)
         }
@@ -252,7 +276,7 @@ export const register: Register = (on, options) => {
         const model = base.model ?? hint?.model
         return [
           ...rows.filter(one => one.id !== id),
-          { ...base, workItem, model, tools: base.tools + 1, lastTool: doing },
+          { ...base, workItem, model, tools: base.tools + 1, lastTool: doing, lastAt: at, inFlight: (base.inFlight ?? 0) + 1 },
         ]
       })
     }
@@ -260,7 +284,22 @@ export const register: Register = (on, options) => {
       const command = e.command
       await update($, items, list => applyWipnote(list, command))
     }
-    return next(e)
+    try {
+      return await next(e)
+    } finally {
+      // The call ended, answered or thrown: one fewer running for its agent
+      const id = e.agentId
+      if (id !== undefined) {
+        try {
+          const at = await $.clock.now()
+          await update($, agents, rows =>
+            rows.map(row => (row.id === id ? { ...row, lastAt: at, inFlight: Math.max(0, (row.inFlight ?? 1) - 1) } : row)),
+          )
+        } catch {
+          /* the next call or the list sets it again */
+        }
+      }
+    }
   }).catch(($, e, next) => next(e))
 
   on('classic.UserPromptSubmit', async ($, e, next) => {
