@@ -52,7 +52,7 @@ Read `.wipnote/plans/<plan-id>.yaml` directly (read-only). For each target slice
 
 ## Step 4: Author grounded blocks for each slice
 
-Follow the grounding rules in [`${CLAUDE_PLUGIN_ROOT}/skills/plan/BLOCK_GROUNDING.md`](../plan/BLOCK_GROUNDING.md). Use only the block types and fields from Step 1.
+Follow the grounding rules in `plan/BLOCK_GROUNDING.md` (run `wipnote skill show plan BLOCK_GROUNDING.md`). Use only the block types and fields from Step 1.
 
 ---
 

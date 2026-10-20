@@ -54,7 +54,7 @@ user at `wipnote plan promote-slice` first.
 
    Ask all three in one native ask-user call, or as plain chat if the
    harness has none. For other options see
-   [`${CLAUDE_PLUGIN_ROOT}/skills/plan/INTERVIEW_RENDERING.md`](../plan/INTERVIEW_RENDERING.md).
+   `plan/INTERVIEW_RENDERING.md` (run `wipnote skill show plan INTERVIEW_RENDERING.md`).
    If you use the web form (`wipnote plan interview <plan-id> <slice-num>`),
    it writes `decisions_notes` itself; skip step 4.
 
