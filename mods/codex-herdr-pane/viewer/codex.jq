@@ -25,6 +25,10 @@ def item:
     elif $i.type == "command_execution" then
       if .type == "item.started" then {k: "call", name: "Bash", bare: true, arg: ($i.command // "")}
       else {k: "result", command: $i.command, code: ($i.exit_code // "?"), err: (($i.exit_code // 0) != 0), text: ($i.aggregated_output // "")} end
+    elif $i.type == "web_search" then  # its query (older and newer shapes); a search has no output to fold
+      if .type == "item.completed" then {k: "call", name: "web_search",
+        arg: ($i.query // $i.action.query // ($i.action.queries // null | if type == "array" then join("; ") else null end))}
+      else empty end
     elif .type == "item.completed" then {k: "call", name: ($i.type // "item"), arg: $i.path}
     else empty end;
 def events:

@@ -147,6 +147,11 @@ test('the pane title comes from the prompt', () => {
   expect(paneLabel('codex review')).toBe('cdx review: current changes')
   expect(paneLabel('codex review "check the locking"')).toBe('cdx review: check the locking')
   expect(paneLabel('codex exec "$(cat prompt.md)"')).toBe('cdx: $(cat prompt.md)')
+  // A heredoc-fed prompt: its first line, not the delimiter
+  expect(paneLabel(`codex exec "$(cat <<'OUT'\n\n  Research shared devcontainers for worktrees\nmore\nOUT\n)"`))
+    .toBe('cdx: Research shared devcontainers for worktrees')
+  expect(paneLabel(`codex exec - <<EOF\nReview the band\nEOF`)).toBe('cdx: Review the band')
+  expect(paneLabel('codex exec --json')).toBe('cdx: running')
 })
 
 test('the wrapper keeps the original whole, shims the answer file and falls back outside herdr', () => {
