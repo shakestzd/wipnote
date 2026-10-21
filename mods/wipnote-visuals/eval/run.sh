@@ -17,6 +17,6 @@ for i in $(seq 1 "$REPS"); do for cond in rule rulestyle; do
     timeout 150 claude -p "$prompt" --append-system-prompt "$sys" --model sonnet --max-turns 1 \
       --no-session-persistence < /dev/null > "$OUT/${cond}_${key}_$i.txt" 2>&1
     cd "$HERE"
-  done < prompts.txt
+  done < prompts.psv
 done; done
 echo "done: $OUT  (analyze: bun eval/analyze.ts)"
