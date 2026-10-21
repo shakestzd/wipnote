@@ -97,10 +97,11 @@ func TestResearchDispatchGuard_AllowsWhenRecordedOrNotImplementer(t *testing.T) 
 	}
 }
 
-func TestDispatchWorkItem_FallsBackToClaim(t *testing.T) {
+func TestDispatchWorkItems_FallsBackToClaim(t *testing.T) {
 	ev := &CloudEvent{ToolName: "Task", ToolInput: map[string]any{"subagent_type": "patch-coder", "prompt": "fix it"}}
-	if got := dispatchWorkItem(ev, &toolUseContext{ClaimedItem: "feat-0000000a", FeatureID: "feat-0000000b"}); got != "feat-0000000a" {
-		t.Fatalf("got %q", got)
+	got := dispatchWorkItems(implementerDispatches(ev), &toolUseContext{ClaimedItem: "feat-0000000a", FeatureID: "feat-0000000b"})
+	if len(got) != 1 || got[0] != "feat-0000000a" {
+		t.Fatalf("got %v", got)
 	}
 }
 
@@ -120,12 +121,65 @@ func TestResearchDispatchGuard_WarnReachesAdditionalContext(t *testing.T) {
 	}
 }
 
-func TestDispatchWorkItem_SkipsLeadingNonImplementableIDs(t *testing.T) {
+func TestDispatchWorkItems_SkipsNonImplementableAndKeepsAll(t *testing.T) {
 	ev := &CloudEvent{ToolName: "Task", ToolInput: map[string]any{
 		"subagent_type": "patch-coder",
-		"prompt":        "Using findings from spk-1234abcd under trk-0000cccc, implement feat-89abcdef.",
+		"prompt":        "Using spk-1234abcd under trk-0000cccc, use feat-0000aaaa's API while implementing feat-89abcdef.",
 	}}
-	if got := dispatchWorkItem(ev, &toolUseContext{FeatureID: "feat-0000000b"}); got != "feat-89abcdef" {
-		t.Fatalf("got %q, want the feature named after the spike", got)
+	got := dispatchWorkItems(implementerDispatches(ev), &toolUseContext{FeatureID: "feat-0000000b"})
+	if strings.Join(got, ",") != "feat-0000aaaa,feat-89abcdef" {
+		t.Fatalf("got %v, want both features and no spike/track", got)
+	}
+}
+
+// A complete record on a contextual item must not let an unresearched target
+// through: block mode denies if any referenced gated item is incomplete.
+func TestResearchDispatchGuard_AnyIncompleteItemDenies(t *testing.T) {
+	root, done := seedResearchProject(t, "block", &research.Record{Waiver: "copy change"})
+	p, err := workitem.Open(filepath.Join(root, ".wipnote"), "claude-code")
+	if err != nil {
+		t.Fatal(err)
+	}
+	n, err := p.Features.Create("Toolbar overflow menu")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := p.Features.Edit(n.ID).SetProperty(research.PropKind, research.KindUI).Save(); err != nil {
+		t.Fatal(err)
+	}
+	p.Close()
+	ev := &CloudEvent{ToolName: "Task", ToolInput: map[string]any{
+		"subagent_type": "wipnote:feature-coder",
+		"prompt":        "Use " + done + "'s API while implementing " + n.ID + ".",
+	}}
+	if msg, deny := checkResearchDispatchGuard(ev, &toolUseContext{ProjectDir: root}); !deny || !strings.Contains(msg, n.ID) {
+		t.Fatalf("must deny for the unresearched target, got deny=%v msg=%q", deny, msg)
+	}
+}
+
+// Codex dispatches implementers with spawn_agent(agent_type, description,
+// message); the plural tool nests one request per agent.
+func TestResearchDispatchGuard_CodexSpawnAgent(t *testing.T) {
+	root, id := seedResearchProject(t, "block", nil)
+	single := &CloudEvent{ToolName: "multi_agent_v1.spawn_agent", ToolInput: map[string]any{
+		"agent_type": "wipnote-feature-coder", "description": id + ": add overflow", "message": "Feature: " + id,
+	}}
+	if _, deny := checkResearchDispatchGuard(single, &toolUseContext{ProjectDir: root}); !deny {
+		t.Fatal("Codex spawn_agent for an unresearched item must be denied in block mode")
+	}
+	plural := &CloudEvent{ToolName: "multi_agent_v1.spawn_agents", ToolInput: map[string]any{
+		"agents": []any{
+			map[string]any{"agent_type": "wipnote-researcher", "message": "research " + id},
+			map[string]any{"agent_type": "wipnote-patch-coder", "message": "implement " + id},
+		},
+	}}
+	if _, deny := checkResearchDispatchGuard(plural, &toolUseContext{ProjectDir: root}); !deny {
+		t.Fatal("a coder nested in spawn_agents must be checked")
+	}
+	researcherOnly := &CloudEvent{ToolName: "spawn_agent", ToolInput: map[string]any{
+		"agent_type": "wipnote-researcher", "message": "research " + id,
+	}}
+	if msg, deny := checkResearchDispatchGuard(researcherOnly, &toolUseContext{ProjectDir: root}); deny || msg != "" {
+		t.Fatal("a Codex researcher spawn must never be gated")
 	}
 }

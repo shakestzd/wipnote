@@ -230,6 +230,9 @@ func Assess(r *Record) (missing, warnings []string) {
 	case strings.EqualFold(exists, ExistsNoneFound) && len(r.Queries) == 0:
 		missing = append(missing, `queries behind "exists: none found"`)
 	}
+	if len(r.Options) == 0 {
+		missing = append(missing, "the options considered")
+	}
 	if strings.TrimSpace(r.Chosen) == "" {
 		missing = append(missing, "a recorded decision (chosen option)")
 	}

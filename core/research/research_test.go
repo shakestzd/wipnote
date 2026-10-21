@@ -69,6 +69,11 @@ func TestAssess(t *testing.T) {
 			t.Errorf("missing %q in %v", want, missing)
 		}
 	}
+	noOptions := completeRecord()
+	noOptions.Options = nil
+	if m, _ := Assess(noOptions); len(m) == 0 || !strings.Contains(strings.Join(m, ","), "options") {
+		t.Errorf("a chosen option with no options considered must not pass, got %v", m)
+	}
 	noQueries := completeRecord()
 	noQueries.Queries = nil
 	if m, _ := Assess(noQueries); len(m) == 0 {

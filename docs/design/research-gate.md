@@ -49,8 +49,10 @@ art before this work started.
    reported at check time, never silently.
 5. **Enforcement points**:
    - `<kind> start`: stderr warning (never fails).
-   - `PreToolUse` on `Task`/`Agent` dispatching a `*-coder` subagent: advisory
-     in warn mode, deny in block mode. Start and dispatch apply the same
+   - `PreToolUse` on a subagent spawn (`Task`/`Agent` on Claude Code,
+     `spawn_agent`/`spawn_agents` on Codex) of a `*-coder` role: advisory in
+     warn mode, deny in block mode. Every feature/bug named in the dispatch
+     is checked; any incomplete gated one denies. Start and dispatch apply the same
      completeness test as completion, so a question-only stub does not pass.
    - `check --gate --work-item` and `<kind> complete`: fail in block mode
      unless the record is complete or waived.

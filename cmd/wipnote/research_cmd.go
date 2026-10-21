@@ -429,10 +429,13 @@ func attachSpikeResearch(w io.Writer, p *workitem.Project, spikeID string) {
 		return
 	}
 	fmt.Fprintf(w, "research: attached %s findings to %s as its research record\n", spikeID, parentID)
-	// The completion commit only covers the spike's own artifact; commit the
-	// parent's too so the attached record is durable (non-fatal by contract).
+	// The completion commit only covers the spike's own artifact; persist the
+	// parent's under the same artifact commit policy (defer queues an intent,
+	// none leaves it to the operator, separate commits directly).
 	if parentType := kindFromPrefix(parentID); shouldAutocommitWorkitemArtifact(parentType) {
-		_ = commitWipnoteArtifact(p.ProjectDir, parentType, parentID, "research attached")
+		if err := persistWorkitemArtifactTransition(p.ProjectDir, parentType, parentID, "research attached"); err != nil {
+			fmt.Fprintf(w, "research: %v\n", err)
+		}
 	}
 }
 
