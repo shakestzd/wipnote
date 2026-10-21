@@ -3,6 +3,7 @@
 import type { DelegationTool } from './tools.ts'
 import type { WrapOptions } from './wrap.ts'
 import { mdFunctions, streamJq } from './mdpipe.ts'
+import { CLAUDE_SHIM, SHIM } from './shim.ts'
 
 // The Textual versions the viewer was tested on, defined once. The `uv run --with` in the pane
 // script uses it; codex_view.py's inline header repeats it because a script header cannot
@@ -178,20 +179,45 @@ const profileName = (o: WrapOptions) => (o.leanProfile ? o.leanProfileName.repla
 const DEFAULT_RUNS = '"$HOME/work/_shared/claude-container/runs"'
 const shq = (s: string) => `'${s.replace(/'/g, `'\\''`)}'`
 
-// reviewToLast: a standalone call that does not redirect stdout itself, so a review's final message
-// may go to the answer file (shim.ts).
+// How each tool's log filter (tools.ts) runs: one route per filter, so a new filter without
+// one is a type error rather than a silent fall back to codex's.
+//   run       the background half of the pane script. reviewToLast: a standalone call that does
+//             not redirect stdout itself, so the final answer may go to the answer file (shim.ts)
+//   shim      sourced before the command, if the tool has one (shim.ts)
+//   report    answer: a status line, then the answer file or the log's end (codex, claude);
+//             stdout: the tool's own stdout and stderr, as an unwrapped run returns (ccx)
+//   streamJq  the run reads claude's stream-json through stream.jq (mdpipe.ts)
+export type Route = {
+  run: (o: WrapOptions, chained: boolean, reviewToLast: boolean) => readonly string[]
+  shim?: readonly string[]
+  report: 'answer' | 'stdout'
+  streamJq: boolean
+}
+export const ROUTES: Record<DelegationTool['filter'], Route> = {
+  codex: {
+    run: (o, chained, reviewToLast) => (chained ? CODEX_CHAIN_RUN : CODEX_RUN)
+      .map((l) => l.replace('__PROFILE__', profileName(o)).replace('__REVIEWLAST__', reviewToLast ? '1' : '')),
+    shim: SHIM, report: 'answer', streamJq: false,
+  },
+  ccx: {
+    run: (o) => CCX_RUN.map((l) => l.replace('__RUNS__', () => (o.runsDir ? shq(o.runsDir) : DEFAULT_RUNS))),
+    report: 'stdout', streamJq: true,
+  },
+  claude: {
+    run: (_o, _chained, reviewToLast) => (reviewToLast ? CLAUDE_RUN : CLAUDE_CHAIN_RUN),
+    shim: CLAUDE_SHIM, report: 'answer', streamJq: true,
+  },
+}
+
 export function paneScript(o: WrapOptions, tool: DelegationTool, chained: boolean, reviewToLast = !chained): string[] {
-  const codex = (chained ? CODEX_CHAIN_RUN : CODEX_RUN)
-    .map((l) => l.replace('__PROFILE__', profileName(o)).replace('__REVIEWLAST__', reviewToLast ? '1' : ''))
-  const run = tool.filter === 'ccx'
-    ? CCX_RUN.map((l) => l.replace('__RUNS__', () => (o.runsDir ? shq(o.runsDir) : DEFAULT_RUNS)))
-    : tool.filter === 'claude' ? (reviewToLast ? CLAUDE_RUN : CLAUDE_CHAIN_RUN) : codex
+  const route = ROUTES[tool.filter]
+  const run = route.run(o, chained, reviewToLast)
   return [
     '#!/usr/bin/env bash',
     'D="$1"; ROOT="$2"; VIEW="$3"; CHAIN="$4"',
     ...RUN_ORIG,
     ...mdFunctions('$ROOT'),
-    ...(tool.filter === 'codex' ? [] : [streamJq('$ROOT')]),
+    ...(route.streamJq ? [streamJq('$ROOT')] : []),
     MKREST,
     'if [ "$CHAIN" = 1 ]; then export MCP_SEEN_MD="$D/mcp.md.seen" MCP_SEEN_LOG="$D/mcp.log.seen"; fi',
     // The pane's own title (the shell set one for the typed command) and a clear screen, so the

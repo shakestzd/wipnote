@@ -1,6 +1,6 @@
 // The delegation tools the mod puts in a herdr pane: one table, one recogniser.
-// Adding a tool is one entry here plus, if its log needs a new filter, a case in
-// wrap.ts's paneScript.
+// Adding a tool is one entry here; a new filter also needs its route in panescript.ts's
+// ROUTES (how it runs in the pane, its shim, its report), which the type system requires.
 
 export const MARKER = '# codex-herdr-pane'
 
@@ -12,7 +12,6 @@ export type DelegationTool = {
   // The same invocation anywhere, with the subcommand captured: for the label.
   loose: RegExp
   title: (sub: string, text: string) => string // the pane title up to the colon; text is the label's prompt
-  shim: boolean // inject the tool's shim (shim.ts): codex --output-last-message, claude stream-json
   filter: 'codex' | 'ccx' | 'claude' // how the pane turns the tool's output into a readable log
 }
 
@@ -42,15 +41,15 @@ const claudePrint = {
 export const TOOLS: readonly DelegationTool[] = [
   {
     name: 'codex', ...invocation('codex', 'exec|e|review', false),
-    title: (sub) => (sub === 'review' ? 'cdx review' : 'cdx'), shim: true, filter: 'codex', // short pane titles
+    title: (sub) => (sub === 'review' ? 'cdx review' : 'cdx'), filter: 'codex', // short pane titles
   },
   {
     name: 'ccx', ...invocation('ccx', 'task', true),
-    title: () => 'ccx task', shim: false, filter: 'ccx',
+    title: () => 'ccx task', filter: 'ccx',
   },
   {
     name: 'claude', ...claudePrint,
-    title: (_sub, text) => (text.startsWith('/code-review') ? 'Claude review' : 'Claude task'), shim: true, filter: 'claude',
+    title: (_sub, text) => (text.startsWith('/code-review') ? 'Claude review' : 'Claude task'), filter: 'claude',
   },
 ]
 
