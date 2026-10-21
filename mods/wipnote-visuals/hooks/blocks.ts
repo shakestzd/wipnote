@@ -110,6 +110,7 @@ export function splitBlocks(markdown: string): Segment[] {
 
 /** The model-facing rule, sent only while the mod is on. */
 export const RULE =
-  'Use fenced blocks for visuals: ```wip:steps (a step per line; `x ` done, `> ` current), ' +
-  '```wip:compare (`# Option*` marks the pick; `+ pro` and `- con` lines), ' +
-  '```wip:callout (`decision:`, `warning:` or `note:` then text). Use sparingly; do not repeat them in prose.'
+  'For steps use ```wip:steps instead of a numbered list (a step per line; `x ` done, `> ` current). ' +
+  'For options use ```wip:compare (`# Name*` marks the pick; `+ pro`, `- con`). ' +
+  'For a warning or decision use ```wip:callout (`warning:` or `decision:`, then text). ' +
+  'Say each thing once: never repeat a block in prose.'

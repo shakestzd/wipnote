@@ -36,3 +36,24 @@ What to act on:
 3. **"Do not repeat them in prose" is not honoured.** After a `wip:steps` block the reply often restates the steps as numbered prose. The rule is at ~95 of its 100 tokens, so shorten something else to make room for a stronger line.
 4. **The style helps the lint numbers a little** (long sentences 12 -> 3), but `negclose` fired twice under it. Check those two replies before turning the writing check on by default.
 5. n=2 is small. Raise `reps` before changing the rule on this evidence.
+
+## Run 2: rule reworded (2026-10-21, sonnet, n=3 per cell, 42 valid replies)
+
+Rule change: "for steps use `wip:steps` **instead of a numbered list**", "say each thing once: never repeat a block in prose", and "use sparingly" dropped. 78 tokens (was ~95).
+
+| Check | `rule` only | `rule` + Plain English style |
+|---|---|---|
+| steps prompt gives a `wip:steps` block | **3/3** (was 1/1) | **3/3** (was 0/2) |
+| compare prompt gives `wip:compare` | 3/3 | 3/3 |
+| callout prompt gives `wip:callout` | 3/3 | 3/3 |
+| Steps repeated as prose after a block | 0/3 | 0/3 |
+| Emitted fences that failed to parse | 0 | 0 |
+| Steps marked done (`x `) | 0 of 40 | 0 of 50 |
+| Average words / lint tells per reply | 224 / 0.4 | 204 / 0.3 |
+
+Follow-ups:
+
+1. **Style/steps conflict fixed.** It was solved in the mod's rule, not in the style.
+2. **Extra blocks on top of the asked-for one.** The callout prompt (force-push) got an added `compare` or `steps` block in 5/6 replies; the compare prompt got an added callout in 3/6. Dropping "use sparingly" probably caused this. Next try: add "Use only what the answer needs." (about 8 tokens, 86 total) and re-run.
+3. **Stray blocks on explanation prompts.** "What does git rebase do?" got all three blocks once in 6 (rule only, none under the style); the Go debugging question got a steps block once in 6. "Mutex vs channel" got `compare` in 5/6, which is arguably right for a "difference between" question, so treat it as a weak prompt, not a failure.
+4. **Style helps a little:** fewer words (204 vs 224), fewer long sentences (5 vs 8).
