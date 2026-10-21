@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Mod wipnote-visuals: reusable wip:* visual component blocks</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-ca6bd746"
+             data-type="feature"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-10-21T16:39:56.160417"
+             data-updated="2026-10-21T16:39:56.166528" data-agent-assigned="claude-code" data-track-id="trk-41158a40" data-created-by-cli-version="dev" data-affected_files="mods/wipnote-visuals" data-created_in_session="1820334f-1b8d-5685-962c-c63a534ec7d9" data-standalone_reason="design from conversation; follows wipnote-ref card pattern">
+
+        <header>
+            <h1>Mod wipnote-visuals: reusable wip:* visual component blocks</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-41158a40.html" data-relationship="part_of" data-since="2026-10-21T16:39:56.166353">trk-41158a40</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="false" data-step-id="step-feat-ca6bd746-0" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Scaffold mod with plugin.json hooks.json and types</li>
+                <li data-completed="false" data-step-id="step-feat-ca6bd746-1" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Pure parsers with tests for steps compare callout</li>
+                <li data-completed="false" data-step-id="step-feat-ca6bd746-2" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Render components for terminal and desktop</li>
+                <li data-completed="false" data-step-id="step-feat-ca6bd746-3" data-agent="claude-code" data-created-by-agent="claude-code">⏳ prompt.compose rule under 100 tokens and /visuals command</li>
+                <li data-completed="false" data-step-id="step-feat-ca6bd746-4" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Measure model emit reliability and fix the syntax</li>
+                <li data-completed="false" data-step-id="step-feat-ca6bd746-5" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Add check bars tree components</li>
+                <li data-completed="false" data-step-id="step-feat-ca6bd746-6" data-agent="claude-code" data-created-by-agent="claude-code">⏳ README and version</li>
+            </ol>
+        </section>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>New Claude Code mod modeled on mods/wipnote-orchestra (refcards.tsx, refs.ts). A one-paragraph prompt.compose rule tells the model to emit fenced blocks wip:steps, wip:compare, wip:callout, then wip:check, wip:bars, wip:tree. The model sends only inputs; the mod parses each fence and draws it through ui.render on AssistantMessage. Each parser is a pure function with tests, on terminal and desktop surfaces. Blocks must degrade to readable plain text without the mod. Inputs: steps = one step per line with optional done/next; compare = options with + pros, - cons, * recommended; callout = decision|warning: text; check = item: ok|no|warn; bars = label: value/max; tree = indented lines. Open question to settle by testing: which block syntax the model emits reliably. Keep the rule under 100 tokens. Add a /visuals on|off command.</p>
+        </section>
+    </article>
+</body>
+</html>
