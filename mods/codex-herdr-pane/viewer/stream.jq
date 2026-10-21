@@ -7,7 +7,7 @@
 #                                                            flushed (a log still being written); md needs -n (inputs)
 #   jq -R -r --arg mode pane -f stream.jq                    view, but a line that is not JSON (stderr, text
 #                                                            output) passes as it is: a headless claude in a pane
-#   jq -n -R -r --arg mode answer -f stream.jq               the last result event's text (what claude -p prints)
+#   jq -n -R -r --arg mode answer -f stream.jq               the last result event's text (what claude -p prints); none when empty
 #   jq -n -R -r --arg mode usage -f stream.jq                the tokens and cost of every result event, one line
 #   jq -n -R -r --arg mode end -f stream.jq                  both in one pass: the usage line (empty when there
 #                                                            is no result), then the answer when there is one
@@ -70,7 +70,7 @@ def mdstream($flush):
     ({pend: [], out: null}; step($it; $flush); .out | select(. != null));
 def results: [inputs | (try fromjson catch null) | select(type == "object" and .type == "result")];
 def total(f): map(f // 0) | add;
-def answer: last | .result? // empty | strings;
+def answer: last | .result? // empty | strings | select(. != "");  # an empty answer is none: the report shows the log
 def usage: select(length > 0) | total(.total_cost_usd) as $c
   | "\(total(.usage.input_tokens)) in / \(total(.usage.output_tokens)) out tokens\(if $c > 0 then ", $\($c * 10000 | round / 10000)" else "" end)";
 ($ARGS.named.mode // "view") as $mode
@@ -79,5 +79,5 @@ def usage: select(length > 0) | total(.total_cost_usd) as $c
   elif $mode == "pane" then (. as $l | (try fromjson catch null) as $j | if ($j | type) == "object" then ($j | events | txt) else $l end)
   elif $mode == "answer" then (results | answer)
   elif $mode == "usage" then (results | usage)
-  elif $mode == "end" then (results | ((usage // ""), (answer | select(. != ""))))
+  elif $mode == "end" then (results | ((usage // ""), answer))
   else (fromjson? | events | txt) end

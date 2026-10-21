@@ -2,7 +2,7 @@
 
 import type { DelegationTool } from './tools.ts'
 import type { WrapOptions } from './wrap.ts'
-import { AWAIT_MD_FN, mdFunctions, streamJq } from './mdpipe.ts'
+import { MDWRITER_FN, mdFunctions, streamJq } from './mdpipe.ts'
 import { CLAUDE_SHIM, SHIM } from './shim.ts'
 
 // The Textual versions the viewer was tested on, defined once. The `uv run --with` in the pane
@@ -62,24 +62,31 @@ const CODEX_CHAIN_RUN = [
 // For claude: the shim (shim.ts) adds stream-json, so codex's route serves with stream.jq in
 // codex.jq's place: the output (stderr merged) goes to raw.log untouched, then through
 // stream.jq's pane mode (events become text, any other line passes) into clean.log; its md
-// mode writes clean.md live, and the run ends only once that writer has (await_md, mdpipe.ts),
-// so clean.md is whole without a second render. One more pass over raw.log (stream.jq's end
-// mode) gives the usage, the tokens and cost of every result, then the answer, the last
-// result's text, which a chained call's shim has already written. When stdout is the
+// mode writes clean.md live, and the run ends only once that writer has (mdwriter, mdpipe.ts),
+// so clean.md is whole without a second render; only a writer that failed has it rendered again
+// from raw.log. One more pass over raw.log (stream.jq's end mode) gives the usage, the tokens and
+// cost of every result, then the answer, the last result's text, which a chained call's shim has
+// already written. If that pass fails, the answer is read alone and the log says the usage could
+// not be, so a fault in one never costs the other. When stdout is the
 // caller's (a chained call, or a standalone one that redirects it: reviewToLast false) the shim
 // feeds the logs and writes the answer itself; __CODEX_LAST names the answer for rest.awk, which
 // drops its copy from the rest of the command.
 const CLAUDE_ENV = 'export __CLAUDE_LAST="$D/last.md" __CLAUDE_D="$D" __CLAUDE_ROOT="$ROOT"'
 const CLAUDE_END = [
-  '  jqs end < "$D/raw.log" > "$D/end.out"',
-  '  { IFS= read -r u; if [ -n "$u" ]; then printf "%s\\n" "$u"; fi > "$D/usage"; [ -s "$D/last.md" ] || cat > "$D/last.md"; } < "$D/end.out"; rm -f "$D/end.out"',
+  '  if jqs end < "$D/raw.log" > "$D/end.out"; then',
+  '    { IFS= read -r u; if [ -n "$u" ]; then printf "%s\\n" "$u"; fi > "$D/usage"; [ -s "$D/last.md" ] || cat > "$D/last.md"; } < "$D/end.out"',
+  '  else',
+  '    : > "$D/usage"; [ -s "$D/last.md" ] || jqs answer < "$D/raw.log" > "$D/last.md"',
+  '    echo "*the usage could not be read from raw.log (stream.jq end pass failed)*" | tee -a "$D/clean.log" >> "$D/clean.md"',
+  '  fi; rm -f "$D/end.out"',
   '  echo "$X" > "$D/exit.tmp"; date +%s > "$D/end"; mv "$D/exit.tmp" "$D/exit"',
 ]
 const CLAUDE_RUN = [
   '  ' + CLAUDE_ENV,
-  '  ' + AWAIT_MD_FN, '  : > "$D/md.pending"',
-  '  bash -c \'. "$1/shim.sh"; . "$1/orig.sh"\' _ "$D" 2>&1 | tee "$D/raw.log" >(jqs md >> "$D/clean.md"; rm -f "$D/md.pending") | jqs pane > "$D/clean.log"',
-  '  X="${PIPESTATUS[0]}"; await_md "$D/md.pending"',
+  '  ' + MDWRITER_FN,
+  '  bash -c \'. "$1/shim.sh"; . "$1/orig.sh"\' _ "$D" 2>&1 | tee "$D/raw.log" >(mdwriter "$D/clean.md" "$D/md.st") | jqs pane > "$D/clean.log"',
+  '  X="${PIPESTATUS[0]}"',
+  '  [ "$(cat "$D/md.st" 2>/dev/null)" = 0 ] || { jqs md < "$D/raw.log" > "$D/clean.md.tmp" && mv "$D/clean.md.tmp" "$D/clean.md"; }; rm -f "$D/md.st"',
   ...CLAUDE_END,
 ]
 const CLAUDE_CHAIN_RUN = [

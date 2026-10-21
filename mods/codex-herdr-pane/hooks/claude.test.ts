@@ -87,13 +87,27 @@ test('one stream.jq helper serves ccx and claude', () => {
   expect(buildWrapper('codex exec "x"', defaults)).not.toContain('jqs()')
 })
 
-test('the Markdown writer is waited for: chained before the answer, standalone before the end pass', () => {
+test('the Markdown writer keeps its subshell (so the pipeline waits), records its status and drains stdin', () => {
   const cs = CLAUDE_SHIM.join('\n')
-  expect(cs).toContain('>(jqs md >> "$__CLAUDE_D/clean.md"; rm -f "$cl.pending")')
-  expect(cs.indexOf('await_md "$cl.pending"')).toBeLessThan(cs.indexOf('jqs answer < "$cl"'))
   const text = buildWrapper('claude -p "x"', defaults)
-  expect(text).toContain('>(jqs md >> "$D/clean.md"; rm -f "$D/md.pending")')
-  expect(text).toContain('X="${PIPESTATUS[0]}"; await_md "$D/md.pending"')
-  expect(text).not.toContain('clean.md.tmp') // no second render of raw.log
-  expect(text.match(/jqs (end|answer|usage) < "\$D\/raw.log"/g)).toEqual(['jqs end < "$D/raw.log"']) // one pass
+  for (const t of [cs, text]) expect(t).toContain('mdwriter() { jqs md >> "$1"; echo "$?" > "$2"; cat > /dev/null; }')
+  expect(cs).toContain('>(mdwriter "$__CLAUDE_D/clean.md" "$cl.st")')
+  expect(text).toContain('>(mdwriter "$D/clean.md" "$D/md.st")')
+  expect(cs + text).not.toContain('await_md') // no polling: the pipeline itself waits
+})
+
+test('a failed writer is repaired: standalone re-renders raw.log, chained adds the call after a note', () => {
+  const cs = CLAUDE_SHIM.join('\n')
+  expect(cs).toContain('[ "$(cat "$cl.st" 2>/dev/null)" = 0 ] || { printf')
+  expect(cs).toContain('the live log of this call was cut short')
+  expect(cs.indexOf('jqs md < "$cl"')).toBeLessThan(cs.indexOf('jqs answer < "$cl"'))
+  const text = buildWrapper('claude -p "x"', defaults)
+  expect(text).toContain('[ "$(cat "$D/md.st" 2>/dev/null)" = 0 ] || { jqs md < "$D/raw.log" > "$D/clean.md.tmp"')
+})
+
+test('the end reads raw.log once; if that pass fails the answer is read alone and the log says so', () => {
+  const text = buildWrapper('claude -p "x"', defaults)
+  expect(text).toContain('if jqs end < "$D/raw.log" > "$D/end.out"; then')
+  expect(text).toContain('else\n    : > "$D/usage"; [ -s "$D/last.md" ] || jqs answer < "$D/raw.log" > "$D/last.md"')
+  expect(text).toContain('the usage could not be read from raw.log')
 })

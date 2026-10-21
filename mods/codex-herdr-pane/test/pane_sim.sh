@@ -402,29 +402,50 @@ has "claude at once: usage counts both calls" "command exited 0 after" <(echo "$
 has "claude at once: usage sums both" "8 in / 222 out tokens" <(echo "$OUT")
 eq "claude at once: no call files left behind" "$(ls "$D" | grep -c '^call\.')" 0
 
-# --- a slow Markdown writer: clean.md is whole once the call returns (no race with the exit file) ---
-# The jq wrapper holds a Markdown writer's output (--arg mode md) until 4 s after its input ends,
-# past run's 1.5 s settle; every other jq runs as is.
-mkdir -p "$T/slowjq"; REALJQ=$(command -v jq)
-cat > "$T/slowjq/jq" <<SLOW
+# --- a slow or failing Markdown writer (--arg mode md): clean.md is whole and in order once the call returns ---
+# SIMMD=slow: the writer sleeps 4 s (past run's 1.5 s settle), then execs the real jq binary, so the
+# process that writes is jq itself and its output is byte for byte jq's. SIMMD=fail: the live
+# writer (its input a pipe) exits 1 before reading anything, as a writer that died would; a render
+# from a file (the repair) runs. Every other jq is the real one. Each Markdown render is logged to
+# $SIMLOG.jqmd as pipe (the live writer) or file (a repair), so a healthy run can be told from one
+# whose writer was repaired: both end with a whole clean.md.
+mkdir -p "$T/mdjq"; REALJQ=$(command -v jq)
+cat > "$T/mdjq/jq" <<MDJQ
 #!/usr/bin/env bash
-case " \$* " in *" --arg mode md "*) out=\$("$REALJQ" "\$@"); rc=\$?; sleep 4; printf '%s\\n' "\$out"; exit \$rc;; esac
+case " \$* " in *" --arg mode md "*) { [ -p /dev/stdin ] && echo pipe || echo file; } >> "\$SIMLOG.jqmd"; case "\${SIMMD:-}" in slow) sleep 4;; fail) [ -p /dev/stdin ] && exit 1;; esac;; esac
 exec "$REALJQ" "\$@"
-SLOW
-chmod +x "$T/slowjq/jq"
-export SIMPATH="$T/slowjq"
+MDJQ
+chmod +x "$T/mdjq/jq"
+export SIMPATH="$T/mdjq"
+render() { "$REALJQ" -n -R -r --arg mode md -f "$ROOT/viewer/stream.jq" < "$1"; }
+before_after() { awk '/success in 4s/ { f = NR } /^AFTER$/ { a = NR } END { exit !(f && a && f < a) }' "$1"; }
+export SIMMD=slow
 run 'claude -p "x" | tail -1; echo AFTER'
 has "slow md, claude chained: clean.md has the final result" "*success in 4s, 2 turns" "$D/clean.md"
 has "slow md, claude chained: and the rest of the command" "AFTER" "$D/clean.md"
-awk '/success in 4s/ { f = NR } /^AFTER$/ { a = NR } END { exit !(f && a && f < a) }' "$D/clean.md" \
-  && ok "slow md, claude chained: claude's Markdown comes before the rest of the command" || bad "slow md, claude chained: claude's Markdown comes before the rest of the command"
-eq "slow md, claude chained: no marker left behind" "$(ls "$D" | grep -c 'pending')" 0
+before_after "$D/clean.md" && ok "slow md, claude chained: claude's Markdown comes before the rest of the command" || bad "slow md, claude chained: claude's Markdown comes before the rest of the command"
+eq "slow md, claude chained: no call file left behind" "$(ls "$D" | grep -c '^call\.')" 0
+eq "slow md, claude chained: the live writer was waited for, not repaired" "$(sort -u "$T/log.jqmd" | tr '\n' ' ')" "pipe "
+nothas "slow md, claude chained: no cut-short note" "cut short" "$D/clean.md"
 run 'claude -p "x"'
-has "slow md, claude standalone: clean.md has the final result" "*success in 4s, 2 turns" "$D/clean.md"
-eq "slow md, claude standalone: clean.md is the whole render of raw.log" "$(cat "$D/clean.md")" "$("$REALJQ" -n -R -r --arg mode md -f "$ROOT/viewer/stream.jq" < "$D/raw.log")"
+render "$D/raw.log" > "$T/expect.md"
+cmp -s "$D/clean.md" "$T/expect.md" && ok "slow md, claude standalone: clean.md is byte for byte the render of raw.log" || { bad "slow md, claude standalone: clean.md is byte for byte the render of raw.log"; diff "$T/expect.md" "$D/clean.md" | head -5; }
+eq "slow md, claude standalone: the live writer was waited for, not repaired" "$(sort -u "$T/log.jqmd" | tr '\n' ' ')" "pipe "
+eq "slow md, claude standalone: no rebuild file left" "$(ls "$D" | grep -c 'clean.md.tmp\|md.st\|end.out')" 0
 run 'echo before; codex exec "hello" | tail -1'
 has "slow md, codex chained: clean.md has the final usage" "*input 24,603 (cached 0), output 5*" "$D/clean.md"
-unset SIMPATH
+export SIMMD=fail
+run 'claude -p "x"'
+render "$D/raw.log" > "$T/expect.md"
+cmp -s "$D/clean.md" "$T/expect.md" && ok "failed md, claude standalone: clean.md rebuilt whole from raw.log" || { bad "failed md, claude standalone: clean.md rebuilt whole from raw.log"; diff "$T/expect.md" "$D/clean.md" | head -5; }
+has "failed md, claude standalone: raw.log is whole (the writer's death did not cut tee)" '"type":"result"' "$D/raw.log"
+has "failed md, claude standalone: the rebuilt clean.md has the final result" "*success in 4s, 2 turns" "$D/clean.md"
+has "failed md, claude standalone: the answer still returns" "$A" <(echo "$OUT")
+run 'claude -p "x" | tail -1; echo AFTER'
+has "failed md, claude chained: says the live log was cut" "the live log of this call was cut short" "$D/clean.md"
+before_after "$D/clean.md" && ok "failed md, claude chained: the call's whole render, before the rest" || bad "failed md, claude chained: the call's whole render, before the rest"
+has "failed md, claude chained: the answer still returns" "$A" <(echo "$OUT")
+unset SIMPATH SIMMD
 
 rm -rf "$T"
 [ "$fails" = 0 ] && echo "pane simulation passed" || { echo "$fails failed"; exit 1; }

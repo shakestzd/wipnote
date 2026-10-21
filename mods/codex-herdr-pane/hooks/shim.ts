@@ -1,4 +1,4 @@
-import { AWAIT_MD_FN, NL_FN, mdFunctions, streamJq } from './mdpipe.ts'
+import { MDWRITER_FN, NL_FN, mdFunctions, streamJq } from './mdpipe.ts'
 
 // The shell function that stands in for `codex` inside the pane. Pure text.
 //
@@ -77,11 +77,12 @@ export const SHIM = [
 // the stream to the pane only and prints the answer (the result event's text), which is what a
 // plain `claude -p` prints. Each call streams into a file of its own, so calls running at once
 // in one command never read each other's answer; the newest to end is the run's last.md. The
-// call returns only once its Markdown is in clean.md (await_md), so what the command prints next
-// lands after it, and the run's end never comes before it.
+// call returns only once its Markdown is in clean.md (mdwriter, mdpipe.ts), so what the command
+// prints next lands after it. If the writer failed, the call's whole render is added after a note
+// saying the live one was cut: clean.md holds the rest of the command too, so it is never redone.
 export const CLAUDE_SHIM = [
   streamJq('$__CLAUDE_ROOT'),
-  AWAIT_MD_FN,
+  MDWRITER_FN,
   NL_FN,
   // __PRE: the flags to add, none when the call is not print mode or names its own format
   '__claude_pre() {',
@@ -99,10 +100,12 @@ export const CLAUDE_SHIM = [
   '  __claude_pre "$@"',
   '  if [ "${#__PRE[@]}" = 0 ] || [ -z "${__CLAUDE_LAST:-}" ]; then "${head[@]}" "$@"; return; fi',
   '  if [ -z "${__CLAUDE_CHAIN:-}" ]; then "${head[@]}" "${__PRE[@]}" "$@"; return; fi',
-  '  local cl; cl=$(mktemp "$__CLAUDE_D/call.XXXXXX") || { "${head[@]}" "$@"; return; }; : > "$cl.pending"',
-  '  "${head[@]}" "${__PRE[@]}" "$@" | tee -a "$__CLAUDE_D/raw.log" "$cl" >(jqs md >> "$__CLAUDE_D/clean.md"; rm -f "$cl.pending") | jqs pane >> "$__CLAUDE_D/clean.log"',
-  '  rc="${PIPESTATUS[0]}"; await_md "$cl.pending"; jqs answer < "$cl" > "$cl.md"; cat "$cl.md"; nl_if_open "$cl.md"',
-  '  mv -f "$cl.md" "$__CLAUDE_LAST"; rm -f "$cl"; return "$rc"',
+  '  local cl; cl=$(mktemp "$__CLAUDE_D/call.XXXXXX") || { "${head[@]}" "$@"; return; }',
+  '  "${head[@]}" "${__PRE[@]}" "$@" | tee -a "$__CLAUDE_D/raw.log" "$cl" >(mdwriter "$__CLAUDE_D/clean.md" "$cl.st") | jqs pane >> "$__CLAUDE_D/clean.log"',
+  '  rc="${PIPESTATUS[0]}"',
+  '  [ "$(cat "$cl.st" 2>/dev/null)" = 0 ] || { printf "\\n*the live log of this call was cut short; its whole log follows*\\n\\n"; jqs md < "$cl"; } >> "$__CLAUDE_D/clean.md"',
+  '  jqs answer < "$cl" > "$cl.md"; cat "$cl.md"; nl_if_open "$cl.md"',
+  '  mv -f "$cl.md" "$__CLAUDE_LAST"; rm -f "$cl" "$cl.st"; return "$rc"',
   '}',
   'claude() { __claude_go 2 command claude "$@"; }',
   // dev exec: skip -d <dir> (or -d=<dir>, -d<dir>); a claude word next is the run, anything else runs untouched
