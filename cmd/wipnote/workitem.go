@@ -370,7 +370,7 @@ func wiSetStatusWithAgent(typeName, id, status, sessionID, agentID string) error
 	// need a research record or --research-waiver; config decides warn vs block.
 	if status == "done" {
 		if err := checkResearchCompleteGate(os.Stderr, filepath.Dir(dir), col, id, wiResearchWaiver); err != nil {
-			return err
+			return fmt.Errorf("refusing to complete %s %s: %w", typeName, id, err)
 		}
 	}
 	if status == "done" && shouldAutocommitWorkitemArtifact(typeName) {

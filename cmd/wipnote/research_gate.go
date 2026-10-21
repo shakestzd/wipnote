@@ -37,10 +37,7 @@ func checkResearchCompleteGate(w io.Writer, projectRoot string, col *workitem.Co
 	for _, msg := range warns {
 		fmt.Fprintln(w, msg)
 	}
-	if gateErr != nil {
-		return fmt.Errorf("refusing to complete: %w", gateErr)
-	}
-	return nil
+	return gateErr
 }
 
 // checkResearchGateForWorkItem is the `check --gate --work-item` entry point.
