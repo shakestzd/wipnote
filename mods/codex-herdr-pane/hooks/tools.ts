@@ -1,6 +1,6 @@
 // The delegation tools the mod puts in a herdr pane: one table, one recogniser.
-// Adding a tool is one entry here plus, if its log needs a new filter, a case in
-// wrap.ts's paneScript.
+// Adding a tool is one entry here; a new filter also needs its route in panescript.ts's
+// ROUTES (how it runs in the pane, its shim, its report), which the type system requires.
 
 export const MARKER = '# codex-herdr-pane'
 
@@ -11,9 +11,8 @@ export type DelegationTool = {
   pattern: RegExp
   // The same invocation anywhere, with the subcommand captured: for the label.
   loose: RegExp
-  title: (sub: string) => string // the pane title up to the colon
-  shim: boolean // inject the answer-file shim (codex --output-last-message)
-  filter: 'codex' | 'ccx' // how the pane turns the tool's output into a readable log
+  title: (sub: string, text: string) => string // the pane title up to the colon; text is the label's prompt
+  filter: 'codex' | 'ccx' | 'claude' // how the pane turns the tool's output into a readable log
 }
 
 function invocation(name: string, subs: string, path: boolean) {
@@ -24,18 +23,40 @@ function invocation(name: string, subs: string, path: boolean) {
   }
 }
 
+// Headless Claude: claude with -p or --print among its own words (on its own line, or across
+// backslash-newlines), bare or behind `dev exec [-d <dir>]` (a helper that runs its arguments in
+// a Docker Compose container). Bare means the word claude: the shim (shim.ts) is a shell function,
+// which a path such as /usr/local/bin/claude would bypass; behind dev exec any path is the
+// container's and dev() sees it. A first word naming a subcommand (claude mcp, claude plugin, ...)
+// is never a run, whatever follows it.
+const CLAUDE_SUBS = 'mcp|plugins?|auth|agents|attach|auto-mode|daemon|doctor|gateway|import|install|logs|purge|remote-control|respawn|rm|self-hosted-runner|setup-token|stop|kill|ultrareview|update'
+const WS = String.raw`(?:[ \t]|\\\n)+`
+const DEV_EXEC = String.raw`(?:dev${WS}exec${WS}(?:-d(?:${WS}|=)?\S+${WS})?(?:\S*\/)?)?`
+const claudePrint = {
+  pattern: new RegExp(String.raw`(?:^|[;&|(\n])\s*(?:[A-Za-z_][A-Za-z0-9_]*=\S*\s+)*${DEV_EXEC}claude`
+    + String.raw`(?!${WS}(?:${CLAUDE_SUBS})(?=\s|$))(?:${WS}[^\s;&|()]+)*?${WS}(?:-p|--print)(?=\s|$)`),
+  loose: /claude\b[^;&|\n]*?\s(-p|--print)(?=\s|$)/,
+}
+
 export const TOOLS: readonly DelegationTool[] = [
   {
     name: 'codex', ...invocation('codex', 'exec|e|review', false),
-    title: (sub) => (sub === 'review' ? 'cdx review' : 'cdx'), shim: true, filter: 'codex', // short pane titles
+    title: (sub) => (sub === 'review' ? 'cdx review' : 'cdx'), filter: 'codex', // short pane titles
   },
   {
     name: 'ccx', ...invocation('ccx', 'task', true),
-    title: () => 'ccx task', shim: false, filter: 'ccx',
+    title: () => 'ccx task', filter: 'ccx',
+  },
+  {
+    name: 'claude', ...claudePrint,
+    title: (_sub, text) => (text.startsWith('/code-review') ? 'Claude review' : 'Claude task'), filter: 'claude',
   },
 ]
 
 const INFO_ONLY = /\s(?:--help|-h|--version|-V)(?=\s|$)/
+// A claude run that names its own --output-format is left as asked, unwrapped: its stdout (json,
+// text) is the caller's to read, and holds nothing the pane could show while it runs.
+const OWN_FORMAT = /\s--output-format(?:=|\s|$)/
 
 // Quoted strings and heredoc bodies hold prompts and text, not commands, so
 // they are blanked before the command is searched for an invocation.
@@ -45,16 +66,26 @@ function blankText(command: string): string {
     .replace(/'[^']*'|"(?:\\.|[^"\\])*"/g, '""')
 }
 
+// The words of the invocation the tool's pattern found, up to the next separator
+function ownWords(tool: DelegationTool, text: string): string {
+  const at = tool.pattern.exec(text)?.index ?? 0
+  return text.slice(at).replace(/\\\n/g, ' ').replace(/^[;&|(\n]/, '').split(/[;&|\n]/)[0] ?? ''
+}
+
+// codex and ccx: an info flag anywhere means no run. claude: only its own words are looked at,
+// so `claude -p "x" | sort -h` is still a run.
 export function toolFor(command: string): DelegationTool | undefined {
   if (command.includes(MARKER)) return undefined
   const text = blankText(command)
-  if (INFO_ONLY.test(text)) return undefined
-  return TOOLS.find((t) => t.pattern.test(text))
+  const tool = TOOLS.find((t) => t.pattern.test(text))
+  if (!tool || tool.name !== 'claude') return tool && !INFO_ONLY.test(text) ? tool : undefined
+  const own = ownWords(tool, text)
+  return INFO_ONLY.test(own) || OWN_FORMAT.test(own) ? undefined : tool
 }
 
 // Standalone or chained. A call is STANDALONE when, with quoted text and heredoc
 // bodies blanked and every redirection removed, it is exactly one delegation
-// invocation: it starts at the tool (behind optional VAR=value words) and holds no
+// invocation: it starts at the tool (behind optional VAR=value words, or dev exec) and holds no
 // ; & | newline, backtick, $( or ( ) { }. Then the pane's stdout is the tool's own
 // raw stream (Codex JSONL), which the caller must not see, and the report alone is
 // returned. Anything else is CHAINED: other commands, or a pipe, whose output the
@@ -102,5 +133,5 @@ export function paneLabel(command: string): string {
   // value (-C "$PWD")
   const quoted = prompt?.[3]
   const text = heredocText(command) || quoted?.replace(/\s+/g, ' ').trim() || (sub === 'review' ? reviewTarget(command) : '')
-  return `${tool.title(sub)}: ${text ? text.slice(0, 48).trim() : 'running'}`
+  return `${tool.title(sub, text)}: ${text ? text.slice(0, 48).trim() : 'running'}`
 }

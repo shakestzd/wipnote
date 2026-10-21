@@ -26,6 +26,21 @@ export function mdFunctions(root: string): string[] {
   ]
 }
 
+// jqs <mode>: stream.jq (claude's stream-json, for ccx and headless claude) in one of its modes;
+// every mode but the line-at-a-time ones (view, pane) reads the whole stream, so needs -n.
+export const streamJq = (root: string): string =>
+  `jqs() { local nf=; case "$1" in view|pane) ;; *) nf=-n;; esac; jq --unbuffered $nf -R -r --arg mode "$1" -f "${root}/viewer/stream.jq" 2>/dev/null; }`
+
+// mdwriter <clean.md> <status file>: claude's live Markdown writer, run as `tee ... >(mdwriter ...)`.
+// A process substitution's subshell holds a copy of tee's stdout, and the pipeline ends only once
+// every copy is closed. Were jq the subshell's last command, bash would exec it with that stdout
+// redirected, the copy would close at once and the pipeline would end without waiting for the
+// writer. The commands after jq keep the subshell, so the pipeline waits for the writer: they
+// record jq's status (a failed writer's clean.md is repaired by its caller) and drain stdin, so a
+// writer that died never cuts tee off with SIGPIPE and loses raw.log. mdcodex is waited for the
+// same way: it is a pipeline.
+export const MDWRITER_FN = 'mdwriter() { jqs md >> "$1"; echo "$?" > "$2"; cat > /dev/null; }'
+
 // Prints a newline when the file's last byte is not one (so a report never ends mid-line and
 // never gets a blank line it did not need). $(tail -c1) is empty exactly when the file is
 // empty or ends in a newline.

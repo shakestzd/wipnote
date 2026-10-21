@@ -2,7 +2,8 @@
 
 import type { DelegationTool } from './tools.ts'
 import type { WrapOptions } from './wrap.ts'
-import { mdFunctions } from './mdpipe.ts'
+import { MDWRITER_FN, mdFunctions, streamJq } from './mdpipe.ts'
+import { CLAUDE_SHIM, SHIM } from './shim.ts'
 
 // The Textual versions the viewer was tested on, defined once. The `uv run --with` in the pane
 // script uses it; codex_view.py's inline header repeats it because a script header cannot
@@ -58,6 +59,44 @@ const CODEX_CHAIN_RUN = [
   ...USAGE,
 ]
 
+// For claude: the shim (shim.ts) adds stream-json, so codex's route serves with stream.jq in
+// codex.jq's place: the output (stderr merged) goes to raw.log untouched, then through
+// stream.jq's pane mode (events become text, any other line passes) into clean.log; its md
+// mode writes clean.md live, and the run ends only once that writer has (mdwriter, mdpipe.ts),
+// so clean.md is whole without a second render; only a writer that failed has it rendered again
+// from raw.log. One more pass over raw.log (stream.jq's end mode) gives the usage, the tokens and
+// cost of every result, then the answer, the last result's text, which a chained call's shim has
+// already written. If that pass fails, the answer is read alone and the log says the usage could
+// not be, so a fault in one never costs the other. When stdout is the
+// caller's (a chained call, or a standalone one that redirects it: reviewToLast false) the shim
+// feeds the logs and writes the answer itself; __CODEX_LAST names the answer for rest.awk, which
+// drops its copy from the rest of the command.
+const CLAUDE_ENV = 'export __CLAUDE_LAST="$D/last.md" __CLAUDE_D="$D" __CLAUDE_ROOT="$ROOT"'
+const CLAUDE_END = [
+  '  if jqs end < "$D/raw.log" > "$D/end.out"; then',
+  '    { IFS= read -r u; if [ -n "$u" ]; then printf "%s\\n" "$u"; fi > "$D/usage"; [ -s "$D/last.md" ] || cat > "$D/last.md"; } < "$D/end.out"',
+  '  else',
+  '    : > "$D/usage"; [ -s "$D/last.md" ] || jqs answer < "$D/raw.log" > "$D/last.md"',
+  '    echo "*the usage could not be read from raw.log (stream.jq end pass failed)*" | tee -a "$D/clean.log" >> "$D/clean.md"',
+  '  fi; rm -f "$D/end.out"',
+  '  echo "$X" > "$D/exit.tmp"; date +%s > "$D/end"; mv "$D/exit.tmp" "$D/exit"',
+]
+const CLAUDE_RUN = [
+  '  ' + CLAUDE_ENV,
+  '  ' + MDWRITER_FN,
+  '  bash -c \'. "$1/shim.sh"; . "$1/orig.sh"\' _ "$D" 2>&1 | tee "$D/raw.log" >(mdwriter "$D/clean.md" "$D/md.st") | jqs pane > "$D/clean.log"',
+  '  X="${PIPESTATUS[0]}"',
+  '  [ "$(cat "$D/md.st" 2>/dev/null)" = 0 ] || { jqs md < "$D/raw.log" > "$D/clean.md.tmp" && mv "$D/clean.md.tmp" "$D/clean.md"; }; rm -f "$D/md.st"',
+  ...CLAUDE_END,
+]
+const CLAUDE_CHAIN_RUN = [
+  '  : > "$D/raw.log"; : > "$D/clean.log"',
+  '  ' + CLAUDE_ENV + ' __CLAUDE_CHAIN=1 __CODEX_LAST="$D/last.md"',
+  '  run_orig bash -c \'. "$1/shim.sh"; . "$1/orig.sh"\' _ "$D"; X=$?',
+  '  mkrest',
+  ...CLAUDE_END,
+]
+
 // For ccx: stdout (the status line and the result) goes to out.txt untouched and
 // stderr to err.log. A follower finds the run's stream-json log: a *.jsonl that was not in
 // the runs directory when the pane started and that no other pane has claimed (an atomic
@@ -104,7 +143,6 @@ const CCX_RUN = [
   '  ls -1 "$RUNS" 2>/dev/null | grep "\\.jsonl$" > "$D/before"',
   '  if [ ! -d "$RUNS" ]; then printf "*ccx runs directory not found: %s (set ccxRunsDir or CCX_RUNS_DIR)*\\n" "$RUNS" | tee -a "$D/clean.log" >> "$D/clean.md"; fi',
   '  claim() { ls -1 "$RUNS" 2>/dev/null | grep "\\.jsonl$" | grep -vxFf "$D/before" | while IFS= read -r c; do mkdir "$CLAIMS/$c" 2>/dev/null && { printf "%s\\n" "$RUNS/$c"; break; }; done; }',
-  '  jqs() { nf=; [ "$1" = view ] || nf=-n; jq --unbuffered $nf -R -r --arg mode "$1" -f "$ROOT/viewer/stream.jq" 2>/dev/null; }',
   '  W=0  # bytes of the Markdown render already in clean.md: it is only ever appended to',
   '  render() { sed -n "$1,$2p" "$f" > "$D/chunk"; jqs view < "$D/chunk" >> "$D/clean.log"',
   '    sed -n "1,$2p" "$f" | jqs "$3" > "$D/md.tmp"; tail -c +"$((W+1))" "$D/md.tmp" >> "$D/clean.md"; W=$(wc -c < "$D/md.tmp" | tr -d " "); }',
@@ -150,19 +188,45 @@ const profileName = (o: WrapOptions) => (o.leanProfile ? o.leanProfileName.repla
 const DEFAULT_RUNS = '"$HOME/work/_shared/claude-container/runs"'
 const shq = (s: string) => `'${s.replace(/'/g, `'\\''`)}'`
 
-// reviewToLast: a standalone call that does not redirect stdout itself, so a review's final message
-// may go to the answer file (shim.ts).
+// How each tool's log filter (tools.ts) runs: one route per filter, so a new filter without
+// one is a type error rather than a silent fall back to codex's.
+//   run       the background half of the pane script. reviewToLast: a standalone call that does
+//             not redirect stdout itself, so the final answer may go to the answer file (shim.ts)
+//   shim      sourced before the command, if the tool has one (shim.ts)
+//   report    answer: a status line, then the answer file or the log's end (codex, claude);
+//             stdout: the tool's own stdout and stderr, as an unwrapped run returns (ccx)
+//   streamJq  the run reads claude's stream-json through stream.jq (mdpipe.ts)
+export type Route = {
+  run: (o: WrapOptions, chained: boolean, reviewToLast: boolean) => readonly string[]
+  shim?: readonly string[]
+  report: 'answer' | 'stdout'
+  streamJq: boolean
+}
+export const ROUTES: Record<DelegationTool['filter'], Route> = {
+  codex: {
+    run: (o, chained, reviewToLast) => (chained ? CODEX_CHAIN_RUN : CODEX_RUN)
+      .map((l) => l.replace('__PROFILE__', profileName(o)).replace('__REVIEWLAST__', reviewToLast ? '1' : '')),
+    shim: SHIM, report: 'answer', streamJq: false,
+  },
+  ccx: {
+    run: (o) => CCX_RUN.map((l) => l.replace('__RUNS__', () => (o.runsDir ? shq(o.runsDir) : DEFAULT_RUNS))),
+    report: 'stdout', streamJq: true,
+  },
+  claude: {
+    run: (_o, _chained, reviewToLast) => (reviewToLast ? CLAUDE_RUN : CLAUDE_CHAIN_RUN),
+    shim: CLAUDE_SHIM, report: 'answer', streamJq: true,
+  },
+}
+
 export function paneScript(o: WrapOptions, tool: DelegationTool, chained: boolean, reviewToLast = !chained): string[] {
-  const codex = (chained ? CODEX_CHAIN_RUN : CODEX_RUN)
-    .map((l) => l.replace('__PROFILE__', profileName(o)).replace('__REVIEWLAST__', reviewToLast ? '1' : ''))
-  const run = tool.filter === 'ccx'
-    ? CCX_RUN.map((l) => l.replace('__RUNS__', () => (o.runsDir ? shq(o.runsDir) : DEFAULT_RUNS)))
-    : codex
+  const route = ROUTES[tool.filter]
+  const run = route.run(o, chained, reviewToLast)
   return [
     '#!/usr/bin/env bash',
     'D="$1"; ROOT="$2"; VIEW="$3"; CHAIN="$4"',
     ...RUN_ORIG,
     ...mdFunctions('$ROOT'),
+    ...(route.streamJq ? [streamJq('$ROOT')] : []),
     MKREST,
     'if [ "$CHAIN" = 1 ]; then export MCP_SEEN_MD="$D/mcp.md.seen" MCP_SEEN_LOG="$D/mcp.log.seen"; fi',
     // The pane's own title (the shell set one for the typed command) and a clear screen, so the

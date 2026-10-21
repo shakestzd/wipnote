@@ -10,7 +10,7 @@ run() { # $1 command -> sets OUT (returned text), D (run dir)
   rm -rf "$T/tmp" "$T/runs" "$T/log"*; mkdir -p "$T/tmp"
   # the call is the stub the hook returns; the script it runs is written beside it, as the hook does
   GEN_CAP="${CAP-60}" GEN_STUB_DIR="$T/tmp" node --experimental-strip-types "$ROOT/test/gen.ts" "$1" "$ROOT" > "$T/w.sh" 2>/dev/null
-  HERDR_ENV=1 TMPDIR="$T/tmp" SIMLOG="$T/log" CCX_RUNS_DIR="$T/runs" HOME="$T" PATH="$ROOT/test/stubs:$PATH" bash "$T/w.sh" > "$T/out.bin" 2>&1; RC=$?; OUT=$(cat "$T/out.bin")
+  HERDR_ENV=1 TMPDIR="$T/tmp" SIMLOG="$T/log" CCX_RUNS_DIR="$T/runs" HOME="$T" PATH="${SIMPATH:+$SIMPATH:}$ROOT/test/stubs:$PATH" bash "$T/w.sh" > "$T/out.bin" 2>&1; RC=$?; OUT=$(cat "$T/out.bin")
   sleep 1.5; D=$(ls -d "$T"/tmp/codex-herdr.*)
 }
 has() { grep -qF -- "$2" "$3" && ok "$1" || { bad "$1"; echo "     missing: $2"; sed 's/^/     | /' "$3"; }; }
@@ -358,6 +358,94 @@ eq "sweep: a script 2 hours old (a call that may still wait for approval) is kep
 eq "sweep: a run directory older than 7 days is removed" "$(ls -d "$T/tmp/codex-herdr.old1" 2>/dev/null | wc -l | tr -d ' ')" 0
 eq "sweep: a newer run directory is kept" "$(ls -d "$T/tmp/codex-herdr.new1" 2>/dev/null | wc -l | tr -d ' ')" 1
 eq "sweep: an old ccx claim is removed" "$(ls -d "$T/tmp/codex-herdr-ccx-claims-$(id -u)/a.jsonl" 2>/dev/null | wc -l | tr -d ' ')" 0
+
+# --- headless claude: stream-json added once, the answer returned, bare or behind dev exec ---
+A='`tsconfig.json` extends `./.claude-plugin/types/tsconfig.json`.'
+run 'claude -p "say ok" --allowedTools Read'
+has "claude: report header with usage" "claude exited 0 after" <(echo "$OUT")
+has "claude: usage from the result event" "4 in / 111 out tokens, \$0.1077" <(echo "$OUT")
+has "claude: the answer is returned" "$A" <(echo "$OUT")
+has "claude: stream-json and --verbose added before its own words" "claude --output-format stream-json --verbose -p say ok --allowedTools Read" "$T/log.claude"
+has "claude: clean.log shows the tool call" "> Read: tsconfig.json" "$D/clean.log"
+has "claude: clean.log ends with the result line" "--- success in 4s, 2 turns" "$D/clean.log"
+has "claude: clean.md folds the call with its result" '**Read** `tsconfig.json`' "$D/clean.md"
+eq "claude: last.md is the answer" "$(cat "$D/last.md")" "$A"
+eq "claude: label" "$(cat "$D/label")" "Claude task: say ok"
+nothas "claude: no raw JSON reaches the caller" '"type":' <(echo "$OUT")
+fencecheck "$D/clean.md" claude
+
+run 'dev exec -d svc/api claude -p "/code-review high a.ts" --allowedTools "Read,Grep,Glob"'
+has "dev exec: flags go after the claude word" "dev exec -d svc/api claude --output-format stream-json --verbose -p /code-review high a.ts" "$T/log.dev"
+has "dev exec: the answer is returned" "$A" <(echo "$OUT")
+eq "dev exec: review label" "$(cat "$D/label")" "Claude review: /code-review high a.ts"
+
+run 'claude -p "x" --verbose'
+eq "claude: --verbose the call has is not repeated" "$(grep -o -- --verbose "$T/log.claude" | wc -l | tr -d ' ')" 1
+
+run 'echo BEFORE; claude -p "x" | tail -1; echo AFTER'
+has "claude chained: the rest of the command is returned" "AFTER" <(echo "$OUT")
+has "claude chained: the answer is returned" "$A" <(echo "$OUT")
+eq "claude chained: the answer once (rest.awk drops its copy)" "$(grep -cF -- "$A" <(echo "$OUT"))" 1
+nothas "claude chained: no raw JSON reaches the caller" '"type":' <(echo "$OUT")
+has "claude chained: clean.log shows the tool call" "> Read: tsconfig.json" "$D/clean.log"
+
+# --- review fixes: a redirect gets the answer, not JSONL; calls at once keep their own answers; usage sums ---
+run "claude -p \"x\" > $T/answer.txt"
+eq "claude > file: the file holds the answer" "$(cat "$T/answer.txt")" "$A"
+has "claude > file: the report returns the answer too" "$A" <(echo "$OUT")
+has "claude > file: the pane still logs the tool call" "> Read: tsconfig.json" "$D/clean.log"
+
+run "claude -p \"tag:a\" > $T/a.md & claude -p \"tag:b\" > $T/b.md & wait"
+eq "claude at once: a gets its own answer" "$(cat "$T/a.md")" "tag:a"
+eq "claude at once: b gets its own answer" "$(cat "$T/b.md")" "tag:b"
+has "claude at once: usage counts both calls" "command exited 0 after" <(echo "$OUT")
+has "claude at once: usage sums both" "8 in / 222 out tokens" <(echo "$OUT")
+eq "claude at once: no call files left behind" "$(ls "$D" | grep -c '^call\.')" 0
+
+# --- a slow or failing Markdown writer (--arg mode md): clean.md is whole and in order once the call returns ---
+# SIMMD=slow: the writer sleeps 4 s (past run's 1.5 s settle), then execs the real jq binary, so the
+# process that writes is jq itself and its output is byte for byte jq's. SIMMD=fail: the live
+# writer (its input a pipe) exits 1 before reading anything, as a writer that died would; a render
+# from a file (the repair) runs. Every other jq is the real one. Each Markdown render is logged to
+# $SIMLOG.jqmd as pipe (the live writer) or file (a repair), so a healthy run can be told from one
+# whose writer was repaired: both end with a whole clean.md.
+mkdir -p "$T/mdjq"; REALJQ=$(command -v jq)
+cat > "$T/mdjq/jq" <<MDJQ
+#!/usr/bin/env bash
+case " \$* " in *" --arg mode md "*) { [ -p /dev/stdin ] && echo pipe || echo file; } >> "\$SIMLOG.jqmd"; case "\${SIMMD:-}" in slow) sleep 4;; fail) [ -p /dev/stdin ] && exit 1;; esac;; esac
+exec "$REALJQ" "\$@"
+MDJQ
+chmod +x "$T/mdjq/jq"
+export SIMPATH="$T/mdjq"
+render() { "$REALJQ" -n -R -r --arg mode md -f "$ROOT/viewer/stream.jq" < "$1"; }
+before_after() { awk '/success in 4s/ { f = NR } /^AFTER$/ { a = NR } END { exit !(f && a && f < a) }' "$1"; }
+export SIMMD=slow
+run 'claude -p "x" | tail -1; echo AFTER'
+has "slow md, claude chained: clean.md has the final result" "*success in 4s, 2 turns" "$D/clean.md"
+has "slow md, claude chained: and the rest of the command" "AFTER" "$D/clean.md"
+before_after "$D/clean.md" && ok "slow md, claude chained: claude's Markdown comes before the rest of the command" || bad "slow md, claude chained: claude's Markdown comes before the rest of the command"
+eq "slow md, claude chained: no call file left behind" "$(ls "$D" | grep -c '^call\.')" 0
+eq "slow md, claude chained: the live writer was waited for, not repaired" "$(sort -u "$T/log.jqmd" | tr '\n' ' ')" "pipe "
+nothas "slow md, claude chained: no cut-short note" "cut short" "$D/clean.md"
+run 'claude -p "x"'
+render "$D/raw.log" > "$T/expect.md"
+cmp -s "$D/clean.md" "$T/expect.md" && ok "slow md, claude standalone: clean.md is byte for byte the render of raw.log" || { bad "slow md, claude standalone: clean.md is byte for byte the render of raw.log"; diff "$T/expect.md" "$D/clean.md" | head -5; }
+eq "slow md, claude standalone: the live writer was waited for, not repaired" "$(sort -u "$T/log.jqmd" | tr '\n' ' ')" "pipe "
+eq "slow md, claude standalone: no rebuild file left" "$(ls "$D" | grep -c 'clean.md.tmp\|md.st\|end.out')" 0
+run 'echo before; codex exec "hello" | tail -1'
+has "slow md, codex chained: clean.md has the final usage" "*input 24,603 (cached 0), output 5*" "$D/clean.md"
+export SIMMD=fail
+run 'claude -p "x"'
+render "$D/raw.log" > "$T/expect.md"
+cmp -s "$D/clean.md" "$T/expect.md" && ok "failed md, claude standalone: clean.md rebuilt whole from raw.log" || { bad "failed md, claude standalone: clean.md rebuilt whole from raw.log"; diff "$T/expect.md" "$D/clean.md" | head -5; }
+has "failed md, claude standalone: raw.log is whole (the writer's death did not cut tee)" '"type":"result"' "$D/raw.log"
+has "failed md, claude standalone: the rebuilt clean.md has the final result" "*success in 4s, 2 turns" "$D/clean.md"
+has "failed md, claude standalone: the answer still returns" "$A" <(echo "$OUT")
+run 'claude -p "x" | tail -1; echo AFTER'
+has "failed md, claude chained: says the live log was cut" "the live log of this call was cut short" "$D/clean.md"
+before_after "$D/clean.md" && ok "failed md, claude chained: the call's whole render, before the rest" || bad "failed md, claude chained: the call's whole render, before the rest"
+has "failed md, claude chained: the answer still returns" "$A" <(echo "$OUT")
+unset SIMPATH SIMMD
 
 rm -rf "$T"
 [ "$fails" = 0 ] && echo "pane simulation passed" || { echo "$fails failed"; exit 1; }

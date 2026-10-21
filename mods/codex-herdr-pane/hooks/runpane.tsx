@@ -29,7 +29,7 @@ export function runPane(on: On, o: PaneOptions) {
   setPaneOptions(o)
   // A reload keeps $.state but not the timer: follow the runs still live
   on('session.start', async ($, e, next) => {
-    await $.command.register({ name: 'codex-runs', description: 'Show the newest Codex or ccx delegation run in a pane' })
+    await $.command.register({ name: 'codex-runs', description: 'Show the newest Codex, ccx or Claude delegation run in a pane' })
     if (Object.values(await allRuns($)).some((r) => r.exit === undefined)) poll($)
     return next(e)
   })
