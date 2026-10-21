@@ -72,7 +72,7 @@ func wiCreateCmd(typeName, _ string) *cobra.Command {
 		"override the agent role recorded as provenance (default: inherit from active session)")
 	cmd.Flags().StringVar(&opts.createdByCLIVersion, "created-by-cli-version", "",
 		"override the wipnote CLI version recorded as provenance (default: this binary's version)")
-	if typeName != "spike" {
+	if typeName == "feature" || typeName == "bug" {
 		cmd.Flags().StringVar(&opts.changeKind, "change-kind", "",
 			"research-gate change kind: "+strings.Join(research.AllKinds, "|")+" (default: inferred from the title)")
 	}

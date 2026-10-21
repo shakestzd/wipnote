@@ -24,16 +24,22 @@ func emitResearchStartAdvisory(w io.Writer, projectRoot string, node *models.Nod
 // and satisfies the gate. In warn mode problems are printed; in block mode an
 // incomplete record is an error.
 func checkResearchCompleteGate(w io.Writer, projectRoot string, col *workitem.Collection, id, waiver string) error {
-	if strings.TrimSpace(waiver) != "" {
-		if err := recordResearchWaiver(col, id, waiver); err != nil {
-			return fmt.Errorf("research gate: record waiver on %s: %w", id, err)
-		}
-	}
 	node, err := col.Get(id)
 	if err != nil {
 		return nil // unreadable item: let the caller's normal path report it
 	}
-	warns, gateErr := research.CheckComplete(research.LoadConfig(projectRoot), node)
+	cfg := research.LoadConfig(projectRoot)
+	// Record a waiver only where the research-first gate applies; on an
+	// ungated item it would be an unexplained entry in the audit trail.
+	if strings.TrimSpace(waiver) != "" && cfg.Gated(research.KindOf(node.Properties)) {
+		if err := recordResearchWaiver(col, id, waiver); err != nil {
+			return fmt.Errorf("research gate: record waiver on %s: %w", id, err)
+		}
+		if node, err = col.Get(id); err != nil {
+			return nil
+		}
+	}
+	warns, gateErr := research.CheckComplete(cfg, node)
 	for _, msg := range warns {
 		fmt.Fprintln(w, msg)
 	}
@@ -47,7 +53,11 @@ func checkResearchGateForWorkItem(w io.Writer, projectRoot, id, waiver string) e
 		return nil // no project: the session gate reports it
 	}
 	defer p.Close()
-	return checkResearchCompleteGate(w, projectRoot, collectionFor(p, typeNameForID(id)), id, waiver)
+	typeName := kindFromPrefix(id)
+	if !researchTypes[typeName] {
+		return nil // tracks, plans and specs carry no research record
+	}
+	return checkResearchCompleteGate(w, projectRoot, collectionFor(p, typeName), id, waiver)
 }
 
 // recordDependencyResearch stores --research-url URLs (as primary sources) and
@@ -61,11 +71,4 @@ func recordDependencyResearch(col *workitem.Collection, id string, urls []string
 	}
 	_, err := saveResearchRecord(col, id, rec)
 	return err
-}
-
-// recordHasDependencyEvidence reports whether an earlier `research add` or
-// waiver already satisfies the dependency gate.
-func recordHasDependencyEvidence(n *models.Node) bool {
-	rec := research.FromNode(n)
-	return rec != nil && (len(rec.Sources) > 0 || strings.TrimSpace(rec.Waiver) != "")
 }

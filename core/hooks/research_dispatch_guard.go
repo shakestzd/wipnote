@@ -31,9 +31,11 @@ func isImplementerDispatch(event *CloudEvent) bool {
 // prompt or description wins, then the agent's claim, then the active feature.
 func dispatchWorkItem(event *CloudEvent, ctx *toolUseContext) string {
 	for _, key := range []string{"prompt", "description"} {
-		if s, ok := event.ToolInput[key].(string); ok {
-			if id := workItemIDInTextPattern.FindString(s); id != "" &&
-				(strings.HasPrefix(id, "feat-") || strings.HasPrefix(id, "bug-")) {
+		s, _ := event.ToolInput[key].(string)
+		// Every id is scanned: a spike, track or plan named first ("using
+		// spk-… implement feat-…") must not hide the feature being built.
+		for _, id := range workItemIDInTextPattern.FindAllString(s, -1) {
+			if strings.HasPrefix(id, "feat-") || strings.HasPrefix(id, "bug-") {
 				return id
 			}
 		}

@@ -92,7 +92,12 @@ func TestInferKind(t *testing.T) {
 		{"feature", "Bump go-git to v6", KindDependency},
 		{"feature", "Add research gate", KindCapability},
 		{"bug", "Crash on empty title", KindBugfix},
+		{"bug", "Fix crash when dashboard loads", KindBugfix}, // bugs never pick up ui/design
+		{"bug", "Fix API timeout", KindBugfix},
+		{"feature", "Add doc search capability", KindCapability}, // "doc" is not "docs"
 		{"spike", "Investigate overflow", ""},
+		{"track", "Dashboard redesign", ""},
+		{"spec", "API schema", ""},
 	}
 	for _, c := range cases {
 		if got, _ := InferKind(c.typ, c.title); got != c.want {
@@ -179,5 +184,30 @@ func TestCheckComplete(t *testing.T) {
 	legacy := &models.Node{ID: "feat-00000002", Type: "feature"}
 	if w, err := CheckComplete(block, legacy); err != nil || len(w) != 0 {
 		t.Error("legacy item without change_kind must not be gated")
+	}
+}
+
+func TestLoadConfigErrorAliasAndNotices(t *testing.T) {
+	if cfg := LoadConfig(writeConfig(t, `{"research":{"mode":"error"}}`)); cfg.Mode != ModeBlock {
+		t.Fatalf("ESLint-style \"error\" must mean block, got %q", cfg.Mode)
+	}
+	cfg := LoadConfig(writeConfig(t, `{"research":{"mode":"strict","required_kinds":["ui","bogus"]}}`))
+	if cfg.Mode != ModeWarn || !strings.Contains(cfg.Notice, "strict") || !strings.Contains(cfg.Notice, "bogus") || !cfg.Gated(KindUI) {
+		t.Fatalf("unknown values must fall back and be reported: %+v", cfg)
+	}
+	warns, _ := CheckComplete(cfg, gatedNode(completeRecord()))
+	if len(warns) == 0 || !strings.Contains(warns[0], "strict") {
+		t.Fatalf("config notice must surface at check time: %v", warns)
+	}
+}
+
+func TestStubRecordDoesNotSatisfyDispatch(t *testing.T) {
+	block := Config{Mode: ModeBlock, RequiredKinds: DefaultRequiredKinds}
+	stub := &Record{Question: "?"}
+	if msg, deny := CheckDispatch(block, gatedNode(stub)); !deny || !strings.Contains(msg, "source") {
+		t.Fatalf("a question-only record must not pass dispatch: deny=%v msg=%q", deny, msg)
+	}
+	if CheckStart(block, gatedNode(stub)) == "" {
+		t.Fatal("a question-only record must still warn at start")
 	}
 }

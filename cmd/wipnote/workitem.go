@@ -1303,9 +1303,6 @@ func checkDependencyResearchCompleteGate(p *workitem.Project, col *workitem.Coll
 
 	validURLs := researchURLs // all entries are valid (checked above)
 	waiver := strings.TrimSpace(researchWaiver)
-	if len(validURLs) == 0 && waiver == "" && recordHasDependencyEvidence(node) {
-		return nil // `research add` sources or an earlier waiver already cover it
-	}
 	if len(validURLs) == 0 && waiver == "" {
 		return fmt.Errorf(
 			"refusing to complete %s %s: it changes dependency manifest(s) (%s) but cites no web research.\n"+

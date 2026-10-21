@@ -119,3 +119,13 @@ func TestResearchDispatchGuard_WarnReachesAdditionalContext(t *testing.T) {
 		t.Fatalf("warn mode must allow with the advisory in additionalContext, got %+v", res)
 	}
 }
+
+func TestDispatchWorkItem_SkipsLeadingNonImplementableIDs(t *testing.T) {
+	ev := &CloudEvent{ToolName: "Task", ToolInput: map[string]any{
+		"subagent_type": "patch-coder",
+		"prompt":        "Using findings from spk-1234abcd under trk-0000cccc, implement feat-89abcdef.",
+	}}
+	if got := dispatchWorkItem(ev, &toolUseContext{FeatureID: "feat-0000000b"}); got != "feat-89abcdef" {
+		t.Fatalf("got %q, want the feature named after the spike", got)
+	}
+}

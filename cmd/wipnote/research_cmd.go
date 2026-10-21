@@ -103,6 +103,7 @@ func saveResearchRecord(col *workitem.Collection, id string, add *research.Recor
 }
 
 // openItem resolves id and returns the project and the collection holding it.
+// Only features, bugs and spikes carry research records.
 func openItem(id string) (string, *workitem.Project, *workitem.Collection, string, error) {
 	dir, err := findWipnoteDir()
 	if err != nil {
@@ -111,24 +112,19 @@ func openItem(id string) (string, *workitem.Project, *workitem.Collection, strin
 	if id, err = resolveID(dir, id); err != nil {
 		return "", nil, nil, "", err
 	}
+	typeName := kindFromPrefix(id)
+	if !researchTypes[typeName] {
+		return "", nil, nil, "", fmt.Errorf("%s is a %s; research records live on features, bugs and spikes", id, typeName)
+	}
 	p, err := workitem.Open(dir, "claude-code")
 	if err != nil {
 		return "", nil, nil, "", fmt.Errorf("open project: %w", err)
 	}
-	return dir, p, collectionFor(p, typeNameForID(id)), id, nil
+	return dir, p, collectionFor(p, typeName), id, nil
 }
 
-// typeNameForID maps an id prefix to its work-item type.
-func typeNameForID(id string) string {
-	switch {
-	case strings.HasPrefix(id, "bug-"):
-		return "bug"
-	case strings.HasPrefix(id, "spk-"):
-		return "spike"
-	default:
-		return "feature"
-	}
-}
+// researchTypes are the work-item types that carry a research record.
+var researchTypes = map[string]bool{"feature": true, "bug": true, "spike": true}
 
 type researchAddOpts struct {
 	question, findings, exists, chosen string
@@ -146,8 +142,12 @@ func (o *researchAddOpts) record() (*research.Record, error) {
 	if date == "" {
 		date = nowDate()
 	}
-	for typ, urls := range map[string][]string{research.SourcePrimary: o.primary, research.SourceSecondary: o.secondary} {
-		for _, u := range urls {
+	for _, group := range []struct {
+		typ  string
+		urls []string
+	}{{research.SourcePrimary, o.primary}, {research.SourceSecondary, o.secondary}} {
+		typ := group.typ
+		for _, u := range group.urls {
 			if !wiIsResearchURL(u) {
 				return nil, fmt.Errorf("source %q must be an http(s) URL with a host", u)
 			}
@@ -155,8 +155,10 @@ func (o *researchAddOpts) record() (*research.Record, error) {
 		}
 	}
 	for _, r := range o.rejected {
-		opt, reason, ok := strings.Cut(r, ":")
-		if !ok || strings.TrimSpace(reason) == "" {
+		// Split on ": " (colon then space) so an option holding a URL or
+		// host:port keeps its own colons.
+		opt, reason, ok := strings.Cut(r, ": ")
+		if !ok || strings.TrimSpace(opt) == "" || strings.TrimSpace(reason) == "" {
 			return nil, fmt.Errorf("--rejected %q must be \"<option>: <reason>\"", r)
 		}
 		rec.Rejected = append(rec.Rejected, research.Rejected{Option: strings.TrimSpace(opt), Reason: strings.TrimSpace(reason)})
@@ -275,16 +277,27 @@ func wiResearchKindCmd() *cobra.Command {
 }
 
 func wiResearchWaiveCmd() *cobra.Command {
-	return &cobra.Command{
-		Use:   "waive <id> <reason>",
-		Short: "Waive the research gate for an item; the reason is recorded on the artifact",
-		Args:  cobra.ExactArgs(2),
+	var clear bool
+	cmd := &cobra.Command{
+		Use:   "waive <id> [reason]",
+		Short: "Waive the research gate for an item (the reason is recorded), or --clear a waiver",
+		Args:  cobra.RangeArgs(1, 2),
 		RunE: func(_ *cobra.Command, args []string) error {
+			if clear == (len(args) == 2) {
+				return fmt.Errorf("give either a reason or --clear")
+			}
 			_, p, col, id, err := openItem(args[0])
 			if err != nil {
 				return err
 			}
 			defer p.Close()
+			if clear {
+				if err := clearResearchWaiver(col, id); err != nil {
+					return err
+				}
+				fmt.Printf("Research waiver cleared on %s\n", id)
+				return nil
+			}
 			if err := recordResearchWaiver(col, id, args[1]); err != nil {
 				return err
 			}
@@ -292,6 +305,23 @@ func wiResearchWaiveCmd() *cobra.Command {
 			return nil
 		},
 	}
+	cmd.Flags().BoolVar(&clear, "clear", false, "remove a waiver recorded earlier")
+	return cmd
+}
+
+// clearResearchWaiver removes the waiver from an item's record (Merge never
+// clears a field, so this is the one way back from a mistaken waiver).
+func clearResearchWaiver(col *workitem.Collection, id string) error {
+	node, err := col.Get(id)
+	if err != nil {
+		return err
+	}
+	rec := research.FromNode(node)
+	if rec == nil || rec.Waiver == "" {
+		return nil
+	}
+	rec.Waiver = ""
+	return col.Edit(id).SetProperty(research.PropRecord, rec.Property()).Save()
 }
 
 func nowDate() string { return time.Now().Format("2006-01-02") }
@@ -394,11 +424,16 @@ func attachSpikeResearch(w io.Writer, p *workitem.Project, spikeID string) {
 		return
 	}
 	rec.SpikeID = spikeID
-	if _, err := saveResearchRecord(collectionFor(p, typeNameForID(parentID)), parentID, rec); err != nil {
+	if _, err := saveResearchRecord(collectionFor(p, kindFromPrefix(parentID)), parentID, rec); err != nil {
 		fmt.Fprintf(w, "research: could not attach %s findings to %s: %v\n", spikeID, parentID, err)
 		return
 	}
 	fmt.Fprintf(w, "research: attached %s findings to %s as its research record\n", spikeID, parentID)
+	// The completion commit only covers the spike's own artifact; commit the
+	// parent's too so the attached record is durable (non-fatal by contract).
+	if parentType := kindFromPrefix(parentID); shouldAutocommitWorkitemArtifact(parentType) {
+		_ = commitWipnoteArtifact(p.ProjectDir, parentType, parentID, "research attached")
+	}
 }
 
 // printLineageResearch prints the research record of a lineage root work item.

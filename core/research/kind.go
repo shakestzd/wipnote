@@ -35,7 +35,7 @@ var kindKeywords = []struct {
 	re   *regexp.Regexp
 }{
 	{KindRename, regexp.MustCompile(`(?i)\brename[sd]?\b`)},
-	{KindDocs, regexp.MustCompile(`(?i)\b(docs?|readme|documentation|changelog)\b`)},
+	{KindDocs, regexp.MustCompile(`(?i)\b(docs|readme|documentation|changelog)\b`)},
 	{KindChore, regexp.MustCompile(`(?i)\b(chore|cleanup|clean up|lint|tidy|typo)\b`)},
 	{KindDependency, regexp.MustCompile(`(?i)\b(bump|upgrade|dependency|dependencies|deps)\b`)},
 	{KindUI, regexp.MustCompile(`(?i)\b(ui|ux|menu|button|toolbar|header|modal|dialog|layout|dashboard|css|screen)\b`)},
@@ -44,11 +44,17 @@ var kindKeywords = []struct {
 }
 
 // InferKind guesses a change kind from the item type and title, returning the
-// kind and the keyword that matched ("" for a type default). Spikes get no
-// kind: they are the research. Bugs default to bugfix and features to
-// capability when no keyword matches.
+// kind and the keyword that matched ("" for a type default). Only features are
+// inferred from keywords: bugs are always bugfix (a bug that needs design work
+// is reclassified explicitly with --change-kind), and every other type —
+// spikes, which are the research, tracks, plans, specs — gets no kind.
+// Features with no keyword match default to capability.
 func InferKind(itemType, title string) (kind, matched string) {
-	if itemType == "spike" {
+	switch itemType {
+	case "bug":
+		return KindBugfix, ""
+	case "feature":
+	default:
 		return "", ""
 	}
 	for _, kk := range kindKeywords {
@@ -56,13 +62,7 @@ func InferKind(itemType, title string) (kind, matched string) {
 			return kk.kind, strings.ToLower(m)
 		}
 	}
-	switch itemType {
-	case "bug":
-		return KindBugfix, ""
-	case "feature":
-		return KindCapability, ""
-	}
-	return "", ""
+	return KindCapability, ""
 }
 
 // KindOf returns the node's recorded change kind, or "".

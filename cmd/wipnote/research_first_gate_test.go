@@ -231,9 +231,75 @@ func TestResearchGate_DependencyURLStoredAsSource(t *testing.T) {
 	if !strings.Contains(n.Content, cited) {
 		t.Error("legacy research-evidence note must still be written")
 	}
-	// A record source alone now satisfies the dependency gate on a later run.
-	if err := checkDependencyResearchCompleteGate(p, p.Features.Collection, "feature", id, nil, ""); err != nil {
-		t.Fatalf("record source should satisfy the dependency gate: %v", err)
+	// The dependency path is unchanged: a manifest change still needs
+	// --research-url or --research-waiver on the completing call, whatever
+	// the record already holds (a UI source or a research-first waiver must
+	// not stand in for dependency evidence).
+	if err := checkDependencyResearchCompleteGate(p, p.Features.Collection, "feature", id, nil, ""); err == nil {
+		t.Fatal("dependency gate must still require --research-url or --research-waiver")
+	}
+}
+
+func TestCreate_TracksGetNoChangeKind(t *testing.T) {
+	_, hgDir := prepProject(t)
+	trackID := testSetupTrack(t, hgDir)
+	n := parseItem(t, hgDir, trackID)
+	if k := research.KindOf(n.Properties); k != "" {
+		t.Fatalf("track must carry no change kind, got %q", k)
+	}
+	if _, _, _, _, err := openItem(trackID); err == nil {
+		t.Fatal("research commands must refuse a track id with a clear error")
+	}
+	if err := checkResearchGateForWorkItem(&bytes.Buffer{}, filepath.Dir(hgDir), trackID, ""); err != nil {
+		t.Fatalf("check --gate on a track must not be research-gated: %v", err)
+	}
+}
+
+func TestResearchAdd_RejectedKeepsURLColonsAndSourceOrder(t *testing.T) {
+	o := &researchAddOpts{
+		primary:   []string{"https://a.example/1", "https://a.example/2"},
+		secondary: []string{"https://b.example"},
+		rejected:  []string{"use https://lib.example: unmaintained"},
+	}
+	for i := 0; i < 20; i++ { // map iteration used to shuffle this
+		rec, err := o.record()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if rec.Sources[0].URL != "https://a.example/1" || rec.Sources[2].Type != research.SourceSecondary {
+			t.Fatalf("source order not stable: %+v", rec.Sources)
+		}
+		if rec.Rejected[0].Option != "use https://lib.example" || rec.Rejected[0].Reason != "unmaintained" {
+			t.Fatalf("rejected split wrong: %+v", rec.Rejected[0])
+		}
+	}
+}
+
+func TestResearchWaiver_ClearAndUngatedNotRecorded(t *testing.T) {
+	tmpDir, hgDir := prepProject(t)
+	trackID := testSetupTrack(t, hgDir)
+	gated := createItem(t, hgDir, "feature", "Header toolbar overflow menu", trackID)
+	writeResearchConfig(t, tmpDir, "block")
+	col := openTestProject(t, hgDir).Features.Collection
+	if err := recordResearchWaiver(col, gated, "mistake"); err != nil {
+		t.Fatal(err)
+	}
+	if err := clearResearchWaiver(col, gated); err != nil {
+		t.Fatal(err)
+	}
+	if rec := research.FromNode(parseItem(t, hgDir, gated)); rec != nil && rec.Waiver != "" {
+		t.Fatalf("waiver not cleared: %+v", rec)
+	}
+	if err := checkResearchGateForWorkItem(&bytes.Buffer{}, tmpDir, gated, ""); err == nil {
+		t.Fatal("cleared waiver must no longer satisfy block mode")
+	}
+
+	bug := createItem(t, hgDir, "bug", "Fix crash when dashboard loads", trackID)
+	if err := checkResearchGateForWorkItem(&bytes.Buffer{}, tmpDir, bug, "not needed"); err != nil {
+		t.Fatal(err)
+	}
+	if research.FromNode(parseItem(t, hgDir, bug)) != nil {
+		t.Fatal("a waiver on an ungated bugfix must not be recorded")
 	}
 }
 

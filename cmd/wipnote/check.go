@@ -81,6 +81,9 @@ Returns exit code 0 if all gates pass, 1 if any fail.`,
 					return err
 				}
 				// Research-first gate: cheap, so it runs before the full gate.
+				if workItemID == "" && strings.TrimSpace(gateResearchWaiver) != "" {
+					return fmt.Errorf("--research-waiver needs a work item: pass --work-item <id>")
+				}
 				if workItemID != "" {
 					if err := checkResearchGateForWorkItem(os.Stderr, projectRoot, workItemID, gateResearchWaiver); err != nil {
 						return err

@@ -39,21 +39,26 @@ art before this work started.
    `wipnote spike complete` copies that record onto the parent.
 3. **Change kind** (`change_kind` property): `design`, `ui`, `capability` and
    `dependency` are gated; `bugfix`, `chore`, `docs` and `rename` are not. It is
-   set with `--change-kind` at create time, or inferred from title keywords with
-   a printed note. Bugs default to `bugfix`. Spikes have no kind; they are the
-   research. Items created before this change have no kind and are not gated.
+   set with `--change-kind` at create time (features and bugs), or, for
+   features, inferred from title keywords with a printed note. Bugs are always
+   `bugfix` unless reclassified. Spikes, tracks, plans and specs have no kind.
+   Items created before this change have no kind and are not gated.
 4. **Config**: `.wipnote/config.json` → `{"research": {"mode": "warn",
-   "required_kinds": [...]}}`. Mode is `off`, `warn` (the default) or `block`.
+   "required_kinds": [...]}}`. Mode is `off`, `warn` (the default) or `block`
+   (`error` is accepted as an alias). Unknown values fall back and are
+   reported at check time, never silently.
 5. **Enforcement points**:
    - `<kind> start`: stderr warning (never fails).
    - `PreToolUse` on `Task`/`Agent` dispatching a `*-coder` subagent: advisory
-     in warn mode, deny in block mode.
+     in warn mode, deny in block mode. Start and dispatch apply the same
+     completeness test as completion, so a question-only stub does not pass.
    - `check --gate --work-item` and `<kind> complete`: fail in block mode
      unless the record is complete or waived.
    - `--research-waiver` now satisfies both the kind gate and the dependency
      gate, and is written into the record.
 6. **The dependency path is unchanged**: it still hard-blocks on a manifest
-   change. `--research-url` URLs are now also stored as primary sources in the
+   change unless the completing call passes `--research-url` or
+   `--research-waiver`; sources already on the record do not stand in. `--research-url` URLs are now also stored as primary sources in the
    record. The legacy note is still written.
 
 The rule text lives in one Go constant (`core/research`). `wipnote research

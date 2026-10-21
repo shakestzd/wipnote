@@ -11,7 +11,8 @@ import (
 	"github.com/shakestzd/wipnote/core/models"
 )
 
-// Mode is the gate's enforcement level, after ESLint's off | warn | error.
+// Mode is the gate's enforcement level, after ESLint's off | warn | error
+// ("error" is accepted as an alias for block).
 type Mode string
 
 const (
@@ -24,6 +25,10 @@ const (
 type Config struct {
 	Mode          Mode     `json:"mode"`
 	RequiredKinds []string `json:"required_kinds"`
+
+	// Notice reports config values that were ignored (an unknown mode or
+	// kind), so the CLI can say so instead of silently not enforcing.
+	Notice string `json:"-"`
 }
 
 // Rule is the one statement of the research-first rule. CLI help, gate
@@ -49,13 +54,27 @@ func LoadConfig(projectRoot string) Config {
 	if json.Unmarshal(data, &file) != nil || file.Research == nil {
 		return cfg
 	}
-	switch Mode(strings.ToLower(string(file.Research.Mode))) {
+	var notices []string
+	switch m := Mode(strings.ToLower(strings.TrimSpace(string(file.Research.Mode)))); m {
 	case ModeOff, ModeWarn, ModeBlock:
-		cfg.Mode = Mode(strings.ToLower(string(file.Research.Mode)))
+		cfg.Mode = m
+	case "error":
+		cfg.Mode = ModeBlock
+	case "":
+	default:
+		notices = append(notices, fmt.Sprintf("unknown research.mode %q (want off, warn or block); using warn", m))
 	}
 	if file.Research.RequiredKinds != nil {
-		cfg.RequiredKinds = file.Research.RequiredKinds
+		cfg.RequiredKinds = nil
+		for _, k := range file.Research.RequiredKinds {
+			if ValidKind(k) {
+				cfg.RequiredKinds = append(cfg.RequiredKinds, k)
+			} else {
+				notices = append(notices, fmt.Sprintf("unknown research.required_kinds entry %q ignored", k))
+			}
+		}
 	}
+	cfg.Notice = strings.Join(notices, "; ")
 	return cfg
 }
 
@@ -82,32 +101,48 @@ func typeName(n *models.Node) string {
 	return "feature"
 }
 
-// CheckStart returns a warning for starting a gated item with no record, or "".
-// Starting never fails.
+// missingFor returns what a gated node's record still lacks, or nil when the
+// node is not gated or its record (or waiver) is complete. A stub record — a
+// question with no sources or decision — counts as no research.
+func missingFor(c Config, n *models.Node) []string {
+	if !c.gates(n) {
+		return nil
+	}
+	missing, _ := Assess(FromNode(n))
+	return missing
+}
+
+// CheckStart returns a warning for starting a gated item without a complete
+// research record, or "". Starting never fails.
 func CheckStart(c Config, n *models.Node) string {
-	if !c.gates(n) || FromNode(n) != nil {
+	missing := missingFor(c, n)
+	if len(missing) == 0 {
 		return ""
 	}
-	return fmt.Sprintf("research advisory: %s %s is change kind %q and has no research record.\n  fix: %s",
-		typeName(n), n.ID, KindOf(n.Properties), FixCommand(n))
+	return fmt.Sprintf("research advisory: %s %s is change kind %q and its research record is missing %s.\n  fix: %s",
+		typeName(n), n.ID, KindOf(n.Properties), strings.Join(missing, "; "), FixCommand(n))
 }
 
 // CheckDispatch decides on dispatching an implementer for n: an advisory
 // message, and whether to deny (block mode only).
 func CheckDispatch(c Config, n *models.Node) (msg string, deny bool) {
-	if !c.gates(n) || FromNode(n) != nil {
+	missing := missingFor(c, n)
+	if len(missing) == 0 {
 		return "", false
 	}
-	msg = fmt.Sprintf("wipnote research gate: %s is change kind %q with no research record. Fix: %s",
-		n.ID, KindOf(n.Properties), FixCommand(n))
+	msg = fmt.Sprintf("wipnote research gate: %s is change kind %q and its research record is missing %s. Fix: %s",
+		n.ID, KindOf(n.Properties), strings.Join(missing, "; "), FixCommand(n))
 	return msg, c.Mode == ModeBlock
 }
 
 // CheckComplete evaluates the record at check --gate / complete time. In block
 // mode an incomplete record is an error; in warn mode it is a warning.
 func CheckComplete(c Config, n *models.Node) (warnings []string, err error) {
+	if c.Notice != "" {
+		warnings = append(warnings, "research config: "+c.Notice)
+	}
 	if !c.gates(n) {
-		return nil, nil
+		return warnings, nil
 	}
 	missing, warns := Assess(FromNode(n))
 	for _, w := range warns {
