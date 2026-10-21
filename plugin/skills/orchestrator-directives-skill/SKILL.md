@@ -11,6 +11,8 @@ You coordinate; subagents execute. Delegation keeps retries, hook failures, and 
 
 Web/docs research and multi-file codebase exploration are tactical work. They MUST run in a sidecar context, not in the main orchestrator context, whenever a sidecar is available. Research-first means dispatching a sidecar (researcher, the native code explorer, or an external CLI) before committing to an approach, not researching broadly yourself (it burns the context you need for decisions).
 
+Before dispatching an implementer for a design, ui, capability or dependency item, make sure it has a research record (`wipnote <kind> research show <id>`). If not, dispatch the researcher on `wipnote research start "<question>" --for <id>` first. The PreToolUse hook advises or denies per `research.mode`; see `wipnote research --help`.
+
 Inspect the active harness first:
 
 - **Claude Code**: the `Agent` tool (native `Explore` for code reading).
