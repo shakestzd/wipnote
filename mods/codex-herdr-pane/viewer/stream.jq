@@ -9,6 +9,8 @@
 #                                                            output) passes as it is: a headless claude in a pane
 #   jq -n -R -r --arg mode answer -f stream.jq               the last result event's text (what claude -p prints)
 #   jq -n -R -r --arg mode usage -f stream.jq                the tokens and cost of every result event, one line
+#   jq -n -R -r --arg mode end -f stream.jq                  both in one pass: the usage line (empty when there
+#                                                            is no result), then the answer when there is one
 # Each step only appends to the output, so the output for the first N lines is a prefix of
 # the output for more lines: a follower can re-render and append just the new bytes.
 # fromjson? skips partial lines. `events` is the single parse into neutral items
@@ -68,11 +70,14 @@ def mdstream($flush):
     ({pend: [], out: null}; step($it; $flush); .out | select(. != null));
 def results: [inputs | (try fromjson catch null) | select(type == "object" and .type == "result")];
 def total(f): map(f // 0) | add;
+def answer: last | .result? // empty | strings;
+def usage: select(length > 0) | total(.total_cost_usd) as $c
+  | "\(total(.usage.input_tokens)) in / \(total(.usage.output_tokens)) out tokens\(if $c > 0 then ", $\($c * 10000 | round / 10000)" else "" end)";
 ($ARGS.named.mode // "view") as $mode
 | if $mode == "md" then mdstream(true)
   elif $mode == "mdlive" then mdstream(false)
   elif $mode == "pane" then (. as $l | (try fromjson catch null) as $j | if ($j | type) == "object" then ($j | events | txt) else $l end)
-  elif $mode == "answer" then (results | last | .result? // empty | strings)
-  elif $mode == "usage" then (results | select(length > 0) | total(.total_cost_usd) as $c
-    | "\(total(.usage.input_tokens)) in / \(total(.usage.output_tokens)) out tokens\(if $c > 0 then ", $\($c * 10000 | round / 10000)" else "" end)")
+  elif $mode == "answer" then (results | answer)
+  elif $mode == "usage" then (results | usage)
+  elif $mode == "end" then (results | ((usage // ""), (answer | select(. != ""))))
   else (fromjson? | events | txt) end

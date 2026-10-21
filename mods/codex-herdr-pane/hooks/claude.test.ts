@@ -86,3 +86,14 @@ test('one stream.jq helper serves ccx and claude', () => {
   }
   expect(buildWrapper('codex exec "x"', defaults)).not.toContain('jqs()')
 })
+
+test('the Markdown writer is waited for: chained before the answer, standalone before the end pass', () => {
+  const cs = CLAUDE_SHIM.join('\n')
+  expect(cs).toContain('>(jqs md >> "$__CLAUDE_D/clean.md"; rm -f "$cl.pending")')
+  expect(cs.indexOf('await_md "$cl.pending"')).toBeLessThan(cs.indexOf('jqs answer < "$cl"'))
+  const text = buildWrapper('claude -p "x"', defaults)
+  expect(text).toContain('>(jqs md >> "$D/clean.md"; rm -f "$D/md.pending")')
+  expect(text).toContain('X="${PIPESTATUS[0]}"; await_md "$D/md.pending"')
+  expect(text).not.toContain('clean.md.tmp') // no second render of raw.log
+  expect(text.match(/jqs (end|answer|usage) < "\$D\/raw.log"/g)).toEqual(['jqs end < "$D/raw.log"']) // one pass
+})

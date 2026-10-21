@@ -10,7 +10,7 @@ run() { # $1 command -> sets OUT (returned text), D (run dir)
   rm -rf "$T/tmp" "$T/runs" "$T/log"*; mkdir -p "$T/tmp"
   # the call is the stub the hook returns; the script it runs is written beside it, as the hook does
   GEN_CAP="${CAP-60}" GEN_STUB_DIR="$T/tmp" node --experimental-strip-types "$ROOT/test/gen.ts" "$1" "$ROOT" > "$T/w.sh" 2>/dev/null
-  HERDR_ENV=1 TMPDIR="$T/tmp" SIMLOG="$T/log" CCX_RUNS_DIR="$T/runs" HOME="$T" PATH="$ROOT/test/stubs:$PATH" bash "$T/w.sh" > "$T/out.bin" 2>&1; RC=$?; OUT=$(cat "$T/out.bin")
+  HERDR_ENV=1 TMPDIR="$T/tmp" SIMLOG="$T/log" CCX_RUNS_DIR="$T/runs" HOME="$T" PATH="${SIMPATH:+$SIMPATH:}$ROOT/test/stubs:$PATH" bash "$T/w.sh" > "$T/out.bin" 2>&1; RC=$?; OUT=$(cat "$T/out.bin")
   sleep 1.5; D=$(ls -d "$T"/tmp/codex-herdr.*)
 }
 has() { grep -qF -- "$2" "$3" && ok "$1" || { bad "$1"; echo "     missing: $2"; sed 's/^/     | /' "$3"; }; }
@@ -401,6 +401,30 @@ eq "claude at once: b gets its own answer" "$(cat "$T/b.md")" "tag:b"
 has "claude at once: usage counts both calls" "command exited 0 after" <(echo "$OUT")
 has "claude at once: usage sums both" "8 in / 222 out tokens" <(echo "$OUT")
 eq "claude at once: no call files left behind" "$(ls "$D" | grep -c '^call\.')" 0
+
+# --- a slow Markdown writer: clean.md is whole once the call returns (no race with the exit file) ---
+# The jq wrapper holds a Markdown writer's output (--arg mode md) until 4 s after its input ends,
+# past run's 1.5 s settle; every other jq runs as is.
+mkdir -p "$T/slowjq"; REALJQ=$(command -v jq)
+cat > "$T/slowjq/jq" <<SLOW
+#!/usr/bin/env bash
+case " \$* " in *" --arg mode md "*) out=\$("$REALJQ" "\$@"); rc=\$?; sleep 4; printf '%s\\n' "\$out"; exit \$rc;; esac
+exec "$REALJQ" "\$@"
+SLOW
+chmod +x "$T/slowjq/jq"
+export SIMPATH="$T/slowjq"
+run 'claude -p "x" | tail -1; echo AFTER'
+has "slow md, claude chained: clean.md has the final result" "*success in 4s, 2 turns" "$D/clean.md"
+has "slow md, claude chained: and the rest of the command" "AFTER" "$D/clean.md"
+awk '/success in 4s/ { f = NR } /^AFTER$/ { a = NR } END { exit !(f && a && f < a) }' "$D/clean.md" \
+  && ok "slow md, claude chained: claude's Markdown comes before the rest of the command" || bad "slow md, claude chained: claude's Markdown comes before the rest of the command"
+eq "slow md, claude chained: no marker left behind" "$(ls "$D" | grep -c 'pending')" 0
+run 'claude -p "x"'
+has "slow md, claude standalone: clean.md has the final result" "*success in 4s, 2 turns" "$D/clean.md"
+eq "slow md, claude standalone: clean.md is the whole render of raw.log" "$(cat "$D/clean.md")" "$("$REALJQ" -n -R -r --arg mode md -f "$ROOT/viewer/stream.jq" < "$D/raw.log")"
+run 'echo before; codex exec "hello" | tail -1'
+has "slow md, codex chained: clean.md has the final usage" "*input 24,603 (cached 0), output 5*" "$D/clean.md"
+unset SIMPATH
 
 rm -rf "$T"
 [ "$fails" = 0 ] && echo "pane simulation passed" || { echo "$fails failed"; exit 1; }

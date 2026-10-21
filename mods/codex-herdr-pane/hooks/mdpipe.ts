@@ -31,6 +31,12 @@ export function mdFunctions(root: string): string[] {
 export const streamJq = (root: string): string =>
   `jqs() { local nf=; case "$1" in view|pane) ;; *) nf=-n;; esac; jq --unbuffered $nf -R -r --arg mode "$1" -f "${root}/viewer/stream.jq" 2>/dev/null; }`
 
+// await_md <marker>: waits for a Markdown writer started as `>(... ; rm -f "$marker")` to finish,
+// up to CODEX_HERDR_MD_WAIT tenths of a second (600). Nothing else waits for such a writer:
+// bash execs a subshell's last external command, so a writer ending in jq lets go of the pipe it
+// was handed and the pipeline ends without it (mdcodex, a pipeline, happens to be waited for).
+export const AWAIT_MD_FN = 'await_md() { local w=0; while [ -e "$1" ] && [ "$w" -lt "${CODEX_HERDR_MD_WAIT:-600}" ]; do sleep 0.1; w=$((w+1)); done; rm -f "$1"; }'
+
 // Prints a newline when the file's last byte is not one (so a report never ends mid-line and
 // never gets a blank line it did not need). $(tail -c1) is empty exactly when the file is
 // empty or ends in a newline.

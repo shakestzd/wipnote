@@ -1,4 +1,4 @@
-import { NL_FN, mdFunctions, streamJq } from './mdpipe.ts'
+import { AWAIT_MD_FN, NL_FN, mdFunctions, streamJq } from './mdpipe.ts'
 
 // The shell function that stands in for `codex` inside the pane. Pure text.
 //
@@ -76,9 +76,12 @@ export const SHIM = [
 // caller's (__CLAUDE_CHAIN: a chained call, or one that redirects stdout itself) the shim sends
 // the stream to the pane only and prints the answer (the result event's text), which is what a
 // plain `claude -p` prints. Each call streams into a file of its own, so calls running at once
-// in one command never read each other's answer; the newest to end is the run's last.md.
+// in one command never read each other's answer; the newest to end is the run's last.md. The
+// call returns only once its Markdown is in clean.md (await_md), so what the command prints next
+// lands after it, and the run's end never comes before it.
 export const CLAUDE_SHIM = [
   streamJq('$__CLAUDE_ROOT'),
+  AWAIT_MD_FN,
   NL_FN,
   // __PRE: the flags to add, none when the call is not print mode or names its own format
   '__claude_pre() {',
@@ -96,9 +99,9 @@ export const CLAUDE_SHIM = [
   '  __claude_pre "$@"',
   '  if [ "${#__PRE[@]}" = 0 ] || [ -z "${__CLAUDE_LAST:-}" ]; then "${head[@]}" "$@"; return; fi',
   '  if [ -z "${__CLAUDE_CHAIN:-}" ]; then "${head[@]}" "${__PRE[@]}" "$@"; return; fi',
-  '  local cl; cl=$(mktemp "$__CLAUDE_D/call.XXXXXX") || { "${head[@]}" "$@"; return; }',
-  '  "${head[@]}" "${__PRE[@]}" "$@" | tee -a "$__CLAUDE_D/raw.log" "$cl" >(jqs md >> "$__CLAUDE_D/clean.md") | jqs pane >> "$__CLAUDE_D/clean.log"',
-  '  rc="${PIPESTATUS[0]}"; jqs answer < "$cl" > "$cl.md"; cat "$cl.md"; nl_if_open "$cl.md"',
+  '  local cl; cl=$(mktemp "$__CLAUDE_D/call.XXXXXX") || { "${head[@]}" "$@"; return; }; : > "$cl.pending"',
+  '  "${head[@]}" "${__PRE[@]}" "$@" | tee -a "$__CLAUDE_D/raw.log" "$cl" >(jqs md >> "$__CLAUDE_D/clean.md"; rm -f "$cl.pending") | jqs pane >> "$__CLAUDE_D/clean.log"',
+  '  rc="${PIPESTATUS[0]}"; await_md "$cl.pending"; jqs answer < "$cl" > "$cl.md"; cat "$cl.md"; nl_if_open "$cl.md"',
   '  mv -f "$cl.md" "$__CLAUDE_LAST"; rm -f "$cl"; return "$rc"',
   '}',
   'claude() { __claude_go 2 command claude "$@"; }',
