@@ -2,7 +2,7 @@
 
 import type { DelegationTool } from './tools.ts'
 import type { WrapOptions } from './wrap.ts'
-import { claudeJq, mdFunctions } from './mdpipe.ts'
+import { mdFunctions, streamJq } from './mdpipe.ts'
 
 // The Textual versions the viewer was tested on, defined once. The `uv run --with` in the pane
 // script uses it; codex_view.py's inline header repeats it because a script header cannot
@@ -62,20 +62,21 @@ const CODEX_CHAIN_RUN = [
 // codex.jq's place: the output (stderr merged) goes to raw.log untouched, then through
 // stream.jq's pane mode (events become text, any other line passes) into clean.log; its md
 // mode writes clean.md live and, once the run ends, whole from raw.log. The answer is the last
-// result event's text and the usage its tokens and cost. Chained: the shim feeds the logs and
-// writes the answer itself; __CODEX_LAST names the answer for rest.awk, which drops its copy
-// from the rest of the command.
+// result event's text and the usage the tokens and cost of every result. When stdout is the
+// caller's (a chained call, or a standalone one that redirects it: reviewToLast false) the shim
+// feeds the logs and writes the answer itself; __CODEX_LAST names the answer for rest.awk, which
+// drops its copy from the rest of the command.
 const CLAUDE_ENV = 'export __CLAUDE_LAST="$D/last.md" __CLAUDE_D="$D" __CLAUDE_ROOT="$ROOT"'
 const CLAUDE_END = [
-  '  [ -s "$D/last.md" ] || cjq answer < "$D/raw.log" > "$D/last.md"',
-  '  cjq usage < "$D/raw.log" > "$D/usage"',
+  '  [ -s "$D/last.md" ] || jqs answer < "$D/raw.log" > "$D/last.md"',
+  '  jqs usage < "$D/raw.log" > "$D/usage"',
   '  echo "$X" > "$D/exit.tmp"; date +%s > "$D/end"; mv "$D/exit.tmp" "$D/exit"',
 ]
 const CLAUDE_RUN = [
   '  ' + CLAUDE_ENV,
-  '  bash -c \'. "$1/shim.sh"; . "$1/orig.sh"\' _ "$D" 2>&1 | tee "$D/raw.log" >(cjq md >> "$D/clean.md") | cjq pane > "$D/clean.log"',
+  '  bash -c \'. "$1/shim.sh"; . "$1/orig.sh"\' _ "$D" 2>&1 | tee "$D/raw.log" >(jqs md >> "$D/clean.md") | jqs pane > "$D/clean.log"',
   '  X="${PIPESTATUS[0]}"',
-  '  cjq md < "$D/raw.log" > "$D/clean.md.tmp" && mv "$D/clean.md.tmp" "$D/clean.md"',
+  '  jqs md < "$D/raw.log" > "$D/clean.md.tmp" && mv "$D/clean.md.tmp" "$D/clean.md"',
   ...CLAUDE_END,
 ]
 const CLAUDE_CHAIN_RUN = [
@@ -132,7 +133,6 @@ const CCX_RUN = [
   '  ls -1 "$RUNS" 2>/dev/null | grep "\\.jsonl$" > "$D/before"',
   '  if [ ! -d "$RUNS" ]; then printf "*ccx runs directory not found: %s (set ccxRunsDir or CCX_RUNS_DIR)*\\n" "$RUNS" | tee -a "$D/clean.log" >> "$D/clean.md"; fi',
   '  claim() { ls -1 "$RUNS" 2>/dev/null | grep "\\.jsonl$" | grep -vxFf "$D/before" | while IFS= read -r c; do mkdir "$CLAIMS/$c" 2>/dev/null && { printf "%s\\n" "$RUNS/$c"; break; }; done; }',
-  '  jqs() { nf=; [ "$1" = view ] || nf=-n; jq --unbuffered $nf -R -r --arg mode "$1" -f "$ROOT/viewer/stream.jq" 2>/dev/null; }',
   '  W=0  # bytes of the Markdown render already in clean.md: it is only ever appended to',
   '  render() { sed -n "$1,$2p" "$f" > "$D/chunk"; jqs view < "$D/chunk" >> "$D/clean.log"',
   '    sed -n "1,$2p" "$f" | jqs "$3" > "$D/md.tmp"; tail -c +"$((W+1))" "$D/md.tmp" >> "$D/clean.md"; W=$(wc -c < "$D/md.tmp" | tr -d " "); }',
@@ -185,13 +185,13 @@ export function paneScript(o: WrapOptions, tool: DelegationTool, chained: boolea
     .map((l) => l.replace('__PROFILE__', profileName(o)).replace('__REVIEWLAST__', reviewToLast ? '1' : ''))
   const run = tool.filter === 'ccx'
     ? CCX_RUN.map((l) => l.replace('__RUNS__', () => (o.runsDir ? shq(o.runsDir) : DEFAULT_RUNS)))
-    : tool.filter === 'claude' ? (chained ? CLAUDE_CHAIN_RUN : CLAUDE_RUN) : codex
+    : tool.filter === 'claude' ? (reviewToLast ? CLAUDE_RUN : CLAUDE_CHAIN_RUN) : codex
   return [
     '#!/usr/bin/env bash',
     'D="$1"; ROOT="$2"; VIEW="$3"; CHAIN="$4"',
     ...RUN_ORIG,
     ...mdFunctions('$ROOT'),
-    ...(tool.filter === 'claude' ? [claudeJq('$ROOT')] : []),
+    ...(tool.filter === 'codex' ? [] : [streamJq('$ROOT')]),
     MKREST,
     'if [ "$CHAIN" = 1 ]; then export MCP_SEEN_MD="$D/mcp.md.seen" MCP_SEEN_LOG="$D/mcp.log.seen"; fi',
     // The pane's own title (the shell set one for the typed command) and a clear screen, so the

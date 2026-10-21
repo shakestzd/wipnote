@@ -24,14 +24,18 @@ function invocation(name: string, subs: string, path: boolean) {
   }
 }
 
-// Headless Claude: claude with -p or --print among its own words, bare or behind `dev exec
-// [-d <dir>]` (a helper that runs its arguments in a Docker Compose container). A first word
-// naming a subcommand (claude mcp, claude plugin, ...) is never a run, whatever follows it.
+// Headless Claude: claude with -p or --print among its own words (on its own line, or across
+// backslash-newlines), bare or behind `dev exec [-d <dir>]` (a helper that runs its arguments in
+// a Docker Compose container). Bare means the word claude: the shim (shim.ts) is a shell function,
+// which a path such as /usr/local/bin/claude would bypass; behind dev exec any path is the
+// container's and dev() sees it. A first word naming a subcommand (claude mcp, claude plugin, ...)
+// is never a run, whatever follows it.
 const CLAUDE_SUBS = 'mcp|plugins?|auth|agents|attach|auto-mode|daemon|doctor|gateway|import|install|logs|purge|remote-control|respawn|rm|self-hosted-runner|setup-token|stop|kill|ultrareview|update'
-const DEV_EXEC = String.raw`(?:dev\s+exec\s+(?:-d(?:\s+|=)?\S+\s+)?)?`
+const WS = String.raw`(?:[ \t]|\\\n)+`
+const DEV_EXEC = String.raw`(?:dev${WS}exec${WS}(?:-d(?:${WS}|=)?\S+${WS})?(?:\S*\/)?)?`
 const claudePrint = {
-  pattern: new RegExp(String.raw`(?:^|[;&|(\n])\s*(?:[A-Za-z_][A-Za-z0-9_]*=\S*\s+)*${DEV_EXEC}(?:\S*\/)?claude`
-    + String.raw`(?!\s+(?:${CLAUDE_SUBS})(?=\s|$))(?:\s+[^\s;&|()]+)*?\s+(?:-p|--print)(?=\s|$)`),
+  pattern: new RegExp(String.raw`(?:^|[;&|(\n])\s*(?:[A-Za-z_][A-Za-z0-9_]*=\S*\s+)*${DEV_EXEC}claude`
+    + String.raw`(?!${WS}(?:${CLAUDE_SUBS})(?=\s|$))(?:${WS}[^\s;&|()]+)*?${WS}(?:-p|--print)(?=\s|$)`),
   loose: /claude\b[^;&|\n]*?\s(-p|--print)(?=\s|$)/,
 }
 
@@ -51,6 +55,9 @@ export const TOOLS: readonly DelegationTool[] = [
 ]
 
 const INFO_ONLY = /\s(?:--help|-h|--version|-V)(?=\s|$)/
+// A claude run that names its own --output-format is left as asked, unwrapped: its stdout (json,
+// text) is the caller's to read, and holds nothing the pane could show while it runs.
+const OWN_FORMAT = /\s--output-format(?:=|\s|$)/
 
 // Quoted strings and heredoc bodies hold prompts and text, not commands, so
 // they are blanked before the command is searched for an invocation.
@@ -60,11 +67,21 @@ function blankText(command: string): string {
     .replace(/'[^']*'|"(?:\\.|[^"\\])*"/g, '""')
 }
 
+// The words of the invocation the tool's pattern found, up to the next separator
+function ownWords(tool: DelegationTool, text: string): string {
+  const at = tool.pattern.exec(text)?.index ?? 0
+  return text.slice(at).replace(/\\\n/g, ' ').replace(/^[;&|(\n]/, '').split(/[;&|\n]/)[0] ?? ''
+}
+
+// codex and ccx: an info flag anywhere means no run. claude: only its own words are looked at,
+// so `claude -p "x" | sort -h` is still a run.
 export function toolFor(command: string): DelegationTool | undefined {
   if (command.includes(MARKER)) return undefined
   const text = blankText(command)
-  if (INFO_ONLY.test(text)) return undefined
-  return TOOLS.find((t) => t.pattern.test(text))
+  const tool = TOOLS.find((t) => t.pattern.test(text))
+  if (!tool || tool.name !== 'claude') return tool && !INFO_ONLY.test(text) ? tool : undefined
+  const own = ownWords(tool, text)
+  return INFO_ONLY.test(own) || OWN_FORMAT.test(own) ? undefined : tool
 }
 
 // Standalone or chained. A call is STANDALONE when, with quoted text and heredoc

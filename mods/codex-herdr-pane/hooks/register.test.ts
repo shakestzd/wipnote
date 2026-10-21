@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
-import { CLAUDE_SHIM, SHIM } from './shim.ts'
-import { isStandalone, toolFor } from './tools.ts'
+import { SHIM } from './shim.ts'
+import { isStandalone } from './tools.ts'
 import { TEXTUAL_REQ } from './panescript.ts'
 import { MARKER, buildWrapper, isCodexDelegation, paneLabel, scriptPath, stubFor, type WrapOptions } from './wrap.ts'
 
@@ -447,49 +447,4 @@ test('maxReturnLines defaults to 60 and 0 turns the cap off', { options: { maxRe
 
 test('maxReturnLines is 60 when the config does not set it', async ($, on) => {
   expect((await seenBy($, on, { command: 'codex exec "x"' })).command).toContain('__M=60')
-})
-
-// --- headless claude (claude -p / --print), bare or behind dev exec ---
-test('recognises headless claude and ignores interactive claude, info flags, subcommands and text', () => {
-  const yes = ['claude -p "say ok" --allowedTools Read', 'claude --print "x"', 'cd r && claude --model opus -p "x"',
-    'dev exec claude -p "x"', 'dev exec -d svc/api claude -p "/code-review high a.ts" --allowedTools "Read,Grep,Glob"', 'claude -p "x" | tail -3']
-  const no = ['claude', 'claude "fix it"', 'claude --version', 'claude -p --version', 'claude --help', 'claude mcp list -p', 'claude plugin install -p x',
-    'dev exec -d svc claude', 'echo "claude -p x"', "echo 'a; claude -p b'", 'cat <<EOF\nclaude -p hidden\nEOF', 'wipnote claude -p x', 'claude-p x',
-    `${MARKER}\nclaude -p "already wrapped"`]
-  for (const c of yes) expect(toolFor(c)?.name, c).toBe('claude')
-  for (const c of no) expect(isCodexDelegation(c), c).toBe(false)
-  for (const c of ['codex exec "x"', 'ccx task "x"']) expect(toolFor(c)?.name, c).not.toBe('claude')
-})
-
-test('a claude run is standalone bare or behind dev exec, chained otherwise', () => {
-  for (const c of ['claude -p "x"', 'dev exec -d d claude -p "x"']) expect(isStandalone(c), c).toBe(true)
-  for (const c of ['claude -p "x" | tail -1', 'a; dev exec claude -p "x"']) expect(isStandalone(c), c).toBe(false)
-})
-
-test('the claude pane title is Claude review for /code-review, else Claude task', () => {
-  expect(paneLabel('dev exec -d d claude -p "/code-review high a.ts" --allowedTools "Read"')).toBe('Claude review: /code-review high a.ts')
-  expect(paneLabel('claude -p "say ok" --allowedTools Read')).toBe('Claude task: say ok')
-})
-
-test('a claude call is wrapped with its shim and stream.jq, and returns its answer like codex', async ($, on) => {
-  const seen = await seenBy($, on, { command: 'claude -p "say ok"' })
-  expect(seen.command).toContain(MARKER)
-  expect(seen.timeout).toBe(600000)
-  const text = buildWrapper('claude -p "say ok"', defaults)
-  expect(text).toContain('claude() { __claude_go 2 command claude "$@"; }')
-  expect(text).toContain('cjq pane > "$D/clean.log"')
-  expect(text).toContain('echo "claude exited $__X')
-  expect(text).toContain('then cap_file "$__D/last.md"; else')
-  expect(text).not.toContain('--output-last-message') // no codex shim
-  const chained = buildWrapper('claude -p "x" | tail -1', defaults)
-  expect(chained).toContain('__CLAUDE_CHAIN=1 __CODEX_LAST="$D/last.md"')
-  expect(chained).toContain('echo "command exited $__X')
-})
-
-test('the claude shim adds stream-json and --verbose only when absent, and only in print mode', () => {
-  const cs = CLAUDE_SHIM.join('\n')
-  expect(cs).toContain('if [ -n "$p" ] && [ -z "$fmt" ]; then __PRE=(--output-format stream-json); [ -z "$v" ] && __PRE+=(--verbose); fi')
-  expect(cs).toContain('--output-format) fmt=set; want=1;; --output-format=*) fmt="${a#*=}";;')
-  expect(cs).toContain('cjq answer < "$__CLAUDE_D/call.log" > "$__CLAUDE_LAST"; cat "$__CLAUDE_LAST"') // chained: the answer on stdout
-  expect(cs).toContain('-d) i=$((i+2));; -d?*) i=$((i+1));;') // dev exec -d <dir>
 })

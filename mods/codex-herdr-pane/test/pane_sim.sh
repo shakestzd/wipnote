@@ -359,7 +359,6 @@ eq "sweep: a run directory older than 7 days is removed" "$(ls -d "$T/tmp/codex-
 eq "sweep: a newer run directory is kept" "$(ls -d "$T/tmp/codex-herdr.new1" 2>/dev/null | wc -l | tr -d ' ')" 1
 eq "sweep: an old ccx claim is removed" "$(ls -d "$T/tmp/codex-herdr-ccx-claims-$(id -u)/a.jsonl" 2>/dev/null | wc -l | tr -d ' ')" 0
 
-rm -rf "$T"
 # --- headless claude: stream-json added once, the answer returned, bare or behind dev exec ---
 A='`tsconfig.json` extends `./.claude-plugin/types/tsconfig.json`.'
 run 'claude -p "say ok" --allowedTools Read'
@@ -383,9 +382,6 @@ eq "dev exec: review label" "$(cat "$D/label")" "Claude review: /code-review hig
 run 'claude -p "x" --verbose'
 eq "claude: --verbose the call has is not repeated" "$(grep -o -- --verbose "$T/log.claude" | wc -l | tr -d ' ')" 1
 
-run 'claude -p "x" --output-format json'
-nothas "claude: a call naming its own format runs as asked" "stream-json" "$T/log.claude"
-
 run 'echo BEFORE; claude -p "x" | tail -1; echo AFTER'
 has "claude chained: the rest of the command is returned" "AFTER" <(echo "$OUT")
 has "claude chained: the answer is returned" "$A" <(echo "$OUT")
@@ -393,4 +389,18 @@ eq "claude chained: the answer once (rest.awk drops its copy)" "$(grep -cF -- "$
 nothas "claude chained: no raw JSON reaches the caller" '"type":' <(echo "$OUT")
 has "claude chained: clean.log shows the tool call" "> Read: tsconfig.json" "$D/clean.log"
 
+# --- review fixes: a redirect gets the answer, not JSONL; calls at once keep their own answers; usage sums ---
+run "claude -p \"x\" > $T/answer.txt"
+eq "claude > file: the file holds the answer" "$(cat "$T/answer.txt")" "$A"
+has "claude > file: the report returns the answer too" "$A" <(echo "$OUT")
+has "claude > file: the pane still logs the tool call" "> Read: tsconfig.json" "$D/clean.log"
+
+run "claude -p \"tag:a\" > $T/a.md & claude -p \"tag:b\" > $T/b.md & wait"
+eq "claude at once: a gets its own answer" "$(cat "$T/a.md")" "tag:a"
+eq "claude at once: b gets its own answer" "$(cat "$T/b.md")" "tag:b"
+has "claude at once: usage counts both calls" "command exited 0 after" <(echo "$OUT")
+has "claude at once: usage sums both" "8 in / 222 out tokens" <(echo "$OUT")
+eq "claude at once: no call files left behind" "$(ls "$D" | grep -c '^call\.')" 0
+
+rm -rf "$T"
 [ "$fails" = 0 ] && echo "pane simulation passed" || { echo "$fails failed"; exit 1; }

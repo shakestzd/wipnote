@@ -1,4 +1,4 @@
-import { NL_FN, claudeJq, mdFunctions } from './mdpipe.ts'
+import { NL_FN, mdFunctions, streamJq } from './mdpipe.ts'
 
 // The shell function that stands in for `codex` inside the pane. Pure text.
 //
@@ -72,11 +72,13 @@ export const SHIM = [
 // A call that names its own format, or is not in print mode, runs exactly as asked. A
 // `dev exec [-d <dir>] claude ...` call gets the same flags after its claude word.
 // STANDALONE: the stream is the pane's stdout (raw.log, then stream.jq into clean.log) and the
-// pane script takes the answer from its last result event. CHAINED (__CLAUDE_CHAIN): the
-// command's stdout is the caller's, so the shim sends the stream to the pane only and prints the
-// answer (the result event's text), which is what a plain `claude -p` prints.
+// pane script takes the answer from its last result event. When the command's stdout is the
+// caller's (__CLAUDE_CHAIN: a chained call, or one that redirects stdout itself) the shim sends
+// the stream to the pane only and prints the answer (the result event's text), which is what a
+// plain `claude -p` prints. Each call streams into a file of its own, so calls running at once
+// in one command never read each other's answer; the newest to end is the run's last.md.
 export const CLAUDE_SHIM = [
-  claudeJq('$__CLAUDE_ROOT'),
+  streamJq('$__CLAUDE_ROOT'),
   NL_FN,
   // __PRE: the flags to add, none when the call is not print mode or names its own format
   '__claude_pre() {',
@@ -94,9 +96,10 @@ export const CLAUDE_SHIM = [
   '  __claude_pre "$@"',
   '  if [ "${#__PRE[@]}" = 0 ] || [ -z "${__CLAUDE_LAST:-}" ]; then "${head[@]}" "$@"; return; fi',
   '  if [ -z "${__CLAUDE_CHAIN:-}" ]; then "${head[@]}" "${__PRE[@]}" "$@"; return; fi',
-  '  : > "$__CLAUDE_D/call.log"',
-  '  "${head[@]}" "${__PRE[@]}" "$@" | tee -a "$__CLAUDE_D/raw.log" "$__CLAUDE_D/call.log" >(cjq md >> "$__CLAUDE_D/clean.md") | cjq pane >> "$__CLAUDE_D/clean.log"',
-  '  rc="${PIPESTATUS[0]}"; cjq answer < "$__CLAUDE_D/call.log" > "$__CLAUDE_LAST"; cat "$__CLAUDE_LAST"; nl_if_open "$__CLAUDE_LAST"; return "$rc"',
+  '  local cl; cl=$(mktemp "$__CLAUDE_D/call.XXXXXX") || { "${head[@]}" "$@"; return; }',
+  '  "${head[@]}" "${__PRE[@]}" "$@" | tee -a "$__CLAUDE_D/raw.log" "$cl" >(jqs md >> "$__CLAUDE_D/clean.md") | jqs pane >> "$__CLAUDE_D/clean.log"',
+  '  rc="${PIPESTATUS[0]}"; jqs answer < "$cl" > "$cl.md"; cat "$cl.md"; nl_if_open "$cl.md"',
+  '  mv -f "$cl.md" "$__CLAUDE_LAST"; rm -f "$cl"; return "$rc"',
   '}',
   'claude() { __claude_go 2 command claude "$@"; }',
   // dev exec: skip -d <dir> (or -d=<dir>, -d<dir>); a claude word next is the run, anything else runs untouched
