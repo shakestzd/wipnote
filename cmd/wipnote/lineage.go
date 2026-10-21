@@ -273,7 +273,11 @@ func runLineageProjection(w io.Writer, wipnoteDir, arg string, opts lineageOpts)
 	if opts.jsonOut {
 		return renderLineageJSON(w, arg, kind, forward, backward, "")
 	}
-	return renderLineageProjectionTree(w, snap, arg, kind, forward, backward, opts.timeline)
+	if err := renderLineageProjectionTree(w, snap, arg, kind, forward, backward, opts.timeline); err != nil {
+		return err
+	}
+	printLineageResearch(w, wipnoteDir, arg)
+	return nil
 }
 
 // sortLineageTimeline sorts nodes in place by ascending Timestamp, pushing
