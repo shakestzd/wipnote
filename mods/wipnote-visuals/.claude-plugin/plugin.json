@@ -1,0 +1,6 @@
+{
+  "name": "wipnote-visuals",
+  "version": "0.1.0",
+  "description": "Draws wip:steps, wip:compare and wip:callout fenced blocks in replies as step lists, option comparisons and callout boxes.",
+  "types": "./types/index.d.ts"
+}
