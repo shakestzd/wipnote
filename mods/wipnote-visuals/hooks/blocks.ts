@@ -108,9 +108,12 @@ export function splitBlocks(markdown: string): Segment[] {
   return out
 }
 
-/** The model-facing rule, sent only while the mod is on. */
+/**
+ * The model-facing rule, sent only while the mod is on. It asks for compare
+ * only: a numbered list and a bold warning line are Markdown already, so
+ * wip:steps and wip:callout are parsed and drawn for old replies but no
+ * longer requested (feat-ca6bd746, design section 3).
+ */
 export const RULE =
-  'For steps use ```wip:steps instead of a numbered list (a step per line; `x ` done, `> ` current). ' +
-  'For options use ```wip:compare (`# Name*` marks the pick; `+ pro`, `- con`). ' +
-  'For a warning or decision use ```wip:callout (`warning:` or `decision:`, then text). ' +
-  'Say each thing once: never repeat a block in prose.'
+  'When you recommend one of several options, use a ```wip:compare block (`# Name*` marks the pick; ' +
+  '`+ pro`, `- con` lines). The UI draws it side by side, so do not repeat the options in prose.'

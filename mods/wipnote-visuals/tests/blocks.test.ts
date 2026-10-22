@@ -47,6 +47,11 @@ test('splitBlocks finds closed fences and leaves open or empty ones as text', ()
   expect(splitBlocks('a\r\n```wip:callout\r\nwarning: x\r\n```\r\n')[1]).toMatchObject({ kind: 'block' })
 })
 
-test('the rule stays under 100 tokens (chars / 4)', () => {
+test('the rule stays under 100 tokens (chars / 4) and asks for compare only', () => {
   expect(RULE.length / 4).toBeLessThan(100)
+  expect(RULE).toContain('wip:compare')
+  expect(RULE).toContain('recommend one of several options')
+  // steps and callout still parse and draw for old replies, but are no longer requested
+  expect(RULE).not.toContain('wip:steps')
+  expect(RULE).not.toContain('wip:callout')
 })
