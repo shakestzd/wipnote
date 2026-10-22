@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Mod rules never reach the model: managed policy plugin skips prompt.compose</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-fa03373b"
+             data-type="bug"
+             data-status="in-progress"
+             data-priority="medium"
+             data-created="2026-10-22T12:02:22.101812"
+             data-updated="2026-10-22T12:03:24.153167" data-agent-assigned="claude-code" data-track-id="trk-41158a40" data-created-by-agent="claude-code" data-created-by-model="claude-sonnet-5-5" data-created-by-cli-version="0.80.1" data-change_kind="bugfix" data-created_in_session="f022077c-3847-4131-a158-d655d8ef1fe2">
+
+        <header>
+            <h1>Mod rules never reach the model: managed policy plugin skips prompt.compose</h1>
+            <div class="metadata">
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="caused_by">
+                <h3>Caused By:</h3>
+                <ul>
+                    <li><a href="../features/feat-ca6bd746.html" data-relationship="caused_by" data-since="2026-10-22T12:02:22.12035">feat-ca6bd746</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="../sessions/f022077c-3847-4131-a158-d655d8ef1fe2.html" data-relationship="implemented_in" data-since="2026-10-22T12:03:24.152998">session f022077c-3847-4131-a158-d655d8ef1fe2</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-41158a40.html" data-relationship="part_of" data-since="2026-10-22T12:02:22.128151">trk-41158a40</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>A managed prepend-tier plugin (cc-plugin-sec-default) calls next.to past the user tier on prompt.compose and classic.* events, so wipnote-visuals and wipnote-orchestra never add their model rules. Fix: each mod ships prompt.md; wipnote claude appends them to the system prompt it already passes via --append-system-prompt-file; the prompt.compose hooks are removed.</p>
+        </section>
+    </article>
+</body>
+</html>
