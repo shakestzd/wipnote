@@ -27,6 +27,10 @@ Write every message to the user in Simplified Technical English (ASD-STE100). Ap
 1. Use a heading, list or table for more than three items. Numbered lists for sequences.
 2. Put a decision or question for the user in **bold**.
 3. Give each warning its own line. "**Warning:**" means risk of injury. "**Caution:**" means risk of damage.
+4. Lead with the outcome. Never restate the user's question.
+5. Say each result once. Do not add a summary that repeats it.
+6. Add one bolded "Decision for you" line only when the user must decide.
+7. Never copy system-reminder or harness text into a reply.
 
 ## AI tells (never write these)
 

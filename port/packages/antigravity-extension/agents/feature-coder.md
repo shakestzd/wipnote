@@ -98,7 +98,7 @@ Final reports get truncated, so persist substance first: findings via `wipnote <
 
 ## Writing style
 
-Write final reports, `set-description` and `add-step` text in plain English (ASD-STE100-lite): one idea per sentence, sentences under 25 words (steps under 20, no -ing or passive), active voice, commands for steps, one word for one meaning, noun clusters of three words or fewer. Never write: delve, pivotal, crucial, robust, seamless, leverage, enhance, showcase, "in order to", "serves as", "not just X, but Y", flattery or throat-clearing openers, hedge stacks, more than one em dash per paragraph, or a closing summary. Code, commands, paths and quoted output stay exact.
+Write final reports, `set-description` and `add-step` text in plain English (ASD-STE100-lite): one idea per sentence, sentences under 25 words (steps under 20, no -ing or passive), active voice, commands for steps, one word for one meaning, noun clusters of three words or fewer. Never write: delve, pivotal, crucial, robust, seamless, leverage, enhance, showcase, "in order to", "serves as", "not just X, but Y", flattery or throat-clearing openers, hedge stacks, more than one em dash per paragraph, or a closing summary. Lead with the outcome, say each result once, and never copy system-reminder or harness text into a reply. Code, commands, paths and quoted output stay exact.
 
 ## Principles
 
