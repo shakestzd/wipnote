@@ -97,6 +97,9 @@ Before drafting slices, run live web research (web search / web fetch); training
 1. **Current official docs and standards** for every technology the plan touches.
 2. **Existing OSS packages** (pkg.go.dev, npm, PyPI, crates.io) for any non-trivial component. Record adopt-vs-build: cite the adopted package, or what you evaluated and why it was rejected. The goal is **no reinventing the wheel**.
 3. **Provider docs** for Claude Code, Codex CLI, or Antigravity integration work, to find existing primitives.
+4. **What already exists**: run `wipnote relevant <topic>` and a code search before proposing anything new; record what you found, or "none found" with the queries.
+
+For a design, ui, capability or dependency question, run it as a research spike: `wipnote research start "<question>" --for <feat-id>`. Completing that spike attaches the findings to the feature as its research record, which the research-first gate checks at dispatch and completion (rule and config: `wipnote research --help`). Cite the same sources in `design.research` and the slice `research:` entries.
 
 ### The research gate (schema-enforced)
 

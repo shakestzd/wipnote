@@ -102,10 +102,12 @@ func buildRoot() *cobra.Command {
 	spike := workitemCmd("spike", "spikes")
 	spike.AddCommand(spikeResetCmd())
 	spike.AddCommand(linkCommitCmd("spike"))
+	spike.AddCommand(wiResearchCmd("spike"))
 
 	bug := workitemCmd("bug", "bugs")
 	bug.AddCommand(bugResetCmd())
 	bug.AddCommand(linkCommitCmd("bug"))
+	bug.AddCommand(wiResearchCmd("bug"))
 
 	return cliinternal.BuildRoot(cliinternal.RootOptions{
 		ProjectDirFlag:    &projectDirFlag,
@@ -151,6 +153,7 @@ func buildRoot() *cobra.Command {
 			{GroupID: "quality", Command: reconcileCmd()},
 			{GroupID: "quality", Command: launcherCmd()},
 			{GroupID: "quality", Command: guardCmd()},
+			{GroupID: "quality", Command: researchCmd()},
 		},
 		Data: []cliinternal.GroupedCommand{
 			{GroupID: "data", Command: batchCmd()},

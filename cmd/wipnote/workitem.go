@@ -261,7 +261,7 @@ func wiCompleteCmd(typeName string) *cobra.Command {
 		cmd.Flags().StringArrayVar(&wiResearchURL, "research-url", nil,
 			"http(s) URL of the docs/changelog verifying a dependency change; required (or --research-waiver) when the item changes a dependency manifest. Repeatable.")
 		cmd.Flags().StringVar(&wiResearchWaiver, "research-waiver", "",
-			"explicit waiver of the dependency-research completion gate; records the rationale on the artifact")
+			"waive the research gates (research-first and dependency research); records the rationale on the artifact")
 	}
 	cmd.Flags().StringVar(&wiLearning, "learning", "",
 		"arch card body text to capture as a durable learning; validation failure warns and skips attaching (non-fatal; completion still succeeds)")
@@ -366,6 +366,13 @@ func wiSetStatusWithAgent(typeName, id, status, sessionID, agentID string) error
 			return err
 		}
 	}
+	// Research-first gate (docs/design/research-gate.md): gated change kinds
+	// need a research record or --research-waiver; config decides warn vs block.
+	if status == "done" {
+		if err := checkResearchCompleteGate(os.Stderr, filepath.Dir(dir), col, id, wiResearchWaiver); err != nil {
+			return fmt.Errorf("refusing to complete %s %s: %w", typeName, id, err)
+		}
+	}
 	if status == "done" && shouldAutocommitWorkitemArtifact(typeName) {
 		if strings.TrimSpace(wiAcceptedAdvisory) != "" {
 			// --accepted-advisory is an audited override that composes past the
@@ -437,6 +444,7 @@ func wiSetStatusWithAgent(typeName, id, status, sessionID, agentID string) error
 		// linked commits, or whose id is cited in source, may have been fixed
 		// and never closed. Print before any dispatch happens; never refuse.
 		emitAlreadyFixedAdvisory(os.Stderr, filepath.Dir(dir), id, node)
+		emitResearchStartAdvisory(os.Stderr, filepath.Dir(dir), node)
 		if sessionID != "" {
 			// Durable claim history (feat-21d12cdb) was recorded inside col.Start's
 			// item lock by claimEpisodeOnStart, ordered with the transition.
@@ -462,6 +470,9 @@ func wiSetStatusWithAgent(typeName, id, status, sessionID, agentID string) error
 		// them (bug-0816b822). Non-fatal.
 		if shouldAutocommitWorkitemArtifact(typeName) {
 			autoLinkMessageDerivedCommits(os.Stderr, col, filepath.Dir(dir), id)
+		}
+		if typeName == "spike" {
+			attachSpikeResearch(os.Stderr, p, id)
 		}
 		if sessionID != "" {
 			// Close the claim episode in place, giving the interval its end.
@@ -1118,6 +1129,7 @@ func printNodeDetail(n *models.Node) {
 	}
 
 	printRollup(n)
+	printResearchRecord(os.Stdout, n, "")
 
 	if n.Content != "" {
 		fmt.Println("\nContent:")
@@ -1314,6 +1326,10 @@ func checkDependencyResearchCompleteGate(p *workitem.Project, col *workitem.Coll
 		note += "waiver: " + waiver
 	}
 	if err := col.Edit(id).AddNote(note).Save(); err != nil {
+		return fmt.Errorf("research gate: record research evidence on %s: %w", id, err)
+	}
+	// The same evidence also lands on the structured research record.
+	if err := recordDependencyResearch(col, id, validURLs, waiver); err != nil {
 		return fmt.Errorf("research gate: record research evidence on %s: %w", id, err)
 	}
 	return nil

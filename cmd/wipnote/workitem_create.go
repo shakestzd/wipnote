@@ -14,6 +14,7 @@ import (
 	"github.com/shakestzd/wipnote/core/models"
 	"github.com/shakestzd/wipnote/core/paths"
 	"github.com/shakestzd/wipnote/core/provenance"
+	"github.com/shakestzd/wipnote/core/research"
 	"github.com/shakestzd/wipnote/core/workitem"
 	"github.com/spf13/cobra"
 )
@@ -41,6 +42,9 @@ type wiCreateOpts struct {
 	createdByModel      string
 	createdByRole       string
 	createdByCLIVersion string
+
+	// changeKind is the --change-kind research-gate classification; "" infers it.
+	changeKind string
 }
 
 func wiCreateCmd(typeName, _ string) *cobra.Command {
@@ -68,6 +72,10 @@ func wiCreateCmd(typeName, _ string) *cobra.Command {
 		"override the agent role recorded as provenance (default: inherit from active session)")
 	cmd.Flags().StringVar(&opts.createdByCLIVersion, "created-by-cli-version", "",
 		"override the wipnote CLI version recorded as provenance (default: this binary's version)")
+	if typeName == "feature" || typeName == "bug" {
+		cmd.Flags().StringVar(&opts.changeKind, "change-kind", "",
+			"research-gate change kind: "+strings.Join(research.AllKinds, "|")+" (default: inferred from the title)")
+	}
 	if typeName == "bug" {
 		cmd.Flags().StringVar(&opts.causedBy, "caused-by", "", "feature ID that caused this bug")
 	}
@@ -117,10 +125,15 @@ func runWiCreate(typeName, title string, o *wiCreateOpts) error {
 		return err
 	}
 
+	if o.changeKind != "" && !research.ValidKind(o.changeKind) {
+		return fmt.Errorf("--change-kind %q is not one of %s", o.changeKind, strings.Join(research.AllKinds, ", "))
+	}
+
 	node, err := createNode(p, typeName, title, o)
 	if err != nil {
 		return fmt.Errorf("create %s: %w", typeName, err)
 	}
+	applyChangeKind(collectionFor(p, typeName), typeName, node, o.changeKind)
 
 	// Post-creation: record steps, session provenance, affected files, and
 	// model/role/CLI attribution. Resolve provenance now (after createNode so

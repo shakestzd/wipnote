@@ -168,6 +168,14 @@ func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 		return &HookResult{Decision: "block", Reason: warn}, nil
 	}
 
+	// Guard: research-first gate on implementer dispatch. Advisory in warn
+	// mode, deny in block mode, for a gated item with no research record
+	// (docs/design/research-gate.md). File state only.
+	researchDispatchAdvisory, denyDispatch := checkResearchDispatchGuard(event, ctx)
+	if denyDispatch {
+		return &HookResult{Decision: "block", Reason: researchDispatchAdvisory}, nil
+	}
+
 	// Always-on guards: work item and research required regardless of YOLO mode.
 	// Skipped during subagent grace period (subagent just spawned, needs time to claim).
 	if !subagentGrace {
@@ -289,6 +297,7 @@ func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 		result, err := recordEventAndAllow(event, ctx, database)
 		if err == nil && result != nil {
 			appendAdditionalContext(result, orchestrationResearchAdvisory)
+			appendAdditionalContext(result, researchDispatchAdvisory)
 			appendAdditionalContext(result, orchestratorAdvice)
 			appendAdditionalContext(result, advisory)
 		}
@@ -299,6 +308,7 @@ func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 	result, err := recordEventAndAllow(event, ctx, database)
 	if err == nil && result != nil {
 		appendAdditionalContext(result, orchestrationResearchAdvisory)
+		appendAdditionalContext(result, researchDispatchAdvisory)
 		appendAdditionalContext(result, orchestratorAdvice)
 	}
 	return result, err
