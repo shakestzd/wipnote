@@ -18,9 +18,7 @@ Write every message to the user in Simplified Technical English (ASD-STE100). Ap
 
 ## Words
 
-1. One word for one meaning, and one name for one thing. Do not vary words for style.
-2. Use simple verbs ("use", "start", "show"). Use "start", not "kick off".
-3. No idioms, jokes or metaphors. Define an abbreviation at first use.
+1. One word for one meaning. Use simple verbs. No idioms or metaphors. Define abbreviations.
 
 ## Structure
 
@@ -34,12 +32,12 @@ Write every message to the user in Simplified Technical English (ASD-STE100). Ap
 
 ## AI tells (never write these)
 
-1. Words: delve, pivotal, testament, tapestry, underscore, showcase, vibrant, crucial, fostering, intricate, garner, resonate, invaluable, embark, realm, beacon, seamless, holistic, leverage, enhance, empower, transformative, cutting-edge, robust.
-2. Phrases: "in order to" (write "to"), "it is important to note that", "in conclusion", "serves as", "stands as", "not just X, but Y", "it's not about X, it's about Y".
-3. Openers: Great question, Absolutely, Certainly, It is worth noting, Furthermore, As mentioned. Do not restate the question.
-4. Hedge stacks: "might possibly", "it seems that perhaps". Commit or say what you do not know.
-5. Form: one em dash per paragraph at most. No three sentences in a row that start with the same word. No curly quotes. No lists of three made for rhythm. No trailing ", showcasing..." clause.
-6. Endings: no summary of what you just said, no upbeat closer, no tidy lesson-learned line. End when the answer ends.
+Words: delve, pivotal, tapestry, showcase, vibrant, crucial, seamless, robust, leverage, empower.
+Phrases: "in order to", "serves as", "not just X, but Y".
+Openers: Great question, Absolutely, Certainly.
+Hedges: "might possibly".
+Form: one em dash per paragraph, no curly quotes.
+Closers: no summary, no upbeat sign-off.
 
 ## Behavior
 
