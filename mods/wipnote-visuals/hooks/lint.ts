@@ -146,18 +146,27 @@ export function lintReply(text: string, opts?: { mode?: Mode }): Report {
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`
 
-// One short line for the next prompt; '' when the reply was clean.
+// One short line for the next prompt; '' when the reply was clean. Items are
+// ranked by severity, not by position: banned words and openers first (the
+// clearest tells), then filler, em dashes, long sentences, and the softer
+// rules last. The first three ranked items make the line.
 export function feedbackLine(report: Report): string {
   const f = report.findings
   if (!f.length) return ''
   const parts: string[] = []
   const uniq = (rule: string) => [...new Set(f.filter((x) => x.rule === rule).map((x) => x.match.toLowerCase()))]
   for (const w of uniq('vocab').slice(0, 2)) parts.push(`"${w}"`)
+  if (report.counts.opener) parts.push('3 sentences with the same opener')
   for (const w of uniq('filler').slice(0, 1)) parts.push(`"${w}"`)
   for (const d of f.filter((x) => x.rule === 'emdash').slice(0, 1)) parts.push(`${d.n} em dashes in ¶${d.para}`)
   if (report.longSentences) parts.push(`${plural(report.longSentences, 'sentence', 'sentences')} >25 words`)
-  if (report.counts.opener) parts.push('3 sentences with the same opener')
   if (report.counts.negclose) parts.push('a short negating closer')
   if (report.counts.punct) parts.push('curly quotes or en dash')
   return `Last reply: ${parts.slice(0, 3).join(', ')}.`
+}
+
+/** The rule a finding list breaks worst, for a one-word summary. */
+export const SEVERITY: readonly string[] = ['vocab', 'opener', 'filler', 'emdash', 'long', 'negclose', 'punct']
+export function topRule(report: Report): string {
+  return SEVERITY.find((r) => (report.counts[r] || 0) > 0) ?? ''
 }

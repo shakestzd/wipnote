@@ -1,20 +1,20 @@
 // wipnote-visuals: draws wip:compare (and older wip:steps / wip:callout) fences
-// in replies, and puts a receipt line under each main-loop turn.
+// in replies, puts a receipt line with the writing score under each main-loop
+// turn, and sends a one-line writing note with the next prompt when a reply
+// broke a rule (turnhooks.ts).
 // Same flow as wipnote-orchestra's wipnote-ref cards: a one-section rule asks
 // the model for the fences (only while the mod is on), and a ui.render hook on
 // AssistantMessage draws them. The stored message keeps the plain fence.
-// The receipt costs the model nothing: tool.call collects, turn.complete shows.
 import { atom, read, update } from 'claude-code'
-import type { Register } from 'claude-code'
+import type { EngineInterface, Register } from 'claude-code'
 
 import { RULE, splitBlocks } from './blocks'
 import { renderBlock } from './components'
-import { emptyTurn, noteCall, receiptLine } from './receipt'
-import type { Turn } from './receipt'
+import { registerTurn } from './turnhooks'
 
 const enabled = atom({ plugin: 'wipnote-visuals', key: 'enabled' } as const, true)
+// Same state as turnhooks' `receipt`: the scan needs the atom declared in the file that reads it.
 const receipt = atom({ plugin: 'wipnote-visuals', key: 'receipt' } as const, true)
-const turn = atom({ plugin: 'wipnote-visuals', key: 'turn' } as const, emptyTurn())
 
 /** `/visuals [on|off|receipt on|receipt off]`: no argument toggles the blocks. */
 export function parseVisualsArgs(args: string): { which: 'blocks' | 'receipt'; wanted?: boolean } {
@@ -24,13 +24,22 @@ export function parseVisualsArgs(args: string): { which: 'blocks' | 'receipt'; w
   return { which, wanted: flag === 'on' ? true : flag === 'off' ? false : undefined }
 }
 
+async function registerCommands($: EngineInterface): Promise<void> {
+  await $.command.register({
+    name: 'visuals',
+    description: 'Draw wip:* blocks as visuals (on|off); show the turn receipt and writing score under replies (receipt on|off)',
+    argumentHint: 'on|off|receipt on|receipt off',
+  })
+  await $.command.register({
+    name: 'plainspeak',
+    description: 'Writing check feedback for the next prompt when a reply has AI tells or long sentences: strict, 80 (fewer rules), off',
+    argumentHint: 'strict|80|off',
+  })
+}
+
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
-    await $.command.register({
-      name: 'visuals',
-      description: 'Draw wip:* blocks as visuals (on|off); show the turn receipt under replies (receipt on|off)',
-      argumentHint: 'on|off|receipt on|receipt off',
-    })
+    await registerCommands($)
     return next(e)
   })
 
@@ -53,24 +62,7 @@ export const register: Register = on => {
     return { sections: [...r.sections, { id: 'wipnote-visuals:rule', text: RULE, scope: 'session' }] }
   })
 
-  // The receipt reads the main loop only; a subagent's calls are its own turn.
-  on('tool.call', async ($, e, next) => {
-    const r = await next(e)
-    if (e.agentId === undefined && (await read($, receipt))) {
-      await update($, turn, (t: Turn) => noteCall(t, e as never, r))
-    }
-    return r
-  }).catch(($, e, next) => next(e))
-
-  on('turn.complete', async ($, e, next) => {
-    const r = await next(e)
-    if (e.agentId !== undefined || e.isAborted) return r
-    const t = await read($, turn)
-    await update($, turn, () => emptyTurn())
-    if (!(await read($, receipt))) return r
-    const line = receiptLine(t, e.answer, e.durationMs)
-    return line === null ? r : { ...r, text: line }
-  }).catch(($, e, next) => next(e))
+  registerTurn(on)
 
   on('ui.render', { component: 'AssistantMessage' }, async ($, e, next) => {
     if (!(await read($, enabled))) return next(e)

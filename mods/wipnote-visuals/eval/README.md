@@ -37,6 +37,56 @@ What to act on:
 4. **The style helps the lint numbers a little** (long sentences 12 -> 3), but `negclose` fired twice under it. Check those two replies before turning the writing check on by default.
 5. n=2 is small. Raise `reps` before changing the rule on this evidence.
 
+## Lint false-positive check (2026-10-21, offline, no model calls)
+
+`bun eval/lintcheck.ts <transcript.jsonl>` runs `lintReply` (strict) over the 42 saved eval replies and the
+assistant text blocks of a Claude Code session transcript (replies under 25 words skipped). The transcript
+was this feature's own working session (78 replies, mostly orchestration reports and design prose).
+
+| rule | eval hits | eval replies hit (of 42) | rate / reply | transcript hits | transcript replies hit (of 78) | rate / reply |
+|---|---|---|---|---|---|---|
+| long | 16 | 12 | 0.38 | 10 | 8 | 0.13 |
+| negclose | 0 | 0 | 0 | 3 | 3 | 0.04 |
+| vocab | 0 | 0 | 0 | 2 | 2 | 0.03 |
+| punct | 0 | 0 | 0 | 1 | 1 | 0.01 |
+| opener | 0 | 0 | 0 | 1 | 1 | 0.01 |
+| filler, emdash | 0 | 0 | 0 | 0 | 0 | 0 |
+
+Sample hits and verdicts (real tell, or false positive = FP):
+
+| rule | hit | verdict |
+|---|---|---|
+| long | eval compare: "Choose Postgres only if you expect heavy concurrent writes from many…" (26+ words) | real, low value: one clear sentence that is long |
+| long | eval rebase x3: "It takes the commits on your current branch that aren't on the target…" | real; explanatory prose runs long by nature |
+| long | eval hooks: "The hook receives a JSON payload describing the event on stdin, a…" | real |
+| long | transcript: `3. **Close the loop cheaply.** Only when a check failed, add one line…` | FP-ish: the splitter cuts at the `.` inside the bold label and counts the rest as one sentence with the 20-word list limit |
+| long | transcript: `**Next:** do you want the live test with …` | real, but a question with options; the limit is harsh on it |
+| vocab | transcript: `"…, showcasing…"` inside a list of banned words | FP: quoting the rule itself |
+| vocab | transcript: `It left out "crucial" and the em dashes.` | FP: quoting the lint output |
+| negclose | transcript: "It is not allowed to edit repo files." | FP: a factual constraint |
+| negclose | transcript: "If it is not, the mod is not loaded." | FP: an instruction |
+| negclose | transcript: "That does not affect the Receipt." | borderline: a plain fact, not a rhetorical closer |
+| punct | transcript: "human–agent" | real per the rule (en dash between words); harmless |
+| opener | transcript: "It … It … It …" three sentences | real, mild |
+
+What this says:
+
+1. **Clean replies really are clean.** 0 hits for filler and emdash anywhere, 0 vocab/opener/punct on the 42 eval
+   replies. A failure-only note therefore costs nothing on most turns.
+2. **`long` is the noisy rule.** 0.38 hits per eval reply, almost all real by the letter of the 25-word rule but of
+   low value, plus list items with a bold label that the sentence splitter cuts wrong. Not for default feedback.
+3. **`negclose` is 3 for 3 false positives** on technical prose: short negated facts are normal here. Strict only,
+   and a candidate to drop. The "two `negclose` hits under the style" noted after run 1 cannot be re-checked:
+   run 2 overwrote `eval/out` and the current 42 replies have no `negclose` hit.
+4. **`vocab` hits were both meta** (replies discussing the lint). In normal use the word list is the clearest tell
+   and should stay first in the ranking.
+
+Default recommendation: `/plainspeak off` stays the default; `80` (vocab, filler, emdash, long) is the mode to try
+first because it drops `negclose`, `punct` and `opener`. Proposed rule changes, not made in this pass: (a) treat a
+list item's `**label.**` as a label, not a sentence end, before counting; (b) drop or narrow `negclose` to a
+paragraph whose previous sentence is affirmative and the closer is 6 words or fewer; (c) raise `long` to 30 words
+for prose that explains a command or concept, or report it only when 3 or more sentences in one reply are long.
+
 ## Run 2: rule reworded (2026-10-21, sonnet, n=3 per cell, 42 valid replies)
 
 Rule change: "for steps use `wip:steps` **instead of a numbered list**", "say each thing once: never repeat a block in prose", and "use sparingly" dropped. 78 tokens (was ~95).

@@ -44,10 +44,13 @@ test('the receipt line replaces the turn text; subagent calls and turns are left
   const sub = await $.turn.complete({ ...(done('sub done') as object), agentId: 'sub1' } as never)
   expect(sub.text).toBe('sub done')
   const main = await $.turn.complete(done('Tests pass.'))
-  expect(main.text).toBe('✎ 1 file · ✔ go test · 1m05s')
-  // The turn was reset, so a tool-free turn gets no line
+  expect(main.text).toBe('✎ 1 file · ✔ go test · 1m05s · tells 0 · long 0 · em— 0')
+  // The turn was reset, so a clean tool-free turn gets no line
   const next = await $.turn.complete(done('A plain answer.'))
   expect(next.text).toBe('A plain answer.')
+  // A tool-free turn that breaks a rule shows the score alone
+  const tell = await $.turn.complete(done('This is a crucial step.'))
+  expect(tell.text).toBe('tells 1 · long 0 · em— 0')
 })
 
 test('a claim without a test run is flagged; /visuals receipt off silences it', async ($, on) => {
@@ -55,12 +58,33 @@ test('a claim without a test run is flagged; /visuals receipt off silences it', 
   on('turn.complete', (_$, e) => ({ text: e.answer }))
   await $.tool.call({ tool: 'Write', file_path: 'b.go', content: '' } as never)
   const flagged = await $.turn.complete(done('All tests pass.'))
-  expect(flagged.text).toBe('✎ 1 file · 1m05s\n⚠ reply says tests pass; no test command ran this turn')
+  expect(flagged.text).toBe('✎ 1 file · 1m05s · tells 0 · long 0 · em— 0\n⚠ reply says tests pass; no test command ran this turn')
   const off = await $.command.run({ command: 'visuals', args: 'receipt off' } as never)
   expect(off.text).toBe('Receipt: off.')
   await $.tool.call({ tool: 'Write', file_path: 'c.go', content: '' } as never)
   expect((await $.turn.complete(done('All tests pass.'))).text).toBe('All tests pass.')
   expect((await $.command.run({ command: 'visuals', args: 'receipt' } as never)).text).toBe('Receipt: on.')
+})
+
+test('/plainspeak: a reply with a tell adds one context line to the next prompt; clean or off adds none', async ($, on) => {
+  on('turn.complete', (_$, e) => ({ text: e.answer }))
+  on('prompt.submit', (_$, e) => ({ text: e.text, context: e.context }) as never)
+  const submit = async () => ((await $.prompt.submit({ text: 'next' } as never)) as { context?: readonly string[] }).context ?? []
+  // Default off: nothing even after a tell
+  await $.turn.complete(done('This is a crucial step.'))
+  expect(await submit()).toEqual([])
+  expect((await $.command.run({ command: 'plainspeak', args: 'strict' } as never)).text).toBe('Plainspeak: strict.')
+  await $.turn.complete(done('This is a crucial step. “Quoted” too.'))
+  expect(await submit()).toEqual(['Last reply: "crucial", curly quotes or en dash.'])
+  await $.turn.complete(done('The cache is stale.'))
+  expect(await submit()).toEqual([])
+  // 80 drops the punctuation rule
+  await $.command.run({ command: 'plainspeak', args: '80' } as never)
+  await $.turn.complete(done('This is a crucial step. “Quoted” too.'))
+  expect(await submit()).toEqual(['Last reply: "crucial".'])
+  expect((await $.command.run({ command: 'plainspeak', args: '' } as never)).text).toBe('Plainspeak: 80 (strict|80|off).')
+  await $.command.run({ command: 'plainspeak', args: 'off' } as never)
+  expect(await submit()).toEqual([])
 })
 
 test('/visuals off removes the rule; on restores it', async ($, on) => {

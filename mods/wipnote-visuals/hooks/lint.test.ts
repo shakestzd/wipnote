@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { feedbackLine, lintReply } from './lint'
+import { feedbackLine, lintReply, topRule } from './lint'
 
 const rules = (t: string, mode?: 'strict' | '80' | 'off') => lintReply(t, { mode }).findings.map((f) => f.rule)
 
@@ -84,6 +84,17 @@ test('feedback line names the worst items and stays short', async () => {
   const line = feedbackLine(lintReply('It is crucial — really — so. ' + Array(27).fill('word').join(' ') + '.'))
   expect(line).toBe('Last reply: "crucial", 2 em dashes in ¶1, 1 sentence >25 words.')
   expect(feedbackLine(lintReply('All good.'))).toBe('')
+})
+
+test('feedback line ranks by severity, not by position in the text', async () => {
+  // Long sentence and a negating closer come first in the text; the banned word and opener come last
+  const long = Array(27).fill('word').join(' ') + '.'
+  const t = `${long} One surgeon got it right. A whole system does not.\n\nI ran it. I read it. I fixed the crucial bit.`
+  const line = feedbackLine(lintReply(t))
+  expect(line).toBe('Last reply: "crucial", 3 sentences with the same opener, 1 sentence >25 words.')
+  expect(topRule(lintReply(t))).toBe('vocab')
+  expect(topRule(lintReply(long))).toBe('long')
+  expect(topRule(lintReply('fine'))).toBe('')
 })
 
 const CLEAN = [

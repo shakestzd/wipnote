@@ -1,13 +1,15 @@
 # wipnote-visuals (dev mod)
 
-Two things: a **receipt line** under each turn that says what the tools did (costs the model nothing), and **drawn fenced blocks** in replies, where the model sends only short inputs and the mod draws them. Without the mod each block still reads as plain text. `/visuals on|off` toggles the blocks and the model rule; `/visuals receipt on|off` toggles the receipt.
+Three things: a **receipt line** under each turn that says what the tools did and how the reply reads (costs the model nothing), a **writing check** that sends one line with the next prompt only when a reply broke a rule, and **drawn fenced blocks** in replies, where the model sends only short inputs and the mod draws them. Without the mod each block still reads as plain text.
+
+Commands: `/visuals on|off` toggles the blocks and the model rule; `/visuals receipt on|off` toggles the receipt and score line; `/plainspeak strict|80|off` sets the writing-check feedback (default `off`).
 
 ## Receipt
 
-After a main-loop turn, one line under the answer, built from the turn's own tool calls (`tool.call`) and shown at `turn.complete`:
+After a main-loop turn, one line under the answer, built from the turn's own tool calls (`tool.call`) and shown at `turn.complete`, with the writing score at the end:
 
 ```
-✎ 2 files · ✔ go test · ⎇ a5f39e1 · 2m10s
+✎ 2 files · ✔ go test · ⎇ a5f39e1 · 2m10s · tells 0 · long 1 · em— 0
 ```
 
 | Part | Source |
@@ -22,7 +24,19 @@ Nothing is drawn for a turn with no edits and no test/build/commit commands (a f
 
 **Exit codes.** The Bash tool's record carries `stdout`, `stderr`, `interrupted` and `gitOperation`, but no exit code. A non-zero exit makes core answer the call with `isError: true`, and the model-facing text usually says `Exit code N`, which the receipt reads when present. So `✔` means the call answered without error, `✘` means it errored or a guard denied it, and `?` means interrupted or an unreadable result.
 
-Helpers are pure in `hooks/receipt.ts`; `tests/receipt-fixture.ts` holds 16 fake turns the tests must reproduce exactly.
+Helpers are pure in `hooks/receipt.ts`; `tests/receipt-fixture.ts` holds 16 fake turns the tests must reproduce exactly. The hooks live in `hooks/turnhooks.ts`.
+
+## Writing check
+
+`hooks/lint.ts` (pure, ported from luladoc's Zinsser rules) checks a reply for AI tells (banned words, openers, filler, em dashes, same opener three times, a short negating closer, curly quotes or en dashes) and sentences over 25 words (20 in a list item). Code, inline code, URLs and tables are ignored.
+
+- **Score**: `tells n · long n · em— n` is appended to the receipt line of every main-loop turn (strict rules). A tool-free turn shows the score alone only when it breaks a rule, so a clean short answer adds no line.
+- **Feedback note**: with `/plainspeak strict` or `80`, a reply that breaks a rule earns one line (about 20 tokens) such as `Last reply: "crucial", 2 em dashes in ¶1, 1 sentence >25 words.` It goes with the next prompt as `prompt.submit` context (text only the model reads). A clean reply sends nothing. `80` drops the softer rules (opener, negating closer, punctuation). Default `off`.
+- **Ranking**: the note names the worst three items by severity (banned words, then openers, filler, em dashes, long sentences, then the softer rules), not the first three hits in the text.
+
+The note travels as prompt context rather than a system-prompt section on purpose: a section that changes between turns would break the prompt cache on every request.
+
+`eval/lintcheck.ts` runs the rules offline over saved replies and a session transcript; results and verdicts are in `eval/README.md` under "Lint false-positive check".
 
 ## Blocks
 
@@ -56,4 +70,4 @@ claude plugin validate mods/wipnote-visuals
 claude plugin test mods/wipnote-visuals
 ```
 
-`eval/` holds the live-model eval for the rule (see `eval/README.md`). The receipt's real-session measurement (20 turns: line shown when and only when tools changed something, classifier misses, mismatch flags that were right) is still to do.
+`eval/` holds the live-model eval for the rule and the offline lint check (see `eval/README.md`). The receipt's real-session measurement (20 turns: line shown when and only when tools changed something, classifier misses, mismatch flags that were right) is still to do.
