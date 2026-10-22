@@ -5,16 +5,38 @@ where they help and nowhere else. 7 prompts (3 that suit a block, 4 that do not)
 (`rule`, `rulestyle` = rule plus the Plain English style) x N reps.
 
 ```bash
-eval/run.sh 2          # needs `claude` and bun; about 15 s per reply
-bun eval/analyze.ts    # fences emitted, parse success, steps marked done, lint tells
+eval/run.sh 2                 # needs `claude` and bun; about 13 s per reply, one at a time
+eval/run.sh 3 --parallel 4    # up to 4 cells at once (default N is 4, cap 8); about 2.7x faster
+OUT_DIR=/tmp/x eval/run.sh 1  # another output directory; never point two runs at the same one
+bun eval/analyze.ts           # fences emitted, parse success, steps marked done, lint tells (OUT_DIR honoured)
+eval/topic.sh                 # contamination check: does each reply answer its own prompt?
 ```
+
+The run is resumable (a cell with a valid reply is skipped). A failed or error reply is retried once after
+5 s, then saved as `<cell>.INVALID`, which `analyze.ts` ignores; the final line prints valid, invalid and wall
+time.
 
 Gotchas found the hard way:
 
-- **Close stdin** (`< /dev/null`) on every `claude -p` inside a `while read` loop. Otherwise it swallows the
-  loop's input and each reply also answers the other prompts, which looks exactly like a model that
-  over-uses the blocks.
-- **Do not run replies in parallel from one directory.** Run them one at a time, each in its own directory.
+- **Close stdin** (`< /dev/null`) on every `claude -p` that runs inside a loop or under `xargs`. Otherwise it
+  reads the caller's stdin (the cell list, or the prompts in the old `while read` loop) and each reply also
+  answers the other prompts, which looks exactly like a model that over-uses the blocks.
+- **One empty directory per cell.** The early "parallel is unsafe" conclusion came from a shared working
+  directory plus the stdin bug above, not from parallelism. Measured 2026-10-21 (14 cells, reps=1, each
+  mode in its own `OUT_DIR`, another agent's `claude -p` runs active on the same machine):
+
+  | mode | valid | INVALID | off-topic replies (`topic.sh`) | wall |
+  |---|---|---|---|---|
+  | sequential | 14 | 0 | 0 | 184 s |
+  | `--parallel 4` | 14 | 0 | 0 | 69 s |
+  | `--parallel 8` | 14 | 0 | 0 | 102 s |
+
+  Block emission and parse results were the same shape in all three (compare 1/1 per condition, 0 unparsed
+  fences; one stray `compare` on the callout prompt under the style at N=8, which is the model, not the
+  harness). No rate-limit errors or retries at N=8, but it was slower than N=4 on this machine while the
+  other runs were active, so **4 is the number to use**; 8 bought nothing.
+- Prompts are read from `prompts.psv` by key inside the job, never passed through `xargs` as text, so
+  apostrophes and quotes in a prompt are safe.
 - In headless mode the mod's hooks module can fail to load ("rollout switch" message), so the rule is
   injected with `--append-system-prompt` here instead of relying on `--plugin-dir`.
 - Prompts that invite a tool call ("look at my .wipnote directory") hit `--max-turns 1`. Keep prompts tool-free.
