@@ -27,7 +27,10 @@ const FILLER_FIX: Record<string, string> = {
 }
 const PUNCT = /\s–|–\s|[A-Za-z]–[A-Za-z]|[‘’“”]/g
 const NEGATOR = /\b(?:does not|do not|did not|is not|are not|was not|were not|cannot|will not|never did|no longer)\b/i
+// Any negation at all: a sentence with one is not "affirmative" for negclose.
+const NEGATIVE = /\b(?:not|no|never|cannot|none|nothing)\b|n['’]t\b/i
 const LIST_LINE = /^(\s*)(?:\d+[.)]|[-*•])\s+/
+const LABEL = /^\*\*[^*\n]+\*\*:?\s*/
 const TELL_RULES = ['vocab', 'filler', 'opener', 'negclose', 'punct']
 
 // Blank out code, URLs and table rows. Same length, so indices stay valid.
@@ -71,7 +74,13 @@ function segments(par: string, base: number): Seg[] {
 function sentences(seg: Seg): Sentence[] {
   const marker = seg.list ? LIST_LINE.exec(seg.text) : null
   const skip = marker ? marker[0].length : 0
-  const body = seg.text.slice(skip)
+  let body = seg.text.slice(skip)
+  // A list item that opens with a bold label (`**Label.** text`) is prose under
+  // a heading, not a step: blank the label (same length, so indices hold) so
+  // its period does not split a sentence, and judge the rest as prose.
+  const label = seg.list ? LABEL.exec(body) : null
+  const list = label ? false : seg.list
+  if (label) body = blank(label[0]) + body.slice(label[0].length)
   // Mask abbreviation dots for splitting only; same length.
   const masked = body.replace(/\b(e\.g|i\.e|etc|vs|approx)\./gi, (m) => m.replace(/\./g, '_'))
   const out: Sentence[] = []
@@ -79,7 +88,7 @@ function sentences(seg: Seg): Sentence[] {
     const raw = body.slice(m.index, m.index + m[0].length)
     const lead = raw.length - raw.trimStart().length
     const text = raw.trim()
-    if (text) out.push({ text, index: seg.start + skip + m.index! + lead, list: seg.list })
+    if (text) out.push({ text, index: seg.start + skip + m.index! + lead, list })
   }
   return out
 }
@@ -128,9 +137,12 @@ export function lintReply(text: string, opts?: { mode?: Mode }): Report {
           else run = w ? [s] : []
           if (run.length === 3) add('opener', w!, s.index)
         }
-        // Short negating sentence that closes the paragraph, after another sentence.
+        // A short (6 words or fewer) negating sentence that closes the paragraph
+        // right after an affirmative one: the rhetorical "X does. Y does not."
+        // A negated fact after another negated fact is plain prose.
         const last = ss[ss.length - 1]
-        if (last && ss.length > 1 && last.text.length <= 55 && NEGATOR.test(last.text)) {
+        const prev = ss[ss.length - 2]
+        if (last && prev && words(last.text) <= 6 && NEGATOR.test(last.text) && !NEGATIVE.test(prev.text)) {
           add('negclose', last.text, last.index)
         }
       }

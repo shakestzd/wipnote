@@ -46,6 +46,31 @@ test('negating closer: short at paragraph end only', async () => {
   expect(rules('The test passes locally. The CI job did not finish within the time limit that we configured earlier today.')).toEqual([])
 })
 
+test('negating closer: six words or fewer, after an affirmative sentence; plain negated facts pass', async () => {
+  // The three false positives from the transcript check (eval/README.md), with their real previous sentences
+  expect(rules("It's also looking at hook- and CLI-driven data, where the model spends no tokens. It is not allowed to edit repo files.")).toEqual([])
+  expect(rules('Then check that `/visuals` is a known command. If it is not, the mod is not loaded.')).toEqual([])
+  expect(rules('Note that this session has no wipnote hooks, so there is no work-item tracking. That does not affect the Receipt.')).toEqual([])
+  // Seven words after an affirmative sentence: too long to be the rhetorical closer
+  expect(rules('The new parser reads every encoding. The old C toolchain does not anymore.')).toEqual([])
+  // The real tell still fires: affirmative, then a short negation
+  expect(rules('The old parser guessed at the encoding. The new one does not.')).toEqual(['negclose'])
+  expect(rules('Humans forgive a typo. Compilers never did.')).toEqual(['negclose'])
+})
+
+test('a list item with a bold label is prose under a heading, not a 20-word step', async () => {
+  const w = (n: number) => Array(n).fill('word').join(' ')
+  // The inner period no longer ends a sentence, and the item gets the 25-word prose limit
+  expect(lintReply(`3. **Close the loop cheaply.** ${w(22)}.`).longSentences).toBe(0)
+  expect(lintReply(`3. **Close the loop cheaply.** ${w(26)}.`).longSentences).toBe(1)
+  expect(lintReply(`- **Next:** ${w(23)}.`).longSentences).toBe(0)
+  // Without a label a step keeps the 20-word limit
+  expect(lintReply(`3. ${w(22)}.`).longSentences).toBe(1)
+  // Vocabulary inside the item still reports its own position
+  const r = lintReply('1. **Plan.** This is a crucial step.')
+  expect(r.findings.map((f) => [f.rule, f.match])).toEqual([['vocab', 'crucial']])
+})
+
 test('curly quotes and en dash between words, digit ranges allowed', async () => {
   expect(rules('Use “quotes” here.')).toEqual(['punct', 'punct'])
   expect(rules('Fast–slow tradeoff.')).toEqual(['punct'])

@@ -82,10 +82,30 @@ What this says:
    and should stay first in the ranking.
 
 Default recommendation: `/plainspeak off` stays the default; `80` (vocab, filler, emdash, long) is the mode to try
-first because it drops `negclose`, `punct` and `opener`. Proposed rule changes, not made in this pass: (a) treat a
-list item's `**label.**` as a label, not a sentence end, before counting; (b) drop or narrow `negclose` to a
-paragraph whose previous sentence is affirmative and the closer is 6 words or fewer; (c) raise `long` to 30 words
-for prose that explains a command or concept, or report it only when 3 or more sentences in one reply are long.
+first because it drops `negclose`, `punct` and `opener`. Proposed rule changes from this pass: (a) treat a list
+item's `**label.**` as a label, not a sentence end, before counting; (b) narrow `negclose` to a paragraph whose
+previous sentence is affirmative and the closer is 6 words or fewer; (c) raise `long` to 30 words for prose that
+explains a command or concept, or report it only when 3 or more sentences in one reply are long.
+
+### After fixes (a) and (b), same replies
+
+(a) and (b) were made; (c) was not (the user's call). Same 42 eval replies; the transcript had grown to 82
+replies, so both columns below were re-run on those 82 with the old and the new rules.
+
+| rule | eval before | eval after | transcript before (82) | transcript after (82) |
+|---|---|---|---|---|
+| long | 16 hits / 12 replies | 13 / 10 | 10 / 8 | 4 / 4 |
+| negclose | 0 | 0 | 3 / 3 | 0 |
+| vocab | 0 | 0 | 2 / 2 (both meta) | 2 / 2 |
+| opener | 0 | 0 | 2 / 2 | 2 / 2 |
+| punct | 0 | 0 | 1 / 1 | 1 / 1 |
+| filler, emdash | 0 | 0 | 0 | 0 |
+
+The six `long` hits that went away on the transcript were all list items with a bold label, now judged as one
+prose sentence with the 25-word limit; the three on the eval replies likewise. The three `negclose` hits were the
+false positives listed above; the tests in `hooks/lint.test.ts` pin them, and pin a real closer that still fires
+("The old parser guessed at the encoding. The new one does not."). The remaining `long` hits are real by the
+25-word rule.
 
 ## Run 2: rule reworded (2026-10-21, sonnet, n=3 per cell, 42 valid replies)
 
