@@ -80,8 +80,18 @@ func chooseLaunchIntent(projectRoot, canonicalRoot, harness string, in io.Reader
 	return promptLaunchIntent(in, out, harness, grouped)
 }
 
+// launchPickerEnabled reports whether the start-or-continue picker is opted in.
+// It is off by default: building its session list hydrates every work item
+// (minutes on a large corpus, since each item costs a `git log --follow`), and
+// a plain launch just starts fresh. `wipnote claude --continue` or
+// `--resume <id>` reach a prior session directly. Set WIPNOTE_LAUNCH_PICKER=1
+// to bring the picker back.
+func launchPickerEnabled() bool {
+	return os.Getenv("WIPNOTE_LAUNCH_PICKER") == "1"
+}
+
 func resolveLaunchIntentForDefaultLaunch(projectRoot, canonicalRoot, harness string, opts chooserEligibility, in io.Reader, out io.Writer) (launcher.LaunchIntent, error) {
-	if !shouldOfferLaunchIntentChooser(opts) {
+	if !launchPickerEnabled() || !shouldOfferLaunchIntentChooser(opts) {
 		return launcher.NewWorkIntent(), nil
 	}
 	return chooseLaunchIntentFn(projectRoot, canonicalRoot, harness, in, out)

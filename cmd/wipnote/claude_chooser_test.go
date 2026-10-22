@@ -271,9 +271,32 @@ func TestResolveLaunchIntentForDefaultLaunch_BypassesChooserWhenNonInteractive(t
 	}
 }
 
+func TestResolveLaunchIntentForDefaultLaunch_PickerOffByDefault(t *testing.T) {
+	original := chooseLaunchIntentFn
+	defer func() { chooseLaunchIntentFn = original }()
+	t.Setenv("WIPNOTE_LAUNCH_PICKER", "")
+
+	calls := 0
+	chooseLaunchIntentFn = func(_, _, _ string, _ io.Reader, _ io.Writer) (launcher.LaunchIntent, error) {
+		calls++
+		return launcher.NewWorkIntent(), nil
+	}
+	intent, err := resolveLaunchIntentForDefaultLaunch("/repo", "/repo", "claude", chooserEligibility{TTY: true}, strings.NewReader(""), io.Discard)
+	if err != nil {
+		t.Fatalf("resolveLaunchIntentForDefaultLaunch() error = %v", err)
+	}
+	if calls != 0 {
+		t.Fatalf("chooser called %d times, want 0 (picker is opt-in)", calls)
+	}
+	if intent.Kind != launcher.LaunchIntentNew {
+		t.Fatalf("intent.Kind = %q, want %q", intent.Kind, launcher.LaunchIntentNew)
+	}
+}
+
 func TestResolveLaunchIntentForDefaultLaunch_InteractiveUsesChooser(t *testing.T) {
 	original := chooseLaunchIntentFn
 	defer func() { chooseLaunchIntentFn = original }()
+	t.Setenv("WIPNOTE_LAUNCH_PICKER", "1")
 
 	for _, harness := range []string{"codex", "gemini", "antigravity"} {
 		t.Run(harness, func(t *testing.T) {
