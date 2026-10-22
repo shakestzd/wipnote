@@ -1,0 +1,7 @@
+steps|Give me the steps to set up a Go project with tests.
+compare|Should I use SQLite or Postgres for a local-first CLI? Compare them for me.
+callout|My teammate wants to force-push to main on our shared repo to clean up history. Is that okay?
+none1|What does git rebase do?
+none2|Explain how a Claude Code hook works in two sentences.
+none3|Why does go test say "undefined: Add" even though I wrote the function?
+none4|What is the difference between a mutex and a channel in Go?
