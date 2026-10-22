@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -109,6 +110,51 @@ func TestBuildClaudeArgsLoadsModsAfterThePlugin(t *testing.T) {
 	want := []string{"--plugin-dir", "/s/plugin", "--plugin-dir", "/s/mods"}
 	if !slices.Equal(args, want) {
 		t.Errorf("args = %v, want %v", args, want)
+	}
+}
+
+func TestModsSystemPromptJoinsEachModsRule(t *testing.T) {
+	dir := t.TempDir()
+	writeMod(t, dir, "b-mod")
+	writeMod(t, dir, "a-mod")
+	writeMod(t, dir, "no-rule")
+	for name, rule := range map[string]string{"a-mod": "Rule A.\n", "b-mod": "  Rule B.  "} {
+		if err := os.WriteFile(filepath.Join(dir, name, modsPromptFile), []byte(rule), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if got, want := modsSystemPrompt(dir), "Rule A.\n\nRule B."; got != want {
+		t.Errorf("modsSystemPrompt = %q, want %q", got, want)
+	}
+	if got := modsSystemPrompt(""); got != "" {
+		t.Errorf("modsSystemPrompt(\"\") = %q, want empty", got)
+	}
+}
+
+// The repository's mods carry the rules their prompt.compose hooks used to send.
+func TestRepoModsCarryTheirRules(t *testing.T) {
+	root, err := filepath.Abs(filepath.Join("..", ".."))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := modsSystemPrompt(filepath.Join(root, "mods"))
+	for _, want := range []string{"wip:compare", "wipnote-ref"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("mods rules lack %q:\n%s", want, got)
+		}
+	}
+	// The visuals rule asks for compare only, in under 100 tokens (chars / 4).
+	visuals, err := os.ReadFile(filepath.Join(root, "mods", "wipnote-visuals", modsPromptFile))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n := len(visuals) / 4; n >= 100 {
+		t.Errorf("visuals rule is ~%d tokens, want under 100", n)
+	}
+	for _, gone := range []string{"wip:steps", "wip:callout"} {
+		if strings.Contains(string(visuals), gone) {
+			t.Errorf("visuals rule still asks for %s", gone)
+		}
 	}
 }
 

@@ -652,6 +652,12 @@ func launchClaude(opts LaunchOpts) error {
 	if systemPrompt != "" {
 		systemPrompt = strings.TrimSpace(systemPrompt) + "\n\n" + strings.TrimSpace(researchRoutingContent) + "\n"
 	}
+	if opts.ModsDir == "" {
+		opts.ModsDir = resolveModsDir(opts.PluginDir)
+	}
+	if rules := modsSystemPrompt(opts.ModsDir); rules != "" {
+		systemPrompt = strings.TrimSpace(systemPrompt+"\n\n"+rules) + "\n"
+	}
 
 	// Pass the prompt by file, not argv: large prompts fail as a single argv
 	// element, and Claude Code's guidance for wrappers is
@@ -667,9 +673,6 @@ func launchClaude(opts LaunchOpts) error {
 		}
 		systemPromptFile = path
 		defer os.Remove(path) //nolint:errcheck
-	}
-	if opts.ModsDir == "" {
-		opts.ModsDir = resolveModsDir(opts.PluginDir)
 	}
 	claudeArgs := buildClaudeArgs(opts, systemPromptFile)
 

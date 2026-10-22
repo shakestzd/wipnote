@@ -115,32 +115,16 @@ test('/plainspeak: a tell adds one context line to the next prompt, once; clean,
   expect(await submit()).toEqual([])
 })
 
-const compose = async ($: { prompt: { compose: (e: never) => Promise<unknown> } }) =>
-  $.prompt.compose({ promptModel: 'claude-sonnet-4-5', outputStyle: null, tools: [], traits: [], surfaces: [] } as never)
-
 test('/visuals: on, off, receipt on|off change state; no argument reports; anything else is usage and changes nothing (finding 8)', async ($, on) => {
-  on('prompt.compose', () => ({ sections: [] }) as never)
   on('session.start', (_$, e) => ({ cwd: e.cwd }))
   on('command.register', (_$, e) => ({ value: { command: e.name } }))
   await $.session.start({ cwd: '/tmp', surface: null, isInteractive: true })
-  const has = async () => JSON.stringify(await compose($)).includes('wipnote-visuals:rule')
-  expect(await has()).toBe(true)
   expect((await $.command.run({ command: 'visuals', args: '' } as never)).text).toBe('Visuals: on. Receipt: on.')
-  expect(await has()).toBe(true)
   const bogus = await $.command.run({ command: 'visuals', args: 'bogus' } as never)
   expect(bogus.text).toMatch(/^Usage: \/visuals on\|off\|receipt on\|receipt off/)
-  expect(await has()).toBe(true)
   expect((await $.command.run({ command: 'visuals', args: 'receipt' } as never)).text).toBe('Receipt: on.')
   await $.command.run({ command: 'visuals', args: 'off' } as never)
-  expect(await has()).toBe(false)
   expect((await $.command.run({ command: 'visuals', args: '' } as never)).text).toBe('Visuals: off. Receipt: on.')
   await $.command.run({ command: 'visuals', args: 'on' } as never)
-  expect(await has()).toBe(true)
-})
-
-test('prompt.compose keeps every field of the engine result beside the added section (finding 9)', async ($, on) => {
-  on('prompt.compose', () => ({ sections: [{ id: 'core', text: 'core', scope: 'shared' }], extra: 'kept' }) as never)
-  const r = (await compose($)) as { sections: { id: string }[]; extra?: string }
-  expect(r.extra).toBe('kept')
-  expect(r.sections.map(s => s.id)).toEqual(['core', 'wipnote-visuals:rule'])
+  expect((await $.command.run({ command: 'visuals', args: '' } as never)).text).toBe('Visuals: on. Receipt: on.')
 })

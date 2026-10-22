@@ -8,7 +8,7 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
-import { RULE, splitBlocks } from './blocks'
+import { splitBlocks } from './blocks'
 import { renderBlock } from './components'
 import { registerTurn } from './turnhooks'
 
@@ -70,12 +70,6 @@ export const register: Register = on => {
   })
 
   on('command.run', { command: 'visuals' }, async ($, e) => ({ text: await runVisuals($, e.args) }))
-
-  on('prompt.compose', async ($, e, next) => {
-    const r = await next(e)
-    if (!(await read($, enabled))) return r
-    return { ...r, sections: [...r.sections, { id: 'wipnote-visuals:rule', text: RULE, scope: 'session' }] }
-  })
 
   registerTurn(on)
 

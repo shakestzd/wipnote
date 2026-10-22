@@ -68,6 +68,42 @@ func isModsTree(path string) bool {
 	return false
 }
 
+// modsPromptFile is the per-mod file holding the rule the model needs while
+// that mod is loaded (what to write for it to draw).
+const modsPromptFile = "prompt.md"
+
+// modsSystemPrompt joins the prompt.md of every mod in modsDir, in folder
+// order, for the launcher to append to the system prompt; "" when there is
+// none.
+//
+// The rules ride the launcher's system prompt rather than each mod's
+// prompt.compose hook: a managed policy plugin (prepend tier) that sends that
+// event past the user tier with next.to skips every mod's hook, and the rule
+// silently never reached the model.
+func modsSystemPrompt(modsDir string) string {
+	if modsDir == "" {
+		return ""
+	}
+	entries, err := os.ReadDir(modsDir)
+	if err != nil {
+		return ""
+	}
+	var rules []string
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		data, err := os.ReadFile(filepath.Join(modsDir, entry.Name(), modsPromptFile))
+		if err != nil {
+			continue
+		}
+		if rule := strings.TrimSpace(string(data)); rule != "" {
+			rules = append(rules, rule)
+		}
+	}
+	return strings.Join(rules, "\n\n")
+}
+
 // mirrorModsTree replaces dst with the mods a checkout at projectRoot holds:
 // its git-tracked files under mods/, without test suites, fixtures and stubs
 // (what Claude Code loads needs none of them, and an untracked node_modules or

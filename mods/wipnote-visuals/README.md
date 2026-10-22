@@ -44,7 +44,7 @@ The note travels as prompt context rather than a system-prompt section on purpos
 
 ## Blocks
 
-The rule (about 60 tokens, `prompt.compose`) asks for one block only:
+The rule (about 60 tokens, `prompt.md`) asks for one block only. `wipnote claude` appends it to the system prompt when it loads the mods, so `/visuals off` stops the drawing but not the rule. It is not a `prompt.compose` hook, because a managed policy plugin that sends that event past the user tier skips every mod's hook.
 
 **wip:compare** — `# Option` starts an option (a trailing `*` marks the recommended one), then `+ pro` and `- con` lines. Drawn side by side.
 

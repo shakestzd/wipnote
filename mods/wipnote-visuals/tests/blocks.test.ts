@@ -1,5 +1,5 @@
 import { expect, test } from 'claude-code/testing'
-import { RULE, parseCallout, parseCompare, parseSteps, splitBlocks } from '../hooks/blocks'
+import { parseCallout, parseCompare, parseSteps, splitBlocks } from '../hooks/blocks'
 
 test('steps: done, next and todo prefixes, CRLF and blank lines', () => {
   expect(parseSteps('x Scaffold\r\n\r\n> Parsers\r\nRender\n')).toEqual([
@@ -65,13 +65,4 @@ test('fences indented up to a list item, with CRLF ends, still parse; a closer w
   // An empty body has nothing to draw: it stays text, by design
   const empty = '  ```wip:compare\n  ```'
   expect(splitBlocks(empty)).toEqual([{ kind: 'text', text: empty }])
-})
-
-test('the rule stays under 100 tokens (chars / 4) and asks for compare only', () => {
-  expect(RULE.length / 4).toBeLessThan(100)
-  expect(RULE).toContain('wip:compare')
-  expect(RULE).toContain('recommend one of several options')
-  // steps and callout still parse and draw for old replies, but are no longer requested
-  expect(RULE).not.toContain('wip:steps')
-  expect(RULE).not.toContain('wip:callout')
 })

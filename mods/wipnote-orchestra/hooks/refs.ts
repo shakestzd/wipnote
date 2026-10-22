@@ -83,12 +83,6 @@ export function needsFetch(entry: { state: string; at: number } | undefined, now
   return now - entry.at > CARD_TTL_MS
 }
 
-/** The model-facing rule, sent only while this mod is loaded. */
-export const REF_RULE =
-  'When you report on a wipnote work item, end the reply with a fenced code block whose ' +
-  'info string is `wipnote-ref` and whose only line is the item id (for example feat-1a2b3c4d). ' +
-  'The UI draws that block as a card with the title, status and steps, so do not repeat them in prose.'
-
 /** What a wipnote call returned: its output, or why it failed. */
 export type CliResult = { ok: true; stdout: string } | { ok: false; kind: FailKind }
 

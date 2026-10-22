@@ -4,8 +4,10 @@
 // so later turns read ~10 tokens, and without the mod the fence still reads as
 // an id.
 //
-// The one-line rule that asks for the fence is sent only while this mod is
-// loaded (prompt.compose), so the model never writes fences nobody draws.
+// The one-line rule that asks for the fence lives in ../prompt.md. `wipnote
+// claude` appends it to the system prompt when it loads this mod, so the model
+// never writes fences nobody draws. It is not a prompt.compose hook: a managed
+// policy plugin that sends that event past the user tier skips every mod's.
 //
 // A render hook never writes state, so cards are fetched from events: when a
 // reply is stored (session.append), after each turn (turn.complete), and on
@@ -15,7 +17,7 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
 import type { Card, CardEntry, FailKind } from '../types'
-import { Latest, REF_RULE, classifyExit, failureText, needsFetch, parseCard, pickRefresh, refsInMessages, showArgv, splitRefs, stepBar, stepCount } from './refs'
+import { Latest, classifyExit, failureText, needsFetch, parseCard, pickRefresh, refsInMessages, showArgv, splitRefs, stepBar, stepCount } from './refs'
 import type { CliResult } from './refs'
 
 type On = Parameters<Register>[0]
@@ -138,11 +140,6 @@ export function registerRefs(on: On): void {
     const ids = splitRefs(text).flatMap(s => (s.kind === 'refs' ? s.ids : []))
     if (ids.length > 0) void loadStale($, ids)
     return r
-  })
-
-  on('prompt.compose', async ($, e, next) => {
-    const r = await next(e)
-    return { sections: [...r.sections, { id: 'wipnote-orchestra:ref-rule', text: REF_RULE, scope: 'session' }] }
   })
 
   on('ui.render', { component: 'AssistantMessage' }, async ($, e, next) => {

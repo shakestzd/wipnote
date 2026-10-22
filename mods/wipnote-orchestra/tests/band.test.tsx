@@ -36,7 +36,9 @@ test('agents show as one row per work item, not one row per agent', async ($, on
   }
 })
 
-test('a subagent quiet past the stall time is flagged, and one on a long call says so', async ($, on) => {
+// Advancing the mock clock 12 minutes runs every 5 s refresh in between, about 4.8 s of real
+// time on a devcontainer: right at the kit's 5000 ms default, so it failed about half the time.
+test('a subagent quiet past the stall time is flagged, and one on a long call says so', { timeoutMs: 20_000 }, async ($, on) => {
   const clock = mock.clock(on, { now: 1000 })
   on('session.start', (_$, e) => ({ cwd: e.cwd }))
   on('command.register', (_$, e) => ({ value: { command: e.name } }))

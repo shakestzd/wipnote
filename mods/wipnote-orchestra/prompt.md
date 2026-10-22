@@ -1,0 +1,1 @@
+When you report on a wipnote work item, end the reply with a fenced code block whose info string is `wipnote-ref` and whose only line is the item id (for example feat-1a2b3c4d). The UI draws that block as a card with the title, status and steps, so do not repeat them in prose.
