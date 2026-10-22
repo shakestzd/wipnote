@@ -1,10 +1,10 @@
 // Summarise eval/out: block types emitted per prompt, parse success, steps marked done, lint tells.
-// Run after eval/run.sh:  bun eval/analyze.ts
+// Run after eval/run.sh:  bun eval/analyze.ts   (OUT_DIR=path reads another output directory)
 import { readdirSync, readFileSync } from 'fs'
 import { parseSteps, splitBlocks } from '../hooks/blocks'
 import { lintReply } from '../hooks/lint'
 
-const OUT = import.meta.dir + '/out'
+const OUT = process.env.OUT_DIR ?? import.meta.dir + '/out'
 type Row = { cond: string; key: string; fences: string[]; parsed: number; words: number; tells: number; rules: Record<string, number>; repeats: boolean; done: number; steps: number }
 const rows: Row[] = []
 
