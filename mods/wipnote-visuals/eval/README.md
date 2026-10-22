@@ -107,6 +107,23 @@ false positives listed above; the tests in `hooks/lint.test.ts` pin them, and pi
 ("The old parser guessed at the encoding. The new one does not."). The remaining `long` hits are real by the
 25-word rule.
 
+### After the 0.2.1 vocabulary trim, same replies
+
+`robust`, `enhance(s|ing)` and `landscape of the X` left the lint list (ordinary technical words; the style still
+bans them for the model). Re-run on the 42 eval replies and the transcript, by then 127 replies:
+
+| rule | eval before | eval after | transcript before (127) | transcript after (127) |
+|---|---|---|---|---|
+| long | 13 / 10 | 13 / 10 | 7 / 6 | 7 / 6 |
+| opener | 0 | 0 | 3 / 3 | 3 / 3 |
+| vocab | 0 | 0 | 2 / 2 (both meta) | 2 / 2 |
+| punct | 0 | 0 | 1 / 1 | 1 / 1 |
+| negclose | 0 | 0 | 1 / 1 | 1 / 1 |
+
+No change on this corpus: none of the three removed words appeared in it, so the trim is a precision guard for
+other prose, not a fix for these replies. The one `negclose` hit is new transcript text ("The script is meant to
+run one at a time. I did not check why."), five words after an affirmative sentence: it meets the narrowed rule.
+
 ## Run 2: rule reworded (2026-10-21, sonnet, n=3 per cell, 42 valid replies)
 
 Rule change: "for steps use `wip:steps` **instead of a numbered list**", "say each thing once: never repeat a block in prose", and "use sparingly" dropped. 78 tokens (was ~95).
