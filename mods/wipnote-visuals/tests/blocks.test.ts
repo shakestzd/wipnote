@@ -47,6 +47,26 @@ test('splitBlocks finds closed fences and leaves open or empty ones as text', ()
   expect(splitBlocks('a\r\n```wip:callout\r\nwarning: x\r\n```\r\n')[1]).toMatchObject({ kind: 'block' })
 })
 
+test('fences indented up to a list item, with CRLF ends, still parse; a closer with trailing text does not close (finding 10)', () => {
+  const kinds = (md: string) => splitBlocks(md).map(s => s.kind)
+  // Three spaces of indent (CommonMark allows up to three on a fence)
+  expect(kinds('Plan:\n   ```wip:compare\n   # A*\n   + x\n   ```\nDone.')).toEqual(['text', 'block', 'text'])
+  // Inside a list item: the fence and its body share the item's indent
+  const inList = '- Pick one:\n  ```wip:compare\n  # SQLite*\n  + no server\n  # Postgres\n  - extra service\n  ```\n- Then run it.'
+  const segs = splitBlocks(inList)
+  expect(segs.map(s => s.kind)).toEqual(['text', 'block', 'text'])
+  expect(segs[1]).toMatchObject({ block: { kind: 'compare', options: [{ name: 'SQLite', recommended: true }, { name: 'Postgres' }] } })
+  // CRLF everywhere, including a closer at the very end with no final newline
+  expect(kinds('```wip:compare\r\n# A*\r\n+ x\r\n```')).toEqual(['block'])
+  expect(kinds('a\r\n```wip:compare\r\n# A*\r\n+ x\r\n```\r\nb')).toEqual(['text', 'block', 'text'])
+  // A closing fence must stand alone on its line
+  const trailing = '```wip:compare\n# A*\n+ x\n``` and more'
+  expect(splitBlocks(trailing)).toEqual([{ kind: 'text', text: trailing }])
+  // An empty body has nothing to draw: it stays text, by design
+  const empty = '  ```wip:compare\n  ```'
+  expect(splitBlocks(empty)).toEqual([{ kind: 'text', text: empty }])
+})
+
 test('the rule stays under 100 tokens (chars / 4) and asks for compare only', () => {
   expect(RULE.length / 4).toBeLessThan(100)
   expect(RULE).toContain('wip:compare')

@@ -6,7 +6,9 @@ const rules = (t: string, mode?: 'strict' | '80' | 'off') => lintReply(t, { mode
 
 test('banned vocabulary fires, including chat bans and openers', async () => {
   expect(rules('This is a crucial step.')).toEqual(['vocab'])
-  expect(rules('A robust, cutting-edge game-changer.')).toEqual(['vocab', 'vocab', 'vocab'])
+  expect(rules('A cutting-edge game-changer.')).toEqual(['vocab', 'vocab'])
+  // Ordinary technical words are not tells (finding 7): robust, enhance, "landscape of the X"
+  expect(rules('A robust parser. We enhance the index and map the landscape of the API.')).toEqual([])
   expect(rules('Great question! The cache is stale.')).toEqual(['vocab'])
   expect(rules('Certainly! Here is the fix.')).toEqual(['vocab'])
   expect(rules('The cache is stale.')).toEqual([])

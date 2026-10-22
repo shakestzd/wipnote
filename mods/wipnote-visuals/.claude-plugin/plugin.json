@@ -1,6 +1,6 @@
 {
   "name": "wipnote-visuals",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Puts a receipt line under each turn (files edited, tests and builds with exit status, commits) and draws wip:compare blocks in replies side by side; older wip:steps and wip:callout fences still draw.",
   "types": "./types/index.d.ts"
 }

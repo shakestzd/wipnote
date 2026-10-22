@@ -7,10 +7,9 @@ export type Report = { findings: Finding[]; counts: Record<string, number>; long
 export type Mode = 'strict' | '80' | 'off'
 
 const VOCAB = new RegExp(
-  '\\b(?:delve|delves|delving|pivotal|testament|tapestry|underscore|underscores|underscoring|showcase|showcases|showcasing|vibrant|crucial|fostering|intricate|intricacies|enduring|garner|garners|garnering|resonate|resonates|resonating|invaluable|ignited|igniting|embark|embarks|embarking|realm|beacon|honing|cutting-edge|seamless|holistic|esteemed|renowned|passion|passionate|enhance|enhances|enhancing|empower|empowers|empowering|transformative|comprehensive understanding|requisite skills|high-impact|make a difference in people[\'’]s lives|perfect blend|well-equipped|uniquely positioned|robust|game-changer)\\b' +
+  '\\b(?:delve|delves|delving|pivotal|testament|tapestry|underscore|underscores|underscoring|showcase|showcases|showcasing|vibrant|crucial|fostering|intricate|intricacies|enduring|garner|garners|garnering|resonate|resonates|resonating|invaluable|ignited|igniting|embark|embarks|embarking|realm|beacon|honing|cutting-edge|seamless|holistic|esteemed|renowned|passion|passionate|empower|empowers|empowering|transformative|comprehensive understanding|requisite skills|high-impact|make a difference in people[\'’]s lives|perfect blend|well-equipped|uniquely positioned|game-changer)\\b' +
     // Context-sensitive entries: only the AI-tell sense, not literal uses.
     '|(?:the |a |an )?(?:competitive|educational|academic|professional|digital|technological|regulatory|political|economic|healthcare|corporate|research|media|cultural)\\s+landscape\\b' +
-    '|landscape of (?:the )?\\w+' +
     '|(?:academic|personal|professional|educational|career|life|spiritual|entrepreneurial|leadership|research|learning|growth)\\s+journey\\b' +
     '|journey (?:to become|towards|toward|of self-discovery|of growth|of learning)' +
     '|dynamic\\s+(?:individual|leader|team|environment|person|professional|thinker|duo|place to work)\\b' +
@@ -95,6 +94,45 @@ function sentences(seg: Seg): Sentence[] {
 
 const words = (s: string) => (s.match(/[A-Za-z0-9][A-Za-z0-9'’_.\-/]*/g) || []).length
 
+type Add = (rule: string, match: string, index: number, extra?: Partial<Finding>) => void
+
+// The sentence-level rules of one paragraph: long sentences (every mode), and in
+// strict mode the repeated opener and the negating closer. Returns the long count.
+function lintParagraph(par: string, base: number, strict: boolean, add: Add): number {
+  let long = 0
+  let run: Sentence[] = []
+  for (const seg of segments(par, base)) {
+    const ss = sentences(seg)
+    for (const s of ss) {
+      const n = words(s.text)
+      if (n > (s.list ? 20 : 25)) {
+        long++
+        add('long', s.text.split(/\s+/).slice(0, 5).join(' ') + '…', s.index, { n })
+      }
+    }
+    if (!strict) continue
+    if (seg.list) {
+      run = []
+      continue
+    }
+    for (const s of ss) {
+      const w = /[A-Za-z']+/.exec(s.text.replace(/^[*_#>\s]+/, ''))?.[0]
+      if (w && run.length && /^[A-Za-z']+/.exec(run[0].text.replace(/^[*_#>\s]+/, ''))?.[0] === w) run.push(s)
+      else run = w ? [s] : []
+      if (run.length === 3) add('opener', w!, s.index)
+    }
+    // A short (6 words or fewer) negating sentence that closes the paragraph
+    // right after an affirmative one: the rhetorical "X does. Y does not."
+    // A negated fact after another negated fact is plain prose.
+    const last = ss[ss.length - 1]
+    const prev = ss[ss.length - 2]
+    if (last && prev && words(last.text) <= 6 && NEGATOR.test(last.text) && !NEGATIVE.test(prev.text)) {
+      add('negclose', last.text, last.index)
+    }
+  }
+  return long
+}
+
 export function lintReply(text: string, opts?: { mode?: Mode }): Report {
   const mode = opts?.mode ?? 'strict'
   const findings: Finding[] = []
@@ -102,8 +140,7 @@ export function lintReply(text: string, opts?: { mode?: Mode }): Report {
   if (mode !== 'off' && text && text.trim()) {
     const t = strip(text)
     const strict = mode === 'strict'
-    const add = (rule: string, match: string, index: number, extra: Partial<Finding> = {}) =>
-      findings.push({ rule, match, index, ...extra })
+    const add: Add = (rule, match, index, extra = {}) => findings.push({ rule, match, index, ...extra })
     for (const m of t.matchAll(VOCAB)) add('vocab', m[0], m.index!)
     for (const m of t.matchAll(FILLER)) add('filler', m[0], m.index!, { fix: FILLER_FIX[m[0].toLowerCase()] })
     if (strict) for (const m of t.matchAll(PUNCT)) add('punct', m[0].trim() || m[0], m.index!)
@@ -116,36 +153,7 @@ export function lintReply(text: string, opts?: { mode?: Mode }): Report {
       if (strict && OPENER_PHRASE.test(par.trimStart())) add('vocab', par.trimStart().split(/[!,]/)[0], pm.index! + lead)
       const dashes = (par.match(/—/g) || []).length
       if (dashes > 1) add('emdash', '—', pm.index! + par.indexOf('—'), { n: dashes, para: paraNo })
-      let run: Sentence[] = []
-      for (const seg of segments(par, pm.index!)) {
-        const ss = sentences(seg)
-        for (const s of ss) {
-          const n = words(s.text)
-          if (n > (s.list ? 20 : 25)) {
-            longSentences++
-            add('long', s.text.split(/\s+/).slice(0, 5).join(' ') + '…', s.index, { n })
-          }
-        }
-        if (!strict) continue
-        if (seg.list) {
-          run = []
-          continue
-        }
-        for (const s of ss) {
-          const w = /[A-Za-z']+/.exec(s.text.replace(/^[*_#>\s]+/, ''))?.[0]
-          if (w && run.length && /^[A-Za-z']+/.exec(run[0].text.replace(/^[*_#>\s]+/, ''))?.[0] === w) run.push(s)
-          else run = w ? [s] : []
-          if (run.length === 3) add('opener', w!, s.index)
-        }
-        // A short (6 words or fewer) negating sentence that closes the paragraph
-        // right after an affirmative one: the rhetorical "X does. Y does not."
-        // A negated fact after another negated fact is plain prose.
-        const last = ss[ss.length - 1]
-        const prev = ss[ss.length - 2]
-        if (last && prev && words(last.text) <= 6 && NEGATOR.test(last.text) && !NEGATIVE.test(prev.text)) {
-          add('negclose', last.text, last.index)
-        }
-      }
+      longSentences += lintParagraph(par, pm.index!, strict, add)
     }
   }
   findings.sort((a, b) => a.index - b.index)

@@ -5,7 +5,7 @@
 // The note travels as `prompt.submit` context, not as a system-prompt section:
 // a section that changes between turns would break the prompt cache on every
 // request, while context rides on the user message, which is new anyway. A
-// clean reply sends nothing.
+// clean reply sends nothing, and a note is sent once.
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
@@ -30,24 +30,33 @@ export function parseMode(args: string): Mode | undefined {
 }
 
 /**
- * The line under the answer: receipt, then the lint score. The score alone
- * shows only when the reply broke a rule, so a clean tool-free turn stays quiet.
+ * The line under the answer: the receipt, then the lint score in the
+ * /plainspeak mode. `off` adds no score. The score alone shows only when the
+ * reply broke a rule, so a clean tool-free turn stays quiet.
  */
-export function turnLine(t: Turn, answer: string, durationMs: number): string | null {
+export function turnLine(t: Turn, answer: string, durationMs: number, mode: Mode): string | null {
   const line = receiptLine(t, answer, durationMs)
-  const report = lintReply(answer, { mode: 'strict' })
+  if (mode === 'off') return line
+  const report = lintReply(answer, { mode })
   if (line === null) return report.findings.length > 0 ? report.score : null
   const [first, ...rest] = line.split('\n')
   return [`${first} · ${report.score}`, ...rest].join('\n')
 }
 
+/** Ends the turn's bookkeeping: reset the collected calls, set or clear the note. */
 async function completeTurn($: EngineInterface, e: { answer: string; durationMs: number }, text: string): Promise<string> {
   const t = await read($, turn)
   await update($, turn, () => emptyTurn())
   const mode = (await read($, plainspeak)) as Mode
   await update($, lintNote, () => (mode === 'off' ? '' : feedbackLine(lintReply(e.answer, { mode }))))
   if (!(await read($, receipt))) return text
-  return turnLine(t, e.answer, e.durationMs) ?? text
+  return turnLine(t, e.answer, e.durationMs, mode) ?? text
+}
+
+/** An aborted turn leaves nothing behind: no stale calls, no stale note. */
+async function abortTurn($: EngineInterface): Promise<void> {
+  await update($, turn, () => emptyTurn())
+  await update($, lintNote, () => '')
 }
 
 export function registerTurn(on: On): void {
@@ -62,13 +71,19 @@ export function registerTurn(on: On): void {
 
   on('turn.complete', async ($, e, next) => {
     const r = await next(e)
-    if (e.agentId !== undefined || e.isAborted) return r
+    if (e.agentId !== undefined) return r
+    if (e.isAborted) {
+      await abortTurn($)
+      return r
+    }
     return { ...r, text: await completeTurn($, e, r.text) }
   }).catch(($, e, next) => next(e))
 
+  // The note rides the next prompt the user types, once.
   on('prompt.submit', async ($, e, next) => {
     const note = await read($, lintNote)
     if (note === '' || e.origin !== undefined) return next(e)
+    await update($, lintNote, () => '')
     return next({ ...e, context: [...(e.context ?? []), note] })
   }).catch(($, e, next) => next(e))
 

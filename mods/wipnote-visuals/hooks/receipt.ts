@@ -7,46 +7,27 @@
 // stderr, interrupted, gitOperation...). A non-zero exit makes core answer the
 // call with `isError: true`, and the model-facing `text` usually names the
 // code. So: no isError = ok, isError = failed (code parsed from text when
-// present), anything else = unknown.
+// present), anything else = unknown. How one exit spreads over a chained
+// command is commands.ts's job.
+import { commandsOf } from './commands'
+import type { Cmd, End, Outcome } from './commands'
 
-export type CmdKind = 'test' | 'build' | 'commit' | 'other'
-export type Outcome = 'ok' | 'failed' | 'unknown'
-export type Cmd = { label: string; kind: CmdKind; outcome: Outcome; exitCode?: number }
+export { classifyCommand, commandsOf, labelOf, pieces, stripWrappers } from './commands'
+export type { Cmd, CmdKind, Outcome } from './commands'
 export type Turn = { files: string[]; commands: Cmd[]; commits: string[] }
 
 export const emptyTurn = (): Turn => ({ files: [], commands: [], commits: [] })
 
 const EDIT_TOOLS = new Set(['Edit', 'Write', 'MultiEdit', 'NotebookEdit'])
-const TEST = /^(?:go test|gotestsum|scripts\/go-test-streaming\.sh|(?:npm|pnpm|yarn|bun) (?:run )?test|pytest|cargo test|claude plugin test|wipnote check)\b/
-const BUILD = /^(?:go build|go vet|wipnote build|(?:npm|pnpm|yarn|bun) run build|cargo build|tsc|claude plugin validate)\b/
-const COMMIT = /^git(?: -C \S+)? commit(?=\s|$)/
-const CLAIM = /\b(?:all )?(?:tests?|test suite|checks?|quality gate|suite)\b[^.\n]{0,40}?\b(?:pass(?:es|ed|ing)?|green|succeed(?:s|ed)?)\b|\b(?:passing|green) (?:tests|suite|build)\b/i
-
-/** One shell command may chain several; the receipt classifies each segment. */
-export function segments(command: string): string[] {
-  return String(command ?? '')
-    .split(/\s*(?:&&|\|\||;|\|)\s*|\r?\n/)
-    .map(s => s.replace(/^\s*\(?\s*(?:cd\s+\S+\s*(?:&&)?\s*)?/, '').trim())
-    .filter(s => s !== '')
-}
-
-export function classifyCommand(segment: string): CmdKind {
-  const s = String(segment ?? '').trim()
-  if (TEST.test(s)) return 'test'
-  if (BUILD.test(s)) return 'build'
-  if (COMMIT.test(s)) return 'commit'
-  return 'other'
-}
-
-/** `go test ./...` reads as `go test`; `scripts/x.sh` keeps one word. */
-export function labelOf(segment: string): string {
-  const words = String(segment ?? '').trim().split(/\s+/)
-  const first = words[0] ?? ''
-  return /^(?:go|npm|pnpm|yarn|bun|cargo|git|claude|wipnote)$/.test(first) ? words.slice(0, 2).join(' ') : first
-}
+// A passing-test claim: subject, a short gap, then a passing verb.
+const CLAIM = /\b(?:all )?(?:\d+ )?(?:tests?|test suite|checks?|quality gate|suite|go test)\b([^.;\n]{0,40}?)\b(pass(?:es|ed|ing)?|green|succeed(?:s|ed)?)\b|\b(?:passing|green) (?:tests|suite|build)\b/gi
+// Any negation between or just before the subject and the verb undoes the claim.
+const NEGATED = /\b(?:not|no|never|none|fail(?:s|ed|ing)?|without)\b|n['’]t\b/i
+// "pass through", "pass to the proxy": another sense of the verb.
+const OTHER_SENSE = /^\s+(?:through|to|into|along|around|up|down|back|off)\b/i
 
 /** Reads how a tool call ended from the shape core gives `tool.call` results. */
-export function outcomeOf(result: unknown): { outcome: Outcome; exitCode?: number } {
+export function outcomeOf(result: unknown): End {
   if (result === null || typeof result !== 'object') return { outcome: 'unknown' }
   const r = result as { deny?: unknown; isError?: unknown; text?: unknown; result?: { interrupted?: unknown } }
   if (typeof r.deny === 'string') return { outcome: 'failed' }
@@ -72,11 +53,8 @@ export function noteCall(turn: Turn, call: Call, result: unknown): Turn {
       return { ...turn, files: [...turn.files, path] }
     }
     if (tool !== 'Bash') return turn
-    const end = outcomeOf(result)
     const sha = commitSha(result)
-    const commands = segments(String(call.command ?? ''))
-      .map(seg => ({ label: labelOf(seg), kind: classifyCommand(seg), ...end }))
-      .filter(c => c.kind !== 'other')
+    const commands = commandsOf(String(call.command ?? ''), outcomeOf(result))
     if (commands.length === 0 && sha === undefined) return turn
     return {
       ...turn,
@@ -95,8 +73,17 @@ function commitSha(result: unknown): string | undefined {
   return typeof sha === 'string' && sha !== '' ? sha.slice(0, 7) : undefined
 }
 
+/** True when the reply says tests (or checks, the suite, the gate) pass, in that sense, and not negated. */
 export function claimsTestsPass(answer: string): boolean {
-  return CLAIM.test(String(answer ?? '').replace(/```[\s\S]*?```/g, ''))
+  const text = String(answer ?? '').replace(/```[\s\S]*?```/g, '')
+  for (const m of text.matchAll(CLAIM)) {
+    const before = text.slice(Math.max(0, m.index - 24), m.index)
+    const after = text.slice(m.index + m[0].length, m.index + m[0].length + 12)
+    if (NEGATED.test(before) || NEGATED.test(m[1] ?? '')) continue
+    if (m[2] !== undefined && OTHER_SENSE.test(after)) continue
+    return true
+  }
+  return false
 }
 
 export function formatDuration(ms: number): string {
