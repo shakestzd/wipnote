@@ -294,6 +294,25 @@ def _dedupe(entries: list[Entry]) -> list[Entry]:
     return list(merged.values())
 
 
+QUALIFIER_RE = re.compile(r"\(([^()]*)\)")
+
+
+def aliases_of(word: str) -> set[str]:
+    """Queryable keys for a qualified heading such as 'MOTT (or MOTTIE)'.
+
+    The base text outside the brackets is a key; an 'or' qualifier names an
+    alternative spelling; any other qualifier is a usage phrase and is a key
+    too. The full heading stays the entry word, so the restriction is kept.
+    """
+    lower = word.lower()
+    base = " ".join(QUALIFIER_RE.sub(" ", lower).split())
+    keys = {base} if base and base != lower else set()
+    for qualifier in QUALIFIER_RE.findall(lower):
+        text = " ".join(qualifier.split())
+        keys.add(text[3:] if text.startswith("or ") else text)
+    return {k for k in keys if k and k != lower}
+
+
 def write_db(entries: list[Entry], path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(".tmp")
@@ -311,6 +330,11 @@ def write_db(entries: list[Entry], path: Path) -> None:
         (f, e.word.lower(), e.pos, int(e.approved)) for e in entries for f in e.forms
         if f != e.word.lower()}))
     con.execute("CREATE INDEX idx_form ON forms (form)")
+    con.execute("CREATE TABLE aliases (alias TEXT NOT NULL, word TEXT NOT NULL, "
+                "pos TEXT NOT NULL, approved INTEGER NOT NULL)")
+    con.executemany("INSERT INTO aliases VALUES (?, ?, ?, ?)", sorted({
+        (a, e.word.lower(), e.pos, int(e.approved)) for e in entries for a in aliases_of(e.word)}))
+    con.execute("CREATE INDEX idx_alias ON aliases (alias)")
     con.commit()
     con.close()
     tmp.replace(path)
@@ -386,6 +410,11 @@ def main(argv: list[str] | None = None) -> int:
               file=sys.stderr)
         return 2
     path = db_path()
+    if not entries:
+        print(f"error: no dictionary entries were recognized in {pdf}. Check that it is the "
+              f"ASD-STE100 Issue 9 PDF. The existing database was left unchanged: {path}",
+              file=sys.stderr)
+        return 2
     write_db(entries, path)
     approved = sum(e.approved for e in entries)
     print(f"entries: {len(entries)} (approved {approved}, not approved "

@@ -114,6 +114,35 @@ def test_lookup_verb_form_points_at_its_entry(db):
 
 def test_lookup_is_case_and_punctuation_insensitive(db):
     assert run_lookup(db, "Snarf.") == ["snarf: approved; (v) approved"]
+    assert run_lookup(db, "(snarf)") == ["snarf: approved; (v) approved"]
+
+
+@pytest.mark.parametrize("term,line", [
+    ("mott", "mott: approved; (adj) approved [entry: mott (or mottie)]"),
+    ("mottie", "mottie: approved; (adj) approved [entry: mott (or mottie)]"),
+    ("MOTT (or MOTTIE)", "mott (or mottie): approved; (adj) approved"),
+    ("blim:conj", "blim:conj: unapproved; (conj) unapproved -> FLORP (n) [entry: blim (in blim of)]"),
+    ("blim (in blim of)", "blim (in blim of): unapproved; (conj) unapproved -> FLORP (n)"),
+    ("in blim of", "in blim of: unapproved; (conj) unapproved -> FLORP (n) [entry: blim (in blim of)]"),
+    ("florp (in a florp)", "florp (in a florp): unapproved; (prep) unapproved -> FLORP (n)"),
+])
+def test_qualified_headings_are_queryable(db, term, line):
+    assert run_lookup(db, term) == [line]
+
+
+def test_aliases_keep_base_or_spelling_and_usage_phrase():
+    assert bd.aliases_of("MOTT (or MOTTIE)") == {"mott", "mottie"}
+    assert bd.aliases_of("blim (in blim of)") == {"blim", "in blim of"}
+    assert bd.aliases_of("FREE FLOOP") == set()
+
+
+def test_lookup_reads_a_database_built_before_aliases(tmp_path, entries):
+    path = tmp_path / "old.sqlite3"
+    bd.write_db(entries, path)
+    with sqlite3.connect(path) as con:
+        con.execute("DROP TABLE aliases")
+    assert run_lookup(path, "snarf") == ["snarf: approved; (v) approved"]
+    assert run_lookup(path, "mott") == ["mott: not-found"]
 
 
 def test_lookup_without_database_exits_nonzero_and_says_how_to_build(tmp_path, monkeypatch,
@@ -122,6 +151,19 @@ def test_lookup_without_database_exits_nonzero_and_says_how_to_build(tmp_path, m
     assert lookup.main(["florp"]) == 2
     err = capsys.readouterr().err
     assert "build_dictionary.py" in err
+
+
+def test_empty_parse_keeps_the_existing_database(db, tmp_path, monkeypatch, capsys):
+    with sqlite3.connect(db) as con:
+        before = con.execute("SELECT COUNT(*) FROM entries").fetchone()[0]
+    assert before > 0
+    pdf = tmp_path / "wrong.pdf"
+    pdf.write_bytes(b"%PDF-1.4 not the spec")
+    monkeypatch.setattr(bd, "extract_text", lambda _pdf: "A page with no dictionary header.\n")
+    assert bd.main([str(pdf)]) == 2
+    assert "left unchanged" in capsys.readouterr().err
+    with sqlite3.connect(db) as con:
+        assert con.execute("SELECT COUNT(*) FROM entries").fetchone()[0] == before
 
 
 def test_build_refuses_a_missing_pdf(tmp_path, capsys):
@@ -135,7 +177,9 @@ def test_default_pdf_is_resolved_beside_the_script():
 
 def test_mixed_senses_are_check_pos_not_unapproved(db):
     lines = run_lookup(db, "Florp.", "florp")
-    assert lines == ["florp: check-pos; (n) approved; (v) unapproved -> FLORP (n)"]
+    assert lines == ["florp: check-pos; (n) approved; "
+                     "(prep) unapproved -> FLORP (n) [entry: florp (in a florp)]; "
+                     "(v) unapproved -> FLORP (n)"]
     assert ": unapproved;" not in lines[0]
 
 

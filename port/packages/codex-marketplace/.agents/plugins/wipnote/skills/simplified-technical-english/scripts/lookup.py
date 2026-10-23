@@ -21,6 +21,9 @@ CONTRACT = """Output contract:
   One line per distinct lowercase term, in first-seen order:
     term[:pos]: STATUS; (pos) approved; (pos) unapproved -> ALTERNATIVES
   Only matching senses are printed; listed forms add ' [form of HEADWORD]'.
+  A qualified heading such as 'MOTT (or MOTTIE)' also matches its base text,
+  its 'or' spelling and its usage phrase; those matches add ' [entry: HEADING]'
+  so the usage restriction stays visible.
   STATUS is approved (approved senses only), unapproved (unapproved senses
   only), check-pos (both approved and unapproved senses), or not-found.
   Alternatives retain their POS or TN/TV tags; alternatives use ' | ' as a
@@ -48,8 +51,19 @@ TOKEN_RE = re.compile(rf"\w+(?:[-'’./]\w+)*(?::(?:{POS}))?", re.IGNORECASE)
 
 
 def clean(term: str) -> str:
-    """Strip surrounding punctuation, preserving internal phrase punctuation."""
-    return term.strip().strip(".,;:!?()[]{}<>\"'“”‘’—–").lower()
+    """Strip surrounding punctuation, preserving internal phrase punctuation.
+
+    A closing bracket that balances an opening one inside the term belongs to a
+    qualified heading such as 'blim (in blim of)', so it is kept.
+    """
+    term = term.strip().strip(".,;:!?[]{}<>\"'“”‘’—–")
+    if term.startswith("(") and term.endswith(")"):
+        term = term[1:-1]
+    while term.startswith("(") and term.count("(") > term.count(")"):
+        term = term[1:]
+    while term.endswith(")") and term.count(")") > term.count("("):
+        term = term[:-1]
+    return term.strip().lower()
 
 
 def split_hint(term: str) -> tuple[str, str | None]:
@@ -57,24 +71,38 @@ def split_hint(term: str) -> tuple[str, str | None]:
     return (word, hint) if sep and hint in POS.split("|") else (term, None)
 
 
+ENTRY_COLS = "e.word, e.pos, e.approved, e.meaning, e.alternatives"
+ROWS_SQL = (
+    f"SELECT {ENTRY_COLS}, 'direct' FROM entries e WHERE e.word = ? "
+    f"UNION SELECT {ENTRY_COLS}, 'form' FROM forms f JOIN entries e ON e.word=f.word "
+    "AND e.pos=f.pos AND e.approved=f.approved WHERE f.form = ?")
+ALIAS_SQL = (
+    f" UNION SELECT {ENTRY_COLS}, 'alias' FROM aliases a JOIN entries e ON e.word=a.word "
+    "AND e.pos=a.pos AND e.approved=a.approved WHERE a.alias = ?")
+ORDER_SQL = " ORDER BY 3 DESC, 2, 1"
+
+
 def matching_rows(con: sqlite3.Connection, term: str) -> list[tuple]:
-    """Union direct and listed-form senses; forms must not hide a direct sense."""
+    """Union direct, listed-form and alias senses; none may hide another."""
     word, hint = split_hint(term)
-    rows = con.execute(
-        "SELECT word, pos, approved, meaning, alternatives FROM entries WHERE word = ? "
-        "UNION SELECT e.word, e.pos, e.approved, e.meaning, e.alternatives "
-        "FROM forms f JOIN entries e ON e.word=f.word AND e.pos=f.pos "
-        "AND e.approved=f.approved WHERE f.form = ? "
-        "ORDER BY approved DESC, pos, word", (word, word)).fetchall()
-    return [row for row in rows if hint is None or row[1] == hint]
+    try:
+        rows = con.execute(ROWS_SQL + ALIAS_SQL + ORDER_SQL, (word, word, word)).fetchall()
+    except sqlite3.OperationalError:  # database built before the aliases table existed
+        rows = con.execute(ROWS_SQL + ORDER_SQL, (word, word)).fetchall()
+    best: dict[tuple, tuple] = {}
+    for row in rows:  # a sense found both directly and via an alias is listed once
+        key = row[:5]
+        if key not in best or row[5] == "direct":
+            best[key] = row
+    return [row for row in best.values() if hint is None or row[1] == hint]
 
 
 def describe(row: tuple, term: str) -> str:
-    word, pos, approved, meaning, alternatives = row
+    word, pos, approved, meaning, alternatives, via = row
     detail = f"({pos}) approved" if approved else f"({pos}) unapproved -> " + (
         alternatives or (f"help: {meaning}" if meaning else "no alternative given"))
     if word != split_hint(term)[0]:
-        detail += f" [form of {word}]"
+        detail += f" [entry: {word}]" if via == "alias" else f" [form of {word}]"
     return detail
 
 
