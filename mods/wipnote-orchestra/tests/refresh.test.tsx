@@ -53,4 +53,13 @@ test('a card moves as soon as a Bash call ticks one of its steps, mid-turn', asy
   const after = await $.ui.mount(message as never)
   expect(await after.find({ type: 'Text', text: /1\/3 steps/ })).toBeDefined()
   await after.unmount()
+
+  // The CLI also takes a unique id prefix; it refreshes the full id's card.
+  done = 2
+  await $.tool.call({ tool: 'Bash', command: `wipnote feature complete-step ${ID.slice(0, 11)} 2`, description: 'tick' } as never)
+  for (let i = 0; i < 20; i++) await settle()
+  expect(shows.length).toBe(fetched + 2)
+  const later = await $.ui.mount(message as never)
+  expect(await later.find({ type: 'Text', text: /2\/3 steps/ })).toBeDefined()
+  await later.unmount()
 })

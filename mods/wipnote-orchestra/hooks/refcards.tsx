@@ -115,7 +115,8 @@ export async function refreshChanged($: EngineInterface, command: string): Promi
   const ids = changedRefs(command)
   if (ids.length === 0) return
   const all = await read($, refs)
-  for (const id of ids) if (all[id]) void loadCard($, id)
+  // The CLI takes a unique id prefix (feat-65bcc2), so match drawn ids by prefix.
+  for (const id of Object.keys(all)) if (ids.some(one => id.startsWith(one))) void loadCard($, id)
 }
 
 /**
