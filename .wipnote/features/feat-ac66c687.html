@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>orch integration: link an orch herdr session to a work item and show it in lineage</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-ac66c687"
+             data-type="feature"
+             data-status="in-progress"
+             data-priority="medium"
+             data-created="2026-10-23T22:21:46.004276"
+             data-updated="2026-10-23T22:43:10.23717" data-agent-assigned="claude-code" data-track-id="trk-2e707ed1" data-created-by-cli-version="dev" data-change_kind="capability" data-created_in_session="6db0784a-0a9e-5bd0-b4be-97f01614ae67" data-node-props="{&#34;research&#34;:{&#34;chosen&#34;:&#34;both (owner decision Q1): tag asserted, sid derived and labelled; wipnote reads ORCH_REGISTRY or ~/.cache/orch/registry.json read-only at lineage time&#34;,&#34;exists&#34;:&#34;wipnote relevant orch/herdr: feat-dd8b0cde (delegation-run record, todo), feat-a1df60c2 (run-folder contract + codex-herdr-pane mod, done). Code: sessions.parent_session_id and agent_lineage_trace (core/hooks/subagent_start.go, session_start.go), RenderAgentTree for sess- roots, work item -\u003e implemented_in -\u003e raw Claude session_id in the canonical projection. Nothing reads orch files.&#34;,&#34;findings&#34;:&#34;orch hook events carry the harness session_id as sid; wipnote uses the same id unchanged (core/agent NormaliseSessionID). orch duplicates the sub-agent tree and tool events when its worker runs under wipnote hooks; spawn/send/wait/result/stop and pending questions are orch-only.&#34;,&#34;gaps&#34;:[&#34;Hook payload field names taken from orch README (read 2026-10-23 by its author); not re-fetched in this session&#34;,&#34;Not run against real herdr or a real orch spawn; whether --settings replaces wipnote claude&#39;s plugin hooks is unverified&#34;],&#34;options&#34;:[&#34;orch spawn --work-item tag stored in orch registry&#34;,&#34;derive via sid matching the work item&#39;s implemented_in sessions&#34;,&#34;both, tag asserted and sid derived&#34;],&#34;question&#34;:&#34;How should an orch herdr session link to a wipnote work item and appear in lineage, with orch&#39;s NDJSON as the only write path?&#34;,&#34;rejected&#34;:[{&#34;option&#34;:&#34;setting in .wipnote/ for the registry path&#34;,&#34;reason&#34;:&#34;puts a host path in project config (owner chose ORCH_REGISTRY)&#34;}],&#34;sources&#34;:[{&#34;retrieved&#34;:&#34;2026-10-23&#34;,&#34;type&#34;:&#34;primary&#34;,&#34;url&#34;:&#34;https://code.claude.com/docs/en/hooks&#34;}]}}">
+
+        <header>
+            <h1>orch integration: link an orch herdr session to a work item and show it in lineage</h1>
+            <div class="metadata">
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="../sessions/6db0784a-0a9e-5bd0-b4be-97f01614ae67.html" data-relationship="implemented_in" data-since="2026-10-23T22:21:50.591528">session 6db0784a-0a9e-5bd0-b4be-97f01614ae67</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-2e707ed1.html" data-relationship="part_of" data-since="2026-10-23T22:21:46.008314">trk-2e707ed1</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="relates_to">
+                <h3>Relates To:</h3>
+                <ul>
+                    <li><a href="../features/feat-dd8b0cde.html" data-relationship="relates_to" data-since="2026-10-23T22:21:48.461687">Delegation-run record: tool, label, run dir, usage and exit linked to the active work item</a></li>
+                    <li><a href="../features/feat-a1df60c2.html" data-relationship="relates_to" data-since="2026-10-23T22:21:48.526034">Run-folder contract and pane hook so any harness UI can render a delegation</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="false" data-step-id="step-feat-ac66c687-0" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Inventory wipnote coverage vs orch (spawn</li>
+                <li data-completed="false" data-step-id="step-feat-ac66c687-1" data-agent="claude-code" data-created-by-agent="claude-code">⏳ wait</li>
+                <li data-completed="false" data-step-id="step-feat-ac66c687-2" data-agent="claude-code" data-created-by-agent="claude-code">⏳ result</li>
+                <li data-completed="false" data-step-id="step-feat-ac66c687-3" data-agent="claude-code" data-created-by-agent="claude-code">⏳ status</li>
+                <li data-completed="false" data-step-id="step-feat-ac66c687-4" data-agent="claude-code" data-created-by-agent="claude-code">⏳ stop</li>
+                <li data-completed="false" data-step-id="step-feat-ac66c687-5" data-agent="claude-code" data-created-by-agent="claude-code">⏳ lineage</li>
+                <li data-completed="false" data-step-id="step-feat-ac66c687-6" data-agent="claude-code" data-created-by-agent="claude-code">⏳ agent-spawn)</li>
+                <li data-completed="false" data-step-id="step-feat-ac66c687-7" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Write integration spec with open questions</li>
+                <li data-completed="false" data-step-id="step-feat-ac66c687-8" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Read orch registry and events into lineage for a work item</li>
+                <li data-completed="false" data-step-id="step-feat-ac66c687-9" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Two-sided tests and gates</li>
+                <li data-completed="false" data-step-id="step-feat-ac66c687-10" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Next slice (Q3): persist orch spawn and stop as run records; record type with feat-dd8b0cde still open (Q4)</li>
+            </ol>
+        </section>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Integrate orch (herdr-pane session driver for Claude/Codex, Python, NDJSON mailbox store) with wipnote. orch keeps its own NDJSON storage as the only write path; wipnote reads it. First slice: an orch session names its work item, and wipnote lineage shows the orch session (name, kind, state, sub-agent tree) under that work item. Sibling of feat-dd8b0cde (delegation-run record).</p>
+        </section>
+    </article>
+</body>
+</html>
