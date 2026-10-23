@@ -30,7 +30,7 @@ canonical YAML source.
    ```bash
    wipnote plan show <plan-id>
    ```
-   If not found, suggest `/wipnote:plan-list` to see available plans.
+   If not found, suggest `wipnote plan list` to see available plans.
 
 2. Make sure the dashboard is running. In a devcontainer:
    ```bash

@@ -29,7 +29,7 @@ Implementation (<kind> <id>):
 3. **Implement the minimum.** Make the tests pass and add no code that no test covers. Re-run the tests after each change until they pass.
 4. **Run the full gate** from code-quality-skill. Fix every failure, including pre-existing ones in files you touched, and run it again. Continue only when every phase passes.
 5. **Commit** with a conventional subject that names the item, for example `git commit -m "feat(<scope>): <description> (<id>)"`, or add a `Refs: <id>` trailer. Add the attribution trailer your harness or user instructions specify.
-6. **Complete** the item per the completion rule above.
+6. **Record and complete** as two separate calls: `wipnote check --gate --work-item <id>` (it also drains the item's deferred artifact commits; do not run `wipnote commit-queue flush`), then `wipnote <kind> complete <id>` per the completion rule above. Add `--learning "<fact>" --learning-kind hazard|invariant|decision|subsystem-map` when you found something future agents need, or record it with `wipnote arch add` using repo-relative `--paths`.
 
 Report: files changed, lines added, test names and count, gate results, and commit SHAs.
 
@@ -38,6 +38,9 @@ Report: files changed, lines added, test names and count, gate results, and comm
 - Never hand-edit `.wipnote/` work-item, plan or track files; use the CLI. Appending to `.wipnote/logs/progress/<id>.md` when a brief tells you to is allowed. Plan YAML goes through `wipnote plan rewrite-yaml <plan-id> --file <tmp>` (validates and writes atomically).
 - Batch wipnote CLI calls with `&&`; each Bash call costs a turn. Split only when a later command needs an earlier one's output.
 - Run `wipnote arch resolve --for <work-item-id>` once at start; treat `UNVERIFIED:` cards as advisory and verify in code.
+- Name the work item in every commit subject or a `Refs: <id>` trailer; a commit without it needs `wipnote <kind> link-commit <id> <sha>` or completion is refused.
+- For a change that renders in a browser (templates, CSS, dashboard pages), verify it with the `ui-stills-verification` skill (`wipnote skill show ui-stills-verification` if it is not in your list); tests alone do not show what a user sees.
+- If you stop making progress (repeated results, a third "one more check"), stop and report what you know. A partial honest report beats a run cut off at the turn limit.
 
 ## Research routing
 

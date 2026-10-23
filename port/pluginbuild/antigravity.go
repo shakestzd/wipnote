@@ -94,11 +94,10 @@ func (a antigravityAdapter) Emit(m *Manifest, repoRoot, outDir string) error {
 // explicit-only skills now carry the flag in the shared source (Codex ignores
 // unknown SKILL.md keys); this injector is a backstop guaranteeing the agy tree
 // keeps the flag for this set even if a source skill drops it.
-// The set is deliberately conservative: destructive (deploy ships releases),
-// high-cost (execute fans out many agents), and externally-visible
-// (report-issue transmits data) workflows.
+// The set is deliberately conservative: high-cost (execute fans out many
+// agents) and externally-visible (report-issue transmits data) workflows.
+// (deploy, which ships releases, is a repo-local skill and no longer ships.)
 var antigravityDisableModelInvocationSkills = map[string]bool{
-	"deploy":       true,
 	"execute":      true,
 	"report-issue": true,
 }

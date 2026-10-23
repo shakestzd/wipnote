@@ -972,8 +972,6 @@ func buildSessionStartAttribution() string {
 		"- `wipnote wip` for open and in-progress items",
 		"- `wipnote relevant <topic>` before creating new work so you search open and completed lineage first",
 		"- `wipnote help --compact` for a command overview",
-		"",
-		"For orchestrated delegation, work tracking, and quality gates, use `/wipnote:orchestrator-directives-skill`.",
 	}
 	return joinLines(lines)
 }

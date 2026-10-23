@@ -283,11 +283,6 @@ func TestAntigravityDisablesModelInvocationForExplicitSkills(t *testing.T) {
 			t.Errorf("explicit-only skill %q is missing disable-model-invocation", name)
 		}
 	}
-	// orchestrator-directives-skill is ambient (visibility: always) and must
-	// remain model-invocable.
-	if skillHasFlag("orchestrator-directives-skill") {
-		t.Error("ambient skill orchestrator-directives-skill should NOT be disabled")
-	}
 }
 
 // agyHookSpec mirrors the Antigravity (agy) JSONHookSpec shape that agy's

@@ -28,7 +28,6 @@ Read short files (≤200 lines, or one targeted offset/limit range) directly wit
 | Simple code changes, 1-2 files | `wipnote:patch-coder` |
 | Feature implementation, 3-8 files (default) | `wipnote:feature-coder` |
 | Complex architecture, 10+ files | `wipnote:architect-coder` |
-| Tests and quality gates | `wipnote:test-runner` |
 | External AI | `${run_shell_command_ToolName}("codex exec ...")`, `("agy ...")`, `("copilot ...")`; fall back to patch-coder |
 | Unclear requirements | Ask the user a question |
 

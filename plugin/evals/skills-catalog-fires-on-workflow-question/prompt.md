@@ -6,4 +6,4 @@ max_turns: 4
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 
-Which wipnote workflow gives me a visual recap of a finished feature, and how do I start it?
+Which wipnote workflow critiques a drafted plan before human review, and how do I start it?

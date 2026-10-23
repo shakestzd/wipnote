@@ -80,7 +80,7 @@ func SaveOrchestratorConfig(wipnoteDir string, cfg OrchestratorConfig) error {
 
 // orchestratorWhitelist is the set of tools an orchestrator may call directly:
 // delegation itself, user interaction, task bookkeeping, and resuming a
-// budget-paused subagent (SendMessage — the orchestrator-directives skill's
+// budget-paused subagent (SendMessage — the retired orchestrator-directives skill's
 // documented Pattern A recovery, which must never itself count as a direct-
 // execution violation). Skill is deliberately absent — invoking a skill runs
 // its work in the orchestrator's own context, which is exactly the bypass
