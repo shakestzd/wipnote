@@ -174,7 +174,7 @@ func TestUserPrompt_WithOpenItems_ReturnsAttribution(t *testing.T) {
 	td.addFeature("feat-bbb", "feature", "Dashboard", "todo")
 	td.setActiveFeature("test-sess", "feat-aaa")
 
-	// Prompt that triggers exploration intent — should include classification + active one-liner
+	// Per-turn context is the active one-liner only
 	event := &CloudEvent{SessionID: "test-sess", Prompt: "show me all the files in the codebase"}
 	result, err := UserPrompt(event, td.DB)
 	if err != nil {
@@ -182,7 +182,7 @@ func TestUserPrompt_WithOpenItems_ReturnsAttribution(t *testing.T) {
 	}
 
 	if result.AdditionalContext == "" {
-		t.Fatal("expected AdditionalContext with classification signals")
+		t.Fatal("expected AdditionalContext with the active item")
 	}
 	// Per-turn context should be terse, not include the full "Open work items" roster
 	if strings.Contains(result.AdditionalContext, "Open work items") {
@@ -194,7 +194,7 @@ func TestUserPrompt_WithOpenItems_ReturnsAttribution(t *testing.T) {
 	}
 }
 
-func TestUserPrompt_ImplementationWithSpike_WarnsAboutSpike(t *testing.T) {
+func TestUserPrompt_NoPerTurnDirectives(t *testing.T) {
 	td := setupTestDB(t)
 	defer td.DB.Close()
 
@@ -202,22 +202,22 @@ func TestUserPrompt_ImplementationWithSpike_WarnsAboutSpike(t *testing.T) {
 	defer os.Unsetenv("WIPNOTE_SESSION_ID")
 
 	td.addFeature("spk-001", "spike", "Research caching", "in-progress")
-	_, err := td.DB.Exec(`UPDATE sessions SET active_feature_id = 'spk-001' WHERE session_id = 'test-sess'`)
-	if err != nil {
-		t.Fatalf("setActiveFeature: %v", err)
-	}
+	td.setActiveFeature("test-sess", "spk-001")
 
-	event := &CloudEvent{SessionID: "test-sess", Prompt: "implement the caching layer"}
+	// Implementation and exploration keywords once triggered ORCHESTRATOR
+	// DIRECTIVE / [CIGS] blocks; only the active-item line remains.
+	event := &CloudEvent{SessionID: "test-sess", Prompt: "implement the caching layer and search the codebase"}
 	result, err := UserPrompt(event, td.DB)
 	if err != nil {
 		t.Fatalf("UserPrompt: %v", err)
 	}
-
-	if result.AdditionalContext == "" {
-		t.Fatal("expected AdditionalContext with spike warning")
+	for _, banned := range []string{"ORCHESTRATOR DIRECTIVE", "WORKFLOW GUIDANCE", "[CIGS]"} {
+		if strings.Contains(result.AdditionalContext, banned) {
+			t.Errorf("per-turn context should not contain %q, got: %s", banned, result.AdditionalContext)
+		}
 	}
-	if !strings.Contains(result.AdditionalContext, "spike") {
-		t.Errorf("guidance should warn about spike, got: %s", result.AdditionalContext)
+	if result.AdditionalContext != "ACTIVE: spk-001 — Research caching" {
+		t.Errorf("want only the active-item line, got: %q", result.AdditionalContext)
 	}
 }
 
@@ -273,36 +273,6 @@ func TestUserPrompt_SanitizesXMLBlocks(t *testing.T) {
 	}
 }
 
-func TestCompactCLIRef_MentionsTrackRequirement(t *testing.T) {
-	if !strings.Contains(compactCLIRef, "--track") {
-		t.Error("compactCLIRef should mention --track requirement")
-	}
-	if !strings.Contains(compactCLIRef, "--description") {
-		t.Error("compactCLIRef should mention --description requirement")
-	}
-}
-
-func TestGetActiveWorkItemType(t *testing.T) {
-	td := setupTestDB(t)
-	defer td.DB.Close()
-
-	td.addFeature("feat-001", "feature", "Auth", "in-progress")
-	td.addFeature("spk-001", "spike", "Research", "in-progress")
-
-	if got := getActiveWorkItemType(td.DB, "feat-001"); got != "feature" {
-		t.Errorf("expected 'feature', got %q", got)
-	}
-	if got := getActiveWorkItemType(td.DB, "spk-001"); got != "spike" {
-		t.Errorf("expected 'spike', got %q", got)
-	}
-	if got := getActiveWorkItemType(td.DB, "nonexistent"); got != "" {
-		t.Errorf("expected empty for nonexistent, got %q", got)
-	}
-	if got := getActiveWorkItemType(td.DB, ""); got != "" {
-		t.Errorf("expected empty for empty ID, got %q", got)
-	}
-}
-
 func TestUserPrompt_TerseAdditionalContext(t *testing.T) {
 	td := setupTestDB(t)
 	defer td.DB.Close()
@@ -323,7 +293,7 @@ func TestUserPrompt_TerseAdditionalContext(t *testing.T) {
 	}
 
 	if result.AdditionalContext == "" {
-		t.Fatal("expected AdditionalContext with classification + active item hint")
+		t.Fatal("expected AdditionalContext with the active item hint")
 	}
 	// Should be terse — check that it does NOT contain "Open work items"
 	if strings.Contains(result.AdditionalContext, "Open work items") {
@@ -377,7 +347,6 @@ func TestUserPrompt_NoActiveNoOneliner(t *testing.T) {
 
 	td.addFeature("feat-aaa", "feature", "Auth System", "in-progress")
 	// Don't set active feature
-	// Use a prompt that triggers investigation keyword without bug keywords
 	event := &CloudEvent{SessionID: "test-sess", Prompt: "can you investigate the performance bottleneck?"}
 	result, err := UserPrompt(event, td.DB)
 	if err != nil {
@@ -388,9 +357,9 @@ func TestUserPrompt_NoActiveNoOneliner(t *testing.T) {
 	if result.AdditionalContext != "" && strings.Contains(result.AdditionalContext, "ACTIVE:") {
 		t.Errorf("UserPrompt should not have ACTIVE line when no active feature, got: %s", result.AdditionalContext)
 	}
-	// But it should still have investigation guidance
-	if result.AdditionalContext == "" || !strings.Contains(result.AdditionalContext, "Investigation") {
-		t.Errorf("UserPrompt should mention investigation intent, got: %s", result.AdditionalContext)
+	// With no active item there is nothing to add to the turn.
+	if result.AdditionalContext != "" || !result.Continue {
+		t.Errorf("want empty context and Continue=true, got: %+v", result)
 	}
 }
 

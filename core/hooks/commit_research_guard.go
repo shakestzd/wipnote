@@ -193,7 +193,7 @@ func stagedDependencyManifests(staged []string) []string {
 // manifest was modified — answering the question from durable staged-diff state
 // per the project's hook-state rule (feat-af4ae1c3 / spk-0a982f70).
 //
-// Always-on (not YOLO-gated), consistent with checkPortDriftCommitGuard. Fast
+// PreToolUse blocks on it only in YOLO mode and adds it as advice otherwise. Fast
 // path: one `git diff --cached --name-only` when the command is a git commit;
 // returns "" immediately for any other command. Explicit override: a
 // RESEARCH-WAIVER trailer in the commit message. (The operator-only

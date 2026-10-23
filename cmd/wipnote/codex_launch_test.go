@@ -604,9 +604,9 @@ func TestCodexInstructionAddendumByMode(t *testing.T) {
 		mode codexLaunchMode
 		want []string
 	}{
-		{name: "default", mode: codexLaunchModeDefault, want: []string{"# wipnote Orchestrator"}},
-		{name: "dev", mode: codexLaunchModeDev, want: []string{"# wipnote Orchestrator", "## Codex Dev Mode"}},
-		{name: "continue", mode: codexLaunchModeContinue, want: []string{"# wipnote Orchestrator", "## Codex Continue Mode"}},
+		{name: "default", mode: codexLaunchModeDefault, want: []string{"# wipnote\n"}},
+		{name: "dev", mode: codexLaunchModeDev, want: []string{"# wipnote\n", "## Codex Dev Mode"}},
+		{name: "continue", mode: codexLaunchModeContinue, want: []string{"# wipnote\n", "## Codex Continue Mode"}},
 		{name: "yolo", mode: codexLaunchModeYolo, want: []string{"# YOLO Autonomous Development Mode", "## Codex YOLO Mode"}},
 		{name: "yolo dev", mode: codexLaunchModeYoloDev, want: []string{"# YOLO Autonomous Development Mode", "## Codex Dev Mode", "## Codex YOLO Mode"}},
 		{name: "yolo continue", mode: codexLaunchModeYoloCont, want: []string{"# YOLO Autonomous Development Mode", "## Codex Continue Mode", "## Codex YOLO Mode"}},
