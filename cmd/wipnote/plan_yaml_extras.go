@@ -322,19 +322,6 @@ func runValidateYAML(planID string) error {
 	return nil
 }
 
-// planReviewCmd is a deprecated command directing users to the dashboard.
-func planReviewCmd() *cobra.Command {
-	return &cobra.Command{
-		Use:        "review <plan-id>",
-		Short:      "Open a plan for review (use the dashboard instead)",
-		Deprecated: "use 'wipnote serve' and open http://localhost:8080/#plans instead",
-		Args:       cobra.ExactArgs(1),
-		RunE: func(_ *cobra.Command, _ []string) error {
-			return nil
-		},
-	}
-}
-
 // planSetDesignYAMLCmd sets the structured design subsections on a YAML plan.
 func planSetDesignYAMLCmd() *cobra.Command {
 	var problem, goals, constraints string

@@ -3,11 +3,9 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/spf13/cobra"
@@ -41,76 +39,12 @@ func runPlanReadFeedback(planID string) error {
 		return err
 	}
 
-	var out planFeedbackOutput
-
-	// Prefer API if server is running.
-	if isServerRunning("http://localhost:8080") {
-		out, err = fetchFeedbackFromAPI(planID)
-		if err == nil {
-			return printFeedbackJSON(out)
-		}
-	}
-
-	// Fall back to HTML file parsing.
 	planPath := filepath.Join(wipnoteDir, "plans", planID+".html")
-	out, err = parseFeedbackFromHTML(planID, planPath)
+	out, err := parseFeedbackFromHTML(planID, planPath)
 	if err != nil {
 		return fmt.Errorf("read plan feedback: %w", err)
 	}
 	return printFeedbackJSON(out)
-}
-
-// fetchFeedbackFromAPI retrieves feedback via GET /api/plans/{id}/feedback
-// and maps the server response to planFeedbackOutput.
-func fetchFeedbackFromAPI(planID string) (planFeedbackOutput, error) {
-	url := "http://localhost:8080/api/plans/" + planID + "/feedback"
-	client := &http.Client{Timeout: 3 * time.Second}
-	resp, err := client.Get(url) //nolint:gosec,noctx
-	if err != nil {
-		return planFeedbackOutput{}, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return planFeedbackOutput{}, fmt.Errorf("API returned %d", resp.StatusCode)
-	}
-
-	var apiResp struct {
-		PlanID   string `json:"plan_id"`
-		Status   string `json:"status"`
-		Sections map[string]struct {
-			Approved bool   `json:"approved"`
-			Comment  string `json:"comment"`
-		} `json:"sections"`
-		Questions map[string]string `json:"questions"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
-		return planFeedbackOutput{}, err
-	}
-
-	out := planFeedbackOutput{
-		PlanID:           apiResp.PlanID,
-		Status:           apiResp.Status,
-		SectionApprovals: make(map[string]bool),
-		QuestionAnswers:  apiResp.Questions,
-		SliceApprovals:   make(map[string]bool),
-		Comments:         make(map[string]string),
-	}
-	if out.QuestionAnswers == nil {
-		out.QuestionAnswers = make(map[string]string)
-	}
-
-	for sec, fb := range apiResp.Sections {
-		out.SectionApprovals[sec] = fb.Approved
-		if strings.HasPrefix(sec, "slice-") {
-			out.SliceApprovals[sec] = fb.Approved
-		}
-		if fb.Comment != "" {
-			out.Comments[sec] = fb.Comment
-		}
-	}
-
-	return out, nil
 }
 
 // parseFeedbackFromHTML reads the plan HTML file directly and extracts

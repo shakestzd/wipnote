@@ -139,7 +139,7 @@ func TestGuardInit_DeclineDoesNotCommit(t *testing.T) {
 
 // TestLaunchers_InvokeEnsureGuardProfile is the launcher-coverage guard (plan
 // Medium-risk mitigation): every interactive exec entry point must invoke
-// ensureGuardProfile beside the OTel/serve bootstrap. The launcher commands
+// ensureGuardProfile. The launcher commands
 // (claude, yolo, dev, codex, antigravity) all route through one of three
 // shared exec sites — launchClaude (claude/yolo/dev), execCodex, execAntigravity —
 // so asserting the wiring at those three sites covers them all.
@@ -159,9 +159,8 @@ func TestLaunchers_InvokeEnsureGuardProfile(t *testing.T) {
 			if !strings.Contains(src, "ensureGuardProfile(") {
 				t.Errorf("%s (%s) must invoke ensureGuardProfile()", c.file, c.anchor)
 			}
-			// Must be wired beside the serve/OTel bootstrap, not elsewhere.
-			if !strings.Contains(src, "ensureServeForDashboard(") {
-				t.Errorf("%s expected to contain the serve bootstrap anchor", c.file)
+			if !strings.Contains(src, "func "+c.anchor+"(") {
+				t.Errorf("%s expected to define the %s exec site", c.file, c.anchor)
 			}
 		})
 	}

@@ -95,14 +95,14 @@ func TestBusyFix_FilesystemAgnostic(t *testing.T) {
 			const featID = "bug-agnostic-1"
 			seedFeature(t, dbPath, featID)
 
-			// Read pool: read-only handle, capped exactly like the
-			// dashboard mux (dashboardReadPoolMaxConns).
+			// Read pool: a read-only handle with a bounded pool, the
+			// topology the removed dashboard mux used (12 connections).
 			readPool, err := db.OpenReadOnly(dbPath)
 			if err != nil {
 				t.Fatalf("OpenReadOnly: %v", err)
 			}
 			defer readPool.Close()
-			readPool.SetMaxOpenConns(dashboardReadPoolMaxConns)
+			readPool.SetMaxOpenConns(12)
 
 			// Dedicated writable handle for the completion path (this is
 			// the rerouted topology: writers never use the ro mux handle).

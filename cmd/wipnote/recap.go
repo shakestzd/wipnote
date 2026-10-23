@@ -306,7 +306,6 @@ func RunPlanRollupRecap(wipnoteDir, planID string) error {
 		shortStart = shortStart[:7]
 	}
 	fmt.Printf("  ✓ %s.html generated (range: %s~1..HEAD inclusive)\n", recapID, shortStart)
-	fmt.Printf("  Dashboard: wipnote serve then open http://127.0.0.1:8080 (or http://127.0.0.1:8088 in devcontainer)\n")
 	return nil
 }
 

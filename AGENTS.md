@@ -7,7 +7,7 @@ Local-first observability and coordination platform for AI-assisted development.
 | Layer | Role |
 |-------|------|
 | `.wipnote/*.html` | Canonical store — single source of truth |
-| SQLite (WAL-safety-driven path: `~/.cache/wipnote/<hash>/` if WAL-safe, else `~/.local/share/wipnote/<hash>/` if WAL-safe, else ephemeral tmp; derived, not committed) | Per-user read index for queries and dashboard |
+| SQLite (WAL-safety-driven path: `~/.cache/wipnote/<hash>/` if WAL-safe, else `~/.local/share/wipnote/<hash>/` if WAL-safe, else ephemeral tmp; derived, not committed) | Per-user read index for queries |
 | Go binary (`wipnote`) | CLI + hook handler |
 
 ## For AI Agents
@@ -48,25 +48,6 @@ the per-harness model configuration, not in the role name.
 ## Dogfooding
 
 This project uses wipnote to develop itself. `.wipnote/` contains real work items — not demos.
-
-## Dashboard Port Convention
-
-Production/local host installs use the default dashboard port:
-
-```bash
-wipnote serve
-# http://127.0.0.1:8080
-```
-
-Inside the VS Code devcontainer, run the dashboard on container port 8088 and
-bind all interfaces so the host can reach the forwarded port:
-
-```bash
-wipnote serve --bind 0.0.0.0 --port 8088
-# host: http://127.0.0.1:8088
-```
-
-Do not use the production default port 8080 for devcontainer dashboard sessions.
 
 ## Temporal Awareness
 

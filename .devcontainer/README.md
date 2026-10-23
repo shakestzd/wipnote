@@ -8,7 +8,7 @@ any host-side Claude/Codex configuration.
 
 This devcontainer is not a user environment — it is specifically for
 editing `cmd/`, `internal/`, and `plugin/` source files, running the Go
-test suite, and exercising the dashboard against the repository's tracked
+test suite, and exercising the CLI against the repository's tracked
 dogfood `.wipnote/` state.
 
 Your laptop keeps running the installed `wipnote` release for day-to-day
@@ -38,7 +38,7 @@ work across other projects. The two are fully independent.
 1. Open the repository in VS Code.
 2. Run `Dev Containers: Reopen in Container`.
 3. Wait for `.devcontainer/post-create.sh` to finish. It installs the
-   agent CLIs, docs/shell/dashboard helper tools, runs `./plugin/build.sh`
+   agent CLIs, docs/shell helper tools, runs `./plugin/build.sh`
    so `wipnote` lands on PATH, and runs `go build` + `go vet` as quality
    gates.
 
@@ -106,10 +106,6 @@ bash scripts/devcontainer-verify.sh
 
 # Launch Claude Code in dev mode so it loads the plugin from repo source:
 wipnote claude --dev
-
-# Start the dashboard to inspect the container-local .wipnote/:
-wipnote serve
-# Dashboard binds 0.0.0.0:8088 inside the container; VS Code forwards port 8088 to host.
 ```
 
 ## What changed from the previous devcontainer
@@ -130,17 +126,12 @@ forwarded six host API keys into the container. This version:
 wipnote detects four deployment profiles at launcher startup. The devcontainer
 uses the `devcontainer-dev` profile automatically — no configuration needed.
 
-| Profile | Dashboard default | Rollout mode |
-|---------|-------------------|--------------|
-| `host-production` | `127.0.0.1:8080` | warn-only (no enforcement until slice-9) |
-| `devcontainer-dev` | `0.0.0.0:8088` | config-gated opt-in |
-| `local-plugin-dev` | `127.0.0.1:8080` | warn-only |
-| `ci-test` | `127.0.0.1:8080` | config-gated opt-in |
+| Profile | Rollout mode |
+|---------|--------------|
+| `host-production` | warn-only (no enforcement until slice-9) |
+| `devcontainer-dev` | config-gated opt-in |
+| `local-plugin-dev` | warn-only |
+| `ci-test` | config-gated opt-in |
 
-The devcontainer dashboard binds `0.0.0.0:8088` so VS Code's port-forward
-(configured via `forwardPorts: [8088]` in `devcontainer.json`) can reach it on
-`http://127.0.0.1:8088` from your host browser. Do not use port 8080 for
-dashboard sessions inside this devcontainer — that is the host production default.
-
-Run `scripts/devcontainer-verify.sh` to validate that the launcher mode,
-port convention, and exec-capable temp root all pass in this container.
+Run `scripts/devcontainer-verify.sh` to validate that the launcher mode and
+exec-capable temp root both pass in this container.

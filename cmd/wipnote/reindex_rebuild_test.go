@@ -3,10 +3,8 @@ package main
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"io"
-	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -508,71 +506,6 @@ func TestDaemonCrashDuringWrite_ReindexRecovers(t *testing.T) {
 		err := db.QueryRow(`SELECT signal_id FROM otel_signals WHERE signal_id = ?`, want).Scan(&got)
 		if err != nil {
 			t.Errorf("signal_id %q not recovered: %v", want, err)
-		}
-	}
-}
-
-// TestReindex_DashboardSmoke exercises the dashboard endpoints after a
-// cache-deletion+reindex cycle to ensure each surface still returns sane
-// data. We mount the single-project mux and probe the endpoints the plan
-// names: /api/features, /api/sessions, /api/collector-status, /api/plans.
-func TestReindex_DashboardSmoke(t *testing.T) {
-	if testing.Short() {
-		t.Skip("drives dashboard reindex integration flow")
-	}
-
-	projectDir := buildCanonicalFixture(t)
-	setupReindexTestEnv(t, projectDir)
-
-	// Reindex once, delete cache, reindex again — the smoke endpoints
-	// must come up regardless.
-	runReindexInDir(t, projectDir)
-	// There is no cache file to delete any more (feat-fc3cc9e0); the second
-	// pass below is a cold rebuild by construction.
-	runReindexInDir(t, projectDir)
-
-	db := openCachedDB(t, projectDir)
-	defer db.Close()
-	wipnoteDir := filepath.Join(projectDir, ".wipnote")
-	mux := buildSingleProjectMux(db, db, wipnoteDir)
-
-	// Dashboard-critical endpoints. These map 1:1 onto the slice-9 named
-	// dashboard-critical datasets:
-	//   features         → work_items (features/bugs/spikes/tracks)
-	//   sessions         → sessions
-	//   plans            → plans
-	//   otel/status      → collector status (per-session)
-	//   events/recent    → recent agent events
-	//   graph            → graph edges
-	sessionID := "11112222-3333-4444-5555-666677778888"
-	endpoints := []struct {
-		name string
-		path string
-	}{
-		{"features", "/api/features"},
-		{"sessions", "/api/sessions"},
-		{"plans", "/api/plans"},
-		{"events-recent", "/api/events/recent"},
-		{"graph", "/api/graph"},
-		{"otel-status", "/api/otel/status?session=" + sessionID},
-	}
-	for _, ep := range endpoints {
-		req := httptest.NewRequest("GET", ep.path, nil)
-		rr := httptest.NewRecorder()
-		mux.ServeHTTP(rr, req)
-		if rr.Code != 200 {
-			t.Errorf("%s: status %d, want 200, body=%s", ep.name, rr.Code, rr.Body.String())
-			continue
-		}
-		body := strings.TrimSpace(rr.Body.String())
-		if body == "" {
-			t.Errorf("%s: empty body", ep.name)
-			continue
-		}
-		// Each endpoint returns JSON — verify it parses.
-		var any interface{}
-		if err := json.Unmarshal([]byte(body), &any); err != nil {
-			t.Errorf("%s: invalid JSON: %v\nbody=%s", ep.name, err, body)
 		}
 	}
 }

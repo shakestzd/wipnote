@@ -140,16 +140,6 @@ func printContentionStatus() {
 		}
 	}
 
-	// Writer queue depth — only meaningful when a writer service is
-	// constructed (i.e., inside `wipnote serve`); short-lived CLI
-	// invocations of status will see writerService.queue == nil and we
-	// print "disabled" so operators know it's not a missing-feature
-	// problem.
-	queueStatus := readWriterServiceStatus(writerService.queue)
-	fmt.Printf("Writer queue: state=%s depth=%d/%d enq=%d deq=%d rej=%d err=%d\n",
-		queueStatus.State, queueStatus.Depth, queueStatus.Capacity,
-		queueStatus.Enqueued, queueStatus.Dequeued,
-		queueStatus.Rejected, queueStatus.Errors)
 }
 
 // printCommitQueueDeadLetterWarning surfaces a loud, actionable line in

@@ -834,3 +834,12 @@ func findFeaturesForPlanCanonical(p *workitem.Project, planID string) []string {
 	}
 	return ids
 }
+
+// planNextCommands returns the agentic dispatch commands for a finalized plan.
+// Both planFinalizeHandler (API) and printFinalizeYAMLSummary (CLI) use this
+// so the format string is defined in exactly one place.
+func planNextCommands(planID, trackID string) (nextCommand, yoloCommand string) {
+	nextCommand = fmt.Sprintf("/wipnote:execute %s", planID)
+	yoloCommand = fmt.Sprintf("wipnote yolo --track %s", trackID)
+	return
+}

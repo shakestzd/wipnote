@@ -99,17 +99,6 @@ if ! command -v oh-my-posh >/dev/null 2>&1; then
   rm -f "$tmp_omp"
 fi
 
-echo "==> Installing ttyd (required by the dashboard terminal launcher)..."
-if ! command -v ttyd >/dev/null 2>&1; then
-  mkdir -p "$HOME/.local/bin"
-  TTYD_VERSION=$(curl -sfL https://api.github.com/repos/tsl0922/ttyd/releases/latest 2>/dev/null \
-    | grep -oE '"tag_name": "[^"]+"' | head -1 | cut -d'"' -f4)
-  TTYD_VERSION=${TTYD_VERSION:-1.7.7}
-  retry curl -fL -o "$HOME/.local/bin/ttyd" \
-    "https://github.com/tsl0922/ttyd/releases/download/${TTYD_VERSION}/ttyd.$(uname -m)"
-  chmod +x "$HOME/.local/bin/ttyd"
-fi
-
 echo "==> Installing roborev..."
 if ! command -v roborev >/dev/null 2>&1; then
   mkdir -p "$HOME/.local/bin" "$HOME/.roborev"
@@ -245,9 +234,6 @@ Next steps:
     copilot
 - Launch Claude Code in dev mode so it loads the plugin from source:
     wipnote claude --dev
-- Start the dashboard:
-    wipnote serve
-    # http://localhost:8088 (container serves on 8080)
 - Run the full test suite on demand:
     bash scripts/devcontainer-verify.sh
 

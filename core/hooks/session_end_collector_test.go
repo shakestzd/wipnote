@@ -113,16 +113,45 @@ func TestSignalCollector_LiveProcess(t *testing.T) {
 	}
 }
 
-// Codex kills a SessionEnd hook after 3s, so its waits must fit with
+// Codex kills a SessionEnd hook after 3s, so its collector wait must fit with
 // headroom; other harnesses keep the full drain.
-func TestSessionEndWaits_FitCodexCap(t *testing.T) {
+func TestCollectorDrainWait_FitsCodexCap(t *testing.T) {
 	t.Setenv("WIPNOTE_HARNESS", "codex")
-	drain, catchUp := sessionEndWaits()
-	if total := drain + catchUp; total >= 3*time.Second {
-		t.Fatalf("codex SessionEnd waits total %s, must stay under the 3s cap", total)
+	if drain := collectorDrainWait(); drain >= 3*time.Second {
+		t.Fatalf("codex collector drain %s, must stay under the 3s cap", drain)
 	}
 	t.Setenv("WIPNOTE_HARNESS", "claude")
-	if drain, _ := sessionEndWaits(); drain != 3*time.Second {
+	if drain := collectorDrainWait(); drain != 3*time.Second {
 		t.Fatalf("claude collector drain = %s, want 3s", drain)
+	}
+}
+
+// With the dashboard indexer gone, SessionEnd itself marks the session's
+// telemetry consumed once the collector has exited, so retention and prune
+// (which compare .index-offset to the NDJSON size) can archive it.
+func TestMarkTelemetryConsumed_PublishesFinalSize(t *testing.T) {
+	projectDir := t.TempDir()
+	sessionID := "sess-mark-consumed"
+	sessDir := filepath.Join(projectDir, ".wipnote", "sessions", sessionID)
+	if err := os.MkdirAll(sessDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	payload := []byte("{\"a\":1}\n{\"b\":2}\n")
+	if err := os.WriteFile(filepath.Join(sessDir, "events.ndjson"), payload, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	markTelemetryConsumed(projectDir, sessionID)
+	got, err := os.ReadFile(filepath.Join(sessDir, ".index-offset"))
+	if err != nil {
+		t.Fatalf("read .index-offset: %v", err)
+	}
+	if want := strconv.Itoa(len(payload)); string(got) != want {
+		t.Fatalf(".index-offset = %q, want %q", got, want)
+	}
+
+	// No NDJSON: nothing to mark, and no marker is created.
+	markTelemetryConsumed(projectDir, "sess-without-telemetry")
+	if _, err := os.Stat(filepath.Join(projectDir, ".wipnote", "sessions", "sess-without-telemetry", ".index-offset")); !os.IsNotExist(err) {
+		t.Fatalf("marker created for a session with no NDJSON: %v", err)
 	}
 }

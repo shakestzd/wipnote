@@ -30,8 +30,8 @@ func computeLauncherMode(worktreePath string, devPlugin, generatedPort bool) Lau
 	m := mode.Compute(worktreePath, false, devPlugin, generatedPort)
 	if os.Getenv("WIPNOTE_DEBUG") != "" {
 		fmt.Fprintf(os.Stderr,
-			"wipnote [debug]: mode runtime=%s execution=%s plugin=%s dashboard=%s:%d\n",
-			m.Runtime, m.Execution, m.Plugin, m.DashboardHost, m.DashboardPort,
+			"wipnote [debug]: mode runtime=%s execution=%s plugin=%s\n",
+			m.Runtime, m.Execution, m.Plugin,
 		)
 	}
 	return m

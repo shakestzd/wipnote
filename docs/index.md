@@ -21,7 +21,7 @@ Local-first causal lineage and observability for AI-assisted development.
 
 <p class="hg-hero__solution">
 Work items, session tracking, custom agents, hooks, slash commands, quality gates,
-and a real-time dashboard &mdash; managed by a single Go binary, stored as HTML files in your repo.
+and Claude Code mods for live status &mdash; managed by a single Go binary, stored as HTML files in your repo.
 No external infrastructure required.
 </p>
 
@@ -50,7 +50,7 @@ Features, bugs, spikes, and tracks as HTML files in `.wipnote/`. Every change is
 <div class="hg-card" markdown>
 <span class="hg-card__title">Session observability</span>
 
-Hooks capture every tool call, every prompt, and attribute them to the active work item. See exactly what happened in any session via the dashboard.
+Hooks capture every tool call, every prompt, and attribute them to the active work item. See exactly what happened in any session with `wipnote session show` and `wipnote lineage`.
 </div>
 
 <div class="hg-card" markdown>
@@ -78,9 +78,9 @@ Enforce software engineering discipline: build, lint, and test before every comm
 </div>
 
 <div class="hg-card" markdown>
-<span class="hg-card__title">Real-time dashboard</span>
+<span class="hg-card__title">Claude Code mods</span>
 
-Activity feed, kanban board, session viewer, and work item detail &mdash; served locally by `wipnote serve`. See what every agent is doing right now.
+An orchestration band under the prompt shows work items, tracks and subagents as they run, and a side pane tracks a plan's slices and their approval state during review.
 </div>
 
 <div class="hg-card" markdown>
@@ -116,13 +116,13 @@ CRISPI plans break initiatives into trackable steps. Feature specs define accept
 <div class="hg-card hg-card--arch" markdown>
 <code class="hg-card__label">.wipnote/wipnote.db</code>
 
-**SQLite index** &mdash; A derived read index for fast queries and dashboard rendering. Gitignored. Rebuilt from HTML anytime.
+**SQLite index** &mdash; A derived read index for fast queries. Gitignored. Rebuilt from HTML anytime.
 </div>
 
 <div class="hg-card hg-card--arch" markdown>
 <code class="hg-card__label">wipnote</code>
 
-**Go binary** &mdash; One CLI that does everything: create work items, manage sessions, serve the dashboard, run hooks.
+**Go binary** &mdash; One CLI that does everything: create work items, manage sessions, trace lineage, run hooks.
 </div>
 
 </div>
@@ -148,7 +148,7 @@ wipnote feature start feat-def456
 # ... Claude Code, Codex, Antigravity all see the active work item ...
 
 wipnote feature complete feat-def456
-wipnote serve    # see everything at localhost:4000
+wipnote lineage feat-def456    # why this code exists
 ```
 
 </section>

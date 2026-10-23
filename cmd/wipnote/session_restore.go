@@ -16,9 +16,9 @@ func sessionRestoreCmd() *cobra.Command {
 		Use:   "restore <session-id>",
 		Short: "Restore an archived session for re-indexing",
 		Long: `Extracts a previously-archived session (.wipnote/archive/<yyyy-mm>/<sid>.tar.gz)
-back into .wipnote/sessions/<sid>/ so the NDJSON indexer picks it up on
-its next replay cycle. The session must have been archived by the retention
-job (wipnote serve runs this automatically every 24h).`,
+back into .wipnote/sessions/<sid>/ so the next 'wipnote reindex' replays it.
+The session must have been archived by the retention job, which the writer
+daemon runs every 24h.`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
 			return runSessionRestore(args[0])

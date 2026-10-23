@@ -14,8 +14,6 @@ func TestLauncherProfiles(t *testing.T) {
 		name              string
 		runtime           mode.RuntimeMode
 		pluginMode        mode.PluginMode
-		wantDashHost      string
-		wantDashPort      int
 		wantRolloutMode   profile.RolloutMode
 		wantCleanup       profile.CleanupPolicy
 		wantCacheLocation profile.CacheLocation
@@ -24,8 +22,6 @@ func TestLauncherProfiles(t *testing.T) {
 			name:              "host production — warn-only staged rollout",
 			runtime:           mode.RuntimeHost,
 			pluginMode:        mode.PluginInstalled,
-			wantDashHost:      "127.0.0.1",
-			wantDashPort:      8080,
 			wantRolloutMode:   profile.RolloutWarnOnly,
 			wantCleanup:       profile.CleanupManual,
 			wantCacheLocation: profile.CacheUser,
@@ -34,8 +30,6 @@ func TestLauncherProfiles(t *testing.T) {
 			name:              "devcontainer development — config-gated opt-in",
 			runtime:           mode.RuntimeDevcontainer,
 			pluginMode:        mode.PluginLocalDev,
-			wantDashHost:      "0.0.0.0",
-			wantDashPort:      8088,
 			wantRolloutMode:   profile.RolloutConfigGated,
 			wantCleanup:       profile.CleanupAutoWorktree,
 			wantCacheLocation: profile.CacheLocal,
@@ -44,8 +38,6 @@ func TestLauncherProfiles(t *testing.T) {
 			name:              "local plugin dev — generated port",
 			runtime:           mode.RuntimeHost,
 			pluginMode:        mode.PluginGeneratedPort,
-			wantDashHost:      "127.0.0.1",
-			wantDashPort:      8080,
 			wantRolloutMode:   profile.RolloutWarnOnly,
 			wantCleanup:       profile.CleanupManual,
 			wantCacheLocation: profile.CacheUser,
@@ -54,8 +46,6 @@ func TestLauncherProfiles(t *testing.T) {
 			name:              "CI/test — localhost, config-gated",
 			runtime:           mode.RuntimeCI,
 			pluginMode:        mode.PluginInstalled,
-			wantDashHost:      "127.0.0.1",
-			wantDashPort:      8080,
 			wantRolloutMode:   profile.RolloutConfigGated,
 			wantCleanup:       profile.CleanupAutoWorktree,
 			wantCacheLocation: profile.CacheLocal,
@@ -66,12 +56,6 @@ func TestLauncherProfiles(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			p := profile.ForRuntime(tc.runtime, tc.pluginMode)
 
-			if p.DashboardHost != tc.wantDashHost {
-				t.Errorf("DashboardHost: got %q, want %q", p.DashboardHost, tc.wantDashHost)
-			}
-			if p.DashboardPort != tc.wantDashPort {
-				t.Errorf("DashboardPort: got %d, want %d", p.DashboardPort, tc.wantDashPort)
-			}
 			if p.Rollout != tc.wantRolloutMode {
 				t.Errorf("Rollout: got %v, want %v", p.Rollout, tc.wantRolloutMode)
 			}
@@ -94,18 +78,6 @@ func TestHostProfileNeverForcesIsolation(t *testing.T) {
 	}
 	if p.Rollout != profile.RolloutWarnOnly {
 		t.Errorf("host profile: Rollout must be RolloutWarnOnly, got %v", p.Rollout)
-	}
-}
-
-// TestDevcontainerBindDefault verifies 0.0.0.0:8088 for devcontainer, consistent
-// with plan-ae0c37b2 slice-4 and bug-3a373884 forwardPorts convention.
-func TestDevcontainerBindDefault(t *testing.T) {
-	p := profile.ForRuntime(mode.RuntimeDevcontainer, mode.PluginLocalDev)
-	if p.DashboardHost != "0.0.0.0" {
-		t.Errorf("devcontainer DashboardHost: got %q, want 0.0.0.0", p.DashboardHost)
-	}
-	if p.DashboardPort != 8088 {
-		t.Errorf("devcontainer DashboardPort: got %d, want 8088", p.DashboardPort)
 	}
 }
 

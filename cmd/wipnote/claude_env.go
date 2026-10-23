@@ -225,5 +225,5 @@ func probeReceiverReachability(endpoint string) {
 	}
 
 	// Print warning to stderr. One line only, no logging noise.
-	fmt.Fprintf(os.Stderr, "wipnote: warning: OTel receiver at %s is not reachable — Claude Code spans will be dropped. Start wipnote serve or WIPNOTE_OTEL_HTTP_PORT is wrong.\n", hostport)
+	fmt.Fprintf(os.Stderr, "wipnote: warning: OTel receiver at %s is not reachable — Claude Code spans will be dropped. Check that WIPNOTE_OTEL_HTTP_PORT names a running collector.\n", hostport)
 }

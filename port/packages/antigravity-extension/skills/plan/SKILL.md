@@ -68,7 +68,7 @@ slices:
 
 ## Interview
 
-Run one stage per ask-user call (or one compact chat message where there is no ask-user tool). `wipnote plan interview-questions <plan-id> [<slice-num>]` prints the question set and the block prompts for each stage; [INTERVIEW_RENDERING.md](INTERVIEW_RENDERING.md) covers chat-only harnesses, the web form and saving answers.
+Run one stage per ask-user call (or one compact chat message where there is no ask-user tool). `wipnote plan interview-questions <plan-id> [<slice-num>]` prints the question set and the block prompts for each stage; [INTERVIEW_RENDERING.md](INTERVIEW_RENDERING.md) covers chat-only harnesses and saving answers.
 
 | Stage | Author this block first | Then derive |
 |---|---|---|

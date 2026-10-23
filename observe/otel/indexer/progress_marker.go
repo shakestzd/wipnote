@@ -9,19 +9,20 @@
 // starts empty. The `.index-offset` file this package writes is therefore no
 // longer read back by the indexer at all. It survives for OTHER processes, which
 // use it to answer "has the telemetry for this session been consumed yet?"
-// before doing something destructive or latency-sensitive:
+// before doing something destructive:
 //
 //   - observe/otel/retention.indexerCaughtUp gates archiving and the NDJSON
 //     sweep on it, so retention never removes a session's raw log first;
-//   - cmd/wipnote/session_prune_archive.go gates pruning on the same condition;
-//   - core/hooks/session_end.go:waitForIndexerCatchUp blocks (bounded at 2s) on
-//     it before materialising a session.
+//   - cmd/wipnote/session_prune_archive.go gates pruning on the same condition.
 //
-// Those three are the only reason the file still exists. Deleting it outright
-// without migrating them would make retention and prune fail closed — nothing
-// would ever be archived, and NDJSON would grow unbounded — and would add a
-// flat 2s to every session end. Whoever removes the last of those consumers
-// should delete this file with it.
+// core/hooks/session_end.go:markTelemetryConsumed also publishes it, as the
+// NDJSON's final size once the session's collector has exited. That is the
+// usual producer: the indexer runs only under `wipnote reindex`.
+//
+// Those consumers are the only reason the file still exists. Deleting it
+// outright without migrating them would make retention and prune fail closed:
+// nothing would ever be archived, and NDJSON would grow unbounded. Whoever
+// removes the last of those consumers should delete this file with it.
 //
 // One consequence of the in-memory read position: the marker is NOT monotonic
 // across process restarts. A new indexer replays from zero and republishes the
