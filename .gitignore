@@ -223,4 +223,6 @@ plugin/evals/results/
 
 # ASD-STE100 spec is copyrighted: the user's own PDF and the derived dictionary stay local
 plugin/skills/simplified-technical-english/source/
+# The STE skill's synthetic parser fixture is test data, not a log (*.txt above)
+!**/simplified-technical-english/tests/fixture_layout.txt
 *.sqlite3

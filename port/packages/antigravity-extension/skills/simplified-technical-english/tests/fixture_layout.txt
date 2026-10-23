@@ -1,0 +1,62 @@
+                       Introduction text that the parser must skip
+Word                    Approved meaning/          STE EXAMPLE                 Non-STE example
+(part of speech)        ALTERNATIVES
+ZED (n)                 This line is in the introduction   NOT AN ENTRY
+Page 2-0-9                 Part 2 - Dictionary
+
+Word               Approved meaning/
+(part of speech)   ALTERNATIVES              STE EXAMPLE           Non-STE example
+FLORP (n)          A thing that is made up   LOOK AT THE FLORP.
+                   for this fixture
+glorp (v)          FLORP (n)                 MOVE THE FLORP.       Glorp the florp.
+                   SNARF (v)                 SNARF THE FLORP.      Glorp it away.
+quux (adj)         Use a different           USE ANOTHER WORD.     Quux things.
+                   construction.
+wibble (adv)       NOT MORE THAN             DO NOT WIBBLE.        Wibble a lot.
+SNARF (v),         To make a made-up move   SNARF THE PART.
+SNARFS,
+SNARFED,
+SNARFED
+SPLIT-             That you can split        THE SPLITABLE PART.
+TABLE (adj)
+LONGWORDISH        Of a long made-up word    A LONGWORDISH THING.
+(adj)
+BEEP (v),          1. To make a noise        BEEP.
+BEEPS,
+BEEPED,
+BEEPED
+                   2. To warn                BEEP TWICE.
+blim (in blim of)  FLORP (n)                 IN A FLORP, WAIT.     In case of a florp, wait.
+(conj)
+Issue 9                 Part 2 - Dictionary                Page 2-1-A1
+2025-01-15
+Word               Approved meaning/
+(part of speech)   ALTERNATIVES              STE EXAMPLE           Non-STE example
+FLORP (n)          A thing that is made up   LOOK AT THE FLORP.
+tangle (n)         FLORP (n)                 NO TANGLE.            A tangle.
+
+Word               Approved meaning/
+(part of speech)   ALTERNATIVES              STE EXAMPLE           Non-STE example
+
+florp (v)          FLORP (n)                 FLORP IS A MADE-UP NOUN.
+snarfed (n)        FLORP (n)                 THE SNARFED IS INVENTED.
+spillage (v)       FLORP (n) SPURIOUS EXAMPLE WORDS
+zig-               SNARF (v)                 A ZIG-ZAG IS INVENTED.
+zag (v)
+rusti-             SNARF (v)                 INVENTED TEST MATERIAL.
+cal (adj)
+ZIGGLILILY         A synthetic property      A ZIGGLILILY FLORP.
+(adv)
+MOTT (or MOTTIE)   A synthetic color         A MOTT FLORP.
+(adj)
+florp (in a        FLORP (n)                 THE INVENTED PHRASE.
+florp ) (prep)
+DOWNFLOOP          In a made-up direction    A DOWNFLOOP FLORP.
+OF (prep)          In the same direction     A DOWNFLOOP OF FLORPS.
+FREE FLOOP         A made-up expression      FREE FLOOP.
+suchfloop          FREE FLOOP                FREE FLOOP.
+zo- (prefix)       Use a different pattern   INVENTED HELP.
+PLINK (v),         To make an invented move  PLINK NOW.
+PLINKS             with a second fragment
+PLUNKED
+FLORPY (adj)       An invented quality       A FLORPY FLORP.
