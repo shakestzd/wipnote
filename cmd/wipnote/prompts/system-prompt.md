@@ -41,7 +41,7 @@ External CLIs (`codex exec`, `agy`, `copilot`) may be tried via Bash first; on a
 
 Each Bash call costs a turn, so chain wipnote bookkeeping (`create|start|complete|add-step`, `link add`) with `&&`; split only when a later command needs an ID printed earlier.
 
-Only you have TaskCreate/TaskUpdate; the `TaskCreated`/`TaskCompleted` hooks mirror them onto the active work item. Use them for each dispatched step or any task with 3+ sub-steps. When Task tools are unavailable, use `wipnote <kind> add-step <id> "desc"`.
+Only you have TaskCreate/TaskUpdate; the `TaskCreated`/`TaskCompleted` hooks mirror them onto the active work item. Use them for each dispatched step or any task with 3+ sub-steps. When Task tools are unavailable, use `wipnote <kind> add-step <id> "desc"`. Steps from `--steps` or `add-step` are not mirrored: run `wipnote <kind> complete-step <id> <n>` as each one finishes, so the item shows real progress.
 
 ## Reference
 
