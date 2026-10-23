@@ -89,3 +89,22 @@ test('a value an earlier version stored is declined', async ($, on) => {
   expect((await ui.find({ type: 'Text' }))?.text).toBe('No plan in view.')
   await ui.unmount()
 })
+
+test('every slice of a long plan is in the tree, for the pane to scroll', async ($, on) => {
+  mock.clock(on)
+  const many = JSON.stringify({
+    plan_id: 'plan-long', title: 'Long plan', status: 'review',
+    slices: Array.from({ length: 16 }, (_, i) => ({ num: i + 1, title: `Slice ${i + 1}`, complexity: 'standard', approval_status: 'pending' })),
+  })
+  on('command.register', () => ({ value: { command: 'plan-review-pane' } }))
+  on('ui.open', () => ({ value: { isPlaced: true } }))
+  on('session.start', (_, e) => ({ cwd: e.cwd }))
+  on('process.run', async () => ({ value: { exitCode: 0, stdout: many, stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }))
+
+  await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
+  await $.command.run({ command: 'plan-review-pane', args: 'plan-long' } as never)
+
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal', props: { ...PANE.props, scroll: { offset: 0, bodyRows: 8 } } } as never)
+  expect(await ui.find({ type: 'Text', text: /16\. Slice 16/ })).toBeDefined()
+  await ui.unmount()
+})

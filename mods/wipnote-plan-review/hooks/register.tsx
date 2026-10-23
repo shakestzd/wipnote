@@ -91,13 +91,12 @@ export const register: Register = on => {
         </Box>
       )
     }
-    const room = Math.max(1, Math.floor(((e.viewport?.rows ?? 24) - 4) / 2))
-    const shown = r.slices.slice(0, room)
+    // Every slice goes in the tree: the pane's body scrolls a taller one.
     return (
       <Box flexDirection="column">
         <Text bold wrap="truncate-end">{r.title !== '' ? r.title : r.planId}</Text>
         <Text dimColor wrap="truncate-end">{`${r.planId} · ${r.status} · ${tallyLine(r.slices)}`}</Text>
-        {shown.map(s => (
+        {r.slices.map(s => (
           <Box key={`s${s.num}`} flexDirection="column">
             <Text wrap="truncate-end">
               <Text color={MARK[s.approval].color}>{MARK[s.approval].glyph}</Text>
@@ -106,7 +105,6 @@ export const register: Register = on => {
             <Text dimColor wrap="truncate-end">{`   ${MARK[s.approval].label} · ${detailLine(s)}`}</Text>
           </Box>
         ))}
-        {r.slices.length > shown.length && <Text dimColor>{`… ${r.slices.length - shown.length} more`}</Text>}
       </Box>
     )
   })

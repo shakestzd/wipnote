@@ -44,6 +44,6 @@ claude --plugin-dir mods/wipnote-plan-review
 
 ```bash
 claude plugin validate mods/wipnote-plan-review
-claude plugin test mods/wipnote-plan-review     # 6 tests
+claude plugin test mods/wipnote-plan-review     # 7 tests
 tsc -p mods/wipnote-plan-review                 # after a load lays .claude-plugin/types/
 ```
