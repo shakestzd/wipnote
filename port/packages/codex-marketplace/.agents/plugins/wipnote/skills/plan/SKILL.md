@@ -102,7 +102,7 @@ Skip it for a trivial single-slice plan. For 3+ slices or any complex slice, ask
 
 # Phase 4: Review
 
-Get a decision on every slice in the conversation. Run `wipnote plan slices <plan-id>` first: where the wipnote-plan-review mod is loaded, it opens a pane that tracks each decision. Show each slice (title, `what`, `done_when`, its blocks and any open question) and ask approve, request changes, or reject, using the ask-user tool where there is one. Record each answer with `wipnote plan approve-slice <plan-id> <num>` or `wipnote plan reject-slice <plan-id> <num> [--changes-requested]`. Revise each `changes_requested` slice from the user's comments right away and go back to Phase 2.
+Get a decision on every slice in the conversation. Run `wipnote plan slices <plan-id>` first: where the wipnote-plan-review mod is loaded, it opens a pane that tracks each decision. Read the slice cards from `.wipnote/plans/<plan-id>.yaml` (`wipnote plan show` prints only metadata), then show each slice (title, `what`, `done_when`, its blocks and any open question) and ask approve, request changes, or reject, using the ask-user tool where there is one. Record each answer with `wipnote plan approve-slice <plan-id> <num>` or `wipnote plan reject-slice <plan-id> <num> [--changes-requested]`. Revise each `changes_requested` slice from the user's comments right away and go back to Phase 2.
 
 # Phases 5–7: Decisions, promote, spec
 
