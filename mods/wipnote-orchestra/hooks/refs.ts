@@ -71,6 +71,17 @@ export function stepBar(steps: Step[]): string {
   return '█'.repeat(done) + '░'.repeat(10 - done)
 }
 
+/** A shell call that changes a work item's steps or status. */
+const CHANGE = /\bwipnote\s+(?:feature|bug|spike|track|plan)\s+(?:add-step|complete-step|complete|start)\s+((?:feat|bug|spk|trk|plan)-[0-9a-f]{6,})\b/g
+
+/**
+ * The ids a shell command changes with `wipnote <kind> add-step|complete-step|
+ * complete|start <id>`, deduped, so their cards refresh as soon as it ran.
+ */
+export function changedRefs(command: string): string[] {
+  return [...new Set([...command.matchAll(CHANGE)].map(m => m[1] as string))]
+}
+
 /** How long a loaded or failed card is shown before it is fetched again. */
 export const CARD_TTL_MS = 60_000
 

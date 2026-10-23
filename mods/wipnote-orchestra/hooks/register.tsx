@@ -4,7 +4,7 @@ import type { EngineInterface, Register } from 'claude-code'
 import type { AgentRow, Mode, PromptInfo, Tally, WorkCard } from '../types'
 import type { BandData } from './band'
 import { drawBand } from './band'
-import { hydrate, refreshAfterTurn, registerRefs, storeCard, wipnoteJSON } from './refcards'
+import { hydrate, refreshAfterTurn, refreshChanged, registerRefs, storeCard, wipnoteJSON } from './refcards'
 import { parseWho } from './refs'
 import {
   STALL_MS,
@@ -291,7 +291,9 @@ export const register: Register = (on, options) => {
       await update($, items, list => applyWipnote(list, command))
     }
     try {
-      return await next(e)
+      const r = await next(e)
+      if (e.tool === 'Bash') void refreshChanged($, e.command).catch(() => undefined)
+      return r
     } finally {
       // The call ended, answered or thrown: one fewer running for its agent
       const id = e.agentId
