@@ -220,3 +220,7 @@ tmp/Test*/
 
 # claude plugin eval output
 plugin/evals/results/
+
+# ASD-STE100 spec is copyrighted: the user's own PDF and the derived dictionary stay local
+plugin/skills/simplified-technical-english/source/
+*.sqlite3

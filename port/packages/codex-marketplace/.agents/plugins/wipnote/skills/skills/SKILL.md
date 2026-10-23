@@ -27,6 +27,7 @@ Always in the skill list: `execute`, `code-quality-skill`, `orchestrator-directi
 | Rules shared by coder agents, including the test-first implementation workflow (preloaded into them) | — | `agent-context` |
 | Release wipnote — *slash only* | `/wipnote:deploy <version>` | `deploy` |
 | Report a wipnote issue upstream — *slash only* | `/wipnote:report-issue` | `report-issue` |
+| Write, convert or check text in ASD-STE100 Simplified Technical English (linter + dictionary lookup) | `/wipnote:simplified-technical-english` | `simplified-technical-english` |
 
 To pick what to work on next, run the `/wipnote:recommend` command.
 
