@@ -15,7 +15,7 @@ Review a plan's slices with the user in the conversation and record a decision f
 
 ## Instructions
 
-1. Load the plan with `wipnote plan show <plan-id>`. If it is not found, run `wipnote plan list` and ask which plan the user means.
+1. Read the plan's slice cards from `.wipnote/plans/<plan-id>.yaml` (`wipnote plan show` prints only its metadata). If the file is missing, run `wipnote plan list` and ask which plan the user means.
 2. For each slice not yet approved or rejected, show its title, complexity, effort and risk, `what`, `done_when`, its blocks, its `decisions_notes` and any open questions. Ask the user to approve, request changes, or reject, using the ask-user tool where there is one.
 3. Record each answer as it comes:
    ```bash
