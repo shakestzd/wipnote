@@ -34,7 +34,7 @@ Segments are powerline-style with rounded caps and **wrap between segments** to 
 
 While the mod is loaded, a one-line rule (`prompt.md`, which `wipnote claude` appends to the system prompt when it loads the mods) asks the model to end a report on a work item with a fenced block whose info string is `wipnote-ref` and whose only line is the id. The mod draws that block as a card: title, coloured status, step bar. The saved message keeps only the short block (about 10 tokens), and without the mod it still reads as an id.
 
-- **Fetches**: when a reply with a fence is stored, after each turn (open or failed cards, stalest first, up to 10), and on start or resume for fences already in the transcript. A card is fetched again after 60 s.
+- **Fetches**: when a reply with a fence is stored, right after a Bash call that runs `wipnote <kind> add-step|complete-step|start|complete <id>` on a card already drawn (so the bar moves mid-turn), after each turn (open or failed cards, stalest first, up to 10), and on start or resume for fences already in the transcript. A card is fetched again after 60 s.
 - **One lookup per item**: an item that is also in the band takes its card from the band's 5-second refresh.
 - **Failures** read as `not in this checkout (pull to update)`, `wipnote unavailable` or `details unavailable`.
 

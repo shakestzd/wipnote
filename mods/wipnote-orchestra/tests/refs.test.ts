@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { CARD_TTL_MS, Latest, classifyExit, failureText, needsFetch, parseCard, parseWho, pickRefresh, refsInMessages, showArgv, splitRefs, stepBar, stepCount } from '../hooks/refs'
+import { CARD_TTL_MS, Latest, changedRefs, classifyExit, failureText, needsFetch, parseCard, parseWho, pickRefresh, refsInMessages, showArgv, splitRefs, stepBar, stepCount } from '../hooks/refs'
 
 test('splits a closed wipnote-ref fence out of the text', () => {
   const md = 'Done.\n\n```wipnote-ref\nfeat-65bcc27c\n```\nThanks.'
@@ -115,4 +115,12 @@ test('only the newest of overlapping lookups may write', () => {
   const card = latest.take('card:feat-1a2b3c')
   expect(latest.isNewest('card:feat-1a2b3c', card)).toBe(true)
   expect(latest.isNewest('status', newer)).toBe(true)
+})
+
+test('finds the ids a shell command changes steps or status on', () => {
+  expect(changedRefs('wipnote feature complete-step feat-65bcc27c 2')).toEqual(['feat-65bcc27c'])
+  expect(changedRefs('wipnote bug add-step bug-fa036758 "x" && wipnote bug complete bug-fa036758')).toEqual(['bug-fa036758'])
+  expect(changedRefs('wipnote spike start spk-5a716533; wipnote track complete trk-0677c709')).toEqual(['spk-5a716533', 'trk-0677c709'])
+  expect(changedRefs('wipnote feature show feat-65bcc27c --format json')).toEqual([])
+  expect(changedRefs('go test ./...')).toEqual([])
 })

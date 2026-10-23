@@ -17,7 +17,7 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
 import type { Card, CardEntry, FailKind } from '../types'
-import { Latest, classifyExit, failureText, needsFetch, parseCard, pickRefresh, refsInMessages, showArgv, splitRefs, stepBar, stepCount } from './refs'
+import { Latest, changedRefs, classifyExit, failureText, needsFetch, parseCard, pickRefresh, refsInMessages, showArgv, splitRefs, stepBar, stepCount } from './refs'
 import type { CliResult } from './refs'
 
 type On = Parameters<Register>[0]
@@ -104,6 +104,18 @@ async function loadStale($: EngineInterface, ids: string[]): Promise<void> {
 async function refreshOpenCards($: EngineInterface): Promise<void> {
   const all = await read($, refs)
   for (const id of pickRefresh(Object.entries(all), MAX_REFRESH)) void loadCard($, id)
+}
+
+/**
+ * After a Bash call ends, re-fetches the cards it changed (a ticked step, a
+ * start or complete), so a card moves mid-turn instead of at the turn's end.
+ * Only cards already drawn are fetched; others load when a reply names them.
+ */
+export async function refreshChanged($: EngineInterface, command: string): Promise<void> {
+  const ids = changedRefs(command)
+  if (ids.length === 0) return
+  const all = await read($, refs)
+  for (const id of ids) if (all[id]) void loadCard($, id)
 }
 
 /**
