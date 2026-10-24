@@ -1,0 +1,1 @@
+{"kind":"collector_start","harness":"wipnote","ts":"2026-10-04T05:14:56.969530415Z","signal_id":"collector-start-01a105563031e70aff4238d4363b","session_id":"01a105563031e70aff4238d4363b","canonical":"collector_start","native":"collector_start","attrs":{"pid":68475,"port":37135,"wipnote_sid":"01a105563031e70aff4238d4363b"}}
