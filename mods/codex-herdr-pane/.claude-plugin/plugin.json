@@ -1,0 +1,106 @@
+{
+  "name": "codex-herdr-pane",
+  "version": "0.9.0",
+  "description": "Runs every Codex delegation (codex exec, codex review), every ccx task and every headless Claude run (claude -p / --print, bare or behind dev exec) with a live log and a rendered answer: in a herdr pane that closes when it finishes, or (claudePane auto) outside herdr in a Claude Code pane",
+  "types": "./types/index.d.ts",
+  "author": {
+    "name": "shakestzd"
+  },
+  "userConfig": {
+    "direction": {
+      "type": "string",
+      "title": "Split direction",
+      "description": "Where the Codex pane opens, relative to the pane Claude Code runs in",
+      "default": "right",
+      "options": [
+        "right",
+        "down"
+      ]
+    },
+    "layout": {
+      "type": "string",
+      "title": "Pane layout",
+      "description": "auto tiles, or splits Claude's pane downward when direction is down; tile places panes in a grid beside Claude (right of it first, then 2x2); right or down always splits Claude's pane that way",
+      "options": [
+        "auto",
+        "tile",
+        "right",
+        "down"
+      ],
+      "default": "auto"
+    },
+    "maxPanes": {
+      "type": "number",
+      "title": "Most delegation panes at once",
+      "description": "tile only: a run beyond this many live panes goes ahead without a pane and says so",
+      "default": 6
+    },
+    "closePane": {
+      "type": "string",
+      "title": "Close the pane when Codex finishes",
+      "description": "always closes it after the delay; success keeps a failed run open; never leaves it for you",
+      "default": "always",
+      "options": [
+        "always",
+        "success",
+        "never"
+      ]
+    },
+    "closeDelay": {
+      "type": "number",
+      "title": "Seconds to wait before closing",
+      "description": "A short pause so the final state can be read",
+      "default": 3
+    },
+    "viewer": {
+      "type": "string",
+      "title": "Pane view",
+      "description": "textual shows a live log and the answer as Markdown (needs uv; the first run downloads Textual); plain streams the cleaned log",
+      "default": "textual",
+      "options": [
+        "textual",
+        "plain"
+      ]
+    },
+    "tailLines": {
+      "type": "number",
+      "title": "Log lines returned to Claude when there is no answer file",
+      "description": "After a failure, or for codex review, the Bash call returns the end of the cleaned log",
+      "default": 200
+    },
+    "maxReturnLines": {
+      "type": "number",
+      "title": "Most lines returned to Claude per section",
+      "description": "The answer, the log tail after a failure and the output of the rest of a chained command are each cut to this many lines, with one line naming the file that holds the rest; the status line is never cut. 0 returns everything",
+      "default": 60
+    },
+    "leanProfile": {
+      "type": "boolean",
+      "title": "Use the lean Codex profile",
+      "description": "Adds -p <profile name> to codex exec calls that set no profile, when ~/.codex/<name>.config.toml exists; codex review is untouched",
+      "default": true
+    },
+    "leanProfileName": {
+      "type": "string",
+      "title": "Lean profile name",
+      "description": "The profile passed with -p; its file is ~/.codex/<name>.config.toml",
+      "default": "lean"
+    },
+    "ccxRunsDir": {
+      "type": "string",
+      "title": "ccx run-log directory",
+      "description": "Where ccx writes each run's stream-json log; the pane follows the new log a run creates. CCX_RUNS_DIR overrides it. Empty: $HOME/work/_shared/claude-container/runs",
+      "default": ""
+    },
+    "claudePane": {
+      "type": "string",
+      "title": "Claude Code pane outside herdr",
+      "description": "auto: when Claude Code does not run inside herdr, run each delegation with the same live log and show it in a Claude Code pane (a tab per run) wherever a surface that draws mod panes is attached, such as the terminal; where none is (a cloud session viewed in the app today), /codex-runs puts the run in the chat instead. off: outside herdr, run the command exactly as asked",
+      "default": "off",
+      "options": [
+        "off",
+        "auto"
+      ]
+    }
+  }
+}

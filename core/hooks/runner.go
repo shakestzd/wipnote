@@ -80,8 +80,17 @@ type CloudEvent struct {
 	ToolInput map[string]any `json:"tool_input"`
 	ToolUseID string         `json:"tool_use_id"`
 
-	// PostToolUse result
-	ToolResult map[string]any `json:"tool_result"`
+	// PostToolUse result. Claude Code sends it as "tool_response" (live
+	// capture, Claude Code 2.1.302: Bash -> {"stdout","stderr",...}, Write ->
+	// {"type","filePath",...}); "tool_result" is never sent. ReadInputRaw folds
+	// ToolResponse into ToolResult so every consumer reads one field.
+	ToolResult   map[string]any     `json:"tool_result"`
+	ToolResponse claudeToolResponse `json:"tool_response"`
+
+	// PostToolUse duration_ms (optional): wall time the tool took. Used to
+	// back-date the completion row's start time. Tolerant decode — see
+	// durationMS.
+	DurationMS durationMS `json:"duration_ms"`
 
 	// SubagentStart / SubagentStop
 	AgentID   string `json:"agent_id"`
@@ -92,9 +101,13 @@ type CloudEvent struct {
 	WorktreeBasePath string `json:"worktree_base_path"`
 	WorktreePath     string `json:"worktree_path"`
 
-	// Stop / SubagentStop
+	// Stop / SubagentStop / StopFailure
 	StopReason           string `json:"stop_reason"`
 	LastAssistantMessage string `json:"last_assistant_message"`
+
+	// StopFailure: error type (rate_limit, overloaded, ...) and optional details.
+	StopError    looseString `json:"error"`
+	ErrorDetails looseString `json:"error_details"`
 
 	// SessionStart / SessionEnd / Stop — common session fields
 	TranscriptPath string `json:"transcript_path"`
@@ -111,7 +124,6 @@ type CloudEvent struct {
 
 	// Agent Teams — teammate metadata (experimental, gracefully empty when not in a team)
 	TeammateName    string `json:"teammate_name"`
-	TeamName        string `json:"team_name"`
 	IdleReason      string `json:"idle_reason"`
 	TaskSubject     string `json:"task_subject"`
 	TaskDescription string `json:"task_description"`
@@ -279,7 +291,52 @@ func ReadInputRaw() (*CloudEvent, []byte, error) {
 	if err := json.Unmarshal(data, &ev); err != nil {
 		return nil, data, fmt.Errorf("parsing CloudEvent: %w", err)
 	}
+	normalizeClaudeToolResult(&ev)
 	return &ev, data, nil
+}
+
+// normalizeClaudeToolResult folds Claude's tool_response into ToolResult, the
+// one field every consumer reads. Both Claude parse paths call it:
+// ReadInputRaw and parseEventForHarness, which the hook CLI uses.
+func normalizeClaudeToolResult(ev *CloudEvent) {
+	if ev.ToolResult == nil && ev.ToolResponse != nil {
+		ev.ToolResult = map[string]any(ev.ToolResponse)
+	}
+	ev.ToolResult = withOutputFromStdout(ev.ToolResult)
+}
+
+// claudeToolResponse decodes Claude Code's tool_response, whose shape varies
+// by tool (an object for built-ins, possibly a string or an array for MCP
+// tools). It never fails: an object is kept, a string is wrapped as
+// {"output": s}, and any other JSON is kept as {"output": <raw JSON>}, so an
+// unexpected shape can never make the whole hook payload unparseable.
+type claudeToolResponse map[string]any
+
+func (r *claudeToolResponse) UnmarshalJSON(data []byte) error {
+	var known codexToolResult
+	if err := known.UnmarshalJSON(data); err == nil {
+		*r = claudeToolResponse(known)
+		return nil
+	}
+	*r = claudeToolResponse{"output": string(data)}
+	return nil
+}
+
+// withOutputFromStdout gives a Bash-shaped result ({"stdout": ...}) the
+// "output" key the shared summarisers read, leaving any existing "output"
+// untouched. Without it a Claude Bash result summarises to "", which hides
+// `git commit` output from commit-message parsing.
+func withOutputFromStdout(result map[string]any) map[string]any {
+	if result == nil {
+		return nil
+	}
+	if _, ok := result["output"]; ok {
+		return result
+	}
+	if out, ok := result["stdout"].(string); ok {
+		result["output"] = out
+	}
+	return result
 }
 
 // WriteResult encodes result as JSON to stdout.

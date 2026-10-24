@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Merge wipnote-cards into wipnote-orchestra</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-47fc116e"
+             data-type="feature"
+             data-status="in-progress"
+             data-priority="medium"
+             data-created="2026-10-19T05:06:50.423157"
+             data-updated="2026-10-21T03:58:15.079408" data-agent-assigned="claude-code" data-track-id="trk-43e0650a" data-created-by-agent="claude-code" data-created-by-cli-version="0.70.2-7-g160ae1b84" data-created_in_session="e41f6acf-9ecd-5cf8-846b-fbd1203fe65e">
+
+        <header>
+            <h1>Merge wipnote-cards into wipnote-orchestra</h1>
+            <div class="metadata">
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="../sessions/e41f6acf-9ecd-5cf8-846b-fbd1203fe65e.html" data-relationship="implemented_in" data-since="2026-10-19T05:06:56.822704">session e41f6acf-9ecd-5cf8-846b-fbd1203fe65e</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-43e0650a.html" data-relationship="part_of" data-since="2026-10-19T05:06:50.42947">trk-43e0650a</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="false" data-step-id="step-feat-47fc116e-0" data-agent="claude-code" data-created-by-agent="claude-code">⏳ ref rule missing under a managed policy plugin: its prompt.compose next.to bypasses user-tier hooks (not a section-order bug); repro in tests/compose.test.ts</li>
+            </ol>
+        </section>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Owner decision 4b from feat-f335e600: merge the two mods into wipnote-orchestra. Orchestra gains the wipnote-ref fence cards (session.append fetch, hydrate on start/resume, prompt.compose rule, AssistantMessage render) and the session claim from &#39;wipnote who --json&#39;. The claimed item joins the band&#39;s work items ahead of shell-started ones; its segment shows status colour and n/m steps. The $.ui.status line is dropped (the band shows the same fields). One lookup per item: the band&#39;s refresh also fills the fence-card cache. mods/wipnote-cards is removed.</p>
+        </section>
+    </article>
+</body>
+</html>

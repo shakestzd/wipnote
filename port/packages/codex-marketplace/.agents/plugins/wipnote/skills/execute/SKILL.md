@@ -1,13 +1,24 @@
 ---
-name: wipnote:execute
-description: Execute a parallel plan using dependency-driven dispatch. Coordinate ready work items, partition non-conflicting slices, and keep all spawned agents attributed and closed.
+name: execute
+description: "Runs a wipnote plan or track by dependency-driven parallel dispatch: partitions non-conflicting slices, keeps every spawned agent attributed, and closes them all. Use when asked to execute, run or implement a plan or track."
 ---
 
 # wipnote Parallel Execute
 
 Use this skill to execute development work in parallel with dependency-driven dispatch and isolated agents.
 
-**Trigger keywords:** execute plan, run plan, run tasks, parallelize work, work in parallel, start execution, dispatch agents
+Copy this checklist and tick it off:
+
+```
+Execute (<track or plan id>):
+- [ ] 1. Ready work found (Step 1)
+- [ ] 2. File overlap checked; non-conflicting set chosen (Step 2)
+- [ ] 3. Agents spawned and tracked (Steps 3–4)
+- [ ] 4. Agents waited on; blockers unblocked (Step 5)
+- [ ] 5. Merged; tests and checks pass (Step 6)
+- [ ] 6. Steps 1–5 repeated until done (Step 7)
+- [ ] 7. Completion checklist (end of this file) all ticked
+```
 
 ## Environment
 
@@ -53,7 +64,7 @@ Use the preview payload as the source of truth.
 
 Treat linked features or bugs with pending status and no blockers as ready candidates. Keep blocked items out of the current dispatch set. Reuse the track title when describing the overall execution session.
 
-If the track does not yet have executable work items, stop and create or promote them first.
+If the track does not yet have executable work items, stop and create or promote them first. Attribute work to the `feat-…` id that `wipnote plan promote-slice` creates, never the plan's `slice-N` id.
 
 ## Step 2: Check File Overlap
 
@@ -111,14 +122,9 @@ Use `wipnote-patch-coder` for tiny, tightly scoped edits and `wipnote-feature-co
 
 Immediately record the handles returned by `spawn_agent`.
 
-Maintain a live table in your notes with:
+Maintain a live table in your notes with the work item id, agent handle, intended files, and dispatch time.
 
-- work item id
-- agent handle
-- intended files
-- dispatch time
-
-This keeps the execution state easy to resume.
+Codex has no Task tools, so record progress on the work item itself: `wipnote feature add-step <feat-id> "<step>"` for each dispatched slice, and `wipnote feature complete-step <feat-id> <step-number>` once it is merged and its gate passes. This keeps the execution state resumable after a crash.
 
 ## Step 5: Wait and Unblock
 
@@ -168,11 +174,13 @@ Do not leave abandoned agent handles hanging around after a failed wave.
 
 ## Completion Checklist
 
-Before you declare execution finished:
+Before you declare execution finished, every item must be ticked:
 
-- every spawned agent has been waited on
-- any necessary clarifications were sent with `send_input`
-- completed handles were closed with `close_agent`
-- merged changes passed relevant tests and checks
-- work items were completed in `wipnote`
-- remaining blocked or deferred work is explicitly called out
+```
+- [ ] Every spawned agent has been waited on
+- [ ] Needed clarifications were sent with `send_input`
+- [ ] Completed handles were closed with `close_agent`
+- [ ] Merged changes passed relevant tests and checks
+- [ ] Work items were completed in `wipnote`
+- [ ] Remaining blocked or deferred work is called out
+```

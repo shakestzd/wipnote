@@ -2,11 +2,13 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/pelletier/go-toml/v2"
 	"github.com/shakestzd/wipnote/internal/launcher"
 )
 
@@ -306,13 +308,13 @@ func TestBuildCodexArgs_PutsOtelConfigBeforeResume(t *testing.T) {
 func TestBuildCodexArgs_IncludesInstructionOverrideBeforeResume(t *testing.T) {
 	got := buildCodexArgs(codexLaunchOpts{
 		ResumeLast: true,
-	}, 0, []string{"-c", `model_instructions_file="/tmp/wipnote-codex.md"`})
+	}, 0, []string{"-c", `developer_instructions="wipnote"`})
 
 	resumeIdx := indexOf(got, "resume")
 	if resumeIdx < 0 {
 		t.Fatalf("expected resume subcommand in %v", got)
 	}
-	if got[0] != "-c" || got[1] != `model_instructions_file="/tmp/wipnote-codex.md"` {
+	if got[0] != "-c" || got[1] != `developer_instructions="wipnote"` {
 		t.Fatalf("expected instruction override before resume, got %v", got)
 	}
 	if resumeIdx < 2 {
@@ -397,26 +399,6 @@ func TestAppendUniqueCodexWritableRootDedupesCleanPaths(t *testing.T) {
 	got = appendUniqueCodexWritableRoot(got, "/tmp/other-cache")
 	if len(got) != 2 || got[1] != "/tmp/other-cache" {
 		t.Fatalf("expected distinct root to be appended, got %v", got)
-	}
-}
-
-func TestCodexRequestedModel(t *testing.T) {
-	tests := []struct {
-		name string
-		args []string
-		want string
-	}{
-		{name: "short", args: []string{"-m", "gpt-5.4"}, want: "gpt-5.4"},
-		{name: "long", args: []string{"--model", "gpt-5.5"}, want: "gpt-5.5"},
-		{name: "equals", args: []string{"--model=gpt-5.3-codex"}, want: "gpt-5.3-codex"},
-		{name: "absent", args: []string{"--sandbox", "workspace-write"}, want: ""},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := codexRequestedModel(tt.args); got != tt.want {
-				t.Fatalf("codexRequestedModel(%v) = %q, want %q", tt.args, got, tt.want)
-			}
-		})
 	}
 }
 
@@ -531,39 +513,64 @@ func TestResolveCodexSandboxMode_IgnoresNonBubblewrapFailures(t *testing.T) {
 	}
 }
 
-func TestSelectCodexBaseInstructions(t *testing.T) {
-	data := []byte(`{"models":[{"slug":"gpt-a","base_instructions":"base a"},{"slug":"gpt-b","base_instructions":"base b"}]}`)
+// parseCodexOverrideValue mirrors codex-rs/utils/cli/src/config_override.rs
+// parse_toml_value: Codex wraps each `-c key=value` value as `_x_ = <value>`
+// and parses it as TOML. A parse failure there silently degrades to a raw
+// string, so these tests assert the value parses cleanly as TOML.
+func parseCodexOverrideValue(t *testing.T, raw string) any {
+	t.Helper()
+	var table map[string]any
+	if err := toml.Unmarshal([]byte("_x_ = "+raw), &table); err != nil {
+		t.Fatalf("value is not valid TOML (Codex would silently mangle it): %v\n%s", err, raw)
+	}
+	return table["_x_"]
+}
 
-	if got, err := selectCodexBaseInstructions(data, "gpt-b"); err != nil || got != "base b" {
-		t.Fatalf("select specific = %q, %v; want base b, nil", got, err)
+func TestTomlBasicStringRoundTrips(t *testing.T) {
+	inputs := []string{
+		"plain",
+		"multi\nline\r\nprompt\twith tab",
+		`quotes "double" and 'single' and back\slash \n literal`,
+		"unicode — ü 日本 and control \x01\x1f\x7f",
+		"```go\nfunc x() {}\n```",
 	}
-	if got, err := selectCodexBaseInstructions(data, ""); err != nil || got != "base a" {
-		t.Fatalf("select default = %q, %v; want base a, nil", got, err)
-	}
-	if _, err := selectCodexBaseInstructions(data, "missing"); err == nil {
-		t.Fatalf("expected missing model error")
+	for _, in := range inputs {
+		got := parseCodexOverrideValue(t, tomlBasicString(in))
+		if got != in {
+			t.Fatalf("round trip mismatch:\n got %q\nwant %q", got, in)
+		}
 	}
 }
 
-func TestWriteCodexInstructionsFileComposesBaseAndWipnotePrompt(t *testing.T) {
-	path, err := writeCodexInstructionsFile("base instructions", "extra instructions", codexLaunchModeDefault)
-	if err != nil {
-		t.Fatalf("writeCodexInstructionsFile: %v", err)
-	}
-	t.Cleanup(func() { _ = os.Remove(path) })
-
-	data, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatalf("reading generated instructions: %v", err)
-	}
-	content := string(data)
-	for _, want := range []string{
-		"base instructions",
-		"# wipnote Orchestrator Addendum",
-		"extra instructions",
+// TestBuildCodexInstructionConfigArgsUsesDeveloperInstructions guards the
+// switch away from model_instructions_file (which replaced Codex's built-in
+// prompt) to developer_instructions (which adds a developer message).
+func TestBuildCodexInstructionConfigArgsUsesDeveloperInstructions(t *testing.T) {
+	for _, mode := range []codexLaunchMode{
+		codexLaunchModeDefault, codexLaunchModeDev, codexLaunchModeContinue,
+		codexLaunchModeYolo, codexLaunchModeYoloDev, codexLaunchModeYoloCont,
+		codexLaunchModeInit,
 	} {
-		if !strings.Contains(content, want) {
-			t.Fatalf("generated instructions missing %q:\n%s", want, content)
+		args := buildCodexInstructionConfigArgs(mode, "")
+		if len(args) != 2 || args[0] != "-c" {
+			t.Fatalf("mode %s: want exactly one -c override, got %v", mode, args)
+		}
+		key, raw, ok := strings.Cut(args[1], "=")
+		if !ok || key != "developer_instructions" {
+			t.Fatalf("mode %s: want developer_instructions key, got %q", mode, args[1])
+		}
+		if strings.Contains(args[1], "model_instructions_file") {
+			t.Fatalf("mode %s: must not replace Codex's base prompt: %q", mode, args[1])
+		}
+		text, _ := parseCodexOverrideValue(t, raw).(string)
+		for _, want := range []string{
+			"# wipnote " + codexInstructionModeTitle(mode) + " Instructions",
+			strings.TrimSpace(codexInstructionAddendum(mode)),
+			strings.TrimSpace(researchRoutingContent),
+		} {
+			if !strings.Contains(text, want) {
+				t.Fatalf("mode %s: decoded instructions missing %q", mode, want)
+			}
 		}
 	}
 }
@@ -849,4 +856,139 @@ func indexOf(values []string, want string) int {
 		}
 	}
 	return -1
+}
+
+// TestBuildCodexInstructionConfigArgsKeepsConfiguredInstructions guards the
+// Codex review findings on PR #207 and #209: the override must carry the
+// user's configured developer_instructions, and must never carry a project's,
+// trusted or not. Codex decides project trust from layers wipnote cannot fully
+// see (managed/MDM config), so a -c re-injection could bypass that decision.
+func TestBuildCodexInstructionConfigArgsKeepsConfiguredInstructions(t *testing.T) {
+	home := t.TempDir()
+	userCfg := filepath.Join(home, "config.toml")
+	launch := t.TempDir()
+	writeFile := func(path, body string) {
+		t.Helper()
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// Even a project the user config marks trusted contributes nothing.
+	writeFile(userCfg, fmt.Sprintf("developer_instructions = \"user rule\"\n[projects.%q]\ntrust_level = \"trusted\"\n", launch))
+	existing := configuredCodexDeveloperInstructions(codexInstructionLayers{User: userCfg})
+	if existing != "user rule" {
+		t.Fatalf("want the user layer, got %q", existing)
+	}
+
+	if codexProjectSetsDeveloperInstructions(launch) {
+		t.Fatal("no project config yet: must not report project instructions")
+	}
+	writeFile(filepath.Join(launch, ".codex", "config.toml"), "developer_instructions = \"project rule\"\n")
+	if !codexProjectSetsDeveloperInstructions(launch) {
+		t.Fatal("project developer_instructions must be reported so the launcher can say they are replaced")
+	}
+
+	args := buildCodexInstructionConfigArgs(codexLaunchModeDefault, existing)
+	_, raw, _ := strings.Cut(args[1], "=")
+	text, _ := parseCodexOverrideValue(t, raw).(string)
+	if !strings.HasPrefix(text, "user rule\n\n# wipnote ") {
+		t.Fatalf("configured instructions must lead the override, got %q", text[:min(len(text), 80)])
+	}
+	if strings.Contains(text, "project rule") {
+		t.Fatal("project instructions must never be re-injected through -c")
+	}
+	if got := configuredCodexDeveloperInstructions(codexInstructionLayers{User: filepath.Join(home, "missing.toml")}); got != "" {
+		t.Fatalf("missing config must read as unset, got %q", got)
+	}
+}
+
+// TestConfiguredCodexDeveloperInstructions_Layers guards the third Codex
+// review finding on #209: the effective value comes from the whole stack
+// (system, $CODEX_HOME user layer, active profile), not from
+// ~/.codex/config.toml alone.
+func TestConfiguredCodexDeveloperInstructions_Layers(t *testing.T) {
+	dir := t.TempDir()
+	write := func(name, body string) string {
+		t.Helper()
+		p := filepath.Join(dir, name)
+		if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		return p
+	}
+	system := write("system.toml", "developer_instructions = \"system rule\"\n")
+	if got := configuredCodexDeveloperInstructions(codexInstructionLayers{System: system}); got != "system rule" {
+		t.Fatalf("system layer alone: got %q", got)
+	}
+
+	user := write("user.toml", "developer_instructions = \"user rule\"\nprofile = \"work\"\n"+
+		"[profiles.work]\ndeveloper_instructions = \"work rule\"\n"+
+		"[profiles.home]\ndeveloper_instructions = \"home rule\"\n")
+	if got := configuredCodexDeveloperInstructions(codexInstructionLayers{System: system, User: user}); got != "work rule" {
+		t.Fatalf("config-selected profile should win, got %q", got)
+	}
+	if got := configuredCodexDeveloperInstructions(codexInstructionLayers{System: system, User: user, Profile: "home"}); got != "home rule" {
+		t.Fatalf("-p profile should override the config's profile, got %q", got)
+	}
+
+	// Codex 0.163 profile V2: $CODEX_HOME/<name>.config.toml beside the user
+	// config wins over the legacy [profiles.<name>] table.
+	write("home.config.toml", "developer_instructions = \"home v2 rule\"\n")
+	if got := configuredCodexDeveloperInstructions(codexInstructionLayers{System: system, User: user, Profile: "home"}); got != "home v2 rule" {
+		t.Fatalf("V2 profile file should win over the legacy table, got %q", got)
+	}
+
+	// An explicit empty value in a higher layer clears lower ones (Codex
+	// review, #209); an absent key leaves them.
+	cleared := write("cleared.toml", "developer_instructions = \"\"\n")
+	if got := configuredCodexDeveloperInstructions(codexInstructionLayers{System: system, User: cleared}); got != "" {
+		t.Fatalf("explicit empty user value must clear the system layer, got %q", got)
+	}
+	absent := write("absent.toml", "model = \"x\"\n")
+	if got := configuredCodexDeveloperInstructions(codexInstructionLayers{System: system, User: absent}); got != "system rule" {
+		t.Fatalf("absent user key must keep the system layer, got %q", got)
+	}
+
+	t.Setenv("CODEX_HOME", filepath.Join(dir, "codexhome"))
+	if got := codexHomeConfigPath(); got != filepath.Join(dir, "codexhome", "config.toml") {
+		t.Fatalf("CODEX_HOME not honored: %q", got)
+	}
+	for _, tc := range []struct {
+		args []string
+		want string
+	}{
+		{[]string{"-p", "a"}, "a"},
+		{[]string{"--profile", "b", "--yolo"}, "b"},
+		{[]string{"--profile=c"}, "c"},
+		{[]string{"--model", "x"}, ""},
+	} {
+		if got := codexProfileFromArgs(tc.args); got != tc.want {
+			t.Errorf("codexProfileFromArgs(%v) = %q, want %q", tc.args, got, tc.want)
+		}
+	}
+}
+
+// TestCodexHomeDirHonorsCodexHome pins that every user-level Codex path
+// wipnote writes or reads follows $CODEX_HOME, as Codex itself does.
+func TestCodexHomeDirHonorsCodexHome(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("CODEX_HOME", dir)
+	for name, got := range map[string]string{
+		"config":  codexConfigPath(),
+		"hooks":   codexHooksPath(),
+		"agents":  codexAgentsPath(),
+		"plugins": codexPluginCachePath(),
+	} {
+		if !strings.HasPrefix(got, dir+string(filepath.Separator)) {
+			t.Errorf("%s path %q must live under CODEX_HOME %q", name, got, dir)
+		}
+	}
+	t.Setenv("CODEX_HOME", "")
+	home, _ := os.UserHomeDir()
+	if got := codexHomeDir(); got != filepath.Join(home, ".codex") {
+		t.Errorf("unset CODEX_HOME must fall back to ~/.codex, got %q", got)
+	}
 }

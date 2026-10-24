@@ -62,9 +62,14 @@ func yoloCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "yolo",
 		Short: "Launch Claude Code in autonomous YOLO mode with development guardrails",
-		Long: `Launches Claude Code with bypassPermissions and enforced quality guardrails.
+		Long: `Launches Claude Code in auto permission mode with enforced quality guardrails.
 
-YOLO mode removes permission prompts but enforces code quality at every step:
+Auto mode lets Claude Code's background classifier approve actions instead of
+prompting. If auto mode is unavailable for your account or model, Claude Code
+starts in manual mode and may stop for prompts. Pass
+--permission-mode bypassPermissions to skip all permission checks instead.
+
+YOLO mode avoids permission prompts but enforces code quality at every step:
   - Mandatory TDD workflow (tests before implementation)
   - Quality gate checks before every commit
   - Budget limits to keep features focused
@@ -81,17 +86,20 @@ Without either flag, launches in planning mode to help you create one first.`,
 			// and never returns. If tmux is missing, an error is returned.
 			// If we are already inside tmux (TMUX env set), this is a no-op.
 			_ = tmux // flag is consumed via os.Args inspection in maybeTmuxWrap
+			if err := validateYoloPermissionMode(permMode); err != nil {
+				return err
+			}
 			if err := maybeTmuxWrap("wipnote-yolo"); err != nil {
 				return err
 			}
 			switch {
 			case dev:
 				effectiveInPlaceDev := inPlace || noWorktree
-				return launchYoloDev(trackID, featureID, effectiveInPlaceDev, resumeID, name, args)
+				return launchYoloDev(permMode, trackID, featureID, effectiveInPlaceDev, resumeID, name, args)
 			case initMode:
-				return launchYoloInit(trackID, featureID, resumeID, name, args)
+				return launchYoloInit(permMode, trackID, featureID, resumeID, name, args)
 			case continueMode:
-				return launchYoloContinue(args, resumeID)
+				return launchYoloContinue(permMode, args, resumeID)
 			default:
 				effectiveInPlace := inPlace || noWorktree
 				return launchYoloDefault(permMode, trackID, featureID, effectiveInPlace, resumeID, name, args)
@@ -105,8 +113,7 @@ Without either flag, launches in planning mode to help you create one first.`,
 	cmd.Flags().BoolVar(&noWorktree, "no-worktree", false, "Skip worktree creation; run in project root (alias for --in-place)")
 	cmd.Flags().BoolVar(&inPlace, "in-place", false, "Intentional in-place mutation; records opt-out of isolation")
 	cmd.Flags().BoolVar(&tmux, "tmux", false, "Wrap yolo in a tmux session named 'wipnote-yolo' (survives disconnects; reattaches on re-run)")
-	cmd.Flags().StringVar(&permMode, "permission-mode", "bypassPermissions",
-		"Permission mode (bypassPermissions, acceptEdits)")
+	cmd.Flags().StringVar(&permMode, "permission-mode", yoloDefaultPermissionMode, yoloPermissionModeHelp)
 	cmd.Flags().StringVar(&trackID, "track", "", "Track ID to work on (e.g., trk-3719d8f3)")
 	cmd.Flags().StringVar(&featureID, "feature", "", "Feature ID to work on (e.g., feat-15c458aa)")
 	cmd.Flags().StringVar(&resumeID, "resume", "", "Resume a specific Claude Code session by ID")
@@ -393,10 +400,11 @@ func launchYoloDefault(permMode, trackID, featureID string, noWorktree bool, res
 	}
 	yoloPrompt := buildYoloSystemPrompt(id, kind)
 
-	emitYoloBanner(fmt.Sprintf("Launching Claude Code in YOLO mode (%s)...", permMode), pluginDir, sessionName, id, bannerDirtyWarning(launchPlan, willCreateWorktree), os.Stdout)
+	emitYoloBanner(fmt.Sprintf("Launching Claude Code in YOLO mode (%s)...", permMode), pluginDir, sessionName, id,
+		joinYoloWarnings(yoloPermissionWarning(permMode), bannerDirtyWarning(launchPlan, willCreateWorktree)), os.Stdout)
 
 	// Write the combined prompt to a temp file so launchClaude can pass it via
-	// --append-system-prompt without needing a new field.
+	// --append-system-prompt-file without needing a new field.
 	tmpFile, err := os.CreateTemp("", "yolo-prompt-*.md")
 	if err != nil {
 		return fmt.Errorf("could not create temp prompt file: %w", err)
@@ -417,10 +425,11 @@ func launchYoloDefault(permMode, trackID, featureID string, noWorktree bool, res
 		ExtraArgs:        extraArgs,
 		ProjectRoot:      workDir,
 		WipnoteRoot:      canonicalRoot,
+		ExtraEnv:         yoloLaunchEnv(),
 	})
 }
 
-func launchYoloDev(trackID, featureID string, noWorktree bool, resumeID, name string, extraArgs []string) error {
+func launchYoloDev(permMode, trackID, featureID string, noWorktree bool, resumeID, name string, extraArgs []string) error {
 	// Dev mode resolves the plugin from local source, NOT the marketplace.
 	pluginDir := resolveProjectPluginDir()
 	if pluginDir == "" {
@@ -512,7 +521,8 @@ func launchYoloDev(trackID, featureID string, noWorktree bool, resumeID, name st
 	}
 	yoloPrompt := buildYoloSystemPrompt(id, kind)
 
-	emitYoloBanner("Launching Claude Code in YOLO dev mode...", pluginDir, sessionName, id, bannerDirtyWarning(devPlan, willCreateWorktree), os.Stdout)
+	emitYoloBanner(fmt.Sprintf("Launching Claude Code in YOLO dev mode (%s)...", permMode), pluginDir, sessionName, id,
+		joinYoloWarnings(yoloPermissionWarning(permMode), bannerDirtyWarning(devPlan, willCreateWorktree)), os.Stdout)
 
 	tmpFile, err := os.CreateTemp("", "yolo-prompt-*.md")
 	if err != nil {
@@ -529,24 +539,25 @@ func launchYoloDev(trackID, featureID string, noWorktree bool, resumeID, name st
 		PluginDir:        pluginDir,
 		ResumeID:         resumeID,
 		SystemPromptFile: tmpFile.Name(),
-		PermissionMode:   "bypassPermissions",
+		PermissionMode:   permMode,
 		Name:             sessionName,
 		ExtraArgs:        extraArgs,
 		ProjectRoot:      workDir,
 		WipnoteRoot:      canonicalRoot,
+		ExtraEnv:         yoloLaunchEnv(),
 	})
 }
 
-func launchYoloInit(trackID, featureID, resumeID, name string, extraArgs []string) error {
+func launchYoloInit(permMode, trackID, featureID, resumeID, name string, extraArgs []string) error {
 	// Initialize .wipnote/ first.
 	if err := runInit(nil, nil); err != nil {
 		return fmt.Errorf("init failed: %w", err)
 	}
 	fmt.Println()
-	return launchYoloDefault("bypassPermissions", trackID, featureID, false, resumeID, name, extraArgs)
+	return launchYoloDefault(permMode, trackID, featureID, false, resumeID, name, extraArgs)
 }
 
-func launchYoloContinue(extraArgs []string, resumeID string) error {
+func launchYoloContinue(permMode string, extraArgs []string, resumeID string) error {
 	projectRoot := ""
 	if wipnoteDir, err := findWipnoteDir(); err == nil {
 		projectRoot = filepath.Dir(wipnoteDir)
@@ -557,8 +568,10 @@ func launchYoloContinue(extraArgs []string, resumeID string) error {
 		return err
 	}
 	fmt.Println(launchtui.RenderLaunchBanner(nil, launchtui.BannerInput{
-		Headline:     "Resuming last YOLO session...",
-		PluginSource: pluginDir,
+		Headline:        fmt.Sprintf("Resuming last YOLO session (%s)...", permMode),
+		PluginSource:    pluginDir,
+		Warning:         yoloPermissionWarning(permMode),
+		WarningSeverity: "amber",
 	}))
 
 	return launchClaude(LaunchOpts{
@@ -566,8 +579,9 @@ func launchYoloContinue(extraArgs []string, resumeID string) error {
 		PluginDir:      pluginDir,
 		Resume:         true,
 		ResumeID:       resumeID,
-		PermissionMode: "bypassPermissions",
+		PermissionMode: permMode,
 		ExtraArgs:      extraArgs,
 		ProjectRoot:    projectRoot,
+		ExtraEnv:       yoloLaunchEnv(),
 	})
 }

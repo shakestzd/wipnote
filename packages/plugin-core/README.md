@@ -37,10 +37,11 @@ The command writes each target's tree under the `outDir` declared in
 Codex custom agents have a second runtime step: `wipnote codex --init`,
 `wipnote codex`, and `wipnote codex --dev` mirror the generated
 `port/packages/codex-marketplace/.agents/plugins/wipnote/agents/*.toml` files into
-Codex's documented custom-agent lookup directory. Normal installs use
-`~/.codex/agents`; dev launches also refresh project-local `.codex/agents`.
-The launcher additionally passes explicit `-c agents.<name>.config_file=...`
-overrides so fresh Codex CLI sessions do not rely only on plugin-cache discovery.
+Codex's user-level custom-agent lookup directory, `~/.codex/agents`, which
+Codex scans natively (codex-rs agent-roles loader). Nothing is written to the
+project's `.codex/agents`: the project layer outranks the user layer, so a copy
+there would shadow updates, and the launcher removes stale `wipnote-*.toml`
+left there by older versions. No `-c agents.*` overrides are passed.
 
 Current limitation: some tool-backed Codex sessions still expose only generic
 `default`, `explorer`, and `worker` spawn roles even when custom-agent TOML files
@@ -57,9 +58,9 @@ Current mapping:
 
 | Role | Purpose | Claude model alias | Codex model | Antigravity model |
 |------|---------|--------------------|-------------|--------------|
-| `patch-coder` | Small, clear edits | `haiku` | `gpt-5.4-mini`, low effort | `flash-lite` |
-| `feature-coder` | Moderate implementation | `sonnet` | `gpt-5.4`, medium effort | `flash` |
-| `architect-coder` | Complex architecture/high risk | `opus` | `gpt-5.5`, high effort | `pro` |
+| `patch-coder` | Small, clear edits | `haiku` | `gpt-6-luna`, low effort | `flash-lite` |
+| `feature-coder` | Moderate implementation | `sonnet` | `gpt-6.1-sol`, medium effort | `flash` |
+| `architect-coder` | Complex architecture/high risk | `opus` | `gpt-6-astra`, high effort | `pro` |
 
 This follows each harness's documented shape: Claude subagents use a role `name`
 plus separate model configuration, Codex custom-agent TOML identifies agents by

@@ -31,7 +31,7 @@ func TestPromptLaunchIntent_DefaultsToNewWork(t *testing.T) {
 	if intent.Kind != launcher.LaunchIntentNew {
 		t.Fatalf("intent.Kind = %q, want %q", intent.Kind, launcher.LaunchIntentNew)
 	}
-	if !strings.Contains(out.String(), "Choose how to launch Claude:") {
+	if !strings.Contains(out.String(), "Start or continue in Claude:") {
 		t.Fatalf("prompt output missing harness heading:\n%s", out.String())
 	}
 	if !strings.Contains(out.String(), "Start something new") {
@@ -130,14 +130,16 @@ func TestPromptLaunchIntent_GroupsSameHarnessBeforeCrossHarness(t *testing.T) {
 	}
 	rendered := out.String()
 	for _, want := range []string{
-		"Resume in Codex",
-		"Continue from other harnesses",
-		"feat-codex",
-		"feat-cross",
+		"2. Continue feat-codex  Codex Row",
+		"3. Continue feat-cross  Cross Row · from Claude",
 	} {
 		if !strings.Contains(rendered, want) {
 			t.Fatalf("prompt output missing %q:\n%s", want, rendered)
 		}
+	}
+	// Codex has no session browser yet, so no browse row is offered.
+	if strings.Contains(rendered, browseSessionsLabel) {
+		t.Fatalf("codex picker should not offer the browse row:\n%s", rendered)
 	}
 }
 
@@ -269,9 +271,32 @@ func TestResolveLaunchIntentForDefaultLaunch_BypassesChooserWhenNonInteractive(t
 	}
 }
 
+func TestResolveLaunchIntentForDefaultLaunch_PickerOffByDefault(t *testing.T) {
+	original := chooseLaunchIntentFn
+	defer func() { chooseLaunchIntentFn = original }()
+	t.Setenv("WIPNOTE_LAUNCH_PICKER", "")
+
+	calls := 0
+	chooseLaunchIntentFn = func(_, _, _ string, _ io.Reader, _ io.Writer) (launcher.LaunchIntent, error) {
+		calls++
+		return launcher.NewWorkIntent(), nil
+	}
+	intent, err := resolveLaunchIntentForDefaultLaunch("/repo", "/repo", "claude", chooserEligibility{TTY: true}, strings.NewReader(""), io.Discard)
+	if err != nil {
+		t.Fatalf("resolveLaunchIntentForDefaultLaunch() error = %v", err)
+	}
+	if calls != 0 {
+		t.Fatalf("chooser called %d times, want 0 (picker is opt-in)", calls)
+	}
+	if intent.Kind != launcher.LaunchIntentNew {
+		t.Fatalf("intent.Kind = %q, want %q", intent.Kind, launcher.LaunchIntentNew)
+	}
+}
+
 func TestResolveLaunchIntentForDefaultLaunch_InteractiveUsesChooser(t *testing.T) {
 	original := chooseLaunchIntentFn
 	defer func() { chooseLaunchIntentFn = original }()
+	t.Setenv("WIPNOTE_LAUNCH_PICKER", "1")
 
 	for _, harness := range []string{"codex", "gemini", "antigravity"} {
 		t.Run(harness, func(t *testing.T) {
@@ -406,7 +431,7 @@ func TestPromptLaunchIntent_FallbackOnTUIError(t *testing.T) {
 	grouped := dbpkg.HarnessGroupedResumableSessions{SameHarness: []dbpkg.ResumableSession{same}}
 	orderedRows := []dbpkg.ResumableSession{same}
 	var out bytes.Buffer
-	intent, err := promptLaunchIntentNumeric(strings.NewReader("2\n"), &out, "claude", grouped, orderedRows, 1)
+	intent, err := promptLaunchIntentNumeric(strings.NewReader("2\n"), &out, "claude", grouped, orderedRows)
 	if err != nil {
 		t.Fatalf("unexpected error from numeric fallback: %v", err)
 	}
@@ -490,16 +515,19 @@ func TestYoloLaunch_ChooserWiring(t *testing.T) {
 	}
 
 	bannerCalled := false
-	var capturedHeadline string
+	var capturedHeadline, capturedWarning string
 	yoloEmitBannerFn = func(headline, pluginSource, session, workItem, warning string, w io.Writer) {
 		bannerCalled = true
 		capturedHeadline = headline
+		capturedWarning = warning
 	}
 
 	// Drive emitYoloBanner directly — the full launch path requires a real git repo.
 	// emitYoloBanner is the thin wrapper around yoloEmitBannerFn that yolo.go calls.
+	// yolo defaults to auto mode, which carries the manual-mode fallback warning.
 	var out strings.Builder
-	emitYoloBanner("Launching Claude Code in YOLO mode (bypassPermissions)...", "/plugins/wipnote", "sess-abc", "feat-abc", "", &out)
+	emitYoloBanner("Launching Claude Code in YOLO mode (auto)...", "/plugins/wipnote", "sess-abc", "feat-abc",
+		yoloPermissionWarning(yoloDefaultPermissionMode), &out)
 
 	if tuiCalled {
 		t.Fatal("runSelectTUIFn was called inside the yolo banner path; chooser must not block yolo")
@@ -510,11 +538,14 @@ func TestYoloLaunch_ChooserWiring(t *testing.T) {
 	if capturedHeadline == "" {
 		t.Fatal("banner headline was empty; yolo must pass a non-empty headline to the banner")
 	}
+	if !strings.Contains(capturedWarning, "--permission-mode bypassPermissions") {
+		t.Fatalf("auto-mode yolo banner must name the bypassPermissions opt-out, got %q", capturedWarning)
+	}
 
 	// 3. Non-TTY bypass: emitYoloBanner must not invoke TUI even with a bytes.Buffer out.
 	tuiCalled = false
 	var bufOut bytes.Buffer
-	emitYoloBanner("Launching Claude Code in YOLO mode (bypassPermissions)...", "", "", "", "", &bufOut)
+	emitYoloBanner("Launching Claude Code in YOLO mode (auto)...", "", "", "", "", &bufOut)
 	if tuiCalled {
 		t.Fatal("TUI called for non-TTY writer in yolo banner path")
 	}
@@ -526,11 +557,11 @@ func TestApplyClaudeLaunchIntent(t *testing.T) {
 		Explicit:        true,
 		WorkItemID:      "feat-a",
 		SessionHarness:  "claude",
-		ResumeSessionID: "sess-a",
+		ResumeSessionID: "0f1e2d3c-4b5a-6978-8a9b-0c1d2e3f4a5b",
 	}
 	got := applyClaudeLaunchIntent("", "", intent)
-	if got.resumeID != "sess-a" {
-		t.Fatalf("resumeID = %q, want sess-a", got.resumeID)
+	if got.resumeID != "0f1e2d3c-4b5a-6978-8a9b-0c1d2e3f4a5b" {
+		t.Fatalf("resumeID = %q, want the Claude session id", got.resumeID)
 	}
 	if got.workItem != "feat-a" {
 		t.Fatalf("workItem = %q, want feat-a", got.workItem)

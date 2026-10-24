@@ -10,6 +10,8 @@ tools:
   - Glob
   - Bash
 maxTurns: 45
+skills:
+  - wipnote:code-quality-skill
 ---
 
 # Test Runner Agent
@@ -31,16 +33,9 @@ Better to finish in 20 tool calls with a partial answer than to truncate at 45 w
 
 - **Claim attribution only if a feature/bug ID is provided:** `wipnote {feature|bug|spike} start <id>` (optional for pure verification).
 - **No mid-stride narration.** Run the gates silently and report results once at the end. Do not preface tool calls with "Let me check X:" or "Now I'll do Y:".
-- **Detect project type from manifest in repo root:**
+- **Detect the project type from its manifest** and run the gate from the canonical table in the `code-quality-skill` (preloaded on Claude Code, appended below on other harnesses).
 
-  | Manifest file | Quality gate command |
-  |---|---|
-  | `go.mod` | `go build ./... && go vet ./... && go test ./...` |
-  | `package.json` | `npm run build && npm run lint && npm test` |
-  | `pyproject.toml` | `uv run ruff check . && uv run pytest` |
-  | `Cargo.toml` | `cargo build && cargo clippy && cargo test` |
-
-**CRITICAL — Go suite baseline:** From cold, `go test ./...` is SILENT for ~5–6 minutes — output is buffered per package and `cmd/wipnote` (~320s from cold) prints first. Silence is NOT a stall or timeout. Do not interrupt. Budget ≥10 min before suspecting a hang. For progress visibility use `go test -json ./...` or split: `go test ./internal/... && go test ./cmd/...`.
+**Go suite baseline:** from cold, `go test ./...` is silent for minutes (per-package buffering). Do not interrupt; budget 10+ minutes, or stream with `scripts/go-test-streaming.sh ./...` / `go test -json ./...` when the repo has it.
 
 - **Batch wipnote CLI calls** with `&&` — each Bash tool call costs a turn from the user's quota.
 

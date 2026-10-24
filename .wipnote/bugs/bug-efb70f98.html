@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Dashboard /p/&lt;id&gt;/api/* hangs during _serve-child cold hydrate: spawn is bound to the request context (#189)</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-efb70f98"
+             data-type="bug"
+             data-status="todo"
+             data-priority="high"
+             data-created="2026-10-17T19:34:49.065766"
+             data-updated="2026-10-17T19:34:49.068123" data-agent-assigned="claude-code" data-track-id="trk-91673dda" data-created-by-cli-version="dev" data-created_in_session="e41f6acf-9ecd-5cf8-846b-fbd1203fe65e">
+
+        <header>
+            <h1>Dashboard /p/&lt;id&gt;/api/* hangs during _serve-child cold hydrate: spawn is bound to the request context (#189)</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-91673dda.html" data-relationship="part_of" data-since="2026-10-17T19:34:49.067975">trk-91673dda</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>GitHub #189. Same root cause as #182, which only raised the spawn timeout to 90s. spawnLocked derives the handshake deadline from r.Context(); a client that gives up (curl 30s) kills the child mid-hydrate, and waiters sharing the sync.Once re-enter GetOrSpawn with their own ctx and start a fresh cold hydrate — it never converges while hydrate (per-file git log --follow) exceeds the client timeout. Fix: detach the spawn from the request (shared in-flight result; a request can stop waiting without killing the child), reap killed children.</p>
+        </section>
+    </article>
+</body>
+</html>

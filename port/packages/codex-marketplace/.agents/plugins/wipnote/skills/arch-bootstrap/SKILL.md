@@ -1,15 +1,22 @@
 ---
-name: wipnote:arch-bootstrap
-description: Bootstrap architectural memory for a repo — generates starter cards from a structured brief
+name: arch-bootstrap
+description: Bootstraps architectural memory for a repo by generating starter cards from a structured brief. Use when a repo has no arch cards yet or the user asks to seed architecture memory.
+disable-model-invocation: true
 ---
 
 # Architectural Memory Bootstrap
 
 Use this skill to populate a project's architectural memory from scratch. It runs the bootstrap command, reads the brief, and authors starter arch cards via the validated add path.
 
-**Trigger keywords:** bootstrap arch, bootstrap architectural memory, starter cards, arch bootstrap, initialize arch cards
+Copy this checklist and tick it off:
 
----
+```
+Arch bootstrap:
+- [ ] 1. Brief generated and read in full
+- [ ] 2. 3–8 cards authored for the top subsystems, invariants and hazards
+- [ ] 3. `wipnote arch validate` clean
+- [ ] 4. Every card states a structural fact, not a process instruction
+```
 
 ## Step 1: Generate the Brief
 
@@ -47,7 +54,7 @@ wipnote arch add <slug> \
 - Body: max 120 words
 - Slug: lowercase letters, digits, hyphens only
 - Globs: use `**` for recursive match (e.g. `internal/**`, `cmd/wipnote/*.go`)
-- Name must be unique across all cards; the (kind, path-glob set) pair must be unique among active cards — cards of different kinds may share the same paths
+- Slug must be unique across all cards; the (kind, path-glob set) pair must be unique among active cards — cards of different kinds may share the same paths
 
 Aim for 3–8 cards covering the top subsystems visible in the hotspot list.
 
@@ -61,7 +68,7 @@ Do NOT mechanically import CLAUDE.md content — those are instructions, not arc
 wipnote arch validate
 ```
 
-Fix any reported errors (body too long, missing required fields, invalid kind).
+Fix any reported errors (body too long, missing required fields, invalid kind) with `wipnote arch edit <slug>`. Re-run `wipnote arch validate` until it is clean.
 
 ---
 
@@ -72,4 +79,4 @@ wipnote arch list
 wipnote arch show <slug>
 ```
 
-Verify the cards describe real structural facts about the codebase, not process instructions.
+Verify the cards describe real structural facts about the codebase, not process instructions. If a card restates an instruction (for example, copied from CLAUDE.md), rewrite it with `wipnote arch edit <slug>` or delete it, then go back to Step 3.

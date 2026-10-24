@@ -7,6 +7,9 @@ type LaunchIntentKind string
 const (
 	LaunchIntentNew      LaunchIntentKind = "new"
 	LaunchIntentContinue LaunchIntentKind = "continue"
+	// LaunchIntentBrowse opens the harness's own session picker (`claude
+	// --resume`, `codex resume`) so the user can pick any past session.
+	LaunchIntentBrowse LaunchIntentKind = "browse"
 )
 
 // LaunchIntent is a harness-neutral contract describing whether a launcher
@@ -33,6 +36,17 @@ func ContinueWorkIntent(workItemID, sessionHarness, resumeSessionID, worktreePat
 		ResumeSessionID: resumeSessionID,
 		WorktreePath:    worktreePath,
 	}
+}
+
+// BrowseSessionsIntent asks the launcher to open the harness's native session
+// picker instead of starting or resuming a specific session.
+func BrowseSessionsIntent() LaunchIntent {
+	return LaunchIntent{Kind: LaunchIntentBrowse, Explicit: true}
+}
+
+// WantsBrowse reports whether the harness's native session picker should open.
+func (i LaunchIntent) WantsBrowse() bool {
+	return i.Kind == LaunchIntentBrowse
 }
 
 func (i LaunchIntent) WantsContinue() bool {

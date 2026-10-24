@@ -18,7 +18,7 @@
           {
             "type": "command",
             "command": "wipnote hook session-end --harness codex",
-            "timeout": 90
+            "timeout": 3
           }
         ]
       }
@@ -86,6 +86,18 @@
             "type": "command",
             "command": "wipnote hook stop --harness codex",
             "timeout": 90
+          }
+        ]
+      }
+    ],
+    "Interrupt": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "wipnote hook task-aborted --harness codex",
+            "timeout": 3
           }
         ]
       }

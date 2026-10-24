@@ -178,23 +178,58 @@ func (c *Collection) mutateNode(id string, mutate func(*models.Node) error, afte
 	return node, nil
 }
 
-// Start marks a node as in-progress in the canonical HTML artifact.
-func (c *Collection) Start(id string) (*models.Node, error) {
+// LockedHook runs inside a transition's per-item lock, after the new state
+// has been written: prev is the status the item had before the transition and
+// node the state just written. Side records that must be ordered with the
+// canonical transition (claim episodes, issue #199) belong here — a write made
+// after the lock is released can interleave with a concurrent transition.
+type LockedHook func(prev models.NodeStatus, node *models.Node)
+
+// lockedAfterWrite adapts hooks to mutateNode's afterWrite form.
+func lockedAfterWrite(prev *models.NodeStatus, hooks []LockedHook) []func(*models.Node) {
+	fns := make([]func(*models.Node), 0, len(hooks))
+	for _, h := range hooks {
+		h := h
+		fns = append(fns, func(n *models.Node) { h(*prev, n) })
+	}
+	return fns
+}
+
+// transitionTime returns a timestamp strictly after the item's previous
+// UpdatedAt, so a transition always orders after the one before it even when
+// the wall clock does not advance between two processes holding the lock in
+// turn.
+func transitionTime(prev time.Time) time.Time {
+	now := time.Now().UTC()
+	if !now.After(prev) {
+		now = prev.Add(time.Nanosecond).UTC()
+	}
+	return now
+}
+
+// Start marks a node as in-progress in the canonical HTML artifact. Any hooks
+// run inside the item lock once the in-progress state is written.
+func (c *Collection) Start(id string, hooks ...LockedHook) (*models.Node, error) {
+	var prev models.NodeStatus
 	node, err := c.mutateNode(id, func(node *models.Node) error {
+		prev = node.Status
 		node.Status = models.StatusInProgress
 		node.AgentAssigned = c.base.Agent
-		node.UpdatedAt = time.Now().UTC()
+		node.UpdatedAt = transitionTime(node.UpdatedAt)
 		return nil
-	})
+	}, lockedAfterWrite(&prev, hooks)...)
 	if err != nil {
 		return nil, err
 	}
 	return node, nil
 }
 
-// Complete marks a node as done and auto-completes all steps.
-func (c *Collection) Complete(id string) (*models.Node, error) {
+// Complete marks a node as done and auto-completes all steps. Any hooks run
+// inside the item lock once the done state is written.
+func (c *Collection) Complete(id string, hooks ...LockedHook) (*models.Node, error) {
+	var prev models.NodeStatus
 	node, err := c.mutateNode(id, func(node *models.Node) error {
+		prev = node.Status
 		for i := range node.Steps {
 			if !node.Steps[i].Completed {
 				node.Steps[i].Completed = true
@@ -203,7 +238,7 @@ func (c *Collection) Complete(id string) (*models.Node, error) {
 			}
 		}
 		node.Status = models.StatusDone
-		node.UpdatedAt = time.Now().UTC()
+		node.UpdatedAt = transitionTime(node.UpdatedAt)
 		// feat-7ee73444: collapse the item's telemetry and git history into
 		// rollup properties inside this same locked read-modify-write, so the
 		// numbers land in the canonical HTML with the status transition rather
@@ -212,7 +247,7 @@ func (c *Collection) Complete(id string) (*models.Node, error) {
 		// completion.
 		ApplyRollup(node, id)
 		return nil
-	})
+	}, lockedAfterWrite(&prev, hooks)...)
 	if err != nil {
 		return nil, err
 	}

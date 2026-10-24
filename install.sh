@@ -353,6 +353,14 @@ download_and_install() {
         log_info "Installed antigravity-extension tree to ${DEFAULT_DATA_DIR}/antigravity-extension"
     fi
 
+    # Same pattern for the Claude Code mods `wipnote claude` loads beside the plugin.
+    if [ -d "${_tmpdir}/mods" ]; then
+        mkdir -p "${DEFAULT_DATA_DIR}"
+        rm -rf "${DEFAULT_DATA_DIR}/mods"
+        mv "${_tmpdir}/mods" "${DEFAULT_DATA_DIR}/mods"
+        log_info "Installed mods tree to ${DEFAULT_DATA_DIR}/mods"
+    fi
+
     log_info "Installed ${BINARY_NAME} to ${INSTALL_DIR}/${BINARY_NAME}"
 }
 

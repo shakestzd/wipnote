@@ -1,6 +1,7 @@
 ---
-name: wipnote:report-issue
-description: Report a wipnote bug or issue to the development team from any supported harness. Use when the user asks to report an issue, file a bug, or says the report-issue slash command is unavailable.
+name: report-issue
+description: "Files a wipnote bug or issue with the development team from any supported harness. Use when the user asks to report an issue or file a wipnote bug, or says the report-issue slash command is unavailable."
+disable-model-invocation: true
 ---
 
 # wipnote Report Issue
@@ -9,23 +10,47 @@ Use this skill to help the user file a concise, safe issue for `shakestzd/wipnot
 
 ## Instructions
 
+Copy this checklist and tick it off:
+
+```
+Report issue:
+- [ ] 1. Title and description collected
+- [ ] 2. Environment context gathered
+- [ ] 3. Repro, expected, actual and error text collected (if wanted)
+- [ ] 4. Draft written from the template
+- [ ] 5. Secret scan clean
+- [ ] 6. User approved the final draft
+- [ ] 7. Submitted with gh, or paste-ready body and link given
+```
+
 1. Ask for a short title and description if the user has not already provided them.
 2. Gather safe environment context when available:
    - `wipnote version`
-   - `go version`
+   - `go version` (optional; only for build or install issues)
    - OS via `uname -s -r` or the platform equivalent
    - active harness version, such as `claude --version`, `codex --version`, or `agy --version`
 3. Ask whether to include steps to reproduce, expected behavior, actual behavior, and any error text.
 4. Scrub secrets, API keys, tokens, private file contents, and personal data before drafting or submitting.
-5. If `gh` is authenticated and the user wants you to submit it, create the issue:
+5. Write the draft to a file in your scratchpad directory (or a temp file) using the template below as the default shape. Then scan it:
+
+   ```bash
+   grep -nEi 'api[_-]?key|token|secret|passw|bearer|ghp_|sk-|/Users/|/home/' <draft-file>
+   ```
+
+   Redact every real hit and scan again. Continue only when the remaining hits are safe. Show the user the final draft and get approval before submitting.
+6. If `gh` is authenticated and the user wants you to submit it, create the issue:
 
 ```bash
-gh issue create --repo shakestzd/wipnote --title "Bug: <title>" --body-file <draft-file>
+gh issue create --repo shakestzd/wipnote --title "<Type>: <title>" --body-file <draft-file>
 ```
 
-6. If GitHub submission is unavailable, provide a ready-to-paste issue body and link to https://github.com/shakestzd/wipnote/issues/new.
+   The title prefix follows the issue type: `Bug:`, `Feature:`, `Docs:`, and so on.
+
+7. If GitHub submission is unavailable, provide a ready-to-paste issue body and link to https://github.com/shakestzd/wipnote/issues/new.
 
 ## Issue Body Template
+
+This is the default shape for a bug. Adapt the headings for other issue types and drop sections that do not apply.
 
 ```markdown
 ## Bug Report
@@ -34,7 +59,7 @@ gh issue create --repo shakestzd/wipnote --title "Bug: <title>" --body-file <dra
 
 ### Environment
 - wipnote version: <version>
-- Go version: <version>
+- Go version (optional): <version>
 - OS: <os>
 - Harness version: <version>
 

@@ -111,51 +111,66 @@ func TestIsCodexMarketplaceInstalledAt(t *testing.T) {
 	}
 }
 
-// TestIsCodexHooksEnabledAt verifies the hooks feature flag detection logic.
-func TestIsCodexHooksEnabledAt(t *testing.T) {
+// TestIsCodexHooksExplicitlyDisabledAt verifies that only an explicit opt-out
+// counts as disabled: Codex hooks default to on, so a missing file, section or
+// key must NOT be reported (and wipnote must not rewrite the config for it).
+func TestIsCodexHooksExplicitlyDisabledAt(t *testing.T) {
 	tmpdir := t.TempDir()
 	configPath := filepath.Join(tmpdir, "config.toml")
 
-	// Test 1: File does not exist
-	if isCodexHooksEnabledAt(configPath) {
-		t.Errorf("expected false when config file does not exist")
+	if isCodexHooksExplicitlyDisabledAt(configPath) {
+		t.Errorf("missing config file must not count as disabled")
 	}
 
-	// Test 2: File exists but no hooks line
-	err := os.WriteFile(configPath, []byte("[other]\nkey = value\n"), 0644)
-	if err != nil {
+	tests := []struct {
+		name    string
+		content string
+		want    bool
+	}{
+		{"no features table", "[other]\nkey = 1\n", false},
+		{"features without hooks", "[features]\nother_flag = true\n", false},
+		{"hooks true", "[features]\nhooks = true\n", false},
+		{"hooks false", "[features]\nhooks = false\n", true},
+		{"legacy codex_hooks true", "[features]\ncodex_hooks = true\n", false},
+		{"legacy codex_hooks false", "[features]\ncodex_hooks = false\n", true},
+		// Codex applies keys in BTreeMap order, so canonical "hooks" wins.
+		{"canonical overrides legacy (on)", "[features]\ncodex_hooks = false\nhooks = true\n", false},
+		{"canonical overrides legacy (off)", "[features]\ncodex_hooks = true\nhooks = false\n", true},
+		{"unparseable", "[features\nhooks = false\n", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := os.WriteFile(configPath, []byte(tt.content), 0644); err != nil {
+				t.Fatalf("WriteFile: %v", err)
+			}
+			if got := isCodexHooksExplicitlyDisabledAt(configPath); got != tt.want {
+				t.Errorf("isCodexHooksExplicitlyDisabledAt(%q) = %v, want %v", tt.content, got, tt.want)
+			}
+		})
+	}
+}
+
+// TestWarnIfCodexHooksDisabledNeverRewritesConfig guards the switch from
+// "rewrite config.toml to force hooks on" to "warn only".
+func TestWarnIfCodexHooksDisabledNeverRewritesConfig(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "config.toml")
+	initial := "[features]\nhooks = false\n"
+	if err := os.WriteFile(configPath, []byte(initial), 0644); err != nil {
 		t.Fatalf("WriteFile: %v", err)
 	}
-	if isCodexHooksEnabledAt(configPath) {
-		t.Errorf("expected false when hooks not in config")
+	warnIfCodexHooksDisabled(configPath)
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	if string(data) != initial {
+		t.Fatalf("config must be left untouched, got:\n%s", data)
 	}
 
-	// Test 3: File has hooks = true
-	err = os.WriteFile(configPath, []byte("[features]\nhooks = true\n"), 0644)
-	if err != nil {
-		t.Fatalf("WriteFile: %v", err)
-	}
-	if !isCodexHooksEnabledAt(configPath) {
-		t.Errorf("expected true when hooks = true")
-	}
-
-	// Test 4: File has hooks = false
-	err = os.WriteFile(configPath, []byte("[features]\nhooks = false\n"), 0644)
-	if err != nil {
-		t.Fatalf("WriteFile: %v", err)
-	}
-	if isCodexHooksEnabledAt(configPath) {
-		t.Errorf("expected false when hooks = false")
-	}
-
-	// Test 5: Legacy codex_hooks alone does NOT satisfy the enabled check.
-	// This ensures configs with only codex_hooks will trigger migration.
-	err = os.WriteFile(configPath, []byte("[features]\ncodex_hooks = true\n"), 0644)
-	if err != nil {
-		t.Fatalf("WriteFile: %v", err)
-	}
-	if isCodexHooksEnabledAt(configPath) {
-		t.Errorf("expected false when only legacy codex_hooks = true; should trigger migration")
+	absent := filepath.Join(t.TempDir(), "config.toml")
+	warnIfCodexHooksDisabled(absent)
+	if _, err := os.Stat(absent); !os.IsNotExist(err) {
+		t.Fatalf("warnIfCodexHooksDisabled must not create a config file, stat err=%v", err)
 	}
 }
 
@@ -220,153 +235,6 @@ func TestPromptYesNo(t *testing.T) {
 				t.Errorf("promptYesNo(..., true) should return true immediately")
 			}
 		})
-	}
-}
-
-// TestEnsureCodexHooksEnabledIdempotent verifies that ensureCodexHooksEnabled
-// is idempotent — calling it twice produces identical output.
-func TestEnsureCodexHooksEnabledIdempotent(t *testing.T) {
-	tmpdir := t.TempDir()
-	configPath := filepath.Join(tmpdir, "config.toml")
-
-	// First call: create and enable
-	if err := ensureCodexHooksEnabled(configPath); err != nil {
-		t.Fatalf("first ensureCodexHooksEnabled: %v", err)
-	}
-	data1, _ := os.ReadFile(configPath)
-
-	// Second call: should be idempotent
-	if err := ensureCodexHooksEnabled(configPath); err != nil {
-		t.Fatalf("second ensureCodexHooksEnabled: %v", err)
-	}
-	data2, _ := os.ReadFile(configPath)
-
-	if string(data1) != string(data2) {
-		t.Errorf("second call changed the output:\nFirst:\n%s\nSecond:\n%s", string(data1), string(data2))
-	}
-}
-
-// TestCodexHooksUpsertPreservesExistingFeaturesTable verifies that enabling
-// hooks merges into an existing [features] table without duplicating it.
-func TestCodexHooksUpsertPreservesExistingFeaturesTable(t *testing.T) {
-	tmpdir := t.TempDir()
-	configPath := filepath.Join(tmpdir, "config.toml")
-
-	// Create a config with existing [features] section and other keys
-	initialContent := "[features]\nother_flag = true\n"
-	if err := os.WriteFile(configPath, []byte(initialContent), 0644); err != nil {
-		t.Fatalf("WriteFile: %v", err)
-	}
-
-	// Call ensureCodexHooksEnabled
-	if err := ensureCodexHooksEnabled(configPath); err != nil {
-		t.Fatalf("ensureCodexHooksEnabled: %v", err)
-	}
-
-	// Verify the config has both keys in a single [features] table
-	data, _ := os.ReadFile(configPath)
-	content := string(data)
-
-	// Count [features] sections (should be exactly one)
-	featuresSectionCount := strings.Count(content, "[features]")
-	if featuresSectionCount != 1 {
-		t.Errorf("expected exactly 1 [features] section, got %d:\n%s", featuresSectionCount, content)
-	}
-
-	// Verify both keys are present
-	if !strings.Contains(content, "hooks = true") {
-		t.Errorf("hooks = true not found in output")
-	}
-	if !strings.Contains(content, "other_flag") {
-		t.Errorf("other_flag not preserved in output")
-	}
-}
-
-// TestEnsureCodexHooksEnabledCreatesFromEmpty verifies that ensureCodexHooksEnabled
-// can create a new config file with just the [features] section.
-func TestEnsureCodexHooksEnabledCreatesFromEmpty(t *testing.T) {
-	tmpdir := t.TempDir()
-	configPath := filepath.Join(tmpdir, "config.toml")
-
-	// Enable hooks on a non-existent file
-	if err := ensureCodexHooksEnabled(configPath); err != nil {
-		t.Fatalf("ensureCodexHooksEnabled: %v", err)
-	}
-
-	// Verify the file was created with hooks enabled
-	data, _ := os.ReadFile(configPath)
-	content := string(data)
-
-	if !strings.Contains(content, "hooks = true") {
-		t.Errorf("hooks = true not found in newly created config")
-	}
-	if !isCodexHooksEnabledAt(configPath) {
-		t.Errorf("hooks = true check failed after ensureCodexHooksEnabled")
-	}
-}
-
-func TestEnsureCodexHooksEnabledMigratesLegacyKey(t *testing.T) {
-	tmpdir := t.TempDir()
-	configPath := filepath.Join(tmpdir, "config.toml")
-
-	initialContent := "[features]\ncodex_hooks = true\nother_flag = true\n"
-	if err := os.WriteFile(configPath, []byte(initialContent), 0644); err != nil {
-		t.Fatalf("WriteFile: %v", err)
-	}
-
-	if err := ensureCodexHooksEnabled(configPath); err != nil {
-		t.Fatalf("ensureCodexHooksEnabled: %v", err)
-	}
-
-	data, _ := os.ReadFile(configPath)
-	content := string(data)
-	if strings.Contains(content, "codex_hooks") {
-		t.Fatalf("legacy codex_hooks key should be removed:\n%s", content)
-	}
-	if !strings.Contains(content, "hooks = true") {
-		t.Fatalf("hooks = true missing after migration:\n%s", content)
-	}
-	if !strings.Contains(content, "other_flag") {
-		t.Fatalf("other_flag should be preserved:\n%s", content)
-	}
-}
-
-// TestCodexHooksLegacyOnlyTriggersMigration verifies that a config with ONLY
-// codex_hooks=true (no canonical hooks key) is treated as "not enabled" by the
-// launcher check, thus triggering migration via ensureCodexHooksEnabled.
-func TestCodexHooksLegacyOnlyTriggersMigration(t *testing.T) {
-	tmpdir := t.TempDir()
-	configPath := filepath.Join(tmpdir, "config.toml")
-
-	// Create config with only the legacy key
-	initialContent := "[features]\ncodex_hooks = true\n"
-	if err := os.WriteFile(configPath, []byte(initialContent), 0644); err != nil {
-		t.Fatalf("WriteFile: %v", err)
-	}
-
-	// The launcher check should treat this as "not enabled"
-	if isCodexHooksEnabledAt(configPath) {
-		t.Errorf("isCodexHooksEnabledAt should return false for codex_hooks-only config, triggering migration")
-	}
-
-	// Migration should run and rewrite the config
-	if err := ensureCodexHooksEnabled(configPath); err != nil {
-		t.Fatalf("ensureCodexHooksEnabled: %v", err)
-	}
-
-	// After migration, the canonical key should exist and legacy should be gone
-	data, _ := os.ReadFile(configPath)
-	content := string(data)
-	if strings.Contains(content, "codex_hooks") {
-		t.Fatalf("legacy codex_hooks key should be removed after migration:\n%s", content)
-	}
-	if !strings.Contains(content, "hooks = true") {
-		t.Fatalf("hooks = true missing after migration:\n%s", content)
-	}
-
-	// Now the launcher check should return true (already enabled)
-	if !isCodexHooksEnabledAt(configPath) {
-		t.Errorf("isCodexHooksEnabledAt should return true for migrated config with hooks=true")
 	}
 }
 
@@ -731,34 +599,50 @@ func TestEnsureCodexCustomAgentsInstalledPrunesStaleWipnoteAgents(t *testing.T) 
 	}
 }
 
-func TestBuildCodexAgentConfigArgs(t *testing.T) {
-	tmpdir := t.TempDir()
-	agentsDir := filepath.Join(tmpdir, ".codex", "agents")
-	if err := os.MkdirAll(agentsDir, 0755); err != nil {
-		t.Fatalf("MkdirAll agents dir: %v", err)
+// TestRemoveCodexProjectAgentCopies verifies that legacy wipnote-*.toml
+// copies in <project>/.codex/agents are removed (they would shadow the
+// user-level agents) while the user's own project agents are preserved.
+func TestRemoveCodexProjectAgentCopies(t *testing.T) {
+	projectRoot := t.TempDir()
+
+	// No .codex/agents dir: no-op, no error, nothing created.
+	if changed, err := removeCodexProjectAgentCopies(projectRoot); err != nil || changed {
+		t.Fatalf("missing dir: changed=%v err=%v; want false, nil", changed, err)
 	}
-	agentPath := filepath.Join(agentsDir, "wipnote-test-runner.toml")
-	body := "name = \"wipnote-test-runner\"\ndescription = \"Run focused checks\"\ndeveloper_instructions = \"Run tests.\"\n"
-	if err := os.WriteFile(agentPath, []byte(body), 0644); err != nil {
-		t.Fatalf("WriteFile agent: %v", err)
+	if _, err := os.Stat(filepath.Join(projectRoot, ".codex")); !os.IsNotExist(err) {
+		t.Fatalf("must not create .codex, stat err=%v", err)
 	}
-	if err := os.WriteFile(filepath.Join(agentsDir, "broken.toml"), []byte("not toml ="), 0644); err != nil {
-		t.Fatalf("WriteFile broken agent: %v", err)
+	if changed, err := removeCodexProjectAgentCopies(""); err != nil || changed {
+		t.Fatalf("empty root: changed=%v err=%v; want false, nil", changed, err)
 	}
 
-	got := buildCodexAgentConfigArgs(agentsDir)
-	joined := strings.Join(got, "\n")
-	for _, want := range []string{
-		"-c",
-		`agents.wipnote-test-runner.description="Run focused checks"`,
-		`agents.wipnote-test-runner.config_file="` + filepath.ToSlash(agentPath) + `"`,
-	} {
-		if !strings.Contains(joined, want) {
-			t.Fatalf("agent config args missing %q in %v", want, got)
+	agentsDir := filepath.Join(projectRoot, ".codex", "agents")
+	if err := os.MkdirAll(agentsDir, 0755); err != nil {
+		t.Fatalf("MkdirAll: %v", err)
+	}
+	for _, name := range []string{"wipnote-test-runner.toml", "wipnote-researcher.toml", "my-agent.toml", "wipnote-notes.md"} {
+		if err := os.WriteFile(filepath.Join(agentsDir, name), []byte("name = \"x\"\n"), 0644); err != nil {
+			t.Fatalf("WriteFile %s: %v", name, err)
 		}
 	}
-	if strings.Contains(joined, "broken") {
-		t.Fatalf("broken TOML should not produce config args: %v", got)
+
+	changed, err := removeCodexProjectAgentCopies(projectRoot)
+	if err != nil || !changed {
+		t.Fatalf("changed=%v err=%v; want true, nil", changed, err)
+	}
+	for _, gone := range []string{"wipnote-test-runner.toml", "wipnote-researcher.toml"} {
+		if _, err := os.Stat(filepath.Join(agentsDir, gone)); !os.IsNotExist(err) {
+			t.Fatalf("legacy copy %s should be removed, stat err=%v", gone, err)
+		}
+	}
+	for _, kept := range []string{"my-agent.toml", "wipnote-notes.md"} {
+		if _, err := os.Stat(filepath.Join(agentsDir, kept)); err != nil {
+			t.Fatalf("%s must be preserved: %v", kept, err)
+		}
+	}
+
+	if changed, err := removeCodexProjectAgentCopies(projectRoot); err != nil || changed {
+		t.Fatalf("second run: changed=%v err=%v; want false, nil", changed, err)
 	}
 }
 

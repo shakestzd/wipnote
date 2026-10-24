@@ -1,6 +1,8 @@
 package main
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -45,6 +47,7 @@ func clearOtelEnv(t *testing.T) {
 		"CLAUDE_CODE_ENABLE_TELEMETRY",
 		"CLAUDE_CODE_ENHANCED_TELEMETRY_BETA",
 		"CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS",
+		"CLAUDE_CODE_ENABLE_TODO_TOOLS",
 		"OTEL_METRICS_EXPORTER",
 		"OTEL_LOGS_EXPORTER",
 		"OTEL_TRACES_EXPORTER",
@@ -190,6 +193,14 @@ func TestBuildClaudeLaunchEnv_InjectsAgentTeamsByDefault(t *testing.T) {
 	assertEnvContains(t, env, "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS", "1")
 }
 
+// The launcher re-enables Claude Code's task tools, which current models no
+// longer get by default; wipnote's step tracking depends on them.
+func TestBuildClaudeLaunchEnv_EnablesTodoTools(t *testing.T) {
+	clearOtelEnv(t)
+	env := buildClaudeLaunchEnv("", nil)
+	assertEnvContains(t, env, "CLAUDE_CODE_ENABLE_TODO_TOOLS", "1")
+}
+
 // TestBuildClaudeLaunchEnv_UserOverrideOfAgentTeamsWins verifies that a
 // user-set value for CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS is not overwritten
 // by the registry default (addIfUnset semantics).
@@ -220,4 +231,54 @@ func TestBuildClaudeLaunchEnv_StripsStaleInheritedSessionVars(t *testing.T) {
 	env = buildClaudeLaunchEnv("", testOverrides(12345))
 	assertEnvContains(t, env, "WIPNOTE_OTEL_SESSION_ID", "test-session")
 	assertEnvEmptyOrUnset(t, env, "WIPNOTE_SESSION_ID")
+}
+
+// TestClaudeLaunchEnv_FromLinkedWorktreeMatchesClaudeDir is the regression
+// test for issue #202: `wipnote claude` run from a linked worktree resolves the
+// main checkout as the project (so Claude runs there), and the exported
+// WIPNOTE_PROJECT_DIR must name that same directory — not the launcher's cwd.
+func TestClaudeLaunchEnv_FromLinkedWorktreeMatchesClaudeDir(t *testing.T) {
+	clearOtelEnv(t)
+	base := t.TempDir()
+	mainRepo := filepath.Join(base, "repo")
+	wt := filepath.Join(base, "repo-wt-feature")
+	if err := os.MkdirAll(filepath.Join(mainRepo, ".wipnote"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	initGitRepo(t, mainRepo)
+	if err := os.WriteFile(filepath.Join(mainRepo, ".wipnote", "keep"), nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	mustGit(t, mainRepo, "add", ".")
+	mustGit(t, mainRepo, "commit", "-qm", "init")
+	mustGit(t, mainRepo, "worktree", "add", "-q", wt)
+
+	// Resolve from the worktree exactly as the launcher does, with no ambient
+	// project vars (TestMain points them at its sandbox).
+	t.Setenv("WIPNOTE_PROJECT_DIR", "")
+	t.Setenv("CLAUDE_PROJECT_DIR", "")
+	t.Chdir(wt)
+	projectRoot, err := resolveProjectRoot()
+	if err != nil {
+		t.Fatalf("resolveProjectRoot: %v", err)
+	}
+	opts := LaunchOpts{ProjectRoot: projectRoot, WipnoteRoot: canonicalProjectRoot(projectRoot)}
+
+	env := buildClaudeLaunchEnv(claudeEnvProjectDir(opts), nil)
+	got := resolveForCompare(envValue(env, "WIPNOTE_PROJECT_DIR"))
+	if want := resolveForCompare(opts.ProjectRoot); got != want {
+		t.Fatalf("WIPNOTE_PROJECT_DIR = %q, but Claude runs in %q (c.Dir)", got, want)
+	}
+	if got == resolveForCompare(wt) {
+		t.Fatalf("WIPNOTE_PROJECT_DIR exported the launcher's worktree cwd %q", wt)
+	}
+}
+
+func envValue(env []string, key string) string {
+	for _, kv := range env {
+		if strings.HasPrefix(kv, key+"=") {
+			return strings.TrimPrefix(kv, key+"=")
+		}
+	}
+	return ""
 }

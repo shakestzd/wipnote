@@ -56,10 +56,10 @@ func SweepOrphanedEventsForProject(database *sql.DB, projectDir string) int {
 // session-start hook sweep will process. Each orphan costs a goquery parse +
 // flock append + SQL UPDATE, so an uncapped sweep over a large crash backlog
 // could block the hook (and thus the launcher) for multiple seconds
-// (bug-504095f2). The active session's own orphans are already swept
-// incrementally by PostToolUse; this project-wide sweep only cleans OTHER
-// (crashed) sessions, so draining a small batch per launch is sufficient — the
-// serve-side periodic drain clears any remaining backlog out-of-band.
+// (bug-504095f2). PostToolUse no longer sweeps per call (it runs on the
+// read-only projection, bug-07fd4a51), so this capped pass is what closes out
+// started rows a daemon-miss PreToolUse left on the disk fallback; draining a
+// small batch per launch is sufficient.
 //
 // Sized for the hot path: measured ~200ms per orphan (HTML parse + flock), so a
 // cap of 8 bounds the synchronous worst case to ~1.5s even on a cold launch with

@@ -60,11 +60,14 @@ Usage in hooks.json:
 		hookSubcmdWithProject("session-resume", "Handle SessionResume event", continueResult, hooks.SessionResume),
 
 		// Standard two-arg handlers (event + db only).
-		// roborev-473 finding 1 (VERIFIED per-handler): user-prompt and pretooluse
-		// route EVERY derived-index WRITE through the daemon and use their DB handle
-		// ONLY for READS, so they dispatch with a READ-ONLY handle
+		// roborev-473 finding 1 (VERIFIED per-handler): user-prompt, pretooluse and
+		// posttooluse route EVERY derived-index WRITE through the daemon and use
+		// their DB handle ONLY for READS, so they dispatch with a READ-ONLY handle
 		// (hookSubcmdReadOnly) — avoiding the writable open + cold-DB migration that
-		// blocked the hot hooks under contention.
+		// blocked the hot hooks under contention. posttooluse joined them once
+		// bug-07fd4a51 moved its event write to the daemon-routed completion upsert
+		// and dropped its dead on-disk writes; on a daemon miss routeHookWriteVia
+		// opens its own bounded writable handle.
 		//
 		// The following hot hooks KEEP a writable handle because grep confirmed they
 		// still issue DIRECT writes on the passed handle (correctness-first — forcing
@@ -79,20 +82,27 @@ Usage in hooks.json:
 		hookSubcmd("after-agent", "Handle Gemini AfterAgent event", continueResult, hooks.AfterAgent),
 		hookSubcmd("after-model", "Handle Gemini AfterModel event", continueResult, hooks.AfterModel),
 		hookSubcmdReadOnly("pretooluse", "Handle PreToolUse event", allowResult, hooks.PreToolUse),
-		hookSubcmd("posttooluse", "Handle PostToolUse event", continueResult, hooks.PostToolUse),
+		// posttooluse: on Claude it only responds (quality warning, auto-complete
+		// notices, loud block) behind a Write|Edit|MultiEdit|NotebookEdit|Bash
+		// matcher; recording moved to the async posttooluse-record hook. Codex
+		// and Antigravity keep one combined entry (PostToolUseForHarness).
+		hookSubcmdReadOnly("posttooluse", "Handle PostToolUse event", continueResult, hooks.PostToolUseForHarness),
+		hookSubcmdReadOnly("posttooluse-record", "Record a PostToolUse event (Claude async hook)", continueResult, hooks.PostToolUseRecord),
 		hookSubcmd("subagent-start", "Handle SubagentStart event", continueResult, hooks.SubagentStart),
 		hookSubcmd("subagent-stop", "Handle SubagentStop event", continueResult, hooks.SubagentStop),
 		hookSubcmd("stop", "Handle Stop event", continueResult, hooks.Stop),
 		hookSubcmd("posttooluse-failure", "Handle PostToolUseFailure event", continueResult, hooks.PostToolUseFailure),
 		hookSubcmd("pre-compact", "Handle PreCompact event", continueResult, hooks.PreCompact),
 		hookSubcmd("post-compact", "Handle PostCompact event", continueResult, hooks.PostCompact),
+		hookSubcmd("stop-failure", "Handle StopFailure event", continueResult, hooks.StopFailure),
 		hookWorktreeCreateCmd(),
 		hookSubcmd("worktree-remove", "Handle WorktreeRemove event", continueResult, hooks.WorktreeRemove),
 		hookSubcmd("teammate-idle", "Handle TeammateIdle event", continueResult, hooks.TeammateIdle),
 		hookSubcmd("task-completed", "Handle TaskCompleted event", continueResult, hooks.TaskCompleted),
 		hookSubcmd("task-created", "Handle TaskCreated event", continueResult, hooks.TaskCreated),
-		// task-started / task-aborted are NOT registered for any harness in
-		// packages/plugin-core/manifest.json and never were reachable: they were
+		// task-started is NOT registered for any harness in
+		// packages/plugin-core/manifest.json (task-aborted now is: Codex
+		// Interrupt, see below). Both were originally unreachable: they were
 		// bound to the Codex names TaskStarted and TurnAborted, neither of which
 		// Codex dispatches (bug-e39d408f — TaskStarted appears zero times in the
 		// 0.147.0 binary; TurnAborted is an internal ThreadEvent telemetry
@@ -107,7 +117,9 @@ Usage in hooks.json:
 			func(event *hooks.CloudEvent, database *sql.DB) (*hooks.HookResult, error) {
 				return hooks.TrackEvent("TaskStarted", event, database)
 			}),
-		hookSubcmd("task-aborted", "Record a turn-abort checkpoint (not wired to any harness event)", continueResult,
+		// task-aborted is now wired to Codex's Interrupt event (0.150.0+), the
+		// real turn-cancel signal it was kept for; a cancelled turn skips Stop.
+		hookSubcmd("task-aborted", "Record a turn-abort checkpoint (Codex Interrupt)", continueResult,
 			func(event *hooks.CloudEvent, database *sql.DB) (*hooks.HookResult, error) {
 				return hooks.TrackEvent("TurnAborted", event, database)
 			}),
@@ -141,7 +153,12 @@ func hookWorktreeCreateCmd() *cobra.Command {
 				fmt.Fprintln(os.Stderr, err)
 				return err
 			}
-			hooks.TraceInvocation(use, rawPayload, event)
+			// A headless run still needs its worktree, but records nothing: no
+			// trace and no checkpoint (WorktreeCreate accepts a nil handle).
+			headless := os.Getenv(headlessHookEnv) == "1"
+			if !headless {
+				hooks.TraceInvocation(use, rawPayload, event)
+			}
 
 			projectDir := hooks.ResolveProjectDir(event.CWD, event.SessionID)
 			if !hooks.IswipnoteProject(projectDir) {
@@ -164,11 +181,15 @@ func hookWorktreeCreateCmd() *cobra.Command {
 			// reindex on the next serve cycle. A genuine failure (missing
 			// worktree_name / worktree_base_path, or a worktree creation error)
 			// still returns a non-zero error with no JSON on stdout.
-			database, reason := hooks.OpenHookDB(use, event.SessionID, dbPath)
-			if database != nil {
-				defer database.Close()
-			} else {
-				_ = reason // already logged + counted inside OpenHookDB
+			var database *sql.DB
+			if !headless {
+				var reason hooks.FallbackReason
+				database, reason = hooks.OpenHookDB(use, event.SessionID, dbPath)
+				if database != nil {
+					defer database.Close()
+				} else {
+					_ = reason // already logged + counted inside OpenHookDB
+				}
 			}
 
 			path, err := hooks.WorktreeCreate(event, database)
@@ -289,8 +310,9 @@ func hookSubcmdWithProject(
 		Use:   use,
 		Short: short,
 		RunE: func(_ *cobra.Command, _ []string) error {
-			// session-start gets a fresh trace file before anything else.
-			if use == "session-start" {
+			// session-start gets a fresh trace file before anything else; a
+			// headless child must not wipe the interactive session's trace.
+			if use == "session-start" && os.Getenv(headlessHookEnv) != "1" {
 				hooks.TruncateTraceFile()
 			}
 			return runHookNamed(use, func(event *hooks.CloudEvent) (*hooks.HookResult, error) {
@@ -395,6 +417,10 @@ func hookTrackEventCmd(fallback *hooks.HookResult) *cobra.Command {
 // Gemini payloads are parsed with their own dialect adapters and responses are
 // emitted in the harness-appropriate wire format. Claude is the default path and
 // its behaviour is unchanged.
+// headlessHookEnv marks a CLI process wipnote started headlessly. Every
+// wipnote hook in that process allows and returns at once.
+const headlessHookEnv = "WIPNOTE_HEADLESS"
+
 func runHookNamed(subcommand string, handler func(*hooks.CloudEvent) (*hooks.HookResult, error)) error {
 	start := time.Now()
 
@@ -416,6 +442,20 @@ func runHookNamed(subcommand string, handler func(*hooks.CloudEvent) (*hooks.Hoo
 	if err != nil {
 		hooks.LogError("runHook", "", fmt.Sprintf("parse event (%s): %v", harness, err))
 		return hooks.WriteResultForHarness(harness, hooks.AllowForHarness(harness))
+	}
+
+	// A headless run that wipnote itself started (compliance grading, plan
+	// chat, the headless-runs mod) must not record or gate anything. The
+	// allow carries the event name: Antigravity reads a bare {} on PreToolUse
+	// as a deny (emitAntigravityResponseForEvent).
+	// PermissionRequest keeps its auto-approval: the headless child has no one
+	// to answer a prompt, so dropping the decision would deny or stall it.
+	if os.Getenv(headlessHookEnv) == "1" {
+		result := hooks.AllowForHarness(harness)
+		if subcommand == "permission-request" {
+			result = hooks.PermissionDecisionOnly(event)
+		}
+		return hooks.WriteResultForHarnessEvent(harness, hookEventNameForResponse(subcommand, event), result)
 	}
 
 	hooks.TraceInvocation(subcommand, rawPayload, event)
@@ -492,7 +532,7 @@ func hookEventNameForResponse(subcommand string, event *hooks.CloudEvent) string
 		return "UserPromptSubmit"
 	case "pretooluse":
 		return "PreToolUse"
-	case "posttooluse":
+	case "posttooluse", "posttooluse-record":
 		return "PostToolUse"
 	case "after-agent":
 		return "AfterAgent"

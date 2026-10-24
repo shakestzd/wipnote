@@ -3,42 +3,103 @@ package main
 import (
 	"fmt"
 	"os"
+	"path/filepath"
+	"runtime"
+	"strings"
 
 	"github.com/spf13/cobra"
 )
 
-// shellAliasCmd prints opt-in shell aliases that route the bare harness
-// commands (claude, codex, agy) through their wipnote wrappers. Users
-// can pipe the output into their shell or paste it into ~/.bashrc /
-// ~/.zshrc to globally activate wipnote without per-project invocation.
+// shellAliasCmd prints opt-in shell aliases for the wipnote launchers: by
+// default ones that route the bare harness commands (claude, codex, agy)
+// through their wipnote wrappers, with --short new short names (wcc, wcx,
+// wag) that leave the bare commands alone. --install appends them to the
+// shell's rc file once.
 //
 // This is intentionally NOT auto-installed: per-project `wipnote claude`
 // remains the recommended flow because it avoids surprising shell behavior
 // for users in non-wipnote projects.
 func shellAliasCmd() *cobra.Command {
-	return &cobra.Command{
+	var short, install, uninstall bool
+	var rcFile string
+	cmd := &cobra.Command{
 		Use:   "shell-alias",
-		Short: "Print opt-in shell aliases for claude/codex/agy",
-		Long: `Print opt-in shell aliases that route bare harness commands through wipnote.
+		Short: "Print (or install) shell aliases for the wipnote launchers",
+		Long: `Print opt-in shell aliases for the wipnote launchers.
 
-Per-project invocation (wipnote claude / wipnote codex / wipnote antigravity) is the
-recommended flow. These aliases are for users who want global activation.
+By default they route the bare harness commands through wipnote
+(claude -> wipnote claude, codex -> wipnote codex, agy -> wipnote antigravity).
+With --short they add short names instead and leave the bare commands alone:
 
-To install, append the output to your shell rc file:
+  wcc  wipnote claude
+  wcx  wipnote codex
+  wag  wipnote antigravity
 
-  wipnote shell-alias >> ~/.bashrc    # bash
-  wipnote shell-alias >> ~/.zshrc     # zsh
+--install adds one managed block to your shell rc file (~/.zshrc for zsh; for
+bash ~/.bashrc, or on macOS the first of ~/.bash_profile, ~/.bash_login and
+~/.profile that exists; or --rc). The block loads
+the aliases from wipnote at shell start, so an upgrade that changes them needs
+no edit; installing again replaces the block, --uninstall removes it:
 
-Or pipe directly into the current shell session (one-shot):
+  wipnote shell-alias --short --install
+  wipnote shell-alias --uninstall
 
-  eval "$(wipnote shell-alias)"
+  # >>> wipnote shell-alias >>>
+  command -v wipnote >/dev/null 2>&1 && eval "$(wipnote shell-alias --short)"
+  # <<< wipnote shell-alias <<<
+
+Or load them into the current shell session only:
+
+  eval "$(wipnote shell-alias --short)"
 
 Output is plain shell, safe to run multiple times.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			fmt.Fprint(os.Stdout, shellAliasSnippet())
+			snippet := shellAliasSnippet()
+			if short {
+				snippet = shortAliasSnippet()
+			}
+			if !install && !uninstall {
+				fmt.Fprint(cmd.OutOrStdout(), snippet)
+				return nil
+			}
+			path := rcFile
+			if path == "" {
+				home, err := os.UserHomeDir()
+				if err != nil {
+					return fmt.Errorf("resolve home dir: %w", err)
+				}
+				path = shellRCPath(home, os.Getenv("SHELL"), runtime.GOOS)
+			}
+			if uninstall {
+				removed, err := writeAliasBlock(path, "")
+				if err != nil {
+					return err
+				}
+				if removed {
+					fmt.Fprintf(cmd.OutOrStdout(), "Removed the wipnote aliases from %s. Open a new shell to drop them.\n", path)
+				} else {
+					fmt.Fprintf(cmd.OutOrStdout(), "%s has no wipnote aliases; nothing removed.\n", path)
+				}
+				return nil
+			}
+			changed, err := writeAliasBlock(path, aliasBlock(short))
+			if err != nil {
+				return err
+			}
+			if changed {
+				fmt.Fprintf(cmd.OutOrStdout(), "Added the aliases to %s. Open a new shell, or run: source %s\n", path, path)
+			} else {
+				fmt.Fprintf(cmd.OutOrStdout(), "%s already loads these aliases; nothing changed.\n", path)
+			}
 			return nil
 		},
 	}
+	cmd.Flags().BoolVar(&short, "short", false, "short names (wcc, wcx, wag) instead of routing claude/codex/agy")
+	cmd.Flags().BoolVar(&install, "install", false, "add (or replace) a block in your shell rc file that loads the aliases")
+	cmd.Flags().BoolVar(&uninstall, "uninstall", false, "remove that block from your shell rc file")
+	cmd.MarkFlagsMutuallyExclusive("install", "uninstall")
+	cmd.Flags().StringVar(&rcFile, "rc", "", "rc file for --install (default: ~/.zshrc for zsh; for bash ~/.bashrc, or on macOS the login file in use)")
+	return cmd
 }
 
 // shellAliasSnippet is the text written by `wipnote shell-alias`. Plain
@@ -51,4 +112,101 @@ alias claude='wipnote claude'
 alias codex='wipnote codex'
 alias agy='wipnote antigravity'
 `
+}
+
+// shortAliasSnippet is the text written by `wipnote shell-alias --short`:
+// new short names for the launchers; the bare harness commands keep working.
+func shortAliasSnippet() string {
+	return `# wipnote shell-alias --short — short names for the wipnote launchers
+# Generated by: wipnote shell-alias --short
+alias wcc='wipnote claude'
+alias wcx='wipnote codex'
+alias wag='wipnote antigravity'
+`
+}
+
+// shellRCPath is the rc file --install writes when --rc is not given:
+// ~/.zshrc for zsh; for bash, ~/.bashrc, except on macOS, where Terminal and
+// iTerm open login shells. A bash login shell reads only the first of
+// ~/.bash_profile, ~/.bash_login and ~/.profile that exists, so the block goes
+// into that one: creating ~/.bash_profile beside an existing ~/.profile would
+// stop the shell reading ~/.profile (and the PATH it sets).
+func shellRCPath(home, shell, goos string) string {
+	if filepath.Base(shell) == "zsh" {
+		return filepath.Join(home, ".zshrc")
+	}
+	if goos != "darwin" {
+		return filepath.Join(home, ".bashrc")
+	}
+	for _, name := range []string{".bash_profile", ".bash_login", ".profile"} {
+		if _, err := os.Stat(filepath.Join(home, name)); err == nil {
+			return filepath.Join(home, name)
+		}
+	}
+	return filepath.Join(home, ".bash_profile")
+}
+
+const (
+	aliasBlockBegin = "# >>> wipnote shell-alias >>>"
+	aliasBlockEnd   = "# <<< wipnote shell-alias <<<"
+)
+
+// aliasBlock is the managed block --install writes: it loads the aliases from
+// wipnote at shell start (a shell with no wipnote on PATH loads none).
+func aliasBlock(short bool) string {
+	args := "shell-alias"
+	if short {
+		args += " --short"
+	}
+	return aliasBlockBegin + "\n" +
+		`command -v wipnote >/dev/null 2>&1 && eval "$(wipnote ` + args + `)"` + "\n" +
+		aliasBlockEnd + "\n"
+}
+
+// writeAliasBlock puts block in the file at path in place of the managed
+// block it holds, or appends it after a blank line when it holds none; an
+// empty block removes the managed block. The file is created when missing
+// and something is to be written. Reports whether the file changed.
+func writeAliasBlock(path, block string) (bool, error) {
+	data, err := os.ReadFile(path)
+	if err != nil && !os.IsNotExist(err) {
+		return false, fmt.Errorf("read %s: %w", path, err)
+	}
+	text := string(data)
+	before, rest, found := strings.Cut(text, aliasBlockBegin+"\n")
+	var next string
+	switch {
+	case found:
+		_, after, closed := strings.Cut(rest, aliasBlockEnd+"\n")
+		if !closed {
+			return false, fmt.Errorf("%s has %q with no %q after it; fix it by hand", path, aliasBlockBegin, aliasBlockEnd)
+		}
+		if block == "" {
+			next = strings.TrimSuffix(before, "\n") + after
+			if strings.TrimSpace(next) != "" && !strings.HasSuffix(next, "\n") {
+				next += "\n"
+			}
+		} else {
+			next = before + block + after
+		}
+	case block == "":
+		return false, nil
+	case text == "":
+		next = block
+	case strings.HasSuffix(text, "\n"):
+		next = text + "\n" + block
+	default:
+		next = text + "\n\n" + block
+	}
+	if next == text {
+		return false, nil
+	}
+	mode := os.FileMode(0o644)
+	if info, err := os.Stat(path); err == nil {
+		mode = info.Mode().Perm()
+	}
+	if err := os.WriteFile(path, []byte(next), mode); err != nil {
+		return false, fmt.Errorf("write %s: %w", path, err)
+	}
+	return true, nil
 }

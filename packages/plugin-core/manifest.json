@@ -3,7 +3,7 @@
   "_comment": "Single source of truth for the wipnote CLI companion plugin. Both the Claude Code plugin (plugin/) and the Codex CLI marketplace (port/packages/codex-marketplace/) are generated from this file by `wipnote plugin build-ports`. Assets (commands, agents, skills, templates, static, config) are sourced from plugin/ verbatim — same markdown format works for both Claude and Codex.",
 
   "name": "wipnote",
-  "version": "0.70.0",
+  "version": "0.81.0",
   "description": "Local-first observability and coordination platform for AI-assisted development. Go binary hooks for near-zero cold start.",
   "author": {
     "name": "Shakes Dlamini",
@@ -59,7 +59,8 @@
     "skills": "plugin/skills",
     "templates": "plugin/templates",
     "static": "plugin/static",
-    "config": "plugin/config"
+    "config": "plugin/config",
+    "outputStyles": "plugin/output-styles"
   },
 
   "hooks": {
@@ -67,16 +68,20 @@
     "events": [
       { "name": "SessionStart",       "handler": "session-start",       "targets": ["claude", "codex"], "timeoutByTarget": {"claude": 30} },
       { "name": "SessionStart",       "handler": "session-resume",      "targets": ["claude"], "matcher": "resume", "timeout": 15 },
-      { "name": "SessionEnd",         "handler": "session-end",         "targets": ["claude", "codex"], "timeout": 90 },
+      { "name": "SessionEnd",         "handler": "session-end",         "targets": ["claude", "codex"], "timeoutByTarget": {"claude": 60, "codex": 3} },
       { "name": "UserPromptSubmit",   "handler": "user-prompt",         "targets": ["claude", "codex", "antigravity"], "timeoutByTarget": {"claude": 15} },
       { "name": "AfterAgent",         "handler": "after-agent",         "targets": ["antigravity"] },
       { "name": "PreToolUse",         "handler": "pretooluse",          "targets": ["claude", "codex", "antigravity"], "timeoutByTarget": {"claude": 15} },
-      { "name": "PostToolUse",        "handler": "posttooluse",         "targets": ["claude", "codex", "antigravity"], "timeoutByTarget": {"claude": 15} },
+      { "name": "PostToolUse",        "handler": "posttooluse",         "targets": ["claude"], "matcher": "^(Write|Edit|MultiEdit|NotebookEdit|Bash)$", "timeoutByTarget": {"claude": 15} },
+      { "name": "PostToolUse",        "handler": "posttooluse-record",  "targets": ["claude"], "matcher": "", "timeout": 15, "async": true },
+      { "name": "PostToolUse",        "handler": "posttooluse",         "targets": ["codex", "antigravity"] },
       { "name": "PostToolUse",        "handler": "exit-plan-mode",      "targets": ["claude"], "matcher": "ExitPlanMode", "timeout": 30 },
       { "name": "SubagentStart",      "handler": "subagent-start",      "targets": ["claude", "codex"], "timeoutByTarget": {"claude": 30} },
       { "name": "SubagentStop",       "handler": "subagent-stop",       "targets": ["claude", "codex"], "timeoutByTarget": {"claude": 30} },
       { "name": "Stop",               "handler": "stop",                "targets": ["claude", "codex", "antigravity"], "timeout": 90 },
+      { "name": "Interrupt",          "handler": "task-aborted",        "targets": ["codex"], "timeout": 3 },
       { "name": "PostToolUseFailure", "handler": "posttooluse-failure", "targets": ["claude"], "timeout": 15, "async": true },
+      { "name": "StopFailure",        "handler": "stop-failure",        "targets": ["claude"], "timeout": 15, "async": true },
       { "name": "PreCompact", "handler": "pre-compact", "targets": ["claude"], "timeout": 15, "async": true },
       { "name": "TeammateIdle", "handler": "teammate-idle", "targets": ["claude"], "timeout": 15, "async": true },
       { "name": "TaskCompleted",      "handler": "task-completed",      "targets": ["claude"] },

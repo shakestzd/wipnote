@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Cache-aware cost attribution for delegated Codex runs from --json usage</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-74c3d200"
+             data-type="feature"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-10-18T08:16:28.709514"
+             data-updated="2026-10-18T08:16:28.71315" data-agent-assigned="claude-code" data-track-id="trk-2e707ed1" data-created-by-agent="claude-code" data-created-by-cli-version="0.70.2-7-g160ae1b84" data-created_in_session="e41f6acf-9ecd-5cf8-846b-fbd1203fe65e" data-standalone_reason="split from issue #214">
+
+        <header>
+            <h1>Cache-aware cost attribution for delegated Codex runs from --json usage</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-2e707ed1.html" data-relationship="part_of" data-since="2026-10-18T08:16:28.712935">trk-2e707ed1</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="false" data-step-id="step-feat-74c3d200-0" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Parse turn.completed usage from the codex JSONL stream</li>
+                <li data-completed="false" data-step-id="step-feat-74c3d200-1" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Store cached and non-cached input separately per run</li>
+                <li data-completed="false" data-step-id="step-feat-74c3d200-2" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Roll usage up per work item in cost reports</li>
+                <li data-completed="false" data-step-id="step-feat-74c3d200-3" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Tests</li>
+            </ol>
+        </section>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>From GitHub issue #214 (ask 2). Codex prints &#39;tokens used&#39; as non-cached input plus output, so the same prompt shows about 200 or about 18,000 tokens depending on prompt-cache state. Read turn.completed usage from codex exec --json (input_tokens, cached_input_tokens, output_tokens, reasoning_output_tokens) and attribute per work item with cached and non-cached input split. Pairs with feat-9b98cd0b, which already plans the --json capture. Note from #214: a lean profile (non-default tools off) cut the fixed prefix from 24,603 to 13,866 input tokens in one sample.</p>
+        </section>
+    </article>
+</body>
+</html>

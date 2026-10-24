@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -34,6 +36,8 @@ type claudeIntentResult struct {
 	resumeID string
 	workItem string
 	intent   launcher.LaunchIntent
+	// browse opens Claude's own session picker: `claude --resume` with no id.
+	browse bool
 }
 
 func shouldOfferLaunchIntentChooser(opts chooserEligibility) bool {
@@ -68,14 +72,26 @@ func chooseLaunchIntent(projectRoot, canonicalRoot, harness string, in io.Reader
 	// current-session slot counts: it is the whole point of this path for a
 	// split-child session with no (or a completed) work item, which never
 	// appears in the same/cross-harness groups.
-	if !hasResumableOptions(grouped) {
+	// A harness with a session browser always has something to offer: the
+	// browser can find sessions the shortlist could not read.
+	if !hasResumableOptions(grouped) && !offersSessionBrowser(harness) {
 		return launcher.NewWorkIntent(), nil
 	}
 	return promptLaunchIntent(in, out, harness, grouped)
 }
 
+// launchPickerEnabled reports whether the start-or-continue picker is opted in.
+// It is off by default: building its session list hydrates every work item
+// (minutes on a large corpus, since each item costs a `git log --follow`), and
+// a plain launch just starts fresh. `wipnote claude --continue` or
+// `--resume <id>` reach a prior session directly. Set WIPNOTE_LAUNCH_PICKER=1
+// to bring the picker back.
+func launchPickerEnabled() bool {
+	return os.Getenv("WIPNOTE_LAUNCH_PICKER") == "1"
+}
+
 func resolveLaunchIntentForDefaultLaunch(projectRoot, canonicalRoot, harness string, opts chooserEligibility, in io.Reader, out io.Writer) (launcher.LaunchIntent, error) {
-	if !shouldOfferLaunchIntentChooser(opts) {
+	if !launchPickerEnabled() || !shouldOfferLaunchIntentChooser(opts) {
 		return launcher.NewWorkIntent(), nil
 	}
 	return chooseLaunchIntentFn(projectRoot, canonicalRoot, harness, in, out)
@@ -103,14 +119,115 @@ func listGroupedResumableSessionsForRoot(projectRoot, canonicalRoot, harness str
 	// Surface the session the user is launching from as a first-class slot. This
 	// bypasses the work_item_id <> '' gate the grouped listing applies, which
 	// otherwise hides session-split children that never got work-item attribution.
-	// Degrades cleanly: on any error or no resolvable current session, the grouped
-	// listing is returned unchanged.
+	// Without one, Claude's slot is the project's newest session read from Claude's
+	// own transcripts (what /resume lists), so it carries the prompt the user
+	// typed. Other harnesses keep the newest open ledger session. Degrades cleanly:
+	// on any error the grouped listing is returned without the slot.
 	if current, cerr := dbpkg.GetCurrentSessionResumable(db, threshold, resolveCurrentSessionIDs(root)); cerr == nil && current != nil && isActionableCurrentSession(*current, harness) {
 		grouped = withCurrentSession(grouped, current)
-	} else if current, cerr := dbpkg.GetLatestHarnessSessionResumable(db, threshold, harness); cerr == nil && current != nil && isActionableCurrentSession(*current, harness) {
+	} else if strings.EqualFold(harness, harnessClaude) {
+		if last := latestClaudeTranscriptFn(root); last != nil {
+			grouped = withCurrentSession(grouped, transcriptResumable(*last, root))
+			grouped.CurrentIsLast = true
+		}
+	} else if current, cerr := dbpkg.GetLatestHarnessSessionResumable(db, threshold, harness); cerr == nil && current != nil && isActionableCurrentSession(*current, harness) && recentlyActive(*current, time.Now()) {
 		grouped = withCurrentSession(grouped, current)
+		grouped.CurrentIsLast = true
 	}
-	return grouped, nil
+	return shortlistWorkItemRows(grouped, time.Now()), nil
+}
+
+// recentlyActive reports whether a row was active within workItemRowMaxAge. A
+// ledger session that was never closed stays "active" for good, so the
+// fallback slot needs this age limit to avoid offering a months-old session.
+func recentlyActive(row dbpkg.ResumableSession, now time.Time) bool {
+	at, ok := parseActivityTime(row.LastActivity)
+	return ok && now.Sub(at) <= workItemRowMaxAge
+}
+
+// latestClaudeTranscriptFn is the seam for tests: it returns the project's newest
+// Claude session from Claude's transcript folder.
+var latestClaudeTranscriptFn = func(root string) *claudeTranscriptSession {
+	return latestClaudeTranscriptSession(claudeProjectsDir(), root)
+}
+
+// transcriptLiveWindow treats a transcript written this recently as a session
+// that may still be open in another terminal.
+const transcriptLiveWindow = 2 * time.Minute
+
+// transcriptResumable turns a transcript session into the picker's row shape.
+// A session that ran in a worktree keeps that directory: `claude --resume <id>`
+// finds a transcript only from the directory the session ran in.
+func transcriptResumable(t claudeTranscriptSession, root string) *dbpkg.ResumableSession {
+	row := &dbpkg.ResumableSession{
+		Harness:       harnessClaude,
+		LastSessionID: t.ID,
+		PromptLabel:   t.Label,
+		LastActivity:  t.ModTime.UTC().Format(time.RFC3339),
+		Live:          time.Since(t.ModTime) < transcriptLiveWindow,
+	}
+	if cwd := strings.TrimSpace(t.Cwd); cwd != "" && filepath.Clean(cwd) != filepath.Clean(root) {
+		row.ExecWorktreePath = cwd
+	}
+	return row
+}
+
+// The picker offers at most maxWorkItemRows work items, each in progress and
+// active within workItemRowMaxAge. Everything else is one step away through
+// "Browse all sessions" (Claude's /resume picker) or `wipnote feature start`.
+const (
+	maxWorkItemRows   = 3
+	workItemRowMaxAge = 7 * 24 * time.Hour
+)
+
+// shortlistWorkItemRows keeps the in-progress, recently active work items, the
+// newest maxWorkItemRows across both harness groups, each group keeping its
+// order.
+func shortlistWorkItemRows(grouped dbpkg.HarnessGroupedResumableSessions, now time.Time) dbpkg.HarnessGroupedResumableSessions {
+	type pick struct {
+		at    time.Time
+		same  bool
+		index int
+	}
+	var picks []pick
+	consider := func(rows []dbpkg.ResumableSession, same bool) {
+		for i, r := range rows {
+			if !strings.EqualFold(strings.TrimSpace(r.Status), "in-progress") {
+				continue
+			}
+			at, ok := parseActivityTime(r.LastActivity)
+			if !ok || now.Sub(at) > workItemRowMaxAge {
+				continue
+			}
+			picks = append(picks, pick{at: at, same: same, index: i})
+		}
+	}
+	consider(grouped.SameHarness, true)
+	consider(grouped.CrossHarness, false)
+	sort.SliceStable(picks, func(a, b int) bool { return picks[a].at.After(picks[b].at) })
+	if len(picks) > maxWorkItemRows {
+		picks = picks[:maxWorkItemRows]
+	}
+	keepSame, keepCross := map[int]bool{}, map[int]bool{}
+	for _, p := range picks {
+		if p.same {
+			keepSame[p.index] = true
+		} else {
+			keepCross[p.index] = true
+		}
+	}
+	filter := func(rows []dbpkg.ResumableSession, keep map[int]bool) []dbpkg.ResumableSession {
+		var out []dbpkg.ResumableSession
+		for i, r := range rows {
+			if keep[i] {
+				out = append(out, r)
+			}
+		}
+		return out
+	}
+	grouped.SameHarness = filter(grouped.SameHarness, keepSame)
+	grouped.CrossHarness = filter(grouped.CrossHarness, keepCross)
+	return grouped
 }
 
 // harnessesWithNativeSessionResume lists the harnesses that can resume a prior
@@ -177,7 +294,7 @@ func resolveCurrentSessionIDs(projectRoot string) []string {
 	// more specific harness marker.
 	//
 	// agent.HarnessNativeEnvSessionID() is the canonical shared implementation
-	// (WIPNOTE_HARNESS=codex→CODEX_THREAD_ID, gemini→GEMINI_SESSION_ID,
+	// (WIPNOTE_HARNESS=codex→CODEX_THREAD_ID, then CODEX_SESSION_ID; gemini→GEMINI_SESSION_ID,
 	// antigravity→ANTIGRAVITY_SESSION_ID). Chooser-specific secondary IDs
 	// (WIPNOTE_OTEL_SESSION, CLAUDE_CODE_SESSION_ID, CLAUDE_SESSION_ID) are
 	// handled in the residual switch below.
@@ -198,12 +315,20 @@ func resolveCurrentSessionIDs(projectRoot string) []string {
 		"CLAUDE_CODE_SESSION_ID",
 		"CLAUDE_SESSION_ID",
 		"CODEX_THREAD_ID",
+		"CODEX_SESSION_ID",
 		"GEMINI_SESSION_ID",
 		"ANTIGRAVITY_SESSION_ID",
 		"WIPNOTE_OTEL_SESSION",
 		"WIPNOTE_PARENT_SESSION",
 	} {
 		if nativeIDFound && env == "WIPNOTE_SESSION_ID" && currentHarness != "" {
+			continue
+		}
+		// CODEX_SESSION_ID is the root thread. It is a fallback only: with a
+		// thread id present it would offer the parent session for resume,
+		// because the resumable lookup orders candidates by activity, not by
+		// this list's precedence.
+		if env == "CODEX_SESSION_ID" && strings.TrimSpace(os.Getenv("CODEX_THREAD_ID")) != "" {
 			continue
 		}
 		add(os.Getenv(env))
@@ -265,7 +390,7 @@ var runSelectTUIFn = runSelectTUI
 func runSelectTUI(in io.Reader, out io.Writer, harness string, opts []huh.Option[int]) (int, error) {
 	selected := 0
 	sel := huh.NewSelect[int]().
-		Title(fmt.Sprintf("Choose how to launch %s:", formatHarnessName(harness))).
+		Title(chooserTitle(harness)).
 		Options(opts...).
 		Value(&selected)
 
@@ -282,29 +407,55 @@ func runSelectTUI(in io.Reader, out io.Writer, harness string, opts []huh.Option
 	return selected, nil
 }
 
+func chooserTitle(harness string) string {
+	return fmt.Sprintf("Start or continue in %s:", formatHarnessName(harness))
+}
+
+// browseSessionsLabel is the last row: it opens the harness's own session picker.
+const browseSessionsLabel = "Browse all sessions…"
+
+// harnessesWithSessionBrowser lists the harnesses whose launcher can open the
+// native session picker (`claude --resume` with no id).
+var harnessesWithSessionBrowser = map[string]struct{}{
+	"claude": {},
+}
+
+func offersSessionBrowser(harness string) bool {
+	_, ok := harnessesWithSessionBrowser[strings.ToLower(strings.TrimSpace(harness))]
+	return ok
+}
+
+// chooserRowLabels returns the label of every row after "Start something new",
+// in index order: the current slot, the work items, then "Browse all sessions"
+// when the harness has a session browser.
+func chooserRowLabels(harness string, grouped dbpkg.HarnessGroupedResumableSessions) []string {
+	var labels []string
+	if grouped.Current != nil {
+		labels = append(labels, currentSessionActionLabel(grouped)+"  "+describeCurrentSession(*grouped.Current))
+	}
+	for _, row := range grouped.SameHarness {
+		labels = append(labels, "Continue "+describeResumableSession(row, true))
+	}
+	for _, row := range grouped.CrossHarness {
+		labels = append(labels, "Continue "+describeResumableSession(row, false))
+	}
+	if offersSessionBrowser(harness) {
+		labels = append(labels, browseSessionsLabel)
+	}
+	return labels
+}
+
 // buildSelectOptions constructs the huh option list for the chooser.
-// Index 0 = NewWork; index i>=1 = orderedRows[i-1], where orderedRows is
-// [Current?] + SameHarness + CrossHarness — matching orderedRowsFor below.
+// Index 0 = NewWork; index i in 1..len(orderedRows) = orderedRows[i-1], where
+// orderedRows is [Current?] + SameHarness + CrossHarness (orderedRowsFor); the
+// next index, when offered, is "Browse all sessions".
 func buildSelectOptions(harness string, grouped dbpkg.HarnessGroupedResumableSessions) []huh.Option[int] {
 	st := launchtui.NewStyles()
 	opts := []huh.Option[int]{
 		huh.NewOption(st.AccentText.Render("Start something new"), 0),
 	}
-	idx := 1
-	if grouped.Current != nil {
-		label := st.AccentText.Render(currentSessionActionLabel(*grouped.Current, harness)) + "  " + describeCurrentSession(*grouped.Current)
-		opts = append(opts, huh.NewOption(label, idx))
-		idx++
-	}
-	for _, row := range grouped.SameHarness {
-		label := fmt.Sprintf("Resume in %s  %s", formatHarnessName(harness), describeResumableSession(row, true))
-		opts = append(opts, huh.NewOption(label, idx))
-		idx++
-	}
-	for _, row := range grouped.CrossHarness {
-		label := fmt.Sprintf("Continue from %s  %s", formatHarnessName(row.Harness), describeResumableSession(row, false))
-		opts = append(opts, huh.NewOption(label, idx))
-		idx++
+	for i, label := range chooserRowLabels(harness, grouped) {
+		opts = append(opts, huh.NewOption(label, i+1))
 	}
 	return opts
 }
@@ -331,8 +482,13 @@ func orderedRowsFor(grouped dbpkg.HarnessGroupedResumableSessions) []dbpkg.Resum
 }
 
 // mapIndexToIntent maps a 0-based option index to a LaunchIntent.
-// Index 0 => NewWorkIntent; index i>=1 => continueIntentForHarness(orderedRows[i-1]).
+// Index 0 => NewWorkIntent; index i in 1..len(orderedRows) =>
+// continueIntentForHarness(orderedRows[i-1]); the next index => browse, when
+// the harness offers it.
 func mapIndexToIntent(idx int, orderedRows []dbpkg.ResumableSession, harness string) launcher.LaunchIntent {
+	if idx == len(orderedRows)+1 && offersSessionBrowser(harness) {
+		return launcher.BrowseSessionsIntent()
+	}
 	if idx <= 0 || idx > len(orderedRows) {
 		return launcher.NewWorkIntent()
 	}
@@ -360,8 +516,7 @@ func isTTYWriter(w io.Writer) bool {
 // already ensures this function is only reached on interactive char-device stdin.
 func promptLaunchIntent(in io.Reader, out io.Writer, harness string, grouped dbpkg.HarnessGroupedResumableSessions) (launcher.LaunchIntent, error) {
 	orderedRows := orderedRowsFor(grouped)
-	totalRows := len(orderedRows)
-	if totalRows == 0 {
+	if len(orderedRows) == 0 && !offersSessionBrowser(harness) {
 		return launcher.NewWorkIntent(), nil
 	}
 
@@ -381,42 +536,21 @@ func promptLaunchIntent(in io.Reader, out io.Writer, harness string, grouped dbp
 	}
 
 	// Numeric text fallback: used for non-TTY out, accessible mode, or any TUI error.
-	return promptLaunchIntentNumeric(in, out, harness, grouped, orderedRows, totalRows)
+	return promptLaunchIntentNumeric(in, out, harness, grouped, orderedRows)
 }
 
-// promptLaunchIntentNumeric is the legacy numbered-menu fallback used when the
-// huh TUI cannot render (e.g. non-TTY writer, ACCESSIBLE mode, or any Run error).
-func promptLaunchIntentNumeric(in io.Reader, out io.Writer, harness string, grouped dbpkg.HarnessGroupedResumableSessions, orderedRows []dbpkg.ResumableSession, totalRows int) (launcher.LaunchIntent, error) {
-	fmt.Fprintf(out, "Choose how to launch %s:\n", formatHarnessName(harness))
+// promptLaunchIntentNumeric is the numbered-menu fallback used when the huh TUI
+// cannot render (e.g. non-TTY writer, ACCESSIBLE mode, or any Run error). It
+// lists the same rows as the TUI, numbered from 1.
+func promptLaunchIntentNumeric(in io.Reader, out io.Writer, harness string, grouped dbpkg.HarnessGroupedResumableSessions, orderedRows []dbpkg.ResumableSession) (launcher.LaunchIntent, error) {
+	fmt.Fprintln(out, chooserTitle(harness))
 	fmt.Fprintln(out, "  1. Start something new")
-	optionNumber := 2
-	// Current-session slot first, with its own header, so the session or work
-	// context the user is launching from is unmistakable even in the numeric
-	// fallback path.
-	if grouped.Current != nil {
-		fmt.Fprintln(out, "\n"+currentSessionActionLabel(*grouped.Current, harness))
-		fmt.Fprintf(out, "  %d. %s\n", optionNumber, describeCurrentSession(*grouped.Current))
-		optionNumber++
+	labels := chooserRowLabels(harness, grouped)
+	for i, label := range labels {
+		fmt.Fprintf(out, "  %d. %s\n", i+2, label)
 	}
-	sameCount := 0
-	crossCount := 0
-	for _, row := range grouped.SameHarness {
-		if sameCount == 0 {
-			fmt.Fprintf(out, "\nResume in %s\n", formatHarnessName(harness))
-		}
-		fmt.Fprintf(out, "  %d. %s\n", optionNumber, describeResumableSession(row, true))
-		sameCount++
-		optionNumber++
-	}
-	for _, row := range grouped.CrossHarness {
-		if crossCount == 0 {
-			fmt.Fprintln(out, "\nContinue from other harnesses")
-		}
-		fmt.Fprintf(out, "  %d. %s  %s\n", optionNumber, formatHarnessName(row.Harness), describeResumableSession(row, false))
-		crossCount++
-		optionNumber++
-	}
-	fmt.Fprint(out, "Select [1-", totalRows+1, "] (default 1): ")
+	last := len(labels) + 1
+	fmt.Fprint(out, "Select [1-", last, "] (default 1): ")
 
 	reader := bufio.NewReader(in)
 	for attempts := 0; attempts < 3; attempts++ {
@@ -429,13 +563,13 @@ func promptLaunchIntentNumeric(in io.Reader, out io.Writer, harness string, grou
 			return launcher.NewWorkIntent(), nil
 		}
 		n, convErr := strconv.Atoi(line)
-		if convErr == nil && n >= 2 && n <= totalRows+1 {
-			return continueIntentForHarness(orderedRows[n-2], harness), nil
+		if convErr == nil && n >= 2 && n <= last {
+			return mapIndexToIntent(n-1, orderedRows, harness), nil
 		}
 		if attempts == 2 {
 			return launcher.NewWorkIntent(), fmt.Errorf("invalid selection %q", line)
 		}
-		fmt.Fprint(out, "Enter a number from 1 to ", totalRows+1, ": ")
+		fmt.Fprint(out, "Enter a number from 1 to ", last, ": ")
 	}
 	return launcher.NewWorkIntent(), nil
 }
@@ -496,31 +630,7 @@ func relativeTime(iso string) string {
 	if iso == "" {
 		return ""
 	}
-	// last_activity is a MAX() across several columns, so the layout varies:
-	// RFC3339 (with/without fractional seconds) from Go-written rows, and the
-	// SQLite CURRENT_TIMESTAMP / datetime('now') form ("2006-01-02 15:04:05",
-	// UTC, space-separated) from columns with DB-side defaults.
-	layouts := []string{
-		time.RFC3339,
-		"2006-01-02T15:04:05.999999999Z07:00",
-		"2006-01-02 15:04:05.999999999",
-		"2006-01-02 15:04:05",
-	}
-	var t time.Time
-	parsed := false
-	for i, layout := range layouts {
-		var err error
-		// The SQLite layouts have no zone; treat them as UTC (how SQLite writes them).
-		if i >= 2 {
-			t, err = time.ParseInLocation(layout, iso, time.UTC)
-		} else {
-			t, err = time.Parse(layout, iso)
-		}
-		if err == nil {
-			parsed = true
-			break
-		}
-	}
+	t, parsed := parseActivityTime(iso)
 	if !parsed {
 		if len(iso) >= 10 {
 			return iso[:10]
@@ -542,6 +652,35 @@ func relativeTime(iso string) string {
 	}
 }
 
+// parseActivityTime parses a last_activity value.
+func parseActivityTime(iso string) (time.Time, bool) {
+	iso = strings.TrimSpace(iso)
+	// last_activity is a MAX() across several columns, so the layout varies:
+	// RFC3339 (with/without fractional seconds) from Go-written rows, and the
+	// SQLite CURRENT_TIMESTAMP / datetime('now') form ("2006-01-02 15:04:05",
+	// UTC, space-separated) from columns with DB-side defaults.
+	layouts := []string{
+		time.RFC3339,
+		"2006-01-02T15:04:05.999999999Z07:00",
+		"2006-01-02 15:04:05.999999999",
+		"2006-01-02 15:04:05",
+	}
+	for i, layout := range layouts {
+		var t time.Time
+		var err error
+		// The SQLite layouts have no zone; treat them as UTC (how SQLite writes them).
+		if i >= 2 {
+			t, err = time.ParseInLocation(layout, iso, time.UTC)
+		} else {
+			t, err = time.Parse(layout, iso)
+		}
+		if err == nil {
+			return t, true
+		}
+	}
+	return time.Time{}, false
+}
+
 // joinChooserSegments joins non-empty segments with a middot separator.
 func joinChooserSegments(segs ...string) string {
 	out := segs[:0]
@@ -553,53 +692,54 @@ func joinChooserSegments(segs ...string) string {
 	return strings.Join(out, " · ")
 }
 
-func currentSessionActionLabel(row dbpkg.ResumableSession, targetHarness string) string {
+func currentSessionActionLabel(grouped dbpkg.HarnessGroupedResumableSessions) string {
+	if grouped.CurrentIsLast {
+		return "Continue last session"
+	}
 	return "Resume this session"
 }
 
-// describeCurrentSession renders the body of the "Resume this session" slot.
-// It leads with the short session ID (the runtime identity), then stable
-// session/worktree facts and a relative timestamp. It intentionally does not
-// render work-item attribution: claims and active_work_items are mutable, and a
-// stale attribution row should not make the current runtime session look like a
-// different bug or feature.
+// describeCurrentSession renders the body of the current-session slot: what the
+// session was about (its prompt in quotes, else its short id), the worktree it
+// ran in when that is not the project root, and when it was last active. It
+// intentionally does not render work-item attribution: claims and
+// active_work_items are mutable, and a stale attribution row should not make
+// the session look like a different bug or feature.
 func describeCurrentSession(row dbpkg.ResumableSession) string {
-	id := shortSessionID(row.LastSessionID)
-	prompt := truncateTitle(row.PromptLabel, maxChooserPromptLen)
-	harness := formatHarnessName(row.Harness)
-	branch := strings.TrimSpace(row.Branch)
-	if branch != "" {
-		branch = "branch " + branch
+	about := shortSessionID(row.LastSessionID)
+	if prompt := truncateTitle(row.PromptLabel, maxChooserPromptLen); prompt != "" {
+		about = `"` + prompt + `"`
 	}
-	worktree := strings.TrimSpace(row.ExecWorktreePath)
-	if worktree != "" {
-		worktree = truncateTitle(worktree, maxChooserTitleLen)
+	worktree := ""
+	if wt := strings.TrimSpace(row.ExecWorktreePath); wt != "" {
+		worktree = "in " + filepath.Base(wt)
 	}
-	when := relativeTime(row.LastActivity)
-	if row.Live {
-		when = joinChooserSegments("live", when)
-	}
-	return joinChooserSegments(id, prompt, harness, branch, worktree, when)
+	return joinChooserSegments(about, worktree, activityLabel(row))
 }
 
-// describeResumableSession renders the body of a grouped resume row: work item,
-// truncated title, and a relative timestamp. The action verb and source harness
-// live in the row's group prefix/header, not here, to avoid the doubled
-// "Resume … Resume transcript for …" phrasing the old format produced.
+// describeResumableSession renders a work-item row: the id, then its title (or
+// the session's prompt when the item has no title), the harness it last ran in
+// when that is not the one being launched, and when it was last active.
 func describeResumableSession(row dbpkg.ResumableSession, sameHarness bool) string {
-	label := truncateTitle(row.PromptLabel, maxChooserPromptLen)
-	if label == "" {
-		label = truncateTitle(row.Title, maxChooserTitleLen)
+	about := truncateTitle(row.Title, maxChooserTitleLen)
+	if about == "" {
+		about = truncateTitle(row.PromptLabel, maxChooserTitleLen)
 	}
-	work := row.WorkItemID
-	if work != "" && row.Type != "" {
-		work = fmt.Sprintf("%s (%s)", row.WorkItemID, row.Type)
+	from := ""
+	if !sameHarness {
+		from = "from " + formatHarnessName(row.Harness)
 	}
+	return row.WorkItemID + "  " + joinChooserSegments(about, from, activityLabel(row))
+}
+
+// activityLabel is a row's relative last-activity time, marked "live" when the
+// session may still be running.
+func activityLabel(row dbpkg.ResumableSession) string {
 	when := relativeTime(row.LastActivity)
 	if row.Live {
 		when = joinChooserSegments("live", when)
 	}
-	return joinChooserSegments(label, work, when)
+	return when
 }
 
 func formatHarnessName(harness string) string {
@@ -628,6 +768,11 @@ func applyClaudeLaunchIntent(resumeID, workItem string, intent launcher.LaunchIn
 		workItem: workItem,
 		intent:   intent,
 	}
+	if intent.WantsBrowse() {
+		result.mode = "browse"
+		result.browse = true
+		return result
+	}
 	if !intent.WantsContinue() {
 		return result
 	}
@@ -635,8 +780,11 @@ func applyClaudeLaunchIntent(resumeID, workItem string, intent launcher.LaunchIn
 	if result.workItem == "" && intent.WorkItemID != "" {
 		result.workItem = intent.WorkItemID
 	}
-	if result.resumeID == "" {
-		result.resumeID = intent.ResumeForHarness("claude")
+	// Only a real Claude session id goes straight to --resume. Older ledger rows
+	// recorded as "claude-code" can hold a wipnote or OTel id; leaving resumeID
+	// empty lets resolveContinueLaunchContext validate and rehydrate instead.
+	if id := intent.ResumeForHarness("claude"); result.resumeID == "" && isClaudeCodeSessionID(id) {
+		result.resumeID = id
 	}
 	return result
 }

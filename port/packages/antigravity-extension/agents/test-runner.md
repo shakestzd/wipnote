@@ -29,16 +29,9 @@ Better to finish in 20 tool calls with a partial answer than to truncate at 45 w
 
 - **Claim attribution only if a feature/bug ID is provided:** `wipnote {feature|bug|spike} start <id>` (optional for pure verification).
 - **No mid-stride narration.** Run the gates silently and report results once at the end. Do not preface tool calls with "Let me check X:" or "Now I'll do Y:".
-- **Detect project type from manifest in repo root:**
+- **Detect the project type from its manifest** and run the gate from the canonical table in the `code-quality-skill` (preloaded on Claude Code, appended below on other harnesses).
 
-  | Manifest file | Quality gate command |
-  |---|---|
-  | `go.mod` | `go build ./... && go vet ./... && go test ./...` |
-  | `package.json` | `npm run build && npm run lint && npm test` |
-  | `pyproject.toml` | `uv run ruff check . && uv run pytest` |
-  | `Cargo.toml` | `cargo build && cargo clippy && cargo test` |
-
-**CRITICAL — Go suite baseline:** From cold, `go test ./...` is SILENT for ~5–6 minutes — output is buffered per package and `cmd/wipnote` (~320s from cold) prints first. Silence is NOT a stall or timeout. Do not interrupt. Budget ≥10 min before suspecting a hang. For progress visibility use `go test -json ./...` or split: `go test ./internal/... && go test ./cmd/...`.
+**Go suite baseline:** from cold, `go test ./...` is silent for minutes (per-package buffering). Do not interrupt; budget 10+ minutes, or stream with `scripts/go-test-streaming.sh ./...` / `go test -json ./...` when the repo has it.
 
 - **Batch wipnote CLI calls** with `&&` — each Bash tool call costs a turn from the user's quota.
 
@@ -75,3 +68,44 @@ Plus a brief note on any unexpected behavior (test artifacts left in working tre
 
 - Claude Code: `haiku`
 - Codex: fast mini/subagent model
+
+## Preloaded skill: code-quality-skill
+
+# Code Quality Skill
+
+## Quality Gate: BUILD → LINT → TEST
+
+Commit only when all three phases pass. Fix every error in code you touch, including pre-existing ones.
+
+This is the canonical gate table. Other wipnote prompts, agents and skills point here instead of copying it. Check the repository root for a manifest:
+
+| File | Gate command |
+|------|--------------|
+| `go.mod` | `go build ./... && go vet ./... && go test ./...` (in a repo with `scripts/go-test-streaming.sh`, use `scripts/go-test-streaming.sh ./...` for the test phase) |
+| `package.json` | `npm run build && npm run lint && npm test` (`tsc --noEmit` for type-check only) |
+| `pyproject.toml` / `requirements.txt` | `uv run ruff check . && uv run pytest` |
+| `Cargo.toml` | `cargo build && cargo clippy && cargo test` |
+| `pom.xml` | `mvn compile && mvn checkstyle:check && mvn test` |
+| `build.gradle` / `build.gradle.kts` | `./gradlew assemble && ./gradlew check` (`gradle` only when there is no wrapper) |
+
+Multiple manifests can coexist (for example a Go backend with a `package.json` frontend). Run the gate for each.
+
+Run the gate, fix the failures, and re-run until all phases pass:
+
+```
+Quality gate:
+- [ ] Gate command chosen for every manifest
+- [ ] Build passes
+- [ ] Lint / vet passes
+- [ ] Tests pass
+- [ ] Clean re-run after the last fix
+```
+
+### Go suite notes
+
+- From cold, `go test ./...` is silent for about 5-6 minutes because output is buffered per package. Silence is not a stall. Budget 10 minutes before suspecting a hang.
+- `scripts/go-test-streaming.sh` streams `go test -json` output live and names the last test to start if the test binary dies mid-package (bug-61973a05). Any `go test` flags pass through, for example `scripts/go-test-streaming.sh ./cmd/wipnote/... -run X`.
+
+## Record the result
+
+When the gate passes, run `wipnote check --gate` to record it on the active work item.

@@ -352,6 +352,9 @@ func sseHandler(database *sql.DB) http.HandlerFunc {
 		w.Header().Set("Cache-Control", "no-cache")
 		w.Header().Set("Connection", "keep-alive")
 		w.Header().Set("Access-Control-Allow-Origin", "*")
+		// Commit the headers now: the proxy bounds its wait for response
+		// headers, and a stream may not have an event to send for a while.
+		flusher.Flush()
 
 		// Track the highest rowid seen so far.
 		var lastRowID int64

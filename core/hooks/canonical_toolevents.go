@@ -73,13 +73,23 @@ func appendCanonicalToolEvent(projectDir, sessionID string, ev canonicalToolEven
 		return
 	}
 	defer f.Close()
-	if info, err := f.Stat(); err != nil || info.Size() >= canonicalToolLogMaxBytes {
-		return
-	}
 	ev.Tool = truncateField(ev.Tool)
 	ev.Agent = truncateField(ev.Agent)
 	ev.Summary = truncateField(ev.Summary)
 	ev.Input = truncateField(ev.Input)
+	info, err := f.Stat()
+	if err != nil {
+		return
+	}
+	if info.Size() >= canonicalToolLogMaxBytes {
+		// The log keeps its earliest events (the guards read them), so past
+		// the cap the newest file edits would be lost to the session-end
+		// handoff. Keep those in a small rolling ledger instead.
+		if fileEditTools[ev.Tool] {
+			appendRecentEditOverflow(path, ev)
+		}
+		return
+	}
 	line, err := json.Marshal(ev)
 	if err != nil {
 		return
@@ -256,4 +266,45 @@ func isCanonicalScreenshotEvent(ev canonicalToolEvent) bool {
 	}
 	joined := strings.ReplaceAll(ev.Summary+ev.Input, " ", "")
 	return strings.Contains(joined, `"action":"screenshot"`)
+}
+
+// recentEditOverflowMax bounds the rolling ledger of file edits recorded after
+// the main log hit its cap.
+const recentEditOverflowMax = 32
+
+func recentEditOverflowPath(logPath string) string {
+	return filepath.Join(filepath.Dir(logPath), "tool-events.recent-edits.json")
+}
+
+// appendRecentEditOverflow keeps the newest recentEditOverflowMax file-edit
+// events in a JSON array beside the capped log, replaced atomically. Two hooks
+// racing can drop one entry; it only feeds handoff hints, never a guard.
+func appendRecentEditOverflow(logPath string, ev canonicalToolEvent) {
+	path := recentEditOverflowPath(logPath)
+	events := readRecentEditOverflow(path)
+	events = append(events, ev)
+	if len(events) > recentEditOverflowMax {
+		events = events[len(events)-recentEditOverflowMax:]
+	}
+	data, err := json.Marshal(events)
+	if err != nil {
+		return
+	}
+	tmp := path + ".tmp"
+	if os.WriteFile(tmp, data, 0o644) != nil {
+		return
+	}
+	_ = os.Rename(tmp, path)
+}
+
+func readRecentEditOverflow(path string) []canonicalToolEvent {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil
+	}
+	var events []canonicalToolEvent
+	if json.Unmarshal(data, &events) != nil {
+		return nil
+	}
+	return events
 }

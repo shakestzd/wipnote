@@ -131,6 +131,7 @@ type codexPayload struct {
 	ToolName             string          `json:"tool_name"`
 	ToolInput            map[string]any  `json:"tool_input"`
 	ToolUseID            string          `json:"tool_use_id"`
+	DurationMS           durationMS      `json:"duration_ms"`
 	ToolResponse         codexToolResult `json:"tool_response"`
 	ToolResult           codexToolResult `json:"tool_result"`
 	TaskData             map[string]any  `json:"task"`
@@ -357,6 +358,7 @@ func parseCodexEvent(raw []byte) (*CloudEvent, error) {
 		ToolName:             p.ToolName,
 		ToolInput:            p.ToolInput,
 		ToolUseID:            p.ToolUseID,
+		DurationMS:           p.DurationMS,
 		ToolResult:           toolResult,
 		TaskData:             p.TaskData,
 	}
@@ -557,6 +559,11 @@ type codexResponse struct {
 	HookSpecificOutput *codexHookSpecificOutput `json:"hookSpecificOutput,omitempty"`
 }
 
+// codexInterruptResponse is the whole of Codex's Interrupt output schema.
+type codexInterruptResponse struct {
+	SystemMessage string `json:"systemMessage,omitempty"`
+}
+
 // emitCodexResponse writes the Codex CLI wire-format JSON to w.
 // Codex expects:
 //   - "continue": true/false for lifecycle events
@@ -568,6 +575,14 @@ func emitCodexResponse(w io.Writer, result *HookResult) error {
 }
 
 func emitCodexResponseForEvent(w io.Writer, hookEventName string, result *HookResult) error {
+	// Interrupt (Codex 0.150.0+, fired when the user cancels a turn) has the
+	// narrowest output schema of any event: interrupt.command.output is
+	// deny_unknown_fields with systemMessage as its only field
+	// (codex-rs/hooks/src/schema.rs InterruptCommandOutputWire). The universal
+	// "continue" this emitter otherwise adds would fail the hook.
+	if hookEventName == "Interrupt" {
+		return json.NewEncoder(w).Encode(codexInterruptResponse{SystemMessage: result.Message})
+	}
 	continueTrue := true
 	resp := codexResponse{}
 	if result.Message != "" {
@@ -811,6 +826,7 @@ func parseEventForHarness(harness Harness, raw []byte) (*CloudEvent, error) {
 		if err := json.Unmarshal(raw, &ev); err != nil {
 			return nil, fmt.Errorf("parsing CloudEvent: %w", err)
 		}
+		normalizeClaudeToolResult(&ev)
 		return &ev, nil
 	}
 }

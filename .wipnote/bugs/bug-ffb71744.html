@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>wipnote-cards: keep work-item details in prose when no surface draws cards</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-ffb71744"
+             data-type="bug"
+             data-status="todo"
+             data-priority="low"
+             data-created="2026-10-18T08:01:52.764502"
+             data-updated="2026-10-18T08:01:52.769159" data-agent-assigned="claude-code" data-track-id="trk-43e0650a" data-created-by-agent="claude-code" data-created-by-cli-version="0.70.2-7-g160ae1b84" data-created_in_session="e41f6acf-9ecd-5cf8-846b-fbd1203fe65e">
+
+        <header>
+            <h1>wipnote-cards: keep work-item details in prose when no surface draws cards</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-low">Low Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-43e0650a.html" data-relationship="part_of" data-since="2026-10-18T08:01:52.768897">trk-43e0650a</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="false" data-step-id="step-bug-ffb71744-0" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Gate REF_RULE on an attached render surface</li>
+                <li data-completed="false" data-step-id="step-bug-ffb71744-1" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Add a test for compose with and without a surface</li>
+            </ol>
+        </section>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Codex P2 on PR #213 (comment 4306264814). The prompt.compose REF_RULE is added unconditionally. Under claude -p, the Agent SDK, or a cloud session, hooks run but nothing draws, so a report ends with only a fenced id and the reader never sees the title, status, or steps. Fix: add the rule only when a render surface is attached (check $.session.surfaces() at compose time), or relax the rule to keep a one-line summary in prose when no surface exists.</p>
+        </section>
+    </article>
+</body>
+</html>

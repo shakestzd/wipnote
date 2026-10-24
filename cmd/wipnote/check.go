@@ -30,6 +30,7 @@ type gateResult struct {
 func checkCmd() *cobra.Command {
 	var goOnly, pythonOnly, skipTests, gateOnly bool
 	var gateWorkItem string
+	var gateResearchWaiver string
 
 	cmd := &cobra.Command{
 		Use:   "check",
@@ -78,6 +79,15 @@ Returns exit code 0 if all gates pass, 1 if any fail.`,
 				// advisory below, not a hard failure.
 				if err := failIfPendingDeferredArtifactCommits(projectRoot, workItemID, os.Stderr); err != nil {
 					return err
+				}
+				// Research-first gate: cheap, so it runs before the full gate.
+				if workItemID == "" && strings.TrimSpace(gateResearchWaiver) != "" {
+					return fmt.Errorf("--research-waiver needs a work item: pass --work-item <id>")
+				}
+				if workItemID != "" {
+					if err := checkResearchGateForWorkItem(os.Stderr, projectRoot, workItemID, gateResearchWaiver); err != nil {
+						return err
+					}
 				}
 				result, err := runSessionGate(projectRoot, sessionID, workItemID, "check", guardprofile.PhaseQuality, os.Stdout, os.Stderr)
 				if err != nil {
@@ -154,6 +164,7 @@ Returns exit code 0 if all gates pass, 1 if any fail.`,
 	cmd.Flags().BoolVar(&skipTests, "skip-tests", false, "Skip test execution (run lint/build only)")
 	cmd.Flags().BoolVar(&gateOnly, "gate", false, "Run the full project quality gate and write a session-local gate record")
 	cmd.Flags().StringVar(&gateWorkItem, "work-item", "", "Work item ID to attribute this gate run to (overrides session-resolved active work item)")
+	cmd.Flags().StringVar(&gateResearchWaiver, "research-waiver", "", "waive the research-first gate for the work item; records the rationale on the artifact")
 
 	cmd.AddCommand(checkOrphansCmd())
 	cmd.AddCommand(checkIncompleteCmd())

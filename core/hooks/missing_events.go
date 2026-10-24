@@ -542,21 +542,34 @@ func PermissionRequest(event *CloudEvent, database *sql.DB) (*HookResult, error)
 	if err != nil || result == nil {
 		return result, err
 	}
-
-	// Conservative auto-allow: only a demonstrably read-only, allowlisted op
-	// at low/absent risk gets a behavior:"allow"; all other requests fall
-	// through to CC's normal prompt (no decision emitted).
-	if permissionAutoAllow(event) {
-		result.HookSpecificOutput = &HookSpecificOutput{
-			HookEventName: "PermissionRequest",
-			Decision: &PermissionDecision{
-				Behavior: "allow",
-				Message:  "Auto-approved: read-only wipnote query (wipnote allowlist).",
-			},
-		}
-	}
-
+	applyPermissionAutoAllow(event, result)
 	return result, nil
+}
+
+// PermissionDecisionOnly returns the PermissionRequest decision without
+// recording anything. A headless run wipnote started has no one to answer a
+// prompt, so it must keep the auto-approval even though it records nothing.
+func PermissionDecisionOnly(event *CloudEvent) *HookResult {
+	result := &HookResult{Continue: true}
+	applyPermissionAutoAllow(event, result)
+	return result
+}
+
+// applyPermissionAutoAllow is the conservative auto-allow: only a
+// demonstrably read-only, allowlisted op at low/absent risk gets a
+// behavior:"allow"; all other requests fall through to CC's normal prompt (no
+// decision emitted).
+func applyPermissionAutoAllow(event *CloudEvent, result *HookResult) {
+	if !permissionAutoAllow(event) {
+		return
+	}
+	result.HookSpecificOutput = &HookSpecificOutput{
+		HookEventName: "PermissionRequest",
+		Decision: &PermissionDecision{
+			Behavior: "allow",
+			Message:  "Auto-approved: read-only wipnote query (wipnote allowlist).",
+		},
+	}
 }
 
 // ConfigChange handles the ConfigChange Claude Code hook event.

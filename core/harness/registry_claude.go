@@ -48,7 +48,15 @@ func init() {
 		HookEventNames: nil,
 		HooksHarness:   HooksClaude,
 		OtelEnv:        claudeOtelEnv,
-		LaunchEnv:      []string{"CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1"},
+		// CLAUDE_CODE_ENABLE_TODO_TOOLS: Claude Code stopped offering the
+		// TaskCreate/TaskUpdate/TodoWrite tools on newer models (2.1.233: Opus
+		// 4.8, Sonnet 5, Fable 5 and later) unless this is set. wipnote's step
+		// tracking runs through them (the TaskCreated/TaskCompleted hooks), so
+		// without it every work item on a current model reads Steps: 0/M.
+		LaunchEnv: []string{
+			"CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1",
+			"CLAUDE_CODE_ENABLE_TODO_TOOLS=1",
+		},
 	}
 	if cfg.OtelEnv == nil {
 		panic("harness: claude OtelEnv must be non-nil")

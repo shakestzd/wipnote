@@ -439,32 +439,6 @@ func MarkEventAborted(db *sql.DB, eventID, reason string) (int64, error) {
 	return res.RowsAffected()
 }
 
-// FindStartedEvent returns the event_id of the most recent started event
-// matching tool_name in the session. Returns ("", sql.ErrNoRows) when not found.
-func FindStartedEvent(db *sql.DB, sessionID, toolName string) (string, error) {
-	var eventID string
-	err := db.QueryRow(`
-		SELECT event_id FROM agent_events
-		WHERE session_id = ? AND tool_name = ? AND status = 'started'
-		ORDER BY timestamp DESC
-		LIMIT 1`, sessionID, toolName,
-	).Scan(&eventID)
-	return eventID, err
-}
-
-// FindStartedEventByAgent returns the event_id of the most recent started event
-// matching tool_name and agent_id. Returns ("", sql.ErrNoRows) when not found.
-func FindStartedEventByAgent(db *sql.DB, sessionID, toolName, agentID string) (string, error) {
-	var eventID string
-	err := db.QueryRow(`
-		SELECT event_id FROM agent_events
-		WHERE session_id = ? AND tool_name = ? AND agent_id = ? AND status = 'started'
-		ORDER BY timestamp DESC
-		LIMIT 1`, sessionID, toolName, agentID,
-	).Scan(&eventID)
-	return eventID, err
-}
-
 // FindStartedDelegation returns the event_id of the most recent started
 // task_delegation in the session. Returns ("", sql.ErrNoRows) when not found.
 func FindStartedDelegation(db *sql.DB, sessionID string) (string, error) {

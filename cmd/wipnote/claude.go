@@ -32,21 +32,23 @@ type LaunchOpts struct {
 	Mode string
 	// PluginDir, if non-empty, passes --plugin-dir to claude.
 	PluginDir string
+	// ModsDir, if non-empty, passes a second --plugin-dir: the folder of
+	// wipnote's Claude Code mods. launchClaude fills it from PluginDir
+	// (resolveModsDir) when left empty.
+	ModsDir string
 	// Resume adds --resume to claude args (for --continue mode).
 	Resume bool
 	// ResumeID, if non-empty, passes --resume <id> to claude to resume a specific session.
 	// Takes precedence over Resume.
 	ResumeID string
 	// InjectSystemPrompt, when true, appends the embedded system prompt via
-	// --append-system-prompt. Ignored when SystemPromptFile is set.
+	// --append-system-prompt-file. Ignored when SystemPromptFile is set.
 	InjectSystemPrompt bool
 	// SystemPromptFile, if set, reads this file and appends it as system prompt.
 	// Takes precedence over InjectSystemPrompt.
 	SystemPromptFile string
 	// PermissionMode, if set, passes --permission-mode to claude (e.g. "bypassPermissions").
 	PermissionMode string
-	// EnableAutoMode, when true, passes --enable-auto-mode to claude.
-	EnableAutoMode bool
 	// Name, if set, passes --name to claude for session naming.
 	Name string
 	// ExtraArgs are forwarded to the claude process.
@@ -282,7 +284,8 @@ func launchClaudeDev(extraArgs []string, auto bool, resumeID, name, workItem str
 	}
 	resumeID = lctx.intentResult.resumeID
 
-	sessionName := resolveSessionName(name, resumeID, continue_, projectRoot)
+	browse := lctx.intentResult.browse
+	sessionName := resolveSessionName(name, resumeID, continue_ || browse, projectRoot)
 
 	devHeadline := "Launching Claude Code with local plugin (--plugin-dir mode)"
 	if auto {
@@ -310,10 +313,10 @@ func launchClaudeDev(extraArgs []string, auto bool, resumeID, name, workItem str
 		// Resume the most recent session when --dev --continue was requested
 		// (mirrors launchClaudeContinue). ResumeID, when set, still takes
 		// precedence in launchClaude's arg construction.
-		Resume:             continue_,
+		// "Browse all sessions" in the picker is the same bare --resume.
+		Resume:             continue_ || browse,
 		ResumeID:           resumeID,
 		InjectSystemPrompt: true,
-		EnableAutoMode:     auto,
 		PermissionMode:     autoPermissionMode(auto),
 		Name:               sessionName,
 		ExtraArgs:          extraArgs,
@@ -344,8 +347,9 @@ func autoPermissionMode(enabled bool) string {
 }
 
 // launchClaudeAuto launches Claude Code with auto mode enabled for autonomous operation.
-// It uses the marketplace plugin (like normal mode) but adds --enable-auto-mode and
-// --permission-mode auto so Claude starts in autonomous operation immediately.
+// It uses the bundled plugin (like normal mode) but adds --permission-mode auto so
+// Claude starts in autonomous operation immediately. (--enable-auto-mode is no
+// longer passed: Claude Code 2.1.111 removed it — auto mode no longer requires it.)
 func launchClaudeAuto(extraArgs []string, resumeID, name string) error {
 	projectRoot, _ := resolveProjectRoot()
 	cleanupStaleDev(projectRoot)
@@ -374,7 +378,6 @@ func launchClaudeAuto(extraArgs []string, resumeID, name string) error {
 		PluginDir:          pluginDir,
 		ResumeID:           resumeID,
 		InjectSystemPrompt: true,
-		EnableAutoMode:     true,
 		PermissionMode:     "auto",
 		Name:               sessionName,
 		ExtraArgs:          extraArgs,
@@ -568,7 +571,7 @@ func launchClaudeDefault(extraArgs []string, resumeID, name, workItem string, in
 	if err != nil {
 		return err
 	}
-	sessionName := resolveSessionName(name, resumeID, false, projectRoot)
+	sessionName := resolveSessionName(name, resumeID, lctx.intentResult.browse, projectRoot)
 	fmt.Println(launchtui.RenderLaunchBanner(nil, launchtui.BannerInput{
 		Headline:        fmt.Sprintf("Launching Claude Code (%s mode)...", lctx.intentResult.mode),
 		PluginSource:    pluginDir,
@@ -577,8 +580,10 @@ func launchClaudeDefault(extraArgs []string, resumeID, name, workItem string, in
 		WarningSeverity: "amber",
 	}))
 	return launchClaude(LaunchOpts{
-		Mode:               lctx.intentResult.mode,
-		PluginDir:          pluginDir,
+		Mode:      lctx.intentResult.mode,
+		PluginDir: pluginDir,
+		// "Browse all sessions" opens Claude's own picker: a bare --resume.
+		Resume:             lctx.intentResult.browse,
 		ResumeID:           resumeID,
 		InjectSystemPrompt: true,
 		Name:               sessionName,
@@ -647,29 +652,29 @@ func launchClaude(opts LaunchOpts) error {
 	if systemPrompt != "" {
 		systemPrompt = strings.TrimSpace(systemPrompt) + "\n\n" + strings.TrimSpace(researchRoutingContent) + "\n"
 	}
+	if opts.ModsDir == "" {
+		opts.ModsDir = resolveModsDir(opts.PluginDir)
+	}
+	if rules := modsSystemPrompt(opts.ModsDir); rules != "" {
+		systemPrompt = strings.TrimSpace(systemPrompt+"\n\n"+rules) + "\n"
+	}
 
-	var claudeArgs []string
-	if opts.ResumeID != "" {
-		claudeArgs = append(claudeArgs, "--resume", opts.ResumeID)
-	} else if opts.Resume {
-		claudeArgs = append(claudeArgs, "--resume")
-	}
-	if opts.PluginDir != "" {
-		claudeArgs = append(claudeArgs, "--plugin-dir", opts.PluginDir)
-	}
-	if opts.EnableAutoMode {
-		claudeArgs = append(claudeArgs, "--enable-auto-mode")
-	}
-	if opts.PermissionMode != "" {
-		claudeArgs = append(claudeArgs, "--permission-mode", opts.PermissionMode)
-	}
-	if opts.Name != "" {
-		claudeArgs = append(claudeArgs, "--name", opts.Name)
-	}
+	// Pass the prompt by file, not argv: large prompts fail as a single argv
+	// element, and Claude Code's guidance for wrappers is
+	// --append-system-prompt-file. The file is private (os.CreateTemp is 0600)
+	// and removed once claude exits — via the deferred Remove on early returns
+	// and via harnessCleanup, which runHarnessWithCleanup runs even on the
+	// os.Exit / signal re-raise paths where defers are skipped.
+	var systemPromptFile string
 	if systemPrompt != "" {
-		claudeArgs = append(claudeArgs, "--append-system-prompt", systemPrompt)
+		path, err := writeClaudeSystemPromptFile(systemPrompt)
+		if err != nil {
+			return err
+		}
+		systemPromptFile = path
+		defer os.Remove(path) //nolint:errcheck
 	}
-	claudeArgs = append(claudeArgs, opts.ExtraArgs...)
+	claudeArgs := buildClaudeArgs(opts, systemPromptFile)
 
 	claudePath, err := exec.LookPath("claude")
 	if err != nil {
@@ -726,11 +731,7 @@ func launchClaude(opts LaunchOpts) error {
 	// pipeline points at the wipnote serve receiver. See
 	// claude_env.go:buildClaudeLaunchEnv for precedence rules (user-set
 	// OTEL_* always wins).
-	var worktreeOverride string
-	if opts.WipnoteRoot != "" && opts.WipnoteRoot != opts.ProjectRoot {
-		worktreeOverride = opts.WipnoteRoot
-	}
-	c.Env = buildClaudeLaunchEnv(worktreeOverride, &envOverrides)
+	c.Env = buildClaudeLaunchEnv(claudeEnvProjectDir(opts), &envOverrides)
 	c.Env = mergeLauncherEnv(c.Env, opts.ExtraEnv...)
 
 	// Guarantee the work-item daemon and publish its socket into the session
@@ -747,7 +748,81 @@ func launchClaude(opts LaunchOpts) error {
 		c.Dir = opts.ProjectRoot
 	}
 
-	return runHarnessWithCleanup(c, envOverrides.Cleanup)
+	harnessCleanup := func() {
+		if systemPromptFile != "" {
+			os.Remove(systemPromptFile) //nolint:errcheck
+		}
+		if envOverrides.Cleanup != nil {
+			envOverrides.Cleanup()
+		}
+	}
+	return runHarnessWithCleanup(c, harnessCleanup)
+}
+
+// writeClaudeSystemPromptFile writes prompt to a private temp file (0600, via
+// os.CreateTemp) and returns its path for --append-system-prompt-file. The
+// caller removes it after claude exits.
+func writeClaudeSystemPromptFile(prompt string) (string, error) {
+	f, err := os.CreateTemp("", "wipnote-claude-system-*.md")
+	if err != nil {
+		return "", fmt.Errorf("creating system prompt file: %w", err)
+	}
+	if _, err := f.WriteString(prompt); err != nil {
+		f.Close()
+		os.Remove(f.Name()) //nolint:errcheck
+		return "", fmt.Errorf("writing system prompt file: %w", err)
+	}
+	if err := f.Close(); err != nil {
+		os.Remove(f.Name()) //nolint:errcheck
+		return "", fmt.Errorf("closing system prompt file: %w", err)
+	}
+	return f.Name(), nil
+}
+
+// buildClaudeArgs assembles the claude argv from opts. Split out of
+// launchClaude so the argument shape is unit-testable without spawning claude.
+// systemPromptFile, when non-empty, is the path of the already-written prompt
+// file passed via --append-system-prompt-file.
+func buildClaudeArgs(opts LaunchOpts, systemPromptFile string) []string {
+	var claudeArgs []string
+	if opts.ResumeID != "" {
+		claudeArgs = append(claudeArgs, "--resume", opts.ResumeID)
+	} else if opts.Resume {
+		claudeArgs = append(claudeArgs, "--resume")
+	}
+	if opts.PluginDir != "" {
+		claudeArgs = append(claudeArgs, "--plugin-dir", opts.PluginDir)
+	}
+	if opts.ModsDir != "" {
+		claudeArgs = append(claudeArgs, "--plugin-dir", opts.ModsDir)
+	}
+	// Auto mode is selected by --permission-mode auto alone; the former
+	// --enable-auto-mode opt-in flag was removed upstream in Claude Code 2.1.111.
+	if opts.PermissionMode != "" {
+		claudeArgs = append(claudeArgs, "--permission-mode", opts.PermissionMode)
+	}
+	if opts.Name != "" {
+		claudeArgs = append(claudeArgs, "--name", opts.Name)
+	}
+	if systemPromptFile != "" {
+		claudeArgs = append(claudeArgs, "--append-system-prompt-file", systemPromptFile)
+	}
+	return append(claudeArgs, opts.ExtraArgs...)
+}
+
+// claudeEnvProjectDir is the WIPNOTE_PROJECT_DIR exported to the Claude
+// process: the canonical root when Claude runs in a worktree, else the root
+// Claude is started in (c.Dir). It is always explicit — never left to
+// effectiveProjectDir's os.Getwd fallback. Launched from a linked worktree,
+// project resolution yields the MAIN checkout (git-common-dir), so Claude runs
+// there; falling back to the launcher's cwd exported the worktree instead, and
+// every hook then read the worktree's .wipnote/ while Claude worked in the main
+// checkout (issue #202).
+func claudeEnvProjectDir(opts LaunchOpts) string {
+	if opts.WipnoteRoot != "" {
+		return opts.WipnoteRoot
+	}
+	return opts.ProjectRoot
 }
 
 // Harness identifiers for the WIPNOTE_HARNESS env var (feat-9348de66 slice 1).

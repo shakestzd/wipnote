@@ -81,7 +81,7 @@ Form a hypothesis from evidence, then test it with one targeted change. Implemen
 ## Mode 3: Visual QA
 
 After UI changes, before marking done. **Default method: stills via `shot-scraper`** — load
-`wipnote:ui-stills-verification` (the `Skill` tool) and follow it. It is headless, needs no
+the `ui-stills-verification` skill (if it is not in your skill list, run `wipnote skill show ui-stills-verification`) and follow it. It is headless, needs no
 extension or browser session, and is the method to use whenever `mcp__claude-in-chrome__computer`
 is unavailable (which is the common case for dispatched subagents and every non-Claude harness).
 Use the Chrome MCP only when it is actually available and the task needs live interaction that

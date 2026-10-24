@@ -1,6 +1,7 @@
 ---
-name: wipnote:visual-recap
-description: Generate a grounded visual recap for a work item, git range, or session. Runs wipnote recap to produce a self-contained HTML artifact grounded in the real diff, reads the artifact, writes an outcome narrative (secrets redacted), and links to the dashboard recap URL. Use when asked to recap, summarize, or visualize completed work.
+name: visual-recap
+description: "Generates a diff-grounded visual recap of a work item, git range, or session and summarizes its outcome. Use when asked to recap, summarize, or visualize completed work."
+disable-model-invocation: true
 ---
 
 # wipnote Visual Recap
@@ -8,8 +9,16 @@ description: Generate a grounded visual recap for a work item, git range, or ses
 Use this skill to generate a grounded, diff-backed recap for a work item, git range,
 or session — then surface the key outcome narrative and a direct link to the HTML artifact.
 
-**Trigger keywords:** recap, summarize work, visual recap, show what was done, recap this feature,
-recap this session, show recap, diff recap
+Copy this checklist and tick it off:
+
+```
+Recap (<scope>):
+- [ ] 1. Scope identified (asked if ambiguous)
+- [ ] 2. `wipnote recap` succeeded; recap-id captured
+- [ ] 3. Artifact read; changes, reason and outcome extracted
+- [ ] 4. Secrets redacted; every claim traced to the artifact
+- [ ] 5. Narrative presented with the artifact path and dashboard link
+```
 
 ---
 
@@ -61,6 +70,8 @@ From the artifact extract:
 - **Why** — work item title and description (from the embedded lineage metadata)
 - **Outcome** — tests passing, artifacts committed, quality gates
 
+If the output is truncated, `wipnote recap show <recap-id>` prints the title, outcome, and git range as JSON. For the rest of the diff, read the next chunk with an offset (e.g. the Read tool's offset/limit, or `wipnote sh "sed -n '301,600p' .wipnote/recaps/<recap-id>.html"`).
+
 **Redact before displaying:** API keys, tokens, passwords, `.env` values, private paths,
 and any content that looks like a secret. Replace with `[REDACTED]`.
 
@@ -86,7 +97,11 @@ Present a concise, grounded summary to the user:
 <work item ID + title if available, git range if range mode, session ID if session mode>
 ```
 
-Keep the narrative tight — 5-10 lines. The full artifact is in the dashboard for deep review.
+Before presenting, check each claim against the artifact and drop any you cannot point to. Keep the narrative tight — 5-10 lines. The full artifact is in the dashboard for deep review.
+Write in plain English:
+- One idea per sentence.
+- Keep sentences under 20 words.
+- Use the active voice.
 
 ---
 
@@ -98,34 +113,5 @@ Keep the narrative tight — 5-10 lines. The full artifact is in the dashboard f
 - **Dashboard URL:** default port is `8080`; devcontainer port is `8088` (see AGENTS.md).
   Tell the user which applies based on their environment.
 - **Secrets:** always redact before displaying any diff content in the narrative.
-
----
-
-## Auto-triggers
-
-Recap generation fires automatically at two points in the lifecycle — no manual invocation needed.
-
-### 1. Plan finalize auto-rollup
-
-`wipnote plan finalize <plan-id>` automatically generates a consolidated rollup recap after
-locking the plan. The artifact ID is `recap-pln-<plan-id>` and the git range spans from the
-first commit that introduced the plan YAML (`<first-commit>..HEAD`), covering the full
-planning-to-finalize arc. The recap is written to `.wipnote/recaps/recap-pln-<plan-id>.html`
-and committed. A `relates_to` lineage edge is wired from the plan to the recap so it appears
-in `wipnote lineage <plan-id>`.
-
-This step is non-fatal: if the plan YAML has no git history yet (untracked) or any other
-error occurs, a warning is printed to stderr and finalize continues normally.
-
-### 2. Feature/bug complete recap nudge
-
-`wipnote feature complete <id>` (and `wipnote bug complete <id>`) print a one-line nudge to
-stderr after a successful code-bearing completion:
-
-```
-  ! recap: wipnote recap <id>   (grounded diff recap of this work)
-```
-
-This is a reminder only — no recap is generated automatically. Run the suggested command to
-produce a grounded diff recap grounded in the real committed diff. The nudge is consistent
-with the adjacent drift nudge and is non-fatal.
+- **Auto-triggers.** `wipnote plan finalize` writes a rollup recap (`recap-pln-<plan-id>`).
+  `wipnote feature complete` / `bug complete` only print a nudge to run `wipnote recap <id>`.

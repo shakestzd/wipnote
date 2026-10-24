@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# Stub headless claude. Its arguments are logged ("claude <args>") to $SIMLOG.claude. With
+# --output-format stream-json it replays the real stream in fixtures/claude.stream.jsonl, a line
+# at a time, and refuses it without --verbose as claude -p does; otherwise it prints the answer.
+# A prompt starting "tag:" is its own answer, so calls run at once can tell their answers apart.
+echo "claude $*" >> "$SIMLOG.claude"
+F="$(dirname "$0")/../fixtures/claude.stream.jsonl"; P=; prev=
+for a in "$@"; do [ "$prev" = -p ] && P="$a"; prev="$a"; done
+case "$P" in tag:*) T="$(mktemp)"; jq -c --arg p "$P" 'if .type == "result" then .result = $p else . end' "$F" > "$T"; F="$T";; esac
+case " $* " in
+  *" --output-format stream-json "*)
+    case " $* " in *" --verbose "*) ;; *) echo "Error: When using --print, --output-format=stream-json requires --verbose" >&2; exit 1;; esac
+    while IFS= read -r l; do echo "$l"; sleep 0.2; done < "$F";;
+  *) jq -r 'select(.type == "result") | .result' "$F";;
+esac

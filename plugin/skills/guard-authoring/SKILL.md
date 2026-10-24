@@ -1,21 +1,27 @@
 ---
 name: guard-authoring
-description: Author, approve, and maintain project guard profiles (.wipnote/guard-profile.yaml). Use for custom quality/completion/yolo gates, polyglot monorepo per-directory guards, re-approving after drift, and understanding the trust boundary and autodetection fallback.
+description: "Authors, approves, and maintains project guard profiles (.wipnote/guard-profile.yaml). Use when setting custom quality, completion, or yolo gates, scoping guards per directory in a monorepo, or re-approving a profile after it drifts."
+disable-model-invocation: true
 ---
 
 # Guard Authoring Skill
-
-**Trigger keywords:** guard profile, guard init, quality gate, completion gate, yolo gate,
-applies_when, guard authoring, re-approve guard, guard drift
-
----
 
 ## What a guard profile is
 
 `.wipnote/guard-profile.yaml` is a hand-maintained YAML file committed to the repository.
 It replaces wipnote's manifest autodetection with an explicit, version-controlled list of
-commands. Treat it like any other config file — diff it, review it in PRs, edit it when
-your toolchain changes. See `docs/guard-profiles.md` for the full reference.
+commands. Full reference:
+[docs/guard-profiles.md](https://github.com/shakestzd/wipnote/blob/main/docs/guard-profiles.md).
+
+Copy this checklist for every profile change:
+
+```
+Guard profile change:
+- [ ] 1. Profile edited (schema below)
+- [ ] 2. Re-approved with `wipnote guard init`
+- [ ] 3. `wipnote check --gate` output names the profile's guards
+- [ ] 4. Gate clean (see "Verify after every edit")
+```
 
 ---
 
@@ -49,6 +55,8 @@ Do not hand-edit `approved.signature`.
 
 ## Polyglot / monorepo example
 
+Only the `guards.quality` delta is shown; the other phases follow the same shape.
+
 ```yaml
 guards:
   quality:
@@ -67,22 +75,6 @@ guards:
       cwd: dataservice
       applies_when:
         paths: ["dataservice/**/*.py"]
-  completion:
-    - name: go-test
-      cmd: go test ./...
-      cwd: backend
-      applies_when:
-        paths: ["backend/**/*.go"]
-  yolo:
-    - name: go-vet
-      cmd: go vet ./...
-      cwd: backend
-      applies_when:
-        paths: ["backend/**/*.go"]
-approved:
-  signature: "sha256:..."
-  by: "Alice"
-  at: "2026-01-15T10:30:00Z"
 ```
 
 `cwd` routes each toolchain to its subdirectory. `applies_when.paths` gates a guard on
@@ -114,7 +106,12 @@ launches skip silently.
 wipnote guard init    # explicit: propose, review, approve, commit (re-runnable)
 ```
 
-Run `wipnote guard init` after any edit to re-approve and record a fresh signature.
+## Verify after every edit
+
+1. Run `wipnote guard init` to re-approve and record a fresh signature.
+2. Run `wipnote check --gate`.
+3. Confirm the output names your profile's guards (their `name` values), not autodetected gates such as `go build` / `go vet` / `go test`. Autodetected gates mean the profile was not honored; see the fallback cases above.
+4. Fix the profile and repeat until the gate is clean and runs your guards.
 
 ---
 

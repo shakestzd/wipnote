@@ -114,7 +114,8 @@ const (
 //     parent harness's native variables (CODEX_THREAD_ID) alongside its own.
 //  2. CLAUDE_CODE_ENTRYPOINT / CLAUDECODE / CLAUDE_CODE — set by Claude Code in
 //     every hook invocation and Bash tool shell.
-//  3. CODEX_THREAD_ID → GEMINI_SESSION_ID → ANTIGRAVITY_SESSION_ID — the
+//  3. CODEX_THREAD_ID (or CODEX_SESSION_ID) → GEMINI_SESSION_ID →
+//     ANTIGRAVITY_SESSION_ID — the
 //     harness-native identity variables, which a plugin-only session (no
 //     wipnote launcher, e.g. a Codex desktop task) exposes without any
 //     WIPNOTE_HARNESS stamp (issue #148).
@@ -126,7 +127,7 @@ func DetectEnvHarness() string {
 	if os.Getenv("CLAUDE_CODE_ENTRYPOINT") != "" || os.Getenv("CLAUDECODE") != "" || os.Getenv("CLAUDE_CODE") != "" {
 		return HarnessClaude
 	}
-	if strings.TrimSpace(os.Getenv("CODEX_THREAD_ID")) != "" {
+	if codexEnvSessionID() != "" {
 		return HarnessCodex
 	}
 	if strings.TrimSpace(os.Getenv("GEMINI_SESSION_ID")) != "" {
@@ -153,14 +154,14 @@ func DetectEnvHarness() string {
 // the parent's CLAUDE_ENV_FILE. Claiming under WIPNOTE_SESSION_ID there made
 // the claim invisible to the work-item gate (issue #125).
 //
-// Precedence: CLAUDE_CODE_SESSION_ID / CODEX_THREAD_ID / GEMINI_SESSION_ID /
-// ANTIGRAVITY_SESSION_ID depending on the detected harness.
+// Precedence: CLAUDE_CODE_SESSION_ID / CODEX_THREAD_ID (then CODEX_SESSION_ID)
+// / GEMINI_SESSION_ID / ANTIGRAVITY_SESSION_ID depending on the detected harness.
 func HarnessNativeEnvSessionID() string {
 	switch DetectEnvHarness() {
 	case HarnessClaude:
 		return claudeEnvSessionID()
 	case HarnessCodex:
-		return strings.TrimSpace(os.Getenv("CODEX_THREAD_ID"))
+		return codexEnvSessionID()
 	case HarnessGemini:
 		return strings.TrimSpace(os.Getenv("GEMINI_SESSION_ID"))
 	case HarnessAntigravity:
@@ -217,4 +218,17 @@ func readActiveSessionID(projectDir string) string {
 		return ""
 	}
 	return f.SessionID
+}
+
+// codexEnvSessionID returns the Codex thread ID that shell commands see.
+// CODEX_THREAD_ID is the current thread, which is the session_id Codex hooks
+// receive; a subagent thread has its own. CODEX_SESSION_ID is the root
+// thread's ID, shared by every thread of the session. Codex drops
+// CODEX_THREAD_ID when an exec request carries no thread, so the root ID is
+// the fallback: it still names a real session wipnote has seen.
+func codexEnvSessionID() string {
+	if v := strings.TrimSpace(os.Getenv("CODEX_THREAD_ID")); v != "" {
+		return v
+	}
+	return strings.TrimSpace(os.Getenv("CODEX_SESSION_ID"))
 }

@@ -456,3 +456,79 @@ func TestYoloModeGuards(t *testing.T) {
 		}
 	}
 }
+
+// TestSessionEndHandoffFilesFromCanonicalLog drives real PreToolUse calls into
+// SessionEnd and asserts the handoff's file pointers come from the canonical
+// tool-events log PreToolUse appends (bug-07fd4a51) — newest first, edit tools
+// only — with no feature_files rows present at all.
+func TestSessionEndHandoffFilesFromCanonicalLog(t *testing.T) {
+	database, projectDir := setupLifecycleDB(t)
+	sessionID := "handoff-files-session-001"
+
+	t.Setenv("CLAUDE_SESSION_ID", "")
+	t.Setenv("WIPNOTE_PARENT_SESSION", "")
+	t.Setenv("WIPNOTE_NESTING_DEPTH", "")
+	t.Setenv("CLAUDE_ENV_FILE", "")
+	t.Setenv("CLAUDE_PROJECT_DIR", "")
+	t.Setenv("WIPNOTE_PROJECT_DIR", projectDir)
+	t.Setenv("WIPNOTE_SESSION_ID", sessionID)
+	t.Setenv("WIPNOTE_AGENT_ID", "claude-code")
+	t.Setenv("WIPNOTE_AGENT_TYPE", "")
+	t.Setenv("WIPNOTE_PARENT_EVENT", "")
+	t.Setenv("WIPNOTE_PARENT_PROMPT_EVENT", "")
+
+	if err := db.InsertSession(database, &models.Session{
+		SessionID: sessionID, AgentAssigned: "claude-code", Status: "active",
+		CreatedAt: time.Now().UTC(), ProjectDir: projectDir,
+	}); err != nil {
+		t.Fatalf("InsertSession: %v", err)
+	}
+	feat := &db.Feature{
+		ID: "feat-handoff-files", Type: "feature", Title: "Handoff files", Status: "in-progress",
+		Priority: "medium", CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC(),
+	}
+	if err := db.InsertFeature(database, feat); err != nil {
+		t.Fatalf("InsertFeature: %v", err)
+	}
+	if _, err := database.Exec(`UPDATE sessions SET active_feature_id = ? WHERE session_id = ?`, feat.ID, sessionID); err != nil {
+		t.Fatalf("set active_feature_id: %v", err)
+	}
+	featureIDCache = featureIDCacheEntry{}
+
+	pre := func(tool, id string, input map[string]any) {
+		t.Helper()
+		res, err := PreToolUse(&CloudEvent{SessionID: sessionID, CWD: projectDir, ToolName: tool, ToolUseID: id, ToolInput: input}, database)
+		if err != nil {
+			t.Fatalf("PreToolUse %s: %v", tool, err)
+		}
+		if res.Decision == "block" {
+			t.Fatalf("PreToolUse %s blocked: %s", tool, res.Reason)
+		}
+	}
+	pre("Read", "t-read", map[string]any{"file_path": filepath.Join(projectDir, "a.go")})
+	pre("Edit", "t-edit-a", map[string]any{"file_path": filepath.Join(projectDir, "a.go"), "old_string": "x", "new_string": "y"})
+	pre("Edit", "t-edit-b", map[string]any{"file_path": filepath.Join(projectDir, "b.go"), "old_string": "x", "new_string": "y"})
+
+	var ffRows int
+	_ = database.QueryRow(`SELECT COUNT(*) FROM feature_files`).Scan(&ffRows)
+	if ffRows != 0 {
+		t.Fatalf("precondition: feature_files must be empty, got %d", ffRows)
+	}
+
+	if _, err := SessionEnd(&CloudEvent{SessionID: sessionID, CWD: projectDir}, database, projectDir); err != nil {
+		t.Fatalf("SessionEnd: %v", err)
+	}
+	sess, err := db.GetSession(database, sessionID)
+	if err != nil || sess == nil {
+		t.Fatalf("GetSession: %v", err)
+	}
+	var rc struct {
+		Files []string `json:"files"`
+	}
+	if err := json.Unmarshal(sess.RecommendedContext, &rc); err != nil {
+		t.Fatalf("unmarshal recommended_context: %v (raw=%s)", err, sess.RecommendedContext)
+	}
+	if got := rc.Files; len(got) != 2 || got[0] != "b.go" || got[1] != "a.go" {
+		t.Fatalf("handoff files = %v, want [b.go a.go]", got)
+	}
+}

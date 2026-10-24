@@ -78,12 +78,14 @@ func TestClaudeAdapterEmitsManifestAndHooks(t *testing.T) {
 	}
 	// Hooks assertions: Claude-only events present, Codex-only absent.
 	s := string(hooksRaw)
-	for _, want := range []string{`"SessionStart"`, `"Stop"`, `"UserPromptSubmit"`, `"wipnote hook session-start"`, `"wipnote hook stop"`} {
-		if !contains(s, want) {
+	// Claude hooks use exec form: "command" is the bare executable and the
+	// subcommand + handler ride in "args" (no `sh -c`).
+	for _, want := range []string{`"SessionStart"`, `"Stop"`, `"UserPromptSubmit"`, `"command":"wipnote","args":["hook","session-start"]`, `"command":"wipnote","args":["hook","stop"]`} {
+		if !contains(compactJSON(t, hooksRaw), want) {
 			t.Errorf("claude hooks missing %q:\n%s", want, s)
 		}
 	}
-	for _, notWant := range []string{`"TaskStarted"`} {
+	for _, notWant := range []string{`"TaskStarted"`, `"wipnote hook `} {
 		if contains(s, notWant) {
 			t.Errorf("claude hooks should not contain Codex-only %q", notWant)
 		}
@@ -297,6 +299,17 @@ func readJSON(t *testing.T, path string, into any) {
 	if err := json.Unmarshal(data, into); err != nil {
 		t.Fatalf("unmarshal %s: %v", path, err)
 	}
+}
+
+// compactJSON strips insignificant whitespace so assertions can match
+// multi-field fragments regardless of the writer's indentation.
+func compactJSON(t *testing.T, raw []byte) string {
+	t.Helper()
+	var buf bytes.Buffer
+	if err := json.Compact(&buf, raw); err != nil {
+		t.Fatalf("compact json: %v", err)
+	}
+	return buf.String()
 }
 
 func contains(s, sub string) bool {

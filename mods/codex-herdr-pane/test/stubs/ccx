@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# SIMNOISE=1 adds the stdin line on stderr; SIMNONL=1 ends stdout without a newline.
+[ -n "$SIMLOGDELAY" ] && sleep "$SIMLOGDELAY"  # a ccx that is slow to create its log
+mkdir -p "$CCX_RUNS_DIR"; f="$CCX_RUNS_DIR/$(date +%Y%m%d-%H%M%S)-$$.jsonl"
+[ -n "$SIMNOISE" ] && echo "Reading additional input from stdin..." >&2
+echo '{"type":"system","subtype":"init"}' > "$f"; sleep 1
+echo '{"type":"assistant","message":{"content":[{"type":"text","text":"thinking about '"$2"'"},{"type":"tool_use","id":"toolu_1","name":"Bash","input":{"command":"echo hi"}}]}}' >> "$f"; sleep 1
+echo '{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"toolu_1","content":"hi","is_error":false}]}}' >> "$f"; sleep 1
+printf '{"type":"result","subtype":"success","duration_ms":3000,"num_turns":2,"usage":{"input_tokens":5,"output_tokens":7},"total_cost_usd":0.01}' >> "$f"
+echo "ccx task ok: 3s, 2 turns"
+if [ -n "$SIMNONL" ]; then printf "The result text."; else echo "The result text."; fi

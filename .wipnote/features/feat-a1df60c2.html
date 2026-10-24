@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Run-folder contract and pane hook so any harness UI can render a delegation</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-a1df60c2"
+             data-type="feature"
+             data-status="done"
+             data-priority="medium"
+             data-created="2026-10-18T08:16:28.757923"
+             data-updated="2026-10-21T16:48:12.934338" data-agent-assigned="claude-code" data-track-id="trk-2e707ed1" data-created-by-agent="claude-code" data-created-by-cli-version="0.70.2-7-g160ae1b84" data-affected_files="mods/" data-created_in_session="e41f6acf-9ecd-5cf8-846b-fbd1203fe65e" data-rollup-unavailable="no_read_index" data-standalone_reason="split from issue #214">
+
+        <header>
+            <h1>Run-folder contract and pane hook so any harness UI can render a delegation</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="committed_in">
+                <h3>Committed In:</h3>
+                <ul>
+                    <li><a href="2830d15890c6c531052ba7018933e06cf2f58b19.html" data-relationship="committed_in" data-since="2026-10-20T22:55:15">chore(wipnote): session claim for feat-a1df60c2</a></li>
+                    <li><a href="d960238a347d3037261580e396c6d0c6e1409c81.html" data-relationship="committed_in" data-since="2026-10-18T12:41:02">feat(mods): import codex-herdr-pane 0.7.0 as-is (#217)</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="../sessions/e41f6acf-9ecd-5cf8-846b-fbd1203fe65e.html" data-relationship="implemented_in" data-since="2026-10-18T16:28:45.215968">session e41f6acf-9ecd-5cf8-846b-fbd1203fe65e</a></li>
+                    <li><a href="../sessions/f5ef1ec4-8a90-58d7-8d01-a031d8ff4a7b.html" data-relationship="implemented_in" data-since="2026-10-20T22:32:33.919457">session f5ef1ec4-8a90-58d7-8d01-a031d8ff4a7b</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-2e707ed1.html" data-relationship="part_of" data-since="2026-10-18T08:16:28.763065">trk-2e707ed1</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="true" data-step-id="step-feat-a1df60c2-0" data-agent="claude-code" data-created-by-agent="claude-code">✅ Write the run-folder contract spec</li>
+                <li data-completed="true" data-step-id="step-feat-a1df60c2-1" data-agent="claude-code" data-created-by-agent="claude-code">✅ Port the herdr-pane mod into mods/</li>
+                <li data-completed="true" data-step-id="step-feat-a1df60c2-2" data-agent="claude-code" data-created-by-agent="claude-code">✅ Add build-ports support for shipping mods</li>
+                <li data-completed="true" data-step-id="step-feat-a1df60c2-3" data-agent="claude-code" data-created-by-agent="claude-code">✅ Tests against stub herdr and codex</li>
+                <li data-completed="true" data-step-id="step-feat-a1df60c2-4" data-agent="claude-code" data-created-by-agent="claude-code">✅ Import codex-herdr-pane 0.7.0 verbatim into mods/codex-herdr-pane</li>
+                <li data-completed="true" data-step-id="step-feat-a1df60c2-5" data-agent="claude-code" data-created-by-agent="claude-code">✅ Declare layout, maxPanes and author in plugin.json</li>
+                <li data-completed="true" data-step-id="step-feat-a1df60c2-6" data-agent="claude-code" data-created-by-agent="claude-code">✅ Clean up old run dirs, registry entries and mcp seen files</li>
+                <li data-completed="true" data-step-id="step-feat-a1df60c2-7" data-agent="claude-code" data-created-by-agent="claude-code">✅ ccx follower: match its own log by run id, not newest mtime (also fixes coarse-mtime test flake)</li>
+                <li data-completed="true" data-step-id="step-feat-a1df60c2-8" data-agent="claude-code" data-created-by-agent="claude-code">✅ Quote the pane rename title and single-quote the plugin root path</li>
+                <li data-completed="true" data-step-id="step-feat-a1df60c2-9" data-agent="claude-code" data-created-by-agent="claude-code">✅ Keep a caller&#39;s shorter Bash timeout instead of always 600 s</li>
+                <li data-completed="true" data-step-id="step-feat-a1df60c2-10" data-agent="claude-code" data-created-by-agent="claude-code">✅ Make the ccx runs dir a setting with no machine-specific default</li>
+                <li data-completed="true" data-step-id="step-feat-a1df60c2-11" data-agent="claude-code" data-created-by-agent="claude-code">✅ Chained calls: point MCP note at orig.out, say codex exited, warn once, make seen-file and stale-lock writes atomic</li>
+                <li data-completed="true" data-step-id="step-feat-a1df60c2-12" data-agent="claude-code" data-created-by-agent="claude-code">✅ Markdown log edges: rmcp filter in clean.log, ccx text order, neutralise raw Markdown and HTML in prose</li>
+                <li data-completed="true" data-step-id="step-feat-a1df60c2-13" data-agent="claude-code" data-created-by-agent="claude-code">✅ codex review: label the fallback token figure as cache-dependent</li>
+                <li data-completed="true" data-step-id="step-feat-a1df60c2-14" data-agent="claude-code" data-created-by-agent="claude-code">✅ Write the run-folder contract as a spec</li>
+                <li data-completed="true" data-step-id="step-feat-a1df60c2-15" data-agent="claude-code" data-created-by-agent="claude-code">✅ Ship mods through build-ports</li>
+                <li data-completed="true" data-step-id="step-feat-a1df60c2-16" data-agent="claude-code" data-created-by-agent="claude-code">✅ Wrap headless claude -p / --print (bare and behind dev exec) in a herdr pane with a stream-json log</li>
+            </ol>
+        </section>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>From GitHub issue #214 (ask 3). Define one run-folder contract (raw.log, clean.log, clean.md, last.md, usage, exit, start, end, label) that every viewer reads: a herdr pane, a native Claude Code mod pane, or a plain tail. Ship the herdr-pane delegation mod from the #214 prototype as a wipnote mod: tool.call hook on Bash, pane per run, tiled 2x2 layout capped at 6, Markdown log with safe fencing, falls back to running the command unchanged. Depends on build-ports support for shipping mods (deferred from PR #213). Unverified in #214: the native in-Claude pane was never observed on screen.</p>
+        </section>
+    </article>
+</body>
+</html>

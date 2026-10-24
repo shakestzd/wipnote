@@ -34,8 +34,8 @@ All three trees are **generated** from the same source of truth at
 `packages/plugin-core/manifest.json` by `wipnote plugin build-ports`. Shared
 markdown assets (commands, agents, skills, templates) live in `plugin/…/`.
 Codex agent markdown is translated into custom-agent TOML during generation, then
-`wipnote codex` mirrors those TOML files into Codex's documented `.codex/agents`
-lookup locations when launching. See `packages/plugin-core/README.md` for
+`wipnote codex` mirrors those TOML files into the user-level `~/.codex/agents`
+lookup directory when launching (Codex discovers roles there natively). See `packages/plugin-core/README.md` for
 details.
 
 **Codex Agent Persistence:** `wipnote codex` copies `wipnote-*.toml` files into `~/.codex/agents/` on every launch but intentionally never deletes them on exit. This allows users running bare `codex` (outside the wipnote launcher) to see the wipnote agents in `/agent` listings and invoke them from any session. Stale `wipnote-*.toml` files from old versions are cleaned up on the next `wipnote codex` launch—the function `ensureCodexCustomAgentsInstalled` removes any `wipnote-*.toml` no longer present in the source plugin tree. Non-`wipnote-*` files at the target are never touched.
@@ -70,4 +70,4 @@ Do not use the production default port 8080 for devcontainer dashboard sessions.
 
 ## Temporal Awareness
 
-A `UserPromptSubmit` hook injects the current local timestamp (with timezone) on every user prompt. Use it to reason about elapsed time between messages — detect stale context in long sessions, recognize when a session has been resumed after a gap, and avoid treating old references as fresh.
+On Claude Code, a `UserPromptSubmit` hook injects the current local timestamp (with timezone) on every user prompt. Codex supplies the current date and timezone in its own environment context, so wipnote adds none there. Use it to reason about elapsed time between messages — detect stale context in long sessions, recognize when a session has been resumed after a gap, and avoid treating old references as fresh.

@@ -121,8 +121,10 @@ func TestRegistry_HooksHarnessMatchesHooksConst(t *testing.T) {
 	}
 }
 
-// TestCodexOtelEnv verifies that the Codex OtelEnv function returns the
-// expected OTel environment variables including the service name and port.
+// TestCodexOtelEnv verifies that the Codex OtelEnv function injects only the
+// wipnote session ID. Codex reads its exporter config solely from `-c otel.*`
+// overrides, so the OTEL_* SDK env vars would be dead (and would leak into
+// Codex's tool subprocesses).
 func TestCodexOtelEnv(t *testing.T) {
 	cfg := harness.Get("codex")
 	if cfg == nil {
@@ -133,26 +135,14 @@ func TestCodexOtelEnv(t *testing.T) {
 	}
 
 	got := cfg.OtelEnv(9999, "sess-abc")
-	if got == nil {
-		t.Fatal("OtelEnv(9999, \"sess-abc\") returned nil")
+	want := []string{"WIPNOTE_OTEL_SESSION=sess-abc"}
+	if len(got) != len(want) || got[0] != want[0] {
+		t.Fatalf("OtelEnv(9999, \"sess-abc\") = %v, want %v", got, want)
 	}
-
-	// Must contain OTEL_SERVICE_NAME=codex-cli.
-	foundServiceName := false
-	foundPort := false
 	for _, e := range got {
-		if e == "OTEL_SERVICE_NAME=codex-cli" {
-			foundServiceName = true
+		if strings.HasPrefix(e, "OTEL_") {
+			t.Errorf("Codex must not receive OTel SDK env vars (it ignores them): %q", e)
 		}
-		if strings.Contains(e, "9999") {
-			foundPort = true
-		}
-	}
-	if !foundServiceName {
-		t.Errorf("OtelEnv missing OTEL_SERVICE_NAME=codex-cli; got %v", got)
-	}
-	if !foundPort {
-		t.Errorf("OtelEnv missing entry containing port 9999; got %v", got)
 	}
 }
 
@@ -318,7 +308,7 @@ func TestRegistry_LaunchEnv_Claude(t *testing.T) {
 		t.Fatal("Get(\"claude_code\") returned nil")
 	}
 
-	want := []string{"CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1"}
+	want := []string{"CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1", "CLAUDE_CODE_ENABLE_TODO_TOOLS=1"}
 	if len(cfg.LaunchEnv) != len(want) {
 		t.Fatalf("Get(\"claude_code\").LaunchEnv = %v, want %v", cfg.LaunchEnv, want)
 	}

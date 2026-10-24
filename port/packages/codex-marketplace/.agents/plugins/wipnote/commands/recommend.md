@@ -35,10 +35,30 @@ The command displays:
 
 ## Instructions
 
-This command invokes `wipnote recommend` via the CLI, which provides all analytics in one unified output.
+Copy this checklist and tick it off:
 
-**Key workflow:**
-1. Run `wipnote recommend [--top N]` where N is user's choice or default 5
-2. Present the output with light markdown formatting
-3. Analyze the **recommended items** for parallel execution opportunities
-4. Propose next action: either parallel launch or sequential plan
+```
+Recommend:
+- [ ] 1. Recommendations fetched
+- [ ] 2. Bottlenecks handled or named first
+- [ ] 3. Dependencies and file overlap checked for the top items
+- [ ] 4. One next action proposed
+```
+
+1. **Fetch.** Run `wipnote recommend --top N` (N is the user's choice, default 5). Present the output with light markdown formatting.
+2. **Bottlenecks first.** If it lists bottlenecks (stale items, overloaded tracks), propose resuming, unblocking or closing them before new work.
+3. **Check the top items.** For each pair, ask: does one block the other? Do they touch the same files or modules (`wipnote trace <id>` lists an item's files)? If you cannot tell, say so rather than guessing.
+4. **Propose one next action:**
+   - 2+ independent items with no file overlap: `/wipnote:execute` for parallel dispatch.
+   - Dependent items: name the critical path and a sequential order, blocker first.
+   - Work that needs design first: `/wipnote:plan`.
+   - A single item: delegate by size to `patch-coder` (small, tightly scoped), `feature-coder` (ordinary feature) or `architect-coder` (cross-cutting design).
+
+## Deeper analysis
+
+| Question | Command |
+|---|---|
+| Project overview | `wipnote status`, `wipnote snapshot --summary` |
+| Work by status | `wipnote find features --status in-progress` (also `todo`, `blocked`; `wipnote find bugs --status todo`) |
+| Work type mix and maintenance burden | `wipnote analytics summary` |
+| Throughput | `wipnote analytics velocity` (items completed per week, last 4 weeks) |

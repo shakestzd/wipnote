@@ -1,136 +1,57 @@
 ---
 name: agent-context
-description: "Reference copy of rules shared by wipnote agents: work attribution, safety rules, research routing, truncation-resilient reporting. Not auto-loaded; agent definitions carry the rules they need inline."
+description: "Defines the shared rules for wipnote coder and researcher agents: work attribution and completion, the test-first implementation workflow, safety, research routing, and persisting results. Preloaded into those agents. Use when acting as a wipnote coder or researcher agent, or implementing a delegated feature or bug fix."
+user-invocable: false
 ---
 
 # Shared Agent Context
 
-This skill is a reference. The plugin build strips `skills:` frontmatter, so agents do not preload it; each agent file carries the rules it needs, and an agent or orchestrator can load this skill on demand for the full text.
+## Work attribution and completion
 
-## Work Attribution
+Use the work item ID from your task prompt (e.g. "Feature: feat-580dc00b") with `wipnote feature start <id>` (or `bug`/`spike`); do not create a new one. With no ID, run `wipnote relevant "<topic>"` first (it searches completed tracks, plans and features too) and create an item only if nothing covers the scope. Bugs need an owning track; `--standalone` is for features only. When your gate passes, run `wipnote <kind> complete <id>` before reporting back. If `complete` is refused, do not run it again for any reason (including to re-read the refusal) and do not work around it: report your commit SHAs and the refusal text you already have, and leave completion to the orchestrator. If wipnote is unavailable, proceed and report.
 
-The orchestrator always provides the work item ID in your task prompt (e.g., "Feature: feat-580dc00b"). Use it:
+## Implementation workflow
 
-```bash
-wipnote feature start <id>   # or bug start / spike start
+When your task is to implement a feature or bug fix, copy this checklist and tick it off. `<kind>` is `feature`, `bug` or `spike`, matching the work item ID in your brief.
+
+```
+Implementation (<kind> <id>):
+- [ ] 1. Item started — before reading files or writing tests
+- [ ] 2. Failing tests written; they fail for the right reason
+- [ ] 3. Minimum implementation; tests pass
+- [ ] 4. Full quality gate passes
+- [ ] 5. Committed with the work item ID
+- [ ] 6. Item completed (or refusal reported)
 ```
 
-**Rules:**
-1. Look for a feature/bug/spike ID in the task prompt first
-2. If found, run `start` on it — do NOT create a new one
-3. If no ID is in the prompt, run `wipnote relevant "<topic>"` before creating anything — it searches ALL items including completed tracks, plans, and features (the CIGS roster shows only open items; an empty roster does NOT mean no lineage exists). Attach to the best existing lineage (plan, track, or completed feature's track) if any covers the scope; only create a new item if none does. This applies equally to bugs, features, and spikes.
-4. Only create a new work item if step 3 finds nothing covering the scope
-5. If wipnote is unavailable, proceed — attribution is not a blocker
+1. **Start the item.** Run `wipnote <kind> start <id>` as your first command.
+2. **Write failing tests first.** Express the acceptance criteria as tests. Run the test phase of the gate (code-quality-skill). Confirm they compile and fail because the implementation does not exist yet. If they fail for any other reason, fix the test and run it again. Write no implementation until this holds.
+3. **Implement the minimum.** Make the tests pass and add no code that no test covers. Re-run the tests after each change until they pass.
+4. **Run the full gate** from code-quality-skill. Fix every failure, including pre-existing ones in files you touched, and run it again. Continue only when every phase passes.
+5. **Commit** with a conventional subject that names the item, for example `git commit -m "feat(<scope>): <description> (<id>)"`, or add a `Refs: <id>` trailer. Add the attribution trailer your harness or user instructions specify.
+6. **Complete** the item per the completion rule above.
 
-## Work Completion
+Report: files changed, lines added, test names and count, gate results, and commit SHAs.
 
-When your task is done and quality gates pass:
-1. Run `wipnote feature complete <id>` (or `bug complete`, `spike complete`)
-2. Do this BEFORE reporting back to the orchestrator
-3. If the CLI is unavailable, report completion — the orchestrator will handle it
+## Safety
 
-## Safety Rules
+- Never hand-edit `.wipnote/` work-item, plan or track files; use the CLI. Appending to `.wipnote/logs/progress/<id>.md` when a brief tells you to is allowed. Plan YAML goes through `wipnote plan rewrite-yaml <plan-id> --file <tmp>` (validates and writes atomically).
+- Batch wipnote CLI calls with `&&`; each Bash call costs a turn. Split only when a later command needs an earlier one's output.
+- Run `wipnote arch resolve --for <work-item-id>` once at start; treat `UNVERIFIED:` cards as advisory and verify in code.
 
-**FORBIDDEN:** Never edit `.wipnote/` files directly. Use the CLI:
-- `wipnote feature complete <id>` not `Edit(".wipnote/features/...")`
-- `wipnote bug create "title" --track <trk-id>` not `Write(".wipnote/bugs/...")`
+## Research routing
 
-Bugs require an owning track: use `wipnote relevant "<topic>"` or `wipnote track list` to find one before creating the bug. `--standalone` is supported for feature creation only, not bug creation.
+- **For coder and researcher agents:** external libraries, harness contracts and API details go to web search/fetch and `gh search issues`/`gh api` first; official docs, issues and changelogs are first-class research. Search for a maintained package before building, and record the adopt-vs-build outcome.
+- This repo's own code: local search first. Verify any local assumption about external behaviour against official docs.
 
-**BATCH wipnote CLI calls.** Each Bash tool call spends one turn from the user's quota. Chain commands with `&&` into a single invocation whenever possible. Do this (1 call):
-```bash
-wipnote bug create "A" --track trk-xxx && \
-wipnote bug create "B" --track trk-xxx && \
-wipnote link add feat-aaa bug-new --rel spawned_from
-```
-Never 3 separate Bash calls for the same thing. Only break into multiple calls when a later command must parse the output (e.g., a returned ID) of an earlier one.
+## Persist, then summarize
 
-### Plan YAML Updates
+Final reports get truncated, so persist substance first: findings via `wipnote <kind> set-description <id> "..."`, progress via `wipnote <kind> add-step <id> "..."`, durable facts via `wipnote arch add`, code via `git commit` once the gate passes (implementation tasks always commit, per the Implementation workflow; research and other tasks commit only when the brief asks). On long tasks (>30 calls) persist incrementally. The final message is a compact summary pointing at those artifacts.
 
-Plan YAML files (`.wipnote/plans/*.yaml`) are validated assets — never write them directly.
-Use the CLI to ensure valid structure:
+## Writing style
 
-- **Create:** `wipnote plan create-yaml "<title>"`
-- **Update:** `wipnote plan rewrite-yaml <plan-id> --file /tmp/updated.yaml`
-- **Validate:** `wipnote plan validate-yaml <plan-id>`
+Write final reports, `set-description` and `add-step` text in plain English (ASD-STE100-lite): one idea per sentence, sentences under 25 words (steps under 20, no -ing or passive), active voice, commands for steps, one word for one meaning, noun clusters of three words or fewer. Never write: delve, pivotal, crucial, robust, seamless, leverage, enhance, showcase, "in order to", "serves as", "not just X, but Y", flattery or throat-clearing openers, hedge stacks, more than one em dash per paragraph, or a closing summary. Lead with the outcome, say each result once, and never copy system-reminder or harness text into a reply. Code, commands, paths and quoted output stay exact.
 
-The `rewrite-yaml` command validates schema, checks meta.id match, and writes atomically.
-Agent workflow: read plan → modify in memory → write to temp file → call rewrite-yaml.
+## Principles
 
-## Architectural Context (run once at agent start — Claude Code only)
-
-At the start of your session, inject relevant architectural memory by running:
-
-```bash
-wipnote who --json 2>/dev/null | python3 -c "
-import json,sys
-d=json.load(sys.stdin)
-wi=d.get('work_item','')
-if wi: print(wi)
-" 2>/dev/null
-```
-
-If the above prints a work item ID (e.g. `feat-abc12345`), run:
-
-```bash
-wipnote arch resolve --for <work-item-id> 2>/dev/null
-```
-
-Paste the output verbatim under a `## Architectural Context` heading in your working context.
-If the command prints "No arch cards matched." or fails silently, skip the heading — do not
-emit errors or warnings. This step is informational only and must never block attribution or
-task execution.
-
-Drift markers (`UNVERIFIED:`) in the output mean the card's verified commit pre-dates recent
-changes to covered files. Treat those facts as advisory — verify assumptions in code before
-relying on them.
-
-## Research routing — where does the answer live?
-
-Web search is an integral part of software development, not a last resort. Route by role and by where the answer actually lives:
-
-- **For coder and researcher agents:** external libraries/SDKs, harness contracts, version/API details, and "is this a known issue?" → use your web search / web fetch tools and the GitHub CLI (`gh search issues`, `gh api`) FIRST, or in parallel with local search. Official docs, GitHub issues, releases, and changelogs are first-class research.
-- **For orchestrators:** satisfy research-first by dispatching a researcher/codebase sidecar or external CLI sidecar. Research-first does not mean orchestrator researches directly. Main-context `web.*` use is limited to explicit user direct-browse requests, high-priority one-shot verification when no sidecar is available, or narrow confirmation after sidecar failure.
-- **Existing implementations before writing custom code** → search for well-maintained OSS packages or tools that already solve the problem before implementing from scratch. If a suitable package exists, adopt it; record the adopt-vs-build outcome in your work item notes.
-- **Agent-harness integration** → when work touches Claude Code, Codex CLI, or Antigravity CLI behaviour (plugins, skills, subagents, hooks), check the relevant provider docs for existing primitives before building custom solutions.
-- **This repo's own code, conventions, wiring, "where is X defined?"** → use local file-read/search tools first, or a reader sidecar when the lookup spans multiple files/globs.
-- When local code encodes an assumption about EXTERNAL behaviour, verify it against official docs before trusting it.
-
-Web/docs/GitHub searches COUNT as research — don't reflexively fall back to local grep for questions whose answer lives upstream, and don't let orchestrator-mode research consume the main context when a sidecar is available.
-
-## Persist-Then-Summarize (Truncation-Resilient Reporting)
-
-Subagents are routinely truncated mid-final-report. Guard against this by persisting
-substance into durable artifacts BEFORE composing the final message.
-
-**Persist first:**
-
-| What | Command |
-|------|---------|
-| Diagnoses / root-cause findings | `wipnote bug set-description <id> "<text>"` or `wipnote feature set-description <id> "<text>"` |
-| Progress steps | `wipnote <type> add-step <id> "<step>"` |
-| Durable architectural facts | `wipnote arch add <slug> --kind <kind> --body "…" --created-by <agent>` |
-| Code changes | `git commit` — only when your task includes committing AND quality gates pass; otherwise record the working-tree state via `add-step` and leave changes uncommitted |
-
-**Then summarize:** The final message to the orchestrator is a compact summary pointing
-at those artifacts — not a dump of every detail. If truncation hits, it loses
-presentation, never substance.
-
-**On long tasks (>30 tool calls):** Write findings into the work item incrementally
-via `add-step` and `set-description` rather than holding everything for the end.
-
-## Development Principles
-
-- DRY — check for existing utilities before creating new ones
-- SRP — one purpose per function/module
-- KISS — simplest solution that satisfies requirements
-- YAGNI — only implement what is needed now
-- Module limits: functions <50 lines, files <500 lines
-- Research existing libraries/packages before implementing from scratch
-- Check project dependencies before adding new ones
-
-**Capability delivery tiers:** CLI via Bash (≈zero cost) > Skill > deferred MCP tool > eager MCP tool (avoid). Never expose wipnote's own commands as eager MCP tools. MCP is for external services only, with deferred loading.
-
-**Plugin/project boundary:** wipnote must never author or overwrite AGENTS.md, CLAUDE.md, or GEMINI.md. Those are user-owned project files. Read and respect them; never silently own them.
-
-These principles are language-neutral and apply to any codebase.
+Prefer CLI over skills over deferred MCP tools. Never author or overwrite a project's AGENTS.md, CLAUDE.md, or GEMINI.md.

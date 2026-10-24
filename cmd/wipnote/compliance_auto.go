@@ -804,45 +804,80 @@ func buildHeadlessArgs(req headlessRequest) []string {
 	}
 }
 
+// claudeLeanFlags make a headless run lean: no CLAUDE.md, skills, plugins,
+// hooks or MCP, and no saved session. --safe-mode keeps the person's login,
+// unlike --bare, which accepts only an API key or apiKeyHelper.
+var claudeLeanFlags = []string{"--safe-mode", "--no-session-persistence"}
+
+// claudeHelpProbeTimeout bounds the `claude --help` capability probe, which
+// runs before the grading call and its wall-clock timer exist.
+const claudeHelpProbeTimeout = 10 * time.Second
+
+// claudeHelpText returns `claude --help`, bounded by ctx and
+// claudeHelpProbeTimeout; "" on failure or timeout. A package var so tests can
+// stub it.
+var claudeHelpText = func(ctx context.Context) string {
+	ctx, cancel := context.WithTimeout(ctx, claudeHelpProbeTimeout)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "claude", "--help")
+	// A wrapper script's children can hold the output pipe open after the
+	// kill; stop waiting for them shortly after.
+	cmd.WaitDelay = time.Second
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return ""
+	}
+	return string(out)
+}
+
+var (
+	supportedLeanFlagsOnce sync.Once
+	supportedLeanFlags     []string
+)
+
+// supportedClaudeLeanFlags returns the claudeLeanFlags this claude install
+// lists in --help. --safe-mode is new in Claude Code 2.1.302 and an older CLI
+// rejects an unknown flag, so each one is added only when it is supported:
+// an older install still grades, just without the lean flags. A probe that
+// fails or times out fails open to the base flags.
+func supportedClaudeLeanFlags(ctx context.Context) []string {
+	supportedLeanFlagsOnce.Do(func() {
+		help := claudeHelpText(ctx)
+		for _, f := range claudeLeanFlags {
+			if strings.Contains(help, f) {
+				supportedLeanFlags = append(supportedLeanFlags, f)
+			}
+		}
+	})
+	return supportedLeanFlags
+}
+
 // realHeadlessInvoker spawns `claude -p` with the given request parameters,
 // captures stdout/stderr into buffers, honors context cancellation, and
 // self-enforces the wall-clock timeout via time.AfterFunc.
 //
 // Stderr is never leaked to the caller's stderr — it is captured into a buffer.
-// WIPNOTE_AUTO_COMPLIANCE_RUNNING=1 is set in the spawned process env
-// (forward-compat fork-bomb guard for a future hook plan).
+// WIPNOTE_HEADLESS=1 is set in the spawned process env so any wipnote hook
+// that still runs exits at once (headlessHookEnv).
 //
-// Bare-mode exposure (bug-48b023e5): Claude Code's `--bare` flag (skips
-// auto-discovery of hooks/skills/plugins/MCP servers/CLAUDE.md, and restricts
-// auth to ANTHROPIC_API_KEY/apiKeyHelper only — OAuth and keychain are never
-// read in bare mode) is documented as "the recommended mode for scripted and
-// SDK calls, and will become the default for -p in a future release"
-// (code.claude.com/docs/en/headless, verified against Claude Code v2.1.224).
-// This call is intentionally NOT passing --bare today, and is safe either way
-// with respect to *discovery*: the system prompt is fully replaced via
-// --system-prompt below, --allowedTools is pinned to "Read" only, and the
-// prompt never references skills or relies on CLAUDE.md/plugin/hook state —
-// so losing auto-discovery when the default flips changes nothing about the
-// grading result. The unresolved risk is auth, not discovery: bare mode's
-// OAuth/keychain lockout is bundled into the same flag, and there is currently
-// no documented --no-bare opt-out to keep today's ambient-login behavior once
-// -p defaults to bare. If that flip also flips the default auth mode, this
-// call starts failing for any environment without ANTHROPIC_API_KEY set —
-// watch Claude Code release notes for the -p default change and set
-// ANTHROPIC_API_KEY (or wire --bare explicitly) before it lands.
+// Bare mode (bug-48b023e5): --bare also skips discovery but accepts only
+// ANTHROPIC_API_KEY or apiKeyHelper, so it would break subscription logins.
+// --safe-mode (Claude Code 2.1.302) gives the same lean discovery and keeps
+// OAuth, so it is used instead (supportedClaudeLeanFlags).
 func realHeadlessInvoker(ctx context.Context, req headlessRequest) (*headlessResult, error) {
-	args := buildHeadlessArgs(req)
+	args := append(buildHeadlessArgs(req), supportedClaudeLeanFlags(ctx)...)
 
 	cmd := exec.CommandContext(ctx, "claude", args...)
 	cmd.Stdin = strings.NewReader(req.userPrompt)
+	// After a timeout kill, do not wait on children that still hold the pipes.
+	cmd.WaitDelay = time.Second
 
 	// Capture stdout and stderr; never leak to caller.
 	var stdoutBuf, stderrBuf bytes.Buffer
 	cmd.Stdout = &stdoutBuf
 	cmd.Stderr = &stderrBuf
 
-	// Set env with fork-bomb guard.
-	cmd.Env = append(os.Environ(), "WIPNOTE_AUTO_COMPLIANCE_RUNNING=1")
+	cmd.Env = append(os.Environ(), headlessHookEnv+"=1")
 
 	// Self-enforced wall-clock timeout.
 	var timedOut bool

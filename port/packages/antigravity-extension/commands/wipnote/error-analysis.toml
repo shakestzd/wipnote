@@ -181,7 +181,7 @@ This command follows a research-first debugging methodology: capture the error, 
 - `/hooks` - List active hooks
 - `claude --debug <command>` - Verbose output
 - `/doctor` - System diagnostics
-- Quality gates: `go build ./... && go vet ./... && go test ./...`
+- Quality gates: see `/wipnote:code-quality-skill`
 
 ### Next Steps
 1. Complete investigation checklist items

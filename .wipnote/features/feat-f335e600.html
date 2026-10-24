@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>wipnote-orchestra dev mod: usage, powerline and subagent band under the prompt</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="feat-f335e600"
+             data-type="feature"
+             data-status="done"
+             data-priority="medium"
+             data-created="2026-10-19T00:21:18.862166"
+             data-updated="2026-10-19T04:55:44.74925" data-agent-assigned="claude-code" data-track-id="trk-43e0650a" data-created-by-cli-version="0.70.2-8-g62baa0743" data-created_in_session="e41f6acf-9ecd-5cf8-846b-fbd1203fe65e" data-rollup-unavailable="no_read_index">
+
+        <header>
+            <h1>wipnote-orchestra dev mod: usage, powerline and subagent band under the prompt</h1>
+            <div class="metadata">
+                <span class="badge status-done">Done</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="committed_in">
+                <h3>Committed In:</h3>
+                <ul>
+                    <li><a href="e5651ad6e2d93c82548e7a7b4adacdb187f30f8e.html" data-relationship="committed_in" data-since="2026-10-19T00:20:05">feat(mods): add wipnote-orchestra dev mod as uploaded (0.1.0)</a></li>
+                    <li><a href="6e449daa73b8a7e343a26b9d223da07bfa5370c5.html" data-relationship="committed_in" data-since="2026-10-19T00:20:05">feat(mods): wipnote-orchestra timeZone option, escaped glyphs, repo README</a></li>
+                    <li><a href="86443ba2a7ea9c171b6e9071029f15b8e3074756.html" data-relationship="committed_in" data-since="2026-10-19T00:20:05">feat(mods): add wipnote-orchestra dev mod as uploaded (0.1.0)</a></li>
+                    <li><a href="4de5be78900d93b8e0bcb12d7e642a43f1c44914.html" data-relationship="committed_in" data-since="2026-10-19T00:20:05">feat(mods): wipnote-orchestra timeZone option, escaped glyphs, repo README</a></li>
+                    <li><a href="645b155d474550f3b6c9287ccba58349e351d19a.html" data-relationship="committed_in" data-since="2026-10-19T00:54:27">feat(mods): wipnote-orchestra dev mod — usage, powerline and subagent band (#223)</a></li>
+                    <li><a href="4ebe4d7f22f2f11dd13efd96a3bac5a31bcbf3bc.html" data-relationship="committed_in" data-since="2026-10-19T00:22:34">chore(wipnote): track feat-f335e600 (wipnote-orchestra dev mod) with decisions a-c</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="../sessions/e41f6acf-9ecd-5cf8-846b-fbd1203fe65e.html" data-relationship="implemented_in" data-since="2026-10-19T00:21:19.034299">session e41f6acf-9ecd-5cf8-846b-fbd1203fe65e</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-43e0650a.html" data-relationship="part_of" data-since="2026-10-19T00:21:18.864447">trk-43e0650a</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Add the wipnote-orchestra Claude Code mod at mods/wipnote-orchestra/ beside wipnote-cards. It draws a band under the prompt: Claude Code&#39;s own hint line, a usage-limits row (5h/7d), wrapping powerline segments (repo, branch, model, context %, track [done/total], work item, live agents, time) and one row per subagent. It reads wipnote (kind show --format json, track show) and never writes to it.
+
+DECISIONS
+(a) Time zone: now a userConfig option timeZone, default America/New_York. zoneOf() falls back to the default for an empty or unknown IANA zone, so a typo cannot throw while drawing. The clock segment and the usage-limit reset times both use it. Tests: unit (zoneOf, localTime, limitSpans in UTC) and a mounted band with options {timeZone: UTC} vs default; mutation-checked (ignoring the option fails the UTC test).
+(b) Overlap with wipnote-cards. Shared field: the active work item. Cards shows its id, status and n/m steps in the status line, from the session claim (wipnote who). Orchestra shows its title and track [done/total] in the band, from wipnote start/complete commands seen in Bash. Both run wipnote &lt;kind&gt; show --format json for the same item. Only cards draws wipnote-ref cards; only orchestra shows the track, usage, agents and git. Risk: the two sources can name different items. Recommendation: merge into one mod (orchestra absorbs cards): the work-item segment adds status colour and n/m steps, the active item comes from wipnote who plus shell tracking, one poll per item, the fence cards move in, and the $.ui.status line is dropped. Fallback if kept apart: cards drops its status line (id/status/steps move into the orchestra segment) and keeps only fence cards. Not merged: waiting on the owner&#39;s decision.
+(c) Shipping: not built. Mods are separate Claude Code plugins (own plugin.json) and only Claude Code has the mod API, so they ship on the Claude target only. Proposed: build-ports copies mods/&lt;name&gt;/ (without tests/ and .claude-plugin/types/) into the bundled tree, e.g. share/wipnote/mods/&lt;name&gt;/, and wipnote claude adds one --plugin-dir per enabled mod, opt-in through config while the API is early access. A marketplace entry in .claude-plugin/marketplace.json is a cheap extra path for bare claude users. Tracked as the existing build-ports step in feat-a1df60c2.
+
+VERIFIED UNCHANGED (Claude Code 2.1.303; built on 2.1.292): validate passed (1 warning: no author; advice: no marketplace install line); 16/16 tests pass; headless --plugin-dir load registers the module and /orchestra; tsc clean against the 2.1.302 API types. No differences from the README&#39;s stated results.</p>
+        </section>
+    </article>
+</body>
+</html>

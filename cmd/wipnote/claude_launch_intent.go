@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"strings"
 )
 
 // claudeLaunchContext holds the resolved intent, isolation, and routing
@@ -82,6 +83,9 @@ func resolveClaudeIntentIsolation(projectRoot, wipnoteRoot, resumeID, workItem s
 
 	// Isolation planner: compute the launch plan, enforce it (RefuseLaunch
 	// aborts here), and resolve the managed worktree when applicable.
+	if picksExistingSession(intentResult, workItem, resumeID) {
+		inPlace = true
+	}
 	willCreateWorktree := !inPlace && workItem != ""
 	configRoot := wipnoteRoot
 	if configRoot == "" {
@@ -95,6 +99,16 @@ func resolveClaudeIntentIsolation(projectRoot, wipnoteRoot, resumeID, workItem s
 	childDir := projectRoot
 	resolved := false
 	worktreeCreated := false
+	// "Continue last session" carries no work item, so the continue context does
+	// not validate a worktree for it. A session that ran in a worktree must
+	// resume there: Claude finds a transcript only from its own directory.
+	if continueCtx.WorktreePath == "" && workItem == "" && intentResult.intent.WantsContinue() {
+		if wt := strings.TrimSpace(intentResult.intent.WorktreePath); wt != "" {
+			if fi, serr := os.Stat(wt); serr == nil && fi.IsDir() {
+				continueCtx.WorktreePath = wt
+			}
+		}
+	}
 	if continueCtx.WorktreePath != "" {
 		childDir = continueCtx.WorktreePath
 		resolved = true
@@ -146,4 +160,14 @@ func devLaunchPluginDir(sourceRoot string) (string, error) {
 		return "", fmt.Errorf("could not find plugin/ directory relative to project root %s. Run from the project directory containing .wipnote/ and plugin/", sourceRoot)
 	}
 	return pluginDir, nil
+}
+
+// picksExistingSession reports whether the launch opens an existing session
+// rather than starting work: "Browse all sessions", or a resume with no work
+// item ("Continue last session"). Such a launch runs where the sessions are
+// (the project, or the session's own worktree), never in a new ad-hoc worktree
+// that launch_isolation "auto" would otherwise create, because Claude finds a
+// transcript only from the directory it ran in.
+func picksExistingSession(r claudeIntentResult, workItem, resumeID string) bool {
+	return r.browse || (r.intent.WantsContinue() && workItem == "" && resumeID != "")
 }

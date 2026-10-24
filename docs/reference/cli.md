@@ -132,7 +132,7 @@ Commands for autonomous development, building, serving, agent configuration, and
 | `build` | `wipnote build` | Build Go binary (dev workflow) |
 | `serve` | `wipnote serve` | Start local dashboard server at `localhost:4000` |
 | `agent-init` | `wipnote agent-init` | Output shared agent context (safety, attribution, quality gates) |
-| `statusline` | `wipnote statusline` | OMP/Starship prompt integration |
+| `statusline` | `wipnote statusline --session <id>` / `--cache` | Print the active work item (icon + title, with track progress) as one line. For Claude Code, use the native `/statusline` and point it at `wipnote statusline`, e.g. `wipnote statusline --session "$(jq -r .session_id)"` (or the session-independent `wipnote statusline --cache`) |
 | `upgrade` / `update` | `wipnote upgrade [--check] [--version 0.54.9]` | Self-update CLI from GitHub releases |
 
 ---

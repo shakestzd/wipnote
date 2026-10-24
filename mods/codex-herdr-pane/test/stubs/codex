@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# stub: records argv, honours -p and --output-last-message, emits a --json style stream.
+# SIMNOISE=1 adds what the real tool printed in a real run: three rmcp errors on stderr and
+# macOS xcrun errors inside the command result. SIMNONL=1 writes the answer file with no
+# trailing newline, as codex does. SIMLONG=N makes the answer file N lines and prints N plain log lines;
+# SIMREVIEW=1 makes `codex review` print as the real one does. SIMEXIT=N is the exit status (no answer file is trusted on a failure).
+echo "$*" >> "$SIMLOG.codexargs"
+if [ "$1" = review ] && [ -n "$SIMREVIEW" ]; then  # text mode as the real tool prints it: progress on stderr, the verdict on stdout
+  { echo "OpenAI Codex v0.130.0"; echo "--------"; echo "workdir: /w"; echo "model: m"; echo "--------"
+    echo "user"; echo "current changes"; echo "mcp: codex/list_mcp_resources started"; echo "mcp: codex/list_mcp_resources (completed)"
+    echo "codex"; echo "The verdict."; } >&2
+  echo "The verdict."; exit 0
+fi
+prof=""; json=""; out=""
+while [ $# -gt 0 ]; do case "$1" in -o|--output-last-message) out=$2; shift;; --output-last-message=*) out=${1#*=};; -p|--profile) prof=$2; shift;; --json) json=1;; esac; shift; done
+echo "Reading additional input from stdin..." >&2
+if [ -n "$SIMNOISE" ]; then for i in 1 2 3; do
+  echo "2026-10-18T06:28:2$i.997975Z ERROR rmcp::transport::worker: worker quit with fatal: Transport channel closed, when Client(HttpRequest(HttpRequest(\"http/request failed: error sending request for url (https://mcp.example.invalid/mcp)\")))" >&2
+done; fi
+res='hi ``` # x\n'
+if [ -n "$SIMLONG" ]; then for i in $(seq 1 "$SIMLONG"); do echo "log line $i"; done; fi
+[ -n "$SIMNOISE" ] && res="git: warning: confstr() failed with code 5: couldn't get path of DARWIN_USER_TEMP_DIR; using /tmp instead\\ngit: error: couldn't create cache file '/tmp/xcrun_db-abc' (errno=Operation not permitted)\\nreal output line\\n"
+if [ -n "$json" ]; then
+  echo '{"type":"thread.started","thread_id":"t"}'
+  echo '{"type":"item.completed","item":{"id":"i0","type":"error","message":"clamping SessionEnd hook timeout to 3s"}}'
+  echo '{"type":"turn.started"}'
+  echo '{"type":"item.started","item":{"id":"i1","type":"command_execution","command":"echo hi","status":"in_progress"}}'
+  echo "{\"type\":\"item.completed\",\"item\":{\"id\":\"i1\",\"type\":\"command_execution\",\"command\":\"echo hi\",\"aggregated_output\":\"$res\",\"exit_code\":0}}"
+  echo "{\"type\":\"item.completed\",\"item\":{\"id\":\"i2\",\"type\":\"agent_message\",\"text\":\"hello back (profile=$prof)\"}}"
+  if [ "$prof" = lean ]; then n=13866; else n=24603; fi
+  echo "{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":$n,\"cached_input_tokens\":0,\"cache_write_input_tokens\":0,\"output_tokens\":5,\"reasoning_output_tokens\":0}}"
+else echo "codex"; echo "tokens used"; echo "123"; fi
+if [ -n "$out" ]; then
+  if [ -n "$SIMLONG" ]; then seq 1 "$SIMLONG" | sed "s/^/answer line /" > "$out"
+  elif [ -n "$SIMNONL" ]; then printf '# Answer\n\nhello back (profile=%s)' "$prof" > "$out"
+  else printf '# Answer\n\nhello back (profile=%s)\n' "$prof" > "$out"; fi
+fi
+exit "${SIMEXIT:-0}"

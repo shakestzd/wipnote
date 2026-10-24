@@ -3,6 +3,8 @@ package hooks
 import (
 	"os"
 	"testing"
+
+	"github.com/shakestzd/wipnote/core/testenv"
 )
 
 // TestMain makes the whole hooks test suite hermetic against session-runtime
@@ -34,23 +36,13 @@ import (
 // under the wrong ID. Centralising them here is a safety net for tests that
 // forget one of the clears.
 func TestMain(m *testing.M) {
-	for _, key := range []string{
-		// FK-column vars — the direct cause of the FK-reject "no rows" failures.
-		"WIPNOTE_PARENT_SESSION",
-		"WIPNOTE_PARENT_EVENT",
-		"WIPNOTE_CONTINUED_FROM",
-		// Session identity — a leaked value would resolve writes under the wrong ID.
-		"CLAUDE_SESSION_ID",
-		"CLAUDE_CODE_SESSION_ID",
-		"WIPNOTE_SESSION_ID",
-		// Subagent / family / lineage markers.
-		"WIPNOTE_NESTING_DEPTH",
-		"WIPNOTE_PARENT_AGENT",
-		"WIPNOTE_SESSION_FAMILY_ID",
-		// Env-file redirect — never write into the developer session's env file.
-		"CLAUDE_ENV_FILE",
-	} {
-		_ = os.Unsetenv(key)
-	}
+	// Every WIPNOTE_* variable plus the harness project/session/detection
+	// variables (core/testenv). Beyond the FK and session-identity vars above,
+	// this clears CLAUDE_PROJECT_DIR / WIPNOTE_PROJECT_DIR: with them set, hook
+	// tests resolve the developer's real repository as the project, append
+	// canonical tool logs under its .wipnote/sessions/<test-session>/, and a
+	// later run reads those logs back — TestPreToolUseOverlapAdvisory then hits
+	// the research gate instead of the overlap advisory (issue #195).
+	testenv.ClearAmbientSession()
 	os.Exit(m.Run())
 }

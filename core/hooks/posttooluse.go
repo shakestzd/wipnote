@@ -1,7 +1,6 @@
 package hooks
 
 import (
-	"crypto/sha256"
 	"database/sql"
 	"fmt"
 	"os/exec"
@@ -11,49 +10,81 @@ import (
 
 	"github.com/shakestzd/wipnote/core/daemon"
 	"github.com/shakestzd/wipnote/core/db"
-	"github.com/shakestzd/wipnote/core/models"
 )
 
-// PostToolUse handles the PostToolUse Claude Code hook event.
-// It finds the most recent "started" event for this session/tool and marks it completed.
-// Note: env vars don't persist between hook processes, so we query the DB instead.
+// PostToolUse handles the PostToolUse hook event with BOTH jobs: it records
+// the call (postToolUseRecord) and then computes what goes back to the model
+// (postToolUseRespond). This is the single handler Codex and Antigravity run,
+// and the one tests drive directly.
+//
+// On Claude the two jobs are split (bug-07fd4a51 step 6): the async
+// `posttooluse-record` hook records every call (PostToolUseRecord) and the
+// sync, matcher-narrowed `posttooluse` hook only responds
+// (PostToolUseForHarness routes it to PostToolUseRespond).
 func PostToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
-	// PostToolUse trusts WIPNOTE_PARENT_PROMPT_EVENT set by the paired PreToolUse
-	// (trustParentEnvVar=true) to avoid the race where a new UserQuery arrives while
-	// the tool was executing and the LatestEventByTool fallback would return the wrong parent.
-	ctx := resolveToolUseContext(event, database, true)
+	ctx := resolvePostToolUseContext(event, database)
 	if ctx == nil {
 		return &HookResult{Continue: true}, nil
 	}
+	postToolUseRecord(event, ctx, database)
+	return postToolUseRespond(event, ctx, database), nil
+}
 
+// PostToolUseRecord is the record-only half: event row and session HTML. It
+// never blocks and never returns context, which is what makes it safe to run
+// as a Claude `async` hook (port/pluginbuild asyncSafeHandlers).
+func PostToolUseRecord(event *CloudEvent, database *sql.DB) (*HookResult, error) {
+	if ctx := resolvePostToolUseContext(event, database); ctx != nil {
+		postToolUseRecord(event, ctx, database)
+	}
+	return &HookResult{Continue: true}, nil
+}
+
+// PostToolUseRespond is the respond-only half: the CheckFileQuality warning
+// and commit/merge auto-complete notices. It records nothing.
+func PostToolUseRespond(event *CloudEvent, database *sql.DB) (*HookResult, error) {
+	ctx := resolvePostToolUseContext(event, database)
+	if ctx == nil {
+		return &HookResult{Continue: true}, nil
+	}
+	return postToolUseRespond(event, ctx, database), nil
+}
+
+// PostToolUseForHarness is what the `posttooluse` subcommand dispatches. On
+// Claude, recording belongs to the separate async `posttooluse-record` hook,
+// so this only responds; running both here would append every call to the
+// session HTML twice. Every other harness gets the combined handler.
+func PostToolUseForHarness(event *CloudEvent, database *sql.DB) (*HookResult, error) {
+	if event != nil && event.Harness == HarnessClaude {
+		return PostToolUseRespond(event, database)
+	}
+	return PostToolUse(event, database)
+}
+
+// resolvePostToolUseContext trusts WIPNOTE_PARENT_PROMPT_EVENT set by the
+// paired PreToolUse (trustParentEnvVar=true) to avoid the race where a new
+// UserQuery arrives while the tool was executing.
+func resolvePostToolUseContext(event *CloudEvent, database *sql.DB) *toolUseContext {
+	return resolveToolUseContext(event, database, true)
+}
+
+// postToolUseRecord writes the complete tool_call row and the session HTML
+// entry.
+func postToolUseRecord(event *CloudEvent, ctx *toolUseContext, database *sql.DB) {
 	success := isSuccess(event.ToolResult)
 	status := "completed"
 	if !success {
 		status = "failed"
 	}
-
 	outputSummary := summariseToolOutput(event.ToolName, event.ToolInput, event.ToolResult, success)
 
-	// For subagent events, scope the lookup to this specific agent to avoid
-	// completing events belonging to a different concurrent agent.
-	var (
-		eventID string
-		err     error
-	)
-	if ctx.IsSubagent {
-		eventID, err = db.FindStartedEventByAgent(database, ctx.SessionID, event.ToolName, ctx.AgentID)
-		if err != nil {
-			// Fall back to unscoped lookup when no agent-specific event exists.
-			eventID, err = db.FindStartedEvent(database, ctx.SessionID, event.ToolName)
-		}
-	} else {
-		eventID, err = db.FindStartedEvent(database, ctx.SessionID, event.ToolName)
-	}
-	if err != nil {
-		return &HookResult{Continue: true}, nil
-	}
-
-	_ = db.UpdateEventFields(database, eventID, status, outputSummary)
+	// bug-07fd4a51: write the COMPLETE event row ourselves, keyed on the
+	// tool_use_id-derived id PreToolUse also uses, through the daemon-routed
+	// path. The old FindStartedEvent lookup ran on this hook's own handle, which
+	// never holds the started row PreToolUse routed to the daemon, and it paired
+	// by "newest started row with this tool name", which mis-pairs parallel
+	// calls to the same tool.
+	eventID := recordToolCompletion(event, ctx, database, status, outputSummary)
 
 	// Append event to session HTML activity log (non-critical, errors silently logged).
 	AppendEventToSessionHTML(ctx.ProjectDir, ctx.SessionID, SessionEvent{
@@ -65,56 +96,24 @@ func PostToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 		Summary:   SummariseInput(event.ToolName, event.ToolInput),
 	})
 
-	// Lazy orphan sweep for this session — picks up any prior PreToolUse
-	// that never saw a PostToolUse (tool crash, Claude Code kill) and
-	// closes it out with a synthetic aborted entry. Non-critical.
-	SweepOrphanedEventsForSession(database, ctx.ProjectDir, ctx.SessionID)
+	// No per-call orphan sweep here any more. posttooluse dispatches with the
+	// read-only empty projection (hookSubcmdReadOnly), where
+	// SweepOrphanedEventsForSession can see no rows and could not mark one
+	// aborted anyway. Started rows a daemon-miss pretooluse left on the disk
+	// fallback are still swept by session-start's capped project-wide sweep;
+	// daemon-routed rows are completed in place by recordToolCompletion.
+	//
+	// bug-07fd4a51 step 4: the git_commits insert, the claim agent-id tag and
+	// the feature_files / session_files attribution upserts that used to live
+	// here were removed. They wrote to this hook's on-disk handle, and every
+	// reader of those tables (graph/lineage/provenance, who, api, session show,
+	// the session-end handoff) reads an in-memory projection that never sees
+	// that file: git_commits is rebuilt from commit trailers by
+	// reindex_trailers, claims and file touches from canonical state.
+}
 
-	// Record orchestrator direct-tool usage for analytics.
-	// Subagents are excluded — only direct orchestrator use is interesting here.
-	if !ctx.IsSubagent {
-		// Orchestrator analytics removed — stderr caused "hook error" in Claude Code UI.
-	}
-	// Capture git commits and link to the active work item.
-	if event.ToolName == "Bash" {
-		if cmd := extractBashCommand(event.ToolInput); looksLikeGitCommit(cmd) {
-			if hash, msg := parseGitCommitOutput(summarizeToolOutput(event.ToolResult)); hash != "" {
-				featureID := ctx.FeatureID
-				// Fallback: when session has no active work item, derive the ID from commit message.
-				// Extract the first work-item ID from the commit message if present.
-				// Only use this when ctx.FeatureID is empty (never override an active session attribution).
-				if featureID == "" && msg != "" {
-					ids := extractClosingIDs(msg)
-					if len(ids) > 0 {
-						featureID = ids[0]
-					}
-				}
-				commit := &models.GitCommit{
-					CommitHash:  hash,
-					SessionID:   ctx.SessionID,
-					FeatureID:   featureID,
-					ToolEventID: eventID,
-					Message:     msg,
-					Timestamp:   time.Now().UTC(),
-				}
-				_ = db.InsertGitCommit(database, commit)
-			}
-		}
-	}
-
-	// Tag claims with agent ID when a subagent runs "wipnote feature start <id>".
-	// The CLI doesn't know the agent_id, but the PostToolUse hook sees both.
-	if ctx.IsSubagent && event.ToolName == "Bash" {
-		if cmd, ok := event.ToolInput["command"].(string); ok {
-			if m := featureStartRe.FindStringSubmatch(cmd); len(m) > 1 {
-				workItemID := m[1]
-				if err := db.UpdateClaimAgentID(database, workItemID, event.AgentID); err == nil {
-					debugLog(ctx.ProjectDir, "[posttooluse] tagged claim for %s with agent %s", workItemID, event.AgentID)
-				}
-			}
-		}
-	}
-
+// postToolUseRespond builds the HookResult that goes back to the model.
+func postToolUseRespond(event *CloudEvent, ctx *toolUseContext, database *sql.DB) *HookResult {
 	result := &HookResult{Continue: true}
 
 	// Quality gate: warn when Write/Edit/MultiEdit produces an oversized file.
@@ -123,37 +122,6 @@ func PostToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 		if filePath := extractFilePath(event.ToolInput); filePath != "" {
 			if warnings := CheckFileQuality(filePath); warnings != "" {
 				result.AdditionalContext = warnings
-			}
-		}
-	}
-
-	// Record file attribution when Edit/Write tools are used with an active feature.
-	if ctx.FeatureID != "" {
-		switch event.ToolName {
-		case "Edit", "Write", "MultiEdit":
-			if filePath := extractFilePath(event.ToolInput); filePath != "" {
-				ff := &models.FeatureFile{
-					ID:        ctx.FeatureID + "-" + filePathHash(filePath),
-					FeatureID: ctx.FeatureID,
-					FilePath:  filePath,
-					Operation: strings.ToLower(event.ToolName),
-					SessionID: ctx.SessionID,
-				}
-				_ = db.UpsertFeatureFile(database, ff)
-			}
-		}
-	} else if event.ToolName == "Edit" || event.ToolName == "Write" || event.ToolName == "MultiEdit" {
-		// Claimless visibility (feat-793844bd slice-4): previously this branch
-		// only debugLog'd and DROPPED the attribution when there was no active
-		// feature, making cross-session file work invisible. Instead record the
-		// touch in the lightweight session_files ledger keyed on
-		// (session_id,file_path). feature_files cannot hold these rows
-		// (feature_id is NOT NULL with UNIQUE(feature_id,file_path)). This is
-		// exactly ONE upsert — the only new write on the claimless hot path,
-		// preserving the feat-156e0a1a zero-SQLITE_BUSY guarantee.
-		if filePath := extractFilePath(event.ToolInput); filePath != "" {
-			if err := db.UpsertSessionFile(database, ctx.SessionID, filePath, strings.ToLower(event.ToolName)); err != nil {
-				debugLog(ctx.ProjectDir, "[posttooluse] session_files upsert failed for %s: %v", filePath, err)
 			}
 		}
 	}
@@ -190,7 +158,7 @@ func PostToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 		}
 	}
 
-	return result, nil
+	return result
 }
 
 // commitClosingRe matches closing keywords followed by a work item ID in commit messages.
@@ -315,9 +283,6 @@ func completeIfInProgressImpl(id string, database *sql.DB) bool {
 	debugLog("", "[posttooluse] auto-completed %s", id)
 	return true
 }
-
-// featureStartRe matches "wipnote (feature|bug|spike) start <id>" in a Bash command.
-var featureStartRe = regexp.MustCompile(`wipnote\s+(?:feature|bug|spike)\s+start\s+(\S+)`)
 
 // gitCommitOutputRe matches the commit line from git commit output, e.g.:
 // "[main abc1234] commit message here"
@@ -445,13 +410,6 @@ func summarizeToolOutput(result map[string]any) string {
 		}
 	}
 	return ""
-}
-
-// filePathHash returns an 8-char hex digest of a file path, used to generate
-// deterministic IDs for feature_files rows.
-func filePathHash(filePath string) string {
-	h := sha256.Sum256([]byte(filePath))
-	return fmt.Sprintf("%x", h[:4])
 }
 
 // isSuccess returns false when the tool result contains an explicit error flag.

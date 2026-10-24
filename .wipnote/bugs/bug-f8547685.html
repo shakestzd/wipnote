@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>core/hooks tests read the real repo via ambient CLAUDE_PROJECT_DIR; leaked canonical tool logs flip the research gate (#195)</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-f8547685"
+             data-type="bug"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-10-17T19:34:33.336565"
+             data-updated="2026-10-17T19:34:33.338264" data-agent-assigned="claude-code" data-track-id="trk-91673dda" data-created-by-cli-version="dev" data-created_in_session="e41f6acf-9ecd-5cf8-846b-fbd1203fe65e">
+
+        <header>
+            <h1>core/hooks tests read the real repo via ambient CLAUDE_PROJECT_DIR; leaked canonical tool logs flip the research gate (#195)</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-91673dda.html" data-relationship="part_of" data-since="2026-10-17T19:34:33.338182">trk-91673dda</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>GitHub #195. core/hooks TestMain cleared the session vars but not CLAUDE_PROJECT_DIR / WIPNOTE_PROJECT_DIR. Hook tests then resolve the developer&#39;s real repo, append tool-events.ndjson under .wipnote/sessions/test-sess/, and a later run reads it back via canonicalAnySeen: a non-research event means hasRecentResearch=false and the research gate blocks before the overlap advisory. Reproduced with a temp project holding sessions/test-sess/tool-events.ndjson={&#34;t&#34;:&#34;Edit&#34;}. Fix: hooks TestMain calls core/testenv.ClearAmbientSession.</p>
+        </section>
+    </article>
+</body>
+</html>

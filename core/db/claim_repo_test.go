@@ -598,58 +598,6 @@ func TestHasActiveClaimByAgentReleasedClaim(t *testing.T) {
 	}
 }
 
-func TestUpdateClaimAgentID(t *testing.T) {
-	database := setupClaimDB(t)
-	defer database.Close()
-
-	// Create a claim with empty claimed_by_agent_id.
-	c := makeClaim("claim-ucai1", "feat-test", "sess-test")
-	c.ClaimedByAgentID = ""
-	if err := db.ClaimItem(database, c, 30*time.Minute); err != nil {
-		t.Fatalf("ClaimItem: %v", err)
-	}
-
-	// Tag the claim with an agent ID.
-	if err := db.UpdateClaimAgentID(database, "feat-test", "test-agent-123"); err != nil {
-		t.Fatalf("UpdateClaimAgentID: %v", err)
-	}
-
-	// Verify the claim now has the agent ID set.
-	got, err := db.GetClaim(database, "claim-ucai1")
-	if err != nil {
-		t.Fatalf("GetClaim: %v", err)
-	}
-	if got.ClaimedByAgentID != "test-agent-123" {
-		t.Errorf("claimed_by_agent_id: got %q, want %q", got.ClaimedByAgentID, "test-agent-123")
-	}
-}
-
-func TestUpdateClaimAgentIDNoOverwrite(t *testing.T) {
-	database := setupClaimDB(t)
-	defer database.Close()
-
-	// Create a claim that already has a non-empty claimed_by_agent_id.
-	c := makeClaim("claim-ucai2", "feat-test", "sess-test")
-	c.ClaimedByAgentID = "original-agent"
-	if err := db.ClaimItem(database, c, 30*time.Minute); err != nil {
-		t.Fatalf("ClaimItem: %v", err)
-	}
-
-	// Attempt to tag with a different agent ID — should not overwrite.
-	if err := db.UpdateClaimAgentID(database, "feat-test", "new-agent"); err != nil {
-		t.Fatalf("UpdateClaimAgentID: %v", err)
-	}
-
-	// Verify the original agent ID is preserved.
-	got, err := db.GetClaim(database, "claim-ucai2")
-	if err != nil {
-		t.Fatalf("GetClaim: %v", err)
-	}
-	if got.ClaimedByAgentID != "original-agent" {
-		t.Errorf("claimed_by_agent_id: got %q, want %q (should not have been overwritten)", got.ClaimedByAgentID, "original-agent")
-	}
-}
-
 // unmarshalWriteScope is a test helper that unmarshals the write_scope JSON of a claim.
 func unmarshalWriteScope(t *testing.T, raw json.RawMessage) models.WriteScope {
 	t.Helper()

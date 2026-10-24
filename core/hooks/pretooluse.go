@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/shakestzd/wipnote/core/db"
 	"github.com/shakestzd/wipnote/core/models"
 	"github.com/shakestzd/wipnote/core/paths"
@@ -169,6 +168,14 @@ func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 		return &HookResult{Decision: "block", Reason: warn}, nil
 	}
 
+	// Guard: research-first gate on implementer dispatch. Advisory in warn
+	// mode, deny in block mode, for a gated item with no research record
+	// (docs/design/research-gate.md). File state only.
+	researchDispatchAdvisory, denyDispatch := checkResearchDispatchGuard(event, ctx)
+	if denyDispatch {
+		return &HookResult{Decision: "block", Reason: researchDispatchAdvisory}, nil
+	}
+
 	// Always-on guards: work item and research required regardless of YOLO mode.
 	// Skipped during subagent grace period (subagent just spawned, needs time to claim).
 	if !subagentGrace {
@@ -290,6 +297,7 @@ func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 		result, err := recordEventAndAllow(event, ctx, database)
 		if err == nil && result != nil {
 			appendAdditionalContext(result, orchestrationResearchAdvisory)
+			appendAdditionalContext(result, researchDispatchAdvisory)
 			appendAdditionalContext(result, orchestratorAdvice)
 			appendAdditionalContext(result, advisory)
 		}
@@ -300,6 +308,7 @@ func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 	result, err := recordEventAndAllow(event, ctx, database)
 	if err == nil && result != nil {
 		appendAdditionalContext(result, orchestrationResearchAdvisory)
+		appendAdditionalContext(result, researchDispatchAdvisory)
 		appendAdditionalContext(result, orchestratorAdvice)
 	}
 	return result, err
@@ -486,18 +495,15 @@ func checkFileOverlapAdvisory(event *CloudEvent, ctx *toolUseContext, database *
 func recordEventAndAllow(event *CloudEvent, ctx *toolUseContext, database *sql.DB) (*HookResult, error) {
 	inputSummary := SummariseInput(event.ToolName, event.ToolInput)
 
-	var toolInputStr string
-	if event.ToolInput != nil {
-		if b, err := json.Marshal(event.ToolInput); err == nil {
-			// Normalize path fields to repo-relative before storage so that
-			// captured artifacts remain stable across machines and worktrees.
-			// Bash "command" fields are deliberately excluded (see normalizeToolInputPaths).
-			toolInputStr = normalizeToolInputJSON(string(b), event.ToolName)
-		}
-	}
+	// Normalize path fields to repo-relative before storage so that captured
+	// artifacts remain stable across machines and worktrees. Bash "command"
+	// fields are deliberately excluded (see normalizeToolInputPaths).
+	toolInputStr := marshalToolInput(event.ToolName, event.ToolInput)
 
 	ev := &models.AgentEvent{
-		EventID:       uuid.New().String(),
+		// Deterministic per-call id (bug-07fd4a51) so PostToolUse upserts this
+		// same row instead of searching for it by tool name.
+		EventID:       toolCallEventIDOrRandom(ctx.SessionID, event.ToolUseID),
 		AgentID:       ctx.AgentID,
 		EventType:     models.EventToolCall,
 		Timestamp:     time.Now().UTC(),

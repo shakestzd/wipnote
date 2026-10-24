@@ -43,11 +43,11 @@ Implement code changes.
 	if agent.Description != "Balanced code execution agent" {
 		t.Errorf("description = %q", agent.Description)
 	}
-	if agent.Model != "gpt-5.6-terra" || agent.ModelReasoningEffort != "medium" {
+	if agent.Model != "gpt-6.1-sol" || agent.ModelReasoningEffort != "medium" {
 		t.Errorf("Claude model alias should map to Codex model, got model=%q effort=%q", agent.Model, agent.ModelReasoningEffort)
 	}
-	if agent.SandboxMode != "workspace-write" {
-		t.Errorf("sandbox_mode = %q, want workspace-write", agent.SandboxMode)
+	if strings.Contains(agent.DeveloperInstructions, codexReadOnlyNotice) {
+		t.Errorf("write-capable agent got the read-only notice")
 	}
 	if len(agent.NicknameCandidates) != 1 || agent.NicknameCandidates[0] != "feature-coder" {
 		t.Errorf("nickname_candidates = %#v", agent.NicknameCandidates)
@@ -92,9 +92,9 @@ tools:
 	}
 }
 
-func TestTranslateCodexAgentReaderSandbox(t *testing.T) {
+func TestTranslateCodexAgentReadOnlySandbox(t *testing.T) {
 	raw := []byte(`---
-name: reader
+name: scout
 description: Read-only file retrieval agent
 model: haiku
 tools:
@@ -104,15 +104,18 @@ tools:
 maxTurns: 10
 ---
 
-# Reader Agent
+# Scout Agent
 `)
 
-	agent, err := translateCodexAgent("reader.md", raw)
+	agent, err := translateCodexAgent("scout.md", raw)
 	if err != nil {
 		t.Fatalf("translateCodexAgent: %v", err)
 	}
-	if agent.SandboxMode != "read-only" {
-		t.Errorf("sandbox_mode = %q, want read-only", agent.SandboxMode)
+	// Codex drops sandbox_mode from role files, so read-only is stated in the
+	// instructions instead.
+	if !strings.HasPrefix(agent.DeveloperInstructions, codexReadOnlyNotice) {
+		t.Errorf("read-only agent instructions must lead with the read-only notice, got %q",
+			agent.DeveloperInstructions[:min(80, len(agent.DeveloperInstructions))])
 	}
 }
 
@@ -136,8 +139,8 @@ maxTurns: 20
 	if err != nil {
 		t.Fatalf("translateCodexAgent: %v", err)
 	}
-	if agent.SandboxMode != "workspace-write" {
-		t.Errorf("sandbox_mode = %q, want workspace-write (Bash writes caches/artifacts)", agent.SandboxMode)
+	if strings.Contains(agent.DeveloperInstructions, codexReadOnlyNotice) {
+		t.Errorf("Bash-capable agent got the read-only notice")
 	}
 }
 
@@ -192,9 +195,9 @@ func TestMapCodexAgentModelAliases(t *testing.T) {
 		wantEffort string
 		wantErr    bool
 	}{
-		{name: "fast", model: "haiku", wantModel: "gpt-5.6-luna", wantEffort: "low", wantErr: false},
-		{name: "balanced", model: "sonnet", wantModel: "gpt-5.6-terra", wantEffort: "medium", wantErr: false},
-		{name: "deep", model: "opus", wantModel: "gpt-5.5", wantEffort: "high", wantErr: false},
+		{name: "fast", model: "haiku", wantModel: "gpt-6-luna", wantEffort: "low", wantErr: false},
+		{name: "balanced", model: "sonnet", wantModel: "gpt-6.1-sol", wantEffort: "medium", wantErr: false},
+		{name: "deep", model: "opus", wantModel: "gpt-6-astra", wantEffort: "high", wantErr: false},
 		{name: "native", model: "gpt-5.3-codex", wantModel: "gpt-5.3-codex", wantEffort: "", wantErr: false},
 		{name: "inherit", model: "", wantModel: "", wantEffort: "", wantErr: false},
 		{name: "unknown", model: "claude", wantModel: "", wantEffort: "", wantErr: true},

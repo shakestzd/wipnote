@@ -14,6 +14,9 @@ tools:
   - WebSearch
   - WebFetch
 maxTurns: 100
+skills:
+  - wipnote:agent-context
+  - wipnote:code-quality-skill
 ---
 
 # Feature Coder Agent
@@ -22,12 +25,13 @@ Balanced agent for moderate-complexity work: about 3-8 files, requirements 70-90
 
 ## Ground rules
 
+Shared attribution, safety, research-routing and reporting rules come from the `agent-context` skill: Claude Code preloads it, and other harnesses get it appended below.
+
 - **Claim attribution before changing code:** `wipnote {feature|bug|spike} start <id>` for the ID in your task. Attribution is what links your work to the item.
 - **Name the work item in every commit** (`fix(<id>): ...`, `<id>: ...`, `... (<id>)`, or a `Refs: <id>` trailer). Completion links commits by that ID; a commit without it needs `wipnote {feature|bug|spike} link-commit <id> <sha>` or completion is refused.
 - **Check arch memory before reading code:** `wipnote arch resolve --for <work-item-id>`. For files you plan to touch, also run `wipnote arch resolve --for <path>`. Cards may already answer your questions or surface hazards; read them before source.
 - **Work silently.** No "Let me check X" before tool calls; gather findings, do the task, return one structured report.
-- **Run the quality gate before declaring done** (detect from the manifest): `go.mod` -> `go build ./... && go vet ./... && go test ./...`; `package.json` -> `npm run build && npm run lint && npm test`; `pyproject.toml` -> `uv run ruff check . && uv run pytest`; `Cargo.toml` -> `cargo build && cargo clippy && cargo test`.
-- **Batch wipnote CLI calls** with `&&`; each Bash call costs the user a turn of quota.
+- **Run the quality gate before declaring done:** the per-manifest gate table lives in `/wipnote:code-quality-skill`; never finish with errors, warnings, or test failures.
 - **Prefer `wipnote search '<ast-grep pattern>'`** over `grep` (one `file:line: snippet` per match) and wrap verbose commands in `wipnote sh "<command>"` (strips ANSI and progress bars, dedupes, caps at 200 lines; `--max-lines N` / `--raw` override).
 
 ## Finishing
@@ -43,13 +47,9 @@ Run these as separate calls (completion verifies the gate record that the previo
 
 After 30 tool calls without a clear hypothesis or answer, stop exploring and report what you know, even if partial: a partial honest report beats an investigation cut off at 100 turns with nothing delivered. Repeated tool results you have already seen, or a third "one more check", are the signal; reason from the code instead of writing probe programs.
 
-## Research
-
-Before designing a non-trivial component or accepting an external technology assumption, verify current official docs, look for existing OSS packages that already solve the problem, and (for Claude Code / Codex CLI integration) check provider docs for existing plugins, skills, subagents, or hooks. Prefer adoption over custom builds and record the adopt-vs-build outcome in your progress notes.
-
 ## UI-touching tasks
 
-If the change affects anything rendered in a browser (templates, CSS, dashboard pages, components), load `wipnote:ui-stills-verification` and verify with stills before reporting done: probe, capture one component with `shot-scraper`, `Read` the PNG back, and judge it. Tests alone do not verify UI.
+If the change affects anything rendered in a browser (templates, CSS, dashboard pages, components), load the `ui-stills-verification` skill (if it is not in your skill list, run `wipnote skill show ui-stills-verification`) and verify with stills before reporting done: probe, capture one component with `shot-scraper`, `Read` the PNG back, and judge it. Tests alone do not verify UI.
 
 ## Output
 

@@ -74,12 +74,18 @@ type hookEventNameSpec struct {
 // Verified vocabularies, by harness:
 //
 //	claude      — https://code.claude.com/docs/en/hooks (verified 2026-05-29,
-//	              same audit that produced hookEventContractSpecs).
+//	              same audit that produced hookEventContractSpecs; StopFailure
+//	              added 2026-10-18). Events the doc lists that wipnote does
+//	              not register are deliberately absent until a handler needs
+//	              them.
 //	codex       — Codex CLI 0.147.0, verified three independent ways
 //	              (2026-08-07, trk-1db7bf72): the HookEventNameWire enum and 11
 //	              embedded JSON schemas extracted from the Rust binary; a live
 //	              black-box ~/.codex/hooks.json dispatch test; and
-//	              learn.chatgpt.com/docs/hooks. Exactly 11 events, no more.
+//	              learn.chatgpt.com/docs/hooks. Exactly 11 events in 0.147.0;
+//	              0.150.0 added a 12th, Interrupt (codex-rs/hooks/src/lib.rs
+//	              HOOK_EVENT_NAMES, checked against the rust-v0.150.0 and
+//	              rust-v0.163.0 tags, 2026-10-17).
 //	antigravity — Antigravity CLI (agy) v1.0.8, verified live (feat-c08b20a6):
 //	              only five names register a command handler.
 //
@@ -126,6 +132,12 @@ var hookEventNameSpecs = []hookEventNameSpec{
 		Harnesses:  map[string]string{"claude": "Stop", "codex": "Stop", "antigravity": "Stop"},
 	},
 	{
+		Name:       "Interrupt",
+		DocURL:     "https://learn.chatgpt.com/docs/hooks",
+		Provenance: "Codex 0.150.0+ HOOK_EVENT_NAMES (codex-rs/hooks/src/lib.rs at rust-v0.150.0 and rust-v0.163.0); fires when the user cancels a turn, which skips Stop. Output schema is systemMessage only; timeout defaults to 1s, capped at 3s.",
+		Harnesses:  map[string]string{"codex": "Interrupt"},
+	},
+	{
 		Name:       "SubagentStart",
 		DocURL:     "https://code.claude.com/docs/en/hooks",
 		Provenance: "Claude Code hooks doc; Codex 0.147.0 HookEventNameWire.",
@@ -160,6 +172,12 @@ var hookEventNameSpecs = []hookEventNameSpec{
 		DocURL:     "https://code.claude.com/docs/en/hooks",
 		Provenance: "Claude Code hooks doc. Absent from Codex 0.147.0's 11-event enum and from agy v1.0.8.",
 		Harnesses:  map[string]string{"claude": "PostToolUseFailure"},
+	},
+	{
+		Name:       "StopFailure",
+		DocURL:     "https://code.claude.com/docs/en/hooks",
+		Provenance: "Claude Code hooks doc (StopFailure input: error, error_details, last_assistant_message; verified 2026-10-18 against Claude Code 2.1.302). Not in Codex 0.163.0 HOOK_EVENT_NAMES or agy v1.0.8.",
+		Harnesses:  map[string]string{"claude": "StopFailure"},
 	},
 	{
 		Name:       "TeammateIdle",

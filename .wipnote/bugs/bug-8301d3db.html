@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Codex ignores sandbox_mode in agent role files; read-only agents were never sandboxed</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-8301d3db"
+             data-type="bug"
+             data-status="todo"
+             data-priority="high"
+             data-created="2026-10-17T21:03:42.899963"
+             data-updated="2026-10-17T21:03:42.901813" data-agent-assigned="claude-code" data-track-id="trk-43e0650a" data-created-by-cli-version="dev" data-created_in_session="e41f6acf-9ecd-5cf8-846b-fbd1203fe65e">
+
+        <header>
+            <h1>Codex ignores sandbox_mode in agent role files; read-only agents were never sandboxed</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-43e0650a.html" data-relationship="part_of" data-since="2026-10-17T21:03:42.901705">trk-43e0650a</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>codex-rs/core/src/agent/role.rs apply_role_to_config copies only an allowlist (developer_instructions, model, reasoning effort/summary, verbosity, personality, service_tier, feature disables, skill disables); sandbox_mode is dropped. The generated reader agent&#39;s sandbox_mode = &#39;read-only&#39; was never enforced. Fix: stop emitting the field; lead read-only roles&#39; developer_instructions with an explicit read-only notice.</p>
+        </section>
+    </article>
+</body>
+</html>
