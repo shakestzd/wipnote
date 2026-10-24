@@ -1,0 +1,6 @@
+{
+  "name": "wipnote-plan-review",
+  "version": "0.1.0",
+  "description": "A side pane that lists a wipnote plan's slices and their approval state, redrawn as each slice is approved, sent back or rejected.",
+  "types": "./types/index.d.ts"
+}

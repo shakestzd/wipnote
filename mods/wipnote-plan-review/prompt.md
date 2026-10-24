@@ -1,0 +1,1 @@
+When you start reviewing a wipnote plan with the user, run `wipnote plan slices <plan-id>` once: the wipnote-plan-review pane then opens beside the chat and follows each `approve-slice` and `reject-slice` you record.
