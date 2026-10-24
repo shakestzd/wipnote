@@ -185,3 +185,25 @@ func TestSessionJSONCarriesNoHostPath(t *testing.T) {
 		t.Errorf("output must not carry host paths: %s", b)
 	}
 }
+
+// Claude can send a path-style session id; wipnote's hooks keep only its UUID.
+// The reader must do the same, or the session id join misses and the path leaks.
+func TestPathStyleSessionIDsAreNormalisedLikeWipnotesHooks(t *testing.T) {
+	dir := t.TempDir()
+	const uuid = "550e8400-e29b-41d4-a716-446655440000"
+	pathID := filepath.Join(dir, "claude-501", "project", uuid)
+	path := writeRegistry(t, dir, map[string]map[string]any{
+		"w1": {"kind": "claude", "state": "idle", "created_at": 1,
+			"mailbox": writeEvents(t, dir, "w1", ev("prompt", pathID, "")+ev("prompt", uuid, ""))},
+	})
+	got, err := ForWorkItem(path, "feat-aaaaaaaa", map[string]bool{uuid: true})
+	if err != nil || len(got) != 1 || got[0].Link != LinkSID {
+		t.Fatalf("a path-style id must join its UUID session, got %v %v", got, err)
+	}
+	if ids := got[0].SessionIDs; len(ids) != 1 || ids[0] != uuid {
+		t.Errorf("want the one normalised id %q, got %v", uuid, ids)
+	}
+	if b, _ := json.Marshal(got); strings.Contains(string(b), dir) {
+		t.Errorf("a path-style id must not leak a host path: %s", b)
+	}
+}

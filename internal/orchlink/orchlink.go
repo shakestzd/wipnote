@@ -17,6 +17,8 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+
+	"github.com/shakestzd/wipnote/core/agent"
 )
 
 // EnvRegistry names the registry path; the same variable orch reads.
@@ -147,7 +149,9 @@ func anyIn(ids []string, set map[string]bool) bool {
 	return false
 }
 
-// readEvents returns the distinct harness session ids (first seen first) and
+// readEvents returns the distinct harness session ids (first seen first,
+// normalised the way wipnote's hooks store them, so a path-style id matches
+// its session and never prints a host path) and
 // the number of distinct sub-agents started, from the tail of
 // <mailbox>/events.ndjson. Best-effort: a missing, non-regular or unreadable
 // log gives nothing, a partial last line (a hook still appending) and any
@@ -171,9 +175,9 @@ func readEvents(mailbox string) ([]string, int) {
 		if json.Unmarshal(sc.Bytes(), &ev) != nil {
 			continue
 		}
-		if ev.SID != "" && !seen[ev.SID] {
-			seen[ev.SID] = true
-			sids = append(sids, ev.SID)
+		if sid := agent.NormaliseSessionID(ev.SID); sid != "" && !seen[sid] {
+			seen[sid] = true
+			sids = append(sids, sid)
 		}
 		if ev.Kind == "subagent_start" && ev.AgentID != "" {
 			agents[ev.AgentID] = true
