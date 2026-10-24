@@ -22,6 +22,7 @@ Always in the skill list: `execute`, `code-quality-skill`, and `agent-context` (
 | Write a guard rule | `/wipnote:guard-authoring` | `guard-authoring` |
 | Rules shared by coder agents, including the test-first implementation workflow (preloaded into them) | — | `agent-context` |
 | Report a wipnote issue upstream — *slash only* | `/wipnote:report-issue` | `report-issue` |
+| Write, convert or check text in ASD-STE100 Simplified Technical English (linter + dictionary lookup) | `/wipnote:simplified-technical-english` | `simplified-technical-english` |
 
 To pick what to work on next, run the `/wipnote:recommend` command. For a recap of finished work, run `wipnote recap <id>`; to seed architecture cards, run `wipnote arch bootstrap` and follow its printed instructions.
 
