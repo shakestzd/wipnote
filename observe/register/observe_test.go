@@ -12,8 +12,8 @@ func TestInitRegistersLifecycleFns(t *testing.T) {
 	if hooks.RetentionSweepFn == nil {
 		t.Error("RetentionSweepFn not registered by observe.init()")
 	}
-	if hooks.SessionMaterializeFn == nil {
-		t.Error("SessionMaterializeFn not registered by observe.init()")
+	if hooks.SessionTelemetryFn == nil {
+		t.Error("SessionTelemetryFn not registered by observe.init()")
 	}
 	if hooks.PortDriftPathsFn == nil {
 		t.Error("PortDriftPathsFn not registered by observe.init()")

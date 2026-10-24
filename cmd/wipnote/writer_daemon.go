@@ -17,8 +17,8 @@ import (
 	dbpkg "github.com/shakestzd/wipnote/core/db"
 	"github.com/shakestzd/wipnote/core/db/writequeue"
 	"github.com/shakestzd/wipnote/core/hooks"
+	"github.com/shakestzd/wipnote/observe/otel/finalize"
 	otelreceiver "github.com/shakestzd/wipnote/observe/otel/receiver"
-	"github.com/shakestzd/wipnote/observe/otel/retention"
 	"github.com/spf13/cobra"
 )
 
@@ -173,6 +173,11 @@ func runWriterOnly() error {
 // retention.StartLoop used before this function drove the ticker itself.
 const retentionSweepInterval = 24 * time.Hour
 
+// telemetryCatchUpBudget bounds the telemetry catch-up that runs before each
+// retention sweep (daemon and `wipnote prune`). Neither runs under a hook cap,
+// so the budget is generous; a session it cannot reach waits for the next pass.
+const telemetryCatchUpBudget = 2 * time.Minute
+
 // startWriterMaintenance launches the per-project background maintenance that
 // does not fit the socket/writequeue op API. It runs INSIDE the headless writer
 // daemon (feat-075c110d increment 2), the one long-lived per-project process
@@ -206,9 +211,11 @@ const retentionSweepInterval = 24 * time.Hour
 //     hydration does populate, and writes NOTHING to the database. Destructive
 //     by intent: it tar.gz's completed sessions into .wipnote/archive/ and then
 //     os.RemoveAll's the live directory. Its own interlock is the .index-offset
-//     progress marker (retention.go:267), which is missing or behind whenever
-//     the dashboard indexer has not caught up — and a missing marker reads as
-//     "not caught up", so it defers rather than deleting un-indexed telemetry.
+//     progress marker (retention.go:267), which is missing or behind until
+//     observe/otel/finalize has rolled the session up — and a missing marker
+//     reads as "not caught up", so it defers rather than deleting un-indexed
+//     telemetry. finalize.Sweep runs that catch-up first, within
+//     telemetryCatchUpBudget.
 //   - reconcile drain (5m) — git-commits done-but-uncommitted work-item
 //     artifacts (feat-c08d1ba1 slice-6 moved this off the Stop hook's ~5.45s
 //     hot path). It needs no projection at all: hooks.Reconcile-
@@ -272,9 +279,11 @@ const retentionSweepInterval = 24 * time.Hour
 //     populates recaps in its own projection on every start, so the loop
 //     refilled a table nobody queries.
 //
-// The NDJSON→SQLite indexer does not run here: nothing outside `wipnote
-// reindex` reads indexed signals, and SessionEnd marks each session's telemetry
-// consumed once its collector exits (markTelemetryConsumed).
+// The polling NDJSON→SQLite indexer does not run here. SessionEnd finalizes
+// each session's telemetry once its collector exits, and the retention sweep
+// below first runs the telemetry catch-up (finalize.Sweep) for sessions that
+// never got a clean SessionEnd, so their logs can still be rolled up and
+// archived.
 //
 // ctx cancellation (from SIGTERM/SIGINT or idle-exit) stops every loop.
 func startWriterMaintenance(ctx context.Context, wipnoteDir string) {
@@ -285,7 +294,8 @@ func startWriterMaintenance(ctx context.Context, wipnoteDir string) {
 	// boot-time snapshot would never show a session completed since.
 	startDrainLoop(ctx, retentionSweepInterval, func() {
 		withFreshProjection(wipnoteDir, "retention", func(database *sql.DB) {
-			if _, err := retention.Sweep(database, wipnoteDir, "", os.Getenv("WIPNOTE_RETENTION_DRYRUN") == "1"); err != nil {
+			dryRun := os.Getenv("WIPNOTE_RETENTION_DRYRUN") == "1"
+			if _, err := finalize.Sweep(database, wipnoteDir, "", dryRun, telemetryCatchUpBudget); err != nil {
 				log.Printf("retention: sweep: %v", err)
 			}
 		})

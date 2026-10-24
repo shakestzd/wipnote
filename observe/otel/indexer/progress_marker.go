@@ -15,9 +15,12 @@
 //     sweep on it, so retention never removes a session's raw log first;
 //   - cmd/wipnote/session_prune_archive.go gates pruning on the same condition.
 //
-// core/hooks/session_end.go:markTelemetryConsumed also publishes it, as the
-// NDJSON's final size once the session's collector has exited. That is the
-// usual producer: the indexer runs only under `wipnote reindex`.
+// The usual producer is observe/otel/finalize, through PublishProgress: at
+// SessionEnd (after the collector exits) and in the catch-up pass that runs
+// before every retention sweep, for sessions that never got a clean
+// SessionEnd. It replays the session via ReplaySession, materializes the
+// rollup, and only then publishes the offset it actually read. The polling
+// indexer itself runs only under `wipnote reindex`.
 //
 // Those consumers are the only reason the file still exists. Deleting it
 // outright without migrating them would make retention and prune fail closed:

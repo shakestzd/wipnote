@@ -46,8 +46,16 @@ func SweepNDJSON(wipnoteDir, activeSessionID string, cfg Config, dryRun bool) (S
 	return sweepNDJSON(wipnoteDir, cfg, dryRun, sweepEnv{
 		now:             time.Now(),
 		activeSessionID: activeSessionID,
-		grace:           time.Duration(activeGraceMinutes) * time.Minute,
+		grace:           ActiveGrace(),
 	})
+}
+
+// ActiveGrace is the recent-mtime window inside which an events.ndjson is
+// treated as possibly still being written. Telemetry catch-up
+// (observe/otel/finalize) uses the same window, so it never finalizes a log
+// that this sweep would still treat as live.
+func ActiveGrace() time.Duration {
+	return time.Duration(activeGraceMinutes) * time.Minute
 }
 
 // sweepCandidate is an inactive, fully-ingested session eligible for pruning.

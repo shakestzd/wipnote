@@ -1,7 +1,6 @@
 package hooks
 
 import (
-	"database/sql"
 	"time"
 )
 
@@ -22,9 +21,12 @@ var (
 	// start (log rotation + ndjson archival for inactive sessions).
 	RetentionSweepFn func(projectDir, activeSessionID string)
 
-	// SessionMaterializeFn rolls up a session's OTel signals into the index at
-	// session end. Registered directly from otel/materialize.Materialize.
-	SessionMaterializeFn func(database *sql.DB, projectDir, sessionID string) error
+	// SessionTelemetryFn finalizes a session's collector telemetry at session
+	// end, within budget: it ingests events.ndjson, materializes the OTel
+	// rollup, and only then publishes .index-offset so retention may archive
+	// the raw log. Registered from observe/otel/finalize. A spent budget leaves
+	// the session for the catch-up pass that runs before every retention sweep.
+	SessionTelemetryFn func(projectDir, sessionID string, budget time.Duration) error
 
 	// PortDriftPathsFn returns the generated-plugin-tree paths that have drifted
 	// from the manifest for the repo rooted at repoRoot, or nil when in sync,

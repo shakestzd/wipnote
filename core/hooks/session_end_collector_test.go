@@ -126,32 +126,53 @@ func TestCollectorDrainWait_FitsCodexCap(t *testing.T) {
 	}
 }
 
-// With the dashboard indexer gone, SessionEnd itself marks the session's
-// telemetry consumed once the collector has exited, so retention and prune
-// (which compare .index-offset to the NDJSON size) can archive it.
-func TestMarkTelemetryConsumed_PublishesFinalSize(t *testing.T) {
-	projectDir := t.TempDir()
-	sessionID := "sess-mark-consumed"
-	sessDir := filepath.Join(projectDir, ".wipnote", "sessions", sessionID)
-	if err := os.MkdirAll(sessDir, 0o755); err != nil {
-		t.Fatal(err)
+// Codex kills SessionEnd at 3s, so the collector drain plus the telemetry
+// finalize budget must leave headroom for the steps around them. Claude Code
+// grants the hook its 60s timeout, so a large session gets a longer budget.
+func TestTelemetryFinalizeBudget_FitsCodexCap(t *testing.T) {
+	t.Setenv("WIPNOTE_HARNESS", "codex")
+	if total := collectorDrainWait() + telemetryFinalizeBudget(); total > 2500*time.Millisecond {
+		t.Fatalf("codex drain+finalize = %s, must leave headroom under the 3s cap", total)
 	}
-	payload := []byte("{\"a\":1}\n{\"b\":2}\n")
-	if err := os.WriteFile(filepath.Join(sessDir, "events.ndjson"), payload, 0o644); err != nil {
-		t.Fatal(err)
+	t.Setenv("WIPNOTE_HARNESS", "claude")
+	if b := telemetryFinalizeBudget(); b < 5*time.Second {
+		t.Fatalf("claude finalize budget = %s, want at least 5s", b)
 	}
-	markTelemetryConsumed(projectDir, sessionID)
-	got, err := os.ReadFile(filepath.Join(sessDir, ".index-offset"))
-	if err != nil {
-		t.Fatalf("read .index-offset: %v", err)
-	}
-	if want := strconv.Itoa(len(payload)); string(got) != want {
-		t.Fatalf(".index-offset = %q, want %q", got, want)
-	}
+}
 
-	// No NDJSON: nothing to mark, and no marker is created.
-	markTelemetryConsumed(projectDir, "sess-without-telemetry")
-	if _, err := os.Stat(filepath.Join(projectDir, ".wipnote", "sessions", "sess-without-telemetry", ".index-offset")); !os.IsNotExist(err) {
-		t.Fatalf("marker created for a session with no NDJSON: %v", err)
+// SessionEnd hands the session's telemetry to SessionTelemetryFn once the
+// collector has exited, with a positive budget. That function ingests the
+// NDJSON, materialises the rollup and only then publishes .index-offset.
+func TestSessionEnd_FinalizesTelemetry(t *testing.T) {
+	td := setupTestDB(t)
+	projectDir := t.TempDir()
+	sessionID := "sess-finalize-telemetry"
+	t.Setenv("WIPNOTE_SESSION_ID", sessionID)
+	t.Setenv("WIPNOTE_PROJECT_DIR", projectDir)
+	t.Setenv("WIPNOTE_HARNESS", "claude")
+
+	var calls int
+	var gotProject, gotSession string
+	var gotBudget time.Duration
+	orig := SessionTelemetryFn
+	SessionTelemetryFn = func(p, s string, budget time.Duration) error {
+		calls++
+		gotProject, gotSession, gotBudget = p, s, budget
+		return nil
+	}
+	t.Cleanup(func() { SessionTelemetryFn = orig })
+
+	evt := &CloudEvent{SessionID: sessionID, CWD: projectDir}
+	if _, err := SessionEnd(evt, td.DB, projectDir); err != nil {
+		t.Fatalf("SessionEnd: %v", err)
+	}
+	if calls != 1 {
+		t.Fatalf("SessionTelemetryFn called %d times, want 1", calls)
+	}
+	if gotProject != projectDir || gotSession != sessionID {
+		t.Fatalf("SessionTelemetryFn(%q, %q), want (%q, %q)", gotProject, gotSession, projectDir, sessionID)
+	}
+	if gotBudget <= 0 {
+		t.Fatalf("budget = %s, want > 0", gotBudget)
 	}
 }

@@ -149,6 +149,7 @@ func runSessionPrune(olderThan string, keepLast int, dryRun, yes bool) error {
 		ageCutoff = time.Now().Add(-dur)
 	}
 
+	catchUpTelemetry(wipnoteDir, activeID, dryRun)
 	candidates, err := collectPruneCandidates(wipnoteDir, activeID)
 	if err != nil {
 		return err
@@ -311,12 +312,8 @@ func runSessionArchive(sessionID string, dryRun bool) error {
 			"It may already be archived. Use 'wipnote session restore %s' to unarchive.", sessionID, sessionID)
 	}
 
-	// Verify the indexer has caught up before archiving.
-	if _, err := os.Stat(eventsFile); err == nil {
-		if !retention.IndexerCaughtUp(sessDir, eventsFile) {
-			return fmt.Errorf("session %q has not yet been fully indexed (indexer lag detected)\n"+
-				"Wait for the indexer to catch up, or run 'wipnote reindex' first.", sessionID)
-		}
+	if err := ensureTelemetryFinalized(wipnoteDir, sessionID, dryRun); err != nil {
+		return err
 	}
 
 	if dryRun {

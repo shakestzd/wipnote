@@ -9,6 +9,7 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 	dbpkg "github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/plan/planyaml"
 	"github.com/spf13/cobra"
 )
 
@@ -49,59 +50,81 @@ func runPlanReadFeedback(planID string) error {
 // readPlanFeedback reads the canonical feedback recorded in the plan YAML.
 // Plans that predate the YAML (HTML only) fall back to the rendered form.
 func readPlanFeedback(wipnoteDir, planID string) (planFeedbackOutput, error) {
-	if _, err := os.Stat(planYAMLPath(wipnoteDir, planID)); err == nil {
-		entries, err := readPlanFeedbackEntries(wipnoteDir, planID)
+	yamlPath := planYAMLPath(wipnoteDir, planID)
+	if _, err := os.Stat(yamlPath); err == nil {
+		plan, err := planyaml.Load(yamlPath)
 		if err != nil {
 			return planFeedbackOutput{}, err
 		}
-		return feedbackOutputFromEntries(planID, entries), nil
+		entries := feedbackEntriesFromPlan(planID, plan)
+		return feedbackOutputFromEntries(planID, plan.Meta.Status, entries), nil
 	}
 	return parseFeedbackFromHTML(planID, filepath.Join(wipnoteDir, "plans", planID+".html"))
 }
 
 // feedbackOutputFromEntries groups canonical feedback entries the way the
-// former dashboard feedback API did: the last approve entry per section wins,
-// and the plan reads "approved" once every section with a decision is approved.
-func feedbackOutputFromEntries(planID string, entries []dbpkg.PlanFeedback) planFeedbackOutput {
-	out := planFeedbackOutput{
-		PlanID:           planID,
-		Status:           "draft",
-		SectionApprovals: make(map[string]bool),
-		QuestionAnswers:  make(map[string]string),
-		SliceApprovals:   make(map[string]bool),
-		Comments:         make(map[string]string),
-	}
+// former dashboard feedback API (buildFeedbackResponse) did. Every section
+// with an approve OR a comment entry counts; the last approve entry per
+// section wins, and a comment-only section counts as not approved. The plan
+// reads "approved" once every counted section is approved, else "draft".
+//
+// metaStatus is the plan's real meta.status. A plan whose review is over
+// (finalized, completed, done) reports that status as-is, as the HTML read
+// path always did; see feedbackStatus.
+func feedbackOutputFromEntries(planID, metaStatus string, entries []dbpkg.PlanFeedback) planFeedbackOutput {
+	out := newFeedbackOutput(planID)
 	for _, e := range entries {
-		if e.Section == "chat" {
-			continue
-		}
-		switch e.Action {
-		case "approve":
-			approved := dbpkg.IsPlanApprovalValueApproved(e.Value)
-			out.SectionApprovals[e.Section] = approved
-			if strings.HasPrefix(e.Section, "slice-") {
-				out.SliceApprovals[e.Section] = approved
-			}
-		case "comment":
-			if e.Value != "" {
-				out.Comments[e.Section] = e.Value
-			}
-		case "answer":
-			if e.QuestionID != "" {
-				out.QuestionAnswers[e.QuestionID] = e.Value
-			}
+		if e.Section != "chat" {
+			applyFeedbackEntry(&out, e)
 		}
 	}
-	if len(out.SectionApprovals) > 0 {
-		out.Status = "approved"
-		for _, ok := range out.SectionApprovals {
-			if !ok {
-				out.Status = "draft"
-				break
-			}
+	for section, approved := range out.SectionApprovals {
+		if strings.HasPrefix(section, "slice-") {
+			out.SliceApprovals[section] = approved
 		}
 	}
+	out.Status = feedbackStatus(metaStatus, out.SectionApprovals)
 	return out
+}
+
+// applyFeedbackEntry folds one canonical feedback entry into out.
+func applyFeedbackEntry(out *planFeedbackOutput, e dbpkg.PlanFeedback) {
+	switch e.Action {
+	case "approve":
+		out.SectionApprovals[e.Section] = dbpkg.IsPlanApprovalValueApproved(e.Value)
+	case "comment":
+		if _, decided := out.SectionApprovals[e.Section]; !decided {
+			out.SectionApprovals[e.Section] = false
+		}
+		if e.Value != "" {
+			out.Comments[e.Section] = e.Value
+		}
+	case "answer":
+		if e.QuestionID != "" {
+			out.QuestionAnswers[e.QuestionID] = e.Value
+		}
+	}
+}
+
+// feedbackStatus returns metaStatus for a plan whose review is over
+// (finalized, completed, done), else "approved" when there is at least one
+// section and all are approved, else "draft". Statuses a plan can hold while
+// slices are still being decided (draft, review, todo, active, in-progress)
+// get the feedback-derived status.
+func feedbackStatus(metaStatus string, sections map[string]bool) string {
+	switch metaStatus {
+	case "finalized", "completed", "done":
+		return metaStatus
+	}
+	if len(sections) == 0 {
+		return "draft"
+	}
+	for _, approved := range sections {
+		if !approved {
+			return "draft"
+		}
+	}
+	return "approved"
 }
 
 // parseFeedbackFromHTML reads a legacy HTML-only plan and extracts feedback
@@ -118,21 +141,31 @@ func parseFeedbackFromHTML(planID, planPath string) (planFeedbackOutput, error) 
 		return planFeedbackOutput{}, fmt.Errorf("parse HTML: %w", err)
 	}
 
-	out := planFeedbackOutput{
-		PlanID:           planID,
-		SectionApprovals: make(map[string]bool),
-		QuestionAnswers:  make(map[string]string),
-		SliceApprovals:   make(map[string]bool),
-		Comments:         make(map[string]string),
-	}
+	out := newFeedbackOutput(planID)
 
 	// Status from the top-level article.
 	out.Status, _ = doc.Find("article").First().Attr("data-status")
 	if out.Status == "" {
 		out.Status = "draft"
 	}
+	readHTMLApprovals(doc, &out)
+	readHTMLCommentsAndAnswers(doc, &out)
+	return out, nil
+}
 
-	// Approval checkboxes: input[data-action="approve"]
+// newFeedbackOutput returns an output for planID with every map allocated.
+func newFeedbackOutput(planID string) planFeedbackOutput {
+	return planFeedbackOutput{
+		PlanID:           planID,
+		SectionApprovals: make(map[string]bool),
+		QuestionAnswers:  make(map[string]string),
+		SliceApprovals:   make(map[string]bool),
+		Comments:         make(map[string]string),
+	}
+}
+
+// readHTMLApprovals reads approval checkboxes: input[data-action="approve"].
+func readHTMLApprovals(doc *goquery.Document, out *planFeedbackOutput) {
 	doc.Find(`input[data-action="approve"]`).Each(func(_ int, sel *goquery.Selection) {
 		section, _ := sel.Attr("data-section")
 		if section == "" {
@@ -144,8 +177,11 @@ func parseFeedbackFromHTML(planID, planPath string) (planFeedbackOutput, error) 
 			out.SliceApprovals[section] = checked
 		}
 	})
+}
 
-	// Comments: textarea[data-comment-for]
+// readHTMLCommentsAndAnswers reads comment textareas and checked question
+// radios from a legacy plan form.
+func readHTMLCommentsAndAnswers(doc *goquery.Document, out *planFeedbackOutput) {
 	doc.Find("textarea[data-comment-for]").Each(func(_ int, sel *goquery.Selection) {
 		section, _ := sel.Attr("data-comment-for")
 		if section == "" {
@@ -168,8 +204,6 @@ func parseFeedbackFromHTML(planID, planPath string) (planFeedbackOutput, error) 
 			out.QuestionAnswers[questionID] = value
 		}
 	})
-
-	return out, nil
 }
 
 // printFeedbackJSON marshals the output struct and writes it to stdout.
