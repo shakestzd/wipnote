@@ -109,7 +109,7 @@ func runStatus(_ *cobra.Command, _ []string) error {
 
 // printContentionStatus prints the slice-10 SQLITE_BUSY counter snapshot
 // plus the slice-6 writer queue depth (when wired in this process). The
-// counters are process-local — in a long-running `wipnote serve` they
+// counters are process-local — in a long-running writer daemon (`_serve-child`) they
 // reflect cumulative contention since startup; in a short-lived CLI
 // invocation they only reflect the current process. Either is useful
 // for the launch readiness check.

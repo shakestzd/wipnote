@@ -16,8 +16,8 @@ import (
 	"github.com/shakestzd/wipnote/observe/otel/sink"
 )
 
-// Config controls the embedded OTLP receiver that ships inside
-// `wipnote serve`. Defaults match the Phase 1 posture: opt-in,
+// Config controls the OTLP receiver that a hosting process embeds.
+// Defaults match the Phase 1 posture: opt-in,
 // loopback-only, HTTP-only (no gRPC).
 type Config struct {
 	// Enabled turns the receiver on. When false, Start is a no-op.
@@ -34,7 +34,7 @@ type Config struct {
 
 	// DBPath is the SQLite file path for persistence. If empty, the
 	// receiver assumes it's been initialized inline — callers pass
-	// this when embedding inside `wipnote serve`.
+	// this when embedding the receiver in a host process.
 	DBPath string
 }
 
@@ -72,7 +72,7 @@ func LoadConfigFromEnv(dbPath string, projectDir string) Config {
 }
 
 // Receiver wires the HTTP handler, signal sink, and adapter registry
-// into a lifecycle object that `wipnote serve` can Start/Stop.
+// into a lifecycle object that a host process can Start/Stop.
 //
 // Typical usage:
 //
@@ -123,8 +123,8 @@ func (r *Receiver) Handler() *HTTPHandler { return r.handler }
 // Start is idempotent; concurrent calls return the same running state.
 //
 // When HTTPPort is 0 the listener is skipped — useful when callers
-// mount the handler on their own mux (e.g. inside wipnote serve,
-// which already runs an HTTP server).
+// mount the handler on their own mux (e.g. inside a host process that
+// already runs an HTTP server).
 func (r *Receiver) Start(ctx context.Context) error {
 	if !r.cfg.Enabled {
 		return nil

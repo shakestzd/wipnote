@@ -1,6 +1,6 @@
 // Package finalize turns a session's raw collector telemetry into its durable
 // result and then marks the raw log consumed. It replaces the dashboard's
-// background indexer, which `wipnote serve` used to run.
+// background indexer, which the removed dashboard server used to run.
 //
 // For one session, Session does three steps in this order:
 //

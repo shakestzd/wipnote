@@ -127,7 +127,7 @@ func recentShards(sessionsDir string, since time.Time) ([]shardFile, error) {
 // scanTelemetry aggregates per-session figures straight from the canonical
 // NDJSON shards. Nothing is ingested or materialised: this deliberately avoids
 // the dashboard's replay-everything-into-memory indexer, which is what makes
-// `wipnote serve` hang on large histories. Shards are scanned in parallel, one
+// the removed dashboard server hang on large histories. Shards are scanned in parallel, one
 // goroutine per core, each in a single streaming pass.
 func scanTelemetry(wipnoteDir string, since time.Time) (telemetryScan, error) {
 	return scanTelemetryOpts(wipnoteDir, since, scanOptions{})
