@@ -17,16 +17,12 @@ func recapRangeID(spec string) string {
 	return "recap-r-" + hex12
 }
 
-// buildRecapBinary builds the wipnote binary into a temp dir and returns its path.
+// buildRecapBinary returns the shared wipnote test binary. It reuses the one
+// binary built by buildOtelCollectTestBinary instead of linking a fresh copy
+// per test (each link cost tens of seconds under load, bug-26a976ab).
 func buildRecapBinary(t *testing.T) string {
 	t.Helper()
-	dir := t.TempDir()
-	bin := filepath.Join(dir, "wipnote")
-	out, err := exec.Command("go", "build", "-o", bin, ".").CombinedOutput()
-	if err != nil {
-		t.Fatalf("build wipnote binary: %v\n%s", err, out)
-	}
-	return bin
+	return buildOtelCollectTestBinary(t)
 }
 
 // initFixtureRepo initialises a minimal git repo with a .wipnote directory
