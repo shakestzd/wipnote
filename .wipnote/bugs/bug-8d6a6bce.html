@@ -10,20 +10,27 @@
 <body>
     <article id="bug-8d6a6bce"
              data-type="bug"
-             data-status="in-progress"
+             data-status="done"
              data-priority="high"
              data-created="2026-10-24T01:51:58.193911"
-             data-updated="2026-10-24T01:53:32.638821" data-agent-assigned="claude-code" data-track-id="trk-0677c709" data-created-by-agent="claude-code" data-created-by-model="claude-opus-5-5" data-created-by-cli-version="0.81.0" data-change_kind="bugfix" data-created_in_session="b0991d53-1a24-4f08-85e1-85786a570a50">
+             data-updated="2026-10-24T03:11:16.235805" data-agent-assigned="claude-code" data-track-id="trk-0677c709" data-created-by-agent="claude-code" data-created-by-model="claude-opus-5-5" data-created-by-cli-version="0.81.0" data-change_kind="bugfix" data-created_in_session="b0991d53-1a24-4f08-85e1-85786a570a50" data-rollup-unavailable="no_read_index">
 
         <header>
             <h1>PR #247: research guards advise instead of block for yolo subagents; advice says Commit blocked</h1>
             <div class="metadata">
-                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge status-done">Done</span>
                 <span class="badge priority-high">High Priority</span>
             </div>
         </header>
 
         <nav data-graph-edges>
+            <section data-edge-type="committed_in">
+                <h3>Committed In:</h3>
+                <ul>
+                    <li><a href="b2e9ed72a0dbaae48e83fdee774370aae8faba5a.html" data-relationship="committed_in" data-since="2026-10-23T22:31:40">fix(bug-8d6a6bce): research guards use resilient yolo signal; advice wording when not blocking</a></li>
+                    <li><a href="8d452b8e332753801691331e653ea85346dd3a29.html" data-relationship="committed_in" data-since="2026-10-23T23:02:57">wipnote: start bug-8d6a6bce</a></li>
+                </ul>
+            </section>
             <section data-edge-type="implemented_in">
                 <h3>Implemented In:</h3>
                 <ul>
@@ -40,7 +47,8 @@
 
         <section data-content>
             <h3>Description</h3>
-            <p>Review of PR 247. adviseOrBlock in core/hooks/pretooluse.go uses ctx.IsYoloMode only; should use the yoloContext signal (bug-0ed4e469). commit_research_guard.go advice text starts &#39;Commit blocked:&#39; when the commit is allowed.</p>
+            <p>Review of PR 247. adviseOrBlock in core/hooks/pretooluse.go uses ctx.IsYoloMode only; should use the yoloContext signal (bug-0ed4e469). commit_research_guard.go advice text starts &#39;Commit blocked:&#39; when the commit is allowed.
+[2026-10-24 03:11 claude-code] allow-orphan (unmerged-upstream override): Fix b2e9ed72a is on PR #247 branch claude/slim-prompt-hooks; lands on main when #247 merges.</p>
         </section>
     </article>
 </body>
