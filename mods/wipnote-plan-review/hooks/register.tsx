@@ -1,5 +1,5 @@
 import { atom, read, update } from 'claude-code'
-import type { EngineInterface, Register } from 'claude-code'
+import type { EngineInterface, Register, Timer } from 'claude-code'
 
 import type { Review } from '../types'
 import { MARK, detailLine, failReason, parseSlices, planCallIn, tallyLine } from './model'
@@ -11,6 +11,23 @@ const planId = atom({ plugin: 'wipnote-plan-review', key: 'planId' } as const, n
 const review = atom({ plugin: 'wipnote-plan-review', key: 'review' } as const, null, { shape: 'review-1' })
 
 const POLL_MS = 5000
+// Live only while the pane is open: show() starts the timer, and it is cancelled
+// when the pane closes (ui.close, any origin) or the session ends.
+let timer: Timer | undefined
+
+function startPoll($: EngineInterface) {
+  timer ??= $.clock.every(POLL_MS, () => {
+    void (async () => {
+      const id = await read($, planId)
+      if (id !== null) await refresh($, id)
+    })().catch(() => undefined)
+  })
+}
+
+function stopPoll() {
+  timer?.cancel()
+  timer = undefined
+}
 
 async function refresh($: EngineInterface, id: string) {
   const ran = await $.process.run(['wipnote', 'plan', 'slices', id], { timeoutMs: 5000 }).catch(() => undefined)
@@ -34,6 +51,7 @@ async function show($: EngineInterface, id: string) {
   await update($, planId, () => id)
   await refresh($, id)
   await $.ui.open({ id: PANE, title: 'Plan review' })
+  startPoll($)
 }
 
 export const register: Register = on => {
@@ -43,12 +61,16 @@ export const register: Register = on => {
       description: 'Show a wipnote plan\'s slices and their approval state in a side pane',
       argumentHint: '<plan-id>',
     })
-    $.clock.every(POLL_MS, () => {
-      void (async () => {
-        const id = await read($, planId)
-        if (id !== null) await refresh($, id)
-      })().catch(() => undefined)
-    })
+    return next(e)
+  })
+
+  on('ui.close', {}, async ($, e, next) => {
+    if (e.id === PANE) stopPoll()
+    return next(e)
+  })
+
+  on('session.end', async ($, e, next) => {
+    stopPoll()
     return next(e)
   })
 
