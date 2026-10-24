@@ -10,20 +10,28 @@
 <body>
     <article id="bug-bb96a980"
              data-type="bug"
-             data-status="in-progress"
+             data-status="done"
              data-priority="high"
              data-created="2026-10-24T01:51:58.014842"
-             data-updated="2026-10-24T02:46:26.206005" data-agent-assigned="claude-code" data-track-id="trk-0677c709" data-created-by-agent="claude-code" data-created-by-model="claude-opus-5-5" data-created-by-cli-version="0.81.0" data-change_kind="bugfix" data-created_in_session="b0991d53-1a24-4f08-85e1-85786a570a50">
+             data-updated="2026-10-24T04:14:48.332317" data-agent-assigned="claude-code" data-track-id="trk-0677c709" data-created-by-agent="claude-code" data-created-by-model="claude-opus-5-5" data-created-by-cli-version="0.81.0" data-change_kind="bugfix" data-created_in_session="b0991d53-1a24-4f08-85e1-85786a570a50" data-rollup-unavailable="no_read_index">
 
         <header>
             <h1>PR #252: telemetry never archived and session rollup missing collector data after serve removal</h1>
             <div class="metadata">
-                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge status-done">Done</span>
                 <span class="badge priority-high">High Priority</span>
             </div>
         </header>
 
         <nav data-graph-edges>
+            <section data-edge-type="committed_in">
+                <h3>Committed In:</h3>
+                <ul>
+                    <li><a href="eb97fd9283d0fe9fb548306ff77f958f52dbfc1b.html" data-relationship="committed_in" data-since="2026-10-24T00:00:06">fix(telemetry): finalize session NDJSON at SessionEnd and catch up orphans (bug-bb96a980)</a></li>
+                    <li><a href="e7950c6eb07bda5a11ae0282f44543f638a530cd.html" data-relationship="committed_in" data-since="2026-10-24T00:13:51">docs(comments): reword stale wipnote serve references to current writer daemon (bug-bb96a980)</a></li>
+                    <li><a href="ef03f887b352d86c6dc9d2417c588422996f3318.html" data-relationship="committed_in" data-since="2026-10-24T00:00:28">wipnote: start bug-bb96a980</a></li>
+                </ul>
+            </section>
             <section data-edge-type="implemented_in">
                 <h3>Implemented In:</h3>
                 <ul>
@@ -41,15 +49,16 @@
         <section data-steps>
             <h3>Implementation Steps</h3>
             <ol>
-                <li data-completed="false" data-step-id="step-bug-bb96a980-0" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Replace markTelemetryConsumed with finalize.Session: replay NDJSON, materialize, then publish marker.</li>
-                <li data-completed="false" data-step-id="step-bug-bb96a980-1" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Add finalize.CatchUp before every retention sweep for orphaned sessions.</li>
-                <li data-completed="false" data-step-id="step-bug-bb96a980-2" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Fix stale serve and plan review hints; restore read-feedback status semantics.</li>
+                <li data-completed="true" data-step-id="step-bug-bb96a980-0" data-agent="claude-code" data-created-by-agent="claude-code">✅ Replace markTelemetryConsumed with finalize.Session: replay NDJSON, materialize, then publish marker.</li>
+                <li data-completed="true" data-step-id="step-bug-bb96a980-1" data-agent="claude-code" data-created-by-agent="claude-code">✅ Add finalize.CatchUp before every retention sweep for orphaned sessions.</li>
+                <li data-completed="true" data-step-id="step-bug-bb96a980-2" data-agent="claude-code" data-created-by-agent="claude-code">✅ Fix stale serve and plan review hints; restore read-feedback status semantics.</li>
             </ol>
         </section>
 
         <section data-content>
             <h3>Description</h3>
-            <p>Review of PR 252. (1) SessionEnd markTelemetryConsumed is now the only writer of .index-offset; crashed sessions are never archived. (2) Nothing ingests collector NDJSON into otel_signals before SessionMaterializeFn builds the rollup. (3) hook_exit_plan_mode.go still suggests &#39;wipnote plan review&#39;. (4) daemonread.go breach message still says &#39;wipnote serve&#39;. (5) plan_feedback_read.go status ignores comment-only sections and meta.status.</p>
+            <p>Fixed on claude/remove-dashboard in eb97fd928. SessionEnd now calls finalize.Session: replay NDJSON from byte 0, materialize the rollup, then publish .index-offset. finalize.CatchUp finishes orphaned sessions before every retention sweep. Also fixed: exit-plan-mode hint, daemon-unreachable message, read-feedback status, and the ledger control test. Gate passed in all five modules.
+[2026-10-24 04:14 claude-code] allow-orphan (unmerged-upstream override): Fix eb97fd928 is on PR #252 branch claude/remove-dashboard (stacked); lands on main when the stack merges.</p>
         </section>
     </article>
 </body>
