@@ -19,9 +19,7 @@ claude --debug <command>   # Verbose output
 
 ## Agents
 
-- **researcher** — Research documentation BEFORE implementing solutions
-- **debugger** — Systematic error analysis and root cause investigation
-- **test-runner** — Quality gates; run after every code change
+- **researcher** — documentation research and root cause analysis (no `debugger` or `test-runner` agent exists; coders run the quality gate themselves)
 
 ## Workflow
 
@@ -29,4 +27,4 @@ claude --debug <command>   # Verbose output
 2. Implement the minimal fix
 3. Validate with `go build ./... && go vet ./... && go test ./...`
 
-For full methodology, use `/wipnote:diagnose`.
+For investigation, dispatch the `wipnote:researcher` agent with the symptom and ask for file:line root cause.

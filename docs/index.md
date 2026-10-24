@@ -56,7 +56,7 @@ Hooks capture every tool call, every prompt, and attribute them to the active wo
 <div class="hg-card" markdown>
 <span class="hg-card__title">Custom agents</span>
 
-Define specialized agents with specific models, tools, and system prompts. A researcher agent for investigation, a coder for implementation, a test runner for quality &mdash; each scoped to its job.
+Define specialized agents with specific models, tools, and system prompts. A researcher agent for investigation and coder agents at three capability tiers for implementation &mdash; each scoped to its job.
 </div>
 
 <div class="hg-card" markdown>
@@ -68,7 +68,7 @@ Event-driven hooks on SessionStart, PreToolUse, PostToolUse, and Stop. Enforce s
 <div class="hg-card" markdown>
 <span class="hg-card__title">Skills &amp; slash commands</span>
 
-Reusable workflows as slash commands: `/deploy`, `/diagnose`, `/plan`, `/code-quality`. Package complex multi-step procedures into single invocations that agents and humans can both use.
+Reusable workflows as slash commands: `/wipnote:plan`, `/wipnote:execute`, `/wipnote:code-quality-skill`, `/wipnote:ui-stills-verification`. Package complex multi-step procedures into single invocations that agents and humans can both use.
 </div>
 
 <div class="hg-card" markdown>

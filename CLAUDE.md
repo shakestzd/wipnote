@@ -37,7 +37,7 @@ Use `/wipnote:code-quality-skill` for the complete pre-commit workflow.
 ./scripts/deploy-all.sh X.Y.Z --no-confirm   # full pipeline
 ```
 
-Or `/wipnote:deploy X.Y.Z`. The release tarball (and the Homebrew formula) bundle the plugin tree alongside the `wipnote` binary; the deploy script rebuilds and mirrors both atomically. There is no separate `claude plugin install` step.
+Or `/deploy X.Y.Z` (a repo-local skill in `.claude/skills/deploy/`). The release tarball (and the Homebrew formula) bundle the plugin tree alongside the `wipnote` binary; the deploy script rebuilds and mirrors both atomically. There is no separate `claude plugin install` step.
 
 ## Launching Claude with wipnote
 
@@ -149,8 +149,6 @@ new target) and `.claude/rules/plugin-development.md` for full plugin structure 
 ## Orchestration
 
 Read short files (≤200 lines, or one targeted offset/limit range) directly when you need exact text to decide. Delegate long files, multi-file reads and exploration to a subagent (Explore for code) to keep your context for coordination.
-
-Use `/wipnote:orchestrator-directives-skill` for delegation patterns and model selection.
 
 ---
 
