@@ -1,48 +1,24 @@
-# wipnote Orchestrator
+# wipnote
 
-You are an orchestrator. Decide WHAT to do and WHO should do it; subagents do the hands-on work, so your context stays free for coordination and failures stay inside the subagent that hit them.
+This repo is tracked by wipnote. Its core job is **causal lineage**: `wipnote lineage|trace|history <id>` show why code exists (work items, commits, sessions, agent spawns). Keep that record accurate; everything else here serves it.
 
-wipnote's headline capability is **causal lineage**: `wipnote lineage|trace|history <id>` show why code exists (work items, commits, sessions, agent spawns).
+## Track the work
 
-## Knowing when to stop
+- Before changing code, start the matching work item: `wipnote feature start <id>` (or `bug`/`spike`). If none matches, run `wipnote relevant <topic>` first, then create one: `wipnote feature create "title" --track <trk-id> --description "..."` (or `--plan <plan-id>`). Keep absolute host paths out of descriptions.
+- Name the item in every commit subject or a `Refs: <id>` trailer, and in every subagent brief.
+- When the work is done: `wipnote check --gate --work-item <id>`, then `wipnote feature complete <id>` as a separate call. Add `--learning "<fact>"` for a durable lesson.
+- The `TaskCreated`/`TaskCompleted` hooks mirror your task list onto the active item, so use TaskCreate/TaskUpdate for multi-step work.
 
-Report what you know or ask for direction when: 8+ delegations or 12+ direct Bash calls show no progress; two consecutive subagents return without committing; you have checked the same condition 3+ times; delegated work duplicates items or churns the same files; or a dispatched agent shows no hook events after ~3 minutes (`CALLS -` in `wipnote session list`), in which case stop it and re-dispatch with a brief that opens with a literal command. Stop an agent as soon as its output is verified.
+## Delegate when it helps
 
-## Work tracking
+Do small, clear changes yourself. Use subagents when the work is parallel and independent (one worktree per agent), when it needs wide exploration you don't want in your context, or when it may spiral into retries. The native explorer (`Explore` on Claude Code, `explorer` on Codex) handles read-only code search; `wipnote:researcher` handles docs research and debugging; the `wipnote:*-coder` agents implement. Brief an agent with the work item ID and a first concrete command to run.
 
-Activate a work item before any delegation: `wipnote feature start feat-xxx` (or `bug`/`spike`). If none matches, run `wipnote relevant <topic>` before creating anything; attach to the closest causal node (`spawned_from`, `caused_by`, else `relates_to`; avoid broad `part_of`). Create new only if nothing covers the scope, preferring `wipnote feature create "title" --plan <plan-id> --description "..."` (or `--track <trk-id>`; `--standalone "searched: ..."` as a last resort). Keep absolute host paths out of `--description`/`--body`.
+If you stop making progress, stop and report what you know.
 
-Put the work item ID in every subagent prompt (e.g. "Feature: feat-123"); the subagent claims it with `wipnote feature start <id>`. After it returns, run `wipnote check --gate --work-item <id>` and then `wipnote feature complete <id>` as separate calls (add `--learning "<fact>"` for durable lessons; `wipnote feature link-commit <id> <sha>` if completion refuses unlinked commits).
+## Hard rules
 
-## Delegation
+- Never hand-edit `.wipnote/`; use the CLI. Plan YAML changes go through `wipnote plan rewrite-yaml`.
+- Never write or overwrite a project's AGENTS.md, CLAUDE.md or GEMINI.md; they belong to the user.
+- Run the quality gate before committing (`/wipnote:code-quality-skill` has the per-language commands).
 
-Read short files (≤200 lines, or one targeted offset/limit range) directly when you need exact text to decide. Delegate long files, multi-file reads and exploration to a subagent (the native code explorer: `Explore` on Claude Code, `explorer` on Codex) to keep your context for coordination. Do not Edit/Write yourself, and do not run git, build, test, or deploy commands through Bash.
-
-| Task | Delegate to |
-|------|-------------|
-| Code exploration, multi-file reads | native explorer: `Explore` (Claude Code) / `explorer` (Codex) |
-| Research, debugging, visual QA | `wipnote:researcher` |
-| Fully specified 1-2 file edit | `wipnote:patch-coder` |
-| Feature work, ~3-8 files (default) | `wipnote:feature-coder` |
-| 10+ files, design decisions, unclear scope | `wipnote:architect-coder` |
-| Builds, tests, quality gates | `wipnote:test-runner` |
-| Unclear requirements | `AskUserQuestion()` |
-
-External CLIs (`codex exec`, `agy`, `copilot`) may be tried via Bash first; on any sandbox failure ("bwrap", "Operation not permitted", "cannot create namespace") use the in-harness agent for the rest of the session. You run `wipnote ...`, `AskUserQuestion`, `Task` and TaskCreate/TaskUpdate directly; prefer `wipnote search '<ast-grep pattern>'` over grep and `wipnote sh "<cmd>"` for long output.
-
-## Standards to enforce in every delegation
-
-- **Check what exists first.** Run `wipnote arch resolve --for <path-or-work-item>` before grepping or dispatching; verify external library/API claims against current docs; prefer a maintained package or existing plugin/skill/hook over custom code.
-- **Plugin/project boundary:** wipnote never authors or overwrites a project's AGENTS.md, CLAUDE.md, or GEMINI.md (user-owned). Never land fixes there.
-- **Size limits:** functions under 50 lines, modules under 500.
-- **Quality gate before committing:** see `/wipnote:code-quality-skill`; record it with `wipnote check --gate`.
-
-## Batching and steps
-
-Each Bash call costs a turn, so chain wipnote bookkeeping (`create|start|complete|add-step`, `link add`) with `&&`; split only when a later command needs an ID printed earlier.
-
-Only you have TaskCreate/TaskUpdate; the `TaskCreated`/`TaskCompleted` hooks mirror them onto the active work item. Use them for each dispatched step or any task with 3+ sub-steps. When Task tools are unavailable, use `wipnote <kind> add-step <id> "desc"`. Steps from `--steps` or `add-step` are not mirrored: run `wipnote <kind> complete-step <id> <n>` as each one finishes, so the item shows real progress.
-
-## Reference
-
-`wipnote help --compact` prints the CLI. `plan-*.yaml` is the source of truth for plans; edit it through the CLI, never the generated HTML. See `/wipnote:orchestrator-directives-skill` for delegation patterns.
+`wipnote help --compact` prints the CLI.

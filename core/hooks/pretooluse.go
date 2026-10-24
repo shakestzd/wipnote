@@ -160,11 +160,27 @@ func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 	}
 
 	// Guard: block git commit when the staged diff changes a dependency manifest
-	// (go.mod/package.json/…) but no web research happened this session. Always-on,
+	// (go.mod/package.json/…) but no web research happened this session. It
 	// complements the pre-edit external-tech guard by catching deps introduced via
 	// Bash (`go get`/`npm install`). Fast path: the same single
 	// `git diff --cached --name-only` shape (feat-af4ae1c3).
-	if warn := checkDependencyResearchCommitGuard(event, database, ctx); warn != "" {
+	//
+	// Research guards (this one and the read-before-write and web-research
+	// guards below) block only in YOLO mode, where no person reviews the work.
+	// In attended sessions they advise instead: current models research without
+	// being forced, and a hard block there mostly cost a turn.
+	// Use the resilient yolo signal (bug-0ed4e469): a yolo subagent can report
+	// IsYoloMode=false, yet its parent chain is yolo and must still block.
+	yoloContext := resilientYoloContext(database, ctx)
+	var researchAdvice []string
+	adviseOrBlock := func(warn string) bool {
+		block, advice := researchGuardVerdict(warn, yoloContext)
+		if advice != "" {
+			researchAdvice = append(researchAdvice, advice)
+		}
+		return block
+	}
+	if warn := checkDependencyResearchCommitGuard(event, database, ctx); adviseOrBlock(warn) {
 		return &HookResult{Decision: "block", Reason: warn}, nil
 	}
 
@@ -176,7 +192,8 @@ func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 		return &HookResult{Decision: "block", Reason: researchDispatchAdvisory}, nil
 	}
 
-	// Always-on guards: work item and research required regardless of YOLO mode.
+	// Work item required regardless of YOLO mode; research guards follow the
+	// adviseOrBlock posture above.
 	// Skipped during subagent grace period (subagent just spawned, needs time to claim).
 	if !subagentGrace {
 		activeWorkItem := ctx.FeatureID
@@ -193,7 +210,7 @@ func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 		}
 		// Research-first: require at least one Read/Grep/Glob before writing.
 		hasResearch := hasRecentResearch(database, ctx.SessionID, ctx.AgentID, ctx.ProjectDir)
-		if warn := checkYoloResearchGuard(event.ToolName, ctx.IsYoloMode, hasResearch, targetFile, ctx.ProjectDir); warn != "" {
+		if warn := checkYoloResearchGuard(event.ToolName, ctx.IsYoloMode, hasResearch, targetFile, ctx.ProjectDir); adviseOrBlock(warn) {
 			return &HookResult{Decision: "block", Reason: warn}, nil
 		}
 		// Specificity-aware research: an external-technology change requires WEB/docs
@@ -210,17 +227,17 @@ func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 		if manifestPath != "" || harnessPath != "" {
 			hasWebResearch := hasRecentWebResearch(database, ctx.SessionID, ctx.AgentID, ctx.ProjectDir)
 			if manifestPath != "" {
-				if warn := checkExternalTechResearchGuard(event.ToolName, hasWebResearch, manifestPath, ctx.ProjectDir); warn != "" {
+				if warn := checkExternalTechResearchGuard(event.ToolName, hasWebResearch, manifestPath, ctx.ProjectDir); adviseOrBlock(warn) {
 					return &HookResult{Decision: "block", Reason: warn}, nil
 				}
 			}
 			if harnessPath != "" {
-				if warn := checkHarnessContractResearchGuard(event.ToolName, hasWebResearch, harnessPath, ctx.ProjectDir); warn != "" {
+				if warn := checkHarnessContractResearchGuard(event.ToolName, hasWebResearch, harnessPath, ctx.ProjectDir); adviseOrBlock(warn) {
 					return &HookResult{Decision: "block", Reason: warn}, nil
 				}
 			}
 		}
-		if warn := checkYoloBashResearchGuard(event, ctx.IsYoloMode, hasResearch); warn != "" {
+		if warn := checkYoloBashResearchGuard(event, ctx.IsYoloMode, hasResearch); adviseOrBlock(warn) {
 			return &HookResult{Decision: "block", Reason: warn}, nil
 		}
 	}
@@ -234,8 +251,6 @@ func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 	// This is deliberately narrow: it does NOT block main edits in genuinely
 	// non-yolo sessions (plain `wipnote claude`, normal dev, or a top-level
 	// session deliberately running on main) because those have no yolo ancestor.
-	yoloContext := ctx.IsYoloMode ||
-		(ctx.IsSubagent && anyParentSessionYolo(database, ctx.HgDir, ctx.SessionID))
 	if yoloContext {
 		// Resolve branch from the target file's worktree, not the session CWD.
 		targetFile := extractFilePath(event.ToolInput)
@@ -299,6 +314,7 @@ func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 			appendAdditionalContext(result, orchestrationResearchAdvisory)
 			appendAdditionalContext(result, researchDispatchAdvisory)
 			appendAdditionalContext(result, orchestratorAdvice)
+			appendAdditionalContext(result, strings.Join(researchAdvice, "\n"))
 			appendAdditionalContext(result, advisory)
 		}
 		return result, err
@@ -310,6 +326,7 @@ func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 		appendAdditionalContext(result, orchestrationResearchAdvisory)
 		appendAdditionalContext(result, researchDispatchAdvisory)
 		appendAdditionalContext(result, orchestratorAdvice)
+		appendAdditionalContext(result, strings.Join(researchAdvice, "\n"))
 	}
 	return result, err
 }
