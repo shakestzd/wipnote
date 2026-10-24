@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -20,6 +21,7 @@ import (
 var (
 	otelCollectTestBinary       string
 	otelCollectTestBinaryTmpDir string
+	otelCollectTestBinaryMu     sync.Mutex
 )
 
 // buildOtelCollectTestBinary builds the wipnote binary into a temp dir and
@@ -27,12 +29,19 @@ var (
 // reuse the first binary. The temp dir is cleaned up by TestMain (testmain_test.go).
 func buildOtelCollectTestBinary(t *testing.T) string {
 	t.Helper()
+	otelCollectTestBinaryMu.Lock()
+	defer otelCollectTestBinaryMu.Unlock()
 	if otelCollectTestBinary != "" {
 		if _, err := os.Stat(otelCollectTestBinary); err == nil {
 			return otelCollectTestBinary
 		}
 	}
-	tmp := t.TempDir()
+	// Not t.TempDir(): that is deleted when the first caller finishes, which
+	// defeated reuse and forced a relink per test. TestMain removes this dir.
+	tmp, err := os.MkdirTemp("", "wipnote-test-bin-")
+	if err != nil {
+		t.Fatalf("mkdirtemp: %v", err)
+	}
 	otelCollectTestBinaryTmpDir = tmp // tracked for cleanup in TestMain
 	bin := filepath.Join(tmp, "wipnote-test")
 	cmd := exec.Command("go", "build", "-o", bin, ".")
