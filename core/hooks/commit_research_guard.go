@@ -241,3 +241,23 @@ func checkDependencyResearchCommitGuard(event *CloudEvent, database *sql.DB, ctx
 		"read does not satisfy this gate. To intentionally waive, add a " +
 		"`RESEARCH-WAIVER: <reason>` trailer to the commit message."
 }
+
+// resilientYoloContext is true when the session is yolo by its own signal, or is
+// a subagent whose parent-session chain is yolo (bug-0ed4e469).
+func resilientYoloContext(database *sql.DB, ctx *toolUseContext) bool {
+	return ctx.IsYoloMode ||
+		(ctx.IsSubagent && anyParentSessionYolo(database, ctx.HgDir, ctx.SessionID))
+}
+
+// researchGuardVerdict decides block vs advise for a research-guard warning.
+// An empty warning is a pass. In yolo context the warning blocks. Otherwise it
+// becomes advice, with the "Commit blocked" lead softened since the commit runs.
+func researchGuardVerdict(warn string, yoloContext bool) (block bool, advice string) {
+	if warn == "" {
+		return false, ""
+	}
+	if yoloContext {
+		return true, ""
+	}
+	return false, strings.Replace(warn, "Commit blocked: ", "Research is required before committing: ", 1)
+}
