@@ -169,16 +169,16 @@ func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 	// guards below) block only in YOLO mode, where no person reviews the work.
 	// In attended sessions they advise instead: current models research without
 	// being forced, and a hard block there mostly cost a turn.
+	// Use the resilient yolo signal (bug-0ed4e469): a yolo subagent can report
+	// IsYoloMode=false, yet its parent chain is yolo and must still block.
+	yoloContext := resilientYoloContext(database, ctx)
 	var researchAdvice []string
 	adviseOrBlock := func(warn string) bool {
-		if warn == "" {
-			return false
+		block, advice := researchGuardVerdict(warn, yoloContext)
+		if advice != "" {
+			researchAdvice = append(researchAdvice, advice)
 		}
-		if ctx.IsYoloMode {
-			return true
-		}
-		researchAdvice = append(researchAdvice, warn)
-		return false
+		return block
 	}
 	if warn := checkDependencyResearchCommitGuard(event, database, ctx); adviseOrBlock(warn) {
 		return &HookResult{Decision: "block", Reason: warn}, nil
@@ -251,8 +251,6 @@ func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 	// This is deliberately narrow: it does NOT block main edits in genuinely
 	// non-yolo sessions (plain `wipnote claude`, normal dev, or a top-level
 	// session deliberately running on main) because those have no yolo ancestor.
-	yoloContext := ctx.IsYoloMode ||
-		(ctx.IsSubagent && anyParentSessionYolo(database, ctx.HgDir, ctx.SessionID))
 	if yoloContext {
 		// Resolve branch from the target file's worktree, not the session CWD.
 		targetFile := extractFilePath(event.ToolInput)
