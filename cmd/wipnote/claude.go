@@ -691,14 +691,6 @@ func launchClaude(opts LaunchOpts) error {
 	ensureGuardProfile(opts.ProjectRoot)
 	launchTiming("launchClaude: after ensureGuardProfile")
 
-	// Auto-start a detached `wipnote serve` for the dashboard and
-	// semantic-ops (AI-title backfill, etc.). The serve process is now a
-	// pure reader + dashboard server — OTLP ingest is handled by the
-	// per-session collector spawned below. See claude_serve_autostart.go
-	// for the probe + spawn logic.
-	ensureServeForDashboard(opts.ProjectRoot)
-	launchTiming("launchClaude: after ensureServeForDashboard")
-
 	// Generate a per-session ID and spawn a per-session OTel collector.
 	// The collector writes NDJSON to .wipnote/sessions/<sid>/ and
 	// exposes an ephemeral OTLP HTTP port. Non-fatal: on failure, the
@@ -728,7 +720,7 @@ func launchClaude(opts LaunchOpts) error {
 	// Compose the child env: start from os.Environ, layer
 	// WIPNOTE_PROJECT_DIR when running in a worktree, and layer OTel
 	// exporter vars when WIPNOTE_OTEL_ENABLED=1 so Claude's OTLP
-	// pipeline points at the wipnote serve receiver. See
+	// pipeline points at the per-session collector. See
 	// claude_env.go:buildClaudeLaunchEnv for precedence rules (user-set
 	// OTEL_* always wins).
 	c.Env = buildClaudeLaunchEnv(claudeEnvProjectDir(opts), &envOverrides)

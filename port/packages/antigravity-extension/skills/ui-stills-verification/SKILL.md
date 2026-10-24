@@ -42,7 +42,7 @@ has **no `--wait` flag** (wait inside the expression), and `--reporter` does not
 
 ## Getting a URL
 
-- Plain web app / dashboard: you already have one (`wipnote serve` → `http://127.0.0.1:8080`).
+- Plain web app / dashboard: start its dev server and use that URL.
 - Desktop shell (Tauri/Electron) around a web frontend: point at the dev server and skip the
   shell. Expect the shell to have injected things the browser will not have (API base URL,
   auth token, capability detection). Do **not** weaken production auth to make this work —

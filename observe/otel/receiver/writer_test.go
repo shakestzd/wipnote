@@ -931,7 +931,7 @@ func TestNewWriter_DoesNotForceWAL(t *testing.T) {
 // This seeds a DB missing that column (the same setup
 // core/db.TestMigrateFromAlreadyCurrentDB_MissingLaterColumn uses), then
 // confirms NewWriter itself repairs the schema before returning, with no
-// other writer or `wipnote serve` needing to have opened the file first.
+// other writer or host process needing to have opened the file first.
 
 // otelAttributionStepVersion is the version of the migration step that owns
 // otel_signals.agent_id (019_otel_signals_attribution_columns). Kept in sync

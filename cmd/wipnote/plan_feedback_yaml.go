@@ -1,8 +1,6 @@
 package main
 
 import (
-	"encoding/json"
-	"fmt"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -240,22 +238,6 @@ func storePlanFeedback(wipnoteDir, planID, section, action, value, questionID st
 	})
 }
 
-func storePlanAnnotation(wipnoteDir, planID string, req planFeedbackRequest) error {
-	if req.Anchor == "" {
-		return fmt.Errorf("annotation anchor is required")
-	}
-	return storePlanFeedbackEntry(wipnoteDir, planID, planyaml.PlanFeedbackEntry{
-		Section:          req.Section,
-		Action:           "annotation",
-		Value:            req.Value,
-		QuestionID:       req.QuestionID,
-		Anchor:           req.Anchor,
-		Consumed:         req.Consumed,
-		Resolved:         req.Resolved,
-		ResolutionTarget: req.ResolutionTarget,
-	})
-}
-
 func planChatSessionID(wipnoteDir, planID string) string {
 	entries, err := readPlanFeedbackEntries(wipnoteDir, planID)
 	if err != nil {
@@ -267,29 +249,4 @@ func planChatSessionID(wipnoteDir, planID string) string {
 		}
 	}
 	return ""
-}
-
-func appendPlanChatMessage(wipnoteDir, planID, role, content string) error {
-	entries, err := readPlanFeedbackEntries(wipnoteDir, planID)
-	if err != nil {
-		return err
-	}
-	var messages []chatMessageEntry
-	for _, e := range entries {
-		if e.Section != "chat" || e.Action != "messages" || e.Value == "" {
-			continue
-		}
-		_ = json.Unmarshal([]byte(e.Value), &messages)
-		break
-	}
-	messages = append(messages, chatMessageEntry{
-		Role:      role,
-		Content:   content,
-		Timestamp: time.Now().UTC().Format(time.RFC3339),
-	})
-	data, err := json.Marshal(messages)
-	if err != nil {
-		return err
-	}
-	return storePlanFeedback(wipnoteDir, planID, "chat", "messages", string(data), "")
 }

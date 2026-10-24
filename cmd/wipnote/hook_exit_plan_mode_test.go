@@ -321,3 +321,23 @@ func TestMostRecentMarkdownFile_NoFiles(t *testing.T) {
 		t.Error("expected error for empty directory, got nil")
 	}
 }
+
+// The suggestion must name commands that exist: `wipnote plan review` was
+// removed with the dashboard, and review now runs through `plan slices`.
+func TestExitPlanModeSuggestion_NamesLiveCommands(t *testing.T) {
+	got := exitPlanModeSuggestion("/p/.wipnote/plans/plan-1.yaml", "plan-1")
+	if strings.Contains(got, "plan review") {
+		t.Fatalf("suggestion names the removed `plan review` command: %q", got)
+	}
+	for _, want := range []string{"/p/.wipnote/plans/plan-1.yaml", "wipnote plan validate-yaml plan-1", "wipnote plan slices plan-1"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("suggestion %q missing %q", got, want)
+		}
+	}
+	plan := planCmdWithExtras()
+	for _, sub := range []string{"validate-yaml", "slices"} {
+		if c, _, err := plan.Find([]string{sub}); err != nil || c == plan {
+			t.Errorf("`wipnote plan %s` is not a registered command: %v", sub, err)
+		}
+	}
+}

@@ -191,10 +191,11 @@ func SessionStart(event *CloudEvent, database *sql.DB, projectDir string) (*Hook
 		commitCh <- headCommit(projectDir)
 	}()
 
-	// Fire-and-forget disk-retention sweep: rotate oversized logs and
-	// archive+prune raw events.ndjson for OLD, inactive, fully-ingested
-	// sessions. This is the natural session-start cleanup point so reclamation
-	// happens even when `wipnote serve` is not running. The current session is
+	// Fire-and-forget disk-retention sweep: finalize telemetry for sessions
+	// that never got a clean SessionEnd (bounded catch-up), rotate oversized
+	// logs, and archive+prune raw events.ndjson for OLD, inactive,
+	// fully-ingested sessions. The writer daemon runs the same sweep every
+	// 24h; this is the session-start cleanup point. The current session is
 	// passed as active so its own ndjson is never touched; the sweep is
 	// idempotent and fail-safe (no-op on any error). Backgrounded so it never
 	// blocks the hot hook path.
@@ -972,8 +973,6 @@ func buildSessionStartAttribution() string {
 		"- `wipnote wip` for open and in-progress items",
 		"- `wipnote relevant <topic>` before creating new work so you search open and completed lineage first",
 		"- `wipnote help --compact` for a command overview",
-		"",
-		"For orchestrated delegation, work tracking, and quality gates, use `/wipnote:orchestrator-directives-skill`.",
 	}
 	return joinLines(lines)
 }

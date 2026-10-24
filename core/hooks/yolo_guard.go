@@ -619,7 +619,8 @@ func checkYoloBashWorktreeGuard(event *CloudEvent, branch string, yolo bool) str
 }
 
 // checkYoloResearchGuard blocks Write/Edit when no Read/Grep/Glob has
-// occurred in the session (research-first principle). Always enforced.
+// occurred in the session (research-first principle). PreToolUse blocks on
+// it only in YOLO mode and adds it as advice otherwise.
 //
 // targetFile is the Write/Edit target path extracted from the tool input.
 // When the target is outside the project root (home config, /tmp, sibling repos,
@@ -730,8 +731,8 @@ func firstPathMatching(paths []string, pred func(string) bool) string {
 //
 // Non-dependency-manifest edits keep the existing any-read behavior (this guard
 // returns "" for them, so there is no regression). Writes outside the project
-// root are skipped, mirroring checkYoloResearchGuard. Always enforced — not
-// YOLO-gated.
+// root are skipped, mirroring checkYoloResearchGuard. PreToolUse blocks on it
+// only in YOLO mode and adds it as advice otherwise.
 func checkExternalTechResearchGuard(toolName string, hasWebResearch bool, targetFile, projectRoot string) string {
 	switch toolName {
 	case "Write", "Edit", "MultiEdit", "apply_patch":
@@ -786,7 +787,7 @@ func isHarnessContractEdit(targetFile string) bool {
 	return false
 }
 
-// checkHarnessContractResearchGuard BLOCKS a Write/Edit to a harness-contract
+// checkHarnessContractResearchGuard flags a Write/Edit to a harness-contract
 // file when no web/docs research has happened this session — the inverse of the
 // non-blocking checkOrchestratorResearchDelegationAdvisory. Harness contracts
 // (agent manifests, hook matrices, the plugin generator, system prompts) drift
@@ -795,9 +796,10 @@ func isHarnessContractEdit(targetFile string) bool {
 // (feat-ff62b911 / spk-0a982f70).
 //
 // Non-harness-contract edits return "" (no regression). Writes outside the
-// project root are skipped, mirroring the other research guards. Always
-// enforced — not YOLO-gated. False-positives are kept low by matching only the
-// narrow harnessContractPathSignals set.
+// project root are skipped, mirroring the other research guards. PreToolUse
+// blocks on it only in YOLO mode and adds it as advice otherwise.
+// False-positives are kept low by matching only the narrow
+// harnessContractPathSignals set.
 func checkHarnessContractResearchGuard(toolName string, hasWebResearch bool, targetFile, projectRoot string) string {
 	switch toolName {
 	case "Write", "Edit", "MultiEdit", "apply_patch":
@@ -821,7 +823,8 @@ func checkHarnessContractResearchGuard(toolName string, hasWebResearch bool, tar
 }
 
 // checkYoloBashResearchGuard extends the research guard to Bash file-write commands.
-// Always enforced. wipnote CLI commands and osascript invocations are exempt.
+// Blocks in YOLO mode, advises otherwise. wipnote CLI commands and osascript
+// invocations are exempt.
 //
 // Writes whose first path target lies outside the project tree (e.g. /tmp/…,
 // ~/.config/…) are skipped, mirroring the pathIsOutsideProject skip on the

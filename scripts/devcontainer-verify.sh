@@ -55,10 +55,6 @@ else
     echo "  WARNING: no devcontainer signals found — launcher will default to host profile" >&2
 fi
 
-# Verify devcontainer dashboard port convention: 0.0.0.0:8088.
-# Enforced by mode.DashboardBindDefaults; must match devcontainer.json forwardPorts:8088 (bug-3a373884).
-echo "  devcontainer dashboard default: 0.0.0.0:8088 (consistent with forwardPorts:8088)"
-
 # Verify exec-capable temp root. /tmp is noexec in this devcontainer (tmpfs).
 # Tests and hooks require TMPDIR to point at an exec-capable directory.
 _tmpdir="${TMPDIR:-/tmp}"
@@ -72,22 +68,6 @@ else
     echo "  WARNING: TMPDIR=${_tmpdir} is noexec — set TMPDIR to an exec-capable directory" >&2
     echo "  Recommended: export TMPDIR=/home/vscode/.gotest-tmp" >&2
 fi
-
-section "wipnote serve smoke test"
-# Use port 8082 to avoid colliding with a running dashboard on 8088.
-wipnote serve --port 8082 >/tmp/wipnote-verify-serve.log 2>&1 &
-SERVE_PID=$!
-trap 'kill "${SERVE_PID}" 2>/dev/null || true' EXIT
-sleep 1
-if curl --silent --fail --max-time 3 http://127.0.0.1:8082/ >/dev/null; then
-    echo "dashboard reachable on port 8082"
-else
-    echo "dashboard smoke test FAILED — see /tmp/wipnote-verify-serve.log" >&2
-    cat /tmp/wipnote-verify-serve.log >&2 || true
-    exit 1
-fi
-kill "${SERVE_PID}" 2>/dev/null || true
-trap - EXIT
 
 echo
 echo "Devcontainer verification complete — all checks passed."

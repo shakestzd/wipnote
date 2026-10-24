@@ -23,11 +23,11 @@
 //
 // SINGLE-OWNER INVARIANT:
 //
-//	Exactly one Queue per project DB, owned by `wipnote serve` for v1.
-//	A second writer process (`wipnote daemon`) is the post-launch
-//	graduation path (plan q-service-owner). Inside the process every
-//	producer in serve — indexer, OTLP receiver, sub-agent auto-ingest —
-//	submits to the same Queue instance.
+//	Exactly one Queue per project DB, owned by the per-project writer
+//	daemon (`_serve-child`, spawned by the launcher). Inside that process
+//	every producer — finalize/indexer, OTLP receiver, sub-agent
+//	auto-ingest — submits to the same Queue instance. Hook handlers reach
+//	the daemon through the enqueue seam in core/hooks/dbgate.go.
 package writequeue
 
 import "context"

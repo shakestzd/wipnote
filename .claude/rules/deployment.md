@@ -7,7 +7,7 @@ paths:
 
 # Deployment & Release Rules
 
-**CRITICAL: Use `./scripts/deploy-all.sh` or `/wipnote:deploy` for all deployment operations.**
+**CRITICAL: Use `./scripts/deploy-all.sh` or `/deploy` for all deployment operations.**
 
 ## Two Independent Install Paths
 
@@ -35,7 +35,7 @@ The deploy script updates both automatically. **Never update one without the oth
 ./scripts/deploy-all.sh 1.0.0 --no-confirm
 
 # Or via slash command:
-/wipnote:deploy 1.0.0
+/deploy 1.0.0
 ```
 
 **Pre-requisite:** `go test ./...` must pass.

@@ -14,8 +14,8 @@ import (
 )
 
 // UserPrompt handles the UserPromptSubmit Claude Code hook event.
-// It inserts a UserQuery agent_event, classifies the prompt intent,
-// and returns combined CIGS attribution + classification guidance.
+// It inserts a UserQuery agent_event and returns the active work item as a
+// terse one-liner.
 func UserPrompt(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 	sessionID := resolveSessionIDWithHarness(event)
 	if sessionID == "" || event.Prompt == "" {
@@ -84,21 +84,12 @@ func UserPrompt(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 	// Update session last_user_query fields.
 	updateLastQuery(database, projectDir, sessionID, event.Prompt)
 
-	// Classify the prompt intent for CIGS guidance.
-	intent := ClassifyPrompt(event.Prompt)
-
-	// Look up active work item type for intent-specific directives.
-	activeWorkType := getActiveWorkItemType(database, featureID)
-
-	// Build terse active item one-liner (only when active item exists).
-	activeItemHint := buildActiveItemOneLiner(database, featureID)
-
-	// Combine classification guidance with terse active item hint.
-	guidance := GenerateGuidance(intent, featureID, activeWorkType, activeItemHint)
-
+	// Per-turn context is only the terse active-item line. The keyword
+	// classifier that added delegation directives on every prompt was retired:
+	// the launcher system prompt already states the delegation rules once.
 	result := &HookResult{}
-	if guidance != "" {
-		result.AdditionalContext = guidance
+	if hint := buildActiveItemOneLiner(database, featureID); hint != "" {
+		result.AdditionalContext = hint
 	} else {
 		result.Continue = true
 	}
@@ -150,11 +141,6 @@ func updateLastQuery(database *sql.DB, projectDir, sessionID, prompt string) {
 	)
 }
 
-// compactCLIRef is a per-turn CLI quick-reference injected into CIGS guidance.
-// Keep in sync with the constant in help.go.
-const compactCLIRef = `**wipnote CLI** — feature|bug|spike|track|plan [create|show|start|complete|list|add-step|delete] · find <q> · wip · status · snapshot · link [add|remove|list] · session [list|show] · analytics [summary|velocity] · check · health · spec|tdd|review|compliance <id> · batch [apply|export] · ingest · reindex · yolo --feature <id>
-**Required flags:** feature/bug create need --track <id> --description "…"`
-
 // buildActiveItemOneLiner returns a terse "ACTIVE: <id> — <title>" string when
 // an active item is set, or empty string when none. Used per-turn in UserPromptSubmit.
 func buildActiveItemOneLiner(database *sql.DB, featureID string) string {
@@ -186,16 +172,6 @@ func listOpenWorkItems(database *sql.DB) []workItemRow {
 		items = append(items, workItemRow{id: it.ID, title: it.Title, status: it.Status, itype: it.Type})
 	}
 	return items
-}
-
-// getActiveWorkItemType returns the type ("feature", "bug", "spike") of the
-// active work item, or "" if no active item or lookup fails.
-func getActiveWorkItemType(database *sql.DB, featureID string) string {
-	if featureID == "" {
-		return ""
-	}
-	item, _ := LookupWorkItem(database, featureID)
-	return item.Type
 }
 
 // sanitizePrompt strips XML notification/reminder blocks from prompt text.

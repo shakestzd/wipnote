@@ -191,7 +191,6 @@ func buildRoot() *cobra.Command {
 			{GroupID: "dev", Command: yoloCmd()},
 			{GroupID: "dev", Command: upgradeCmd()},
 			{GroupID: "dev", Command: buildCmd()},
-			{GroupID: "dev", Command: serveCmd()},
 			{GroupID: "dev", Command: agentInitCmd()},
 			{GroupID: "dev", Command: shCmd()},
 		},
@@ -302,13 +301,13 @@ func persistentPreRunE(cmd *cobra.Command, args []string) error {
 			return nil
 		}
 	// Internal process commands: otel-collect and _serve-child are spawned as
-	// child processes by the parent supervisor. They must not open the SQLite DB
+	// detached child processes (by the launchers and core/daemon). They must not open the SQLite DB
 	// in persistentPreRunE because:
 	//   1. otel-collect must print its handshake line within 3s of being spawned.
 	//      Opening the DB (and applying pragmas) can block for up to busy_timeout
 	//      (5s) when stale wipnote processes hold the write lock, causing all
 	//      3 spawn retries to time out and the launcher to exit FATAL.
-	//   2. _serve-child opens its own DB connection explicitly in runServeChild.
+	//   2. _serve-child (the writer daemon) builds its own projection in runWriterOnly.
 	// Neither command participates in agent session tracking or the project registry.
 	case "otel-collect", "_serve-child":
 		return nil

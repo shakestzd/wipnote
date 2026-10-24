@@ -15,7 +15,6 @@ var modelVisibleSkills = map[string]bool{
 	"agent-context":                 true, // preloaded into coder agents via skills:
 	"code-quality-skill":            true, // preloaded into coder agents via skills:
 	"execute":                       true,
-	"orchestrator-directives-skill": true, // ambient orchestrator rules; SessionStart names it
 	"skills":                        true, // the catalog itself
 }
 

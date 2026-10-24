@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/shakestzd/wipnote/observe/otel/retention"
+	"github.com/shakestzd/wipnote/observe/otel/finalize"
 	"github.com/spf13/cobra"
 )
 
@@ -69,7 +69,9 @@ func runPrune(cmd *cobra.Command, dryRun bool) error {
 			"wipnote prune: session projection unavailable (%v) — skipping the completed-session archive pass\n", oerr)
 	}
 
-	res, err := retention.Sweep(sqlDB, wipnoteDir, "", dryRun)
+	// finalize.Sweep first rolls up and marks sessions whose telemetry was
+	// never finalized (no clean SessionEnd), so they become archivable.
+	res, err := finalize.Sweep(sqlDB, wipnoteDir, "", dryRun, telemetryCatchUpBudget)
 	if err != nil {
 		return fmt.Errorf("prune sweep: %w", err)
 	}
