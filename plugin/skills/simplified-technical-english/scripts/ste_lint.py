@@ -59,13 +59,26 @@ FOOTER = (
     "(Rule 8.6). A person must review the text."),
 )
 
-_PARTICIPLE = (r"(?:\w+ed|taken|given|seen|done|gone|broken|written|shown|known|chosen|"
-               r"fallen|worn|torn|driven|risen|made|held|kept|left|lost|set|put|cut|run)")
+# -ed words that are not past participles (need, seed, ...). Excluded from the -ed rule.
+_NOT_PARTICIPLE_ED = (r"(?!(?:need|seed|feed|speed|breed|bleed|indeed|proceed|succeed|exceed|"
+                      r"heed|weed|greed|deed|creed|steed|reed|bed|red|wed)\b)")
+_PARTICIPLE = (rf"(?:{_NOT_PARTICIPLE_ED}\w+ed|taken|given|seen|done|gone|broken|written|shown|"
+               r"known|chosen|fallen|worn|torn|driven|risen|made|held|kept|left|lost|set|put|cut|run)")
 _IRREGULAR_PP = (r"(?:taken|given|seen|done|gone|broken|written|shown|known|chosen|fallen|"
                  r"worn|torn|driven|risen|made|held|kept|left|lost|begun|become)")
-_BRITISH = (r"colour|centre|metre|litre|grey|analyse|organis|utilis|behaviour|favour|"
+# Whole British forms (no suffix needed).
+_BRITISH = (r"colour|centre|metre|litre|grey|behaviour|favour|"
             r"neighbour|catalogue|programme|tyre|aluminium|whilst|labour|honour|fibre|"
-            r"sulphur|manoeuvre|travell|cancell")
+            r"sulphur|manoeuvre")
+# British -ise stems: match only the -ise verb and -isation/-iser forms, so "organism" and
+# the US noun "organization" do not match. Stem + suffix must end the word.
+_BRITISH_ISE = (r"(?:organis|utilis|analys|recognis|minimis|maximis|optimis|normalis|"
+                r"customis|summaris|prioritis|standardis|categoris|authoris|visualis|"
+                r"stabilis|localis|generalis|finalis)(?:e|es|ed|ing|ation|ations|ational|"
+                r"er|ers)")
+# British doubled-l forms. US "cancellation" and "traveler" are valid, so only the
+# inflected British forms match.
+_BRITISH_DOUBLE_L = r"(?:travell|cancell)(?:ed|ing|er|ers)"
 _ING_NOUNS = {"during", "bearing", "housing", "fitting", "wiring", "spring", "string",
               "ceiling", "lighting", "casting", "bushing", "flooring", "padding", "coating"}
 
@@ -101,7 +114,7 @@ PATTERN_CHECKS: tuple[tuple[str, str, re.Pattern[str]], ...] = (
     ("2.2", "Hyphen group of more words than allowed. Shorten it.", re.compile(
         rf"\b[^\W\d_]+(?:-[^\W\d_]+){{{MAX_HYPHEN_GROUP_WORDS},}}\b")),
     ("1.14", "Hint: British spelling. Use American spelling.", re.compile(
-        rf"\b\w*(?:{_BRITISH})\w*\b", re.IGNORECASE)),
+        rf"\b\w*(?:{_BRITISH}|{_BRITISH_ISE}|{_BRITISH_DOUBLE_L})\b", re.IGNORECASE)),
 )
 
 

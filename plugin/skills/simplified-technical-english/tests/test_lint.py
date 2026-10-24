@@ -353,3 +353,42 @@ def test_no_spec_or_dictionary_file_ships_outside_source():
     for path in SKILL_DIR.rglob("*"):
         if path.is_file() and "source" not in path.relative_to(SKILL_DIR).parts:
             assert path.suffix.lower() not in {".pdf", ".sqlite3", ".db"}, path
+
+
+# ---- false-positive guards for 1.14 (British spelling) and 3.4 (perfect tense) ------
+
+@pytest.mark.parametrize("text", [
+    "The cancellation of the organism test.",
+    "The organization reviewed the organism.",
+    "The reorganization plan lists each organism.",
+    "The traveler reads the manual.",
+])
+def test_us_spellings_do_not_hit_british_rule(text):
+    assert "1.14" not in rules(text)
+
+
+@pytest.mark.parametrize("text", [
+    "Keep the seal. You have need of the tool.",
+    "The table has seed data.",
+    "We have feed the unit and have speed it up.",
+    "They had indeed proceed past the bed.",
+])
+def test_non_participle_ed_words_do_not_hit_perfect_tense(text):
+    assert "3.4" not in rules(text)
+
+
+@pytest.mark.parametrize("text,rule", [
+    ("Operators organised the parts.", "1.14"),
+    ("The team has organisation charts.", "1.14"),
+    ("They utilise the tool.", "1.14"),
+    ("The operator cancelled the job.", "1.14"),
+    ("The engineer has travelled to site.", "3.4"),
+    ("The crew have finished the task.", "3.4"),
+    ("You have need of the tool.", None),
+])
+def test_real_british_and_perfect_tense_still_hit(text, rule):
+    found = rules(text)
+    if rule is None:
+        assert "3.4" not in found
+    else:
+        assert rule in found
