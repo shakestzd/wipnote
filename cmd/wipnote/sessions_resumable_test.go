@@ -3,9 +3,6 @@ package main
 import (
 	"bytes"
 	"database/sql"
-	"encoding/json"
-	"net/http"
-	"net/http/httptest"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -138,53 +135,6 @@ func TestListHarnessGroupedResumableSessions_KeepsOlderSameHarnessRow(t *testing
 	}
 	if len(grouped.CrossHarness) != 1 || grouped.CrossHarness[0].LastSessionID != "sess-claude-new" {
 		t.Fatalf("cross-harness rows = %+v, want sess-claude-new", grouped.CrossHarness)
-	}
-}
-
-func TestResumableSessionsHandler_JSONContract(t *testing.T) {
-	database, err := dbpkg.Open(filepath.Join(t.TempDir(), "resumable_api.db"))
-	if err != nil {
-		t.Fatalf("open db: %v", err)
-	}
-	defer database.Close()
-
-	now := time.Now().UTC()
-	insertResumableSession(t, database, "sess-api", "claude-code", "active", now.Add(-time.Minute))
-	if _, err := database.Exec(`INSERT INTO features (id, type, title, status) VALUES (?, 'feature', 'API Item', 'in-progress')`, "feat-api"); err != nil {
-		t.Fatalf("insert feature: %v", err)
-	}
-	if _, err := database.Exec(`UPDATE sessions SET active_feature_id = ?, exec_worktree_path = ?, branch = ?, harness = ? WHERE session_id = ?`,
-		"feat-api", ".claude/worktrees/api", "feat-api", "claude", "sess-api"); err != nil {
-		t.Fatalf("update session: %v", err)
-	}
-	if _, err := database.Exec(`INSERT INTO claims
-		(claim_id, work_item_id, owner_session_id, owner_agent, status, lease_expires_at, last_heartbeat_at)
-		VALUES (?, ?, ?, ?, 'in_progress', ?, ?)`,
-		"claim-api", "feat-api", "sess-api", "claude",
-		now.Add(time.Hour).Format(time.RFC3339), now.Add(-time.Second).Format(time.RFC3339)); err != nil {
-		t.Fatalf("insert claim: %v", err)
-	}
-
-	req := httptest.NewRequest(http.MethodGet, "/api/sessions/resumable", nil)
-	w := httptest.NewRecorder()
-	resumableSessionsHandler(database, "/repo/.wipnote")(w, req)
-	if w.Code != http.StatusOK {
-		t.Fatalf("status %d, want 200", w.Code)
-	}
-
-	var resp struct {
-		Sessions []dbpkg.ResumableSession `json:"sessions"`
-		Count    int                      `json:"count"`
-	}
-	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
-		t.Fatalf("decode: %v", err)
-	}
-	if resp.Count != 1 || len(resp.Sessions) != 1 {
-		t.Fatalf("count=%d len=%d, want 1", resp.Count, len(resp.Sessions))
-	}
-	got := resp.Sessions[0]
-	if got.WorkItemID != "feat-api" || got.Branch != "feat-api" || got.ExecWorktreePath != ".claude/worktrees/api" {
-		t.Fatalf("unexpected payload: %+v", got)
 	}
 }
 

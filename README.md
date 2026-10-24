@@ -15,7 +15,7 @@ Answer "why does this code exist?" in one command. wipnote traces causal chains 
 | Layer | Role |
 |-------|------|
 | `.wipnote/*.html` | Canonical CRUD store — single source of truth |
-| SQLite (`.wipnote/wipnote.db`) | Rebuildable read cache for fast queries and the dashboard |
+| SQLite (`.wipnote/wipnote.db`) | Rebuildable read cache for fast queries |
 | Go binary (`wipnote`) | CLI + hook handler |
 
 HTML is the source of truth; SQLite is derived. If they drift, `wipnote reindex` drops the database and rebuilds it from the HTML files. No external infrastructure — no Postgres, no Redis, no cloud sync.
@@ -141,7 +141,7 @@ wipnote feature create "Add OAuth" --track <trk-id> --description "Implement OAu
 wipnote feature start <feat-id>
 # ... do work ...
 wipnote feature complete <feat-id>
-wipnote serve                         # dashboard at localhost:4000
+wipnote lineage <feat-id>             # why this code exists
 ```
 
 ## What It Does
@@ -161,17 +161,17 @@ wipnote history feat-abc1234
 
 **Work item tracking** — Features, bugs, spikes, and tracks as HTML files in `.wipnote/`. Every change is a git diff. Every item has a lifecycle: create, start, complete.
 
-**Session observability** — Hooks capture every tool call, every prompt, and attribute them to the active work item. See exactly what happened in any session via the dashboard.
+**Session observability** — Hooks capture every tool call, every prompt, and attribute them to the active work item. See exactly what happened in any session with `wipnote session show` and `wipnote lineage`.
 
-**Custom agents** — Define specialized agents with specific models, tools, and system prompts. A researcher agent for investigation, a coder for implementation, a test runner for quality — each scoped to its job.
+**Custom agents** — Define specialized agents with specific models, tools, and system prompts. A researcher agent for investigation and coder agents at three capability tiers for implementation — each scoped to its job.
 
 **Hooks & automation** — Event-driven hooks on SessionStart, PreToolUse, PostToolUse, and Stop. Enforce safety rules, capture telemetry, block dangerous operations, or trigger custom workflows automatically.
 
-**Skills & slash commands** — Reusable workflows as slash commands: `/deploy`, `/diagnose`, `/plan`, `/code-quality`. Package complex multi-step procedures into single invocations.
+**Skills & slash commands** — Reusable workflows as slash commands: `/wipnote:plan`, `/wipnote:execute`, `/wipnote:code-quality-skill`, `/wipnote:ui-stills-verification`. Package complex multi-step procedures into single invocations.
 
 **Quality gates** — Enforce software engineering discipline: build, lint, and test before every commit. Spec compliance scoring, code health metrics, and structured diff reviews.
 
-**Real-time dashboard** — Activity feed, kanban board, session viewer, and work item detail — served locally by `wipnote serve`.
+**Claude Code mods** — `wipnote claude` loads an orchestration band under the prompt (work items, tracks and subagents at a glance) and a side pane that tracks a plan's slices and their approval state during review.
 
 **Multi-agent attribution and observation** — Claude Code, Codex, Antigravity, and GitHub Copilot all read from and write to the same work items via the CLI. Every tool call, file edit, and session is attributed to a work item so you can see what each agent actually did. (Session transcript ingestion currently supports Claude Code JSONL format.)
 

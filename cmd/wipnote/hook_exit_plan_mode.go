@@ -83,14 +83,21 @@ func handleExitPlanMode(event *hooks.CloudEvent, database *sql.DB, projectDir st
 		hooks.LogError("exit-plan-mode", event.SessionID, fmt.Sprintf("autocommit: %v", err))
 	}
 
-	suggestion := fmt.Sprintf(
-		"Plan mode output converted to CRISPI YAML: %s\nRun: wipnote plan review %s",
-		yamlPath, planID)
-
 	return &hooks.HookResult{
 		Continue:          true,
-		AdditionalContext: suggestion,
+		AdditionalContext: exitPlanModeSuggestion(yamlPath, planID),
 	}, nil
+}
+
+// exitPlanModeSuggestion tells the agent where the converted plan landed and
+// the next two steps of the plan skill: validate the YAML, then review each
+// slice (`plan slices` opens the plan-review pane where the mod is loaded).
+func exitPlanModeSuggestion(yamlPath, planID string) string {
+	return fmt.Sprintf(
+		"Plan mode output converted to CRISPI YAML: %s\n"+
+			"Next: run `wipnote plan validate-yaml %s`, then `wipnote plan slices %s` "+
+			"to review each slice with the user.",
+		yamlPath, planID, planID)
 }
 
 // mostRecentMarkdownFile returns the path to the most recently modified .md

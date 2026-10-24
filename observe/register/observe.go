@@ -9,28 +9,44 @@
 package observe
 
 import (
+	"context"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/shakestzd/wipnote/core/hooks"
 	"github.com/shakestzd/wipnote/observe/otel/collector"
-	"github.com/shakestzd/wipnote/observe/otel/materialize"
-	"github.com/shakestzd/wipnote/observe/otel/retention"
+	"github.com/shakestzd/wipnote/observe/otel/finalize"
 	"github.com/shakestzd/wipnote/port/pluginbuild"
 )
 
 func init() {
 	hooks.RetentionSweepFn = runRetentionSweep
-	hooks.SessionMaterializeFn = materialize.Materialize
+	hooks.SessionTelemetryFn = finalizeSessionTelemetry
 	hooks.PortDriftPathsFn = portDriftPaths
 	hooks.ReapCollectorFn = collector.ReapCollector
 }
 
-// runRetentionSweep performs a disk-retention pass for the project: rotate
-// oversized logs and archive+prune raw events.ndjson for inactive,
-// fully-ingested sessions. Invoked fire-and-forget from session-start so disk
-// reclamation happens at a natural lifecycle point even when `wipnote serve`
-// is not running.
+// sessionStartCatchUpBudget bounds telemetry catch-up inside the SessionStart
+// retention goroutine. That goroutine dies with the hook process, so the
+// budget is small; the writer daemon's sweep and `wipnote prune` run the same
+// catch-up with a larger budget.
+const sessionStartCatchUpBudget = 2 * time.Second
+
+// finalizeSessionTelemetry ingests the session's NDJSON, materializes its
+// rollup and marks it consumed, all within budget.
+func finalizeSessionTelemetry(projectDir, sessionID string, budget time.Duration) error {
+	ctx, cancel := context.WithTimeout(context.Background(), budget)
+	defer cancel()
+	_, err := finalize.Session(ctx, projectDir, sessionID)
+	return err
+}
+
+// runRetentionSweep performs a disk-retention pass for the project: finalize
+// telemetry for sessions that never got a clean SessionEnd, rotate oversized
+// logs, and archive+prune raw events.ndjson for inactive, fully-ingested
+// sessions. Invoked fire-and-forget from session-start so disk reclamation
+// happens at a natural lifecycle point.
 //
 // The DB handle is intentionally nil: the ndjson coverage sweep relies on the
 // per-session .index-offset checkpoint, not the DB, and log rotation needs no
@@ -40,7 +56,7 @@ func runRetentionSweep(projectDir, activeSessionID string) {
 		return
 	}
 	wipnoteDir := filepath.Join(projectDir, ".wipnote")
-	_, _ = retention.Sweep(nil, wipnoteDir, activeSessionID, false)
+	_, _ = finalize.Sweep(nil, wipnoteDir, activeSessionID, false, sessionStartCatchUpBudget)
 }
 
 // portDriftPaths reuses the generator drift gate (pluginbuild.CheckPorts) to

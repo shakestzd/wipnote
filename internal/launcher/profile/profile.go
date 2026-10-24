@@ -53,10 +53,6 @@ type DeploymentProfile struct {
 	Label string
 	// Runtime is the underlying runtime mode (slice-1).
 	Runtime mode.RuntimeMode
-	// DashboardHost is the default bind address for wipnote serve.
-	DashboardHost string
-	// DashboardPort is the default port for wipnote serve.
-	DashboardPort int
 	// Rollout is the isolation enforcement posture (staged-rollout).
 	Rollout RolloutMode
 	// EnforceIsolation is false for host-production (warn-only) and may be
@@ -72,19 +68,13 @@ type DeploymentProfile struct {
 }
 
 // ForRuntime returns the DeploymentProfile for the given runtime and plugin mode.
-// It reuses DashboardBindDefaults from slice-1 (mode.DashboardBindDefaults) to
-// stay consistent with plan-ae0c37b2 slice-4 wipnote status output.
 // Profile does NOT duplicate status diagnostics; it only provides launcher defaults.
 func ForRuntime(runtime mode.RuntimeMode, plugin mode.PluginMode) DeploymentProfile {
-	host, port := mode.DashboardBindDefaults(runtime)
-
 	switch runtime {
 	case mode.RuntimeDevcontainer:
 		return DeploymentProfile{
 			Label:                 "devcontainer-dev",
 			Runtime:               runtime,
-			DashboardHost:         host,
-			DashboardPort:         port,
 			Rollout:               RolloutConfigGated,
 			EnforceIsolation:      false,
 			Cleanup:               CleanupAutoWorktree,
@@ -96,8 +86,6 @@ func ForRuntime(runtime mode.RuntimeMode, plugin mode.PluginMode) DeploymentProf
 		return DeploymentProfile{
 			Label:                 "ci-test",
 			Runtime:               runtime,
-			DashboardHost:         host,
-			DashboardPort:         port,
 			Rollout:               RolloutConfigGated,
 			EnforceIsolation:      false,
 			Cleanup:               CleanupAutoWorktree,
@@ -113,8 +101,6 @@ func ForRuntime(runtime mode.RuntimeMode, plugin mode.PluginMode) DeploymentProf
 		return DeploymentProfile{
 			Label:                 label,
 			Runtime:               runtime,
-			DashboardHost:         host,
-			DashboardPort:         port,
 			Rollout:               RolloutWarnOnly,
 			EnforceIsolation:      false,
 			Cleanup:               CleanupManual,

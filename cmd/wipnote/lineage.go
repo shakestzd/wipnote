@@ -14,6 +14,7 @@ import (
 	"github.com/shakestzd/wipnote/core/graph"
 	"github.com/shakestzd/wipnote/core/projection"
 	"github.com/shakestzd/wipnote/internal/lineage"
+	"github.com/shakestzd/wipnote/internal/orchlink"
 	"github.com/spf13/cobra"
 )
 
@@ -120,7 +121,9 @@ type lineageNode = lineage.Node
 //	  "kind":     "feature|bug|...",
 //	  "forward":  [{id,type,title,edge_type,depth,timestamp?,metadata?}, ...],
 //	  "backward": [{id,type,title,edge_type,depth,timestamp?,metadata?}, ...],
-//	  "agent_tree": "<indented text>"   // only for session roots
+//	  "agent_tree": "<indented text>",  // only for session roots
+//	  "orch_sessions": [...],           // work items served by orch sessions
+//	  "orch_error": "<why>"             // the orch registry exists but is unreadable
 //	}
 //
 // Forward edges follow `from_node_id = root` outward; backward edges follow
@@ -137,6 +140,10 @@ type lineageJSON struct {
 	Forward   []lineageNode `json:"forward"`
 	Backward  []lineageNode `json:"backward"`
 	AgentTree string        `json:"agent_tree,omitempty"`
+	// OrchSessions and OrchError come from lineage_orch.go; both are omitted
+	// when orch is not in use or no orch session serves the root.
+	OrchSessions []orchlink.Session `json:"orch_sessions,omitempty"`
+	OrchError    string             `json:"orch_error,omitempty"`
 }
 
 // allLineageRels lists all 10 relationship types we traverse. It is the shared
@@ -244,7 +251,7 @@ func runLineage(w io.Writer, db *sql.DB, arg string, opts lineageOpts) error {
 	}
 
 	if opts.jsonOut {
-		return renderLineageJSON(w, arg, kind, forward, backward, agentTree)
+		return renderLineageJSON(w, arg, kind, forward, backward, agentTree, nil)
 	}
 
 	if err := renderLineageTree(w, db, arg, kind, forward, backward, opts.timeline); err != nil {
@@ -270,13 +277,15 @@ func runLineageProjection(w io.Writer, wipnoteDir, arg string, opts lineageOpts)
 	}
 	forward := lineage.ForwardProjectionWalk(snap, arg, allLineageRels, opts.depth)
 	backward := lineage.BackwardProjectionWalk(snap, arg, allLineageRels, opts.depth)
+	orch := loadLineageOrch(arg, kind, forward)
 	if opts.jsonOut {
-		return renderLineageJSON(w, arg, kind, forward, backward, "")
+		return renderLineageJSON(w, arg, kind, forward, backward, "", orch)
 	}
 	if err := renderLineageProjectionTree(w, snap, arg, kind, forward, backward, opts.timeline); err != nil {
 		return err
 	}
 	printLineageResearch(w, wipnoteDir, arg)
+	printLineageOrch(w, orch)
 	return nil
 }
 
@@ -299,14 +308,17 @@ func sortLineageTimeline(nodes []lineageNode) {
 	})
 }
 
-// renderLineageJSON emits the stable {root, kind, forward, backward, agent_tree?} schema.
-func renderLineageJSON(w io.Writer, root string, kind lineageKind, forward, backward []lineageNode, agentTree string) error {
+// renderLineageJSON emits the stable {root, kind, forward, backward, agent_tree?, orch_*?} schema.
+func renderLineageJSON(w io.Writer, root string, kind lineageKind, forward, backward []lineageNode, agentTree string, orch *lineageOrchView) error {
 	out := lineageJSON{
 		Root:      root,
 		Kind:      kind.String(),
 		Forward:   forward,
 		Backward:  backward,
 		AgentTree: agentTree,
+	}
+	if orch != nil {
+		out.OrchSessions, out.OrchError = orch.Sessions, orch.Err
 	}
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")

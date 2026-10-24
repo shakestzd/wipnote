@@ -7,8 +7,8 @@
 //	(RouteHookWrite / RouteInsertEvent → apply.RouteSQLAsync). The primary
 //	path NEVER opens a writable DB handle:
 //
-//	  1. Canonical NDJSON/HTML is written first by the handler. The indexer
-//	     in `wipnote serve` picks it up and rebuilds the SQLite index.
+//	  1. Canonical NDJSON/HTML is written first by the handler. The writer
+//	     daemon (`_serve-child`) picks it up and rebuilds the SQLite index.
 //	  2. RouteHookWrite / RouteInsertEvent enqueue the derived-index upsert
 //	     to the per-project writer daemon via apply.RouteSQLAsync (enqueue-
 //	     only, no new writable open). The ack is enqueue-only — the op
@@ -204,8 +204,8 @@ func OpenHookDBReadOnly(handler, sessionID, dbPath string) (*sql.DB, FallbackRea
 // handle waits on a held write lock before failing fast. The session-start hook
 // runs on the launcher's POST-selection critical path: Claude blocks on the
 // hook's additionalContext, so a write that stalls for the default 5s
-// busy_timeout (under contention from a freshly-spawned `wipnote serve` /
-// `_serve-child` / per-session `otel-collect`) directly delays the interactive
+// busy_timeout (under contention from a freshly-spawned `_serve-child`
+// writer daemon / per-session `otel-collect`) directly delays the interactive
 // session by that long (bug-504095f2).
 //
 // 750ms is the chosen bound: long enough to ride out the brief lock overlap a

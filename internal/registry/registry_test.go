@@ -53,8 +53,15 @@ func makeRealProject(t *testing.T) string {
 // makePersistentRegistryPath creates a registry path outside os.TempDir() so
 // tests can exercise the persistent-registry guard without touching the real
 // user registry.
+//
+// The registry file lives under the working directory. When the checkout
+// itself is under the temp root (a worktree in /tmp, or TMPDIR set to a parent
+// of the checkout), that path would count as "inside a temp dir" and disable
+// the guard under test. So the helper points TMPDIR at a fresh directory
+// first; callers must call it BEFORE reading os.TempDir().
 func makePersistentRegistryPath(t *testing.T) string {
 	t.Helper()
+	t.Setenv("TMPDIR", t.TempDir())
 	wd, err := os.Getwd()
 	if err != nil {
 		t.Fatal(err)
@@ -745,6 +752,7 @@ func TestShouldSkipRegistration_EnvVar(t *testing.T) {
 func TestShouldSkipRegistration_UpsertBlocked(t *testing.T) {
 	// Build a fake Test* path under os.TempDir() that also has a .wipnote dir
 	// (to ensure looksLikeRealProject would pass if skip weren't active).
+	regPath := makePersistentRegistryPath(t) // redirects TMPDIR; call first
 	base, err := filepath.EvalSymlinks(os.TempDir())
 	if err != nil {
 		base = os.TempDir()
@@ -755,7 +763,7 @@ func TestShouldSkipRegistration_UpsertBlocked(t *testing.T) {
 	}
 	defer os.RemoveAll(testProjDir)
 
-	reg, _ := registry.Load(makePersistentRegistryPath(t))
+	reg, _ := registry.Load(regPath)
 	reg.Upsert(testProjDir, "test-proj", "")
 	if len(reg.List()) != 0 {
 		t.Errorf("Upsert accepted a test tempdir path; registry has %d entries, want 0", len(reg.List()))

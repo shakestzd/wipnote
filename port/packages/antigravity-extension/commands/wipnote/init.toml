@@ -38,13 +38,12 @@ Set up wipnote directory structure in project
 
 3. **Guide the user:**
    - How to plan work: `/wipnote:plan "title"`
-   - How to start session: `/wipnote:start`
-   - How to view dashboard: `/wipnote:serve`
+   - How to see open work: `wipnote wip` (or `/wipnote:recommend` for what to do next)
+   - How to trace why code exists: `wipnote lineage <id>`
 
 4. **Highlight key points:**
    - All subsequent work will be tracked automatically
    - Use CLI/slash commands for all operations
-   - Access dashboard to view progress visually
 
 ### Output Format:
 
@@ -66,8 +65,8 @@ Note:
 
 ### Next Steps
 1. Plan new work: `/wipnote:plan "Feature title"`
-2. Start session: `/wipnote:start`
-3. View dashboard: `/wipnote:serve`
+2. See open work: `wipnote wip`
+3. Trace why code exists: `wipnote lineage <id>`
 
 ### Quick Start
 ```bash
@@ -75,11 +74,10 @@ Note:
 /wipnote:plan "Add user authentication"
 
 # Begin work
-/wipnote:start
+wipnote feature start <id>
 
-# View progress
-/wipnote:serve
-# Open http://localhost:8080
+# See open work
+wipnote wip
 ```
 
 '''

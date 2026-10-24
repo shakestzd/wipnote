@@ -123,14 +123,13 @@ Commands for data import, export, and index maintenance.
 
 ## Development & Operations
 
-Commands for autonomous development, building, serving, agent configuration, and maintenance.
+Commands for autonomous development, building, agent configuration, and maintenance.
 
 | Command | Usage | Description |
 |---------|-------|-------------|
 | `claude` | `wipnote claude [--dev] [--continue\|--resume <session-id>]` | Launch Claude Code with wipnote plugin; `--resume <id>` resumes a specific prior session |
 | `yolo` | `wipnote yolo --feature <id> [--track <id>] [--resume <session-id>]` | Autonomous dev mode with engineering guardrails |
 | `build` | `wipnote build` | Build Go binary (dev workflow) |
-| `serve` | `wipnote serve` | Start local dashboard server at `localhost:4000` |
 | `agent-init` | `wipnote agent-init` | Output shared agent context (safety, attribution, quality gates) |
 | `statusline` | `wipnote statusline --session <id>` / `--cache` | Print the active work item (icon + title, with track progress) as one line. For Claude Code, use the native `/statusline` and point it at `wipnote statusline`, e.g. `wipnote statusline --session "$(jq -r .session_id)"` (or the session-independent `wipnote statusline --cache`) |
 | `upgrade` / `update` | `wipnote upgrade [--check] [--version 0.54.9]` | Self-update CLI from GitHub releases |
@@ -153,20 +152,16 @@ Commands for autonomous development, building, serving, agent configuration, and
 wipnote launchers apply per-profile defaults based on the detected runtime environment.
 Profiles are derived automatically — no manual configuration required for basic use.
 
-| Profile | Runtime | Dashboard Default | Rollout Mode | Cleanup |
-|---------|---------|-------------------|--------------|---------|
-| `host-production` | Host / bare metal | `127.0.0.1:8080` | warn-only | manual |
-| `devcontainer-dev` | VS Code devcontainer / Codespace | `0.0.0.0:8088` | config-gated | auto-worktree |
-| `local-plugin-dev` | Host + `--dev` / generated port | `127.0.0.1:8080` | warn-only | manual |
-| `ci-test` | CI / GitHub Actions | `127.0.0.1:8080` | config-gated | auto-worktree |
+| Profile | Runtime | Rollout Mode | Cleanup |
+|---------|---------|--------------|---------|
+| `host-production` | Host / bare metal | warn-only | manual |
+| `devcontainer-dev` | VS Code devcontainer / Codespace | config-gated | auto-worktree |
+| `local-plugin-dev` | Host + `--dev` / generated port | warn-only | manual |
+| `ci-test` | CI / GitHub Actions | config-gated | auto-worktree |
 
 **Staged rollout:** Host production stays warn-only until slice-9 migration tooling and runbooks
 exist. Devcontainer and CI profiles are config-gated: isolation enforcement is off by default
 and may be opted into via a config key. No profile flips to default-on in this release.
-
-**Devcontainer port convention:** `wipnote serve` inside a devcontainer defaults to
-`0.0.0.0:8088`. The container's `devcontainer.json` forwards port 8088 to the host so the
-dashboard is reachable at `http://127.0.0.1:8088` from your browser.
 
 **Status output:** The `wipnote status` command reports fstype and journal-mode diagnostics
 independently (plan-ae0c37b2 slice-4). Deployment profile information is a launcher concern
@@ -198,7 +193,7 @@ run them automatically. This keeps it non-destructive by default.
 
 **Legacy sessions:** Sessions created before `session_family_id` was
 introduced are labeled **"legacy"** in the doctor output. They remain fully
-visible in the dashboard and require no migration.
+visible to the CLI and require no migration.
 
 **Rollout gate:** Host-production stays warn-only by default. To advance to
 enforced isolation after doctor checks pass:

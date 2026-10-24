@@ -195,14 +195,16 @@ func seedPassingGateRecord(t *testing.T, projectRoot, sessionID, workItemID stri
 	}
 
 	tmpBase := execCapableBase(t)
-	for _, dir := range []string{"gotmp-exec", "gocache"} {
+	for _, dir := range []string{"gotmp-exec"} {
 		if err := os.MkdirAll(filepath.Join(tmpBase, dir), 0o755); err != nil {
 			t.Fatalf("mkdir external %s: %v", dir, err)
 		}
 	}
 	t.Setenv("TMPDIR", filepath.Join(tmpBase, "gotmp-exec"))
 	t.Setenv("GOTMPDIR", filepath.Join(tmpBase, "gotmp-exec"))
-	t.Setenv("GOCACHE", filepath.Join(tmpBase, "gocache"))
+	// GOCACHE is intentionally NOT overridden: an empty per-test cache made the
+	// nested `go vet ./...` recompile stdlib per test (bug-26a976ab). TestMain
+	// exports one shared warm GOCACHE that the nested run inherits.
 
 	// Commit the scaffolding this helper just wrote. It is fixture, not the
 	// item's implementation: left uncommitted it would read as "uncommitted

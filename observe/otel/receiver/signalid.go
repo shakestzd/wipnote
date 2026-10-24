@@ -1,5 +1,5 @@
 // Package receiver holds the HTTP OTLP receiver, the SQLite writer,
-// and the orchestrator that wires them into `wipnote serve`.
+// and the orchestrator that wires them into a host process.
 package receiver
 
 import (

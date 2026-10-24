@@ -140,9 +140,6 @@ func execAntigravity(opts antigravityLaunchOpts) error {
 	// Show the one-time OTel first-launch notice.
 	MaybeShowOtelNotice(effectiveProjDir)
 
-	// Auto-start a detached `wipnote serve` for the dashboard.
-	ensureServeForDashboard(effectiveProjDir)
-
 	// Launch-time guard-profile initialization.
 	ensureGuardProfile(effectiveProjDir)
 

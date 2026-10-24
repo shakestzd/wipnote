@@ -193,7 +193,7 @@ func stagedDependencyManifests(staged []string) []string {
 // manifest was modified — answering the question from durable staged-diff state
 // per the project's hook-state rule (feat-af4ae1c3 / spk-0a982f70).
 //
-// Always-on (not YOLO-gated), consistent with checkPortDriftCommitGuard. Fast
+// PreToolUse blocks on it only in YOLO mode and adds it as advice otherwise. Fast
 // path: one `git diff --cached --name-only` when the command is a git commit;
 // returns "" immediately for any other command. Explicit override: a
 // RESEARCH-WAIVER trailer in the commit message. (The operator-only
@@ -240,4 +240,24 @@ func checkDependencyResearchCommitGuard(event *CloudEvent, database *sql.DB, ctx
 		"with WebSearch/WebFetch (or `gh search`) before committing — a local file " +
 		"read does not satisfy this gate. To intentionally waive, add a " +
 		"`RESEARCH-WAIVER: <reason>` trailer to the commit message."
+}
+
+// resilientYoloContext is true when the session is yolo by its own signal, or is
+// a subagent whose parent-session chain is yolo (bug-0ed4e469).
+func resilientYoloContext(database *sql.DB, ctx *toolUseContext) bool {
+	return ctx.IsYoloMode ||
+		(ctx.IsSubagent && anyParentSessionYolo(database, ctx.HgDir, ctx.SessionID))
+}
+
+// researchGuardVerdict decides block vs advise for a research-guard warning.
+// An empty warning is a pass. In yolo context the warning blocks. Otherwise it
+// becomes advice, with the "Commit blocked" lead softened since the commit runs.
+func researchGuardVerdict(warn string, yoloContext bool) (block bool, advice string) {
+	if warn == "" {
+		return false, ""
+	}
+	if yoloContext {
+		return true, ""
+	}
+	return false, strings.Replace(warn, "Commit blocked: ", "Research is required before committing: ", 1)
 }

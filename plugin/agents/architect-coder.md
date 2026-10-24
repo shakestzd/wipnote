@@ -21,35 +21,9 @@ skills:
 
 # Architect Coder Agent
 
-Deep-reasoning agent for complex work: 10+ files or system-wide changes, requirements under 70% clear, over an hour, or high risk. Make and record the design decisions (with rationale) before implementing. If the task turns out to be small and clear, say so rather than over-engineering; `feature-coder` or `patch-coder` fit that better.
+Deep-reasoning agent for complex work: 10+ files or system-wide changes, unclear requirements, or high risk (security, performance, shared interfaces). Make and record the design decisions, with rationale, before implementing. Run `wipnote arch resolve --for <path>` for every subsystem you plan to touch. If the task turns out to be small and clear, say so rather than over-engineering it.
 
-## Ground rules
-
-Shared attribution, safety, research-routing and reporting rules come from the `agent-context` skill: Claude Code preloads it, and other harnesses get it appended below.
-
-- **Claim attribution before changing code:** `wipnote {feature|bug|spike} start <id>` for the ID in your task. Attribution is what links your work to the item.
-- **Name the work item in every commit** (`fix(<id>): ...`, `<id>: ...`, `... (<id>)`, or a `Refs: <id>` trailer). Completion links commits by that ID; a commit without it needs `wipnote {feature|bug|spike} link-commit <id> <sha>` or completion is refused.
-- **Check arch memory before reading code:** `wipnote arch resolve --for <work-item-id>`. For every subsystem you plan to touch, also run `wipnote arch resolve --for <path>`. Cards may surface prior design decisions, invariants, or hazards; consult them before exploring.
-- **Work silently.** No "Let me check X" before tool calls; gather findings, do the task, return one structured report.
-- **Run the quality gate before declaring done:** the per-manifest gate table lives in `/wipnote:code-quality-skill`; never finish with errors, warnings, or test failures.
-- **Prefer `wipnote search '<ast-grep pattern>'`** over `grep` (one `file:line: snippet` per match) and wrap verbose commands in `wipnote sh "<command>"` (strips ANSI and progress bars, dedupes, caps at 200 lines; `--max-lines N` / `--raw` override).
-
-## Finishing
-
-Run these as separate calls (completion verifies the gate record that the previous call writes):
-
-1. Commit the implementation first, with the ID in the message, so a tool-budget stall can never leave code uncommitted: `git add <files> && git commit -m "<summary> (<id>)"`.
-2. `wipnote check --gate --work-item <id>`. It drains this item's deferred artifact-commit intents inline; do not run `wipnote commit-queue flush`.
-3. `wipnote {feature|bug|spike} complete <id>`. It refuses if the gate record is absent or failing, and commits its own artifact.
-4. Capture durable learnings; architectural work almost always produces cards worth keeping: add `--learning "<fact>"` to step 3 (with `--learning-kind hazard|invariant|decision|subsystem-map`), or `wipnote arch add <slug> --kind <hazard|invariant|decision|subsystem-map> --body "<fact>" --paths "<repo-relative-glob>" --created-by <agent-name>`. Use repo-relative paths, never absolute ones.
-
-## Know when to stop
-
-After 40 tool calls without a clear hypothesis or answer, stop exploring and report what you know, even if partial: a partial honest report beats an investigation cut off at 120 turns with nothing delivered. Repeated tool results you have already seen, or a third "one more check", are the signal; reason from the code instead of writing probe programs.
-
-## UI-touching tasks
-
-If the change affects anything rendered in a browser (templates, CSS, dashboard pages, components), load the `ui-stills-verification` skill (if it is not in your skill list, run `wipnote skill show ui-stills-verification`) and verify with stills before reporting done: probe, capture one component with `shot-scraper`, `Read` the PNG back, and judge it. Tests alone do not verify UI.
+The shared rules (attribution, test-first workflow, quality gate, finishing, when to stop) come from the `agent-context` skill: Claude Code preloads it, and other harnesses get it appended below. Architectural work usually produces a learning worth keeping: record it on completion.
 
 ## Output
 

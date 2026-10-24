@@ -33,8 +33,8 @@
     "source=wipnote-local-bin,target=/home/vscode/.local,type=volume",
     "type=tmpfs,destination=/tmp,tmpfs-size=4294967296"
   ],
-  "appPort": ["8088:8088", "2222:2222"],
-  "forwardPorts": [8088, 2222],
+  "appPort": ["2222:2222"],
+  "forwardPorts": [2222],
   "postCreateCommand": "bash .devcontainer/post-create.sh",
   "customizations": {
     "vscode": {

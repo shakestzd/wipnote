@@ -27,7 +27,7 @@ func skillCmd() *cobra.Command {
 		Use:   "show <skill-dir> [file]",
 		Short: "Print a wipnote skill's SKILL.md (or another .md file in its folder)",
 		Long: "Print a bundled wipnote skill file for the current harness.\n" +
-			"Use it to load a skill that is hidden from the skill list, e.g. 'wipnote skill show diagnose'.",
+			"Use it to load a skill that is hidden from the skill list, e.g. 'wipnote skill show plan'.",
 		Args: cobra.RangeArgs(1, 2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			file := "SKILL.md"
@@ -53,7 +53,7 @@ func skillCmd() *cobra.Command {
 // falling back to the Claude plugin tree, which every install carries.
 func resolveSkillFile(harness, dir, file string) (string, error) {
 	if !skillDirRe.MatchString(dir) {
-		return "", fmt.Errorf("invalid skill name %q: use the skill's folder name, e.g. diagnose", dir)
+		return "", fmt.Errorf("invalid skill name %q: use the skill's folder name, e.g. plan", dir)
 	}
 	if !skillFileRe.MatchString(file) {
 		return "", fmt.Errorf("invalid skill file %q: use a .md file name in the skill folder", file)

@@ -8,12 +8,9 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sort"
-	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
-	"github.com/shakestzd/wipnote/core/agent"
 	"github.com/shakestzd/wipnote/core/claimledger"
 	"github.com/shakestzd/wipnote/core/db"
 	"github.com/shakestzd/wipnote/core/paths"
@@ -154,21 +151,19 @@ func SessionEnd(event *CloudEvent, database *sql.DB, projectDir string) (*HookRe
 	// Clean up the session-scoped project dir hint file now that this session is ending.
 	paths.CleanupSessionHint(sessionID)
 
-	// Signal the per-session OTel collector to drain and exit (Q3 primary layer)
-	// BEFORE materializing — the indexer needs the final signals in SQLite first.
+	// Signal the per-session OTel collector to drain and exit (Q3 primary layer).
 	// NOTE: Stop does NOT signal the collector; this step is SessionEnd-unique.
 	signalCollector(projectDir, sessionID)
 
-	// Wait briefly for the indexer to catch up with the final NDJSON writes.
-	waitForIndexerCatchUp(projectDir, sessionID)
-
-	// Materialize OTel rollup (no-op if no signals received for this session).
-	// Non-fatal: errors are logged but do not block SessionEnd completion.
-	// Injected (feat-331927fb) so core hooks don't import otel directly; a nil
-	// fn means telemetry isn't wired and the rollup is simply skipped.
-	if SessionMaterializeFn != nil {
-		if err := SessionMaterializeFn(database, projectDir, sessionID); err != nil {
-			debugLog(projectDir, "[error] handler=session-end session=%s: materialize otel: %v", sessionID[:minLen(sessionID, 8)], err)
+	// With the collector gone the session's NDJSON is final. Ingest it,
+	// materialize the OTel rollup, and only then mark it consumed so retention
+	// and prune may archive it. Bounded by telemetryFinalizeBudget; a session
+	// the budget cannot cover is finished by the catch-up pass that runs before
+	// every retention sweep. Injected (feat-331927fb) so core hooks don't import
+	// otel directly; a nil fn means telemetry isn't wired.
+	if SessionTelemetryFn != nil {
+		if err := SessionTelemetryFn(projectDir, sessionID, telemetryFinalizeBudget()); err != nil {
+			debugLog(projectDir, "[error] handler=session-end session=%s: finalize telemetry: %v", sessionID[:minLen(sessionID, 8)], err)
 		}
 	}
 
@@ -453,96 +448,6 @@ func firstNonEmpty(values ...string) string {
 		}
 	}
 	return ""
-}
-
-// sessionEndWaits bounds the two waits SessionEnd makes: the collector drain
-// and the indexer catch-up. Codex caps a SessionEnd hook at 3s (default 1s;
-// codex-rs hooks/src/events/session_end.rs) and kills it past that, so the
-// default 3s + 2s would have the hook killed before the OTel rollup runs. Under
-// Codex both waits shrink to fit, leaving headroom for materialize; Claude
-// Code allows SessionEnd up to 60s.
-func sessionEndWaits() (collectorDrain, indexerCatchUp time.Duration) {
-	if agent.DetectEnvHarness() == agent.HarnessCodex {
-		return 1200 * time.Millisecond, 800 * time.Millisecond
-	}
-	return 3 * time.Second, 2 * time.Second
-}
-
-// waitForIndexerCatchUp polls until .index-offset reaches events.ndjson size,
-// or the indexer catch-up budget (sessionEndWaits) elapses. Best-effort — if the indexer is behind, materialize will
-// use whatever signals have been indexed so far.
-func waitForIndexerCatchUp(projectDir, sessionID string) {
-	sessDir := filepath.Join(projectDir, ".wipnote", "sessions", sessionID)
-	ndjsonPath := filepath.Join(sessDir, "events.ndjson")
-	offsetPath := filepath.Join(sessDir, ".index-offset")
-
-	_, catchUp := sessionEndWaits()
-	deadline := time.Now().Add(catchUp)
-	for time.Now().Before(deadline) {
-		info, err := os.Stat(ndjsonPath)
-		if err != nil {
-			return
-		}
-		data, err := os.ReadFile(offsetPath)
-		if err == nil {
-			if off, err := strconv.ParseInt(strings.TrimSpace(string(data)), 10, 64); err == nil && off >= info.Size() {
-				return
-			}
-		}
-		time.Sleep(200 * time.Millisecond)
-	}
-}
-
-// signalCollector reads the .collector-pid file for this session, sends SIGTERM,
-// waits up to the collector drain budget (sessionEndWaits; 3s outside Codex)
-// for a clean drain, then falls back to SIGKILL.
-// All errors are silently logged — the collector PID file is best-effort.
-func signalCollector(projectDir, sessionID string) {
-	pidPath := filepath.Join(projectDir, ".wipnote", "sessions", sessionID, ".collector-pid")
-	data, err := os.ReadFile(pidPath)
-	if err != nil {
-		// No PID file — collector was never spawned or already cleaned up.
-		return
-	}
-	pidStr := strings.TrimSpace(string(data))
-	pid, err := strconv.Atoi(pidStr)
-	if err != nil || pid <= 0 {
-		debugLog(projectDir, "[session-end] collector-pid: invalid pid %q for session %s", pidStr, sessionID[:minLen(sessionID, 8)])
-		return
-	}
-
-	proc, err := os.FindProcess(pid)
-	if err != nil {
-		// Process not found (already exited).
-		return
-	}
-
-	// Send SIGTERM to request graceful drain.
-	if err := proc.Signal(syscall.SIGTERM); err != nil {
-		// ESRCH means process already gone — clean up PID file to prevent
-		// stale PID reuse on later end/resume paths.
-		_ = os.Remove(pidPath)
-		return
-	}
-	debugLog(projectDir, "[session-end] sent SIGTERM to collector pid=%d (session=%s)", pid, sessionID[:minLen(sessionID, 8)])
-
-	// Poll using kill(pid, 0) — we can't Wait() on a non-child.
-	drain, _ := sessionEndWaits()
-	deadline := time.Now().Add(drain)
-	for time.Now().Before(deadline) {
-		if err := proc.Signal(syscall.Signal(0)); err != nil {
-			break // process exited
-		}
-		time.Sleep(100 * time.Millisecond)
-	}
-	// If still alive after the drain budget, escalate to SIGKILL.
-	if err := proc.Signal(syscall.Signal(0)); err == nil {
-		debugLog(projectDir, "[session-end] collector drain timeout — sending SIGKILL pid=%d", pid)
-		_ = proc.Signal(syscall.SIGKILL)
-	}
-
-	// Remove the PID file so future SessionEnd calls don't attempt to re-signal.
-	_ = os.Remove(pidPath)
 }
 
 // SessionResume handles the SessionResume Claude Code hook event.
