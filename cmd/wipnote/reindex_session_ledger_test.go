@@ -34,19 +34,8 @@ func TestSessionLedger_LedgerOnlySessionRenders(t *testing.T) {
 	database := openCachedDB(t, projectDir)
 	defer database.Close()
 
-	// Reader 1 — resolveProvenanceNode (/api/provenance and `wipnote lineage`).
-	node, ok := resolveProvenanceNode(database, deriveLedgerSession, "")
-	if !ok {
-		t.Fatalf("resolveProvenanceNode did not resolve the ledger-only session %s at all",
-			deriveLedgerSession)
-	}
-	if node.Type != "session" {
-		t.Errorf("resolveProvenanceNode: type = %q, want %q", node.Type, "session")
-	}
-	assertRenderableTitle(t, "resolveProvenanceNode", deriveLedgerSession, node.Title)
-
-	// Reader 2 — graph.QueryBuilder.resolveNodes, reached through the same
-	// public entry point `wipnote lineage` uses.
+	// The reader — graph.QueryBuilder.resolveNodes, reached through the public
+	// entry point `wipnote lineage` uses.
 	results, err := graph.NewQuery(database).From(deriveLedgerSession).Execute()
 	if err != nil {
 		t.Fatalf("graph query for %s: %v", deriveLedgerSession, err)
@@ -59,14 +48,24 @@ func TestSessionLedger_LedgerOnlySessionRenders(t *testing.T) {
 	}
 	assertRenderableTitle(t, "resolveNodes", deriveLedgerSession, results[0].Title)
 
-	// CONTROL — a session with neither a ledger row nor telemetry must still be
-	// unresolvable. Without this the assertions above would pass just as well
-	// under a reader that invented a label for every id it was handed.
-	if pruned, found := resolveProvenanceNode(database, derivePrunedSession, ""); found {
-		t.Errorf("a pruned session with NO ledger row resolved anyway: %s title=%q.\n"+
-			"The ledger is meant to be the thing that makes a session resolvable; if an unrecorded\n"+
-			"session resolves too, the ledger is not what made the difference.",
-			derivePrunedSession, pruned.Title)
+	// CONTROL — a session with neither a ledger row nor telemetry must still
+	// have nothing to render. Without this the assertions above would pass just
+	// as well under a reader that invented a label for every id it was handed.
+	//
+	// resolveNodes reads the sessions table as-is, so the pruned session's
+	// tombstone row may come back as a node; the removed provenance reader
+	// filtered tombstones out. Either way it must carry no renderable title.
+	pruned, err := graph.NewQuery(database).From(derivePrunedSession).Execute()
+	if err != nil {
+		t.Fatalf("graph query for %s: %v", derivePrunedSession, err)
+	}
+	for _, n := range pruned {
+		if title := strings.TrimSpace(n.Title); title != "" && title != derivePrunedSession {
+			t.Errorf("a pruned session with NO ledger row rendered anyway: %s title=%q.\n"+
+				"The ledger is meant to be the thing that makes a session renderable; if an unrecorded\n"+
+				"session renders too, the ledger is not what made the difference.",
+				derivePrunedSession, n.Title)
+		}
 	}
 }
 

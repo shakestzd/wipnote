@@ -1529,9 +1529,6 @@ func execCodex(opts codexLaunchOpts) error {
 	// wipnote launcher is behind THIS session.
 	writeLaunchMarker(string(opts.effectiveMode()), effectiveProjDir)
 
-	// Auto-start a detached `wipnote serve` for the dashboard.
-	ensureServeForDashboard(effectiveProjDir)
-
 	// Launch-time guard-profile initialization (peer to the OTel collector
 	// bootstrap). No-op when already approved or non-interactive; never blocks.
 	ensureGuardProfile(effectiveProjDir)

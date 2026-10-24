@@ -109,7 +109,7 @@ func runStatus(_ *cobra.Command, _ []string) error {
 
 // printContentionStatus prints the slice-10 SQLITE_BUSY counter snapshot
 // plus the slice-6 writer queue depth (when wired in this process). The
-// counters are process-local — in a long-running `wipnote serve` they
+// counters are process-local — in a long-running writer daemon (`_serve-child`) they
 // reflect cumulative contention since startup; in a short-lived CLI
 // invocation they only reflect the current process. Either is useful
 // for the launch readiness check.
@@ -140,16 +140,6 @@ func printContentionStatus() {
 		}
 	}
 
-	// Writer queue depth — only meaningful when a writer service is
-	// constructed (i.e., inside `wipnote serve`); short-lived CLI
-	// invocations of status will see writerService.queue == nil and we
-	// print "disabled" so operators know it's not a missing-feature
-	// problem.
-	queueStatus := readWriterServiceStatus(writerService.queue)
-	fmt.Printf("Writer queue: state=%s depth=%d/%d enq=%d deq=%d rej=%d err=%d\n",
-		queueStatus.State, queueStatus.Depth, queueStatus.Capacity,
-		queueStatus.Enqueued, queueStatus.Dequeued,
-		queueStatus.Rejected, queueStatus.Errors)
 }
 
 // printCommitQueueDeadLetterWarning surfaces a loud, actionable line in

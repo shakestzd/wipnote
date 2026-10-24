@@ -3,14 +3,10 @@ package main
 import (
 	"context"
 	"embed"
-	"encoding/json"
 	"fmt"
 	"html/template"
-	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"time"
 
@@ -38,7 +34,6 @@ func planCmdWithExtras() *cobra.Command {
 	cmd.AddCommand(planShowCmd())
 	cmd.AddCommand(planCreateFromTopicCmd())
 	cmd.AddCommand(planGenerateCmd())
-	cmd.AddCommand(planOpenCmd())
 	cmd.AddCommand(planWaitCmd())
 	cmd.AddCommand(planReadFeedbackCmd())
 	cmd.AddCommand(planValidateCmd())
@@ -55,7 +50,6 @@ func planCmdWithExtras() *cobra.Command {
 	cmd.AddCommand(planReadFeedbackYAMLCmd())
 	cmd.AddCommand(planFinalizeYAMLCmd())
 	cmd.AddCommand(planWireCmd())
-	cmd.AddCommand(planReviewCmd())
 	cmd.AddCommand(planRewriteYAMLCmd())
 	cmd.AddCommand(planRenderCmd())
 	cmd.AddCommand(planFeedbackCmd())
@@ -72,7 +66,6 @@ func planCmdWithExtras() *cobra.Command {
 	// CRISPI: cross-harness decisions elicitation (feat-0fd7c8bc)
 	cmd.AddCommand(planElicitDecisionsCmd())
 	// Cross-harness web-form interview prototype (feat-2852d0c8)
-	cmd.AddCommand(planInterviewCmd())
 	cmd.AddCommand(planInterviewQuestionsCmd())
 	// slice-6: visual-block catalog (native get-plan-blocks equivalent)
 	cmd.AddCommand(planBlocksCmd())
@@ -249,42 +242,6 @@ func findExistingPlanForSource(wipnoteDir, sourceID string) string {
 	return ""
 }
 
-// planOpenCmd opens a plan in the browser.
-func planOpenCmd() *cobra.Command {
-	return &cobra.Command{
-		Use:   "open <plan-id>",
-		Short: "Open a plan in the browser",
-		Args:  cobra.ExactArgs(1),
-		RunE: func(_ *cobra.Command, args []string) error {
-			return runPlanOpen(args[0])
-		},
-	}
-}
-
-func runPlanOpen(planID string) error {
-	wipnoteDir, err := findWipnoteDir()
-	if err != nil {
-		return err
-	}
-
-	planPath := filepath.Join(wipnoteDir, "plans", planID+".html")
-	if _, err := os.Stat(planPath); err != nil {
-		return fmt.Errorf("plan %q not found at %s", planID, planPath)
-	}
-
-	if !isServerRunning("http://localhost:8080") {
-		// Auto-start server so plan feedback API works.
-		cmd := exec.Command(os.Args[0], "serve", "-p", "8080")
-		cmd.Stdout = nil
-		cmd.Stderr = nil
-		_ = cmd.Start()
-		time.Sleep(500 * time.Millisecond)
-	}
-
-	url := "http://localhost:8080/plans/" + planID + ".html"
-	return openBrowser(url)
-}
-
 // planWaitCmd blocks until a plan is finalized.
 func planWaitCmd() *cobra.Command {
 	var timeout time.Duration
@@ -335,16 +292,8 @@ func runPlanWait(planID string, timeout time.Duration) error {
 	}
 }
 
-// checkPlanFinalized returns true when the plan's status is "finalized".
-// Prefers the live API; falls back to reading the HTML file directly.
+// checkPlanFinalized returns true when the plan YAML's status is "finalized".
 func checkPlanFinalized(wipnoteDir, planID string) (bool, error) {
-	if isServerRunning("http://localhost:8080") {
-		status, err := fetchPlanStatusFromAPI(planID)
-		if err == nil {
-			return status == "finalized", nil
-		}
-	}
-
 	yamlPath := filepath.Join(wipnoteDir, "plans", planID+".yaml")
 	plan, err := planyaml.Load(yamlPath)
 	if err != nil {
@@ -353,54 +302,4 @@ func checkPlanFinalized(wipnoteDir, planID string) (bool, error) {
 	return plan.Meta.Status == "finalized", nil
 }
 
-// fetchPlanStatusFromAPI calls GET /api/plans/{id}/status and returns the status.
-func fetchPlanStatusFromAPI(planID string) (string, error) {
-	url := "http://localhost:8080/api/plans/" + planID + "/status"
-	client := &http.Client{Timeout: 2 * time.Second}
-	resp, err := client.Get(url) //nolint:gosec,noctx
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("API returned %d", resp.StatusCode)
-	}
-	var result struct {
-		Status string `json:"status"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return "", err
-	}
-	return result.Status, nil
-}
-
 // ---- browser / server helpers -----------------------------------------------
-
-// isServerRunning returns true when a GET to baseURL succeeds within 500ms.
-func isServerRunning(baseURL string) bool {
-	client := &http.Client{Timeout: 500 * time.Millisecond}
-	resp, err := client.Get(baseURL) //nolint:gosec,noctx
-	if err != nil {
-		return false
-	}
-	resp.Body.Close()
-	return resp.StatusCode < 500
-}
-
-// openBrowser opens the given URL or file path in the default OS browser.
-func openBrowser(target string) error {
-	var cmd *exec.Cmd
-	switch runtime.GOOS {
-	case "darwin":
-		cmd = exec.Command("open", target)
-	case "linux":
-		cmd = exec.Command("xdg-open", target)
-	default:
-		fmt.Println(target)
-		return nil
-	}
-	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("open browser: %w", err)
-	}
-	return nil
-}

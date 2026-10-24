@@ -340,37 +340,6 @@ func TestParallelHarnessLineage(t *testing.T) {
 		}
 	}
 
-	// Assert /api/sessions/parallel grouping (slice-7).
-	req := httptest.NewRequest(http.MethodGet, "/api/sessions/parallel", nil)
-	w := httptest.NewRecorder()
-	parallelSessionsHandler(database)(w, req)
-	if w.Code != http.StatusOK {
-		t.Fatalf("parallel sessions: status %d, body=%s", w.Code, w.Body.String())
-	}
-
-	var resp struct {
-		Groups []projectGroup `json:"groups"`
-	}
-	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
-		t.Fatalf("decode project groups: %v", err)
-	}
-	var pg *projectGroup
-	for i := range resp.Groups {
-		if resp.Groups[i].CanonicalProject == canonicalProject {
-			pg = &resp.Groups[i]
-			break
-		}
-	}
-	if pg == nil {
-		t.Fatalf("canonical project %q not in groups", canonicalProject)
-	}
-	if pg.SessionCount < 3 {
-		t.Errorf("project group: SessionCount=%d, want >= 3", pg.SessionCount)
-	}
-	if !pg.HasCollision {
-		t.Error("project group: HasCollision=false, want true (Claude+Codex both claim feat-lineage-test)")
-	}
-
 	// Assert lineage chain: subagent traces to root.
 	traces, err := dbpkg.GetLineageByRoot(database, "sess-claude-root")
 	if err != nil {
@@ -411,74 +380,5 @@ func TestParallelHarnessLineage(t *testing.T) {
 	resumedLastFamilyID := resolveSessionFamilyID(resumeProjectDir, "sess-claude-resumed-last", "", true /*isResume*/)
 	if resumedLastFamilyID != familyID {
 		t.Errorf("resumed-last session family: got %q, want %q (resolveSessionFamilyID rule 2b failed)", resumedLastFamilyID, familyID)
-	}
-}
-
-// TestParallelHarness_MainStaysClean asserts that main stays clean: the
-// canonical project root and worktree root appear as SEPARATE canonical
-// projects in /api/sessions/parallel so tooling can isolate worktree sessions.
-//
-// Extends plan-ae0c37b2 contention fixture (same dbpkg.Open path).
-//
-// PROFILE: CI-safe (in-process, no real git or harness processes).
-func TestParallelHarness_MainStaysClean(t *testing.T) {
-	dbPath := filepath.Join(t.TempDir(), "mainstays.db")
-	database, err := dbpkg.Open(dbPath)
-	if err != nil {
-		t.Fatalf("open db: %v", err)
-	}
-	defer database.Close()
-
-	mainRoot := "/projects/wipnote"
-	worktreeRoot := "/projects/wipnote/.claude/worktrees/feat-xyz"
-	now := time.Now().UTC()
-
-	if err := dbpkg.InsertSession(database, &models.Session{
-		SessionID:     "sess-main-root",
-		AgentAssigned: "claude-code",
-		CreatedAt:     now,
-		Status:        "active",
-		ProjectDir:    mainRoot,
-	}); err != nil {
-		t.Fatalf("InsertSession main: %v", err)
-	}
-	if err := dbpkg.InsertSession(database, &models.Session{
-		SessionID:     "sess-worktree",
-		AgentAssigned: "claude-code",
-		CreatedAt:     now,
-		Status:        "active",
-		ProjectDir:    worktreeRoot,
-	}); err != nil {
-		t.Fatalf("InsertSession worktree: %v", err)
-	}
-
-	req := httptest.NewRequest(http.MethodGet, "/api/sessions/parallel", nil)
-	w := httptest.NewRecorder()
-	parallelSessionsHandler(database)(w, req)
-	if w.Code != http.StatusOK {
-		t.Fatalf("parallel handler: status=%d", w.Code)
-	}
-
-	var resp2 struct {
-		Groups []projectGroup `json:"groups"`
-	}
-	if err := json.NewDecoder(w.Body).Decode(&resp2); err != nil {
-		t.Fatalf("decode: %v", err)
-	}
-
-	foundMain, foundWorktree := false, false
-	for _, g := range resp2.Groups {
-		switch g.CanonicalProject {
-		case mainRoot:
-			foundMain = true
-		case worktreeRoot:
-			foundWorktree = true
-		}
-	}
-	if !foundMain {
-		t.Errorf("main root %q not in project groups", mainRoot)
-	}
-	if !foundWorktree {
-		t.Errorf("worktree root %q not separate project group (main isolation broken)", worktreeRoot)
 	}
 }

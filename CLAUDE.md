@@ -160,7 +160,6 @@ Read short files (≤200 lines, or one targeted offset/limit range) directly whe
 | Run tests | `go test ./...` |
 | Build binary | `wipnote build` |
 | Deploy | `./scripts/deploy-all.sh VERSION --no-confirm` |
-| Dashboard | `wipnote serve` |
 | Status | `wipnote status` |
 | Self-update | `wipnote upgrade` |
 

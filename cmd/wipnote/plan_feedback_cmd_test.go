@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -143,5 +144,63 @@ func TestPlanFeedback_EmptyPlan(t *testing.T) {
 	}
 	if len(out.ChatMessages) != 0 {
 		t.Errorf("chat_messages should be empty, got %v", out.ChatMessages)
+	}
+}
+
+// writeTempPlanHTML creates a temporary .wipnote/plans directory with a
+// minimal plan HTML file and a matching YAML file. Returns the wipnoteDir.
+func writeTempPlanHTML(t *testing.T, planID string) string {
+	t.Helper()
+	dir := t.TempDir()
+	plansDir := filepath.Join(dir, "plans")
+	if err := os.MkdirAll(plansDir, 0o755); err != nil {
+		t.Fatalf("mkdir plans: %v", err)
+	}
+	html := `<!DOCTYPE html><html><body>` +
+		`<article id="` + planID + `" data-type="plan" data-status="draft">` +
+		`<header><h1>Test Plan</h1></header>` +
+		`</article></body></html>`
+	htmlPath := filepath.Join(plansDir, planID+".html")
+	if err := os.WriteFile(htmlPath, []byte(html), 0o644); err != nil {
+		t.Fatalf("write plan html: %v", err)
+	}
+	// Write a matching YAML file so parsePlanHTMLStatus (which now reads YAML)
+	// can find the status. meta.status defaults to "draft" to match the HTML.
+	yamlContent := "meta:\n  id: " + planID + "\n  title: Test Plan\n  status: draft\n  version: 1\n"
+	yamlPath := filepath.Join(plansDir, planID+".yaml")
+	if err := os.WriteFile(yamlPath, []byte(yamlContent), 0o644); err != nil {
+		t.Fatalf("write plan yaml: %v", err)
+	}
+	return dir
+}
+
+// read-feedback reads the canonical feedback in the plan YAML. The rendered
+// slice card carries several approve radios per slice, so reading the HTML
+// form would let the last radio decide every slice's approval.
+func TestReadPlanFeedback_UsesCanonicalYAML(t *testing.T) {
+	dir, pID := setupReusePlan(t)
+	if err := runApproveSlice(dir, pID, "1"); err != nil {
+		t.Fatalf("approve-slice: %v", err)
+	}
+	if err := runRejectSlice(dir, pID, "2", true); err != nil {
+		t.Fatalf("reject-slice: %v", err)
+	}
+
+	out, err := readPlanFeedback(dir, pID)
+	if err != nil {
+		t.Fatalf("readPlanFeedback: %v", err)
+	}
+	want := map[string]bool{"slice-1": true, "slice-2": false}
+	if len(out.SliceApprovals) != len(want) {
+		t.Fatalf("slice approvals = %v, want %v", out.SliceApprovals, want)
+	}
+	for section, approved := range want {
+		if got, ok := out.SliceApprovals[section]; !ok || got != approved {
+			t.Errorf("slice approvals = %v, want %v", out.SliceApprovals, want)
+			break
+		}
+	}
+	if out.Status != "draft" {
+		t.Errorf("status = %q, want draft while a slice is sent back", out.Status)
 	}
 }

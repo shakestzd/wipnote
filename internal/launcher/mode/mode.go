@@ -43,17 +43,15 @@ const (
 
 // LauncherMode is the composed mode object returned to callers.
 type LauncherMode struct {
-	Runtime       RuntimeMode
-	Execution     ExecutionMode
-	Plugin        PluginMode
-	DashboardHost string
-	DashboardPort int
+	Runtime   RuntimeMode
+	Execution ExecutionMode
+	Plugin    PluginMode
 }
 
 // ComputeInput bundles the inputs for ComputeWith, letting callers inject stubs.
 type ComputeInput struct {
 	// IsDevcontainer detects /.dockerenv, CODESPACES, REMOTE_CONTAINERS.
-	// Callers should pass defaultDevcontainerDetector from claude_serve_autostart.go,
+	// Callers should pass defaultDevcontainerDetector from launch_helpers.go,
 	// or a test stub.
 	IsDevcontainer func() bool
 	// IsCI detects CI / GITHUB_ACTIONS.
@@ -70,7 +68,7 @@ type ComputeInput struct {
 
 // Compute returns the LauncherMode using live environment signals.
 // It reuses the same detection signals as defaultDevcontainerDetector in
-// cmd/wipnote/claude_serve_autostart.go (/.dockerenv, CODESPACES, REMOTE_CONTAINERS).
+// cmd/wipnote/launch_helpers.go (/.dockerenv, CODESPACES, REMOTE_CONTAINERS).
 func Compute(worktreePath string, readOnly, devPlugin, generatedPort bool) LauncherMode {
 	return ComputeWith(ComputeInput{
 		IsDevcontainer: defaultDevcontainerFn,
@@ -88,13 +86,10 @@ func ComputeWith(in ComputeInput) LauncherMode {
 	runtime := DetectRuntimeModeWith(in.IsDevcontainer, in.IsCI)
 	execution := DetectExecutionModeWith(in.WorktreePath, in.ReadOnly)
 	plugin := DetectPluginMode(in.DevPlugin, in.GeneratedPort)
-	host, port := DashboardBindDefaults(runtime)
 	return LauncherMode{
-		Runtime:       runtime,
-		Execution:     execution,
-		Plugin:        plugin,
-		DashboardHost: host,
-		DashboardPort: port,
+		Runtime:   runtime,
+		Execution: execution,
+		Plugin:    plugin,
 	}
 }
 
@@ -135,21 +130,8 @@ func DetectPluginMode(devPlugin, generatedPort bool) PluginMode {
 	}
 }
 
-// DashboardBindDefaults returns the default host and port for the wipnote
-// dashboard based on the runtime mode.
-//
-//   - RuntimeDevcontainer: 0.0.0.0:8088 — the port must be forwarded to the
-//     host, so binding all interfaces is required.
-//   - RuntimeHost / RuntimeCI: 127.0.0.1:8080 — localhost only.
-func DashboardBindDefaults(runtime RuntimeMode) (host string, port int) {
-	if runtime == RuntimeDevcontainer {
-		return "0.0.0.0", 8088
-	}
-	return "127.0.0.1", 8080
-}
-
 // defaultDevcontainerFn replicates the detection logic of
-// defaultDevcontainerDetector in cmd/wipnote/claude_serve_autostart.go.
+// defaultDevcontainerDetector in cmd/wipnote/launch_helpers.go.
 // The signals are /.dockerenv, CODESPACES=true, REMOTE_CONTAINERS=true.
 func defaultDevcontainerFn() bool {
 	if _, err := os.Stat("/.dockerenv"); err == nil {

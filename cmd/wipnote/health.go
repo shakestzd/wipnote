@@ -104,10 +104,9 @@ func runHealth(path string, goOnly, pythonOnly, jsonOut, failOnWarn bool) error 
 // runtimeHealth is the JSON envelope for the runtime portion of the
 // `wipnote health --json` output. Subsystems is keyed by subsystem label.
 type runtimeHealth struct {
-	JournalMode         string              `json:"journal_mode,omitempty"`
-	FirstPartyBusyTotal int64               `json:"first_party_busy_total"`
-	BusySubsystems      map[string]int64    `json:"busy_subsystems,omitempty"`
-	WriterQueue         WriterServiceStatus `json:"writer_queue"`
+	JournalMode         string           `json:"journal_mode,omitempty"`
+	FirstPartyBusyTotal int64            `json:"first_party_busy_total"`
+	BusySubsystems      map[string]int64 `json:"busy_subsystems,omitempty"`
 }
 
 // collectRuntimeHealth returns a snapshot of the slice-10 contention
@@ -121,7 +120,6 @@ func collectRuntimeHealth() runtimeHealth {
 	return runtimeHealth{
 		FirstPartyBusyTotal: dbpkg.FirstPartyBusyTotal(),
 		BusySubsystems:      stringy,
-		WriterQueue:         readWriterServiceStatus(writerService.queue),
 	}
 }
 
@@ -135,9 +133,6 @@ func printRuntimeHealth() {
 	for k, v := range rt.BusySubsystems {
 		fmt.Printf("  %-16s %d\n", k, v)
 	}
-	fmt.Printf("Writer queue: state=%s depth=%d/%d rejected=%d errors=%d\n",
-		rt.WriterQueue.State, rt.WriterQueue.Depth, rt.WriterQueue.Capacity,
-		rt.WriterQueue.Rejected, rt.WriterQueue.Errors)
 	fmt.Println()
 }
 

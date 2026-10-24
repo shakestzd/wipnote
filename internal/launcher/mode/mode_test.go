@@ -91,32 +91,6 @@ func TestDetectRuntimeMode_HostDevcontainerCI(t *testing.T) {
 	})
 }
 
-// TestDashboardBindDefaults verifies host=127.0.0.1:8080, devcontainer=0.0.0.0:8088.
-func TestDashboardBindDefaults(t *testing.T) {
-	tests := []struct {
-		name     string
-		runtime  mode.RuntimeMode
-		wantHost string
-		wantPort int
-	}{
-		{"host runtime", mode.RuntimeHost, "127.0.0.1", 8080},
-		{"devcontainer runtime", mode.RuntimeDevcontainer, "0.0.0.0", 8088},
-		{"ci runtime", mode.RuntimeCI, "127.0.0.1", 8080},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			host, port := mode.DashboardBindDefaults(tc.runtime)
-			if host != tc.wantHost {
-				t.Errorf("host: got %q, want %q", host, tc.wantHost)
-			}
-			if port != tc.wantPort {
-				t.Errorf("port: got %d, want %d", port, tc.wantPort)
-			}
-		})
-	}
-}
-
 // TestDetectExecutionMode verifies execution mode detection.
 func TestDetectExecutionMode(t *testing.T) {
 	t.Run("in-place when no worktree path", func(t *testing.T) {
@@ -185,12 +159,6 @@ func TestComputeLauncherMode(t *testing.T) {
 	if m.Plugin != mode.PluginInstalled {
 		t.Errorf("Plugin: want %v, got %v", mode.PluginInstalled, m.Plugin)
 	}
-	if m.DashboardHost != "127.0.0.1" {
-		t.Errorf("DashboardHost: want 127.0.0.1, got %q", m.DashboardHost)
-	}
-	if m.DashboardPort != 8080 {
-		t.Errorf("DashboardPort: want 8080, got %d", m.DashboardPort)
-	}
 }
 
 // TestComputeLauncherMode_Devcontainer verifies devcontainer bind defaults.
@@ -212,11 +180,5 @@ func TestComputeLauncherMode_Devcontainer(t *testing.T) {
 	}
 	if m.Plugin != mode.PluginLocalDev {
 		t.Errorf("Plugin: want %v, got %v", mode.PluginLocalDev, m.Plugin)
-	}
-	if m.DashboardHost != "0.0.0.0" {
-		t.Errorf("DashboardHost: want 0.0.0.0, got %q", m.DashboardHost)
-	}
-	if m.DashboardPort != 8088 {
-		t.Errorf("DashboardPort: want 8088, got %d", m.DashboardPort)
 	}
 }

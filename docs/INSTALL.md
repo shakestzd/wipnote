@@ -131,5 +131,4 @@ wipnote init              # creates .wipnote/ and installs hooks
 ```bash
 wipnote version           # prints version information
 wipnote status            # project health overview
-wipnote serve             # starts the local dashboard at localhost:4000
 ```

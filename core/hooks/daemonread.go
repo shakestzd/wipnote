@@ -147,8 +147,9 @@ func recordDaemonBreach(op, socket string, err error) {
 			"This session was started by a wipnote launcher, which guarantees the daemon, "+
 			"so wipnote will NOT silently read the derived index instead — a quiet fallback "+
 			"is how two data paths diverge unnoticed.\n"+
-			"Pausing here. Restart the daemon with `wipnote serve`, or start a fresh session "+
-			"with `wipnote claude`, then retry.", op, socket, err)
+			"Pausing here. Exit and relaunch this session with `wipnote claude` (or "+
+			"`wipnote codex`): the launcher starts the work-item daemon, or attaches to "+
+			"one already running, before the session begins. Then retry.", op, socket, err)
 }
 
 // DaemonGuaranteeBreach returns the latched guarantee failure, or "" if none.

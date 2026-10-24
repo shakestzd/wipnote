@@ -16,7 +16,7 @@ func TestNormalRuntimeSQLiteOpenBoundary(t *testing.T) {
 	for _, path := range []string{
 		"main.go",
 		"session.go",
-		"serve_child.go",
+		"writer_daemon.go",
 		// was lazy_reindex.go — renamed with the removal of the cold-clone
 		// lazy-rebuild machinery, which had no question left to answer once
 		// every projection started empty (feat-fc3cc9e0).
@@ -27,7 +27,7 @@ func TestNormalRuntimeSQLiteOpenBoundary(t *testing.T) {
 		"arch_cmds.go",
 		"recap_list.go",
 		"plan_yaml_cmds.go",
-		"plan_interview.go",
+		"plan_interview_questions.go",
 		"plan_typed_sections.go",
 		"track.go",
 		// CLI commands migrated off the persistent project DB (feat-fc3cc9e0).
