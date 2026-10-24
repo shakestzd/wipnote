@@ -173,3 +173,34 @@ func writeTempPlanHTML(t *testing.T, planID string) string {
 	}
 	return dir
 }
+
+// read-feedback reads the canonical feedback in the plan YAML. The rendered
+// slice card carries several approve radios per slice, so reading the HTML
+// form would let the last radio decide every slice's approval.
+func TestReadPlanFeedback_UsesCanonicalYAML(t *testing.T) {
+	dir, pID := setupReusePlan(t)
+	if err := runApproveSlice(dir, pID, "1"); err != nil {
+		t.Fatalf("approve-slice: %v", err)
+	}
+	if err := runRejectSlice(dir, pID, "2", true); err != nil {
+		t.Fatalf("reject-slice: %v", err)
+	}
+
+	out, err := readPlanFeedback(dir, pID)
+	if err != nil {
+		t.Fatalf("readPlanFeedback: %v", err)
+	}
+	want := map[string]bool{"slice-1": true, "slice-2": false}
+	if len(out.SliceApprovals) != len(want) {
+		t.Fatalf("slice approvals = %v, want %v", out.SliceApprovals, want)
+	}
+	for section, approved := range want {
+		if got, ok := out.SliceApprovals[section]; !ok || got != approved {
+			t.Errorf("slice approvals = %v, want %v", out.SliceApprovals, want)
+			break
+		}
+	}
+	if out.Status != "draft" {
+		t.Errorf("status = %q, want draft while a slice is sent back", out.Status)
+	}
+}

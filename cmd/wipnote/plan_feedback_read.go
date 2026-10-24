@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
+	dbpkg "github.com/shakestzd/wipnote/core/db"
 	"github.com/spf13/cobra"
 )
 
@@ -38,17 +39,73 @@ func runPlanReadFeedback(planID string) error {
 	if err != nil {
 		return err
 	}
-
-	planPath := filepath.Join(wipnoteDir, "plans", planID+".html")
-	out, err := parseFeedbackFromHTML(planID, planPath)
+	out, err := readPlanFeedback(wipnoteDir, planID)
 	if err != nil {
 		return fmt.Errorf("read plan feedback: %w", err)
 	}
 	return printFeedbackJSON(out)
 }
 
-// parseFeedbackFromHTML reads the plan HTML file directly and extracts
-// feedback from data-* attributes and form element state.
+// readPlanFeedback reads the canonical feedback recorded in the plan YAML.
+// Plans that predate the YAML (HTML only) fall back to the rendered form.
+func readPlanFeedback(wipnoteDir, planID string) (planFeedbackOutput, error) {
+	if _, err := os.Stat(planYAMLPath(wipnoteDir, planID)); err == nil {
+		entries, err := readPlanFeedbackEntries(wipnoteDir, planID)
+		if err != nil {
+			return planFeedbackOutput{}, err
+		}
+		return feedbackOutputFromEntries(planID, entries), nil
+	}
+	return parseFeedbackFromHTML(planID, filepath.Join(wipnoteDir, "plans", planID+".html"))
+}
+
+// feedbackOutputFromEntries groups canonical feedback entries the way the
+// former dashboard feedback API did: the last approve entry per section wins,
+// and the plan reads "approved" once every section with a decision is approved.
+func feedbackOutputFromEntries(planID string, entries []dbpkg.PlanFeedback) planFeedbackOutput {
+	out := planFeedbackOutput{
+		PlanID:           planID,
+		Status:           "draft",
+		SectionApprovals: make(map[string]bool),
+		QuestionAnswers:  make(map[string]string),
+		SliceApprovals:   make(map[string]bool),
+		Comments:         make(map[string]string),
+	}
+	for _, e := range entries {
+		if e.Section == "chat" {
+			continue
+		}
+		switch e.Action {
+		case "approve":
+			approved := dbpkg.IsPlanApprovalValueApproved(e.Value)
+			out.SectionApprovals[e.Section] = approved
+			if strings.HasPrefix(e.Section, "slice-") {
+				out.SliceApprovals[e.Section] = approved
+			}
+		case "comment":
+			if e.Value != "" {
+				out.Comments[e.Section] = e.Value
+			}
+		case "answer":
+			if e.QuestionID != "" {
+				out.QuestionAnswers[e.QuestionID] = e.Value
+			}
+		}
+	}
+	if len(out.SectionApprovals) > 0 {
+		out.Status = "approved"
+		for _, ok := range out.SectionApprovals {
+			if !ok {
+				out.Status = "draft"
+				break
+			}
+		}
+	}
+	return out
+}
+
+// parseFeedbackFromHTML reads a legacy HTML-only plan and extracts feedback
+// from data-* attributes and form element state.
 func parseFeedbackFromHTML(planID, planPath string) (planFeedbackOutput, error) {
 	f, err := os.Open(planPath)
 	if err != nil {
