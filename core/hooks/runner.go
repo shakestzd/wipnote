@@ -67,6 +67,10 @@ type CloudEvent struct {
 	StopReason           string `json:"stop_reason"`
 	LastAssistantMessage string `json:"last_assistant_message"`
 
+	// SubagentStop: the subagent's own transcript, in a nested subagents/
+	// folder; transcript_path stays the main session's.
+	AgentTranscriptPath string `json:"agent_transcript_path"`
+
 	// StopFailure: error type (rate_limit, overloaded, ...) and optional details.
 	StopError    looseString `json:"error"`
 	ErrorDetails looseString `json:"error_details"`
