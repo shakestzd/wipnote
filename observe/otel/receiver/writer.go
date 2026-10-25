@@ -52,25 +52,21 @@ type Writer struct {
 	// applier, and the maintenance loops) onto ONE physical SQLite
 	// connection — making concurrent BEGIN IMMEDIATE structurally
 	// impossible and eliminating the cross-handle SQLITE_BUSY thrash.
-	shared          bool
-	ownDB           bool      // true when the Writer opened db itself and must Close it
-	insertStmt      *sql.Stmt // own-pool mode only: lifetime statements pinned to conn
-	sessStmt        *sql.Stmt
-	resStmt         *sql.Stmt
-	placeholderStmt *sql.Stmt  // INSERT placeholder subagent_invocation row
-	upgradeStmt     *sql.Stmt  // UPDATE placeholder → real Agent span
-	mu              sync.Mutex // serializes WriteBatch calls — SQLite serializes writes anyway via IMMEDIATE lock, this just makes it explicit at the Go layer
+	shared     bool
+	ownDB      bool      // true when the Writer opened db itself and must Close it
+	insertStmt *sql.Stmt // own-pool mode only: lifetime statements pinned to conn
+	sessStmt   *sql.Stmt
+	resStmt    *sql.Stmt
+	mu         sync.Mutex // serializes WriteBatch calls — SQLite serializes writes anyway via IMMEDIATE lock, this just makes it explicit at the Go layer
 }
 
 // batchStmts is the per-batch set of prepared statements used in shared
 // mode. They are prepared on the acquired connection and closed when the
 // batch completes, mirroring the lifetime statements held in own-pool mode.
 type batchStmts struct {
-	insert      *sql.Stmt
-	sess        *sql.Stmt
-	res         *sql.Stmt
-	placeholder *sql.Stmt
-	upgrade     *sql.Stmt
+	insert *sql.Stmt
+	sess   *sql.Stmt
+	res    *sql.Stmt
 }
 
 // NewWriter opens a writer-mode DB handle on dbPath. The handle is
@@ -224,48 +220,6 @@ const (
 		ON CONFLICT(session_id, key) DO UPDATE SET
 			value = excluded.value,
 			observed_at = excluded.observed_at`
-
-	sqlPlaceholderInsert = `
-		INSERT OR IGNORE INTO otel_signals (
-			signal_id, harness, session_id,
-			trace_id, span_id,
-			kind, canonical, native, ts_micros,
-			tool_name,
-			attrs_json
-		) VALUES (?, ?, ?, ?, ?, 'span', 'subagent_invocation', 'agent_invocation', ?, 'Agent', ?)`
-
-	sqlUpgradePlaceholder = `
-		UPDATE otel_signals SET
-			signal_id = ?,
-			harness = ?,
-			prompt_id = ?,
-			trace_id = ?,
-			parent_span = ?,
-			native = ?,
-			ts_micros = ?,
-			tool_name = ?,
-			tool_use_id = ?,
-			model = ?,
-			decision = ?,
-			decision_source = ?,
-			tokens_in = ?,
-			tokens_out = ?,
-			tokens_cache_read = ?,
-			tokens_cache_creation = ?,
-			tokens_thought = ?,
-			tokens_tool = ?,
-			tokens_reasoning = ?,
-			cost_usd = ?,
-			cost_source = ?,
-			duration_ms = ?,
-			success = ?,
-			error_msg = ?,
-			attempt = ?,
-			status_code = ?,
-			attrs_json = ?,
-			feature_id = ?,
-			agent_id = ?
-		WHERE span_id = ? AND attrs_json LIKE '%"_pending":true%'`
 )
 
 // stmtPreparer is satisfied by both *sql.Conn and *sql.DB, letting the
@@ -291,14 +245,6 @@ func prepareBatchStmts(ctx context.Context, p stmtPreparer) (*batchStmts, error)
 		bs.close()
 		return nil, fmt.Errorf("prepare resource upsert: %w", err)
 	}
-	if bs.placeholder, err = p.PrepareContext(ctx, sqlPlaceholderInsert); err != nil {
-		bs.close()
-		return nil, fmt.Errorf("prepare placeholder insert: %w", err)
-	}
-	if bs.upgrade, err = p.PrepareContext(ctx, sqlUpgradePlaceholder); err != nil {
-		bs.close()
-		return nil, fmt.Errorf("prepare upgrade stmt: %w", err)
-	}
 	return bs, nil
 }
 
@@ -306,7 +252,7 @@ func (bs *batchStmts) close() {
 	if bs == nil {
 		return
 	}
-	for _, s := range []*sql.Stmt{bs.insert, bs.sess, bs.res, bs.placeholder, bs.upgrade} {
+	for _, s := range []*sql.Stmt{bs.insert, bs.sess, bs.res} {
 		if s != nil {
 			s.Close()
 		}
@@ -323,8 +269,6 @@ func (w *Writer) prepare() error {
 	w.insertStmt = bs.insert
 	w.sessStmt = bs.sess
 	w.resStmt = bs.res
-	w.placeholderStmt = bs.placeholder
-	w.upgradeStmt = bs.upgrade
 	return nil
 }
 
@@ -343,12 +287,6 @@ func (w *Writer) Close() error {
 	if w.resStmt != nil {
 		w.resStmt.Close()
 	}
-	if w.placeholderStmt != nil {
-		w.placeholderStmt.Close()
-	}
-	if w.upgradeStmt != nil {
-		w.upgradeStmt.Close()
-	}
 	if w.conn != nil {
 		w.conn.Close()
 	}
@@ -356,12 +294,6 @@ func (w *Writer) Close() error {
 		return w.db.Close()
 	}
 	return nil
-}
-
-// PurgeStaleSubagentStarts removes pending_subagent_starts rows older than 24 h.
-// Called on Writer startup and periodically to bound table growth.
-func (w *Writer) PurgeStaleSubagentStarts() {
-	dbpkg.PurgeStalePendingSubagentStarts(w.db)
 }
 
 // DB returns the underlying handle. Tests use this to assert row counts

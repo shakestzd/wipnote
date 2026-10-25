@@ -3,7 +3,6 @@ package db
 import (
 	"database/sql"
 	"fmt"
-	"time"
 )
 
 // CreateOtelTables creates the OpenTelemetry ingestion tables. It is
@@ -136,23 +135,13 @@ func CreateOtelTables(db *sql.DB) error {
 	// forward-only migration: existing rows are NOT backfilled, so agent_id
 	// is NULL on every signal written before this column existed.
 
-	// pending_subagent_starts: staging table written by the SubagentStart hook.
-	// The OTLP receiver reads this to synthesize a placeholder otel_signals row
-	// as soon as the first subagent span arrives, eliminating the "flash" where
-	// orphan tool-call spans render without a parent Agent row.
-	//
-	// agent_id is the unique subagent identity (WIPNOTE_AGENT_ID written into
-	// the subagent env by writeSubagentEnvVars and echoed as a resource attribute
-	// wipnote.agent_id on every subagent OTel span).
-	//
-	// agent_span_id is the span_id of the otel_signals placeholder row created
-	// for this subagent. Populated by the OTLP receiver's placeholder-creation
-	// path so later re-attribution queries can map agent_id → agent span_id without
-	// scanning otel_signals.
-	//
-	// consumed_at is set when the placeholder is first matched to an incoming span.
-	// Rows older than 24 h are purged by PurgeStalePendingSubagentStarts on startup
-	// and periodically.
+	// pending_subagent_starts: a former staging table for the SubagentStart
+	// hook. No hook has written it since feat-174dc958 (hooks open no
+	// database), and its only reader, the OTLP receiver's placeholder and
+	// agent-id re-attribution path, was removed in feat-ddeaa0d1. The table is
+	// kept because the ephemeral projection schema (ephemeral_schema_gen.go)
+	// and the versioned migrations still create it; dropping it is a schema
+	// change of its own.
 	if _, err := db.Exec(`CREATE TABLE IF NOT EXISTS pending_subagent_starts (
 		agent_id          TEXT PRIMARY KEY,
 		agent_type        TEXT NOT NULL,
@@ -176,25 +165,6 @@ func CreateOtelTables(db *sql.DB) error {
 	// guards for tables. bug-0fc17d53 landed exactly that way.
 
 	return nil
-}
-
-// PendingSubagentStart holds data written by the SubagentStart hook so the
-// OTLP receiver can synthesize a placeholder otel_signals row before the
-// real Agent span arrives.
-type PendingSubagentStart struct {
-	AgentID       string
-	AgentType     string
-	SessionID     string
-	CWD           string
-	ParentAgentID string
-	CreatedAt     int64 // microseconds since epoch
-}
-
-// PurgeStalePendingSubagentStarts deletes rows older than 24 h.
-// Subagents never run longer than that, so stale rows are safe to remove.
-func PurgeStalePendingSubagentStarts(db *sql.DB) {
-	cutoff := (int64(0) + time.Now().Add(-24*time.Hour).UnixMicro())
-	db.Exec(`DELETE FROM pending_subagent_starts WHERE created_at < ?`, cutoff)
 }
 
 // CreateOtelIndexes creates performance indexes for the OTel tables.

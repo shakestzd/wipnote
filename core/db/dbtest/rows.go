@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	dbpkg "github.com/shakestzd/wipnote/core/db"
 	"github.com/shakestzd/wipnote/core/models"
 )
 
@@ -110,17 +109,4 @@ func ActiveFeatureIDForSession(database *sql.DB, sessionID string) string {
 	database.QueryRow(
 		`SELECT active_feature_id FROM sessions WHERE session_id = ?`, sessionID).Scan(&id)
 	return id.String
-}
-
-// UpsertPendingSubagentStart inserts or replaces one pending_subagent_starts row.
-func UpsertPendingSubagentStart(database *sql.DB, p *dbpkg.PendingSubagentStart) error {
-	_, err := database.Exec(`
-		INSERT OR REPLACE INTO pending_subagent_starts
-			(agent_id, agent_type, session_id, cwd, parent_agent_id, created_at)
-		VALUES (?, ?, ?, ?, ?, ?)`,
-		p.AgentID, p.AgentType, p.SessionID, nullable(p.CWD), nullable(p.ParentAgentID), p.CreatedAt)
-	if err != nil {
-		return fmt.Errorf("upsert pending_subagent_starts: %w", err)
-	}
-	return nil
 }

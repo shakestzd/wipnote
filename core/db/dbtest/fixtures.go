@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/shakestzd/wipnote/core/db"
 	"github.com/shakestzd/wipnote/core/models"
 )
 
@@ -71,23 +70,4 @@ func GetEvent(database *sql.DB, eventID string) (*models.AgentEvent, error) {
 	e.ParentAgentID, e.ParentEventID, e.SubagentType = parentAgent.String, parentEvt.String, subType.String
 	e.Model, e.Source, e.StepID = model.String, src.String, stepID.String
 	return e, nil
-}
-
-// GetPendingSubagentStart reads the pending_subagent_starts row for agentID,
-// or nil when there is none.
-func GetPendingSubagentStart(database *sql.DB, agentID string) (*db.PendingSubagentStart, error) {
-	var p db.PendingSubagentStart
-	var cwd, parentAgentID sql.NullString
-	err := database.QueryRow(`
-		SELECT agent_id, agent_type, session_id, cwd, parent_agent_id, created_at
-		FROM pending_subagent_starts WHERE agent_id = ?`, agentID).Scan(
-		&p.AgentID, &p.AgentType, &p.SessionID, &cwd, &parentAgentID, &p.CreatedAt)
-	if err == sql.ErrNoRows {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, err
-	}
-	p.CWD, p.ParentAgentID = cwd.String, parentAgentID.String
-	return &p, nil
 }

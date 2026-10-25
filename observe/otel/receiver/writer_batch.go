@@ -120,11 +120,9 @@ func (w *Writer) batchConn(ctx context.Context) (conn *sql.Conn, stmts *batchStm
 	//     want (no two BEGIN IMMEDIATE can ever overlap).
 	conn = w.conn
 	stmts = &batchStmts{
-		insert:      w.insertStmt,
-		sess:        w.sessStmt,
-		res:         w.resStmt,
-		placeholder: w.placeholderStmt,
-		upgrade:     w.upgradeStmt,
+		insert: w.insertStmt,
+		sess:   w.sessStmt,
+		res:    w.resStmt,
 	}
 	if !w.shared {
 		return conn, stmts, func() {}, nil
@@ -192,7 +190,6 @@ type batchWrite struct {
 	metricSessions   map[string]bool
 	featureCache     map[string]string
 	resObservedAt    int64
-	spanExists       map[string]bool
 	agentIDByOwnSpan map[string]string
 
 	inserted int
@@ -211,10 +208,6 @@ func newBatchWrite(ctx context.Context, w *Writer, conn *sql.Conn, stmts *batchS
 	// of signal count.
 	featureCache := map[string]string{}
 	resObservedAt := time.Now().UnixMicro()
-
-	// spanExists caches span_ids already present in otel_signals (within this
-	// transaction) so we only query the DB once per distinct span_id per batch.
-	spanExists := map[string]bool{}
 
 	// agentIDByOwnSpan maps span_id -> the span's own native "agent_id"
 	// attribute (feat-be696acc), built once up front from every signal in
@@ -236,7 +229,7 @@ func newBatchWrite(ctx context.Context, w *Writer, conn *sql.Conn, stmts *batchS
 		w: w, ctx: ctx, conn: conn, stmts: stmts,
 		harness: harness, resourceAttrs: resourceAttrs,
 		seen: seen, metricSessions: metricSessions, featureCache: featureCache,
-		resObservedAt: resObservedAt, spanExists: spanExists,
+		resObservedAt:    resObservedAt,
 		agentIDByOwnSpan: agentIDByOwnSpan,
 	}
 }
@@ -265,21 +258,6 @@ func (bw *batchWrite) writeSignal(s *otel.UnifiedSignal) error {
 	resolvedEarly := s.Kind == otel.KindSpan && s.CanonicalName == otel.CanonicalSubagent
 	if resolvedEarly {
 		agentID, featureID = bw.resolveIdentity(s)
-	}
-
-	// Placeholder upgrade: if this signal is the real Agent/subagent_invocation
-	// span, check whether a placeholder exists for the same span_id and update it
-	// rather than inserting a duplicate. This transparently promotes the placeholder
-	// written during orphan-span detection to a fully-attributed row.
-	if s.Kind == otel.KindSpan && s.CanonicalName == otel.CanonicalSubagent && s.SpanID != "" {
-		upgraded, upgradeErr := tryUpgradePlaceholder(bw.ctx, bw.stmts.upgrade, s, attrsJSON, successVal, featureID, agentID)
-		if upgradeErr != nil {
-			return fmt.Errorf("upgrade placeholder for span %s: %w", s.SpanID, upgradeErr)
-		}
-		if upgraded {
-			bw.inserted++
-			return nil
-		}
 	}
 
 	bw.repairParentage(s)
@@ -363,28 +341,17 @@ func (bw *batchWrite) upsertSessionOnce(sessionID string) error {
 	return nil
 }
 
-// repairParentage synthesises a placeholder for an orphan span's parent and
-// re-attributes mis-parented spans before INSERT.
+// repairParentage re-attributes mis-parented spans before INSERT. The
+// orphan-span placeholder that used to run here read pending_subagent_starts,
+// which no hook has written since feat-174dc958; it was removed in
+// feat-ddeaa0d1.
 func (bw *batchWrite) repairParentage(s *otel.UnifiedSignal) {
 	ctx, conn := bw.ctx, bw.conn
-	// Orphan span detection: when an incoming span has a parent_span that does
-	// not yet exist in otel_signals, synthesise a placeholder row so the
-	// dashboard renders the Agent node immediately instead of waiting minutes.
-	// Only attempt this when the signal carries wipnote.agent_id so we can
-	// look up pending_subagent_starts. Gracefully degrade when missing.
-	if s.Kind == otel.KindSpan && s.ParentSpan != "" {
-		if err2 := bw.w.maybeCreatePlaceholder(ctx, conn, bw.stmts.placeholder, s, bw.resourceAttrs, bw.spanExists, bw.resObservedAt); err2 != nil {
-			// Non-fatal: log via return path but don't block the real signal.
-			_ = err2
-		}
-	}
-
 	// Re-attribution: correct mis-parented spans before INSERT.
 	// Some subagent-emitted spans arrive with parent_span pointing to the
 	// interaction span instead of the Agent span due to a TRACEPARENT propagation
 	// gap in Claude Code. We detect and fix this here so otel_signals.parent_span
-	// is correct from the start. Two strategies (A: agent_id resource attr,
-	// B: overlap window) are applied in priority order.
+	// is correct from the start (overlap-window strategy).
 	if s.Kind == otel.KindSpan && s.ParentSpan != "" && s.CanonicalName != otel.CanonicalSubagent {
 		if newParent, reason := tryReattributeParent(ctx, conn, s, bw.resourceAttrs); newParent != "" {
 			log.Printf("reattribute: span=%s old_parent=%s new_parent=%s reason=%s",
