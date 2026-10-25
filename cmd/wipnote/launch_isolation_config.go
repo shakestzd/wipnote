@@ -1,11 +1,11 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 	"time"
+
+	"github.com/shakestzd/wipnote/core/paths"
 )
 
 // LaunchIsolationMode is the value of the .wipnote/config.json "launch_isolation"
@@ -45,12 +45,8 @@ type launchIsolationConfig struct {
 // called from within an isolated worktree where .wipnote/ may be absent or
 // git-excluded.
 func readLaunchIsolationMode(canonicalRoot string) LaunchIsolationMode {
-	data, err := os.ReadFile(filepath.Join(canonicalRoot, ".wipnote", "config.json"))
-	if err != nil {
-		return LaunchIsolationWarnOnly
-	}
 	var cfg launchIsolationConfig
-	if err := json.Unmarshal(data, &cfg); err != nil {
+	if !paths.ReadProjectConfig(canonicalRoot, &cfg) {
 		return LaunchIsolationWarnOnly
 	}
 	switch LaunchIsolationMode(cfg.LaunchIsolation) {

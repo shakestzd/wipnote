@@ -435,12 +435,8 @@ func readFileOverlapConfig(projectDir string) (warn, block bool) {
 	if projectDir == "" {
 		return warn, block
 	}
-	data, err := os.ReadFile(filepath.Join(projectDir, ".wipnote", "config.json"))
-	if err != nil {
-		return warn, block
-	}
 	var cfg fileOverlapConfig
-	if err := json.Unmarshal(data, &cfg); err != nil {
+	if !paths.ReadProjectConfig(projectDir, &cfg) {
 		return warn, block
 	}
 	if cfg.WarnOnFileOverlap != nil {

@@ -2,13 +2,11 @@ package db
 
 import (
 	"database/sql"
-	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/shakestzd/wipnote/core/models"
+	"github.com/shakestzd/wipnote/core/paths"
 )
 
 // DefaultFileOverlapWindow is the recency window for live file-overlap
@@ -104,21 +102,16 @@ func FindLiveFileOverlaps(db *sql.DB, filePath, excludeSessionID string, window 
 }
 
 // FileOverlapWindow returns the configured live file-overlap recency window.
-// Reads .wipnote/config.json under projectDir via the same local os.ReadFile
-// pattern as LivenessStalenessThreshold / readTaskCompletionConfig (there is
-// NO shared internal/config package). Falls back to DefaultFileOverlapWindow
+// Reads .wipnote/config.json under projectDir via paths.ReadProjectConfig.
+// Falls back to DefaultFileOverlapWindow
 // when the file is missing/unreadable, the key is absent, or the value is
 // non-positive.
 func FileOverlapWindow(projectDir string) time.Duration {
 	if projectDir == "" {
 		return DefaultFileOverlapWindow
 	}
-	data, err := os.ReadFile(filepath.Join(projectDir, ".wipnote", "config.json"))
-	if err != nil {
-		return DefaultFileOverlapWindow
-	}
 	var cfg fileOverlapConfig
-	if err := json.Unmarshal(data, &cfg); err != nil {
+	if !paths.ReadProjectConfig(projectDir, &cfg) {
 		return DefaultFileOverlapWindow
 	}
 	if cfg.WindowMinutes <= 0 {

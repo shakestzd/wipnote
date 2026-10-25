@@ -2,9 +2,7 @@ package hooks
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"time"
@@ -143,12 +141,8 @@ type taskCompletionConfig struct {
 // Returns false (do not block) when the file is missing, unreadable, or the
 // key is absent.
 func readTaskCompletionConfig(projectDir string) bool {
-	data, err := os.ReadFile(filepath.Join(projectDir, ".wipnote", "config.json"))
-	if err != nil {
-		return false
-	}
 	var cfg taskCompletionConfig
-	if err := json.Unmarshal(data, &cfg); err != nil {
+	if !paths.ReadProjectConfig(projectDir, &cfg) {
 		return false
 	}
 	return cfg.BlockOnQualityFailure
@@ -159,12 +153,8 @@ func readTaskCompletionConfig(projectDir string) bool {
 // the file is missing, unreadable, or the key is absent — preserving
 // backward-compatible default-off behavior.
 func ReadSpecEnforcement(projectDir string) SpecEnforcement {
-	data, err := os.ReadFile(filepath.Join(projectDir, ".wipnote", "config.json"))
-	if err != nil {
-		return SpecEnforcement{}
-	}
 	var cfg taskCompletionConfig
-	if err := json.Unmarshal(data, &cfg); err != nil {
+	if !paths.ReadProjectConfig(projectDir, &cfg) {
 		return SpecEnforcement{}
 	}
 	return cfg.SpecEnforcement

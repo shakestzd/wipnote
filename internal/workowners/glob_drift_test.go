@@ -27,7 +27,7 @@ func TestGlobCopies_Drift(t *testing.T) {
 		{"**/*.md", "docs/a/README.md", true, true},
 		{"cmd/**/*.go", "cmd/a/b/c.go", true, true},
 		{"cmd/**/*.go", "lib/a.go", false, false},
-		{"**", "any/path.go", false, true},         // ! bare ** is match-all only in arch
+		{"**", "any/path.go", false, true}, // ! bare ** is match-all only in arch
 	}
 	for _, c := range cases {
 		if got := matchPattern(c.glob, c.path); got != c.owners {
