@@ -1,12 +1,14 @@
 # wipnote-orchestra (dev mod)
 
-A Claude Code mod (function hooks) that turns the line under the prompt into an orchestration band: where you are, what is being worked on, and how the subagents are getting on with it. It also draws `wipnote-ref` fences in replies as work-item cards. It replaces the former wipnote-cards mod.
+A Claude Code mod (function hooks) that turns the line under the prompt into an orchestration band: where you are, what is being worked on, how the subagents are getting on with it, and the project's `wipnote delegate` runs. It also draws `wipnote-ref` fences in replies as work-item cards. It replaces the former wipnote-cards mod.
 
 ```
 ⏵⏵ auto mode on · (shift+tab to cycle) · esc to interrupt · ← for agents        ← Claude Code's own hint line, unchanged
   5h 42% resets 9:40 PM   7d 83% resets Fri 3:00 PM    Tue 20 · 7:40 PM        ← usage limits, then the clock
  ionna-rca   main !3 ⇡1  ✻ Opus 5.5  ctx 33%  Raw-data RCA agents [1/46]  → Routine setup script  ◉ 3 agents · ✔ 12 ✘ 1 
    ⚠ Explore no tool call for 6m12s  Survey workbench types  ↳ $ npm test         ← needs a look
+   ⇄ w1  codex · interactive  ● live  Working on it.                             ← delegate runs
+   ⇄ Fix the tests  ccx · oneshot  ✘ ended exit 2  ccx: failed in 3s
    ▸ Routine setup script 2/5 steps   ● 2 running  ✔ 1 done                     ← agents by work item
 ```
 
@@ -18,6 +20,7 @@ A Claude Code mod (function hooks) that turns the line under the prompt into an 
 | Limits | each rate-limit window (`5h`, `7d`, `spend`): % used, green/amber/red at 50/80, local reset time; then the clock: weekday, day of the month, local time (without a limits row, in compact or before limits are known, the clock is the last segment) | `$.session.usage().rateLimits`, `timeZone` |
 | Segments | repo/worktree name · git branch, dirty count, ahead/behind · model · context % · per track: title `[done/total]` · per work item: `→ title n/m` (steps), coloured by status · live agent count and the session's finished tally (`✔ done ✘ failed`) | `git`, `$.session.*`, `wipnote` |
 | Needs a look | a running agent quiet for 5 min: on one call that long (`◷ one call running for …`) or with no tool call at all (`⚠ no tool call for …`), with its last call; and a failed or stopped agent for 10 min (`✘`) | `tool.call`, `$.agent.list()` |
+| Delegate runs | one row per `wipnote delegate` run, one-shot or interactive (never one per pane or split): its name (interactive) or label, harness and mode, `● live` or ended (`✔ ended`, `✘ ended exit 2`, `■ ended (stop)`), and the first line of its `last.md`. Live runs first, then runs that ended in the last hour, newest first | `.wipnote/delegate/runs/`, `.wipnote/delegations-ledger.html` |
 | Work items | one row per work item the agents' briefs name: title, steps, and how many of its agents are running, waiting, done, failed (finished ones counted 90 s) | `agent.spawn`, `$.agent.list()`, `wipnote` |
 
 **No row per agent.** Claude Code's own agent panel under the prompt already lists every subagent with its time, tokens and current activity, and opens one with Enter (or from `/tasks`). The band only adds what that panel does not show: agents grouped by work item, a stall warning, failures that stay past the panel's 30 s, and a session tally.
@@ -28,7 +31,8 @@ Segments are powerline-style with rounded caps and **wrap between segments** to 
 
 - **Active work items**: the session's claim from `wipnote who --json` comes first. It is read at session start, after `/resume`, `/branch` or `/clear`, and after each turn; when `who` fails, the last claim stays. Then come the items started by shell commands any loop runs: `wipnote <feature|bug|spike|track> start <id>` adds, `… complete <id>` removes. A subagent's work item is the first `feat-/bug-/spk-/trk-` id in its brief.
 - **Titles and progress**: every 5 s, `wipnote <kind> show <id> --format json` per item (title, status, steps, `part_of` track) and `wipnote track show <trk>` per track (title and `(n/m done)`, which only the text form carries). Up to 12 items.
-- The band and the cards never write to wipnote.
+- **Delegate runs**: every second the band lists `.wipnote/delegate/runs/` and reads each open run's folder (`label`, `start`, `end`, `exit`, `last.md`; see `internal/delegate/runstore`), so a run folder Go writes shows within 2 s. A run has ended once its folder has an `exit` file or its ledger row is closed (a stopped worker has no exit code). Mode, harness and name come from the run's row in `.wipnote/delegations-ledger.html`, read again only when that file changes; a folder with no row shows its label alone. The project is found as wipnote's CLI finds it: `WIPNOTE_PROJECT_DIR`, else the main checkout of a git worktree, else the nearest folder with a `.wipnote/` up from the session's directory. Files only, so it works outside herdr.
+- The band and the cards never write to wipnote: the run reader only lists, stats and reads.
 
 ## Cards (`wipnote-ref`)
 
@@ -53,9 +57,12 @@ hooks/register.tsx           hooks: session.start timer, session claim, agent.sp
 hooks/refcards.tsx           wipnote-ref cards: fetch on reply and turn, the model rule, the AssistantMessage drawing
 hooks/refs.ts                pure helpers for cards: fence parsing, show argv, card parsing, TTL, refresh order
 hooks/band.tsx               the band's tree (pure: data + room → elements)
-hooks/model.ts               pure helpers: parsing (git, wipnote, hint), agents (by work item, needs a look, tally), layout (wrap, fit), formatting (time, limits)
+hooks/model.ts               pure helpers: parsing (git, wipnote, hint), agents (by work item, needs a look, tally), run rows, layout (wrap, fit), formatting (time, limits)
+hooks/runs.ts                delegate runs, read-only: run folders, the delegations ledger, the project lookup, which runs show
 types/index.d.ts             $.state contract (PluginState['wipnote-orchestra'])
 tests/*.test.ts(x)           claude plugin test suites (pure helpers + mounted band on terminal and desktop)
+tests/memfs.ts               an in-memory $.fs for the run tests, logging every fs op
+tests/fixtures/runs.ts       run folders and ledger rows written by the Go run store; generated, do not edit
 ```
 
 ## Run it
@@ -74,15 +81,25 @@ does not show there.
 
 ```bash
 claude plugin validate mods/wipnote-orchestra
-claude plugin test mods/wipnote-orchestra     # 34 tests
+claude plugin test mods/wipnote-orchestra     # 53 tests
 tsc -p mods/wipnote-orchestra                 # after a load lays .claude-plugin/types/
 ```
 
-Built on Claude Code 2.1.292 and checked on 2.1.303. The function-hooks API is early
+`tests/fixtures/runs.ts` is written by the Go run store, ledger and renderers, and
+`go test ./internal/delegate/render -run TestOrchestraFixture` fails when it drifts from
+what they write. To regenerate it after a run-folder or ledger change:
+
+```bash
+WIPNOTE_UPDATE_FIXTURES=1 go test ./internal/delegate/render -run TestOrchestraFixture
+```
+
+Built on Claude Code 2.1.292 and checked on 2.1.310. The function-hooks API is early
 access and changes between releases. `.claude-plugin/types/` is generated on each load
 and is not committed.
 
 It is not yet part of the generated plugin tree; shipping mods needs `build-ports` support.
+The mod stays at `mods/wipnote-orchestra`, and it is tracked and shipped as part of the
+`wipnote delegate` feature: its run rows replace the codex-herdr-pane mod's Claude Code run pane.
 
 ## Settings
 

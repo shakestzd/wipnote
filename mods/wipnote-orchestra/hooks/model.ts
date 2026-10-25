@@ -1,4 +1,4 @@
-import type { AgentRow, Limit, PromptInfo } from '../types'
+import type { AgentRow, Limit, PromptInfo, RunRow } from '../types'
 
 const ITEM = /\b(?:feat|bug|spk|trk)-[0-9a-f]{6,}\b/
 const WIPNOTE = /\bwipnote\s+(?:feature|bug|spike|track)\s+(start|complete)\s+((?:feat|bug|spk|trk)-[0-9a-f]+)/g
@@ -383,5 +383,23 @@ export function limitSpans(limits: readonly Limit[], now: number, zone: string =
     spans.push({ text: `${pct}%`, color, bold: true })
     if (reset !== '') spans.push({ text: ` resets ${reset}`, dim: true })
   })
+  return spans
+}
+
+/** A delegate run's state as the band says it: live, or ended and how. */
+function runState(row: RunRow): [string, string] {
+  if (row.state === 'live') return ['● live', '#5fd7ff']
+  if (row.exit === undefined) return [`■ ended${row.reason ? ` (${row.reason})` : ''}`, '#d75f00']
+  return row.exit === 0 ? ['✔ ended', '#5faf00'] : [`✘ ended exit ${row.exit}`, '#d70000']
+}
+
+/** One delegate run's row: its name or label, harness and mode, state, and the first line of its last.md. */
+export function runSpans(row: RunRow): Span[] {
+  const [state, color] = runState(row)
+  const spans: Span[] = [{ text: '   ⇄ ', color: '#87afd7' }, { text: clip(row.title, 40), color: '#87afd7', bold: true }]
+  const meta = [row.harness, row.mode].filter(Boolean).join(' · ')
+  if (meta !== '') spans.push({ text: `  ${meta}`, dim: true })
+  spans.push({ text: `  ${state}`, color })
+  if (row.answer !== '') spans.push({ text: `  ${row.answer}`, dim: true, italic: true })
   return spans
 }
