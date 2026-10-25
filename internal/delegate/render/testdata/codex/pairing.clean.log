@@ -1,0 +1,8 @@
+> echo one
+> echo two
+> echo three
+  = exit 0: OUT-two 
+  = exit 0: OUT-three 
+  = exit 0: OUT-one 
+> sleep 99
+  = exit 2: bad

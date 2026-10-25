@@ -1,0 +1,4 @@
+hello
+> Bash: echo `date`
+  = out ``` x
+--- success in 3s, 2 turns, 5 in / 7 out tokens, $0.01 ---

@@ -1,0 +1,10 @@
+I’ll run each command separately and modify nothing.
+
+> /bin/zsh -lc 'ls test | wc -l'
+  = exit 0:  230 
+> /bin/zsh -lc 'git rev-parse --short HEAD'
+  = exit 0: git: warning: confstr() failed with code 5: couldn't get path of DARWIN_USER_TEMP_DIR; using /tmp instead git: error: couldn't create cache file '/tmp/xcrun_db-uzPWrjBW' (errno=Operation not permitted...
+> /bin/zsh -lc 'head -c 60 package.json'
+  = exit 0: { "name": "ionna-artifact-kit", "version": "0.17.0", "
+230 entries in `test`; HEAD is `e26d6a1`; `package.json` starts with name `ionna-artifact-kit` and version `0.17.0`; nothing modified.
+--- done: input 56,940 (cached 41,856), output 161 ---
