@@ -28,12 +28,17 @@ func SubagentStart(event *CloudEvent) (*HookResult, error) {
 	return &HookResult{Continue: true}, nil
 }
 
-// SubagentStop handles the SubagentStop Claude Code hook event. It removes the
-// per-subagent hint file SubagentStart wrote. It is observe-only: CC would
-// read {decision:"block"} here, but there is no use-case to keep a subagent
-// running.
+// SubagentStop handles the SubagentStop Claude Code hook event. It records
+// calls denied inside the subagent as failed, from the subagent's own
+// transcript (feat-ddeaa0d1), and removes the per-subagent hint file
+// SubagentStart wrote. It is observe-only: CC would read {decision:"block"}
+// here, but there is no use-case to keep a subagent running.
 func SubagentStop(event *CloudEvent) (*HookResult, error) {
 	sessionID := resolveSessionIDWithHarness(event)
+	if sessionID != "" && event.AgentTranscriptPath != "" && event.Harness == HarnessClaude {
+		projectDir := ResolveProjectDir(event.CWD, event.SessionID)
+		recordClaudeTranscriptFailures(event, projectDir, sessionID, event.AgentTranscriptPath)
+	}
 	if sessionID != "" && event.AgentID != "" {
 		paths.CleanupSubagentHint(sessionID, event.AgentID)
 	}

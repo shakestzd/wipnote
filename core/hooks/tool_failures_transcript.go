@@ -8,8 +8,8 @@ import (
 	"strings"
 )
 
-// Stop and SessionEnd match unfinished tool-log starts to the transcript
-// (feat-ddeaa0d1). A call denied in the permission dialog, by a deny rule, or
+// Stop and SessionEnd match unfinished tool-log starts to the transcript, and
+// SubagentStop to the subagent's own transcript (feat-ddeaa0d1). A call denied in the permission dialog, by a deny rule, or
 // left unanswered fires no PermissionDenied, PostToolUse or
 // PostToolUseFailure hook, but the transcript records its tool_result: a user
 // entry whose content holds {"type":"tool_result","tool_use_id":...,
@@ -28,15 +28,23 @@ import (
 var transcriptTailBytes int64 = 4 << 20
 
 // recordTranscriptFailuresFor runs the transcript pass for a Stop or
-// SessionEnd event. Only Claude Code transcripts have this shape.
+// SessionEnd event over the main session's transcript.
 func recordTranscriptFailuresFor(event *CloudEvent, projectDir, sessionID string) {
-	if event == nil || event.TranscriptPath == "" {
+	if event == nil {
 		return
 	}
-	if event.Harness != HarnessClaude {
+	recordClaudeTranscriptFailures(event, projectDir, sessionID, event.TranscriptPath)
+}
+
+// recordClaudeTranscriptFailures runs the pass over one transcript. Only
+// Claude Code transcripts have this shape. SubagentStop passes the subagent's
+// own transcript (agent_transcript_path): a subagent's hooks carry the
+// parent's session_id, so its start lines are in the same tool log.
+func recordClaudeTranscriptFailures(event *CloudEvent, projectDir, sessionID, transcriptPath string) {
+	if transcriptPath == "" || event.Harness != HarnessClaude {
 		return
 	}
-	RecordTranscriptToolFailures(projectDir, sessionID, event.TranscriptPath)
+	RecordTranscriptToolFailures(projectDir, sessionID, transcriptPath)
 }
 
 // RecordTranscriptToolFailures writes a failed line for every unfinished start
