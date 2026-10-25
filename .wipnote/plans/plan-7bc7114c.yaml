@@ -7,7 +7,7 @@ meta:
     status: draft
     priority: medium
     schema_version: v4
-    version: 4
+    version: 5
 design:
     problem: ""
     goals: []
@@ -59,6 +59,23 @@ slices:
         - Every new upstream field cites its doc URL in agentFrontmatterFieldSpecs
         - wipnote plugin build-ports runs clean
       effort: S
+      risk: Low
+      tests: ""
+      approved: false
+      comment: ""
+    - id: slic-8ec9d410
+      num: 3
+      title: Delete dead code in cmd/wipnote
+      what: 'Remove code with no production caller (grep-verified by the audit): serve maintenance loops in config.go; backfill_ai_title.go; SQLite-era plan finalize (finalizeYAMLWithDB and friends); plan_css_scope.go; old plugin install/update helpers; dev-mode backup recovery; test-only gate wrappers; reindex purge helpers; renderSessionShow; small dead funcs; the discarded recap index upsert; Gemini and dashboard leftovers in code and help text. Delete the tests that only exercise them.'
+      why: About 2,000 production lines and as many test lines that slow every build and review and mislead readers.
+      files:
+        - cmd/wipnote
+      deps: []
+      done_when:
+        - golangci-lint unused reports nothing in cmd/wipnote
+        - No help text mentions the dashboard or serve
+        - Full test suite passes
+      effort: M
       risk: Low
       tests: ""
       approved: false
