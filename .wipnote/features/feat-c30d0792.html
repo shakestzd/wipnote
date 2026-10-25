@@ -13,7 +13,7 @@
              data-status="in-progress"
              data-priority="medium"
              data-created="2026-10-25T07:29:50.882443"
-             data-updated="2026-10-25T10:30:14.350537" data-agent-assigned="claude-code" data-track-id="trk-0677c709">
+             data-updated="2026-10-25T10:36:35.81587" data-agent-assigned="claude-code" data-track-id="trk-0677c709">
 
         <header>
             <h1>Speed up slow CLI paths</h1>
@@ -53,7 +53,8 @@
                 <li data-completed="true" data-step-id="step-feat-c30d0792-3" data-agent="claude-code" data-created-by-agent="claude-code">✅ session HTML: append events at the tail</li>
                 <li data-completed="true" data-step-id="step-feat-c30d0792-4" data-agent="claude-code" data-created-by-agent="claude-code">✅ Stop: backfill reads transcript from saved offset</li>
                 <li data-completed="true" data-step-id="step-feat-c30d0792-5" data-agent="claude-code" data-created-by-agent="claude-code">✅ statusline with open claim: time, keep off whole-project load</li>
-                <li data-completed="false" data-step-id="step-feat-c30d0792-6" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Timings after &#43; before/after table; gate all modules</li>
+                <li data-completed="true" data-step-id="step-feat-c30d0792-6" data-agent="claude-code" data-created-by-agent="claude-code">✅ Timings after &#43; before/after table; gate all modules</li>
+                <li data-completed="true" data-step-id="step-feat-c30d0792-7" data-agent="claude-code" data-created-by-agent="claude-code">✅ Before/after (median of 3; CLI rows on a clone of the repo at f8825a293, hook/blame rows are go benchmarks in core/hooks/perf_bench_test.go and internal/blame/areas_bench_test.go): feature complete feat-a559c3e6 1.845s -&gt; 1.476s (git log --all 4 -&gt; 1, diff-tree 4 -&gt; 2) | statusline --session with open claim 0.453s -&gt; 0.086s | code-areas --format json 1.656s -&gt; 1.312s (feature_files empty in the per-process projection) | WalkAreas 2000 files x 8000 rows 7.76s -&gt; 64ms | session HTML append 255KB 1.71ms -&gt; 17.7us, 2MB 16.6ms -&gt; 14.0us | Stop backfill 3MB 47.1ms -&gt; 0.93ms, 30MB 424.8ms -&gt; 0.95ms. check --gate phases: build 1.8s, vet 1.7s, test -short 94s (99s wall).</li>
             </ol>
         </section>
 
