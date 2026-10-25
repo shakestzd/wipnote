@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"github.com/shakestzd/wipnote/core/worktree"
 	"io"
 	"os"
 	"os/exec"
@@ -90,7 +91,7 @@ func TestEnsureForFeature_CreatesOnFirstCall(t *testing.T) {
 	dir := setupWorktreeGitRepo(t)
 	writeFeatureHTML(t, dir, "feat-aaa", "")
 
-	path, err := EnsureForFeature("feat-aaa", dir, io.Discard)
+	path, err := worktree.EnsureForFeature("feat-aaa", dir, io.Discard)
 	if err != nil {
 		t.Fatalf("EnsureForFeature: %v", err)
 	}
@@ -109,12 +110,12 @@ func TestEnsureForFeature_IdempotentSecondCall(t *testing.T) {
 	dir := setupWorktreeGitRepo(t)
 	writeFeatureHTML(t, dir, "feat-bbb", "")
 
-	path1, err := EnsureForFeature("feat-bbb", dir, io.Discard)
+	path1, err := worktree.EnsureForFeature("feat-bbb", dir, io.Discard)
 	if err != nil {
 		t.Fatalf("first EnsureForFeature: %v", err)
 	}
 
-	path2, err := EnsureForFeature("feat-bbb", dir, io.Discard)
+	path2, err := worktree.EnsureForFeature("feat-bbb", dir, io.Discard)
 	if err != nil {
 		t.Fatalf("second EnsureForFeature: %v", err)
 	}
@@ -130,7 +131,7 @@ func TestEnsureForFeature_WithParentTrack(t *testing.T) {
 	dir := setupWorktreeGitRepo(t)
 	writeFeatureHTML(t, dir, "feat-ccc", "trk-parent111")
 
-	path, err := EnsureForFeature("feat-ccc", dir, io.Discard)
+	path, err := worktree.EnsureForFeature("feat-ccc", dir, io.Discard)
 	if err != nil {
 		t.Fatalf("EnsureForFeature: %v", err)
 	}
@@ -153,12 +154,12 @@ func TestEnsureForFeature_WithParentTrack(t *testing.T) {
 func TestEnsureForTrack_Idempotent(t *testing.T) {
 	dir := setupWorktreeGitRepo(t)
 
-	path1, err := EnsureForTrack("trk-ttt111", dir, io.Discard)
+	path1, err := worktree.EnsureForTrack("trk-ttt111", dir, io.Discard)
 	if err != nil {
 		t.Fatalf("first EnsureForTrack: %v", err)
 	}
 
-	path2, err := EnsureForTrack("trk-ttt111", dir, io.Discard)
+	path2, err := worktree.EnsureForTrack("trk-ttt111", dir, io.Discard)
 	if err != nil {
 		t.Fatalf("second EnsureForTrack: %v", err)
 	}
@@ -181,7 +182,7 @@ func TestEnsureForAgent_ThreeArgSignature(t *testing.T) {
 	// First create the track branch that the agent will branch from
 	exec.Command("git", "-C", dir, "branch", "trk-agent111").Run() //nolint:errcheck
 
-	path, err := EnsureForAgent("trk-agent111", "slice-3", dir, io.Discard)
+	path, err := worktree.EnsureForAgent("trk-agent111", "slice-3", dir, io.Discard)
 	if err != nil {
 		t.Fatalf("EnsureForAgent: %v", err)
 	}
@@ -201,7 +202,7 @@ func TestEnsureForFeature_WriterReceivesProgress(t *testing.T) {
 	writeFeatureHTML(t, dir, "feat-ddd", "")
 
 	var buf bytes.Buffer
-	_, err := EnsureForFeature("feat-ddd", dir, &buf)
+	_, err := worktree.EnsureForFeature("feat-ddd", dir, &buf)
 	if err != nil {
 		t.Fatalf("EnsureForFeature: %v", err)
 	}
@@ -218,7 +219,7 @@ func TestEnsureForFeature_DiscardWriter(t *testing.T) {
 	writeFeatureHTML(t, dir, "feat-eee", "")
 
 	// Should not panic — just discard all output
-	_, err := EnsureForFeature("feat-eee", dir, io.Discard)
+	_, err := worktree.EnsureForFeature("feat-eee", dir, io.Discard)
 	if err != nil {
 		t.Fatalf("EnsureForFeature with Discard: %v", err)
 	}
@@ -282,7 +283,7 @@ func TestEnsureForTrackWithTitle_FeatureParentTrack(t *testing.T) {
 	}
 
 	// Call EnsureForTrackWithTitle (the titled path, not bare EnsureForTrack).
-	path, err := EnsureForTrackWithTitle(parentTitle, parentTrackID, dir, io.Discard)
+	path, err := worktree.EnsureForTrackTitled(parentTitle, parentTrackID, dir, io.Discard)
 	if err != nil {
 		t.Fatalf("EnsureForTrackWithTitle: %v", err)
 	}

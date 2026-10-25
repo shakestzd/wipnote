@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/shakestzd/wipnote/core/worktree"
+
 	dbpkg "github.com/shakestzd/wipnote/core/db"
 	"github.com/shakestzd/wipnote/core/htmlparse"
 	"github.com/shakestzd/wipnote/core/models"
@@ -443,7 +445,7 @@ func TestCompleteCommitsWipnoteArtifact(t *testing.T) {
 	featureID := "feat-test123"
 	writeFeatureHTML(t, mainRepo, featureID, "")
 
-	worktreePath, err := EnsureForFeature(featureID, mainRepo, io.Discard)
+	worktreePath, err := worktree.EnsureForFeature(featureID, mainRepo, io.Discard)
 	if err != nil {
 		t.Fatalf("EnsureForFeature: %v", err)
 	}

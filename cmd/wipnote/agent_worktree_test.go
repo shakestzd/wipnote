@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/shakestzd/wipnote/core/worktree"
 )
 
 func setupAgentGitRepo(t *testing.T) string {
@@ -44,7 +46,7 @@ func TestEnsureForAgent_BranchesFromTrackBranch(t *testing.T) {
 	exec.Command("git", "-C", dir, "branch", "track-abc").Run()
 
 	// Now create agent worktree branching from track-abc
-	path, err := EnsureForAgent("track-abc", "task1", dir, io.Discard)
+	path, err := worktree.EnsureForAgent("track-abc", "task1", dir, io.Discard)
 	if err != nil {
 		t.Fatalf("EnsureForAgent: %v", err)
 	}
@@ -69,7 +71,7 @@ func TestEnsureForAgent_PathNamingConvention(t *testing.T) {
 	// Create a track branch
 	exec.Command("git", "-C", dir, "branch", "mytrack").Run()
 
-	path, err := EnsureForAgent("mytrack", "my-task", dir, io.Discard)
+	path, err := worktree.EnsureForAgent("mytrack", "my-task", dir, io.Discard)
 	if err != nil {
 		t.Fatalf("EnsureForAgent: %v", err)
 	}
@@ -84,7 +86,7 @@ func TestEnsureForAgent_FailsWithoutTrackBranch(t *testing.T) {
 	dir := setupAgentGitRepo(t)
 
 	// Don't create track branch — agent should fail
-	_, err := EnsureForAgent("nonexistent-track", "task1", dir, io.Discard)
+	_, err := worktree.EnsureForAgent("nonexistent-track", "task1", dir, io.Discard)
 	if err == nil {
 		t.Error("expected error when track branch doesn't exist")
 	}
@@ -97,13 +99,13 @@ func TestEnsureForAgent_ReusesExistingPath(t *testing.T) {
 	exec.Command("git", "-C", dir, "branch", "track-reuse").Run()
 
 	// Create agent worktree
-	path1, err := EnsureForAgent("track-reuse", "task1", dir, io.Discard)
+	path1, err := worktree.EnsureForAgent("track-reuse", "task1", dir, io.Discard)
 	if err != nil {
 		t.Fatalf("first EnsureForAgent: %v", err)
 	}
 
 	// Try to create the same agent worktree again
-	path2, err := EnsureForAgent("track-reuse", "task1", dir, io.Discard)
+	path2, err := worktree.EnsureForAgent("track-reuse", "task1", dir, io.Discard)
 	if err != nil {
 		t.Fatalf("second EnsureForAgent: %v", err)
 	}
