@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/shakestzd/wipnote/core/filelock"
+	"github.com/shakestzd/wipnote/core/fsprobe"
 )
 
 // DirName is the git-tracked directory holding the claim ledger shards.
@@ -341,6 +342,7 @@ func closeWorkItemInShard(s *Store, path, workItemID string, outcome Outcome, en
 
 // Shards returns the per-session shard paths, sorted, excluding the archive.
 func (s *Store) Shards() ([]string, error) {
+	fsprobe.Touch(fsprobe.OpRead, s.dir)
 	entries, err := os.ReadDir(s.dir)
 	if err != nil {
 		if os.IsNotExist(err) {

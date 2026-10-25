@@ -70,11 +70,9 @@ func persistWorkitemArtifactTransition(wipnoteDir, typeName, id, action string) 
 	}
 }
 
-// skipWipnoteGitMutation reports whether a git mutation rooted at wipnoteDir
-// must be skipped: either the path looks like a Go test scratch directory
-// (defense-in-depth against a mis-configured test committing for real) or the
-// project is not in a git repository. label names the caller in the skip notice.
-func skipWipnoteGitMutation(wipnoteDir, label string) bool {
+// skipWipnoteGitMutationPath is the path-only half of skipWipnoteGitMutation:
+// it refuses a test scratch directory and spawns nothing.
+func skipWipnoteGitMutationPath(wipnoteDir, label string) bool {
 	absWipnote, err := filepath.Abs(wipnoteDir)
 	if err != nil {
 		absWipnote = wipnoteDir
@@ -83,6 +81,17 @@ func skipWipnoteGitMutation(wipnoteDir, label string) bool {
 		if os.Getenv("WIPNOTE_DEBUG") == "1" {
 			fmt.Fprintf(stderr, "%s skipped: path looks like a test temp dir: %s\n", label, absWipnote)
 		}
+		return true
+	}
+	return false
+}
+
+// skipWipnoteGitMutation reports whether a git mutation rooted at wipnoteDir
+// must be skipped: either the path looks like a Go test scratch directory
+// (defense-in-depth against a mis-configured test committing for real) or the
+// project is not in a git repository. label names the caller in the skip notice.
+func skipWipnoteGitMutation(wipnoteDir, label string) bool {
+	if skipWipnoteGitMutationPath(wipnoteDir, label) {
 		return true
 	}
 	if !isGitRepo(filepath.Dir(wipnoteDir)) {

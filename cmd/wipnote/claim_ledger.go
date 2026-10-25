@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -40,8 +39,8 @@ func initClaimLedgerCommitSeam() {
 // how work-item artifacts behave under that same opt-in.
 func persistClaimLedgerWrite(wipnoteDir, relPath, action string) {
 	msg := "wipnote: record claim " + action
-	switch workitemArtifactCommitPolicyForEnv() {
-	case workitemArtifactCommitPolicyDefer:
+	switch policy := workitemArtifactCommitPolicyForEnv(); {
+	case policy == workitemArtifactCommitPolicyDefer || (commitIntentLight.Load() && policy != workitemArtifactCommitPolicyNone):
 		if err := enqueueClaimLedgerCommitIntent(wipnoteDir, relPath, msg); err != nil && os.Getenv("WIPNOTE_DEBUG") == "1" {
 			fmt.Fprintf(stderr, "claim ledger commit defer: %v\n", err)
 		}
@@ -53,11 +52,7 @@ func persistClaimLedgerWrite(wipnoteDir, relPath, action string) {
 }
 
 func enqueueClaimLedgerCommitIntent(wipnoteDir, relPath, msg string) error {
-	repoRoot := filepath.Dir(wipnoteDir)
-	if skipWipnoteGitMutation(wipnoteDir, "claim ledger commit defer") {
-		return nil
-	}
-	return recordCommitIntent(repoRoot, []string{relPath}, msg, "", "claim")
+	return enqueueLedgerCommitIntent(wipnoteDir, relPath, msg, "claim", "claim ledger commit defer")
 }
 
 // claimLedgerStore returns the store for the project containing wipnoteDir.

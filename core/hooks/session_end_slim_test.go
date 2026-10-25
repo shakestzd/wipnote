@@ -116,6 +116,7 @@ func TestGC_SessionEnd_RemovesEmptySpike(t *testing.T) {
 	if _, err := SessionEnd(&CloudEvent{SessionID: sessionID, CWD: projectDir, Reason: "prompt_input_exit"}, database, projectDir); err != nil {
 		t.Fatalf("SessionEnd: %v", err)
 	}
+	CatchUpEndedSessions(database, projectDir, "", true) // deferred handoff, features, telemetry (bug-1daed6d6)
 
 	var status string
 	if err := database.QueryRow(`SELECT status FROM features WHERE id = ?`, spikeID).Scan(&status); err != nil {
@@ -439,6 +440,7 @@ func TestSessionEnd_WritesStructuredHandoff(t *testing.T) {
 	if _, err := SessionEnd(&CloudEvent{SessionID: sessionID, CWD: projectDir, Reason: "prompt_input_exit"}, database, projectDir); err != nil {
 		t.Fatalf("SessionEnd: %v", err)
 	}
+	CatchUpEndedSessions(database, projectDir, "", true) // deferred handoff, features, telemetry (bug-1daed6d6)
 
 	sess, err := db.GetSession(database, sessionID)
 	if err != nil {

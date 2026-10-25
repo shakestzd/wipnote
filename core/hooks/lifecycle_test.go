@@ -353,6 +353,7 @@ func TestSessionEndPopulatesFeaturesWorkedOn(t *testing.T) {
 	if _, err := SessionEnd(endEvent, database, projectDir); err != nil {
 		t.Fatalf("SessionEnd: %v", err)
 	}
+	CatchUpEndedSessions(database, projectDir, "", true) // deferred handoff, features, telemetry (bug-1daed6d6)
 
 	// Verify features_worked_on is populated.
 	var featJSON sql.NullString
@@ -518,6 +519,7 @@ func TestSessionEndHandoffFilesFromCanonicalLog(t *testing.T) {
 	if _, err := SessionEnd(&CloudEvent{SessionID: sessionID, CWD: projectDir}, database, projectDir); err != nil {
 		t.Fatalf("SessionEnd: %v", err)
 	}
+	CatchUpEndedSessions(database, projectDir, "", true) // deferred handoff, features, telemetry (bug-1daed6d6)
 	sess, err := db.GetSession(database, sessionID)
 	if err != nil || sess == nil {
 		t.Fatalf("GetSession: %v", err)

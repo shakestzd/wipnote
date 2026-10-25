@@ -13,7 +13,6 @@ import (
 
 	"github.com/shakestzd/wipnote/core/claimledger"
 	"github.com/shakestzd/wipnote/core/db"
-	"github.com/shakestzd/wipnote/core/paths"
 	"github.com/shakestzd/wipnote/core/sessionledger"
 	"github.com/shakestzd/wipnote/core/worktree"
 )
@@ -51,7 +50,7 @@ type sessionHandoffContext struct {
 }
 
 // SessionEnd handles the SessionEnd Claude Code hook event.
-// It marks the session as completed and records the end commit.
+// It records the session's end durably and closes its ledger row and claims.
 //
 // Cross-harness session-end coverage (feat-793844bd slice-4 part c):
 //   - Claude Code: native SessionEnd event → this handler.
@@ -70,113 +69,37 @@ type sessionHandoffContext struct {
 // invented Codex-specific hook is needed: TaskComplete already covers the
 // graceful path, and heartbeat-recency + lease reap cover the abrupt path.
 //
-// Design: cheap critical writes run FIRST so that if Claude Code 2.1.156+
-// cancels this handler mid-flight, the important state is already persisted.
-// Steps that Stop already performs (FinalizeSessionHTML, backfillMissedUserPrompts,
-// runSessionExitReconcile) are intentionally omitted here to avoid duplicated work.
+// Design (bug-1daed6d6): Claude Code gives a plugin SessionEnd hook 1.5s and
+// ignores the "timeout" in hooks.json, then cancels it. So this handler does
+// only what must survive: the durable end note first, then the ledger row and
+// the claim episodes, then one SIGTERM to the collector. Everything else (end
+// commit, handoff, lineage, features worked on, spike-worktree cleanup, the
+// collector drain, the telemetry finalize) runs in CatchUpEndedSessions, which
+// reads the note and is idempotent. Steps that Stop already performs
+// (FinalizeSessionHTML, backfillMissedUserPrompts, runSessionExitReconcile) are
+// intentionally omitted here to avoid duplicated work.
 func SessionEnd(event *CloudEvent, database *sql.DB, projectDir string) (*HookResult, error) {
 	sessionID := EnvSessionID(event.SessionID)
 	if sessionID == "" {
 		return &HookResult{Continue: true}, nil
 	}
 
-	endCommit := headCommit(projectDir)
-	now := time.Now().UTC().Format(time.RFC3339)
-
-	// --- CRITICAL WRITES FIRST (survive cancellation) ---
-
-	// Mark session completed with end commit.
-	_, err := database.Exec(`
-		UPDATE sessions
-		SET status = 'completed',
-		    completed_at = ?,
-		    end_commit = COALESCE(NULLIF(?, ''), end_commit)
-		WHERE session_id = ?`,
-		now, endCommit, sessionID,
-	)
-	if err != nil {
-		debugLog(projectDir, "[error] handler=session-end session=%s: update sessions: %v", sessionID[:minLen(sessionID, 8)], err)
+	// 1. The durable end note, before anything that can be slow. If the harness
+	// cancels this hook at any later point, catch-up finishes from the note.
+	RecordSessionEndNote(event, projectDir)
+	note, ok := ReadSessionEndNote(projectDir, sessionID)
+	if !ok {
+		note = SessionEndNote{SessionID: sessionID, EndedAt: time.Now().UTC().Format(time.RFC3339Nano), Reason: event.Reason, TranscriptPath: event.TranscriptPath}
 	}
 
-	// Store transcript_path and termination reason if provided.
-	if event.TranscriptPath != "" || event.Reason != "" {
-		_, _ = database.Exec(`
-			UPDATE sessions
-			SET transcript_path = COALESCE(NULLIF(?, ''), transcript_path),
-			    metadata = json_set(COALESCE(metadata, '{}'), '$.end_reason', ?)
-			WHERE session_id = ?`,
-			event.TranscriptPath, event.Reason, sessionID,
-		)
-	}
+	// 2. The essential writes, all local file or in-memory work: no git, no
+	// full ledger scan, no waiting on another process.
+	applySessionEndToProjection(database, projectDir, note)
+	closeSessionClaimsAndLedger(projectDir, note)
 
-	// Release all active claims held by this session.
-	if released, err := db.ReleaseAllClaimsForSession(database, sessionID); err != nil {
-		debugLog(projectDir, "[error] handler=session-end session=%s: release claims: %v", sessionID[:minLen(sessionID, 8)], err)
-	} else if released > 0 {
-		debugLog(projectDir, "[wipnote] session-end: released %d claims for session %s", released, sessionID[:minLen(sessionID, 8)])
-	}
-
-	// Give every episode this session still holds an END. Without it the
-	// interval stays open forever and is not queryable AS an interval — see
-	// closeClaimEpisodesForSession.
-	closeClaimEpisodesForSession(database, projectDir, sessionID, claimledger.OutcomeAbandoned)
-
-	// Stamp the end on the session's canonical ledger row. The row already
-	// exists (SessionStart wrote it), so this only closes the interval — the
-	// session's durability never depended on reaching this line.
-	recordSessionLedgerClose(projectDir, sessionID, time.Now().UTC())
-
-	// --- SESSIONEND-UNIQUE STEPS (best-effort after critical writes) ---
-
-	var featuresWorkedOn []string
-
-	// Populate features_worked_on from distinct feature_ids in agent_events.
-	if feats, fErr := db.DistinctFeatureIDs(database, sessionID); fErr == nil && len(feats) > 0 {
-		featuresWorkedOn = feats
-		if featsJSON, jErr := json.Marshal(feats); jErr == nil {
-			database.Exec(`UPDATE sessions SET features_worked_on = ? WHERE session_id = ?`,
-				string(featsJSON), sessionID)
-		}
-	}
-
-	if err := persistSessionEndHandoff(database, sessionID, event, projectDir, featuresWorkedOn); err != nil {
-		debugLog(projectDir, "[error] handler=session-end session=%s: persist handoff: %v", sessionID[:minLen(sessionID, 8)], err)
-	}
-
-	// Mark lineage trace complete so tree queries show accurate status.
-	if err := db.CompleteLineageTrace(database, sessionID); err != nil {
-		debugLog(projectDir, "[error] handler=session-end session=%s: complete lineage trace: %v", sessionID[:minLen(sessionID, 8)], err)
-	}
-
-	// Clean up the session-scoped project dir hint file now that this session is ending.
-	paths.CleanupSessionHint(sessionID)
-
-	// Signal the per-session OTel collector to drain and exit (Q3 primary layer).
-	// NOTE: Stop does NOT signal the collector; this step is SessionEnd-unique.
-	signalCollector(projectDir, sessionID)
-
-	// With the collector gone the session's NDJSON is final. Ingest it,
-	// materialize the OTel rollup, and only then mark it consumed so retention
-	// and prune may archive it. Bounded by telemetryFinalizeBudget; a session
-	// the budget cannot cover is finished by the catch-up pass that runs before
-	// every retention sweep. Injected (feat-331927fb) so core hooks don't import
-	// otel directly; a nil fn means telemetry isn't wired.
-	if SessionTelemetryFn != nil {
-		if err := SessionTelemetryFn(projectDir, sessionID, telemetryFinalizeBudget()); err != nil {
-			debugLog(projectDir, "[error] handler=session-end session=%s: finalize telemetry: %v", sessionID[:minLen(sessionID, 8)], err)
-		}
-	}
-
-	if err := cleanupEmptySpikeWorktreeOnSessionEnd(database, projectDir, sessionID); err != nil {
-		debugLog(projectDir, "[error] handler=session-end session=%s: cleanup empty spike worktree: %v", sessionID[:minLen(sessionID, 8)], err)
-	}
-
-	// NOTE: FinalizeSessionHTML, backfillMissedUserPrompts, and
-	// runSessionExitReconcile are intentionally absent here — Stop already
-	// performs all three on every per-turn stop event, and port-drift
-	// reconciliation now runs at commit-time (bug-3fb22f7e). Duplicating them
-	// in SessionEnd wastes time and risks double-work when Claude Code cancels
-	// this handler mid-flight.
+	// 3. One SIGTERM to the collector, no wait. Draining it, the telemetry
+	// finalize, the handoff and the rest run in CatchUpEndedSessions.
+	termCollector(projectDir, sessionID)
 
 	return &HookResult{Continue: true}, nil
 }
@@ -932,6 +855,14 @@ func ReapStaleSessionsAndCollectors(database *sql.DB, projectDir, currentSession
 	}
 	ttl := ReaperSessionTTL(projectDir)
 	now := time.Now().UTC().Format(time.RFC3339)
+
+	// --- (0) finish sessions whose SessionEnd hook was cancelled or deferred ---
+	// They hold an end note, so they close with their real end time and outcome
+	// instead of falling through to the OutcomeExpired path below. maxSessions>0
+	// marks the synchronous hook path, which must stay cheap (shallow).
+	if !reportOnly {
+		_ = CatchUpEndedSessions(database, projectDir, currentSessionID, maxSessions <= 0)
+	}
 
 	// --- (a) reap stale sessions ---
 	sessions, err := db.ListSessions(database, true /*activeOnly*/, 1_000_000)
