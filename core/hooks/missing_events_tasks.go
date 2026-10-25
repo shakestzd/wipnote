@@ -1,18 +1,6 @@
 package hooks
 
-import (
-	"database/sql"
-	"fmt"
-)
-
-// taskCompletionGateEnabled holds the TaskCompleted quality gate off
-// (feat-174dc958). The gate runs the project's test command (or its guard
-// profile) synchronously inside the hook for up to 60s and, when
-// block_task_completion_on_quality_failure is set, blocks the task with exit
-// 2. It was unreachable while the active work item came from the dead hook
-// database; reviving the step mirror must not silently revive it. Turning it
-// on is the owner's call.
-const taskCompletionGateEnabled = false
+import "database/sql"
 
 // taskFields is the subject and description a task event carries, typed
 // field first, then the task_data map.
@@ -57,8 +45,9 @@ func TaskCreated(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 }
 
 // TaskCompleted handles the TaskCompleted Claude Code hook event. It ticks the
-// step TaskCreated mirrored. The quality gate is held off; see
-// taskCompletionGateEnabled. database is unused.
+// step TaskCreated mirrored and never blocks: hooks do not gate on quality,
+// `wipnote check --gate` does that on demand (feat-726637b8). database is
+// unused.
 func TaskCompleted(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 	_ = database
 	sessionID := EnvSessionID(event.SessionID)
@@ -66,27 +55,8 @@ func TaskCompleted(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 		return &HookResult{Continue: true}, nil
 	}
 	subject, description := taskFields(event)
-	featureID := taskStepTarget(event, sessionID, subject, description)
-	if taskCompletionGateEnabled && featureID != "" {
-		if err := taskCompletionGateBlock(event, featureID); err != nil {
-			return nil, err
-		}
-	}
-	if featureID != "" {
+	if featureID := taskStepTarget(event, sessionID, subject, description); featureID != "" {
 		completeTaskStepFn(featureID, event.TaskID)
 	}
 	return &HookResult{Continue: true}, nil
-}
-
-// taskCompletionGateBlock runs the opt-in quality gate and returns the block
-// error when it fails and blocking is configured.
-func taskCompletionGateBlock(event *CloudEvent, featureID string) error {
-	projectDir := ResolveProjectDir(event.CWD, event.SessionID)
-	gate := runTaskCompletionGateFn(projectDir)
-	if gate.Passed || !readTaskCompletionConfig(projectDir) {
-		return nil
-	}
-	return &BlockExit2Error{Message: fmt.Sprintf("Quality gate %q failed. "+
-		"To complete this task manually after fixing: wipnote feature complete %s",
-		gate.GateName, featureID)}
 }

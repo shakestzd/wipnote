@@ -25,26 +25,11 @@ func taskClaimProject(t *testing.T, sessionID string, claim bool) string {
 	return projectDir
 }
 
-// stubTaskCompletionGate records whether the TaskCompleted quality gate ran.
-func stubTaskCompletionGate(t *testing.T) *int {
-	t.Helper()
-	calls := 0
-	prev := runTaskCompletionGateFn
-	runTaskCompletionGateFn = func(string) taskCompletionGateResult {
-		calls++
-		return taskCompletionGateResult{Passed: true}
-	}
-	t.Cleanup(func() { runTaskCompletionGateFn = prev })
-	return &calls
-}
-
 // TestTaskHooks_MirrorStepsFromTheClaimLedger pins the task-step rewire
 // (feat-174dc958): the active work item comes from the canonical claim
 // ledger, not the hook database. With an open claim, a task naming the work
 // item creates and completes its step; with no claim, a task naming no work
-// item, or mirroring turned off, neither happens. The
-// quality gate stays off either way: it runs the project's test command
-// synchronously inside the hook and is held until the owner decides.
+// item, or mirroring turned off, neither happens.
 func TestTaskHooks_MirrorStepsFromTheClaimLedger(t *testing.T) {
 	for _, tc := range []struct {
 		name, subject, steps string
@@ -61,7 +46,6 @@ func TestTaskHooks_MirrorStepsFromTheClaimLedger(t *testing.T) {
 			projectDir := taskClaimProject(t, sid, tc.claim)
 			t.Setenv("WIPNOTE_TASK_STEPS", tc.steps)
 			addCalls, completeCalls := stubTaskStepFns(t)
-			gateCalls := stubTaskCompletionGate(t)
 			ev := &CloudEvent{SessionID: sid, CWD: projectDir, TaskID: "t-claim", TaskSubject: tc.subject}
 			if _, err := TaskCreated(ev, nil); err != nil {
 				t.Fatalf("TaskCreated: %v", err)
@@ -71,9 +55,6 @@ func TestTaskHooks_MirrorStepsFromTheClaimLedger(t *testing.T) {
 			}
 			if *addCalls != tc.want || *completeCalls != tc.want {
 				t.Errorf("add=%d complete=%d, want %d each", *addCalls, *completeCalls, tc.want)
-			}
-			if *gateCalls != 0 {
-				t.Errorf("quality gate ran %d time(s); it must stay off", *gateCalls)
 			}
 		})
 	}
