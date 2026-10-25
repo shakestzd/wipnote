@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"path/filepath"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -187,14 +186,8 @@ It is idempotent and safe to run at any time.`,
 			if err != nil {
 				return err
 			}
-			database, err := openDB(dir)
-			if err != nil {
-				return err
-			}
-			defer database.Close()
-
 			store := claimLedgerStore(dir)
-			res, rErr := store.Reconcile(claimLedgerLivePredicate(database, filepath.Dir(dir)), time.Time{})
+			res, rErr := store.Reconcile(claimLedgerLivePredicate(dir), time.Time{})
 			if rErr != nil {
 				return rErr
 			}
@@ -227,15 +220,9 @@ open; an open episode blocks its shard from ever becoming eligible.`,
 			if err != nil {
 				return err
 			}
-			database, err := openDB(dir)
-			if err != nil {
-				return err
-			}
-			defer database.Close()
-
 			cutoff := time.Now().UTC().Add(-time.Duration(olderThanDays) * 24 * time.Hour)
 			store := claimLedgerStore(dir)
-			res, aErr := store.Archive(cutoff, claimLedgerLivePredicate(database, filepath.Dir(dir)), apply)
+			res, aErr := store.Archive(cutoff, claimLedgerLivePredicate(dir), apply)
 			if aErr != nil {
 				return aErr
 			}

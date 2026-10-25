@@ -188,27 +188,28 @@ func claimLedgerWarn(format string, args ...any) {
 }
 
 // claimLedgerLivePredicate reports whether a root session is still running,
-// reusing the existing heartbeat-derived liveness signal rather than trusting
-// sessions.status — a crashed session stays 'active' there forever, which is
-// exactly the case reconcile has to catch.
-func claimLedgerLivePredicate(database *sql.DB, projectDir string) claimledger.LivePredicate {
-	if database == nil {
-		return func(string) bool { return false }
+// using the sessions-ledger rule shared with liveForeignClaims: a root session
+// is live until it has an EndedAt. The claims-table heartbeat cannot be used
+// here: ledger-projected claims carry a 1970 heartbeat, so a heartbeat
+// predicate would call every live session dead. A session missing from the
+// sessions ledger, or an unreadable ledger, counts as live — closing or
+// archiving a running session would corrupt a real interval.
+func claimLedgerLivePredicate(wipnoteDir string) claimledger.LivePredicate {
+	recs, err := sessionledger.NewStore(wipnoteDir).ReadAll()
+	if err != nil {
+		return func(string) bool { return true }
 	}
-	window := dbpkg.LivenessStalenessThreshold(projectDir)
+	ended := make(map[string]bool, len(recs))
+	for _, r := range recs {
+		ended[r.SessionID] = !r.IsOpen()
+	}
 	current := hooks.EnvSessionID("")
 	return func(rootSessionID string) bool {
-		if rootSessionID == "" {
-			// No identity to check — treat as live. Closing or archiving a session
-			// that is actually running would corrupt a real interval, whereas
-			// leaving it open just defers the repair to the next pass.
+		// No identity to check, or the session doing the reconciling: live.
+		if rootSessionID == "" || (current != "" && rootSessionID == current) {
 			return true
 		}
-		// Never reconcile or archive the session doing the reconciling.
-		if current != "" && rootSessionID == current {
-			return true
-		}
-		return dbpkg.SessionLivenessByHeartbeat(database, rootSessionID, window)
+		return !ended[rootSessionID]
 	}
 }
 
