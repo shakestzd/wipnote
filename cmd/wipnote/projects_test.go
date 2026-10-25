@@ -196,7 +196,6 @@ func TestProjectsList_CreatesNoSQLiteArtifacts(t *testing.T) {
 	assertNoSQLiteArtifacts(t, realProject)
 }
 
-
 // TestPruneSince_3d_RemovesOlder verifies that --since 3d removes entries older
 // than 3 days while keeping recent ones.
 func TestPruneSince_3d_RemovesOlder(t *testing.T) {

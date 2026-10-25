@@ -32,7 +32,7 @@ func newTestEvent(id string) *models.AgentEvent {
 // This is today's behaviour preserved (MVP-3 is purely additive when the
 // daemon is down).
 func TestSubmitDerivedEvent_FallbackWritesViaDirectOpen(t *testing.T) {
-	t.Setenv("WIPNOTE_NO_AUTO_WRITER", "1") // deterministic: no spawn, straight to fallback
+	t.Setenv("WIPNOTE_NO_AUTO_WRITER", "1")   // deterministic: no spawn, straight to fallback
 	projectRoot := hermeticFallbackProject(t) // no .wipnote/writer.sock here
 	database, err := db.Open(filepath.Join(projectRoot, "fallback.db"))
 	if err != nil {
