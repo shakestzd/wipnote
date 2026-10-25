@@ -247,15 +247,17 @@ func hookSubcmd(
 }
 
 // hookSubcmdReadOnly is hookSubcmd for the hot hooks that route EVERY
-// derived-index write through the daemon and use their DB handle ONLY for reads
-// (roborev-473 finding 1: user-prompt, pretooluse, stop). It opens the project DB
-// READ-ONLY (hooks.OpenHookDBReadOnly) instead of the writable OpenHookDB, so the
-// hot path never pays a writable open + cold-DB migration under contention. On a
-// genuine daemon miss the handlers' write routing (routeHookWriteVia /
-// RouteHookWrite) transparently opens its own bounded writable handle, so the
-// derived write is still persisted; canonical NDJSON + reindex remain the
-// backstop. A read-only open failure is logged + counted as writer_unavailable
-// and falls through to the fallback HookResult (Claude Code sees SUCCESS).
+// derived-index write through the daemon and never read anything a hook could
+// have written (user-prompt, pretooluse, posttooluse, posttooluse-record). They
+// get NO database handle (feat-af8d1689).
+//
+// They used to get a fresh in-memory tables-only projection, which no hook
+// ever hydrates: every read through it returned zero rows, and building its
+// ~100 tables was about half of each call's in-process time. These handlers
+// treat a nil handle exactly as that empty projection (pinned by
+// TestReadOnlyHooks_NilMatchesEmptyProjection in core/hooks), so dropping it
+// changes no output. Writes still go daemon-first; on a daemon miss
+// routeHookWriteVia opens its own bounded writable handle as before.
 func hookSubcmdReadOnly(
 	use, short string,
 	fallback *hooks.HookResult,
@@ -270,30 +272,7 @@ func hookSubcmdReadOnly(
 				if !hooks.IswipnoteProject(projectDir) {
 					return fallback, nil
 				}
-				dbPath, err := hooks.DBPath(projectDir)
-				if err != nil {
-					hooks.LogError(use, event.SessionID,
-						fmt.Sprintf("DBPath failed: %v", err))
-					return fallback, nil
-				}
-				// Finding 1 (roborev-478 round-3): when the truly-read-only open
-				// yields no usable handle (first run, deleted cache, DB not yet
-				// created, or a transient lock), do NOT skip the handler — that
-				// would silently bypass the DB-INDEPENDENT safety guards
-				// (pretooluse's .wipnote/-write block, the cd/divergence guards,
-				// the yolo work-item guard). Instead invoke the handler with a
-				// nil DB so those guards still run in guard-only mode; the
-				// read-only-dispatched handlers (user-prompt, pretooluse) are
-				// nil-DB-safe — every DB-dependent read no-ops / returns empty
-				// when database == nil — and route any write through the daemon
-				// regardless of this handle.
-				database, reason := hooks.OpenHookDBReadOnly(use, event.SessionID, dbPath)
-				if database != nil {
-					defer database.Close()
-				} else {
-					_ = reason // already logged + counted inside OpenHookDBReadOnly
-				}
-				return handler(event, database)
+				return handler(event, nil)
 			})
 		},
 	}

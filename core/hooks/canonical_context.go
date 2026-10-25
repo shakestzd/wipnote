@@ -11,9 +11,10 @@ import (
 // Canonical replacements for the tool-use facts the hot hooks used to read from
 // the derived SQLite index.
 //
-// Since the feat-fc3cc9e0 cutover the PreToolUse hook opens an EMPTY in-memory
-// projection (OpenHookDBReadOnly → db.OpenEphemeralProjectionTablesOnly), so
-// every sessions/claims/agent_events read through that handle returns nothing.
+// Since the feat-fc3cc9e0 cutover the PreToolUse hook has had no hydrated
+// index: it opened an EMPTY in-memory projection, and since feat-af8d1689 it
+// gets no handle at all, so every sessions/claims/agent_events read answers
+// nothing.
 // bug-369da005 repaired checkYoloWorkItemGuard by reading the canonical claim
 // ledger; the helpers here give the sibling subagent guards the same treatment
 // (bug-7036b94f / GH-#87, bug-2e5081b4 / GH-#88): the claim a subagent inherits

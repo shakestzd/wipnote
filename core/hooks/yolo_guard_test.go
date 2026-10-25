@@ -1694,8 +1694,8 @@ func TestCheckYoloWorktreeGuardWIPNOTEYOLO(t *testing.T) {
 // bug-369da005.
 //
 // It reproduces the exact post-cutover condition: the derived index handed to
-// the guard is an EMPTY projection (what OpenHookDBReadOnly returns now that
-// there is no per-project SQLite file), while the canonical claim ledger holds
+// the guard is an EMPTY projection (what the hot hooks read before
+// feat-af8d1689 dropped the handle altogether), while the canonical claim ledger holds
 // a genuine open episode. Before the canonical check existed, checks 1-3 all
 // read that empty index, returned false, and the guard — which fails closed —
 // blocked every Write/Edit in every session on the machine.
@@ -1707,11 +1707,10 @@ func TestCheckYoloWorkItemGuardReadsCanonicalClaimLedger(t *testing.T) {
 		t.Fatalf("mkdir .wipnote: %v", err)
 	}
 
-	// An EMPTY tables-only projection is precisely what the hook read path
-	// supplies post-cutover. Using the real thing keeps this test honest: if
-	// the projection ever starts hydrating again, the test still passes for
-	// the right reason.
-	database, err := db.OpenEphemeralProjectionTablesOnly()
+	// An EMPTY projection is what the hook read path supplied post-cutover.
+	// Using the real thing keeps this test honest: if the projection ever
+	// starts hydrating again, the test still passes for the right reason.
+	database, err := db.OpenEphemeralProjection()
 	if err != nil {
 		t.Fatalf("open ephemeral projection: %v", err)
 	}

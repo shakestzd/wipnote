@@ -971,12 +971,12 @@ func runOneHookUnderHeldLock(t *testing.T, run int, lockDB *sql.DB, dbPath strin
 	defer release()
 
 	// Handle selection is FAITHFUL per hook (bug-d792aee6, bug-c9ec25a4, roborev-473):
-	//   - readonly: hooks.OpenHookDBReadOnly — the real handle the hot hooks that
-	//     route EVERY write through the daemon and read-only-dispatch in production
-	//     open (roborev-473 finding 1: pretooluse, user-prompt). A read-only handle
-	//     never contends the held write lock, and any daemon-miss write transparently
-	//     opens its own bounded handle (routeViaOwnBoundedHandle) — so a sub-second
-	//     result here is genuine proof the primary write routed enqueue-only.
+	//   - readonly: NO handle — what the hot hooks that route EVERY write through
+	//     the daemon get in production (feat-af8d1689: pretooluse, user-prompt). No
+	//     handle never contends the held write lock, and any daemon-miss write
+	//     transparently opens its own bounded handle (routeViaOwnBoundedHandle) — so
+	//     a sub-second result here is genuine proof the primary write routed
+	//     enqueue-only.
 	//   - production: hooks.OpenHookDB (5s busy_timeout) — the real handle a
 	//     production hook subprocess opens for hooks that STILL hold a writable handle
 	//     (subagent-start: its finding-3 applied-ack pending fallback writes through
@@ -988,16 +988,18 @@ func runOneHookUnderHeldLock(t *testing.T, run int, lockDB *sql.DB, dbPath strin
 	var hookDB *sql.DB
 	switch hc.handleKind {
 	case "readonly":
-		hookDB, _ = hooks.OpenHookDBReadOnly(hc.name, hc.sessionID, dbPath)
+		// hookDB stays nil, as hookSubcmdReadOnly dispatches it.
 	case "production":
 		hookDB, _ = hooks.OpenHookDB(hc.name, hc.sessionID, dbPath)
 	default: // "bounded"
 		hookDB, _ = hooks.OpenHookDBWithBusyTimeout(hc.name, hc.sessionID, dbPath, hotHookBusyTimeout)
 	}
-	if hookDB == nil {
+	if hookDB == nil && hc.handleKind != "readonly" {
 		t.Fatalf("run %d: %s: Open%s hook handle returned nil", run, hc.name, hc.handleKind)
 	}
-	defer hookDB.Close()
+	if hookDB != nil {
+		defer hookDB.Close()
+	}
 
 	// APPLIED-ACK hooks (subagent-start, session-start — roborev-473 findings 3 & 5)
 	// wait for the daemon to COMMIT their consumer-coupled write. The daemon cannot

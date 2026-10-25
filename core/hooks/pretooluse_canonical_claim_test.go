@@ -1,6 +1,7 @@
 package hooks
 
 import (
+	"database/sql"
 	"os"
 	"path/filepath"
 	"strings"
@@ -52,11 +53,7 @@ func TestPreToolUse_SubagentWriteInheritsCanonicalClaim(t *testing.T) {
 	t.Setenv("CLAUDE_PROJECT_DIR", "")
 	t.Setenv("WIPNOTE_PROJECT_DIR", projectDir)
 
-	database, reason := OpenHookDBReadOnly("pretooluse", sessionID, ":memory:")
-	if database == nil {
-		t.Fatalf("OpenHookDBReadOnly returned nil handle (reason=%s)", reason)
-	}
-	t.Cleanup(func() { _ = database.Close() })
+	var database *sql.DB // hot hooks dispatch with no handle (feat-af8d1689)
 
 	writeEvent := &CloudEvent{
 		SessionID:      sessionID,
@@ -116,11 +113,7 @@ func TestPreToolUse_CodexSubagentInheritsFamilyRootClaim(t *testing.T) {
 	}
 	openCanonicalClaim(t, wipnoteDir, rootSession, rootSession, "codex", "bug-family-root")
 
-	database, _ := OpenHookDBReadOnly("pretooluse", childSession, ":memory:")
-	if database == nil {
-		t.Fatal("OpenHookDBReadOnly returned nil handle")
-	}
-	t.Cleanup(func() { _ = database.Close() })
+	var database *sql.DB // hot hooks dispatch with no handle (feat-af8d1689)
 
 	result, err := PreToolUse(&CloudEvent{
 		SessionID:      childSession,

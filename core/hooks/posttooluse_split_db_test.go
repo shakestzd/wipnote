@@ -115,15 +115,11 @@ func newSplitDBHarness(t *testing.T, sessionID string) *splitDBHarness {
 	}
 }
 
-// runPre dispatches PreToolUse on a fresh read-only projection handle, the
-// way hookSubcmdReadOnly does in production.
+// runPre dispatches PreToolUse with no handle, the way hookSubcmdReadOnly
+// does in production.
 func (h *splitDBHarness) runPre(t *testing.T, ev *CloudEvent) *HookResult {
 	t.Helper()
-	ro, reason := OpenHookDBReadOnly("pretooluse", h.sessionID, h.diskPath)
-	if ro == nil {
-		t.Fatalf("OpenHookDBReadOnly: nil (reason=%s)", reason)
-	}
-	defer ro.Close()
+	var ro *sql.DB // hot hooks dispatch with no handle (feat-af8d1689)
 	res, err := PreToolUse(ev, ro)
 	if err != nil {
 		t.Fatalf("PreToolUse: %v", err)
@@ -134,15 +130,11 @@ func (h *splitDBHarness) runPre(t *testing.T, ev *CloudEvent) *HookResult {
 	return res
 }
 
-// runPost dispatches PostToolUse on a fresh read-only projection handle, the
-// way hookSubcmdReadOnly dispatches it in production since bug-07fd4a51 step 5.
+// runPost dispatches PostToolUse with no handle, the way hookSubcmdReadOnly
+// dispatches it in production.
 func (h *splitDBHarness) runPost(t *testing.T, ev *CloudEvent) *HookResult {
 	t.Helper()
-	ro, reason := OpenHookDBReadOnly("posttooluse", h.sessionID, h.diskPath)
-	if ro == nil {
-		t.Fatalf("OpenHookDBReadOnly: nil (reason=%s)", reason)
-	}
-	defer ro.Close()
+	var ro *sql.DB // hot hooks dispatch with no handle (feat-af8d1689)
 	res, err := PostToolUse(ev, ro)
 	if err != nil {
 		t.Fatalf("PostToolUse: %v", err)
@@ -287,11 +279,7 @@ func TestPostToolUseForHarness_ClaudeSplit(t *testing.T) {
 		_ = h.daemonDB.QueryRow(`SELECT status FROM agent_events WHERE event_id = ?`, toolCallEventID(h.sessionID, id)).Scan(&s)
 		return s
 	}
-	ro := func() *sql.DB {
-		d, _ := OpenHookDBReadOnly("posttooluse", h.sessionID, h.diskPath)
-		t.Cleanup(func() { d.Close() })
-		return d
-	}
+	ro := func() *sql.DB { return nil } // hot hooks dispatch with no handle (feat-af8d1689)
 
 	// Claude respond half: warning, but no row and no HTML entry.
 	res, _ := PostToolUseForHarness(mk("toolu_claude", HarnessClaude), ro())

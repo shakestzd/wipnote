@@ -105,14 +105,19 @@ func UserPrompt(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 // routed through the daemon-first enqueue path (plan-2390966a slice-4) so it
 // never opens a direct writable handle when the daemon is reachable and degrades
 // to a <1s bounded fallback otherwise.
+//
+// A nil database (the hot-hook dispatch, feat-af8d1689) has no row to find, so
+// it routes the backfill exactly as the empty projection it replaced did.
 func ensureSessionExists(database *sql.DB, projectDir, sessionID string, event *CloudEvent) {
-	if sessionID == "" || database == nil {
+	if sessionID == "" {
 		return
 	}
-	var exists int
-	database.QueryRow("SELECT 1 FROM sessions WHERE session_id = ?", sessionID).Scan(&exists) //nolint:errcheck
-	if exists == 1 {
-		return
+	if database != nil {
+		var exists int
+		database.QueryRow("SELECT 1 FROM sessions WHERE session_id = ?", sessionID).Scan(&exists) //nolint:errcheck
+		if exists == 1 {
+			return
+		}
 	}
 	now := time.Now().UTC().Format(time.RFC3339)
 	agentID := resolveEventAgentID(event)
