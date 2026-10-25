@@ -14,10 +14,9 @@ import (
 // openSessionHookDB selects the writable hook handle for the three session
 // handlers dispatched by hookSubcmdWithProject (roborev-476 finding 3).
 //
-// session-start runs on the launcher's post-selection critical path and its only
-// remaining direct write (the bounded orphan sweep db.MarkEventAborted, which
-// needs RowsAffected and so cannot be routed enqueue-only) must fail-fast under a
-// held external write lock — so it takes a SHORT bounded busy_timeout
+// session-start runs on the launcher's post-selection critical path and its
+// remaining direct writes (the end-note catch-up) must fail-fast under a held
+// external write lock — so it takes a SHORT bounded busy_timeout
 // (SessionStartBusyTimeout ~750ms) rather than stalling the interactive launcher
 // on the default 5s. Every other session-phase handler (session-end,
 // session-resume, exit-plan-mode) keeps the default 5s OpenHookDB; they are not

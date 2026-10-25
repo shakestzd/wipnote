@@ -42,6 +42,8 @@ func recordEventAndAllow(event *CloudEvent, ctx *toolUseContext, database *sql.D
 		Agent:   ctx.AgentID,
 		Summary: inputSummary,
 		Input:   toolInputStr,
+		ID:      toolCallEventID(ctx.SessionID, event.ToolUseID),
+		TS:      toolLogNow().Unix(),
 	})
 
 	routeClaimBookkeeping(event, ctx)

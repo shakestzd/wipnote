@@ -195,15 +195,11 @@ func persistStartedSession(event *CloudEvent, database *sql.DB, projectDir, sess
 	// what an implemented_in edge resolves against. The ledger can.
 	recordSessionLedgerOpen(projectDir, s)
 
-	// Sweep orphans from any previous sessions in this project — closes out
-	// tool calls that crashed mid-flight so session history stays consistent.
-	// BOUNDED on the hot path (bug-504095f2): cap the number of orphans
-	// processed so a large crash backlog cannot stall the launcher behind a
-	// multi-second sweep. The serve-side periodic drain clears any remainder
-	// out-of-band; when the cap is hit we log the residual for observability.
-	if appended, discovered := SweepOrphanedEventsForProjectCapped(database, projectDir, SessionStartSweepCap); discovered >= SessionStartSweepCap {
-		debugLog(projectDir, "[session-start] capped orphan sweep at %d (appended=%d); backlog drains via serve",
-			SessionStartSweepCap, appended)
+	// Record tool calls that never completed in recently active sessions as
+	// aborted, from the canonical tool log (feat-174dc958). Bounded: at most
+	// SessionStartSweepCap per launch; the rest wait for the next one.
+	if n := SweepOrphanedToolCalls(projectDir, sessionID, time.Now().UTC(), SessionStartSweepCap); n > 0 {
+		debugLog(projectDir, "[session-start] recorded %d orphaned tool call(s) as aborted", n)
 	}
 }
 

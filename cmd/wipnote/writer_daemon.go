@@ -289,11 +289,10 @@ const telemetryCatchUpBudget = 2 * time.Minute
 //     canonical data. claim_episodes is hydrated but carries no
 //     last_heartbeat_at, so it is not a substitute: "episode still open" is not
 //     "heartbeat within N minutes".
-//   - ORPHAN DRAIN — OFF. hooks.SweepOrphanedEventsForProject selects from
-//     agent_events (event_repo.go:392), which the projection never hydrates, so
-//     it finds zero orphans on every pass. This one fails CLOSED — an empty
-//     table means it sweeps nothing — so it is harmless, but it would pay a
-//     full project hydrate every five minutes to guarantee finding nothing.
+//   - ORPHAN DRAIN — DELETED (feat-174dc958). Orphaned tool calls are now
+//     found from the canonical tool log at session start
+//     (core/hooks/tool_orphan_sweep.go); agent_events, which the old drain
+//     read, is never hydrated.
 //   - REAPER — DELETED (feat-174dc958). Its guards read tables no hook or
 //     daemon path fills (claims heartbeats, sessions status), so it could not
 //     tell a live session from a dead one except by pid file. Nothing reaps

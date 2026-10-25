@@ -46,11 +46,17 @@ const (
 // canonicalToolEvent is one recorded tool call: the minimum the guards classify
 // on. Field names are short because every tool call in every session pays for
 // them.
+//
+// ID and TS (unix seconds) let the session-start orphan sweep pair a start
+// with its completion line (tool_orphan_sweep.go). A completion line has no
+// "t" field, so every reader below skips it.
 type canonicalToolEvent struct {
 	Tool    string `json:"t"`
 	Agent   string `json:"a,omitempty"`
 	Summary string `json:"s,omitempty"`
 	Input   string `json:"i,omitempty"`
+	ID      string `json:"id,omitempty"`
+	TS      int64  `json:"ts,omitempty"`
 }
 
 // canonicalToolLogPath is the log for one session.
@@ -151,9 +157,10 @@ func readCanonicalToolEvents(projectDir, sessionID string) (events []canonicalTo
 	return events, len(events) > 0
 }
 
-// canonicalToolEventCount is the number of events recorded in sessionID's own
-// canonical tool log: 0 when there is none. It counts complete lines rather
-// than parsing them, since Stop calls it on every model turn.
+// canonicalToolEventCount is the number of tool calls recorded in sessionID's
+// own canonical tool log: 0 when there is none. It counts lines that open with
+// the "t" field rather than parsing them, since Stop calls it on every model
+// turn; completion lines open with "id" and are not counted.
 func canonicalToolEventCount(projectDir, sessionID string) int {
 	if projectDir == "" || sessionID == "" {
 		return 0
@@ -162,8 +169,17 @@ func canonicalToolEventCount(projectDir, sessionID string) int {
 	if err != nil {
 		return 0
 	}
-	return bytes.Count(data, []byte{'\n'})
+	n := bytes.Count(data, []byte("\n"+toolCallLinePrefix))
+	if bytes.HasPrefix(data, []byte(toolCallLinePrefix)) {
+		n++
+	}
+	return n
 }
+
+// toolCallLinePrefix opens every tool-call line: encoding/json writes struct
+// fields in order and Tool is first. A quote inside a value is escaped, so
+// the prefix cannot occur mid-line.
+const toolCallLinePrefix = `{"t":`
 
 // canonicalToolEventScope is the set of sessions whose logs answer for
 // sessionID: the session itself plus its family root, which is where a

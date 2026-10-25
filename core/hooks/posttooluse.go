@@ -80,6 +80,9 @@ func postToolUseRecord(event *CloudEvent, ctx *toolUseContext, database *sql.DB)
 	// by "newest started row with this tool name", which mis-pairs parallel
 	// calls to the same tool.
 	eventID := recordToolCompletion(event, ctx, database, status, outputSummary)
+	// Pair the PreToolUse start line in the canonical tool log, so the
+	// session-start orphan sweep knows this call finished (feat-174dc958).
+	appendToolCompletion(ctx.ProjectDir, ctx.SessionID, toolCallEventID(ctx.SessionID, event.ToolUseID), status)
 
 	// Append event to session HTML activity log (non-critical, errors silently logged).
 	AppendEventToSessionHTML(ctx.ProjectDir, ctx.SessionID, SessionEvent{

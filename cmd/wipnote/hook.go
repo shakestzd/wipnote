@@ -314,15 +314,12 @@ func hookSubcmdWithProject(
 				//   - session-start runs on the launcher's post-selection critical
 				//     path. It routes every session/lineage/event/family write through
 				//     the daemon (RouteHookWrite / routeSQLApplied) and uses this handle
-				//     for READS plus ONE residual direct write — the bounded orphan sweep
-				//     (SweepOrphanedEventsForProjectCapped → db.MarkEventAborted), whose
-				//     atomic started→aborted transition needs RowsAffected and so cannot
-				//     be routed enqueue-only. Because that write still touches this
-				//     handle, session-start takes a BOUNDED handle
-				//     (SessionStartBusyTimeout ~750ms): under a held external write lock
-				//     the orphan-sweep UPDATE fail-fasts in well under a second (the
-				//     residual orphan drains out-of-band via serve) instead of stalling
-				//     the interactive launcher ~5s.
+				//     for READS plus the catch-up's direct writes for sessions whose end
+				//     hook was cancelled. It takes a BOUNDED handle
+				//     (SessionStartBusyTimeout ~750ms) so a held external write lock
+				//     fail-fasts in well under a second instead of stalling the
+				//     interactive launcher ~5s. The orphan-tool sweep reads and writes
+				//     only the canonical tool log (feat-174dc958).
 				//   - session-end / session-resume / exit-plan-mode keep the default 5s
 				//     OpenHookDB: they are not on the post-selection critical path and
 				//     their residual writes (FinalizeSessionHTML, runSessionExitReconcile)
