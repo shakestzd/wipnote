@@ -9,6 +9,7 @@ import (
 
 	"github.com/shakestzd/wipnote/core/graph"
 	"github.com/shakestzd/wipnote/core/models"
+	"github.com/shakestzd/wipnote/core/projection"
 	"github.com/shakestzd/wipnote/core/workitem"
 )
 
@@ -72,7 +73,7 @@ func buildEdgePropertyFixture(t *testing.T) string {
 			"blocked_by": {
 				{
 					// Plan authoring order, not an asserted dependency:
-					// graph.FindBottlenecks must keep excluding it after a
+					// Snapshot.Bottlenecks must keep excluding it after a
 					// rebuild, which it can only do if origin survives.
 					TargetID:     propsPlanBlock,
 					Relationship: models.RelBlockedBy,
@@ -166,13 +167,11 @@ func TestReindex_BottlenecksStayFilteredAcrossRebuild(t *testing.T) {
 
 func assertBottleneckFiltering(t *testing.T, projectDir, stage string) {
 	t.Helper()
-	db := openCachedDB(t, projectDir)
-	defer db.Close()
-
-	results, err := graph.FindBottlenecks(db)
+	snap, err := projection.Load(filepath.Join(projectDir, ".wipnote"))
 	if err != nil {
-		t.Fatalf("%s: FindBottlenecks: %v", stage, err)
+		t.Fatalf("%s: load projection: %v", stage, err)
 	}
+	results := snap.Bottlenecks()
 	counts := map[string]int{}
 	for _, r := range results {
 		counts[r.ID] = r.BlockCount

@@ -35,18 +35,16 @@ func TestSessionLedger_LedgerOnlySessionRenders(t *testing.T) {
 	defer database.Close()
 
 	// The reader — graph.QueryBuilder.resolveNodes, reached through the public
-	// entry point `wipnote lineage` uses.
-	results, err := graph.NewQuery(database).From(deriveLedgerSession).Execute()
-	if err != nil {
-		t.Fatalf("graph query for %s: %v", deriveLedgerSession, err)
+	// entry point graph.ResolveToMap.
+	results := graph.ResolveToMap(database, nil, []string{deriveLedgerSession})
+	got, ok := results[deriveLedgerSession]
+	if !ok || len(results) != 1 {
+		t.Fatalf("resolving %s returned %v, want exactly that node", deriveLedgerSession, results)
 	}
-	if len(results) != 1 {
-		t.Fatalf("graph query for %s returned %d nodes, want 1", deriveLedgerSession, len(results))
+	if got.Type != "session" {
+		t.Errorf("resolveNodes: type = %q, want %q", got.Type, "session")
 	}
-	if results[0].Type != "session" {
-		t.Errorf("resolveNodes: type = %q, want %q", results[0].Type, "session")
-	}
-	assertRenderableTitle(t, "resolveNodes", deriveLedgerSession, results[0].Title)
+	assertRenderableTitle(t, "resolveNodes", deriveLedgerSession, got.Title)
 
 	// CONTROL — a session with neither a ledger row nor telemetry must still
 	// have nothing to render. Without this the assertions above would pass just
@@ -55,10 +53,7 @@ func TestSessionLedger_LedgerOnlySessionRenders(t *testing.T) {
 	// resolveNodes reads the sessions table as-is, so the pruned session's
 	// tombstone row may come back as a node; the removed provenance reader
 	// filtered tombstones out. Either way it must carry no renderable title.
-	pruned, err := graph.NewQuery(database).From(derivePrunedSession).Execute()
-	if err != nil {
-		t.Fatalf("graph query for %s: %v", derivePrunedSession, err)
-	}
+	pruned := graph.ResolveToMap(database, nil, []string{derivePrunedSession})
 	for _, n := range pruned {
 		if title := strings.TrimSpace(n.Title); title != "" && title != derivePrunedSession {
 			t.Errorf("a pruned session with NO ledger row rendered anyway: %s title=%q.\n"+
