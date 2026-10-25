@@ -17,8 +17,8 @@ import (
 	dbpkg "github.com/shakestzd/wipnote/core/db"
 	"github.com/shakestzd/wipnote/core/db/writequeue"
 	"github.com/shakestzd/wipnote/core/hooks"
-	"github.com/shakestzd/wipnote/observe/otel/finalize"
 	otelreceiver "github.com/shakestzd/wipnote/observe/otel/receiver"
+	"github.com/shakestzd/wipnote/observe/otel/retention"
 	"github.com/spf13/cobra"
 )
 
@@ -295,11 +295,18 @@ func startWriterMaintenance(ctx context.Context, wipnoteDir string) {
 	startDrainLoop(ctx, retentionSweepInterval, func() {
 		withFreshProjection(wipnoteDir, "retention", func(database *sql.DB) {
 			dryRun := os.Getenv("WIPNOTE_RETENTION_DRYRUN") == "1"
-			if _, err := finalize.Sweep(database, wipnoteDir, "", dryRun, telemetryCatchUpBudget); err != nil {
+			if !dryRun {
+				runTelemetryCatchUp(ctx, projectRoot)
+			}
+			if _, err := retention.Sweep(database, wipnoteDir, "", dryRun); err != nil {
 				log.Printf("retention: sweep: %v", err)
 			}
 		})
 	})
+
+	// Telemetry catch-up: the guarantee that every shard gets its marker, since
+	// SessionEnd finalize can be cut off. Startup, then every 10m.
+	startTelemetryCatchUpLoop(ctx, telemetryCatchUpInterval, projectRoot)
 
 	// Out-of-band reconcile drain (feat-c08d1ba1 slice-6). No projection: the
 	// callee ignores the handle and reads canonical artifacts directly, so

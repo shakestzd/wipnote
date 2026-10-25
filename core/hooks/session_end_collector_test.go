@@ -214,3 +214,59 @@ func TestSignalCollector_LauncherShard(t *testing.T) {
 		t.Error("launcher collector was not signaled")
 	}
 }
+
+// The writer records "<pid>\n<starttime>". The two-line file must parse to the
+// pid, not be rejected as invalid.
+func TestSignalCollectorDir_TwoLinePIDFile(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("SIGTERM not available on Windows")
+	}
+	prev := CollectorAliveFn
+	t.Cleanup(func() { CollectorAliveFn = prev })
+	CollectorAliveFn = nil
+
+	cmd := exec.Command("sleep", "30")
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	exited := make(chan struct{})
+	go func() { _ = cmd.Wait(); close(exited) }()
+	t.Cleanup(func() { _ = cmd.Process.Kill() })
+
+	dir := t.TempDir()
+	sessDir := filepath.Join(dir, ".wipnote", "sessions", "sess-two")
+	if err := os.MkdirAll(sessDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	body := fmt.Sprintf("%d\n3574637\n", cmd.Process.Pid)
+	if err := os.WriteFile(filepath.Join(sessDir, ".collector-pid"), []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	signalCollectorDir(dir, "sess-two")
+	select {
+	case <-exited:
+	case <-time.After(5 * time.Second):
+		t.Fatal("two-line PID file was not parsed: collector never signalled")
+	}
+}
+
+// With the liveness seam wired, a dead or reused pid is never signalled.
+func TestSignalCollectorDir_UsesAliveGuard(t *testing.T) {
+	prev := CollectorAliveFn
+	t.Cleanup(func() { CollectorAliveFn = prev })
+	CollectorAliveFn = func(string) (bool, int) { return false, 4242 }
+
+	dir := t.TempDir()
+	sessDir := filepath.Join(dir, ".wipnote", "sessions", "sess-reuse")
+	if err := os.MkdirAll(sessDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	pidPath := filepath.Join(sessDir, ".collector-pid")
+	if err := os.WriteFile(pidPath, []byte(fmt.Sprintf("%d\n1\n", os.Getpid())), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	signalCollectorDir(dir, "sess-reuse") // would SIGTERM the test binary if unguarded
+	if _, err := os.Stat(pidPath); !os.IsNotExist(err) {
+		t.Fatal("stale pid file not removed")
+	}
+}

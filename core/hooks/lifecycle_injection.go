@@ -45,4 +45,11 @@ var (
 	// with NO start-time check): ReapCollector gates every kill on IsCollectorAlive,
 	// so a reused pid is never signalled.
 	ReapCollectorFn func(sessDir string, grace time.Duration) (pid int, reaped bool)
+
+	// CollectorAliveFn reports whether the .collector-pid under sessDir names a
+	// live collector, parsing the writer's "<pid>\n<starttime>" format and
+	// checking the start time against pid reuse. Wired to
+	// collector.IsCollectorAlive by observe/register. nil falls back to reading
+	// the pid line alone.
+	CollectorAliveFn func(sessDir string) (alive bool, pid int)
 )
