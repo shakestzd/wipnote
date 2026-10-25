@@ -5,14 +5,15 @@ import (
 	"html/template"
 	"io"
 	"strings"
+	"sync"
 
 	"github.com/shakestzd/wipnote/plan/blocks"
 	"github.com/shakestzd/wipnote/plan/planyaml"
 )
 
-var visualOverviewTmpl = template.Must(
-	template.ParseFS(templateFS, "templates/visual_overview_zone.gohtml"),
-)
+var visualOverviewTmpl = sync.OnceValue(func() *template.Template {
+	return template.Must(template.ParseFS(templateFS, "templates/visual_overview_zone.gohtml"))
+})
 
 // overviewBlock is one rendered block in the visual overview, carrying slice
 // attribution and the stable anchor so the rendered block links down to its
@@ -157,7 +158,7 @@ func (z *VisualOverviewZone) Render(w io.Writer) error {
 	if len(gs) == 0 {
 		return nil
 	}
-	return visualOverviewTmpl.ExecuteTemplate(w, "visual_overview_zone", struct {
+	return visualOverviewTmpl().ExecuteTemplate(w, "visual_overview_zone", struct {
 		Groups []overviewGroup
 	}{Groups: gs})
 }

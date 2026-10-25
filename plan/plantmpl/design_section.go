@@ -3,11 +3,12 @@ package plantmpl
 import (
 	"html/template"
 	"io"
+	"sync"
 )
 
-var designTmpl = template.Must(
-	template.ParseFS(templateFS, "templates/design_section.gohtml"),
-)
+var designTmpl = sync.OnceValue(func() *template.Template {
+	return template.Must(template.ParseFS(templateFS, "templates/design_section.gohtml"))
+})
 
 // DesignSection renders the design rationale zone containing
 // architecture notes and design decisions.
@@ -17,5 +18,5 @@ type DesignSection struct {
 
 // Render writes the design section HTML.
 func (d *DesignSection) Render(w io.Writer) error {
-	return designTmpl.Execute(w, d)
+	return designTmpl().Execute(w, d)
 }

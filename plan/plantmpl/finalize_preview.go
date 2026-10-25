@@ -3,11 +3,12 @@ package plantmpl
 import (
 	"html/template"
 	"io"
+	"sync"
 )
 
-var finalizePreviewTmpl = template.Must(
-	template.ParseFS(templateFS, "templates/finalize_preview.gohtml"),
-)
+var finalizePreviewTmpl = sync.OnceValue(func() *template.Template {
+	return template.Must(template.ParseFS(templateFS, "templates/finalize_preview.gohtml"))
+})
 
 // FinalizePreview renders the finalization preview zone showing
 // all features ready for dispatch with their approval status.
@@ -25,7 +26,7 @@ type PreviewFeature struct {
 
 // Render writes the finalize preview zone HTML.
 func (fp *FinalizePreview) Render(w io.Writer) error {
-	return finalizePreviewTmpl.Execute(w, fp)
+	return finalizePreviewTmpl().Execute(w, fp)
 }
 
 // ApprovedCount returns the number of approved features.
