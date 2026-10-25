@@ -10,20 +10,26 @@
 <body>
     <article id="feat-26de6e94"
              data-type="feature"
-             data-status="todo"
+             data-status="in-progress"
              data-priority="medium"
              data-created="2026-10-25T07:29:50.418003"
-             data-updated="2026-10-25T07:29:50.432358" data-agent-assigned="claude-code" data-track-id="trk-0677c709">
+             data-updated="2026-10-25T10:41:04.683211" data-agent-assigned="claude-code" data-track-id="trk-0677c709">
 
         <header>
             <h1>Delete dead code in core</h1>
             <div class="metadata">
-                <span class="badge status-todo">Todo</span>
+                <span class="badge status-in-progress">In Progress</span>
                 <span class="badge priority-medium">Medium Priority</span>
             </div>
         </header>
 
         <nav data-graph-edges>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="../sessions/1c92d9d4-85b0-5403-a06e-93312ec46faf.html" data-relationship="implemented_in" data-since="2026-10-25T09:59:18.953176">session 1c92d9d4-85b0-5403-a06e-93312ec46faf</a></li>
+                </ul>
+            </section>
             <section data-edge-type="part_of">
                 <h3>Part Of:</h3>
                 <ul>
@@ -38,9 +44,25 @@
             </section>
         </nav>
 
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="true" data-step-id="step-feat-26de6e94-0" data-agent="claude-code" data-created-by-agent="claude-code">✅ Record deadcode baseline (core 319, total 344)</li>
+                <li data-completed="true" data-step-id="step-feat-26de6e94-1" data-agent="claude-code" data-created-by-agent="claude-code">✅ Delete core/graph SQL query layer and tests</li>
+                <li data-completed="true" data-step-id="step-feat-26de6e94-2" data-agent="claude-code" data-created-by-agent="claude-code">✅ Delete dead core/db repo clusters and tests</li>
+                <li data-completed="true" data-step-id="step-feat-26de6e94-3" data-agent="claude-code" data-created-by-agent="claude-code">✅ Delete workitem fluent query API</li>
+                <li data-completed="true" data-step-id="step-feat-26de6e94-4" data-agent="claude-code" data-created-by-agent="claude-code">✅ Delete hook runner and daemon plumbing</li>
+                <li data-completed="true" data-step-id="step-feat-26de6e94-5" data-agent="claude-code" data-created-by-agent="claude-code">✅ Delete single dead funcs in agent/arch/models/storage/worktree/projection etc</li>
+                <li data-completed="true" data-step-id="step-feat-26de6e94-6" data-agent="claude-code" data-created-by-agent="claude-code">✅ Fold-ins: getSessionAndParent, runGitMutation, gofmt daemon files</li>
+                <li data-completed="false" data-step-id="step-feat-26de6e94-7" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Gate all 5 modules and push</li>
+            </ol>
+        </section>
+
         <section data-content>
             <h3>Description</h3>
-            <p>Delete about 4,500 unreachable lines in core: the graph SQL query layer, dead db repo clusters (claims, features, events, messages, lineage, gate records, open modes, session adherence), dead plan-feedback helpers, the workitem fluent query API, hook runner and daemon plumbing, Gemini after-model wiring and emit wrappers, and single dead functions and constants.</p>
+            <p>Delete about 4,500 unreachable lines in core: the graph SQL query layer, dead db repo clusters (claims, features, events, messages, lineage, gate records, open modes, session adherence), dead plan-feedback helpers, the workitem fluent query API, hook runner and daemon plumbing, Gemini after-model wiring and emit wrappers, and single dead functions and constants. Result: deadcode (v0.38.0, -filter github.com/shakestzd/wipnote ./cmd/wipnote) core 319 -> 38, total 344 -> 62.</p>
+<h2>Acceptance Criteria</h2>
+<p>Core deadcode allowlist (38 entries). Pending other slices or owner decisions: core/db/open_modes.go (9 funcs) and core/storage/dbpath.go LegacyProjectDBPaths, EnsureDBDir, CleanLegacyDBIfSafe, sameFileCheck wait for slice 6; db.HeartbeatClaimByWorkItem (claim heartbeat owner decision); db.InsertGitCommit/insertGitCommit, agent.EnsureSession/EnsureSessionRouted, workitem.FindBottlenecks/RecommendNextWork/loadAllNodes are referenced only by //go:build sqlitelegacy tests (owner decision). Test seams used by other packages' tests: db.ResetBusyCounters, daemon.NewWriterClientForSocket, LeasePath, LegacyLeasePath, Lease.Held, RejectingApplier, apply.OpID, fsprobe.Set, paths.ResetNormalizeCacheForTesting, worktree.SetReindexFnForTest, gateledger Store.Path, sessionledger Store.Path, arch Store.Dir, workitem.FeatWithStatus. deadcode false positive: projection/dsl.go dslToken marker methods (interface markers, needed).</p>
         </section>
     </article>
 </body>
