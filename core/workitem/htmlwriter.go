@@ -437,31 +437,6 @@ func edgeHref(targetID string) string {
 	return "../" + dir + "/" + targetID + ".html"
 }
 
-// collectionDirForID maps a target ID to its .wipnote/ collection
-// subdirectory based on the ID prefix. Session IDs (bare UUIDs, no prefix)
-// resolve to "sessions". Returns "" when the prefix is unrecognized, signaling
-// callers to fall back to a bare same-directory href.
-func collectionDirForID(id string) string {
-	switch {
-	case strings.HasPrefix(id, "feat-"):
-		return "features"
-	case strings.HasPrefix(id, "bug-"):
-		return "bugs"
-	case strings.HasPrefix(id, "spk-"):
-		return "spikes"
-	case strings.HasPrefix(id, "trk-"):
-		return "tracks"
-	case strings.HasPrefix(id, "plan-"), strings.HasPrefix(id, "pln-"):
-		return "plans"
-	case strings.HasPrefix(id, "spec-"):
-		return "specs"
-	case isSessionID(id):
-		return "sessions"
-	default:
-		return ""
-	}
-}
-
 // isSessionID reports whether id looks like a session identifier.
 // Two formats are recognised:
 //

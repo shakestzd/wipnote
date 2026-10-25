@@ -266,7 +266,7 @@ func runFindByID(dir, id string) error {
 			printFindResults([]*models.Node{archived})
 			return nil
 		}
-		kind := kindFromPrefix(id)
+		kind := workitem.KindForID(id)
 		return fmt.Errorf("find: no item found with ID %q\nRun 'wipnote %s list' to see valid IDs, or 'wipnote find all --title <keyword>' to search by title", id, kind)
 	}
 	node, err := htmlparse.ParseFile(path)

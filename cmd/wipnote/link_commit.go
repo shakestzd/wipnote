@@ -68,7 +68,7 @@ func runLinkCommit(typeName, itemID, sha string) error {
 	// Verify the work item exists on disk.
 	nodePath := resolveNodePath(wipnoteDir, resolvedID)
 	if nodePath == "" {
-		kind := kindFromPrefix(resolvedID)
+		kind := workitem.KindForID(resolvedID)
 		return fmt.Errorf("%s %s not found", kind, resolvedID)
 	}
 

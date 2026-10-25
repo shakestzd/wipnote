@@ -703,7 +703,7 @@ func runWiDelete(id string) error {
 	}
 	path := resolveNodePath(dir, resolved)
 	if path == "" {
-		kind := kindFromPrefix(resolved)
+		kind := workitem.KindForID(resolved)
 		return workitem.ErrNotFoundOnDisk(kind, resolved)
 	}
 	if err := os.Remove(path); err != nil {
@@ -952,7 +952,7 @@ func resolveNodeByUnionID(wipnoteDir, id string) (*models.Node, error) {
 
 	switch len(allMatches) {
 	case 0:
-		kind := kindFromPrefix(id)
+		kind := workitem.KindForID(id)
 		return nil, workitem.ErrNotFoundOnDisk(kind, id)
 	case 1:
 		matched := allMatches[0]
@@ -974,7 +974,7 @@ func resolveNodeByUnionID(wipnoteDir, id string) (*models.Node, error) {
 			return archived, nil
 		}
 		// Shouldn't happen, but handle gracefully.
-		kind := kindFromPrefix(matched)
+		kind := workitem.KindForID(matched)
 		return nil, workitem.ErrNotFoundOnDisk(kind, matched)
 	default:
 		return nil, fmt.Errorf("ambiguous ID %q — did you mean one of: %s",
@@ -1048,29 +1048,6 @@ func dedupMatches(matches []string) []string {
 		}
 	}
 	return unique
-}
-
-// kindFromPrefix determines the work item kind from an ID prefix.
-func kindFromPrefix(id string) string {
-	if strings.HasPrefix(id, "feat-") {
-		return "feature"
-	}
-	if strings.HasPrefix(id, "bug-") {
-		return "bug"
-	}
-	if strings.HasPrefix(id, "spk-") {
-		return "spike"
-	}
-	if strings.HasPrefix(id, "trk-") {
-		return "track"
-	}
-	if strings.HasPrefix(id, "plan-") || strings.HasPrefix(id, "pln-") {
-		return "plan"
-	}
-	if strings.HasPrefix(id, "spec-") {
-		return "spec"
-	}
-	return "work item"
 }
 
 func printNodeDetail(n *models.Node) {

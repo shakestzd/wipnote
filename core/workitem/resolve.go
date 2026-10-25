@@ -11,30 +11,6 @@ import (
 // subdirs is the ordered list of collection directories to scan.
 var subdirs = []string{"features", "bugs", "spikes", "tracks", "plans", "specs"}
 
-// kindFromPrefix determines the work item kind from an ID prefix.
-// Examples: "feat-" -> "feature", "bug-" -> "bug", "trk-" -> "track", "spk-" -> "spike"
-func kindFromPrefix(id string) string {
-	if strings.HasPrefix(id, "feat-") {
-		return "feature"
-	}
-	if strings.HasPrefix(id, "bug-") {
-		return "bug"
-	}
-	if strings.HasPrefix(id, "spk-") {
-		return "spike"
-	}
-	if strings.HasPrefix(id, "trk-") {
-		return "track"
-	}
-	if strings.HasPrefix(id, "plan-") || strings.HasPrefix(id, "pln-") {
-		return "plan"
-	}
-	if strings.HasPrefix(id, "spec-") {
-		return "spec"
-	}
-	return "work item" // fallback
-}
-
 // ResolvePartialID resolves a partial or full work item ID to a canonical ID.
 //
 // Resolution order:
@@ -64,7 +40,7 @@ func ResolvePartialID(wipnoteDir, id string) (string, error) {
 	switch len(matches) {
 	case 0:
 		// Determine kind from the ID prefix for better error message
-		kind := kindFromPrefix(id)
+		kind := KindForID(id)
 		return "", ErrNotFound(kind, id)
 	case 1:
 		return matches[0], nil

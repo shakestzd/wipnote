@@ -112,7 +112,7 @@ func openItem(id string) (string, *workitem.Project, *workitem.Collection, strin
 	if id, err = resolveID(dir, id); err != nil {
 		return "", nil, nil, "", err
 	}
-	typeName := kindFromPrefix(id)
+	typeName := workitem.KindForID(id)
 	if !researchTypes[typeName] {
 		return "", nil, nil, "", fmt.Errorf("%s is a %s; research records live on features, bugs and spikes", id, typeName)
 	}
@@ -424,7 +424,7 @@ func attachSpikeResearch(w io.Writer, p *workitem.Project, spikeID string) {
 		return
 	}
 	rec.SpikeID = spikeID
-	if _, err := saveResearchRecord(collectionFor(p, kindFromPrefix(parentID)), parentID, rec); err != nil {
+	if _, err := saveResearchRecord(collectionFor(p, workitem.KindForID(parentID)), parentID, rec); err != nil {
 		fmt.Fprintf(w, "research: could not attach %s findings to %s: %v\n", spikeID, parentID, err)
 		return
 	}
@@ -432,7 +432,7 @@ func attachSpikeResearch(w io.Writer, p *workitem.Project, spikeID string) {
 	// The completion commit only covers the spike's own artifact; persist the
 	// parent's under the same artifact commit policy (defer queues an intent,
 	// none leaves it to the operator, separate commits directly).
-	if parentType := kindFromPrefix(parentID); shouldAutocommitWorkitemArtifact(parentType) {
+	if parentType := workitem.KindForID(parentID); shouldAutocommitWorkitemArtifact(parentType) {
 		if err := persistWorkitemArtifactTransition(p.ProjectDir, parentType, parentID, "research attached"); err != nil {
 			fmt.Fprintf(w, "research: %v\n", err)
 		}
