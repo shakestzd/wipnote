@@ -1,4 +1,4 @@
-package main
+package gate
 
 import (
 	"os/exec"
@@ -27,20 +27,20 @@ func TestResolveCodeRoot(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := resolveCodeRoot(proj, tc.cwdTop, tc.cwdCommon, tc.projCommon)
+			got := ResolveCodeRoot(proj, tc.cwdTop, tc.cwdCommon, tc.projCommon)
 			if got != tc.want {
-				t.Fatalf("resolveCodeRoot(%q, %q, %q, %q) = %q, want %q",
+				t.Fatalf("ResolveCodeRoot(%q, %q, %q, %q) = %q, want %q",
 					proj, tc.cwdTop, tc.cwdCommon, tc.projCommon, got, tc.want)
 			}
 		})
 	}
 }
 
-// TestGateCodeRoot_LinkedWorktreeOverride verifies that gateCodeRoot, when the
+// TestCodeRoot_LinkedWorktreeOverride verifies that CodeRoot, when the
 // process CWD is inside a linked worktree of the project repo, returns that
 // worktree — not projectRoot. This is the regression guard for the bug where
 // the completion gate tested the main checkout instead of the branch's code.
-func TestGateCodeRoot_LinkedWorktreeOverride(t *testing.T) {
+func TestCodeRoot_LinkedWorktreeOverride(t *testing.T) {
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git not available")
 	}
@@ -72,16 +72,16 @@ func TestGateCodeRoot_LinkedWorktreeOverride(t *testing.T) {
 		return p
 	}
 
-	// From inside the worktree, gateCodeRoot must return the worktree.
+	// From inside the worktree, CodeRoot must return the worktree.
 	t.Chdir(wt)
-	if got := resolve(gateCodeRoot(mainRepo)); got != resolve(wt) {
-		t.Errorf("gateCodeRoot from worktree = %q, want %q", got, resolve(wt))
+	if got := resolve(CodeRoot(mainRepo)); got != resolve(wt) {
+		t.Errorf("CodeRoot from worktree = %q, want %q", got, resolve(wt))
 	}
 
 	// From inside the main checkout, it must return projectRoot unchanged.
 	t.Chdir(mainRepo)
-	if got := resolve(gateCodeRoot(mainRepo)); got != resolve(mainRepo) {
-		t.Errorf("gateCodeRoot from main = %q, want %q", got, resolve(mainRepo))
+	if got := resolve(CodeRoot(mainRepo)); got != resolve(mainRepo) {
+		t.Errorf("CodeRoot from main = %q, want %q", got, resolve(mainRepo))
 	}
 
 	// From an unrelated repo, it must fall back to projectRoot.
@@ -90,7 +90,7 @@ func TestGateCodeRoot_LinkedWorktreeOverride(t *testing.T) {
 		t.Fatalf("git init other: %v", err)
 	}
 	t.Chdir(other)
-	if got := resolve(gateCodeRoot(mainRepo)); got != resolve(mainRepo) {
-		t.Errorf("gateCodeRoot from unrelated repo = %q, want %q (projectRoot)", got, resolve(mainRepo))
+	if got := resolve(CodeRoot(mainRepo)); got != resolve(mainRepo) {
+		t.Errorf("CodeRoot from unrelated repo = %q, want %q (projectRoot)", got, resolve(mainRepo))
 	}
 }

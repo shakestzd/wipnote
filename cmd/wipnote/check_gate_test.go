@@ -164,7 +164,7 @@ func TestRunSessionGate_WritesSessionLocalRecord(t *testing.T) {
 }
 
 func TestMatchGateAllowlist_ListenerSandboxOnly(t *testing.T) {
-	entries := []gateAllowlistEntry{
+	entries := []gate.AllowlistEntry{
 		{
 			ID:            "listener-socket-sandbox",
 			MatchAll:      []string{"listen tcp", "socket: operation not permitted"},
@@ -177,7 +177,7 @@ func TestMatchGateAllowlist_ListenerSandboxOnly(t *testing.T) {
 		},
 	}
 
-	hits := matchGateAllowlist("go test", "listen tcp 127.0.0.1:0: socket: operation not permitted", entries)
+	hits := gate.MatchAllowlist("go test", "listen tcp 127.0.0.1:0: socket: operation not permitted", entries)
 	if len(hits) != 2 {
 		t.Fatalf("expected 2 hits, got %d: %+v", len(hits), hits)
 	}
@@ -188,13 +188,13 @@ func TestMatchGateAllowlist_ListenerSandboxOnly(t *testing.T) {
 
 func TestRunSessionGate_ReportsAndPersistsAllowlistHits(t *testing.T) {
 	projectRoot := setupGateTestProject(t)
-	hits := []gateAllowlistHit{{
+	hits := []gate.AllowlistHit{{
 		ID:            "listener-socket-sandbox",
 		Command:       "go test",
 		Justification: "Some harnesses forbid listener binds, which makes otherwise healthy Go tests fail with a socket sandbox error instead of a product regression. Allow only this environmental class so the gate reports the sandbox limitation explicitly.",
 	}}
 	var stdout strings.Builder
-	writeGateAllowlistHits(&stdout, hits)
+	gate.WriteAllowlistHits(&stdout, hits)
 	if !strings.Contains(stdout.String(), "Environment allowlist hits") {
 		t.Fatalf("expected allowlist section in stdout, got: %s", stdout.String())
 	}
@@ -206,13 +206,13 @@ func TestRunSessionGate_ReportsAndPersistsAllowlistHits(t *testing.T) {
 	}
 
 	result := &gateRunResult{
-		Plan:          gatePlan{ProjectType: "go"},
+		Plan:          gate.Plan{ProjectType: "go"},
 		Commands:      []string{"go build -buildvcs=false ./...", "go vet ./...", "go test -buildvcs=false -short ./..."},
 		Passed:        false,
 		AllowlistHits: hits,
 		OutputSummary: "go test failed",
 	}
-	record, err := persistGateRecord(projectRoot, "sess-gate-listener", "", "check", result)
+	record, err := gate.PersistRecord(projectRoot, "sess-gate-listener", "", "check", currentHarness(), result)
 	if err != nil {
 		t.Fatalf("persistGateRecord: %v", err)
 	}
@@ -259,19 +259,19 @@ func TestRunSessionGate_ReportsAndPersistsAllowlistHits(t *testing.T) {
 }
 
 func TestGateCommandAllowlisted(t *testing.T) {
-	hits := []gateAllowlistHit{{
+	hits := []gate.AllowlistHit{{
 		ID:            "listener-socket-sandbox",
 		Command:       "go test",
 		Justification: "listener sandbox",
 	}}
 
-	if gateCommandAllowlisted(nil, hits) {
+	if gate.GateCommandAllowlisted(nil, hits) {
 		t.Fatal("nil error must not be treated as allowlisted")
 	}
-	if gateCommandAllowlisted(os.ErrPermission, nil) {
+	if gate.GateCommandAllowlisted(os.ErrPermission, nil) {
 		t.Fatal("error without allowlist hits must not be treated as allowlisted")
 	}
-	if !gateCommandAllowlisted(os.ErrPermission, hits) {
+	if !gate.GateCommandAllowlisted(os.ErrPermission, hits) {
 		t.Fatal("expected matching error + allowlist hits to be treated as allowlisted")
 	}
 }
@@ -291,7 +291,7 @@ func TestLoadGateAllowlist_RequiresJustification(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err := loadGateAllowlist(projectRoot)
+	_, err := gate.LoadAllowlist(projectRoot)
 	if err == nil {
 		t.Fatal("expected missing justification to fail")
 	}
@@ -814,9 +814,9 @@ func TestCheckCompletionGateRecord_AcceptsMatchingSessionAfterRecheck(t *testing
 
 func TestLoadGateAllowlist_MissingFileReturnsEmpty(t *testing.T) {
 	projectRoot := t.TempDir()
-	entries, err := loadGateAllowlist(projectRoot)
+	entries, err := gate.LoadAllowlist(projectRoot)
 	if err != nil {
-		t.Fatalf("loadGateAllowlist: %v", err)
+		t.Fatalf("gate.LoadAllowlist: %v", err)
 	}
 	if len(entries) != 0 {
 		t.Fatalf("expected nil or empty allowlist, got %d entries", len(entries))
@@ -828,9 +828,9 @@ func TestLoadGateAllowlist_MissingFileReturnsEmpty(t *testing.T) {
 // than a hard error (Fix 1).
 func TestDetectGatePlan_NoManifest_IsNoOp(t *testing.T) {
 	projectRoot := t.TempDir() // empty dir — no go.mod, package.json, etc.
-	plan, err := detectGatePlan(projectRoot, projectRoot, guardprofile.PhaseQuality)
+	plan, err := gate.DetectPlan(projectRoot, projectRoot, guardprofile.PhaseQuality)
 	if err != nil {
-		t.Fatalf("detectGatePlan on manifest-less dir returned error: %v", err)
+		t.Fatalf("gate.DetectPlan on manifest-less dir returned error: %v", err)
 	}
 	if len(plan.Commands) != 0 {
 		t.Fatalf("expected zero commands for no-op plan, got %d", len(plan.Commands))
@@ -900,9 +900,9 @@ func TestRunSessionGate_ElixirProject_RunsMixGate(t *testing.T) {
 		t.Fatalf("write mix.exs: %v", err)
 	}
 
-	plan, err := detectGatePlan(projectRoot, projectRoot, guardprofile.PhaseQuality)
+	plan, err := gate.DetectPlan(projectRoot, projectRoot, guardprofile.PhaseQuality)
 	if err != nil {
-		t.Fatalf("detectGatePlan: %v", err)
+		t.Fatalf("gate.DetectPlan: %v", err)
 	}
 	if plan.ProjectType != "elixir" {
 		t.Fatalf("project type = %q, want elixir", plan.ProjectType)
@@ -976,17 +976,17 @@ func TestDetectGatePlan_SelectsPhaseGuards(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	qPlan, err := detectGatePlan(root, root, guardprofile.PhaseQuality)
+	qPlan, err := gate.DetectPlan(root, root, guardprofile.PhaseQuality)
 	if err != nil {
-		t.Fatalf("quality detectGatePlan: %v", err)
+		t.Fatalf("quality gate.DetectPlan: %v", err)
 	}
 	if len(qPlan.GuardNames) != 1 || qPlan.GuardNames[0] != "q-test" {
 		t.Errorf("quality phase guards = %v, want [q-test]", qPlan.GuardNames)
 	}
 
-	cPlan, err := detectGatePlan(root, root, guardprofile.PhaseCompletion)
+	cPlan, err := gate.DetectPlan(root, root, guardprofile.PhaseCompletion)
 	if err != nil {
-		t.Fatalf("completion detectGatePlan: %v", err)
+		t.Fatalf("completion gate.DetectPlan: %v", err)
 	}
 	if len(cPlan.GuardNames) != 1 || cPlan.GuardNames[0] != "c-test" {
 		t.Errorf("completion phase guards = %v, want [c-test]", cPlan.GuardNames)
@@ -1006,9 +1006,9 @@ func TestNodeGateCommands_SkipsMissingScripts(t *testing.T) {
 		t.Fatalf("write package.json: %v", err)
 	}
 
-	commands, err := nodeGateCommands(filepath.Join(projectRoot, "package.json"))
+	commands, err := gate.NodeGateCommands(filepath.Join(projectRoot, "package.json"))
 	if err != nil {
-		t.Fatalf("nodeGateCommands: %v", err)
+		t.Fatalf("gate.NodeGateCommands: %v", err)
 	}
 	if len(commands) != 2 {
 		t.Fatalf("expected 2 commands, got %d: %+v", len(commands), commands)
@@ -1034,9 +1034,9 @@ func TestDetectGatePlan_NodeProjectWithMissingScripts(t *testing.T) {
 		t.Fatalf("write package.json: %v", err)
 	}
 
-	plan, err := detectGatePlan(projectRoot, projectRoot, guardprofile.PhaseQuality)
+	plan, err := gate.DetectPlan(projectRoot, projectRoot, guardprofile.PhaseQuality)
 	if err != nil {
-		t.Fatalf("detectGatePlan: %v", err)
+		t.Fatalf("gate.DetectPlan: %v", err)
 	}
 	if plan.ProjectType != "node" {
 		t.Fatalf("project type = %q, want node", plan.ProjectType)
@@ -1055,14 +1055,14 @@ func TestDetectGatePlan_NodeProjectWithMissingScripts(t *testing.T) {
 func TestPersistGateRecord_ExplicitWorkItemID(t *testing.T) {
 	projectRoot := setupGateTestProject(t)
 	result := &gateRunResult{
-		Plan:          gatePlan{ProjectType: "go"},
+		Plan:          gate.Plan{ProjectType: "go"},
 		Commands:      []string{"go build -buildvcs=false ./..."},
 		Passed:        true,
 		AllowlistHits: nil,
 		OutputSummary: "all commands passed",
 	}
 	const wantWorkItem = "feat-explicit-123"
-	record, err := persistGateRecord(projectRoot, "sess-explicit-wi", wantWorkItem, "check", result)
+	record, err := gate.PersistRecord(projectRoot, "sess-explicit-wi", wantWorkItem, "check", currentHarness(), result)
 	if err != nil {
 		t.Fatalf("persistGateRecord: %v", err)
 	}
