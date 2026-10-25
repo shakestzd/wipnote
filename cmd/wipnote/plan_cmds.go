@@ -69,6 +69,8 @@ func planCmdWithExtras() *cobra.Command {
 	cmd.AddCommand(planInterviewQuestionsCmd())
 	// slice-6: visual-block catalog (native get-plan-blocks equivalent)
 	cmd.AddCommand(planBlocksCmd())
+	// plan-28b4a7f6 slice 24: export a plan as Claude project instructions
+	cmd.AddCommand(planProjectInstructionsCmd())
 	return cmd
 }
 
