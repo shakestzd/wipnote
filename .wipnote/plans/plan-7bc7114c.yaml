@@ -4,10 +4,10 @@ meta:
     title: Cut bloat and speed up wipnote
     description: 'Fixes from the spk-f72d2045 audit (five read-only audits on 2026-10-25): about 10,000 lines of dead code from the removed dashboard, serve and SQLite eras; hot-path costs on every hook call; duplicated helpers; stale model ids and unused harness features; and the correctness bugs the audit found on the way.'
     created_at: "2026-10-25"
-    status: draft
+    status: finalized
     priority: medium
     schema_version: v4
-    version: 13
+    version: 23
 design:
     problem: 'Five read-only audits (spk-f72d2045, 2026-10-25) found about 10,000 lines of code left over from the removed dashboard, serve and SQLite eras, hot-path cost on every hook call, helpers copied up to ten times with drift, stale model ids and unused harness features. On the way they found correctness bugs that give wrong answers today: claims reconcile closes live sessions, every YOLO commit is blocked, claim release and heartbeat persist nothing. A re-check on v0.82.1 (87bc16d0d) confirmed 7 of 8 bugs are still present.'
     goals:
@@ -29,6 +29,7 @@ design:
           accessed: "2026-10-25"
 slices:
     - id: slic-cf011c90
+      feature_id: feat-9c5ea68a
       num: 1
       title: Fix the correctness bugs the audit found
       what: 'Reproduce and fix seven confirmed bugs: claims reconcile/archive close live sessions (bug-01f182e5); YOLO commit guard always blocks; claim release/heartbeat persist nothing; core maps spc- where ids are spec-; relevant parses an unused trailer; launchYoloDev skips enforceLaunchPlan; unlocked session HTML and compliance lock writes.'
@@ -61,9 +62,11 @@ slices:
         cmd/wipnote: TestLaunchYoloDev_RefusesOnDirtyProtectedBranch — WIPNOTE_ENFORCE_ISOLATION=true, dirty main; refused before exec.
         core/hooks: TestSessionHTML_ConcurrentAppendAndSetActiveFeature — N appenders plus SetSessionHTMLActiveFeature, -count=50; attribute and N entries survive.
         cmd/wipnote: TestAcquireComplianceLock_Exclusive — 20 subprocesses behind a barrier; exactly one acquires.
-      approved: false
+      approved: true
       comment: ""
       research_waiver: Internal correctness fixes against wipnote's own ledgers and lock helpers; no external library or standard applies. Evidence is the file:line re-check recorded in decisions_notes.
+      approval_status: approved
+      execution_status: promoted
       decisions_notes: |-
         **Evidence:** re-check on v0.82.1 (43ab0cbd9): claim_ledger.go:211 uses SessionLivenessByHeartbeat over ledger rows projected with a 1970 heartbeat (claim_repo.go:686); yolo_guard.go:1431-1497 query agent_events on the empty ephemeral projection (dbgate.go:193), so pretooluse.go:279-285 blocks every YOLO commit; claim.go:216/:316 write to openDB's discarded projection; htmlwriter.go:456 and resolve.go:32 test spc- while ids are spec- (link.go is correct); relevant.go:610 parses wipnote-item: (0 commits) instead of parseTrailers Refs:/Fixes:; yolo.go:477 never calls enforceLaunchPlan; session_html.go:200/:229 write without flock; compliance_auto.go:481-502 read-then-write lock.
         **Decisions:** liveness uses the sessions-ledger EndedAt rule already in liveForeignClaims; YOLO evidence reads canonical tool-events.ndjson; claim release/heartbeat write claimledger (or are deleted if no caller needs them, decided in the work item); locks use core/filelock.
@@ -81,6 +84,7 @@ slices:
             - body: 'SetSessionHTMLActiveFeature and CreateSessionHTML skip the flock the appender uses. Compliance lock is read-then-write. Fix: core/filelock.'
               label: Locks
     - id: slic-a0c20846
+      feature_id: feat-5d1540bb
       num: 2
       title: Bring model ids and harness features up to date
       what: Use the sonnet alias in compliance_auto.go; add the four Claude 5.x models to pricing; add omitClaudeMd and autoCompactWindow specs; target PreCompact/PostCompact at Codex in the manifest; replace mod Text bold with weight; check skill frontmatter keys.
@@ -108,7 +112,7 @@ slices:
         observe/pricing: TestModelsJSON_Claude5Present — claude-opus-5-5, claude-sonnet-5-5, claude-haiku-5-5, claude-fable-5-1 have input/output prices.
         cmd/wipnote: TestComplianceAuto_DefaultModelIsAlias — default --model is sonnet.
         mods: plugin test asserts no Text uses bold; wipnote plugin build-ports runs clean.
-      approved: false
+      approved: true
       comment: ""
       research:
         - url: https://platform.claude.com/docs/en/models/overview
@@ -123,6 +127,8 @@ slices:
         - url: https://code.claude.com/docs/en/changelog
           claim: 'v2.1.299: mod Text gains weight; bold is deprecated in favor of weight.'
           accessed: "2026-10-25"
+      approval_status: approved
+      execution_status: promoted
       decisions_notes: |-
         **Evidence (docs read 2026-10-25):** model ids and prices from platform.claude.com models overview (Fable 5.1 $10/$50, Opus 5.5 $4/$20, Sonnet 5.5 $2/$10, Haiku 5.5 from $0.10/$0.50 per MTok; Haiku exact price to confirm on the pricing page). omitClaudeMd (bool, v2.1.271+) and autoCompactWindow (int 100000-1000000, v2.1.296+) are in the sub-agents field table. Codex hooks page lists PreCompact/PostCompact with trigger manual|auto; hook_event_names.go:159-168 already maps them, only manifest.json:85/:91 lack codex. Changelog v2.1.299 deprecates Text bold for weight.
         **Decisions:** weight needs Claude Code v2.1.299+; mods move to weight (the launcher already requires a newer floor; confirm in the work item). Skill frontmatter: guards/slices/design/approved hits look like body examples; move only keys proven to be in frontmatter.
@@ -139,6 +145,7 @@ slices:
             - mods/wipnote-plan-review/hooks/register.tsx
             - mods/wipnote-orchestra/hooks/refcards.tsx
     - id: slic-8ec9d410
+      feature_id: feat-a559c3e6
       num: 3
       title: Delete dead code in cmd/wipnote
       what: Delete about 2,050 production lines with no production caller in cmd/wipnote (101 golangci-lint unused hits plus dev-mode backup, recap upsert, after-model hook wiring and plugin_ensure leftovers), and about 2,000 test lines that only exercise them. Remove dashboard, serve and Gemini text from help and comments.
@@ -158,12 +165,14 @@ slices:
         Retarget, not delete: check_gate_test.go, reindex_test.go, hook_exit_plan_mode_test.go and git_mutation_lock_test.go move to gate.* and core APIs.
         Full suite via scripts/go-test-streaming.sh ./... passes.
         Also fix plan approve-slice/reject-slice help text: they write plan YAML, not SQLite.
-      approved: false
+      approved: true
       comment: ""
       research:
         - url: https://golangci-lint.run/usage/linters/#unused
           claim: The unused linter reports unused constants, variables, functions and types; with --tests=false test files are not counted as callers, which exposes test-only code.
           accessed: "2026-10-25"
+      approval_status: approved
+      execution_status: promoted
       decisions_notes: |-
         **Evidence (golangci-lint 2.14 unused --tests=false at 43ab0cbd9):** 101 hits, about 1,890 lines by AST walk. Largest: plan_css_scope.go 309, plan_finalize_yaml.go 235, config.go 184, backfill_ai_title.go 158, plugin_ensure.go 137, plan_finalize.go 131, plugin_dir.go 107. Nothing on the audit list is gone.
         **Keep:** startDrainLoop and reconcileDrainInterval (now used by writer_catchup.go:50); runPlanSlices (now used). runGitMutation is reached only from tests: confirm intent before deleting.
@@ -184,6 +193,7 @@ slices:
             - cmd/wipnote/reindex_gate_ledger.go
             - cmd/wipnote/claude.go (dev-mode backup)
     - id: slic-cf427ad6
+      feature_id: feat-26de6e94
       num: 4
       title: Delete dead code in core
       what: 'Delete about 4,500 unreachable lines in core: the graph SQL query layer, dead db repo clusters (claims, features, events, messages, lineage, gate records, open modes, session adherence), dead plan-feedback helpers, the workitem fluent query API, hook runner and daemon plumbing, Gemini after-model wiring and emit wrappers, and single dead functions and constants.'
@@ -208,12 +218,14 @@ slices:
         Keep and test: GetSliceApprovals, NormalizePlanFeedbackValues and IsPlanApproval* still back plan finalize and promote-slice.
         Delete with the code: graph DSL/querybuilder/algorithms/pattern/query/sessions tests (~1,740 lines), claim_repo_test, open_modes_test, session_adherence_test, family_attribution_test, busy and pragmas tests.
         Full suite passes.
-      approved: false
+      approved: true
       comment: ""
       research:
         - url: https://pkg.go.dev/golang.org/x/tools/cmd/deadcode
           claim: deadcode reports functions unreachable from main using Rapid Type Analysis; test-only callers do not count, which exposes test-only exported code that golangci-lint unused cannot see.
           accessed: "2026-10-25"
+      approval_status: approved
+      execution_status: promoted
       decisions_notes: |-
         **Evidence (deadcode v0.38.0 at 43ab0cbd9; golangci-lint unused sees only unexported code, so it is not the gate):** 468 unreachable functions, 319 in core, about 4,540 body lines. graph layer ~1,120 lines (dsl.go, querybuilder.go, algorithms.go, pattern.go, query.go, sessions.go, arch_source.go:71-159); db repos ~2,190 (claim_repo, feature_repo, event_repo, message_repo, rollup_repo, arch_repo, lineage_repo, gate_records, pragmas, busy_counter, open_modes, writequeue); new: session_adherence.go:36-442. workitem fluent API ~520 lines; AtomicClaim/Unclaim have no non-test caller.
         **Changed since the audit:** core/worktree/repair.go is used (session_start.go:183), so the EnsureFor* funcs in worktree.go go instead. plan_feedback table is live via hydrate; only its write helpers go. active_work_items is now written during CLI hydrate, but its hook reads always miss (slice 6). approve-slice help text says SQLite but writes YAML: fix the text here.
@@ -235,6 +247,7 @@ slices:
             - name: hook runner + daemon plumbing
               type: ~300 lines
     - id: slic-1687e435
+      feature_id: feat-ea969973
       num: 5
       title: Delete serve-era packages in observe, plan and internal
       what: 'Delete packages and files with no importer: observe/otel receiver.go, http.go, signalid.go (keep writer.go), QueuedSink, the indexer Start/WithQueue poll loop, plan/planchat, plan/planamend, internal/notebook with its Python and build sync step, internal/launcher/profile, plan/interview web-form functions and dead internal/registry exports.'
@@ -262,9 +275,11 @@ slices:
         cmd/wipnote: TestBuild_NoNotebookSync — wipnote build no longer copies prototypes/*.py.
         plan/interview: plan interview-questions output is unchanged (golden test).
         Full suite passes.
-      approved: false
+      approved: true
       comment: ""
       research_waiver: Deletion of internal packages with no importer, verified with go list -deps; no external library or standard applies.
+      approval_status: approved
+      execution_status: promoted
       decisions_notes: |-
         **Evidence (go list -deps ./cmd/..., 446 packages, at 43ab0cbd9):** receiver.New, LoadConfigFromEnv, NewHTTPHandler, ConvertAll, DeriveSignalID have no caller outside their files; live copies are in observe/otel/convert/convert.go:23,85. The receiver package stays because writer.go (Writer/NewWriter) is imported by writer_daemon.go:21, reindex.go:18 and finalize.go:31. NewQueued and indexer Start (:125) are test-only; reindex uses RunOnce/Status. planchat, planamend, internal/notebook, launcher/profile have no importer. build.go:33/:214 syncs 8 .py files into internal/notebook.
         **Changed since the audit:** plan/interview is live via plan_interview_questions.go:9, so only ParseDefinition, ForComplexity, ComposeIntake/IntakeResult and Compose go. internal/registry is live; only MigrationPending, ShouldSkipRegistration, OpenReadOnly go, and ComputeID/WriteEntriesForTest move to tests.
@@ -284,6 +299,7 @@ slices:
             - plan/interview/model.go (web-form funcs)
             - internal/registry (3 dead exports)
     - id: slic-a896a337
+      feature_id: feat-af8d1689
       num: 6
       title: Cut per-hook cost
       what: 'Finish the hook part of feat-fc3cc9e0: no hook opens the file-backed SQLite db, and guards stop querying the empty in-memory projection. Also gate debug.log on WIPNOTE_DEBUG, build plan and recap templates lazily, and test whether PostToolBatch or a daemon http hook can replace the second per-tool process.'
@@ -313,7 +329,7 @@ slices:
         core/hooks: TestDebugLog_OffByDefault — no debug.log write unless WIPNOTE_DEBUG=1.
         plan/plantmpl, recap/recaptmpl: BenchmarkInit or an inittrace check shows no template parse at package init.
         Benchmark: pretooluse handler time before and after, recorded in the work item.
-      approved: false
+      approved: true
       comment: ""
       research:
         - url: https://code.claude.com/docs/en/hooks
@@ -322,6 +338,8 @@ slices:
         - url: https://pkg.go.dev/runtime#hdr-Environment_Variables
           claim: GODEBUG=inittrace=1 prints per-package init time and allocations; used to measure template init cost before and after.
           accessed: "2026-10-25"
+      approval_status: approved
+      execution_status: promoted
       decisions_notes: |-
         **Evidence (43ab0cbd9):** OpenHookDB and OpenHookDBWithBusyTimeout (dbgate.go:148/:233) open storage.CanonicalDBPath with migrations for every hookSubcmd hook, including stop (hook.go:237), session start/end/resume (:355, :379-383), track-event (:410) and daemon-miss fallbacks (dbgate.go:462/:567); a 3.5 MB wipnote.db was written today. The dbgate.go:161 comment says stop is read-only; it is not. Guards query the empty projection at tooluse_shared.go:125-396, pretooluse.go:352-1016 and yolo_guard.go:346-1660 and always get zero rows (bug-369da005 failure mode). Init: plantmpl 8-42 ms, blocks 2.5-13 ms, recaptmpl 0.35-13 ms; total init 58-174 ms on a loaded box. debugLog (log.go:14/:32) appends on every hook; debug.log is 3.18 MB.
         **Coordination:** fc3cc9e0 commits a94ff8b57 and a09514b65 are on main and marked not complete (bug-369da005). This slice owns the hook-tree tail; the work item links fc3cc9e0 and bug-369da005 and does not touch non-hook code fc3cc9e0 still owns.
@@ -338,6 +356,7 @@ slices:
             - append debug.log
             - 'after: lazy templates, no db file, guards read NDJSON/HTML, no debug.log'
     - id: slic-0b3b7eea
+      feature_id: feat-c30d0792
       num: 7
       title: Speed up slow CLI paths
       what: Compute linked commits once per feature complete (4-5 identical git log --all --grep runs today); replace WalkAreas per-file LIKE scans with one grouped query; append session HTML events at the tail instead of a full rewrite; make Stop read only new transcript lines; keep the status line off whole-project loads.
@@ -363,9 +382,11 @@ slices:
         core/hooks: TestAppendEventToSessionHTML_TailAppend — output equals the old rewrite byte for byte on a fixture; file is not truncated.
         core/hooks: TestStop_BackfillReadsFromOffset — second Stop reads only bytes after the saved offset.
         Timings before and after for feature complete, statusline (with an open claim) and code-areas recorded in the work item.
-      approved: false
+      approved: true
       comment: ""
       research_waiver: Internal performance work on wipnote's own git, SQLite projection and HTML paths; no external library or standard applies. Baselines are the measured timings in decisions_notes.
+      approval_status: approved
+      execution_status: promoted
       decisions_notes: |-
         **Evidence (43ab0cbd9):** canonicalLinkedCommits (workitem_provenance_canonical.go:88) runs at workitem.go:332 (dirty only), :347, :357 (remote only), :369 and :476: 4-5 runs, 1.6 s each under load. WalkAreas: one LIKE '%/...' query per tracked file (areas.go:158, blame.go:134) on an in-memory projection hydrated each run. AppendEventToSessionHTML (session_html.go:241-323) flocks, reads, truncates and rewrites a 255 KB file on every posttooluse-record. Stop now uses last_assistant_message, but backfillMissedUserPrompts (missing_events.go:183, transcript_user_prompt.go:118-140) still decodes the whole transcript each time.
         **Changed since the audit:** statusline with no --session returns at once (0.15-0.49 s, mostly init); only the open-claim branch (projection.Load at :157) is slow, and it needs a timing before any change.
@@ -385,6 +406,7 @@ slices:
             - name: Stop transcript scan
               type: whole file each Stop
     - id: slic-3459766c
+      feature_id: feat-68f18d3b
       num: 8
       title: Merge duplicated helpers
       what: 'Merge drifted copies into one helper each: ID-prefix to kind/collection (ten copies), ID resolution, git top-level/runner/HEAD, printJSON (20 sites), atomic write, env-slice editing, the HTML ledger codec, config loader, glob matcher, plugin asset walker and small string helpers.'
@@ -412,9 +434,11 @@ slices:
         core/paths or core/gitutil: TestGitTopLevel_FromSubdir and TestGitOutput_RunsInDir — helpers honor the given dir, not the cwd (budget.go runGit today runs in the cwd).
         Ledger codecs: round-trip tests for claim, gate and session ledgers through the shared codec, with the escaping cases each copy handled.
         Gate: golangci-lint dupl reports no duplicate over 30 lines in touched packages; full suite passes.
-      approved: false
+      approved: true
       comment: ""
       research_waiver: Internal refactor of wipnote's own helpers; no external library or standard applies. Copy locations are from the v0.82.1 re-check in decisions_notes.
+      approval_status: approved
+      execution_status: promoted
       decisions_notes: |-
         **Evidence (43ab0cbd9):** ID-prefix maps at history.go:120, context_pack.go:96, execute_preview.go:173, lineage.go:73, link.go:239, reindex_arch.go:169, reindex_orphans.go:232 (new since the audit), config.go:234, workitem.go:1059, core/workitem/htmlwriter.go:444. git top-level at five sites; git HEAD moved to git_bulk_walks.go:112. printJSON pattern at 20 sites in 18 files. Atomic write at statusline.go:232, htmlwriter.go:223, compliance.go. Env-slice editing at six sites wrapping gate and launcher helpers.
         **Decisions:** the single prefix table lives in core/workitem next to GenerateID so new kinds are added once; slice 1 fixes the spc- error first, so this slice only moves code. Git helpers always take an explicit dir.
@@ -429,6 +453,7 @@ slices:
             - core/workitem KindForID / CollectionForID
             - one prefix table next to GenerateID
     - id: slic-80c68005
+      feature_id: feat-ffde27db
       num: 9
       title: Split oversized files and functions
       what: Split files over 500 lines and functions over 50 lines that remain after slices 3-8, starting with wiSetStatusWithAgent (339 lines), runComplianceAuto, enrichPageFromYAML, runWho, wirePlan and the Codex launcher, plus yolo_guard.go, session_start.go, pretooluse into a guard pipeline, writer.go and validate.go.
@@ -452,9 +477,11 @@ slices:
         Gate script: an AST walk over touched files reports no file over 500 lines and no function over 50 lines.
         core/hooks: TestPreToolUse_GuardOrder — the guard pipeline runs guards in the same order and returns the same decision as before for a fixed set of tool calls.
         Full suite passes.
-      approved: false
+      approved: true
       comment: ""
       research_waiver: Internal file and function splits under the repo's own size rules (code-hygiene.md); no external library or standard applies.
+      approval_status: approved
+      execution_status: promoted
       decisions_notes: |-
         **Evidence (43ab0cbd9, cmd/wipnote non-test):** 20 files over 500 lines (codex.go 1699, workitem.go 1403, arch_cmds.go 1110, compliance_auto.go 947, claude.go 863, ...) and 165 functions over 50 lines (wiSetStatusWithAgent 339, runComplianceAuto 228, enrichPageFromYAML 185, runWho 179, wirePlan 178, launchCodexDefaultWithMarketplace 167). Slice 3 brings plan_finalize_yaml.go to about 610 and session.go to about 458 lines.
         **Scope:** only files this plan touches, plus the top 15 functions; the full list of 165 is too large for one slice and stays as follow-up work items.
@@ -484,44 +511,49 @@ feedback:
           action: approve
           value: "true"
           created_at: "2026-10-25T07:02:51Z"
-          updated_at: "2026-10-25T07:02:51Z"
+          updated_at: "2026-10-25T07:28:21Z"
         - section: slice-2
           action: approve
           value: "true"
           created_at: "2026-10-25T07:02:52Z"
-          updated_at: "2026-10-25T07:02:52Z"
+          updated_at: "2026-10-25T07:28:21Z"
         - section: slice-3
           action: approve
           value: "true"
           created_at: "2026-10-25T07:02:53Z"
-          updated_at: "2026-10-25T07:02:53Z"
+          updated_at: "2026-10-25T07:28:22Z"
         - section: slice-4
           action: approve
           value: "true"
           created_at: "2026-10-25T07:02:54Z"
-          updated_at: "2026-10-25T07:02:54Z"
+          updated_at: "2026-10-25T07:28:23Z"
         - section: slice-5
           action: approve
           value: "true"
           created_at: "2026-10-25T07:02:55Z"
-          updated_at: "2026-10-25T07:02:55Z"
+          updated_at: "2026-10-25T07:28:24Z"
         - section: slice-6
           action: approve
           value: "true"
           created_at: "2026-10-25T07:02:56Z"
-          updated_at: "2026-10-25T07:02:56Z"
+          updated_at: "2026-10-25T07:28:24Z"
         - section: slice-7
           action: approve
           value: "true"
           created_at: "2026-10-25T07:02:57Z"
-          updated_at: "2026-10-25T07:02:57Z"
+          updated_at: "2026-10-25T07:28:25Z"
         - section: slice-8
           action: approve
           value: "true"
           created_at: "2026-10-25T07:02:58Z"
-          updated_at: "2026-10-25T07:02:58Z"
+          updated_at: "2026-10-25T07:28:26Z"
         - section: slice-9
           action: approve
           value: "true"
           created_at: "2026-10-25T07:02:59Z"
-          updated_at: "2026-10-25T07:02:59Z"
+          updated_at: "2026-10-25T07:28:27Z"
+        - section: meta
+          action: finalize
+          value: "true"
+          created_at: "2026-10-25T07:29:51Z"
+          updated_at: "2026-10-25T07:29:51Z"

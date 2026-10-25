@@ -477,7 +477,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     
     <li>
       <a href="#slice-1" class="slice-nav-item" data-slice-nav="1">
-        <span class="slice-nav-dot" data-approval="pending" data-dot-for="1"></span>
+        <span class="slice-nav-dot" data-approval="approved" data-dot-for="1"></span>
         <span>#1 Fix the correctness bugs the audit found</span>
         
         
@@ -486,7 +486,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     
     <li>
       <a href="#slice-2" class="slice-nav-item" data-slice-nav="2">
-        <span class="slice-nav-dot" data-approval="pending" data-dot-for="2"></span>
+        <span class="slice-nav-dot" data-approval="approved" data-dot-for="2"></span>
         <span>#2 Bring model ids and harness features up to date</span>
         
         
@@ -495,7 +495,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     
     <li>
       <a href="#slice-3" class="slice-nav-item" data-slice-nav="3">
-        <span class="slice-nav-dot" data-approval="pending" data-dot-for="3"></span>
+        <span class="slice-nav-dot" data-approval="approved" data-dot-for="3"></span>
         <span>#3 Delete dead code in cmd/wipnote</span>
         
         
@@ -504,7 +504,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     
     <li>
       <a href="#slice-4" class="slice-nav-item" data-slice-nav="4">
-        <span class="slice-nav-dot" data-approval="pending" data-dot-for="4"></span>
+        <span class="slice-nav-dot" data-approval="approved" data-dot-for="4"></span>
         <span>#4 Delete dead code in core</span>
         
         
@@ -513,7 +513,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     
     <li>
       <a href="#slice-5" class="slice-nav-item" data-slice-nav="5">
-        <span class="slice-nav-dot" data-approval="pending" data-dot-for="5"></span>
+        <span class="slice-nav-dot" data-approval="approved" data-dot-for="5"></span>
         <span>#5 Delete serve-era packages in observe, plan and internal</span>
         
         
@@ -522,7 +522,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     
     <li>
       <a href="#slice-6" class="slice-nav-item" data-slice-nav="6">
-        <span class="slice-nav-dot" data-approval="pending" data-dot-for="6"></span>
+        <span class="slice-nav-dot" data-approval="approved" data-dot-for="6"></span>
         <span>#6 Cut per-hook cost</span>
         
         
@@ -531,7 +531,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     
     <li>
       <a href="#slice-7" class="slice-nav-item" data-slice-nav="7">
-        <span class="slice-nav-dot" data-approval="pending" data-dot-for="7"></span>
+        <span class="slice-nav-dot" data-approval="approved" data-dot-for="7"></span>
         <span>#7 Speed up slow CLI paths</span>
         
         
@@ -540,7 +540,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     
     <li>
       <a href="#slice-8" class="slice-nav-item" data-slice-nav="8">
-        <span class="slice-nav-dot" data-approval="pending" data-dot-for="8"></span>
+        <span class="slice-nav-dot" data-approval="approved" data-dot-for="8"></span>
         <span>#8 Merge duplicated helpers</span>
         
         
@@ -549,7 +549,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     
     <li>
       <a href="#slice-9" class="slice-nav-item" data-slice-nav="9">
-        <span class="slice-nav-dot" data-approval="pending" data-dot-for="9"></span>
+        <span class="slice-nav-dot" data-approval="approved" data-dot-for="9"></span>
         <span>#9 Split oversized files and functions</span>
         
         
@@ -565,15 +565,15 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
 </nav>
 <div class="plan-layout">
 <div class="plan-content">
-<article id="plan-7bc7114c" data-type="plan" data-plan-id="plan-7bc7114c" data-feature-id="trk-0677c709" data-status="draft" data-priority="medium">
+<article id="plan-7bc7114c" data-type="plan" data-plan-id="plan-7bc7114c" data-feature-id="trk-0677c709" data-status="finalized" data-priority="medium">
 
 <!-- Plan Header -->
 <header class="plan-header">
   <h1>Plan: Cut bloat and speed up wipnote</h1>
   <p style="color:var(--text-dim)">Fixes from the spk-f72d2045 audit (five read-only audits on 2026-10-25): about 10,000 lines of dead code from the removed dashboard, serve and SQLite eras; hot-path costs on every hook call; duplicated helpers; stale model ids and unused harness features; and the correctness bugs the audit found on the way.</p>
   <div class="meta">
-    <span class="badge badge-pending">Draft</span>
-    <span style="font-size:.75rem;color:var(--text-muted)">v13 · 9 slices · Created 2026-10-25</span>
+    <span class="badge badge-approved">Done</span>
+    <span style="font-size:.75rem;color:var(--text-muted)">v23 · 9 slices · Created 2026-10-25</span>
   </div>
 </header>
 <button id="themeToggle" style="position:fixed;top:16px;right:16px;z-index:100;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:6px 12px;color:var(--text);font-family:var(--mono);font-size:0.75rem;cursor:pointer;">
@@ -790,19 +790,19 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
 <section class="dep-graph" data-zone="dependency-graph" data-graph-render="static">
   <h2>Dependency Graph</h2>
   <div id="graph-data" style="display:none">
-    <div data-node="1" data-name="Fix the correctness bugs the audit found" data-status="pending" data-deps="" data-files="11"></div>
-    <div data-node="2" data-name="Bring model ids and harness features up to date" data-status="pending" data-deps="" data-files="9"></div>
-    <div data-node="3" data-name="Delete dead code in cmd/wipnote" data-status="pending" data-deps="" data-files="1"></div>
-    <div data-node="4" data-name="Delete dead code in core" data-status="pending" data-deps="" data-files="8"></div>
-    <div data-node="5" data-name="Delete serve-era packages in observe, plan and internal" data-status="pending" data-deps="" data-files="10"></div>
-    <div data-node="6" data-name="Cut per-hook cost" data-status="pending" data-deps="4" data-files="10"></div>
-    <div data-node="7" data-name="Speed up slow CLI paths" data-status="pending" data-deps="" data-files="8"></div>
-    <div data-node="8" data-name="Merge duplicated helpers" data-status="pending" data-deps="3,4,5" data-files="8"></div>
-    <div data-node="9" data-name="Split oversized files and functions" data-status="pending" data-deps="8" data-files="5"></div>
+    <div data-node="1" data-name="Fix the correctness bugs the audit found" data-status="approved" data-deps="" data-files="11"></div>
+    <div data-node="2" data-name="Bring model ids and harness features up to date" data-status="approved" data-deps="" data-files="9"></div>
+    <div data-node="3" data-name="Delete dead code in cmd/wipnote" data-status="approved" data-deps="" data-files="1"></div>
+    <div data-node="4" data-name="Delete dead code in core" data-status="approved" data-deps="" data-files="8"></div>
+    <div data-node="5" data-name="Delete serve-era packages in observe, plan and internal" data-status="approved" data-deps="" data-files="10"></div>
+    <div data-node="6" data-name="Cut per-hook cost" data-status="approved" data-deps="4" data-files="10"></div>
+    <div data-node="7" data-name="Speed up slow CLI paths" data-status="approved" data-deps="" data-files="8"></div>
+    <div data-node="8" data-name="Merge duplicated helpers" data-status="approved" data-deps="3,4,5" data-files="8"></div>
+    <div data-node="9" data-name="Split oversized files and functions" data-status="approved" data-deps="8" data-files="5"></div>
     
     <!--PLAN_GRAPH_NODES-->
   </div>
-  <svg id="dep-graph-svg" xmlns="http://www.w3.org/2000/svg" width="1733.6" height="328" viewBox="0 0 1733.6 328" class="dep-graph-static"><defs><marker id="wipnote-arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker></defs><g class="dep-edges"><path class="dep-edge" d="M933.6 72.76 L744.8 108 L744.8 136" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M760.8 80 L760.8 108 L1065.8 149.04" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M1044.8 80 L1044.8 108 L1110.9 136" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M1325.2 80 L1325.2 108 L1251.1 136" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M1177 192 L1177 220 L1177 248" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/></g><g class="dep-nodes"><a href="#slice-1"><g id="graph-node-1" class="dep-node dep-node-pending"><rect class="dep-node-box" x="24" y="24" width="258.4" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="153.2" y="48" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#1 Fix the correctness bugs the…</text><text class="dep-node-meta" x="153.2" y="62" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">11 files</text></g></a><a href="#slice-2"><g id="graph-node-2" class="dep-node dep-node-pending"><rect class="dep-node-box" x="322.4" y="24" width="265.6" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="455.2" y="48" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#2 Bring model ids and harness f…</text><text class="dep-node-meta" x="455.2" y="62" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">9 files</text></g></a><a href="#slice-3"><g id="graph-node-3" class="dep-node dep-node-pending"><rect class="dep-node-box" x="628" y="24" width="265.6" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="760.8" y="48" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#3 Delete dead code in cmd/wipno…</text><text class="dep-node-meta" x="760.8" y="62" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">1 file</text></g></a><a href="#slice-4"><g id="graph-node-4" class="dep-node dep-node-pending"><rect class="dep-node-box" x="933.5999999999999" y="24" width="222.4" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="1044.8" y="48" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#4 Delete dead code in core</text><text class="dep-node-meta" x="1044.8" y="62" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">8 files</text></g></a><a href="#slice-5"><g id="graph-node-5" class="dep-node dep-node-pending"><rect class="dep-node-box" x="1196" y="24" width="258.4" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="1325.2" y="48" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#5 Delete serve-era packages in…</text><text class="dep-node-meta" x="1325.2" y="62" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">10 files</text></g></a><a href="#slice-6"><g id="graph-node-6" class="dep-node dep-node-pending"><rect class="dep-node-box" x="658.8" y="136" width="172" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="744.8" y="160" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#6 Cut per-hook cost</text><text class="dep-node-meta" x="744.8" y="174" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">10 files</text></g></a><a href="#slice-7"><g id="graph-node-7" class="dep-node dep-node-pending"><rect class="dep-node-box" x="1494.4" y="24" width="215.2" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="1602" y="48" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#7 Speed up slow CLI paths</text><text class="dep-node-meta" x="1602" y="62" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">8 files</text></g></a><a href="#slice-8"><g id="graph-node-8" class="dep-node dep-node-pending"><rect class="dep-node-box" x="1065.8" y="136" width="222.4" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="1177" y="160" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#8 Merge duplicated helpers</text><text class="dep-node-meta" x="1177" y="174" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">8 files</text></g></a><a href="#slice-9"><g id="graph-node-9" class="dep-node dep-node-pending"><rect class="dep-node-box" x="1044.2" y="248" width="265.6" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="1177" y="272" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#9 Split oversized files and fun…</text><text class="dep-node-meta" x="1177" y="286" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">5 files</text></g></a></g></svg>
+  <svg id="dep-graph-svg" xmlns="http://www.w3.org/2000/svg" width="1733.6" height="328" viewBox="0 0 1733.6 328" class="dep-graph-static"><defs><marker id="wipnote-arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker></defs><g class="dep-edges"><path class="dep-edge" d="M933.6 72.76 L744.8 108 L744.8 136" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M760.8 80 L760.8 108 L1065.8 149.04" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M1044.8 80 L1044.8 108 L1110.9 136" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M1325.2 80 L1325.2 108 L1251.1 136" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M1177 192 L1177 220 L1177 248" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/></g><g class="dep-nodes"><a href="#slice-1"><g id="graph-node-1" class="dep-node dep-node-approved"><rect class="dep-node-box" x="24" y="24" width="258.4" height="56" rx="6" fill="var(--bg-input)" stroke="var(--approved)"/><text class="dep-node-label" x="153.2" y="48" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#1 Fix the correctness bugs the…</text><text class="dep-node-meta" x="153.2" y="62" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">11 files</text></g></a><a href="#slice-2"><g id="graph-node-2" class="dep-node dep-node-approved"><rect class="dep-node-box" x="322.4" y="24" width="265.6" height="56" rx="6" fill="var(--bg-input)" stroke="var(--approved)"/><text class="dep-node-label" x="455.2" y="48" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#2 Bring model ids and harness f…</text><text class="dep-node-meta" x="455.2" y="62" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">9 files</text></g></a><a href="#slice-3"><g id="graph-node-3" class="dep-node dep-node-approved"><rect class="dep-node-box" x="628" y="24" width="265.6" height="56" rx="6" fill="var(--bg-input)" stroke="var(--approved)"/><text class="dep-node-label" x="760.8" y="48" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#3 Delete dead code in cmd/wipno…</text><text class="dep-node-meta" x="760.8" y="62" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">1 file</text></g></a><a href="#slice-4"><g id="graph-node-4" class="dep-node dep-node-approved"><rect class="dep-node-box" x="933.5999999999999" y="24" width="222.4" height="56" rx="6" fill="var(--bg-input)" stroke="var(--approved)"/><text class="dep-node-label" x="1044.8" y="48" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#4 Delete dead code in core</text><text class="dep-node-meta" x="1044.8" y="62" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">8 files</text></g></a><a href="#slice-5"><g id="graph-node-5" class="dep-node dep-node-approved"><rect class="dep-node-box" x="1196" y="24" width="258.4" height="56" rx="6" fill="var(--bg-input)" stroke="var(--approved)"/><text class="dep-node-label" x="1325.2" y="48" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#5 Delete serve-era packages in…</text><text class="dep-node-meta" x="1325.2" y="62" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">10 files</text></g></a><a href="#slice-6"><g id="graph-node-6" class="dep-node dep-node-approved"><rect class="dep-node-box" x="658.8" y="136" width="172" height="56" rx="6" fill="var(--bg-input)" stroke="var(--approved)"/><text class="dep-node-label" x="744.8" y="160" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#6 Cut per-hook cost</text><text class="dep-node-meta" x="744.8" y="174" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">10 files</text></g></a><a href="#slice-7"><g id="graph-node-7" class="dep-node dep-node-approved"><rect class="dep-node-box" x="1494.4" y="24" width="215.2" height="56" rx="6" fill="var(--bg-input)" stroke="var(--approved)"/><text class="dep-node-label" x="1602" y="48" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#7 Speed up slow CLI paths</text><text class="dep-node-meta" x="1602" y="62" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">8 files</text></g></a><a href="#slice-8"><g id="graph-node-8" class="dep-node dep-node-approved"><rect class="dep-node-box" x="1065.8" y="136" width="222.4" height="56" rx="6" fill="var(--bg-input)" stroke="var(--approved)"/><text class="dep-node-label" x="1177" y="160" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#8 Merge duplicated helpers</text><text class="dep-node-meta" x="1177" y="174" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">8 files</text></g></a><a href="#slice-9"><g id="graph-node-9" class="dep-node dep-node-approved"><rect class="dep-node-box" x="1044.2" y="248" width="265.6" height="56" rx="6" fill="var(--bg-input)" stroke="var(--approved)"/><text class="dep-node-label" x="1177" y="272" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#9 Split oversized files and fun…</text><text class="dep-node-meta" x="1177" y="286" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">5 files</text></g></a></g></svg>
 </section>
 
 <!-- ZONE 2: Interactive Sections -->
@@ -845,7 +845,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
   <summary><span>Slices</span><span class="badge badge-pending" data-badge-for="slices">Pending</span></summary>
   <div class="section-body">
     <p class="slice-legend" id="slice-legend">Effort: S = Small &middot; M = Medium &middot; L = Large &nbsp;|&nbsp; Risk: Low &middot; Med &middot; High</p>
-    <details class="slice-card" id="slice-1" data-slice="1" data-slice-name="slic-cf011c90" data-status="pending" data-approval="pending">
+    <details class="slice-card" id="slice-1" data-slice="1" data-slice-name="slic-cf011c90" data-status="pending" data-approval="approved">
   <summary class="slice-summary" aria-label="Slice 1: Fix the correctness bugs the audit found">
     <span class="slice-num">#1</span>
     <span class="slice-title-col">
@@ -856,15 +856,15 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
           <span class="badge badge-revision badge-sm badge-effort" title="Effort: Medium" aria-label="Effort: Medium">M</span>
           <span class="badge badge-revision badge-sm badge-risk" title="Risk: Med">Med</span>
           
-          
-          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-1">Pending</span>
+          <span class="badge badge-revision badge-sm" title="Execution: promoted">Promoted</span>
+          <span class="badge badge-approved badge-sm slice-approval-badge" data-badge-for="slice-1">Approved</span>
           
           
         </span>
         <span class="slice-actions" onclick="event.stopPropagation()">
           <span class="approval-segmented" role="group" aria-label="Approval action">
             <label class="seg-btn seg-approve" title="Approve">
-              <input type="radio" name="slice-1-approval" value="approved" data-section="slice-1" data-action="approve" aria-label="Approve slice 1">
+              <input type="radio" name="slice-1-approval" value="approved" data-section="slice-1" data-action="approve" checked aria-label="Approve slice 1">
               &#10003;
             </label>
             <label class="seg-btn seg-changes" title="Request changes">
@@ -1007,7 +1007,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     </details>
   </div>
 </details>
-<details class="slice-card" id="slice-2" data-slice="2" data-slice-name="slic-a0c20846" data-status="pending" data-approval="pending">
+<details class="slice-card" id="slice-2" data-slice="2" data-slice-name="slic-a0c20846" data-status="pending" data-approval="approved">
   <summary class="slice-summary" aria-label="Slice 2: Bring model ids and harness features up to date">
     <span class="slice-num">#2</span>
     <span class="slice-title-col">
@@ -1018,15 +1018,15 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
           <span class="badge badge-pending badge-sm badge-effort" title="Effort: Small" aria-label="Effort: Small">S</span>
           <span class="badge badge-pending badge-sm badge-risk" title="Risk: Low">Low</span>
           
-          
-          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-2">Pending</span>
+          <span class="badge badge-revision badge-sm" title="Execution: promoted">Promoted</span>
+          <span class="badge badge-approved badge-sm slice-approval-badge" data-badge-for="slice-2">Approved</span>
           
           
         </span>
         <span class="slice-actions" onclick="event.stopPropagation()">
           <span class="approval-segmented" role="group" aria-label="Approval action">
             <label class="seg-btn seg-approve" title="Approve">
-              <input type="radio" name="slice-2-approval" value="approved" data-section="slice-2" data-action="approve" aria-label="Approve slice 2">
+              <input type="radio" name="slice-2-approval" value="approved" data-section="slice-2" data-action="approve" checked aria-label="Approve slice 2">
               &#10003;
             </label>
             <label class="seg-btn seg-changes" title="Request changes">
@@ -1165,7 +1165,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     </details>
   </div>
 </details>
-<details class="slice-card" id="slice-3" data-slice="3" data-slice-name="slic-8ec9d410" data-status="pending" data-approval="pending">
+<details class="slice-card" id="slice-3" data-slice="3" data-slice-name="slic-8ec9d410" data-status="pending" data-approval="approved">
   <summary class="slice-summary" aria-label="Slice 3: Delete dead code in cmd/wipnote">
     <span class="slice-num">#3</span>
     <span class="slice-title-col">
@@ -1176,15 +1176,15 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
           <span class="badge badge-revision badge-sm badge-effort" title="Effort: Medium" aria-label="Effort: Medium">M</span>
           <span class="badge badge-pending badge-sm badge-risk" title="Risk: Low">Low</span>
           
-          
-          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-3">Pending</span>
+          <span class="badge badge-revision badge-sm" title="Execution: promoted">Promoted</span>
+          <span class="badge badge-approved badge-sm slice-approval-badge" data-badge-for="slice-3">Approved</span>
           
           
         </span>
         <span class="slice-actions" onclick="event.stopPropagation()">
           <span class="approval-segmented" role="group" aria-label="Approval action">
             <label class="seg-btn seg-approve" title="Approve">
-              <input type="radio" name="slice-3-approval" value="approved" data-section="slice-3" data-action="approve" aria-label="Approve slice 3">
+              <input type="radio" name="slice-3-approval" value="approved" data-section="slice-3" data-action="approve" checked aria-label="Approve slice 3">
               &#10003;
             </label>
             <label class="seg-btn seg-changes" title="Request changes">
@@ -1317,7 +1317,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     </details>
   </div>
 </details>
-<details class="slice-card" id="slice-4" data-slice="4" data-slice-name="slic-cf427ad6" data-status="pending" data-approval="pending">
+<details class="slice-card" id="slice-4" data-slice="4" data-slice-name="slic-cf427ad6" data-status="pending" data-approval="approved">
   <summary class="slice-summary" aria-label="Slice 4: Delete dead code in core">
     <span class="slice-num">#4</span>
     <span class="slice-title-col">
@@ -1328,15 +1328,15 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
           <span class="badge badge-revision badge-sm badge-effort" title="Effort: Medium" aria-label="Effort: Medium">M</span>
           <span class="badge badge-pending badge-sm badge-risk" title="Risk: Low">Low</span>
           
-          
-          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-4">Pending</span>
+          <span class="badge badge-revision badge-sm" title="Execution: promoted">Promoted</span>
+          <span class="badge badge-approved badge-sm slice-approval-badge" data-badge-for="slice-4">Approved</span>
           
           
         </span>
         <span class="slice-actions" onclick="event.stopPropagation()">
           <span class="approval-segmented" role="group" aria-label="Approval action">
             <label class="seg-btn seg-approve" title="Approve">
-              <input type="radio" name="slice-4-approval" value="approved" data-section="slice-4" data-action="approve" aria-label="Approve slice 4">
+              <input type="radio" name="slice-4-approval" value="approved" data-section="slice-4" data-action="approve" checked aria-label="Approve slice 4">
               &#10003;
             </label>
             <label class="seg-btn seg-changes" title="Request changes">
@@ -1472,7 +1472,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     </details>
   </div>
 </details>
-<details class="slice-card" id="slice-5" data-slice="5" data-slice-name="slic-1687e435" data-status="pending" data-approval="pending">
+<details class="slice-card" id="slice-5" data-slice="5" data-slice-name="slic-1687e435" data-status="pending" data-approval="approved">
   <summary class="slice-summary" aria-label="Slice 5: Delete serve-era packages in observe, plan and internal">
     <span class="slice-num">#5</span>
     <span class="slice-title-col">
@@ -1483,15 +1483,15 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
           <span class="badge badge-pending badge-sm badge-effort" title="Effort: Small" aria-label="Effort: Small">S</span>
           <span class="badge badge-pending badge-sm badge-risk" title="Risk: Low">Low</span>
           
-          
-          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-5">Pending</span>
+          <span class="badge badge-revision badge-sm" title="Execution: promoted">Promoted</span>
+          <span class="badge badge-approved badge-sm slice-approval-badge" data-badge-for="slice-5">Approved</span>
           
           
         </span>
         <span class="slice-actions" onclick="event.stopPropagation()">
           <span class="approval-segmented" role="group" aria-label="Approval action">
             <label class="seg-btn seg-approve" title="Approve">
-              <input type="radio" name="slice-5-approval" value="approved" data-section="slice-5" data-action="approve" aria-label="Approve slice 5">
+              <input type="radio" name="slice-5-approval" value="approved" data-section="slice-5" data-action="approve" checked aria-label="Approve slice 5">
               &#10003;
             </label>
             <label class="seg-btn seg-changes" title="Request changes">
@@ -1638,7 +1638,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     </details>
   </div>
 </details>
-<details class="slice-card" id="slice-6" data-slice="6" data-slice-name="slic-a896a337" data-status="pending" data-approval="pending">
+<details class="slice-card" id="slice-6" data-slice="6" data-slice-name="slic-a896a337" data-status="pending" data-approval="approved">
   <summary class="slice-summary" aria-label="Slice 6: Cut per-hook cost">
     <span class="slice-num">#6</span>
     <span class="slice-title-col">
@@ -1649,15 +1649,15 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
           <span class="badge badge-blocked badge-sm badge-effort" title="Effort: Large" aria-label="Effort: Large">L</span>
           <span class="badge badge-revision badge-sm badge-risk" title="Risk: Med">Med</span>
           
-          
-          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-6">Pending</span>
+          <span class="badge badge-revision badge-sm" title="Execution: promoted">Promoted</span>
+          <span class="badge badge-approved badge-sm slice-approval-badge" data-badge-for="slice-6">Approved</span>
           
           
         </span>
         <span class="slice-actions" onclick="event.stopPropagation()">
           <span class="approval-segmented" role="group" aria-label="Approval action">
             <label class="seg-btn seg-approve" title="Approve">
-              <input type="radio" name="slice-6-approval" value="approved" data-section="slice-6" data-action="approve" aria-label="Approve slice 6">
+              <input type="radio" name="slice-6-approval" value="approved" data-section="slice-6" data-action="approve" checked aria-label="Approve slice 6">
               &#10003;
             </label>
             <label class="seg-btn seg-changes" title="Request changes">
@@ -1783,7 +1783,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     </details>
   </div>
 </details>
-<details class="slice-card" id="slice-7" data-slice="7" data-slice-name="slic-0b3b7eea" data-status="pending" data-approval="pending">
+<details class="slice-card" id="slice-7" data-slice="7" data-slice-name="slic-0b3b7eea" data-status="pending" data-approval="approved">
   <summary class="slice-summary" aria-label="Slice 7: Speed up slow CLI paths">
     <span class="slice-num">#7</span>
     <span class="slice-title-col">
@@ -1794,15 +1794,15 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
           <span class="badge badge-blocked badge-sm badge-effort" title="Effort: Large" aria-label="Effort: Large">L</span>
           <span class="badge badge-revision badge-sm badge-risk" title="Risk: Med">Med</span>
           
-          
-          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-7">Pending</span>
+          <span class="badge badge-revision badge-sm" title="Execution: promoted">Promoted</span>
+          <span class="badge badge-approved badge-sm slice-approval-badge" data-badge-for="slice-7">Approved</span>
           
           
         </span>
         <span class="slice-actions" onclick="event.stopPropagation()">
           <span class="approval-segmented" role="group" aria-label="Approval action">
             <label class="seg-btn seg-approve" title="Approve">
-              <input type="radio" name="slice-7-approval" value="approved" data-section="slice-7" data-action="approve" aria-label="Approve slice 7">
+              <input type="radio" name="slice-7-approval" value="approved" data-section="slice-7" data-action="approve" checked aria-label="Approve slice 7">
               &#10003;
             </label>
             <label class="seg-btn seg-changes" title="Request changes">
@@ -1942,7 +1942,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     </details>
   </div>
 </details>
-<details class="slice-card" id="slice-8" data-slice="8" data-slice-name="slic-3459766c" data-status="pending" data-approval="pending">
+<details class="slice-card" id="slice-8" data-slice="8" data-slice-name="slic-3459766c" data-status="pending" data-approval="approved">
   <summary class="slice-summary" aria-label="Slice 8: Merge duplicated helpers">
     <span class="slice-num">#8</span>
     <span class="slice-title-col">
@@ -1953,15 +1953,15 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
           <span class="badge badge-revision badge-sm badge-effort" title="Effort: Medium" aria-label="Effort: Medium">M</span>
           <span class="badge badge-pending badge-sm badge-risk" title="Risk: Low">Low</span>
           
-          
-          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-8">Pending</span>
+          <span class="badge badge-revision badge-sm" title="Execution: promoted">Promoted</span>
+          <span class="badge badge-approved badge-sm slice-approval-badge" data-badge-for="slice-8">Approved</span>
           
           
         </span>
         <span class="slice-actions" onclick="event.stopPropagation()">
           <span class="approval-segmented" role="group" aria-label="Approval action">
             <label class="seg-btn seg-approve" title="Approve">
-              <input type="radio" name="slice-8-approval" value="approved" data-section="slice-8" data-action="approve" aria-label="Approve slice 8">
+              <input type="radio" name="slice-8-approval" value="approved" data-section="slice-8" data-action="approve" checked aria-label="Approve slice 8">
               &#10003;
             </label>
             <label class="seg-btn seg-changes" title="Request changes">
@@ -2092,7 +2092,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     </details>
   </div>
 </details>
-<details class="slice-card" id="slice-9" data-slice="9" data-slice-name="slic-80c68005" data-status="pending" data-approval="pending">
+<details class="slice-card" id="slice-9" data-slice="9" data-slice-name="slic-80c68005" data-status="pending" data-approval="approved">
   <summary class="slice-summary" aria-label="Slice 9: Split oversized files and functions">
     <span class="slice-num">#9</span>
     <span class="slice-title-col">
@@ -2103,15 +2103,15 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
           <span class="badge badge-revision badge-sm badge-effort" title="Effort: Medium" aria-label="Effort: Medium">M</span>
           <span class="badge badge-pending badge-sm badge-risk" title="Risk: Low">Low</span>
           
-          
-          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-9">Pending</span>
+          <span class="badge badge-revision badge-sm" title="Execution: promoted">Promoted</span>
+          <span class="badge badge-approved badge-sm slice-approval-badge" data-badge-for="slice-9">Approved</span>
           
           
         </span>
         <span class="slice-actions" onclick="event.stopPropagation()">
           <span class="approval-segmented" role="group" aria-label="Approval action">
             <label class="seg-btn seg-approve" title="Approve">
-              <input type="radio" name="slice-9-approval" value="approved" data-section="slice-9" data-action="approve" aria-label="Approve slice 9">
+              <input type="radio" name="slice-9-approval" value="approved" data-section="slice-9" data-action="approve" checked aria-label="Approve slice 9">
               &#10003;
             </label>
             <label class="seg-btn seg-changes" title="Request changes">
@@ -2294,6 +2294,15 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
   </div>
 </section>
 
+
+<nav data-graph-edges>
+  <section data-edge-type="implemented_in">
+    <h3>Implemented In:</h3>
+    <ul>
+      <li><a href="trk-0677c709.html" data-relationship="implemented_in" data-since="2026-10-25T07:29:51.170672">trk-0677c709</a></li>
+    </ul>
+  </section>
+</nav>
 </article>
 </div><!-- /.plan-content -->
 <aside class="chat-sidebar" id="chat-panel">
