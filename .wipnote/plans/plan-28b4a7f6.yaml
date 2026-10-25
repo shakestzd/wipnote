@@ -7,7 +7,7 @@ meta:
     status: draft
     priority: medium
     schema_version: v4
-    version: 3
+    version: 4
 design:
     problem: |
         ## Problem
@@ -1155,7 +1155,7 @@ questions:
       answer: project-runtime
     - id: q-intercept
       text: How should a bare codex exec or claude -p in the Bash tool be handled?
-      description: On Codex, a rewrite needs permissionDecision allow, which auto-approves the call.
+      description: 'On Codex, a rewrite needs permissionDecision allow, which auto-approves the call. ANSWERED 2026-10-25 by the owner: deny-redirect now; bare codex exec and claude -p must use wipnote delegate. The owner also asked to research making delegated runs interactive: if an interactive session can be given the same load control as a headless run, headless runs are not needed, because a human and the delegator can both talk to an interactive worker. Spike spk-87139e0e checks this parity; slice 8 waits on it.'
       options:
         - key: deny-redirect
           label: Deny with a reason; the model re-runs it as wipnote delegate run (no permission change)
@@ -1165,10 +1165,10 @@ questions:
           label: Rewrite with allow on both (widens permission)
         - key: none
           label: No interception; guidance only
-      answer: null
+      answer: deny-redirect
     - id: q-claude-pane
       text: Outside herdr, does a Claude Code pane still show the run?
-      description: The mod's claudePane auto mode uses the Claude Code mods UI, which Go cannot drive.
+      description: 'The mod''s claudePane auto mode uses the Claude Code mods UI, which Go cannot drive. ANSWERED 2026-10-25 by the owner: orchestra should be part of delegate. The run view folds into the wipnote-orchestra mod.'
       options:
         - key: drop
           label: Drop it; run.html and wipnote delegate view cover it
@@ -1176,19 +1176,19 @@ questions:
           label: Fold a view-only run pane into the wipnote-orchestra mod
         - key: thin-mod
           label: Keep a thin view-only mod that reads the run store
-      answer: null
+      answer: orchestra
     - id: q-viewer
       text: Keep the Python Textual pane viewer?
-      description: The mod's textual viewer needs uv and downloads Textual on first run. Slice 7 adds a plain Go viewer.
+      description: 'The mod''s textual viewer needs uv and downloads Textual on first run. Slice 7 adds a plain Go viewer. ANSWERED 2026-10-25 by the owner: the Go viewer only (wipnote delegate view); the Textual viewer goes.'
       options:
         - key: go-plain
           label: Replace it with the Go viewer (wipnote delegate view)
         - key: keep-textual
           label: Keep Textual as an option (needs uv)
-      answer: null
+      answer: go-plain
     - id: q-label
       text: What label goes into the committed ledger?
-      description: The mod derives a 48-character label from the prompt, and a prompt can hold sensitive text that git would then keep.
+      description: 'The mod derives a 48-character label from the prompt, and a prompt can hold sensitive text that git would then keep. ANSWERED 2026-10-25 by the owner: only an explicit --label goes into the ledger; derived labels stay in the run folder.'
       options:
         - key: explicit-only
           label: Only an explicit --label; derived labels stay in the run folder
@@ -1196,7 +1196,7 @@ questions:
           label: The derived 48-character label
         - key: none
           label: No label in the ledger
-      answer: null
+      answer: explicit-only
     - id: q-worker-claim
       text: Does a spawned worker claim the work item?
       description: 'The ledger tag links the run either way. A claim also attributes the worker''s edits and commits to the item. ANSWERED 2026-10-25 by the owner: the worker claims the work item (chosen over link-only). The handoff with the orchestrator''s claim is q-claim-handoff; several workers on one item is q-concurrent-workers.'
@@ -1208,7 +1208,7 @@ questions:
       answer: shared-claim
     - id: q-codex-sandbox
       text: What happens when Codex's sandbox fails (bwrap in a container)?
-      description: Codex's bwrap sandbox fails in this devcontainer. danger-full-access is safe only when the container is the isolation boundary.
+      description: 'Codex''s bwrap sandbox fails in this devcontainer. danger-full-access is safe only when the container is the isolation boundary. ANSWERED 2026-10-25 by the owner: refuse by default with the probe output; a per-host setting can pass --sandbox danger-full-access.'
       options:
         - key: refuse
           label: Refuse with the probe output and the fix options
@@ -1216,61 +1216,61 @@ questions:
           label: Allow a per-host setting that passes --sandbox danger-full-access
         - key: auto-fallback
           label: Fall back to danger-full-access automatically in containers
-      answer: null
+      answer: per-host-optin
     - id: q-orch-import
       text: Import orch history into the ledger?
-      description: orch's registry holds past runs with work-item tags. Without an import, lineage loses them when orchlink is deleted.
+      description: 'orch''s registry holds past runs with work-item tags. Without an import, lineage loses them when orchlink is deleted. ANSWERED 2026-10-25 by the owner: one-shot wipnote delegate import-orch, then delete orchlink.'
       options:
         - key: import
           label: One-shot wipnote delegate import-orch, then delete orchlink
         - key: no-import
           label: No import; keep orchlink until orch is no longer used, then delete it
-      answer: null
+      answer: import
     - id: q-orch-source
       text: How does the orch source enter the repo?
-      description: The license and any host paths in it are unknown.
+      description: 'The license and any host paths in it are unknown. ANSWERED 2026-10-25 by the owner: README and inventory only; the orch source stays outside the repo.'
       options:
         - key: snapshot
           label: A scrubbed snapshot under docs/reference/orch/
         - key: inventory-only
           label: README and inventory only; the source stays outside the repo
-      answer: null
+      answer: inventory-only
     - id: q-chained
       text: Should chained delegations (pipes, ;) be wrapped in v1?
-      description: The mod wraps them with shell shims. The plan passes them through unchanged in v1.
+      description: 'The mod wraps them with shell shims. The plan passes them through unchanged in v1. ANSWERED 2026-10-25 by the owner: scope it for v2; v1 does not wrap chained delegations.'
       options:
         - key: later
           label: Later, if usage shows the need
         - key: v1
           label: In v1, before the mod is removed
-      answer: null
+      answer: later
     - id: q-answer-questions
       text: Can the orchestrator answer a worker's question?
-      description: orch only lists pending questions. Answering means typing into the worker's pane or a blocking ask/reply protocol.
+      description: 'orch only lists pending questions. Answering means typing into the worker''s pane or a blocking ask/reply protocol. ANSWERED 2026-10-25 by the owner: also answer (ask/reply, as herdr-orch does), in v1.'
       options:
         - key: list-only
           label: List only (orch parity)
         - key: answer
           label: Also answer it (as herdr-orch ask/reply does)
-      answer: null
+      answer: answer
     - id: q-mod-removal
       text: When is mods/codex-herdr-pane removed?
-      description: Removal in the same release gives one path at once. One release later gives mod users time to move settings.
+      description: 'Removal in the same release gives one path at once. One release later gives mod users time to move settings. ANSWERED 2026-10-25 by the owner: remove the mod in the release that ships delegate run and the redirect.'
       options:
         - key: same-release
           label: In the release that ships delegate run and the redirect
         - key: one-release-later
           label: One release later, after a deprecation notice
-      answer: null
+      answer: same-release
     - id: q-antigravity
       text: Are Antigravity workers in scope for v1?
-      description: Antigravity is a supported harness, but no verified upstream doc set exists yet, and entwurf reports its native push as paused.
+      description: 'Antigravity is a supported harness, but no verified upstream doc set exists yet, and entwurf reports its native push as paused. ANSWERED 2026-10-25 by the owner: no; Claude and Codex only in v1.'
       options:
         - key: "no"
           label: No; Claude and Codex only
         - key: "yes"
           label: Yes, as a third spawn harness
-      answer: null
+      answer: "no"
     - id: q-claim-handoff
       text: When a spawned worker claims the work item, what happens to the orchestrator's claim?
       description: 'A worker''s claim episode is keyed by its own session (rootSessionFor falls back to the session id), so today feature start''s collision gate (checkLiveCollisionGate) refuses the worker while the orchestrator holds a live claim. Episodes have four outcomes only (completed, released, abandoned, expired), so "suspend" has no outcome of its own: it equals release plus an automatic reclaim. In every option, completion by either side closes every open episode on the item (CloseWorkItem). ANSWERED 2026-10-25 by the owner: co-claim, workers count as family. The orchestrator keeps its claim; the claim gate treats the caller''s live workers, read from the delegations ledger (caller_session, worker_sessions), as its own family, so neither blocks the other; the orchestrator can still review and complete the item.'
