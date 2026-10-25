@@ -27,7 +27,7 @@ type guardInitDeps struct {
 	// approver resolves the human identity recorded in approved.by.
 	approver func(repoRoot string) string
 	// commit stages and commits the written profile. Production wraps
-	// runGitMutation; tests record the call.
+	// runGitMutationBatch; tests record the call.
 	commit func(repoRoot string, paths []string, message string) error
 	// in/out are the approval prompt's I/O. Production uses stdin/stderr.
 	in  io.Reader

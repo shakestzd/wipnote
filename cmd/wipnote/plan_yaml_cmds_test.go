@@ -13,10 +13,10 @@ import (
 
 // TestCommitPlanChange_RoutedThroughGitRunner asserts that commitPlanChange's
 // add and commit mutations flow through gitRunner (the runGitWithLockRetry
-// seam that runGitMutation delegates to) rather than via bare exec.Command.
+// seam that runGitMutationBatch delegates to) rather than via bare exec.Command.
 // This is the TDD gate for feat-c0307d7a: the test is written before the
 // implementation change, so it must FAIL against the old exec.Command code and
-// PASS after commitPlanChange is routed through runGitMutation.
+// PASS after commitPlanChange is routed through runGitMutationBatch.
 func TestCommitPlanChange_RoutedThroughGitRunner(t *testing.T) {
 	dir := t.TempDir()
 	initGitRepo(t, dir)
@@ -69,16 +69,16 @@ func TestCommitPlanChange_RoutedThroughGitRunner(t *testing.T) {
 	}
 
 	if !addCalled {
-		t.Error("git add did not flow through gitRunner — commitPlanChange is not using runGitMutation for the add step")
+		t.Error("git add did not flow through gitRunner — commitPlanChange is not using runGitMutationBatch for the add step")
 	}
 	if !commitCalled {
-		t.Error("git commit did not flow through gitRunner — commitPlanChange is not using runGitMutation for the commit step")
+		t.Error("git commit did not flow through gitRunner — commitPlanChange is not using runGitMutationBatch for the commit step")
 	}
 }
 
 // TestCommitPlanChange_RelativePlanPath verifies that a RELATIVE planPath
 // (as produced by `--project-dir relative/repo`) is staged correctly. Since
-// runGitMutation anchors with `git -C <repoRoot>`, the path must be absolutized
+// runGitMutationBatch anchors with `git -C <repoRoot>`, the path must be absolutized
 // first or `git add -- relative/...` would resolve against repoRoot and miss the
 // file (roborev finding job 3633).
 func TestCommitPlanChange_RelativePlanPath(t *testing.T) {

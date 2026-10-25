@@ -21,8 +21,8 @@ type NodeResult struct {
 // derived node indexes, except for architecture cards, which come from their
 // canonical HTML store via archs.
 type QueryBuilder struct {
-	db       *sql.DB
-	archs    *archLookup
+	db    *sql.DB
+	archs *archLookup
 }
 
 // WithArch attaches the architecture card source used to resolve arch nodes.

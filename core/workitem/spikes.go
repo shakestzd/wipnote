@@ -2,7 +2,6 @@ package workitem
 
 import (
 	"fmt"
-	"sort"
 	"time"
 
 	"github.com/shakestzd/wipnote/core/models"
@@ -19,7 +18,6 @@ type spikeConfig struct {
 	content   string
 	spikeType string
 	findings  string
-	timebox   string // e.g. "4h"
 }
 
 // SpikeWithPriority sets the spike's priority.
@@ -27,34 +25,14 @@ func SpikeWithPriority(p string) SpikeOption {
 	return func(c *spikeConfig) { c.priority = p }
 }
 
-// SpikeWithStatus sets the spike's initial status.
-func SpikeWithStatus(s string) SpikeOption {
-	return func(c *spikeConfig) { c.status = s }
-}
-
 // SpikeWithTrack links the spike to a track.
 func SpikeWithTrack(trackID string) SpikeOption {
 	return func(c *spikeConfig) { c.trackID = trackID }
 }
 
-// SpikeWithSteps adds investigation steps.
-func SpikeWithSteps(steps ...string) SpikeOption {
-	return func(c *spikeConfig) { c.steps = steps }
-}
-
 // SpikeWithType sets the spike investigation type.
 func SpikeWithType(t string) SpikeOption {
 	return func(c *spikeConfig) { c.spikeType = t }
-}
-
-// SpikeWithFindings sets the initial findings text.
-func SpikeWithFindings(f string) SpikeOption {
-	return func(c *spikeConfig) { c.findings = f }
-}
-
-// SpikeWithTimebox sets a timebox duration string.
-func SpikeWithTimebox(tb string) SpikeOption {
-	return func(c *spikeConfig) { c.timebox = tb }
 }
 
 // SpikeWithContent sets the description body.
@@ -129,49 +107,4 @@ func (sc *SpikeCollection) Create(title string, opts ...SpikeOption) (*models.No
 	}
 
 	return node, nil
-}
-
-// SetFindings updates the content of an existing spike with investigation findings.
-func (sc *SpikeCollection) SetFindings(id, findings string) (*models.Node, error) {
-	node, err := sc.mutateNode(id, func(node *models.Node) error {
-		node.Content = fmt.Sprintf("<p>%s</p>", findings)
-		node.UpdatedAt = time.Now().UTC()
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-	return node, nil
-}
-
-// GetLatest returns the most recent spike(s), optionally filtered by agent.
-func (sc *SpikeCollection) GetLatest(agent string, limit int) ([]*models.Node, error) {
-	if limit <= 0 {
-		limit = 1
-	}
-
-	nodes, err := sc.List()
-	if err != nil {
-		return nil, err
-	}
-
-	if agent != "" {
-		var filtered []*models.Node
-		for _, n := range nodes {
-			if n.AgentAssigned == agent {
-				filtered = append(filtered, n)
-			}
-		}
-		nodes = filtered
-	}
-
-	// Sort by created time descending
-	sort.Slice(nodes, func(i, j int) bool {
-		return nodes[i].CreatedAt.After(nodes[j].CreatedAt)
-	})
-
-	if len(nodes) > limit {
-		nodes = nodes[:limit]
-	}
-	return nodes, nil
 }

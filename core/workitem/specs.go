@@ -28,11 +28,6 @@ func SpecWithTrack(trackID string) SpecOption {
 	return func(c *specConfig) { c.trackID = trackID }
 }
 
-// SpecWithSteps adds requirement items.
-func SpecWithSteps(steps ...string) SpecOption {
-	return func(c *specConfig) { c.steps = steps }
-}
-
 // SpecWithContent sets the specification body.
 func SpecWithContent(content string) SpecOption {
 	return func(c *specConfig) { c.content = content }

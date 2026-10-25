@@ -162,27 +162,6 @@ func (s *Store) LatestPassingForWorkItem(workItemID string, within time.Duration
 	return nil, nil
 }
 
-// Signatures returns the set of record signatures already in the ledger.
-//
-// It exists for the one-shot backfill of legacy index rows written before this
-// ledger did: the signature is a content checksum over a run's decision-relevant
-// fields, so a match means the same run is already canonical and must not be
-// appended twice. Returning the whole set keeps that backfill a single parse
-// rather than one per candidate row.
-func (s *Store) Signatures() (map[string]bool, error) {
-	records, err := s.ReadAll()
-	if err != nil {
-		return nil, err
-	}
-	out := make(map[string]bool, len(records))
-	for _, r := range records {
-		if r.Signature != "" {
-			out[r.Signature] = true
-		}
-	}
-	return out, nil
-}
-
 func (s *Store) notify(action string) {
 	if OnCommit == nil {
 		return

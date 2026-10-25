@@ -117,4 +117,3 @@ func TestIdleExitNotTriggeredWhileActive(t *testing.T) {
 		t.Fatal("writer did not idle-exit after activity stopped")
 	}
 }
-

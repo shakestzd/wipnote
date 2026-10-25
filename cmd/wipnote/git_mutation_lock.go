@@ -14,14 +14,14 @@ import (
 // own index.lock then makes one of them fail with transient contention, which
 // runGitWithLockRetry (cmd/wipnote/git_lock_retry.go) papers over with a backoff
 // loop. That backoff is necessary but reactive: it only kicks in AFTER the
-// collision. runGitMutation adds a proactive layer — it serializes wipnote's
+// collision. runGitMutationBatch adds a proactive layer — it serializes wipnote's
 // OWN mutations behind a single repo-scoped advisory lock so they never reach
 // git's index.lock contention path against each other in the first place.
 //
 // SCOPE / COMPLEMENTARY LAYER: The advisory lock ONLY serializes wipnote's own
 // processes. External writers (IDE git integration, gitstatus daemon, the user
 // running `git` by hand) do NOT honor it. Therefore runGitWithLockRetry is
-// RETAINED, not replaced — runGitMutation acquires the advisory lock and then
+// RETAINED, not replaced — runGitMutationBatch acquires the advisory lock and then
 // runs the command through runGitWithLockRetry inside the locked section, so
 // external-writer contention is still handled by the backoff loop. The advisory
 // lock sits in front of runGitWithLockRetry; it does not supersede it.
@@ -56,33 +56,11 @@ var gitMutationLockPath = func(repoRoot string) (string, error) {
 	return projectRuntimeCachePath(repoRoot, "git-locks", "git-mutation.lock")
 }
 
-// runGitMutation runs an index/ref-writing git command anchored to repoRoot
-// while holding the repo-scoped advisory lock, then delegates to
-// runGitWithLockRetry for the actual execution (so the external-writer backoff
-// layer is preserved inside the locked section). The lock is released via defer
-// before returning — and is auto-released by the kernel if the process dies.
-//
-// Only mutating commands (git add / git commit / ref updates) need to go
-// through here. Read-only commands (git diff, git log, git status) do not take
-// the lock.
-//
-// If the lock file path cannot be resolved or the lock cannot be acquired, the
-// command is still run through runGitWithLockRetry rather than failing the
-// mutation outright: the advisory lock is an optimization over git's own
-// contention handling, not a correctness prerequisite. Losing it degrades to
-// the pre-existing behavior (runGitWithLockRetry alone) rather than blocking
-// the user's work.
-func runGitMutation(repoRoot string, args ...string) ([]byte, error) {
-	return withGitMutationLock(repoRoot, func() ([]byte, error) {
-		return runGitWithLockRetry(repoRoot, args...)
-	})
-}
-
 // runGitMutationBatch runs a SEQUENCE of mutating git commands under a SINGLE
 // advisory-lock acquisition, so the whole sequence is atomic with respect to
 // other wipnote git writers. Use it when several mutations must not be
 // interleaved — notably `git add` then `git commit` of the same paths: if the
-// lock were released between them (two separate runGitMutation calls), another
+// lock were released between them (two separate single-command batches), another
 // wipnote mutation could commit or alter the staged artifacts under the wrong
 // message (roborev finding on feat-76504033).
 //

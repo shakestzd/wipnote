@@ -274,21 +274,3 @@ func ReadSessionState(projectDir, sessionID string) (*SessionStateFile, error) {
 	}
 	return &state, nil
 }
-
-// ResolvePrimarySessionID returns the session ID for a project using the
-// per-session state file when present (preferred), falling back to the legacy
-// .active-session file for backward compatibility.
-//
-// Callers should prefer per-session state when a concrete sessionID is known;
-// this function is for callers that need to discover the "current" session
-// without an explicit ID (e.g. CLI commands running outside a hook).
-func ResolvePrimarySessionID(projectDir, sessionID string) string {
-	// Per-session state is primary when present.
-	if sessionID != "" {
-		if st, err := ReadSessionState(projectDir, sessionID); err == nil && st != nil {
-			return st.SessionID
-		}
-	}
-	// Fall back to legacy .active-session (backward compat).
-	return readActiveSessionID(projectDir)
-}

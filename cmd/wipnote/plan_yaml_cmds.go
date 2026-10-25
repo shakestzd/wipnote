@@ -59,7 +59,7 @@ func commitPlanChange(planPath, message string) error {
 		return fmt.Errorf("autocommit: re-render HTML: %w", err)
 	}
 
-	// Resolve the true repo root so runGitMutation keys the advisory lock on
+	// Resolve the true repo root so runGitMutationBatch keys the advisory lock on
 	// the same path used by work-item artifact commits. Using planDir
 	// (e.g. .wipnote/plans) would produce a different lock-file hash and defeat
 	// the serialization guarantee (roborev finding on feat-c0307d7a).
@@ -68,7 +68,7 @@ func commitPlanChange(planPath, message string) error {
 		repoRoot = planDir // fallback: best-effort, still serialized within itself
 	}
 
-	// Absolutize the file paths. runGitMutation anchors with `git -C <repoRoot>`,
+	// Absolutize the file paths. runGitMutationBatch anchors with `git -C <repoRoot>`,
 	// so a relative planPath/htmlPath (e.g. from `--project-dir relative/repo`)
 	// would be resolved against repoRoot and fail to stage. Absolute paths are
 	// anchor-independent (roborev finding job 3633).
@@ -84,7 +84,7 @@ func commitPlanChange(planPath, message string) error {
 	// staged-index transaction cannot interleave with another wipnote git
 	// mutation (roborev #3713). Explicit absolute paths — never `git add -A`.
 	// Inside the lock we call runGitWithLockRetry directly (the external-writer
-	// backoff layer), not runGitMutation (which would re-acquire the lock).
+	// backoff layer), not runGitMutationBatch (which would re-acquire the lock).
 	var resultErr error
 	_, lockErr := withGitMutationLock(repoRoot, func() ([]byte, error) {
 		if out, err := runGitWithLockRetry(repoRoot, "add", "--", addPlanPath, htmlAbs); err != nil {
@@ -121,7 +121,7 @@ func isGitRepo(dir string) bool {
 
 // repoRootOf returns the git repository root for the given directory.
 // This is the canonical anchor for repo-scoped advisory lock hashing in
-// runGitMutation — always pass the true repo root, never a subdirectory.
+// runGitMutationBatch — always pass the true repo root, never a subdirectory.
 func repoRootOf(dir string) (string, error) {
 	out, err := exec.Command("git", "-C", dir, "rev-parse", "--show-toplevel").Output()
 	if err != nil {

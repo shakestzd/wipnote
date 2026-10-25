@@ -7,4 +7,3 @@ type SessionInfo struct {
 	Status    string
 	CreatedAt string
 }
-

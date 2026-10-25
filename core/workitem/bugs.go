@@ -25,34 +25,14 @@ func BugWithPriority(p string) BugOption {
 	return func(c *bugConfig) { c.priority = p }
 }
 
-// BugWithStatus sets the bug's initial status.
-func BugWithStatus(s string) BugOption {
-	return func(c *bugConfig) { c.status = s }
-}
-
 // BugWithTrack links the bug to a track.
 func BugWithTrack(trackID string) BugOption {
 	return func(c *bugConfig) { c.trackID = trackID }
 }
 
-// BugWithSteps adds implementation/fix steps.
-func BugWithSteps(steps ...string) BugOption {
-	return func(c *bugConfig) { c.steps = steps }
-}
-
 // BugWithContent sets the description body.
 func BugWithContent(content string) BugOption {
 	return func(c *bugConfig) { c.content = content }
-}
-
-// BugWithSeverity sets the severity level.
-func BugWithSeverity(s string) BugOption {
-	return func(c *bugConfig) { c.severity = s }
-}
-
-// BugWithReproSteps documents how to reproduce the bug.
-func BugWithReproSteps(steps ...string) BugOption {
-	return func(c *bugConfig) { c.reproSteps = steps }
 }
 
 // BugCollection provides CRUD operations for bugs.

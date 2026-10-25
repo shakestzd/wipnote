@@ -44,9 +44,9 @@ func TestRunGitMutation_InvokesRunGitWithLockRetryInsideLock(t *testing.T) {
 		return []byte("ok"), nil
 	}
 
-	out, err := runGitMutation(repoRoot, "add", "--", "x")
+	out, err := runGitMutationBatch(repoRoot, []string{"add", "--", "x"})
 	if err != nil {
-		t.Fatalf("runGitMutation returned err: %v", err)
+		t.Fatalf("runGitMutationBatch returned err: %v", err)
 	}
 	if string(out) != "ok" {
 		t.Errorf("output = %q, want %q", out, "ok")
@@ -94,8 +94,8 @@ func TestRunGitMutation_SerializesConcurrentProcesses(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			if _, err := runGitMutation(repoRoot, "commit", "-m", "x"); err != nil {
-				t.Errorf("runGitMutation err: %v", err)
+			if _, err := runGitMutationBatch(repoRoot, []string{"commit", "-m", "x"}); err != nil {
+				t.Errorf("runGitMutationBatch err: %v", err)
 			}
 		}()
 	}
@@ -107,7 +107,7 @@ func TestRunGitMutation_SerializesConcurrentProcesses(t *testing.T) {
 }
 
 // TestRunGitMutation_AutoReleasesAfterReturn verifies the advisory lock is
-// released when runGitMutation returns, so a subsequent acquisition succeeds.
+// released when runGitMutationBatch returns, so a subsequent acquisition succeeds.
 // This mirrors flock's auto-release-on-handle-drop semantics: once we Unlock
 // (via defer) the next caller may immediately acquire.
 func TestRunGitMutation_AutoReleasesAfterReturn(t *testing.T) {
@@ -123,7 +123,7 @@ func TestRunGitMutation_AutoReleasesAfterReturn(t *testing.T) {
 	gitMutationLockPath = func(_ string) (string, error) { return lockFile, nil }
 	gitRunner = func(_ string, _ ...string) ([]byte, error) { return nil, nil }
 
-	if _, err := runGitMutation(repoRoot, "add", "--", "x"); err != nil {
+	if _, err := runGitMutationBatch(repoRoot, []string{"add", "--", "x"}); err != nil {
 		t.Fatalf("first mutation err: %v", err)
 	}
 
@@ -134,7 +134,7 @@ func TestRunGitMutation_AutoReleasesAfterReturn(t *testing.T) {
 		t.Fatalf("TryLock err: %v", err)
 	}
 	if !locked {
-		t.Fatal("advisory lock was NOT released after runGitMutation returned")
+		t.Fatal("advisory lock was NOT released after runGitMutationBatch returned")
 	}
 	_ = probe.Unlock()
 }
@@ -159,7 +159,7 @@ func TestRunGitMutation_PropagatesRunnerError(t *testing.T) {
 		return []byte("error: hook declined"), wantErr
 	}
 
-	out, err := runGitMutation(repoRoot, "commit", "-m", "x")
+	out, err := runGitMutationBatch(repoRoot, []string{"commit", "-m", "x"})
 	if !errors.Is(err, wantErr) {
 		t.Errorf("err = %v, want %v", err, wantErr)
 	}

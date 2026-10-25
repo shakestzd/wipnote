@@ -26,7 +26,7 @@ func TestEnsureForTrack_CreatesNewBranch(t *testing.T) {
 
 	// Call EnsureForTrack
 	trackID := "trk-abc123"
-	worktreePath, err := worktree.EnsureForTrack(trackID, tmpDir, io.Discard)
+	worktreePath, _, err := worktree.EnsureForTrackStatus(trackID, tmpDir, io.Discard)
 	if err != nil {
 		t.Fatalf("EnsureForTrack failed: %v", err)
 	}
@@ -71,13 +71,13 @@ func TestEnsureForTrack_ReusesExisting(t *testing.T) {
 	trackID := "trk-xyz789"
 
 	// Create worktree first time
-	worktreePath1, err := worktree.EnsureForTrack(trackID, tmpDir, io.Discard)
+	worktreePath1, _, err := worktree.EnsureForTrackStatus(trackID, tmpDir, io.Discard)
 	if err != nil {
 		t.Fatalf("first EnsureForTrack failed: %v", err)
 	}
 
 	// Create worktree second time (should reuse)
-	worktreePath2, err := worktree.EnsureForTrack(trackID, tmpDir, io.Discard)
+	worktreePath2, _, err := worktree.EnsureForTrackStatus(trackID, tmpDir, io.Discard)
 	if err != nil {
 		t.Fatalf("second EnsureForTrack failed: %v", err)
 	}

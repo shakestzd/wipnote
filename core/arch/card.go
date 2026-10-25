@@ -222,28 +222,6 @@ func validatePathWarn(p string) string {
 	return ""
 }
 
-// ParseAndValidate parses and validates in one step.
-func ParseAndValidate(data []byte) (*Card, error) {
-	card, err := Parse(data)
-	if err != nil {
-		return nil, err
-	}
-	if err := Validate(card); err != nil {
-		return nil, err
-	}
-	return card, nil
-}
-
-// Marshal renders a card to the import-compatible YAML representation used by
-// the legacy file-based arch format.
-func Marshal(c *Card) ([]byte, error) {
-	data, err := yaml.Marshal(c)
-	if err != nil {
-		return nil, fmt.Errorf("marshal yaml card: %w", err)
-	}
-	return data, nil
-}
-
 // splitFrontmatter separates YAML frontmatter from body.
 // Expects the document to start with "---\n".
 func splitFrontmatter(data []byte) (fm []byte, body string, err error) {

@@ -445,7 +445,7 @@ func TestCompleteCommitsWipnoteArtifact(t *testing.T) {
 	featureID := "feat-test123"
 	writeFeatureHTML(t, mainRepo, featureID, "")
 
-	worktreePath, err := worktree.EnsureForFeature(featureID, mainRepo, io.Discard)
+	worktreePath, _, err := worktree.EnsureForFeatureStatus(featureID, mainRepo, io.Discard)
 	if err != nil {
 		t.Fatalf("EnsureForFeature: %v", err)
 	}

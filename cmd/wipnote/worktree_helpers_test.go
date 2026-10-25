@@ -2,13 +2,14 @@ package main
 
 import (
 	"bytes"
-	"github.com/shakestzd/wipnote/core/worktree"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/shakestzd/wipnote/core/worktree"
 )
 
 // setupWorktreeGitRepo creates a temp git repo with an initial commit and returns its path.
@@ -91,7 +92,7 @@ func TestEnsureForFeature_CreatesOnFirstCall(t *testing.T) {
 	dir := setupWorktreeGitRepo(t)
 	writeFeatureHTML(t, dir, "feat-aaa", "")
 
-	path, err := worktree.EnsureForFeature("feat-aaa", dir, io.Discard)
+	path, _, err := worktree.EnsureForFeatureStatus("feat-aaa", dir, io.Discard)
 	if err != nil {
 		t.Fatalf("EnsureForFeature: %v", err)
 	}
@@ -110,12 +111,12 @@ func TestEnsureForFeature_IdempotentSecondCall(t *testing.T) {
 	dir := setupWorktreeGitRepo(t)
 	writeFeatureHTML(t, dir, "feat-bbb", "")
 
-	path1, err := worktree.EnsureForFeature("feat-bbb", dir, io.Discard)
+	path1, _, err := worktree.EnsureForFeatureStatus("feat-bbb", dir, io.Discard)
 	if err != nil {
 		t.Fatalf("first EnsureForFeature: %v", err)
 	}
 
-	path2, err := worktree.EnsureForFeature("feat-bbb", dir, io.Discard)
+	path2, _, err := worktree.EnsureForFeatureStatus("feat-bbb", dir, io.Discard)
 	if err != nil {
 		t.Fatalf("second EnsureForFeature: %v", err)
 	}
@@ -131,7 +132,7 @@ func TestEnsureForFeature_WithParentTrack(t *testing.T) {
 	dir := setupWorktreeGitRepo(t)
 	writeFeatureHTML(t, dir, "feat-ccc", "trk-parent111")
 
-	path, err := worktree.EnsureForFeature("feat-ccc", dir, io.Discard)
+	path, _, err := worktree.EnsureForFeatureStatus("feat-ccc", dir, io.Discard)
 	if err != nil {
 		t.Fatalf("EnsureForFeature: %v", err)
 	}
@@ -154,12 +155,12 @@ func TestEnsureForFeature_WithParentTrack(t *testing.T) {
 func TestEnsureForTrack_Idempotent(t *testing.T) {
 	dir := setupWorktreeGitRepo(t)
 
-	path1, err := worktree.EnsureForTrack("trk-ttt111", dir, io.Discard)
+	path1, _, err := worktree.EnsureForTrackStatus("trk-ttt111", dir, io.Discard)
 	if err != nil {
 		t.Fatalf("first EnsureForTrack: %v", err)
 	}
 
-	path2, err := worktree.EnsureForTrack("trk-ttt111", dir, io.Discard)
+	path2, _, err := worktree.EnsureForTrackStatus("trk-ttt111", dir, io.Discard)
 	if err != nil {
 		t.Fatalf("second EnsureForTrack: %v", err)
 	}
@@ -174,35 +175,13 @@ func TestEnsureForTrack_Idempotent(t *testing.T) {
 	}
 }
 
-// TestEnsureForAgent_ThreeArgSignature verifies the three-arg signature and naming convention.
-func TestEnsureForAgent_ThreeArgSignature(t *testing.T) {
-	// Use setupAgentGitRepo which correctly creates an initial commit.
-	dir := setupAgentGitRepo(t)
-
-	// First create the track branch that the agent will branch from
-	exec.Command("git", "-C", dir, "branch", "trk-agent111").Run() //nolint:errcheck
-
-	path, err := worktree.EnsureForAgent("trk-agent111", "slice-3", dir, io.Discard)
-	if err != nil {
-		t.Fatalf("EnsureForAgent: %v", err)
-	}
-
-	expected := filepath.Join(dir, ".claude", "worktrees", "trk-agent111", "agent-slice-3")
-	if path != expected {
-		t.Errorf("path: got %q, want %q", path, expected)
-	}
-	if _, err := os.Stat(path); err != nil {
-		t.Errorf("agent worktree dir does not exist: %v", err)
-	}
-}
-
 // TestEnsureForFeature_WriterReceivesProgress verifies that progress lines are written to the io.Writer.
 func TestEnsureForFeature_WriterReceivesProgress(t *testing.T) {
 	dir := setupWorktreeGitRepo(t)
 	writeFeatureHTML(t, dir, "feat-ddd", "")
 
 	var buf bytes.Buffer
-	_, err := worktree.EnsureForFeature("feat-ddd", dir, &buf)
+	_, _, err := worktree.EnsureForFeatureStatus("feat-ddd", dir, &buf)
 	if err != nil {
 		t.Fatalf("EnsureForFeature: %v", err)
 	}
@@ -219,7 +198,7 @@ func TestEnsureForFeature_DiscardWriter(t *testing.T) {
 	writeFeatureHTML(t, dir, "feat-eee", "")
 
 	// Should not panic — just discard all output
-	_, err := worktree.EnsureForFeature("feat-eee", dir, io.Discard)
+	_, _, err := worktree.EnsureForFeatureStatus("feat-eee", dir, io.Discard)
 	if err != nil {
 		t.Fatalf("EnsureForFeature with Discard: %v", err)
 	}
@@ -283,7 +262,7 @@ func TestEnsureForTrackWithTitle_FeatureParentTrack(t *testing.T) {
 	}
 
 	// Call EnsureForTrackWithTitle (the titled path, not bare EnsureForTrack).
-	path, err := worktree.EnsureForTrackTitled(parentTitle, parentTrackID, dir, io.Discard)
+	path, _, err := worktree.EnsureForTrackTitledStatus(parentTitle, parentTrackID, dir, io.Discard)
 	if err != nil {
 		t.Fatalf("EnsureForTrackWithTitle: %v", err)
 	}

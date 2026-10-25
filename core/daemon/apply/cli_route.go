@@ -57,16 +57,6 @@ func cliOpID(opType, id, status string) string {
 // pushes this toward the budget — that is the whole point of the async mode.
 const AsyncEnqueueBudget = 2 * time.Second
 
-// routeViaDaemon performs the bounded SYNCHRONOUS (applied-ack) daemon
-// round-trip for an already-built DerivedOp. opID is the dedup key; projectRoot
-// is the project root (the PARENT of .wipnote/). It returns true ONLY when the
-// writer APPLIED (or deduped) the op. This is the path every existing typed
-// route (RouteFeatureStatus/RouteSessionStatus/RouteSessionInsert) uses; its
-// semantics are unchanged.
-func routeViaDaemon(projectRoot, opID, opType string, op DerivedOp) bool {
-	return submitViaDaemon(projectRoot, opID, opType, op, false, CLISubmitBudget)
-}
-
 // submitViaDaemon is the shared bounded round-trip for both ack modes. When
 // async is false it requests an applied-ack (AckApplied/AckDuplicate ⇒ true);
 // when async is true it requests an enqueue-only ack (AckEnqueued/AckDuplicate,
@@ -217,45 +207,6 @@ func RouteSQLAsync(projectRoot, sql string, args ...any) bool {
 		DerivedOp{Type: OpTypeSQL, SQL: sql, Args: args},
 		true,
 		AsyncEnqueueBudget,
-	)
-}
-
-// RouteFeatureStatus routes a work-item status transition (db.UpdateFeatureStatus)
-// through the writer daemon. Returns true when applied/deduped; false → caller
-// must perform the direct write. Bounded by CLISubmitBudget.
-func RouteFeatureStatus(projectRoot, featureID, status string) bool {
-	return routeViaDaemon(
-		projectRoot,
-		cliOpID(OpTypeFeatureStatus, featureID, status),
-		OpTypeFeatureStatus,
-		DerivedOp{Type: OpTypeFeatureStatus, FeatureID: featureID, Status: status},
-	)
-}
-
-// RouteSessionStatus routes a session status transition (db.UpdateSessionStatus)
-// through the writer daemon. Bounded by CLISubmitBudget.
-func RouteSessionStatus(projectRoot, sessionID, status string) bool {
-	return routeViaDaemon(
-		projectRoot,
-		cliOpID(OpTypeSessionStatus, sessionID, status),
-		OpTypeSessionStatus,
-		DerivedOp{Type: OpTypeSessionStatus, SessionID: sessionID, Status: status},
-	)
-}
-
-// RouteSessionInsert routes a session-row insert (db.InsertSession) through the
-// writer daemon. The op_id is keyed on the unique session_id so a replay
-// dedups. Bounded by CLISubmitBudget. Returns true on applied/dedup; false →
-// caller performs the direct insert (and surfaces its error exactly as today).
-func RouteSessionInsert(projectRoot string, s *models.Session) bool {
-	if s == nil {
-		return false
-	}
-	return routeViaDaemon(
-		projectRoot,
-		cliOpID(OpTypeSessionInsert, s.SessionID, s.Status),
-		OpTypeSessionInsert,
-		DerivedOp{Type: OpTypeSessionInsert, Session: s},
 	)
 }
 
