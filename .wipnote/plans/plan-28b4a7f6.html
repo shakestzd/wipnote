@@ -681,7 +681,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
   <p style="color:var(--text-dim)">Make orch&#39;s delegation a native, Go-built wipnote feature (wipnote delegate: spawn, send, wait, result, stop, questions, tree, run) with a file mailbox, herdr panes for interactive sessions and one-shot runs on ONE path that absorbs mods/codex-herdr-pane. orch (Python, owner&#39;s machine) is the reference. Replaces the mod-vs-orch split in docs/design/orch-integration.md.</p>
   <div class="meta">
     <span class="badge badge-approved">Done</span>
-    <span style="font-size:.75rem;color:var(--text-muted)">v34 · 21 slices · Created 2026-10-25</span>
+    <span style="font-size:.75rem;color:var(--text-muted)">v35 · 21 slices · Created 2026-10-25</span>
   </div>
 </header>
 <button id="themeToggle" style="position:fixed;top:16px;right:16px;z-index:100;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:6px 12px;color:var(--text);font-family:var(--mono);font-size:0.75rem;cursor:pointer;">
@@ -3430,7 +3430,7 @@ Narrower prior art: question inboxes (speardragon/herdr-ask-inbox, no license; L
       
       <div class="slice-field">
         <div class="slice-field-label">Done when</div>
-        <ul class="slice-done-list"><li>A result file ends wait even when hooks are silent (D1); a Stop without one gives idle_no_result</li><li>wait needs --timeout and exits 124 on timeout; on a fresh worker it returns ready as soon as the predicate holds (D6)</li><li>result returns the newest result file whatever the state or watermark (D3)</li><li>wait never writes run state, so it cannot undo a stop (F-1)</li><li>inbox shows a message whose hint was lost; questions drops an answered ask</li></ul>
+        <ul class="slice-done-list slice-done-list--grid"><li>A result file ends wait despite silent hooks or stuck working; Stop without one is idle_no_result (D1)</li><li>A stop ends wait at once with stopped (D1b)</li><li>wait needs --timeout (exit 124); fresh workers are ready once the predicate holds (D6)</li><li>result: newest result file, any state or watermark (D3); wait writes no run state (F-1)</li><li>An outbox q-file is a pending ask in status, questions, wait (asks), run view (D7)</li><li>inbox shows lost-hint messages; questions drops answered asks</li></ul>
       </div>
       
     
@@ -3447,10 +3447,12 @@ Narrower prior art: question inboxes (speardragon/herdr-ask-inbox, no license; L
 <strong>Answering:</strong> slice 17 adds delegate answer.
 <strong>Result (decision R, owner 2026-10-25):</strong> send appends a preamble to each task, like orch (orch src/orch/service/transports.py:howto): write outbox/-result.json by temp file plus rename. The Stop hook records only &#34;turn ended&#34;; no last_assistant_message or transcript text is stored.
 <strong>Settle (D1):</strong> a result file for the current task ends wait even when the hooks are silent. orch&#39;s send --wait missed that settle.
+<strong>Settle (D1b, orch defect, Mac evidence 2026-10-25):</strong> a result file in the outbox ends wait even while the state is stuck at working. When the session is stopped, wait ends at once with stopped, well before its timeout; it never blocks on a stopped session.
+<strong>Question file (D7, orch defect, Mac evidence 2026-10-25):</strong> a question the worker writes as outbox/-q.json counts as pending for status, questions, wait (returns asks) and the run view, even when hooks report nothing. Once answered, it is no longer listed. Slice 17&#39;s answer uses its id.
 <strong>Result lookup (D3):</strong> result returns the newest result file, whatever the state or watermark, and names the task it answers. orch returned null while a result file existed.
 <strong>Ready (D6):</strong> wait NAME on a worker with no task returns ready as soon as slice 10&#39;s readiness predicate holds.
 <strong>Do not copy (F-1):</strong> orch&#39;s wait patched session state outside the session lock and could undo a stop. wait writes no run state. Its two ledger writes (adding a /clear session, the worker-loss close) run under the ledger lock and recheck that the row is still open. ANSWERED 2026-10-25 (owner): keep this design; a stop always wins. Two-sided test: stop, then a late wait write, leaves the row closed; the same write on an open row applies.
-<strong>Payload:</strong> wait prints {run, turn, outcome: ready|done|question|idle_no_result|idle_shell|timeout|gone}. result prints the newest result file&#39;s body and its task id. questions prints JSON rows.
+<strong>Payload:</strong> wait prints {run, turn, outcome: ready|done|asks|idle_no_result|idle_shell|timeout|gone|stopped}. result prints the newest result file&#39;s body and its task id. questions prints JSON rows.
 <strong>Polling:</strong> at most 2 Hz, plus an fs watch where available. No daemon.
 <strong>Claims (co-claim, answered 2026-10-25):</strong> wait observes; a timeout changes no claim, and the orchestrator&#39;s episode is never touched. When the worker is gone, wait reuses slice 10&#39;s session-scoped expired close. When a bind event names a session not yet in worker_sessions (the worker ran /clear), wait enriches the ledger row, so the claim gate keeps treating that session as family.
 <strong>Rejected:</strong> settling on herdr idle (a lifecycle state, not a turn result). Parsing agent read output is rejected as racy. Storing the last assistant message from the Stop payload is rejected by the owner (decision R).
@@ -3494,8 +3496,8 @@ Narrower prior art: question inboxes (speardragon/herdr-ask-inbox, no license; L
         <div class="test-strategy">
           
           <div class="test-group" data-kind="other">
-            <span class="test-chip">OTHER &middot; 6</span>
-            <ul><li>Settle (D1, two-sided): TestWait_ResultFileEndsWaitWithoutHooks, TestWait_StopWithoutResultIsIdleNoResult, TestWait_CurrentTurnOnly, TestWait_RequiresTimeout.</li><li>Ready (D6, two-sided): TestWait_FreshWorkerReadyAfter1sReturnsUnder2s, TestWait_NeverReadyTimesOut124.</li><li>Result (D3, two-sided): TestResult_NewestFileWhileWorking, TestResult_NewestFileAfterWatermark, TestResult_NoFileSaysNoneNotNull.</li><li>States (D2): TestWait_IdleBackgroundShellIsNotDone, TestSendAndWait_SharePredicate.</li><li>Do not copy (F-1): TestWait_NeverWritesRunState, TestWait_AfterStopStaysStopped, TestWait_LateLedgerWriteAfterStopLeavesRowClosed, TestWait_LedgerWriteOnOpenRowApplies.</li><li>TestSend_StoreFirstThenHint, TestSend_AppendsResultPreamble, TestQuestions_PendingThenCleared.</li></ul>
+            <span class="test-chip">OTHER &middot; 8</span>
+            <ul><li>Settle (D1, two-sided): TestWait_ResultFileEndsWaitWithoutHooks, TestWait_StopWithoutResultIsIdleNoResult, TestWait_CurrentTurnOnly, TestWait_RequiresTimeout.</li><li>Stuck or stopped (D1b, two-sided): TestWait_WorkingStateResultFileReturnsResult, TestWait_StoppedWhileWaitingReturnsStoppedBeforeTimeout, TestWait_NoResultNoStopTimesOut.</li><li>Question file (D7, two-sided): TestQuestions_OutboxQFileListedWithSilentHooks, TestWait_OutboxQFileReturnsAsks, TestQuestions_AnsweredQFileNotListed, TestQuestions_NoQFileNotListed.</li><li>Ready (D6, two-sided): TestWait_FreshWorkerReadyAfter1sReturnsUnder2s, TestWait_NeverReadyTimesOut124.</li><li>Result (D3, two-sided): TestResult_NewestFileWhileWorking, TestResult_NewestFileAfterWatermark, TestResult_NoFileSaysNoneNotNull.</li><li>States (D2): TestWait_IdleBackgroundShellIsNotDone, TestSendAndWait_SharePredicate.</li><li>Do not copy (F-1): TestWait_NeverWritesRunState, TestWait_AfterStopStaysStopped, TestWait_LateLedgerWriteAfterStopLeavesRowClosed, TestWait_LedgerWriteOnOpenRowApplies.</li><li>TestSend_StoreFirstThenHint, TestSend_AppendsResultPreamble, TestQuestions_PendingThenCleared.</li></ul>
           </div>
           
           <div class="test-group" data-kind="hook">
@@ -4428,7 +4430,7 @@ Narrower prior art: question inboxes (speardragon/herdr-ask-inbox, no license; L
       
       <div class="slice-field">
         <div class="slice-field-label">Done when</div>
-        <ul class="slice-done-list"><li>A pending AskUserQuestion gets the typed choice (send-text, then send-keys enter), and the worker continues</li><li>A pane or terminal_id mismatch refuses; there is no raw-input fallback</li><li>A permission dialog on screen refuses; the orchestrator never answers it</li><li>A stale or unknown qid refuses; outside herdr the verb refuses</li></ul>
+        <ul class="slice-done-list"><li>A pending AskUserQuestion gets the typed choice (send-text, then send-keys enter), and the worker continues</li><li>A pane or terminal_id mismatch refuses; there is no raw-input fallback</li><li>A permission dialog on screen refuses; the orchestrator never answers it</li><li>A stale or unknown qid refuses; outside herdr the verb refuses</li><li>An outbox q-file question is answered by its id (&lt;task-id&gt;-q&lt;n&gt;) even when hooks reported nothing; once answered it refuses (D7)</li></ul>
       </div>
       
     
@@ -4440,10 +4442,11 @@ Narrower prior art: question inboxes (speardragon/herdr-ask-inbox, no license; L
         
         <input type="checkbox" id="slice-17-decisions-reveal" class="reveal-toggle">
         <div class="markdown-block reveal-content serif-prose"><p><strong>Trigger:</strong> the caller runs wipnote delegate answer after delegate questions lists a pending question.
-<strong>State:</strong> reads pending questions from the run&#39;s events (slice 11); writes an answered event so a second answer is refused.
+<strong>State:</strong> reads pending questions from the run&#39;s events and outbox q-files (slice 11); writes an answered event so a second answer is refused.
 <strong>Payload:</strong> an option becomes its number, free text its text, typed with herdr pane send-text, then herdr pane send-keys &lt;pane&gt; enter. herdr agent prompt is not used: it refuses an agent blocked at a dialog (agent_blocked).
 <strong>Pin:</strong> refuse when the pane or terminal_id differs from the one recorded at spawn. No fallback to raw input (orch src/orch/service/transports.py:check_occupant).
 <strong>Person-only dialogs:</strong> refuse while a permission, folder-trust or login dialog shows (orch src/orch/adapters/claude.py:CLAUDE_DIALOGS).
+<strong>Question file (D7, orch defect, Mac evidence 2026-10-25):</strong> a question the worker writes as outbox/-q.json is pending even when hooks report nothing. answer takes that question id; once answered, a second answer is refused.
 <strong>Unverified:</strong> that a digit key selects an AskUserQuestion option. Phase B check B9 (slice 2) tests it; until it passes, an option is refused with that reason.
 <strong>Rejected:</strong> a blocking PreToolUse hook (holds the worker&#39;s hook open) and a reply-file protocol like herdr-orch ask/reply. The owner chose typing into the pane.
 <strong>Risk:</strong> Medium. Key input differs across herdr and harness versions; contract-test against the herdr stub and refuse outside herdr.
@@ -4484,8 +4487,8 @@ Narrower prior art: question inboxes (speardragon/herdr-ask-inbox, no license; L
         <div class="test-strategy">
           
           <div class="test-group" data-kind="other">
-            <span class="test-chip">OTHER &middot; 1</span>
-            <ul><li>Integration (herdr fake): TestAnswer_SendTextThenEnter, TestAnswer_NeverUsesAgentPrompt, TestAnswer_RefusesPaneMismatch, TestAnswer_RefusesTerminalIDMismatch, TestAnswer_RefusesWhilePermissionDialog, TestAnswer_RefusesStaleQid, TestAnswer_RefusesUnknownQid, TestAnswer_RefusesOutsideHerdr.</li></ul>
+            <span class="test-chip">OTHER &middot; 2</span>
+            <ul><li>Integration (herdr fake): TestAnswer_SendTextThenEnter, TestAnswer_NeverUsesAgentPrompt, TestAnswer_RefusesPaneMismatch, TestAnswer_RefusesTerminalIDMismatch, TestAnswer_RefusesWhilePermissionDialog, TestAnswer_RefusesStaleQid, TestAnswer_RefusesUnknownQid, TestAnswer_RefusesOutsideHerdr.</li><li>Question file (D7, two-sided): TestAnswer_OutboxQFileByID, TestAnswer_AnsweredQFileRefuses.</li></ul>
           </div>
           
           <div class="test-group" data-kind="contract">
