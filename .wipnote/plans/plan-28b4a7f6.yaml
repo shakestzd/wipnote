@@ -7,7 +7,7 @@ meta:
     status: draft
     priority: medium
     schema_version: v4
-    version: 5
+    version: 6
 design:
     problem: |
         ## Problem
@@ -1119,6 +1119,28 @@ slices:
             - cmd/wipnote/mods_test.go
             - mods/codex-herdr-pane
             - packages/plugin-core/manifest.json
+    - id: slic-59b08ff0
+      num: 15
+      title: Name sessions by work item
+      what: Delegated workers get the name <item-id>-<title-slug> at spawn (Claude --name; Codex and herdr pane label where supported). An orchestrator session is renamed when it claims a work item. First check whether Claude Code and Codex allow a rename mid-session; if not the session keeps its harness name and wipnote's own session title shows the item.
+      why: 'Owner request 2026-10-25: sessions must be named by work item so a pane list or session list shows what each session works on. Today wipnote claude names sessions <project>-<timestamp> and yolo uses the track title.'
+      files:
+        - cmd/wipnote/claude.go
+        - cmd/wipnote/yolo.go
+        - cmd/wipnote/claim_ledger.go
+      deps:
+        - 10
+        - 12
+      done_when:
+        - A spawned worker's harness session name starts with its work-item id
+        - Claiming an item in a running session renames it or sets wipnote's session title when no rename exists
+        - The rename research result is recorded with upstream doc links
+        - Explicit --name and resume keep their current names
+      effort: M
+      risk: Low
+      tests: 'Unit: worker name built from item id and title (two-sided: no item gives the old name). Unit: claim hook sets the session title. Integration against a fake harness: spawn passes the name flag.'
+      approved: false
+      comment: ""
 questions:
     - id: q-adopt-vs-port
       text: Adopt or wrap the herdr plugin herdr-orch, or port orch?
