@@ -266,7 +266,9 @@ const telemetryCatchUpBudget = 2 * time.Minute
 // # Off, with cause (5)
 //
 // None of these had a production caller before this function was restored, so
-// leaving them off returns to the status quo rather than losing anything.
+// leaving them off returns to the status quo rather than losing anything. Their
+// unwired loop code was then deleted as dead (feat-a559c3e6); this list records
+// why each is off, so restoring one means rewriting it against hydrated data.
 //
 //   - EMPTY-SPIKE WORKTREE GC — OFF. The feature is opt-in and DEFAULT OFF
 //     (worktree.LoadCleanupConfig sets EmptySpikeWorktreeCleanup: false), so
@@ -275,9 +277,9 @@ const telemetryCatchUpBudget = 2 * time.Minute
 //     claimed the opposite — it called the sweep "liveness-aware", which is the
 //     sentence a future reader would trust when deciding whether turning the
 //     feature ON is safe. It is not.
-//     workItemHasLiveHeartbeat (config.go:198) joins the `claims` table.
+//     Its guard, workItemHasLiveHeartbeat, joined the `claims` table.
 //     `claims` has no hydration path, and an audit found no production writer
-//     for it at all, so the query returns ErrNoRows and the guard returns false
+//     for it at all, so the query returned ErrNoRows and the guard returned false
 //     for EVERY work item — it cannot protect anything, in any configuration.
 //     With it inert, all that stands between a live agent's worktree and
 //     destruction is an mtime TTL, a git-lock check and a clean-tree check —

@@ -2,11 +2,9 @@ package main
 
 import (
 	"bytes"
-	"context"
 	"os"
 	"path/filepath"
 	"testing"
-	"time"
 
 	dbpkg "github.com/shakestzd/wipnote/core/db"
 	"github.com/shakestzd/wipnote/internal/recap"
@@ -147,67 +145,6 @@ func TestInferNodeType_Recap(t *testing.T) {
 			t.Errorf("inferNodeTypeFromID(%q) = %q, want %q", id, got, want)
 		}
 	}
-}
-
-// TestStartRecapsReindexLoop_PopulatesTableAtStartup verifies bug-95d2d493 fix:
-// startRecapsReindexLoop triggers reindexRecaps at startup, so the recaps SQLite
-// table is populated immediately after a container/DB restart without requiring a
-// manual `wipnote reindex` call.
-func TestStartRecapsReindexLoop_PopulatesTableAtStartup(t *testing.T) {
-	dir := t.TempDir()
-	writeRecapArtifact(t, dir, "recap-feat-startloop", recap.RecapData{
-		Outcome: "loop startup test",
-		Provenance: recap.Provenance{
-			Kind:     recap.InputWorkItem,
-			Input:    "feat-startloop",
-			GitRange: "main..HEAD",
-			Grounded: true,
-		},
-	})
-
-	db, err := dbpkg.Open(":memory:")
-	if err != nil {
-		t.Fatalf("open db: %v", err)
-	}
-	// Pin the pool to ONE permanent connection. Every new connection to
-	// ":memory:" gets its own private, empty database, so without this the drain
-	// goroutine's INSERT and this goroutine's polling SELECT can land on
-	// different databases and the row is never observed — the test then burns
-	// its whole 10s deadline and fails. That made it flaky at roughly 1-in-4
-	// independent of any production change. Same remedy, and same reasoning, as
-	// core/db/dbtest.OpenForTest, which documents this trap in detail.
-	db.SetMaxOpenConns(1)
-	db.SetConnMaxLifetime(0)
-	defer db.Close()
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	// Run with a very long tick so only the startup run fires in this test.
-	// startDrainLoop calls fn once before the first tick.
-	done := make(chan struct{})
-	go func() {
-		startRecapsReindexLoop(ctx, db, dir)
-		close(done)
-	}()
-
-	// Wait for startup reindex to land. startRecapsReindexLoop hands off to
-	// startDrainLoop, which itself spawns the goroutine that actually runs
-	// reindexRecaps — two goroutine hops from here. 2s was tight enough to
-	// flake under the full test suite's parallel load (hundreds of tests,
-	// many spawning git subprocesses, contending for OS threads/CPU); 10s
-	// keeps this a bounded poll — it still returns as soon as the row
-	// lands — while tolerating scheduler contention instead of assuming a
-	// lightly-loaded machine.
-	deadline := time.Now().Add(10 * time.Second)
-	for time.Now().Before(deadline) {
-		row, _ := dbpkg.GetRecap(db, "recap-feat-startloop")
-		if row != nil {
-			return // pass
-		}
-		time.Sleep(10 * time.Millisecond)
-	}
-	t.Error("startRecapsReindexLoop did not populate the recaps table at startup")
 }
 
 // TestIsRecapHTMLPath is gone with isRecapHTMLPath itself. That predicate

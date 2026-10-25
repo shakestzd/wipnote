@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -15,30 +14,11 @@ import (
 	"github.com/shakestzd/wipnote/observe/otel/collector"
 )
 
-// TestStartReaperLoopNoOp proves the nil/empty guards: startReaperLoop must
-// return without panic when writeDB is nil OR projectRoot is empty, so a
-// mis-wired daemon never crashes.
-func TestStartReaperLoopNoOp(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	// nil DB → guarded return, no goroutine, no panic.
-	startReaperLoop(ctx, nil, "")
-
-	// non-nil DB but empty projectRoot → guarded return, no panic.
-	dbPath := filepath.Join(t.TempDir(), "wipnote.db")
-	database, err := dbpkg.Open(dbPath)
-	if err != nil {
-		t.Fatalf("db.Open: %v", err)
-	}
-	defer database.Close()
-	startReaperLoop(ctx, database, "")
-}
-
 // TestDaemonPassReapsOrphanCollector exercises the daemon-loop BODY directly
 // (avoiding goroutine/ticker timing flakiness): a single
 // ReapStaleSessionsAndCollectors(writeDB, projectRoot, "", includeCollectors=true,
-// reportOnly=false) call — exactly what startReaperLoop ticks. The
+// reportOnly=false) call — what the writer daemon's reaper loop ran (off and
+// deleted for now; see startWriterMaintenance). The
 // observe/register init() (blank-imported by cmd/wipnote's main) wires the live
 // ReapCollectorFn seam, so this proves the daemon path reaps BOTH a stale session
 // AND a real orphaned collector subprocess. This complements the core/hooks test
