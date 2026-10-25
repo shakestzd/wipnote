@@ -320,6 +320,13 @@ func hookSubcmdWithProject(
 				if !hooks.IswipnoteProject(projectDir) {
 					return fallback, nil
 				}
+				if use == "session-end" {
+					// Claude Code gives this hook 1.5s: make the end durable
+					// before the projection opens, and keep every commit
+					// intent free of git calls (flush does the git work).
+					commitIntentLight.Store(true)
+					hooks.RecordSessionEndNote(event, projectDir)
+				}
 				dbPath, err := hooks.DBPath(projectDir)
 				if err != nil {
 					hooks.LogError(use, event.SessionID,
