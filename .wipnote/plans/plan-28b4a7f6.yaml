@@ -7,7 +7,7 @@ meta:
     status: draft
     priority: medium
     schema_version: v4
-    version: 9
+    version: 10
 design:
     problem: |
         ## Problem
@@ -1852,7 +1852,7 @@ critique:
         - id: A6
           status: questionable
           text: Hooks given through --settings add to plugin hooks.
-          evidence: The docs predict add but do not list --settings as a hook location. Phase B check B1; it affects only orch during migration.
+          evidence: 'Partly answered by mac-evidence (2026-10-25): wipnote claude rejects --settings as its own flag; after `--` orch''s hooks fired. Whether wipnote''s plugin hooks fire beside them is still open (Phase B B1). Affects only orch during migration.'
         - id: A7
           status: unverified
           text: Codex hooks fire under codex exec.
@@ -1881,6 +1881,30 @@ critique:
           status: plausible
           text: A worker runs `<kind> start <id>` from its brief.
           evidence: The brief is the worker's first prompt. wait and list check that the episode appeared and report it if not.
+        - id: A16
+          status: unverified
+          text: A digit key selects an AskUserQuestion option in a worker's pane.
+          evidence: No evidence. Phase B check B9; slice 17 refuses option answers until it passes.
+        - id: A17
+          status: verified
+          text: wipnote claude and wipnote codex both take --resume <id>.
+          evidence: cmd/wipnote/claude.go (resume flag) and cmd/wipnote/codex.go (passes codex resume <id>). Slice 20 reuses them.
+        - id: A18
+          status: verified
+          text: wipnote codex already falls back to danger-full-access in a devcontainer when bwrap fails, unless --sandbox is given.
+          evidence: resolveCodexSandboxMode and codexRequestedSandbox in cmd/wipnote/codex_launch.go. Slice 12 always passes --sandbox.
+        - id: A19
+          status: verified
+          text: The devcontainer CLI's up and exec take --workspace-folder, and up reports remoteWorkspaceFolder.
+          evidence: github.com/devcontainers/cli README; scripts/devcontainer.sh uses both. Slice 21.
+        - id: A20
+          status: questionable
+          text: orch's registry carries a work-item tag that import-orch can keep.
+          evidence: The orch 0.1.0 registry has no work-item field (inventory section 8), but internal/orchlink reads a work_item field. Slice 18 links by session id and keeps work_item only when present.
+        - id: A21
+          status: plausible
+          text: Container hooks can write the host's .wipnote/delegate/ through the workspace mount.
+          evidence: 'mac-evidence: 800 of 800 hook lines reached the shared mount; no ledger row was checked (Phase B B6).'
     critics:
         - title: Design
           sections:
@@ -1915,6 +1939,26 @@ critique:
                 - badge: Fixed
                   kind: success
                   text: 'Committed labels follow q-label: explicit --label only. Fixed in this revision in slices 4 and 8 (TestRun_DerivedLabelNotInLedger).'
+            - heading: Owner decisions 2026-10-25 (round 3)
+              items:
+                - badge: Fixed
+                  kind: warn
+                  text: 'R: the worker''s result file is the result; the Stop hook only marks a turn end. Applied in slices 5, 10 and 11, and to q-settle.'
+                - badge: Fixed
+                  kind: warn
+                  text: 'S: the Codex sandbox ladder (read-only, --write, opted-in danger-full-access) is in slice 12.'
+                - badge: Fixed
+                  kind: warn
+                  text: 'C: new slice 21 runs workers in the project''s own devcontainer; slices 8 and 10 point to it.'
+                - badge: Open
+                  kind: warn
+                  text: 'L: each worker gets its own tab (cap 6), as the owner said. orch actually opens ONE workers tab per run and splits inside it (orch src/orch/service/placement.py:place). The owner should confirm a tab per worker is meant.'
+                - badge: Fixed
+                  kind: success
+                  text: D1 to D6 are two-sided regression tests in slices 5, 10 and 11.
+                - badge: Fixed
+                  kind: warn
+                  text: 'E: new slice 20 resumes a stopped worker. It also depends on slice 21 so that a container run resumes in its container; the owner listed only slices 10 and 4.'
         - title: Feasibility
           sections:
             - heading: Harness and herdr contracts
@@ -1950,6 +1994,29 @@ critique:
                 - badge: Fixed
                   kind: warn
                   text: 'The Codex sandbox opt-in had no named setting. Fixed in this revision: user config delegate.codex.dangerFullAccessHosts, and slice 12 reuses codexSandboxProbe.'
+            - heading: orch inventory findings
+              items:
+                - badge: Fixed
+                  kind: danger
+                  text: 'Slice 10''s stop closed the pane before checking processes, but process-info is gone once the pane closes. Now: record pids with start times first, close only at a bare shell, check pids after, never signal.'
+                - badge: Fixed
+                  kind: danger
+                  text: Slice 10 typed the brief inline in pane run; macOS rejects long input lines. Now the brief goes by file path through a short boot line, typed only after the shell settles.
+                - badge: Fixed
+                  kind: warn
+                  text: Slice 6 lacked send-text, send-keys, agent rename and list, tab create and close, and pinning. It now treats herdr exit 2 as a usage error, never a timeout (orch P-8).
+                - badge: Fixed
+                  kind: warn
+                  text: Slice 17 now types with send-text plus enter, refuses a pin mismatch and refuses while a permission dialog shows.
+                - badge: Fixed
+                  kind: warn
+                  text: Ids are now 12 hex or more (orch P-6). Do-not-copy bugs F-1 (slice 11), F-4 (slice 7) and quadratic redaction (slices 5, 7) are now tests.
+                - badge: Fixed
+                  kind: warn
+                  text: Slice 18 links imported rows by session id, reads archived mailboxes, takes --mail-root, and reads event format v1 and v2.
+                - badge: Open
+                  kind: warn
+                  text: F-1 says wait never writes session state, but wait still adds /clear sessions to the ledger and runs the worker-loss close (slices 11, 16). Both run under the ledger lock and recheck that the row is open. The owner should confirm.
     risks:
         - risk: Inherited WIPNOTE_* session env mis-parents a worker as a subagent of its caller.
           severity: High
@@ -1969,7 +2036,13 @@ critique:
         - risk: Same-release mod removal strands users of the mod's settings.
           severity: Medium
           mitigation: A one-time notice names the new settings.
-    synthesis: 'All danger items are fixed in this revision. Blockers left: spike spk-87139e0e decides whether delegate run keeps a headless path (slice 8); bug-01f182e5 must be fixed before the worker claim gate (slice 16); slice 1 needs the owner''s orch source; slice 2 must run on the owner''s Mac. The reviewer should look first at slices 10 and 16 (claims), slice 17 (typing answers into panes) and slice 19 (the orchestra merge).'
+        - risk: A devcontainer's first build makes a container worker slow to start.
+          severity: Medium
+          mitigation: devcontainer up runs in the worker's pane, so spawn still returns starting at once (slice 21).
+        - risk: A run folder is swept before a resume.
+          severity: Low
+          mitigation: Resume refuses with that reason (slice 20).
+    synthesis: 'All danger items are fixed in this revision. Blockers left: spike spk-87139e0e decides whether delegate run keeps a headless path (slice 8); bug-01f182e5 must be fixed before the worker claim gate (slice 16); slice 1 needs the owner''s orch source; slice 2 must run on the owner''s Mac. The reviewer should look first at slices 10 and 16 (claims), slice 17 (typing answers into panes) and slice 19 (the orchestra merge). Round 3 (2026-10-25): owner decisions R, S, C, L, D and E and the orch inventory findings are applied. New slices: 20 (resume) and 21 (devcontainer workers). Open for the owner: a tab per worker versus orch''s single workers tab (L), and whether wait may still make the two ledger writes under the lock (F-1).'
 feedback:
     entries:
         - section: questions
