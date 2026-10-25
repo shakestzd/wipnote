@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>Interactive delegation parity: can a spawned interactive session load what a headless run loads?</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-87139e0e"
+             data-type="spike"
+             data-status="todo"
+             data-priority="high"
+             data-created="2026-10-25T08:27:33.984897"
+             data-updated="2026-10-25T08:27:33.98964" data-agent-assigned="claude-code" data-track-id="trk-2e707ed1" data-created-by-cli-version="888f588" data-created_in_session="1c92d9d4-85b0-5403-a06e-93312ec46faf">
+
+        <header>
+            <h1>Interactive delegation parity: can a spawned interactive session load what a headless run loads?</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-high">High Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-2e707ed1.html" data-relationship="part_of" data-since="2026-10-25T08:27:33.989458">trk-2e707ed1</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="false" data-step-id="step-spk-87139e0e-0" data-agent="claude-code" data-created-by-agent="claude-code">⏳ List headless load flags per harness from upstream docs</li>
+                <li data-completed="false" data-step-id="step-spk-87139e0e-1" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Probe each flag in interactive mode and keep the output</li>
+                <li data-completed="false" data-step-id="step-spk-87139e0e-2" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Check result exit status and cost capture from interactive runs</li>
+                <li data-completed="false" data-step-id="step-spk-87139e0e-3" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Write parity table and go or no-go</li>
+            </ol>
+        </section>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Owner direction (q-intercept, plan-28b4a7f6): bare codex exec and claude -p must go through wipnote delegate. If an interactive delegated session (herdr pane) can be given the same control as a headless run, headless runs are not needed: a human and the delegator can both talk to an interactive worker, while a headless run is reachable only by its caller. Question: for Claude Code and Codex, which load controls does an interactive launch honor that a headless launch honors (plugin dirs, system prompt append, allowed and denied tools, model and effort, MCP config, permission and sandbox mode, settings file, working dir, env)? Can the caller get a final result, an exit status and token cost from an interactive run? Output: a parity table per harness with upstream doc links and real probe output, and a go or no-go for making delegate run interactive-only. Slice 8 waits on this.</p>
+        </section>
+    </article>
+</body>
+</html>
