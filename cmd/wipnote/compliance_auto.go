@@ -138,7 +138,7 @@ Flags:
 		},
 	}
 
-	cmd.Flags().StringVar(&flags.model, "model", "claude-sonnet-4-6", "Model to use for headless claude invocation")
+	cmd.Flags().StringVar(&flags.model, "model", "sonnet", "Model to use for headless claude invocation")
 	cmd.Flags().StringVar(&flags.effort, "effort", "medium", "Effort level for headless claude (low|medium|high)")
 	cmd.Flags().BoolVar(&flags.dryRun, "dry-run", false, "Print the prompt; skip LLM call; exit 0")
 	cmd.Flags().BoolVar(&flags.preview, "preview", false, "Run full pipeline; print findings to stdout; do not write HTML")

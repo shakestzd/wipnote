@@ -101,6 +101,30 @@
           }
         ]
       }
+    ],
+    "PreCompact": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "wipnote hook pre-compact --harness codex",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "PostCompact": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "wipnote hook post-compact --harness codex",
+            "timeout": 15
+          }
+        ]
+      }
     ]
   }
 }

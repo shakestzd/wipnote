@@ -118,6 +118,22 @@ var agentFrontmatterFieldSpecs = []agentFrontmatterFieldSpec{
 		},
 	},
 	{
+		Name:       "omitClaudeMd",
+		DocURL:     "https://code.claude.com/docs/en/sub-agents",
+		Provenance: "bool, Claude Code v2.1.271+: skip CLAUDE.md in the subagent context.",
+		Harnesses: map[string]string{
+			"claude": "omitClaudeMd",
+		},
+	},
+	{
+		Name:       "autoCompactWindow",
+		DocURL:     "https://code.claude.com/docs/en/sub-agents",
+		Provenance: "int 100000-1000000, Claude Code v2.1.296+: subagent auto-compact window in tokens.",
+		Harnesses: map[string]string{
+			"claude": "autoCompactWindow",
+		},
+	},
+	{
 		Name:       "timeout_mins",
 		Provenance: "Antigravity CLI (agy) per-agent timeout, in minutes. Inherited from the Gemini-CLI subagent schema that agy descends from.",
 		Harnesses: map[string]string{
