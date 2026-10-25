@@ -88,6 +88,27 @@ declare module 'claude-code' {
       refs: Record<string, CardEntry>
       claim: string | null
       tally: Tally
+      runs: RunRow[]
     }
   }
+}
+/** One delegate run (wipnote delegate) as the band shows it: one row per run, never per pane. */
+export type RunRow = {
+  /** The run id, dlg-<hex>: its folder under .wipnote/delegate/runs/. */
+  id: string
+  /** The ledger's name (interactive) or explicit label, else the folder's label, else the id. */
+  title: string
+  /** claude, claude-print, codex, codex-review or ccx; empty with no ledger row. */
+  harness: string
+  /** oneshot or interactive; empty with no ledger row. */
+  mode: string
+  /** Ended once the folder has an exit file or the ledger row is closed. */
+  state: 'live' | 'ended'
+  exit?: number
+  /** The ledger's end reason for a run that ended with no exit code (stop, pane_closed, gone). */
+  reason?: string
+  startedAt?: number
+  endedAt?: number
+  /** The first line of last.md, or empty. */
+  answer: string
 }
