@@ -139,8 +139,8 @@ func TestCatchUp_FinalizesOnlyStaleUnmarkedSessions(t *testing.T) {
 	}
 
 	res := CatchUp(context.Background(), projectDir, "active")
-	if res.Finalized != 1 {
-		t.Fatalf("CatchUp = %+v, want exactly 1 finalized", res)
+	if res.Finalized != 1 || res.Stale != 1 {
+		t.Fatalf("CatchUp = %+v, want exactly 1 stale and 1 finalized", res)
 	}
 	if _, ok := readMarker(t, orphan); !ok {
 		t.Fatal("orphaned session not marked")

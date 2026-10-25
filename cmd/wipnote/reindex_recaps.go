@@ -34,39 +34,30 @@ func reindexRecaps(database *sql.DB, wipnoteDir, projectDir string, verbose bool
 
 	diskIDs := make(map[string]struct{})
 	var total, upserted, errCount int
+	paths := recapPaths(recapsDir, entries)
+	batch := batchGitFileTimestamps(projectDir, paths)
 
-	for _, e := range entries {
-		if e.IsDir() || !strings.HasSuffix(e.Name(), ".html") {
-			continue
-		}
+	for _, path := range paths {
 		total++
-		id := strings.TrimSuffix(e.Name(), ".html")
-		path := filepath.Join(recapsDir, e.Name())
-
+		name := filepath.Base(path)
+		id := strings.TrimSuffix(name, ".html")
 		row, parseErr := parseRecapHTML(path, id)
 		if parseErr != nil {
 			errCount++
 			if verbose {
-				fmt.Printf("reindex recaps: error: %s: %v\n", e.Name(), parseErr)
+				fmt.Printf("reindex recaps: error: %s: %v\n", name, parseErr)
 			}
 			continue
 		}
 		diskIDs[id] = struct{}{}
 
-		createdAt, updatedAt := applyGitTimestamps(projectDir, path, time.Time{}, time.Time{})
-		if !createdAt.IsZero() {
-			t := createdAt
-			row.CreatedAt = &t
-		}
-		if !updatedAt.IsZero() {
-			t := updatedAt
-			row.UpdatedAt = &t
-		}
+		c, u := recapTimestamps(batch, projectDir, path)
+		row.CreatedAt, row.UpdatedAt = keepTime(c, row.CreatedAt), keepTime(u, row.UpdatedAt)
 
 		if upsertErr := dbpkg.UpsertRecap(database, row); upsertErr != nil {
 			errCount++
 			if verbose {
-				fmt.Printf("reindex recaps: upsert error: %s: %v\n", e.Name(), upsertErr)
+				fmt.Printf("reindex recaps: upsert error: %s: %v\n", name, upsertErr)
 			}
 			continue
 		}
@@ -148,4 +139,40 @@ func purgeStaleRecaps(database *sql.DB, diskIDs map[string]struct{}, verbose boo
 			fmt.Printf("reindex recaps: purged stale row: %s\n", id)
 		}
 	}
+}
+
+// recapPaths lists the recap HTML files among entries, so their git
+// timestamps resolve in one batch instead of two git processes per recap.
+func recapPaths(recapsDir string, entries []os.DirEntry) []string {
+	var paths []string
+	for _, e := range entries {
+		if !e.IsDir() && strings.HasSuffix(e.Name(), ".html") {
+			paths = append(paths, filepath.Join(recapsDir, e.Name()))
+		}
+	}
+	return paths
+}
+
+// recapTimestamps returns a recap's git (created, updated) times from batch,
+// falling back to per-file git calls, and nil for a time git does not know.
+func recapTimestamps(batch map[string]fileTimestamps, projectDir, path string) (created, updated *time.Time) {
+	c, u, ok := timestampsFromBatch(batch, path, time.Time{}, time.Time{})
+	if !ok {
+		c, u = applyGitTimestamps(projectDir, path, time.Time{}, time.Time{})
+	}
+	if !c.IsZero() {
+		created = &c
+	}
+	if !u.IsZero() {
+		updated = &u
+	}
+	return created, updated
+}
+
+// keepTime returns git when git knows the time, else the parsed value.
+func keepTime(git, parsed *time.Time) *time.Time {
+	if git != nil {
+		return git
+	}
+	return parsed
 }
