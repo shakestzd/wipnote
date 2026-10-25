@@ -13,7 +13,7 @@
              data-status="in-progress"
              data-priority="medium"
              data-created="2026-10-25T07:29:51.113127"
-             data-updated="2026-10-25T15:54:54.885423" data-agent-assigned="claude-code" data-track-id="trk-0677c709">
+             data-updated="2026-10-25T16:02:52.180951" data-agent-assigned="claude-code" data-track-id="trk-0677c709">
 
         <header>
             <h1>Split oversized files and functions</h1>
@@ -66,7 +66,9 @@
                 <li data-completed="true" data-step-id="step-feat-ffde27db-10" data-agent="claude-code" data-created-by-agent="claude-code">✅ plan/who family: enrichPageFromYAML, wirePlan, runWho, promoteSliceFromYAML extracted; plan_create.go split</li>
                 <li data-completed="true" data-step-id="step-feat-ffde27db-11" data-agent="claude-code" data-created-by-agent="claude-code">✅ core/db family: CreateAllTables DDL moved to data; ListHarnessGroupedResumableSessions extracted; session_repo.go split into 4 files</li>
                 <li data-completed="true" data-step-id="step-feat-ffde27db-12" data-agent="claude-code" data-created-by-agent="claude-code">✅ plan-touched cmd/wipnote files: 11 files over 500 lines split by responsibility; source-scanning tests repointed</li>
-                <li data-completed="false" data-step-id="step-feat-ffde27db-13" data-agent="claude-code" data-created-by-agent="claude-code">⏳ plan-touched core/internal/port files split (migrations, htmlwriter, registry, pluginbuild/codex); CreateAllTables kept inline for its coverage guard</li>
+                <li data-completed="true" data-step-id="step-feat-ffde27db-13" data-agent="claude-code" data-created-by-agent="claude-code">✅ plan-touched core/internal/port files split (migrations, htmlwriter, registry, pluginbuild/codex); CreateAllTables kept inline for its coverage guard</li>
+                <li data-completed="true" data-step-id="step-feat-ffde27db-14" data-agent="claude-code" data-created-by-agent="claude-code">✅ Left over &gt;500 lines: arch_cmds.go, claude_chooser.go, internal/gate/check.go, otel collector/lifecycle.go, otel adapter/claude.go, pluginbuild/antigravity.go are outside the files this plan touches (scope rule in slice 9 decisions); core/db/schema.go stays because create_all_table_coverage_test extracts DDL from the CreateAllTables body</li>
+                <li data-completed="true" data-step-id="step-feat-ffde27db-15" data-agent="claude-code" data-created-by-agent="claude-code">✅ Left over &gt;50-line functions: CreateAllTables (414, same coverage-guard reason) and 47 others in moved files (checkCmd, launchClaude, runUpgrade, hookCmd, ...) are beyond the top-15 scope; 236 prod funcs &gt;50 remain repo-wide as follow-up work items</li>
             </ol>
         </section>
 
