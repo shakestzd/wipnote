@@ -7,7 +7,7 @@ meta:
     status: finalized
     priority: medium
     schema_version: v4
-    version: 39
+    version: 40
 design:
     problem: |
         ## Problem
@@ -748,7 +748,7 @@ slices:
       feature_id: feat-2ebbc708
       num: 8
       title: 'One-shot runs: wipnote delegate run'
-      what: Add wipnote delegate run [--label] [--work-item] -- <cmd> for codex exec and review, claude -p and ccx task. It opens a ledger row and runs the command in a herdr pane when HERDR_ENV=1, else headless. It writes the run folder, prints the mod's report and closes the row.
+      what: Add wipnote delegate run [--label] [--work-item] -- <cmd> for codex exec and review, claude -p and ccx task. It opens a ledger row and runs the command in a herdr pane when HERDR_ENV=1, else headless. It writes the run folder, prints the mod's report and closes the row. Claude runs inside herdr become interactive workers in slice 22; this slice keeps claude -p for runs outside herdr.
       why: This is the one path that replaces the mod's Bash wrapper. Agents and humans call it directly on every harness.
       files:
         - cmd/wipnote/delegate.go
@@ -763,7 +763,7 @@ slices:
         - 7
       done_when:
         - With the codex stub, a run prints 'codex exited 0 after Ns, <usage>; ...' then last.md, capped at maxReturnLines
-        - 'Only if spk-87139e0e finds no parity: outside herdr the run completes headless with the same report'
+        - Outside herdr the run completes headless (codex exec or claude -p) with the same report
         - A pane closed early ends with exit 130 and end_reason pane_closed
         - The row carries the caller's active work item when --work-item is absent
         - A derived label is written only to the run folder's label file, never to the ledger (TestRun_DerivedLabelNotInLedger)
@@ -771,7 +771,7 @@ slices:
       effort: L
       risk: Med
       tests: |
-        Integration (stubs on PATH): TestRun_CodexInPane, TestRun_Headless (only if the spike keeps headless), TestRun_PaneClosed, TestRun_ClaudePrintStreamJSON, TestRun_CcxFollowsOwnLog, TestRun_DerivedLabelNotInLedger.
+        Integration (stubs on PATH): TestRun_CodexInPane, TestRun_HeadlessOutsideHerdr, TestRun_PaneClosed, TestRun_ClaudePrintStreamJSON, TestRun_CcxFollowsOwnLog, TestRun_DerivedLabelNotInLedger.
         Unit: TestReport_CapsSections, TestRecipes_LeanProfileOnlyWhenPresent.
       complexity: complex
       approved: true
@@ -791,7 +791,7 @@ slices:
         **State:** run folder (slice 5), ledger row (slice 4), pane via the adapter (slice 6).
         **Payload:** stdout is the status line, then the capped answer (or the cleaned-log tail on failure), then 'run page: <path>'. The exit code is the tool's exit code.
         **Settings:** the mod's userConfig (layout, maxPanes, closePane, closeDelay, tailLines, maxReturnLines, leanProfile, leanProfileName, ccxRunsDir) maps to wipnote settings. ccxRunsDir keeps no machine-specific default.
-        **Blocked by:** spike spk-87139e0e. If parity holds, delegate run becomes spawn + send + wait + stop on an interactive worker, and the headless path and --no-pane are dropped.
+        **Spike result (spk-87139e0e, owner 2026-10-25):** Claude Code interactive sessions honor every load control a claude -p run does (docs/design/delegate-interactive-parity.md). Codex TUI and exec load the same, but the TUI result and token counts are unproven without a real login. Owner: Claude runs inside herdr become interactive workers (slice 22); Codex keeps codex exec until the Mac probes in slice 2 pass. Outside herdr, Claude falls back to claude -p with the same report.
         **Label (q-label):** only an explicit --label enters the ledger; a derived label goes to the run folder's label file.
         **Rejected:** chained commands (pipes, ;) in v1, which the mod handles with shims (q-chained answered: v2). Running the tool through a generated shell script, as the mod does, is also rejected: Go runs argv directly.
         **Parallel:** no; it needs slices 4, 6 and 7. It can run beside slice 10.
@@ -821,7 +821,7 @@ slices:
             - name: --work-item
               type: id; default is the caller's active claim
             - name: --no-pane
-              type: bool, force headless (dropped if spk-87139e0e shows parity)
+              type: bool, force headless
             - name: --
               type: the tool argv (codex, claude, ccx)
             - name: exit code

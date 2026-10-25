@@ -681,7 +681,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
   <p style="color:var(--text-dim)">Make orch&#39;s delegation a native, Go-built wipnote feature (wipnote delegate: spawn, send, wait, result, stop, questions, tree, run) with a file mailbox, herdr panes for interactive sessions and one-shot runs on ONE path that absorbs mods/codex-herdr-pane. orch (Python, owner&#39;s machine) is the reference. Replaces the mod-vs-orch split in docs/design/orch-integration.md.</p>
   <div class="meta">
     <span class="badge badge-approved">Done</span>
-    <span style="font-size:.75rem;color:var(--text-muted)">v39 · 21 slices · Created 2026-10-25</span>
+    <span style="font-size:.75rem;color:var(--text-muted)">v40 · 21 slices · Created 2026-10-25</span>
   </div>
 </header>
 <button id="themeToggle" style="position:fixed;top:16px;right:16px;z-index:100;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:6px 12px;color:var(--text);font-family:var(--mono);font-size:0.75rem;cursor:pointer;">
@@ -828,7 +828,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     <tbody>
       <tr><td><code>--label</code></td><td><code>string, pane title; the only label the ledger keeps</code></td><td>&mdash;</td></tr>
       <tr><td><code>--work-item</code></td><td><code>id; default is the caller&#39;s active claim</code></td><td>&mdash;</td></tr>
-      <tr><td><code>--no-pane</code></td><td><code>bool, force headless (dropped if spk-87139e0e shows parity)</code></td><td>&mdash;</td></tr>
+      <tr><td><code>--no-pane</code></td><td><code>bool, force headless</code></td><td>&mdash;</td></tr>
       <tr><td><code>--</code></td><td><code>the tool argv (codex, claude, ccx)</code></td><td>&mdash;</td></tr>
       <tr><td><code>exit code</code></td><td><code>the tool&#39;s exit; 130 when the pane closed</code></td><td>&mdash;</td></tr>
       
@@ -2824,7 +2824,7 @@ Narrower prior art: question inboxes (speardragon/herdr-ask-inbox, no license; L
         <div class="slice-field-label">What</div>
         <div class="slice-field-value">
           
-          <div class="markdown-block serif-prose"><p>Add wipnote delegate run [--label] [--work-item] -- &lt;cmd&gt; for codex exec and review, claude -p and ccx task. It opens a ledger row and runs the command in a herdr pane when HERDR_ENV=1, else headless. It writes the run folder, prints the mod&#39;s report and closes the row.</p>
+          <div class="markdown-block serif-prose"><p>Add wipnote delegate run [--label] [--work-item] -- &lt;cmd&gt; for codex exec and review, claude -p and ccx task. It opens a ledger row and runs the command in a herdr pane when HERDR_ENV=1, else headless. It writes the run folder, prints the mod&#39;s report and closes the row. Claude runs inside herdr become interactive workers in slice 22; this slice keeps claude -p for runs outside herdr.</p>
 </div>
           
         </div>
@@ -2850,7 +2850,7 @@ Narrower prior art: question inboxes (speardragon/herdr-ask-inbox, no license; L
       
       <div class="slice-field">
         <div class="slice-field-label">Done when</div>
-        <ul class="slice-done-list slice-done-list--grid"><li>With the codex stub, a run prints &#39;codex exited 0 after Ns, &lt;usage&gt;; ...&#39; then last.md, capped at maxReturnLines</li><li>Only if spk-87139e0e finds no parity: outside herdr the run completes headless with the same report</li><li>A pane closed early ends with exit 130 and end_reason pane_closed</li><li>The row carries the caller&#39;s active work item when --work-item is absent</li><li>A derived label is written only to the run folder&#39;s label file, never to the ledger (TestRun_DerivedLabelNotInLedger)</li><li>The wrapper cases in the mod&#39;s fixes.test.ts pass in Go against delegate run (timeouts, plugin-root quoting, pane title and rename, ccx log claiming with launch lock and unbound marks, ccxRunsDir, layout auto, review output to the answer file, sweeps, per-user claims folder). Moved from slice 7 by the owner, 2026-10-25</li></ul>
+        <ul class="slice-done-list slice-done-list--grid"><li>With the codex stub, a run prints &#39;codex exited 0 after Ns, &lt;usage&gt;; ...&#39; then last.md, capped at maxReturnLines</li><li>Outside herdr the run completes headless (codex exec or claude -p) with the same report</li><li>A pane closed early ends with exit 130 and end_reason pane_closed</li><li>The row carries the caller&#39;s active work item when --work-item is absent</li><li>A derived label is written only to the run folder&#39;s label file, never to the ledger (TestRun_DerivedLabelNotInLedger)</li><li>The wrapper cases in the mod&#39;s fixes.test.ts pass in Go against delegate run (timeouts, plugin-root quoting, pane title and rename, ccx log claiming with launch lock and unbound marks, ccxRunsDir, layout auto, review output to the answer file, sweeps, per-user claims folder). Moved from slice 7 by the owner, 2026-10-25</li></ul>
       </div>
       
     
@@ -2865,7 +2865,7 @@ Narrower prior art: question inboxes (speardragon/herdr-ask-inbox, no license; L
 <strong>State:</strong> run folder (slice 5), ledger row (slice 4), pane via the adapter (slice 6).
 <strong>Payload:</strong> stdout is the status line, then the capped answer (or the cleaned-log tail on failure), then &#39;run page: &lt;path&gt;&#39;. The exit code is the tool&#39;s exit code.
 <strong>Settings:</strong> the mod&#39;s userConfig (layout, maxPanes, closePane, closeDelay, tailLines, maxReturnLines, leanProfile, leanProfileName, ccxRunsDir) maps to wipnote settings. ccxRunsDir keeps no machine-specific default.
-<strong>Blocked by:</strong> spike spk-87139e0e. If parity holds, delegate run becomes spawn + send + wait + stop on an interactive worker, and the headless path and --no-pane are dropped.
+<strong>Spike result (spk-87139e0e, owner 2026-10-25):</strong> Claude Code interactive sessions honor every load control a claude -p run does (docs/design/delegate-interactive-parity.md). Codex TUI and exec load the same, but the TUI result and token counts are unproven without a real login. Owner: Claude runs inside herdr become interactive workers (slice 22); Codex keeps codex exec until the Mac probes in slice 2 pass. Outside herdr, Claude falls back to claude -p with the same report.
 <strong>Label (q-label):</strong> only an explicit --label enters the ledger; a derived label goes to the run folder&#39;s label file.
 <strong>Rejected:</strong> chained commands (pipes, ;) in v1, which the mod handles with shims (q-chained answered: v2). Running the tool through a generated shell script, as the mod does, is also rejected: Go runs argv directly.
 <strong>Parallel:</strong> no; it needs slices 4, 6 and 7. It can run beside slice 10.
@@ -2893,7 +2893,7 @@ Narrower prior art: question inboxes (speardragon/herdr-ask-inbox, no license; L
     <tbody>
       <tr><td><code>--label</code></td><td><code>string, pane title; the only label the ledger keeps</code></td><td>&mdash;</td></tr>
       <tr><td><code>--work-item</code></td><td><code>id; default is the caller&#39;s active claim</code></td><td>&mdash;</td></tr>
-      <tr><td><code>--no-pane</code></td><td><code>bool, force headless (dropped if spk-87139e0e shows parity)</code></td><td>&mdash;</td></tr>
+      <tr><td><code>--no-pane</code></td><td><code>bool, force headless</code></td><td>&mdash;</td></tr>
       <tr><td><code>--</code></td><td><code>the tool argv (codex, claude, ccx)</code></td><td>&mdash;</td></tr>
       <tr><td><code>exit code</code></td><td><code>the tool&#39;s exit; 130 when the pane closed</code></td><td>&mdash;</td></tr>
       
@@ -2914,7 +2914,7 @@ Narrower prior art: question inboxes (speardragon/herdr-ask-inbox, no license; L
           
           <div class="test-group" data-kind="other">
             <span class="test-chip">OTHER &middot; 1</span>
-            <ul><li>Integration (stubs on PATH): TestRun_CodexInPane, TestRun_Headless (only if the spike keeps headless), TestRun_PaneClosed, TestRun_ClaudePrintStreamJSON, TestRun_CcxFollowsOwnLog, TestRun_DerivedLabelNotInLedger.</li></ul>
+            <ul><li>Integration (stubs on PATH): TestRun_CodexInPane, TestRun_HeadlessOutsideHerdr, TestRun_PaneClosed, TestRun_ClaudePrintStreamJSON, TestRun_CcxFollowsOwnLog, TestRun_DerivedLabelNotInLedger.</li></ul>
           </div>
           
           <div class="test-group" data-kind="unit">
