@@ -8,7 +8,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
-	"sort"
 	"strings"
 )
 
@@ -386,69 +385,6 @@ func commitArtifactTransactional(wipnoteDir, typeName, id, preHead string) error
 		}
 	}
 	return nil
-}
-
-// checkUncommittedSourceCompleteGate refuses completion when tracked files
-// outside .wipnote/ have uncommitted changes. Completion auto-commits only the
-// work-item artifact, so allowing dirty source by default makes the "done"
-// signal stronger than the durable implementation state.
-//
-// The scan is scoped to the completing agent's own worktree (bug-6c953712):
-// a clean linked worktree must not be blocked by files dirty in the .wipnote
-// owner's checkout or in a sibling agent's tree.
-func checkUncommittedSourceCompleteGate(wipnoteDir, id string, allowDirty bool) error {
-	repoRoot := filepath.Dir(wipnoteDir)
-	if !isGitRepo(repoRoot) {
-		return nil
-	}
-	scope := resolveCompletionWorktree(repoRoot)
-
-	files, err := dirtyTrackedSourceFiles(scope.Root)
-	if err != nil {
-		return err
-	}
-	if len(files) == 0 {
-		return nil
-	}
-	if allowDirty {
-		fmt.Fprintf(os.Stderr, "allow-dirty warning: completing %s with uncommitted source changes:\n", id)
-		for _, f := range files {
-			fmt.Fprintf(os.Stderr, "  %s\n", f)
-		}
-		return nil
-	}
-
-	return fmt.Errorf(
-		"refusing to complete %s with uncommitted source changes outside .wipnote/ (scanned %s):\n%s\n\nCommit the implementation first, for example:\n  git add %s && git commit -m %q\n\nTo bypass intentionally, rerun with --allow-dirty",
-		id,
-		scope.describe(),
-		formatPathList(files),
-		strings.Join(shellQuotePaths(files), " "),
-		id+": commit implementation",
-	)
-}
-
-func dirtyTrackedSourceFiles(repoRoot string) ([]string, error) {
-	out, err := exec.Command(
-		"git", "-C", repoRoot, "status", "--porcelain=v1", "-z",
-		"--untracked-files=no",
-	).CombinedOutput()
-	if err != nil {
-		return nil, fmt.Errorf("git status: %s: %w", strings.TrimSpace(string(out)), err)
-	}
-
-	var files []string
-	for _, entry := range parsePorcelainZ(out) {
-		if entry.Path == ".claude/settings.local.json" {
-			continue
-		}
-		if isWipnotePath(entry.Path) {
-			continue
-		}
-		files = append(files, entry.Path)
-	}
-	sort.Strings(files)
-	return files, nil
 }
 
 type porcelainEntry struct {
