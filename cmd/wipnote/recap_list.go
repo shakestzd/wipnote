@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	dbpkg "github.com/shakestzd/wipnote/core/db"
 	"github.com/spf13/cobra"
@@ -275,30 +274,4 @@ func recapArtifactPath(wipnoteDir, id string) (string, error) {
 		return "", fmt.Errorf("recap path escapes .wipnote/recaps: %q", id)
 	}
 	return path, nil
-}
-
-func upsertRecapArtifact(wipnoteDir, projectDir, id string) error {
-	artifactPath, err := recapArtifactPath(wipnoteDir, id)
-	if err != nil {
-		return err
-	}
-	row, err := parseRecapHTML(artifactPath, id)
-	if err != nil {
-		return err
-	}
-	createdAt, updatedAt := applyGitTimestamps(projectDir, artifactPath, time.Time{}, time.Time{})
-	if !createdAt.IsZero() {
-		t := createdAt
-		row.CreatedAt = &t
-	}
-	if !updatedAt.IsZero() {
-		t := updatedAt
-		row.UpdatedAt = &t
-	}
-	database, err := openRecapsIndex(wipnoteDir)
-	if err != nil {
-		return err
-	}
-	defer database.Close()
-	return dbpkg.UpsertRecap(database, row)
 }
