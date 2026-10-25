@@ -98,6 +98,24 @@ func runWiCreate(typeName, title string, o *wiCreateOpts) error {
 	}
 	defer p.Close()
 
+	if err := validateWiCreate(p, typeName, o); err != nil {
+		return err
+	}
+
+	node, err := createNode(p, typeName, title, o)
+	if err != nil {
+		return fmt.Errorf("create %s: %w", typeName, err)
+	}
+	applyChangeKind(collectionFor(p, typeName), typeName, node, o.changeKind)
+
+	recordCreateMetadata(p, dir, typeName, node, o)
+	linkCreatedNode(p, typeName, node, o)
+	return finishWiCreate(p, dir, typeName, node, o)
+}
+
+// validateWiCreate enforces the plan hierarchy, resolves --plan to its track
+// and validates the create inputs before anything is written.
+func validateWiCreate(p *workitem.Project, typeName string, o *wiCreateOpts) error {
 	// Enforce plan hierarchy for features first: require --plan OR --standalone.
 	// Features with an explicit --track but no --plan are also accepted (e.g.
 	// created by automated finalize), so only reject truly bare feature creates.
@@ -129,13 +147,12 @@ func runWiCreate(typeName, title string, o *wiCreateOpts) error {
 	if o.changeKind != "" && !research.ValidKind(o.changeKind) {
 		return fmt.Errorf("--change-kind %q is not one of %s", o.changeKind, strings.Join(research.AllKinds, ", "))
 	}
+	return nil
+}
 
-	node, err := createNode(p, typeName, title, o)
-	if err != nil {
-		return fmt.Errorf("create %s: %w", typeName, err)
-	}
-	applyChangeKind(collectionFor(p, typeName), typeName, node, o.changeKind)
-
+// recordCreateMetadata records steps, session provenance, affected files, and
+// model/role/CLI attribution on a freshly-created node.
+func recordCreateMetadata(p *workitem.Project, dir, typeName string, node *models.Node, o *wiCreateOpts) {
 	// Post-creation: record steps, session provenance, affected files, and
 	// model/role/CLI attribution. Resolve provenance now (after createNode so
 	// session lookup is available) and apply via the same Edit chain.
@@ -166,7 +183,11 @@ func runWiCreate(typeName, title string, o *wiCreateOpts) error {
 			fmt.Fprintf(os.Stderr, "Warning: failed to save metadata: %v\n", saveErr)
 		}
 	}
+}
 
+// linkCreatedNode wires a freshly-created node to its plan, causing feature,
+// track and any near-duplicate.
+func linkCreatedNode(p *workitem.Project, typeName string, node *models.Node, o *wiCreateOpts) {
 	// Wire feature → plan (planned_in edge) and record standalone_reason.
 	if typeName == "feature" {
 		if o.planID != "" {
@@ -213,7 +234,11 @@ func runWiCreate(typeName, title string, o *wiCreateOpts) error {
 	if typeName == "bug" || typeName == "feature" {
 		maybeAttachDedupRelation(p, typeName, node, o.description)
 	}
+}
 
+// finishWiCreate auto-commits the created artifact, optionally starts the
+// item, and prints the result.
+func finishWiCreate(p *workitem.Project, dir, typeName string, node *models.Node, o *wiCreateOpts) error {
 	// Auto-commit the freshly-created HTML so in-progress lineage starts on
 	// commit-1 rather than waiting for completion. Gated by the same allowlist
 	// that gates the complete-time commit; plans use commitPlanChange instead.

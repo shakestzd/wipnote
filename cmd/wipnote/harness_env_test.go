@@ -33,7 +33,7 @@ func TestNonClaudeLaunchersStampHarnessEnv(t *testing.T) {
 		file string
 		want string
 	}{
-		{"codex.go", "withHarnessEnv(env, harnessCodex)"},
+		{"codex_exec.go", "withHarnessEnv(env, harnessCodex)"},
 		{"antigravity_launch.go", "withHarnessEnv(env, harnessAntigravity)"},
 	}
 

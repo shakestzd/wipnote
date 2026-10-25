@@ -2,21 +2,17 @@ package hooks
 
 import (
 	"database/sql"
-	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
-	"regexp"
 	"strings"
-	"time"
-
-	"github.com/shakestzd/wipnote/core/db"
-	"github.com/shakestzd/wipnote/core/models"
-	"github.com/shakestzd/wipnote/core/paths"
 )
 
 // PreToolUse handles the PreToolUse Claude Code hook event.
 // It inserts a tool_call agent_event row and allows the tool to proceed.
+//
+// After the kill switch and context resolution, the guards run as an ordered
+// pipeline (preToolUseGuards); the first guard that returns an outcome decides
+// the call. When none does, the event is recorded and the call is allowed with
+// the advisories the guards collected.
 func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 	// Kill switch: WIPNOTE_GUARDS_OFF=1 disables ALL guards for emergency use.
 	// It is operator-only and never advertised in block messages; every time it
@@ -35,298 +31,116 @@ func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 		return &HookResult{}, nil
 	}
 
-	// Guard: never intercept writes to .wipnote/ — mirror of
-	// pretooluse-wipnote-guard.py to prevent accidental DB corruption.
-	// Covers Write/Edit/MultiEdit tools AND Bash commands that target .wipnote/.
-	if iswipnoteWrite(event) {
-		return &HookResult{
-			Decision: "block",
-			Reason:   ".wipnote/ is managed by wipnote SDK. Use SDK methods instead.",
-		}, nil
+	st := &preToolState{event: event, database: database, ctx: ctx}
+	for _, g := range preToolUseGuards() {
+		if out := g.run(st); out != nil {
+			return out.result, out.err
+		}
 	}
-	if isBashwipnoteWrite(event) {
-		return &HookResult{
-			Decision: "block",
-			Reason:   ".wipnote/ is managed by wipnote CLI. Use `wipnote` commands instead of direct file manipulation.",
-		}, nil
-	}
+	return st.recordAndAllow()
+}
 
-	// Guard: block bare `cd` in Bash commands that pollute the working directory.
-	if warn := checkBashCwdGuard(event); warn != "" {
-		return &HookResult{
-			Decision: "block",
-			Reason:   warn,
-		}, nil
-	}
+// preToolState is the state the PreToolUse guard pipeline shares: the event,
+// its resolved context, and what earlier guards derived or advised.
+type preToolState struct {
+	event    *CloudEvent
+	database *sql.DB
+	ctx      *toolUseContext
 
-	// Guard: warn or block when CWD has drifted to a different project than the
-	// one this session was started in.
-	if result := checkProjectDivergence(event, database, ctx.SessionID); result != nil {
-		return result, nil
-	}
+	orchestrationResearchAdvisory string
+	orchestratorAdvice            string
+	researchDispatchAdvisory      string
+	researchAdvice                []string
+	fileOverlapAdvisory           string
 
-	// Plan mode bypass: when permission_mode is "plan", the agent is exploring
-	// (Read/Grep/Glob) and writing only to the plan file. Skip work-item and
-	// YOLO guards entirely — record the event for observability and allow.
-	if event.PermissionMode == "plan" {
-		debugLog(ctx.ProjectDir, "[wipnote] plan mode active — skipping write guards for %s",
-			event.ToolName)
-		return recordEventAndAllow(event, ctx, database)
-	}
+	subagentGrace bool
+	claimedItem   string
+	yoloContext   bool
+	targetFile    string
+	hasResearch   bool
+}
 
-	orchestrationResearchAdvisory := checkOrchestratorResearchDelegationAdvisory(event, ctx, database)
+// guardOutcome is a guard's decision. A nil *guardOutcome lets the pipeline
+// continue to the next guard.
+type guardOutcome struct {
+	result *HookResult
+	err    error
+}
 
-	// Orchestrator mode enforcement (feat-567c0211, GH-#19 / GH-#20). Runs for
-	// the root session only: in strict mode a non-whitelisted tool — Skill and
-	// non-`wipnote` Bash above all — is counted and, past max_violations,
-	// blocked. Guidance mode advises without counting. The bug-c8ac6a11 rescue
-	// escape hatch is honoured inside the guard.
-	orchestratorAdvice, orchestratorBlock := checkOrchestratorStrictGuard(event, ctx)
-	if orchestratorBlock != "" {
-		return &HookResult{Decision: "block", Reason: orchestratorBlock}, nil
-	}
+// preToolGuard is one named step of the PreToolUse guard pipeline.
+type preToolGuard struct {
+	name string
+	run  func(*preToolState) *guardOutcome
+}
 
-	// Guard: block Write/Edit/MultiEdit from subagents when THIS AGENT has no
-	// active claim. Subagents are checked per-agent via claimed_by_agent_id in
-	// the claims table (now supplied by the batch context query); the
-	// orchestrator falls back to session-scoped FeatureID.
-	// YOLO mode enforcement: subagents get a short grace period on session
-	// start to claim a work item before guards fire — the parent session's
-	// open canonical claim serves as confirmation that the orchestrator has
-	// already registered intent. This MUST run before the subagent work item
-	// guard so that freshly spawned subagents aren't blocked before they can
-	// claim. Both inputs are canonical (bug-7036b94f): the projection's
-	// sessions row that used to carry created_at + parent_session_id is never
-	// hydrated on the hook read path.
-	subagentGrace := checkYoloSubagentGrace(
-		ctx.IsYoloMode, ctx.IsSubagent,
-		subagentStartedAt(ctx), ctx.ParentSessionID, ctx.HgDir,
-	)
-	if subagentGrace {
-		debugLog(ctx.ProjectDir, "[wipnote] subagent grace period active for session %s — allowing write before claim",
-			ctx.SessionID)
+// preToolUseGuards returns the PreToolUse guards in evaluation order. The
+// order is load-bearing and pinned by TestPreToolUse_GuardOrder.
+func preToolUseGuards() []preToolGuard {
+	return []preToolGuard{
+		{"wipnote-write", guardWipnoteWrite},
+		{"bash-cwd", guardBashCwd},
+		{"project-divergence", guardProjectDivergence},
+		{"plan-mode-bypass", guardPlanModeBypass},
+		{"orchestrator-research-advisory", guardOrchestratorResearchAdvisory},
+		{"orchestrator-strict", guardOrchestratorStrict},
+		{"subagent-work-item", guardSubagentWorkItem},
+		{"subagent-commit", guardSubagentCommit},
+		{"port-drift-commit", guardPortDriftCommit},
+		{"dependency-research-commit", guardDependencyResearchCommit},
+		{"research-dispatch", guardResearchDispatch},
+		{"yolo-work-item", guardYoloWorkItem},
+		{"read-before-write", guardReadBeforeWrite},
+		{"external-tech-research", guardExternalTechResearch},
+		{"yolo-bash-research", guardYoloBashResearch},
+		{"yolo-worktree", guardYoloWorktree},
+		{"yolo-session", guardYoloSession},
+		{"file-overlap", guardFileOverlap},
 	}
+}
 
-	// Subagent work item guard: ensure subagents have claimed a work item.
-	// Only enforced in YOLO mode — normal interactive subagents should not be
-	// blocked by this guard (bug-ba6d1e1c).
-	// Skipped during grace period (subagent just spawned, needs time to claim).
-	//
-	// Parent-chain claim walk (feat-ecd82f68, canonicalised in bug-7036b94f):
-	// when the sub-agent has no direct claim, consult the canonical claim
-	// ledger for an open episode held by this session or its family root. The
-	// orchestrator may have run `wipnote feature start` and holds the claim
-	// under its session ID (GH-#87).
-	claimedItem := ctx.ClaimedItem
-	if ctx.IsSubagent && claimedItem == "" {
-		inherited, parentSessID := getClaimFromParentChain(ctx.HgDir, ctx.SessionID, claimedItem)
-		if inherited != "" {
-			claimedItem = inherited
-			if ctx.FeatureID == "" {
-				ctx.FeatureID = inherited
-			}
-			debugLog(ctx.ProjectDir, "[wipnote] claim inherited: session=%s parent=%s feat=%s",
-				ctx.SessionID, parentSessID, inherited)
-		}
-	}
-	hasAgentClaim := false
-	if ctx.IsSubagent {
-		hasAgentClaim = claimedItem != ""
-	} else {
-		hasAgentClaim = ctx.FeatureID != ""
-	}
-	if ctx.IsYoloMode && !subagentGrace {
-		if warn := checkSubagentWorkItemGuard(event.ToolName, ctx.IsSubagent, hasAgentClaim, ctx.SessionID, ctx.IsYoloMode, ctx.FeatureID, claimedItem); warn != "" {
-			return &HookResult{Decision: "block", Reason: warn}, nil
-		}
-	}
+// block is the outcome of a guard that refuses the call with reason.
+func block(reason string) *guardOutcome {
+	return &guardOutcome{result: &HookResult{Decision: "block", Reason: reason}}
+}
 
-	// Guard: block sub-agent git commit on main/master.
-	// Orchestrators (no parent) are allowed to commit on main intentionally.
-	// This runs unconditionally — it is not gated on YOLO mode.
-	if warn := checkSubagentCommitGuard(event, ctx.ParentSessionID, ctx.ProjectDir); warn != "" {
-		return &HookResult{Decision: "block", Reason: warn}, nil
+// blockIf blocks with warn when it is non-empty.
+func blockIf(warn string) *guardOutcome {
+	if warn != "" {
+		return block(warn)
 	}
+	return nil
+}
 
-	// Guard: block git commit when generator-input files are staged but the
-	// generated plugin trees are stale (not regenerated via build-ports).
-	// Always-on correctness gate — not YOLO-gated. Fast path: a single
-	// `git diff --cached --name-only` call; CheckPorts only runs when a
-	// generator-input file is actually staged. This replaces the expensive
-	// per-turn CheckPorts that was previously called from the Stop hook
-	// (bug-3fb22f7e).
-	if warn := checkPortDriftCommitGuard(event); warn != "" {
-		return &HookResult{Decision: "block", Reason: warn}, nil
+// adviseOrBlock applies the research-guard posture: research guards block
+// only in YOLO mode, where no person reviews the work, and advise otherwise.
+func (st *preToolState) adviseOrBlock(warn string) bool {
+	blocked, advice := researchGuardVerdict(warn, st.yoloContext)
+	if advice != "" {
+		st.researchAdvice = append(st.researchAdvice, advice)
 	}
+	return blocked
+}
 
-	// Guard: block git commit when the staged diff changes a dependency manifest
-	// (go.mod/package.json/…) but no web research happened this session. It
-	// complements the pre-edit external-tech guard by catching deps introduced via
-	// Bash (`go get`/`npm install`). Fast path: the same single
-	// `git diff --cached --name-only` shape (feat-af4ae1c3).
-	//
-	// Research guards (this one and the read-before-write and web-research
-	// guards below) block only in YOLO mode, where no person reviews the work.
-	// In attended sessions they advise instead: current models research without
-	// being forced, and a hard block there mostly cost a turn.
-	// Use the resilient yolo signal (bug-0ed4e469): a yolo subagent can report
-	// IsYoloMode=false, yet its parent chain is yolo and must still block.
-	yoloContext := resilientYoloContext(database, ctx)
-	var researchAdvice []string
-	adviseOrBlock := func(warn string) bool {
-		block, advice := researchGuardVerdict(warn, yoloContext)
-		if advice != "" {
-			researchAdvice = append(researchAdvice, advice)
-		}
-		return block
+// adviseOrBlockOutcome blocks with warn when adviseOrBlock says so.
+func (st *preToolState) adviseOrBlockOutcome(warn string) *guardOutcome {
+	if st.adviseOrBlock(warn) {
+		return block(warn)
 	}
-	if warn := checkDependencyResearchCommitGuard(event, database, ctx); adviseOrBlock(warn) {
-		return &HookResult{Decision: "block", Reason: warn}, nil
-	}
+	return nil
+}
 
-	// Guard: research-first gate on implementer dispatch. Advisory in warn
-	// mode, deny in block mode, for a gated item with no research record
-	// (docs/design/research-gate.md). File state only.
-	researchDispatchAdvisory, denyDispatch := checkResearchDispatchGuard(event, ctx)
-	if denyDispatch {
-		return &HookResult{Decision: "block", Reason: researchDispatchAdvisory}, nil
-	}
-
-	// Work item required regardless of YOLO mode; research guards follow the
-	// adviseOrBlock posture above.
-	// Skipped during subagent grace period (subagent just spawned, needs time to claim).
-	if !subagentGrace {
-		activeWorkItem := ctx.FeatureID
-		if activeWorkItem == "" {
-			activeWorkItem = claimedItem
-		}
-		// Extract the target file path once and reuse for both guards below.
-		targetFile := extractFilePath(event.ToolInput)
-		if warn := checkYoloWorkItemGuard(event.ToolName, activeWorkItem, ctx.IsYoloMode, ctx.SessionID, database, targetFile, ctx.ProjectDir); warn != "" {
-			return &HookResult{
-				Decision: "block",
-				Reason:   warn,
-			}, nil
-		}
-		// Research-first: require at least one Read/Grep/Glob before writing.
-		hasResearch := hasRecentResearch(database, ctx.SessionID, ctx.AgentID, ctx.ProjectDir)
-		if warn := checkYoloResearchGuard(event.ToolName, ctx.IsYoloMode, hasResearch, targetFile, ctx.ProjectDir); adviseOrBlock(warn) {
-			return &HookResult{Decision: "block", Reason: warn}, nil
-		}
-		// Specificity-aware research: an external-technology change requires WEB/docs
-		// research — a local read does not suffice (spk-0a982f70). Two trigger sets:
-		//   - dependency-manifest edits (go.mod/package.json/…)        → feat-868c752b
-		//   - harness-contract edits (agent manifests, hook matrix, …) → feat-ff62b911
-		// editTargetPaths covers apply_patch (which bundles multiple paths in its
-		// payload, not a file_path field — roborev #563/#566). hasRecentWebResearch
-		// is queried once and only when a trigger path is present, so the normal
-		// Write/Edit hot path is unaffected.
-		editPaths := editTargetPaths(event)
-		manifestPath := firstPathMatching(editPaths, isExternalTechEdit)
-		harnessPath := firstPathMatching(editPaths, isHarnessContractEdit)
-		if manifestPath != "" || harnessPath != "" {
-			hasWebResearch := hasRecentWebResearch(database, ctx.SessionID, ctx.AgentID, ctx.ProjectDir)
-			if manifestPath != "" {
-				if warn := checkExternalTechResearchGuard(event.ToolName, hasWebResearch, manifestPath, ctx.ProjectDir); adviseOrBlock(warn) {
-					return &HookResult{Decision: "block", Reason: warn}, nil
-				}
-			}
-			if harnessPath != "" {
-				if warn := checkHarnessContractResearchGuard(event.ToolName, hasWebResearch, harnessPath, ctx.ProjectDir); adviseOrBlock(warn) {
-					return &HookResult{Decision: "block", Reason: warn}, nil
-				}
-			}
-		}
-		if warn := checkYoloBashResearchGuard(event, ctx.IsYoloMode, hasResearch); adviseOrBlock(warn) {
-			return &HookResult{Decision: "block", Reason: warn}, nil
-		}
-	}
-
-	// Worktree-isolation guard runs under a RESILIENT yolo-context signal —
-	// not just ctx.IsYoloMode (bug-0ed4e469). A coder subagent in a yolo run can
-	// have its own IsYoloMode resolve false (Claude reports a non-bypass
-	// permission_mode), yet a main/master-targeted edit must still be blocked.
-	// The resilient signal is true when EITHER primary detection says yolo, OR
-	// this is a subagent whose parent-session chain is yolo per isYoloFromDB.
-	// This is deliberately narrow: it does NOT block main edits in genuinely
-	// non-yolo sessions (plain `wipnote claude`, normal dev, or a top-level
-	// session deliberately running on main) because those have no yolo ancestor.
-	if yoloContext {
-		// Resolve branch from the target file's worktree, not the session CWD.
-		targetFile := extractFilePath(event.ToolInput)
-		cwdBranch := currentBranchIn(event.CWD)
-		branch := branchForFilePath(targetFile, cwdBranch)
-		if warn := checkYoloWorktreeGuard(event.ToolName, branch, yoloContext); warn != "" {
-			return &HookResult{Decision: "block", Reason: warn}, nil
-		}
-		// Extend worktree guard to Bash file-write commands.
-		if warn := checkYoloBashWorktreeGuard(event, branch, yoloContext); warn != "" {
-			return &HookResult{Decision: "block", Reason: warn}, nil
-		}
-	}
-
-	if ctx.IsYoloMode {
-		// Warn (not block) when starting a work item without steps.
-		if warn := checkYoloStepsGuard(event, ctx.IsYoloMode, ctx.HgDir); warn != "" {
-			debugLog(ctx.ProjectDir, "[wipnote] YOLO steps warning: %s", warn)
-		}
-
-		// Warn (not block) about code health — files already oversized should be
-		// allowed to be edited so they can be refactored smaller.
-		if warn := checkYoloCodeHealthGuard(event, ctx.IsYoloMode); warn != "" {
-			debugLog(ctx.ProjectDir, "[wipnote] YOLO code health warning: %s", warn)
-		}
-		testRan := hasRecentTestRun(ctx.ProjectDir, ctx.SessionID)
-		if warn := checkYoloCommitGuard(event, ctx.IsYoloMode, testRan); warn != "" {
-			return &HookResult{Decision: "block", Reason: warn}, nil
-		}
-		if warn := checkYoloDiffReviewGuard(event, ctx.IsYoloMode, hasRecentDiffReview(ctx.ProjectDir, ctx.SessionID)); warn != "" {
-			return &HookResult{Decision: "block", Reason: warn}, nil
-		}
-		if warn := checkYoloUIValidationGuard(event, ctx.IsYoloMode, ctx.SessionID, ctx.ProjectDir); warn != "" {
-			return &HookResult{Decision: "block", Reason: warn}, nil
-		}
-		if warn := checkYoloBudgetGuard(event, ctx.IsYoloMode); warn != "" {
-			return &HookResult{Decision: "block", Reason: warn}, nil
-		}
-		if warn := checkYoloRoborevGuard(event, ctx.IsYoloMode); warn != "" {
-			return &HookResult{Decision: "block", Reason: warn}, nil
-		}
-
-		// Warn (not block) when the orchestrator writes directly instead of
-		// delegating to a subagent (bug-06627817).
-		if warn := checkYoloOrchestratorWriteGuard(event, ctx.IsSubagent); warn != "" {
-			debugLog(ctx.ProjectDir, "[wipnote] YOLO orchestrator write warning: %s", warn)
-		}
-	}
-
-	// Tier 1 — live file-overlap advisory. Runs for Write/Edit/MultiEdit only.
-	// A single indexed SELECT (idx_feature_files_path_seen) with ZERO writes:
-	// it never acquires a write lock, so the feat-156e0a1a zero-SQLITE_BUSY
-	// hot-path guarantee is preserved. Non-blocking by default
-	// (warn_on_file_overlap=true); blocks with exit 2 + recovery hint only when
-	// block_on_file_overlap=true.
-	if advisory, blockErr := checkFileOverlapAdvisory(event, ctx, database); blockErr != nil {
-		return nil, blockErr
-	} else if advisory != "" {
-		result, err := recordEventAndAllow(event, ctx, database)
-		if err == nil && result != nil {
-			appendAdditionalContext(result, orchestrationResearchAdvisory)
-			appendAdditionalContext(result, researchDispatchAdvisory)
-			appendAdditionalContext(result, orchestratorAdvice)
-			appendAdditionalContext(result, strings.Join(researchAdvice, "\n"))
-			appendAdditionalContext(result, advisory)
-		}
-		return result, err
-	}
-
-	// Record the event and allow the tool to proceed.
-	result, err := recordEventAndAllow(event, ctx, database)
+// recordAndAllow records the event, allows the tool to proceed, and attaches
+// the advisories the guards collected, in their established order.
+func (st *preToolState) recordAndAllow() (*HookResult, error) {
+	result, err := recordEventAndAllow(st.event, st.ctx, st.database)
 	if err == nil && result != nil {
-		appendAdditionalContext(result, orchestrationResearchAdvisory)
-		appendAdditionalContext(result, researchDispatchAdvisory)
-		appendAdditionalContext(result, orchestratorAdvice)
-		appendAdditionalContext(result, strings.Join(researchAdvice, "\n"))
+		appendAdditionalContext(result, st.orchestrationResearchAdvisory)
+		appendAdditionalContext(result, st.researchDispatchAdvisory)
+		appendAdditionalContext(result, st.orchestratorAdvice)
+		appendAdditionalContext(result, strings.Join(st.researchAdvice, "\n"))
+		if st.fileOverlapAdvisory != "" {
+			appendAdditionalContext(result, st.fileOverlapAdvisory)
+		}
 	}
 	return result, err
 }
@@ -340,801 +154,6 @@ func appendAdditionalContext(result *HookResult, context string) {
 	} else {
 		result.AdditionalContext = context
 	}
-}
-
-func checkOrchestratorResearchDelegationAdvisory(event *CloudEvent, ctx *toolUseContext, database *sql.DB) string {
-	if event == nil || ctx == nil || ctx.IsSubagent || ctx.SessionID == "" {
-		return ""
-	}
-	if !isOrchestratorResearchTool(event.ToolName) {
-		return ""
-	}
-	// A nil database is the hot-hook dispatch: the evidence comes from the
-	// session's canonical tool log (feat-af8d1689).
-	counts, sidecar := canonicalOrchestrationEvidence(ctx.ProjectDir, ctx.SessionID)
-	if database != nil {
-		var err error
-		if counts, err = db.CountEventsByTool(database, ctx.SessionID); err != nil {
-			return ""
-		}
-		sidecar = hasPriorSidecarCommand(database, ctx.SessionID)
-	}
-	if hasPriorOrchestratorResearch(counts) || hasPriorDelegationEvidence(counts) || sidecar {
-		return ""
-	}
-	return "wipnote orchestration advisory: root-session web/docs research is starting before any sidecar dispatch was recorded. In orchestrator mode, delegate web/docs research to a researcher/codebase sidecar when available. If this is a one-shot verification or no sidecar exists in this harness, continue and note that exception."
-}
-
-func isOrchestratorResearchTool(toolName string) bool {
-	switch strings.TrimSpace(toolName) {
-	case "WebSearch", "WebFetch", "web_search", "web_fetch", "google_web_search",
-		"web.search_query", "web.open", "web.find", "web.click":
-		return true
-	default:
-		return false
-	}
-}
-
-func hasPriorOrchestratorResearch(counts map[string]int) bool {
-	for toolName, count := range counts {
-		if count > 0 && isOrchestratorResearchTool(toolName) {
-			return true
-		}
-	}
-	return false
-}
-
-func hasPriorDelegationEvidence(counts map[string]int) bool {
-	// TaskStarted is intentionally excluded: in the Codex harness it is a generic
-	// progress checkpoint (roborev finding 266, bug-60107613), not a sidecar spawn.
-	// Counting it as delegation evidence caused the research advisory to be wrongly
-	// suppressed before the first root web/docs tool call in Codex sessions.
-	// Only genuine spawn events are accepted as delegation evidence.
-	for _, toolName := range []string{
-		"Task", "Agent", "SubagentStart", "multi_agent.spawn",
-		"multi_agent_v1.spawn_agent", "multi_agent_v1.spawn_agents",
-	} {
-		if counts[toolName] > 0 {
-			return true
-		}
-	}
-	return false
-}
-
-func hasPriorSidecarCommand(database *sql.DB, sessionID string) bool {
-	if database == nil {
-		return false
-	}
-	var count int
-	err := database.QueryRow(`
-		SELECT COUNT(*) FROM agent_events
-		WHERE session_id = ?
-		  AND tool_name = 'Bash'
-		  AND (
-			input_summary LIKE 'gemini %'
-			OR input_summary LIKE 'codex exec %'
-			OR input_summary LIKE 'agy %'
-			OR input_summary LIKE 'copilot %'
-		  )
-		LIMIT 1`, sessionID).Scan(&count)
-	return err == nil && count > 0
-}
-
-// fileOverlapConfig holds the two opt-in flags read from .wipnote/config.json
-// via the same local os.ReadFile pattern as readTaskCompletionConfig (there is
-// NO shared internal/config package). warn defaults to true, block to false —
-// so the JSON pointers distinguish "absent" (use default) from "explicitly
-// set" (honor the value).
-type fileOverlapConfig struct {
-	WarnOnFileOverlap  *bool `json:"warn_on_file_overlap"`
-	BlockOnFileOverlap *bool `json:"block_on_file_overlap"`
-}
-
-// readFileOverlapConfig returns (warn, block) for the live file-overlap
-// advisory. Defaults: warn=true, block=false. A missing/unreadable config or
-// absent key keeps the defaults; an explicit false in config disables warning.
-func readFileOverlapConfig(projectDir string) (warn, block bool) {
-	warn, block = true, false
-	if projectDir == "" {
-		return warn, block
-	}
-	var cfg fileOverlapConfig
-	if !paths.ReadProjectConfig(projectDir, &cfg) {
-		return warn, block
-	}
-	if cfg.WarnOnFileOverlap != nil {
-		warn = *cfg.WarnOnFileOverlap
-	}
-	if cfg.BlockOnFileOverlap != nil {
-		block = *cfg.BlockOnFileOverlap
-	}
-	return warn, block
-}
-
-// checkFileOverlapAdvisory performs the single-SELECT live file-overlap probe
-// for Write/Edit/MultiEdit. Returns (advisory, nil) for the non-blocking warn
-// path, ("", &BlockExit2Error) for the blocking path, or ("", nil) when there
-// is no overlap or the feature is disabled. ZERO writes on every path.
-func checkFileOverlapAdvisory(event *CloudEvent, ctx *toolUseContext, database *sql.DB) (string, error) {
-	switch event.ToolName {
-	case "Write", "Edit", "MultiEdit", "apply_patch":
-	default:
-		return "", nil
-	}
-	if ctx == nil || ctx.SessionID == "" || database == nil {
-		return "", nil
-	}
-	warn, block := readFileOverlapConfig(ctx.ProjectDir)
-	if !warn && !block {
-		return "", nil
-	}
-
-	rawPath := extractFilePath(event.ToolInput)
-	if rawPath == "" {
-		return "", nil
-	}
-	// feature_files stores repo-relative paths (recordEventAndAllow uses the
-	// same MustNormalize call), so normalize before matching.
-	target := paths.MustNormalize(rawPath, "")
-
-	window := db.FileOverlapWindow(ctx.ProjectDir)
-	liveness := db.LivenessStalenessThreshold(ctx.ProjectDir)
-	overlaps, err := db.FindLiveFileOverlaps(database, target, ctx.SessionID, window, liveness)
-	if err != nil || len(overlaps) == 0 {
-		return "", nil
-	}
-
-	var others []string
-	for _, o := range overlaps {
-		desc := o.SessionID
-		if o.FeatureID != "" {
-			desc += " (" + o.FeatureID + ")"
-		}
-		others = append(others, desc)
-	}
-	sessions := strings.Join(others, ", ")
-
-	if block {
-		return "", &BlockExit2Error{Message: fmt.Sprintf(
-			"File-overlap block: %s was touched within the last %s by another "+
-				"live session: %s.\n"+
-				"Recovery: coordinate with the other session, or re-run after it "+
-				"completes, or ask the operator to relax block_on_file_overlap in "+
-				".wipnote/config.json.",
-			target, window.String(), sessions),
-		}
-	}
-	return fmt.Sprintf(
-		"⚠ wipnote: %s was also touched within the last %s by another live "+
-			"session: %s. You may be editing the same file concurrently — "+
-			"coordinate to avoid clobbering each other's changes.",
-		target, window.String(), sessions), nil
-}
-
-// recordEventAndAllow inserts a tool_call agent_event row for observability
-// and returns an allow result. Used by the plan mode bypass and the normal
-// flow to avoid duplicating the event recording logic.
-func recordEventAndAllow(event *CloudEvent, ctx *toolUseContext, database *sql.DB) (*HookResult, error) {
-	inputSummary := SummariseInput(event.ToolName, event.ToolInput)
-
-	// Normalize path fields to repo-relative before storage so that captured
-	// artifacts remain stable across machines and worktrees. Bash "command"
-	// fields are deliberately excluded (see normalizeToolInputPaths).
-	toolInputStr := marshalToolInput(event.ToolName, event.ToolInput)
-
-	ev := &models.AgentEvent{
-		// Deterministic per-call id (bug-07fd4a51) so PostToolUse upserts this
-		// same row instead of searching for it by tool name.
-		EventID:       toolCallEventIDOrRandom(ctx.SessionID, event.ToolUseID),
-		AgentID:       ctx.AgentID,
-		EventType:     models.EventToolCall,
-		Timestamp:     time.Now().UTC(),
-		ToolName:      event.ToolName,
-		InputSummary:  inputSummary,
-		ToolInput:     toolInputStr,
-		SessionID:     ctx.SessionID,
-		FeatureID:     ctx.FeatureID,
-		ParentEventID: ctx.ParentEventID,
-		SubagentType:  ctx.AgentType,
-		Status:        "started",
-		StepID:        event.ToolUseID,
-		Source:        "hook",
-		CreatedAt:     time.Now().UTC(),
-		UpdatedAt:     time.Now().UTC(),
-	}
-
-	// Route the tool_call agent_events INSERT through the daemon-first enqueue
-	// path (plan-2390966a slice-4). This is the hot write that stalled 5–14s
-	// under a held lock; RouteInsertEvent opens NO direct writable handle when
-	// the daemon is reachable and degrades to a <1s bounded fallback otherwise.
-	// Best-effort/advisory like the prior db.InsertEvent — never blocks the hook.
-	_ = RouteInsertEvent("pretooluse", ctx.ProjectDir, ctx.SessionID, ev, database)
-
-	// Canonical mirror of the same tool call (bug-a3b17225). The row above only
-	// ever lands in the real index; the read-only hook path that the research
-	// and UI-validation guards run on opens an EMPTY projection and can never
-	// read it back, which left those guards permanently fail-open. This short
-	// append gives them a durable file source. Best-effort and bounded.
-	appendCanonicalToolEvent(ctx.ProjectDir, ctx.SessionID, canonicalToolEvent{
-		Tool:    event.ToolName,
-		Agent:   ctx.AgentID,
-		Summary: inputSummary,
-		Input:   toolInputStr,
-	})
-
-	// Claim bookkeeping (bug-d792aee6 finding 2): route BOTH claim writes through
-	// the daemon-first enqueue-only seam (RouteHookWrite) instead of issuing them
-	// directly on the 5s-busy_timeout hook handle. Under a held external write
-	// lock the direct path stalled ~5s, defeating the <1s hot-hook bound; the
-	// builders return the exact (sql, args) the originals Exec, JSON-transport-safe
-	// so the daemon can re-bind them. Both stay best-effort: the advisory bool is
-	// ignored, and canonical NDJSON + reindex are the durability backstop.
-	if ctx.FeatureID != "" {
-		writePath := paths.MustNormalize(extractFilePath(event.ToolInput), "")
-		hbSQL, hbArgs := db.HeartbeatClaimByWorkItemStmt(ctx.FeatureID, ctx.SessionID, writePath, 30*time.Minute)
-		_ = RouteHookWrite("pretooluse", ctx.ProjectDir, ctx.SessionID, hbSQL, hbArgs...)
-	}
-	reapSQL, reapArgs := db.ReapExpiredClaimsStmt()
-	_ = RouteHookWrite("pretooluse", ctx.ProjectDir, ctx.SessionID, reapSQL, reapArgs...)
-
-	os.Setenv("WIPNOTE_CURRENT_EVENT_ID", ev.EventID)
-
-	// Capture the parent UserQuery event ID at PreToolUse time (before the tool
-	// executes) and persist it to CLAUDE_ENV_FILE so PostToolUse reads the same
-	// parent even when a new UserQuery has been inserted while the tool ran.
-	// This eliminates the race in resolveParentEventID's LatestEventByTool fallback.
-	if ctx.ParentEventID != "" {
-		writeParentPromptEvent(ctx.ParentEventID)
-	}
-
-	result := &HookResult{}
-	// bug-190950e0: this is the single choke point every "allow" exit of
-	// PreToolUse passes through, so patching it here (rather than each call
-	// site) covers plan-mode bypass, the file-overlap-advisory path, and the
-	// plain allow path uniformly, without touching any block/gate decision
-	// above — this only ever runs once a tool call has already been allowed.
-	applyClaimAgentPropagation(event, result)
-	return result, nil
-}
-
-// writeParentPromptEvent persists parentEventID as WIPNOTE_PARENT_PROMPT_EVENT
-// to CLAUDE_ENV_FILE so PostToolUse hook processes can read the correct parent
-// without querying the DB (which would return the wrong UserQuery when a new
-// prompt has arrived since the tool started).
-//
-// Falls back to os.Setenv only (no-op for PostToolUse) when CLAUDE_ENV_FILE is
-// unset — the existing LatestEventByTool DB fallback remains correct in that case.
-func writeParentPromptEvent(parentEventID string) {
-	// Keep the in-process env var current so any same-process callers see it.
-	os.Setenv("WIPNOTE_PARENT_PROMPT_EVENT", parentEventID)
-
-	envFile := os.Getenv("CLAUDE_ENV_FILE")
-	if envFile == "" {
-		// CLAUDE_ENV_FILE unset (YOLO mode, worktree subagents, or plugin-dir
-		// launches). The in-process os.Setenv above covers same-process callers;
-		// PostToolUse will fall through to the existing DB fallback chain.
-		return
-	}
-	f, err := os.OpenFile(envFile, os.O_APPEND|os.O_WRONLY, 0o644)
-	if err != nil {
-		return
-	}
-	defer f.Close()
-	fmt.Fprintf(f, "export WIPNOTE_PARENT_PROMPT_EVENT=%s\n", parentEventID)
-}
-
-// checkBashCwdGuard detects Bash commands that would permanently change the
-// working directory. Bare `cd dir && cmd` pollutes CWD for all subsequent
-// tool calls in the session. Subshells `(cd dir && cmd)` are safe.
-//
-// Returns a non-empty reason string to block the command, or "" to allow.
-func checkBashCwdGuard(event *CloudEvent) string {
-	if !isShellTool(event.ToolName) {
-		return ""
-	}
-	cmd := shellCommand(event.ToolInput)
-	if cmd == "" {
-		return ""
-	}
-	if !bareCdPattern.MatchString(cmd) {
-		return ""
-	}
-	return "Bare `cd` changes the working directory permanently. " +
-		"Use a subshell instead: `(cd dir && command)` — " +
-		"this returns to the original directory when done."
-}
-
-// bareCdPattern matches a bare `cd` at the start of a command that is NOT
-// wrapped in a subshell. It does NOT match:
-//   - (cd dir && cmd)   — subshell, safe
-//   - cd /absolute/path && pwd  — going to project root is fine... actually still bad
-//
-// It matches:
-//   - cd some-dir && go build
-//   - cd dir && cmd1 && cmd2
-var bareCdPattern = regexp.MustCompile(`^cd\s+[^;)]+&&`)
-
-// iswipnoteWrite returns true for file-write tools targeting .wipnote/.
-func iswipnoteWrite(event *CloudEvent) bool {
-	switch event.ToolName {
-	case "Write", "Edit", "MultiEdit", "apply_patch":
-	default:
-		return false
-	}
-	if event.ToolName == "apply_patch" {
-		patch, _ := event.ToolInput["patch"].(string)
-		return containsWipnoteDir(patch)
-	}
-	path, _ := event.ToolInput["path"].(string)
-	if path == "" {
-		path, _ = event.ToolInput["file_path"].(string)
-	}
-	return containsWipnoteDir(path)
-}
-
-func containsWipnoteDir(path string) bool {
-	for i := range path {
-		if path[i] == '.' && i+11 <= len(path) && path[i:i+11] == ".wipnote/" {
-			return true
-		}
-	}
-	return path == ".wipnote"
-}
-
-// isBashwipnoteWrite detects Bash commands that mutate .wipnote/ files
-// directly (rm, sed -i, redirects, mv, cp, git add/rm/mv/restore/checkout/
-// stash, python -c, …). These bypass the wipnote CLI and the commit-queue
-// outbox and must be blocked. The decision is made per shell segment on the
-// resolved operation targets — see store_guard.go (GH-#180).
-func isBashwipnoteWrite(event *CloudEvent) bool {
-	if !isShellTool(event.ToolName) {
-		return false
-	}
-	cmd := shellCommand(event.ToolInput)
-	if cmd == "" {
-		return false
-	}
-	return bashCommandWritesWipnoteStore(cmd)
-}
-
-// isWipnoteCLICommand returns true when every shell command segment invokes the
-// wipnote CLI binary. The check is intentionally anchored to the executable
-// token so commands that merely mention "wipnote" cannot bypass write guards.
-func isWipnoteCLICommand(cmd string) bool {
-	segments := splitShellCommandSegments(cmd)
-	if len(segments) == 0 {
-		return false
-	}
-	for _, segment := range segments {
-		if !segmentStartsWithWipnoteCLI(segment) {
-			return false
-		}
-	}
-	return true
-}
-
-// splitShellCommandSegments splits cmd on unquoted ;, |, &&, and newlines.
-// A single- or double-quoted span is never split, even if it contains a
-// separator character — "Never; rm .wipnote/x" is one word, not a command
-// boundary, matching how a real shell would parse it. Only the SAME quote
-// character that opened a span closes it; nested different-quote-inside-
-// same-quote and backslash-escaped quotes are not modeled, matching the
-// simplifications tokenizeShellWords already makes for word-splitting.
-func splitShellCommandSegments(cmd string) []string {
-	var segments []string
-	start := 0
-	var quote byte
-	for i := 0; i < len(cmd); i++ {
-		c := cmd[i]
-		if quote != 0 {
-			if c == quote {
-				quote = 0
-			}
-			continue
-		}
-		if c == '\'' || c == '"' {
-			quote = c
-			continue
-		}
-		sepLen := 0
-		switch c {
-		case '\n', ';', '|':
-			sepLen = 1
-		case '&':
-			if i+1 < len(cmd) && cmd[i+1] == '&' {
-				sepLen = 2
-			}
-		}
-		if sepLen == 0 {
-			continue
-		}
-		part := strings.TrimSpace(cmd[start:i])
-		if part != "" {
-			segments = append(segments, part)
-		}
-		i += sepLen - 1
-		start = i + 1
-	}
-	part := strings.TrimSpace(cmd[start:])
-	if part != "" {
-		segments = append(segments, part)
-	}
-	return segments
-}
-
-func segmentStartsWithWipnoteCLI(segment string) bool {
-	fields := strings.Fields(segment)
-	for len(fields) > 0 {
-		first := fields[0]
-		if strings.Contains(first, "=") && !strings.HasPrefix(first, "-") {
-			fields = fields[1:]
-			continue
-		}
-		return first == "wipnote" || strings.HasSuffix(first, "/wipnote")
-	}
-	return false
-}
-
-// isBashFileWrite detects Bash commands that modify source files (as opposed
-// to read-only commands like git status, ls, grep, etc.). Used by YOLO guards
-// to extend Write/Edit/MultiEdit protections to Bash file manipulation.
-func isBashFileWrite(event *CloudEvent) bool {
-	if !isShellTool(event.ToolName) {
-		return false
-	}
-	cmd := shellCommand(event.ToolInput)
-	if cmd == "" {
-		return false
-	}
-	// osascript drives macOS apps (Notes, Mail, …) over Apple events; its
-	// AppleScript/HTML payloads are not filesystem writes (GH-#97).
-	if isOsascriptCommand(cmd) {
-		return false
-	}
-	return bashFileWritePattern.MatchString(cmd)
-}
-
-// isOsascriptCommand reports whether every segment of cmd (after joining
-// backslash continuations and dropping heredoc bodies) invokes osascript. A
-// compound command that chains osascript with anything else is NOT exempt.
-func isOsascriptCommand(cmd string) bool {
-	joined := strings.ReplaceAll(cmd, "\\\n", " ")
-	segments := splitShellCommandSegments(stripHeredocBodies(joined))
-	if len(segments) == 0 {
-		return false
-	}
-	for _, segment := range segments {
-		if name, _ := splitShellCommandArgs(tokenizeShellWords(segment)); name != "osascript" {
-			return false
-		}
-	}
-	return true
-}
-
-// isShellTool reports whether toolName is the harness-native shell invocation
-// tool. Each harness uses a different name:
-//   - Claude Code: "Bash"
-//   - Codex: "exec_command" / "functions.exec_command"
-//   - Gemini: "run_shell_command"
-//   - Antigravity: "run_command" (Antigravity translates run_shell_command →
-//     run_command in its generated agent manifests)
-//
-// This predicate gates shell-only guards (dependency-research check, YOLO commit
-// check, shell file-write protection). Keep in sync with researchShellToolNamesSQL
-// in yolo_guard.go (issue #144).
-func isShellTool(toolName string) bool {
-	switch toolName {
-	case "Bash", "exec_command", "functions.exec_command",
-		"run_shell_command", "run_command":
-		return true
-	}
-	return false
-}
-
-func shellCommand(input map[string]any) string {
-	if input == nil {
-		return ""
-	}
-	for _, key := range []string{"command", "cmd"} {
-		if v, ok := input[key].(string); ok {
-			return v
-		}
-	}
-	return ""
-}
-
-// bashFileWritePattern matches Bash commands that write/modify files.
-// Uses a write-intent denylist: known destructive commands are matched; pure
-// inspection commands (ls, cat, head, tail, stat, find, grep, etc.) are not.
-//
-// Redirect detection:
-//   - `(?:^|\s|;|&&|\|\|)>>?\s*[^&\s]` matches plain shell output redirects
-//     (> and >>) preceded by a word boundary. Handles both `cmd > file` and `cmd >file`.
-//   - `(?:^|\s|;|&&|\|\|)1>>?\s*[^&\s]` matches explicit fd-1 (stdout) redirects:
-//     `1>file`, `1>>file`. It is anchored to a word start so `<h1>` in a payload
-//     does not match. We target fd 1 specifically to avoid false-positives on
-//     benign `2>/dev/null` patterns (the existing exclusion for `2>/dev/null`-shape
-//     stderr redirects is preserved since we don't add a generic `[0-9]+>` pattern).
-//   - `&>>?\s*[^\s]` matches `&>file` and `&>>file` (stdout+stderr combined redirect).
-//     Excludes fd-to-fd `>&N` because the `&` must immediately precede `>`.
-//   - fd-to-fd redirects like `>&2` are excluded because the existing pattern requires
-//     a non-`&`, non-whitespace character after the redirect operator.
-//   - `find ... -delete` is a destructive option that removes matching files.
-var bashFileWritePattern = regexp.MustCompile(
-	`(?:` +
-		// In-place editors
-		`\bsed\s+-i` +
-		`|` +
-		`\bperl\s+-[pi]` +
-		`|` +
-		`\bawk\s+-i` +
-		`|` +
-		// Shell output redirects (both > and >>), handling spaces around >
-		`(?:^|\s|;|&&|\|\|)>>?\s*[^&\s]` +
-		`|` +
-		// Explicit fd-1 (stdout) redirects: 1>file, 1>>file. Anchored to the
-		// start of a word so the "1>" inside an HTML/AppleScript payload such
-		// as "<h1>Title</h1>" does not match (GH-#97), and excluding "&" so the
-		// fd-dup form 1>&2 is not treated as a file write. fd 1 specifically
-		// avoids matching benign 2>/dev/null patterns.
-		`(?:^|\s|;|&&|\|\|)1>>?\s*[^&\s]` +
-		`|` +
-		// Combined stdout+stderr redirects: &>file and &>>file
-		// Excludes >&N (fd-to-fd) because that form has > after &, not & before >.
-		`&>>?\s*[^\s]` +
-		`|` +
-		// File removal / relocation / creation
-		`\brm\s` +
-		`|` +
-		`\bcp\s` +
-		`|` +
-		`\bmv\s` +
-		`|` +
-		`\bln\s` +
-		`|` +
-		`\binstall\s` +
-		`|` +
-		// Permission / ownership changes
-		`\bchmod\s` +
-		`|` +
-		`\bchown\s` +
-		`|` +
-		// Pipe-to-file writers
-		`\btee\s` +
-		`|` +
-		`\bdd\s` +
-		`|` +
-		`\bpatch\s` +
-		`|` +
-		// Common formatter/linter commands that rewrite files in place.
-		`\bgofmt\s+-w\b` +
-		`|` +
-		`\bgo\s+fmt\b` +
-		`|` +
-		`\bprettier\b.*\s--write\b` +
-		`|` +
-		`\beslint\b.*\s--fix\b` +
-		`|` +
-		`\bruff\b.*\s--fix\b` +
-		`|` +
-		`\bblack\b\s` +
-		`|` +
-		// Git write operations (add/commit/push modify index, history, or remote)
-		`\bgit\s+(?:add|commit|push|reset|rebase|merge|mv|rm|stash|tag|cherry-pick)\b` +
-		`|` +
-		// Python one-liners that open files for writing
-		`\bpython[23]?\s+-c\s+.*(?:open|write)` +
-		`|` +
-		// find -delete removes matching files
-		`\bfind\b.*\s-delete\b` +
-		`)`,
-)
-
-// SummariseInput builds a short human-readable summary of tool input.
-func SummariseInput(toolName string, input map[string]any) string {
-	if input == nil {
-		return toolName
-	}
-
-	// Read tool: include offset/limit as line range suffix.
-	if toolName == "Read" {
-		return summariseReadInput(input)
-	}
-
-	// For file tools, use the path.
-	for _, key := range []string{"path", "file_path", "command", "cmd", "query", "prompt"} {
-		if v, ok := input[key].(string); ok && v != "" {
-			if len(v) > 120 {
-				v = v[:120] + "…"
-			}
-			return v
-		}
-	}
-	// Fallback: compact JSON of first 200 chars.
-	b, _ := json.Marshal(input)
-	s := string(b)
-	if len(s) > 200 {
-		s = s[:200] + "…"
-	}
-	return s
-}
-
-// summariseReadInput builds a summary for the Read tool that includes the file
-// path and optional line range from offset/limit parameters.
-// Examples:
-//
-//	"/path/to/file.go"              — no offset/limit
-//	"/path/to/file.go [100:150]"    — offset=100, limit=50
-//	"/path/to/file.go [100:]"       — offset=100, no limit
-//	"/path/to/file.go [:50]"        — no offset, limit=50
-func summariseReadInput(input map[string]any) string {
-	filePath := extractFilePath(input)
-	if filePath == "" {
-		return "Read"
-	}
-
-	offset := toInt(input["offset"])
-	limit := toInt(input["limit"])
-
-	if offset > 0 || limit > 0 {
-		switch {
-		case offset > 0 && limit > 0:
-			filePath += fmt.Sprintf(" [%d:%d]", offset, offset+limit)
-		case offset > 0:
-			filePath += fmt.Sprintf(" [%d:]", offset)
-		default:
-			filePath += fmt.Sprintf(" [:%d]", limit)
-		}
-	}
-
-	if len(filePath) > 120 {
-		filePath = filePath[:120] + "…"
-	}
-	return filePath
-}
-
-// toInt converts a JSON number (float64) to int, returning 0 for non-numeric values.
-func toInt(v any) int {
-	switch n := v.(type) {
-	case float64:
-		return int(n)
-	case int:
-		return n
-	case int64:
-		return int(n)
-	}
-	return 0
-}
-
-// checkProjectDivergence compares the CWD of the current event against the
-// project_dir stored in the session row. When they resolve to different
-// .wipnote/ roots:
-//   - Write tools are blocked with a clear error message.
-//   - Read-only tools are silently allowed, but a warning is written to debug.log.
-//
-// Returns nil to allow the event to proceed.
-func checkProjectDivergence(event *CloudEvent, database *sql.DB, sessionID string) *HookResult {
-	if sessionID == "" || event.CWD == "" {
-		return nil
-	}
-
-	sess, err := db.GetSession(database, sessionID)
-	if err != nil || sess == nil || sess.ProjectDir == "" {
-		// No stored project_dir — nothing to compare against.
-		return nil
-	}
-
-	eventProjectDir := ResolveProjectDir(event.CWD, event.SessionID)
-	sessionProjectDir := sess.ProjectDir
-
-	// Strip the "unresolved:" sentinel that NormalizeProjectDir adds when the
-	// project root is a host-path with no anchor (typical in test tempdirs).
-	// ResolveProjectDir returns raw paths; comparing must happen on the same
-	// shape.
-	sessionProjectDir = strings.TrimPrefix(sessionProjectDir, "unresolved:")
-	eventProjectDir = strings.TrimPrefix(eventProjectDir, "unresolved:")
-
-	if eventProjectDir == sessionProjectDir {
-		return nil
-	}
-
-	// Normalise both paths to eliminate symlink / trailing-slash differences.
-	cleanEvent := filepath.Clean(eventProjectDir)
-	cleanSession := filepath.Clean(sessionProjectDir)
-	if cleanEvent == cleanSession {
-		return nil
-	}
-
-	// Worktree-aware: linked worktrees and their main repo share a .git
-	// common dir and therefore the same logical project. Normalising both
-	// paths through ResolveViaGitCommonDir collapses worktree↔main and
-	// worktreeA↔worktreeB to the same canonical root. Without this check,
-	// a YOLO session that records sess.ProjectDir=<main> in SessionStart
-	// then fires events with WIPNOTE_PROJECT_DIR=<worktree> sees a false
-	// divergence and blocks every Write/Edit (bug-a1993e6b — wedged
-	// YOLO session on feat-5ddde9d7 / 2026-05-13).
-	if canonicalRepoRoot(cleanEvent) == canonicalRepoRoot(cleanSession) {
-		return nil
-	}
-
-	// Scratch-space bypass: if the raw event CWD has no .wipnote/ ancestor,
-	// the user has moved to an untracked directory (e.g. /tmp). That is
-	// legitimate scratch-space usage — do not block. We check event.CWD
-	// directly (before ResolveProjectDir's walk-up logic) so that a scratch
-	// path like /tmp/notes is not mistaken for the current process's project.
-	// The guard only applies when both the session and the CWD are independently
-	// wipnote-tracked projects.
-	if !hasWipnoteAnchor(filepath.Clean(event.CWD)) {
-		return nil
-	}
-
-	if isWriteTool(event.ToolName) {
-		return &HookResult{
-			Decision: "block",
-			Reason: fmt.Sprintf(
-				"CWD has changed to a different project (%s). "+
-					"Start a new session in that project.",
-				eventProjectDir,
-			),
-		}
-	}
-
-	// Read-only tool: allow but log the drift.
-	debugLog(sessionProjectDir, "[wipnote] CWD divergence (read-only %s): session=%s event_cwd=%s",
-		event.ToolName, sessionProjectDir, event.CWD)
-	return nil
-}
-
-// canonicalRepoRoot returns the main repository root for any path that lives
-// inside the same logical project (whether the path is the main checkout or
-// a linked worktree of it). Used by checkProjectDivergence so that worktrees
-// don't trigger a false-positive "different project" block.
-//
-// Behaviour:
-//   - Relative paths are first resolved to absolute via filepath.Abs so that
-//     "." doesn't depend on the hook process's CWD at invocation time.
-//   - For a linked worktree, paths.ResolveViaGitCommonDir returns the main
-//     repo root (parent of the shared .git dir).
-//   - For the main checkout (or any non-worktree path that already has its
-//     own .git), ResolveViaGitCommonDir returns "" — in that case we treat
-//     the absolute path itself as the canonical root after symlink resolution.
-//
-// Two paths in the same logical project produce the same canonical root via
-// this helper; paths in unrelated projects produce different roots.
-func canonicalRepoRoot(dir string) string {
-	abs, err := filepath.Abs(dir)
-	if err != nil {
-		abs = filepath.Clean(dir)
-	}
-	if eval, evalErr := filepath.EvalSymlinks(abs); evalErr == nil {
-		abs = eval
-	}
-	if main := paths.ResolveViaGitCommonDir(abs); main != "" {
-		if eval, evalErr := filepath.EvalSymlinks(main); evalErr == nil {
-			return eval
-		}
-		return main
-	}
-	return abs
-}
-
-// hasWipnoteAnchor reports whether dir or any of its parent directories
-// contains a .wipnote/ subdirectory. Used by checkProjectDivergence to
-// distinguish a "different wipnote project" (should block) from an untracked
-// scratch directory like /tmp (should allow).
-func hasWipnoteAnchor(dir string) bool {
-	d := dir
-	for {
-		if _, err := os.Stat(filepath.Join(d, ".wipnote")); err == nil {
-			return true
-		}
-		parent := filepath.Dir(d)
-		if parent == d {
-			break
-		}
-		d = parent
-	}
-	return false
 }
 
 // checkSubagentWorkItemGuard blocks Write/Edit/MultiEdit from subagents when

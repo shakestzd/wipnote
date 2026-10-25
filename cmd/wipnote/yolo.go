@@ -12,7 +12,6 @@ import (
 	"github.com/shakestzd/wipnote/core/htmlparse"
 	"github.com/shakestzd/wipnote/core/slug"
 	"github.com/shakestzd/wipnote/core/workitem"
-	"github.com/shakestzd/wipnote/internal/launcher/plan"
 	"github.com/spf13/cobra"
 )
 
@@ -55,13 +54,23 @@ func emitYoloBanner(headline, pluginSource, session, workItem, warning string, w
 }
 
 func yoloCmd() *cobra.Command {
-	var dev, initMode, continueMode, noWorktree, inPlace, tmux bool
-	var permMode, trackID, featureID, resumeID, name string
+	var f yoloFlags
 
 	cmd := &cobra.Command{
 		Use:   "yolo",
 		Short: "Launch Claude Code in autonomous YOLO mode with development guardrails",
-		Long: `Launches Claude Code in auto permission mode with enforced quality guardrails.
+		Long:  yoloLongHelp,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runYoloCmd(&f, args)
+		},
+	}
+
+	registerYoloFlags(cmd, &f)
+	return cmd
+}
+
+// yoloLongHelp is the `wipnote yolo` long help text.
+const yoloLongHelp = `Launches Claude Code in auto permission mode with enforced quality guardrails.
 
 Auto mode lets Claude Code's background classifier approve actions instead of
 prompting. If auto mode is unavailable for your account or model, Claude Code
@@ -77,47 +86,55 @@ YOLO mode avoids permission prompts but enforces code quality at every step:
 Each session is auto-named with a timestamp for easy identification.
 
 Requires --track or --feature to identify the work item for attribution.
-Without either flag, launches in planning mode to help you create one first.`,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			// Tmux wrap must happen before any side-effecting work.
-			// When --tmux is set and we are not already inside tmux, this
-			// replaces the current process with: tmux new-session -A -s wipnote-yolo -- <argv without --tmux>
-			// and never returns. If tmux is missing, an error is returned.
-			// If we are already inside tmux (TMUX env set), this is a no-op.
-			_ = tmux // flag is consumed via os.Args inspection in maybeTmuxWrap
-			if err := validateYoloPermissionMode(permMode); err != nil {
-				return err
-			}
-			if err := maybeTmuxWrap("wipnote-yolo"); err != nil {
-				return err
-			}
-			switch {
-			case dev:
-				effectiveInPlaceDev := inPlace || noWorktree
-				return launchYoloDev(permMode, trackID, featureID, effectiveInPlaceDev, resumeID, name, args)
-			case initMode:
-				return launchYoloInit(permMode, trackID, featureID, resumeID, name, args)
-			case continueMode:
-				return launchYoloContinue(permMode, args, resumeID)
-			default:
-				effectiveInPlace := inPlace || noWorktree
-				return launchYoloDefault(permMode, trackID, featureID, effectiveInPlace, resumeID, name, args)
-			}
-		},
-	}
+Without either flag, launches in planning mode to help you create one first.`
 
-	cmd.Flags().BoolVar(&dev, "dev", false, "Load plugin from local source (development mode)")
-	cmd.Flags().BoolVar(&initMode, "init", false, "Initialize .wipnote/ then launch in YOLO mode")
-	cmd.Flags().BoolVar(&continueMode, "continue", false, "Resume last YOLO session")
-	cmd.Flags().BoolVar(&noWorktree, "no-worktree", false, "Skip worktree creation; run in project root (alias for --in-place)")
-	cmd.Flags().BoolVar(&inPlace, "in-place", false, "Intentional in-place mutation; records opt-out of isolation")
-	cmd.Flags().BoolVar(&tmux, "tmux", false, "Wrap yolo in a tmux session named 'wipnote-yolo' (survives disconnects; reattaches on re-run)")
-	cmd.Flags().StringVar(&permMode, "permission-mode", yoloDefaultPermissionMode, yoloPermissionModeHelp)
-	cmd.Flags().StringVar(&trackID, "track", "", "Track ID to work on (e.g., trk-3719d8f3)")
-	cmd.Flags().StringVar(&featureID, "feature", "", "Feature ID to work on (e.g., feat-15c458aa)")
-	cmd.Flags().StringVar(&resumeID, "resume", "", "Resume a specific Claude Code session by ID")
-	cmd.Flags().StringVar(&name, "name", "", "Session label shown in Claude TUI (default: <track-title>-yolo-<timestamp>)")
-	return cmd
+// yoloFlags holds the `wipnote yolo` flag values.
+type yoloFlags struct {
+	dev, initMode, continueMode, noWorktree, inPlace, tmux bool
+	permMode, trackID, featureID, resumeID, name           string
+}
+
+// runYoloCmd dispatches `wipnote yolo` to the selected mode.
+func runYoloCmd(f *yoloFlags, args []string) error {
+	// Tmux wrap must happen before any side-effecting work.
+	// When --tmux is set and we are not already inside tmux, this
+	// replaces the current process with: tmux new-session -A -s wipnote-yolo -- <argv without --tmux>
+	// and never returns. If tmux is missing, an error is returned.
+	// If we are already inside tmux (TMUX env set), this is a no-op.
+	_ = f.tmux // flag is consumed via os.Args inspection in maybeTmuxWrap
+	if err := validateYoloPermissionMode(f.permMode); err != nil {
+		return err
+	}
+	if err := maybeTmuxWrap("wipnote-yolo"); err != nil {
+		return err
+	}
+	switch {
+	case f.dev:
+		effectiveInPlaceDev := f.inPlace || f.noWorktree
+		return launchYoloDev(f.permMode, f.trackID, f.featureID, effectiveInPlaceDev, f.resumeID, f.name, args)
+	case f.initMode:
+		return launchYoloInit(f.permMode, f.trackID, f.featureID, f.resumeID, f.name, args)
+	case f.continueMode:
+		return launchYoloContinue(f.permMode, args, f.resumeID)
+	default:
+		effectiveInPlace := f.inPlace || f.noWorktree
+		return launchYoloDefault(f.permMode, f.trackID, f.featureID, effectiveInPlace, f.resumeID, f.name, args)
+	}
+}
+
+// registerYoloFlags registers the `wipnote yolo` flags on cmd.
+func registerYoloFlags(cmd *cobra.Command, f *yoloFlags) {
+	cmd.Flags().BoolVar(&f.dev, "dev", false, "Load plugin from local source (development mode)")
+	cmd.Flags().BoolVar(&f.initMode, "init", false, "Initialize .wipnote/ then launch in YOLO mode")
+	cmd.Flags().BoolVar(&f.continueMode, "continue", false, "Resume last YOLO session")
+	cmd.Flags().BoolVar(&f.noWorktree, "no-worktree", false, "Skip worktree creation; run in project root (alias for --in-place)")
+	cmd.Flags().BoolVar(&f.inPlace, "in-place", false, "Intentional in-place mutation; records opt-out of isolation")
+	cmd.Flags().BoolVar(&f.tmux, "tmux", false, "Wrap yolo in a tmux session named 'wipnote-yolo' (survives disconnects; reattaches on re-run)")
+	cmd.Flags().StringVar(&f.permMode, "permission-mode", yoloDefaultPermissionMode, yoloPermissionModeHelp)
+	cmd.Flags().StringVar(&f.trackID, "track", "", "Track ID to work on (e.g., trk-3719d8f3)")
+	cmd.Flags().StringVar(&f.featureID, "feature", "", "Feature ID to work on (e.g., feat-15c458aa)")
+	cmd.Flags().StringVar(&f.resumeID, "resume", "", "Resume a specific Claude Code session by ID")
+	cmd.Flags().StringVar(&f.name, "name", "", "Session label shown in Claude TUI (default: <track-title>-yolo-<timestamp>)")
 }
 
 // yoloDefaultName builds the default session label for YOLO mode.
@@ -239,283 +256,6 @@ func launchYoloPlanningMode(projectRoot string, extraArgs []string) error {
 		InjectSystemPrompt: true,
 		ExtraArgs:          extraArgs,
 		ProjectRoot:        projectRoot,
-	})
-}
-
-// emitYoloDirtyMainMessage carries the canonical main repo's uncommitted tracked
-// changes into a freshly-created worktree and prints an accurate dirty-main
-// advisory (bug-bcf8a311 + bug-7d4b6c63).
-//
-// Delegates to the shared emitWorktreeCarryoverMessage helper in worktree_helpers.go
-// so that yolo and claude launch paths share identical carryover semantics.
-func emitYoloDirtyMainMessage(p plan.LaunchPlan, canonicalRoot, worktreePath string, created bool, w io.Writer) {
-	emitWorktreeCarryoverMessage(p, canonicalRoot, worktreePath, created, w)
-}
-
-func launchYoloDefault(permMode, trackID, featureID string, noWorktree bool, resumeID, name string, extraArgs []string) error {
-	projectRoot := ""
-	if wipnoteDir, err := findWipnoteDir(); err == nil {
-		projectRoot = filepath.Dir(wipnoteDir)
-	}
-	// Resolve canonical main repo root when CWD is a linked worktree (slice-3).
-	// Do NOT overwrite projectRoot: it stays the child working directory for
-	// --no-worktree/planning launches. Only WIPNOTE_PROJECT_DIR (WipnoteRoot)
-	// and worktree creation use the canonical main root.
-	canonicalRoot := projectRoot
-	if canonical := canonicalProjectRoot(projectRoot); canonical != "" {
-		canonicalRoot = canonical
-	}
-
-	pluginDir, err := resolveBundledPluginDir()
-	if err != nil {
-		return err
-	}
-
-	// No work item provided — fall back to planning mode. The child cwd is the
-	// (un-rewritten) projectRoot per the slice-3 contract.
-	// NOTE: planning mode intentionally bypasses the isolation plan (applyLaunchPlanOpts).
-	// Planning mode is lightweight, designed to help create work items without enforcing
-	// the project's launch_isolation config. This means "launch_isolation: auto" does NOT
-	// create an ad-hoc managed worktree in planning mode. Once a work item is created,
-	// the user restarts with --track/--feature, and the isolation plan applies normally.
-	if trackID == "" && featureID == "" {
-		_ = computeLauncherMode("", false, false)
-		return launchYoloPlanningMode(projectRoot, extraArgs)
-	}
-
-	// Validate the provided work item exists.
-	id, kind, err := validateWorkItem(trackID, featureID, canonicalRoot)
-	if err != nil {
-		return err
-	}
-
-	// A managed worktree is created for isolation unless --in-place/--no-worktree
-	// was passed (noWorktree) or we could not resolve a canonical root. When a
-	// worktree WILL be created, suppress the plan's generic dirty-main advisory
-	// (which wrongly tells the user to "use a managed worktree (--work-item <id>)"
-	// — that's already happening) and emit an accurate message after carryover
-	// instead (bug-7d4b6c63).
-	willCreateWorktree := !noWorktree && canonicalRoot != ""
-
-	// Honor the isolation plan (slice-9): a RefuseLaunch plan aborts before the
-	// harness starts. The validated work item id drives the dirty-main/enforce guard.
-	launchPlan := applyLaunchPlanOpts(canonicalRoot, projectRoot, id, noWorktree, willCreateWorktree, os.Stderr)
-	if err := enforceLaunchPlan(launchPlan, os.Stderr); err != nil {
-		return err
-	}
-
-	// Resolve track title once — used for both the session name and the worktree directory.
-	trackTitle := resolveTrackTitle(trackID, featureID, canonicalRoot)
-
-	// Create a worktree for isolation (skip for --no-worktree). Worktrees are
-	// always created under the canonical main root, never a linked worktree copy.
-	workDir := projectRoot
-	worktreeCreated := false
-	if willCreateWorktree {
-		if trackID != "" {
-			worktreePath, created, wtErr := EnsureForTrackWithTitleStatus(trackTitle, trackID, canonicalRoot, os.Stdout)
-			if wtErr != nil {
-				return wtErr
-			}
-			workDir = worktreePath
-			worktreeCreated = created
-		} else if featureID != "" {
-			// Resolve the parent track so features use the titled track worktree.
-			parentTrackID := resolveTrackForFeature(featureID, canonicalRoot)
-			if parentTrackID != "" {
-				parentTitle := resolveTrackTitle(parentTrackID, "", canonicalRoot)
-				worktreePath, created, wtErr := EnsureForTrackWithTitleStatus(parentTitle, parentTrackID, canonicalRoot, os.Stdout)
-				if wtErr != nil {
-					return wtErr
-				}
-				workDir = worktreePath
-				worktreeCreated = created
-			} else {
-				worktreePath, created, wtErr := EnsureForFeatureStatus(featureID, canonicalRoot, os.Stdout)
-				if wtErr != nil {
-					return wtErr
-				}
-				workDir = worktreePath
-				worktreeCreated = created
-			}
-		}
-
-		// Carry the canonical main repo's uncommitted TRACKED changes into the
-		// freshly-created worktree so the session builds on the user's latest
-		// WORKING state (bug-bcf8a311). Only for NEWLY-created worktrees: a reused
-		// worktree may already contain (committed or carried) work and re-applying
-		// would double-apply or fail. Main is never mutated. Carryover failure is
-		// non-fatal: the launch proceeds and the changes remain on main.
-		emitYoloDirtyMainMessage(launchPlan, canonicalRoot, workDir, worktreeCreated, os.Stdout)
-	}
-
-	// Compute launcher mode for preflight logging AFTER the effective worktree
-	// path is resolved (slice-1 fix): passing the resolved workDir means
-	// WIPNOTE_DEBUG reports execution=worktree for isolated YOLO instead of
-	// always reporting execution=in-place.
-	effectiveWorktree := ""
-	if workDir != projectRoot {
-		effectiveWorktree = workDir
-	}
-	_ = computeLauncherMode(effectiveWorktree, false, false)
-
-	sessionName := name
-	// Only synthesize a default name for new sessions. When resuming an existing
-	// session, skip default-name generation so we don't rename or conflict with
-	// the resumed session. The user can still override with an explicit --name.
-	if sessionName == "" && resumeID == "" {
-		sessionName = yoloDefaultName(trackID, featureID, canonicalRoot)
-	}
-	yoloPrompt := buildYoloSystemPrompt(id, kind)
-
-	emitYoloBanner(fmt.Sprintf("Launching Claude Code in YOLO mode (%s)...", permMode), pluginDir, sessionName, id,
-		joinYoloWarnings(yoloPermissionWarning(permMode), bannerDirtyWarning(launchPlan, willCreateWorktree)), os.Stdout)
-
-	// Write the combined prompt to a temp file so launchClaude can pass it via
-	// --append-system-prompt-file without needing a new field.
-	tmpFile, err := os.CreateTemp("", "yolo-prompt-*.md")
-	if err != nil {
-		return fmt.Errorf("could not create temp prompt file: %w", err)
-	}
-	defer os.Remove(tmpFile.Name())
-	if _, err := tmpFile.WriteString(yoloPrompt); err != nil {
-		return fmt.Errorf("could not write temp prompt file: %w", err)
-	}
-	tmpFile.Close()
-
-	return launchClaude(LaunchOpts{
-		Mode:             "yolo",
-		PluginDir:        pluginDir,
-		ResumeID:         resumeID,
-		SystemPromptFile: tmpFile.Name(),
-		PermissionMode:   permMode,
-		Name:             sessionName,
-		ExtraArgs:        extraArgs,
-		ProjectRoot:      workDir,
-		WipnoteRoot:      canonicalRoot,
-		ExtraEnv:         yoloLaunchEnv(),
-	})
-}
-
-func launchYoloDev(permMode, trackID, featureID string, noWorktree bool, resumeID, name string, extraArgs []string) error {
-	// Dev mode resolves the plugin from local source, NOT the marketplace.
-	pluginDir := resolveProjectPluginDir()
-	if pluginDir == "" {
-		return fmt.Errorf("could not find plugin/ directory relative to project root. Run from the project directory containing .wipnote/ and plugin/")
-	}
-	if _, err := os.Stat(filepath.Join(pluginDir, ".claude-plugin", "plugin.json")); os.IsNotExist(err) {
-		return fmt.Errorf("plugin.json not found at %s",
-			filepath.Join(pluginDir, ".claude-plugin", "plugin.json"))
-	}
-	if err := requireWipnoteOnPath(); err != nil {
-		return err
-	}
-
-	projectRoot := ""
-	if wipnoteDir, err := findWipnoteDir(); err == nil {
-		projectRoot = filepath.Dir(wipnoteDir)
-	}
-
-	// No work item provided — fall back to planning mode.
-	if trackID == "" && featureID == "" {
-		return launchYoloPlanningMode(projectRoot, extraArgs)
-	}
-
-	// Resolve canonical main repo root when CWD is a linked worktree (slice-3).
-	canonicalRoot := canonicalProjectRoot(projectRoot)
-	if canonicalRoot == "" {
-		canonicalRoot = projectRoot
-	}
-
-	// Validate the provided work item exists.
-	id, kind, err := validateWorkItem(trackID, featureID, canonicalRoot)
-	if err != nil {
-		return err
-	}
-
-	// Resolve track title once — used for both the session name and the worktree directory.
-	trackTitle := resolveTrackTitle(trackID, featureID, canonicalRoot)
-
-	// Create a worktree for isolation (skip for --no-worktree). Mirror the
-	// default path: carry uncommitted tracked changes into a newly-created
-	// worktree and emit the accurate dirty-main advisory (bug-bcf8a311 / 7d4b6c63).
-	// Use canonicalRoot for all worktree operations so that launching from a linked
-	// worktree doesn't create nested worktrees or set WipnoteRoot to the linked root.
-	willCreateWorktree := !noWorktree && canonicalRoot != ""
-	devPlan := applyLaunchPlanOpts(canonicalRoot, projectRoot, id, noWorktree, willCreateWorktree, os.Stderr)
-	if err := enforceLaunchPlan(devPlan, os.Stderr); err != nil {
-		return err
-	}
-	workDir := projectRoot
-	worktreeCreated := false
-	if willCreateWorktree {
-		if trackID != "" {
-			worktreePath, created, wtErr := EnsureForTrackWithTitleStatus(trackTitle, trackID, canonicalRoot, os.Stdout)
-			if wtErr != nil {
-				return wtErr
-			}
-			workDir = worktreePath
-			worktreeCreated = created
-		} else if featureID != "" {
-			// Resolve the parent track so features use the titled track worktree.
-			parentTrackID := resolveTrackForFeature(featureID, canonicalRoot)
-			if parentTrackID != "" {
-				parentTitle := resolveTrackTitle(parentTrackID, "", canonicalRoot)
-				worktreePath, created, wtErr := EnsureForTrackWithTitleStatus(parentTitle, parentTrackID, canonicalRoot, os.Stdout)
-				if wtErr != nil {
-					return wtErr
-				}
-				workDir = worktreePath
-				worktreeCreated = created
-			} else {
-				worktreePath, created, wtErr := EnsureForFeatureStatus(featureID, canonicalRoot, os.Stdout)
-				if wtErr != nil {
-					return wtErr
-				}
-				workDir = worktreePath
-				worktreeCreated = created
-			}
-		}
-		emitYoloDirtyMainMessage(devPlan, canonicalRoot, workDir, worktreeCreated, os.Stdout)
-	}
-
-	// Remove any installed marketplace plugin after isolation resolution succeeds
-	// so --plugin-dir cannot be shadowed by a stale install.
-	removeMarketplaceWipnote()
-
-	sessionName := name
-	// Only synthesize a default name for new sessions. When resuming an existing
-	// session, skip default-name generation so we don't rename or conflict with
-	// the resumed session. The user can still override with an explicit --name.
-	if sessionName == "" && resumeID == "" {
-		sessionName = yoloDefaultName(trackID, featureID, canonicalRoot)
-	}
-	yoloPrompt := buildYoloSystemPrompt(id, kind)
-
-	emitYoloBanner(fmt.Sprintf("Launching Claude Code in YOLO dev mode (%s)...", permMode), pluginDir, sessionName, id,
-		joinYoloWarnings(yoloPermissionWarning(permMode), bannerDirtyWarning(devPlan, willCreateWorktree)), os.Stdout)
-
-	tmpFile, err := os.CreateTemp("", "yolo-prompt-*.md")
-	if err != nil {
-		return fmt.Errorf("could not create temp prompt file: %w", err)
-	}
-	defer os.Remove(tmpFile.Name())
-	if _, err := tmpFile.WriteString(yoloPrompt); err != nil {
-		return fmt.Errorf("could not write temp prompt file: %w", err)
-	}
-	tmpFile.Close()
-
-	return launchClaude(LaunchOpts{
-		Mode:             "yolo-dev",
-		PluginDir:        pluginDir,
-		ResumeID:         resumeID,
-		SystemPromptFile: tmpFile.Name(),
-		PermissionMode:   permMode,
-		Name:             sessionName,
-		ExtraArgs:        extraArgs,
-		ProjectRoot:      workDir,
-		WipnoteRoot:      canonicalRoot,
-		ExtraEnv:         yoloLaunchEnv(),
 	})
 }
 

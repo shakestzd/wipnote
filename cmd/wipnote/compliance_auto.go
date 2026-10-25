@@ -19,25 +19,17 @@
 package main
 
 import (
-	"bytes"
 	"context"
-	"crypto/sha256"
 	"database/sql"
-	"encoding/json"
 	"fmt"
-	"html"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
-	"github.com/gofrs/flock"
 	dbpkg "github.com/shakestzd/wipnote/core/db"
 	"github.com/shakestzd/wipnote/core/htmlparse"
-	"github.com/shakestzd/wipnote/core/models"
 	"github.com/shakestzd/wipnote/core/paths"
 	"github.com/shakestzd/wipnote/core/workitem"
 	"github.com/spf13/cobra"
@@ -159,16 +151,15 @@ func runComplianceAuto(ctx context.Context, featureID string, flags complianceAu
 		return err
 	}
 	projectDir := filepath.Dir(wipnoteDir)
+	r := &complianceRun{
+		ctx: ctx, featureID: featureID, flags: flags,
+		featurePath: filepath.Join(wipnoteDir, "features", featureID+".html"),
+	}
 
 	gitRoot, err := paths.GitTopLevel(projectDir)
 	if err != nil {
 		// Not a git repo — write "no git history" finding, exit 0.
-		featurePath := filepath.Join(wipnoteDir, "features", featureID+".html")
-		if statErr := writeSkipFinding(featurePath, "compliance skipped: no git history"); statErr != nil {
-			return statErr
-		}
-		fmt.Printf("compliance %s: skipped — no git history\n", featureID)
-		return nil
+		return r.skip("no git history")
 	}
 
 	// Step 2: Acquire per-feature lockfile.
@@ -179,32 +170,16 @@ func runComplianceAuto(ctx context.Context, featureID string, flags complianceAu
 	}
 	defer unlock()
 
-	// Step 3: Load feature path; error if not found.
-	featurePath := filepath.Join(wipnoteDir, "features", featureID+".html")
-	if _, err := os.Stat(featurePath); err != nil {
-		return fmt.Errorf("no feature: %s", featureID)
+	return r.run(wipnoteDir, gitRoot)
+}
+
+// run grades the feature once the lock is held: steps 3-13.
+func (r *complianceRun) run(wipnoteDir, gitRoot string) error {
+	ctx, featureID, flags := r.ctx, r.featureID, r.flags
+	featureHTML, specContent, done, err := r.loadSpec()
+	if done || err != nil {
+		return err
 	}
-
-	featureHTML, err := os.ReadFile(featurePath)
-	if err != nil {
-		return fmt.Errorf("read feature file: %w", err)
-	}
-
-	// Step 4: Extract spec.
-	specContent := extractSpecSection(string(featureHTML))
-	if specContent == "" {
-		if err := writeSkipFinding(featurePath, "compliance skipped: no spec"); err != nil {
-			return err
-		}
-		fmt.Printf("compliance %s: skipped — no spec\n", featureID)
-		return nil
-	}
-
-	// Step 5: Compute spec hash.
-	specHash := computeSpecHash(specContent)
-
-	// Check if existing section has a different spec hash (for stale-spec reporting).
-	prevSpecHash := extractPrevSpecHash(string(featureHTML))
 
 	// Step 6: Build diff blob.
 	database, err := openDB(wipnoteDir)
@@ -217,36 +192,13 @@ func runComplianceAuto(ctx context.Context, featureID string, flags complianceAu
 	if err != nil {
 		return fmt.Errorf("build diff: %w", err)
 	}
+	r.diffTruncated = diffTruncated
 
 	if diffBlob == "" {
-		if err := writeSkipFinding(featurePath, "compliance skipped: no diff available"); err != nil {
-			return err
-		}
-		fmt.Printf("compliance %s: skipped — no diff available\n", featureID)
-		return nil
+		return r.skip("no diff available")
 	}
 
-	// Step 6.5: Gather outcome evidence (feat-f9118b9c). Up to this point
-	// compliance auto has only ever compared the diff against the spec — it
-	// has never asked whether the result actually worked. rollupSig reads
-	// the data-rollup-* attributes feat-7ee73444 persists directly onto this
-	// same feature HTML (re-parsed from the featureHTML bytes already read
-	// in step 3, no extra disk I/O); gatePass/gateFail come from this item's
-	// own quality-gate history. Both sources degrade to "no evidence" rather
-	// than aborting the run — a feature file that predates the <article>
-	// convention, or a gate query error, must not block grading — and
-	// buildOutcomeEvidence says so explicitly in the prompt text rather than
-	// letting an absence read as a clean result.
-	var rollupSig workitem.ItemRollupSignal
-	if node, parseErr := htmlparse.ParseString(string(featureHTML)); parseErr == nil {
-		rollupSig = workitem.RollupSignalFor(node)
-	}
-	gatePass, gateFail, gateErr := dbpkg.GateRecordCountsForWorkItem(database, featureID)
-	if gateErr != nil {
-		fmt.Fprintf(os.Stderr, "wipnote: compliance %s: gate history unavailable: %v\n", featureID, gateErr)
-		gatePass, gateFail = 0, 0
-	}
-	outcomeEvidence := buildOutcomeEvidence(rollupSig, gatePass, gateFail)
+	outcomeEvidence := r.gatherOutcomeEvidence(database, featureHTML)
 
 	// Step 7: Build prompt.
 	systemPrompt := buildComplianceSystemPrompt()
@@ -261,104 +213,131 @@ func runComplianceAuto(ctx context.Context, featureID string, flags complianceAu
 		return nil
 	}
 
-	// Step 9: Call headless claude.
-	req := headlessRequest{
-		model:        flags.model,
-		effort:       flags.effort,
-		maxTurns:     flags.maxTurns,
-		maxBudgetUSD: 0.50,
-		maxWallClock: flags.maxWallClock,
-		systemPrompt: systemPrompt,
-		userPrompt:   userPrompt,
+	return r.grade(systemPrompt, userPrompt)
+}
+
+// loadSpec reads the feature file, extracts its spec and records the spec
+// hashes. done reports that the run has ended (a skip finding was written).
+func (r *complianceRun) loadSpec() (featureHTML []byte, specContent string, done bool, err error) {
+	// Step 3: Load feature path; error if not found.
+	if _, err := os.Stat(r.featurePath); err != nil {
+		return nil, "", false, fmt.Errorf("no feature: %s", r.featureID)
 	}
 
-	result, err := headlessInvoker(ctx, req)
+	featureHTML, err = os.ReadFile(r.featurePath)
 	if err != nil {
-		if budgetErr, ok := err.(*BudgetExceededError); ok {
-			attrs := map[string]string{
-				"score":          "0",
-				"cost-usd":       "0",
-				"model":          flags.model,
-				"spec-hash":      specHash,
-				"timestamp":      time.Now().UTC().Format(time.RFC3339),
-				"diff-truncated": strconv.FormatBool(diffTruncated),
-				"gate-pass":      strconv.Itoa(gatePass),
-				"gate-fail":      strconv.Itoa(gateFail),
-			}
-			body := renderFindingsHTML(&autoComplianceFinding{
-				Summary: "compliance error: budget exceeded",
-				Notes:   budgetErr.Error(),
-			})
-			if !flags.preview {
-				_ = writeComplianceSection(featurePath, attrs, body)
-			} else {
-				fmt.Println(body)
-			}
-			return fmt.Errorf("compliance %s: budget exceeded: %w", featureID, budgetErr)
-		}
-		if strings.Contains(err.Error(), "timeout") {
-			attrs := map[string]string{
-				"score":          "0",
-				"cost-usd":       "0",
-				"model":          flags.model,
-				"spec-hash":      specHash,
-				"timestamp":      time.Now().UTC().Format(time.RFC3339),
-				"diff-truncated": strconv.FormatBool(diffTruncated),
-				"gate-pass":      strconv.Itoa(gatePass),
-				"gate-fail":      strconv.Itoa(gateFail),
-			}
-			body := renderFindingsHTML(&autoComplianceFinding{
-				Summary: "compliance error: wall-clock timeout",
-				Notes:   err.Error(),
-			})
-			if !flags.preview {
-				_ = writeComplianceSection(featurePath, attrs, body)
-			} else {
-				fmt.Println(body)
-			}
-			return fmt.Errorf("compliance %s: timeout: %w", featureID, err)
-		}
-		return fmt.Errorf("compliance %s: headless invoke: %w", featureID, err)
+		return nil, "", false, fmt.Errorf("read feature file: %w", err)
+	}
+
+	// Step 4: Extract spec.
+	specContent = extractSpecSection(string(featureHTML))
+	if specContent == "" {
+		return nil, "", true, r.skip("no spec")
+	}
+
+	// Step 5: Compute spec hash.
+	r.specHash = computeSpecHash(specContent)
+
+	// Check if existing section has a different spec hash (for stale-spec reporting).
+	r.prevSpecHash = extractPrevSpecHash(string(featureHTML))
+	return featureHTML, specContent, false, nil
+}
+
+// complianceRun is the state of one runComplianceAuto call that the
+// skip, grading and finding-write steps share.
+type complianceRun struct {
+	ctx         context.Context
+	featureID   string
+	flags       complianceAutoFlags
+	featurePath string
+
+	specHash, prevSpecHash string
+	diffTruncated          bool
+	gatePass, gateFail     int
+}
+
+// skip writes a "compliance skipped: <reason>" finding and reports the skip.
+func (r *complianceRun) skip(reason string) error {
+	if err := writeSkipFinding(r.featurePath, "compliance skipped: "+reason); err != nil {
+		return err
+	}
+	fmt.Printf("compliance %s: skipped — %s\n", r.featureID, reason)
+	return nil
+}
+
+// gatherOutcomeEvidence is step 6.5: gather outcome evidence (feat-f9118b9c). Up to this point
+// compliance auto has only ever compared the diff against the spec — it
+// has never asked whether the result actually worked. rollupSig reads
+// the data-rollup-* attributes feat-7ee73444 persists directly onto this
+// same feature HTML (re-parsed from the featureHTML bytes already read
+// in step 3, no extra disk I/O); gatePass/gateFail come from this item's
+// own quality-gate history. Both sources degrade to "no evidence" rather
+// than aborting the run — a feature file that predates the <article>
+// convention, or a gate query error, must not block grading — and
+// buildOutcomeEvidence says so explicitly in the prompt text rather than
+// letting an absence read as a clean result.
+func (r *complianceRun) gatherOutcomeEvidence(database *sql.DB, featureHTML []byte) string {
+	var rollupSig workitem.ItemRollupSignal
+	if node, parseErr := htmlparse.ParseString(string(featureHTML)); parseErr == nil {
+		rollupSig = workitem.RollupSignalFor(node)
+	}
+	gatePass, gateFail, gateErr := dbpkg.GateRecordCountsForWorkItem(database, r.featureID)
+	if gateErr != nil {
+		fmt.Fprintf(os.Stderr, "wipnote: compliance %s: gate history unavailable: %v\n", r.featureID, gateErr)
+		gatePass, gateFail = 0, 0
+	}
+	r.gatePass, r.gateFail = gatePass, gateFail
+	return buildOutcomeEvidence(rollupSig, gatePass, gateFail)
+}
+
+// findingAttrs builds the compliance section attributes for a finding.
+func (r *complianceRun) findingAttrs(score, costUSD string) map[string]string {
+	return map[string]string{
+		"score":          score,
+		"cost-usd":       costUSD,
+		"model":          r.flags.model,
+		"spec-hash":      r.specHash,
+		"timestamp":      time.Now().UTC().Format(time.RFC3339),
+		"diff-truncated": strconv.FormatBool(r.diffTruncated),
+		"gate-pass":      strconv.Itoa(r.gatePass),
+		"gate-fail":      strconv.Itoa(r.gateFail),
+	}
+}
+
+// recordErrorFinding writes an error finding to the feature, or prints it in
+// --preview mode. Write errors are ignored: the caller returns the error that
+// produced the finding.
+func (r *complianceRun) recordErrorFinding(attrs map[string]string, finding *autoComplianceFinding) {
+	body := renderFindingsHTML(finding)
+	if !r.flags.preview {
+		_ = writeComplianceSection(r.featurePath, attrs, body)
+	} else {
+		fmt.Println(body)
+	}
+}
+
+// grade calls headless claude, parses its finding and records it.
+func (r *complianceRun) grade(systemPrompt, userPrompt string) error {
+	featureID, flags := r.featureID, r.flags
+	// Step 9: Call headless claude.
+	result, err := headlessInvoker(r.ctx, r.headlessRequest(systemPrompt, userPrompt))
+	if err != nil {
+		return r.invokeFailed(err)
 	}
 
 	// Step 10: Parse JSON result.
 	finding, err := parseComplianceFinding(result.text)
 	if err != nil {
 		// Write parse-failure finding, exit 1.
-		attrs := map[string]string{
-			"score":          "0",
-			"cost-usd":       fmt.Sprintf("%.6f", result.costUSD),
-			"model":          flags.model,
-			"spec-hash":      specHash,
-			"timestamp":      time.Now().UTC().Format(time.RFC3339),
-			"diff-truncated": strconv.FormatBool(diffTruncated),
-			"gate-pass":      strconv.Itoa(gatePass),
-			"gate-fail":      strconv.Itoa(gateFail),
-		}
-		failFinding := &autoComplianceFinding{
+		r.recordErrorFinding(r.findingAttrs("0", fmt.Sprintf("%.6f", result.costUSD)), &autoComplianceFinding{
 			Summary: "compliance error: parse failure",
 			Notes:   fmt.Sprintf("raw response: %s", truncateStr(result.text, 500)),
-		}
-		body := renderFindingsHTML(failFinding)
-		if !flags.preview {
-			_ = writeComplianceSection(featurePath, attrs, body)
-		} else {
-			fmt.Println(body)
-		}
+		})
 		return fmt.Errorf("compliance %s: JSON parse failure: %w", featureID, err)
 	}
 
 	// Step 11: --preview: print findings to stdout, no HTML write.
-	attrs := map[string]string{
-		"score":          strconv.Itoa(finding.Score),
-		"cost-usd":       fmt.Sprintf("%.6f", result.costUSD),
-		"model":          flags.model,
-		"spec-hash":      specHash,
-		"timestamp":      time.Now().UTC().Format(time.RFC3339),
-		"diff-truncated": strconv.FormatBool(diffTruncated),
-		"gate-pass":      strconv.Itoa(gatePass),
-		"gate-fail":      strconv.Itoa(gateFail),
-	}
+	attrs := r.findingAttrs(strconv.Itoa(finding.Score), fmt.Sprintf("%.6f", result.costUSD))
 	body := renderFindingsHTML(finding)
 
 	if flags.preview {
@@ -367,13 +346,13 @@ func runComplianceAuto(ctx context.Context, featureID string, flags complianceAu
 	}
 
 	// Step 12: Write compliance findings section atomically.
-	if err := writeComplianceSection(featurePath, attrs, body); err != nil {
+	if err := writeComplianceSection(r.featurePath, attrs, body); err != nil {
 		return fmt.Errorf("write compliance section: %w", err)
 	}
 
 	// Step 13: Print one-line summary.
 	staleNote := ""
-	if prevSpecHash != "" && prevSpecHash != specHash {
+	if r.prevSpecHash != "" && r.prevSpecHash != r.specHash {
 		staleNote = " [stale-spec]"
 	}
 	fmt.Printf("compliance %s score=%d cost=$%.6f%s\n", featureID, finding.Score, result.costUSD, staleNote)
@@ -381,556 +360,37 @@ func runComplianceAuto(ctx context.Context, featureID string, flags complianceAu
 	return nil
 }
 
-// runComplianceAutoBatch iterates done features completed since batchSince and
-// runs compliance auto on each, rate-limited to 1 call per 30 seconds.
-func runComplianceAutoBatch(ctx context.Context, flags complianceAutoFlags) error {
-	since, err := time.Parse("2006-01-02", flags.batchSince)
-	if err != nil {
-		return fmt.Errorf("invalid --batch-since date %q: use format 2006-01-02", flags.batchSince)
-	}
-
-	wipnoteDir, err := findWipnoteDir()
-	if err != nil {
-		return err
-	}
-
-	database, err := openDB(wipnoteDir)
-	if err != nil {
-		return fmt.Errorf("open db: %w", err)
-	}
-	defer database.Close()
-
-	features, err := listDoneFeaturesSince(database, since)
-	if err != nil {
-		return fmt.Errorf("list done features: %w", err)
-	}
-
-	fmt.Printf("batch compliance: %d done features since %s\n", len(features), flags.batchSince)
-
-	for i, feat := range features {
-		if i > 0 {
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-			case <-time.After(30 * time.Second):
-			}
-		}
-		fmt.Printf("[%d/%d] processing %s: %s\n", i+1, len(features), feat.ID, feat.Title)
-		if err := runComplianceAuto(ctx, feat.ID, flags); err != nil {
-			fmt.Fprintf(os.Stderr, "  error: %v\n", err)
-		}
-	}
-	return nil
-}
-
-// listDoneFeaturesSince queries done features updated on or after since.
-func listDoneFeaturesSince(database *sql.DB, since time.Time) ([]dbpkg.Feature, error) {
-	rows, err := database.Query(`
-		SELECT id, type, title, description, status, priority,
-			assigned_to, track_id, created_at, updated_at, steps_total, steps_completed
-		FROM features
-		WHERE status = 'done' AND updated_at >= ?
-		ORDER BY updated_at DESC`,
-		since.UTC().Format(time.RFC3339),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("query done features: %w", err)
-	}
-	defer rows.Close()
-
-	var features []dbpkg.Feature
-	for rows.Next() {
-		var f dbpkg.Feature
-		var trackID, assignedTo, description sql.NullString
-		var createdStr, updatedStr string
-		if err := rows.Scan(
-			&f.ID, &f.Type, &f.Title, &description, &f.Status, &f.Priority,
-			&assignedTo, &trackID, &createdStr, &updatedStr,
-			&f.StepsTotal, &f.StepsCompleted,
-		); err != nil {
-			return nil, err
-		}
-		f.TrackID = trackID.String
-		f.Description = description.String
-		f.AssignedTo = assignedTo.String
-		f.CreatedAt, _ = time.Parse(time.RFC3339, createdStr)
-		f.UpdatedAt, _ = time.Parse(time.RFC3339, updatedStr)
-		features = append(features, f)
-	}
-	return features, rows.Err()
-}
-
-// acquireComplianceLock takes an exclusive, non-blocking flock on lockPath and
-// records the holder's PID in it for diagnostics. It returns a release function,
-// or an error when another live process holds the lock. The kernel drops the
-// flock on process death, so a crashed holder never leaves a stale lock, and a
-// reused PID in the file means nothing. release never removes the file:
-// deleting a flock file lets a second process lock a new inode while the first
-// still holds the old one.
-func acquireComplianceLock(lockPath string) (func(), error) {
-	if err := os.MkdirAll(filepath.Dir(lockPath), 0o755); err != nil {
-		return nil, fmt.Errorf("create locks dir: %w", err)
-	}
-	lock := flock.New(lockPath)
-	ok, err := lock.TryLock()
-	if err != nil {
-		return nil, fmt.Errorf("lock %s: %w", filepath.Base(lockPath), err)
-	}
-	if !ok {
-		return nil, fmt.Errorf("compliance already running for %s (%s)", filepath.Base(lockPath), holderPID(lockPath))
-	}
-	_ = os.WriteFile(lockPath, []byte(strconv.Itoa(os.Getpid())), 0o644)
-	return func() { _ = lock.Unlock() }, nil
-}
-
-// holderPID reads the PID recorded by the lock holder, for error messages.
-func holderPID(lockPath string) string {
-	data, err := os.ReadFile(lockPath)
-	if err != nil || strings.TrimSpace(string(data)) == "" {
-		return "pid unknown"
-	}
-	return "pid " + strings.TrimSpace(string(data))
-}
-
-// buildDiffBlob builds the diff text to embed in the compliance prompt.
-//
-// Commits are Git-derived: canonicalLinkedCommits finds the commits whose
-// messages name featureID under wipnote's commit convention — the same source
-// the completion gate uses (workitem_provenance_canonical.go). It replaces two
-// reads of the derived index that can no longer return anything:
-// GetCommitsByFeature (git_commits) and, as a fallback, ListFilesByFeature
-// (feature_files). Neither table is in the hydrate set, so both returned empty
-// on every call and the compliance prompt silently shipped with no diff
-// (feat-fc3cc9e0).
-//
-// The database parameter is retained because diffBuilderFn is a stubbing seam
-// with several test doubles bound to this signature; nothing here reads it.
-//
-// Returns (diffText, truncated, error). An item whose commits do not name it
-// yields an empty diff, which the caller already handles.
-func buildDiffBlob(ctx context.Context, database *sql.DB, featureID, gitRoot string, maxChars int) (string, bool, error) {
-	_ = database
-
-	// The work item's node is passed so a commit linked by hand via
-	// `wipnote <type> link-commit` counts here exactly as it does for the
-	// completion gate. Best-effort: a node that cannot be read yields the
-	// message-linkage commits alone, which is the common case anyway.
-	var node *models.Node
-	if wipnoteDir, err := findWipnoteDir(); err == nil {
-		if path := workitem.NodePath(wipnoteDir, featureID); path != "" {
-			node, _ = htmlparse.ParseFile(path)
-		}
-	}
-
-	var diffParts []string
-	for _, hash := range canonicalLinkedCommits(gitRoot, featureID, node) {
-		args := []string{"-C", gitRoot, "show", "--no-color", "--first-parent", hash}
-		out, err := exec.CommandContext(ctx, "git", args...).Output()
-		if err != nil {
-			// Skip commits not present locally (shallow clone safety).
-			continue
-		}
-		diffParts = append(diffParts, string(out))
-	}
-
-	if len(diffParts) == 0 {
-		return "", false, nil
-	}
-
-	combined := strings.Join(diffParts, "\n---\n")
-	return truncateDiff(combined, maxChars)
-}
-
-// truncateDiff truncates a diff string at the nearest line boundary at or before
-// maxChars. Returns (truncated text, wasTruncated). If diff is shorter than
-// maxChars, it is returned as-is with wasTruncated=false.
-func truncateDiff(diff string, maxChars int) (string, bool, error) {
-	if len(diff) <= maxChars {
-		return diff, false, nil
-	}
-
-	// Find the last newline at or before maxChars.
-	cutAt := maxChars
-	for cutAt > 0 && diff[cutAt] != '\n' {
-		cutAt--
-	}
-	if cutAt == 0 {
-		// No newline found — hard cut at maxChars.
-		cutAt = maxChars
-	}
-
-	truncated := diff[:cutAt]
-	footer := fmt.Sprintf("\n... [truncated %d chars]", len(diff)-cutAt)
-	return truncated + footer, true, nil
-}
-
-// computeSpecHash returns the hex SHA-256 of spec content (first 8 chars).
-func computeSpecHash(spec string) string {
-	h := sha256.Sum256([]byte(spec))
-	return fmt.Sprintf("%x", h[:4])
-}
-
-// extractPrevSpecHash reads the data-spec-hash attribute from an existing
-// <section class="compliance-findings"> section, or returns "".
-func extractPrevSpecHash(featureHTML string) string {
-	const openTag = `<section class="compliance-findings"`
-	start := strings.Index(featureHTML, openTag)
-	if start == -1 {
-		return ""
-	}
-	// Find the end of the opening tag.
-	tagEnd := strings.Index(featureHTML[start:], ">")
-	if tagEnd == -1 {
-		return ""
-	}
-	tagContent := featureHTML[start : start+tagEnd]
-
-	// Extract data-spec-hash="..." attribute.
-	prefix := `data-spec-hash="`
-	hashIdx := strings.Index(tagContent, prefix)
-	if hashIdx == -1 {
-		return ""
-	}
-	rest := tagContent[hashIdx+len(prefix):]
-	quoteEnd := strings.Index(rest, `"`)
-	if quoteEnd == -1 {
-		return ""
-	}
-	return rest[:quoteEnd]
-}
-
-// buildComplianceSystemPrompt returns the system prompt for the LLM.
-func buildComplianceSystemPrompt() string {
-	return `Return ONLY valid JSON. No prose, no markdown fences.
-Schema: {"summary": string, "criteria": [{"text": string, "status": "pass"|"fail"|"unclear", "evidence": string}], "score": 0-100, "notes": string}`
-}
-
-// buildOutcomeEvidence renders the per-item outcome facts available at
-// grading time into a plain-text block for the compliance prompt
-// (feat-f9118b9c): this item's own gate pass/fail history, plus — when a
-// feat-7ee73444 rollup exists — its measured failure rate, retries, and edit
-// churn. Absence is written out explicitly rather than omitted, because an
-// LLM grader that sees only "matched spec" text for an unmeasured item has no
-// way to distinguish that from "measured and clean" unless told so — that
-// conflation is exactly what this evidence block exists to prevent. Cost is
-// deliberately never included: it ships degraded
-// (workitem.SourceOtelCost) and a grading signal cannot represent that
-// caveat, so it is left out rather than silently promoted.
-func buildOutcomeEvidence(sig workitem.ItemRollupSignal, gatePass, gateFail int) string {
-	var b strings.Builder
-
-	if gatePass+gateFail == 0 {
-		b.WriteString("Gate history: no gate runs recorded for this item (unmeasured — do not treat as passing).\n")
-	} else {
-		b.WriteString(fmt.Sprintf("Gate history: %d passed / %d failed (%d runs recorded).\n",
-			gatePass, gateFail, gatePass+gateFail))
-	}
-
-	if !sig.Measured {
-		b.WriteString("Runtime outcome: unmeasured — no telemetry rollup exists for this item (do not treat as healthy).\n")
-		return b.String()
-	}
-
-	if sig.HasFailureRate {
-		b.WriteString(fmt.Sprintf("Measured failure rate: %.2f%% (%s, source %s).\n",
-			sig.FailureRate*100, sig.FailureRateCoverage, sig.FailureRateSource))
-	} else {
-		b.WriteString("Measured failure rate: unmeasured for this item.\n")
-	}
-	if sig.HasRetries {
-		b.WriteString(fmt.Sprintf("Retries observed: %d (%s).\n", sig.Retries, sig.RetriesCoverage))
-	}
-	if sig.HasChurnFiles {
-		b.WriteString(fmt.Sprintf("Files edited more than once: %d (%s).\n", sig.ChurnFiles, sig.ChurnFilesCoverage))
-	}
-	if sig.TelemetryUnavailable {
-		b.WriteString("Telemetry: unavailable for this item's harness (do not treat as clean).\n")
-	}
-
-	return b.String()
-}
-
-// buildComplianceUserPrompt builds the user prompt embedding spec, diff, and
-// outcome evidence (feat-f9118b9c) — the join that lets a compliance verdict
-// reflect whether the result worked, not only whether the diff matched the
-// spec.
-func buildComplianceUserPrompt(specContent, diffBlob, outcomeEvidence string) string {
-	return fmt.Sprintf(`You are a code compliance reviewer. Compare the feature spec against the implementation diff.
-
-## Feature Spec
-
-%s
-
-## Implementation Diff
-
-%s
-
-## Outcome Evidence
-
-%s
-Absence of evidence above means the outcome is UNMEASURED, not passing. Do not treat missing runtime or gate data as a clean result. A high measured failure rate or a majority of failed gate runs should weigh against the score even when the diff otherwise looks complete.
-
-## Instructions
-
-For each acceptance criterion in the spec, determine if the diff shows it was implemented (pass), explicitly not implemented (fail), or uncertain (unclear). Weigh the outcome evidence above alongside the diff: a criterion whose code looks right but whose gate or runtime evidence shows failure should not be scored as a clean pass. Return your assessment as JSON matching the schema.`, specContent, diffBlob, outcomeEvidence)
-}
-
-// parseComplianceFinding parses the LLM's JSON response into an autoComplianceFinding.
-// The LLM may return a JSON object with a "result" wrapper or directly.
-func parseComplianceFinding(raw string) (*autoComplianceFinding, error) {
-	raw = strings.TrimSpace(raw)
-
-	// Try direct parse first.
-	var finding autoComplianceFinding
-	if err := json.Unmarshal([]byte(raw), &finding); err == nil {
-		return &finding, nil
-	}
-
-	// Try wrapped in {"result": ...}.
-	var wrapper struct {
-		Result json.RawMessage `json:"result"`
-	}
-	if err := json.Unmarshal([]byte(raw), &wrapper); err == nil && wrapper.Result != nil {
-		if err2 := json.Unmarshal(wrapper.Result, &finding); err2 == nil {
-			return &finding, nil
-		}
-	}
-
-	return nil, fmt.Errorf("cannot parse LLM response as compliance JSON: %q", truncateStr(raw, 200))
-}
-
-// renderFindingsHTML renders a finding into the inner HTML for the compliance section.
-func renderFindingsHTML(f *autoComplianceFinding) string {
-	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("<h3>Compliance Score: %d/100</h3>\n", f.Score))
-	sb.WriteString(fmt.Sprintf("<p><strong>Summary:</strong> %s</p>\n", html.EscapeString(f.Summary)))
-
-	if len(f.Criteria) > 0 {
-		sb.WriteString("<ul>\n")
-		for _, c := range f.Criteria {
-			icon := "?"
-			switch c.Status {
-			case "pass":
-				icon = "&#x2705;"
-			case "fail":
-				icon = "&#x274C;"
-			}
-			sb.WriteString(fmt.Sprintf("  <li>%s <strong>%s</strong>: %s",
-				icon, html.EscapeString(c.Text), html.EscapeString(c.Status)))
-			if c.Evidence != "" {
-				sb.WriteString(fmt.Sprintf(" — <em>%s</em>", html.EscapeString(c.Evidence)))
-			}
-			sb.WriteString("</li>\n")
-		}
-		sb.WriteString("</ul>\n")
-	}
-
-	if f.Notes != "" {
-		sb.WriteString(fmt.Sprintf("<p><em>Notes: %s</em></p>\n", html.EscapeString(f.Notes)))
-	}
-
-	return sb.String()
-}
-
-// writeSkipFinding writes a "compliance skipped: <reason>" finding to the feature HTML.
-// It creates the feature file if it doesn't exist (no-op if feature file is missing).
-func writeSkipFinding(featurePath, reason string) error {
-	if _, err := os.Stat(featurePath); err != nil {
-		// Feature file doesn't exist — nothing to write to.
-		return nil
-	}
-
-	attrs := map[string]string{
-		"score":          "0",
-		"cost-usd":       "0",
-		"model":          "none",
-		"spec-hash":      "none",
-		"timestamp":      time.Now().UTC().Format(time.RFC3339),
-		"diff-truncated": "false",
-	}
-	body := fmt.Sprintf("<p><em>%s</em></p>", html.EscapeString(reason))
-	return writeComplianceSection(featurePath, attrs, body)
-}
-
-// truncateStr truncates a string to at most maxLen chars, appending "..." if truncated.
-func truncateStr(s string, maxLen int) string {
-	if len(s) <= maxLen {
-		return s
-	}
-	return s[:maxLen] + "..."
-}
-
-// buildHeadlessArgs constructs the `claude` CLI argv for a headless
-// compliance-grading invocation (see realHeadlessInvoker). It is split out
-// from realHeadlessInvoker so the exact flag set and order can be asserted by
-// tests without spawning a process — see compliance_auto_test.go's
-// TestBuildHeadlessArgs_GoldenFlags (always-on) and
-// TestBuildHeadlessArgs_ValidatedAgainstInstalledCLI (live, skipped when
-// `claude` isn't on PATH).
-//
-// req.userPrompt is intentionally NOT included here: it is piped via stdin
-// by the caller, not passed as an argument.
-//
-// NOTE: this used to pass "--system" (not a recognized flag — `claude -p
-// --system ...` fails immediately with "error: unknown option '--system'")
-// until bug-33348600's predecessor fix; every real (non-stubbed) invocation
-// of this code path was failing before that correction. No existing test
-// caught it because all compliance_auto_test.go coverage stubbed
-// headlessInvoker rather than exercising realHeadlessInvoker's constructed
-// argv against the actual claude binary. The tests added for bug-33348600
-// close that hole.
-func buildHeadlessArgs(req headlessRequest) []string {
-	return []string{
-		"-p",
-		"--output-format", "json",
-		"--model", req.model,
-		"--effort", req.effort,
-		"--max-budget-usd", fmt.Sprintf("%.2f", req.maxBudgetUSD),
-		"--max-turns", strconv.Itoa(req.maxTurns),
-		"--permission-mode", "dontAsk",
-		"--allowedTools", "Read",
-		"--system-prompt", req.systemPrompt,
+// headlessRequest builds the headless claude request for the prompts.
+func (r *complianceRun) headlessRequest(systemPrompt, userPrompt string) headlessRequest {
+	flags := r.flags
+	return headlessRequest{
+		model:        flags.model,
+		effort:       flags.effort,
+		maxTurns:     flags.maxTurns,
+		maxBudgetUSD: 0.50,
+		maxWallClock: flags.maxWallClock,
+		systemPrompt: systemPrompt,
+		userPrompt:   userPrompt,
 	}
 }
 
-// claudeLeanFlags make a headless run lean: no CLAUDE.md, skills, plugins,
-// hooks or MCP, and no saved session. --safe-mode keeps the person's login,
-// unlike --bare, which accepts only an API key or apiKeyHelper.
-var claudeLeanFlags = []string{"--safe-mode", "--no-session-persistence"}
-
-// claudeHelpProbeTimeout bounds the `claude --help` capability probe, which
-// runs before the grading call and its wall-clock timer exist.
-const claudeHelpProbeTimeout = 10 * time.Second
-
-// claudeHelpText returns `claude --help`, bounded by ctx and
-// claudeHelpProbeTimeout; "" on failure or timeout. A package var so tests can
-// stub it.
-var claudeHelpText = func(ctx context.Context) string {
-	ctx, cancel := context.WithTimeout(ctx, claudeHelpProbeTimeout)
-	defer cancel()
-	cmd := exec.CommandContext(ctx, "claude", "--help")
-	// A wrapper script's children can hold the output pipe open after the
-	// kill; stop waiting for them shortly after.
-	cmd.WaitDelay = time.Second
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		return ""
+// invokeFailed records a budget-exceeded or timeout finding and returns the
+// headless invocation error.
+func (r *complianceRun) invokeFailed(err error) error {
+	featureID := r.featureID
+	if budgetErr, ok := err.(*BudgetExceededError); ok {
+		r.recordErrorFinding(r.findingAttrs("0", "0"), &autoComplianceFinding{
+			Summary: "compliance error: budget exceeded",
+			Notes:   budgetErr.Error(),
+		})
+		return fmt.Errorf("compliance %s: budget exceeded: %w", featureID, budgetErr)
 	}
-	return string(out)
-}
-
-var (
-	supportedLeanFlagsOnce sync.Once
-	supportedLeanFlags     []string
-)
-
-// supportedClaudeLeanFlags returns the claudeLeanFlags this claude install
-// lists in --help. --safe-mode is new in Claude Code 2.1.302 and an older CLI
-// rejects an unknown flag, so each one is added only when it is supported:
-// an older install still grades, just without the lean flags. A probe that
-// fails or times out fails open to the base flags.
-func supportedClaudeLeanFlags(ctx context.Context) []string {
-	supportedLeanFlagsOnce.Do(func() {
-		help := claudeHelpText(ctx)
-		for _, f := range claudeLeanFlags {
-			if strings.Contains(help, f) {
-				supportedLeanFlags = append(supportedLeanFlags, f)
-			}
-		}
-	})
-	return supportedLeanFlags
-}
-
-// realHeadlessInvoker spawns `claude -p` with the given request parameters,
-// captures stdout/stderr into buffers, honors context cancellation, and
-// self-enforces the wall-clock timeout via time.AfterFunc.
-//
-// Stderr is never leaked to the caller's stderr — it is captured into a buffer.
-// WIPNOTE_HEADLESS=1 is set in the spawned process env so any wipnote hook
-// that still runs exits at once (headlessHookEnv).
-//
-// Bare mode (bug-48b023e5): --bare also skips discovery but accepts only
-// ANTHROPIC_API_KEY or apiKeyHelper, so it would break subscription logins.
-// --safe-mode (Claude Code 2.1.302) gives the same lean discovery and keeps
-// OAuth, so it is used instead (supportedClaudeLeanFlags).
-func realHeadlessInvoker(ctx context.Context, req headlessRequest) (*headlessResult, error) {
-	args := append(buildHeadlessArgs(req), supportedClaudeLeanFlags(ctx)...)
-
-	cmd := exec.CommandContext(ctx, "claude", args...)
-	cmd.Stdin = strings.NewReader(req.userPrompt)
-	// After a timeout kill, do not wait on children that still hold the pipes.
-	cmd.WaitDelay = time.Second
-
-	// Capture stdout and stderr; never leak to caller.
-	var stdoutBuf, stderrBuf bytes.Buffer
-	cmd.Stdout = &stdoutBuf
-	cmd.Stderr = &stderrBuf
-
-	cmd.Env = append(os.Environ(), headlessHookEnv+"=1")
-
-	// Self-enforced wall-clock timeout.
-	var timedOut bool
-	var timedOutMu sync.Mutex
-	timer := time.AfterFunc(req.maxWallClock, func() {
-		timedOutMu.Lock()
-		timedOut = true
-		timedOutMu.Unlock()
-		if cmd.Process != nil {
-			cmd.Process.Kill()
-		}
-	})
-	defer timer.Stop()
-
-	if err := cmd.Start(); err != nil {
-		return nil, fmt.Errorf("start claude: %w", err)
+	if strings.Contains(err.Error(), "timeout") {
+		r.recordErrorFinding(r.findingAttrs("0", "0"), &autoComplianceFinding{
+			Summary: "compliance error: wall-clock timeout",
+			Notes:   err.Error(),
+		})
+		return fmt.Errorf("compliance %s: timeout: %w", featureID, err)
 	}
-
-	waitErr := cmd.Wait()
-
-	timedOutMu.Lock()
-	wasTimedOut := timedOut
-	timedOutMu.Unlock()
-
-	if wasTimedOut {
-		return nil, fmt.Errorf("timeout: wall-clock limit %s exceeded", req.maxWallClock)
-	}
-
-	if waitErr != nil {
-		// Check stderr for budget exceeded error.
-		stderrContent := stderrBuf.String()
-		if strings.Contains(stderrContent, "error_max_budget_usd") ||
-			strings.Contains(stdoutBuf.String(), "error_max_budget_usd") {
-			return nil, &BudgetExceededError{msg: "max_budget_usd exceeded"}
-		}
-		return nil, fmt.Errorf("claude exited with error: %w; stderr: %s", waitErr, truncateStr(stderrContent, 500))
-	}
-
-	// Parse the JSON response from claude.
-	return parseClaudeOutput(stdoutBuf.Bytes())
-}
-
-// claudeOutputJSON is the structure of claude's --output-format json response.
-type claudeOutputJSON struct {
-	Type    string          `json:"type"`
-	Subtype string          `json:"subtype"`
-	Result  string          `json:"result"`
-	CostUSD float64         `json:"total_cost_usd"`
-	Error   json.RawMessage `json:"error"`
-}
-
-// parseClaudeOutput parses the JSON output from `claude -p --output-format json`.
-func parseClaudeOutput(data []byte) (*headlessResult, error) {
-	var out claudeOutputJSON
-	if err := json.Unmarshal(data, &out); err != nil {
-		return nil, fmt.Errorf("parse claude output JSON: %w; raw: %s", err, truncateStr(string(data), 300))
-	}
-
-	if out.Subtype == "error_max_budget_usd" {
-		return nil, &BudgetExceededError{msg: "max_budget_usd exceeded"}
-	}
-
-	return &headlessResult{
-		text:    out.Result,
-		costUSD: out.CostUSD,
-	}, nil
+	return fmt.Errorf("compliance %s: headless invoke: %w", featureID, err)
 }
