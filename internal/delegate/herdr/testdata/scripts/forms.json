@@ -1,0 +1,25 @@
+{
+  "rules": [
+    { "match": ["tab", "create", "--workspace", "w1", "--label", "workers:abcd1234", "--cwd", "/proj", "--no-focus"],
+      "replies": [ { "shape": { "as": "tab_created", "tab_id": "w1:t3", "pane_id": "w1:p7" } } ] },
+    { "match": ["pane", "split", "w1:p7", "--direction", "right", "--cwd", "/proj", "--no-focus"],
+      "replies": [ { "shape": { "as": "pane_info", "pane_id": "w1:p8" } } ] },
+    { "match": ["pane", "run", "w1:p8", "WIPNOTE_DELEGATE_RUN=r1 wipnote claude"], "replies": [ { "stdout": "" } ] },
+    { "match": ["pane", "rename", "w1:p8", "worker one"], "replies": [ { "shape": { "as": "ok" } } ] },
+    { "match": ["pane", "send-text", "w1:p8", "hello"], "replies": [ { "stdout": "" } ] },
+    { "match": ["pane", "send-keys", "w1:p8", "enter"], "replies": [ { "stdout": "" } ] },
+    { "match": ["pane", "process-info", "--pane", "w1:p8"],
+      "replies": [ { "shape": { "as": "process_info", "pane_id": "w1:p8", "shell_pid": 900, "fg": [ { "pid": 901, "name": "claude" } ] } } ] },
+    { "match": ["pane", "layout", "--pane", "w1:p7"],
+      "replies": [ { "shape": { "as": "pane_layout", "panes": [ { "pane_id": "w1:p7", "width": 80, "height": 40 }, { "pane_id": "w1:p8", "width": 80, "height": 40 } ] } } ] },
+    { "match": ["agent", "get", "w1:p2"], "replies": [ { "shape": { "as": "agent_info", "pane_id": "w1:p2", "status": "idle", "name": "${state.name}" } } ] },
+    { "match": ["agent", "prompt", "w1:p2", "do the thing"], "replies": [ { "shape": { "as": "ok" } } ] },
+    { "match": ["agent", "read", "w1:p2", "--source", "recent-unwrapped", "--lines", "50"], "replies": [ { "stdout": "line one\nline two\n" } ] },
+    { "match": ["agent", "rename", "w1:p2", "worker-one"], "replies": [ { "set": { "name": "worker-one" }, "shape": { "as": "ok" } } ] },
+    { "match": ["agent", "list"],
+      "replies": [ { "shape": { "as": "agent_list", "agents": [ { "pane_id": "w1:p2", "name": "${state.name}", "status": "idle" } ] } } ] },
+    { "match": ["pane", "close", "w1:p8"], "replies": [ { "shape": { "as": "ok" } } ] },
+    { "match": ["tab", "close", "w1:t3"], "replies": [ { "shape": { "as": "ok" } } ] }
+  ],
+  "state": { "name": "worker" }
+}

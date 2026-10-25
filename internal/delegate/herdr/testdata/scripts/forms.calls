@@ -1,0 +1,17 @@
+tab create --workspace w1 --label workers:abcd1234 --cwd /proj --no-focus
+pane split w1:p7 --direction right --cwd /proj --no-focus
+pane run w1:p8 WIPNOTE_DELEGATE_RUN=r1 wipnote claude
+pane rename w1:p8 worker one
+pane send-text w1:p8 hello
+pane send-keys w1:p8 enter
+pane process-info --pane w1:p8
+pane layout --pane w1:p7
+agent get w1:p2
+agent prompt w1:p2 do the thing
+agent get w1:p2
+agent read w1:p2 --source recent-unwrapped --lines 50
+agent get w1:p2
+agent rename w1:p2 worker-one
+agent list
+pane close w1:p8
+tab close w1:t3
