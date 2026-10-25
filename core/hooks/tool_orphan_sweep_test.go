@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strconv"
+	"syscall"
 	"testing"
 	"time"
 
@@ -124,5 +125,31 @@ func writeEndNote(t *testing.T, projectDir, sessionID string, endedAt time.Time)
 	line := `{"session_id":"` + sessionID + `","ended_at":"` + endedAt.Format(time.RFC3339Nano) + `","outcome":"abandoned"}` + "\n"
 	if err := os.WriteFile(filepath.Join(dir, SessionEndNoteFile), []byte(line), 0o644); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// TestOrphanToolSweep_OneSweeperPerLog pins that two session starts sweeping
+// at once record an orphan once: a sweep skips a tool log another sweep is
+// holding, and records it once the log is free.
+func TestOrphanToolSweep_OneSweeperPerLog(t *testing.T) {
+	h := newSplitDBHarness(t, "orphan-sweep-lock-1")
+	now := time.Now().UTC()
+	startToolAt(t, h, h.sessionID, "tu_locked", now.Add(-10*time.Minute))
+	writeSessionPIDRaw(t, filepath.Join(h.projectDir, ".wipnote", "sessions", h.sessionID), "2147483647\n1")
+
+	f, err := os.Open(canonicalToolLogPath(h.projectDir, h.sessionID))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX); err != nil {
+		t.Fatal(err)
+	}
+	if got := SweepOrphanedToolCalls(h.projectDir, "", now, 0); got != 0 {
+		t.Errorf("sweep recorded %d while another sweep held the log, want 0", got)
+	}
+	_ = syscall.Flock(int(f.Fd()), syscall.LOCK_UN)
+	if got := SweepOrphanedToolCalls(h.projectDir, "", now, 0); got != 1 {
+		t.Errorf("sweep recorded %d once the log was free, want 1", got)
 	}
 }

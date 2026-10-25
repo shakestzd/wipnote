@@ -2,9 +2,11 @@ package hooks
 
 import (
 	"encoding/json"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -93,14 +95,11 @@ func recentToolLogSessions(projectDir string, now time.Time) []string {
 // them (budget <= 0 is unlimited).
 func sweepSessionToolLog(projectDir, sessionID string, now time.Time, budget int) int {
 	path := canonicalToolLogPath(projectDir, sessionID)
-	info, err := os.Stat(path)
-	if err != nil || info.Size() >= canonicalToolLogMaxBytes {
+	data, unlock, ok := lockToolLogForSweep(path)
+	if !ok {
 		return 0
 	}
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return 0
-	}
+	defer unlock()
 	starts, done := parseToolLogPairs(data)
 	var endedAt time.Time
 	if note, ok := ReadSessionEndNote(projectDir, sessionID); ok {
@@ -120,6 +119,31 @@ func sweepSessionToolLog(projectDir, sessionID string, now time.Time, budget int
 		}
 	}
 	return recorded
+}
+
+// lockToolLogForSweep takes the sweeper lock on a tool log and reads it. ok is
+// false when the log is missing, at its size cap, or held by another sweep (a
+// concurrent session start): that sweep records its orphans, and taking the
+// lock without waiting keeps session start from ever blocking on it. Hooks
+// that append to the log do not take the lock.
+func lockToolLogForSweep(path string) (data []byte, unlock func(), ok bool) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, nil, false
+	}
+	if syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB) != nil {
+		f.Close()
+		return nil, nil, false
+	}
+	unlock = func() { _ = syscall.Flock(int(f.Fd()), syscall.LOCK_UN); f.Close() }
+	info, err := f.Stat()
+	if err == nil && info.Size() < canonicalToolLogMaxBytes {
+		if data, err = io.ReadAll(f); err == nil {
+			return data, unlock, true
+		}
+	}
+	unlock()
+	return nil, nil, false
 }
 
 // toolCallOrphaned reports whether an unmatched start counts as aborted: its
