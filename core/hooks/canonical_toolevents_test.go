@@ -139,7 +139,6 @@ func TestCanonicalToolEventClassifiers(t *testing.T) {
 func TestHasRecentResearch_CanonicalFallback(t *testing.T) {
 	clearNestedEnv(t)
 	t.Setenv("WIPNOTE_NO_AUTO_WRITER", "1")
-	stubRouteSQLAsync(t, true)
 
 	const sessionID = "canon-research-1"
 	projectDir := t.TempDir()
@@ -173,7 +172,6 @@ func TestHasRecentResearch_CanonicalFallback(t *testing.T) {
 func TestHasRecentResearch_CanonicalFallbackUsesFamilyRoot(t *testing.T) {
 	clearNestedEnv(t)
 	t.Setenv("WIPNOTE_NO_AUTO_WRITER", "1")
-	stubRouteSQLAsync(t, true)
 
 	const rootSession = "canon-research-root"
 	const childSession = "canon-research-child"

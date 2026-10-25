@@ -126,7 +126,7 @@ func TestLauncherSessionReadsCanonicalStateViaDaemon(t *testing.T) {
 	defer stop()
 	t.Setenv(DaemonSocketEnv, sock)
 
-	item, found := LookupWorkItem(nil, "feat-aaaaaaaa")
+	item, found := LookupWorkItem(root, "feat-aaaaaaaa")
 	if !found {
 		t.Fatal("work item not found via daemon")
 	}
@@ -142,15 +142,11 @@ func TestLauncherSessionReadsCanonicalStateViaDaemon(t *testing.T) {
 // break the daemon, watch the failure be LOUD rather than a silent fallback.
 //
 // The assertion is deliberately two-sided. It is not enough that a block result
-// appears — the test also proves the hook did NOT answer from the derived
-// index, by seeding the index with a row that a silent fallback would happily
-// have returned.
+// appears — the test also proves the hook did NOT answer from the canonical
+// HTML it would read without a guarantee, which holds the item.
 func TestLauncherSessionWithDeadDaemonReportsLoudly(t *testing.T) {
 	ResetDaemonGuaranteeBreach()
 	t.Cleanup(ResetDaemonGuaranteeBreach)
-
-	td := setupTestDB(t)
-	td.addFeature("feat-bbbbbbbb", "feature", "Beta from the index", "in-progress")
 
 	root := newDaemonProject(t)
 	writeCanonicalItem(t, root, "features", "feat-bbbbbbbb", "feature", "in-progress", "Beta")
@@ -159,19 +155,16 @@ func TestLauncherSessionWithDeadDaemonReportsLoudly(t *testing.T) {
 
 	// Prove the read works while the daemon is alive, so a later failure cannot
 	// be blamed on the fixture.
-	if _, found := LookupWorkItem(td.DB, "feat-bbbbbbbb"); !found {
+	if _, found := LookupWorkItem(root, "feat-bbbbbbbb"); !found {
 		t.Fatal("precondition: read failed while the daemon was alive")
 	}
 
 	// BREAK IT: the daemon dies mid-session.
 	stop()
 
-	item, found := LookupWorkItem(td.DB, "feat-bbbbbbbb")
+	item, found := LookupWorkItem(root, "feat-bbbbbbbb")
 	if found {
 		t.Fatalf("read succeeded after the daemon died — it fell back silently and returned %+v", item)
-	}
-	if item.Title == "Beta from the index" {
-		t.Fatal("the hook answered from the derived index: that is the silent divergence this forbids")
 	}
 
 	breach := DaemonGuaranteeBreach()
@@ -194,8 +187,8 @@ func TestNonLauncherSessionStillWorks(t *testing.T) {
 	ResetDaemonGuaranteeBreach()
 	t.Cleanup(ResetDaemonGuaranteeBreach)
 
-	td := setupTestDB(t)
-	td.addFeature("feat-cccccccc", "feature", "Gamma", "in-progress")
+	root := newDaemonProject(t)
+	writeCanonicalItem(t, root, "features", "feat-cccccccc", "feature", "in-progress", "Gamma")
 
 	// No DaemonSocketEnv: no launcher, therefore no guarantee.
 	os.Unsetenv(DaemonSocketEnv)
@@ -203,9 +196,9 @@ func TestNonLauncherSessionStillWorks(t *testing.T) {
 		t.Fatalf("contract = %v, want DaemonContractNone", contract)
 	}
 
-	item, found := LookupWorkItem(td.DB, "feat-cccccccc")
+	item, found := LookupWorkItem(root, "feat-cccccccc")
 	if !found {
-		t.Fatal("unguaranteed session could not read the derived index")
+		t.Fatal("unguaranteed session could not read the canonical HTML")
 	}
 	if item.Status != "in-progress" || item.Title != "Gamma" {
 		t.Fatalf("item = %+v", item)
@@ -242,7 +235,7 @@ func TestStaleEntryIsInvalidatedEndToEnd(t *testing.T) {
 	defer stop()
 	t.Setenv(DaemonSocketEnv, sock)
 
-	if item, found := LookupWorkItem(nil, "feat-dddddddd"); !found || item.Status != "todo" {
+	if item, found := LookupWorkItem(root, "feat-dddddddd"); !found || item.Status != "todo" {
 		t.Fatalf("seed read: found=%v item=%+v", found, item)
 	}
 	// Prove the entry really is cached now, so the assertion below is about
@@ -260,7 +253,7 @@ func TestStaleEntryIsInvalidatedEndToEnd(t *testing.T) {
 		t.Fatalf("chtimes: %v", err)
 	}
 
-	item, found := LookupWorkItem(nil, "feat-dddddddd")
+	item, found := LookupWorkItem(root, "feat-dddddddd")
 	if !found {
 		t.Fatal("post-write read not found")
 	}
@@ -276,10 +269,6 @@ func TestListWorkItemsMatchesAcrossBothContracts(t *testing.T) {
 	ResetDaemonGuaranteeBreach()
 	t.Cleanup(ResetDaemonGuaranteeBreach)
 
-	td := setupTestDB(t)
-	td.addFeature("feat-eeeeeeee", "feature", "Echo", "in-progress")
-	td.addFeature("bug-ffffffff", "bug", "Foxtrot", "todo")
-
 	root := newDaemonProject(t)
 	writeCanonicalItem(t, root, "features", "feat-eeeeeeee", "feature", "in-progress", "Echo")
 	writeCanonicalItem(t, root, "bugs", "bug-ffffffff", "bug", "todo", "Foxtrot")
@@ -289,10 +278,10 @@ func TestListWorkItemsMatchesAcrossBothContracts(t *testing.T) {
 	args := daemon.WorkItemListArgs{Statuses: []string{"in-progress", "todo"}}
 
 	os.Unsetenv(DaemonSocketEnv)
-	fromIndex := ListWorkItems(td.DB, args)
+	fromIndex := ListWorkItems(root, args)
 
 	t.Setenv(DaemonSocketEnv, sock)
-	fromDaemon := ListWorkItems(nil, args)
+	fromDaemon := ListWorkItems(root, args)
 
 	if len(fromIndex) != len(fromDaemon) {
 		t.Fatalf("length mismatch: index %d, daemon %d", len(fromIndex), len(fromDaemon))
@@ -341,7 +330,7 @@ func TestBreachReasonNamesTheContract(t *testing.T) {
 	t.Cleanup(ResetDaemonGuaranteeBreach)
 
 	t.Setenv(DaemonSocketEnv, filepath.Join(t.TempDir(), "absent.sock"))
-	_, _ = LookupWorkItem(nil, "feat-99999999")
+	_, _ = LookupWorkItem(t.TempDir(), "feat-99999999")
 
 	reason := DaemonGuaranteeBreach()
 	if reason == "" {
@@ -408,7 +397,7 @@ func BenchmarkLookupWorkItemViaDaemon(b *testing.B) {
 
 	b.Setenv(DaemonSocketEnv, sock)
 	for b.Loop() {
-		if _, found := LookupWorkItem(nil, "feat-babababa"); !found {
+		if _, found := LookupWorkItem(root, "feat-babababa"); !found {
 			b.Fatal("not found")
 		}
 	}
@@ -461,13 +450,13 @@ func TestUnguaranteedSessionNeverDialsTheDaemon(t *testing.T) {
 	ResetDaemonGuaranteeBreach()
 	t.Cleanup(ResetDaemonGuaranteeBreach)
 
-	td := setupTestDB(t)
-	td.addFeature("feat-d1a1d1a1", "feature", "Dialled", "in-progress")
+	root := newDaemonProject(t)
+	writeCanonicalItem(t, root, "features", "feat-d1a1d1a1", "feature", "in-progress", "Dialled")
 	sock, dials := countingSocket(t)
 
 	// Guaranteed: the read reaches for the socket.
 	t.Setenv(DaemonSocketEnv, sock)
-	_, _ = LookupWorkItem(td.DB, "feat-d1a1d1a1")
+	_, _ = LookupWorkItem(root, "feat-d1a1d1a1")
 	guaranteedDials := dials()
 	if guaranteedDials == 0 {
 		t.Fatal("precondition: guaranteed read never dialled, so the counter proves nothing")
@@ -476,52 +465,17 @@ func TestUnguaranteedSessionNeverDialsTheDaemon(t *testing.T) {
 
 	// Unguaranteed: no marker, so no dial may occur at all.
 	os.Unsetenv(DaemonSocketEnv)
-	item, found := LookupWorkItem(td.DB, "feat-d1a1d1a1")
+	item, found := LookupWorkItem(root, "feat-d1a1d1a1")
 	if !found || item.Title != "Dialled" {
-		t.Fatalf("unguaranteed read did not answer from the index: found=%v item=%+v", found, item)
+		t.Fatalf("unguaranteed read did not answer from the canonical HTML: found=%v item=%+v", found, item)
 	}
-	_ = ListWorkItems(td.DB, daemon.WorkItemListArgs{Statuses: []string{"in-progress"}})
+	_ = ListWorkItems(root, daemon.WorkItemListArgs{Statuses: []string{"in-progress"}})
 
 	if got := dials(); got != guaranteedDials {
 		t.Fatalf("unguaranteed path dialled the daemon: %d dials before, %d after", guaranteedDials, got)
 	}
 	if breach := DaemonGuaranteeBreach(); breach != "" {
 		t.Fatalf("unguaranteed path latched a breach: %s", breach)
-	}
-}
-
-// TestUnguaranteedSessionIgnoresALiveDaemon is the case a reachability-probe
-// design would get wrong, and the one that matters most now that degrade-quiet
-// is an entire harness's hot path.
-//
-// A live daemon is running for the project — started by somebody else's
-// launcher-backed session — and canonical state DISAGREES with the derived
-// index. A hook with no launcher marker must read the index anyway. It must not
-// opportunistically use a daemon it can see, because "the daemon answered" is
-// not the same fact as "a launcher promised this session a daemon", and
-// deciding the contract by what happens to be reachable is inference, which is
-// exactly what the policy forbids.
-func TestUnguaranteedSessionIgnoresALiveDaemon(t *testing.T) {
-	ResetDaemonGuaranteeBreach()
-	t.Cleanup(ResetDaemonGuaranteeBreach)
-
-	td := setupTestDB(t)
-	td.addFeature("feat-e1e1e1e1", "feature", "From the index", "todo")
-
-	root := newDaemonProject(t)
-	writeCanonicalItem(t, root, "features", "feat-e1e1e1e1", "feature", "in-progress", "From canonical")
-	_, stop := startReadDaemon(t, root)
-	defer stop()
-
-	// No marker: this session was not started by a launcher.
-	os.Unsetenv(DaemonSocketEnv)
-
-	item, found := LookupWorkItem(td.DB, "feat-e1e1e1e1")
-	if !found {
-		t.Fatal("unguaranteed read found nothing")
-	}
-	if item.Title != "From the index" || item.Status != "todo" {
-		t.Fatalf("unguaranteed session used the live daemon instead of the index: %+v", item)
 	}
 }
 

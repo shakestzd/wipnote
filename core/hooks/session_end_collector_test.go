@@ -139,7 +139,7 @@ func TestSessionEnd_FinalizesTelemetry(t *testing.T) {
 	if _, err := SessionEnd(evt, td.DB, projectDir); err != nil {
 		t.Fatalf("SessionEnd: %v", err)
 	}
-	CatchUpEndedSessions(td.DB, projectDir, "", true) // deferred handoff, features, telemetry (bug-1daed6d6)
+	CatchUpEndedSessions(projectDir, "", true) // deferred handoff, features, telemetry (bug-1daed6d6)
 	if calls != 1 {
 		t.Fatalf("SessionTelemetryFn called %d times, want 1", calls)
 	}

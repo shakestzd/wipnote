@@ -12,7 +12,6 @@ import (
 	"github.com/shakestzd/wipnote/core/agent"
 	"github.com/shakestzd/wipnote/core/models"
 	"github.com/shakestzd/wipnote/core/paths"
-	"github.com/shakestzd/wipnote/core/provenance"
 	"github.com/shakestzd/wipnote/core/worktree"
 )
 
@@ -57,14 +56,14 @@ func SessionStart(event *CloudEvent, database *sql.DB, projectDir string) (*Hook
 
 	startCommit := bootstrapSessionStart(event, projectDir, sessionID)
 	s := newStartedSession(event, projectDir, sessionID, now, startCommit)
-	persistStartedSession(event, database, projectDir, sessionID, shortID, s)
+	_ = database
+	persistStartedSession(projectDir, sessionID, s)
 
 	LogTimed(projectDir, "session-start", map[string]string{
 		"session": shortID,
 	}, handlerStart, "handler complete")
 
-	recordSessionStartEvent(event, projectDir, sessionID, s, now)
-	wireSessionFamily(projectDir, database, sessionID, shortID, s.AgentAssigned)
+	wireSessionFamily(projectDir, sessionID, s.AgentAssigned)
 	return sessionStartResult(projectDir), nil
 }
 
@@ -116,63 +115,27 @@ func bootstrapSessionStart(event *CloudEvent, projectDir, sessionID string) stri
 	return <-commitCh
 }
 
-// newStartedSession builds the session row for this SessionStart, including
-// its model and creation provenance.
+// newStartedSession builds the session record SessionStart persists: the
+// fields the canonical session HTML and the sessions ledger carry, and no
+// others (feat-174dc958).
 func newStartedSession(event *CloudEvent, projectDir, sessionID string, now time.Time, startCommit string) *models.Session {
-	s := &models.Session{
+	return &models.Session{
 		SessionID:     sessionID,
 		AgentAssigned: resolveEventAgentID(event),
 		Status:        "active",
 		CreatedAt:     now,
 		StartCommit:   startCommit,
 		IsSubagent:    isSubagentEvent(event) || isSubagent(),
-		Model:         os.Getenv("CLAUDE_MODEL"),
-		// TODO(bug-cb4918d8): remove after lineage wiring verified end-to-end.
-		// These env vars are NEVER set in subagent hook contexts (confirmed via
-		// /tmp/wipnote-hook-trace.jsonl); lineage now flows through the
-		// subagent-start hook writing sessions+agent_lineage_trace directly.
-		ParentSessionID: os.Getenv("WIPNOTE_PARENT_SESSION"),
-		ParentEventID:   os.Getenv("WIPNOTE_PARENT_EVENT"),
-		GitRemoteURL:    paths.GetGitRemoteURL(projectDir),
-		// Normalize to repo-relative so session records remain stable across
-		// worktrees and machines. Local sessions get a relative path (e.g. ".");
-		// sessions ingested from foreign machines (where the canonical root
-		// differs from the local repo) are stored with an "unresolved:" prefix
-		// so they are queryable without silently mangling the original path.
-		ProjectDir:       paths.NormalizeProjectDir(projectDir),
-		ExecWorktreePath: execWorktreeRelPath(event.CWD, projectDir),
-		Branch:           gitBranch(execDirOrDefault(event.CWD, projectDir)),
-		Harness:          resolveHarness(),
-		ContinuedFrom:    strings.TrimSpace(os.Getenv("WIPNOTE_CONTINUED_FROM")),
+		// Repo-relative, so canonical records stay stable across worktrees and
+		// machines; a foreign-machine path gets an "unresolved:" prefix.
+		ProjectDir: paths.NormalizeProjectDir(projectDir),
+		Harness:    resolveHarness(),
 	}
-
-	// Prefer CloudEvent fields over env vars (more reliable).
-	if event.Model != "" {
-		s.Model = event.Model
-	}
-
-	// Provenance — capture which harness/model/role/CLI started this session
-	// so downstream consumers can attribute it across handoffs (feat-40ef1333).
-	prov := provenance.Detect()
-	if prov.Agent == "" {
-		prov.Agent = s.AgentAssigned
-	}
-	if event.Model != "" {
-		prov.Model = event.Model
-	}
-	s.CreatedByAgent = prov.Agent
-	s.CreatedByModel = prov.Model
-	s.CreatedByRole = prov.Role
-	s.CreatedByCLIVersion = prov.CLIVersion
-	return s
 }
 
-// persistStartedSession persists the session row and its lineage, the liveness
-// anchor, the canonical session HTML and ledger entry, finishes sessions whose
+// persistStartedSession records the liveness anchor, the canonical session HTML and ledger entry, finishes sessions whose
 // end hook was cancelled, and runs the bounded orphan sweep.
-func persistStartedSession(event *CloudEvent, database *sql.DB, projectDir, sessionID, shortID string, s *models.Session) {
-	routeStartedSession(event, database, projectDir, sessionID, shortID, s)
-
+func persistStartedSession(projectDir, sessionID string, s *models.Session) {
 	// Record the session process-liveness anchor (feat-0a7db952, slice-1).
 	// Writing the owning pid (+ /proc start-time) lets the reaper distinguish a
 	// crashed session from a long-idle LIVE one. Best-effort: a write failure
@@ -184,7 +147,7 @@ func persistStartedSession(event *CloudEvent, database *sql.DB, projectDir, sess
 	// Finish sessions whose SessionEnd hook was cancelled after it wrote its
 	// end note: close their ledger rows and claim episodes from the note.
 	// Sessions that never reported an end are left alone (feat-174dc958).
-	_ = CatchUpEndedSessions(database, projectDir, sessionID, false)
+	_ = CatchUpEndedSessions(projectDir, sessionID, false)
 
 	// Write canonical session HTML file (non-critical, errors silently logged).
 	CreateSessionHTML(projectDir, s)
@@ -203,113 +166,17 @@ func persistStartedSession(event *CloudEvent, database *sql.DB, projectDir, sess
 	}
 }
 
-// routeStartedSession resolves the parent lineage and routes the session row
-// and (for subagents) its lineage traces.
-func routeStartedSession(event *CloudEvent, database *sql.DB, projectDir, sessionID, shortID string, s *models.Session) {
-	// Resolve lineage inputs before opening the transaction (read-only queries).
-	var inp *lineageInputs
-	if s.IsSubagent && s.ParentSessionID != "" {
-		featureID := GetActiveFeatureID(database, s.SessionID)
-		inp = resolveParentLineage(event, database, s.ParentSessionID, featureID)
-	}
-
-	// Persist the session row and (for subagents) its lineage traces through the
-	// writer daemon (enqueue-only) instead of a direct writable transaction.
-	//
-	// TX-atomicity note (plan-2390966a slice-3): the old code wrapped the session
-	// upsert + lineage inserts in ONE SQLite transaction. The daemon apply loop
-	// does NOT auto-wrap a transaction, and a multi-statement batch cannot be a
-	// single OpTypeSQL op, so we route each statement as its OWN enqueue-only op.
-	// Atomicity-of-effect is preserved differently: every op lands on the SINGLE
-	// writer in FIFO order, so the session insert always applies before the
-	// lineage traces that reference it — a reader never sees a lineage row whose
-	// session is missing. The all-or-nothing guarantee of a SQL transaction is
-	// relaxed to "FIFO-ordered single-writer + canonical NDJSON/reindex backstop",
-	// which is the established hot-hook contract (RouteHookWrite, slice-2).
-	txStart := time.Now()
-	routeSessionUpsert(projectDir, sessionID, s)
-	if inp != nil {
-		routeLineageTraces(projectDir, sessionID, inp)
-	}
-	LogTimed(projectDir, "session-start", map[string]string{
-		"phase":   "db-tx",
-		"session": shortID,
-	}, txStart, "session+lineage routed")
-}
-
-// recordSessionStartEvent stores the transcript path and persists the
-// session-start event to agent_events.
-func recordSessionStartEvent(event *CloudEvent, projectDir, sessionID string, s *models.Session, now time.Time) {
-	// Store transcript path if provided by CloudEvent. Routed enqueue-only so a
-	// held write lock never stalls the post-selection critical path.
-	if event.TranscriptPath != "" {
-		RouteHookWrite("session-start", projectDir, sessionID,
-			`UPDATE sessions SET transcript_path = ? WHERE session_id = ?`,
-			event.TranscriptPath, sessionID)
-	}
-
-	// Persist the session-start event to agent_events for dashboard activity feed.
-	// Routed enqueue-only through the daemon (no direct writable Exec). The event
-	// has no ParentEventID, so db.InsertEvent's parent-agent lookup is a no-op and
-	// the plain parameterized INSERT below is equivalent.
-	ev := &models.AgentEvent{
-		EventID:      uuid.New().String(),
-		AgentID:      s.AgentAssigned,
-		EventType:    models.EventStart,
-		Timestamp:    now,
-		ToolName:     "SessionStart",
-		InputSummary: "Session started",
-		SessionID:    sessionID,
-		Status:       "recorded",
-		Source:       "hook",
-		CreatedAt:    now,
-		UpdatedAt:    now,
-	}
-	routeInsertEvent(projectDir, sessionID, ev)
-}
-
-// wireSessionFamily implements session-family continuity (slice-4,
-// feat-a225ce7c): it wires the harness-neutral session_family_id for Claude, Codex, and Gemini.
-// Launchers inject WIPNOTE_SESSION_FAMILY_ID; the hook is the authoritative
-// DB write path for all harnesses. Per-session state + the family index are
-// also written here as a durability layer (they survive hook restarts).
-func wireSessionFamily(projectDir string, database *sql.DB, sessionID, shortID, agentID string) {
+// wireSessionFamily records session-family continuity (slice-4,
+// feat-a225ce7c) in the canonical files: the family index and the
+// per-session state. Launchers inject WIPNOTE_SESSION_FAMILY_ID; without it a
+// session is its own family.
+func wireSessionFamily(projectDir, sessionID, agentID string) {
 	familyID := os.Getenv("WIPNOTE_SESSION_FAMILY_ID")
 	if familyID == "" {
-		// No family env — treat this session as its own family.
 		familyID = sessionID
 	}
-	setSessionFamilyApplied(projectDir, sessionID, familyID)
-	// File writes: family index + per-session state (harness-neutral).
 	_ = agent.RegisterSessionFamily(projectDir, sessionID, familyID)
 	_ = agent.WriteSessionState(projectDir, sessionID, agentID, familyID)
-
-	// Forward-propagate work-item attribution across the family. Claude Code
-	// splits a session: this hook fires on the short parent stub (which holds
-	// active_feature_id), but the real long-running child session IDs never get
-	// a SessionStart the hook observes. Reconciling here on every launch copies
-	// the family's work item onto any sibling that still lacks one, so the
-	// chooser, dashboard, and analytics all attribute the split children.
-	//
-	// The reconcile reads members + donor directly (reads stay direct) and
-	// routes each recipient UPDATE through the daemon enqueue-only path. We use
-	// the count of routed recipients to gate the (best-effort, idempotent) HTML
-	// persistence; enqueue-only acks carry no RowsAffected, so this is the
-	// would-update count rather than the applied count.
-	if n := routeFamilyAttribution(projectDir, database, familyID); n > 0 {
-		persistFamilyAttributionHTML(projectDir, database, familyID)
-		debugLog(projectDir, "[session-start] propagated work item to %d family sibling(s) of %s", n, shortID)
-	}
-}
-
-// setSessionFamilyApplied sets session_family_id on this session row with an
-// applied acknowledgement from the writer daemon (apply.RouteSQL, bounded by
-// CLISubmitBudget). On a daemon miss the write is dropped (feat-174dc958).
-func setSessionFamilyApplied(projectDir, sessionID, familyID string) {
-	const setFamilySQL = `UPDATE sessions SET session_family_id = ? WHERE session_id = ?`
-	if !routeSQLApplied(projectDir, setFamilySQL, familyID, sessionID) {
-		RecordFallback("session-start", sessionID, FallbackWriterUnavailable, "daemon miss: write dropped")
-	}
 }
 
 // sessionStartResult builds the SessionStart additional context: reconcile

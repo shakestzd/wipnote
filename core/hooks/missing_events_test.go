@@ -61,54 +61,6 @@ func setupGitRepoForWorktreeCreate(t *testing.T) string {
 
 // --- PreCompact ---
 
-func TestStop_PrefersLastAssistantMessageOverTranscript(t *testing.T) {
-	td, sessionID := setupMissingEventsDB(t)
-
-	event := &CloudEvent{
-		// bug-fa036758: Harness, not AgentID, now discriminates
-		// assistant-text harness attribution.
-		Harness:              HarnessCodex,
-		AgentID:              "codex",
-		SessionID:            sessionID,
-		CWD:                  t.TempDir(),
-		TurnID:               "codex-turn-1",
-		Model:                "gpt-5.4",
-		Timestamp:            "2026-05-08T10:00:00Z",
-		LastAssistantMessage: "captured from stop payload",
-		StopReason:           "end_turn",
-	}
-
-	result, err := Stop(event, td.DB)
-	if err != nil {
-		t.Fatalf("Stop: %v", err)
-	}
-	if result == nil || !result.Continue {
-		t.Fatal("expected Continue=true from Stop")
-	}
-
-	var attrsRaw, harness string
-	if err := td.DB.QueryRow(`
-		SELECT attrs_json, harness FROM otel_signals
-		WHERE session_id = ? AND canonical = 'assistant_text'`,
-		sessionID,
-	).Scan(&attrsRaw, &harness); err != nil {
-		t.Fatalf("query assistant_text: %v", err)
-	}
-	if harness != "codex" {
-		t.Errorf("harness = %q, want codex", harness)
-	}
-	var attrs map[string]any
-	if err := json.Unmarshal([]byte(attrsRaw), &attrs); err != nil {
-		t.Fatalf("unmarshal attrs: %v", err)
-	}
-	if attrs["text"] != "captured from stop payload" {
-		t.Errorf("attrs[text] = %q", attrs["text"])
-	}
-	if attrs["source"] != "hook_payload" {
-		t.Errorf("attrs[source] = %q", attrs["source"])
-	}
-}
-
 // TestWorktreeRemove_NoAdditionalContext verifies that the cleanup in
 // feat-cd937fc9 removed the dead additionalContext return (CC ignores it for
 // this Observational event) while keeping the checkpoint recording.
@@ -132,82 +84,9 @@ func TestWorktreeRemove_NoAdditionalContext(t *testing.T) {
 		t.Errorf("expected no additionalContext (CC ignores it for Observational WorktreeRemove), got %q", result.AdditionalContext)
 	}
 
-	var count int
-	if err := td.DB.QueryRow(
-		`SELECT COUNT(*) FROM agent_events WHERE session_id = ? AND tool_name = 'WorktreeRemove'`,
-		sessionID,
-	).Scan(&count); err != nil {
-		t.Fatalf("query agent_events: %v", err)
-	}
-	if count != 1 {
-		t.Errorf("expected 1 WorktreeRemove checkpoint, got %d", count)
-	}
 }
 
 // --- PermissionRequest ---
-
-// TestPermissionRequest_RecordsCheckpoint verifies PermissionRequest records
-// a checkpoint with the tool name in the summary.
-func TestPermissionRequest_RecordsCheckpoint(t *testing.T) {
-	td, sessionID := setupMissingEventsDB(t)
-
-	event := &CloudEvent{
-		SessionID: sessionID,
-		CWD:       t.TempDir(),
-		ToolName:  "Bash",
-	}
-
-	result, err := PermissionRequest(event, td.DB)
-	if err != nil {
-		t.Fatalf("PermissionRequest: %v", err)
-	}
-	if result == nil || !result.Continue {
-		t.Error("expected Continue=true from PermissionRequest")
-	}
-
-	var inputSummary string
-	if err := td.DB.QueryRow(
-		`SELECT input_summary FROM agent_events WHERE session_id = ? AND tool_name = 'PermissionRequest'`,
-		sessionID,
-	).Scan(&inputSummary); err != nil {
-		t.Fatalf("query agent_events: %v", err)
-	}
-	if inputSummary != "Permission requested for tool: Bash" {
-		t.Errorf("unexpected input_summary: %q", inputSummary)
-	}
-}
-
-// TestPermissionRequest_NoToolName_RecordsGenericSummary verifies that when
-// no tool name is present, a generic summary is recorded.
-func TestPermissionRequest_NoToolName_RecordsGenericSummary(t *testing.T) {
-	td, sessionID := setupMissingEventsDB(t)
-
-	event := &CloudEvent{
-		SessionID: sessionID,
-		CWD:       t.TempDir(),
-	}
-
-	result, err := PermissionRequest(event, td.DB)
-	if err != nil {
-		t.Fatalf("PermissionRequest: %v", err)
-	}
-	if result == nil || !result.Continue {
-		t.Error("expected Continue=true from PermissionRequest")
-	}
-
-	var inputSummary string
-	if err := td.DB.QueryRow(
-		`SELECT input_summary FROM agent_events WHERE session_id = ? AND tool_name = 'PermissionRequest'`,
-		sessionID,
-	).Scan(&inputSummary); err != nil {
-		t.Fatalf("query agent_events: %v", err)
-	}
-	if inputSummary != "Permission requested" {
-		t.Errorf("unexpected input_summary: %q", inputSummary)
-	}
-}
-
-// --- ConfigChange ---
 
 // TestConfigChange_RecordsPermissionMode verifies that ConfigChange persists
 // the permission_mode where the YOLO fallback reads it. It used to be an UPDATE
@@ -281,50 +160,6 @@ func TestConfigChange_EmptyPermissionMode_NoUpdate(t *testing.T) {
 }
 
 // --- WorktreeCreate ---
-
-// TestWorktreeCreate_RecordsCheckpoint verifies that WorktreeCreate creates
-// the requested git worktree, returns its path, and records a checkpoint event
-// with the worktree path in the summary.
-func TestWorktreeCreate_RecordsCheckpoint(t *testing.T) {
-	td, sessionID := setupMissingEventsDB(t)
-	repoRoot := setupGitRepoForWorktreeCreate(t)
-	basePath := filepath.Join(repoRoot, ".claude", "worktrees")
-	worktreeName := "feat-aabbccdd"
-	worktreePath := filepath.Join(basePath, worktreeName)
-
-	event := &CloudEvent{
-		SessionID:        sessionID,
-		CWD:              repoRoot,
-		WorktreeBasePath: basePath,
-		WorktreeName:     worktreeName,
-	}
-
-	got, err := WorktreeCreate(event, td.DB)
-	if err != nil {
-		t.Fatalf("WorktreeCreate: %v", err)
-	}
-	if got != worktreePath {
-		t.Fatalf("WorktreeCreate path = %q, want %q", got, worktreePath)
-	}
-	if info, err := os.Stat(got); err != nil || !info.IsDir() {
-		t.Fatalf("created path is not a directory: info=%v err=%v", info, err)
-	}
-	if out, err := exec.Command("git", "-C", got, "rev-parse", "--is-inside-work-tree").Output(); err != nil || strings.TrimSpace(string(out)) != "true" {
-		t.Fatalf("created path is not a git worktree: out=%q err=%v", out, err)
-	}
-
-	var inputSummary string
-	if err := td.DB.QueryRow(
-		`SELECT input_summary FROM agent_events WHERE session_id = ? AND tool_name = 'WorktreeCreate'`,
-		sessionID,
-	).Scan(&inputSummary); err != nil {
-		t.Fatalf("query agent_events: %v", err)
-	}
-	expected := "Worktree created: .claude/worktrees/" + worktreeName
-	if inputSummary != expected {
-		t.Errorf("unexpected input_summary: got %q, want %q", inputSummary, expected)
-	}
-}
 
 // TestWorktreeCreate_NoPath_RecordsGenericSummary verifies missing replacement
 // hook fields abort cleanly and record no generic checkpoint.
@@ -413,48 +248,6 @@ func stubTaskStepFns(t *testing.T) (addCalls, completeCalls *int) {
 	return addCalls, completeCalls
 }
 
-// TestSessionResume_ReactivatesCompletedSession verifies that SessionResume
-// sets a completed session back to active.
-func TestSessionResume_ReactivatesCompletedSession(t *testing.T) {
-	database, projectDir := setupLifecycleDB(t)
-
-	sessionID := "resume-test-session-001"
-	t.Setenv("WIPNOTE_SESSION_ID", sessionID)
-	t.Setenv("WIPNOTE_PROJECT_DIR", projectDir)
-
-	// Insert a completed session.
-	if err := db.UpsertSession(database, &models.Session{
-		SessionID:     sessionID,
-		AgentAssigned: "claude-code",
-		Status:        "completed",
-		CreatedAt:     time.Now().UTC(),
-		ProjectDir:    projectDir,
-	}); err != nil {
-		t.Fatalf("UpsertSession: %v", err)
-	}
-
-	event := &CloudEvent{SessionID: sessionID, CWD: projectDir}
-	result, err := SessionResume(event, database, projectDir)
-	if err != nil {
-		t.Fatalf("SessionResume: %v", err)
-	}
-	if result == nil || !result.Continue {
-		t.Error("expected Continue=true from SessionResume")
-	}
-	if result.AdditionalContext == "" {
-		t.Error("expected AdditionalContext to be set (resume confirmation message)")
-	}
-
-	// Verify session is now active.
-	sess, err := db.GetSession(database, sessionID)
-	if err != nil || sess == nil {
-		t.Fatalf("GetSession: %v", err)
-	}
-	if sess.Status != "active" {
-		t.Errorf("expected session status=active after resume, got %q", sess.Status)
-	}
-}
-
 // TestSessionResume_NoSessionID_ReturnsContinue verifies that SessionResume
 // returns Continue without error when there is no session ID.
 func TestSessionResume_NoSessionID_ReturnsContinue(t *testing.T) {
@@ -534,47 +327,6 @@ func TestStop_FinalizesSessionHTML(t *testing.T) {
 }
 
 // --- StopFailure ---
-
-// TestStopFailure_RecordsErrorEvent verifies that a StopFailure payload is
-// decoded and recorded as an error event carrying the error type, details and
-// rendered message.
-func TestStopFailure_RecordsErrorEvent(t *testing.T) {
-	td, sessionID := setupMissingEventsDB(t)
-
-	payload := `{"session_id":"` + sessionID + `","hook_event_name":"StopFailure",` +
-		`"error":"rate_limit","error_details":"429 Too Many Requests",` +
-		`"last_assistant_message":"API Error: Rate limit reached"}`
-	var event CloudEvent
-	if err := json.Unmarshal([]byte(payload), &event); err != nil {
-		t.Fatalf("unmarshal: %v", err)
-	}
-	event.CWD = t.TempDir()
-
-	result, err := StopFailure(&event, td.DB)
-	if err != nil {
-		t.Fatalf("StopFailure: %v", err)
-	}
-	if result == nil || !result.Continue {
-		t.Error("expected Continue=true from StopFailure")
-	}
-
-	var eventType, input, output, status string
-	if err := td.DB.QueryRow(
-		`SELECT event_type, input_summary, output_summary, status FROM agent_events WHERE session_id = ? AND tool_name = 'StopFailure'`,
-		sessionID,
-	).Scan(&eventType, &input, &output, &status); err != nil {
-		t.Fatalf("query agent_events: %v", err)
-	}
-	if eventType != "error" || status != "failed" {
-		t.Errorf("event_type/status = %q/%q, want error/failed", eventType, status)
-	}
-	if !strings.Contains(input, "rate_limit") {
-		t.Errorf("input_summary = %q, want it to name rate_limit", input)
-	}
-	if !strings.Contains(output, "429 Too Many Requests") || !strings.Contains(output, "API Error: Rate limit reached") {
-		t.Errorf("output_summary = %q, want details and message", output)
-	}
-}
 
 // TestCloudEvent_NonStringErrorDoesNotBreakDecode verifies that an `error`
 // key holding an object (as another harness might send) still decodes the

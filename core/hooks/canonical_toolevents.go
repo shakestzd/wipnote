@@ -19,10 +19,8 @@ import (
 // screenshot / touch UI files" reads zero and degrades to its fail-open branch.
 // The guards are therefore inert, not wrong (bug-a3b17225).
 //
-// recordEventAndAllow already writes the authoritative row through the daemon;
-// it now ALSO appends a tiny canonical line here, next to the session's other
-// canonical artifacts, so the read-only hook path has a durable file source for
-// the same facts. Only the classification-relevant fields are kept, each
+// recordEventAndAllow appends a tiny canonical line here, next to the session's
+// other canonical artifacts; it is the only record of the call (feat-174dc958). Only the classification-relevant fields are kept, each
 // truncated, and the file stops growing at canonicalToolLogMaxBytes — a hook
 // must never be the reason a session's disk fills up.
 //
@@ -64,9 +62,8 @@ func canonicalToolLogPath(projectDir, sessionID string) string {
 	return filepath.Join(projectDir, ".wipnote", "sessions", sessionID, canonicalToolLogName)
 }
 
-// appendCanonicalToolEvent records one tool call. Best-effort and silent: the
-// authoritative write is the daemon-routed agent_events INSERT, and a hook must
-// never fail because an observability append failed.
+// appendCanonicalToolEvent records one tool call. Best-effort and silent: a
+// hook must never fail because an observability append failed.
 func appendCanonicalToolEvent(projectDir, sessionID string, ev canonicalToolEvent) {
 	if projectDir == "" || sessionID == "" || ev.Tool == "" {
 		return
@@ -89,12 +86,6 @@ func appendCanonicalToolEvent(projectDir, sessionID string, ev canonicalToolEven
 		return
 	}
 	if info.Size() >= canonicalToolLogMaxBytes {
-		// The log keeps its earliest events (the guards read them), so past
-		// the cap the newest file edits would be lost to the session-end
-		// handoff. Keep those in a small rolling ledger instead.
-		if fileEditTools[ev.Tool] {
-			appendRecentEditOverflow(path, ev)
-		}
 		return
 	}
 	line, err := json.Marshal(ev)
@@ -297,45 +288,4 @@ func isCanonicalScreenshotEvent(ev canonicalToolEvent) bool {
 	}
 	joined := strings.ReplaceAll(ev.Summary+ev.Input, " ", "")
 	return strings.Contains(joined, `"action":"screenshot"`)
-}
-
-// recentEditOverflowMax bounds the rolling ledger of file edits recorded after
-// the main log hit its cap.
-const recentEditOverflowMax = 32
-
-func recentEditOverflowPath(logPath string) string {
-	return filepath.Join(filepath.Dir(logPath), "tool-events.recent-edits.json")
-}
-
-// appendRecentEditOverflow keeps the newest recentEditOverflowMax file-edit
-// events in a JSON array beside the capped log, replaced atomically. Two hooks
-// racing can drop one entry; it only feeds handoff hints, never a guard.
-func appendRecentEditOverflow(logPath string, ev canonicalToolEvent) {
-	path := recentEditOverflowPath(logPath)
-	events := readRecentEditOverflow(path)
-	events = append(events, ev)
-	if len(events) > recentEditOverflowMax {
-		events = events[len(events)-recentEditOverflowMax:]
-	}
-	data, err := json.Marshal(events)
-	if err != nil {
-		return
-	}
-	tmp := path + ".tmp"
-	if os.WriteFile(tmp, data, 0o644) != nil {
-		return
-	}
-	_ = os.Rename(tmp, path)
-}
-
-func readRecentEditOverflow(path string) []canonicalToolEvent {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil
-	}
-	var events []canonicalToolEvent
-	if json.Unmarshal(data, &events) != nil {
-		return nil
-	}
-	return events
 }

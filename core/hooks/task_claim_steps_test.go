@@ -14,7 +14,6 @@ func taskClaimProject(t *testing.T, sessionID string, claim bool) string {
 	unsetenv(t, "WIPNOTE_PROJECT_DIR")
 	unsetenv(t, "CLAUDE_PROJECT_DIR")
 	unsetenv(t, "WIPNOTE_TASK_STEPS")
-	featureIDCache = featureIDCacheEntry{}
 	projectDir := t.TempDir()
 	wipnoteDir := filepath.Join(projectDir, ".wipnote")
 	if err := os.MkdirAll(wipnoteDir, 0o755); err != nil {

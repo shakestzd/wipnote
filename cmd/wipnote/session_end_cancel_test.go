@@ -200,7 +200,7 @@ func (p *cancelProject) checkAfterCancel(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer database.Close()
-	hooks.CatchUpEndedSessions(database, p.dir, "", false)
+	hooks.CatchUpEndedSessions(p.dir, "", false)
 
 	if len(notes) > 0 {
 		end := notes[len(notes)-1].EndTime()

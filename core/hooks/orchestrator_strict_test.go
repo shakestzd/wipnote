@@ -224,8 +224,6 @@ func TestPreToolUse_OrchestratorStrictBlocksSkill(t *testing.T) {
 	clearNestedEnv(t)
 	t.Setenv("WIPNOTE_NO_AUTO_WRITER", "1")
 	t.Setenv(OrchestratorRescueEnv, "")
-	stubRouteSQLAsync(t, true)
-	featureIDCache = featureIDCacheEntry{}
 
 	const sessionID = "019ee390-abcd-7000-8000-000000001920"
 	projectDir := orchestratorFixture(t, OrchestratorConfig{
@@ -258,8 +256,6 @@ func TestPreToolUse_OrchestratorStrictAdvisesBeforeBlocking(t *testing.T) {
 	clearNestedEnv(t)
 	t.Setenv("WIPNOTE_NO_AUTO_WRITER", "1")
 	t.Setenv(OrchestratorRescueEnv, "")
-	stubRouteSQLAsync(t, true)
-	featureIDCache = featureIDCacheEntry{}
 
 	const sessionID = "019ee390-abcd-7000-8000-000000001921"
 	projectDir := orchestratorFixture(t, OrchestratorConfig{

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"database/sql"
 	"errors"
 	"fmt"
 	"os"
@@ -9,24 +8,6 @@ import (
 
 	"github.com/shakestzd/wipnote/core/hooks"
 )
-
-// openSessionHookDB selects the writable hook handle for the three session
-// handlers dispatched by hookSubcmdWithProject (roborev-476 finding 3).
-//
-// session-start runs on the launcher's post-selection critical path and its
-// remaining direct writes (the end-note catch-up) must fail-fast under a held
-// external write lock — so it takes a SHORT bounded busy_timeout
-// (SessionStartBusyTimeout ~750ms) rather than stalling the interactive launcher
-// on the default 5s. Every other session-phase handler (session-end,
-// session-resume, exit-plan-mode) keeps the default 5s OpenHookDB; they are not
-// on the post-selection critical path. A nil handle is treated as
-// canonical-success by the caller exactly as for OpenHookDB.
-func openSessionHookDB(use, sessionID, dbPath string) (*sql.DB, hooks.FallbackReason) {
-	if use == "session-start" {
-		return hooks.OpenHookDBWithBusyTimeout(use, sessionID, dbPath, hooks.SessionStartBusyTimeout)
-	}
-	return hooks.OpenHookDB(use, sessionID, dbPath)
-}
 
 // runHookNamed is like runHook but also records a trace entry for diagnostics.
 // It performs harness detection from the raw stdin payload so that Codex and

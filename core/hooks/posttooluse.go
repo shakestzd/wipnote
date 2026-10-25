@@ -63,25 +63,17 @@ func resolvePostToolUseContext(event *CloudEvent, database *sql.DB) *toolUseCont
 	return resolveToolUseContext(event, database, true)
 }
 
-// postToolUseRecord writes the complete tool_call row and the session HTML
-// entry.
+// postToolUseRecord writes the completion line that pairs the PreToolUse start
+// in the canonical tool log, and the session HTML entry, both keyed on the
+// tool_use_id-derived id PreToolUse also uses (bug-07fd4a51, feat-174dc958).
 func postToolUseRecord(event *CloudEvent, ctx *toolUseContext, database *sql.DB) {
+	_ = database
 	success := isSuccess(event.ToolResult)
 	status := "completed"
 	if !success {
 		status = "failed"
 	}
-	outputSummary := summariseToolOutput(event.ToolName, event.ToolInput, event.ToolResult, success)
-
-	// bug-07fd4a51: write the COMPLETE event row ourselves, keyed on the
-	// tool_use_id-derived id PreToolUse also uses, through the daemon-routed
-	// path. The old FindStartedEvent lookup ran on this hook's own handle, which
-	// never holds the started row PreToolUse routed to the daemon, and it paired
-	// by "newest started row with this tool name", which mis-pairs parallel
-	// calls to the same tool.
-	eventID := recordToolCompletion(event, ctx, database, status, outputSummary)
-	// Pair the PreToolUse start line in the canonical tool log, so the
-	// session-start orphan sweep knows this call finished (feat-174dc958).
+	eventID := toolCallEventIDOrRandom(ctx.SessionID, event.ToolUseID)
 	appendToolCompletion(ctx.ProjectDir, ctx.SessionID, toolCallEventID(ctx.SessionID, event.ToolUseID), status)
 
 	// Append event to session HTML activity log (non-critical, errors silently logged).
@@ -93,20 +85,6 @@ func postToolUseRecord(event *CloudEvent, ctx *toolUseContext, database *sql.DB)
 		FeatureID: ctx.FeatureID,
 		Summary:   SummariseInput(event.ToolName, event.ToolInput),
 	})
-
-	// No per-call orphan sweep here any more. posttooluse dispatches with no
-	// database handle (hookSubcmdReadOnly), where a per-session
-	// sweep could see no rows and could not mark one aborted anyway. Started rows a daemon-miss pretooluse left on the disk
-	// fallback are still swept by session-start's capped project-wide sweep;
-	// daemon-routed rows are completed in place by recordToolCompletion.
-	//
-	// bug-07fd4a51 step 4: the git_commits insert, the claim agent-id tag and
-	// the feature_files / session_files attribution upserts that used to live
-	// here were removed. They wrote to this hook's on-disk handle, and every
-	// reader of those tables (graph/lineage/provenance, who, api, session show,
-	// the session-end handoff) reads an in-memory projection that never sees
-	// that file: git_commits is rebuilt from commit trailers by
-	// reindex_trailers, claims and file touches from canonical state.
 }
 
 // postToolUseRespond builds the HookResult that goes back to the model.
@@ -143,7 +121,7 @@ func postToolUseRespond(event *CloudEvent, ctx *toolUseContext, database *sql.DB
 		// all in-progress items on that track/feature.
 		if cmd := extractBashCommand(event.ToolInput); looksLikeGitMerge(cmd) {
 			if branch := extractMergeBranch(cmd); branch != "" {
-				if completed := autoCompleteByBranch(branch, database); len(completed) > 0 {
+				if completed := autoCompleteByBranch(ctx.ProjectDir, branch); len(completed) > 0 {
 					notice := fmt.Sprintf("Auto-completed (merge): %s", strings.Join(completed, ", "))
 					if result.AdditionalContext != "" {
 						result.AdditionalContext += "\n" + notice

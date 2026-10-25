@@ -27,7 +27,6 @@ func setupTestDB(t *testing.T) *testDB {
 	// Reset the global feature ID cache to prevent interference between tests
 	// (each test may use the same session ID "test-sess" but with different
 	// active features or no active feature).
-	featureIDCache = featureIDCacheEntry{}
 
 	dbPath := filepath.Join(t.TempDir(), "wipnote.db")
 	t.Setenv("WIPNOTE_DB_PATH", dbPath)
@@ -36,7 +35,6 @@ func setupTestDB(t *testing.T) *testDB {
 		t.Fatalf("db.Open: %v", err)
 	}
 	t.Cleanup(func() { database.Close() })
-	stubDaemonApplyInto(t, database)
 	now := time.Now().UTC()
 
 	sess := &models.Session{
@@ -108,17 +106,6 @@ func (td *testDB) addSession(id, parentID, activeFeatureID string) {
 	}
 }
 
-func (td *testDB) setActiveFeature(sessionID, featureID string) {
-	td.t.Helper()
-	_, err := td.DB.Exec(
-		`UPDATE sessions SET active_feature_id = ? WHERE session_id = ?`,
-		featureID, sessionID,
-	)
-	if err != nil {
-		td.t.Fatalf("setActiveFeature: %v", err)
-	}
-}
-
 func TestUserPrompt_EmptyPrompt(t *testing.T) {
 	td := setupTestDB(t)
 	defer td.DB.Close()
@@ -133,207 +120,6 @@ func TestUserPrompt_EmptyPrompt(t *testing.T) {
 	}
 	if !result.Continue {
 		t.Error("expected Continue=true for empty prompt")
-	}
-}
-
-func TestUserPrompt_InsertsUserQuery(t *testing.T) {
-	td := setupTestDB(t)
-	defer td.DB.Close()
-
-	os.Setenv("WIPNOTE_SESSION_ID", "test-sess")
-	defer os.Unsetenv("WIPNOTE_SESSION_ID")
-
-	event := &CloudEvent{SessionID: "test-sess", Prompt: "implement a new API endpoint"}
-	_, err := UserPrompt(event, td.DB)
-	if err != nil {
-		t.Fatalf("UserPrompt: %v", err)
-	}
-
-	// Verify a UserQuery event was inserted.
-	var count int
-	if err := td.DB.QueryRow(
-		`SELECT COUNT(*) FROM agent_events WHERE session_id = 'test-sess' AND tool_name = 'UserQuery'`,
-	).Scan(&count); err != nil {
-		t.Fatalf("query: %v", err)
-	}
-	if count != 1 {
-		t.Errorf("expected 1 UserQuery event, got %d", count)
-	}
-}
-
-func TestUserPrompt_WithOpenItems_ReturnsAttribution(t *testing.T) {
-	td := setupTestDB(t)
-	defer td.DB.Close()
-
-	os.Setenv("WIPNOTE_SESSION_ID", "test-sess")
-	defer os.Unsetenv("WIPNOTE_SESSION_ID")
-
-	// Add features so open items exist.
-	td.addFeature("feat-aaa", "feature", "Auth System", "in-progress")
-	td.addFeature("feat-bbb", "feature", "Dashboard", "todo")
-	td.setActiveFeature("test-sess", "feat-aaa")
-
-	// Per-turn context is the active one-liner only
-	event := &CloudEvent{SessionID: "test-sess", Prompt: "show me all the files in the codebase"}
-	result, err := UserPrompt(event, td.DB)
-	if err != nil {
-		t.Fatalf("UserPrompt: %v", err)
-	}
-
-	if result.AdditionalContext == "" {
-		t.Fatal("expected AdditionalContext with the active item")
-	}
-	// Per-turn context should be terse, not include the full "Open work items" roster
-	if strings.Contains(result.AdditionalContext, "Open work items") {
-		t.Errorf("UserPrompt should be terse (no full attribution), got: %s", result.AdditionalContext)
-	}
-	// Should reference the active feature in one-liner
-	if !strings.Contains(result.AdditionalContext, "feat-aaa") {
-		t.Errorf("guidance should reference active feature in one-liner, got: %s", result.AdditionalContext)
-	}
-}
-
-func TestUserPrompt_NoPerTurnDirectives(t *testing.T) {
-	td := setupTestDB(t)
-	defer td.DB.Close()
-
-	os.Setenv("WIPNOTE_SESSION_ID", "test-sess")
-	defer os.Unsetenv("WIPNOTE_SESSION_ID")
-
-	td.addFeature("spk-001", "spike", "Research caching", "in-progress")
-	td.setActiveFeature("test-sess", "spk-001")
-
-	// Implementation and exploration keywords once triggered ORCHESTRATOR
-	// DIRECTIVE / [CIGS] blocks; only the active-item line remains.
-	event := &CloudEvent{SessionID: "test-sess", Prompt: "implement the caching layer and search the codebase"}
-	result, err := UserPrompt(event, td.DB)
-	if err != nil {
-		t.Fatalf("UserPrompt: %v", err)
-	}
-	for _, banned := range []string{"ORCHESTRATOR DIRECTIVE", "WORKFLOW GUIDANCE", "[CIGS]"} {
-		if strings.Contains(result.AdditionalContext, banned) {
-			t.Errorf("per-turn context should not contain %q, got: %s", banned, result.AdditionalContext)
-		}
-	}
-	if result.AdditionalContext != "ACTIVE: spk-001 — Research caching" {
-		t.Errorf("want only the active-item line, got: %q", result.AdditionalContext)
-	}
-}
-
-func TestUserPrompt_Dedup(t *testing.T) {
-	td := setupTestDB(t)
-	defer td.DB.Close()
-
-	os.Setenv("WIPNOTE_SESSION_ID", "test-sess")
-	defer os.Unsetenv("WIPNOTE_SESSION_ID")
-
-	event := &CloudEvent{SessionID: "test-sess", Prompt: "hello world"}
-	_, err := UserPrompt(event, td.DB)
-	if err != nil {
-		t.Fatalf("first call: %v", err)
-	}
-
-	// Second identical call within 5s should be deduped.
-	result, err := UserPrompt(event, td.DB)
-	if err != nil {
-		t.Fatalf("second call: %v", err)
-	}
-	if !result.Continue {
-		t.Error("expected Continue=true for deduped prompt")
-	}
-}
-
-func TestUserPrompt_SanitizesXMLBlocks(t *testing.T) {
-	td := setupTestDB(t)
-	defer td.DB.Close()
-
-	os.Setenv("WIPNOTE_SESSION_ID", "test-sess")
-	defer os.Unsetenv("WIPNOTE_SESSION_ID")
-
-	prompt := "<system-reminder>internal stuff</system-reminder>implement auth"
-	event := &CloudEvent{SessionID: "test-sess", Prompt: prompt}
-	_, err := UserPrompt(event, td.DB)
-	if err != nil {
-		t.Fatalf("UserPrompt: %v", err)
-	}
-
-	// Verify the stored summary does not contain the XML block.
-	var summary string
-	if err := td.DB.QueryRow(
-		`SELECT input_summary FROM agent_events WHERE session_id = 'test-sess' AND tool_name = 'UserQuery'`,
-	).Scan(&summary); err != nil {
-		t.Fatalf("query: %v", err)
-	}
-	if strings.Contains(summary, "system-reminder") {
-		t.Errorf("stored summary should not contain XML block, got: %s", summary)
-	}
-	if !strings.Contains(summary, "implement auth") {
-		t.Errorf("stored summary should contain actual prompt, got: %s", summary)
-	}
-}
-
-func TestUserPrompt_TerseAdditionalContext(t *testing.T) {
-	td := setupTestDB(t)
-	defer td.DB.Close()
-
-	os.Setenv("WIPNOTE_SESSION_ID", "test-sess")
-	defer os.Unsetenv("WIPNOTE_SESSION_ID")
-
-	// Add features
-	td.addFeature("feat-aaa", "feature", "Auth System", "in-progress")
-	td.addFeature("feat-bbb", "feature", "Dashboard", "todo")
-	td.setActiveFeature("test-sess", "feat-aaa")
-
-	// Use a prompt that triggers exploration (has "search" keyword)
-	event := &CloudEvent{SessionID: "test-sess", Prompt: "search for all error handling patterns"}
-	result, err := UserPrompt(event, td.DB)
-	if err != nil {
-		t.Fatalf("UserPrompt: %v", err)
-	}
-
-	if result.AdditionalContext == "" {
-		t.Fatal("expected AdditionalContext with the active item hint")
-	}
-	// Should be terse — check that it does NOT contain "Open work items"
-	if strings.Contains(result.AdditionalContext, "Open work items") {
-		t.Errorf("UserPrompt should be terse (no open items roster), got: %s", result.AdditionalContext)
-	}
-	// Should not contain the full CLI ref
-	if strings.Contains(result.AdditionalContext, "wipnote CLI") {
-		t.Errorf("UserPrompt should be terse (no CLI ref), got: %s", result.AdditionalContext)
-	}
-	// Should contain the active item one-liner
-	if !strings.Contains(result.AdditionalContext, "ACTIVE:") {
-		t.Errorf("UserPrompt should mention active item, got: %s", result.AdditionalContext)
-	}
-	// Check character count is reasonable (terse, not ~500+ lines)
-	if len(result.AdditionalContext) > 500 {
-		t.Errorf("UserPrompt additionalContext too long (%d chars, expected <500), got: %s",
-			len(result.AdditionalContext), result.AdditionalContext)
-	}
-}
-
-func TestUserPrompt_ActiveOnelinerIncluded(t *testing.T) {
-	td := setupTestDB(t)
-	defer td.DB.Close()
-
-	os.Setenv("WIPNOTE_SESSION_ID", "test-sess")
-	defer os.Unsetenv("WIPNOTE_SESSION_ID")
-
-	td.addFeature("bug-xyz", "bug", "Fix login crash", "in-progress")
-	td.setActiveFeature("test-sess", "bug-xyz")
-
-	event := &CloudEvent{SessionID: "test-sess", Prompt: "continue with the fix"}
-	result, err := UserPrompt(event, td.DB)
-	if err != nil {
-		t.Fatalf("UserPrompt: %v", err)
-	}
-
-	if !strings.Contains(result.AdditionalContext, "ACTIVE: bug-xyz") {
-		t.Errorf("guidance should include 'ACTIVE: bug-xyz', got: %s", result.AdditionalContext)
-	}
-	if !strings.Contains(result.AdditionalContext, "Fix login crash") {
-		t.Errorf("guidance should include feature title, got: %s", result.AdditionalContext)
 	}
 }
 
@@ -359,19 +145,6 @@ func TestUserPrompt_NoActiveNoOneliner(t *testing.T) {
 	// With no active item there is nothing to add to the turn.
 	if result.AdditionalContext != "" || !result.Continue {
 		t.Errorf("want empty context and Continue=true, got: %+v", result)
-	}
-}
-
-func TestBuildActiveItemOneLiner_WithTitle(t *testing.T) {
-	td := setupTestDB(t)
-	defer td.DB.Close()
-
-	td.addFeature("feat-001", "feature", "Refactor DB layer", "in-progress")
-	hint := buildActiveItemOneLiner(td.DB, "", "feat-001")
-
-	expected := "ACTIVE: feat-001 — Refactor DB layer"
-	if hint != expected {
-		t.Errorf("expected %q, got %q", expected, hint)
 	}
 }
 
@@ -406,5 +179,38 @@ func TestBuildActiveItemOneLiner_Empty(t *testing.T) {
 	hint := buildActiveItemOneLiner(td.DB, "", "")
 	if hint != "" {
 		t.Errorf("expected empty string for empty ID, got %q", hint)
+	}
+}
+
+// TestUserPrompt_PerTurnContextCases pins the per-turn context
+// (feat-174dc958): it is exactly the active-item line, built from the
+// session's open claim in the canonical claim ledger and the item's canonical
+// title. With no claim, or a prompt that is only a system block, there is no
+// context at all.
+func TestUserPrompt_PerTurnContextCases(t *testing.T) {
+	const sid = "aaaa4444-bbbb-cccc-dddd-eeee00006666"
+	for _, tc := range []struct {
+		name, prompt string
+		claim        bool
+		want         string
+	}{
+		{"open claim", "implement the caching layer and search the codebase", true, "ACTIVE: spk-0a0b0c0d — Research caching"},
+		{"no claim", "implement the caching layer", false, ""},
+		{"system block only", "<system-reminder>internal</system-reminder>", true, ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			projectDir := taskClaimProject(t, sid, false)
+			writeCanonicalItem(t, projectDir, "spikes", "spk-0a0b0c0d", "spike", "in-progress", "Research caching")
+			if tc.claim {
+				openCanonicalClaim(t, filepath.Join(projectDir, ".wipnote"), sid, sid, "claude-code", "spk-0a0b0c0d")
+			}
+			res, err := UserPrompt(&CloudEvent{SessionID: sid, CWD: projectDir, Prompt: tc.prompt}, nil)
+			if err != nil {
+				t.Fatalf("UserPrompt: %v", err)
+			}
+			if res.AdditionalContext != tc.want {
+				t.Errorf("context = %q, want %q", res.AdditionalContext, tc.want)
+			}
+		})
 	}
 }

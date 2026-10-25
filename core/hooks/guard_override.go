@@ -5,11 +5,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"time"
-
-	"github.com/google/uuid"
-	"github.com/shakestzd/wipnote/core/db"
-	"github.com/shakestzd/wipnote/core/models"
 )
 
 // guardOverrideEnvVar is the operator-only kill switch that disables every
@@ -57,28 +52,5 @@ func recordGuardOverride(event *CloudEvent, database *sql.DB) {
 	// database, so this line is what makes the override part of the lineage.
 	appendCanonicalToolEvent(projectDir, sessionID, canonicalToolEvent{Tool: guardOverrideToolName,
 		Agent: resolveAgentID(event), Summary: summary, Input: SummariseInput(event.ToolName, event.ToolInput)})
-	if database == nil {
-		return
-	}
-
-	now := time.Now().UTC()
-	ev := &models.AgentEvent{
-		EventID:       uuid.New().String(),
-		AgentID:       resolveAgentID(event),
-		EventType:     models.EventCheckPoint,
-		Timestamp:     now,
-		ToolName:      guardOverrideToolName,
-		InputSummary:  summary,
-		OutputSummary: SummariseInput(event.ToolName, event.ToolInput),
-		SessionID:     sessionID,
-		FeatureID:     cachedGetActiveFeatureID(database, sessionID),
-		Status:        "recorded",
-		Source:        "hook",
-		StepID:        event.ToolUseID,
-		CreatedAt:     now,
-		UpdatedAt:     now,
-	}
-	if err := db.InsertEvent(database, ev); err != nil {
-		debugLog(projectDir, "[error] handler=PreToolUse guard_override insert: %v", err)
-	}
+	_ = database
 }

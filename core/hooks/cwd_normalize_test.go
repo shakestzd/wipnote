@@ -8,8 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/shakestzd/wipnote/core/db/dbtest"
-
 	"github.com/shakestzd/wipnote/core/db"
 	"github.com/shakestzd/wipnote/core/models"
 	"github.com/shakestzd/wipnote/core/paths"
@@ -68,10 +66,7 @@ func TestCWDNormalize_MainWorktree_StoresRelative(t *testing.T) {
 		t.Fatalf("SessionStart: %v", err)
 	}
 
-	got, err := db.GetSession(database, sessionID)
-	if err != nil {
-		t.Fatalf("GetSession: %v", err)
-	}
+	got := sessionHTMLRecord(t, projectDir, sessionID)
 	// Main worktree → stored as repo-relative canonical root (".").
 	if filepath.IsAbs(got.ProjectDir) {
 		t.Errorf("project_dir should be relative, got absolute: %q", got.ProjectDir)
@@ -112,7 +107,6 @@ func TestCWDNormalize_LinkedWorktree_CollapsesToRoot(t *testing.T) {
 	if err != nil {
 		t.Fatalf("db.Open: %v", err)
 	}
-	stubDaemonApplyInto(t, database)
 	defer database.Close()
 
 	sessionID := "test-cwd-linked-worktree-001"
@@ -133,10 +127,7 @@ func TestCWDNormalize_LinkedWorktree_CollapsesToRoot(t *testing.T) {
 		t.Fatalf("SessionStart: %v", err)
 	}
 
-	got, err := db.GetSession(database, sessionID)
-	if err != nil {
-		t.Fatalf("GetSession: %v", err)
-	}
+	got := sessionHTMLRecord(t, mainRepo, sessionID)
 	// Linked worktree → collapses to canonical root (".") same as main worktree.
 	if filepath.IsAbs(got.ProjectDir) {
 		t.Errorf("project_dir should be relative (worktree collapse), got absolute: %q", got.ProjectDir)
@@ -164,7 +155,6 @@ func TestCWDNormalize_ForeignCWD_StoredWithUnresolvedPrefix(t *testing.T) {
 	if err != nil {
 		t.Fatalf("db.Open: %v", err)
 	}
-	stubDaemonApplyInto(t, database)
 	defer database.Close()
 
 	sessionID := "test-cwd-foreign-001"
@@ -190,10 +180,7 @@ func TestCWDNormalize_ForeignCWD_StoredWithUnresolvedPrefix(t *testing.T) {
 		t.Fatalf("SessionStart: %v", err)
 	}
 
-	got, err := db.GetSession(database, sessionID)
-	if err != nil {
-		t.Fatalf("GetSession: %v", err)
-	}
+	got := sessionHTMLRecord(t, foreignDir, sessionID)
 	// Foreign machine path → stored with "unresolved:" prefix.
 	if !strings.HasPrefix(got.ProjectDir, "unresolved:") {
 		t.Errorf("foreign project_dir should have unresolved: prefix, got: %q", got.ProjectDir)
@@ -229,64 +216,6 @@ func TestCWDNormalize_AlreadyRelative_PassThrough(t *testing.T) {
 	}
 	if got.ProjectDir != relPath {
 		t.Errorf("relative project_dir round-trip: got %q, want %q", got.ProjectDir, relPath)
-	}
-}
-
-// TestCWDNormalize_SubagentStart_StoresRelativeCWD verifies that a subagent's
-// CWD is stored repo-relative in pending_subagent_starts.
-func TestCWDNormalize_SubagentStart_StoresRelativeCWD(t *testing.T) {
-	projectDir := makeTestRepo(t)
-
-	database, err := openWipnoteTestDB(t, projectDir)
-	if err != nil {
-		t.Fatalf("db.Open: %v", err)
-	}
-	defer database.Close()
-
-	// Seed the parent session so FK constraints are satisfied.
-	parentSessionID := "test-subagent-parent-001"
-	if err := db.UpsertSession(database, &models.Session{
-		SessionID:     parentSessionID,
-		AgentAssigned: "claude-code",
-		Status:        "active",
-		CreatedAt:     time.Now().UTC(),
-	}); err != nil {
-		t.Fatalf("UpsertSession parent: %v", err)
-	}
-
-	agentID := "test-subagent-agent-001"
-	event := &CloudEvent{
-		SessionID: parentSessionID,
-		AgentID:   agentID,
-		AgentType: "feature-coder",
-		CWD:       projectDir,
-	}
-
-	t.Setenv("CLAUDE_SESSION_ID", parentSessionID)
-	t.Setenv("WIPNOTE_AGENT_ID", "")
-	t.Setenv("CLAUDE_ENV_FILE", "")
-	t.Setenv("CLAUDE_PROJECT_DIR", "")
-	t.Setenv("WIPNOTE_PROJECT_DIR", "")
-	t.Setenv("WIPNOTE_SESSION_ID", parentSessionID)
-
-	_, err = SubagentStart(event, database)
-	if err != nil {
-		t.Fatalf("SubagentStart: %v", err)
-	}
-
-	// Read pending_subagent_starts and verify CWD is relative.
-	pending, err := dbtest.GetPendingSubagentStart(database, agentID)
-	if err != nil {
-		t.Fatalf("GetPendingSubagentStart: %v", err)
-	}
-	if pending == nil {
-		t.Fatal("no pending subagent start row found")
-	}
-	if filepath.IsAbs(pending.CWD) {
-		t.Errorf("pending_subagent_starts.cwd should be relative, got absolute: %q", pending.CWD)
-	}
-	if strings.HasPrefix(pending.CWD, "unresolved:") {
-		t.Errorf("pending cwd should not be unresolved for local session, got: %q", pending.CWD)
 	}
 }
 

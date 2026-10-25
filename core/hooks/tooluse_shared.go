@@ -11,33 +11,6 @@ import (
 	"github.com/shakestzd/wipnote/core/paths"
 )
 
-// featureIDCacheEntry holds the single cached result of GetActiveFeatureID for
-// the lifetime of this process invocation. Each hook binary invocation handles
-// exactly one CloudEvent, so the (sessionID → featureID) mapping is constant.
-// No sync needed — hook handlers run in a single goroutine.
-type featureIDCacheEntry struct {
-	sessionID string
-	featureID string
-	populated bool
-}
-
-var featureIDCache featureIDCacheEntry
-
-// cachedGetActiveFeatureID returns the active feature ID for sessionID,
-// querying the database at most once per process invocation.
-func cachedGetActiveFeatureID(database *sql.DB, sessionID string) string {
-	if featureIDCache.populated && featureIDCache.sessionID == sessionID {
-		return featureIDCache.featureID
-	}
-	featureID := GetActiveFeatureID(database, sessionID)
-	featureIDCache = featureIDCacheEntry{
-		sessionID: sessionID,
-		featureID: featureID,
-		populated: true,
-	}
-	return featureID
-}
-
 // toolUseContext holds resolved identifiers shared by PreToolUse and PostToolUse.
 type toolUseContext struct {
 	SessionID        string
@@ -136,12 +109,6 @@ func resolveToolUseContext(event *CloudEvent, database *sql.DB, trustParentEnvVa
 				featureID = resolveFeatureIDForContext(isSubagent, fallback.ActiveFeatureID, claimedItem)
 			}
 		}
-		// Keep the process-level cache warm for other callers (missing_events etc.)
-		featureIDCache = featureIDCacheEntry{
-			sessionID: sessionID,
-			featureID: featureID,
-			populated: true,
-		}
 	} else {
 		// Fallback: session not in DB yet (race during session-start), or a
 		// harness supplied an invocation/session token that differs from the
@@ -154,13 +121,6 @@ func resolveToolUseContext(event *CloudEvent, database *sql.DB, trustParentEnvVa
 			sessionCreatedAt = row.CreatedAt
 			claimedItem = row.ClaimedItem
 			featureID = resolveFeatureIDForContext(isSubagent, row.ActiveFeatureID, claimedItem)
-			featureIDCache = featureIDCacheEntry{
-				sessionID: sessionID,
-				featureID: featureID,
-				populated: true,
-			}
-		} else {
-			featureID = cachedGetActiveFeatureID(database, sessionID)
 		}
 	}
 

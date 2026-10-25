@@ -1,47 +1,18 @@
 package hooks
 
 import (
-	"database/sql"
 	"os"
 	"path/filepath"
 	"time"
 
 	"github.com/shakestzd/wipnote/core/agent"
 	"github.com/shakestzd/wipnote/core/claimledger"
-	"github.com/shakestzd/wipnote/core/db"
 	"github.com/shakestzd/wipnote/core/fsprobe"
 )
 
 // This file holds the writes SessionEnd makes INSIDE the harness's window
 // (Claude Code: 1.5s, "Timeouts set on plugin-provided hooks don't raise the
 // budget"). Every function here spawns no process and scans no claim shard.
-
-// applySessionEndToProjection marks the session completed in the projection and
-// releases its claim rows there. Both are in-memory, so they cost microseconds;
-// end_commit is left to catch-up because it needs a git spawn.
-func applySessionEndToProjection(database *sql.DB, projectDir string, note SessionEndNote) {
-	if database == nil {
-		return
-	}
-	sid := note.SessionID
-	completedAt := note.EndTime().Format("2006-01-02T15:04:05Z07:00")
-	if _, err := database.Exec(`
-		UPDATE sessions
-		SET status = 'completed', completed_at = ?
-		WHERE session_id = ?`, completedAt, sid); err != nil {
-		debugLog(projectDir, "[error] handler=session-end session=%s: update sessions: %v", sid[:minLen(sid, 8)], err)
-	}
-	if note.TranscriptPath != "" || note.Reason != "" {
-		_, _ = database.Exec(`
-			UPDATE sessions
-			SET transcript_path = COALESCE(NULLIF(?, ''), transcript_path),
-			    metadata = json_set(COALESCE(metadata, '{}'), '$.end_reason', ?)
-			WHERE session_id = ?`, note.TranscriptPath, note.Reason, sid)
-	}
-	if _, err := db.ReleaseAllClaimsForSession(database, sid); err != nil {
-		debugLog(projectDir, "[error] handler=session-end session=%s: release claims: %v", sid[:minLen(sid, 8)], err)
-	}
-}
 
 // closeSessionClaimsAndLedger stamps the end on the session's ledger row and
 // closes its open claim episodes, using the END TIME AND OUTCOME FROM THE NOTE.

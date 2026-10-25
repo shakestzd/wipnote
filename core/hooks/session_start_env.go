@@ -2,15 +2,12 @@ package hooks
 
 import (
 	"context"
-	"database/sql"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/shakestzd/wipnote/core/eventsink"
-	"github.com/shakestzd/wipnote/core/paths"
 )
 
 // launchModeFile is the JSON structure written to .wipnote/.launch-mode by
@@ -78,54 +75,6 @@ func activeSessionHarness(event *CloudEvent) string {
 	return resolveHarness()
 }
 
-func execDirOrDefault(cwd, projectDir string) string {
-	if cwd != "" {
-		return cwd
-	}
-	return projectDir
-}
-
-func gitBranch(dir string) string {
-	if dir == "" {
-		return ""
-	}
-	cmd := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD")
-	cmd.Dir = dir
-	out, err := cmd.Output()
-	if err != nil {
-		return ""
-	}
-	return strings.TrimSpace(string(out))
-}
-
-// execWorktreeRelPath returns the repo-relative path when cwd is a REAL linked
-// git worktree (i.e. its git top-level differs from projectDir). Plain
-// subdirectories of projectDir share the same git top-level and therefore get
-// an empty return so they are not misrecorded as worktrees.
-func execWorktreeRelPath(cwd, projectDir string) string {
-	if cwd == "" || cwd == projectDir {
-		return ""
-	}
-	if !filepath.IsAbs(projectDir) || !filepath.IsAbs(cwd) {
-		return ""
-	}
-	// Only record a path when cwd is a real linked worktree: its git
-	// top-level must differ from projectDir. A plain subdirectory of the
-	// main repo shares the same top-level and is NOT a worktree.
-	cwdTop, err := paths.GitTopLevel(cwd)
-	if err != nil || cwdTop == "" || cwdTop == projectDir {
-		return ""
-	}
-	rel, err := filepath.Rel(projectDir, cwdTop)
-	if err != nil {
-		return ""
-	}
-	if rel == "." || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-		return ""
-	}
-	return filepath.ToSlash(rel)
-}
-
 // isSubagent returns true when env vars indicate this is a spawned subagent.
 // Falls back to checking .active-session when env vars are absent (worktrees).
 func isSubagent() bool {
@@ -136,44 +85,6 @@ func isSubagent() bool {
 	// Worktree subagents get a fresh environment so WIPNOTE_PARENT_SESSION
 	// won't be propagated, but the .active-session file is project-scoped.
 	return false
-}
-
-// nullableStr maps an empty string to a typed SQL NULL (nil) and any non-empty
-// string to itself, returning `any`.
-//
-// CRITICAL JSON-transport contract (bug-a782badf, roborev-476 finding 1): this
-// helper feeds BOTH the in-process transactional path (upsertSessionTx) AND the
-// daemon-routed path (routeSessionUpsert / routeLineageTrace / routeInsertEvent
-// → RouteHookWrite → apply.RouteSQLAsync). The routed path JSON-encodes every
-// bind arg (core/daemon/apply.DerivedOp.Args) and the daemon decodes it back. A
-// sql.NullString JSON-marshals to the OBJECT {"String":...,"Valid":...}, which
-// decodes to a map the SQLite driver CANNOT bind — so the routed Exec silently
-// FAILS and the session/lineage/event row never applies via the daemon (only a
-// reindex recovers it). A plain string / nil binds identically on the daemon's
-// ExecContext AND on any direct-fallback Exec, so it is the only
-// JSON-transport-safe choice. This mirrors core/db/otel_schema.go's nullableStr
-// and core/hooks/dbgate.go's nullableArg (same NULL semantics across the process
-// boundary). NEVER change this back to returning sql.NullString.
-func nullableStr(s string) any {
-	if s == "" {
-		return nil
-	}
-	return s
-}
-
-// GetActiveFeatureID looks up the active_feature_id for a session.
-func GetActiveFeatureID(database *sql.DB, sessionID string) string {
-	// Nil-DB-safe (roborev-478 finding 1): the read-only hook dispatch may run
-	// the handler with a nil DB so the DB-independent guards still execute.
-	if database == nil {
-		return ""
-	}
-	var featID sql.NullString
-	row := database.QueryRow(
-		`SELECT active_feature_id FROM sessions WHERE session_id = ?`, sessionID,
-	)
-	_ = row.Scan(&featID)
-	return featID.String
 }
 
 // emitRosettaEvent writes a session_start NDJSON line correlating the

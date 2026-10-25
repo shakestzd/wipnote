@@ -57,31 +57,16 @@ Usage in hooks.json:
 		hookSubcmdWithProject("session-end", "Handle SessionEnd event", continueResult, hooks.SessionEnd),
 		hookSubcmdWithProject("session-resume", "Handle SessionResume event", continueResult, hooks.SessionResume),
 
-		// Standard two-arg handlers (event + db only).
-		// roborev-473 finding 1 (VERIFIED per-handler): user-prompt, pretooluse and
-		// posttooluse route EVERY derived-index WRITE through the daemon and use
-		// their DB handle ONLY for READS, so they dispatch with a READ-ONLY handle
-		// (hookSubcmdReadOnly) — avoiding the writable open + cold-DB migration that
-		// blocked the hot hooks under contention. posttooluse joined them once
-		// bug-07fd4a51 moved its event write to the daemon-routed completion upsert
-		// and dropped its dead on-disk writes. On a daemon miss every routed write
-		// is dropped (no fallback, feat-174dc958).
-		//
-		// The following hot hooks KEEP a writable handle because grep confirmed they
-		// still issue DIRECT writes on the passed handle (correctness-first — forcing
-		// read-only would cause "readonly database" errors):
-		//   - subagent-stop: db.UpdateEventFields direct write.
-		//   - stop: insertAssistantTextSignal, backfillMissedUserPrompts,
-		//     runSessionExitReconcile, db.UpdateSessionHandoff — all direct writes on
-		//     the passed handle that are not (yet) daemon-routable.
-		hookSubcmdReadOnly("user-prompt", "Handle UserPromptSubmit event", emptyResult, hooks.UserPrompt),
-		hookSubcmdReadOnly("pretooluse", "Handle PreToolUse event", allowResult, hooks.PreToolUse),
+		// No hook gets a database handle (feat-174dc958): every handler takes
+		// a nil *sql.DB and works from canonical files only.
+		hookSubcmd("user-prompt", "Handle UserPromptSubmit event", emptyResult, hooks.UserPrompt),
+		hookSubcmd("pretooluse", "Handle PreToolUse event", allowResult, hooks.PreToolUse),
 		// posttooluse: on Claude it only responds (quality warning, auto-complete
 		// notices, loud block) behind a Write|Edit|MultiEdit|NotebookEdit|Bash
 		// matcher; recording moved to the async posttooluse-record hook. Codex
 		// and Antigravity keep one combined entry (PostToolUseForHarness).
-		hookSubcmdReadOnly("posttooluse", "Handle PostToolUse event", continueResult, hooks.PostToolUseForHarness),
-		hookSubcmdReadOnly("posttooluse-record", "Record a PostToolUse event (Claude async hook)", continueResult, hooks.PostToolUseRecord),
+		hookSubcmd("posttooluse", "Handle PostToolUse event", continueResult, hooks.PostToolUseForHarness),
+		hookSubcmd("posttooluse-record", "Record a PostToolUse event (Claude async hook)", continueResult, hooks.PostToolUseRecord),
 		hookSubcmd("subagent-start", "Handle SubagentStart event", continueResult, hooks.SubagentStart),
 		hookSubcmd("subagent-stop", "Handle SubagentStop event", continueResult, hooks.SubagentStop),
 		hookSubcmd("stop", "Handle Stop event", continueResult, hooks.Stop),
@@ -130,33 +115,7 @@ func hookWorktreeCreateCmd() *cobra.Command {
 				fmt.Fprintln(os.Stderr, err)
 				return err
 			}
-			dbPath, err := hooks.DBPath(projectDir)
-			if err != nil {
-				fmt.Fprintln(os.Stderr, err)
-				return err
-			}
-			// Canonical-first fallback (feat-075c110d): OpenHookDB direct-opens
-			// the writable handle. When it is unavailable (writer_unavailable —
-			// e.g. the daemon holds the single writable handle, or a transient
-			// lock), we do NOT abort: worktree creation does not require the DB,
-			// only the best-effort checkpoint does. We proceed with a nil handle
-			// so the worktree is still created and its bare path is still echoed
-			// (#119 contract). The derived-index checkpoint is recovered by
-			// reindex on the next serve cycle. A genuine failure (missing
-			// worktree_name / worktree_base_path, or a worktree creation error)
-			// still returns a non-zero error with no JSON on stdout.
-			var database *sql.DB
-			if !headless {
-				var reason hooks.FallbackReason
-				database, reason = hooks.OpenHookDB(use, event.SessionID, dbPath)
-				if database != nil {
-					defer database.Close()
-				} else {
-					_ = reason // already logged + counted inside OpenHookDB
-				}
-			}
-
-			path, err := hooks.WorktreeCreate(event, database)
+			path, err := hooks.WorktreeCreate(event, nil)
 			if err != nil {
 				fmt.Fprintln(os.Stderr, err)
 				return err
@@ -167,62 +126,10 @@ func hookWorktreeCreateCmd() *cobra.Command {
 	}
 }
 
-// hookSubcmd creates a hook subcommand that resolves the project dir and opens
-// the DB before calling handler. fallback is returned when the project is not
-// an wipnote project or when the DB cannot be opened.
+// hookSubcmd creates a hook subcommand that resolves the project dir and calls
+// handler with NO database handle (feat-174dc958). fallback is returned when
+// the project is not a wipnote project.
 func hookSubcmd(
-	use, short string,
-	fallback *hooks.HookResult,
-	handler func(*hooks.CloudEvent, *sql.DB) (*hooks.HookResult, error),
-) *cobra.Command {
-	return &cobra.Command{
-		Use:   use,
-		Short: short,
-		RunE: func(_ *cobra.Command, _ []string) error {
-			return runHookNamed(use, func(event *hooks.CloudEvent) (*hooks.HookResult, error) {
-				projectDir := hooks.ResolveProjectDir(event.CWD, event.SessionID)
-				if !hooks.IswipnoteProject(projectDir) {
-					return fallback, nil
-				}
-				dbPath, err := hooks.DBPath(projectDir)
-				if err != nil {
-					hooks.LogError(use, event.SessionID,
-						fmt.Sprintf("DBPath failed: %v", err))
-					return fallback, nil
-				}
-				// Canonical-first contract (plan-ae0c37b2 slice 7): the
-				// writable open is best-effort. A failure is logged and
-				// counted as writer_unavailable; we then return the
-				// fallback HookResult so Claude Code sees SUCCESS. The
-				// canonical NDJSON written elsewhere in the handler tree
-				// (collector, session-start Rosetta) is the authoritative
-				// copy; the next projection rebuild derives the index
-				// from it.
-				database, reason := hooks.OpenHookDB(use, event.SessionID, dbPath)
-				if database == nil {
-					_ = reason
-					return fallback, nil
-				}
-				defer database.Close()
-				return handler(event, database)
-			})
-		},
-	}
-}
-
-// hookSubcmdReadOnly is hookSubcmd for the hot hooks that route EVERY
-// derived-index write through the daemon and never read anything a hook could
-// have written (user-prompt, pretooluse, posttooluse, posttooluse-record). They
-// get NO database handle (feat-af8d1689).
-//
-// They used to get a fresh in-memory tables-only projection, which no hook
-// ever hydrates: every read through it returned zero rows, and building its
-// ~100 tables was about half of each call's in-process time. These handlers
-// treat a nil handle exactly as that empty projection (pinned by
-// TestReadOnlyHooks_NilMatchesEmptyProjection in core/hooks), so dropping it
-// changes no output. Writes go to the writer daemon only; a daemon miss drops
-// them (feat-174dc958).
-func hookSubcmdReadOnly(
 	use, short string,
 	fallback *hooks.HookResult,
 	handler func(*hooks.CloudEvent, *sql.DB) (*hooks.HookResult, error),
@@ -265,40 +172,12 @@ func hookSubcmdWithProject(
 				}
 				if use == "session-end" {
 					// Claude Code gives this hook 1.5s: make the end durable
-					// before the projection opens, and keep every commit
-					// intent free of git calls (flush does the git work).
+					// first, and keep every commit intent free of git calls
+					// (flush does the git work).
 					commitIntentLight.Store(true)
 					hooks.RecordSessionEndNote(event, projectDir)
 				}
-				dbPath, err := hooks.DBPath(projectDir)
-				if err != nil {
-					hooks.LogError(use, event.SessionID,
-						fmt.Sprintf("DBPath failed: %v", err))
-					return fallback, nil
-				}
-				// Canonical-first contract — see hookSubcmd above.
-				//
-				// Handle selection is PER-HANDLER (roborev-476 finding 3):
-				//   - session-start runs on the launcher's post-selection critical
-				//     path. It routes every session/lineage/event/family write through
-				//     the daemon (RouteHookWrite / routeSQLApplied) and uses this handle
-				//     for READS plus the catch-up's direct writes for sessions whose end
-				//     hook was cancelled. It takes a BOUNDED handle
-				//     (SessionStartBusyTimeout ~750ms) so a held external write lock
-				//     fail-fasts in well under a second instead of stalling the
-				//     interactive launcher ~5s. The orphan-tool sweep reads and writes
-				//     only the canonical tool log (feat-174dc958).
-				//   - session-end / session-resume / exit-plan-mode keep the default 5s
-				//     OpenHookDB: they are not on the post-selection critical path and
-				//     their residual writes (FinalizeSessionHTML, runSessionExitReconcile)
-				//     are tolerant of the default busy_timeout.
-				database, reason := openSessionHookDB(use, event.SessionID, dbPath)
-				if database == nil {
-					_ = reason
-					return fallback, nil
-				}
-				defer database.Close()
-				return handler(event, database, projectDir)
+				return handler(event, nil, projectDir)
 			})
 		},
 	}
