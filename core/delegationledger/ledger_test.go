@@ -116,6 +116,27 @@ func TestLedger_CloseKeepsFirstEnd(t *testing.T) {
 	}
 }
 
+// CloseIfOpen reports whether this call closed the row: true for the first
+// close of an open row, false (and no change) for a closed one.
+func TestLedger_CloseIfOpenReports(t *testing.T) {
+	s := testStore(t)
+	r := mustOpen(t, s, interactiveRow("dlg-222222222222", "feat-a", t0))
+	closed, err := s.CloseIfOpen(r.ID, CloseInfo{Ended: t0.Add(time.Minute), Reason: EndStop})
+	if err != nil || !closed {
+		t.Fatalf("first CloseIfOpen = %v, %v; want true", closed, err)
+	}
+	closed, err = s.CloseIfOpen(r.ID, CloseInfo{Ended: t0.Add(time.Hour), Exit: intp(0), Reason: EndExit})
+	if err != nil || closed {
+		t.Fatalf("second CloseIfOpen = %v, %v; want false", closed, err)
+	}
+	if got, _, _ := s.Get(r.ID); got.EndReason != EndStop || got.Exit != nil {
+		t.Errorf("second CloseIfOpen changed the row: %+v", got)
+	}
+	if _, err := s.CloseIfOpen("dlg-999999999999", CloseInfo{Reason: EndExit}); err != ErrNoRow {
+		t.Errorf("CloseIfOpen unknown = %v, want ErrNoRow", err)
+	}
+}
+
 // TestLedger_ConcurrentOpen: 8 goroutines in each of 2 processes append at
 // once; every row must survive the shared filelock.Guard.
 func TestLedger_ConcurrentOpen(t *testing.T) {

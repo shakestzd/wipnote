@@ -254,3 +254,41 @@ func TestRun_SweepsOldRunsAndClaims(t *testing.T) {
 		t.Error("a fresh ccx claim was swept")
 	}
 }
+
+// keepDays sets the sweep age in place of the fixed 7 days: with 10 an
+// 8-day-old run stays; with 1 a 2-day-old run goes.
+func TestRun_KeepDaysSetting(t *testing.T) {
+	p := newProject(t)
+	old, err := p.store.CreateRun("dlg-000000000003")
+	must(t, err)
+	must(t, old.Finish(0, time.Now().Add(-8*24*time.Hour)))
+	o := p.options("codex", "exec", "x")
+	o.Settings.KeepDays = 10
+	p.run(o)
+	if _, err := os.Stat(old.Dir()); err != nil {
+		t.Fatal("keepDays 10 swept an 8-day-old run")
+	}
+	must(t, old.Finish(0, time.Now().Add(-2*24*time.Hour)))
+	o.Settings.KeepDays = 1
+	p.run(o)
+	if _, err := os.Stat(old.Dir()); !os.IsNotExist(err) {
+		t.Fatal("keepDays 1 kept a 2-day-old run")
+	}
+}
+
+// ccxWaitSeconds is the job's ccx log wait in place of the fixed 30 s.
+func TestRun_CcxWaitSetting(t *testing.T) {
+	p := newProject(t)
+	for _, secs := range []int{5, 30} {
+		o := p.options("codex", "exec", "x")
+		o.Settings.CcxWaitSeconds = secs
+		res := p.run(o)
+		rf, err := p.store.Run(res.RunID)
+		must(t, err)
+		job, err := readJob(rf)
+		must(t, err)
+		if job.CcxWaitMS != int64(secs)*1000 {
+			t.Fatalf("ccxWaitSeconds %d: job waits %d ms", secs, job.CcxWaitMS)
+		}
+	}
+}

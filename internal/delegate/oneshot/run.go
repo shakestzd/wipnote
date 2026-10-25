@@ -34,8 +34,6 @@ type Options struct {
 	Stdout    io.Writer
 	Stderr    io.Writer
 	Poll      time.Duration // pane wait; 1 s (the mod's) when zero
-	CcxWait   time.Duration // DefaultCcxWait when zero
-	KeepAge   time.Duration // sweep age; runstore.DefaultSweepAge when zero
 }
 
 func (o Options) poll() time.Duration {
@@ -123,12 +121,8 @@ func buildJob(o Options, r Recipe, rf *runstore.RunFolder) Job {
 	argv := r.Command(CommandOptions{LastFile: filepath.Join(rf.Dir(), runstore.FileLastMD),
 		LeanProfile: o.Settings.leanProfile(), CodexHome: home})
 	own, _ := r.OwnLastFile()
-	wait := o.CcxWait
-	if wait <= 0 {
-		wait = DefaultCcxWait
-	}
 	return Job{Kind: r.Kind, Argv: argv, Cwd: o.Cwd, OwnLast: own, CcxRuns: ccxRunsDir(o.Settings.CcxRunsDir),
-		CcxWaitMS: wait.Milliseconds(), ClosePane: o.Settings.ClosePane, CloseDelay: o.Settings.CloseDelay}
+		CcxWaitMS: o.Settings.ccxWait().Milliseconds(), ClosePane: o.Settings.ClosePane, CloseDelay: o.Settings.CloseDelay}
 }
 
 func codexHome() string {
@@ -200,24 +194,27 @@ func printReport(o Options, r Recipe, rf *runstore.RunFolder, page string) {
 		TailLines: o.Settings.TailLines, MaxLines: o.Settings.MaxReturnLines, Page: page}))
 }
 
-// closeRow stamps the end and the usage the run folder recorded.
+// closeRow stamps the end and the usage the run folder recorded. Both the
+// caller and the pane worker call it; the ledger closes only an open row,
+// under its lock (rule F-1), and an unchanged enrich writes nothing.
 func closeRow(l *delegationledger.Store, rf *runstore.RunFolder, res Result) {
 	exit := res.Exit
 	_ = l.Close(res.RunID, delegationledger.CloseInfo{Ended: time.Now().UTC(), Exit: &exit, Reason: res.EndReason})
+	enrichRow(l, rf, res.RunID)
+}
+
+// enrichRow records the usage the run folder holds on the run's row.
+func enrichRow(l *delegationledger.Store, rf *runstore.RunFolder, runID string) {
 	info, _ := rf.Read()
 	if in, cached, out, ok := UsageCounts(info.Usage); ok {
-		_, _ = l.Enrich(res.RunID, delegationledger.Enrichment{UsageInput: &in, UsageCached: &cached, UsageOutput: &out})
+		_, _ = l.Enrich(runID, delegationledger.Enrichment{UsageInput: &in, UsageCached: &cached, UsageOutput: &out})
 	}
 }
 
-// sweep removes finished runs and ccx claims older than the keep age (the
-// mod's CODEX_HERDR_KEEP_DAYS sweep, 7 days). There are no generated
-// scripts to sweep.
+// sweep removes finished runs and ccx claims older than keepDays (the
+// mod's 7-day sweep). There are no generated scripts to sweep.
 func sweep(o Options) {
-	keep := o.KeepAge
-	if keep <= 0 {
-		keep = runstore.DefaultSweepAge
-	}
+	keep := o.Settings.keepAge()
 	now := time.Now()
 	_, _ = o.Store.Sweep(now, keep)
 	sweepClaims(keep, now)

@@ -41,7 +41,8 @@ Only --label enters the ledger; a derived pane title stays in the run folder.
 The work item defaults to the caller's active claim. Chained commands (pipes,
 ;) are not supported. Settings: the "delegate" object of .wipnote/config.json
 (layout, maxPanes, closePane, closeDelay, tailLines, maxReturnLines, leanProfile,
-leanProfileName, ccxRunsDir); CCX_RUNS_DIR overrides ccxRunsDir.`,
+leanProfileName, ccxRunsDir, ccxWaitSeconds, keepDays); CCX_RUNS_DIR overrides
+ccxRunsDir.`,
 		Args: cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			code, err := runDelegateRun(cmd, args, label, workItem, noPane)
@@ -103,8 +104,9 @@ func delegatePaneLine(projectDir string) func(string) string {
 }
 
 // delegateRunPaneCmd is the pane worker a run's herdr pane executes: it runs
-// the run folder's job.json while the Go viewer follows the log, then closes
-// the pane per closePane. Internal; launched only by delegate run.
+// the run folder's job.json while the Go viewer follows the log, closes the
+// run's ledger row when it is still open, then closes the pane per
+// closePane. Internal; launched only by delegate run.
 func delegateRunPaneCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:    "run-pane <run-id>",
@@ -124,6 +126,7 @@ func delegateRunPaneCmd() *cobra.Command {
 			defer stop()
 			code := oneshot.RunPane(ctx, oneshot.PaneOptions{
 				Store: store, RunID: args[0], Herdr: herdr.New(herdr.EnvFrom(os.Getenv)), Out: cmd.OutOrStdout(),
+				Ledger: delegationledger.NewStore(wipnoteDir),
 			})
 			if code != 0 {
 				delegateRunExit(code)
