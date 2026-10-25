@@ -96,7 +96,7 @@ func writeHeldLeaseForTest(t *testing.T, root, kind string) []byte {
 }
 
 // On a slow file system (latency on every lease and socket-dir operation)
-// the herd still yields one server, and a hook's Submit never waits for it.
+// the herd still yields one server, and a hook's read never waits for it.
 func TestLeaseHerd_SlowFilesystemOneServerHooksDoNotWait(t *testing.T) {
 	root := newHerdRoot(t)
 	if err := writeStaleLeaseForTest(root); err != nil {
@@ -106,18 +106,18 @@ func TestLeaseHerd_SlowFilesystemOneServerHooksDoNotWait(t *testing.T) {
 	h := startHerd(t, root, herdSize/2, time.Minute, slow...)
 	worst := hookSubmitWorst(root, 2*time.Second)
 	if worst > 250*time.Millisecond {
-		t.Fatalf("a hook Submit waited %v while the writer was starting", worst)
+		t.Fatalf("a hook read waited %v while the daemon was starting", worst)
 	}
 	assertOneServer(t, h, 0)
 }
 
-// hookSubmitWorst submits as a hook does for d and returns the slowest call.
+// hookSubmitWorst reads as a hook does for d and returns the slowest call.
 func hookSubmitWorst(root string, d time.Duration) time.Duration {
 	var worst time.Duration
 	for end := time.Now().Add(d); time.Now().Before(end); {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		start := time.Now()
-		_, _ = NewWriterClient(root).Submit(ctx, Envelope{OpID: "h", OpType: "test"})
+		_, _ = NewReadClient(root).Ping(ctx)
 		cancel()
 		worst = max(worst, time.Since(start))
 		time.Sleep(10 * time.Millisecond)

@@ -47,8 +47,6 @@ func initMainRepo(t *testing.T) string {
 func TestResolveToolUseContext_BackfillsCanonicalParent(t *testing.T) {
 	clearNestedEnv(t)
 	t.Setenv("WIPNOTE_NO_AUTO_WRITER", "1")
-	stubRouteSQLAsync(t, true)
-	featureIDCache = featureIDCacheEntry{}
 
 	const rootSession = "019ee380-abcd-7000-8000-0000000088a0"
 	const childSession = "019ee380-abcd-7000-8000-0000000088a1"
@@ -109,8 +107,6 @@ func TestPreToolUse_SubagentCommitOnMainBlocked(t *testing.T) {
 	clearNestedEnv(t)
 	t.Setenv("WIPNOTE_NO_AUTO_WRITER", "1")
 	t.Setenv("WIPNOTE_AGENT_BRANCH", "")
-	stubRouteSQLAsync(t, true)
-	featureIDCache = featureIDCacheEntry{}
 
 	const rootSession = "019ee380-abcd-7000-8000-0000000088b0"
 	const childSession = "019ee380-abcd-7000-8000-0000000088b1"

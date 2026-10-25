@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"io"
 	"os"
@@ -13,7 +14,6 @@ import (
 	"github.com/shakestzd/wipnote/core/db/dbtest"
 
 	dbpkg "github.com/shakestzd/wipnote/core/db"
-	"github.com/shakestzd/wipnote/core/hooks"
 	"github.com/shakestzd/wipnote/core/htmlparse"
 	"github.com/shakestzd/wipnote/core/models"
 	"github.com/shakestzd/wipnote/core/sessionledger"
@@ -1442,7 +1442,7 @@ func TestRunWiSetStatus_SubagentsDoNotStompLegacyColumn(t *testing.T) {
 	// Invariant: sessions.active_feature_id must NOT be written by subagents.
 	// Without the fix, it reflects whichever subagent wrote last (flaky); with
 	// the fix it stays empty because no root agent touched it.
-	legacy := hooks.GetActiveFeatureID(database, sessionID)
+	legacy := legacyActiveFeatureID(database, sessionID)
 	if legacy != "" {
 		t.Errorf("sessions.active_feature_id must be empty when only subagents claim features; got %q", legacy)
 	}
@@ -1479,7 +1479,7 @@ func TestRunWiSetStatus_CodexLauncherWritesLegacyColumn(t *testing.T) {
 	}
 	defer database.Close()
 
-	if got := hooks.GetActiveFeatureID(database, sessionID); got != featNode.ID {
+	if got := legacyActiveFeatureID(database, sessionID); got != featNode.ID {
 		t.Fatalf("sessions.active_feature_id = %q, want %q", got, featNode.ID)
 	}
 }
@@ -2302,4 +2302,11 @@ func TestSetDescription_EmptyStringClears(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "not both") {
 		t.Errorf("supplying both forms should be rejected, got: %v", err)
 	}
+}
+
+// legacyActiveFeatureID reads sessions.active_feature_id from a projection.
+func legacyActiveFeatureID(database *sql.DB, sessionID string) string {
+	var id sql.NullString
+	_ = database.QueryRow(`SELECT active_feature_id FROM sessions WHERE session_id = ?`, sessionID).Scan(&id)
+	return id.String
 }

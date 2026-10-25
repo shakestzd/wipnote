@@ -9,42 +9,12 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
-
-	"github.com/shakestzd/wipnote/core/db/writequeue"
 )
 
-// newTestReadListener starts a Listener with both an Applier and a Reader so
-// the read and write halves of the protocol can be exercised on one socket.
+// newTestReadListener starts a Listener with the given Reader.
 func newTestReadListener(t *testing.T, reader Reader) (*Listener, string, func()) {
 	t.Helper()
-	dir := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(dir, ".wipnote"), 0o755); err != nil {
-		t.Fatalf("mkdir .wipnote: %v", err)
-	}
-	sock := SocketPath(dir)
-
-	q := writequeue.New(writequeue.Config{Capacity: 16})
-	if err := q.Start(context.Background()); err != nil {
-		t.Fatalf("queue start: %v", err)
-	}
-	ln, err := NewListener(ListenerConfig{
-		SocketPath: sock,
-		Queue:      q,
-		Applier:    RejectingApplier,
-		Reader:     reader,
-	})
-	if err != nil {
-		t.Fatalf("new listener: %v", err)
-	}
-	ctx, cancel := context.WithCancel(context.Background())
-	go func() { _ = ln.Serve(ctx) }()
-	waitForSocket(t, sock)
-
-	return ln, sock, func() {
-		cancel()
-		_ = ln.Close()
-		q.Stop(time.Second)
-	}
+	return newTestListener(t, reader)
 }
 
 // stubReader answers workitem.get with a fixed item so protocol behaviour can
@@ -89,30 +59,6 @@ func TestWorkItemGetRoundTrip(t *testing.T) {
 	}
 	if stats == nil || stats.Hits != 1 {
 		t.Fatalf("cache stats = %+v, want Hits=1", stats)
-	}
-}
-
-// TestReadFrameDoesNotDisturbWritePath proves the two frame kinds are
-// discriminated: the same connection must answer an Envelope with an Ack and a
-// ReadRequest with a ReadResponse.
-func TestReadFrameDoesNotDisturbWritePath(t *testing.T) {
-	_, sock, cleanup := newTestReadListener(t, stubReader(WorkItem{ID: "feat-1"}, true))
-	defer cleanup()
-
-	// Write frame still behaves exactly as before (RejectingApplier ⇒ error ack).
-	ack, err := NewWriterClientForSocket(sock).Submit(context.Background(), Envelope{
-		OpID: "op-1", OpType: "whatever",
-	})
-	if err != nil {
-		t.Fatalf("submit: %v", err)
-	}
-	if ack.Status != AckError {
-		t.Fatalf("write ack status = %q, want %q", ack.Status, AckError)
-	}
-
-	// Read frame on the same socket gets a read response.
-	if _, _, err := NewReadClientForSocket(sock).GetWorkItem(context.Background(), "feat-1"); err != nil {
-		t.Fatalf("read after write: %v", err)
 	}
 }
 

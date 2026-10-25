@@ -7,7 +7,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"syscall"
 	"time"
@@ -241,47 +240,6 @@ func sessionHTMLMayOverwrite(projectDir, htmlPath, sessionID, existing string) b
 		return false
 	}
 	return true
-}
-
-// SetSessionHTMLActiveFeature persists the session's current root work-item
-// attribution into the canonical session HTML article. SQLite is derived, so
-// this lets reindex/rebuild faithfully restore propagated family attribution.
-func SetSessionHTMLActiveFeature(projectDir, sessionID, featureID string) error {
-	if projectDir == "" || sessionID == "" || featureID == "" {
-		return nil
-	}
-	htmlPath := filepath.Join(projectDir, ".wipnote", "sessions", sessionID+".html")
-	f, err := os.OpenFile(htmlPath, os.O_RDWR, 0o644)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil
-		}
-		return err
-	}
-	defer f.Close()
-	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX); err != nil {
-		return err
-	}
-	defer syscall.Flock(int(f.Fd()), syscall.LOCK_UN) //nolint:errcheck
-	data, err := io.ReadAll(f)
-	if err != nil {
-		return err
-	}
-	content := removeArticleDataAttr(string(data), "data-active-feature-id")
-	escaped := html.EscapeString(featureID)
-	re := regexp.MustCompile(`(<article\b[^>]*)>`)
-	updated := re.ReplaceAllStringFunc(content, func(match string) string {
-		return strings.TrimSuffix(match, ">") + ` data-active-feature-id="` + escaped + `">`
-	})
-	if updated == content {
-		return nil
-	}
-	return rewriteLocked(f, updated)
-}
-
-func removeArticleDataAttr(htmlText, attr string) string {
-	re := regexp.MustCompile(`\s+` + regexp.QuoteMeta(attr) + `="[^"]*"`)
-	return re.ReplaceAllString(htmlText, "")
 }
 
 // extractArticleID extracts the id="..." value from the first <article id="...">

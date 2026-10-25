@@ -23,10 +23,6 @@ func TestHookEventNameForResponse_ClaudeSubcommands(t *testing.T) {
 		{"user-prompt", "UserPromptSubmit"},
 		{"pretooluse", "PreToolUse"},
 		{"posttooluse", "PostToolUse"},
-		{"after-agent", "AfterAgent"},
-		{"after-model", "AfterModel"},
-		{"task-started", "TaskStarted"},
-		{"task-aborted", "TurnAborted"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.subcommand, func(t *testing.T) {
@@ -61,9 +57,6 @@ func TestHookEventNameForResponse_EchosIncomingHookEventName(t *testing.T) {
 		{"posttooluse", "AfterTool", "AfterTool"},
 		// SessionStart is unchanged across harnesses
 		{"session-start", "SessionStart", "SessionStart"},
-		// AfterAgent / AfterModel: Gemini-native names echo through
-		{"after-agent", "AfterAgent", "AfterAgent"},
-		{"after-model", "AfterModel", "AfterModel"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.subcommand+"/"+tc.hookEventName, func(t *testing.T) {

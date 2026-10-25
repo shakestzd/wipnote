@@ -8,10 +8,11 @@ import (
 	"strings"
 	"testing"
 
+	"time"
+
 	"github.com/shakestzd/wipnote/core/agent"
 	"github.com/shakestzd/wipnote/core/claimledger"
 	"github.com/shakestzd/wipnote/core/db"
-	"time"
 )
 
 func init() {

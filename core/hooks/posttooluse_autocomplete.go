@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/shakestzd/wipnote/core/daemon"
-	"github.com/shakestzd/wipnote/core/db"
 )
 
 // commitClosingRe matches closing keywords followed by a work item ID in commit messages.
@@ -66,7 +65,7 @@ func autoCompleteFromCommit(commitMsg string, ctx *toolUseContext, database *sql
 	// Mode 1: keyword/parenthetical references — works in all sessions.
 	ids := extractClosingIDs(commitMsg)
 	for _, id := range ids {
-		if completeIfInProgress(id, database) {
+		if completeIfInProgress(ctx.ProjectDir, id) {
 			completed = append(completed, id)
 		}
 	}
@@ -77,7 +76,7 @@ func autoCompleteFromCommit(commitMsg string, ctx *toolUseContext, database *sql
 		// Fallback: worktree subagents may have no FeatureID of their own when
 		// the orchestrator's session started the work item. Check the parent.
 		if featureID == "" && ctx.ParentSessionID != "" {
-			featureID = db.GetActiveFeatureIDForSession(database, ctx.ParentSessionID)
+			featureID = canonicalActiveWorkItem(ctx.ProjectDir, ctx.ParentSessionID)
 		}
 		if featureID != "" {
 			// Don't double-complete if already handled above.
@@ -89,7 +88,7 @@ func autoCompleteFromCommit(commitMsg string, ctx *toolUseContext, database *sql
 				}
 			}
 			if !alreadyDone {
-				if completeIfInProgress(featureID, database) {
+				if completeIfInProgress(ctx.ProjectDir, featureID) {
 					completed = append(completed, featureID)
 				}
 			}
@@ -106,26 +105,30 @@ var completeIfInProgressFn = completeIfInProgressImpl
 
 // completeIfInProgress checks whether a work item is in-progress and, if so,
 // shells out to the CLI to complete it. Returns true if completion was triggered.
-func completeIfInProgress(id string, database *sql.DB) bool {
-	return completeIfInProgressFn(id, database)
+func completeIfInProgress(projectDir, id string) bool {
+	return completeIfInProgressFn(projectDir, id)
+}
+
+// completeWorkItemCLIFn runs `wipnote <type> complete <id>`. A seam so tests
+// can see which items would be completed without a wipnote binary.
+var completeWorkItemCLIFn = func(typeName, id string) error {
+	return exec.Command(selfBinary(), typeName, "complete", id).Run()
 }
 
 // completeIfInProgressImpl is the real implementation of completeIfInProgress.
 //
 // The status read goes through LookupWorkItem (feat-f6759e37): under a
 // launcher-guaranteed session it is answered from canonical state by the
-// daemon, and under no guarantee from the derived index exactly as before. A
+// daemon, and under no guarantee from the canonical HTML directly. A
 // daemon failure under guarantee returns not-found here AND latches a breach,
 // so this returns false without acting — and the hook's response is replaced
 // with a loud block before that false is mistaken for "nothing to complete".
-func completeIfInProgressImpl(id string, database *sql.DB) bool {
-	item, found := LookupWorkItem(database, id)
+func completeIfInProgressImpl(projectDir, id string) bool {
+	item, found := LookupWorkItem(projectDir, id)
 	if !found || item.Status != "in-progress" {
 		return false
 	}
-	typeName := inferTypeName(id)
-	cmd := exec.Command(selfBinary(), typeName, "complete", id)
-	if err := cmd.Run(); err != nil {
+	if err := completeWorkItemCLIFn(inferTypeName(id), id); err != nil {
 		debugLog("", "[posttooluse] auto-complete failed for %s: %v", id, err)
 		return false
 	}
@@ -183,10 +186,10 @@ var trackBranchRe = regexp.MustCompile(`^(trk-[0-9a-f]{8})$`)
 // When the branch is a track ID (trk-xxxxxxxx), all in-progress features/bugs/spikes
 // on that track are completed. When it is a direct work item ID, only that item
 // is completed. Returns the IDs of completed items.
-func autoCompleteByBranch(branch string, database *sql.DB) []string {
+func autoCompleteByBranch(projectDir, branch string) []string {
 	// Direct work item branch: feat-xxxxxxxx, bug-xxxxxxxx, spk-xxxxxxxx
 	if workItemBranchRe.MatchString(branch) {
-		if completeIfInProgress(branch, database) {
+		if completeIfInProgress(projectDir, branch) {
 			return []string{branch}
 		}
 		return nil
@@ -195,7 +198,7 @@ func autoCompleteByBranch(branch string, database *sql.DB) []string {
 	// Track branch: trk-xxxxxxxx — complete all in-progress items on this track
 	if m := trackBranchRe.FindStringSubmatch(branch); len(m) == 2 {
 		trackID := m[1]
-		return completeInProgressByTrack(trackID, database)
+		return completeInProgressByTrack(projectDir, trackID)
 	}
 
 	return nil
@@ -206,8 +209,8 @@ func autoCompleteByBranch(branch string, database *sql.DB) []string {
 //
 // The listing goes through ListWorkItems (feat-f6759e37) — canonical state via
 // the daemon under a launcher guarantee, the derived index otherwise.
-func completeInProgressByTrack(trackID string, database *sql.DB) []string {
-	items := ListWorkItems(database, daemon.WorkItemListArgs{
+func completeInProgressByTrack(projectDir, trackID string) []string {
+	items := ListWorkItems(projectDir, daemon.WorkItemListArgs{
 		TrackID:  trackID,
 		Statuses: []string{"in-progress"},
 	})
@@ -218,7 +221,7 @@ func completeInProgressByTrack(trackID string, database *sql.DB) []string {
 
 	var completed []string
 	for _, id := range ids {
-		if completeIfInProgress(id, database) {
+		if completeIfInProgress(projectDir, id) {
 			completed = append(completed, id)
 		}
 	}

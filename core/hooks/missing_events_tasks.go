@@ -3,173 +3,90 @@ package hooks
 import (
 	"database/sql"
 	"fmt"
-	"time"
-
-	"github.com/google/uuid"
-	"github.com/shakestzd/wipnote/core/db"
-	"github.com/shakestzd/wipnote/core/models"
 )
 
-// TeammateIdle handles the TeammateIdle Claude Code hook event.
-// Records a teammate_idle event when a teammate agent goes idle.
-//
-// CONTROLLING CAPABILITY (AdditiveControlling, per hookEventContractSpecs): CC
-// reads a JSON HookResult here, so this handler COULD return
-// {decision:"block", reason:"…"} to keep a teammate busy. It is kept
-// observe-only by design — there is no current use-case to override CC's idle
-// handling — but the HookResult return path is already in place, so adding a
-// future block condition is a one-line change.
-func TeammateIdle(event *CloudEvent, database *sql.DB) (*HookResult, error) {
-	summary := "Teammate agent went idle"
-	if event.TeammateName != "" {
-		summary = fmt.Sprintf("Teammate %s went idle", event.TeammateName)
+// taskCompletionGateEnabled holds the TaskCompleted quality gate off
+// (feat-174dc958). The gate runs the project's test command (or its guard
+// profile) synchronously inside the hook for up to 60s and, when
+// block_task_completion_on_quality_failure is set, blocks the task with exit
+// 2. It was unreachable while the active work item came from the dead hook
+// database; reviving the step mirror must not silently revive it. Turning it
+// on is the owner's call.
+const taskCompletionGateEnabled = false
+
+// taskFields is the subject and description a task event carries, typed
+// field first, then the task_data map.
+func taskFields(event *CloudEvent) (subject, description string) {
+	subject = event.TaskSubject
+	if subject == "" {
+		subject, _ = event.TaskData["subject"].(string)
 	}
-	if event.IdleReason != "" {
-		summary += fmt.Sprintf(" (reason: %s)", event.IdleReason)
+	description = event.TaskDescription
+	if description == "" {
+		description, _ = event.TaskData["description"].(string)
 	}
-	return recordSimpleEvent(models.EventTeammateIdle, "TeammateIdle", summary, "recorded", event, database)
+	return subject, description
 }
 
-// TaskCreated handles the TaskCreated Claude Code hook event.
-// Mirrors Claude Code tasks into wipnote as steps on the active feature,
-// making wipnote the durable task tracking surface that survives session
-// termination and is visible to other sessions.
+// taskStepTarget is the work item a task's step belongs to: the session's
+// open claim in the canonical claim ledger, and only when the task names a
+// work-item ID (GH-#169, bug-664276df) and step mirroring is on. "" means no
+// step is mirrored.
+func taskStepTarget(event *CloudEvent, sessionID, subject, description string) string {
+	if event.TaskID == "" || taskStepsDisabled() || !taskNamesWorkItem(subject, description) {
+		return ""
+	}
+	projectDir := ResolveProjectDir(event.CWD, event.SessionID)
+	return canonicalActiveWorkItem(projectDir, sessionID)
+}
+
+// TaskCreated handles the TaskCreated Claude Code hook event. It mirrors a
+// Claude Code task as a step on the session's claimed work item, so the task
+// survives the session and is visible to other sessions. database is unused.
 func TaskCreated(event *CloudEvent, database *sql.DB) (*HookResult, error) {
+	_ = database
 	sessionID := EnvSessionID(event.SessionID)
 	if sessionID == "" {
 		return &HookResult{Continue: true}, nil
 	}
-
-	featureID := cachedGetActiveFeatureID(database, sessionID)
-	subject := event.TaskSubject
-	if subject == "" {
-		subject, _ = event.TaskData["subject"].(string)
+	subject, description := taskFields(event)
+	if featureID := taskStepTarget(event, sessionID, subject, description); featureID != "" {
+		addTaskStepFn(featureID, event.TaskID, subject, event.TeammateName)
 	}
-	description := event.TaskDescription
-	if description == "" {
-		description, _ = event.TaskData["description"].(string)
-	}
-	taskID := event.TaskID
-
-	summary := "Task created"
-	if subject != "" {
-		summary = fmt.Sprintf("Task created: %s", subject)
-	} else if taskID != "" {
-		summary = fmt.Sprintf("Task created: task_id=%s", taskID)
-	}
-
-	now := time.Now().UTC()
-	ev := &models.AgentEvent{
-		EventID:       uuid.New().String(),
-		AgentID:       resolveEventAgentID(event),
-		EventType:     models.EventTaskCreated,
-		Timestamp:     now,
-		ToolName:      "TaskCreate",
-		InputSummary:  summary,
-		OutputSummary: description,
-		SessionID:     sessionID,
-		FeatureID:     featureID,
-		Status:        "recorded",
-		Source:        "hook",
-		ClaudeTaskID:  taskID,
-		CreatedAt:     now,
-		UpdatedAt:     now,
-	}
-
-	if err := db.InsertEvent(database, ev); err != nil {
-		projectDir := ResolveProjectDir(event.CWD, event.SessionID)
-		debugLog(projectDir, "[error] handler=TaskCreated session=%s: insert event: %v", sessionID[:minSessionLen(sessionID)], err)
-	}
-
-	// Mirror as a step on the active feature so the task survives session end
-	// — but only when the task names a work-item ID (bug-XXXXXXXX, feat-…, …),
-	// so orchestrator-internal process tasks ("Draft the plan YAML") aren't
-	// misattributed to whatever item happens to be active (GH-#169,
-	// bug-664276df). WIPNOTE_TASK_STEPS=off disables step-mirroring entirely;
-	// the agent_event above is still recorded either way.
-	if featureID != "" && taskID != "" && !taskStepsDisabled() && taskNamesWorkItem(subject, description) {
-		addTaskStepFn(database, sessionID, featureID, taskID, subject, event.TeammateName)
-	}
-
 	return &HookResult{Continue: true}, nil
 }
 
-// TaskCompleted handles the TaskCompleted Claude Code hook event.
-// Marks the corresponding wipnote step as completed and records a
-// task_completed agent_event for the timeline.
+// TaskCompleted handles the TaskCompleted Claude Code hook event. It ticks the
+// step TaskCreated mirrored. The quality gate is held off; see
+// taskCompletionGateEnabled. database is unused.
 func TaskCompleted(event *CloudEvent, database *sql.DB) (*HookResult, error) {
+	_ = database
 	sessionID := EnvSessionID(event.SessionID)
 	if sessionID == "" {
 		return &HookResult{Continue: true}, nil
 	}
-
-	featureID := cachedGetActiveFeatureID(database, sessionID)
-	taskID := event.TaskID
-	subject := event.TaskSubject
-	if subject == "" {
-		subject, _ = event.TaskData["subject"].(string)
-	}
-	description := event.TaskDescription
-	if description == "" {
-		description, _ = event.TaskData["description"].(string)
-	}
-
-	summary := "Task completed"
-	if subject != "" {
-		summary = fmt.Sprintf("Task completed: %s", subject)
-	} else if taskID != "" {
-		summary = fmt.Sprintf("Task completed: task_id=%s", taskID)
-	}
-
-	now := time.Now().UTC()
-	ev := &models.AgentEvent{
-		EventID:      uuid.New().String(),
-		AgentID:      resolveEventAgentID(event),
-		EventType:    models.EventTaskCompleted,
-		Timestamp:    now,
-		ToolName:     "TaskComplete",
-		InputSummary: summary,
-		SessionID:    sessionID,
-		FeatureID:    featureID,
-		Status:       "completed",
-		Source:       "hook",
-		ClaudeTaskID: taskID,
-		CreatedAt:    now,
-		UpdatedAt:    now,
-	}
-
-	if err := db.InsertEvent(database, ev); err != nil {
-		projectDir := ResolveProjectDir(event.CWD, event.SessionID)
-		debugLog(projectDir, "[error] handler=TaskCompleted session=%s: insert event: %v", sessionID[:minSessionLen(sessionID)], err)
-	}
-
-	// quality gate only runs when a feature is actively claimed
-	if featureID != "" {
-		// Opt-in quality gate: run build/test before allowing task completion.
-		projectDir := ResolveProjectDir(event.CWD, event.SessionID)
-		blockOnFailure := readTaskCompletionConfig(projectDir)
-		gate := runTaskCompletionGate(projectDir)
-		if !gate.Passed {
-			// Record the failure as an event regardless of blocking mode.
-			recordSimpleEvent(models.EventQualityGate, "TaskCompletionGate",
-				fmt.Sprintf("Quality gate failed: %s", gate.GateName), "failed", event, database)
-
-			if blockOnFailure {
-				msg := fmt.Sprintf("Quality gate %q failed. "+
-					"To complete this task manually after fixing: wipnote feature complete %s",
-					gate.GateName, featureID)
-				return nil, &BlockExit2Error{Message: msg}
-			}
+	subject, description := taskFields(event)
+	featureID := taskStepTarget(event, sessionID, subject, description)
+	if taskCompletionGateEnabled && featureID != "" {
+		if err := taskCompletionGateBlock(event, featureID); err != nil {
+			return nil, err
 		}
 	}
-
-	// Mark the step as completed on the feature HTML. Mirrors the same
-	// work-item-id resolution rule as TaskCreated's addTaskStep gate (GH-#169,
-	// bug-664276df): a step is only ticked if it could have been created,
-	// i.e. the task names a work-item ID and step-mirroring isn't disabled.
-	if featureID != "" && taskID != "" && !taskStepsDisabled() && taskNamesWorkItem(subject, description) {
-		completeTaskStepFn(database, sessionID, featureID, taskID, event.TeammateName)
+	if featureID != "" {
+		completeTaskStepFn(featureID, event.TaskID)
 	}
-
 	return &HookResult{Continue: true}, nil
+}
+
+// taskCompletionGateBlock runs the opt-in quality gate and returns the block
+// error when it fails and blocking is configured.
+func taskCompletionGateBlock(event *CloudEvent, featureID string) error {
+	projectDir := ResolveProjectDir(event.CWD, event.SessionID)
+	gate := runTaskCompletionGateFn(projectDir)
+	if gate.Passed || !readTaskCompletionConfig(projectDir) {
+		return nil
+	}
+	return &BlockExit2Error{Message: fmt.Sprintf("Quality gate %q failed. "+
+		"To complete this task manually after fixing: wipnote feature complete %s",
+		gate.GateName, featureID)}
 }

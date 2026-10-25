@@ -57,77 +57,28 @@ Usage in hooks.json:
 		hookSubcmdWithProject("session-end", "Handle SessionEnd event", continueResult, hooks.SessionEnd),
 		hookSubcmdWithProject("session-resume", "Handle SessionResume event", continueResult, hooks.SessionResume),
 
-		// Standard two-arg handlers (event + db only).
-		// roborev-473 finding 1 (VERIFIED per-handler): user-prompt, pretooluse and
-		// posttooluse route EVERY derived-index WRITE through the daemon and use
-		// their DB handle ONLY for READS, so they dispatch with a READ-ONLY handle
-		// (hookSubcmdReadOnly) — avoiding the writable open + cold-DB migration that
-		// blocked the hot hooks under contention. posttooluse joined them once
-		// bug-07fd4a51 moved its event write to the daemon-routed completion upsert
-		// and dropped its dead on-disk writes; on a daemon miss routeHookWriteVia
-		// opens its own bounded writable handle.
-		//
-		// The following hot hooks KEEP a writable handle because grep confirmed they
-		// still issue DIRECT writes on the passed handle (correctness-first — forcing
-		// read-only would cause "readonly database" errors):
-		//   - subagent-start: finding-3 applied-ack pending fallback
-		//     (db.UpsertPendingSubagentStart) + synthetic-sessions via-fallback.
-		//   - subagent-stop: db.UpdateEventFields direct write.
-		//   - stop: insertAssistantTextSignal, backfillMissedUserPrompts,
-		//     runSessionExitReconcile, db.UpdateSessionHandoff — all direct writes on
-		//     the passed handle that are not (yet) daemon-routable.
-		hookSubcmdReadOnly("user-prompt", "Handle UserPromptSubmit event", emptyResult, hooks.UserPrompt),
-		hookSubcmd("after-agent", "Handle Antigravity AfterAgent event", continueResult, hooks.AfterAgent),
-		hookSubcmd("after-model", "Handle Gemini AfterModel event", continueResult, hooks.AfterModel),
-		hookSubcmdReadOnly("pretooluse", "Handle PreToolUse event", allowResult, hooks.PreToolUse),
+		// No hook gets a database handle (feat-174dc958): every handler takes
+		// a nil *sql.DB and works from canonical files only.
+		hookSubcmd("user-prompt", "Handle UserPromptSubmit event", emptyResult, hooks.UserPrompt),
+		hookSubcmd("pretooluse", "Handle PreToolUse event", allowResult, hooks.PreToolUse),
 		// posttooluse: on Claude it only responds (quality warning, auto-complete
 		// notices, loud block) behind a Write|Edit|MultiEdit|NotebookEdit|Bash
 		// matcher; recording moved to the async posttooluse-record hook. Codex
 		// and Antigravity keep one combined entry (PostToolUseForHarness).
-		hookSubcmdReadOnly("posttooluse", "Handle PostToolUse event", continueResult, hooks.PostToolUseForHarness),
-		hookSubcmdReadOnly("posttooluse-record", "Record a PostToolUse event (Claude async hook)", continueResult, hooks.PostToolUseRecord),
+		hookSubcmd("posttooluse", "Handle PostToolUse event", continueResult, hooks.PostToolUseForHarness),
+		hookSubcmd("posttooluse-record", "Record a PostToolUse event (Claude async hook)", continueResult, hooks.PostToolUseRecord),
 		hookSubcmd("subagent-start", "Handle SubagentStart event", continueResult, hooks.SubagentStart),
 		hookSubcmd("subagent-stop", "Handle SubagentStop event", continueResult, hooks.SubagentStop),
 		hookSubcmd("stop", "Handle Stop event", continueResult, hooks.Stop),
 		hookSubcmd("posttooluse-failure", "Handle PostToolUseFailure event", continueResult, hooks.PostToolUseFailure),
-		hookSubcmd("pre-compact", "Handle PreCompact event", continueResult, hooks.PreCompact),
-		hookSubcmd("post-compact", "Handle PostCompact event", continueResult, hooks.PostCompact),
 		hookSubcmd("stop-failure", "Handle StopFailure event", continueResult, hooks.StopFailure),
 		hookWorktreeCreateCmd(),
 		hookSubcmd("worktree-remove", "Handle WorktreeRemove event", continueResult, hooks.WorktreeRemove),
-		hookSubcmd("teammate-idle", "Handle TeammateIdle event", continueResult, hooks.TeammateIdle),
 		hookSubcmd("task-completed", "Handle TaskCompleted event", continueResult, hooks.TaskCompleted),
 		hookSubcmd("task-created", "Handle TaskCreated event", continueResult, hooks.TaskCreated),
-		// task-started is NOT registered for any harness in
-		// packages/plugin-core/manifest.json (task-aborted now is: Codex
-		// Interrupt, see below). Both were originally unreachable: they were
-		// bound to the Codex names TaskStarted and TurnAborted, neither of which
-		// Codex dispatches (bug-e39d408f — TaskStarted appears zero times in the
-		// 0.147.0 binary; TurnAborted is an internal ThreadEvent telemetry
-		// variant, not a hook). Both bodies are generic TrackEvent checkpoints
-		// with no side effect the registered handlers lack, so nothing was lost
-		// when the registrations were dropped. Kept as manually-invocable
-		// subcommands (a user's own hooks.json can call them, and a future
-		// harness may supply a real turn-lifecycle event to repoint them at);
-		// the build-time gate in port/pluginbuild/hook_event_names.go is what
-		// prevents them being re-registered against a name nothing fires.
-		hookSubcmd("task-started", "Record a turn-start checkpoint (not wired to any harness event)", continueResult,
-			func(event *hooks.CloudEvent, database *sql.DB) (*hooks.HookResult, error) {
-				return hooks.TrackEvent("TaskStarted", event, database)
-			}),
-		// task-aborted is now wired to Codex's Interrupt event (0.150.0+), the
-		// real turn-cancel signal it was kept for; a cancelled turn skips Stop.
-		hookSubcmd("task-aborted", "Record a turn-abort checkpoint (Codex Interrupt)", continueResult,
-			func(event *hooks.CloudEvent, database *sql.DB) (*hooks.HookResult, error) {
-				return hooks.TrackEvent("TurnAborted", event, database)
-			}),
-		hookSubcmd("instructions-loaded", "Handle InstructionsLoaded event", continueResult, hooks.InstructionsLoaded),
 		hookSubcmd("permission-request", "Handle PermissionRequest event", continueResult, hooks.PermissionRequest),
 		hookSubcmd("config-change", "Handle ConfigChange event — persist permission_mode to session metadata", continueResult, hooks.ConfigChange),
 		hookSubcmdWithProject("exit-plan-mode", "Handle ExitPlanMode event — convert markdown plan to CRISPI YAML", continueResult, handleExitPlanMode),
-
-		// track-event accepts an optional tool-name argument.
-		hookTrackEventCmd(continueResult),
 	)
 	return cmd
 }
@@ -164,33 +115,7 @@ func hookWorktreeCreateCmd() *cobra.Command {
 				fmt.Fprintln(os.Stderr, err)
 				return err
 			}
-			dbPath, err := hooks.DBPath(projectDir)
-			if err != nil {
-				fmt.Fprintln(os.Stderr, err)
-				return err
-			}
-			// Canonical-first fallback (feat-075c110d): OpenHookDB direct-opens
-			// the writable handle. When it is unavailable (writer_unavailable —
-			// e.g. the daemon holds the single writable handle, or a transient
-			// lock), we do NOT abort: worktree creation does not require the DB,
-			// only the best-effort checkpoint does. We proceed with a nil handle
-			// so the worktree is still created and its bare path is still echoed
-			// (#119 contract). The derived-index checkpoint is recovered by
-			// reindex on the next serve cycle. A genuine failure (missing
-			// worktree_name / worktree_base_path, or a worktree creation error)
-			// still returns a non-zero error with no JSON on stdout.
-			var database *sql.DB
-			if !headless {
-				var reason hooks.FallbackReason
-				database, reason = hooks.OpenHookDB(use, event.SessionID, dbPath)
-				if database != nil {
-					defer database.Close()
-				} else {
-					_ = reason // already logged + counted inside OpenHookDB
-				}
-			}
-
-			path, err := hooks.WorktreeCreate(event, database)
+			path, err := hooks.WorktreeCreate(event, nil)
 			if err != nil {
 				fmt.Fprintln(os.Stderr, err)
 				return err
@@ -201,62 +126,10 @@ func hookWorktreeCreateCmd() *cobra.Command {
 	}
 }
 
-// hookSubcmd creates a hook subcommand that resolves the project dir and opens
-// the DB before calling handler. fallback is returned when the project is not
-// an wipnote project or when the DB cannot be opened.
+// hookSubcmd creates a hook subcommand that resolves the project dir and calls
+// handler with NO database handle (feat-174dc958). fallback is returned when
+// the project is not a wipnote project.
 func hookSubcmd(
-	use, short string,
-	fallback *hooks.HookResult,
-	handler func(*hooks.CloudEvent, *sql.DB) (*hooks.HookResult, error),
-) *cobra.Command {
-	return &cobra.Command{
-		Use:   use,
-		Short: short,
-		RunE: func(_ *cobra.Command, _ []string) error {
-			return runHookNamed(use, func(event *hooks.CloudEvent) (*hooks.HookResult, error) {
-				projectDir := hooks.ResolveProjectDir(event.CWD, event.SessionID)
-				if !hooks.IswipnoteProject(projectDir) {
-					return fallback, nil
-				}
-				dbPath, err := hooks.DBPath(projectDir)
-				if err != nil {
-					hooks.LogError(use, event.SessionID,
-						fmt.Sprintf("DBPath failed: %v", err))
-					return fallback, nil
-				}
-				// Canonical-first contract (plan-ae0c37b2 slice 7): the
-				// writable open is best-effort. A failure is logged and
-				// counted as writer_unavailable; we then return the
-				// fallback HookResult so Claude Code sees SUCCESS. The
-				// canonical NDJSON written elsewhere in the handler tree
-				// (collector, session-start Rosetta) is the authoritative
-				// copy; the next projection rebuild derives the index
-				// from it.
-				database, reason := hooks.OpenHookDB(use, event.SessionID, dbPath)
-				if database == nil {
-					_ = reason
-					return fallback, nil
-				}
-				defer database.Close()
-				return handler(event, database)
-			})
-		},
-	}
-}
-
-// hookSubcmdReadOnly is hookSubcmd for the hot hooks that route EVERY
-// derived-index write through the daemon and never read anything a hook could
-// have written (user-prompt, pretooluse, posttooluse, posttooluse-record). They
-// get NO database handle (feat-af8d1689).
-//
-// They used to get a fresh in-memory tables-only projection, which no hook
-// ever hydrates: every read through it returned zero rows, and building its
-// ~100 tables was about half of each call's in-process time. These handlers
-// treat a nil handle exactly as that empty projection (pinned by
-// TestReadOnlyHooks_NilMatchesEmptyProjection in core/hooks), so dropping it
-// changes no output. Writes still go daemon-first; on a daemon miss
-// routeHookWriteVia opens its own bounded writable handle as before.
-func hookSubcmdReadOnly(
 	use, short string,
 	fallback *hooks.HookResult,
 	handler func(*hooks.CloudEvent, *sql.DB) (*hooks.HookResult, error),
@@ -299,43 +172,12 @@ func hookSubcmdWithProject(
 				}
 				if use == "session-end" {
 					// Claude Code gives this hook 1.5s: make the end durable
-					// before the projection opens, and keep every commit
-					// intent free of git calls (flush does the git work).
+					// first, and keep every commit intent free of git calls
+					// (flush does the git work).
 					commitIntentLight.Store(true)
 					hooks.RecordSessionEndNote(event, projectDir)
 				}
-				dbPath, err := hooks.DBPath(projectDir)
-				if err != nil {
-					hooks.LogError(use, event.SessionID,
-						fmt.Sprintf("DBPath failed: %v", err))
-					return fallback, nil
-				}
-				// Canonical-first contract — see hookSubcmd above.
-				//
-				// Handle selection is PER-HANDLER (roborev-476 finding 3):
-				//   - session-start runs on the launcher's post-selection critical
-				//     path. It routes every session/lineage/event/family write through
-				//     the daemon (RouteHookWrite / routeSQLApplied) and uses this handle
-				//     for READS plus ONE residual direct write — the bounded orphan sweep
-				//     (SweepOrphanedEventsForProjectCapped → db.MarkEventAborted), whose
-				//     atomic started→aborted transition needs RowsAffected and so cannot
-				//     be routed enqueue-only. Because that write still touches this
-				//     handle, session-start takes a BOUNDED handle
-				//     (SessionStartBusyTimeout ~750ms): under a held external write lock
-				//     the orphan-sweep UPDATE fail-fasts in well under a second (the
-				//     residual orphan drains out-of-band via serve) instead of stalling
-				//     the interactive launcher ~5s.
-				//   - session-end / session-resume / exit-plan-mode keep the default 5s
-				//     OpenHookDB: they are not on the post-selection critical path and
-				//     their residual writes (FinalizeSessionHTML, runSessionExitReconcile)
-				//     are tolerant of the default busy_timeout.
-				database, reason := openSessionHookDB(use, event.SessionID, dbPath)
-				if database == nil {
-					_ = reason
-					return fallback, nil
-				}
-				defer database.Close()
-				return handler(event, database, projectDir)
+				return handler(event, nil, projectDir)
 			})
 		},
 	}

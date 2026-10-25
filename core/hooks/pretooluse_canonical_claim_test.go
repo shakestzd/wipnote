@@ -41,8 +41,6 @@ func openCanonicalClaim(t *testing.T, wipnoteDir, rootSession, holderSession, ag
 func TestPreToolUse_SubagentWriteInheritsCanonicalClaim(t *testing.T) {
 	clearNestedEnv(t)
 	t.Setenv("WIPNOTE_NO_AUTO_WRITER", "1")
-	stubRouteSQLAsync(t, true)
-	featureIDCache = featureIDCacheEntry{}
 
 	const sessionID = "019ee378-abcd-7000-8000-00000000c1a1"
 	projectDir := t.TempDir()
@@ -96,8 +94,6 @@ func TestPreToolUse_SubagentWriteInheritsCanonicalClaim(t *testing.T) {
 func TestPreToolUse_CodexSubagentInheritsFamilyRootClaim(t *testing.T) {
 	clearNestedEnv(t)
 	t.Setenv("WIPNOTE_NO_AUTO_WRITER", "1")
-	stubRouteSQLAsync(t, true)
-	featureIDCache = featureIDCacheEntry{}
 
 	const rootSession = "019ee378-abcd-7000-8000-00000000c1b0"
 	const childSession = "019ee378-abcd-7000-8000-00000000c1b1"

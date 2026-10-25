@@ -20,9 +20,6 @@ import (
 	"github.com/shakestzd/wipnote/core/db/dbtest"
 
 	"github.com/shakestzd/wipnote/core/db"
-	"github.com/shakestzd/wipnote/core/db/writequeue"
-	"github.com/shakestzd/wipnote/observe/otel"
-	otelreceiver "github.com/shakestzd/wipnote/observe/otel/receiver"
 
 	_ "modernc.org/sqlite"
 )
@@ -169,75 +166,5 @@ func TestBusyFix_FilesystemAgnostic(t *testing.T) {
 				t.Fatalf("[%s] status = %q, want done", mode, status)
 			}
 		})
-	}
-}
-
-// TestReadOnlyMuxRejectsWritesButQueuePathSucceeds proves the STEP 1
-// cornerstone: the dashboard mux handle (OpenReadOnly) hard-rejects any
-// write, while the slice-6 write-queue path against a separate writable
-// handle still commits successfully against the same DB file.
-func TestReadOnlyMuxRejectsWritesButQueuePathSucceeds(t *testing.T) {
-	dbPath := filepath.Join(t.TempDir(), "ro-mux.db")
-	if w, err := db.Open(dbPath); err != nil { // create schema
-		t.Fatalf("db.Open: %v", err)
-	} else {
-		w.Close()
-	}
-
-	muxDB, err := db.OpenReadOnly(dbPath)
-	if err != nil {
-		t.Fatalf("OpenReadOnly mux: %v", err)
-	}
-	defer muxDB.Close()
-
-	// The mux handle must reject every write verb.
-	if _, err := muxDB.Exec(
-		`INSERT INTO features (id, type, title, status) VALUES ('x','bug','x','todo')`,
-	); err == nil {
-		t.Fatal("read-only mux handle accepted an INSERT; want SQLITE_READONLY")
-	}
-
-	// The slice-6 writer + write queue, owning the only writable handle,
-	// still commits a real signal against the same file.
-	writer, err := otelreceiver.NewWriter(dbPath)
-	if err != nil {
-		t.Fatalf("NewWriter: %v", err)
-	}
-	defer writer.Close()
-
-	q := writequeue.New(writequeue.Config{Capacity: 16})
-	if err := q.Start(context.Background()); err != nil {
-		t.Fatalf("queue start: %v", err)
-	}
-	defer q.Stop(2 * time.Second)
-
-	sig := otel.UnifiedSignal{
-		Harness:       otel.HarnessClaude,
-		SignalID:      "sig-ro-mux-1",
-		Kind:          otel.KindLog,
-		CanonicalName: otel.CanonicalUserPrompt,
-		NativeName:    "user_prompt",
-		Timestamp:     time.Now(),
-		SessionID:     "sess-ro-mux",
-	}
-	submitErr := q.SubmitSync(context.Background(), func(ctx context.Context) error {
-		_, werr := writer.WriteBatch(ctx, otel.HarnessClaude, nil,
-			[]otel.UnifiedSignal{sig})
-		return werr
-	})
-	if submitErr != nil {
-		t.Fatalf("write-queue path failed: %v", submitErr)
-	}
-
-	// The mux (read-only) can still SEE the queue-written row.
-	var n int
-	if err := muxDB.QueryRow(
-		`SELECT COUNT(*) FROM otel_signals WHERE signal_id = ?`, "sig-ro-mux-1",
-	).Scan(&n); err != nil {
-		t.Fatalf("mux read-back: %v", err)
-	}
-	if n != 1 {
-		t.Fatalf("queue-written signal count = %d, want 1 "+
-			"(read-only mux must observe the writable path's commit)", n)
 	}
 }

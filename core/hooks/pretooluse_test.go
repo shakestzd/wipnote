@@ -675,50 +675,6 @@ func TestCheckSubagentWorkItemGuard_DiagnosticFields(t *testing.T) {
 	}
 }
 
-func TestPreToolUseRecordsClaimedWorkItemFeatureID(t *testing.T) {
-	tdb := setupTestDB(t)
-
-	tdb.addFeature("bug-claim-001", "bug", "Claimed bug", "in-progress")
-	claim := &models.Claim{
-		ClaimID:          "clm-claim-001",
-		WorkItemID:       "bug-claim-001",
-		OwnerSessionID:   "test-sess",
-		OwnerAgent:       "codex",
-		ClaimedByAgentID: "codex",
-		Status:           models.ClaimInProgress,
-	}
-	if err := dbtest.InsertClaim(tdb.DB, claim, 30*time.Minute); err != nil {
-		t.Fatalf("ClaimItemOrRenew: %v", err)
-	}
-
-	event := &CloudEvent{
-		AgentID:   "codex",
-		SessionID: "test-sess",
-		CWD:       t.TempDir(),
-		ToolName:  "Read",
-		ToolInput: map[string]any{"file_path": "internal/hooks/pretooluse.go"},
-		ToolUseID: "claimed-feature-validation",
-	}
-	result, err := PreToolUse(event, tdb.DB)
-	if err != nil {
-		t.Fatalf("PreToolUse: %v", err)
-	}
-	if result.Decision == "block" {
-		t.Fatalf("Read should not be blocked: %s", result.Reason)
-	}
-
-	var featureID string
-	if err := tdb.DB.QueryRow(
-		`SELECT COALESCE(feature_id, '') FROM agent_events WHERE step_id = ?`,
-		"claimed-feature-validation",
-	).Scan(&featureID); err != nil {
-		t.Fatalf("query event feature_id: %v", err)
-	}
-	if featureID != "bug-claim-001" {
-		t.Fatalf("feature_id = %q, want bug-claim-001", featureID)
-	}
-}
-
 func TestResolveToolUseContext_FallsBackToProjectClaimedSession(t *testing.T) {
 	tdb := setupTestDB(t)
 	projectDir := t.TempDir()

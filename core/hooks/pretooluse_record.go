@@ -5,15 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"time"
-
-	"github.com/shakestzd/wipnote/core/db"
-	"github.com/shakestzd/wipnote/core/models"
-	"github.com/shakestzd/wipnote/core/paths"
 )
 
-// recordEventAndAllow inserts a tool_call agent_event row for observability
-// and returns an allow result. Used by the plan mode bypass and the normal
+// recordEventAndAllow records the tool call in the canonical tool log and
+// returns an allow result. Used by the plan mode bypass and the normal
 // flow to avoid duplicating the event recording logic.
 func recordEventAndAllow(event *CloudEvent, ctx *toolUseContext, database *sql.DB) (*HookResult, error) {
 	inputSummary := SummariseInput(event.ToolName, event.ToolInput)
@@ -23,30 +18,22 @@ func recordEventAndAllow(event *CloudEvent, ctx *toolUseContext, database *sql.D
 	// fields are deliberately excluded (see normalizeToolInputPaths).
 	toolInputStr := marshalToolInput(event.ToolName, event.ToolInput)
 
-	ev := newToolCallEvent(event, ctx, inputSummary, toolInputStr)
+	_ = database
+	eventID := toolCallEventIDOrRandom(ctx.SessionID, event.ToolUseID)
 
-	// Route the tool_call agent_events INSERT through the daemon-first enqueue
-	// path (plan-2390966a slice-4). This is the hot write that stalled 5–14s
-	// under a held lock; RouteInsertEvent opens NO direct writable handle when
-	// the daemon is reachable and degrades to a <1s bounded fallback otherwise.
-	// Best-effort/advisory like the prior db.InsertEvent — never blocks the hook.
-	_ = RouteInsertEvent("pretooluse", ctx.ProjectDir, ctx.SessionID, ev, database)
-
-	// Canonical mirror of the same tool call (bug-a3b17225). The row above only
-	// ever lands in the real index; the read-only hook path that the research
-	// and UI-validation guards run on opens an EMPTY projection and can never
-	// read it back, which left those guards permanently fail-open. This short
-	// append gives them a durable file source. Best-effort and bounded.
+	// The canonical record of the tool call (bug-a3b17225): the guards, the
+	// Stop event count, the session-end file pointers and the orphan sweep
+	// all read it. Best-effort and bounded.
 	appendCanonicalToolEvent(ctx.ProjectDir, ctx.SessionID, canonicalToolEvent{
 		Tool:    event.ToolName,
 		Agent:   ctx.AgentID,
 		Summary: inputSummary,
 		Input:   toolInputStr,
+		ID:      toolCallEventID(ctx.SessionID, event.ToolUseID),
+		TS:      toolLogNow().Unix(),
 	})
 
-	routeClaimBookkeeping(event, ctx)
-
-	os.Setenv("WIPNOTE_CURRENT_EVENT_ID", ev.EventID)
+	os.Setenv("WIPNOTE_CURRENT_EVENT_ID", eventID)
 
 	// Capture the parent UserQuery event ID at PreToolUse time (before the tool
 	// executes) and persist it to CLAUDE_ENV_FILE so PostToolUse reads the same
@@ -64,48 +51,6 @@ func recordEventAndAllow(event *CloudEvent, ctx *toolUseContext, database *sql.D
 	// above — this only ever runs once a tool call has already been allowed.
 	applyClaimAgentPropagation(event, result)
 	return result, nil
-}
-
-// newToolCallEvent builds the started tool_call agent_event for this call.
-func newToolCallEvent(event *CloudEvent, ctx *toolUseContext, inputSummary, toolInputStr string) *models.AgentEvent {
-	return &models.AgentEvent{
-		// Deterministic per-call id (bug-07fd4a51) so PostToolUse upserts this
-		// same row instead of searching for it by tool name.
-		EventID:       toolCallEventIDOrRandom(ctx.SessionID, event.ToolUseID),
-		AgentID:       ctx.AgentID,
-		EventType:     models.EventToolCall,
-		Timestamp:     time.Now().UTC(),
-		ToolName:      event.ToolName,
-		InputSummary:  inputSummary,
-		ToolInput:     toolInputStr,
-		SessionID:     ctx.SessionID,
-		FeatureID:     ctx.FeatureID,
-		ParentEventID: ctx.ParentEventID,
-		SubagentType:  ctx.AgentType,
-		Status:        "started",
-		StepID:        event.ToolUseID,
-		Source:        "hook",
-		CreatedAt:     time.Now().UTC(),
-		UpdatedAt:     time.Now().UTC(),
-	}
-}
-
-// routeClaimBookkeeping heartbeats the active claim and reaps expired claims.
-func routeClaimBookkeeping(event *CloudEvent, ctx *toolUseContext) {
-	// Claim bookkeeping (bug-d792aee6 finding 2): route BOTH claim writes through
-	// the daemon-first enqueue-only seam (RouteHookWrite) instead of issuing them
-	// directly on the 5s-busy_timeout hook handle. Under a held external write
-	// lock the direct path stalled ~5s, defeating the <1s hot-hook bound; the
-	// builders return the exact (sql, args) the originals Exec, JSON-transport-safe
-	// so the daemon can re-bind them. Both stay best-effort: the advisory bool is
-	// ignored, and canonical NDJSON + reindex are the durability backstop.
-	if ctx.FeatureID != "" {
-		writePath := paths.MustNormalize(extractFilePath(event.ToolInput), "")
-		hbSQL, hbArgs := db.HeartbeatClaimByWorkItemStmt(ctx.FeatureID, ctx.SessionID, writePath, 30*time.Minute)
-		_ = RouteHookWrite("pretooluse", ctx.ProjectDir, ctx.SessionID, hbSQL, hbArgs...)
-	}
-	reapSQL, reapArgs := db.ReapExpiredClaimsStmt()
-	_ = RouteHookWrite("pretooluse", ctx.ProjectDir, ctx.SessionID, reapSQL, reapArgs...)
 }
 
 // writeParentPromptEvent persists parentEventID as WIPNOTE_PARENT_PROMPT_EVENT

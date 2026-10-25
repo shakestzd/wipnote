@@ -6,23 +6,11 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
-
-	"github.com/shakestzd/wipnote/core/db/writequeue"
 )
-
-// startQueue returns a started writequeue and a stop func for lifecycle tests.
-func startQueue(t *testing.T) (*writequeue.Queue, func()) {
-	t.Helper()
-	q := writequeue.New(writequeue.Config{Capacity: 16})
-	if err := q.Start(context.Background()); err != nil {
-		t.Fatalf("queue start: %v", err)
-	}
-	return q, func() { q.Stop(time.Second) }
-}
 
 // TestIdleExitAfterTimeout verifies ServeWithIdleTimeout closes the listener
 // (returning from Serve) after the configured idle window elapses with zero
-// ops. A short injected timeout keeps the test fast.
+// requests. A short injected timeout keeps the test fast.
 func TestIdleExitAfterTimeout(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(dir, ".wipnote"), 0o755); err != nil {
@@ -30,10 +18,7 @@ func TestIdleExitAfterTimeout(t *testing.T) {
 	}
 	sock := SocketPath(dir)
 
-	q, stop := startQueue(t)
-	defer stop()
-
-	ln, err := NewListener(ListenerConfig{SocketPath: sock, Queue: q, Applier: RejectingApplier})
+	ln, err := NewListener(ListenerConfig{SocketPath: sock})
 	if err != nil {
 		t.Fatalf("NewListener: %v", err)
 	}
@@ -59,7 +44,7 @@ func TestIdleExitAfterTimeout(t *testing.T) {
 	}
 }
 
-// TestIdleExitNotTriggeredWhileActive verifies a steady stream of ops keeps the
+// TestIdleExitNotTriggeredWhileActive verifies a steady stream of reads keeps the
 // writer alive past the idle window — idle-exit must not race in-flight work.
 func TestIdleExitNotTriggeredWhileActive(t *testing.T) {
 	dir := t.TempDir()
@@ -68,18 +53,7 @@ func TestIdleExitNotTriggeredWhileActive(t *testing.T) {
 	}
 	sock := SocketPath(dir)
 
-	q, stop := startQueue(t)
-	defer stop()
-
-	// Accepting applier so SubmitSync succeeds (no-op write).
-	applier := func(env Envelope) (writequeue.WriteOp, error) {
-		return func(_ context.Context) error { return nil }, nil
-	}
-	ln, err := NewListener(ListenerConfig{
-		SocketPath: sock,
-		Queue:      q,
-		Applier:    applier,
-	})
+	ln, err := NewListener(ListenerConfig{SocketPath: sock})
 	if err != nil {
 		t.Fatalf("NewListener: %v", err)
 	}
@@ -89,15 +63,15 @@ func TestIdleExitNotTriggeredWhileActive(t *testing.T) {
 		serveErr <- ln.ServeWithIdleTimeout(context.Background(), 50*time.Millisecond)
 	}()
 
-	client := NewWriterClientForSocket(sock)
-	// Drive ops for ~250ms (5x the idle window). The writer must stay up.
+	client := NewReadClientForSocket(sock)
+	// Drive reads for ~250ms (5x the idle window). The daemon must stay up.
 	deadline := time.Now().Add(250 * time.Millisecond)
 	for time.Now().Before(deadline) {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-		_, err := client.Submit(ctx, Envelope{OpType: "noop", OpID: ""})
+		_, err := client.Ping(ctx)
 		cancel()
 		if err != nil {
-			t.Fatalf("submit while active failed (writer exited early?): %v", err)
+			t.Fatalf("ping while active failed (daemon exited early?): %v", err)
 		}
 		time.Sleep(10 * time.Millisecond)
 	}

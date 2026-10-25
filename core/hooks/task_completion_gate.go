@@ -33,6 +33,10 @@ type taskCompletionGateResult struct {
 	Output   string
 }
 
+// runTaskCompletionGateFn is runTaskCompletionGate behind a seam so tests can
+// see whether the gate ran.
+var runTaskCompletionGateFn = runTaskCompletionGate
+
 // runTaskCompletionGate detects the project type and runs the canonical test
 // command. Returns a warn-only result on timeout (fails open to avoid
 // stranding teammates indefinitely).

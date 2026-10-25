@@ -20,7 +20,6 @@ func TestPreToolUse_ResearchGuardsAdviseOutsideYolo(t *testing.T) {
 	clearNestedEnv(t)
 	t.Setenv("WIPNOTE_NO_AUTO_WRITER", "1")
 	t.Setenv("WIPNOTE_YOLO", "")
-	stubRouteSQLAsync(t, true)
 
 	cases := []struct {
 		name       string
@@ -32,7 +31,6 @@ func TestPreToolUse_ResearchGuardsAdviseOutsideYolo(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			featureIDCache = featureIDCacheEntry{}
 			sessionID := "019ee378-abcd-7000-8000-" + uuid.New().String()[24:]
 			projectDir := t.TempDir()
 			wipnoteDir := filepath.Join(projectDir, ".wipnote")

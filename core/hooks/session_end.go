@@ -3,12 +3,8 @@ package hooks
 import (
 	"database/sql"
 	"fmt"
-	"os"
 	"path/filepath"
-	"strings"
 	"time"
-
-	"github.com/shakestzd/wipnote/core/worktree"
 )
 
 // SessionEnd handles the SessionEnd Claude Code hook event.
@@ -41,6 +37,7 @@ import (
 // (FinalizeSessionHTML, backfillMissedUserPrompts, runSessionExitReconcile) are
 // intentionally omitted here to avoid duplicated work.
 func SessionEnd(event *CloudEvent, database *sql.DB, projectDir string) (*HookResult, error) {
+	_ = database
 	sessionID := EnvSessionID(event.SessionID)
 	if sessionID == "" {
 		return &HookResult{Continue: true}, nil
@@ -56,7 +53,6 @@ func SessionEnd(event *CloudEvent, database *sql.DB, projectDir string) (*HookRe
 
 	// 2. The essential writes, all local file or in-memory work: no git, no
 	// full ledger scan, no waiting on another process.
-	applySessionEndToProjection(database, projectDir, note)
 	closeSessionClaimsAndLedger(projectDir, note)
 
 	// 3. One SIGTERM to the collector, no wait. Draining it, the telemetry
@@ -66,67 +62,13 @@ func SessionEnd(event *CloudEvent, database *sql.DB, projectDir string) (*HookRe
 	return &HookResult{Continue: true}, nil
 }
 
-func cleanupEmptySpikeWorktreeOnSessionEnd(database *sql.DB, projectDir, sessionID string) error {
-	cfg := worktree.LoadCleanupConfig(projectDir)
-	if !cfg.Enabled() {
-		return nil
-	}
-
-	snapshot, err := loadSessionEndSnapshot(database, sessionID)
-	if err != nil {
-		return err
-	}
-	if inferTypeName(snapshot.ActiveFeatureID) != "spike" || snapshot.ExecWorktreePath == "" {
-		return nil
-	}
-	// Guard: only clean up the worktree when its path actually belongs to
-	// this spike. If the session ran in a shared track worktree (e.g.
-	// ".claude/worktrees/trk-…"), the path will not contain the spike ID —
-	// deleting it would destroy unrelated work.
-	if !strings.Contains(snapshot.ExecWorktreePath, snapshot.ActiveFeatureID) {
-		return nil
-	}
-
-	worktreePath := snapshot.ExecWorktreePath
-	if !filepath.IsAbs(worktreePath) {
-		worktreePath = filepath.Join(projectDir, filepath.FromSlash(worktreePath))
-	}
-
-	state, err := worktree.InspectCleanupState(projectDir, worktreePath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil
-		}
-		return err
-	}
-	if state.Locked {
-		return nil
-	}
-	if !state.Removable() {
-		_, snapErr := worktree.SnapshotPreservedWorktree(projectDir, worktreePath, snapshot.ActiveFeatureID, state)
-		return snapErr
-	}
-	if !completeIfInProgress(snapshot.ActiveFeatureID, database) {
-		return nil
-	}
-	return worktree.RemoveManagedWorktree(projectDir, worktreePath)
-}
-
-// SessionResume handles the SessionResume Claude Code hook event.
-// It updates the session status back to active and refreshes env vars.
+// SessionResume handles the SessionResume Claude Code hook event. It refreshes
+// the session's pid anchor and env vars. database is unused.
 func SessionResume(event *CloudEvent, database *sql.DB, projectDir string) (*HookResult, error) {
+	_ = database
 	sessionID := EnvSessionID(event.SessionID)
 	if sessionID == "" {
 		return &HookResult{Continue: true}, nil
-	}
-
-	if _, err := database.Exec(`
-		UPDATE sessions
-		SET status = 'active', completed_at = NULL
-		WHERE session_id = ? AND status = 'completed'`,
-		sessionID,
-	); err != nil {
-		debugLog(projectDir, "[error] handler=session-resume session=%s: update sessions: %v", sessionID[:minLen(sessionID, 8)], err)
 	}
 
 	// Refresh the session process-liveness anchor (feat-0a7db952, slice-1).
@@ -142,16 +84,7 @@ func SessionResume(event *CloudEvent, database *sql.DB, projectDir string) (*Hoo
 	// Re-export env vars so downstream hooks have the session ID.
 	writeEnvVars(sessionID, projectDir, activeSessionHarness(event))
 
-	// Fetch active feature for context message.
-	var featID sql.NullString
-	_ = database.QueryRow(
-		`SELECT active_feature_id FROM sessions WHERE session_id = ?`, sessionID,
-	).Scan(&featID)
-
 	msg := fmt.Sprintf("[wipnote] Session %s resumed.", sessionID[:minLen(sessionID, 8)])
-	if featID.Valid && featID.String != "" {
-		msg += fmt.Sprintf(" Active feature: %s", featID.String)
-	}
 
 	return &HookResult{Continue: true, AdditionalContext: msg}, nil
 }

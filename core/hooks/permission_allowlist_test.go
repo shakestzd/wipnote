@@ -32,18 +32,6 @@ func TestPermissionRequest_AllowlistedReadOnly_AutoAllows(t *testing.T) {
 	if result.HookSpecificOutput.HookEventName != "PermissionRequest" {
 		t.Errorf("hookEventName = %q, want PermissionRequest", result.HookSpecificOutput.HookEventName)
 	}
-
-	// The checkpoint must still have been recorded.
-	var count int
-	if err := td.DB.QueryRow(
-		`SELECT COUNT(*) FROM agent_events WHERE session_id = ? AND tool_name = 'PermissionRequest'`,
-		sessionID,
-	).Scan(&count); err != nil {
-		t.Fatalf("query agent_events: %v", err)
-	}
-	if count != 1 {
-		t.Errorf("expected 1 PermissionRequest checkpoint, got %d", count)
-	}
 }
 
 // TestPermissionRequest_WriteCommand_NoDecision verifies that a non-allowlisted

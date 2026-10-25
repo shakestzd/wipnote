@@ -5,16 +5,6 @@ const (
 	// Default walk-up levels when resolving .wipnote/ directory
 	defaultProjectDirWalkLevels = 10
 
-	// --- Text Truncation Limits ---
-	// Maximum characters for prompt summaries in UserPrompt hook
-	promptSummaryMaxLen = 300
-	// Maximum characters for output summaries in SubagentStop hook
-	outputSummaryMaxLen = 500
-	// Maximum characters for session last_user_query field
-	sessionQueryMaxLen = 200
-	// Maximum characters for debug log messages in missing_events
-	debugMsgMaxLen = 200
-
 	// --- Code Quality Limits ---
 	// Module size warning threshold (lines of code)
 	moduleWarnLines = 300

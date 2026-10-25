@@ -14,7 +14,6 @@ func writeEveryDebugLogKind(projectDir string) {
 	debugLogFields(projectDir, "h", map[string]string{"k": "v"}, "fields")
 	LogTimed(projectDir, "h", nil, time.Now(), "timed")
 	LogError("h", "sess-1234567890", "error")
-	RecordFallback("h", "sess-1234567890", FallbackWriterUnavailable, "detail")
 }
 
 // debugLogProject makes a temp project, runs from inside it and returns the
@@ -51,7 +50,7 @@ func TestDebugLog_OnWithEnv(t *testing.T) {
 	if err != nil {
 		t.Fatalf("debug.log not written with %s=1: %v", "WIPNOTE_DEBUG", err)
 	}
-	if got := strings.Count(string(raw), "\n"); got != 5 {
-		t.Fatalf("want 5 lines, got %d:\n%s", got, raw)
+	if got := strings.Count(string(raw), "\n"); got != 4 {
+		t.Fatalf("want 4 lines, got %d:\n%s", got, raw)
 	}
 }

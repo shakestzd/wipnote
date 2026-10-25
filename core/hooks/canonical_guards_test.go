@@ -27,7 +27,6 @@ func canonGuardProject(t *testing.T) string {
 		t.Fatal(err)
 	}
 	t.Chdir(projectDir)
-	featureIDCache = featureIDCacheEntry{}
 	return projectDir
 }
 
@@ -95,7 +94,6 @@ func TestOrchestratorResearchAdvisory_SidecarSuppresses(t *testing.T) {
 // (c) the UserPrompt ACTIVE line comes from the canonical claim ledger.
 func TestUserPrompt_ActiveLineFromClaimLedger(t *testing.T) {
 	projectDir := canonGuardProject(t)
-	stubDaemonRoute(t)
 	ev := &CloudEvent{SessionID: canonGuardSession, CWD: projectDir, Prompt: "carry on", Harness: HarnessClaude}
 	res, err := UserPrompt(ev, nil)
 	if err != nil {
@@ -113,7 +111,6 @@ func TestUserPrompt_ActiveLineFromClaimLedger(t *testing.T) {
 		AgentID: db.AgentRootSentinel, StartedAt: time.Now().UTC()}); err != nil {
 		t.Fatal(err)
 	}
-	featureIDCache = featureIDCacheEntry{}
 	ev.Prompt = "carry on, please"
 	res, err = UserPrompt(ev, nil)
 	if err != nil {

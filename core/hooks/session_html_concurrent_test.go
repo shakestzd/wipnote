@@ -11,10 +11,10 @@ import (
 	"github.com/shakestzd/wipnote/core/models"
 )
 
-// TestSessionHTML_ConcurrentAppendAndSetActiveFeature: appends must survive
-// concurrent SetSessionHTMLActiveFeature and same-session CreateSessionHTML
+// TestSessionHTML_ConcurrentAppendAndCreate: appends must survive
+// concurrent same-session CreateSessionHTML
 // replays. Without a shared flock those read-modify-write cycles lose events.
-func TestSessionHTML_ConcurrentAppendAndSetActiveFeature(t *testing.T) {
+func TestSessionHTML_ConcurrentAppendAndCreate(t *testing.T) {
 	projectDir := t.TempDir()
 	const sid = "sess-concurrent-html"
 	sess := &models.Session{SessionID: sid, AgentAssigned: "claude-code", Status: "active", CreatedAt: time.Now().UTC()}
@@ -23,14 +23,10 @@ func TestSessionHTML_ConcurrentAppendAndSetActiveFeature(t *testing.T) {
 	const n = 40
 	var wg sync.WaitGroup
 	for i := 0; i < n; i++ {
-		wg.Add(3)
+		wg.Add(2)
 		go func() {
 			defer wg.Done()
 			AppendEventToSessionHTML(projectDir, sid, SessionEvent{Timestamp: time.Now(), ToolName: "Bash", Success: true, EventID: "e"})
-		}()
-		go func() {
-			defer wg.Done()
-			_ = SetSessionHTMLActiveFeature(projectDir, sid, "feat-12345678")
 		}()
 		go func() {
 			defer wg.Done()

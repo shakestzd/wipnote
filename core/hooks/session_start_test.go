@@ -44,10 +44,7 @@ func TestSessionStartStoresProjectDir(t *testing.T) {
 	}
 
 	// Retrieve the session from DB and verify project_dir is stored.
-	got, err := db.GetSession(database, sessionID)
-	if err != nil {
-		t.Fatalf("GetSession: %v", err)
-	}
+	got := sessionHTMLRecord(t, projectDir, sessionID)
 	if want := paths.NormalizeProjectDir(projectDir); got.ProjectDir != want {
 		t.Errorf("project_dir mismatch: got %q, want %q", got.ProjectDir, want)
 	}
@@ -126,14 +123,6 @@ func TestSessionStartContinueHandoffAdditionalContext(t *testing.T) {
 	}
 	if result == nil || !strings.Contains(result.AdditionalContext, "Continued Session Handoff") {
 		t.Fatalf("AdditionalContext missing continue handoff: %#v", result)
-	}
-
-	sess, err := db.GetSession(database, "sess-continue-new")
-	if err != nil {
-		t.Fatalf("GetSession: %v", err)
-	}
-	if sess.ContinuedFrom != "sess-continue-old" {
-		t.Fatalf("ContinuedFrom = %q, want sess-continue-old", sess.ContinuedFrom)
 	}
 }
 

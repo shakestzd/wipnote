@@ -8,22 +8,18 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"sync/atomic"
 	"syscall"
 	"time"
 
 	"github.com/shakestzd/wipnote/core/daemon"
-	"github.com/shakestzd/wipnote/core/daemon/apply"
 	"github.com/shakestzd/wipnote/core/daemon/readsrv"
 	dbpkg "github.com/shakestzd/wipnote/core/db"
-	"github.com/shakestzd/wipnote/core/db/writequeue"
 	"github.com/shakestzd/wipnote/core/hooks"
-	otelreceiver "github.com/shakestzd/wipnote/observe/otel/receiver"
 	"github.com/shakestzd/wipnote/observe/otel/retention"
 	"github.com/spf13/cobra"
 )
 
-// serveChildCmd is the hidden per-project writer daemon. core/daemon spawns it
+// serveChildCmd is the hidden per-project daemon. core/daemon spawns it
 // as `_serve-child --headless` (spawnHeadlessWriter, from EnsureDaemon) for
 // the harness launchers only; hooks and CLI commands never start it
 // (bug-5ca53f70). It is never invoked by hand. The name and
@@ -44,21 +40,19 @@ func serveChildCmd() *cobra.Command {
 	return cmd
 }
 
-// runWriterOnly is the headless writer daemon (plan-bb91616a slice-2,
-// feat-075c110d MVP-2, feat-f6759e37 reads).
+// runWriterOnly is the headless per-project daemon (plan-bb91616a slice-2,
+// feat-f6759e37 reads). It applies no writes (feat-174dc958): the write ops it
+// once took landed in a private in-memory projection nothing read.
 //
 // Lifecycle:
 //  1. Acquire the heartbeat single-owner lease. A racing loser gets
 //     daemon.ErrLeaseHeld and exits 0 (the existing owner serves the socket).
 //     The winner keeps the heartbeat running and stops serving the moment
 //     the lease stops naming it (bug-5ca53f70).
-//  2. Start the telemetry catch-up loop. It reads only events.ndjson, so it
-//     does not need the projection (bug-98f32723).
-//  3. Open the in-memory projection, start the single-writer queue, and
-//     submit the startup hydrate as the queue's FIRST op.
-//  4. Bind the per-project Unix socket and serve at once, while the hydrate
-//     runs (bug-06d2c91d). See core/daemon/socket_ready.go for what callers
-//     see until it ends.
+//  2. Start the telemetry catch-up loop. It reads only events.ndjson
+//     (bug-98f32723).
+//  3. Start the maintenance loops, bind the per-project Unix socket and
+//     serve reads from canonical state until ctx ends.
 func runWriterOnly() error {
 	wipnoteDir, err := findWipnoteDir()
 	if err != nil {
@@ -69,7 +63,7 @@ func runWriterOnly() error {
 	lease, err := daemon.AcquireLease(projectRoot)
 	if err != nil {
 		if err == daemon.ErrLeaseHeld {
-			// Another process already owns the writer — nothing to do.
+			// Another process already owns the daemon — nothing to do.
 			fmt.Fprintln(os.Stderr, "wipnote: writer already owned; exiting")
 			return nil
 		}
@@ -81,80 +75,10 @@ func runWriterOnly() error {
 	defer cancel()
 	lease.Keep(ctx, cancel)
 
-	// Telemetry catch-up must NOT wait for the startup hydrate: a loop
-	// started after it left every unmarked shard unfinalized for as long as
-	// the hydrate took (bug-98f32723). Catch-up reads only events.ndjson and
-	// uses its own projection, so it is safe to run now.
 	startTelemetryCatchUpLoop(ctx, telemetryCatchUpInterval, projectRoot)
-	return serveWriter(ctx, cancel, wipnoteDir, lease)
-}
-
-// serveWriter owns the daemon's single writable projection and serves the
-// socket until ctx ends (signal, idle exit, or a failed hydrate).
-func serveWriter(ctx context.Context, cancel context.CancelFunc, wipnoteDir string, lease *daemon.Lease) error {
-	writeDB, err := dbpkg.OpenEphemeralProjection()
-	if err != nil {
-		return fmt.Errorf("open ephemeral compatibility db: %w", err)
-	}
-	defer writeDB.Close()
-
-	// The OTel signals Writer BORROWS the single writable handle above rather
-	// than opening its own pool (feat-075c110d): with MaxOpenConns=1 it takes
-	// the pool connection per batch, and that serialization is the
-	// single-writer guarantee.
-	writer, err := otelreceiver.NewWriterFromDB(writeDB)
-	if err != nil {
-		return fmt.Errorf("writer service init: %w", err)
-	}
-	defer writer.Close()
-
-	q := writequeue.New(writequeue.Config{
-		Capacity: writequeue.DefaultCapacity,
-		OnError:  func(err error) { log.Printf("writequeue: op error: %v", err) },
-	})
-	if err := q.Start(ctx); err != nil {
-		return fmt.Errorf("writer queue start: %w", err)
-	}
-	defer q.Stop(drainGrace)
-	// Runs before the Stop above: an idle or ownership exit ends only the
-	// listener's own context, so cancel the daemon's too, which tells an
-	// unfinished hydrate to stop instead of holding Stop's grace period.
-	defer cancel()
-
-	ready, err := submitStartupHydrate(ctx, cancel, q, writeDB, wipnoteDir)
-	if err != nil {
-		return err
-	}
 	defer stopOnSignal(ctx, cancel)()
-
-	// Background maintenance (feat-075c110d increment 2) — see
-	// startWriterMaintenance for which loops run and why.
 	startWriterMaintenance(ctx, wipnoteDir)
-	return bindAndServe(ctx, wipnoteDir, q, writer.DB(), ready.Load, lease)
-}
-
-// submitStartupHydrate queues the projection build as the FIRST op on q, so
-// every socket op, which can only arrive later, applies after it in FIFO
-// order. The returned flag turns true when the build ends; the listener uses
-// it as its readiness gate. A failed build cancels ctx and the daemon exits,
-// as it did when the build ran before the socket was bound.
-func submitStartupHydrate(ctx context.Context, cancel context.CancelFunc, q *writequeue.Queue, database *sql.DB, wipnoteDir string) (*atomic.Bool, error) {
-	ready := new(atomic.Bool)
-	build := func(opCtx context.Context) error {
-		start := time.Now()
-		if err := hydrateWriterDB(opCtx, database, wipnoteDir); err != nil {
-			log.Printf("writer: hydrate compatibility db: %v", err)
-			cancel()
-			return err
-		}
-		ready.Store(true)
-		log.Printf("writer: startup projection built in %s", time.Since(start).Round(time.Millisecond))
-		return nil
-	}
-	if err := q.Submit(ctx, build); err != nil {
-		return nil, fmt.Errorf("queue startup hydrate: %w", err)
-	}
-	return ready, nil
+	return bindAndServe(ctx, wipnoteDir, lease)
 }
 
 // stopOnSignal cancels ctx on SIGINT/SIGTERM (feat-075c110d lifecycle
@@ -174,32 +98,25 @@ func stopOnSignal(ctx context.Context, cancel context.CancelFunc) func() {
 	return func() { signal.Stop(sigC) }
 }
 
-// bindAndServe binds the per-project socket and serves until ctx ends or the
-// daemon idles out.
-//
-// Writes go through the real derived-op Applier on writeDB, the same single
-// writable handle the OTel sink and the hydrate use. Reads (feat-f6759e37) are
-// answered from CANONICAL state — the .wipnote HTML files — by readsrv, so they
-// share nothing with the write path and work before the hydrate ends.
-func bindAndServe(ctx context.Context, wipnoteDir string, q *writequeue.Queue, writeDB *sql.DB, ready func() bool, lease *daemon.Lease) error {
+// bindAndServe binds the per-project socket and serves reads until ctx ends
+// or the daemon idles out. Reads (feat-f6759e37) are answered from CANONICAL
+// state — the .wipnote HTML files — by readsrv.
+func bindAndServe(ctx context.Context, wipnoteDir string, lease *daemon.Lease) error {
 	projectRoot := filepath.Dir(wipnoteDir)
 	ln, err := daemon.NewListener(daemon.ListenerConfig{
 		SocketPath: daemon.SocketPath(projectRoot),
-		Queue:      q,
-		Applier:    apply.NewApplier(writeDB),
 		Reader:     readsrv.Reader(readsrv.NewCache(wipnoteDir)),
 		Lease:      lease,
-		Ready:      ready,
 	})
 	if err != nil {
 		return fmt.Errorf("bind writer socket: %w", err)
 	}
 	defer ln.Close()
 
-	// Readiness signal: the socket is bound and the queue is running.
+	// Readiness signal: the socket is bound.
 	log.Printf("wipnote: writer-only daemon ready socket=%s pid=%d", ln.Addr(), os.Getpid())
 
-	// The writer is spawned detached by a launcher, so it idle-exits after
+	// The daemon is spawned detached by a launcher, so it idle-exits after
 	// writerIdleTimeout once no client remains, rather than lingering.
 	return ln.ServeWithIdleTimeout(ctx, writerIdleTimeout())
 }
@@ -208,11 +125,6 @@ func bindAndServe(ctx context.Context, wipnoteDir string, q *writequeue.Queue, w
 // (archive completed sessions, sweep stale NDJSON). It matches the cadence
 // retention.StartLoop used before this function drove the ticker itself.
 const retentionSweepInterval = 24 * time.Hour
-
-// hydrateWriterDB builds the daemon's startup projection. It stops between
-// passes once ctx ends (bug-5ca53f70). It is a variable so a test can make it
-// block and prove the maintenance loops do not wait for it.
-var hydrateWriterDB = hydrateCompatibilityDBCtx
 
 // telemetryCatchUpBudget bounds the telemetry catch-up that runs before each
 // retention sweep (daemon and `wipnote prune`). Neither runs under a hook cap,
@@ -289,23 +201,15 @@ const telemetryCatchUpBudget = 2 * time.Minute
 //     canonical data. claim_episodes is hydrated but carries no
 //     last_heartbeat_at, so it is not a substitute: "episode still open" is not
 //     "heartbeat within N minutes".
-//   - ORPHAN DRAIN — OFF. hooks.SweepOrphanedEventsForProject selects from
-//     agent_events (event_repo.go:392), which the projection never hydrates, so
-//     it finds zero orphans on every pass. This one fails CLOSED — an empty
-//     table means it sweeps nothing — so it is harmless, but it would pay a
-//     full project hydrate every five minutes to guarantee finding nothing.
-//   - REAPER — OFF. Its heartbeat guard is dead the same way the sweep's is:
-//     db.SessionLivenessByHeartbeat reads MAX(last_heartbeat_at) FROM claims
-//     (session_repo.go:586), so heartbeatStale is permanently true. Unlike the
-//     sweep it is NOT dangerous, because SessionReapEligible ANDs that with
-//     !IsSessionProcessAlive (session_liveness.go:224), a pid-file + kill(0)
-//     check that degrades to LIVE on any uncertainty. It stays off for a
-//     different reason: its only durable output is closing claim episodes in
-//     the canonical ledger, and it cannot record that it did so — the session
-//     stays open in sessions-ledger.html because the remediation is an UPDATE
-//     against the projection — so every daemon restart re-reaps the same dead
-//     sessions. Restore it once that close is durable; the orphaned-collector
-//     reaping it also does is real work being deferred with it.
+//   - ORPHAN DRAIN — DELETED (feat-174dc958). Orphaned tool calls are now
+//     found from the canonical tool log at session start
+//     (core/hooks/tool_orphan_sweep.go); agent_events, which the old drain
+//     read, is never hydrated.
+//   - REAPER — DELETED (feat-174dc958). Its guards read tables no hook or
+//     daemon path fills (claims heartbeats, sessions status), so it could not
+//     tell a live session from a dead one except by pid file. Nothing reaps
+//     crashed sessions now; a session that never reports an end stays open in
+//     the ledger.
 //   - AUTO-INGEST — OFF. Both of its skip guards read unhydrated state:
 //     CountMessages reads `messages`, so it always returns 0, and the
 //     transcript_synced mtime guard reads a column the ledger hydration never
@@ -347,8 +251,8 @@ func startWriterMaintenance(ctx context.Context, wipnoteDir string) {
 		})
 	})
 
-	// Telemetry catch-up is started by runWriterOnly before the startup hydrate,
-	// so it is not delayed by it.
+	// Telemetry catch-up is started by runWriterOnly before these loops,
+	// so it is not delayed by them.
 
 	// Out-of-band reconcile drain (feat-c08d1ba1 slice-6). No projection: the
 	// callee ignores the handle and reads canonical artifacts directly, so
@@ -386,7 +290,3 @@ func writerIdleTimeout() time.Duration {
 	}
 	return daemon.DefaultIdleTimeout
 }
-
-// drainGrace bounds how long the headless writer waits for in-flight ops to
-// commit on shutdown.
-const drainGrace = 2 * time.Second

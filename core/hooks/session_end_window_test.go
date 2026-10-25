@@ -136,7 +136,7 @@ func TestSessionEnd_CollectorIgnoringSIGTERMDoesNotHoldHook(t *testing.T) {
 		t.Error("pid file removed although the collector is still alive")
 	}
 
-	CatchUpEndedSessions(td.DB, f.projectDir, "", true)
+	CatchUpEndedSessions(f.projectDir, "", true)
 	select {
 	case <-exited:
 	case <-time.After(3 * time.Second):

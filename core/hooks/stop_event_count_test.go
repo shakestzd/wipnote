@@ -28,7 +28,6 @@ func TestStop_EventCountFromCanonicalToolLog(t *testing.T) {
 	t.Setenv("CLAUDE_SESSION_ID", "")
 	t.Setenv("WIPNOTE_PARENT_SESSION", "")
 	t.Chdir(projectDir)
-	stubDaemonRoute(t)
 
 	database, err := db.OpenEphemeralProjection()
 	if err != nil {
@@ -63,15 +62,6 @@ func TestStop_EventCountFromCanonicalToolLog(t *testing.T) {
 	if !strings.Contains(string(raw), `data-event-count="3"`) {
 		t.Fatalf("want data-event-count=\"3\" (canonical log), got:\n%s", eventCountAttr(string(raw)))
 	}
-}
-
-// stubDaemonRoute makes every daemon-routed write succeed without a daemon, so
-// a test never falls back to a file-backed database.
-func stubDaemonRoute(t *testing.T) {
-	t.Helper()
-	prev := routeSQLAsync
-	routeSQLAsync = func(string, string, ...any) bool { return true }
-	t.Cleanup(func() { routeSQLAsync = prev })
 }
 
 func eventCountAttr(html string) string {

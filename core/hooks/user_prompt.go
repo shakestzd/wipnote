@@ -4,16 +4,12 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
-	"time"
 
-	"github.com/google/uuid"
-	"github.com/shakestzd/wipnote/core/db"
 	"github.com/shakestzd/wipnote/core/ingest"
-	"github.com/shakestzd/wipnote/core/models"
 )
 
 // UserPrompt handles the UserPromptSubmit Claude Code hook event.
-// It inserts a UserQuery agent_event and returns the active work item as a
+// It returns the active work item (the session's open claim) as a
 // terse one-liner.
 func UserPrompt(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 	sessionID := resolveSessionIDWithHarness(event)
@@ -30,63 +26,14 @@ func UserPrompt(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 		return &HookResult{Continue: true}, nil
 	}
 
-	// Resolve the project root once for daemon-first write routing (plan-2390966a
-	// slice-4). It is the parent of .wipnote/ and feeds RouteHookWrite's daemon
-	// enqueue + bounded-fallback DBPath resolution.
 	projectDir := ResolveProjectDir(event.CWD, event.SessionID)
-
-	// Backfill: ensure this session has a row in SQLite. The SessionStart hook
-	// may not have fired (session started before plugin loaded, or hook failed).
-	// This is idempotent — INSERT OR IGNORE won't overwrite existing rows.
-	ensureSessionExists(database, projectDir, sessionID, event)
-
-	featureID := cachedGetActiveFeatureID(database, sessionID)
-	if featureID == "" {
-		// The hot-hook dispatch has no index (feat-af8d1689): the open claim in
-		// the canonical claim ledger is the active work item.
-		featureID = canonicalActiveWorkItem(projectDir, sessionID)
-	}
+	// The open claim in the canonical claim ledger is the active work item.
+	featureID := canonicalActiveWorkItem(projectDir, sessionID)
 
 	promptSummary := sanitizePrompt(event.Prompt)
-	if promptSummary == "" {
+	if promptSummary == "" || ingest.IsSystemMessage(promptSummary) {
 		return &HookResult{Continue: true}, nil
 	}
-	if ingest.IsSystemMessage(promptSummary) {
-		return &HookResult{Continue: true}, nil
-	}
-	if len(promptSummary) > promptSummaryMaxLen {
-		promptSummary = promptSummary[:promptSummaryMaxLen] + "…"
-	}
-
-	// Dedup: skip if identical UserQuery was recorded in last 5 seconds.
-	recentCount, _ := db.CountRecentDuplicates(database, sessionID, "UserQuery", promptSummary, 5)
-	if recentCount > 0 {
-		return &HookResult{Continue: true}, nil
-	}
-
-	ev := &models.AgentEvent{
-		EventID:      uuid.New().String(),
-		AgentID:      resolveEventAgentID(event),
-		EventType:    models.EventToolCall,
-		Timestamp:    time.Now().UTC(),
-		ToolName:     "UserQuery",
-		InputSummary: promptSummary,
-		SessionID:    sessionID,
-		FeatureID:    featureID,
-		Status:       "recorded",
-		Source:       "hook",
-		CreatedAt:    time.Now().UTC(),
-		UpdatedAt:    time.Now().UTC(),
-	}
-
-	// Route the UserQuery agent_events INSERT through the daemon-first enqueue
-	// path (plan-2390966a slice-4): no direct writable handle when the daemon is
-	// reachable, <1s bounded fallback otherwise. Best-effort like the prior
-	// db.InsertEvent — the canonical NDJSON + reindex backstop recovers the row.
-	_ = RouteInsertEvent("user-prompt", projectDir, sessionID, ev, database)
-
-	// Update session last_user_query fields.
-	updateLastQuery(database, projectDir, sessionID, event.Prompt)
 
 	// Per-turn context is only the terse active-item line. The keyword
 	// classifier that added delegation directives on every prompt was retired:
@@ -100,56 +47,6 @@ func UserPrompt(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 	return result, nil
 }
 
-// ensureSessionExists creates a minimal session row if one doesn't exist.
-// This backfills sessions that started before the plugin was loaded or when
-// the SessionStart hook failed. The INSERT OR IGNORE is idempotent.
-// agent_assigned is set from the incoming event so that Codex/Gemini sessions
-// are correctly attributed (not hardcoded to 'claude-code').
-//
-// The existence probe is a READ (no lock contention); the backfill INSERT is
-// routed through the daemon-first enqueue path (plan-2390966a slice-4) so it
-// never opens a direct writable handle when the daemon is reachable and degrades
-// to a <1s bounded fallback otherwise.
-//
-// A nil database (the hot-hook dispatch, feat-af8d1689) has no row to find, so
-// it routes the backfill exactly as the empty projection it replaced did.
-func ensureSessionExists(database *sql.DB, projectDir, sessionID string, event *CloudEvent) {
-	if sessionID == "" {
-		return
-	}
-	if database != nil {
-		var exists int
-		database.QueryRow("SELECT 1 FROM sessions WHERE session_id = ?", sessionID).Scan(&exists) //nolint:errcheck
-		if exists == 1 {
-			return
-		}
-	}
-	now := time.Now().UTC().Format(time.RFC3339)
-	agentID := resolveEventAgentID(event)
-	_ = routeHookWriteVia("user-prompt", projectDir, sessionID, database, `
-		INSERT OR IGNORE INTO sessions (session_id, agent_assigned, status, created_at, project_dir)
-		VALUES (?, ?, 'active', ?, ?)`,
-		sessionID, agentID, now, ResolveProjectDir(event.CWD, event.SessionID))
-}
-
-// updateLastQuery refreshes last_user_query_at and last_user_query on the
-// session. The UPDATE is routed through the daemon-first enqueue path
-// (plan-2390966a slice-4) — best-effort, never blocking the hook.
-func updateLastQuery(database *sql.DB, projectDir, sessionID, prompt string) {
-	summary := prompt
-	if len(summary) > sessionQueryMaxLen {
-		summary = summary[:sessionQueryMaxLen] + "…"
-	}
-	now := time.Now().UTC().Format(time.RFC3339)
-	_ = routeHookWriteVia("user-prompt", projectDir, sessionID, database, `
-		UPDATE sessions
-		SET last_user_query_at = ?,
-		    last_user_query = ?
-		WHERE session_id = ?`,
-		now, summary, sessionID,
-	)
-}
-
 // buildActiveItemOneLiner returns a terse "ACTIVE: <id> — <title>" string when
 // an active item is set, or empty string when none. Used per-turn in UserPromptSubmit.
 //
@@ -159,17 +56,11 @@ func buildActiveItemOneLiner(database *sql.DB, projectDir, featureID string) str
 	if featureID == "" {
 		return ""
 	}
-	if database == nil {
-		if title := canonicalWorkItemTitle(projectDir, featureID); title != "" {
-			return fmt.Sprintf("ACTIVE: %s — %s", featureID, title)
-		}
-		return fmt.Sprintf("ACTIVE: %s", featureID)
+	_ = database
+	if title := canonicalWorkItemTitle(projectDir, featureID); title != "" {
+		return fmt.Sprintf("ACTIVE: %s — %s", featureID, title)
 	}
-	item, found := LookupWorkItem(database, featureID)
-	if !found || item.Title == "" {
-		return fmt.Sprintf("ACTIVE: %s", featureID)
-	}
-	return fmt.Sprintf("ACTIVE: %s — %s", featureID, item.Title)
+	return fmt.Sprintf("ACTIVE: %s", featureID)
 }
 
 // sanitizePrompt strips XML notification/reminder blocks from prompt text.

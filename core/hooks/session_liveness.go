@@ -215,11 +215,3 @@ func IsSessionProcessAlive(sessDir string) bool {
 	}
 	return actualStart == recordedStart
 }
-
-// SessionReapEligible is the pure reap-eligibility predicate. A session may be
-// reaped ONLY when its heartbeat is stale AND its owning process is provably not
-// alive. No DB access — slice-2 computes heartbeatStale from the DB and
-// ReaperSessionTTL, then calls this.
-func SessionReapEligible(heartbeatStale bool, sessDir string) bool {
-	return heartbeatStale && !IsSessionProcessAlive(sessDir)
-}
