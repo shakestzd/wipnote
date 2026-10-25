@@ -44,7 +44,7 @@ func ReplaceDelegationRuns(db *sql.DB, recs []delegationledger.Record) error {
 
 func delegationRunArgs(r delegationledger.Record) []any {
 	ended := ""
-	if !r.IsOpen() {
+	if !r.Ended.IsZero() {
 		ended = delegationledger.FormatTime(r.Ended)
 	}
 	var exit any

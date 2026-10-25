@@ -98,6 +98,7 @@ func buildRoot() *cobra.Command {
 	initClaimLedgerCommitSeam()
 	initSessionLedgerCommitSeam()
 	initGateLedgerCommitSeam()
+	initDelegationLedgerCommitSeam()
 
 	spike := workitemCmd("spike", "spikes")
 	spike.AddCommand(spikeResetCmd())
@@ -193,6 +194,7 @@ func buildRoot() *cobra.Command {
 			{GroupID: "dev", Command: buildCmd()},
 			{GroupID: "dev", Command: agentInitCmd()},
 			{GroupID: "dev", Command: shCmd()},
+			{GroupID: "dev", Command: delegateCmd()},
 		},
 		Ungrouped: []*cobra.Command{
 			versionCmd(),

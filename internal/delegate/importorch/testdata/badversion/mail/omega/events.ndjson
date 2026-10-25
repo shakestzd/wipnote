@@ -1,0 +1,2 @@
+{"v":1,"seq":1,"ts":1790000010,"session":"omega","kind":"session_start","sid":"sess-omega-1"}
+{"v":3,"ts":1790000020,"session":"omega","kind":"stop","sid":"sess-omega-1"}
