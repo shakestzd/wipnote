@@ -105,8 +105,9 @@ type Record struct {
 	ResumedFrom    string // dlg- id of the run this one resumed
 }
 
-// IsOpen reports whether the run has no recorded end.
-func (r Record) IsOpen() bool { return r.Ended.IsZero() }
+// IsOpen reports whether the run has no recorded end. An imported row
+// (end_reason=imported) is closed even when orch left no end time.
+func (r Record) IsOpen() bool { return r.Ended.IsZero() && r.EndReason == "" }
 
 // LastWorkerSession returns the newest worker session id, or "".
 func (r Record) LastWorkerSession() string {
@@ -148,10 +149,10 @@ func (r Record) Validate() error {
 	if r.Started.IsZero() {
 		return fmt.Errorf("delegationledger: run %s missing started", r.ID)
 	}
-	if r.IsOpen() != (r.EndReason == "") {
+	if r.Ended.IsZero() != (r.EndReason == "") && r.EndReason != EndImported {
 		return fmt.Errorf("delegationledger: run %s: ended and end_reason must be set together", r.ID)
 	}
-	if !r.IsOpen() && r.Ended.Before(r.Started) {
+	if !r.Ended.IsZero() && r.Ended.Before(r.Started) {
 		return fmt.Errorf("delegationledger: run %s ends before it starts", r.ID)
 	}
 	if r.Name != "" && r.Mode != ModeInteractive {

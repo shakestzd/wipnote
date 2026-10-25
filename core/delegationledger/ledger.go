@@ -47,7 +47,7 @@ type column struct{ name, value string }
 // names, so the parse side reads attributes only.
 func columns(r Record) []column {
 	ended := ""
-	if !r.IsOpen() {
+	if !r.Ended.IsZero() {
 		ended = FormatTime(r.Ended)
 	}
 	exit := ""

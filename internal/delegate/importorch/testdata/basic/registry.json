@@ -1,0 +1,14 @@
+{"v": 1, "tab": null, "sessions": {
+  "alpha": {"name": "alpha", "kind": "claude", "container": false, "pane": "w1-p1", "terminal_id": "t-1",
+    "cwd": "{{HOSTDIR}}/proj", "created_at": 1790000000, "mailbox": "{{MAILROOT}}/alpha", "state": "done",
+    "owner": "orchestrator", "run_id": "a1b2c3d4", "mode": "interactive", "label": "derived-alpha",
+    "launched_by": {"host": "mac", "pane": "w1-p0", "session": "{{HOSTDIR}}/.claude/projects/proj/0b9c6a1e-2f3d-4c5b-8a79-1e2d3c4b5a69.jsonl", "cwd": "{{HOSTDIR}}/proj", "at": 1790000000}},
+  "beta": {"name": "beta", "kind": "codex_exec", "container": false, "cwd": "{{HOSTDIR}}/proj",
+    "created_at": 1790000100, "mailbox": "{{MAILROOT}}/beta", "state": "done", "run_id": "0f0e0d0c",
+    "mode": "headless", "launched_by": {"session": "caller-plain-1"}},
+  "gamma": {"name": "gamma", "kind": "claude", "container": true, "cwd": "/workspaces/proj",
+    "created_at": 1790000200, "mailbox": "{{MAILROOT}}/gamma", "state": "idle", "run_id": "11223344",
+    "mode": "interactive", "work_item": "feat-0a1b2c3d"},
+  "delta": {"name": "delta", "kind": "pi", "container": false, "created_at": 1790000300,
+    "mailbox": "{{MAILROOT}}/delta", "state": "done", "run_id": "55667788", "mode": "interactive"}
+}}

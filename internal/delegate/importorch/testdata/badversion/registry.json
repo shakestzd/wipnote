@@ -1,0 +1,4 @@
+{"v": 1, "sessions": {
+  "omega": {"name": "omega", "kind": "claude", "container": false, "created_at": 1790000000,
+    "mailbox": "{{MAILROOT}}/omega", "state": "done", "run_id": "99aa99aa", "mode": "interactive"}
+}}
