@@ -7,7 +7,7 @@ meta:
     status: draft
     priority: medium
     schema_version: v4
-    version: 11
+    version: 12
 design:
     problem: |
         ## Problem
@@ -1954,9 +1954,9 @@ critique:
                 - badge: Fixed
                   kind: warn
                   text: 'C: new slice 21 runs workers in the project''s own devcontainer; slices 8 and 10 point to it.'
-                - badge: Open
-                  kind: warn
-                  text: 'L: each worker gets its own tab (cap 6), as the owner said. orch actually opens ONE workers tab per run and splits inside it (orch src/orch/service/placement.py:place). The owner should confirm a tab per worker is meant.'
+                - badge: Resolved
+                  kind: success
+                  text: 'L (resolved 2026-10-25): the owner chose exactly orch''s layout: one workers tab per caller in the caller''s workspace, each new worker a split inside it, cap 6. Slices 6, 10 and 19 fixed; tests cover the 2nd worker splitting the tab and the 7th refused.'
                 - badge: Fixed
                   kind: success
                   text: D1 to D6 are two-sided regression tests in slices 5, 10 and 11.
@@ -2018,9 +2018,12 @@ critique:
                 - badge: Fixed
                   kind: warn
                   text: Slice 18 links imported rows by session id, reads archived mailboxes, takes --mail-root, and reads event format v1 and v2.
-                - badge: Open
-                  kind: warn
-                  text: F-1 says wait never writes session state, but wait still adds /clear sessions to the ledger and runs the worker-loss close (slices 11, 16). Both run under the ledger lock and recheck that the row is open. The owner should confirm.
+                - badge: Resolved
+                  kind: success
+                  text: 'F-1 (resolved 2026-10-25): the owner kept the design. wait writes the ledger only under the ledger lock and only on an open row, so a stop always wins (q-wait-writes). Two-sided test in slice 11.'
+                - badge: Resolved
+                  kind: success
+                  text: 'ccx redirect (resolved 2026-10-25): a bare ccx task is denied with the translated `wipnote delegate run --container -- <task args>`, the one exception to slice 9''s exact-argv rule, tested as its own case.'
     risks:
         - risk: Inherited WIPNOTE_* session env mis-parents a worker as a subagent of its caller.
           severity: High
@@ -2046,7 +2049,7 @@ critique:
         - risk: A run folder is swept before a resume.
           severity: Low
           mitigation: Resume refuses with that reason (slice 20).
-    synthesis: 'All danger items are fixed in this revision. Blockers left: spike spk-87139e0e decides whether delegate run keeps a headless path (slice 8); bug-01f182e5 must be fixed before the worker claim gate (slice 16); slice 1 needs the owner''s orch source; slice 2 must run on the owner''s Mac. The reviewer should look first at slices 10 and 16 (claims), slice 17 (typing answers into panes) and slice 19 (the orchestra merge). Round 3 (2026-10-25): owner decisions R, S, C, L, D and E and the orch inventory findings are applied. New slices: 20 (resume) and 21 (devcontainer workers). Open for the owner: a tab per worker versus orch''s single workers tab (L), and whether wait may still make the two ledger writes under the lock (F-1).'
+    synthesis: 'All danger items are fixed in this revision. Blockers left: spike spk-87139e0e decides whether delegate run keeps a headless path (slice 8); bug-01f182e5 must be fixed before the worker claim gate (slice 16); slice 1 needs the owner''s orch source; slice 2 must run on the owner''s Mac. The reviewer should look first at slices 10 and 16 (claims), slice 17 (typing answers into panes) and slice 19 (the orchestra merge). Round 3 (2026-10-25): owner decisions R, S, C, L, D and E and the orch inventory findings are applied. New slices: 20 (resume) and 21 (devcontainer workers). The owner then resolved the open points: layout is exactly orch''s (one workers tab per caller, splits, cap 6); wait may write the ledger only under the lock on an open row (F-1); the ccx deny reason shows the --container form (slice 9 exception).'
 feedback:
     entries:
         - section: questions
