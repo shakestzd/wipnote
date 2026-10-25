@@ -9,10 +9,19 @@ import (
 	"time"
 )
 
-// debugLog writes a diagnostic message to .wipnote/debug.log if it can be resolved.
-// Silently no-ops if the project dir can't be found or the file can't be opened.
+// debugLogEnv turns the hook diagnostic log on. Every hook call used to append
+// several lines to .wipnote/debug.log unconditionally, so the file grew by
+// megabytes and each line cost an open/append/close (feat-af8d1689).
+const debugLogEnv = "WIPNOTE_DEBUG"
+
+// debugLogEnabled reports whether WIPNOTE_DEBUG=1 is set for this process.
+func debugLogEnabled() bool { return os.Getenv(debugLogEnv) == "1" }
+
+// debugLog writes a diagnostic message to .wipnote/debug.log when
+// WIPNOTE_DEBUG=1. Silently no-ops otherwise, or when the project dir can't be
+// found or the file can't be opened.
 func debugLog(projectDir, format string, args ...any) {
-	if projectDir == "" {
+	if projectDir == "" || !debugLogEnabled() {
 		return
 	}
 	logPath := filepath.Join(projectDir, ".wipnote", "debug.log")
@@ -28,9 +37,10 @@ func debugLog(projectDir, format string, args ...any) {
 // debugLogFields writes a structured log line with key=value pairs to debug.log.
 // Format: 2006-01-02T15:04:05 handler=<h> <key=value ...> <msg>
 // Fields are sorted by key for deterministic output. Silently no-ops when
-// projectDir is empty or the log file cannot be opened.
+// projectDir is empty, WIPNOTE_DEBUG=1 is unset, or the log file cannot be
+// opened.
 func debugLogFields(projectDir, handler string, fields map[string]string, msg string) {
-	if projectDir == "" {
+	if projectDir == "" || !debugLogEnabled() {
 		return
 	}
 	logPath := filepath.Join(projectDir, ".wipnote", "debug.log")
@@ -71,6 +81,9 @@ func debugLogFields(projectDir, handler string, fields map[string]string, msg st
 // It resolves the project dir from env/CWD so it can be called from cmd/wipnote
 // where projectDir is not yet known. Silently no-ops if the project cannot be found.
 func LogError(handler, sessionID, msg string) {
+	if !debugLogEnabled() {
+		return
+	}
 	projectDir := resolveLogDir()
 	if projectDir == "" {
 		return
@@ -86,6 +99,9 @@ func LogError(handler, sessionID, msg string) {
 // Convenience wrapper for timing call sites — adds a "duration" field automatically.
 // fields may be nil; a new map is allocated internally if so.
 func LogTimed(projectDir, handler string, fields map[string]string, start time.Time, msg string) {
+	if !debugLogEnabled() {
+		return
+	}
 	if fields == nil {
 		fields = map[string]string{}
 	}

@@ -95,6 +95,9 @@ func RecordFallback(handler, sessionID string, reason FallbackReason, detail str
 	case FallbackTimeout:
 		fallbackTimeout.Add(1)
 	}
+	if !debugLogEnabled() {
+		return
+	}
 	projectDir := resolveLogDir()
 	if projectDir == "" {
 		return
