@@ -10,20 +10,26 @@
 <body>
     <article id="feat-39bc46a1"
              data-type="feature"
-             data-status="todo"
+             data-status="in-progress"
              data-priority="medium"
              data-created="2026-10-25T14:56:32.980001"
-             data-updated="2026-10-25T14:56:32.981557" data-agent-assigned="claude-code" data-track-id="trk-2e707ed1">
+             data-updated="2026-10-25T14:59:54.208493" data-agent-assigned="claude-code" data-track-id="trk-2e707ed1">
 
         <header>
             <h1>herdr adapter in Go</h1>
             <div class="metadata">
-                <span class="badge status-todo">Todo</span>
+                <span class="badge status-in-progress">In Progress</span>
                 <span class="badge priority-medium">Medium Priority</span>
             </div>
         </header>
 
         <nav data-graph-edges>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="../sessions/1c92d9d4-85b0-5403-a06e-93312ec46faf.html" data-relationship="implemented_in" data-since="2026-10-25T14:59:42.785046">session 1c92d9d4-85b0-5403-a06e-93312ec46faf</a></li>
+                </ul>
+            </section>
             <section data-edge-type="part_of">
                 <h3>Part Of:</h3>
                 <ul>
@@ -37,6 +43,16 @@
                 </ul>
             </section>
         </nav>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="false" data-step-id="step-feat-39bc46a1-0" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Layout: one-shot tile matches layout.ts for 1 to 7 panes; workers tab per caller split like orch, cap 6</li>
+                <li data-completed="false" data-step-id="step-feat-39bc46a1-1" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Detection: herdr used only when HERDR_ENV=1; HERDR_PANE_ID trusted only then</li>
+                <li data-completed="false" data-step-id="step-feat-39bc46a1-2" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Errors: every call has a timeout; exit 1 parses herdr stderr JSON; exit 2 is a usage error, never a timeout</li>
+                <li data-completed="false" data-step-id="step-feat-39bc46a1-3" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Fake: Go fake replays scripted replies; an unscripted call fails the test</li>
+            </ol>
+        </section>
 
         <section data-content>
             <h3>Description</h3>
