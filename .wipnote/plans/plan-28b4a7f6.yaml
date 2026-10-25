@@ -1277,3 +1277,29 @@ questions:
         - key: allow-n-shared-tree
           label: Allow several in one working tree, with no isolation
       answer: null
+feedback:
+    entries:
+        - section: questions
+          action: answer
+          value: port-orch
+          question_id: q-adopt-vs-port
+          created_at: "2026-10-25T07:24:37Z"
+          updated_at: "2026-10-25T07:24:37Z"
+        - section: questions
+          action: answer
+          value: delegate
+          question_id: q-command-name
+          created_at: "2026-10-25T07:24:37Z"
+          updated_at: "2026-10-25T07:24:37Z"
+        - section: questions
+          action: answer
+          value: project-runtime
+          question_id: q-live-store
+          created_at: "2026-10-25T07:24:37Z"
+          updated_at: "2026-10-25T07:24:37Z"
+        - section: questions
+          action: answer
+          value: shared-claim
+          question_id: q-worker-claim
+          created_at: "2026-10-25T07:24:37Z"
+          updated_at: "2026-10-25T07:24:37Z"
