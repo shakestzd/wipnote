@@ -1,6 +1,7 @@
 package hooks
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -32,7 +33,7 @@ func newTestEvent(id string) *models.AgentEvent {
 // daemon is down).
 func TestSubmitDerivedEvent_FallbackWritesViaDirectOpen(t *testing.T) {
 	t.Setenv("WIPNOTE_NO_AUTO_WRITER", "1") // deterministic: no spawn, straight to fallback
-	projectRoot := t.TempDir()              // no .wipnote/writer.sock here
+	projectRoot := hermeticFallbackProject(t) // no .wipnote/writer.sock here
 	database, err := db.Open(filepath.Join(projectRoot, "fallback.db"))
 	if err != nil {
 		t.Fatalf("open db: %v", err)
@@ -74,7 +75,7 @@ func TestSubmitDerivedEvent_FallbackWritesViaDirectOpen(t *testing.T) {
 // records a fallback and returns cleanly (canonical NDJSON is authoritative).
 func TestSubmitDerivedEvent_NilDBNoPanic(t *testing.T) {
 	t.Setenv("WIPNOTE_NO_AUTO_WRITER", "1")
-	projectRoot := t.TempDir()
+	projectRoot := hermeticFallbackProject(t)
 	// Should not panic; nothing to assert beyond a clean return.
 	SubmitDerivedEvent("posttooluse", projectRoot, "sess-xyz", 2, newTestEvent("evt-nildb"), nil)
 }
@@ -82,3 +83,17 @@ func TestSubmitDerivedEvent_NilDBNoPanic(t *testing.T) {
 // spawnSlack is a generous ceiling above the daemon budget to absorb the
 // fallback's own bounded BUSY-retry without flaking on slow CI.
 func spawnSlack() time.Duration { return 2 * time.Second }
+
+// hermeticFallbackProject makes a temp project and runs the test from inside
+// it. RecordFallback logs to the project that the working directory resolves
+// to, so without the chdir a run from the repository wrote into the real
+// project's .wipnote/debug.log.
+func hermeticFallbackProject(t *testing.T) string {
+	t.Helper()
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, ".wipnote"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(root)
+	return root
+}
