@@ -1,0 +1,5 @@
+{"type": "turn.started"}
+{"type": "item.completed", "item": {"id": "i", "type": "agent_message", "text": "Working on it."}}
+{"type": "item.started", "item": {"id": "i", "type": "command_execution", "command": "ls -la"}}
+{"type": "item.completed", "item": {"id": "i", "type": "command_execution", "command": "ls -la", "aggregated_output": "a\nb\n", "exit_code": 0}}
+{"type": "turn.completed", "usage": {"input_tokens": 13866, "cached_input_tokens": 1234567, "output_tokens": 5, "reasoning_output_tokens": 19}}

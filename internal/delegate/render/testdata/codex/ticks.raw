@@ -1,0 +1,4 @@
+{"type": "item.completed", "item": {"id": "item_0", "type": "command_execution", "command": "cat f", "aggregated_output": "plain", "exit_code": 0}}
+{"type": "item.completed", "item": {"id": "item_1", "type": "command_execution", "command": "cat f", "aggregated_output": "``x", "exit_code": 0}}
+{"type": "item.completed", "item": {"id": "item_2", "type": "command_execution", "command": "cat f", "aggregated_output": "```x", "exit_code": 0}}
+{"type": "item.completed", "item": {"id": "item_3", "type": "command_execution", "command": "cat f", "aggregated_output": "```````x", "exit_code": 0}}

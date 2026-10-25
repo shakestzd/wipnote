@@ -1,0 +1,2 @@
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "only text <b>"}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "q", "name": "Bash", "input": {"command": "sleep 9"}}]}}

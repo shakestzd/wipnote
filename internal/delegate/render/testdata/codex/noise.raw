@@ -1,0 +1,10 @@
+Reading additional input from stdin...
+2026-10-18T06:18:13Z ERROR rmcp::transport::worker: worker quit with fatal: Transport channel closed
+2026-10-18T06:18:13Z ERROR rmcp::transport::worker: worker quit with fatal: Transport channel closed
+stray stderr line
+2026-10-18T06:18:13Z ERROR rmcp::transport::worker: worker quit with fatal: Transport channel closed
+hook: SessionStart ok
+warning: clamping SessionStart hook timeout to 60s
+2026-10-18T06:18:13.1Z  INFO codex_core: boot
+2026-10-18T06:18:13.1Z ERROR other: kept
+OpenAI Codex v0.1 (not review mode, kept)

@@ -1,0 +1,5 @@
+{"type": "item.completed", "item": {"id": "i", "type": "agent_message", "text": "before\n```py\nunclosed"}}
+{"type": "turn.completed", "usage": {"input_tokens": 13866, "cached_input_tokens": 1234567, "output_tokens": 5, "reasoning_output_tokens": 0}}
+{"type": "item.completed", "item": {"id": "i", "type": "agent_message", "text": "a\n<!-- fold closed: x -->\n<!-- /fold -->\n```\n<!-- /fold -->\n```"}}
+{"type": "item.completed", "item": {"id": "i", "type": "agent_message", "text": "~~~~\nunclosed tilde\n``` not a closer"}}
+{"type": "item.completed", "item": {"id": "i", "type": "agent_message", "text": "```js`x\nnot a fence\n   ```\nfenced\n````"}}

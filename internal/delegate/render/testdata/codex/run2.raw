@@ -1,0 +1,7 @@
+2026-10-18T06:18:36.192693Z ERROR rmcp::transport::worker: worker quit with fatal: Transport channel closed, when Client(HttpRequest(HttpRequest("http/request failed: error sending request for url (https://mcp.example.invalid/mcp)")))
+{"type":"thread.started","thread_id":"01a14da9-2791-7f52-ae56-c0d53b8b8ec2"}
+{"type":"turn.started"}
+2026-10-18T06:18:36.516803Z ERROR rmcp::transport::worker: worker quit with fatal: Transport channel closed, when Client(HttpRequest(HttpRequest("http/request failed: error sending request for url (https://mcp.example.invalid/mcp)")))
+2026-10-18T06:18:37.596594Z ERROR rmcp::transport::worker: worker quit with fatal: Transport channel closed, when Client(HttpRequest(HttpRequest("http/request failed: error sending request for url (https://mcp.example.invalid/mcp)")))
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"The file count, `1`, was the shortest value reported."}}
+{"type":"turn.completed","usage":{"input_tokens":43090,"cached_input_tokens":28160,"cache_write_input_tokens":0,"output_tokens":275,"reasoning_output_tokens":19}}
