@@ -214,6 +214,8 @@ tmp/Test*/
 /.roborev/
 # compiled binary — use `wipnote build` (installs to ~/.local/bin), never commit
 /wipnote
+# `go build` run inside cmd/wipnote/ drops the binary there (feat-ddeaa0d1)
+/cmd/wipnote/wipnote
 # local drafts and notes — never publish
 /private/
 .wipnote/debug.log*
