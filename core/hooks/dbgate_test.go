@@ -1,13 +1,10 @@
 package hooks
 
 import (
-	"database/sql"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
-
-	"github.com/shakestzd/wipnote/core/db"
 )
 
 // stubRouteSQLAsync overrides the package-level daemon enqueue seam for the
@@ -62,86 +59,32 @@ func TestRouteHookWrite_DaemonPath(t *testing.T) {
 	}
 }
 
-// TestRouteHookWrite_FallbackBounded asserts that when the daemon enqueue fails
-// AND an external connection holds a write lock, RouteHookWrite falls back to
-// the bounded direct path and returns in WELL under 1s (the SessionStartBusyTimeout
-// bound), without surfacing an error. The pre-migrated DB makes the reopen warm
-// (zero DDL), so the only contention is the held RESERVED write lock.
-func TestRouteHookWrite_FallbackBounded(t *testing.T) {
+// TestRouteHookWrite_NoDaemon_DropsAtOnce pins the daemon-miss contract
+// (feat-174dc958) against the REAL daemon seam: with no writer socket the
+// write is dropped, the call returns at once, and no file database is created
+// in its place. Contrast TestRouteHookWrite_DaemonPath, where the daemon takes
+// the write and RouteHookWrite reports it.
+func TestRouteHookWrite_NoDaemon_DropsAtOnce(t *testing.T) {
 	dir := t.TempDir()
-	dbPath := filepath.Join(dir, "wipnote.db")
+	if err := os.MkdirAll(filepath.Join(dir, ".wipnote"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	dbPath := filepath.Join(dir, "should-not-be-created.db")
 	t.Setenv("WIPNOTE_DB_PATH", dbPath)
-	t.Setenv("WIPNOTE_NO_AUTO_WRITER", "1") // belt-and-suspenders: no real daemon
-	stubRouteSQLAsync(t, false)             // force the fallback path
-
-	// Pre-create + migrate so RouteHookWrite's reopen is a warm fast path
-	// (no migration DDL competing for the lock).
-	seed, err := db.Open(dbPath)
-	if err != nil {
-		t.Fatalf("seed open: %v", err)
-	}
-	seed.Close()
-
-	// Hold a RESERVED write lock on a SEPARATE connection for the whole call.
-	locker, err := sql.Open("sqlite", dbPath)
-	if err != nil {
-		t.Fatalf("locker open: %v", err)
-	}
-	defer locker.Close()
-	tx, err := locker.Begin()
-	if err != nil {
-		t.Fatalf("begin: %v", err)
-	}
-	// A write inside the tx upgrades to RESERVED, taking the write lock that
-	// will make RouteHookWrite's Exec wait on its busy_timeout then degrade.
-	if _, err := tx.Exec(`INSERT INTO sessions (session_id, agent_assigned, status) VALUES (?, ?, ?)`,
-		"holder", "agent-lock", "active"); err != nil {
-		t.Fatalf("acquire write lock: %v", err)
-	}
-	defer tx.Rollback()
 
 	start := time.Now()
-	ok := RouteHookWrite("sessionstart", dir, "sess-bounded",
-		`INSERT INTO sessions (session_id, agent_assigned, status) VALUES (?, ?, ?)`,
-		"contended", "agent-1", "active")
-	elapsed := time.Since(start)
-
-	if !ok {
-		t.Fatal("RouteHookWrite returned false under a held write lock (must always succeed)")
-	}
-	if elapsed >= time.Second {
-		t.Fatalf("RouteHookWrite blocked %v under a held write lock; bound is <1s (SessionStartBusyTimeout)", elapsed)
-	}
-}
-
-// TestRouteHookWrite_AllFail_StillSucceeds asserts the canonical-first
-// contract: when BOTH the daemon enqueue fails AND the bounded direct open
-// fails, RouteHookWrite still returns success (never errors, never blocks).
-// The open is forced to fail by pointing WIPNOTE_DB_PATH at a path whose parent
-// is a regular FILE, so MkdirAll/open cannot succeed (ENOTDIR).
-func TestRouteHookWrite_AllFail_StillSucceeds(t *testing.T) {
-	dir := t.TempDir()
-	// Create a regular file, then demand a DB path *inside* it — MkdirAll on
-	// "<file>/sub" fails with ENOTDIR, so the direct open cannot succeed.
-	blocker := filepath.Join(dir, "not-a-dir")
-	if err := os.WriteFile(blocker, []byte("x"), 0o644); err != nil {
-		t.Fatalf("create blocker file: %v", err)
-	}
-	unopenable := filepath.Join(blocker, "sub", "wipnote.db")
-	t.Setenv("WIPNOTE_DB_PATH", unopenable)
-	t.Setenv("WIPNOTE_NO_AUTO_WRITER", "1")
-	stubRouteSQLAsync(t, false) // daemon enqueue fails
-
-	start := time.Now()
-	ok := RouteHookWrite("posttooluse", dir, "sess-allfail",
+	ok := RouteHookWrite("posttooluse", dir, "sess-nodaemon",
 		`INSERT INTO sessions (session_id, agent_assigned, status) VALUES (?, ?, ?)`,
 		"x", "agent-1", "active")
 	elapsed := time.Since(start)
 
-	if !ok {
-		t.Fatal("RouteHookWrite returned false when both daemon AND direct open failed (canonical-first requires success)")
+	if ok {
+		t.Fatal("RouteHookWrite reported success with no daemon to take the write")
 	}
-	if elapsed >= time.Second {
-		t.Fatalf("RouteHookWrite blocked %v on the all-fail path; must degrade fast", elapsed)
+	if elapsed >= 250*time.Millisecond {
+		t.Fatalf("RouteHookWrite took %v with no daemon; a miss must return at once", elapsed)
+	}
+	if fileExists(dbPath) {
+		t.Fatalf("a daemon miss created the file database %s", dbPath)
 	}
 }

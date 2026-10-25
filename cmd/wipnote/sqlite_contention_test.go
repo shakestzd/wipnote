@@ -973,14 +973,12 @@ func runOneHookUnderHeldLock(t *testing.T, run int, lockDB *sql.DB, dbPath strin
 	// Handle selection is FAITHFUL per hook (bug-d792aee6, bug-c9ec25a4, roborev-473):
 	//   - readonly: NO handle — what the hot hooks that route EVERY write through
 	//     the daemon get in production (feat-af8d1689: pretooluse, user-prompt). No
-	//     handle never contends the held write lock, and any daemon-miss write
-	//     transparently opens its own bounded handle (routeViaOwnBoundedHandle) — so
-	//     a sub-second result here is genuine proof the primary write routed
-	//     enqueue-only.
+	//     handle never contends the held write lock, and a daemon-miss write is
+	//     dropped (no fallback, feat-174dc958) — so a sub-second result here is
+	//     genuine proof the primary write routed enqueue-only.
 	//   - production: hooks.OpenHookDB (5s busy_timeout) — the real handle a
-	//     production hook subprocess opens for hooks that STILL hold a writable handle
-	//     (subagent-start: its finding-3 applied-ack pending fallback writes through
-	//     it).
+	//     production hook subprocess opens for hooks that STILL hold a writable
+	//     handle (subagent-start, via hookSubcmd).
 	//   - bounded: hooks.OpenHookDBWithBusyTimeout(250ms) — used for hooks whose
 	//     assertion runs on a short busy_timeout (stop, session-start); their
 	//     non-routed residuals never contend the held write lock, and the short

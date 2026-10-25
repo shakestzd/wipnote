@@ -112,6 +112,7 @@ func TestCWDNormalize_LinkedWorktree_CollapsesToRoot(t *testing.T) {
 	if err != nil {
 		t.Fatalf("db.Open: %v", err)
 	}
+	stubDaemonApplyInto(t, database)
 	defer database.Close()
 
 	sessionID := "test-cwd-linked-worktree-001"
@@ -163,6 +164,7 @@ func TestCWDNormalize_ForeignCWD_StoredWithUnresolvedPrefix(t *testing.T) {
 	if err != nil {
 		t.Fatalf("db.Open: %v", err)
 	}
+	stubDaemonApplyInto(t, database)
 	defer database.Close()
 
 	sessionID := "test-cwd-foreign-001"

@@ -85,23 +85,11 @@ func SubagentStart(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 			ParentAgentID: os.Getenv("WIPNOTE_AGENT_ID"),
 			CreatedAt:     time.Now().UnixMicro(),
 		}
-		// roborev-473 finding 3: the OTLP receiver reads this pending row the
-		// instant the subagent's first span arrives, so an ENQUEUE-ONLY write
-		// opens a miss window (the row isn't applied yet when the receiver looks).
-		// This is a once-per-subagent, low-frequency write whose consumer is
-		// coupled to it, so CORRECTNESS WINS over the <1s hot-hook target here:
-		// route it APPLIED-ACK via apply.RouteSQL so the row is durably committed
-		// (and therefore visible) before SubagentStart returns. apply.RouteSQL is
-		// bounded by CLISubmitBudget (~2s) — acceptable for a once-per-subagent
-		// write. On a daemon miss (RouteSQL returns false) fall back to the direct
-		// applied write db.UpsertPendingSubagentStart so the row is still committed
-		// synchronously; canonical NDJSON + reindex remain the durability backstop.
+		// Applied-ack through the writer daemon (apply.RouteSQL, bounded by
+		// CLISubmitBudget). On a daemon miss the row is dropped (feat-174dc958).
 		upSQL, upArgs := db.UpsertPendingSubagentStartStmt(pending)
 		if !routeSQLApplied(projectDir, upSQL, upArgs...) {
-			if err := db.UpsertPendingSubagentStart(database, pending); err != nil {
-				debugLog(projectDir, "[warn] handler=subagent-start session=%s: applied-ack pending upsert fallback: %v",
-					sessionID[:minSessionLen(sessionID)], err)
-			}
+			RecordFallback("subagent-start", sessionID, FallbackWriterUnavailable, "daemon miss: write dropped")
 		}
 	}
 
@@ -189,7 +177,7 @@ func insertSubagentLineage(database *sql.DB, parentSessionID, agentID, agentType
 	// longer abort the remaining lineage backfill on a write failure (the prior
 	// direct Exec returned early on error). The subsequent BackfillParentSession /
 	// InsertLineageTrace are independently idempotent.
-	_ = routeHookWriteVia("subagent-start", projectDir, parentSessionID, database, `
+	_ = RouteHookWrite("subagent-start", projectDir, parentSessionID, `
 		INSERT OR IGNORE INTO sessions
 			(session_id, agent_assigned, parent_session_id, created_at,
 			 status, is_subagent, metadata)

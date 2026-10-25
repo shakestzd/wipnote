@@ -17,7 +17,7 @@ var asyncSafeHandlers = map[string]bool{
 	"config-change":       true,
 	// posttooluse-record (bug-07fd4a51 step 6): core/hooks.PostToolUseRecord
 	// returns a bare {Continue:true} on every path; it only upserts the
-	// tool_call row through routeHookWriteVia and appends the session HTML.
+	// tool_call row through RouteHookWrite and appends the session HTML.
 	// Everything model-visible (CheckFileQuality warning, auto-complete
 	// notices, the work-item lookup loud block) stays in the sync, matcher-
 	// narrowed claude `posttooluse` entry (PostToolUseRespond).

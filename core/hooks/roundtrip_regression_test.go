@@ -119,14 +119,14 @@ func TestWorktreeRoundTripRegressionGate(t *testing.T) {
 
 	// Open the DB in the main repo (where .wipnote/ lives).
 	dbPath := filepath.Join(mainRepo, ".wipnote", "wipnote.db")
-	// Pin WIPNOTE_DB_PATH so SessionStart's daemon-routed writes (which fall back
-	// to a direct write at DBPath(projectRoot) when no daemon is running) land in
-	// this handle's file rather than the host cache DB. See openWipnoteTestDB.
+	// A stub daemon applies SessionStart's routed writes to this handle's file
+	// (hooks have no fallback). See openWipnoteTestDB.
 	t.Setenv("WIPNOTE_DB_PATH", dbPath)
 	database, err := db.Open(dbPath)
 	if err != nil {
 		t.Fatalf("db.Open: %v", err)
 	}
+	stubDaemonApplyInto(t, database)
 	t.Cleanup(func() { database.Close() })
 
 	// Clear the hook-level feature-ID cache so this test is isolated.

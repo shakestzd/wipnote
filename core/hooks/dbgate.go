@@ -1,46 +1,16 @@
-// Package hooks — dbgate.go: daemon-first derived-write gate for hook handlers.
+// Package hooks — dbgate.go: the daemon-only derived-write gate for hook handlers.
 //
-// CURRENT ARCHITECTURE (plan-2390966a, slices 3-7):
+// Hooks write canonical files (NDJSON, HTML, ledgers) first. Derived-index
+// writes are then offered to the per-project writer daemon through
+// RouteHookWrite / RouteInsertEvent (enqueue-only, apply.RouteSQLAsync) or,
+// for the two applied-ack writes, routeSQLApplied (apply.RouteSQL). The daemon
+// applies them to its own in-memory projection.
 //
-//	Hot hooks (SessionStart, pretooluse, user-prompt, subagent-start, Stop)
-//	route their derived-index writes through the ENQUEUE-ONLY daemon seam
-//	(RouteHookWrite / RouteInsertEvent → apply.RouteSQLAsync). The primary
-//	path NEVER opens a writable DB handle:
-//
-//	  1. Canonical NDJSON/HTML is written first by the handler. The writer
-//	     daemon (`_serve-child`) picks it up and rebuilds the SQLite index.
-//	  2. RouteHookWrite / RouteInsertEvent enqueue the derived-index upsert
-//	     to the per-project writer daemon via apply.RouteSQLAsync (enqueue-
-//	     only, no new writable open). The ack is enqueue-only — the op
-//	     applies in FIFO order after the hook returns; a crash-lost async op
-//	     is recovered by the canonical NDJSON + reindex backstop.
-//	  3. ONLY when the daemon is unavailable / spawn-forbidden / queue-full
-//	     does the fallback path open a writable handle — via
-//	     OpenHookDBWithBusyTimeout (bounded ~750ms) — and write
-//	     synchronously. If even that open fails, the hook returns SUCCESS and
-//	     canonical NDJSON guarantees reindex recovery.
-//
-//	OpenHookDB (below) is therefore the RARE LAST-RESORT FALLBACK — the
-//	daemon-miss path — not the primary write path. It is the single auditable
-//	writable open in the hook tree (class canonicalFirstHookFallback in the
-//	sqlite_write_boundary_test.go inventory), kept here so the
-//	failure-tolerance contract lives at ONE auditable boundary. Do NOT add
-//	new db.Open call sites in core/hooks/ or cmd/wipnote/hook.go.
-//
-//	Residual direct writes that REUSE the already-held hook handle (not new
-//	opens, not new boundary entries — documented known residuals):
-//	  - subagent-start: BackfillParentSession, InsertLineageTrace,
-//	    UpsertPendingSubagentStart
-//	  - Stop: FinalizeSessionHTML, runSessionExitReconcile
-//	Each uses an existing handle only; none opens a fresh writable one.
-//	(pretooluse's claim writes — HeartbeatClaimByWorkItem, ReapExpiredClaims —
-//	were routed through RouteHookWrite's enqueue-only seam in bug-d792aee6, so
-//	they no longer touch a direct writable handle under contention.)
-//
-// OPENING THIS DB FROM THE HOOK TREE STAYS A "FORBIDDEN PATH" by the slice-5
-// boundary (reclassified from daemon-routed-pending-slice-6 to
-// canonical-first-hook-fallback), centralised behind ONE call site (this
-// file) so reviewers can audit the failure-tolerance contract in one place.
+// There is no daemon-miss fallback (feat-174dc958): when no daemon answers,
+// the write is dropped and nothing is written to the per-project file
+// database. OpenHookDB / OpenHookDBWithBusyTimeout below remain only because
+// cmd/wipnote/hook.go still opens a handle for the cold and session hooks; do
+// NOT add new db.Open call sites in core/hooks/ or cmd/wipnote/hook.go.
 package hooks
 
 import (
@@ -201,190 +171,27 @@ var routeSQLAsync = apply.RouteSQLAsync
 // the override stays test-local.
 var routeSQLApplied = apply.RouteSQL
 
-// RouteHookWrite is THE single primitive every hot hook write migrates to. It
-// applies a parameterized derived-index statement under a daemon-first,
-// bounded-direct-fallback, canonical-first policy and ALWAYS returns success —
-// it never errors and never blocks beyond the bounded fallback. The boolean
-// return is advisory (true ⇒ the op was durably handled by one of the two
-// paths, OR degraded cleanly to canonical-only); callers MUST NOT propagate a
-// failure to the Claude Code hook protocol regardless.
+// RouteHookWrite is the single primitive every hook derived-index write goes
+// through. It offers the parameterized statement to the writer daemon,
+// enqueue-only (routeSQLAsync), and returns whether the daemon took it.
 //
-// Policy, in order (plan-2390966a slice-2, v4 enqueue-only amendment):
+// There is NO fallback (feat-174dc958). When the daemon is unreachable, its
+// queue is full, or the project has none, the write is dropped: nothing is
+// written to the per-project file database in its place. No reader of that
+// file needed what the fallback wrote, and the daemon itself keeps its writes
+// in its own in-memory projection. A miss is counted and, under WIPNOTE_DEBUG,
+// logged as writer_unavailable.
 //
-//  1. ENQUEUE-ONLY daemon route: routeSQLAsync(projectRoot, sql, args...). On
-//     true → DONE. No direct writable handle is opened. Because the ack is
-//     enqueue-only (apply.RouteSQLAsync / daemon.AckEnqueued, roborev 451/452),
-//     a reachable-but-BUSY writer still returns in well under a second — the
-//     whole point of routing hot hooks through the async mode. The op applies
-//     in FIFO order after this returns; a crash-lost async op is recovered by
-//     the canonical NDJSON + reindex backstop the caller already wrote.
-//
-//  2. BOUNDED direct fallback (only when step 1 returns false — daemon
-//     unreachable / spawn-forbidden / queue full): resolve the per-project DB
-//     path and open a SHORT-bounded (SessionStartBusyTimeout, ~750ms) writable
-//     handle via OpenHookDBWithBusyTimeout — the existing single inventoried
-//     hook write site. A held external write lock therefore degrades to
-//     canonical-only in <1s instead of stalling on the default 5s busy_timeout.
-//     The statement is Exec'd best-effort with bounded BUSY retry; a terminal
-//     BUSY is classified under hook_writer for the launch gate, then swallowed.
-//
-//  3. ANY failure (DBPath error, nil handle, Exec error) → the canonical-first
-//     fallback is already logged + counted as writer_unavailable; return success
-//     anyway. Canonical NDJSON upstream is authoritative and reindex recovers
-//     the row.
-//
-// args are bound as SQL parameters by every path and MUST NOT be interpolated
-// into sql by the caller. handler labels the fallback counter/log line;
-// sessionID correlates the log with the rest of the hook trace.
+// The call never blocks beyond apply.AsyncEnqueueBudget, and with no socket it
+// returns at once. The return value is advisory: callers MUST NOT propagate a
+// miss to the hook protocol. args are bound as SQL parameters and MUST NOT be
+// interpolated into sql by the caller.
 func RouteHookWrite(handler, projectRoot, sessionID, sql string, args ...any) bool {
-	// Step 1: enqueue-only daemon route. A true ack means the op is durably
-	// queued; we open NO direct handle.
 	if routeSQLAsync(projectRoot, sql, args...) {
 		return true
 	}
-
-	// Step 2: bounded direct fallback. Resolve the canonical DB path; a resolve
-	// failure is itself a writer_unavailable degradation (canonical NDJSON is
-	// authoritative).
-	dbPath, err := DBPath(projectRoot)
-	if err != nil {
-		RecordFallback(handler, sessionID, FallbackWriterUnavailable, "dbpath: "+err.Error())
-		return true
-	}
-
-	database, _ := OpenHookDBWithBusyTimeout(handler, sessionID, dbPath, SessionStartBusyTimeout)
-	if database == nil {
-		// Open failed: already classified under hook_writer, logged + counted as
-		// writer_unavailable inside OpenHookDBWithBusyTimeout. Degrade to
-		// canonical-only.
-		return true
-	}
-	defer database.Close()
-
-	// Best-effort SINGLE Exec — the handle's SessionStartBusyTimeout (~750ms) IS
-	// the failure bound, so a held write lock fails fast in <1s. We deliberately
-	// do NOT layer RetryOnBusy here (unlike the cold SubmitDerivedEvent path):
-	// each BUSY retry would re-wait the full busy_timeout and could push past the
-	// sub-second bound this hot-hook primitive guarantees. A terminal BUSY is
-	// classified under hook_writer for the launch gate, then swallowed —
-	// canonical NDJSON + reindex recover any row this path could not write.
-	_, execErr := database.Exec(sql, args...)
-	db.Record(db.SubsystemHookWriter, execErr)
-	if execErr != nil {
-		RecordFallback(handler, sessionID, FallbackWriterUnavailable, "exec: "+execErr.Error())
-	}
-	// Step 3: always success — never error, never block the hook protocol.
-	return true
-}
-
-// routeHookWriteVia applies RouteHookWrite's daemon-first, canonical-first
-// policy but binds the bounded fallback to the writable handle the hook ALREADY
-// holds (the one cmd/wipnote/hook.go opened from DBPath(projectRoot)) instead of
-// re-opening a second handle. It is the hot-hook adaptation of RouteHookWrite for
-// handlers that are already holding their per-project *sql.DB:
-//
-//  1. ENQUEUE-ONLY daemon route: routeSQLAsync(projectRoot, sql, args...). On
-//     true → DONE; NO direct writable Exec is issued. Because the ack is
-//     enqueue-only, a reachable-but-busy writer still returns in well under a
-//     second (roborev 451/452) — this is what delivers the hot hooks' <1s bound
-//     under the realistic single-writer-daemon contention.
-//
-//  2. BOUNDED direct fallback (only when step 1 returns false — daemon
-//     unreachable / spawn-forbidden / queue full): Exec the SAME parameterized
-//     statement against `database`. The handle's own busy_timeout is the failure
-//     bound (the session-start path passes a SHORT one); we do NOT layer
-//     RetryOnBusy so a held lock degrades fast rather than re-waiting the full
-//     timeout. A nil handle is itself a writer_unavailable degradation.
-//
-//  3. ANY failure (nil handle, Exec error) → logged + counted as
-//     writer_unavailable; canonical NDJSON upstream is authoritative and reindex
-//     recovers the row.
-//
-// Like RouteHookWrite it ALWAYS returns advisory-true: it never errors and never
-// blocks the hook protocol. args are bound as SQL parameters and MUST NOT be
-// interpolated into sql by the caller.
-//
-// Why this and not RouteHookWrite directly: RouteHookWrite re-opens a fresh
-// bounded handle at DBPath(projectRoot). For an in-handler caller that is a
-// redundant second open (same file in production) and, in unit tests that pass
-// an ad-hoc *sql.DB without a matching DBPath, would write to a DIFFERENT file.
-// Binding the fallback to the caller's handle keeps the write on the one DB the
-// hook is already using.
-func routeHookWriteVia(handler, projectRoot, sessionID string, database *sql.DB, sqlStmt string, args ...any) bool {
-	// Step 1: enqueue-only daemon route — no direct handle when reachable.
-	if routeSQLAsync(projectRoot, sqlStmt, args...) {
-		return true
-	}
-	// Step 2: bounded direct fallback against the handle the hook already holds.
-	// roborev-473 finding 1: the hot hooks that now dispatch with a READ-ONLY
-	// handle (pretooluse, user-prompt, stop — they route every write through the
-	// daemon and use the handle only for reads) pass a read-only *sql.DB here.
-	// A read-only handle's Exec fails at the engine level (query_only=ON), so on a
-	// genuine daemon miss the direct fallback against it cannot persist the row.
-	// Rather than silently drop the write (losing it until reindex), fall through
-	// to opening OUR OWN bounded writable handle — exactly what RouteHookWrite's
-	// step 2 does — so the row is still written on a daemon miss. A writable handle
-	// passed by the still-writable hooks (subagent-start, session-start) executes
-	// directly as before; only a nil or read-only handle takes the own-open path.
-	if database != nil && !isReadOnlyDB(database) {
-		_, execErr := database.Exec(sqlStmt, args...)
-		db.Record(db.SubsystemHookWriter, execErr)
-		if execErr == nil {
-			return true
-		}
-		// A non-nil writable handle that still errored: degrade to canonical-only
-		// (the original behaviour); do NOT re-attempt via an own handle to avoid a
-		// double write under a transient error.
-		RecordFallback(handler, sessionID, FallbackWriterUnavailable, "exec: "+execErr.Error())
-		return true
-	}
-	// Read-only or nil handle on a daemon miss: open our own bounded writable
-	// handle (the single inventoried hook write site) and exec there.
-	return routeViaOwnBoundedHandle(handler, projectRoot, sessionID, sqlStmt, args...)
-}
-
-// routeViaOwnBoundedHandle opens the single inventoried bounded writable hook
-// handle (OpenHookDBWithBusyTimeout) at the project's canonical DB path and Execs
-// the statement once, best-effort. It is the daemon-miss fallback for callers
-// holding a read-only (or nil) handle (roborev-473 finding 1). Mirrors
-// RouteHookWrite's step 2/3: a held write lock fails fast on the short
-// busy_timeout, a terminal BUSY is classified under hook_writer then swallowed,
-// and the canonical NDJSON + reindex backstop recovers any unwritten row. ALWAYS
-// returns advisory-true; never blocks the hook protocol.
-func routeViaOwnBoundedHandle(handler, projectRoot, sessionID, sqlStmt string, args ...any) bool {
-	dbPath, err := DBPath(projectRoot)
-	if err != nil {
-		RecordFallback(handler, sessionID, FallbackWriterUnavailable, "dbpath: "+err.Error())
-		return true
-	}
-	database, _ := OpenHookDBWithBusyTimeout(handler, sessionID, dbPath, SessionStartBusyTimeout)
-	if database == nil {
-		// Open failed: already classified + counted inside OpenHookDBWithBusyTimeout.
-		return true
-	}
-	defer database.Close()
-	_, execErr := database.Exec(sqlStmt, args...)
-	db.Record(db.SubsystemHookWriter, execErr)
-	if execErr != nil {
-		RecordFallback(handler, sessionID, FallbackWriterUnavailable, "exec: "+execErr.Error())
-	}
-	return true
-}
-
-// isReadOnlyDB reports whether handle was opened read-only (query_only=ON), so
-// the via-fallback knows it must open its own writable handle instead of issuing
-// a doomed Exec. It runs a one-row PRAGMA query_only read (cheap, never contends
-// the write lock). On any error it conservatively returns false (treat as
-// writable) so writable callers keep the existing direct-Exec fast path.
-func isReadOnlyDB(database *sql.DB) bool {
-	if database == nil {
-		return false
-	}
-	var queryOnly int
-	if err := database.QueryRow("PRAGMA query_only").Scan(&queryOnly); err != nil {
-		return false
-	}
-	return queryOnly != 0
+	RecordFallback(handler, sessionID, FallbackWriterUnavailable, "daemon miss: write dropped")
+	return false
 }
 
 // agentEventInsertSQL is the parameterized INSERT for an agent_events row. It is
@@ -439,17 +246,15 @@ func agentEventInsertArgs(e *models.AgentEvent) []any {
 }
 
 // RouteInsertEvent routes an agent_events INSERT through RouteHookWrite's
-// daemon-first, bounded-direct-fallback policy — the hot-hook equivalent of
+// daemon-only policy — the hot-hook equivalent of
 // db.InsertEvent. It mirrors db.InsertEvent's one pre-write read: when
 // ParentEventID is set but ParentAgentID is empty, the parent row's agent_id is
 // resolved from `database` first so the lineage edge is materialised at insert
 // time. That lookup is a READ (it never contends the write lock that stalled the
 // hot hooks) and is skipped when `database` is nil (daemon-only callers).
 //
-// Like every RouteHookWrite caller this is best-effort and ALWAYS succeeds from
-// the hook's perspective: a held write lock degrades to canonical-only in <1s,
-// and canonical NDJSON + reindex recover the row. The return value is advisory
-// (RouteHookWrite never errors); callers MUST NOT propagate it to the hook
+// Like every RouteHookWrite caller this is best-effort: a daemon miss drops the
+// row. The return value is advisory; callers MUST NOT propagate it to the hook
 // protocol.
 func RouteInsertEvent(handler, projectRoot, sessionID string, ev *models.AgentEvent, database *sql.DB) bool {
 	if ev == nil {
@@ -465,5 +270,5 @@ func RouteInsertEvent(handler, projectRoot, sessionID string, ev *models.AgentEv
 			ev.ParentAgentID = parentAgentID
 		}
 	}
-	return routeHookWriteVia(handler, projectRoot, sessionID, database, agentEventInsertSQL, agentEventInsertArgs(ev)...)
+	return RouteHookWrite(handler, projectRoot, sessionID, agentEventInsertSQL, agentEventInsertArgs(ev)...)
 }

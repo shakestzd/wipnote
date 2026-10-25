@@ -64,14 +64,12 @@ Usage in hooks.json:
 		// (hookSubcmdReadOnly) — avoiding the writable open + cold-DB migration that
 		// blocked the hot hooks under contention. posttooluse joined them once
 		// bug-07fd4a51 moved its event write to the daemon-routed completion upsert
-		// and dropped its dead on-disk writes; on a daemon miss routeHookWriteVia
-		// opens its own bounded writable handle.
+		// and dropped its dead on-disk writes. On a daemon miss every routed write
+		// is dropped (no fallback, feat-174dc958).
 		//
 		// The following hot hooks KEEP a writable handle because grep confirmed they
 		// still issue DIRECT writes on the passed handle (correctness-first — forcing
 		// read-only would cause "readonly database" errors):
-		//   - subagent-start: finding-3 applied-ack pending fallback
-		//     (db.UpsertPendingSubagentStart) + synthetic-sessions via-fallback.
 		//   - subagent-stop: db.UpdateEventFields direct write.
 		//   - stop: insertAssistantTextSignal, backfillMissedUserPrompts,
 		//     runSessionExitReconcile, db.UpdateSessionHandoff — all direct writes on
@@ -254,8 +252,8 @@ func hookSubcmd(
 // ~100 tables was about half of each call's in-process time. These handlers
 // treat a nil handle exactly as that empty projection (pinned by
 // TestReadOnlyHooks_NilMatchesEmptyProjection in core/hooks), so dropping it
-// changes no output. Writes still go daemon-first; on a daemon miss
-// routeHookWriteVia opens its own bounded writable handle as before.
+// changes no output. Writes go to the writer daemon only; a daemon miss drops
+// them (feat-174dc958).
 func hookSubcmdReadOnly(
 	use, short string,
 	fallback *hooks.HookResult,

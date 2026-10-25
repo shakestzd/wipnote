@@ -155,12 +155,12 @@ func TestHotHooksRouteWriteUnderContention(t *testing.T) {
 			}
 		})
 
-		t.Run(name+"/bounded-fallback", func(t *testing.T) {
+		t.Run(name+"/daemon-miss", func(t *testing.T) {
 			clearNestedEnv(t)
 			t.Setenv("WIPNOTE_NO_AUTO_WRITER", "1")
 			projectDir, dbPath := seedHookDB(t)
 
-			stubRouteSQLAsync(t, false) // force the bounded direct fallback
+			stubRouteSQLAsync(t, false) // daemon miss: the write is dropped
 
 			// Hold a RESERVED write lock on a SEPARATE connection for the whole
 			// call so the routed write's bounded fallback (and any incidental

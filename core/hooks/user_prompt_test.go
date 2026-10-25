@@ -19,12 +19,10 @@ import (
 func setupTestDB(t *testing.T) *testDB {
 	t.Helper()
 
-	// plan-2390966a slice-4: the hot hooks route derived-index writes through an
-	// enqueue-only daemon seam. These unit tests assert immediate SQLite
-	// visibility, so force the direct fallback instead of depending on whether an
-	// ambient writer daemon happens to be reachable.
+	// Hooks route derived-index writes to the writer daemon and have no
+	// fallback (feat-174dc958). These tests read back what a hook wrote, so a
+	// stub daemon applies every routed statement to this database.
 	t.Setenv("WIPNOTE_NO_AUTO_WRITER", "1")
-	stubRouteSQLAsync(t, false)
 
 	// Reset the global feature ID cache to prevent interference between tests
 	// (each test may use the same session ID "test-sess" but with different
@@ -38,6 +36,7 @@ func setupTestDB(t *testing.T) *testDB {
 		t.Fatalf("db.Open: %v", err)
 	}
 	t.Cleanup(func() { database.Close() })
+	stubDaemonApplyInto(t, database)
 	now := time.Now().UTC()
 
 	sess := &models.Session{

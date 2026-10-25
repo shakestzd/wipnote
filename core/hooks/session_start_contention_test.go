@@ -11,24 +11,19 @@ import (
 	"github.com/shakestzd/wipnote/core/db"
 )
 
-// openWipnoteTestDB opens the canonical per-project SQLite DB AND pins
-// WIPNOTE_DB_PATH to that same file for the test's duration.
-//
-// Why the env pin is required (plan-2390966a slice-3): SessionStart now routes
-// every writable Exec through the writer daemon (RouteHookWrite). In unit tests
-// no daemon is running, so RouteHookWrite takes its bounded DIRECT fallback,
-// which resolves the target file via DBPath(projectRoot) — by default the host
-// cache dir, NOT projectDir/.wipnote/wipnote.db. Without this pin the routed
-// writes would land in the cache DB while the test reads back from the handle
-// returned here, yielding spurious "no rows" failures. In production the hook
-// subprocess opens its handle at exactly DBPath(projectRoot), so the handle and
-// the fallback target already coincide; this helper reproduces that invariant
-// for tests.
+// openWipnoteTestDB opens a per-test SQLite DB, pins WIPNOTE_DB_PATH to it,
+// and installs a stub writer daemon that applies every routed hook write to it
+// (stubDaemonApplyInto). Hooks have no daemon-miss fallback (feat-174dc958),
+// so without the stub a test could not read back what a hook wrote.
 func openWipnoteTestDB(t *testing.T, projectDir string) (*sql.DB, error) {
 	t.Helper()
 	dbPath := filepath.Join(projectDir, ".wipnote", "wipnote.db")
 	t.Setenv("WIPNOTE_DB_PATH", dbPath)
-	return db.Open(dbPath)
+	database, err := db.Open(dbPath)
+	if err == nil {
+		stubDaemonApplyInto(t, database)
+	}
+	return database, err
 }
 
 // clearNestedSessionEnv unsets the env vars that, when leaked from a nested

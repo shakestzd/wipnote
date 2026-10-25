@@ -179,7 +179,7 @@ func toolCompletionArgs(ev *models.AgentEvent) []any {
 // event id so the session HTML entry is keyed identically.
 func recordToolCompletion(event *CloudEvent, ctx *toolUseContext, database *sql.DB, status, outputSummary string) string {
 	ev := buildToolCompletionEvent(event, ctx, status, outputSummary, time.Now().UTC())
-	_ = routeHookWriteVia("posttooluse", ctx.ProjectDir, ctx.SessionID, database,
+	_ = RouteHookWrite("posttooluse", ctx.ProjectDir, ctx.SessionID,
 		agentEventCompletionUpsertSQL, toolCompletionArgs(ev)...)
 	return ev.EventID
 }

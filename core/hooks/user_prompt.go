@@ -107,9 +107,7 @@ func UserPrompt(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 // are correctly attributed (not hardcoded to 'claude-code').
 //
 // The existence probe is a READ (no lock contention); the backfill INSERT is
-// routed through the daemon-first enqueue path (plan-2390966a slice-4) so it
-// never opens a direct writable handle when the daemon is reachable and degrades
-// to a <1s bounded fallback otherwise.
+// routed through the writer daemon (enqueue-only); a daemon miss drops it.
 //
 // A nil database (the hot-hook dispatch, feat-af8d1689) has no row to find, so
 // it routes the backfill exactly as the empty projection it replaced did.
@@ -126,7 +124,7 @@ func ensureSessionExists(database *sql.DB, projectDir, sessionID string, event *
 	}
 	now := time.Now().UTC().Format(time.RFC3339)
 	agentID := resolveEventAgentID(event)
-	_ = routeHookWriteVia("user-prompt", projectDir, sessionID, database, `
+	_ = RouteHookWrite("user-prompt", projectDir, sessionID, `
 		INSERT OR IGNORE INTO sessions (session_id, agent_assigned, status, created_at, project_dir)
 		VALUES (?, ?, 'active', ?, ?)`,
 		sessionID, agentID, now, ResolveProjectDir(event.CWD, event.SessionID))
@@ -141,7 +139,7 @@ func updateLastQuery(database *sql.DB, projectDir, sessionID, prompt string) {
 		summary = summary[:sessionQueryMaxLen] + "…"
 	}
 	now := time.Now().UTC().Format(time.RFC3339)
-	_ = routeHookWriteVia("user-prompt", projectDir, sessionID, database, `
+	_ = RouteHookWrite("user-prompt", projectDir, sessionID, `
 		UPDATE sessions
 		SET last_user_query_at = ?,
 		    last_user_query = ?

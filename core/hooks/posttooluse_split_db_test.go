@@ -235,35 +235,6 @@ func TestPostToolUse_ReadOnlyHandle_SideEffectsRun(t *testing.T) {
 	}
 }
 
-// TestPostToolUse_ReadOnlyHandle_DaemonMissFallsBackToDisk: with the daemon
-// unreachable for both halves, pretooluse and posttooluse each fall back to
-// their own bounded writable handle on the disk DB, and the completion
-// upserts the started row there instead of failing on the read-only handle.
-func TestPostToolUse_ReadOnlyHandle_DaemonMissFallsBackToDisk(t *testing.T) {
-	h := newSplitDBHarness(t, "split-db-miss-001")
-	stubRouteSQLAsync(t, false)
-	if err := db.UpsertSession(h.diskDB, &models.Session{
-		SessionID: h.sessionID, AgentAssigned: "claude-code", Status: "active",
-		CreatedAt: time.Now().UTC(), ProjectDir: h.projectDir,
-	}); err != nil {
-		t.Fatalf("seed disk session: %v", err)
-	}
-	in := map[string]any{"file_path": "/tmp/miss.go"}
-	h.runPre(t, &CloudEvent{SessionID: h.sessionID, CWD: h.projectDir, ToolName: "Read", ToolUseID: "toolu_miss", ToolInput: in})
-	h.runPost(t, &CloudEvent{SessionID: h.sessionID, CWD: h.projectDir, ToolName: "Read", ToolUseID: "toolu_miss", ToolInput: in,
-		ToolResult: map[string]any{"output": "x"}})
-
-	r, ok := readEventRow(t, h.diskDB, toolCallEventID(h.sessionID, "toolu_miss"))
-	if !ok || r.status != "completed" {
-		t.Fatalf("disk row = %+v (found=%v), want completed", r, ok)
-	}
-	var n int
-	_ = h.diskDB.QueryRow(`SELECT COUNT(*) FROM agent_events WHERE session_id = ?`, h.sessionID).Scan(&n)
-	if n != 1 {
-		t.Errorf("disk rows = %d, want 1 (upsert in place)", n)
-	}
-}
-
 // TestPostToolUseForHarness_ClaudeSplit: on Claude the sync `posttooluse`
 // subcommand only responds (the async posttooluse-record hook records), while
 // PostToolUseRecord records and never returns context. Codex runs both jobs.

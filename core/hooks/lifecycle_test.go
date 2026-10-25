@@ -17,12 +17,9 @@ import (
 // SQLite DB. Returns the database and the project dir.
 func setupLifecycleDB(t *testing.T) (*sql.DB, string) {
 	t.Helper()
-	// plan-2390966a slice-4: the hot hooks route derived-index writes through an
-	// enqueue-only daemon seam. These lifecycle tests assert immediate SQLite
-	// visibility, so force the direct fallback instead of depending on whether an
-	// ambient writer daemon happens to be reachable.
+	// Hooks have no daemon-miss fallback (feat-174dc958); a stub daemon
+	// applies every routed statement to the database opened below.
 	t.Setenv("WIPNOTE_NO_AUTO_WRITER", "1")
-	stubRouteSQLAsync(t, false)
 	projectDir := t.TempDir()
 	hgDir := filepath.Join(projectDir, ".wipnote")
 	if err := os.MkdirAll(hgDir, 0o755); err != nil {
@@ -38,6 +35,7 @@ func setupLifecycleDB(t *testing.T) (*sql.DB, string) {
 		t.Fatalf("db.Open: %v", err)
 	}
 	t.Cleanup(func() { database.Close() })
+	stubDaemonApplyInto(t, database)
 	return database, projectDir
 }
 
