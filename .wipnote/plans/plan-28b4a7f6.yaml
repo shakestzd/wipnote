@@ -7,7 +7,7 @@ meta:
     status: finalized
     priority: medium
     schema_version: v4
-    version: 43
+    version: 44
 design:
     problem: |
         ## Problem
@@ -1809,6 +1809,26 @@ slices:
       effort: M
       risk: Med
       tests: 'Unit: TestDoctorProjectThread_AllPresent, TestDoctorProjectThread_NoHooksNamesFix, TestDoctorProjectThread_NoBinary. Integration: TestRun_NoHooksStillReports, TestWait_NoHooksResultFileEnds. Script: shellcheck plus a run in a temp HOME.'
+      approved: false
+      comment: ""
+    - id: slic-c7659d67
+      num: 24
+      title: Export a plan as Claude project instructions
+      what: 'Add wipnote plan project-instructions <plan>. It prints a brief for Project settings > Memory > Project instructions from the plan: goal and repositories and branch rules and how to check work and what needs a go-ahead. wipnote plans stay canonical; the project gets a copy.'
+      why: 'Owner 2026-10-25: set context once for every thread, without making the project the source of truth.'
+      files:
+        - plan/projectbrief/brief.go
+        - plan/projectbrief/brief_test.go
+        - cmd/wipnote/plan_project_instructions.go
+      deps: []
+      done_when:
+        - Output is at most 16000 characters and names the cut sections when trimmed
+        - Output holds no host paths
+        - The same plan gives the same output
+        - 'Sections follow the doc''s brief: purpose then where the work happens then checks then missing-things rule then go-ahead list'
+      effort: S
+      risk: Low
+      tests: 'Unit: TestBrief_UnderLimit, TestBrief_TrimNamesCutSections, TestBrief_NoHostPaths, TestBrief_Deterministic, TestBrief_SectionOrder.'
       approved: false
       comment: ""
 questions:
