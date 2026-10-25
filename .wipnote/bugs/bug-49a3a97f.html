@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>PreCompact/PostCompact read compaction_trigger; Codex docs name the field trigger</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-49a3a97f"
+             data-type="bug"
+             data-status="todo"
+             data-priority="medium"
+             data-created="2026-10-25T08:09:53.592028"
+             data-updated="2026-10-25T08:09:53.696094" data-agent-assigned="claude-code" data-track-id="trk-0677c709" data-created-by-agent="claude-code" data-created-by-model="claude-opus-5-5[1m]" data-created-by-cli-version="0.82.1" data-change_kind="bugfix" data-created_in_session="9d78c801-c910-44c4-853b-a9ffae76b2e0">
+
+        <header>
+            <h1>PreCompact/PostCompact read compaction_trigger; Codex docs name the field trigger</h1>
+            <div class="metadata">
+                <span class="badge status-todo">Todo</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-0677c709.html" data-relationship="part_of" data-since="2026-10-25T08:09:53.695927">trk-0677c709</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>core/hooks/runner.go:156 decodes CompactionTrigger from json compaction_trigger. Codex hooks docs (learn.chatgpt.com/docs/hooks, read 2026-10-25) name the field trigger (manual|auto). With feat-5d1540bb routing Codex PreCompact/PostCompact to wipnote, the trigger is recorded as unspecified. Check the Claude Code hooks doc field name too before fixing; add a test with both payload shapes.</p>
+        </section>
+    </article>
+</body>
+</html>
