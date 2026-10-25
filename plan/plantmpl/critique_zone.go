@@ -3,6 +3,7 @@ package plantmpl
 import (
 	"html/template"
 	"io"
+	"sync"
 )
 
 // CritiqueZone renders the multi-model critique section containing
@@ -31,13 +32,13 @@ type RiskRow struct {
 	Mitigation string
 }
 
-var critiqueTmpl = template.Must(
-	template.ParseFS(templateFS, "templates/critique_zone.gohtml"),
-)
+var critiqueTmpl = sync.OnceValue(func() *template.Template {
+	return template.Must(template.ParseFS(templateFS, "templates/critique_zone.gohtml"))
+})
 
 // Render writes the critique zone HTML.
 func (c *CritiqueZone) Render(w io.Writer) error {
-	return critiqueTmpl.Execute(w, c)
+	return critiqueTmpl().Execute(w, c)
 }
 
 // BadgeClass returns the CSS class for an assumption badge.

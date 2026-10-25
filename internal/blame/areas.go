@@ -1,8 +1,8 @@
 // Package blame — areas aggregator.
 //
-// WalkAreas walks every tracked source file under root, runs blame.Query for
-// each, and returns a grouped per-track inventory.  It reuses Query() from
-// this package rather than re-implementing the SQL logic.
+// WalkAreas walks every tracked source file under root, resolves the same
+// per-file blame Query returns for each from one grouped scan (fileIndex), and
+// returns a grouped per-track inventory.
 package blame
 
 import (
@@ -115,10 +115,15 @@ func gitListFiles(ctx context.Context, root string) ([]string, error) {
 	return files, nil
 }
 
-// WalkAreas enumerates tracked files under root, runs blame.Query for each,
-// and groups the results as requested by opts.
+// WalkAreas enumerates tracked files under root, resolves each file's blame
+// Result from one feature_files scan, and groups the results as requested by
+// opts.
 func WalkAreas(ctx context.Context, database *sql.DB, root string, opts WalkOptions) (*AreasResult, error) {
 	files, err := gitListFiles(ctx, root)
+	if err != nil {
+		return nil, err
+	}
+	index, err := loadFileIndex(ctx, database, files)
 	if err != nil {
 		return nil, err
 	}
@@ -155,10 +160,7 @@ func WalkAreas(ctx context.Context, database *sql.DB, root string, opts WalkOpti
 			continue
 		}
 
-		result, queryErr := Query(ctx, database, rel, QueryOptions{})
-		if queryErr != nil {
-			return nil, fmt.Errorf("blame %s: %w", rel, queryErr)
-		}
+		result := index.result(rel)
 
 		if len(result.Features) == 0 {
 			if opts.includeUntracked() {

@@ -93,12 +93,3 @@ func classifyFsType(magic int64) (fstype string, walSafe bool) {
 		return fmt.Sprintf("unknown(0x%X)", uint64(magic)), false
 	}
 }
-
-// isUnsafeForMmap returns true if the filesystem backing dbPath is known to be
-// unsafe for SQLite WAL-mode mmap (e.g. virtiofs, FUSE, 9p, overlayfs, NFS,
-// SMB). Returns false on safelisted native filesystems (ext4, xfs, btrfs,
-// tmpfs, zfs). Unknown filesystems return true — prefer correctness over speed.
-func isUnsafeForMmap(dbPath string) bool {
-	_, walSafe := ProbeFsType(dbPath)
-	return !walSafe
-}

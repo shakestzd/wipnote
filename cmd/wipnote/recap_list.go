@@ -2,14 +2,13 @@ package main
 
 import (
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	dbpkg "github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/slug"
 	"github.com/spf13/cobra"
 )
 
@@ -145,12 +144,7 @@ func runRecapList(format string) error {
 	}
 
 	if format == "json" {
-		data, mErr := json.MarshalIndent(out, "", "  ")
-		if mErr != nil {
-			return fmt.Errorf("marshal json: %w", mErr)
-		}
-		fmt.Println(string(data))
-		return nil
+		return printJSON(out)
 	}
 	printRecapListText(out)
 	return nil
@@ -167,7 +161,7 @@ func printRecapListText(out []recapJSON) {
 		if r.Grounded {
 			grounded = "yes"
 		}
-		fmt.Printf("%-30s  %-10s  %-9s  %s\n", r.ID, r.Kind, grounded, truncate(r.Title, 40))
+		fmt.Printf("%-30s  %-10s  %-9s  %s\n", r.ID, r.Kind, grounded, slug.Truncate(r.Title, 40))
 	}
 	fmt.Printf("\n%d recap(s)\n", len(out))
 }
@@ -193,12 +187,7 @@ func runRecapShow(id, format string) error {
 	out := recapJSONFromRow(row)
 
 	if format == "json" {
-		data, mErr := json.MarshalIndent(out, "", "  ")
-		if mErr != nil {
-			return fmt.Errorf("marshal json: %w", mErr)
-		}
-		fmt.Println(string(data))
-		return nil
+		return printJSON(out)
 	}
 	fmt.Printf("ID:        %s\n", out.ID)
 	fmt.Printf("Kind:      %s\n", out.Kind)
@@ -275,30 +264,4 @@ func recapArtifactPath(wipnoteDir, id string) (string, error) {
 		return "", fmt.Errorf("recap path escapes .wipnote/recaps: %q", id)
 	}
 	return path, nil
-}
-
-func upsertRecapArtifact(wipnoteDir, projectDir, id string) error {
-	artifactPath, err := recapArtifactPath(wipnoteDir, id)
-	if err != nil {
-		return err
-	}
-	row, err := parseRecapHTML(artifactPath, id)
-	if err != nil {
-		return err
-	}
-	createdAt, updatedAt := applyGitTimestamps(projectDir, artifactPath, time.Time{}, time.Time{})
-	if !createdAt.IsZero() {
-		t := createdAt
-		row.CreatedAt = &t
-	}
-	if !updatedAt.IsZero() {
-		t := updatedAt
-		row.UpdatedAt = &t
-	}
-	database, err := openRecapsIndex(wipnoteDir)
-	if err != nil {
-		return err
-	}
-	defer database.Close()
-	return dbpkg.UpsertRecap(database, row)
 }

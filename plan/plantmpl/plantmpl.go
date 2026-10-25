@@ -15,6 +15,7 @@ import (
 	"html/template"
 	"io"
 	"strings"
+	"sync"
 	texttemplate "text/template"
 
 	"github.com/microcosm-cc/bluemonday"
@@ -73,25 +74,27 @@ func (rawHTMLEscaper) Transform(doc *gast.Document, reader text.Reader, _ parser
 // &lt;id&gt; while code spans and fenced code blocks remain unaffected.
 // XSS protection is layered: the AST transformer escapes raw HTML first, then
 // bluemonday strips any remaining vectors (e.g. from Markdown link targets).
-var mdParser = goldmark.New(
-	goldmark.WithExtensions(extension.GFM),
-	goldmark.WithParserOptions(
-		parser.WithASTTransformers(
-			util.Prioritized(rawHTMLEscaper{}, 50),
+var mdParser = sync.OnceValue(func() goldmark.Markdown {
+	return goldmark.New(
+		goldmark.WithExtensions(extension.GFM),
+		goldmark.WithParserOptions(
+			parser.WithASTTransformers(
+				util.Prioritized(rawHTMLEscaper{}, 50),
+			),
 		),
-	),
-)
+	)
+})
 
 // mdPolicy is the bluemonday policy used to sanitize goldmark output.
 // It permits standard Markdown output elements (headings, lists, code, etc.)
 // while stripping <script>, event handlers, and other XSS vectors.
-var mdPolicy = func() *bluemonday.Policy {
+var mdPolicy = sync.OnceValue(func() *bluemonday.Policy {
 	p := bluemonday.UGCPolicy()
 	// Allow class attributes on <code> and <pre> (e.g. language-go) for
 	// client-side syntax highlighting if desired.
 	p.AllowAttrs("class").OnElements("code", "pre")
 	return p
-}()
+})
 
 // RenderMd converts a Markdown string to sanitized HTML. It uses goldmark
 // for parsing and bluemonday for sanitization so that headings, lists, code
@@ -102,11 +105,11 @@ func RenderMd(src string) template.HTML {
 		return ""
 	}
 	var buf bytes.Buffer
-	if err := mdParser.Convert([]byte(src), &buf); err != nil {
+	if err := mdParser().Convert([]byte(src), &buf); err != nil {
 		// On parse error, return the source HTML-escaped as a fallback.
 		return template.HTML(template.HTMLEscapeString(src))
 	}
-	safe := mdPolicy.SanitizeBytes(buf.Bytes())
+	safe := mdPolicy().SanitizeBytes(buf.Bytes())
 	return template.HTML(safe)
 }
 
@@ -143,16 +146,18 @@ func renderSlices(cards []SliceCard) template.HTML {
 //     (including JS comment markers used by runtime HTML patching)
 //   - All dynamic values inserted at the page level are either
 //     pre-rendered template.HTML or known-safe format (SectionsJSON)
-var planPageTmpl = texttemplate.Must(
-	texttemplate.New("plan_page.gohtml").Funcs(texttemplate.FuncMap{
-		"renderZone":   renderZone,
-		"renderSlices": renderSlices,
-		"hasPrefix":    strings.HasPrefix,
-		// htmlEscape escapes user-supplied text for safe emission in the
-		// text/template page shell where auto-escaping is NOT applied.
-		"htmlEscape": htmlesc.EscapeString,
-	}).ParseFS(templateFS, "templates/plan_page.gohtml"),
-)
+var planPageTmpl = sync.OnceValue(func() *texttemplate.Template {
+	return texttemplate.Must(
+		texttemplate.New("plan_page.gohtml").Funcs(texttemplate.FuncMap{
+			"renderZone":   renderZone,
+			"renderSlices": renderSlices,
+			"hasPrefix":    strings.HasPrefix,
+			// htmlEscape escapes user-supplied text for safe emission in the
+			// text/template page shell where auto-escaping is NOT applied.
+			"htmlEscape": htmlesc.EscapeString,
+		}).ParseFS(templateFS, "templates/plan_page.gohtml"),
+	)
+})
 
 // sliceCardFuncs provides template functions for slice_card.gohtml.
 // These are registered on the html/template instance used by sliceCardTmpl.
@@ -288,5 +293,5 @@ func (p *PlanPage) Render(w io.Writer) error {
 	if p.Priority == "" {
 		p.Priority = "medium"
 	}
-	return planPageTmpl.Execute(w, p)
+	return planPageTmpl().Execute(w, p)
 }

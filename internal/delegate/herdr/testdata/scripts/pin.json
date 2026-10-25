@@ -1,0 +1,7 @@
+{
+  "rules": [
+    { "match": ["agent", "get", "w1:p9"], "replies": [ { "error": { "code": "not_found", "message": "no agent" } } ] },
+    { "match": ["agent", "get", "*"], "replies": [ { "shape": { "as": "agent_info", "pane_id": "w1:p2", "status": "idle" } } ] },
+    { "match": ["agent", "prompt", "w1:p2", "go"], "replies": [ { "shape": { "as": "ok" } } ], "repeat": "once" }
+  ]
+}

@@ -11,8 +11,6 @@ import (
 
 	"github.com/shakestzd/wipnote/cmd/wipnote/launchtui"
 	"github.com/shakestzd/wipnote/core/agent"
-	"github.com/shakestzd/wipnote/core/daemon/apply"
-	"github.com/shakestzd/wipnote/core/models"
 	"github.com/shakestzd/wipnote/core/paths"
 	"github.com/shakestzd/wipnote/core/provenance"
 	"github.com/shakestzd/wipnote/core/worktree"
@@ -98,6 +96,7 @@ func buildRoot() *cobra.Command {
 	initClaimLedgerCommitSeam()
 	initSessionLedgerCommitSeam()
 	initGateLedgerCommitSeam()
+	initDelegationLedgerCommitSeam()
 
 	spike := workitemCmd("spike", "spikes")
 	spike.AddCommand(spikeResetCmd())
@@ -193,6 +192,7 @@ func buildRoot() *cobra.Command {
 			{GroupID: "dev", Command: buildCmd()},
 			{GroupID: "dev", Command: agentInitCmd()},
 			{GroupID: "dev", Command: shCmd()},
+			{GroupID: "dev", Command: delegateCmd()},
 		},
 		Ungrouped: []*cobra.Command{
 			versionCmd(),
@@ -248,35 +248,6 @@ func versionCmd() *cobra.Command {
 // fast skip on contention is safe. See bug-504095f2.
 const ensureSessionPreRunTimeout = 500 * time.Millisecond
 
-func init() {
-	// Wire the daemon-route seam for the cold-path session INSERT so
-	// EnsureSessionRouted can route through the per-project writer daemon
-	// without importing apply directly in core/agent (which is kept
-	// dependency-free to avoid import cycles). The adapter builds the minimal
-	// models.Session needed by RouteSessionInsert from the flat field args.
-	agent.RouteSessionInsertFn = func(projectRoot, sessionID, agentID, now, model, projectDir, gitRemoteURL string) bool {
-		s := &models.Session{
-			SessionID:     sessionID,
-			AgentAssigned: agentID,
-			Status:        "active",
-			Model:         model,
-			ProjectDir:    projectDir,
-			GitRemoteURL:  gitRemoteURL,
-		}
-		if t, err := time.Parse(time.RFC3339, now); err == nil {
-			s.CreatedAt = t
-		}
-		// ENQUEUE-ONLY (bug-d792aee6 finding 1): the launcher's new-session cold
-		// insert runs on the interactive critical path. The applied-ack
-		// RouteSessionInsert waited the full CLISubmitBudget (~2.4s) under a held
-		// external write lock because the daemon cannot apply while the lock is
-		// held. Enqueue-only acks sub-millisecond once the daemon is warm; the
-		// op applies FIFO afterwards, and SessionStart's idempotent INSERT OR
-		// IGNORE upsert (slice-3) + canonical NDJSON reindex are the backstop.
-		return apply.RouteSessionInsertAsync(projectRoot, s)
-	}
-}
-
 // persistentPreRunE is attached to rootCmd and runs before every command. It
 // performs two side-effects: (1) ensures a session row exists for the current
 // agent attribution chain, and (2) upserts the current project into the
@@ -310,6 +281,10 @@ func persistentPreRunE(cmd *cobra.Command, args []string) error {
 	//   2. _serve-child (the writer daemon) builds its own projection in runWriterOnly.
 	// Neither command participates in agent session tracking or the project registry.
 	case "otel-collect", "_serve-child":
+		return nil
+	// `wipnote delegate run-pane` is the pane worker a delegate run types
+	// into its herdr pane; the caller's run already did the session work.
+	case "run-pane":
 		return nil
 	}
 	// Skip hook subtree — hooks manage their own session lifecycle.
@@ -391,19 +366,6 @@ func persistentPreRunE(cmd *cobra.Command, args []string) error {
 func initSessionWithDB(_, projectDir string, _ *cobra.Command) error {
 	_, _ = agent.EnsureSessionWithTimeout(nil, projectDir, ensureSessionPreRunTimeout)
 	return nil
-}
-
-// inCacheSubtree reports whether cmd or any ancestor is the `cache` command.
-// Used to bypass the destructive opportunistic prune in PersistentPreRunE so
-// `wipnote cache prune --dry-run` reports the cache's actual state rather
-// than what's left after the prune the pre-run hook just performed.
-func inCacheSubtree(cmd *cobra.Command) bool {
-	for p := cmd; p != nil; p = p.Parent() {
-		if p.Name() == "cache" {
-			return true
-		}
-	}
-	return false
 }
 
 // isLauncherDiagnosticSubtree reports whether cmd or any ancestor is the
@@ -491,13 +453,4 @@ func resolveForCompare(p string) string {
 		return filepath.Clean(resolved)
 	}
 	return filepath.Clean(abs)
-}
-
-// truncate shortens s to maxLen characters, appending "…" if cut.
-func truncate(s string, maxLen int) string {
-	runes := []rune(s)
-	if len(runes) <= maxLen {
-		return s
-	}
-	return string(runes[:maxLen-1]) + "…"
 }

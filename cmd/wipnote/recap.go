@@ -112,10 +112,6 @@ func runRecap(args []string, rangeSpec, sessionID string) error {
 	if writeErr := os.WriteFile(artifactPath, buf.Bytes(), 0o644); writeErr != nil {
 		return fmt.Errorf("recap: write artifact: %w", writeErr)
 	}
-	if indexErr := upsertRecapArtifact(wipnoteDir, repoRoot, recapID); indexErr != nil {
-		fmt.Fprintf(os.Stderr, "recap: update read index (non-fatal): %v\n", indexErr)
-	}
-
 	// Commit artifact.
 	if commitErr := commitRecapArtifact(wipnoteDir, recapID); commitErr != nil {
 		fmt.Fprintf(os.Stderr, "recap: commit artifact: %v\n", commitErr)
@@ -266,11 +262,6 @@ func RunPlanRollupRecap(wipnoteDir, planID string) error {
 	artifactPath := filepath.Join(recapsDir, recapID+".html")
 	if writeErr := os.WriteFile(artifactPath, buf.Bytes(), 0o644); writeErr != nil {
 		return fmt.Errorf("recap: write artifact: %w", writeErr)
-	}
-
-	// Update read index so a running dashboard sees the recap immediately (non-fatal).
-	if indexErr := upsertRecapArtifact(wipnoteDir, repoRoot, recapID); indexErr != nil {
-		fmt.Fprintf(os.Stderr, "recap (non-fatal): update read index: %v\n", indexErr)
 	}
 
 	if commitErr := commitRecapArtifact(wipnoteDir, recapID); commitErr != nil {

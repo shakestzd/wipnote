@@ -44,20 +44,6 @@ func FeatWithContent(content string) FeatureOption {
 	return func(c *featureConfig) { c.content = content }
 }
 
-// FeatWithEdge adds a typed edge to another node.
-func FeatWithEdge(relType, targetID string) FeatureOption {
-	return func(c *featureConfig) {
-		if c.edges == nil {
-			c.edges = make(map[string][]models.Edge)
-		}
-		c.edges[relType] = append(c.edges[relType], models.Edge{
-			TargetID:     targetID,
-			Relationship: models.RelationshipType(relType),
-			Since:        time.Now().UTC(),
-		})
-	}
-}
-
 // FeatureCollection provides CRUD operations for features.
 type FeatureCollection struct {
 	*Collection

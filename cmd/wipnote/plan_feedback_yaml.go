@@ -212,23 +212,6 @@ func parseFeedbackTime(value string) time.Time {
 	return t
 }
 
-func canonicalPlanApproved(wipnoteDir, planID string) (bool, []int, error) {
-	plan, err := planyaml.Load(planYAMLPath(wipnoteDir, planID))
-	if err != nil {
-		return false, nil, err
-	}
-	var pending []int
-	for _, s := range plan.Slices {
-		if s.ApprovalStatus != "approved" && !s.Approved {
-			pending = append(pending, s.Num)
-		}
-	}
-	if len(plan.Slices) > 0 {
-		return len(pending) == 0, pending, nil
-	}
-	return plan.Design.Approved, nil, nil
-}
-
 func storePlanFeedback(wipnoteDir, planID, section, action, value, questionID string) error {
 	return storePlanFeedbackEntry(wipnoteDir, planID, planyaml.PlanFeedbackEntry{
 		Section:    section,
@@ -236,17 +219,4 @@ func storePlanFeedback(wipnoteDir, planID, section, action, value, questionID st
 		Value:      value,
 		QuestionID: questionID,
 	})
-}
-
-func planChatSessionID(wipnoteDir, planID string) string {
-	entries, err := readPlanFeedbackEntries(wipnoteDir, planID)
-	if err != nil {
-		return ""
-	}
-	for _, e := range entries {
-		if e.Section == "chat" && e.Action == "session_id" {
-			return e.Value
-		}
-	}
-	return ""
 }

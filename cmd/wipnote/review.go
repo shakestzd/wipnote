@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"os/exec"
 	"regexp"
@@ -172,12 +171,7 @@ func printReviewText(s *reviewSummary) {
 
 // printReviewJSON marshals the summary as pretty-printed JSON.
 func printReviewJSON(s *reviewSummary) error {
-	enc, err := json.MarshalIndent(s, "", "  ")
-	if err != nil {
-		return fmt.Errorf("marshal json: %w", err)
-	}
-	fmt.Println(string(enc))
-	return nil
+	return printJSON(s)
 }
 
 // gitOutput runs a git sub-command and returns its stdout as a string.

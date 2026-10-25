@@ -1,0 +1,12 @@
+pane get w1:p1
+tab create --workspace w1 --label workers:abcd1234 --cwd /proj --no-focus
+pane get w1:p20
+pane split w1:p20 --direction right --cwd /proj --no-focus
+pane get w1:p20
+pane get w1:p21
+pane split w1:p20 --direction down --cwd /proj --no-focus
+pane get w1:p20
+pane get w1:p21
+pane get w1:p22
+pane split w1:p21 --direction down --cwd /proj --no-focus
+tab close w1:t2

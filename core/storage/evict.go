@@ -3,7 +3,6 @@ package storage
 import (
 	"errors"
 	"fmt"
-	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -148,33 +147,6 @@ func Evict(cacheRoot string, opts EvictOptions) (EvictResult, error) {
 	return res, nil
 }
 
-// MaybePruneOpportunistic evicts the cache iff the .last-prune marker is
-// older than minInterval. On first call (no marker) it creates the marker
-// without pruning, so a brand-new install is never surprised by deletions.
-// The bool return reports whether a prune ran. Errors are returned but
-// callers may ignore them — opportunistic prune is best-effort.
-func MaybePruneOpportunistic(cacheRoot string, minInterval time.Duration, opts EvictOptions) (EvictResult, bool, error) {
-	if err := os.MkdirAll(cacheRoot, 0o755); err != nil {
-		return EvictResult{}, false, fmt.Errorf("ensure cache root: %w", err)
-	}
-	marker := filepath.Join(cacheRoot, ".last-prune")
-	info, err := os.Stat(marker)
-	if errors.Is(err, fs.ErrNotExist) {
-		return EvictResult{}, false, touchMarker(marker)
-	}
-	if err != nil {
-		return EvictResult{}, false, err
-	}
-	if time.Since(info.ModTime()) < minInterval {
-		return EvictResult{}, false, nil
-	}
-	res, evictErr := Evict(cacheRoot, opts)
-	if evictErr != nil {
-		return res, true, evictErr
-	}
-	return res, true, touchMarker(marker)
-}
-
 // protectedSet normalises the supplied paths into a set keyed by absolute,
 // cleaned path. Anything that fails to absolutise is included as-is so we
 // fail closed — better to skip an eviction than to delete something the
@@ -195,43 +167,6 @@ func protectedSet(paths []string) map[string]bool {
 		m[filepath.Clean(p)] = true
 	}
 	return m
-}
-
-// OpportunisticPrune is the default-policy wrapper invoked from the CLI's
-// PersistentPreRunE: 7-day prune cadence, 3-day max age, 1 GiB max size.
-// projectDir is the active project's root — its cache dir is protected so
-// the sweep can't pull the read-index out from under the running command
-// (a particular hazard for sessions that have just touched the project,
-// since the LRU sweep would otherwise pick it as a victim if disk is tight).
-// Errors are swallowed — eviction is best-effort and must not block any
-// command. When a prune actually removes something, an advisory line is
-// written to w (callers typically pass os.Stderr).
-func OpportunisticPrune(cacheRoot, projectDir string, w io.Writer) {
-	opts := EvictOptions{
-		MaxAge:    DefaultMaxAge,
-		MaxSize:   DefaultMaxSize,
-		Protected: currentProjectProtected(projectDir),
-	}
-	res, ran, err := MaybePruneOpportunistic(cacheRoot, 7*24*time.Hour, opts)
-	if err != nil || !ran || len(res.Removed) == 0 || w == nil {
-		return
-	}
-	fmt.Fprintf(w, "[wipnote] cache: pruned %d stale cache dir(s), freed %d bytes\n",
-		len(res.Removed), res.BytesFreed)
-}
-
-// currentProjectProtected returns the project's cache dir as a one-element
-// slice suitable for EvictOptions.Protected, or nil when projectDir is empty
-// or the cache path can't be resolved.
-func currentProjectProtected(projectDir string) []string {
-	if projectDir == "" {
-		return nil
-	}
-	dbPath, err := CanonicalDBPath(projectDir)
-	if err != nil {
-		return nil
-	}
-	return []string{filepath.Dir(dbPath)}
 }
 
 type projectEntry struct {
@@ -311,16 +246,4 @@ func isHexHash(s string) bool {
 		}
 	}
 	return true
-}
-
-func touchMarker(path string) error {
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
-	if err != nil {
-		return err
-	}
-	if _, werr := f.WriteString(time.Now().UTC().Format(time.RFC3339)); werr != nil {
-		f.Close()
-		return werr
-	}
-	return f.Close()
 }

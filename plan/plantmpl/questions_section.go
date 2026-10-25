@@ -3,11 +3,12 @@ package plantmpl
 import (
 	"html/template"
 	"io"
+	"sync"
 )
 
-var questionsTmpl = template.Must(
-	template.ParseFS(templateFS, "templates/questions_section.gohtml"),
-)
+var questionsTmpl = sync.OnceValue(func() *template.Template {
+	return template.Must(template.ParseFS(templateFS, "templates/questions_section.gohtml"))
+})
 
 // QuestionsSection renders the open questions and decision cards zone.
 type QuestionsSection struct {
@@ -26,5 +27,5 @@ type DecisionCard struct {
 
 // Render writes the questions section zone HTML.
 func (q *QuestionsSection) Render(w io.Writer) error {
-	return questionsTmpl.Execute(w, q)
+	return questionsTmpl().Execute(w, q)
 }

@@ -39,11 +39,6 @@ func NewStore(wipnoteDir string) (*Store, error) {
 // Dir returns the absolute path to the arch directory.
 func (s *Store) Dir() string { return s.dir }
 
-// cardPath returns the import-compatible YAML file path for a card slug.
-func (s *Store) cardPath(slug string) string {
-	return filepath.Join(s.dir, slug+importYAMLCardExt)
-}
-
 func isCardFile(name string) bool {
 	ext := filepath.Ext(name)
 	return ext == importYAMLCardExt || ext == legacyMDCardExt

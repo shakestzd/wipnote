@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -87,11 +86,9 @@ func runCodeAreas(opts codeAreasOpts) error {
 
 	switch opts.format {
 	case "json":
-		data, marshalErr := json.MarshalIndent(result, "", "  ")
-		if marshalErr != nil {
-			return fmt.Errorf("format json: %w", marshalErr)
+		if err := printJSON(result); err != nil {
+			return err
 		}
-		fmt.Println(string(data))
 	case "markdown":
 		fmt.Print(formatAreasMarkdown(result, opts.byFile))
 	case "text", "":

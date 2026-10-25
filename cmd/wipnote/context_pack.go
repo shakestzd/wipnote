@@ -6,11 +6,9 @@ import (
 	"fmt"
 	"os/exec"
 	"path/filepath"
-	"sort"
 	"strconv"
 	"strings"
 
-	dbpkg "github.com/shakestzd/wipnote/core/db"
 	"github.com/shakestzd/wipnote/core/models"
 	"github.com/shakestzd/wipnote/core/workitem"
 	"github.com/shakestzd/wipnote/internal/blame"
@@ -66,28 +64,19 @@ func runContextPack(ctx context.Context, rawID string) error {
 		return err
 	}
 
-	// WalkAreas is expensive (git ls-files + blame per file). Call ONCE.
+	// One git call gives both the track's recent commits (§6) and the files
+	// they touched (§5).
 	var trackArea *blame.TrackArea
+	var commits []models.GitCommit
 	if node.TrackID != "" {
-		root := filepath.Dir(dir)
-		fa := false
-		res, walkErr := blame.WalkAreas(ctx, nil, root, blame.WalkOptions{
-			ByFile:           false,
-			IncludeUntracked: &fa,
-		})
-		if walkErr == nil {
-			for i := range res.ByTrack {
-				if res.ByTrack[i].TrackID == node.TrackID {
-					trackArea = &res.ByTrack[i]
-					break
-				}
-			}
+		var files []blame.FileEntry
+		commits, files = trackGitHistory(filepath.Dir(dir), trackFeatureIDs(proj, node.TrackID), contextPackHistoryScan)
+		if len(files) > 0 {
+			trackArea = &blame.TrackArea{TrackID: node.TrackID, TrackTitle: trackTitle(proj, node.TrackID), Files: files}
 		}
-	}
-
-	commits, err := commitsByTrack(proj, node.TrackID)
-	if err != nil {
-		commits = nil
+		if len(commits) > contextPackCommitLimit {
+			commits = commits[:contextPackCommitLimit]
+		}
 	}
 
 	questions, err := openQuestionsForTrack(dir, proj, node.TrackID)
@@ -115,62 +104,6 @@ func resolveNode(proj *workitem.Project, id string) (*models.Node, error) {
 	default:
 		return nil, fmt.Errorf("unsupported work item type for ID %q", id)
 	}
-}
-
-// commitsByTrack collects and deduplicates commits across all features in the
-// given track, sorted by timestamp descending, capped at contextPackCommitLimit.
-// Uses both database-derived track membership (GetFeatureIDsByTrack) and canonical-HTML
-// direct lookup (proj.Features with WithTrackID) to ensure no memberships are missed
-// due to stale local caches.
-func commitsByTrack(proj *workitem.Project, trackID string) ([]models.GitCommit, error) {
-	if trackID == "" {
-		return nil, nil
-	}
-
-	// Collect feature IDs from two sources: SQLite index and canonical HTML.
-	dbIDs, err := dbpkg.GetFeatureIDsByTrack(nil, trackID)
-	if err != nil {
-		return nil, err
-	}
-
-	// Also load directly from canonical HTML to catch any stale-DB misses.
-	htmlIDs, err := proj.Features.Collection.List(workitem.WithTrackID(trackID))
-	if err != nil {
-		return nil, err
-	}
-
-	// Merge and dedupe feature IDs.
-	idSet := make(map[string]struct{})
-	for _, id := range dbIDs {
-		idSet[id] = struct{}{}
-	}
-	for _, node := range htmlIDs {
-		idSet[node.ID] = struct{}{}
-	}
-
-	// Load commits for each feature.
-	seen := make(map[string]bool)
-	var all []models.GitCommit
-	for fid := range idSet {
-		cs, err := dbpkg.GetCommitsByFeature(nil, fid)
-		if err != nil {
-			continue
-		}
-		for _, c := range cs {
-			if !seen[c.CommitHash] {
-				seen[c.CommitHash] = true
-				all = append(all, c)
-			}
-		}
-	}
-
-	sort.Slice(all, func(i, j int) bool {
-		return all[i].Timestamp.After(all[j].Timestamp)
-	})
-	if len(all) > contextPackCommitLimit {
-		all = all[:contextPackCommitLimit]
-	}
-	return all, nil
 }
 
 // unansweredQuestion is a flat representation of a question that lacks an answer.

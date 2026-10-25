@@ -6,8 +6,6 @@ import (
 	"io/fs"
 	"os"
 	"time"
-
-	"github.com/shakestzd/wipnote/core/db/writequeue"
 )
 
 // Tuning a test child reads from its environment. Each value is a Go
@@ -39,8 +37,8 @@ func keepChildLease(ctx context.Context, stop context.CancelFunc, lease *Lease) 
 	lease.Keep(ctx, stop)
 }
 
-func childListenerConfig(root string, q *writequeue.Queue, lease *Lease) ListenerConfig {
-	return ListenerConfig{SocketPath: SocketPath(root), Queue: q, Applier: RejectingApplier, Lease: lease}
+func childListenerConfig(root string, lease *Lease) ListenerConfig {
+	return ListenerConfig{SocketPath: SocketPath(root), Lease: lease}
 }
 
 // leaseOwnerPIDForTest returns the pid recorded in the lease, or 0.

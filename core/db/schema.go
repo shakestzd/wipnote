@@ -3,70 +3,10 @@ package db
 import (
 	"database/sql"
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 
 	_ "modernc.org/sqlite"
 )
-
-// Open opens (or creates) an wipnote SQLite database at the given path,
-// applies performance PRAGMAs, and runs any pending schema migrations.
-//
-// Migrations are version-gated by PRAGMA user_version: a database whose
-// user_version already equals currentSchemaVersion takes the warm-open fast
-// path and executes ZERO CREATE / ALTER / DROP / trigger / normalisation
-// statements. This eliminates the write-lock contention that DDL re-execution
-// caused in short-lived hook and CLI processes.
-//
-// Brand-new databases (user_version = 0) run every registered migration in
-// order, then land at currentSchemaVersion. Legacy databases at any
-// intermediate version run only the missing migrations and advance to current.
-// The full migration registry lives in migrations.go.
-func Open(dbPath string) (*sql.DB, error) {
-	dir := filepath.Dir(dbPath)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return nil, fmt.Errorf("creating db directory: %w", err)
-	}
-
-	// Embed busy_timeout in the DSN so it is applied on the first connection
-	// open, before any schema queries. This prevents SQLITE_BUSY errors during
-	// startup races when the OTel receiver writer or a hook binary holds the
-	// write lock. ApplyPragmas below re-applies the full set for completeness
-	// (idempotent).
-	// Skip DSN-level pragma for in-memory DBs; the driver will reject it.
-	dsn := dbPath
-	isInMemory := strings.Contains(dbPath, ":memory:")
-	if !isInMemory {
-		dsn = dsn + "?_pragma=busy_timeout(5000)&_txlock=immediate"
-	}
-	db, err := sql.Open("sqlite", dsn)
-	if err != nil {
-		return nil, fmt.Errorf("opening database: %w", err)
-	}
-
-	if err := ApplyPragmas(db, BuildPragmas(dbPath)); err != nil {
-		db.Close()
-		return nil, fmt.Errorf("applying pragmas: %w", err)
-	}
-
-	// bug-7dbaf552: runMigrations performs the user_version write (and, for a
-	// brand-new / legacy DB, DDL). On a contended DELETE-journal database the
-	// SHARED→RESERVED upgrade can transiently SQLITE_BUSY even with
-	// busy_timeout set. Wrapping the whole migration step in RetryOnBusy makes
-	// EVERY dbpkg.Open caller (lineage/query/session/workitem/...) resilient
-	// without each having to hand-roll its own loop. runMigrations is
-	// version-gated and idempotent, so re-running it is safe. Same-package
-	// call: RetryOnBusy + DefaultBusyBackoff live in busy_retry.go.
-	if err := RetryOnBusy(DefaultBusyBackoff, func() error {
-		return runMigrations(db)
-	}); err != nil {
-		db.Close()
-		return nil, fmt.Errorf("running migrations: %w", err)
-	}
-
-	return db, nil
-}
 
 // CreateAllTables creates every wipnote table if it does not already exist.
 // Mirrors create_all_tables() from Python ddl.py.
@@ -475,6 +415,29 @@ func CreateAllTables(db *sql.DB) error {
 			updated_at    DATETIME,
 			indexed_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 		)`,
+
+		// 19. delegation_runs — read index for .wipnote/delegations-ledger.html.
+		// Canonical store is the HTML ledger; reindex replaces this table from it.
+		`CREATE TABLE IF NOT EXISTS delegation_runs (
+			run_id          TEXT PRIMARY KEY,
+			mode            TEXT NOT NULL,
+			harness         TEXT NOT NULL,
+			name            TEXT NOT NULL DEFAULT '',
+			label           TEXT NOT NULL DEFAULT '',
+			work_item_id    TEXT NOT NULL DEFAULT '',
+			link            TEXT NOT NULL DEFAULT '',
+			caller_session  TEXT NOT NULL DEFAULT '',
+			worker_sessions TEXT NOT NULL DEFAULT '',
+			host            TEXT NOT NULL DEFAULT '',
+			started_at      TEXT NOT NULL,
+			ended_at        TEXT NOT NULL DEFAULT '',
+			exit_code       INTEGER,
+			end_reason      TEXT NOT NULL DEFAULT '',
+			usage_input     INTEGER NOT NULL DEFAULT 0,
+			usage_cached    INTEGER NOT NULL DEFAULT 0,
+			usage_output    INTEGER NOT NULL DEFAULT 0,
+			resumed_from    TEXT NOT NULL DEFAULT ''
+		)`,
 	}
 
 	for _, stmt := range stmts {
@@ -573,6 +536,8 @@ func CreateAllIndexes(db *sql.DB) error {
 		// recaps
 		"CREATE INDEX IF NOT EXISTS idx_recaps_kind ON recaps(kind)",
 		"CREATE INDEX IF NOT EXISTS idx_recaps_work_item ON recaps(work_item_id)",
+		// delegation_runs
+		"CREATE INDEX IF NOT EXISTS idx_delegation_runs_work_item ON delegation_runs(work_item_id, started_at)",
 	}
 
 	for _, idx := range indexes {
@@ -584,44 +549,6 @@ func CreateAllIndexes(db *sql.DB) error {
 	}
 	return nil
 }
-
-// agentEventsCheckConstraintDDL is the target DDL for the agent_events table
-// including the attribution CHECK constraint. It must match CreateAllTables exactly.
-const agentEventsCheckConstraintDDL = `CREATE TABLE agent_events (
-			event_id TEXT PRIMARY KEY,
-			agent_id TEXT NOT NULL,
-			event_type TEXT NOT NULL CHECK(
-				event_type IN ('tool_call','tool_result','error','delegation',
-				               'completion','start','end','check_point','task_delegation',
-				               'teammate_idle','task_created','task_completed','quality_gate',
-				               'claim.proposed','claim.claimed','claim.heartbeat','claim.blocked',
-				               'claim.completed','claim.abandoned','claim.expired','claim.handoff')
-			),
-			timestamp DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-			tool_name TEXT,
-			input_summary TEXT,
-			tool_input JSON,
-			output_summary TEXT,
-			context JSON,
-			session_id TEXT NOT NULL,
-			feature_id TEXT,
-			parent_agent_id TEXT,
-			parent_event_id TEXT,
-			subagent_type TEXT,
-			child_spike_count INTEGER DEFAULT 0,
-			cost_tokens INTEGER DEFAULT 0,
-			execution_duration_seconds REAL DEFAULT 0.0,
-			status TEXT DEFAULT 'recorded',
-			model TEXT,
-			claude_task_id TEXT,
-			source TEXT DEFAULT 'hook',
-			step_id TEXT,
-			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-			CHECK (NOT (event_type = 'tool_call' AND agent_id = 'human' AND (tool_name IS NULL OR tool_name != 'UserQuery'))),
-			FOREIGN KEY (session_id) REFERENCES sessions(session_id) ON DELETE CASCADE ON UPDATE CASCADE,
-			FOREIGN KEY (feature_id) REFERENCES features(id) ON DELETE SET NULL ON UPDATE CASCADE
-		)`
 
 // migrateAgentEventsAddCheckConstraint adds the attribution CHECK constraint to
 // the existing agent_events table via copy-and-swap, and also drops the

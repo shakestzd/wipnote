@@ -5,12 +5,11 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-
-	"github.com/shakestzd/wipnote/core/workitem"
 )
 
 // TestPlanFirstLifecycle exercises the complete plan-first pipeline:
-// create → add-slice-yaml → render → critique → finalize → verify work items.
+// create → add-slice-yaml → render → critique → validate. Finalize is covered
+// by the TestPlanFinalizeFromYAML_* tests.
 func TestPlanFirstLifecycle(t *testing.T) {
 	if testing.Short() {
 		t.Skip("drives full plan lifecycle")
@@ -75,79 +74,5 @@ func TestPlanFirstLifecycle(t *testing.T) {
 	}
 	if !validation.Valid {
 		t.Errorf("plan should be valid, got errors: %v", validation.Errors)
-	}
-
-	// Step 5: Finalize — creates track + features (reads slices from YAML).
-	p, err := workitem.Open(dir, "test-agent")
-	if err != nil {
-		t.Fatalf("workitem.Open: %v", err)
-	}
-	defer p.Close()
-
-	result, err := executePlanFinalize(p, dir, planID)
-	if err != nil {
-		t.Fatalf("executePlanFinalize: %v", err)
-	}
-
-	// Verify track created.
-	if result.TrackID == "" {
-		t.Fatal("no track created")
-	}
-	if !strings.HasPrefix(result.TrackID, "trk-") {
-		t.Errorf("track ID %q doesn't have trk- prefix", result.TrackID)
-	}
-
-	// Verify 3 features created.
-	if len(result.FeatureIDs) != 3 {
-		t.Errorf("features = %d, want 3", len(result.FeatureIDs))
-	}
-
-	// Verify track file exists.
-	trackPath := filepath.Join(dir, "tracks", result.TrackID+".html")
-	if _, err := os.Stat(trackPath); err != nil {
-		t.Errorf("track file missing: %s", trackPath)
-	}
-
-	// Step 6: Idempotent re-finalize.
-	result2, err := executePlanFinalize(p, dir, planID)
-	if err != nil {
-		t.Fatalf("re-finalize: %v", err)
-	}
-	if !result2.AlreadyFinalized {
-		t.Error("re-finalize should report AlreadyFinalized=true")
-	}
-	if result2.TrackID != result.TrackID {
-		t.Errorf("re-finalize track %q != original %q", result2.TrackID, result.TrackID)
-	}
-}
-
-// TestPlanLifecycle_NoSlices verifies finalize with no slices
-// creates a track but zero features.
-func TestPlanLifecycle_NoSlices(t *testing.T) {
-	dir := t.TempDir()
-	for _, sub := range []string{"plans", "features", "tracks"} {
-		os.MkdirAll(filepath.Join(dir, sub), 0o755)
-	}
-
-	planID, err := createPlanFromTopic(dir, "Empty Plan", "nothing here")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	p, err := workitem.Open(dir, "test-agent")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer p.Close()
-
-	result, err := executePlanFinalize(p, dir, planID)
-	if err != nil {
-		t.Fatalf("finalize: %v", err)
-	}
-	if result.TrackID == "" {
-		t.Error("track should be created even with no slices")
-	}
-	if len(result.FeatureIDs) != 0 {
-		t.Errorf("features = %d, want 0", len(result.FeatureIDs))
 	}
 }

@@ -25,11 +25,8 @@
 //	                 failed to take the writer lock — must be zero across
 //	                 the stress fixture for the launch gate to pass.
 //
-//	  indexer      — internal/otel/indexer/* + internal/otel/sink/sqlite
-//	                 QueuedSink. The QueuedSink already swallows queue-side
-//	                 errors via the canonical-first contract; this label
-//	                 catches *op-side* BUSY (the writer worker's actual
-//	                 BEGIN IMMEDIATE returning busy).
+//	  indexer      — observe/otel/indexer/*. Catches *op-side* BUSY (the
+//	                 writer worker's actual BEGIN IMMEDIATE returning busy).
 //
 //	  cli_mutation — internal/workitem (and CLI commands that mutate work
 //	                 items via dbpkg.Open). These are short-lived foreground
@@ -57,7 +54,6 @@
 package db
 
 import (
-	"errors"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -73,7 +69,7 @@ const (
 	// SubsystemHookWriter — internal/hooks/dbgate.go OpenHookDB path.
 	SubsystemHookWriter BusySubsystem = "hook_writer"
 
-	// SubsystemIndexer — internal/otel/indexer and the QueuedSink op-side.
+	// SubsystemIndexer — observe/otel/indexer op-side writes.
 	SubsystemIndexer BusySubsystem = "indexer"
 
 	// SubsystemCLIMutation — internal/workitem and short-lived CLI write commands.
@@ -145,18 +141,6 @@ func Record(subsystem BusySubsystem, err error) bool {
 	return true
 }
 
-// BusyCount returns the current count for subsystem. Safe for concurrent
-// readers; returns 0 for subsystems that have never been recorded.
-func BusyCount(subsystem BusySubsystem) int64 {
-	busyMu.RLock()
-	c, ok := busyCounters[subsystem]
-	busyMu.RUnlock()
-	if !ok {
-		return 0
-	}
-	return c.Load()
-}
-
 // BusyCounts returns a snapshot of every subsystem with a non-zero count
 // at the moment of the call. The returned map is a copy; callers may
 // mutate it freely without affecting the underlying state.
@@ -192,9 +176,9 @@ func FirstPartyBusyTotal() int64 {
 	return total
 }
 
-// ResetBusyCounters zeroes every counter. Intended for tests that need a
-// clean baseline between table-driven sub-tests; production code should
-// never reset.
+// ResetBusyCounters zeroes every counter. It is test support: nothing in
+// production calls it (deadcode reports it), but tests in several packages
+// need a clean baseline for the live counters (feat-726637b8 keeps it).
 func ResetBusyCounters() {
 	busyMu.Lock()
 	defer busyMu.Unlock()
@@ -223,42 +207,3 @@ func counterFor(subsystem BusySubsystem) *atomic.Int64 {
 	busyCounters[subsystem] = c
 	return c
 }
-
-// busyError is a sentinel-style helper so unit tests can synthesize a
-// BUSY error without depending on the SQLite driver. The Error string
-// contains the canonical fragment so IsBusyError matches it.
-type busyError struct{ msg string }
-
-func (e *busyError) Error() string { return e.msg }
-
-// NewSyntheticBusyError returns a *busyError that IsBusyError will accept
-// as a BUSY hit. Used exclusively in tests; production code paths should
-// pass through real driver errors so the detection covers the actual
-// SQLite fragments.
-func NewSyntheticBusyError(detail string) error {
-	if detail == "" {
-		detail = "SQLITE_BUSY: database is locked"
-	}
-	return &busyError{msg: detail}
-}
-
-// Unwrap support so wrapped errors still match the detection. errors.Is
-// against a *busyError is not how callers will check; the package-public
-// API is IsBusyError. This unwrap method exists so other packages that
-// errors.As into *busyError can recover the message.
-func (e *busyError) Unwrap() error { return nil }
-
-// Ensure *busyError satisfies the errors.Is contract trivially — we
-// don't define Is, so errors.Is uses the default equality check; that's
-// the intent (the only way to "match" a busyError is to hold the same
-// pointer, which tests don't need).
-var _ error = (*busyError)(nil)
-
-// Ensure errors.Unwrap doesn't fail on nil-pointer dereference for the
-// synthesized type — covered by the Unwrap method above.
-var _ interface{ Unwrap() error } = (*busyError)(nil)
-
-// Ensure the errors package is imported when needed for the unwrap
-// signature; the import is used implicitly via the errors.Is contract
-// the wrapper satisfies.
-var _ = errors.New

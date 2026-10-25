@@ -11,10 +11,6 @@ import (
 	"github.com/shakestzd/wipnote/core/sessionledger"
 )
 
-// RouteSessionInsertFn is retained as a compatibility seam for older callers.
-// Production session identity is now written to the canonical session ledger.
-var RouteSessionInsertFn func(projectRoot, sessionID, agentID, now, model, projectDir, gitRemoteURL string) bool
-
 // EnsureSession records the current session in the canonical session ledger.
 func EnsureSession(_ any, projectDir string) (string, error) {
 	return EnsureSessionWithTimeout(nil, projectDir, 0)

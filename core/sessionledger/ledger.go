@@ -2,11 +2,6 @@ package sessionledger
 
 import (
 	"bytes"
-	"fmt"
-	"html"
-	"io"
-	"os"
-	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -14,6 +9,7 @@ import (
 	"github.com/PuerkitoBio/goquery"
 
 	"github.com/shakestzd/wipnote/core/fsprobe"
+	"github.com/shakestzd/wipnote/core/htmlledger"
 )
 
 // ledgerHeader and ledgerFooter bracket the row lines. They are byte-stable
@@ -40,11 +36,14 @@ const ledgerFooter = `</tbody>
 // mis-parsed.
 const rowSelector = `table[data-session-ledger] tbody tr[data-session-id]`
 
-// tornScanWindow bounds how far back the repair scan looks for a clean line
-// boundary. A torn write can only have lost part of ONE row plus the footer, so
-// a window far larger than either is enough; a file with no newline inside the
-// window is corrupt in a way this package will not guess at.
-const tornScanWindow = 64 * 1024
+// ledgerFormat is this ledger's document shape for the shared HTML codec.
+var ledgerFormat = htmlledger.Format{
+	Name:        "sessionledger",
+	Header:      ledgerHeader,
+	Footer:      ledgerFooter,
+	RowSelector: rowSelector,
+	TempPattern: ".sessions-ledger-*.tmp",
+}
 
 // marshalRow renders one session as exactly ONE line terminated by '\n'.
 //
@@ -56,64 +55,38 @@ const tornScanWindow = 64 * 1024
 func marshalRow(r Record) []byte {
 	var buf bytes.Buffer
 	buf.WriteString("<tr")
-	writeAttr(&buf, "id", r.SessionID)
-	writeAttr(&buf, "data-session-id", r.SessionID)
-	writeAttr(&buf, "data-harness", r.Harness)
-	writeAttr(&buf, "data-project", r.ProjectDir)
-	writeAttr(&buf, "data-start", FormatTime(r.StartedAt))
+	htmlledger.WriteAttr(&buf, "id", r.SessionID)
+	htmlledger.WriteAttr(&buf, "data-session-id", r.SessionID)
+	htmlledger.WriteAttr(&buf, "data-harness", r.Harness)
+	htmlledger.WriteAttr(&buf, "data-project", r.ProjectDir)
+	htmlledger.WriteAttr(&buf, "data-start", FormatTime(r.StartedAt))
 	endStr := ""
 	endSrc := ""
 	if !r.IsOpen() {
 		endStr = FormatTime(r.EndedAt)
 		endSrc = string(r.EndSource)
 	}
-	writeAttr(&buf, "data-end", endStr)
-	writeAttr(&buf, "data-end-source", endSrc)
-	writeAttr(&buf, "data-archive", r.ArchivePath)
+	htmlledger.WriteAttr(&buf, "data-end", endStr)
+	htmlledger.WriteAttr(&buf, "data-end-source", endSrc)
+	htmlledger.WriteAttr(&buf, "data-archive", r.ArchivePath)
 	eventsStr := ""
 	if r.Events > 0 {
 		eventsStr = strconv.Itoa(r.Events)
 	}
-	writeAttr(&buf, "data-events", eventsStr)
+	htmlledger.WriteAttr(&buf, "data-events", eventsStr)
 	buf.WriteString(">")
 
-	writeCell(&buf, "session-id", r.SessionID)
-	writeCell(&buf, "harness", r.Harness)
-	writeCell(&buf, "project", r.ProjectDir)
-	writeCell(&buf, "start", FormatTime(r.StartedAt))
-	writeCell(&buf, "end", endStr)
-	writeCell(&buf, "end-source", endSrc)
-	writeCell(&buf, "archive", r.ArchivePath)
-	writeCell(&buf, "events", eventsStr)
+	htmlledger.WriteCell(&buf, "session-id", r.SessionID)
+	htmlledger.WriteCell(&buf, "harness", r.Harness)
+	htmlledger.WriteCell(&buf, "project", r.ProjectDir)
+	htmlledger.WriteCell(&buf, "start", FormatTime(r.StartedAt))
+	htmlledger.WriteCell(&buf, "end", endStr)
+	htmlledger.WriteCell(&buf, "end-source", endSrc)
+	htmlledger.WriteCell(&buf, "archive", r.ArchivePath)
+	htmlledger.WriteCell(&buf, "events", eventsStr)
 
 	buf.WriteString("</tr>\n")
 	return buf.Bytes()
-}
-
-func writeAttr(buf *bytes.Buffer, name, value string) {
-	buf.WriteByte(' ')
-	buf.WriteString(name)
-	buf.WriteString(`="`)
-	buf.WriteString(html.EscapeString(sanitize(value)))
-	buf.WriteByte('"')
-}
-
-func writeCell(buf *bytes.Buffer, field, value string) {
-	buf.WriteString(`<td data-field="`)
-	buf.WriteString(field)
-	buf.WriteString(`">`)
-	buf.WriteString(html.EscapeString(sanitize(value)))
-	buf.WriteString("</td>")
-}
-
-// sanitize collapses anything that would break the one-row-one-line invariant.
-func sanitize(v string) string {
-	return strings.Map(func(r rune) rune {
-		if r == '\n' || r == '\r' || r == '\t' {
-			return ' '
-		}
-		return r
-	}, v)
 }
 
 // ReadFile parses the ledger into records, ordered by start time. A missing
@@ -124,58 +97,32 @@ func sanitize(v string) string {
 // This matches the claim ledger's and the archive ledger's behaviour.
 func ReadFile(path string) ([]Record, error) {
 	fsprobe.Touch(fsprobe.OpRead, path)
-	f, err := os.Open(path)
+	var records []Record
+	err := ledgerFormat.ReadRows(path, func(row *goquery.Selection) {
+		if r, ok := parseRow(row); ok {
+			records = append(records, r)
+		}
+	})
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
-
-	doc, err := goquery.NewDocumentFromReader(f)
-	if err != nil {
-		return nil, fmt.Errorf("sessionledger: parse %s: %w", path, err)
-	}
-
-	var records []Record
-	doc.Find(rowSelector).Each(func(_ int, row *goquery.Selection) {
-		if r, ok := parseRow(row); ok {
-			records = append(records, r)
-		}
-	})
-	sortRecords(records)
-	return records, nil
-}
-
-// parseLedgerString parses ledger markup that is already in memory. It shares
-// the row selector and row parser with ReadFile, so a format the tests accept
-// is exactly a format the reader accepts.
-func parseLedgerString(markup string) ([]Record, error) {
-	doc, err := goquery.NewDocumentFromReader(strings.NewReader(markup))
-	if err != nil {
-		return nil, fmt.Errorf("sessionledger: parse markup: %w", err)
-	}
-	var records []Record
-	doc.Find(rowSelector).Each(func(_ int, row *goquery.Selection) {
-		if r, ok := parseRow(row); ok {
-			records = append(records, r)
-		}
-	})
 	sortRecords(records)
 	return records, nil
 }
 
 func parseRow(row *goquery.Selection) (Record, bool) {
 	r := Record{
-		SessionID:   strings.TrimSpace(attr(row, "data-session-id")),
-		Harness:     strings.TrimSpace(attr(row, "data-harness")),
-		ProjectDir:  strings.TrimSpace(attr(row, "data-project")),
-		ArchivePath: strings.TrimSpace(attr(row, "data-archive")),
+		SessionID:   strings.TrimSpace(htmlledger.Attr(row, "data-session-id")),
+		Harness:     strings.TrimSpace(htmlledger.Attr(row, "data-harness")),
+		ProjectDir:  strings.TrimSpace(htmlledger.Attr(row, "data-project")),
+		ArchivePath: strings.TrimSpace(htmlledger.Attr(row, "data-archive")),
 	}
-	started, err := ParseTime(attr(row, "data-start"))
+	started, err := ParseTime(htmlledger.Attr(row, "data-start"))
 	if err != nil {
 		return Record{}, false
 	}
 	r.StartedAt = started
-	ended, err := ParseTime(attr(row, "data-end"))
+	ended, err := ParseTime(htmlledger.Attr(row, "data-end"))
 	if err != nil {
 		return Record{}, false
 	}
@@ -183,22 +130,15 @@ func parseRow(row *goquery.Selection) (Record, bool) {
 	// Rows written before provenance existed have no data-end-source and read as
 	// EndSourceUnknown, which ranks lowest — so repair re-derives exactly those.
 	if !r.IsOpen() {
-		r.EndSource = EndSource(strings.TrimSpace(attr(row, "data-end-source")))
+		r.EndSource = EndSource(strings.TrimSpace(htmlledger.Attr(row, "data-end-source")))
 	}
-	if n, convErr := strconv.Atoi(strings.TrimSpace(attr(row, "data-events"))); convErr == nil && n > 0 {
+	if n, convErr := strconv.Atoi(strings.TrimSpace(htmlledger.Attr(row, "data-events"))); convErr == nil && n > 0 {
 		r.Events = n
 	}
 	if r.Validate() != nil {
 		return Record{}, false
 	}
 	return r, true
-}
-
-func attr(sel *goquery.Selection, name string) string {
-	if v, ok := sel.Attr(name); ok {
-		return v
-	}
-	return ""
 }
 
 // sortRecords orders by start, then by id so the order is total and stable
@@ -226,92 +166,7 @@ func sortRecords(recs []Record) {
 // footer if the file ends with it, otherwise the last newline, which is by
 // construction the end of the last complete row.
 func appendRowLocked(path string, r Record) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return fmt.Errorf("sessionledger: mkdir %s: %w", filepath.Dir(path), err)
-	}
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0o644)
-	if err != nil {
-		return fmt.Errorf("sessionledger: open %s: %w", path, err)
-	}
-	defer f.Close()
-
-	fi, err := f.Stat()
-	if err != nil {
-		return fmt.Errorf("sessionledger: stat %s: %w", path, err)
-	}
-
-	off, err := appendOffset(f, fi.Size())
-	if err != nil {
-		return fmt.Errorf("sessionledger: %s: %w", path, err)
-	}
-
-	var payload []byte
-	if off == 0 {
-		// Empty, or truncated to less than a full header: no complete row can
-		// exist, so rewrite the whole document rather than guess at a boundary.
-		payload = append(payload, ledgerHeader...)
-	}
-	payload = append(payload, marshalRow(r)...)
-	payload = append(payload, ledgerFooter...)
-
-	// Truncate FIRST so a crash between the two leaves a file that ends on a
-	// clean row boundary with no footer — which the next append repairs — rather
-	// than one with stale bytes past the new content.
-	if err := f.Truncate(off); err != nil {
-		return fmt.Errorf("sessionledger: truncate %s: %w", path, err)
-	}
-	if _, err := f.Seek(off, io.SeekStart); err != nil {
-		return fmt.Errorf("sessionledger: seek %s: %w", path, err)
-	}
-	if _, err := f.Write(payload); err != nil {
-		return fmt.Errorf("sessionledger: write %s: %w", path, err)
-	}
-	if err := f.Sync(); err != nil {
-		return fmt.Errorf("sessionledger: fsync %s: %w", path, err)
-	}
-	return nil
-}
-
-// appendOffset returns the byte offset at which a new row line may begin.
-//
-//   - size 0, or smaller than the header: 0 (rewrite the document).
-//   - file ends with the exact footer: the footer's start (the clean case).
-//   - otherwise the write was torn: the byte after the last newline, dropping
-//     the incomplete tail. Every earlier row is preserved; only the fragment
-//     that was never fsynced is lost.
-func appendOffset(f *os.File, size int64) (int64, error) {
-	if size < int64(len(ledgerHeader)) {
-		return 0, nil
-	}
-
-	footerLen := int64(len(ledgerFooter))
-	tail := make([]byte, footerLen)
-	if _, err := f.ReadAt(tail, size-footerLen); err != nil {
-		return 0, fmt.Errorf("read trailing bytes: %w", err)
-	}
-	if bytes.Equal(tail, []byte(ledgerFooter)) {
-		return size - footerLen, nil
-	}
-
-	window := int64(tornScanWindow)
-	if window > size {
-		window = size
-	}
-	buf := make([]byte, window)
-	if _, err := f.ReadAt(buf, size-window); err != nil {
-		return 0, fmt.Errorf("read repair window: %w", err)
-	}
-	nl := bytes.LastIndexByte(buf, '\n')
-	if nl < 0 {
-		return 0, fmt.Errorf("torn ledger has no line boundary within %d bytes of the tail", window)
-	}
-	boundary := size - window + int64(nl) + 1
-	// Never rewind into the header: a boundary inside it means the file was torn
-	// during creation and holds no complete row.
-	if boundary < int64(len(ledgerHeader)) {
-		return 0, nil
-	}
-	return boundary, nil
+	return ledgerFormat.AppendRow(path, marshalRow(r))
 }
 
 // writeAllLocked rewrites path with exactly the given records, atomically via
@@ -323,42 +178,12 @@ func appendOffset(f *os.File, size int64) (int64, error) {
 // The caller must already hold the write guard for path.
 func writeAllLocked(path string, records []Record) error {
 	fsprobe.Touch(fsprobe.OpWrite, path)
-	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return fmt.Errorf("sessionledger: mkdir %s: %w", dir, err)
-	}
-
 	sorted := make([]Record, len(records))
 	copy(sorted, records)
 	sortRecords(sorted)
-
-	var buf bytes.Buffer
-	buf.WriteString(ledgerHeader)
+	rows := make([][]byte, 0, len(sorted))
 	for _, r := range sorted {
-		buf.Write(marshalRow(r))
+		rows = append(rows, marshalRow(r))
 	}
-	buf.WriteString(ledgerFooter)
-
-	tmp, err := os.CreateTemp(dir, ".sessions-ledger-*.tmp")
-	if err != nil {
-		return fmt.Errorf("sessionledger: create temp in %s: %w", dir, err)
-	}
-	tmpName := tmp.Name()
-	defer os.Remove(tmpName) // no-op after a successful rename
-
-	if _, err := tmp.Write(buf.Bytes()); err != nil {
-		tmp.Close()
-		return fmt.Errorf("sessionledger: write temp: %w", err)
-	}
-	if err := tmp.Sync(); err != nil {
-		tmp.Close()
-		return fmt.Errorf("sessionledger: fsync temp: %w", err)
-	}
-	if err := tmp.Close(); err != nil {
-		return fmt.Errorf("sessionledger: close temp: %w", err)
-	}
-	if err := os.Rename(tmpName, path); err != nil {
-		return fmt.Errorf("sessionledger: rename temp over %s: %w", path, err)
-	}
-	return nil
+	return ledgerFormat.WriteAll(path, rows)
 }

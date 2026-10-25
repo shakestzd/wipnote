@@ -9,9 +9,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/shakestzd/wipnote/core/claimledger"
+
 	dbpkg "github.com/shakestzd/wipnote/core/db"
 	"github.com/shakestzd/wipnote/core/hooks"
 	"github.com/shakestzd/wipnote/core/models"
+	"github.com/shakestzd/wipnote/core/slug"
 	"github.com/spf13/cobra"
 )
 
@@ -85,10 +88,10 @@ func runClaimList(sessionID, status string, limit int) error {
 }
 
 func printClaimRow(c *models.Claim) {
-	claimID := truncate(c.ClaimID, 10)
-	itemID := truncate(c.WorkItemID, 10)
-	sessionID := truncate(c.OwnerSessionID, 12)
-	agent := truncate(c.OwnerAgent, 12)
+	claimID := slug.Truncate(c.ClaimID, 10)
+	itemID := slug.Truncate(c.WorkItemID, 10)
+	sessionID := slug.Truncate(c.OwnerSessionID, 12)
+	agent := slug.Truncate(c.OwnerAgent, 12)
 	expiry := c.LeaseExpiresAt.Local().Format("15:04:05")
 
 	fileCount := 0
@@ -216,6 +219,8 @@ func runClaimRelease(claimID string) error {
 	if err := dbpkg.ReleaseClaim(db, claimID, claim.OwnerSessionID, models.ClaimAbandoned); err != nil {
 		return fmt.Errorf("release claim: %w", err)
 	}
+	// The projection is process-local; persist the end to the canonical ledger.
+	recordClaimEpisodeClose(db, dir, claim.OwnerSessionID, claim.ClaimedByAgentID, claim.WorkItemID, claimledger.OutcomeReleased)
 
 	fmt.Printf("Released: %s (abandoned)\n", claimID)
 	return nil

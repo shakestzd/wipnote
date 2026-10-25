@@ -32,11 +32,6 @@ func PlanWithTrack(trackID string) PlanOption {
 	return func(c *planConfig) { c.trackID = trackID }
 }
 
-// PlanWithSteps adds implementation steps.
-func PlanWithSteps(steps ...string) PlanOption {
-	return func(c *planConfig) { c.steps = steps }
-}
-
 // PlanWithContent sets the description body.
 func PlanWithContent(content string) PlanOption {
 	return func(c *planConfig) { c.content = content }

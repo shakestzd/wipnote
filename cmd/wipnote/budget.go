@@ -3,7 +3,6 @@ package main
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"os/exec"
 	"strconv"
@@ -237,10 +236,5 @@ func statusLabel(status string) (string, string) {
 
 // printBudgetJSON writes the result as JSON.
 func printBudgetJSON(r *budgetResult) error {
-	data, err := json.MarshalIndent(r, "", "  ")
-	if err != nil {
-		return err
-	}
-	fmt.Println(string(data))
-	return nil
+	return printJSON(r)
 }

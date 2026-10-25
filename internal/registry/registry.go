@@ -14,26 +14,17 @@
 // partially-written file.  flock-based mutual exclusion is out of scope for the
 // MVP; concurrent writers on the same machine should be rare enough that the
 // last-write-wins behaviour of os.Rename is acceptable.
-//
-// # Read-only SQLite access
-//
-// OpenReadOnly opens a foreign project's SQLite database in read-only mode
-// (?mode=ro URI flag) so the registry can query project metadata without
-// running migrations or acquiring write locks on databases it does not own.
 package registry
 
 import (
 	"crypto/sha256"
-	"database/sql"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
-	"github.com/shakestzd/wipnote/core/paths"
 	_ "modernc.org/sqlite"
 )
 
@@ -72,8 +63,7 @@ type Registry struct {
 
 	// migrated is set when Load resolved this Registry's contents from the
 	// legacy ~/.local/share/wipnote/projects.json instead of the supplied
-	// canonical path. Callers can query MigrationPending() to learn whether
-	// a Save is needed solely to materialise the migration into the
+	// canonical path. A Save is needed solely to materialise the migration into the
 	// canonical XDG location, even when the in-memory slice is unchanged.
 	migrated bool
 }
@@ -143,16 +133,6 @@ func loadLegacyForCanonical(path string) ([]Entry, bool, error) {
 		return nil, false, fmt.Errorf("parse legacy %s: %w", legacy, err)
 	}
 	return entries, true, nil
-}
-
-// MigrationPending reports whether this Registry was populated via the
-// legacy-path fallback (i.e. the canonical XDG path did not exist, but
-// the legacy path did, and Load read the legacy contents). When true,
-// callers SHOULD invoke Save at a convenient point so the canonical
-// path is materialised — otherwise a clean migration with no stale
-// entries would persist legacy-only forever.
-func (r *Registry) MigrationPending() bool {
-	return r != nil && r.migrated
 }
 
 // Save persists the registry to disk using a tempfile + os.Rename so the
@@ -245,188 +225,6 @@ func writeEntriesAtomic(path string, entries []Entry) error {
 // Production code must go through Upsert+Save. Do NOT call this outside tests.
 func WriteEntriesForTest(path string, entries []Entry) error {
 	return writeEntriesAtomic(path, entries)
-}
-
-// ShouldSkipRegistration reports whether dir should be silently skipped at
-// registration time, preventing test temp directories from polluting the
-// project registry.
-//
-// Two conditions trigger a skip:
-//
-//  1. WIPNOTE_SKIP_REGISTER=1 env var — explicit opt-out for tests.
-//  2. The path is inside a temp directory (os.TempDir() or GOTMPDIR) AND a
-//     component of the path under that dir starts with "Test" (Go's
-//     t.TempDir() naming convention: /tmp/TestFooNNNN/sub).
-//
-// Production paths (e.g. /workspaces/wipnote) are never skipped because they
-// do not live under the OS temp directory.
-func ShouldSkipRegistration(projectDir string) bool {
-	if os.Getenv("WIPNOTE_SKIP_REGISTER") == "1" {
-		return true
-	}
-	return isGoTestTempDirPath(projectDir)
-}
-
-// effectiveTempDirs returns the set of candidate temp-root directories to
-// check when deciding whether a path is a Go test temp dir. It always includes
-// os.TempDir() (which honours TMPDIR on Unix), and also GOTMPDIR when set —
-// that environment variable redirects where 'go test' places t.TempDir()
-// subtrees (e.g. /home/vscode/.gotest-tmp in devcontainer setups).
-//
-// Each candidate is resolved with paths.EvalSymlinksBestEffort so that
-// platforms where the temp root is itself a symlink (macOS: os.TempDir()
-// returns /var/folders/... which resolves to /private/var/folders/...)
-// compare correctly against paths checked by isGoTestTempDirPath /
-// pathInsideTempDir, which resolve the same way.
-func effectiveTempDirs() []string {
-	seen := map[string]bool{}
-	var dirs []string
-	add := func(raw string) {
-		if raw == "" {
-			return
-		}
-		resolved := filepath.Clean(paths.EvalSymlinksBestEffort(raw))
-		if !seen[resolved] {
-			seen[resolved] = true
-			dirs = append(dirs, resolved)
-		}
-	}
-	add(os.TempDir())
-	add(os.Getenv("GOTMPDIR"))
-	return dirs
-}
-
-// isGoTestTempDirPath returns true when projectDir is inside any known temp
-// root (os.TempDir() or GOTMPDIR) and matches Go's t.TempDir() naming
-// convention: projectDir is DIRECTLY under (or IS ITSELF) a directory named
-// TestXXX... (e.g. /tmp/TestFoo1234 or /tmp/TestFoo1234/sub, but not
-// /tmp/TestFoo1234/realproject/sub).
-//
-// GOTMPDIR is checked alongside os.TempDir() to handle devcontainer setups
-// where 'go test' writes t.TempDir() subtrees into a non-standard location
-// (e.g. /home/vscode/.gotest-tmp) that differs from the system /tmp.
-func isGoTestTempDirPath(projectDir string) bool {
-	abs, err := filepath.Abs(projectDir)
-	if err != nil {
-		return false
-	}
-	// Resolve symlinks best-effort so this compares in the same address
-	// space as effectiveTempDirs' resolved candidates (see its doc comment
-	// for why: macOS os.TempDir()/GOTMPDIR values are symlinks, and
-	// projectDir here is frequently a synthetic or not-yet-created path).
-	abs = filepath.Clean(paths.EvalSymlinksBestEffort(abs))
-	for _, tempDir := range effectiveTempDirs() {
-		if matchesTestTempDirUnder(abs, tempDir) {
-			return true
-		}
-	}
-	return false
-}
-
-// matchesTestTempDirUnder returns true when abs is inside tempDir and matches
-// Go's t.TempDir() path shape (Test* component directly under tempDir).
-func matchesTestTempDirUnder(abs, tempDir string) bool {
-	if !strings.HasPrefix(abs, tempDir+string(filepath.Separator)) {
-		return false
-	}
-
-	// Check if abs itself or its direct parent is a Test* directory.
-	// For <tempDir>/TestFoo1234, return true
-	// For <tempDir>/TestFoo1234/sub, return true
-	// For <tempDir>/TestFoo1234/sub/subsub, return false
-	parent := filepath.Dir(abs)
-	if parent == abs {
-		return false
-	}
-
-	// Check direct parent
-	parentBase := filepath.Base(parent)
-	if strings.HasPrefix(parentBase, "Test") && parent != tempDir {
-		return true
-	}
-
-	// Check if abs is itself a Test* dir (directly under tempDir)
-	absBase := filepath.Base(abs)
-	if strings.HasPrefix(absBase, "Test") {
-		relPath, _ := filepath.Rel(tempDir, abs)
-		return !strings.Contains(relPath, string(filepath.Separator))
-	}
-
-	return false
-}
-
-// IsGoTestTempDirPath reports whether projectDir points inside a known temp
-// root (os.TempDir() or GOTMPDIR) and contains a Test* path component,
-// matching Go's t.TempDir() naming convention.
-func IsGoTestTempDirPath(projectDir string) bool {
-	return isGoTestTempDirPath(projectDir)
-}
-
-// pathInsideTempDir reports whether path lives under any known temp root
-// (os.TempDir() or GOTMPDIR). Test suites that redirect the registry file
-// into a temp location should still be able to exercise tempdir projects
-// without polluting the user's persistent registry.
-func pathInsideTempDir(path string) bool {
-	abs, err := filepath.Abs(path)
-	if err != nil {
-		return false
-	}
-	abs = filepath.Clean(paths.EvalSymlinksBestEffort(abs))
-	for _, tempDir := range effectiveTempDirs() {
-		if abs == tempDir || strings.HasPrefix(abs, tempDir+string(filepath.Separator)) {
-			return true
-		}
-	}
-	return false
-}
-
-// PruneStale removes entries whose LastSeen timestamp is older than ttl.
-// It returns the number of removed entries. The in-memory registry is
-// mutated; call Save to persist.
-func PruneStale(reg *Registry, ttl time.Duration) int {
-	cutoff := time.Now().Add(-ttl)
-	var removed int
-	kept := reg.entries[:0]
-	for _, p := range reg.entries {
-		t, err := time.Parse(time.RFC3339, p.LastSeen)
-		if err != nil || t.Before(cutoff) {
-			removed++
-			continue
-		}
-		kept = append(kept, p)
-	}
-	reg.entries = kept
-	return removed
-}
-
-// PruneTempdirEntries removes entries whose ProjectDir is inside os.TempDir()
-// and has a Test* component (i.e. paths that match Go test temp dirs).
-// Returns the number removed.
-func PruneTempdirEntries(reg *Registry) int {
-	var removed int
-	kept := reg.entries[:0]
-	for _, e := range reg.entries {
-		if IsGoTestTempDirPath(e.ProjectDir) {
-			removed++
-			continue
-		}
-		kept = append(kept, e)
-	}
-	reg.entries = kept
-	return removed
-}
-
-// looksLikeRealProject returns true when dir contains a .wipnote/
-// subdirectory. That is the sole signal: wipnote projects are not
-// required to be Git repositories, so a `.git` ancestor is NOT part of
-// the gate (review #55 F1).
-//
-// Registration hardening lives in Upsert, not here: a real project is still
-// defined solely by the presence of .wipnote/. The tempdir guard decides
-// whether that real project should be written to the persistent registry.
-func looksLikeRealProject(dir string) bool {
-	_, err := os.Stat(filepath.Join(dir, ".wipnote"))
-	return err == nil
 }
 
 // Upsert inserts or updates the entry for dir.  If an entry with the same
@@ -559,24 +357,6 @@ func legacyDefaultPath() string {
 		return filepath.Join(".local", "share", "wipnote", "projects.json")
 	}
 	return filepath.Join(home, ".local", "share", "wipnote", "projects.json")
-}
-
-// OpenReadOnly opens the SQLite database at dbPath in read-only mode using the
-// ?mode=ro URI flag.  No migrations or PRAGMAs are applied — the caller gets a
-// raw *sql.DB suitable for SELECT queries only.
-//
-// The caller is responsible for closing the returned *sql.DB.
-func OpenReadOnly(dbPath string) (*sql.DB, error) {
-	abs, err := filepath.Abs(dbPath)
-	if err != nil {
-		return nil, fmt.Errorf("registry.OpenReadOnly: resolve path: %w", err)
-	}
-	dsn := fmt.Sprintf("file:%s?mode=ro&_busy_timeout=5000", abs)
-	db, err := sql.Open("sqlite", dsn)
-	if err != nil {
-		return nil, fmt.Errorf("registry.OpenReadOnly: open: %w", err)
-	}
-	return db, nil
 }
 
 // computeID returns the first 8 hex characters of SHA256(dir).

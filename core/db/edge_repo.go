@@ -36,20 +36,6 @@ func InsertEdge(
 	return nil
 }
 
-// DeleteEdge removes the graph_edges row matching the
-// (fromNodeID, toNodeID, relType) triple.
-func DeleteEdge(db *sql.DB, fromNodeID, toNodeID, relType string) error {
-	_, err := db.Exec(`
-		DELETE FROM graph_edges
-		WHERE from_node_id = ? AND to_node_id = ? AND relationship_type = ?`,
-		fromNodeID, toNodeID, relType,
-	)
-	if err != nil {
-		return fmt.Errorf("delete edge %s->%s (%s): %w", fromNodeID, toNodeID, relType, err)
-	}
-	return nil
-}
-
 // nullBytes returns nil when b is empty, satisfying sql.DB's NULL handling.
 func nullBytes(b []byte) any {
 	if len(b) == 0 {

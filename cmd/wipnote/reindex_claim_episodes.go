@@ -190,8 +190,8 @@ func applyActiveFeatureIDFromClaims(database *sql.DB, verbose bool) {
 	if database == nil {
 		return
 	}
-	// The agent set MUST match writesLegacyActiveFeature's — see
-	// legacyActiveFeatureAgents for why they are one list. Projecting only
+	// The agent set comes from legacyActiveFeatureAgents — see there for why
+	// writer and hydrator share one list. Projecting only
 	// __root__ here while the writer also accepted "codex" meant a Codex
 	// launcher's claim never survived a projection rebuild.
 	agents := legacyActiveFeatureAgents()

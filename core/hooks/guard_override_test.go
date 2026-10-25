@@ -15,7 +15,12 @@ import (
 // still allows the call but is no longer silent: a stderr warning is written
 // and a GuardOverride check_point agent_event is recorded (GH-#164).
 func TestPreToolUse_GuardsOff_RecordsOverrideAndAllows(t *testing.T) {
-	tdb := setupTestDB(t)
+	clearNestedEnv(t)
+	projectDir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(projectDir, ".wipnote"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("WIPNOTE_PROJECT_DIR", projectDir)
 	t.Setenv(guardOverrideEnvVar, "1")
 
 	var stderr bytes.Buffer
@@ -26,12 +31,12 @@ func TestPreToolUse_GuardsOff_RecordsOverrideAndAllows(t *testing.T) {
 	event := &CloudEvent{
 		AgentID:   "claude-code",
 		SessionID: "test-sess",
-		CWD:       t.TempDir(),
+		CWD:       projectDir,
 		ToolName:  "Bash",
 		ToolInput: map[string]any{"command": "rm -rf .wipnote/features/feat-abc.html"},
 		ToolUseID: "guards-off-call",
 	}
-	result, err := PreToolUse(event, tdb.DB)
+	result, err := PreToolUse(event)
 	if err != nil {
 		t.Fatalf("PreToolUse: %v", err)
 	}
@@ -42,17 +47,15 @@ func TestPreToolUse_GuardsOff_RecordsOverrideAndAllows(t *testing.T) {
 		t.Errorf("expected stderr warning naming %s, got %q", guardOverrideEnvVar, stderr.String())
 	}
 
-	var count int
-	var summary string
-	if err := tdb.DB.QueryRow(
-		`SELECT COUNT(*), COALESCE(MAX(input_summary), '') FROM agent_events
-		 WHERE session_id = ? AND event_type = 'check_point' AND tool_name = ?`,
-		"test-sess", guardOverrideToolName,
-	).Scan(&count, &summary); err != nil {
-		t.Fatalf("query agent_events: %v", err)
+	events, _ := readCanonicalToolEvents(projectDir, "test-sess")
+	var overrides []string
+	for _, ev := range events {
+		if ev.Tool == guardOverrideToolName {
+			overrides = append(overrides, ev.Summary)
+		}
 	}
-	if count != 1 || !strings.Contains(summary, "for Bash") {
-		t.Errorf("expected one GuardOverride event naming Bash, got count=%d summary=%q", count, summary)
+	if len(overrides) != 1 || !strings.Contains(overrides[0], "for Bash") {
+		t.Errorf("expected one GuardOverride tool-log line naming Bash, got %q", overrides)
 	}
 }
 
@@ -71,7 +74,7 @@ func TestPreToolUse_GuardsOff_NilDB_DoesNotPanic(t *testing.T) {
 		ToolName:  "Write",
 		ToolInput: map[string]any{"file_path": ".wipnote/features/feat-abc.html"},
 	}
-	result, err := PreToolUse(event, nil)
+	result, err := PreToolUse(event)
 	if err != nil || result == nil || result.Decision == "block" {
 		t.Fatalf("expected allow with nil DB, got result=%+v err=%v", result, err)
 	}

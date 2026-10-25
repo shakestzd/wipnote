@@ -6,6 +6,7 @@ import (
 	"text/tabwriter"
 	"time"
 
+	"github.com/shakestzd/wipnote/core/slug"
 	"github.com/shakestzd/wipnote/observe/otel/indexer"
 	"github.com/spf13/cobra"
 )
@@ -76,7 +77,7 @@ func runCleanupOrphanSessions(delete, yes bool) error {
 			eligStr = "yes"
 		}
 		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
-			truncate(o.SessionID, 36),
+			slug.Truncate(o.SessionID, 36),
 			formatOrphanAge(o.Age),
 			o.LastWriteAt.UTC().Format(time.RFC3339),
 			eligStr,

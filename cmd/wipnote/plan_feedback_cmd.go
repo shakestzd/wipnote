@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 
 	dbpkg "github.com/shakestzd/wipnote/core/db"
 	"github.com/spf13/cobra"
@@ -135,7 +134,5 @@ func planFeedback(wipnoteDir, planID string) error {
 		out.Approvals[section] = entry
 	}
 
-	enc := json.NewEncoder(os.Stdout)
-	enc.SetIndent("", "  ")
-	return enc.Encode(out)
+	return printJSON(out)
 }

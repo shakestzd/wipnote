@@ -4,13 +4,14 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"sync"
 	"testing"
 
 	"github.com/shakestzd/wipnote/plan/planyaml"
 )
 
-// TestUpdateSliceYAMLApproval_ConcurrentWritersNoLostUpdate is the regression
+// TestApproveSlice_ConcurrentWritersNoLostUpdate is the regression
 // for defect 4 (feat-fc3cc9e0): most plan-YAML mutators called bare
 // planyaml.Load() then later planyaml.Save(), each a WHOLE-DOCUMENT
 // read-modify-write. Save only mutex-guards its own marshal-and-write
@@ -20,14 +21,14 @@ import (
 // row-level SQLite UPDATE and structurally immune to the race; the YAML
 // whole-document model reintroduced it. storePlanFeedbackEntry already held
 // filelock.Guard + planyaml.LockPlanForWrite across the whole window; this
-// test proves updateSliceYAMLApproval — one of the mutators that didn't —
-// now gets the same protection.
+// test proves `plan approve-slice` (runApproveSlice, which writes through
+// storePlanFeedbackEntry) loses no concurrent approval.
 //
 // N goroutines concurrently approve N DIFFERENT slices of the SAME plan
 // document. Without serialization, only the last writer's save would survive
 // and every other slice's approval would be lost. With the fix, all N
 // approvals must survive.
-func TestUpdateSliceYAMLApproval_ConcurrentWritersNoLostUpdate(t *testing.T) {
+func TestApproveSlice_ConcurrentWritersNoLostUpdate(t *testing.T) {
 	const numSlices = 20
 
 	wipnoteDir := filepath.Join(t.TempDir(), ".wipnote")
@@ -61,7 +62,7 @@ func TestUpdateSliceYAMLApproval_ConcurrentWritersNoLostUpdate(t *testing.T) {
 		go func(sliceNum int) {
 			defer wg.Done()
 			<-start
-			errs[sliceNum-1] = updateSliceYAMLApproval(wipnoteDir, planID, sliceNum, "approved")
+			errs[sliceNum-1] = runApproveSlice(wipnoteDir, planID, strconv.Itoa(sliceNum))
 		}(i)
 	}
 	close(start)
@@ -69,7 +70,7 @@ func TestUpdateSliceYAMLApproval_ConcurrentWritersNoLostUpdate(t *testing.T) {
 
 	for i, err := range errs {
 		if err != nil {
-			t.Fatalf("updateSliceYAMLApproval(slice %d): %v", i+1, err)
+			t.Fatalf("runApproveSlice(slice %d): %v", i+1, err)
 		}
 	}
 

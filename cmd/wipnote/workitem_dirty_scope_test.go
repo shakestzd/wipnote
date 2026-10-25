@@ -39,7 +39,7 @@ func newDirtyFixture(t *testing.T, kind string, linked bool) *dirtyFixture {
 func (f *dirtyFixture) gate(t *testing.T, allowDirty bool) (note, stderr string, err error) {
 	t.Helper()
 	stderr = captureStderr(t, func() {
-		note, err = checkUncommittedSourceCompleteGate(f.hgDir, f.id, f.node, allowDirty)
+		note, err = checkUncommittedSourceCompleteGate(newCompletionEvidence(f.hgDir, f.id, f.node), allowDirty)
 	})
 	return note, stderr, err
 }
@@ -85,7 +85,7 @@ func mustNotContain(t *testing.T, label, text string, bad ...string) {
 
 // gateOnly runs the gate without an artifact node and returns just the error.
 func gateOnly(wipnoteDir, id string, allowDirty bool) error {
-	_, err := checkUncommittedSourceCompleteGate(wipnoteDir, id, nil, allowDirty)
+	_, err := checkUncommittedSourceCompleteGate(newCompletionEvidence(wipnoteDir, id, nil), allowDirty)
 	return err
 }
 

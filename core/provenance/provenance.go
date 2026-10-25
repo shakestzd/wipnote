@@ -153,13 +153,6 @@ func parseAttrs(htmlText string) Provenance {
 	}
 }
 
-// ParseHTML is the exported parser companion of HTMLAttrs, kept around so
-// htmlparse and other callers can read provenance without re-deriving the
-// regex set.
-func ParseHTML(htmlText string) Provenance {
-	return parseAttrs(htmlText)
-}
-
 func firstSubmatch(re *regexp.Regexp, s string) string {
 	m := re.FindStringSubmatch(s)
 	if len(m) >= 2 {

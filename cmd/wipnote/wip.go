@@ -12,6 +12,7 @@ import (
 	"github.com/shakestzd/wipnote/core/htmlparse"
 	"github.com/shakestzd/wipnote/core/models"
 	"github.com/shakestzd/wipnote/core/sessionledger"
+	"github.com/shakestzd/wipnote/core/slug"
 	"github.com/shakestzd/wipnote/core/workitem"
 	"github.com/spf13/cobra"
 )
@@ -95,7 +96,7 @@ func runWipShow() error {
 				}
 			}
 		}
-		display := truncate(sess, 22)
+		display := slug.Truncate(sess, 22)
 		fmt.Printf("%-24s  %-5d  %s\n", display, len(sessItems), sessStatus)
 	}
 
@@ -105,11 +106,11 @@ func runWipShow() error {
 	fmt.Println(strings.Repeat("-", 80))
 	for _, sess := range sessionKeys {
 		for _, n := range bySession[sess] {
-			sessDisplay := truncate(sess, 16)
+			sessDisplay := slug.Truncate(sess, 16)
 			if sess != "unknown" && !liveSessions[sess] {
-				sessDisplay = truncate(sess, 8) + " [dead?]"
+				sessDisplay = slug.Truncate(sess, 8) + " [dead?]"
 			}
-			fmt.Printf("%-22s  %-8s  %-16s  %s\n", n.ID, n.Type, sessDisplay, truncate(n.Title, 36))
+			fmt.Printf("%-22s  %-8s  %-16s  %s\n", n.ID, n.Type, sessDisplay, slug.Truncate(n.Title, 36))
 		}
 	}
 	return nil
@@ -261,7 +262,7 @@ func runWipReset(force bool, scope wipResetScope) error {
 			continue
 		}
 		reset++
-		fmt.Printf("Reset: %s  %s\n", t.Node.ID, truncate(t.Node.Title, 50))
+		fmt.Printf("Reset: %s  %s\n", t.Node.ID, slug.Truncate(t.Node.Title, 50))
 	}
 	fmt.Printf("\n%d item(s) reset to todo\n", reset)
 	return nil

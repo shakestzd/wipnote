@@ -1,0 +1,13 @@
+{"type": "item.started", "item": {"id": "i", "type": "web_search", "query": "devcontainer worktrees"}}
+{"type": "item.completed", "item": {"id": "i", "type": "web_search", "query": "devcontainer worktrees"}}
+{"type": "item.completed", "item": {"id": "i", "type": "web_search", "action": {"type": "search", "query": "compose shared container"}}}
+{"type": "item.completed", "item": {"id": "i", "type": "web_search", "action": {"type": "search", "queries": ["a b", "c"]}}}
+{"type": "item.completed", "item": {"id": "i", "type": "web_search"}}
+{"type": "item.started", "item": {"id": "i", "type": "file_change", "changes": [{"path": "compose.yaml", "kind": "update"}]}}
+{"type": "item.completed", "item": {"id": "i", "type": "file_change", "changes": [{"path": "compose.yaml", "kind": "update"}, {"path": "dev/new.sh", "kind": "add"}]}}
+{"type": "item.completed", "item": {"id": "i", "type": "file_change"}}
+{"type": "item.completed", "item": {"id": "i", "type": "mcp_tool_call", "path": "srv/tool `x`"}}
+{"type": "item.completed", "item": {"id": "i", "type": "todo_list"}}
+{"type": "item.started", "item": {"id": "i", "type": "todo_list", "path": "p"}}
+{"type": "item.completed", "item": {"id": "z", "path": "q"}}
+{"type": "thread.started"}

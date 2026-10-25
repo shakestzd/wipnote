@@ -1,7 +1,6 @@
 package main
 
 import (
-	"database/sql"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -22,7 +21,7 @@ import (
 // This handler lives in cmd/wipnote (not internal/hooks) because the hooks
 // package must not import workitem (spike creation policy). The markdown-to-YAML
 // conversion uses workitem.GenerateID and planyaml.NewPlan/Save.
-func handleExitPlanMode(event *hooks.CloudEvent, database *sql.DB, projectDir string) (*hooks.HookResult, error) {
+func handleExitPlanMode(event *hooks.CloudEvent, projectDir string) (*hooks.HookResult, error) {
 	plansDir := filepath.Join(projectDir, ".wipnote", "plans")
 
 	mdPath, err := mostRecentMarkdownFile(plansDir)
@@ -196,21 +195,9 @@ func isStructuralHeading(title string) bool {
 // parsedPlanData holds intermediate results from markdown parsing before
 // the caller assembles the final YAML plan.
 type parsedPlanData struct {
-	slices      []planyaml.PlanSlice
-	problem     string   // from Context/Background/Overview heading
-	constraints []string // from Verification/Testing heading bullets
-	doneWhen    []string // from Verification/Testing heading bullets
-}
-
-// parseMarkdownToSlices parses markdown headings and their content into
-// PlanSlice structs. H2/H3 headings that match structuralHeadings are skipped
-// as delivery slices; their content is routed to design metadata instead.
-// Bullet lists under delivery headings populate the "what" field. File paths
-// mentioned in text populate the "files" field.
-// Defaults: effort=M, risk=Med, approved=false.
-func parseMarkdownToSlices(content string) []planyaml.PlanSlice {
-	result := parseMarkdown(content)
-	return result.slices
+	slices   []planyaml.PlanSlice
+	problem  string   // from Context/Background/Overview heading
+	doneWhen []string // from Verification/Testing heading bullets
 }
 
 // parseMarkdown performs full markdown parsing returning both slices and

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -71,9 +70,7 @@ func runPlanSlices(w io.Writer, wipnoteDir, planID string) error {
 			FeatureID:       s.FeatureID,
 		})
 	}
-	enc := json.NewEncoder(w)
-	enc.SetIndent("", "  ")
-	return enc.Encode(result)
+	return writeJSON(w, result)
 }
 
 // sliceApprovalStatus reads approval_status, falling back to the legacy

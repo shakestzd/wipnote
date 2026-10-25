@@ -7,8 +7,6 @@ import (
 	"time"
 
 	"github.com/shakestzd/wipnote/core/claimledger"
-	"github.com/shakestzd/wipnote/core/db"
-	"github.com/shakestzd/wipnote/core/models"
 )
 
 func TestRecordSessionEndNote_WritesOneValidLine(t *testing.T) {
@@ -82,12 +80,12 @@ func TestReadSessionEndNote_IgnoresTornTail(t *testing.T) {
 // Catch-up closes the ledger row and the episodes from the note, with the
 // note's end time and outcome, and a second pass changes nothing.
 func TestCatchUp_ClosesOpenStateFromNote_Idempotent(t *testing.T) {
-	td := setupTestDB(t)
+	setupTestDB(t)
 	f := newEndFixture(t, 2)
 	endedAt := time.Now().UTC().Add(-10 * time.Minute)
 	f.writeNote(t, endedAt, "abandoned")
 
-	if got := CatchUpEndedSessions(td.DB, f.projectDir, "", false); len(got) != 1 || got[0] != f.sessionID {
+	if got := CatchUpEndedSessions(f.projectDir, "", false); len(got) != 1 || got[0] != f.sessionID {
 		t.Fatalf("first pass finished %v, want [%s]", got, f.sessionID)
 	}
 	row := f.ledgerRow(t)
@@ -108,7 +106,7 @@ func TestCatchUp_ClosesOpenStateFromNote_Idempotent(t *testing.T) {
 
 	shard := claimledger.NewStore(f.wipnoteDir).ShardPath(f.sessionID)
 	before, _ := os.ReadFile(shard)
-	if got := CatchUpEndedSessions(td.DB, f.projectDir, "", false); len(got) != 0 {
+	if got := CatchUpEndedSessions(f.projectDir, "", false); len(got) != 0 {
 		t.Errorf("second pass finished %v, want nothing (idempotent)", got)
 	}
 	if after, _ := os.ReadFile(shard); string(after) != string(before) {
@@ -119,13 +117,13 @@ func TestCatchUp_ClosesOpenStateFromNote_Idempotent(t *testing.T) {
 // A session that ended, resumed and ended again carries a newer note; the old
 // done marker must not hide it, and the ledger keeps its first recorded end.
 func TestCatchUp_NewerNoteSupersedesMarker(t *testing.T) {
-	td := setupTestDB(t)
+	setupTestDB(t)
 	f := newEndFixture(t, 0)
 	f.writeNote(t, time.Now().UTC().Add(-time.Hour), "abandoned")
-	CatchUpEndedSessions(td.DB, f.projectDir, "", false)
+	CatchUpEndedSessions(f.projectDir, "", false)
 	f.openEpisode(t, f.sessionID, f.sessionID, "feat-aaaa0003") // claimed after resuming
 	f.writeNote(t, time.Now().UTC().Add(-time.Minute), "abandoned")
-	if got := CatchUpEndedSessions(td.DB, f.projectDir, "", false); len(got) != 1 {
+	if got := CatchUpEndedSessions(f.projectDir, "", false); len(got) != 1 {
 		t.Fatalf("second end not caught up: %v", got)
 	}
 	for _, e := range f.episodes(t, f.sessionID) {
@@ -136,10 +134,10 @@ func TestCatchUp_NewerNoteSupersedesMarker(t *testing.T) {
 }
 
 func TestCatchUp_SkipsCurrentSession(t *testing.T) {
-	td := setupTestDB(t)
+	setupTestDB(t)
 	f := newEndFixture(t, 0)
 	f.writeNote(t, time.Now().UTC().Add(-time.Minute), "abandoned")
-	if got := CatchUpEndedSessions(td.DB, f.projectDir, f.sessionID, true); len(got) != 0 {
+	if got := CatchUpEndedSessions(f.projectDir, f.sessionID, true); len(got) != 0 {
 		t.Fatalf("caught up the current session: %v", got)
 	}
 	if !f.ledgerRow(t).IsOpen() {
@@ -151,7 +149,7 @@ func TestCatchUp_SkipsCurrentSession(t *testing.T) {
 // session-start pass leaves that episode alone; the deep pass finds it with the
 // ledger scan and still uses the note's outcome.
 func TestCatchUp_DeepPassFindsUnnamedRootShard(t *testing.T) {
-	td := setupTestDB(t)
+	setupTestDB(t)
 	f := newEndFixture(t, 0)
 	const root = "cccc0000-1111-2222-3333-444455556666"
 	f.openEpisode(t, root, f.sessionID, "feat-cccc0001")
@@ -162,51 +160,21 @@ func TestCatchUp_DeepPassFindsUnnamedRootShard(t *testing.T) {
 	}
 	f.writeNote(t, time.Now().UTC().Add(-time.Minute), "abandoned")
 
-	CatchUpEndedSessions(td.DB, f.projectDir, "", false)
+	CatchUpEndedSessions(f.projectDir, "", false)
 	if eps := f.episodes(t, root); len(eps) != 1 || !eps[0].IsOpen() {
 		t.Fatalf("shallow pass should leave the unnamed-root episode: %+v", eps)
 	}
-	CatchUpEndedSessions(td.DB, f.projectDir, "", true)
+	CatchUpEndedSessions(f.projectDir, "", true)
 	if eps := f.episodes(t, root); len(eps) != 1 || eps[0].IsOpen() || eps[0].Outcome != claimledger.OutcomeAbandoned {
 		t.Fatalf("deep pass should close it as abandoned: %+v", eps)
 	}
 }
 
-// The session-start reaper runs catch-up first, so a cancelled hook's session
-// closes as ABANDONED at its real end, not as EXPIRED at reap time.
-func TestReap_ClosesCancelledHookSessionFromNote(t *testing.T) {
-	td := setupTestDB(t)
+// Happy path: SessionEnd closes the ledger and episodes in the window, with no
+// database; catch-up then finishes the session exactly once.
+func TestSessionEnd_HappyPath_ClosesInWindowCatchUpOnce(t *testing.T) {
 	f := newEndFixture(t, 0)
-	endedAt := time.Now().UTC().Add(-20 * time.Minute)
-	f.writeNote(t, endedAt, "abandoned")
-
-	ReapStaleSessionsAndCollectors(td.DB, f.projectDir, "someone-else", false, false, 5)
-	for _, e := range f.episodes(t, f.sessionID) {
-		if e.IsOpen() || e.Outcome != claimledger.OutcomeAbandoned {
-			t.Errorf("episode %s open=%v outcome=%q, want abandoned", e.WorkItemID, e.IsOpen(), e.Outcome)
-		}
-	}
-	if row := f.ledgerRow(t); row.IsOpen() || row.EndedAt.Sub(endedAt).Abs() > time.Second {
-		t.Errorf("ledger end = %v, want the note's %v", row.EndedAt, endedAt)
-	}
-}
-
-// Happy path: SessionEnd closes the ledger and episodes in the window; the
-// handoff, features and lineage follow once catch-up runs, exactly once.
-func TestSessionEnd_HappyPath_HandoffWrittenOnceAfterCatchUp(t *testing.T) {
-	td := setupTestDB(t)
-	f := newEndFixture(t, 0)
-	if err := db.InsertSession(td.DB, &models.Session{
-		SessionID: f.sessionID, AgentAssigned: "claude-code", Status: "active",
-		CreatedAt: time.Now().UTC().Add(-time.Hour), ProjectDir: f.projectDir,
-	}); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := td.DB.Exec(`UPDATE sessions SET last_user_query = 'fix the hook' WHERE session_id = ?`, f.sessionID); err != nil {
-		t.Fatal(err)
-	}
-
-	if _, err := SessionEnd(&CloudEvent{SessionID: f.sessionID, CWD: f.projectDir, Reason: "prompt_input_exit"}, td.DB, f.projectDir); err != nil {
+	if _, err := SessionEnd(&CloudEvent{SessionID: f.sessionID, CWD: f.projectDir, Reason: "prompt_input_exit"}, f.projectDir); err != nil {
 		t.Fatal(err)
 	}
 	if f.ledgerRow(t).IsOpen() {
@@ -217,23 +185,10 @@ func TestSessionEnd_HappyPath_HandoffWrittenOnceAfterCatchUp(t *testing.T) {
 			t.Errorf("episode %s open after SessionEnd", e.WorkItemID)
 		}
 	}
-	sess, _ := db.GetSession(td.DB, f.sessionID)
-	if sess == nil || sess.Status != "completed" || sess.HandoffNotes != "" {
-		t.Fatalf("before catch-up: status=%v handoff=%q, want completed and no handoff yet", sess, sess.HandoffNotes)
-	}
-
-	if got := CatchUpEndedSessions(td.DB, f.projectDir, "", true); len(got) != 1 {
+	if got := CatchUpEndedSessions(f.projectDir, "", true); len(got) != 1 {
 		t.Fatalf("catch-up finished %v", got)
 	}
-	sess, _ = db.GetSession(td.DB, f.sessionID)
-	if sess.HandoffNotes == "" || sess.RecommendedNext == "" {
-		t.Fatalf("handoff missing after catch-up: %+v", sess)
-	}
-	first := sess.HandoffNotes
-	if got := CatchUpEndedSessions(td.DB, f.projectDir, "", true); len(got) != 0 {
-		t.Errorf("handoff written again: catch-up finished %v", got)
-	}
-	if sess, _ = db.GetSession(td.DB, f.sessionID); sess.HandoffNotes != first {
-		t.Error("handoff changed on a repeated pass")
+	if got := CatchUpEndedSessions(f.projectDir, "", true); len(got) != 0 {
+		t.Errorf("second catch-up pass finished %v, want none", got)
 	}
 }

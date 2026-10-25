@@ -22,6 +22,8 @@ import (
 	"strings"
 	"text/tabwriter"
 	"time"
+
+	"github.com/shakestzd/wipnote/core/slug"
 )
 
 // QueryOptions controls optional filters on a blame query.
@@ -96,6 +98,12 @@ func Query(ctx context.Context, db *sql.DB, path string, opts QueryOptions) (*Re
 	}, nil
 }
 
+// queryRows is the package's single entry to the database. It is a seam so a
+// test can count the queries one WalkAreas issues (feat-c30d0792).
+var queryRows = func(ctx context.Context, db *sql.DB, query string, args ...any) (*sql.Rows, error) {
+	return db.QueryContext(ctx, query, args...)
+}
+
 // escapeLikePattern escapes the SQL LIKE wildcards %, _, and the escape
 // character itself (\) so a path containing those characters is treated as a
 // literal string rather than a pattern. Pairs with `ESCAPE '\'` in the query.
@@ -143,7 +151,7 @@ func queryFeatureRows(ctx context.Context, db *sql.DB, path string, opts QueryOp
 		GROUP BY ff.feature_id
 		ORDER BY touch_count DESC, last_seen DESC`)
 
-	sqlRows, err := db.QueryContext(ctx, qb.String(), args...)
+	sqlRows, err := queryRows(ctx, db, qb.String(), args...)
 	if err != nil {
 		return nil, fmt.Errorf("blame query for %s: %w", path, err)
 	}
@@ -239,7 +247,7 @@ func FormatText(r *Result) string {
 			trackLabel = "—"
 		}
 		fmt.Fprintf(tw, "    %s\t%s\t%s\t%d\t%s\n",
-			f.ID, truncate(f.Title, 40), trackLabel, f.TouchCount, lastSeen)
+			f.ID, slug.Truncate(f.Title, 40), trackLabel, f.TouchCount, lastSeen)
 	}
 	tw.Flush()
 
@@ -287,13 +295,4 @@ func FormatMarkdown(r *Result) string {
 	}
 
 	return buf.String()
-}
-
-// truncate shortens s to maxLen runes, appending "…" when cut.
-func truncate(s string, maxLen int) string {
-	runes := []rune(s)
-	if len(runes) <= maxLen {
-		return s
-	}
-	return string(runes[:maxLen-1]) + "…"
 }

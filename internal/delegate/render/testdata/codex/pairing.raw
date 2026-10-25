@@ -1,0 +1,8 @@
+{"type": "item.started", "item": {"id": "item_1", "type": "command_execution", "command": "echo one", "aggregated_output": "", "exit_code": null}}
+{"type": "item.started", "item": {"id": "item_2", "type": "command_execution", "command": "echo two", "aggregated_output": "", "exit_code": null}}
+{"type": "item.started", "item": {"id": "item_3", "type": "command_execution", "command": "echo three", "aggregated_output": "", "exit_code": null}}
+{"type": "item.completed", "item": {"id": "item_2", "type": "command_execution", "command": "echo two", "aggregated_output": "OUT-two\n", "exit_code": 0}}
+{"type": "item.completed", "item": {"id": "item_3", "type": "command_execution", "command": "echo three", "aggregated_output": "OUT-three\n", "exit_code": 0}}
+{"type": "item.completed", "item": {"id": "item_1", "type": "command_execution", "command": "echo one", "aggregated_output": "OUT-one\n", "exit_code": 0}}
+{"type": "item.started", "item": {"id": "item_9", "type": "command_execution", "command": "sleep 99", "aggregated_output": "", "exit_code": null}}
+{"type": "item.completed", "item": {"id": "item_1", "type": "command_execution", "command": "false", "aggregated_output": "bad", "exit_code": 2}}

@@ -334,26 +334,6 @@ func TestSignatureCoversDecisionFields(t *testing.T) {
 	}
 }
 
-func TestSignaturesSet(t *testing.T) {
-	store := newStore(t)
-	now := time.Now().UTC()
-
-	written, err := store.Append(passing("sess-sigset", "feat-sigset", now))
-	if err != nil {
-		t.Fatalf("Append: %v", err)
-	}
-	sigs, err := store.Signatures()
-	if err != nil {
-		t.Fatalf("Signatures: %v", err)
-	}
-	if !sigs[written.Signature] {
-		t.Fatalf("signature %q missing from the set", written.Signature)
-	}
-	if sigs["not-a-signature"] {
-		t.Fatal("unknown signature reported present")
-	}
-}
-
 func TestReadAllOnMissingLedgerIsEmpty(t *testing.T) {
 	records, err := newStore(t).ReadAll()
 	if err != nil {

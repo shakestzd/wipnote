@@ -81,7 +81,7 @@ func countFeatures(t *testing.T, dir string) int {
 func TestFinalizeYAML_ReopenAddSliceReusesFeatureIDs(t *testing.T) {
 	dir, pID := setupReusePlan(t)
 
-	ids1, failures, err := finalizeYAMLCanonical(dir, pID)
+	ids1, failures, err := finalizeYAMLCanonicalOpts(dir, pID, finalizeYAMLOptions{})
 	if err != nil {
 		t.Fatalf("first finalize: %v", err)
 	}
@@ -91,7 +91,7 @@ func TestFinalizeYAML_ReopenAddSliceReusesFeatureIDs(t *testing.T) {
 
 	reopenAndAddApprovedSlice(t, dir, pID)
 
-	ids2, failures, err := finalizeYAMLCanonical(dir, pID)
+	ids2, failures, err := finalizeYAMLCanonicalOpts(dir, pID, finalizeYAMLOptions{})
 	if err != nil {
 		t.Fatalf("second finalize: %v", err)
 	}
@@ -155,7 +155,7 @@ func TestFinalizeYAML_ReopenAddSliceReusesFeatureIDs(t *testing.T) {
 func TestFinalizeYAML_RegenerateMintsNewFeatures(t *testing.T) {
 	dir, pID := setupReusePlan(t)
 
-	ids1, _, err := finalizeYAMLCanonical(dir, pID)
+	ids1, _, err := finalizeYAMLCanonicalOpts(dir, pID, finalizeYAMLOptions{})
 	if err != nil || len(ids1) != 2 {
 		t.Fatalf("first finalize: ids=%v err=%v", ids1, err)
 	}
@@ -182,7 +182,7 @@ func TestFinalizeYAML_RegenerateMintsNewFeatures(t *testing.T) {
 // no longer exists must not be reused — a fresh feature is created instead.
 func TestFinalizeYAML_ReuseSkipsDeletedFeature(t *testing.T) {
 	dir, pID := setupReusePlan(t)
-	ids1, _, err := finalizeYAMLCanonical(dir, pID)
+	ids1, _, err := finalizeYAMLCanonicalOpts(dir, pID, finalizeYAMLOptions{})
 	if err != nil || len(ids1) != 2 {
 		t.Fatalf("first finalize: ids=%v err=%v", ids1, err)
 	}
@@ -192,7 +192,7 @@ func TestFinalizeYAML_ReuseSkipsDeletedFeature(t *testing.T) {
 	if err := executePlanReopen(dir, pID); err != nil {
 		t.Fatalf("reopen: %v", err)
 	}
-	ids2, _, err := finalizeYAMLCanonical(dir, pID)
+	ids2, _, err := finalizeYAMLCanonicalOpts(dir, pID, finalizeYAMLOptions{})
 	if err != nil {
 		t.Fatalf("second finalize: %v", err)
 	}

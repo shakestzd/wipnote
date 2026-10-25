@@ -72,3 +72,15 @@ func Make(s string, maxLen int) string {
 	}
 	return strings.TrimRight(truncated, "-")
 }
+
+// Truncate shortens s for display to at most maxLen runes, ending a cut
+// string with "…" (which counts toward maxLen). s is returned unchanged when
+// it already fits. Cuts are on rune boundaries, so the result stays valid
+// UTF-8. maxLen must be at least 1.
+func Truncate(s string, maxLen int) string {
+	runes := []rune(s)
+	if len(runes) <= maxLen {
+		return s
+	}
+	return string(runes[:maxLen-1]) + "…"
+}

@@ -1,0 +1,3 @@
+! an MCP server was unreachable (rmcp transport closed); raw.log has the detail
+The file count, `1`, was the shortest value reported.
+--- done: input 43,090 (cached 28,160), output 275, reasoning 19 ---

@@ -47,14 +47,14 @@ func TestApplyPragmas_JournalModeSET_RetriesNonWaitableBusy(t *testing.T) {
 	// taking bug-56b686aa's query-before-set fast path.
 	//
 	// SCOPE: mode SELECTION is NOT changed. The test drives ApplyPragmas with
-	// the UNMODIFIED real BuildPragmas(dbPath) output, so whatever
-	// isUnsafeForMmap/BuildPragmas chooses for this path is exactly what gets
+	// the UNMODIFIED real testPragmasFor(dbPath) output, so whatever
+	// testPragmasFor chooses for this path is exactly what gets
 	// written — the fix only makes that WRITE resilient, never picks a mode.
 	// If the host filesystem cannot hold WAL, or the selected mode already
 	// equals the file mode, the SET would be skipped and the contention path
 	// unexercised — detect that and Skip rather than assert a false negative.
 	dbPath := filepath.Join(t.TempDir(), "whitebox.db")
-	bootstrap, err := Open(dbPath)
+	bootstrap, err := openTestDB(dbPath)
 	if err != nil {
 		t.Fatalf("bootstrap Open: %v", err)
 	}
@@ -62,12 +62,12 @@ func TestApplyPragmas_JournalModeSET_RetriesNonWaitableBusy(t *testing.T) {
 		bootstrap.Close()
 		t.Fatalf("bootstrap journal_mode set: %v", err)
 	}
-	fileMode := QueryJournalMode(bootstrap)
+	fileMode := journalMode(bootstrap)
 	bootstrap.Close()
 
 	// The mode ApplyPragmas WILL write is whatever the existing, unchanged
-	// selection logic chooses — read from the real BuildPragmas, not overridden.
-	contendPragmas := BuildPragmas(dbPath)
+	// selection logic chooses — read from testPragmasFor, not overridden.
+	contendPragmas := testPragmasFor(dbPath)
 	selected := contendPragmas["journal_mode"]
 	if strings.EqualFold(fileMode, selected) {
 		t.Skipf("file journal_mode %q already equals selected %q on this host "+
@@ -173,7 +173,7 @@ func TestApplyPragmas_JournalModeSET_RetriesNonWaitableBusy(t *testing.T) {
 	// pinned pragma connection must be clean — a follow-up query must work,
 	// proving the prior attempt's result rows were drained+closed and not
 	// leaked across the retry.
-	jm := QueryJournalMode(target)
+	jm := journalMode(target)
 	if !strings.EqualFold(jm, selected) {
 		t.Fatalf("journal_mode = %q after retried SET, want %q "+
 			"(the SELECTED mode must apply unchanged; result row mishandled?)",
@@ -223,3 +223,13 @@ func TestApplyPragmas_JournalModeSET_RetriesNonWaitableBusy(t *testing.T) {
 // genuinely exercising the RetryOnBusy wrap. It is verified stable across
 // repeated and full-suite runs. Adding a flaky concurrent sibling would be a
 // net regression in suite reliability, not added coverage.
+
+// journalMode returns the effective journal_mode of the connection, or
+// "unknown" if the query fails.
+func journalMode(database *sql.DB) string {
+	var mode string
+	if err := database.QueryRow("PRAGMA journal_mode").Scan(&mode); err != nil {
+		return "unknown"
+	}
+	return mode
+}

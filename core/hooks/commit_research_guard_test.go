@@ -71,15 +71,14 @@ func TestCommitMessageHasResearchWaiver(t *testing.T) {
 func TestR5_WaiverOutsideMessage_DoesNotBypass(t *testing.T) {
 	root := stageGoModRepo(t)
 	const sid = "r5-waiver-bypass-sess"
-	database := makeSessionDB(t, sid, root)
-	insertAgentEventFull(t, &testDB{DB: database}, "evt-r5-read4", sid, "r5-agent", "tool_call", "Read", "go.mod")
+	appendCanonicalToolEvent(root, sid, canonicalToolEvent{Tool: "Read", Summary: "go.mod"})
 
 	ev := &CloudEvent{
 		ToolName:  "Bash",
 		CWD:       root,
 		ToolInput: map[string]any{"command": `git commit -m "bump dep" && echo research-waiver`},
 	}
-	if warn := checkDependencyResearchCommitGuard(ev, database, &toolUseContext{SessionID: sid}); warn == "" {
+	if warn := checkDependencyResearchCommitGuard(ev, &toolUseContext{SessionID: sid, ProjectDir: root}); warn == "" {
 		t.Error("expected BLOCK: a research-waiver token outside the commit message must not bypass the gate")
 	}
 }
@@ -95,7 +94,7 @@ func TestCheckDependencyResearchCommitGuard_NonCommitAllowed(t *testing.T) {
 		{"Write", ""},
 	} {
 		ev := &CloudEvent{ToolName: tc.tool, CWD: "/tmp", ToolInput: map[string]any{"command": tc.cmd}}
-		if warn := checkDependencyResearchCommitGuard(ev, nil, &toolUseContext{}); warn != "" {
+		if warn := checkDependencyResearchCommitGuard(ev, &toolUseContext{}); warn != "" {
 			t.Errorf("tool=%q cmd=%q: expected no-op, got block %q", tc.tool, tc.cmd, warn)
 		}
 	}
@@ -123,16 +122,15 @@ func stageGoModRepo(t *testing.T) string {
 func TestR5_StagedGoModNoWebResearch_Blocks(t *testing.T) {
 	root := stageGoModRepo(t)
 	const sid = "r5-block-sess"
-	database := makeSessionDB(t, sid, root)
 	// A non-web tool_call so the recording-gap fail-open does NOT trigger.
-	insertAgentEventFull(t, &testDB{DB: database}, "evt-r5-read", sid, "r5-agent", "tool_call", "Read", "go.mod")
+	appendCanonicalToolEvent(root, sid, canonicalToolEvent{Tool: "Read", Summary: "go.mod"})
 
 	ev := &CloudEvent{
 		ToolName:  "Bash",
 		CWD:       root,
 		ToolInput: map[string]any{"command": `git commit -m "bump dep"`},
 	}
-	warn := checkDependencyResearchCommitGuard(ev, database, &toolUseContext{SessionID: sid})
+	warn := checkDependencyResearchCommitGuard(ev, &toolUseContext{SessionID: sid, ProjectDir: root})
 	if warn == "" {
 		t.Fatal("expected BLOCK: staged go.mod with no web research must block the commit")
 	}
@@ -150,15 +148,14 @@ func TestR5_StagedGoModNoWebResearch_Blocks(t *testing.T) {
 func TestR5_StagedGoModWithWebResearch_Allows(t *testing.T) {
 	root := stageGoModRepo(t)
 	const sid = "r5-allow-sess"
-	database := makeSessionDB(t, sid, root)
-	insertAgentEventFull(t, &testDB{DB: database}, "evt-r5-web", sid, "r5-agent", "tool_call", "WebSearch", "github.com/some/dep changelog")
+	appendCanonicalToolEvent(root, sid, canonicalToolEvent{Tool: "WebSearch", Summary: "github.com/some/dep changelog"})
 
 	ev := &CloudEvent{
 		ToolName:  "Bash",
 		CWD:       root,
 		ToolInput: map[string]any{"command": `git commit -m "bump dep"`},
 	}
-	if warn := checkDependencyResearchCommitGuard(ev, database, &toolUseContext{SessionID: sid}); warn != "" {
+	if warn := checkDependencyResearchCommitGuard(ev, &toolUseContext{SessionID: sid, ProjectDir: root}); warn != "" {
 		t.Errorf("expected ALLOW: staged go.mod after WebSearch must be allowed; got %q", warn)
 	}
 }
@@ -168,15 +165,14 @@ func TestR5_StagedGoModWithWebResearch_Allows(t *testing.T) {
 func TestR5_WaiverAllows(t *testing.T) {
 	root := stageGoModRepo(t)
 	const sid = "r5-waiver-sess"
-	database := makeSessionDB(t, sid, root)
-	insertAgentEventFull(t, &testDB{DB: database}, "evt-r5-read2", sid, "r5-agent", "tool_call", "Read", "go.mod")
+	appendCanonicalToolEvent(root, sid, canonicalToolEvent{Tool: "Read", Summary: "go.mod"})
 
 	ev := &CloudEvent{
 		ToolName:  "Bash",
 		CWD:       root,
 		ToolInput: map[string]any{"command": `git commit -m "pin internal fork" -m "RESEARCH-WAIVER: vendored, no upstream"`},
 	}
-	if warn := checkDependencyResearchCommitGuard(ev, database, &toolUseContext{SessionID: sid}); warn != "" {
+	if warn := checkDependencyResearchCommitGuard(ev, &toolUseContext{SessionID: sid, ProjectDir: root}); warn != "" {
 		t.Errorf("expected ALLOW with explicit RESEARCH-WAIVER trailer; got %q", warn)
 	}
 }
@@ -194,15 +190,14 @@ func TestR5_NoManifestStaged_Allows(t *testing.T) {
 	}
 	testGitAdd(t, root, src)
 	const sid = "r5-noreg-sess"
-	database := makeSessionDB(t, sid, root)
-	insertAgentEventFull(t, &testDB{DB: database}, "evt-r5-read3", sid, "r5-agent", "tool_call", "Read", "main.go")
+	appendCanonicalToolEvent(root, sid, canonicalToolEvent{Tool: "Read", Summary: "main.go"})
 
 	ev := &CloudEvent{
 		ToolName:  "Bash",
 		CWD:       root,
 		ToolInput: map[string]any{"command": `git commit -m "edit main"`},
 	}
-	if warn := checkDependencyResearchCommitGuard(ev, database, &toolUseContext{SessionID: sid}); warn != "" {
+	if warn := checkDependencyResearchCommitGuard(ev, &toolUseContext{SessionID: sid, ProjectDir: root}); warn != "" {
 		t.Errorf("expected ALLOW: no dependency manifest staged (no regression); got %q", warn)
 	}
 }

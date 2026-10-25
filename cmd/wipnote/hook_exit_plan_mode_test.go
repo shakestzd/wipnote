@@ -76,7 +76,7 @@ Overview text.
 - Should become its own slice
 `
 
-	slices := parseMarkdownToSlices(md)
+	slices := parseMarkdown(md).slices
 
 	if len(slices) != 3 {
 		t.Fatalf("got %d slices, want 3", len(slices))
@@ -145,7 +145,7 @@ Overview text.
 }
 
 func TestParseMarkdownToSlices_Empty(t *testing.T) {
-	slices := parseMarkdownToSlices("# Just a title\n\nSome body text.")
+	slices := parseMarkdown("# Just a title\n\nSome body text.").slices
 	if len(slices) != 0 {
 		t.Errorf("got %d slices from markdown without H2/H3, want 0", len(slices))
 	}
@@ -181,7 +181,7 @@ Some files listed here.
 Some perf notes.
 `
 
-	slices := parseMarkdownToSlices(md)
+	slices := parseMarkdown(md).slices
 
 	if len(slices) != 2 {
 		t.Fatalf("got %d slices, want 2 (structural headings should be filtered out)", len(slices))

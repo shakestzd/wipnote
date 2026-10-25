@@ -49,7 +49,7 @@ func reconcileCmd() *cobra.Command {
 			// item-shaped classes were gated behind `database != nil`, so
 			// the report was permanently "nothing to reconcile" no matter
 			// how much done-but-uncommitted work existed (feat-fc3cc9e0).
-			rep, err := hooks.Reconcile(nil, projectDir, strict)
+			rep, err := hooks.Reconcile(projectDir, strict)
 			if err != nil {
 				return err
 			}

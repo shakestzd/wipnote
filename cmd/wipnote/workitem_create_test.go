@@ -4,7 +4,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	dbpkg "github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/db/dbtest"
+
 	"github.com/shakestzd/wipnote/core/htmlparse"
 )
 
@@ -101,11 +102,11 @@ func TestBugCreate_NoCausedByEdgeWhenActiveFeaturePresent(t *testing.T) {
 	// Write the active feature into the DB exactly as runWiSetStatus does,
 	// so detectActiveFeature would find it if the fallback were still present.
 	dbPath := filepath.Join(hgDir, ".db", "wipnote.db")
-	database, err := dbpkg.Open(dbPath)
+	database, err := dbtest.Open(dbPath)
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	if err := dbpkg.SetActiveWorkItem(database, sessionID, "", activeFeatureID); err != nil {
+	if err := dbtest.SetActiveWorkItem(database, sessionID, "", activeFeatureID); err != nil {
 		database.Close()
 		t.Fatalf("SetActiveWorkItem: %v", err)
 	}

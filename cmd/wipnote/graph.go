@@ -7,6 +7,7 @@ import (
 
 	"github.com/shakestzd/wipnote/core/graph"
 	"github.com/shakestzd/wipnote/core/projection"
+	"github.com/shakestzd/wipnote/core/slug"
 	"github.com/spf13/cobra"
 )
 
@@ -303,7 +304,7 @@ func runGraphSessions(featureID string) error {
 			created = created[:19]
 		}
 		fmt.Printf("  %-20s  [%s]  %s  %s\n",
-			truncate(s.SessionID, 20), s.Status, s.Agent, created)
+			slug.Truncate(s.SessionID, 20), s.Status, s.Agent, created)
 	}
 	return nil
 }

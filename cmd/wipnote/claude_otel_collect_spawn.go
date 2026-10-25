@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"sync/atomic"
 	"time"
 
 	"github.com/shakestzd/wipnote/observe/otel/collector"
@@ -34,39 +33,6 @@ type otelEnvOverrides struct {
 // spawnCollectorFn is the package-level spawn function used by retry and
 // watchdog paths in this shim. Tests may replace it to inject a fake.
 var spawnCollectorFn collector.SpawnFn = collector.DefaultSpawnFn
-
-// spawnCollector starts an otel-collect child process and waits for its
-// handshake. Delegates to collector.DefaultSpawnFn with auto-port (0).
-//
-// binPath is the path to the wipnote binary to invoke. In production
-// callers should pass the result of os.Executable(); tests pass a
-// pre-built test binary.
-func spawnCollector(binPath, sessionID, projectDir string) (int, *os.Process, error) {
-	return collector.DefaultSpawnFn(binPath, sessionID, projectDir, 0)
-}
-
-// retrySpawnCollector attempts to spawn the collector up to maxAttempts times.
-// spawnFn overrides the package-level spawnCollectorFn when non-nil (for tests).
-// requestedPort is fixed at 0 (auto-assign) for this shim entry point.
-func retrySpawnCollector(binPath, sessionID, projectDir string, maxAttempts int, spawnFn collector.SpawnFn, warnW io.Writer) (int, *os.Process, int, error) {
-	if spawnFn == nil {
-		spawnFn = spawnCollectorFn
-	}
-	return collector.RetrySpawn(binPath, sessionID, projectDir, 0, maxAttempts, spawnFn, warnW)
-}
-
-// startCollectorWatchdog launches a goroutine that polls the current process
-// in procPtr. On death it respawns on originalPort and stores the new
-// process. The returned stop func blocks until the goroutine exits.
-func startCollectorWatchdog(procPtr *atomic.Pointer[os.Process], originalPort int, binPath, sessionID, projectDir string, warnW io.Writer) func() {
-	return collector.StartWatchdog(procPtr, originalPort, binPath, sessionID, projectDir, warnW, spawnCollectorFn, "WIPNOTE_OTEL_WATCHDOG_INTERVAL")
-}
-
-// writeCollectorPID writes the collector PID to the session directory.
-// Best-effort: errors are silently ignored.
-func writeCollectorPID(projectDir, sessionID string, pid int) {
-	collector.WriteCollectorPID(projectDir, sessionID, pid)
-}
 
 // spawnSessionCollectorTo is the testable core of collector spawning. It
 // constructs a ProcessCollector configured with the package-level

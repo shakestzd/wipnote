@@ -79,14 +79,14 @@ func TestEnsureWipnoteGitignore_CreatesFileWhenMissing(t *testing.T) {
 	}
 }
 
-// TestEnsureWipnoteGitignore_Idempotent verifies that calling EnsureWipnoteGitignore
-// twice does not overwrite a user's existing .wipnote/.gitignore.
+// TestEnsureWipnoteGitignore_Idempotent verifies that an existing
+// .wipnote/.gitignore keeps every line the user wrote, gains only the managed
+// patterns it lacks, and is not changed again by a second call.
 func TestEnsureWipnoteGitignore_Idempotent(t *testing.T) {
 	dir := setupGitRepoWithWipnote(t)
 	target := filepath.Join(dir, ".wipnote", ".gitignore")
 
-	// Pre-populate with custom content.
-	custom := "# user-managed content\nsessions/\n"
+	custom := "# user-managed content\nsessions/\nmy-own-dir/\n"
 	if err := os.WriteFile(target, []byte(custom), 0o644); err != nil {
 		t.Fatalf("write custom .gitignore: %v", err)
 	}
@@ -97,15 +97,78 @@ func TestEnsureWipnoteGitignore_Idempotent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read .wipnote/.gitignore: %v", err)
 	}
-	if string(got) != custom {
-		t.Errorf("EnsureWipnoteGitignore must not overwrite existing file\ngot:  %q\nwant: %q", string(got), custom)
+	if !strings.HasPrefix(string(got), custom) {
+		t.Errorf("the user's lines must stay first and unchanged\ngot: %q", string(got))
+	}
+	if strings.Count(string(got), "\nsessions/\n") != 1 {
+		t.Errorf("a pattern already present must not be added again: %q", string(got))
 	}
 
-	// Second call: also a no-op.
 	worktree.EnsureWipnoteGitignore(dir)
 	got2, _ := os.ReadFile(target)
-	if string(got2) != custom {
-		t.Errorf("second call overwrote existing file: %q", string(got2))
+	if string(got2) != string(got) {
+		t.Errorf("second call changed the file:\nfirst:  %q\nsecond: %q", string(got), string(got2))
+	}
+}
+
+// TestGitignore_IgnoresDelegate verifies the managed block ignores the live
+// delegation store, both in a fresh file and in a file written by an older
+// wipnote that lacked the delegate/ line (the upgrader appends it).
+func TestGitignore_IgnoresDelegate(t *testing.T) {
+	for _, existing := range []string{"", "# Managed by wipnote\nsessions/\nevents/\nlogs/\n"} {
+		dir := setupGitRepoWithWipnote(t)
+		target := filepath.Join(dir, ".wipnote", ".gitignore")
+		if existing != "" {
+			if err := os.WriteFile(target, []byte(existing), 0o644); err != nil {
+				t.Fatal(err)
+			}
+		}
+		worktree.EnsureWipnoteGitignore(dir)
+		run := filepath.Join(dir, ".wipnote", "delegate", "runs", "dlg-0123456789ab")
+		if err := os.MkdirAll(run, 0o700); err != nil {
+			t.Fatal(err)
+		}
+		_ = os.WriteFile(filepath.Join(run, "exit"), []byte("0\n"), 0o600)
+		_ = os.WriteFile(filepath.Join(dir, ".wipnote", "feat-y.html"), []byte("x"), 0o644)
+		out, err := exec.Command("git", "-C", dir, "status", "--porcelain", "--untracked-files=all").Output()
+		if err != nil {
+			t.Fatalf("git status: %v", err)
+		}
+		if strings.Contains(string(out), "delegate/") {
+			t.Errorf("existing=%q: git status lists delegate/:\n%s", existing, out)
+		}
+		if !strings.Contains(string(out), "feat-y.html") {
+			t.Errorf("existing=%q: canonical html hidden:\n%s", existing, out)
+		}
+	}
+}
+
+// TestGitignore_IgnoresLocalConfig: .wipnote/config.local.json (per user,
+// per project) is ignored after install, in a fresh file and in one an older
+// wipnote wrote; the committed config.json stays visible.
+func TestGitignore_IgnoresLocalConfig(t *testing.T) {
+	for _, existing := range []string{"", "# Managed by wipnote\nsessions/\ndelegate/\n"} {
+		dir := setupGitRepoWithWipnote(t)
+		target := filepath.Join(dir, ".wipnote", ".gitignore")
+		if existing != "" {
+			if err := os.WriteFile(target, []byte(existing), 0o644); err != nil {
+				t.Fatal(err)
+			}
+		}
+		worktree.EnsureWipnoteGitignore(dir)
+		for _, name := range []string{"config.local.json", "config.json"} {
+			_ = os.WriteFile(filepath.Join(dir, ".wipnote", name), []byte("{}"), 0o644)
+		}
+		out, err := exec.Command("git", "-C", dir, "status", "--porcelain", "--untracked-files=all").Output()
+		if err != nil {
+			t.Fatalf("git status: %v", err)
+		}
+		if strings.Contains(string(out), "config.local.json") {
+			t.Errorf("existing=%q: git status lists config.local.json:\n%s", existing, out)
+		}
+		if !strings.Contains(string(out), ".wipnote/config.json") {
+			t.Errorf("existing=%q: committed config.json hidden:\n%s", existing, out)
+		}
 	}
 }
 

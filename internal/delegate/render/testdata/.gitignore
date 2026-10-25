@@ -1,0 +1,2 @@
+# Golden outputs for the render tests; the root .gitignore drops *.log.
+!*.log

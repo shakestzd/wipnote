@@ -3,7 +3,6 @@ package db
 import (
 	"database/sql"
 	"fmt"
-	"os"
 	"regexp"
 	"time"
 )
@@ -35,25 +34,6 @@ type PlanFeedback struct {
 	UpdatedAt        time.Time
 }
 
-// StorePlanFeedback upserts a feedback entry for a plan section.
-// Re-submitting feedback for the same (plan_id, section, action, question_id)
-// updates the existing row rather than creating a duplicate.
-func StorePlanFeedback(db *sql.DB, planID, section, action, value, questionID string) error {
-	now := time.Now().UTC().Format(time.RFC3339)
-	_, err := db.Exec(`
-		INSERT INTO plan_feedback (plan_id, section, action, value, question_id, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?)
-		ON CONFLICT(plan_id, section, action, question_id) DO UPDATE SET
-			value      = excluded.value,
-			updated_at = excluded.updated_at`,
-		planID, section, action, nullStr(value), questionID, now, now,
-	)
-	if err != nil {
-		return fmt.Errorf("store plan feedback (plan=%s section=%s action=%s): %w", planID, section, action, err)
-	}
-	return nil
-}
-
 // PlanAnnotation is the block-anchored, two-axis annotation written by
 // StorePlanAnnotation. It is the typed input shape for the slice-8 annotation
 // loop; on disk it is just a plan_feedback row with Action=="annotation".
@@ -65,65 +45,6 @@ type PlanAnnotation struct {
 	Consumed         bool   // axis 1: an agent has ingested the note
 	Resolved         bool   // axis 2: the note has been addressed
 	ResolutionTarget string // routed: "agent" | "human" | ""
-}
-
-// StorePlanAnnotation upserts a block-level annotation onto plan_feedback using
-// Action=="annotation". It carries the anchor + two-axis state (consumed,
-// resolved) and the routed resolution_target. Re-submitting for the same
-// (plan_id, section, "annotation", question_id) updates the existing row,
-// matching StorePlanFeedback's idempotent upsert contract.
-func StorePlanAnnotation(db *sql.DB, planID string, ann PlanAnnotation) error {
-	now := time.Now().UTC().Format(time.RFC3339)
-	_, err := db.Exec(`
-		INSERT INTO plan_feedback
-			(plan_id, section, action, value, question_id,
-			 anchor, consumed, resolved, resolution_target, created_at, updated_at)
-		VALUES (?, ?, 'annotation', ?, ?, ?, ?, ?, ?, ?, ?)
-		ON CONFLICT(plan_id, section, action, question_id) DO UPDATE SET
-			value             = excluded.value,
-			anchor            = excluded.anchor,
-			consumed          = excluded.consumed,
-			resolved          = excluded.resolved,
-			resolution_target = excluded.resolution_target,
-			updated_at        = excluded.updated_at`,
-		planID, ann.Section, nullStr(ann.Value), ann.QuestionID,
-		ann.Anchor, boolToInt(ann.Consumed), boolToInt(ann.Resolved),
-		ann.ResolutionTarget, now, now,
-	)
-	if err != nil {
-		return fmt.Errorf("store plan annotation (plan=%s section=%s): %w", planID, ann.Section, err)
-	}
-	return nil
-}
-
-// GetPlanFeedback retrieves all feedback entries for a plan, ordered by created_at.
-func GetPlanFeedback(db *sql.DB, planID string) ([]PlanFeedback, error) {
-	rows, err := db.Query(`
-		SELECT id, plan_id, section, action, value, question_id,
-		       anchor, consumed, resolved, resolution_target, created_at, updated_at
-		FROM plan_feedback
-		WHERE plan_id = ?
-		ORDER BY created_at ASC`, planID)
-	if err != nil {
-		return nil, fmt.Errorf("get plan feedback (plan=%s): %w", planID, err)
-	}
-	defer rows.Close()
-	return scanPlanFeedbackRows(rows)
-}
-
-// GetPlanFeedbackBySection retrieves feedback for a specific section of a plan.
-func GetPlanFeedbackBySection(db *sql.DB, planID, section string) ([]PlanFeedback, error) {
-	rows, err := db.Query(`
-		SELECT id, plan_id, section, action, value, question_id,
-		       anchor, consumed, resolved, resolution_target, created_at, updated_at
-		FROM plan_feedback
-		WHERE plan_id = ? AND section = ?
-		ORDER BY created_at ASC`, planID, section)
-	if err != nil {
-		return nil, fmt.Errorf("get plan feedback by section (plan=%s section=%s): %w", planID, section, err)
-	}
-	defer rows.Close()
-	return scanPlanFeedbackRows(rows)
 }
 
 // IsPlanApprovalSection returns true if the section is one of the approvable sections
@@ -157,155 +78,6 @@ type PlanSliceApproval struct {
 	Num            int
 	ApprovalStatus string // "approved" | "rejected" | "pending" | ""
 	Approved       bool   // legacy bool field, written by finalize-yaml
-}
-
-// IsPlanFullyApproved reports whether a plan is approved enough to finalize.
-//
-// For v2 (slice-card) plans — any plan that has slice-N approval rows — the gate
-// is SLICES ONLY: every slice with an approval row must be approved and none
-// rejected. design/outline approval is NOT required and does not block. This
-// matches the dashboard review rail (the canonical behavior) and the plan-page
-// finalize button, so the three finalize paths agree.
-//
-// Canonical-first fallback (bug-eca8141d): if plan_feedback has NO slice rows
-// but the caller supplies yamlSlices, the function reads approval state from the
-// YAML fields (ApprovalStatus / Approved). This recovers plans whose cache was
-// rebuilt after all slices were approved — the exact user-facing symptom where
-// 8/8 slices showed approved in the UI but Finalize rejected "not all sections
-// approved". Pass nil for yamlSlices to retain the previous pure-SQLite behavior.
-//
-// For legacy plans with no slice sections at all, it falls back to the original
-// behavior (design/outline must be approved, none disapproved), so older plans
-// keep finalizing as before.
-//
-// Returns false (not an error) when nothing approvable exists yet.
-func IsPlanFullyApproved(db *sql.DB, planID string, yamlSlices []PlanSliceApproval) (bool, error) {
-	// v2 path: if the plan has any slice approval rows, gate on slices only.
-	sliceApprovals, err := GetSliceApprovals(db, planID)
-	if err != nil {
-		return false, err
-	}
-	if len(sliceApprovals) > 0 {
-		// Per-slice MERGE (bug-fddf5820, finding 5). When BOTH the DB has
-		// slice rows AND the caller supplies the canonical YAML slice list, the
-		// effective status of each YAML slice is the DB status when a row exists
-		// for that slice, otherwise the YAML status. EVERY YAML slice must be
-		// approved. This closes the gap where a plan with one approved DB row
-		// (and other slices that have no row but are unapproved in YAML) was
-		// reported fully approved — the old code iterated only the DB rows and
-		// never saw the unapproved slices.
-		//
-		// When yamlSlices is nil/empty the DB is the only source of truth, so we
-		// keep the slices-only semantics (bug-9f753d25): every slice WITH a row
-		// must be approved.
-		if len(yamlSlices) > 0 {
-			for _, s := range yamlSlices {
-				section := fmt.Sprintf("slice-%d", s.Num)
-				if dbStatus, ok := sliceApprovals[section]; ok {
-					if dbStatus != "approved" {
-						return false, nil
-					}
-					continue
-				}
-				// No DB row for this slice — fall back to canonical YAML state.
-				if !(s.ApprovalStatus == "approved" || s.Approved) {
-					return false, nil
-				}
-			}
-			return true, nil
-		}
-
-		for _, status := range sliceApprovals {
-			if status != "approved" {
-				return false, nil
-			}
-		}
-		return true, nil
-	}
-
-	// Canonical-first fallback: no SQLite rows, but YAML slices supplied.
-	// Check every slice's ApprovalStatus / Approved field from the YAML.
-	// This is the recovery path after a cache rebuild (bug-eca8141d).
-	if len(yamlSlices) > 0 {
-		for _, s := range yamlSlices {
-			approved := s.ApprovalStatus == "approved" || s.Approved
-			if !approved {
-				return false, nil
-			}
-		}
-		fmt.Fprintf(os.Stderr, "wipnote: plan %s: IsPlanFullyApproved: no plan_feedback rows — used canonical YAML approval state as fallback (cache rebuild recovery)\n", planID)
-		return true, nil
-	}
-
-	// Legacy fallback: no slice sections — preserve original design/outline gate.
-	return legacyPlanFullyApproved(db, planID)
-}
-
-// legacyPlanFullyApproved is the pre-slice-gating behavior: every UI-exposed
-// section (design, outline) with an approve row must be approved and none
-// disapproved. Retained for plans that predate slice-card sections.
-func legacyPlanFullyApproved(db *sql.DB, planID string) (bool, error) {
-	// Fetch all approve/disapprove feedback rows for this plan.
-	rows, err := db.Query(`
-		SELECT DISTINCT section, value
-		FROM plan_feedback
-		WHERE plan_id = ? AND action = 'approve'
-		ORDER BY section ASC`, planID)
-	if err != nil {
-		return false, fmt.Errorf("fetch approve feedback (plan=%s): %w", planID, err)
-	}
-	defer rows.Close()
-
-	// Track UI-exposed sections and their approval status.
-	exposedApproved := make(map[string]bool)
-	exposedDisapproved := make(map[string]bool)
-
-	for rows.Next() {
-		var section, value string
-		if err := rows.Scan(&section, &value); err != nil {
-			return false, fmt.Errorf("scan approve feedback: %w", err)
-		}
-
-		// Only consider UI-exposed sections.
-		if !IsPlanApprovalSection(section) {
-			continue
-		}
-
-		if IsPlanApprovalValueApproved(value) {
-			exposedApproved[section] = true
-		} else {
-			exposedDisapproved[section] = true
-		}
-	}
-	if err := rows.Err(); err != nil {
-		return false, fmt.Errorf("scan approve feedback rows: %w", err)
-	}
-
-	// Plan is fully approved iff:
-	// 1. At least one UI-exposed section exists and is approved (not blocked case).
-	// 2. No UI-exposed section has a disapproval.
-	hasAnyApproved := len(exposedApproved) > 0
-	hasAnyDisapproved := len(exposedDisapproved) > 0
-
-	return hasAnyApproved && !hasAnyDisapproved, nil
-}
-
-// FinalizePlan marks a plan as done. If the plan exists in the features table,
-// updates its status there. Plans that exist only as HTML files (not indexed)
-// are finalized successfully without a features table update.
-func FinalizePlan(db *sql.DB, planID string) error {
-	now := time.Now().UTC().Format(time.RFC3339)
-	_, err := db.Exec(`
-		UPDATE features SET status = 'done', updated_at = ?
-		WHERE id = ? AND type = 'plan'`,
-		now, planID,
-	)
-	if err != nil {
-		return fmt.Errorf("finalize plan %s: %w", planID, err)
-	}
-	// Best-effort: don't fail if plan isn't in features table.
-	// HTML is canonical — the on-disk HTML file gets data-status="finalized".
-	return nil
 }
 
 // GetSliceApprovals returns a map of section key → approval status string
@@ -343,15 +115,6 @@ func GetSliceApprovals(db *sql.DB, planID string) (map[string]string, error) {
 	return result, rows.Err()
 }
 
-// DeletePlanFeedback deletes all feedback entries for a plan.
-func DeletePlanFeedback(db *sql.DB, planID string) error {
-	_, err := db.Exec(`DELETE FROM plan_feedback WHERE plan_id = ?`, planID)
-	if err != nil {
-		return fmt.Errorf("delete plan feedback (plan=%s): %w", planID, err)
-	}
-	return nil
-}
-
 // NormalizePlanFeedbackValues migrates existing rows that were written by the
 // slice-card UI before the value-mapping fix. The buggy writer stored display
 // values ('approved', 'changes_requested', 'rejected') instead of the canonical
@@ -365,29 +128,4 @@ func NormalizePlanFeedbackValues(db *sql.DB) error {
 		return fmt.Errorf("normalize plan_feedback rejected/changes_requested→false: %w", err)
 	}
 	return nil
-}
-
-// scanPlanFeedbackRows scans a *sql.Rows cursor into a []PlanFeedback slice.
-func scanPlanFeedbackRows(rows *sql.Rows) ([]PlanFeedback, error) {
-	var results []PlanFeedback
-	for rows.Next() {
-		var pf PlanFeedback
-		var value sql.NullString
-		var consumed, resolved int
-		var createdStr, updatedStr string
-		if err := rows.Scan(
-			&pf.ID, &pf.PlanID, &pf.Section, &pf.Action,
-			&value, &pf.QuestionID, &pf.Anchor, &consumed, &resolved,
-			&pf.ResolutionTarget, &createdStr, &updatedStr,
-		); err != nil {
-			return nil, fmt.Errorf("scan plan feedback row: %w", err)
-		}
-		pf.Value = value.String
-		pf.Consumed = consumed != 0
-		pf.Resolved = resolved != 0
-		pf.CreatedAt, _ = time.Parse(time.RFC3339, createdStr)
-		pf.UpdatedAt, _ = time.Parse(time.RFC3339, updatedStr)
-		results = append(results, pf)
-	}
-	return results, rows.Err()
 }

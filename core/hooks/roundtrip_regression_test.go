@@ -10,9 +10,9 @@ package hooks
 //
 // Capture surfaces exercised:
 //   (a) PreToolUse tool_input normalization via normalizeToolInputPaths.
-//   (b) SessionStart → sessions.project_dir (DB) + data-project-dir (HTML).
-//   (c) SubagentStart → pending_subagent_starts.cwd.
-//   (d) WorktreeCreate event → agent_events.input_summary.
+//   (b) SessionStart → data-project-dir (HTML).
+//   (c) SubagentStart → runs from a linked worktree CWD.
+//   (d) WorktreeCreate event → creates the worktree at the requested path.
 //   (e) CLI normalizeFilesInput → returned string.
 
 import (
@@ -25,7 +25,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/db/dbtest"
 	"github.com/shakestzd/wipnote/core/models"
 	"github.com/shakestzd/wipnote/core/paths"
 	worktreepkg "github.com/shakestzd/wipnote/core/worktree"
@@ -117,30 +117,28 @@ func TestWorktreeRoundTripRegressionGate(t *testing.T) {
 
 	// Open the DB in the main repo (where .wipnote/ lives).
 	dbPath := filepath.Join(mainRepo, ".wipnote", "wipnote.db")
-	// Pin WIPNOTE_DB_PATH so SessionStart's daemon-routed writes (which fall back
-	// to a direct write at DBPath(projectRoot) when no daemon is running) land in
-	// this handle's file rather than the host cache DB. See openWipnoteTestDB.
+	// A stub daemon applies SessionStart's routed writes to this handle's file
+	// (hooks have no fallback). See openWipnoteTestDB.
 	t.Setenv("WIPNOTE_DB_PATH", dbPath)
-	database, err := db.Open(dbPath)
+	database, err := dbtest.Open(dbPath)
 	if err != nil {
 		t.Fatalf("db.Open: %v", err)
 	}
 	t.Cleanup(func() { database.Close() })
 
 	// Clear the hook-level feature-ID cache so this test is isolated.
-	featureIDCache = featureIDCacheEntry{}
 
 	// ------------------------------------------------------------------
 	// Seed a parent session for FK and env-var dependencies.
 	// ------------------------------------------------------------------
 	parentSessionID := "test-roundtrip-parent-001"
-	if err := db.InsertSession(database, &models.Session{
+	if err := dbtest.UpsertSession(database, &models.Session{
 		SessionID:     parentSessionID,
 		AgentAssigned: "claude-code",
 		Status:        "active",
 		CreatedAt:     time.Now().UTC(),
 	}); err != nil {
-		t.Fatalf("InsertSession parent: %v", err)
+		t.Fatalf("UpsertSession parent: %v", err)
 	}
 
 	// Env-var setup mirrors the pattern in cwd_normalize_test.go.
@@ -184,16 +182,9 @@ func TestWorktreeRoundTripRegressionGate(t *testing.T) {
 		SessionID: sessionID,
 		CWD:       linkedWt,
 	}
-	if _, err := SessionStart(sessionEvent, database, mainRepo); err != nil {
+	if _, err := SessionStart(sessionEvent, mainRepo); err != nil {
 		t.Fatalf("SessionStart: %v", err)
 	}
-
-	// Verify DB: sessions.project_dir
-	gotSession, err := db.GetSession(database, sessionID)
-	if err != nil {
-		t.Fatalf("GetSession: %v", err)
-	}
-	assertNoAbsoluteHostPaths(t, "SessionStart.DB.project_dir", gotSession.ProjectDir)
 
 	// Verify HTML: data-project-dir attribute
 	htmlPath := filepath.Join(mainRepo, ".wipnote", "sessions", sessionID+".html")
@@ -219,34 +210,14 @@ func TestWorktreeRoundTripRegressionGate(t *testing.T) {
 		AgentType: "feature-coder",
 		CWD:       linkedWt,
 	}
-	if _, err := SubagentStart(subagentEvent, database); err != nil {
+	if _, err := SubagentStart(subagentEvent); err != nil {
 		t.Fatalf("SubagentStart: %v", err)
 	}
-
-	pending, err := db.GetPendingSubagentStart(database, agentID)
-	if err != nil {
-		t.Fatalf("GetPendingSubagentStart: %v", err)
-	}
-	if pending == nil {
-		t.Fatal("no pending subagent start row found")
-	}
-	assertNoAbsoluteHostPaths(t, "SubagentStart.pending_subagent_starts.cwd", pending.CWD)
 
 	// ------------------------------------------------------------------
 	// (d) WorktreeCreate event — absolute WorktreePath inside the main repo.
 	//     We override the package-level resolver to use the real main repo.
 	// ------------------------------------------------------------------
-	paths.ResetNormalizeCacheForTesting()
-	oldResolver := worktreePathResolver
-	worktreePathResolver = func(dir string) string {
-		// Delegate to the real git-based resolver — this is production behavior.
-		return paths.ResolveWipnoteAnchorForDir(dir)
-	}
-	t.Cleanup(func() {
-		worktreePathResolver = oldResolver
-		paths.ResetNormalizeCacheForTesting()
-	})
-
 	prevReindex := worktreepkg.SetReindexFnForTest(func(string, io.Writer) {})
 	t.Cleanup(func() { worktreepkg.SetReindexFnForTest(prevReindex) })
 	worktreeName := "feat-roundtrip-12345"
@@ -257,22 +228,13 @@ func TestWorktreeRoundTripRegressionGate(t *testing.T) {
 		WorktreeBasePath: worktreeBasePath,
 		WorktreeName:     worktreeName,
 	}
-	createdWorktreePath, err := WorktreeCreate(worktreeEvent, database)
+	createdWorktreePath, err := WorktreeCreate(worktreeEvent)
 	if err != nil {
 		t.Fatalf("WorktreeCreate: %v", err)
 	}
 	if createdWorktreePath != filepath.Join(worktreeBasePath, worktreeName) {
 		t.Fatalf("WorktreeCreate path = %q, want %q", createdWorktreePath, filepath.Join(worktreeBasePath, worktreeName))
 	}
-
-	var inputSummary string
-	if err := database.QueryRow(
-		`SELECT input_summary FROM agent_events WHERE session_id = ? AND tool_name = 'WorktreeCreate'`,
-		parentSessionID,
-	).Scan(&inputSummary); err != nil {
-		t.Fatalf("query agent_events WorktreeCreate: %v", err)
-	}
-	assertNoAbsoluteHostPaths(t, "WorktreeCreate.agent_events.input_summary", inputSummary)
 
 	// ------------------------------------------------------------------
 	// (e) CLI normalizeFilesInput — absolute --files path inside the main

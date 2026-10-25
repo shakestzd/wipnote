@@ -113,30 +113,6 @@ func TestFeatureList(t *testing.T) {
 		t.Fatalf("List all: got %d, want 3", len(all))
 	}
 
-	// Filter by priority
-	high, err := p.Features.List(workitem.WithPriority("high"))
-	if err != nil {
-		t.Fatalf("List high: %v", err)
-	}
-	if len(high) != 2 {
-		t.Errorf("List high: got %d, want 2", len(high))
-	}
-}
-
-func TestFeatureListWithStatus(t *testing.T) {
-	p := newTestProject(t)
-
-	f1, _ := p.Features.Create("Active Feature")
-	_, _ = p.Features.Create("Todo Feature")
-	_, _ = p.Features.Start(f1.ID)
-
-	inProg, err := p.Features.List(workitem.WithStatus("in-progress"))
-	if err != nil {
-		t.Fatalf("List: %v", err)
-	}
-	if len(inProg) != 1 {
-		t.Errorf("in-progress count: got %d, want 1", len(inProg))
-	}
 }
 
 func TestFeatureDelete(t *testing.T) {
@@ -231,29 +207,6 @@ func TestFeatureRoundTrip(t *testing.T) {
 	}
 }
 
-func TestFeatureWithEdgesRoundTrip(t *testing.T) {
-	p := newTestProject(t)
-
-	feat, err := p.Features.Create("Edge Feature",
-		workitem.FeatWithEdge("blocks", "feat-other"),
-	)
-	if err != nil {
-		t.Fatalf("Create: %v", err)
-	}
-
-	path := filepath.Join(p.FeaturesDir(), feat.ID+".html")
-	parsed, err := htmlparse.ParseFile(path)
-	if err != nil {
-		t.Fatalf("ParseFile: %v", err)
-	}
-
-	edges, ok := parsed.Edges["blocks"]
-	if !ok || len(edges) == 0 {
-		t.Fatal("no 'blocks' edges found after round-trip")
-	}
-	assertEqual(t, "edge target", edges[0].TargetID, "feat-other")
-}
-
 // ---------------------------------------------------------------------------
 // Bug CRUD
 // ---------------------------------------------------------------------------
@@ -263,7 +216,6 @@ func TestBugCreate(t *testing.T) {
 
 	bug, err := p.Bugs.Create("Login broken on Safari",
 		workitem.BugWithPriority("critical"),
-		workitem.BugWithReproSteps("Open Safari", "Click login"),
 	)
 	if err != nil {
 		t.Fatalf("Create bug: %v", err)
@@ -303,7 +255,6 @@ func TestSpikeCreate(t *testing.T) {
 
 	spike, err := p.Spikes.Create("Investigate caching",
 		workitem.SpikeWithType("technical"),
-		workitem.SpikeWithFindings("Redis is the best option"),
 	)
 	if err != nil {
 		t.Fatalf("Create spike: %v", err)
@@ -320,34 +271,14 @@ func TestSpikeSetFindings(t *testing.T) {
 	p := newTestProject(t)
 
 	spike, _ := p.Spikes.Create("Investigation")
-	updated, err := p.Spikes.SetFindings(spike.ID, "Found the root cause")
-	if err != nil {
+	if err := p.Spikes.SetFindings(spike.ID, "Found the root cause"); err != nil {
 		t.Fatalf("SetFindings: %v", err)
-	}
-	if !strings.Contains(updated.Content, "Found the root cause") {
-		t.Errorf("Content: got %q", updated.Content)
 	}
 
 	// Verify round-trip
 	parsed, _ := htmlparse.ParseFile(filepath.Join(p.SpikesDir(), spike.ID+".html"))
 	if !strings.Contains(parsed.Content, "Found the root cause") {
 		t.Errorf("Parsed content missing findings: %q", parsed.Content)
-	}
-}
-
-func TestSpikeGetLatest(t *testing.T) {
-	p := newTestProject(t)
-
-	_, _ = p.Spikes.Create("Spike A")
-	_, _ = p.Spikes.Create("Spike B")
-	_, _ = p.Spikes.Create("Spike C")
-
-	latest, err := p.Spikes.GetLatest("", 2)
-	if err != nil {
-		t.Fatalf("GetLatest: %v", err)
-	}
-	if len(latest) != 2 {
-		t.Errorf("GetLatest count: got %d, want 2", len(latest))
 	}
 }
 
@@ -360,7 +291,6 @@ func TestTrackCreate(t *testing.T) {
 
 	track, err := p.Tracks.Create("Go SDK Port",
 		workitem.TrackWithPriority("high"),
-		workitem.TrackWithSpec("Port Python SDK to Go"),
 		workitem.TrackWithPlanPhases("Phase 1: Models", "Phase 2: Collections"),
 	)
 	if err != nil {
@@ -378,7 +308,7 @@ func TestTrackRoundTrip(t *testing.T) {
 	p := newTestProject(t)
 	track, _ := p.Tracks.Create("Track RT", workitem.TrackWithPriority("medium"))
 
-	parsed, err := htmlparse.ParseFile(filepath.Join(p.TracksDir(), track.ID+".html"))
+	parsed, err := htmlparse.ParseFile(filepath.Join(p.ProjectDir, "tracks", track.ID+".html"))
 	if err != nil {
 		t.Fatalf("ParseFile: %v", err)
 	}

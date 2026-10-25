@@ -51,14 +51,6 @@ const (
 	codexLaunchModeInit     codexLaunchMode = "init"
 )
 
-// appendOrReplaceEnv takes an env slice (KEY=VALUE strings) and one or more
-// kv pairs in "KEY=VALUE" form. For each kv, if the key already exists in env
-// its entry is replaced in-place; otherwise the kv is appended. The original
-// slice is modified and returned. Order of existing entries is preserved.
-func appendOrReplaceEnv(env []string, kv ...string) []string {
-	return launcher.AppendOrReplaceEnv(env, kv...)
-}
-
 // spawnCodexOtelCollector spawns a per-session OTel collector and returns the
 // port, session ID, and a cleanup function. On failure it writes a warning to
 // stderr and returns zero port / nil cleanup so the caller can proceed without
@@ -109,7 +101,7 @@ func applySandboxDegradedEnv(env []string, degraded bool) []string {
 	if !degraded {
 		return env
 	}
-	return appendOrReplaceEnv(env, "WIPNOTE_CODEX_SANDBOX=degraded")
+	return launcher.AppendOrReplaceEnv(env, "WIPNOTE_CODEX_SANDBOX=degraded")
 }
 
 func resolveCodexSandboxMode(codexPath string, opts codexLaunchOpts, devcontainer bool) (mode string, notice string) {

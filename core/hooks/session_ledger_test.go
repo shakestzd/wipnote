@@ -50,7 +50,7 @@ func TestSessionStartWritesTheCanonicalRow(t *testing.T) {
 	defer database.Close()
 
 	event := &CloudEvent{SessionID: ledgerTestSessionID, CWD: projectDir}
-	if _, err := SessionStart(event, database, projectDir); err != nil {
+	if _, err := SessionStart(event, projectDir); err != nil {
 		t.Fatalf("SessionStart: %v", err)
 	}
 
@@ -87,7 +87,7 @@ func TestSessionStartIsIdempotentAcrossResume(t *testing.T) {
 
 	event := &CloudEvent{SessionID: ledgerTestSessionID, CWD: projectDir}
 	for i := 0; i < 3; i++ {
-		if _, err := SessionStart(event, database, projectDir); err != nil {
+		if _, err := SessionStart(event, projectDir); err != nil {
 			t.Fatalf("SessionStart #%d: %v", i+1, err)
 		}
 	}
@@ -113,7 +113,7 @@ func TestSessionStartSkipsSubagents(t *testing.T) {
 	t.Setenv("WIPNOTE_NESTING_DEPTH", "1")
 
 	event := &CloudEvent{SessionID: ledgerTestSessionID, CWD: projectDir}
-	if _, err := SessionStart(event, database, projectDir); err != nil {
+	if _, err := SessionStart(event, projectDir); err != nil {
 		t.Fatalf("SessionStart: %v", err)
 	}
 

@@ -10,14 +10,15 @@ import (
 	"time"
 
 	"github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/db/dbtest"
 	"github.com/shakestzd/wipnote/core/models"
 	"github.com/shakestzd/wipnote/internal/blame"
 )
 
 // openTestDB creates an in-memory SQLite database with the full wipnote schema.
-func openTestDB(t *testing.T) *sql.DB {
+func openTestDB(t testing.TB) *sql.DB {
 	t.Helper()
-	database, err := db.Open(":memory:")
+	database, err := dbtest.Open(":memory:")
 	if err != nil {
 		t.Fatalf("open test db: %v", err)
 	}
@@ -26,7 +27,7 @@ func openTestDB(t *testing.T) *sql.DB {
 }
 
 // insertTrack is a test helper that inserts a track with minimal required fields.
-func insertTrack(t *testing.T, database *sql.DB, id, title string) {
+func insertTrack(t testing.TB, database *sql.DB, id, title string) {
 	t.Helper()
 	now := time.Now().UTC()
 	if err := db.UpsertTrack(database, &db.Track{
@@ -43,7 +44,7 @@ func insertTrack(t *testing.T, database *sql.DB, id, title string) {
 }
 
 // insertFeature is a test helper that inserts a feature with minimal required fields.
-func insertFeature(t *testing.T, database *sql.DB, id, title, trackID string) {
+func insertFeature(t testing.TB, database *sql.DB, id, title, trackID string) {
 	t.Helper()
 	now := time.Now().UTC()
 	if err := db.UpsertFeature(database, &db.Feature{
@@ -61,7 +62,7 @@ func insertFeature(t *testing.T, database *sql.DB, id, title, trackID string) {
 }
 
 // insertFeatureFile inserts a feature_file row via db.UpsertFeatureFile.
-func insertFeatureFile(t *testing.T, database *sql.DB, id, featureID, filePath string) {
+func insertFeatureFile(t testing.TB, database *sql.DB, id, featureID, filePath string) {
 	t.Helper()
 	if err := db.UpsertFeatureFile(database, &models.FeatureFile{
 		ID:        id,

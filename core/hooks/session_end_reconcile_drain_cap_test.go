@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -89,7 +90,7 @@ func TestReconcileDrain_Uncapped_ReconcilesOldDirtyBeyond500(t *testing.T) {
 	}
 
 	// (2) The serve drain agrees: nothing left, and re-running is a no-op.
-	if committed := ReconcileDoneButUncommittedForProject(nil, root); len(committed) != 0 {
+	if committed := ReconcileDoneButUncommittedForProject(root); len(committed) != 0 {
 		t.Fatalf("serve drain re-committed %v after the synchronous scan already did; must be a no-op", committed)
 	}
 
@@ -99,14 +100,14 @@ func TestReconcileDrain_Uncapped_ReconcilesOldDirtyBeyond500(t *testing.T) {
 			`<header><h1>old dirty done again</h1></header></article></body></html>`), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	drained := ReconcileDoneButUncommittedForProject(nil, root)
+	drained := ReconcileDoneButUncommittedForProject(root)
 	if !containsID(drained, oldDirty) {
 		t.Fatalf("serve drain did not reconcile old dirty item %s (committed=%v)", oldDirty, drained)
 	}
 	if reconcilePathDirty(root, dirtyPath) {
 		t.Fatalf("serve drain reported %s committed but the artifact is still dirty", oldDirty)
 	}
-	if again := ReconcileDoneButUncommittedForProject(nil, root); len(again) != 0 {
+	if again := ReconcileDoneButUncommittedForProject(root); len(again) != 0 {
 		t.Fatalf("second drain re-committed %v; must be a no-op", again)
 	}
 }
@@ -138,4 +139,16 @@ func containsID(ids []string, want string) bool {
 		}
 	}
 	return false
+}
+
+// reconcilePathDirty reports whether the single path has uncommitted or
+// untracked changes (`git status --porcelain -- <path>` non-empty).
+func reconcilePathDirty(repoRoot, absPath string) bool {
+	out, err := exec.Command(
+		"git", "-C", repoRoot, "status", "--porcelain", "--", absPath,
+	).CombinedOutput()
+	if err != nil {
+		return false
+	}
+	return strings.TrimSpace(string(out)) != ""
 }

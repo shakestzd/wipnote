@@ -36,7 +36,7 @@ func openTestProject(t *testing.T, hgDir string) *workitem.Project {
 
 func parseItem(t *testing.T, hgDir, id string) *models.Node {
 	t.Helper()
-	n, err := htmlparse.ParseFile(resolveNodePath(hgDir, id))
+	n, err := htmlparse.ParseFile(workitem.NodePath(hgDir, id))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -220,7 +220,7 @@ func TestResearchGate_DependencyURLStoredAsSource(t *testing.T) {
 	p := openTestProject(t, hgDir)
 
 	const cited = "https://pkg.go.dev/github.com/some/dep"
-	if err := checkDependencyResearchCompleteGate(p, p.Features.Collection, "feature", id, []string{cited}, ""); err != nil {
+	if err := checkDependencyResearchCompleteGate(p.Features.Collection, evidenceFor(p, p.Features.Collection, id), "feature", id, []string{cited}, ""); err != nil {
 		t.Fatal(err)
 	}
 	n := parseItem(t, hgDir, id)
@@ -235,7 +235,7 @@ func TestResearchGate_DependencyURLStoredAsSource(t *testing.T) {
 	// --research-url or --research-waiver on the completing call, whatever
 	// the record already holds (a UI source or a research-first waiver must
 	// not stand in for dependency evidence).
-	if err := checkDependencyResearchCompleteGate(p, p.Features.Collection, "feature", id, nil, ""); err == nil {
+	if err := checkDependencyResearchCompleteGate(p.Features.Collection, evidenceFor(p, p.Features.Collection, id), "feature", id, nil, ""); err == nil {
 		t.Fatal("dependency gate must still require --research-url or --research-waiver")
 	}
 }

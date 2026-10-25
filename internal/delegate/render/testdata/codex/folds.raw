@@ -1,0 +1,6 @@
+{"type": "item.completed", "item": {"id": "item_1", "type": "command_execution", "command": "/bin/zsh -lc 'ls -la'", "aggregated_output": "a\nb\n", "exit_code": 0}}
+{"type": "item.completed", "item": {"id": "item_2", "type": "command_execution", "command": "false", "aggregated_output": "", "exit_code": 1}}
+{"type": "item.completed", "item": {"id": "item_3", "type": "command_execution", "command": "echo '-->' x\nline2", "aggregated_output": "<!-- /fold -->\n", "exit_code": 0}}
+{"type": "item.completed", "item": {"id": "item_4", "type": "command_execution", "command": "printf '\\033[31mred\\033[0m'", "aggregated_output": "\u001b[31mred\u001b[0m\r\n\n\n", "exit_code": 0}}
+{"type": "item.completed", "item": {"id": "n", "type": "command_execution", "aggregated_output": "no cmd"}}
+{"type": "item.completed", "item": {"id": "n", "type": "command_execution", "command": "x"}}

@@ -64,13 +64,12 @@
   },
 
   "hooks": {
-    "_comment": "Canonical event names follow Claude Code conventions. Each entry declares the CLI handler (a thin wrapper over `wipnote hook <name>`) and per-target availability. Events unsupported by a target are omitted from that target's hooks.json. Target-specific events are declared by listing only that target (e.g. `targets: [antigravity]` for AfterAgent). Every (name, target) pair is validated at build time against hookEventNameSpecs in port/pluginbuild/hook_event_names.go — no harness validates hook event names at dispatch, so an unlisted name is a silent permanent no-op and `wipnote plugin build-ports` refuses to emit it.",
+    "_comment": "Canonical event names follow Claude Code conventions. Each entry declares the CLI handler (a thin wrapper over `wipnote hook <name>`) and per-target availability. Events unsupported by a target are omitted from that target's hooks.json. Target-specific events are declared by listing only that target (e.g. `targets: [codex]` for a Codex-only event). Every (name, target) pair is validated at build time against hookEventNameSpecs in port/pluginbuild/hook_event_names.go — no harness validates hook event names at dispatch, so an unlisted name is a silent permanent no-op and `wipnote plugin build-ports` refuses to emit it.",
     "events": [
       { "name": "SessionStart",       "handler": "session-start",       "targets": ["claude", "codex"], "timeoutByTarget": {"claude": 30} },
       { "name": "SessionStart",       "handler": "session-resume",      "targets": ["claude"], "matcher": "resume", "timeout": 15 },
       { "name": "SessionEnd",         "handler": "session-end",         "targets": ["claude", "codex"], "timeoutByTarget": {"claude": 60, "codex": 3} },
       { "name": "UserPromptSubmit",   "handler": "user-prompt",         "targets": ["claude", "codex", "antigravity"], "timeoutByTarget": {"claude": 15} },
-      { "name": "AfterAgent",         "handler": "after-agent",         "targets": ["antigravity"] },
       { "name": "PreToolUse",         "handler": "pretooluse",          "targets": ["claude", "codex", "antigravity"], "timeoutByTarget": {"claude": 15} },
       { "name": "PostToolUse",        "handler": "posttooluse",         "targets": ["claude"], "matcher": "^(Write|Edit|MultiEdit|NotebookEdit|Bash)$", "timeoutByTarget": {"claude": 15} },
       { "name": "PostToolUse",        "handler": "posttooluse-record",  "targets": ["claude"], "matcher": "", "timeout": 15, "async": true },
@@ -79,18 +78,14 @@
       { "name": "SubagentStart",      "handler": "subagent-start",      "targets": ["claude", "codex"], "timeoutByTarget": {"claude": 30} },
       { "name": "SubagentStop",       "handler": "subagent-stop",       "targets": ["claude", "codex"], "timeoutByTarget": {"claude": 30} },
       { "name": "Stop",               "handler": "stop",                "targets": ["claude", "codex", "antigravity"], "timeout": 90 },
-      { "name": "Interrupt",          "handler": "task-aborted",        "targets": ["codex"], "timeout": 3 },
       { "name": "PostToolUseFailure", "handler": "posttooluse-failure", "targets": ["claude"], "timeout": 15, "async": true },
       { "name": "StopFailure",        "handler": "stop-failure",        "targets": ["claude"], "timeout": 15, "async": true },
-      { "name": "PreCompact", "handler": "pre-compact", "targets": ["claude"], "timeout": 15, "async": true },
-      { "name": "TeammateIdle", "handler": "teammate-idle", "targets": ["claude"], "timeout": 15, "async": true },
       { "name": "TaskCompleted",      "handler": "task-completed",      "targets": ["claude"] },
-      { "name": "InstructionsLoaded", "handler": "instructions-loaded", "targets": ["claude"], "timeout": 15, "async": true },
       { "name": "WorktreeCreate",     "handler": "worktree-create",     "targets": ["claude"], "timeout": 60 },
       { "name": "WorktreeRemove",     "handler": "worktree-remove",     "targets": ["claude"], "timeout": 30 },
-      { "name": "PostCompact", "handler": "post-compact", "targets": ["claude"], "timeout": 15, "async": true },
       { "name": "TaskCreated", "handler": "task-created", "targets": ["claude"], "timeout": 15, "async": true },
       { "name": "PermissionRequest",  "handler": "permission-request",  "targets": ["claude"], "timeout": 10 },
+      { "name": "PermissionDenied",   "handler": "permission-denied",   "targets": ["claude"], "timeout": 15, "async": true },
       { "name": "ConfigChange", "handler": "config-change", "targets": ["claude"], "timeout": 15, "async": true }
     ]
   }

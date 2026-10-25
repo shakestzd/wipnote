@@ -1,14 +1,13 @@
-// Package daemon implements the per-project write-owner transport
-// (plan-bb91616a Phase A). It graduates the in-process serve_child
-// writequeue into a process-spanning single-writer service reachable over
-// a per-project Unix domain socket.
+// Package daemon implements the per-project daemon transport (plan-bb91616a
+// Phase A): one owner process per project, reachable over a per-project Unix
+// domain socket, that answers work-item reads from canonical state. It
+// applies no writes (feat-174dc958).
 //
 //   - lease*.go   — the heartbeat single-owner lease (writer.lease.pid)
-//   - socket*.go  — the Unix-socket listener that applies versioned write-op
-//     envelopes through the existing writequeue
-//   - client.go   — WriterClient.Submit (dial, send envelope, await ack)
+//   - socket*.go  — the Unix-socket listener for the read protocol
+//   - read_client.go — the ReadClient hooks and launchers dial
 //   - ensure.go   — the launcher's EnsureDaemon, the only code that starts a
-//     writer (bug-5ca53f70)
+//     daemon (bug-5ca53f70)
 package daemon
 
 import (
@@ -52,7 +51,7 @@ func SocketPath(projectRoot string) string {
 var ErrLeaseHeld = fmt.Errorf("daemon: writer lease already held by a live owner")
 
 // Lease is an acquired single-owner write lease. The holder is the sole
-// authority that may bind the socket and run the writequeue for its project.
+// authority that may bind the socket for its project.
 type Lease struct {
 	dir    string
 	path   string
@@ -164,12 +163,4 @@ func (l *Lease) Release() error {
 		return err
 	}
 	return nil
-}
-
-// Path returns the lease file path (for diagnostics/tests).
-func (l *Lease) Path() string {
-	if l == nil {
-		return ""
-	}
-	return l.path
 }

@@ -61,23 +61,110 @@ func wirePlan(wipnoteDir, planID, trackID string) error {
 	releasePlan := planyaml.LockPlanForWrite(planPath)
 	defer releasePlan()
 
+	plan, p, err := loadWireInputs(wipnoteDir, planPath, trackID)
+	if err != nil {
+		return err
+	}
+	defer p.Close()
+
+	approvedTitles := approvedSliceTitles(plan)
+
+	trackFeats, err := planTrackFeatures(p, trackID)
+	if err != nil {
+		return err
+	}
+
+	titleToFeat, unmatched := matchFeaturesToSlices(trackFeats, approvedTitles)
+
+	// Wire edges for each matched feature.
+	now := time.Now().UTC()
+	linkedCount := wireMatchedFeatures(p, planID, trackID, titleToFeat, now)
+
+	depsWired := wireSliceDepEdges(p, planID, titleToFeat, now)
+
+	// implemented_in: plan → track
+	p.Plans.AddEdge(planID, models.Edge{ //nolint:errcheck
+		TargetID:     trackID,
+		Relationship: models.RelImplementedIn,
+		Title:        trackID,
+		Since:        now,
+	})
+
+	if err := saveWiredPlan(planPath, plan, planID, trackID, linkedCount); err != nil {
+		return err
+	}
+
+	printWireSummary(planID, trackID, plan.Meta.Version, linkedCount, depsWired, unmatched, approvedTitles, titleToFeat)
+	return nil
+}
+
+// loadWireInputs loads the plan, opens the project and validates that the
+// track exists. The caller closes the returned project.
+func loadWireInputs(wipnoteDir, planPath, trackID string) (*planyaml.PlanYAML, *workitem.Project, error) {
 	plan, err := planyaml.Load(planPath)
 	if err != nil {
-		return fmt.Errorf("load plan: %w", err)
+		return nil, nil, fmt.Errorf("load plan: %w", err)
 	}
 
 	p, err := workitem.Open(wipnoteDir, agentForClaim())
 	if err != nil {
-		return fmt.Errorf("open project: %w", err)
+		return nil, nil, fmt.Errorf("open project: %w", err)
 	}
-	defer p.Close()
 
 	// Validate that the track exists.
 	if _, err := p.Tracks.Get(trackID); err != nil {
-		return fmt.Errorf("track %s not found: %w", trackID, err)
+		p.Close()
+		return nil, nil, fmt.Errorf("track %s not found: %w", trackID, err)
+	}
+	return plan, p, nil
+}
+
+// wireMatchedFeatures wires planned_in (feature → plan) and part_of +
+// contains edges for each matched feature and returns how many it linked.
+func wireMatchedFeatures(p *workitem.Project, planID, trackID string, titleToFeat map[string]planWiredFeat, now time.Time) int {
+	linkedCount := 0
+	for _, wf := range titleToFeat {
+		// planned_in: feature → plan
+		p.Features.AddEdge(wf.id, models.Edge{ //nolint:errcheck
+			TargetID:     planID,
+			Relationship: models.RelPlannedIn,
+			Title:        planID,
+			Since:        now,
+		})
+
+		// part_of + contains (idempotent helper)
+		wireTrackEdges(p, wf.id, trackID, wf.title) //nolint:errcheck
+
+		linkedCount++
+	}
+	return linkedCount
+}
+
+// saveWiredPlan updates the YAML status to finalized, saves it and commits
+// the change.
+func saveWiredPlan(planPath string, plan *planyaml.PlanYAML, planID, trackID string, linkedCount int) error {
+	plan.Meta.Status = "finalized"
+	plan.Meta.TrackID = trackID
+	if err := planyaml.SaveLocked(planPath, plan); err != nil {
+		return fmt.Errorf("save plan: %w", err)
 	}
 
-	// Collect approved slice titles for matching.
+	if err := commitPlanChange(planPath, fmt.Sprintf("plan(%s): wire — %d features linked", planID, linkedCount)); err != nil {
+		return fmt.Errorf("autocommit wire: %w", err)
+	}
+	return nil
+}
+
+// planWiredFeat is a track feature matched to a plan slice by title.
+type planWiredFeat struct {
+	id    string
+	title string
+	slice planyaml.PlanSlice
+}
+
+// approvedSliceTitles collects approved slice titles (lower-cased) for
+// matching.
+func approvedSliceTitles(plan *planyaml.PlanYAML) map[string]planyaml.PlanSlice {
 	approvedTitles := map[string]planyaml.PlanSlice{}
 	for _, s := range plan.Slices {
 		if s.Approved {
@@ -91,11 +178,16 @@ func wirePlan(wipnoteDir, planID, trackID string) error {
 		}
 	}
 
-	// Find all features belonging to the track (by TrackID field or contains edges).
+	return approvedTitles
+}
+
+// planTrackFeatures finds all features belonging to the track (by TrackID
+// field or contains edges).
+func planTrackFeatures(p *workitem.Project, trackID string) ([]*models.Node, error) {
 	// Use WithTrackID filter first (works when FeatWithTrack was used at creation).
 	trackFeats, err := p.Features.List(workitem.WithTrackID(trackID))
 	if err != nil {
-		return fmt.Errorf("list features for track: %w", err)
+		return nil, fmt.Errorf("list features for track: %w", err)
 	}
 
 	// Also include features linked via contains edges on the track (alternative wiring).
@@ -113,49 +205,34 @@ func wirePlan(wipnoteDir, planID, trackID string) error {
 		}
 	}
 
-	// Match each track feature to a plan slice by title.
-	type wiredFeat struct {
-		id    string
-		title string
-		slice planyaml.PlanSlice
-	}
-	titleToFeat := map[string]wiredFeat{}
+	return trackFeats, nil
+}
+
+// matchFeaturesToSlices matches each track feature to a plan slice by title.
+func matchFeaturesToSlices(trackFeats []*models.Node, approvedTitles map[string]planyaml.PlanSlice) (map[string]planWiredFeat, []string) {
+	titleToFeat := map[string]planWiredFeat{}
 	var unmatched []string
 
 	for _, featNode := range trackFeats {
 		key := strings.ToLower(featNode.Title)
 		if slice, ok := approvedTitles[key]; ok {
-			titleToFeat[key] = wiredFeat{id: featNode.ID, title: featNode.Title, slice: slice}
+			titleToFeat[key] = planWiredFeat{id: featNode.ID, title: featNode.Title, slice: slice}
 		} else {
 			unmatched = append(unmatched, featNode.ID)
 		}
 	}
 
-	// Wire edges for each matched feature.
-	now := time.Now().UTC()
-	linkedCount := 0
+	return titleToFeat, unmatched
+}
 
-	for _, wf := range titleToFeat {
-		// planned_in: feature → plan
-		p.Features.AddEdge(wf.id, models.Edge{ //nolint:errcheck
-			TargetID:     planID,
-			Relationship: models.RelPlannedIn,
-			Title:        planID,
-			Since:        now,
-		})
-
-		// part_of + contains (idempotent helper)
-		wireTrackEdges(p, wf.id, trackID, wf.title) //nolint:errcheck
-
-		linkedCount++
-	}
-
-	// Wire blocked_by edges based on slice deps (match by slice num → feature).
-	// These encode plan authoring order, not an asserted cross-project
-	// dependency, so they carry the same origin tag reindex_plan_edges.go
-	// stamps on the equivalent edge it rebuilds from the same slice.deps
-	// field — graph.FindBottlenecks excludes both (bug-d0489158).
-	numToFeat := map[int]wiredFeat{}
+// wireSliceDepEdges wires blocked_by edges based on slice deps (match by
+// slice num → feature) and returns how many it wired.
+// These encode plan authoring order, not an asserted cross-project
+// dependency, so they carry the same origin tag reindex_plan_edges.go
+// stamps on the equivalent edge it rebuilds from the same slice.deps
+// field — graph.FindBottlenecks excludes both (bug-d0489158).
+func wireSliceDepEdges(p *workitem.Project, planID string, titleToFeat map[string]planWiredFeat, now time.Time) int {
+	numToFeat := map[int]planWiredFeat{}
 	for _, wf := range titleToFeat {
 		numToFeat[wf.slice.Num] = wf
 	}
@@ -182,30 +259,17 @@ func wirePlan(wipnoteDir, planID, trackID string) error {
 		}
 	}
 
-	// implemented_in: plan → track
-	p.Plans.AddEdge(planID, models.Edge{ //nolint:errcheck
-		TargetID:     trackID,
-		Relationship: models.RelImplementedIn,
-		Title:        trackID,
-		Since:        now,
-	})
+	return depsWired
+}
 
-	// Update YAML status to finalized.
-	plan.Meta.Status = "finalized"
-	plan.Meta.TrackID = trackID
-	if err := planyaml.SaveLocked(planPath, plan); err != nil {
-		return fmt.Errorf("save plan: %w", err)
-	}
-
-	if err := commitPlanChange(planPath, fmt.Sprintf("plan(%s): wire — %d features linked", planID, linkedCount)); err != nil {
-		return fmt.Errorf("autocommit wire: %w", err)
-	}
-
+// printWireSummary prints the wire summary and the unmatched features and
+// slices.
+func printWireSummary(planID, trackID string, version, linkedCount, depsWired int, unmatched []string, approvedTitles map[string]planyaml.PlanSlice, titleToFeat map[string]planWiredFeat) {
 	// Print summary.
 	fmt.Printf("Wired plan %s to track %s\n", planID, trackID)
 	fmt.Printf("Features linked: %d\n", linkedCount)
 	fmt.Printf("Dependencies wired: %d\n", depsWired)
-	fmt.Printf("Status: finalized (v%d)\n", plan.Meta.Version)
+	fmt.Printf("Status: finalized (v%d)\n", version)
 
 	if len(unmatched) > 0 {
 		fmt.Printf("\nNote: %d feature(s) under track not matched to any slice:\n", len(unmatched))
@@ -223,6 +287,4 @@ func wirePlan(wipnoteDir, planID, trackID string) error {
 			}
 		}
 	}
-
-	return nil
 }

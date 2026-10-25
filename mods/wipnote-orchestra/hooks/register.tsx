@@ -6,6 +6,7 @@ import type { BandData } from './band'
 import { drawBand } from './band'
 import { hydrate, refreshAfterTurn, refreshChanged, registerRefs, storeCard, wipnoteJSON } from './refcards'
 import { parseWho } from './refs'
+import { findProject, newRunCache, readRuns } from './runs'
 import {
   STALL_MS,
   keepFor,
@@ -35,6 +36,7 @@ const placement = atom({ plugin: 'wipnote-orchestra', key: 'placement' } as cons
 const permissionMode = atom({ plugin: 'wipnote-orchestra', key: 'permissionMode' } as const, null)
 const claim = atom({ plugin: 'wipnote-orchestra', key: 'claim' } as const, null)
 const tally = atom({ plugin: 'wipnote-orchestra', key: 'tally' } as const, { done: 0, failed: 0 })
+const runs = atom({ plugin: 'wipnote-orchestra', key: 'runs' } as const, [])
 
 const KEEP_DONE_MS = 90_000
 
@@ -165,17 +167,40 @@ async function noteMode($: EngineInterface, e: { permission_mode?: string; agent
   if (mode !== undefined && e.agent_id === undefined) await update($, permissionMode, () => mode)
 }
 
+/**
+ * The project's delegate runs, followed read-only: every call reads the open runs again (a run
+ * folder Go writes shows within one tick) and writes the atom only when a row changed. The
+ * project is looked up again while none is found and after /resume, /branch or /clear.
+ */
+const runCache = newRunCache()
+let runsProject: string | null | undefined
+let isReadingRuns = false
+
+async function refreshRuns($: EngineInterface, tick: number) {
+  if (isReadingRuns) return
+  isReadingRuns = true
+  try {
+    if (runsProject === undefined || (runsProject === null && tick % 10 === 0)) runsProject = await findProject($)
+    const next = runsProject === null ? [] : await readRuns($, runsProject, runCache)
+    const last = await read($, runs)
+    if (JSON.stringify(last) !== JSON.stringify(next)) await update($, runs, () => next)
+  } finally {
+    isReadingRuns = false
+  }
+}
+
 async function bandData($: EngineInterface, zone: string): Promise<BandData> {
-  const [info, rows, ended, work, known, doing, at] = await Promise.all([
+  const [info, rows, ended, work, known, doing, delegated, at] = await Promise.all([
     read($, prompt),
     read($, agents),
     read($, tally),
     activeItems($),
     read($, cards),
     read($, mainTool),
+    read($, runs),
     read($, now),
   ])
-  return { info, rows, tally: ended, keepMs: KEEP_DONE_MS, work, cards: known, doing, at, zone }
+  return { info, rows, tally: ended, keepMs: KEEP_DONE_MS, work, cards: known, doing, runs: delegated, at, zone }
 }
 
 export const register: Register = (on, options) => {
@@ -193,6 +218,8 @@ export const register: Register = (on, options) => {
     void hydrate($).catch(() => undefined)
     const started = await $.clock.now()
     await update($, now, () => started)
+    runsProject = undefined
+    void refreshRuns($, 0).catch(() => undefined)
     let tick = 0
     $.clock.every(1000, () => {
       tick += 1
@@ -207,6 +234,7 @@ export const register: Register = (on, options) => {
         if (tick % 5 === 0) await refreshPrompt($)
         if (tick % 5 === 1) await refreshCards($)
       })().catch(() => undefined)
+      void refreshRuns($, tick).catch(() => undefined)
     })
     return next(e)
   })
@@ -346,6 +374,7 @@ export const register: Register = (on, options) => {
   on('classic.SessionStart', async ($, e, next) => {
     await noteMode($, e) // a launch in a mode (wipnote claude's auto) shows its pill before any prompt
     if (e.source !== 'startup') {
+      runsProject = undefined
       void refreshClaim($).catch(() => undefined)
       void hydrate($).catch(() => undefined)
     }

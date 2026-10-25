@@ -10,6 +10,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/shakestzd/wipnote/core/db/dbtest"
+	"github.com/shakestzd/wipnote/core/worktree"
+
 	dbpkg "github.com/shakestzd/wipnote/core/db"
 	"github.com/shakestzd/wipnote/core/htmlparse"
 	"github.com/shakestzd/wipnote/core/models"
@@ -48,11 +51,11 @@ func setupTransactionalCompleteRepo(t *testing.T) (repoRoot, wipnoteDir, featID,
 		t.Fatalf("mkdir db dir: %v", err)
 	}
 	t.Setenv("WIPNOTE_DB_PATH", dbPath)
-	database, err := dbpkg.Open(dbPath)
+	database, err := dbtest.Open(dbPath)
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	if err := dbpkg.InsertSession(database, &models.Session{
+	if err := dbtest.UpsertSession(database, &models.Session{
 		SessionID:     sessionID,
 		AgentAssigned: "claude-code",
 		Status:        "active",
@@ -443,7 +446,7 @@ func TestCompleteCommitsWipnoteArtifact(t *testing.T) {
 	featureID := "feat-test123"
 	writeFeatureHTML(t, mainRepo, featureID, "")
 
-	worktreePath, err := EnsureForFeature(featureID, mainRepo, io.Discard)
+	worktreePath, _, err := worktree.EnsureForFeatureStatus(featureID, mainRepo, io.Discard)
 	if err != nil {
 		t.Fatalf("EnsureForFeature: %v", err)
 	}

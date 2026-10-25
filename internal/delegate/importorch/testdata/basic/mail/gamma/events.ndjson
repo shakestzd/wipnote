@@ -1,0 +1,3 @@
+{"v":2,"ts":1790000210,"session":"gamma","kind":"session_start","sid":"sess-gamma-1","source":"startup"}
+{"v":2,"ts":1790000220,"session":"gamma","kind":"tool_start","sid":"sess-gamma-1","tool":"Read","id":"toolu_1"}
+{"v":2,"ts":1790000400,"session":"gamma","kind":"stop","sid":"sess-gamma-1"}

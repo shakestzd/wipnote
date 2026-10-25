@@ -8,6 +8,7 @@ import (
 	"time"
 
 	dbpkg "github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/db/dbtest"
 	"github.com/shakestzd/wipnote/core/sessionledger"
 	"github.com/shakestzd/wipnote/internal/launcher"
 )
@@ -266,10 +267,10 @@ func TestResolveContinueLaunchContext_HonorsSelectedResumeSessionIDFromActiveWor
 	if err != nil {
 		t.Fatalf("openDB: %v", err)
 	}
-	if got := dbpkg.GetActiveFeatureIDForSession(database, sessPickedAWI); got != "" {
+	if got := dbtest.ActiveFeatureIDForSession(database, sessPickedAWI); got != "" {
 		t.Fatalf("premise broken: sessions.active_feature_id = %q, want empty", got)
 	}
-	if got := dbpkg.GetActiveWorkItem(database, sessPickedAWI, "agent-awi"); got != "feat-picked-awi" {
+	if got := dbtest.ActiveWorkItem(database, sessPickedAWI, "agent-awi"); got != "feat-picked-awi" {
 		t.Fatalf("active_work_items = %q, want feat-picked-awi", got)
 	}
 	_ = database.Close()

@@ -1,0 +1,13 @@
+Reading additional input from stdin...
+! an MCP server was unreachable (rmcp transport closed); raw.log has the detail
+I’ll run the three read-only commands separately, then summarize the results.
+> /bin/zsh -lc "node -e 'const p = require(\"./package.json\"); console.log(JSON.stringify({name: p.name, version: p.version}, null, 2))'"
+> /bin/zsh -lc 'head -n 1 AGENTS.md'
+> /bin/zsh -lc "rg --files --hidden test/ | awk -F/ '"'$NF ~ /dist/ { n++ } END { print n+0 }'"'"
+  = exit 0: # ionna-artifact-kit agent guide 
+  = exit 0: 1 
+  = exit 0: { "name": "ionna-artifact-kit", "version": "0.17.0" } 
+Files in test/ with “dist” in their names: 1
+package.json: name = ionna-artifact-kit, version = 0.17.0
+AGENTS.md first line: # ionna-artifact-kit agent guide
+--- done: input 28,219 (cached 13,952), output 237 ---

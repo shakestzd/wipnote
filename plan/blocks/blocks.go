@@ -20,6 +20,7 @@ import (
 	"html/template"
 	"io"
 	"strings"
+	"sync"
 
 	"github.com/shakestzd/wipnote/plan/blocks/svg"
 )
@@ -27,9 +28,11 @@ import (
 //go:embed templates/*.gohtml
 var templateFS embed.FS
 
-// blockTmpl parses all block templates once at init. Each block type renders via
+// blockTmpl parses all block templates once, on first render. Each block type renders via
 // its named template (data_model, file_tree, wireframe, diagram, tabs).
-var blockTmpl = template.Must(template.ParseFS(templateFS, "templates/*.gohtml"))
+var blockTmpl = sync.OnceValue(func() *template.Template {
+	return template.Must(template.ParseFS(templateFS, "templates/*.gohtml"))
+})
 
 // Block is anything that can render itself into an HTML fragment. It mirrors the
 // Component contract used by plantmpl/recaptmpl so blocks compose into zones.
@@ -54,7 +57,7 @@ type DataModel struct {
 
 // Render writes the data-model block HTML to w.
 func (d *DataModel) Render(w io.Writer) error {
-	return blockTmpl.ExecuteTemplate(w, "data_model", d)
+	return blockTmpl().ExecuteTemplate(w, "data_model", d)
 }
 
 // FileNode is one entry in a FileTree. Change is optional: when empty (plan-time
@@ -74,7 +77,7 @@ type FileTree struct {
 
 // Render writes the file-tree block HTML to w.
 func (f *FileTree) Render(w io.Writer) error {
-	return blockTmpl.ExecuteTemplate(w, "file_tree", f)
+	return blockTmpl().ExecuteTemplate(w, "file_tree", f)
 }
 
 // fileTreeIndentUnit is the per-ancestor-level width, in SVG user units (px),

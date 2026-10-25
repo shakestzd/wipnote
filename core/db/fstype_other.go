@@ -10,10 +10,3 @@ package db
 func ProbeFsType(_ string) (fstype string, walSafe bool) {
 	return "native", true
 }
-
-// isUnsafeForMmap returns false on non-Linux platforms. Native filesystems on
-// macOS (APFS, HFS+) and Windows (NTFS) support mmap correctly, so WAL mode
-// is safe to use.
-func isUnsafeForMmap(_ string) bool {
-	return false
-}

@@ -11,6 +11,7 @@ import (
 	"github.com/shakestzd/wipnote/core/graph"
 	"github.com/shakestzd/wipnote/core/htmlparse"
 	"github.com/shakestzd/wipnote/core/models"
+	"github.com/shakestzd/wipnote/core/slug"
 	"github.com/shakestzd/wipnote/core/workitem"
 	commandspkg "github.com/shakestzd/wipnote/internal/commands"
 	"github.com/spf13/cobra"
@@ -42,10 +43,6 @@ func trackShowCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&deep, "deep", false, "Show all linked items with steps and edges")
 	cmd.Flags().StringVar(&format, "format", "text", "Output format: json or text")
 	return cmd
-}
-
-func runTrackShow(id string, deep bool) error {
-	return runTrackShowWithFormat(id, deep, "text")
 }
 
 // runTrackShowWithFormat shows a track in the requested format (text or json).
@@ -220,7 +217,7 @@ func printFeatureRow(f *models.Node, marker string, nodeMap map[string]*models.N
 	// Description — first 80 chars of Content.
 	if f.Content != "" {
 		desc := strings.TrimSpace(strings.Split(f.Content, "\n")[0])
-		fmt.Printf("      %s\n", truncate(desc, 80))
+		fmt.Printf("      %s\n", slug.Truncate(desc, 80))
 	}
 
 	// Step count + file count.
@@ -333,7 +330,7 @@ func printLinkedSection(wipnoteDir, subdir, label, trackID string) {
 			marker = "* "
 		}
 		fmt.Printf("  %s%-20s  %-11s  %s\n",
-			marker, item.ID, item.Status, truncate(item.Title, 38))
+			marker, item.ID, item.Status, slug.Truncate(item.Title, 38))
 	}
 }
 
@@ -392,7 +389,7 @@ func printItemSteps(n *models.Node) {
 		if s.Completed {
 			tick = "[x]"
 		}
-		fmt.Printf("      %s %s\n", tick, truncate(s.Description, 60))
+		fmt.Printf("      %s %s\n", tick, slug.Truncate(s.Description, 60))
 	}
 }
 
@@ -423,7 +420,7 @@ func printDeepItem(n *models.Node) {
 	default:
 		marker = "  "
 	}
-	fmt.Printf("  %s%-20s  %-11s  %s\n", marker, n.ID, n.Status, truncate(n.Title, 38))
+	fmt.Printf("  %s%-20s  %-11s  %s\n", marker, n.ID, n.Status, slug.Truncate(n.Title, 38))
 	if len(n.Steps) > 0 {
 		printItemSteps(n)
 	}

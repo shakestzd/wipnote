@@ -275,10 +275,10 @@ func TestAddNoteOnSpike(t *testing.T) {
 func TestSetFindingsReplacesContent(t *testing.T) {
 	p := newTestProject(t)
 	spike, _ := p.Spikes.Create("Findings Test",
-		workitem.SpikeWithFindings("Old findings"),
+		workitem.SpikeWithContent("Old findings"),
 	)
 
-	if _, err := p.Spikes.SetFindings(spike.ID, "New findings replace old"); err != nil {
+	if err := p.Spikes.SetFindings(spike.ID, "New findings replace old"); err != nil {
 		t.Fatalf("SetFindings: %v", err)
 	}
 
@@ -308,7 +308,7 @@ func TestSetFindingsOnFeature(t *testing.T) {
 
 func TestSetFindingsNonexistent(t *testing.T) {
 	p := newTestProject(t)
-	_, err := p.Spikes.SetFindings("spk-nonexistent", "findings")
+	err := p.Spikes.SetFindings("spk-nonexistent", "findings")
 	if err == nil {
 		t.Error("expected error for nonexistent spike")
 	}

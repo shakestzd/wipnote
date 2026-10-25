@@ -210,7 +210,7 @@ func TestAtomicInstallBinary(t *testing.T) {
 }
 
 // TestCopyDirRecursive_PreservesModes ensures that the cross-device fallback
-// in installPluginTree preserves executable permissions (e.g. for hooks/bin/*.sh).
+// in installShareTree preserves executable permissions (e.g. for hooks/bin/*.sh).
 func TestCopyDirRecursive_PreservesModes(t *testing.T) {
 	srcRoot := t.TempDir()
 	dstRoot := filepath.Join(t.TempDir(), "dst")

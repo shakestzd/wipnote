@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"database/sql"
 	"fmt"
 	"io"
@@ -12,9 +11,6 @@ import (
 	"time"
 
 	dbpkg "github.com/shakestzd/wipnote/core/db"
-	"github.com/shakestzd/wipnote/core/db/writequeue"
-	otelreceiver "github.com/shakestzd/wipnote/observe/otel/receiver"
-	otelsqlite "github.com/shakestzd/wipnote/observe/otel/sink/sqlite"
 )
 
 // Slice 9 rebuild-guarantee tests. The plan promise is that deleting the
@@ -417,100 +413,3 @@ func snapshotCriticalCounts(t *testing.T, projectDir string) map[string]int {
 	}
 	return out
 }
-
-// TestDaemonCrashDuringWrite_ReindexRecovers exercises slice-7's
-// writer-crash-mid-queue scenario. Producers append canonical NDJSON BEFORE
-// submitting to the writer queue. When the writer dies mid-batch, the
-// canonical NDJSON still contains every signal. After the crash, deleting
-// the DB and running reindex must produce a complete otel_signals table.
-func TestDaemonCrashDuringWrite_ReindexRecovers(t *testing.T) {
-	if testing.Short() {
-		t.Skip("drives daemon crash recovery integration flow")
-	}
-
-	projectDir := buildCanonicalFixture(t)
-	setupReindexTestEnv(t, projectDir)
-
-	// First reindex to materialise the cache + sessions rows.
-	runReindexInDir(t, projectDir)
-
-	wipnoteDir := filepath.Join(projectDir, ".wipnote")
-	sessionID := "11112222-3333-4444-5555-666677778888"
-	ndjsonPath := filepath.Join(wipnoteDir, "sessions", sessionID, "events.ndjson")
-
-	// Append N additional canonical signals to the NDJSON the way a real
-	// per-session collector would (BEFORE attempting any DB write — the
-	// canonical-first contract).
-	addN := 5
-	f, err := os.OpenFile(ndjsonPath, os.O_APPEND|os.O_WRONLY, 0o644)
-	if err != nil {
-		t.Fatalf("open ndjson: %v", err)
-	}
-	baseTime := time.Now().UTC()
-	for i := 0; i < addN; i++ {
-		sigID := fmt.Sprintf("sig-crash-%d", i)
-		ts := baseTime.Add(time.Duration(i+10) * time.Second).Format(time.RFC3339Nano)
-		line := fmt.Sprintf(
-			`{"kind":"span","harness":"claude","ts":%q,"signal_id":%q,"session_id":%q,"trace_id":"trace-crash","span_id":"crash-%d","canonical":"agent.tool_call","native":"Tool","tool_name":"Bash","attrs":{}}`+"\n",
-			ts, sigID, sessionID, i)
-		if _, err := f.WriteString(line); err != nil {
-			t.Fatalf("append ndjson: %v", err)
-		}
-	}
-	f.Close()
-
-	// Simulate writer crash: open a queue + writer, submit some ops, then
-	// kill the queue context BEFORE every submit can drain. The canonical
-	// NDJSON is already on disk (above), so the test merely ensures we
-	// don't end up depending on the queue having flushed.
-	crashDB, err := dbpkg.OpenEphemeralProjection()
-	if err != nil {
-		t.Fatalf("open projection: %v", err)
-	}
-	defer crashDB.Close()
-	writer, err := otelreceiver.NewWriterFromDB(crashDB)
-	if err != nil {
-		t.Fatalf("new writer: %v", err)
-	}
-	q := writequeue.New(writequeue.Config{Capacity: 4})
-	ctx, cancel := context.WithCancel(context.Background())
-	if err := q.Start(ctx); err != nil {
-		t.Fatalf("queue start: %v", err)
-	}
-	// Submit a handful of submit-and-block-forever ops to fill the queue,
-	// then cancel the context to force the consumer goroutine to exit
-	// before draining. This mimics a writer-service crash.
-	for i := 0; i < 4; i++ {
-		_ = q.Submit(ctx, func(opCtx context.Context) error {
-			// Block until the context is cancelled — simulating a writer
-			// stuck on a long IO.
-			<-opCtx.Done()
-			return opCtx.Err()
-		})
-	}
-	cancel()
-	q.Stop(50 * time.Millisecond)
-	_ = writer.Close()
-
-	// Recovery is canonical-driven. Nothing needs deleting to prove it: the
-	// crashed writer's projection above was private to it, and the rebuild
-	// below starts from an empty one and reads only the NDJSON on disk.
-	runReindexInDir(t, projectDir)
-
-	// Every signal_id appended above must be in otel_signals.
-	db := openCachedDB(t, projectDir)
-	defer db.Close()
-	for i := 0; i < addN; i++ {
-		want := fmt.Sprintf("sig-crash-%d", i)
-		var got string
-		err := db.QueryRow(`SELECT signal_id FROM otel_signals WHERE signal_id = ?`, want).Scan(&got)
-		if err != nil {
-			t.Errorf("signal_id %q not recovered: %v", want, err)
-		}
-	}
-}
-
-// Compile-time guard: ensure the QueuedSink remains a SignalSink (this is
-// the wiring used by the writer service today). If the contract breaks, this
-// test file fails to compile.
-var _ = otelsqlite.NewQueued

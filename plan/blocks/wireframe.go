@@ -5,6 +5,7 @@ import (
 	"html/template"
 	"io"
 	"regexp"
+	"sync"
 
 	"github.com/microcosm-cc/bluemonday"
 )
@@ -59,7 +60,7 @@ var (
 // trust boundary: wireframe HTML comes from plan YAML authored by a person, but it
 // is rendered into committed plan/recap artifacts and injected into the dashboard,
 // so it must be sanitized before it can be marked template.HTML.
-var wfPolicy = func() *bluemonday.Policy {
+var wfPolicy = sync.OnceValue(func() *bluemonday.Policy {
 	p := bluemonday.NewPolicy()
 	p.AllowElements(
 		"div", "span", "p", "section", "article", "header", "footer", "nav",
@@ -92,7 +93,7 @@ var wfPolicy = func() *bluemonday.Policy {
 	// Border shorthand restricted to a token color.
 	p.AllowStyles("border", "border-top", "border-right", "border-bottom", "border-left").Matching(wfBorderValRe).Globally()
 	return p
-}()
+})
 
 // wireframeTokens is the scoped --wf-* token set every wireframe inherits. Each
 // token aliases a base dashboard token (declared on :root in the plan/recap page
@@ -156,7 +157,7 @@ func (wf *Wireframe) RawColors() bool {
 // trusted. The template calls this only on the no-raw-color branch; RawColors()
 // rejects baked-in colors up front, and the sanitizer is defense-in-depth on top.
 func (wf *Wireframe) SafeBody() template.HTML {
-	return template.HTML(wfPolicy.Sanitize(wf.Body))
+	return template.HTML(wfPolicy().Sanitize(wf.Body))
 }
 
 // Tokens returns the canvas style: the scoped --wf-* token declarations plus the
@@ -170,5 +171,5 @@ func (wf *Wireframe) Tokens() template.CSS {
 
 // Render writes the wireframe block HTML to w.
 func (wf *Wireframe) Render(w io.Writer) error {
-	return blockTmpl.ExecuteTemplate(w, "wireframe", wf)
+	return blockTmpl().ExecuteTemplate(w, "wireframe", wf)
 }

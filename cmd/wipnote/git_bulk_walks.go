@@ -7,6 +7,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/shakestzd/wipnote/core/paths"
 )
 
 // gitTimestampCmd runs `git -C dir args...` and returns stdout. It is a variable so a
@@ -43,7 +45,7 @@ var (
 // commit invalidates it.
 func bulkWalks(projectDir string, relToAbs map[string]string) *bulkWalkResult {
 	scope := bulkWalkScope(relToAbs)
-	key := bulkWalkKey{projectDir: projectDir, head: gitHead(projectDir), scope: scope}
+	key := bulkWalkKey{projectDir: projectDir, head: paths.GitHead(projectDir), scope: scope}
 
 	bulkWalkMu.Lock()
 	defer bulkWalkMu.Unlock()
@@ -105,16 +107,6 @@ func bulkWalkScope(relToAbs map[string]string) string {
 		return ""
 	}
 	return strings.Join(common, "/")
-}
-
-// gitHead returns HEAD's sha, or "" when it cannot be resolved (which makes
-// the cache key weaker, never wrong for a single-shot CLI process).
-func gitHead(projectDir string) string {
-	out, err := gitTimestampCmd(projectDir, "rev-parse", "HEAD")
-	if err != nil {
-		return ""
-	}
-	return strings.TrimSpace(string(out))
 }
 
 // bulkLastModified resolves the newest-commit timestamp for every path under

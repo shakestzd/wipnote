@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/shakestzd/wipnote/core/agent"
-	"github.com/shakestzd/wipnote/core/db"
 )
 
 // TestEventTree_SessionFamilyGrouping verifies that root + subagent sessions
@@ -33,7 +32,7 @@ func TestEventTree_SessionFamilyGrouping(t *testing.T) {
 	t.Setenv("CLAUDE_ENV_FILE", "")
 
 	event := &CloudEvent{SessionID: rootID, CWD: projectDir}
-	if _, err := SessionStart(event, database, projectDir); err != nil {
+	if _, err := SessionStart(event, projectDir); err != nil {
 		t.Fatalf("SessionStart (root): %v", err)
 	}
 
@@ -41,20 +40,11 @@ func TestEventTree_SessionFamilyGrouping(t *testing.T) {
 	resumedID := "resumed-session-family-test-001"
 	t.Setenv("WIPNOTE_SESSION_FAMILY_ID", familyID)
 	event2 := &CloudEvent{SessionID: resumedID, CWD: projectDir}
-	if _, err := SessionStart(event2, database, projectDir); err != nil {
+	if _, err := SessionStart(event2, projectDir); err != nil {
 		t.Fatalf("SessionStart (resumed): %v", err)
 	}
 
-	// Both sessions should now share the same family_id in the DB.
-	members, err := db.GetSessionsByFamily(database, familyID)
-	if err != nil {
-		t.Fatalf("GetSessionsByFamily: %v", err)
-	}
-	if len(members) < 2 {
-		t.Errorf("expected >=2 family members, got %d: %v", len(members), members)
-	}
-
-	// The family index file should also reflect both sessions.
+	// The family index file records both sessions under the family.
 	idx, err := agent.ReadSessionFamilyIndex(projectDir)
 	if err != nil {
 		t.Fatalf("ReadSessionFamilyIndex: %v", err)
@@ -88,22 +78,16 @@ func TestSessionStart_FamilyFallback(t *testing.T) {
 	t.Setenv("CLAUDE_ENV_FILE", "")
 
 	event := &CloudEvent{SessionID: sessID, CWD: projectDir}
-	if _, err := SessionStart(event, database, projectDir); err != nil {
+	if _, err := SessionStart(event, projectDir); err != nil {
 		t.Fatalf("SessionStart: %v", err)
 	}
 
-	// The session should be its own family.
-	members, err := db.GetSessionsByFamily(database, sessID)
+	// The session should be its own family in the family index.
+	idx, err := agent.ReadSessionFamilyIndex(projectDir)
 	if err != nil {
-		t.Fatalf("GetSessionsByFamily: %v", err)
+		t.Fatalf("ReadSessionFamilyIndex: %v", err)
 	}
-	found := false
-	for _, m := range members {
-		if m == sessID {
-			found = true
-		}
-	}
-	if !found {
-		t.Errorf("session %q not found in its own family; members: %v", sessID, members)
+	if idx[sessID] != sessID {
+		t.Errorf("family index: %q -> %q, want itself", sessID, idx[sessID])
 	}
 }

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/db/dbtest"
 	_ "modernc.org/sqlite"
 )
 
@@ -45,7 +46,7 @@ func queryUserVersion(t *testing.T, database *sql.DB) int {
 // DB sets PRAGMA user_version to the package's currentSchemaVersion (> 0).
 func TestCurrentSchemaVersion_PositiveAfterOpen(t *testing.T) {
 	path := fileDBPath(t, "fresh.db")
-	database, err := db.Open(path)
+	database, err := dbtest.Open(path)
 	if err != nil {
 		t.Fatalf("Open fresh: %v", err)
 	}
@@ -71,7 +72,7 @@ func TestOpenWarmDB_SkipsDDL(t *testing.T) {
 	path := fileDBPath(t, "warm.db")
 
 	// Cold open: applies all migrations and lands at currentSchemaVersion.
-	cold, err := db.Open(path)
+	cold, err := dbtest.Open(path)
 	if err != nil {
 		t.Fatalf("cold Open: %v", err)
 	}
@@ -82,7 +83,7 @@ func TestOpenWarmDB_SkipsDDL(t *testing.T) {
 	db.SetMigrationObserver(recorder.Record)
 	defer db.SetMigrationObserver(nil)
 
-	warm, err := db.Open(path)
+	warm, err := dbtest.Open(path)
 	if err != nil {
 		t.Fatalf("warm Open: %v", err)
 	}
@@ -121,7 +122,7 @@ func TestMigrateFromUserVersion0_EmptyDB(t *testing.T) {
 	db.SetMigrationObserver(recorder.Record)
 	defer db.SetMigrationObserver(nil)
 
-	database, err := db.Open(path)
+	database, err := dbtest.Open(path)
 	if err != nil {
 		t.Fatalf("Open v0 empty: %v", err)
 	}
@@ -160,7 +161,7 @@ func TestMigrateFromUserVersionNMinus1(t *testing.T) {
 
 	// Cold-migrate, then forcibly rewind to currentSchemaVersion-1 to simulate
 	// a DB that already has the current full schema but is "one step behind".
-	cold, err := db.Open(path)
+	cold, err := dbtest.Open(path)
 	if err != nil {
 		t.Fatalf("cold seed Open: %v", err)
 	}
@@ -175,7 +176,7 @@ func TestMigrateFromUserVersionNMinus1(t *testing.T) {
 	db.SetMigrationObserver(recorder.Record)
 	defer db.SetMigrationObserver(nil)
 
-	warm, err := db.Open(path)
+	warm, err := dbtest.Open(path)
 	if err != nil {
 		t.Fatalf("warm Open at N-1: %v", err)
 	}
@@ -231,7 +232,7 @@ func TestMigrateFromAlreadyCurrentDB_MissingLaterColumn(t *testing.T) {
 	// responsible for and rewind user_version to just below that step —
 	// simulating a database that finished migrating on an OLDER binary, before
 	// the column existed at all.
-	cold, err := db.Open(path)
+	cold, err := dbtest.Open(path)
 	if err != nil {
 		t.Fatalf("cold seed Open: %v", err)
 	}
@@ -255,7 +256,7 @@ func TestMigrateFromAlreadyCurrentDB_MissingLaterColumn(t *testing.T) {
 	}
 	verify.Close()
 
-	warm, err := db.Open(path)
+	warm, err := dbtest.Open(path)
 	if err != nil {
 		t.Fatalf("warm Open at N-1 with missing column: %v", err)
 	}
@@ -318,7 +319,7 @@ func TestMigrateFromAlreadyCurrentDB_MissingClaimEpisodesTable(t *testing.T) {
 	// indexes) and rewind user_version to just below the owning step --
 	// simulating a database that finished migrating on an OLDER binary,
 	// before the table existed in CreateAllTables at all.
-	cold, err := db.Open(path)
+	cold, err := dbtest.Open(path)
 	if err != nil {
 		t.Fatalf("cold seed Open: %v", err)
 	}
@@ -348,7 +349,7 @@ func TestMigrateFromAlreadyCurrentDB_MissingClaimEpisodesTable(t *testing.T) {
 	}
 	verify.Close()
 
-	warm, err := db.Open(path)
+	warm, err := dbtest.Open(path)
 	if err != nil {
 		t.Fatalf("warm Open at N-1 with missing table: %v", err)
 	}
@@ -449,7 +450,7 @@ func TestMigrateFromPreCopySwap(t *testing.T) {
 	recorder1 := &migrationCallRecorder{}
 	db.SetMigrationObserver(recorder1.Record)
 
-	database, err := db.Open(path)
+	database, err := dbtest.Open(path)
 	if err != nil {
 		db.SetMigrationObserver(nil)
 		t.Fatalf("first Open of legacy fixture: %v", err)
@@ -498,7 +499,7 @@ func TestMigrateFromPreCopySwap(t *testing.T) {
 	db.SetMigrationObserver(recorder2.Record)
 	defer db.SetMigrationObserver(nil)
 
-	database2, err := db.Open(path)
+	database2, err := dbtest.Open(path)
 	if err != nil {
 		t.Fatalf("second Open after migrate: %v", err)
 	}
@@ -564,7 +565,7 @@ func TestMigrateFromPreCopySwap_IndexesRestored(t *testing.T) {
 	}
 	raw.Close()
 
-	database, err := db.Open(path)
+	database, err := dbtest.Open(path)
 	if err != nil {
 		t.Fatalf("Open legacy fixture: %v", err)
 	}
@@ -603,7 +604,7 @@ func TestOpenWarmDB_NoWriteLockOnContention(t *testing.T) {
 	path := fileDBPath(t, "warm_contention.db")
 
 	// First Open: run migrations to completion.
-	primary, err := db.Open(path)
+	primary, err := dbtest.Open(path)
 	if err != nil {
 		t.Fatalf("primary Open: %v", err)
 	}
@@ -627,7 +628,7 @@ func TestOpenWarmDB_NoWriteLockOnContention(t *testing.T) {
 	// take a long time.
 	done := make(chan error, 1)
 	go func() {
-		secondary, err := db.Open(path)
+		secondary, err := dbtest.Open(path)
 		if err != nil {
 			done <- err
 			return
@@ -730,7 +731,7 @@ func TestCopySwap_TriggerRecreated(t *testing.T) {
 	path := fileDBPath(t, "trigger_recreated.db")
 	seedLegacyDB(t, path)
 
-	database, err := db.Open(path)
+	database, err := dbtest.Open(path)
 	if err != nil {
 		t.Fatalf("Open legacy fixture: %v", err)
 	}
@@ -777,7 +778,7 @@ func TestCopySwap_TriggerRecreated_MultipleEvents(t *testing.T) {
 	path := fileDBPath(t, "trigger_multi.db")
 	seedLegacyDB(t, path)
 
-	database, err := db.Open(path)
+	database, err := dbtest.Open(path)
 	if err != nil {
 		t.Fatalf("Open legacy fixture: %v", err)
 	}
@@ -818,7 +819,7 @@ func TestAlterFailure_DoesNotAdvanceVersion(t *testing.T) {
 	path := fileDBPath(t, "alter_failure.db")
 
 	// Cold open to create a fully migrated DB.
-	cold, err := db.Open(path)
+	cold, err := dbtest.Open(path)
 	if err != nil {
 		t.Fatalf("cold Open: %v", err)
 	}
@@ -835,7 +836,7 @@ func TestAlterFailure_DoesNotAdvanceVersion(t *testing.T) {
 
 	// Opening now should fail because step 3 hits a real ALTER error on the
 	// missing sessions table. user_version must NOT advance past 2.
-	failDB, err := db.Open(path)
+	failDB, err := dbtest.Open(path)
 	if err == nil {
 		failDB.Close()
 		t.Fatal("Open should have returned an error when ALTER fails on missing table")
@@ -861,7 +862,7 @@ func TestRepairTrigger_AlreadyMigratedDB_TriggerDropped(t *testing.T) {
 	path := fileDBPath(t, "repair_trigger.db")
 
 	// Cold open: migrate to full current schema (now version 11).
-	cold, err := db.Open(path)
+	cold, err := dbtest.Open(path)
 	if err != nil {
 		t.Fatalf("cold Open: %v", err)
 	}
@@ -895,7 +896,7 @@ func TestRepairTrigger_AlreadyMigratedDB_TriggerDropped(t *testing.T) {
 	db.SetMigrationObserver(recorder.Record)
 	defer db.SetMigrationObserver(nil)
 
-	warm, err := db.Open(path)
+	warm, err := dbtest.Open(path)
 	if err != nil {
 		t.Fatalf("Open after trigger drop: %v", err)
 	}
@@ -904,7 +905,7 @@ func TestRepairTrigger_AlreadyMigratedDB_TriggerDropped(t *testing.T) {
 	// Steps 10, 11 and 12 should have run (trigger repair + total_events
 	// backfill + gate_records profile columns).
 	calls := recorder.Calls()
-	want := []string{"010_repair_trigger_increment_total_events", "011_backfill_total_events", "012_gate_records_profile_signature", "013_arch_cards", "014_session_exec_context", "015_session_handoff_fields", "016_plan_feedback_annotation_state", "017_recaps_table", "018_git_commits_composite_key", "019_otel_signals_attribution_columns", "020_gate_records_record_id", "021_claim_episodes_table", "022_otel_span_id_index_not_unique", "023_otel_session_kind_index"}
+	want := []string{"010_repair_trigger_increment_total_events", "011_backfill_total_events", "012_gate_records_profile_signature", "013_arch_cards", "014_session_exec_context", "015_session_handoff_fields", "016_plan_feedback_annotation_state", "017_recaps_table", "018_git_commits_composite_key", "019_otel_signals_attribution_columns", "020_gate_records_record_id", "021_claim_episodes_table", "022_otel_span_id_index_not_unique", "023_otel_session_kind_index", "024_delegation_runs_table"}
 	if !slices.Equal(calls, want) {
 		t.Fatalf("expected steps %v, got %v", want, calls)
 	}
@@ -950,7 +951,7 @@ func TestRepairTrigger_AlreadyMigratedDB_TriggerDropped(t *testing.T) {
 func TestRepairTrigger_FreshDB_TriggerIntact(t *testing.T) {
 	path := fileDBPath(t, "fresh_trigger.db")
 
-	database, err := db.Open(path)
+	database, err := dbtest.Open(path)
 	if err != nil {
 		t.Fatalf("Open fresh: %v", err)
 	}
@@ -996,7 +997,7 @@ func TestBackfillTotalEvents_StaleCountsRepaired(t *testing.T) {
 	path := fileDBPath(t, "backfill_stale.db")
 
 	// Cold open: migrate to version 11.
-	cold, err := db.Open(path)
+	cold, err := dbtest.Open(path)
 	if err != nil {
 		t.Fatalf("cold Open: %v", err)
 	}
@@ -1045,7 +1046,7 @@ func TestBackfillTotalEvents_StaleCountsRepaired(t *testing.T) {
 	db.SetMigrationObserver(recorder.Record)
 	defer db.SetMigrationObserver(nil)
 
-	warm, err := db.Open(path)
+	warm, err := dbtest.Open(path)
 	if err != nil {
 		t.Fatalf("Open for backfill: %v", err)
 	}
@@ -1053,7 +1054,7 @@ func TestBackfillTotalEvents_StaleCountsRepaired(t *testing.T) {
 
 	// Steps 11, 12 and 13 should have run (backfill + gate_records profile columns + arch_cards).
 	calls := recorder.Calls()
-	want := []string{"011_backfill_total_events", "012_gate_records_profile_signature", "013_arch_cards", "014_session_exec_context", "015_session_handoff_fields", "016_plan_feedback_annotation_state", "017_recaps_table", "018_git_commits_composite_key", "019_otel_signals_attribution_columns", "020_gate_records_record_id", "021_claim_episodes_table", "022_otel_span_id_index_not_unique", "023_otel_session_kind_index"}
+	want := []string{"011_backfill_total_events", "012_gate_records_profile_signature", "013_arch_cards", "014_session_exec_context", "015_session_handoff_fields", "016_plan_feedback_annotation_state", "017_recaps_table", "018_git_commits_composite_key", "019_otel_signals_attribution_columns", "020_gate_records_record_id", "021_claim_episodes_table", "022_otel_span_id_index_not_unique", "023_otel_session_kind_index", "024_delegation_runs_table"}
 	if !slices.Equal(calls, want) {
 		t.Fatalf("expected steps %v, got %v", want, calls)
 	}
@@ -1076,7 +1077,7 @@ func TestBackfillTotalEvents_Idempotent(t *testing.T) {
 
 	// Cold open: migrate to version 11. Trigger is active, so inserting events
 	// increments total_events correctly.
-	cold, err := db.Open(path)
+	cold, err := dbtest.Open(path)
 	if err != nil {
 		t.Fatalf("cold Open: %v", err)
 	}
@@ -1112,7 +1113,7 @@ func TestBackfillTotalEvents_Idempotent(t *testing.T) {
 	}
 	cold.Close()
 
-	warm, err := db.Open(path)
+	warm, err := dbtest.Open(path)
 	if err != nil {
 		t.Fatalf("Open for idempotent backfill: %v", err)
 	}
@@ -1133,7 +1134,7 @@ func TestBackfillTotalEvents_Idempotent(t *testing.T) {
 // with no sessions is not affected by step 11 (zero rows updated, no error).
 func TestBackfillTotalEvents_FreshDB_Unaffected(t *testing.T) {
 	path := fileDBPath(t, "backfill_fresh.db")
-	cold, err := db.Open(path)
+	cold, err := dbtest.Open(path)
 	if err != nil {
 		t.Fatalf("cold Open: %v", err)
 	}
@@ -1144,7 +1145,7 @@ func TestBackfillTotalEvents_FreshDB_Unaffected(t *testing.T) {
 	}
 	cold.Close()
 
-	warm, err := db.Open(path)
+	warm, err := dbtest.Open(path)
 	if err != nil {
 		t.Fatalf("Open on empty DB: %v", err)
 	}
@@ -1165,7 +1166,7 @@ func TestDuplicateColumnTreatedAsApplied(t *testing.T) {
 	// A fully-migrated DB: all columns already exist, so re-running step 3
 	// will hit "duplicate column name" on every ALTER. Rewind to user_version=2
 	// to force step 3 to re-execute.
-	cold, err := db.Open(path)
+	cold, err := dbtest.Open(path)
 	if err != nil {
 		t.Fatalf("cold Open: %v", err)
 	}
@@ -1177,7 +1178,7 @@ func TestDuplicateColumnTreatedAsApplied(t *testing.T) {
 	// Step 3 will attempt to ADD COLUMN on tables that already have those
 	// columns. All errors should be "duplicate column name" and treated as
 	// idempotent — Open must succeed and land at currentSchemaVersion.
-	warm, err := db.Open(path)
+	warm, err := dbtest.Open(path)
 	if err != nil {
 		t.Fatalf("Open after rewind: %v", err)
 	}

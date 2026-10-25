@@ -12,15 +12,12 @@ import (
 // Server side of the daemon read protocol (feat-f6759e37). See readwire.go for
 // the wire contract and the reasoning behind it.
 
-// Reader answers a ReadRequest from whatever state its owner holds. It is the
-// read-side peer of Applier, and it is injected for the same reason: the
-// daemon package stays transport-only, so the thing that knows how to parse
+// Reader answers a ReadRequest from whatever state its owner holds. It is
+// injected so the daemon package stays transport-only, so the thing that knows how to parse
 // canonical work-item state lives outside it (see core/daemon/readsrv) and
 // cannot drag its dependencies into every daemon client.
 //
-// A Reader runs on the connection goroutine, NOT on the writequeue worker.
-// Reads therefore never queue behind a slow write, and a slow read can never
-// delay a write — the two paths share only the socket.
+// A Reader runs on the connection goroutine.
 //
 // Returning an error yields ReadStatusError. Returning ErrUnknownReadOp yields
 // ReadStatusUnsupported, which is the signal a client uses to conclude "this

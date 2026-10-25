@@ -1,17 +1,10 @@
 package retention
 
-import (
-	"encoding/json"
-	"os"
-	"path/filepath"
-)
+import "github.com/shakestzd/wipnote/core/paths"
 
 // Config holds the disk-retention knobs read from .wipnote/config.json.
 // All values are optional; zero / missing fields fall back to the defaults
-// below. This mirrors the local os.ReadFile(.wipnote/config.json) +
-// decode-only-what-you-need pattern used by readTaskCompletionConfig
-// (internal/hooks) and LivenessStalenessThreshold (internal/db) — there is no
-// shared internal/config package in wipnote.
+// below. It is read with paths.ReadProjectConfig, decoding only these keys.
 type Config struct {
 	// LogMaxBytes is the size cap for a single rotating log file
 	// (serve-auto.log, serve-<id>.log, debug.log). When a log exceeds this it
@@ -55,12 +48,8 @@ func LoadConfig(projectDir string) Config {
 	if projectDir == "" {
 		return cfg
 	}
-	data, err := os.ReadFile(filepath.Join(projectDir, ".wipnote", "config.json"))
-	if err != nil {
-		return cfg
-	}
 	var raw Config
-	if err := json.Unmarshal(data, &raw); err != nil {
+	if !paths.ReadProjectConfig(projectDir, &raw) {
 		return cfg
 	}
 	if raw.LogMaxBytes > 0 {

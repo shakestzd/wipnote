@@ -15,6 +15,7 @@ import (
 	"github.com/shakestzd/wipnote/core/ingest"
 	"github.com/shakestzd/wipnote/core/models"
 	"github.com/shakestzd/wipnote/core/paths"
+	"github.com/shakestzd/wipnote/core/slug"
 	"github.com/spf13/cobra"
 )
 
@@ -119,7 +120,7 @@ func runIngest(sessionID, project string, all, force bool) error {
 
 		n, toolN, err := ingestFile(database, sf, force)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "  skip %s: %v\n", truncate(sf.SessionID, 12), err)
+			fmt.Fprintf(os.Stderr, "  skip %s: %v\n", slug.Truncate(sf.SessionID, 12), err)
 			errCount++
 			continue
 		}
@@ -129,7 +130,7 @@ func runIngest(sessionID, project string, all, force bool) error {
 		}
 
 		fmt.Printf("  %-14s %3d msgs  %3d tools  (%s)\n",
-			truncate(sf.SessionID, 14), n, toolN, sf.Project)
+			slug.Truncate(sf.SessionID, 14), n, toolN, sf.Project)
 		ingested++
 
 		si, ss, se := ingestSubagents(database, sf, force)
@@ -191,7 +192,7 @@ func ingestFileWithAgent(database *sql.DB, sf ingest.SessionFile, agentID string
 
 	if wipnoteDir, err := findWipnoteDir(); err == nil {
 		if rerr := hooks.RenderIngestedSessionHTML(wipnoteDir, sf.SessionID, sessionSourceDir, result, force); rerr != nil {
-			fmt.Fprintf(os.Stderr, "  warn: render HTML for %s: %v\n", truncate(sf.SessionID, 12), rerr)
+			fmt.Fprintf(os.Stderr, "  warn: render HTML for %s: %v\n", slug.Truncate(sf.SessionID, 12), rerr)
 		}
 	}
 
@@ -216,7 +217,7 @@ func ingestSubagents(database *sql.DB, parent ingest.SessionFile, force bool) (i
 		}
 		n, toolN, err := ingestFileWithAgent(database, sf, sf.SessionID, force)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "  skip subagent %s: %v\n", truncate(sf.SessionID, 12), err)
+			fmt.Fprintf(os.Stderr, "  skip subagent %s: %v\n", slug.Truncate(sf.SessionID, 12), err)
 			errCount++
 			continue
 		}
@@ -225,7 +226,7 @@ func ingestSubagents(database *sql.DB, parent ingest.SessionFile, force bool) (i
 			continue
 		}
 		fmt.Printf("  subagent %-8s %3d msgs  %3d tools\n",
-			truncate(sf.SessionID, 8), n, toolN)
+			slug.Truncate(sf.SessionID, 8), n, toolN)
 		ingested++
 	}
 	return ingested, skipped, errCount
@@ -331,7 +332,7 @@ func storeParseResult(database *sql.DB, sessionID, agentID string, result *inges
 			EventType:    models.EventToolCall,
 			Timestamp:    ts,
 			ToolName:     tc.ToolName,
-			InputSummary: truncate(tc.InputJSON, 200),
+			InputSummary: slug.Truncate(tc.InputJSON, 200),
 			ToolInput:    tc.InputJSON,
 			SessionID:    sessionID,
 			FeatureID:    featureID,

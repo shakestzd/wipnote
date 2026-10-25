@@ -26,56 +26,6 @@ type Feature struct {
 	StepsCompleted int
 }
 
-// InsertFeature creates a new feature row.
-func InsertFeature(db *sql.DB, f *Feature) error {
-	_, err := db.Exec(`
-		INSERT INTO features (id, type, title, description, status, priority,
-			assigned_to, track_id, created_at, updated_at,
-			steps_total, steps_completed)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		f.ID, f.Type, f.Title, nullStr(f.Description),
-		f.Status, f.Priority,
-		nullStr(f.AssignedTo), nullStr(f.TrackID),
-		f.CreatedAt.UTC().Format(time.RFC3339),
-		f.UpdatedAt.UTC().Format(time.RFC3339),
-		f.StepsTotal, f.StepsCompleted,
-	)
-	if err != nil {
-		return fmt.Errorf("insert feature %s: %w", f.ID, err)
-	}
-	return nil
-}
-
-// GetFeature retrieves a feature by ID.
-func GetFeature(db *sql.DB, id string) (*Feature, error) {
-	row := db.QueryRow(`
-		SELECT id, type, title, description, status, priority,
-			assigned_to, track_id, created_at, updated_at,
-			steps_total, steps_completed
-		FROM features WHERE id = ?`, id)
-
-	f := &Feature{}
-	var desc, assignedTo, trackID sql.NullString
-	var createdStr, updatedStr string
-
-	err := row.Scan(
-		&f.ID, &f.Type, &f.Title, &desc, &f.Status, &f.Priority,
-		&assignedTo, &trackID, &createdStr, &updatedStr,
-		&f.StepsTotal, &f.StepsCompleted,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("get feature %s: %w", id, err)
-	}
-
-	f.Description = desc.String
-	f.AssignedTo = assignedTo.String
-	f.TrackID = trackID.String
-	f.CreatedAt, _ = time.Parse(time.RFC3339, createdStr)
-	f.UpdatedAt, _ = time.Parse(time.RFC3339, updatedStr)
-
-	return f, nil
-}
-
 // trackExists returns true if the given track ID is present in the tracks table.
 // An empty id always returns false to avoid a needless query.
 func trackExists(db *sql.DB, trackID string) bool {
@@ -85,23 +35,6 @@ func trackExists(db *sql.DB, trackID string) bool {
 	var exists int
 	err := db.QueryRow(`SELECT 1 FROM tracks WHERE id = ? LIMIT 1`, trackID).Scan(&exists)
 	return err == nil
-}
-
-// WorkItemExists reports whether id refers to a known work item in the read
-// index — a feature/bug/spike (features table) or a track (tracks table).
-// Used to validate an explicit --work-item gate flag so a typo or stale ID is
-// surfaced rather than silently recorded (bug-fddf5820, finding 4). A nil DB
-// or empty id returns false.
-func WorkItemExists(db *sql.DB, id string) bool {
-	if db == nil || strings.TrimSpace(id) == "" {
-		return false
-	}
-	var exists int
-	err := db.QueryRow(`SELECT 1 FROM features WHERE id = ? LIMIT 1`, id).Scan(&exists)
-	if err == nil {
-		return true
-	}
-	return trackExists(db, id)
 }
 
 // UpsertFeature inserts or updates a feature row.
@@ -142,111 +75,6 @@ func UpsertFeature(database *sql.DB, f *Feature) error {
 	return nil
 }
 
-// UpdateFeatureStatus updates a feature's status (and updated_at).
-func UpdateFeatureStatus(db *sql.DB, id, status string) error {
-	now := time.Now().UTC().Format(time.RFC3339)
-	_, err := db.Exec(`
-		UPDATE features SET status = ?, updated_at = ? WHERE id = ?`,
-		status, now, id,
-	)
-	return err
-}
-
-// UpdateFeatureSteps updates the steps_total and steps_completed counters
-// for a feature in the SQLite read index. HTML is canonical; this is best-effort.
-func UpdateFeatureSteps(db *sql.DB, featureID string, total, completed int) error {
-	now := time.Now().UTC().Format(time.RFC3339)
-	_, err := db.Exec(`
-		UPDATE features SET steps_total = ?, steps_completed = ?, updated_at = ?
-		WHERE id = ?`,
-		total, completed, now, featureID,
-	)
-	return err
-}
-
-// ListFeaturesByStatus returns features matching the given status,
-// ordered by priority DESC, created_at DESC.
-func ListFeaturesByStatus(db *sql.DB, status string, limit int) ([]Feature, error) {
-	if limit <= 0 {
-		limit = 50
-	}
-	rows, err := db.Query(`
-		SELECT id, type, title, status, priority, track_id,
-			created_at, updated_at, steps_total, steps_completed
-		FROM features
-		WHERE status = ?
-		ORDER BY
-			CASE priority
-				WHEN 'critical' THEN 0
-				WHEN 'high' THEN 1
-				WHEN 'medium' THEN 2
-				WHEN 'low' THEN 3
-			END,
-			created_at DESC
-		LIMIT ?`, status, limit)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	return scanFeatureRows(rows)
-}
-
-// ListFeaturesByStatusPaged returns one page of features matching the given
-// status, ordered by created_at DESC, id ASC (a TOTAL order so successive
-// pages never overlap or skip a row). It exists for the serve-side reconcile
-// drain (roborev-478 finding 2): the capped ListFeaturesByStatus only sees the
-// newest `limit` terminal items, so once those are clean, an OLDER dirty
-// artifact is permanently hidden. Paging by (limit, offset) over a stable sort
-// lets the drain eventually visit EVERY terminal item without loading them all
-// at once. A page shorter than `limit` signals the last page.
-func ListFeaturesByStatusPaged(db *sql.DB, status string, limit, offset int) ([]Feature, error) {
-	if db == nil {
-		return nil, nil
-	}
-	if limit <= 0 {
-		limit = 50
-	}
-	if offset < 0 {
-		offset = 0
-	}
-	rows, err := db.Query(`
-		SELECT id, type, title, status, priority, track_id,
-			created_at, updated_at, steps_total, steps_completed
-		FROM features
-		WHERE status = ?
-		ORDER BY created_at DESC, id ASC
-		LIMIT ? OFFSET ?`, status, limit, offset)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	return scanFeatureRows(rows)
-}
-
-// scanFeatureRows scans the shared feature column projection used by
-// ListFeaturesByStatus and ListFeaturesByStatusPaged.
-func scanFeatureRows(rows *sql.Rows) ([]Feature, error) {
-	var features []Feature
-	for rows.Next() {
-		var f Feature
-		var trackID sql.NullString
-		var createdStr, updatedStr string
-
-		if err := rows.Scan(
-			&f.ID, &f.Type, &f.Title, &f.Status, &f.Priority, &trackID,
-			&createdStr, &updatedStr, &f.StepsTotal, &f.StepsCompleted,
-		); err != nil {
-			return nil, err
-		}
-		f.TrackID = trackID.String
-		f.CreatedAt, _ = time.Parse(time.RFC3339, createdStr)
-		f.UpdatedAt, _ = time.Parse(time.RFC3339, updatedStr)
-		features = append(features, f)
-	}
-	return features, rows.Err()
-}
-
 // --- Dedup-at-create similarity ----------------------------------------------
 //
 // Slice-6 (feat-e8879220): when a bug/feature is created we compare its
@@ -274,7 +102,7 @@ const DedupSimilarityThreshold = 0.72
 // regardless of age. 30 days balances catching genuine re-reports of a
 // recently-fixed bug against scanning unbounded history. Operators override
 // via the WIPNOTE_DEDUP_WINDOW_DAYS env var (parsed by the caller, which
-// passes the resolved window into ListDedupCandidates).
+// passes the resolved window into the candidate query).
 const DedupDefaultWindowDays = 30
 
 // DedupCandidate is a lightweight projection of a feature/bug row used for
@@ -284,67 +112,11 @@ type DedupCandidate struct {
 	Type   string
 	Title  string
 	Status string
-	Score  float64 // populated by FindDuplicate; 0 from ListDedupCandidates
+	Score  float64 // populated by FindDuplicate
 
 	// scoringText is the pre-normalized title+description corpus used for
 	// similarity. Unexported so it never leaks into JSON / display paths.
 	scoringText string
-}
-
-// ListDedupCandidates returns open items of any age plus closed items created
-// within windowDays, restricted to the given type ("bug" or "feature").
-//
-// Graceful no-op contract: if the features table is absent or empty (fresh
-// clone, unbuilt index, CI) this returns (nil, nil) — never an error — so the
-// caller's `create` flow can proceed without dedup. Only genuine query errors
-// on an existing-but-broken table propagate.
-func ListDedupCandidates(db *sql.DB, itemType string, windowDays int) ([]DedupCandidate, error) {
-	if db == nil {
-		return nil, nil
-	}
-	if windowDays <= 0 {
-		windowDays = DedupDefaultWindowDays
-	}
-	cutoff := time.Now().UTC().AddDate(0, 0, -windowDays).Format(time.RFC3339)
-
-	// Open items: any age. Closed items: only within the window. "Closed"
-	// here means a terminal status in the read index schema.
-	rows, err := db.Query(`
-		SELECT id, type, title, COALESCE(description,''), status
-		FROM features
-		WHERE type = ?
-		  AND (
-		        status NOT IN ('done','ended')
-		     OR created_at >= ?
-		      )`, itemType, cutoff)
-	if err != nil {
-		// Missing table => index not built yet. Treat as "no candidates".
-		if strings.Contains(err.Error(), "no such table") {
-			return nil, nil
-		}
-		return nil, err
-	}
-	defer rows.Close()
-
-	var out []DedupCandidate
-	for rows.Next() {
-		var c DedupCandidate
-		var desc string
-		if err := rows.Scan(&c.ID, &c.Type, &c.Title, &desc, &c.Status); err != nil {
-			return nil, err
-		}
-		// Stash description in Title-adjacent scoring text by re-using the
-		// same normalization the caller will apply; keep Title clean for
-		// display and carry the full corpus separately.
-		c.Title = strings.TrimSpace(c.Title)
-		c.Score = 0
-		c.scoringText = normalizeForSimilarity(c.Title + " " + desc)
-		out = append(out, c)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return out, nil
 }
 
 // FindDuplicate scores newTitle+newDesc against every candidate and returns

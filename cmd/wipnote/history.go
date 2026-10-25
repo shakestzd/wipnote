@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -9,6 +8,8 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	"github.com/shakestzd/wipnote/core/paths"
+	"github.com/shakestzd/wipnote/core/slug"
 	"github.com/spf13/cobra"
 )
 
@@ -134,17 +135,6 @@ func subDirAndExt(id string) (string, string) {
 	}
 }
 
-// gitToplevel returns the absolute path to the worktree that owns `dir` by
-// invoking `git -C <dir> rev-parse --show-toplevel`. Pinning to `dir` makes
-// the lookup independent of process cwd.
-func gitToplevel(dir string) (string, error) {
-	out, err := exec.Command("git", "-C", dir, "rev-parse", "--show-toplevel").Output()
-	if err != nil {
-		return "", fmt.Errorf("git -C %s rev-parse --show-toplevel: %w", dir, err)
-	}
-	return strings.TrimSpace(string(out)), nil
-}
-
 // gitCommonDir returns the canonical absolute path to the repository's
 // shared git dir (the main checkout's .git for linked worktrees). Two
 // directories belong to the same repository iff their git-common-dir values
@@ -176,11 +166,11 @@ func resolveHistoryRoot(hgOwner string) (string, error) {
 	ownerCommon, ownerErr := gitCommonDir(hgOwner)
 	cwdCommon, cwdErr := gitCommonDir(".")
 	if ownerErr == nil && cwdErr == nil && ownerCommon == cwdCommon {
-		if top, err := gitToplevel("."); err == nil {
+		if top, err := paths.GitTopLevel("."); err == nil {
 			return top, nil
 		}
 	}
-	return gitToplevel(hgOwner)
+	return paths.GitTopLevel(hgOwner)
 }
 
 // runHistoryLog shells out to git log with --follow to handle renames and
@@ -247,9 +237,9 @@ func renderHistoryTable(id string, entries []historyEntry) error {
 		}
 		fmt.Fprintf(w, "  %s\t%s\t%s\t%s\n",
 			date,
-			truncate(e.Author, 20),
+			slug.Truncate(e.Author, 20),
 			sha,
-			truncate(e.Subject, 50),
+			slug.Truncate(e.Subject, 50),
 		)
 	}
 	return w.Flush()
@@ -257,10 +247,5 @@ func renderHistoryTable(id string, entries []historyEntry) error {
 
 // renderHistoryJSON marshals entries to indented JSON on stdout.
 func renderHistoryJSON(entries []historyEntry) error {
-	data, err := json.MarshalIndent(entries, "", "  ")
-	if err != nil {
-		return fmt.Errorf("json marshal: %w", err)
-	}
-	fmt.Println(string(data))
-	return nil
+	return printJSON(entries)
 }

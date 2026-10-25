@@ -9,7 +9,7 @@ import (
 // through the migrated schema, and that an autodetection record (empty profile
 // signature) defaults cleanly.
 func TestGateRecord_PersistsProfileSignatureAndGuards(t *testing.T) {
-	database, err := Open(":memory:")
+	database, err := openTestDB(":memory:")
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
@@ -27,7 +27,7 @@ func TestGateRecord_PersistsProfileSignatureAndGuards(t *testing.T) {
 		ProfileSignature: "sha256:deadbeef",
 		GuardsRunJSON:    `["build","vet"]`,
 	}
-	if err := InsertGateRecord(database, rec); err != nil {
+	if _, err := InsertGateRecordIfAbsent(database, rec); err != nil {
 		t.Fatalf("insert: %v", err)
 	}
 
@@ -44,7 +44,7 @@ func TestGateRecord_PersistsProfileSignatureAndGuards(t *testing.T) {
 	if got.GuardsRunJSON != `["build","vet"]` {
 		t.Errorf("guards_run: got %q", got.GuardsRunJSON)
 	}
-	if !got.SignatureValid() {
+	if got.Signature == "" || got.Signature != got.ComputeSignature() {
 		t.Errorf("record-integrity signature should remain valid (new columns must not be in the MAC)")
 	}
 
@@ -56,7 +56,7 @@ func TestGateRecord_PersistsProfileSignatureAndGuards(t *testing.T) {
 		Status:      "pass",
 		Source:      "check",
 	}
-	if err := InsertGateRecord(database, auto); err != nil {
+	if _, err := InsertGateRecordIfAbsent(database, auto); err != nil {
 		t.Fatalf("insert auto: %v", err)
 	}
 	gotAuto, err := LatestGateRecordForSession(database, "sess-2")

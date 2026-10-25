@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/db/dbtest"
 	"github.com/shakestzd/wipnote/observe/otel"
 	"github.com/shakestzd/wipnote/observe/otel/receiver"
 	sqls "github.com/shakestzd/wipnote/observe/otel/sink/sqlite"
@@ -26,7 +26,7 @@ import (
 func setupIndexerDB(t *testing.T) (*receiver.Writer, string) {
 	t.Helper()
 	dbPath := filepath.Join(t.TempDir(), "otel.db")
-	readDB, err := db.Open(dbPath)
+	readDB, err := dbtest.Open(dbPath)
 	if err != nil {
 		t.Fatalf("db.Open: %v", err)
 	}
@@ -238,32 +238,6 @@ func TestIndexer_Status(t *testing.T) {
 	}
 	if fi.CurrentSize <= 0 {
 		t.Errorf("CurrentSize should be > 0, got %d", fi.CurrentSize)
-	}
-}
-
-// TestIndexer_Start_ContextCancel verifies Start() respects context cancellation.
-func TestIndexer_Start_ContextCancel(t *testing.T) {
-	wipnoteDir := t.TempDir()
-	// Create the sessions dir so the indexer can scan it.
-	_ = os.MkdirAll(filepath.Join(wipnoteDir, "sessions"), 0o755)
-
-	// Use a fakeWriter that satisfies sqls.WriterCloser.
-	snk := sqls.New(&fakeWriter{})
-	idxr := New(wipnoteDir, snk)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	done := make(chan struct{})
-	go func() {
-		idxr.Start(ctx)
-		close(done)
-	}()
-
-	// Cancel quickly; Start should return.
-	cancel()
-	select {
-	case <-done:
-	case <-time.After(3 * time.Second):
-		t.Fatal("Start() did not return after context cancel")
 	}
 }
 

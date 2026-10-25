@@ -1,7 +1,7 @@
 # Analysis: Internal Plan Review System vs. Marimo
 
 **Date:** 2026-04-07
-**Status:** Proposal
+**Status:** Superseded (historical). The Marimo review UI was removed: `internal/notebook/` (the embedded Python and `notebook.WriteToDir`) and `plan/planchat` were deleted in feat-ea969973, and the `wipnote serve` dashboard and `cmd/wipnote/api_plans.go` this proposal builds on no longer exist. Plans are reviewed through the plan YAML, the rendered plan HTML (`plan/plantmpl`) and `wipnote plan approve-slice`. Paths below describe the tree as of the date above.
 **Scope:** Evaluate migrating the Marimo-based plan review UI to an internal Go/HTML/JS implementation
 
 ---
@@ -57,7 +57,7 @@ wipnote plan review <id>
 
 ## 2. What Already Exists Internally
 
-**Critical insight: 70-80% of an internal replacement already exists** in `internal/plantmpl/` and `cmd/wipnote/api_plans.go`.
+**Critical insight: 70-80% of an internal replacement already exists** in `internal/plantmpl/` (now `plan/plantmpl/`) and `cmd/wipnote/api_plans.go` (since deleted).
 
 | Internal Component | Status | Marimo Equivalent |
 |---|---|---|
@@ -153,7 +153,7 @@ wipnote plan review <id>
 | **Full UX control** | Chat widget, layout, animations, keyboard shortcuts — no framework constraints |
 | **Unified dashboard** | Plan review becomes a route in `wipnote serve`, alongside existing dashboard |
 | **Simpler CI/CD** | No Python test matrix, no marimo version pinning, no anywidget compatibility |
-| **Smaller binary** | Drop ~1,700 lines of embedded Python from `internal/notebook/` |
+| **Smaller binary** | Drop ~1,700 lines of embedded Python from `internal/notebook/` (deleted in feat-ea969973) |
 | **No version drift risk** | Marimo 0.22.4+ requirement won't break silently on updates |
 
 ## 5. What You Lose
@@ -190,13 +190,13 @@ wipnote plan review <id>
 - JS: YAML code viewer with syntax highlighting (highlight.js already loaded)
 - JS: Chat history accordion on page load
 - JS: Graph node color update on approval change (minor enhancement to existing `renderGraph()`)
-- Go: Remove `internal/notebook/` embed, `runPlanReview()` Marimo launch code
+- Go: Remove `internal/notebook/` embed, `runPlanReview()` Marimo launch code (done: feat-ea969973)
 - **~200 lines, 1 day**
 
 ### Phase 4: Cleanup
 
 - Delete `prototypes/*.py` (or archive to `prototypes/archive/`)
-- Remove `notebook.WriteToDir()` and embed directive
+- Remove `notebook.WriteToDir()` and embed directive (done: feat-ea969973)
 - Drop uv/marimo documentation references
 - Update `plugin/skills/plan/SKILL.md` step 5 from `wipnote plan review` (Marimo) to `wipnote serve` route
 - **Half day**

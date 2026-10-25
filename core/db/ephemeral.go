@@ -53,37 +53,10 @@ func openBareEphemeral() (*sql.DB, error) {
 // projection. It never accepts a path and therefore never creates a project DB,
 // WAL/SHM sidecar, or cache directory.
 func OpenEphemeralProjection() (*sql.DB, error) {
-	return openEphemeralProjection(false)
+	return openEphemeralProjection()
 }
 
-// OpenEphemeralProjectionTablesOnly is OpenEphemeralProjection without the 97
-// indexes. It exists for read-only consumers of an EMPTY projection — the hook
-// read path (see core/hooks.OpenHookDBReadOnly), where every query returns zero
-// rows and an index therefore accelerates nothing.
-//
-// Reads behave identically to a fully-indexed projection: every table exists,
-// so queries succeed and return no rows rather than failing with "no such
-// table".
-//
-// It is NOT safe for writes — several tables rely on UNIQUE indexes for
-// upsert/conflict semantics that this handle does not create — so the handle
-// sets PRAGMA query_only, which makes the engine reject writes outright rather
-// than leaving "nobody writes through it" as an unenforced convention. That
-// also makes core/hooks.isReadOnlyDB report true for it, so the hook write
-// router sends writes to a properly-schema'd handle instead of this one.
-func OpenEphemeralProjectionTablesOnly() (*sql.DB, error) {
-	database, err := openEphemeralProjection(true)
-	if err != nil {
-		return nil, err
-	}
-	if _, err := database.Exec("PRAGMA query_only = ON"); err != nil {
-		database.Close()
-		return nil, fmt.Errorf("open ephemeral projection: set query_only: %w", err)
-	}
-	return database, nil
-}
-
-func openEphemeralProjection(tablesOnly bool) (*sql.DB, error) {
+func openEphemeralProjection() (*sql.DB, error) {
 	tables, aux, ok := ephemeralSchemaDDL()
 	if !ok {
 		// Fall back to the migration chain rather than failing the open: a
@@ -95,10 +68,7 @@ func openEphemeralProjection(tablesOnly bool) (*sql.DB, error) {
 	if err != nil {
 		return nil, err
 	}
-	stmts := tables
-	if !tablesOnly {
-		stmts = append(append(make([]string, 0, len(tables)+len(aux)), tables...), aux...)
-	}
+	stmts := append(append(make([]string, 0, len(tables)+len(aux)), tables...), aux...)
 	for _, stmt := range stmts {
 		if _, err := database.Exec(stmt); err != nil {
 			database.Close()

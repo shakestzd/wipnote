@@ -6,6 +6,7 @@ import (
 
 	"github.com/shakestzd/wipnote/core/graph"
 	"github.com/shakestzd/wipnote/core/models"
+	"github.com/shakestzd/wipnote/core/slug"
 	"github.com/spf13/cobra"
 )
 
@@ -96,7 +97,7 @@ func runSnapshot(summary bool) error {
 		fmt.Println("\nActive work:")
 		for _, n := range inProgressNodes {
 			fmt.Printf("  %-20s  %s  %s\n",
-				n.ID, n.Type, truncate(n.Title, 50))
+				n.ID, n.Type, slug.Truncate(n.Title, 50))
 		}
 	}
 

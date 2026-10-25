@@ -20,6 +20,7 @@ import (
 	"github.com/shakestzd/wipnote/core/models"
 	"github.com/shakestzd/wipnote/core/paths"
 	"github.com/shakestzd/wipnote/core/sessionledger"
+	"github.com/shakestzd/wipnote/core/slug"
 	"github.com/spf13/cobra"
 )
 
@@ -139,8 +140,8 @@ func printSessionListHeader(w io.Writer) {
 }
 
 func printSessionRow(w io.Writer, s *models.Session, act sessionActivity, now time.Time) {
-	id := truncate(s.SessionID, 14)
-	agent := truncate(s.AgentAssigned, 18)
+	id := slug.Truncate(s.SessionID, 14)
+	agent := slug.Truncate(s.AgentAssigned, 18)
 	started := s.CreatedAt.Local().Format("2006-01-02 15:04:05")
 	duration := sessionDuration(s)
 	fmt.Fprintf(w, sessionListRowFormat,
@@ -423,7 +424,7 @@ func renderSessionShowCanonical(w io.Writer, s *models.Session, act sessionActiv
 
 func renderSessionSummary(w io.Writer, s *models.Session) error {
 	sep := strings.Repeat("─", 60)
-	shortID := truncate(s.SessionID, 14)
+	shortID := slug.Truncate(s.SessionID, 14)
 	fmt.Fprintln(w, sep)
 	fmt.Fprintf(w, "  Session %s\n", shortID)
 	fmt.Fprintln(w, sep)
@@ -446,93 +447,6 @@ func renderSessionSummary(w io.Writer, s *models.Session) error {
 func renderSessionActivity(w io.Writer, act sessionActivity, now time.Time) {
 	fmt.Fprintf(w, "  Calls     %s\n", act.callsColumn())
 	fmt.Fprintf(w, "  Last call %s\n", act.describeLastCall(now))
-}
-
-func renderSessionShow(w io.Writer, db *sql.DB, s *models.Session) error {
-	if err := renderSessionSummary(w, s); err != nil {
-		return err
-	}
-	if s.StartCommit != "" {
-		fmt.Fprintf(w, "  Start     %s\n", truncate(s.StartCommit, 10))
-	}
-	if s.EndCommit != "" {
-		fmt.Fprintf(w, "  End       %s\n", truncate(s.EndCommit, 10))
-	}
-	if s.ActiveFeatureID != "" {
-		fmt.Fprintf(w, "  Feature   %s\n", s.ActiveFeatureID)
-	}
-	if s.IsSubagent {
-		fmt.Fprintf(w, "  Subagent  yes (parent: %s)\n", truncate(s.ParentSessionID, 14))
-	}
-	if s.Adherence != nil {
-		fmt.Fprintf(w, "  Adherence %d%% (%d pass, %d warn, %d fail)\n",
-			s.Adherence.Score, s.Adherence.Passed, s.Adherence.Warned, s.Adherence.Failed)
-		for _, check := range s.Adherence.Checks {
-			fmt.Fprintf(w, "    %-18s  %-14s  %s\n",
-				check.Key, string(check.Status), check.Summary)
-		}
-	}
-
-	// Commits made during this session.
-	commits, _ := dbpkg.GetCommitsBySession(db, s.SessionID)
-	if len(commits) > 0 {
-		fmt.Fprintln(w, "\nCommits:")
-		for _, c := range commits {
-			hash := truncate(c.CommitHash, 10)
-			fmt.Fprintf(w, "  %s  %s\n", hash, truncate(c.Message, 60))
-		}
-	}
-
-	// Features worked on (distinct from agent_events).
-	feats, _ := dbpkg.DistinctFeatureIDs(db, s.SessionID)
-	if len(feats) > 0 {
-		fmt.Fprintln(w, "\nFeatures Worked On:")
-		for _, f := range feats {
-			fmt.Fprintf(w, "  %s\n", f)
-		}
-	}
-
-	// Files touched during this session (from feature_files.session_id).
-	sessionFiles, _ := dbpkg.ListFilesBySession(db, s.SessionID)
-	if len(sessionFiles) > 0 {
-		fmt.Fprintln(w, "\nFiles:")
-		fmt.Fprintf(w, "  %-10s  %-24s  %s\n", "OPERATION", "LAST SEEN", "PATH")
-		fmt.Fprintf(w, "  %s\n", strings.Repeat("-", 70))
-		for _, sf := range sessionFiles {
-			fmt.Fprintf(w, "  %-10s  %-24s  %s\n", sf.Operation, sf.LastSeen, sf.FilePath)
-		}
-	}
-
-	// Event summary by tool.
-	counts, _ := dbpkg.CountEventsByTool(db, s.SessionID)
-	if len(counts) > 0 {
-		total := 0
-		for _, c := range counts {
-			total += c
-		}
-		fmt.Fprintf(w, "\nEvents by Tool (%d total):\n", total)
-		// Sort by count descending for display.
-		type toolCount struct {
-			name  string
-			count int
-		}
-		var sorted []toolCount
-		for name, count := range counts {
-			sorted = append(sorted, toolCount{name, count})
-		}
-		for i := 0; i < len(sorted); i++ {
-			for j := i + 1; j < len(sorted); j++ {
-				if sorted[j].count > sorted[i].count {
-					sorted[i], sorted[j] = sorted[j], sorted[i]
-				}
-			}
-		}
-		for _, tc := range sorted {
-			fmt.Fprintf(w, "  %-12s %d\n", tc.name, tc.count)
-		}
-	}
-
-	return nil
 }
 
 // generateSessionID produces a collision-resistant session ID using crypto/rand.

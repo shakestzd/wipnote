@@ -69,6 +69,8 @@ func planCmdWithExtras() *cobra.Command {
 	cmd.AddCommand(planInterviewQuestionsCmd())
 	// slice-6: visual-block catalog (native get-plan-blocks equivalent)
 	cmd.AddCommand(planBlocksCmd())
+	// plan-28b4a7f6 slice 24: export a plan as Claude project instructions
+	cmd.AddCommand(planProjectInstructionsCmd())
 	return cmd
 }
 
@@ -85,9 +87,9 @@ func planGenerateCmd() *cobra.Command {
 }
 
 // isWorkItemPrefix returns true when id begins with a known work item prefix
-// (trk-, feat-, bug-, spk-, pln-, spc-).
+// (trk-, feat-, bug-, spk-, pln-, spec-).
 func isWorkItemPrefix(id string) bool {
-	for _, p := range []string{"trk-", "feat-", "bug-", "spk-", "pln-", "spc-"} {
+	for _, p := range []string{"trk-", "feat-", "bug-", "spk-", "pln-", "spec-"} {
 		if strings.HasPrefix(id, p) {
 			return true
 		}
@@ -161,11 +163,11 @@ func rescaffoldExistingPlan(wipnoteDir, planID string) (string, error) {
 // If a plan for sourceID already exists it returns the existing plan ID without
 // creating a duplicate.
 func runPlanGenerateFromWorkItem(wipnoteDir, sourceID string) (string, error) {
-	resolved, err := resolveID(wipnoteDir, sourceID)
+	resolved, err := workitem.ResolvePartialID(wipnoteDir, sourceID)
 	if err != nil {
 		return "", fmt.Errorf("resolve %s: %w", sourceID, err)
 	}
-	nodePath := resolveNodePath(wipnoteDir, resolved)
+	nodePath := workitem.NodePath(wipnoteDir, resolved)
 	if nodePath == "" {
 		return "", fmt.Errorf("work item %q not found\nRun 'wipnote wip' to see active items or 'wipnote find <query>' to search.", resolved)
 	}

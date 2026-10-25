@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/db/dbtest"
 	sqls "github.com/shakestzd/wipnote/observe/otel/sink/sqlite"
 )
 
@@ -16,7 +16,7 @@ import (
 // at the given path.
 func openMainDB(t *testing.T, dbPath string) *sql.DB {
 	t.Helper()
-	database, err := db.Open(dbPath)
+	database, err := dbtest.Open(dbPath)
 	if err != nil {
 		t.Fatalf("db.Open: %v", err)
 	}

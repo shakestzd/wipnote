@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 
+	"github.com/shakestzd/wipnote/core/paths"
 	"github.com/spf13/cobra"
 )
 
@@ -60,14 +61,9 @@ func runUninstallHooks() error {
 }
 
 func projectRoot() (string, error) {
-	out, err := exec.Command("git", "rev-parse", "--show-toplevel").Output()
+	root, err := paths.GitTopLevel(".")
 	if err != nil {
 		return os.Getwd()
-	}
-	// Trim trailing newline.
-	root := string(out)
-	for len(root) > 0 && (root[len(root)-1] == '\n' || root[len(root)-1] == '\r') {
-		root = root[:len(root)-1]
 	}
 	return root, nil
 }

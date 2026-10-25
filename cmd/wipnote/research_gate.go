@@ -53,7 +53,7 @@ func checkResearchGateForWorkItem(w io.Writer, projectRoot, id, waiver string) e
 		return nil // no project: the session gate reports it
 	}
 	defer p.Close()
-	typeName := kindFromPrefix(id)
+	typeName := workitem.KindForID(id)
 	if !researchTypes[typeName] {
 		return nil // tracks, plans and specs carry no research record
 	}

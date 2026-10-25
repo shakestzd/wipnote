@@ -126,16 +126,6 @@ func RecommendNextWorkIn(nodes []*models.Node) []Recommendation {
 	return recs
 }
 
-// GetParallelWork returns groups of todo items in the same track that can
-// be worked on simultaneously (no cross-item blocking edges).
-func GetParallelWork(projectDir string) ([]ParallelSet, error) {
-	nodes, err := loadAllNodes(projectDir)
-	if err != nil {
-		return nil, fmt.Errorf("get parallel work: %w", err)
-	}
-	return GetParallelWorkIn(nodes), nil
-}
-
 // GetParallelWorkIn is GetParallelWork over an already-loaded node set.
 func GetParallelWorkIn(nodes []*models.Node) []ParallelSet {
 	byTrack := groupTodosByTrack(nodes)
