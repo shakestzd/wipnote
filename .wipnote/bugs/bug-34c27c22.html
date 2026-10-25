@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>GH #261: feature/spike complete refuses on unrelated dirty files</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-34c27c22"
+             data-type="bug"
+             data-status="in-progress"
+             data-priority="medium"
+             data-created="2026-10-25T03:57:28.987149"
+             data-updated="2026-10-25T04:25:38.408181" data-agent-assigned="claude-code" data-track-id="trk-0677c709" data-created-by-agent="claude-code" data-created-by-model="claude-opus-5-5" data-created-by-cli-version="0.81.0" data-change_kind="bugfix" data-created_in_session="b0991d53-1a24-4f08-85e1-85786a570a50">
+
+        <header>
+            <h1>GH #261: feature/spike complete refuses on unrelated dirty files</h1>
+            <div class="metadata">
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="../sessions/b0991d53-1a24-4f08-85e1-85786a570a50.html" data-relationship="implemented_in" data-since="2026-10-25T03:58:25.108697">session b0991d53-1a24-4f08-85e1-85786a570a50</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-0677c709.html" data-relationship="part_of" data-since="2026-10-25T03:57:29.011619">trk-0677c709</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="relates_to">
+                <h3>Relates To:</h3>
+                <ul>
+                    <li><a href="../features/feat-2bfd67e9.html" data-relationship="relates_to" data-since="2026-10-25T03:57:36.512881">Transactional wipnote * complete (compensating re-open on commit failure)</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="true" data-step-id="step-bug-34c27c22-0" data-agent="claude-code" data-created-by-agent="claude-code">✅ Reproduce with real output (or record why not)</li>
+                <li data-completed="true" data-step-id="step-bug-34c27c22-1" data-agent="claude-code" data-created-by-agent="claude-code">✅ Spec with ambiguities answered by the user</li>
+                <li data-completed="true" data-step-id="step-bug-34c27c22-2" data-agent="claude-code" data-created-by-agent="claude-code">✅ Two-sided tests written first</li>
+                <li data-completed="false" data-step-id="step-bug-34c27c22-3" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Fix, gate, PR green</li>
+                <li data-completed="false" data-step-id="step-bug-34c27c22-4" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Merged; comment on the GitHub issue</li>
+            </ol>
+        </section>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Dirty-tree precondition blocks completion on any uncommitted file, including other sessions&#39; files, forcing --allow-dirty which disables the check for the item&#39;s own files too. Scope the check to the item&#39;s linked commits and pending edits (or a path scope); list unrelated files as a note. Must not reopen #161 or #114. Issue: shakestzd/wipnote#261.</p>
+        </section>
+    </article>
+</body>
+</html>
