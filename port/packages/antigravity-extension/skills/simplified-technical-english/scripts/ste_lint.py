@@ -66,7 +66,7 @@ _PARTICIPLE = (rf"(?:{_NOT_PARTICIPLE_ED}\w+ed|taken|given|seen|done|gone|broken
                r"known|chosen|fallen|worn|torn|driven|risen|made|held|kept|left|lost|set|put|cut|run)")
 _IRREGULAR_PP = (r"(?:taken|given|seen|done|gone|broken|written|shown|known|chosen|fallen|"
                  r"worn|torn|driven|risen|made|held|kept|left|lost|begun|become)")
-# Whole British forms (no suffix needed).
+# Whole British forms. The rule regex adds inflections (colours, honoured, centres).
 _BRITISH = (r"colour|centre|metre|litre|grey|behaviour|favour|"
             r"neighbour|catalogue|programme|tyre|aluminium|whilst|labour|honour|fibre|"
             r"sulphur|manoeuvre")
@@ -114,7 +114,8 @@ PATTERN_CHECKS: tuple[tuple[str, str, re.Pattern[str]], ...] = (
     ("2.2", "Hyphen group of more words than allowed. Shorten it.", re.compile(
         rf"\b[^\W\d_]+(?:-[^\W\d_]+){{{MAX_HYPHEN_GROUP_WORDS},}}\b")),
     ("1.14", "Hint: British spelling. Use American spelling.", re.compile(
-        rf"\b\w*(?:{_BRITISH}|{_BRITISH_ISE}|{_BRITISH_DOUBLE_L})\b", re.IGNORECASE)),
+        rf"\b\w*(?:(?:{_BRITISH})(?:'s|s|d|ed|ing|er|ers|ful)?|{_BRITISH_ISE}|{_BRITISH_DOUBLE_L})\b",
+        re.IGNORECASE)),
 )
 
 
