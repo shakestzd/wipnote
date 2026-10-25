@@ -28,7 +28,7 @@ design:
         ## Design decisions (rationale in each slice's decisions_notes)
 
         1. **No daemon.** Every verb is a short CLI process, a bounded wait, or a process that lives in a herdr pane. Hooks write one small file and return. A missing or slow writer daemon never delays a hook or the launcher (user rule: daemons never block Claude).
-        2. **Workers run under wipnote's launchers.** `spawn` starts `wipnote claude` or `wipnote codex` in the pane with `WIPNOTE_DELEGATE_RUN=<run-id>`. wipnote's own plugin hooks fire, so no `--settings` hook file is needed. The launcher passes no `--settings` today (code search, 2026-10-25). The `--settings` risk remains only for orch during migration (Phase B check B1).
+        2. **Workers run under wipnote's launchers and claim the work item.** `spawn` starts `wipnote claude` or `wipnote codex` in the pane with `WIPNOTE_DELEGATE_RUN=<run-id>`. wipnote's own plugin hooks fire, so no `--settings` hook file is needed. The worker claims the item through the normal start path (owner, 2026-10-25; see Claims below). The launcher passes no `--settings` today (code search, 2026-10-25). The `--settings` risk remains only for orch during migration (Phase B check B1).
         3. **One writer per file.** Each mailbox message is its own file, written by temp file plus rename. Each process appends to its own events file. This avoids the APFS O_APPEND hazard (arch card daemon-purpose-outlives-sqlite) and any flock across a host-container bind mount.
         4. **One canonical record type (Q4) holding spawn and stop (Q3).** `.wipnote/delegations-ledger.html` has one row per run with `mode=oneshot|interactive`. Spawn opens the row. Exit or stop closes it. Usage and session ids enrich it. Tool and prompt events are not copied: they duplicate `agent_events`.
         5. **Settle on durable signals.** A wait ends on the worker's Stop hook event for the current turn, an exit file or an explicit report. herdr agent state is only a hint: herdr's docs say `agent wait` observes state, not job completion. cbds and herdr-orch settle the same way.
@@ -40,10 +40,33 @@ design:
         | Data | Where | Committed | Why |
         |---|---|---|---|
         | Delegation-run row (spawn, stop, exit, usage, work item, caller and worker session ids) | `.wipnote/delegations-ledger.html` | yes, canonical | Survives cache purges; lineage reads it; reindex rebuilds the index from it |
-        | Run folder, events, mailbox, pane ids | live runtime root (default `.wipnote/delegate/`, gitignored like `sessions/`; see q-live-store) | no | Ephemeral; reachable from the caller, the hooks and a container worker through the project bind mount |
+        | Run folder, events, mailbox, pane ids | `.wipnote/delegate/`, gitignored like `sessions/` (q-live-store, owner 2026-10-25; the ignore entry ships in slice 5) | no | Ephemeral; reachable from the caller, the hooks and a container worker through the project bind mount |
+        | Claim episodes of workers and the orchestrator | existing `.wipnote/claims/` shards (core/claimledger) | yes, canonical, unchanged format | Workers claim like any session; no new claim store |
         | Per-turn tool and prompt events | existing `agent_events` from wipnote hooks | as today | Not duplicated |
 
         No absolute host path, user name or home directory enters a ledger row or a work item. The ledger writer refuses such values. Run folders hold paths, but they are runtime files and never committed.
+
+        ## Claims (q-worker-claim answered 2026-10-25: the worker claims the item)
+
+        Workers use the existing claim-episode model in `core/claimledger` and `core/hooks/claim_episodes.go`. No claim store or outcome is added. Facts from the code (2026-10-25):
+
+        - An episode is one row per (session, agent, work item), sharded by root session in `.wipnote/claims/`. Outcomes are `completed`, `released`, `abandoned` and `expired`. There is no `suspended`.
+        - `wipnote <kind> start` opens an episode (idempotent per session). `checkLiveCollisionGate` refuses it while another live root session holds the item, unless `--force`. The caller's own family (same session, or same root) is not a collision.
+        - A worker's episode is rooted at its own session, because `rootSessionFor(nil, ...)` falls back to the session id. So today the gate would refuse a worker while the orchestrator holds the item.
+        - Completion by any session closes every open episode on the item (`CloseWorkItem`, written for the orchestrator hand-off case).
+        - SessionEnd closes only that session's rows as `abandoned`. The stale-session reaper and `wipnote claims reconcile` close a dead session's rows as `expired`.
+
+        Defined behaviour, which follows from that model whatever q-claim-handoff decides:
+
+        - **How the worker claims.** Its brief begins with `wipnote <kind> start <id>`, so the item lock, the collision gate and the ledger write run unchanged. `spawn` checks that the episode appeared and reports it if not. `spawn` needs a work item: `--work-item`, or else the caller's active claim. It refuses when neither exists.
+        - **The worker stays a root session.** `spawn` does not set `WIPNOTE_PARENT_SESSION`, which would mark the worker as a subagent and drop its sessions-ledger row. The caller link travels in `WIPNOTE_DELEGATE_CALLER` and in the delegations ledger.
+        - **Worker stop.** `delegate stop` asks the worker to exit. The worker's own SessionEnd closes its episode as `abandoned`. The delegations ledger records `end_reason=stop`, so lineage shows the stop was deliberate. The caller never writes the worker's shard while the worker lives.
+        - **Worker crash or lost pane.** No SessionEnd fires. A `delegate` command in the caller (`wait`, `list` or `stop`) sees the pane gone and confirms that no worker process remains. It then closes only that worker session's episodes as `expired`, the same session-scoped close that `closeClaimEpisodesForSession` uses. `wipnote claims reconcile` stays the backstop. This depends on bug-01f182e5 (reconcile treats live sessions as dead) being fixed first, or reconcile would expire live workers.
+        - **wait timeout.** It changes no claim. The worker keeps running and keeps its episode.
+        - **Orchestrator ends first.** Its SessionEnd closes only its own rows. Workers keep their claims, and their delegation rows stay open until they end.
+        - **Completion.** Whoever completes the item closes every open episode on it, worker and orchestrator alike (existing `CloseWorkItem`).
+
+        Open choices (new questions): what the orchestrator's own claim does while workers hold the item (q-claim-handoff: co-claim through the delegations ledger, co-claim through the caller's shard, or release then reclaim), and whether several workers may claim one item at once (q-concurrent-workers). Whether the claim "returns" to the orchestrator depends on q-claim-handoff. Under co-claim it never leaves. Under release-reclaim, the caller's next `delegate` call after the last worker ends reopens it through the normal start path.
 
         ## Prior art: herdr plugins (surveyed 2026-10-25)
 
@@ -65,7 +88,7 @@ design:
 
         Narrower prior art: question inboxes (speardragon/herdr-ask-inbox, no license; LeaveMyYard/herdr-inbox, MIT) and sub-agent trees (blavka/agents-tree, MIT; LeaveMyYard/herdr-panorama, MIT).
 
-        **Finding.** herdr-orch covers spawn, send, wait, result, stop and questions, and gives a board instead of a sub-agent tree. That is most of the scope, so q-adopt-vs-port puts "adopt or wrap herdr-orch vs port orch" to the owner. Points against adopting it: it needs its own daemon and SQLite outside `.wipnote/`, so it has no work-item link or lineage. It is v0.1.x from one maintainer, with no stars. It covers neither one-shot `codex exec` runs nor the run-folder contract. Points for it: it is MIT and written in Go, and its settlement and verified-release logic is already built.
+        **Finding (answered 2026-10-25: port orch natively; herdr-orch stays prior art only).** herdr-orch covers spawn, send, wait, result, stop and questions, and gives a board instead of a sub-agent tree. That is most of the scope, so q-adopt-vs-port puts "adopt or wrap herdr-orch vs port orch" to the owner. Points against adopting it: it needs its own daemon and SQLite outside `.wipnote/`, so it has no work-item link or lineage. It is v0.1.x from one maintainer, with no stars. It covers neither one-shot `codex exec` runs nor the run-folder contract. Points for it: it is MIT and written in Go, and its settlement and verified-release logic is already built.
 
         ## Migration
 
@@ -80,6 +103,7 @@ design:
     goals:
         - 'One native path: wipnote delegate spawn, send, wait, result, stop, questions, tree and run, written in Go in the wipnote binary.'
         - One-shot runs (codex exec/review, claude -p, ccx task) and interactive sessions share one run store, one herdr adapter and one canonical record.
+        - A spawned worker claims its work item through the existing claim-episode model, and every worker claim ends with a recorded outcome.
         - Every delegation is a canonical row in .wipnote/delegations-ledger.html, linked to its work item and to its caller and worker sessions, and visible in wipnote lineage.
         - The orchestrator settles on durable signals and never parses a pane's screen to decide that a worker finished.
         - mods/codex-herdr-pane and internal/orchlink are retired once the native path reaches parity.
@@ -248,6 +272,8 @@ slices:
               label: B6
             - body: 'flock and rename on a file in .wipnote/ across the host-container bind mount: exclusive, atomic, or neither.'
               label: B7
+            - body: 'A container worker runs wipnote feature start on an item the Mac session holds: the collision gate on each side sees the other''s live episode in .wipnote/claims/.'
+              label: B8
         - type: file-tree
           title: Files added
           entries:
@@ -268,6 +294,7 @@ slices:
         - The line 16 split is gone and the spec states one native path
         - Sections 6 and 7 cite the Phase B results and mark Q3 and Q4 as decided
         - docs/design/delegate.md lists every wipnote delegate command with its flags, exit codes and files
+        - docs/design/delegate.md states the claim handoff as answered in q-claim-handoff and q-concurrent-workers
       effort: S
       risk: Low
       tests: |
@@ -326,6 +353,7 @@ slices:
         **Q3:** spawn and stop persist. Tool, prompt and turn-stop events do not: they duplicate agent_events.
         **Rejected:** one HTML file per run (a file per codex exec call, and lineage would have to glob them all). Per-session shards are rejected because lineage queries by work item. SQLite only is rejected because it is purgeable (bug-550c1cd8).
         **Commit:** rows go through the existing artifact commit path. No write waits on the daemon.
+        **Claims:** caller_session and worker_sessions are what the co-claim-gate option of q-claim-handoff would read to treat a caller's live workers as family.
         **Promotion:** feature_id is feat-dd8b0cde, so promote-slice reuses it instead of creating a duplicate.
         **Parallel:** yes, with slices 1, 2, 5 and 6.
       blocks:
@@ -379,7 +407,7 @@ slices:
     - id: slic-4e5b7a55
       num: 5
       title: 'Live run store: run folders, events and a file mailbox'
-      what: Add internal/delegate/runstore with a run directory per run (the feat-a1df60c2 run-folder contract), per-writer events NDJSON files and a file mailbox (one JSON file per message, temp file plus rename). The location follows q-live-store; the default is .wipnote/delegate/, gitignored like sessions/. Finished runs are swept after N days.
+      what: Add internal/delegate/runstore with a run directory per run (the feat-a1df60c2 run-folder contract), per-writer events NDJSON files and a file mailbox (one JSON file per message, temp file plus rename). It lives in .wipnote/delegate/, gitignored like sessions/; only ledger rows are committed. Finished runs are swept after N days.
       why: One-shot runs, interactive sessions, hooks and the mailbox need one shared runtime layout. It must survive a crashed caller and work with no daemon.
       files:
         - internal/delegate/runstore/store.go
@@ -395,7 +423,7 @@ slices:
         - Two processes writing events for one run never write the same file, and a reader merges them in seq order
         - A partial last NDJSON line and a half-written message file are skipped, never parsed
         - The run-folder file names match the feat-a1df60c2 contract, and the mod's viewer can read a run folder written by Go
-        - The managed .wipnote/.gitignore block ignores delegate/
+        - The managed .wipnote/.gitignore block (core/worktree/gitignore.go) ignores delegate/, and git status shows nothing under .wipnote/delegate/ after a run
       effort: M
       risk: Med
       tests: |
@@ -417,9 +445,10 @@ slices:
           answer: No. Each writer owns its files (events-<writer>.ndjson, one file per message). The arch card daemon-purpose-outlives-sqlite records that O_APPEND is not atomic on APFS. flock across a host-container bind mount is unverified (Phase B check B7).
       decisions_notes: |
         **Trigger:** delegate run and spawn create a run directory. Hooks in a tagged worker write events. send writes messages.
-        **State:** <root>/runs/<run-id>/ holds the run-folder files and events-*.ndjson. <root>/mail/<name>/ holds messages. <root> defaults to .wipnote/delegate/ (q-live-store).
+        **State:** <root>/runs/<run-id>/ holds the run-folder files and events-*.ndjson. <root>/mail/<name>/ holds messages. <root> is .wipnote/delegate/ (q-live-store, owner 2026-10-25).
         **Payload:** see the data-model blocks. Files are written by temp file plus rename and fsynced before rename.
-        **Why the project root by default:** a container worker reaches it through the same bind mount as the code. A per-user cache differs between the Mac and the container.
+        **Gitignore:** this slice adds delegate/ to the managed block that core/worktree/gitignore.go writes, beside sessions/, events/ and logs/.
+        **Why the project root:** a container worker reaches it through the same bind mount as the code. A per-user cache differs between the Mac and the container.
         **Rejected:** one shared events.ndjson with flock, because of APFS O_APPEND and an unverified flock across the mount. SQLite for live state is rejected: it adds a writer and a lock to every hook.
         **Refine:** after slice 1, check the layout against orch's mailbox and record any difference in docs/design/orch-inventory.md.
         **Parallel:** yes, with slices 4 and 6 once slice 1 is done.
@@ -744,8 +773,8 @@ slices:
     - id: slic-9d0a2faa
       num: 10
       title: 'Interactive sessions: spawn, stop, list and tree'
-      what: Add wipnote delegate spawn NAME --harness claude|codex [--work-item] [--prompt]. It opens a herdr pane running wipnote claude or wipnote codex with WIPNOTE_DELEGATE_RUN set, and the SessionStart hook binds each session id to the run. Add a verified stop, list, status and tree.
-      why: orch's interactive sessions are the half the mod never covered. Running workers under wipnote's launchers gives them wipnote hooks, claims and lineage.
+      what: Add wipnote delegate spawn NAME --harness claude|codex [--work-item] [--prompt]. It opens a herdr pane running wipnote claude or codex with WIPNOTE_DELEGATE_RUN set. The SessionStart hook binds each session id to the run, and the worker claims the work item. Add a verified stop, list, status and tree.
+      why: orch's interactive sessions are the half the mod never covered. Running workers under wipnote's launchers gives them wipnote hooks and lineage, and the owner chose that each worker claims its work item (q-worker-claim).
       files:
         - cmd/wipnote/delegate_spawn.go
         - cmd/wipnote/delegate_stop.go
@@ -756,6 +785,8 @@ slices:
         - internal/delegate/session/session_test.go
         - core/hooks/session_start.go
         - core/hooks/delegate_bind.go
+        - cmd/wipnote/claim_ledger.go
+        - core/hooks/claim_episodes.go
       deps:
         - 1
         - 2
@@ -768,11 +799,15 @@ slices:
         - stop reports verified only when the pane is gone and no worker process remains; otherwise it names what survives
         - tree shows caller, run, worker sessions and sub-agents, reusing RenderAgentTree
         - The SessionStart bind adds under 2 ms and never fails the hook
+        - Within 10 s of spawn, .wipnote/claims/ holds an open episode for the work item and the worker session, written by the normal wipnote <kind> start path
+        - spawn refuses when no work item resolves (no --work-item and no active claim in the caller)
+        - After stop, crash or pane loss, no episode stays open for the worker session (abandoned on stop, expired on loss), and the orchestrator's claim is in the state q-claim-handoff defines
       effort: L
       risk: High
       tests: |
         Integration (fake herdr): TestSpawn_RefusesLiveName, TestSpawn_BindsSessionOnStart, TestSpawn_ClearAddsSecondSession, TestStop_VerifiedOnlyWhenNoProcess, TestTree_CallerRunWorkerSubagents.
         Hook: TestDelegateBind_FastAndFailOpen.
+        Claims: TestSpawn_WorkerClaimsItem, TestSpawn_RefusesWithoutWorkItem, TestStop_WorkerEpisodeAbandonedBySessionEnd, TestPaneLoss_ExpiresOnlyWorkerEpisode, TestOrchestratorEnd_WorkerKeepsClaim, TestHandoff_<q-claim-handoff option>.
         Live (HERDR_ENV=1 only): TestSpawn_LiveClaudeWorker.
       complexity: complex
       approved: false
@@ -798,6 +833,9 @@ slices:
         **Names:** [a-z0-9-], 1 to 32 characters, unique among live runs in the project.
         **Stop:** ask the agent to exit, wait, close the pane, then check herdr process-info. A worker that survives is reported, never silently killed outside the pane.
         **Rejected:** copying orch's --settings hook file (needless under wipnote's launchers). herdr agent start is rejected until it is known to accept a custom command.
+        **Claim:** the worker's brief begins with wipnote <kind> start <id>, so the item lock, collision gate and claim ledger run unchanged; spawn polls .wipnote/claims/ for the episode. The worker stays a root session (no WIPNOTE_PARENT_SESSION), so it gets its own sessions-ledger row and claim shard. Stop relies on the worker's SessionEnd (abandoned); the caller never writes a live worker's shard. On a lost pane, after confirming no worker process remains, stop or list closes only that session's episodes as expired. The gate change in cmd/wipnote/claim_ledger.go depends on q-claim-handoff and q-concurrent-workers.
+        **Rejected (claim):** opening the episode from the SessionStart hook, because that adds an item-lock and canonical write to a hook. A new suspended outcome is also rejected: the episode model has four outcomes, and the owner asked not to invent a new model.
+        **Risk:** bug-01f182e5 (claims reconcile treats live sessions as dead) would expire live workers' episodes. Fix it before this slice ships.
         **Refine:** check against orch's spawn, pinning and stop semantics from slice 1.
         **Parallel:** it can run beside slices 8, 9 and 12.
       blocks:
@@ -843,6 +881,7 @@ slices:
         - wait without --timeout is refused, and a timed-out wait exits 124 and prints the last known state
         - A message is readable with wipnote delegate inbox even when the prompt hint was lost
         - questions lists a pending AskUserQuestion with its options and drops it once the worker continues
+        - wait, send, result and questions open or close no claim episode. On outcome gone, wait calls slice 10's worker-loss close. Under release-reclaim it may also reopen the caller's claim.
       effort: L
       risk: High
       tests: |
@@ -870,6 +909,7 @@ slices:
         **State:** mail files and events-*.ndjson in the run store. The turn id increments at each delivered message.
         **Payload:** wait prints {run, turn, outcome: done|question|timeout|gone}. result prints last.md for the turn. questions prints JSON rows.
         **Polling:** at most 2 Hz, plus an fs watch where available. No daemon.
+        **Claims:** wait observes; a timeout changes no claim. When the worker is gone, wait reuses slice 10's session-scoped expired close. If the owner picks release-reclaim (q-claim-handoff), the caller's wait that sees the last worker end reopens the caller's claim through the normal start path.
         **Rejected:** settling on herdr idle (a lifecycle state, not a turn result). Parsing agent read output is rejected as racy. Answering questions from the orchestrator is deferred (q-answer-questions).
         **Refine:** match orch's send and wait semantics from slice 1.
         **Parallel:** no; it needs slice 10. It can run beside slices 12 and 13.
@@ -910,6 +950,7 @@ slices:
         - Where bwrap fails, spawn and run fail fast with the probe output and the options from q-codex-sandbox
         - A codex exec --json fixture yields the thread id as a worker session id and the four usage fields in the ledger
         - No default ever passes --sandbox danger-full-access
+        - A Codex worker's claim episode carries its Codex session id, or spawn reports that Codex hooks gave none (Phase B check B4)
       effort: M
       risk: Med
       tests: |
@@ -933,6 +974,7 @@ slices:
         **State:** the probe result is cached in the run store with a short TTL.
         **Payload:** pass/fail per check with the exact stderr.
         **Rejected:** silently falling back to danger-full-access, because it removes Codex's isolation without consent.
+        **Claims:** a Codex worker claims with wipnote <kind> start like a Claude worker. That needs a session id from the Codex hooks; without one, the episode cannot name the worker, so spawn reports it.
         **Feeds:** feat-74c3d200 (cache-aware cost) and bug-3e4c6e02 (Codex exec captures no session) are related; the cached token count lands in the ledger.
         **Parallel:** yes, with slices 10, 11 and 13.
       blocks:
@@ -962,6 +1004,7 @@ slices:
       done_when:
         - lineage --json carries delegations[] with link tag or sid, and a row tagged with another item is never derived (the orchlink rule is kept)
         - lineage dlg-<id> shows the caller session, the work item and the worker sessions
+        - Under each delegation, lineage shows each worker's claim episode (start, end, outcome) read from .wipnote/claims/
         - After removal, go build ./... has no orchlink import, and the lineage JSON schema note records that orch_sessions was dropped
       effort: M
       risk: Med
@@ -976,6 +1019,7 @@ slices:
         **Trigger:** wipnote lineage on a work item or a dlg- id.
         **State:** reads the ledger, never live run files.
         **Payload:** a text section "delegations", and delegations[] in --json. Each row has id, mode, harness, name, link, state and worker session ids.
+        **Claims:** worker claim episodes come from the existing claim ledger reader, joined on worker session id; no claim data is copied into the delegations ledger.
         **Kept from orchlink:** tag is asserted; sid is derived and labelled; a row tagged with another item is never derived; no host path is printed.
         **Rejected:** keeping both orch_sessions and delegations for good (two readers drift). Deleting orchlink before the owner stops using orch is rejected: lineage would lose those links.
         **Parallel:** yes, with slices 11 and 12.
@@ -1029,6 +1073,7 @@ slices:
         - No file outside git history names codex-herdr-pane except the release note
         - wipnote plugin build-ports runs clean, and all three generated trees carry the delegate skill
         - A user with the mod's settings sees a one-time notice that names the new settings
+        - The delegate skill describes the claim handoff as decided in q-claim-handoff and tells orchestrators not to release or force-claim by hand
       effort: M
       risk: Med
       tests: |
@@ -1061,7 +1106,7 @@ slices:
 questions:
     - id: q-adopt-vs-port
       text: Adopt or wrap the herdr plugin herdr-orch, or port orch?
-      description: herdr-orch (MIT, Go, v0.1.2) covers spawn, send, wait, result, stop and questions, and gives a board instead of a tree. It needs its own daemon and SQLite outside .wipnote/ and has no work-item link. It does not cover one-shot codex exec runs. The owner's earlier direction was to port orch.
+      description: 'herdr-orch (MIT, Go, v0.1.2) covers spawn, send, wait, result, stop and questions, and gives a board instead of a tree. It needs its own daemon and SQLite outside .wipnote/ and has no work-item link. It does not cover one-shot codex exec runs. ANSWERED 2026-10-25 by the owner: port orch natively in Go; herdr-orch stays prior art only.'
       options:
         - key: port-orch
           label: Port orch to Go as planned; take ideas from herdr-orch, cbds, pod and herdr-mail
@@ -1069,10 +1114,10 @@ questions:
           label: Wrap horch for interactive sessions; build only one-shot runs, the ledger and lineage in wipnote
         - key: adopt-horch
           label: Adopt herdr-orch as the engine and contribute the missing parts upstream
-      answer: null
+      answer: port-orch
     - id: q-command-name
       text: What is the command name?
-      description: The plan uses wipnote delegate with spawn, send, wait, result, stop, questions, tree, run, list, view, inbox and doctor.
+      description: 'The plan uses wipnote delegate with spawn, send, wait, result, stop, questions, tree, run, list, view, inbox and doctor. ANSWERED 2026-10-25 by the owner: wipnote delegate.'
       options:
         - key: delegate
           label: wipnote delegate
@@ -1080,10 +1125,10 @@ questions:
           label: wipnote agent
         - key: other
           label: Another name
-      answer: null
+      answer: delegate
     - id: q-live-store
       text: Where does live run state live?
-      description: Live state means run folders, events and the mailbox. A container worker must reach it. The project root is shared through the bind mount; a per-user cache is not.
+      description: 'Live state means run folders, events and the mailbox. A container worker must reach it. The project root is shared through the bind mount; a per-user cache is not. ANSWERED 2026-10-25 by the owner: project .wipnote/delegate/, gitignored; only ledger rows are committed. The gitignore entry is part of slice 5.'
       options:
         - key: project-runtime
           label: .wipnote/delegate/ in the project, gitignored like sessions/
@@ -1091,7 +1136,7 @@ questions:
           label: The per-user wipnote cache for the project
         - key: configurable
           label: project-runtime by default, with an environment override for a shared mount
-      answer: null
+      answer: project-runtime
     - id: q-intercept
       text: How should a bare codex exec or claude -p in the Bash tool be handled?
       description: On Codex, a rewrite needs permissionDecision allow, which auto-approves the call.
@@ -1138,13 +1183,13 @@ questions:
       answer: null
     - id: q-worker-claim
       text: Does a spawned worker claim the work item?
-      description: The ledger tag links the run either way. A shared claim also attributes the worker's edits and commits to the item.
+      description: 'The ledger tag links the run either way. A claim also attributes the worker''s edits and commits to the item. ANSWERED 2026-10-25 by the owner: the worker claims the work item (chosen over link-only). The handoff with the orchestrator''s claim is q-claim-handoff; several workers on one item is q-concurrent-workers.'
       options:
         - key: link-only
           label: No claim; the ledger tag links it
         - key: shared-claim
           label: The worker starts the same work item (shared claim)
-      answer: null
+      answer: shared-claim
     - id: q-codex-sandbox
       text: What happens when Codex's sandbox fails (bwrap in a container)?
       description: Codex's bwrap sandbox fails in this devcontainer. danger-full-access is safe only when the container is the isolation boundary.
@@ -1209,4 +1254,26 @@ questions:
           label: No; Claude and Codex only
         - key: "yes"
           label: Yes, as a third spawn harness
+      answer: null
+    - id: q-claim-handoff
+      text: When a spawned worker claims the work item, what happens to the orchestrator's claim?
+      description: 'A worker''s claim episode is keyed by its own session (rootSessionFor falls back to the session id), so today feature start''s collision gate (checkLiveCollisionGate) refuses the worker while the orchestrator holds a live claim. Episodes have four outcomes only (completed, released, abandoned, expired), so "suspend" has no outcome of its own: it equals release plus an automatic reclaim. In every option, completion by either side closes every open episode on the item (CloseWorkItem).'
+      options:
+        - key: co-claim-gate
+          label: 'Co-claim: the orchestrator keeps its episode, the worker opens its own in its own shard, and the collision gate treats the caller''s live workers (from the delegations ledger) as family'
+        - key: co-claim-family
+          label: 'Co-claim: the worker''s episode goes into the caller''s shard (root = caller), so the existing family rule admits it. Risks: reconcile expires the worker''s rows once the caller''s tree is dead, and two hosts write one shard (Phase B check B7)'
+        - key: release-reclaim
+          label: 'Release: the orchestrator''s episode closes as released at spawn; its next delegate call (wait, stop or list) after the last worker ends reopens a claim for it'
+      answer: null
+    - id: q-concurrent-workers
+      text: Can several workers hold claims on one work item at the same time?
+      description: Each worker holds its own episode. The collision gate refuses a second live claimant unless it counts as family (see q-claim-handoff). Workers editing one item in one working tree can overwrite each other.
+      options:
+        - key: allow-n-worktrees
+          label: Allow several, each in its own worktree; all count as family of the same caller
+        - key: one-per-item
+          label: One live worker per work item; spawn refuses a second
+        - key: allow-n-shared-tree
+          label: Allow several in one working tree, with no isolation
       answer: null

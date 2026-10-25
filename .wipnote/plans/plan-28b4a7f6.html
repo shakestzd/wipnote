@@ -1059,21 +1059,23 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
         <div class="block-anchor" id="overview-slice-2-block-tabs-1" data-block-anchor="slice-2-block-tabs-1" data-block-kind="tabs"><div class="block block-tabs">
   <div class="block-header"><span class="block-kind">tabs</span><span class="block-title">Phase B checks</span></div>
   <div class="tabs">
-    <input class="tab-radio" type="radio" name="tabs-1l9p6xt" id="tabs-1l9p6xt-0" checked>
-    <input class="tab-radio" type="radio" name="tabs-1l9p6xt" id="tabs-1l9p6xt-1">
-    <input class="tab-radio" type="radio" name="tabs-1l9p6xt" id="tabs-1l9p6xt-2">
-    <input class="tab-radio" type="radio" name="tabs-1l9p6xt" id="tabs-1l9p6xt-3">
-    <input class="tab-radio" type="radio" name="tabs-1l9p6xt" id="tabs-1l9p6xt-4">
-    <input class="tab-radio" type="radio" name="tabs-1l9p6xt" id="tabs-1l9p6xt-5">
-    <input class="tab-radio" type="radio" name="tabs-1l9p6xt" id="tabs-1l9p6xt-6">
+    <input class="tab-radio" type="radio" name="tabs-106knm1" id="tabs-106knm1-0" checked>
+    <input class="tab-radio" type="radio" name="tabs-106knm1" id="tabs-106knm1-1">
+    <input class="tab-radio" type="radio" name="tabs-106knm1" id="tabs-106knm1-2">
+    <input class="tab-radio" type="radio" name="tabs-106knm1" id="tabs-106knm1-3">
+    <input class="tab-radio" type="radio" name="tabs-106knm1" id="tabs-106knm1-4">
+    <input class="tab-radio" type="radio" name="tabs-106knm1" id="tabs-106knm1-5">
+    <input class="tab-radio" type="radio" name="tabs-106knm1" id="tabs-106knm1-6">
+    <input class="tab-radio" type="radio" name="tabs-106knm1" id="tabs-106knm1-7">
     <div class="tab-labels">
-      <label class="tab-label" for="tabs-1l9p6xt-0">B1</label>
-      <label class="tab-label" for="tabs-1l9p6xt-1">B2</label>
-      <label class="tab-label" for="tabs-1l9p6xt-2">B3</label>
-      <label class="tab-label" for="tabs-1l9p6xt-3">B4</label>
-      <label class="tab-label" for="tabs-1l9p6xt-4">B5</label>
-      <label class="tab-label" for="tabs-1l9p6xt-5">B6</label>
-      <label class="tab-label" for="tabs-1l9p6xt-6">B7</label>
+      <label class="tab-label" for="tabs-106knm1-0">B1</label>
+      <label class="tab-label" for="tabs-106knm1-1">B2</label>
+      <label class="tab-label" for="tabs-106knm1-2">B3</label>
+      <label class="tab-label" for="tabs-106knm1-3">B4</label>
+      <label class="tab-label" for="tabs-106knm1-4">B5</label>
+      <label class="tab-label" for="tabs-106knm1-5">B6</label>
+      <label class="tab-label" for="tabs-106knm1-6">B7</label>
+      <label class="tab-label" for="tabs-106knm1-7">B8</label>
       </div>
     <div class="tab-panels">
       <div class="tab-panel">claude --settings &lt;marker hook&gt; started through wipnote claude: both the marker hook and the wipnote plugin hooks fire (a wipnote session row exists).</div>
@@ -1083,6 +1085,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
       <div class="tab-panel">codex exec under the wipnote plugin: do any hooks fire (bug-3e4c6e02)?</div>
       <div class="tab-panel">A container worker started with wipnote claude: its sessions-ledger row appears in the Mac checkout&#39;s .wipnote/.</div>
       <div class="tab-panel">flock and rename on a file in .wipnote/ across the host-container bind mount: exclusive, atomic, or neither.</div>
+      <div class="tab-panel">A container worker runs wipnote feature start on an item the Mac session holds: the collision gate on each side sees the other&#39;s live episode in .wipnote/claims/.</div>
       </div>
   </div>
 </div></div>
@@ -1130,7 +1133,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     <div data-node="7" data-name="Log filters and run page in Go" data-status="pending" data-deps="5" data-files="8"></div>
     <div data-node="8" data-name="One-shot runs: wipnote delegate run" data-status="pending" data-deps="4,6,7" data-files="6" data-questions="1"></div>
     <div data-node="9" data-name="Catch bare delegations in the Bash tool" data-status="pending" data-deps="8" data-files="4" data-questions="1"></div>
-    <div data-node="10" data-name="Interactive sessions: spawn, stop, list and tree" data-status="pending" data-deps="1,2,4,5,6" data-files="9" data-questions="1"></div>
+    <div data-node="10" data-name="Interactive sessions: spawn, stop, list and tree" data-status="pending" data-deps="1,2,4,5,6" data-files="11" data-questions="1"></div>
     <div data-node="11" data-name="Mailbox verbs: send, wait, result and questions" data-status="pending" data-deps="1,10" data-files="6" data-questions="1"></div>
     <div data-node="12" data-name="Codex workers: sandbox preflight and session ids" data-status="pending" data-deps="2,8" data-files="4"></div>
     <div data-node="13" data-name="Lineage shows delegations; retire orchlink" data-status="pending" data-deps="4,10" data-files="7"></div>
@@ -1138,7 +1141,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     
     <!--PLAN_GRAPH_NODES-->
   </div>
-  <svg id="dep-graph-svg" xmlns="http://www.w3.org/2000/svg" width="1940" height="664" viewBox="0 0 1940 664" class="dep-graph-static"><defs><marker id="wipnote-arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker></defs><g class="dep-edges"><path class="dep-edge" d="M1472.4 78.48 L1328.4 108 L1328.4 164 L1328.4 220 L1328.4 276 L1328.4 332 L459.2 380.75" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M148.8 304 L140.8 332 L235.4 360" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M1588.3 80 L1575 108 L1575 136" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M1534.8 192 L1494.6 220 L1494.6 248" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M400.8 304 L324.8 332 L648.4 370.49" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M871.2 304 L787.6 332 L791.6 360" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M1494.6 304 L1494.6 332 L942.8 376.21" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M787.6 416 L779.6 444 L881.3 472" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M1675.4 80 L1749.2 108 L1749.2 164 L1749.2 220 L1749.2 276 L1749.2 332 L1558.6 363.6" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M156.8 304 L156.8 332 L1264.2 381.43" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M441.4 304 L406 332 L1264.2 379.8" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M1615.2 192 L1655.4 220 L1655.4 276 L1655.4 332 L1533.4 360" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M1048 293.11 L1259.8 332 L1335.6 360" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M1683.4 80 L1765.2 108 L1765.2 164 L1765.2 220 L1765.2 276 L1765.2 332 L1765.2 388 L1765.2 444 L1765.2 472" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M1264.2 414.52 L1100.6 444 L1614.4 487.29" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M164.8 304 L172.8 332 L172.8 388 L172.8 444 L523 484.3" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M795.6 416 L795.6 444 L727.5 472" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M503.1 304 L529.4 332 L529.4 388 L529.4 444 L1170.2 490.17" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M1424.7 416 L1438 444 L1372.3 472" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M330 416 L330 444 L330 500 L330 556 L813 599.67" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M983 528 L983 556 L966.2 584" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M1765.2 528 L1765.2 556 L1085.8 602.64" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M659.4 528 L659.4 556 L813 585.66" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M1306.6 528 L1306.6 556 L1085.8 590.62" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/></g><g class="dep-nodes"><a href="#slice-1"><g id="graph-node-1" class="dep-node dep-node-pending"><rect class="dep-node-box" x="1472.3999999999999" y="24" width="258.4" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="1601.6" y="48" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#1 Bring in the orch source and…</text><text class="dep-node-meta" x="1601.6" y="62" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">3 files</text></g></a><a href="#slice-2"><g id="graph-node-2" class="dep-node dep-node-pending"><rect class="dep-node-box" x="24" y="248" width="265.6" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="156.8" y="272" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#2 Phase B: verify harness hooks…</text><text class="dep-node-meta" x="156.8" y="286" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">2 files</text></g></a><a href="#slice-3"><g id="graph-node-3" class="dep-node dep-node-pending"><rect class="dep-node-box" x="200.8" y="360" width="258.4" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="330" y="384" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#3 Correct the orch integration…</text><text class="dep-node-meta" x="330" y="398" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">2 files</text></g></a><a href="#slice-4"><g id="graph-node-4" class="dep-node dep-node-pending"><rect class="dep-node-box" x="329.6" y="248" width="294.4" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="476.8" y="272" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#4 Delegation-run ledger: one ca…  ?1</text><text class="dep-node-meta" x="476.8" y="286" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">5 files</text></g></a><a href="#slice-5"><g id="graph-node-5" class="dep-node dep-node-pending"><rect class="dep-node-box" x="1431.4" y="136" width="287.2" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="1575" y="160" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#5 Live run store: run folders,…  ?1</text><text class="dep-node-meta" x="1575" y="174" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">7 files</text></g></a><a href="#slice-6"><g id="graph-node-6" class="dep-node dep-node-pending"><rect class="dep-node-box" x="861.5999999999999" y="248" width="186.4" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="954.8" y="272" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#6 herdr adapter in Go</text><text class="dep-node-meta" x="954.8" y="286" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">5 files</text></g></a><a href="#slice-7"><g id="graph-node-7" class="dep-node dep-node-pending"><rect class="dep-node-box" x="1361.8" y="248" width="265.6" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="1494.6" y="272" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#7 Log filters and run page in Go</text><text class="dep-node-meta" x="1494.6" y="286" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">8 files</text></g></a><a href="#slice-8"><g id="graph-node-8" class="dep-node dep-node-pending"><rect class="dep-node-box" x="648.4000000000001" y="360" width="294.4" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="795.6" y="384" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#8 One-shot runs: wipnote delega…  ?1</text><text class="dep-node-meta" x="795.6" y="398" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">6 files</text></g></a><a href="#slice-9"><g id="graph-node-9" class="dep-node dep-node-pending"><rect class="dep-node-box" x="835.8" y="472" width="294.4" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="983" y="496" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#9 Catch bare delegations in the…  ?1</text><text class="dep-node-meta" x="983" y="510" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">4 files</text></g></a><a href="#slice-10"><g id="graph-node-10" class="dep-node dep-node-pending"><rect class="dep-node-box" x="1264.2" y="360" width="294.4" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="1411.4" y="384" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#10 Interactive sessions: spawn,…  ?1</text><text class="dep-node-meta" x="1411.4" y="398" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">9 files</text></g></a><a href="#slice-11"><g id="graph-node-11" class="dep-node dep-node-pending"><rect class="dep-node-box" x="1614.4" y="472" width="301.6" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="1765.2" y="496" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#11 Mailbox verbs: send, wait, re…  ?1</text><text class="dep-node-meta" x="1765.2" y="510" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">6 files</text></g></a><a href="#slice-12"><g id="graph-node-12" class="dep-node dep-node-pending"><rect class="dep-node-box" x="523" y="472" width="272.8" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="659.4" y="496" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#12 Codex workers: sandbox prefli…</text><text class="dep-node-meta" x="659.4" y="510" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">4 files</text></g></a><a href="#slice-13"><g id="graph-node-13" class="dep-node dep-node-pending"><rect class="dep-node-box" x="1170.1999999999998" y="472" width="272.8" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="1306.6" y="496" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#13 Lineage shows delegations; re…</text><text class="dep-node-meta" x="1306.6" y="510" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">7 files</text></g></a><a href="#slice-14"><g id="graph-node-14" class="dep-node dep-node-pending"><rect class="dep-node-box" x="813" y="584" width="272.8" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="949.4" y="608" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#14 Move guidance to wipnote dele…</text><text class="dep-node-meta" x="949.4" y="622" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">6 files</text></g></a></g></svg>
+  <svg id="dep-graph-svg" xmlns="http://www.w3.org/2000/svg" width="1940" height="664" viewBox="0 0 1940 664" class="dep-graph-static"><defs><marker id="wipnote-arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker></defs><g class="dep-edges"><path class="dep-edge" d="M1472.4 78.48 L1328.4 108 L1328.4 164 L1328.4 220 L1328.4 276 L1328.4 332 L459.2 380.75" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M148.8 304 L140.8 332 L235.4 360" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M1588.3 80 L1575 108 L1575 136" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M1534.8 192 L1494.6 220 L1494.6 248" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M400.8 304 L324.8 332 L648.4 370.49" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M871.2 304 L787.6 332 L791.6 360" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M1494.6 304 L1494.6 332 L942.8 376.21" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M787.6 416 L779.6 444 L881.3 472" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M1675.4 80 L1749.2 108 L1749.2 164 L1749.2 220 L1749.2 276 L1749.2 332 L1558.6 363.6" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M156.8 304 L156.8 332 L1264.2 381.43" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M441.4 304 L406 332 L1264.2 379.8" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M1615.2 192 L1655.4 220 L1655.4 276 L1655.4 332 L1533.4 360" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M1048 293.11 L1259.8 332 L1335.6 360" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M1683.4 80 L1765.2 108 L1765.2 164 L1765.2 220 L1765.2 276 L1765.2 332 L1765.2 388 L1765.2 444 L1765.2 472" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M1264.2 414.52 L1100.6 444 L1614.4 487.29" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M164.8 304 L172.8 332 L172.8 388 L172.8 444 L523 484.3" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M795.6 416 L795.6 444 L727.5 472" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M503.1 304 L529.4 332 L529.4 388 L529.4 444 L1170.2 490.17" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M1424.7 416 L1438 444 L1372.3 472" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M330 416 L330 444 L330 500 L330 556 L813 599.67" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M983 528 L983 556 L966.2 584" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M1765.2 528 L1765.2 556 L1085.8 602.64" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M659.4 528 L659.4 556 L813 585.66" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M1306.6 528 L1306.6 556 L1085.8 590.62" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/></g><g class="dep-nodes"><a href="#slice-1"><g id="graph-node-1" class="dep-node dep-node-pending"><rect class="dep-node-box" x="1472.3999999999999" y="24" width="258.4" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="1601.6" y="48" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#1 Bring in the orch source and…</text><text class="dep-node-meta" x="1601.6" y="62" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">3 files</text></g></a><a href="#slice-2"><g id="graph-node-2" class="dep-node dep-node-pending"><rect class="dep-node-box" x="24" y="248" width="265.6" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="156.8" y="272" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#2 Phase B: verify harness hooks…</text><text class="dep-node-meta" x="156.8" y="286" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">2 files</text></g></a><a href="#slice-3"><g id="graph-node-3" class="dep-node dep-node-pending"><rect class="dep-node-box" x="200.8" y="360" width="258.4" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="330" y="384" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#3 Correct the orch integration…</text><text class="dep-node-meta" x="330" y="398" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">2 files</text></g></a><a href="#slice-4"><g id="graph-node-4" class="dep-node dep-node-pending"><rect class="dep-node-box" x="329.6" y="248" width="294.4" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="476.8" y="272" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#4 Delegation-run ledger: one ca…  ?1</text><text class="dep-node-meta" x="476.8" y="286" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">5 files</text></g></a><a href="#slice-5"><g id="graph-node-5" class="dep-node dep-node-pending"><rect class="dep-node-box" x="1431.4" y="136" width="287.2" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="1575" y="160" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#5 Live run store: run folders,…  ?1</text><text class="dep-node-meta" x="1575" y="174" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">7 files</text></g></a><a href="#slice-6"><g id="graph-node-6" class="dep-node dep-node-pending"><rect class="dep-node-box" x="861.5999999999999" y="248" width="186.4" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="954.8" y="272" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#6 herdr adapter in Go</text><text class="dep-node-meta" x="954.8" y="286" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">5 files</text></g></a><a href="#slice-7"><g id="graph-node-7" class="dep-node dep-node-pending"><rect class="dep-node-box" x="1361.8" y="248" width="265.6" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="1494.6" y="272" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#7 Log filters and run page in Go</text><text class="dep-node-meta" x="1494.6" y="286" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">8 files</text></g></a><a href="#slice-8"><g id="graph-node-8" class="dep-node dep-node-pending"><rect class="dep-node-box" x="648.4000000000001" y="360" width="294.4" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="795.6" y="384" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#8 One-shot runs: wipnote delega…  ?1</text><text class="dep-node-meta" x="795.6" y="398" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">6 files</text></g></a><a href="#slice-9"><g id="graph-node-9" class="dep-node dep-node-pending"><rect class="dep-node-box" x="835.8" y="472" width="294.4" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="983" y="496" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#9 Catch bare delegations in the…  ?1</text><text class="dep-node-meta" x="983" y="510" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">4 files</text></g></a><a href="#slice-10"><g id="graph-node-10" class="dep-node dep-node-pending"><rect class="dep-node-box" x="1264.2" y="360" width="294.4" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="1411.4" y="384" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#10 Interactive sessions: spawn,…  ?1</text><text class="dep-node-meta" x="1411.4" y="398" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">11 files</text></g></a><a href="#slice-11"><g id="graph-node-11" class="dep-node dep-node-pending"><rect class="dep-node-box" x="1614.4" y="472" width="301.6" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="1765.2" y="496" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#11 Mailbox verbs: send, wait, re…  ?1</text><text class="dep-node-meta" x="1765.2" y="510" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">6 files</text></g></a><a href="#slice-12"><g id="graph-node-12" class="dep-node dep-node-pending"><rect class="dep-node-box" x="523" y="472" width="272.8" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="659.4" y="496" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#12 Codex workers: sandbox prefli…</text><text class="dep-node-meta" x="659.4" y="510" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">4 files</text></g></a><a href="#slice-13"><g id="graph-node-13" class="dep-node dep-node-pending"><rect class="dep-node-box" x="1170.1999999999998" y="472" width="272.8" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="1306.6" y="496" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#13 Lineage shows delegations; re…</text><text class="dep-node-meta" x="1306.6" y="510" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">7 files</text></g></a><a href="#slice-14"><g id="graph-node-14" class="dep-node dep-node-pending"><rect class="dep-node-box" x="813" y="584" width="272.8" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="949.4" y="608" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#14 Move guidance to wipnote dele…</text><text class="dep-node-meta" x="949.4" y="622" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">6 files</text></g></a></g></svg>
 </section>
 
 <!-- ZONE 2: Interactive Sections -->
@@ -1166,7 +1169,7 @@ Today a delegation leaves only hook events. No canonical record links it to a wo
 ## Design decisions (rationale in each slice&#39;s decisions_notes)
 
 1. **No daemon.** Every verb is a short CLI process, a bounded wait, or a process that lives in a herdr pane. Hooks write one small file and return. A missing or slow writer daemon never delays a hook or the launcher (user rule: daemons never block Claude).
-2. **Workers run under wipnote&#39;s launchers.** `spawn` starts `wipnote claude` or `wipnote codex` in the pane with `WIPNOTE_DELEGATE_RUN=&lt;run-id&gt;`. wipnote&#39;s own plugin hooks fire, so no `--settings` hook file is needed. The launcher passes no `--settings` today (code search, 2026-10-25). The `--settings` risk remains only for orch during migration (Phase B check B1).
+2. **Workers run under wipnote&#39;s launchers and claim the work item.** `spawn` starts `wipnote claude` or `wipnote codex` in the pane with `WIPNOTE_DELEGATE_RUN=&lt;run-id&gt;`. wipnote&#39;s own plugin hooks fire, so no `--settings` hook file is needed. The worker claims the item through the normal start path (owner, 2026-10-25; see Claims below). The launcher passes no `--settings` today (code search, 2026-10-25). The `--settings` risk remains only for orch during migration (Phase B check B1).
 3. **One writer per file.** Each mailbox message is its own file, written by temp file plus rename. Each process appends to its own events file. This avoids the APFS O_APPEND hazard (arch card daemon-purpose-outlives-sqlite) and any flock across a host-container bind mount.
 4. **One canonical record type (Q4) holding spawn and stop (Q3).** `.wipnote/delegations-ledger.html` has one row per run with `mode=oneshot|interactive`. Spawn opens the row. Exit or stop closes it. Usage and session ids enrich it. Tool and prompt events are not copied: they duplicate `agent_events`.
 5. **Settle on durable signals.** A wait ends on the worker&#39;s Stop hook event for the current turn, an exit file or an explicit report. herdr agent state is only a hint: herdr&#39;s docs say `agent wait` observes state, not job completion. cbds and herdr-orch settle the same way.
@@ -1178,10 +1181,33 @@ Today a delegation leaves only hook events. No canonical record links it to a wo
 | Data | Where | Committed | Why |
 |---|---|---|---|
 | Delegation-run row (spawn, stop, exit, usage, work item, caller and worker session ids) | `.wipnote/delegations-ledger.html` | yes, canonical | Survives cache purges; lineage reads it; reindex rebuilds the index from it |
-| Run folder, events, mailbox, pane ids | live runtime root (default `.wipnote/delegate/`, gitignored like `sessions/`; see q-live-store) | no | Ephemeral; reachable from the caller, the hooks and a container worker through the project bind mount |
+| Run folder, events, mailbox, pane ids | `.wipnote/delegate/`, gitignored like `sessions/` (q-live-store, owner 2026-10-25; the ignore entry ships in slice 5) | no | Ephemeral; reachable from the caller, the hooks and a container worker through the project bind mount |
+| Claim episodes of workers and the orchestrator | existing `.wipnote/claims/` shards (core/claimledger) | yes, canonical, unchanged format | Workers claim like any session; no new claim store |
 | Per-turn tool and prompt events | existing `agent_events` from wipnote hooks | as today | Not duplicated |
 
 No absolute host path, user name or home directory enters a ledger row or a work item. The ledger writer refuses such values. Run folders hold paths, but they are runtime files and never committed.
+
+## Claims (q-worker-claim answered 2026-10-25: the worker claims the item)
+
+Workers use the existing claim-episode model in `core/claimledger` and `core/hooks/claim_episodes.go`. No claim store or outcome is added. Facts from the code (2026-10-25):
+
+- An episode is one row per (session, agent, work item), sharded by root session in `.wipnote/claims/`. Outcomes are `completed`, `released`, `abandoned` and `expired`. There is no `suspended`.
+- `wipnote &lt;kind&gt; start` opens an episode (idempotent per session). `checkLiveCollisionGate` refuses it while another live root session holds the item, unless `--force`. The caller&#39;s own family (same session, or same root) is not a collision.
+- A worker&#39;s episode is rooted at its own session, because `rootSessionFor(nil, ...)` falls back to the session id. So today the gate would refuse a worker while the orchestrator holds the item.
+- Completion by any session closes every open episode on the item (`CloseWorkItem`, written for the orchestrator hand-off case).
+- SessionEnd closes only that session&#39;s rows as `abandoned`. The stale-session reaper and `wipnote claims reconcile` close a dead session&#39;s rows as `expired`.
+
+Defined behaviour, which follows from that model whatever q-claim-handoff decides:
+
+- **How the worker claims.** Its brief begins with `wipnote &lt;kind&gt; start &lt;id&gt;`, so the item lock, the collision gate and the ledger write run unchanged. `spawn` checks that the episode appeared and reports it if not. `spawn` needs a work item: `--work-item`, or else the caller&#39;s active claim. It refuses when neither exists.
+- **The worker stays a root session.** `spawn` does not set `WIPNOTE_PARENT_SESSION`, which would mark the worker as a subagent and drop its sessions-ledger row. The caller link travels in `WIPNOTE_DELEGATE_CALLER` and in the delegations ledger.
+- **Worker stop.** `delegate stop` asks the worker to exit. The worker&#39;s own SessionEnd closes its episode as `abandoned`. The delegations ledger records `end_reason=stop`, so lineage shows the stop was deliberate. The caller never writes the worker&#39;s shard while the worker lives.
+- **Worker crash or lost pane.** No SessionEnd fires. A `delegate` command in the caller (`wait`, `list` or `stop`) sees the pane gone and confirms that no worker process remains. It then closes only that worker session&#39;s episodes as `expired`, the same session-scoped close that `closeClaimEpisodesForSession` uses. `wipnote claims reconcile` stays the backstop. This depends on bug-01f182e5 (reconcile treats live sessions as dead) being fixed first, or reconcile would expire live workers.
+- **wait timeout.** It changes no claim. The worker keeps running and keeps its episode.
+- **Orchestrator ends first.** Its SessionEnd closes only its own rows. Workers keep their claims, and their delegation rows stay open until they end.
+- **Completion.** Whoever completes the item closes every open episode on it, worker and orchestrator alike (existing `CloseWorkItem`).
+
+Open choices (new questions): what the orchestrator&#39;s own claim does while workers hold the item (q-claim-handoff: co-claim through the delegations ledger, co-claim through the caller&#39;s shard, or release then reclaim), and whether several workers may claim one item at once (q-concurrent-workers). Whether the claim &#34;returns&#34; to the orchestrator depends on q-claim-handoff. Under co-claim it never leaves. Under release-reclaim, the caller&#39;s next `delegate` call after the last worker ends reopens it through the normal start path.
 
 ## Prior art: herdr plugins (surveyed 2026-10-25)
 
@@ -1203,7 +1229,7 @@ The directory at https://herdr.dev/plugins/ loads by JavaScript. It lists GitHub
 
 Narrower prior art: question inboxes (speardragon/herdr-ask-inbox, no license; LeaveMyYard/herdr-inbox, MIT) and sub-agent trees (blavka/agents-tree, MIT; LeaveMyYard/herdr-panorama, MIT).
 
-**Finding.** herdr-orch covers spawn, send, wait, result, stop and questions, and gives a board instead of a sub-agent tree. That is most of the scope, so q-adopt-vs-port puts &#34;adopt or wrap herdr-orch vs port orch&#34; to the owner. Points against adopting it: it needs its own daemon and SQLite outside `.wipnote/`, so it has no work-item link or lineage. It is v0.1.x from one maintainer, with no stars. It covers neither one-shot `codex exec` runs nor the run-folder contract. Points for it: it is MIT and written in Go, and its settlement and verified-release logic is already built.
+**Finding (answered 2026-10-25: port orch natively; herdr-orch stays prior art only).** herdr-orch covers spawn, send, wait, result, stop and questions, and gives a board instead of a sub-agent tree. That is most of the scope, so q-adopt-vs-port puts &#34;adopt or wrap herdr-orch vs port orch&#34; to the owner. Points against adopting it: it needs its own daemon and SQLite outside `.wipnote/`, so it has no work-item link or lineage. It is v0.1.x from one maintainer, with no stars. It covers neither one-shot `codex exec` runs nor the run-folder contract. Points for it: it is MIT and written in Go, and its settlement and verified-release logic is already built.
 
 ## Migration
 
@@ -1220,6 +1246,7 @@ Narrower prior art: question inboxes (speardragon/herdr-ask-inbox, no license; L
 <ol>
 <li data-markdown>One native path: wipnote delegate spawn, send, wait, result, stop, questions, tree and run, written in Go in the wipnote binary.</li>
 <li data-markdown>One-shot runs (codex exec/review, claude -p, ccx task) and interactive sessions share one run store, one herdr adapter and one canonical record.</li>
+<li data-markdown>A spawned worker claims its work item through the existing claim-episode model, and every worker claim ends with a recorded outcome.</li>
 <li data-markdown>Every delegation is a canonical row in .wipnote/delegations-ledger.html, linked to its work item and to its caller and worker sessions, and visible in wipnote lineage.</li>
 <li data-markdown>The orchestrator settles on durable signals and never parses a pane&#39;s screen to decide that a worker finished.</li>
 <li data-markdown>mods/codex-herdr-pane and internal/orchlink are retired once the native path reaches parity.</li>
@@ -1498,21 +1525,23 @@ Narrower prior art: question inboxes (speardragon/herdr-ask-inbox, no license; L
     <div class="block-anchor" id="slice-2-block-tabs-1" data-block-anchor="slice-2-block-tabs-1" data-block-kind="tabs"><div class="block block-tabs">
   <div class="block-header"><span class="block-kind">tabs</span><span class="block-title">Phase B checks</span></div>
   <div class="tabs">
-    <input class="tab-radio" type="radio" name="tabs-1t4te9" id="tabs-1t4te9-0" checked>
-    <input class="tab-radio" type="radio" name="tabs-1t4te9" id="tabs-1t4te9-1">
-    <input class="tab-radio" type="radio" name="tabs-1t4te9" id="tabs-1t4te9-2">
-    <input class="tab-radio" type="radio" name="tabs-1t4te9" id="tabs-1t4te9-3">
-    <input class="tab-radio" type="radio" name="tabs-1t4te9" id="tabs-1t4te9-4">
-    <input class="tab-radio" type="radio" name="tabs-1t4te9" id="tabs-1t4te9-5">
-    <input class="tab-radio" type="radio" name="tabs-1t4te9" id="tabs-1t4te9-6">
+    <input class="tab-radio" type="radio" name="tabs-1hi5p2x" id="tabs-1hi5p2x-0" checked>
+    <input class="tab-radio" type="radio" name="tabs-1hi5p2x" id="tabs-1hi5p2x-1">
+    <input class="tab-radio" type="radio" name="tabs-1hi5p2x" id="tabs-1hi5p2x-2">
+    <input class="tab-radio" type="radio" name="tabs-1hi5p2x" id="tabs-1hi5p2x-3">
+    <input class="tab-radio" type="radio" name="tabs-1hi5p2x" id="tabs-1hi5p2x-4">
+    <input class="tab-radio" type="radio" name="tabs-1hi5p2x" id="tabs-1hi5p2x-5">
+    <input class="tab-radio" type="radio" name="tabs-1hi5p2x" id="tabs-1hi5p2x-6">
+    <input class="tab-radio" type="radio" name="tabs-1hi5p2x" id="tabs-1hi5p2x-7">
     <div class="tab-labels">
-      <label class="tab-label" for="tabs-1t4te9-0">B1</label>
-      <label class="tab-label" for="tabs-1t4te9-1">B2</label>
-      <label class="tab-label" for="tabs-1t4te9-2">B3</label>
-      <label class="tab-label" for="tabs-1t4te9-3">B4</label>
-      <label class="tab-label" for="tabs-1t4te9-4">B5</label>
-      <label class="tab-label" for="tabs-1t4te9-5">B6</label>
-      <label class="tab-label" for="tabs-1t4te9-6">B7</label>
+      <label class="tab-label" for="tabs-1hi5p2x-0">B1</label>
+      <label class="tab-label" for="tabs-1hi5p2x-1">B2</label>
+      <label class="tab-label" for="tabs-1hi5p2x-2">B3</label>
+      <label class="tab-label" for="tabs-1hi5p2x-3">B4</label>
+      <label class="tab-label" for="tabs-1hi5p2x-4">B5</label>
+      <label class="tab-label" for="tabs-1hi5p2x-5">B6</label>
+      <label class="tab-label" for="tabs-1hi5p2x-6">B7</label>
+      <label class="tab-label" for="tabs-1hi5p2x-7">B8</label>
       </div>
     <div class="tab-panels">
       <div class="tab-panel">claude --settings &lt;marker hook&gt; started through wipnote claude: both the marker hook and the wipnote plugin hooks fire (a wipnote session row exists).</div>
@@ -1522,6 +1551,7 @@ Narrower prior art: question inboxes (speardragon/herdr-ask-inbox, no license; L
       <div class="tab-panel">codex exec under the wipnote plugin: do any hooks fire (bug-3e4c6e02)?</div>
       <div class="tab-panel">A container worker started with wipnote claude: its sessions-ledger row appears in the Mac checkout&#39;s .wipnote/.</div>
       <div class="tab-panel">flock and rename on a file in .wipnote/ across the host-container bind mount: exclusive, atomic, or neither.</div>
+      <div class="tab-panel">A container worker runs wipnote feature start on an item the Mac session holds: the collision gate on each side sees the other&#39;s live episode in .wipnote/claims/.</div>
       </div>
   </div>
 </div></div>
@@ -1644,7 +1674,7 @@ Narrower prior art: question inboxes (speardragon/herdr-ask-inbox, no license; L
       
       <div class="slice-field">
         <div class="slice-field-label">Done when</div>
-        <ul class="slice-done-list"><li>The line 16 split is gone and the spec states one native path</li><li>Sections 6 and 7 cite the Phase B results and mark Q3 and Q4 as decided</li><li>docs/design/delegate.md lists every wipnote delegate command with its flags, exit codes and files</li></ul>
+        <ul class="slice-done-list"><li>The line 16 split is gone and the spec states one native path</li><li>Sections 6 and 7 cite the Phase B results and mark Q3 and Q4 as decided</li><li>docs/design/delegate.md lists every wipnote delegate command with its flags, exit codes and files</li><li>docs/design/delegate.md states the claim handoff as answered in q-claim-handoff and q-concurrent-workers</li></ul>
       </div>
       
     
@@ -1805,6 +1835,7 @@ Narrower prior art: question inboxes (speardragon/herdr-ask-inbox, no license; L
 <strong>Q3:</strong> spawn and stop persist. Tool, prompt and turn-stop events do not: they duplicate agent_events.
 <strong>Rejected:</strong> one HTML file per run (a file per codex exec call, and lineage would have to glob them all). Per-session shards are rejected because lineage queries by work item. SQLite only is rejected because it is purgeable (bug-550c1cd8).
 <strong>Commit:</strong> rows go through the existing artifact commit path. No write waits on the daemon.
+<strong>Claims:</strong> caller_session and worker_sessions are what the co-claim-gate option of q-claim-handoff would read to treat a caller&#39;s live workers as family.
 <strong>Promotion:</strong> feature_id is feat-dd8b0cde, so promote-slice reuses it instead of creating a duplicate.
 <strong>Parallel:</strong> yes, with slices 1, 2, 5 and 6.</p>
 </div>
@@ -1957,7 +1988,7 @@ Narrower prior art: question inboxes (speardragon/herdr-ask-inbox, no license; L
         <div class="slice-field-label">What</div>
         <div class="slice-field-value">
           
-          <div class="markdown-block serif-prose"><p>Add internal/delegate/runstore with a run directory per run (the feat-a1df60c2 run-folder contract), per-writer events NDJSON files and a file mailbox (one JSON file per message, temp file plus rename). The location follows q-live-store; the default is .wipnote/delegate/, gitignored like sessions/. Finished runs are swept after N days.</p>
+          <div class="markdown-block serif-prose"><p>Add internal/delegate/runstore with a run directory per run (the feat-a1df60c2 run-folder contract), per-writer events NDJSON files and a file mailbox (one JSON file per message, temp file plus rename). It lives in .wipnote/delegate/, gitignored like sessions/; only ledger rows are committed. Finished runs are swept after N days.</p>
 </div>
           
         </div>
@@ -1983,7 +2014,7 @@ Narrower prior art: question inboxes (speardragon/herdr-ask-inbox, no license; L
       
       <div class="slice-field">
         <div class="slice-field-label">Done when</div>
-        <ul class="slice-done-list"><li>Two processes writing events for one run never write the same file, and a reader merges them in seq order</li><li>A partial last NDJSON line and a half-written message file are skipped, never parsed</li><li>The run-folder file names match the feat-a1df60c2 contract, and the mod&#39;s viewer can read a run folder written by Go</li><li>The managed .wipnote/.gitignore block ignores delegate/</li></ul>
+        <ul class="slice-done-list"><li>Two processes writing events for one run never write the same file, and a reader merges them in seq order</li><li>A partial last NDJSON line and a half-written message file are skipped, never parsed</li><li>The run-folder file names match the feat-a1df60c2 contract, and the mod&#39;s viewer can read a run folder written by Go</li><li>The managed .wipnote/.gitignore block (core/worktree/gitignore.go) ignores delegate/, and git status shows nothing under .wipnote/delegate/ after a run</li></ul>
       </div>
       
     
@@ -1995,9 +2026,10 @@ Narrower prior art: question inboxes (speardragon/herdr-ask-inbox, no license; L
         
         <input type="checkbox" id="slice-5-decisions-reveal" class="reveal-toggle">
         <div class="markdown-block reveal-content serif-prose"><p><strong>Trigger:</strong> delegate run and spawn create a run directory. Hooks in a tagged worker write events. send writes messages.
-<strong>State:</strong> &lt;root&gt;/runs// holds the run-folder files and events-*.ndjson. /mail// holds messages.  defaults to .wipnote/delegate/ (q-live-store).
+<strong>State:</strong> &lt;root&gt;/runs// holds the run-folder files and events-*.ndjson. /mail// holds messages.  is .wipnote/delegate/ (q-live-store, owner 2026-10-25).
 <strong>Payload:</strong> see the data-model blocks. Files are written by temp file plus rename and fsynced before rename.
-<strong>Why the project root by default:</strong> a container worker reaches it through the same bind mount as the code. A per-user cache differs between the Mac and the container.
+<strong>Gitignore:</strong> this slice adds delegate/ to the managed block that core/worktree/gitignore.go writes, beside sessions/, events/ and logs/.
+<strong>Why the project root:</strong> a container worker reaches it through the same bind mount as the code. A per-user cache differs between the Mac and the container.
 <strong>Rejected:</strong> one shared events.ndjson with flock, because of APFS O_APPEND and an unverified flock across the mount. SQLite for live state is rejected: it adds a writer and a lock to every hook.
 <strong>Refine:</strong> after slice 1, check the layout against orch&#39;s mailbox and record any difference in docs/design/orch-inventory.md.
 <strong>Parallel:</strong> yes, with slices 4 and 6 once slice 1 is done.</p>
@@ -2853,7 +2885,7 @@ Narrower prior art: question inboxes (speardragon/herdr-ask-inbox, no license; L
         <div class="slice-field-label">What</div>
         <div class="slice-field-value">
           
-          <div class="markdown-block serif-prose"><p>Add wipnote delegate spawn NAME --harness claude|codex [--work-item] [--prompt]. It opens a herdr pane running wipnote claude or wipnote codex with WIPNOTE_DELEGATE_RUN set, and the SessionStart hook binds each session id to the run. Add a verified stop, list, status and tree.</p>
+          <div class="markdown-block serif-prose"><p>Add wipnote delegate spawn NAME --harness claude|codex [--work-item] [--prompt]. It opens a herdr pane running wipnote claude or codex with WIPNOTE_DELEGATE_RUN set. The SessionStart hook binds each session id to the run, and the worker claims the work item. Add a verified stop, list, status and tree.</p>
 </div>
           
         </div>
@@ -2864,7 +2896,7 @@ Narrower prior art: question inboxes (speardragon/herdr-ask-inbox, no license; L
         <div class="slice-field-label">Why</div>
         <div class="slice-field-value">
           
-          <div class="markdown-block serif-prose"><p>orch&#39;s interactive sessions are the half the mod never covered. Running workers under wipnote&#39;s launchers gives them wipnote hooks, claims and lineage.</p>
+          <div class="markdown-block serif-prose"><p>orch&#39;s interactive sessions are the half the mod never covered. Running workers under wipnote&#39;s launchers gives them wipnote hooks and lineage, and the owner chose that each worker claims its work item (q-worker-claim).</p>
 </div>
           
         </div>
@@ -2873,13 +2905,13 @@ Narrower prior art: question inboxes (speardragon/herdr-ask-inbox, no license; L
       
       <div class="slice-field">
         <div class="slice-field-label">Files</div>
-        <div class="slice-field-value"><code>cmd/wipnote/delegate_spawn.go, cmd/wipnote/delegate_stop.go, cmd/wipnote/delegate_tree.go, internal/delegate/session/spawn.go, internal/delegate/session/stop.go, internal/delegate/session/tree.go, internal/delegate/session/session_test.go, core/hooks/session_start.go, core/hooks/delegate_bind.go</code></div>
+        <div class="slice-field-value"><code>cmd/wipnote/delegate_spawn.go, cmd/wipnote/delegate_stop.go, cmd/wipnote/delegate_tree.go, internal/delegate/session/spawn.go, internal/delegate/session/stop.go, internal/delegate/session/tree.go, internal/delegate/session/session_test.go, core/hooks/session_start.go, core/hooks/delegate_bind.go, cmd/wipnote/claim_ledger.go, core/hooks/claim_episodes.go</code></div>
       </div>
       
       
       <div class="slice-field">
         <div class="slice-field-label">Done when</div>
-        <ul class="slice-done-list"><li>spawn returns within 3 s with the run id, pane id and name, and refuses a name that is already live</li><li>After /clear in the worker, the run lists both session ids</li><li>stop reports verified only when the pane is gone and no worker process remains; otherwise it names what survives</li><li>tree shows caller, run, worker sessions and sub-agents, reusing RenderAgentTree</li><li>The SessionStart bind adds under 2 ms and never fails the hook</li></ul>
+        <ul class="slice-done-list slice-done-list--grid"><li>spawn returns within 3 s with the run id, pane id and name, and refuses a name that is already live</li><li>After /clear in the worker, the run lists both session ids</li><li>stop reports verified only when the pane is gone and no worker process remains; otherwise it names what survives</li><li>tree shows caller, run, worker sessions and sub-agents, reusing RenderAgentTree</li><li>The SessionStart bind adds under 2 ms and never fails the hook</li><li>Within 10 s of spawn, .wipnote/claims/ holds an open episode for the work item and the worker session, written by the normal wipnote &lt;kind&gt; start path</li><li>spawn refuses when no work item resolves (no --work-item and no active claim in the caller)</li><li>After stop, crash or pane loss, no episode stays open for the worker session (abandoned on stop, expired on loss), and the orchestrator&#39;s claim is in the state q-claim-handoff defines</li></ul>
       </div>
       
     
@@ -2896,6 +2928,9 @@ Narrower prior art: question inboxes (speardragon/herdr-ask-inbox, no license; L
 <strong>Names:</strong> [a-z0-9-], 1 to 32 characters, unique among live runs in the project.
 <strong>Stop:</strong> ask the agent to exit, wait, close the pane, then check herdr process-info. A worker that survives is reported, never silently killed outside the pane.
 <strong>Rejected:</strong> copying orch&#39;s --settings hook file (needless under wipnote&#39;s launchers). herdr agent start is rejected until it is known to accept a custom command.
+<strong>Claim:</strong> the worker&#39;s brief begins with wipnote &lt;kind&gt; start , so the item lock, collision gate and claim ledger run unchanged; spawn polls .wipnote/claims/ for the episode. The worker stays a root session (no WIPNOTE_PARENT_SESSION), so it gets its own sessions-ledger row and claim shard. Stop relies on the worker&#39;s SessionEnd (abandoned); the caller never writes a live worker&#39;s shard. On a lost pane, after confirming no worker process remains, stop or list closes only that session&#39;s episodes as expired. The gate change in cmd/wipnote/claim_ledger.go depends on q-claim-handoff and q-concurrent-workers.
+<strong>Rejected (claim):</strong> opening the episode from the SessionStart hook, because that adds an item-lock and canonical write to a hook. A new suspended outcome is also rejected: the episode model has four outcomes, and the owner asked not to invent a new model.
+<strong>Risk:</strong> bug-01f182e5 (claims reconcile treats live sessions as dead) would expire live workers&#39; episodes. Fix it before this slice ships.
 <strong>Refine:</strong> check against orch&#39;s spawn, pinning and stop semantics from slice 1.
 <strong>Parallel:</strong> it can run beside slices 8, 9 and 12.</p>
 </div>
@@ -2946,6 +2981,11 @@ Narrower prior art: question inboxes (speardragon/herdr-ask-inbox, no license; L
           <div class="test-group" data-kind="hook">
             <span class="test-chip">HOOK &middot; 1</span>
             <ul><li>TestDelegateBind_FastAndFailOpen.</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="claims">
+            <span class="test-chip">CLAIMS &middot; 1</span>
+            <ul><li>TestSpawn_WorkerClaimsItem, TestSpawn_RefusesWithoutWorkItem, TestStop_WorkerEpisodeAbandonedBySessionEnd, TestPaneLoss_ExpiresOnlyWorkerEpisode, TestOrchestratorEnd_WorkerKeepsClaim, TestHandoff_&lt;q-claim-handoff option&gt;.</li></ul>
           </div>
           
         </div>
@@ -3056,7 +3096,7 @@ Narrower prior art: question inboxes (speardragon/herdr-ask-inbox, no license; L
       
       <div class="slice-field">
         <div class="slice-field-label">Done when</div>
-        <ul class="slice-done-list"><li>wait returns on the worker&#39;s Stop event for the current turn id and ignores an event from an older turn</li><li>wait without --timeout is refused, and a timed-out wait exits 124 and prints the last known state</li><li>A message is readable with wipnote delegate inbox even when the prompt hint was lost</li><li>questions lists a pending AskUserQuestion with its options and drops it once the worker continues</li></ul>
+        <ul class="slice-done-list"><li>wait returns on the worker&#39;s Stop event for the current turn id and ignores an event from an older turn</li><li>wait without --timeout is refused, and a timed-out wait exits 124 and prints the last known state</li><li>A message is readable with wipnote delegate inbox even when the prompt hint was lost</li><li>questions lists a pending AskUserQuestion with its options and drops it once the worker continues</li><li>wait, send, result and questions open or close no claim episode. On outcome gone, wait calls slice 10&#39;s worker-loss close. Under release-reclaim it may also reopen the caller&#39;s claim.</li></ul>
       </div>
       
     
@@ -3071,6 +3111,7 @@ Narrower prior art: question inboxes (speardragon/herdr-ask-inbox, no license; L
 <strong>State:</strong> mail files and events-*.ndjson in the run store. The turn id increments at each delivered message.
 <strong>Payload:</strong> wait prints {run, turn, outcome: done|question|timeout|gone}. result prints last.md for the turn. questions prints JSON rows.
 <strong>Polling:</strong> at most 2 Hz, plus an fs watch where available. No daemon.
+<strong>Claims:</strong> wait observes; a timeout changes no claim. When the worker is gone, wait reuses slice 10&#39;s session-scoped expired close. If the owner picks release-reclaim (q-claim-handoff), the caller&#39;s wait that sees the last worker end reopens the caller&#39;s claim through the normal start path.
 <strong>Rejected:</strong> settling on herdr idle (a lifecycle state, not a turn result). Parsing agent read output is rejected as racy. Answering questions from the orchestrator is deferred (q-answer-questions).
 <strong>Refine:</strong> match orch&#39;s send and wait semantics from slice 1.
 <strong>Parallel:</strong> no; it needs slice 10. It can run beside slices 12 and 13.</p>
@@ -3229,7 +3270,7 @@ Narrower prior art: question inboxes (speardragon/herdr-ask-inbox, no license; L
       
       <div class="slice-field">
         <div class="slice-field-label">Done when</div>
-        <ul class="slice-done-list"><li>Where bwrap fails, spawn and run fail fast with the probe output and the options from q-codex-sandbox</li><li>A codex exec --json fixture yields the thread id as a worker session id and the four usage fields in the ledger</li><li>No default ever passes --sandbox danger-full-access</li></ul>
+        <ul class="slice-done-list"><li>Where bwrap fails, spawn and run fail fast with the probe output and the options from q-codex-sandbox</li><li>A codex exec --json fixture yields the thread id as a worker session id and the four usage fields in the ledger</li><li>No default ever passes --sandbox danger-full-access</li><li>A Codex worker&#39;s claim episode carries its Codex session id, or spawn reports that Codex hooks gave none (Phase B check B4)</li></ul>
       </div>
       
     
@@ -3244,6 +3285,7 @@ Narrower prior art: question inboxes (speardragon/herdr-ask-inbox, no license; L
 <strong>State:</strong> the probe result is cached in the run store with a short TTL.
 <strong>Payload:</strong> pass/fail per check with the exact stderr.
 <strong>Rejected:</strong> silently falling back to danger-full-access, because it removes Codex&#39;s isolation without consent.
+<strong>Claims:</strong> a Codex worker claims with wipnote &lt;kind&gt; start like a Claude worker. That needs a session id from the Codex hooks; without one, the episode cannot name the worker, so spawn reports it.
 <strong>Feeds:</strong> feat-74c3d200 (cache-aware cost) and bug-3e4c6e02 (Codex exec captures no session) are related; the cached token count lands in the ledger.
 <strong>Parallel:</strong> yes, with slices 10, 11 and 13.</p>
 </div>
@@ -3377,7 +3419,7 @@ Narrower prior art: question inboxes (speardragon/herdr-ask-inbox, no license; L
       
       <div class="slice-field">
         <div class="slice-field-label">Done when</div>
-        <ul class="slice-done-list"><li>lineage --json carries delegations[] with link tag or sid, and a row tagged with another item is never derived (the orchlink rule is kept)</li><li>lineage dlg-&lt;id&gt; shows the caller session, the work item and the worker sessions</li><li>After removal, go build ./... has no orchlink import, and the lineage JSON schema note records that orch_sessions was dropped</li></ul>
+        <ul class="slice-done-list"><li>lineage --json carries delegations[] with link tag or sid, and a row tagged with another item is never derived (the orchlink rule is kept)</li><li>lineage dlg-&lt;id&gt; shows the caller session, the work item and the worker sessions</li><li>Under each delegation, lineage shows each worker&#39;s claim episode (start, end, outcome) read from .wipnote/claims/</li><li>After removal, go build ./... has no orchlink import, and the lineage JSON schema note records that orch_sessions was dropped</li></ul>
       </div>
       
     
@@ -3391,6 +3433,7 @@ Narrower prior art: question inboxes (speardragon/herdr-ask-inbox, no license; L
         <div class="markdown-block reveal-content serif-prose"><p><strong>Trigger:</strong> wipnote lineage on a work item or a dlg- id.
 <strong>State:</strong> reads the ledger, never live run files.
 <strong>Payload:</strong> a text section &#34;delegations&#34;, and delegations[] in --json. Each row has id, mode, harness, name, link, state and worker session ids.
+<strong>Claims:</strong> worker claim episodes come from the existing claim ledger reader, joined on worker session id; no claim data is copied into the delegations ledger.
 <strong>Kept from orchlink:</strong> tag is asserted; sid is derived and labelled; a row tagged with another item is never derived; no host path is printed.
 <strong>Rejected:</strong> keeping both orch_sessions and delegations for good (two readers drift). Deleting orchlink before the owner stops using orch is rejected: lineage would lose those links.
 <strong>Parallel:</strong> yes, with slices 11 and 12.</p>
@@ -3542,7 +3585,7 @@ Narrower prior art: question inboxes (speardragon/herdr-ask-inbox, no license; L
       
       <div class="slice-field">
         <div class="slice-field-label">Done when</div>
-        <ul class="slice-done-list"><li>No file outside git history names codex-herdr-pane except the release note</li><li>wipnote plugin build-ports runs clean, and all three generated trees carry the delegate skill</li><li>A user with the mod&#39;s settings sees a one-time notice that names the new settings</li></ul>
+        <ul class="slice-done-list"><li>No file outside git history names codex-herdr-pane except the release note</li><li>wipnote plugin build-ports runs clean, and all three generated trees carry the delegate skill</li><li>A user with the mod&#39;s settings sees a one-time notice that names the new settings</li><li>The delegate skill describes the claim handoff as decided in q-claim-handoff and tells orchestrators not to release or force-claim by hand</li></ul>
       </div>
       
     
@@ -3653,6 +3696,27 @@ Narrower prior art: question inboxes (speardragon/herdr-ask-inbox, no license; L
   </div>
 </section>
 
+
+<nav data-graph-edges>
+  <section data-edge-type="implements">
+    <h3>Implements:</h3>
+    <ul>
+      <li><a href="feat-dd8b0cde.html" data-relationship="implements" data-since="2026-10-25T07:10:50.944351">Delegation-run record: tool, label, run dir, usage and exit linked to the active work item</a></li>
+    </ul>
+  </section>
+  <section data-edge-type="relates_to">
+    <h3>Relates To:</h3>
+    <ul>
+      <li><a href="feat-a1df60c2.html" data-relationship="relates_to" data-since="2026-10-25T07:10:50.063401">Run-folder contract and pane hook so any harness UI can render a delegation</a></li>
+    </ul>
+  </section>
+  <section data-edge-type="spawned_from">
+    <h3>Spawned From:</h3>
+    <ul>
+      <li><a href="feat-ac66c687.html" data-relationship="spawned_from" data-since="2026-10-25T07:10:49.15246">orch integration: link an orch herdr session to a work item and show it in lineage</a></li>
+    </ul>
+  </section>
+</nav>
 </article>
 </div><!-- /.plan-content -->
 <aside class="chat-sidebar" id="chat-panel">
