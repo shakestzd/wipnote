@@ -507,15 +507,15 @@ func attrOrEmpty(sel *goquery.Selection, name string) string {
 }
 
 // searchViaGitFileHistory uses git log --follow to find commits touching the
-// given file, then parses wipnote-item trailers to attribute work items.
+// given file, then attributes each commit to the work items its full message
+// (%B: subject and body) names, as searchViaGitSHA does.
 //
 // Uses ASCII record separator (\x1e) between commits and unit separator (\x00)
-// between fields so that multi-line commit bodies (where wipnote-item trailers
-// usually live) parse correctly.
+// between fields so that multi-line commit messages parse correctly.
 func searchViaGitFileHistory(projectDir, hgDir, filePath string, scores map[string]*relevantResult) error {
 	out, err := exec.Command(
 		"git", "-C", projectDir,
-		"log", "--follow", "--format=%x1e%H%x00%aI%x00%s%x00%b",
+		"log", "--follow", "--format=%x1e%H%x00%aI%x00%s%x00%B",
 		"--", filePath,
 	).Output()
 	if err != nil {
@@ -533,7 +533,6 @@ func searchViaGitFileHistory(projectDir, hgDir, filePath string, scores map[stri
 		}
 		sha, date, subject, body := parts[0], parts[1], parts[2], parts[3]
 
-		// Extract wipnote-item trailers from commit body.
 		for _, itemID := range extractCommitItems(body) {
 			filePath := resolveItemHTMLPath(hgDir, itemID)
 			var node *relevantResult
