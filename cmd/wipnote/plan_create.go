@@ -462,20 +462,6 @@ func renderPlanToFile(wipnoteDir, planID string) error {
 
 // ---- helpers for finalize (slice parsing from node steps) --------------------
 
-// parsePlanStepsAsSlices converts plan node steps into planSlice structs
-// for the finalize workflow.
-func parsePlanStepsAsSlices(node *models.Node) []planSlice {
-	var slices []planSlice
-	for i, step := range node.Steps {
-		slices = append(slices, planSlice{
-			num:   i + 1,
-			name:  step.StepID,
-			title: step.Description,
-		})
-	}
-	return slices
-}
-
 // findPlanFile returns the path to a plan's HTML file, or empty string.
 func findPlanFile(wipnoteDir, planID string) string {
 	p := filepath.Join(wipnoteDir, "plans", planID+".html")

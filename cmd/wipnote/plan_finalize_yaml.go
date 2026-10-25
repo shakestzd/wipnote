@@ -1,7 +1,6 @@
 package main
 
 import (
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -9,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	dbpkg "github.com/shakestzd/wipnote/core/db"
 	"github.com/shakestzd/wipnote/core/filelock"
 	"github.com/shakestzd/wipnote/core/models"
 	"github.com/shakestzd/wipnote/core/workitem"
@@ -101,12 +99,6 @@ func finalizeYAML(wipnoteDir, planID string, opts finalizeYAMLOptions) error {
 	return nil
 }
 
-// finalizeYAMLCanonical is finalizeYAMLCanonicalOpts with the default
-// (feature-reusing) options.
-func finalizeYAMLCanonical(wipnoteDir, planID string) (createdIDs []string, failures []finalizeFailure, err error) {
-	return finalizeYAMLCanonicalOpts(wipnoteDir, planID, finalizeYAMLOptions{})
-}
-
 func finalizeYAMLCanonicalOpts(wipnoteDir, planID string, opts finalizeYAMLOptions) (createdIDs []string, failures []finalizeFailure, err error) {
 	planPath := filepath.Join(wipnoteDir, "plans", planID+".yaml")
 
@@ -175,174 +167,6 @@ type finalizeFailure struct {
 	SliceNum int    `json:"slice_num"`
 	Title    string `json:"title"`
 	Error    string `json:"error"`
-}
-
-// finalizeYAMLWithDB creates a track and features from approved slices using a
-// caller-supplied database connection. It returns the IDs of created features
-// and any per-slice failures. Partial success is not an error — callers should
-// inspect both return values.
-func finalizeYAMLWithDB(db *sql.DB, wipnoteDir, planID string) (createdIDs []string, failures []finalizeFailure, err error) {
-	planPath := filepath.Join(wipnoteDir, "plans", planID+".yaml")
-	plan, err := planyaml.Load(planPath)
-	if err != nil {
-		return nil, nil, fmt.Errorf("load plan: %w", err)
-	}
-
-	approvals := loadPlanApprovals(db, planID)
-	answers := loadPlanAnswers(db, planID)
-
-	// Read accepted amendments from SQLite.
-	amendRows, qErr := db.Query(
-		"SELECT value FROM plan_feedback WHERE plan_id = ? AND section = 'amendment' AND action = 'accepted'",
-		planID,
-	)
-	if qErr != nil {
-		return nil, nil, fmt.Errorf("query amendments: %w", qErr)
-	}
-	defer amendRows.Close()
-
-	var amendments []planAmendment
-	for amendRows.Next() {
-		var raw string
-		amendRows.Scan(&raw)
-		var a planAmendment
-		if json.Unmarshal([]byte(raw), &a) == nil {
-			amendments = append(amendments, a)
-		}
-	}
-
-	// Apply accepted amendments to plan slices in memory.
-	applyAmendments(plan, amendments)
-
-	// Open project for work item creation.
-	p, pErr := workitem.Open(wipnoteDir, agentForClaim())
-	if pErr != nil {
-		return nil, nil, fmt.Errorf("open project: %w", pErr)
-	}
-	defer p.Close()
-
-	// Idempotent re-finalize: plan already finalized AND features already exist —
-	// short-circuit to avoid duplicate creation. If the plan was marked finalized
-	// but features were never created (e.g. due to a bug in a prior run), fall
-	// through so this run creates them.
-	if plan.Meta.Status == "finalized" {
-		existing := existingFeatureIDsFromPlan(plan)
-		if len(existing) == 0 {
-			existing = findFeaturesForPlanCanonical(p, planID)
-		}
-		if len(existing) > 0 {
-			return existing, nil, nil
-		}
-		// Fall through: finalized but no features yet — create them now.
-		// Reset status so Save at the end of this function re-writes it.
-		plan.Meta.Status = ""
-	}
-
-	// Reuse existing track when meta.track_id references a valid track;
-	// otherwise create a new one from the plan title.
-	var track *models.Node
-	if plan.Meta.TrackID != "" {
-		existing, getErr := p.Tracks.Get(plan.Meta.TrackID)
-		if getErr == nil && existing != nil {
-			track = existing
-		}
-	}
-	if track == nil {
-		track, err = p.Tracks.Create(plan.Meta.Title)
-		if err != nil {
-			return nil, nil, fmt.Errorf("create track: %w", err)
-		}
-	}
-
-	// Create features for approved slices, embedding design decisions.
-	type createdFeat struct {
-		id    string
-		title string
-	}
-	numToFeat := map[int]createdFeat{}
-	for _, s := range plan.Slices {
-		approved := approvals[fmt.Sprintf("slice-%d", s.Num)]
-		if !approved {
-			continue
-		}
-		content := buildFeatureContent(s.What, plan.Questions, answers)
-		feat, featErr := p.Features.Create(s.Title,
-			workitem.FeatWithTrack(track.ID),
-			workitem.FeatWithContent(content),
-		)
-		if featErr != nil {
-			failures = append(failures, finalizeFailure{
-				SliceNum: s.Num,
-				Title:    s.Title,
-				Error:    featErr.Error(),
-			})
-			continue
-		}
-		numToFeat[s.Num] = createdFeat{id: feat.ID, title: feat.Title}
-
-		// Link feature back to source plan (planned_in).
-		p.Features.AddEdge(feat.ID, models.Edge{
-			TargetID:     planID,
-			Relationship: models.RelPlannedIn,
-			Title:        planID,
-			Since:        time.Now().UTC(),
-		})
-
-		// Wire part_of (feature→track) and contains (track→feature) edges.
-		wireTrackEdges(p, feat.ID, track.ID, feat.Title) //nolint:errcheck
-	}
-
-	// Link plan to track: plan implemented_in track.
-	p.Plans.AddEdge(planID, models.Edge{
-		TargetID:     track.ID,
-		Relationship: models.RelImplementedIn,
-		Title:        track.ID,
-		Since:        time.Now().UTC(),
-	})
-
-	// Wire blocked_by edges from slice deps.
-	for _, s := range plan.Slices {
-		cf, ok := numToFeat[s.Num]
-		if !ok {
-			continue
-		}
-		for _, depNum := range s.Deps {
-			depCF, ok := numToFeat[depNum]
-			if !ok {
-				continue
-			}
-			p.Features.AddEdge(cf.id, models.Edge{
-				TargetID:     depCF.id,
-				Relationship: "blocked_by",
-			})
-		}
-	}
-
-	// Update YAML status.
-	plan.Meta.Status = "finalized"
-	plan.Meta.TrackID = track.ID
-	for i := range plan.Slices {
-		plan.Slices[i].Approved = approvals[fmt.Sprintf("slice-%d", plan.Slices[i].Num)]
-		if cf, ok := numToFeat[plan.Slices[i].Num]; ok {
-			plan.Slices[i].FeatureID = cf.id
-			plan.Slices[i].ExecutionStatus = "promoted"
-		}
-	}
-	if saveErr := planyaml.Save(planPath, plan); saveErr != nil {
-		return nil, failures, fmt.Errorf("save plan: %w", saveErr)
-	}
-
-	if commitErr := commitPlanChange(planPath, fmt.Sprintf("plan(%s): finalize — %d slices approved", planID, len(numToFeat))); commitErr != nil {
-		return nil, failures, fmt.Errorf("autocommit finalize-yaml: %w", commitErr)
-	}
-
-	// Build feat IDs list in slice order.
-	for _, s := range plan.Slices {
-		if cf, ok := numToFeat[s.Num]; ok {
-			createdIDs = append(createdIDs, cf.id)
-		}
-	}
-	return createdIDs, failures, nil
 }
 
 func ensurePlanTrack(p *workitem.Project, plan *planyaml.PlanYAML) (*models.Node, error) {
@@ -475,46 +299,6 @@ func existingFeatureIDsFromPlan(plan *planyaml.PlanYAML) []string {
 		}
 	}
 	return ids
-}
-
-// loadPlanApprovals reads approve actions from plan_feedback and returns a map
-// from section key (e.g. "slice-1") to approved state.
-func loadPlanApprovals(db *sql.DB, planID string) map[string]bool {
-	approvals := map[string]bool{}
-	rows, err := db.Query(
-		"SELECT section, value FROM plan_feedback WHERE plan_id = ? AND action = 'approve'",
-		planID,
-	)
-	if err != nil {
-		return approvals
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var section, value string
-		rows.Scan(&section, &value)
-		approvals[section] = dbpkg.IsPlanApprovalValueApproved(value)
-	}
-	return approvals
-}
-
-// loadPlanAnswers reads answer actions from plan_feedback and returns a map
-// from question ID to the selected option key.
-func loadPlanAnswers(db *sql.DB, planID string) map[string]string {
-	answers := map[string]string{}
-	rows, err := db.Query(
-		"SELECT question_id, value FROM plan_feedback WHERE plan_id = ? AND action = 'answer'",
-		planID,
-	)
-	if err != nil {
-		return answers
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var qID, value string
-		rows.Scan(&qID, &value)
-		answers[qID] = value
-	}
-	return answers
 }
 
 func loadPlanApprovalsFromPlan(plan *planyaml.PlanYAML) map[string]bool {
@@ -790,32 +574,6 @@ func removeStr(slice []string, target string) []string {
 		}
 	}
 	return result
-}
-
-// findFeaturesForPlan returns feature IDs that have a planned_in edge pointing
-// to planID, queried directly from the graph_edges SQLite table. This is the
-// correct lookup for the re-finalize path because the yaml finalize first-run
-// only writes planned_in edges, not part_of/contains edges.
-func findFeaturesForPlan(db *sql.DB, planID string) []string {
-	if db == nil {
-		return nil
-	}
-	rows, err := db.Query(
-		"SELECT from_node_id FROM graph_edges WHERE to_node_id = ? AND relationship_type = 'planned_in' AND from_node_id LIKE 'feat-%'",
-		planID,
-	)
-	if err != nil {
-		return nil
-	}
-	defer rows.Close()
-	var ids []string
-	for rows.Next() {
-		var id string
-		if rows.Scan(&id) == nil {
-			ids = append(ids, id)
-		}
-	}
-	return ids
 }
 
 func findFeaturesForPlanCanonical(p *workitem.Project, planID string) []string {

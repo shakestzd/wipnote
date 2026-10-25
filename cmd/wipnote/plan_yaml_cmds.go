@@ -368,35 +368,6 @@ func runApproveSlice(wipnoteDir, planID, sliceNumStr string) error {
 	return nil
 }
 
-// updateSliceYAMLApproval mirrors the plan_feedback approval state into the
-// YAML plan document so the dashboard checkbox and promote/finalize see the
-// same source of truth. Caller treats failures as non-fatal warnings.
-func updateSliceYAMLApproval(wipnoteDir, planID string, sliceNum int, approval string) error {
-	planPath := filepath.Join(wipnoteDir, "plans", planID+".yaml")
-
-	// Hold the lock across the whole load→mutate→save window (defect 4,
-	// feat-fc3cc9e0) — see storePlanFeedbackEntry for the canonical pattern
-	// this mirrors.
-	releaseFile := filelock.Guard(planPath)
-	defer releaseFile()
-	releasePlan := planyaml.LockPlanForWrite(planPath)
-	defer releasePlan()
-
-	plan, err := planyaml.Load(planPath)
-	if err != nil {
-		return fmt.Errorf("load plan: %w", err)
-	}
-	idx, _, err := findPlanSlice(plan, sliceNum)
-	if err != nil {
-		return err
-	}
-	plan.Slices[idx].ApprovalStatus = approval
-	if err := planyaml.SaveLocked(planPath, plan); err != nil {
-		return fmt.Errorf("save plan: %w", err)
-	}
-	return nil
-}
-
 // planRejectSliceCmd sets approval_status=rejected (or changes_requested) for a slice.
 func planRejectSliceCmd() *cobra.Command {
 	var changesRequested bool
