@@ -7,7 +7,7 @@ meta:
     status: finalized
     priority: medium
     schema_version: v4
-    version: 42
+    version: 43
 design:
     problem: |
         ## Problem
@@ -1788,6 +1788,29 @@ slices:
         **Result (decision R):** the answer is the worker's result file, not a transcript or Stop payload.
         **Codex:** stays on codex exec until the slice 2 Mac probes show the TUI Stop payload has the reply, token counts are non-zero and the plugin loads in both modes; switching Codex is a later slice.
         **Rejected:** refusing Claude runs outside herdr; a tmux fallback (owner 2026-10-25).
+    - id: slic-8cfc0567
+      num: 23
+      title: wipnote works inside Claude project threads
+      what: Make wipnote and delegate usable in a Claude project cloud thread. Threads load CLAUDE.md and .claude/rules only; repo hooks and plugins and skills and .mcp.json do not load. Ship the wipnote plugin so it can be added in Project settings > Plugins; give a cloud environment setup script that installs the wipnote binary; add wipnote doctor --project-thread.
+      why: 'Owner 2026-10-25: delegate plus herdr is a multi-harness Projects harness; project threads are one more place wipnote must work, with wipnote plans as the shared durable layer.'
+      files:
+        - cmd/wipnote/doctor_project_thread.go
+        - cmd/wipnote/doctor_project_thread_test.go
+        - scripts/cloud-env-setup.sh
+        - docs/guides/claude-projects.md
+      deps:
+        - 8
+        - 11
+      done_when:
+        - doctor --project-thread names each missing part (binary or plugin or hooks or rules) with its fix and exits non-zero when one is missing
+        - The setup script installs a pinned wipnote binary and is idempotent
+        - delegate run and wait and result work with hooks absent through result files and the ledger
+        - The guide lists what a project thread loads and how to add wipnote
+      effort: M
+      risk: Med
+      tests: 'Unit: TestDoctorProjectThread_AllPresent, TestDoctorProjectThread_NoHooksNamesFix, TestDoctorProjectThread_NoBinary. Integration: TestRun_NoHooksStillReports, TestWait_NoHooksResultFileEnds. Script: shellcheck plus a run in a temp HOME.'
+      approved: false
+      comment: ""
 questions:
     - id: q-adopt-vs-port
       text: Adopt or wrap the herdr plugin herdr-orch, or port orch?
