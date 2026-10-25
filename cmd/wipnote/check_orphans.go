@@ -8,6 +8,7 @@ import (
 
 	"github.com/shakestzd/wipnote/core/graph"
 	"github.com/shakestzd/wipnote/core/models"
+	"github.com/shakestzd/wipnote/core/slug"
 	"github.com/spf13/cobra"
 )
 
@@ -78,7 +79,7 @@ func runCheckOrphans(strict bool) error {
 	fmt.Printf("Found %d orphaned work item(s):\n", len(orphans))
 	fmt.Println(strings.Repeat("-", 70))
 	for _, o := range orphans {
-		fmt.Printf("  %-8s  %-20s  %s\n", o.itemType, o.id, truncate(o.title, 36))
+		fmt.Printf("  %-8s  %-20s  %s\n", o.itemType, o.id, slug.Truncate(o.title, 36))
 	}
 	fmt.Printf("\nUse --track when creating items to link them to an initiative.\n")
 

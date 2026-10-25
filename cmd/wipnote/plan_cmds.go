@@ -161,11 +161,11 @@ func rescaffoldExistingPlan(wipnoteDir, planID string) (string, error) {
 // If a plan for sourceID already exists it returns the existing plan ID without
 // creating a duplicate.
 func runPlanGenerateFromWorkItem(wipnoteDir, sourceID string) (string, error) {
-	resolved, err := resolveID(wipnoteDir, sourceID)
+	resolved, err := workitem.ResolvePartialID(wipnoteDir, sourceID)
 	if err != nil {
 		return "", fmt.Errorf("resolve %s: %w", sourceID, err)
 	}
-	nodePath := resolveNodePath(wipnoteDir, resolved)
+	nodePath := workitem.NodePath(wipnoteDir, resolved)
 	if nodePath == "" {
 		return "", fmt.Errorf("work item %q not found\nRun 'wipnote wip' to see active items or 'wipnote find <query>' to search.", resolved)
 	}

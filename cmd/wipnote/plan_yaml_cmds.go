@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/shakestzd/wipnote/core/filelock"
+	"github.com/shakestzd/wipnote/core/paths"
 	"github.com/shakestzd/wipnote/core/workitem"
 	"github.com/shakestzd/wipnote/plan/planyaml"
 	"github.com/spf13/cobra"
@@ -63,7 +64,7 @@ func commitPlanChange(planPath, message string) error {
 	// the same path used by work-item artifact commits. Using planDir
 	// (e.g. .wipnote/plans) would produce a different lock-file hash and defeat
 	// the serialization guarantee (roborev finding on feat-c0307d7a).
-	repoRoot, err := repoRootOf(planDir)
+	repoRoot, err := paths.GitTopLevel(planDir)
 	if err != nil {
 		repoRoot = planDir // fallback: best-effort, still serialized within itself
 	}
@@ -117,17 +118,6 @@ func commitPlanChange(planPath, message string) error {
 func isGitRepo(dir string) bool {
 	err := exec.Command("git", "-C", dir, "rev-parse", "--git-dir").Run()
 	return err == nil
-}
-
-// repoRootOf returns the git repository root for the given directory.
-// This is the canonical anchor for repo-scoped advisory lock hashing in
-// runGitMutationBatch — always pass the true repo root, never a subdirectory.
-func repoRootOf(dir string) (string, error) {
-	out, err := exec.Command("git", "-C", dir, "rev-parse", "--show-toplevel").Output()
-	if err != nil {
-		return "", err
-	}
-	return strings.TrimSpace(string(out)), nil
 }
 
 // planCreateYAMLCmd creates a YAML plan file with empty design, slices,

@@ -53,9 +53,7 @@ func runPlanValidate(planID string) error {
 		return fmt.Errorf("validate plan: %w", err)
 	}
 
-	enc := json.NewEncoder(os.Stdout)
-	enc.SetIndent("", "  ")
-	return enc.Encode(result)
+	return printJSON(result)
 }
 
 // validatePlan performs structural validation on a plan.

@@ -592,7 +592,7 @@ func launchClaude(opts LaunchOpts) error {
 	// claude_env.go:buildClaudeLaunchEnv for precedence rules (user-set
 	// OTEL_* always wins).
 	c.Env = buildClaudeLaunchEnv(claudeEnvProjectDir(opts), &envOverrides)
-	c.Env = mergeLauncherEnv(c.Env, opts.ExtraEnv...)
+	c.Env = launcher.AppendOrReplaceEnv(c.Env, opts.ExtraEnv...)
 
 	// Publish the work-item daemon's socket into the session (feat-f6759e37)
 	// if the ensure started above is done. markerRoot is the same root the
@@ -600,7 +600,7 @@ func launchClaude(opts LaunchOpts) error {
 	// in a worktree — so the daemon, the lease and the marker all agree on
 	// which project this is. A daemon still starting is not waited for
 	// (bug-06d2c91d): the session then runs the unguaranteed contract.
-	c.Env = mergeLauncherEnv(c.Env, daemonEnsure.sessionEnv(os.Stderr, daemonJoinBudget)...)
+	c.Env = launcher.AppendOrReplaceEnv(c.Env, daemonEnsure.sessionEnv(os.Stderr, daemonJoinBudget)...)
 
 	// Set working directory to project root so Claude starts in the right place,
 	// even if this command is run from a subdirectory like packages/go.
@@ -702,7 +702,7 @@ const (
 // inherited value (launcher-authoritative). Shared across launchers so each
 // harness stamps a single source of truth. Reuses setOrReplaceEnv (claude_env.go).
 func withHarnessEnv(env []string, harness string) []string {
-	return setOrReplaceEnv(env, harnessEnvKey, harness)
+	return launcher.SetEnv(env, harnessEnvKey, harness)
 }
 
 // writeLaunchMarker writes .wipnote/.launch-mode for hooks to detect the launch mode.

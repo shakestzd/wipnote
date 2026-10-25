@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/shakestzd/wipnote/core/harness"
+	"github.com/shakestzd/wipnote/internal/launcher"
 )
 
 // effectiveProjectDir resolves the project dir for OTel port derivation.
@@ -63,7 +64,7 @@ func buildClaudeLaunchEnv(wipnoteProjectDir string, overrides *otelEnvOverrides)
 	// Priority chain: explicit arg → CLAUDE_PROJECT_DIR → WIPNOTE_PROJECT_DIR → os.Getwd.
 	projectDir := effectiveProjectDir(wipnoteProjectDir)
 	if projectDir != "" {
-		env = setOrReplaceEnv(env, "WIPNOTE_PROJECT_DIR", projectDir)
+		env = launcher.SetEnv(env, "WIPNOTE_PROJECT_DIR", projectDir)
 	}
 
 	// Inject OTel session ID under its own var — NOT WIPNOTE_SESSION_ID.
@@ -73,7 +74,7 @@ func buildClaudeLaunchEnv(wipnoteProjectDir string, overrides *otelEnvOverrides)
 	// launcher_continue.go to pass that ID to `claude --resume`, which
 	// has no transcript for it (bug-b262d303).
 	if overrides != nil && overrides.SessionID != "" {
-		env = setOrReplaceEnv(env, "WIPNOTE_OTEL_SESSION_ID", overrides.SessionID)
+		env = launcher.SetEnv(env, "WIPNOTE_OTEL_SESSION_ID", overrides.SessionID)
 	}
 
 	// Layer harness-specific launch env vars from the registry. User-set values
@@ -118,7 +119,7 @@ func buildClaudeLaunchEnv(wipnoteProjectDir string, overrides *otelEnvOverrides)
 				// from WIPNOTE_OTEL_HTTP_PORT and inherited values would silently
 				// drop spans. Users who need to point Claude Code at a non-wipnote
 				// receiver can steer via WIPNOTE_OTEL_HTTP_PORT / WIPNOTE_OTEL_BIND.
-				env = setOrReplaceEnv(env, key, value)
+				env = launcher.SetEnv(env, key, value)
 			} else {
 				env = addIfUnset(env, key, value)
 			}
@@ -146,21 +147,6 @@ func addIfUnset(env []string, key, value string) []string {
 				return env // non-empty user value wins
 			}
 			// Empty value — treat as unset and overwrite in place.
-			env[i] = prefix + value
-			return env
-		}
-	}
-	return append(env, prefix+value)
-}
-
-// setOrReplaceEnv replaces the value of key if present, appending
-// otherwise. Different from addIfUnset: used for vars where the launcher's
-// authoritative intent should override any inherited value (e.g. worktree
-// project dir override).
-func setOrReplaceEnv(env []string, key, value string) []string {
-	prefix := key + "="
-	for i, kv := range env {
-		if strings.HasPrefix(kv, prefix) {
 			env[i] = prefix + value
 			return env
 		}

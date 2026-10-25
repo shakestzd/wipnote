@@ -140,3 +140,30 @@ func TestNoexecTempRoot_ProfileCheck(t *testing.T) {
 		t.Skipf("noexec profile check: TMPDIR=%q is not exec-capable: %v", dir, err)
 	}
 }
+
+// TestSetEnv_ReplacesFirstOrAppends pins the shared env setter: it replaces
+// the first KEY= entry in place (a later duplicate stays), appends when KEY
+// is absent, and never matches a key that only shares a prefix.
+func TestSetEnv_ReplacesFirstOrAppends(t *testing.T) {
+	cases := []struct {
+		env        []string
+		key, value string
+		want       []string
+	}{
+		{[]string{"A=1", "B=2"}, "A", "9", []string{"A=9", "B=2"}},
+		{[]string{"A=1", "B=2", "A=3"}, "A", "9", []string{"A=9", "B=2", "A=3"}},
+		{[]string{"AB=1"}, "A", "9", []string{"AB=1", "A=9"}},
+		{nil, "A", "", []string{"A="}},
+		{[]string{"A="}, "A", "x=y", []string{"A=x=y"}},
+	}
+	for _, c := range cases {
+		in := append([]string(nil), c.env...)
+		got := SetEnv(in, c.key, c.value)
+		if strings.Join(got, "|") != strings.Join(c.want, "|") {
+			t.Errorf("SetEnv(%v, %q, %q) = %v, want %v", c.env, c.key, c.value, got, c.want)
+		}
+		if len(c.env) > 0 && len(got) == len(in) && &got[0] != &in[0] {
+			t.Errorf("SetEnv(%v) copied the slice; it must edit in place", c.env)
+		}
+	}
+}

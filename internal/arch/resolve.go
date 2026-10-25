@@ -202,11 +202,11 @@ func DetectDrift(cards []*corearch.Card, repoRoot string, runner DiffRunner) map
 		if err != nil {
 			// On error, treat all cards in this group as unverified.
 			for _, c := range group {
-				driftMap[c.Name] = sha[:min7(sha)]
+				driftMap[c.Name] = sha[:min(7, len(sha))]
 			}
 			continue
 		}
-		short := sha[:min7(sha)]
+		short := sha[:min(7, len(sha))]
 		for _, c := range group {
 			if cardMatchesPaths(c, changedFiles) {
 				driftMap[c.Name] = short
@@ -215,13 +215,6 @@ func DetectDrift(cards []*corearch.Card, repoRoot string, runner DiffRunner) map
 		}
 	}
 	return driftMap
-}
-
-func min7(s string) int {
-	if len(s) < 7 {
-		return len(s)
-	}
-	return 7
 }
 
 // BudgetResult holds the output of ApplyBudget.

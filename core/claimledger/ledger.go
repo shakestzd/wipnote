@@ -2,10 +2,6 @@ package claimledger
 
 import (
 	"bytes"
-	"fmt"
-	"html"
-	"io"
-	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -14,6 +10,7 @@ import (
 	"github.com/PuerkitoBio/goquery"
 
 	"github.com/shakestzd/wipnote/core/fsprobe"
+	"github.com/shakestzd/wipnote/core/htmlledger"
 )
 
 // ledgerHeader and ledgerFooter bracket the row lines. They are byte-stable
@@ -39,11 +36,14 @@ const ledgerFooter = `</tbody>
 // as some other element is therefore ignored rather than mis-parsed.
 const rowSelector = `table[data-claim-ledger] tbody tr[data-episode-id]`
 
-// tornScanWindow bounds how far back the repair scan looks for a clean line
-// boundary. A torn write can only have lost part of ONE row plus the footer, so
-// a window far larger than either is enough; a file with no newline inside the
-// window is corrupt in a way this package will not guess at.
-const tornScanWindow = 64 * 1024
+// ledgerFormat is this ledger's document shape for the shared HTML codec.
+var ledgerFormat = htmlledger.Format{
+	Name:        "claimledger",
+	Header:      ledgerHeader,
+	Footer:      ledgerFooter,
+	RowSelector: rowSelector,
+	TempPattern: ".claims-*.tmp",
+}
 
 // marshalRow renders one episode as exactly ONE line terminated by '\n'.
 //
@@ -55,57 +55,31 @@ const tornScanWindow = 64 * 1024
 func marshalRow(e Episode) []byte {
 	var buf bytes.Buffer
 	buf.WriteString("<tr")
-	writeAttr(&buf, "id", e.ID)
-	writeAttr(&buf, "data-episode-id", e.ID)
-	writeAttr(&buf, "data-work-item", e.WorkItemID)
-	writeAttr(&buf, "data-session", e.SessionID)
-	writeAttr(&buf, "data-root-session", e.RootSessionID)
-	writeAttr(&buf, "data-agent", e.AgentID)
-	writeAttr(&buf, "data-start", FormatTime(e.StartedAt))
+	htmlledger.WriteAttr(&buf, "id", e.ID)
+	htmlledger.WriteAttr(&buf, "data-episode-id", e.ID)
+	htmlledger.WriteAttr(&buf, "data-work-item", e.WorkItemID)
+	htmlledger.WriteAttr(&buf, "data-session", e.SessionID)
+	htmlledger.WriteAttr(&buf, "data-root-session", e.RootSessionID)
+	htmlledger.WriteAttr(&buf, "data-agent", e.AgentID)
+	htmlledger.WriteAttr(&buf, "data-start", FormatTime(e.StartedAt))
 	endStr := ""
 	if !e.IsOpen() {
 		endStr = FormatTime(e.EndedAt)
 	}
-	writeAttr(&buf, "data-end", endStr)
-	writeAttr(&buf, "data-outcome", string(e.Outcome))
+	htmlledger.WriteAttr(&buf, "data-end", endStr)
+	htmlledger.WriteAttr(&buf, "data-outcome", string(e.Outcome))
 	buf.WriteString(">")
 
-	writeCell(&buf, "episode-id", e.ID)
-	writeCell(&buf, "work-item", e.WorkItemID)
-	writeCell(&buf, "session", e.SessionID)
-	writeCell(&buf, "agent", e.AgentID)
-	writeCell(&buf, "start", FormatTime(e.StartedAt))
-	writeCell(&buf, "end", endStr)
-	writeCell(&buf, "outcome", string(e.Outcome))
+	htmlledger.WriteCell(&buf, "episode-id", e.ID)
+	htmlledger.WriteCell(&buf, "work-item", e.WorkItemID)
+	htmlledger.WriteCell(&buf, "session", e.SessionID)
+	htmlledger.WriteCell(&buf, "agent", e.AgentID)
+	htmlledger.WriteCell(&buf, "start", FormatTime(e.StartedAt))
+	htmlledger.WriteCell(&buf, "end", endStr)
+	htmlledger.WriteCell(&buf, "outcome", string(e.Outcome))
 
 	buf.WriteString("</tr>\n")
 	return buf.Bytes()
-}
-
-func writeAttr(buf *bytes.Buffer, name, value string) {
-	buf.WriteByte(' ')
-	buf.WriteString(name)
-	buf.WriteString(`="`)
-	buf.WriteString(html.EscapeString(sanitize(value)))
-	buf.WriteByte('"')
-}
-
-func writeCell(buf *bytes.Buffer, field, value string) {
-	buf.WriteString(`<td data-field="`)
-	buf.WriteString(field)
-	buf.WriteString(`">`)
-	buf.WriteString(html.EscapeString(sanitize(value)))
-	buf.WriteString("</td>")
-}
-
-// sanitize collapses anything that would break the one-row-one-line invariant.
-func sanitize(v string) string {
-	return strings.Map(func(r rune) rune {
-		if r == '\n' || r == '\r' || r == '\t' {
-			return ' '
-		}
-		return r
-	}, v)
 }
 
 // ReadFile parses one claim-ledger file into episodes, ordered by start time.
@@ -116,43 +90,34 @@ func sanitize(v string) string {
 // episodes. This matches the archive ledger's behaviour.
 func ReadFile(path string) ([]Episode, error) {
 	fsprobe.Touch(fsprobe.OpRead, path)
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-
-	doc, err := goquery.NewDocumentFromReader(f)
-	if err != nil {
-		return nil, fmt.Errorf("claimledger: parse %s: %w", path, err)
-	}
-
 	var episodes []Episode
-	doc.Find(rowSelector).Each(func(_ int, row *goquery.Selection) {
-		e, ok := parseRow(row)
-		if ok {
+	err := ledgerFormat.ReadRows(path, func(row *goquery.Selection) {
+		if e, ok := parseRow(row); ok {
 			episodes = append(episodes, e)
 		}
 	})
+	if err != nil {
+		return nil, err
+	}
 	sortEpisodes(episodes)
 	return episodes, nil
 }
 
 func parseRow(row *goquery.Selection) (Episode, bool) {
 	e := Episode{
-		ID:            strings.TrimSpace(attr(row, "data-episode-id")),
-		WorkItemID:    strings.TrimSpace(attr(row, "data-work-item")),
-		SessionID:     strings.TrimSpace(attr(row, "data-session")),
-		RootSessionID: strings.TrimSpace(attr(row, "data-root-session")),
-		AgentID:       strings.TrimSpace(attr(row, "data-agent")),
-		Outcome:       Outcome(strings.TrimSpace(attr(row, "data-outcome"))),
+		ID:            strings.TrimSpace(htmlledger.Attr(row, "data-episode-id")),
+		WorkItemID:    strings.TrimSpace(htmlledger.Attr(row, "data-work-item")),
+		SessionID:     strings.TrimSpace(htmlledger.Attr(row, "data-session")),
+		RootSessionID: strings.TrimSpace(htmlledger.Attr(row, "data-root-session")),
+		AgentID:       strings.TrimSpace(htmlledger.Attr(row, "data-agent")),
+		Outcome:       Outcome(strings.TrimSpace(htmlledger.Attr(row, "data-outcome"))),
 	}
-	started, err := ParseTime(attr(row, "data-start"))
+	started, err := ParseTime(htmlledger.Attr(row, "data-start"))
 	if err != nil {
 		return Episode{}, false
 	}
 	e.StartedAt = started
-	ended, err := ParseTime(attr(row, "data-end"))
+	ended, err := ParseTime(htmlledger.Attr(row, "data-end"))
 	if err != nil {
 		return Episode{}, false
 	}
@@ -161,13 +126,6 @@ func parseRow(row *goquery.Selection) (Episode, bool) {
 		return Episode{}, false
 	}
 	return e, true
-}
-
-func attr(sel *goquery.Selection, name string) string {
-	if v, ok := sel.Attr(name); ok {
-		return v
-	}
-	return ""
 }
 
 // sortEpisodes orders by start, then by ID so the order is total and stable
@@ -196,93 +154,8 @@ func sortEpisodes(eps []Episode) {
 // the footer if the file ends with it, otherwise the last newline, which is by
 // construction the end of the last complete row.
 func appendRowLocked(path string, e Episode) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return fmt.Errorf("claimledger: mkdir %s: %w", filepath.Dir(path), err)
-	}
 	removeStaleTemps(filepath.Dir(path), time.Now())
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0o644)
-	if err != nil {
-		return fmt.Errorf("claimledger: open %s: %w", path, err)
-	}
-	defer f.Close()
-
-	fi, err := f.Stat()
-	if err != nil {
-		return fmt.Errorf("claimledger: stat %s: %w", path, err)
-	}
-
-	off, err := appendOffset(f, fi.Size())
-	if err != nil {
-		return fmt.Errorf("claimledger: %s: %w", path, err)
-	}
-
-	var payload []byte
-	if off == 0 {
-		// Empty, or truncated to less than a full header: no complete row can
-		// exist, so rewrite the whole document rather than guess at a boundary.
-		payload = append(payload, ledgerHeader...)
-	}
-	payload = append(payload, marshalRow(e)...)
-	payload = append(payload, ledgerFooter...)
-
-	// Truncate FIRST so a crash between the two leaves a file that ends on a
-	// clean row boundary with no footer — which the next append repairs — rather
-	// than one with stale bytes past the new content.
-	if err := f.Truncate(off); err != nil {
-		return fmt.Errorf("claimledger: truncate %s: %w", path, err)
-	}
-	if _, err := f.Seek(off, io.SeekStart); err != nil {
-		return fmt.Errorf("claimledger: seek %s: %w", path, err)
-	}
-	if _, err := f.Write(payload); err != nil {
-		return fmt.Errorf("claimledger: write %s: %w", path, err)
-	}
-	if err := f.Sync(); err != nil {
-		return fmt.Errorf("claimledger: fsync %s: %w", path, err)
-	}
-	return nil
-}
-
-// appendOffset returns the byte offset at which a new row line may begin.
-//
-//   - size 0, or smaller than the header: 0 (rewrite the document).
-//   - file ends with the exact footer: the footer's start (the clean case).
-//   - otherwise the write was torn: the byte after the last newline, dropping
-//     the incomplete tail. Every earlier row is preserved; only the fragment
-//     that was never fsynced is lost.
-func appendOffset(f *os.File, size int64) (int64, error) {
-	if size < int64(len(ledgerHeader)) {
-		return 0, nil
-	}
-
-	footerLen := int64(len(ledgerFooter))
-	tail := make([]byte, footerLen)
-	if _, err := f.ReadAt(tail, size-footerLen); err != nil {
-		return 0, fmt.Errorf("read trailing bytes: %w", err)
-	}
-	if bytes.Equal(tail, []byte(ledgerFooter)) {
-		return size - footerLen, nil
-	}
-
-	window := int64(tornScanWindow)
-	if window > size {
-		window = size
-	}
-	buf := make([]byte, window)
-	if _, err := f.ReadAt(buf, size-window); err != nil {
-		return 0, fmt.Errorf("read repair window: %w", err)
-	}
-	nl := bytes.LastIndexByte(buf, '\n')
-	if nl < 0 {
-		return 0, fmt.Errorf("torn ledger has no line boundary within %d bytes of the tail", window)
-	}
-	boundary := size - window + int64(nl) + 1
-	// Never rewind into the header: a boundary inside it means the file was torn
-	// during creation and holds no complete row.
-	if boundary < int64(len(ledgerHeader)) {
-		return 0, nil
-	}
-	return boundary, nil
+	return ledgerFormat.AppendRow(path, marshalRow(e))
 }
 
 // writeAllLocked rewrites path with exactly the given episodes, atomically via
@@ -293,43 +166,13 @@ func appendOffset(f *os.File, size int64) (int64, error) {
 // The caller must already hold the write guard for path.
 func writeAllLocked(path string, episodes []Episode) error {
 	fsprobe.Touch(fsprobe.OpWrite, path)
-	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return fmt.Errorf("claimledger: mkdir %s: %w", dir, err)
-	}
-	removeStaleTemps(dir, time.Now())
-
+	removeStaleTemps(filepath.Dir(path), time.Now())
 	sorted := make([]Episode, len(episodes))
 	copy(sorted, episodes)
 	sortEpisodes(sorted)
-
-	var buf bytes.Buffer
-	buf.WriteString(ledgerHeader)
+	rows := make([][]byte, 0, len(sorted))
 	for _, e := range sorted {
-		buf.Write(marshalRow(e))
+		rows = append(rows, marshalRow(e))
 	}
-	buf.WriteString(ledgerFooter)
-
-	tmp, err := os.CreateTemp(dir, ".claims-*.tmp")
-	if err != nil {
-		return fmt.Errorf("claimledger: create temp in %s: %w", dir, err)
-	}
-	tmpName := tmp.Name()
-	defer os.Remove(tmpName) // no-op after a successful rename
-
-	if _, err := tmp.Write(buf.Bytes()); err != nil {
-		tmp.Close()
-		return fmt.Errorf("claimledger: write temp: %w", err)
-	}
-	if err := tmp.Sync(); err != nil {
-		tmp.Close()
-		return fmt.Errorf("claimledger: fsync temp: %w", err)
-	}
-	if err := tmp.Close(); err != nil {
-		return fmt.Errorf("claimledger: close temp: %w", err)
-	}
-	if err := os.Rename(tmpName, path); err != nil {
-		return fmt.Errorf("claimledger: rename temp over %s: %w", path, err)
-	}
-	return nil
+	return ledgerFormat.WriteAll(path, rows)
 }

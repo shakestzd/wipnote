@@ -4,13 +4,12 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
 
 	"github.com/shakestzd/wipnote/core/models"
+	"github.com/shakestzd/wipnote/core/paths"
 )
 
 // Injected-markup vocabulary, split by stripping strategy so ordinary user
@@ -491,12 +490,8 @@ func LivenessStalenessThreshold(projectDir string) time.Duration {
 	if projectDir == "" {
 		return def
 	}
-	data, err := os.ReadFile(filepath.Join(projectDir, ".wipnote", "config.json"))
-	if err != nil {
-		return def
-	}
 	var cfg livenessConfig
-	if err := json.Unmarshal(data, &cfg); err != nil {
+	if !paths.ReadProjectConfig(projectDir, &cfg) {
 		return def
 	}
 	if cfg.LivenessStalenessSeconds <= 0 {

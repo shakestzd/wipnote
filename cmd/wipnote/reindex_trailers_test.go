@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	dbpkg "github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/paths"
 )
 
 func TestParseTrailers_RefsFeature(t *testing.T) {
@@ -410,7 +411,7 @@ func TestReindexCommitTrailers_IncrementalBookmark(t *testing.T) {
 	}
 
 	bookmark, _ := dbpkg.GetMetadata(database, metaKeyLastTrailerScanCommit)
-	head := gitHeadCommit(tmpDir)
+	head := paths.GitHead(tmpDir)
 	if bookmark != head {
 		t.Fatalf("bookmark = %q, want HEAD %q", bookmark, head)
 	}

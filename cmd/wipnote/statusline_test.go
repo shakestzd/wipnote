@@ -8,6 +8,7 @@ import (
 
 	dbpkg "github.com/shakestzd/wipnote/core/db"
 	"github.com/shakestzd/wipnote/core/htmlparse"
+	"github.com/shakestzd/wipnote/core/slug"
 )
 
 func TestStatuslineCmd(t *testing.T) {
@@ -122,7 +123,7 @@ func TestStatuslineCmd(t *testing.T) {
 				t.Errorf("expected ID %q, got %q", tt.expectID, workItemID)
 			}
 
-			truncatedTitle := truncate(title, 25)
+			truncatedTitle := slug.Truncate(title, 25)
 			if truncatedTitle != tt.expectTitle {
 				t.Errorf("expected truncated title %q, got %q", tt.expectTitle, truncatedTitle)
 			}

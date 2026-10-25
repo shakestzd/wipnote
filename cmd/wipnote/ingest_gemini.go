@@ -11,6 +11,7 @@ import (
 	"github.com/shakestzd/wipnote/core/hooks"
 	"github.com/shakestzd/wipnote/core/ingest"
 	"github.com/shakestzd/wipnote/core/models"
+	"github.com/shakestzd/wipnote/core/slug"
 	"github.com/spf13/cobra"
 )
 
@@ -100,7 +101,7 @@ func runIngestGemini(project string, all, force bool) error {
 
 		n, toolN, err := ingestGeminiFileWithDB(database, wipnoteDir, sf, force)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "  skip %s: %v\n", truncate(sf.SessionID, 12), err)
+			fmt.Fprintf(os.Stderr, "  skip %s: %v\n", slug.Truncate(sf.SessionID, 12), err)
 			errCount++
 			continue
 		}
@@ -110,7 +111,7 @@ func runIngestGemini(project string, all, force bool) error {
 		}
 
 		fmt.Printf("  %-14s %3d msgs  %3d tools  (%s)\n",
-			truncate(sf.SessionID, 14), n, toolN, sf.Project)
+			slug.Truncate(sf.SessionID, 14), n, toolN, sf.Project)
 		ingested++
 	}
 
@@ -146,7 +147,7 @@ func ingestGeminiFileWithDB(database *sql.DB, wipnoteDir string, sf ingest.Gemin
 	msgCount, toolCount := storeGeminiParseResult(database, sf.SessionID, result)
 
 	if rerr := hooks.RenderIngestedSessionHTML(wipnoteDir, sf.SessionID, filepath.Dir(wipnoteDir), result, force); rerr != nil {
-		fmt.Fprintf(os.Stderr, "  warn: render HTML for %s: %v\n", truncate(sf.SessionID, 12), rerr)
+		fmt.Fprintf(os.Stderr, "  warn: render HTML for %s: %v\n", slug.Truncate(sf.SessionID, 12), rerr)
 	}
 
 	return msgCount, toolCount, nil
@@ -230,7 +231,7 @@ func storeGeminiParseResult(database *sql.DB, sessionID string, result *ingest.P
 			EventType:    models.EventToolCall,
 			Timestamp:    ts,
 			ToolName:     tc.ToolName,
-			InputSummary: truncate(tc.InputJSON, 200),
+			InputSummary: slug.Truncate(tc.InputJSON, 200),
 			ToolInput:    tc.InputJSON,
 			SessionID:    sessionID,
 			FeatureID:    activeFeatureID,

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	dbpkg "github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/paths"
 )
 
 const trailerSessionID = "trailer-ingest"
@@ -30,7 +31,7 @@ const metaKeyLastTrailerScanCommit = "last_trailer_scan_commit"
 // flat "-500" cap silently held linkage at 27% forever because it never
 // looked further back).
 func reindexCommitTrailers(database *sql.DB, projectDir string) (int, error) {
-	currentCommit := gitHeadCommit(projectDir)
+	currentCommit := paths.GitHead(projectDir)
 
 	logRange := ""
 	if lastScanned, _ := dbpkg.GetMetadata(database, metaKeyLastTrailerScanCommit); lastScanned != "" && gitCommitExists(projectDir, lastScanned) {

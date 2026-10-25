@@ -10,6 +10,7 @@ import (
 	"github.com/shakestzd/wipnote/core/graph"
 	"github.com/shakestzd/wipnote/core/htmlparse"
 	"github.com/shakestzd/wipnote/core/models"
+	"github.com/shakestzd/wipnote/core/slug"
 	"github.com/shakestzd/wipnote/core/workitem"
 	"github.com/spf13/cobra"
 )
@@ -254,7 +255,7 @@ func priorityRank(p models.Priority) int {
 
 // runFindByID resolves a work item by its canonical ID and prints it.
 func runFindByID(dir, id string) error {
-	path := resolveNodePath(dir, id)
+	path := workitem.NodePath(dir, id)
 	if path == "" {
 		// Fall back to the archive ledgers before declaring the item missing —
 		// archived items have no individual file but remain queryable by ID.
@@ -266,7 +267,7 @@ func runFindByID(dir, id string) error {
 			printFindResults([]*models.Node{archived})
 			return nil
 		}
-		kind := kindFromPrefix(id)
+		kind := workitem.KindForID(id)
 		return fmt.Errorf("find: no item found with ID %q\nRun 'wipnote %s list' to see valid IDs, or 'wipnote find all --title <keyword>' to search by title", id, kind)
 	}
 	node, err := htmlparse.ParseFile(path)
@@ -289,7 +290,7 @@ func printFindResults(nodes []*models.Node) {
 		}
 		fmt.Printf("%s%-20s  %-8s  %-11s  %-8s  %s\n",
 			marker, n.ID, n.Type, n.Status, n.Priority,
-			truncate(n.Title, 36))
+			slug.Truncate(n.Title, 36))
 	}
 
 	fmt.Printf("\n%d item(s)\n", len(nodes))

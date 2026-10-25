@@ -60,14 +60,6 @@ func TestGetSetMetadata(t *testing.T) {
 	}
 }
 
-func TestGitHeadCommit_NoGitRepo(t *testing.T) {
-	commit := gitHeadCommit("/tmp/definitely-not-a-git-repo-xyz123")
-	// Ensure no panic; result is empty on error.
-	if commit != "" {
-		t.Logf("gitHeadCommit returned %q for non-repo (non-fatal)", commit)
-	}
-}
-
 func TestGitCommitExists_InvalidCommit(t *testing.T) {
 	exists := gitCommitExists("/tmp", "0000000000000000000000000000000000000000")
 	if exists {

@@ -13,6 +13,7 @@ import (
 
 	"github.com/shakestzd/wipnote/core/claimledger"
 	"github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/paths"
 	"github.com/shakestzd/wipnote/core/sessionledger"
 	"github.com/shakestzd/wipnote/core/worktree"
 )
@@ -750,12 +751,8 @@ func readReaperConfig(projectDir string) reaperConfig {
 	if projectDir == "" {
 		return reaperConfig{}
 	}
-	data, err := os.ReadFile(filepath.Join(projectDir, ".wipnote", "config.json"))
-	if err != nil {
-		return reaperConfig{}
-	}
 	var cfg reaperConfig
-	if err := json.Unmarshal(data, &cfg); err != nil {
+	if !paths.ReadProjectConfig(projectDir, &cfg) {
 		return reaperConfig{}
 	}
 	return cfg

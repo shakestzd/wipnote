@@ -59,17 +59,17 @@ func runLinkAdd(fromID, toID, rel string) error {
 		return err
 	}
 
-	fromID, err = resolveID(dir, fromID)
+	fromID, err = workitem.ResolvePartialID(dir, fromID)
 	if err != nil {
 		return err
 	}
-	toID, err = resolveID(dir, toID)
+	toID, err = workitem.ResolvePartialID(dir, toID)
 	if err != nil {
 		return err
 	}
 
 	// Resolve the target node to get its title for the edge label.
-	targetPath := resolveNodePath(dir, toID)
+	targetPath := workitem.NodePath(dir, toID)
 	var title string
 	if targetPath != "" {
 		if target, err := htmlparse.ParseFile(targetPath); err == nil {
@@ -135,11 +135,11 @@ func runLinkRemove(fromID, toID, rel string) error {
 		return err
 	}
 
-	fromID, err = resolveID(dir, fromID)
+	fromID, err = workitem.ResolvePartialID(dir, fromID)
 	if err != nil {
 		return err
 	}
-	toID, err = resolveID(dir, toID)
+	toID, err = workitem.ResolvePartialID(dir, toID)
 	if err != nil {
 		return err
 	}
@@ -184,12 +184,12 @@ func runLinkList(id string) error {
 		return err
 	}
 
-	id, err = resolveID(dir, id)
+	id, err = workitem.ResolvePartialID(dir, id)
 	if err != nil {
 		return err
 	}
 
-	path := resolveNodePath(dir, id)
+	path := workitem.NodePath(dir, id)
 	if path == "" {
 		return fmt.Errorf("work item %q not found", id)
 	}

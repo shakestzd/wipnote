@@ -11,6 +11,7 @@ import (
 	"github.com/shakestzd/wipnote/core/graph"
 	"github.com/shakestzd/wipnote/core/htmlparse"
 	"github.com/shakestzd/wipnote/core/models"
+	"github.com/shakestzd/wipnote/core/slug"
 	"github.com/shakestzd/wipnote/internal/migrate"
 )
 
@@ -147,7 +148,7 @@ func archiveCollection(wipnoteDir, collectionDir string, cutoff time.Time, apply
 			disp = "archive"
 		}
 		fmt.Printf("  %-14s  %s  %s  (idle since %s)\n",
-			disp, c.id, truncate(c.node.Title, 40), c.updatedAt.Format("2006-01-02"))
+			disp, c.id, slug.Truncate(c.node.Title, 40), c.updatedAt.Format("2006-01-02"))
 	}
 
 	if !apply {

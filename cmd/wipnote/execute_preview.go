@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -59,7 +58,7 @@ func runExecutePreview(id, format string) error {
 	if err != nil {
 		return err
 	}
-	resolved, err := resolveID(dir, id)
+	resolved, err := workitem.ResolvePartialID(dir, id)
 	if err != nil {
 		return err
 	}
@@ -74,11 +73,9 @@ func runExecutePreview(id, format string) error {
 
 	switch format {
 	case "json":
-		data, err := json.MarshalIndent(preview, "", "  ")
-		if err != nil {
-			return fmt.Errorf("marshal json: %w", err)
+		if err := printJSON(preview); err != nil {
+			return err
 		}
-		fmt.Println(string(data))
 	default:
 		printExecutePreviewText(preview)
 	}
@@ -156,7 +153,7 @@ func addLinkedNode(wipnoteDir, id string, p *executePreview, seen map[string]boo
 		return
 	}
 	seen[id] = true
-	path := resolveNodePath(wipnoteDir, id)
+	path := workitem.NodePath(wipnoteDir, id)
 	if path == "" {
 		if strings.HasPrefix(id, "trk-") {
 			path = resolveTrackPath(wipnoteDir, id)

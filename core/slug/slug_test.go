@@ -140,3 +140,27 @@ func TestWorkItemColor(t *testing.T) {
 		})
 	}
 }
+
+// TestTruncate pins the shared display truncation: fitting strings are
+// unchanged, longer ones are cut on a rune boundary to maxLen runes
+// including the ellipsis.
+func TestTruncate(t *testing.T) {
+	cases := []struct {
+		s    string
+		max  int
+		want string
+	}{
+		{"", 5, ""},
+		{"short", 5, "short"},
+		{"exactly10!", 10, "exactly10!"},
+		{"a longer title", 8, "a longe…"},
+		{"héllo wörld", 6, "héllo…"},
+		{"日本語のテキスト", 4, "日本語…"},
+		{"ab", 1, "…"},
+	}
+	for _, c := range cases {
+		if got := slug.Truncate(c.s, c.max); got != c.want {
+			t.Errorf("Truncate(%q, %d) = %q, want %q", c.s, c.max, got, c.want)
+		}
+	}
+}

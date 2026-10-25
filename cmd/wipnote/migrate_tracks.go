@@ -157,7 +157,7 @@ func runMigrateTracks(_ context.Context, hgDir string, opts migrateTracksOpts, o
 	// Emit decisions in requested format.
 	switch opts.format {
 	case "json":
-		if err := writeJSON(out, decisions); err != nil {
+		if err := writeDecisionsJSON(out, decisions); err != nil {
 			return err
 		}
 	case "text", "":
@@ -258,13 +258,11 @@ func writeText(w io.Writer, decisions []migrate.Decision) {
 		s.Total, s.Confident, s.Ambiguous, s.NoChange, s.NoAttribution, s.NoMatch)
 }
 
-func writeJSON(w io.Writer, decisions []migrate.Decision) error {
+func writeDecisionsJSON(w io.Writer, decisions []migrate.Decision) error {
 	if decisions == nil {
 		decisions = []migrate.Decision{}
 	}
-	enc := json.NewEncoder(w)
-	enc.SetIndent("", "  ")
-	return enc.Encode(decisions)
+	return writeJSON(w, decisions)
 }
 
 // applyDecisions performs the actual re-attribution for confident decisions.

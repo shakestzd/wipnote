@@ -20,6 +20,7 @@ import (
 	"github.com/shakestzd/wipnote/core/models"
 	"github.com/shakestzd/wipnote/core/paths"
 	"github.com/shakestzd/wipnote/core/sessionledger"
+	"github.com/shakestzd/wipnote/core/slug"
 	"github.com/spf13/cobra"
 )
 
@@ -139,8 +140,8 @@ func printSessionListHeader(w io.Writer) {
 }
 
 func printSessionRow(w io.Writer, s *models.Session, act sessionActivity, now time.Time) {
-	id := truncate(s.SessionID, 14)
-	agent := truncate(s.AgentAssigned, 18)
+	id := slug.Truncate(s.SessionID, 14)
+	agent := slug.Truncate(s.AgentAssigned, 18)
 	started := s.CreatedAt.Local().Format("2006-01-02 15:04:05")
 	duration := sessionDuration(s)
 	fmt.Fprintf(w, sessionListRowFormat,
@@ -423,7 +424,7 @@ func renderSessionShowCanonical(w io.Writer, s *models.Session, act sessionActiv
 
 func renderSessionSummary(w io.Writer, s *models.Session) error {
 	sep := strings.Repeat("─", 60)
-	shortID := truncate(s.SessionID, 14)
+	shortID := slug.Truncate(s.SessionID, 14)
 	fmt.Fprintln(w, sep)
 	fmt.Fprintf(w, "  Session %s\n", shortID)
 	fmt.Fprintln(w, sep)

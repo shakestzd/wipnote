@@ -39,7 +39,7 @@ func executeFeatureReopen(featureID string) error {
 		return err
 	}
 
-	featureID, err = resolveID(wipnoteDir, featureID)
+	featureID, err = workitem.ResolvePartialID(wipnoteDir, featureID)
 	if err != nil {
 		return err
 	}

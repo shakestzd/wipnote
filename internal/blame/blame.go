@@ -22,6 +22,8 @@ import (
 	"strings"
 	"text/tabwriter"
 	"time"
+
+	"github.com/shakestzd/wipnote/core/slug"
 )
 
 // QueryOptions controls optional filters on a blame query.
@@ -245,7 +247,7 @@ func FormatText(r *Result) string {
 			trackLabel = "—"
 		}
 		fmt.Fprintf(tw, "    %s\t%s\t%s\t%d\t%s\n",
-			f.ID, truncate(f.Title, 40), trackLabel, f.TouchCount, lastSeen)
+			f.ID, slug.Truncate(f.Title, 40), trackLabel, f.TouchCount, lastSeen)
 	}
 	tw.Flush()
 
@@ -293,13 +295,4 @@ func FormatMarkdown(r *Result) string {
 	}
 
 	return buf.String()
-}
-
-// truncate shortens s to maxLen runes, appending "…" when cut.
-func truncate(s string, maxLen int) string {
-	runes := []rune(s)
-	if len(runes) <= maxLen {
-		return s
-	}
-	return string(runes[:maxLen-1]) + "…"
 }

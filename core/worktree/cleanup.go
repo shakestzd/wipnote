@@ -2,13 +2,14 @@ package worktree
 
 import (
 	"bufio"
-	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/shakestzd/wipnote/core/paths"
 )
 
 const (
@@ -38,12 +39,8 @@ func LoadCleanupConfig(projectDir string) CleanupConfig {
 	if projectDir == "" {
 		return cfg
 	}
-	data, err := os.ReadFile(filepath.Join(projectDir, ".wipnote", "config.json"))
-	if err != nil {
-		return cfg
-	}
 	var fileCfg cleanupConfigFile
-	if err := json.Unmarshal(data, &fileCfg); err != nil {
+	if !paths.ReadProjectConfig(projectDir, &fileCfg) {
 		return cfg
 	}
 	cfg.EmptySpikeWorktreeCleanup = fileCfg.EmptySpikeWorktreeCleanup

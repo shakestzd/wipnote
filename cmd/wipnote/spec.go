@@ -10,6 +10,7 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/shakestzd/wipnote/core/filelock"
 	"github.com/shakestzd/wipnote/core/htmlparse"
 	"github.com/shakestzd/wipnote/core/models"
 	"github.com/shakestzd/wipnote/core/workitem"
@@ -409,7 +410,7 @@ func insertSpecIntoFeature(featurePath string, spec *specTemplate, force bool) e
 	}
 
 	updated := replaceOrAppendSpecSection(html, rendered)
-	if err := writeFileAtomicRaw(featurePath, []byte(updated)); err != nil {
+	if err := filelock.WriteFileAtomic(featurePath, []byte(updated), 0o644); err != nil {
 		return err
 	}
 	fmt.Printf("Spec written to %s\n", featurePath)

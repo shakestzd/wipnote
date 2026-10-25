@@ -2,7 +2,6 @@ package main
 
 import (
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/url"
@@ -99,7 +98,7 @@ func runWiList(dirName, statusFilter string) error {
 			marker = "* "
 		}
 		fmt.Printf("%s%-20s  %-11s  %-8s  %s\n",
-			marker, n.ID, n.Status, n.Priority, truncate(n.Title, 44))
+			marker, n.ID, n.Status, n.Priority, slug.Truncate(n.Title, 44))
 	}
 	fmt.Printf("\n%d %s\n", len(filtered), dirName)
 	return nil
@@ -142,12 +141,7 @@ func runWiShowWithFormat(id, format string) error {
 
 // printNodeDetailJSON outputs a node as indented JSON.
 func printNodeDetailJSON(node *models.Node) error {
-	data, err := json.MarshalIndent(node, "", "  ")
-	if err != nil {
-		return fmt.Errorf("marshal json: %w", err)
-	}
-	fmt.Println(string(data))
-	return nil
+	return printJSON(node)
 }
 
 // wiForceStart is set by --force on the start sub-command and consumed by
@@ -296,7 +290,7 @@ func wiSetStatusWithAgent(typeName, id, status, sessionID, agentID string) error
 	if err != nil {
 		return err
 	}
-	id, err = resolveID(dir, id)
+	id, err = workitem.ResolvePartialID(dir, id)
 	if err != nil {
 		return err
 	}
@@ -455,7 +449,7 @@ func wiSetStatusWithAgent(typeName, id, status, sessionID, agentID string) error
 				if len(bysess[sessionID]) >= wipPerSessionSoftLimit {
 					fmt.Fprintf(os.Stderr,
 						"wip advisory: session %s now owns %d in-progress items (soft limit %d) — consider completing before starting more\n",
-						truncate(sessionID, 16), len(bysess[sessionID]), wipPerSessionSoftLimit)
+						slug.Truncate(sessionID, 16), len(bysess[sessionID]), wipPerSessionSoftLimit)
 				}
 			}
 		}
@@ -697,13 +691,13 @@ func runWiDelete(id string) error {
 	if err != nil {
 		return err
 	}
-	resolved, err := resolveID(dir, id)
+	resolved, err := workitem.ResolvePartialID(dir, id)
 	if err != nil {
 		return err
 	}
-	path := resolveNodePath(dir, resolved)
+	path := workitem.NodePath(dir, resolved)
 	if path == "" {
-		kind := kindFromPrefix(resolved)
+		kind := workitem.KindForID(resolved)
 		return workitem.ErrNotFoundOnDisk(kind, resolved)
 	}
 	if err := os.Remove(path); err != nil {
@@ -736,7 +730,7 @@ func runWiAddStep(typeName, id, description string, allowHostPaths bool) error {
 	if err != nil {
 		return err
 	}
-	id, err = resolveID(dir, id)
+	id, err = workitem.ResolvePartialID(dir, id)
 	if err != nil {
 		return err
 	}
@@ -774,7 +768,7 @@ func runWiAddTaskStep(typeName, id, taskID, description string) error {
 	if err != nil {
 		return err
 	}
-	id, err = resolveID(dir, id)
+	id, err = workitem.ResolvePartialID(dir, id)
 	if err != nil {
 		return err
 	}
@@ -811,7 +805,7 @@ func runWiCompleteTaskStep(typeName, id, taskID string) error {
 	if err != nil {
 		return err
 	}
-	id, err = resolveID(dir, id)
+	id, err = workitem.ResolvePartialID(dir, id)
 	if err != nil {
 		return err
 	}
@@ -854,7 +848,7 @@ func runWiCompleteStep(typeName, id string, stepNum int) error {
 	if err != nil {
 		return err
 	}
-	id, err = resolveID(dir, id)
+	id, err = workitem.ResolvePartialID(dir, id)
 	if err != nil {
 		return err
 	}
@@ -890,23 +884,6 @@ func agentForClaim() string {
 	return "claude-code"
 }
 
-// resolveID resolves a partial or full work item ID to its canonical form.
-func resolveID(wipnoteDir, id string) (string, error) {
-	return workitem.ResolvePartialID(wipnoteDir, id)
-}
-
-// resolveNodePath searches all subdirectories for a file matching id.
-func resolveNodePath(wipnoteDir, id string) string {
-	dirs := []string{"features", "bugs", "spikes", "tracks", "plans", "specs"}
-	for _, sub := range dirs {
-		p := filepath.Join(wipnoteDir, sub, id+".html")
-		if _, err := os.Stat(p); err == nil {
-			return p
-		}
-	}
-	return ""
-}
-
 // resolveNodeByUnionID resolves a partial or full ID against both live files and
 // archived ledger entries. Exact matches (live or archived) win outright and are
 // never ambiguous, even if they are also a prefix of other IDs. Prefix matches
@@ -915,7 +892,7 @@ func resolveNodePath(wipnoteDir, id string) string {
 // ambiguity rather than silently picking the live one.
 func resolveNodeByUnionID(wipnoteDir, id string) (*models.Node, error) {
 	// 1. Check for exact match in live files.
-	path := resolveNodePath(wipnoteDir, id)
+	path := workitem.NodePath(wipnoteDir, id)
 	if path != "" {
 		parsed, parseErr := htmlparse.ParseFile(path)
 		if parseErr != nil {
@@ -952,12 +929,12 @@ func resolveNodeByUnionID(wipnoteDir, id string) (*models.Node, error) {
 
 	switch len(allMatches) {
 	case 0:
-		kind := kindFromPrefix(id)
+		kind := workitem.KindForID(id)
 		return nil, workitem.ErrNotFoundOnDisk(kind, id)
 	case 1:
 		matched := allMatches[0]
 		// Try live file first, then archive.
-		path := resolveNodePath(wipnoteDir, matched)
+		path := workitem.NodePath(wipnoteDir, matched)
 		if path != "" {
 			parsed, parseErr := htmlparse.ParseFile(path)
 			if parseErr != nil {
@@ -974,7 +951,7 @@ func resolveNodeByUnionID(wipnoteDir, id string) (*models.Node, error) {
 			return archived, nil
 		}
 		// Shouldn't happen, but handle gracefully.
-		kind := kindFromPrefix(matched)
+		kind := workitem.KindForID(matched)
 		return nil, workitem.ErrNotFoundOnDisk(kind, matched)
 	default:
 		return nil, fmt.Errorf("ambiguous ID %q — did you mean one of: %s",
@@ -1048,29 +1025,6 @@ func dedupMatches(matches []string) []string {
 		}
 	}
 	return unique
-}
-
-// kindFromPrefix determines the work item kind from an ID prefix.
-func kindFromPrefix(id string) string {
-	if strings.HasPrefix(id, "feat-") {
-		return "feature"
-	}
-	if strings.HasPrefix(id, "bug-") {
-		return "bug"
-	}
-	if strings.HasPrefix(id, "spk-") {
-		return "spike"
-	}
-	if strings.HasPrefix(id, "trk-") {
-		return "track"
-	}
-	if strings.HasPrefix(id, "plan-") || strings.HasPrefix(id, "pln-") {
-		return "plan"
-	}
-	if strings.HasPrefix(id, "spec-") {
-		return "spec"
-	}
-	return "work item"
 }
 
 func printNodeDetail(n *models.Node) {

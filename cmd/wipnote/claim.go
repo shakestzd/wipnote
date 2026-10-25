@@ -13,6 +13,7 @@ import (
 	dbpkg "github.com/shakestzd/wipnote/core/db"
 	"github.com/shakestzd/wipnote/core/hooks"
 	"github.com/shakestzd/wipnote/core/models"
+	"github.com/shakestzd/wipnote/core/slug"
 	"github.com/spf13/cobra"
 )
 
@@ -86,10 +87,10 @@ func runClaimList(sessionID, status string, limit int) error {
 }
 
 func printClaimRow(c *models.Claim) {
-	claimID := truncate(c.ClaimID, 10)
-	itemID := truncate(c.WorkItemID, 10)
-	sessionID := truncate(c.OwnerSessionID, 12)
-	agent := truncate(c.OwnerAgent, 12)
+	claimID := slug.Truncate(c.ClaimID, 10)
+	itemID := slug.Truncate(c.WorkItemID, 10)
+	sessionID := slug.Truncate(c.OwnerSessionID, 12)
+	agent := slug.Truncate(c.OwnerAgent, 12)
 	expiry := c.LeaseExpiresAt.Local().Format("15:04:05")
 
 	fileCount := 0

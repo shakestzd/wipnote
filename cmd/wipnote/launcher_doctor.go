@@ -50,13 +50,9 @@ and the operator opts in via WIPNOTE_ENFORCE_ISOLATION=true.`,
 	}
 }
 
-// findRepoRoot returns the git repository root from the current directory.
+// doctorFindRepoRoot returns the git repository root of the current directory.
 func doctorFindRepoRoot() (string, error) {
-	out, err := exec.Command("git", "rev-parse", "--show-toplevel").Output()
-	if err != nil {
-		return "", err
-	}
-	return strings.TrimSpace(string(out)), nil
+	return paths.GitTopLevel(".")
 }
 
 // runDoctorReport is the pure diagnostic core — takes a repoRoot and

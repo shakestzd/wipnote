@@ -479,12 +479,3 @@ func resolveForCompare(p string) string {
 	}
 	return filepath.Clean(abs)
 }
-
-// truncate shortens s to maxLen characters, appending "…" if cut.
-func truncate(s string, maxLen int) string {
-	runes := []rune(s)
-	if len(runes) <= maxLen {
-		return s
-	}
-	return string(runes[:maxLen-1]) + "…"
-}

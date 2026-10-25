@@ -2,7 +2,6 @@ package main
 
 import (
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -13,6 +12,7 @@ import (
 	dbpkg "github.com/shakestzd/wipnote/core/db"
 	"github.com/shakestzd/wipnote/core/graph"
 	"github.com/shakestzd/wipnote/core/projection"
+	"github.com/shakestzd/wipnote/core/slug"
 	"github.com/shakestzd/wipnote/internal/lineage"
 	"github.com/shakestzd/wipnote/internal/orchlink"
 	"github.com/spf13/cobra"
@@ -320,9 +320,7 @@ func renderLineageJSON(w io.Writer, root string, kind lineageKind, forward, back
 	if orch != nil {
 		out.OrchSessions, out.OrchError = orch.Sessions, orch.Err
 	}
-	enc := json.NewEncoder(w)
-	enc.SetIndent("", "  ")
-	return enc.Encode(out)
+	return writeJSON(w, out)
 }
 
 // renderLineageTree prints a human-readable indented tree with the query node
@@ -445,22 +443,20 @@ func runLineageCommit(w io.Writer, db *sql.DB, sha string, opts lineageOpts) err
 			Kind    string              `json:"kind"`
 			Commits []dbpkg.TraceResult `json:"commits"`
 		}{Root: sha, Kind: kindCommit.String(), Commits: commits}
-		enc := json.NewEncoder(w)
-		enc.SetIndent("", "  ")
-		return enc.Encode(out)
+		return writeJSON(w, out)
 	}
 	sep := strings.Repeat("─", 60)
 	fmt.Fprintln(w, sep)
-	fmt.Fprintf(w, "  Lineage: %s  [commit]\n", truncate(sha, 10))
+	fmt.Fprintf(w, "  Lineage: %s  [commit]\n", slug.Truncate(sha, 10))
 	fmt.Fprintln(w, sep)
 	if len(commits) == 0 {
 		fmt.Fprintln(w, "  (no matching commit — run 'wipnote ingest commits')")
 		return nil
 	}
 	for _, c := range commits {
-		fmt.Fprintf(w, "  Commit    %s\n", truncate(c.CommitHash, 10))
+		fmt.Fprintf(w, "  Commit    %s\n", slug.Truncate(c.CommitHash, 10))
 		if c.Message != "" {
-			fmt.Fprintf(w, "  Message   %s\n", truncate(c.Message, 55))
+			fmt.Fprintf(w, "  Message   %s\n", slug.Truncate(c.Message, 55))
 		}
 		if c.SessionID != "" {
 			fmt.Fprintf(w, "  Session   %s\n", c.SessionID)
@@ -492,9 +488,7 @@ func runLineageFile(w io.Writer, db *sql.DB, filePath string, opts lineageOpts) 
 			Kind     string                  `json:"kind"`
 			Features []dbpkg.FileTraceResult `json:"features"`
 		}{Root: filePath, Kind: kindFile.String(), Features: results}
-		enc := json.NewEncoder(w)
-		enc.SetIndent("", "  ")
-		return enc.Encode(out)
+		return writeJSON(w, out)
 	}
 	sep := strings.Repeat("─", 60)
 	fmt.Fprintln(w, sep)
@@ -510,7 +504,7 @@ func runLineageFile(w io.Writer, db *sql.DB, filePath string, opts lineageOpts) 
 		if status == "" {
 			status = "unknown"
 		}
-		fmt.Fprintf(w, "    %s  [%s]  %s\n", r.FeatureID, status, truncate(r.Title, 40))
+		fmt.Fprintf(w, "    %s  [%s]  %s\n", r.FeatureID, status, slug.Truncate(r.Title, 40))
 		if r.TrackID != "" {
 			fmt.Fprintf(w, "      Track: %s\n", r.TrackID)
 		}
@@ -586,7 +580,7 @@ func printLineageBranches(w io.Writer, pivot string, nodes []lineageNode) {
 			indent := strings.Repeat("  ", indentLevel)
 			label := n.ID
 			if n.Title != "" {
-				label = fmt.Sprintf("%s (%s)", n.ID, truncate(n.Title, 40))
+				label = fmt.Sprintf("%s (%s)", n.ID, slug.Truncate(n.Title, 40))
 			}
 			fmt.Fprintf(w, "  %s[%s] %s%s\n", indent, n.EdgeType, label, edgeCaveat(n.Metadata))
 			dfs(n.ID, indentLevel+1)
@@ -613,7 +607,7 @@ func printLineageBranches(w io.Writer, pivot string, nodes []lineageNode) {
 		// new root so partial walks degrade gracefully.
 		label := n.ID
 		if n.Title != "" {
-			label = fmt.Sprintf("%s (%s)", n.ID, truncate(n.Title, 40))
+			label = fmt.Sprintf("%s (%s)", n.ID, slug.Truncate(n.Title, 40))
 		}
 		fmt.Fprintf(w, "  [%s] %s%s  (orphan)\n", n.EdgeType, label, edgeCaveat(n.Metadata))
 		seen[n.ID] = true

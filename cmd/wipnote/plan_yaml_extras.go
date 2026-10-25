@@ -716,7 +716,5 @@ func runReadFeedbackYAML(planID string) error {
 			})
 		}
 	}
-	enc := json.NewEncoder(os.Stdout)
-	enc.SetIndent("", "  ")
-	return enc.Encode(result)
+	return printJSON(result)
 }

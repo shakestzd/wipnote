@@ -2,13 +2,13 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
 
 	"github.com/shakestzd/wipnote/core/graph"
 	"github.com/shakestzd/wipnote/core/models"
+	"github.com/shakestzd/wipnote/core/slug"
 	"github.com/shakestzd/wipnote/core/workitem"
 	"github.com/spf13/cobra"
 )
@@ -172,7 +172,7 @@ func printRecommendText(
 		if sig := workitem.RollupSignalFor(n); sig.Measured && sig.Thrashed() {
 			note = "  [prior-run thrash]"
 		}
-		fmt.Printf("  %-20s  %-8s  %s%s\n", n.ID, n.Type, truncate(n.Title, 44), note)
+		fmt.Printf("  %-20s  %-8s  %s%s\n", n.ID, n.Type, slug.Truncate(n.Title, 44), note)
 	}
 	fmt.Println()
 
@@ -191,7 +191,7 @@ func printRecommendText(
 	}
 	for i, r := range recs {
 		fmt.Printf("  %d. [%-8s]  %-20s  %s  — %s\n",
-			i+1, r.Priority, r.ItemID, truncate(r.Title, 40), r.Reason)
+			i+1, r.Priority, r.ItemID, slug.Truncate(r.Title, 40), r.Reason)
 	}
 	fmt.Println()
 
@@ -246,10 +246,5 @@ func printRecommendJSON(
 		Parallel:    parallel,
 	}
 
-	data, err := json.MarshalIndent(out, "", "  ")
-	if err != nil {
-		return fmt.Errorf("marshal json: %w", err)
-	}
-	fmt.Println(string(data))
-	return nil
+	return printJSON(out)
 }

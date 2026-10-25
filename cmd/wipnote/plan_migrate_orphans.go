@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/shakestzd/wipnote/core/models"
+	"github.com/shakestzd/wipnote/core/slug"
 	"github.com/shakestzd/wipnote/core/workitem"
 	"github.com/spf13/cobra"
 )
@@ -67,7 +68,7 @@ func executeMigrateOrphans(p *workitem.Project, apply bool) error {
 	if !apply {
 		fmt.Printf("Orphan features (no plan linkage): %d\n", len(orphans))
 		for _, f := range orphans {
-			fmt.Printf("  %s  %s\n", f.ID, truncate(f.Title, 50))
+			fmt.Printf("  %s  %s\n", f.ID, slug.Truncate(f.Title, 50))
 		}
 		fmt.Println("\nRe-run with --apply to mark these features as standalone.")
 		return nil
@@ -83,7 +84,7 @@ func executeMigrateOrphans(p *workitem.Project, apply bool) error {
 			continue
 		}
 		applied++
-		fmt.Printf("  marked standalone: %s  %s\n", feat.ID, truncate(feat.Title, 50))
+		fmt.Printf("  marked standalone: %s  %s\n", feat.ID, slug.Truncate(feat.Title, 50))
 	}
 
 	fmt.Printf("\nMarked %d of %d orphan features as standalone.\n", applied, len(orphans))

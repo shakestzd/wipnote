@@ -13,10 +13,10 @@ import (
 	"sort"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"syscall"
 	"time"
 
+	"github.com/shakestzd/wipnote/core/filelock"
 	"github.com/shakestzd/wipnote/core/htmlparse"
 	"github.com/shakestzd/wipnote/core/models"
 	"github.com/shakestzd/wipnote/core/paths"
@@ -66,11 +66,6 @@ func LockFeatureForWrite(featurePath string) (release func()) {
 		mu.Unlock()
 	}
 }
-
-// atomicWriteCounter provides a unique sequence number per atomic write call,
-// used to make temp filenames unique even when called from multiple goroutines
-// in the same process (which all share the same PID).
-var atomicWriteCounter atomic.Int64
 
 // --- ID generation -----------------------------------------------------------
 
@@ -167,7 +162,7 @@ func writeNodeHTMLUnlocked(dir string, node *models.Node) (string, error) {
 		}
 	}
 
-	if err := atomicWriteFile(path, []byte(html), 0o644); err != nil {
+	if err := filelock.WriteFileAtomic(path, []byte(html), 0o644); err != nil {
 		return "", fmt.Errorf("write %s: %w", path, err)
 	}
 	return path, nil
@@ -215,45 +210,6 @@ func extractSection(html, class string) (string, bool) {
 	}
 	end += start + len(closeTag)
 	return html[start:end], true
-}
-
-// atomicWriteFile writes data to path atomically: it writes to a temp file in
-// the same directory, calls Sync to flush to storage, then renames the temp
-// file over the target. POSIX rename is atomic within the same filesystem.
-func atomicWriteFile(path string, data []byte, perm os.FileMode) error {
-	dir := filepath.Dir(path)
-	seq := atomicWriteCounter.Add(1)
-	tmp := fmt.Sprintf("%s.tmp.%d.%d", path, os.Getpid(), seq)
-
-	f, err := os.OpenFile(tmp, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, perm)
-	if err != nil {
-		return fmt.Errorf("open temp file: %w", err)
-	}
-
-	if _, err := f.Write(data); err != nil {
-		f.Close()
-		os.Remove(tmp)
-		return fmt.Errorf("write temp file: %w", err)
-	}
-
-	if err := f.Sync(); err != nil {
-		f.Close()
-		os.Remove(tmp)
-		return fmt.Errorf("sync temp file: %w", err)
-	}
-
-	if err := f.Close(); err != nil {
-		os.Remove(tmp)
-		return fmt.Errorf("close temp file: %w", err)
-	}
-
-	_ = dir // ensure dir is always used (for documentation clarity)
-	if err := os.Rename(tmp, path); err != nil {
-		os.Remove(tmp)
-		return fmt.Errorf("rename temp to target: %w", err)
-	}
-
-	return nil
 }
 
 // renderNodeHTML produces the full HTML document for a node using
@@ -435,31 +391,6 @@ func edgeHref(targetID string) string {
 		return targetID + ".html"
 	}
 	return "../" + dir + "/" + targetID + ".html"
-}
-
-// collectionDirForID maps a target ID to its .wipnote/ collection
-// subdirectory based on the ID prefix. Session IDs (bare UUIDs, no prefix)
-// resolve to "sessions". Returns "" when the prefix is unrecognized, signaling
-// callers to fall back to a bare same-directory href.
-func collectionDirForID(id string) string {
-	switch {
-	case strings.HasPrefix(id, "feat-"):
-		return "features"
-	case strings.HasPrefix(id, "bug-"):
-		return "bugs"
-	case strings.HasPrefix(id, "spk-"):
-		return "spikes"
-	case strings.HasPrefix(id, "trk-"):
-		return "tracks"
-	case strings.HasPrefix(id, "plan-"), strings.HasPrefix(id, "pln-"):
-		return "plans"
-	case strings.HasPrefix(id, "spec-"):
-		return "specs"
-	case isSessionID(id):
-		return "sessions"
-	default:
-		return ""
-	}
 }
 
 // isSessionID reports whether id looks like a session identifier.

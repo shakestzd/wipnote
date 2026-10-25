@@ -2,7 +2,6 @@ package main
 
 import (
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -12,6 +11,7 @@ import (
 
 	dbpkg "github.com/shakestzd/wipnote/core/db"
 	"github.com/shakestzd/wipnote/core/models"
+	"github.com/shakestzd/wipnote/core/slug"
 	"github.com/spf13/cobra"
 )
 
@@ -177,20 +177,18 @@ func runTraceCommit(sha string, jsonOut bool) error {
 				Track:   c.TrackID,
 			})
 		}
-		enc := json.NewEncoder(os.Stdout)
-		enc.SetIndent("", "  ")
-		return enc.Encode(out)
+		return printJSON(out)
 	}
 
 	sep := strings.Repeat("─", 60)
 	fmt.Println(sep)
-	fmt.Printf("  Trace: %s\n", truncate(sha, 10))
+	fmt.Printf("  Trace: %s\n", slug.Truncate(sha, 10))
 	fmt.Println(sep)
 
 	for _, c := range commits {
-		fmt.Printf("  Commit    %s\n", truncate(c.CommitHash, 10))
+		fmt.Printf("  Commit    %s\n", slug.Truncate(c.CommitHash, 10))
 		if c.Message != "" {
-			fmt.Printf("  Message   %s\n", truncate(c.Message, 55))
+			fmt.Printf("  Message   %s\n", slug.Truncate(c.Message, 55))
 		}
 		fmt.Printf("  Session   %s\n", c.SessionID)
 		if c.FeatureID != "" {
@@ -275,9 +273,7 @@ func runTraceFile(filePath string, jsonOut bool) error {
 		if owner := dbpkg.ResolveFileOwner(database, filePath); owner != nil {
 			out.Owner = owner.FeatureID
 		}
-		enc := json.NewEncoder(os.Stdout)
-		enc.SetIndent("", "  ")
-		return enc.Encode(out)
+		return printJSON(out)
 	}
 
 	sep := strings.Repeat("─", 60)
@@ -308,11 +304,11 @@ func runTraceFile(filePath string, jsonOut bool) error {
 		if status == "" {
 			status = "unknown"
 		}
-		fmt.Printf("    %s  [%s]  %s\n", r.FeatureID, status, truncate(r.Title, 40))
+		fmt.Printf("    %s  [%s]  %s\n", r.FeatureID, status, slug.Truncate(r.Title, 40))
 		if r.TrackID != "" {
 			fmt.Printf("      Track: %s\n", r.TrackID)
 		}
-		fmt.Printf("      Op: %s  Last seen: %s\n", r.Operation, truncate(r.LastSeen, 19))
+		fmt.Printf("      Op: %s  Last seen: %s\n", r.Operation, slug.Truncate(r.LastSeen, 19))
 	}
 
 	if len(tracks) > 0 {
@@ -326,7 +322,7 @@ func runTraceFile(filePath string, jsonOut bool) error {
 	if owner := dbpkg.ResolveFileOwner(database, filePath); owner != nil {
 		fmt.Printf("\n  Owner: %s", owner.FeatureID)
 		if owner.Title != "" {
-			fmt.Printf("  %s", truncate(owner.Title, 40))
+			fmt.Printf("  %s", slug.Truncate(owner.Title, 40))
 		}
 		fmt.Println()
 	}
@@ -447,9 +443,9 @@ func runTraceFeature(w io.Writer, database *sql.DB, featureID string) error {
 
 	fmt.Fprintf(w, "\n  Commits (%d):\n", len(commits))
 	for _, c := range commits {
-		fmt.Fprintf(w, "    %s", truncate(c.CommitHash, 10))
+		fmt.Fprintf(w, "    %s", slug.Truncate(c.CommitHash, 10))
 		if c.Message != "" {
-			fmt.Fprintf(w, "  %s", truncate(c.Message, 48))
+			fmt.Fprintf(w, "  %s", slug.Truncate(c.Message, 48))
 		}
 		fmt.Fprintln(w)
 		if c.SessionID != "" {
@@ -496,9 +492,7 @@ func runTraceFeatureJSON(w io.Writer, database *sql.DB, featureID string) error 
 		Files:    filePaths,
 	}
 
-	enc := json.NewEncoder(w)
-	enc.SetIndent("", "  ")
-	return enc.Encode(out)
+	return writeJSON(w, out)
 }
 
 // runTraceFeatureTests writes a human-readable list of the test files a work
@@ -564,7 +558,5 @@ func runTraceFeatureTestsJSON(w io.Writer, database *sql.DB, featureID string) e
 		})
 	}
 
-	enc := json.NewEncoder(w)
-	enc.SetIndent("", "  ")
-	return enc.Encode(out)
+	return writeJSON(w, out)
 }
