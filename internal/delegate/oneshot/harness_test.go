@@ -54,9 +54,29 @@ func paneWorkerMain(args []string) int {
 	if err != nil {
 		return 2
 	}
+	if log := os.Getenv(commitLogEnv); log != "" {
+		delegationledger.OnCommit = commitLogger(log, "worker")
+	}
 	return RunPane(context.Background(), PaneOptions{
 		Store: store, RunID: args[2], Herdr: herdr.New(herdr.EnvFrom(os.Getenv)), Out: os.Stdout,
+		Ledger: delegationledger.NewStore(filepath.Join(args[1], ".wipnote")),
 	})
+}
+
+// commitLogEnv names a file both processes append each ledger write to, as
+// "<who> <action>", so a test counts the closes the caller and the pane
+// worker wrote between them.
+const commitLogEnv = "ONESHOT_TEST_COMMIT_LOG"
+
+func commitLogger(path, who string) func(string, string, string) {
+	return func(_, _, action string) {
+		f, err := os.OpenFile(path, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0o600)
+		if err != nil {
+			return
+		}
+		defer f.Close()
+		_, _ = f.WriteString(who + " " + action + "\n")
+	}
 }
 
 // testProject is a temp project: its run store, its ledger and a run

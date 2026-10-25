@@ -45,17 +45,41 @@ func TestSettings_LoadFromProjectConfig(t *testing.T) {
 	}
 	must(t, os.MkdirAll(filepath.Join(dir, ".wipnote"), 0o755))
 	cfg := `{"delegate": {"layout": "down", "maxPanes": 2, "closePane": "never", "closeDelay": 0, "tailLines": 5,
-		"maxReturnLines": 0, "leanProfile": false, "leanProfileName": "x y", "ccxRunsDir": " /data/ccx $x ", "bogus": 1}}`
+		"maxReturnLines": 0, "leanProfile": false, "leanProfileName": "x y", "ccxRunsDir": " /data/ccx $x ",
+		"ccxWaitSeconds": 9, "keepDays": 2, "bogus": 1}}`
 	must(t, os.WriteFile(filepath.Join(dir, ".wipnote", "config.json"), []byte(cfg), 0o600))
 	s = LoadSettings(dir)
 	want := Settings{Layout: "down", Direction: "right", MaxPanes: 2, ClosePane: "never", CloseDelay: 0, TailLines: 5,
-		MaxReturnLines: 0, LeanProfile: false, LeanProfileName: "xy", CcxRunsDir: "/data/ccx $x"}
+		MaxReturnLines: 0, LeanProfile: false, LeanProfileName: "xy", CcxRunsDir: "/data/ccx $x", CcxWaitSeconds: 9, KeepDays: 2}
 	if s != want {
 		t.Fatalf("loaded %+v\nwant %+v", s, want)
 	}
 	must(t, os.WriteFile(filepath.Join(dir, ".wipnote", "config.json"), []byte(`{"delegate": {"maxPanes": 0, "closePane": "sometimes", "maxReturnLines": -1}}`), 0o600))
 	if s := LoadSettings(dir); s.MaxPanes != 6 || s.ClosePane != "always" || s.MaxReturnLines != 60 {
 		t.Fatalf("bad values not defaulted: %+v", s)
+	}
+}
+
+// ccxWaitSeconds (30) and keepDays (7) replace the mod's fixed wait and its
+// CODEX_HERDR_KEEP_DAYS sweep age. A value under 1 keeps the default, and
+// the old CODEX_HERDR_* env names are not read.
+func TestSettings_CcxWaitAndKeepDays(t *testing.T) {
+	t.Setenv("CODEX_HERDR_KEEP_DAYS", "1")
+	t.Setenv("CODEX_HERDR_CCX_WAIT", "1")
+	t.Setenv("CODEX_HERDR_CCX_WAIT_SECONDS", "1")
+	dir := t.TempDir()
+	if s := LoadSettings(dir); s.CcxWaitSeconds != 30 || s.KeepDays != 7 {
+		t.Fatalf("defaults (old env must not count): wait %d keep %d", s.CcxWaitSeconds, s.KeepDays)
+	}
+	must(t, os.MkdirAll(filepath.Join(dir, ".wipnote"), 0o755))
+	cfg := filepath.Join(dir, ".wipnote", "config.json")
+	must(t, os.WriteFile(cfg, []byte(`{"delegate": {"ccxWaitSeconds": 0, "keepDays": 0}}`), 0o600))
+	if s := LoadSettings(dir); s.CcxWaitSeconds != 30 || s.KeepDays != 7 {
+		t.Fatalf("values under 1 not defaulted: wait %d keep %d", s.CcxWaitSeconds, s.KeepDays)
+	}
+	must(t, os.WriteFile(cfg, []byte(`{"delegate": {"ccxWaitSeconds": 45, "keepDays": 14}}`), 0o600))
+	if s := LoadSettings(dir); s.CcxWaitSeconds != 45 || s.KeepDays != 14 {
+		t.Fatalf("set values not read: wait %d keep %d", s.CcxWaitSeconds, s.KeepDays)
 	}
 }
 

@@ -112,13 +112,21 @@ type CloseInfo struct {
 // one: closing an already-closed row changes nothing. Returns ErrNoRow when the
 // run has no row.
 func (s *Store) Close(runID string, c CloseInfo) error {
+	_, err := s.CloseIfOpen(runID, c)
+	return err
+}
+
+// CloseIfOpen is Close that also reports whether this call closed the row:
+// false when the row was already closed, decided under the ledger lock.
+func (s *Store) CloseIfOpen(runID string, c CloseInfo) (bool, error) {
 	if c.Reason == "" {
-		return fmt.Errorf("delegationledger: close %s: end reason required", runID)
+		return false, fmt.Errorf("delegationledger: close %s: end reason required", runID)
 	}
 	if c.Ended.IsZero() {
 		c.Ended = time.Now().UTC()
 	}
-	return s.update(runID, "delegation close", func(r *Record) bool {
+	closed := false
+	err := s.update(runID, "delegation close", func(r *Record) bool {
 		if !r.IsOpen() {
 			return false
 		}
@@ -126,8 +134,10 @@ func (s *Store) Close(runID string, c CloseInfo) error {
 			c.Ended = r.Started
 		}
 		r.Ended, r.Exit, r.EndReason = c.Ended, c.Exit, c.Reason
+		closed = true
 		return true
 	})
+	return closed && err == nil, err
 }
 
 // Enrichment is what a later pass learned about a run. WorkerSessions are

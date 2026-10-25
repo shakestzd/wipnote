@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/shakestzd/wipnote/core/delegationledger"
 	"github.com/shakestzd/wipnote/core/filelock"
 	"github.com/shakestzd/wipnote/internal/delegate/herdr"
 	"github.com/shakestzd/wipnote/internal/delegate/render"
@@ -158,16 +159,19 @@ func runInPane(ctx context.Context, o Options, rf *runstore.RunFolder, r Recipe,
 
 // PaneOptions are the pane worker's (wipnote delegate run-pane).
 type PaneOptions struct {
-	Store *runstore.Store
-	RunID string
-	Herdr herdr.Client // for closing its own pane
-	Out   io.Writer    // the pane's terminal
-	Poll  time.Duration
+	Store  *runstore.Store
+	RunID  string
+	Herdr  herdr.Client // for closing its own pane
+	Out    io.Writer    // the pane's terminal
+	Poll   time.Duration
+	Ledger *delegationledger.Store
 }
 
 // RunPane is the pane worker: it sets the pane's title and clears the typed
-// line, runs the job while the Go viewer follows the run folder, then closes
-// its pane per closePane after closeDelay. It returns the tool's exit.
+// line, runs the job while the Go viewer follows the run folder, closes the
+// run's ledger row when the tool exits (so a caller that was interrupted
+// still leaves a closed row), then closes its pane per closePane after
+// closeDelay. It returns the tool's exit.
 func RunPane(ctx context.Context, po PaneOptions) int {
 	rf, err := po.Store.Run(po.RunID)
 	if err != nil {
@@ -182,11 +186,33 @@ func RunPane(ctx context.Context, po PaneOptions) int {
 	info, _ := rf.Read()
 	fmt.Fprintf(po.Out, "\033]0;%s\007\033[H\033[2J", info.Label)
 	done := make(chan int, 1)
-	go func() { done <- Execute(ctx, rf, job) }()
+	go func() {
+		exit := Execute(ctx, rf, job)
+		closeOwnRow(ctx, po.Ledger, rf, exit)
+		done <- exit
+	}()
 	_ = render.View(ctx, rf, po.Out, render.ViewOptions{Poll: po.Poll})
 	exit := <-done
 	closeOwnPane(ctx, po.Herdr, job, exit)
 	return exit
+}
+
+// closeOwnRow closes the run's row with the tool's exit and usage when the
+// row is still open; a row already closed (a stop, or the caller first) is
+// left as it is (rule F-1). A cancelled worker records a stop, as the
+// caller does.
+func closeOwnRow(ctx context.Context, l *delegationledger.Store, rf *runstore.RunFolder, exit int) {
+	if l == nil {
+		return
+	}
+	reason := delegationledger.EndExit
+	if ctx.Err() != nil {
+		reason = delegationledger.EndStop
+	}
+	c := delegationledger.CloseInfo{Ended: time.Now().UTC(), Exit: &exit, Reason: reason}
+	if closed, err := l.CloseIfOpen(rf.ID(), c); err == nil && closed {
+		enrichRow(l, rf, rf.ID())
+	}
 }
 
 func closeOwnPane(ctx context.Context, c herdr.Client, job Job, exit int) {
