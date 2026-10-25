@@ -7,7 +7,7 @@ meta:
     status: draft
     priority: medium
     schema_version: v4
-    version: 7
+    version: 8
 design:
     problem: |
         ## Problem
@@ -1562,6 +1562,149 @@ questions:
         - key: allow-n-shared-tree
           label: Allow several in one working tree, with no isolation
       answer: one-per-item
+critique:
+    reviewed_at: "2026-10-25"
+    reviewers:
+        - local-design
+        - local-feasibility
+    assumptions:
+        - id: A1
+          status: verified
+          text: A Codex PreToolUse hook can deny a Bash call with a reason.
+          evidence: 'learn.chatgpt.com/docs/hooks: deny is supported; ask is parsed but not supported.'
+        - id: A2
+          status: verified
+          text: Claude Code PreToolUse accepts updatedInput with allow or ask.
+          evidence: 'code.claude.com/docs/en/hooks. Not used: the owner chose deny-redirect only.'
+        - id: A3
+          status: falsified
+          text: herdr agent start can run a custom command such as wipnote claude.
+          evidence: 'herdr.dev/docs/agent-automation/: agent start cannot run a custom command. Slice 10 uses pane run with a quoting helper.'
+        - id: A4
+          status: verified
+          text: herdr agent wait observes agent state, not job completion.
+          evidence: herdr.dev/docs/agents/. Slice 11 settles on the worker's Stop event.
+        - id: A6
+          status: questionable
+          text: Hooks given through --settings add to plugin hooks.
+          evidence: The docs predict add but do not list --settings as a hook location. Phase B check B1; it affects only orch during migration.
+        - id: A7
+          status: unverified
+          text: Codex hooks fire under codex exec.
+          evidence: learn.chatgpt.com/docs/hooks is silent on exec mode. Phase B check B5, bug-3e4c6e02.
+        - id: A8
+          status: verified
+          text: A live Claude Code session can be renamed with the sessionTitle hook output.
+          evidence: 'code.claude.com/docs/en/hooks: sessionTitle on UserPromptSubmit and SessionStart. Slice 15.'
+        - id: A9
+          status: unverified
+          text: Codex supports naming a session.
+          evidence: No Codex doc found. Slice 15 records the result instead of writing code.
+        - id: A10
+          status: falsified
+          text: A gitignore policy change reaches existing projects.
+          evidence: 'core/worktree/gitignore.go:10-19: create-if-missing only. Slice 5 adds an upgrader.'
+        - id: A11
+          status: verified
+          text: A worker's claim episode is rooted at its own session.
+          evidence: 'cmd/wipnote/claim_ledger.go:74-90: rootSessionFor falls back to the session id. Slice 10 tests it (TestSpawn_WorkerShardIsOwnRoot).'
+        - id: A13
+          status: unverified
+          text: The herdr-plugin prior-art facts (versions, licenses, features) are correct.
+          evidence: The repos were not reachable in this review. The survey table stays reference data only.
+        - id: A15
+          status: plausible
+          text: A worker runs `<kind> start <id>` from its brief.
+          evidence: The brief is the worker's first prompt. wait and list check that the episode appeared and report it if not.
+    critics:
+        - title: Design
+          sections:
+            - heading: Scope and owner decisions
+              items:
+                - badge: Fixed
+                  kind: danger
+                  text: 'Slice 1 planned a source snapshot, but the owner chose inventory-only. Fixed in this revision: README plus inventory and PROVENANCE.md; no orch code in the repo.'
+                - badge: Fixed
+                  kind: danger
+                  text: 'Slice 9 kept rewrite-ask and rewrite-allow, but the owner chose deny-redirect only. Fixed in this revision: deny with the exact delegate run argv, a loop guard, and the rewrite modes moved to Rejected.'
+                - badge: Fixed
+                  kind: warn
+                  text: 'Answering worker questions was deferred, but the owner chose answer. Fixed in this revision: new slice 17 types the answer into the worker''s herdr pane.'
+                - badge: Fixed
+                  kind: warn
+                  text: 'The orch import was optional, but the owner chose import. Fixed in this revision: new slice 18 import-orch; slice 13 deletes orchlink after it.'
+                - badge: Fixed
+                  kind: warn
+                  text: 'q-claude-pane was still open in slice 14. Fixed in this revision: new slice 19 merges wipnote-orchestra into delegate.'
+            - heading: Structure and size
+              items:
+                - badge: Fixed
+                  kind: warn
+                  text: 'Slice 10 done_when was far over the word norm and mixed spawn with claims. Fixed in this revision: claims moved to new slice 16.'
+                - badge: Fixed
+                  kind: warn
+                  text: 'pretooluse.go is 1188 lines. Fixed in this revision: new code goes in core/hooks/pretooluse_delegate.go.'
+                - badge: Fixed
+                  kind: warn
+                  text: Slice 15 had no complexity, notes, research or blocks. Fixed in this revision.
+                - badge: Fixed
+                  kind: success
+                  text: 'Committed labels follow q-label: explicit --label only. Fixed in this revision in slices 4 and 8 (TestRun_DerivedLabelNotInLedger).'
+        - title: Feasibility
+          sections:
+            - heading: Harness and herdr contracts
+              items:
+                - badge: Fixed
+                  kind: danger
+                  text: 'herdr agent start cannot run a custom command (A3). Fixed in this revision: spawn uses pane run with a shell-quoting helper and inline env prefixes.'
+                - badge: Fixed
+                  kind: warn
+                  text: 'Codex parses ask but does not support it (A1). Fixed in this revision: deny is the only mode on both harnesses.'
+                - badge: Open
+                  kind: warn
+                  text: Codex hooks under exec (A7) and Codex session naming (A9) stay unverified; Phase B and slice 15 record the results.
+            - heading: Sessions and claims
+              items:
+                - badge: Fixed
+                  kind: danger
+                  text: 'Inherited WIPNOTE_PARENT_SESSION and WIPNOTE_NESTING_DEPTH would mark a worker as a subagent of the caller. Fixed in this revision: spawn scrubs them and tests that the worker is its own root.'
+                - badge: Fixed
+                  kind: danger
+                  text: 'Slice 10 set sessions.parent_session_id to the caller, which contradicts the root-session rule. Fixed in this revision: the caller is stored only as delegate_caller_session.'
+                - badge: Fixed
+                  kind: warn
+                  text: 'Spawn waited for the bind before returning. Fixed in this revision (decision F): spawn returns within 3 s with status starting; bind and brief happen in the pane.'
+                - badge: Blocked
+                  kind: warn
+                  text: The live-worker gate needs bug-01f182e5 fixed first. Slice 16 records it as a hard blocker.
+            - heading: Store and settings
+              items:
+                - badge: Fixed
+                  kind: danger
+                  text: 'The gitignore policy never reaches an existing project (A10). Fixed in this revision: slice 5 adds an upgrader and a done_when for an existing checkout.'
+                - badge: Fixed
+                  kind: warn
+                  text: 'The Codex sandbox opt-in had no named setting. Fixed in this revision: user config delegate.codex.dangerFullAccessHosts, and slice 12 reuses codexSandboxProbe.'
+    risks:
+        - risk: Inherited WIPNOTE_* session env mis-parents a worker as a subagent of its caller.
+          severity: High
+          mitigation: spawn scrubs the env; TestSpawn_ScrubsInheritedSessionEnv and TestSpawn_WorkerShardIsOwnRoot.
+        - risk: The live-worker gate expires workers before bug-01f182e5 is fixed.
+          severity: High
+          mitigation: Hard blocker on slice 16.
+        - risk: Typing answers into a pane is fragile across herdr versions.
+          severity: Medium
+          mitigation: Contract-test against the herdr stub; refuse outside herdr.
+        - risk: herdr CLI drift breaks the adapter.
+          severity: Medium
+          mitigation: Contract tests per herdr release.
+        - risk: delegations-ledger.html merge conflicts across worktrees.
+          severity: Low
+          mitigation: Append-only rows, like the sessions ledger.
+        - risk: Same-release mod removal strands users of the mod's settings.
+          severity: Medium
+          mitigation: A one-time notice names the new settings.
+    synthesis: 'All danger items are fixed in this revision. Blockers left: spike spk-87139e0e decides whether delegate run keeps a headless path (slice 8); bug-01f182e5 must be fixed before the worker claim gate (slice 16); slice 1 needs the owner''s orch source; slice 2 must run on the owner''s Mac. The reviewer should look first at slices 10 and 16 (claims), slice 17 (typing answers into panes) and slice 19 (the orchestra merge).'
 feedback:
     entries:
         - section: questions
