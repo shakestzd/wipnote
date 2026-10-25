@@ -245,11 +245,11 @@ var approvedWriteSites = []writeSite{
 	// ----------------------------------------------------------------------
 	{
 		File:           "observe/otel/receiver/writer.go",
-		Function:       "NewWriter",
+		Function:       "openWriterDB",
 		OpenExpr:       "sql.Open",
 		Ordinal:        1,
 		Classification: daemonRoutedWriterService,
-		Note:           "Slice 6 writer service (feat-f3bcbcef): the writable, file-backed SQLite handle this constructor opens on its own pool (own-pool mode). feat-fc3cc9e0: production no longer calls this constructor — cmd/wipnote/reindex_otel_events.go, its only caller, was deleted, and the daemon (serve_child.go:runWriterOnly) now opens dbpkg.OpenEphemeralProjection() and hands the SAME handle to the sibling constructor NewWriterFromDB (shared mode) instead of letting the Writer open its own pool. NewWriter itself is kept for tests/benchmarks that want an isolated writer against a real file; its sql.Open call is real and file-backed (dsn is dbPath + pragma string, not \":memory:\"), so it stays classified daemon-routed-writer-service rather than being removed as dead — if it is ever called from production again it is still the single approved writable handle for that call path.",
+		Note:           "Slice 6 writer service (feat-f3bcbcef): the writable, file-backed SQLite handle NewWriter opens (via openWriterDB) on its own pool (own-pool mode). feat-fc3cc9e0: production no longer calls this constructor — cmd/wipnote/reindex_otel_events.go, its only caller, was deleted, and the daemon (serve_child.go:runWriterOnly) now opens dbpkg.OpenEphemeralProjection() and hands the SAME handle to the sibling constructor NewWriterFromDB (shared mode) instead of letting the Writer open its own pool. NewWriter itself is kept for tests/benchmarks that want an isolated writer against a real file; its sql.Open call is real and file-backed (dsn is dbPath + pragma string, not \":memory:\"), so it stays classified daemon-routed-writer-service rather than being removed as dead — if it is ever called from production again it is still the single approved writable handle for that call path.",
 	},
 
 	// ----------------------------------------------------------------------
