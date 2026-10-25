@@ -1,6 +1,7 @@
 package oneshot
 
 import (
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -36,10 +37,12 @@ func TestSettings_LayoutAutoKeepsLegacyDirection(t *testing.T) {
 }
 
 // The mod's userConfig maps to .wipnote/config.json "delegate"; a bad or
-// missing value keeps the mod's default, and ccxRunsDir has no default.
+// missing value keeps the mod's default, and ccxRunsDir has no default. A
+// ccxRunsDir in the committed project file is ignored (a host path).
 func TestSettings_LoadFromProjectConfig(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
 	dir := t.TempDir()
-	s := LoadSettings(dir)
+	s := LoadSettings(dir, io.Discard)
 	if s != DefaultSettings() || s.CcxRunsDir != "" || s.MaxReturnLines != 60 || s.TailLines != 200 || s.MaxPanes != 6 {
 		t.Fatalf("defaults: %+v", s)
 	}
@@ -48,14 +51,14 @@ func TestSettings_LoadFromProjectConfig(t *testing.T) {
 		"maxReturnLines": 0, "leanProfile": false, "leanProfileName": "x y", "ccxRunsDir": " /data/ccx $x ",
 		"ccxWaitSeconds": 9, "keepDays": 2, "bogus": 1}}`
 	must(t, os.WriteFile(filepath.Join(dir, ".wipnote", "config.json"), []byte(cfg), 0o600))
-	s = LoadSettings(dir)
+	s = LoadSettings(dir, io.Discard)
 	want := Settings{Layout: "down", Direction: "right", MaxPanes: 2, ClosePane: "never", CloseDelay: 0, TailLines: 5,
-		MaxReturnLines: 0, LeanProfile: false, LeanProfileName: "xy", CcxRunsDir: "/data/ccx $x", CcxWaitSeconds: 9, KeepDays: 2}
+		MaxReturnLines: 0, LeanProfile: false, LeanProfileName: "xy", CcxWaitSeconds: 9, KeepDays: 2}
 	if s != want {
 		t.Fatalf("loaded %+v\nwant %+v", s, want)
 	}
 	must(t, os.WriteFile(filepath.Join(dir, ".wipnote", "config.json"), []byte(`{"delegate": {"maxPanes": 0, "closePane": "sometimes", "maxReturnLines": -1}}`), 0o600))
-	if s := LoadSettings(dir); s.MaxPanes != 6 || s.ClosePane != "always" || s.MaxReturnLines != 60 {
+	if s := LoadSettings(dir, io.Discard); s.MaxPanes != 6 || s.ClosePane != "always" || s.MaxReturnLines != 60 {
 		t.Fatalf("bad values not defaulted: %+v", s)
 	}
 }
@@ -64,21 +67,22 @@ func TestSettings_LoadFromProjectConfig(t *testing.T) {
 // CODEX_HERDR_KEEP_DAYS sweep age. A value under 1 keeps the default, and
 // the old CODEX_HERDR_* env names are not read.
 func TestSettings_CcxWaitAndKeepDays(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
 	t.Setenv("CODEX_HERDR_KEEP_DAYS", "1")
 	t.Setenv("CODEX_HERDR_CCX_WAIT", "1")
 	t.Setenv("CODEX_HERDR_CCX_WAIT_SECONDS", "1")
 	dir := t.TempDir()
-	if s := LoadSettings(dir); s.CcxWaitSeconds != 30 || s.KeepDays != 7 {
+	if s := LoadSettings(dir, io.Discard); s.CcxWaitSeconds != 30 || s.KeepDays != 7 {
 		t.Fatalf("defaults (old env must not count): wait %d keep %d", s.CcxWaitSeconds, s.KeepDays)
 	}
 	must(t, os.MkdirAll(filepath.Join(dir, ".wipnote"), 0o755))
 	cfg := filepath.Join(dir, ".wipnote", "config.json")
 	must(t, os.WriteFile(cfg, []byte(`{"delegate": {"ccxWaitSeconds": 0, "keepDays": 0}}`), 0o600))
-	if s := LoadSettings(dir); s.CcxWaitSeconds != 30 || s.KeepDays != 7 {
+	if s := LoadSettings(dir, io.Discard); s.CcxWaitSeconds != 30 || s.KeepDays != 7 {
 		t.Fatalf("values under 1 not defaulted: wait %d keep %d", s.CcxWaitSeconds, s.KeepDays)
 	}
 	must(t, os.WriteFile(cfg, []byte(`{"delegate": {"ccxWaitSeconds": 45, "keepDays": 14}}`), 0o600))
-	if s := LoadSettings(dir); s.CcxWaitSeconds != 45 || s.KeepDays != 14 {
+	if s := LoadSettings(dir, io.Discard); s.CcxWaitSeconds != 45 || s.KeepDays != 14 {
 		t.Fatalf("set values not read: wait %d keep %d", s.CcxWaitSeconds, s.KeepDays)
 	}
 }

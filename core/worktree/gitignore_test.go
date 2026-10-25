@@ -143,6 +143,35 @@ func TestGitignore_IgnoresDelegate(t *testing.T) {
 	}
 }
 
+// TestGitignore_IgnoresLocalConfig: .wipnote/config.local.json (per user,
+// per project) is ignored after install, in a fresh file and in one an older
+// wipnote wrote; the committed config.json stays visible.
+func TestGitignore_IgnoresLocalConfig(t *testing.T) {
+	for _, existing := range []string{"", "# Managed by wipnote\nsessions/\ndelegate/\n"} {
+		dir := setupGitRepoWithWipnote(t)
+		target := filepath.Join(dir, ".wipnote", ".gitignore")
+		if existing != "" {
+			if err := os.WriteFile(target, []byte(existing), 0o644); err != nil {
+				t.Fatal(err)
+			}
+		}
+		worktree.EnsureWipnoteGitignore(dir)
+		for _, name := range []string{"config.local.json", "config.json"} {
+			_ = os.WriteFile(filepath.Join(dir, ".wipnote", name), []byte("{}"), 0o644)
+		}
+		out, err := exec.Command("git", "-C", dir, "status", "--porcelain", "--untracked-files=all").Output()
+		if err != nil {
+			t.Fatalf("git status: %v", err)
+		}
+		if strings.Contains(string(out), "config.local.json") {
+			t.Errorf("existing=%q: git status lists config.local.json:\n%s", existing, out)
+		}
+		if !strings.Contains(string(out), ".wipnote/config.json") {
+			t.Errorf("existing=%q: committed config.json hidden:\n%s", existing, out)
+		}
+	}
+}
+
 // TestEnsureWipnoteGitignore_EmptyProjectDir verifies that an empty projectDir
 // does not panic or error.
 func TestEnsureWipnoteGitignore_EmptyProjectDir(t *testing.T) {

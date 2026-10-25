@@ -39,10 +39,12 @@ failure) and the run page. Exits with the tool's status, 130 if its pane closed.
 
 Only --label enters the ledger; a derived pane title stays in the run folder.
 The work item defaults to the caller's active claim. Chained commands (pipes,
-;) are not supported. Settings: the "delegate" object of .wipnote/config.json
-(layout, maxPanes, closePane, closeDelay, tailLines, maxReturnLines, leanProfile,
-leanProfileName, ccxRunsDir, ccxWaitSeconds, keepDays); CCX_RUNS_DIR overrides
-ccxRunsDir.`,
+;) are not supported. Settings: the "delegate" object (layout, maxPanes,
+closePane, closeDelay, tailLines, maxReturnLines, leanProfile, leanProfileName,
+ccxRunsDir, ccxWaitSeconds, keepDays), merged per key from ~/.wipnote/config.json,
+then .wipnote/config.json, then .wipnote/config.local.json (gitignored). The
+host path ccxRunsDir is read only from the user and local files. CCX_RUNS_DIR
+overrides ccxRunsDir.`,
 		Args: cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			code, err := runDelegateRun(cmd, args, label, workItem, noPane)
@@ -80,7 +82,7 @@ func runDelegateRun(cmd *cobra.Command, argv []string, label, workItem string, n
 	env := herdr.EnvFrom(os.Getenv)
 	o := oneshot.Options{
 		Argv: argv, Label: label, WorkItem: workItem, CallerSession: session, NoPane: noPane, Cwd: cwd,
-		Settings: oneshot.LoadSettings(projectDir), Store: store, Ledger: delegationledger.NewStore(wipnoteDir),
+		Settings: oneshot.LoadSettings(projectDir, cmd.ErrOrStderr()), Store: store, Ledger: delegationledger.NewStore(wipnoteDir),
 		HerdrEnv: env, PaneLine: delegatePaneLine(projectDir), Stdout: cmd.OutOrStdout(), Stderr: cmd.ErrOrStderr(),
 	}
 	if env.InHerdr {

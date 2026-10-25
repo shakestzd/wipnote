@@ -1,6 +1,7 @@
 package oneshot
 
 import (
+	"io"
 	"regexp"
 	"strings"
 	"time"
@@ -10,7 +11,7 @@ import (
 )
 
 // Settings are the mod's userConfig (plugin.json) as wipnote settings: the
-// "delegate" object of .wipnote/config.json, with the mod's names and
+// "delegate" object of the layered wipnote config, with the mod's names and
 // defaults. The Textual viewer setting is gone (q-viewer: the Go viewer).
 type Settings struct {
 	Layout          string // auto | tile | right | down
@@ -33,32 +34,37 @@ func DefaultSettings() Settings {
 		TailLines: 200, MaxReturnLines: 60, LeanProfile: true, LeanProfileName: "lean", CcxWaitSeconds: 30, KeepDays: 7}
 }
 
+// rawSettings is the "delegate" object, merged over the config layers.
 type rawSettings struct {
-	Delegate struct {
-		Layout          *string `json:"layout"`
-		Direction       *string `json:"direction"`
-		MaxPanes        *int    `json:"maxPanes"`
-		ClosePane       *string `json:"closePane"`
-		CloseDelay      *int    `json:"closeDelay"`
-		TailLines       *int    `json:"tailLines"`
-		MaxReturnLines  *int    `json:"maxReturnLines"`
-		LeanProfile     *bool   `json:"leanProfile"`
-		LeanProfileName *string `json:"leanProfileName"`
-		CcxRunsDir      *string `json:"ccxRunsDir"`
-		CcxWaitSeconds  *int    `json:"ccxWaitSeconds"`
-		KeepDays        *int    `json:"keepDays"`
-	} `json:"delegate"`
+	Layout          *string `json:"layout"`
+	Direction       *string `json:"direction"`
+	MaxPanes        *int    `json:"maxPanes"`
+	ClosePane       *string `json:"closePane"`
+	CloseDelay      *int    `json:"closeDelay"`
+	TailLines       *int    `json:"tailLines"`
+	MaxReturnLines  *int    `json:"maxReturnLines"`
+	LeanProfile     *bool   `json:"leanProfile"`
+	LeanProfileName *string `json:"leanProfileName"`
+	CcxRunsDir      *string `json:"ccxRunsDir"`
+	CcxWaitSeconds  *int    `json:"ccxWaitSeconds"`
+	KeepDays        *int    `json:"keepDays"`
 }
+
+// pathKeys are the delegate settings that hold host paths: read only from
+// ~/.wipnote/config.json and .wipnote/config.local.json, never from the
+// committed project file.
+var pathKeys = []string{"ccxRunsDir"}
 
 var profileChars = regexp.MustCompile(`[^A-Za-z0-9_.-]`)
 
-// LoadSettings reads the project's settings; a missing or bad value keeps
-// its default, as the mod's register.ts does.
-func LoadSettings(projectDir string) Settings {
+// LoadSettings reads the "delegate" settings layered user < project <
+// local (paths.ReadLayeredConfig); CCX_RUNS_DIR beats them all. A missing
+// or bad value keeps its default, as the mod's register.ts does. warn gets
+// one line for each host-path key found in the committed project file.
+func LoadSettings(projectDir string, warn io.Writer) Settings {
 	s := DefaultSettings()
-	var raw rawSettings
-	paths.ReadProjectConfig(projectDir, &raw)
-	d := raw.Delegate
+	var d rawSettings
+	paths.ReadLayeredConfig(projectDir, paths.LayeredOptions{Section: "delegate", PathKeys: pathKeys, Warn: warn}, &d)
 	pick(&s.Layout, d.Layout, "auto", "tile", "right", "down")
 	pick(&s.Direction, d.Direction, "right", "down")
 	pick(&s.ClosePane, d.ClosePane, "always", "success", "never")
@@ -79,6 +85,7 @@ func LoadSettings(projectDir string) Settings {
 	if d.CcxRunsDir != nil {
 		s.CcxRunsDir = strings.TrimSpace(*d.CcxRunsDir)
 	}
+	s.CcxRunsDir = ccxRunsDir(s.CcxRunsDir)
 	return s
 }
 
