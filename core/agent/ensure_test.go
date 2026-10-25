@@ -13,14 +13,14 @@ import (
 	"time"
 
 	"github.com/shakestzd/wipnote/core/agent"
-	"github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/db/dbtest"
 	_ "modernc.org/sqlite"
 )
 
 // openMemDB opens an in-memory SQLite database with the full wipnote schema.
 func openMemDB(t *testing.T) *sql.DB {
 	t.Helper()
-	database, err := db.Open(":memory:")
+	database, err := dbtest.Open(":memory:")
 	if err != nil {
 		t.Fatalf("openMemDB: %v", err)
 	}
@@ -229,14 +229,14 @@ func TestEnsureSessionWithTimeout_FailsFastUnderContention(t *testing.T) {
 	dbPath := filepath.Join(dir, "wipnote.db")
 
 	// Primary handle (schema-current) used by EnsureSessionWithTimeout.
-	d1, err := db.Open(dbPath)
+	d1, err := dbtest.Open(dbPath)
 	if err != nil {
 		t.Fatalf("open d1: %v", err)
 	}
 	defer d1.Close()
 
 	// Second connection holds the RESERVED write lock for the whole test.
-	d2, err := db.Open(dbPath)
+	d2, err := dbtest.Open(dbPath)
 	if err != nil {
 		t.Fatalf("open d2: %v", err)
 	}

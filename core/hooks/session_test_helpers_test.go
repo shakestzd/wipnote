@@ -8,7 +8,7 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/db/dbtest"
 )
 
 // openWipnoteTestDB opens a per-test SQLite DB and pins WIPNOTE_DB_PATH to
@@ -18,7 +18,7 @@ func openWipnoteTestDB(t *testing.T, projectDir string) (*sql.DB, error) {
 	t.Helper()
 	dbPath := filepath.Join(projectDir, ".wipnote", "wipnote.db")
 	t.Setenv("WIPNOTE_DB_PATH", dbPath)
-	return db.Open(dbPath)
+	return dbtest.Open(dbPath)
 }
 
 // clearNestedSessionEnv unsets the env vars that, when leaked from a nested

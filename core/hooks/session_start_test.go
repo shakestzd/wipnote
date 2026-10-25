@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/db/dbtest"
 	"github.com/shakestzd/wipnote/core/models"
 	"github.com/shakestzd/wipnote/core/paths"
 )
@@ -98,7 +99,7 @@ func TestSessionStartContinueHandoffAdditionalContext(t *testing.T) {
 		t.Fatalf("db.Open: %v", err)
 	}
 	defer database.Close()
-	if err := db.UpsertSession(database, &models.Session{
+	if err := dbtest.UpsertSession(database, &models.Session{
 		SessionID:     "sess-continue-old",
 		AgentAssigned: "claude-code",
 		Status:        "completed",
@@ -158,7 +159,7 @@ func TestSessionStart_PrefersClaudeProjectDirOverCWD(t *testing.T) {
 	t.Setenv("CLAUDE_ENV_FILE", "") // prevent real env file writes
 
 	// Open DB in project A (the correct project).
-	database, err := db.Open(filepath.Join(projectA, ".wipnote", "wipnote.db"))
+	database, err := dbtest.Open(filepath.Join(projectA, ".wipnote", "wipnote.db"))
 	if err != nil {
 		t.Fatalf("db.Open: %v", err)
 	}
@@ -193,7 +194,7 @@ func TestSessionStart_PrefersClaudeProjectDirOverCWD(t *testing.T) {
 
 func TestInsertAndGetSessionProjectDir(t *testing.T) {
 	dir := t.TempDir()
-	database, err := db.Open(filepath.Join(dir, "wipnote.db"))
+	database, err := dbtest.Open(filepath.Join(dir, "wipnote.db"))
 	if err != nil {
 		t.Fatalf("db.Open: %v", err)
 	}
@@ -206,7 +207,7 @@ func TestInsertAndGetSessionProjectDir(t *testing.T) {
 		CreatedAt:     time.Now().UTC(),
 		ProjectDir:    "/home/user/myproject",
 	}
-	if err := db.UpsertSession(database, s); err != nil {
+	if err := dbtest.UpsertSession(database, s); err != nil {
 		t.Fatalf("UpsertSession: %v", err)
 	}
 

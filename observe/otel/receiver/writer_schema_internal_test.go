@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/db/dbtest"
 )
 
 // sqlInsertSignalColumns extracts sqlInsertSignal's own column list so this
@@ -65,7 +65,7 @@ func TestRequiredOtelSignalsColumnsMatchInsert(t *testing.T) {
 // (otel_signals.agent_id absent, thousands of swallowed per-insert errors).
 func TestVerifyOtelSignalsSchema_MissingColumn(t *testing.T) {
 	dbPath := filepath.Join(t.TempDir(), "schema_check.db")
-	database, err := db.Open(dbPath)
+	database, err := dbtest.Open(dbPath)
 	if err != nil {
 		t.Fatalf("db.Open: %v", err)
 	}

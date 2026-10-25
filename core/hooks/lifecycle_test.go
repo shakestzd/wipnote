@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/db/dbtest"
 	"github.com/shakestzd/wipnote/core/models"
 )
 
@@ -28,7 +29,7 @@ func setupLifecycleDB(t *testing.T) (*sql.DB, string) {
 	// to a direct write at DBPath(projectRoot) when no daemon is running) land in
 	// the same file this handle reads back from. See openWipnoteTestDB.
 	t.Setenv("WIPNOTE_DB_PATH", dbPath)
-	database, err := db.Open(dbPath)
+	database, err := dbtest.Open(dbPath)
 	if err != nil {
 		t.Fatalf("db.Open: %v", err)
 	}
@@ -49,7 +50,7 @@ func TestYoloModeGuards(t *testing.T) {
 	t.Setenv("WIPNOTE_PARENT_PROMPT_EVENT", "")
 
 	// Insert session without any active feature.
-	if err := db.UpsertSession(database, &models.Session{
+	if err := dbtest.UpsertSession(database, &models.Session{
 		SessionID:     sessionID,
 		AgentAssigned: "claude-code",
 		Status:        "active",

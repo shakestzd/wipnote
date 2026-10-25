@@ -8,14 +8,13 @@ import (
 
 	"github.com/shakestzd/wipnote/core/db/dbtest"
 
-	dbpkg "github.com/shakestzd/wipnote/core/db"
 	"github.com/shakestzd/wipnote/core/models"
 )
 
 // setupLineageTestDB opens an in-memory DB for lineage tree tests.
 func setupLineageTestDB(t *testing.T) *sql.DB {
 	t.Helper()
-	database, err := dbpkg.Open(":memory:")
+	database, err := dbtest.Open(":memory:")
 	if err != nil {
 		t.Fatalf("open test db: %v", err)
 	}

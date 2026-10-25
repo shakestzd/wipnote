@@ -105,7 +105,6 @@ const (
 	// no longer need their own entry in this inventory.
 	daemonRoutedWriterService writeSiteClassification = "daemon-routed-writer-service"
 
-
 	// intentionalCLIMutation marks user-driven CLI commands that legitimately
 	// mutate work items (e.g., wipnote feature start). These keep direct
 	// writable opens because they are short-lived foreground processes;
@@ -487,12 +486,12 @@ func TestWriteSiteInventoryComplete(t *testing.T) {
 
 	// Verify every classification is a known constant.
 	known := map[writeSiteClassification]bool{
-		daemonRoutedPendingSlice6:  true,
-		daemonRoutedWriterService:  true,
-		intentionalCLIMutation:     true,
-		reindexOnly:                true,
-		migrationOnly:              true,
-		ephemeralInMemory:          true,
+		daemonRoutedPendingSlice6: true,
+		daemonRoutedWriterService: true,
+		intentionalCLIMutation:    true,
+		reindexOnly:               true,
+		migrationOnly:             true,
+		ephemeralInMemory:         true,
 	}
 	for _, ws := range approvedWriteSites {
 		if !known[ws.Classification] {

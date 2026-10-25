@@ -19,7 +19,7 @@ import (
 // setupLineageDB opens an in-memory DB for lineage routing tests.
 func setupLineageDB(t *testing.T) *sql.DB {
 	t.Helper()
-	database, err := dbpkg.Open(":memory:")
+	database, err := dbtest.Open(":memory:")
 	if err != nil {
 		t.Fatalf("open lineage db: %v", err)
 	}

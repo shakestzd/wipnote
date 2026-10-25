@@ -11,9 +11,7 @@ package main
 // This regression test proves the user-visible path is fixed: a bfsWalk-style
 // read against a write-contended DB returns NO SQLITE_BUSY to the caller (it
 // succeeds after the RetryOnBusy backoff) under BOTH WAL and DELETE journal
-// modes. The journal mode is injected directly via newJournalModeDB (shared
-// with busy_filesystem_agnostic_test.go) — isUnsafeForMmap / pragmas.go are
-// correct and out of scope.
+// modes. The journal mode is injected directly via newJournalModeDB.
 //
 // CRITICAL retry-boundary coverage: the bfsWalk retry unit is the per-hop
 // db.Query ONLY (never the BFS iteration), and any *sql.Rows from a failed
@@ -25,12 +23,14 @@ package main
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/db/dbtest"
 	"github.com/shakestzd/wipnote/internal/lineage"
 )
 
@@ -40,9 +40,9 @@ import (
 // itself contend with the test's reader/writer goroutines.
 func seedLineageGraph(t *testing.T, dbPath, root string) {
 	t.Helper()
-	w, err := db.OpenWritable(dbPath)
+	w, err := dbtest.Open(dbPath)
 	if err != nil {
-		t.Fatalf("OpenWritable seed: %v", err)
+		t.Fatalf("open seed: %v", err)
 	}
 	defer w.Close()
 	// root -> child-1 -> child-2 (two hops; exercises the BFS queue, not just
@@ -71,7 +71,7 @@ func seedLineageGraph(t *testing.T, dbPath, root string) {
 // RetryOnBusy wrapper must hide from the caller.
 //
 // roborev followup (LOW): the writer no longer fails silently. A failed
-// OpenWritable / Begin / Commit is reported to the test via t.Errorf (guarded
+// Open / Begin / Commit is reported to the test via t.Errorf (guarded
 // by mu so it is goroutine-safe), and every COMMITTED cycle increments
 // *cycles so the caller can assert the contention workload actually ran (a
 // zero-cycle writer would make the no-BUSY assertion vacuous).
@@ -92,9 +92,9 @@ func holdWriteLock(
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		w, err := db.OpenWritable(dbPath)
+		w, err := dbtest.Open(dbPath)
 		if err != nil {
-			reportf("holdWriteLock: OpenWritable setup failed (contention "+
+			reportf("holdWriteLock: open setup failed (contention "+
 				"workload would not run): %v", err)
 			return
 		}
@@ -153,12 +153,11 @@ func TestLineageBfsWalk_NoBusyUnderContention(t *testing.T) {
 			const root = "feat-busy-root"
 			seedLineageGraph(t, dbPath, root)
 
-			// Read-only handle: exactly how `wipnote lineage` opens the DB
-			// (openReadOnlyDB → dbpkg.OpenReadOnly). This is the user-visible
-			// path the bug report names.
-			ro, err := db.OpenReadOnly(dbPath)
+			// A second handle on the same file stands in for the reader the
+			// bug report names.
+			ro, err := dbtest.Open(dbPath)
 			if err != nil {
-				t.Fatalf("OpenReadOnly: %v", err)
+				t.Fatalf("open reader: %v", err)
 			}
 			defer ro.Close()
 
@@ -233,9 +232,9 @@ func TestLineageBfsWalk_RetryBoundaryClosesRows(t *testing.T) {
 	const root = "feat-busy-root"
 	seedLineageGraph(t, dbPath, root)
 
-	ro, err := db.OpenReadOnly(dbPath)
+	ro, err := dbtest.Open(dbPath)
 	if err != nil {
-		t.Fatalf("OpenReadOnly: %v", err)
+		t.Fatalf("open reader: %v", err)
 	}
 	defer ro.Close()
 
@@ -246,9 +245,9 @@ func TestLineageBfsWalk_RetryBoundaryClosesRows(t *testing.T) {
 	// If bfsWalk leaked an open *sql.Rows (read lock), a writer taking the
 	// RESERVED lock would block until busy_timeout (5s) and likely fail.
 	// With correct close-before-return discipline this is immediate.
-	w, err := db.OpenWritable(dbPath)
+	w, err := dbtest.Open(dbPath)
 	if err != nil {
-		t.Fatalf("OpenWritable: %v", err)
+		t.Fatalf("open writer: %v", err)
 	}
 	defer w.Close()
 	start := time.Now()
@@ -262,4 +261,34 @@ func TestLineageBfsWalk_RetryBoundaryClosesRows(t *testing.T) {
 			"lock open (retry-boundary rows.Close discipline broken)",
 			elapsed)
 	}
+}
+
+// newJournalModeDB creates a fresh schema'd temp-file DB and forces it into
+// the requested journal mode ("wal" or "delete"). Returns the db path so
+// callers can open additional handles (read pool, writer service) against
+// the same file. The schema-creating writable handle is closed before
+// returning so it does not itself contend; the file's journal mode persists.
+func newJournalModeDB(t *testing.T, mode string) string {
+	t.Helper()
+	dbPath := filepath.Join(t.TempDir(), "busy-agnostic.db")
+	w, err := dbtest.Open(dbPath) // creates schema + runs migrations
+	if err != nil {
+		t.Fatalf("db.Open: %v", err)
+	}
+	if _, err := w.Exec("PRAGMA journal_mode = " + mode); err != nil {
+		w.Close()
+		t.Fatalf("set journal_mode=%s: %v", mode, err)
+	}
+	got := dbtest.JournalMode(w)
+	w.Close()
+	// On a WAL-unsafe host filesystem an attempt to set WAL silently stays
+	// DELETE. Skip the WAL variant there rather than assert a false negative
+	// — the DELETE variant still proves the filesystem-agnostic contract.
+	if mode == "wal" && got != "wal" {
+		t.Skipf("host filesystem rejected WAL (got %q); DELETE variant covers this host", got)
+	}
+	if mode == "delete" && got != "delete" {
+		t.Fatalf("journal_mode = %q, want delete", got)
+	}
+	return dbPath
 }

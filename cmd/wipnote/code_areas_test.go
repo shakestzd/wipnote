@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/db/dbtest"
 	"github.com/shakestzd/wipnote/core/models"
 	"github.com/shakestzd/wipnote/internal/blame"
 )
@@ -62,7 +63,7 @@ func areasSetup(t *testing.T) (root, hgDir string) {
 	}
 	gitInitWithFiles(t, root, files...)
 
-	d, err := db.Open(filepath.Join(hgDir, "wipnote.db"))
+	d, err := dbtest.Open(filepath.Join(hgDir, "wipnote.db"))
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
@@ -110,7 +111,7 @@ func areasSetup(t *testing.T) (root, hgDir string) {
 // This avoids the DB-open path in runCodeAreas (which relies on findWipnoteDir).
 func captureCodeAreas(t *testing.T, hgDir, rootDir, format string, byFile, includeUntracked bool) string {
 	t.Helper()
-	d, err := db.Open(filepath.Join(hgDir, "wipnote.db"))
+	d, err := dbtest.Open(filepath.Join(hgDir, "wipnote.db"))
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}

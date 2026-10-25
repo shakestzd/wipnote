@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/db/dbtest"
 	"github.com/shakestzd/wipnote/core/models"
 	"github.com/shakestzd/wipnote/core/paths"
 )
@@ -103,7 +104,7 @@ func TestCWDNormalize_LinkedWorktree_CollapsesToRoot(t *testing.T) {
 	// (mainRepo) is the canonical root, so DBPath would otherwise resolve the host
 	// cache DB, not this handle's file.
 	t.Setenv("WIPNOTE_DB_PATH", dbPath)
-	database, err := db.Open(dbPath)
+	database, err := dbtest.Open(dbPath)
 	if err != nil {
 		t.Fatalf("db.Open: %v", err)
 	}
@@ -151,7 +152,7 @@ func TestCWDNormalize_ForeignCWD_StoredWithUnresolvedPrefix(t *testing.T) {
 	// The daemon-routed writes must land in this local handle's file (see
 	// openWipnoteTestDB).
 	t.Setenv("WIPNOTE_DB_PATH", dbPath)
-	database, err := db.Open(dbPath)
+	database, err := dbtest.Open(dbPath)
 	if err != nil {
 		t.Fatalf("db.Open: %v", err)
 	}
@@ -192,7 +193,7 @@ func TestCWDNormalize_ForeignCWD_StoredWithUnresolvedPrefix(t *testing.T) {
 // stored unchanged.
 func TestCWDNormalize_AlreadyRelative_PassThrough(t *testing.T) {
 	dir := t.TempDir()
-	database, err := db.Open(filepath.Join(dir, "wipnote.db"))
+	database, err := dbtest.Open(filepath.Join(dir, "wipnote.db"))
 	if err != nil {
 		t.Fatalf("db.Open: %v", err)
 	}
@@ -206,7 +207,7 @@ func TestCWDNormalize_AlreadyRelative_PassThrough(t *testing.T) {
 		CreatedAt:     time.Now().UTC(),
 		ProjectDir:    relPath,
 	}
-	if err := db.UpsertSession(database, s); err != nil {
+	if err := dbtest.UpsertSession(database, s); err != nil {
 		t.Fatalf("UpsertSession: %v", err)
 	}
 

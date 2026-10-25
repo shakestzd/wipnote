@@ -9,7 +9,6 @@ import (
 
 	"github.com/shakestzd/wipnote/core/db/dbtest"
 
-	"github.com/shakestzd/wipnote/core/db"
 	"github.com/shakestzd/wipnote/core/models"
 )
 
@@ -238,7 +237,7 @@ func TestResolveToolUseContext_DoesNotUseUnrelatedProjectClaim(t *testing.T) {
 	t.Setenv("CLAUDE_PROJECT_DIR", projectDir)
 	t.Setenv("WIPNOTE_PROJECT_DIR", projectDir)
 
-	if err := db.UpsertSession(tdb.DB, &models.Session{
+	if err := dbtest.UpsertSession(tdb.DB, &models.Session{
 		SessionID:     "sess-current-unclaimed",
 		AgentAssigned: "codex",
 		Status:        "active",
@@ -250,7 +249,7 @@ func TestResolveToolUseContext_DoesNotUseUnrelatedProjectClaim(t *testing.T) {
 	if err := dbtest.SetSessionFamilyID(tdb.DB, "sess-current-unclaimed", "family-current"); err != nil {
 		t.Fatalf("SetSessionFamilyID current: %v", err)
 	}
-	if err := db.UpsertSession(tdb.DB, &models.Session{
+	if err := dbtest.UpsertSession(tdb.DB, &models.Session{
 		SessionID:     "sess-unrelated-claim",
 		AgentAssigned: "codex",
 		Status:        "active",

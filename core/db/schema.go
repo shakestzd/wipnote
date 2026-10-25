@@ -3,70 +3,10 @@ package db
 import (
 	"database/sql"
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 
 	_ "modernc.org/sqlite"
 )
-
-// Open opens (or creates) an wipnote SQLite database at the given path,
-// applies performance PRAGMAs, and runs any pending schema migrations.
-//
-// Migrations are version-gated by PRAGMA user_version: a database whose
-// user_version already equals currentSchemaVersion takes the warm-open fast
-// path and executes ZERO CREATE / ALTER / DROP / trigger / normalisation
-// statements. This eliminates the write-lock contention that DDL re-execution
-// caused in short-lived hook and CLI processes.
-//
-// Brand-new databases (user_version = 0) run every registered migration in
-// order, then land at currentSchemaVersion. Legacy databases at any
-// intermediate version run only the missing migrations and advance to current.
-// The full migration registry lives in migrations.go.
-func Open(dbPath string) (*sql.DB, error) {
-	dir := filepath.Dir(dbPath)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return nil, fmt.Errorf("creating db directory: %w", err)
-	}
-
-	// Embed busy_timeout in the DSN so it is applied on the first connection
-	// open, before any schema queries. This prevents SQLITE_BUSY errors during
-	// startup races when the OTel receiver writer or a hook binary holds the
-	// write lock. ApplyPragmas below re-applies the full set for completeness
-	// (idempotent).
-	// Skip DSN-level pragma for in-memory DBs; the driver will reject it.
-	dsn := dbPath
-	isInMemory := strings.Contains(dbPath, ":memory:")
-	if !isInMemory {
-		dsn = dsn + "?_pragma=busy_timeout(5000)&_txlock=immediate"
-	}
-	db, err := sql.Open("sqlite", dsn)
-	if err != nil {
-		return nil, fmt.Errorf("opening database: %w", err)
-	}
-
-	if err := ApplyPragmas(db, BuildPragmas(dbPath)); err != nil {
-		db.Close()
-		return nil, fmt.Errorf("applying pragmas: %w", err)
-	}
-
-	// bug-7dbaf552: runMigrations performs the user_version write (and, for a
-	// brand-new / legacy DB, DDL). On a contended DELETE-journal database the
-	// SHARED→RESERVED upgrade can transiently SQLITE_BUSY even with
-	// busy_timeout set. Wrapping the whole migration step in RetryOnBusy makes
-	// EVERY dbpkg.Open caller (lineage/query/session/workitem/...) resilient
-	// without each having to hand-roll its own loop. runMigrations is
-	// version-gated and idempotent, so re-running it is safe. Same-package
-	// call: RetryOnBusy + DefaultBusyBackoff live in busy_retry.go.
-	if err := RetryOnBusy(DefaultBusyBackoff, func() error {
-		return runMigrations(db)
-	}); err != nil {
-		db.Close()
-		return nil, fmt.Errorf("running migrations: %w", err)
-	}
-
-	return db, nil
-}
 
 // CreateAllTables creates every wipnote table if it does not already exist.
 // Mirrors create_all_tables() from Python ddl.py.

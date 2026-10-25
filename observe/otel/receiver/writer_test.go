@@ -24,7 +24,7 @@ import (
 func newWriter(t *testing.T) (*receiver.Writer, string) {
 	t.Helper()
 	dbPath := filepath.Join(t.TempDir(), "otel.db")
-	readDB, err := db.Open(dbPath)
+	readDB, err := dbtest.Open(dbPath)
 	if err != nil {
 		t.Fatalf("create schema: %v", err)
 	}
@@ -407,7 +407,7 @@ func TestWriter_OrphanSpanCreatePlaceholder(t *testing.T) {
 	parentSpanID := "parent-span-orphan-111"
 
 	// Seed the session row and pending_subagent_starts entry.
-	readDB, err := db.Open(dbPath)
+	readDB, err := dbtest.Open(dbPath)
 	if err != nil {
 		t.Fatalf("open readDB: %v", err)
 	}
@@ -427,7 +427,7 @@ func TestWriter_OrphanSpanCreatePlaceholder(t *testing.T) {
 		CWD:       "/mock/test",
 		CreatedAt: time.Now().UnixMicro(),
 	}
-	if err := db.UpsertPendingSubagentStart(readDB, pending); err != nil {
+	if err := dbtest.UpsertPendingSubagentStart(readDB, pending); err != nil {
 		t.Fatalf("UpsertPendingSubagentStart: %v", err)
 	}
 
@@ -492,7 +492,7 @@ func TestWriter_RealAgentSpanUpgradesPlaceholder(t *testing.T) {
 	agentSpanID := "agent-span-real-333" // this will be the placeholder span_id AND real span_id
 
 	// Seed session and pending row.
-	readDB, err := db.Open(dbPath)
+	readDB, err := dbtest.Open(dbPath)
 	if err != nil {
 		t.Fatalf("open readDB: %v", err)
 	}
@@ -512,7 +512,7 @@ func TestWriter_RealAgentSpanUpgradesPlaceholder(t *testing.T) {
 		CWD:       "/tmp/upgrade-test",
 		CreatedAt: time.Now().Add(-30 * time.Second).UnixMicro(), // started 30s ago
 	}
-	if err := db.UpsertPendingSubagentStart(readDB, pending); err != nil {
+	if err := dbtest.UpsertPendingSubagentStart(readDB, pending); err != nil {
 		t.Fatalf("UpsertPendingSubagentStart: %v", err)
 	}
 
@@ -621,7 +621,7 @@ func TestWriter_ReattributesByAgentIDResourceAttr(t *testing.T) {
 	traceID := "trace-reattrib-aaa"
 
 	// Seed session.
-	readDB, err := db.Open(dbPath)
+	readDB, err := dbtest.Open(dbPath)
 	if err != nil {
 		t.Fatalf("open readDB: %v", err)
 	}
@@ -717,7 +717,7 @@ func TestWriter_ReattributesByOverlapWindow(t *testing.T) {
 	agentStart := now.Add(-30 * time.Second)
 	agentDurationMs := int64(60_000) // 60 seconds
 
-	readDB, err := db.Open(dbPath)
+	readDB, err := dbtest.Open(dbPath)
 	if err != nil {
 		t.Fatalf("open readDB: %v", err)
 	}
@@ -804,7 +804,7 @@ func TestWriter_DoesNotReattributeWhenAmbiguous(t *testing.T) {
 	agentStart := now.Add(-30 * time.Second)
 	agentDurationMs := int64(60_000) // both agents span the same wide window
 
-	readDB, err := db.Open(dbPath)
+	readDB, err := dbtest.Open(dbPath)
 	if err != nil {
 		t.Fatalf("open readDB: %v", err)
 	}
@@ -878,22 +878,22 @@ func TestWriter_DoesNotReattributeWhenAmbiguous(t *testing.T) {
 }
 
 // TestNewWriter_DoesNotForceWAL verifies that NewWriter does not hardcode
-// journal_mode=WAL in its DSN. On filesystems where BuildPragmas resolves to
-// DELETE (e.g. overlayfs, virtiofs, tmpfs — common in CI and devcontainers),
+// journal_mode=WAL in its DSN. On filesystems where the pragma selection
+// resolves to DELETE (e.g. overlayfs, virtiofs, tmpfs — common in CI and devcontainers),
 // the DB file must remain in DELETE mode after NewWriter returns. If someone
 // re-introduces _pragma=journal_mode(WAL) in the DSN this test will fail.
 func TestNewWriter_DoesNotForceWAL(t *testing.T) {
 	dbPath := filepath.Join(t.TempDir(), "wal_check.db")
 
-	// db.Open creates the schema and runs ApplyPragmas (which may set DELETE).
-	readDB, err := db.Open(dbPath)
+	// dbtest.Open creates the schema and runs ApplyPragmas (which may set DELETE).
+	readDB, err := dbtest.Open(dbPath)
 	if err != nil {
 		t.Fatalf("db.Open: %v", err)
 	}
 	readDB.Close()
 
 	// Open NewWriter — the bug was that this call hardcoded WAL in the DSN,
-	// permanently switching the file to WAL even when BuildPragmas said DELETE.
+	// permanently switching the file to WAL even when the selection said DELETE.
 	w, err := receiver.NewWriter(dbPath)
 	if err != nil {
 		t.Fatalf("NewWriter: %v", err)
@@ -912,8 +912,11 @@ func TestNewWriter_DoesNotForceWAL(t *testing.T) {
 		t.Fatalf("PRAGMA journal_mode: %v", err)
 	}
 
-	// The expected mode is whatever BuildPragmas resolves to for this path.
-	want := db.BuildPragmas(dbPath)["journal_mode"]
+	// The expected mode is whatever the selection resolves to for this path.
+	want := db.Pragmas["journal_mode"]
+	if _, walSafe := db.ProbeFsType(dbPath); !walSafe {
+		want = "DELETE"
+	}
 	if mode != strings.ToLower(want) {
 		t.Errorf("journal_mode = %q after NewWriter, want %q (BuildPragmas decision); "+
 			"NewWriter must not hardcode WAL in its DSN", mode, strings.ToLower(want))
@@ -943,7 +946,7 @@ const otelAttributionStepVersion = 19
 func TestNewWriter_AppliesPendingMigrations(t *testing.T) {
 	dbPath := filepath.Join(t.TempDir(), "missing_agent_id.db")
 
-	seed, err := db.Open(dbPath)
+	seed, err := dbtest.Open(dbPath)
 	if err != nil {
 		t.Fatalf("seed db.Open: %v", err)
 	}
@@ -990,7 +993,7 @@ func TestNewWriter_AppliesPendingMigrations(t *testing.T) {
 	if err := probe.QueryRow("PRAGMA user_version").Scan(&version); err != nil {
 		t.Fatalf("PRAGMA user_version: %v", err)
 	}
-	fresh, err := db.Open(":memory:")
+	fresh, err := dbtest.Open(":memory:")
 	if err != nil {
 		t.Fatalf("open fresh db: %v", err)
 	}
@@ -1171,7 +1174,7 @@ func TestWriter_FeatureIDJoinsOnResolvedAgentID(t *testing.T) {
 	sessionID := "sess-join-agent"
 	agentID := "otel-success@session-join"
 
-	readDB, err := db.Open(dbPath)
+	readDB, err := dbtest.Open(dbPath)
 	if err != nil {
 		t.Fatalf("open readDB: %v", err)
 	}
@@ -1234,7 +1237,7 @@ func TestWriter_FeatureIDFallsBackToRootWhenAgentHasNoClaim(t *testing.T) {
 	sessionID := "sess-join-fallback"
 	agentID := "agent-with-no-claim-of-its-own"
 
-	readDB, err := db.Open(dbPath)
+	readDB, err := dbtest.Open(dbPath)
 	if err != nil {
 		t.Fatalf("open readDB: %v", err)
 	}

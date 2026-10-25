@@ -11,7 +11,7 @@ import (
 // gate history at all — which callers must read as "no evidence", never as
 // "passed".
 func TestGateRecordCountsForWorkItem(t *testing.T) {
-	database, err := Open(":memory:")
+	database, err := openTestDB(":memory:")
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}

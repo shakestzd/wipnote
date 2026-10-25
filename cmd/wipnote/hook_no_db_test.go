@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	dbpkg "github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/db/dbtest"
 )
 
 // TestEveryHookSubcommand_OpensNoDatabase pins feat-174dc958's done-when: no
@@ -35,7 +35,7 @@ func TestEveryHookSubcommand_OpensNoDatabase(t *testing.T) {
 	if ran < 10 {
 		t.Fatalf("only %d hook subcommands ran; the probe is not covering the hook tree", ran)
 	}
-	control, err := dbpkg.Open(dbPath)
+	control, err := dbtest.Open(dbPath)
 	if err != nil {
 		t.Fatalf("positive control: %v", err)
 	}

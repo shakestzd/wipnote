@@ -5,10 +5,11 @@ import (
 	"testing"
 
 	dbpkg "github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/db/dbtest"
 )
 
 func TestBFSWalk_Bidirectional(t *testing.T) {
-	db, err := dbpkg.Open("file::memory:?cache=shared")
+	db, err := dbtest.Open("file::memory:?cache=shared")
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
@@ -55,7 +56,7 @@ func mustEdge(t *testing.T, db *sql.DB, id, fromID, fromType, toID, toType, rel 
 // (the common, hand-asserted case) comes back with a nil map rather than an
 // empty non-nil one or an error.
 func TestBFSWalk_CarriesMetadata(t *testing.T) {
-	db, err := dbpkg.Open("file::memory:?cache=shared")
+	db, err := dbtest.Open("file::memory:?cache=shared")
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/db/dbtest"
 	"github.com/shakestzd/wipnote/core/models"
 )
 
@@ -30,7 +31,7 @@ func setupTestDB(t *testing.T) *testDB {
 
 	dbPath := filepath.Join(t.TempDir(), "wipnote.db")
 	t.Setenv("WIPNOTE_DB_PATH", dbPath)
-	database, err := db.Open(dbPath)
+	database, err := dbtest.Open(dbPath)
 	if err != nil {
 		t.Fatalf("db.Open: %v", err)
 	}
@@ -44,7 +45,7 @@ func setupTestDB(t *testing.T) *testDB {
 		Status:        "active",
 		Model:         "sonnet-4",
 	}
-	if err := db.UpsertSession(database, sess); err != nil {
+	if err := dbtest.UpsertSession(database, sess); err != nil {
 		t.Fatalf("UpsertSession: %v", err)
 	}
 

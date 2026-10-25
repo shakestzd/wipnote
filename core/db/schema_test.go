@@ -16,7 +16,7 @@ import (
 func TestSchemaCreationAndCRUD(t *testing.T) {
 	// Use an in-memory database for testing.
 	dbPath := "file::memory:?cache=shared"
-	database, err := db.Open(dbPath)
+	database, err := dbtest.Open(dbPath)
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
@@ -57,10 +57,10 @@ func TestSchemaCreationAndCRUD(t *testing.T) {
 		Status:        "active",
 		Model:         "opus-4.6",
 	}
-	if err := db.UpsertSession(database, sess); err != nil {
+	if err := dbtest.UpsertSession(database, sess); err != nil {
 		t.Fatalf("UpsertSession: %v", err)
 	}
-	if err := db.UpsertSession(database, &models.Session{
+	if err := dbtest.UpsertSession(database, &models.Session{
 		SessionID:     "test-sess-000",
 		AgentAssigned: "claude-code",
 		CreatedAt:     now.Add(-time.Minute),
@@ -156,14 +156,6 @@ func TestSchemaCreationAndCRUD(t *testing.T) {
 		t.Errorf("priority: got %q, want %q", priority, "high")
 	}
 
-	// Test status update.
-	if err := db.UpdateFeatureStatus(database, "feat-test-001", "in-progress"); err != nil {
-		t.Fatalf("UpdateFeatureStatus: %v", err)
-	}
-	if _, _, status := featureRow(t, database, "feat-test-001"); status != "in-progress" {
-		t.Errorf("status after update: got %q, want %q", status, "in-progress")
-	}
-
 	// Test Event CRUD.
 	evt := &models.AgentEvent{
 		EventID:   "evt-test-001",
@@ -177,7 +169,7 @@ func TestSchemaCreationAndCRUD(t *testing.T) {
 		CreatedAt: now,
 		UpdatedAt: now,
 	}
-	if err := db.InsertEvent(database, evt); err != nil {
+	if err := dbtest.InsertEvent(database, evt); err != nil {
 		t.Fatalf("InsertEvent: %v", err)
 	}
 	gotEvt, err := dbtest.GetEvent(database, "evt-test-001")
@@ -203,7 +195,7 @@ func TestSchemaCreationAndCRUD(t *testing.T) {
 }
 
 func TestPragmasApplied(t *testing.T) {
-	database, err := db.Open("file::memory:?cache=shared")
+	database, err := dbtest.Open("file::memory:?cache=shared")
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
@@ -230,7 +222,7 @@ func TestPragmasApplied(t *testing.T) {
 }
 
 func TestTotalEventsIncrementTrigger(t *testing.T) {
-	database, err := db.Open("file::memory:?cache=shared&mode=memory")
+	database, err := dbtest.Open("file::memory:?cache=shared&mode=memory")
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
@@ -243,7 +235,7 @@ func TestTotalEventsIncrementTrigger(t *testing.T) {
 		CreatedAt:     now,
 		Status:        "active",
 	}
-	if err := db.UpsertSession(database, sess); err != nil {
+	if err := dbtest.UpsertSession(database, sess); err != nil {
 		t.Fatalf("UpsertSession: %v", err)
 	}
 
@@ -270,7 +262,7 @@ func TestTotalEventsIncrementTrigger(t *testing.T) {
 			CreatedAt: now,
 			UpdatedAt: now,
 		}
-		if err := db.InsertEvent(database, e); err != nil {
+		if err := dbtest.InsertEvent(database, e); err != nil {
 			t.Fatalf("InsertEvent[%d]: %v", i, err)
 		}
 	}

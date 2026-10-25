@@ -27,7 +27,7 @@ func TestReindexPlanFeedback_ReplaysYAMLApprovals(t *testing.T) {
 	}
 	dbPath := filepath.Join(dbDir, "wipnote.db")
 	t.Setenv("WIPNOTE_DB_PATH", dbPath)
-	database, err := dbpkg.Open(dbPath)
+	database, err := dbtest.Open(dbPath)
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
@@ -90,7 +90,7 @@ func TestReindexPlanFeedback_DoesNotOverwriteLiveRows(t *testing.T) {
 	}
 	dbPath := filepath.Join(dbDir, "wipnote.db")
 	t.Setenv("WIPNOTE_DB_PATH", dbPath)
-	database, err := dbpkg.Open(dbPath)
+	database, err := dbtest.Open(dbPath)
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
@@ -156,7 +156,7 @@ func TestReindexPlanFeedback_PendingSliceNotReplayed(t *testing.T) {
 	}
 	dbPath := filepath.Join(dbDir, "wipnote.db")
 	t.Setenv("WIPNOTE_DB_PATH", dbPath)
-	database, err := dbpkg.Open(dbPath)
+	database, err := dbtest.Open(dbPath)
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
@@ -220,7 +220,7 @@ func TestReindexPlanFeedback_ReplaysNonApproveActions(t *testing.T) {
 	}
 	dbPath := filepath.Join(dbDir, "wipnote.db")
 	t.Setenv("WIPNOTE_DB_PATH", dbPath)
-	database, err := dbpkg.Open(dbPath)
+	database, err := dbtest.Open(dbPath)
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}

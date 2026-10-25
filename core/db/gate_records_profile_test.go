@@ -9,7 +9,7 @@ import (
 // through the migrated schema, and that an autodetection record (empty profile
 // signature) defaults cleanly.
 func TestGateRecord_PersistsProfileSignatureAndGuards(t *testing.T) {
-	database, err := Open(":memory:")
+	database, err := openTestDB(":memory:")
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}

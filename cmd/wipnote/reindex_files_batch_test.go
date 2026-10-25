@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	dbpkg "github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/db/dbtest"
 )
 
 // runGitBatchTest runs a git command in dir, failing the test on error.
@@ -125,7 +126,7 @@ func TestCommitFilesByHash_BatchMatchesPerCommit(t *testing.T) {
 func TestReindexFeatureFiles_SameCommitAcrossFeatures(t *testing.T) {
 	dir, _, mainline, _, _ := buildMergeRepo(t)
 
-	database, err := dbpkg.Open(":memory:")
+	database, err := dbtest.Open(":memory:")
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
@@ -163,7 +164,7 @@ func TestReindexFeatureFiles_SameCommitAcrossFeatures(t *testing.T) {
 func TestReindexFeatureFiles_MergeCommitLinkedToFeatureYieldsNoFiles(t *testing.T) {
 	dir, _, _, _, merge := buildMergeRepo(t)
 
-	database, err := dbpkg.Open(":memory:")
+	database, err := dbtest.Open(":memory:")
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}

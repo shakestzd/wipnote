@@ -15,7 +15,7 @@ import (
 )
 
 func TestListResumableSessions_RanksLatestPerWorkItemAndUsesHeartbeatLiveness(t *testing.T) {
-	database, err := dbpkg.Open(filepath.Join(t.TempDir(), "resumable.db"))
+	database, err := dbtest.Open(filepath.Join(t.TempDir(), "resumable.db"))
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
@@ -98,7 +98,7 @@ func TestListResumableSessions_RanksLatestPerWorkItemAndUsesHeartbeatLiveness(t 
 }
 
 func TestListHarnessGroupedResumableSessions_KeepsOlderSameHarnessRow(t *testing.T) {
-	database, err := dbpkg.Open(filepath.Join(t.TempDir(), "grouped_resumable.db"))
+	database, err := dbtest.Open(filepath.Join(t.TempDir(), "grouped_resumable.db"))
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
@@ -163,7 +163,7 @@ func TestRenderResumableSessionsTable(t *testing.T) {
 
 func insertResumableSession(t *testing.T, database *sql.DB, sid, agent, status string, createdAt time.Time) {
 	t.Helper()
-	if err := dbpkg.UpsertSession(database, &models.Session{
+	if err := dbtest.UpsertSession(database, &models.Session{
 		SessionID:     sid,
 		AgentAssigned: agent,
 		CreatedAt:     createdAt,

@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/shakestzd/wipnote/core/db/dbtest"
 	"github.com/shakestzd/wipnote/core/worktree"
 
 	dbpkg "github.com/shakestzd/wipnote/core/db"
@@ -50,11 +51,11 @@ func setupTransactionalCompleteRepo(t *testing.T) (repoRoot, wipnoteDir, featID,
 		t.Fatalf("mkdir db dir: %v", err)
 	}
 	t.Setenv("WIPNOTE_DB_PATH", dbPath)
-	database, err := dbpkg.Open(dbPath)
+	database, err := dbtest.Open(dbPath)
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	if err := dbpkg.UpsertSession(database, &models.Session{
+	if err := dbtest.UpsertSession(database, &models.Session{
 		SessionID:     sessionID,
 		AgentAssigned: "claude-code",
 		Status:        "active",

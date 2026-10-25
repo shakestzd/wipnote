@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/db/dbtest"
 	"github.com/shakestzd/wipnote/observe/otel"
 	"github.com/shakestzd/wipnote/observe/otel/receiver"
 	sqls "github.com/shakestzd/wipnote/observe/otel/sink/sqlite"
@@ -26,7 +26,7 @@ import (
 func setupIndexerDB(t *testing.T) (*receiver.Writer, string) {
 	t.Helper()
 	dbPath := filepath.Join(t.TempDir(), "otel.db")
-	readDB, err := db.Open(dbPath)
+	readDB, err := dbtest.Open(dbPath)
 	if err != nil {
 		t.Fatalf("db.Open: %v", err)
 	}

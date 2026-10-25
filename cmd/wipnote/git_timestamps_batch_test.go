@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	dbpkg "github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/db/dbtest"
 )
 
 // runGitTimestampsBatchTest runs a git command in dir, failing on error.
@@ -281,7 +281,7 @@ func TestReindexFeatureDir_TimestampsMatchGitHistory(t *testing.T) {
 </article>
 </body></html>`)
 
-	database, err := dbpkg.Open(":memory:")
+	database, err := dbtest.Open(":memory:")
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}

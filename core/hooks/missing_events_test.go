@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/db/dbtest"
 	"github.com/shakestzd/wipnote/core/models"
 	worktreepkg "github.com/shakestzd/wipnote/core/worktree"
 )
@@ -276,7 +276,7 @@ func TestStop_FinalizesSessionHTML(t *testing.T) {
 		t.Fatalf("mkdir sessions: %v", err)
 	}
 
-	database, err := db.Open(filepath.Join(t.TempDir(), "wipnote.db"))
+	database, err := dbtest.Open(filepath.Join(t.TempDir(), "wipnote.db"))
 	if err != nil {
 		t.Fatalf("db.Open: %v", err)
 	}
@@ -289,7 +289,7 @@ func TestStop_FinalizesSessionHTML(t *testing.T) {
 		Status:        "active",
 		CreatedAt:     time.Now().UTC(),
 	}
-	if err := db.UpsertSession(database, sess); err != nil {
+	if err := dbtest.UpsertSession(database, sess); err != nil {
 		t.Fatalf("UpsertSession: %v", err)
 	}
 

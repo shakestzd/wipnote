@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	corearch "github.com/shakestzd/wipnote/core/arch"
-	dbpkg "github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/db/dbtest"
 )
 
 func TestReindexArchCards_HappyPath(t *testing.T) {
@@ -23,7 +23,7 @@ func TestReindexArchCards_HappyPath(t *testing.T) {
 	os.WriteFile(filepath.Join(archDir, "auth-card.md"), card1, 0o644)
 	os.WriteFile(filepath.Join(archDir, "db-map.md"), card2, 0o644)
 
-	db, err := dbpkg.Open(":memory:")
+	db, err := dbtest.Open(":memory:")
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
@@ -83,7 +83,7 @@ func TestReindexArchCards_EmptyDir(t *testing.T) {
 	dir := t.TempDir()
 	// No arch directory at all.
 
-	db, err := dbpkg.Open(":memory:")
+	db, err := dbtest.Open(":memory:")
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
@@ -103,7 +103,7 @@ func TestReindexArchCards_InvalidCard(t *testing.T) {
 	// Write a card without frontmatter.
 	os.WriteFile(filepath.Join(archDir, "bad.md"), []byte("no frontmatter here"), 0o644)
 
-	db, _ := dbpkg.Open(":memory:")
+	db, _ := dbtest.Open(":memory:")
 	defer db.Close()
 
 	total, upserted, errs := reindexArchCards(db, dir, true)
@@ -126,7 +126,7 @@ func TestReindexArchCards_Idempotent(t *testing.T) {
 	card := []byte("---\nname: stable\nkind: hazard\ncreated_by: agent\n---\nNever do the bad thing.\n")
 	os.WriteFile(filepath.Join(archDir, "stable.md"), card, 0o644)
 
-	db, _ := dbpkg.Open(":memory:")
+	db, _ := dbtest.Open(":memory:")
 	defer db.Close()
 
 	// Run twice — should not error on second pass (upsert).
@@ -155,7 +155,7 @@ func TestReindexArchCards_ImportedYAMLAndLineageEdges(t *testing.T) {
 		t.Fatalf("write import-compatible yaml arch card: %v", err)
 	}
 
-	db, err := dbpkg.Open(":memory:")
+	db, err := dbtest.Open(":memory:")
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
@@ -202,7 +202,7 @@ func TestReindexArchCards_SpecPrefixLineageEdges(t *testing.T) {
 		t.Fatalf("write architecture ledger: %v", err)
 	}
 
-	db, err := dbpkg.Open(":memory:")
+	db, err := dbtest.Open(":memory:")
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
@@ -237,7 +237,7 @@ func TestReindexArchCards_HTMLLedgerRow(t *testing.T) {
 		t.Fatalf("write architecture ledger: %v", err)
 	}
 
-	db, err := dbpkg.Open(":memory:")
+	db, err := dbtest.Open(":memory:")
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
