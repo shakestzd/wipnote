@@ -7,7 +7,7 @@ meta:
     status: finalized
     priority: medium
     schema_version: v4
-    version: 40
+    version: 41
 design:
     problem: |
         ## Problem
@@ -1734,6 +1734,34 @@ slices:
             - internal/delegate/oneshot/run.go
             - cmd/wipnote/delegate_doctor.go
             - core/hooks/pretooluse_delegate.go
+    - id: slic-cc13bcb1
+      num: 22
+      title: Claude one-shot runs as interactive workers
+      what: 'Inside herdr a Claude delegate run is an interactive worker: spawn plus send plus wait plus stop. The worker is launched with the spike''s wrapper. Outside herdr slice 8''s claude -p path stays.'
+      why: 'Owner decision after spike spk-87139e0e (2026-10-25): interactive workers can be watched and answered by a person and by the caller; claude -p cannot.'
+      files:
+        - internal/delegate/oneshot/claude_interactive.go
+        - internal/delegate/oneshot/claude_interactive_test.go
+        - internal/delegate/session/spawn.go
+        - internal/delegate/oneshot/recipes.go
+      deps:
+        - 8
+        - 10
+        - 11
+      done_when:
+        - Inside herdr a Claude run spawns a worker and prints the same report as claude -p
+        - Workspace trust and onboarding are pre-seeded so no dialog blocks the first prompt
+        - The worker gets a known --session-id and the run folder records the transcript path
+        - Stop and StopFailure and SessionEnd hooks record the result and error and end reason
+        - The status line command records cost and token totals
+        - Turn and budget caps are enforced by wipnote because the print-only flags do nothing interactively
+        - A worker whose SessionStart never fires or whose plugin did not load fails with a named reason
+        - wipnote decides done or failed and ends the session with /exit then SIGTERM
+      effort: L
+      risk: High
+      tests: 'Integration (fake herdr and claude stub): TestClaudeRun_InteractiveInHerdr, TestClaudeRun_HeadlessOutsideHerdr, TestClaudeRun_PreseedsTrust, TestClaudeRun_SessionIDKnown, TestClaudeRun_ResultFromStopHook, TestClaudeRun_ErrorFromStopFailure, TestClaudeRun_CostFromStatusLine, TestClaudeRun_TurnCapEnforced, TestClaudeRun_BudgetCapEnforced, TestClaudeRun_SessionStartTimeout, TestClaudeRun_PluginNotLoadedFails, TestClaudeRun_PromptBeforeVariadicFlags, TestClaudeRun_PlanModeModelWarning.'
+      approved: false
+      comment: ""
 questions:
     - id: q-adopt-vs-port
       text: Adopt or wrap the herdr plugin herdr-orch, or port orch?
