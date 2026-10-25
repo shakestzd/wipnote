@@ -140,24 +140,11 @@ func TestCWDNormalize_LinkedWorktree_CollapsesToRoot(t *testing.T) {
 
 // TestCWDNormalize_ForeignCWD_StoredWithUnresolvedPrefix verifies that when
 // the SessionStart projectDir is an absolute path that cannot be resolved as
-// a local wipnote repo (foreign-machine ingest scenario), it is stored with
-// the "unresolved:" prefix.
+// a local wipnote repo (foreign-machine ingest scenario), the session record
+// SessionStart persists stores it with the "unresolved:" prefix. It checks the
+// record newStartedSession builds rather than running SessionStart, which would
+// write the session HTML under the foreign path, outside the test's temp dirs.
 func TestCWDNormalize_ForeignCWD_StoredWithUnresolvedPrefix(t *testing.T) {
-	// The local project dir (where our DB lives).
-	localProjectDir := makeTestRepo(t)
-
-	dbPath := filepath.Join(localProjectDir, ".wipnote", "wipnote.db")
-	// Pin WIPNOTE_DB_PATH to the LOCAL db: SessionStart is called below with a
-	// FOREIGN projectDir, so DBPath(foreignDir) would resolve an unrelated path.
-	// The daemon-routed writes must land in this local handle's file (see
-	// openWipnoteTestDB).
-	t.Setenv("WIPNOTE_DB_PATH", dbPath)
-	database, err := dbtest.Open(dbPath)
-	if err != nil {
-		t.Fatalf("db.Open: %v", err)
-	}
-	defer database.Close()
-
 	sessionID := "test-cwd-foreign-001"
 	// foreignDir is an absolute path that does not exist on this machine and
 	// does not resolve to any local wipnote repo — simulating a path from a
@@ -165,23 +152,7 @@ func TestCWDNormalize_ForeignCWD_StoredWithUnresolvedPrefix(t *testing.T) {
 	foreignDir := "/home/other-user-x7k2/their-project"
 
 	event := &CloudEvent{SessionID: sessionID, CWD: foreignDir}
-
-	t.Setenv("CLAUDE_SESSION_ID", "")
-	t.Setenv("WIPNOTE_PARENT_SESSION", "")
-	t.Setenv("WIPNOTE_NESTING_DEPTH", "")
-	t.Setenv("CLAUDE_ENV_FILE", "")
-	t.Setenv("CLAUDE_PROJECT_DIR", "")
-	t.Setenv("WIPNOTE_PROJECT_DIR", "")
-	t.Setenv("WIPNOTE_SESSION_ID", "")
-
-	// Pass the foreignDir as projectDir — simulates RenderIngestedSessionHTML
-	// passing the foreign source dir to CreateSessionHTML via s.ProjectDir.
-	_, err = SessionStart(event, foreignDir)
-	if err != nil {
-		t.Fatalf("SessionStart: %v", err)
-	}
-
-	got := sessionHTMLRecord(t, foreignDir, sessionID)
+	got := newStartedSession(event, foreignDir, sessionID, time.Now(), "")
 	// Foreign machine path → stored with "unresolved:" prefix.
 	if !strings.HasPrefix(got.ProjectDir, "unresolved:") {
 		t.Errorf("foreign project_dir should have unresolved: prefix, got: %q", got.ProjectDir)
