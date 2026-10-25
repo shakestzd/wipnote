@@ -15,6 +15,7 @@ import (
 	"time"
 
 	dbpkg "github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/filelock"
 	"github.com/shakestzd/wipnote/core/gateledger"
 	"github.com/shakestzd/wipnote/core/paths"
 	"github.com/shakestzd/wipnote/core/workitem"
@@ -1569,7 +1570,7 @@ func TestHtmlWriterAtomicity(t *testing.T) {
 		go func(n int) {
 			defer wg.Done()
 			content := strings.Repeat(fmt.Sprintf("line-%d\n", n), 100)
-			if err := writeFileAtomicRaw(targetFile, []byte(content)); err != nil {
+			if err := filelock.WriteFileAtomic(targetFile, []byte(content), 0o644); err != nil {
 				t.Errorf("writeFileAtomicRaw goroutine %d: %v", n, err)
 			}
 		}(i)

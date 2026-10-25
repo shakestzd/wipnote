@@ -5,18 +5,15 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
-	"sync/atomic"
 	"time"
 
+	"github.com/shakestzd/wipnote/core/filelock"
 	"gopkg.in/yaml.v3"
 )
 
 // planWriteMu serialises in-process Save calls for the same plan path.
 // Cross-process safety still requires an advisory file lock at higher layers.
 var planWriteMu sync.Map
-
-// planAtomicSeq makes temp filenames unique across goroutines in the same PID.
-var planAtomicSeq atomic.Int64
 
 // NewPlan creates a PlanYAML with sensible defaults: status "draft",
 // empty design/slices/questions, nil critique, and CreatedAt set to today.
@@ -96,31 +93,7 @@ func saveLocked(path string, plan *PlanYAML) error {
 		}
 	}
 
-	seq := planAtomicSeq.Add(1)
-	tmp := fmt.Sprintf("%s.tmp.%d.%d", path, os.Getpid(), seq)
-	f, err := os.OpenFile(tmp, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o644)
-	if err != nil {
-		return fmt.Errorf("open temp plan: %w", err)
-	}
-	if _, err := f.Write(data); err != nil {
-		_ = f.Close()
-		_ = os.Remove(tmp)
-		return fmt.Errorf("write temp plan: %w", err)
-	}
-	if err := f.Sync(); err != nil {
-		_ = f.Close()
-		_ = os.Remove(tmp)
-		return fmt.Errorf("sync temp plan: %w", err)
-	}
-	if err := f.Close(); err != nil {
-		_ = os.Remove(tmp)
-		return fmt.Errorf("close temp plan: %w", err)
-	}
-	if err := os.Rename(tmp, path); err != nil {
-		_ = os.Remove(tmp)
-		return fmt.Errorf("rename plan: %w", err)
-	}
-	return nil
+	return filelock.WriteFileAtomic(path, data, 0o644)
 }
 
 // LockPlanForWrite acquires a per-plan in-process mutex so a load → modify →
