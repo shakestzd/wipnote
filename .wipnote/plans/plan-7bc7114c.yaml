@@ -7,7 +7,7 @@ meta:
     status: draft
     priority: medium
     schema_version: v4
-    version: 7
+    version: 8
 design:
     problem: ""
     goals: []
@@ -120,6 +120,29 @@ slices:
         - Full test suite passes
       effort: S
       risk: Low
+      tests: ""
+      approved: false
+      comment: ""
+    - id: slic-a896a337
+      num: 6
+      title: Cut per-hook cost
+      what: Stop hooks from creating and opening the per-project SQLite cache file (finish feat-fc3cc9e0 in the hook tree); stop querying the empty read-only projection in tooluse_shared, yolo_guard and pretooluse; run guard work only after the tool-type match; memoize session-family and staged-file lookups per process; gate debug.log on WIPNOTE_DEBUG; build plan and recap templates lazily (about 30 ms of init per wipnote process); test whether PostToolBatch or an http hook to the daemon can replace the second per-tool process.
+      why: Every tool call and prompt pays these costs; measured examples are 30 ms init, 2-3 ms projection, 2 git spawns and up to 512 KB of JSON per YOLO call.
+      files:
+        - cmd/wipnote/hook.go
+        - core/hooks
+        - plan/plantmpl
+        - recap/recaptmpl
+        - plan/blocks
+        - packages/plugin-core/manifest.json
+      deps:
+        - 4
+      done_when:
+        - A benchmark shows the pretooluse handler time before and after
+        - No hook opens a file-backed SQLite database
+        - Hook behaviour tests pass
+      effort: L
+      risk: Med
       tests: ""
       approved: false
       comment: ""
