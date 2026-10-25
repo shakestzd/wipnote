@@ -5,6 +5,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -15,7 +16,7 @@ import (
 // per-file `git log --follow` lookup on a real repository, and times both. It
 // is read-only and runs only when TIMESTAMP_CORPUS_REPO names a repo root:
 //
-//	TIMESTAMP_CORPUS_REPO=/path/to/repo go test ./cmd/wipnote -run TestRealCorpusFirstAdded -v
+//	TIMESTAMP_CORPUS_REPO=/path/to/repo [TIMESTAMP_CORPUS_SAMPLE=8] go test ./cmd/wipnote -run TestRealCorpusFirstAdded -v
 //
 // A disagreement is acceptable only when --follow jumped to a DIFFERENT work
 // item through git's copy detection. A disagreement where both sides name the
@@ -62,6 +63,15 @@ func corpusWorkItemFiles(t *testing.T, repo string) []string {
 	}
 	if len(files) == 0 {
 		t.Fatalf("no work-item files under %s/.wipnote", repo)
+	}
+	// TIMESTAMP_CORPUS_SAMPLE=N keeps every N-th file: the per-file side
+	// needs about a second per file on a loaded machine.
+	if n, _ := strconv.Atoi(os.Getenv("TIMESTAMP_CORPUS_SAMPLE")); n > 1 {
+		var kept []string
+		for i := 0; i < len(files); i += n {
+			kept = append(kept, files[i])
+		}
+		files = kept
 	}
 	return files
 }
