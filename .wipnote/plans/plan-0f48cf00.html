@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="htmlgraph-version" content="1.0">
+<meta name="wipnote-version" content="1.0">
 <title>Plan: Local cockpit — parallel AI sessions in the dashboard</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,300;0,8..60,400;0,8..60,500;1,8..60,300;1,8..60,400&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/github-dark.min.css" id="hljs-dark">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/github.min.css" id="hljs-light" disabled>
 <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/highlight.min.js"></script>
@@ -22,6 +22,7 @@
   --radius:8px; --radius-sm:5px;
   --mono:'JetBrains Mono',ui-monospace,'SF Mono','Cascadia Code',monospace;
   --sans:'DM Sans','Inter',system-ui,-apple-system,sans-serif;
+  --serif:'Source Serif 4',Georgia,serif;
   --shadow-card:0 2px 8px rgba(0,0,0,.5), 0 0 0 1px var(--border);
   --shadow-elevated:0 8px 32px rgba(0,0,0,.6), 0 0 0 1px var(--border);
   --transition:150ms cubic-bezier(.4,0,.2,1);
@@ -38,6 +39,10 @@
 [data-theme="light"] .badge-discuss{background:rgba(167,139,250,.08);color:#7c3aed;border-color:rgba(167,139,250,.2)}
 [data-theme="light"] .badge-pending{background:rgba(107,114,128,.08);color:#4b5563;border-color:rgba(107,114,128,.2)}
 [data-theme="light"] .badge-blocked{background:rgba(239,68,68,.08);color:#dc2626;border-color:rgba(239,68,68,.2)}
+[data-theme="light"] .badge-success{background:rgba(34,197,94,.08);color:#16a34a;border-color:rgba(34,197,94,.2)}
+[data-theme="light"] .badge-warn{background:rgba(245,158,11,.08);color:#d97706;border-color:rgba(245,158,11,.2)}
+[data-theme="light"] .badge-danger{background:rgba(239,68,68,.08);color:#dc2626;border-color:rgba(239,68,68,.2)}
+[data-theme="light"] .badge-info{background:rgba(99,179,237,.08);color:#2563eb;border-color:rgba(99,179,237,.2)}
 [data-theme="light"] .btn-finalize{background:#4a6e00;color:#fff}
 [data-theme="light"] .section-card{--shadow-card:0 1px 2px rgba(0,0,0,.04),0 0 0 1px var(--border)}
 
@@ -57,7 +62,7 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);line-height:
 .plan-content{flex:1;min-width:0;padding:32px 40px 80px;overflow-y:auto;max-width:960px}
 
 /* ── Chat sidebar ── */
-.chat-sidebar{width:360px;min-width:280px;max-width:600px;border-left:1px solid var(--border);display:flex;flex-direction:column;background:var(--bg-card);overflow:hidden;height:100%}
+.chat-sidebar{width:360px;min-width:280px;max-width:600px;border-left:1px solid var(--border);display:flex;flex-direction:column;background:var(--bg-card);overflow-y:auto;overflow-x:hidden;height:100vh;position:sticky;top:0;flex-shrink:0;transition:width 200ms ease,opacity 150ms ease}
 .chat-resize-handle{width:4px;cursor:col-resize;background:transparent;transition:background .15s;flex-shrink:0;position:relative}
 .chat-resize-handle:hover,.chat-resize-handle.dragging{background:var(--accent);opacity:.5}
 .chat-resize-handle::after{content:'';position:absolute;top:50%;left:-4px;width:12px;height:32px;transform:translateY(-50%);border-radius:4px}
@@ -106,15 +111,33 @@ a:hover{opacity:.8}
 .badge-discuss{background:rgba(167,139,250,.1);color:var(--discuss);border-color:rgba(167,139,250,.25)}.badge-discuss::before{background:var(--discuss)}
 .badge-pending{background:rgba(107,114,128,.1);color:var(--pending);border-color:rgba(107,114,128,.2)}.badge-pending::before{background:var(--pending)}
 .badge-blocked{background:rgba(239,68,68,.1);color:var(--blocked);border-color:rgba(239,68,68,.25)}.badge-blocked::before{background:var(--blocked)}
+/* Critic-item kind badges: success=green, warn=amber, danger=red, info=neutral/blue */
+.badge-success{background:rgba(34,197,94,.1);color:var(--approved);border-color:rgba(34,197,94,.25)}.badge-success::before{background:var(--approved)}
+.badge-warn{background:rgba(245,158,11,.1);color:var(--revision);border-color:rgba(245,158,11,.25)}.badge-warn::before{background:var(--revision)}
+.badge-danger{background:rgba(239,68,68,.1);color:var(--blocked);border-color:rgba(239,68,68,.25)}.badge-danger::before{background:var(--blocked)}
+.badge-info{background:rgba(99,179,237,.1);color:#63b3ed;border-color:rgba(99,179,237,.25)}.badge-info::before{background:#63b3ed}
 
 /* ── Dependency graph ── */
 .dep-graph{background:var(--bg-card);border-radius:var(--radius);padding:28px;margin-bottom:28px;box-shadow:var(--shadow-card);overflow-x:auto}
 .dep-graph h2{margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid var(--border)}
+/* No max-width: a wide graph scrolls inside .dep-graph (overflow-x:auto)
+   rather than scaling down until its labels are unreadable. */
 .dep-graph svg{display:block;height:auto}
-#dep-graph-svg .node rect{rx:8;ry:8;fill:var(--bg-input);stroke:var(--border);stroke-width:2px}
-#dep-graph-svg .node text{fill:var(--text) !important;font-family:var(--sans);font-size:13px}
-#dep-graph-svg .edgePath path{stroke:var(--text-muted);stroke-dasharray:5 4;fill:none;stroke-width:1.5}
-#dep-graph-svg .edgePath marker path{fill:var(--text-muted)}
+/* Static graph: geometry is baked into the markup by the Go renderer, so CSS
+   here only supplies theme-reactive paint and hover affordances. */
+#dep-graph-svg .dep-node-box{stroke-width:2}
+#dep-graph-svg .dep-edge{stroke-width:1.5;stroke-dasharray:5 4}
+/* Beats the fill presentation attribute on the shared arrowhead marker, so
+   arrowheads match the muted edge stroke instead of the accent default.
+   NOTE: keep every quote character in this stylesheet balanced, comments
+   included. The dashboard embed scoper (cmd/wipnote/plan_css_scope.go) reads
+   an unpaired quote as the start of a string literal and stops scoping every
+   rule after it, which silently unscopes half the embedded plan CSS. */
+#dep-graph-svg marker path{fill:var(--text-muted)}
+#dep-graph-svg a{cursor:pointer}
+#dep-graph-svg .dep-node{transition:opacity var(--transition)}
+#dep-graph-svg .dep-node:hover .dep-node-box{stroke-width:3}
+#dep-graph-svg .dep-node:hover .dep-node-label{fill:var(--accent)}
 
 /* ── Section cards ── */
 .section-card{background:var(--bg-card);border-radius:var(--radius);margin-bottom:14px;box-shadow:var(--shadow-card);overflow:hidden;transition:box-shadow var(--transition)}
@@ -149,24 +172,85 @@ textarea::placeholder{color:var(--text-muted)}
 .question-block input[type="radio"]{accent-color:var(--accent);margin-right:8px;cursor:pointer}
 .rec-tag{font-family:var(--mono);font-size:.65rem;color:var(--accent);text-transform:uppercase;letter-spacing:.05em;margin-left:6px;opacity:.8}
 
-/* ── Slice cards ── */
-.slice-card{background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius);padding:24px;margin-bottom:16px;transition:border-color var(--transition)}
+/* ── Slice cards (collapsible) ── */
+.slice-card{background:var(--bg-input);border:1px solid var(--border);border-left:3px solid var(--border);border-radius:var(--radius);margin-bottom:12px;transition:border-color var(--transition);scroll-margin-top:64px}
 .slice-card:hover{border-color:rgba(205,255,0,.2)}
-.slice-header{display:flex;align-items:center;gap:10px;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--border);flex-wrap:wrap}
-.slice-num{font-family:var(--mono);font-size:.8rem;color:var(--bg);background:var(--accent);padding:3px 9px;border-radius:4px;font-weight:700;min-width:26px;text-align:center}
-.slice-name{font-weight:600;font-size:1rem;font-family:var(--sans);flex:1}
-.slice-meta{font-size:.85rem;color:var(--text-muted);margin-bottom:8px;font-family:var(--mono)}
+/* Status stripe — keyed to data-approval attribute */
+.slice-card[data-approval="approved"]{border-left-color:var(--approved)}
+.slice-card[data-approval="rejected"]{border-left-color:var(--revision)}
+.slice-card[data-approval="changes_requested"]{border-left-color:var(--revision)}
+.slice-card[data-approval="pending"]{border-left-color:var(--border)}
+.slice-card[data-status="done"]{border-left-color:var(--discuss)}
+/* Summary / header — flex row: [#N] [title-col grows] [chevron]; title-col stacks title/preview/meta-row */
+.slice-card > summary.slice-summary{display:flex;align-items:flex-start;gap:12px;padding:12px 16px;cursor:pointer;list-style:none;user-select:none;font-weight:400;font-size:.94rem}
+.slice-card > summary.slice-summary::-webkit-details-marker{display:none}
+.slice-card > summary.slice-summary::marker{content:""}
+.slice-card > summary.slice-summary:hover{background:var(--bg-hover);border-radius:calc(var(--radius) - 1px)}
+.slice-num{margin-top:2px;font-family:var(--mono);font-size:.78rem;color:var(--bg);background:var(--accent);padding:2px 8px;border-radius:4px;font-weight:700;min-width:28px;text-align:center;flex:0 0 auto;align-self:flex-start}
+.slice-title-col{flex:1 1 auto;display:flex;flex-direction:column;gap:4px;min-width:0}
+.slice-name{font-weight:600;font-size:.94rem;font-family:var(--sans);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.slice-preview{color:var(--text-muted);font-size:.82rem;line-height:1.4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.slice-meta-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:4px;flex-wrap:wrap}
+.slice-summary-badges{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.slice-legend{font-family:var(--mono);font-size:.72rem;color:var(--text-muted);margin:0 0 10px;letter-spacing:.03em}
+.badge-sm{font-size:.68rem;padding:2px 7px;letter-spacing:.04em}
+.badge-issues{background:rgba(239,68,68,.12);color:#f87171;border-color:rgba(239,68,68,.25)}
+.badge-questions{background:rgba(167,139,250,.12);color:var(--discuss);border-color:rgba(167,139,250,.25)}
+/* Segmented approval control */
+.slice-actions{display:flex;align-items:center;gap:6px;flex-shrink:0;margin-left:auto}
+.approval-segmented{display:inline-flex;border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;gap:0}
+.seg-btn{display:inline-flex;align-items:center;justify-content:center;padding:4px 9px;font-size:.82rem;cursor:pointer;line-height:1;color:var(--text-muted);transition:background var(--transition),color var(--transition);user-select:none}
+.seg-btn:hover{background:var(--bg-hover);color:var(--text)}
+.seg-btn input[type="radio"]{position:absolute;opacity:0;width:0;height:0;pointer-events:none}
+.seg-btn:has(input:checked){background:var(--bg-hover)}
+.seg-approve:has(input:checked){background:rgba(34,197,94,.15);color:var(--approved);border-right:1px solid var(--border)}
+.seg-changes:has(input:checked){background:rgba(245,158,11,.15);color:var(--revision);border-right:1px solid var(--border)}
+.seg-reject:has(input:checked){background:rgba(239,68,68,.15);color:var(--blocked)}
+/* Chevron */
+.slice-chevron{flex:0 0 auto;align-self:flex-start;width:16px;height:16px;position:relative;margin-top:6px}
+.slice-chevron::after{content:'';position:absolute;top:50%;left:50%;width:7px;height:7px;border-right:2px solid var(--text-muted);border-bottom:2px solid var(--text-muted);transform:translate(-60%,-60%) rotate(-45deg);transition:transform .2s ease}
+.slice-card[open] .slice-chevron::after{transform:translate(-60%,-30%) rotate(45deg)}
+/* Slice body (expanded content) */
+.slice-body{padding:4px 18px 16px}
+.slice-meta{font-size:.82rem;color:var(--text-muted);margin-bottom:6px;font-family:var(--mono)}
 .slice-meta span{margin-right:14px}
-.slice-field{margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid rgba(51,51,56,.4)}
+.slice-field{margin-top:14px;padding-bottom:10px;border-bottom:1px solid rgba(51,51,56,.4)}
 .slice-field:last-of-type{border-bottom:none}
-.slice-field-label{font-family:var(--mono);font-size:.75rem;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+.slice-field-label{font-family:var(--mono);font-size:.7rem;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px;opacity:.85}
 .slice-field-value{font-size:.92rem;color:var(--text-dim);line-height:1.7}
 .slice-field-value code{font-size:.82rem;word-break:break-all}
-.slice-tests{white-space:pre-line}
+/* Serif prose for WHAT/WHY/description */
+.serif-prose{font-family:var(--serif);font-size:.96rem;line-height:1.6}
+/* Reveal toggle (CSS-only) */
+.reveal-toggle{position:absolute;opacity:0;width:0;height:0;pointer-events:none}
+.reveal-content{max-height:8.5em;overflow:hidden;mask-image:linear-gradient(to bottom, black 60%, transparent 100%);-webkit-mask-image:linear-gradient(to bottom, black 60%, transparent 100%)}
+.reveal-toggle:checked~.reveal-content{max-height:none;mask-image:none;-webkit-mask-image:none}
+.reveal-label{display:inline-block;margin-top:4px;font-size:.78rem;color:var(--accent);cursor:pointer;font-family:var(--mono);opacity:.8;transition:opacity var(--transition)}
+.reveal-label:hover{opacity:1}
+.reveal-toggle:checked~.reveal-content~.reveal-label{display:none}
+/* Test strategy chips */
+.test-strategy{display:flex;flex-direction:column;gap:6px}
+.test-group{display:flex;align-items:flex-start;gap:10px}
+.test-chip{font-family:var(--mono);font-size:.65rem;font-weight:700;letter-spacing:.06em;background:var(--bg-card);border:1px solid var(--border);border-radius:4px;padding:3px 8px;white-space:nowrap;color:var(--text-muted);flex-shrink:0;margin-top:2px}
+.test-group[data-kind="unit"] .test-chip{border-color:rgba(34,197,94,.3);color:var(--approved)}
+.test-group[data-kind="integration"] .test-chip{border-color:rgba(167,139,250,.3);color:var(--discuss)}
+.test-group[data-kind="regression"] .test-chip,.test-group[data-kind="e2e"] .test-chip{border-color:rgba(245,158,11,.3);color:var(--revision)}
+.test-group ul{margin:0;padding-left:1.2em;display:flex;flex-direction:column;gap:2px}
+.test-group ul li{font-size:.84rem;padding:2px 0;color:var(--text-dim)}
+/* Done when list */
 .slice-done-list{list-style:none;padding-left:0;margin:0}
-.slice-done-list li{font-size:.9rem;color:var(--text-dim);padding:4px 0;padding-left:20px;position:relative}
+.slice-done-list li{font-size:.88rem;color:var(--text-dim);padding:3px 0;padding-left:18px;position:relative}
 .slice-done-list li::before{content:'\2713';position:absolute;left:0;color:var(--approved);font-weight:700}
-.slice-deps{font-size:.85rem;color:var(--text-muted);margin-top:8px;font-family:var(--mono)}
+.slice-done-list--grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:4px 24px}
+/* Slice deps */
+.slice-deps{font-size:.78rem;color:var(--text-muted);margin-top:10px;font-family:var(--mono)}
+/* Comment collapse */
+.comment-collapse{margin-top:10px;border-top:1px solid var(--border)}
+.comment-collapse-trigger{cursor:pointer;font-size:.8rem;color:var(--text-muted);padding:8px 0;font-family:var(--mono);list-style:none;user-select:none;transition:color var(--transition)}
+.comment-collapse-trigger::-webkit-details-marker{display:none}
+.comment-collapse-trigger:hover{color:var(--accent)}
+.comment-collapse-body{padding:8px 0 0}
+/* Old approval-row (design section etc) */
 .slice-card .approval-row{margin-top:16px}
 
 /* ── Progress zone ── */
@@ -228,6 +312,47 @@ textarea::placeholder{color:var(--text-muted)}
 #chat-send:disabled{opacity:.3;cursor:not-allowed}
 .chat-notice{font-size:.82rem;color:var(--text-muted);padding:20px;text-align:center;line-height:1.6}
 
+/* ── Review rail (sticky sidebar top) ── */
+.review-rail{padding:16px 18px;border-bottom:1px solid var(--border);background:var(--bg-card)}
+.review-rail h3{font-family:var(--sans);font-size:.82rem;font-weight:600;color:var(--text);margin-bottom:10px;text-transform:none;letter-spacing:0}
+.rail-dots{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px}
+.rail-dot{width:12px;height:12px;border-radius:50%;background:var(--border);border:2px solid transparent;cursor:pointer;transition:transform .12s;text-decoration:none;display:inline-block}
+.rail-dot:hover{transform:scale(1.3)}
+.rail-dot[data-approval="approved"]{background:var(--approved);border-color:rgba(34,197,94,.3)}
+.rail-dot[data-approval="rejected"]{background:var(--revision);border-color:rgba(245,158,11,.3)}
+.rail-dot[data-approval="changes_requested"]{background:var(--revision);border-color:rgba(245,158,11,.3)}
+.rail-dot[data-approval="pending"]{background:var(--border)}
+.rail-counter{font-size:.78rem;color:var(--text-dim);margin-bottom:6px;font-family:var(--sans)}
+.rail-counter strong{color:var(--text)}
+.rail-progress{height:5px;background:var(--bg-input);border-radius:3px;overflow:hidden;margin-bottom:12px}
+.rail-progress-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--approved));border-radius:3px;transition:width .4s cubic-bezier(.4,0,.2,1)}
+.rail-pending-list{font-size:.78rem;color:var(--text-dim);margin-bottom:12px}
+.rail-pending-list strong{display:block;font-size:.7rem;font-family:var(--mono);color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px}
+.rail-pending-list li{list-style:none;padding:2px 0;display:flex;align-items:center;gap:6px}
+.rail-pending-list li::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--border);flex-shrink:0}
+.rail-pending-list li[data-has-issues]::before{background:var(--blocked)}
+.rail-pending-list li[data-has-questions]::before{background:var(--discuss)}
+.btn-finalize-rail{width:100%;background:var(--accent);color:#0a0a0a;border:none;border-radius:var(--radius);padding:10px 16px;font-weight:700;font-size:.82rem;cursor:pointer;font-family:var(--sans);transition:all var(--transition)}
+.btn-finalize-rail:hover:not(:disabled){filter:brightness(.92)}
+.btn-finalize-rail:disabled{opacity:.3;cursor:not-allowed}
+.rail-finalize-hint{font-size:.7rem;color:var(--text-muted);margin-top:4px;text-align:center}
+/* Chat section inside sidebar now collapsible */
+.chat-collapsible{border-top:1px solid var(--border)}
+.chat-collapsible>summary{cursor:pointer;font-size:.82rem;font-weight:600;color:var(--text-muted);padding:10px 18px;list-style:none;user-select:none;font-family:var(--mono);text-transform:uppercase;letter-spacing:.04em;transition:color var(--transition)}
+.chat-collapsible>summary::-webkit-details-marker{display:none}
+.chat-collapsible>summary:hover{color:var(--accent)}
+/* sidebar slice nav */
+.slice-nav-list{padding:0;margin:0;list-style:none}
+.slice-nav-item{display:flex;align-items:center;gap:6px;padding:4px 20px 4px 28px;font-size:.75rem;color:var(--text-muted);text-decoration:none;cursor:pointer;transition:color var(--transition)}
+.slice-nav-item:hover{color:var(--text)}
+.slice-nav-dot{width:8px;height:8px;border-radius:50%;background:var(--border);flex-shrink:0;transition:background .2s}
+.slice-nav-dot[data-approval="approved"]{background:var(--approved)}
+.slice-nav-dot[data-approval="rejected"]{background:var(--revision)}
+.slice-nav-dot[data-approval="changes_requested"]{background:var(--revision)}
+.nav-triage-badge{font-size:.65rem;font-family:var(--mono);font-weight:700;border-radius:3px;padding:0 3px;line-height:1.4;flex-shrink:0}
+.nav-triage-issue{background:#7c2d12;color:#fde68a}
+.nav-triage-question{background:#1e3a5f;color:#bfdbfe}
+
 /* ── Amendments ── */
 .amendments-panel{margin-top:28px;background:var(--bg-card);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow-card)}
 .amendments-panel h3{margin:0 0 14px;font-size:.92rem;color:var(--text);font-family:var(--sans);font-weight:600}
@@ -249,6 +374,29 @@ textarea::placeholder{color:var(--text-muted)}
 .yaml-viewer code{font-family:var(--mono);color:var(--text)}
 
 
+/* ── Sidebar toggle buttons ── */
+.sidebar-toggle{display:flex;align-items:center;justify-content:center;width:28px;height:28px;background:transparent;border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-muted);cursor:pointer;font-size:.9rem;line-height:1;transition:background var(--transition),color var(--transition);flex-shrink:0;padding:0}
+.sidebar-toggle:hover{background:var(--bg-hover);color:var(--text)}
+/* Left sidebar toggle — sits beside the brand */
+.plan-sidebar .brand-row{display:flex;align-items:center;justify-content:space-between;padding:16px 20px 20px;border-bottom:1px solid var(--border);margin-bottom:8px}
+.plan-sidebar .brand-row .brand{padding:0;border-bottom:none;margin-bottom:0}
+/* Right sidebar toggle header */
+.chat-sidebar-header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--border);flex-shrink:0}
+.chat-sidebar-header-title{font-family:var(--mono);font-size:.72rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em}
+/* Collapsed states */
+body.left-nav-collapsed .plan-sidebar{width:48px;min-width:48px;overflow:hidden}
+body.left-nav-collapsed .plan-sidebar .brand-row{padding:12px 10px}
+body.left-nav-collapsed .plan-sidebar .brand-row .brand{display:none}
+body.left-nav-collapsed .plan-sidebar .nav-link{padding:10px;justify-content:center;font-size:0;gap:0}
+body.left-nav-collapsed .plan-sidebar .nav-link::after{content:attr(data-initial);font-size:.7rem;font-family:var(--mono);font-weight:700}
+body.left-nav-collapsed .plan-sidebar .slice-nav-list{display:none}
+body.left-nav-collapsed{grid-template-columns:48px 1fr}
+body.right-rail-collapsed .chat-sidebar{width:0;min-width:0;opacity:0;pointer-events:none;overflow:hidden;border-left:none}
+body.right-rail-collapsed .chat-resize-handle{display:none}
+.sidebar-reopen{display:none;position:fixed;top:14px;right:14px;z-index:50;width:32px;height:32px;align-items:center;justify-content:center;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-muted);cursor:pointer;font-size:1rem;line-height:1;padding:0;box-shadow:0 2px 8px rgba(0,0,0,.35);transition:background var(--transition),color var(--transition)}
+.sidebar-reopen:hover{background:var(--bg-hover);color:var(--text)}
+body.right-rail-collapsed .sidebar-reopen{display:flex}
+
 /* ── Print ── */
 @media print{body{background:#fff;color:#111;max-width:100%;display:block}.plan-sidebar{display:none}.section-card,.dep-graph,.progress-zone,.slice-card{border-color:#ccc;background:#fafafa;box-shadow:none}details[open] summary~*{display:block}.btn-finalize,.chat-panel,.amendments-panel{display:none}}
 
@@ -263,22 +411,143 @@ textarea::placeholder{color:var(--text-muted)}
   .chat-sidebar{width:100% !important;min-width:0;max-width:none;border-left:none;border-top:1px solid var(--border);height:400px;flex-shrink:0}
 }
 
+/* ── Slice visual blocks (shared plan/blocks renderers) ── */
+.slice-blocks .block-zone{display:flex;flex-direction:column;gap:12px}
+.block{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px}
+.block-header{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap}
+.block-kind{font-family:var(--mono);font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--accent);background:var(--accent-dim);border-radius:4px;padding:2px 6px}
+.block-title{font-family:var(--sans);font-weight:600;font-size:.88rem;color:var(--text)}
+.block-table{width:100%;border-collapse:collapse;font-size:.82rem;margin-top:4px}
+.block-table th{text-align:left;padding:6px 8px;border-bottom:1px solid var(--border);color:var(--text-muted);font-family:var(--mono);font-size:.66rem;text-transform:uppercase;letter-spacing:.05em}
+.block-table td{padding:6px 8px;border-bottom:1px solid rgba(58,58,66,.5);color:var(--text-dim);vertical-align:top}
+.block-table tr:last-child td{border-bottom:none}
+.block-api-endpoint .api-method{font-family:var(--mono);font-size:.7rem;font-weight:700;padding:2px 7px;border-radius:4px;background:var(--bg-input);border:1px solid var(--border);color:var(--text)}
+.block-api-endpoint .api-path{font-size:.82rem;word-break:break-all}
+.block-file-tree .file-list{list-style:none;padding-left:0;margin:0;display:flex;flex-direction:column;gap:3px}
+.block-file-tree .file-entry{font-size:.84rem;color:var(--text-dim)}
+.block-file-tree .file-change{font-family:var(--mono);font-size:.62rem;font-weight:700;text-transform:uppercase;padding:1px 5px;border-radius:3px;margin-right:6px;border:1px solid var(--border)}
+.block-file-tree .file-change-add{color:var(--approved);border-color:rgba(34,197,94,.35)}
+.block-file-tree .file-change-modify{color:var(--revision);border-color:rgba(245,158,11,.35)}
+.block-file-tree .file-change-delete{color:var(--blocked);border-color:rgba(239,68,68,.35)}
+.block-wireframe .wireframe-canvas{background:var(--wf-bg);color:var(--wf-fg);border:1px dashed var(--wf-border);border-radius:var(--wf-radius);padding:14px}
+.block-wireframe .wireframe-error{font-family:var(--mono);font-size:.78rem;color:var(--blocked);background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);border-radius:var(--radius-sm);padding:8px 10px}
+.block-diagram .diagram-flow{display:flex;gap:8px;flex-wrap:wrap}
+.block-diagram .diagram-lr{flex-direction:row;align-items:center}
+.block-diagram .diagram-tb{flex-direction:column;align-items:flex-start}
+.block-diagram .diagram-node{background:var(--bg-input);border:1px solid var(--border);border-radius:6px;padding:7px 13px;font-family:var(--mono);font-size:.8rem;color:var(--text);white-space:nowrap}
+.block-diagram .diagram-arrow{color:var(--accent);font-family:var(--mono)}
+.block-diagram .diagram-tb .diagram-arrow{margin-left:16px}
+.block-tabs .tabs{position:relative}
+.block-tabs .tab-radio{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.block-tabs .tab-labels{display:flex;gap:2px;flex-wrap:wrap;border-bottom:1px solid var(--border)}
+.block-tabs .tab-label{padding:6px 12px;font-family:var(--mono);font-size:.78rem;color:var(--text-muted);cursor:pointer;border:1px solid transparent;border-bottom:none;border-radius:6px 6px 0 0;margin-bottom:-1px}
+.block-tabs .tab-label:hover{color:var(--text)}
+.block-tabs .tab-panels{padding:12px 2px}
+.block-tabs .tab-panel{display:none;font-size:.88rem;color:var(--text-dim);white-space:pre-wrap;font-family:var(--sans)}
+.block-tabs .tabs .tab-radio:nth-of-type(1):checked~.tab-labels .tab-label:nth-child(1),.block-tabs .tabs .tab-radio:nth-of-type(2):checked~.tab-labels .tab-label:nth-child(2),.block-tabs .tabs .tab-radio:nth-of-type(3):checked~.tab-labels .tab-label:nth-child(3),.block-tabs .tabs .tab-radio:nth-of-type(4):checked~.tab-labels .tab-label:nth-child(4),.block-tabs .tabs .tab-radio:nth-of-type(5):checked~.tab-labels .tab-label:nth-child(5),.block-tabs .tabs .tab-radio:nth-of-type(6):checked~.tab-labels .tab-label:nth-child(6),.block-tabs .tabs .tab-radio:nth-of-type(7):checked~.tab-labels .tab-label:nth-child(7),.block-tabs .tabs .tab-radio:nth-of-type(8):checked~.tab-labels .tab-label:nth-child(8){color:var(--text);border-color:var(--border);background:var(--bg-card)}
+.block-tabs .tabs .tab-radio:nth-of-type(1):checked~.tab-panels .tab-panel:nth-child(1),.block-tabs .tabs .tab-radio:nth-of-type(2):checked~.tab-panels .tab-panel:nth-child(2),.block-tabs .tabs .tab-radio:nth-of-type(3):checked~.tab-panels .tab-panel:nth-child(3),.block-tabs .tabs .tab-radio:nth-of-type(4):checked~.tab-panels .tab-panel:nth-child(4),.block-tabs .tabs .tab-radio:nth-of-type(5):checked~.tab-panels .tab-panel:nth-child(5),.block-tabs .tabs .tab-radio:nth-of-type(6):checked~.tab-panels .tab-panel:nth-child(6),.block-tabs .tabs .tab-radio:nth-of-type(7):checked~.tab-panels .tab-panel:nth-child(7),.block-tabs .tabs .tab-radio:nth-of-type(8):checked~.tab-panels .tab-panel:nth-child(8){display:block}
+
+/* ── Visual Overview Zone ── */
+.visual-overview{background:var(--bg-card);border-radius:var(--radius);padding:28px;margin-bottom:28px;box-shadow:var(--shadow-card)}
+.visual-overview>h2{margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid var(--border)}
+.overview-group{margin-bottom:28px}.overview-group:last-child{margin-bottom:0}
+.overview-group>h3{margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid var(--border);font-family:var(--mono);font-size:.72rem;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:.08em}
+.overview-group-blocks{display:flex;flex-direction:column;gap:16px}
+.overview-block-entry{display:flex;flex-direction:column;gap:6px}
+.overview-slice-label{display:inline-flex;align-items:center;gap:8px;text-decoration:none;color:var(--text-muted);font-size:.8rem;transition:color var(--transition)}
+.overview-slice-label:hover{color:var(--text)}
+.overview-slice-label .slice-num{font-size:.7rem;padding:1px 6px}
+.overview-slice-title{font-family:var(--sans);font-size:.8rem;font-weight:500}
+
+
 </style>
 </head>
 <body>
 
-<nav class="plan-sidebar">
-  <a href="/" class="brand">HtmlGraph</a>
-  <a href="#design" class="nav-link active" data-spy="design">Design</a>
-  <a href="#slices" class="nav-link" data-spy="slices">Slices</a>
-  <a href="#questions" class="nav-link" data-spy="questions">Decisions</a>
-  <a href="#critique" class="nav-link" data-spy="critique">Critique</a>
-  <a href="#feedback-summary" class="nav-link" data-spy="feedback-summary">Progress</a>
-  <a href="#chat-panel" class="nav-link" data-spy="chat-panel">Chat</a>
+<nav class="plan-sidebar" id="plan-sidebar">
+  <div class="brand-row">
+    <a href="/" class="brand">wipnote</a>
+    <button class="sidebar-toggle" id="left-sidebar-toggle" title="Collapse sidebar" aria-label="Toggle left sidebar">&#8249;</button>
+  </div>
+  
+  <a href="#design" class="nav-link active" data-spy="design" data-initial="D">Design</a>
+  <a href="#slices" class="nav-link" data-spy="slices" data-initial="S">Slices</a>
+  
+  <ul class="slice-nav-list" id="slice-nav-list">
+    
+    <li>
+      <a href="#slice-1" class="slice-nav-item" data-slice-nav="1">
+        <span class="slice-nav-dot" data-approval="changes_requested" data-dot-for="1"></span>
+        <span>#1 Generalize Manager.Start request surface</span>
+        
+        
+      </a>
+    </li>
+    
+    <li>
+      <a href="#slice-2" class="slice-nav-item" data-slice-nav="2">
+        <span class="slice-nav-dot" data-approval="pending" data-dot-for="2"></span>
+        <span>#2 UUID-keyed sessions + inventory endpoints</span>
+        
+        
+      </a>
+    </li>
+    
+    <li>
+      <a href="#slice-3" class="slice-nav-item" data-slice-nav="3">
+        <span class="slice-nav-dot" data-approval="pending" data-dot-for="3"></span>
+        <span>#3 Extract internal/worktree primitive</span>
+        
+        
+      </a>
+    </li>
+    
+    <li>
+      <a href="#slice-4" class="slice-nav-item" data-slice-nav="4">
+        <span class="slice-nav-dot" data-approval="pending" data-dot-for="4"></span>
+        <span>#4 Frontend launcher modal</span>
+        
+        
+      </a>
+    </li>
+    
+    <li>
+      <a href="#slice-5" class="slice-nav-item" data-slice-nav="5">
+        <span class="slice-nav-dot" data-approval="pending" data-dot-for="5"></span>
+        <span>#5 Multi-pane shell (floating windows)</span>
+        
+        
+      </a>
+    </li>
+    
+    <li>
+      <a href="#slice-6" class="slice-nav-item" data-slice-nav="6">
+        <span class="slice-nav-dot" data-approval="pending" data-dot-for="6"></span>
+        <span>#6 Parallel-launch integration test + stress harness</span>
+        
+        
+      </a>
+    </li>
+    
+    <li>
+      <a href="#slice-7" class="slice-nav-item" data-slice-nav="7">
+        <span class="slice-nav-dot" data-approval="pending" data-dot-for="7"></span>
+        <span>#7 Agent-matrix parity for worktree + work-item</span>
+        
+        
+      </a>
+    </li>
+    
+  </ul>
+  
+  <a href="#questions" class="nav-link" data-spy="questions" data-initial="Q">Decisions</a>
+  <a href="#critique" class="nav-link" data-spy="critique" data-initial="C">Critique</a>
+  <a href="#feedback-summary" class="nav-link" data-spy="feedback-summary" data-initial="P">Progress</a>
+  <a href="#chat-panel" class="nav-link" data-spy="chat-panel" data-initial="&#9825;">Chat</a>
 </nav>
 <div class="plan-layout">
 <div class="plan-content">
-<article id="plan-0f48cf00" data-plan-id="plan-0f48cf00" data-feature-id="trk-cd61bbae" data-status="draft">
+<article id="plan-0f48cf00" data-type="plan" data-plan-id="plan-0f48cf00" data-feature-id="trk-cd61bbae" data-status="draft" data-priority="medium">
 
 <!-- Plan Header -->
 <header class="plan-header">
@@ -287,7 +556,7 @@ textarea::placeholder{color:var(--text-muted)}
 </p>
   <div class="meta">
     <span class="badge badge-pending">Draft</span>
-    <span style="font-size:.75rem;color:var(--text-muted)">v2 · 7 slices · Created 2026-04-21</span>
+    <span style="font-size:.75rem;color:var(--text-muted)">v5 · 7 slices · Created 2026-04-21</span>
   </div>
 </header>
 <button id="themeToggle" style="position:fixed;top:16px;right:16px;z-index:100;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:6px 12px;color:var(--text);font-family:var(--mono);font-size:0.75rem;cursor:pointer;">
@@ -303,11 +572,14 @@ textarea::placeholder{color:var(--text-muted)}
     <pre><code class="language-yaml" id="yaml-content">Loading&#x2026;</code></pre>
 </details>
 
-<!-- ZONE 1: Dependency Graph -->
-<section class="dep-graph" data-zone="dependency-graph">
+<!-- ZONE 0: Visual Overview (blocks-first headline — expanded, above dependency graph) -->
+
+
+<!-- ZONE 1: Dependency Graph (drawn at render time — no script, no CDN) -->
+<section class="dep-graph" data-zone="dependency-graph" data-graph-render="static">
   <h2>Dependency Graph</h2>
   <div id="graph-data" style="display:none">
-    <div data-node="1" data-name="Generalize Manager.Start request surface" data-status="pending" data-deps="" data-files="2"></div>
+    <div data-node="1" data-name="Generalize Manager.Start request surface" data-status="revision" data-deps="" data-files="2"></div>
     <div data-node="2" data-name="UUID-keyed sessions + inventory endpoints" data-status="pending" data-deps="1" data-files="2"></div>
     <div data-node="3" data-name="Extract internal/worktree primitive" data-status="pending" data-deps="" data-files="3"></div>
     <div data-node="4" data-name="Frontend launcher modal" data-status="pending" data-deps="1" data-files="3"></div>
@@ -317,7 +589,7 @@ textarea::placeholder{color:var(--text-muted)}
     
     <!--PLAN_GRAPH_NODES-->
   </div>
-  <svg id="dep-graph-svg" width="100%"></svg>
+  <svg id="dep-graph-svg" xmlns="http://www.w3.org/2000/svg" width="1136.2" height="328" viewBox="0 0 1136.2 328" class="dep-graph-static"><defs><marker id="wipnote-arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker></defs><g class="dep-edges"><path class="dep-edge" d="M460.6 69.03 L156.8 108 L156.8 136" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M515.3 80 L437.2 108 L437.2 136" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M593.4 80 L593.4 108 L593.4 164 L593.4 220 L509 248" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M152.8 192 L148.8 220 L291.8 249.04" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M437.2 192 L437.2 220 L430.9 248" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M698 80 L802.6 108 L802.6 164 L802.6 220 L766.4 248" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M222.9 192 L289 220 L597.4 259.14" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M726.2 76.34 L899 108 L935.2 136" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M979.4 80 L979.4 108 L975.4 136" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/></g><g class="dep-nodes"><a href="#slice-1"><g id="graph-node-1" class="dep-node dep-node-revision"><rect class="dep-node-box" x="460.59999999999997" y="24" width="265.6" height="56" rx="6" fill="var(--bg-input)" stroke="var(--revision)"/><text class="dep-node-label" x="593.4" y="48" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#1 Generalize Manager.Start requ…</text><text class="dep-node-meta" x="593.4" y="62" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">2 files</text></g></a><a href="#slice-2"><g id="graph-node-2" class="dep-node dep-node-pending"><rect class="dep-node-box" x="24" y="136" width="265.6" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="156.8" y="160" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#2 UUID-keyed sessions + invento…</text><text class="dep-node-meta" x="156.8" y="174" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">2 files</text></g></a><a href="#slice-3"><g id="graph-node-3" class="dep-node dep-node-pending"><rect class="dep-node-box" x="846.5999999999999" y="24" width="265.6" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="979.4" y="48" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#3 Extract internal/worktree pri…</text><text class="dep-node-meta" x="979.4" y="62" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">3 files</text></g></a><a href="#slice-4"><g id="graph-node-4" class="dep-node dep-node-pending"><rect class="dep-node-box" x="329.6" y="136" width="215.2" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="437.2" y="160" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#4 Frontend launcher modal</text><text class="dep-node-meta" x="437.2" y="174" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">3 files</text></g></a><a href="#slice-5"><g id="graph-node-5" class="dep-node dep-node-pending"><rect class="dep-node-box" x="291.8" y="248" width="265.6" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="424.6" y="272" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#5 Multi-pane shell (floating wi…</text><text class="dep-node-meta" x="424.6" y="286" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">3 files</text></g></a><a href="#slice-6"><g id="graph-node-6" class="dep-node dep-node-pending"><rect class="dep-node-box" x="597.4000000000001" y="248" width="265.6" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="730.2" y="272" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#6 Parallel-launch integration t…</text><text class="dep-node-meta" x="730.2" y="286" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">2 files</text></g></a><a href="#slice-7"><g id="graph-node-7" class="dep-node dep-node-pending"><rect class="dep-node-box" x="838.5999999999999" y="136" width="265.6" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="971.4" y="160" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#7 Agent-matrix parity for workt…</text><text class="dep-node-meta" x="971.4" y="174" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">4 files</text></g></a></g></svg>
 </section>
 
 <!-- ZONE 2: Interactive Sections -->
@@ -364,246 +636,909 @@ textarea::placeholder{color:var(--text-muted)}
 <details id="slices" class="section-card" open data-phase="slices" data-status="pending">
   <summary><span>Slices</span><span class="badge badge-pending" data-badge-for="slices">Pending</span></summary>
   <div class="section-body">
-    <div class="slice-card" data-slice="1" data-slice-name="slice-1" data-status="pending">
-  <div class="slice-header">
+    <p class="slice-legend" id="slice-legend">Effort: S = Small &middot; M = Medium &middot; L = Large &nbsp;|&nbsp; Risk: Low &middot; Med &middot; High</p>
+    <details class="slice-card" id="slice-1" data-slice="1" data-slice-name="slice-1" data-status="pending" data-approval="changes_requested">
+  <summary class="slice-summary" aria-label="Slice 1: Generalize Manager.Start request surface">
     <span class="slice-num">#1</span>
-    <span class="slice-name">Generalize Manager.Start request surface</span>
-    <span class="badge badge-revision">M</span>
-    <span class="badge badge-revision">Med</span>
-    <span class="badge badge-pending" data-badge-for="slice-1">Pending</span>
-  </div>
-  
-  <div class="slice-field"><div class="slice-field-label">What</div><div class="slice-field-value" data-markdown="">Introduce a StartRequest struct (not positional parameters) so future field additions remain backward-compatible. Fields: Agent string, Mode string, CWD string, WorkItem string. When fields are zero-valued, fall back to MVP defaults (claude, dev, server-start projectDir). Extend POST /api/terminal/start to decode StartRequest and compute the correct shell command via a pure function buildShellCmd(agent, mode, workItem string) string — this function is easy to unit-test and switches on agent to choose between claude/codex/gemini/yolo invocations. Session struct gains Agent, Mode, and CWD fields alongside existing Cmd, Port, and WorkItem fields. waitForPort stays inline but is called with the per-request port.
+    <span class="slice-title-col">
+      <span class="slice-name">Generalize Manager.Start request surface</span>
+      <span class="slice-preview">Introduce a StartRequest struct (not positional parameters) so future field additions remain backward-compatible.</span>
+      <span class="slice-meta-row">
+        <span class="slice-summary-badges">
+          <span class="badge badge-revision badge-sm badge-effort" title="Effort: Medium" aria-label="Effort: Medium">M</span>
+          <span class="badge badge-revision badge-sm badge-risk" title="Risk: Med">Med</span>
+          
+          
+          <span class="badge badge-revision badge-sm slice-approval-badge" data-badge-for="slice-1">Changes Requested</span>
+          
+          
+        </span>
+        <span class="slice-actions" onclick="event.stopPropagation()">
+          <span class="approval-segmented" role="group" aria-label="Approval action">
+            <label class="seg-btn seg-approve" title="Approve">
+              <input type="radio" name="slice-1-approval" value="approved" data-section="slice-1" data-action="approve" aria-label="Approve slice 1">
+              &#10003;
+            </label>
+            <label class="seg-btn seg-changes" title="Request changes">
+              <input type="radio" name="slice-1-approval" value="changes_requested" data-section="slice-1" data-action="approve" checked aria-label="Request changes for slice 1">
+              &#8635;
+            </label>
+            <label class="seg-btn seg-reject" title="Reject">
+              <input type="radio" name="slice-1-approval" value="rejected" data-section="slice-1" data-action="approve" aria-label="Reject slice 1">
+              &#10005;
+            </label>
+          </span>
+        </span>
+      </span>
+    </span>
+    <span class="slice-chevron" aria-hidden="true"></span>
+  </summary>
 
-Shell command builder notes: (1) agent=claude emits `htmlgraph claude [--dev]` with dev-mode guard via removeMarketplaceHtmlgraph; (2) agent=codex/gemini emits `htmlgraph codex`/`htmlgraph gemini` so HTMLGRAPH_AGENT env injection flows; (3) agent=yolo has a nested-process concern — see q-yolo-mode-shape for whether to emit `htmlgraph yolo` wrapper or `claude --permission-mode bypassPermissions` directly; (4) when work_item is set, buildShellCmd prepends `htmlgraph feature start &lt;id&gt;;` for all agents to ensure attribution.
-
-Add concrete done_when: JSON body {} (no fields) preserves MVP behavior — spawns `htmlgraph claude --dev` with cmd.Dir = projectDir, keyed the same way as today.
-</div></div>
-  <div class="slice-field"><div class="slice-field-label">Why</div><div class="slice-field-value" data-markdown="">All subsequent cockpit slices depend on the ability to spawn different agent types with different CWDs from a single endpoint. Without this generalization the frontend launcher modal has nowhere to send its parameters and every new agent would require a new route.
-</div></div>
-  <div class="slice-field"><div class="slice-field-label">Files</div><div class="slice-field-value"><code>internal/terminal/terminal.go, cmd/htmlgraph/terminal_handlers.go</code></div></div>
-  <div class="slice-field"><div class="slice-field-label">Done when</div><ul class="slice-done-list"><li data-markdown="">POST /api/terminal/start with {&#34;agent&#34;:&#34;codex&#34;,&#34;mode&#34;:&#34;dev&#34;,&#34;cwd&#34;:&#34;/tmp/test&#34;,&#34;work_item&#34;:&#34;feat-abc&#34;} spawns htmlgraph codex --dev in /tmp/test</li><li data-markdown="">POST /api/terminal/start with {} still spawns htmlgraph claude --dev in the server-start projectDir (backward compat)</li><li data-markdown="">JSON body {} (no fields) produces identical behavior to the pre-cockpit MVP — cmd.Dir = projectDir, same map key scheme</li><li data-markdown="">Session struct fields Agent, Mode, CWD are persisted in the in-memory map and returned in subsequent list calls</li><li data-markdown="">htmlgraph yolo agent value behavior is governed by q-yolo-mode-shape answer</li><li data-markdown="">buildShellCmd is a pure function covered by unit tests for all agent x mode combinations</li><li data-markdown="">When work_item is set, all agent types prepend htmlgraph feature start &lt;id&gt; attribution step</li></ul></div>
-  
-  <div class="slice-field"><div class="slice-field-label">Test Strategy</div><div class="slice-field-value slice-tests" data-markdown="">Unit: TestBuildShellCommand covers all agent x mode combinations and verifies correct command string
-Unit: TestManagerStartBackwardCompat verifies empty body still spawns default session
-Unit: TestStartRequestStruct verifies zero-value fallback logic for each field
-Integration: TestTerminalStartEndpoint posts each agent type and asserts the spawned process argv contains the expected launcher
-Regression: Existing MVP POST /api/terminal/start {work_item} flow still returns a valid port
-</div></div>
-  <div class="slice-deps">Dependencies: none</div>
-  <div class="approval-row">
-    <label><input type="checkbox" data-section="slice-1" data-action="approve"> Approve slice</label>
-    <textarea data-section="slice-1" data-comment-for="slice-1" placeholder="Comments on slice 1..."></textarea>
-  </div>
+  <div class="slice-body">
+    
+      
+      <div class="slice-field slice-what">
+        <div class="slice-field-label">What</div>
+        <div class="slice-field-value">
+          
+          <input type="checkbox" id="slice-1-what-reveal" class="reveal-toggle">
+          <div class="markdown-block reveal-content serif-prose"><p>Introduce a StartRequest struct (not positional parameters) so future field additions remain backward-compatible. Fields: Agent string, Mode string, CWD string, WorkItem string. When fields are zero-valued, fall back to MVP defaults (claude, dev, server-start projectDir). Extend POST /api/terminal/start to decode StartRequest and compute the correct shell command via a pure function buildShellCmd(agent, mode, workItem string) string — this function is easy to unit-test and switches on agent to choose between claude/codex/gemini/yolo invocations. Session struct gains Agent, Mode, and CWD fields alongside existing Cmd, Port, and WorkItem fields. waitForPort stays inline but is called with the per-request port.</p>
+<p>Shell command builder notes: (1) agent=claude emits <code>htmlgraph claude [--dev]</code> with dev-mode guard via removeMarketplaceHtmlgraph; (2) agent=codex/gemini emits <code>htmlgraph codex</code>/<code>htmlgraph gemini</code> so HTMLGRAPH_AGENT env injection flows; (3) agent=yolo has a nested-process concern — see q-yolo-mode-shape for whether to emit <code>htmlgraph yolo</code> wrapper or <code>claude --permission-mode bypassPermissions</code> directly; (4) when work_item is set, buildShellCmd prepends <code>htmlgraph feature start &lt;id&gt;;</code> for all agents to ensure attribution.</p>
+<p>Add concrete done_when: JSON body {} (no fields) preserves MVP behavior — spawns <code>htmlgraph claude --dev</code> with cmd.Dir = projectDir, keyed the same way as today.</p>
 </div>
-<div class="slice-card" data-slice="2" data-slice-name="slice-2" data-status="pending">
-  <div class="slice-header">
+          <label for="slice-1-what-reveal" class="reveal-label">Show full description</label>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field slice-why">
+        <div class="slice-field-label">Why</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>All subsequent cockpit slices depend on the ability to spawn different agent types with different CWDs from a single endpoint. Without this generalization the frontend launcher modal has nowhere to send its parameters and every new agent would require a new route.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Files</div>
+        <div class="slice-field-value"><code>internal/terminal/terminal.go, cmd/htmlgraph/terminal_handlers.go</code></div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Done when</div>
+        <ul class="slice-done-list slice-done-list--grid"><li>POST /api/terminal/start with {&#34;agent&#34;:&#34;codex&#34;,&#34;mode&#34;:&#34;dev&#34;,&#34;cwd&#34;:&#34;/tmp/test&#34;,&#34;work_item&#34;:&#34;feat-abc&#34;} spawns htmlgraph codex --dev in /tmp/test</li><li>POST /api/terminal/start with {} still spawns htmlgraph claude --dev in the server-start projectDir (backward compat)</li><li>JSON body {} (no fields) produces identical behavior to the pre-cockpit MVP — cmd.Dir = projectDir, same map key scheme</li><li>Session struct fields Agent, Mode, CWD are persisted in the in-memory map and returned in subsequent list calls</li><li>htmlgraph yolo agent value behavior is governed by q-yolo-mode-shape answer</li><li>buildShellCmd is a pure function covered by unit tests for all agent x mode combinations</li><li>When work_item is set, all agent types prepend htmlgraph feature start &lt;id&gt; attribution step</li></ul>
+      </div>
+      
+    
+
+    
+
+    
+
+    
+    <div class="slice-field slice-tests-field">
+      <div class="slice-field-label">Test Strategy</div>
+      <div class="slice-field-value">
+        
+        
+        <div class="test-strategy">
+          
+          <div class="test-group" data-kind="unit">
+            <span class="test-chip">UNIT &middot; 3</span>
+            <ul><li>TestBuildShellCommand covers all agent x mode combinations and verifies correct command string</li><li>TestManagerStartBackwardCompat verifies empty body still spawns default session</li><li>TestStartRequestStruct verifies zero-value fallback logic for each field</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="integration">
+            <span class="test-chip">INTEGRATION &middot; 1</span>
+            <ul><li>TestTerminalStartEndpoint posts each agent type and asserts the spawned process argv contains the expected launcher</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="regression">
+            <span class="test-chip">REGRESSION &middot; 1</span>
+            <ul><li>Existing MVP POST /api/terminal/start {work_item} flow still returns a valid port</li></ul>
+          </div>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+
+    
+
+    
+
+    <div class="slice-deps">Dependencies: none</div>
+
+    <details class="comment-collapse">
+      <summary class="comment-collapse-trigger">+ Leave a comment</summary>
+      <div class="comment-collapse-body">
+        <textarea data-section="slice-1" data-comment-for="slice-1" placeholder="Comments on slice 1..."></textarea>
+      </div>
+    </details>
+  </div>
+</details>
+<details class="slice-card" id="slice-2" data-slice="2" data-slice-name="slice-2" data-status="pending" data-approval="pending">
+  <summary class="slice-summary" aria-label="Slice 2: UUID-keyed sessions &#43; inventory endpoints">
     <span class="slice-num">#2</span>
-    <span class="slice-name">UUID-keyed sessions &#43; inventory endpoints</span>
-    <span class="badge badge-revision">M</span>
-    <span class="badge badge-pending">Low</span>
-    <span class="badge badge-pending" data-badge-for="slice-2">Pending</span>
-  </div>
-  
-  <div class="slice-field"><div class="slice-field-label">What</div><div class="slice-field-value" data-markdown="">Add an id string (UUID v4) field to the session struct and change the in-memory map key from pid (int) to UUID. Add GET /api/terminal/sessions returning a JSON array of {id, agent, mode, cwd, work_item, port, started_at, state} for all live sessions. The state field uses values pending | live | exited. Add POST /api/terminal/stop accepting {id} (preferred) or {pid} (back-compat, drop in a later cleanup slice) to kill a session. Add POST /api/terminal/stop-all that kills all live sessions; used by the beforeunload beacon in slice-5 (navigator.sendBeacon body is small, fits the stop-all pattern cleanly). started_at is set at spawn time (time.Now()). UUID generation uses crypto/rand — no new dependency.
-</div></div>
-  <div class="slice-field"><div class="slice-field-label">Why</div><div class="slice-field-value" data-markdown="">The floating-window frontend needs a stable, reload-safe identifier per pane that is not a PID (which can be reused by the OS after a process exits). The inventory endpoint lets the dashboard reconstruct its pane list on reload by fetching live sessions and rendering iframes pointing at the live ttyd ports. The state field enables the async spawn model recommended in q-spawn-sync-model.
-</div></div>
-  <div class="slice-field"><div class="slice-field-label">Files</div><div class="slice-field-value"><code>internal/terminal/terminal.go, cmd/htmlgraph/terminal_handlers.go</code></div></div>
-  <div class="slice-field"><div class="slice-field-label">Done when</div><ul class="slice-done-list"><li data-markdown="">GET /api/terminal/sessions returns all running sessions with correct fields including state (pending/live/exited)</li><li data-markdown="">POST /api/terminal/stop {&#34;id&#34;:&#34;&lt;uuid&gt;&#34;} kills the correct process</li><li data-markdown="">POST /api/terminal/stop {&#34;pid&#34;:12345} still works for back-compat</li><li data-markdown="">POST /api/terminal/stop-all kills all live sessions and is usable as a navigator.sendBeacon target</li><li data-markdown="">Session IDs survive across multiple start calls without collision (UUID uniqueness)</li><li data-markdown="">State transitions: pending on spawn, live when port binds, exited when reaper removes entry</li></ul></div>
-  
-  <div class="slice-field"><div class="slice-field-label">Test Strategy</div><div class="slice-field-value slice-tests" data-markdown="">Unit: TestGenerateSessionID produces valid UUID v4 strings
-Unit: TestSessionInventoryList returns correct count and fields including state for N concurrent sessions
-Unit: TestSessionStateTransitions verifies pending -&gt; live -&gt; exited state machine
-Integration: TestStopByID starts a session, stops it by UUID, verifies process is gone
-Integration: TestStopByPID back-compat — start session, stop by pid, verify gone
-Integration: TestStopAll starts 3 sessions, calls stop-all, verifies all 3 processes gone
-Regression: Existing stop-by-pid callers continue to function after UUID migration
-</div></div>
-  <div class="slice-deps">Dependencies: slices 1</div>
-  <div class="approval-row">
-    <label><input type="checkbox" data-section="slice-2" data-action="approve"> Approve slice</label>
-    <textarea data-section="slice-2" data-comment-for="slice-2" placeholder="Comments on slice 2..."></textarea>
-  </div>
+    <span class="slice-title-col">
+      <span class="slice-name">UUID-keyed sessions &#43; inventory endpoints</span>
+      <span class="slice-preview">Add an id string (UUID v4) field to the session struct and change the in-memory map key from pid (int) to UUID.</span>
+      <span class="slice-meta-row">
+        <span class="slice-summary-badges">
+          <span class="badge badge-revision badge-sm badge-effort" title="Effort: Medium" aria-label="Effort: Medium">M</span>
+          <span class="badge badge-pending badge-sm badge-risk" title="Risk: Low">Low</span>
+          
+          
+          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-2">Pending</span>
+          
+          
+        </span>
+        <span class="slice-actions" onclick="event.stopPropagation()">
+          <span class="approval-segmented" role="group" aria-label="Approval action">
+            <label class="seg-btn seg-approve" title="Approve">
+              <input type="radio" name="slice-2-approval" value="approved" data-section="slice-2" data-action="approve" aria-label="Approve slice 2">
+              &#10003;
+            </label>
+            <label class="seg-btn seg-changes" title="Request changes">
+              <input type="radio" name="slice-2-approval" value="changes_requested" data-section="slice-2" data-action="approve" aria-label="Request changes for slice 2">
+              &#8635;
+            </label>
+            <label class="seg-btn seg-reject" title="Reject">
+              <input type="radio" name="slice-2-approval" value="rejected" data-section="slice-2" data-action="approve" aria-label="Reject slice 2">
+              &#10005;
+            </label>
+          </span>
+        </span>
+      </span>
+    </span>
+    <span class="slice-chevron" aria-hidden="true"></span>
+  </summary>
+
+  <div class="slice-body">
+    
+      
+      <div class="slice-field slice-what">
+        <div class="slice-field-label">What</div>
+        <div class="slice-field-value">
+          
+          <input type="checkbox" id="slice-2-what-reveal" class="reveal-toggle">
+          <div class="markdown-block reveal-content serif-prose"><p>Add an id string (UUID v4) field to the session struct and change the in-memory map key from pid (int) to UUID. Add GET /api/terminal/sessions returning a JSON array of {id, agent, mode, cwd, work_item, port, started_at, state} for all live sessions. The state field uses values pending | live | exited. Add POST /api/terminal/stop accepting {id} (preferred) or {pid} (back-compat, drop in a later cleanup slice) to kill a session. Add POST /api/terminal/stop-all that kills all live sessions; used by the beforeunload beacon in slice-5 (navigator.sendBeacon body is small, fits the stop-all pattern cleanly). started_at is set at spawn time (time.Now()). UUID generation uses crypto/rand — no new dependency.</p>
 </div>
-<div class="slice-card" data-slice="3" data-slice-name="slice-3" data-status="pending">
-  <div class="slice-header">
+          <label for="slice-2-what-reveal" class="reveal-label">Show full description</label>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field slice-why">
+        <div class="slice-field-label">Why</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>The floating-window frontend needs a stable, reload-safe identifier per pane that is not a PID (which can be reused by the OS after a process exits). The inventory endpoint lets the dashboard reconstruct its pane list on reload by fetching live sessions and rendering iframes pointing at the live ttyd ports. The state field enables the async spawn model recommended in q-spawn-sync-model.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Files</div>
+        <div class="slice-field-value"><code>internal/terminal/terminal.go, cmd/htmlgraph/terminal_handlers.go</code></div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Done when</div>
+        <ul class="slice-done-list slice-done-list--grid"><li>GET /api/terminal/sessions returns all running sessions with correct fields including state (pending/live/exited)</li><li>POST /api/terminal/stop {&#34;id&#34;:&#34;&lt;uuid&gt;&#34;} kills the correct process</li><li>POST /api/terminal/stop {&#34;pid&#34;:12345} still works for back-compat</li><li>POST /api/terminal/stop-all kills all live sessions and is usable as a navigator.sendBeacon target</li><li>Session IDs survive across multiple start calls without collision (UUID uniqueness)</li><li>State transitions: pending on spawn, live when port binds, exited when reaper removes entry</li></ul>
+      </div>
+      
+    
+
+    
+
+    
+
+    
+    <div class="slice-field slice-tests-field">
+      <div class="slice-field-label">Test Strategy</div>
+      <div class="slice-field-value">
+        
+        
+        <div class="test-strategy">
+          
+          <div class="test-group" data-kind="unit">
+            <span class="test-chip">UNIT &middot; 3</span>
+            <ul><li>TestGenerateSessionID produces valid UUID v4 strings</li><li>TestSessionInventoryList returns correct count and fields including state for N concurrent sessions</li><li>TestSessionStateTransitions verifies pending -&gt; live -&gt; exited state machine</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="integration">
+            <span class="test-chip">INTEGRATION &middot; 3</span>
+            <ul><li>TestStopByID starts a session, stops it by UUID, verifies process is gone</li><li>TestStopByPID back-compat — start session, stop by pid, verify gone</li><li>TestStopAll starts 3 sessions, calls stop-all, verifies all 3 processes gone</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="regression">
+            <span class="test-chip">REGRESSION &middot; 1</span>
+            <ul><li>Existing stop-by-pid callers continue to function after UUID migration</li></ul>
+          </div>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+
+    
+
+    
+
+    <div class="slice-deps">Dependencies: slices 1</div>
+
+    <details class="comment-collapse">
+      <summary class="comment-collapse-trigger">+ Leave a comment</summary>
+      <div class="comment-collapse-body">
+        <textarea data-section="slice-2" data-comment-for="slice-2" placeholder="Comments on slice 2..."></textarea>
+      </div>
+    </details>
+  </div>
+</details>
+<details class="slice-card" id="slice-3" data-slice="3" data-slice-name="slice-3" data-status="pending" data-approval="pending">
+  <summary class="slice-summary" aria-label="Slice 3: Extract internal/worktree primitive">
     <span class="slice-num">#3</span>
-    <span class="slice-name">Extract internal/worktree primitive</span>
-    <span class="badge badge-revision">M</span>
-    <span class="badge badge-revision">Med</span>
-    <span class="badge badge-pending" data-badge-for="slice-3">Pending</span>
-  </div>
-  
-  <div class="slice-field"><div class="slice-field-label">What</div><div class="slice-field-value" data-markdown="">Create a new package internal/worktree with worktree.go exposing:
-- EnsureForFeature(featureID, repoRoot string, w io.Writer) (path string, err error)
-- EnsureForTrack(trackID, repoRoot string, w io.Writer) (path string, err error)
-- EnsureForAgent(trackID, taskName, repoRoot string, w io.Writer) (path string, err error) — mirrors createAgentWorktree(yolo.go:243) which takes three args (trackID, taskName, projectRoot)
+    <span class="slice-title-col">
+      <span class="slice-name">Extract internal/worktree primitive</span>
+      <span class="slice-preview">Create a new package internal/worktree with worktree.go exposing:</span>
+      <span class="slice-meta-row">
+        <span class="slice-summary-badges">
+          <span class="badge badge-revision badge-sm badge-effort" title="Effort: Medium" aria-label="Effort: Medium">M</span>
+          <span class="badge badge-revision badge-sm badge-risk" title="Risk: Med">Med</span>
+          
+          
+          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-3">Pending</span>
+          
+          
+        </span>
+        <span class="slice-actions" onclick="event.stopPropagation()">
+          <span class="approval-segmented" role="group" aria-label="Approval action">
+            <label class="seg-btn seg-approve" title="Approve">
+              <input type="radio" name="slice-3-approval" value="approved" data-section="slice-3" data-action="approve" aria-label="Approve slice 3">
+              &#10003;
+            </label>
+            <label class="seg-btn seg-changes" title="Request changes">
+              <input type="radio" name="slice-3-approval" value="changes_requested" data-section="slice-3" data-action="approve" aria-label="Request changes for slice 3">
+              &#8635;
+            </label>
+            <label class="seg-btn seg-reject" title="Reject">
+              <input type="radio" name="slice-3-approval" value="rejected" data-section="slice-3" data-action="approve" aria-label="Reject slice 3">
+              &#10005;
+            </label>
+          </span>
+        </span>
+      </span>
+    </span>
+    <span class="slice-chevron" aria-hidden="true"></span>
+  </summary>
 
-The io.Writer parameter controls progress output: callers pass os.Stdout (yolo CLI path) or io.Discard (library/terminal path) to avoid library noise in server logs.
-
-Move createFeatureWorktree, createTrackWorktree, and createAgentWorktree from cmd/htmlgraph/yolo.go into this package. yolo.go becomes a thin caller.
-
-EnsureForFeature MUST call resolveTrackForFeature internally: if the feature has a parent track, return the track worktree path instead of a feature-specific worktree. This mirrors the parent-track resolution currently in launchYoloDefault (yolo.go:390–408). Without this, features-with-parent-tracks silently get their own feature worktree instead of the expected track worktree, breaking yolo behavior.
-
-excludeHtmlgraphFromWorktree and reindexWorktree lifecycle calls are delegated from the new package. Note: reindexWorktree forks the binary (runs `htmlgraph reindex`) — this is acceptable for a utility that calls itself, but tests must stub or skip the reindex step to avoid subprocess dependency.
-
-The terminal handler uses EnsureForFeature/EnsureForTrack when the request includes cwd_kind=feature-worktree or cwd_kind=track-worktree.
-
-Note on package boundary: see q-worktree-package-boundary for whether internal/worktree vs a cmd/htmlgraph sibling file is the right choice.
-</div></div>
-  <div class="slice-field"><div class="slice-field-label">Why</div><div class="slice-field-value" data-markdown="">Worktree creation logic is duplicated across yolo and, once the cockpit lands, would need to be duplicated again in terminal_handlers.go. Extracting an internal/worktree primitive gives all three callers (yolo, codex/gemini launchers in slice-7, and the cockpit handler) a single tested path with correct HTMLGRAPH_PROJECT_DIR injection and excludeHtmlgraphFromWorktree behavior.
-</div></div>
-  <div class="slice-field"><div class="slice-field-label">Files</div><div class="slice-field-value"><code>internal/worktree/worktree.go (new), cmd/htmlgraph/yolo.go, cmd/htmlgraph/terminal_handlers.go</code></div></div>
-  <div class="slice-field"><div class="slice-field-label">Done when</div><ul class="slice-done-list"><li data-markdown="">internal/worktree package compiles and exports EnsureForFeature, EnsureForTrack, and EnsureForAgent</li><li data-markdown="">EnsureForFeature returns track worktree path (not feature worktree) when the feature has a parent track</li><li data-markdown="">cmd/htmlgraph/yolo.go no longer contains inline createFeatureWorktree/createTrackWorktree/createAgentWorktree logic</li><li data-markdown="">POST /api/terminal/start with {&#34;cwd_kind&#34;:&#34;feature-worktree&#34;,&#34;work_item&#34;:&#34;feat-abc&#34;} creates or reuses the worktree at .claude/worktrees/feat-abc</li><li data-markdown="">HTMLGRAPH_PROJECT_DIR env var is set correctly in the spawned TTY to the canonical repo root</li><li data-markdown="">Progress output goes to io.Discard in library path; yolo caller passes os.Stdout</li><li data-markdown="">Tests skip or stub the reindexWorktree subprocess step</li></ul></div>
-  
-  <div class="slice-field"><div class="slice-field-label">Test Strategy</div><div class="slice-field-value slice-tests" data-markdown="">Unit: TestEnsureForFeature creates worktree on first call and returns existing path on second call
-Unit: TestEnsureForFeatureWithParentTrack verifies parent-track resolution returns track worktree path
-Unit: TestEnsureForTrack same idempotency guarantee
-Unit: TestEnsureForAgent mirrors createAgentWorktree three-arg signature
-Unit: TestProgressWriterDiscard verifies no stdout pollution in library path
-Integration: TestWorktreeEnvInjection spawns a session with cwd_kind=feature-worktree and asserts HTMLGRAPH_PROJECT_DIR points at the main repo
-Regression: htmlgraph yolo --feature &lt;id&gt; still creates worktrees via the new package with identical behavior
-</div></div>
-  <div class="slice-deps">Dependencies: none</div>
-  <div class="approval-row">
-    <label><input type="checkbox" data-section="slice-3" data-action="approve"> Approve slice</label>
-    <textarea data-section="slice-3" data-comment-for="slice-3" placeholder="Comments on slice 3..."></textarea>
-  </div>
+  <div class="slice-body">
+    
+      
+      <div class="slice-field slice-what">
+        <div class="slice-field-label">What</div>
+        <div class="slice-field-value">
+          
+          <input type="checkbox" id="slice-3-what-reveal" class="reveal-toggle">
+          <div class="markdown-block reveal-content serif-prose"><p>Create a new package internal/worktree with worktree.go exposing:</p>
+<ul>
+<li>EnsureForFeature(featureID, repoRoot string, w io.Writer) (path string, err error)</li>
+<li>EnsureForTrack(trackID, repoRoot string, w io.Writer) (path string, err error)</li>
+<li>EnsureForAgent(trackID, taskName, repoRoot string, w io.Writer) (path string, err error) — mirrors createAgentWorktree(yolo.go:243) which takes three args (trackID, taskName, projectRoot)</li>
+</ul>
+<p>The io.Writer parameter controls progress output: callers pass os.Stdout (yolo CLI path) or io.Discard (library/terminal path) to avoid library noise in server logs.</p>
+<p>Move createFeatureWorktree, createTrackWorktree, and createAgentWorktree from cmd/htmlgraph/yolo.go into this package. yolo.go becomes a thin caller.</p>
+<p>EnsureForFeature MUST call resolveTrackForFeature internally: if the feature has a parent track, return the track worktree path instead of a feature-specific worktree. This mirrors the parent-track resolution currently in launchYoloDefault (yolo.go:390–408). Without this, features-with-parent-tracks silently get their own feature worktree instead of the expected track worktree, breaking yolo behavior.</p>
+<p>excludeHtmlgraphFromWorktree and reindexWorktree lifecycle calls are delegated from the new package. Note: reindexWorktree forks the binary (runs <code>htmlgraph reindex</code>) — this is acceptable for a utility that calls itself, but tests must stub or skip the reindex step to avoid subprocess dependency.</p>
+<p>The terminal handler uses EnsureForFeature/EnsureForTrack when the request includes cwd_kind=feature-worktree or cwd_kind=track-worktree.</p>
+<p>Note on package boundary: see q-worktree-package-boundary for whether internal/worktree vs a cmd/htmlgraph sibling file is the right choice.</p>
 </div>
-<div class="slice-card" data-slice="4" data-slice-name="slice-4" data-status="pending">
-  <div class="slice-header">
+          <label for="slice-3-what-reveal" class="reveal-label">Show full description</label>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field slice-why">
+        <div class="slice-field-label">Why</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>Worktree creation logic is duplicated across yolo and, once the cockpit lands, would need to be duplicated again in terminal_handlers.go. Extracting an internal/worktree primitive gives all three callers (yolo, codex/gemini launchers in slice-7, and the cockpit handler) a single tested path with correct HTMLGRAPH_PROJECT_DIR injection and excludeHtmlgraphFromWorktree behavior.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Files</div>
+        <div class="slice-field-value"><code>internal/worktree/worktree.go (new), cmd/htmlgraph/yolo.go, cmd/htmlgraph/terminal_handlers.go</code></div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Done when</div>
+        <ul class="slice-done-list slice-done-list--grid"><li>internal/worktree package compiles and exports EnsureForFeature, EnsureForTrack, and EnsureForAgent</li><li>EnsureForFeature returns track worktree path (not feature worktree) when the feature has a parent track</li><li>cmd/htmlgraph/yolo.go no longer contains inline createFeatureWorktree/createTrackWorktree/createAgentWorktree logic</li><li>POST /api/terminal/start with {&#34;cwd_kind&#34;:&#34;feature-worktree&#34;,&#34;work_item&#34;:&#34;feat-abc&#34;} creates or reuses the worktree at .claude/worktrees/feat-abc</li><li>HTMLGRAPH_PROJECT_DIR env var is set correctly in the spawned TTY to the canonical repo root</li><li>Progress output goes to io.Discard in library path; yolo caller passes os.Stdout</li><li>Tests skip or stub the reindexWorktree subprocess step</li></ul>
+      </div>
+      
+    
+
+    
+
+    
+
+    
+    <div class="slice-field slice-tests-field">
+      <div class="slice-field-label">Test Strategy</div>
+      <div class="slice-field-value">
+        
+        
+        <div class="test-strategy">
+          
+          <div class="test-group" data-kind="unit">
+            <span class="test-chip">UNIT &middot; 5</span>
+            <ul><li>TestEnsureForFeature creates worktree on first call and returns existing path on second call</li><li>TestEnsureForFeatureWithParentTrack verifies parent-track resolution returns track worktree path</li><li>TestEnsureForTrack same idempotency guarantee</li><li>TestEnsureForAgent mirrors createAgentWorktree three-arg signature</li><li>TestProgressWriterDiscard verifies no stdout pollution in library path</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="integration">
+            <span class="test-chip">INTEGRATION &middot; 1</span>
+            <ul><li>TestWorktreeEnvInjection spawns a session with cwd_kind=feature-worktree and asserts HTMLGRAPH_PROJECT_DIR points at the main repo</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="regression">
+            <span class="test-chip">REGRESSION &middot; 1</span>
+            <ul><li>htmlgraph yolo --feature &lt;id&gt; still creates worktrees via the new package with identical behavior</li></ul>
+          </div>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+
+    
+
+    
+
+    <div class="slice-deps">Dependencies: none</div>
+
+    <details class="comment-collapse">
+      <summary class="comment-collapse-trigger">+ Leave a comment</summary>
+      <div class="comment-collapse-body">
+        <textarea data-section="slice-3" data-comment-for="slice-3" placeholder="Comments on slice 3..."></textarea>
+      </div>
+    </details>
+  </div>
+</details>
+<details class="slice-card" id="slice-4" data-slice="4" data-slice-name="slice-4" data-status="pending" data-approval="pending">
+  <summary class="slice-summary" aria-label="Slice 4: Frontend launcher modal">
     <span class="slice-num">#4</span>
-    <span class="slice-name">Frontend launcher modal</span>
-    <span class="badge badge-revision">M</span>
-    <span class="badge badge-pending">Low</span>
-    <span class="badge badge-pending" data-badge-for="slice-4">Pending</span>
-  </div>
-  
-  <div class="slice-field"><div class="slice-field-label">What</div><div class="slice-field-value" data-markdown="">Replace the bare Terminal button click handler with a launcher modal that presents four controls: (1) agent picker — radio or select for claude / codex / gemini / yolo; (2) mode picker — normal / dev / auto; (3) work-item search — text input with debounced GET /api/features?q= results shown as a dropdown; (4) CWD toggle — main repo / feature-worktree / track-worktree (disabled when no work item selected). Submit calls POST /api/terminal/start with the assembled JSON body. Cancel closes without spawning. Modal rendered in pure HTML/CSS/JS consistent with existing component style; no new library.
-</div></div>
-  <div class="slice-field"><div class="slice-field-label">Why</div><div class="slice-field-value" data-markdown="">Without a launcher UX, every cockpit parameter must be baked into the source code or passed via a raw curl call. The modal is the user-facing control surface for all per-pane configuration and is the prerequisite for multi-pane spawning to be usable by non-developers.
-</div></div>
-  <div class="slice-field"><div class="slice-field-label">Files</div><div class="slice-field-value"><code>cmd/htmlgraph/dashboard/index.html, cmd/htmlgraph/dashboard/js/app.js, cmd/htmlgraph/dashboard/css/components.css</code></div></div>
-  <div class="slice-field"><div class="slice-field-label">Done when</div><ul class="slice-done-list"><li data-markdown="">Clicking the Terminal button opens the launcher modal instead of immediately spawning</li><li data-markdown="">All four controls render and are interactive; work-item search returns results</li><li data-markdown="">Submit with agent=codex, mode=dev, work_item=feat-abc posts correct JSON to /api/terminal/start</li><li data-markdown="">Cancel closes the modal without side effects</li><li data-markdown="">Modal is accessible via keyboard (Tab, Enter, Escape)</li></ul></div>
-  
-  <div class="slice-field"><div class="slice-field-label">Test Strategy</div><div class="slice-field-value slice-tests" data-markdown="">Unit: TestBuildLaunchPayload verifies JS function assembles correct JSON from modal state
-Integration: TestLauncherModalSubmit triggers POST with correct body when form is filled and submitted
-Regression: Existing bare-click path is fully replaced; no orphaned event listeners remain
-</div></div>
-  <div class="slice-deps">Dependencies: slices 1</div>
-  <div class="approval-row">
-    <label><input type="checkbox" data-section="slice-4" data-action="approve"> Approve slice</label>
-    <textarea data-section="slice-4" data-comment-for="slice-4" placeholder="Comments on slice 4..."></textarea>
-  </div>
+    <span class="slice-title-col">
+      <span class="slice-name">Frontend launcher modal</span>
+      <span class="slice-preview">Replace the bare Terminal button click handler with a launcher modal that presents four controls: (1) agent picker — radio or select for cla…</span>
+      <span class="slice-meta-row">
+        <span class="slice-summary-badges">
+          <span class="badge badge-revision badge-sm badge-effort" title="Effort: Medium" aria-label="Effort: Medium">M</span>
+          <span class="badge badge-pending badge-sm badge-risk" title="Risk: Low">Low</span>
+          
+          
+          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-4">Pending</span>
+          
+          
+        </span>
+        <span class="slice-actions" onclick="event.stopPropagation()">
+          <span class="approval-segmented" role="group" aria-label="Approval action">
+            <label class="seg-btn seg-approve" title="Approve">
+              <input type="radio" name="slice-4-approval" value="approved" data-section="slice-4" data-action="approve" aria-label="Approve slice 4">
+              &#10003;
+            </label>
+            <label class="seg-btn seg-changes" title="Request changes">
+              <input type="radio" name="slice-4-approval" value="changes_requested" data-section="slice-4" data-action="approve" aria-label="Request changes for slice 4">
+              &#8635;
+            </label>
+            <label class="seg-btn seg-reject" title="Reject">
+              <input type="radio" name="slice-4-approval" value="rejected" data-section="slice-4" data-action="approve" aria-label="Reject slice 4">
+              &#10005;
+            </label>
+          </span>
+        </span>
+      </span>
+    </span>
+    <span class="slice-chevron" aria-hidden="true"></span>
+  </summary>
+
+  <div class="slice-body">
+    
+      
+      <div class="slice-field slice-what">
+        <div class="slice-field-label">What</div>
+        <div class="slice-field-value">
+          
+          <input type="checkbox" id="slice-4-what-reveal" class="reveal-toggle">
+          <div class="markdown-block reveal-content serif-prose"><p>Replace the bare Terminal button click handler with a launcher modal that presents four controls: (1) agent picker — radio or select for claude / codex / gemini / yolo; (2) mode picker — normal / dev / auto; (3) work-item search — text input with debounced GET /api/features?q= results shown as a dropdown; (4) CWD toggle — main repo / feature-worktree / track-worktree (disabled when no work item selected). Submit calls POST /api/terminal/start with the assembled JSON body. Cancel closes without spawning. Modal rendered in pure HTML/CSS/JS consistent with existing component style; no new library.</p>
 </div>
-<div class="slice-card" data-slice="5" data-slice-name="slice-5" data-status="pending">
-  <div class="slice-header">
+          <label for="slice-4-what-reveal" class="reveal-label">Show full description</label>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field slice-why">
+        <div class="slice-field-label">Why</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>Without a launcher UX, every cockpit parameter must be baked into the source code or passed via a raw curl call. The modal is the user-facing control surface for all per-pane configuration and is the prerequisite for multi-pane spawning to be usable by non-developers.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Files</div>
+        <div class="slice-field-value"><code>cmd/htmlgraph/dashboard/index.html, cmd/htmlgraph/dashboard/js/app.js, cmd/htmlgraph/dashboard/css/components.css</code></div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Done when</div>
+        <ul class="slice-done-list"><li>Clicking the Terminal button opens the launcher modal instead of immediately spawning</li><li>All four controls render and are interactive; work-item search returns results</li><li>Submit with agent=codex, mode=dev, work_item=feat-abc posts correct JSON to /api/terminal/start</li><li>Cancel closes the modal without side effects</li><li>Modal is accessible via keyboard (Tab, Enter, Escape)</li></ul>
+      </div>
+      
+    
+
+    
+
+    
+
+    
+    <div class="slice-field slice-tests-field">
+      <div class="slice-field-label">Test Strategy</div>
+      <div class="slice-field-value">
+        
+        
+        <div class="test-strategy">
+          
+          <div class="test-group" data-kind="unit">
+            <span class="test-chip">UNIT &middot; 1</span>
+            <ul><li>TestBuildLaunchPayload verifies JS function assembles correct JSON from modal state</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="integration">
+            <span class="test-chip">INTEGRATION &middot; 1</span>
+            <ul><li>TestLauncherModalSubmit triggers POST with correct body when form is filled and submitted</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="regression">
+            <span class="test-chip">REGRESSION &middot; 1</span>
+            <ul><li>Existing bare-click path is fully replaced; no orphaned event listeners remain</li></ul>
+          </div>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+
+    
+
+    
+
+    <div class="slice-deps">Dependencies: slices 1</div>
+
+    <details class="comment-collapse">
+      <summary class="comment-collapse-trigger">+ Leave a comment</summary>
+      <div class="comment-collapse-body">
+        <textarea data-section="slice-4" data-comment-for="slice-4" placeholder="Comments on slice 4..."></textarea>
+      </div>
+    </details>
+  </div>
+</details>
+<details class="slice-card" id="slice-5" data-slice="5" data-slice-name="slice-5" data-status="pending" data-approval="pending">
+  <summary class="slice-summary" aria-label="Slice 5: Multi-pane shell (floating windows)">
     <span class="slice-num">#5</span>
-    <span class="slice-name">Multi-pane shell (floating windows)</span>
-    <span class="badge badge-blocked">L</span>
-    <span class="badge badge-revision">Med</span>
-    <span class="badge badge-pending" data-badge-for="slice-5">Pending</span>
-  </div>
-  
-  <div class="slice-field"><div class="slice-field-label">What</div><div class="slice-field-value" data-markdown="">Extend the single-overlay pattern to support N simultaneous floating pane windows. Each pane is an independent div.terminal-pane containing a titlebar (agent label, work item, close button) and an iframe pointing at the live ttyd port. Panes are draggable via the titlebar (mouse events, no library). On dashboard load, call GET /api/terminal/sessions and re-render a pane for each live session (iframe src = http://127.0.0.1:&lt;port&gt;). Closing a pane calls POST /api/terminal/stop and removes the element. A global pane registry (Map keyed by session UUID) tracks open panes and prevents duplicate iframes for the same session. Tile/split layout is explicitly deferred to a future slice — floating windows only for v1.
+    <span class="slice-title-col">
+      <span class="slice-name">Multi-pane shell (floating windows)</span>
+      <span class="slice-preview">Extend the single-overlay pattern to support N simultaneous floating pane windows.</span>
+      <span class="slice-meta-row">
+        <span class="slice-summary-badges">
+          <span class="badge badge-blocked badge-sm badge-effort" title="Effort: Large" aria-label="Effort: Large">L</span>
+          <span class="badge badge-revision badge-sm badge-risk" title="Risk: Med">Med</span>
+          
+          
+          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-5">Pending</span>
+          
+          
+        </span>
+        <span class="slice-actions" onclick="event.stopPropagation()">
+          <span class="approval-segmented" role="group" aria-label="Approval action">
+            <label class="seg-btn seg-approve" title="Approve">
+              <input type="radio" name="slice-5-approval" value="approved" data-section="slice-5" data-action="approve" aria-label="Approve slice 5">
+              &#10003;
+            </label>
+            <label class="seg-btn seg-changes" title="Request changes">
+              <input type="radio" name="slice-5-approval" value="changes_requested" data-section="slice-5" data-action="approve" aria-label="Request changes for slice 5">
+              &#8635;
+            </label>
+            <label class="seg-btn seg-reject" title="Reject">
+              <input type="radio" name="slice-5-approval" value="rejected" data-section="slice-5" data-action="approve" aria-label="Reject slice 5">
+              &#10005;
+            </label>
+          </span>
+        </span>
+      </span>
+    </span>
+    <span class="slice-chevron" aria-hidden="true"></span>
+  </summary>
 
-Lifecycle additions:
-- beforeunload event fires navigator.sendBeacon to POST /api/terminal/stop-all (defined in slice-2) — cleaner than iterating individual PIDs and stays within beacon body limits.
-- Pane count cap: the launcher disables the Create button when ≥6 panes are live; warning text explains the cap.
-- Pane position persistence is NOT implemented; reload cascades new panes from top-left (scope discipline — kick persistence to a future slice if needed).
-- When a ttyd process exits (user Ctrl-C inside the pane), the pane shows an &#34;Ended&#34; state within 5s. Mechanism governed by q-liveness-signal (poll /api/terminal/sessions every N seconds vs SSE).
-</div></div>
-  <div class="slice-field"><div class="slice-field-label">Why</div><div class="slice-field-value" data-markdown="">This is the visible cockpit: without multi-pane the whole plan is still a single-session wrapper. Floating windows are chosen over tiling because they require no split-pane JS library and each pane&#39;s position is independently user-controlled. The reload-from-inventory behavior makes the cockpit resilient to browser events without requiring server state to track frontend layout.
-</div></div>
-  <div class="slice-field"><div class="slice-field-label">Files</div><div class="slice-field-value"><code>cmd/htmlgraph/dashboard/index.html, cmd/htmlgraph/dashboard/js/app.js, cmd/htmlgraph/dashboard/css/components.css</code></div></div>
-  <div class="slice-field"><div class="slice-field-label">Done when</div><ul class="slice-done-list"><li data-markdown="">Opening two sessions from the launcher modal renders two independent floating pane windows simultaneously</li><li data-markdown="">Each pane&#39;s iframe displays its own live ttyd session</li><li data-markdown="">Panes are draggable by their titlebars without colliding with each other</li><li data-markdown="">On dashboard reload, GET /api/terminal/sessions re-renders all live panes</li><li data-markdown="">Closing one pane via its close button does not affect other panes</li><li data-markdown="">Launcher Create button is disabled when ≥6 panes are live with explanatory warning text</li><li data-markdown="">beforeunload fires navigator.sendBeacon to POST /api/terminal/stop-all</li><li data-markdown="">Pane positions are NOT persisted across reloads; new panes cascade from top-left</li><li data-markdown="">When a ttyd process exits for any reason, the dashboard pane shows an &#34;Ended&#34; state within 5s</li></ul></div>
-  
-  <div class="slice-field"><div class="slice-field-label">Test Strategy</div><div class="slice-field-value slice-tests" data-markdown="">Unit: TestPaneRegistry add/remove/get operations on the UUID-keyed Map
-Unit: TestBuildPaneElement verifies correct iframe src and titlebar text from session data
-Unit: TestPaneCountCap verifies Create button disabled state at ≥6 panes
-Integration: TestMultiPaneRender spawns two sessions and asserts two pane divs exist in the DOM
-Integration: TestReloadRestore mocks GET /api/terminal/sessions and verifies panes are reconstructed
-Integration: TestBeforeUnloadBeacon verifies navigator.sendBeacon target is /api/terminal/stop-all
-Integration: TestExitedPaneState polls GET /api/terminal/sessions and verifies pane transitions to Ended within 5s of ttyd exit
-Regression: Single-pane flow from pre-cockpit MVP still works end-to-end via the new multi-pane path
-</div></div>
-  <div class="slice-deps">Dependencies: slices 1,2,4</div>
-  <div class="approval-row">
-    <label><input type="checkbox" data-section="slice-5" data-action="approve"> Approve slice</label>
-    <textarea data-section="slice-5" data-comment-for="slice-5" placeholder="Comments on slice 5..."></textarea>
-  </div>
+  <div class="slice-body">
+    
+      
+      <div class="slice-field slice-what">
+        <div class="slice-field-label">What</div>
+        <div class="slice-field-value">
+          
+          <input type="checkbox" id="slice-5-what-reveal" class="reveal-toggle">
+          <div class="markdown-block reveal-content serif-prose"><p>Extend the single-overlay pattern to support N simultaneous floating pane windows. Each pane is an independent div.terminal-pane containing a titlebar (agent label, work item, close button) and an iframe pointing at the live ttyd port. Panes are draggable via the titlebar (mouse events, no library). On dashboard load, call GET /api/terminal/sessions and re-render a pane for each live session (iframe src = http://127.0.0.1:&lt;port&gt;). Closing a pane calls POST /api/terminal/stop and removes the element. A global pane registry (Map keyed by session UUID) tracks open panes and prevents duplicate iframes for the same session. Tile/split layout is explicitly deferred to a future slice — floating windows only for v1.</p>
+<p>Lifecycle additions:</p>
+<ul>
+<li>beforeunload event fires navigator.sendBeacon to POST /api/terminal/stop-all (defined in slice-2) — cleaner than iterating individual PIDs and stays within beacon body limits.</li>
+<li>Pane count cap: the launcher disables the Create button when ≥6 panes are live; warning text explains the cap.</li>
+<li>Pane position persistence is NOT implemented; reload cascades new panes from top-left (scope discipline — kick persistence to a future slice if needed).</li>
+<li>When a ttyd process exits (user Ctrl-C inside the pane), the pane shows an &#34;Ended&#34; state within 5s. Mechanism governed by q-liveness-signal (poll /api/terminal/sessions every N seconds vs SSE).</li>
+</ul>
 </div>
-<div class="slice-card" data-slice="6" data-slice-name="slice-6" data-status="pending">
-  <div class="slice-header">
+          <label for="slice-5-what-reveal" class="reveal-label">Show full description</label>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field slice-why">
+        <div class="slice-field-label">Why</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>This is the visible cockpit: without multi-pane the whole plan is still a single-session wrapper. Floating windows are chosen over tiling because they require no split-pane JS library and each pane&#39;s position is independently user-controlled. The reload-from-inventory behavior makes the cockpit resilient to browser events without requiring server state to track frontend layout.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Files</div>
+        <div class="slice-field-value"><code>cmd/htmlgraph/dashboard/index.html, cmd/htmlgraph/dashboard/js/app.js, cmd/htmlgraph/dashboard/css/components.css</code></div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Done when</div>
+        <ul class="slice-done-list slice-done-list--grid"><li>Opening two sessions from the launcher modal renders two independent floating pane windows simultaneously</li><li>Each pane&#39;s iframe displays its own live ttyd session</li><li>Panes are draggable by their titlebars without colliding with each other</li><li>On dashboard reload, GET /api/terminal/sessions re-renders all live panes</li><li>Closing one pane via its close button does not affect other panes</li><li>Launcher Create button is disabled when ≥6 panes are live with explanatory warning text</li><li>beforeunload fires navigator.sendBeacon to POST /api/terminal/stop-all</li><li>Pane positions are NOT persisted across reloads; new panes cascade from top-left</li><li>When a ttyd process exits for any reason, the dashboard pane shows an &#34;Ended&#34; state within 5s</li></ul>
+      </div>
+      
+    
+
+    
+
+    
+
+    
+    <div class="slice-field slice-tests-field">
+      <div class="slice-field-label">Test Strategy</div>
+      <div class="slice-field-value">
+        
+        
+        <div class="test-strategy">
+          
+          <div class="test-group" data-kind="unit">
+            <span class="test-chip">UNIT &middot; 3</span>
+            <ul><li>TestPaneRegistry add/remove/get operations on the UUID-keyed Map</li><li>TestBuildPaneElement verifies correct iframe src and titlebar text from session data</li><li>TestPaneCountCap verifies Create button disabled state at ≥6 panes</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="integration">
+            <span class="test-chip">INTEGRATION &middot; 4</span>
+            <ul><li>TestMultiPaneRender spawns two sessions and asserts two pane divs exist in the DOM</li><li>TestReloadRestore mocks GET /api/terminal/sessions and verifies panes are reconstructed</li><li>TestBeforeUnloadBeacon verifies navigator.sendBeacon target is /api/terminal/stop-all</li><li>TestExitedPaneState polls GET /api/terminal/sessions and verifies pane transitions to Ended within 5s of ttyd exit</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="regression">
+            <span class="test-chip">REGRESSION &middot; 1</span>
+            <ul><li>Single-pane flow from pre-cockpit MVP still works end-to-end via the new multi-pane path</li></ul>
+          </div>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+
+    
+
+    
+
+    <div class="slice-deps">Dependencies: slices 1,2,4</div>
+
+    <details class="comment-collapse">
+      <summary class="comment-collapse-trigger">+ Leave a comment</summary>
+      <div class="comment-collapse-body">
+        <textarea data-section="slice-5" data-comment-for="slice-5" placeholder="Comments on slice 5..."></textarea>
+      </div>
+    </details>
+  </div>
+</details>
+<details class="slice-card" id="slice-6" data-slice="6" data-slice-name="slice-6" data-status="pending" data-approval="pending">
+  <summary class="slice-summary" aria-label="Slice 6: Parallel-launch integration test &#43; stress harness">
     <span class="slice-num">#6</span>
-    <span class="slice-name">Parallel-launch integration test &#43; stress harness</span>
-    <span class="badge badge-revision">M</span>
-    <span class="badge badge-revision">Med</span>
-    <span class="badge badge-pending" data-badge-for="slice-6">Pending</span>
-  </div>
-  
-  <div class="slice-field"><div class="slice-field-label">What</div><div class="slice-field-value" data-markdown="">Add an integration test that POSTs 4 concurrent /api/terminal/start requests and verifies the cockpit handles them correctly. This slice tests — not replaces — the existing parallel-launch protection that lives in checkServeLock / writeServeLock in claude_serve_autostart.go:173–215. Those functions already serialise concurrent ensureServeForOtel probes via a PID-file liveness check; the cockpit MUST NOT add a duplicate mutex at the terminal-handler layer (see design.constraints).
+    <span class="slice-title-col">
+      <span class="slice-name">Parallel-launch integration test &#43; stress harness</span>
+      <span class="slice-preview">Add an integration test that POSTs 4 concurrent /api/terminal/start requests and verifies the cockpit handles them correctly.</span>
+      <span class="slice-meta-row">
+        <span class="slice-summary-badges">
+          <span class="badge badge-revision badge-sm badge-effort" title="Effort: Medium" aria-label="Effort: Medium">M</span>
+          <span class="badge badge-revision badge-sm badge-risk" title="Risk: Med">Med</span>
+          
+          
+          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-6">Pending</span>
+          
+          
+        </span>
+        <span class="slice-actions" onclick="event.stopPropagation()">
+          <span class="approval-segmented" role="group" aria-label="Approval action">
+            <label class="seg-btn seg-approve" title="Approve">
+              <input type="radio" name="slice-6-approval" value="approved" data-section="slice-6" data-action="approve" aria-label="Approve slice 6">
+              &#10003;
+            </label>
+            <label class="seg-btn seg-changes" title="Request changes">
+              <input type="radio" name="slice-6-approval" value="changes_requested" data-section="slice-6" data-action="approve" aria-label="Request changes for slice 6">
+              &#8635;
+            </label>
+            <label class="seg-btn seg-reject" title="Reject">
+              <input type="radio" name="slice-6-approval" value="rejected" data-section="slice-6" data-action="approve" aria-label="Reject slice 6">
+              &#10005;
+            </label>
+          </span>
+        </span>
+      </span>
+    </span>
+    <span class="slice-chevron" aria-hidden="true"></span>
+  </summary>
 
-Test harness components:
-1. Go integration test (TestParallelLaunch4) that POSTs 4 concurrent requests, asserts all 4 return live ports within 5s, checks debug.log shows zero SQLITE_BUSY entries during the launch window, verifies each ttyd process is reaped cleanly on stop.
-2. Each of the 4 sessions must show a distinct session_id in the sessions table after running one hook event.
-3. Smoke shell script (scripts/stress-launch.sh) that drives the same scenario against a running htmlgraph serve and prints a pass/fail summary — useful for manual regression.
-</div></div>
-  <div class="slice-field"><div class="slice-field-label">Why</div><div class="slice-field-value" data-markdown="">The cockpit amplifies the parallel-launch surface area (4&#43; sessions spawned in rapid succession). The bugs that caused SQLITE_BUSY and feature-start writer contention are resolved, but without a regression test the fix could silently regress. This slice locks in the correct behavior and provides a stress harness for future cockpit development.
-</div></div>
-  <div class="slice-field"><div class="slice-field-label">Files</div><div class="slice-field-value"><code>internal/terminal/terminal_test.go, scripts/stress-launch.sh (new)</code></div></div>
-  <div class="slice-field"><div class="slice-field-label">Done when</div><ul class="slice-done-list"><li data-markdown="">4 concurrent POST /api/terminal/start requests each return a distinct live port within 5s</li><li data-markdown="">debug.log contains zero SQLITE_BUSY entries during the 4-session launch window</li><li data-markdown="">All 4 sessions show distinct session_id values in the sessions table after each runs one hook event</li><li data-markdown="">All 4 ttyd processes are reaped cleanly when POST /api/terminal/stop-all is called</li><li data-markdown="">scripts/stress-launch.sh exits 0 on a healthy server</li></ul></div>
-  
-  <div class="slice-field"><div class="slice-field-label">Test Strategy</div><div class="slice-field-value slice-tests" data-markdown="">Integration: TestParallelLaunch4 — 4 concurrent POSTs, assert ports live within 5s, assert no SQLITE_BUSY in debug.log, assert distinct session_ids, assert reaper cleans up on stop-all
-Shell: scripts/stress-launch.sh — smoke-test against a running server, prints pass/fail per criterion
-</div></div>
-  <div class="slice-deps">Dependencies: slices 1,2</div>
-  <div class="approval-row">
-    <label><input type="checkbox" data-section="slice-6" data-action="approve"> Approve slice</label>
-    <textarea data-section="slice-6" data-comment-for="slice-6" placeholder="Comments on slice 6..."></textarea>
-  </div>
+  <div class="slice-body">
+    
+      
+      <div class="slice-field slice-what">
+        <div class="slice-field-label">What</div>
+        <div class="slice-field-value">
+          
+          <input type="checkbox" id="slice-6-what-reveal" class="reveal-toggle">
+          <div class="markdown-block reveal-content serif-prose"><p>Add an integration test that POSTs 4 concurrent /api/terminal/start requests and verifies the cockpit handles them correctly. This slice tests — not replaces — the existing parallel-launch protection that lives in checkServeLock / writeServeLock in claude_serve_autostart.go:173–215. Those functions already serialise concurrent ensureServeForOtel probes via a PID-file liveness check; the cockpit MUST NOT add a duplicate mutex at the terminal-handler layer (see design.constraints).</p>
+<p>Test harness components:</p>
+<ol>
+<li>Go integration test (TestParallelLaunch4) that POSTs 4 concurrent requests, asserts all 4 return live ports within 5s, checks debug.log shows zero SQLITE_BUSY entries during the launch window, verifies each ttyd process is reaped cleanly on stop.</li>
+<li>Each of the 4 sessions must show a distinct session_id in the sessions table after running one hook event.</li>
+<li>Smoke shell script (scripts/stress-launch.sh) that drives the same scenario against a running htmlgraph serve and prints a pass/fail summary — useful for manual regression.</li>
+</ol>
 </div>
-<div class="slice-card" data-slice="7" data-slice-name="slice-7" data-status="pending">
-  <div class="slice-header">
+          <label for="slice-6-what-reveal" class="reveal-label">Show full description</label>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field slice-why">
+        <div class="slice-field-label">Why</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>The cockpit amplifies the parallel-launch surface area (4+ sessions spawned in rapid succession). The bugs that caused SQLITE_BUSY and feature-start writer contention are resolved, but without a regression test the fix could silently regress. This slice locks in the correct behavior and provides a stress harness for future cockpit development.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Files</div>
+        <div class="slice-field-value"><code>internal/terminal/terminal_test.go, scripts/stress-launch.sh (new)</code></div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Done when</div>
+        <ul class="slice-done-list"><li>4 concurrent POST /api/terminal/start requests each return a distinct live port within 5s</li><li>debug.log contains zero SQLITE_BUSY entries during the 4-session launch window</li><li>All 4 sessions show distinct session_id values in the sessions table after each runs one hook event</li><li>All 4 ttyd processes are reaped cleanly when POST /api/terminal/stop-all is called</li><li>scripts/stress-launch.sh exits 0 on a healthy server</li></ul>
+      </div>
+      
+    
+
+    
+
+    
+
+    
+    <div class="slice-field slice-tests-field">
+      <div class="slice-field-label">Test Strategy</div>
+      <div class="slice-field-value">
+        
+        
+        <div class="test-strategy">
+          
+          <div class="test-group" data-kind="integration">
+            <span class="test-chip">INTEGRATION &middot; 1</span>
+            <ul><li>TestParallelLaunch4 — 4 concurrent POSTs, assert ports live within 5s, assert no SQLITE_BUSY in debug.log, assert distinct session_ids, assert reaper cleans up on stop-all</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="shell">
+            <span class="test-chip">SHELL &middot; 1</span>
+            <ul><li>scripts/stress-launch.sh — smoke-test against a running server, prints pass/fail per criterion</li></ul>
+          </div>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+
+    
+
+    
+
+    <div class="slice-deps">Dependencies: slices 1,2</div>
+
+    <details class="comment-collapse">
+      <summary class="comment-collapse-trigger">+ Leave a comment</summary>
+      <div class="comment-collapse-body">
+        <textarea data-section="slice-6" data-comment-for="slice-6" placeholder="Comments on slice 6..."></textarea>
+      </div>
+    </details>
+  </div>
+</details>
+<details class="slice-card" id="slice-7" data-slice="7" data-slice-name="slice-7" data-status="pending" data-approval="pending">
+  <summary class="slice-summary" aria-label="Slice 7: Agent-matrix parity for worktree &#43; work-item">
     <span class="slice-num">#7</span>
-    <span class="slice-name">Agent-matrix parity for worktree &#43; work-item</span>
-    <span class="badge badge-revision">M</span>
-    <span class="badge badge-pending">Low</span>
-    <span class="badge badge-pending" data-badge-for="slice-7">Pending</span>
-  </div>
-  
-  <div class="slice-field"><div class="slice-field-label">What</div><div class="slice-field-value" data-markdown="">Add --track, --feature, and --worktree flags to htmlgraph codex and htmlgraph gemini analogous to the existing flags on htmlgraph yolo. Each flag sets HTMLGRAPH_PROJECT_DIR to the canonical repo root and sets cmd.Dir to the appropriate worktree path using internal/worktree from slice-3. When no worktree flag is given, behavior is unchanged. Also add --work-item flag to both launchers so the cockpit can inject attribution env vars for Codex and Gemini sessions matching what Claude already gets.
+    <span class="slice-title-col">
+      <span class="slice-name">Agent-matrix parity for worktree &#43; work-item</span>
+      <span class="slice-preview">Add --track, --feature, and --worktree flags to htmlgraph codex and htmlgraph gemini analogous to the existing flags on htmlgraph yolo.</span>
+      <span class="slice-meta-row">
+        <span class="slice-summary-badges">
+          <span class="badge badge-revision badge-sm badge-effort" title="Effort: Medium" aria-label="Effort: Medium">M</span>
+          <span class="badge badge-pending badge-sm badge-risk" title="Risk: Low">Low</span>
+          
+          
+          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-7">Pending</span>
+          
+          
+        </span>
+        <span class="slice-actions" onclick="event.stopPropagation()">
+          <span class="approval-segmented" role="group" aria-label="Approval action">
+            <label class="seg-btn seg-approve" title="Approve">
+              <input type="radio" name="slice-7-approval" value="approved" data-section="slice-7" data-action="approve" aria-label="Approve slice 7">
+              &#10003;
+            </label>
+            <label class="seg-btn seg-changes" title="Request changes">
+              <input type="radio" name="slice-7-approval" value="changes_requested" data-section="slice-7" data-action="approve" aria-label="Request changes for slice 7">
+              &#8635;
+            </label>
+            <label class="seg-btn seg-reject" title="Reject">
+              <input type="radio" name="slice-7-approval" value="rejected" data-section="slice-7" data-action="approve" aria-label="Reject slice 7">
+              &#10005;
+            </label>
+          </span>
+        </span>
+      </span>
+    </span>
+    <span class="slice-chevron" aria-hidden="true"></span>
+  </summary>
 
-Implementation notes:
-- Add WorktreeRoot and HtmlgraphRoot fields to codex and gemini launch-opts structs; when set, swap c.Dir to the worktree path and inject HTMLGRAPH_PROJECT_DIR=&lt;canonical root&gt; via setOrReplaceEnv (same pattern as buildClaudeLaunchEnv in cmd/htmlgraph/claude_env.go).
-- Gemini&#39;s HTMLGRAPH_AGENT=gemini env var injection (gemini.go:240–243) requires the cockpit shell command builder to emit `htmlgraph gemini` (not raw `gemini`) so the injection flows correctly.
-- Update buildShellCmd (slice-1) to emit these flags for codex/gemini when cwd_kind=worktree and work_item is set, including the `htmlgraph feature start &lt;id&gt;` attribution prefix for all three agents.
-- Add --track, --feature, --work-item CLI flags to both codex.go and gemini.go. Verify effort by reading both files before implementation.
-</div></div>
-  <div class="slice-field"><div class="slice-field-label">Why</div><div class="slice-field-value" data-markdown="">Today only the Claude/yolo launchers support worktrees and work-item attribution. Without this slice, a Codex or Gemini pane launched from the cockpit runs in the main repo with no attribution — a second-class experience that defeats the observability goal. Parity means every agent can participate in the lineage graph on equal footing.
-</div></div>
-  <div class="slice-field"><div class="slice-field-label">Files</div><div class="slice-field-value"><code>cmd/htmlgraph/codex.go, cmd/htmlgraph/gemini.go, cmd/htmlgraph/terminal_handlers.go, internal/worktree/worktree.go</code></div></div>
-  <div class="slice-field"><div class="slice-field-label">Done when</div><ul class="slice-done-list"><li data-markdown="">htmlgraph codex --feature feat-abc spawns in .claude/worktrees/feat-abc with HTMLGRAPH_PROJECT_DIR set</li><li data-markdown="">htmlgraph gemini --track trk-xyz spawns in the track worktree with HTMLGRAPH_PROJECT_DIR set</li><li data-markdown="">Cockpit POST /api/terminal/start with agent=codex &#43; cwd_kind=feature-worktree emits correct htmlgraph codex command (not raw codex)</li><li data-markdown="">Cockpit POST /api/terminal/start with agent=gemini emits htmlgraph gemini so HTMLGRAPH_AGENT env injection flows</li><li data-markdown="">buildShellCmd prepends htmlgraph feature start &lt;id&gt; for codex and gemini when work_item is set</li><li data-markdown="">Help output for codex and gemini lists the new flags</li></ul></div>
-  
-  <div class="slice-field"><div class="slice-field-label">Test Strategy</div><div class="slice-field-value slice-tests" data-markdown="">Unit: TestCodexWorktreeFlag verifies --feature flag sets correct cmd.Dir and env
-Unit: TestGeminiWorktreeFlag same for gemini
-Unit: TestBuildShellCmdGeminiEnvInjection verifies shell builder emits htmlgraph gemini not raw gemini
-Integration: TestCockpitCodexWorktree posts agent=codex &#43; cwd_kind=feature-worktree and asserts spawned process is in the worktree path
-Regression: htmlgraph codex and htmlgraph gemini invocations without new flags retain existing behavior exactly
-</div></div>
-  <div class="slice-deps">Dependencies: slices 1,3</div>
-  <div class="approval-row">
-    <label><input type="checkbox" data-section="slice-7" data-action="approve"> Approve slice</label>
-    <textarea data-section="slice-7" data-comment-for="slice-7" placeholder="Comments on slice 7..."></textarea>
-  </div>
+  <div class="slice-body">
+    
+      
+      <div class="slice-field slice-what">
+        <div class="slice-field-label">What</div>
+        <div class="slice-field-value">
+          
+          <input type="checkbox" id="slice-7-what-reveal" class="reveal-toggle">
+          <div class="markdown-block reveal-content serif-prose"><p>Add --track, --feature, and --worktree flags to htmlgraph codex and htmlgraph gemini analogous to the existing flags on htmlgraph yolo. Each flag sets HTMLGRAPH_PROJECT_DIR to the canonical repo root and sets cmd.Dir to the appropriate worktree path using internal/worktree from slice-3. When no worktree flag is given, behavior is unchanged. Also add --work-item flag to both launchers so the cockpit can inject attribution env vars for Codex and Gemini sessions matching what Claude already gets.</p>
+<p>Implementation notes:</p>
+<ul>
+<li>Add WorktreeRoot and HtmlgraphRoot fields to codex and gemini launch-opts structs; when set, swap c.Dir to the worktree path and inject HTMLGRAPH_PROJECT_DIR=&lt;canonical root&gt; via setOrReplaceEnv (same pattern as buildClaudeLaunchEnv in cmd/htmlgraph/claude_env.go).</li>
+<li>Gemini&#39;s HTMLGRAPH_AGENT=gemini env var injection (gemini.go:240–243) requires the cockpit shell command builder to emit <code>htmlgraph gemini</code> (not raw <code>gemini</code>) so the injection flows correctly.</li>
+<li>Update buildShellCmd (slice-1) to emit these flags for codex/gemini when cwd_kind=worktree and work_item is set, including the <code>htmlgraph feature start &lt;id&gt;</code> attribution prefix for all three agents.</li>
+<li>Add --track, --feature, --work-item CLI flags to both codex.go and gemini.go. Verify effort by reading both files before implementation.</li>
+</ul>
 </div>
+          <label for="slice-7-what-reveal" class="reveal-label">Show full description</label>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field slice-why">
+        <div class="slice-field-label">Why</div>
+        <div class="slice-field-value">
+          
+          <div class="markdown-block serif-prose"><p>Today only the Claude/yolo launchers support worktrees and work-item attribution. Without this slice, a Codex or Gemini pane launched from the cockpit runs in the main repo with no attribution — a second-class experience that defeats the observability goal. Parity means every agent can participate in the lineage graph on equal footing.</p>
+</div>
+          
+        </div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Files</div>
+        <div class="slice-field-value"><code>cmd/htmlgraph/codex.go, cmd/htmlgraph/gemini.go, cmd/htmlgraph/terminal_handlers.go, internal/worktree/worktree.go</code></div>
+      </div>
+      
+      
+      <div class="slice-field">
+        <div class="slice-field-label">Done when</div>
+        <ul class="slice-done-list slice-done-list--grid"><li>htmlgraph codex --feature feat-abc spawns in .claude/worktrees/feat-abc with HTMLGRAPH_PROJECT_DIR set</li><li>htmlgraph gemini --track trk-xyz spawns in the track worktree with HTMLGRAPH_PROJECT_DIR set</li><li>Cockpit POST /api/terminal/start with agent=codex &#43; cwd_kind=feature-worktree emits correct htmlgraph codex command (not raw codex)</li><li>Cockpit POST /api/terminal/start with agent=gemini emits htmlgraph gemini so HTMLGRAPH_AGENT env injection flows</li><li>buildShellCmd prepends htmlgraph feature start &lt;id&gt; for codex and gemini when work_item is set</li><li>Help output for codex and gemini lists the new flags</li></ul>
+      </div>
+      
+    
+
+    
+
+    
+
+    
+    <div class="slice-field slice-tests-field">
+      <div class="slice-field-label">Test Strategy</div>
+      <div class="slice-field-value">
+        
+        
+        <div class="test-strategy">
+          
+          <div class="test-group" data-kind="unit">
+            <span class="test-chip">UNIT &middot; 3</span>
+            <ul><li>TestCodexWorktreeFlag verifies --feature flag sets correct cmd.Dir and env</li><li>TestGeminiWorktreeFlag same for gemini</li><li>TestBuildShellCmdGeminiEnvInjection verifies shell builder emits htmlgraph gemini not raw gemini</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="integration">
+            <span class="test-chip">INTEGRATION &middot; 1</span>
+            <ul><li>TestCockpitCodexWorktree posts agent=codex &#43; cwd_kind=feature-worktree and asserts spawned process is in the worktree path</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="regression">
+            <span class="test-chip">REGRESSION &middot; 1</span>
+            <ul><li>htmlgraph codex and htmlgraph gemini invocations without new flags retain existing behavior exactly</li></ul>
+          </div>
+          
+        </div>
+        
+      </div>
+    </div>
+    
+
+    
+
+    
+
+    <div class="slice-deps">Dependencies: slices 1,3</div>
+
+    <details class="comment-collapse">
+      <summary class="comment-collapse-trigger">+ Leave a comment</summary>
+      <div class="comment-collapse-body">
+        <textarea data-section="slice-7" data-comment-for="slice-7" placeholder="Comments on slice 7..."></textarea>
+      </div>
+    </details>
+  </div>
+</details>
 
     <!--PLAN_SLICE_CARDS-->
   </div>
 </details>
 
-<!-- Design Decisions -->
+<!-- Design Decisions (hidden for v2 plans — slice cards carry their own questions) -->
 <details id="questions" class="section-card" data-phase="questions" data-status="pending">
   <summary><span>Design Decisions</span><span class="badge badge-pending" data-badge-for="questions">Pending</span></summary>
   <div class="section-body">
@@ -1010,43 +1945,31 @@ Added 4 new questions (total now 9): q-worktree-package-boundary, q-spawn-sync-m
 
 </article>
 </div><!-- /.plan-content -->
-
-<!-- Drag handle for resizing chat sidebar -->
-<div class="chat-resize-handle" id="chat-resize-handle"></div>
-
-<!-- Chat sidebar -->
-<aside class="chat-sidebar" id="chat-sidebar">
-  <section id="chat-panel" class="chat-panel" data-zone="chat">
-    <h2>Plan Discussion</h2>
-    <div id="chat-messages" class="chat-messages">
-      <p class="chat-notice" id="chat-empty">Ask about the plan design, slices, risks, or tradeoffs.</p>
+<aside class="chat-sidebar" id="chat-panel">
+  <section class="chat-panel">
+    <h2>Chat</h2>
+    <div class="chat-messages" id="chat-messages">
+      <p class="chat-notice" id="chat-empty">No messages yet.</p>
     </div>
     <div class="chat-input-area">
-      <textarea id="chat-input" placeholder="Ask about the plan..." rows="2"></textarea>
-      <button id="chat-send">Send</button>
+      <textarea id="chat-input" rows="2" placeholder="Ask about this plan..."></textarea>
+      <button id="chat-send" type="button">Send</button>
     </div>
   </section>
-
-  <!-- Amendments Panel -->
-  <div id="amendments-panel" class="amendments-panel" style="display:none">
-    <h3>Amendments</h3>
-    <div id="amendments-list"></div>
-    <div id="amendments-summary" class="amendments-summary"></div>
-  </div>
 </aside>
 </div><!-- /.plan-layout -->
 
-<script src="https://d3js.org/d3.v7.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/dagre-d3@0.6.4/dist/dagre-d3.min.js"></script>
+<!-- The dependency graph above is a static inline SVG, laid out server-side by
+     plan/blocks/svg.Layout, so it needs no graph library and no CDN round-trip. -->
 <script>
 // Plan base path — derived from window.location.pathname so the same
 // rendered HTML works whether the file is served at the legacy
 // /plans/<id>.html path (single-project server) or at /p/<id>/plans/<id>.html
 // (via the parent-doorway reverse proxy). Every fetch() on this page
-// prefixes window.htmlgraphPlanBase, which is '' at the root and
+// prefixes window.wipnotePlanBase, which is '' at the root and
 // '/p/<id>' under the proxy. This is the per-project routing fix for
 // the multi-project hardening re-architecture (plan-237fb251).
-window.htmlgraphPlanBase = (function() {
+window.wipnotePlanBase = (function() {
   var p = window.location.pathname || '';
   if (p.indexOf('/p/') !== 0) return '';
   var segs = p.split('/').filter(function(s) { return s !== ''; });
@@ -1108,33 +2031,140 @@ var planId=(function(){var a=document.querySelector('article[id]');return a?a.id
 
   function escHtml(s){var d=document.createElement('div');d.textContent=s;return d.innerHTML}
 
-  document.querySelectorAll('input[data-action="approve"]').forEach(function(cb){
-    cb.addEventListener('change',function(){
-      var sec=this.dataset.section;
-      var badge=document.querySelector('[data-badge-for="'+sec+'"]');
-      if(badge) setBadge(badge,this.checked);
-      var details=this.closest('details[data-phase]');
-      if(details) details.dataset.status=this.checked?'approved':'pending';
-      if(sec.startsWith('slice-')){
-        var n=sec.split('-')[1];
-        var node=document.getElementById('node-'+n);
-        if(node) node.dataset.status=this.checked?'approved':'pending';
-        var all=document.querySelectorAll('input[data-section^="slice-"][data-action="approve"]');
-        var allOk=Array.prototype.every.call(all,function(c){return c.checked});
-        var sb=document.querySelector('[data-badge-for="slices"]');
-        if(sb) setBadge(sb,allOk);
-        var sd=document.querySelector('[data-phase="slices"]');
-        if(sd) sd.dataset.status=allOk?'approved':'pending';
-      }
-      updateProgress();
-      if(planId){
-        fetch((window.htmlgraphPlanBase||'')+'/api/plans/'+planId+'/feedback',{
-          method:'POST',
-          headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({section:sec,action:'approve',value:String(this.checked),question_id:''})
+  // showFeedbackError: display a visible toast near the top of the page for
+  // any feedback write that returns non-2xx. The toast auto-dismisses after
+  // 8 seconds but can be dismissed early by clicking. Uses inline styles so
+  // it works whether the plan page is loaded standalone or embedded.
+  function showFeedbackError(msg){
+    var toast=document.createElement('div');
+    toast.setAttribute('role','alert');
+    toast.style.cssText='position:fixed;top:16px;right:16px;z-index:9999;max-width:420px;padding:12px 16px;background:rgba(239,68,68,.95);color:#fff;border-radius:8px;font-size:.85rem;line-height:1.4;box-shadow:0 4px 16px rgba(0,0,0,.5);display:flex;align-items:flex-start;gap:10px;cursor:pointer';
+    var icon=document.createElement('span');
+    icon.textContent='⚠️';
+    icon.style.flexShrink='0';
+    var text=document.createElement('span');
+    text.textContent='Feedback not saved: '+msg;
+    var close=document.createElement('span');
+    close.textContent='×';
+    close.style.cssText='margin-left:auto;font-size:1.1rem;line-height:1;flex-shrink:0;opacity:.8';
+    toast.appendChild(icon);
+    toast.appendChild(text);
+    toast.appendChild(close);
+    document.body.appendChild(toast);
+    var tid=setTimeout(function(){if(toast.parentNode)toast.parentNode.removeChild(toast);},8000);
+    toast.addEventListener('click',function(){clearTimeout(tid);if(toast.parentNode)toast.parentNode.removeChild(toast);});
+  }
+
+  // revertApproval: restore a section's approval control to prevVal after a
+  // failed POST, then re-run all downstream UI updates without firing another
+  // network request. Temporarily suppresses change events to prevent re-POST.
+  function revertApproval(sec,prevVal){
+    var radio=document.querySelector('input[type="radio"][data-section="'+sec+'"][data-action="approve"][value="'+prevVal+'"]');
+    if(radio){
+      radio.checked=true;
+    } else {
+      document.querySelectorAll('input[type="radio"][data-section="'+sec+'"][data-action="approve"]').forEach(function(r){
+        r.checked=false;
+      });
+      var cb=document.querySelector('input[type="checkbox"][data-section="'+sec+'"][data-action="approve"]');
+      if(cb) cb.checked=(prevVal==='approved'||prevVal==='true');
+    }
+    // Re-run downstream visual updates without a new fetch
+    var dummy=document.querySelector('[data-section="'+sec+'"][data-action="approve"]');
+    if(dummy) handleApprovalVisuals(sec,prevVal);
+  }
+
+  // handleApprovalVisuals: apply all downstream visual state changes for a
+  // section approval value WITHOUT firing a network request (used both by
+  // handleApprovalChange and revertApproval).
+  function handleApprovalVisuals(sec,val){
+    var isApproved=(val==='approved');
+    var badge=document.querySelector('[data-badge-for="'+sec+'"]');
+    if(badge) setBadge(badge,isApproved);
+    var phaseDetails=document.querySelector('[data-action="approve"][data-section="'+sec+'"]');
+    var pd=phaseDetails&&phaseDetails.closest('details[data-phase]');
+    if(pd) pd.dataset.status=isApproved?'approved':'pending';
+    if(sec.startsWith('slice-')&&sec.split('-').length===2){
+      var n=sec.split('-')[1];
+      var sliceCard=document.getElementById('slice-'+n);
+      if(sliceCard) sliceCard.dataset.approval=val;
+      var node=document.getElementById('node-'+n);
+      if(node) node.dataset.status=isApproved?'approved':'pending';
+      document.querySelectorAll('[data-dot-for="'+n+'"]').forEach(function(dot){
+        dot.dataset.approval=val;
+      });
+      var allSliceInputs=document.querySelectorAll('input[data-section^="slice-"][data-action="approve"]');
+      var sliceNums={};
+      Array.prototype.forEach.call(allSliceInputs,function(inp){
+        sliceNums[inp.dataset.section]=true;
+      });
+      var allOk=Object.keys(sliceNums).every(function(s){
+        return getApprovalValue(s)==='approved';
+      });
+      var sb=document.querySelector('[data-badge-for="slices"]');
+      if(sb) setBadge(sb,allOk);
+      var sd=document.querySelector('[data-phase="slices"]');
+      if(sd) sd.dataset.status=allOk?'approved':'pending';
+    }
+    updateProgress();
+  }
+
+  // Helper: get effective approval value for a slice section.
+  // For radio-based slice controls, returns the selected value or 'pending'.
+  // For checkbox-based controls (design, outline), returns 'approved' or 'pending'.
+  function getApprovalValue(sec){
+    // Try radio group first (slice-N approval segmented control)
+    var checked=document.querySelector('input[type="radio"][data-section="'+sec+'"][data-action="approve"]:checked');
+    if(checked) return checked.value;
+    // Fallback: checkbox
+    var cb=document.querySelector('input[type="checkbox"][data-section="'+sec+'"][data-action="approve"]');
+    if(cb) return cb.checked?'approved':'pending';
+    return 'pending';
+  }
+
+  // approvalServerState: tracks the last server-confirmed approval value per
+  // section key. Populated by loadExistingFeedback (GET) and successful POSTs.
+  // Used to revert optimistic UI updates when a POST fails.
+  var approvalServerState={};
+
+  function handleApprovalChange(el){
+    var sec=el.dataset.section;
+    var val=getApprovalValue(sec);
+    // Capture the last server-confirmed value for this section (or 'pending'
+    // if we have never seen a confirmed server value — i.e. the page just
+    // loaded with baked-in checked state and the first POST fails).
+    var prevVal=approvalServerState.hasOwnProperty(sec)?approvalServerState[sec]:'pending';
+    // Apply optimistic UI update
+    handleApprovalVisuals(sec,val);
+    // During initial hydration from the server GET, suppress POST — the change
+    // events are synthetic (we are restoring server state, not recording new input).
+    if(planId&&!_loadingFeedback){
+      fetch((window.wipnotePlanBase||'')+'/api/plans/'+planId+'/feedback',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({section:sec,action:'approve',value:val,question_id:''})
+      }).then(function(r){
+        if(r.ok){
+          // Record the now-confirmed server state so we can revert correctly
+          // if a subsequent POST fails.
+          approvalServerState[sec]=val;
+          return;
+        }
+        return r.text().then(function(body){
+          console.error('[wipnote] feedback POST '+sec+' returned '+r.status+': '+body);
+          showFeedbackError((body&&body.trim())||('HTTP '+r.status));
+          revertApproval(sec,prevVal);
         });
-      }
-    });
+      }).catch(function(err){
+        console.error('[wipnote] feedback POST '+sec+' network error:',err);
+        showFeedbackError('Could not reach server. Is wipnote serve running?');
+        revertApproval(sec,prevVal);
+      });
+    }
+  }
+
+  document.querySelectorAll('input[data-action="approve"]').forEach(function(el){
+    el.addEventListener('change',function(){ handleApprovalChange(this); });
   });
 
   document.querySelectorAll('input[type="radio"][data-question]').forEach(function(r){
@@ -1155,11 +2185,24 @@ var planId=(function(){var a=document.querySelector('article[id]');return a?a.id
       if(headerBadge) setBadge(headerBadge,allAnswered);
       var details=document.querySelector('[data-phase="questions"]');
       if(details) details.dataset.status=allAnswered?'approved':'pending';
-      if(planId){
-        fetch((window.htmlgraphPlanBase||'')+'/api/plans/'+planId+'/feedback',{
+      // Suppress POST during hydration (bug-fddf5820, finding 8): loadExistingFeedback
+      // dispatches synthetic change events to restore answers from the server GET;
+      // re-POSTing them echoes server state back as new writes.
+      if(planId&&!_loadingFeedback){
+        var qVal=this.value,qId=this.dataset.question;
+        fetch((window.wipnotePlanBase||'')+'/api/plans/'+planId+'/feedback',{
           method:'POST',
           headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({section:'questions',action:'answer',value:this.value,question_id:this.dataset.question})
+          body:JSON.stringify({section:'questions',action:'answer',value:qVal,question_id:qId})
+        }).then(function(r){
+          if(r.ok) return;
+          return r.text().then(function(body){
+            console.error('[wipnote] feedback POST questions/'+qId+' returned '+r.status+': '+body);
+            showFeedbackError((body&&body.trim())||('HTTP '+r.status+' saving answer'));
+          });
+        }).catch(function(err){
+          console.error('[wipnote] feedback POST questions network error:',err);
+          showFeedbackError('Could not reach server. Is wipnote serve running?');
         });
       }
     });
@@ -1172,6 +2215,32 @@ var planId=(function(){var a=document.querySelector('article[id]');return a?a.id
       if(badge) setBadge(badge,true);
     }
   });
+
+  // Slice-local question radio chips (data-action="answer", data-section=slice-N-question-<id>)
+  document.querySelectorAll('input[type="radio"][data-action="answer"]').forEach(function(r){
+    r.addEventListener('change',function(){
+      var sec=this.dataset.section,ansVal=this.value;
+      // Suppress POST during hydration (bug-fddf5820, finding 8) — same reason
+      // as the design/outline question radios above.
+      if(planId&&!_loadingFeedback){
+        fetch((window.wipnotePlanBase||'')+'/api/plans/'+planId+'/feedback',{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({section:sec,action:'answer',value:ansVal,question_id:sec})
+        }).then(function(r){
+          if(r.ok) return;
+          return r.text().then(function(body){
+            console.error('[wipnote] feedback POST slice-question '+sec+' returned '+r.status+': '+body);
+            showFeedbackError((body&&body.trim())||('HTTP '+r.status+' saving answer'));
+          });
+        }).catch(function(err){
+          console.error('[wipnote] feedback POST slice-question network error:',err);
+          showFeedbackError('Could not reach server. Is wipnote serve running?');
+        });
+      }
+    });
+  });
+
   var allRows=document.querySelectorAll('[data-recap-for]');
   var allAnswered=Array.prototype.every.call(allRows,function(r){
     var b=r.querySelector('.badge');
@@ -1185,14 +2254,69 @@ var planId=(function(){var a=document.querySelector('article[id]');return a?a.id
   function updateProgress(){
     var approved=0;
     SECTIONS.forEach(function(sec){
-      var cb=document.querySelector('input[data-section="'+sec+'"][data-action="approve"]');
-      if(cb&&cb.checked) approved++;
+      if(getApprovalValue(sec)==='approved') approved++;
     });
-    document.getElementById('approvedCount').textContent=approved;
-    document.getElementById('pendingCount').textContent=SECTIONS.length-approved;
-    document.getElementById('progressFill').style.width=Math.round(approved/SECTIONS.length*100)+'%';
-    document.getElementById('finalizeBtn').disabled=(approved<SECTIONS.length);
+    var pct=SECTIONS.length>0?Math.round(approved/SECTIONS.length*100):0;
+    // Main progress bar
+    var ac=document.getElementById('approvedCount');
+    if(ac) ac.textContent=approved;
+    var pc=document.getElementById('pendingCount');
+    if(pc) pc.textContent=SECTIONS.length-approved;
+    var pf=document.getElementById('progressFill');
+    if(pf) pf.style.width=pct+'%';
+    // Finalize gates on SLICES only — every slice-N section approved — matching
+    // the dashboard review rail and the backend. design/outline are still
+    // reviewed (and counted in the progress bar above) but do not block
+    // finalize. Legacy plans with no slices fall back to the all-sections gate.
+    var sliceSecs=SECTIONS.filter(function(s){return /^slice-\d+$/.test(s);});
+    var canFinalize=sliceSecs.length>0
+      ? sliceSecs.every(function(s){return getApprovalValue(s)==='approved';})
+      : (SECTIONS.length>0 && approved===SECTIONS.length);
+    var fb=document.getElementById('finalizeBtn');
+    if(fb) fb.disabled=!canFinalize;
+    // Review rail
+    var ra=document.getElementById('railApproved');
+    if(ra) ra.textContent=approved;
+    var rf=document.getElementById('railFill');
+    if(rf) rf.style.width=pct+'%';
+    var frb=document.getElementById('finalizeRailBtn');
+    if(frb) frb.disabled=!canFinalize;
+    updateRailPending();
     updateComments();
+  }
+
+  function updateRailPending(){
+    var list=document.getElementById('railPendingList');
+    if(!list) return;
+    // Keep the "Pending" header strong
+    list.innerHTML='<strong>Pending</strong>';
+    SECTIONS.forEach(function(sec){
+      if(getApprovalValue(sec)!=='approved'){
+        var li=document.createElement('li');
+        var sliceNum=sec.startsWith('slice-')?sec.split('-')[1]:null;
+        var issueCount=0,qCount=0;
+        if(sliceNum){
+          var card=document.getElementById('slice-'+sliceNum);
+          if(card){
+            var issueBadge=card.querySelector('.badge-issues');
+            var qBadge=card.querySelector('.badge-questions');
+            if(issueBadge) issueCount=parseInt(issueBadge.textContent)||0;
+            if(qBadge) qCount=parseInt(qBadge.textContent)||0;
+          }
+        }
+        if(issueCount>0) li.dataset.hasIssues='1';
+        if(qCount>0) li.dataset.hasQuestions='1';
+        var label=sec;
+        if(sliceNum){
+          var nameEl=document.querySelector('#slice-'+sliceNum+' .slice-name');
+          label='Slice '+sliceNum+(nameEl?' ('+nameEl.textContent.trim().substring(0,20)+(nameEl.textContent.trim().length>20?'…':'')+')':'');
+        }
+        if(issueCount>0) label+=' · '+issueCount+' issue'+(issueCount>1?'s':'');
+        if(qCount>0) label+=' · '+qCount+' Q';
+        li.textContent=label;
+        list.appendChild(li);
+      }
+    });
   }
 
   function updateComments(){
@@ -1209,10 +2333,20 @@ var planId=(function(){var a=document.querySelector('article[id]');return a?a.id
     ta.addEventListener('input',function(){clearTimeout(timer);timer=setTimeout(updateComments,400)});
     ta.addEventListener('blur',function(){
       if(planId&&this.value.trim()){
-        fetch((window.htmlgraphPlanBase||'')+'/api/plans/'+planId+'/feedback',{
+        var cSec=this.dataset.section,cVal=this.value.trim();
+        fetch((window.wipnotePlanBase||'')+'/api/plans/'+planId+'/feedback',{
           method:'POST',
           headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({section:this.dataset.section,action:'comment',value:this.value.trim(),question_id:''})
+          body:JSON.stringify({section:cSec,action:'comment',value:cVal,question_id:''})
+        }).then(function(r){
+          if(r.ok) return;
+          return r.text().then(function(body){
+            console.error('[wipnote] feedback POST comment '+cSec+' returned '+r.status+': '+body);
+            showFeedbackError((body&&body.trim())||('HTTP '+r.status+' saving comment'));
+          });
+        }).catch(function(err){
+          console.error('[wipnote] feedback POST comment network error:',err);
+          showFeedbackError('Could not reach server. Is wipnote serve running?');
         });
       }
     });
@@ -1229,7 +2363,7 @@ var planId=(function(){var a=document.querySelector('article[id]');return a?a.id
       btn.disabled=true;
       btn.textContent='Finalizing...';
       finalizeMsg.style.display='none';
-      fetch((window.htmlgraphPlanBase||'')+'/api/plans/'+planId+'/finalize',{
+      fetch((window.wipnotePlanBase||'')+'/api/plans/'+planId+'/finalize',{
         method:'POST',
         headers:{'Content-Type':'application/json'}
       })
@@ -1240,23 +2374,40 @@ var planId=(function(){var a=document.querySelector('article[id]');return a?a.id
             btn.textContent='Plan Finalized';
             btn.style.background='var(--approved)';
             btn.style.color='#fff';
-            if(data&&data.next_steps){
-              var pre=document.createElement('pre');
-              pre.style.cssText='margin-top:12px;padding:10px 14px;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius);font-family:var(--mono);font-size:.78rem;text-align:left;white-space:pre-wrap;word-break:break-all;color:var(--text)';
-              pre.textContent=data.next_steps;
-              finalizeMsg.innerHTML='';
-              finalizeMsg.appendChild(pre);
-            } else {
-              finalizeMsg.textContent='Plan finalized successfully.';
+            // Render the same rich result as the dashboard review rail: created
+            // features + the agentic next/yolo commands (data.next_command /
+            // data.yolo_command — NOT the legacy data.next_steps, which the
+            // backend never returns).
+            data=data||{};
+            var preCss='margin:4px 0 0;padding:8px 12px;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius);font-family:var(--mono);font-size:.76rem;text-align:left;white-space:pre-wrap;word-break:break-all;color:var(--text);user-select:text';
+            var html='<span style="color:var(--approved);font-weight:600">Plan finalized.</span>';
+            var feats=data.created_features||[];
+            if(feats.length){
+              html+='<div style="margin-top:8px;font-size:.78rem;color:var(--text-muted)">Features created ('+feats.length+'):</div>';
+              html+='<ul style="margin:4px 0 0;padding-left:18px;font-size:.78rem;font-family:var(--mono);color:var(--text-muted)">';
+              feats.forEach(function(f){html+='<li>'+escHtml(f)+'</li>';});
+              html+='</ul>';
             }
-            finalizeMsg.style.color='var(--approved)';
+            if(data.failures&&data.failures.length){
+              html+='<div style="margin-top:6px;font-size:.78rem;color:var(--blocked)">'+data.failures.length+' slice(s) failed to create — see server log.</div>';
+            }
+            if(data.next_command){
+              html+='<div style="margin-top:8px;font-size:.76rem;color:var(--text-muted)">Next — agentic generation (integrates review feedback):</div>';
+              html+='<pre style="'+preCss+'">'+escHtml(data.next_command)+'</pre>';
+            }
+            if(data.yolo_command){
+              html+='<div style="margin-top:6px;font-size:.76rem;color:var(--text-muted)">Or autonomous mode:</div>';
+              html+='<pre style="'+preCss+'">'+escHtml(data.yolo_command)+'</pre>';
+            }
+            finalizeMsg.innerHTML=html;
+            finalizeMsg.style.color='';
             finalizeMsg.style.display='block';
           });
         } else {
-          return r.json().then(function(data){
+          return r.text().then(function(body){
             btn.textContent='Finalize Plan';
             btn.disabled=false;
-            finalizeMsg.textContent=data.error||'Not all sections approved.';
+            finalizeMsg.textContent=body||'Not all sections approved.';
             finalizeMsg.style.color='var(--blocked)';
             finalizeMsg.style.display='block';
           });
@@ -1265,29 +2416,74 @@ var planId=(function(){var a=document.querySelector('article[id]');return a?a.id
       .catch(function(){
         btn.textContent='Finalize Plan';
         btn.disabled=false;
-        finalizeMsg.textContent='Could not reach server. Is htmlgraph serve running?';
+        finalizeMsg.textContent='Could not reach server. Is wipnote serve running?';
         finalizeMsg.style.color='var(--revision)';
         finalizeMsg.style.display='block';
       });
     });
   }
 
+  // Wire the rail finalize button to the same handler
+  var finalizeRailBtn=document.getElementById('finalizeRailBtn');
+  if(finalizeRailBtn){
+    finalizeRailBtn.addEventListener('click',function(){
+      var mainBtn=document.getElementById('finalizeBtn');
+      if(mainBtn) mainBtn.click();
+    });
+  }
+
+  // _loadingFeedback: true while loadExistingFeedback is hydrating controls
+  // from the server GET. handleApprovalChange skips POST during this window
+  // to avoid echoing server state back as new writes.
+  var _loadingFeedback=false;
+
   function loadExistingFeedback(){
     if(!planId){return;}
-    fetch((window.htmlgraphPlanBase||'')+'/api/plans/'+planId+'/feedback')
+    fetch((window.wipnotePlanBase||'')+'/api/plans/'+planId+'/feedback')
       .then(function(r){return r.ok?r.json():null;})
       .then(function(data){
         if(!data){return;}
+        _loadingFeedback=true;
         if(data.sections){
           Object.keys(data.sections).forEach(function(sec){
             var info=data.sections[sec];
-            if(info.approved){
-              var cb=document.querySelector('input[data-section="'+sec+'"][data-action="approve"]');
-              if(cb&&!cb.checked){cb.checked=true;cb.dispatchEvent(new Event('change'));}
+            if(info.approved||info.value){
+              var val=info.value||'approved';
+              // Record server-confirmed state so revert logic has a baseline.
+              approvalServerState[sec]=val;
+              // Try radio first (slice controls)
+              var radio=document.querySelector('input[type="radio"][data-section="'+sec+'"][data-action="approve"][value="'+val+'"]');
+              if(radio&&!radio.checked){radio.checked=true;radio.dispatchEvent(new Event('change'));}
+              else if(val==='approved'||val==='true'){
+                // Fallback checkbox (design, outline)
+                var cb=document.querySelector('input[type="checkbox"][data-section="'+sec+'"][data-action="approve"]');
+                if(cb&&!cb.checked){cb.checked=true;cb.dispatchEvent(new Event('change'));}
+              }
+            } else {
+              // Section exists in server data but is not approved — record as
+              // 'pending' so a subsequent approval revert has a valid baseline.
+              approvalServerState[sec]='pending';
+              // If baked HTML had this section checked (stale render), clear it.
+              var radio=document.querySelector('input[type="radio"][data-section="'+sec+'"][data-action="approve"][value="pending"]');
+              if(radio&&!radio.checked){radio.checked=true;radio.dispatchEvent(new Event('change'));}
+              else {
+                document.querySelectorAll('input[type="radio"][data-section="'+sec+'"][data-action="approve"]').forEach(function(r){
+                  if(r.checked){r.checked=false;r.dispatchEvent(new Event('change'));}
+                });
+                var cbPend=document.querySelector('input[type="checkbox"][data-section="'+sec+'"][data-action="approve"]');
+                if(cbPend&&cbPend.checked){cbPend.checked=false;cbPend.dispatchEvent(new Event('change'));}
+              }
             }
             if(info.comment){
+              // Comment textarea is inside a details.comment-collapse — open it first
               var ta=document.querySelector('textarea[data-section="'+sec+'"]');
-              if(ta) ta.value=info.comment;
+              if(ta){
+                ta.value=info.comment;
+                var collapse=ta.closest('details.comment-collapse');
+                if(collapse) collapse.open=true;
+                var trigger=collapse&&collapse.querySelector('.comment-collapse-trigger');
+                if(trigger) trigger.textContent='Edit comment';
+              }
             }
           });
         }
@@ -1298,109 +2494,43 @@ var planId=(function(){var a=document.querySelector('article[id]');return a?a.id
             if(radio&&!radio.checked){radio.checked=true;radio.dispatchEvent(new Event('change'));}
           });
         }
+        _loadingFeedback=false;
         updateProgress();
       })
-      .catch(function(){});
+      .catch(function(){
+        _loadingFeedback=false;
+      });
   }
 
   loadExistingFeedback();
 
+  // Recolor a graph node when its slice is approved/rejected in the browser.
+  // The committed SVG already carries the status the plan was rendered with;
+  // this only keeps the picture honest for edits made since the page loaded.
+  // Both the class and the rect's stroke are theme tokens, never literal
+  // colors, so the node stays correct if the reader flips light/dark.
+  var GRAPH_STATUS_TOKENS={pending:'var(--pending)',approved:'var(--approved)',revision:'var(--revision)',discuss:'var(--discuss)',blocked:'var(--blocked)'};
   document.querySelectorAll('input[data-action="approve"]').forEach(function(cb){
     cb.addEventListener('change',function(){
       var sec=this.dataset.section;
-      if(sec.startsWith('slice-')){
-        var n=sec.split('-')[1];
-        var nodeRect=d3.select('#dep-graph-svg .node[id="'+n+'"] rect');
-        if(!nodeRect.empty()){
-          var color=this.checked?'#16a34a':'#6b7280';
-          var cs=getComputedStyle(document.querySelector('.dep-graph')||document.documentElement);
-          nodeRect.style('stroke',color).style('fill',cs.getPropertyValue('--bg-input').trim()||'#222228');
-        }
-      }
+      if(!(sec.startsWith('slice-')&&sec.split('-').length===2)) return;
+      var n=sec.split('-')[1];
+      var group=document.getElementById('graph-node-'+n);
+      if(!group) return;
+      var rect=group.querySelector('.dep-node-box');
+      if(!rect) return;
+      var val=getApprovalValue(sec);
+      var graphStatus=val==='approved'?'approved':val==='rejected'||val==='changes_requested'?'revision':val==='discuss'?'discuss':val==='blocked'?'blocked':'pending';
+      group.setAttribute('class','dep-node dep-node-'+graphStatus);
+      rect.setAttribute('stroke',GRAPH_STATUS_TOKENS[graphStatus]||GRAPH_STATUS_TOKENS.pending);
     });
   });
 })();
 
-// Render dagre-d3 dependency graph
-(function(){
-  'use strict';
-
-  var STATUS_COLORS={pending:'#6b7280',approved:'#16a34a',revision:'#f59e0b',discuss:'#8b5cf6',blocked:'#dc2626'};
-
-  function renderGraph(){
-    var container=document.getElementById('graph-data');
-    if(!container) return;
-
-    var g=new dagreD3.graphlib.Graph().setGraph({rankdir:'TB',marginx:24,marginy:24,ranksep:48,nodesep:32});
-    g.setDefaultEdgeLabel(function(){return{};});
-
-    var nodes=container.querySelectorAll('[data-node]');
-    nodes.forEach(function(el){
-      var id=el.dataset.node;
-      var name=el.dataset.name;
-      var files=el.dataset.files;
-      var status=el.dataset.status||'pending';
-      g.setNode(id,{
-        label: name+'\n'+files+' files',
-        rx: 6,
-        ry: 6,
-        paddingX: 36,
-        paddingY: 16,
-        status: status
-      });
-    });
-
-    nodes.forEach(function(el){
-      var id=el.dataset.node;
-      var deps=el.dataset.deps?el.dataset.deps.split(',').map(function(d){return d.trim();}).filter(Boolean):[];
-      deps.forEach(function(dep){g.setEdge(dep,id);});
-    });
-
-    var svg=d3.select('#dep-graph-svg');
-    var inner=svg.append('g');
-    var render=new dagreD3.render();
-    render(inner,g);
-
-    // Read CSS vars from the plan container so graph respects light/dark theme
-    var cs=getComputedStyle(document.querySelector('.dep-graph')||document.documentElement);
-    var nodeFill=cs.getPropertyValue('--bg-input').trim()||'#222228';
-    var nodeText=cs.getPropertyValue('--text').trim()||'#ededea';
-    var edgeColor=cs.getPropertyValue('--text-muted').trim()||'#707070';
-
-    inner.selectAll('g.node').each(function(id){
-      var nodeData=g.node(id);
-      var status=nodeData?nodeData.status:'pending';
-      var color=STATUS_COLORS[status]||STATUS_COLORS.pending;
-      d3.select(this).select('rect')
-        .style('fill',nodeFill)
-        .style('stroke',color)
-        .style('stroke-width','2px');
-      d3.select(this).select('text').style('fill',nodeText).style('font-size','13px');
-    });
-
-    inner.selectAll('g.edgePath path')
-      .style('stroke',edgeColor)
-      .style('stroke-dasharray','4 3')
-      .style('fill','none');
-    inner.selectAll('g.edgePath marker path')
-      .style('fill','#707070');
-
-    var svgEl=document.getElementById('dep-graph-svg');
-    var graphWidth=g.graph().width;
-    var graphHeight=g.graph().height;
-    var pad=24;
-    inner.attr('transform','translate('+pad+','+pad+')');
-    svgEl.setAttribute('width',graphWidth+pad*2);
-    svgEl.setAttribute('height',graphHeight+pad*2);
-    svgEl.removeAttribute('viewBox');
-  }
-
-  if(document.readyState==='loading'){
-    document.addEventListener('DOMContentLoaded',renderGraph);
-  } else {
-    renderGraph();
-  }
-})();
+// The client-side graph renderer that used to live here is gone; the graph is
+// server-rendered as a static inline SVG. Node navigation is a plain
+// <a href="#slice-N"> and hover feedback is pure CSS, so the graph works with
+// scripting disabled and in any viewer that will not run JS.
 
 // Chat panel
 // Global markdown renderer — shared by chat bubbles and data-markdown elements
@@ -1491,7 +2621,7 @@ function renderMd(text){
 
   // Load previous messages directly into the chat thread.
   if(planId){
-    fetch((window.htmlgraphPlanBase||'')+'/api/plans/'+planId+'/feedback')
+    fetch((window.wipnotePlanBase||'')+'/api/plans/'+planId+'/feedback')
       .then(function(r){return r.ok?r.json():null;})
       .then(function(data){
         if(!data||!data.chat_messages||!data.chat_messages.length) return;
@@ -1518,7 +2648,7 @@ function renderMd(text){
     chatMessages.appendChild(assistantBubble);
     var rawResponse='';
 
-    fetch((window.htmlgraphPlanBase||'')+'/api/plans/'+planId+'/chat',{
+    fetch((window.wipnotePlanBase||'')+'/api/plans/'+planId+'/chat',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({message:text})
@@ -1611,34 +2741,28 @@ function renderMd(text){
   update();
 })();
 
-// Chat sidebar drag-resize
+// Left nav collapse toggle
 (function(){
-  var handle=document.getElementById('chat-resize-handle');
-  var sidebar=document.getElementById('chat-sidebar');
-  if(!handle||!sidebar) return;
-  var startX,startW;
-  handle.addEventListener('mousedown',function(e){
-    e.preventDefault();
-    startX=e.clientX;
-    startW=sidebar.offsetWidth;
-    handle.classList.add('dragging');
-    document.body.style.cursor='col-resize';
-    document.body.style.userSelect='none';
-    function onMove(e){
-      var delta=startX-e.clientX;
-      var newW=Math.max(280,Math.min(600,startW+delta));
-      sidebar.style.width=newW+'px';
-    }
-    function onUp(){
-      handle.classList.remove('dragging');
-      document.body.style.cursor='';
-      document.body.style.userSelect='';
-      document.removeEventListener('mousemove',onMove);
-      document.removeEventListener('mouseup',onUp);
-    }
-    document.addEventListener('mousemove',onMove);
-    document.addEventListener('mouseup',onUp);
-  });
+  'use strict';
+  var KEY_L='wipnote-plan-left-collapsed';
+  var body=document.body;
+  var btnL=document.getElementById('left-sidebar-toggle');
+
+  function applyLeft(collapsed){
+    body.classList.toggle('left-nav-collapsed',collapsed);
+    if(btnL) btnL.textContent=collapsed?'›':'‹';
+    if(btnL) btnL.title=collapsed?'Expand sidebar':'Collapse sidebar';
+  }
+
+  applyLeft(localStorage.getItem(KEY_L)==='1');
+
+  if(btnL){
+    btnL.addEventListener('click',function(){
+      var collapsed=!body.classList.contains('left-nav-collapsed');
+      applyLeft(collapsed);
+      localStorage.setItem(KEY_L,collapsed?'1':'0');
+    });
+  }
 })();
 
 
@@ -1662,7 +2786,7 @@ syncHljsTheme();
     var planEl=document.querySelector('[data-plan-id]');
     if(!planEl)return;
     var id=planEl.getAttribute('data-plan-id');
-    fetch((window.htmlgraphPlanBase||'')+'/api/plans/'+id+'/yaml')
+    fetch((window.wipnotePlanBase||'')+'/api/plans/'+id+'/yaml')
       .then(function(r){if(!r.ok)throw new Error('err');return r.text();})
       .then(function(t){
         codeEl.textContent=t;
@@ -1713,7 +2837,7 @@ syncHljsTheme();
     summary.textContent=selects.length+' amendments — '+accepted+' accepted, '+pending+' pending';
   }
 
-  fetch((window.htmlgraphPlanBase||'')+'/api/plans/'+planId+'/amendments')
+  fetch((window.wipnotePlanBase||'')+'/api/plans/'+planId+'/amendments')
     .then(function(r){return r.json();})
     .then(function(amendments){
       if(!amendments||!amendments.length)return;
@@ -1736,7 +2860,7 @@ syncHljsTheme();
           sel.appendChild(opt);
         });
         sel.addEventListener('change',function(){
-          fetch((window.htmlgraphPlanBase||'')+'/api/plans/'+planId+'/feedback',{
+          fetch((window.wipnotePlanBase||'')+'/api/plans/'+planId+'/feedback',{
             method:'POST',
             headers:{'Content-Type':'application/json'},
             body:JSON.stringify({
