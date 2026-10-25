@@ -28,7 +28,7 @@ var (
 // sequence of steps. Every other skill is a workflow and must offer a checklist
 // Claude can copy and tick off ("Use workflows for complex tasks").
 var skillsWithoutWorkflow = map[string]bool{
-	"skills":                        true,
+	"skills": true,
 }
 
 type skillFrontmatter struct {
