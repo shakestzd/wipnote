@@ -1,7 +1,6 @@
 package main
 
 import (
-	"database/sql"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -10,9 +9,10 @@ import (
 	"github.com/shakestzd/wipnote/core/hooks"
 )
 
-// TestHookSubcmd_PassesNoDatabase pins that the hook dispatcher hands its
-// handler no database at all (feat-af8d1689, feat-174dc958).
-func TestHookSubcmd_PassesNoDatabase(t *testing.T) {
+// TestHookSubcmd_CallsHandler pins that the hook dispatcher runs its handler
+// for a wipnote project. Handlers take no database at all (feat-174dc958,
+// feat-726637b8); the signature enforces that.
+func TestHookSubcmd_CallsHandler(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
 	t.Setenv("XDG_CACHE_HOME", filepath.Join(home, ".cache"))
@@ -29,10 +29,9 @@ func TestHookSubcmd_PassesNoDatabase(t *testing.T) {
 	withStdin(t, payload)
 
 	called := false
-	var got *sql.DB
 	cmd := hookSubcmd("pretooluse", "test", &hooks.HookResult{},
-		func(_ *hooks.CloudEvent, database *sql.DB) (*hooks.HookResult, error) {
-			called, got = true, database
+		func(_ *hooks.CloudEvent) (*hooks.HookResult, error) {
+			called = true
 			return &hooks.HookResult{}, nil
 		})
 	devNull, _ := os.OpenFile(os.DevNull, os.O_WRONLY, 0)
@@ -46,9 +45,6 @@ func TestHookSubcmd_PassesNoDatabase(t *testing.T) {
 	}
 	if !called {
 		t.Fatal("handler was not called")
-	}
-	if got != nil {
-		t.Fatal("hook dispatch opened a database handle; it must pass nil")
 	}
 }
 

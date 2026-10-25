@@ -32,7 +32,7 @@ func TestEventTree_SessionFamilyGrouping(t *testing.T) {
 	t.Setenv("CLAUDE_ENV_FILE", "")
 
 	event := &CloudEvent{SessionID: rootID, CWD: projectDir}
-	if _, err := SessionStart(event, database, projectDir); err != nil {
+	if _, err := SessionStart(event, projectDir); err != nil {
 		t.Fatalf("SessionStart (root): %v", err)
 	}
 
@@ -40,7 +40,7 @@ func TestEventTree_SessionFamilyGrouping(t *testing.T) {
 	resumedID := "resumed-session-family-test-001"
 	t.Setenv("WIPNOTE_SESSION_FAMILY_ID", familyID)
 	event2 := &CloudEvent{SessionID: resumedID, CWD: projectDir}
-	if _, err := SessionStart(event2, database, projectDir); err != nil {
+	if _, err := SessionStart(event2, projectDir); err != nil {
 		t.Fatalf("SessionStart (resumed): %v", err)
 	}
 
@@ -78,7 +78,7 @@ func TestSessionStart_FamilyFallback(t *testing.T) {
 	t.Setenv("CLAUDE_ENV_FILE", "")
 
 	event := &CloudEvent{SessionID: sessID, CWD: projectDir}
-	if _, err := SessionStart(event, database, projectDir); err != nil {
+	if _, err := SessionStart(event, projectDir); err != nil {
 		t.Fatalf("SessionStart: %v", err)
 	}
 

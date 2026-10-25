@@ -101,7 +101,7 @@ func failTool(t *testing.T, h *splitDBHarness, sessionID, toolUseID string) {
 	t.Helper()
 	ev := &CloudEvent{SessionID: sessionID, CWD: h.projectDir, ToolName: "Read", ToolUseID: toolUseID,
 		ToolResult: map[string]any{"error": "boom"}}
-	if _, err := PostToolUseFailure(ev, nil); err != nil {
+	if _, err := PostToolUseFailure(ev); err != nil {
 		t.Fatalf("PostToolUseFailure: %v", err)
 	}
 }

@@ -12,7 +12,7 @@ func TestSessionFamilyMigration_IdempotentAddColumn(t *testing.T) {
 	dbPath := filepath.Join(dir, "wipnote.db")
 
 	// First open runs all migrations including session_family_id.
-	db1, err := Open(dbPath)
+	db1, err := openTestDB(dbPath)
 	if err != nil {
 		t.Fatalf("first Open: %v", err)
 	}
@@ -32,7 +32,7 @@ func TestSessionFamilyMigration_IdempotentAddColumn(t *testing.T) {
 	db1.Close()
 
 	// Second open should be idempotent (no dup column errors).
-	db2, err := Open(dbPath)
+	db2, err := openTestDB(dbPath)
 	if err != nil {
 		t.Fatalf("second Open (idempotency check): %v", err)
 	}

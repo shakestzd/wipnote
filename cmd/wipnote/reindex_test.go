@@ -9,13 +9,13 @@ import (
 	"testing"
 	"time"
 
-	dbpkg "github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/db/dbtest"
 )
 
 // openReindexTestDB creates an in-memory SQLite database with the full schema.
 func openReindexTestDB(t *testing.T) *sql.DB {
 	t.Helper()
-	database, err := dbpkg.Open(":memory:")
+	database, err := dbtest.Open(":memory:")
 	if err != nil {
 		t.Fatalf("open test db: %v", err)
 	}

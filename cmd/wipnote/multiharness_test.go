@@ -251,7 +251,7 @@ func TestParallelHarnessLineage(t *testing.T) {
 	t.Setenv("WIPNOTE_SESSION_FAMILY_ID", "")
 
 	dbPath := filepath.Join(t.TempDir(), "parallel.db")
-	database, err := dbpkg.Open(dbPath)
+	database, err := dbtest.Open(dbPath)
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
@@ -280,7 +280,7 @@ func TestParallelHarnessLineage(t *testing.T) {
 			ProjectDir:      canonicalProject,
 			ActiveFeatureID: featureID,
 		}
-		if err := dbpkg.UpsertSession(database, sess); err != nil {
+		if err := dbtest.UpsertSession(database, sess); err != nil {
 			t.Fatalf("UpsertSession %s: %v", r.sid, err)
 		}
 		if err := dbtest.SetSessionFamilyID(database, r.sid, familyID); err != nil {
@@ -299,7 +299,7 @@ func TestParallelHarnessLineage(t *testing.T) {
 		ParentSessionID: "sess-claude-root",
 		IsSubagent:      true,
 	}
-	if err := dbpkg.UpsertSession(database, subSess); err != nil {
+	if err := dbtest.UpsertSession(database, subSess); err != nil {
 		t.Fatalf("UpsertSession subagent: %v", err)
 	}
 

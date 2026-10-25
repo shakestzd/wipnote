@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/db/dbtest"
 	"github.com/shakestzd/wipnote/core/models"
 )
 
@@ -27,7 +27,7 @@ func TestSessionEnd_DoesNotFinalizeHTML(t *testing.T) {
 	t.Setenv("CLAUDE_PROJECT_DIR", "")
 	t.Setenv("WIPNOTE_PROJECT_DIR", projectDir)
 
-	if err := db.UpsertSession(database, &models.Session{
+	if err := dbtest.UpsertSession(database, &models.Session{
 		SessionID:     sessionID,
 		AgentAssigned: "claude-code",
 		Status:        "active",
@@ -51,7 +51,7 @@ func TestSessionEnd_DoesNotFinalizeHTML(t *testing.T) {
 	}
 
 	evt := &CloudEvent{SessionID: sessionID, CWD: projectDir}
-	if _, err := SessionEnd(evt, database, projectDir); err != nil {
+	if _, err := SessionEnd(evt, projectDir); err != nil {
 		t.Fatalf("SessionEnd: %v", err)
 	}
 

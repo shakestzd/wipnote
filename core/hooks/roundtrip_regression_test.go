@@ -25,7 +25,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/db/dbtest"
 	"github.com/shakestzd/wipnote/core/models"
 	"github.com/shakestzd/wipnote/core/paths"
 	worktreepkg "github.com/shakestzd/wipnote/core/worktree"
@@ -120,7 +120,7 @@ func TestWorktreeRoundTripRegressionGate(t *testing.T) {
 	// A stub daemon applies SessionStart's routed writes to this handle's file
 	// (hooks have no fallback). See openWipnoteTestDB.
 	t.Setenv("WIPNOTE_DB_PATH", dbPath)
-	database, err := db.Open(dbPath)
+	database, err := dbtest.Open(dbPath)
 	if err != nil {
 		t.Fatalf("db.Open: %v", err)
 	}
@@ -132,7 +132,7 @@ func TestWorktreeRoundTripRegressionGate(t *testing.T) {
 	// Seed a parent session for FK and env-var dependencies.
 	// ------------------------------------------------------------------
 	parentSessionID := "test-roundtrip-parent-001"
-	if err := db.UpsertSession(database, &models.Session{
+	if err := dbtest.UpsertSession(database, &models.Session{
 		SessionID:     parentSessionID,
 		AgentAssigned: "claude-code",
 		Status:        "active",
@@ -182,7 +182,7 @@ func TestWorktreeRoundTripRegressionGate(t *testing.T) {
 		SessionID: sessionID,
 		CWD:       linkedWt,
 	}
-	if _, err := SessionStart(sessionEvent, database, mainRepo); err != nil {
+	if _, err := SessionStart(sessionEvent, mainRepo); err != nil {
 		t.Fatalf("SessionStart: %v", err)
 	}
 
@@ -210,7 +210,7 @@ func TestWorktreeRoundTripRegressionGate(t *testing.T) {
 		AgentType: "feature-coder",
 		CWD:       linkedWt,
 	}
-	if _, err := SubagentStart(subagentEvent, database); err != nil {
+	if _, err := SubagentStart(subagentEvent); err != nil {
 		t.Fatalf("SubagentStart: %v", err)
 	}
 
@@ -228,7 +228,7 @@ func TestWorktreeRoundTripRegressionGate(t *testing.T) {
 		WorktreeBasePath: worktreeBasePath,
 		WorktreeName:     worktreeName,
 	}
-	createdWorktreePath, err := WorktreeCreate(worktreeEvent, database)
+	createdWorktreePath, err := WorktreeCreate(worktreeEvent)
 	if err != nil {
 		t.Fatalf("WorktreeCreate: %v", err)
 	}

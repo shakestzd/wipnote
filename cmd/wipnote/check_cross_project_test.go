@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	dbpkg "github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/db/dbtest"
 	"github.com/shakestzd/wipnote/core/models"
 )
 
@@ -21,7 +21,7 @@ func setupCrossProjectDB(t *testing.T) (string, *sql.DB) {
 	if err := os.MkdirAll(hgDir, 0o755); err != nil {
 		t.Fatalf("create .wipnote dir: %v", err)
 	}
-	database, err := dbpkg.Open(filepath.Join(hgDir, "wipnote.db"))
+	database, err := dbtest.Open(filepath.Join(hgDir, "wipnote.db"))
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
@@ -38,7 +38,7 @@ func insertTestSession(t *testing.T, database *sql.DB, id, projectDir, gitRemote
 		ProjectDir:    projectDir,
 		GitRemoteURL:  gitRemoteURL,
 	}
-	if err := dbpkg.UpsertSession(database, s); err != nil {
+	if err := dbtest.UpsertSession(database, s); err != nil {
 		t.Fatalf("insert session %s: %v", id, err)
 	}
 }

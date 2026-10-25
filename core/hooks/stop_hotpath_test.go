@@ -101,7 +101,7 @@ func TestStop_WarmDB_NoLock_UnderOneSecond(t *testing.T) {
 	}
 
 	start := time.Now()
-	if _, err := Stop(event, td.DB); err != nil {
+	if _, err := Stop(event); err != nil {
 		t.Fatalf("Stop returned error on warm uncontended path: %v", err)
 	}
 	elapsed := time.Since(start)
@@ -129,7 +129,7 @@ func TestStop_DoesNotCommitDoneArtifacts_OnHotPath(t *testing.T) {
 	}
 
 	event := &CloudEvent{SessionID: sessionID, CWD: projectDir, LastAssistantMessage: "done"}
-	if _, err := Stop(event, td.DB); err != nil {
+	if _, err := Stop(event); err != nil {
 		t.Fatalf("Stop: %v", err)
 	}
 
@@ -157,7 +157,7 @@ func TestReconcileDrain_DeferredAutoCommit_Completes(t *testing.T) {
 	}
 
 	// The serve-side drain performs the deterministic auto-commit off the hot path.
-	committed := ReconcileDoneButUncommittedForProject(td.DB, projectDir)
+	committed := ReconcileDoneButUncommittedForProject(projectDir)
 	if len(committed) != nDone {
 		t.Fatalf("deferred drain committed %d items, expected %d: %v", len(committed), nDone, committed)
 	}
@@ -169,7 +169,7 @@ func TestReconcileDrain_DeferredAutoCommit_Completes(t *testing.T) {
 	}
 
 	// Idempotent: a second drain commits nothing (no wedge, no HEAD churn).
-	if again := ReconcileDoneButUncommittedForProject(td.DB, projectDir); len(again) != 0 {
+	if again := ReconcileDoneButUncommittedForProject(projectDir); len(again) != 0 {
 		t.Fatalf("second deferred drain re-committed %v; must be a no-op", again)
 	}
 }

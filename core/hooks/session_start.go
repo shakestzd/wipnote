@@ -1,7 +1,6 @@
 package hooks
 
 import (
-	"database/sql"
 	"encoding/base64"
 	"os"
 	"path/filepath"
@@ -35,9 +34,9 @@ func bareLaunchNudge(projectDir string) string {
 }
 
 // SessionStart handles the SessionStart Claude Code hook event.
-// It upserts a session row in SQLite and writes environment variables for
-// downstream hooks via CLAUDE_ENV_FILE.
-func SessionStart(event *CloudEvent, database *sql.DB, projectDir string) (*HookResult, error) {
+// It records the session in canonical files and writes environment variables
+// for downstream hooks via CLAUDE_ENV_FILE.
+func SessionStart(event *CloudEvent, projectDir string) (*HookResult, error) {
 	handlerStart := time.Now()
 
 	// Install .wipnote/.gitignore on every session start (harness-neutral, idempotent).
@@ -56,7 +55,6 @@ func SessionStart(event *CloudEvent, database *sql.DB, projectDir string) (*Hook
 
 	startCommit := bootstrapSessionStart(event, projectDir, sessionID)
 	s := newStartedSession(event, projectDir, sessionID, now, startCommit)
-	_ = database
 	persistStartedSession(projectDir, sessionID, s)
 
 	LogTimed(projectDir, "session-start", map[string]string{

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/db/dbtest"
 	"github.com/shakestzd/wipnote/core/models"
 )
 
@@ -30,7 +31,7 @@ func setupTestDB(t *testing.T) *testDB {
 
 	dbPath := filepath.Join(t.TempDir(), "wipnote.db")
 	t.Setenv("WIPNOTE_DB_PATH", dbPath)
-	database, err := db.Open(dbPath)
+	database, err := dbtest.Open(dbPath)
 	if err != nil {
 		t.Fatalf("db.Open: %v", err)
 	}
@@ -44,7 +45,7 @@ func setupTestDB(t *testing.T) *testDB {
 		Status:        "active",
 		Model:         "sonnet-4",
 	}
-	if err := db.UpsertSession(database, sess); err != nil {
+	if err := dbtest.UpsertSession(database, sess); err != nil {
 		t.Fatalf("UpsertSession: %v", err)
 	}
 
@@ -114,7 +115,7 @@ func TestUserPrompt_EmptyPrompt(t *testing.T) {
 	defer os.Unsetenv("WIPNOTE_SESSION_ID")
 
 	event := &CloudEvent{SessionID: "test-sess", Prompt: ""}
-	result, err := UserPrompt(event, td.DB)
+	result, err := UserPrompt(event)
 	if err != nil {
 		t.Fatalf("UserPrompt: %v", err)
 	}
@@ -133,7 +134,7 @@ func TestUserPrompt_NoActiveNoOneliner(t *testing.T) {
 	td.addFeature("feat-aaa", "feature", "Auth System", "in-progress")
 	// Don't set active feature
 	event := &CloudEvent{SessionID: "test-sess", Prompt: "can you investigate the performance bottleneck?"}
-	result, err := UserPrompt(event, td.DB)
+	result, err := UserPrompt(event)
 	if err != nil {
 		t.Fatalf("UserPrompt: %v", err)
 	}
@@ -153,7 +154,7 @@ func TestBuildActiveItemOneLiner_WithoutTitle(t *testing.T) {
 	defer td.DB.Close()
 
 	td.addFeature("feat-001", "feature", "", "in-progress")
-	hint := buildActiveItemOneLiner(td.DB, "", "feat-001")
+	hint := buildActiveItemOneLiner("", "feat-001")
 
 	expected := "ACTIVE: feat-001"
 	if hint != expected {
@@ -165,7 +166,7 @@ func TestBuildActiveItemOneLiner_NotFound(t *testing.T) {
 	td := setupTestDB(t)
 	defer td.DB.Close()
 
-	hint := buildActiveItemOneLiner(td.DB, "", "nonexistent-id")
+	hint := buildActiveItemOneLiner("", "nonexistent-id")
 	expected := "ACTIVE: nonexistent-id"
 	if hint != expected {
 		t.Errorf("expected %q, got %q", expected, hint)
@@ -176,7 +177,7 @@ func TestBuildActiveItemOneLiner_Empty(t *testing.T) {
 	td := setupTestDB(t)
 	defer td.DB.Close()
 
-	hint := buildActiveItemOneLiner(td.DB, "", "")
+	hint := buildActiveItemOneLiner("", "")
 	if hint != "" {
 		t.Errorf("expected empty string for empty ID, got %q", hint)
 	}
@@ -204,7 +205,7 @@ func TestUserPrompt_PerTurnContextCases(t *testing.T) {
 			if tc.claim {
 				openCanonicalClaim(t, filepath.Join(projectDir, ".wipnote"), sid, sid, "claude-code", "spk-0a0b0c0d")
 			}
-			res, err := UserPrompt(&CloudEvent{SessionID: sid, CWD: projectDir, Prompt: tc.prompt}, nil)
+			res, err := UserPrompt(&CloudEvent{SessionID: sid, CWD: projectDir, Prompt: tc.prompt})
 			if err != nil {
 				t.Fatalf("UserPrompt: %v", err)
 			}

@@ -14,7 +14,6 @@ import (
 	"github.com/shakestzd/wipnote/core/db/dbtest"
 
 	"github.com/PuerkitoBio/goquery"
-	dbpkg "github.com/shakestzd/wipnote/core/db"
 	"github.com/shakestzd/wipnote/core/hooks"
 	"github.com/shakestzd/wipnote/core/ingest"
 	"github.com/shakestzd/wipnote/core/models"
@@ -33,7 +32,7 @@ func setupRoundTripEnv(t *testing.T) (projectDir, wipnoteDir, dbPath string) {
 	}
 	dbPath = filepath.Join(wipnoteDir, "wipnote.db")
 
-	database, err := dbpkg.Open(dbPath)
+	database, err := dbtest.Open(dbPath)
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
@@ -47,7 +46,7 @@ func setupRoundTripEnv(t *testing.T) (projectDir, wipnoteDir, dbPath string) {
 func TestSessionRoundTrip_IngestThenReindex(t *testing.T) {
 	_, wipnoteDir, dbPath := setupRoundTripEnv(t)
 
-	database, err := dbpkg.Open(dbPath)
+	database, err := dbtest.Open(dbPath)
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
@@ -74,7 +73,7 @@ func TestSessionRoundTrip_IngestThenReindex(t *testing.T) {
 		CreatedAt:     msgTs,
 		Status:        "completed",
 	}
-	if err := dbpkg.UpsertSession(database, sess); err != nil {
+	if err := dbtest.UpsertSession(database, sess); err != nil {
 		t.Fatalf("UpsertSession: %v", err)
 	}
 	if err := hooks.RenderIngestedSessionHTML(wipnoteDir, sessionID, "/src/project", result, false); err != nil {
@@ -113,7 +112,7 @@ func TestSessionRoundTrip_IngestThenReindex(t *testing.T) {
 func TestSessionRoundTrip_OrphanSweepReindexesAsAborted(t *testing.T) {
 	projectDir, wipnoteDir, dbPath := setupRoundTripEnv(t)
 
-	database, err := dbpkg.Open(dbPath)
+	database, err := dbtest.Open(dbPath)
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
@@ -126,7 +125,7 @@ func TestSessionRoundTrip_OrphanSweepReindexesAsAborted(t *testing.T) {
 		CreatedAt:     time.Now().UTC(),
 		Status:        "active",
 	}
-	if err := dbpkg.UpsertSession(database, sess); err != nil {
+	if err := dbtest.UpsertSession(database, sess); err != nil {
 		t.Fatalf("UpsertSession: %v", err)
 	}
 	hooks.CreateSessionHTML(projectDir, sess)
@@ -166,7 +165,7 @@ func TestSessionRoundTrip_OrphanSweepReindexesAsAborted(t *testing.T) {
 func TestSessionRoundTrip_ConcurrentWriters(t *testing.T) {
 	projectDir, wipnoteDir, dbPath := setupRoundTripEnv(t)
 
-	database, err := dbpkg.Open(dbPath)
+	database, err := dbtest.Open(dbPath)
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
@@ -179,7 +178,7 @@ func TestSessionRoundTrip_ConcurrentWriters(t *testing.T) {
 		CreatedAt:     time.Now().UTC(),
 		Status:        "active",
 	}
-	if err := dbpkg.UpsertSession(database, sess); err != nil {
+	if err := dbtest.UpsertSession(database, sess); err != nil {
 		t.Fatalf("UpsertSession: %v", err)
 	}
 	hooks.CreateSessionHTML(projectDir, sess)

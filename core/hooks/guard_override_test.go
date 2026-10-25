@@ -36,7 +36,7 @@ func TestPreToolUse_GuardsOff_RecordsOverrideAndAllows(t *testing.T) {
 		ToolInput: map[string]any{"command": "rm -rf .wipnote/features/feat-abc.html"},
 		ToolUseID: "guards-off-call",
 	}
-	result, err := PreToolUse(event, nil)
+	result, err := PreToolUse(event)
 	if err != nil {
 		t.Fatalf("PreToolUse: %v", err)
 	}
@@ -74,7 +74,7 @@ func TestPreToolUse_GuardsOff_NilDB_DoesNotPanic(t *testing.T) {
 		ToolName:  "Write",
 		ToolInput: map[string]any{"file_path": ".wipnote/features/feat-abc.html"},
 	}
-	result, err := PreToolUse(event, nil)
+	result, err := PreToolUse(event)
 	if err != nil || result == nil || result.Decision == "block" {
 		t.Fatalf("expected allow with nil DB, got result=%+v err=%v", result, err)
 	}

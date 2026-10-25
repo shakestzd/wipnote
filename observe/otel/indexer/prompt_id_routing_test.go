@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"testing"
 
-	dbpkg "github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/db/dbtest"
 	sqls "github.com/shakestzd/wipnote/observe/otel/sink/sqlite"
 )
 
@@ -29,7 +29,7 @@ func TestIndexer_PromptIDReindexPath(t *testing.T) {
 
 	// bridgeDB: writable handle, passed only through WithDB — exactly what
 	// reindex_otel_events.go does.  WithWriteDB and WithQueue are NOT called.
-	bridgeDB, err := dbpkg.Open(dbPath)
+	bridgeDB, err := dbtest.Open(dbPath)
 	if err != nil {
 		t.Fatalf("open bridgeDB: %v", err)
 	}

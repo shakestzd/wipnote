@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/db/dbtest"
 	"github.com/shakestzd/wipnote/observe/otel/materialize"
 )
 
@@ -21,7 +21,7 @@ func seedSession(t *testing.T) (projectDir string, database *sql.DB, sessionID s
 	if err := os.MkdirAll(filepath.Join(wipnoteDir, "sessions"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	database, err := db.Open(filepath.Join(wipnoteDir, "wipnote.db"))
+	database, err := dbtest.Open(filepath.Join(wipnoteDir, "wipnote.db"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -269,7 +269,7 @@ func TestMaterialize_NoOpWhenNoSignals(t *testing.T) {
 	projectDir := t.TempDir()
 	wipnoteDir := filepath.Join(projectDir, ".wipnote")
 	os.MkdirAll(filepath.Join(wipnoteDir, "sessions"), 0o755)
-	database, err := db.Open(filepath.Join(wipnoteDir, "wipnote.db"))
+	database, err := dbtest.Open(filepath.Join(wipnoteDir, "wipnote.db"))
 	if err != nil {
 		t.Fatal(err)
 	}

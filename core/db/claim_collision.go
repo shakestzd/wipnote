@@ -141,21 +141,6 @@ func LiveCollision(database *sql.DB, workItemID, callerSessionID string, livenes
 	return state, nil
 }
 
-// BackfillParentSessionStmt builds the parameterized UPDATE that
-// BackfillParentSession Execs, WITHOUT executing it, so the hot-path
-// subagent-start hook can route the exact same statement through the daemon's
-// enqueue-only seam instead of blocking a direct writable handle under a held
-// external write lock (bug-c9ec25a4). The returned (sql, args) is byte-for-byte
-// equivalent to what BackfillParentSession binds today.
-//
-// JSON-TRANSPORT SAFETY: both args are plain strings — transport-safe
-// primitives the daemon can JSON-encode and re-bind identically. No
-// sql.NullString / time.Time crosses the wire.
-func BackfillParentSessionStmt(childSessionID, parentSessionID string) (string, []any) {
-	return `UPDATE sessions SET parent_session_id = ? WHERE session_id = ?`,
-		[]any{parentSessionID, childSessionID}
-}
-
 // GetClaimIdentity returns the claim owner, session family, harness, work item,
 // and execution root for a session — the identity fields needed by `wipnote who`,
 // /api/features, and dashboard panels. Returns nil when the session has no active claim.

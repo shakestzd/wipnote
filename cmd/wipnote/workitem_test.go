@@ -878,7 +878,7 @@ func TestFeatureStart_Idempotent(t *testing.T) {
 	}
 	defer database.Close()
 
-	activeAfterFirst := dbpkg.GetActiveFeatureIDForSession(database, sessionID)
+	activeAfterFirst := dbtest.ActiveFeatureIDForSession(database, sessionID)
 	if activeAfterFirst != featID {
 		t.Fatalf("after first start: active_feature_id = %q, want %q", activeAfterFirst, featID)
 	}
@@ -962,7 +962,7 @@ func TestFeatureStart_DifferentFeatures(t *testing.T) {
 	}
 	defer database.Close()
 
-	if got := dbpkg.GetActiveFeatureIDForSession(database, sessionID); got != idA {
+	if got := dbtest.ActiveFeatureIDForSession(database, sessionID); got != idA {
 		t.Errorf("after start A: active_feature_id = %q, want %q", got, idA)
 	}
 
@@ -978,7 +978,7 @@ func TestFeatureStart_DifferentFeatures(t *testing.T) {
 	if err != nil {
 		t.Fatalf("reopen db: %v", err)
 	}
-	if got := dbpkg.GetActiveFeatureIDForSession(database, sessionID); got != idB {
+	if got := dbtest.ActiveFeatureIDForSession(database, sessionID); got != idB {
 		t.Errorf("after start B: active_feature_id = %q, want %q", got, idB)
 	}
 }
@@ -1154,7 +1154,7 @@ func TestFeatureStart_ClaimWrittenAfterExpiry(t *testing.T) {
 	// ReapExpiredClaims runs at the start of ClaimItemOrRenew.
 
 	// active_work_items still shows the item as active (tables are diverged).
-	gotActive := dbpkg.GetActiveWorkItem(database, sessionID, agentID)
+	gotActive := dbtest.ActiveWorkItem(database, sessionID, agentID)
 	if gotActive != featID {
 		t.Fatalf("precondition: active_work_items should still show %q, got %q", featID, gotActive)
 	}
@@ -1342,12 +1342,12 @@ func TestSubagentCanStartFeatureCreatedByDifferentAgent(t *testing.T) {
 	}
 	defer database.Close()
 
-	orchestratorActive := dbpkg.GetActiveWorkItem(database, sessionID, orchestratorAgentID)
+	orchestratorActive := dbtest.ActiveWorkItem(database, sessionID, orchestratorAgentID)
 	if orchestratorActive != featureID {
 		t.Errorf("orchestrator active: got %q want %q", orchestratorActive, featureID)
 	}
 
-	subagentActive := dbpkg.GetActiveWorkItem(database, sessionID, subagentAgentID)
+	subagentActive := dbtest.ActiveWorkItem(database, sessionID, subagentAgentID)
 	if subagentActive != featureID {
 		t.Errorf("subagent active: got %q want %q", subagentActive, featureID)
 	}
@@ -1728,11 +1728,11 @@ func TestFeatureStart_LiveCollision_Refuses(t *testing.T) {
 
 	// Create a second session for the caller.
 	dbPath := filepath.Join(hgDir, ".db", "wipnote.db")
-	database, err := dbpkg.Open(dbPath)
+	database, err := dbtest.Open(dbPath)
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	if err := dbpkg.UpsertSession(database, &models.Session{
+	if err := dbtest.UpsertSession(database, &models.Session{
 		SessionID:     callerSessionID,
 		AgentAssigned: "claude-code",
 		Status:        "active",
@@ -1779,7 +1779,7 @@ func TestFeatureStart_LiveCollision_Refuses(t *testing.T) {
 	}
 
 	// Reopen to verify state before refusal.
-	database2, err := dbpkg.Open(dbPath)
+	database2, err := dbtest.Open(dbPath)
 	if err != nil {
 		t.Fatalf("open db2: %v", err)
 	}
@@ -1802,7 +1802,7 @@ func TestFeatureStart_LiveCollision_Refuses(t *testing.T) {
 	}
 
 	// State must not have mutated (claim count unchanged).
-	database3, err := dbpkg.Open(dbPath)
+	database3, err := dbtest.Open(dbPath)
 	if err != nil {
 		t.Fatalf("open db3: %v", err)
 	}
@@ -1836,11 +1836,11 @@ func TestFeatureStart_LiveCollision_ForceOverrides(t *testing.T) {
 	t.Setenv("WIPNOTE_CACHE_DIR", tmpDir)
 
 	dbPath := filepath.Join(hgDir, ".db", "wipnote.db")
-	database, err := dbpkg.Open(dbPath)
+	database, err := dbtest.Open(dbPath)
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	if err := dbpkg.UpsertSession(database, &models.Session{
+	if err := dbtest.UpsertSession(database, &models.Session{
 		SessionID:     callerSessionID,
 		AgentAssigned: "claude-code",
 		Status:        "active",
@@ -1912,11 +1912,11 @@ func TestFeatureStart_StaleCollision_Allows(t *testing.T) {
 	t.Setenv("WIPNOTE_CACHE_DIR", tmpDir)
 
 	dbPath := filepath.Join(hgDir, ".db", "wipnote.db")
-	database, err := dbpkg.Open(dbPath)
+	database, err := dbtest.Open(dbPath)
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	if err := dbpkg.UpsertSession(database, &models.Session{
+	if err := dbtest.UpsertSession(database, &models.Session{
 		SessionID:     callerSessionID,
 		AgentAssigned: "claude-code",
 		Status:        "active",

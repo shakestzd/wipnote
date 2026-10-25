@@ -1,7 +1,6 @@
 package hooks
 
 import (
-	"database/sql"
 	"fmt"
 	"strings"
 )
@@ -13,25 +12,22 @@ import (
 // pipeline (preToolUseGuards); the first guard that returns an outcome decides
 // the call. When none does, the event is recorded and the call is allowed with
 // the advisories the guards collected.
-func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
+func PreToolUse(event *CloudEvent) (*HookResult, error) {
 	// Kill switch: WIPNOTE_GUARDS_OFF=1 disables ALL guards for emergency use.
 	// It is operator-only and never advertised in block messages; every time it
 	// is honoured it is recorded loudly (stderr, debug log, GuardOverride
 	// agent_event) so the bypass is part of the lineage (GH-#164).
 	if guardOverrideEnabled() {
-		recordGuardOverride(event, database)
+		recordGuardOverride(event)
 		return &HookResult{}, nil
 	}
 
-	// PreToolUse is the authority for parent event resolution — always re-resolve
-	// from the DB (trustParentEnvVar=false) so stale env vars from prior tool calls
-	// do not parent this tool call to the wrong prompt.
-	ctx := resolveToolUseContext(event, database, false)
+	ctx := resolveToolUseContext(event)
 	if ctx == nil {
 		return &HookResult{}, nil
 	}
 
-	st := &preToolState{event: event, database: database, ctx: ctx}
+	st := &preToolState{event: event, ctx: ctx}
 	for _, g := range preToolUseGuards() {
 		if out := g.run(st); out != nil {
 			return out.result, out.err
@@ -43,15 +39,13 @@ func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 // preToolState is the state the PreToolUse guard pipeline shares: the event,
 // its resolved context, and what earlier guards derived or advised.
 type preToolState struct {
-	event    *CloudEvent
-	database *sql.DB
-	ctx      *toolUseContext
+	event *CloudEvent
+	ctx   *toolUseContext
 
 	orchestrationResearchAdvisory string
 	orchestratorAdvice            string
 	researchDispatchAdvisory      string
 	researchAdvice                []string
-	fileOverlapAdvisory           string
 
 	subagentGrace bool
 	claimedItem   string
@@ -79,7 +73,6 @@ func preToolUseGuards() []preToolGuard {
 	return []preToolGuard{
 		{"wipnote-write", guardWipnoteWrite},
 		{"bash-cwd", guardBashCwd},
-		{"project-divergence", guardProjectDivergence},
 		{"plan-mode-bypass", guardPlanModeBypass},
 		{"orchestrator-research-advisory", guardOrchestratorResearchAdvisory},
 		{"orchestrator-strict", guardOrchestratorStrict},
@@ -94,7 +87,6 @@ func preToolUseGuards() []preToolGuard {
 		{"yolo-bash-research", guardYoloBashResearch},
 		{"yolo-worktree", guardYoloWorktree},
 		{"yolo-session", guardYoloSession},
-		{"file-overlap", guardFileOverlap},
 	}
 }
 
@@ -132,15 +124,12 @@ func (st *preToolState) adviseOrBlockOutcome(warn string) *guardOutcome {
 // recordAndAllow records the event, allows the tool to proceed, and attaches
 // the advisories the guards collected, in their established order.
 func (st *preToolState) recordAndAllow() (*HookResult, error) {
-	result, err := recordEventAndAllow(st.event, st.ctx, st.database)
+	result, err := recordEventAndAllow(st.event, st.ctx)
 	if err == nil && result != nil {
 		appendAdditionalContext(result, st.orchestrationResearchAdvisory)
 		appendAdditionalContext(result, st.researchDispatchAdvisory)
 		appendAdditionalContext(result, st.orchestratorAdvice)
 		appendAdditionalContext(result, strings.Join(st.researchAdvice, "\n"))
-		if st.fileOverlapAdvisory != "" {
-			appendAdditionalContext(result, st.fileOverlapAdvisory)
-		}
 	}
 	return result, err
 }

@@ -235,7 +235,7 @@ approval — only `approved.signature` must continue to match the `guards:` cont
 
 ## Emergency hook-guard override (operators only)
 
-The PreToolUse hook guards (store protection, file-overlap block, research and
+The PreToolUse hook guards (store protection, research and
 commit gates) can be disabled wholesale for one shell by setting
 `WIPNOTE_GUARDS_OFF=1` in the environment before launching the harness. This is a
 break-glass switch for a human operator recovering a stuck session, not a
@@ -251,6 +251,6 @@ Every tool call honoured under the switch is made visible:
   attributed to the session and its active work item, so "this work was done
   with guards disabled" is part of the lineage.
 
-Prefer the narrower, reviewable knobs where one exists (for example
-`block_on_file_overlap` in `.wipnote/config.json`, or a `RESEARCH-WAIVER:` commit
-trailer) and unset the variable as soon as the recovery is done.
+Prefer the narrower, reviewable knobs where one exists (for example a
+`RESEARCH-WAIVER:` commit trailer) and unset the variable as soon as the
+recovery is done.

@@ -1,7 +1,6 @@
 package hooks
 
 import (
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -72,13 +71,9 @@ var reconcileArtifactCommitFn = defaultReconcileArtifactCommit
 //     Skipped when skipPortDrift is true (per-turn Stop path).
 //  3. started-but-orphaned → reported only.
 //
-// database is accepted for call-shape compatibility and IGNORED: both
-// item-shaped classes now read canonical state (reconcile_canonical.go), so a
-// nil handle no longer disables them — which it silently did for every caller,
-// since every caller passed nil once the project read index went away.
-func Reconcile(database *sql.DB, projectDir string, strict bool, skipPortDrift ...bool) (*ReconcileReport, error) {
-	_ = strict   // detection is identical; strict only changes CLI exit semantics
-	_ = database // canonical-only; see doc comment
+// Both item-shaped classes read canonical state (reconcile_canonical.go).
+func Reconcile(projectDir string, strict bool, skipPortDrift ...bool) (*ReconcileReport, error) {
+	_ = strict // detection is identical; strict only changes CLI exit semantics
 	rep := &ReconcileReport{}
 
 	rep.AutoCommitted = reconcileDoneButUncommittedCanonical(projectDir)
@@ -109,10 +104,7 @@ func Reconcile(database *sql.DB, projectDir string, strict bool, skipPortDrift .
 // per-turn Stop path skipPortDrift is also true, so this reduces to the claim-
 // ledger orphan scan alone: a few small shard reads and a kill(pid,0) each,
 // which is the canonical equivalent of the single query it replaces.
-//
-// database is accepted for call-shape compatibility and ignored (see Reconcile).
-func reconcileCheapClasses(database *sql.DB, projectDir string, skipPortDrift bool) (*ReconcileReport, error) {
-	_ = database
+func reconcileCheapClasses(projectDir string, skipPortDrift bool) (*ReconcileReport, error) {
 	rep := &ReconcileReport{}
 	rep.Orphaned = reconcileStartedButOrphanedCanonical(projectDir)
 	if !skipPortDrift {
@@ -137,10 +129,7 @@ func reconcileCheapClasses(database *sql.DB, projectDir string, skipPortDrift bo
 // newest-N window an older dirty artifact can fall below (the defect roborev-478
 // finding 2 had to page around). The hot Stop path is unchanged — it never calls
 // this, it runs reconcileCheapClasses.
-//
-// database is accepted for call-shape compatibility and ignored (see Reconcile).
-func ReconcileDoneButUncommittedForProject(database *sql.DB, projectDir string) []string {
-	_ = database
+func ReconcileDoneButUncommittedForProject(projectDir string) []string {
 	return reconcileDoneButUncommittedCanonical(projectDir)
 }
 
@@ -325,8 +314,8 @@ func DrainReconcileWarnings(projectDir string) string {
 // auto-commit still completes — just not on the interactive path. This is sound
 // because only ambiguous PortDrift gates the discriminator below; the
 // auto-commit class never blocked any harness.
-func runSessionExitReconcile(database *sql.DB, projectDir, harness, sessionID string, skipPortDrift bool) error {
-	rep, err := reconcileCheapClasses(database, projectDir, skipPortDrift)
+func runSessionExitReconcile(projectDir, harness, sessionID string, skipPortDrift bool) error {
+	rep, err := reconcileCheapClasses(projectDir, skipPortDrift)
 	if err != nil || rep.Empty() {
 		return nil
 	}

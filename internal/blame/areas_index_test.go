@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/db/dbtest"
 	"github.com/shakestzd/wipnote/core/models"
 )
 
@@ -32,7 +33,7 @@ func countQueries(t *testing.T) *int {
 // LIKE's ASCII case folding, a literal '_' and near-miss suffixes.
 func indexFixture(t *testing.T) (*sql.DB, string, []string) {
 	t.Helper()
-	database, err := db.Open(":memory:")
+	database, err := dbtest.Open(":memory:")
 	if err != nil {
 		t.Fatal(err)
 	}

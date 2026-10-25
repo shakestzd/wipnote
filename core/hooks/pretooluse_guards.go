@@ -23,15 +23,6 @@ func guardBashCwd(st *preToolState) *guardOutcome {
 	return blockIf(checkBashCwdGuard(st.event))
 }
 
-// guardProjectDivergence warns or blocks when CWD has drifted to a different
-// project than the one this session was started in.
-func guardProjectDivergence(st *preToolState) *guardOutcome {
-	if result := checkProjectDivergence(st.event, st.database, st.ctx.SessionID); result != nil {
-		return &guardOutcome{result: result}
-	}
-	return nil
-}
-
 // guardPlanModeBypass: when permission_mode is "plan", the agent is exploring
 // (Read/Grep/Glob) and writing only to the plan file. Skip work-item and
 // YOLO guards entirely — record the event for observability and allow.
@@ -41,14 +32,14 @@ func guardPlanModeBypass(st *preToolState) *guardOutcome {
 	}
 	debugLog(st.ctx.ProjectDir, "[wipnote] plan mode active — skipping write guards for %s",
 		st.event.ToolName)
-	result, err := recordEventAndAllow(st.event, st.ctx, st.database)
+	result, err := recordEventAndAllow(st.event, st.ctx)
 	return &guardOutcome{result: result, err: err}
 }
 
 // guardOrchestratorResearchAdvisory collects the orchestrator research
 // delegation advisory. It never decides the call.
 func guardOrchestratorResearchAdvisory(st *preToolState) *guardOutcome {
-	st.orchestrationResearchAdvisory = checkOrchestratorResearchDelegationAdvisory(st.event, st.ctx, st.database)
+	st.orchestrationResearchAdvisory = checkOrchestratorResearchDelegationAdvisory(st.event, st.ctx)
 	return nil
 }
 
@@ -160,8 +151,8 @@ func guardPortDriftCommit(st *preToolState) *guardOutcome {
 // Use the resilient yolo signal (bug-0ed4e469): a yolo subagent can report
 // IsYoloMode=false, yet its parent chain is yolo and must still block.
 func guardDependencyResearchCommit(st *preToolState) *guardOutcome {
-	st.yoloContext = resilientYoloContext(st.database, st.ctx)
-	return st.adviseOrBlockOutcome(checkDependencyResearchCommitGuard(st.event, st.database, st.ctx))
+	st.yoloContext = resilientYoloContext(st.ctx)
+	return st.adviseOrBlockOutcome(checkDependencyResearchCommitGuard(st.event, st.ctx))
 }
 
 // guardResearchDispatch is the research-first gate on implementer dispatch.

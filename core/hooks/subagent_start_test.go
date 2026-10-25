@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/db/dbtest"
 	"github.com/shakestzd/wipnote/core/models"
 )
 
@@ -20,7 +20,7 @@ func TestSubagentStart_Idempotent(t *testing.T) {
 	t.Setenv("WIPNOTE_PROJECT_DIR", projectDir)
 	t.Setenv("WIPNOTE_SESSION_ID", parentSessionID)
 
-	if err := db.UpsertSession(database, &models.Session{
+	if err := dbtest.UpsertSession(database, &models.Session{
 		SessionID: parentSessionID, AgentAssigned: "claude-code", Status: "active",
 	}); err != nil {
 		t.Fatalf("UpsertSession: %v", err)
@@ -32,10 +32,10 @@ func TestSubagentStart_Idempotent(t *testing.T) {
 		AgentID:   subagentID,
 		AgentType: "general-purpose",
 	}
-	if _, err := SubagentStart(event, database); err != nil {
+	if _, err := SubagentStart(event); err != nil {
 		t.Fatalf("SubagentStart first: %v", err)
 	}
-	if _, err := SubagentStart(event, database); err != nil {
+	if _, err := SubagentStart(event); err != nil {
 		t.Fatalf("SubagentStart re-delivery: %v", err)
 	}
 }
@@ -63,7 +63,7 @@ func TestSubagentStart_WritesOTELResourceAttributes(t *testing.T) {
 	// Pre-set an existing OTEL_RESOURCE_ATTRIBUTES value to verify merge.
 	t.Setenv("OTEL_RESOURCE_ATTRIBUTES", "service.name=test,service.version=1.0")
 
-	if err := db.UpsertSession(database, &models.Session{
+	if err := dbtest.UpsertSession(database, &models.Session{
 		SessionID:     parentSessionID,
 		AgentAssigned: "claude-code",
 		Status:        "active",
@@ -77,7 +77,7 @@ func TestSubagentStart_WritesOTELResourceAttributes(t *testing.T) {
 		AgentID:   subagentID,
 		AgentType: "general-purpose",
 	}
-	if _, err := SubagentStart(event, database); err != nil {
+	if _, err := SubagentStart(event); err != nil {
 		t.Fatalf("SubagentStart: %v", err)
 	}
 
@@ -107,7 +107,7 @@ func TestSubagentStop_MissingTraceIsNonFatal(t *testing.T) {
 	t.Setenv("WIPNOTE_PROJECT_DIR", projectDir)
 	t.Setenv("WIPNOTE_SESSION_ID", parentSessionID)
 
-	if err := db.UpsertSession(database, &models.Session{
+	if err := dbtest.UpsertSession(database, &models.Session{
 		SessionID: parentSessionID, AgentAssigned: "claude-code", Status: "active",
 	}); err != nil {
 		t.Fatalf("UpsertSession: %v", err)
@@ -118,7 +118,7 @@ func TestSubagentStop_MissingTraceIsNonFatal(t *testing.T) {
 		CWD:       projectDir,
 		AgentID:   "subagent-never-started",
 	}
-	if _, err := SubagentStop(stopEvent, database); err != nil {
+	if _, err := SubagentStop(stopEvent); err != nil {
 		t.Fatalf("SubagentStop (missing trace) should not error: %v", err)
 	}
 }

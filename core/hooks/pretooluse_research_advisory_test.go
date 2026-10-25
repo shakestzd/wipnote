@@ -5,11 +5,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/shakestzd/wipnote/core/db"
-	"github.com/shakestzd/wipnote/core/models"
 )
 
 // TestPreToolUse_ResearchGuardsAdviseOutsideYolo pins the research-guard
@@ -42,15 +40,7 @@ func TestPreToolUse_ResearchGuardsAdviseOutsideYolo(t *testing.T) {
 			openCanonicalClaim(t, wipnoteDir, sessionID, sessionID, db.AgentRootSentinel, "feat-research-posture")
 
 			// One local Read: satisfies read-before-write, not web research.
-			database := makeSessionDB(t, sessionID, projectDir)
-			now := time.Now().UTC()
-			if err := db.InsertEvent(database, &models.AgentEvent{
-				EventID: uuid.New().String(), AgentID: "claude-code", EventType: models.EventToolCall,
-				Timestamp: now, ToolName: "Read", SessionID: sessionID, Status: "recorded",
-				Source: "hook", CreatedAt: now, UpdatedAt: now,
-			}); err != nil {
-				t.Fatalf("InsertEvent: %v", err)
-			}
+			appendCanonicalToolEvent(projectDir, sessionID, canonicalToolEvent{Tool: "Read", Summary: "go.mod"})
 
 			result, err := PreToolUse(&CloudEvent{
 				SessionID:      sessionID,
@@ -62,7 +52,7 @@ func TestPreToolUse_ResearchGuardsAdviseOutsideYolo(t *testing.T) {
 					"old_string": "go 1.22",
 					"new_string": "go 1.23",
 				},
-			}, database)
+			})
 			if err != nil {
 				t.Fatalf("PreToolUse: %v", err)
 			}

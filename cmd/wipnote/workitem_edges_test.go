@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	dbpkg "github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/db/dbtest"
 	"github.com/shakestzd/wipnote/core/htmlparse"
 	"github.com/shakestzd/wipnote/core/models"
 	"github.com/shakestzd/wipnote/core/workitem"
@@ -33,7 +33,7 @@ func TestAutoImplementedInEdge_NoStoredMirror(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	database, err := dbpkg.Open(":memory:")
+	database, err := dbtest.Open(":memory:")
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
@@ -101,7 +101,7 @@ func TestSessionImplements_SurvivesReindex(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	database, err := dbpkg.Open(":memory:")
+	database, err := dbtest.Open(":memory:")
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}

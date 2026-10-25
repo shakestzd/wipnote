@@ -48,7 +48,7 @@ func indexExists(t *testing.T, database *sql.DB, name string) bool {
 }
 
 func TestOverlapQuery(t *testing.T) {
-	database, err := Open(":memory:")
+	database, err := openTestDB(":memory:")
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
@@ -153,7 +153,7 @@ func TestOverlapQuery(t *testing.T) {
 }
 
 func TestMigration_FeatureFilesPathSeenIndex(t *testing.T) {
-	database, err := Open(":memory:")
+	database, err := openTestDB(":memory:")
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}

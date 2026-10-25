@@ -13,6 +13,7 @@ import (
 	"time"
 
 	dbpkg "github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/db/dbtest"
 	"github.com/shakestzd/wipnote/core/models"
 )
 
@@ -23,7 +24,7 @@ import (
 // primary key; this test locks in that contract for slice 7.
 func TestReplayAfterFallback_IsIdempotent(t *testing.T) {
 	dbPath := filepath.Join(t.TempDir(), "wipnote.db")
-	database, err := dbpkg.Open(dbPath)
+	database, err := dbtest.Open(dbPath)
 	if err != nil {
 		t.Fatalf("db.Open: %v", err)
 	}

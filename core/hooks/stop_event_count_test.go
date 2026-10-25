@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/db/dbtest"
 	"github.com/shakestzd/wipnote/core/models"
 )
 
@@ -35,7 +36,7 @@ func TestStop_EventCountFromCanonicalToolLog(t *testing.T) {
 	}
 	defer database.Close()
 	sess := &models.Session{SessionID: sessionID, AgentAssigned: "claude-code", Status: "active", CreatedAt: time.Now().UTC()}
-	if err := db.UpsertSession(database, sess); err != nil {
+	if err := dbtest.UpsertSession(database, sess); err != nil {
 		t.Fatal(err)
 	}
 	for i := range 5 {
@@ -43,7 +44,7 @@ func TestStop_EventCountFromCanonicalToolLog(t *testing.T) {
 		ev := &models.AgentEvent{EventID: "evt-db-" + string(rune('a'+i)), AgentID: "claude-code",
 			EventType: models.EventToolCall, Timestamp: now, ToolName: "Bash", SessionID: sessionID,
 			Status: "completed", Source: "hook", CreatedAt: now, UpdatedAt: now}
-		if err := db.InsertEvent(database, ev); err != nil {
+		if err := dbtest.InsertEvent(database, ev); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -52,7 +53,7 @@ func TestStop_EventCountFromCanonicalToolLog(t *testing.T) {
 		appendCanonicalToolEvent(projectDir, sessionID, canonicalToolEvent{Tool: tool, Summary: "x"})
 	}
 
-	if _, err := Stop(&CloudEvent{SessionID: sessionID, CWD: projectDir}, database); err != nil {
+	if _, err := Stop(&CloudEvent{SessionID: sessionID, CWD: projectDir}); err != nil {
 		t.Fatalf("Stop: %v", err)
 	}
 	raw, err := os.ReadFile(filepath.Join(projectDir, ".wipnote", "sessions", sessionID+".html"))

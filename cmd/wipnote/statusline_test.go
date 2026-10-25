@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	dbpkg "github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/db/dbtest"
 	"github.com/shakestzd/wipnote/core/htmlparse"
 	"github.com/shakestzd/wipnote/core/slug"
 )
@@ -26,7 +26,7 @@ func TestStatuslineCmd(t *testing.T) {
 
 	// Create and populate test database
 	dbPath := filepath.Join(wipnoteDir, ".db", "wipnote.db")
-	db, err := dbpkg.Open(dbPath)
+	db, err := dbtest.Open(dbPath)
 	if err != nil {
 		t.Fatalf("failed to open database: %v", err)
 	}

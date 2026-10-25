@@ -11,6 +11,7 @@ import (
 	"time"
 
 	dbpkg "github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/db/dbtest"
 	"github.com/shakestzd/wipnote/core/models"
 )
 
@@ -90,7 +91,7 @@ func TestReindexFeatureFiles_PopulatesFromCommit(t *testing.T) {
 	})
 
 	// Open an in-memory DB with schema.
-	database, err := dbpkg.Open(":memory:")
+	database, err := dbtest.Open(":memory:")
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
@@ -133,7 +134,7 @@ func TestReindexFeatureFiles_OperationIsCommit(t *testing.T) {
 		"main.go": "package main\n",
 	})
 
-	database, err := dbpkg.Open(":memory:")
+	database, err := dbtest.Open(":memory:")
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
@@ -168,7 +169,7 @@ func TestReindexFeatureFiles_MissingCommitSkipped(t *testing.T) {
 	// Init a valid repo but reference a bogus hash.
 	initBareGitRepo(t, tmpDir, map[string]string{"placeholder": "x"})
 
-	database, err := dbpkg.Open(":memory:")
+	database, err := dbtest.Open(":memory:")
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
@@ -191,7 +192,7 @@ func TestReindexFeatureFiles_MissingCommitSkipped(t *testing.T) {
 func TestReindexFeatureFiles_EmptyTable(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	database, err := dbpkg.Open(":memory:")
+	database, err := dbtest.Open(":memory:")
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
@@ -230,7 +231,7 @@ func TestReindexFeatureFiles_MultipleFeatures(t *testing.T) {
 	out, _ := exec.Command("git", "-C", tmpDir, "rev-parse", "HEAD").Output()
 	hash2 := strings.TrimSpace(string(out))
 
-	database, err := dbpkg.Open(":memory:")
+	database, err := dbtest.Open(":memory:")
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
@@ -324,7 +325,7 @@ func TestReindexFeatureFiles_BugTypeItem(t *testing.T) {
 		"cmd/main.go":       "package main\n",
 	})
 
-	database, err := dbpkg.Open(":memory:")
+	database, err := dbtest.Open(":memory:")
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}

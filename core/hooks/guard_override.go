@@ -1,7 +1,6 @@
 package hooks
 
 import (
-	"database/sql"
 	"fmt"
 	"io"
 	"os"
@@ -30,7 +29,7 @@ const guardOverrideToolName = "GuardOverride"
 // recordGuardOverride makes an honoured kill switch loud: a stderr warning,
 // a debug-log line, and a GuardOverride check_point agent_event attributed to
 // the session and its active work item. Best-effort — never blocks the hook.
-func recordGuardOverride(event *CloudEvent, database *sql.DB) {
+func recordGuardOverride(event *CloudEvent) {
 	toolName := event.ToolName
 	if toolName == "" {
 		toolName = "(unknown tool)"
@@ -48,9 +47,8 @@ func recordGuardOverride(event *CloudEvent, database *sql.DB) {
 		return
 	}
 	summary := fmt.Sprintf("Guard override honoured: %s=1 disabled all PreToolUse guards for %s", guardOverrideEnvVar, toolName)
-	// The canonical record (feat-af8d1689): the hot-hook dispatch has no
-	// database, so this line is what makes the override part of the lineage.
+	// The canonical record (feat-af8d1689): this line is what makes the
+	// override part of the lineage.
 	appendCanonicalToolEvent(projectDir, sessionID, canonicalToolEvent{Tool: guardOverrideToolName,
 		Agent: resolveAgentID(event), Summary: summary, Input: SummariseInput(event.ToolName, event.ToolInput)})
-	_ = database
 }

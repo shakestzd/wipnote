@@ -13,7 +13,7 @@ import (
 const defaultLivenessStalenessSeconds = 120
 
 // livenessConfig mirrors the local os.ReadFile(.wipnote/config.json) pattern
-// used by readTaskCompletionConfig in internal/hooks/task_completion_gate.go
+// used by ReadSpecEnforcement in core/hooks/spec_enforcement.go
 // (there is no shared internal/config package). Only the one tunable field is
 // decoded; everything else in config.json is ignored.
 type livenessConfig struct {

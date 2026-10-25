@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/db/dbtest"
 	"github.com/shakestzd/wipnote/core/models"
 	"github.com/shakestzd/wipnote/core/paths"
 )
@@ -38,7 +39,7 @@ func TestSessionStartStoresProjectDir(t *testing.T) {
 	t.Setenv("WIPNOTE_NESTING_DEPTH", "")
 	t.Setenv("CLAUDE_ENV_FILE", "") // prevent writing to a real env file
 
-	_, err = SessionStart(event, database, projectDir)
+	_, err = SessionStart(event, projectDir)
 	if err != nil {
 		t.Fatalf("SessionStart: %v", err)
 	}
@@ -72,7 +73,7 @@ func TestSessionStartActiveSessionContainsProjectDir(t *testing.T) {
 	t.Setenv("WIPNOTE_NESTING_DEPTH", "")
 	t.Setenv("CLAUDE_ENV_FILE", "") // force fallback to .active-session
 
-	_, err = SessionStart(event, database, projectDir)
+	_, err = SessionStart(event, projectDir)
 	if err != nil {
 		t.Fatalf("SessionStart: %v", err)
 	}
@@ -98,7 +99,7 @@ func TestSessionStartContinueHandoffAdditionalContext(t *testing.T) {
 		t.Fatalf("db.Open: %v", err)
 	}
 	defer database.Close()
-	if err := db.UpsertSession(database, &models.Session{
+	if err := dbtest.UpsertSession(database, &models.Session{
 		SessionID:     "sess-continue-old",
 		AgentAssigned: "claude-code",
 		Status:        "completed",
@@ -117,7 +118,7 @@ func TestSessionStartContinueHandoffAdditionalContext(t *testing.T) {
 	t.Setenv("WIPNOTE_CONTINUE_HANDOFF_B64",
 		base64.StdEncoding.EncodeToString([]byte("## Continued Session Handoff\n\nResume the existing worktree.")))
 
-	result, err := SessionStart(event, database, projectDir)
+	result, err := SessionStart(event, projectDir)
 	if err != nil {
 		t.Fatalf("SessionStart: %v", err)
 	}
@@ -158,7 +159,7 @@ func TestSessionStart_PrefersClaudeProjectDirOverCWD(t *testing.T) {
 	t.Setenv("CLAUDE_ENV_FILE", "") // prevent real env file writes
 
 	// Open DB in project A (the correct project).
-	database, err := db.Open(filepath.Join(projectA, ".wipnote", "wipnote.db"))
+	database, err := dbtest.Open(filepath.Join(projectA, ".wipnote", "wipnote.db"))
 	if err != nil {
 		t.Fatalf("db.Open: %v", err)
 	}
@@ -175,7 +176,7 @@ func TestSessionStart_PrefersClaudeProjectDirOverCWD(t *testing.T) {
 
 	// Fire SessionStart with the correctly resolved project dir (project A).
 	event := &CloudEvent{SessionID: testSessionID, CWD: projectB}
-	_, err = SessionStart(event, database, resolvedDir)
+	_, err = SessionStart(event, resolvedDir)
 	if err != nil {
 		t.Fatalf("SessionStart: %v", err)
 	}
@@ -193,7 +194,7 @@ func TestSessionStart_PrefersClaudeProjectDirOverCWD(t *testing.T) {
 
 func TestInsertAndGetSessionProjectDir(t *testing.T) {
 	dir := t.TempDir()
-	database, err := db.Open(filepath.Join(dir, "wipnote.db"))
+	database, err := dbtest.Open(filepath.Join(dir, "wipnote.db"))
 	if err != nil {
 		t.Fatalf("db.Open: %v", err)
 	}
@@ -206,7 +207,7 @@ func TestInsertAndGetSessionProjectDir(t *testing.T) {
 		CreatedAt:     time.Now().UTC(),
 		ProjectDir:    "/home/user/myproject",
 	}
-	if err := db.UpsertSession(database, s); err != nil {
+	if err := dbtest.UpsertSession(database, s); err != nil {
 		t.Fatalf("UpsertSession: %v", err)
 	}
 
@@ -256,7 +257,7 @@ func TestSessionStartUsesOnDemandAttributionGuidance(t *testing.T) {
 		t.Fatalf("write .launch-mode: %v", err)
 	}
 
-	result, err := SessionStart(event, database, projectDir)
+	result, err := SessionStart(event, projectDir)
 	if err != nil {
 		t.Fatalf("SessionStart: %v", err)
 	}
@@ -319,7 +320,7 @@ func TestSessionStartNoOpenItemsNonBareLaunch(t *testing.T) {
 		t.Fatalf("write .launch-mode: %v", err)
 	}
 
-	result, err := SessionStart(event, database, projectDir)
+	result, err := SessionStart(event, projectDir)
 	if err != nil {
 		t.Fatalf("SessionStart: %v", err)
 	}
@@ -365,7 +366,7 @@ func TestSessionStartNoOpenItemsBareLaunch(t *testing.T) {
 	// bareLaunchNudge detects a bare launch and emits the nudge.
 	// bareLaunchNudge returns non-empty text when .launch-mode is absent or >30s old.
 
-	result, err := SessionStart(event, database, projectDir)
+	result, err := SessionStart(event, projectDir)
 	if err != nil {
 		t.Fatalf("SessionStart: %v", err)
 	}

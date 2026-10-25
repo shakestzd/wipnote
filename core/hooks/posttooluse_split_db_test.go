@@ -1,7 +1,6 @@
 package hooks
 
 import (
-	"database/sql"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -49,8 +48,7 @@ func newSplitDBHarness(t *testing.T, sessionID string) *splitDBHarness {
 // does in production.
 func (h *splitDBHarness) runPre(t *testing.T, ev *CloudEvent) *HookResult {
 	t.Helper()
-	var ro *sql.DB // hot hooks dispatch with no handle (feat-af8d1689)
-	res, err := PreToolUse(ev, ro)
+	res, err := PreToolUse(ev)
 	if err != nil {
 		t.Fatalf("PreToolUse: %v", err)
 	}
@@ -64,8 +62,7 @@ func (h *splitDBHarness) runPre(t *testing.T, ev *CloudEvent) *HookResult {
 // dispatches it in production.
 func (h *splitDBHarness) runPost(t *testing.T, ev *CloudEvent) *HookResult {
 	t.Helper()
-	var ro *sql.DB // hot hooks dispatch with no handle (feat-af8d1689)
-	res, err := PostToolUse(ev, ro)
+	res, err := PostToolUse(ev)
 	if err != nil {
 		t.Fatalf("PostToolUse: %v", err)
 	}
@@ -132,12 +129,11 @@ func TestPostToolUseForHarness_ClaudeSplit(t *testing.T) {
 			ToolInput: map[string]any{"file_path": bigFile, "content": "x"}, ToolResult: map[string]any{"output": "ok"}, Harness: harness}
 	}
 	status := func(id string) string { return toolLogDone(t, h, id) }
-	ro := func() *sql.DB { return nil } // hot hooks dispatch with no handle (feat-af8d1689)
 	h.runPre(t, mk("toolu_claude", HarnessClaude))
 	h.runPre(t, mk("toolu_codex", HarnessCodex))
 
 	// Claude respond half: warning, but no completion and no HTML entry.
-	res, _ := PostToolUseForHarness(mk("toolu_claude", HarnessClaude), ro())
+	res, _ := PostToolUseForHarness(mk("toolu_claude", HarnessClaude))
 	if !strings.Contains(res.AdditionalContext, "[Quality]") {
 		t.Errorf("claude posttooluse lost the quality warning: %+v", res)
 	}
@@ -146,7 +142,7 @@ func TestPostToolUseForHarness_ClaudeSplit(t *testing.T) {
 	}
 
 	// Claude record half: completion + HTML, no context.
-	res, _ = PostToolUseRecord(mk("toolu_claude", HarnessClaude), ro())
+	res, _ = PostToolUseRecord(mk("toolu_claude", HarnessClaude))
 	if res.AdditionalContext != "" || res.Decision != "" {
 		t.Errorf("posttooluse-record must never return context or a decision: %+v", res)
 	}
@@ -155,7 +151,7 @@ func TestPostToolUseForHarness_ClaudeSplit(t *testing.T) {
 	}
 
 	// Codex: one handler does both.
-	res, _ = PostToolUseForHarness(mk("toolu_codex", HarnessCodex), ro())
+	res, _ = PostToolUseForHarness(mk("toolu_codex", HarnessCodex))
 	if !strings.Contains(res.AdditionalContext, "[Quality]") || status("toolu_codex") != "completed" {
 		t.Errorf("codex posttooluse must both respond and record: res=%+v status=%q", res, status("toolu_codex"))
 	}

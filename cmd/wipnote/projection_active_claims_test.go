@@ -8,6 +8,7 @@ import (
 
 	"github.com/shakestzd/wipnote/core/claimledger"
 	dbpkg "github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/db/dbtest"
 	"github.com/shakestzd/wipnote/core/sessionledger"
 )
 
@@ -59,10 +60,10 @@ func TestProjectionDerivesActiveClaimsFromLedger(t *testing.T) {
 	}
 	defer database.Close()
 
-	if got := dbpkg.GetActiveWorkItem(database, sessionID, dbpkg.AgentRootSentinel); got != workItemID {
+	if got := dbtest.ActiveWorkItem(database, sessionID, dbpkg.AgentRootSentinel); got != workItemID {
 		t.Errorf("active_work_items: got %q, want %q", got, workItemID)
 	}
-	if got := dbpkg.GetActiveFeatureIDForSession(database, sessionID); got != workItemID {
+	if got := dbtest.ActiveFeatureIDForSession(database, sessionID); got != workItemID {
 		t.Errorf("sessions.active_feature_id: got %q, want %q", got, workItemID)
 	}
 }
@@ -96,10 +97,10 @@ func TestProjectionIgnoresClosedClaims(t *testing.T) {
 	}
 	defer database.Close()
 
-	if got := dbpkg.GetActiveWorkItem(database, sessionID, dbpkg.AgentRootSentinel); got != "" {
+	if got := dbtest.ActiveWorkItem(database, sessionID, dbpkg.AgentRootSentinel); got != "" {
 		t.Errorf("a closed episode must not be a live claim; got %q", got)
 	}
-	if got := dbpkg.GetActiveFeatureIDForSession(database, sessionID); got != "" {
+	if got := dbtest.ActiveFeatureIDForSession(database, sessionID); got != "" {
 		t.Errorf("a closed episode must not set active_feature_id; got %q", got)
 	}
 }

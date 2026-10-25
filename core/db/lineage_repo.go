@@ -11,47 +11,6 @@ import (
 	"github.com/shakestzd/wipnote/core/models"
 )
 
-// Execer is satisfied by both *sql.DB and *sql.Tx, enabling transaction-aware helpers.
-type Execer interface {
-	Exec(query string, args ...any) (sql.Result, error)
-}
-
-// InsertLineageTraceStmt builds the parameterized INSERT that insertLineageTrace
-// Execs, WITHOUT executing it, so the hot-path subagent-start hook can route the
-// exact same statement through the daemon's enqueue-only seam instead of
-// blocking a direct writable handle under a held external write lock
-// (bug-c9ec25a4). The (sql, args) produces the SAME database effect as the
-// direct Exec. The error is the json.Marshal(trace.Path) failure; on a non-nil
-// error the caller MUST skip routing (never enqueue a half-built statement).
-//
-// JSON-TRANSPORT SAFETY: the direct path binds session_id / agent_name /
-// feature_id as sql.NullString (nullStr) — which the daemon CANNOT JSON-encode
-// and re-bind. Here those three are normalized through nullableStr, which
-// returns nil for the empty string and the plain string otherwise — the exact
-// same SQLite NULL-vs-text binding the sql.NullString produces, but a
-// transport-safe primitive over the wire. depth is an int, path is a JSON
-// STRING (string(pathJSON)), and started_at is an RFC3339 STRING — all
-// transport-safe. No sql.NullString / time.Time crosses the wire.
-func InsertLineageTraceStmt(trace *models.LineageTrace) (string, []any, error) {
-	pathJSON, err := json.Marshal(trace.Path)
-	if err != nil {
-		return "", nil, fmt.Errorf("marshal lineage path: %w", err)
-	}
-	query := `
-		INSERT INTO agent_lineage_trace
-			(trace_id, root_session_id, session_id, agent_name, depth, path,
-			 feature_id, started_at, status)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-	args := []any{
-		trace.TraceID, trace.RootSessionID, nullableStr(trace.SessionID),
-		nullableStr(trace.AgentName), trace.Depth, string(pathJSON),
-		nullableStr(trace.FeatureID),
-		trace.StartedAt.UTC().Format(time.RFC3339),
-		trace.Status,
-	}
-	return query, args, nil
-}
-
 // GetLineageByRoot returns all lineage traces rooted at a given session,
 // ordered by depth ascending.
 func GetLineageByRoot(db *sql.DB, rootSessionID string) ([]models.LineageTrace, error) {
@@ -66,61 +25,6 @@ func GetLineageByRoot(db *sql.DB, rootSessionID string) ([]models.LineageTrace, 
 	}
 	defer rows.Close()
 	return scanLineageRows(rows)
-}
-
-// GetLineageBySession returns the lineage trace for a specific session, if any.
-func GetLineageBySession(db *sql.DB, sessionID string) (*models.LineageTrace, error) {
-	row := db.QueryRow(`
-		SELECT trace_id, root_session_id, session_id, agent_name, depth, path,
-		       feature_id, started_at, completed_at, status
-		FROM agent_lineage_trace
-		WHERE session_id = ?
-		LIMIT 1`, sessionID)
-	traces, err := scanLineageRows(singleRowToRows(row))
-	if err != nil {
-		return nil, fmt.Errorf("get lineage by session %s: %w", sessionID, err)
-	}
-	if len(traces) == 0 {
-		return nil, nil
-	}
-	return &traces[0], nil
-}
-
-// CompleteLineageTrace marks a session's lineage trace as completed.
-func CompleteLineageTrace(db *sql.DB, sessionID string) error {
-	now := time.Now().UTC().Format(time.RFC3339)
-	_, err := db.Exec(`
-		UPDATE agent_lineage_trace
-		SET status = 'completed', completed_at = ?
-		WHERE session_id = ?`,
-		now, sessionID,
-	)
-	return err
-}
-
-// CloseLineageTraceByTraceIDStmt builds the parameterized UPDATE that closes
-// the lineage row keyed by trace_id (the subagent's agent_id — see
-// insertSubagentLineage), WITHOUT executing it, so the subagent-STOP hook can
-// route the close through the daemon's enqueue-only seam instead of issuing a
-// DIRECT Exec (roborev-473 finding 4). Routing the close enqueue-only — like the
-// subagent-START insert — makes both writes land on the daemon's single writer
-// in FIFO order: SubagentStart fires before SubagentStop, so the start insert is
-// enqueued first and the close UPDATE applies AFTER it. That eliminates the
-// orphaned-`active`-row race where a DIRECT close UPDATE ran before the still-
-// queued start insert had applied (the UPDATE matched 0 rows, then the insert
-// landed an `active` row that nothing ever closed).
-//
-// JSON-TRANSPORT SAFETY: completed_at is an RFC3339 STRING and trace_id a plain
-// string — both transport-safe primitives the daemon can JSON-encode and re-bind
-// identically. The statement produces the SAME effect as the direct Exec in
-// closeSubagentLineage.
-func CloseLineageTraceByTraceIDStmt(traceID string) (string, []any) {
-	query := `
-		UPDATE agent_lineage_trace
-		   SET completed_at = ?, status = 'completed'
-		 WHERE trace_id = ? AND completed_at IS NULL`
-	args := []any{time.Now().UTC().Format(time.RFC3339), traceID}
-	return query, args
 }
 
 // scanLineageRows scans a set of lineage rows into a slice of LineageTrace.
@@ -151,72 +55,11 @@ func scanLineageRows(rows lineageScanner) ([]models.LineageTrace, error) {
 	return traces, rows.Err()
 }
 
-// lineageScanner abstracts *sql.Rows so scanLineageRows works for both
-// multi-row queries and the single-row wrapper.
+// lineageScanner abstracts *sql.Rows for scanLineageRows.
 type lineageScanner interface {
 	Next() bool
 	Scan(dest ...any) error
 	Err() error
-}
-
-// singleRowResult wraps *sql.Row into the lineageScanner interface.
-type singleRowResult struct {
-	row     *sql.Row
-	scanned bool
-	err     error
-}
-
-func singleRowToRows(row *sql.Row) lineageScanner {
-	return &singleRowResult{row: row}
-}
-
-func (s *singleRowResult) Next() bool {
-	if s.scanned {
-		return false
-	}
-	return true
-}
-
-func (s *singleRowResult) Scan(dest ...any) error {
-	s.scanned = true
-	s.err = s.row.Scan(dest...)
-	if s.err == sql.ErrNoRows {
-		s.err = nil
-	}
-	return s.err
-}
-
-func (s *singleRowResult) Err() error { return s.err }
-
-// InsertGitCommit records a git commit linked to a session and optional feature.
-func InsertGitCommit(database *sql.DB, commit *models.GitCommit) error {
-	_, err := insertGitCommit(database, commit)
-	return err
-}
-
-func insertGitCommit(database *sql.DB, commit *models.GitCommit) (int64, error) {
-	// feature_id is bound as a plain string (never nullStr) because it is
-	// part of git_commits' primary key (bug-3bf05d49): two NULLs are never
-	// equal under a UNIQUE index, so an unattributed commit inserted twice
-	// with a NULL feature_id would bypass INSERT OR IGNORE and duplicate.
-	// The column is NOT NULL DEFAULT '', so an empty commit.FeatureID binds
-	// as '' and still de-dupes correctly against itself.
-	res, err := database.Exec(`
-		INSERT OR IGNORE INTO git_commits (
-			commit_hash, session_id, feature_id, tool_event_id, message, timestamp
-		) VALUES (?, ?, ?, ?, ?, ?)`,
-		commit.CommitHash,
-		commit.SessionID,
-		commit.FeatureID,
-		nullStr(commit.ToolEventID),
-		nullStr(commit.Message),
-		commit.Timestamp.UTC().Format(time.RFC3339),
-	)
-	if err != nil {
-		return 0, fmt.Errorf("insert git commit %s: %w", commit.CommitHash, err)
-	}
-	n, _ := res.RowsAffected()
-	return n, nil
 }
 
 // GetCommitsByFeature returns all git commits linked to a feature, ordered by timestamp DESC.

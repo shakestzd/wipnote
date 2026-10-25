@@ -11,7 +11,6 @@ import (
 
 	"github.com/shakestzd/wipnote/core/db/dbtest"
 
-	dbpkg "github.com/shakestzd/wipnote/core/db"
 	"github.com/shakestzd/wipnote/core/models"
 )
 
@@ -77,7 +76,7 @@ type sessionEventSpec struct {
 // setupSessionTestDB creates an in-memory DB for session reindex tests.
 func setupSessionTestDB(t *testing.T) *sql.DB {
 	t.Helper()
-	database, err := dbpkg.Open(":memory:")
+	database, err := dbtest.Open(":memory:")
 	if err != nil {
 		t.Fatalf("open test db: %v", err)
 	}
@@ -143,7 +142,7 @@ func TestReindexSessions_RestoresActiveFeatureFromHTML(t *testing.T) {
 	if total != 1 || errCount != 0 {
 		t.Fatalf("reindexSessions total=%d errCount=%d, want total=1 errCount=0", total, errCount)
 	}
-	if got := dbpkg.GetActiveFeatureIDForSession(database, sessionID); got != "feat-durable" {
+	if got := dbtest.ActiveFeatureIDForSession(database, sessionID); got != "feat-durable" {
 		t.Fatalf("active_feature_id = %q, want feat-durable", got)
 	}
 }

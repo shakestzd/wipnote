@@ -1,7 +1,6 @@
 package hooks
 
 import (
-	"database/sql"
 	"os"
 	"path/filepath"
 	"strings"
@@ -47,7 +46,7 @@ func isYoloFromEvent(event *CloudEvent, wipnoteDir string) bool {
 //
 // When YOLO is inherited from an ancestor, a debug log line is emitted for
 // auditability.
-func isYoloWithInheritance(event *CloudEvent, wipnoteDir string, database *sql.DB, sessionID, projectDir string, isSubagent bool) bool {
+func isYoloWithInheritance(event *CloudEvent, wipnoteDir, sessionID, projectDir string, isSubagent bool) bool {
 	if isYoloFromEvent(event, wipnoteDir) {
 		return true
 	}
@@ -60,9 +59,7 @@ func isYoloWithInheritance(event *CloudEvent, wipnoteDir string, database *sql.D
 	}
 	// Inherit from the session family root (subagents always reach here;
 	// top-level sessions reach here only when they have no declared mode).
-	// database is no longer consulted — ancestry comes from the canonical
-	// session-family index, not the vanished sessions table.
-	_ = database
+	// Ancestry comes from the canonical session-family index.
 	root := yoloFamilyRoot(wipnoteDir, sessionID)
 	if root == "" {
 		return false // no distinct ancestor
@@ -80,11 +77,8 @@ func isYoloWithInheritance(event *CloudEvent, wipnoteDir string, database *sql.D
 // worktree-isolation guard so that a yolo-context subagent is still blocked from
 // editing main/master even if the primary IsYoloMode detection resolved false.
 // Returns false on an empty session or when there is no distinct ancestor.
-//
-// database is accepted for call-shape compatibility and ignored: ancestry is
-// read from the canonical session-family index (see yoloFamilyRoot).
-func anyParentSessionYolo(database *sql.DB, wipnoteDir, sessionID string) bool {
-	_ = database
+// Ancestry is read from the canonical session-family index (see yoloFamilyRoot).
+func anyParentSessionYolo(wipnoteDir, sessionID string) bool {
 	root := yoloFamilyRoot(wipnoteDir, sessionID)
 	return root != "" && isYoloFromRecordedMode(wipnoteDir, root)
 }

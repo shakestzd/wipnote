@@ -1,7 +1,6 @@
 package hooks
 
 import (
-	"database/sql"
 	"os/exec"
 	"regexp"
 	"strings"
@@ -59,7 +58,7 @@ func extractClosingIDs(commitMsg string) []string {
 //     item), falls back to the parent session's active feature.
 //
 // Uses the selfBinary() + exec.Command() pattern to avoid importing workitem.
-func autoCompleteFromCommit(commitMsg string, ctx *toolUseContext, database *sql.DB) []string {
+func autoCompleteFromCommit(commitMsg string, ctx *toolUseContext) []string {
 	var completed []string
 
 	// Mode 1: keyword/parenthetical references — works in all sessions.

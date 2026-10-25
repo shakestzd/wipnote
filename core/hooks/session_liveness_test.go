@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/db/dbtest"
 	"github.com/shakestzd/wipnote/core/models"
 	"github.com/shakestzd/wipnote/core/paths"
 )
@@ -143,7 +143,7 @@ func TestSessionResumeRefreshesPid(t *testing.T) {
 	defer database.Close()
 
 	sessionID := "test-resume-refresh-pid-001"
-	if err := db.UpsertSession(database, &models.Session{
+	if err := dbtest.UpsertSession(database, &models.Session{
 		SessionID:     sessionID,
 		AgentAssigned: "claude-code",
 		Status:        "completed",
@@ -169,7 +169,7 @@ func TestSessionResumeRefreshesPid(t *testing.T) {
 	}
 
 	event := &CloudEvent{SessionID: sessionID, CWD: projectDir}
-	if _, err := SessionResume(event, database, projectDir); err != nil {
+	if _, err := SessionResume(event, projectDir); err != nil {
 		t.Fatalf("SessionResume: %v", err)
 	}
 
@@ -223,7 +223,7 @@ func TestSessionResumeRemovesStaleAnchor(t *testing.T) {
 	defer database.Close()
 
 	sessionID := "test-resume-remove-stale-001"
-	if err := db.UpsertSession(database, &models.Session{
+	if err := dbtest.UpsertSession(database, &models.Session{
 		SessionID:     sessionID,
 		AgentAssigned: "claude-code",
 		Status:        "completed",
@@ -240,7 +240,7 @@ func TestSessionResumeRemovesStaleAnchor(t *testing.T) {
 	// No .launch-mode written → resolveOwningPID returns ok=false → the anchor
 	// must be REMOVED, not left in place.
 	event := &CloudEvent{SessionID: sessionID, CWD: projectDir}
-	if _, err := SessionResume(event, database, projectDir); err != nil {
+	if _, err := SessionResume(event, projectDir); err != nil {
 		t.Fatalf("SessionResume: %v", err)
 	}
 

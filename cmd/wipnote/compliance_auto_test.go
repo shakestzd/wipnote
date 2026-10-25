@@ -15,6 +15,7 @@ import (
 	"time"
 
 	dbpkg "github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/db/dbtest"
 	"github.com/shakestzd/wipnote/core/filelock"
 	"github.com/shakestzd/wipnote/core/gateledger"
 	"github.com/shakestzd/wipnote/core/paths"
@@ -113,7 +114,7 @@ func setupTempGitRepoWithMessage(t *testing.T, dir string, files map[string]stri
 // openComplianceTestDB opens an in-memory SQLite DB with schema applied.
 func openComplianceTestDB(t *testing.T) *sql.DB {
 	t.Helper()
-	db, err := dbpkg.Open(":memory:")
+	db, err := dbtest.Open(":memory:")
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
@@ -636,7 +637,7 @@ func TestComplianceAuto_SuccessPath(t *testing.T) {
 	// Set up a file-based DB so runComplianceAuto can open the same DB via WIPNOTE_DB_PATH.
 	dbPath := filepath.Join(tmpDir, "test-wipnote.db")
 	t.Setenv("WIPNOTE_DB_PATH", dbPath)
-	db, err := dbpkg.Open(dbPath)
+	db, err := dbtest.Open(dbPath)
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
@@ -755,7 +756,7 @@ func TestComplianceAuto_IncludesOutcomeEvidenceInPrompt(t *testing.T) {
 
 	dbPath := filepath.Join(tmpDir, "test-wipnote.db")
 	t.Setenv("WIPNOTE_DB_PATH", dbPath)
-	db, err := dbpkg.Open(dbPath)
+	db, err := dbtest.Open(dbPath)
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
@@ -853,7 +854,7 @@ func TestComplianceAuto_UnmeasuredFeatureGetsNoFabricatedOutcome(t *testing.T) {
 
 	dbPath := filepath.Join(tmpDir, "test-wipnote.db")
 	t.Setenv("WIPNOTE_DB_PATH", dbPath)
-	db, err := dbpkg.Open(dbPath)
+	db, err := dbtest.Open(dbPath)
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}

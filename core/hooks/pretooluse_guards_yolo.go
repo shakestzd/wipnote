@@ -19,7 +19,7 @@ func guardYoloWorkItem(st *preToolState) *guardOutcome {
 	}
 	// Extract the target file path once and reuse for both guards below.
 	st.targetFile = extractFilePath(st.event.ToolInput)
-	return blockIf(checkYoloWorkItemGuard(st.event.ToolName, activeWorkItem, ctx.IsYoloMode, ctx.SessionID, st.database, st.targetFile, ctx.ProjectDir))
+	return blockIf(checkYoloWorkItemGuard(st.event.ToolName, activeWorkItem, ctx.IsYoloMode, ctx.SessionID, st.targetFile, ctx.ProjectDir))
 }
 
 // guardReadBeforeWrite is research-first: require at least one Read/Grep/Glob
@@ -29,7 +29,7 @@ func guardReadBeforeWrite(st *preToolState) *guardOutcome {
 		return nil
 	}
 	ctx := st.ctx
-	st.hasResearch = hasRecentResearch(st.database, ctx.SessionID, ctx.AgentID, ctx.ProjectDir)
+	st.hasResearch = hasRecentResearch(ctx.SessionID, ctx.AgentID, ctx.ProjectDir)
 	return st.adviseOrBlockOutcome(checkYoloResearchGuard(st.event.ToolName, ctx.IsYoloMode, st.hasResearch, st.targetFile, ctx.ProjectDir))
 }
 
@@ -54,7 +54,7 @@ func guardExternalTechResearch(st *preToolState) *guardOutcome {
 	if manifestPath == "" && harnessPath == "" {
 		return nil
 	}
-	hasWebResearch := hasRecentWebResearch(st.database, ctx.SessionID, ctx.AgentID, ctx.ProjectDir)
+	hasWebResearch := hasRecentWebResearch(ctx.SessionID, ctx.AgentID, ctx.ProjectDir)
 	if manifestPath != "" {
 		if out := st.adviseOrBlockOutcome(checkExternalTechResearchGuard(event.ToolName, hasWebResearch, manifestPath, ctx.ProjectDir)); out != nil {
 			return out
@@ -139,20 +139,5 @@ func guardYoloSession(st *preToolState) *guardOutcome {
 	if warn := checkYoloOrchestratorWriteGuard(event, ctx.IsSubagent); warn != "" {
 		debugLog(ctx.ProjectDir, "[wipnote] YOLO orchestrator write warning: %s", warn)
 	}
-	return nil
-}
-
-// guardFileOverlap is the Tier 1 live file-overlap advisory. Runs for
-// Write/Edit/MultiEdit only. A single indexed SELECT
-// (idx_feature_files_path_seen) with ZERO writes: it never acquires a write
-// lock, so the feat-156e0a1a zero-SQLITE_BUSY hot-path guarantee is preserved.
-// Non-blocking by default (warn_on_file_overlap=true); blocks with exit 2 +
-// recovery hint only when block_on_file_overlap=true.
-func guardFileOverlap(st *preToolState) *guardOutcome {
-	advisory, blockErr := checkFileOverlapAdvisory(st.event, st.ctx, st.database)
-	if blockErr != nil {
-		return &guardOutcome{err: blockErr}
-	}
-	st.fileOverlapAdvisory = advisory
 	return nil
 }

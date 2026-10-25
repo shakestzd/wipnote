@@ -190,53 +190,11 @@ type PendingSubagentStart struct {
 	CreatedAt     int64 // microseconds since epoch
 }
 
-// UpsertPendingSubagentStart inserts or replaces a pending_subagent_starts row.
-// INSERT OR REPLACE tolerates re-delivery of SubagentStart events.
-func UpsertPendingSubagentStart(db *sql.DB, p *PendingSubagentStart) error {
-	query, args := UpsertPendingSubagentStartStmt(p)
-	if _, err := db.Exec(query, args...); err != nil {
-		return fmt.Errorf("upsert pending_subagent_starts: %w", err)
-	}
-	return nil
-}
-
-// UpsertPendingSubagentStartStmt builds the parameterized INSERT OR REPLACE that
-// UpsertPendingSubagentStart Execs, WITHOUT executing it, so the hot-path
-// subagent-start hook can route the exact same statement through the daemon's
-// enqueue-only seam instead of blocking a direct writable handle under a held
-// external write lock (bug-c9ec25a4). The returned (sql, args) is byte-for-byte
-// equivalent to what UpsertPendingSubagentStart binds today.
-//
-// JSON-TRANSPORT SAFETY: cwd / parent_agent_id are normalized through
-// nullableStr — which returns nil or a plain string — and created_at is an int64.
-// Every arg is therefore a transport-safe primitive (string / number / nil) the
-// daemon can JSON-encode and re-bind identically. No sql.NullString crosses the
-// wire.
-func UpsertPendingSubagentStartStmt(p *PendingSubagentStart) (string, []any) {
-	query := `
-		INSERT OR REPLACE INTO pending_subagent_starts
-			(agent_id, agent_type, session_id, cwd, parent_agent_id, created_at)
-		VALUES (?, ?, ?, ?, ?, ?)`
-	args := []any{
-		p.AgentID, p.AgentType, p.SessionID,
-		nullableStr(p.CWD), nullableStr(p.ParentAgentID), p.CreatedAt,
-	}
-	return query, args
-}
-
 // PurgeStalePendingSubagentStarts deletes rows older than 24 h.
 // Subagents never run longer than that, so stale rows are safe to remove.
 func PurgeStalePendingSubagentStarts(db *sql.DB) {
 	cutoff := (int64(0) + time.Now().Add(-24*time.Hour).UnixMicro())
 	db.Exec(`DELETE FROM pending_subagent_starts WHERE created_at < ?`, cutoff)
-}
-
-// nullableStr returns nil for empty strings (maps to SQL NULL).
-func nullableStr(s string) any {
-	if s == "" {
-		return nil
-	}
-	return s
 }
 
 // CreateOtelIndexes creates performance indexes for the OTel tables.

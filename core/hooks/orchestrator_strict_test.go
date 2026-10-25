@@ -1,7 +1,6 @@
 package hooks
 
 import (
-	"database/sql"
 	"os"
 	"path/filepath"
 	"strings"
@@ -232,15 +231,13 @@ func TestPreToolUse_OrchestratorStrictBlocksSkill(t *testing.T) {
 	t.Setenv("CLAUDE_PROJECT_DIR", "")
 	t.Setenv("WIPNOTE_PROJECT_DIR", projectDir)
 
-	var database *sql.DB // hot hooks dispatch with no handle (feat-af8d1689)
-
 	result, err := PreToolUse(&CloudEvent{
 		SessionID: sessionID,
 		AgentID:   "claude-code",
 		CWD:       projectDir,
 		ToolName:  "Skill",
 		ToolInput: map[string]any{"skill": "frontend-design:frontend-design"},
-	}, database)
+	})
 	if err != nil {
 		t.Fatalf("PreToolUse: %v", err)
 	}
@@ -264,15 +261,13 @@ func TestPreToolUse_OrchestratorStrictAdvisesBeforeBlocking(t *testing.T) {
 	t.Setenv("CLAUDE_PROJECT_DIR", "")
 	t.Setenv("WIPNOTE_PROJECT_DIR", projectDir)
 
-	var database *sql.DB // hot hooks dispatch with no handle (feat-af8d1689)
-
 	result, err := PreToolUse(&CloudEvent{
 		SessionID: sessionID,
 		AgentID:   "claude-code",
 		CWD:       projectDir,
 		ToolName:  "Skill",
 		ToolInput: map[string]any{"skill": "frontend-design:frontend-design"},
-	}, database)
+	})
 	if err != nil {
 		t.Fatalf("PreToolUse: %v", err)
 	}

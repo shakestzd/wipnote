@@ -1,7 +1,6 @@
 package hooks
 
 import (
-	"database/sql"
 	"fmt"
 	"path/filepath"
 	"time"
@@ -36,8 +35,7 @@ import (
 // reads the note and is idempotent. Steps that Stop already performs
 // (FinalizeSessionHTML, backfillMissedUserPrompts, runSessionExitReconcile) are
 // intentionally omitted here to avoid duplicated work.
-func SessionEnd(event *CloudEvent, database *sql.DB, projectDir string) (*HookResult, error) {
-	_ = database
+func SessionEnd(event *CloudEvent, projectDir string) (*HookResult, error) {
 	sessionID := EnvSessionID(event.SessionID)
 	if sessionID == "" {
 		return &HookResult{Continue: true}, nil
@@ -63,9 +61,8 @@ func SessionEnd(event *CloudEvent, database *sql.DB, projectDir string) (*HookRe
 }
 
 // SessionResume handles the SessionResume Claude Code hook event. It refreshes
-// the session's pid anchor and env vars. database is unused.
-func SessionResume(event *CloudEvent, database *sql.DB, projectDir string) (*HookResult, error) {
-	_ = database
+// the session's pid anchor and env vars.
+func SessionResume(event *CloudEvent, projectDir string) (*HookResult, error) {
 	sessionID := EnvSessionID(event.SessionID)
 	if sessionID == "" {
 		return &HookResult{Continue: true}, nil
