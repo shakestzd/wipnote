@@ -7,7 +7,7 @@ meta:
     status: draft
     priority: medium
     schema_version: v4
-    version: 6
+    version: 7
 design:
     problem: ""
     goals: []
@@ -96,6 +96,29 @@ slices:
         - golangci-lint unused reports nothing in core
         - Full test suite passes
       effort: M
+      risk: Low
+      tests: ""
+      approved: false
+      comment: ""
+    - id: slic-1687e435
+      num: 5
+      title: Delete serve-era packages in observe, plan and internal
+      what: Remove the embedded OTLP receiver (receiver.go/http.go/signalid.go), the QueuedSink and indexer poll loop, plan/planchat and plan/planamend, internal/notebook with its embedded Python and the build sync step, internal/launcher/profile, interview web-form leftovers, dead registry and collector exports; move test-only helpers out of production files.
+      why: About 2,000 Go lines and 2,018 Python lines with no importer since f3269ff40.
+      files:
+        - observe/otel
+        - plan/planchat
+        - plan/planamend
+        - plan/interview
+        - internal/notebook
+        - internal/launcher/profile
+        - internal/registry
+        - cmd/wipnote/build.go
+      deps: []
+      done_when:
+        - No package without importers remains except signalvtab (feat-ba544d57)
+        - Full test suite passes
+      effort: S
       risk: Low
       tests: ""
       approved: false
