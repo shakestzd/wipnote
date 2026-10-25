@@ -12,10 +12,10 @@ import (
 // reached through its slash command or the wipnote:skills catalog, which keeps
 // the per-turn listing small.
 var modelVisibleSkills = map[string]bool{
-	"agent-context":                 true, // preloaded into coder agents via skills:
-	"code-quality-skill":            true, // preloaded into coder agents via skills:
-	"execute":                       true,
-	"skills":                        true, // the catalog itself
+	"agent-context":      true, // preloaded into coder agents via skills:
+	"code-quality-skill": true, // preloaded into coder agents via skills:
+	"execute":            true,
+	"skills":             true, // the catalog itself
 }
 
 // sharedSkillDirs lists plugin/skills/<dir> entries that hold a SKILL.md.

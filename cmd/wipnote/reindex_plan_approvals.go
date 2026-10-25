@@ -140,7 +140,7 @@ var errRowAlreadyExists = fmt.Errorf("plan_feedback row already exists — skipp
 // live interactive state written after the last reindex (the DB row wins over
 // the YAML snapshot).
 //
-// questionID is threaded through (not hardcoded to '') because
+// questionID is threaded through (not hardcoded to ”) because
 // replayFeedbackEntries replays real entries now, including "answer" actions
 // that share a (plan_id, section, action) prefix across multiple questions —
 // e.g. every global question lives under section="questions" — and only

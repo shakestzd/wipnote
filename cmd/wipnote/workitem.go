@@ -51,61 +51,6 @@ func workitemCmd(typeName, dirName string) *cobra.Command {
 	})
 }
 
-func wiListCmd(_ string, dirName string) *cobra.Command {
-	var statusFilter string
-	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List " + dirName,
-		RunE: func(_ *cobra.Command, _ []string) error {
-			return runWiList(dirName, statusFilter)
-		},
-	}
-	cmd.Flags().StringVarP(&statusFilter, "status", "s", "",
-		"Filter by status (todo, in-progress, blocked, done)")
-	return cmd
-}
-
-func runWiList(dirName, statusFilter string) error {
-	dir, err := findWipnoteDir()
-	if err != nil {
-		return err
-	}
-	nodes, err := graph.LoadDir(filepath.Join(dir, dirName))
-	if err != nil {
-		return fmt.Errorf("load %s: %w", dirName, err)
-	}
-
-	var filtered []*models.Node
-	for _, n := range nodes {
-		if statusFilter != "" && string(n.Status) != statusFilter {
-			continue
-		}
-		filtered = append(filtered, n)
-	}
-
-	sort.Slice(filtered, func(i, j int) bool {
-		return filtered[i].ID < filtered[j].ID
-	})
-
-	if len(filtered) == 0 {
-		fmt.Printf("No %s found.\n", dirName)
-		return nil
-	}
-
-	fmt.Printf("%-22s  %-11s  %-8s  %s\n", "ID", "STATUS", "PRIORITY", "TITLE")
-	fmt.Println(strings.Repeat("-", 80))
-	for _, n := range filtered {
-		marker := "  "
-		if n.Status == models.StatusInProgress {
-			marker = "* "
-		}
-		fmt.Printf("%s%-20s  %-11s  %-8s  %s\n",
-			marker, n.ID, n.Status, n.Priority, truncate(n.Title, 44))
-	}
-	fmt.Printf("\n%d %s\n", len(filtered), dirName)
-	return nil
-}
-
 func wiShowCmd(typeName string) *cobra.Command {
 	var format string
 	cmd := &cobra.Command{
