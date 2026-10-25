@@ -7,7 +7,7 @@ meta:
     status: draft
     priority: medium
     schema_version: v4
-    version: 10
+    version: 11
 design:
     problem: |
         ## Problem
@@ -41,7 +41,7 @@ design:
         - **R. Result:** the worker writes outbox/<task>-result.json, as a preamble on the brief tells it. The Stop hook only signals "turn ended" (slices 5, 10, 11).
         - **S. Codex sandbox:** read-only by default, --write for workspace-write, danger-full-access only for an opted-in host (slice 12).
         - **C. Container:** ccx means container Claude. --container runs the worker in the project's own devcontainer; no second-account gate (slice 21).
-        - **L. Layout:** each worker opens in its own herdr tab in the caller's workspace, cap 6 (slices 6, 10).
+        - **L. Layout (corrected 2026-10-25):** exactly as orch: ONE workers tab per caller in the caller's workspace; each new worker is a split inside it, cap 6 (slices 6, 10, 19).
         - **D. orch defects become two-sided regression tests:** D1 and D3 (slice 11), D2 and D6 (slices 10, 11), D4 (slice 5), D5 (slice 10).
         - **E. Resume:** spawn NAME2 --resume NAME relaunches the recorded session (slice 20).
 
@@ -337,7 +337,7 @@ slices:
         **State:** orch-integration.md keeps its history and gains a pointer; delegate.md becomes the spec.
         **Rejected:** editing the spec now, because the brief says to correct it as a slice once the facts are in. Deleting orch-integration.md is also rejected: feat-ac66c687 cites it.
         **Parallel:** it waits for slices 1 and 2, then runs beside slices 4 to 7.
-        **Owner decisions (2026-10-25):** delegate.md also records decisions R (result file), S (sandbox ladder), C (project devcontainer), L (a tab per worker), the D regression list and E (resume).
+        **Owner decisions (2026-10-25):** delegate.md also records decisions R (result file), S (sandbox ladder), C (project devcontainer), L (one workers tab per caller, splits inside, cap 6), the D regression list and E (resume).
       blocks:
         - type: file-tree
           title: Files touched
@@ -565,7 +565,7 @@ slices:
     - id: slic-5f6c8b66
       num: 6
       title: herdr adapter in Go
-      what: 'Add internal/delegate/herdr, a Go interface over the herdr CLI: tab create and close; pane split, run, get, close, rename, process-info, send-text and send-keys; agent prompt, read, get, list and rename. One-shot panes keep the mod''s tile layout; each interactive worker gets its own tab (cap 6). A scripted fake drives the tests.'
+      what: 'Add internal/delegate/herdr, a Go interface over the herdr CLI: tab create and close; pane split, run, get, close, rename, process-info, send-text and send-keys; agent prompt, read, get, list and rename. One-shot panes keep the mod''s tile layout; interactive workers share one workers tab per caller, split like orch (cap 6). A scripted fake drives the tests.'
       why: Every pane operation goes through one tested place. One-shot and interactive runs then place, label and close panes the same way.
       files:
         - internal/delegate/herdr/herdr.go
@@ -576,14 +576,14 @@ slices:
         - internal/delegate/herdr/testdata/scripts
       deps: []
       done_when:
-        - One-shot layout matches layout.ts for 1 to 7 panes; interactive workers get one tab each in the caller's workspace, cap 6
+        - One-shot layout matches layout.ts for 1 to 7 panes; interactive workers split one workers tab per caller, cap 6
         - herdr is used only when HERDR_ENV=1; HERDR_PANE_ID is trusted only then
         - Every call has a timeout; exit 1 yields herdr's JSON error from stderr; exit 2 is a usage error, never a timeout (P-8)
         - The Go fake replays scripted replies; an unscripted call fails the test
       effort: M
       risk: Low
       tests: |
-        Unit: TestLayout_MatchesModTile, TestLayout_TabPerWorkerCap6, TestHerdr_TimeoutAndAbsent, TestHerdr_OnlyWithHerdrEnv, TestHerdr_Exit1ParsesStderrJSON, TestHerdr_Exit2IsUsageNotTimeout.
+        Unit: TestLayout_MatchesModTile, TestLayout_WorkersTabSplitOrder, TestLayout_WorkersTabCap6, TestHerdr_TimeoutAndAbsent, TestHerdr_OnlyWithHerdrEnv, TestHerdr_Exit1ParsesStderrJSON, TestHerdr_Exit2IsUsageNotTimeout.
         Contract: TestHerdr_StubScript (testdata/herdr copied from mods/codex-herdr-pane/test/stubs/herdr), TestFake_UnscriptedCallFails, TestFake_RepliesMatchSchema.
         Live (HERDR_ENV=1 only): TestHerdr_LiveTabRoundTrip (create a tab, run, read, close).
       complexity: standard
@@ -610,7 +610,7 @@ slices:
         **Detect:** herdr is present only when HERDR_ENV=1. HERDR_PANE_ID names the caller's pane only then; it gives the caller's workspace for new tabs.
         **Errors:** herdr prints a JSON error on stderr with exit 1, and exit 2 for a syntax error. Exit 2 is classified before any text is scanned, so `unknown option` is never read as a timeout (orch P-8).
         **Fake:** port the script format and reply shapes of the orch-conformance Node fake for herdr, checked against herdr's api-schema (protocol 22). Every call must be scripted; an unscripted call fails loudly.
-        **Layout (decision L, owner 2026-10-25):** each interactive worker opens in its own herdr tab in the caller's workspace, cap 6, never a split of the caller's tab. Note: orch makes ONE workers tab per run and splits later workers inside it (orch src/orch/service/placement.py:place). The owner's words win; see the critique.
+        **Layout (decision L, ANSWERED 2026-10-25, corrected):** exactly as orch (orch src/orch/service/placement.py:place). The first worker creates ONE workers tab in the caller's workspace (from HERDR_PANE_ID) and uses its root pane. Later workers split inside that tab: the 2nd splits the first pane right, the 3rd the first pane down, the 4th the second pane down, the 5th and 6th the largest pane. Cap 6 live workers. The caller's own tab is never split. When the tab's last worker stops, delegate closes it (only a tab it created).
         **Pinning:** spawn records pane id and terminal_id (orch src/orch/service/transports.py:check_occupant). A mismatch or a failed lookup refuses and types nothing.
       blocks:
         - type: data-model
@@ -816,7 +816,7 @@ slices:
         - 8
       done_when:
         - Every recogniser case in register.test.ts and claude.test.ts passes as a Go table test
-        - A standalone codex exec or claude -p is denied with a reason that holds the exact `wipnote delegate run -- <same argv>`
+        - A standalone codex exec or claude -p is denied with the exact `wipnote delegate run -- <same argv>`; a bare ccx task gets the --container form
         - '`wipnote delegate run -- codex exec ...` is not denied (no redirect loop)'
         - The hook never returns allow or updatedInput
         - The hook adds under 5 ms p95 to a Bash call that is not a delegation
@@ -824,7 +824,7 @@ slices:
       risk: High
       tests: |
         Unit: TestDetect_ModCases (ported tables), TestDetect_BlanksQuotesAndHeredocs, TestDetect_InfoFlagsAreNotRuns.
-        Hook: TestPreToolUse_DeniesStandaloneDelegation, TestPreToolUse_DelegateRunPrefixNotDenied, TestPreToolUse_ChainedPassesThrough, TestPreToolUse_NeverAllowsOrRewrites.
+        Hook: TestPreToolUse_DeniesStandaloneDelegation, TestPreToolUse_DelegateRunPrefixNotDenied, TestPreToolUse_ChainedPassesThrough, TestPreToolUse_NeverAllowsOrRewrites, TestPreToolUse_CcxTaskDeniedWithContainerForm (its own case).
         Bench: BenchmarkPreToolUse_NonDelegation.
       complexity: complex
       approved: false
@@ -849,6 +849,7 @@ slices:
         **Risk:** a redirect loop if the recogniser matches its own redirect; the delegate run prefix is exempt and tested.
         **Rejected:** rewrite-ask (Claude only; the user sees a rewritten command) and rewrite-allow (auto-approves a codex exec the user never approved). A mod-side tool.call hook is rejected, because mods exist only in Claude Code. Rewriting chained commands is deferred to v2 (q-chained).
         **Parallel:** no; it needs slice 8. It can run beside slices 10 to 13.
+        **ccx exception (owner, ANSWERED 2026-10-25):** ccx means container Claude (decision C). The deny reason for a bare `ccx task ...` shows the translated `wipnote delegate run --container -- <task args>`. This is the one exception to the exact-argv rule and is tested as its own case. slice 21 adds the --container flag, so until it lands the reason names it as coming.
       blocks:
         - type: tabs
           title: 'Redirect (q-intercept: deny-redirect)'
@@ -868,7 +869,7 @@ slices:
     - id: slic-9d0a2faa
       num: 10
       title: 'Interactive sessions: spawn, stop, list and tree'
-      what: Add wipnote delegate spawn NAME --harness claude|codex. Each worker gets its own herdr tab in the caller's workspace (cap 6). spawn types one short boot line and returns with status starting; the boot reads the brief from a file and starts wipnote claude or codex. Add one readiness predicate, a verified stop, list and tree.
+      what: Add wipnote delegate spawn NAME --harness claude|codex. Workers open as splits in one workers tab per caller (cap 6). spawn types one short boot line and returns with status starting; the boot reads the brief from a file and starts wipnote claude or codex. Add one readiness predicate, a verified stop, list and tree.
       why: orch's interactive sessions are the half the mod never covered. Running workers under wipnote's launchers gives them wipnote hooks and lineage, and the owner chose that each worker claims its work item (q-worker-claim).
       files:
         - cmd/wipnote/delegate_spawn.go
@@ -891,16 +892,16 @@ slices:
         - 5
         - 6
       done_when:
-        - spawn returns within 3 s as starting; it types a boot line, never the brief
-        - spawn refuses a live name, a seventh worker, or no work item
-        - spawn scrubs inherited WIPNOTE_* env; the worker is its own root
+        - spawn returns within 3 s as starting, typing a boot line, never the brief
+        - '2nd worker splits the workers tab; refused: a 7th worker, a live name, no work item'
+        - spawn scrubs inherited WIPNOTE_* env (worker is its own root)
         - One readiness predicate serves wait, probe and send (D2)
-        - stop records pids first, closes only at a bare shell, never signals, and prints pane_closed and survivors (D5)
+        - stop records pids first, closes at a bare shell only, never signals, prints pane_closed and survivors (D5)
         - After /clear both sessions are listed; binding adds under 2 ms
       effort: L
       risk: High
       tests: |
-        Integration (fake herdr): TestSpawn_ReturnsStartingWithin3s, TestSpawn_TypesBootLineNotBrief, TestSpawn_WaitsForShellBeforeTyping, TestSpawn_OwnTabInCallerWorkspace, TestSpawn_RefusesSeventhWorker, TestSpawn_RefusesLiveName, TestSpawn_RefusesWithoutWorkItem, TestSpawn_BindsSessionOnStart, TestSpawn_ClearAddsSecondSession, TestList_RenamesAndPinsLateAgent, TestTree_CallerRunWorkerSubagents.
+        Integration (fake herdr): TestSpawn_ReturnsStartingWithin3s, TestSpawn_TypesBootLineNotBrief, TestSpawn_WaitsForShellBeforeTyping, TestSpawn_FirstWorkerCreatesWorkersTab, TestSpawn_SecondWorkerSplitsWorkersTab, TestSpawn_RefusesSeventhWorker, TestStop_LastWorkerClosesWorkersTab, TestStop_OtherWorkersKeepTab, TestSpawn_RefusesLiveName, TestSpawn_RefusesWithoutWorkItem, TestSpawn_BindsSessionOnStart, TestSpawn_ClearAddsSecondSession, TestList_RenamesAndPinsLateAgent, TestTree_CallerRunWorkerSubagents.
         Readiness (D2, two-sided): TestReady_IdleWithResultIsDone, TestReady_IdleNoResult, TestReady_IdleBackgroundShellRunning, TestReady_ProbeSendWaitAgree.
         Stop (D5, finding 2): TestStop_RecordsPidsBeforeInput, TestStop_ClosesOnlyAtBareShell, TestStop_UnknownProcessInfoIsNotShell, TestStop_ReportsPaneClosedAndSurvivors, TestStop_PaneClosedFalseNamesWhy, TestStop_NeverSignals.
         Env: TestSpawn_ScrubsInheritedSessionEnv, TestSpawn_WorkerShardIsOwnRoot, TestShellQuote_RoundTrip.
@@ -928,16 +929,16 @@ slices:
           answer: No. Workers start through wipnote claude or wipnote codex, whose plugin hooks fire, and the launcher passes no --settings (code search, 2026-10-25). The --settings risk applies only to orch during migration (Phase B check B1).
         - id: q-worker-layout
           text: Where does a worker's pane open?
-          answer: In its own herdr tab in the caller's workspace, cap 6 live workers, never a split of the caller's tab (owner decision L, 2026-10-25). orch itself uses one workers tab per run with splits inside it; the owner's choice is a tab per worker.
+          answer: 'ANSWERED 2026-10-25 (owner, corrected): exactly as orch. ONE workers tab per caller in the caller''s workspace; each new worker is a split inside that tab, cap 6 workers; the caller''s own tab is never split (orch src/orch/service/placement.py:place). An earlier note of a tab per worker is withdrawn.'
       decisions_notes: |
         **Trigger:** wipnote delegate spawn from a caller session or a human shell.
         **State:** ledger row (mode interactive), run folder with pane id, name and brief, events written by the worker's hooks. The caller is stored only as delegate_caller_session (the ledger's caller_session, passed in WIPNOTE_DELEGATE_CALLER). The worker's sessions.parent_session_id stays empty.
         **Spawn (decision F, ANSWERED 2026-10-25):** spawn returns within 3 s with status "starting". The bind and the brief happen inside the pane. delegate wait and list show readiness (starting, ready, gone).
         **Payload:** spawn prints {run, name, pane, harness, status}. tree prints a text tree, or JSON with --json.
-        **Transport:** herdr pane run only. herdr agent start cannot run a custom command (https://herdr.dev/docs/agent-automation/). spawn waits until the new tab's shell has settled (orch src/orch/service/readiness.py:wait_shell_ready), then types one short quoted line with env prefixes inline (WIPNOTE_DELEGATE_RUN=... WIPNOTE_DELEGATE_CALLER=... wipnote delegate boot <run-id>). It never types blind.
+        **Transport:** herdr pane run only. herdr agent start cannot run a custom command (https://herdr.dev/docs/agent-automation/). spawn waits until the new pane's shell has settled (orch src/orch/service/readiness.py:wait_shell_ready), then types one short quoted line with env prefixes inline (WIPNOTE_DELEGATE_RUN=... WIPNOTE_DELEGATE_CALLER=... wipnote delegate boot <run-id>). It never types blind.
         **Brief by file (finding 3):** the brief goes by FILE PATH in the run folder, never inline in the pane run string: macOS rejects input lines over its limit. delegate boot reads the file and passes it to the launcher as argv. The result preamble (decision R) is appended to the brief.
         **Rename and pin:** after the harness appears, the next wait or list renames the herdr agent to NAME (herdr agent rename) and pins pane id plus terminal_id, as orch adopts a late agent (orch src/orch/service/launch.py:adopt_late_agent). The 3 s return holds only because launch, bind and rename run in the pane or later, not in spawn.
-        **Layout (decision L):** each worker opens in its own herdr tab in the caller's workspace (from HERDR_PANE_ID), cap 6 live workers, never a split of the caller's tab. stop closes the worker's tab once its pane is closed.
+        **Layout (decision L, ANSWERED 2026-10-25, corrected):** exactly as orch: one workers tab per caller in the caller's workspace; each new worker is a split inside it, cap 6 (orch src/orch/service/placement.py:place; split order in slice 6). The caller's own tab is never split. stop closes the worker's pane; the workers tab closes when its last worker stops.
         **Readiness (D2):** one predicate in internal/delegate/session/ready.go serves wait, probe and send. States: starting, ready, working, question, idle_no_result (idle, no result written), idle_shell (idle, a background shell still running) and gone. orch's probe and send disagreed, and its state stuck at working on an idle pane.
         **Env scrub:** spawn removes inherited WIPNOTE_* session env from the pane command (WIPNOTE_PARENT_SESSION, WIPNOTE_PARENT_EVENT, WIPNOTE_NESTING_DEPTH). session_start.go reads them (lines 227-233 and isSubagent at 908-911); left in place they mark the worker as a subagent of the caller.
         **Names:** [a-z0-9-], 1 to 32 characters, unique among live runs in the project.
@@ -959,7 +960,7 @@ slices:
           entries:
             - wipnote delegate spawn w1 --harness claude
             - ledger Open (interactive); run folder with brief.md and preamble
-            - herdr tab create in the caller's workspace (cap 6)
+            - 'first worker: herdr tab create (workers tab, caller''s workspace); later: split inside it (cap 6)'
             - 'wait for the shell to settle, then type: wipnote delegate boot <run-id>'
             - 'spawn returns: status starting'
             - 'in the pane: boot reads brief.md and execs wipnote claude'
@@ -1009,7 +1010,7 @@ slices:
         Ready (D6, two-sided): TestWait_FreshWorkerReadyAfter1sReturnsUnder2s, TestWait_NeverReadyTimesOut124.
         Result (D3, two-sided): TestResult_NewestFileWhileWorking, TestResult_NewestFileAfterWatermark, TestResult_NoFileSaysNoneNotNull.
         States (D2): TestWait_IdleBackgroundShellIsNotDone, TestSendAndWait_SharePredicate.
-        Do not copy (F-1): TestWait_NeverWritesRunState, TestWait_AfterStopStaysStopped.
+        Do not copy (F-1): TestWait_NeverWritesRunState, TestWait_AfterStopStaysStopped, TestWait_LateLedgerWriteAfterStopLeavesRowClosed, TestWait_LedgerWriteOnOpenRowApplies.
         Other: TestSend_StoreFirstThenHint, TestSend_AppendsResultPreamble, TestQuestions_PendingThenCleared.
         Hook: TestDelegateEvents_StopRecordsTurnEndOnly, TestDelegateEvents_AskCaptured, TestDelegateEvents_FailOpen.
         Claims: TestWait_GoneExpiresOnlyWorker, TestWait_AddsClearedSessionToWorkerSessions, TestWait_TimeoutLeavesClaims.
@@ -1033,6 +1034,9 @@ slices:
         - id: q-settle
           text: What settles a wait?
           answer: 'A durable signal. That is the worker''s Stop hook event for the current turn (with the last assistant message) or an explicit report. herdr''s docs say agent wait observes state, not job completion. cbds and herdr-orch settle the same way. UPDATED 2026-10-25 (owner decision R): the worker''s result file (outbox/<task>-result.json, written as the brief''s preamble says) is the durable result. The Stop hook only signals that a turn ended; no last_assistant_message or transcript text is stored.'
+        - id: q-wait-writes
+          text: May wait write the ledger at all (orch F-1)?
+          answer: Yes, but only under the ledger lock and only if the row is still open, so a stop always wins. wait never writes run state (owner, 2026-10-25).
       decisions_notes: |
         **Trigger:** the caller runs send, wait, result or questions. The worker's hooks (UserPromptSubmit starts a turn; Stop, PreToolUse on AskUserQuestion and PermissionRequest record events) write the evidence.
         **State:** mail files and events-*.ndjson in the run store. The turn id increments at each delivered message.
@@ -1042,7 +1046,7 @@ slices:
         **Settle (D1):** a result file for the current task ends wait even when the hooks are silent. orch's send --wait missed that settle.
         **Result lookup (D3):** result returns the newest result file, whatever the state or watermark, and names the task it answers. orch returned null while a result file existed.
         **Ready (D6):** wait NAME on a worker with no task returns ready as soon as slice 10's readiness predicate holds.
-        **Do not copy (F-1):** orch's wait patched session state outside the session lock and could undo a stop. wait writes no run state. Its two ledger writes (adding a /clear session, the worker-loss close) run under the ledger lock and recheck that the row is still open.
+        **Do not copy (F-1):** orch's wait patched session state outside the session lock and could undo a stop. wait writes no run state. Its two ledger writes (adding a /clear session, the worker-loss close) run under the ledger lock and recheck that the row is still open. ANSWERED 2026-10-25 (owner): keep this design; a stop always wins. Two-sided test: stop, then a late wait write, leaves the row closed; the same write on an open row applies.
         **Payload:** wait prints {run, turn, outcome: ready|done|question|idle_no_result|idle_shell|timeout|gone}. result prints the newest result file's body and its task id. questions prints JSON rows.
         **Polling:** at most 2 Hz, plus an fs watch where available. No daemon.
         **Claims (co-claim, answered 2026-10-25):** wait observes; a timeout changes no claim, and the orchestrator's episode is never touched. When the worker is gone, wait reuses slice 10's session-scoped expired close. When a bind event names a session not yet in worker_sessions (the worker ran /clear), wait enriches the ledger row, so the claim gate keeps treating that session as family.
@@ -1496,7 +1500,7 @@ slices:
         **Rejected:** dropping the Claude Code pane, and a thin separate view-only mod (q-claude-pane options).
         **Risk:** mods engine API drift; the owner updates the CLAUDE.md mods paragraph.
         **Parallel:** after slices 5 and 7; beside slices 16 to 18.
-        **Layout (decision L):** workers live in their own herdr tabs, so the band shows one row per run, never one per pane or split.
+        **Layout (decision L, corrected):** workers are splits in one workers tab per caller, cap 6. The band shows one row per run, never one per pane or split.
       blocks:
         - type: file-tree
           title: Files touched
@@ -1639,7 +1643,7 @@ slices:
           entries:
             - delegate spawn w1 --container --harness claude
             - check .devcontainer/devcontainer.json and the devcontainer CLI
-            - 'boot line in the worker''s tab: devcontainer up --workspace-folder <root>'
+            - 'boot line in the worker''s pane: devcontainer up --workspace-folder <root>'
             - devcontainer exec --workspace-folder <root> wipnote claude
             - hooks inside write .wipnote/delegate/ through the workspace mount
             - 'stop: host pids via herdr, container pids via devcontainer exec'
