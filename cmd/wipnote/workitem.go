@@ -318,9 +318,13 @@ func wiSetStatusWithAgent(typeName, id, status, sessionID, agentID string) error
 	}
 
 	dirtyNote := ""
+	// One evidence value for every gate below and the auto-link, so the
+	// linked-commit git walk runs once per completion (feat-c30d0792).
+	var evidence *completionEvidence
 	if status == "done" && shouldAutocommitWorkitemArtifact(typeName) {
 		gateNode, _ := col.Get(id)
-		note, err := checkUncommittedSourceCompleteGate(dir, id, gateNode, wiAllowDirtyComplete)
+		evidence = newCompletionEvidence(dir, id, gateNode)
+		note, err := checkUncommittedSourceCompleteGate(evidence, wiAllowDirtyComplete)
 		if err != nil {
 			return err
 		}
@@ -335,7 +339,7 @@ func wiSetStatusWithAgent(typeName, id, status, sessionID, agentID string) error
 	// --accepted-advisory provides an audited override that records the
 	// rationale on the .wipnote artifact for compliance/snapshot tooling.
 	if status == "done" && shouldAutocommitWorkitemArtifact(typeName) {
-		if err := checkProvenanceCompleteGate(p, col, typeName, id, wiAcceptedAdvisory); err != nil {
+		if err := checkProvenanceCompleteGate(col, evidence, typeName, id, wiAcceptedAdvisory); err != nil {
 			return err
 		}
 	}
@@ -345,7 +349,7 @@ func wiSetStatusWithAgent(typeName, id, status, sessionID, agentID string) error
 	// least one must be reachable from the upstream default branch, or the
 	// operator records an --allow-orphan rationale. Skipped without a remote.
 	if status == "done" && shouldAutocommitWorkitemArtifact(typeName) {
-		if err := checkMergedUpstreamCompleteGate(p, col, typeName, id, wiAllowOrphan); err != nil {
+		if err := checkMergedUpstreamCompleteGate(col, evidence, typeName, id, wiAllowOrphan); err != nil {
 			return err
 		}
 	}
@@ -357,7 +361,7 @@ func wiSetStatusWithAgent(typeName, id, status, sessionID, agentID string) error
 	// for items that actually carry committed source. --accepted-advisory does
 	// NOT bypass it: research evidence and commit provenance are orthogonal.
 	if status == "done" && shouldAutocommitWorkitemArtifact(typeName) {
-		if err := checkDependencyResearchCompleteGate(p, col, typeName, id, wiResearchURL, wiResearchWaiver); err != nil {
+		if err := checkDependencyResearchCompleteGate(col, evidence, typeName, id, wiResearchURL, wiResearchWaiver); err != nil {
 			return err
 		}
 	}
@@ -464,7 +468,7 @@ func wiSetStatusWithAgent(typeName, id, status, sessionID, agentID string) error
 		// edges, BEFORE the artifact commit below so the durable record carries
 		// them (bug-0816b822). Non-fatal.
 		if shouldAutocommitWorkitemArtifact(typeName) {
-			autoLinkMessageDerivedCommits(os.Stderr, col, filepath.Dir(dir), id)
+			autoLinkMessageDerivedCommits(os.Stderr, col, filepath.Dir(dir), id, evidence.linkedCommits())
 		}
 		if typeName == "spike" {
 			attachSpikeResearch(os.Stderr, p, id)
@@ -1200,11 +1204,9 @@ func printRollup(n *models.Node) {
 // code-bearing paths from those commits' diffs, falling back to uncommitted
 // working-tree source for an item an agent demonstrably implemented. See
 // workitem_provenance_canonical.go for the derivation and its known narrowing.
-func checkProvenanceCompleteGate(p *workitem.Project, col *workitem.Collection, typeName, id, advisory string) error {
-	repoRoot := filepath.Dir(p.ProjectDir)
-	node, _ := col.Get(id)
-	commits := canonicalLinkedCommits(repoRoot, id, node)
-	codePaths, scope := canonicalCodeBearingPathsScoped(repoRoot, p.ProjectDir, id, node, commits)
+func checkProvenanceCompleteGate(col *workitem.Collection, ev *completionEvidence, typeName, id, advisory string) error {
+	commits := ev.linkedCommits()
+	codePaths, scope := ev.codeBearingPaths()
 	if len(codePaths) == 0 {
 		// Pure-.wipnote/doc item — exempt.
 		return nil
@@ -1271,7 +1273,7 @@ func wiIsResearchURL(u string) bool {
 //
 // Items that touch no dependency manifest are exempt (return nil), so ordinary
 // feature/bug completion is unaffected (feat-d1bcbf10 / spk-0a982f70).
-func checkDependencyResearchCompleteGate(p *workitem.Project, col *workitem.Collection, typeName, id string, researchURLs []string, researchWaiver string) error {
+func checkDependencyResearchCompleteGate(col *workitem.Collection, ev *completionEvidence, typeName, id string, researchURLs []string, researchWaiver string) error {
 	// Shape-check EVERY supplied --research-url up front (mirrors the v4 plan
 	// validator, which validates the shape of every research URL regardless of
 	// enforcement). A single invalid entry is a hard error rather than being
@@ -1285,10 +1287,7 @@ func checkDependencyResearchCompleteGate(p *workitem.Project, col *workitem.Coll
 		}
 	}
 
-	repoRoot := filepath.Dir(p.ProjectDir)
-	node, _ := col.Get(id)
-	codePaths := canonicalCodeBearingPaths(repoRoot, p.ProjectDir, id,
-		node, canonicalLinkedCommits(repoRoot, id, node))
+	codePaths, _ := ev.codeBearingPaths()
 	var manifests []string
 	for _, cp := range codePaths {
 		if paths.IsDependencyManifest(cp) {

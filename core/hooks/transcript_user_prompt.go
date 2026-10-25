@@ -2,10 +2,12 @@ package hooks
 
 import (
 	"bufio"
+	"bytes"
 	"crypto/sha256"
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"time"
@@ -108,6 +110,11 @@ func userPromptSignalID(uuid string) string {
 // canonical='user_prompt') are skipped. Running backfill multiple times
 // produces no duplicates.
 //
+// The scan resumes at the offset the previous run saved (feat-c30d0792): Stop
+// fires on every model response, and re-decoding the whole transcript each
+// time made every turn cost the session's length. Only newline-terminated
+// lines advance the offset, so a line still being written is read again.
+//
 // Returns the count of newly inserted rows. Errors are non-fatal by convention —
 // callers should log and continue.
 func backfillMissedUserPrompts(database *sql.DB, projectDir, sessionID, transcriptPath string) (int, error) {
@@ -124,93 +131,94 @@ func backfillMissedUserPrompts(database *sql.DB, projectDir, sessionID, transcri
 	}
 	defer f.Close()
 
-	// Look up active feature for attribution (best-effort).
-	var featureID sql.NullString
-	_ = database.QueryRow(
-		`SELECT work_item_id FROM active_work_items WHERE session_id = ? AND agent_id = ?`,
-		sessionID, "__root__",
-	).Scan(&featureID)
+	key := backfillOffsetKey(sessionID, transcriptPath)
+	offset := resumeOffset(f, loadBackfillOffset(database, key))
+	if _, err := f.Seek(offset, io.SeekStart); err != nil {
+		return 0, fmt.Errorf("seek transcript: %w", err)
+	}
+
+	var featureID sql.NullString // active feature for attribution (best-effort)
+	_ = database.QueryRow(`SELECT work_item_id FROM active_work_items WHERE session_id = ? AND agent_id = ?`,
+		sessionID, "__root__").Scan(&featureID)
 
 	inserted := 0
 	scanner := bufio.NewScanner(f)
 	// Increase buffer for very long lines (large prompts in transcript).
 	scanner.Buffer(make([]byte, 1024*1024), 10*1024*1024)
+	lines := &lineTracker{}
+	scanner.Split(lines.split)
 
+	consumed := offset
 	for scanner.Scan() {
-		line := scanner.Text()
-		if strings.TrimSpace(line) == "" {
-			continue
-		}
-
-		var rec userTranscriptRecord
-		if err := json.Unmarshal([]byte(line), &rec); err != nil {
-			continue // malformed line — skip
-		}
-		if rec.Type != "user" {
-			continue
-		}
-		if rec.IsSidechain {
-			continue // subagent internals — not main-thread user prompts
-		}
-		if rec.UUID == "" {
-			continue
-		}
-
-		text := extractUserText(rec.Message)
-		if text == "" {
-			continue // tool_result, image-only, or empty
-		}
-
-		// Parse the record timestamp; fall back to now on parse failure.
-		var tsMicros int64
-		if rec.Timestamp != "" {
-			if t, err := time.Parse(time.RFC3339Nano, rec.Timestamp); err == nil {
-				tsMicros = t.UnixMicro()
-			}
-		}
-		if tsMicros == 0 {
-			tsMicros = time.Now().UnixMicro()
-		}
-
-		signalID := userPromptSignalID(rec.UUID)
-
-		attrsMap := map[string]any{
-			"text":   text,
-			"source": "transcript_backfill",
-		}
-		if rec.RequestID != "" {
-			attrsMap["request_id"] = rec.RequestID
-		}
-		attrsJSON, err := json.Marshal(attrsMap)
-		if err != nil {
-			continue
-		}
-
-		// INSERT OR IGNORE keyed on signal_id for idempotency.
-		res, dbErr := database.Exec(`
-			INSERT OR IGNORE INTO otel_signals (
-				signal_id, harness, session_id,
-				span_id, parent_span,
-				kind, canonical, native, ts_micros,
-				attrs_json, feature_id
-			) VALUES (?, 'claude', ?, ?, ?, 'log', 'user_prompt', 'user_turn', ?, ?, ?)`,
-			signalID, sessionID,
-			nullableStr(rec.UUID), nullableStr(rec.ParentUUID),
-			tsMicros,
-			string(attrsJSON),
-			featureID,
-		)
-		if dbErr != nil {
-			debugLog(projectDir, "[user-prompt-backfill] insert signal: %v", dbErr)
-			continue
-		}
-		if n, _ := res.RowsAffected(); n > 0 {
+		noteBackfillRead(lines.last)
+		if backfillPromptLine(database, projectDir, sessionID, featureID, scanner.Bytes()) {
 			inserted++
 		}
+		if lines.terminated {
+			consumed += int64(lines.last)
+		}
 	}
+	saveBackfillOffset(database, projectDir, key, offset, consumed)
 	if err := scanner.Err(); err != nil {
 		return inserted, fmt.Errorf("scan transcript: %w", err)
 	}
 
 	return inserted, nil
+}
+
+// backfillPromptLine inserts the user prompt carried by one transcript line,
+// if it is one and is not already recorded. Reports whether a row was added.
+func backfillPromptLine(database *sql.DB, projectDir, sessionID string, featureID sql.NullString, line []byte) bool {
+	if len(bytes.TrimSpace(line)) == 0 {
+		return false
+	}
+	var rec userTranscriptRecord
+	if err := json.Unmarshal(line, &rec); err != nil {
+		return false // malformed line — skip
+	}
+	if rec.Type != "user" || rec.IsSidechain || rec.UUID == "" {
+		return false // not a main-thread user record
+	}
+	text := extractUserText(rec.Message)
+	if text == "" {
+		return false // tool_result, image-only, or empty
+	}
+
+	attrsMap := map[string]any{"text": text, "source": "transcript_backfill"}
+	if rec.RequestID != "" {
+		attrsMap["request_id"] = rec.RequestID
+	}
+	attrsJSON, err := json.Marshal(attrsMap)
+	if err != nil {
+		return false
+	}
+
+	// INSERT OR IGNORE keyed on signal_id for idempotency.
+	res, dbErr := database.Exec(`
+		INSERT OR IGNORE INTO otel_signals (
+			signal_id, harness, session_id,
+			span_id, parent_span,
+			kind, canonical, native, ts_micros,
+			attrs_json, feature_id
+		) VALUES (?, 'claude', ?, ?, ?, 'log', 'user_prompt', 'user_turn', ?, ?, ?)`,
+		userPromptSignalID(rec.UUID), sessionID,
+		nullableStr(rec.UUID), nullableStr(rec.ParentUUID),
+		recordTsMicros(rec.Timestamp), string(attrsJSON), featureID,
+	)
+	if dbErr != nil {
+		debugLog(projectDir, "[user-prompt-backfill] insert signal: %v", dbErr)
+		return false
+	}
+	n, _ := res.RowsAffected()
+	return n > 0
+}
+
+// recordTsMicros parses a transcript record timestamp, falling back to now.
+func recordTsMicros(ts string) int64 {
+	if ts != "" {
+		if t, err := time.Parse(time.RFC3339Nano, ts); err == nil && t.UnixMicro() != 0 {
+			return t.UnixMicro()
+		}
+	}
+	return time.Now().UnixMicro()
 }

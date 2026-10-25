@@ -72,13 +72,13 @@ func TestAutoLinkMessageDerivedCommits_Idempotent(t *testing.T) {
 	defer p.Close()
 
 	var out bytes.Buffer
-	if n := autoLinkMessageDerivedCommits(&out, p.Features.Collection, tmpDir, id); n != 1 {
+	if n := autoLinkMessageDerivedCommits(&out, p.Features.Collection, tmpDir, id, linkedCommitsAt(p.Features.Collection, tmpDir, id)); n != 1 {
 		t.Fatalf("first run linked %d, want 1 (only the unlinked commit)\n%s", n, out.String())
 	}
 	if !strings.Contains(out.String(), truncate(second, 12)) {
 		t.Errorf("expected the newly linked sha in output, got %q", out.String())
 	}
-	if n := autoLinkMessageDerivedCommits(&out, p.Features.Collection, tmpDir, id); n != 0 {
+	if n := autoLinkMessageDerivedCommits(&out, p.Features.Collection, tmpDir, id, linkedCommitsAt(p.Features.Collection, tmpDir, id)); n != 0 {
 		t.Fatalf("second run linked %d, want 0", n)
 	}
 	got := committedInTargets(t, hgDir, id)
@@ -86,7 +86,7 @@ func TestAutoLinkMessageDerivedCommits_Idempotent(t *testing.T) {
 		t.Fatalf("committed_in edges = %v, want exactly [%s %s]", got, first, second)
 	}
 	// Non-git project root: silently nothing.
-	if n := autoLinkMessageDerivedCommits(&out, p.Features.Collection, t.TempDir(), id); n != 0 {
+	if n := autoLinkMessageDerivedCommits(&out, p.Features.Collection, t.TempDir(), id, nil); n != 0 {
 		t.Errorf("non-git root must link nothing, got %d", n)
 	}
 }

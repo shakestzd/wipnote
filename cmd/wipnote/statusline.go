@@ -10,6 +10,8 @@ import (
 	"strings"
 
 	"github.com/shakestzd/wipnote/core/claimledger"
+	"github.com/shakestzd/wipnote/core/htmlparse"
+	"github.com/shakestzd/wipnote/core/models"
 	"github.com/shakestzd/wipnote/core/projection"
 	"github.com/shakestzd/wipnote/core/workitem"
 	"github.com/spf13/cobra"
@@ -98,6 +100,7 @@ func statuslineFromSession(dir, sessionID string) error {
 	// Find the feature node.
 	var featureType string
 	var featureTitle string
+	var item *models.Node
 	for _, typeName := range []string{"bug", "feature", "spike"} {
 		col := collectionFor(p, typeName)
 		node, err := col.Get(featureID)
@@ -107,6 +110,7 @@ func statuslineFromSession(dir, sessionID string) error {
 			}
 			featureType = typeName
 			featureTitle = node.Title
+			item = node
 			break
 		}
 	}
@@ -115,7 +119,7 @@ func statuslineFromSession(dir, sessionID string) error {
 	}
 
 	// Check if feature belongs to a track.
-	trackLine := resolveTrackContext(dir, featureID)
+	trackLine := resolveTrackContext(dir, item)
 
 	if trackLine != "" {
 		fmt.Printf("%s → %s %s\n", trackLine, iconFor(featureType), truncate(featureTitle, 25))
@@ -150,20 +154,20 @@ func normaliseStatuslineAgentID(agentID string) string {
 	return agentID
 }
 
-// resolveTrackContext returns a formatted track summary if the feature belongs to a track.
+// resolveTrackContext returns a formatted track summary if the item belongs to a track.
 // Format: "track_icon Track Title [done/total]"
 // Returns empty string if no track.
-func resolveTrackContext(dir, featureID string) string {
-	snap, err := projection.Load(dir)
-	if err != nil {
-		return ""
-	}
-	trackID := ""
-	for _, e := range snap.Out[featureID] {
-		if e.Relationship == "part_of" && strings.HasPrefix(e.ToID, "trk-") {
-			trackID = e.ToID
-			break
-		}
+//
+// The track is resolved from the item's own artifact and the track's file
+// (feat-c30d0792) — the same answer projection.Load's edges give, without
+// loading every artifact in the project, which made an open claim's status
+// line take ~0.45 s on this repo. When the item points at a track that is not
+// a plain tracks/<id>.html here (archived, or another layout), only the
+// projection knows its title, so that case still loads it.
+func resolveTrackContext(dir string, item *models.Node) string {
+	trackID, title, ok := trackFromItem(dir, item)
+	if !ok {
+		trackID, title = trackFromProjection(dir, item.ID)
 	}
 	if trackID == "" {
 		return ""
@@ -181,14 +185,73 @@ func resolveTrackContext(dir, featureID string) string {
 			done++
 		}
 	}
-
-	title := trackID
-	if n, ok := snap.Nodes[trackID]; ok && n.Title != "" {
-		title = truncate(n.Title, 25)
+	if title == "" {
+		title = trackID
+	} else {
+		title = truncate(title, 25)
 	}
-
 	return fmt.Sprintf("%s %s [%d/%d]", iconFor("track"), title, done, total)
 }
+
+// trackFromItem resolves the item's track as projection.Load's first
+// part_of → trk-* out-edge would: a declared part_of edge to a track that
+// exists, else the item's TrackID field. ok is false when the answer depends
+// on a track this cheap lookup cannot see, and the caller must ask the
+// projection instead.
+func trackFromItem(dir string, item *models.Node) (trackID, title string, ok bool) {
+	for _, e := range item.Edges[string(models.RelPartOf)] {
+		rel := string(e.Relationship)
+		if (rel != "" && rel != string(models.RelPartOf)) || !strings.HasPrefix(e.TargetID, "trk-") {
+			continue
+		}
+		t, found := trackFile(dir, e.TargetID)
+		if !found {
+			return "", "", false // archived (live) or dangling (skipped): projection decides
+		}
+		return e.TargetID, t, true
+	}
+	if !strings.HasPrefix(item.TrackID, "trk-") {
+		return "", "", true
+	}
+	t, found := trackFile(dir, item.TrackID)
+	if !found {
+		return "", "", false
+	}
+	return item.TrackID, t, true
+}
+
+// trackFile returns the title of tracks/<id>.html when that file parses as
+// the track id.
+func trackFile(dir, id string) (string, bool) {
+	n, err := htmlparse.ParseFile(filepath.Join(dir, "tracks", id+".html"))
+	if err != nil || n == nil || n.ID != id {
+		return "", false
+	}
+	return n.Title, true
+}
+
+// trackFromProjection is the whole-project lookup trackFromItem avoids.
+func trackFromProjection(dir, featureID string) (trackID, title string) {
+	snap, err := loadProjectionFn(dir)
+	if err != nil {
+		return "", ""
+	}
+	for _, e := range snap.Out[featureID] {
+		if e.Relationship == "part_of" && strings.HasPrefix(e.ToID, "trk-") {
+			trackID = e.ToID
+			break
+		}
+	}
+	if n, ok := snap.Nodes[trackID]; ok && trackID != "" {
+		title = n.Title
+	}
+	return trackID, title
+}
+
+// loadProjectionFn is the status line's entry to the whole-project projection
+// load. It is a seam so a test can assert the open-claim path stays off it
+// (feat-c30d0792).
+var loadProjectionFn = projection.Load
 
 func iconFor(typeName string) string {
 	switch typeName {
@@ -267,12 +330,14 @@ func buildCacheLine(wipnoteDir, featureID string) string {
 	defer p.Close()
 
 	var featureType, featureTitle string
+	var item *models.Node
 	for _, typeName := range []string{"bug", "feature", "spike"} {
 		col := collectionFor(p, typeName)
 		node, nodeErr := col.Get(featureID)
 		if nodeErr == nil && node != nil {
 			featureType = typeName
 			featureTitle = node.Title
+			item = node
 			break
 		}
 	}
@@ -280,7 +345,7 @@ func buildCacheLine(wipnoteDir, featureID string) string {
 		return featureID
 	}
 
-	trackLine := resolveTrackContext(wipnoteDir, featureID)
+	trackLine := resolveTrackContext(wipnoteDir, item)
 	if trackLine != "" {
 		return fmt.Sprintf("%s -> %s %s",
 			trackLine, iconFor(featureType), truncate(featureTitle, 25))
