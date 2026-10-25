@@ -12,24 +12,9 @@ import (
 	"time"
 
 	"github.com/shakestzd/wipnote/core/db"
-	"github.com/shakestzd/wipnote/core/db/writequeue"
 	"github.com/shakestzd/wipnote/observe/otel"
 	"github.com/shakestzd/wipnote/observe/otel/sink"
 )
-
-// syncSink is the optional interface implemented by sinks that expose a
-// synchronous write path (currently sqlite.QueuedSink). When the
-// configured sink satisfies it, the indexer routes batches through the
-// sync path so it can wait for the SQLite commit before advancing
-// `.index-offset`. Without the sync path, the underlying queue is
-// fire-and-forget and a queue rejection / late op error would silently
-// strand records as "indexed" in the checkpoint while the SQLite insert
-// never happened (roborev #1501).
-type syncSink interface {
-	WriteBatchSync(ctx context.Context, harness otel.Harness, resourceAttrs map[string]any, signals []otel.UnifiedSignal) error
-}
-
-const pollInterval = 500 * time.Millisecond
 
 // maxBytesPerTick caps the amount of NDJSON data processed per session per tick.
 // Prevents a single huge session from monopolizing the SQLite writer lock and
@@ -51,9 +36,8 @@ type FileInfo struct {
 type Indexer struct {
 	wipnoteDir string
 	snk        sink.SignalSink
-	database   *sql.DB           // optional; read-only handle for orphan-filter SELECTs
-	writeDB    *sql.DB           // optional; writable handle used for prompt-ID bridge when no queue
-	queue      *writequeue.Queue // optional; when set, prompt-ID bridge goes through the queue
+	database   *sql.DB // optional; read-only handle for orphan-filter SELECTs
+	writeDB    *sql.DB // optional; writable handle used for the prompt-ID bridge
 
 	// offsets is the per-session read position, held IN MEMORY for the life of
 	// this Indexer and deliberately not seeded from disk.
@@ -90,12 +74,9 @@ func New(wipnoteDir string, snk sink.SignalSink) *Indexer {
 // WithDB attaches a read-only *sql.DB to the indexer for the orphan-filter
 // SELECT queries in filterSessionsByDB / queryKnownSessionIDs.  Using a
 // read-only handle here (bug-272c5e34 Change 1) prevents those SELECTs from
-// holding a SHARED lock on the writable handle, which was blocking the queue
-// worker's BEGIN IMMEDIATE and causing a symmetric DELETE-journal deadlock.
-//
-// When a write queue is also attached (WithQueue), the prompt-ID bridge uses
-// the queue instead of this handle for writes.  When no queue is attached,
-// the bridge falls back to WriteDB (set via WithWriteDB) if provided.
+// holding a SHARED lock on the writable handle and causing a symmetric
+// DELETE-journal deadlock. The prompt-ID bridge writes through WriteDB (set
+// via WithWriteDB) if provided.
 func (idx *Indexer) WithDB(database *sql.DB) *Indexer {
 	idx.database = database
 	return idx
@@ -109,31 +90,6 @@ func (idx *Indexer) WithDB(database *sql.DB) *Indexer {
 func (idx *Indexer) WithWriteDB(writeDB *sql.DB) *Indexer {
 	idx.writeDB = writeDB
 	return idx
-}
-
-// WithQueue wires the single write-queue so the prompt-ID bridge
-// (maybeSetPromptID) submits its SELECT+UPDATE as a fire-and-forget WriteOp
-// through the queue instead of issuing an independent write directly.  This
-// eliminates the second independent writer that was causing the symmetric
-// DELETE-journal deadlock (bug-272c5e34 Change 2).
-func (idx *Indexer) WithQueue(q *writequeue.Queue) *Indexer {
-	idx.queue = q
-	return idx
-}
-
-// Start runs the poll loop until ctx is cancelled. Intended to be called as a goroutine.
-func (idx *Indexer) Start(ctx context.Context) {
-	ticker := time.NewTicker(pollInterval)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			idx.runOnce(ctx)
-		}
-	}
 }
 
 // Status returns a snapshot of per-session file health.
@@ -248,9 +204,9 @@ func (idx *Indexer) processSession(ctx context.Context, sessionID string) error 
 	}
 
 	// Advance the in-memory position ONLY after the batch is committed. The
-	// sync-sink path exists so a queue rejection cannot leave records counted
-	// as read while the insert never happened (roborev #1501); that guarantee
-	// now protects the in-memory position rather than the file.
+	// A failed write cannot leave records counted as read while the insert
+	// never happened (roborev #1501); that guarantee protects the in-memory
+	// position.
 	idx.setResumeOffset(sessionID, newOffset)
 
 	if err := publishProgress(checkpointPath, newOffset); err != nil {
@@ -337,29 +293,14 @@ func (idx *Indexer) readNewSignals(ndjsonPath string, offset, readUpTo int64) ([
 // in the SQLite writer functions correctly. After persisting each signal it
 // attempts to bridge prompt_id from user_prompt log records back to the
 // matching UserQuery row in agent_events (best-effort, silently skipped on failure).
-//
-// When the sink supports a synchronous path (sqlite.QueuedSink does), we
-// use it so the caller can refuse to advance the `.index-offset`
-// checkpoint until the SQLite commit succeeds. This closes roborev
-// #1501: WriteBatch on the QueuedSink is fire-and-forget, so without
-// the sync variant a queue rejection (full / unavailable / timeout) or
-// a late op error would let processSession checkpoint records as
-// "indexed" while the DB write never happened.
 func (idx *Indexer) writeParsedBatch(ctx context.Context, parsed []parsedSignal) error {
-	sync, useSync := idx.snk.(syncSink)
 	for _, p := range parsed {
 		h := p.Signal.Harness
 		if h == "" {
 			h = otel.HarnessClaude
 		}
 		signals := []otel.UnifiedSignal{p.Signal}
-		var err error
-		if useSync {
-			err = sync.WriteBatchSync(ctx, h, p.ResourceAttrs, signals)
-		} else {
-			err = idx.snk.WriteBatch(ctx, h, p.ResourceAttrs, signals)
-		}
-		if err != nil {
+		if err := idx.snk.WriteBatch(ctx, h, p.ResourceAttrs, signals); err != nil {
 			return err
 		}
 		idx.maybeSetPromptID(p.Signal)
@@ -372,17 +313,8 @@ func (idx *Indexer) writeParsedBatch(ctx context.Context, parsed []parsedSignal)
 // when the indexer has no writable path attached, the signal is not a
 // user_prompt, or the signal carries no prompt_id.
 //
-// Write routing (bug-272c5e34 Change 2):
-//
-//	When a write queue is attached (WithQueue), the SELECT+UPDATE is
-//	submitted as a fire-and-forget WriteOp through the queue.  This is
-//	acceptable because the prompt-ID bridge is explicitly best-effort —
-//	a missed correlation is a cosmetic gap, never a data-loss event.  On
-//	submit error (queue full / stopped) we log and continue, matching the
-//	prior best-effort behaviour.
-//
-//	When no queue is attached (e.g. wipnote reindex) the bridge falls back
-//	to WriteDB if set, or is silently skipped.
+// The bridge writes directly on WriteDB if set (e.g. wipnote reindex), or is
+// silently skipped.
 func (idx *Indexer) maybeSetPromptID(sig otel.UnifiedSignal) {
 	if sig.Kind != otel.KindLog {
 		return
@@ -394,23 +326,7 @@ func (idx *Indexer) maybeSetPromptID(sig otel.UnifiedSignal) {
 		return
 	}
 
-	// Prefer queue path: fire-and-forget through the single writer.
-	if idx.queue != nil && idx.writeDB != nil {
-		sessionID := sig.SessionID
-		promptID := sig.PromptID
-		ts := sig.Timestamp
-		wdb := idx.writeDB
-		op := writequeue.WriteOp(func(_ context.Context) error {
-			return db.SetPromptID(wdb, sessionID, promptID, ts)
-		})
-		if err := idx.queue.Submit(context.Background(), op); err != nil {
-			log.Printf("indexer: set prompt_id submit (session=%s, prompt=%s): %v",
-				sig.SessionID, sig.PromptID, err)
-		}
-		return
-	}
-
-	// Fallback: direct write on writeDB (no queue — e.g. wipnote reindex).
+	// Direct write on writeDB (e.g. wipnote reindex).
 	if idx.writeDB != nil {
 		if err := db.SetPromptID(idx.writeDB, sig.SessionID, sig.PromptID, sig.Timestamp); err != nil {
 			log.Printf("indexer: set prompt_id (session=%s, prompt=%s): %v",

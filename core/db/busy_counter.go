@@ -25,11 +25,8 @@
 //	                 failed to take the writer lock — must be zero across
 //	                 the stress fixture for the launch gate to pass.
 //
-//	  indexer      — internal/otel/indexer/* + internal/otel/sink/sqlite
-//	                 QueuedSink. The QueuedSink already swallows queue-side
-//	                 errors via the canonical-first contract; this label
-//	                 catches *op-side* BUSY (the writer worker's actual
-//	                 BEGIN IMMEDIATE returning busy).
+//	  indexer      — observe/otel/indexer/*. Catches *op-side* BUSY (the
+//	                 writer worker's actual BEGIN IMMEDIATE returning busy).
 //
 //	  cli_mutation — internal/workitem (and CLI commands that mutate work
 //	                 items via dbpkg.Open). These are short-lived foreground
@@ -73,7 +70,7 @@ const (
 	// SubsystemHookWriter — internal/hooks/dbgate.go OpenHookDB path.
 	SubsystemHookWriter BusySubsystem = "hook_writer"
 
-	// SubsystemIndexer — internal/otel/indexer and the QueuedSink op-side.
+	// SubsystemIndexer — observe/otel/indexer op-side writes.
 	SubsystemIndexer BusySubsystem = "indexer"
 
 	// SubsystemCLIMutation — internal/workitem and short-lived CLI write commands.

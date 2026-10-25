@@ -30,10 +30,6 @@ func runBuild() error {
 
 	version := resolveBuildVersion(projectRoot)
 
-	if err := syncNotebookFiles(projectRoot); err != nil {
-		return fmt.Errorf("sync notebook files: %w", err)
-	}
-
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return fmt.Errorf("resolve home dir: %w", err)
@@ -205,43 +201,4 @@ func resolveBuildVersion(projectRoot string) string {
 		return "dev"
 	}
 	return strings.TrimPrefix(strings.TrimSpace(string(out)), "v")
-}
-
-// syncNotebookFiles mirrors prototypes/*.py into internal/notebook/files/ so
-// //go:embed picks up the latest source. Idempotent; preserves destination-only
-// files (plan_notebook.py, plan_persistence.py, plan_ui.py live only in the
-// destination and must not be deleted).
-func syncNotebookFiles(projectRoot string) error {
-	srcDir := filepath.Join(projectRoot, "prototypes")
-	dstDir := filepath.Join(projectRoot, "internal", "notebook", "files")
-
-	entries, err := os.ReadDir(srcDir)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return nil
-		}
-		return err
-	}
-	if err := os.MkdirAll(dstDir, 0o755); err != nil {
-		return err
-	}
-
-	for _, e := range entries {
-		if e.IsDir() || !strings.HasSuffix(e.Name(), ".py") {
-			continue
-		}
-		src := filepath.Join(srcDir, e.Name())
-		dst := filepath.Join(dstDir, e.Name())
-		data, err := os.ReadFile(src)
-		if err != nil {
-			return err
-		}
-		if existing, err := os.ReadFile(dst); err == nil && string(existing) == string(data) {
-			continue
-		}
-		if err := os.WriteFile(dst, data, 0o644); err != nil {
-			return err
-		}
-	}
-	return nil
 }

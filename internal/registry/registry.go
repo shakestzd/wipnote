@@ -14,17 +14,10 @@
 // partially-written file.  flock-based mutual exclusion is out of scope for the
 // MVP; concurrent writers on the same machine should be rare enough that the
 // last-write-wins behaviour of os.Rename is acceptable.
-//
-// # Read-only SQLite access
-//
-// OpenReadOnly opens a foreign project's SQLite database in read-only mode
-// (?mode=ro URI flag) so the registry can query project metadata without
-// running migrations or acquiring write locks on databases it does not own.
 package registry
 
 import (
 	"crypto/sha256"
-	"database/sql"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -72,8 +65,7 @@ type Registry struct {
 
 	// migrated is set when Load resolved this Registry's contents from the
 	// legacy ~/.local/share/wipnote/projects.json instead of the supplied
-	// canonical path. Callers can query MigrationPending() to learn whether
-	// a Save is needed solely to materialise the migration into the
+	// canonical path. A Save is needed solely to materialise the migration into the
 	// canonical XDG location, even when the in-memory slice is unchanged.
 	migrated bool
 }
@@ -143,16 +135,6 @@ func loadLegacyForCanonical(path string) ([]Entry, bool, error) {
 		return nil, false, fmt.Errorf("parse legacy %s: %w", legacy, err)
 	}
 	return entries, true, nil
-}
-
-// MigrationPending reports whether this Registry was populated via the
-// legacy-path fallback (i.e. the canonical XDG path did not exist, but
-// the legacy path did, and Load read the legacy contents). When true,
-// callers SHOULD invoke Save at a convenient point so the canonical
-// path is materialised — otherwise a clean migration with no stale
-// entries would persist legacy-only forever.
-func (r *Registry) MigrationPending() bool {
-	return r != nil && r.migrated
 }
 
 // Save persists the registry to disk using a tempfile + os.Rename so the
@@ -245,26 +227,6 @@ func writeEntriesAtomic(path string, entries []Entry) error {
 // Production code must go through Upsert+Save. Do NOT call this outside tests.
 func WriteEntriesForTest(path string, entries []Entry) error {
 	return writeEntriesAtomic(path, entries)
-}
-
-// ShouldSkipRegistration reports whether dir should be silently skipped at
-// registration time, preventing test temp directories from polluting the
-// project registry.
-//
-// Two conditions trigger a skip:
-//
-//  1. WIPNOTE_SKIP_REGISTER=1 env var — explicit opt-out for tests.
-//  2. The path is inside a temp directory (os.TempDir() or GOTMPDIR) AND a
-//     component of the path under that dir starts with "Test" (Go's
-//     t.TempDir() naming convention: /tmp/TestFooNNNN/sub).
-//
-// Production paths (e.g. /workspaces/wipnote) are never skipped because they
-// do not live under the OS temp directory.
-func ShouldSkipRegistration(projectDir string) bool {
-	if os.Getenv("WIPNOTE_SKIP_REGISTER") == "1" {
-		return true
-	}
-	return isGoTestTempDirPath(projectDir)
 }
 
 // effectiveTempDirs returns the set of candidate temp-root directories to
@@ -559,24 +521,6 @@ func legacyDefaultPath() string {
 		return filepath.Join(".local", "share", "wipnote", "projects.json")
 	}
 	return filepath.Join(home, ".local", "share", "wipnote", "projects.json")
-}
-
-// OpenReadOnly opens the SQLite database at dbPath in read-only mode using the
-// ?mode=ro URI flag.  No migrations or PRAGMAs are applied — the caller gets a
-// raw *sql.DB suitable for SELECT queries only.
-//
-// The caller is responsible for closing the returned *sql.DB.
-func OpenReadOnly(dbPath string) (*sql.DB, error) {
-	abs, err := filepath.Abs(dbPath)
-	if err != nil {
-		return nil, fmt.Errorf("registry.OpenReadOnly: resolve path: %w", err)
-	}
-	dsn := fmt.Sprintf("file:%s?mode=ro&_busy_timeout=5000", abs)
-	db, err := sql.Open("sqlite", dsn)
-	if err != nil {
-		return nil, fmt.Errorf("registry.OpenReadOnly: open: %w", err)
-	}
-	return db, nil
 }
 
 // computeID returns the first 8 hex characters of SHA256(dir).
