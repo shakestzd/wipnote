@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>GH #260: orphaned _serve-child servers accumulate and are never reused or exited</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="bug-5ca53f70"
+             data-type="bug"
+             data-status="in-progress"
+             data-priority="medium"
+             data-created="2026-10-25T03:57:28.669929"
+             data-updated="2026-10-25T05:34:25.142758" data-agent-assigned="claude-code" data-track-id="trk-0677c709" data-created-by-agent="claude-code" data-created-by-model="claude-opus-5-5" data-created-by-cli-version="0.81.0" data-change_kind="bugfix" data-created_in_session="b0991d53-1a24-4f08-85e1-85786a570a50">
+
+        <header>
+            <h1>GH #260: orphaned _serve-child servers accumulate and are never reused or exited</h1>
+            <div class="metadata">
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="../sessions/b0991d53-1a24-4f08-85e1-85786a570a50.html" data-relationship="implemented_in" data-since="2026-10-25T03:58:20.848007">session b0991d53-1a24-4f08-85e1-85786a570a50</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-0677c709.html" data-relationship="part_of" data-since="2026-10-25T03:57:28.741636">trk-0677c709</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="relates_to">
+                <h3>Relates To:</h3>
+                <ul>
+                    <li><a href="../bugs/bug-06d2c91d.html" data-relationship="relates_to" data-since="2026-10-25T03:57:36.139517">Writer daemon startup hydrate takes ~15 min: one git log --follow per work-item file</a></li>
+                    <li><a href="../plans/plan-2390966a.html" data-relationship="relates_to" data-since="2026-10-25T03:57:36.274066">Plan: Durable fix: eliminate multi-process SQLite write contention via single-writer daemon</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="true" data-step-id="step-bug-5ca53f70-0" data-agent="claude-code" data-created-by-agent="claude-code">✅ Reproduce with real output (or record why not)</li>
+                <li data-completed="true" data-step-id="step-bug-5ca53f70-1" data-agent="claude-code" data-created-by-agent="claude-code">✅ Spec with ambiguities answered by the user</li>
+                <li data-completed="true" data-step-id="step-bug-5ca53f70-2" data-agent="claude-code" data-created-by-agent="claude-code">✅ Two-sided tests written first</li>
+                <li data-completed="false" data-step-id="step-bug-5ca53f70-3" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Fix, gate, PR green</li>
+                <li data-completed="false" data-step-id="step-bug-5ca53f70-4" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Merged; comment on the GitHub issue</li>
+            </ol>
+        </section>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>One server per project expected; reporter saw 28 at once (load 82-86 on 10 CPUs, ~200 git log processes) in a bind-mounted container, a new orphan every 6-14 min, and the launcher message &#39;socket did not come up within 5s&#39;. Container 0.80.3, host 0.81.0. Find which path spawns _serve-child, add single-spawner guarantee and bounded exit for orphans, check socket latency on bind mounts and version skew. Issue: shakestzd/wipnote#260 (builds on #183).</p>
+        </section>
+    </article>
+</body>
+</html>
