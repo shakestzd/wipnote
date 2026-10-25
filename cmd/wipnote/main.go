@@ -313,6 +313,10 @@ func persistentPreRunE(cmd *cobra.Command, args []string) error {
 	// Neither command participates in agent session tracking or the project registry.
 	case "otel-collect", "_serve-child":
 		return nil
+	// `wipnote delegate run-pane` is the pane worker a delegate run types
+	// into its herdr pane; the caller's run already did the session work.
+	case "run-pane":
+		return nil
 	}
 	// Skip hook subtree — hooks manage their own session lifecycle.
 	for p := cmd; p != nil; p = p.Parent() {

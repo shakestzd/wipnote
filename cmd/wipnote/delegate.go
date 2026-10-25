@@ -11,5 +11,7 @@ func delegateCmd() *cobra.Command {
 	}
 	cmd.AddCommand(delegateImportOrchCmd())
 	cmd.AddCommand(delegateViewCmd())
+	cmd.AddCommand(delegateRunCmd())
+	cmd.AddCommand(delegateRunPaneCmd())
 	return cmd
 }

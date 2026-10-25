@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# A stand-in for codex in delegate run tests. It records its argv, prints
+# STUB_STDOUT (a fixture) as its stdout and writes STUB_ANSWER to its -o file.
+# A review prints its progress on stderr and its verdict on stdout.
+printf '%s\n' "$@" > "${STUB_ARGV:-/dev/null}"
+last=""; prev=""
+for a in "$@"; do case "$prev" in --output-last-message|-o) last="$a";; esac; prev="$a"; done
+if [ "$1" = review ]; then
+  echo "reviewing the diff" >&2
+  printf '%s\n' "${STUB_ANSWER:-the verdict}"
+  exit "${STUB_EXIT:-0}"
+fi
+[ -n "${STUB_STDOUT:-}" ] && cat "$STUB_STDOUT"
+echo "a line on stderr" >&2
+[ -n "${STUB_SLEEP:-}" ] && sleep "$STUB_SLEEP"
+[ -n "$last" ] && printf '%s' "${STUB_ANSWER-the answer}" > "$last"
+exit "${STUB_EXIT:-0}"
