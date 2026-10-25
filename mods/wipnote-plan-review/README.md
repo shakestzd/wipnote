@@ -16,7 +16,8 @@ plan-3a88d8a9 · review · 1 approved · 1 changes · 2 pending
 ## What it does
 
 - **Opens** on the first `wipnote plan slices|approve-slice|reject-slice <plan-id>` a Bash call runs, or with `/plan-review-pane <plan-id>`. `/plan-review-pane` with no id reopens the plan in view. `prompt.md` asks the model to run `wipnote plan slices <plan-id>` when a review starts, so the pane comes up by itself.
-- **Redraws** after each Bash call that runs `wipnote plan <sub> <plan-id>` on the plan in view (approve, reject, promote, rewrite, set-slice-status, …), and every 5 s, so a change made in another terminal shows too.
+- **Waits** when Claude Code cannot draw the pane. An unasked open is drawn only from 144 columns (110 once you have opened the pane by hand). Below that a toast names the reason and says to type `/plan-review-pane <plan-id>`. The pane polls only once it is drawn.
+- **Redraws** after each Bash call that runs `wipnote plan <sub> <plan-id>` on the plan in view (approve, reject, promote, rewrite, set-slice-status, …), and every 5 s while it is drawn, so a change made in another terminal shows too.
 - **Reads** `wipnote plan slices <plan-id>` (JSON: number, title, complexity, effort, risk, `approval_status`, `execution_status`, feature id). It never writes to wipnote.
 - A failed read shows the CLI's first error line in the pane.
 
@@ -44,6 +45,6 @@ claude --plugin-dir mods/wipnote-plan-review
 
 ```bash
 claude plugin validate mods/wipnote-plan-review
-claude plugin test mods/wipnote-plan-review     # 7 tests
+claude plugin test mods/wipnote-plan-review     # 8 tests
 tsc -p mods/wipnote-plan-review                 # after a load lays .claude-plugin/types/
 ```

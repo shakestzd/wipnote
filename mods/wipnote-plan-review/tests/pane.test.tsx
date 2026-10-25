@@ -108,3 +108,39 @@ test('every slice of a long plan is in the tree, for the pane to scroll', async 
   expect(await ui.find({ type: 'Text', text: /16\. Slice 16/ })).toBeDefined()
   await ui.unmount()
 })
+
+test('an undrawn pane says why, and polls only once it is drawn', async ($, on) => {
+  const clock = mock.clock(on)
+  let placed = false
+  let toast = ''
+  let slicesRuns = 0
+  on('command.register', () => ({ value: { command: 'plan-review-pane' } }))
+  on('ui.open', () => ({
+    value: placed ? { isPlaced: true } : { isPlaced: false, reason: 'the terminal is 130 columns, below the 144 floor' },
+  }))
+  on('ui.toast', (_$, e) => {
+    toast = e.text
+    return { value: undefined }
+  })
+  on('session.start', (_, e) => ({ cwd: e.cwd }))
+  on('process.run', async (_$, e) => {
+    if (e.argv.join(' ') === 'wipnote plan slices plan-abc123') slicesRuns += 1
+    return { value: { exitCode: 0, stdout: slices('pending'), stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
+  })
+  on('tool.call', () => ({ result: { stdout: '', stderr: '', interrupted: false } }) as never)
+
+  await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
+  await $.tool.call({ tool: 'Bash', command: 'wipnote plan slices plan-abc123', description: 'slices' } as never)
+  for (let i = 0; i < 10; i++) await settle()
+  expect(toast).toBe('Plan review pane is waiting (the terminal is 130 columns, below the 144 floor). Type /plan-review-pane plan-abc123 to show it.')
+
+  await clock.advance(20000)
+  expect(slicesRuns).toBe(1)
+
+  placed = true
+  const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  expect(await ui.find({ type: 'Text', text: /1 approved · 1 pending/ })).toBeDefined()
+  await ui.unmount()
+  await clock.advance(5000)
+  expect(slicesRuns).toBeGreaterThan(1)
+})

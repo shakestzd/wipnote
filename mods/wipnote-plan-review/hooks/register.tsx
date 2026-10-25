@@ -47,11 +47,14 @@ async function refresh($: EngineInterface, id: string) {
   if ((await read($, planId)) === id) await update($, review, () => next)
 }
 
+// An unasked open is undrawn below 144 columns (110 once the person opened the id).
+// It polls only once placed; the first ui.render for the pane starts it later.
 async function show($: EngineInterface, id: string) {
   await update($, planId, () => id)
   await refresh($, id)
-  await $.ui.open({ id: PANE, title: 'Plan review' })
-  startPoll($)
+  const r = await $.ui.open({ id: PANE, title: 'Plan review' })
+  if (r.isPlaced) startPoll($)
+  else $.ui.toast(`Plan review pane is waiting (${r.reason}). Type /plan-review-pane ${id} to show it.`)
 }
 
 export const register: Register = on => {
@@ -95,6 +98,9 @@ export const register: Register = on => {
   }).catch(($, e, next) => next(e))
 
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
+    // The first draw means the pane is placed (ui.open docs): poll from here too,
+    // for a pane that waited undrawn and was later opened or widened into view.
+    startPoll($)
     const { Box, Text } = $.ui.resolve(e)
     const r = await read($, review)
     if (r === null) {
