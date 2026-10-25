@@ -1210,12 +1210,15 @@ func hasRecentWebResearch(database *sql.DB, sessionID, agentID, projectDir strin
 	if sessionID == "" {
 		return true // fail-open: can't verify, don't block
 	}
-	// A nil database is the hot-hook dispatch (feat-af8d1689): it answers as the
-	// empty projection it replaced — a recording gap, so fail open below.
 	if database != nil {
 		if researched, recorded := indexedWebResearch(database, sessionID, agentID, projectDir); researched || recorded {
 			return researched
 		}
+	}
+	// No index (the hot-hook dispatch has none since feat-af8d1689): answer from
+	// the canonical tool log, and fail open only when there is no log.
+	if seen, ok := canonicalAnySeen(projectDir, sessionID, isCanonicalWebResearchEvent); ok {
+		return seen
 	}
 	debugLog(projectDir,
 		"[wipnote] web-research-gate fail-open: no tool_call events recorded for session=%s agent=%s — recording pipeline may be broken",

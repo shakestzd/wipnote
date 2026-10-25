@@ -49,7 +49,15 @@ func recordGuardOverride(event *CloudEvent, database *sql.DB) {
 	projectDir := ResolveProjectDir(event.CWD, event.SessionID)
 	debugLog(projectDir, "[guard_override] %s=1 honoured tool=%s session=%s",
 		guardOverrideEnvVar, toolName, sessionID)
-	if database == nil || sessionID == "" {
+	if sessionID == "" {
+		return
+	}
+	summary := fmt.Sprintf("Guard override honoured: %s=1 disabled all PreToolUse guards for %s", guardOverrideEnvVar, toolName)
+	// The canonical record (feat-af8d1689): the hot-hook dispatch has no
+	// database, so this line is what makes the override part of the lineage.
+	appendCanonicalToolEvent(projectDir, sessionID, canonicalToolEvent{Tool: guardOverrideToolName,
+		Agent: resolveAgentID(event), Summary: summary, Input: SummariseInput(event.ToolName, event.ToolInput)})
+	if database == nil {
 		return
 	}
 
@@ -60,7 +68,7 @@ func recordGuardOverride(event *CloudEvent, database *sql.DB) {
 		EventType:     models.EventCheckPoint,
 		Timestamp:     now,
 		ToolName:      guardOverrideToolName,
-		InputSummary:  fmt.Sprintf("Guard override honoured: %s=1 disabled all PreToolUse guards for %s", guardOverrideEnvVar, toolName),
+		InputSummary:  summary,
 		OutputSummary: SummariseInput(event.ToolName, event.ToolInput),
 		SessionID:     sessionID,
 		FeatureID:     cachedGetActiveFeatureID(database, sessionID),

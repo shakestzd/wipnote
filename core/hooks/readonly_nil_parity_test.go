@@ -146,8 +146,8 @@ func TestReadOnlyHooks_NilMatchesEmptyProjection(t *testing.T) {
 }
 
 // TestResearchGuards_NilReadsCanonicalLog pins the two research helpers on a
-// nil handle: they answer from the canonical tool log, as they did on the empty
-// projection, and fail open only when no log exists.
+// nil handle: they answer from the canonical tool log and fail open only when
+// no log exists.
 func TestResearchGuards_NilReadsCanonicalLog(t *testing.T) {
 	isolateParityEnv(t)
 	projectDir := t.TempDir()
@@ -162,7 +162,9 @@ func TestResearchGuards_NilReadsCanonicalLog(t *testing.T) {
 	if !hasRecentResearch(nil, paritySession, "", projectDir) {
 		t.Fatal("canonical log with a Read: want true")
 	}
-	if !hasRecentWebResearch(nil, paritySession, "", projectDir) {
-		t.Fatal("web research on nil handle: want fail-open true, as on the empty projection")
+	// Web research reads the same log (canonical_guards_test.go covers it):
+	// a Read and a Write are not web research.
+	if hasRecentWebResearch(nil, paritySession, "", projectDir) {
+		t.Fatal("canonical log without web research: want false")
 	}
 }

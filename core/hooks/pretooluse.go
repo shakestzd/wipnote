@@ -343,20 +343,23 @@ func appendAdditionalContext(result *HookResult, context string) {
 }
 
 func checkOrchestratorResearchDelegationAdvisory(event *CloudEvent, ctx *toolUseContext, database *sql.DB) string {
-	// A nil database is the hot-hook dispatch (feat-af8d1689) and must answer
-	// exactly as the empty projection it replaced: no prior research and no
-	// sidecar recorded, so the advisory fires.
 	if event == nil || ctx == nil || ctx.IsSubagent || ctx.SessionID == "" {
 		return ""
 	}
 	if !isOrchestratorResearchTool(event.ToolName) {
 		return ""
 	}
-	counts, err := db.CountEventsByTool(database, ctx.SessionID)
-	if err != nil {
-		return ""
+	// A nil database is the hot-hook dispatch: the evidence comes from the
+	// session's canonical tool log (feat-af8d1689).
+	counts, sidecar := canonicalOrchestrationEvidence(ctx.ProjectDir, ctx.SessionID)
+	if database != nil {
+		var err error
+		if counts, err = db.CountEventsByTool(database, ctx.SessionID); err != nil {
+			return ""
+		}
+		sidecar = hasPriorSidecarCommand(database, ctx.SessionID)
 	}
-	if hasPriorOrchestratorResearch(counts) || hasPriorDelegationEvidence(counts) || hasPriorSidecarCommand(database, ctx.SessionID) {
+	if hasPriorOrchestratorResearch(counts) || hasPriorDelegationEvidence(counts) || sidecar {
 		return ""
 	}
 	return "wipnote orchestration advisory: root-session web/docs research is starting before any sidecar dispatch was recorded. In orchestrator mode, delegate web/docs research to a researcher/codebase sidecar when available. If this is a one-shot verification or no sidecar exists in this harness, continue and note that exception."

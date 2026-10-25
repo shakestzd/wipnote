@@ -41,6 +41,11 @@ func UserPrompt(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 	ensureSessionExists(database, projectDir, sessionID, event)
 
 	featureID := cachedGetActiveFeatureID(database, sessionID)
+	if featureID == "" {
+		// The hot-hook dispatch has no index (feat-af8d1689): the open claim in
+		// the canonical claim ledger is the active work item.
+		featureID = canonicalActiveWorkItem(projectDir, sessionID)
+	}
 
 	promptSummary := sanitizePrompt(event.Prompt)
 	if promptSummary == "" {
@@ -87,7 +92,7 @@ func UserPrompt(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 	// classifier that added delegation directives on every prompt was retired:
 	// the launcher system prompt already states the delegation rules once.
 	result := &HookResult{}
-	if hint := buildActiveItemOneLiner(database, featureID); hint != "" {
+	if hint := buildActiveItemOneLiner(database, projectDir, featureID); hint != "" {
 		result.AdditionalContext = hint
 	} else {
 		result.Continue = true
@@ -147,9 +152,18 @@ func updateLastQuery(database *sql.DB, projectDir, sessionID, prompt string) {
 
 // buildActiveItemOneLiner returns a terse "ACTIVE: <id> — <title>" string when
 // an active item is set, or empty string when none. Used per-turn in UserPromptSubmit.
-func buildActiveItemOneLiner(database *sql.DB, featureID string) string {
+//
+// With no database (the hot-hook dispatch) the title is read from the work
+// item's canonical HTML.
+func buildActiveItemOneLiner(database *sql.DB, projectDir, featureID string) string {
 	if featureID == "" {
 		return ""
+	}
+	if database == nil {
+		if title := canonicalWorkItemTitle(projectDir, featureID); title != "" {
+			return fmt.Sprintf("ACTIVE: %s — %s", featureID, title)
+		}
+		return fmt.Sprintf("ACTIVE: %s", featureID)
 	}
 	item, found := LookupWorkItem(database, featureID)
 	if !found || item.Title == "" {

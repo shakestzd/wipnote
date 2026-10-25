@@ -186,10 +186,11 @@ func Stop(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 		}
 		// Finalize session HTML so the event-count badge is accurate for harnesses
 		// (e.g. Codex) that map their task-complete event to this Stop handler
-		// rather than to SessionEnd. Non-fatal: errors are silently logged inside.
-		var evtCount int
-		_ = database.QueryRow(`SELECT COUNT(*) FROM agent_events WHERE session_id = ?`, sessionID).Scan(&evtCount)
-		FinalizeSessionHTML(projectDir, sessionID, time.Now().UTC().Format(time.RFC3339), "completed", evtCount)
+		// rather than to SessionEnd. The count is the session's canonical tool
+		// log (feat-af8d1689), not rows in this hook's database handle, which only
+		// ever held what earlier hook processes happened to write into it.
+		FinalizeSessionHTML(projectDir, sessionID, time.Now().UTC().Format(time.RFC3339), "completed",
+			canonicalToolEventCount(projectDir, sessionID))
 	}
 
 	// Session-exit reconciliation (slice-5, feat-f93fe770).
