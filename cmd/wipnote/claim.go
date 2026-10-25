@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"github.com/shakestzd/wipnote/core/claimledger"
 	"os"
 	"strings"
 	"time"
@@ -216,6 +217,8 @@ func runClaimRelease(claimID string) error {
 	if err := dbpkg.ReleaseClaim(db, claimID, claim.OwnerSessionID, models.ClaimAbandoned); err != nil {
 		return fmt.Errorf("release claim: %w", err)
 	}
+	// The projection is process-local; persist the end to the canonical ledger.
+	recordClaimEpisodeClose(db, dir, claim.OwnerSessionID, claim.ClaimedByAgentID, claim.WorkItemID, claimledger.OutcomeReleased)
 
 	fmt.Printf("Released: %s (abandoned)\n", claimID)
 	return nil
