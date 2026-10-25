@@ -13,7 +13,7 @@
              data-status="in-progress"
              data-priority="medium"
              data-created="2026-10-25T00:36:40.211895"
-             data-updated="2026-10-25T07:04:51.731908" data-agent-assigned="claude-code" data-track-id="trk-0677c709" data-created-by-agent="claude-code" data-created-by-model="claude-opus-5-5" data-created-by-cli-version="0.81.0" data-created_in_session="b0991d53-1a24-4f08-85e1-85786a570a50">
+             data-updated="2026-10-25T08:36:55.125553" data-agent-assigned="claude-code" data-track-id="trk-0677c709" data-created-by-agent="claude-code" data-created-by-model="claude-opus-5-5" data-created-by-cli-version="0.81.0" data-created_in_session="b0991d53-1a24-4f08-85e1-85786a570a50">
 
         <header>
             <h1>OpenUI plan views via artifact twins</h1>
@@ -65,6 +65,7 @@
                 <li data-completed="false" data-step-id="step-spk-b5b89a4b-9" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Gap found 2026-10-25: plan-7bc7114c was created with plan add-slice-yaml and got no OpenUI views until the user asked; the views live only in the twin db. Needed for go: a per-slice Lang field in plan YAML (set via CLI, validated with lang-core 0.3.x at save), and the plan skill writing it during planning. 10 of 10 new views valid on first try against react-ui 0.17.1 genui-lib (overview &#43; 9 slices).</li>
                 <li data-completed="false" data-step-id="step-spk-b5b89a4b-10" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Round trip evidence (2026-10-25, plan-7bc7114c): Finalize review from twin v9 approve=1-9 nonce mvnhbt0jv1q00d. requests doc written 07:01:29Z; comment reached the session as a user prompt 07:02:28Z (59 s click-to-session); request doc matched comment; approve-slice x9 done 07:03:00Z (91 s click-to-CLI); twin plans/plan-7bc7114c v3 and planindex v4 written back in one pinned batch about 3.5 min after the click (hand-run, includes agent think time). Interrupted an open AskUserQuestion; no permission prompts. PASS.</li>
                 <li data-completed="false" data-step-id="step-spk-b5b89a4b-11" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Correction to round trip evidence: the Finalize comment was routed to the publishing session (dbb105e6/363fe5de, no longer active), not the live session. It reached the live session only because the user pasted it, so 59 s is not a routing number. Cause: Send to Claude wakes only a session that watches the artifact; watches are session-local and a new session does not inherit them. Fix in this session: ArtifactComments watch from the live session, then a second Finalize is needed to measure real delay. Twin write-back was about 2.6 min after the click, not 3.5. For go: the mod or SessionStart must arm the watch on the twin in every new session.</li>
+                <li data-completed="false" data-step-id="step-spk-b5b89a4b-12" data-agent="claude-code" data-created-by-agent="claude-code">⏳ 2026-10-25: plan-28b4a7f6 written to twin (plans v1, planindex v5, current v3) in one pinned batch from a cloud session; slices use written details, no Lang views yet; this session armed the watch with ArtifactComments watch so Finalize reaches it</li>
             </ol>
         </section>
 
