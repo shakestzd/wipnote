@@ -7,7 +7,15 @@ meta:
     status: finalized
     priority: medium
     schema_version: v4
-    version: 52
+    version: 53
+    repositories:
+        - shakestzd/wipnote
+    base_branch: main
+    pr_naming: 'type(scope): summary, naming the work item id; merge with a merge commit'
+    gates:
+        - go build ./... && go vet ./... && scripts/go-test-streaming.sh ./...
+        - for m in core observe plan port; do (cd $m && go build ./... && go vet ./... && go test ./...); done
+        - wipnote check --gate --work-item <id>
 design:
     problem: |
         ## Problem
