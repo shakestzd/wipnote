@@ -475,6 +475,9 @@ func launchYoloDev(permMode, trackID, featureID string, noWorktree bool, resumeI
 	// worktree doesn't create nested worktrees or set WipnoteRoot to the linked root.
 	willCreateWorktree := !noWorktree && canonicalRoot != ""
 	devPlan := applyLaunchPlanOpts(canonicalRoot, projectRoot, id, noWorktree, willCreateWorktree, os.Stderr)
+	if err := enforceLaunchPlan(devPlan, os.Stderr); err != nil {
+		return err
+	}
 	workDir := projectRoot
 	worktreeCreated := false
 	if willCreateWorktree {
