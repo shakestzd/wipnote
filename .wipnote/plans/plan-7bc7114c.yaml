@@ -1,0 +1,18 @@
+meta:
+    id: plan-7bc7114c
+    track_id: trk-0677c709
+    title: Cut bloat and speed up wipnote
+    description: 'Fixes from the spk-f72d2045 audit (five read-only audits on 2026-10-25): about 10,000 lines of dead code from the removed dashboard, serve and SQLite eras; hot-path costs on every hook call; duplicated helpers; stale model ids and unused harness features; and the correctness bugs the audit found on the way.'
+    created_at: "2026-10-25"
+    status: draft
+    priority: medium
+    schema_version: v4
+    version: 2
+design:
+    problem: ""
+    goals: []
+    constraints: []
+    approved: false
+    comment: ""
+slices: []
+questions: []
