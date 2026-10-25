@@ -17,13 +17,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// codexMarketplaceRepo and codexMarketplaceSparse are retained for backward
-// compatibility with tests and any external code; the production launchers
-// no longer use them as of Phase B (bundled-tree migration) — the Codex
-// marketplace is now resolved via resolveSharedTreePath("codex-marketplace").
-const codexMarketplaceRepo = "shakestzd/wipnote"
-const codexMarketplaceSparse = "port/packages/codex-marketplace"
-
 // codexHomeDir returns Codex's user directory: $CODEX_HOME when set, else
 // ~/.codex. Codex reads its config, hooks, agents, plugin cache and sessions
 // from here, so wipnote must write and read the same place.
@@ -57,8 +50,6 @@ func codexProjectAgentsPath(projectRoot string) string {
 	return filepath.Join(projectRoot, ".codex", "agents")
 }
 
-// codexMarketplaceSection is the TOML key that indicates our marketplace is registered.
-const codexMarketplaceSection = `[marketplaces.wipnote]`
 const codexPluginID = "wipnote@wipnote"
 const codexLocalPluginCacheVersion = "local"
 
@@ -1658,19 +1649,6 @@ func execCodex(opts codexLaunchOpts) error {
 }
 
 var execCodexFn = execCodex
-
-func appendUniqueCodexWritableRoot(roots []string, root string) []string {
-	if root == "" {
-		return roots
-	}
-	clean := filepath.Clean(root)
-	for _, existing := range roots {
-		if filepath.Clean(existing) == clean {
-			return roots
-		}
-	}
-	return append(roots, root)
-}
 
 func buildCodexArgs(opts codexLaunchOpts, otelPort int, instructionArgs []string) []string {
 	var args []string

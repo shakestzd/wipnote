@@ -16,16 +16,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// devModeBackup records the state we swapped out during dev mode so we can
-// restore it after the session (or after a crash on next startup).
-type devModeBackup struct {
-	InstallPath    string `json:"installPath"`
-	BackupPath     string `json:"backupPath"`
-	WasEnabled     bool   `json:"wasEnabled"`
-	PluginKey      string `json:"pluginKey"`
-	HadInstallPath bool   `json:"hadInstallPath"`
-}
-
 // LaunchOpts controls how Claude Code is launched.
 type LaunchOpts struct {
 	// Mode is written to the launch marker (e.g. "go", "init", "continue", "default").
@@ -249,15 +239,12 @@ func launchClaudeDev(extraArgs []string, auto bool, resumeID, name, workItem str
 	}
 
 	// Resolve the source project root (the wipnote repo with plugin/).
-	// This must happen BEFORE intent resolution so cleanupStaleDev and
+	// This must happen BEFORE intent resolution so
 	// resolveProjectPluginDirFrom can anchor to the source tree, not CWD.
 	projectRoot := ""
 	if wipnoteDir, err := findWipnoteDir(); err == nil {
 		projectRoot = filepath.Dir(wipnoteDir)
 	}
-
-	// Clean up any leftover symlink state from a previous dev mode crash.
-	cleanupStaleDev(projectRoot)
 
 	// Resolve the in-tree plugin/ from the source root NOW, before intent
 	// resolution might redirect childDir to a worktree. The plugin source always
@@ -352,7 +339,6 @@ func autoPermissionMode(enabled bool) string {
 // longer passed: Claude Code 2.1.111 removed it — auto mode no longer requires it.)
 func launchClaudeAuto(extraArgs []string, resumeID, name string) error {
 	projectRoot, _ := resolveProjectRoot()
-	cleanupStaleDev(projectRoot)
 	// Resolve canonical main repo root when CWD is a linked worktree (slice-3).
 	wipnoteRoot := canonicalProjectRoot(projectRoot)
 	pluginDir, err := resolveBundledPluginDir()
@@ -392,112 +378,11 @@ func installedPluginsJSONPath() string {
 	return filepath.Join(home, ".claude", "plugins", "installed_plugins.json")
 }
 
-// claudeSettingsJSONPath is the path to the Claude Code user settings file.
-func claudeSettingsJSONPath() string {
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".claude", "settings.json")
-}
-
-// devModeBackupPath returns the path to the dev-mode backup state file.
-func devModeBackupPath(projectRoot string) string {
-	base := ".wipnote"
-	if projectRoot != "" {
-		base = filepath.Join(projectRoot, ".wipnote")
-	}
-	return filepath.Join(base, ".dev-mode-backup")
-}
-
-// restoreFromSymlink removes the dev-mode symlink and restores the backup.
-// Kept for cleanupStaleDev to recover from old symlink-based dev mode sessions.
-func restoreFromSymlink(installPath, backupPath, pluginKey string, wasEnabled bool, backupStateFile string) {
-	// Remove the symlink.
-	if err := os.Remove(installPath); err != nil && !os.IsNotExist(err) {
-		fmt.Fprintf(os.Stderr, "warning: could not remove dev symlink %s: %v\n", installPath, err)
-	}
-
-	// Restore backup if it exists.
-	if _, err := os.Stat(backupPath); err == nil {
-		if err := os.Rename(backupPath, installPath); err != nil {
-			fmt.Fprintf(os.Stderr, "warning: could not restore %s from %s: %v\n", installPath, backupPath, err)
-		}
-	}
-
-	// Restore enabled state in settings.json.
-	if err := setPluginEnabled(pluginKey, wasEnabled); err != nil {
-		fmt.Fprintf(os.Stderr, "warning: could not restore plugin enabled state: %v\n", err)
-	}
-
-	// Remove the backup state file.
-	os.Remove(backupStateFile) //nolint:errcheck
-
-	fmt.Println("Dev mode cleanup complete.")
-}
-
-// setPluginEnabled sets enabledPlugins[key] = enabled in ~/.claude/settings.json.
-func setPluginEnabled(key string, enabled bool) error {
-	settingsPath := claudeSettingsJSONPath()
-	data, err := os.ReadFile(settingsPath)
-	if err != nil {
-		return fmt.Errorf("reading settings.json: %w", err)
-	}
-
-	var settings map[string]json.RawMessage
-	if err := json.Unmarshal(data, &settings); err != nil {
-		return fmt.Errorf("parsing settings.json: %w", err)
-	}
-
-	var ep map[string]bool
-	if epRaw, ok := settings["enabledPlugins"]; ok {
-		if err := json.Unmarshal(epRaw, &ep); err != nil {
-			ep = make(map[string]bool)
-		}
-	} else {
-		ep = make(map[string]bool)
-	}
-
-	ep[key] = enabled
-
-	epBytes, err := json.Marshal(ep)
-	if err != nil {
-		return fmt.Errorf("marshalling enabledPlugins: %w", err)
-	}
-	settings["enabledPlugins"] = json.RawMessage(epBytes)
-
-	out, err := json.MarshalIndent(settings, "", "  ")
-	if err != nil {
-		return fmt.Errorf("marshalling settings.json: %w", err)
-	}
-	if err := os.WriteFile(settingsPath, out, 0644); err != nil {
-		return fmt.Errorf("writing settings.json: %w", err)
-	}
-	return nil
-}
-
-// cleanupStaleDev checks for a leftover .dev-mode-backup file from a previous
-// crash and restores the original plugin state if one is found.
-func cleanupStaleDev(projectRoot string) {
-	backupStateFile := devModeBackupPath(projectRoot)
-	data, err := os.ReadFile(backupStateFile)
-	if err != nil {
-		return // No stale backup — nothing to do.
-	}
-
-	var backup devModeBackup
-	if err := json.Unmarshal(data, &backup); err != nil {
-		fmt.Fprintf(os.Stderr, "warning: could not parse stale dev-mode backup state: %v\n", err)
-		return
-	}
-
-	fmt.Println("Found stale dev-mode state from previous crash — restoring...")
-	restoreFromSymlink(backup.InstallPath, backup.BackupPath, backup.PluginKey, backup.WasEnabled, backupStateFile)
-}
-
 func launchClaudeInit(extraArgs []string, resumeID, name string) error {
 	// --init always uses CWD — never walk up to a parent with .wipnote/.
 	// The user explicitly wants to work in THIS directory, which may not
 	// have .wipnote/ yet. Walk-up would anchor to the wrong project.
 	projectRoot, _ := os.Getwd()
-	cleanupStaleDev(projectRoot)
 	// Resolve canonical main repo root when CWD is a linked worktree (slice-3).
 	wipnoteRoot := canonicalProjectRoot(projectRoot)
 	pluginDir, err := resolveBundledPluginDir()
@@ -530,7 +415,6 @@ func launchClaudeInit(extraArgs []string, resumeID, name string) error {
 
 func launchClaudeContinue(extraArgs []string, resumeID string) error {
 	projectRoot, _ := resolveProjectRoot()
-	cleanupStaleDev(projectRoot)
 	// Resolve canonical main repo root when CWD is a linked worktree (slice-3).
 	wipnoteRoot := canonicalProjectRoot(projectRoot)
 	pluginDir, err := resolveBundledPluginDir()
@@ -555,7 +439,6 @@ func launchClaudeContinue(extraArgs []string, resumeID string) error {
 
 func launchClaudeDefault(extraArgs []string, resumeID, name, workItem string, inPlace bool) error {
 	projectRoot, _ := resolveProjectRoot()
-	cleanupStaleDev(projectRoot)
 
 	// Resolve canonical main repo root when CWD is a linked worktree (slice-3).
 	// canonicalProjectRoot returns "" for the main worktree (no override needed).
@@ -604,25 +487,6 @@ func resolveBundledPluginDir() (string, error) {
 }
 
 const wipnoteMarketplaceRepo = "shakestzd/wipnote"
-
-// ensureWipnotePlugin registers the wipnote marketplace (if needed) and
-// installs or updates the plugin. Returns an error if both install and update fail.
-func ensureWipnotePlugin() error {
-	// Step 1: Register marketplace if not already known.
-	fmt.Println("Registering wipnote marketplace...")
-	exec.Command("claude", "plugin", "marketplace", "add",
-		wipnoteMarketplaceRepo).Run() //nolint:errcheck
-
-	// Step 2: Try install, fall back to update.
-	fmt.Println("Installing/updating wipnote plugin...")
-	if out, err := exec.Command("claude", "plugin", "install", "wipnote@wipnote").CombinedOutput(); err != nil {
-		if out2, err2 := exec.Command("claude", "plugin", "update", "wipnote").CombinedOutput(); err2 != nil {
-			return fmt.Errorf("plugin install failed: %s\nplugin update failed: %s",
-				strings.TrimSpace(string(out)), strings.TrimSpace(string(out2)))
-		}
-	}
-	return nil
-}
 
 // launchClaude is the shared launcher used by all modes.
 func launchClaude(opts LaunchOpts) error {

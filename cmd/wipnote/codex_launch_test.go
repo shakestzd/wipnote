@@ -391,17 +391,6 @@ func TestCodexLauncherNeverPropagatesDBPath(t *testing.T) {
 	}
 }
 
-func TestAppendUniqueCodexWritableRootDedupesCleanPaths(t *testing.T) {
-	got := appendUniqueCodexWritableRoot([]string{"/tmp/wipnote-cache"}, "/tmp/wipnote-cache/.")
-	if len(got) != 1 {
-		t.Fatalf("expected duplicate clean path to be ignored, got %v", got)
-	}
-	got = appendUniqueCodexWritableRoot(got, "/tmp/other-cache")
-	if len(got) != 2 || got[1] != "/tmp/other-cache" {
-		t.Fatalf("expected distinct root to be appended, got %v", got)
-	}
-}
-
 func TestCodexRequestedSandbox(t *testing.T) {
 	tests := []struct {
 		name string

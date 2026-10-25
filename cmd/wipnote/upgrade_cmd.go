@@ -358,9 +358,6 @@ func installShareTree(srcDir, name string) error {
 	return copyDirRecursive(srcDir, dest)
 }
 
-// installPluginTree replaces ~/.local/share/wipnote/plugin (installShareTree).
-func installPluginTree(srcPluginDir string) error { return installShareTree(srcPluginDir, "plugin") }
-
 // copyDirRecursive walks src and copies every entry into dst, preserving file
 // modes. Symlinks are skipped (the plugin tree doesn't contain any).
 func copyDirRecursive(src, dst string) error {
