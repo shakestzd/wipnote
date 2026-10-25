@@ -181,29 +181,16 @@ func (r *RunFolder) othersLastSeq(self string) int64 {
 }
 
 // lastSeq reads the tail of path for its highest seq, scanning the whole
-// file when the tail holds no complete parseable line.
+// file when the tail holds no complete parseable line. The tail starts on a
+// line boundary (ReadTail), so a window that begins exactly at a line keeps
+// that line (orch F-4).
 func lastSeq(path string) int64 {
-	f, err := os.Open(path)
+	buf, err := ReadTail(path, tailBytes)
 	if err != nil {
 		return 0
-	}
-	defer f.Close()
-	fi, err := f.Stat()
-	if err != nil {
-		return 0
-	}
-	off := max(fi.Size()-tailBytes, 0)
-	buf := make([]byte, fi.Size()-off)
-	if _, err := f.ReadAt(buf, off); err != nil && err != io.EOF {
-		return 0
-	}
-	if off > 0 { // the first line of the window may be cut: drop it
-		if i := bytes.IndexByte(buf, '\n'); i >= 0 {
-			buf = buf[i+1:]
-		}
 	}
 	best := maxSeq(parseLines(buf))
-	if best == 0 && off > 0 {
+	if fi, err := os.Stat(path); best == 0 && err == nil && fi.Size() > tailBytes {
 		if all, err := os.ReadFile(path); err == nil {
 			best = maxSeq(parseLines(all))
 		}

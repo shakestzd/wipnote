@@ -1,0 +1,2 @@
+{"type": "item.completed", "item": {"id": "item_1", "type": "command_execution", "command": "x", "aggregated_output": "a```b", "exit_code": 0}}
+{"type": "item.completed", "item": {"id": "item_1", "type": "command_ex

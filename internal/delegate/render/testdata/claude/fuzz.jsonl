@@ -1,0 +1,300 @@
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t1", "name": "Bash", "input": {"command": "|> q*xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t19", "name": "x y", "input": {"command": "<!--&"}}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t4", "name": "x y", "input": {"command": "*"}}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t14", "content": "    ```$\"\u00e9a", "is_error": false}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t7", "name": "Bash", "input": {"command": "\u00a0~~~~~~<!-- /fold -->"}}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t2", "name": "x y", "input": {"zz": "<!--```"}}]}}
+
+
+{"type": "result", "subtype": "`", "duration_ms": 47567, "num_turns": 3, "usage": {"input_tokens": 5, "output_tokens": 6}, "total_cost_usd": 0.7919022908924784, "result": "~~~"}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t9", "content": "\\---->\"|", "is_error": false}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t10", "content": "--\\-->-->\"~~~```", "is_error": true}]}}
+{"type": "result", "subtype": "    ```|", "duration_ms": 58394, "num_turns": 3, "usage": {"input_tokens": 5, "output_tokens": 6}, "total_cost_usd": 0.39607418752258194, "result": "*\t"}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "<!-- fold closed: x -->'\t<b>"}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t2", "content": "_\r\"    ```\"\u0085\t- li\u00e9", "is_error": false}]}}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": " *<!-- /fold -->-->"}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t6", "content": "", "is_error": false}]}}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "\u001b[1m--`<b>-->\u2003```\u2003\n"}]}}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "'```a<b><!-- /fold -->a\u00e9 &"}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t0", "name": "x y", "input": {"command": "'_\u2003\u000b"}}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t2", "content": "'- li|<!-- fold closed: x -->    ```a \u00e9\u00e9\u2003", "is_error": false}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t10", "content": "\n ", "is_error": true}]}}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "\""}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t13", "content": "~~~'#<!-- fold closed: x -->> q", "is_error": false}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t9", "content": "    ```<!-- /fold -->\\<!--<!--<!-- /fold -->```<!-- fold closed: x -->a> q", "is_error": true}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t11", "content": "#|", "is_error": false}]}}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": ""}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t3", "content": "", "is_error": false}]}}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "<!-- fold closed: x -->\\"}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t5", "content": "<!-- ", "is_error": false}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t14", "content": "&\"$    ```&\u00e9 ", "is_error": true}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t2", "content": "|\"\u2003#$\u000b$# <!-- fold closed: x -->", "is_error": true}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t7", "content": "\"&\u00e9", "is_error": false}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t9", "content": "&*> q<!-- /fold -->```\r\u001b[1m", "is_error": true}]}}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "*\u00e9xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}]}}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": ""}]}}
+{"type": "result", "subtype": "", "duration_ms": 96404, "num_turns": 3, "usage": {"input_tokens": 5, "output_tokens": 6}, "total_cost_usd": 0.3603643629416021, "result": "_\u0085```"}
+ ``
+{"type": "assistant", "message": {"content": [{"type": "text", "text": ""}]}}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "~~~--\"`"}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t14", "content": "|\n\u000b'|'\u00a0--><b>a", "is_error": true}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t7", "name": "x y", "input": {"command": ""}}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t1", "content": "\t````- li```", "is_error": false}]}}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "~~~--``"}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t15", "name": "Bash", "input": {"command": "#"}}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t8", "content": "a<!-- fold closed: x -->", "is_error": true}]}}
+--
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "\\<!-- /fold -->a\u00e9\u00a0    ```\u001b[1m'"}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t8", "content": "\u0085\u00e9\u000b$~~~$", "is_error": false}]}}
+{"type": "result", "subtype": "", "duration_ms": 83228, "num_turns": 3, "usage": {"input_tokens": 5, "output_tokens": 6}, "total_cost_usd": 0.005250969820406071, "result": "--<!-- fold closed: x -->$-->"}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t3", "content": "\u00a0", "is_error": false}]}}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "\u00e9xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\u00e9    ```a> q> q--"}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t17", "name": "Read", "input": {"command": "$\"\t|<!--"}}]}}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "\u00e9\t#<!-- fold closed: x --><!-- fold closed: x -->> q\"<!--> q#"}]}}
+
+\<!--&<!--
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "-->_~~~    ```_"}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t20", "content": "", "is_error": false}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t13", "name": "Bash", "input": {"command": "<!-- fold closed: x -->$`\\\""}}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t16", "content": "\rxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n<!-- /fold -->|\u001b[1mxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx``", "is_error": false}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t5", "name": "x y", "input": {"command": "```\\- li<!---->"}}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t16", "content": "$<!-- fold closed: x --> <b>a", "is_error": false}]}}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "\r<!-- /fold -->"}]}}
+--><!-- fold closed: x -->
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t2", "content": "- li\n<b>```\u0085\u001b[1m\\\u00a0", "is_error": false}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t1", "name": "x y", "input": {"zz": "\u0085<!-- fold closed: x -->\""}}]}}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "```<b>\\\t&'\t\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t16", "name": "Read", "input": {"command": " `    ```    ```\u0085"}}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t15", "name": "Bash", "input": {"zz": "|- li```"}}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t0", "name": "x y", "input": {"command": "|"}}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t9", "name": "x y", "input": {"command": "    `````\n"}}]}}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "a"}]}}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "&"}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t1", "content": "<b>'> q\u2003\u000b```\u000b\u2003~~~\u00e9", "is_error": false}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t0", "name": "Bash", "input": {"zz": "<!--<!-- fold closed: x -->"}}]}}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "<!-- fold closed: x -->\r|--\u000b\u2003"}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t7", "name": "Read", "input": {"zz": "\r<b>"}}]}}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "\\    ```- li"}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t4", "content": "'<b>    ```\u2003\u00e9", "is_error": true}]}}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "\u00e9\u00a0<!-- /fold -->#xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\u001b[1m<b>&    ```"}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t14", "name": "Bash", "input": {"zz": ""}}]}}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "``\u2003```\t- li_a*- li#"}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t9", "content": "*~~~&", "is_error": false}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t6", "name": "Bash", "input": {"zz": "#<!-- fold closed: x -->xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t4", "content": "", "is_error": false}]}}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\u001b[1m"}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t18", "content": "~~~\r<!-- fold closed: x -->\u00e9&", "is_error": true}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t7", "content": "\u00a0\u00e9$~~~\u001b[1m#", "is_error": false}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t6", "content": "~~~_\u0085'|``\u00a0", "is_error": false}]}}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "<!--<!--\t"}]}}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": " - li\n<b>- li"}]}}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "\n<b>```> q"}]}}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "\r\u00a0`"}]}}
+<b>~~~
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t1", "content": "'\"", "is_error": false}]}}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "_``\r\t    ```"}]}}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "``*|    ```\u00a0\u00a0\u00a0--"}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t13", "content": "```\u000b\"\t\\*\\*\n'", "is_error": true}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t15", "content": "~~~<!-- fold closed: x -->``", "is_error": false}]}}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "<!-- /fold -->``\u00e9    ```-->*\u00a0"}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t11", "name": "Bash", "input": {"command": "&```-->--"}}]}}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "a"}]}}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": ""}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t18", "name": "Bash", "input": {"command": "\n"}}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t4", "content": " \u0085|<!--", "is_error": true}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t3", "content": "&", "is_error": true}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t16", "content": "", "is_error": false}]}}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "`\u00a0&_\r"}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t14", "name": "x y", "input": {"zz": ""}}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t13", "name": "Read", "input": {"command": "-->~~~--*~~~\""}}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t6", "content": "#'\t", "is_error": false}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t15", "content": "", "is_error": false}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t2", "content": "\t<b>\u2003\\\u000b\n\"*- li", "is_error": false}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t4", "content": "\r\u2003    ```*", "is_error": false}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t16", "content": "``\t<!-- fold closed: x -->#", "is_error": true}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t17", "content": "- li\u2003|", "is_error": false}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t20", "name": "x y", "input": {"zz": "$|"}}]}}
+'
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t13", "content": "a\r- li ", "is_error": false}]}}
+{"type": "result", "subtype": "\u000b", "duration_ms": 53845, "num_turns": 3, "usage": {"input_tokens": 5, "output_tokens": 6}, "total_cost_usd": 0.6047571547289052, "result": "~~~'&"}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "    ```\u00a0\u001b[1m'\n<!-- /fold -->"}]}}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "\u000b-->``&\u00a0$_"}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t10", "name": "Bash", "input": {"command": "\""}}]}}
+{"type": "result", "subtype": "|\r", "duration_ms": 65493, "num_turns": 3, "usage": {"input_tokens": 5, "output_tokens": 6}, "total_cost_usd": 0.31849337336259875, "result": "<b>*|<!--"}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "`-->"}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t8", "name": "x y", "input": {"command": ""}}]}}
+--$```<!-- fold closed: x -->
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx<!-- /fold -->\u001b[1m\\\r$<!--\u2003"}]}}
+- li\ 
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "``$xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\r--~~~    ```\u00a0\u00e9> q"}]}}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "~~~<b>--\u00a0"}]}}
+<!-- /fold -->
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t7", "content": " \u000b\u000b\n", "is_error": false}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t12", "content": "\\<!-- /fold -->\u00e9*- li\u2003\"", "is_error": false}]}}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": ""}]}}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "*\r\u2003\r$\\_<!-- /fold -->"}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t15", "name": "Bash", "input": {"command": "|`<!-- fold closed: x -->"}}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t10", "name": "Read", "input": {"zz": "<!-- /fold -->``&"}}]}}
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx--*
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t10", "content": "", "is_error": true}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t15", "content": "\u000b\t<!-- /fold -->|\\|<!--\u001b[1m``<!-- fold closed: x -->", "is_error": false}]}}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "\r\"\\<!-- fold closed: x -->-->\t`\u000b"}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t3", "content": "*_``|", "is_error": false}]}}
+'||- li'
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t5", "name": "x y", "input": {"zz": "\u001b[1m```&"}}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t2", "name": "Read", "input": {"command": ""}}]}}
+{"type": "result", "subtype": "-->\u0085", "duration_ms": 52911, "num_turns": 3, "usage": {"input_tokens": 5, "output_tokens": 6}, "total_cost_usd": 0.21393698881359868, "result": "<!-- /fold -->```~~~#-->"}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t9", "name": "Bash", "input": {"zz": "\u001b[1m```$"}}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t8", "content": "--", "is_error": true}]}}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "\r`\\"}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t2", "content": " <!--\t``\u00e9", "is_error": true}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t4", "name": "Read", "input": {"command": ""}}]}}
+      `````
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t9", "name": "x y", "input": {"zz": "<!--#"}}]}}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "\u001b[1m #"}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t0", "content": "<!-- /fold -->\u0085\\\t<!-- /fold -->\n``|", "is_error": false}]}}
+# \
+<!-- fold closed: x -->	
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t18", "content": "\u0085    ```", "is_error": false}]}}
+{"type": "result", "subtype": "    ```<b>", "duration_ms": 44784, "num_turns": 3, "usage": {"input_tokens": 5, "output_tokens": 6}, "total_cost_usd": 0.6156848534190191, "result": ""}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t9", "name": "Bash", "input": {"command": " xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx<b><b>"}}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t6", "content": "\u001b[1m  \t\"&\u000ba", "is_error": false}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t20", "content": "<!-- fold closed: x -->\"*\u00e9\"\r`\u00a0", "is_error": false}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t13", "content": "", "is_error": false}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t3", "name": "Read", "input": {"command": "\\"}}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t15", "content": "\n'\u00e9> q````<!--", "is_error": false}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t6", "name": "Read", "input": {"command": ""}}]}}
+<!-- /fold -->
+$*
+{"type": "assistant", "message": {"content": [{"type": "text", "text": ""}]}}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "$ a\n    ```\u00a0&\t\u00e9"}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t17", "name": "Read", "input": {"command": "&a-->&\""}}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t3", "name": "Bash", "input": {"command": "<b>"}}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t18", "name": "x y", "input": {"zz": "\t\u2003> q"}}]}}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "-->> q> q~~~``- li$\t-->#"}]}}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "#\u00a0-->`<b>a\u00a0    ```\u2003"}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t7", "name": "x y", "input": {"command": "\u000b<!-- fold closed: x -->\u00a0~~~"}}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t15", "name": "Bash", "input": {"zz": ""}}]}}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "*--\u00e9`--$a\t"}]}}
+{"type": "result", "subtype": "--", "duration_ms": 73613, "num_turns": 3, "usage": {"input_tokens": 5, "output_tokens": 6}, "total_cost_usd": 0.6198443294525642, "result": "\t\u2003\u001b[1m    ```"}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t0", "name": "x y", "input": {"zz": ""}}]}}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "    ```&``&\u0085``\n<!--"}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t3", "name": "Bash", "input": {"zz": ""}}]}}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "\r\r\u001b[1m~~~"}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t18", "name": "Read", "input": {"zz": ""}}]}}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": ""}]}}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "&<!--$    ```\u000b&\n \u2003"}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t0", "content": "```\u0085\u2003_\u001b[1mxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx<!-- fold closed: x -->```<!-- fold closed: x -->\r", "is_error": false}]}}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "`*xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx*> q\u00e9"}]}}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "a\u000b "}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t17", "name": "Read", "input": {"zz": "a-->"}}]}}
+{"type": "result", "subtype": "", "duration_ms": 69732, "num_turns": 3, "usage": {"input_tokens": 5, "output_tokens": 6}, "total_cost_usd": 0.16130519736449445, "result": ""}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t10", "content": "'\\\t``    ```*", "is_error": true}]}}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "-->\u000b<!--\n&&\u001b[1ma<!-- fold closed: x -->\u0085"}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t5", "content": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx*\u001b[1m|-->'<!-- fold closed: x --> \n", "is_error": false}]}}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "~~~\t\t|"}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t2", "name": "x y", "input": {"command": ""}}]}}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "~~~"}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t15", "content": "--<!-- /fold -->xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx_`<!-- fold closed: x -->\r|\u000b_", "is_error": false}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t3", "content": "'\u00e9& $#`", "is_error": false}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t10", "content": "a<b>\t\n", "is_error": true}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t18", "content": "<!-- fold closed: x -->_\u00a0~~~", "is_error": false}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t1", "content": "<!-- fold closed: x -->\n#\u2003\t\u001b[1m", "is_error": true}]}}
+{"type": "result", "subtype": "", "duration_ms": 46579, "num_turns": 3, "usage": {"input_tokens": 5, "output_tokens": 6}, "total_cost_usd": 0.36363330142335093, "result": "_```\\<!-- fold closed: x -->\\"}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t16", "name": "x y", "input": {"command": "*"}}]}}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": " #<b>#$\\"}]}}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "<!-- fold closed: x -->a\u2003`$\\-->"}]}}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx- li````    ```- li\n"}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t15", "name": "Read", "input": {"zz": "\u0085"}}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t3", "name": "Bash", "input": {"command": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx> q"}}]}}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "\u2003\t--#> q"}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t18", "content": "$``\u2003\u0085<!--\u2003--><!--*", "is_error": false}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t3", "name": "Bash", "input": {"command": "    ``````\t"}}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t20", "content": "`&<!-- /fold -->\\\t", "is_error": true}]}}
+<!-- fold closed: x -->_--
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "-- > q\u00a0#- li```\\~~~$"}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t10", "content": "", "is_error": false}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t20", "name": "Bash", "input": {"command": ""}}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t2", "content": "&\u00a0\u001b[1mxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx```<b>\r", "is_error": false}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t2", "content": " *a\\> q#", "is_error": true}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t15", "name": "x y", "input": {"zz": "<b>"}}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t6", "content": "    ```<!-- /fold -->#\u00e9", "is_error": true}]}}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": " \\*-->a~~~"}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t8", "content": "    ```> q$```<!-- fold closed: x -->-->``<!-- /fold -->\u000b", "is_error": true}]}}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "```\u00e9\u2003*#\u0085*\n"}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t14", "content": "<!-- fold closed: x -->#~~~<!-- /fold -->\u000b`", "is_error": true}]}}
+
+	[1m
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t5", "content": "\u000b\t", "is_error": false}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t20", "content": "``xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx-->- li<!--\\<!--<b>", "is_error": false}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t8", "content": "$_<!-- fold closed: x -->-->\u000b\\<!--<!-- fold closed: x -->\t", "is_error": false}]}}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "> q&\u00e9axxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx> q'_    ```\u00e9"}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t7", "content": "\n&\u000b|```#", "is_error": false}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t12", "content": "- li\\```#&<!-- /fold -->``\u00a0--```", "is_error": false}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t20", "content": "> q", "is_error": false}]}}
+""é
+{"type": "assistant", "message": {"content": [{"type": "text", "text": " *|\\``\u001b[1m&"}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t18", "content": "\\\r<!-- fold closed: x -->", "is_error": true}]}}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "\u00a0<b>a\u000b<!-- /fold --> \t"}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t5", "content": "-->", "is_error": true}]}}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "-->  ``"}]}}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "<b>"}]}}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "\t<!--\"\u00e9\u001b[1m"}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t15", "name": "Read", "input": {"command": ""}}]}}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "\n\t\u2003<!-- fold closed: x -->"}]}}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "'--- li~~~<b>"}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t17", "content": "", "is_error": false}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t13", "content": "\u001b[1m #\r\t> q", "is_error": true}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t6", "content": "    ```#\n> q\u0085```a", "is_error": true}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t3", "content": "    ```--><!-- fold closed: x -->--\u0085<!--'\u2003 #", "is_error": false}]}}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "&    ```<b>_"}]}}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "<!-- fold closed: x -->```*\u2003"}]}}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "\r|\u00e9<!--\r"}]}}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "\u00e9\n\u001b[1m\u2003\u00e9---->~~~_"}]}}
+    ```
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "``--<!--\\> q"}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t2", "name": "Bash", "input": {"command": "$\u0085> q\t"}}]}}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "--#xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\u00e9> q\u000b\\xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\u00e9\u2003"}]}}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "\n<!-- /fold -->```\u00a0```\t    ```"}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t1", "content": "\t'\u0085<!--", "is_error": true}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t3", "name": "x y", "input": {"zz": ""}}]}}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "```<!--`\t\u00e9*\u000b*-->_"}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t13", "name": "x y", "input": {"command": ""}}]}}
+{"type": "result", "subtype": "``", "duration_ms": 12017, "num_turns": 3, "usage": {"input_tokens": 5, "output_tokens": 6}, "total_cost_usd": 0.2595689068954805, "result": "$> q#_\u001b[1m"}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t12", "content": "```<b>- li", "is_error": true}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t10", "content": " <!-- fold closed: x -->--", "is_error": false}]}}
+é
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t10", "name": "x y", "input": {"command": "\u2003a#"}}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t0", "content": "\u00a0\u00a0\u00e9#", "is_error": false}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t8", "content": "\r\\\"|$", "is_error": true}]}}
+
+--> *
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t9", "content": "--\u00e9$\u0085", "is_error": false}]}}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "'\u2003\"_\u00e9```\u2003    ```"}]}}
+    ```&'
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t2", "name": "Bash", "input": {"command": ""}}]}}
+
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "\t"}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t1", "name": "Bash", "input": {"zz": "\r> q$"}}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t20", "name": "x y", "input": {"command": "\r\""}}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t3", "content": "<!--\t> qxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\u000ba#&&", "is_error": false}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t3", "name": "x y", "input": {"zz": ""}}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t18", "name": "Read", "input": {"command": "\u0085"}}]}}
+<!--
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "\"`#\u2003#\\\u0085*"}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t2", "name": "Read", "input": {"command": "'--"}}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t5", "content": "--a~~~$*_ ", "is_error": false}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t3", "content": "\\\u2003\u2003&-- --&--", "is_error": false}]}}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "~~~~~~xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t13", "content": "<!-- fold closed: x --><!-- /fold -->", "is_error": true}]}}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "    ```\u2003\na'*--><!-- fold closed: x -->#<!--"}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t7", "content": "_<b>``    ```&<!-- /fold -->\u0085--\u2003", "is_error": false}]}}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "\t"}]}}
+{"type": "result", "subtype": "\u000b~~~", "duration_ms": 41934, "num_turns": 3, "usage": {"input_tokens": 5, "output_tokens": 6}, "total_cost_usd": 0.45997071394024236, "result": "&'\u000b--><b>"}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "\"\u0085\r\r*&"}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t4", "name": "Bash", "input": {"command": ""}}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t5", "name": "Read", "input": {"command": "- li> q<!-- /fold -->"}}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t6", "name": "Read", "input": {"command": "--"}}]}}
+{"type": "assistant", "message": {"content": [{"type": "text", "text": "\""}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t2", "content": "`\"\u0085'\"|", "is_error": false}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t18", "name": "x y", "input": {"command": "> q\"--|\u0085\r"}}]}}

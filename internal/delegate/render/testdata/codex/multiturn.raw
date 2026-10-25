@@ -1,0 +1,6 @@
+{"type": "turn.started"}
+{"type": "item.completed", "item": {"id": "i", "type": "agent_message", "text": "first"}}
+{"type": "turn.completed", "usage": {"input_tokens": 13866, "cached_input_tokens": 1234567, "output_tokens": 10, "reasoning_output_tokens": 0}}
+{"type": "turn.started"}
+{"type": "item.completed", "item": {"id": "i", "type": "agent_message", "text": "second\n\nanswer *final*"}}
+{"type": "turn.completed", "usage": {"input_tokens": 999, "output_tokens": 1000000}}

@@ -1,0 +1,18 @@
+{"type":"assistant","message":{"content":[{"type":"te
+not json at all
+
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "r", "name": "Read", "input": {"file_path": "/a"}}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "r", "content": "x", "is_error": true}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "zz", "content": "orphan result", "is_error": false}]}}
+{"type": "user", "message": {"content": [{"type": "text", "text": "ignored"}]}}
+{"type": "user", "message": {"content": "a string"}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "", "name": "Grep", "input": {"pattern": "p\n  q"}}, {"type": "tool_use", "id": "s", "name": "Task", "input": {"description": "d", "prompt": "long long long long long long long long long long long long long long long long long long long long long long long long long long long long long long long long long long long long long long long long "}}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t", "name": "Weird", "input": {"z": 1, "a": [1, 2], "b": "c"}}]}}
+{"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "u", "name": "Nil", "input": null}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t", "content": [{"text": "one"}, {"other": 1}, {"text": "two"}], "is_error": false}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "u", "content": null, "is_error": false}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "s", "content": {"k": "v"}, "is_error": false}]}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "x9", "content": "git: warning: confstr() failed with code 5: couldn't get path of DARWIN_USER_TEMP_DIR; using /tmp instead\nok", "is_error": false}]}}
+{"type": "result", "subtype": "error_max_turns", "is_error": true, "duration_ms": 12345, "num_turns": 9, "usage": {"input_tokens": 100, "output_tokens": 200}, "total_cost_usd": 0.1076964, "result": ""}
+{"type": "result", "subtype": "success", "duration_ms": 999, "num_turns": 1, "usage": {"input_tokens": 1, "output_tokens": 2}, "total_cost_usd": 0.2, "result": "final **answer**\nline 2"}
+{"type": "result", "usage": {}, "total_cost_usd": 0}

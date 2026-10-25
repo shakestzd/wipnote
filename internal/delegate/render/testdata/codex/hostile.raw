@@ -1,0 +1,2 @@
+{"type": "item.started", "item": {"id": "item_1", "type": "command_execution", "command": "cat f", "aggregated_output": "", "exit_code": null}}
+{"type": "item.completed", "item": {"id": "item_1", "type": "command_execution", "command": "cat f", "aggregated_output": "```\n`````\n# not a heading\n---\n| a | b |\n|---|---|\n<script>alert(1)</script>\n> quote\n- item\n~~~\n    ```", "exit_code": 0}}

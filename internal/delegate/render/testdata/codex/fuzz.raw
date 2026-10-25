@@ -1,0 +1,400 @@
+||||`> q
+{"type": "turn.completed", "usage": {"input_tokens": 1044345, "output_tokens": 1561}}
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx*``"}}
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc '", "aggregated_output": "a~~~`", "exit_code": null}}
+{"type": "turn.completed", "usage": {"input_tokens": 1179699, "output_tokens": 1703}}
+{"type": "turn.completed", "usage": {"input_tokens": 2492263, "output_tokens": 2066}}
+\> q````
+> q> q
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "'"}}
+*<!-- 
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc - li    ```'", "aggregated_output": "~~~ <!--\r\n<!-- fold closed: x --><!--\\*\"#", "exit_code": null}}
+{"type": "turn.completed", "usage": {"input_tokens": 3274007, "output_tokens": 1961}}
+#<b><!--- li"
+
+<!-- fold closed: x --><b>"
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc \"\u00e9```--\u2003\"", "aggregated_output": "\\\n#`#> q<b>'&> qa", "exit_code": "2"}}
+ ``
+<b>> q_' 
+|    ```| *
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": " ~~~"}}
+{"type": "item.completed", "item": {"type": "reasoning", "text": "~~~> q\"~~~``` a"}}
+`<!--```<b>
+ 
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc <b>\\`\t\u2003", "aggregated_output": "\u00e9<!-- fold closed: x -->\u000b```\u2003\"    ```", "exit_code": "2"}}
+```~~~<!----
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "_a~~~_~~~> q``"}}
+{"type": "item.completed", "item": {"type": "reasoning", "text": "<!--<!--> q`\u2003"}}
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc `", "aggregated_output": "`", "exit_code": "2"}}
+{"type": "item.completed", "item": {"type": "reasoning", "text": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}}
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc - li    ```'", "aggregated_output": "<!-- /fold -->xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx--> q---->", "exit_code": null}}
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "|"}}
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc '\u2003--'", "aggregated_output": "\u0085\t&\r``~~~\\", "exit_code": 1}}
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc \"'", "aggregated_output": "#`|- li*#*\u0085--|'\u000b<b>\"", "exit_code": null}}
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": " '    ```xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx "}}
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc - li    ```'", "aggregated_output": "--\t``#`\n<!-- fold closed: x --><!-- /fold -->\u00a0", "exit_code": 1}}
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc \"'", "aggregated_output": "<!-- fold closed: x -->|~~~--- li\u00e9\n<!-- /fold -->\u2003_\u0085\t<!-- /fold -->", "exit_code": 0}}
+{"type": "turn.completed", "usage": {"input_tokens": 4371335, "output_tokens": 686}}
+{"type": "turn.completed", "usage": {"input_tokens": 3731386, "output_tokens": 545}}
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc '\"", "aggregated_output": "a'\u000b<!-- /fold -->```\u00a0<!---->``*<!-- fold closed: x -->\u2003_<b>", "exit_code": null}}
+{"type": "turn.completed", "usage": {"input_tokens": 8910141, "output_tokens": 1686}}
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc - li    ```'", "aggregated_output": "<!-- /fold -->\" <!-- fold closed: x -->\u00a0", "exit_code": 0}}
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "<b>--> q-->xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`\u0085- li"}}
+{"type": "error", "message": "--\r&#'<b>"}
+```|" ```
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "<!-- fold closed: x -->\u0085*\u2003\n$--\u001b[1m-->\u001b[1m"}}
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "*<!-- /fold -->"}}
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc `", "aggregated_output": "'\u00e9-->\u00a0\r&\"_a'$", "exit_code": 0}}
+{"type": "item.started", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc - li    ```'"}}
+--
+
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc '\u2003--'", "aggregated_output": "|\u00a0| ", "exit_code": null}}
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc ```\u001b[1m\u000b~~~``\r", "aggregated_output": "<!--~~~", "exit_code": "2"}}
+- li~~~[1m~~~ 
+----```<!--
+ #  
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "\\`$xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\u2003 -->- li<!-- fold closed: x -->a"}}
+{"type": "item.started", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc '\u2003--'"}}
+ <!--	> q
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc '\u2003--'", "aggregated_output": "-->&#    ```- li$\t> q", "exit_code": null}}
+<b>	~~~'
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc \"<!-- /fold -->```\u0085", "aggregated_output": "```a> q\u2003- li<!-- /fold -->`&- li", "exit_code": null}}
+    ```    ```
+{"type": "item.started", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc '\""}}
+<b> > q
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "\t--xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx<!-- /fold -->$&&"}}
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "~~~"}}
+\```
+{"type": "turn.completed", "usage": {"input_tokens": 8535313, "output_tokens": 2290}}
+\#- li- li|
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": ""}}
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx|~~~
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc '\u0085\u00e9    ```", "aggregated_output": "'a\u00e9", "exit_code": null}}
+
+a
+<!-- fold closed: x -->\
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "\t\\\u0085<!-- /fold -->\u2003<!-- /fold -->"}}
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "\u001b[1m~~~--><!-- /fold -->\u0085--\u00e9<b>\\\u0085"}}
+|&  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+{"type": "turn.completed", "usage": {"input_tokens": 2324861, "output_tokens": 2344}}
+{"type": "item.started", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc \"\u00e9```--\u2003\""}}
+*
+{"type": "item.started", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc '\u0085\u00e9    ```"}}
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc `", "aggregated_output": "|-->\r> q|``**", "exit_code": 0}}
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc '\u000b", "aggregated_output": "#xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\u0085```<b>-->\n_'\n\u00e9-->\\", "exit_code": null}}
+ 
+$<!--
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc `", "aggregated_output": "\u2003- li<!-- /fold -->\\```--<!--&\n<!-- /fold -->", "exit_code": 1}}
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc '\u001b[1m'", "aggregated_output": "\u0085\r ```\u00a0\u0085> q- lia\t|<!--    ```xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "exit_code": 1}}
+~~~
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "`    ```\n\u00a0a```#\u00a0\r```"}}
+{"type": "turn.completed", "usage": {"input_tokens": 8862617, "output_tokens": 3583}}
+
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "<!--<b>$<!-- fold closed: x -->"}}
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc \"*``\"", "aggregated_output": "", "exit_code": 0}}
+{"type": "error", "message": "<!-- /fold -->\u00e9-->> q<!---->-->"}
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "\r\u2003 <b>- li\u000b"}}
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "\u0085\\#"}}
+{"type": "item.started", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc \"'"}}
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc \"\t``", "aggregated_output": "|<b>a\u001b[1m--\t&- li<b>\r<b>", "exit_code": 1}}
+{"type": "item.started", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc `"}}
+`- li
+{"type": "turn.completed", "usage": {"input_tokens": 3746757, "output_tokens": 3973}}
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc |\"", "aggregated_output": "~~~", "exit_code": "2"}}
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": ""}}
+
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": ""}}
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "\u00e9``\n*'<b>_"}}
+    ``` $
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx*
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "<!-- /fold -->"}}
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "``&$\"\r\u0085"}}
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "> q<b>\\xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx<b>\u00e9\\> q \u000b-->"}}
+| $     ```	
+
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc \"<!-- /fold -->```\u0085", "aggregated_output": "'\\", "exit_code": null}}
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc \"*``\"", "aggregated_output": "<!-- fold closed: x -->", "exit_code": null}}
+a	
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "`> q    ```"}}
+<!-- fold closed: x -->- li
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "_a\r~~~-->\u00e9\u00e9"}}
+{"type": "item.started", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc '#"}}
+
+{"type": "error", "message": "*-->\u000b\t\u00a0> q"}
+{"type": "item.completed", "item": {"type": "reasoning", "text": "*\u0085`\t<!-- fold closed: x -->"}}
+{"type": "turn.completed", "usage": {"input_tokens": 3495382, "output_tokens": 789}}
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc \"'", "aggregated_output": "_#```\u000b    ```-->``\u001b[1m\u001b[1m<!-- /fold --><!-- /fold -->\\<!-- fold closed: x --><!-- fold closed: x -->", "exit_code": 1}}
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc '\u0085\u2003``#", "aggregated_output": "-->~~~\u001b[1m<b>\u00e9\t|", "exit_code": null}}
+<!--#`    ```
+
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\\\u00a0"}}
+``
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "<b>\t\\--_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx<!-- fold closed: x -->a`"}}
+{"type": "turn.completed", "usage": {"input_tokens": 5866986, "output_tokens": 1782}}
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "~~~\u00a0&<!-- fold closed: x -->\u00a0"}}
+{"type": "item.completed", "item": {"type": "reasoning", "text": "&a\u00e9\u000b\\_\r\t&\u00a0"}}
+> q	`
+~~~ *|<!-- /fold -->
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc <b>\\`\t\u2003", "aggregated_output": "\u000b\u2003\r\"\u000b\u000b \\<b>", "exit_code": "2"}}
+a
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc '\u0085\u2003``#", "aggregated_output": "``\n|\\    ```*```a\u2003~~~|\n\\", "exit_code": 1}}
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "*<!--*\t"}}
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "<b>\r```\u00a0> q\u00e9\u2003"}}
+{"type": "turn.completed", "usage": {"input_tokens": 6507801, "output_tokens": 706}}
+*#|<b>
+&
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "*$\"``~~~--><b>\u00a0"}}
+ é``$    ```
+{"type": "turn.completed", "usage": {"input_tokens": 5170932, "output_tokens": 4772}}
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc -->\n\r<!--- li'", "aggregated_output": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx--xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx_ a- li    ```-->xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx    ```", "exit_code": 1}}
+`	```
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc \"\r-->'", "aggregated_output": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx--", "exit_code": 0}}
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "\n\u00e9"}}
+  --$
+``` 	``<b>```
+[1m*#
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "<!-- fold closed: x -->*\u00e9<!-- /fold -->    ```"}}
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "> q&<!-- fold closed: x -->---->\u00e9\\\u00a0"}}
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "*<!-- /fold -->\u00e9$*<!-- fold closed: x -->"}}
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "\u2003\\xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx<!--`<!-- fold closed: x -->|\\"}}
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc \"\r-->'", "aggregated_output": "\\'\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "exit_code": 1}}
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "\u2003\u001b[1m<!--<!-- fold closed: x -->\r\u00e9a\u00a0#~~~\u001b[1m"}}
+{"type": "turn.completed", "usage": {"input_tokens": 7251664, "output_tokens": 3421}}
+{"type": "error", "message": ""}
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "\u00a0 \u2003"}}
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "\r`<!--\"#"}}
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc <b>\\`\t\u2003", "aggregated_output": "&\\> q*", "exit_code": 1}}
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "-->~~~xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`\t~~~<!-- /fold -->|<!-- fold closed: x -->a\u2003\""}}
+{"type": "item.completed", "item": {"type": "reasoning", "text": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx<!--- li-->*a\u00a0\u2003 "}}
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc ```\u001b[1m\u000b~~~``\r", "aggregated_output": "\u2003`a<b>~~~", "exit_code": "2"}}
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "--\u000b_--\r\t\r\u2003> q"}}
+
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc \"\t``", "aggregated_output": "\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx_#`<!-- fold closed: x -->#\u00a0``'<!-- fold closed: x -->\u2003<!-- /fold -->\u0085", "exit_code": null}}
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc \"\u00e9```--\u2003\"", "aggregated_output": "\n--a*<!-- fold closed: x -->-->", "exit_code": 1}}
+é<b>$'-->
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc <!-- fold closed: x -->\"", "aggregated_output": "> q<!--a \u0085#\r&|\t*~~~\u00a0 ``", "exit_code": 0}}
+{"type": "turn.completed", "usage": {"input_tokens": 2714742, "output_tokens": 2825}}
+   ``` 
+ 	\<b>	
+$`-->&&``
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "\n\u001b[1m> q`````&\u001b[1m\u00e9'\u0085<!-- fold closed: x -->"}}
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "\u001b[1m\u2003\\\u00e9"}}
+--> q[1m 
+
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc \"\u000b\"$#~~~'", "aggregated_output": "\"> q\u2003", "exit_code": 1}}
+ [1m*a<!--
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc \"\u000b\"$#~~~'", "aggregated_output": "a", "exit_code": null}}
+{"type": "item.started", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc \"\u00a0\t\u00e9\""}}
+_- li"--<!-- fold closed: x -->*
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc \u2003|\u2003#'", "aggregated_output": "- li*``\n- li`\u00e9", "exit_code": null}}
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "\n\u0085 \\&\r"}}
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc '\u000b", "aggregated_output": "$#    ``````\u00a0", "exit_code": null}}
+{"type": "item.completed", "item": {"type": "reasoning", "text": "~~~xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\u00e9*    ```xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx<!-- fold closed: x -->#"}}
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "-->--<b><!-- /fold -->\r~~~~~~"}}
+é<!--"*-->
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc \u2003|\u2003#'", "aggregated_output": "`*`<b>$~~~~~~\r", "exit_code": null}}
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc \u2003|\u2003#'", "aggregated_output": "`<!-- /fold -->&", "exit_code": "2"}}
+{"type": "item.started", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc \"|"}}
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc '#", "aggregated_output": "#--\u001b[1m    ``` ~~~<!-- fold closed: x -->|a-->\u0085\u000b#", "exit_code": 1}}
+``    ```é<!-- fold closed: x -->
+{"type": "turn.completed", "usage": {"input_tokens": 1641932, "output_tokens": 3437}}
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc -->\n\r<!--- li'", "aggregated_output": "<!-- fold closed: x -->\u0085> q    ``` ", "exit_code": "2"}}
+{"type": "error", "message": "\u00e9a"}
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc \"\u00a0\t\u00e9\"", "aggregated_output": "\u00a0<!-- fold closed: x -->&", "exit_code": 1}}
+<!--
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc <!-- fold closed: x -->\"", "aggregated_output": "&> q-- \\<!--'\u000b    ```&_|--``", "exit_code": null}}
+{"type": "turn.completed", "usage": {"input_tokens": 4235537, "output_tokens": 2247}}
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc '", "aggregated_output": "", "exit_code": 0}}
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc \"\t``", "aggregated_output": "<!-- fold closed: x -->`#\r|<!--#|    ```&*", "exit_code": 1}}
+
+<b>> q#~~~"
+    ```[1m```> q"
+<!-- /fold -->
+<!-- fold closed: x -->_> qa
+<!-- /fold -->"-->é> q
+{"type": "item.started", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc \"*``\""}}
+{"type": "turn.completed", "usage": {"input_tokens": 6080593, "output_tokens": 1251}}
+$  é```<!--
+aa&	[1m
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc '\"", "aggregated_output": "#_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"", "exit_code": 1}}
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc -->\n\r<!--- li'", "aggregated_output": "\n\r<b>- li&", "exit_code": 0}}
+````<!-- fold closed: x -->
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc '\"", "aggregated_output": "> q- li\u2003> q", "exit_code": "2"}}
+- li-->- li*a
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "    ```- li\u001b[1m    ```\\"}}
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc |\"", "aggregated_output": "_\\", "exit_code": 0}}
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": ""}}
+`--
+{"type": "item.started", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc \"\u000b\"$#~~~'"}}
+
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc \"\t``", "aggregated_output": "'`\\'", "exit_code": "2"}}
+&[1m'
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc '> q\t'", "aggregated_output": "\u001b[1m", "exit_code": null}}
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc \"\u00a0\t\u00e9\"", "aggregated_output": "'--<!-- /fold -->--\"&- li``'<b>\u00e9\r", "exit_code": 1}}
+{"type": "item.completed", "item": {"type": "reasoning", "text": "\n\u00a0||\u2003|\r`a\u00a0"}}
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "\u2003--$~~~\n&\u00a0"}}
+_`_
+`a\
+
+{"type": "item.completed", "item": {"type": "reasoning", "text": "\r_\u000b\u00a0"}}
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc \"\t``", "aggregated_output": "- li", "exit_code": 0}}
+|xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	a$
+{"type": "item.completed", "item": {"type": "reasoning", "text": "~~~> q\u000b`\n> q&~~~a\u0085"}}
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "``\n&`````> q <!-- /fold -->-->xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}}
+ 
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc \"<!-- /fold -->```\u0085", "aggregated_output": "\n\u001b[1m- li    ```", "exit_code": null}}
+
+
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "\n$\r\r*- li\u2003\u00e9\\xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}}
+{"type": "item.started", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc '\u0085\u2003``#"}}
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "``\\*\u000b> q$xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx<!-- /fold -->'\u001b[1m<!-- /fold -->\u2003"}}
+{"type": "turn.completed", "usage": {"input_tokens": 5570707, "output_tokens": 4962}}
+
+-->$
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc -->\n\r<!--- li'", "aggregated_output": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\u001b[1ma\u00e9<!-- fold closed: x --><!-- /fold -->\u0085", "exit_code": 1}}
+{"type": "item.completed", "item": {"type": "reasoning", "text": ""}}
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc \"'", "aggregated_output": "<!-- /fold -->- li\"\n", "exit_code": "2"}}
+#
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc '", "aggregated_output": "    ```&<!-- fold closed: x -->a$    ```\n\"\t#|<!--", "exit_code": null}}
+é> q--<b>
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "\n_\u001b[1m"}}
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc \rxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\u001b[1m$\"'", "aggregated_output": "|<!--~~~-->\u00a0- li\\`\\    ```\n", "exit_code": 1}}
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc \"|", "aggregated_output": "<!-- /fold --><!-- `\u00a0&- li&<!-- fold closed: x --><!-- /fold -->\u0085", "exit_code": 0}}
+```<!-- fold closed: x --> '<b>_
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc \"|", "aggregated_output": "\u00a0", "exit_code": null}}
+- li	|
+ <!-- fold closed: x -->é# 
+--|_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx*
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc ```\u001b[1m\u000b~~~``\r", "aggregated_output": "_\u00a0<!-- fold closed: x -->\"\u2003 \u2003", "exit_code": null}}
+> q `~~~é
+
+{"type": "item.completed", "item": {"type": "reasoning", "text": "`> q\u00e9\\<!-- fold closed: x -->$``"}}
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc -->\n\r<!--- li'", "aggregated_output": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx-->~~~a    ```", "exit_code": 1}}
+#
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "\\```xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`$ \txxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'"}}
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc ```\u001b[1m\u000b~~~``\r", "aggregated_output": "``\\~~~'#\u2003_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx~~~xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx~~~<!-- /fold -->\u000b\u000b-->", "exit_code": 1}}
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "\u001b[1m'*<!-- fold closed: x -->- li`\u00e9    ```> q"}}
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "\u2003&> q\u001b[1m``<!-- fold closed: x --><b>\\"}}
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc `", "aggregated_output": "-->`$\u001b[1m\u000b*\u2003", "exit_code": null}}
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": " xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx--'--```xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxa<!--\u001b[1m"}}
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "\u00a0\u000b&<!-- /fold -->_```"}}
+#_<b> 
+- li<!-- /fold -->_&
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "<b>\r<b>a\t<!--\u000b\u2003<!--\""}}
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc '\"", "aggregated_output": "\na\u000b> q```<!-- /fold -->-->_\\\u00a0*\\a\"<!--", "exit_code": "2"}}
+
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "-->\u00e9$\u2003\u001b[1m`- lixxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx-- <!--"}}
+ 
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc '\u2003--'", "aggregated_output": "_*`\r<!-- fold closed: x -->  ", "exit_code": 0}}
+<b><!-- fold closed: x -->     ```<!--
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc \"''", "aggregated_output": "\"`_", "exit_code": 0}}
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc \"''", "aggregated_output": "--<!-- /fold -->``````|```##~~~    ```|* $", "exit_code": "2"}}
+{"type": "item.completed", "item": {"type": "reasoning", "text": "<!--\u00a0|\u2003\\'|-->'"}}
+é| é<!--~~~
+-->
+
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc - li    ```'", "aggregated_output": "\t\u00e9\u0085<b>--", "exit_code": 0}}
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc \"\t``", "aggregated_output": "    ```\u00a0\u00a0\u00a0<!-- /fold --><!-- /fold -->\u00a0`<!-- fold closed: x -->``<!--a", "exit_code": "2"}}
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc '", "aggregated_output": "``\r\"*``\u2003--<!-- /fold -->\n", "exit_code": "2"}}
+{"type": "item.completed", "item": {"type": "reasoning", "text": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx``"}}
+{"type": "error", "message": "\u000b\u001b[1m<!-- /fold -->-->"}
+[1m    ```#$<b>
+{"type": "error", "message": "    ```\r> q> q\r"}
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "#<b>--$|"}}
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "*-->\u00e9\u00e9- li"}}
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc '\u000b", "aggregated_output": "\u001b[1m\u2003 *\t\"", "exit_code": "2"}}
+$xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"`
+{"type": "error", "message": "\u000b'"}
+<b>
+{"type": "turn.completed", "usage": {"input_tokens": 4643052, "output_tokens": 4241}}
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "> q<!-- /fold -->```\u000b`a\u000b``- li|~~~"}}
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc '#", "aggregated_output": "``$xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx    ```\u001b[1m\"\u001b[1m\"", "exit_code": "2"}}
+{"type": "error", "message": "\u00e9a- li$xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\r"}
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "~~~\u0085$#"}}
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "\u00e9-->\u00e9&\u0085"}}
+
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "- li\r\r\u0085"}}
+{"type": "error", "message": "\u0085$    ```\"\u00a0\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxa"}
+#`\
+{"type": "error", "message": "~~~<b>\u000b- li|xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'<!--"}
+
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "\\\t\r--_"}}
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "'--\u000b*"}}
+{"type": "error", "message": "&--<b>\u000b_\u2003`\""}
+{"type": "item.completed", "item": {"type": "reasoning", "text": "\u00a0\u000baa\ra\r|`a"}}
+_
+{"type": "item.started", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc '> q\t'"}}
+{"type": "item.completed", "item": {"type": "reasoning", "text": "--~~~<b>\u000b``~~~*<!----`"}}
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "*"}}
+    ``` 
+é~~~-->"<!-- /fold -->
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "`\t\"<b>"}}
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc -->\n\r<!--- li'", "aggregated_output": "", "exit_code": 0}}
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc -->\n\r<!--- li'", "aggregated_output": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "exit_code": 0}}
+{"type": "turn.completed", "usage": {"input_tokens": 4183053, "output_tokens": 1825}}
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "_\u00e9a    ```\r\u000b<!-- fold closed: x -->- li\t"}}
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc -->\n\r<!--- li'", "aggregated_output": "\u000b\r|- li -->\n", "exit_code": 1}}
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "_a\u001b[1m|\\``"}}
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc <!-- fold closed: x -->\"", "aggregated_output": "'|\t``\u0085\"-->$<b>    ```\u001b[1m\"", "exit_code": 1}}
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc `", "aggregated_output": "", "exit_code": null}}
+```
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "```xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx    ```-->"}}
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "&|$&\r"}}
+&#xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx```
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\
+{"type": "error", "message": "--&`````--\n"}
+{"type": "error", "message": "$ ~~~\r"}
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "\n_#\u00e9<b>`\t\\--\r<b>"}}
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "\n#\u001b[1m```"}}
+[1m"|
+```<!-- /fold -->_
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "\"\u000b     ```-->|\"`_\u001b[1m"}}
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "#\u00a0|\u00a0*\u0085<b>\r~~~"}}
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc '", "aggregated_output": "_#- li<!--<!-- fold closed: x -->\u0085\"a``", "exit_code": null}}
+ -->`` é&
+ 
+#<!-- /fold --><!--
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'--xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx--\u2003"}}
+
+```- li<b> <!-- fold closed: x -->_
+{"type": "error", "message": "<!-- fold closed: x -->-->\u2003"}
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "\u000b\n<b>\r```"}}
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "- li> q-->-->a--xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx```\"\r```"}}
+-->
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc '\"", "aggregated_output": "\u0085*~~~", "exit_code": "2"}}
+&``[1m
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "&\u00a0\u2003<!-- /fold -->\r<b>``"}}
+``*é
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc \rxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\u001b[1m$\"'", "aggregated_output": "\u001b[1m*\t\u00a0a    ```- li\n'<!-- fold closed: x -->`", "exit_code": "2"}}
+<b>éa
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc '\u2003--'", "aggregated_output": "<!-- fold closed: x -->-->\n```  |~~~\u001b[1m", "exit_code": null}}
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "<!--*`\r\u00e9$_\"\u00e9#"}}
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc '> q\t'", "aggregated_output": "<!-- fold closed: x -->-->\u2003\u00a0`|\u2003&- li\u0085- li", "exit_code": 1}}
+ ~~~#*
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "|\n\u00a0xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx> q<b>&\\a\u00a0"}}
+--~~~[1m	 
+{"type": "error", "message": "'\txxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxa_*"}
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc \"|", "aggregated_output": "\"<b>> q\n\u00e9<!--    ```\u0085~~~|\n\u2003'\r", "exit_code": "2"}}
+```'
+{"type": "error", "message": ""}
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+\
+{"type": "item.completed", "item": {"type": "reasoning", "text": "\\<!---->xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx|<!-- fold closed: x -->"}}
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "<b>``"}}
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc '\"", "aggregated_output": "`<b><!--<!-- fold closed: x -->- li#    ```#", "exit_code": 0}}
+ 	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "--``--`    ```|*<b>"}}
+{"type": "item.completed", "item": {"type": "reasoning", "text": "```"}}
+{"type": "item.completed", "item": {"id": "x", "type": "command_execution", "command": "/bin/zsh -lc \"*``\"", "aggregated_output": "|", "exit_code": 1}}
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": ""}}
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "&    ```\r`````\u0085\n<b>``"}}
+"*\'a<!-- fold closed: x -->
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "--<!--\"- li\u00a0"}}
+`"
+{"type": "error", "message": "\u00a0"}
+--><!-- fold closed: x -->"<b>xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`` - li``\t<!-- fold closed: x -->_~~~"}}
+{"type": "item.completed", "item": {"type": "reasoning", "text": "$~~~<!-- fold closed: x --><!-- /fold -->"}}
+
+{"type": "item.completed", "item": {"id": "x", "type": "agent_message", "text": "- li--"}}
