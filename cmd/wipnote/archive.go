@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
-	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -308,43 +306,4 @@ func resolveArchivedNode(wipnoteDir, id string) (*models.Node, error) {
 		}
 	}
 	return nil, nil
-}
-
-// resolveArchivedNodeByPartialID resolves an exact OR unambiguous-prefix id
-// against archived ledger rows and returns the reconstructed node. This mirrors
-// workitem.ResolvePartialID (which only scans individual files) for the archive
-// case, so `show <partial-or-full-id>` works for archived items. Returns
-// (nil, nil) when nothing matches; an error when the prefix is ambiguous.
-func resolveArchivedNodeByPartialID(wipnoteDir, id string) (*models.Node, error) {
-	var matches []*graph.LedgerEntry
-	for _, col := range graph.ArchiveLedgerCollections {
-		entries, err := graph.ReadLedger(graph.ArchiveLedgerPath(wipnoteDir, col))
-		if err != nil {
-			if os.IsNotExist(err) {
-				continue
-			}
-			return nil, err
-		}
-		for _, e := range entries {
-			if e.ID == id {
-				return e.Node() // exact match wins immediately
-			}
-			if strings.HasPrefix(e.ID, id) {
-				matches = append(matches, e)
-			}
-		}
-	}
-	switch len(matches) {
-	case 0:
-		return nil, nil
-	case 1:
-		return matches[0].Node()
-	default:
-		ids := make([]string, len(matches))
-		for i, m := range matches {
-			ids[i] = m.ID
-		}
-		sort.Strings(ids)
-		return nil, fmt.Errorf("ambiguous ID %q — did you mean one of: %s", id, strings.Join(ids, ", "))
-	}
 }

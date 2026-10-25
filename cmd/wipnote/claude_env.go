@@ -181,16 +181,6 @@ func removeEnv(env []string, key string) []string {
 	return result
 }
 
-// isTruthy parses a boolean-ish env-var value.
-// for one env-var check.
-func isTruthy(s string) bool {
-	switch s {
-	case "1", "true", "TRUE", "yes", "on":
-		return true
-	}
-	return false
-}
-
 // isExplicitlyDisabled reports whether a value explicitly opts OUT of OTel
 // (for the default-on launcher policy). Empty / unset values default to on.
 func isExplicitlyDisabled(v string) bool {

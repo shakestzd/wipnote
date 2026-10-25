@@ -151,19 +151,6 @@ func TestBuildClaudeLaunchEnv_WorktreeProjectDir(t *testing.T) {
 	assertEnvContains(t, env, "WIPNOTE_PROJECT_DIR", "/worktree/main/.wipnote")
 }
 
-func TestIsTruthy(t *testing.T) {
-	for _, s := range []string{"1", "true", "TRUE", "yes", "on"} {
-		if !isTruthy(s) {
-			t.Errorf("isTruthy(%q) = false, want true", s)
-		}
-	}
-	for _, s := range []string{"", "0", "false", "no", "off", "maybe"} {
-		if isTruthy(s) {
-			t.Errorf("isTruthy(%q) = true, want false", s)
-		}
-	}
-}
-
 func TestIsExplicitlyDisabled(t *testing.T) {
 	for _, s := range []string{"0", "false", "FALSE", "no", "off"} {
 		if !isExplicitlyDisabled(s) {

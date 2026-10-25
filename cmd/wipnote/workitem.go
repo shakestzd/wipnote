@@ -8,7 +8,6 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -120,10 +119,6 @@ func wiShowCmd(typeName string) *cobra.Command {
 	return cmd
 }
 
-func runWiShow(id string) error {
-	return runWiShowWithFormat(id, "text")
-}
-
 // runWiShowWithFormat shows a work item in the requested format (text or json).
 func runWiShowWithFormat(id, format string) error {
 	dir, err := findWipnoteDir()
@@ -224,7 +219,7 @@ func acceptedAdvisoryOf(n *models.Node) string {
 
 // markedNoteOf returns the text following marker on the first content-note
 // line that carries it, or "". Shared by the audited-override readers
-// (acceptedAdvisoryOf, allowOrphanOf).
+// (acceptedAdvisoryOf, and the --allow-orphan marker in tests).
 func markedNoteOf(n *models.Node, marker string) string {
 	if n == nil || n.Content == "" {
 		return ""
@@ -290,10 +285,6 @@ func runWiSetStatus(typeName, id, status string) error {
 // again.
 func legacyActiveFeatureAgents() []string {
 	return []string{dbpkg.AgentRootSentinel, "codex"}
-}
-
-func writesLegacyActiveFeature(agentID string) bool {
-	return slices.Contains(legacyActiveFeatureAgents(), agentID)
 }
 
 // wiSetStatusWithAgent is the testable core of runWiSetStatus that accepts

@@ -5,11 +5,8 @@
 package launchtui
 
 import (
-	"strings"
-
 	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/lipgloss"
-	colorful "github.com/lucasb-eyer/go-colorful"
 )
 
 // Palette hex constants — mirrored verbatim from plugin/static/has-styles.css.
@@ -50,45 +47,6 @@ func accentAdaptive() lipgloss.AdaptiveColor {
 // borderAdaptive returns the frame border color as an AdaptiveColor.
 func borderAdaptive() lipgloss.AdaptiveColor {
 	return lipgloss.AdaptiveColor{Light: ColBorderLight, Dark: ColBorder}
-}
-
-// gradientText renders s with a per-rune 1D color blend (lime → emerald),
-// picking light/dark endpoints from the renderer's detected background. The
-// renderer also controls the color profile, so on a non-TTY / Ascii profile
-// lipgloss strips the per-rune ANSI and gradientText degrades to plain text
-// automatically. Pass r=nil to use the default global renderer.
-func gradientText(r *lipgloss.Renderer, s string) string {
-	newStyle := lipgloss.NewStyle
-	dark := lipgloss.HasDarkBackground()
-	if r != nil {
-		newStyle = r.NewStyle
-		dark = r.HasDarkBackground()
-	}
-
-	fromHex, toHex := ColGradFromDark, ColGradToDark
-	if !dark {
-		fromHex, toHex = ColGradFromLight, ColGradToLight
-	}
-	from, err1 := colorful.Hex(fromHex)
-	to, err2 := colorful.Hex(toHex)
-
-	runes := []rune(s)
-	// Fallback to a flat adaptive accent if blending is unavailable.
-	if err1 != nil || err2 != nil || len(runes) == 0 {
-		return newStyle().Foreground(accentAdaptive()).Bold(true).Render(s)
-	}
-
-	var b strings.Builder
-	n := len(runes)
-	for i, ru := range runes {
-		t := 0.0
-		if n > 1 {
-			t = float64(i) / float64(n-1)
-		}
-		hex := from.BlendLuv(to, t).Clamped().Hex()
-		b.WriteString(newStyle().Foreground(lipgloss.Color(hex)).Bold(true).Render(string(ru)))
-	}
-	return b.String()
 }
 
 // Styles carries the named lipgloss styles that make up the dashboard palette.

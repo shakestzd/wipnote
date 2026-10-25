@@ -8,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"regexp"
 	"strings"
 
 	"github.com/shakestzd/wipnote/core/htmlparse"
@@ -491,6 +490,3 @@ func writeOutput(content, path string) error {
 	fmt.Printf("Spec written to %s\n", path)
 	return nil
 }
-
-// thirdPartyNoticesPattern matches the OpenSpec entry in the repo-root notices file.
-var thirdPartyNoticesPattern = regexp.MustCompile(`(?s)OpenSpec.*MIT`)

@@ -393,19 +393,6 @@ func initSessionWithDB(_, projectDir string, _ *cobra.Command) error {
 	return nil
 }
 
-// inCacheSubtree reports whether cmd or any ancestor is the `cache` command.
-// Used to bypass the destructive opportunistic prune in PersistentPreRunE so
-// `wipnote cache prune --dry-run` reports the cache's actual state rather
-// than what's left after the prune the pre-run hook just performed.
-func inCacheSubtree(cmd *cobra.Command) bool {
-	for p := cmd; p != nil; p = p.Parent() {
-		if p.Name() == "cache" {
-			return true
-		}
-	}
-	return false
-}
-
 // isLauncherDiagnosticSubtree reports whether cmd or any ancestor is the
 // `launcher` command. The launcher subtree (currently `launcher doctor`) is a
 // read-only diagnostic surface; persistentPreRunE skips its destructive

@@ -450,7 +450,7 @@ func collectSessionIDs(database *sql.DB, validIDs map[string]bool) {
 // nodes, but unlike tracks/features/bugs/spikes they have no row in any node
 // table, so no indexing pass ever registers them. validIDs is a target-validity
 // whitelist rather than a node table (session IDs live in it for the same
-// reason), and both indexNodeEdges and purgeStaleEntries consult it — so an
+// reason), and indexNodeEdges consults it — so an
 // unregistered plan ID means every edge touching a plan is dropped on rebuild.
 //
 // HTML is the canonical node file, so its parsed article ID wins; the YAML stem

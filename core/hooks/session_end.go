@@ -549,7 +549,7 @@ func reconcileCheapClasses(database *sql.DB, projectDir string, skipPortDrift bo
 // ReconcileDoneButUncommittedForProject runs ONLY the done-but-uncommitted
 // auto-commit class across the project, with NO cap. It is the deferred,
 // off-hot-path counterpart to the class reconcileCheapClasses omits: the
-// serve-side writer daemon calls it on a low-frequency loop (startReconcileDrainLoop)
+// writer daemon calls it on a low-frequency loop (startWriterMaintenance's reconcile drain)
 // so the deterministic artifact auto-commit the Stop hook no longer performs
 // synchronously still completes — exactly the split bug-504095f2 used for the
 // orphan sweep. Returns the list of work-item IDs whose artifacts were committed
@@ -1001,7 +1001,7 @@ func ReapStaleSessionsAndCollectors(database *sql.DB, projectDir, currentSession
 // delegated port-drift check. It NO LONGER runs the done-but-uncommitted
 // auto-commit, whose per-item git fork loop was the ~5.45s synchronous cost the
 // Stop hook paid on every model response. That class is now drained off the hot
-// path by the serve-side writer daemon (startReconcileDrainLoop →
+// path by the writer daemon (startWriterMaintenance's reconcile drain →
 // ReconcileDoneButUncommittedForProject), so the deterministic artifact
 // auto-commit still completes — just not on the interactive path. This is sound
 // because only ambiguous PortDrift gates the discriminator below; the

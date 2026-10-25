@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/shakestzd/wipnote/core/models"
 	"github.com/shakestzd/wipnote/core/workitem"
 )
 
@@ -30,11 +29,6 @@ var wiAllowOrphan string
 // persisted under, mirroring acceptedAdvisoryMarker so audit tooling reads
 // both the same way.
 const allowOrphanMarker = "allow-orphan (unmerged-upstream override): "
-
-// allowOrphanOf returns the recorded --allow-orphan reason for a node, or "".
-func allowOrphanOf(n *models.Node) string {
-	return markedNoteOf(n, allowOrphanMarker)
-}
 
 // checkMergedUpstreamCompleteGate refuses completion of a code-bearing item
 // whose linked commits are all absent from the upstream default branch.

@@ -157,16 +157,6 @@ func reportRolloutGate(b *bytes.Buffer) {
 	fmt.Fprintln(b)
 }
 
-// doctorSessionLabel returns the display label for a session given the family map.
-// Returns "legacy" for sessions without a family-id entry.
-func doctorSessionLabel(sessionID string, familyMap map[string]string) string {
-	fid, ok := familyMap[sessionID]
-	if !ok || fid == "" {
-		return "legacy"
-	}
-	return fid
-}
-
 // worktreeEntry describes one git worktree entry for doctor reporting.
 type worktreeEntry struct {
 	Path   string

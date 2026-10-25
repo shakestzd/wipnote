@@ -912,7 +912,7 @@ func TestResolveToolUseContext_SubagentPrefersOwnClaimOverRootFeature(t *testing
 	tdb.addFeature("bug-agent-item", "bug", "Subagent's own work", "in-progress")
 
 	// Root claims bug-root-item via the session-wide column — writable only by
-	// root/codex per writesLegacyActiveFeature (cmd/wipnote/workitem.go).
+	// root/codex per legacyActiveFeatureAgents (cmd/wipnote/workitem.go).
 	if _, err := tdb.DB.Exec(
 		`UPDATE sessions SET active_feature_id = ? WHERE session_id = ?`,
 		"bug-root-item", "test-sess",

@@ -117,7 +117,7 @@ func TestMergedUpstreamGate_AllowOrphanRecordsNote(t *testing.T) {
 	if node.Status != models.StatusDone {
 		t.Errorf("status = %s, want done", node.Status)
 	}
-	if got := allowOrphanOf(node); got != "branch-local by design" {
+	if got := markedNoteOf(node, allowOrphanMarker); got != "branch-local by design" {
 		t.Errorf("allow-orphan rationale not persisted, got %q", got)
 	}
 	if acceptedAdvisoryOf(node) != "" {

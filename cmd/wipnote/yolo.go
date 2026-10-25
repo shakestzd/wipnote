@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -185,37 +184,6 @@ func validateWorkItem(trackID, featureID, projectRoot string) (id, kind string, 
 	default:
 		return "", "", nil
 	}
-}
-
-// mergeAgentToTrack merges an agent branch back into its parent track branch
-// and removes the agent worktree. This is the cleanup step after agent completion.
-func mergeAgentToTrack(trackID, taskName, projectRoot string) error {
-	agentBranch := "agent-" + trackID + "-" + taskName
-	worktreePath := filepath.Join(projectRoot, ".claude", "worktrees", trackID, "agent-"+taskName)
-
-	// Checkout track branch first
-	checkoutCmd := exec.Command("git", "-C", projectRoot, "checkout", trackID)
-	if out, err := checkoutCmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("checkout track branch failed: %w\n%s", err, out)
-	}
-
-	// Merge agent branch into track branch
-	mergeCmd := exec.Command("git", "-C", projectRoot, "merge", "--no-ff", agentBranch,
-		"-m", fmt.Sprintf("feat: merge agent-%s into %s", taskName, trackID))
-
-	if out, err := mergeCmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("merge agent to track failed: %w\n%s", err, out)
-	}
-
-	// Remove the agent worktree
-	removeCmd := exec.Command("git", "-C", projectRoot, "worktree", "remove", "--force", worktreePath)
-	removeCmd.Run() //nolint:errcheck
-
-	// Delete the agent branch
-	deleteCmd := exec.Command("git", "-C", projectRoot, "branch", "-d", agentBranch)
-	deleteCmd.Run() //nolint:errcheck
-
-	return nil
 }
 
 // resolveTrackForFeature reads a feature HTML file and returns its data-track-id attribute.

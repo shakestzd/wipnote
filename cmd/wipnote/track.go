@@ -44,10 +44,6 @@ func trackShowCmd() *cobra.Command {
 	return cmd
 }
 
-func runTrackShow(id string, deep bool) error {
-	return runTrackShowWithFormat(id, deep, "text")
-}
-
 // runTrackShowWithFormat shows a track in the requested format (text or json).
 func runTrackShowWithFormat(id string, deep bool, format string) error {
 	dir, err := findWipnoteDir()

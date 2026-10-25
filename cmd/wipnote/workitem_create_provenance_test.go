@@ -166,8 +166,8 @@ func TestShowRendersUnknownForLegacyItem(t *testing.T) {
 	}
 
 	out := captureStdout(t, func() {
-		if err := runWiShow(legacyID); err != nil {
-			t.Fatalf("runWiShow: %v", err)
+		if err := runWiShowWithFormat(legacyID, "text"); err != nil {
+			t.Fatalf("runWiShowWithFormat: %v", err)
 		}
 	})
 	if !strings.Contains(out, "Created by") {

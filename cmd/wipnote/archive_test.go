@@ -149,7 +149,6 @@ func TestArchive_ApplyRoundTrip(t *testing.T) {
 	reindexTracks(database, wipnoteDir, repoRoot, validIDs, false)
 	reindexFeatureDir(database, wipnoteDir, repoRoot, "features", validIDs, false)
 	reindexWorkitemLedgerNodes(database, wipnoteDir, repoRoot, validIDs, false)
-	purgeStaleEntries(database, validIDs)
 	reindexEdges(database, wipnoteDir, validIDs)
 	reindexWorkitemLedgerEdges(database, wipnoteDir, validIDs, false)
 

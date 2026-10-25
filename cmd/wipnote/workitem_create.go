@@ -290,20 +290,6 @@ func normalizeFilesInput(input, repoRoot string) string {
 	return strings.Join(out, ",")
 }
 
-// dedupWindowDays resolves the closed-item lookback window. Default is
-// dbpkg.DedupDefaultWindowDays (~30d); operators override via the
-// WIPNOTE_DEDUP_WINDOW_DAYS env var. The rationale for keeping the *window*
-// configurable (but the similarity *threshold* a fixed code constant) lives
-// in internal/db/feature_repo.go.
-func dedupWindowDays() int {
-	if raw := strings.TrimSpace(os.Getenv("WIPNOTE_DEDUP_WINDOW_DAYS")); raw != "" {
-		if n, err := strconv.Atoi(raw); err == nil && n > 0 {
-			return n
-		}
-	}
-	return dbpkg.DedupDefaultWindowDays
-}
-
 // maybeAttachDedupRelation runs the similarity check and, on a strong match,
 // attaches a relates_to edge whose Title carries the needs-triage-dup marker.
 //

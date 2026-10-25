@@ -205,7 +205,7 @@ type writeSite struct {
 //	cmd/wipnote/lazy_reindex.go:ensureIndexPopulated     — file deleted
 //	cmd/wipnote/lazy_reindex.go:runFullSyncReindex (x2)  — file deleted
 //	cmd/wipnote/plan_feedback_cmd.go:planFeedback        — now reads canonical YAML only, no DB
-//	cmd/wipnote/plan_finalize_yaml.go:finalizeYAML       — delegates to finalizeYAMLCanonical, no DB
+//	cmd/wipnote/plan_finalize_yaml.go:finalizeYAML       — delegates to finalizeYAMLCanonicalOpts, no DB
 //	cmd/wipnote/plan_interview.go:serveInterviewForm     — now calls openDB() (ephemeral)
 //	cmd/wipnote/plan_typed_sections.go:buildTypedPlanSections — now calls openDB() (ephemeral)
 //	cmd/wipnote/plan_yaml_cmds.go:openPlanDB             — now delegates to openDB() (ephemeral)

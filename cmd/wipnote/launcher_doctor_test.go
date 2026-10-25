@@ -64,18 +64,3 @@ func TestLauncherDoctor_StaleWorktree(t *testing.T) {
 		t.Errorf("doctor should be non-destructive by default, got:\n%s", report)
 	}
 }
-
-func TestLegacySessionFamilyFallback(t *testing.T) {
-	legacySessions := []string{"legacy-session-001", "legacy-session-002"}
-	for _, sid := range legacySessions {
-		label := doctorSessionLabel(sid, map[string]string{})
-		if label != "legacy" {
-			t.Errorf("session %q without family should be labeled legacy, got %q", sid, label)
-		}
-	}
-	familyMap := map[string]string{"session-with-family": "fam-abc123"}
-	label := doctorSessionLabel("session-with-family", familyMap)
-	if label == "legacy" {
-		t.Errorf("session with family should not be labeled legacy")
-	}
-}

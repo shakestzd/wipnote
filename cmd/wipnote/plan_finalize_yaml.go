@@ -245,7 +245,7 @@ func linkPlanFinalizationEdges(
 	}
 }
 
-// saveFinalizedPlan's only caller, finalizeYAMLCanonical, already holds
+// saveFinalizedPlan's only caller, finalizeYAMLCanonicalOpts, already holds
 // planyaml.LockPlanForWrite(planPath) across its whole load→mutate→save
 // window (defect 4, feat-fc3cc9e0) — SaveLocked (not Save) avoids re-entering
 // that non-reentrant mutex.

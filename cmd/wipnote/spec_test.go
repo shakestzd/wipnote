@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 	"sync"
@@ -249,7 +250,7 @@ func TestThirdPartyNotices_HasOpenSpec(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read notices: %v", err)
 	}
-	if !thirdPartyNoticesPattern.Match(body) {
+	if !regexp.MustCompile(`(?s)OpenSpec.*MIT`).Match(body) {
 		t.Errorf("notices file missing OpenSpec/MIT entry\n%s", body)
 	}
 }

@@ -57,7 +57,7 @@ type toolUseContext struct {
 // resolveFeatureIDForContext picks which of the two feature_id sources a
 // tool-use context should report (bug-b65b82bd): activeFeatureID is the
 // session-wide sessions.active_feature_id column, writable only by root/codex
-// (see writesLegacyActiveFeature in cmd/wipnote/workitem.go); claimedItem is
+// (see legacyActiveFeatureAgents in cmd/wipnote/workitem.go); claimedItem is
 // the calling agent's own claim, resolved by db.GetToolUseContext's
 // claimed_by_agent_id-first lookup against the claims table.
 //
