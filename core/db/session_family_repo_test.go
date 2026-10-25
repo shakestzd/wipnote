@@ -42,36 +42,3 @@ func TestEventTree_SessionFamilyGrouping(t *testing.T) {
 		}
 	}
 }
-
-// TestSetSessionFamilyID verifies the upsert helper sets family on a session.
-func TestSetSessionFamilyID(t *testing.T) {
-	dir := t.TempDir()
-	dbPath := filepath.Join(dir, "wipnote.db")
-	database, err := Open(dbPath)
-	if err != nil {
-		t.Fatalf("Open: %v", err)
-	}
-	defer database.Close()
-
-	_, err = database.Exec(`
-		INSERT INTO sessions (session_id, agent_assigned, status)
-		VALUES ('sess-set-fam', 'gemini', 'active')`)
-	if err != nil {
-		t.Fatalf("insert session: %v", err)
-	}
-
-	if err := SetSessionFamilyID(database, "sess-set-fam", "my-family"); err != nil {
-		t.Fatalf("SetSessionFamilyID: %v", err)
-	}
-
-	var got string
-	err = database.QueryRow(
-		`SELECT COALESCE(session_family_id, '') FROM sessions WHERE session_id = 'sess-set-fam'`,
-	).Scan(&got)
-	if err != nil {
-		t.Fatalf("scan: %v", err)
-	}
-	if got != "my-family" {
-		t.Errorf("session_family_id = %q, want %q", got, "my-family")
-	}
-}

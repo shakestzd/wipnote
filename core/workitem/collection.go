@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/shakestzd/wipnote/core/graph"
@@ -25,24 +24,9 @@ type filterConfig struct {
 	agent    string
 }
 
-// WithStatus filters by node status.
-func WithStatus(s string) FilterOption {
-	return func(c *filterConfig) { c.status = s }
-}
-
-// WithPriority filters by node priority.
-func WithPriority(p string) FilterOption {
-	return func(c *filterConfig) { c.priority = p }
-}
-
 // WithTrackID filters by track ID.
 func WithTrackID(id string) FilterOption {
 	return func(c *filterConfig) { c.trackID = id }
-}
-
-// WithAgent filters by agent assignment.
-func WithAgent(a string) FilterOption {
-	return func(c *filterConfig) { c.agent = a }
 }
 
 // Collection is a generic, type-aware collection of work item nodes.
@@ -285,29 +269,6 @@ func (c *Collection) RemoveEdge(id, targetID string, relType models.Relationship
 	}
 
 	return node, true, nil
-}
-
-// inferNodeType derives the node type string from an ID prefix.
-// feat-* → "feature", bug-* → "bug", spk-* → "spike",
-// trk-* → "track", plan-* → "plan", spec-* → "spec".
-// Falls back to "unknown" for unrecognised prefixes.
-func inferNodeType(id string) string {
-	switch {
-	case strings.HasPrefix(id, "feat-"):
-		return "feature"
-	case strings.HasPrefix(id, "bug-"):
-		return "bug"
-	case strings.HasPrefix(id, "spk-"):
-		return "spike"
-	case strings.HasPrefix(id, "trk-"):
-		return "track"
-	case strings.HasPrefix(id, "plan-"):
-		return "plan"
-	case strings.HasPrefix(id, "spec-"):
-		return "spec"
-	default:
-		return "unknown"
-	}
 }
 
 // --- Claim / release operations ----------------------------------------------

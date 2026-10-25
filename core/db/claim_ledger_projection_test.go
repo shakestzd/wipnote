@@ -3,6 +3,7 @@ package db_test
 // Tests for ProjectClaimsFromEpisodes (bug-ec1ff126).
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -60,7 +61,7 @@ func TestProjectClaimsFromEpisodes_ProjectsOpenEpisodesWithoutHeartbeat(t *testi
 	if err != nil {
 		t.Fatalf("ListClaimsForWorkItem: %v", err)
 	}
-	if len(claims) != 1 || !db.IsLedgerClaim(claims[0]) || claims[0].OwnerSessionID != "sess-holder" {
+	if len(claims) != 1 || !strings.HasPrefix(claims[0].ClaimID, db.LedgerClaimIDPrefix) || claims[0].OwnerSessionID != "sess-holder" {
 		t.Fatalf("claims = %+v, want one ledger claim owned by sess-holder", claims)
 	}
 

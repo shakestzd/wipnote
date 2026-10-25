@@ -113,20 +113,6 @@ func TestHTMLAttrsEscapesValue(t *testing.T) {
 	}
 }
 
-func TestParseHTMLRoundTripsHTMLAttrs(t *testing.T) {
-	original := Provenance{
-		Agent:      "codex",
-		Model:      "gpt-5-mini",
-		Role:       "feature-coder",
-		CLIVersion: "0.99.0",
-	}
-	htmlText := `<article id="x"` + original.HTMLAttrs() + `>body</article>`
-	parsed := ParseHTML(htmlText)
-	if parsed != original {
-		t.Errorf("round-trip mismatch:\nwant %+v\ngot  %+v", original, parsed)
-	}
-}
-
 func TestFromActiveSessionReadsHTMLAttrs(t *testing.T) {
 	projectDir := t.TempDir()
 	sessDir := filepath.Join(projectDir, ".wipnote", "sessions")

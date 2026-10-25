@@ -4,6 +4,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/shakestzd/wipnote/core/db/dbtest"
+
 	"github.com/shakestzd/wipnote/core/db"
 	"github.com/shakestzd/wipnote/core/models"
 )
@@ -38,10 +40,10 @@ func TestMigration_SessionFilesTable(t *testing.T) {
 		t.Fatalf("session_files table missing: name=%q err=%v", name, err)
 	}
 
-	if err := db.UpsertSessionFile(database, "sess-test", "/p/a.go", "write"); err != nil {
+	if err := dbtest.UpsertSessionFile(database, "sess-test", "/p/a.go", "write"); err != nil {
 		t.Fatalf("UpsertSessionFile 1: %v", err)
 	}
-	if err := db.UpsertSessionFile(database, "sess-test", "/p/a.go", "edit"); err != nil {
+	if err := dbtest.UpsertSessionFile(database, "sess-test", "/p/a.go", "edit"); err != nil {
 		t.Fatalf("UpsertSessionFile 2: %v", err)
 	}
 	var n int
@@ -66,11 +68,11 @@ func TestClaimlessSessionFilesLedger(t *testing.T) {
 	database := setupTestDB(t)
 	defer database.Close()
 
-	if err := db.UpsertSessionFile(database, "sess-test", "/p/old.go", "write"); err != nil {
+	if err := dbtest.UpsertSessionFile(database, "sess-test", "/p/old.go", "write"); err != nil {
 		t.Fatalf("upsert old: %v", err)
 	}
 	time.Sleep(1100 * time.Millisecond)
-	if err := db.UpsertSessionFile(database, "sess-test", "/p/new.go", "edit"); err != nil {
+	if err := dbtest.UpsertSessionFile(database, "sess-test", "/p/new.go", "edit"); err != nil {
 		t.Fatalf("upsert new: %v", err)
 	}
 
@@ -85,10 +87,10 @@ func TestClaimlessSessionFilesLedger(t *testing.T) {
 		t.Errorf("newest-first ordering broken: got[0]=%q want /p/new.go", got[0].FilePath)
 	}
 
-	if err := db.UpsertSessionFile(database, "", "/p/x.go", "write"); err != nil {
+	if err := dbtest.UpsertSessionFile(database, "", "/p/x.go", "write"); err != nil {
 		t.Errorf("empty session no-op should not error: %v", err)
 	}
-	if err := db.UpsertSessionFile(database, "sess-test", "", "write"); err != nil {
+	if err := dbtest.UpsertSessionFile(database, "sess-test", "", "write"); err != nil {
 		t.Errorf("empty path no-op should not error: %v", err)
 	}
 
@@ -118,7 +120,7 @@ func TestLivenessByHeartbeat(t *testing.T) {
 		OwnerAgent:     "claude-code",
 		Status:         models.ClaimInProgress,
 	}
-	if err := db.ClaimItem(database, c, 30*time.Minute); err != nil {
+	if err := dbtest.InsertClaim(database, c, 30*time.Minute); err != nil {
 		t.Fatalf("ClaimItem: %v", err)
 	}
 
@@ -171,7 +173,7 @@ func TestStaleActiveSessionsNotLive_Bug6c3e8252(t *testing.T) {
 			OwnerAgent:     "claude-code",
 			Status:         models.ClaimInProgress,
 		}
-		if err := db.ClaimItem(database, c, 30*time.Minute); err != nil {
+		if err := dbtest.InsertClaim(database, c, 30*time.Minute); err != nil {
 			t.Fatalf("ClaimItem ghost %d: %v", i, err)
 		}
 		if _, err := database.Exec(
@@ -206,7 +208,7 @@ func TestStaleActiveSessionsNotLive_Bug6c3e8252(t *testing.T) {
 		OwnerAgent:     "claude-code",
 		Status:         models.ClaimInProgress,
 	}
-	if err := db.ClaimItem(database, c, 30*time.Minute); err != nil {
+	if err := dbtest.InsertClaim(database, c, 30*time.Minute); err != nil {
 		t.Fatalf("ClaimItem fresh: %v", err)
 	}
 	database.Exec(`UPDATE claims SET last_heartbeat_at = ? WHERE claim_id = 'claim-fresh'`, now)

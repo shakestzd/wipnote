@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/shakestzd/wipnote/core/db/dbtest"
+
 	"github.com/shakestzd/wipnote/core/db"
 	"github.com/shakestzd/wipnote/core/models"
 )
@@ -51,8 +53,8 @@ func insertResearchTestSessionWithProject(t *testing.T, tdb *testDB, sessionID, 
 		ParentSessionID: parentSessionID,
 		ProjectDir:      projectDir,
 	}
-	if err := db.InsertSession(tdb.DB, sess); err != nil {
-		t.Fatalf("InsertSession(%s): %v", sessionID, err)
+	if err := db.UpsertSession(tdb.DB, sess); err != nil {
+		t.Fatalf("UpsertSession(%s): %v", sessionID, err)
 	}
 }
 
@@ -69,7 +71,7 @@ func insertResearchLineageTrace(t *testing.T, tdb *testDB, traceID, rootSessionI
 		StartedAt:     time.Now().UTC(),
 		Status:        "active",
 	}
-	if err := db.InsertLineageTrace(tdb.DB, trace); err != nil {
+	if err := dbtest.InsertLineageTrace(tdb.DB, trace); err != nil {
 		t.Fatalf("InsertLineageTrace(%s): %v", traceID, err)
 	}
 }

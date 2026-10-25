@@ -63,7 +63,7 @@ func newSplitDBHarness(t *testing.T, sessionID string) *splitDBHarness {
 	t.Cleanup(func() { daemonDB.Close() })
 	// session-start routes the session row to the daemon in production; seed it
 	// so agent_events' session FK is satisfied in the daemon projection.
-	if err := db.InsertSession(daemonDB, &models.Session{
+	if err := db.UpsertSession(daemonDB, &models.Session{
 		SessionID: sessionID, AgentAssigned: "claude-code", Status: "active",
 		CreatedAt: time.Now().UTC(), ProjectDir: projectDir,
 	}); err != nil {
@@ -250,7 +250,7 @@ func TestPostToolUse_ReadOnlyHandle_SideEffectsRun(t *testing.T) {
 func TestPostToolUse_ReadOnlyHandle_DaemonMissFallsBackToDisk(t *testing.T) {
 	h := newSplitDBHarness(t, "split-db-miss-001")
 	stubRouteSQLAsync(t, false)
-	if err := db.InsertSession(h.diskDB, &models.Session{
+	if err := db.UpsertSession(h.diskDB, &models.Session{
 		SessionID: h.sessionID, AgentAssigned: "claude-code", Status: "active",
 		CreatedAt: time.Now().UTC(), ProjectDir: h.projectDir,
 	}); err != nil {

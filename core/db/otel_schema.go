@@ -224,58 +224,6 @@ func UpsertPendingSubagentStartStmt(p *PendingSubagentStart) (string, []any) {
 	return query, args
 }
 
-// GetPendingSubagentStart fetches the row for agentID, or returns nil if not found.
-func GetPendingSubagentStart(db *sql.DB, agentID string) (*PendingSubagentStart, error) {
-	var p PendingSubagentStart
-	var cwd, parentAgentID sql.NullString
-	err := db.QueryRow(`
-		SELECT agent_id, agent_type, session_id, cwd, parent_agent_id, created_at
-		FROM pending_subagent_starts
-		WHERE agent_id = ?`, agentID).Scan(
-		&p.AgentID, &p.AgentType, &p.SessionID, &cwd, &parentAgentID, &p.CreatedAt,
-	)
-	if err == sql.ErrNoRows {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, fmt.Errorf("get pending_subagent_starts: %w", err)
-	}
-	p.CWD = cwd.String
-	p.ParentAgentID = parentAgentID.String
-	return &p, nil
-}
-
-// MarkPendingSubagentConsumed sets consumed_at to now for the given agentID.
-// Used for observability; not required for correctness.
-func MarkPendingSubagentConsumed(db *sql.DB, agentID string, consumedAt int64) {
-	db.Exec(`UPDATE pending_subagent_starts SET consumed_at = ? WHERE agent_id = ?`,
-		consumedAt, agentID)
-}
-
-// SetPendingSubagentAgentSpanID records the span_id of the placeholder
-// otel_signals row for the given agentID. Called by the OTLP receiver's
-// placeholder-creation path so subsequent re-attribution queries can map
-// agent_id → agent span_id in O(1) without scanning otel_signals.
-// Best-effort: errors are silently ignored by the caller.
-func SetPendingSubagentAgentSpanID(db *sql.DB, agentID, agentSpanID string) error {
-	_, err := db.Exec(
-		`UPDATE pending_subagent_starts SET agent_span_id = ? WHERE agent_id = ?`,
-		agentSpanID, agentID,
-	)
-	if err != nil {
-		return fmt.Errorf("set pending_subagent_starts.agent_span_id: %w", err)
-	}
-	return nil
-}
-
-// GetPendingSubagentAgentSpanID returns the agent_span_id for a given agentID,
-// or empty string if not found or not yet set. Used for re-attribution.
-func GetPendingSubagentAgentSpanID(db *sql.DB, agentID string) string {
-	var v sql.NullString
-	db.QueryRow(`SELECT agent_span_id FROM pending_subagent_starts WHERE agent_id = ?`, agentID).Scan(&v)
-	return v.String
-}
-
 // PurgeStalePendingSubagentStarts deletes rows older than 24 h.
 // Subagents never run longer than that, so stale rows are safe to remove.
 func PurgeStalePendingSubagentStarts(db *sql.DB) {

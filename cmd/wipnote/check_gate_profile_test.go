@@ -51,7 +51,7 @@ func TestCompletion_StaleWhenSigDrifts(t *testing.T) {
 		ProfileSignature: "sha256:staleoldsignature",
 		GuardsRunJSON:    `["g"]`,
 	}
-	if err := dbpkg.InsertGateRecord(database, rec); err != nil {
+	if _, err := dbpkg.InsertGateRecordIfAbsent(database, rec); err != nil {
 		t.Fatalf("insert: %v", err)
 	}
 
@@ -83,7 +83,7 @@ func TestCompletion_NoDriftWhenSigMatches(t *testing.T) {
 		ProfileSignature: currentSig,
 		GuardsRunJSON:    `["g"]`,
 	}
-	if err := dbpkg.InsertGateRecord(database, rec); err != nil {
+	if _, err := dbpkg.InsertGateRecordIfAbsent(database, rec); err != nil {
 		t.Fatalf("insert: %v", err)
 	}
 

@@ -1,7 +1,6 @@
 package db
 
 import (
-	"crypto/sha256"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -61,31 +60,6 @@ func sanitizePromptLabel(s string) string {
 	s = reLoneInjectedTag.ReplaceAllString(s, "")      // lone/unclosed injected tags
 	s = reWhitespaceRun.ReplaceAllString(s, " ")
 	return strings.TrimSpace(s)
-}
-
-// InsertSession creates a new session row.
-func InsertSession(db *sql.DB, s *models.Session) error {
-	_, err := db.Exec(`
-		INSERT INTO sessions (session_id, agent_assigned, parent_session_id,
-			parent_event_id, created_at, status, start_commit,
-			is_subagent, model, active_feature_id, git_remote_url, project_dir,
-			exec_worktree_path, branch, harness, continued_from)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		s.SessionID, s.AgentAssigned, nullStr(s.ParentSessionID),
-		nullStr(s.ParentEventID), s.CreatedAt.UTC().Format(time.RFC3339),
-		s.Status, nullStr(s.StartCommit),
-		s.IsSubagent, nullStr(s.Model), nullStr(s.ActiveFeatureID),
-		nullStr(s.GitRemoteURL),
-		nullStr(s.ProjectDir),
-		nullStr(s.ExecWorktreePath),
-		nullStr(s.Branch),
-		nullStr(s.Harness),
-		nullStr(s.ContinuedFrom),
-	)
-	if err != nil {
-		return fmt.Errorf("insert session %s: %w", s.SessionID, err)
-	}
-	return nil
 }
 
 // UpsertSession inserts a new session row or upgrades an existing placeholder
@@ -316,17 +290,6 @@ func MostRecentActiveSession(db *sql.DB) (string, error) {
 	return id, nil
 }
 
-// GetSessionProjectDir returns the project_dir for a session, or empty string
-// if the session does not exist or has no project_dir set.
-func GetSessionProjectDir(database *sql.DB, sessionID string) string {
-	var projectDir sql.NullString
-	row := database.QueryRow(
-		`SELECT project_dir FROM sessions WHERE session_id = ?`, sessionID,
-	)
-	_ = row.Scan(&projectDir)
-	return projectDir.String
-}
-
 // ToolUseContextRow holds the batch-fetched session + claim fields used by
 // resolveToolUseContext. Replaces three separate queries (GetSession,
 // GetActiveFeatureID, HasActiveClaimByAgent) with a single SQL join.
@@ -448,22 +411,6 @@ func nullStr(s string) sql.NullString {
 	return sql.NullString{String: s, Valid: true}
 }
 
-// SetSessionFamilyID sets the session_family_id for the given session. If the
-// family ID is empty, the session's own ID is used (self-as-family backfill).
-func SetSessionFamilyID(db *sql.DB, sessionID, familyID string) error {
-	if familyID == "" {
-		familyID = sessionID
-	}
-	_, err := db.Exec(
-		`UPDATE sessions SET session_family_id = ? WHERE session_id = ?`,
-		familyID, sessionID,
-	)
-	if err != nil {
-		return fmt.Errorf("set session_family_id %s: %w", sessionID, err)
-	}
-	return nil
-}
-
 // SessionFile holds a file path and its access metadata for a given session.
 type SessionFile struct {
 	FilePath  string `json:"file_path"`
@@ -520,14 +467,6 @@ func GetSessionsByFamily(db *sql.DB, familyID string) ([]string, error) {
 	}
 	return ids, rows.Err()
 }
-
-// claimHeartbeatInterval is the PreToolUse claim-heartbeat cadence
-// (pretooluse.go heartbeats with a 30m lease but fires on every tool call;
-// the meaningful liveness signal is the heartbeat *recency*, not the lease).
-// A session is considered live only when its most recent claim heartbeat is
-// younger than the staleness threshold. The default threshold is 2× this
-// interval (2 minutes), tunable via .wipnote/config.json.
-const claimHeartbeatInterval = 60 * time.Second
 
 // defaultLivenessStalenessSeconds is 2× claimHeartbeatInterval. A session
 // whose newest claim heartbeat is older than this is NOT live, regardless of
@@ -1111,42 +1050,6 @@ func normalizeSessionHarness(raw, agentAssigned string) string {
 	default:
 		return ""
 	}
-}
-
-// sessionFilePathHash returns an 8-char hex digest of a file path, used to
-// build deterministic primary keys for session_files rows so an upsert keyed
-// on (session_id,file_path) stays a single statement.
-func sessionFilePathHash(filePath string) string {
-	h := sha256.Sum256([]byte(filePath))
-	return fmt.Sprintf("%x", h[:4])
-}
-
-// UpsertSessionFile records a claimless file touch (no active claim/feature) in
-// the session_files ledger. Idempotent on (session_id,file_path): a repeat
-// touch updates operation + last_seen in place. This is the ONLY new derived
-// write on the PostToolUse path for claimless edits — exactly one statement,
-// preserving the feat-156e0a1a zero-SQLITE_BUSY hot-path guarantee.
-func UpsertSessionFile(db *sql.DB, sessionID, filePath, operation string) error {
-	if sessionID == "" || filePath == "" {
-		return nil
-	}
-	if operation == "" {
-		operation = "unknown"
-	}
-	now := time.Now().UTC().Format(time.RFC3339)
-	id := sessionID + "-" + sessionFilePathHash(filePath)
-	_, err := db.Exec(`
-		INSERT INTO session_files (id, session_id, file_path, operation, first_seen, last_seen, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?)
-		ON CONFLICT(session_id, file_path) DO UPDATE SET
-			operation = excluded.operation,
-			last_seen = excluded.last_seen`,
-		id, sessionID, filePath, operation, now, now, now,
-	)
-	if err != nil {
-		return fmt.Errorf("upsert session_file %s/%s: %w", sessionID, filePath, err)
-	}
-	return nil
 }
 
 // ListClaimlessFilesBySession returns claimless touches from the session_files

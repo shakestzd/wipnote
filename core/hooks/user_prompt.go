@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/shakestzd/wipnote/core/daemon"
 	"github.com/shakestzd/wipnote/core/db"
 	"github.com/shakestzd/wipnote/core/ingest"
 	"github.com/shakestzd/wipnote/core/models"
@@ -152,26 +151,6 @@ func buildActiveItemOneLiner(database *sql.DB, featureID string) string {
 		return fmt.Sprintf("ACTIVE: %s", featureID)
 	}
 	return fmt.Sprintf("ACTIVE: %s — %s", featureID, item.Title)
-}
-
-type workItemRow struct {
-	id     string
-	title  string
-	status string
-	itype  string
-}
-
-// listOpenWorkItems returns in-progress and todo features/bugs/spikes.
-func listOpenWorkItems(database *sql.DB) []workItemRow {
-	found := ListWorkItems(database, daemon.WorkItemListArgs{
-		Statuses: []string{"in-progress", "todo", "active"},
-		Limit:    maxOpenWorkItemsDisplay,
-	})
-	items := make([]workItemRow, 0, len(found))
-	for _, it := range found {
-		items = append(items, workItemRow{id: it.ID, title: it.Title, status: it.Status, itype: it.Type})
-	}
-	return items
 }
 
 // sanitizePrompt strips XML notification/reminder blocks from prompt text.

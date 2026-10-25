@@ -101,14 +101,14 @@ func TestSessionStartContinueHandoffAdditionalContext(t *testing.T) {
 		t.Fatalf("db.Open: %v", err)
 	}
 	defer database.Close()
-	if err := db.InsertSession(database, &models.Session{
+	if err := db.UpsertSession(database, &models.Session{
 		SessionID:     "sess-continue-old",
 		AgentAssigned: "claude-code",
 		Status:        "completed",
 		CreatedAt:     time.Now().UTC(),
 		ProjectDir:    paths.NormalizeProjectDir(projectDir),
 	}); err != nil {
-		t.Fatalf("InsertSession prior: %v", err)
+		t.Fatalf("UpsertSession prior: %v", err)
 	}
 
 	event := &CloudEvent{SessionID: "sess-continue-new", CWD: projectDir}
@@ -134,78 +134,6 @@ func TestSessionStartContinueHandoffAdditionalContext(t *testing.T) {
 	}
 	if sess.ContinuedFrom != "sess-continue-old" {
 		t.Fatalf("ContinuedFrom = %q, want sess-continue-old", sess.ContinuedFrom)
-	}
-}
-
-// TestSessionStartWorktreeParentSessionIDPopulated verifies that when a
-// subagent session is started with a known parent session ID (as
-// resolveWorktreeParentSession would provide), the new session row gets
-// parent_session_id set and is_subagent = true.
-//
-// We test the upsertSession path directly rather than going through
-// resolveWorktreeParentSession (which requires a real git worktree) to keep
-// the test hermetic.  The FK constraint previously caused INSERT OR IGNORE to
-// silently drop the row when the parent session was absent from the test DB.
-func TestSessionStartWorktreeParentSessionIDPopulated(t *testing.T) {
-	// Set up the project directory.
-	mainDir := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(mainDir, ".wipnote"), 0o755); err != nil {
-		t.Fatalf("mkdir .wipnote: %v", err)
-	}
-
-	database, err := db.Open(filepath.Join(mainDir, ".wipnote", "wipnote.db"))
-	if err != nil {
-		t.Fatalf("db.Open: %v", err)
-	}
-	defer database.Close()
-
-	// Insert the parent (outer YOLO) session so FK constraint is satisfied.
-	parentSessionID := "parent-yolo-session-001"
-	if err := db.InsertSession(database, &models.Session{
-		SessionID:     parentSessionID,
-		AgentAssigned: "claude-code",
-		Status:        "active",
-		CreatedAt:     time.Now().UTC(),
-		ProjectDir:    mainDir,
-	}); err != nil {
-		t.Fatalf("InsertSession parent: %v", err)
-	}
-
-	// Write .active-session as the outer YOLO session would have done so that
-	// ReadActiveSession can return the parent session ID.
-	WriteActiveSession(parentSessionID, mainDir)
-
-	// Verify ReadActiveSession round-trips correctly.
-	as := ReadActiveSession(mainDir)
-	if as == nil || as.SessionID != parentSessionID {
-		t.Fatalf("ReadActiveSession: got %v, want session_id=%q", as, parentSessionID)
-	}
-
-	// Simulate what SessionStart does after resolveWorktreeParentSession
-	// returns (parentSessionID, true): upsert the subagent session with
-	// parent_session_id and is_subagent = true.
-	subSessionID := "sub-worktree-session-001"
-	if err := upsertSession(database, &models.Session{
-		SessionID:       subSessionID,
-		AgentAssigned:   "claude-code",
-		Status:          "active",
-		CreatedAt:       time.Now().UTC(),
-		ProjectDir:      mainDir,
-		ParentSessionID: parentSessionID,
-		IsSubagent:      true,
-	}); err != nil {
-		t.Fatalf("upsertSession subagent: %v", err)
-	}
-
-	got, err := db.GetSession(database, subSessionID)
-	if err != nil {
-		t.Fatalf("GetSession subagent: %v", err)
-	}
-	if got.ParentSessionID != parentSessionID {
-		t.Errorf("parent_session_id: got %q, want %q", got.ParentSessionID, parentSessionID)
-	}
-	if !got.IsSubagent {
-		t.Error("is_subagent: got false, want true")
 	}
 }
 
@@ -289,8 +217,8 @@ func TestInsertAndGetSessionProjectDir(t *testing.T) {
 		CreatedAt:     time.Now().UTC(),
 		ProjectDir:    "/home/user/myproject",
 	}
-	if err := db.InsertSession(database, s); err != nil {
-		t.Fatalf("InsertSession: %v", err)
+	if err := db.UpsertSession(database, s); err != nil {
+		t.Fatalf("UpsertSession: %v", err)
 	}
 
 	got, err := db.GetSession(database, s.SessionID)
@@ -316,7 +244,7 @@ func TestSessionStartUsesOnDemandAttributionGuidance(t *testing.T) {
 
 	// Add an open work item to verify SessionStart does not eagerly list it.
 	now := time.Now().UTC()
-	if err := db.InsertFeature(database, &db.Feature{
+	if err := db.UpsertFeature(database, &db.Feature{
 		ID:        "feat-001",
 		Type:      "feature",
 		Title:     "Auth system",
@@ -325,7 +253,7 @@ func TestSessionStartUsesOnDemandAttributionGuidance(t *testing.T) {
 		CreatedAt: now,
 		UpdatedAt: now,
 	}); err != nil {
-		t.Fatalf("InsertFeature: %v", err)
+		t.Fatalf("UpsertFeature: %v", err)
 	}
 
 	sessionID := "test-session-attribution"

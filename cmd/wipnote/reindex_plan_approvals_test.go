@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/shakestzd/wipnote/core/db/dbtest"
+
 	dbpkg "github.com/shakestzd/wipnote/core/db"
 	"github.com/shakestzd/wipnote/plan/planyaml"
 )
@@ -71,14 +73,6 @@ func TestReindexPlanFeedback_ReplaysYAMLApprovals(t *testing.T) {
 		t.Errorf("expected 3 rows replayed, got %d", rowsReplayed)
 	}
 
-	// After reindex: IsPlanFullyApproved must return true.
-	approved, err := dbpkg.IsPlanFullyApproved(database, planID, nil)
-	if err != nil {
-		t.Fatalf("IsPlanFullyApproved after reindex: %v", err)
-	}
-	if !approved {
-		t.Error("expected true: reindex should have replayed approval rows so IsPlanFullyApproved returns true")
-	}
 }
 
 // TestReindexPlanFeedback_DoesNotOverwriteLiveRows verifies that INSERT OR IGNORE
@@ -116,7 +110,7 @@ func TestReindexPlanFeedback_DoesNotOverwriteLiveRows(t *testing.T) {
 	}
 
 	// Pre-write a live row that says slice-1 is REJECTED (disagrees with YAML).
-	if err := dbpkg.StorePlanFeedback(database, planID, "slice-1", "approve", "false", ""); err != nil {
+	if err := dbtest.StorePlanFeedback(database, planID, "slice-1", "approve", "false", ""); err != nil {
 		t.Fatalf("pre-write slice-1 rejected: %v", err)
 	}
 
@@ -199,20 +193,6 @@ func TestReindexPlanFeedback_PendingSliceNotReplayed(t *testing.T) {
 	if _, has := approvals["slice-2"]; has {
 		t.Error("slice-2 (pending) must not have a plan_feedback row after reindex")
 	}
-
-	// Confirm IsPlanFullyApproved is false (pending slice missing).
-	yamlSlicesForCheck := []dbpkg.PlanSliceApproval{
-		{Num: 1, ApprovalStatus: "approved"},
-		{Num: 2, ApprovalStatus: ""},
-		{Num: 3, ApprovalStatus: "rejected"},
-	}
-	approved, err := dbpkg.IsPlanFullyApproved(database, planID, yamlSlicesForCheck)
-	if err != nil {
-		t.Fatalf("IsPlanFullyApproved: %v", err)
-	}
-	if approved {
-		t.Error("expected false: pending and rejected slices must block finalize")
-	}
 }
 
 // TestReindexPlanFeedback_ReplaysNonApproveActions is the regression for the
@@ -273,13 +253,9 @@ func TestReindexPlanFeedback_ReplaysNonApproveActions(t *testing.T) {
 		t.Errorf("expected 3 rows replayed (set_execution_status, amendment, comment), got %d", rowsReplayed)
 	}
 
-	rows, err := dbpkg.GetPlanFeedback(database, planID)
+	byAction, err := dbtest.PlanFeedbackByAction(database, planID)
 	if err != nil {
-		t.Fatalf("GetPlanFeedback: %v", err)
-	}
-	byAction := make(map[string]string, len(rows))
-	for _, r := range rows {
-		byAction[r.Action] = r.Value
+		t.Fatalf("read plan_feedback: %v", err)
 	}
 	if byAction["set_execution_status"] != "done" {
 		t.Errorf("set_execution_status = %q, want %q", byAction["set_execution_status"], "done")

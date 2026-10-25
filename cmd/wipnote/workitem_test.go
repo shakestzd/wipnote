@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/shakestzd/wipnote/core/db/dbtest"
+
 	dbpkg "github.com/shakestzd/wipnote/core/db"
 	"github.com/shakestzd/wipnote/core/hooks"
 	"github.com/shakestzd/wipnote/core/htmlparse"
@@ -1262,7 +1264,7 @@ func TestRunWiSetStatus_ConcurrentAgents(t *testing.T) {
 	}
 	defer database.Close()
 
-	items, err := dbpkg.ActiveWorkItemsForSession(database, sessionID)
+	items, err := dbtest.ActiveWorkItemsForSession(database, sessionID)
 	if err != nil {
 		t.Fatalf("ActiveWorkItemsForSession: %v", err)
 	}
@@ -1351,7 +1353,7 @@ func TestSubagentCanStartFeatureCreatedByDifferentAgent(t *testing.T) {
 	}
 
 	// Step 5: Verify both rows exist in active_work_items table.
-	items, err := dbpkg.ActiveWorkItemsForSession(database, sessionID)
+	items, err := dbtest.ActiveWorkItemsForSession(database, sessionID)
 	if err != nil {
 		t.Fatalf("ActiveWorkItemsForSession: %v", err)
 	}
@@ -1429,7 +1431,7 @@ func TestRunWiSetStatus_SubagentsDoNotStompLegacyColumn(t *testing.T) {
 	defer database.Close()
 
 	// Every subagent's claim must be in active_work_items.
-	items, err := dbpkg.ActiveWorkItemsForSession(database, sessionID)
+	items, err := dbtest.ActiveWorkItemsForSession(database, sessionID)
 	if err != nil {
 		t.Fatalf("ActiveWorkItemsForSession: %v", err)
 	}
@@ -1730,7 +1732,7 @@ func TestFeatureStart_LiveCollision_Refuses(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	if err := dbpkg.InsertSession(database, &models.Session{
+	if err := dbpkg.UpsertSession(database, &models.Session{
 		SessionID:     callerSessionID,
 		AgentAssigned: "claude-code",
 		Status:        "active",
@@ -1759,7 +1761,7 @@ func TestFeatureStart_LiveCollision_Refuses(t *testing.T) {
 		ClaimedByAgentID: agentID,
 		Status:           models.ClaimInProgress,
 	}
-	if err := dbpkg.ClaimItemOrRenew(database, holderClaim, 30*time.Minute); err != nil {
+	if err := dbtest.InsertClaim(database, holderClaim, 30*time.Minute); err != nil {
 		t.Fatalf("holder claim: %v", err)
 	}
 	// Ensure heartbeat is fresh (within liveness window).
@@ -1838,7 +1840,7 @@ func TestFeatureStart_LiveCollision_ForceOverrides(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	if err := dbpkg.InsertSession(database, &models.Session{
+	if err := dbpkg.UpsertSession(database, &models.Session{
 		SessionID:     callerSessionID,
 		AgentAssigned: "claude-code",
 		Status:        "active",
@@ -1867,7 +1869,7 @@ func TestFeatureStart_LiveCollision_ForceOverrides(t *testing.T) {
 		ClaimedByAgentID: agentID,
 		Status:           models.ClaimInProgress,
 	}
-	if err := dbpkg.ClaimItemOrRenew(database, holderClaim, 30*time.Minute); err != nil {
+	if err := dbtest.InsertClaim(database, holderClaim, 30*time.Minute); err != nil {
 		t.Fatalf("holder claim: %v", err)
 	}
 	if _, err := database.Exec(
@@ -1914,7 +1916,7 @@ func TestFeatureStart_StaleCollision_Allows(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	if err := dbpkg.InsertSession(database, &models.Session{
+	if err := dbpkg.UpsertSession(database, &models.Session{
 		SessionID:     callerSessionID,
 		AgentAssigned: "claude-code",
 		Status:        "active",

@@ -120,45 +120,6 @@ func TestWriteQueue_BoundedBackpressure(t *testing.T) {
 	}
 }
 
-// TestWriteQueue_TimeoutReturnsError exercises SubmitWithTimeout: a
-// permanently-blocked consumer plus a full buffer means the timeout
-// branch wins.
-func TestWriteQueue_TimeoutReturnsError(t *testing.T) {
-	const capacity = 2
-	q := New(Config{Capacity: capacity})
-
-	started := make(chan struct{})
-	blockingDone := make(chan struct{})
-	defer close(blockingDone)
-	blocker := func(context.Context) error {
-		close(started)
-		<-blockingDone
-		return nil
-	}
-	if err := q.Start(context.Background()); err != nil {
-		t.Fatalf("Start: %v", err)
-	}
-	defer q.Stop(time.Second)
-
-	if err := q.Submit(context.Background(), blocker); err != nil {
-		t.Fatalf("Submit blocker: %v", err)
-	}
-	// Wait until the consumer has actually pulled the blocker off the
-	// channel — only then is the buffer purely producer-visible.
-	<-started
-	noop := func(context.Context) error { return nil }
-	for i := 0; i < capacity; i++ {
-		if err := q.Submit(context.Background(), noop); err != nil {
-			t.Fatalf("fill Submit %d: %v", i, err)
-		}
-	}
-
-	err := q.SubmitWithTimeout(context.Background(), noop, 50*time.Millisecond)
-	if !errors.Is(err, ErrTimeout) {
-		t.Errorf("SubmitWithTimeout error = %v, want ErrTimeout", err)
-	}
-}
-
 // TestWriteQueue_BurstHandlesGracefully (review-2026-05-11 MED critique):
 // submit 2x capacity in a tight loop and assert ~half succeed, the rest
 // return ErrQueueFull cleanly — no panic, no lost-work surprises.
@@ -351,32 +312,11 @@ func TestWriteQueue_StatsTracksDepth(t *testing.T) {
 	}
 }
 
-// TestWriteQueue_ContextCancelledRejects checks that a cancelled
-// producer context returns the context error without enqueuing.
-func TestWriteQueue_ContextCancelledRejects(t *testing.T) {
-	q := New(Config{Capacity: 4})
-	if err := q.Start(context.Background()); err != nil {
-		t.Fatalf("Start: %v", err)
-	}
-	defer q.Stop(time.Second)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-
-	err := q.Submit(ctx, func(context.Context) error { return nil })
-	if !errors.Is(err, context.Canceled) {
-		t.Errorf("Submit with cancelled ctx error = %v, want context.Canceled", err)
-	}
-	if err := q.SubmitWithTimeout(ctx, func(context.Context) error { return nil }, time.Second); !errors.Is(err, context.Canceled) {
-		t.Errorf("SubmitWithTimeout with cancelled ctx error = %v, want context.Canceled", err)
-	}
-}
-
 // TestWriteQueue_DefaultCapacity makes sure New(Config{}) lands on a
 // non-zero capacity. This protects callers who forget to set it.
 func TestWriteQueue_DefaultCapacity(t *testing.T) {
 	q := New(Config{})
-	if got := q.Capacity(); got != DefaultCapacity {
+	if got := q.cfg.Capacity; got != DefaultCapacity {
 		t.Errorf("default Capacity = %d, want %d", got, DefaultCapacity)
 	}
 }

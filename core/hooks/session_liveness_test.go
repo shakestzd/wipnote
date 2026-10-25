@@ -182,14 +182,14 @@ func TestSessionResumeRefreshesPid(t *testing.T) {
 	defer database.Close()
 
 	sessionID := "test-resume-refresh-pid-001"
-	if err := db.InsertSession(database, &models.Session{
+	if err := db.UpsertSession(database, &models.Session{
 		SessionID:     sessionID,
 		AgentAssigned: "claude-code",
 		Status:        "completed",
 		CreatedAt:     time.Now().UTC(),
 		ProjectDir:    paths.NormalizeProjectDir(projectDir),
 	}); err != nil {
-		t.Fatalf("InsertSession: %v", err)
+		t.Fatalf("UpsertSession: %v", err)
 	}
 
 	sessDir := filepath.Join(projectDir, ".wipnote", "sessions", sessionID)
@@ -262,14 +262,14 @@ func TestSessionResumeRemovesStaleAnchor(t *testing.T) {
 	defer database.Close()
 
 	sessionID := "test-resume-remove-stale-001"
-	if err := db.InsertSession(database, &models.Session{
+	if err := db.UpsertSession(database, &models.Session{
 		SessionID:     sessionID,
 		AgentAssigned: "claude-code",
 		Status:        "completed",
 		CreatedAt:     time.Now().UTC(),
 		ProjectDir:    paths.NormalizeProjectDir(projectDir),
 	}); err != nil {
-		t.Fatalf("InsertSession: %v", err)
+		t.Fatalf("UpsertSession: %v", err)
 	}
 
 	sessDir := filepath.Join(projectDir, ".wipnote", "sessions", sessionID)

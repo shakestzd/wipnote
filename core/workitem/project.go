@@ -94,18 +94,3 @@ func (p *Project) BugsDir() string {
 func (p *Project) SpikesDir() string {
 	return filepath.Join(p.ProjectDir, "spikes")
 }
-
-// TracksDir returns the path to the tracks subdirectory.
-func (p *Project) TracksDir() string {
-	return filepath.Join(p.ProjectDir, "tracks")
-}
-
-// PlansDir returns the path to the plans subdirectory.
-func (p *Project) PlansDir() string {
-	return filepath.Join(p.ProjectDir, "plans")
-}
-
-// SpecsDir returns the path to the specs subdirectory.
-func (p *Project) SpecsDir() string {
-	return filepath.Join(p.ProjectDir, "specs")
-}

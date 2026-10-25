@@ -30,13 +30,6 @@ func (c CleanupConfig) Enabled() bool {
 	return c.EmptySpikeWorktreeCleanup
 }
 
-func (c CleanupConfig) TTL() time.Duration {
-	if c.EmptySpikeWorktreeTTLDays <= 0 {
-		return defaultEmptySpikeCleanupTTL
-	}
-	return time.Duration(c.EmptySpikeWorktreeTTLDays) * 24 * time.Hour
-}
-
 func LoadCleanupConfig(projectDir string) CleanupConfig {
 	cfg := CleanupConfig{
 		EmptySpikeWorktreeCleanup: false,

@@ -140,7 +140,7 @@ func TestApplierRoundTrip_SessionInsertAndStatus(t *testing.T) {
 	s := &models.Session{SessionID: "sess-mvp4", AgentAssigned: "agent-1", CreatedAt: now, Status: "active"}
 
 	// Direct control writes.
-	if err := db.InsertSession(cDB, s); err != nil {
+	if err := db.UpsertSession(cDB, s); err != nil {
 		t.Fatalf("control insert: %v", err)
 	}
 	if err := db.UpdateSessionStatus(cDB, "sess-mvp4", "completed"); err != nil {
@@ -171,41 +171,6 @@ func TestApplierRoundTrip_SessionInsertAndStatus(t *testing.T) {
 
 	if got, want := sessionStatus(t, wDB, "sess-mvp4"), sessionStatus(t, cDB, "sess-mvp4"); got != want {
 		t.Fatalf("daemon session status %q != direct %q", got, want)
-	}
-}
-
-// TestRouteFeatureStatus_LiveDaemon asserts the high-level CLI route helper
-// applies through a live daemon (auto-spawn disabled — we already have a
-// listener bound to the socket, so SubmitOrSpawn takes the fast path).
-func TestRouteFeatureStatus_LiveDaemon(t *testing.T) {
-	wDB, projectRoot, _ := startListener(t)
-	seedFeature(t, wDB, "feat-live")
-
-	if !RouteFeatureStatus(projectRoot, "feat-live", "in-progress") {
-		t.Fatal("RouteFeatureStatus returned false with a live daemon")
-	}
-	if got := featureStatus(t, wDB, "feat-live"); got != "in-progress" {
-		t.Fatalf("status = %q want in-progress", got)
-	}
-}
-
-// TestRouteFeatureStatus_FallbackBounded asserts that with NO daemon and
-// auto-spawn forbidden, the route helper returns false promptly (within the
-// CLI budget + slack) so the caller can fall back to the direct write. This is
-// the live-session-safety contract: never hang.
-func TestRouteFeatureStatus_FallbackBounded(t *testing.T) {
-	t.Setenv("WIPNOTE_NO_AUTO_WRITER", "1") // deterministic: no spawn → straight to miss
-	projectRoot := t.TempDir()              // no writer.sock here
-
-	start := time.Now()
-	applied := RouteFeatureStatus(projectRoot, "feat-x", "done")
-	elapsed := time.Since(start)
-
-	if applied {
-		t.Fatal("RouteFeatureStatus returned true with no daemon")
-	}
-	if elapsed > CLISubmitBudget+2*time.Second {
-		t.Fatalf("RouteFeatureStatus took %v, exceeds bounded budget (must not hang)", elapsed)
 	}
 }
 
@@ -355,7 +320,7 @@ func TestSessionInsert_DoesNotClobberRealSession(t *testing.T) {
 		CreatedAt:     now,
 		Status:        "completed",
 	}
-	if err := db.InsertSession(wDB, realSession); err != nil {
+	if err := db.UpsertSession(wDB, realSession); err != nil {
 		t.Fatalf("insert real session: %v", err)
 	}
 
@@ -416,7 +381,7 @@ func TestSessionInsert_DoesNotClobberRealSession(t *testing.T) {
 			CreatedAt:     now,
 			Status:        "active",
 		}
-		if err := db.InsertSession(wDB, ph); err != nil {
+		if err := db.UpsertSession(wDB, ph); err != nil {
 			t.Fatalf("insert placeholder: %v", err)
 		}
 
@@ -528,26 +493,6 @@ func TestSessionInsert_LateInsertDoesNotRevertProgressedPlaceholder(t *testing.T
 	}
 	if finalAgent != "real-agent" {
 		t.Fatalf("identity attachment failed: got %q, want real-agent", finalAgent)
-	}
-}
-
-// TestRouteSession_FallbackBounded mirrors the bounded-miss contract for the
-// session route helpers.
-func TestRouteSession_FallbackBounded(t *testing.T) {
-	t.Setenv("WIPNOTE_NO_AUTO_WRITER", "1")
-	projectRoot := t.TempDir()
-	now := time.Now().UTC().Truncate(time.Second)
-	s := &models.Session{SessionID: "sess-x", AgentAssigned: "a", CreatedAt: now, Status: "active"}
-
-	if RouteSessionInsert(projectRoot, s) {
-		t.Fatal("RouteSessionInsert returned true with no daemon")
-	}
-	if RouteSessionStatus(projectRoot, "sess-x", "completed") {
-		t.Fatal("RouteSessionStatus returned true with no daemon")
-	}
-	// Nil session must not panic and must return false (caller falls back).
-	if RouteSessionInsert(projectRoot, nil) {
-		t.Fatal("RouteSessionInsert(nil) returned true")
 	}
 }
 

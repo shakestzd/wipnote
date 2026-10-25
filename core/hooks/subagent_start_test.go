@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/shakestzd/wipnote/core/db/dbtest"
+
 	"github.com/shakestzd/wipnote/core/db"
 	"github.com/shakestzd/wipnote/core/models"
 )
@@ -31,12 +33,12 @@ func TestSubagentStart_WritesLineageRows(t *testing.T) {
 	t.Setenv("WIPNOTE_PARENT_EVENT", "")
 
 	// Seed the parent session so downstream queries don't trip FK issues.
-	if err := db.InsertSession(database, &models.Session{
+	if err := db.UpsertSession(database, &models.Session{
 		SessionID:     parentSessionID,
 		AgentAssigned: "claude-code",
 		Status:        "active",
 	}); err != nil {
-		t.Fatalf("InsertSession parent: %v", err)
+		t.Fatalf("UpsertSession parent: %v", err)
 	}
 
 	event := &CloudEvent{
@@ -94,10 +96,10 @@ func TestSubagentStart_Idempotent(t *testing.T) {
 	t.Setenv("WIPNOTE_PROJECT_DIR", projectDir)
 	t.Setenv("WIPNOTE_SESSION_ID", parentSessionID)
 
-	if err := db.InsertSession(database, &models.Session{
+	if err := db.UpsertSession(database, &models.Session{
 		SessionID: parentSessionID, AgentAssigned: "claude-code", Status: "active",
 	}); err != nil {
-		t.Fatalf("InsertSession: %v", err)
+		t.Fatalf("UpsertSession: %v", err)
 	}
 
 	event := &CloudEvent{
@@ -124,10 +126,10 @@ func TestSubagentStop_ClosesLineage(t *testing.T) {
 	t.Setenv("WIPNOTE_PROJECT_DIR", projectDir)
 	t.Setenv("WIPNOTE_SESSION_ID", parentSessionID)
 
-	if err := db.InsertSession(database, &models.Session{
+	if err := db.UpsertSession(database, &models.Session{
 		SessionID: parentSessionID, AgentAssigned: "claude-code", Status: "active",
 	}); err != nil {
-		t.Fatalf("InsertSession: %v", err)
+		t.Fatalf("UpsertSession: %v", err)
 	}
 
 	startEvent := &CloudEvent{
@@ -180,12 +182,12 @@ func TestSubagentStart_WritesPendingSubagentRow(t *testing.T) {
 	t.Setenv("WIPNOTE_PARENT_EVENT", "")
 	t.Setenv("CLAUDE_ENV_FILE", "")
 
-	if err := db.InsertSession(database, &models.Session{
+	if err := db.UpsertSession(database, &models.Session{
 		SessionID:     parentSessionID,
 		AgentAssigned: "claude-code",
 		Status:        "active",
 	}); err != nil {
-		t.Fatalf("InsertSession parent: %v", err)
+		t.Fatalf("UpsertSession parent: %v", err)
 	}
 
 	event := &CloudEvent{
@@ -198,7 +200,7 @@ func TestSubagentStart_WritesPendingSubagentRow(t *testing.T) {
 		t.Fatalf("SubagentStart: %v", err)
 	}
 
-	pending, err := db.GetPendingSubagentStart(database, subagentID)
+	pending, err := dbtest.GetPendingSubagentStart(database, subagentID)
 	if err != nil {
 		t.Fatalf("GetPendingSubagentStart: %v", err)
 	}
@@ -231,12 +233,12 @@ func TestSubagentStart_WritesPendingSubagentRowIdempotent(t *testing.T) {
 	t.Setenv("WIPNOTE_AGENT_ID", "claude-code")
 	t.Setenv("CLAUDE_ENV_FILE", "")
 
-	if err := db.InsertSession(database, &models.Session{
+	if err := db.UpsertSession(database, &models.Session{
 		SessionID:     parentSessionID,
 		AgentAssigned: "claude-code",
 		Status:        "active",
 	}); err != nil {
-		t.Fatalf("InsertSession: %v", err)
+		t.Fatalf("UpsertSession: %v", err)
 	}
 
 	event := &CloudEvent{
@@ -289,12 +291,12 @@ func TestSubagentStart_WritesOTELResourceAttributes(t *testing.T) {
 	// Pre-set an existing OTEL_RESOURCE_ATTRIBUTES value to verify merge.
 	t.Setenv("OTEL_RESOURCE_ATTRIBUTES", "service.name=test,service.version=1.0")
 
-	if err := db.InsertSession(database, &models.Session{
+	if err := db.UpsertSession(database, &models.Session{
 		SessionID:     parentSessionID,
 		AgentAssigned: "claude-code",
 		Status:        "active",
 	}); err != nil {
-		t.Fatalf("InsertSession parent: %v", err)
+		t.Fatalf("UpsertSession parent: %v", err)
 	}
 
 	event := &CloudEvent{
@@ -348,12 +350,12 @@ func TestSubagentStart_PreservesClaudeCodeAgentIdentity(t *testing.T) {
 	t.Setenv("WIPNOTE_PARENT_EVENT", "")
 	t.Setenv("CLAUDE_ENV_FILE", "")
 
-	if err := db.InsertSession(database, &models.Session{
+	if err := db.UpsertSession(database, &models.Session{
 		SessionID:     parentSessionID,
 		AgentAssigned: "claude-code",
 		Status:        "active",
 	}); err != nil {
-		t.Fatalf("InsertSession parent: %v", err)
+		t.Fatalf("UpsertSession parent: %v", err)
 	}
 
 	// The CloudEvent that SubagentStart receives after ParseEventForHarness.
@@ -424,10 +426,10 @@ func TestSubagentStop_MissingTraceIsNonFatal(t *testing.T) {
 	t.Setenv("WIPNOTE_PROJECT_DIR", projectDir)
 	t.Setenv("WIPNOTE_SESSION_ID", parentSessionID)
 
-	if err := db.InsertSession(database, &models.Session{
+	if err := db.UpsertSession(database, &models.Session{
 		SessionID: parentSessionID, AgentAssigned: "claude-code", Status: "active",
 	}); err != nil {
-		t.Fatalf("InsertSession: %v", err)
+		t.Fatalf("UpsertSession: %v", err)
 	}
 
 	stopEvent := &CloudEvent{

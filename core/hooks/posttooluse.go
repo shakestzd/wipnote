@@ -97,9 +97,8 @@ func postToolUseRecord(event *CloudEvent, ctx *toolUseContext, database *sql.DB)
 	})
 
 	// No per-call orphan sweep here any more. posttooluse dispatches with the
-	// read-only empty projection (hookSubcmdReadOnly), where
-	// SweepOrphanedEventsForSession can see no rows and could not mark one
-	// aborted anyway. Started rows a daemon-miss pretooluse left on the disk
+	// read-only empty projection (hookSubcmdReadOnly), where a per-session
+	// sweep could see no rows and could not mark one aborted anyway. Started rows a daemon-miss pretooluse left on the disk
 	// fallback are still swept by session-start's capped project-wide sweep;
 	// daemon-routed rows are completed in place by recordToolCompletion.
 	//

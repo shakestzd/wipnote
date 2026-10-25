@@ -41,14 +41,6 @@ type ActiveSessionData struct {
 	Harness string `json:"harness,omitempty"`
 }
 
-// WriteActiveSession writes session context to .wipnote/.active-session so
-// worktree subagent hooks can read session ID even when CLAUDE_ENV_FILE is unset.
-// The entry is tagged with the harness detected from the environment; use
-// WriteActiveSessionForHarness when the caller already knows the harness.
-func WriteActiveSession(sessionID, projectDir string) {
-	WriteActiveSessionForHarness(sessionID, projectDir, resolveHarness())
-}
-
 // WriteActiveSessionForHarness is WriteActiveSession with an explicit harness
 // tag (see ActiveSessionData.Harness).
 //
@@ -469,19 +461,6 @@ func joinSessionStartContext(parts ...string) string {
 	return strings.Join(filtered, "\n\n")
 }
 
-// joinReconcileContext prepends a non-empty durable-reconcile warning block to
-// the rest of the SessionStart additionalContext, separated by a blank line.
-// Returns rest unchanged when there is no reconcile prefix.
-func joinReconcileContext(reconcilePrefix, rest string) string {
-	if reconcilePrefix == "" {
-		return rest
-	}
-	if rest == "" {
-		return reconcilePrefix
-	}
-	return reconcilePrefix + "\n\n" + rest
-}
-
 // lineageInputs holds pre-resolved data needed to insert lineage traces inside
 // the transaction. All fields are computed from read-only DB queries before
 // the transaction begins.
@@ -712,49 +691,6 @@ func persistFamilyAttributionHTML(projectDir string, database *sql.DB, familyID 
 	}
 }
 
-// upsertSessionTx inserts the session row within a transaction,
-// ignoring duplicate-key conflicts (session may already exist on resume).
-func upsertSessionTx(tx *sql.Tx, s *models.Session) error {
-	_, err := tx.Exec(`
-		INSERT OR IGNORE INTO sessions
-			(session_id, agent_assigned, parent_session_id, parent_event_id,
-			 created_at, status, start_commit, is_subagent, model, active_feature_id,
-			 git_remote_url, project_dir, exec_worktree_path, branch, harness, continued_from)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		s.SessionID,
-		s.AgentAssigned,
-		nullableStr(s.ParentSessionID),
-		nullableStr(s.ParentEventID),
-		s.CreatedAt.UTC().Format(time.RFC3339),
-		s.Status,
-		nullableStr(s.StartCommit),
-		s.IsSubagent,
-		nullableStr(s.Model),
-		nullableStr(s.ActiveFeatureID),
-		nullableStr(s.GitRemoteURL),
-		nullableStr(s.ProjectDir),
-		nullableStr(s.ExecWorktreePath),
-		nullableStr(s.Branch),
-		nullableStr(s.Harness),
-		nullableStr(s.ContinuedFrom),
-	)
-	return err
-}
-
-// upsertSession inserts the session row, ignoring duplicate-key conflicts.
-// Kept for test compatibility (session_start_test.go calls it directly).
-func upsertSession(database *sql.DB, s *models.Session) error {
-	tx, err := database.Begin()
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback() //nolint:errcheck
-	if err := upsertSessionTx(tx, s); err != nil {
-		return err
-	}
-	return tx.Commit()
-}
-
 // writeEnvVars appends session context exports to CLAUDE_ENV_FILE and always
 // writes .wipnote/.active-session as a backup. The .active-session file
 // ensures downstream hooks can resolve the session ID even when CLAUDE_ENV_FILE
@@ -953,15 +889,6 @@ func GetActiveFeatureID(database *sql.DB, sessionID string) string {
 	return featID.String
 }
 
-// UpdateActiveFeature sets active_feature_id on the session row.
-func UpdateActiveFeature(database *sql.DB, sessionID, featureID string) error {
-	_, err := database.Exec(
-		`UPDATE sessions SET active_feature_id = ?, updated_at = ? WHERE session_id = ?`,
-		nullableStr(featureID), time.Now().UTC().Format(time.RFC3339), sessionID,
-	)
-	return err
-}
-
 // buildSessionStartAttribution returns concise session-start guidance. It keeps
 // startup context quiet by directing agents to fetch work context on demand
 // rather than eagerly listing open items and titles.
@@ -1026,6 +953,3 @@ func emitRosettaEvent(projectDir, wipnoteSID, claudeSessionID string) {
 		debugLog(projectDir, "[session-start] rosetta: write event: %v", err)
 	}
 }
-
-// ensure db package is referenced (used via db.nullStr in other files).
-var _ = db.InsertSession

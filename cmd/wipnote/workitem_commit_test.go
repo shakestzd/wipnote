@@ -54,7 +54,7 @@ func setupTransactionalCompleteRepo(t *testing.T) (repoRoot, wipnoteDir, featID,
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	if err := dbpkg.InsertSession(database, &models.Session{
+	if err := dbpkg.UpsertSession(database, &models.Session{
 		SessionID:     sessionID,
 		AgentAssigned: "claude-code",
 		Status:        "active",
@@ -445,7 +445,7 @@ func TestCompleteCommitsWipnoteArtifact(t *testing.T) {
 	featureID := "feat-test123"
 	writeFeatureHTML(t, mainRepo, featureID, "")
 
-	worktreePath, err := worktree.EnsureForFeature(featureID, mainRepo, io.Discard)
+	worktreePath, _, err := worktree.EnsureForFeatureStatus(featureID, mainRepo, io.Discard)
 	if err != nil {
 		t.Fatalf("EnsureForFeature: %v", err)
 	}

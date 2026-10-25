@@ -81,7 +81,7 @@ func reportMainWorktreeIsolationTo(w io.Writer, isMain bool, repoRoot string) {
 		fmt.Fprintln(w, "  interleaved commits. Recommended operating model for shared checkouts:")
 		fmt.Fprintln(w, "    - Source edits: use per-agent worktrees (`wipnote yolo --feature <id>`)")
 		fmt.Fprintln(w, "      or dedicated isolated clones — never a shared main checkout")
-		fmt.Fprintln(w, "    - Metadata commits: serialized via runGitMutation advisory lock")
+		fmt.Fprintln(w, "    - Metadata commits: serialized via the git mutation advisory lock")
 		fmt.Fprintln(w, "      (feat-3f66d83f) — safe to run from any worktree")
 		fmt.Fprintln(w, "    - Lock file cleanup: opt-in only via `wipnote launcher git-lock --fix`")
 		fmt.Fprintln(w, "      (requires age threshold + no-live-writer check; never removed automatically)")

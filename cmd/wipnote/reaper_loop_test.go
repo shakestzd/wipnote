@@ -38,13 +38,13 @@ func TestDaemonPassReapsOrphanCollector(t *testing.T) {
 	// Seed a stale-active session: no claim ⇒ heartbeat stale; dead .session-pid
 	// ⇒ owner process provably dead ⇒ reap-eligible.
 	const sid = "sess-daemon-orphan-001"
-	if err := dbpkg.InsertSession(database, &models.Session{
+	if err := dbpkg.UpsertSession(database, &models.Session{
 		SessionID:     sid,
 		AgentAssigned: "claude-code",
 		Status:        "active",
 		CreatedAt:     time.Now().UTC(),
 	}); err != nil {
-		t.Fatalf("InsertSession: %v", err)
+		t.Fatalf("UpsertSession: %v", err)
 	}
 	sessDir := filepath.Join(projectRoot, ".wipnote", "sessions", sid)
 	if err := os.MkdirAll(sessDir, 0o755); err != nil {

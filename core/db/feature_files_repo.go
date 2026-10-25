@@ -180,22 +180,6 @@ func ListFilesByFeature(db *sql.DB, featureID string) ([]models.FeatureFile, err
 	return scanFeatureFiles(rows)
 }
 
-// ListFeaturesByFile returns all features that have touched a given file path.
-func ListFeaturesByFile(db *sql.DB, filePath string) ([]models.FeatureFile, error) {
-	rows, err := db.Query(`
-		SELECT id, feature_id, file_path, operation,
-		       COALESCE(session_id, ''),
-		       first_seen, last_seen, created_at
-		FROM feature_files
-		WHERE file_path = ?
-		ORDER BY last_seen DESC`, filePath)
-	if err != nil {
-		return nil, fmt.Errorf("list features for file %s: %w", filePath, err)
-	}
-	defer rows.Close()
-	return scanFeatureFiles(rows)
-}
-
 // RelatedFeature summarises another feature that shares files with a given one.
 type RelatedFeature struct {
 	FeatureID   string   `json:"feature_id"`

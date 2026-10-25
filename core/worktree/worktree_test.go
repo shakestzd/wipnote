@@ -74,7 +74,7 @@ func TestEnsureForFeatureIdempotent(t *testing.T) {
 	dir := setupGitRepo(t)
 	writeFeatureHTML(t, dir, "feat-aaa", "")
 
-	path1, err := worktree.EnsureForFeature("feat-aaa", dir, io.Discard)
+	path1, _, err := worktree.EnsureForFeatureStatus("feat-aaa", dir, io.Discard)
 	if err != nil {
 		t.Fatalf("first EnsureForFeature: %v", err)
 	}
@@ -88,7 +88,7 @@ func TestEnsureForFeatureIdempotent(t *testing.T) {
 	}
 
 	// Second call is idempotent.
-	path2, err := worktree.EnsureForFeature("feat-aaa", dir, io.Discard)
+	path2, _, err := worktree.EnsureForFeatureStatus("feat-aaa", dir, io.Discard)
 	if err != nil {
 		t.Fatalf("second EnsureForFeature: %v", err)
 	}
@@ -103,7 +103,7 @@ func TestEnsureForFeatureResolvesParentTrack(t *testing.T) {
 	dir := setupGitRepo(t)
 	writeFeatureHTML(t, dir, "feat-ccc", "trk-parent111")
 
-	path, err := worktree.EnsureForFeature("feat-ccc", dir, io.Discard)
+	path, _, err := worktree.EnsureForFeatureStatus("feat-ccc", dir, io.Discard)
 	if err != nil {
 		t.Fatalf("EnsureForFeature: %v", err)
 	}
@@ -126,12 +126,12 @@ func TestEnsureForFeatureResolvesParentTrack(t *testing.T) {
 func TestEnsureForTrackIdempotent(t *testing.T) {
 	dir := setupGitRepo(t)
 
-	path1, err := worktree.EnsureForTrack("trk-ttt111", dir, io.Discard)
+	path1, _, err := worktree.EnsureForTrackStatus("trk-ttt111", dir, io.Discard)
 	if err != nil {
 		t.Fatalf("first EnsureForTrack: %v", err)
 	}
 
-	path2, err := worktree.EnsureForTrack("trk-ttt111", dir, io.Discard)
+	path2, _, err := worktree.EnsureForTrackStatus("trk-ttt111", dir, io.Discard)
 	if err != nil {
 		t.Fatalf("second EnsureForTrack: %v", err)
 	}
@@ -143,28 +143,6 @@ func TestEnsureForTrackIdempotent(t *testing.T) {
 	expected := filepath.Join(dir, ".claude", "worktrees", "trk-ttt111")
 	if path1 != expected {
 		t.Errorf("path: got %q, want %q", path1, expected)
-	}
-}
-
-// TestEnsureForAgentSignature verifies EnsureForAgent signature, naming convention,
-// and that it creates the expected worktree path.
-func TestEnsureForAgentSignature(t *testing.T) {
-	dir := setupGitRepo(t)
-
-	// Create the track branch that the agent will branch from.
-	exec.Command("git", "-C", dir, "branch", "trk-agent111").Run() //nolint:errcheck
-
-	path, err := worktree.EnsureForAgent("trk-agent111", "slice-3", dir, io.Discard)
-	if err != nil {
-		t.Fatalf("EnsureForAgent: %v", err)
-	}
-
-	expected := filepath.Join(dir, ".claude", "worktrees", "trk-agent111", "agent-slice-3")
-	if path != expected {
-		t.Errorf("path: got %q, want %q", path, expected)
-	}
-	if _, err := os.Stat(path); err != nil {
-		t.Errorf("agent worktree dir does not exist: %v", err)
 	}
 }
 
@@ -181,8 +159,8 @@ func TestProgressWriterDiscardQuiet(t *testing.T) {
 	}
 	os.Stdout = w
 
-	_, errF := worktree.EnsureForFeature("feat-quiet", dir, io.Discard)
-	_, errT := worktree.EnsureForTrack("trk-quiet", dir, io.Discard)
+	_, _, errF := worktree.EnsureForFeatureStatus("feat-quiet", dir, io.Discard)
+	_, _, errT := worktree.EnsureForTrackStatus("trk-quiet", dir, io.Discard)
 
 	w.Close()
 	os.Stdout = oldStdout
@@ -208,7 +186,7 @@ func TestEnsureForFeatureWriterReceivesProgress(t *testing.T) {
 	writeFeatureHTML(t, dir, "feat-progress", "")
 
 	var buf bytes.Buffer
-	_, err := worktree.EnsureForFeature("feat-progress", dir, &buf)
+	_, _, err := worktree.EnsureForFeatureStatus("feat-progress", dir, &buf)
 	if err != nil {
 		t.Fatalf("EnsureForFeature: %v", err)
 	}
@@ -243,7 +221,7 @@ func TestEnsureForTrackTitled_TitleRenameStability(t *testing.T) {
 	dir := setupGitRepo(t)
 
 	// First call: create worktree with title-1.
-	path1, err := worktree.EnsureForTrackTitled("My Feature Track", "trk-stable01", dir, io.Discard)
+	path1, _, err := worktree.EnsureForTrackTitledStatus("My Feature Track", "trk-stable01", dir, io.Discard)
 	if err != nil {
 		t.Fatalf("first EnsureForTrackTitled: %v", err)
 	}
@@ -253,7 +231,7 @@ func TestEnsureForTrackTitled_TitleRenameStability(t *testing.T) {
 
 	// Simulate a title rename: call again with a different title.
 	// This must return the original path, not a new one derived from "Updated Title".
-	path2, err := worktree.EnsureForTrackTitled("Updated Title", "trk-stable01", dir, io.Discard)
+	path2, _, err := worktree.EnsureForTrackTitledStatus("Updated Title", "trk-stable01", dir, io.Discard)
 	if err != nil {
 		t.Fatalf("second EnsureForTrackTitled after rename: %v", err)
 	}
@@ -277,7 +255,7 @@ func TestEnsureForTrackTitled_TitleRenameIdempotent(t *testing.T) {
 	dir := setupGitRepo(t)
 
 	// Create worktree with title-1.
-	path1, err := worktree.EnsureForTrackTitled("My Original Title", "trk-rename01", dir, io.Discard)
+	path1, _, err := worktree.EnsureForTrackTitledStatus("My Original Title", "trk-rename01", dir, io.Discard)
 	if err != nil {
 		t.Fatalf("first EnsureForTrackTitled: %v", err)
 	}
@@ -286,7 +264,7 @@ func TestEnsureForTrackTitled_TitleRenameIdempotent(t *testing.T) {
 	}
 
 	// Simulate a title rename by calling again with a different title.
-	path2, err := worktree.EnsureForTrackTitled("Updated Title After Rename", "trk-rename01", dir, io.Discard)
+	path2, _, err := worktree.EnsureForTrackTitledStatus("Updated Title After Rename", "trk-rename01", dir, io.Discard)
 	if err != nil {
 		t.Fatalf("second EnsureForTrackTitled after rename: %v", err)
 	}
@@ -305,7 +283,7 @@ func TestEnsureForTrackTitled_BranchExistsWithoutWorktree(t *testing.T) {
 	dir := setupGitRepo(t)
 
 	// First call creates branch + titled worktree.
-	path1, err := worktree.EnsureForTrackTitled("Re-run Track", "trk-rerun01", dir, io.Discard)
+	path1, _, err := worktree.EnsureForTrackTitledStatus("Re-run Track", "trk-rerun01", dir, io.Discard)
 	if err != nil {
 		t.Fatalf("first EnsureForTrackTitled: %v", err)
 	}
@@ -326,7 +304,7 @@ func TestEnsureForTrackTitled_BranchExistsWithoutWorktree(t *testing.T) {
 	}
 
 	// Second call must succeed by attaching to the existing branch.
-	path2, err := worktree.EnsureForTrackTitled("Re-run Track", "trk-rerun01", dir, io.Discard)
+	path2, _, err := worktree.EnsureForTrackTitledStatus("Re-run Track", "trk-rerun01", dir, io.Discard)
 	if err != nil {
 		t.Fatalf("second EnsureForTrackTitled (regression for bug-92690d5b): %v", err)
 	}
@@ -359,7 +337,7 @@ func TestEnsureForTrackTitled_BranchCheckedOutInMainRepo(t *testing.T) {
 	}
 
 	// EnsureForTrackTitled must NOT reuse the main repo path.
-	_, err := worktree.EnsureForTrackTitled("Main Repo Track", "trk-mainrepo01", dir, io.Discard)
+	_, _, err := worktree.EnsureForTrackTitledStatus("Main Repo Track", "trk-mainrepo01", dir, io.Discard)
 	if err == nil {
 		t.Fatalf("expected error when branch is checked out in main repo, got nil")
 	}
@@ -381,7 +359,7 @@ func TestEnsureForTrackTitled_BranchCheckedOutInMainRepo(t *testing.T) {
 func TestEnsureForTrackTitled_StaleRegistrationAfterManualRemoval(t *testing.T) {
 	dir := setupGitRepo(t)
 
-	path1, err := worktree.EnsureForTrackTitled("Stale Reg Track", "trk-stale01", dir, io.Discard)
+	path1, _, err := worktree.EnsureForTrackTitledStatus("Stale Reg Track", "trk-stale01", dir, io.Discard)
 	if err != nil {
 		t.Fatalf("first EnsureForTrackTitled: %v", err)
 	}
@@ -391,7 +369,7 @@ func TestEnsureForTrackTitled_StaleRegistrationAfterManualRemoval(t *testing.T) 
 		t.Fatalf("RemoveAll: %v", err)
 	}
 
-	path2, err := worktree.EnsureForTrackTitled("Stale Reg Track", "trk-stale01", dir, io.Discard)
+	path2, _, err := worktree.EnsureForTrackTitledStatus("Stale Reg Track", "trk-stale01", dir, io.Discard)
 	if err != nil {
 		t.Fatalf("second EnsureForTrackTitled after manual rm (bug-92690d5b): %v", err)
 	}

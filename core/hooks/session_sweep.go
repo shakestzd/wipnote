@@ -24,34 +24,6 @@ const OrphanThreshold = 5 * time.Minute
 // old holes in their session history.
 const OrphanHardCutoff = 24 * time.Hour
 
-// SweepOrphanedEventsForSession runs the orphan sweep scoped to a single
-// session HTML file. Returns the number of synthetic aborted entries that
-// were newly appended. Safe to call from any hook path — uses the same flock
-// acquisition as AppendEventToSessionHTML so concurrent live writes and
-// concurrent sweeps from other processes do not corrupt the file.
-func SweepOrphanedEventsForSession(database *sql.DB, projectDir, sessionID string) int {
-	orphans, err := db.FindOrphanedEvents(database, sessionID, OrphanThreshold)
-	if err != nil {
-		debugLog(projectDir, "[sweep] find orphans for %s: %v", sessionID, err)
-		return 0
-	}
-	return sweepOrphans(database, projectDir, orphans)
-}
-
-// SweepOrphanedEventsForProject runs the orphan sweep across every session
-// in the project, with NO cap on the number of orphans processed. Intended for
-// out-of-band drains (the serve-side periodic loop) where wall-clock latency is
-// not user-visible. The latency-sensitive session-start hook path MUST use
-// SweepOrphanedEventsForProjectCapped instead.
-func SweepOrphanedEventsForProject(database *sql.DB, projectDir string) int {
-	orphans, err := db.FindStaleProjectOrphans(database, OrphanThreshold, OrphanHardCutoff, 0)
-	if err != nil {
-		debugLog(projectDir, "[sweep] find orphans for project: %v", err)
-		return 0
-	}
-	return sweepOrphans(database, projectDir, orphans)
-}
-
 // SessionStartSweepCap bounds how many project-wide orphans the synchronous
 // session-start hook sweep will process. Each orphan costs a goquery parse +
 // flock append + SQL UPDATE, so an uncapped sweep over a large crash backlog
@@ -66,9 +38,8 @@ func SweepOrphanedEventsForProject(database *sql.DB, projectDir string) int {
 // a full crash backlog, while the serve-side drain clears the remainder.
 const SessionStartSweepCap = 8
 
-// SweepOrphanedEventsForProjectCapped is the bounded counterpart to
-// SweepOrphanedEventsForProject: it processes at most cap orphans (oldest
-// first). It returns the number of synthetic aborted entries appended and the
+// SweepOrphanedEventsForProjectCapped sweeps orphans across the project,
+// processing at most cap of them (oldest first). It returns the number of synthetic aborted entries appended and the
 // number of orphans discovered under the cap — when discovered == cap a backlog
 // likely remains, which the caller can surface for observability. cap <= 0 is
 // treated as unlimited.

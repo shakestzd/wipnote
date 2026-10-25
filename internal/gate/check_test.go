@@ -166,7 +166,7 @@ func TestReportGuardProfileDrift_ReportsMismatch(t *testing.T) {
 		t.Fatal(err)
 	}
 	rec := &dbpkg.GateRecord{SessionID: "sess-drift", ProjectType: "go", GateCommand: "true", Status: "pass", Source: "check", ProfileSignature: "sha256:staleoldsignature", GuardsRunJSON: `["g"]`}
-	if err := dbpkg.InsertGateRecord(database, rec); err != nil {
+	if _, err := dbpkg.InsertGateRecordIfAbsent(database, rec); err != nil {
 		t.Fatalf("insert: %v", err)
 	}
 	var buf bytes.Buffer

@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/shakestzd/wipnote/core/db/dbtest"
+
 	"github.com/shakestzd/wipnote/core/db"
 	"github.com/shakestzd/wipnote/core/models"
 )
@@ -37,8 +39,8 @@ func setupSweepEnv(t *testing.T, sessionID string, eventID string, age time.Dura
 	}
 	t.Cleanup(func() { database.Close() })
 
-	if err := db.InsertSession(database, s); err != nil {
-		t.Fatalf("InsertSession: %v", err)
+	if err := db.UpsertSession(database, s); err != nil {
+		t.Fatalf("UpsertSession: %v", err)
 	}
 
 	created := time.Now().UTC().Add(-age)
@@ -90,8 +92,8 @@ func TestSweepOrphanedEventsForProjectCapped(t *testing.T) {
 			CreatedAt:     time.Now().UTC().Add(-2 * time.Hour),
 		}
 		CreateSessionHTML(projectDir, s)
-		if err := db.InsertSession(database, s); err != nil {
-			t.Fatalf("InsertSession %s: %v", sid, err)
+		if err := db.UpsertSession(database, s); err != nil {
+			t.Fatalf("UpsertSession %s: %v", sid, err)
 		}
 		// Durable terminal marker (sets completed_at) via a real status transition,
 		// so the live-protected project sweep treats these as ended (roborev 455:
@@ -127,21 +129,21 @@ func TestSweepOrphanedEventsForProjectCapped(t *testing.T) {
 	}
 
 	// Uncapped sweep drains the remaining 3 orphans.
-	rest := SweepOrphanedEventsForProject(database, projectDir)
+	rest, _ := SweepOrphanedEventsForProjectCapped(database, projectDir, 0)
 	if rest != total-2 {
 		t.Errorf("uncapped drain: got %d, want %d", rest, total-2)
 	}
 
 	// A second uncapped sweep finds nothing left.
-	if again := SweepOrphanedEventsForProject(database, projectDir); again != 0 {
+	if again, _ := SweepOrphanedEventsForProjectCapped(database, projectDir, 0); again != 0 {
 		t.Errorf("expected 0 orphans after full drain, got %d", again)
 	}
 }
 
-func TestSweepOrphanedEventsForSession_AppendsAbortedLi(t *testing.T) {
+func TestSweepOrphanedEvents_AppendsAbortedLi(t *testing.T) {
 	projectDir, database := setupSweepEnv(t, "sess-sweep-001", "evt-orphan-1", 10*time.Minute)
 
-	appended := SweepOrphanedEventsForSession(database, projectDir, "sess-sweep-001")
+	appended := sweepProject(database, projectDir)
 	if appended != 1 {
 		t.Errorf("appended: got %d, want 1", appended)
 	}
@@ -162,7 +164,7 @@ func TestSweepOrphanedEventsForSession_AppendsAbortedLi(t *testing.T) {
 	}
 
 	// SQLite row transitioned.
-	evt, err := db.GetEvent(database, "evt-orphan-1")
+	evt, err := dbtest.GetEvent(database, "evt-orphan-1")
 	if err != nil {
 		t.Fatalf("GetEvent: %v", err)
 	}
@@ -171,11 +173,11 @@ func TestSweepOrphanedEventsForSession_AppendsAbortedLi(t *testing.T) {
 	}
 }
 
-func TestSweepOrphanedEventsForSession_Idempotent(t *testing.T) {
+func TestSweepOrphanedEvents_Idempotent(t *testing.T) {
 	projectDir, database := setupSweepEnv(t, "sess-sweep-idem-001", "evt-orphan-idem-1", 10*time.Minute)
 
-	first := SweepOrphanedEventsForSession(database, projectDir, "sess-sweep-idem-001")
-	second := SweepOrphanedEventsForSession(database, projectDir, "sess-sweep-idem-001")
+	first := sweepProject(database, projectDir)
+	second := sweepProject(database, projectDir)
 	if first != 1 {
 		t.Errorf("first sweep: got %d, want 1", first)
 	}
@@ -189,11 +191,21 @@ func TestSweepOrphanedEventsForSession_Idempotent(t *testing.T) {
 	}
 }
 
-func TestSweepOrphanedEventsForSession_IgnoresRecent(t *testing.T) {
+func TestSweepOrphanedEvents_IgnoresRecent(t *testing.T) {
 	projectDir, database := setupSweepEnv(t, "sess-sweep-recent-001", "evt-recent-1", 30*time.Second)
 
-	appended := SweepOrphanedEventsForSession(database, projectDir, "sess-sweep-recent-001")
+	appended := sweepProject(database, projectDir)
 	if appended != 0 {
 		t.Errorf("appended: got %d, want 0 (too recent to sweep)", appended)
 	}
+}
+
+// sweepProject ends every session and runs the uncapped project-wide sweep,
+// which only reaps started rows of ended sessions; each test env holds one
+// session, so it covers exactly that session's orphans.
+func sweepProject(database *sql.DB, projectDir string) int {
+	_, _ = database.Exec(`UPDATE sessions SET completed_at = ? WHERE completed_at IS NULL`,
+		time.Now().UTC().Format(time.RFC3339))
+	appended, _ := SweepOrphanedEventsForProjectCapped(database, projectDir, 0)
+	return appended
 }

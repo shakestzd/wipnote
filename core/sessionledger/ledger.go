@@ -145,24 +145,6 @@ func ReadFile(path string) ([]Record, error) {
 	return records, nil
 }
 
-// parseLedgerString parses ledger markup that is already in memory. It shares
-// the row selector and row parser with ReadFile, so a format the tests accept
-// is exactly a format the reader accepts.
-func parseLedgerString(markup string) ([]Record, error) {
-	doc, err := goquery.NewDocumentFromReader(strings.NewReader(markup))
-	if err != nil {
-		return nil, fmt.Errorf("sessionledger: parse markup: %w", err)
-	}
-	var records []Record
-	doc.Find(rowSelector).Each(func(_ int, row *goquery.Selection) {
-		if r, ok := parseRow(row); ok {
-			records = append(records, r)
-		}
-	})
-	sortRecords(records)
-	return records, nil
-}
-
 func parseRow(row *goquery.Selection) (Record, bool) {
 	r := Record{
 		SessionID:   strings.TrimSpace(attr(row, "data-session-id")),

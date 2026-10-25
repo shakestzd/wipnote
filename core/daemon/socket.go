@@ -2,11 +2,11 @@ package daemon
 
 import (
 	"bufio"
-	"io/fs"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"net"
 	"sync"
 	"sync/atomic"

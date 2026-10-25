@@ -100,13 +100,13 @@ func TestHookWorktreeCreate_PrintsBarePathAndCreatesGitWorktree(t *testing.T) {
 		t.Fatalf("db.Open: %v", err)
 	}
 	now := time.Now().UTC()
-	if err := db.InsertSession(database, &models.Session{
+	if err := db.UpsertSession(database, &models.Session{
 		SessionID:     "test-hook-worktree-create",
 		AgentAssigned: "claude-code",
 		CreatedAt:     now,
 		Status:        "active",
 	}); err != nil {
-		t.Fatalf("InsertSession: %v", err)
+		t.Fatalf("UpsertSession: %v", err)
 	}
 	database.Close()
 
@@ -297,13 +297,13 @@ func seedHookWorktreeCreateSession(t *testing.T, repoRoot, sessionID string) {
 	}
 	defer database.Close()
 	now := time.Now().UTC()
-	if err := db.InsertSession(database, &models.Session{
+	if err := db.UpsertSession(database, &models.Session{
 		SessionID:     sessionID,
 		AgentAssigned: "claude-code",
 		CreatedAt:     now,
 		Status:        "active",
 	}); err != nil {
-		t.Fatalf("InsertSession: %v", err)
+		t.Fatalf("UpsertSession: %v", err)
 	}
 }
 
@@ -328,11 +328,11 @@ func TestHookWorktreeCreate_HeadlessCreatesWorktreeButRecordsNothing(t *testing.
 	if err != nil {
 		t.Fatalf("db.Open: %v", err)
 	}
-	if err := db.InsertSession(seed, &models.Session{
+	if err := db.UpsertSession(seed, &models.Session{
 		SessionID: "test-hook-worktree-headless", AgentAssigned: "claude-code",
 		CreatedAt: time.Now().UTC(), Status: "active",
 	}); err != nil {
-		t.Fatalf("InsertSession: %v", err)
+		t.Fatalf("UpsertSession: %v", err)
 	}
 	seed.Close()
 

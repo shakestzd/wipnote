@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/shakestzd/wipnote/core/db/dbtest"
+
 	dbpkg "github.com/shakestzd/wipnote/core/db"
 	"github.com/shakestzd/wipnote/core/ingest"
 	"github.com/shakestzd/wipnote/core/models"
@@ -61,7 +63,7 @@ func TestStoreParseResult_CreatesAgentEvents(t *testing.T) {
 
 	// Verify agent_events were created.
 	evtID1 := ingest.EventID(sessionID, "tu-abc123", "Read", 0)
-	evt1, err := dbpkg.GetEvent(database, evtID1)
+	evt1, err := dbtest.GetEvent(database, evtID1)
 	if err != nil {
 		t.Fatalf("GetEvent for Read: %v", err)
 	}
@@ -85,7 +87,7 @@ func TestStoreParseResult_CreatesAgentEvents(t *testing.T) {
 	}
 
 	evtID2 := ingest.EventID(sessionID, "tu-def456", "Edit", 1)
-	evt2, err := dbpkg.GetEvent(database, evtID2)
+	evt2, err := dbtest.GetEvent(database, evtID2)
 	if err != nil {
 		t.Fatalf("GetEvent for Edit: %v", err)
 	}
@@ -119,7 +121,7 @@ func TestStoreParseResult_EventTimestampFromMessage(t *testing.T) {
 	storeParseResult(database, sessionID, "", result)
 
 	evtID := ingest.EventID(sessionID, "tu-ts-001", "Bash", 0)
-	evt, err := dbpkg.GetEvent(database, evtID)
+	evt, err := dbtest.GetEvent(database, evtID)
 	if err != nil {
 		t.Fatalf("GetEvent: %v", err)
 	}
@@ -210,7 +212,7 @@ func TestStoreParseResult_InputSummaryTruncated(t *testing.T) {
 	storeParseResult(database, sessionID, "", result)
 
 	evtID := ingest.EventID(sessionID, "tu-trunc-001", "Bash", 0)
-	evt, err := dbpkg.GetEvent(database, evtID)
+	evt, err := dbtest.GetEvent(database, evtID)
 	if err != nil {
 		t.Fatalf("GetEvent: %v", err)
 	}

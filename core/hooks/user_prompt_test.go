@@ -47,8 +47,8 @@ func setupTestDB(t *testing.T) *testDB {
 		Status:        "active",
 		Model:         "sonnet-4",
 	}
-	if err := db.InsertSession(database, sess); err != nil {
-		t.Fatalf("InsertSession: %v", err)
+	if err := db.UpsertSession(database, sess); err != nil {
+		t.Fatalf("UpsertSession: %v", err)
 	}
 
 	return &testDB{DB: database, now: now, t: t}
@@ -83,8 +83,8 @@ func (td *testDB) addFeature(id, ftype, title, status string) {
 		CreatedAt: td.now,
 		UpdatedAt: td.now,
 	}
-	if err := db.InsertFeature(td.DB, feat); err != nil {
-		td.t.Fatalf("InsertFeature(%s): %v", id, err)
+	if err := db.UpsertFeature(td.DB, feat); err != nil {
+		td.t.Fatalf("UpsertFeature(%s): %v", id, err)
 	}
 }
 

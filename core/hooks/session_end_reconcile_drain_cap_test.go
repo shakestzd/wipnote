@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -138,4 +139,16 @@ func containsID(ids []string, want string) bool {
 		}
 	}
 	return false
+}
+
+// reconcilePathDirty reports whether the single path has uncommitted or
+// untracked changes (`git status --porcelain -- <path>` non-empty).
+func reconcilePathDirty(repoRoot, absPath string) bool {
+	out, err := exec.Command(
+		"git", "-C", repoRoot, "status", "--porcelain", "--", absPath,
+	).CombinedOutput()
+	if err != nil {
+		return false
+	}
+	return strings.TrimSpace(string(out)) != ""
 }

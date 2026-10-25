@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/shakestzd/wipnote/core/db/dbtest"
+
 	"github.com/shakestzd/wipnote/core/daemon"
 	"github.com/shakestzd/wipnote/core/daemon/apply"
 	"github.com/shakestzd/wipnote/core/db"
@@ -122,10 +124,10 @@ func TestSubagentStart_PendingRowAppliedAckBeforeReturn(t *testing.T) {
 		t.Fatalf("bootstrap db.Open: %v", err)
 	}
 	parentSessionID := "rv473-parent-pending"
-	if err := db.InsertSession(boot, &models.Session{
+	if err := db.UpsertSession(boot, &models.Session{
 		SessionID: parentSessionID, AgentAssigned: "claude-code", Status: "active",
 	}); err != nil {
-		t.Fatalf("InsertSession parent: %v", err)
+		t.Fatalf("UpsertSession parent: %v", err)
 	}
 	boot.Close()
 
@@ -159,7 +161,7 @@ func TestSubagentStart_PendingRowAppliedAckBeforeReturn(t *testing.T) {
 		t.Fatalf("verify OpenReadOnly: %v", err)
 	}
 	defer verify.Close()
-	pending, err := db.GetPendingSubagentStart(verify, subagentID)
+	pending, err := dbtest.GetPendingSubagentStart(verify, subagentID)
 	if err != nil {
 		t.Fatalf("GetPendingSubagentStart: %v", err)
 	}
@@ -198,10 +200,10 @@ func TestSubagentLineage_FIFOStopCloseAfterStartInsert(t *testing.T) {
 		t.Fatalf("bootstrap db.Open: %v", err)
 	}
 	parentSessionID := "rv473-parent-fifo"
-	if err := db.InsertSession(boot, &models.Session{
+	if err := db.UpsertSession(boot, &models.Session{
 		SessionID: parentSessionID, AgentAssigned: "claude-code", Status: "active",
 	}); err != nil {
-		t.Fatalf("InsertSession parent: %v", err)
+		t.Fatalf("UpsertSession parent: %v", err)
 	}
 	boot.Close()
 

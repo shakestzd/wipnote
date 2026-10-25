@@ -165,11 +165,3 @@ func (l *Lease) Release() error {
 	}
 	return nil
 }
-
-// Path returns the lease file path (for diagnostics/tests).
-func (l *Lease) Path() string {
-	if l == nil {
-		return ""
-	}
-	return l.path
-}

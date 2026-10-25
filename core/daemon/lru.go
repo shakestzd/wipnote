@@ -68,6 +68,3 @@ func (s *lruSet) remove(id string) {
 	s.ll.Remove(el)
 	delete(s.index, id)
 }
-
-// len returns the current number of tracked ids (for tests).
-func (s *lruSet) len() int { return s.ll.Len() }

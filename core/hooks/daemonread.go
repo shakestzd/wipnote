@@ -63,14 +63,6 @@ const (
 	DaemonContractGuaranteed
 )
 
-// String renders the contract for logs and for the loud failure message.
-func (c DaemonContract) String() string {
-	if c == DaemonContractGuaranteed {
-		return "launcher-guaranteed"
-	}
-	return "no-launcher-guarantee"
-}
-
 // DaemonContractForProcess reports the contract this hook runs under and, when
 // guaranteed, the socket path the launcher promised. This is THE branch
 // decision — every read below routes on it, and nothing else does.
@@ -157,14 +149,6 @@ func DaemonGuaranteeBreach() string {
 	breachMu.Lock()
 	defer breachMu.Unlock()
 	return breachReason
-}
-
-// ResetDaemonGuaranteeBreach clears the latch. Tests only — a hook process is
-// short-lived and never needs to clear it.
-func ResetDaemonGuaranteeBreach() {
-	breachMu.Lock()
-	defer breachMu.Unlock()
-	breachReason = ""
 }
 
 // DaemonGuaranteeBlockResult returns the loud, execution-pausing HookResult for

@@ -603,18 +603,6 @@ func reconcileRepoRoot(projectDir string) string {
 	}
 }
 
-// reconcilePathDirty reports whether the single path has uncommitted or
-// untracked changes (`git status --porcelain -- <path>` non-empty).
-func reconcilePathDirty(repoRoot, absPath string) bool {
-	out, err := exec.Command(
-		"git", "-C", repoRoot, "status", "--porcelain", "--", absPath,
-	).CombinedOutput()
-	if err != nil {
-		return false
-	}
-	return strings.TrimSpace(string(out)) != ""
-}
-
 // defaultReconcileArtifactCommit stages and commits exactly the one artifact
 // path. Mirrors cmd/wipnote/workitem_commit.go's non-fatal contract: a failure
 // to commit is logged and treated as "not committed" — reconcile never makes
@@ -744,16 +732,15 @@ const (
 	defaultReaperCollectorGraceSeconds = 10   // SIGTERM→SIGKILL grace window
 )
 
-// reaperConfig decodes ONLY the three reaper-specific fields from .wipnote/config.json.
+// reaperConfig decodes ONLY the reaper-specific fields from .wipnote/config.json.
 // Everything else in config.json is ignored. This is the 3rd independent reader of
 // config.json in this codebase (the others are livenessConfig in core/db/session_repo.go
 // and readTaskCompletionConfig in core/hooks/task_completion_gate.go). There is no
 // shared config package; each call site reads independently. Accepted debt, NOT a
 // refactor target.
 type reaperConfig struct {
-	ReaperSessionTTLSeconds     int  `json:"reaper_session_ttl_seconds"`
-	ReaperCollectorGraceSeconds int  `json:"reaper_collector_grace_seconds"`
-	ReaperDaemonReportOnly      bool `json:"reaper_daemon_report_only"`
+	ReaperSessionTTLSeconds     int `json:"reaper_session_ttl_seconds"`
+	ReaperCollectorGraceSeconds int `json:"reaper_collector_grace_seconds"`
 }
 
 // readReaperConfig loads .wipnote/config.json from projectDir and decodes the
@@ -800,14 +787,6 @@ func ReaperCollectorGrace(projectDir string) time.Duration {
 		return def
 	}
 	return time.Duration(cfg.ReaperCollectorGraceSeconds) * time.Second
-}
-
-// ReaperDaemonReportOnly returns whether the reaper daemon should run in
-// report-only mode (log reap candidates without actually killing them). Reads
-// reaper_daemon_report_only from .wipnote/config.json under projectDir;
-// defaults to false (absence == false). projectDir=="" → false.
-func ReaperDaemonReportOnly(projectDir string) bool {
-	return readReaperConfig(projectDir).ReaperDaemonReportOnly
 }
 
 // ReapStaleSessionsAndCollectors is the idempotent, identity-verified reaper

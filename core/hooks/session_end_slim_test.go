@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/shakestzd/wipnote/core/db/dbtest"
+
 	"github.com/shakestzd/wipnote/core/db"
 	"github.com/shakestzd/wipnote/core/models"
 )
@@ -30,14 +32,14 @@ func TestSessionEnd_SetsStatusCompleted(t *testing.T) {
 	t.Setenv("CLAUDE_PROJECT_DIR", "")
 	t.Setenv("WIPNOTE_PROJECT_DIR", projectDir)
 
-	if err := db.InsertSession(database, &models.Session{
+	if err := db.UpsertSession(database, &models.Session{
 		SessionID:     sessionID,
 		AgentAssigned: "claude-code",
 		Status:        "active",
 		CreatedAt:     time.Now().UTC(),
 		ProjectDir:    projectDir,
 	}); err != nil {
-		t.Fatalf("InsertSession: %v", err)
+		t.Fatalf("UpsertSession: %v", err)
 	}
 
 	evt := &CloudEvent{SessionID: sessionID, CWD: projectDir}
@@ -98,7 +100,7 @@ func TestGC_SessionEnd_RemovesEmptySpike(t *testing.T) {
 		t.Fatalf("write config: %v", err)
 	}
 
-	if err := db.InsertSession(database, &models.Session{
+	if err := db.UpsertSession(database, &models.Session{
 		SessionID:        sessionID,
 		AgentAssigned:    "claude-code",
 		Status:           "active",
@@ -109,7 +111,7 @@ func TestGC_SessionEnd_RemovesEmptySpike(t *testing.T) {
 		Harness:          "claude",
 		ActiveFeatureID:  spikeID,
 	}); err != nil {
-		t.Fatalf("InsertSession: %v", err)
+		t.Fatalf("UpsertSession: %v", err)
 	}
 	td.addFeature(spikeID, "spike", "Empty spike", "in-progress")
 
@@ -173,7 +175,7 @@ func TestGC_SessionEnd_SkipsCleanupWhenSpikeRunsInTrackWorktree(t *testing.T) {
 		t.Fatalf("write config: %v", err)
 	}
 
-	if err := db.InsertSession(database, &models.Session{
+	if err := db.UpsertSession(database, &models.Session{
 		SessionID:        sessionID,
 		AgentAssigned:    "claude-code",
 		Status:           "active",
@@ -184,7 +186,7 @@ func TestGC_SessionEnd_SkipsCleanupWhenSpikeRunsInTrackWorktree(t *testing.T) {
 		Harness:          "claude",
 		ActiveFeatureID:  spikeID,
 	}); err != nil {
-		t.Fatalf("InsertSession: %v", err)
+		t.Fatalf("UpsertSession: %v", err)
 	}
 	td.addFeature(spikeID, "spike", "Spike in shared track worktree", "in-progress")
 
@@ -260,12 +262,12 @@ func TestSessionEnd_ReleasesClaimsBeforeOtherWork(t *testing.T) {
 		OwnerAgent:     "claude-code",
 		Status:         models.ClaimInProgress,
 	}
-	if err := db.ClaimItem(database, c, 30*time.Minute); err != nil {
+	if err := dbtest.InsertClaim(database, c, 30*time.Minute); err != nil {
 		t.Fatalf("ClaimItem: %v", err)
 	}
 
 	// Precondition: claim is active.
-	if got, _ := db.GetActiveClaim(database, "feat-slim-0001"); got == nil {
+	if !dbtest.HasActiveClaim(database, "feat-slim-0001") {
 		t.Fatal("precondition: expected active claim before SessionEnd")
 	}
 
@@ -275,8 +277,8 @@ func TestSessionEnd_ReleasesClaimsBeforeOtherWork(t *testing.T) {
 	}
 
 	// Claim must be released (abandoned).
-	if got, _ := db.GetActiveClaim(database, "feat-slim-0001"); got != nil {
-		t.Fatalf("claim still active after SessionEnd, status=%s", got.Status)
+	if dbtest.HasActiveClaim(database, "feat-slim-0001") {
+		t.Fatal("claim still active after SessionEnd")
 	}
 	var status string
 	database.QueryRow(
@@ -304,14 +306,14 @@ func TestSessionEnd_DoesNotFinalizeHTML(t *testing.T) {
 	t.Setenv("CLAUDE_PROJECT_DIR", "")
 	t.Setenv("WIPNOTE_PROJECT_DIR", projectDir)
 
-	if err := db.InsertSession(database, &models.Session{
+	if err := db.UpsertSession(database, &models.Session{
 		SessionID:     sessionID,
 		AgentAssigned: "claude-code",
 		Status:        "active",
 		CreatedAt:     time.Now().UTC(),
 		ProjectDir:    projectDir,
 	}); err != nil {
-		t.Fatalf("InsertSession: %v", err)
+		t.Fatalf("UpsertSession: %v", err)
 	}
 
 	// Place a sentinel session HTML in the expected location.
@@ -355,17 +357,17 @@ func TestSessionEnd_WritesStructuredHandoff(t *testing.T) {
 	t.Setenv("CLAUDE_PROJECT_DIR", "")
 	t.Setenv("WIPNOTE_PROJECT_DIR", projectDir)
 
-	if err := db.InsertSession(database, &models.Session{
+	if err := db.UpsertSession(database, &models.Session{
 		SessionID:     "sess-prev-001",
 		AgentAssigned: "codex",
 		Status:        "completed",
 		CreatedAt:     time.Now().UTC().Add(-time.Hour),
 		ProjectDir:    projectDir,
 	}); err != nil {
-		t.Fatalf("InsertSession parent: %v", err)
+		t.Fatalf("UpsertSession parent: %v", err)
 	}
 
-	if err := db.InsertSession(database, &models.Session{
+	if err := db.UpsertSession(database, &models.Session{
 		SessionID:        sessionID,
 		AgentAssigned:    "codex",
 		ParentSessionID:  "sess-prev-001",
@@ -376,7 +378,7 @@ func TestSessionEnd_WritesStructuredHandoff(t *testing.T) {
 		Branch:           "feat-b5411a1d",
 		Harness:          "codex",
 	}); err != nil {
-		t.Fatalf("InsertSession: %v", err)
+		t.Fatalf("UpsertSession: %v", err)
 	}
 	if _, err := database.Exec(`
 		UPDATE sessions

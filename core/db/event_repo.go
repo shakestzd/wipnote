@@ -80,90 +80,6 @@ func EventExists(database *sql.DB, eventID string) bool {
 	return err == nil && count > 0
 }
 
-// GetEvent retrieves a single agent event by ID.
-func GetEvent(db *sql.DB, eventID string) (*models.AgentEvent, error) {
-	row := db.QueryRow(`
-		SELECT event_id, agent_id, event_type, timestamp, tool_name,
-			input_summary, tool_input, output_summary, session_id, feature_id,
-			parent_agent_id, parent_event_id, subagent_type,
-			cost_tokens, execution_duration_seconds, status,
-			model, source, step_id, created_at, updated_at
-		FROM agent_events WHERE event_id = ?`, eventID)
-
-	e := &models.AgentEvent{}
-	var (
-		tsStr, createdStr, updatedStr                       string
-		toolName, inSum, toolInput, outSum, featID          sql.NullString
-		parentAgent, parentEvt, subType, model, src, stepID sql.NullString
-	)
-
-	err := row.Scan(
-		&e.EventID, &e.AgentID, &e.EventType, &tsStr, &toolName,
-		&inSum, &toolInput, &outSum, &e.SessionID, &featID,
-		&parentAgent, &parentEvt, &subType,
-		&e.CostTokens, &e.ExecDuration, &e.Status,
-		&model, &src, &stepID, &createdStr, &updatedStr,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("get event %s: %w", eventID, err)
-	}
-
-	e.Timestamp, _ = time.Parse(time.RFC3339, tsStr)
-	e.CreatedAt, _ = time.Parse(time.RFC3339, createdStr)
-	e.UpdatedAt, _ = time.Parse(time.RFC3339, updatedStr)
-	e.ToolName = toolName.String
-	e.InputSummary = inSum.String
-	e.ToolInput = toolInput.String
-	e.OutputSummary = outSum.String
-	e.FeatureID = featID.String
-	e.ParentAgentID = parentAgent.String
-	e.ParentEventID = parentEvt.String
-	e.SubagentType = subType.String
-	e.Model = model.String
-	e.Source = src.String
-	e.StepID = stepID.String
-
-	return e, nil
-}
-
-// ListEventsBySession returns events for a session ordered by timestamp DESC.
-func ListEventsBySession(db *sql.DB, sessionID string, limit int) ([]models.AgentEvent, error) {
-	if limit <= 0 {
-		limit = 100
-	}
-	rows, err := db.Query(`
-		SELECT event_id, agent_id, event_type, timestamp, tool_name,
-			session_id, feature_id, status, model
-		FROM agent_events
-		WHERE session_id = ?
-		ORDER BY timestamp DESC
-		LIMIT ?`, sessionID, limit)
-	if err != nil {
-		return nil, fmt.Errorf("list events for session %s: %w", sessionID, err)
-	}
-	defer rows.Close()
-
-	var events []models.AgentEvent
-	for rows.Next() {
-		var e models.AgentEvent
-		var tsStr string
-		var toolName, featID, model sql.NullString
-
-		if err := rows.Scan(
-			&e.EventID, &e.AgentID, &e.EventType, &tsStr, &toolName,
-			&e.SessionID, &featID, &e.Status, &model,
-		); err != nil {
-			return nil, err
-		}
-		e.Timestamp, _ = time.Parse(time.RFC3339, tsStr)
-		e.ToolName = toolName.String
-		e.FeatureID = featID.String
-		e.Model = model.String
-		events = append(events, e)
-	}
-	return events, rows.Err()
-}
-
 // ListEventsBySessionAsc returns events for a session ordered by timestamp ASC
 // including parent_event_id for hierarchy reconstruction.
 func ListEventsBySessionAsc(db *sql.DB, sessionID string, limit int) ([]models.AgentEvent, error) {
@@ -274,17 +190,6 @@ func UpdateEventFields(db *sql.DB, eventID, status, outputSummary string) error 
 	return err
 }
 
-// UpdateEventStatus sets only the status and updated_at on an event.
-func UpdateEventStatus(db *sql.DB, eventID, status string) error {
-	now := time.Now().UTC().Format(time.RFC3339)
-	_, err := db.Exec(`
-		UPDATE agent_events SET status = ?, updated_at = ?
-		WHERE event_id = ?`,
-		status, now, eventID,
-	)
-	return err
-}
-
 // OrphanEvent describes a tool-call row that entered 'started' state via
 // PreToolUse but never received a PostToolUse completion. The orphan sweep
 // materialises these as synthetic aborted entries in the session HTML.
@@ -295,73 +200,6 @@ type OrphanEvent struct {
 	AgentID   string
 	FeatureID string
 	CreatedAt time.Time
-}
-
-// FindOrphanedEvents returns 'started' agent_events older than olderThan.
-// When sessionID is non-empty, scopes the query to that session. The index
-// idx_agent_events_session_ts_desc already covers this access pattern.
-//
-// This is the UNLIMITED variant — it returns every matching orphan. Callers on
-// a latency-sensitive path (e.g. the session-start hook) MUST use
-// FindOrphanedEventsLimited so a large crash backlog cannot stall the hot path.
-func FindOrphanedEvents(db *sql.DB, sessionID string, olderThan time.Duration) ([]OrphanEvent, error) {
-	return FindOrphanedEventsLimited(db, sessionID, olderThan, 0)
-}
-
-// FindOrphanedEventsLimited is FindOrphanedEvents with an optional row cap.
-// When limit > 0 the query returns at most limit rows, oldest-first
-// (ORDER BY created_at ASC), so a bounded sweep drains the longest-stale
-// orphans first. limit <= 0 means unlimited (identical to FindOrphanedEvents).
-//
-// Bounding the discovery is the cheap half of taking the project-wide orphan
-// sweep off the synchronous session-start hook path (bug-504095f2): each
-// returned orphan costs a goquery parse + flock append + SQL UPDATE downstream,
-// so capping the row count caps the hot-path cost regardless of backlog size.
-func FindOrphanedEventsLimited(db *sql.DB, sessionID string, olderThan time.Duration, limit int) ([]OrphanEvent, error) {
-	cutoff := time.Now().UTC().Add(-olderThan).Format(time.RFC3339)
-	limitClause := ""
-	if limit > 0 {
-		limitClause = fmt.Sprintf(" LIMIT %d", limit)
-	}
-	var (
-		rows *sql.Rows
-		err  error
-	)
-	if sessionID != "" {
-		rows, err = db.Query(`
-			SELECT event_id, session_id, COALESCE(tool_name, ''), agent_id,
-			       COALESCE(feature_id, ''), created_at
-			FROM agent_events
-			WHERE session_id = ? AND status = 'started' AND created_at < ?
-			ORDER BY created_at ASC`+limitClause, sessionID, cutoff)
-	} else {
-		rows, err = db.Query(`
-			SELECT event_id, session_id, COALESCE(tool_name, ''), agent_id,
-			       COALESCE(feature_id, ''), created_at
-			FROM agent_events
-			WHERE status = 'started' AND created_at < ?
-			ORDER BY created_at ASC`+limitClause, cutoff)
-	}
-	if err != nil {
-		return nil, fmt.Errorf("find orphaned events: %w", err)
-	}
-	defer rows.Close()
-
-	var out []OrphanEvent
-	for rows.Next() {
-		var o OrphanEvent
-		var createdStr string
-		if err := rows.Scan(&o.EventID, &o.SessionID, &o.ToolName, &o.AgentID, &o.FeatureID, &createdStr); err != nil {
-			return nil, fmt.Errorf("scan orphaned event: %w", err)
-		}
-		if t, perr := time.Parse(time.RFC3339, createdStr); perr == nil {
-			o.CreatedAt = t.UTC()
-		} else if t, perr := time.Parse("2006-01-02 15:04:05", createdStr); perr == nil {
-			o.CreatedAt = t.UTC()
-		}
-		out = append(out, o)
-	}
-	return out, rows.Err()
 }
 
 // FindStaleProjectOrphans returns project-wide 'started' agent_events older than
@@ -378,7 +216,7 @@ func FindOrphanedEventsLimited(db *sql.DB, sessionID string, olderThan time.Dura
 // NOT completed_at); a live tool that is quiet for 5min (e.g. a long test run with
 // no transcript writes) would otherwise be treated as terminal and falsely swept
 // (roborev job 455). limit > 0 caps the rows (oldest-first). Used only by the
-// project-wide sweeps; the per-session sweep deliberately stays unprotected.
+// project-wide sweep.
 func FindStaleProjectOrphans(db *sql.DB, olderThan, hardCutoff time.Duration, limit int) ([]OrphanEvent, error) {
 	normalCutoff := time.Now().UTC().Add(-olderThan).Format(time.RFC3339)
 	hardCutoffStr := time.Now().UTC().Add(-hardCutoff).Format(time.RFC3339)

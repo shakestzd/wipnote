@@ -79,7 +79,7 @@ func TestOverlappingAgentsResolveToTheirOwnWorkItem(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := dbpkg.WorkItemForAgentAt(database, tc.agent, tc.at)
+			got, err := dbpkg.WorkItemForSessionAgentAt(database, "", tc.agent, tc.at)
 			if err != nil {
 				t.Fatalf("WorkItemForAgentAt: %v", err)
 			}
@@ -134,7 +134,7 @@ func TestEpisodeSurvivesFullCacheWipe(t *testing.T) {
 
 	runReindexInDir(t, repoRoot)
 	database := openCachedDB(t, repoRoot)
-	if got, _ := dbpkg.WorkItemForAgentAt(database, "ag-1", base.Add(30*time.Minute)); got != "feat-durable" {
+	if got, _ := dbpkg.WorkItemForSessionAgentAt(database, "", "ag-1", base.Add(30*time.Minute)); got != "feat-durable" {
 		t.Fatalf("before wipe: got %q, want feat-durable (episode still open)", got)
 	}
 
@@ -155,7 +155,7 @@ func TestEpisodeSurvivesFullCacheWipe(t *testing.T) {
 	runReindexInDir(t, repoRoot)
 	rebuilt := openCachedDB(t, repoRoot)
 
-	gotDuringWindow, err := dbpkg.WorkItemForAgentAt(rebuilt, "ag-1", base.Add(30*time.Minute))
+	gotDuringWindow, err := dbpkg.WorkItemForSessionAgentAt(rebuilt, "", "ag-1", base.Add(30*time.Minute))
 	if err != nil {
 		t.Fatalf("WorkItemForAgentAt after rebuild (during window): %v", err)
 	}
@@ -163,7 +163,7 @@ func TestEpisodeSurvivesFullCacheWipe(t *testing.T) {
 		t.Errorf("after full projection wipe + rebuild: got %q, want feat-durable — the episode did not survive", gotDuringWindow)
 	}
 
-	gotAfterClose, err := dbpkg.WorkItemForAgentAt(rebuilt, "ag-1", closedAt.Add(time.Minute))
+	gotAfterClose, err := dbpkg.WorkItemForSessionAgentAt(rebuilt, "", "ag-1", closedAt.Add(time.Minute))
 	if err != nil {
 		t.Fatalf("WorkItemForAgentAt after rebuild (after close): %v", err)
 	}
@@ -235,7 +235,7 @@ func TestArchivedEpisodesStayQueryable(t *testing.T) {
 
 	runReindexInDir(t, repoRoot)
 	database := openCachedDB(t, repoRoot)
-	got, qErr := dbpkg.WorkItemForAgentAt(database, "ag-old", base.Add(30*time.Minute))
+	got, qErr := dbpkg.WorkItemForSessionAgentAt(database, "", "ag-old", base.Add(30*time.Minute))
 	if qErr != nil {
 		t.Fatalf("WorkItemForAgentAt: %v", qErr)
 	}
@@ -328,10 +328,10 @@ func TestOpenEpisodeIsQueryableAsOpenEnded(t *testing.T) {
 	runReindexInDir(t, repoRoot)
 	database := openCachedDB(t, repoRoot)
 
-	if got, _ := dbpkg.WorkItemForAgentAt(database, "ag-1", base.Add(99*time.Hour)); got != "feat-running" {
+	if got, _ := dbpkg.WorkItemForSessionAgentAt(database, "", "ag-1", base.Add(99*time.Hour)); got != "feat-running" {
 		t.Errorf("open episode long after its start: got %q, want feat-running", got)
 	}
-	if got, _ := dbpkg.WorkItemForAgentAt(database, "ag-1", base.Add(-time.Second)); got != "" {
+	if got, _ := dbpkg.WorkItemForSessionAgentAt(database, "", "ag-1", base.Add(-time.Second)); got != "" {
 		t.Errorf("open episode BEFORE its start: got %q, want empty", got)
 	}
 }
@@ -379,7 +379,7 @@ func TestReindexPurgesEpisodesForDeletedLedger(t *testing.T) {
 
 	runReindexInDir(t, repoRoot)
 	database := openCachedDB(t, repoRoot)
-	if got, _ := dbpkg.WorkItemForAgentAt(database, "ag-1", base.Add(30*time.Minute)); got != "feat-ghost" {
+	if got, _ := dbpkg.WorkItemForSessionAgentAt(database, "", "ag-1", base.Add(30*time.Minute)); got != "feat-ghost" {
 		t.Fatalf("setup: got %q, want feat-ghost", got)
 	}
 	database.Close()
@@ -391,7 +391,7 @@ func TestReindexPurgesEpisodesForDeletedLedger(t *testing.T) {
 
 	runReindexInDir(t, repoRoot)
 	after := openCachedDB(t, repoRoot)
-	if got, _ := dbpkg.WorkItemForAgentAt(after, "ag-1", base.Add(30*time.Minute)); got != "" {
+	if got, _ := dbpkg.WorkItemForSessionAgentAt(after, "", "ag-1", base.Add(30*time.Minute)); got != "" {
 		t.Errorf("episode survived deletion of its canonical file: got %q", got)
 	}
 }

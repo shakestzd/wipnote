@@ -7,7 +7,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 
 	"github.com/shakestzd/wipnote/core/arch"
 	"github.com/shakestzd/wipnote/core/claimledger"
@@ -479,73 +478,5 @@ func inferType(id string) string {
 		return "arch"
 	default:
 		return ""
-	}
-}
-
-type Store struct {
-	wipnoteDir string
-	mu         sync.Mutex
-	sig        string
-	snapshot   *Snapshot
-}
-
-func NewStore(wipnoteDir string) *Store {
-	return &Store{wipnoteDir: wipnoteDir}
-}
-
-func (s *Store) Snapshot() (*Snapshot, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	sig := signature(s.wipnoteDir)
-	if s.snapshot != nil && sig == s.sig {
-		return s.snapshot, nil
-	}
-	snap, err := Load(s.wipnoteDir)
-	if err != nil {
-		return nil, err
-	}
-	s.sig, s.snapshot = sig, snap
-	return snap, nil
-}
-
-func signature(wipnoteDir string) string {
-	var parts []string
-	for _, root := range projectionRoots(wipnoteDir) {
-		_ = filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
-			if err != nil || d.IsDir() || !projectionFile(path) {
-				return nil
-			}
-			if st, statErr := d.Info(); statErr == nil {
-				parts = append(parts, fmt.Sprintf("%s:%d:%d", path, st.Size(), st.ModTime().UnixNano()))
-			}
-			return nil
-		})
-	}
-	sort.Strings(parts)
-	return strings.Join(parts, "|")
-}
-
-func projectionFile(path string) bool {
-	return strings.HasSuffix(path, ".html") || strings.HasSuffix(path, ".yaml")
-}
-
-func projectionRoots(wipnoteDir string) []string {
-	return []string{
-		filepath.Join(wipnoteDir, "features"),
-		filepath.Join(wipnoteDir, "bugs"),
-		filepath.Join(wipnoteDir, "spikes"),
-		filepath.Join(wipnoteDir, "tracks"),
-		filepath.Join(wipnoteDir, "plans"),
-		filepath.Join(wipnoteDir, "specs"),
-		filepath.Join(wipnoteDir, claimledger.DirName),
-		filepath.Join(wipnoteDir, sessionledger.FileName),
-		filepath.Join(wipnoteDir, gateledger.FileName),
-		// addArchNodes (defect 3, feat-fc3cc9e0) reads both of these, so the
-		// Store cache signature must watch them too or an edited/added arch
-		// card would go unnoticed and Store.Snapshot would keep serving a
-		// stale cached snapshot. WalkDir accepts a bare file as root
-		// (architecture.html), calling the visitor once for it.
-		arch.LedgerPath(wipnoteDir),
-		filepath.Join(wipnoteDir, "arch"),
 	}
 }

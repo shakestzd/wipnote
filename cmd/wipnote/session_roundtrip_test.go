@@ -11,6 +11,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/shakestzd/wipnote/core/db/dbtest"
+
 	"github.com/PuerkitoBio/goquery"
 	dbpkg "github.com/shakestzd/wipnote/core/db"
 	"github.com/shakestzd/wipnote/core/hooks"
@@ -72,8 +74,8 @@ func TestSessionRoundTrip_IngestThenReindex(t *testing.T) {
 		CreatedAt:     msgTs,
 		Status:        "completed",
 	}
-	if err := dbpkg.InsertSession(database, sess); err != nil {
-		t.Fatalf("InsertSession: %v", err)
+	if err := dbpkg.UpsertSession(database, sess); err != nil {
+		t.Fatalf("UpsertSession: %v", err)
 	}
 	if err := hooks.RenderIngestedSessionHTML(wipnoteDir, sessionID, "/src/project", result, false); err != nil {
 		t.Fatalf("render: %v", err)
@@ -124,8 +126,8 @@ func TestSessionRoundTrip_OrphanSweepReindexesAsAborted(t *testing.T) {
 		CreatedAt:     time.Now().UTC(),
 		Status:        "active",
 	}
-	if err := dbpkg.InsertSession(database, sess); err != nil {
-		t.Fatalf("InsertSession: %v", err)
+	if err := dbpkg.UpsertSession(database, sess); err != nil {
+		t.Fatalf("UpsertSession: %v", err)
 	}
 	hooks.CreateSessionHTML(projectDir, sess)
 
@@ -162,7 +164,7 @@ func TestSessionRoundTrip_OrphanSweepReindexesAsAborted(t *testing.T) {
 		t.Errorf("upserted: got %d, want 1", upserted)
 	}
 
-	evt, err := dbpkg.GetEvent(database, "evt-sweep-roundtrip-1")
+	evt, err := dbtest.GetEvent(database, "evt-sweep-roundtrip-1")
 	if err != nil {
 		t.Fatalf("GetEvent: %v", err)
 	}
@@ -190,8 +192,8 @@ func TestSessionRoundTrip_MigrationBackfill(t *testing.T) {
 			CreatedAt:     now,
 			Status:        "completed",
 		}
-		if err := dbpkg.InsertSession(database, sess); err != nil {
-			t.Fatalf("InsertSession: %v", err)
+		if err := dbpkg.UpsertSession(database, sess); err != nil {
+			t.Fatalf("UpsertSession: %v", err)
 		}
 		msg := &models.Message{SessionID: id, Ordinal: 0, Role: "assistant", Content: "x", Timestamp: now}
 		msgID, err := dbpkg.InsertMessage(database, msg)
@@ -251,8 +253,8 @@ func TestSessionRoundTrip_ConcurrentWriters(t *testing.T) {
 		CreatedAt:     time.Now().UTC(),
 		Status:        "active",
 	}
-	if err := dbpkg.InsertSession(database, sess); err != nil {
-		t.Fatalf("InsertSession: %v", err)
+	if err := dbpkg.UpsertSession(database, sess); err != nil {
+		t.Fatalf("UpsertSession: %v", err)
 	}
 	hooks.CreateSessionHTML(projectDir, sess)
 

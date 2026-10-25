@@ -17,6 +17,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/shakestzd/wipnote/core/db/dbtest"
+
 	"github.com/shakestzd/wipnote/core/db"
 	"github.com/shakestzd/wipnote/core/db/writequeue"
 	"github.com/shakestzd/wipnote/observe/otel"
@@ -41,7 +43,7 @@ func newJournalModeDB(t *testing.T, mode string) string {
 		w.Close()
 		t.Fatalf("set journal_mode=%s: %v", mode, err)
 	}
-	got := db.QueryJournalMode(w)
+	got := dbtest.JournalMode(w)
 	w.Close()
 	// On a WAL-unsafe host filesystem an attempt to set WAL silently stays
 	// DELETE. Skip the WAL variant there rather than assert a false negative

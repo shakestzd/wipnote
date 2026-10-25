@@ -17,7 +17,7 @@ func TestRepairGitdirStalePath(t *testing.T) {
 	dir := setupGitRepo(t)
 
 	// Create a real worktree so git registers it under .git/worktrees/.
-	worktreePath, err := worktree.EnsureForTrack("trk-repair111", dir, io.Discard)
+	worktreePath, _, err := worktree.EnsureForTrackStatus("trk-repair111", dir, io.Discard)
 	if err != nil {
 		t.Fatalf("EnsureForTrack: %v", err)
 	}
@@ -65,7 +65,7 @@ func TestRepairGitdirStalePath(t *testing.T) {
 func TestRepairGitdirNoOpWhenValid(t *testing.T) {
 	dir := setupGitRepo(t)
 
-	worktreePath, err := worktree.EnsureForTrack("trk-repair222", dir, io.Discard)
+	worktreePath, _, err := worktree.EnsureForTrackStatus("trk-repair222", dir, io.Discard)
 	if err != nil {
 		t.Fatalf("EnsureForTrack: %v", err)
 	}
@@ -132,7 +132,7 @@ func TestRepairGitdirUnrecognizedFormat(t *testing.T) {
 func TestRepairGitdirFromRepoRoot(t *testing.T) {
 	dir := setupGitRepo(t)
 
-	worktreePath, err := worktree.EnsureForTrack("trk-repair333", dir, io.Discard)
+	worktreePath, _, err := worktree.EnsureForTrackStatus("trk-repair333", dir, io.Discard)
 	if err != nil {
 		t.Fatalf("EnsureForTrack: %v", err)
 	}

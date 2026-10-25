@@ -160,34 +160,6 @@ var migrations = []migrationStep{
 	},
 }
 
-// CurrentSchemaVersion returns the highest migration step version. Exposed for
-// tests; production code should not branch on it.
-func CurrentSchemaVersion() int { return currentSchemaVersion }
-
-// MigrationStepNames returns the ordered list of step names exposed by the
-// migration runner. Tests use this to assert exact migrations applied.
-func MigrationStepNames() []string {
-	out := make([]string, len(migrations))
-	for i, m := range migrations {
-		out[i] = m.name
-	}
-	return out
-}
-
-// MigrationStepVersions returns the ordered list of step versions. Tests use
-// this to assert strictly-increasing version ordering.
-func MigrationStepVersions() []int {
-	out := make([]int, len(migrations))
-	for i, m := range migrations {
-		out[i] = m.version
-	}
-	return out
-}
-
-// CopySwapStepName returns the name of the agent_events copy-and-swap
-// migration step so tests can assert it runs at most once per DB.
-func CopySwapStepName() string { return copySwapStepName }
-
 // readUserVersion returns the database's current PRAGMA user_version. A fresh
 // database reports 0. Errors propagate to the caller (e.g. for fail-fast Open).
 func readUserVersion(db *sql.DB) (int, error) {

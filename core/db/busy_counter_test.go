@@ -37,7 +37,7 @@ func TestBusyCounterClassifiesErrors(t *testing.T) {
 		{
 			name:      "cli_mutation with synthetic helper",
 			subsystem: SubsystemCLIMutation,
-			err:       NewSyntheticBusyError("SQLITE_BUSY (5)"),
+			err:       newSyntheticBusyError("SQLITE_BUSY (5)"),
 			wantHit:   true,
 			wantCount: 1,
 		},
@@ -79,8 +79,8 @@ func TestBusyCounterClassifiesErrors(t *testing.T) {
 			if hit != tc.wantHit {
 				t.Errorf("Record hit = %v, want %v", hit, tc.wantHit)
 			}
-			if got := BusyCount(tc.subsystem); got != tc.wantCount {
-				t.Errorf("BusyCount(%s) = %d, want %d", tc.subsystem, got, tc.wantCount)
+			if got := busyCount(tc.subsystem); got != tc.wantCount {
+				t.Errorf("busyCount(%s) = %d, want %d", tc.subsystem, got, tc.wantCount)
 			}
 
 			// Verify no other subsystem was incremented.
@@ -91,8 +91,8 @@ func TestBusyCounterClassifiesErrors(t *testing.T) {
 				if other == tc.subsystem {
 					continue
 				}
-				if got := BusyCount(other); got != 0 {
-					t.Errorf("BusyCount(%s) = %d, want 0 (spilled from %s)", other, got, tc.subsystem)
+				if got := busyCount(other); got != 0 {
+					t.Errorf("busyCount(%s) = %d, want 0 (spilled from %s)", other, got, tc.subsystem)
 				}
 			}
 		})
@@ -141,7 +141,7 @@ func TestRecord_Concurrent(t *testing.T) {
 	for i := 0; i < workers; i++ {
 		go func() {
 			defer wg.Done()
-			err := NewSyntheticBusyError("SQLITE_BUSY")
+			err := newSyntheticBusyError("SQLITE_BUSY")
 			for j := 0; j < perWorker; j++ {
 				Record(subsystem, err)
 			}
@@ -149,9 +149,9 @@ func TestRecord_Concurrent(t *testing.T) {
 	}
 	wg.Wait()
 
-	got := BusyCount(subsystem)
+	got := busyCount(subsystem)
 	if got != wantTotal {
-		t.Errorf("after %d concurrent records, BusyCount(%s) = %d, want %d",
+		t.Errorf("after %d concurrent records, busyCount(%s) = %d, want %d",
 			wantTotal, subsystem, got, wantTotal)
 	}
 }
@@ -161,7 +161,7 @@ func TestRecord_Concurrent(t *testing.T) {
 // independent — caller mutations must not affect future reads.
 func TestBusyCounts_Snapshot(t *testing.T) {
 	ResetBusyCounters()
-	busyErr := NewSyntheticBusyError("")
+	busyErr := newSyntheticBusyError("")
 	Record(SubsystemHookWriter, busyErr)
 	Record(SubsystemIndexer, busyErr)
 	Record(SubsystemIndexer, busyErr)
@@ -179,7 +179,7 @@ func TestBusyCounts_Snapshot(t *testing.T) {
 
 	// Mutate the snapshot — must not affect the live counter.
 	snap[SubsystemHookWriter] = 999
-	if BusyCount(SubsystemHookWriter) != 1 {
+	if busyCount(SubsystemHookWriter) != 1 {
 		t.Errorf("live counter was modified by snapshot mutation")
 	}
 }
@@ -191,7 +191,7 @@ func TestBusyCounts_Snapshot(t *testing.T) {
 // degrade.
 func TestFirstPartyBusyTotal_ExcludesExternal(t *testing.T) {
 	ResetBusyCounters()
-	busyErr := NewSyntheticBusyError("")
+	busyErr := newSyntheticBusyError("")
 
 	// Bump every first-party label once.
 	for _, s := range FirstPartySubsystems {
@@ -208,19 +208,8 @@ func TestFirstPartyBusyTotal_ExcludesExternal(t *testing.T) {
 		t.Errorf("FirstPartyBusyTotal = %d, want %d (external must be excluded)",
 			total, wantTotal)
 	}
-	if got := BusyCount(SubsystemExternal); got != 100 {
-		t.Errorf("BusyCount(external) = %d, want 100", got)
-	}
-}
-
-// TestNewSyntheticBusyError_DefaultMessage ensures the test helper
-// produces a string that IsBusyError accepts even when no detail is
-// supplied. Defensive — prevents a silently broken helper from
-// causing the contention-stress fixture to false-pass.
-func TestNewSyntheticBusyError_DefaultMessage(t *testing.T) {
-	err := NewSyntheticBusyError("")
-	if !IsBusyError(err) {
-		t.Errorf("default synthetic busy error %q is not detected as BUSY", err.Error())
+	if got := busyCount(SubsystemExternal); got != 100 {
+		t.Errorf("busyCount(external) = %d, want 100", got)
 	}
 }
 
@@ -235,4 +224,20 @@ func ExampleRecord() {
 		fmt.Println("busy classified to", subsystem)
 	}
 	// Output: busy classified to indexer
+}
+
+// busyCount returns the current count for one subsystem.
+func busyCount(subsystem BusySubsystem) int64 { return BusyCounts()[subsystem] }
+
+// syntheticBusyError is a BUSY error that needs no SQLite driver; its message
+// carries the canonical fragment so IsBusyError matches it.
+type syntheticBusyError struct{ msg string }
+
+func (e *syntheticBusyError) Error() string { return e.msg }
+
+func newSyntheticBusyError(detail string) error {
+	if detail == "" {
+		detail = "SQLITE_BUSY: database is locked"
+	}
+	return &syntheticBusyError{msg: detail}
 }

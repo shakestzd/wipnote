@@ -88,27 +88,6 @@ func TestInsertEdge_WithMetadata(t *testing.T) {
 	}
 }
 
-func TestDeleteEdge(t *testing.T) {
-	database := openTestDB(t)
-
-	_ = db.InsertEdge(
-		database,
-		"bug-a-caused_by-feat-b", "bug-a", "bug", "feat-b", "feature",
-		"caused_by", nil,
-	)
-
-	err := db.DeleteEdge(database, "bug-a", "feat-b", "caused_by")
-	if err != nil {
-		t.Fatalf("DeleteEdge: %v", err)
-	}
-
-	var count int
-	database.QueryRow(`SELECT COUNT(*) FROM graph_edges`).Scan(&count)
-	if count != 0 {
-		t.Errorf("expected 0 rows after delete, got %d", count)
-	}
-}
-
 func TestInsertEdge_SessionToWorkItem(t *testing.T) {
 	database := openTestDB(t)
 
@@ -146,15 +125,5 @@ func TestInsertEdge_SessionToWorkItem(t *testing.T) {
 		WHERE relationship_type = 'implements' AND to_node_id = 'feat-abc'`).Scan(&fromNode)
 	if fromNode != "sess-xyz" {
 		t.Errorf("reverse lookup: got %q, want sess-xyz", fromNode)
-	}
-}
-
-func TestDeleteEdge_NonExistent(t *testing.T) {
-	database := openTestDB(t)
-
-	// Deleting a row that does not exist must not return an error.
-	err := db.DeleteEdge(database, "feat-x", "feat-y", "blocks")
-	if err != nil {
-		t.Errorf("DeleteEdge on non-existent row should not error: %v", err)
 	}
 }

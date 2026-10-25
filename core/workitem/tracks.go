@@ -23,19 +23,9 @@ func TrackWithPriority(p string) TrackOption {
 	return func(c *trackConfig) { c.priority = p }
 }
 
-// TrackWithStatus sets the track's initial status.
-func TrackWithStatus(s string) TrackOption {
-	return func(c *trackConfig) { c.status = s }
-}
-
 // TrackWithContent sets the description body.
 func TrackWithContent(content string) TrackOption {
 	return func(c *trackConfig) { c.content = content }
-}
-
-// TrackWithSpec sets the track specification.
-func TrackWithSpec(spec string) TrackOption {
-	return func(c *trackConfig) { c.spec = spec }
 }
 
 // TrackWithPlanPhases adds planning phases.

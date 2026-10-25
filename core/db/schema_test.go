@@ -1,10 +1,13 @@
 package db_test
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"testing"
 	"time"
+
+	"github.com/shakestzd/wipnote/core/db/dbtest"
 
 	"github.com/shakestzd/wipnote/core/db"
 	"github.com/shakestzd/wipnote/core/models"
@@ -54,16 +57,16 @@ func TestSchemaCreationAndCRUD(t *testing.T) {
 		Status:        "active",
 		Model:         "opus-4.6",
 	}
-	if err := db.InsertSession(database, sess); err != nil {
-		t.Fatalf("InsertSession: %v", err)
+	if err := db.UpsertSession(database, sess); err != nil {
+		t.Fatalf("UpsertSession: %v", err)
 	}
-	if err := db.InsertSession(database, &models.Session{
+	if err := db.UpsertSession(database, &models.Session{
 		SessionID:     "test-sess-000",
 		AgentAssigned: "claude-code",
 		CreatedAt:     now.Add(-time.Minute),
 		Status:        "completed",
 	}); err != nil {
-		t.Fatalf("InsertSession continued_from parent: %v", err)
+		t.Fatalf("UpsertSession continued_from parent: %v", err)
 	}
 	got, err := db.GetSession(database, "test-sess-001")
 	if err != nil {
@@ -142,27 +145,23 @@ func TestSchemaCreationAndCRUD(t *testing.T) {
 		CreatedAt: now,
 		UpdatedAt: now,
 	}
-	if err := db.InsertFeature(database, feat); err != nil {
-		t.Fatalf("InsertFeature: %v", err)
+	if err := db.UpsertFeature(database, feat); err != nil {
+		t.Fatalf("UpsertFeature: %v", err)
 	}
-	gotFeat, err := db.GetFeature(database, "feat-test-001")
-	if err != nil {
-		t.Fatalf("GetFeature: %v", err)
+	title, priority, _ := featureRow(t, database, "feat-test-001")
+	if title != "Test Feature" {
+		t.Errorf("title: got %q, want %q", title, "Test Feature")
 	}
-	if gotFeat.Title != "Test Feature" {
-		t.Errorf("title: got %q, want %q", gotFeat.Title, "Test Feature")
-	}
-	if gotFeat.Priority != "high" {
-		t.Errorf("priority: got %q, want %q", gotFeat.Priority, "high")
+	if priority != "high" {
+		t.Errorf("priority: got %q, want %q", priority, "high")
 	}
 
 	// Test status update.
 	if err := db.UpdateFeatureStatus(database, "feat-test-001", "in-progress"); err != nil {
 		t.Fatalf("UpdateFeatureStatus: %v", err)
 	}
-	gotFeat2, _ := db.GetFeature(database, "feat-test-001")
-	if gotFeat2.Status != "in-progress" {
-		t.Errorf("status after update: got %q, want %q", gotFeat2.Status, "in-progress")
+	if _, _, status := featureRow(t, database, "feat-test-001"); status != "in-progress" {
+		t.Errorf("status after update: got %q, want %q", status, "in-progress")
 	}
 
 	// Test Event CRUD.
@@ -181,7 +180,7 @@ func TestSchemaCreationAndCRUD(t *testing.T) {
 	if err := db.InsertEvent(database, evt); err != nil {
 		t.Fatalf("InsertEvent: %v", err)
 	}
-	gotEvt, err := db.GetEvent(database, "evt-test-001")
+	gotEvt, err := dbtest.GetEvent(database, "evt-test-001")
 	if err != nil {
 		t.Fatalf("GetEvent: %v", err)
 	}
@@ -192,23 +191,15 @@ func TestSchemaCreationAndCRUD(t *testing.T) {
 		t.Errorf("agent_id: got %q, want %q", gotEvt.AgentID, "claude-code")
 	}
 
-	// Test ListEventsBySession.
-	events, err := db.ListEventsBySession(database, "test-sess-001", 10)
+	// Test ListEventsBySessionAsc.
+	events, err := db.ListEventsBySessionAsc(database, "test-sess-001", 10)
 	if err != nil {
-		t.Fatalf("ListEventsBySession: %v", err)
+		t.Fatalf("ListEventsBySessionAsc: %v", err)
 	}
 	if len(events) != 1 {
 		t.Errorf("events count: got %d, want 1", len(events))
 	}
 
-	// Test ListFeaturesByStatus.
-	features, err := db.ListFeaturesByStatus(database, "in-progress", 10)
-	if err != nil {
-		t.Fatalf("ListFeaturesByStatus: %v", err)
-	}
-	if len(features) != 1 {
-		t.Errorf("features count: got %d, want 1", len(features))
-	}
 }
 
 func TestPragmasApplied(t *testing.T) {
@@ -238,22 +229,6 @@ func TestPragmasApplied(t *testing.T) {
 	}
 }
 
-func TestIntegrityCheck(t *testing.T) {
-	database, err := db.Open("file::memory:?cache=shared")
-	if err != nil {
-		t.Fatalf("Open: %v", err)
-	}
-	defer database.Close()
-
-	ok, err := db.CheckIntegrity(database)
-	if err != nil {
-		t.Fatalf("CheckIntegrity: %v", err)
-	}
-	if !ok {
-		t.Error("integrity check failed on fresh database")
-	}
-}
-
 func TestTotalEventsIncrementTrigger(t *testing.T) {
 	database, err := db.Open("file::memory:?cache=shared&mode=memory")
 	if err != nil {
@@ -268,8 +243,8 @@ func TestTotalEventsIncrementTrigger(t *testing.T) {
 		CreatedAt:     now,
 		Status:        "active",
 	}
-	if err := db.InsertSession(database, sess); err != nil {
-		t.Fatalf("InsertSession: %v", err)
+	if err := db.UpsertSession(database, sess); err != nil {
+		t.Fatalf("UpsertSession: %v", err)
 	}
 
 	// Verify total_events starts at 0.
@@ -309,33 +284,12 @@ func TestTotalEventsIncrementTrigger(t *testing.T) {
 	}
 }
 
-func TestGetSessionProjectDir(t *testing.T) {
-	database, err := db.Open("file::memory:?cache=shared&mode=memory")
-	if err != nil {
-		t.Fatalf("Open: %v", err)
+// featureRow reads title, priority and status of one features row.
+func featureRow(t *testing.T, database *sql.DB, id string) (title, priority, status string) {
+	t.Helper()
+	if err := database.QueryRow(`SELECT title, priority, status FROM features WHERE id = ?`, id).
+		Scan(&title, &priority, &status); err != nil {
+		t.Fatalf("read feature %s: %v", id, err)
 	}
-	defer database.Close()
-
-	now := time.Now().UTC()
-	sess := &models.Session{
-		SessionID:     "sess-proj-dir-getter-001",
-		AgentAssigned: "claude-code",
-		CreatedAt:     now,
-		Status:        "active",
-		ProjectDir:    "/home/user/myproject",
-	}
-	if err := db.InsertSession(database, sess); err != nil {
-		t.Fatalf("InsertSession: %v", err)
-	}
-
-	got := db.GetSessionProjectDir(database, sess.SessionID)
-	if got != sess.ProjectDir {
-		t.Errorf("GetSessionProjectDir: got %q, want %q", got, sess.ProjectDir)
-	}
-
-	// Non-existent session returns empty string.
-	empty := db.GetSessionProjectDir(database, "does-not-exist")
-	if empty != "" {
-		t.Errorf("GetSessionProjectDir non-existent: got %q, want empty", empty)
-	}
+	return title, priority, status
 }

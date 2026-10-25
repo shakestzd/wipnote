@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/shakestzd/wipnote/core/db/dbtest"
+
 	"github.com/shakestzd/wipnote/core/db"
 	"github.com/shakestzd/wipnote/core/models"
 	"github.com/shakestzd/wipnote/core/paths"
@@ -215,8 +217,8 @@ func TestCWDNormalize_AlreadyRelative_PassThrough(t *testing.T) {
 		CreatedAt:     time.Now().UTC(),
 		ProjectDir:    relPath,
 	}
-	if err := db.InsertSession(database, s); err != nil {
-		t.Fatalf("InsertSession: %v", err)
+	if err := db.UpsertSession(database, s); err != nil {
+		t.Fatalf("UpsertSession: %v", err)
 	}
 
 	got, err := db.GetSession(database, s.SessionID)
@@ -241,13 +243,13 @@ func TestCWDNormalize_SubagentStart_StoresRelativeCWD(t *testing.T) {
 
 	// Seed the parent session so FK constraints are satisfied.
 	parentSessionID := "test-subagent-parent-001"
-	if err := db.InsertSession(database, &models.Session{
+	if err := db.UpsertSession(database, &models.Session{
 		SessionID:     parentSessionID,
 		AgentAssigned: "claude-code",
 		Status:        "active",
 		CreatedAt:     time.Now().UTC(),
 	}); err != nil {
-		t.Fatalf("InsertSession parent: %v", err)
+		t.Fatalf("UpsertSession parent: %v", err)
 	}
 
 	agentID := "test-subagent-agent-001"
@@ -271,7 +273,7 @@ func TestCWDNormalize_SubagentStart_StoresRelativeCWD(t *testing.T) {
 	}
 
 	// Read pending_subagent_starts and verify CWD is relative.
-	pending, err := db.GetPendingSubagentStart(database, agentID)
+	pending, err := dbtest.GetPendingSubagentStart(database, agentID)
 	if err != nil {
 		t.Fatalf("GetPendingSubagentStart: %v", err)
 	}

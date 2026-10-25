@@ -202,14 +202,14 @@ func TestEventRecordingFlow(t *testing.T) {
 	t.Setenv("WIPNOTE_PARENT_PROMPT_EVENT", "")
 
 	// Insert the session so FK constraints pass.
-	if err := db.InsertSession(database, &models.Session{
+	if err := db.UpsertSession(database, &models.Session{
 		SessionID:     sessionID,
 		AgentAssigned: "claude-code",
 		Status:        "active",
 		CreatedAt:     time.Now().UTC(),
 		ProjectDir:    projectDir,
 	}); err != nil {
-		t.Fatalf("InsertSession: %v", err)
+		t.Fatalf("UpsertSession: %v", err)
 	}
 
 	// Insert an active feature and link it to the session.
@@ -222,8 +222,8 @@ func TestEventRecordingFlow(t *testing.T) {
 		CreatedAt: time.Now().UTC(),
 		UpdatedAt: time.Now().UTC(),
 	}
-	if err := db.InsertFeature(database, feat); err != nil {
-		t.Fatalf("InsertFeature: %v", err)
+	if err := db.UpsertFeature(database, feat); err != nil {
+		t.Fatalf("UpsertFeature: %v", err)
 	}
 	if _, err := database.Exec(
 		`UPDATE sessions SET active_feature_id = ? WHERE session_id = ?`,
@@ -311,14 +311,14 @@ func TestSessionEndPopulatesFeaturesWorkedOn(t *testing.T) {
 	t.Setenv("CLAUDE_PROJECT_DIR", "")
 	t.Setenv("WIPNOTE_PROJECT_DIR", projectDir)
 
-	if err := db.InsertSession(database, &models.Session{
+	if err := db.UpsertSession(database, &models.Session{
 		SessionID:     sessionID,
 		AgentAssigned: "claude-code",
 		Status:        "active",
 		CreatedAt:     time.Now().UTC(),
 		ProjectDir:    projectDir,
 	}); err != nil {
-		t.Fatalf("InsertSession: %v", err)
+		t.Fatalf("UpsertSession: %v", err)
 	}
 
 	// Insert features referenced by events.
@@ -385,14 +385,14 @@ func TestYoloModeGuards(t *testing.T) {
 	t.Setenv("WIPNOTE_PARENT_PROMPT_EVENT", "")
 
 	// Insert session without any active feature.
-	if err := db.InsertSession(database, &models.Session{
+	if err := db.UpsertSession(database, &models.Session{
 		SessionID:     sessionID,
 		AgentAssigned: "claude-code",
 		Status:        "active",
 		CreatedAt:     time.Now().UTC(),
 		ProjectDir:    projectDir,
 	}); err != nil {
-		t.Fatalf("InsertSession: %v", err)
+		t.Fatalf("UpsertSession: %v", err)
 	}
 
 	// Reset caches so feature ID is read fresh.
@@ -429,8 +429,8 @@ func TestYoloModeGuards(t *testing.T) {
 		CreatedAt: time.Now().UTC(),
 		UpdatedAt: time.Now().UTC(),
 	}
-	if err := db.InsertFeature(database, feat); err != nil {
-		t.Fatalf("InsertFeature: %v", err)
+	if err := db.UpsertFeature(database, feat); err != nil {
+		t.Fatalf("UpsertFeature: %v", err)
 	}
 	if _, err := database.Exec(
 		`UPDATE sessions SET active_feature_id = ? WHERE session_id = ?`,
@@ -478,18 +478,18 @@ func TestSessionEndHandoffFilesFromCanonicalLog(t *testing.T) {
 	t.Setenv("WIPNOTE_PARENT_EVENT", "")
 	t.Setenv("WIPNOTE_PARENT_PROMPT_EVENT", "")
 
-	if err := db.InsertSession(database, &models.Session{
+	if err := db.UpsertSession(database, &models.Session{
 		SessionID: sessionID, AgentAssigned: "claude-code", Status: "active",
 		CreatedAt: time.Now().UTC(), ProjectDir: projectDir,
 	}); err != nil {
-		t.Fatalf("InsertSession: %v", err)
+		t.Fatalf("UpsertSession: %v", err)
 	}
 	feat := &db.Feature{
 		ID: "feat-handoff-files", Type: "feature", Title: "Handoff files", Status: "in-progress",
 		Priority: "medium", CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC(),
 	}
-	if err := db.InsertFeature(database, feat); err != nil {
-		t.Fatalf("InsertFeature: %v", err)
+	if err := db.UpsertFeature(database, feat); err != nil {
+		t.Fatalf("UpsertFeature: %v", err)
 	}
 	if _, err := database.Exec(`UPDATE sessions SET active_feature_id = ? WHERE session_id = ?`, feat.ID, sessionID); err != nil {
 		t.Fatalf("set active_feature_id: %v", err)
