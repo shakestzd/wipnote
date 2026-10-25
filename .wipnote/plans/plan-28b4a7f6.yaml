@@ -7,7 +7,7 @@ meta:
     status: finalized
     priority: medium
     schema_version: v4
-    version: 47
+    version: 52
 design:
     problem: |
         ## Problem
@@ -1762,7 +1762,7 @@ slices:
       risk: High
       tests: 'Integration (fake herdr and claude stub): TestClaudeRun_InteractiveInHerdr, TestClaudeRun_HeadlessOutsideHerdr, TestClaudeRun_PreseedsTrust, TestClaudeRun_SessionIDKnown, TestClaudeRun_ResultFromStopHook, TestClaudeRun_ErrorFromStopFailure, TestClaudeRun_CostFromStatusLine, TestClaudeRun_TurnCapEnforced, TestClaudeRun_BudgetCapEnforced, TestClaudeRun_SessionStartTimeout, TestClaudeRun_PluginNotLoadedFails, TestClaudeRun_PromptBeforeVariadicFlags, TestClaudeRun_PlanModeModelWarning.'
       complexity: complex
-      approved: false
+      approved: true
       comment: ""
       research:
         - url: https://code.claude.com/docs/en/cli-reference
@@ -1774,6 +1774,7 @@ slices:
         - url: https://code.claude.com/docs/en/statusline
           claim: The status line command receives cost.total_cost_usd and token totals.
           accessed: "2026-10-25"
+      approval_status: approved
       questions:
         - id: q-oneshot-harness
           text: After the spike, how do one-shot runs work per harness?
@@ -1810,7 +1811,7 @@ slices:
       effort: M
       risk: Med
       tests: 'Unit: TestDoctorProjectThread_AllPresent, TestDoctorProjectThread_NoHooksNamesFix, TestDoctorProjectThread_NoBinary. Integration: TestRun_NoHooksStillReports, TestWait_NoHooksResultFileEnds. Script: shellcheck plus a run in a temp HOME.'
-      approved: false
+      approved: true
       comment: ""
       research:
         - url: https://code.claude.com/docs/en/claude-projects
@@ -1819,11 +1820,13 @@ slices:
         - url: https://code.claude.com/docs/en/claude-code-on-the-web
           claim: Cloud sessions run in a cloud environment whose setup script installs tools before Claude starts.
           accessed: "2026-10-25"
+      approval_status: approved
       decisions_notes: |
         **Principle (owner 2026-10-25):** delegate plus herdr is a multi-harness Projects harness. wipnote plans are the durable layer shared across users and platforms; a Claude project is one more surface that reads them.
         **Rejected:** a delegate cloud backend through claude --cloud (owner did not pick it, 2026-10-25). Projects have no CLI or API to start threads, so delegate does not spawn project threads.
         **Hooks absent:** correctness in a thread rests on result files and the ledger (decision R), not on hooks.
     - id: slic-c7659d67
+      feature_id: feat-12602e10
       num: 24
       title: Export a plan as Claude project instructions
       what: 'Add wipnote plan project-instructions <plan>. It prints a brief for Project settings > Memory > Project instructions from the plan: goal and repositories and branch rules and how to check work and what needs a go-ahead. wipnote plans stay canonical; the project gets a copy.'
@@ -1841,12 +1844,14 @@ slices:
       effort: S
       risk: Low
       tests: 'Unit: TestBrief_UnderLimit, TestBrief_TrimNamesCutSections, TestBrief_NoHostPaths, TestBrief_Deterministic, TestBrief_SectionOrder.'
-      approved: false
+      approved: true
       comment: ""
       research:
         - url: https://code.claude.com/docs/en/claude-projects
           claim: Project instructions are text sent to each new thread and to the coordinator, up to 16,000 characters; a useful brief covers purpose, where work happens, how a thread checks its work, what to do when something is missing, and what needs a go-ahead.
           accessed: "2026-10-25"
+      approval_status: approved
+      execution_status: promoted
       decisions_notes: |
         **Source of truth:** the plan YAML. The project gets a printed copy; nothing reads it back (owner 2026-10-25: wipnote plans are the shared durable layer).
     - id: slic-f9043a7e
@@ -1871,12 +1876,13 @@ slices:
       effort: S
       risk: Low
       tests: 'Unit: TestGroups_EveryStateMapped, TestGroups_QuestionIsWaitingOnYou, TestGroups_FailedIsWaitingOnYou, TestGroups_PRStates. Mod: runs.test.ts groups rows. Cross: TestGroups_BandListPageAgree.'
-      approved: false
+      approved: true
       comment: ""
       research:
         - url: https://code.claude.com/docs/en/claude-projects
           claim: The Overview Threads tab groups threads as Ready for review, Waiting on you (needs a reply or approval, or failed), Working, Landing (PR approved or queued), Idle and Resolved.
           accessed: "2026-10-25"
+      approval_status: approved
       decisions_notes: |
         **Principle (owner 2026-10-25):** delegate plus herdr is a multi-harness Projects harness, so its states use the Overview groups.
         **Mapping owner:** slice 10's readiness predicate stays the single source of state (D2); this slice only maps states to groups.
@@ -2490,3 +2496,28 @@ feedback:
           value: "true"
           created_at: "2026-10-25T14:56:33Z"
           updated_at: "2026-10-25T14:56:33Z"
+        - section: slice-22
+          action: approve
+          value: "true"
+          created_at: "2026-10-25T19:42:53Z"
+          updated_at: "2026-10-25T19:42:53Z"
+        - section: slice-23
+          action: approve
+          value: "true"
+          created_at: "2026-10-25T19:42:53Z"
+          updated_at: "2026-10-25T19:42:53Z"
+        - section: slice-24
+          action: approve
+          value: "true"
+          created_at: "2026-10-25T19:42:54Z"
+          updated_at: "2026-10-25T19:42:54Z"
+        - section: slice-25
+          action: approve
+          value: "true"
+          created_at: "2026-10-25T19:42:55Z"
+          updated_at: "2026-10-25T19:42:55Z"
+        - section: slice-24
+          action: set_execution_status
+          value: promoted
+          created_at: "2026-10-25T19:43:06Z"
+          updated_at: "2026-10-25T19:43:06Z"
