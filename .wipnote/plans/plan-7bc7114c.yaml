@@ -7,7 +7,7 @@ meta:
     status: draft
     priority: medium
     schema_version: v4
-    version: 3
+    version: 4
 design:
     problem: ""
     goals: []
@@ -36,6 +36,30 @@ slices:
         - go build/vet/test pass
       effort: M
       risk: Med
+      tests: ""
+      approved: false
+      comment: ""
+    - id: slic-a0c20846
+      num: 2
+      title: Bring model ids and harness features up to date
+      what: Replace claude-sonnet-4-6 in compliance_auto.go with the sonnet alias; add Opus/Sonnet/Haiku 5.5 and Fable 5.1 to observe/pricing/models.json; add omitClaudeMd and autoCompactWindow to agentFrontmatterFieldSpecs and set them on patch-coder and researcher; verify and register PreCompact/PostCompact for Codex; move custom skill frontmatter keys under metadata or delete unused ones; replace deprecated bold with weight in mods; confirm Codex agent TOML never emits keys Codex ignores.
+      why: Stale ids give wrong cost numbers and old models; new agent fields cut tokens; unused events lose Codex compaction signals.
+      files:
+        - cmd/wipnote/compliance_auto.go
+        - observe/pricing/models.json
+        - port/pluginbuild/agent_frontmatter.go
+        - port/pluginbuild/hook_event_names.go
+        - packages/plugin-core/manifest.json
+        - plugin/agents
+        - plugin/skills
+        - mods
+      deps: []
+      done_when:
+        - No retired model id remains outside history
+        - Every new upstream field cites its doc URL in agentFrontmatterFieldSpecs
+        - wipnote plugin build-ports runs clean
+      effort: S
+      risk: Low
       tests: ""
       approved: false
       comment: ""
