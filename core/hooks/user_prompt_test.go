@@ -368,7 +368,7 @@ func TestBuildActiveItemOneLiner_WithTitle(t *testing.T) {
 	defer td.DB.Close()
 
 	td.addFeature("feat-001", "feature", "Refactor DB layer", "in-progress")
-	hint := buildActiveItemOneLiner(td.DB, "feat-001")
+	hint := buildActiveItemOneLiner(td.DB, "", "feat-001")
 
 	expected := "ACTIVE: feat-001 — Refactor DB layer"
 	if hint != expected {
@@ -381,7 +381,7 @@ func TestBuildActiveItemOneLiner_WithoutTitle(t *testing.T) {
 	defer td.DB.Close()
 
 	td.addFeature("feat-001", "feature", "", "in-progress")
-	hint := buildActiveItemOneLiner(td.DB, "feat-001")
+	hint := buildActiveItemOneLiner(td.DB, "", "feat-001")
 
 	expected := "ACTIVE: feat-001"
 	if hint != expected {
@@ -393,7 +393,7 @@ func TestBuildActiveItemOneLiner_NotFound(t *testing.T) {
 	td := setupTestDB(t)
 	defer td.DB.Close()
 
-	hint := buildActiveItemOneLiner(td.DB, "nonexistent-id")
+	hint := buildActiveItemOneLiner(td.DB, "", "nonexistent-id")
 	expected := "ACTIVE: nonexistent-id"
 	if hint != expected {
 		t.Errorf("expected %q, got %q", expected, hint)
@@ -404,7 +404,7 @@ func TestBuildActiveItemOneLiner_Empty(t *testing.T) {
 	td := setupTestDB(t)
 	defer td.DB.Close()
 
-	hint := buildActiveItemOneLiner(td.DB, "")
+	hint := buildActiveItemOneLiner(td.DB, "", "")
 	if hint != "" {
 		t.Errorf("expected empty string for empty ID, got %q", hint)
 	}
