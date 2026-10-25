@@ -7,7 +7,7 @@ meta:
     status: finalized
     priority: medium
     schema_version: v4
-    version: 46
+    version: 47
 design:
     problem: |
         ## Problem
@@ -44,6 +44,7 @@ design:
         - **L. Layout (corrected 2026-10-25):** exactly as orch: ONE workers tab per caller in the caller's workspace; each new worker is a split inside it, cap 6 (slices 6, 10, 19).
         - **D. orch defects become two-sided regression tests:** D1 and D3 (slice 11), D2, D6 and D8 (slices 10, 11; D8 styled read checked in slice 2), D4 (slice 5), D5 (slice 10).
         - **E. Resume:** spawn NAME2 --resume NAME relaunches the recorded session (slice 20).
+        - **P. Projects (owner 2026-10-25):** delegate plus herdr is a multi-harness Projects harness: a coordinator, workers as threads, one overview, across Claude and Codex. wipnote plans stay the durable layer shared across users and platforms. Claude project threads are one more surface (slices 23 to 25).
 
         ## The store
 
