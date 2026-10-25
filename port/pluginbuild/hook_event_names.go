@@ -230,7 +230,7 @@ var hookEventNameSpecs = []hookEventNameSpec{
 	{
 		Name:       "AfterModel",
 		DocURL:     "https://github.com/google-gemini/gemini-cli",
-		Provenance: "Gemini CLI name with no agy v1.0.8 equivalent and no Claude/Codex counterpart. Recognized so a registration attempt fails with a specific message rather than being read as a typo; `wipnote hook after-model` remains callable directly.",
+		Provenance: "Gemini CLI name with no agy v1.0.8 equivalent and no Claude/Codex counterpart. Recognized so a registration attempt fails with a specific message rather than being read as a typo.",
 	},
 }
 

@@ -10,26 +10,6 @@ import (
 	"github.com/shakestzd/wipnote/core/models"
 )
 
-// TeammateIdle handles the TeammateIdle Claude Code hook event.
-// Records a teammate_idle event when a teammate agent goes idle.
-//
-// CONTROLLING CAPABILITY (AdditiveControlling, per hookEventContractSpecs): CC
-// reads a JSON HookResult here, so this handler COULD return
-// {decision:"block", reason:"…"} to keep a teammate busy. It is kept
-// observe-only by design — there is no current use-case to override CC's idle
-// handling — but the HookResult return path is already in place, so adding a
-// future block condition is a one-line change.
-func TeammateIdle(event *CloudEvent, database *sql.DB) (*HookResult, error) {
-	summary := "Teammate agent went idle"
-	if event.TeammateName != "" {
-		summary = fmt.Sprintf("Teammate %s went idle", event.TeammateName)
-	}
-	if event.IdleReason != "" {
-		summary += fmt.Sprintf(" (reason: %s)", event.IdleReason)
-	}
-	return recordSimpleEvent(models.EventTeammateIdle, "TeammateIdle", summary, "recorded", event, database)
-}
-
 // TaskCreated handles the TaskCreated Claude Code hook event.
 // Mirrors Claude Code tasks into wipnote as steps on the active feature,
 // making wipnote the durable task tracking surface that survives session

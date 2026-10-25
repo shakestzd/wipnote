@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/shakestzd/wipnote/core/hooks"
-	"github.com/spf13/cobra"
 )
 
 // openSessionHookDB selects the writable hook handle for the three session
@@ -27,42 +26,6 @@ func openSessionHookDB(use, sessionID, dbPath string) (*sql.DB, hooks.FallbackRe
 		return hooks.OpenHookDBWithBusyTimeout(use, sessionID, dbPath, hooks.SessionStartBusyTimeout)
 	}
 	return hooks.OpenHookDB(use, sessionID, dbPath)
-}
-
-// hookTrackEventCmd returns the track-event subcommand, which accepts an
-// optional tool-name CLI argument.
-func hookTrackEventCmd(fallback *hooks.HookResult) *cobra.Command {
-	return &cobra.Command{
-		Use:   "track-event [tool-name]",
-		Short: "Record a generic hook event",
-		Args:  cobra.MaximumNArgs(1),
-		RunE: func(_ *cobra.Command, args []string) error {
-			toolName := "GenericEvent"
-			if len(args) == 1 {
-				toolName = args[0]
-			}
-			return runHookNamed("track-event", func(event *hooks.CloudEvent) (*hooks.HookResult, error) {
-				projectDir := hooks.ResolveProjectDir(event.CWD, event.SessionID)
-				if !hooks.IswipnoteProject(projectDir) {
-					return fallback, nil
-				}
-				dbPath, err := hooks.DBPath(projectDir)
-				if err != nil {
-					hooks.LogError("track-event", event.SessionID,
-						fmt.Sprintf("DBPath failed: %v", err))
-					return fallback, nil
-				}
-				// Canonical-first contract — see hookSubcmd above.
-				database, reason := hooks.OpenHookDB("track-event", event.SessionID, dbPath)
-				if database == nil {
-					_ = reason
-					return fallback, nil
-				}
-				defer database.Close()
-				return hooks.TrackEvent(toolName, event, database)
-			})
-		},
-	}
 }
 
 // runHookNamed is like runHook but also records a trace entry for diagnostics.
@@ -187,14 +150,6 @@ func hookEventNameForResponse(subcommand string, event *hooks.CloudEvent) string
 		return "PreToolUse"
 	case "posttooluse", "posttooluse-record":
 		return "PostToolUse"
-	case "after-agent":
-		return "AfterAgent"
-	case "after-model":
-		return "AfterModel"
-	case "task-started":
-		return "TaskStarted"
-	case "task-aborted":
-		return "TurnAborted"
 	default:
 		return ""
 	}

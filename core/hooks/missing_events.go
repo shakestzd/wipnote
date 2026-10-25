@@ -2,7 +2,6 @@ package hooks
 
 import (
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"path/filepath"
 	"time"
@@ -206,115 +205,6 @@ func resolveStopSessionID(event *CloudEvent) string {
 // the env-derived harness, which is exactly the discriminator slice-5 needs.
 func currentHarness() Harness {
 	return DetectHarness(nil)
-}
-
-// AfterAgent handles the Gemini CLI AfterAgent hook event. Gemini exposes the
-// model's final text response directly in prompt_response, so capture it from
-// the hook payload instead of trying to infer it from a harness transcript.
-func AfterAgent(event *CloudEvent, database *sql.DB) (*HookResult, error) {
-	sessionID := resolveSessionIDWithHarness(event)
-	if sessionID == "" {
-		sessionID = EnvSessionID(event.SessionID)
-	}
-	if sessionID == "" {
-		return &HookResult{Continue: true}, nil
-	}
-
-	projectDir := ResolveProjectDir(event.CWD, event.SessionID)
-	insertAssistantTextSignalFromHookPayload(database, projectDir, sessionID, event, event.PromptResponse, "hook_payload")
-
-	return &HookResult{Continue: true}, nil
-}
-
-// PreCompact handles the PreCompact Claude Code hook event.
-//
-// CONTROLLING CONTRACT (AdditiveControlling): returning
-// {decision:"block", reason:"…"} PREVENTS the compaction. wipnote does NOT
-// block today — there is no current trigger or use-case for refusing a
-// compaction — so this handler is observe-only by behaviour. It does, however,
-// now DECODE and RECORD the controlling-payload fields (compaction_trigger and
-// context_stats), closing the MISMATCH-payload observability gap: the timeline
-// can distinguish manual vs auto compactions and retains CC's pre-compaction
-// context accounting.
-//
-// The handler is structured so that adding a future block condition is a
-// one-line change: compute a `block` bool from event.CompactionTrigger /
-// event.ContextStats and, when true, return
-// &HookResult{Decision: "block", Reason: "…"} before the recordSimpleEvent
-// call below. No structural rework required.
-func PreCompact(event *CloudEvent, database *sql.DB) (*HookResult, error) {
-	trigger := event.CompactionTrigger
-	if trigger == "" {
-		trigger = "unspecified"
-	}
-	summary := fmt.Sprintf("Conversation compaction triggered (trigger=%s)", trigger)
-
-	// Record CC's pre-compaction context accounting verbatim for observability.
-	// Shape is harness-defined, so persist the JSON encoding in OutputSummary.
-	var contextStatsJSON string
-	if len(event.ContextStats) > 0 {
-		if b, err := json.Marshal(event.ContextStats); err == nil {
-			contextStatsJSON = string(b)
-		}
-	}
-
-	// FUTURE BLOCK HOOK (intentionally inert today): to refuse a compaction,
-	// set `block` from trigger/context_stats and return a block HookResult here.
-	//   if block { return &HookResult{Decision: "block", Reason: "…"}, nil }
-
-	return recordSimpleEventWithOutput(models.EventCheckPoint, "PreCompact", summary, contextStatsJSON, "recorded", event, database)
-}
-
-// PostCompact handles the PostCompact Claude Code hook event.
-// Records a checkpoint after conversation context compaction completes, so
-// subsequent re-reads of already-seen files are explainable in the timeline.
-func PostCompact(event *CloudEvent, database *sql.DB) (*HookResult, error) {
-	return recordSimpleEvent(models.EventCheckPoint, "PostCompact", "Conversation compaction completed", "recorded", event, database)
-}
-
-// InstructionsLoaded handles the InstructionsLoaded Claude Code hook event.
-//
-// Observational event (stdout ignored by CC). Records a checkpoint when an
-// instruction file (CLAUDE.md, AGENTS.md, a memory file, a glob-matched
-// ruleset, …) is loaded. feat-cd937fc9 decodes and records the payload fields
-// file_path / load_reason / memory_type / globs, closing the MISMATCH-payload
-// observability gap so the timeline shows which instruction sources were loaded
-// and why.
-func InstructionsLoaded(event *CloudEvent, database *sql.DB) (*HookResult, error) {
-	summary := "Instruction files loaded (CLAUDE.md etc.)"
-	if event.FilePath != "" {
-		summary = fmt.Sprintf("Instructions loaded: %s", event.FilePath)
-		if event.LoadReason != "" {
-			summary += fmt.Sprintf(" (reason=%s)", event.LoadReason)
-		}
-		if event.MemoryType != "" {
-			summary += fmt.Sprintf(" [memory=%s]", event.MemoryType)
-		}
-	}
-
-	// Record the structured load detail (path, reason, memory type, globs) as
-	// JSON in OutputSummary for the timeline.
-	var detailJSON string
-	detail := map[string]any{}
-	if event.FilePath != "" {
-		detail["file_path"] = event.FilePath
-	}
-	if event.LoadReason != "" {
-		detail["load_reason"] = event.LoadReason
-	}
-	if event.MemoryType != "" {
-		detail["memory_type"] = event.MemoryType
-	}
-	if len(event.Globs) > 0 {
-		detail["globs"] = event.Globs
-	}
-	if len(detail) > 0 {
-		if b, err := json.Marshal(detail); err == nil {
-			detailJSON = string(b)
-		}
-	}
-
-	return recordSimpleEventWithOutput(models.EventCheckPoint, "InstructionsLoaded", summary, detailJSON, "recorded", event, database)
 }
 
 // PermissionRequest handles the PermissionRequest Claude Code hook event.

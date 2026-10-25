@@ -75,8 +75,6 @@ Usage in hooks.json:
 		//     runSessionExitReconcile, db.UpdateSessionHandoff — all direct writes on
 		//     the passed handle that are not (yet) daemon-routable.
 		hookSubcmdReadOnly("user-prompt", "Handle UserPromptSubmit event", emptyResult, hooks.UserPrompt),
-		hookSubcmd("after-agent", "Handle Antigravity AfterAgent event", continueResult, hooks.AfterAgent),
-		hookSubcmd("after-model", "Handle Gemini AfterModel event", continueResult, hooks.AfterModel),
 		hookSubcmdReadOnly("pretooluse", "Handle PreToolUse event", allowResult, hooks.PreToolUse),
 		// posttooluse: on Claude it only responds (quality warning, auto-complete
 		// notices, loud block) behind a Write|Edit|MultiEdit|NotebookEdit|Bash
@@ -88,44 +86,14 @@ Usage in hooks.json:
 		hookSubcmd("subagent-stop", "Handle SubagentStop event", continueResult, hooks.SubagentStop),
 		hookSubcmd("stop", "Handle Stop event", continueResult, hooks.Stop),
 		hookSubcmd("posttooluse-failure", "Handle PostToolUseFailure event", continueResult, hooks.PostToolUseFailure),
-		hookSubcmd("pre-compact", "Handle PreCompact event", continueResult, hooks.PreCompact),
-		hookSubcmd("post-compact", "Handle PostCompact event", continueResult, hooks.PostCompact),
 		hookSubcmd("stop-failure", "Handle StopFailure event", continueResult, hooks.StopFailure),
 		hookWorktreeCreateCmd(),
 		hookSubcmd("worktree-remove", "Handle WorktreeRemove event", continueResult, hooks.WorktreeRemove),
-		hookSubcmd("teammate-idle", "Handle TeammateIdle event", continueResult, hooks.TeammateIdle),
 		hookSubcmd("task-completed", "Handle TaskCompleted event", continueResult, hooks.TaskCompleted),
 		hookSubcmd("task-created", "Handle TaskCreated event", continueResult, hooks.TaskCreated),
-		// task-started is NOT registered for any harness in
-		// packages/plugin-core/manifest.json (task-aborted now is: Codex
-		// Interrupt, see below). Both were originally unreachable: they were
-		// bound to the Codex names TaskStarted and TurnAborted, neither of which
-		// Codex dispatches (bug-e39d408f — TaskStarted appears zero times in the
-		// 0.147.0 binary; TurnAborted is an internal ThreadEvent telemetry
-		// variant, not a hook). Both bodies are generic TrackEvent checkpoints
-		// with no side effect the registered handlers lack, so nothing was lost
-		// when the registrations were dropped. Kept as manually-invocable
-		// subcommands (a user's own hooks.json can call them, and a future
-		// harness may supply a real turn-lifecycle event to repoint them at);
-		// the build-time gate in port/pluginbuild/hook_event_names.go is what
-		// prevents them being re-registered against a name nothing fires.
-		hookSubcmd("task-started", "Record a turn-start checkpoint (not wired to any harness event)", continueResult,
-			func(event *hooks.CloudEvent, database *sql.DB) (*hooks.HookResult, error) {
-				return hooks.TrackEvent("TaskStarted", event, database)
-			}),
-		// task-aborted is now wired to Codex's Interrupt event (0.150.0+), the
-		// real turn-cancel signal it was kept for; a cancelled turn skips Stop.
-		hookSubcmd("task-aborted", "Record a turn-abort checkpoint (Codex Interrupt)", continueResult,
-			func(event *hooks.CloudEvent, database *sql.DB) (*hooks.HookResult, error) {
-				return hooks.TrackEvent("TurnAborted", event, database)
-			}),
-		hookSubcmd("instructions-loaded", "Handle InstructionsLoaded event", continueResult, hooks.InstructionsLoaded),
 		hookSubcmd("permission-request", "Handle PermissionRequest event", continueResult, hooks.PermissionRequest),
 		hookSubcmd("config-change", "Handle ConfigChange event — persist permission_mode to session metadata", continueResult, hooks.ConfigChange),
 		hookSubcmdWithProject("exit-plan-mode", "Handle ExitPlanMode event — convert markdown plan to CRISPI YAML", continueResult, handleExitPlanMode),
-
-		// track-event accepts an optional tool-name argument.
-		hookTrackEventCmd(continueResult),
 	)
 	return cmd
 }
