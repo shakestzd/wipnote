@@ -94,21 +94,11 @@ func TestBatchGitFileTimestamps_UntrackedFileOmitted(t *testing.T) {
 	}
 }
 
-// TestBatchGitFileTimestamps_RenamedFile_FallsBackToFollowSemantics is the
-// critical equivalence case: a file that was git-mv'd to its current path
-// has no "A" (added) event under its current name at all. batchGitFileTimestamps
-// resolves "created" via the exact original gitFirstAdded (--follow) call for
-// every file, precisely so cases like this are never at risk -- an earlier
-// version of this function tried to trace renames/copies itself from a bulk
-// `git log` walk and a real-corpus equivalence test caught it producing
-// wrong "created" values for exactly this shape of history (this repo's own
-// history has real examples, including a rename AND a git-detected
-// low-similarity copy, that a cheap bulk heuristic silently miscomputed).
-// Correctly tracing renames/copies requires `--find-copies-harder`, an O(n^2)
-// whole-tree scan too expensive to run once per reindex, so "created" simply
-// isn't batched at all -- this test guards that the per-file fallback stays
-// wired up for every caller, not just the common case.
-func TestBatchGitFileTimestamps_RenamedFile_FallsBackToFollowSemantics(t *testing.T) {
+// TestBatchGitFileTimestamps_RenamedFile_MatchesFollow checks a git-mv'd file,
+// which has no "A" event under its current name. The bulk first-added walk
+// follows the rename, so it agrees with the per-file --follow lookup and
+// reports the original add, not the rename commit.
+func TestBatchGitFileTimestamps_RenamedFile_MatchesFollow(t *testing.T) {
 	repoDir := setupGitRepo(t)
 	newPath := filepath.Join(repoDir, "features/feat-new-name.html")
 
@@ -200,8 +190,7 @@ func TestTimestampsFromBatch_AgreesWithApplyGitTimestamps(t *testing.T) {
 
 // TestBatchGitFileTimestamps_NonGitDir_FallsBackToHTML mirrors
 // TestApplyGitTimestamps_NonGitDir_FallsBackToHTML for the batch path: when
-// projectDir isn't a git repo at all, both the whole-batch bulkLastModified
-// walk and the per-file gitFirstAdded call fail the same way, so the path
+// projectDir isn't a git repo at all, both bulk walks fail, so the path
 // never gets a batch entry and timestampsFromBatch reports a miss -- the
 // caller falls back to applyGitTimestamps, which independently fails the
 // same way and returns the HTML attributes unchanged.

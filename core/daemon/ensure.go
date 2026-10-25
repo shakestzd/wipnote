@@ -30,9 +30,15 @@ import (
 // contract — which works exactly as it always has.
 var ErrDaemonReadUnsupported = errors.New("daemon: resident daemon does not speak the read protocol")
 
+// ErrDaemonStarting is returned by EnsureDaemon when it started (or found
+// another process starting) a daemon whose socket is not bound before ctx
+// ends. It is not a failure: the daemon is on its way up, and hooks reach it
+// once it binds. The launcher prints nothing for it (bug-06d2c91d).
+var ErrDaemonStarting = errors.New("daemon: still starting")
+
 // ensureReadyBudget bounds the wait for a freshly spawned daemon to bind and
-// answer a ping. It is larger than the write path's spawnReadinessBudget
-// because this runs once at launch, in front of a human, not inside a hook.
+// answer a ping. The launcher runs EnsureDaemon in the background and joins it
+// with a much shorter budget, so this wait is never on the launch path.
 const ensureReadyBudget = 5 * time.Second
 
 // ensureDialInterval is the backoff between readiness dials.
@@ -84,7 +90,7 @@ func EnsureDaemon(ctx context.Context, projectRoot, selfExe string, attachPID in
 	}
 
 	if !waitForSocketPath(ctx, client.SocketPath(), ensureReadyBudget) {
-		return "", fmt.Errorf("daemon: socket did not come up within %s", ensureReadyBudget)
+		return "", fmt.Errorf("%w: socket not bound yet", ErrDaemonStarting)
 	}
 	if _, err := client.Ping(ctx); err != nil {
 		if errors.Is(err, ErrReadUnsupported) {

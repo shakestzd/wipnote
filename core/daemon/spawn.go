@@ -3,12 +3,10 @@ package daemon
 import (
 	"context"
 	"fmt"
-	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"syscall"
-	"time"
 )
 
 // AutoSpawn controls whether SubmitOrSpawn is allowed to fork a headless
@@ -16,21 +14,12 @@ import (
 // from a plain dial so callers that only want to USE an existing writer
 // (and never start one) keep the dumb dial-or-fail client.
 //
-// LIVE-SESSION SAFETY (feat-075c110d): the whole spawn+readiness+submit
-// sequence is strictly time-bounded by the caller's context (see
-// SubmitOrSpawn). On ANY failure, timeout, or sandbox/forbidden-spawn the
-// caller receives ErrWriterUnavailable and falls back to direct-open. The
+// LIVE-SESSION SAFETY (feat-075c110d, bug-06d2c91d): the dial+submit is
+// bounded by the caller's context, and a spawn is never waited for. On ANY
+// failure, timeout, spawn, or sandbox/forbidden-spawn the caller receives
+// ErrWriterUnavailable and falls back to direct-open. The
 // spawn is guarded by the O_EXCL writer lease so two racing hooks never
 // fork-bomb a pair of daemons.
-
-// spawnReadinessBudget bounds how long SubmitOrSpawn waits for a freshly
-// forked writer to bind its socket. Kept well under the ~2s total budget so
-// the dial + submit that follow still fit before the caller's deadline.
-const spawnReadinessBudget = 1500 * time.Millisecond
-
-// spawnDialInterval is the backoff between readiness dials while waiting for
-// a just-spawned writer to bind.
-const spawnDialInterval = 25 * time.Millisecond
 
 // SubmitOrSpawn submits env to the per-project writer, auto-spawning a
 // headless writer daemon when none is reachable.
@@ -38,17 +27,19 @@ const spawnDialInterval = 25 * time.Millisecond
 // Flow:
 //  1. Try a plain Submit. If it succeeds (writer already up) → done.
 //  2. On ErrWriterUnavailable, try to acquire the O_EXCL writer lease.
-//     - Lease acquired → we are the spawner: fork the headless writer,
-//     release our lease so the child can claim it, then dial-wait for
-//     readiness and submit.
-//     - ErrLeaseHeld → another racer already owns/started the writer:
-//     just dial-wait for its socket and submit.
-//  3. Any error/timeout within the caller's ctx deadline → ErrWriterUnavailable.
+//     - Lease acquired → we are the spawner: fork the headless writer and
+//     release our lease so the child can claim it.
+//     - ErrLeaseHeld → another process owns or is starting the writer.
+//  3. Either way, return ErrWriterUnavailable AT ONCE so the caller takes
+//     its direct-write fallback. The next caller finds the writer up.
 //
-// SubmitOrSpawn NEVER blocks indefinitely: every wait is bounded by ctx and
-// by spawnReadinessBudget. selfExe is the wipnote binary to fork (resolved
-// by the caller via os.Executable); projectRoot is the project whose writer
-// to target.
+// SubmitOrSpawn never waits for a writer to bind (bug-06d2c91d). It used to
+// dial-wait up to 1.5s for the socket, and a hook makes several daemon writes,
+// so every hook paid that wait several times over while a writer was starting:
+// session-start took 6-12s and user-prompt 4.7s. A hook cannot use a writer
+// that is not up yet, so waiting for one bought nothing the fallback does not
+// already give. selfExe is the wipnote binary to fork (resolved by the caller
+// via os.Executable); projectRoot is the project whose writer to target.
 func (c *WriterClient) SubmitOrSpawn(ctx context.Context, projectRoot, selfExe string, env Envelope) (Ack, error) {
 	// Fast path: an existing writer answers immediately.
 	ack, err := c.Submit(ctx, env)
@@ -72,62 +63,16 @@ func (c *WriterClient) SubmitOrSpawn(ctx context.Context, projectRoot, selfExe s
 		return Ack{}, ErrWriterUnavailable
 	}
 
-	// No writer reachable. Decide whether WE spawn one or join a racer's.
+	// No writer reachable. If nobody is starting one, start it, then fall
+	// back without waiting for it either way.
 	lease, lerr := AcquireLease(projectRoot)
-	switch {
-	case lerr == nil:
-		// We won the lease. We are not the long-lived writer, though — the
-		// child must own the lease. Release ours, then spawn. If the child
-		// fails to start, the lease is simply free for the next attempt.
+	if lerr == nil {
+		// The child must own the lease, so release ours before the spawn. If
+		// the child fails to start, the lease is free for the next attempt.
 		_ = lease.Release()
-		if serr := spawnHeadlessWriter(selfExe, projectRoot); serr != nil {
-			return Ack{}, ErrWriterUnavailable
-		}
-	case lerr == ErrLeaseHeld:
-		// Another racer holds the lease; it is (or is about to be) the
-		// writer. Fall through to dial-wait for its socket.
-	default:
-		// Lease acquisition error (e.g. sandbox forbids file create) → bail
-		// to fallback.
-		return Ack{}, ErrWriterUnavailable
+		_ = spawnHeadlessWriter(selfExe, projectRoot)
 	}
-
-	// Dial-wait for the socket to come up, then submit. Bounded by the
-	// smaller of ctx deadline and spawnReadinessBudget.
-	if !c.waitForSocket(ctx) {
-		return Ack{}, ErrWriterUnavailable
-	}
-	ack, err = c.Submit(ctx, env)
-	if err != nil {
-		return Ack{}, ErrWriterUnavailable
-	}
-	return ack, nil
-}
-
-// waitForSocket polls the writer socket by DIALING (not by scanning child
-// stdout) until a connection succeeds, the readiness budget elapses, or ctx
-// fires. A successful dial is the only proof the writer is ready to accept
-// envelopes. The probe connection is closed immediately.
-func (c *WriterClient) waitForSocket(ctx context.Context) bool {
-	deadline := time.Now().Add(spawnReadinessBudget)
-	if d, ok := ctx.Deadline(); ok && d.Before(deadline) {
-		deadline = d
-	}
-	for {
-		if time.Now().After(deadline) || ctx.Err() != nil {
-			return false
-		}
-		conn, err := net.DialTimeout("unix", c.socketPath, spawnDialInterval)
-		if err == nil {
-			_ = conn.Close()
-			return true
-		}
-		select {
-		case <-ctx.Done():
-			return false
-		case <-time.After(spawnDialInterval):
-		}
-	}
+	return Ack{}, ErrWriterUnavailable
 }
 
 // spawnHeadlessWriter forks `<selfExe> --project-dir <projectRoot>
@@ -138,7 +83,8 @@ func (c *WriterClient) waitForSocket(ctx context.Context) bool {
 //
 // stdout/stderr are routed to .wipnote/logs/writer.log; stdin is closed. The
 // returned error is non-nil only when the fork itself fails (e.g. sandboxed
-// exec) — readiness is proven separately by the caller's dial-wait.
+// exec). Readiness is not checked here: SubmitOrSpawn never waits for it,
+// and EnsureDaemon dial-waits for the socket itself.
 func spawnHeadlessWriter(selfExe, projectRoot string) error {
 	if selfExe == "" {
 		exe, err := os.Executable()

@@ -637,6 +637,10 @@ func launchClaude(opts LaunchOpts) error {
 	}
 	writeLaunchMarker(opts.Mode, markerRoot)
 
+	// Start the work-item daemon ensure now and collect it just before exec,
+	// so its startup overlaps the rest of the launch (bug-06d2c91d).
+	daemonEnsure := startDaemonEnsure(markerRoot)
+
 	// SystemPromptFile takes precedence over InjectSystemPrompt.
 	var systemPrompt string
 	if opts.SystemPromptFile != "" {
@@ -726,13 +730,13 @@ func launchClaude(opts LaunchOpts) error {
 	c.Env = buildClaudeLaunchEnv(claudeEnvProjectDir(opts), &envOverrides)
 	c.Env = mergeLauncherEnv(c.Env, opts.ExtraEnv...)
 
-	// Guarantee the work-item daemon and publish its socket into the session
-	// (feat-f6759e37). markerRoot is the same root the launch marker is written
-	// to — the main project root even when running in a worktree — so the
-	// daemon, the lease and the marker all agree on which project this is.
-	// Returns nothing when no guarantee could be made, in which case the
-	// session runs (and announces) the unguaranteed contract.
-	c.Env = mergeLauncherEnv(c.Env, ensureDaemonForSession(markerRoot)...)
+	// Publish the work-item daemon's socket into the session (feat-f6759e37)
+	// if the ensure started above is done. markerRoot is the same root the
+	// launch marker is written to — the main project root even when running
+	// in a worktree — so the daemon, the lease and the marker all agree on
+	// which project this is. A daemon still starting is not waited for
+	// (bug-06d2c91d): the session then runs the unguaranteed contract.
+	c.Env = mergeLauncherEnv(c.Env, daemonEnsure.sessionEnv(os.Stderr, daemonJoinBudget)...)
 
 	// Set working directory to project root so Claude starts in the right place,
 	// even if this command is run from a subdirectory like packages/go.

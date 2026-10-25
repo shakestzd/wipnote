@@ -96,6 +96,7 @@ func TestCanonicalCodeBearingPaths_ScopedToCompletingWorktree(t *testing.T) {
 // linked worktree.
 func TestCheckUncommittedSourceCompleteGate_ScopedToCompletingWorktree(t *testing.T) {
 	tmpDir, hgDir := prepProject(t)
+	seedProvCommit(t, tmpDir, "feat-00000000", "README")
 	wtA := addLinkedWorktree(t, tmpDir, "feat-a")
 
 	// Modify a TRACKED file in the owner's tree (README is committed by
@@ -105,7 +106,7 @@ func TestCheckUncommittedSourceCompleteGate_ScopedToCompletingWorktree(t *testin
 	}
 
 	t.Chdir(wtA)
-	if err := checkUncommittedSourceCompleteGate(hgDir, "feat-00000000", false); err != nil {
+	if err := gateOnly(hgDir, "feat-00000000", false); err != nil {
 		t.Fatalf("clean worktree A must not be blocked by the owner's dirty README: %v", err)
 	}
 
@@ -113,12 +114,16 @@ func TestCheckUncommittedSourceCompleteGate_ScopedToCompletingWorktree(t *testin
 	if err := os.WriteFile(filepath.Join(wtA, "README"), []byte("a edit\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	err := checkUncommittedSourceCompleteGate(hgDir, "feat-00000000", false)
+	err := gateOnly(hgDir, "feat-00000000", false)
 	if err == nil {
 		t.Fatalf("expected A's own dirty tracked file to block")
 	}
 	if !strings.Contains(err.Error(), "scanned worktree") || !strings.Contains(err.Error(), "branch feat-a") {
 		t.Errorf("block message should name the scanned worktree and branch, got: %v", err)
+	}
+	// The owner's dirty README never leaks into A's message or note.
+	if strings.Contains(err.Error(), "owner edit") || strings.Contains(err.Error(), tmpDir) {
+		t.Errorf("block message leaked the owner's tree: %v", err)
 	}
 }
 

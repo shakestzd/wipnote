@@ -57,10 +57,10 @@ func TestSubmitOrSpawn_ForbiddenSpawn(t *testing.T) {
 	if err != ErrWriterUnavailable {
 		t.Fatalf("err = %v, want ErrWriterUnavailable", err)
 	}
-	// Spawn failure is detected immediately (no readiness wait), so this is
-	// far under the readiness budget. Generous ceiling to avoid flakiness.
-	if elapsed > spawnReadinessBudget {
-		t.Fatalf("forbidden-spawn took %v, exceeds readiness budget %v (must not hang)", elapsed, spawnReadinessBudget)
+	// Spawn failure is detected immediately (there is no readiness wait).
+	// Generous ceiling to avoid flakiness.
+	if elapsed > 500*time.Millisecond {
+		t.Fatalf("forbidden-spawn took %v (must not hang)", elapsed)
 	}
 }
 
