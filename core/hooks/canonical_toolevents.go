@@ -1,6 +1,7 @@
 package hooks
 
 import (
+	"bytes"
 	"encoding/json"
 	"io"
 	"os"
@@ -148,6 +149,20 @@ func readCanonicalToolEvents(projectDir, sessionID string) (events []canonicalTo
 		events = append(events, ev)
 	}
 	return events, len(events) > 0
+}
+
+// canonicalToolEventCount is the number of events recorded in sessionID's own
+// canonical tool log: 0 when there is none. It counts complete lines rather
+// than parsing them, since Stop calls it on every model turn.
+func canonicalToolEventCount(projectDir, sessionID string) int {
+	if projectDir == "" || sessionID == "" {
+		return 0
+	}
+	data, err := os.ReadFile(canonicalToolLogPath(projectDir, sessionID))
+	if err != nil {
+		return 0
+	}
+	return bytes.Count(data, []byte{'\n'})
 }
 
 // canonicalToolEventScope is the set of sessions whose logs answer for
