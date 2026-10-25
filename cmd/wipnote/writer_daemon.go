@@ -258,7 +258,7 @@ func startWriterMaintenance(ctx context.Context, wipnoteDir string) {
 	// callee ignores the handle and reads canonical artifacts directly, so
 	// building one would be pure cost.
 	startDrainLoop(ctx, reconcileDrainInterval, func() {
-		hooks.ReconcileDoneButUncommittedForProject(nil, projectRoot)
+		hooks.ReconcileDoneButUncommittedForProject(projectRoot)
 	})
 }
 

@@ -174,7 +174,7 @@ func TestCatchUp_DeepPassFindsUnnamedRootShard(t *testing.T) {
 // database; catch-up then finishes the session exactly once.
 func TestSessionEnd_HappyPath_ClosesInWindowCatchUpOnce(t *testing.T) {
 	f := newEndFixture(t, 0)
-	if _, err := SessionEnd(&CloudEvent{SessionID: f.sessionID, CWD: f.projectDir, Reason: "prompt_input_exit"}, nil, f.projectDir); err != nil {
+	if _, err := SessionEnd(&CloudEvent{SessionID: f.sessionID, CWD: f.projectDir, Reason: "prompt_input_exit"}, f.projectDir); err != nil {
 		t.Fatal(err)
 	}
 	if f.ledgerRow(t).IsOpen() {

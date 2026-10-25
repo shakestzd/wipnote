@@ -8,7 +8,7 @@ import "testing"
 // allowlisted read-only wipnote query at low risk produces a
 // hookSpecificOutput.decision.behavior == "allow".
 func TestPermissionRequest_AllowlistedReadOnly_AutoAllows(t *testing.T) {
-	td, sessionID := setupMissingEventsDB(t)
+	_, sessionID := setupMissingEventsDB(t)
 
 	event := &CloudEvent{
 		SessionID:          sessionID,
@@ -19,7 +19,7 @@ func TestPermissionRequest_AllowlistedReadOnly_AutoAllows(t *testing.T) {
 		RiskLevel:          "low",
 	}
 
-	result, err := PermissionRequest(event, td.DB)
+	result, err := PermissionRequest(event)
 	if err != nil {
 		t.Fatalf("PermissionRequest: %v", err)
 	}
@@ -38,7 +38,7 @@ func TestPermissionRequest_AllowlistedReadOnly_AutoAllows(t *testing.T) {
 // / side-effecting command receives NO decision (CC prompts as usual) and is
 // never auto-denied.
 func TestPermissionRequest_WriteCommand_NoDecision(t *testing.T) {
-	td, sessionID := setupMissingEventsDB(t)
+	_, sessionID := setupMissingEventsDB(t)
 
 	event := &CloudEvent{
 		SessionID: sessionID,
@@ -48,7 +48,7 @@ func TestPermissionRequest_WriteCommand_NoDecision(t *testing.T) {
 		RiskLevel: "low",
 	}
 
-	result, err := PermissionRequest(event, td.DB)
+	result, err := PermissionRequest(event)
 	if err != nil {
 		t.Fatalf("PermissionRequest: %v", err)
 	}
@@ -63,7 +63,7 @@ func TestPermissionRequest_WriteCommand_NoDecision(t *testing.T) {
 // TestPermissionRequest_ArbitraryTool_NoDecision verifies that a non-Bash tool
 // (e.g. Write) is never auto-allowed.
 func TestPermissionRequest_ArbitraryTool_NoDecision(t *testing.T) {
-	td, sessionID := setupMissingEventsDB(t)
+	_, sessionID := setupMissingEventsDB(t)
 
 	event := &CloudEvent{
 		SessionID: sessionID,
@@ -73,7 +73,7 @@ func TestPermissionRequest_ArbitraryTool_NoDecision(t *testing.T) {
 		RiskLevel: "low",
 	}
 
-	result, err := PermissionRequest(event, td.DB)
+	result, err := PermissionRequest(event)
 	if err != nil {
 		t.Fatalf("PermissionRequest: %v", err)
 	}
@@ -85,7 +85,7 @@ func TestPermissionRequest_ArbitraryTool_NoDecision(t *testing.T) {
 // TestPermissionRequest_HighRisk_VetoesAllow verifies belt-and-suspenders:
 // even an allowlisted command is NOT auto-allowed when risk_level is not low.
 func TestPermissionRequest_HighRisk_VetoesAllow(t *testing.T) {
-	td, sessionID := setupMissingEventsDB(t)
+	_, sessionID := setupMissingEventsDB(t)
 
 	event := &CloudEvent{
 		SessionID: sessionID,
@@ -95,7 +95,7 @@ func TestPermissionRequest_HighRisk_VetoesAllow(t *testing.T) {
 		RiskLevel: "high",
 	}
 
-	result, err := PermissionRequest(event, td.DB)
+	result, err := PermissionRequest(event)
 	if err != nil {
 		t.Fatalf("PermissionRequest: %v", err)
 	}

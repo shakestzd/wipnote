@@ -1,7 +1,6 @@
 package hooks
 
 import (
-	"database/sql"
 	"path/filepath"
 	"time"
 )
@@ -10,9 +9,8 @@ import (
 // the session HTML, whose event count is the canonical tool log, for
 // harnesses such as Codex that map their task-complete event here rather
 // than to SessionEnd, then runs the session-exit reconcile. It writes no
-// database rows (feat-174dc958). database is unused.
-func Stop(event *CloudEvent, database *sql.DB) (*HookResult, error) {
-	_ = database
+// database rows (feat-174dc958).
+func Stop(event *CloudEvent) (*HookResult, error) {
 	sessionID := resolveStopSessionID(event)
 	if sessionID == "" {
 		return &HookResult{Continue: true}, nil
@@ -26,7 +24,7 @@ func Stop(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 	// drift; Gemini/Codex persist a durable warning instead. skipPortDrift is
 	// true because Stop fires on every model response: the port-drift check
 	// runs at commit time (commit_portdrift_guard.go).
-	if err := runSessionExitReconcile(nil, projectDir, currentHarness().String(), sessionID, true); err != nil {
+	if err := runSessionExitReconcile(projectDir, currentHarness().String(), sessionID, true); err != nil {
 		return nil, err
 	}
 	return &HookResult{Continue: true}, nil
@@ -63,8 +61,7 @@ func currentHarness() Harness {
 //     normal interactive prompt. wipnote NEVER auto-DENIES.
 //
 // It records nothing (feat-174dc958).
-func PermissionRequest(event *CloudEvent, database *sql.DB) (*HookResult, error) {
-	_ = database
+func PermissionRequest(event *CloudEvent) (*HookResult, error) {
 	result := &HookResult{Continue: true}
 	applyPermissionAutoAllow(event, result)
 	return result, nil
@@ -103,10 +100,7 @@ func applyPermissionAutoAllow(event *CloudEvent, result *HookResult) {
 // own (isYoloFromRecordedMode). This used to UPDATE sessions.metadata in the
 // per-project read index; that index is gone, so the record now lives in the
 // session's own directory under .wipnote/ (yolo_guard.go).
-//
-// database is accepted for hook call-shape compatibility and unused.
-func ConfigChange(event *CloudEvent, database *sql.DB) (*HookResult, error) {
-	_ = database
+func ConfigChange(event *CloudEvent) (*HookResult, error) {
 	if event.PermissionMode == "" {
 		return &HookResult{Continue: true}, nil
 	}
@@ -130,9 +124,8 @@ func ConfigChange(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 // failed tool fires this instead of PostToolUse, so it writes the "failed"
 // completion line that pairs the PreToolUse start in the canonical tool log;
 // without it the session-start sweep would record the call as aborted
-// (feat-174dc958). It is observe-only. database is unused.
-func PostToolUseFailure(event *CloudEvent, database *sql.DB) (*HookResult, error) {
-	_ = database
+// (feat-174dc958). It is observe-only.
+func PostToolUseFailure(event *CloudEvent) (*HookResult, error) {
 	sessionID := EnvSessionID(event.SessionID)
 	if sessionID == "" {
 		return &HookResult{Continue: true}, nil

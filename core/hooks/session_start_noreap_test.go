@@ -47,7 +47,7 @@ func TestSessionStart_ClosesOnlySessionsThatReportedAnEnd(t *testing.T) {
 	}
 
 	event := &CloudEvent{SessionID: "sess-new-start-0001", CWD: f.projectDir}
-	if _, err := SessionStart(event, database, f.projectDir); err != nil {
+	if _, err := SessionStart(event, f.projectDir); err != nil {
 		t.Fatalf("SessionStart: %v", err)
 	}
 

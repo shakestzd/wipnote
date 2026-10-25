@@ -182,7 +182,7 @@ func TestWorktreeRoundTripRegressionGate(t *testing.T) {
 		SessionID: sessionID,
 		CWD:       linkedWt,
 	}
-	if _, err := SessionStart(sessionEvent, database, mainRepo); err != nil {
+	if _, err := SessionStart(sessionEvent, mainRepo); err != nil {
 		t.Fatalf("SessionStart: %v", err)
 	}
 
@@ -210,7 +210,7 @@ func TestWorktreeRoundTripRegressionGate(t *testing.T) {
 		AgentType: "feature-coder",
 		CWD:       linkedWt,
 	}
-	if _, err := SubagentStart(subagentEvent, database); err != nil {
+	if _, err := SubagentStart(subagentEvent); err != nil {
 		t.Fatalf("SubagentStart: %v", err)
 	}
 
@@ -228,7 +228,7 @@ func TestWorktreeRoundTripRegressionGate(t *testing.T) {
 		WorktreeBasePath: worktreeBasePath,
 		WorktreeName:     worktreeName,
 	}
-	createdWorktreePath, err := WorktreeCreate(worktreeEvent, database)
+	createdWorktreePath, err := WorktreeCreate(worktreeEvent)
 	if err != nil {
 		t.Fatalf("WorktreeCreate: %v", err)
 	}

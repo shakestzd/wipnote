@@ -1,7 +1,6 @@
 package main
 
 import (
-	"database/sql"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -22,7 +21,7 @@ import (
 // This handler lives in cmd/wipnote (not internal/hooks) because the hooks
 // package must not import workitem (spike creation policy). The markdown-to-YAML
 // conversion uses workitem.GenerateID and planyaml.NewPlan/Save.
-func handleExitPlanMode(event *hooks.CloudEvent, database *sql.DB, projectDir string) (*hooks.HookResult, error) {
+func handleExitPlanMode(event *hooks.CloudEvent, projectDir string) (*hooks.HookResult, error) {
 	plansDir := filepath.Join(projectDir, ".wipnote", "plans")
 
 	mdPath, err := mostRecentMarkdownFile(plansDir)

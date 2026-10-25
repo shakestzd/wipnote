@@ -69,8 +69,7 @@ func TestResearchDispatchGuard_BlockDenies(t *testing.T) {
 	event.CWD = root
 	t.Setenv("CLAUDE_PROJECT_DIR", root)
 	t.Setenv("WIPNOTE_PROJECT_DIR", root)
-	database := makeSessionDB(t, event.SessionID, root)
-	res, err := PreToolUse(event, database)
+	res, err := PreToolUse(event)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -112,7 +111,7 @@ func TestResearchDispatchGuard_WarnReachesAdditionalContext(t *testing.T) {
 	event.CWD = root
 	t.Setenv("CLAUDE_PROJECT_DIR", root)
 	t.Setenv("WIPNOTE_PROJECT_DIR", root)
-	res, err := PreToolUse(event, makeSessionDB(t, event.SessionID, root))
+	res, err := PreToolUse(event)
 	if err != nil {
 		t.Fatal(err)
 	}

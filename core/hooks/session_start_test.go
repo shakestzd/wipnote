@@ -38,7 +38,7 @@ func TestSessionStartStoresProjectDir(t *testing.T) {
 	t.Setenv("WIPNOTE_NESTING_DEPTH", "")
 	t.Setenv("CLAUDE_ENV_FILE", "") // prevent writing to a real env file
 
-	_, err = SessionStart(event, database, projectDir)
+	_, err = SessionStart(event, projectDir)
 	if err != nil {
 		t.Fatalf("SessionStart: %v", err)
 	}
@@ -72,7 +72,7 @@ func TestSessionStartActiveSessionContainsProjectDir(t *testing.T) {
 	t.Setenv("WIPNOTE_NESTING_DEPTH", "")
 	t.Setenv("CLAUDE_ENV_FILE", "") // force fallback to .active-session
 
-	_, err = SessionStart(event, database, projectDir)
+	_, err = SessionStart(event, projectDir)
 	if err != nil {
 		t.Fatalf("SessionStart: %v", err)
 	}
@@ -117,7 +117,7 @@ func TestSessionStartContinueHandoffAdditionalContext(t *testing.T) {
 	t.Setenv("WIPNOTE_CONTINUE_HANDOFF_B64",
 		base64.StdEncoding.EncodeToString([]byte("## Continued Session Handoff\n\nResume the existing worktree.")))
 
-	result, err := SessionStart(event, database, projectDir)
+	result, err := SessionStart(event, projectDir)
 	if err != nil {
 		t.Fatalf("SessionStart: %v", err)
 	}
@@ -175,7 +175,7 @@ func TestSessionStart_PrefersClaudeProjectDirOverCWD(t *testing.T) {
 
 	// Fire SessionStart with the correctly resolved project dir (project A).
 	event := &CloudEvent{SessionID: testSessionID, CWD: projectB}
-	_, err = SessionStart(event, database, resolvedDir)
+	_, err = SessionStart(event, resolvedDir)
 	if err != nil {
 		t.Fatalf("SessionStart: %v", err)
 	}
@@ -256,7 +256,7 @@ func TestSessionStartUsesOnDemandAttributionGuidance(t *testing.T) {
 		t.Fatalf("write .launch-mode: %v", err)
 	}
 
-	result, err := SessionStart(event, database, projectDir)
+	result, err := SessionStart(event, projectDir)
 	if err != nil {
 		t.Fatalf("SessionStart: %v", err)
 	}
@@ -319,7 +319,7 @@ func TestSessionStartNoOpenItemsNonBareLaunch(t *testing.T) {
 		t.Fatalf("write .launch-mode: %v", err)
 	}
 
-	result, err := SessionStart(event, database, projectDir)
+	result, err := SessionStart(event, projectDir)
 	if err != nil {
 		t.Fatalf("SessionStart: %v", err)
 	}
@@ -365,7 +365,7 @@ func TestSessionStartNoOpenItemsBareLaunch(t *testing.T) {
 	// bareLaunchNudge detects a bare launch and emits the nudge.
 	// bareLaunchNudge returns non-empty text when .launch-mode is absent or >30s old.
 
-	result, err := SessionStart(event, database, projectDir)
+	result, err := SessionStart(event, projectDir)
 	if err != nil {
 		t.Fatalf("SessionStart: %v", err)
 	}

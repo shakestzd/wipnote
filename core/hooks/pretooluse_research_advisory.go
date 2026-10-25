@@ -1,29 +1,16 @@
 package hooks
 
-import (
-	"database/sql"
-	"strings"
+import "strings"
 
-	"github.com/shakestzd/wipnote/core/db"
-)
-
-func checkOrchestratorResearchDelegationAdvisory(event *CloudEvent, ctx *toolUseContext, database *sql.DB) string {
+func checkOrchestratorResearchDelegationAdvisory(event *CloudEvent, ctx *toolUseContext) string {
 	if event == nil || ctx == nil || ctx.IsSubagent || ctx.SessionID == "" {
 		return ""
 	}
 	if !isOrchestratorResearchTool(event.ToolName) {
 		return ""
 	}
-	// A nil database is the hot-hook dispatch: the evidence comes from the
-	// session's canonical tool log (feat-af8d1689).
+	// The evidence comes from the session's canonical tool log (feat-af8d1689).
 	counts, sidecar := canonicalOrchestrationEvidence(ctx.ProjectDir, ctx.SessionID)
-	if database != nil {
-		var err error
-		if counts, err = db.CountEventsByTool(database, ctx.SessionID); err != nil {
-			return ""
-		}
-		sidecar = hasPriorSidecarCommand(database, ctx.SessionID)
-	}
 	if hasPriorOrchestratorResearch(counts) || hasPriorDelegationEvidence(counts) || sidecar {
 		return ""
 	}
@@ -64,23 +51,4 @@ func hasPriorDelegationEvidence(counts map[string]int) bool {
 		}
 	}
 	return false
-}
-
-func hasPriorSidecarCommand(database *sql.DB, sessionID string) bool {
-	if database == nil {
-		return false
-	}
-	var count int
-	err := database.QueryRow(`
-		SELECT COUNT(*) FROM agent_events
-		WHERE session_id = ?
-		  AND tool_name = 'Bash'
-		  AND (
-			input_summary LIKE 'gemini %'
-			OR input_summary LIKE 'codex exec %'
-			OR input_summary LIKE 'agy %'
-			OR input_summary LIKE 'copilot %'
-		  )
-		LIMIT 1`, sessionID).Scan(&count)
-	return err == nil && count > 0
 }

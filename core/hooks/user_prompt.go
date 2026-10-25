@@ -1,7 +1,6 @@
 package hooks
 
 import (
-	"database/sql"
 	"fmt"
 	"strings"
 
@@ -11,7 +10,7 @@ import (
 // UserPrompt handles the UserPromptSubmit Claude Code hook event.
 // It returns the active work item (the session's open claim) as a
 // terse one-liner.
-func UserPrompt(event *CloudEvent, database *sql.DB) (*HookResult, error) {
+func UserPrompt(event *CloudEvent) (*HookResult, error) {
 	sessionID := resolveSessionIDWithHarness(event)
 	if sessionID == "" || event.Prompt == "" {
 		return &HookResult{Continue: true}, nil
@@ -39,7 +38,7 @@ func UserPrompt(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 	// classifier that added delegation directives on every prompt was retired:
 	// the launcher system prompt already states the delegation rules once.
 	result := &HookResult{}
-	if hint := buildActiveItemOneLiner(database, projectDir, featureID); hint != "" {
+	if hint := buildActiveItemOneLiner(projectDir, featureID); hint != "" {
 		result.AdditionalContext = hint
 	} else {
 		result.Continue = true
@@ -48,15 +47,12 @@ func UserPrompt(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 }
 
 // buildActiveItemOneLiner returns a terse "ACTIVE: <id> — <title>" string when
-// an active item is set, or empty string when none. Used per-turn in UserPromptSubmit.
-//
-// With no database (the hot-hook dispatch) the title is read from the work
-// item's canonical HTML.
-func buildActiveItemOneLiner(database *sql.DB, projectDir, featureID string) string {
+// an active item is set, or empty string when none. Used per-turn in
+// UserPromptSubmit. The title is read from the work item's canonical HTML.
+func buildActiveItemOneLiner(projectDir, featureID string) string {
 	if featureID == "" {
 		return ""
 	}
-	_ = database
 	if title := canonicalWorkItemTitle(projectDir, featureID); title != "" {
 		return fmt.Sprintf("ACTIVE: %s — %s", featureID, title)
 	}

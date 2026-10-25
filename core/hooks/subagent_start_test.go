@@ -32,10 +32,10 @@ func TestSubagentStart_Idempotent(t *testing.T) {
 		AgentID:   subagentID,
 		AgentType: "general-purpose",
 	}
-	if _, err := SubagentStart(event, database); err != nil {
+	if _, err := SubagentStart(event); err != nil {
 		t.Fatalf("SubagentStart first: %v", err)
 	}
-	if _, err := SubagentStart(event, database); err != nil {
+	if _, err := SubagentStart(event); err != nil {
 		t.Fatalf("SubagentStart re-delivery: %v", err)
 	}
 }
@@ -77,7 +77,7 @@ func TestSubagentStart_WritesOTELResourceAttributes(t *testing.T) {
 		AgentID:   subagentID,
 		AgentType: "general-purpose",
 	}
-	if _, err := SubagentStart(event, database); err != nil {
+	if _, err := SubagentStart(event); err != nil {
 		t.Fatalf("SubagentStart: %v", err)
 	}
 
@@ -118,7 +118,7 @@ func TestSubagentStop_MissingTraceIsNonFatal(t *testing.T) {
 		CWD:       projectDir,
 		AgentID:   "subagent-never-started",
 	}
-	if _, err := SubagentStop(stopEvent, database); err != nil {
+	if _, err := SubagentStop(stopEvent); err != nil {
 		t.Fatalf("SubagentStop (missing trace) should not error: %v", err)
 	}
 }

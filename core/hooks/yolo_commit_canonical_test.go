@@ -1,7 +1,6 @@
 package hooks
 
 import (
-	"database/sql"
 	"os/exec"
 	"strings"
 	"testing"
@@ -13,7 +12,6 @@ func yoloCommitResult(t *testing.T, repoDir, sessionID string) *HookResult {
 	t.Helper()
 	t.Setenv("WIPNOTE_PROJECT_DIR", repoDir)
 	t.Setenv("CLAUDE_PROJECT_DIR", repoDir)
-	var database *sql.DB // hot hooks dispatch with no handle (feat-af8d1689)
 	event := &CloudEvent{
 		SessionID:      sessionID,
 		CWD:            repoDir,
@@ -21,7 +19,7 @@ func yoloCommitResult(t *testing.T, repoDir, sessionID string) *HookResult {
 		PermissionMode: "bypassPermissions",
 		ToolInput:      map[string]any{"command": "git commit -m 'x'"},
 	}
-	res, err := PreToolUse(event, database)
+	res, err := PreToolUse(event)
 	if err != nil {
 		t.Fatalf("PreToolUse: %v", err)
 	}

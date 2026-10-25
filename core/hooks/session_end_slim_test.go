@@ -51,7 +51,7 @@ func TestSessionEnd_DoesNotFinalizeHTML(t *testing.T) {
 	}
 
 	evt := &CloudEvent{SessionID: sessionID, CWD: projectDir}
-	if _, err := SessionEnd(evt, database, projectDir); err != nil {
+	if _, err := SessionEnd(evt, projectDir); err != nil {
 		t.Fatalf("SessionEnd: %v", err)
 	}
 

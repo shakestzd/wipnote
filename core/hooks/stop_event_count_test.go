@@ -52,7 +52,7 @@ func TestStop_EventCountFromCanonicalToolLog(t *testing.T) {
 		appendCanonicalToolEvent(projectDir, sessionID, canonicalToolEvent{Tool: tool, Summary: "x"})
 	}
 
-	if _, err := Stop(&CloudEvent{SessionID: sessionID, CWD: projectDir}, database); err != nil {
+	if _, err := Stop(&CloudEvent{SessionID: sessionID, CWD: projectDir}); err != nil {
 		t.Fatalf("Stop: %v", err)
 	}
 	raw, err := os.ReadFile(filepath.Join(projectDir, ".wipnote", "sessions", sessionID+".html"))

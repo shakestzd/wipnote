@@ -89,13 +89,9 @@ func canonicalParentSessionID(projectDir, sessionID string, isSubagent bool) str
 	return sessionID
 }
 
-// subagentStartedAt is the start time for ctx's grace window: the
-// projection-supplied sessions.created_at when a hydrated row provided one,
-// else the canonical derivation for the acting agent.
+// subagentStartedAt is the start time for ctx's grace window, derived from
+// canonical state for the acting agent.
 func subagentStartedAt(ctx *toolUseContext) time.Time {
-	if !ctx.SessionCreatedAt.IsZero() {
-		return ctx.SessionCreatedAt
-	}
 	return canonicalSubagentStartedAt(ctx.ProjectDir, ctx.SessionID, ctx.AgentID)
 }
 

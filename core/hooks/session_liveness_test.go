@@ -169,7 +169,7 @@ func TestSessionResumeRefreshesPid(t *testing.T) {
 	}
 
 	event := &CloudEvent{SessionID: sessionID, CWD: projectDir}
-	if _, err := SessionResume(event, database, projectDir); err != nil {
+	if _, err := SessionResume(event, projectDir); err != nil {
 		t.Fatalf("SessionResume: %v", err)
 	}
 
@@ -240,7 +240,7 @@ func TestSessionResumeRemovesStaleAnchor(t *testing.T) {
 	// No .launch-mode written → resolveOwningPID returns ok=false → the anchor
 	// must be REMOVED, not left in place.
 	event := &CloudEvent{SessionID: sessionID, CWD: projectDir}
-	if _, err := SessionResume(event, database, projectDir); err != nil {
+	if _, err := SessionResume(event, projectDir); err != nil {
 		t.Fatalf("SessionResume: %v", err)
 	}
 

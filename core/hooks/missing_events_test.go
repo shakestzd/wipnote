@@ -65,7 +65,7 @@ func setupGitRepoForWorktreeCreate(t *testing.T) string {
 // feat-cd937fc9 removed the dead additionalContext return (CC ignores it for
 // this Observational event) while keeping the checkpoint recording.
 func TestWorktreeRemove_NoAdditionalContext(t *testing.T) {
-	td, sessionID := setupMissingEventsDB(t)
+	_, sessionID := setupMissingEventsDB(t)
 
 	event := &CloudEvent{
 		SessionID:    sessionID,
@@ -73,7 +73,7 @@ func TestWorktreeRemove_NoAdditionalContext(t *testing.T) {
 		WorktreePath: "/repo/.claude/worktrees/feat-aabbccdd",
 	}
 
-	result, err := WorktreeRemove(event, td.DB)
+	result, err := WorktreeRemove(event)
 	if err != nil {
 		t.Fatalf("WorktreeRemove: %v", err)
 	}
@@ -95,7 +95,7 @@ func TestWorktreeRemove_NoAdditionalContext(t *testing.T) {
 // (feat-fc3cc9e0). The round trip is asserted through the reader the guards
 // actually use, not by inspecting the file directly.
 func TestConfigChange_RecordsPermissionMode(t *testing.T) {
-	td, sessionID := setupMissingEventsDB(t)
+	_, sessionID := setupMissingEventsDB(t)
 
 	clearNestedEnv(t)
 	projectDir := t.TempDir()
@@ -111,7 +111,7 @@ func TestConfigChange_RecordsPermissionMode(t *testing.T) {
 		PermissionMode: "bypassPermissions",
 	}
 
-	result, err := ConfigChange(event, td.DB)
+	result, err := ConfigChange(event)
 	if err != nil {
 		t.Fatalf("ConfigChange: %v", err)
 	}
@@ -138,7 +138,7 @@ func TestConfigChange_EmptyPermissionMode_NoUpdate(t *testing.T) {
 		PermissionMode: "",
 	}
 
-	result, err := ConfigChange(event, td.DB)
+	result, err := ConfigChange(event)
 	if err != nil {
 		t.Fatalf("ConfigChange: %v", err)
 	}
@@ -171,7 +171,7 @@ func TestWorktreeCreate_NoPath_RecordsGenericSummary(t *testing.T) {
 		CWD:       t.TempDir(),
 	}
 
-	if _, err := WorktreeCreate(event, td.DB); err == nil {
+	if _, err := WorktreeCreate(event); err == nil {
 		t.Fatal("expected missing WorktreeCreate fields to error")
 	}
 
@@ -206,7 +206,7 @@ func TestWorktreeCreate_NilDB_StillCreatesAndReturnsPath(t *testing.T) {
 		WorktreeName:     worktreeName,
 	}
 
-	got, err := WorktreeCreate(event, nil)
+	got, err := WorktreeCreate(event)
 	if err != nil {
 		t.Fatalf("WorktreeCreate with nil DB: %v", err)
 	}
@@ -224,7 +224,7 @@ func TestWorktreeCreate_NilDB_StillCreatesAndReturnsPath(t *testing.T) {
 // command exits non-zero with no path on stdout.
 func TestWorktreeCreate_MissingFields_NilDB_StillErrors(t *testing.T) {
 	event := &CloudEvent{SessionID: "sess-x", CWD: t.TempDir()}
-	if got, err := WorktreeCreate(event, nil); err == nil {
+	if got, err := WorktreeCreate(event); err == nil {
 		t.Fatalf("expected error on missing fields with nil DB, got path=%q nil err", got)
 	}
 }
@@ -251,11 +251,11 @@ func stubTaskStepFns(t *testing.T) (addCalls, completeCalls *int) {
 // TestSessionResume_NoSessionID_ReturnsContinue verifies that SessionResume
 // returns Continue without error when there is no session ID.
 func TestSessionResume_NoSessionID_ReturnsContinue(t *testing.T) {
-	database, projectDir := setupLifecycleDB(t)
+	_, projectDir := setupLifecycleDB(t)
 	t.Setenv("WIPNOTE_SESSION_ID", "")
 
 	event := &CloudEvent{SessionID: "", CWD: projectDir}
-	result, err := SessionResume(event, database, projectDir)
+	result, err := SessionResume(event, projectDir)
 	if err != nil {
 		t.Fatalf("SessionResume: %v", err)
 	}
@@ -303,7 +303,7 @@ func TestStop_FinalizesSessionHTML(t *testing.T) {
 	t.Setenv("WIPNOTE_PARENT_SESSION", "")
 
 	event := &CloudEvent{SessionID: sessionID, CWD: projectDir}
-	result, err := Stop(event, database)
+	result, err := Stop(event)
 	if err != nil {
 		t.Fatalf("Stop: %v", err)
 	}
@@ -362,7 +362,7 @@ func TestStopFailure_PersistsToSessionHTMLWithoutDB(t *testing.T) {
 	t.Setenv("WIPNOTE_SESSION_ID", sessionID)
 
 	event := &CloudEvent{SessionID: sessionID, CWD: projectDir, StopError: "overloaded"}
-	result, err := StopFailure(event, nil)
+	result, err := StopFailure(event)
 	if err != nil {
 		t.Fatalf("StopFailure: %v", err)
 	}

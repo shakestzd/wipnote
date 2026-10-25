@@ -1,7 +1,5 @@
 package hooks
 
-import "database/sql"
-
 // taskFields is the subject and description a task event carries, typed
 // field first, then the task_data map.
 func taskFields(event *CloudEvent) (subject, description string) {
@@ -30,9 +28,8 @@ func taskStepTarget(event *CloudEvent, sessionID, subject, description string) s
 
 // TaskCreated handles the TaskCreated Claude Code hook event. It mirrors a
 // Claude Code task as a step on the session's claimed work item, so the task
-// survives the session and is visible to other sessions. database is unused.
-func TaskCreated(event *CloudEvent, database *sql.DB) (*HookResult, error) {
-	_ = database
+// survives the session and is visible to other sessions.
+func TaskCreated(event *CloudEvent) (*HookResult, error) {
 	sessionID := EnvSessionID(event.SessionID)
 	if sessionID == "" {
 		return &HookResult{Continue: true}, nil
@@ -46,10 +43,8 @@ func TaskCreated(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 
 // TaskCompleted handles the TaskCompleted Claude Code hook event. It ticks the
 // step TaskCreated mirrored and never blocks: hooks do not gate on quality,
-// `wipnote check --gate` does that on demand (feat-726637b8). database is
-// unused.
-func TaskCompleted(event *CloudEvent, database *sql.DB) (*HookResult, error) {
-	_ = database
+// `wipnote check --gate` does that on demand (feat-726637b8).
+func TaskCompleted(event *CloudEvent) (*HookResult, error) {
 	sessionID := EnvSessionID(event.SessionID)
 	if sessionID == "" {
 		return &HookResult{Continue: true}, nil

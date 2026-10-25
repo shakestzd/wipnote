@@ -20,7 +20,7 @@ func TestTaskCompleted_NeverBlocksOnFailingTests(t *testing.T) {
 		`{"block_task_completion_on_quality_failure":true}`)
 	stubTaskStepFns(t)
 	ev := &CloudEvent{SessionID: sid, CWD: projectDir, TaskID: "t-gate", TaskSubject: "Finish feat-abcd1234"}
-	res, err := TaskCompleted(ev, nil)
+	res, err := TaskCompleted(ev)
 	if err != nil || res == nil || !res.Continue {
 		t.Fatalf("TaskCompleted = (%+v, %v), want Continue and no error", res, err)
 	}

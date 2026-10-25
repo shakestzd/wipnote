@@ -12,7 +12,6 @@ func TestPreToolUse_GuardOrder(t *testing.T) {
 	want := []string{
 		"wipnote-write",
 		"bash-cwd",
-		"project-divergence",
 		"plan-mode-bypass",
 		"orchestrator-research-advisory",
 		"orchestrator-strict",
@@ -27,7 +26,6 @@ func TestPreToolUse_GuardOrder(t *testing.T) {
 		"yolo-bash-research",
 		"yolo-worktree",
 		"yolo-session",
-		"file-overlap",
 	}
 	var got []string
 	for _, g := range preToolUseGuards() {
@@ -71,7 +69,7 @@ type guardOrderCase struct {
 // runGuardOrderCase runs tc through PreToolUse against a fresh test DB.
 func runGuardOrderCase(t *testing.T, tc guardOrderCase) {
 	t.Helper()
-	tdb := setupTestDB(t)
+	setupTestDB(t)
 	t.Setenv("WIPNOTE_SESSION_ID", "test-sess")
 	event := &CloudEvent{
 		AgentID:        "claude-code",
@@ -82,7 +80,7 @@ func runGuardOrderCase(t *testing.T, tc guardOrderCase) {
 		PermissionMode: tc.permission,
 		ToolUseID:      "guard-order-" + tc.tool,
 	}
-	result, err := PreToolUse(event, tdb.DB)
+	result, err := PreToolUse(event)
 	if err != nil {
 		t.Fatalf("PreToolUse: %v", err)
 	}

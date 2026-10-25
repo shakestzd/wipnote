@@ -73,7 +73,7 @@ func TestYoloModeGuards(t *testing.T) {
 			"content":   "package main",
 		},
 	}
-	result, err := PreToolUse(writeEvent, database)
+	result, err := PreToolUse(writeEvent)
 	if err != nil {
 		t.Fatalf("PreToolUse (no work item): %v", err)
 	}
@@ -106,7 +106,7 @@ func TestYoloModeGuards(t *testing.T) {
 
 	// Write tool with an active work item should be allowed (worktree guard
 	// will not trigger because CWD is a temp dir, not main/master branch).
-	result, err = PreToolUse(writeEvent, database)
+	result, err = PreToolUse(writeEvent)
 	if err != nil {
 		t.Fatalf("PreToolUse (with work item): %v", err)
 	}

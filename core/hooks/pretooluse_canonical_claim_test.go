@@ -1,7 +1,6 @@
 package hooks
 
 import (
-	"database/sql"
 	"os"
 	"path/filepath"
 	"strings"
@@ -51,8 +50,6 @@ func TestPreToolUse_SubagentWriteInheritsCanonicalClaim(t *testing.T) {
 	t.Setenv("CLAUDE_PROJECT_DIR", "")
 	t.Setenv("WIPNOTE_PROJECT_DIR", projectDir)
 
-	var database *sql.DB // hot hooks dispatch with no handle (feat-af8d1689)
-
 	writeEvent := &CloudEvent{
 		SessionID:      sessionID,
 		AgentID:        "agent-worktree-coder-1", // a real per-subagent identity
@@ -67,7 +64,7 @@ func TestPreToolUse_SubagentWriteInheritsCanonicalClaim(t *testing.T) {
 
 	// No claim anywhere: the subagent work-item guard must still BLOCK. A
 	// missing shard is an authoritative "no claim", not "cannot verify".
-	result, err := PreToolUse(writeEvent, database)
+	result, err := PreToolUse(writeEvent)
 	if err != nil {
 		t.Fatalf("PreToolUse (no claim): %v", err)
 	}
@@ -78,7 +75,7 @@ func TestPreToolUse_SubagentWriteInheritsCanonicalClaim(t *testing.T) {
 	// The orchestrator ran `wipnote feature start` — recorded ONLY canonically.
 	openCanonicalClaim(t, wipnoteDir, sessionID, sessionID, db.AgentRootSentinel, "feat-orchestrated")
 
-	result, err = PreToolUse(writeEvent, database)
+	result, err = PreToolUse(writeEvent)
 	if err != nil {
 		t.Fatalf("PreToolUse (canonical claim): %v", err)
 	}
@@ -109,8 +106,6 @@ func TestPreToolUse_CodexSubagentInheritsFamilyRootClaim(t *testing.T) {
 	}
 	openCanonicalClaim(t, wipnoteDir, rootSession, rootSession, "codex", "bug-family-root")
 
-	var database *sql.DB // hot hooks dispatch with no handle (feat-af8d1689)
-
 	result, err := PreToolUse(&CloudEvent{
 		SessionID:      childSession,
 		AgentID:        "codex-subagent-7",
@@ -118,7 +113,7 @@ func TestPreToolUse_CodexSubagentInheritsFamilyRootClaim(t *testing.T) {
 		PermissionMode: "bypassPermissions",
 		ToolName:       "Edit",
 		ToolInput:      map[string]any{"file_path": filepath.Join(projectDir, "main.go"), "old_string": "a", "new_string": "b"},
-	}, database)
+	})
 	if err != nil {
 		t.Fatalf("PreToolUse: %v", err)
 	}

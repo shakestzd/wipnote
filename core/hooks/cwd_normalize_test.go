@@ -61,7 +61,7 @@ func TestCWDNormalize_MainWorktree_StoresRelative(t *testing.T) {
 	t.Setenv("WIPNOTE_PROJECT_DIR", "")
 	t.Setenv("WIPNOTE_SESSION_ID", "")
 
-	_, err = SessionStart(event, database, projectDir)
+	_, err = SessionStart(event, projectDir)
 	if err != nil {
 		t.Fatalf("SessionStart: %v", err)
 	}
@@ -122,7 +122,7 @@ func TestCWDNormalize_LinkedWorktree_CollapsesToRoot(t *testing.T) {
 	t.Setenv("WIPNOTE_PROJECT_DIR", "")
 	t.Setenv("WIPNOTE_SESSION_ID", "")
 
-	_, err = SessionStart(event, database, mainRepo)
+	_, err = SessionStart(event, mainRepo)
 	if err != nil {
 		t.Fatalf("SessionStart: %v", err)
 	}
@@ -175,7 +175,7 @@ func TestCWDNormalize_ForeignCWD_StoredWithUnresolvedPrefix(t *testing.T) {
 
 	// Pass the foreignDir as projectDir — simulates RenderIngestedSessionHTML
 	// passing the foreign source dir to CreateSessionHTML via s.ProjectDir.
-	_, err = SessionStart(event, database, foreignDir)
+	_, err = SessionStart(event, foreignDir)
 	if err != nil {
 		t.Fatalf("SessionStart: %v", err)
 	}

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"database/sql"
 	"fmt"
 	"os"
 
@@ -50,15 +49,15 @@ Usage in hooks.json:
 	cmd.AddCommand(
 		// Session lifecycle — need projectDir passed to the handler.
 		hookSubcmdWithProject("session-start", "Handle SessionStart event", emptyResult,
-			func(event *hooks.CloudEvent, database *sql.DB, projectDir string) (*hooks.HookResult, error) {
+			func(event *hooks.CloudEvent, projectDir string) (*hooks.HookResult, error) {
 				hooks.ApplyTraceparent()
-				return hooks.SessionStart(event, database, projectDir)
+				return hooks.SessionStart(event, projectDir)
 			}),
 		hookSubcmdWithProject("session-end", "Handle SessionEnd event", continueResult, hooks.SessionEnd),
 		hookSubcmdWithProject("session-resume", "Handle SessionResume event", continueResult, hooks.SessionResume),
 
-		// No hook gets a database handle (feat-174dc958): every handler takes
-		// a nil *sql.DB and works from canonical files only.
+		// No hook gets a database handle (feat-174dc958): every handler works
+		// from canonical files only.
 		hookSubcmd("user-prompt", "Handle UserPromptSubmit event", emptyResult, hooks.UserPrompt),
 		hookSubcmd("pretooluse", "Handle PreToolUse event", allowResult, hooks.PreToolUse),
 		// posttooluse: on Claude it only responds (quality warning, auto-complete
@@ -103,7 +102,7 @@ func hookWorktreeCreateCmd() *cobra.Command {
 				return err
 			}
 			// A headless run still needs its worktree, but records nothing: no
-			// trace and no checkpoint (WorktreeCreate accepts a nil handle).
+			// trace and no checkpoint.
 			headless := os.Getenv(headlessHookEnv) == "1"
 			if !headless {
 				hooks.TraceInvocation(use, rawPayload, event)
@@ -115,7 +114,7 @@ func hookWorktreeCreateCmd() *cobra.Command {
 				fmt.Fprintln(os.Stderr, err)
 				return err
 			}
-			path, err := hooks.WorktreeCreate(event, nil)
+			path, err := hooks.WorktreeCreate(event)
 			if err != nil {
 				fmt.Fprintln(os.Stderr, err)
 				return err
@@ -127,12 +126,11 @@ func hookWorktreeCreateCmd() *cobra.Command {
 }
 
 // hookSubcmd creates a hook subcommand that resolves the project dir and calls
-// handler with NO database handle (feat-174dc958). fallback is returned when
-// the project is not a wipnote project.
+// handler. fallback is returned when the project is not a wipnote project.
 func hookSubcmd(
 	use, short string,
 	fallback *hooks.HookResult,
-	handler func(*hooks.CloudEvent, *sql.DB) (*hooks.HookResult, error),
+	handler func(*hooks.CloudEvent) (*hooks.HookResult, error),
 ) *cobra.Command {
 	return &cobra.Command{
 		Use:   use,
@@ -143,7 +141,7 @@ func hookSubcmd(
 				if !hooks.IswipnoteProject(projectDir) {
 					return fallback, nil
 				}
-				return handler(event, nil)
+				return handler(event)
 			})
 		},
 	}
@@ -154,7 +152,7 @@ func hookSubcmd(
 func hookSubcmdWithProject(
 	use, short string,
 	fallback *hooks.HookResult,
-	handler func(*hooks.CloudEvent, *sql.DB, string) (*hooks.HookResult, error),
+	handler func(*hooks.CloudEvent, string) (*hooks.HookResult, error),
 ) *cobra.Command {
 	return &cobra.Command{
 		Use:   use,
@@ -177,7 +175,7 @@ func hookSubcmdWithProject(
 					commitIntentLight.Store(true)
 					hooks.RecordSessionEndNote(event, projectDir)
 				}
-				return handler(event, nil, projectDir)
+				return handler(event, projectDir)
 			})
 		},
 	}

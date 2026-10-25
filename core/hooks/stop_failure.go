@@ -2,7 +2,6 @@ package hooks
 
 import (
 	"bytes"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -39,8 +38,8 @@ func (s *looseString) UnmarshalJSON(data []byte) error {
 // StopFailure handles the StopFailure Claude Code hook event, which runs
 // instead of Stop when a turn ends on an API error (rate limit, overload,
 // auth, billing, ...). Claude Code ignores its output, so it only records the
-// error as a failed entry in the session HTML activity log. database is unused.
-func StopFailure(event *CloudEvent, database *sql.DB) (*HookResult, error) {
+// error as a failed entry in the session HTML activity log.
+func StopFailure(event *CloudEvent) (*HookResult, error) {
 	sessionID := resolveSessionIDWithHarness(event)
 	if sessionID == "" {
 		sessionID = EnvSessionID(event.SessionID)
@@ -55,7 +54,6 @@ func StopFailure(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 	}
 	summary := fmt.Sprintf("Turn ended on API error: %s", errType)
 	projectDir := ResolveProjectDir(event.CWD, event.SessionID)
-	_ = database
 	featureID := canonicalActiveWorkItem(projectDir, sessionID)
 	now := time.Now().UTC()
 	AppendEventToSessionHTML(projectDir, sessionID, SessionEvent{

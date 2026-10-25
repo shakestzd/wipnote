@@ -1,7 +1,6 @@
 package hooks
 
 import (
-	"database/sql"
 	"errors"
 	"io"
 	"path/filepath"
@@ -15,7 +14,7 @@ import (
 // REPLACEMENT hook: Claude Code expects the hook process to create the
 // worktree and print only the created directory path on stdout. Callers must
 // bypass the JSON HookResult response layer.
-func WorktreeCreate(event *CloudEvent, database *sql.DB) (string, error) {
+func WorktreeCreate(event *CloudEvent) (string, error) {
 	if event == nil {
 		return "", errors.New("missing WorktreeCreate event")
 	}
@@ -62,11 +61,10 @@ func WorktreeCreate(event *CloudEvent, database *sql.DB) (string, error) {
 // never reached the agent. The dead return has been removed; the checkpoint
 // branch auto-completion (the real side effect) is retained; it records
 // nothing (feat-174dc958).
-func WorktreeRemove(event *CloudEvent, database *sql.DB) (*HookResult, error) {
+func WorktreeRemove(event *CloudEvent) (*HookResult, error) {
 	// Auto-complete in-progress work items for the removed worktree's branch.
 	// The branch name is typically the last path component of the worktree path
 	// (e.g. /path/to/worktrees/trk-abc12345 → "trk-abc12345").
-	_ = database
 	branch := extractBranchFromWorktreePath(event.WorktreePath)
 	if branch != "" {
 		projectDir := ResolveProjectDir(event.CWD, event.SessionID)

@@ -47,10 +47,10 @@ func TestTaskHooks_MirrorStepsFromTheClaimLedger(t *testing.T) {
 			t.Setenv("WIPNOTE_TASK_STEPS", tc.steps)
 			addCalls, completeCalls := stubTaskStepFns(t)
 			ev := &CloudEvent{SessionID: sid, CWD: projectDir, TaskID: "t-claim", TaskSubject: tc.subject}
-			if _, err := TaskCreated(ev, nil); err != nil {
+			if _, err := TaskCreated(ev); err != nil {
 				t.Fatalf("TaskCreated: %v", err)
 			}
-			if _, err := TaskCompleted(ev, nil); err != nil {
+			if _, err := TaskCompleted(ev); err != nil {
 				t.Fatalf("TaskCompleted: %v", err)
 			}
 			if *addCalls != tc.want || *completeCalls != tc.want {

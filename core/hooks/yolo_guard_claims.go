@@ -1,7 +1,6 @@
 package hooks
 
 import (
-	"database/sql"
 	"fmt"
 	"path/filepath"
 	"time"
@@ -12,19 +11,18 @@ import (
 // checkYoloWorkItemGuard blocks Write/Edit tools when no active work item
 // exists. Always enforced (was YOLO-only, now universal).
 //
-// featureID is the session's active_feature_id column (set at session-start
-// or inherited from a parent session via lineage).
-// sessionID is used for the fallback check: when featureID is empty, we check
-// whether a feature was started mid-session and linked to THIS session — not
-// whether any feature is globally in-progress (which causes false passes when
-// unrelated features exist).
+// featureID is the session's active work item when the caller already knows
+// it. sessionID is used for the fallback check: when featureID is empty, the
+// canonical claim ledger says whether THIS session (or its family root) holds
+// an open claim — not whether any feature is globally in-progress (which
+// causes false passes when unrelated features exist).
 // targetFile is the Write/Edit target path extracted from the tool input.
 // When the target is outside the project root (home config, /tmp, sibling repos,
 // etc.) the guard is skipped — project-code discipline must not constrain
 // writes to external locations like ~/.claude/ memory files.
 // projectRoot is the resolved project directory (ctx.ProjectDir); when empty
 // the guard applies unconditionally (conservative).
-func checkYoloWorkItemGuard(toolName, featureID string, _ bool, sessionID string, database *sql.DB, targetFile, projectRoot string) string {
+func checkYoloWorkItemGuard(toolName, featureID string, _ bool, sessionID string, targetFile, projectRoot string) string {
 	switch toolName {
 	case "Write", "Edit", "MultiEdit", "apply_patch":
 	default:
@@ -34,27 +32,13 @@ func checkYoloWorkItemGuard(toolName, featureID string, _ bool, sessionID string
 	if targetFile != "" && pathIsOutsideProject(targetFile, projectRoot) {
 		return ""
 	}
-	// Check 1: this session's own active work item (set at session-start or via
-	// lineage attribution promoted into featureID at the call site).
+	// Check 1: this session's own active work item, when the caller has it.
 	if featureID != "" {
 		return ""
 	}
-	// Check 2: a feature started mid-session and linked to THIS exact session row.
-	if sessionID != "" && database != nil && sessionHasLinkedFeature(database, sessionID) {
-		return ""
-	}
-	// Check 3: parent-chain fallback for nested/subagent sessions. A subagent's
-	// `wipnote bug start` writes active_feature_id to the orchestrator's session
-	// row, not the subagent's own row, so checks 1-2 miss even though the work is
-	// legitimately attributed. One hop only (getSessionAndParent) keeps this tied
-	// to direct lineage and avoids the global "any in-progress item" false-pass.
-	if sessionID != "" && database != nil && ancestorHasActiveWorkItem(database, sessionID) {
-		return ""
-	}
-	// Check 4: the CANONICAL claim ledger. Checks 1-3 all read the derived
-	// SQLite index, which the hook read path no longer hydrates (bug-369da005) —
-	// without this they are structurally incapable of returning true and the
-	// guard degrades into a universal write block. See canonicalOpenClaim.
+	// Check 2: the CANONICAL claim ledger, which covers a feature started
+	// mid-session and a subagent inheriting its family root's claim. The hook
+	// has no derived index to ask (bug-369da005, feat-174dc958).
 	//
 	// ok=false means the ledger could not be consulted at all, which is
 	// "cannot verify", not "no claim" — fail OPEN there, matching the
@@ -65,21 +49,16 @@ func checkYoloWorkItemGuard(toolName, featureID string, _ bool, sessionID string
 			return ""
 		}
 	}
-	return workItemRequiredMessage(sessionID, database, projectRoot)
+	return workItemRequiredMessage(sessionID)
 }
 
 // workItemRequiredMessage is checkYoloWorkItemGuard's block reason, naming the
-// checked session and the nearest active claim when known.
-func workItemRequiredMessage(sessionID string, database *sql.DB, projectRoot string) string {
+// checked session when known.
+func workItemRequiredMessage(sessionID string) string {
 	msg := "An active work item is required before writing code. " +
 		"Run: wipnote feature start <id>  or  wipnote feature create \"title\" --track <trk-id>"
 	if sessionID != "" {
 		msg += fmt.Sprintf("\nChecked session: %s", sessionID)
-	}
-	if database != nil {
-		if claimSession, workItem := latestProjectClaim(database, projectRoot); claimSession != "" && workItem != "" {
-			msg += fmt.Sprintf("\nNearest active claim: session=%s work_item=%s", claimSession, workItem)
-		}
 	}
 	return msg
 }
@@ -88,10 +67,10 @@ func workItemRequiredMessage(sessionID string, database *sql.DB, projectRoot str
 // sessionID, read from the CANONICAL claim ledger (.wipnote/claims/) rather
 // than the derived SQLite index.
 //
-// WHY THIS EXISTS. Checks 1-3 of checkYoloWorkItemGuard all query the derived
-// index. Since the feat-fc3cc9e0 cutover the hook read path has opened that
-// index as a per-process in-memory projection it never hydrates (and since
-// feat-af8d1689 gets no handle at all), so those three checks can only ever
+// WHY THIS EXISTS. checkYoloWorkItemGuard's fallbacks used to query the
+// derived index. Since the feat-fc3cc9e0 cutover the hook read path has opened
+// that index as a per-process in-memory projection it never hydrates (and
+// since feat-af8d1689 gets no handle at all), so those checks could only ever
 // return false. Because the guard fails CLOSED, that turned it into a universal
 // Write/Edit block for every session on the machine the moment a post-cutover
 // binary shipped (bug-369da005). The sibling research guard survived the same
@@ -151,34 +130,13 @@ func canonicalOpenClaimEpisode(wipnoteDir, sessionID string) (ep claimledger.Epi
 				continue
 			}
 			// Either this session holds the claim itself, or the family root
-			// does and this session is a descendant inheriting it — the
-			// canonical mirror of check 3's parent-chain fallback.
+			// does and this session is a descendant inheriting it.
 			if e.SessionID == sessionID || e.SessionID == root {
 				return e, true
 			}
 		}
 	}
 	return claimledger.Episode{}, consulted
-}
-
-func latestProjectClaim(database *sql.DB, projectRoot string) (string, string) {
-	if database == nil || projectRoot == "" {
-		return "", ""
-	}
-	var sessionID, workItemID string
-	err := database.QueryRow(`
-		SELECT c.owner_session_id, c.work_item_id
-		FROM claims c
-		JOIN sessions s ON s.session_id = c.owner_session_id
-		WHERE s.status = 'active'
-		  AND COALESCE(s.project_dir, '') = ?
-		  AND c.status IN ('proposed','claimed','in_progress','blocked','handoff_pending')
-		ORDER BY c.leased_at DESC
-		LIMIT 1`, projectRoot).Scan(&sessionID, &workItemID)
-	if err != nil {
-		return "", ""
-	}
-	return sessionID, workItemID
 }
 
 // yoloSubagentGracePeriod is the window after session start during which a
@@ -211,53 +169,4 @@ func checkYoloSubagentGrace(yolo, isSubagent bool, startedAt time.Time, parentSe
 	}
 	workItem, _ := canonicalOpenClaim(wipnoteDir, parentSessionID)
 	return workItem != ""
-}
-
-// sessionHasLinkedFeature returns true when the given session has a feature
-// linked via sessions.active_feature_id OR when a recent feature-start command
-// updated the session's feature association. This replaces the old global
-// hasAnyInProgressWorkItem check which false-passed when unrelated features
-// were in-progress elsewhere in the project.
-func sessionHasLinkedFeature(db *sql.DB, sessionID string) bool {
-	var featureID sql.NullString
-	db.QueryRow(
-		`SELECT active_feature_id FROM sessions WHERE session_id = ? LIMIT 1`,
-		sessionID,
-	).Scan(&featureID)
-	return featureID.Valid && featureID.String != ""
-}
-
-// ancestorHasActiveWorkItem returns true when sessionID's direct parent session
-// has a non-empty active_feature_id pointing at an in-progress feature. This
-// lets a nested/subagent session inherit the orchestrator's work-item context:
-// subagents don't write their own sessions.active_feature_id, so a legitimately
-// attributed edit would otherwise be false-blocked.
-//
-// One hop only (getSessionAndParent) — tied to direct lineage so it does NOT
-// reintroduce the global "any in-progress work item" false-pass that the removed
-// hasAnyActiveWorkItem caused. The JOIN to features enforces status =
-// 'in-progress', matching GetToolUseContext semantics so a stale pointer to a
-// completed feature does not pass. Returns false on nil DB / empty sessionID /
-// no parent.
-func ancestorHasActiveWorkItem(database *sql.DB, sessionID string) bool {
-	if database == nil || sessionID == "" {
-		return false
-	}
-	sessionIDs := getSessionAndParent(database, sessionID)
-	if len(sessionIDs) < 2 {
-		return false // no parent
-	}
-	for _, parentID := range sessionIDs[1:] {
-		var count int
-		database.QueryRow(`
-			SELECT COUNT(*) FROM sessions s
-			JOIN features f ON f.id = s.active_feature_id
-			WHERE s.session_id = ?
-			  AND f.status = 'in-progress'
-			LIMIT 1`, parentID).Scan(&count)
-		if count > 0 {
-			return true
-		}
-	}
-	return false
 }

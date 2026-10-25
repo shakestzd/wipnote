@@ -191,7 +191,7 @@ func TestWorktreeRemove_UnknownBranch(t *testing.T) {
 		WorktreePath: "/repo/.claude/worktrees/some-feature-branch",
 	}
 
-	result, err := WorktreeRemove(event, database)
+	result, err := WorktreeRemove(event)
 	if err != nil {
 		t.Fatalf("WorktreeRemove: %v", err)
 	}
@@ -236,7 +236,7 @@ func TestWorktreeRemove_AutoCompletesFromCanonicalHTML(t *testing.T) {
 	completed := stubCompleteWorkItemCLI(t)
 
 	for _, wt := range []string{"/repo/.claude/worktrees/main", ""} {
-		if _, err := WorktreeRemove(&CloudEvent{SessionID: "wt-rm-1", CWD: projectDir, WorktreePath: wt}, nil); err != nil {
+		if _, err := WorktreeRemove(&CloudEvent{SessionID: "wt-rm-1", CWD: projectDir, WorktreePath: wt}); err != nil {
 			t.Fatalf("WorktreeRemove(%q): %v", wt, err)
 		}
 	}
@@ -244,7 +244,7 @@ func TestWorktreeRemove_AutoCompletesFromCanonicalHTML(t *testing.T) {
 		t.Fatalf("a non-work-item branch completed %v", *completed)
 	}
 	ev := &CloudEvent{SessionID: "wt-rm-1", CWD: projectDir, WorktreePath: "/repo/.claude/worktrees/trk-deadbeef"}
-	if _, err := WorktreeRemove(ev, nil); err != nil {
+	if _, err := WorktreeRemove(ev); err != nil {
 		t.Fatalf("WorktreeRemove: %v", err)
 	}
 	if got := strings.Join(*completed, ","); got != "feat-cafebabe" {

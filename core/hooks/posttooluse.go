@@ -1,7 +1,6 @@
 package hooks
 
 import (
-	"database/sql"
 	"fmt"
 	"strings"
 	"time"
@@ -16,58 +15,50 @@ import (
 // `posttooluse-record` hook records every call (PostToolUseRecord) and the
 // sync, matcher-narrowed `posttooluse` hook only responds
 // (PostToolUseForHarness routes it to PostToolUseRespond).
-func PostToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
-	ctx := resolvePostToolUseContext(event, database)
+func PostToolUse(event *CloudEvent) (*HookResult, error) {
+	ctx := resolveToolUseContext(event)
 	if ctx == nil {
 		return &HookResult{Continue: true}, nil
 	}
-	postToolUseRecord(event, ctx, database)
-	return postToolUseRespond(event, ctx, database), nil
+	postToolUseRecord(event, ctx)
+	return postToolUseRespond(event, ctx), nil
 }
 
 // PostToolUseRecord is the record-only half: event row and session HTML. It
 // never blocks and never returns context, which is what makes it safe to run
 // as a Claude `async` hook (port/pluginbuild asyncSafeHandlers).
-func PostToolUseRecord(event *CloudEvent, database *sql.DB) (*HookResult, error) {
-	if ctx := resolvePostToolUseContext(event, database); ctx != nil {
-		postToolUseRecord(event, ctx, database)
+func PostToolUseRecord(event *CloudEvent) (*HookResult, error) {
+	if ctx := resolveToolUseContext(event); ctx != nil {
+		postToolUseRecord(event, ctx)
 	}
 	return &HookResult{Continue: true}, nil
 }
 
 // PostToolUseRespond is the respond-only half: the CheckFileQuality warning
 // and commit/merge auto-complete notices. It records nothing.
-func PostToolUseRespond(event *CloudEvent, database *sql.DB) (*HookResult, error) {
-	ctx := resolvePostToolUseContext(event, database)
+func PostToolUseRespond(event *CloudEvent) (*HookResult, error) {
+	ctx := resolveToolUseContext(event)
 	if ctx == nil {
 		return &HookResult{Continue: true}, nil
 	}
-	return postToolUseRespond(event, ctx, database), nil
+	return postToolUseRespond(event, ctx), nil
 }
 
 // PostToolUseForHarness is what the `posttooluse` subcommand dispatches. On
 // Claude, recording belongs to the separate async `posttooluse-record` hook,
 // so this only responds; running both here would append every call to the
 // session HTML twice. Every other harness gets the combined handler.
-func PostToolUseForHarness(event *CloudEvent, database *sql.DB) (*HookResult, error) {
+func PostToolUseForHarness(event *CloudEvent) (*HookResult, error) {
 	if event != nil && event.Harness == HarnessClaude {
-		return PostToolUseRespond(event, database)
+		return PostToolUseRespond(event)
 	}
-	return PostToolUse(event, database)
-}
-
-// resolvePostToolUseContext trusts WIPNOTE_PARENT_PROMPT_EVENT set by the
-// paired PreToolUse (trustParentEnvVar=true) to avoid the race where a new
-// UserQuery arrives while the tool was executing.
-func resolvePostToolUseContext(event *CloudEvent, database *sql.DB) *toolUseContext {
-	return resolveToolUseContext(event, database, true)
+	return PostToolUse(event)
 }
 
 // postToolUseRecord writes the completion line that pairs the PreToolUse start
 // in the canonical tool log, and the session HTML entry, both keyed on the
 // tool_use_id-derived id PreToolUse also uses (bug-07fd4a51, feat-174dc958).
-func postToolUseRecord(event *CloudEvent, ctx *toolUseContext, database *sql.DB) {
-	_ = database
+func postToolUseRecord(event *CloudEvent, ctx *toolUseContext) {
 	success := isSuccess(event.ToolResult)
 	status := "completed"
 	if !success {
@@ -88,7 +79,7 @@ func postToolUseRecord(event *CloudEvent, ctx *toolUseContext, database *sql.DB)
 }
 
 // postToolUseRespond builds the HookResult that goes back to the model.
-func postToolUseRespond(event *CloudEvent, ctx *toolUseContext, database *sql.DB) *HookResult {
+func postToolUseRespond(event *CloudEvent, ctx *toolUseContext) *HookResult {
 	result := &HookResult{Continue: true}
 
 	// Quality gate: warn when Write/Edit/MultiEdit produces an oversized file.
@@ -105,7 +96,7 @@ func postToolUseRespond(event *CloudEvent, ctx *toolUseContext, database *sql.DB
 	if event.ToolName == "Bash" && isSuccess(event.ToolResult) {
 		if cmd := extractBashCommand(event.ToolInput); looksLikeGitCommit(cmd) {
 			if _, msg := parseGitCommitOutput(summarizeToolOutput(event.ToolResult)); msg != "" {
-				if completed := autoCompleteFromCommit(msg, ctx, database); len(completed) > 0 {
+				if completed := autoCompleteFromCommit(msg, ctx); len(completed) > 0 {
 					notice := fmt.Sprintf("Auto-completed: %s", strings.Join(completed, ", "))
 					if result.AdditionalContext != "" {
 						result.AdditionalContext += "\n" + notice
