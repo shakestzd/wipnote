@@ -15,7 +15,7 @@ func boolPtr(b bool) *bool { return &b }
 
 // gitInit makes root a git repo with the given files committed, so
 // blame.WalkAreas (which drives the inventory off `git ls-files`) sees them.
-func gitInit(t *testing.T, root string, files ...string) {
+func gitInit(t testing.TB, root string, files ...string) {
 	t.Helper()
 	for _, args := range [][]string{
 		{"init", "-q", "-b", "main"},
@@ -282,7 +282,7 @@ func TestWalkAreas_SkipsDeletedTrackedFiles(t *testing.T) {
 }
 
 // writeFile creates an empty file at dir/name for walking tests.
-func writeFile(t *testing.T, dir, name string) {
+func writeFile(t testing.TB, dir, name string) {
 	t.Helper()
 	path := filepath.Join(dir, name)
 	if err := os.WriteFile(path, []byte(""), 0o644); err != nil {
