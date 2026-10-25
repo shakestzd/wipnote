@@ -176,3 +176,41 @@ func TestSessionEnd_FinalizesTelemetry(t *testing.T) {
 		t.Fatalf("budget = %s, want > 0", gotBudget)
 	}
 }
+
+// TestSignalCollector_LauncherShard verifies the collector is found under the
+// launcher's OTel id (WIPNOTE_OTEL_SESSION_ID) when the hook passes the
+// Claude session id.
+func TestSignalCollector_LauncherShard(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("SIGTERM not available on Windows")
+	}
+	dir := t.TempDir()
+	const shard, claudeID = "01alauncher", "claude-one"
+	shardDir := filepath.Join(dir, ".wipnote", "sessions", shard)
+	if err := os.MkdirAll(shardDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command("sleep", "60")
+	if err := cmd.Start(); err != nil {
+		t.Fatalf("start child: %v", err)
+	}
+	exited := make(chan struct{})
+	go func() { _ = cmd.Wait(); close(exited) }()
+	defer func() { _ = cmd.Process.Kill() }()
+	pidPath := filepath.Join(shardDir, ".collector-pid")
+	if err := os.WriteFile(pidPath, []byte(strconv.Itoa(cmd.Process.Pid)+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("WIPNOTE_OTEL_SESSION_ID", shard)
+
+	signalCollector(dir, claudeID)
+
+	if _, err := os.Stat(pidPath); !os.IsNotExist(err) {
+		t.Error("expected launcher .collector-pid to be removed after signaling")
+	}
+	select {
+	case <-exited:
+	case <-time.After(2 * time.Second):
+		t.Error("launcher collector was not signaled")
+	}
+}
