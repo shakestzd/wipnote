@@ -212,8 +212,8 @@ func checkDependencyResearchCommitGuard(event *CloudEvent, database *sql.DB, ctx
 	if dir == "" {
 		return ""
 	}
-	repoRoot := resolveGitRepoRoot(dir)
-	if repoRoot == "" {
+	repoRoot, err := paths.GitTopLevel(dir)
+	if err != nil || repoRoot == "" {
 		return ""
 	}
 	staged, err := stagedFiles(repoRoot)

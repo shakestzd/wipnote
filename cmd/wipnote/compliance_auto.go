@@ -38,6 +38,7 @@ import (
 	dbpkg "github.com/shakestzd/wipnote/core/db"
 	"github.com/shakestzd/wipnote/core/htmlparse"
 	"github.com/shakestzd/wipnote/core/models"
+	"github.com/shakestzd/wipnote/core/paths"
 	"github.com/shakestzd/wipnote/core/workitem"
 	"github.com/spf13/cobra"
 )
@@ -159,7 +160,7 @@ func runComplianceAuto(ctx context.Context, featureID string, flags complianceAu
 	}
 	projectDir := filepath.Dir(wipnoteDir)
 
-	gitRoot, err := resolveGitRoot(projectDir)
+	gitRoot, err := paths.GitTopLevel(projectDir)
 	if err != nil {
 		// Not a git repo — write "no git history" finding, exit 0.
 		featurePath := filepath.Join(wipnoteDir, "features", featureID+".html")
@@ -457,16 +458,6 @@ func listDoneFeaturesSince(database *sql.DB, since time.Time) ([]dbpkg.Feature, 
 		features = append(features, f)
 	}
 	return features, rows.Err()
-}
-
-// resolveGitRoot runs `git -C <dir> rev-parse --show-toplevel` and returns the
-// project's git root. Returns an error if <dir> is not a git repository.
-func resolveGitRoot(dir string) (string, error) {
-	out, err := exec.Command("git", "-C", dir, "rev-parse", "--show-toplevel").Output()
-	if err != nil {
-		return "", fmt.Errorf("not a git repository: %w", err)
-	}
-	return strings.TrimSpace(string(out)), nil
 }
 
 // acquireComplianceLock takes an exclusive, non-blocking flock on lockPath and

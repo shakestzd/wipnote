@@ -16,6 +16,7 @@ import (
 
 	dbpkg "github.com/shakestzd/wipnote/core/db"
 	"github.com/shakestzd/wipnote/core/gateledger"
+	"github.com/shakestzd/wipnote/core/paths"
 	"github.com/shakestzd/wipnote/core/workitem"
 )
 
@@ -371,29 +372,6 @@ func TestComputeSpecHash(t *testing.T) {
 	}
 	if len(h1) == 0 {
 		t.Error("spec hash is empty")
-	}
-}
-
-// TestResolveGitRoot_Valid verifies resolveGitRoot works in a git repo.
-func TestResolveGitRoot_Valid(t *testing.T) {
-	tmpDir := t.TempDir()
-	setupTempGitRepo(t, tmpDir, map[string]string{"file.go": "package main"})
-
-	root, err := resolveGitRoot(tmpDir)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if root == "" {
-		t.Error("expected non-empty git root")
-	}
-}
-
-// TestResolveGitRoot_NotGitRepo verifies error for non-repo directory.
-func TestResolveGitRoot_NotGitRepo(t *testing.T) {
-	tmpDir := t.TempDir()
-	_, err := resolveGitRoot(tmpDir)
-	if err == nil {
-		t.Error("expected error for non-git directory")
 	}
 }
 
@@ -1532,9 +1510,9 @@ func TestComplianceAuto_NoNamingCommitYieldsNoDiff(t *testing.T) {
 	run("add", "main.go")
 	run("commit", "-m", "update main")
 
-	gitRoot, err := resolveGitRoot(tmpDir)
+	gitRoot, err := paths.GitTopLevel(tmpDir)
 	if err != nil {
-		t.Fatalf("resolveGitRoot: %v", err)
+		t.Fatalf("GitTopLevel: %v", err)
 	}
 
 	diffBlob, truncated, err := buildDiffBlob(context.Background(), nil, featureID, gitRoot, 50000)
@@ -1559,9 +1537,9 @@ func TestComplianceAuto_NamingCommitYieldsDiff(t *testing.T) {
 		map[string]string{"main.go": "package main\nfunc main(){}\n"},
 		"feat: add main ("+featureID+")")
 
-	gitRoot, err := resolveGitRoot(tmpDir)
+	gitRoot, err := paths.GitTopLevel(tmpDir)
 	if err != nil {
-		t.Fatalf("resolveGitRoot: %v", err)
+		t.Fatalf("GitTopLevel: %v", err)
 	}
 
 	diffBlob, _, err := buildDiffBlob(context.Background(), nil, featureID, gitRoot, 50000)

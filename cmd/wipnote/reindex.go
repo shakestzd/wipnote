@@ -266,14 +266,6 @@ func replayTelemetryShards(database *sql.DB, wipnoteDir string) (int, int) {
 	return signals, errCount
 }
 
-func gitHeadCommit(projectDir string) string {
-	out, err := exec.Command("git", "-C", projectDir, "rev-parse", "HEAD").Output()
-	if err != nil {
-		return ""
-	}
-	return strings.TrimSpace(string(out))
-}
-
 func gitCommitExists(projectDir, commit string) bool {
 	err := exec.Command("git", "-C", projectDir, "cat-file", "-e", commit+"^{commit}").Run()
 	return err == nil
