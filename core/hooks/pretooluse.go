@@ -283,7 +283,7 @@ func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 		if warn := checkYoloDiffReviewGuard(event, ctx.IsYoloMode, hasRecentDiffReview(ctx.ProjectDir, ctx.SessionID)); warn != "" {
 			return &HookResult{Decision: "block", Reason: warn}, nil
 		}
-		if warn := checkYoloUIValidationGuard(event, ctx.IsYoloMode, database, ctx.SessionID, ctx.ProjectDir); warn != "" {
+		if warn := checkYoloUIValidationGuard(event, ctx.IsYoloMode, ctx.SessionID, ctx.ProjectDir); warn != "" {
 			return &HookResult{Decision: "block", Reason: warn}, nil
 		}
 		if warn := checkYoloBudgetGuard(event, ctx.IsYoloMode); warn != "" {

@@ -214,28 +214,26 @@ func TestUIValidationGuard_CanonicalFallback(t *testing.T) {
 		t.Fatalf("git add: %v\n%s", err, out)
 	}
 
-	var database *sql.DB // hot hooks dispatch with no handle (feat-af8d1689)
-
 	event := &CloudEvent{
 		ToolName:  "Bash",
 		ToolInput: map[string]any{"command": "git commit -m 'ui change'"},
 	}
 
 	// No canonical log: cannot verify that UI work happened → allow.
-	if warn := checkYoloUIValidationGuard(event, true, database, sessionID, repoDir); warn != "" {
+	if warn := checkYoloUIValidationGuard(event, true, sessionID, repoDir); warn != "" {
 		t.Fatalf("expected fail-open with no canonical log, got: %s", warn)
 	}
 
 	// The session edited a UI file and never screenshotted → block.
 	recordTool(t, repoDir, sessionID, "Edit", "index.html", `{"file_path":"index.html"}`)
-	warn := checkYoloUIValidationGuard(event, true, database, sessionID, repoDir)
+	warn := checkYoloUIValidationGuard(event, true, sessionID, repoDir)
 	if warn == "" {
 		t.Fatal("expected a block once the canonical log shows an unvalidated UI edit")
 	}
 
 	// A screenshot clears the gate.
 	recordTool(t, repoDir, sessionID, "mcp__claude-in-chrome__computer", "", `{"action":"screenshot"}`)
-	if warn := checkYoloUIValidationGuard(event, true, database, sessionID, repoDir); warn != "" {
+	if warn := checkYoloUIValidationGuard(event, true, sessionID, repoDir); warn != "" {
 		t.Fatalf("expected allow after a canonical screenshot, got: %s", warn)
 	}
 }
