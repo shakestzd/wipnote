@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -42,21 +43,19 @@ func serveChildCmd() *cobra.Command {
 	return cmd
 }
 
-// runWriterOnly is the headless writer-only serve_child path (plan-bb91616a
-// slice-2, feat-075c110d MVP-2). It is ADDITIVE: it shares no code path with
-// runServeChild's HTTP setup and changes no existing write path.
+// runWriterOnly is the headless writer daemon (plan-bb91616a slice-2,
+// feat-075c110d MVP-2, feat-f6759e37 reads).
 //
 // Lifecycle:
 //  1. Acquire the O_EXCL single-owner lease. A racing loser gets
 //     daemon.ErrLeaseHeld and exits 0 (the existing owner serves the socket).
-//  2. Open the writable DB (same dbpkg.Open + receiver.NewWriter the default
-//     serve_child uses) and start a writequeue.Queue — the SAME single-writer
-//     mechanism. Every op submitted over the socket funnels through it.
-//  3. Bind the per-project Unix socket and serve until interrupted.
-//
-// MVP-2 wires NO real op appliers (callers cut over in MVP-3/4); the listener
-// uses daemon.RejectingApplier so any op_type is acked error rather than
-// mis-applied. This proves the transport end-to-end without touching dbgate.
+//  2. Start the telemetry catch-up loop. It reads only events.ndjson, so it
+//     does not need the projection (bug-98f32723).
+//  3. Open the in-memory projection, start the single-writer queue, and
+//     submit the startup hydrate as the queue's FIRST op.
+//  4. Bind the per-project Unix socket and serve at once, while the hydrate
+//     runs (bug-06d2c91d). See core/daemon/socket_ready.go for what callers
+//     see until it ends.
 func runWriterOnly() error {
 	wipnoteDir, err := findWipnoteDir()
 	if err != nil {
@@ -78,28 +77,27 @@ func runWriterOnly() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// Telemetry catch-up must NOT wait for the hydrate below. On a repo with
-	// ~1600 work-item files the hydrate runs one `git log --follow` per file and
-	// took over 15 minutes, so a loop started after it left every unmarked shard
-	// unfinalized for that long (bug-98f32723). Catch-up reads only
-	// events.ndjson and uses its own projection, so it is safe to run now.
+	// Telemetry catch-up must NOT wait for the startup hydrate: a loop
+	// started after it left every unmarked shard unfinalized for as long as
+	// the hydrate took (bug-98f32723). Catch-up reads only events.ndjson and
+	// uses its own projection, so it is safe to run now.
 	startTelemetryCatchUpLoop(ctx, telemetryCatchUpInterval, projectRoot)
+	return serveWriter(ctx, cancel, wipnoteDir)
+}
 
+// serveWriter owns the daemon's single writable projection and serves the
+// socket until ctx ends (signal, idle exit, or a failed hydrate).
+func serveWriter(ctx context.Context, cancel context.CancelFunc, wipnoteDir string) error {
 	writeDB, err := dbpkg.OpenEphemeralProjection()
 	if err != nil {
 		return fmt.Errorf("open ephemeral compatibility db: %w", err)
 	}
-	if err := hydrateWriterDB(writeDB, wipnoteDir); err != nil {
-		writeDB.Close()
-		return fmt.Errorf("hydrate compatibility db: %w", err)
-	}
 	defer writeDB.Close()
 
 	// The OTel signals Writer BORROWS the single writable handle above rather
-	// than opening its own pool (feat-075c110d). With MaxOpenConns=1 it cannot
-	// pin a lifetime connection (that would starve the applier + maintenance),
-	// so NewWriterFromDB acquires the pool connection per-batch and releases it
-	// — the pool serialization is the single-writer guarantee.
+	// than opening its own pool (feat-075c110d): with MaxOpenConns=1 it takes
+	// the pool connection per batch, and that serialization is the
+	// single-writer guarantee.
 	writer, err := otelreceiver.NewWriterFromDB(writeDB)
 	if err != nil {
 		return fmt.Errorf("writer service init: %w", err)
@@ -115,17 +113,49 @@ func runWriterOnly() error {
 	}
 	defer q.Stop(drainGrace)
 
-	// Graceful shutdown (feat-075c110d lifecycle hardening): trap SIGTERM/
-	// SIGINT and cancel the serve context. Cancellation closes the listener
-	// (Serve returns), stops the maintenance loops, and fires the deferred
-	// ln.Close() — unlinking .wipnote/writer.sock — and the deferred
-	// lease.Release() — removing .wipnote/writer.pid. Draining of in-flight
-	// ops happens in the deferred q.Stop(drainGrace) above. Without this the
-	// headless writer left both the stale socket and the lease behind on
-	// SIGTERM, blocking the dashboard's serve_child and the next writer.
+	ready, err := submitStartupHydrate(ctx, cancel, q, writeDB, wipnoteDir)
+	if err != nil {
+		return err
+	}
+	defer stopOnSignal(ctx, cancel)()
+
+	// Background maintenance (feat-075c110d increment 2) — see
+	// startWriterMaintenance for which loops run and why.
+	startWriterMaintenance(ctx, wipnoteDir)
+	return bindAndServe(ctx, wipnoteDir, q, writer.DB(), ready.Load)
+}
+
+// submitStartupHydrate queues the projection build as the FIRST op on q, so
+// every socket op, which can only arrive later, applies after it in FIFO
+// order. The returned flag turns true when the build ends; the listener uses
+// it as its readiness gate. A failed build cancels ctx and the daemon exits,
+// as it did when the build ran before the socket was bound.
+func submitStartupHydrate(ctx context.Context, cancel context.CancelFunc, q *writequeue.Queue, database *sql.DB, wipnoteDir string) (*atomic.Bool, error) {
+	ready := new(atomic.Bool)
+	build := func(context.Context) error {
+		start := time.Now()
+		if err := hydrateWriterDB(database, wipnoteDir); err != nil {
+			log.Printf("writer: hydrate compatibility db: %v", err)
+			cancel()
+			return err
+		}
+		ready.Store(true)
+		log.Printf("writer: startup projection built in %s", time.Since(start).Round(time.Millisecond))
+		return nil
+	}
+	if err := q.Submit(ctx, build); err != nil {
+		return nil, fmt.Errorf("queue startup hydrate: %w", err)
+	}
+	return ready, nil
+}
+
+// stopOnSignal cancels ctx on SIGINT/SIGTERM (feat-075c110d lifecycle
+// hardening). Cancellation closes the listener, stops the maintenance loops,
+// and lets the deferred cleanups unlink .wipnote/writer.sock and release
+// .wipnote/writer.pid. It returns the function that stops the trap.
+func stopOnSignal(ctx context.Context, cancel context.CancelFunc) func() {
 	sigC := make(chan os.Signal, 1)
 	signal.Notify(sigC, syscall.SIGINT, syscall.SIGTERM)
-	defer signal.Stop(sigC)
 	go func() {
 		select {
 		case <-sigC:
@@ -133,34 +163,25 @@ func runWriterOnly() error {
 		case <-ctx.Done():
 		}
 	}()
+	return func() { signal.Stop(sigC) }
+}
 
-	// Per-project background maintenance (MOVED from runServeChild in
-	// feat-075c110d increment 2). These are the writable workloads that don't
-	// fit the socket/writequeue op API and previously ran inside the HTTP
-	// serve_child against its own writable handle — the source of the
-	// serve_child↔writer contention. They now run HERE, against the daemon's
-	// single writable handle / queue, so the HTTP serve_child can be strictly
-	// read-only.
-	startWriterMaintenance(ctx, wipnoteDir)
-
-	// Wire the real derived-op Applier. writer.DB() is the SAME single
-	// writable handle (writeDB, MaxOpenConns=1) the OTel sink, indexer, and
-	// maintenance loops use, so all socket-delivered writes serialize on the
-	// one connection — the structural single-writer invariant.
-	// Wire the read side (feat-f6759e37). The Reader answers work-item queries
-	// from CANONICAL state — the .wipnote HTML files — not from writeDB, so it
-	// shares nothing with the write path above and cannot queue behind it. That
-	// is the whole point: hooks are fresh processes that cannot afford the
-	// canonical parse, and this daemon is where that parse gets amortised, so
-	// hooks stop needing the derived index to answer work-item questions.
-	readCache := readsrv.NewCache(wipnoteDir)
-
+// bindAndServe binds the per-project socket and serves until ctx ends or the
+// daemon idles out.
+//
+// Writes go through the real derived-op Applier on writeDB, the same single
+// writable handle the OTel sink and the hydrate use. Reads (feat-f6759e37) are
+// answered from CANONICAL state — the .wipnote HTML files — by readsrv, so they
+// share nothing with the write path and work before the hydrate ends.
+func bindAndServe(ctx context.Context, wipnoteDir string, q *writequeue.Queue, writeDB *sql.DB, ready func() bool) error {
+	projectRoot := filepath.Dir(wipnoteDir)
 	ln, err := daemon.NewListener(daemon.ListenerConfig{
 		SocketPath: daemon.SocketPath(projectRoot),
 		Queue:      q,
-		Applier:    apply.NewApplier(writer.DB()),
-		Reader:     readsrv.Reader(readCache),
+		Applier:    apply.NewApplier(writeDB),
+		Reader:     readsrv.Reader(readsrv.NewCache(wipnoteDir)),
 		OwnerPID:   os.Getpid(),
+		Ready:      ready,
 	})
 	if err != nil {
 		return fmt.Errorf("bind writer socket: %w", err)
@@ -168,12 +189,11 @@ func runWriterOnly() error {
 	defer ln.Close()
 
 	// Readiness signal: the socket is bound and the queue is running.
-	fmt.Fprintf(os.Stderr, "wipnote: writer-only daemon ready socket=%s pid=%d\n", ln.Addr(), os.Getpid())
+	log.Printf("wipnote: writer-only daemon ready socket=%s pid=%d", ln.Addr(), os.Getpid())
 
 	// The writer is auto-spawned detached by hooks, the CLI and the launchers,
 	// so it idle-exits after writerIdleTimeout rather than lingering.
-	idle := writerIdleTimeout()
-	return ln.ServeWithIdleTimeout(ctx, idle)
+	return ln.ServeWithIdleTimeout(ctx, writerIdleTimeout())
 }
 
 // retentionSweepInterval is how often the daemon runs the retention pass
