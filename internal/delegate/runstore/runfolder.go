@@ -36,6 +36,17 @@ var ContractFiles = []string{
 	FileStart, FileEnd, FileExit, FileLabel, FileHost, FileRunHTML,
 }
 
+// Files wipnote delegate run writes beside the contract (plan-28b4a7f6
+// slice 8): ccx's stdout, which the mod keeps as out.txt too, and the job
+// the run's herdr pane executes.
+const (
+	FileOut = "out.txt"  // ccx's stdout (status line and result)
+	FileJob = "job.json" // the argv and settings a pane worker runs
+)
+
+// RunnerFiles lists the files beside the contract that WriteFile accepts.
+var RunnerFiles = []string{FileOut, FileJob}
+
 // Hosts a run can name in its host file.
 const (
 	HostClaude = "claude"
@@ -191,7 +202,7 @@ func (r *RunFolder) text(name string) string {
 }
 
 func isContractFile(name string) bool {
-	for _, n := range ContractFiles {
+	for _, n := range append(ContractFiles[:len(ContractFiles):len(ContractFiles)], RunnerFiles...) {
 		if n == name {
 			return true
 		}

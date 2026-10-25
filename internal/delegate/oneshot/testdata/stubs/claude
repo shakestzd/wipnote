@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# A stand-in for claude -p in delegate run tests: records its argv and
+# prints STUB_STDOUT (a stream-json fixture).
+printf '%s\n' "$@" > "${STUB_ARGV:-/dev/null}"
+[ -n "${STUB_STDOUT:-}" ] && cat "$STUB_STDOUT"
+exit "${STUB_EXIT:-0}"
