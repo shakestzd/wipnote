@@ -7,7 +7,7 @@ meta:
     status: draft
     priority: medium
     schema_version: v4
-    version: 10
+    version: 11
 design:
     problem: ""
     goals: []
@@ -188,6 +188,28 @@ slices:
         - 5
       done_when:
         - golangci-lint dupl reports no duplicate over 30 lines in the touched packages
+        - Full test suite passes
+      effort: M
+      risk: Low
+      tests: ""
+      approved: false
+      comment: ""
+    - id: slic-80c68005
+      num: 9
+      title: Split oversized files and functions
+      what: 'Split files over 500 lines and functions over 50 lines that remain after slices 3-8: workitem.go and wiSetStatusWithAgent, yolo_guard.go, codex.go, session_start.go and SessionStart, session_end.go, otel receiver writer.go, planyaml validate.go, pretooluse PreToolUse into a guard pipeline.'
+      why: The repo rules fail new code over these limits; the remaining big files are where bugs hide.
+      files:
+        - cmd/wipnote/workitem.go
+        - core/hooks
+        - cmd/wipnote/codex.go
+        - observe/otel/receiver/writer.go
+        - plan/planyaml/validate.go
+      deps:
+        - 8
+      done_when:
+        - No touched file is over 500 lines
+        - No touched function is over 50 lines
         - Full test suite passes
       effort: M
       risk: Low
