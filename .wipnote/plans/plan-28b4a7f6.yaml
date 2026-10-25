@@ -1,0 +1,18 @@
+meta:
+    id: plan-28b4a7f6
+    track_id: trk-2e707ed1
+    title: 'Native delegation in wipnote: port orch to Go and absorb codex-herdr-pane'
+    description: 'Make orch''s delegation a native, Go-built wipnote feature (wipnote delegate: spawn, send, wait, result, stop, questions, tree, run) with a file mailbox, herdr panes for interactive sessions and one-shot runs on ONE path that absorbs mods/codex-herdr-pane. orch (Python, owner''s machine) is the reference. Replaces the mod-vs-orch split in docs/design/orch-integration.md.'
+    created_at: "2026-10-25"
+    status: draft
+    priority: medium
+    schema_version: v4
+    version: 2
+design:
+    problem: ""
+    goals: []
+    constraints: []
+    approved: false
+    comment: ""
+slices: []
+questions: []
