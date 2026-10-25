@@ -96,6 +96,12 @@ func Query(ctx context.Context, db *sql.DB, path string, opts QueryOptions) (*Re
 	}, nil
 }
 
+// queryRows is the package's single entry to the database. It is a seam so a
+// test can count the queries one WalkAreas issues (feat-c30d0792).
+var queryRows = func(ctx context.Context, db *sql.DB, query string, args ...any) (*sql.Rows, error) {
+	return db.QueryContext(ctx, query, args...)
+}
+
 // escapeLikePattern escapes the SQL LIKE wildcards %, _, and the escape
 // character itself (\) so a path containing those characters is treated as a
 // literal string rather than a pattern. Pairs with `ESCAPE '\'` in the query.
@@ -143,7 +149,7 @@ func queryFeatureRows(ctx context.Context, db *sql.DB, path string, opts QueryOp
 		GROUP BY ff.feature_id
 		ORDER BY touch_count DESC, last_seen DESC`)
 
-	sqlRows, err := db.QueryContext(ctx, qb.String(), args...)
+	sqlRows, err := queryRows(ctx, db, qb.String(), args...)
 	if err != nil {
 		return nil, fmt.Errorf("blame query for %s: %w", path, err)
 	}
