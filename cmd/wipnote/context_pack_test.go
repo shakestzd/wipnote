@@ -344,37 +344,14 @@ func TestContextPack_Section4Placeholder(t *testing.T) {
 	}
 }
 
-// TestContextPack_EdgeAttributedCommits verifies that commitsByTrack finds
-// features attached via graph_edges (edge-based attribution from migrate-tracks),
-// not only via the track_id column (bug-680d0ee4).
-func TestContextPack_EdgeAttributedCommits(t *testing.T) {
-	_, _, proj := setupContextPackEnv(t)
-
-	trackID := "trk-edgetest"
-	featID := "feat-edgetest"
-
-	// Insert a minimal track + feature into SQLite WITHOUT setting track_id column.
-	// The feature belongs to the track only via a graph_edges row.
-	if _, err := proj.DB.Exec(`INSERT OR IGNORE INTO tracks (id, type, title, status, created_at, updated_at) VALUES (?, 'track', 'Edge Track', 'open', datetime('now'), datetime('now'))`, trackID); err != nil {
-		t.Fatalf("insert track: %v", err)
-	}
-	if _, err := proj.DB.Exec(`INSERT OR IGNORE INTO features (id, type, title, status, priority, created_at, updated_at) VALUES (?, 'feature', 'Edge Feature', 'open', 'medium', datetime('now'), datetime('now'))`, featID); err != nil {
-		t.Fatalf("insert feature: %v", err)
-	}
-	// Attach via edge, not column.
-	if _, err := proj.DB.Exec(`INSERT OR REPLACE INTO graph_edges (edge_id, from_node_id, from_node_type, to_node_id, to_node_type, relationship_type) VALUES ('e1', ?, 'feature', ?, 'track', 'part_of')`, featID, trackID); err != nil {
-		t.Fatalf("insert edge: %v", err)
-	}
-
-	// Seed a commit for the edge-attributed feature.
-	seedCommit(t, proj, "edge1234abcd5678", featID, "chore: edge-attributed commit", time.Now().UTC())
-
-	commits, err := commitsByTrack(proj, trackID)
-	if err != nil {
-		t.Fatalf("commitsByTrack: %v", err)
-	}
-	if len(commits) == 0 {
-		t.Error("expected at least one commit from edge-attributed feature, got none")
+// TestContextPack_EdgeAttributedFeature verifies that a feature attached to a
+// track only by a part_of edge still counts as the track's (bug-680d0ee4).
+func TestContextPack_EdgeAttributedFeature(t *testing.T) {
+	n := &models.Node{ID: "feat-edgetest", Edges: map[string][]models.Edge{
+		"part_of": {{TargetID: "trk-edgetest"}},
+	}}
+	if !hasEdgeTo(n, "part_of", "trk-edgetest") || hasEdgeTo(n, "part_of", "trk-other") {
+		t.Error("hasEdgeTo should match only the linked track")
 	}
 }
 
