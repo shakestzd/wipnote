@@ -23,6 +23,7 @@ import (
 // when the current base would overflow the cap — a no-op on Linux/devcontainer,
 // so it never regresses that path. t.TempDir() still auto-cleans its dirs.
 func TestMain(m *testing.M) {
+	runTestChildIfAsked()
 	ensureSocketSafeTmpdir()
 	os.Exit(m.Run())
 }

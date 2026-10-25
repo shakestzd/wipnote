@@ -29,11 +29,13 @@ var preMergeBackupRe = regexp.MustCompile(`^\.wipnote/\.pre-merge-backup-[^/]+/`
 // churns history and leaks one machine's session/launch/socket state into the
 // shared canonical store. Matched as exact repo-relative paths.
 var runtimeStateFiles = map[string]bool{
-	".wipnote/.active-session": true,
-	".wipnote/.launch-mode":    true,
-	".wipnote/.serve.lock":     true,
-	".wipnote/debug.log":       true,
-	".wipnote/writer.pid":      true,
+	".wipnote/.active-session":   true,
+	".wipnote/.launch-mode":      true,
+	".wipnote/.serve.lock":       true,
+	".wipnote/debug.log":         true,
+	".wipnote/writer.pid":        true,
+	".wipnote/writer.lease.pid":  true,
+	".wipnote/writer.lease.lock": true,
 }
 
 // runtimeStateDirRe matches files under runtime-state subdirectories of

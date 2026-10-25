@@ -1529,6 +1529,10 @@ func execCodex(opts codexLaunchOpts) error {
 	// wipnote launcher is behind THIS session.
 	writeLaunchMarker(string(opts.effectiveMode()), effectiveProjDir)
 
+	// Start the work-item daemon now and collect it just before exec. Only a
+	// launcher starts the writer (bug-5ca53f70): Codex hooks never do.
+	daemonEnsure := startDaemonEnsure(effectiveProjDir)
+
 	// Launch-time guard-profile initialization (peer to the OTel collector
 	// bootstrap). No-op when already approved or non-interactive; never blocks.
 	ensureGuardProfile(effectiveProjDir)
@@ -1644,6 +1648,7 @@ func execCodex(opts codexLaunchOpts) error {
 	env = applySandboxDegradedEnv(env, sandboxDegraded)
 
 	env = withHarnessEnv(env, harnessCodex)
+	env = mergeLauncherEnv(env, daemonEnsure.sessionEnv(os.Stderr, daemonJoinBudget)...)
 	c.Env = env
 	if workDir != "" {
 		c.Dir = workDir

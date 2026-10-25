@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"path/filepath"
 )
@@ -43,9 +44,30 @@ import (
 // bug-4e5816f4. Those passes belong to `wipnote reindex`, whose job is the full
 // sweep.
 func hydrateCompatibilityDB(database *sql.DB, wipnoteDir string) error {
+	return hydrateCompatibilityDBCtx(context.Background(), database, wipnoteDir)
+}
+
+// hydrateCompatibilityDBCtx is hydrateCompatibilityDB that stops between
+// passes once ctx ends and returns ctx's error (bug-5ca53f70). The writer
+// daemon uses it, so a writer that exits mid-hydrate stops working at the
+// next pass instead of finishing a projection nobody will read. A pass that
+// is already running finishes first.
+func hydrateCompatibilityDBCtx(ctx context.Context, database *sql.DB, wipnoteDir string) error {
 	validIDs := make(map[string]bool)
-	hydrateNodePasses(database, wipnoteDir, validIDs)
-	hydrateEdgePasses(database, wipnoteDir, validIDs)
+	if err := runHydrateSteps(ctx, nodePassSteps(database, wipnoteDir, validIDs)); err != nil {
+		return err
+	}
+	return runHydrateSteps(ctx, edgePassSteps(database, wipnoteDir, validIDs))
+}
+
+// runHydrateSteps runs steps in order, checking ctx before each one.
+func runHydrateSteps(ctx context.Context, steps []func()) error {
+	for _, step := range steps {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		step()
+	}
 	return nil
 }
 
@@ -54,15 +76,22 @@ func hydrateCompatibilityDB(database *sql.DB, wipnoteDir string) error {
 // extra session pass between the two — see hydrateEdgePasses for why that
 // position is not negotiable.
 func hydrateNodePasses(database *sql.DB, wipnoteDir string, validIDs map[string]bool) {
+	_ = runHydrateSteps(context.Background(), nodePassSteps(database, wipnoteDir, validIDs))
+}
+
+// nodePassSteps lists the node passes in their required order.
+func nodePassSteps(database *sql.DB, wipnoteDir string, validIDs map[string]bool) []func() {
 	projectDir := filepath.Dir(wipnoteDir)
-	reindexTracks(database, wipnoteDir, projectDir, validIDs, false)
+	steps := []func(){func() { reindexTracks(database, wipnoteDir, projectDir, validIDs, false) }}
 	for _, dir := range []string{"features", "bugs", "spikes"} {
-		reindexFeatureDir(database, wipnoteDir, projectDir, dir, validIDs, false)
+		steps = append(steps, func() { reindexFeatureDir(database, wipnoteDir, projectDir, dir, validIDs, false) })
 	}
-	reindexWorkitemLedgerNodes(database, wipnoteDir, projectDir, validIDs, false)
-	reindexClaimEpisodes(database, wipnoteDir, false)
-	// Must follow reindexClaimEpisodes: it projects that pass's output.
-	reindexActiveWorkItems(database, false)
+	return append(steps,
+		func() { reindexWorkitemLedgerNodes(database, wipnoteDir, projectDir, validIDs, false) },
+		func() { reindexClaimEpisodes(database, wipnoteDir, false) },
+		// Must follow reindexClaimEpisodes: it projects that pass's output.
+		func() { reindexActiveWorkItems(database, false) },
+	)
 }
 
 // hydrateEdgePasses finishes the projection: it projects the sessions ledger,
@@ -80,22 +109,29 @@ func hydrateNodePasses(database *sql.DB, wipnoteDir string, validIDs map[string]
 //     already exists. Run it before the richer source and the placeholder wins
 //     permanently.
 func hydrateEdgePasses(database *sql.DB, wipnoteDir string, validIDs map[string]bool) {
+	_ = runHydrateSteps(context.Background(), edgePassSteps(database, wipnoteDir, validIDs))
+}
+
+// edgePassSteps lists the edge passes in their required order.
+func edgePassSteps(database *sql.DB, wipnoteDir string, validIDs map[string]bool) []func() {
 	projectDir := filepath.Dir(wipnoteDir)
-	reindexSessionLedger(database, wipnoteDir, false)
-	// Needs both reindexSessionLedger (rows to update) and the node phase's
-	// reindexActiveWorkItems (the value to set) — this is the first point where
-	// both exist.
-	applyActiveFeatureIDFromClaims(database, false)
-	// claims has foreign keys to sessions and features, so this needs the
-	// sessions ledger rows above and the node phase's features (bug-ec1ff126).
-	reindexClaimsFromEpisodes(database, false)
-	collectPlanIDs(wipnoteDir, validIDs)
-	collectSessionIDs(database, validIDs)
-	reindexEdges(database, wipnoteDir, validIDs)
-	reindexWorkitemLedgerEdges(database, wipnoteDir, validIDs, false)
-	fixImplementedInEdges(database)
-	reindexPlanEdges(database, wipnoteDir)
-	reindexPlanFeedback(database, wipnoteDir)
-	reindexGateRecords(database, wipnoteDir, false)
-	reindexRecaps(database, wipnoteDir, projectDir, false)
+	return []func(){
+		func() { reindexSessionLedger(database, wipnoteDir, false) },
+		// Needs both reindexSessionLedger (rows to update) and the node phase's
+		// reindexActiveWorkItems (the value to set) — this is the first point
+		// where both exist.
+		func() { applyActiveFeatureIDFromClaims(database, false) },
+		// claims has foreign keys to sessions and features, so this needs the
+		// sessions ledger rows above and the node phase's features (bug-ec1ff126).
+		func() { reindexClaimsFromEpisodes(database, false) },
+		func() { collectPlanIDs(wipnoteDir, validIDs) },
+		func() { collectSessionIDs(database, validIDs) },
+		func() { reindexEdges(database, wipnoteDir, validIDs) },
+		func() { reindexWorkitemLedgerEdges(database, wipnoteDir, validIDs, false) },
+		func() { fixImplementedInEdges(database) },
+		func() { reindexPlanEdges(database, wipnoteDir) },
+		func() { reindexPlanFeedback(database, wipnoteDir) },
+		func() { reindexGateRecords(database, wipnoteDir, false) },
+		func() { reindexRecaps(database, wipnoteDir, projectDir, false) },
+	}
 }
