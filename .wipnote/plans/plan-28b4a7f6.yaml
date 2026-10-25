@@ -7,7 +7,7 @@ meta:
     status: draft
     priority: medium
     schema_version: v4
-    version: 4
+    version: 5
 design:
     problem: |
         ## Problem
@@ -1331,3 +1331,69 @@ feedback:
           question_id: q-concurrent-workers
           created_at: "2026-10-25T07:28:44Z"
           updated_at: "2026-10-25T07:28:44Z"
+        - section: questions
+          action: answer
+          value: deny-redirect
+          question_id: q-intercept
+          created_at: "2026-10-25T08:28:17Z"
+          updated_at: "2026-10-25T08:28:17Z"
+        - section: questions
+          action: answer
+          value: orchestra
+          question_id: q-claude-pane
+          created_at: "2026-10-25T08:28:17Z"
+          updated_at: "2026-10-25T08:28:17Z"
+        - section: questions
+          action: answer
+          value: go-plain
+          question_id: q-viewer
+          created_at: "2026-10-25T08:28:17Z"
+          updated_at: "2026-10-25T08:28:17Z"
+        - section: questions
+          action: answer
+          value: explicit-only
+          question_id: q-label
+          created_at: "2026-10-25T08:28:17Z"
+          updated_at: "2026-10-25T08:28:17Z"
+        - section: questions
+          action: answer
+          value: per-host-optin
+          question_id: q-codex-sandbox
+          created_at: "2026-10-25T08:28:17Z"
+          updated_at: "2026-10-25T08:28:17Z"
+        - section: questions
+          action: answer
+          value: import
+          question_id: q-orch-import
+          created_at: "2026-10-25T08:28:17Z"
+          updated_at: "2026-10-25T08:28:17Z"
+        - section: questions
+          action: answer
+          value: inventory-only
+          question_id: q-orch-source
+          created_at: "2026-10-25T08:28:17Z"
+          updated_at: "2026-10-25T08:28:17Z"
+        - section: questions
+          action: answer
+          value: later
+          question_id: q-chained
+          created_at: "2026-10-25T08:28:17Z"
+          updated_at: "2026-10-25T08:28:17Z"
+        - section: questions
+          action: answer
+          value: answer
+          question_id: q-answer-questions
+          created_at: "2026-10-25T08:28:17Z"
+          updated_at: "2026-10-25T08:28:17Z"
+        - section: questions
+          action: answer
+          value: same-release
+          question_id: q-mod-removal
+          created_at: "2026-10-25T08:28:17Z"
+          updated_at: "2026-10-25T08:28:17Z"
+        - section: questions
+          action: answer
+          value: "no"
+          question_id: q-antigravity
+          created_at: "2026-10-25T08:28:17Z"
+          updated_at: "2026-10-25T08:28:17Z"
