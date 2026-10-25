@@ -159,8 +159,8 @@ func TestCompleteInProgressByTrack_Query(t *testing.T) {
 			Priority: "medium",
 			TrackID:  trackID,
 		}
-		if err := db.InsertFeature(td.DB, feat); err != nil {
-			t.Fatalf("InsertFeature(%s): %v", id, err)
+		if err := db.UpsertFeature(td.DB, feat); err != nil {
+			t.Fatalf("UpsertFeature(%s): %v", id, err)
 		}
 	}
 
@@ -250,7 +250,7 @@ func TestWorktreeRemove_AutoCompletes(t *testing.T) {
 		Priority: "medium",
 		TrackID:  "trk-deadbeef",
 	}
-	if err := db.InsertFeature(database, feat); err != nil {
+	if err := db.UpsertFeature(database, feat); err != nil {
 		t.Fatalf("insert feature: %v", err)
 	}
 

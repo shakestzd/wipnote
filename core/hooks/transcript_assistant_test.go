@@ -126,7 +126,7 @@ func writeTempTranscript(t *testing.T, lines []string) string {
 	return f.Name()
 }
 
-// --- readLastAssistantRecord tests ---
+// --- readTranscriptWithMap tests ---
 
 // TestReadLastAssistantRecord_HappyPath verifies that the most recent
 // non-sidechain assistant text record is returned.
@@ -136,9 +136,9 @@ func TestReadLastAssistantRecord_HappyPath(t *testing.T) {
 		makeTranscriptLine("asst-1", "user-1", "sess-1", "end_turn", "Hi there!", false),
 	})
 
-	rec, err := readLastAssistantRecord(path)
+	rec, _, err := readTranscriptWithMap(path)
 	if err != nil {
-		t.Fatalf("readLastAssistantRecord: %v", err)
+		t.Fatalf("readTranscriptWithMap: %v", err)
 	}
 	if rec == nil {
 		t.Fatal("expected non-nil record")
@@ -162,9 +162,9 @@ func TestReadLastAssistantRecord_SidechainFilter(t *testing.T) {
 		makeTranscriptLine("asst-side", "user-1", "sess-1", "end_turn", "Sidechain reply", true),
 	})
 
-	rec, err := readLastAssistantRecord(path)
+	rec, _, err := readTranscriptWithMap(path)
 	if err != nil {
-		t.Fatalf("readLastAssistantRecord: %v", err)
+		t.Fatalf("readTranscriptWithMap: %v", err)
 	}
 	if rec == nil {
 		t.Fatal("expected non-nil record (should find the non-sidechain one)")
@@ -181,9 +181,9 @@ func TestReadLastAssistantRecord_ThinkingOnly(t *testing.T) {
 		makeThinkingLine("asst-thinking", "sess-1"),
 	})
 
-	rec, err := readLastAssistantRecord(path)
+	rec, _, err := readTranscriptWithMap(path)
 	if err != nil {
-		t.Fatalf("readLastAssistantRecord: %v", err)
+		t.Fatalf("readTranscriptWithMap: %v", err)
 	}
 	if rec != nil {
 		t.Errorf("expected nil (thinking-only), got UUID=%q", rec.UUID)
@@ -197,9 +197,9 @@ func TestReadLastAssistantRecord_Interrupted(t *testing.T) {
 		makeTranscriptLine("asst-trunc", "user-1", "sess-1", "max_tokens", "Partial...", false),
 	})
 
-	rec, err := readLastAssistantRecord(path)
+	rec, _, err := readTranscriptWithMap(path)
 	if err != nil {
-		t.Fatalf("readLastAssistantRecord: %v", err)
+		t.Fatalf("readTranscriptWithMap: %v", err)
 	}
 	if rec == nil {
 		t.Fatal("expected non-nil record")
@@ -219,9 +219,9 @@ func TestReadLastAssistantRecord_MultiTurn(t *testing.T) {
 		makeTranscriptLine("asst-2", "user-2", "sess-1", "end_turn", "Second answer", false),
 	})
 
-	rec, err := readLastAssistantRecord(path)
+	rec, _, err := readTranscriptWithMap(path)
 	if err != nil {
-		t.Fatalf("readLastAssistantRecord: %v", err)
+		t.Fatalf("readTranscriptWithMap: %v", err)
 	}
 	if rec == nil {
 		t.Fatal("expected non-nil record")
@@ -234,7 +234,7 @@ func TestReadLastAssistantRecord_MultiTurn(t *testing.T) {
 // TestReadLastAssistantRecord_MissingFile verifies that a missing transcript
 // path returns nil without error (non-fatal).
 func TestReadLastAssistantRecord_MissingFile(t *testing.T) {
-	rec, err := readLastAssistantRecord(filepath.Join(t.TempDir(), "does-not-exist.jsonl"))
+	rec, _, err := readTranscriptWithMap(filepath.Join(t.TempDir(), "does-not-exist.jsonl"))
 	if err != nil {
 		t.Fatalf("expected nil error for missing file, got: %v", err)
 	}

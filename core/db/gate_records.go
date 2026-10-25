@@ -70,21 +70,6 @@ func (gr *GateRecord) EnsureSignature() {
 	gr.Signature = gr.ComputeSignature()
 }
 
-func (gr *GateRecord) SignatureValid() bool {
-	if gr == nil || strings.TrimSpace(gr.Signature) == "" {
-		return false
-	}
-	return gr.Signature == gr.ComputeSignature()
-}
-
-// InsertGateRecord projects one gate run into the read index, ignoring a record
-// already projected. See InsertGateRecordIfAbsent for the inserted/ignored
-// distinction.
-func InsertGateRecord(database *sql.DB, gr *GateRecord) error {
-	_, err := InsertGateRecordIfAbsent(database, gr)
-	return err
-}
-
 // InsertGateRecordIfAbsent projects one gate run into the read index and reports
 // whether a row was actually written.
 //
@@ -161,56 +146,6 @@ func GateRecordFromLedger(r gateledger.Record) *GateRecord {
 	}
 }
 
-// UnledgeredGateRecords returns index rows that carry no canonical record id —
-// gate runs written before the ledger existed.
-//
-// This is the input to the one-shot backfill that gives those runs a canonical
-// home. Without it the seventy-five records bug-550c1cd8 counted would stay
-// cache-only forever: the ledger would protect every FUTURE run and lose every
-// past one on the first purge.
-func UnledgeredGateRecords(database *sql.DB) ([]*GateRecord, error) {
-	if database == nil {
-		return nil, nil
-	}
-	rows, err := database.Query(`
-		SELECT id, COALESCE(record_id,''), session_id, COALESCE(work_item_id,''), COALESCE(harness,''),
-		       COALESCE(project_type,''), COALESCE(gate_command,''), COALESCE(status,''),
-		       checked_at, COALESCE(signature,''), COALESCE(allowlist_hits_json,'[]'),
-		       COALESCE(allowlist_hit_count,0), COALESCE(source,''), COALESCE(output_summary,''),
-		       COALESCE(profile_signature,''), COALESCE(guards_run,'[]')
-		FROM gate_records
-		WHERE COALESCE(record_id,'') = ''
-		ORDER BY checked_at ASC, id ASC`)
-	if err != nil {
-		return nil, fmt.Errorf("query unledgered gate records: %w", err)
-	}
-	defer rows.Close()
-
-	var out []*GateRecord
-	for rows.Next() {
-		rec, scanErr := scanGateRecord(rows)
-		if scanErr != nil {
-			return nil, scanErr
-		}
-		if rec != nil {
-			out = append(out, rec)
-		}
-	}
-	return out, rows.Err()
-}
-
-// SetGateRecordID stamps a legacy row with the canonical record id it was
-// backfilled into, so the next backfill pass skips it.
-func SetGateRecordID(database *sql.DB, rowID int64, recordID string) error {
-	if database == nil || strings.TrimSpace(recordID) == "" {
-		return nil
-	}
-	if _, err := database.Exec(`UPDATE gate_records SET record_id = ? WHERE id = ?`, recordID, rowID); err != nil {
-		return fmt.Errorf("stamp gate record %d with %s: %w", rowID, recordID, err)
-	}
-	return nil
-}
-
 func LatestGateRecordForSession(database *sql.DB, sessionID string) (*GateRecord, error) {
 	if database == nil || strings.TrimSpace(sessionID) == "" {
 		return nil, nil
@@ -226,65 +161,6 @@ func LatestGateRecordForSession(database *sql.DB, sessionID string) (*GateRecord
 		ORDER BY checked_at DESC, id DESC
 		LIMIT 1`, sessionID)
 	return scanGateRecord(row)
-}
-
-// LatestPassingGateRecordForWorkItem returns the most recent passing gate
-// record for workItemID, regardless of which session produced it, provided the
-// record was checked within the `within` window. When headCommit is non-empty
-// the lookup additionally requires that the record's gate_command-independent
-// output_summary or the caller's verification ties it to the current HEAD; HEAD
-// matching is enforced by the caller (validateCompletionGateRecord) against the
-// returned record's metadata, so this query only applies the work-item +
-// status + recency filter. A nil record (no error) means no qualifying record
-// exists. This is the cross-session fallback for bug-35857288: a work item
-// validated by a passing gate in one session must be completable from another
-// session at the same HEAD, instead of being rejected for lacking a
-// session-scoped record.
-func LatestPassingGateRecordForWorkItem(database *sql.DB, workItemID string, within time.Duration) (*GateRecord, error) {
-	if database == nil || strings.TrimSpace(workItemID) == "" {
-		return nil, nil
-	}
-	row := database.QueryRow(`
-		SELECT id, COALESCE(record_id,''), session_id, COALESCE(work_item_id,''), COALESCE(harness,''),
-		       COALESCE(project_type,''), COALESCE(gate_command,''), COALESCE(status,''),
-		       checked_at, COALESCE(signature,''), COALESCE(allowlist_hits_json,'[]'),
-		       COALESCE(allowlist_hit_count,0), COALESCE(source,''), COALESCE(output_summary,''),
-		       COALESCE(profile_signature,''), COALESCE(guards_run,'[]')
-		FROM gate_records
-		WHERE work_item_id = ? AND status = 'pass'
-		ORDER BY checked_at DESC, id DESC
-		LIMIT 1`, workItemID)
-	record, err := scanGateRecord(row)
-	if err != nil || record == nil {
-		return record, err
-	}
-	if within > 0 {
-		if time.Since(record.CheckedAt) > within {
-			return nil, nil
-		}
-	}
-	return record, nil
-}
-
-// MostRecentInProgressWorkItem returns the ID of the most recently started
-// in-progress work item (feature, bug, or spike) for the project, ordered by
-// updated_at DESC then created_at DESC. Returns "" when no in-progress item
-// exists or the database is nil. Used as last-resort attribution when the gate
-// subprocess cannot resolve an active session-scoped claim.
-func MostRecentInProgressWorkItem(database *sql.DB) string {
-	if database == nil {
-		return ""
-	}
-	var id string
-	row := database.QueryRow(`
-		SELECT id FROM features
-		WHERE status = 'in-progress'
-		ORDER BY updated_at DESC, created_at DESC
-		LIMIT 1`)
-	if err := row.Scan(&id); err != nil {
-		return ""
-	}
-	return id
 }
 
 // GateRecordCountsForWorkItem returns the number of pass and fail gate runs
@@ -325,17 +201,6 @@ func GateRecordCountsForWorkItem(database *sql.DB, workItemID string) (pass, fai
 		}
 	}
 	return pass, fail, rows.Err()
-}
-
-func CountGateRecords(database *sql.DB, sessionID string) (int, error) {
-	if database == nil {
-		return 0, nil
-	}
-	var count int
-	if err := database.QueryRow(`SELECT COUNT(*) FROM gate_records WHERE session_id = ?`, sessionID).Scan(&count); err != nil {
-		return 0, fmt.Errorf("count gate records: %w", err)
-	}
-	return count, nil
 }
 
 func scanGateRecord(scanner interface{ Scan(dest ...any) error }) (*GateRecord, error) {

@@ -1476,9 +1476,6 @@ func branchForFilePath(filePath, cwdBranch string) string {
 	return branch
 }
 
-// testPattern matches common test runner commands in Bash input summaries.
-var testPattern = regexp.MustCompile(`\bgo test\b|\bpytest\b|\buv run pytest\b|\buv run ruff\b`)
-
 // hasRecentTestRun reports whether a test/build command was run in this
 // session or its family root, per the canonical tool-events log (the hook DB
 // is an empty projection; see hasRecentDiffReview). No evidence counts as

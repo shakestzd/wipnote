@@ -54,7 +54,6 @@
 package db
 
 import (
-	"errors"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -142,18 +141,6 @@ func Record(subsystem BusySubsystem, err error) bool {
 	return true
 }
 
-// BusyCount returns the current count for subsystem. Safe for concurrent
-// readers; returns 0 for subsystems that have never been recorded.
-func BusyCount(subsystem BusySubsystem) int64 {
-	busyMu.RLock()
-	c, ok := busyCounters[subsystem]
-	busyMu.RUnlock()
-	if !ok {
-		return 0
-	}
-	return c.Load()
-}
-
 // BusyCounts returns a snapshot of every subsystem with a non-zero count
 // at the moment of the call. The returned map is a copy; callers may
 // mutate it freely without affecting the underlying state.
@@ -220,42 +207,3 @@ func counterFor(subsystem BusySubsystem) *atomic.Int64 {
 	busyCounters[subsystem] = c
 	return c
 }
-
-// busyError is a sentinel-style helper so unit tests can synthesize a
-// BUSY error without depending on the SQLite driver. The Error string
-// contains the canonical fragment so IsBusyError matches it.
-type busyError struct{ msg string }
-
-func (e *busyError) Error() string { return e.msg }
-
-// NewSyntheticBusyError returns a *busyError that IsBusyError will accept
-// as a BUSY hit. Used exclusively in tests; production code paths should
-// pass through real driver errors so the detection covers the actual
-// SQLite fragments.
-func NewSyntheticBusyError(detail string) error {
-	if detail == "" {
-		detail = "SQLITE_BUSY: database is locked"
-	}
-	return &busyError{msg: detail}
-}
-
-// Unwrap support so wrapped errors still match the detection. errors.Is
-// against a *busyError is not how callers will check; the package-public
-// API is IsBusyError. This unwrap method exists so other packages that
-// errors.As into *busyError can recover the message.
-func (e *busyError) Unwrap() error { return nil }
-
-// Ensure *busyError satisfies the errors.Is contract trivially — we
-// don't define Is, so errors.Is uses the default equality check; that's
-// the intent (the only way to "match" a busyError is to hold the same
-// pointer, which tests don't need).
-var _ error = (*busyError)(nil)
-
-// Ensure errors.Unwrap doesn't fail on nil-pointer dereference for the
-// synthesized type — covered by the Unwrap method above.
-var _ interface{ Unwrap() error } = (*busyError)(nil)
-
-// Ensure the errors package is imported when needed for the unwrap
-// signature; the import is used implicitly via the errors.Is contract
-// the wrapper satisfies.
-var _ = errors.New

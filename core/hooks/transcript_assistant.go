@@ -194,17 +194,6 @@ func readTranscriptWithMap(transcriptPath string) (*transcriptRecord, map[string
 	return nil, uuidToRecord, nil
 }
 
-// readLastAssistantRecord scans the transcript JSONL from the END and returns
-// the most recent non-sidechain assistant record that has at least one non-empty
-// text block. Returns nil when none is found (missing file, sidechain-only,
-// thinking-only, or malformed JSONL). Reads line-by-line — never loads the
-// whole file into memory at once, but does need to buffer all lines to scan
-// in reverse order.
-func readLastAssistantRecord(transcriptPath string) (*transcriptRecord, error) {
-	rec, _, err := readTranscriptWithMap(transcriptPath)
-	return rec, err
-}
-
 // assistantTextSignalID returns a deterministic signal_id for an assistant_text
 // signal keyed on the record's UUID. Using the UUID ensures idempotency on Stop
 // hook retries while remaining unique per assistant turn.

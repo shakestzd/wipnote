@@ -38,7 +38,7 @@ func insertTestSession(t *testing.T, database *sql.DB, id, projectDir, gitRemote
 		ProjectDir:    projectDir,
 		GitRemoteURL:  gitRemoteURL,
 	}
-	if err := dbpkg.InsertSession(database, s); err != nil {
+	if err := dbpkg.UpsertSession(database, s); err != nil {
 		t.Fatalf("insert session %s: %v", id, err)
 	}
 }

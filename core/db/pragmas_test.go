@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/shakestzd/wipnote/core/db/dbtest"
+
 	db "github.com/shakestzd/wipnote/core/db"
 	_ "modernc.org/sqlite"
 )
@@ -109,7 +111,7 @@ func TestApplyPragmas_NonBusyPragmaErrorNotRetried(t *testing.T) {
 	}
 	// Sanity: the selected mode survived the wrapped re-application (we only
 	// hardened the WRITE; mode SELECTION is unchanged and filesystem-derived).
-	if jm := db.QueryJournalMode(d); !strings.EqualFold(jm, wantMode) {
+	if jm := dbtest.JournalMode(d); !strings.EqualFold(jm, wantMode) {
 		d.Close()
 		t.Fatalf("journal_mode = %q after Open, want %q (the host-selected "+
 			"mode; RetryOnBusy wrap must not change which mode is written)",

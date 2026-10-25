@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/shakestzd/wipnote/core/db/dbtest"
+
 	dbpkg "github.com/shakestzd/wipnote/core/db"
 	"github.com/shakestzd/wipnote/core/models"
 )
@@ -30,7 +32,7 @@ func TestListResumableSessions_RanksLatestPerWorkItemAndUsesHeartbeatLiveness(t 
 		('feat-done', 'feature', 'Done', 'done')`); err != nil {
 		t.Fatalf("insert features: %v", err)
 	}
-	if err := dbpkg.SetActiveWorkItem(database, "sess-old", dbpkg.AgentRootSentinel, "feat-a"); err != nil {
+	if err := dbtest.SetActiveWorkItem(database, "sess-old", dbpkg.AgentRootSentinel, "feat-a"); err != nil {
 		t.Fatalf("SetActiveWorkItem old: %v", err)
 	}
 	if _, err := database.Exec(`UPDATE sessions SET active_feature_id = ? WHERE session_id = ?`, "feat-a", "sess-new"); err != nil {
@@ -161,12 +163,12 @@ func TestRenderResumableSessionsTable(t *testing.T) {
 
 func insertResumableSession(t *testing.T, database *sql.DB, sid, agent, status string, createdAt time.Time) {
 	t.Helper()
-	if err := dbpkg.InsertSession(database, &models.Session{
+	if err := dbpkg.UpsertSession(database, &models.Session{
 		SessionID:     sid,
 		AgentAssigned: agent,
 		CreatedAt:     createdAt,
 		Status:        status,
 	}); err != nil {
-		t.Fatalf("InsertSession %s: %v", sid, err)
+		t.Fatalf("UpsertSession %s: %v", sid, err)
 	}
 }

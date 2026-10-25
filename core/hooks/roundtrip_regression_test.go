@@ -25,6 +25,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/shakestzd/wipnote/core/db/dbtest"
+
 	"github.com/shakestzd/wipnote/core/db"
 	"github.com/shakestzd/wipnote/core/models"
 	"github.com/shakestzd/wipnote/core/paths"
@@ -134,13 +136,13 @@ func TestWorktreeRoundTripRegressionGate(t *testing.T) {
 	// Seed a parent session for FK and env-var dependencies.
 	// ------------------------------------------------------------------
 	parentSessionID := "test-roundtrip-parent-001"
-	if err := db.InsertSession(database, &models.Session{
+	if err := db.UpsertSession(database, &models.Session{
 		SessionID:     parentSessionID,
 		AgentAssigned: "claude-code",
 		Status:        "active",
 		CreatedAt:     time.Now().UTC(),
 	}); err != nil {
-		t.Fatalf("InsertSession parent: %v", err)
+		t.Fatalf("UpsertSession parent: %v", err)
 	}
 
 	// Env-var setup mirrors the pattern in cwd_normalize_test.go.
@@ -223,7 +225,7 @@ func TestWorktreeRoundTripRegressionGate(t *testing.T) {
 		t.Fatalf("SubagentStart: %v", err)
 	}
 
-	pending, err := db.GetPendingSubagentStart(database, agentID)
+	pending, err := dbtest.GetPendingSubagentStart(database, agentID)
 	if err != nil {
 		t.Fatalf("GetPendingSubagentStart: %v", err)
 	}

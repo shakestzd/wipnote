@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/shakestzd/wipnote/core/db/dbtest"
+
 	"github.com/shakestzd/wipnote/core/db"
 	"github.com/shakestzd/wipnote/core/models"
 )
@@ -41,7 +43,7 @@ func openStmtDB(t *testing.T, name string) *sql.DB {
 // seedSessionRow inserts a session row so BackfillParentSession's UPDATE matches.
 func seedSessionRow(t *testing.T, database *sql.DB, sessionID string) {
 	t.Helper()
-	if err := db.InsertSession(database, &models.Session{
+	if err := db.UpsertSession(database, &models.Session{
 		SessionID: sessionID, AgentAssigned: "claude-code",
 		CreatedAt: time.Now().UTC(), Status: "active",
 	}); err != nil {
@@ -49,41 +51,24 @@ func seedSessionRow(t *testing.T, database *sql.DB, sessionID string) {
 	}
 }
 
-// TestBackfillParentSessionStmt_EffectMatchesDirect asserts the builder's (sql,
-// args), Exec'd directly, sets parent_session_id exactly as the wrapper
-// BackfillParentSession does, and that the args are JSON-transport-safe.
-func TestBackfillParentSessionStmt_EffectMatchesDirect(t *testing.T) {
+// TestBackfillParentSessionStmt_SetsParent asserts the builder's (sql, args),
+// Exec'd directly, sets parent_session_id, and that the args are
+// JSON-transport-safe.
+func TestBackfillParentSessionStmt_SetsParent(t *testing.T) {
 	const child = "child-sess"
 	const parent = "parent-sess"
 
-	// --- Reference DB: the legacy direct wrapper ---
-	refDB := openStmtDB(t, "backfill-ref.db")
-	defer refDB.Close()
-	seedSessionRow(t, refDB, parent) // parent must exist — sessions.parent_session_id is a FK
-	seedSessionRow(t, refDB, child)
-	if err := db.BackfillParentSession(refDB, child, parent); err != nil {
-		t.Fatalf("ref BackfillParentSession: %v", err)
-	}
-
-	// --- Routed DB: the builder + Exec (what the daemon seam applies) ---
 	stmtDB := openStmtDB(t, "backfill-stmt.db")
 	defer stmtDB.Close()
-	seedSessionRow(t, stmtDB, parent)
+	seedSessionRow(t, stmtDB, parent) // parent must exist — sessions.parent_session_id is a FK
 	seedSessionRow(t, stmtDB, child)
 	bfSQL, bfArgs := db.BackfillParentSessionStmt(child, parent)
 	assertJSONTransportSafe(t, bfArgs)
 	if _, err := stmtDB.Exec(bfSQL, bfArgs...); err != nil {
 		t.Fatalf("stmt Exec: %v", err)
 	}
-
-	// Effect: both rows carry the same parent_session_id.
-	refParent := readParentSession(t, refDB, child)
-	stmtParent := readParentSession(t, stmtDB, child)
-	if refParent != parent {
-		t.Fatalf("ref parent_session_id = %q, want %q — fixture invalid", refParent, parent)
-	}
-	if stmtParent != refParent {
-		t.Errorf("stmt parent_session_id = %q, want %q (effect diverged from direct)", stmtParent, refParent)
+	if got := readParentSession(t, stmtDB, child); got != parent {
+		t.Errorf("stmt parent_session_id = %q, want %q", got, parent)
 	}
 }
 
@@ -119,7 +104,7 @@ func TestUpsertPendingSubagentStartStmt_EffectMatchesDirect(t *testing.T) {
 			if err := db.UpsertPendingSubagentStart(refDB, tc.p); err != nil {
 				t.Fatalf("ref UpsertPendingSubagentStart: %v", err)
 			}
-			ref, err := db.GetPendingSubagentStart(refDB, tc.p.AgentID)
+			ref, err := dbtest.GetPendingSubagentStart(refDB, tc.p.AgentID)
 			if err != nil || ref == nil {
 				t.Fatalf("ref GetPendingSubagentStart: %v (nil=%v)", err, ref == nil)
 			}
@@ -131,7 +116,7 @@ func TestUpsertPendingSubagentStartStmt_EffectMatchesDirect(t *testing.T) {
 			if _, err := stmtDB.Exec(upSQL, upArgs...); err != nil {
 				t.Fatalf("stmt Exec: %v", err)
 			}
-			got, err := db.GetPendingSubagentStart(stmtDB, tc.p.AgentID)
+			got, err := dbtest.GetPendingSubagentStart(stmtDB, tc.p.AgentID)
 			if err != nil || got == nil {
 				t.Fatalf("stmt GetPendingSubagentStart: %v (nil=%v)", err, got == nil)
 			}
@@ -168,7 +153,7 @@ func TestInsertLineageTraceStmt_EffectMatchesDirect(t *testing.T) {
 		t.Run(tr.TraceID, func(t *testing.T) {
 			refDB := openStmtDB(t, "lineage-ref.db")
 			defer refDB.Close()
-			if err := db.InsertLineageTrace(refDB, tr); err != nil {
+			if err := dbtest.InsertLineageTrace(refDB, tr); err != nil {
 				t.Fatalf("ref InsertLineageTrace: %v", err)
 			}
 			ref := readLineageByTrace(t, refDB, tr.TraceID)

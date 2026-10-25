@@ -7,7 +7,7 @@
 //
 //	Producers MUST persist user work to canonical storage (NDJSON / HTML)
 //	BEFORE submitting to the queue. The queue is the derived-index update
-//	channel only. If Submit returns ErrQueueFull / ErrTimeout /
+//	channel only. If Submit returns ErrQueueFull /
 //	ErrWriterUnavailable, the producer keeps moving — the canonical
 //	NDJSON is already on disk and reindex will recover the SQLite index
 //	on the next start.

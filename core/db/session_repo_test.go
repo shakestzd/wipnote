@@ -4,6 +4,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/shakestzd/wipnote/core/db/dbtest"
+
 	"github.com/shakestzd/wipnote/core/db"
 	"github.com/shakestzd/wipnote/core/models"
 )
@@ -90,7 +92,7 @@ func TestGetToolUseContext_ClaimLookupByAgentID(t *testing.T) {
 		ClaimedByAgentID: "agent-A",
 		Status:           models.ClaimInProgress,
 	}
-	if err := db.ClaimItem(database, c, 30*time.Minute); err != nil {
+	if err := dbtest.InsertClaim(database, c, 30*time.Minute); err != nil {
 		t.Fatalf("ClaimItem: %v", err)
 	}
 
@@ -126,7 +128,7 @@ func TestGetToolUseContext_ClaimLookupBySessionFallback(t *testing.T) {
 		ClaimedByAgentID: "",
 		Status:           models.ClaimInProgress,
 	}
-	if err := db.ClaimItem(database, c, 30*time.Minute); err != nil {
+	if err := dbtest.InsertClaim(database, c, 30*time.Minute); err != nil {
 		t.Fatalf("ClaimItem: %v", err)
 	}
 
@@ -149,13 +151,13 @@ func TestGetToolUseContext_DirectClaimScopedToSession(t *testing.T) {
 	defer database.Close()
 
 	now := time.Now().UTC()
-	if err := db.InsertSession(database, &models.Session{
+	if err := db.UpsertSession(database, &models.Session{
 		SessionID:     "sess-other",
 		AgentAssigned: "codex",
 		CreatedAt:     now,
 		Status:        "active",
 	}); err != nil {
-		t.Fatalf("InsertSession other: %v", err)
+		t.Fatalf("UpsertSession other: %v", err)
 	}
 	insertTestFeatures(t, database, "feat-other")
 	c := &models.Claim{
@@ -166,7 +168,7 @@ func TestGetToolUseContext_DirectClaimScopedToSession(t *testing.T) {
 		ClaimedByAgentID: "codex",
 		Status:           models.ClaimInProgress,
 	}
-	if err := db.ClaimItem(database, c, 30*time.Minute); err != nil {
+	if err := dbtest.InsertClaim(database, c, 30*time.Minute); err != nil {
 		t.Fatalf("ClaimItem: %v", err)
 	}
 
@@ -193,19 +195,19 @@ func TestGetToolUseContext_ClaimLookupBySessionFamilyFallback(t *testing.T) {
 	); err != nil {
 		t.Fatalf("set family: %v", err)
 	}
-	if err := db.InsertSession(database, &models.Session{
+	if err := db.UpsertSession(database, &models.Session{
 		SessionID:     "sess-family-owner",
 		AgentAssigned: "codex",
 		CreatedAt:     now.Add(time.Second),
 		Status:        "active",
 	}); err != nil {
-		t.Fatalf("InsertSession sibling: %v", err)
+		t.Fatalf("UpsertSession sibling: %v", err)
 	}
-	if err := db.SetSessionFamilyID(database, "sess-family-owner", "family-codex"); err != nil {
+	if err := dbtest.SetSessionFamilyID(database, "sess-family-owner", "family-codex"); err != nil {
 		t.Fatalf("set sibling family: %v", err)
 	}
 	insertTestFeatures(t, database, "feat-family")
-	if err := db.ClaimItem(database, &models.Claim{
+	if err := dbtest.InsertClaim(database, &models.Claim{
 		ClaimID:          "claim-family",
 		WorkItemID:       "feat-family",
 		OwnerSessionID:   "sess-family-owner",
@@ -239,19 +241,19 @@ func TestGetToolUseContext_DirectSessionClaimBeatsFamilyFallback(t *testing.T) {
 	); err != nil {
 		t.Fatalf("set family: %v", err)
 	}
-	if err := db.InsertSession(database, &models.Session{
+	if err := db.UpsertSession(database, &models.Session{
 		SessionID:     "sess-family-owner",
 		AgentAssigned: "codex",
 		CreatedAt:     now.Add(time.Second),
 		Status:        "active",
 	}); err != nil {
-		t.Fatalf("InsertSession sibling: %v", err)
+		t.Fatalf("UpsertSession sibling: %v", err)
 	}
-	if err := db.SetSessionFamilyID(database, "sess-family-owner", "family-precedence"); err != nil {
+	if err := dbtest.SetSessionFamilyID(database, "sess-family-owner", "family-precedence"); err != nil {
 		t.Fatalf("set sibling family: %v", err)
 	}
 	insertTestFeatures(t, database, "feat-direct", "feat-family")
-	if err := db.ClaimItem(database, &models.Claim{
+	if err := dbtest.InsertClaim(database, &models.Claim{
 		ClaimID:          "claim-family",
 		WorkItemID:       "feat-family",
 		OwnerSessionID:   "sess-family-owner",
@@ -261,7 +263,7 @@ func TestGetToolUseContext_DirectSessionClaimBeatsFamilyFallback(t *testing.T) {
 	}, 30*time.Minute); err != nil {
 		t.Fatalf("ClaimItem family: %v", err)
 	}
-	if err := db.ClaimItem(database, &models.Claim{
+	if err := dbtest.InsertClaim(database, &models.Claim{
 		ClaimID:          "claim-direct",
 		WorkItemID:       "feat-direct",
 		OwnerSessionID:   "sess-test",
@@ -298,7 +300,7 @@ func TestGetToolUseContext_DirectClaimUsesLatestLease(t *testing.T) {
 		ClaimedByAgentID: "codex",
 		Status:           models.ClaimInProgress,
 	}
-	if err := db.ClaimItem(database, oldClaim, 30*time.Minute); err != nil {
+	if err := dbtest.InsertClaim(database, oldClaim, 30*time.Minute); err != nil {
 		t.Fatalf("ClaimItem old: %v", err)
 	}
 	if _, err := database.Exec(
@@ -315,7 +317,7 @@ func TestGetToolUseContext_DirectClaimUsesLatestLease(t *testing.T) {
 		ClaimedByAgentID: "codex",
 		Status:           models.ClaimInProgress,
 	}
-	if err := db.ClaimItem(database, newClaim, 30*time.Minute); err != nil {
+	if err := dbtest.InsertClaim(database, newClaim, 30*time.Minute); err != nil {
 		t.Fatalf("ClaimItem new: %v", err)
 	}
 	if _, err := database.Exec(

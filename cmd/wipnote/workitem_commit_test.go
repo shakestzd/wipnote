@@ -54,7 +54,7 @@ func setupTransactionalCompleteRepo(t *testing.T) (repoRoot, wipnoteDir, featID,
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	if err := dbpkg.InsertSession(database, &models.Session{
+	if err := dbpkg.UpsertSession(database, &models.Session{
 		SessionID:     sessionID,
 		AgentAssigned: "claude-code",
 		Status:        "active",

@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/shakestzd/wipnote/core/db/dbtest"
+
 	"github.com/shakestzd/wipnote/core/db"
 	"github.com/shakestzd/wipnote/observe/otel"
 	"github.com/shakestzd/wipnote/observe/otel/receiver"
@@ -952,7 +954,7 @@ func TestNewWriter_AppliesPendingMigrations(t *testing.T) {
 		t.Fatalf("drop agent_id to simulate a DB that fell behind: %v", err)
 	}
 	// Rewind to just below the step that OWNS agent_id
-	// (019_otel_signals_attribution_columns), not to CurrentSchemaVersion-1.
+	// (019_otel_signals_attribution_columns), not to the latest version minus one.
 	// The latter worked only while 019 happened to be the newest step: any later
 	// step left the rewind above 019, so the owning migration never re-ran and
 	// this test failed on a repair it never actually asked for.
@@ -988,7 +990,16 @@ func TestNewWriter_AppliesPendingMigrations(t *testing.T) {
 	if err := probe.QueryRow("PRAGMA user_version").Scan(&version); err != nil {
 		t.Fatalf("PRAGMA user_version: %v", err)
 	}
-	if want := db.CurrentSchemaVersion(); version != want {
+	fresh, err := db.Open(":memory:")
+	if err != nil {
+		t.Fatalf("open fresh db: %v", err)
+	}
+	defer fresh.Close()
+	var want int
+	if err := fresh.QueryRow("PRAGMA user_version").Scan(&want); err != nil {
+		t.Fatalf("fresh PRAGMA user_version: %v", err)
+	}
+	if version != want {
 		t.Errorf("user_version after NewWriter = %d, want %d", version, want)
 	}
 
@@ -1176,10 +1187,10 @@ func TestWriter_FeatureIDJoinsOnResolvedAgentID(t *testing.T) {
 	// the named agent has a different one. If the lookup ever falls back to
 	// __root__ instead of joining on the resolved agent, this test observes
 	// the wrong (root) feature and fails.
-	if err := db.SetActiveWorkItem(readDB, sessionID, db.AgentRootSentinel, "feat-root-claim"); err != nil {
+	if err := dbtest.SetActiveWorkItem(readDB, sessionID, db.AgentRootSentinel, "feat-root-claim"); err != nil {
 		t.Fatalf("seed root claim: %v", err)
 	}
-	if err := db.SetActiveWorkItem(readDB, sessionID, agentID, "feat-agent-claim"); err != nil {
+	if err := dbtest.SetActiveWorkItem(readDB, sessionID, agentID, "feat-agent-claim"); err != nil {
 		t.Fatalf("seed agent claim: %v", err)
 	}
 
@@ -1236,7 +1247,7 @@ func TestWriter_FeatureIDFallsBackToRootWhenAgentHasNoClaim(t *testing.T) {
 	}
 	// Only the root claims anything in this session — agentID never ran
 	// `wipnote <type> start`.
-	if err := db.SetActiveWorkItem(readDB, sessionID, db.AgentRootSentinel, "feat-root-only"); err != nil {
+	if err := dbtest.SetActiveWorkItem(readDB, sessionID, db.AgentRootSentinel, "feat-root-only"); err != nil {
 		t.Fatalf("seed root claim: %v", err)
 	}
 

@@ -585,44 +585,6 @@ func CreateAllIndexes(db *sql.DB) error {
 	return nil
 }
 
-// agentEventsCheckConstraintDDL is the target DDL for the agent_events table
-// including the attribution CHECK constraint. It must match CreateAllTables exactly.
-const agentEventsCheckConstraintDDL = `CREATE TABLE agent_events (
-			event_id TEXT PRIMARY KEY,
-			agent_id TEXT NOT NULL,
-			event_type TEXT NOT NULL CHECK(
-				event_type IN ('tool_call','tool_result','error','delegation',
-				               'completion','start','end','check_point','task_delegation',
-				               'teammate_idle','task_created','task_completed','quality_gate',
-				               'claim.proposed','claim.claimed','claim.heartbeat','claim.blocked',
-				               'claim.completed','claim.abandoned','claim.expired','claim.handoff')
-			),
-			timestamp DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-			tool_name TEXT,
-			input_summary TEXT,
-			tool_input JSON,
-			output_summary TEXT,
-			context JSON,
-			session_id TEXT NOT NULL,
-			feature_id TEXT,
-			parent_agent_id TEXT,
-			parent_event_id TEXT,
-			subagent_type TEXT,
-			child_spike_count INTEGER DEFAULT 0,
-			cost_tokens INTEGER DEFAULT 0,
-			execution_duration_seconds REAL DEFAULT 0.0,
-			status TEXT DEFAULT 'recorded',
-			model TEXT,
-			claude_task_id TEXT,
-			source TEXT DEFAULT 'hook',
-			step_id TEXT,
-			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-			CHECK (NOT (event_type = 'tool_call' AND agent_id = 'human' AND (tool_name IS NULL OR tool_name != 'UserQuery'))),
-			FOREIGN KEY (session_id) REFERENCES sessions(session_id) ON DELETE CASCADE ON UPDATE CASCADE,
-			FOREIGN KEY (feature_id) REFERENCES features(id) ON DELETE SET NULL ON UPDATE CASCADE
-		)`
-
 // migrateAgentEventsAddCheckConstraint adds the attribution CHECK constraint to
 // the existing agent_events table via copy-and-swap, and also drops the
 // self-referential FK on parent_event_id (which caused silent insert failures

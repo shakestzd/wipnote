@@ -4,6 +4,8 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/shakestzd/wipnote/core/db/dbtest"
+
 	dbpkg "github.com/shakestzd/wipnote/core/db"
 	"github.com/shakestzd/wipnote/core/htmlparse"
 )
@@ -105,7 +107,7 @@ func TestBugCreate_NoCausedByEdgeWhenActiveFeaturePresent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	if err := dbpkg.SetActiveWorkItem(database, sessionID, "", activeFeatureID); err != nil {
+	if err := dbtest.SetActiveWorkItem(database, sessionID, "", activeFeatureID); err != nil {
 		database.Close()
 		t.Fatalf("SetActiveWorkItem: %v", err)
 	}

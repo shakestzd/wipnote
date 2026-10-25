@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/shakestzd/wipnote/core/db/dbtest"
+
 	dbpkg "github.com/shakestzd/wipnote/core/db"
 	"github.com/shakestzd/wipnote/core/models"
 )
@@ -35,7 +37,7 @@ func insertTrace(t *testing.T, db *sql.DB, traceID, rootSession, session, agentN
 		StartedAt:     time.Now().UTC(),
 		Status:        "active",
 	}
-	if err := dbpkg.InsertLineageTrace(db, trace); err != nil {
+	if err := dbtest.InsertLineageTrace(db, trace); err != nil {
 		t.Fatalf("InsertLineageTrace %s: %v", traceID, err)
 	}
 }

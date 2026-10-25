@@ -140,7 +140,7 @@ func TestApplierRoundTrip_SessionInsertAndStatus(t *testing.T) {
 	s := &models.Session{SessionID: "sess-mvp4", AgentAssigned: "agent-1", CreatedAt: now, Status: "active"}
 
 	// Direct control writes.
-	if err := db.InsertSession(cDB, s); err != nil {
+	if err := db.UpsertSession(cDB, s); err != nil {
 		t.Fatalf("control insert: %v", err)
 	}
 	if err := db.UpdateSessionStatus(cDB, "sess-mvp4", "completed"); err != nil {
@@ -355,7 +355,7 @@ func TestSessionInsert_DoesNotClobberRealSession(t *testing.T) {
 		CreatedAt:     now,
 		Status:        "completed",
 	}
-	if err := db.InsertSession(wDB, realSession); err != nil {
+	if err := db.UpsertSession(wDB, realSession); err != nil {
 		t.Fatalf("insert real session: %v", err)
 	}
 
@@ -416,7 +416,7 @@ func TestSessionInsert_DoesNotClobberRealSession(t *testing.T) {
 			CreatedAt:     now,
 			Status:        "active",
 		}
-		if err := db.InsertSession(wDB, ph); err != nil {
+		if err := db.UpsertSession(wDB, ph); err != nil {
 			t.Fatalf("insert placeholder: %v", err)
 		}
 

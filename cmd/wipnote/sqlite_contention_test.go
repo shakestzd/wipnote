@@ -79,6 +79,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/shakestzd/wipnote/core/db/dbtest"
+
 	"github.com/shakestzd/wipnote/core/agent"
 	"github.com/shakestzd/wipnote/core/daemon"
 	"github.com/shakestzd/wipnote/core/daemon/apply"
@@ -300,11 +302,11 @@ func TestSQLiteContentionStress(t *testing.T) {
 					}
 					return execErr
 				})
-				if submitErr := q.SubmitWithTimeout(submitCtx, op, 500*time.Millisecond); submitErr != nil {
-					// Queue full / writer unavailable / timeout — NOT a
-					// BUSY classification (the queue's job is to ABSORB
-					// contention). Do not bump the counter here.
-					_ = submitErr
+				if submitErr := q.Submit(submitCtx, op); submitErr != nil {
+					// Queue full / writer unavailable — NOT a BUSY
+					// classification (the queue's job is to ABSORB
+					// contention). Do not bump the counter; back off briefly.
+					time.Sleep(time.Millisecond)
 				}
 			}
 		}(i)
@@ -571,7 +573,7 @@ func probeJournalMode(t *testing.T, dir string) string {
 	defer os.Remove(probePath)
 	defer os.Remove(probePath + "-wal")
 	defer os.Remove(probePath + "-shm")
-	return dbpkg.QueryJournalMode(pdb)
+	return dbtest.JournalMode(pdb)
 }
 
 // seedStressFixtures inserts the rows the stress producers need to

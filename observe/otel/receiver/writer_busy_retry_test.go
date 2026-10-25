@@ -54,7 +54,7 @@ func TestWriteBatchRetriesRawTransactionWhenSharedReaderBlocksCommit(t *testing.
 	if err := <-released; err != nil {
 		t.Fatalf("release read lock: %v", err)
 	}
-	if got := db.BusyCount(db.SubsystemWriterService); got != 0 {
+	if got := db.BusyCounts()[db.SubsystemWriterService]; got != 0 {
 		t.Fatalf("writer_service busy count = %d, want 0 for retried transient BUSY", got)
 	}
 

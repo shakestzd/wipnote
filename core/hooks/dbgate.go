@@ -44,16 +44,12 @@
 package hooks
 
 import (
-	"context"
 	"database/sql"
-	"errors"
 	"sync/atomic"
 	"time"
 
-	"github.com/shakestzd/wipnote/core/daemon"
 	"github.com/shakestzd/wipnote/core/daemon/apply"
 	"github.com/shakestzd/wipnote/core/db"
-	"github.com/shakestzd/wipnote/core/db/writequeue"
 	"github.com/shakestzd/wipnote/core/models"
 )
 
@@ -86,22 +82,6 @@ var (
 	fallbackQueueFull         atomic.Int64
 	fallbackTimeout           atomic.Int64
 )
-
-// FallbackCounts returns the current fallback counters (writer_unavailable,
-// queue_full, timeout). Exported for tests and the dashboard observability
-// surface.
-func FallbackCounts() (writerUnavailable, queueFull, timeout int64) {
-	return fallbackWriterUnavailable.Load(),
-		fallbackQueueFull.Load(),
-		fallbackTimeout.Load()
-}
-
-// ResetFallbackCounts zeroes the counters. Intended for tests only.
-func ResetFallbackCounts() {
-	fallbackWriterUnavailable.Store(0)
-	fallbackQueueFull.Store(0)
-	fallbackTimeout.Store(0)
-}
 
 // RecordFallback bumps the appropriate counter and emits a structured log
 // line tagged with the reason. handler/sessionID let the log line correlate
@@ -237,156 +217,6 @@ func OpenHookDBWithBusyTimeout(handler, sessionID, dbPath string, busyTimeout ti
 		return nil, FallbackWriterUnavailable
 	}
 	return database, ""
-}
-
-// SubmitDerivedOp routes a derived-index write through the writer queue when
-// one is supplied (in-process hook callers — `wipnote claude` / `wipnote yolo`
-// embedding scenarios) and otherwise runs op synchronously against db.
-//
-// Failure semantics:
-//   - q nil + db nil               → record FallbackWriterUnavailable, return nil
-//   - q nil + db non-nil           → run op synchronously; op error logged but ignored
-//   - q non-nil + queue full       → record FallbackQueueFull, return nil
-//   - q non-nil + writer stopped   → record FallbackWriterUnavailable, return nil
-//   - q non-nil + ctx-cancelled    → record FallbackTimeout, return nil
-//
-// In every case the return value is nil; the canonical NDJSON write upstream
-// is authoritative. The caller MUST NOT propagate any error from this call
-// back to the Claude Code hook protocol.
-func SubmitDerivedOp(handler, sessionID string, q *writequeue.Queue, database *sql.DB, op func(*sql.DB) error) {
-	if q != nil {
-		// Wrap op in the queue's WriteOp signature. The op closure receives
-		// the producer-supplied `database` handle (which may be nil — the
-		// queue worker can run ops that capture their own writer handle).
-		wrap := func(_ context.Context) error {
-			return op(database)
-		}
-		if err := q.Submit(context.Background(), wrap); err != nil {
-			switch {
-			case errors.Is(err, writequeue.ErrQueueFull):
-				RecordFallback(handler, sessionID, FallbackQueueFull, err.Error())
-			case errors.Is(err, writequeue.ErrTimeout):
-				RecordFallback(handler, sessionID, FallbackTimeout, err.Error())
-			case errors.Is(err, writequeue.ErrWriterUnavailable):
-				RecordFallback(handler, sessionID, FallbackWriterUnavailable, err.Error())
-			default:
-				RecordFallback(handler, sessionID, FallbackWriterUnavailable, err.Error())
-			}
-		}
-		return
-	}
-	if database == nil {
-		RecordFallback(handler, sessionID, FallbackWriterUnavailable, "no queue and no db")
-		return
-	}
-	// Synchronous fallback. The hook subprocess writes directly to SQLite
-	// here while the dashboard read pool and a parallel session's writer may
-	// briefly contend the lock. Retry the op on SQLITE_BUSY with bounded
-	// backoff (bug-74a7bda7) so a transient lock overlap resolves
-	// transparently instead of dropping the derived-index update. A terminal
-	// BUSY is classified under hook_writer for the launch gate, then
-	// swallowed — canonical NDJSON is the authoritative copy and reindex
-	// recovers any rows the synchronous path missed.
-	err := db.RetryOnBusy(db.DefaultBusyBackoff, func() error { return op(database) })
-	db.Record(db.SubsystemHookWriter, err)
-	if err != nil {
-		debugLogFields(resolveLogDir(), handler,
-			map[string]string{"phase": "derived-op", "session": safeSessionID(sessionID)},
-			"sync derived-op error (recoverable via reindex): "+err.Error())
-	}
-}
-
-// daemonSubmitBudget is the TOTAL wall-clock budget for the daemon-routed
-// derived-write attempt (dial + submit; it never starts a writer).
-//
-// LIVE-SESSION SAFETY (feat-075c110d): hooks shell out to the wipnote binary
-// on every tool call, so this path runs inside the user's RUNNING session. It
-// MUST be strictly bounded — on any timeout/error/unavailability the caller
-// falls back to the existing direct-open path, never blocking the session.
-const daemonSubmitBudget = 2 * time.Second
-
-// SubmitDerivedEvent routes an agent_events derived-index upsert through the
-// per-project writer daemon (never starting one: bug-5ca53f70), and falls back to
-// the existing direct-open + RetryOnBusy path on ANY daemon failure.
-//
-// Contract (MVP-3, plan-bb91616a slice-4):
-//   - The canonical NDJSON/HTML write is the caller's responsibility and MUST
-//     already have happened — this routes ONLY the derived-index write.
-//   - Daemon path: build a typed DerivedOp → WriterClient.Submit under
-//     a hard daemonSubmitBudget deadline. An applied/duplicate ack ends here.
-//   - Fallback path: on ErrWriterUnavailable (no daemon,
-//     readiness failure, budget exhausted) OR an error ack, run the SAME
-//     upsert synchronously via db.RetryOnBusy against `database` — exactly
-//     today's behaviour. A nil `database` records writer_unavailable and
-//     returns (canonical NDJSON upstream is authoritative).
-//
-// The return value is always nil-effect (no error surfaced to the hook
-// protocol): like SubmitDerivedOp, this never propagates failures back to the
-// caller. seq is the per-event sequence/offset used to derive the dedup op_id.
-func SubmitDerivedEvent(handler, projectRoot, sessionID string, seq int64, ev *models.AgentEvent, database *sql.DB) {
-	if ev == nil {
-		return
-	}
-
-	if routeDerivedEventViaDaemon(projectRoot, sessionID, seq, ev) {
-		return // applied (or deduped) by the writer daemon
-	}
-
-	// Fallback: direct-open synchronous upsert with bounded BUSY retry —
-	// identical to the legacy SubmitDerivedOp synchronous path.
-	if database == nil {
-		RecordFallback(handler, sessionID, FallbackWriterUnavailable, "no daemon and no db")
-		return
-	}
-	err := db.RetryOnBusy(db.DefaultBusyBackoff, func() error { return db.UpsertEvent(database, ev) })
-	db.Record(db.SubsystemHookWriter, err)
-	if err != nil {
-		debugLogFields(resolveLogDir(), handler,
-			map[string]string{"phase": "derived-event", "session": safeSessionID(sessionID)},
-			"sync derived-event error (recoverable via reindex): "+err.Error())
-	}
-}
-
-// routeDerivedEventViaDaemon attempts the daemon-routed derived write under a
-// hard deadline. It returns true ONLY when the writer applied (or deduped) the
-// op; any unavailability, error ack, or empty projectRoot returns false so the
-// caller falls back to direct-open. It never blocks beyond daemonSubmitBudget.
-func routeDerivedEventViaDaemon(projectRoot, sessionID string, seq int64, ev *models.AgentEvent) bool {
-	if projectRoot == "" {
-		return false
-	}
-	payload, err := apply.Encode(apply.DerivedOp{Type: apply.OpTypeAgentEventUpsert, Event: ev})
-	if err != nil {
-		return false
-	}
-	env := daemon.Envelope{
-		OpID:    apply.OpID(sessionID, seq),
-		OpType:  apply.OpTypeAgentEventUpsert,
-		Payload: payload,
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), daemonSubmitBudget)
-	defer cancel()
-
-	// Submit never starts a writer: only a launcher does (bug-5ca53f70).
-	ack, err := daemon.NewWriterClient(projectRoot).Submit(ctx, env)
-	if err != nil {
-		return false // ErrWriterUnavailable / ctx deadline → fall back
-	}
-	switch ack.Status {
-	case daemon.AckApplied, daemon.AckDuplicate:
-		return true
-	default:
-		return false // error ack → fall back to direct-open
-	}
-}
-
-// safeSessionID truncates a session ID for log emission and is nil-safe.
-func safeSessionID(s string) string {
-	if s == "" {
-		return ""
-	}
-	return s[:minSessionLen(s)]
 }
 
 // routeSQLAsync is the daemon enqueue-only seam used by RouteHookWrite. It is a

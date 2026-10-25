@@ -196,7 +196,7 @@ func TestReap_ClosesCancelledHookSessionFromNote(t *testing.T) {
 func TestSessionEnd_HappyPath_HandoffWrittenOnceAfterCatchUp(t *testing.T) {
 	td := setupTestDB(t)
 	f := newEndFixture(t, 0)
-	if err := db.InsertSession(td.DB, &models.Session{
+	if err := db.UpsertSession(td.DB, &models.Session{
 		SessionID: f.sessionID, AgentAssigned: "claude-code", Status: "active",
 		CreatedAt: time.Now().UTC().Add(-time.Hour), ProjectDir: f.projectDir,
 	}); err != nil {

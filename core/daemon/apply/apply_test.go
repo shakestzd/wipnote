@@ -18,7 +18,7 @@ import (
 func seedSession(t *testing.T, database *sql.DB, sid string) {
 	t.Helper()
 	now := time.Now().UTC().Truncate(time.Second)
-	if err := db.InsertSession(database, &models.Session{
+	if err := db.UpsertSession(database, &models.Session{
 		SessionID: sid, AgentAssigned: "agent-1", CreatedAt: now, Status: "active",
 	}); err != nil {
 		t.Fatalf("seed session %s: %v", sid, err)

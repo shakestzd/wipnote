@@ -4,6 +4,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/shakestzd/wipnote/core/db/dbtest"
+
 	"github.com/shakestzd/wipnote/core/db"
 	"github.com/shakestzd/wipnote/core/models"
 )
@@ -126,10 +128,10 @@ func TestGetCurrentSessionResumable_UsesRootAgentWorkItem(t *testing.T) {
 		t.Fatalf("insert session: %v", err)
 	}
 	// A subagent claim and a root claim coexist on the same session.
-	if err := db.SetActiveWorkItem(database, "sess-cur", "subagent-x", "feat-sub"); err != nil {
+	if err := dbtest.SetActiveWorkItem(database, "sess-cur", "subagent-x", "feat-sub"); err != nil {
 		t.Fatalf("set subagent claim: %v", err)
 	}
-	if err := db.SetActiveWorkItem(database, "sess-cur", db.AgentRootSentinel, "feat-root"); err != nil {
+	if err := dbtest.SetActiveWorkItem(database, "sess-cur", db.AgentRootSentinel, "feat-root"); err != nil {
 		t.Fatalf("set root claim: %v", err)
 	}
 
@@ -165,10 +167,10 @@ func TestGetCurrentSessionResumable_ClaimBeatsStaleRootAttribution(t *testing.T)
 			); err != nil {
 				t.Fatalf("insert session: %v", err)
 			}
-			if err := db.SetActiveWorkItem(database, "sess-cur", db.AgentRootSentinel, "bug-stale-current"); err != nil {
+			if err := dbtest.SetActiveWorkItem(database, "sess-cur", db.AgentRootSentinel, "bug-stale-current"); err != nil {
 				t.Fatalf("set root stale claim: %v", err)
 			}
-			if err := db.ClaimItemOrRenew(database, &models.Claim{
+			if err := dbtest.InsertClaim(database, &models.Claim{
 				ClaimID:          "claim-fresh-current",
 				WorkItemID:       "bug-fresh-current",
 				OwnerSessionID:   "sess-cur",
@@ -221,7 +223,7 @@ func TestGetCurrentSessionResumable_UsesFamilyClaimForNewestUnclaimedSession(t *
 			); err != nil {
 				t.Fatalf("insert sessions: %v", err)
 			}
-			if err := db.ClaimItemOrRenew(database, &models.Claim{
+			if err := dbtest.InsertClaim(database, &models.Claim{
 				ClaimID:          "claim-family-current",
 				WorkItemID:       "bug-family-current",
 				OwnerSessionID:   "sess-claim-owner",

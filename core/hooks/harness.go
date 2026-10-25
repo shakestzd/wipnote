@@ -469,11 +469,6 @@ type claudeResponse struct {
 	HookSpecificOutput *HookSpecificOutput `json:"hookSpecificOutput,omitempty"`
 }
 
-// emitClaudeResponse writes the event-less Claude wire format (legacy callers).
-func emitClaudeResponse(w io.Writer, result *HookResult) error {
-	return emitClaudeResponseForEvent(w, "", result)
-}
-
 // emitClaudeResponseForEvent writes the Claude Code wire-format JSON to w.
 //   - AdditionalContext is mapped into hookSpecificOutput.additionalContext
 //     with hookEventName for events that accept it.
@@ -564,16 +559,6 @@ type codexInterruptResponse struct {
 	SystemMessage string `json:"systemMessage,omitempty"`
 }
 
-// emitCodexResponse writes the Codex CLI wire-format JSON to w.
-// Codex expects:
-//   - "continue": true/false for lifecycle events
-//   - "systemMessage": "..." for user-visible hook messages
-//   - "hookSpecificOutput.additionalContext" for model-visible context injection
-//   - "hookSpecificOutput.permissionDecision" for PreToolUse allow/deny decisions
-func emitCodexResponse(w io.Writer, result *HookResult) error {
-	return emitCodexResponseForEvent(w, "", result)
-}
-
 func emitCodexResponseForEvent(w io.Writer, hookEventName string, result *HookResult) error {
 	// Interrupt (Codex 0.150.0+, fired when the user cancels a turn) has the
 	// narrowest output schema of any event: interrupt.command.output is
@@ -646,13 +631,6 @@ func codexEventAcceptsDecision(hookEventName string) bool {
 	default:
 		return false
 	}
-}
-
-// emitGeminiResponse writes the Gemini CLI wire-format JSON to w.
-// Gemini uses hookSpecificOutput.additionalContext for model-visible context.
-// systemMessage is display/status text, not the prompt append channel.
-func emitGeminiResponse(w io.Writer, result *HookResult) error {
-	return emitGeminiResponseForEvent(w, "", result)
 }
 
 func emitGeminiResponseForEvent(w io.Writer, hookEventName string, result *HookResult) error {

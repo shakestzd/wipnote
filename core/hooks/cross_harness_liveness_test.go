@@ -4,7 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/db/dbtest"
+
 	"github.com/shakestzd/wipnote/core/models"
 )
 
@@ -29,12 +30,12 @@ func TestGeminiSessionEndRelease(t *testing.T) {
 		OwnerAgent:     "gemini-cli",
 		Status:         models.ClaimInProgress,
 	}
-	if err := db.ClaimItem(database, c, 30*time.Minute); err != nil {
+	if err := dbtest.InsertClaim(database, c, 30*time.Minute); err != nil {
 		t.Fatalf("ClaimItem: %v", err)
 	}
 
 	// Precondition: the claim is active.
-	if got, _ := db.GetActiveClaim(database, "feat-gem01a2"); got == nil {
+	if !dbtest.HasActiveClaim(database, "feat-gem01a2") {
 		t.Fatal("precondition: expected an active claim before SessionEnd")
 	}
 
@@ -50,8 +51,8 @@ func TestGeminiSessionEndRelease(t *testing.T) {
 	}
 
 	// All active claims for the session must be released (abandoned).
-	if got, _ := db.GetActiveClaim(database, "feat-gem01a2"); got != nil {
-		t.Fatalf("expected no active claim after SessionEnd, got status=%s", got.Status)
+	if dbtest.HasActiveClaim(database, "feat-gem01a2") {
+		t.Fatal("expected no active claim after SessionEnd")
 	}
 	var status string
 	database.QueryRow(

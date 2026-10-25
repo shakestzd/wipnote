@@ -177,16 +177,14 @@ func TestMigration_FeatureFilesPathSeenIndex(t *testing.T) {
 		t.Fatalf("idx_feature_files_path_seen missing after all migrations")
 	}
 
-	// Verify the migration registry is internally consistent (ordered, last ==
-	// CurrentSchemaVersion) without hardcoding the exact final step name or
+	// Verify the migration registry is internally consistent (last ==
+	// currentSchemaVersion) without hardcoding the exact final step name or
 	// version number — so adding future steps does not break this test.
-	names := MigrationStepNames()
-	versions := MigrationStepVersions()
-	if len(names) == 0 {
+	if len(migrations) == 0 {
 		t.Fatal("no migration steps registered")
 	}
-	if versions[len(versions)-1] != CurrentSchemaVersion() {
-		t.Fatalf("last migration version = %d, want CurrentSchemaVersion = %d",
-			versions[len(versions)-1], CurrentSchemaVersion())
+	if last := migrations[len(migrations)-1].version; last != currentSchemaVersion {
+		t.Fatalf("last migration version = %d, want currentSchemaVersion = %d",
+			last, currentSchemaVersion)
 	}
 }

@@ -50,7 +50,7 @@ func seedIndexOnlyGateRecord(t *testing.T, database *sql.DB, sessionID, workItem
 		Source:      "check",
 		CheckedAt:   time.Now().UTC(),
 	}
-	if err := dbpkg.InsertGateRecord(database, rec); err != nil {
+	if _, err := dbpkg.InsertGateRecordIfAbsent(database, rec); err != nil {
 		t.Fatalf("seed index-only gate record: %v", err)
 	}
 }

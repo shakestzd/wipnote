@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/shakestzd/wipnote/core/db/dbtest"
+
 	"github.com/shakestzd/wipnote/core/db"
 	"github.com/shakestzd/wipnote/core/models"
 )
@@ -17,7 +19,7 @@ import (
 //
 //   1. EFFECT EQUIVALENCE — the (sql, args) the builders return, when Exec'd
 //      directly, produce the SAME database effect the original wrapper functions
-//      (HeartbeatClaimByWorkItem / ReapExpiredClaims) produce. If they ever
+//      (HeartbeatClaimByWorkItem) produces. If they ever
 //      diverge, a routed PreToolUse would silently write a different row than the
 //      legacy direct path.
 //
@@ -66,7 +68,7 @@ func seedActiveClaimForStmt(t *testing.T, claimID string, lease time.Duration) *
 		t.Fatalf("open isolated db: %v", err)
 	}
 	now := time.Now().UTC()
-	if err := db.InsertSession(database, &models.Session{
+	if err := db.UpsertSession(database, &models.Session{
 		SessionID: "sess-test", AgentAssigned: "claude-code", CreatedAt: now, Status: "active",
 	}); err != nil {
 		t.Fatalf("seed session: %v", err)
@@ -77,7 +79,7 @@ func seedActiveClaimForStmt(t *testing.T, claimID string, lease time.Duration) *
 		t.Fatalf("seed feature: %v", err)
 	}
 	c := makeClaim(claimID, "feat-test", "sess-test")
-	if err := db.ClaimItem(database, c, lease); err != nil {
+	if err := dbtest.InsertClaim(database, c, lease); err != nil {
 		t.Fatalf("seed ClaimItem: %v", err)
 	}
 	return database
@@ -145,53 +147,31 @@ func TestHeartbeatClaimByWorkItemStmt_EffectMatchesDirect(t *testing.T) {
 	}
 }
 
-// TestReapExpiredClaimsStmt_EffectMatchesDirect asserts the builder's (sql,
-// args), Exec'd directly, expires the same lease-expired claims the wrapper
-// ReapExpiredClaims does, and that the args are JSON-transport-safe.
-func TestReapExpiredClaimsStmt_EffectMatchesDirect(t *testing.T) {
-	// Seed a claim with an ALREADY-expired lease so reap will transition it.
-	mkExpired := func(t *testing.T, claimID string) *sql.DB {
-		t.Helper()
-		database := seedActiveClaimForStmt(t, claimID, 30*time.Minute)
-		// Force the lease into the past.
-		past := time.Now().UTC().Add(-1 * time.Hour).Format(time.RFC3339)
-		if _, err := database.Exec(
-			`UPDATE claims SET lease_expires_at = ? WHERE claim_id = ?`, past, claimID,
-		); err != nil {
-			t.Fatalf("force-expire %s: %v", claimID, err)
-		}
-		return database
+// TestReapExpiredClaimsStmt_ExpiresLeaseExpiredClaims asserts the builder's
+// (sql, args), Exec'd directly, expires a lease-expired claim, and that the
+// args are JSON-transport-safe.
+func TestReapExpiredClaimsStmt_ExpiresLeaseExpiredClaims(t *testing.T) {
+	database := seedActiveClaimForStmt(t, "claim-reap-stmt", 30*time.Minute)
+	defer database.Close()
+	past := time.Now().UTC().Add(-1 * time.Hour).Format(time.RFC3339)
+	if _, err := database.Exec(
+		`UPDATE claims SET lease_expires_at = ? WHERE claim_id = ?`, past, "claim-reap-stmt",
+	); err != nil {
+		t.Fatalf("force-expire: %v", err)
 	}
 
-	// --- Reference DB: the legacy direct wrapper ---
-	refDB := mkExpired(t, "claim-reap-ref")
-	defer refDB.Close()
-	refReaped, err := db.ReapExpiredClaims(refDB)
-	if err != nil {
-		t.Fatalf("ref ReapExpiredClaims: %v", err)
-	}
-
-	// --- Routed DB: the builder + Exec ---
-	stmtDB := mkExpired(t, "claim-reap-stmt")
-	defer stmtDB.Close()
 	reapSQL, reapArgs := db.ReapExpiredClaimsStmt()
 	assertJSONTransportSafe(t, reapArgs)
-	res, err := stmtDB.Exec(reapSQL, reapArgs...)
+	res, err := database.Exec(reapSQL, reapArgs...)
 	if err != nil {
 		t.Fatalf("stmt Exec: %v", err)
 	}
-	stmtReaped, _ := res.RowsAffected()
-
-	if refReaped != 1 {
-		t.Fatalf("ref reaped %d, want 1 — fixture invalid", refReaped)
-	}
-	if int(stmtReaped) != refReaped {
-		t.Errorf("stmt reaped %d, want %d (effect diverged from direct)", stmtReaped, refReaped)
+	if reaped, _ := res.RowsAffected(); reaped != 1 {
+		t.Errorf("stmt reaped %d, want 1", reaped)
 	}
 
-	// The reaped claim must now be status='expired' on the routed DB too.
 	var status string
-	if err := stmtDB.QueryRow(
+	if err := database.QueryRow(
 		`SELECT status FROM claims WHERE claim_id = ?`, "claim-reap-stmt",
 	).Scan(&status); err != nil {
 		t.Fatalf("read status after stmt reap: %v", err)

@@ -8,7 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/db/dbtest"
+
 	"github.com/shakestzd/wipnote/core/models"
 )
 
@@ -27,7 +28,7 @@ func seedOverlap(t *testing.T, tdb *testDB, targetRel string) {
 		ClaimedByAgentID: "",
 		Status:           models.ClaimInProgress,
 	}
-	if err := db.ClaimItemOrRenew(tdb.DB, claim, 30*time.Minute); err != nil {
+	if err := dbtest.InsertClaim(tdb.DB, claim, 30*time.Minute); err != nil {
 		t.Fatalf("ClaimItemOrRenew(self): %v", err)
 	}
 
@@ -46,7 +47,7 @@ func seedOverlap(t *testing.T, tdb *testDB, targetRel string) {
 		Status:         models.ClaimInProgress,
 	}
 	tdb.addFeature("feat-other", "feature", "Other", "in-progress")
-	if err := db.ClaimItemOrRenew(tdb.DB, otherClaim, 30*time.Minute); err != nil {
+	if err := dbtest.InsertClaim(tdb.DB, otherClaim, 30*time.Minute); err != nil {
 		t.Fatalf("ClaimItemOrRenew(other): %v", err)
 	}
 
@@ -166,7 +167,7 @@ func TestPreToolUseOverlapAdvisory(t *testing.T) {
 			OwnerAgent:     "claude-code",
 			Status:         models.ClaimInProgress,
 		}
-		if err := db.ClaimItemOrRenew(tdb.DB, claim, 30*time.Minute); err != nil {
+		if err := dbtest.InsertClaim(tdb.DB, claim, 30*time.Minute); err != nil {
 			t.Fatalf("ClaimItemOrRenew: %v", err)
 		}
 

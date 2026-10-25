@@ -8,7 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/db/dbtest"
+
 	"github.com/shakestzd/wipnote/core/models"
 
 	"github.com/shakestzd/wipnote/core/sessionledger"
@@ -42,7 +43,7 @@ func seedFreshClaim(t *testing.T, database *sql.DB, sid, workItemID string) {
 		OwnerAgent:     "claude-code",
 		Status:         models.ClaimInProgress,
 	}
-	if err := db.ClaimItem(database, c, 30*time.Minute); err != nil {
+	if err := dbtest.InsertClaim(database, c, 30*time.Minute); err != nil {
 		t.Fatalf("ClaimItem(%s): %v", sid, err)
 	}
 }

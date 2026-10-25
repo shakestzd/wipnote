@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/shakestzd/wipnote/core/db/dbtest"
+
 	"github.com/shakestzd/wipnote/core/agent"
 	"github.com/shakestzd/wipnote/core/db"
 	"github.com/shakestzd/wipnote/core/models"
@@ -30,8 +32,8 @@ func makeSessionDB(t *testing.T, sessionID, projectDir string) *sql.DB {
 		CreatedAt:     time.Now().UTC(),
 		ProjectDir:    projectDir,
 	}
-	if err := db.InsertSession(database, s); err != nil {
-		t.Fatalf("InsertSession: %v", err)
+	if err := db.UpsertSession(database, s); err != nil {
+		t.Fatalf("UpsertSession: %v", err)
 	}
 	return database
 }
@@ -373,8 +375,8 @@ func TestCheckProjectDivergence_NoSessionProjectDir_Allows(t *testing.T) {
 		CreatedAt:     time.Now().UTC(),
 		ProjectDir:    "", // empty — no project_dir stored
 	}
-	if err := db.InsertSession(database, s); err != nil {
-		t.Fatalf("InsertSession: %v", err)
+	if err := db.UpsertSession(database, s); err != nil {
+		t.Fatalf("UpsertSession: %v", err)
 	}
 
 	event := &CloudEvent{
@@ -685,7 +687,7 @@ func TestPreToolUseRecordsClaimedWorkItemFeatureID(t *testing.T) {
 		ClaimedByAgentID: "codex",
 		Status:           models.ClaimInProgress,
 	}
-	if err := db.ClaimItemOrRenew(tdb.DB, claim, 30*time.Minute); err != nil {
+	if err := dbtest.InsertClaim(tdb.DB, claim, 30*time.Minute); err != nil {
 		t.Fatalf("ClaimItemOrRenew: %v", err)
 	}
 
@@ -727,16 +729,16 @@ func TestResolveToolUseContext_FallsBackToProjectClaimedSession(t *testing.T) {
 	t.Setenv("WIPNOTE_PROJECT_DIR", projectDir)
 	t.Setenv("WIPNOTE_SESSION_FAMILY_ID", "family-codex-desktop")
 	const claimedSession = "sess-project-claim"
-	if err := db.InsertSession(tdb.DB, &models.Session{
+	if err := db.UpsertSession(tdb.DB, &models.Session{
 		SessionID:     claimedSession,
 		AgentAssigned: "codex",
 		Status:        "active",
 		CreatedAt:     time.Now().UTC(),
 		ProjectDir:    projectDir,
 	}); err != nil {
-		t.Fatalf("InsertSession: %v", err)
+		t.Fatalf("UpsertSession: %v", err)
 	}
-	if err := db.SetSessionFamilyID(tdb.DB, claimedSession, "family-codex-desktop"); err != nil {
+	if err := dbtest.SetSessionFamilyID(tdb.DB, claimedSession, "family-codex-desktop"); err != nil {
 		t.Fatalf("SetSessionFamilyID claimed: %v", err)
 	}
 	if err := agent.RegisterSessionFamily(projectDir, "codex-desktop-invocation", "family-codex-desktop"); err != nil {
@@ -751,7 +753,7 @@ func TestResolveToolUseContext_FallsBackToProjectClaimedSession(t *testing.T) {
 		ClaimedByAgentID: "codex",
 		Status:           models.ClaimInProgress,
 	}
-	if err := db.ClaimItemOrRenew(tdb.DB, claim, 30*time.Minute); err != nil {
+	if err := dbtest.InsertClaim(tdb.DB, claim, 30*time.Minute); err != nil {
 		t.Fatalf("ClaimItemOrRenew: %v", err)
 	}
 
@@ -791,16 +793,16 @@ func TestResolveToolUseContext_FallsBackViaFileMappingWithoutEnvVar(t *testing.T
 	t.Setenv("WIPNOTE_SESSION_FAMILY_ID", "")
 
 	const claimedSession = "sess-file-backed-claim"
-	if err := db.InsertSession(tdb.DB, &models.Session{
+	if err := db.UpsertSession(tdb.DB, &models.Session{
 		SessionID:     claimedSession,
 		AgentAssigned: "codex",
 		Status:        "active",
 		CreatedAt:     time.Now().UTC(),
 		ProjectDir:    projectDir,
 	}); err != nil {
-		t.Fatalf("InsertSession: %v", err)
+		t.Fatalf("UpsertSession: %v", err)
 	}
-	if err := db.SetSessionFamilyID(tdb.DB, claimedSession, "family-file-backed"); err != nil {
+	if err := dbtest.SetSessionFamilyID(tdb.DB, claimedSession, "family-file-backed"); err != nil {
 		t.Fatalf("SetSessionFamilyID claimed: %v", err)
 	}
 	// Register the invocation session → family mapping in the file (this is the
@@ -809,7 +811,7 @@ func TestResolveToolUseContext_FallsBackViaFileMappingWithoutEnvVar(t *testing.T
 		t.Fatalf("RegisterSessionFamily: %v", err)
 	}
 	tdb.addFeature("bug-file-backed-claim", "bug", "File-backed claimed bug", "in-progress")
-	if err := db.ClaimItemOrRenew(tdb.DB, &models.Claim{
+	if err := dbtest.InsertClaim(tdb.DB, &models.Claim{
 		ClaimID:          "clm-file-backed-claim",
 		WorkItemID:       "bug-file-backed-claim",
 		OwnerSessionID:   claimedSession,
@@ -844,32 +846,32 @@ func TestResolveToolUseContext_DoesNotUseUnrelatedProjectClaim(t *testing.T) {
 	t.Setenv("CLAUDE_PROJECT_DIR", projectDir)
 	t.Setenv("WIPNOTE_PROJECT_DIR", projectDir)
 
-	if err := db.InsertSession(tdb.DB, &models.Session{
+	if err := db.UpsertSession(tdb.DB, &models.Session{
 		SessionID:     "sess-current-unclaimed",
 		AgentAssigned: "codex",
 		Status:        "active",
 		CreatedAt:     time.Now().UTC(),
 		ProjectDir:    projectDir,
 	}); err != nil {
-		t.Fatalf("InsertSession current: %v", err)
+		t.Fatalf("UpsertSession current: %v", err)
 	}
-	if err := db.SetSessionFamilyID(tdb.DB, "sess-current-unclaimed", "family-current"); err != nil {
+	if err := dbtest.SetSessionFamilyID(tdb.DB, "sess-current-unclaimed", "family-current"); err != nil {
 		t.Fatalf("SetSessionFamilyID current: %v", err)
 	}
-	if err := db.InsertSession(tdb.DB, &models.Session{
+	if err := db.UpsertSession(tdb.DB, &models.Session{
 		SessionID:     "sess-unrelated-claim",
 		AgentAssigned: "codex",
 		Status:        "active",
 		CreatedAt:     time.Now().UTC().Add(time.Second),
 		ProjectDir:    projectDir,
 	}); err != nil {
-		t.Fatalf("InsertSession unrelated: %v", err)
+		t.Fatalf("UpsertSession unrelated: %v", err)
 	}
-	if err := db.SetSessionFamilyID(tdb.DB, "sess-unrelated-claim", "family-other"); err != nil {
+	if err := dbtest.SetSessionFamilyID(tdb.DB, "sess-unrelated-claim", "family-other"); err != nil {
 		t.Fatalf("SetSessionFamilyID unrelated: %v", err)
 	}
 	tdb.addFeature("bug-other-claim", "bug", "Other claimed bug", "in-progress")
-	if err := db.ClaimItemOrRenew(tdb.DB, &models.Claim{
+	if err := dbtest.InsertClaim(tdb.DB, &models.Claim{
 		ClaimID:          "clm-other-claim",
 		WorkItemID:       "bug-other-claim",
 		OwnerSessionID:   "sess-unrelated-claim",
@@ -923,7 +925,7 @@ func TestResolveToolUseContext_SubagentPrefersOwnClaimOverRootFeature(t *testing
 	// A concurrent subagent, sharing the SAME session_id, claims a DIFFERENT
 	// work item under its own agent identity.
 	subagentID := "subagent-xyz"
-	if err := db.ClaimItemOrRenew(tdb.DB, &models.Claim{
+	if err := dbtest.InsertClaim(tdb.DB, &models.Claim{
 		ClaimID:          "clm-agent-item",
 		WorkItemID:       "bug-agent-item",
 		OwnerSessionID:   "test-sess",
@@ -1003,17 +1005,17 @@ func TestCheckYoloWorkItemGuard_DiagnosticsIncludeCheckedAndNearestClaim(t *test
 	tdb := setupTestDB(t)
 	projectDir := t.TempDir()
 	const claimedSession = "sess-nearest-claim"
-	if err := db.InsertSession(tdb.DB, &models.Session{
+	if err := db.UpsertSession(tdb.DB, &models.Session{
 		SessionID:     claimedSession,
 		AgentAssigned: "codex",
 		Status:        "active",
 		CreatedAt:     time.Now().UTC(),
 		ProjectDir:    projectDir,
 	}); err != nil {
-		t.Fatalf("InsertSession: %v", err)
+		t.Fatalf("UpsertSession: %v", err)
 	}
 	tdb.addFeature("bug-nearest-claim", "bug", "Nearest claim", "in-progress")
-	if err := db.ClaimItemOrRenew(tdb.DB, &models.Claim{
+	if err := dbtest.InsertClaim(tdb.DB, &models.Claim{
 		ClaimID:          "clm-nearest-claim",
 		WorkItemID:       "bug-nearest-claim",
 		OwnerSessionID:   claimedSession,

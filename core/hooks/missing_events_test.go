@@ -702,8 +702,11 @@ func setActiveFeature(t *testing.T, td *testDB, sessionID, featureID string) {
 	); err != nil {
 		t.Fatalf("insert feature: %v", err)
 	}
-	if err := UpdateActiveFeature(td.DB, sessionID, featureID); err != nil {
-		t.Fatalf("UpdateActiveFeature: %v", err)
+	if _, err := td.DB.Exec(
+		`UPDATE sessions SET active_feature_id = ?, updated_at = ? WHERE session_id = ?`,
+		featureID, time.Now().UTC().Format(time.RFC3339), sessionID,
+	); err != nil {
+		t.Fatalf("set active feature: %v", err)
 	}
 }
 
@@ -1147,14 +1150,14 @@ func TestSessionResume_ReactivatesCompletedSession(t *testing.T) {
 	t.Setenv("WIPNOTE_PROJECT_DIR", projectDir)
 
 	// Insert a completed session.
-	if err := db.InsertSession(database, &models.Session{
+	if err := db.UpsertSession(database, &models.Session{
 		SessionID:     sessionID,
 		AgentAssigned: "claude-code",
 		Status:        "completed",
 		CreatedAt:     time.Now().UTC(),
 		ProjectDir:    projectDir,
 	}); err != nil {
-		t.Fatalf("InsertSession: %v", err)
+		t.Fatalf("UpsertSession: %v", err)
 	}
 
 	event := &CloudEvent{SessionID: sessionID, CWD: projectDir}
@@ -1220,8 +1223,8 @@ func TestStop_FinalizesSessionHTML(t *testing.T) {
 		Status:        "active",
 		CreatedAt:     time.Now().UTC(),
 	}
-	if err := db.InsertSession(database, sess); err != nil {
-		t.Fatalf("InsertSession: %v", err)
+	if err := db.UpsertSession(database, sess); err != nil {
+		t.Fatalf("UpsertSession: %v", err)
 	}
 
 	// Create session HTML file so FinalizeSessionHTML has something to update.

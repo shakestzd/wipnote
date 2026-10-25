@@ -16,27 +16,6 @@ type Execer interface {
 	Exec(query string, args ...any) (sql.Result, error)
 }
 
-// InsertLineageTrace inserts a new lineage trace row.
-func InsertLineageTrace(db *sql.DB, trace *models.LineageTrace) error {
-	return insertLineageTrace(db, trace)
-}
-
-// InsertLineageTraceExecer inserts a lineage trace row using an Execer (e.g. *sql.Tx).
-func InsertLineageTraceExecer(ex Execer, trace *models.LineageTrace) error {
-	return insertLineageTrace(ex, trace)
-}
-
-func insertLineageTrace(ex Execer, trace *models.LineageTrace) error {
-	query, args, err := InsertLineageTraceStmt(trace)
-	if err != nil {
-		return err
-	}
-	if _, err := ex.Exec(query, args...); err != nil {
-		return fmt.Errorf("insert lineage trace %s: %w", trace.TraceID, err)
-	}
-	return nil
-}
-
 // InsertLineageTraceStmt builds the parameterized INSERT that insertLineageTrace
 // Execs, WITHOUT executing it, so the hot-path subagent-start hook can route the
 // exact same statement through the daemon's enqueue-only seam instead of
@@ -215,12 +194,6 @@ func InsertGitCommit(database *sql.DB, commit *models.GitCommit) error {
 	return err
 }
 
-// InsertGitCommitResult records a git commit and returns the number of rows
-// actually inserted (0 when the row already existed, 1 when new).
-func InsertGitCommitResult(database *sql.DB, commit *models.GitCommit) (int64, error) {
-	return insertGitCommit(database, commit)
-}
-
 func insertGitCommit(database *sql.DB, commit *models.GitCommit) (int64, error) {
 	// feature_id is bound as a plain string (never nullStr) because it is
 	// part of git_commits' primary key (bug-3bf05d49): two NULLs are never
@@ -387,13 +360,6 @@ func TraceCommit(database *sql.DB, sha string) ([]TraceResult, error) {
 		results = append(results, r)
 	}
 	return results, rows.Err()
-}
-
-// CommitAttributionRate returns (total commits, commits with non-empty feature_id).
-func CommitAttributionRate(database *sql.DB) (total, attributed int) {
-	database.QueryRow(`SELECT COUNT(*) FROM git_commits`).Scan(&total)
-	database.QueryRow(`SELECT COUNT(*) FROM git_commits WHERE feature_id IS NOT NULL AND feature_id != ''`).Scan(&attributed)
-	return
 }
 
 // GetCommitsBySession returns all git commits linked to a session,

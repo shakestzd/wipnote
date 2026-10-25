@@ -18,13 +18,6 @@ var (
 	// will recover on reindex.
 	ErrQueueFull = errors.New("writequeue: queue full")
 
-	// ErrTimeout means SubmitWithTimeout's deadline elapsed before a
-	// slot opened in the queue. Semantically identical to ErrQueueFull
-	// from the producer's perspective (best-effort fallback) — surfaced
-	// separately so observability can distinguish "instantaneously full"
-	// from "consumer too slow".
-	ErrTimeout = errors.New("writequeue: submit timeout")
-
 	// ErrWriterUnavailable means the queue has not been started or has
 	// been stopped. Producers must treat this exactly like ErrQueueFull
 	// — the canonical NDJSON write already happened, so user work is
@@ -316,87 +309,6 @@ func (q *Queue) SubmitSync(ctx context.Context, op WriteOp) error {
 	}
 }
 
-// SubmitWithTimeout enqueues op, waiting up to timeout for a slot to
-// open. Returns ErrTimeout if the deadline elapses, ErrWriterUnavailable
-// if the queue stops mid-wait, or ctx.Err() if the context is cancelled.
-//
-// Producers that prefer to drop on overflow should call Submit; this
-// variant exists for low-priority background work that can afford to
-// wait briefly when the writer is momentarily behind.
-func (q *Queue) SubmitWithTimeout(ctx context.Context, op WriteOp, timeout time.Duration) error {
-	if err := ctx.Err(); err != nil {
-		return err
-	}
-	if timeout <= 0 {
-		return q.Submit(ctx, op)
-	}
-	// Fast path: take sendMu briefly and try a non-blocking send. If
-	// the buffer has room, we're done — and the send happened under
-	// the read lock, so Stop cannot have flipped state mid-call.
-	q.sendMu.RLock()
-	current := q.state.Load()
-	if current != stateCodeRunning {
-		q.sendMu.RUnlock()
-		q.rejected.Add(1)
-		return ErrWriterUnavailable
-	}
-	select {
-	case q.ch <- op:
-		q.enqueued.Add(1)
-		q.recordEnqueue()
-		q.sendMu.RUnlock()
-		return nil
-	default:
-		// Buffer full; fall through to the blocking-wait path below.
-	}
-	q.sendMu.RUnlock()
-	// Slow path: buffer was full at first look. Wait up to timeout for
-	// a slot, observing both ctx and quit so Stop can release us.
-	// q.ch is never closed (see Stop), so this select is safe.
-	timer := time.NewTimer(timeout)
-	defer timer.Stop()
-	select {
-	case q.ch <- op:
-		// Re-check state under the lock to avoid enqueueing into a
-		// channel whose consumer has already exited. If state moved
-		// while we were blocked, we still enqueued successfully and
-		// the drain phase in consume() will run the op (since q.ch is
-		// shared); record it as enqueued and let the consumer decide.
-		q.enqueued.Add(1)
-		q.recordEnqueue()
-		return nil
-	case <-timer.C:
-		q.rejected.Add(1)
-		return ErrTimeout
-	case <-q.quit:
-		q.rejected.Add(1)
-		return ErrWriterUnavailable
-	case <-ctx.Done():
-		q.rejected.Add(1)
-		return ctx.Err()
-	}
-}
-
-// Stats returns a point-in-time snapshot of queue depth, lifecycle
-// state, and counters. Safe to call from any goroutine.
-func (q *Queue) Stats() Stats {
-	return Stats{
-		State:             q.currentState(),
-		Depth:             len(q.ch),
-		Capacity:          q.cfg.Capacity,
-		Enqueued:          q.enqueued.Load(),
-		Dequeued:          q.dequeued.Load(),
-		Rejected:          q.rejected.Load(),
-		Errors:            q.errors.Load(),
-		EnqueueRatePerSec: q.rate(true),
-		DequeueRatePerSec: q.rate(false),
-	}
-}
-
-// Capacity returns the configured queue capacity. Useful for tests
-// that want to fill the queue exactly to its limit.
-func (q *Queue) Capacity() int { return q.cfg.Capacity }
-
 // consume is the single-writer consumer goroutine. Each op runs with
 // the context passed to Start so the operator can cancel the entire
 // writer service from one place.
@@ -450,20 +362,6 @@ loop:
 	}
 }
 
-func (q *Queue) currentState() State {
-	switch q.state.Load() {
-	case stateCodeInit:
-		return StateInit
-	case stateCodeRunning:
-		return StateRunning
-	case stateCodeDraining:
-		return StateDraining
-	case stateCodeStopped:
-		return StateStopped
-	}
-	return StateInit
-}
-
 // recordEnqueue / recordDequeue append a unix-nano timestamp to the
 // rolling-window history so Stats can compute a meaningful rate even
 // when the queue has been running for hours.
@@ -491,31 +389,4 @@ func (q *Queue) trimHistoryLocked(hist *[]int64) {
 	if i > 0 {
 		*hist = (*hist)[i:]
 	}
-}
-
-// rate computes the per-second rate over the window. enqueue=true
-// selects the enqueue history; false selects the dequeue history.
-func (q *Queue) rate(enqueue bool) float64 {
-	q.rateMu.Lock()
-	defer q.rateMu.Unlock()
-	var hist []int64
-	if enqueue {
-		hist = q.enqueueHistory
-	} else {
-		hist = q.dequeueHistory
-	}
-	if len(hist) == 0 {
-		return 0
-	}
-	cutoff := time.Now().Add(-q.rateWindow).UnixNano()
-	count := 0
-	for _, ts := range hist {
-		if ts >= cutoff {
-			count++
-		}
-	}
-	if count == 0 {
-		return 0
-	}
-	return float64(count) / q.rateWindow.Seconds()
 }
