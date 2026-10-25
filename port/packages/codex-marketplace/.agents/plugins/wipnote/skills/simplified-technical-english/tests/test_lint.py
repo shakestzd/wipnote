@@ -392,3 +392,22 @@ def test_real_british_and_perfect_tense_still_hit(text, rule):
         assert "3.4" not in found
     else:
         assert rule in found
+
+
+@pytest.mark.parametrize("text", [
+    "Check the colours.",
+    "Check the colour's finish.",
+    "The cancelled colours.",
+    "They honours the rule.",
+    "The honoured guest.",
+    "The lead favoured the rear.",
+    "Keep the centres clean.",
+    "Keep the centred part.",
+    "Measure the metres and litres.",
+    "Store the tyres and fibres.",
+    "Label the greys and programmes.",
+    "The colouring of the panel.",
+    "Clean the manoeuvred parts.",
+])
+def test_inflected_british_whole_words_still_hit(text):
+    assert "1.14" in rules(text)
