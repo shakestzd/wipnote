@@ -681,7 +681,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
   <p style="color:var(--text-dim)">Make orch&#39;s delegation a native, Go-built wipnote feature (wipnote delegate: spawn, send, wait, result, stop, questions, tree, run) with a file mailbox, herdr panes for interactive sessions and one-shot runs on ONE path that absorbs mods/codex-herdr-pane. orch (Python, owner&#39;s machine) is the reference. Replaces the mod-vs-orch split in docs/design/orch-integration.md.</p>
   <div class="meta">
     <span class="badge badge-approved">Done</span>
-    <span style="font-size:.75rem;color:var(--text-muted)">v35 · 21 slices · Created 2026-10-25</span>
+    <span style="font-size:.75rem;color:var(--text-muted)">v36 · 21 slices · Created 2026-10-25</span>
   </div>
 </header>
 <button id="themeToggle" style="position:fixed;top:16px;right:16px;z-index:100;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:6px 12px;color:var(--text);font-family:var(--mono);font-size:0.75rem;cursor:pointer;">
@@ -3430,7 +3430,7 @@ Narrower prior art: question inboxes (speardragon/herdr-ask-inbox, no license; L
       
       <div class="slice-field">
         <div class="slice-field-label">Done when</div>
-        <ul class="slice-done-list slice-done-list--grid"><li>A result file ends wait despite silent hooks or stuck working; Stop without one is idle_no_result (D1)</li><li>A stop ends wait at once with stopped (D1b)</li><li>wait needs --timeout (exit 124); fresh workers are ready once the predicate holds (D6)</li><li>result: newest result file, any state or watermark (D3); wait writes no run state (F-1)</li><li>An outbox q-file is a pending ask in status, questions, wait (asks), run view (D7)</li><li>inbox shows lost-hint messages; questions drops answered asks</li></ul>
+        <ul class="slice-done-list slice-done-list--grid"><li>A result file ends wait despite silent hooks or stuck working; Stop without one is idle_no_result (D1)</li><li>A stop ends wait at once (stopped, D1b)</li><li>wait needs --timeout (exit 124); fresh workers are ready once the predicate holds (D6)</li><li>result: newest result file, any state or watermark (D3); wait writes no run state (F-1)</li><li>An outbox q-file is a pending ask in status, questions, wait (asks), run view (D7)</li><li>inbox shows lost-hint messages; questions drops answered asks</li></ul>
       </div>
       
     
@@ -3496,8 +3496,8 @@ Narrower prior art: question inboxes (speardragon/herdr-ask-inbox, no license; L
         <div class="test-strategy">
           
           <div class="test-group" data-kind="other">
-            <span class="test-chip">OTHER &middot; 8</span>
-            <ul><li>Settle (D1, two-sided): TestWait_ResultFileEndsWaitWithoutHooks, TestWait_StopWithoutResultIsIdleNoResult, TestWait_CurrentTurnOnly, TestWait_RequiresTimeout.</li><li>Stuck or stopped (D1b, two-sided): TestWait_WorkingStateResultFileReturnsResult, TestWait_StoppedWhileWaitingReturnsStoppedBeforeTimeout, TestWait_NoResultNoStopTimesOut.</li><li>Question file (D7, two-sided): TestQuestions_OutboxQFileListedWithSilentHooks, TestWait_OutboxQFileReturnsAsks, TestQuestions_AnsweredQFileNotListed, TestQuestions_NoQFileNotListed.</li><li>Ready (D6, two-sided): TestWait_FreshWorkerReadyAfter1sReturnsUnder2s, TestWait_NeverReadyTimesOut124.</li><li>Result (D3, two-sided): TestResult_NewestFileWhileWorking, TestResult_NewestFileAfterWatermark, TestResult_NoFileSaysNoneNotNull.</li><li>States (D2): TestWait_IdleBackgroundShellIsNotDone, TestSendAndWait_SharePredicate.</li><li>Do not copy (F-1): TestWait_NeverWritesRunState, TestWait_AfterStopStaysStopped, TestWait_LateLedgerWriteAfterStopLeavesRowClosed, TestWait_LedgerWriteOnOpenRowApplies.</li><li>TestSend_StoreFirstThenHint, TestSend_AppendsResultPreamble, TestQuestions_PendingThenCleared.</li></ul>
+            <span class="test-chip">OTHER &middot; 7</span>
+            <ul><li>Settle (D1, D1b, two-sided): TestWait_ResultFileEndsWaitWithoutHooks, TestWait_StopWithoutResultIsIdleNoResult, TestWait_CurrentTurnOnly, TestWait_RequiresTimeout, TestWait_WorkingStateResultFileReturnsResult, TestWait_StoppedWhileWaitingReturnsStoppedBeforeTimeout, TestWait_NoResultNoStopTimesOut.</li><li>Q-file (D7, two-sided): TestQuestions_OutboxQFileListedWithSilentHooks, TestWait_OutboxQFileReturnsAsks, TestQuestions_AnsweredQFileNotListed, TestQuestions_NoQFileNotListed.</li><li>Ready (D6, two-sided): TestWait_FreshWorkerReadyAfter1sReturnsUnder2s, TestWait_NeverReadyTimesOut124.</li><li>Result (D3, two-sided): TestResult_NewestFileWhileWorking, TestResult_NewestFileAfterWatermark, TestResult_NoFileSaysNoneNotNull.</li><li>States (D2): TestWait_IdleBackgroundShellIsNotDone, TestSendAndWait_SharePredicate.</li><li>Do not copy (F-1): TestWait_NeverWritesRunState, TestWait_AfterStopStaysStopped, TestWait_LateLedgerWriteAfterStopLeavesRowClosed, TestWait_LedgerWriteOnOpenRowApplies.</li><li>TestSend_StoreFirstThenHint, TestSend_AppendsResultPreamble, TestQuestions_PendingThenCleared.</li></ul>
           </div>
           
           <div class="test-group" data-kind="hook">

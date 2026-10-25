@@ -7,7 +7,7 @@ meta:
     status: finalized
     priority: medium
     schema_version: v4
-    version: 35
+    version: 36
 design:
     problem: |
         ## Problem
@@ -1029,7 +1029,7 @@ slices:
         - 10
       done_when:
         - A result file ends wait despite silent hooks or stuck working; Stop without one is idle_no_result (D1)
-        - A stop ends wait at once with stopped (D1b)
+        - A stop ends wait at once (stopped, D1b)
         - wait needs --timeout (exit 124); fresh workers are ready once the predicate holds (D6)
         - 'result: newest result file, any state or watermark (D3); wait writes no run state (F-1)'
         - An outbox q-file is a pending ask in status, questions, wait (asks), run view (D7)
@@ -1037,9 +1037,8 @@ slices:
       effort: L
       risk: High
       tests: |
-        Settle (D1, two-sided): TestWait_ResultFileEndsWaitWithoutHooks, TestWait_StopWithoutResultIsIdleNoResult, TestWait_CurrentTurnOnly, TestWait_RequiresTimeout.
-        Stuck or stopped (D1b, two-sided): TestWait_WorkingStateResultFileReturnsResult, TestWait_StoppedWhileWaitingReturnsStoppedBeforeTimeout, TestWait_NoResultNoStopTimesOut.
-        Question file (D7, two-sided): TestQuestions_OutboxQFileListedWithSilentHooks, TestWait_OutboxQFileReturnsAsks, TestQuestions_AnsweredQFileNotListed, TestQuestions_NoQFileNotListed.
+        Settle (D1, D1b, two-sided): TestWait_ResultFileEndsWaitWithoutHooks, TestWait_StopWithoutResultIsIdleNoResult, TestWait_CurrentTurnOnly, TestWait_RequiresTimeout, TestWait_WorkingStateResultFileReturnsResult, TestWait_StoppedWhileWaitingReturnsStoppedBeforeTimeout, TestWait_NoResultNoStopTimesOut.
+        Q-file (D7, two-sided): TestQuestions_OutboxQFileListedWithSilentHooks, TestWait_OutboxQFileReturnsAsks, TestQuestions_AnsweredQFileNotListed, TestQuestions_NoQFileNotListed.
         Ready (D6, two-sided): TestWait_FreshWorkerReadyAfter1sReturnsUnder2s, TestWait_NeverReadyTimesOut124.
         Result (D3, two-sided): TestResult_NewestFileWhileWorking, TestResult_NewestFileAfterWatermark, TestResult_NoFileSaysNoneNotNull.
         States (D2): TestWait_IdleBackgroundShellIsNotDone, TestSendAndWait_SharePredicate.
