@@ -475,6 +475,29 @@ func CreateAllTables(db *sql.DB) error {
 			updated_at    DATETIME,
 			indexed_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 		)`,
+
+		// 19. delegation_runs — read index for .wipnote/delegations-ledger.html.
+		// Canonical store is the HTML ledger; reindex replaces this table from it.
+		`CREATE TABLE IF NOT EXISTS delegation_runs (
+			run_id          TEXT PRIMARY KEY,
+			mode            TEXT NOT NULL,
+			harness         TEXT NOT NULL,
+			name            TEXT NOT NULL DEFAULT '',
+			label           TEXT NOT NULL DEFAULT '',
+			work_item_id    TEXT NOT NULL DEFAULT '',
+			link            TEXT NOT NULL DEFAULT '',
+			caller_session  TEXT NOT NULL DEFAULT '',
+			worker_sessions TEXT NOT NULL DEFAULT '',
+			host            TEXT NOT NULL DEFAULT '',
+			started_at      TEXT NOT NULL,
+			ended_at        TEXT NOT NULL DEFAULT '',
+			exit_code       INTEGER,
+			end_reason      TEXT NOT NULL DEFAULT '',
+			usage_input     INTEGER NOT NULL DEFAULT 0,
+			usage_cached    INTEGER NOT NULL DEFAULT 0,
+			usage_output    INTEGER NOT NULL DEFAULT 0,
+			resumed_from    TEXT NOT NULL DEFAULT ''
+		)`,
 	}
 
 	for _, stmt := range stmts {
@@ -573,6 +596,8 @@ func CreateAllIndexes(db *sql.DB) error {
 		// recaps
 		"CREATE INDEX IF NOT EXISTS idx_recaps_kind ON recaps(kind)",
 		"CREATE INDEX IF NOT EXISTS idx_recaps_work_item ON recaps(work_item_id)",
+		// delegation_runs
+		"CREATE INDEX IF NOT EXISTS idx_delegation_runs_work_item ON delegation_runs(work_item_id, started_at)",
 	}
 
 	for _, idx := range indexes {

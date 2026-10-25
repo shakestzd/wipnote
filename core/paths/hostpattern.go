@@ -12,7 +12,7 @@ import "regexp"
 //   - /private/var/folders/ — macOS temp directory (always machine-specific)
 //
 // /home/runner/ (GitHub Actions CI) is allowed via a separate filter in the
-// precommit gate (see cmd/wipnote/check_host_paths.go: ciAllowPattern).
+// precommit gate and the ledger writers (see core/hostpath).
 //
 // This pattern is the single source of truth shared by:
 //   - the precommit gate (cmd/wipnote/check_host_paths.go), and
