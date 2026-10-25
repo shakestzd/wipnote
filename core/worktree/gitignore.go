@@ -40,6 +40,9 @@ logs/
 # Live delegation runs, events and mailboxes (only ledger rows are committed)
 delegate/
 
+# Per-user project config (host paths); config.json stays committed
+config.local.json
+
 # Database and index artifacts
 *.db
 *.db-*
