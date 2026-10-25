@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="wipnote-version" content="1.0">
+    <title>OpenUI plan views via artifact twins</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <article id="spk-b5b89a4b"
+             data-type="spike"
+             data-status="in-progress"
+             data-priority="medium"
+             data-created="2026-10-25T00:36:40.211895"
+             data-updated="2026-10-25T07:04:51.731908" data-agent-assigned="claude-code" data-track-id="trk-0677c709" data-created-by-agent="claude-code" data-created-by-model="claude-opus-5-5" data-created-by-cli-version="0.81.0" data-created_in_session="b0991d53-1a24-4f08-85e1-85786a570a50">
+
+        <header>
+            <h1>OpenUI plan views via artifact twins</h1>
+            <div class="metadata">
+                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge priority-medium">Medium Priority</span>
+            </div>
+        </header>
+
+        <nav data-graph-edges>
+            <section data-edge-type="implemented_in">
+                <h3>Implemented In:</h3>
+                <ul>
+                    <li><a href="../sessions/dbb105e6-52f8-4cf1-8277-32a31cb5c18a.html" data-relationship="implemented_in" data-since="2026-10-25T01:08:55.948669">session dbb105e6-52f8-4cf1-8277-32a31cb5c18a</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="part_of">
+                <h3>Part Of:</h3>
+                <ul>
+                    <li><a href="../tracks/trk-0677c709.html" data-relationship="part_of" data-since="2026-10-25T00:36:40.253269">trk-0677c709</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="relates_to">
+                <h3>Relates To:</h3>
+                <ul>
+                    <li><a href="../plans/plan-93b8eba0.html" data-relationship="relates_to" data-since="2026-10-25T00:36:50.699129">Plan: Visual plan &amp; lineage-grounded recap (native port of BuilderIO visual-plan/visual-recap)</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="spawned_from">
+                <h3>Spawned From:</h3>
+                <ul>
+                    <li><a href="../bugs/bug-ef1137f8.html" data-relationship="spawned_from" data-since="2026-10-25T00:36:50.825991">plan-review mod: undrawn pane gives no hint and polls every 5s</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <section data-steps>
+            <h3>Implementation Steps</h3>
+            <ol>
+                <li data-completed="true" data-step-id="step-spk-b5b89a4b-0" data-agent="claude-code" data-created-by-agent="claude-code">✅ Step 1 PASS: @openuidev/browser-bundle@0.1.5 (MIT, 2026-10-08; 3.2 MB JS / 892 KB gz &#43; 321 KB CSS inlined) renders hand-written OpenUI Lang in a private artifact (https://claude.ai/artifact/Grd2UNedjjLgq4YVSHzyFy). Parse ok, 20 statements, 0 errors; render 132 ms (possibly warm cache). Only non-host request: cdn.jsdelivr.net bundle. Generated buttons emit continue_conversation; onAction caught 3 of 3, none left the page. Fixes needed in the twin: theme CSS rewrite for data-theme; renderer prop is response, not code; pin lang-core 0.3.x to match bundle 0.1.5.</li>
+                <li data-completed="false" data-step-id="step-spk-b5b89a4b-1" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Step 2: plan-review twin end to end (publish via $.tool.call Artifact, write_db on state change only, room_send approve, session.receive confirm &#43; approve-slice); count permission prompts and state-to-page latency</li>
+                <li data-completed="false" data-step-id="step-spk-b5b89a4b-2" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Step 3: Claude writes Lang from the generated prompt for 2-3 real plans; first-try validity against lang-core</li>
+                <li data-completed="false" data-step-id="step-spk-b5b89a4b-3" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Step 4: save-time validation path (Go CLI shelling to node vs mod bundling lang-core)</li>
+                <li data-completed="false" data-step-id="step-spk-b5b89a4b-4" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Step 2 evidence (session dbb105e6, twin https://claude.ai/artifact/AA3JFaeVc28HhP7aAhJngo v7): room events to the session FAIL (publishing session joins the room only behind a platform flag that is off); Send to Claude comment from the page PASS, woke the session with no user prompt; ArtifactData writes from the session 8 calls, 0 permission prompts; confirm-before-command PASS (approve-slice ran after confirm). Design moved to draft marks &#43; one Finalize review comment. Still open: mod-side publish via $.tool.call, state-to-page delay number, one Finalize round trip.</li>
+                <li data-completed="false" data-step-id="step-spk-b5b89a4b-5" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Step 3/4 evidence: 11 of 11 Lang views valid on first try against lang-core 0.3.2 (overview &#43; 7 slices of plan-0f48cf00, plus plan-93b8eba0 samples). Validator does not check child component types. Node validation works; mod-side validation not tested. Still open: a second real plan, mod path.</li>
+                <li data-completed="false" data-step-id="step-spk-b5b89a4b-6" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Step 5: widen the twin into a web stand-in for the removed dashboard (f3269ff40). Candidate tabs from the old /api: work board, sessions &#43; session family, cost/OTel, lineage/provenance, recaps. Prove one non-plan tab (work board) fed by CLI JSON through ArtifactData; check db size limits and what may leave the machine (ids/counts only, no prompt text).</li>
+                <li data-completed="false" data-step-id="step-spk-b5b89a4b-7" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Step 5 scope (user, 2026-10-24): twin covers planning (plan list &#43; plan review) and the work board only. Activity feed, sessions, cost and lineage stay local.</li>
+                <li data-completed="false" data-step-id="step-spk-b5b89a4b-8" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Step 5 evidence: twin v8 has Plans, Work board and Review tabs. One atomic ArtifactData batch of 44 writes (42 plan frames, plan index 9 KB, board 17 KB: 23 in progress, 40 newest of 284 todo, 20 newest of 865 done) ran with 0 permission prompts; 47 of 25000 db docs used. Viewer-level read sees board, not review drafts. Data path: wipnote mcp (work items) &#43; plan slices JSON &#43; snapshot text; no CLI JSON for lists, and plan slices fails for plan-43659c92. Still open: user render check; a mod/CLI push on change instead of a hand-run script.</li>
+                <li data-completed="false" data-step-id="step-spk-b5b89a4b-9" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Gap found 2026-10-25: plan-7bc7114c was created with plan add-slice-yaml and got no OpenUI views until the user asked; the views live only in the twin db. Needed for go: a per-slice Lang field in plan YAML (set via CLI, validated with lang-core 0.3.x at save), and the plan skill writing it during planning. 10 of 10 new views valid on first try against react-ui 0.17.1 genui-lib (overview &#43; 9 slices).</li>
+                <li data-completed="false" data-step-id="step-spk-b5b89a4b-10" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Round trip evidence (2026-10-25, plan-7bc7114c): Finalize review from twin v9 approve=1-9 nonce mvnhbt0jv1q00d. requests doc written 07:01:29Z; comment reached the session as a user prompt 07:02:28Z (59 s click-to-session); request doc matched comment; approve-slice x9 done 07:03:00Z (91 s click-to-CLI); twin plans/plan-7bc7114c v3 and planindex v4 written back in one pinned batch about 3.5 min after the click (hand-run, includes agent think time). Interrupted an open AskUserQuestion; no permission prompts. PASS.</li>
+                <li data-completed="false" data-step-id="step-spk-b5b89a4b-11" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Correction to round trip evidence: the Finalize comment was routed to the publishing session (dbb105e6/363fe5de, no longer active), not the live session. It reached the live session only because the user pasted it, so 59 s is not a routing number. Cause: Send to Claude wakes only a session that watches the artifact; watches are session-local and a new session does not inherit them. Fix in this session: ArtifactComments watch from the live session, then a second Finalize is needed to measure real delay. Twin write-back was about 2.6 min after the click, not 3.5. For go: the mod or SessionStart must arm the watch on the twin in every new session.</li>
+            </ol>
+        </section>
+
+        <section data-content>
+            <h3>Description</h3>
+            <p>Plans are open-ended, so a fixed template cannot know what each plan needs. Design: fixed frame (title, slices, approval state, approve/reject buttons from wipnote plan slices) + a generated body in OpenUI Lang that Claude writes during planning, stored per plan section via the CLI, validated with @openuidev/lang-core at save time, rendered in an artifact twin via @openuidev/browser-bundle, live via the artifact db capability, actions back through room_send -&gt; session.receive (artifact-room). Mods publish with $.tool.call Artifact. Terminal pane draws a subset. Must prove: (1) browser-bundle renders in an artifact with no Gateway or network beyond the CDN; (2) a pinned version at least 2 weeks old exists and the license allows it; (3) Claude writes valid Lang from generateSystemPrompt on 2-3 real plans; (4) lang-core can validate in the CLI or mod. Fallback if (1) fails: Claude-written HTML inside a strict template. Start after the 0.82.0 deploy.</p>
+        </section>
+    </article>
+</body>
+</html>

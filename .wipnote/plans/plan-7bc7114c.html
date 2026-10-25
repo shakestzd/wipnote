@@ -469,7 +469,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     <a href="/" class="brand">wipnote</a>
     <button class="sidebar-toggle" id="left-sidebar-toggle" title="Collapse sidebar" aria-label="Toggle left sidebar">&#8249;</button>
   </div>
-  
+  <a href="#visual-overview" class="nav-link" data-spy="visual-overview" data-initial="V">Visual</a>
   <a href="#design" class="nav-link active" data-spy="design" data-initial="D">Design</a>
   <a href="#slices" class="nav-link" data-spy="slices" data-initial="S">Slices</a>
   
@@ -477,7 +477,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     
     <li>
       <a href="#slice-1" class="slice-nav-item" data-slice-nav="1">
-        <span class="slice-nav-dot" data-approval="pending" data-dot-for="1"></span>
+        <span class="slice-nav-dot" data-approval="approved" data-dot-for="1"></span>
         <span>#1 Fix the correctness bugs the audit found</span>
         
         
@@ -486,7 +486,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     
     <li>
       <a href="#slice-2" class="slice-nav-item" data-slice-nav="2">
-        <span class="slice-nav-dot" data-approval="pending" data-dot-for="2"></span>
+        <span class="slice-nav-dot" data-approval="approved" data-dot-for="2"></span>
         <span>#2 Bring model ids and harness features up to date</span>
         
         
@@ -495,7 +495,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     
     <li>
       <a href="#slice-3" class="slice-nav-item" data-slice-nav="3">
-        <span class="slice-nav-dot" data-approval="pending" data-dot-for="3"></span>
+        <span class="slice-nav-dot" data-approval="approved" data-dot-for="3"></span>
         <span>#3 Delete dead code in cmd/wipnote</span>
         
         
@@ -504,7 +504,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     
     <li>
       <a href="#slice-4" class="slice-nav-item" data-slice-nav="4">
-        <span class="slice-nav-dot" data-approval="pending" data-dot-for="4"></span>
+        <span class="slice-nav-dot" data-approval="approved" data-dot-for="4"></span>
         <span>#4 Delete dead code in core</span>
         
         
@@ -513,7 +513,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     
     <li>
       <a href="#slice-5" class="slice-nav-item" data-slice-nav="5">
-        <span class="slice-nav-dot" data-approval="pending" data-dot-for="5"></span>
+        <span class="slice-nav-dot" data-approval="approved" data-dot-for="5"></span>
         <span>#5 Delete serve-era packages in observe, plan and internal</span>
         
         
@@ -522,7 +522,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     
     <li>
       <a href="#slice-6" class="slice-nav-item" data-slice-nav="6">
-        <span class="slice-nav-dot" data-approval="pending" data-dot-for="6"></span>
+        <span class="slice-nav-dot" data-approval="approved" data-dot-for="6"></span>
         <span>#6 Cut per-hook cost</span>
         
         
@@ -531,7 +531,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     
     <li>
       <a href="#slice-7" class="slice-nav-item" data-slice-nav="7">
-        <span class="slice-nav-dot" data-approval="pending" data-dot-for="7"></span>
+        <span class="slice-nav-dot" data-approval="approved" data-dot-for="7"></span>
         <span>#7 Speed up slow CLI paths</span>
         
         
@@ -540,7 +540,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     
     <li>
       <a href="#slice-8" class="slice-nav-item" data-slice-nav="8">
-        <span class="slice-nav-dot" data-approval="pending" data-dot-for="8"></span>
+        <span class="slice-nav-dot" data-approval="approved" data-dot-for="8"></span>
         <span>#8 Merge duplicated helpers</span>
         
         
@@ -549,7 +549,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     
     <li>
       <a href="#slice-9" class="slice-nav-item" data-slice-nav="9">
-        <span class="slice-nav-dot" data-approval="pending" data-dot-for="9"></span>
+        <span class="slice-nav-dot" data-approval="approved" data-dot-for="9"></span>
         <span>#9 Split oversized files and functions</span>
         
         
@@ -565,15 +565,15 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
 </nav>
 <div class="plan-layout">
 <div class="plan-content">
-<article id="plan-7bc7114c" data-type="plan" data-plan-id="plan-7bc7114c" data-feature-id="trk-0677c709" data-status="draft" data-priority="medium">
+<article id="plan-7bc7114c" data-type="plan" data-plan-id="plan-7bc7114c" data-feature-id="trk-0677c709" data-status="finalized" data-priority="medium">
 
 <!-- Plan Header -->
 <header class="plan-header">
   <h1>Plan: Cut bloat and speed up wipnote</h1>
   <p style="color:var(--text-dim)">Fixes from the spk-f72d2045 audit (five read-only audits on 2026-10-25): about 10,000 lines of dead code from the removed dashboard, serve and SQLite eras; hot-path costs on every hook call; duplicated helpers; stale model ids and unused harness features; and the correctness bugs the audit found on the way.</p>
   <div class="meta">
-    <span class="badge badge-pending">Draft</span>
-    <span style="font-size:.75rem;color:var(--text-muted)">v11 · 9 slices · Created 2026-10-25</span>
+    <span class="badge badge-approved">Done</span>
+    <span style="font-size:.75rem;color:var(--text-muted)">v23 · 9 slices · Created 2026-10-25</span>
   </div>
 </header>
 <button id="themeToggle" style="position:fixed;top:16px;right:16px;z-index:100;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:6px 12px;color:var(--text);font-family:var(--mono);font-size:0.75rem;cursor:pointer;">
@@ -590,25 +590,219 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
 </details>
 
 <!-- ZONE 0: Visual Overview (blocks-first headline — expanded, above dependency graph) -->
-
+<section class="visual-overview" id="visual-overview" data-zone="visual-overview">
+  <h2>Visual Overview</h2>
+  <div class="overview-group" data-block-kind="data-model">
+    <h3>Data Models</h3>
+    <div class="overview-group-blocks">
+      <div class="overview-block-entry">
+        <a class="overview-slice-label" href="#slice-4-block-data-model-1" title="Jump to slice 4">
+          <span class="slice-num">#4</span>
+          <span class="overview-slice-title">Delete dead code in core</span>
+        </a>
+        <div class="block-anchor" id="overview-slice-4-block-data-model-1" data-block-anchor="slice-4-block-data-model-1" data-block-kind="data-model"><div class="block block-data-model">
+  <div class="block-header"><span class="block-kind">data-model</span><span class="block-title">Core deletions by cluster</span></div>
+  <table class="block-table">
+    <thead><tr><th>Field</th><th>Type</th><th>Note</th></tr></thead>
+    <tbody>
+      <tr><td><code>core/graph SQL layer</code></td><td><code>~1,120 lines</code></td><td>&mdash;</td></tr>
+      <tr><td><code>core/db repo clusters</code></td><td><code>~2,190 lines</code></td><td>&mdash;</td></tr>
+      <tr><td><code>session_adherence.go</code></td><td><code>~430 lines (new)</code></td><td>&mdash;</td></tr>
+      <tr><td><code>workitem fluent API</code></td><td><code>~520 lines</code></td><td>&mdash;</td></tr>
+      <tr><td><code>hook runner &#43; daemon plumbing</code></td><td><code>~300 lines</code></td><td>&mdash;</td></tr>
+      
+    </tbody>
+  </table>
+</div></div>
+      </div>
+      <div class="overview-block-entry">
+        <a class="overview-slice-label" href="#slice-7-block-data-model-1" title="Jump to slice 7">
+          <span class="slice-num">#7</span>
+          <span class="overview-slice-title">Speed up slow CLI paths</span>
+        </a>
+        <div class="block-anchor" id="overview-slice-7-block-data-model-1" data-block-anchor="slice-7-block-data-model-1" data-block-kind="data-model"><div class="block block-data-model">
+  <div class="block-header"><span class="block-kind">data-model</span><span class="block-title">Baselines to beat</span></div>
+  <table class="block-table">
+    <thead><tr><th>Field</th><th>Type</th><th>Note</th></tr></thead>
+    <tbody>
+      <tr><td><code>feature complete git scans</code></td><td><code>4-5 x 1.6 s</code></td><td>&mdash;</td></tr>
+      <tr><td><code>code-areas</code></td><td><code>33m15s</code></td><td>&mdash;</td></tr>
+      <tr><td><code>session HTML per event</code></td><td><code>full rewrite of 255 KB</code></td><td>&mdash;</td></tr>
+      <tr><td><code>Stop transcript scan</code></td><td><code>whole file each Stop</code></td><td>&mdash;</td></tr>
+      
+    </tbody>
+  </table>
+</div></div>
+      </div>
+      <div class="overview-block-entry">
+        <a class="overview-slice-label" href="#slice-9-block-data-model-1" title="Jump to slice 9">
+          <span class="slice-num">#9</span>
+          <span class="overview-slice-title">Split oversized files and functions</span>
+        </a>
+        <div class="block-anchor" id="overview-slice-9-block-data-model-1" data-block-anchor="slice-9-block-data-model-1" data-block-kind="data-model"><div class="block block-data-model">
+  <div class="block-header"><span class="block-kind">data-model</span><span class="block-title">Largest targets</span></div>
+  <table class="block-table">
+    <thead><tr><th>Field</th><th>Type</th><th>Note</th></tr></thead>
+    <tbody>
+      <tr><td><code>wiSetStatusWithAgent</code></td><td><code>339 lines (workitem.go:303)</code></td><td>&mdash;</td></tr>
+      <tr><td><code>runComplianceAuto</code></td><td><code>228 lines</code></td><td>&mdash;</td></tr>
+      <tr><td><code>enrichPageFromYAML</code></td><td><code>185 lines</code></td><td>&mdash;</td></tr>
+      <tr><td><code>runWho</code></td><td><code>179 lines</code></td><td>&mdash;</td></tr>
+      <tr><td><code>wirePlan</code></td><td><code>178 lines</code></td><td>&mdash;</td></tr>
+      <tr><td><code>codex.go</code></td><td><code>1699-line file</code></td><td>&mdash;</td></tr>
+      
+    </tbody>
+  </table>
+</div></div>
+      </div>
+      
+    </div>
+  </div>
+  <div class="overview-group" data-block-kind="file-tree">
+    <h3>File Trees</h3>
+    <div class="overview-group-blocks">
+      <div class="overview-block-entry">
+        <a class="overview-slice-label" href="#slice-2-block-file-tree-1" title="Jump to slice 2">
+          <span class="slice-num">#2</span>
+          <span class="overview-slice-title">Bring model ids and harness features up to date</span>
+        </a>
+        <div class="block-anchor" id="overview-slice-2-block-file-tree-1" data-block-anchor="slice-2-block-file-tree-1" data-block-kind="file-tree"><div class="block block-file-tree">
+  <ul class="file-list">
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="21" y1="0" x2="21" y2="9" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">cmd/wipnote/compliance_auto.go</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="21" y1="0" x2="21" y2="9" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">observe/pricing/models.json</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="21" y1="0" x2="21" y2="9" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">port/pluginbuild/agent_frontmatter.go</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="21" y1="0" x2="21" y2="9" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">packages/plugin-core/manifest.json</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="42" height="18" viewBox="0 0 42 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="35" y1="0" x2="35" y2="9" stroke="var(--border)"/><line x1="35" y1="9" x2="42" y2="9" stroke="var(--border)"/></svg><code class="file-path">mods/wipnote-visuals/hooks/components.tsx</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="42" height="18" viewBox="0 0 42 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="35" y1="0" x2="35" y2="9" stroke="var(--border)"/><line x1="35" y1="9" x2="42" y2="9" stroke="var(--border)"/></svg><code class="file-path">mods/wipnote-plan-review/hooks/register.tsx</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="42" height="18" viewBox="0 0 42 18" class="file-tree-gutter"><line x1="35" y1="0" x2="35" y2="9" stroke="var(--border)"/><line x1="35" y1="9" x2="42" y2="9" stroke="var(--border)"/></svg><code class="file-path">mods/wipnote-orchestra/hooks/refcards.tsx</code></li>
+    
+  </ul>
+</div></div>
+      </div>
+      <div class="overview-block-entry">
+        <a class="overview-slice-label" href="#slice-3-block-file-tree-1" title="Jump to slice 3">
+          <span class="slice-num">#3</span>
+          <span class="overview-slice-title">Delete dead code in cmd/wipnote</span>
+        </a>
+        <div class="block-anchor" id="overview-slice-3-block-file-tree-1" data-block-anchor="slice-3-block-file-tree-1" data-block-kind="file-tree"><div class="block block-file-tree">
+  <ul class="file-list">
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="21" y1="0" x2="21" y2="18" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">cmd/wipnote/plan_css_scope.go (whole file)</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="21" y1="0" x2="21" y2="18" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">cmd/wipnote/backfill_ai_title.go (whole file)</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="21" y1="0" x2="21" y2="18" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">cmd/wipnote/plan_finalize_yaml.go (finalizeYAMLWithDB family)</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="21" y1="0" x2="21" y2="18" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">cmd/wipnote/plan_finalize.go</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="21" y1="0" x2="21" y2="18" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">cmd/wipnote/config.go (serve loops)</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="21" y1="0" x2="21" y2="18" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">cmd/wipnote/plugin_ensure.go</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="21" y1="0" x2="21" y2="18" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">cmd/wipnote/plugin_dir.go</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="21" y1="0" x2="21" y2="18" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">cmd/wipnote/reindex_helpers.go</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="21" y1="0" x2="21" y2="18" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">cmd/wipnote/reindex_gate_ledger.go</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="21" y1="0" x2="21" y2="9" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">cmd/wipnote/claude.go (dev-mode backup)</code></li>
+    
+  </ul>
+</div></div>
+      </div>
+      <div class="overview-block-entry">
+        <a class="overview-slice-label" href="#slice-5-block-file-tree-1" title="Jump to slice 5">
+          <span class="slice-num">#5</span>
+          <span class="overview-slice-title">Delete serve-era packages in observe, plan and internal</span>
+        </a>
+        <div class="block-anchor" id="overview-slice-5-block-file-tree-1" data-block-anchor="slice-5-block-file-tree-1" data-block-kind="file-tree"><div class="block block-file-tree">
+  <ul class="file-list">
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="42" height="18" viewBox="0 0 42 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="21" y1="0" x2="21" y2="18" stroke="var(--border)"/><line x1="35" y1="0" x2="35" y2="18" stroke="var(--border)"/><line x1="35" y1="9" x2="42" y2="9" stroke="var(--border)"/></svg><code class="file-path">observe/otel/receiver/receiver.go</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="42" height="18" viewBox="0 0 42 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="21" y1="0" x2="21" y2="18" stroke="var(--border)"/><line x1="35" y1="0" x2="35" y2="18" stroke="var(--border)"/><line x1="35" y1="9" x2="42" y2="9" stroke="var(--border)"/></svg><code class="file-path">observe/otel/receiver/http.go</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="42" height="18" viewBox="0 0 42 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="21" y1="0" x2="21" y2="18" stroke="var(--border)"/><line x1="35" y1="0" x2="35" y2="9" stroke="var(--border)"/><line x1="35" y1="9" x2="42" y2="9" stroke="var(--border)"/></svg><code class="file-path">observe/otel/receiver/signalid.go</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="56" height="18" viewBox="0 0 56 18" class="file-tree-gutter"><line x1="49" y1="0" x2="49" y2="9" stroke="var(--border)"/><line x1="49" y1="9" x2="56" y2="9" stroke="var(--border)"/></svg><code class="file-path">observe/otel/sink/sqlite/queued.go</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="21" y1="0" x2="21" y2="9" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">plan/planchat/</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="21" y1="0" x2="21" y2="9" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">plan/planamend/</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="21" y1="0" x2="21" y2="9" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">internal/notebook/ (Go &#43; 8 .py)</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="42" height="18" viewBox="0 0 42 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="35" y1="0" x2="35" y2="9" stroke="var(--border)"/><line x1="35" y1="9" x2="42" y2="9" stroke="var(--border)"/></svg><code class="file-path">internal/launcher/profile/</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="21" y1="0" x2="21" y2="9" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">plan/interview/model.go (web-form funcs)</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="18" viewBox="0 0 14 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="9" stroke="var(--border)"/><line x1="7" y1="9" x2="14" y2="9" stroke="var(--border)"/></svg><code class="file-path">internal/registry (3 dead exports)</code></li>
+    
+  </ul>
+</div></div>
+      </div>
+      
+    </div>
+  </div>
+  <div class="overview-group" data-block-kind="diagram">
+    <h3>Diagrams</h3>
+    <div class="overview-group-blocks">
+      <div class="overview-block-entry">
+        <a class="overview-slice-label" href="#slice-6-block-diagram-1" title="Jump to slice 6">
+          <span class="slice-num">#6</span>
+          <span class="overview-slice-title">Cut per-hook cost</span>
+        </a>
+        <div class="block-anchor" id="overview-slice-6-block-diagram-1" data-block-anchor="slice-6-block-diagram-1" data-block-kind="diagram"><div class="block block-diagram">
+  <div class="block-header"><span class="block-kind">diagram</span><span class="block-title">Hook call today vs after</span></div>
+  <div class="diagram-flow diagram-lr"><svg xmlns="http://www.w3.org/2000/svg" width="1701.6" height="48" viewBox="0 0 1701.6 48" class="diagram-canvas"><defs><marker id="wipnote-arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker></defs><rect class="diagram-node-rect" x="6" y="6" width="287.2" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="149.6" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">hook process starts (58-174 ms init)</text><path class="diagram-edge" d="M293.2 24 L333.2 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="333.2" y="6" width="316" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="491.2" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">open file-backed wipnote.db + migrations</text><path class="diagram-edge" d="M649.2 24 L689.2 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="689.2" y="6" width="236.79999999999998" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="807.6" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">guards query empty projection</text><path class="diagram-edge" d="M926 24 L966 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="966" y="6" width="143.2" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="1037.6" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">append debug.log</text><path class="diagram-edge" d="M1109.2 24 L1149.2 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="1149.2" y="6" width="546.4" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="1422.4" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">after: lazy templates, no db file, guards read NDJSON/HTML, no debug.log</text></svg></div>
+</div></div>
+      </div>
+      <div class="overview-block-entry">
+        <a class="overview-slice-label" href="#slice-8-block-diagram-1" title="Jump to slice 8">
+          <span class="slice-num">#8</span>
+          <span class="overview-slice-title">Merge duplicated helpers</span>
+        </a>
+        <div class="block-anchor" id="overview-slice-8-block-diagram-1" data-block-anchor="slice-8-block-diagram-1" data-block-kind="diagram"><div class="block block-diagram">
+  <div class="block-header"><span class="block-kind">diagram</span><span class="block-title">ID-prefix lookups after the merge</span></div>
+  <div class="diagram-flow diagram-lr"><svg xmlns="http://www.w3.org/2000/svg" width="1176.8" height="48" viewBox="0 0 1176.8 48" class="diagram-canvas"><defs><marker id="wipnote-arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker></defs><rect class="diagram-node-rect" x="6" y="6" width="481.59999999999997" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="246.79999999999998" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">10 callers (history, lineage, link, reindex, context-pack, ...)</text><path class="diagram-edge" d="M487.59999999999997 24 L527.5999999999999 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="527.5999999999999" y="6" width="323.2" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="689.1999999999999" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">core/workitem KindForID / CollectionForID</text><path class="diagram-edge" d="M850.8 24 L890.8 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="890.8" y="6" width="280" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="1030.8" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">one prefix table next to GenerateID</text></svg></div>
+</div></div>
+      </div>
+      
+    </div>
+  </div>
+  <div class="overview-group" data-block-kind="tabs">
+    <h3>Tabs</h3>
+    <div class="overview-group-blocks">
+      <div class="overview-block-entry">
+        <a class="overview-slice-label" href="#slice-1-block-tabs-1" title="Jump to slice 1">
+          <span class="slice-num">#1</span>
+          <span class="overview-slice-title">Fix the correctness bugs the audit found</span>
+        </a>
+        <div class="block-anchor" id="overview-slice-1-block-tabs-1" data-block-anchor="slice-1-block-tabs-1" data-block-kind="tabs"><div class="block block-tabs">
+  <div class="block-header"><span class="block-kind">tabs</span><span class="block-title">Bugs and their tests</span></div>
+  <div class="tabs">
+    <input class="tab-radio" type="radio" name="tabs-65yxnp" id="tabs-65yxnp-0" checked>
+    <input class="tab-radio" type="radio" name="tabs-65yxnp" id="tabs-65yxnp-1">
+    <input class="tab-radio" type="radio" name="tabs-65yxnp" id="tabs-65yxnp-2">
+    <input class="tab-radio" type="radio" name="tabs-65yxnp" id="tabs-65yxnp-3">
+    <div class="tab-labels">
+      <label class="tab-label" for="tabs-65yxnp-0">Claims</label>
+      <label class="tab-label" for="tabs-65yxnp-1">YOLO</label>
+      <label class="tab-label" for="tabs-65yxnp-2">IDs and trailers</label>
+      <label class="tab-label" for="tabs-65yxnp-3">Locks</label>
+      </div>
+    <div class="tab-panels">
+      <div class="tab-panel">reconcile/archive: heartbeat 1970 marks live sessions dead. release/heartbeat: write to a discarded projection. Fix: sessions-ledger EndedAt, claimledger writes.</div>
+      <div class="tab-panel">hasRecentTestRun/hasRecentDiffReview read the empty projection, so every YOLO git commit is blocked. Fix: read tool-events.ndjson. launchYoloDev: call enforceLaunchPlan.</div>
+      <div class="tab-panel">core tests spc- but ids are spec-. relevant parses wipnote-item: (0 commits). Fix: spec- in core, reuse parseTrailers.</div>
+      <div class="tab-panel">SetSessionHTMLActiveFeature and CreateSessionHTML skip the flock the appender uses. Compliance lock is read-then-write. Fix: core/filelock.</div>
+      </div>
+  </div>
+</div></div>
+      </div>
+      
+    </div>
+  </div>
+  
+</section>
 
 <!-- ZONE 1: Dependency Graph (drawn at render time — no script, no CDN) -->
 <section class="dep-graph" data-zone="dependency-graph" data-graph-render="static">
   <h2>Dependency Graph</h2>
   <div id="graph-data" style="display:none">
-    <div data-node="1" data-name="Fix the correctness bugs the audit found" data-status="pending" data-deps="" data-files="8"></div>
-    <div data-node="2" data-name="Bring model ids and harness features up to date" data-status="pending" data-deps="" data-files="8"></div>
-    <div data-node="3" data-name="Delete dead code in cmd/wipnote" data-status="pending" data-deps="" data-files="1"></div>
-    <div data-node="4" data-name="Delete dead code in core" data-status="pending" data-deps="" data-files="5"></div>
-    <div data-node="5" data-name="Delete serve-era packages in observe, plan and internal" data-status="pending" data-deps="" data-files="8"></div>
-    <div data-node="6" data-name="Cut per-hook cost" data-status="pending" data-deps="4" data-files="6"></div>
-    <div data-node="7" data-name="Speed up slow CLI paths" data-status="pending" data-deps="" data-files="7"></div>
-    <div data-node="8" data-name="Merge duplicated helpers" data-status="pending" data-deps="3,4,5" data-files="8"></div>
-    <div data-node="9" data-name="Split oversized files and functions" data-status="pending" data-deps="8" data-files="5"></div>
+    <div data-node="1" data-name="Fix the correctness bugs the audit found" data-status="approved" data-deps="" data-files="11"></div>
+    <div data-node="2" data-name="Bring model ids and harness features up to date" data-status="approved" data-deps="" data-files="9"></div>
+    <div data-node="3" data-name="Delete dead code in cmd/wipnote" data-status="approved" data-deps="" data-files="1"></div>
+    <div data-node="4" data-name="Delete dead code in core" data-status="approved" data-deps="" data-files="8"></div>
+    <div data-node="5" data-name="Delete serve-era packages in observe, plan and internal" data-status="approved" data-deps="" data-files="10"></div>
+    <div data-node="6" data-name="Cut per-hook cost" data-status="approved" data-deps="4" data-files="10"></div>
+    <div data-node="7" data-name="Speed up slow CLI paths" data-status="approved" data-deps="" data-files="8"></div>
+    <div data-node="8" data-name="Merge duplicated helpers" data-status="approved" data-deps="3,4,5" data-files="8"></div>
+    <div data-node="9" data-name="Split oversized files and functions" data-status="approved" data-deps="8" data-files="5"></div>
     
     <!--PLAN_GRAPH_NODES-->
   </div>
-  <svg id="dep-graph-svg" xmlns="http://www.w3.org/2000/svg" width="1733.6" height="328" viewBox="0 0 1733.6 328" class="dep-graph-static"><defs><marker id="wipnote-arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker></defs><g class="dep-edges"><path class="dep-edge" d="M933.6 72.76 L744.8 108 L744.8 136" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M760.8 80 L760.8 108 L1065.8 149.04" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M1044.8 80 L1044.8 108 L1110.9 136" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M1325.2 80 L1325.2 108 L1251.1 136" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M1177 192 L1177 220 L1177 248" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/></g><g class="dep-nodes"><a href="#slice-1"><g id="graph-node-1" class="dep-node dep-node-pending"><rect class="dep-node-box" x="24" y="24" width="258.4" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="153.2" y="48" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#1 Fix the correctness bugs the…</text><text class="dep-node-meta" x="153.2" y="62" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">8 files</text></g></a><a href="#slice-2"><g id="graph-node-2" class="dep-node dep-node-pending"><rect class="dep-node-box" x="322.4" y="24" width="265.6" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="455.2" y="48" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#2 Bring model ids and harness f…</text><text class="dep-node-meta" x="455.2" y="62" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">8 files</text></g></a><a href="#slice-3"><g id="graph-node-3" class="dep-node dep-node-pending"><rect class="dep-node-box" x="628" y="24" width="265.6" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="760.8" y="48" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#3 Delete dead code in cmd/wipno…</text><text class="dep-node-meta" x="760.8" y="62" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">1 file</text></g></a><a href="#slice-4"><g id="graph-node-4" class="dep-node dep-node-pending"><rect class="dep-node-box" x="933.5999999999999" y="24" width="222.4" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="1044.8" y="48" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#4 Delete dead code in core</text><text class="dep-node-meta" x="1044.8" y="62" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">5 files</text></g></a><a href="#slice-5"><g id="graph-node-5" class="dep-node dep-node-pending"><rect class="dep-node-box" x="1196" y="24" width="258.4" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="1325.2" y="48" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#5 Delete serve-era packages in…</text><text class="dep-node-meta" x="1325.2" y="62" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">8 files</text></g></a><a href="#slice-6"><g id="graph-node-6" class="dep-node dep-node-pending"><rect class="dep-node-box" x="658.8" y="136" width="172" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="744.8" y="160" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#6 Cut per-hook cost</text><text class="dep-node-meta" x="744.8" y="174" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">6 files</text></g></a><a href="#slice-7"><g id="graph-node-7" class="dep-node dep-node-pending"><rect class="dep-node-box" x="1494.4" y="24" width="215.2" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="1602" y="48" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#7 Speed up slow CLI paths</text><text class="dep-node-meta" x="1602" y="62" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">7 files</text></g></a><a href="#slice-8"><g id="graph-node-8" class="dep-node dep-node-pending"><rect class="dep-node-box" x="1065.8" y="136" width="222.4" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="1177" y="160" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#8 Merge duplicated helpers</text><text class="dep-node-meta" x="1177" y="174" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">8 files</text></g></a><a href="#slice-9"><g id="graph-node-9" class="dep-node dep-node-pending"><rect class="dep-node-box" x="1044.2" y="248" width="265.6" height="56" rx="6" fill="var(--bg-input)" stroke="var(--pending)"/><text class="dep-node-label" x="1177" y="272" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#9 Split oversized files and fun…</text><text class="dep-node-meta" x="1177" y="286" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">5 files</text></g></a></g></svg>
+  <svg id="dep-graph-svg" xmlns="http://www.w3.org/2000/svg" width="1733.6" height="328" viewBox="0 0 1733.6 328" class="dep-graph-static"><defs><marker id="wipnote-arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker></defs><g class="dep-edges"><path class="dep-edge" d="M933.6 72.76 L744.8 108 L744.8 136" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M760.8 80 L760.8 108 L1065.8 149.04" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M1044.8 80 L1044.8 108 L1110.9 136" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M1325.2 80 L1325.2 108 L1251.1 136" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/><path class="dep-edge" d="M1177 192 L1177 220 L1177 248" stroke="var(--text-muted)" marker-end="url(#wipnote-arrowhead)"/></g><g class="dep-nodes"><a href="#slice-1"><g id="graph-node-1" class="dep-node dep-node-approved"><rect class="dep-node-box" x="24" y="24" width="258.4" height="56" rx="6" fill="var(--bg-input)" stroke="var(--approved)"/><text class="dep-node-label" x="153.2" y="48" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#1 Fix the correctness bugs the…</text><text class="dep-node-meta" x="153.2" y="62" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">11 files</text></g></a><a href="#slice-2"><g id="graph-node-2" class="dep-node dep-node-approved"><rect class="dep-node-box" x="322.4" y="24" width="265.6" height="56" rx="6" fill="var(--bg-input)" stroke="var(--approved)"/><text class="dep-node-label" x="455.2" y="48" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#2 Bring model ids and harness f…</text><text class="dep-node-meta" x="455.2" y="62" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">9 files</text></g></a><a href="#slice-3"><g id="graph-node-3" class="dep-node dep-node-approved"><rect class="dep-node-box" x="628" y="24" width="265.6" height="56" rx="6" fill="var(--bg-input)" stroke="var(--approved)"/><text class="dep-node-label" x="760.8" y="48" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#3 Delete dead code in cmd/wipno…</text><text class="dep-node-meta" x="760.8" y="62" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">1 file</text></g></a><a href="#slice-4"><g id="graph-node-4" class="dep-node dep-node-approved"><rect class="dep-node-box" x="933.5999999999999" y="24" width="222.4" height="56" rx="6" fill="var(--bg-input)" stroke="var(--approved)"/><text class="dep-node-label" x="1044.8" y="48" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#4 Delete dead code in core</text><text class="dep-node-meta" x="1044.8" y="62" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">8 files</text></g></a><a href="#slice-5"><g id="graph-node-5" class="dep-node dep-node-approved"><rect class="dep-node-box" x="1196" y="24" width="258.4" height="56" rx="6" fill="var(--bg-input)" stroke="var(--approved)"/><text class="dep-node-label" x="1325.2" y="48" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#5 Delete serve-era packages in…</text><text class="dep-node-meta" x="1325.2" y="62" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">10 files</text></g></a><a href="#slice-6"><g id="graph-node-6" class="dep-node dep-node-approved"><rect class="dep-node-box" x="658.8" y="136" width="172" height="56" rx="6" fill="var(--bg-input)" stroke="var(--approved)"/><text class="dep-node-label" x="744.8" y="160" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#6 Cut per-hook cost</text><text class="dep-node-meta" x="744.8" y="174" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">10 files</text></g></a><a href="#slice-7"><g id="graph-node-7" class="dep-node dep-node-approved"><rect class="dep-node-box" x="1494.4" y="24" width="215.2" height="56" rx="6" fill="var(--bg-input)" stroke="var(--approved)"/><text class="dep-node-label" x="1602" y="48" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#7 Speed up slow CLI paths</text><text class="dep-node-meta" x="1602" y="62" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">8 files</text></g></a><a href="#slice-8"><g id="graph-node-8" class="dep-node dep-node-approved"><rect class="dep-node-box" x="1065.8" y="136" width="222.4" height="56" rx="6" fill="var(--bg-input)" stroke="var(--approved)"/><text class="dep-node-label" x="1177" y="160" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#8 Merge duplicated helpers</text><text class="dep-node-meta" x="1177" y="174" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">8 files</text></g></a><a href="#slice-9"><g id="graph-node-9" class="dep-node dep-node-approved"><rect class="dep-node-box" x="1044.2" y="248" width="265.6" height="56" rx="6" fill="var(--bg-input)" stroke="var(--approved)"/><text class="dep-node-label" x="1177" y="272" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">#9 Split oversized files and fun…</text><text class="dep-node-meta" x="1177" y="286" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="10" fill="var(--text-muted)">5 files</text></g></a></g></svg>
 </section>
 
 <!-- ZONE 2: Interactive Sections -->
@@ -617,17 +811,31 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
 <details id="design" class="section-card" open data-phase="design" data-status="pending">
   <summary><span>Design</span><span class="badge badge-pending" data-badge-for="design">Pending</span></summary>
   <div class="section-body">
-    <!--PLAN_DESIGN_CONTENT-->
-    <div class="sub-section">
-      <h4>Open Questions</h4>
-      <!--PLAN_QUESTIONS-->
-    </div>
+    <h4>Problem</h4>
+<div data-markdown>Five read-only audits (spk-f72d2045, 2026-10-25) found about 10,000 lines of code left over from the removed dashboard, serve and SQLite eras, hot-path cost on every hook call, helpers copied up to ten times with drift, stale model ids and unused harness features. On the way they found correctness bugs that give wrong answers today: claims reconcile closes live sessions, every YOLO commit is blocked, claim release and heartbeat persist nothing. A re-check on v0.82.1 (87bc16d0d) confirmed 7 of 8 bugs are still present.</div>
+<h4>Goals</h4>
+<ol>
+<li data-markdown>Fix every confirmed correctness bug with a test that failed before the fix.</li>
+<li data-markdown>Delete code with no production caller, measured by deadcode/unused tools, not by reading.</li>
+<li data-markdown>Cut per-hook and slow CLI path cost with timings recorded before and after.</li>
+<li data-markdown>Leave one copy of each shared helper and no file or function over the repo limits in touched code.</li>
+</ol>
+<h4>Constraints</h4>
+<ul>
+<li data-markdown>Bugs are fixed before the code around them is deleted, so the evidence survives.</li>
+<li data-markdown>The canonical store (.wipnote HTML, ledgers, NDJSON, git) stays the source of truth; no slice adds a persistent SQLite file.</li>
+<li data-markdown>Daemons and hooks never block Claude (user rule).</li>
+<li data-markdown>Slice 6 coordinates with in-progress feat-fc3cc9e0 and does not redo its work.</li>
+<li data-markdown>Each slice runs as its own work item from wt-cleanup and passes the full suite before merge.</li>
+</ul>
+
     <div class="approval-row">
       <label><input type="checkbox" data-section="design" data-action="approve"> Approve design</label>
       <textarea data-section="design" data-comment-for="design" placeholder="Comments on design decisions..."></textarea>
     </div>
   </div>
 </details>
+
 
 <!-- Structure Outline (hidden when empty) -->
 
@@ -637,26 +845,26 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
   <summary><span>Slices</span><span class="badge badge-pending" data-badge-for="slices">Pending</span></summary>
   <div class="section-body">
     <p class="slice-legend" id="slice-legend">Effort: S = Small &middot; M = Medium &middot; L = Large &nbsp;|&nbsp; Risk: Low &middot; Med &middot; High</p>
-    <details class="slice-card" id="slice-1" data-slice="1" data-slice-name="slic-cf011c90" data-status="pending" data-approval="pending">
+    <details class="slice-card" id="slice-1" data-slice="1" data-slice-name="slic-cf011c90" data-status="pending" data-approval="approved">
   <summary class="slice-summary" aria-label="Slice 1: Fix the correctness bugs the audit found">
     <span class="slice-num">#1</span>
     <span class="slice-title-col">
       <span class="slice-name">Fix the correctness bugs the audit found</span>
-      <span class="slice-preview">Reproduce then fix: claims reconcile/archive treat live sessions as dead (bug-01f182e5); YOLO hasRecentTestRun and hasRecentDiffReview have …</span>
+      <span class="slice-preview">Reproduce and fix seven confirmed bugs: claims reconcile/archive close live sessions (bug-01f182e5); YOLO commit guard always blocks; claim …</span>
       <span class="slice-meta-row">
         <span class="slice-summary-badges">
           <span class="badge badge-revision badge-sm badge-effort" title="Effort: Medium" aria-label="Effort: Medium">M</span>
           <span class="badge badge-revision badge-sm badge-risk" title="Risk: Med">Med</span>
           
-          
-          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-1">Pending</span>
+          <span class="badge badge-revision badge-sm" title="Execution: promoted">Promoted</span>
+          <span class="badge badge-approved badge-sm slice-approval-badge" data-badge-for="slice-1">Approved</span>
           
           
         </span>
         <span class="slice-actions" onclick="event.stopPropagation()">
           <span class="approval-segmented" role="group" aria-label="Approval action">
             <label class="seg-btn seg-approve" title="Approve">
-              <input type="radio" name="slice-1-approval" value="approved" data-section="slice-1" data-action="approve" aria-label="Approve slice 1">
+              <input type="radio" name="slice-1-approval" value="approved" data-section="slice-1" data-action="approve" checked aria-label="Approve slice 1">
               &#10003;
             </label>
             <label class="seg-btn seg-changes" title="Request changes">
@@ -681,10 +889,8 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
         <div class="slice-field-label">What</div>
         <div class="slice-field-value">
           
-          <input type="checkbox" id="slice-1-what-reveal" class="reveal-toggle">
-          <div class="markdown-block reveal-content serif-prose"><p>Reproduce then fix: claims reconcile/archive treat live sessions as dead (bug-01f182e5); YOLO hasRecentTestRun and hasRecentDiffReview have no canonical source and may block every YOLO commit; claim release and claim heartbeat report success but write to a discarded projection; link.go maps spec- while core uses spc-; wipnote relevant matches a wipnote-item: trailer that 0 of 1322 commits use; launchYoloDev skips enforceLaunchPlan; session HTML writers without the file lock can lose updates; the compliance lock is not exclusive.</p>
+          <div class="markdown-block serif-prose"><p>Reproduce and fix seven confirmed bugs: claims reconcile/archive close live sessions (bug-01f182e5); YOLO commit guard always blocks; claim release/heartbeat persist nothing; core maps spc- where ids are spec-; relevant parses an unused trailer; launchYoloDev skips enforceLaunchPlan; unlocked session HTML and compliance lock writes.</p>
 </div>
-          <label for="slice-1-what-reveal" class="reveal-label">Show full description</label>
           
         </div>
       </div>
@@ -703,7 +909,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
       
       <div class="slice-field">
         <div class="slice-field-label">Files</div>
-        <div class="slice-field-value"><code>cmd/wipnote/claim_ledger.go, cmd/wipnote/claim.go, core/hooks/yolo_guard.go, cmd/wipnote/link.go, cmd/wipnote/relevant.go, cmd/wipnote/yolo.go, core/hooks/session_html.go, cmd/wipnote/compliance_auto.go</code></div>
+        <div class="slice-field-value"><code>cmd/wipnote/claim_ledger.go, cmd/wipnote/claims.go, cmd/wipnote/claim.go, core/hooks/yolo_guard.go, core/hooks/pretooluse.go, core/workitem/htmlwriter.go, core/workitem/resolve.go, cmd/wipnote/relevant.go, cmd/wipnote/yolo.go, core/hooks/session_html.go, cmd/wipnote/compliance_auto.go</code></div>
       </div>
       
       
@@ -715,9 +921,76 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     
 
     
-
+    <div class="slice-field slice-decisions-notes">
+      <div class="slice-field-label">Decisions</div>
+      <div class="slice-field-value">
+        
+        <input type="checkbox" id="slice-1-decisions-reveal" class="reveal-toggle">
+        <div class="markdown-block reveal-content serif-prose"><p><strong>Evidence:</strong> re-check on v0.82.1 (43ab0cbd9): claim_ledger.go:211 uses SessionLivenessByHeartbeat over ledger rows projected with a 1970 heartbeat (claim_repo.go:686); yolo_guard.go:1431-1497 query agent_events on the empty ephemeral projection (dbgate.go:193), so pretooluse.go:279-285 blocks every YOLO commit; claim.go:216/:316 write to openDB&#39;s discarded projection; htmlwriter.go:456 and resolve.go:32 test spc- while ids are spec- (link.go is correct); relevant.go:610 parses wipnote-item: (0 commits) instead of parseTrailers Refs:/Fixes:; yolo.go:477 never calls enforceLaunchPlan; session_html.go:200/:229 write without flock; compliance_auto.go:481-502 read-then-write lock.
+<strong>Decisions:</strong> liveness uses the sessions-ledger EndedAt rule already in liveForeignClaims; YOLO evidence reads canonical tool-events.ndjson; claim release/heartbeat write claimledger (or are deleted if no caller needs them, decided in the work item); locks use core/filelock.
+<strong>Rejected:</strong> fixing link.go to spc- — ids are generated as spec-, so core is wrong.</p>
+</div>
+        <label for="slice-1-decisions-reveal" class="reveal-label">Show full decisions</label>
+        
+      </div>
+    </div>
     
 
+    <div class="slice-field slice-blocks">
+  <div class="slice-field-label">Blocks</div>
+  <div class="slice-field-value block-zone">
+    <div class="block-anchor" id="slice-1-block-tabs-1" data-block-anchor="slice-1-block-tabs-1" data-block-kind="tabs"><div class="block block-tabs">
+  <div class="block-header"><span class="block-kind">tabs</span><span class="block-title">Bugs and their tests</span></div>
+  <div class="tabs">
+    <input class="tab-radio" type="radio" name="tabs-1xjtqd1" id="tabs-1xjtqd1-0" checked>
+    <input class="tab-radio" type="radio" name="tabs-1xjtqd1" id="tabs-1xjtqd1-1">
+    <input class="tab-radio" type="radio" name="tabs-1xjtqd1" id="tabs-1xjtqd1-2">
+    <input class="tab-radio" type="radio" name="tabs-1xjtqd1" id="tabs-1xjtqd1-3">
+    <div class="tab-labels">
+      <label class="tab-label" for="tabs-1xjtqd1-0">Claims</label>
+      <label class="tab-label" for="tabs-1xjtqd1-1">YOLO</label>
+      <label class="tab-label" for="tabs-1xjtqd1-2">IDs and trailers</label>
+      <label class="tab-label" for="tabs-1xjtqd1-3">Locks</label>
+      </div>
+    <div class="tab-panels">
+      <div class="tab-panel">reconcile/archive: heartbeat 1970 marks live sessions dead. release/heartbeat: write to a discarded projection. Fix: sessions-ledger EndedAt, claimledger writes.</div>
+      <div class="tab-panel">hasRecentTestRun/hasRecentDiffReview read the empty projection, so every YOLO git commit is blocked. Fix: read tool-events.ndjson. launchYoloDev: call enforceLaunchPlan.</div>
+      <div class="tab-panel">core tests spc- but ids are spec-. relevant parses wipnote-item: (0 commits). Fix: spec- in core, reuse parseTrailers.</div>
+      <div class="tab-panel">SetSessionHTMLActiveFeature and CreateSessionHTML skip the flock the appender uses. Compliance lock is read-then-write. Fix: core/filelock.</div>
+      </div>
+  </div>
+</div></div>
+    
+  </div>
+</div>
+
+    
+    <div class="slice-field slice-tests-field">
+      <div class="slice-field-label">Test Strategy</div>
+      <div class="slice-field-value">
+        
+        
+        <div class="test-strategy">
+          
+          <div class="test-group" data-kind="cmd/wipnote">
+            <span class="test-chip">CMD/WIPNOTE &middot; 5</span>
+            <ul><li>TestClaimsReconcile_KeepsLiveForeignSession — open episode for root S, S open in sessions ledger, other current session; reconcile keeps it open.</li><li>TestClaimRelease_PersistsToLedger — release then claimledger ReadAll shows the episode closed (same for heartbeat).</li><li>TestExtractCommitItems_RefsAndInlineID — Refs: trailer and inline (bug-x) both attributed.</li><li>TestLaunchYoloDev_RefusesOnDirtyProtectedBranch — WIPNOTE_ENFORCE_ISOLATION=true, dirty main; refused before exec.</li><li>TestAcquireComplianceLock_Exclusive — 20 subprocesses behind a barrier; exactly one acquires.</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="core/hooks">
+            <span class="test-chip">CORE/HOOKS &middot; 2</span>
+            <ul><li>TestPreToolUse_YoloCommitAllowedAfterCanonicalTestRun — go test and git diff events in tool-events.ndjson, ephemeral DB, yolo on; git commit is not blocked.</li><li>TestSessionHTML_ConcurrentAppendAndSetActiveFeature — N appenders plus SetSessionHTMLActiveFeature, -count=50; attribute and N entries survive.</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="core/workitem">
+            <span class="test-chip">CORE/WORKITEM &middot; 1</span>
+            <ul><li>TestCollectionDirForID_Spec — GenerateID(&#34;spec&#34;) maps to specs and kindFromPrefix returns spec.</li></ul>
+          </div>
+          
+        </div>
+        
+      </div>
+    </div>
     
 
     
@@ -734,26 +1007,26 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     </details>
   </div>
 </details>
-<details class="slice-card" id="slice-2" data-slice="2" data-slice-name="slic-a0c20846" data-status="pending" data-approval="pending">
+<details class="slice-card" id="slice-2" data-slice="2" data-slice-name="slic-a0c20846" data-status="pending" data-approval="approved">
   <summary class="slice-summary" aria-label="Slice 2: Bring model ids and harness features up to date">
     <span class="slice-num">#2</span>
     <span class="slice-title-col">
       <span class="slice-name">Bring model ids and harness features up to date</span>
-      <span class="slice-preview">Replace claude-sonnet-4-6 in complianceauto.go with the sonnet alias; add Opus/Sonnet/Haiku 5.5 and Fable 5.1 to observe/pricing/models.json…</span>
+      <span class="slice-preview">Use the sonnet alias in complianceauto.go; add the four Claude 5.x models to pricing; add omitClaudeMd and autoCompactWindow specs; target P…</span>
       <span class="slice-meta-row">
         <span class="slice-summary-badges">
           <span class="badge badge-pending badge-sm badge-effort" title="Effort: Small" aria-label="Effort: Small">S</span>
           <span class="badge badge-pending badge-sm badge-risk" title="Risk: Low">Low</span>
           
-          
-          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-2">Pending</span>
+          <span class="badge badge-revision badge-sm" title="Execution: promoted">Promoted</span>
+          <span class="badge badge-approved badge-sm slice-approval-badge" data-badge-for="slice-2">Approved</span>
           
           
         </span>
         <span class="slice-actions" onclick="event.stopPropagation()">
           <span class="approval-segmented" role="group" aria-label="Approval action">
             <label class="seg-btn seg-approve" title="Approve">
-              <input type="radio" name="slice-2-approval" value="approved" data-section="slice-2" data-action="approve" aria-label="Approve slice 2">
+              <input type="radio" name="slice-2-approval" value="approved" data-section="slice-2" data-action="approve" checked aria-label="Approve slice 2">
               &#10003;
             </label>
             <label class="seg-btn seg-changes" title="Request changes">
@@ -778,10 +1051,8 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
         <div class="slice-field-label">What</div>
         <div class="slice-field-value">
           
-          <input type="checkbox" id="slice-2-what-reveal" class="reveal-toggle">
-          <div class="markdown-block reveal-content serif-prose"><p>Replace claude-sonnet-4-6 in compliance_auto.go with the sonnet alias; add Opus/Sonnet/Haiku 5.5 and Fable 5.1 to observe/pricing/models.json; add omitClaudeMd and autoCompactWindow to agentFrontmatterFieldSpecs and set them on patch-coder and researcher; verify and register PreCompact/PostCompact for Codex; move custom skill frontmatter keys under metadata or delete unused ones; replace deprecated bold with weight in mods; confirm Codex agent TOML never emits keys Codex ignores.</p>
+          <div class="markdown-block serif-prose"><p>Use the sonnet alias in compliance_auto.go; add the four Claude 5.x models to pricing; add omitClaudeMd and autoCompactWindow specs; target PreCompact/PostCompact at Codex in the manifest; replace mod Text bold with weight; check skill frontmatter keys.</p>
 </div>
-          <label for="slice-2-what-reveal" class="reveal-label">Show full description</label>
           
         </div>
       </div>
@@ -800,7 +1071,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
       
       <div class="slice-field">
         <div class="slice-field-label">Files</div>
-        <div class="slice-field-value"><code>cmd/wipnote/compliance_auto.go, observe/pricing/models.json, port/pluginbuild/agent_frontmatter.go, port/pluginbuild/hook_event_names.go, packages/plugin-core/manifest.json, plugin/agents, plugin/skills, mods</code></div>
+        <div class="slice-field-value"><code>cmd/wipnote/compliance_auto.go, observe/pricing/models.json, port/pluginbuild/agent_frontmatter.go, packages/plugin-core/manifest.json, plugin/agents, plugin/skills, mods/wipnote-visuals/hooks/components.tsx, mods/wipnote-plan-review/hooks/register.tsx, mods/wipnote-orchestra/hooks/refcards.tsx</code></div>
       </div>
       
       
@@ -812,9 +1083,72 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     
 
     
-
+    <div class="slice-field slice-decisions-notes">
+      <div class="slice-field-label">Decisions</div>
+      <div class="slice-field-value">
+        
+        <input type="checkbox" id="slice-2-decisions-reveal" class="reveal-toggle">
+        <div class="markdown-block reveal-content serif-prose"><p><strong>Evidence (docs read 2026-10-25):</strong> model ids and prices from platform.claude.com models overview (Fable 5.1 $10/$50, Opus 5.5 $4/$20, Sonnet 5.5 $2/$10, Haiku 5.5 from $0.10/$0.50 per MTok; Haiku exact price to confirm on the pricing page). omitClaudeMd (bool, v2.1.271+) and autoCompactWindow (int 100000-1000000, v2.1.296+) are in the sub-agents field table. Codex hooks page lists PreCompact/PostCompact with trigger manual|auto; hook_event_names.go:159-168 already maps them, only manifest.json:85/:91 lack codex. Changelog v2.1.299 deprecates Text bold for weight.
+<strong>Decisions:</strong> weight needs Claude Code v2.1.299+; mods move to weight (the launcher already requires a newer floor; confirm in the work item). Skill frontmatter: guards/slices/design/approved hits look like body examples; move only keys proven to be in frontmatter.
+<strong>Dropped from the audit:</strong> Codex agent TOML emits no ignored key (codex_agents.go:28-35); verify nickname_candidates against the Codex schema.</p>
+</div>
+        <label for="slice-2-decisions-reveal" class="reveal-label">Show full decisions</label>
+        
+      </div>
+    </div>
     
 
+    <div class="slice-field slice-blocks">
+  <div class="slice-field-label">Blocks</div>
+  <div class="slice-field-value block-zone">
+    <div class="block-anchor" id="slice-2-block-file-tree-1" data-block-anchor="slice-2-block-file-tree-1" data-block-kind="file-tree"><div class="block block-file-tree">
+  <ul class="file-list">
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="21" y1="0" x2="21" y2="9" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">cmd/wipnote/compliance_auto.go</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="21" y1="0" x2="21" y2="9" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">observe/pricing/models.json</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="21" y1="0" x2="21" y2="9" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">port/pluginbuild/agent_frontmatter.go</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="21" y1="0" x2="21" y2="9" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">packages/plugin-core/manifest.json</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="42" height="18" viewBox="0 0 42 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="35" y1="0" x2="35" y2="9" stroke="var(--border)"/><line x1="35" y1="9" x2="42" y2="9" stroke="var(--border)"/></svg><code class="file-path">mods/wipnote-visuals/hooks/components.tsx</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="42" height="18" viewBox="0 0 42 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="35" y1="0" x2="35" y2="9" stroke="var(--border)"/><line x1="35" y1="9" x2="42" y2="9" stroke="var(--border)"/></svg><code class="file-path">mods/wipnote-plan-review/hooks/register.tsx</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="42" height="18" viewBox="0 0 42 18" class="file-tree-gutter"><line x1="35" y1="0" x2="35" y2="9" stroke="var(--border)"/><line x1="35" y1="9" x2="42" y2="9" stroke="var(--border)"/></svg><code class="file-path">mods/wipnote-orchestra/hooks/refcards.tsx</code></li>
+    
+  </ul>
+</div></div>
+    
+  </div>
+</div>
+
+    
+    <div class="slice-field slice-tests-field">
+      <div class="slice-field-label">Test Strategy</div>
+      <div class="slice-field-value">
+        
+        
+        <div class="test-strategy">
+          
+          <div class="test-group" data-kind="port/pluginbuild">
+            <span class="test-chip">PORT/PLUGINBUILD &middot; 2</span>
+            <ul><li>TestAgentFrontmatterSpecs_OmitClaudeMdAutoCompactWindow — both specs exist with doc URLs and render on Claude agents only.</li><li>TestManifest_CompactHooksTargetCodex — generated Codex hooks.json contains PreCompact and PostCompact.</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="observe/pricing">
+            <span class="test-chip">OBSERVE/PRICING &middot; 1</span>
+            <ul><li>TestModelsJSON_Claude5Present — claude-opus-5-5, claude-sonnet-5-5, claude-haiku-5-5, claude-fable-5-1 have input/output prices.</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="cmd/wipnote">
+            <span class="test-chip">CMD/WIPNOTE &middot; 1</span>
+            <ul><li>TestComplianceAuto_DefaultModelIsAlias — default --model is sonnet.</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="mods">
+            <span class="test-chip">MODS &middot; 1</span>
+            <ul><li>plugin test asserts no Text uses bold; wipnote plugin build-ports runs clean.</li></ul>
+          </div>
+          
+        </div>
+        
+      </div>
+    </div>
     
 
     
@@ -831,26 +1165,26 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     </details>
   </div>
 </details>
-<details class="slice-card" id="slice-3" data-slice="3" data-slice-name="slic-8ec9d410" data-status="pending" data-approval="pending">
+<details class="slice-card" id="slice-3" data-slice="3" data-slice-name="slic-8ec9d410" data-status="pending" data-approval="approved">
   <summary class="slice-summary" aria-label="Slice 3: Delete dead code in cmd/wipnote">
     <span class="slice-num">#3</span>
     <span class="slice-title-col">
       <span class="slice-name">Delete dead code in cmd/wipnote</span>
-      <span class="slice-preview">Remove code with no production caller (grep-verified by the audit): serve maintenance loops in config.go; backfillaititle.go; SQLite-era pla…</span>
+      <span class="slice-preview">Delete about 2,050 production lines with no production caller in cmd/wipnote (101 golangci-lint unused hits plus dev-mode backup, recap upse…</span>
       <span class="slice-meta-row">
         <span class="slice-summary-badges">
           <span class="badge badge-revision badge-sm badge-effort" title="Effort: Medium" aria-label="Effort: Medium">M</span>
           <span class="badge badge-pending badge-sm badge-risk" title="Risk: Low">Low</span>
           
-          
-          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-3">Pending</span>
+          <span class="badge badge-revision badge-sm" title="Execution: promoted">Promoted</span>
+          <span class="badge badge-approved badge-sm slice-approval-badge" data-badge-for="slice-3">Approved</span>
           
           
         </span>
         <span class="slice-actions" onclick="event.stopPropagation()">
           <span class="approval-segmented" role="group" aria-label="Approval action">
             <label class="seg-btn seg-approve" title="Approve">
-              <input type="radio" name="slice-3-approval" value="approved" data-section="slice-3" data-action="approve" aria-label="Approve slice 3">
+              <input type="radio" name="slice-3-approval" value="approved" data-section="slice-3" data-action="approve" checked aria-label="Approve slice 3">
               &#10003;
             </label>
             <label class="seg-btn seg-changes" title="Request changes">
@@ -875,10 +1209,8 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
         <div class="slice-field-label">What</div>
         <div class="slice-field-value">
           
-          <input type="checkbox" id="slice-3-what-reveal" class="reveal-toggle">
-          <div class="markdown-block reveal-content serif-prose"><p>Remove code with no production caller (grep-verified by the audit): serve maintenance loops in config.go; backfill_ai_title.go; SQLite-era plan finalize (finalizeYAMLWithDB and friends); plan_css_scope.go; old plugin install/update helpers; dev-mode backup recovery; test-only gate wrappers; reindex purge helpers; renderSessionShow; small dead funcs; the discarded recap index upsert; Gemini and dashboard leftovers in code and help text. Delete the tests that only exercise them.</p>
+          <div class="markdown-block serif-prose"><p>Delete about 2,050 production lines with no production caller in cmd/wipnote (101 golangci-lint unused hits plus dev-mode backup, recap upsert, after-model hook wiring and plugin_ensure leftovers), and about 2,000 test lines that only exercise them. Remove dashboard, serve and Gemini text from help and comments.</p>
 </div>
-          <label for="slice-3-what-reveal" class="reveal-label">Show full description</label>
           
         </div>
       </div>
@@ -909,9 +1241,66 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     
 
     
-
+    <div class="slice-field slice-decisions-notes">
+      <div class="slice-field-label">Decisions</div>
+      <div class="slice-field-value">
+        
+        <input type="checkbox" id="slice-3-decisions-reveal" class="reveal-toggle">
+        <div class="markdown-block reveal-content serif-prose"><p><strong>Evidence (golangci-lint 2.14 unused --tests=false at 43ab0cbd9):</strong> 101 hits, about 1,890 lines by AST walk. Largest: plan_css_scope.go 309, plan_finalize_yaml.go 235, config.go 184, backfill_ai_title.go 158, plugin_ensure.go 137, plan_finalize.go 131, plugin_dir.go 107. Nothing on the audit list is gone.
+<strong>Keep:</strong> startDrainLoop and reconcileDrainInterval (now used by writer_catchup.go:50); runPlanSlices (now used). runGitMutation is reached only from tests: confirm intent before deleting.
+<strong>Not visible to the linter:</strong> dev-mode backup in claude.go:19-27/:410-500 (nothing writes the backup file); checkCompletionGateRecord(nil) dead branch at workitem.go:389/:1378; recap index upsert into a throwaway DB (recap_list.go:280).
+<strong>Rejected:</strong> staticcheck U1000 (counts test callers, finds nothing) and deadcode (printed nothing after a toolchain switch).</p>
+</div>
+        <label for="slice-3-decisions-reveal" class="reveal-label">Show full decisions</label>
+        
+      </div>
+    </div>
     
 
+    <div class="slice-field slice-blocks">
+  <div class="slice-field-label">Blocks</div>
+  <div class="slice-field-value block-zone">
+    <div class="block-anchor" id="slice-3-block-file-tree-1" data-block-anchor="slice-3-block-file-tree-1" data-block-kind="file-tree"><div class="block block-file-tree">
+  <ul class="file-list">
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="21" y1="0" x2="21" y2="18" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">cmd/wipnote/plan_css_scope.go (whole file)</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="21" y1="0" x2="21" y2="18" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">cmd/wipnote/backfill_ai_title.go (whole file)</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="21" y1="0" x2="21" y2="18" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">cmd/wipnote/plan_finalize_yaml.go (finalizeYAMLWithDB family)</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="21" y1="0" x2="21" y2="18" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">cmd/wipnote/plan_finalize.go</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="21" y1="0" x2="21" y2="18" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">cmd/wipnote/config.go (serve loops)</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="21" y1="0" x2="21" y2="18" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">cmd/wipnote/plugin_ensure.go</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="21" y1="0" x2="21" y2="18" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">cmd/wipnote/plugin_dir.go</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="21" y1="0" x2="21" y2="18" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">cmd/wipnote/reindex_helpers.go</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="21" y1="0" x2="21" y2="18" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">cmd/wipnote/reindex_gate_ledger.go</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="21" y1="0" x2="21" y2="9" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">cmd/wipnote/claude.go (dev-mode backup)</code></li>
+    
+  </ul>
+</div></div>
+    
+  </div>
+</div>
+
+    
+    <div class="slice-field slice-tests-field">
+      <div class="slice-field-label">Test Strategy</div>
+      <div class="slice-field-value">
+        
+        
+        <div class="test-strategy">
+          
+          <div class="test-group" data-kind="gate">
+            <span class="test-chip">GATE &middot; 2</span>
+            <ul><li>golangci-lint run --enable-only unused --tests=false ./cmd/... reports 0 (101 today).</li><li>grep -rniE &#39;dashboard|wipnote serve&#39; cmd/wipnote --include=*.go (non-test) finds no user-facing text.</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="other">
+            <span class="test-chip">OTHER &middot; 3</span>
+            <ul><li>Retarget, not delete: check_gate_test.go, reindex_test.go, hook_exit_plan_mode_test.go and git_mutation_lock_test.go move to gate.* and core APIs.</li><li>Full suite via scripts/go-test-streaming.sh ./... passes.</li><li>Also fix plan approve-slice/reject-slice help text: they write plan YAML, not SQLite.</li></ul>
+          </div>
+          
+        </div>
+        
+      </div>
+    </div>
     
 
     
@@ -928,26 +1317,26 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     </details>
   </div>
 </details>
-<details class="slice-card" id="slice-4" data-slice="4" data-slice-name="slic-cf427ad6" data-status="pending" data-approval="pending">
+<details class="slice-card" id="slice-4" data-slice="4" data-slice-name="slic-cf427ad6" data-status="pending" data-approval="approved">
   <summary class="slice-summary" aria-label="Slice 4: Delete dead code in core">
     <span class="slice-num">#4</span>
     <span class="slice-title-col">
       <span class="slice-name">Delete dead code in core</span>
-      <span class="slice-preview">Remove the unused graph SQL query layer (dsl/querybuilder/algorithms/pattern/query/sessions); dead db repo clusters (claims, features, event…</span>
+      <span class="slice-preview">Delete about 4,500 unreachable lines in core: the graph SQL query layer, dead db repo clusters (claims, features, events, messages, lineage,…</span>
       <span class="slice-meta-row">
         <span class="slice-summary-badges">
           <span class="badge badge-revision badge-sm badge-effort" title="Effort: Medium" aria-label="Effort: Medium">M</span>
           <span class="badge badge-pending badge-sm badge-risk" title="Risk: Low">Low</span>
           
-          
-          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-4">Pending</span>
+          <span class="badge badge-revision badge-sm" title="Execution: promoted">Promoted</span>
+          <span class="badge badge-approved badge-sm slice-approval-badge" data-badge-for="slice-4">Approved</span>
           
           
         </span>
         <span class="slice-actions" onclick="event.stopPropagation()">
           <span class="approval-segmented" role="group" aria-label="Approval action">
             <label class="seg-btn seg-approve" title="Approve">
-              <input type="radio" name="slice-4-approval" value="approved" data-section="slice-4" data-action="approve" aria-label="Approve slice 4">
+              <input type="radio" name="slice-4-approval" value="approved" data-section="slice-4" data-action="approve" checked aria-label="Approve slice 4">
               &#10003;
             </label>
             <label class="seg-btn seg-changes" title="Request changes">
@@ -972,10 +1361,8 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
         <div class="slice-field-label">What</div>
         <div class="slice-field-value">
           
-          <input type="checkbox" id="slice-4-what-reveal" class="reveal-toggle">
-          <div class="markdown-block reveal-content serif-prose"><p>Remove the unused graph SQL query layer (dsl/querybuilder/algorithms/pattern/query/sessions); dead db repo clusters (claims, features, events, messages, plan feedback, rollups, arch, lineage, gate records, pragmas, busy counters); the workitem fluent query API and unused options; dead hook runner plumbing and fallback counters; the never-written active_work_items table and its reads; the unwired Gemini after-model hook and harness emit wrappers; single dead funcs and constants.</p>
+          <div class="markdown-block serif-prose"><p>Delete about 4,500 unreachable lines in core: the graph SQL query layer, dead db repo clusters (claims, features, events, messages, lineage, gate records, open modes, session adherence), dead plan-feedback helpers, the workitem fluent query API, hook runner and daemon plumbing, Gemini after-model wiring and emit wrappers, and single dead functions and constants.</p>
 </div>
-          <label for="slice-4-what-reveal" class="reveal-label">Show full description</label>
           
         </div>
       </div>
@@ -994,21 +1381,81 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
       
       <div class="slice-field">
         <div class="slice-field-label">Files</div>
-        <div class="slice-field-value"><code>core/graph, core/db, core/workitem, core/hooks, core/worktree/repair.go</code></div>
+        <div class="slice-field-value"><code>core/graph, core/db, core/workitem, core/hooks, core/daemon, core/worktree/worktree.go, core/projection/snapshot.go, core/storage</code></div>
       </div>
       
       
       <div class="slice-field">
         <div class="slice-field-label">Done when</div>
-        <ul class="slice-done-list"><li>golangci-lint unused reports nothing in core</li><li>Full test suite passes</li></ul>
+        <ul class="slice-done-list"><li>deadcode -filter github.com/shakestzd/wipnote ./cmd/wipnote reports no function in core outside an allowlist kept in the work item</li><li>Full test suite passes</li></ul>
       </div>
       
     
 
     
-
+    <div class="slice-field slice-decisions-notes">
+      <div class="slice-field-label">Decisions</div>
+      <div class="slice-field-value">
+        
+        <input type="checkbox" id="slice-4-decisions-reveal" class="reveal-toggle">
+        <div class="markdown-block reveal-content serif-prose"><p><strong>Evidence (deadcode v0.38.0 at 43ab0cbd9; golangci-lint unused sees only unexported code, so it is not the gate):</strong> 468 unreachable functions, 319 in core, about 4,540 body lines. graph layer ~1,120 lines (dsl.go, querybuilder.go, algorithms.go, pattern.go, query.go, sessions.go, arch_source.go:71-159); db repos ~2,190 (claim_repo, feature_repo, event_repo, message_repo, rollup_repo, arch_repo, lineage_repo, gate_records, pragmas, busy_counter, open_modes, writequeue); new: session_adherence.go:36-442. workitem fluent API ~520 lines; AtomicClaim/Unclaim have no non-test caller.
+<strong>Changed since the audit:</strong> core/worktree/repair.go is used (session_start.go:183), so the EnsureFor* funcs in worktree.go go instead. plan_feedback table is live via hydrate; only its write helpers go. active_work_items is now written during CLI hydrate, but its hook reads always miss (slice 6). approve-slice help text says SQLite but writes YAML: fix the text here.
+<strong>Order:</strong> open_modes and storage/dbpath wait until slice 6 removes the hook file-backed db.</p>
+</div>
+        <label for="slice-4-decisions-reveal" class="reveal-label">Show full decisions</label>
+        
+      </div>
+    </div>
     
 
+    <div class="slice-field slice-blocks">
+  <div class="slice-field-label">Blocks</div>
+  <div class="slice-field-value block-zone">
+    <div class="block-anchor" id="slice-4-block-data-model-1" data-block-anchor="slice-4-block-data-model-1" data-block-kind="data-model"><div class="block block-data-model">
+  <div class="block-header"><span class="block-kind">data-model</span><span class="block-title">Core deletions by cluster</span></div>
+  <table class="block-table">
+    <thead><tr><th>Field</th><th>Type</th><th>Note</th></tr></thead>
+    <tbody>
+      <tr><td><code>core/graph SQL layer</code></td><td><code>~1,120 lines</code></td><td>&mdash;</td></tr>
+      <tr><td><code>core/db repo clusters</code></td><td><code>~2,190 lines</code></td><td>&mdash;</td></tr>
+      <tr><td><code>session_adherence.go</code></td><td><code>~430 lines (new)</code></td><td>&mdash;</td></tr>
+      <tr><td><code>workitem fluent API</code></td><td><code>~520 lines</code></td><td>&mdash;</td></tr>
+      <tr><td><code>hook runner &#43; daemon plumbing</code></td><td><code>~300 lines</code></td><td>&mdash;</td></tr>
+      
+    </tbody>
+  </table>
+</div></div>
+    
+  </div>
+</div>
+
+    
+    <div class="slice-field slice-tests-field">
+      <div class="slice-field-label">Test Strategy</div>
+      <div class="slice-field-value">
+        
+        
+        <div class="test-strategy">
+          
+          <div class="test-group" data-kind="gate">
+            <span class="test-chip">GATE &middot; 1</span>
+            <ul><li>GOMEMLIMIT=2500MiB GOGC=25 GOTOOLCHAIN=local deadcode@v0.38.0 -filter github.com/shakestzd/wipnote ./cmd/wipnote lists no core function (319 today) except the allowlist.</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="keep and test">
+            <span class="test-chip">KEEP AND TEST &middot; 1</span>
+            <ul><li>GetSliceApprovals, NormalizePlanFeedbackValues and IsPlanApproval* still back plan finalize and promote-slice.</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="other">
+            <span class="test-chip">OTHER &middot; 2</span>
+            <ul><li>Delete with the code: graph DSL/querybuilder/algorithms/pattern/query/sessions tests (~1,740 lines), claim_repo_test, open_modes_test, session_adherence_test, family_attribution_test, busy and pragmas tests.</li><li>Full suite passes.</li></ul>
+          </div>
+          
+        </div>
+        
+      </div>
+    </div>
     
 
     
@@ -1025,26 +1472,26 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     </details>
   </div>
 </details>
-<details class="slice-card" id="slice-5" data-slice="5" data-slice-name="slic-1687e435" data-status="pending" data-approval="pending">
+<details class="slice-card" id="slice-5" data-slice="5" data-slice-name="slic-1687e435" data-status="pending" data-approval="approved">
   <summary class="slice-summary" aria-label="Slice 5: Delete serve-era packages in observe, plan and internal">
     <span class="slice-num">#5</span>
     <span class="slice-title-col">
       <span class="slice-name">Delete serve-era packages in observe, plan and internal</span>
-      <span class="slice-preview">Remove the embedded OTLP receiver (receiver.go/http.go/signalid.go), the QueuedSink and indexer poll loop, plan/planchat and plan/planamend,…</span>
+      <span class="slice-preview">Delete packages and files with no importer: observe/otel receiver.go, http.go, signalid.go (keep writer.go), QueuedSink, the indexer Start/W…</span>
       <span class="slice-meta-row">
         <span class="slice-summary-badges">
           <span class="badge badge-pending badge-sm badge-effort" title="Effort: Small" aria-label="Effort: Small">S</span>
           <span class="badge badge-pending badge-sm badge-risk" title="Risk: Low">Low</span>
           
-          
-          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-5">Pending</span>
+          <span class="badge badge-revision badge-sm" title="Execution: promoted">Promoted</span>
+          <span class="badge badge-approved badge-sm slice-approval-badge" data-badge-for="slice-5">Approved</span>
           
           
         </span>
         <span class="slice-actions" onclick="event.stopPropagation()">
           <span class="approval-segmented" role="group" aria-label="Approval action">
             <label class="seg-btn seg-approve" title="Approve">
-              <input type="radio" name="slice-5-approval" value="approved" data-section="slice-5" data-action="approve" aria-label="Approve slice 5">
+              <input type="radio" name="slice-5-approval" value="approved" data-section="slice-5" data-action="approve" checked aria-label="Approve slice 5">
               &#10003;
             </label>
             <label class="seg-btn seg-changes" title="Request changes">
@@ -1069,7 +1516,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
         <div class="slice-field-label">What</div>
         <div class="slice-field-value">
           
-          <div class="markdown-block serif-prose"><p>Remove the embedded OTLP receiver (receiver.go/http.go/signalid.go), the QueuedSink and indexer poll loop, plan/planchat and plan/planamend, internal/notebook with its embedded Python and the build sync step, internal/launcher/profile, interview web-form leftovers, dead registry and collector exports; move test-only helpers out of production files.</p>
+          <div class="markdown-block serif-prose"><p>Delete packages and files with no importer: observe/otel receiver.go, http.go, signalid.go (keep writer.go), QueuedSink, the indexer Start/WithQueue poll loop, plan/planchat, plan/planamend, internal/notebook with its Python and build sync step, internal/launcher/profile, plan/interview web-form functions and dead internal/registry exports.</p>
 </div>
           
         </div>
@@ -1089,7 +1536,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
       
       <div class="slice-field">
         <div class="slice-field-label">Files</div>
-        <div class="slice-field-value"><code>observe/otel, plan/planchat, plan/planamend, plan/interview, internal/notebook, internal/launcher/profile, internal/registry, cmd/wipnote/build.go</code></div>
+        <div class="slice-field-value"><code>observe/otel/receiver, observe/otel/sink/sqlite/queued.go, observe/otel/indexer/indexer.go, plan/planchat, plan/planamend, plan/interview/model.go, internal/notebook, internal/launcher/profile, internal/registry, cmd/wipnote/build.go</code></div>
       </div>
       
       
@@ -1101,9 +1548,80 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     
 
     
-
+    <div class="slice-field slice-decisions-notes">
+      <div class="slice-field-label">Decisions</div>
+      <div class="slice-field-value">
+        
+        <input type="checkbox" id="slice-5-decisions-reveal" class="reveal-toggle">
+        <div class="markdown-block reveal-content serif-prose"><p><strong>Evidence (go list -deps ./cmd/..., 446 packages, at 43ab0cbd9):</strong> receiver.New, LoadConfigFromEnv, NewHTTPHandler, ConvertAll, DeriveSignalID have no caller outside their files; live copies are in observe/otel/convert/convert.go:23,85. The receiver package stays because writer.go (Writer/NewWriter) is imported by writer_daemon.go:21, reindex.go:18 and finalize.go:31. NewQueued and indexer Start (:125) are test-only; reindex uses RunOnce/Status. planchat, planamend, internal/notebook, launcher/profile have no importer. build.go:33/:214 syncs 8 .py files into internal/notebook.
+<strong>Changed since the audit:</strong> plan/interview is live via plan_interview_questions.go:9, so only ParseDefinition, ForComplexity, ComposeIntake/IntakeResult and Compose go. internal/registry is live; only MigrationPending, ShouldSkipRegistration, OpenReadOnly go, and ComputeID/WriteEntriesForTest move to tests.
+<strong>Keep:</strong> signalvtab (feat-ba544d57), though nothing imports it today.</p>
+</div>
+        <label for="slice-5-decisions-reveal" class="reveal-label">Show full decisions</label>
+        
+      </div>
+    </div>
     
 
+    <div class="slice-field slice-blocks">
+  <div class="slice-field-label">Blocks</div>
+  <div class="slice-field-value block-zone">
+    <div class="block-anchor" id="slice-5-block-file-tree-1" data-block-anchor="slice-5-block-file-tree-1" data-block-kind="file-tree"><div class="block block-file-tree">
+  <ul class="file-list">
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="42" height="18" viewBox="0 0 42 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="21" y1="0" x2="21" y2="18" stroke="var(--border)"/><line x1="35" y1="0" x2="35" y2="18" stroke="var(--border)"/><line x1="35" y1="9" x2="42" y2="9" stroke="var(--border)"/></svg><code class="file-path">observe/otel/receiver/receiver.go</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="42" height="18" viewBox="0 0 42 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="21" y1="0" x2="21" y2="18" stroke="var(--border)"/><line x1="35" y1="0" x2="35" y2="18" stroke="var(--border)"/><line x1="35" y1="9" x2="42" y2="9" stroke="var(--border)"/></svg><code class="file-path">observe/otel/receiver/http.go</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="42" height="18" viewBox="0 0 42 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="21" y1="0" x2="21" y2="18" stroke="var(--border)"/><line x1="35" y1="0" x2="35" y2="9" stroke="var(--border)"/><line x1="35" y1="9" x2="42" y2="9" stroke="var(--border)"/></svg><code class="file-path">observe/otel/receiver/signalid.go</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="56" height="18" viewBox="0 0 56 18" class="file-tree-gutter"><line x1="49" y1="0" x2="49" y2="9" stroke="var(--border)"/><line x1="49" y1="9" x2="56" y2="9" stroke="var(--border)"/></svg><code class="file-path">observe/otel/sink/sqlite/queued.go</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="21" y1="0" x2="21" y2="9" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">plan/planchat/</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="21" y1="0" x2="21" y2="9" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">plan/planamend/</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="21" y1="0" x2="21" y2="9" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">internal/notebook/ (Go &#43; 8 .py)</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="42" height="18" viewBox="0 0 42 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="18" stroke="var(--border)"/><line x1="35" y1="0" x2="35" y2="9" stroke="var(--border)"/><line x1="35" y1="9" x2="42" y2="9" stroke="var(--border)"/></svg><code class="file-path">internal/launcher/profile/</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="18" viewBox="0 0 28 18" class="file-tree-gutter"><line x1="21" y1="0" x2="21" y2="9" stroke="var(--border)"/><line x1="21" y1="9" x2="28" y2="9" stroke="var(--border)"/></svg><code class="file-path">plan/interview/model.go (web-form funcs)</code></li>
+    <li class="file-entry"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="18" viewBox="0 0 14 18" class="file-tree-gutter"><line x1="7" y1="0" x2="7" y2="9" stroke="var(--border)"/><line x1="7" y1="9" x2="14" y2="9" stroke="var(--border)"/></svg><code class="file-path">internal/registry (3 dead exports)</code></li>
+    
+  </ul>
+</div></div>
+    
+  </div>
+</div>
+
+    
+    <div class="slice-field slice-tests-field">
+      <div class="slice-field-label">Test Strategy</div>
+      <div class="slice-field-value">
+        
+        
+        <div class="test-strategy">
+          
+          <div class="test-group" data-kind="gate">
+            <span class="test-chip">GATE &middot; 1</span>
+            <ul><li>go list -deps ./cmd/... still builds and no deleted import path appears in it.</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="observe/otel/indexer">
+            <span class="test-chip">OBSERVE/OTEL/INDEXER &middot; 1</span>
+            <ul><li>indexer tests keep covering RunOnce and Status; the Start/WithQueue tests go.</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="cmd/wipnote">
+            <span class="test-chip">CMD/WIPNOTE &middot; 1</span>
+            <ul><li>TestBuild_NoNotebookSync — wipnote build no longer copies prototypes/*.py.</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="plan/interview">
+            <span class="test-chip">PLAN/INTERVIEW &middot; 1</span>
+            <ul><li>plan interview-questions output is unchanged (golden test).</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="other">
+            <span class="test-chip">OTHER &middot; 1</span>
+            <ul><li>Full suite passes.</li></ul>
+          </div>
+          
+        </div>
+        
+      </div>
+    </div>
     
 
     
@@ -1120,26 +1638,26 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     </details>
   </div>
 </details>
-<details class="slice-card" id="slice-6" data-slice="6" data-slice-name="slic-a896a337" data-status="pending" data-approval="pending">
+<details class="slice-card" id="slice-6" data-slice="6" data-slice-name="slic-a896a337" data-status="pending" data-approval="approved">
   <summary class="slice-summary" aria-label="Slice 6: Cut per-hook cost">
     <span class="slice-num">#6</span>
     <span class="slice-title-col">
       <span class="slice-name">Cut per-hook cost</span>
-      <span class="slice-preview">Stop hooks from creating and opening the per-project SQLite cache file (finish feat-fc3cc9e0 in the hook tree); stop querying the empty read…</span>
+      <span class="slice-preview">Finish the hook part of feat-fc3cc9e0: no hook opens the file-backed SQLite db, and guards stop querying the empty in-memory projection.</span>
       <span class="slice-meta-row">
         <span class="slice-summary-badges">
           <span class="badge badge-blocked badge-sm badge-effort" title="Effort: Large" aria-label="Effort: Large">L</span>
           <span class="badge badge-revision badge-sm badge-risk" title="Risk: Med">Med</span>
           
-          
-          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-6">Pending</span>
+          <span class="badge badge-revision badge-sm" title="Execution: promoted">Promoted</span>
+          <span class="badge badge-approved badge-sm slice-approval-badge" data-badge-for="slice-6">Approved</span>
           
           
         </span>
         <span class="slice-actions" onclick="event.stopPropagation()">
           <span class="approval-segmented" role="group" aria-label="Approval action">
             <label class="seg-btn seg-approve" title="Approve">
-              <input type="radio" name="slice-6-approval" value="approved" data-section="slice-6" data-action="approve" aria-label="Approve slice 6">
+              <input type="radio" name="slice-6-approval" value="approved" data-section="slice-6" data-action="approve" checked aria-label="Approve slice 6">
               &#10003;
             </label>
             <label class="seg-btn seg-changes" title="Request changes">
@@ -1164,10 +1682,8 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
         <div class="slice-field-label">What</div>
         <div class="slice-field-value">
           
-          <input type="checkbox" id="slice-6-what-reveal" class="reveal-toggle">
-          <div class="markdown-block reveal-content serif-prose"><p>Stop hooks from creating and opening the per-project SQLite cache file (finish feat-fc3cc9e0 in the hook tree); stop querying the empty read-only projection in tooluse_shared, yolo_guard and pretooluse; run guard work only after the tool-type match; memoize session-family and staged-file lookups per process; gate debug.log on WIPNOTE_DEBUG; build plan and recap templates lazily (about 30 ms of init per wipnote process); test whether PostToolBatch or an http hook to the daemon can replace the second per-tool process.</p>
+          <div class="markdown-block serif-prose"><p>Finish the hook part of feat-fc3cc9e0: no hook opens the file-backed SQLite db, and guards stop querying the empty in-memory projection. Also gate debug.log on WIPNOTE_DEBUG, build plan and recap templates lazily, and test whether PostToolBatch or a daemon http hook can replace the second per-tool process.</p>
 </div>
-          <label for="slice-6-what-reveal" class="reveal-label">Show full description</label>
           
         </div>
       </div>
@@ -1186,7 +1702,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
       
       <div class="slice-field">
         <div class="slice-field-label">Files</div>
-        <div class="slice-field-value"><code>cmd/wipnote/hook.go, core/hooks, plan/plantmpl, recap/recaptmpl, plan/blocks, packages/plugin-core/manifest.json</code></div>
+        <div class="slice-field-value"><code>core/hooks/dbgate.go, core/hooks/tooluse_shared.go, core/hooks/pretooluse.go, core/hooks/yolo_guard.go, core/hooks/log.go, cmd/wipnote/hook.go, plan/plantmpl, plan/blocks, recap/recaptmpl, packages/plugin-core/manifest.json</code></div>
       </div>
       
       
@@ -1198,9 +1714,59 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     
 
     
-
+    <div class="slice-field slice-decisions-notes">
+      <div class="slice-field-label">Decisions</div>
+      <div class="slice-field-value">
+        
+        <input type="checkbox" id="slice-6-decisions-reveal" class="reveal-toggle">
+        <div class="markdown-block reveal-content serif-prose"><p><strong>Evidence (43ab0cbd9):</strong> OpenHookDB and OpenHookDBWithBusyTimeout (dbgate.go:148/:233) open storage.CanonicalDBPath with migrations for every hookSubcmd hook, including stop (hook.go:237), session start/end/resume (:355, :379-383), track-event (:410) and daemon-miss fallbacks (dbgate.go:462/:567); a 3.5 MB wipnote.db was written today. The dbgate.go:161 comment says stop is read-only; it is not. Guards query the empty projection at tooluse_shared.go:125-396, pretooluse.go:352-1016 and yolo_guard.go:346-1660 and always get zero rows (bug-369da005 failure mode). Init: plantmpl 8-42 ms, blocks 2.5-13 ms, recaptmpl 0.35-13 ms; total init 58-174 ms on a loaded box. debugLog (log.go:14/:32) appends on every hook; debug.log is 3.18 MB.
+<strong>Coordination:</strong> fc3cc9e0 commits a94ff8b57 and a09514b65 are on main and marked not complete (bug-369da005). This slice owns the hook-tree tail; the work item links fc3cc9e0 and bug-369da005 and does not touch non-hook code fc3cc9e0 still owns.
+<strong>Depends on 4</strong> so dead db repo code is gone before the hook db path is removed.</p>
+</div>
+        <label for="slice-6-decisions-reveal" class="reveal-label">Show full decisions</label>
+        
+      </div>
+    </div>
     
 
+    <div class="slice-field slice-blocks">
+  <div class="slice-field-label">Blocks</div>
+  <div class="slice-field-value block-zone">
+    <div class="block-anchor" id="slice-6-block-diagram-1" data-block-anchor="slice-6-block-diagram-1" data-block-kind="diagram"><div class="block block-diagram">
+  <div class="block-header"><span class="block-kind">diagram</span><span class="block-title">Hook call today vs after</span></div>
+  <div class="diagram-flow diagram-lr"><svg xmlns="http://www.w3.org/2000/svg" width="1701.6" height="48" viewBox="0 0 1701.6 48" class="diagram-canvas"><defs><marker id="wipnote-arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker></defs><rect class="diagram-node-rect" x="6" y="6" width="287.2" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="149.6" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">hook process starts (58-174 ms init)</text><path class="diagram-edge" d="M293.2 24 L333.2 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="333.2" y="6" width="316" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="491.2" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">open file-backed wipnote.db + migrations</text><path class="diagram-edge" d="M649.2 24 L689.2 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="689.2" y="6" width="236.79999999999998" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="807.6" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">guards query empty projection</text><path class="diagram-edge" d="M926 24 L966 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="966" y="6" width="143.2" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="1037.6" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">append debug.log</text><path class="diagram-edge" d="M1109.2 24 L1149.2 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="1149.2" y="6" width="546.4" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="1422.4" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">after: lazy templates, no db file, guards read NDJSON/HTML, no debug.log</text></svg></div>
+</div></div>
+    
+  </div>
+</div>
+
+    
+    <div class="slice-field slice-tests-field">
+      <div class="slice-field-label">Test Strategy</div>
+      <div class="slice-field-value">
+        
+        
+        <div class="test-strategy">
+          
+          <div class="test-group" data-kind="core/hooks">
+            <span class="test-chip">CORE/HOOKS &middot; 3</span>
+            <ul><li>TestHooks_NoFileBackedDB — run each hook subcommand with HOME and cache dirs in t.TempDir; assert no wipnote.db file is created.</li><li>guard tests read canonical NDJSON/HTML evidence (hasRecentResearch, recent test run) and return true when the evidence exists.</li><li>TestDebugLog_OffByDefault — no debug.log write unless WIPNOTE_DEBUG=1.</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="other">
+            <span class="test-chip">OTHER &middot; 1</span>
+            <ul><li>plan/plantmpl, recap/recaptmpl: BenchmarkInit or an inittrace check shows no template parse at package init.</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="benchmark">
+            <span class="test-chip">BENCHMARK &middot; 1</span>
+            <ul><li>pretooluse handler time before and after, recorded in the work item.</li></ul>
+          </div>
+          
+        </div>
+        
+      </div>
+    </div>
     
 
     
@@ -1217,26 +1783,26 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     </details>
   </div>
 </details>
-<details class="slice-card" id="slice-7" data-slice="7" data-slice-name="slic-0b3b7eea" data-status="pending" data-approval="pending">
+<details class="slice-card" id="slice-7" data-slice="7" data-slice-name="slic-0b3b7eea" data-status="pending" data-approval="approved">
   <summary class="slice-summary" aria-label="Slice 7: Speed up slow CLI paths">
     <span class="slice-num">#7</span>
     <span class="slice-title-col">
       <span class="slice-name">Speed up slow CLI paths</span>
-      <span class="slice-preview">Compute completion evidence once in feature complete (4 identical git log --all --grep scans today); stop the status line and hook-spawned t…</span>
+      <span class="slice-preview">Compute linked commits once per feature complete (4-5 identical git log --all --grep runs today); replace WalkAreas per-file LIKE scans with…</span>
       <span class="slice-meta-row">
         <span class="slice-summary-badges">
           <span class="badge badge-blocked badge-sm badge-effort" title="Effort: Large" aria-label="Effort: Large">L</span>
           <span class="badge badge-revision badge-sm badge-risk" title="Risk: Med">Med</span>
           
-          
-          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-7">Pending</span>
+          <span class="badge badge-revision badge-sm" title="Execution: promoted">Promoted</span>
+          <span class="badge badge-approved badge-sm slice-approval-badge" data-badge-for="slice-7">Approved</span>
           
           
         </span>
         <span class="slice-actions" onclick="event.stopPropagation()">
           <span class="approval-segmented" role="group" aria-label="Approval action">
             <label class="seg-btn seg-approve" title="Approve">
-              <input type="radio" name="slice-7-approval" value="approved" data-section="slice-7" data-action="approve" aria-label="Approve slice 7">
+              <input type="radio" name="slice-7-approval" value="approved" data-section="slice-7" data-action="approve" checked aria-label="Approve slice 7">
               &#10003;
             </label>
             <label class="seg-btn seg-changes" title="Request changes">
@@ -1261,10 +1827,8 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
         <div class="slice-field-label">What</div>
         <div class="slice-field-value">
           
-          <input type="checkbox" id="slice-7-what-reveal" class="reveal-toggle">
-          <div class="markdown-block reveal-content serif-prose"><p>Compute completion evidence once in feature complete (4 identical git log --all --grep scans today); stop the status line and hook-spawned task-step commands from loading the whole project and rewriting the registry; batch git timestamps for recaps; replace WalkAreas per-file LIKE scans with one grouped query; write OTel replay in chunks; append session HTML events at the tail instead of rewriting the file; make the Stop hook read the transcript once from a saved offset.</p>
+          <div class="markdown-block serif-prose"><p>Compute linked commits once per feature complete (4-5 identical git log --all --grep runs today); replace WalkAreas per-file LIKE scans with one grouped query; append session HTML events at the tail instead of a full rewrite; make Stop read only new transcript lines; keep the status line off whole-project loads.</p>
 </div>
-          <label for="slice-7-what-reveal" class="reveal-label">Show full description</label>
           
         </div>
       </div>
@@ -1283,7 +1847,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
       
       <div class="slice-field">
         <div class="slice-field-label">Files</div>
-        <div class="slice-field-value"><code>cmd/wipnote/workitem.go, cmd/wipnote/statusline.go, cmd/wipnote/main.go, internal/blame, observe/otel/indexer, core/hooks/session_html.go, core/hooks/transcript_assistant.go</code></div>
+        <div class="slice-field-value"><code>cmd/wipnote/workitem.go, cmd/wipnote/workitem_provenance_canonical.go, cmd/wipnote/statusline.go, internal/blame/areas.go, internal/blame/blame.go, core/hooks/session_html.go, core/hooks/missing_events.go, core/hooks/transcript_user_prompt.go</code></div>
       </div>
       
       
@@ -1295,9 +1859,73 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     
 
     
-
+    <div class="slice-field slice-decisions-notes">
+      <div class="slice-field-label">Decisions</div>
+      <div class="slice-field-value">
+        
+        <input type="checkbox" id="slice-7-decisions-reveal" class="reveal-toggle">
+        <div class="markdown-block reveal-content serif-prose"><p><strong>Evidence (43ab0cbd9):</strong> canonicalLinkedCommits (workitem_provenance_canonical.go:88) runs at workitem.go:332 (dirty only), :347, :357 (remote only), :369 and :476: 4-5 runs, 1.6 s each under load. WalkAreas: one LIKE &#39;%/...&#39; query per tracked file (areas.go:158, blame.go:134) on an in-memory projection hydrated each run. AppendEventToSessionHTML (session_html.go:241-323) flocks, reads, truncates and rewrites a 255 KB file on every posttooluse-record. Stop now uses last_assistant_message, but backfillMissedUserPrompts (missing_events.go:183, transcript_user_prompt.go:118-140) still decodes the whole transcript each time.
+<strong>Changed since the audit:</strong> statusline with no --session returns at once (0.15-0.49 s, mostly init); only the open-claim branch (projection.Load at :157) is slow, and it needs a timing before any change.
+<strong>Decision:</strong> the commit list is computed once and passed to each gate; code-areas baseline stays 33m15s from the audit.</p>
+</div>
+        <label for="slice-7-decisions-reveal" class="reveal-label">Show full decisions</label>
+        
+      </div>
+    </div>
     
 
+    <div class="slice-field slice-blocks">
+  <div class="slice-field-label">Blocks</div>
+  <div class="slice-field-value block-zone">
+    <div class="block-anchor" id="slice-7-block-data-model-1" data-block-anchor="slice-7-block-data-model-1" data-block-kind="data-model"><div class="block block-data-model">
+  <div class="block-header"><span class="block-kind">data-model</span><span class="block-title">Baselines to beat</span></div>
+  <table class="block-table">
+    <thead><tr><th>Field</th><th>Type</th><th>Note</th></tr></thead>
+    <tbody>
+      <tr><td><code>feature complete git scans</code></td><td><code>4-5 x 1.6 s</code></td><td>&mdash;</td></tr>
+      <tr><td><code>code-areas</code></td><td><code>33m15s</code></td><td>&mdash;</td></tr>
+      <tr><td><code>session HTML per event</code></td><td><code>full rewrite of 255 KB</code></td><td>&mdash;</td></tr>
+      <tr><td><code>Stop transcript scan</code></td><td><code>whole file each Stop</code></td><td>&mdash;</td></tr>
+      
+    </tbody>
+  </table>
+</div></div>
+    
+  </div>
+</div>
+
+    
+    <div class="slice-field slice-tests-field">
+      <div class="slice-field-label">Test Strategy</div>
+      <div class="slice-field-value">
+        
+        
+        <div class="test-strategy">
+          
+          <div class="test-group" data-kind="cmd/wipnote">
+            <span class="test-chip">CMD/WIPNOTE &middot; 1</span>
+            <ul><li>TestFeatureComplete_LinkedCommitsComputedOnce — count canonicalLinkedCommits calls (seam) on the complete path; expect 1.</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="internal/blame">
+            <span class="test-chip">INTERNAL/BLAME &middot; 1</span>
+            <ul><li>TestWalkAreas_SingleQuery — results equal the old per-file output on a fixture; one query issued.</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="core/hooks">
+            <span class="test-chip">CORE/HOOKS &middot; 2</span>
+            <ul><li>TestAppendEventToSessionHTML_TailAppend — output equals the old rewrite byte for byte on a fixture; file is not truncated.</li><li>TestStop_BackfillReadsFromOffset — second Stop reads only bytes after the saved offset.</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="other">
+            <span class="test-chip">OTHER &middot; 1</span>
+            <ul><li>Timings before and after for feature complete, statusline (with an open claim) and code-areas recorded in the work item.</li></ul>
+          </div>
+          
+        </div>
+        
+      </div>
+    </div>
     
 
     
@@ -1314,26 +1942,26 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     </details>
   </div>
 </details>
-<details class="slice-card" id="slice-8" data-slice="8" data-slice-name="slic-3459766c" data-status="pending" data-approval="pending">
+<details class="slice-card" id="slice-8" data-slice="8" data-slice-name="slic-3459766c" data-status="pending" data-approval="approved">
   <summary class="slice-summary" aria-label="Slice 8: Merge duplicated helpers">
     <span class="slice-num">#8</span>
     <span class="slice-title-col">
       <span class="slice-name">Merge duplicated helpers</span>
-      <span class="slice-preview">One HTML ledger codec for claim, gate and session ledgers; one ID-prefix to kind/collection table (seven copies disagree today); core git he…</span>
+      <span class="slice-preview">Merge drifted copies into one helper each: ID-prefix to kind/collection (ten copies), ID resolution, git top-level/runner/HEAD, printJSON (2…</span>
       <span class="slice-meta-row">
         <span class="slice-summary-badges">
           <span class="badge badge-revision badge-sm badge-effort" title="Effort: Medium" aria-label="Effort: Medium">M</span>
           <span class="badge badge-pending badge-sm badge-risk" title="Risk: Low">Low</span>
           
-          
-          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-8">Pending</span>
+          <span class="badge badge-revision badge-sm" title="Execution: promoted">Promoted</span>
+          <span class="badge badge-approved badge-sm slice-approval-badge" data-badge-for="slice-8">Approved</span>
           
           
         </span>
         <span class="slice-actions" onclick="event.stopPropagation()">
           <span class="approval-segmented" role="group" aria-label="Approval action">
             <label class="seg-btn seg-approve" title="Approve">
-              <input type="radio" name="slice-8-approval" value="approved" data-section="slice-8" data-action="approve" aria-label="Approve slice 8">
+              <input type="radio" name="slice-8-approval" value="approved" data-section="slice-8" data-action="approve" checked aria-label="Approve slice 8">
               &#10003;
             </label>
             <label class="seg-btn seg-changes" title="Request changes">
@@ -1358,10 +1986,8 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
         <div class="slice-field-label">What</div>
         <div class="slice-field-value">
           
-          <input type="checkbox" id="slice-8-what-reveal" class="reveal-toggle">
-          <div class="markdown-block reveal-content serif-prose"><p>One HTML ledger codec for claim, gate and session ledgers; one ID-prefix to kind/collection table (seven copies disagree today); core git helpers (top-level, branch, output) replacing about ten copies; filelock.Guard everywhere; one env-slice helper; one cached .wipnote/config.json loader; shared OTel adapter base for Gemini/Antigravity; one glob matcher; one plugin asset-tree walker; printJSON and atomic-write helpers.</p>
+          <div class="markdown-block serif-prose"><p>Merge drifted copies into one helper each: ID-prefix to kind/collection (ten copies), ID resolution, git top-level/runner/HEAD, printJSON (20 sites), atomic write, env-slice editing, the HTML ledger codec, config loader, glob matcher, plugin asset walker and small string helpers.</p>
 </div>
-          <label for="slice-8-what-reveal" class="reveal-label">Show full description</label>
           
         </div>
       </div>
@@ -1392,9 +2018,64 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     
 
     
-
+    <div class="slice-field slice-decisions-notes">
+      <div class="slice-field-label">Decisions</div>
+      <div class="slice-field-value">
+        
+        <input type="checkbox" id="slice-8-decisions-reveal" class="reveal-toggle">
+        <div class="markdown-block reveal-content serif-prose"><p><strong>Evidence (43ab0cbd9):</strong> ID-prefix maps at history.go:120, context_pack.go:96, execute_preview.go:173, lineage.go:73, link.go:239, reindex_arch.go:169, reindex_orphans.go:232 (new since the audit), config.go:234, workitem.go:1059, core/workitem/htmlwriter.go:444. git top-level at five sites; git HEAD moved to git_bulk_walks.go:112. printJSON pattern at 20 sites in 18 files. Atomic write at statusline.go:232, htmlwriter.go:223, compliance.go. Env-slice editing at six sites wrapping gate and launcher helpers.
+<strong>Decisions:</strong> the single prefix table lives in core/workitem next to GenerateID so new kinds are added once; slice 1 fixes the spc- error first, so this slice only moves code. Git helpers always take an explicit dir.
+<strong>Order:</strong> runs after 3, 4 and 5 so deleted copies are not merged.</p>
+</div>
+        <label for="slice-8-decisions-reveal" class="reveal-label">Show full decisions</label>
+        
+      </div>
+    </div>
     
 
+    <div class="slice-field slice-blocks">
+  <div class="slice-field-label">Blocks</div>
+  <div class="slice-field-value block-zone">
+    <div class="block-anchor" id="slice-8-block-diagram-1" data-block-anchor="slice-8-block-diagram-1" data-block-kind="diagram"><div class="block block-diagram">
+  <div class="block-header"><span class="block-kind">diagram</span><span class="block-title">ID-prefix lookups after the merge</span></div>
+  <div class="diagram-flow diagram-lr"><svg xmlns="http://www.w3.org/2000/svg" width="1176.8" height="48" viewBox="0 0 1176.8 48" class="diagram-canvas"><defs><marker id="wipnote-arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker></defs><rect class="diagram-node-rect" x="6" y="6" width="481.59999999999997" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="246.79999999999998" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">10 callers (history, lineage, link, reindex, context-pack, ...)</text><path class="diagram-edge" d="M487.59999999999997 24 L527.5999999999999 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="527.5999999999999" y="6" width="323.2" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="689.1999999999999" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">core/workitem KindForID / CollectionForID</text><path class="diagram-edge" d="M850.8 24 L890.8 24" stroke="var(--accent)" marker-end="url(#wipnote-arrowhead)"/><rect class="diagram-node-rect" x="890.8" y="6" width="280" height="36" rx="6" fill="var(--bg-input)" stroke="var(--border)"/><text class="diagram-node-label" x="1030.8" y="28" text-anchor="middle" font-family="ui-monospace, &#34;SF Mono&#34;, &#34;JetBrains Mono&#34;, Menlo, Consolas, monospace" font-size="12" fill="var(--text)">one prefix table next to GenerateID</text></svg></div>
+</div></div>
+    
+  </div>
+</div>
+
+    
+    <div class="slice-field slice-tests-field">
+      <div class="slice-field-label">Test Strategy</div>
+      <div class="slice-field-value">
+        
+        
+        <div class="test-strategy">
+          
+          <div class="test-group" data-kind="core/workitem">
+            <span class="test-chip">CORE/WORKITEM &middot; 1</span>
+            <ul><li>TestKindForID_AllPrefixes — table over every generated prefix (feat, bug, spk, spec, plan, trk, sess) returns one kind and collection; each former copy calls it.</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="other">
+            <span class="test-chip">OTHER &middot; 1</span>
+            <ul><li>core/paths or core/gitutil: TestGitTopLevel_FromSubdir and TestGitOutput_RunsInDir — helpers honor the given dir, not the cwd (budget.go runGit today runs in the cwd).</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="ledger codecs">
+            <span class="test-chip">LEDGER CODECS &middot; 1</span>
+            <ul><li>round-trip tests for claim, gate and session ledgers through the shared codec, with the escaping cases each copy handled.</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="gate">
+            <span class="test-chip">GATE &middot; 1</span>
+            <ul><li>golangci-lint dupl reports no duplicate over 30 lines in touched packages; full suite passes.</li></ul>
+          </div>
+          
+        </div>
+        
+      </div>
+    </div>
     
 
     
@@ -1411,26 +2092,26 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     </details>
   </div>
 </details>
-<details class="slice-card" id="slice-9" data-slice="9" data-slice-name="slic-80c68005" data-status="pending" data-approval="pending">
+<details class="slice-card" id="slice-9" data-slice="9" data-slice-name="slic-80c68005" data-status="pending" data-approval="approved">
   <summary class="slice-summary" aria-label="Slice 9: Split oversized files and functions">
     <span class="slice-num">#9</span>
     <span class="slice-title-col">
       <span class="slice-name">Split oversized files and functions</span>
-      <span class="slice-preview">Split files over 500 lines and functions over 50 lines that remain after slices 3-8: workitem.go and wiSetStatusWithAgent, yologuard.go, cod…</span>
+      <span class="slice-preview">Split files over 500 lines and functions over 50 lines that remain after slices 3-8, starting with wiSetStatusWithAgent (339 lines), runComp…</span>
       <span class="slice-meta-row">
         <span class="slice-summary-badges">
           <span class="badge badge-revision badge-sm badge-effort" title="Effort: Medium" aria-label="Effort: Medium">M</span>
           <span class="badge badge-pending badge-sm badge-risk" title="Risk: Low">Low</span>
           
-          
-          <span class="badge badge-pending badge-sm slice-approval-badge" data-badge-for="slice-9">Pending</span>
+          <span class="badge badge-revision badge-sm" title="Execution: promoted">Promoted</span>
+          <span class="badge badge-approved badge-sm slice-approval-badge" data-badge-for="slice-9">Approved</span>
           
           
         </span>
         <span class="slice-actions" onclick="event.stopPropagation()">
           <span class="approval-segmented" role="group" aria-label="Approval action">
             <label class="seg-btn seg-approve" title="Approve">
-              <input type="radio" name="slice-9-approval" value="approved" data-section="slice-9" data-action="approve" aria-label="Approve slice 9">
+              <input type="radio" name="slice-9-approval" value="approved" data-section="slice-9" data-action="approve" checked aria-label="Approve slice 9">
               &#10003;
             </label>
             <label class="seg-btn seg-changes" title="Request changes">
@@ -1455,7 +2136,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
         <div class="slice-field-label">What</div>
         <div class="slice-field-value">
           
-          <div class="markdown-block serif-prose"><p>Split files over 500 lines and functions over 50 lines that remain after slices 3-8: workitem.go and wiSetStatusWithAgent, yolo_guard.go, codex.go, session_start.go and SessionStart, session_end.go, otel receiver writer.go, planyaml validate.go, pretooluse PreToolUse into a guard pipeline.</p>
+          <div class="markdown-block serif-prose"><p>Split files over 500 lines and functions over 50 lines that remain after slices 3-8, starting with wiSetStatusWithAgent (339 lines), runComplianceAuto, enrichPageFromYAML, runWho, wirePlan and the Codex launcher, plus yolo_guard.go, session_start.go, pretooluse into a guard pipeline, writer.go and validate.go.</p>
 </div>
           
         </div>
@@ -1487,9 +2168,75 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
     
 
     
-
+    <div class="slice-field slice-decisions-notes">
+      <div class="slice-field-label">Decisions</div>
+      <div class="slice-field-value">
+        
+        <input type="checkbox" id="slice-9-decisions-reveal" class="reveal-toggle">
+        <div class="markdown-block reveal-content serif-prose"><p><strong>Evidence (43ab0cbd9, cmd/wipnote non-test):</strong> 20 files over 500 lines (codex.go 1699, workitem.go 1403, arch_cmds.go 1110, compliance_auto.go 947, claude.go 863, ...) and 165 functions over 50 lines (wiSetStatusWithAgent 339, runComplianceAuto 228, enrichPageFromYAML 185, runWho 179, wirePlan 178, launchCodexDefaultWithMarketplace 167). Slice 3 brings plan_finalize_yaml.go to about 610 and session.go to about 458 lines.
+<strong>Scope:</strong> only files this plan touches, plus the top 15 functions; the full list of 165 is too large for one slice and stays as follow-up work items.
+<strong>Decision:</strong> pretooluse becomes an ordered slice of guard funcs so each guard is testable alone; order is pinned by TestPreToolUse_GuardOrder.</p>
+</div>
+        <label for="slice-9-decisions-reveal" class="reveal-label">Show full decisions</label>
+        
+      </div>
+    </div>
     
 
+    <div class="slice-field slice-blocks">
+  <div class="slice-field-label">Blocks</div>
+  <div class="slice-field-value block-zone">
+    <div class="block-anchor" id="slice-9-block-data-model-1" data-block-anchor="slice-9-block-data-model-1" data-block-kind="data-model"><div class="block block-data-model">
+  <div class="block-header"><span class="block-kind">data-model</span><span class="block-title">Largest targets</span></div>
+  <table class="block-table">
+    <thead><tr><th>Field</th><th>Type</th><th>Note</th></tr></thead>
+    <tbody>
+      <tr><td><code>wiSetStatusWithAgent</code></td><td><code>339 lines (workitem.go:303)</code></td><td>&mdash;</td></tr>
+      <tr><td><code>runComplianceAuto</code></td><td><code>228 lines</code></td><td>&mdash;</td></tr>
+      <tr><td><code>enrichPageFromYAML</code></td><td><code>185 lines</code></td><td>&mdash;</td></tr>
+      <tr><td><code>runWho</code></td><td><code>179 lines</code></td><td>&mdash;</td></tr>
+      <tr><td><code>wirePlan</code></td><td><code>178 lines</code></td><td>&mdash;</td></tr>
+      <tr><td><code>codex.go</code></td><td><code>1699-line file</code></td><td>&mdash;</td></tr>
+      
+    </tbody>
+  </table>
+</div></div>
+    
+  </div>
+</div>
+
+    
+    <div class="slice-field slice-tests-field">
+      <div class="slice-field-label">Test Strategy</div>
+      <div class="slice-field-value">
+        
+        
+        <div class="test-strategy">
+          
+          <div class="test-group" data-kind="behavior-preserving">
+            <span class="test-chip">BEHAVIOR-PRESERVING &middot; 1</span>
+            <ul><li>existing package tests pass unchanged before and after each split (no test edits except moves).</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="gate script">
+            <span class="test-chip">GATE SCRIPT &middot; 1</span>
+            <ul><li>an AST walk over touched files reports no file over 500 lines and no function over 50 lines.</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="core/hooks">
+            <span class="test-chip">CORE/HOOKS &middot; 1</span>
+            <ul><li>TestPreToolUse_GuardOrder — the guard pipeline runs guards in the same order and returns the same decision as before for a fixed set of tool calls.</li></ul>
+          </div>
+          
+          <div class="test-group" data-kind="other">
+            <span class="test-chip">OTHER &middot; 1</span>
+            <ul><li>Full suite passes.</li></ul>
+          </div>
+          
+        </div>
+        
+      </div>
+    </div>
     
 
     
@@ -1547,6 +2294,15 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
   </div>
 </section>
 
+
+<nav data-graph-edges>
+  <section data-edge-type="implemented_in">
+    <h3>Implemented In:</h3>
+    <ul>
+      <li><a href="trk-0677c709.html" data-relationship="implemented_in" data-since="2026-10-25T07:29:51.170672">trk-0677c709</a></li>
+    </ul>
+  </section>
+</nav>
 </article>
 </div><!-- /.plan-content -->
 <aside class="chat-sidebar" id="chat-panel">

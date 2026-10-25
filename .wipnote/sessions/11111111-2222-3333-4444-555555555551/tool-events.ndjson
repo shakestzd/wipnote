@@ -1,0 +1,5 @@
+{"t":"Bash","a":"claude-code","s":"git commit -m \"add dep\"","i":"{\"command\":\"git commit -m \\\"add dep\\\"\"}"}
+{"t":"Bash","a":"claude-code","s":"git commit -m \"add dep\"","i":"{\"command\":\"git commit -m \\\"add dep\\\"\"}"}
+{"t":"Read","a":"claude-code","s":"/tmp/claude-1000/-workspaces-wipnote/b0991d53-1a24-4f08-85e1-85786a570a50/scratchpad/hooks.pQ1L/proj-new/go.mod","i":"{\"file_path\":\"go.mod\",\"pattern\":\"x\"}"}
+{"t":"Grep","a":"claude-code","s":"/tmp/claude-1000/-workspaces-wipnote/b0991d53-1a24-4f08-85e1-85786a570a50/scratchpad/hooks.pQ1L/proj-new/go.mod","i":"{\"file_path\":\"go.mod\",\"pattern\":\"x\"}"}
+{"t":"Bash","a":"claude-code","s":"git commit -m \"add dep\"","i":"{\"command\":\"git commit -m \\\"add dep\\\"\"}"}
