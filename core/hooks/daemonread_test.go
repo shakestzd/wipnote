@@ -13,7 +13,6 @@ import (
 
 	"github.com/shakestzd/wipnote/core/daemon"
 	"github.com/shakestzd/wipnote/core/daemon/readsrv"
-	"github.com/shakestzd/wipnote/core/db/writequeue"
 )
 
 // startReadDaemon starts a real daemon listener serving canonical work-item
@@ -33,15 +32,9 @@ func startReadDaemon(t *testing.T, projectRoot string) (string, func()) {
 	t.Cleanup(func() { _ = os.RemoveAll(sockDir) })
 	sock := filepath.Join(sockDir, "writer.sock")
 
-	q := writequeue.New(writequeue.Config{Capacity: 8})
-	if err := q.Start(context.Background()); err != nil {
-		t.Fatalf("queue start: %v", err)
-	}
 	cache := readsrv.NewCache(filepath.Join(projectRoot, ".wipnote"))
 	ln, lerr := daemon.NewListener(daemon.ListenerConfig{
 		SocketPath: sock,
-		Queue:      q,
-		Applier:    daemon.RejectingApplier,
 		Reader:     readsrv.Reader(cache),
 	})
 	if lerr != nil {
@@ -66,7 +59,6 @@ func startReadDaemon(t *testing.T, projectRoot string) (string, func()) {
 		stopped = true
 		cancel()
 		_ = ln.Close()
-		q.Stop(time.Second)
 	}
 }
 
@@ -372,14 +364,9 @@ func BenchmarkLookupWorkItemViaDaemon(b *testing.B) {
 	defer os.RemoveAll(sockDir)
 	sock := filepath.Join(sockDir, "writer.sock")
 
-	q := writequeue.New(writequeue.Config{Capacity: 8})
-	if err := q.Start(context.Background()); err != nil {
-		b.Fatalf("queue start: %v", err)
-	}
-	defer q.Stop(time.Second)
 	cache := readsrv.NewCache(filepath.Join(root, ".wipnote"))
 	ln, err := daemon.NewListener(daemon.ListenerConfig{
-		SocketPath: sock, Queue: q, Applier: daemon.RejectingApplier, Reader: readsrv.Reader(cache),
+		SocketPath: sock, Reader: readsrv.Reader(cache),
 	})
 	if err != nil {
 		b.Fatalf("listener: %v", err)
