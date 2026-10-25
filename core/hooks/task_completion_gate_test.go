@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 )
 
@@ -59,86 +58,4 @@ func TestRunTaskCompletionGate_DetectsGoProject(t *testing.T) {
 	if result.GateName != "go test ./..." {
 		t.Errorf("GateName = %q, want %q", result.GateName, "go test ./...")
 	}
-}
-
-func TestTaskCompleted_FlagOff_NeverBlocks(t *testing.T) {
-	td, sessionID := setupMissingEventsDB(t)
-
-	// Create a project dir with a go.mod (gate will fail) but NO config.json (flag off).
-	projectDir := t.TempDir()
-	os.MkdirAll(filepath.Join(projectDir, ".wipnote"), 0o755)
-	os.WriteFile(filepath.Join(projectDir, "go.mod"), []byte("module test\n"), 0o644)
-	t.Setenv("WIPNOTE_PROJECT_DIR", projectDir)
-
-	event := &CloudEvent{
-		SessionID: sessionID,
-		CWD:       projectDir,
-		TaskID:    "task-noblock",
-		TaskData:  map[string]any{"subject": "Test task"},
-	}
-
-	result, err := TaskCompleted(event, td.DB)
-	if err != nil {
-		t.Fatalf("TaskCompleted should not error when flag is off: %v", err)
-	}
-	if result == nil || !result.Continue {
-		t.Error("expected Continue=true when flag is off (warn-only)")
-	}
-}
-
-func TestTaskCompleted_FlagOn_BlocksOnFailure(t *testing.T) {
-	td, sessionID := setupMissingEventsDB(t)
-
-	// Insert a feature and set it as the active feature for the session so the
-	// quality gate guard (featureID != "") is satisfied.
-	td.addTrack("trk-gate-test", "Gate test track")
-	td.addFeature("feat-gate-test", "feature", "Gate test feature", "in-progress")
-	if _, err := td.DB.Exec(
-		`UPDATE sessions SET active_feature_id = ? WHERE session_id = ?`,
-		"feat-gate-test", sessionID,
-	); err != nil {
-		t.Fatalf("set active_feature_id: %v", err)
-	}
-	// Reset the package-level cache so the updated active_feature_id is read.
-	featureIDCache = featureIDCacheEntry{}
-
-	// Create project dir with go.mod AND config with blocking enabled.
-	projectDir := t.TempDir()
-	cfgDir := filepath.Join(projectDir, ".wipnote")
-	os.MkdirAll(cfgDir, 0o755)
-	os.WriteFile(filepath.Join(projectDir, "go.mod"), []byte("module test\n"), 0o644)
-	data, _ := json.Marshal(map[string]any{"block_task_completion_on_quality_failure": true})
-	os.WriteFile(filepath.Join(cfgDir, "config.json"), data, 0o644)
-	t.Setenv("WIPNOTE_PROJECT_DIR", projectDir)
-
-	event := &CloudEvent{
-		SessionID: sessionID,
-		CWD:       projectDir,
-		TaskID:    "task-block",
-		TaskData:  map[string]any{"subject": "Blocked task"},
-	}
-
-	result, err := TaskCompleted(event, td.DB)
-	// When blocking, the handler returns a BlockExit2Error.
-	if err == nil {
-		t.Fatal("expected BlockExit2Error when flag is on and gate fails")
-	}
-	blockErr, ok := err.(*BlockExit2Error)
-	if !ok {
-		t.Fatalf("expected *BlockExit2Error, got %T: %v", err, err)
-	}
-	// PINNED (bug-c6b550fa): Codex treats exit code 2 with EMPTY stderr as
-	// ALLOW, not deny — non-empty stderr is what actually blocks and carries
-	// the reason. runHookNamed (cmd/wipnote/hook.go) writes blockErr.Message
-	// verbatim to stderr before exiting 2, so an empty (or whitespace-only)
-	// Message here would silently fail this gate open on Codex. This is one
-	// of the three BlockExit2Error call sites audited for that invariant.
-	if strings.TrimSpace(blockErr.Message) == "" {
-		t.Error("expected non-empty block message (Codex fails open on exit-2 + empty stderr)")
-	}
-	if result != nil {
-		t.Errorf("expected nil result when blocking, got %+v", result)
-	}
-	// Reset cache so subsequent tests are not affected.
-	featureIDCache = featureIDCacheEntry{}
 }

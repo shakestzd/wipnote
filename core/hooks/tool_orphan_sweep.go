@@ -14,8 +14,9 @@ import (
 // PostToolUse writes a completion line under the same id. A start with no
 // completion is a tool call that never finished: the harness crashed, was
 // killed, or the session ended mid-call. SessionStart records such a call as
-// "aborted" once it is over OrphanThreshold old, or at once when its session
-// recorded an end after the call started. The record is a completion line
+// "aborted" at once when its session recorded an end after the call started,
+// or once it is over OrphanThreshold old and the session's owner process
+// (.session-pid) is gone. The record is a completion line
 // (status aborted) in the same log, which is also what makes the sweep
 // idempotent, plus an aborted entry in the session HTML activity log.
 //
@@ -105,12 +106,13 @@ func sweepSessionToolLog(projectDir, sessionID string, now time.Time, budget int
 	if note, ok := ReadSessionEndNote(projectDir, sessionID); ok {
 		endedAt = note.EndTime()
 	}
+	ownerGone := !IsSessionProcessAlive(filepath.Dir(path))
 	recorded := 0
 	for _, s := range starts {
 		if budget > 0 && recorded >= budget {
 			break
 		}
-		if done[s.id] || !toolCallOrphaned(s, now, endedAt) {
+		if done[s.id] || !toolCallOrphaned(s, now, endedAt, ownerGone) {
 			continue
 		}
 		if recordAbortedToolCall(projectDir, sessionID, s) {
@@ -120,13 +122,16 @@ func sweepSessionToolLog(projectDir, sessionID string, now time.Time, budget int
 	return recorded
 }
 
-// toolCallOrphaned reports whether an unmatched start counts as aborted: it
-// is over OrphanThreshold old, or its session ended after it started.
-func toolCallOrphaned(s toolStart, now, endedAt time.Time) bool {
-	if now.Sub(s.at) > OrphanThreshold {
+// toolCallOrphaned reports whether an unmatched start counts as aborted: its
+// session ended after it started, or it is over OrphanThreshold old and the
+// session's owner process is gone. A live or unknown owner (no .session-pid)
+// keeps an open session's calls, since a subagent or a long Bash can run for
+// longer than the threshold.
+func toolCallOrphaned(s toolStart, now, endedAt time.Time, ownerGone bool) bool {
+	if !endedAt.IsZero() && endedAt.After(s.at) {
 		return true
 	}
-	return !endedAt.IsZero() && endedAt.After(s.at)
+	return ownerGone && now.Sub(s.at) > OrphanThreshold
 }
 
 // toolLogLine is the union of a start line and a completion line.

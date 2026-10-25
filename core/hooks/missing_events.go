@@ -289,47 +289,18 @@ func ConfigChange(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 	return &HookResult{Continue: true}, nil
 }
 
-// PostToolUseFailure handles the PostToolUseFailure Claude Code hook event.
-// Records a tool crash/exception as an error event with details from ToolResult.
-// This handler is kept separate because it extracts error info from ToolResult.
-//
-// CONTROLLING CAPABILITY (AdditiveControlling, per hookEventContractSpecs): CC
-// reads a JSON HookResult here, so this handler COULD return a controlling
-// shape (e.g. {decision:"block"} to halt after a tool failure). It is kept
-// observe-only by design — no current use-case to alter CC's failure handling
-// — but the HookResult return path is already in place for a future addition.
+// PostToolUseFailure handles the PostToolUseFailure Claude Code hook event. A
+// failed tool fires this instead of PostToolUse, so it writes the "failed"
+// completion line that pairs the PreToolUse start in the canonical tool log;
+// without it the session-start sweep would record the call as aborted
+// (feat-174dc958). It is observe-only. database is unused.
 func PostToolUseFailure(event *CloudEvent, database *sql.DB) (*HookResult, error) {
+	_ = database
 	sessionID := EnvSessionID(event.SessionID)
 	if sessionID == "" {
 		return &HookResult{Continue: true}, nil
 	}
-
-	featureID := cachedGetActiveFeatureID(database, sessionID)
-	errorSummary := summariseOutput(event.ToolResult)
-	if errorSummary == "" {
-		errorSummary = fmt.Sprintf("tool %q crashed or threw exception", event.ToolName)
-	}
-
-	now := time.Now().UTC()
-	ev := &models.AgentEvent{
-		EventID:      uuid.New().String(),
-		AgentID:      resolveEventAgentID(event),
-		EventType:    models.EventError,
-		Timestamp:    now,
-		ToolName:     event.ToolName,
-		InputSummary: fmt.Sprintf("PostToolUseFailure: %s", errorSummary),
-		SessionID:    sessionID,
-		FeatureID:    featureID,
-		Status:       "failed",
-		Source:       "hook",
-		CreatedAt:    now,
-		UpdatedAt:    now,
-	}
-
-	if err := db.InsertEvent(database, ev); err != nil {
-		projectDir := ResolveProjectDir(event.CWD, event.SessionID)
-		debugLog(projectDir, "[error] handler=posttooluse-failure session=%s: insert event: %v", sessionID[:minSessionLen(sessionID)], err)
-	}
-
+	projectDir := ResolveProjectDir(event.CWD, event.SessionID)
+	appendToolCompletion(projectDir, sessionID, toolCallEventID(sessionID, event.ToolUseID), "failed")
 	return &HookResult{Continue: true}, nil
 }
