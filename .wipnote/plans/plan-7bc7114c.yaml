@@ -7,12 +7,36 @@ meta:
     status: draft
     priority: medium
     schema_version: v4
-    version: 2
+    version: 3
 design:
     problem: ""
     goals: []
     constraints: []
     approved: false
     comment: ""
-slices: []
+slices:
+    - id: slic-cf011c90
+      num: 1
+      title: Fix the correctness bugs the audit found
+      what: 'Reproduce then fix: claims reconcile/archive treat live sessions as dead (bug-01f182e5); YOLO hasRecentTestRun and hasRecentDiffReview have no canonical source and may block every YOLO commit; claim release and claim heartbeat report success but write to a discarded projection; link.go maps spec- while core uses spc-; wipnote relevant matches a wipnote-item: trailer that 0 of 1322 commits use; launchYoloDev skips enforceLaunchPlan; session HTML writers without the file lock can lose updates; the compliance lock is not exclusive.'
+      why: These give wrong answers today. Deleting code around them first would hide the evidence.
+      files:
+        - cmd/wipnote/claim_ledger.go
+        - cmd/wipnote/claim.go
+        - core/hooks/yolo_guard.go
+        - cmd/wipnote/link.go
+        - cmd/wipnote/relevant.go
+        - cmd/wipnote/yolo.go
+        - core/hooks/session_html.go
+        - cmd/wipnote/compliance_auto.go
+      deps: []
+      done_when:
+        - Each bug is reproduced by a failing test before its fix
+        - Each claim the audit made but could not reproduce is recorded as not a bug
+        - go build/vet/test pass
+      effort: M
+      risk: Med
+      tests: ""
+      approved: false
+      comment: ""
 questions: []
