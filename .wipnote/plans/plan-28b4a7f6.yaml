@@ -7,7 +7,7 @@ meta:
     status: finalized
     priority: medium
     schema_version: v4
-    version: 38
+    version: 39
 design:
     problem: |
         ## Problem
@@ -42,7 +42,7 @@ design:
         - **S. Codex sandbox:** read-only by default, --write for workspace-write, danger-full-access only for an opted-in host (slice 12).
         - **C. Container:** ccx means container Claude. --container runs the worker in the project's own devcontainer; no second-account gate (slice 21).
         - **L. Layout (corrected 2026-10-25):** exactly as orch: ONE workers tab per caller in the caller's workspace; each new worker is a split inside it, cap 6 (slices 6, 10, 19).
-        - **D. orch defects become two-sided regression tests:** D1 and D3 (slice 11), D2 and D6 (slices 10, 11), D4 (slice 5), D5 (slice 10).
+        - **D. orch defects become two-sided regression tests:** D1 and D3 (slice 11), D2, D6 and D8 (slices 10, 11; D8 styled read checked in slice 2), D4 (slice 5), D5 (slice 10).
         - **E. Resume:** spawn NAME2 --resume NAME relaunches the recorded session (slice 20).
 
         ## The store
@@ -254,6 +254,7 @@ slices:
         - docs/design/delegate-phase-b.md records each check as pass, fail or not run, with the command and the observed output
         - Each result is stored as an arch card (wipnote arch add) with repo-relative paths only
         - The script exits non-zero and names the check when herdr, claude, codex or wipnote is missing
+        - 'D8 check: herdr pane read --format ansi keeps the dim or grey SGR codes of the Claude Code and Codex next-prompt suggestions, and shows a typed draft in the default colour'
       effort: S
       risk: Low
       tests: |
@@ -924,6 +925,7 @@ slices:
         - '2nd worker splits the workers tab; refused: a 7th worker, a live name, no work item'
         - spawn scrubs inherited WIPNOTE_* env (worker is its own root)
         - One readiness predicate serves wait, probe and send (D2)
+        - A grey next-prompt suggestion on the input line reads as empty and never as working; a person's draft still blocks send and stop (D8)
         - stop records pids first, closes at a bare shell only, never signals, prints pane_closed and survivors (D5)
         - After /clear both sessions are listed; binding adds under 2 ms
       effort: L
@@ -931,6 +933,7 @@ slices:
       tests: |
         Integration (fake herdr): TestSpawn_ReturnsStartingWithin3s, TestSpawn_TypesBootLineNotBrief, TestSpawn_WaitsForShellBeforeTyping, TestSpawn_FirstWorkerCreatesWorkersTab, TestSpawn_SecondWorkerSplitsWorkersTab, TestSpawn_RefusesSeventhWorker, TestStop_LastWorkerClosesWorkersTab, TestStop_OtherWorkersKeepTab, TestSpawn_RefusesLiveName, TestSpawn_RefusesWithoutWorkItem, TestSpawn_BindsSessionOnStart, TestSpawn_ClearAddsSecondSession, TestList_RenamesAndPinsLateAgent, TestTree_CallerRunWorkerSubagents.
         Readiness (D2, two-sided): TestReady_IdleWithResultIsDone, TestReady_IdleNoResult, TestReady_IdleBackgroundShellRunning, TestReady_ProbeSendWaitAgree.
+        Suggestion (D8, two-sided): TestReady_GreySuggestionIsEmptyInput, TestReady_GreySuggestionNeverWorking, TestSend_DefaultColourDraftBlocks, TestStop_DefaultColourDraftBlocks, TestReady_StyledReadFailsCountsAsDraftForSendOnly, TestReady_MixedDimAndPlainIsDraft.
         Stop (D5, finding 2): TestStop_RecordsPidsBeforeInput, TestStop_ClosesOnlyAtBareShell, TestStop_UnknownProcessInfoIsNotShell, TestStop_ReportsPaneClosedAndSurvivors, TestStop_PaneClosedFalseNamesWhy, TestStop_NeverSignals.
         Env: TestSpawn_ScrubsInheritedSessionEnv, TestSpawn_WorkerShardIsOwnRoot, TestShellQuote_RoundTrip.
         Hook: TestDelegateBind_FastAndFailOpen.
@@ -969,6 +972,7 @@ slices:
         **Brief by file (finding 3):** the brief goes by FILE PATH in the run folder, never inline in the pane run string: macOS rejects input lines over its limit. delegate boot reads the file and passes it to the launcher as argv. The result preamble (decision R) is appended to the brief.
         **Rename and pin:** after the harness appears, the next wait or list renames the herdr agent to NAME (herdr agent rename) and pins pane id plus terminal_id, as orch adopts a late agent (orch src/orch/service/launch.py:adopt_late_agent). The 3 s return holds only because launch, bind and rename run in the pane or later, not in spawn.
         **Layout (decision L, ANSWERED 2026-10-25, corrected):** exactly as orch: one workers tab per caller in the caller's workspace; each new worker is a split inside it, cap 6 (orch src/orch/service/placement.py:place; split order in slice 6). The caller's own tab is never split. stop closes the worker's pane; the workers tab closes when its last worker stops.
+        **Suggestion (D8, orch defect, Mac evidence 2026-10-25):** the harness draws a grey next-prompt suggestion on the input line after a turn ends. orch's wait asked herdr's agent status, never applied its own grey check (orch src/orch/service/readiness.py:typed_input is used only by the send and stop guards), and hung at working until a stop. Here the predicate never derives working from input-line text: working comes from hooks and the turn's own files. For the send and stop guards, a line whose every visible character is dim or grey (orch src/orch/service/inputstyle.py:is_suggestion) reads as empty; plain or mixed text, or a failed styled read, reads as a draft and blocks. The styled read is unverified on herdr until slice 2 checks it.
         **Readiness (D2):** one predicate in internal/delegate/session/ready.go serves wait, probe and send. States: starting, ready, working, question, idle_no_result (idle, no result written), idle_shell (idle, a background shell still running) and gone. orch's probe and send disagreed, and its state stuck at working on an idle pane.
         **Env scrub:** spawn removes inherited WIPNOTE_* session env from the pane command (WIPNOTE_PARENT_SESSION, WIPNOTE_PARENT_EVENT, WIPNOTE_NESTING_DEPTH). session_start.go reads them (lines 227-233 and isSubagent at 908-911); left in place they mark the worker as a subagent of the caller.
         **Names:** [a-z0-9-], 1 to 32 characters, unique among live runs in the project.
@@ -1031,6 +1035,7 @@ slices:
       done_when:
         - A result file ends wait despite silent hooks or stuck working; Stop without one is idle_no_result (D1)
         - A stop ends wait at once (stopped, D1b)
+        - A grey suggestion on the input line never holds wait at working; Stop or a result file ends it (D8)
         - wait needs --timeout (exit 124); fresh workers are ready once the predicate holds (D6)
         - 'result: newest result file, any state or watermark (D3); wait writes no run state (F-1)'
         - An outbox q-file is a pending ask in status, questions, wait (asks), run view (D7)
@@ -1043,6 +1048,7 @@ slices:
         Ready (D6, two-sided): TestWait_FreshWorkerReadyAfter1sReturnsUnder2s, TestWait_NeverReadyTimesOut124.
         Result (D3, two-sided): TestResult_NewestFileWhileWorking, TestResult_NewestFileAfterWatermark, TestResult_NoFileSaysNoneNotNull.
         States (D2): TestWait_IdleBackgroundShellIsNotDone, TestSendAndWait_SharePredicate.
+        Suggestion (D8, two-sided): TestWait_GreySuggestionAfterStopReturnsReady, TestWait_GreySuggestionWithResultFileReturnsResult, TestWait_GreySuggestionNoStopNoResultTimesOut.
         Do not copy (F-1): TestWait_NeverWritesRunState, TestWait_AfterStopStaysStopped, TestWait_LateLedgerWriteAfterStopLeavesRowClosed, TestWait_LedgerWriteOnOpenRowApplies.
         Other: TestSend_StoreFirstThenHint, TestSend_AppendsResultPreamble, TestQuestions_PendingThenCleared.
         Hook: TestDelegateEvents_StopRecordsTurnEndOnly, TestDelegateEvents_AskCaptured, TestDelegateEvents_FailOpen.
@@ -1082,6 +1088,7 @@ slices:
         **Settle (D1b, orch defect, Mac evidence 2026-10-25):** a result file in the outbox ends wait even while the state is stuck at working. When the session is stopped, wait ends at once with stopped, well before its timeout; it never blocks on a stopped session.
         **Question file (D7, orch defect, Mac evidence 2026-10-25):** a question the worker writes as outbox/<task-id>-q<n>.json counts as pending for status, questions, wait (returns asks) and the run view, even when hooks report nothing. Once answered, it is no longer listed. Slice 17's answer uses its id.
         **Result lookup (D3):** result returns the newest result file, whatever the state or watermark, and names the task it answers. orch returned null while a result file existed.
+        **Suggestion (D8):** a grey suggestion left on the input line after the turn ends never keeps wait at working. Evidence: a result file was written and wait returned only about 28 minutes later, right after a stop.
         **Ready (D6):** wait NAME on a worker with no task returns ready as soon as slice 10's readiness predicate holds.
         **Do not copy (F-1):** orch's wait patched session state outside the session lock and could undo a stop. wait writes no run state. Its two ledger writes (adding a /clear session, the worker-loss close) run under the ledger lock and recheck that the row is still open. ANSWERED 2026-10-25 (owner): keep this design; a stop always wins. Two-sided test: stop, then a late wait write, leaves the row closed; the same write on an open row applies.
         **Payload:** wait prints {run, turn, outcome: ready|done|asks|idle_no_result|idle_shell|timeout|gone|stopped}. result prints the newest result file's body and its task id. questions prints JSON rows.
@@ -2029,7 +2036,7 @@ critique:
                   text: 'L (resolved 2026-10-25): the owner chose exactly orch''s layout: one workers tab per caller in the caller''s workspace, each new worker a split inside it, cap 6. Slices 6, 10 and 19 fixed; tests cover the 2nd worker splitting the tab and the 7th refused.'
                 - badge: Fixed
                   kind: success
-                  text: D1 to D6 are two-sided regression tests in slices 5, 10 and 11.
+                  text: D1 to D8 are two-sided regression tests in slices 5, 10, 11 and 17.
                 - badge: Fixed
                   kind: warn
                   text: 'E: new slice 20 resumes a stopped worker. It also depends on slice 21 so that a container run resumes in its container; the owner listed only slices 10 and 4.'
@@ -2121,7 +2128,7 @@ critique:
           mitigation: Resume refuses with that reason (slice 20).
         - risk: wait trusts hook state alone, so it hangs on a stuck working state or a stopped session, and misses questions the worker writes as files (orch defect, Mac evidence 2026-10-25).
           severity: High
-          mitigation: Outbox result and q-files count even when hooks are silent; a stopped session ends wait at once. Two-sided tests in slices 11 (D1b, D7) and 17 (D7).
+          mitigation: Outbox result and q-files count even when hooks are silent; a stopped session ends wait at once; a grey input-line suggestion never reads as working. Two-sided tests in slices 10 (D8), 11 (D1b, D7, D8) and 17 (D7).
     synthesis: 'All danger items are fixed in this revision. Blockers left: spike spk-87139e0e decides whether delegate run keeps a headless path (slice 8); bug-01f182e5 must be fixed before the worker claim gate (slice 16); slice 1 needs the owner''s orch source; slice 2 must run on the owner''s Mac. The reviewer should look first at slices 10 and 16 (claims), slice 17 (typing answers into panes) and slice 19 (the orchestra merge). Round 3 (2026-10-25): owner decisions R, S, C, L, D and E and the orch inventory findings are applied. New slices: 20 (resume) and 21 (devcontainer workers). The owner then resolved the open points: layout is exactly orch''s (one workers tab per caller, splits, cap 6); wait may write the ledger only under the lock on an open row (F-1); the ccx deny reason shows the --container form (slice 9 exception).'
 feedback:
     entries:

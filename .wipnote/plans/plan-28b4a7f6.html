@@ -681,7 +681,7 @@ body.right-rail-collapsed .sidebar-reopen{display:flex}
   <p style="color:var(--text-dim)">Make orch&#39;s delegation a native, Go-built wipnote feature (wipnote delegate: spawn, send, wait, result, stop, questions, tree, run) with a file mailbox, herdr panes for interactive sessions and one-shot runs on ONE path that absorbs mods/codex-herdr-pane. orch (Python, owner&#39;s machine) is the reference. Replaces the mod-vs-orch split in docs/design/orch-integration.md.</p>
   <div class="meta">
     <span class="badge badge-approved">Done</span>
-    <span style="font-size:.75rem;color:var(--text-muted)">v38 · 21 slices · Created 2026-10-25</span>
+    <span style="font-size:.75rem;color:var(--text-muted)">v39 · 21 slices · Created 2026-10-25</span>
   </div>
 </header>
 <button id="themeToggle" style="position:fixed;top:16px;right:16px;z-index:100;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:6px 12px;color:var(--text);font-family:var(--mono);font-size:0.75rem;cursor:pointer;">
@@ -1412,7 +1412,7 @@ Today a delegation leaves only hook events. No canonical record links it to a wo
 - **S. Codex sandbox:** read-only by default, --write for workspace-write, danger-full-access only for an opted-in host (slice 12).
 - **C. Container:** ccx means container Claude. --container runs the worker in the project&#39;s own devcontainer; no second-account gate (slice 21).
 - **L. Layout (corrected 2026-10-25):** exactly as orch: ONE workers tab per caller in the caller&#39;s workspace; each new worker is a split inside it, cap 6 (slices 6, 10, 19).
-- **D. orch defects become two-sided regression tests:** D1 and D3 (slice 11), D2 and D6 (slices 10, 11), D4 (slice 5), D5 (slice 10).
+- **D. orch defects become two-sided regression tests:** D1 and D3 (slice 11), D2, D6 and D8 (slices 10, 11; D8 styled read checked in slice 2), D4 (slice 5), D5 (slice 10).
 - **E. Resume:** spawn NAME2 --resume NAME relaunches the recorded session (slice 20).
 
 ## The store
@@ -1744,7 +1744,7 @@ Narrower prior art: question inboxes (speardragon/herdr-ask-inbox, no license; L
       
       <div class="slice-field">
         <div class="slice-field-label">Done when</div>
-        <ul class="slice-done-list"><li>docs/design/delegate-phase-b.md records each check as pass, fail or not run, with the command and the observed output</li><li>Each result is stored as an arch card (wipnote arch add) with repo-relative paths only</li><li>The script exits non-zero and names the check when herdr, claude, codex or wipnote is missing</li></ul>
+        <ul class="slice-done-list"><li>docs/design/delegate-phase-b.md records each check as pass, fail or not run, with the command and the observed output</li><li>Each result is stored as an arch card (wipnote arch add) with repo-relative paths only</li><li>The script exits non-zero and names the check when herdr, claude, codex or wipnote is missing</li><li>D8 check: herdr pane read --format ansi keeps the dim or grey SGR codes of the Claude Code and Codex next-prompt suggestions, and shows a typed draft in the default colour</li></ul>
       </div>
       
     
@@ -3220,7 +3220,7 @@ Narrower prior art: question inboxes (speardragon/herdr-ask-inbox, no license; L
       
       <div class="slice-field">
         <div class="slice-field-label">Done when</div>
-        <ul class="slice-done-list slice-done-list--grid"><li>spawn returns within 3 s as starting, typing a boot line, never the brief</li><li>2nd worker splits the workers tab; refused: a 7th worker, a live name, no work item</li><li>spawn scrubs inherited WIPNOTE_* env (worker is its own root)</li><li>One readiness predicate serves wait, probe and send (D2)</li><li>stop records pids first, closes at a bare shell only, never signals, prints pane_closed and survivors (D5)</li><li>After /clear both sessions are listed; binding adds under 2 ms</li></ul>
+        <ul class="slice-done-list slice-done-list--grid"><li>spawn returns within 3 s as starting, typing a boot line, never the brief</li><li>2nd worker splits the workers tab; refused: a 7th worker, a live name, no work item</li><li>spawn scrubs inherited WIPNOTE_* env (worker is its own root)</li><li>One readiness predicate serves wait, probe and send (D2)</li><li>A grey next-prompt suggestion on the input line reads as empty and never as working; a person&#39;s draft still blocks send and stop (D8)</li><li>stop records pids first, closes at a bare shell only, never signals, prints pane_closed and survivors (D5)</li><li>After /clear both sessions are listed; binding adds under 2 ms</li></ul>
       </div>
       
     
@@ -3239,6 +3239,7 @@ Narrower prior art: question inboxes (speardragon/herdr-ask-inbox, no license; L
 <strong>Brief by file (finding 3):</strong> the brief goes by FILE PATH in the run folder, never inline in the pane run string: macOS rejects input lines over its limit. delegate boot reads the file and passes it to the launcher as argv. The result preamble (decision R) is appended to the brief.
 <strong>Rename and pin:</strong> after the harness appears, the next wait or list renames the herdr agent to NAME (herdr agent rename) and pins pane id plus terminal_id, as orch adopts a late agent (orch src/orch/service/launch.py:adopt_late_agent). The 3 s return holds only because launch, bind and rename run in the pane or later, not in spawn.
 <strong>Layout (decision L, ANSWERED 2026-10-25, corrected):</strong> exactly as orch: one workers tab per caller in the caller&#39;s workspace; each new worker is a split inside it, cap 6 (orch src/orch/service/placement.py:place; split order in slice 6). The caller&#39;s own tab is never split. stop closes the worker&#39;s pane; the workers tab closes when its last worker stops.
+<strong>Suggestion (D8, orch defect, Mac evidence 2026-10-25):</strong> the harness draws a grey next-prompt suggestion on the input line after a turn ends. orch&#39;s wait asked herdr&#39;s agent status, never applied its own grey check (orch src/orch/service/readiness.py:typed_input is used only by the send and stop guards), and hung at working until a stop. Here the predicate never derives working from input-line text: working comes from hooks and the turn&#39;s own files. For the send and stop guards, a line whose every visible character is dim or grey (orch src/orch/service/inputstyle.py:is_suggestion) reads as empty; plain or mixed text, or a failed styled read, reads as a draft and blocks. The styled read is unverified on herdr until slice 2 checks it.
 <strong>Readiness (D2):</strong> one predicate in internal/delegate/session/ready.go serves wait, probe and send. States: starting, ready, working, question, idle_no_result (idle, no result written), idle_shell (idle, a background shell still running) and gone. orch&#39;s probe and send disagreed, and its state stuck at working on an idle pane.
 <strong>Env scrub:</strong> spawn removes inherited WIPNOTE_* session env from the pane command (WIPNOTE_PARENT_SESSION, WIPNOTE_PARENT_EVENT, WIPNOTE_NESTING_DEPTH). session_start.go reads them (lines 227-233 and isSubagent at 908-911); left in place they mark the worker as a subagent of the caller.
 <strong>Names:</strong> [a-z0-9-], 1 to 32 characters, unique among live runs in the project.
@@ -3297,8 +3298,8 @@ Narrower prior art: question inboxes (speardragon/herdr-ask-inbox, no license; L
         <div class="test-strategy">
           
           <div class="test-group" data-kind="other">
-            <span class="test-chip">OTHER &middot; 4</span>
-            <ul><li>Integration (fake herdr): TestSpawn_ReturnsStartingWithin3s, TestSpawn_TypesBootLineNotBrief, TestSpawn_WaitsForShellBeforeTyping, TestSpawn_FirstWorkerCreatesWorkersTab, TestSpawn_SecondWorkerSplitsWorkersTab, TestSpawn_RefusesSeventhWorker, TestStop_LastWorkerClosesWorkersTab, TestStop_OtherWorkersKeepTab, TestSpawn_RefusesLiveName, TestSpawn_RefusesWithoutWorkItem, TestSpawn_BindsSessionOnStart, TestSpawn_ClearAddsSecondSession, TestList_RenamesAndPinsLateAgent, TestTree_CallerRunWorkerSubagents.</li><li>Readiness (D2, two-sided): TestReady_IdleWithResultIsDone, TestReady_IdleNoResult, TestReady_IdleBackgroundShellRunning, TestReady_ProbeSendWaitAgree.</li><li>Stop (D5, finding 2): TestStop_RecordsPidsBeforeInput, TestStop_ClosesOnlyAtBareShell, TestStop_UnknownProcessInfoIsNotShell, TestStop_ReportsPaneClosedAndSurvivors, TestStop_PaneClosedFalseNamesWhy, TestStop_NeverSignals.</li><li>Live (HERDR_ENV=1 only): TestSpawn_LiveClaudeWorker.</li></ul>
+            <span class="test-chip">OTHER &middot; 5</span>
+            <ul><li>Integration (fake herdr): TestSpawn_ReturnsStartingWithin3s, TestSpawn_TypesBootLineNotBrief, TestSpawn_WaitsForShellBeforeTyping, TestSpawn_FirstWorkerCreatesWorkersTab, TestSpawn_SecondWorkerSplitsWorkersTab, TestSpawn_RefusesSeventhWorker, TestStop_LastWorkerClosesWorkersTab, TestStop_OtherWorkersKeepTab, TestSpawn_RefusesLiveName, TestSpawn_RefusesWithoutWorkItem, TestSpawn_BindsSessionOnStart, TestSpawn_ClearAddsSecondSession, TestList_RenamesAndPinsLateAgent, TestTree_CallerRunWorkerSubagents.</li><li>Readiness (D2, two-sided): TestReady_IdleWithResultIsDone, TestReady_IdleNoResult, TestReady_IdleBackgroundShellRunning, TestReady_ProbeSendWaitAgree.</li><li>Suggestion (D8, two-sided): TestReady_GreySuggestionIsEmptyInput, TestReady_GreySuggestionNeverWorking, TestSend_DefaultColourDraftBlocks, TestStop_DefaultColourDraftBlocks, TestReady_StyledReadFailsCountsAsDraftForSendOnly, TestReady_MixedDimAndPlainIsDraft.</li><li>Stop (D5, finding 2): TestStop_RecordsPidsBeforeInput, TestStop_ClosesOnlyAtBareShell, TestStop_UnknownProcessInfoIsNotShell, TestStop_ReportsPaneClosedAndSurvivors, TestStop_PaneClosedFalseNamesWhy, TestStop_NeverSignals.</li><li>Live (HERDR_ENV=1 only): TestSpawn_LiveClaudeWorker.</li></ul>
           </div>
           
           <div class="test-group" data-kind="env">
@@ -3430,7 +3431,7 @@ Narrower prior art: question inboxes (speardragon/herdr-ask-inbox, no license; L
       
       <div class="slice-field">
         <div class="slice-field-label">Done when</div>
-        <ul class="slice-done-list slice-done-list--grid"><li>A result file ends wait despite silent hooks or stuck working; Stop without one is idle_no_result (D1)</li><li>A stop ends wait at once (stopped, D1b)</li><li>wait needs --timeout (exit 124); fresh workers are ready once the predicate holds (D6)</li><li>result: newest result file, any state or watermark (D3); wait writes no run state (F-1)</li><li>An outbox q-file is a pending ask in status, questions, wait (asks), run view (D7)</li><li>inbox shows lost-hint messages; questions drops answered asks</li></ul>
+        <ul class="slice-done-list slice-done-list--grid"><li>A result file ends wait despite silent hooks or stuck working; Stop without one is idle_no_result (D1)</li><li>A stop ends wait at once (stopped, D1b)</li><li>A grey suggestion on the input line never holds wait at working; Stop or a result file ends it (D8)</li><li>wait needs --timeout (exit 124); fresh workers are ready once the predicate holds (D6)</li><li>result: newest result file, any state or watermark (D3); wait writes no run state (F-1)</li><li>An outbox q-file is a pending ask in status, questions, wait (asks), run view (D7)</li><li>inbox shows lost-hint messages; questions drops answered asks</li></ul>
       </div>
       
     
@@ -3450,6 +3451,7 @@ Narrower prior art: question inboxes (speardragon/herdr-ask-inbox, no license; L
 <strong>Settle (D1b, orch defect, Mac evidence 2026-10-25):</strong> a result file in the outbox ends wait even while the state is stuck at working. When the session is stopped, wait ends at once with stopped, well before its timeout; it never blocks on a stopped session.
 <strong>Question file (D7, orch defect, Mac evidence 2026-10-25):</strong> a question the worker writes as outbox/-q.json counts as pending for status, questions, wait (returns asks) and the run view, even when hooks report nothing. Once answered, it is no longer listed. Slice 17&#39;s answer uses its id.
 <strong>Result lookup (D3):</strong> result returns the newest result file, whatever the state or watermark, and names the task it answers. orch returned null while a result file existed.
+<strong>Suggestion (D8):</strong> a grey suggestion left on the input line after the turn ends never keeps wait at working. Evidence: a result file was written and wait returned only about 28 minutes later, right after a stop.
 <strong>Ready (D6):</strong> wait NAME on a worker with no task returns ready as soon as slice 10&#39;s readiness predicate holds.
 <strong>Do not copy (F-1):</strong> orch&#39;s wait patched session state outside the session lock and could undo a stop. wait writes no run state. Its two ledger writes (adding a /clear session, the worker-loss close) run under the ledger lock and recheck that the row is still open. ANSWERED 2026-10-25 (owner): keep this design; a stop always wins. Two-sided test: stop, then a late wait write, leaves the row closed; the same write on an open row applies.
 <strong>Payload:</strong> wait prints {run, turn, outcome: ready|done|asks|idle_no_result|idle_shell|timeout|gone|stopped}. result prints the newest result file&#39;s body and its task id. questions prints JSON rows.
@@ -3496,8 +3498,8 @@ Narrower prior art: question inboxes (speardragon/herdr-ask-inbox, no license; L
         <div class="test-strategy">
           
           <div class="test-group" data-kind="other">
-            <span class="test-chip">OTHER &middot; 7</span>
-            <ul><li>Settle (D1, D1b, two-sided): TestWait_ResultFileEndsWaitWithoutHooks, TestWait_StopWithoutResultIsIdleNoResult, TestWait_CurrentTurnOnly, TestWait_RequiresTimeout, TestWait_WorkingStateResultFileReturnsResult, TestWait_StoppedWhileWaitingReturnsStoppedBeforeTimeout, TestWait_NoResultNoStopTimesOut.</li><li>Q-file (D7, two-sided): TestQuestions_OutboxQFileListedWithSilentHooks, TestWait_OutboxQFileReturnsAsks, TestQuestions_AnsweredQFileNotListed, TestQuestions_NoQFileNotListed.</li><li>Ready (D6, two-sided): TestWait_FreshWorkerReadyAfter1sReturnsUnder2s, TestWait_NeverReadyTimesOut124.</li><li>Result (D3, two-sided): TestResult_NewestFileWhileWorking, TestResult_NewestFileAfterWatermark, TestResult_NoFileSaysNoneNotNull.</li><li>States (D2): TestWait_IdleBackgroundShellIsNotDone, TestSendAndWait_SharePredicate.</li><li>Do not copy (F-1): TestWait_NeverWritesRunState, TestWait_AfterStopStaysStopped, TestWait_LateLedgerWriteAfterStopLeavesRowClosed, TestWait_LedgerWriteOnOpenRowApplies.</li><li>TestSend_StoreFirstThenHint, TestSend_AppendsResultPreamble, TestQuestions_PendingThenCleared.</li></ul>
+            <span class="test-chip">OTHER &middot; 8</span>
+            <ul><li>Settle (D1, D1b, two-sided): TestWait_ResultFileEndsWaitWithoutHooks, TestWait_StopWithoutResultIsIdleNoResult, TestWait_CurrentTurnOnly, TestWait_RequiresTimeout, TestWait_WorkingStateResultFileReturnsResult, TestWait_StoppedWhileWaitingReturnsStoppedBeforeTimeout, TestWait_NoResultNoStopTimesOut.</li><li>Q-file (D7, two-sided): TestQuestions_OutboxQFileListedWithSilentHooks, TestWait_OutboxQFileReturnsAsks, TestQuestions_AnsweredQFileNotListed, TestQuestions_NoQFileNotListed.</li><li>Ready (D6, two-sided): TestWait_FreshWorkerReadyAfter1sReturnsUnder2s, TestWait_NeverReadyTimesOut124.</li><li>Result (D3, two-sided): TestResult_NewestFileWhileWorking, TestResult_NewestFileAfterWatermark, TestResult_NoFileSaysNoneNotNull.</li><li>States (D2): TestWait_IdleBackgroundShellIsNotDone, TestSendAndWait_SharePredicate.</li><li>Suggestion (D8, two-sided): TestWait_GreySuggestionAfterStopReturnsReady, TestWait_GreySuggestionWithResultFileReturnsResult, TestWait_GreySuggestionNoStopNoResultTimesOut.</li><li>Do not copy (F-1): TestWait_NeverWritesRunState, TestWait_AfterStopStaysStopped, TestWait_LateLedgerWriteAfterStopLeavesRowClosed, TestWait_LedgerWriteOnOpenRowApplies.</li><li>TestSend_StoreFirstThenHint, TestSend_AppendsResultPreamble, TestQuestions_PendingThenCleared.</li></ul>
           </div>
           
           <div class="test-group" data-kind="hook">
