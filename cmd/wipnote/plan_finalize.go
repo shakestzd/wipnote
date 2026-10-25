@@ -96,10 +96,10 @@ After finalize the plan is locked — use 'plan reopen' to unlock.
 
 This is the hierarchy-only flow: the plan must already have a track, and
 every slice in the YAML is promoted unconditionally. It does NOT consult
-SQLite plan_feedback for per-slice approvals.
+per-slice approvals.
 
-For the dashboard-review workflow that creates a track and only promotes
-slices with explicit approve actions, use 'plan finalize-yaml' instead.
+For the review workflow that creates a track and only promotes approved
+slices, use 'plan finalize-yaml' instead.
 
 Requires:
   - plan has a track (set meta.track_id in YAML)

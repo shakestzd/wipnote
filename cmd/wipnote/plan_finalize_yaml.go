@@ -28,13 +28,13 @@ func planFinalizeYAMLCmd() *cobra.Command {
 	var regenerate bool
 	cmd := &cobra.Command{
 		Use:   "finalize-yaml <plan-id>",
-		Short: "Create track and features from approved YAML plan slices (dashboard flow)",
-		Long: `Read a YAML plan + SQLite plan_feedback approvals, create a track and
-features for approved slices, wire dependency edges. Updates YAML status to
-finalized.
+		Short: "Create track and features from approved YAML plan slices (review flow)",
+		Long: `Read a YAML plan and the slice approvals recorded in it, create a track
+and features for approved slices, wire dependency edges. Updates YAML status
+to finalized.
 
-This is the dashboard-review workflow: only slices with explicit approve
-actions in plan_feedback get promoted, and the track is created from scratch
+This is the review workflow: only slices approved (for example with
+'plan approve-slice') get promoted, and the track is created from scratch
 when one does not yet exist.
 
 For the simpler hierarchy-only flow that requires an existing track and
@@ -508,7 +508,7 @@ func printFinalizeYAMLSummary(
 	}
 
 	// Use the shared helper so the command format is defined in one place
-	// (api_plans.go:planNextCommands) and matches what the dashboard surfaces.
+	// (planNextCommands).
 	nextCmd, yoloCmd := planNextCommands(plan.Meta.ID, trackID)
 	fmt.Println("\nNext:")
 	fmt.Printf("  %s   (in Claude — dispatches tasks)\n", nextCmd)

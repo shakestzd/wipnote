@@ -79,7 +79,7 @@ Usage in hooks.json:
 		//     runSessionExitReconcile, db.UpdateSessionHandoff — all direct writes on
 		//     the passed handle that are not (yet) daemon-routable.
 		hookSubcmdReadOnly("user-prompt", "Handle UserPromptSubmit event", emptyResult, hooks.UserPrompt),
-		hookSubcmd("after-agent", "Handle Gemini AfterAgent event", continueResult, hooks.AfterAgent),
+		hookSubcmd("after-agent", "Handle Antigravity AfterAgent event", continueResult, hooks.AfterAgent),
 		hookSubcmd("after-model", "Handle Gemini AfterModel event", continueResult, hooks.AfterModel),
 		hookSubcmdReadOnly("pretooluse", "Handle PreToolUse event", allowResult, hooks.PreToolUse),
 		// posttooluse: on Claude it only responds (quality warning, auto-complete
@@ -232,8 +232,8 @@ func hookSubcmd(
 				// fallback HookResult so Claude Code sees SUCCESS. The
 				// canonical NDJSON written elsewhere in the handler tree
 				// (collector, session-start Rosetta) is the authoritative
-				// copy; the dashboard indexer rebuilds the derived index
-				// on its next cycle.
+				// copy; the next projection rebuild derives the index
+				// from it.
 				database, reason := hooks.OpenHookDB(use, event.SessionID, dbPath)
 				if database == nil {
 					_ = reason

@@ -318,9 +318,9 @@ const telemetryCatchUpBudget = 2 * time.Minute
 //     .wipnote/migrations/ai-title-backfill.done, durably guaranteeing a pass
 //     that accomplished nothing never runs again.
 //   - RECAPS REINDEX — OFF. It refilled the recaps table so the dashboard's
-//     Recap tab was not blank after a restart (bug-95d2d493). The dashboard now
-//     populates recaps in its own projection on every start, so the loop
-//     refilled a table nobody queries.
+//     Recap tab was not blank after a restart (bug-95d2d493). The dashboard is
+//     gone and `recap list` builds its own projection, so the loop refilled a
+//     table nobody queries.
 //
 // The polling NDJSON→SQLite indexer does not run here. SessionEnd finalizes
 // each session's telemetry once its collector exits, and the retention sweep

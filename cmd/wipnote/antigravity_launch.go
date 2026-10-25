@@ -194,7 +194,7 @@ func execAntigravity(opts antigravityLaunchOpts) error {
 
 	if otelSessionID != "" && effectiveProjDir != "" {
 		// A resumed launch (--continue or --resume <id>) must join the existing
-		// session family, not start a new one, so dashboard/observability
+		// session family, not start a new one, so observability
 		// grouping matches the other resume-capable launchers. agy's --resume ID
 		// is a conversation ID, not a wipnote session ID, so pass "" as the
 		// resumed session ID and rely on resolveSessionFamilyID's most-recent

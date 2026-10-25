@@ -355,14 +355,13 @@ func renderCriticSectionHTML(c planyaml.CriticSection) htmltemplate.HTML {
 
 // ---- plan render ------------------------------------------------------------
 
-// planRenderCmd regenerates plan HTML from YAML using the dashboard template.
+// planRenderCmd regenerates plan HTML from YAML using the plan template.
 func planRenderCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "render <plan-id>",
 		Short: "Regenerate plan HTML from YAML source",
-		Long: `Render plan HTML from YAML using the same template that powers the
-dashboard plan detail view. The YAML file is the source of truth; the
-HTML file is the rendered artifact.
+		Long: `Render plan HTML from YAML using the plan template. The YAML file is the
+source of truth; the HTML file is the rendered artifact.
 
 Example:
   wipnote plan render plan-abc12345`,
@@ -443,7 +442,7 @@ func renderPlanToFileQuiet(wipnoteDir, planID string) error {
 }
 
 // renderPlanToFile regenerates plan HTML from the YAML source using the
-// dashboard template. Called by the CLI command and tests.
+// plan template. Called by the CLI command and tests.
 func renderPlanToFile(wipnoteDir, planID string) error {
 	yamlPath := filepath.Join(wipnoteDir, "plans", planID+".yaml")
 	if _, err := os.Stat(yamlPath); err != nil {

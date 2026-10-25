@@ -22,7 +22,7 @@ import (
 // needsTriageDupTag is the marker carried on the auto-attached relates_to
 // edge's Title so the duplicate flag survives in canonical HTML (edge link
 // text round-trips through the parser) and is queryable from graph_edges.
-// `wipnote check` and the dashboard detect clusters by this prefix.
+// `wipnote check` detects clusters by this prefix.
 const needsTriageDupTag = "needs-triage-dup"
 
 type wiCreateOpts struct {

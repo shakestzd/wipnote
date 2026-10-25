@@ -1,4 +1,4 @@
-// Package launchtui provides a shared dashboard-palette theme for the wipnote
+// Package launchtui provides a shared palette theme for the wipnote
 // TUI launcher. It encodes the palette tokens from plugin/static/has-styles.css
 // as lipgloss styles and exposes a huh theme constructor so all launcher
 // chooser screens share a single source of truth.
@@ -23,7 +23,7 @@ const (
 	ColStatusGreen = "#22c55e" // --status-done
 	ColStatusRed   = "#ef4444" // --status-blocked
 
-	// Light-terminal variants (feat-e97607b3). The dashboard palette is tuned
+	// Light-terminal variants (feat-e97607b3). The palette is tuned
 	// for dark terminals; lime #CDFF00 and a #333338 border are unreadable on a
 	// light background. lipgloss.AdaptiveColor picks the right one at runtime
 	// from the detected terminal background so banners read on light AND dark.
@@ -49,7 +49,7 @@ func borderAdaptive() lipgloss.AdaptiveColor {
 	return lipgloss.AdaptiveColor{Light: ColBorderLight, Dark: ColBorder}
 }
 
-// Styles carries the named lipgloss styles that make up the dashboard palette.
+// Styles carries the named lipgloss styles that make up the wipnote palette.
 // Use NewStyles() to obtain a populated instance.
 type Styles struct {
 	// Structural / background
@@ -73,7 +73,7 @@ type Styles struct {
 	StatusRed   lipgloss.Style
 }
 
-// NewStyles constructs a Styles instance populated with the dashboard palette.
+// NewStyles constructs a Styles instance populated with the wipnote palette.
 func NewStyles() Styles {
 	return Styles{
 		BgPrimary:   lipgloss.NewStyle().Background(lipgloss.Color(ColBgPrimary)),
@@ -107,7 +107,7 @@ func NewStyles() Styles {
 	}
 }
 
-// WipnoteTheme returns a *huh.Theme styled with the dashboard palette.
+// WipnoteTheme returns a *huh.Theme styled with the wipnote palette.
 // The returned theme is a copy of huh's base theme with palette overrides
 // applied, so unset fields retain sensible defaults.
 func WipnoteTheme() *huh.Theme {

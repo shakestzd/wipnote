@@ -334,13 +334,14 @@ var validSliceExecutionStatuses = []string{
 	"not_started", "promoted", "in_progress", "done", "blocked", "superseded",
 }
 
-// planApproveSliceCmd sets approval_status=approved for a slice in plan_feedback.
+// planApproveSliceCmd sets approval_status=approved for a slice in the plan YAML.
 func planApproveSliceCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "approve-slice <plan-id> <slice-num>",
 		Short: "Set approval_status=approved for a plan slice",
-		Long: `Record an approval for a specific plan slice. The approval is stored in
-SQLite plan_feedback with section='slice-<num>' and action='approve'.
+		Long: `Record an approval for a specific plan slice. The approval is written to
+the plan YAML as a feedback entry (section='slice-<num>', action='approve')
+and mirrored onto the slice's approval_status.
 
 Example:
   wipnote plan approve-slice plan-abc12345 3`,
@@ -374,8 +375,10 @@ func planRejectSliceCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "reject-slice <plan-id> <slice-num>",
 		Short: "Set approval_status=rejected for a plan slice",
-		Long: `Record a rejection for a specific plan slice. By default stores action='reject'.
-Use --changes-requested to store action='changes_requested' instead.
+		Long: `Record a rejection for a specific plan slice in the plan YAML. By default
+it writes a feedback entry with action='reject' and sets the slice's
+approval_status to rejected. Use --changes-requested to write
+action='changes_requested' and approval_status=changes_requested instead.
 
 Example:
   wipnote plan reject-slice plan-abc12345 3

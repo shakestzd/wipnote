@@ -136,7 +136,7 @@ func reportSessionDivergence(b *bytes.Buffer, repoRoot string) {
 		}
 		fmt.Fprintf(b, "  %d sessions registered; %d legacy (no family-id)\n", len(familyMap), legacy)
 		if legacy > 0 {
-			fmt.Fprintln(b, "  legacy sessions remain VISIBLE in the dashboard — no action required")
+			fmt.Fprintln(b, "  legacy sessions stay readable — no action required")
 		}
 	}
 	fmt.Fprintln(b)
