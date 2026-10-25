@@ -40,16 +40,13 @@ func TestManifest_CompactHooksTargetCodex(t *testing.T) {
 		if ev.Name != "PreCompact" && ev.Name != "PostCompact" {
 			continue
 		}
-		seen[ev.Name] = true
-		hasCodex := false
-		for _, tg := range ev.Targets {
-			hasCodex = hasCodex || tg == "codex"
-		}
-		if !hasCodex {
-			t.Errorf("%s targets %v, want codex included", ev.Name, ev.Targets)
+		// Claude keeps an async entry; Codex gets its own sync entry because
+		// non-claude targets drop the async field.
+		if ev.AppliesTo("codex") {
+			seen[ev.Name] = true
 		}
 	}
 	if !seen["PreCompact"] || !seen["PostCompact"] {
-		t.Errorf("compact events missing from manifest: %v", seen)
+		t.Errorf("PreCompact/PostCompact need an entry targeting codex: %v", seen)
 	}
 }
