@@ -72,29 +72,6 @@ func ParseFile(path string) (*ParseResult, error) {
 	return result, nil
 }
 
-// ParseFileFrom reads only the bytes starting at offset, for incremental sync.
-func ParseFileFrom(path string, offset int64) (*ParseResult, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, fmt.Errorf("open %s: %w", path, err)
-	}
-	defer f.Close()
-
-	if _, err := f.Seek(offset, io.SeekStart); err != nil {
-		return nil, fmt.Errorf("seek to %d: %w", offset, err)
-	}
-
-	info, _ := f.Stat()
-	result, err := parse(f)
-	if err != nil {
-		return nil, err
-	}
-	if info != nil {
-		result.FileSize = info.Size()
-	}
-	return result, nil
-}
-
 func parse(r io.Reader) (*ParseResult, error) {
 	scanner := bufio.NewScanner(r)
 	scanner.Buffer(make([]byte, 0, 1024*1024), 10*1024*1024) // 10 MB max line

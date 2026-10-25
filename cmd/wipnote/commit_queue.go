@@ -88,7 +88,7 @@ func appendCommitIntent(repoRoot string, relPaths []string, message, workItemID,
 
 // outboxCommitter is the production Committer: it stages and commits the
 // intent's artifact paths under the repo-scoped advisory lock via
-// runGitMutation, so the serialized flush never collides with any other wipnote
+// runGitMutationBatch, so the serialized flush never collides with any other wipnote
 // git writer. It is idempotent — an already-committed artifact yields "nothing
 // to commit", which is treated as success so an interrupted flush re-runs
 // safely.

@@ -1,7 +1,6 @@
 package hooks
 
 import (
-	"database/sql"
 	"regexp"
 	"strings"
 
@@ -199,7 +198,7 @@ func stagedDependencyManifests(staged []string) []string {
 // RESEARCH-WAIVER trailer in the commit message. (The operator-only
 // WIPNOTE_GUARDS_OFF kill switch also applies but is deliberately never named
 // in agent-visible text — GH-#164; see docs/guard-profiles.md.)
-func checkDependencyResearchCommitGuard(event *CloudEvent, database *sql.DB, ctx *toolUseContext) string {
+func checkDependencyResearchCommitGuard(event *CloudEvent, ctx *toolUseContext) string {
 	if !isShellTool(event.ToolName) {
 		return ""
 	}
@@ -212,8 +211,8 @@ func checkDependencyResearchCommitGuard(event *CloudEvent, database *sql.DB, ctx
 	if dir == "" {
 		return ""
 	}
-	repoRoot := resolveGitRepoRoot(dir)
-	if repoRoot == "" {
+	repoRoot, err := paths.GitTopLevel(dir)
+	if err != nil || repoRoot == "" {
 		return ""
 	}
 	staged, err := stagedFiles(repoRoot)
@@ -231,7 +230,7 @@ func checkDependencyResearchCommitGuard(event *CloudEvent, database *sql.DB, ctx
 	if ctx == nil {
 		return ""
 	}
-	if hasRecentWebResearch(database, ctx.SessionID, ctx.AgentID, ctx.ProjectDir) {
+	if hasRecentWebResearch(ctx.SessionID, ctx.AgentID, ctx.ProjectDir) {
 		return ""
 	}
 	return "Commit blocked: staged dependency-manifest change(s) (" +
@@ -244,9 +243,9 @@ func checkDependencyResearchCommitGuard(event *CloudEvent, database *sql.DB, ctx
 
 // resilientYoloContext is true when the session is yolo by its own signal, or is
 // a subagent whose parent-session chain is yolo (bug-0ed4e469).
-func resilientYoloContext(database *sql.DB, ctx *toolUseContext) bool {
+func resilientYoloContext(ctx *toolUseContext) bool {
 	return ctx.IsYoloMode ||
-		(ctx.IsSubagent && anyParentSessionYolo(database, ctx.HgDir, ctx.SessionID))
+		(ctx.IsSubagent && anyParentSessionYolo(ctx.HgDir, ctx.SessionID))
 }
 
 // researchGuardVerdict decides block vs advise for a research-guard warning.

@@ -40,8 +40,6 @@ func openCanonicalClaim(t *testing.T, wipnoteDir, rootSession, holderSession, ag
 func TestPreToolUse_SubagentWriteInheritsCanonicalClaim(t *testing.T) {
 	clearNestedEnv(t)
 	t.Setenv("WIPNOTE_NO_AUTO_WRITER", "1")
-	stubRouteSQLAsync(t, true)
-	featureIDCache = featureIDCacheEntry{}
 
 	const sessionID = "019ee378-abcd-7000-8000-00000000c1a1"
 	projectDir := t.TempDir()
@@ -51,12 +49,6 @@ func TestPreToolUse_SubagentWriteInheritsCanonicalClaim(t *testing.T) {
 	}
 	t.Setenv("CLAUDE_PROJECT_DIR", "")
 	t.Setenv("WIPNOTE_PROJECT_DIR", projectDir)
-
-	database, reason := OpenHookDBReadOnly("pretooluse", sessionID, ":memory:")
-	if database == nil {
-		t.Fatalf("OpenHookDBReadOnly returned nil handle (reason=%s)", reason)
-	}
-	t.Cleanup(func() { _ = database.Close() })
 
 	writeEvent := &CloudEvent{
 		SessionID:      sessionID,
@@ -72,7 +64,7 @@ func TestPreToolUse_SubagentWriteInheritsCanonicalClaim(t *testing.T) {
 
 	// No claim anywhere: the subagent work-item guard must still BLOCK. A
 	// missing shard is an authoritative "no claim", not "cannot verify".
-	result, err := PreToolUse(writeEvent, database)
+	result, err := PreToolUse(writeEvent)
 	if err != nil {
 		t.Fatalf("PreToolUse (no claim): %v", err)
 	}
@@ -83,7 +75,7 @@ func TestPreToolUse_SubagentWriteInheritsCanonicalClaim(t *testing.T) {
 	// The orchestrator ran `wipnote feature start` — recorded ONLY canonically.
 	openCanonicalClaim(t, wipnoteDir, sessionID, sessionID, db.AgentRootSentinel, "feat-orchestrated")
 
-	result, err = PreToolUse(writeEvent, database)
+	result, err = PreToolUse(writeEvent)
 	if err != nil {
 		t.Fatalf("PreToolUse (canonical claim): %v", err)
 	}
@@ -99,8 +91,6 @@ func TestPreToolUse_SubagentWriteInheritsCanonicalClaim(t *testing.T) {
 func TestPreToolUse_CodexSubagentInheritsFamilyRootClaim(t *testing.T) {
 	clearNestedEnv(t)
 	t.Setenv("WIPNOTE_NO_AUTO_WRITER", "1")
-	stubRouteSQLAsync(t, true)
-	featureIDCache = featureIDCacheEntry{}
 
 	const rootSession = "019ee378-abcd-7000-8000-00000000c1b0"
 	const childSession = "019ee378-abcd-7000-8000-00000000c1b1"
@@ -116,12 +106,6 @@ func TestPreToolUse_CodexSubagentInheritsFamilyRootClaim(t *testing.T) {
 	}
 	openCanonicalClaim(t, wipnoteDir, rootSession, rootSession, "codex", "bug-family-root")
 
-	database, _ := OpenHookDBReadOnly("pretooluse", childSession, ":memory:")
-	if database == nil {
-		t.Fatal("OpenHookDBReadOnly returned nil handle")
-	}
-	t.Cleanup(func() { _ = database.Close() })
-
 	result, err := PreToolUse(&CloudEvent{
 		SessionID:      childSession,
 		AgentID:        "codex-subagent-7",
@@ -129,7 +113,7 @@ func TestPreToolUse_CodexSubagentInheritsFamilyRootClaim(t *testing.T) {
 		PermissionMode: "bypassPermissions",
 		ToolName:       "Edit",
 		ToolInput:      map[string]any{"file_path": filepath.Join(projectDir, "main.go"), "old_string": "a", "new_string": "b"},
-	}, database)
+	})
 	if err != nil {
 		t.Fatalf("PreToolUse: %v", err)
 	}

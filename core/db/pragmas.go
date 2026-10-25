@@ -8,7 +8,6 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
-	"maps"
 	"strings"
 )
 
@@ -23,19 +22,6 @@ var Pragmas = map[string]string{
 	"cache_size":   "-64000",
 	"temp_store":   "MEMORY",
 	"mmap_size":    "0",
-}
-
-// BuildPragmas returns a pragma map with journal_mode resolved for the given
-// database path. On filesystems where WAL-mode mmap is unsafe (virtiofs, FUSE,
-// 9p, overlayfs, NFS, SMB), journal_mode is set to DELETE to avoid SIGBUS
-// crashes. On safelisted native filesystems it stays WAL.
-func BuildPragmas(dbPath string) map[string]string {
-	p := make(map[string]string, len(Pragmas))
-	maps.Copy(p, Pragmas)
-	if isUnsafeForMmap(dbPath) {
-		p["journal_mode"] = "DELETE"
-	}
-	return p
 }
 
 // ApplyPragmas sets all performance PRAGMAs on a database connection.
@@ -153,45 +139,4 @@ func ApplyPragmas(db *sql.DB, pragmas map[string]string) error {
 		}
 	}
 	return nil
-}
-
-// RunOptimize executes PRAGMA optimize for planner/statistics upkeep.
-func RunOptimize(db *sql.DB) error {
-	_, err := db.Exec("PRAGMA optimize")
-	return err
-}
-
-// CheckIntegrity runs integrity_check and foreign_key_check.
-// Returns true if the database passes both checks.
-func CheckIntegrity(db *sql.DB) (bool, error) {
-	row := db.QueryRow("PRAGMA integrity_check")
-	var result string
-	if err := row.Scan(&result); err != nil {
-		return false, fmt.Errorf("integrity_check: %w", err)
-	}
-	if result != "ok" {
-		return false, nil
-	}
-
-	rows, err := db.Query("PRAGMA foreign_key_check")
-	if err != nil {
-		return false, fmt.Errorf("foreign_key_check: %w", err)
-	}
-	defer rows.Close()
-
-	if rows.Next() {
-		// Any row means a violation exists.
-		return false, nil
-	}
-	return true, rows.Err()
-}
-
-// QueryJournalMode returns the effective journal_mode of the database
-// connection. Returns "unknown" if the query fails.
-func QueryJournalMode(db *sql.DB) string {
-	var mode string
-	if err := db.QueryRow("PRAGMA journal_mode").Scan(&mode); err != nil {
-		return "unknown"
-	}
-	return mode
 }

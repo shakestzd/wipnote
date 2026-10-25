@@ -40,7 +40,7 @@ const pruneMetricSignalsSQL = `
 //
 // So this asserts the plan, not merely the index's existence.
 func TestPruneMetricSignalsUsesCoveringIndex(t *testing.T) {
-	database, err := Open(filepath.Join(t.TempDir(), "otel.db"))
+	database, err := openTestDB(filepath.Join(t.TempDir(), "otel.db"))
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}

@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/db/dbtest"
 )
 
 func TestSessionExecContextMigration_AddsColumnsNoDataLoss(t *testing.T) {
@@ -31,7 +32,7 @@ func TestSessionExecContextMigration_AddsColumnsNoDataLoss(t *testing.T) {
 	}
 	raw.Close()
 
-	database, err := db.Open(path)
+	database, err := dbtest.Open(path)
 	if err != nil {
 		t.Fatalf("Open legacy DB: %v", err)
 	}
@@ -86,13 +87,13 @@ func TestSessionExecContextMigration_AddsColumnsNoDataLoss(t *testing.T) {
 func TestSessionExecContextMigration_Idempotent(t *testing.T) {
 	path := fileDBPath(t, "exec_context_idempotent.db")
 
-	db1, err := db.Open(path)
+	db1, err := dbtest.Open(path)
 	if err != nil {
 		t.Fatalf("first Open: %v", err)
 	}
 	db1.Close()
 
-	db2, err := db.Open(path)
+	db2, err := dbtest.Open(path)
 	if err != nil {
 		t.Fatalf("second Open: %v", err)
 	}

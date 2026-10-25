@@ -46,8 +46,8 @@ const readRetryAttempts = 3
 // readRetryBackoff is the pause between retry attempts.
 const readRetryBackoff = 50 * time.Millisecond
 
-// ReadClient issues read requests to a daemon socket. Like WriterClient it is
-// a thin stateless dialer: one connection per request, no pooling.
+// ReadClient issues read requests to a daemon socket. It is a thin stateless
+// dialer: one connection per request, no pooling.
 type ReadClient struct {
 	socketPath  string
 	dialTimeout time.Duration

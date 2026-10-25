@@ -1,25 +1,15 @@
 // Package interview defines the harness-agnostic question model for the
 // plan-mode interview, decoupled from any single renderer.
 //
-// The same model drives every renderer: the wipnote web-form command (the
-// portable canonical path that works on Claude Code, Codex CLI, and Gemini
-// CLI alike), and — as an optional inline fast-path — a harness's native
-// ask-user tool (Claude `AskUserQuestion`, Gemini `ask_user`). The answer
-// types below (choice / text / yesno) are the intersection of those native
-// tools so a single definition maps cleanly onto each.
-//
-// Renderers collect answers into a flat map and call Compose, which routes
-// them into the Scope/Decisions/Context buckets that back a slice's
-// decisions_notes — the same three-section Markdown the cross-harness
-// `wipnote plan elicit-decisions` command persists.
+// The model drives `wipnote plan interview-questions`, which hands the staged
+// questions to a harness's native ask-user tool (Claude `AskUserQuestion`,
+// Gemini `ask_user`). The answer types below (choice / text / yesno) are the
+// intersection of those native tools so a single definition maps cleanly onto
+// each. Answers persist as the three-section Scope/Decisions/Context Markdown
+// that `wipnote plan elicit-decisions` writes into a slice's decisions_notes.
 package interview
 
-import (
-	"encoding/json"
-	"errors"
-	"fmt"
-	"strings"
-)
+import "strings"
 
 // AnswerType is the input kind for a question. The set is the common
 // denominator of Claude `AskUserQuestion` and Gemini `ask_user`.
@@ -82,70 +72,6 @@ type Stage struct {
 	Blocks    []BlockPrompt `json:"blocks,omitempty"`
 }
 
-// Definition is an agent-supplied interview: the staged question set the
-// orchestrating skill composes for one round and hands to a renderer (the web
-// form, or a native ask-user tool). Decoupling the model from ForComplexity is
-// what lets the skill ask plan/slice-specific and adaptive follow-up questions
-// rather than a fixed template.
-type Definition struct {
-	Stages []Stage `json:"stages"`
-}
-
-// ParseDefinition decodes an agent-supplied question set (JSON) and validates
-// it enough to render and to compose answers back: every stage needs a key,
-// a known bucket, and at least one question; every question needs a stable id,
-// a prompt, and (for choice) at least one option. Question IDs must be unique
-// so posted answers map unambiguously.
-func ParseDefinition(data []byte) ([]Stage, error) {
-	var def Definition
-	if err := json.Unmarshal(data, &def); err != nil {
-		return nil, fmt.Errorf("parse interview definition: %w", err)
-	}
-	if len(def.Stages) == 0 {
-		return nil, errors.New("interview definition has no stages")
-	}
-	seen := map[string]bool{}
-	for si := range def.Stages {
-		st := &def.Stages[si]
-		if strings.TrimSpace(st.Key) == "" {
-			return nil, fmt.Errorf("stage %d: missing key", si)
-		}
-		switch st.Bucket {
-		case BucketScope, BucketDecisions, BucketContext:
-		default:
-			return nil, fmt.Errorf("stage %q: invalid bucket %q (want Scope|Decisions|Context)", st.Key, st.Bucket)
-		}
-		if len(st.Questions) == 0 {
-			return nil, fmt.Errorf("stage %q: no questions", st.Key)
-		}
-		for qi := range st.Questions {
-			q := &st.Questions[qi]
-			if strings.TrimSpace(q.ID) == "" {
-				return nil, fmt.Errorf("stage %q question %d: missing id", st.Key, qi)
-			}
-			if seen[q.ID] {
-				return nil, fmt.Errorf("duplicate question id %q", q.ID)
-			}
-			seen[q.ID] = true
-			if strings.TrimSpace(q.Prompt) == "" {
-				return nil, fmt.Errorf("question %q: missing prompt", q.ID)
-			}
-			if q.Type == "" {
-				q.Type = Choice
-			}
-			switch q.Type {
-			case Choice, Text, YesNo:
-			default:
-				return nil, fmt.Errorf("question %q: invalid type %q (want choice|text|yesno)", q.ID, q.Type)
-			}
-			if q.Type == Choice && len(q.Options) == 0 {
-				return nil, fmt.Errorf("question %q: choice type needs at least one option", q.ID)
-			}
-		}
-	}
-	return def.Stages, nil
-}
-
 // effectiveComplexity mirrors the validator: unset/unknown -> standard.
 func effectiveComplexity(c string) string {
 	switch strings.ToLower(strings.TrimSpace(c)) {
@@ -158,11 +84,11 @@ func effectiveComplexity(c string) string {
 	}
 }
 
-// ForComplexity returns the staged interview for a slice complexity:
+// forComplexity returns the staged interview for a slice complexity:
 // trivial -> 0 stages, standard -> 3, complex -> 4. The stages collectively
 // cover all three decisions buckets so a completed interview yields a full
 // Scope/Decisions/Context note.
-func ForComplexity(complexity string) []Stage {
+func forComplexity(complexity string) []Stage {
 	switch effectiveComplexity(complexity) {
 	case "trivial":
 		return nil
@@ -220,49 +146,6 @@ func PlanIntakeStages() []Stage {
 	}
 }
 
-// IntakeResult is the upfront interview's output: plan Design fields plus the
-// assessed complexity ("trivial"|"standard"|"complex", or "" when skipped).
-type IntakeResult struct {
-	Complexity  string
-	Problem     string
-	Goals       []string
-	Constraints []string
-}
-
-// ComposeIntake maps plan-intake answers (keyed by the QIntake* ids) into an
-// IntakeResult for writing to plan Design.
-func ComposeIntake(answers map[string]string) IntakeResult {
-	return IntakeResult{
-		Complexity:  classifyComplexity(answers[QIntakeComplexity]),
-		Problem:     strings.TrimSpace(answers[QIntakeProblem]),
-		Goals:       splitLines(answers[QIntakeGoals]),
-		Constraints: splitLines(answers[QIntakeConstraints]),
-	}
-}
-
-func classifyComplexity(label string) string {
-	switch {
-	case strings.HasPrefix(label, "Trivial"):
-		return "trivial"
-	case strings.HasPrefix(label, "Standard"):
-		return "standard"
-	case strings.HasPrefix(label, "Complex"):
-		return "complex"
-	default:
-		return ""
-	}
-}
-
-func splitLines(s string) []string {
-	var out []string
-	for ln := range strings.SplitSeq(s, "\n") {
-		if t := strings.TrimSpace(ln); t != "" {
-			out = append(out, t)
-		}
-	}
-	return out
-}
-
 // BuildForSlice returns the canonical staged interview for a slice: the
 // complexity template plus, when present, a stage carrying the slice's own
 // unanswered slice-local questions. This is the single source of truth both
@@ -270,7 +153,7 @@ func splitLines(s string) []string {
 // harness's native ask-user tool — so the questions asked are the plan's real
 // open questions, not just a fixed template.
 func BuildForSlice(complexity string, openQuestions []Question) []Stage {
-	stages := ForComplexity(complexity)
+	stages := forComplexity(complexity)
 	if len(openQuestions) > 0 {
 		stages = append(stages, Stage{
 			Key:       "slice-questions",
@@ -393,32 +276,9 @@ func doneWhenStage() Stage {
 	}
 }
 
-// Compose routes a flat answers map into the three decisions_notes buckets.
-// Keys are question IDs (e.g. "scope.0") and per-stage free-text notes keyed
-// "note:<stageKey>". Empty answers produce empty buckets so no empty Markdown
-// headings are written downstream.
-func Compose(stages []Stage, answers map[string]string) (scope, decisions, contextStr string) {
-	buckets := map[Bucket]*strings.Builder{
-		BucketScope:     {},
-		BucketDecisions: {},
-		BucketContext:   {},
-	}
-	addLine := func(b Bucket, line string) {
-		sb := buckets[b]
-		if sb.Len() > 0 {
-			sb.WriteString("\n")
-		}
-		sb.WriteString(line)
-	}
-	for _, st := range stages {
-		for _, q := range st.Questions {
-			if v := strings.TrimSpace(answers[q.ID]); v != "" {
-				addLine(st.Bucket, "- "+q.Header+": "+v)
-			}
-		}
-		if note := strings.TrimSpace(answers["note:"+st.Key]); note != "" {
-			addLine(st.Bucket, note)
-		}
-	}
-	return buckets[BucketScope].String(), buckets[BucketDecisions].String(), buckets[BucketContext].String()
+// Definition is the staged question set emitted by
+// `wipnote plan interview-questions`: the document a harness renders through
+// its native ask-user tool.
+type Definition struct {
+	Stages []Stage `json:"stages"`
 }

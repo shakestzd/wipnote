@@ -12,6 +12,7 @@ import (
 	"time"
 
 	dbpkg "github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/db/dbtest"
 	"github.com/shakestzd/wipnote/core/models"
 )
 
@@ -36,7 +37,7 @@ func TestLooksLikeFilePath(t *testing.T) {
 }
 
 func TestTraceFile(t *testing.T) {
-	database, err := dbpkg.Open(":memory:")
+	database, err := dbtest.Open(":memory:")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -90,7 +91,7 @@ func TestTraceFile(t *testing.T) {
 }
 
 func TestTraceFile_NoResults(t *testing.T) {
-	database, err := dbpkg.Open(":memory:")
+	database, err := dbtest.Open(":memory:")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -108,7 +109,7 @@ func TestTraceFile_NoResults(t *testing.T) {
 // seedTraceFeatureDB creates a minimal in-memory DB with a feature, commit, and file.
 func seedTraceFeatureDB(t *testing.T) (*sql.DB, string, string, string) {
 	t.Helper()
-	database, err := dbpkg.Open(":memory:")
+	database, err := dbtest.Open(":memory:")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -240,7 +241,7 @@ func TestTraceFeatureIncludesFileOnlySession(t *testing.T) {
 // where tracks were emitted from a map iteration and thus varied per run,
 // making the JSON payload unstable for automation and snapshots.
 func TestTraceFileJSONStableTrackOrder(t *testing.T) {
-	database, err := dbpkg.Open(":memory:")
+	database, err := dbtest.Open(":memory:")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -335,7 +336,7 @@ func TestTraceCommitJSON(t *testing.T) {
 }
 
 func TestTraceFile_MultipleFeatures(t *testing.T) {
-	database, err := dbpkg.Open(":memory:")
+	database, err := dbtest.Open(":memory:")
 	if err != nil {
 		t.Fatal(err)
 	}

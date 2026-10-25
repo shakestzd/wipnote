@@ -3,6 +3,8 @@ package hooks
 import (
 	"os/exec"
 	"strings"
+
+	"github.com/shakestzd/wipnote/core/paths"
 )
 
 // generatorInputDirs are the source-of-truth directories whose contents, when
@@ -49,8 +51,8 @@ func checkPortDriftCommitGuard(event *CloudEvent) string {
 	if dir == "" {
 		return ""
 	}
-	repoRoot := resolveGitRepoRoot(dir)
-	if repoRoot == "" {
+	repoRoot, err := paths.GitTopLevel(dir)
+	if err != nil || repoRoot == "" {
 		return ""
 	}
 
@@ -113,14 +115,4 @@ func hasGeneratorInput(staged []string) bool {
 		}
 	}
 	return false
-}
-
-// resolveGitRepoRoot returns the top-level git repository root for dir, or ""
-// when dir is not inside a git repository.
-func resolveGitRepoRoot(dir string) string {
-	out, err := exec.Command("git", "-C", dir, "rev-parse", "--show-toplevel").Output()
-	if err != nil {
-		return ""
-	}
-	return strings.TrimSpace(string(out))
 }

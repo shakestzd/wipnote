@@ -78,14 +78,6 @@ func RepairGitdirIfStale(worktreeDir, mainRepoRoot string) (bool, error) {
 	return true, nil
 }
 
-// EnsureForFeature ensures a git worktree exists for the given feature and returns its path.
-// When the feature belongs to a parent track, the track worktree is created/reused instead.
-// Progress is written to w; pass io.Discard to suppress output.
-func EnsureForFeature(featureID, repoRoot string, w io.Writer) (string, error) {
-	path, _, err := EnsureForFeatureStatus(featureID, repoRoot, w)
-	return path, err
-}
-
 // EnsureForFeatureStatus is EnsureForFeature plus a "created vs reused" signal.
 // created is true only when this call created a NEW worktree on disk; it is
 // false when an existing worktree was reused. Callers that mutate the new
@@ -163,13 +155,6 @@ func EnsureForAdhocStatus(slug, repoRoot string, w io.Writer) (string, bool, err
 	return resolved, true, nil
 }
 
-// EnsureForTrack ensures a git worktree exists for the given track and returns its path.
-// Progress is written to w; pass io.Discard to suppress output.
-func EnsureForTrack(trackID, repoRoot string, w io.Writer) (string, error) {
-	path, _, err := EnsureForTrackStatus(trackID, repoRoot, w)
-	return path, err
-}
-
 // EnsureForTrackStatus is EnsureForTrack plus a "created vs reused" signal.
 // See EnsureForFeatureStatus for the contract on the created return value.
 func EnsureForTrackStatus(trackID, repoRoot string, w io.Writer) (string, bool, error) {
@@ -209,18 +194,6 @@ func TrackWorktreeDirName(trackTitle, trackID string) string {
 		}
 	}
 	return trackID
-}
-
-// EnsureForTrackTitled ensures a git worktree exists for the given track, using a
-// human-readable directory name "<title-slug>-<trackID>" when trackTitle is provided.
-// Only new worktrees use the titled path; if an existing worktree for the track branch
-// is found (at the legacy bare-ID path or any titled path) it is reused unchanged to
-// avoid orphaning running sessions and to prevent git errors when the branch is already
-// checked out.
-// Progress is written to w; pass io.Discard to suppress output.
-func EnsureForTrackTitled(trackTitle, trackID, repoRoot string, w io.Writer) (string, error) {
-	path, _, err := EnsureForTrackTitledStatus(trackTitle, trackID, repoRoot, w)
-	return path, err
 }
 
 // EnsureForTrackTitledStatus is EnsureForTrackTitled plus a "created vs reused"
@@ -394,38 +367,6 @@ func findExistingWorktreeForBranch(repoRoot, branchName string, _ io.Writer) str
 		}
 	}
 	return ""
-}
-
-// EnsureForAgent ensures a git worktree exists for the given agent task and returns its path.
-// The worktree branches from the track branch and is placed at
-// .claude/worktrees/<trackID>/agent-<taskName>.
-// Progress is written to w; pass io.Discard to suppress output.
-func EnsureForAgent(trackID, taskName, repoRoot string, w io.Writer) (string, error) {
-	agentBranch := "agent-" + trackID + "-" + taskName
-	worktreePath := filepath.Join(repoRoot, ".claude", "worktrees", trackID, "agent-"+taskName)
-
-	// Reuse existing worktree.
-	if _, err := os.Stat(worktreePath); err == nil {
-		fmt.Fprintf(w, "  Agent worktree: %s (reusing existing)\n", worktreePath)
-		return worktreePath, nil
-	}
-
-	// Track branch must exist before creating an agent branch from it.
-	if err := exec.Command("git", "-C", repoRoot, "rev-parse", "--verify", trackID).Run(); err != nil {
-		return "", fmt.Errorf("track branch %s not found: create track worktree first with wipnote yolo --track %s", trackID, trackID)
-	}
-
-	if err := os.MkdirAll(filepath.Dir(worktreePath), 0755); err != nil {
-		return "", fmt.Errorf("could not create agent worktrees directory: %w", err)
-	}
-
-	cmd := exec.Command("git", "-C", repoRoot, "worktree", "add", worktreePath, "-b", agentBranch, trackID)
-	if out, err := cmd.CombinedOutput(); err != nil {
-		return "", fmt.Errorf("git worktree add failed: %w\n%s", err, out)
-	}
-
-	fmt.Fprintf(w, "  Agent worktree: %s (branch: %s, from: %s)\n", worktreePath, agentBranch, trackID)
-	return worktreePath, nil
 }
 
 // CreateForClaudeHook creates or reuses the git worktree requested by Claude

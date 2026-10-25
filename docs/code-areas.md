@@ -407,7 +407,7 @@ _depends on local feature_files state that the canonical `.wipnote/*.html` does 
 
 ## Untracked
 
-1533 files with no feature attribution.
+1500 files with no feature attribution.
 
 - .claude-plugin/marketplace.json
 - .claude/README.md
@@ -617,8 +617,6 @@ _depends on local feature_files state that the canonical `.wipnote/*.html` does 
 - cmd/wipnote/arch_bootstrap.go
 - cmd/wipnote/arch_bootstrap_test.go
 - cmd/wipnote/backfill.go
-- cmd/wipnote/backfill_ai_title.go
-- cmd/wipnote/backfill_ai_title_test.go
 - cmd/wipnote/batch.go
 - cmd/wipnote/batch_test.go
 - cmd/wipnote/blame.go
@@ -756,8 +754,6 @@ _depends on local feature_files state that the canonical `.wipnote/*.html` does 
 - cmd/wipnote/plan_create_test.go
 - cmd/wipnote/plan_critique.go
 - cmd/wipnote/plan_critique_test.go
-- cmd/wipnote/plan_css_scope.go
-- cmd/wipnote/plan_css_scope_test.go
 - cmd/wipnote/plan_elicit_decisions_test.go
 - cmd/wipnote/plan_feedback_cmd.go
 - cmd/wipnote/plan_feedback_cmd_test.go
@@ -839,7 +835,6 @@ _depends on local feature_files state that the canonical `.wipnote/*.html` does 
 - cmd/wipnote/serve_terminal_gate_test.go
 - cmd/wipnote/serve_test.go
 - cmd/wipnote/session.go
-- cmd/wipnote/session_adherence_test.go
 - cmd/wipnote/session_family_launcher_test.go
 - cmd/wipnote/session_prune_archive.go
 - cmd/wipnote/session_prune_archive_test.go
@@ -1511,23 +1506,12 @@ _depends on local feature_files state that the canonical `.wipnote/*.html` does 
 - internal/launcher/launcher.go
 - internal/launcher/launcher_test.go
 - internal/launcher/mode/mode_test.go
-- internal/launcher/profile/profile.go
-- internal/launcher/profile/profile_test.go
 - internal/lineage/walk_test.go
 - internal/migrate/normalize.go
 - internal/migrate/normalize_apply.go
 - internal/migrate/normalize_test.go
 - internal/migrate/tracks.go
 - internal/migrate/tracks_test.go
-- internal/notebook/embed.go
-- internal/notebook/files/amendment_parser.py
-- internal/notebook/files/chat_widget.py
-- internal/notebook/files/claude_chat.py
-- internal/notebook/files/critique_renderer.py
-- internal/notebook/files/dagre_widget.py
-- internal/notebook/files/plan_notebook.py
-- internal/notebook/files/plan_persistence.py
-- internal/notebook/files/plan_ui.py
 - internal/recap/collect_test.go
 - internal/recap/shared_walk_test.go
 - internal/registry/registry.go
@@ -1556,10 +1540,7 @@ _depends on local feature_files state that the canonical `.wipnote/*.html` does 
 - observe/otel/eventsink/adapter.go
 - observe/otel/eventsink/adapter_test.go
 - observe/otel/harness_bridge_test.go
-- observe/otel/indexer/checkpoint.go
-- observe/otel/indexer/checkpoint_test.go
 - observe/otel/indexer/indexer.go
-- observe/otel/indexer/indexer_sync_test.go
 - observe/otel/indexer/indexer_test.go
 - observe/otel/indexer/orphans.go
 - observe/otel/indexer/orphans_test.go
@@ -1573,12 +1554,6 @@ _depends on local feature_files state that the canonical `.wipnote/*.html` does 
 - observe/otel/otlp/decode_test.go
 - observe/otel/otlp/hex.go
 - observe/otel/otlp/hex_test.go
-- observe/otel/receiver/http.go
-- observe/otel/receiver/http_test.go
-- observe/otel/receiver/receiver.go
-- observe/otel/receiver/receiver_test.go
-- observe/otel/receiver/signalid.go
-- observe/otel/receiver/signalid_test.go
 - observe/otel/receiver/writer.go
 - observe/otel/receiver/writer_busy_retry_test.go
 - observe/otel/receiver/writer_test.go
@@ -1594,11 +1569,7 @@ _depends on local feature_files state that the canonical `.wipnote/*.html` does 
 - observe/otel/sink/ndjson/overflow.go
 - observe/otel/sink/sink.go
 - observe/otel/sink/sink_test.go
-- observe/otel/sink/sqlite/queued.go
 - observe/otel/sink/sqlite/sqlite.go
-- observe/otel/sink/sqlite/writer.go
-- observe/otel/sink/sqlite/writer_busy_retry_test.go
-- observe/otel/sink/sqlite/writer_test.go
 - observe/pricing/models.json
 - observe/pricing/pricing.go
 - observe/pricing/pricing_test.go
@@ -1610,10 +1581,6 @@ _depends on local feature_files state that the canonical `.wipnote/*.html` does 
 - plan/blocks/templates/file_tree.gohtml
 - plan/go.mod
 - plan/go.sum
-- plan/planamend/parser.go
-- plan/planamend/parser_test.go
-- plan/planchat/backend.go
-- plan/planchat/backend_test.go
 - plan/plantmpl/builder.go
 - plan/plantmpl/builder_test.go
 - plan/plantmpl/critique_zone.go

@@ -132,26 +132,10 @@ func enforceLaunchPlan(p plan.LaunchPlan, w io.Writer) error {
 	return fmt.Errorf("%s", refuseMsg)
 }
 
-// resolveManagedWorktree honors the IsolationManagedWorktree decision in the
-// plan. When the plan selects a managed worktree (devcontainer/CI, or an
-// enforced host with a work item) AND no explicit worktree/track/feature
-// worktree has already been resolved by the caller, it creates the managed
-// worktree for the given work item and returns its path. Otherwise it returns
-// the caller-supplied fallbackDir unchanged.
-//
-// trackID/featureID select the EnsureFor* helper; when only a bare workItemID
-// is known (e.g. a bug- id) it is treated as a feature-style worktree so the
-// enforced-host path still isolates mutations.
-func resolveManagedWorktree(p plan.LaunchPlan, projectRoot, trackID, featureID, workItemID, fallbackDir string, alreadyResolved bool, w io.Writer) (string, error) {
-	path, _, err := resolveManagedWorktreeStatus(p, projectRoot, trackID, featureID, workItemID, fallbackDir, alreadyResolved, w)
-	return path, err
-}
-
-// resolveManagedWorktreeStatus is resolveManagedWorktree plus a "created vs
-// reused" signal. created is true only when a NEW worktree was created on disk
-// this call. Callers that need to gate carryover on new-worktree creation (e.g.
-// launchClaudeDefault) use this variant; callers that only need the path use
-// resolveManagedWorktree.
+// resolveManagedWorktreeStatus returns the managed worktree path plus a
+// "created vs reused" signal. created is true only when a NEW worktree was
+// created on disk this call, so callers (e.g. launchClaudeDefault) can gate
+// carryover on new-worktree creation.
 func resolveManagedWorktreeStatus(p plan.LaunchPlan, projectRoot, trackID, featureID, workItemID, fallbackDir string, alreadyResolved bool, w io.Writer) (string, bool, error) {
 	if p.IsolationMode != plan.IsolationManagedWorktree || alreadyResolved {
 		return fallbackDir, false, nil

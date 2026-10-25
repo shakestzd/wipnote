@@ -8,52 +8,14 @@
 package hooks
 
 import (
-	"database/sql"
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 
 	"github.com/shakestzd/wipnote/core/agent"
-	"github.com/shakestzd/wipnote/core/db/writequeue"
 	"github.com/shakestzd/wipnote/core/paths"
-	"github.com/shakestzd/wipnote/core/storage"
 )
-
-// Runner bundles the optional dependencies needed by in-process hook
-// invocations (e.g. `wipnote claude` / `wipnote yolo` embedding the hook
-// dispatch loop without spawning subprocesses).
-//
-// SLICE-7 CONTRACT (plan-ae0c37b2 / feat-33c26c74):
-//
-//	Subprocess hooks construct a zero-value Runner: Queue is nil, so any
-//	derived-index op falls back to the synchronous DB path. In-process
-//	callers pass a *writequeue.Queue obtained from the slice-6 writer
-//	service so their derived-index updates serialize through the queue
-//	worker (the single SQLite writer per project DB).
-//
-// All fields are optional. A nil Runner is the canonical-only-mode default
-// for legacy callers and tests.
-type Runner struct {
-	// Queue is the slice-6 write queue. Optional. When non-nil, hook
-	// handlers route their derived-index updates through it via
-	// SubmitDerivedOp; when nil, ops run synchronously against the DB
-	// handle (subprocess hooks) or are skipped (canonical-only paths).
-	Queue *writequeue.Queue
-
-	// DB is the writable SQLite handle that handlers use for synchronous
-	// queries/updates when the queue is unavailable. Optional.
-	DB *sql.DB
-}
-
-// NewRunner constructs a Runner with the given optional dependencies.
-// Both arguments are nil-safe and individually optional; the most common
-// in-process configuration is (queue, db) where db is the read pool shared
-// with the dashboard.
-func NewRunner(queue *writequeue.Queue, database *sql.DB) *Runner {
-	return &Runner{Queue: queue, DB: database}
-}
 
 // CloudEvent is the JSON payload Claude Code sends to every hook via stdin.
 // Only the fields wipnote actually uses are decoded; the rest are ignored.
@@ -104,6 +66,10 @@ type CloudEvent struct {
 	// Stop / SubagentStop / StopFailure
 	StopReason           string `json:"stop_reason"`
 	LastAssistantMessage string `json:"last_assistant_message"`
+
+	// SubagentStop: the subagent's own transcript, in a nested subagents/
+	// folder; transcript_path stays the main session's.
+	AgentTranscriptPath string `json:"agent_transcript_path"`
 
 	// StopFailure: error type (rate_limit, overloaded, ...) and optional details.
 	StopError    looseString `json:"error"`
@@ -270,34 +236,9 @@ func ReadRawStdin() ([]byte, error) {
 	return data, nil
 }
 
-// ReadInput reads and parses a CloudEvent from stdin.
-func ReadInput() (*CloudEvent, error) {
-	ev, _, err := ReadInputRaw()
-	return ev, err
-}
-
-// ReadInputRaw reads stdin and returns both the raw bytes and the parsed
-// CloudEvent. Use this when you need to preserve the original payload
-// (e.g., for tracing or forwarding).
-func ReadInputRaw() (*CloudEvent, []byte, error) {
-	data, err := io.ReadAll(os.Stdin)
-	if err != nil {
-		return nil, nil, fmt.Errorf("reading stdin: %w", err)
-	}
-	if len(data) == 0 {
-		return &CloudEvent{}, data, nil
-	}
-	var ev CloudEvent
-	if err := json.Unmarshal(data, &ev); err != nil {
-		return nil, data, fmt.Errorf("parsing CloudEvent: %w", err)
-	}
-	normalizeClaudeToolResult(&ev)
-	return &ev, data, nil
-}
-
 // normalizeClaudeToolResult folds Claude's tool_response into ToolResult, the
-// one field every consumer reads. Both Claude parse paths call it:
-// ReadInputRaw and parseEventForHarness, which the hook CLI uses.
+// one field every consumer reads. The Claude parse path calls it:
+// parseEventForHarness, which the hook CLI uses.
 func normalizeClaudeToolResult(ev *CloudEvent) {
 	if ev.ToolResult == nil && ev.ToolResponse != nil {
 		ev.ToolResult = map[string]any(ev.ToolResponse)
@@ -339,31 +280,6 @@ func withOutputFromStdout(result map[string]any) map[string]any {
 	return result
 }
 
-// WriteResult encodes result as JSON to stdout.
-func WriteResult(result *HookResult) error {
-	return json.NewEncoder(os.Stdout).Encode(result)
-}
-
-// Allow writes an empty JSON object to allow the tool to proceed.
-// NOTE: We intentionally return {} instead of {"decision":"allow"} because
-// Claude Code v2.1.x displays a spurious "hook error" label in the TUI
-// when a PreToolUse hook returns {"decision":"allow"}. An empty object
-// is treated as "no opinion" which defaults to allow without the error label.
-func Allow() error {
-	return Empty()
-}
-
-// Continue writes a continue:true response (used by non-blocking hooks).
-func Continue() error {
-	return WriteResult(&HookResult{Continue: true})
-}
-
-// Empty writes an empty JSON object (hook has no opinion).
-func Empty() error {
-	_, err := fmt.Fprintln(os.Stdout, "{}")
-	return err
-}
-
 // ResolveProjectDir finds the project directory containing .wipnote/.
 // Delegates to paths.ResolveProjectDir with the CloudEvent CWD and a
 // walk-up limit of defaultProjectDirWalkLevels (matching the previous hook behaviour).
@@ -381,21 +297,6 @@ func ResolveProjectDir(cwd, sessionID string) string {
 func IswipnoteProject(projectDir string) bool {
 	_, err := os.Stat(filepath.Join(projectDir, ".wipnote"))
 	return err == nil
-}
-
-// DBPath resolves the canonical SQLite path for this project. Hook fallback
-// writes must target the SAME DB the rest of the process reads, otherwise the
-// daemon-miss path writes rows into an isolated database that the caller never
-// sees (the regression behind the quality-gates failure on PR #181).
-func DBPath(projectDir string) (string, error) {
-	return storage.CanonicalDBPath(projectDir)
-}
-
-// NormaliseSessionID extracts a UUID from a path-style session_id that Claude
-// Code sometimes provides for subagent sessions. Delegates to agent package.
-// Kept here as a package-level alias so existing hooks callers are unchanged.
-func NormaliseSessionID(raw string) string {
-	return agent.NormaliseSessionID(raw)
 }
 
 // EnvSessionID returns the current session ID using a four-step fallback:

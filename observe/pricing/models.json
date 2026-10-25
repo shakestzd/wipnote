@@ -2,10 +2,38 @@
   "_metadata": {
     "source": "https://github.com/BerriAI/litellm/blob/main/model_prices_and_context_window.json",
     "filtered_for": "wipnote OTel cost derivation",
-    "last_updated": "2026-04-20",
-    "notes": "Costs are USD per token (not per MTok). cache_read is ~0.10x input for Anthropic (5-min cache); cache_creation is ~1.25x input (5-min). Values empirically verified against Claude Code emissions where possible."
+    "last_updated": "2026-10-25",
+    "notes": "Costs are USD per token (not per MTok). cache_read is ~0.10x input for Anthropic (5-min cache); cache_creation is ~1.25x input (5-min). Values empirically verified against Claude Code emissions where possible. Claude 5.x entries (2026-10-25) come from platform.claude.com pricing; cache_read is 5% (Opus/Sonnet 5.5), 2.5% (Fable 5.1) or 10% (Haiku 5.5) of input. Haiku 5.5 uses the up-to-100k-token tier; prompts over 100k cost 5x more and are not modelled."
   },
 
+  "claude-opus-5-5": {
+    "provider": "anthropic",
+    "input_cost_per_token": 0.000004,
+    "output_cost_per_token": 0.00002,
+    "cache_read_input_token_cost": 0.0000002,
+    "cache_creation_input_token_cost": 0.000005
+  },
+  "claude-sonnet-5-5": {
+    "provider": "anthropic",
+    "input_cost_per_token": 0.000002,
+    "output_cost_per_token": 0.00001,
+    "cache_read_input_token_cost": 0.0000001,
+    "cache_creation_input_token_cost": 0.0000025
+  },
+  "claude-fable-5-1": {
+    "provider": "anthropic",
+    "input_cost_per_token": 0.00001,
+    "output_cost_per_token": 0.00005,
+    "cache_read_input_token_cost": 0.00000025,
+    "cache_creation_input_token_cost": 0.0000125
+  },
+  "claude-haiku-5-5": {
+    "provider": "anthropic",
+    "input_cost_per_token": 0.0000001,
+    "output_cost_per_token": 0.0000005,
+    "cache_read_input_token_cost": 0.00000001,
+    "cache_creation_input_token_cost": 0.000000125
+  },
   "claude-opus-4-7": {
     "provider": "anthropic",
     "input_cost_per_token": 0.000005,

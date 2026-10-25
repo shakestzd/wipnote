@@ -30,7 +30,7 @@ func TestReadLaunchIsolationMode(t *testing.T) {
 		{"auto", `{"launch_isolation":"auto"}`, LaunchIsolationAuto},
 		{"warn-only-explicit", `{"launch_isolation":"warn-only"}`, LaunchIsolationWarnOnly},
 		{"unknown-value-defaults-warn", `{"launch_isolation":"bogus"}`, LaunchIsolationWarnOnly},
-		{"key-absent-defaults-warn", `{"block_task_completion_on_quality_failure":true}`, LaunchIsolationWarnOnly},
+		{"key-absent-defaults-warn", `{"liveness_staleness_seconds":90}`, LaunchIsolationWarnOnly},
 		{"empty-object-defaults-warn", `{}`, LaunchIsolationWarnOnly},
 		{"malformed-json-defaults-warn", `{not json`, LaunchIsolationWarnOnly},
 	}

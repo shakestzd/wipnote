@@ -48,7 +48,7 @@ func (d *Diagram) Render(w io.Writer) error {
 	if err != nil {
 		return err
 	}
-	return blockTmpl.ExecuteTemplate(w, "diagram", struct {
+	return blockTmpl().ExecuteTemplate(w, "diagram", struct {
 		Title string
 		Dir   string
 		SVG   template.HTML

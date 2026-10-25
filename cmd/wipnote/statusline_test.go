@@ -6,8 +6,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	dbpkg "github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/db/dbtest"
 	"github.com/shakestzd/wipnote/core/htmlparse"
+	"github.com/shakestzd/wipnote/core/slug"
 )
 
 func TestStatuslineCmd(t *testing.T) {
@@ -25,7 +26,7 @@ func TestStatuslineCmd(t *testing.T) {
 
 	// Create and populate test database
 	dbPath := filepath.Join(wipnoteDir, ".db", "wipnote.db")
-	db, err := dbpkg.Open(dbPath)
+	db, err := dbtest.Open(dbPath)
 	if err != nil {
 		t.Fatalf("failed to open database: %v", err)
 	}
@@ -122,7 +123,7 @@ func TestStatuslineCmd(t *testing.T) {
 				t.Errorf("expected ID %q, got %q", tt.expectID, workItemID)
 			}
 
-			truncatedTitle := truncate(title, 25)
+			truncatedTitle := slug.Truncate(title, 25)
 			if truncatedTitle != tt.expectTitle {
 				t.Errorf("expected truncated title %q, got %q", tt.expectTitle, truncatedTitle)
 			}

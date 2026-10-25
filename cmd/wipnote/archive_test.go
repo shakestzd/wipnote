@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	dbpkg "github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/db/dbtest"
 	"github.com/shakestzd/wipnote/core/graph"
 )
 
@@ -139,7 +139,7 @@ func TestArchive_ApplyRoundTrip(t *testing.T) {
 	}
 
 	// Reindex from scratch and assert the archived item is queryable + edge intact.
-	database, err := dbpkg.Open(":memory:")
+	database, err := dbtest.Open(":memory:")
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
@@ -149,7 +149,6 @@ func TestArchive_ApplyRoundTrip(t *testing.T) {
 	reindexTracks(database, wipnoteDir, repoRoot, validIDs, false)
 	reindexFeatureDir(database, wipnoteDir, repoRoot, "features", validIDs, false)
 	reindexWorkitemLedgerNodes(database, wipnoteDir, repoRoot, validIDs, false)
-	purgeStaleEntries(database, validIDs)
 	reindexEdges(database, wipnoteDir, validIDs)
 	reindexWorkitemLedgerEdges(database, wipnoteDir, validIDs, false)
 

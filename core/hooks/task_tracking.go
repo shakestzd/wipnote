@@ -1,7 +1,7 @@
 package hooks
 
 import (
-	"database/sql"
+	"context"
 	"os"
 	"os/exec"
 	"regexp"
@@ -98,7 +98,11 @@ func selfBinary() string {
 // out to a wipnote binary.
 var addTaskStepFn = addTaskStep
 
-func addTaskStep(_ *sql.DB, _ string, featureID, taskID, subject, teammateName string) {
+// taskStepCLITimeout bounds the CLI call a task hook makes, so a wedged CLI
+// can never hold the hook.
+const taskStepCLITimeout = 10 * time.Second
+
+func addTaskStep(featureID, taskID, subject, teammateName string) {
 	if subject == "" {
 		subject = "Task " + taskID
 	}
@@ -106,38 +110,26 @@ func addTaskStep(_ *sql.DB, _ string, featureID, taskID, subject, teammateName s
 	if teammateName != "" {
 		stepDesc = "[" + teammateName + "] " + stepDesc
 	}
-	typeName := inferTypeName(featureID)
-
 	// wipnote <type> add-task-step <id> <task-id> "<description>"
-	cmd := exec.Command(selfBinary(), typeName, "add-task-step", featureID, taskID, stepDesc)
-	_ = cmd.Run()
+	runTaskStepCLI(inferTypeName(featureID), "add-task-step", featureID, taskID, stepDesc)
 }
 
 // completeTaskStep flips data-completed=true on the step with
-// StepID="task-<taskID>" via the CLI. The CLI call (which uses
-// workitem.Collection.CompleteTaskStep) is the canonical update — it mutates
-// HTML and updates SQLite counters in one transaction.
+// StepID="task-<taskID>" via the CLI, which owns the work-item HTML.
 //
 // Indirected through completeTaskStepFn (default: this function) — see
 // addTaskStepFn for why.
 var completeTaskStepFn = completeTaskStep
 
-func completeTaskStep(database *sql.DB, _ string, featureID, taskID, _ string) {
-	typeName := inferTypeName(featureID)
-	cmd := exec.Command(selfBinary(), typeName, "complete-task-step", featureID, taskID)
-	_ = cmd.Run()
+func completeTaskStep(featureID, taskID string) {
+	runTaskStepCLI(inferTypeName(featureID), "complete-task-step", featureID, taskID)
+}
 
-	if database == nil {
-		return
-	}
-	// Bump updated_at so query consumers see freshness (CLI also updates this,
-	// but the hook may run before/after the CLI completes — this is a no-op
-	// when the CLI already touched the row).
-	_, _ = database.Exec(`
-		UPDATE features
-		SET updated_at = ?
-		WHERE id = ?`,
-		time.Now().UTC().Format(time.RFC3339), featureID)
+// runTaskStepCLI runs `wipnote <args...>` bounded by taskStepCLITimeout.
+func runTaskStepCLI(args ...string) {
+	ctx, cancel := context.WithTimeout(context.Background(), taskStepCLITimeout)
+	defer cancel()
+	_ = exec.CommandContext(ctx, selfBinary(), args...).Run()
 }
 
 // inferTypeName returns the CLI type name (feature, bug, spike) from an ID prefix.

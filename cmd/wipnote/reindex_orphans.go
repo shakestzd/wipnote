@@ -381,4 +381,3 @@ func parseStatInt(s string) int {
 	fmt.Sscanf(s, "%d", &n)
 	return n
 }
-

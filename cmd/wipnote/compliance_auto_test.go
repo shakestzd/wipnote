@@ -15,7 +15,10 @@ import (
 	"time"
 
 	dbpkg "github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/db/dbtest"
+	"github.com/shakestzd/wipnote/core/filelock"
 	"github.com/shakestzd/wipnote/core/gateledger"
+	"github.com/shakestzd/wipnote/core/paths"
 	"github.com/shakestzd/wipnote/core/workitem"
 )
 
@@ -111,7 +114,7 @@ func setupTempGitRepoWithMessage(t *testing.T, dir string, files map[string]stri
 // openComplianceTestDB opens an in-memory SQLite DB with schema applied.
 func openComplianceTestDB(t *testing.T) *sql.DB {
 	t.Helper()
-	db, err := dbpkg.Open(":memory:")
+	db, err := dbtest.Open(":memory:")
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
@@ -371,29 +374,6 @@ func TestComputeSpecHash(t *testing.T) {
 	}
 	if len(h1) == 0 {
 		t.Error("spec hash is empty")
-	}
-}
-
-// TestResolveGitRoot_Valid verifies resolveGitRoot works in a git repo.
-func TestResolveGitRoot_Valid(t *testing.T) {
-	tmpDir := t.TempDir()
-	setupTempGitRepo(t, tmpDir, map[string]string{"file.go": "package main"})
-
-	root, err := resolveGitRoot(tmpDir)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if root == "" {
-		t.Error("expected non-empty git root")
-	}
-}
-
-// TestResolveGitRoot_NotGitRepo verifies error for non-repo directory.
-func TestResolveGitRoot_NotGitRepo(t *testing.T) {
-	tmpDir := t.TempDir()
-	_, err := resolveGitRoot(tmpDir)
-	if err == nil {
-		t.Error("expected error for non-git directory")
 	}
 }
 
@@ -657,7 +637,7 @@ func TestComplianceAuto_SuccessPath(t *testing.T) {
 	// Set up a file-based DB so runComplianceAuto can open the same DB via WIPNOTE_DB_PATH.
 	dbPath := filepath.Join(tmpDir, "test-wipnote.db")
 	t.Setenv("WIPNOTE_DB_PATH", dbPath)
-	db, err := dbpkg.Open(dbPath)
+	db, err := dbtest.Open(dbPath)
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
@@ -776,7 +756,7 @@ func TestComplianceAuto_IncludesOutcomeEvidenceInPrompt(t *testing.T) {
 
 	dbPath := filepath.Join(tmpDir, "test-wipnote.db")
 	t.Setenv("WIPNOTE_DB_PATH", dbPath)
-	db, err := dbpkg.Open(dbPath)
+	db, err := dbtest.Open(dbPath)
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
@@ -874,7 +854,7 @@ func TestComplianceAuto_UnmeasuredFeatureGetsNoFabricatedOutcome(t *testing.T) {
 
 	dbPath := filepath.Join(tmpDir, "test-wipnote.db")
 	t.Setenv("WIPNOTE_DB_PATH", dbPath)
-	db, err := dbpkg.Open(dbPath)
+	db, err := dbtest.Open(dbPath)
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
@@ -1247,12 +1227,14 @@ func TestLockfile_Concurrent(t *testing.T) {
 
 	lockPath := filepath.Join(locksDir, "compliance-feat-test.lock")
 
-	// Write a lockfile with the current PID (simulating ourselves holding the lock).
-	if err := os.WriteFile(lockPath, []byte(fmt.Sprintf("%d", os.Getpid())), 0o644); err != nil {
-		t.Fatalf("write lockfile: %v", err)
+	// Hold the lock for real: a PID in a file is not a lock (bug: PID reuse).
+	release, err := acquireComplianceLock(lockPath)
+	if err != nil {
+		t.Fatalf("first acquire: %v", err)
 	}
+	defer release()
 
-	_, err := acquireComplianceLock(lockPath)
+	_, err = acquireComplianceLock(lockPath)
 	if err == nil {
 		t.Error("expected error when lockfile is held by current PID")
 		return
@@ -1530,9 +1512,9 @@ func TestComplianceAuto_NoNamingCommitYieldsNoDiff(t *testing.T) {
 	run("add", "main.go")
 	run("commit", "-m", "update main")
 
-	gitRoot, err := resolveGitRoot(tmpDir)
+	gitRoot, err := paths.GitTopLevel(tmpDir)
 	if err != nil {
-		t.Fatalf("resolveGitRoot: %v", err)
+		t.Fatalf("GitTopLevel: %v", err)
 	}
 
 	diffBlob, truncated, err := buildDiffBlob(context.Background(), nil, featureID, gitRoot, 50000)
@@ -1557,9 +1539,9 @@ func TestComplianceAuto_NamingCommitYieldsDiff(t *testing.T) {
 		map[string]string{"main.go": "package main\nfunc main(){}\n"},
 		"feat: add main ("+featureID+")")
 
-	gitRoot, err := resolveGitRoot(tmpDir)
+	gitRoot, err := paths.GitTopLevel(tmpDir)
 	if err != nil {
-		t.Fatalf("resolveGitRoot: %v", err)
+		t.Fatalf("GitTopLevel: %v", err)
 	}
 
 	diffBlob, _, err := buildDiffBlob(context.Background(), nil, featureID, gitRoot, 50000)
@@ -1589,7 +1571,7 @@ func TestHtmlWriterAtomicity(t *testing.T) {
 		go func(n int) {
 			defer wg.Done()
 			content := strings.Repeat(fmt.Sprintf("line-%d\n", n), 100)
-			if err := writeFileAtomicRaw(targetFile, []byte(content)); err != nil {
+			if err := filelock.WriteFileAtomic(targetFile, []byte(content), 0o644); err != nil {
 				t.Errorf("writeFileAtomicRaw goroutine %d: %v", n, err)
 			}
 		}(i)

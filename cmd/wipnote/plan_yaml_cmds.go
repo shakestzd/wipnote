@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/shakestzd/wipnote/core/filelock"
+	"github.com/shakestzd/wipnote/core/paths"
 	"github.com/shakestzd/wipnote/core/workitem"
 	"github.com/shakestzd/wipnote/plan/planyaml"
 	"github.com/spf13/cobra"
@@ -59,16 +60,16 @@ func commitPlanChange(planPath, message string) error {
 		return fmt.Errorf("autocommit: re-render HTML: %w", err)
 	}
 
-	// Resolve the true repo root so runGitMutation keys the advisory lock on
+	// Resolve the true repo root so runGitMutationBatch keys the advisory lock on
 	// the same path used by work-item artifact commits. Using planDir
 	// (e.g. .wipnote/plans) would produce a different lock-file hash and defeat
 	// the serialization guarantee (roborev finding on feat-c0307d7a).
-	repoRoot, err := repoRootOf(planDir)
+	repoRoot, err := paths.GitTopLevel(planDir)
 	if err != nil {
 		repoRoot = planDir // fallback: best-effort, still serialized within itself
 	}
 
-	// Absolutize the file paths. runGitMutation anchors with `git -C <repoRoot>`,
+	// Absolutize the file paths. runGitMutationBatch anchors with `git -C <repoRoot>`,
 	// so a relative planPath/htmlPath (e.g. from `--project-dir relative/repo`)
 	// would be resolved against repoRoot and fail to stage. Absolute paths are
 	// anchor-independent (roborev finding job 3633).
@@ -84,7 +85,7 @@ func commitPlanChange(planPath, message string) error {
 	// staged-index transaction cannot interleave with another wipnote git
 	// mutation (roborev #3713). Explicit absolute paths — never `git add -A`.
 	// Inside the lock we call runGitWithLockRetry directly (the external-writer
-	// backoff layer), not runGitMutation (which would re-acquire the lock).
+	// backoff layer), not runGitMutationBatch (which would re-acquire the lock).
 	var resultErr error
 	_, lockErr := withGitMutationLock(repoRoot, func() ([]byte, error) {
 		if out, err := runGitWithLockRetry(repoRoot, "add", "--", addPlanPath, htmlAbs); err != nil {
@@ -117,17 +118,6 @@ func commitPlanChange(planPath, message string) error {
 func isGitRepo(dir string) bool {
 	err := exec.Command("git", "-C", dir, "rev-parse", "--git-dir").Run()
 	return err == nil
-}
-
-// repoRootOf returns the git repository root for the given directory.
-// This is the canonical anchor for repo-scoped advisory lock hashing in
-// runGitMutation — always pass the true repo root, never a subdirectory.
-func repoRootOf(dir string) (string, error) {
-	out, err := exec.Command("git", "-C", dir, "rev-parse", "--show-toplevel").Output()
-	if err != nil {
-		return "", err
-	}
-	return strings.TrimSpace(string(out)), nil
 }
 
 // planCreateYAMLCmd creates a YAML plan file with empty design, slices,
@@ -325,217 +315,6 @@ func runPlanAddSliceYAML(wipnoteDir, planID, title, what, why, files, doneWhen, 
 
 	fmt.Printf("Slice %d added\n", slice.Num)
 	return nil
-}
-
-// ---- slice lifecycle commands (slice-4) ----------------------------------------
-
-// validSliceExecutionStatuses is the canonical set of slice execution status values.
-var validSliceExecutionStatuses = []string{
-	"not_started", "promoted", "in_progress", "done", "blocked", "superseded",
-}
-
-// planApproveSliceCmd sets approval_status=approved for a slice in plan_feedback.
-func planApproveSliceCmd() *cobra.Command {
-	return &cobra.Command{
-		Use:   "approve-slice <plan-id> <slice-num>",
-		Short: "Set approval_status=approved for a plan slice",
-		Long: `Record an approval for a specific plan slice. The approval is stored in
-SQLite plan_feedback with section='slice-<num>' and action='approve'.
-
-Example:
-  wipnote plan approve-slice plan-abc12345 3`,
-		Args: cobra.ExactArgs(2),
-		RunE: func(_ *cobra.Command, args []string) error {
-			wipnoteDir, err := findWipnoteDir()
-			if err != nil {
-				return err
-			}
-			return runApproveSlice(wipnoteDir, args[0], args[1])
-		},
-	}
-}
-
-func runApproveSlice(wipnoteDir, planID, sliceNumStr string) error {
-	sliceNum, err := parseSliceNum(sliceNumStr)
-	if err != nil {
-		return err
-	}
-	section := fmt.Sprintf("slice-%d", sliceNum)
-	if err := storePlanFeedback(wipnoteDir, planID, section, "approve", "true", ""); err != nil {
-		return fmt.Errorf("store approve feedback: %w", err)
-	}
-	fmt.Fprintf(os.Stdout, "Slice %d approved for plan %s\n", sliceNum, planID)
-	return nil
-}
-
-// updateSliceYAMLApproval mirrors the plan_feedback approval state into the
-// YAML plan document so the dashboard checkbox and promote/finalize see the
-// same source of truth. Caller treats failures as non-fatal warnings.
-func updateSliceYAMLApproval(wipnoteDir, planID string, sliceNum int, approval string) error {
-	planPath := filepath.Join(wipnoteDir, "plans", planID+".yaml")
-
-	// Hold the lock across the whole load→mutate→save window (defect 4,
-	// feat-fc3cc9e0) — see storePlanFeedbackEntry for the canonical pattern
-	// this mirrors.
-	releaseFile := filelock.Guard(planPath)
-	defer releaseFile()
-	releasePlan := planyaml.LockPlanForWrite(planPath)
-	defer releasePlan()
-
-	plan, err := planyaml.Load(planPath)
-	if err != nil {
-		return fmt.Errorf("load plan: %w", err)
-	}
-	idx, _, err := findPlanSlice(plan, sliceNum)
-	if err != nil {
-		return err
-	}
-	plan.Slices[idx].ApprovalStatus = approval
-	if err := planyaml.SaveLocked(planPath, plan); err != nil {
-		return fmt.Errorf("save plan: %w", err)
-	}
-	return nil
-}
-
-// planRejectSliceCmd sets approval_status=rejected (or changes_requested) for a slice.
-func planRejectSliceCmd() *cobra.Command {
-	var changesRequested bool
-	cmd := &cobra.Command{
-		Use:   "reject-slice <plan-id> <slice-num>",
-		Short: "Set approval_status=rejected for a plan slice",
-		Long: `Record a rejection for a specific plan slice. By default stores action='reject'.
-Use --changes-requested to store action='changes_requested' instead.
-
-Example:
-  wipnote plan reject-slice plan-abc12345 3
-  wipnote plan reject-slice plan-abc12345 3 --changes-requested`,
-		Args: cobra.ExactArgs(2),
-		RunE: func(_ *cobra.Command, args []string) error {
-			wipnoteDir, err := findWipnoteDir()
-			if err != nil {
-				return err
-			}
-			return runRejectSlice(wipnoteDir, args[0], args[1], changesRequested)
-		},
-	}
-	cmd.Flags().BoolVar(&changesRequested, "changes-requested", false, "store action=changes_requested instead of reject")
-	return cmd
-}
-
-func runRejectSlice(wipnoteDir, planID, sliceNumStr string, changesRequested bool) error {
-	sliceNum, err := parseSliceNum(sliceNumStr)
-	if err != nil {
-		return err
-	}
-	section := fmt.Sprintf("slice-%d", sliceNum)
-	action := "reject"
-	approval := "rejected"
-	if changesRequested {
-		action = "changes_requested"
-		approval = "changes_requested"
-	}
-	if err := storePlanFeedback(wipnoteDir, planID, section, action, "false", ""); err != nil {
-		return fmt.Errorf("store reject feedback: %w", err)
-	}
-	if err := storePlanFeedback(wipnoteDir, planID, section, "approve", approval, ""); err != nil {
-		return fmt.Errorf("store approve=false feedback: %w", err)
-	}
-	fmt.Fprintf(os.Stdout, "Slice %d rejected (action=%s) for plan %s\n", sliceNum, action, planID)
-	return nil
-}
-
-// planAnswerSliceQuestionCmd records the answer to a slice-local question.
-func planAnswerSliceQuestionCmd() *cobra.Command {
-	return &cobra.Command{
-		Use:   "answer-slice-question <plan-id> <slice-num> <question-id> <answer-key>",
-		Short: "Record the answer to a slice-local question in plan_feedback",
-		Long: `Record the answer to a slice-local question. Stored in SQLite plan_feedback
-with section='slice-<num>-question-<question-id>' and action='answer'.
-
-Example:
-  wipnote plan answer-slice-question plan-abc12345 3 q-error-handling yes`,
-		Args: cobra.ExactArgs(4),
-		RunE: func(_ *cobra.Command, args []string) error {
-			wipnoteDir, err := findWipnoteDir()
-			if err != nil {
-				return err
-			}
-			return runAnswerSliceQuestion(wipnoteDir, args[0], args[1], args[2], args[3])
-		},
-	}
-}
-
-func runAnswerSliceQuestion(wipnoteDir, planID, sliceNumStr, questionID, answerKey string) error {
-	sliceNum, err := parseSliceNum(sliceNumStr)
-	if err != nil {
-		return err
-	}
-	section := fmt.Sprintf("slice-%d-question-%s", sliceNum, questionID)
-	if err := storePlanFeedback(wipnoteDir, planID, section, "answer", answerKey, questionID); err != nil {
-		return fmt.Errorf("store answer feedback: %w", err)
-	}
-	fmt.Fprintf(os.Stdout, "Answer recorded: plan=%s slice=%d question=%s answer=%s\n",
-		planID, sliceNum, questionID, answerKey)
-	return nil
-}
-
-// planSetSliceStatusCmd sets the execution_status for a slice in plan_feedback.
-func planSetSliceStatusCmd() *cobra.Command {
-	return &cobra.Command{
-		Use:   "set-slice-status <plan-id> <slice-num> <status>",
-		Short: "Set the execution_status for a plan slice",
-		Long: `Set the execution_status for a specific plan slice. Valid statuses:
-  not_started | promoted | in_progress | done | blocked | superseded
-
-Stored in SQLite plan_feedback with section='slice-<num>' and action='set-status'.
-
-Example:
-  wipnote plan set-slice-status plan-abc12345 3 in_progress`,
-		Args: cobra.ExactArgs(3),
-		RunE: func(_ *cobra.Command, args []string) error {
-			wipnoteDir, err := findWipnoteDir()
-			if err != nil {
-				return err
-			}
-			return runSetSliceStatus(wipnoteDir, args[0], args[1], args[2])
-		},
-	}
-}
-
-func runSetSliceStatus(wipnoteDir, planID, sliceNumStr, status string) error {
-	if err := validateSliceExecutionStatus(status); err != nil {
-		return err
-	}
-	sliceNum, err := parseSliceNum(sliceNumStr)
-	if err != nil {
-		return err
-	}
-	section := fmt.Sprintf("slice-%d", sliceNum)
-	if err := storePlanFeedback(wipnoteDir, planID, section, "set_execution_status", status, ""); err != nil {
-		return fmt.Errorf("store set_execution_status feedback: %w", err)
-	}
-	fmt.Fprintf(os.Stdout, "Slice %d execution_status → %s for plan %s\n", sliceNum, status, planID)
-	return nil
-}
-
-// validateSliceExecutionStatus returns an error if status is not a valid slice execution status.
-func validateSliceExecutionStatus(status string) error {
-	for _, v := range validSliceExecutionStatuses {
-		if v == status {
-			return nil
-		}
-	}
-	return fmt.Errorf("invalid slice execution status %q — valid values: %s",
-		status, strings.Join(validSliceExecutionStatuses, ", "))
-}
-
-// parseSliceNum parses a slice number string and returns the int or an error.
-func parseSliceNum(s string) (int, error) {
-	n, err := strconv.Atoi(s)
-	if err != nil || n < 1 {
-		return 0, fmt.Errorf("slice-num must be a positive integer (got %q)", s)
-	}
-	return n, nil
 }
 
 func openPlanDB(wipnoteDir string) (*sql.DB, error) {

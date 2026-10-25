@@ -1,14 +1,12 @@
 package hooks
 
 import (
-	"database/sql"
 	"encoding/json"
 	"os"
 	"path/filepath"
 	"time"
 
 	"github.com/shakestzd/wipnote/core/claimledger"
-	"github.com/shakestzd/wipnote/core/db"
 	"github.com/shakestzd/wipnote/core/paths"
 )
 
@@ -69,7 +67,7 @@ func (m catchUpMarker) done(note SessionEndNote, deep bool) bool {
 // a session whose root shard the cheap lookup could not find.
 //
 // currentSessionID is never touched. Returns the sessions it finished.
-func CatchUpEndedSessions(database *sql.DB, projectDir, currentSessionID string, deep bool) []string {
+func CatchUpEndedSessions(projectDir, currentSessionID string, deep bool) []string {
 	sessionsDir := filepath.Join(projectDir, ".wipnote", "sessions")
 	entries, err := os.ReadDir(sessionsDir)
 	if err != nil {
@@ -89,63 +87,30 @@ func CatchUpEndedSessions(database *sql.DB, projectDir, currentSessionID string,
 		if !ok || readCatchUpMarker(sessDir).done(note, deep) {
 			continue
 		}
-		finishEndedSession(database, projectDir, sessDir, note, deep)
+		finishEndedSession(projectDir, sessDir, note, deep)
 		finished = append(finished, sid)
 	}
 	return finished
 }
 
-func finishEndedSession(database *sql.DB, projectDir, sessDir string, note SessionEndNote, deep bool) {
+func finishEndedSession(projectDir, sessDir string, note SessionEndNote, deep bool) {
 	sid := note.SessionID
 	foundShard := closeSessionClaimsAndLedger(projectDir, note)
-	applySessionEndToProjection(database, projectDir, note)
-	finishDeferredProjectionWork(database, projectDir, note)
 	paths.CleanupSessionHint(sid)
 	stage := stageEssential
 	if deep {
 		if !foundShard {
 			closeClaimEpisodesByLedgerScan(projectDir, note)
 		}
-		finishDeepWork(database, projectDir, note)
+		finishDeepWork(projectDir, note)
 		stage = stageFull
 	}
 	writeCatchUpMarker(sessDir, catchUpMarker{Stage: stage, EndedAt: note.EndedAt})
 }
 
-// finishDeferredProjectionWork runs the projection writes the hook used to make
-// inline: features worked on, the structured handoff, the lineage trace.
-func finishDeferredProjectionWork(database *sql.DB, projectDir string, note SessionEndNote) {
-	if database == nil {
-		return
-	}
-	sid := note.SessionID
-	var featuresWorkedOn []string
-	if feats, err := db.DistinctFeatureIDs(database, sid); err == nil && len(feats) > 0 {
-		featuresWorkedOn = feats
-		if featsJSON, jErr := json.Marshal(feats); jErr == nil {
-			_, _ = database.Exec(`UPDATE sessions SET features_worked_on = ? WHERE session_id = ?`, string(featsJSON), sid)
-		}
-	}
-	evt := &CloudEvent{SessionID: sid, Reason: note.Reason, TranscriptPath: note.TranscriptPath}
-	if err := persistSessionEndHandoff(database, sid, evt, projectDir, featuresWorkedOn); err != nil {
-		debugLog(projectDir, "[error] catch-up session=%s: persist handoff: %v", sid[:minLen(sid, 8)], err)
-	}
-	if err := db.CompleteLineageTrace(database, sid); err != nil {
-		debugLog(projectDir, "[error] catch-up session=%s: complete lineage trace: %v", sid[:minLen(sid, 8)], err)
-	}
-}
-
 // finishDeepWork runs the steps that need git, a wait, or a long scan.
-func finishDeepWork(database *sql.DB, projectDir string, note SessionEndNote) {
+func finishDeepWork(projectDir string, note SessionEndNote) {
 	sid := note.SessionID
-	if database != nil {
-		if commit := headCommit(projectDir); commit != "" {
-			_, _ = database.Exec(`UPDATE sessions SET end_commit = COALESCE(NULLIF(end_commit, ''), ?) WHERE session_id = ?`, commit, sid)
-		}
-		if err := cleanupEmptySpikeWorktreeOnSessionEnd(database, projectDir, sid); err != nil {
-			debugLog(projectDir, "[error] catch-up session=%s: cleanup empty spike worktree: %v", sid[:minLen(sid, 8)], err)
-		}
-	}
 	drainEndedCollector(projectDir, sid)
 	if SessionTelemetryFn != nil {
 		if err := SessionTelemetryFn(projectDir, sid, catchUpTelemetryBudget); err != nil {

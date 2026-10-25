@@ -9,7 +9,8 @@ import (
 	"testing"
 	"time"
 
-	dbpkg "github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/db/dbtest"
+
 	"github.com/shakestzd/wipnote/core/models"
 )
 
@@ -75,7 +76,7 @@ type sessionEventSpec struct {
 // setupSessionTestDB creates an in-memory DB for session reindex tests.
 func setupSessionTestDB(t *testing.T) *sql.DB {
 	t.Helper()
-	database, err := dbpkg.Open(":memory:")
+	database, err := dbtest.Open(":memory:")
 	if err != nil {
 		t.Fatalf("open test db: %v", err)
 	}
@@ -110,7 +111,7 @@ func TestReindexSessions_EventIDMapping(t *testing.T) {
 		t.Errorf("upserted events: got %d, want 1", upserted)
 	}
 
-	got, err := dbpkg.GetEvent(database, "evt-abc12345")
+	got, err := dbtest.GetEvent(database, "evt-abc12345")
 	if err != nil {
 		t.Fatalf("GetEvent: %v", err)
 	}
@@ -141,7 +142,7 @@ func TestReindexSessions_RestoresActiveFeatureFromHTML(t *testing.T) {
 	if total != 1 || errCount != 0 {
 		t.Fatalf("reindexSessions total=%d errCount=%d, want total=1 errCount=0", total, errCount)
 	}
-	if got := dbpkg.GetActiveFeatureIDForSession(database, sessionID); got != "feat-durable" {
+	if got := dbtest.ActiveFeatureIDForSession(database, sessionID); got != "feat-durable" {
 		t.Fatalf("active_feature_id = %q, want feat-durable", got)
 	}
 }
@@ -174,7 +175,7 @@ func TestReindexSessions_SuccessStatusMapping(t *testing.T) {
 		t.Errorf("errCount: got %d, want 0", errCount)
 	}
 
-	successEvt, err := dbpkg.GetEvent(database, "evt-success-1")
+	successEvt, err := dbtest.GetEvent(database, "evt-success-1")
 	if err != nil {
 		t.Fatalf("GetEvent success: %v", err)
 	}
@@ -182,7 +183,7 @@ func TestReindexSessions_SuccessStatusMapping(t *testing.T) {
 		t.Errorf("success status: got %q, want %q", successEvt.Status, "completed")
 	}
 
-	failedEvt, err := dbpkg.GetEvent(database, "evt-failed-1")
+	failedEvt, err := dbtest.GetEvent(database, "evt-failed-1")
 	if err != nil {
 		t.Fatalf("GetEvent failed: %v", err)
 	}
@@ -223,7 +224,7 @@ func TestReindexSessions_FeatureIDMapping(t *testing.T) {
 		t.Errorf("errCount: got %d, want 0", errCount)
 	}
 
-	withFeat, err := dbpkg.GetEvent(database, "evt-feat-1")
+	withFeat, err := dbtest.GetEvent(database, "evt-feat-1")
 	if err != nil {
 		t.Fatalf("GetEvent feat: %v", err)
 	}
@@ -231,7 +232,7 @@ func TestReindexSessions_FeatureIDMapping(t *testing.T) {
 		t.Errorf("FeatureID: got %q, want %q", withFeat.FeatureID, "feat-5922d683")
 	}
 
-	noFeat, err := dbpkg.GetEvent(database, "evt-nofeat-1")
+	noFeat, err := dbtest.GetEvent(database, "evt-nofeat-1")
 	if err != nil {
 		t.Fatalf("GetEvent nofeat: %v", err)
 	}
@@ -265,7 +266,7 @@ func TestReindexSessions_InputSummaryTruncation(t *testing.T) {
 		t.Errorf("errCount: got %d, want 0", errCount)
 	}
 
-	got, err := dbpkg.GetEvent(database, "evt-long-1")
+	got, err := dbtest.GetEvent(database, "evt-long-1")
 	if err != nil {
 		t.Fatalf("GetEvent: %v", err)
 	}
@@ -303,7 +304,7 @@ func TestReindexSessions_ParentEventID(t *testing.T) {
 		t.Errorf("errCount: got %d, want 0", errCount)
 	}
 
-	child, err := dbpkg.GetEvent(database, "evt-child-1")
+	child, err := dbtest.GetEvent(database, "evt-child-1")
 	if err != nil {
 		t.Fatalf("GetEvent child: %v", err)
 	}
@@ -392,7 +393,7 @@ func TestReindexSessions_SourceIsReindex(t *testing.T) {
 
 	reindexSessions(database, dir, "/test/project")
 
-	got, err := dbpkg.GetEvent(database, "evt-source-1")
+	got, err := dbtest.GetEvent(database, "evt-source-1")
 	if err != nil {
 		t.Fatalf("GetEvent: %v", err)
 	}
@@ -428,7 +429,7 @@ func TestReindexSessions_TimestampParsing(t *testing.T) {
 		t.Errorf("errCount: got %d, want 0", errCount)
 	}
 
-	got, err := dbpkg.GetEvent(database, "evt-ts-1")
+	got, err := dbtest.GetEvent(database, "evt-ts-1")
 	if err != nil {
 		t.Fatalf("GetEvent: %v", err)
 	}

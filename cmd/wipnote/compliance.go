@@ -2,22 +2,16 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
-	"sync/atomic"
 
+	"github.com/shakestzd/wipnote/core/filelock"
 	"github.com/shakestzd/wipnote/core/workitem"
 	"github.com/spf13/cobra"
 )
-
-// atomicWriteCounter provides a unique sequence number per atomic write call,
-// used to make temp filenames unique even when called from multiple goroutines
-// in the same process (which all share the same PID).
-var atomicWriteCounter atomic.Int64
 
 // writeComplianceSection replaces (or inserts) a <section class="compliance-findings"> block
 // in the feature HTML file. The replacement is idempotent: any existing section is replaced
@@ -40,7 +34,7 @@ func writeComplianceSection(featurePath string, attrs map[string]string, body st
 	sectionHTML := buildComplianceSectionHTML(attrs, body)
 	updated := replaceOrAppendSection(string(content), sectionHTML)
 
-	return writeFileAtomicRaw(featurePath, []byte(updated))
+	return filelock.WriteFileAtomic(featurePath, []byte(updated), 0o644)
 }
 
 // buildComplianceSectionHTML constructs the <section class="compliance-findings"> element.
@@ -97,37 +91,6 @@ func replaceOrAppendSection(html, sectionHTML string) string {
 	}
 	end += start + len(closeTag)
 	return html[:start] + sectionHTML + html[end:]
-}
-
-// writeFileAtomicRaw writes data to path atomically using temp+rename without
-// acquiring the per-node mutex (caller is responsible for concurrency control
-// when needed). Used by compliance write path which manages its own locking.
-func writeFileAtomicRaw(path string, data []byte) error {
-	seq := atomicWriteCounter.Add(1)
-	tmp := fmt.Sprintf("%s.tmp.%d.%d", path, os.Getpid(), seq)
-	f, err := os.OpenFile(tmp, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o644)
-	if err != nil {
-		return fmt.Errorf("open temp: %w", err)
-	}
-	if _, err := f.Write(data); err != nil {
-		f.Close()
-		os.Remove(tmp)
-		return fmt.Errorf("write temp: %w", err)
-	}
-	if err := f.Sync(); err != nil {
-		f.Close()
-		os.Remove(tmp)
-		return fmt.Errorf("sync temp: %w", err)
-	}
-	if err := f.Close(); err != nil {
-		os.Remove(tmp)
-		return fmt.Errorf("close temp: %w", err)
-	}
-	if err := os.Rename(tmp, path); err != nil {
-		os.Remove(tmp)
-		return fmt.Errorf("rename: %w", err)
-	}
-	return nil
 }
 
 // criterionStatus represents the state of a single acceptance criterion.
@@ -488,10 +451,5 @@ func printComplianceJSON(r *complianceResult) error {
 		})
 	}
 
-	data, err := json.MarshalIndent(out, "", "  ")
-	if err != nil {
-		return err
-	}
-	fmt.Println(string(data))
-	return nil
+	return printJSON(out)
 }

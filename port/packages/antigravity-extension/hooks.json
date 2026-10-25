@@ -12,17 +12,6 @@
         ]
       }
     ],
-    "PostInvocation": [
-      {
-        "matcher": "*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "WIPNOTE_AGENT_ID=antigravity WIPNOTE_AGENT_TYPE=antigravity wipnote hook after-agent --harness antigravity"
-          }
-        ]
-      }
-    ],
     "PreToolUse": [
       {
         "matcher": "*",

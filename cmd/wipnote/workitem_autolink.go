@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/shakestzd/wipnote/core/slug"
 	"github.com/shakestzd/wipnote/core/workitem"
 )
 
@@ -18,14 +19,15 @@ import (
 // completion makes the artifact carry the provenance the gate just verified.
 // Idempotent (hasCommitEdge), never fatal: a failure to resolve one hash is
 // reported on w and the completion proceeds. Returns the number of edges
-// written.
-func autoLinkMessageDerivedCommits(w io.Writer, col *workitem.Collection, repoRoot, itemID string) int {
+// written. commits is the item's canonicalLinkedCommits, already resolved by
+// the completion gates (feat-c30d0792), so no second git walk runs here.
+func autoLinkMessageDerivedCommits(w io.Writer, col *workitem.Collection, repoRoot, itemID string, commits []string) int {
 	node, err := col.Get(itemID)
 	if err != nil || repoRoot == "" || !isGitRepo(repoRoot) {
 		return 0
 	}
 	linked := 0
-	for _, hash := range canonicalLinkedCommits(repoRoot, itemID, node) {
+	for _, hash := range commits {
 		if hasCommitEdge(node, hash) {
 			continue
 		}
@@ -36,7 +38,7 @@ func autoLinkMessageDerivedCommits(w io.Writer, col *workitem.Collection, repoRo
 		}
 		if added {
 			linked++
-			fmt.Fprintf(w, "linked commit %s → %s (%s)\n", truncate(fullHash, 12), itemID, msg)
+			fmt.Fprintf(w, "linked commit %s → %s (%s)\n", slug.Truncate(fullHash, 12), itemID, msg)
 		}
 	}
 	return linked

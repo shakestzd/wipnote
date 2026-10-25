@@ -67,12 +67,6 @@ func (a *archLookup) load() {
 	sort.Strings(a.slugs)
 }
 
-// allSlugs returns every known card slug in sorted order.
-func (a *archLookup) allSlugs() []string {
-	a.load()
-	return a.slugs
-}
-
 // get returns the card for a slug, or nil.
 func (a *archLookup) get(slug string) *corearch.Card {
 	a.load()
@@ -99,60 +93,4 @@ func archCardStatus(c *corearch.Card) string {
 		return "retired"
 	}
 	return "active"
-}
-
-// archFieldValue resolves a whitelisted DSL filter field against a card.
-// Fields are the keys of typeFilterColumns["arch"].
-func archFieldValue(c *corearch.Card, field string) (string, bool) {
-	switch field {
-	case "status":
-		return archCardStatus(c), true
-	case "kind":
-		return string(c.Kind), true
-	case "created_by":
-		return c.CreatedBy, true
-	default:
-		return "", false
-	}
-}
-
-// archSelect returns the arch node IDs whose field matches value. An empty
-// field selects every card. Results are sorted by slug.
-func (a *archLookup) archSelect(field, value string) []string {
-	var out []string
-	for _, slug := range a.allSlugs() {
-		c := a.get(slug)
-		if field != "" {
-			got, ok := archFieldValue(c, field)
-			if !ok || got != value {
-				continue
-			}
-		}
-		out = append(out, corearch.ArchNodeID(c.Name))
-	}
-	return out
-}
-
-// archFilter narrows an existing ID set to the arch nodes matching
-// field=value, preserving the caller's ordering.
-func (a *archLookup) archFilter(ids []string, field, value string) []string {
-	var out []string
-	for _, id := range ids {
-		slug, ok := corearch.ArchSlugFromNodeID(id)
-		if !ok {
-			continue
-		}
-		c := a.get(slug)
-		if c == nil {
-			continue
-		}
-		if field != "" {
-			got, fieldOK := archFieldValue(c, field)
-			if !fieldOK || got != value {
-				continue
-			}
-		}
-		out = append(out, corearch.ArchNodeID(c.Name))
-	}
-	return out
 }

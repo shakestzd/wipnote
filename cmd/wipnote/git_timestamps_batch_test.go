@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	dbpkg "github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/db/dbtest"
 )
 
 // runGitTimestampsBatchTest runs a git command in dir, failing on error.
@@ -26,15 +26,20 @@ func runGitTimestampsBatchTest(t *testing.T, dir string, args ...string) {
 // realistic set of files each touched by a different number of commits, the
 // batched walk produces exactly the same (created, updated) pair per file as
 // the old one-subprocess-pair-per-file gitFileTimestamps (bug-4e5816f4).
+//
+// Every file gets distinct content: the per-file oracle uses --follow, which
+// also follows copies, so identical blobs (e.g. "v1" in two files) made it
+// report the other file's add time whenever the commits fell in different
+// seconds. created is also pinned to the real add commit, not just the oracle.
 func TestBatchGitFileTimestamps_MatchesPerFile_MultiCommit(t *testing.T) {
 	repoDir := setupGitRepo(t)
 
-	_ = commitFile(t, repoDir, "features/feat-a.html", "v1")
-	_ = commitFile(t, repoDir, "features/feat-a.html", "v2")
-	_ = commitFile(t, repoDir, "features/feat-b.html", "v1")
-	_ = commitFile(t, repoDir, "bugs/bug-c.html", "v1")
-	_ = commitFile(t, repoDir, "bugs/bug-c.html", "v2")
-	_ = commitFile(t, repoDir, "bugs/bug-c.html", "v3")
+	addedA := commitFile(t, repoDir, "features/feat-a.html", "feat-a v1")
+	_ = commitFile(t, repoDir, "features/feat-a.html", "feat-a v2")
+	addedB := commitFile(t, repoDir, "features/feat-b.html", "feat-b v1")
+	addedC := commitFile(t, repoDir, "bugs/bug-c.html", "bug-c v1")
+	_ = commitFile(t, repoDir, "bugs/bug-c.html", "bug-c v2")
+	_ = commitFile(t, repoDir, "bugs/bug-c.html", "bug-c v3")
 
 	paths := []string{
 		filepath.Join(repoDir, "features/feat-a.html"),
@@ -42,6 +47,7 @@ func TestBatchGitFileTimestamps_MatchesPerFile_MultiCommit(t *testing.T) {
 		filepath.Join(repoDir, "bugs/bug-c.html"),
 	}
 
+	added := map[string]time.Time{paths[0]: addedA, paths[1]: addedB, paths[2]: addedC}
 	batch := batchGitFileTimestamps(repoDir, paths)
 
 	for _, p := range paths {
@@ -56,6 +62,9 @@ func TestBatchGitFileTimestamps_MatchesPerFile_MultiCommit(t *testing.T) {
 		}
 		if !got.created.Equal(wantCreated) {
 			t.Errorf("%s: created batch=%v single=%v", p, got.created, wantCreated)
+		}
+		if !got.created.Equal(added[p]) {
+			t.Errorf("%s: created batch=%v, want add commit %v", p, got.created, added[p])
 		}
 		if !got.updated.Equal(wantUpdated) {
 			t.Errorf("%s: updated batch=%v single=%v", p, got.updated, wantUpdated)
@@ -272,7 +281,7 @@ func TestReindexFeatureDir_TimestampsMatchGitHistory(t *testing.T) {
 </article>
 </body></html>`)
 
-	database, err := dbpkg.Open(":memory:")
+	database, err := dbtest.Open(":memory:")
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}

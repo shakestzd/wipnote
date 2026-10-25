@@ -691,7 +691,7 @@ func TestEmitCodexSessionStartResponse(t *testing.T) {
 		AdditionalContext: "foo",
 		Continue:          true,
 	}
-	if err := emitCodexResponse(&buf, result); err != nil {
+	if err := emitCodexResponseForEvent(&buf, "", result); err != nil {
 		t.Fatalf("emitCodexResponse: %v", err)
 	}
 
@@ -761,7 +761,7 @@ func TestEmitCodexBlockResponse(t *testing.T) {
 func TestEmitCodexEmptyResponse(t *testing.T) {
 	var buf bytes.Buffer
 	result := &HookResult{}
-	if err := emitCodexResponse(&buf, result); err != nil {
+	if err := emitCodexResponseForEvent(&buf, "", result); err != nil {
 		t.Fatalf("emitCodexResponse: %v", err)
 	}
 
@@ -862,7 +862,7 @@ func TestEmitGeminiBlockResponse(t *testing.T) {
 		Decision: "block",
 		Reason:   "dangerous tool",
 	}
-	if err := emitGeminiResponse(&buf, result); err != nil {
+	if err := emitGeminiResponseForEvent(&buf, "", result); err != nil {
 		t.Fatalf("emitGeminiResponse: %v", err)
 	}
 
@@ -916,7 +916,7 @@ func TestEmitClaudeBlockResponse(t *testing.T) {
 		Decision: "block",
 		Reason:   "blocked by guard",
 	}
-	if err := emitClaudeResponse(&buf, result); err != nil {
+	if err := emitClaudeResponseForEvent(&buf, "", result); err != nil {
 		t.Fatalf("emitClaudeResponse: %v", err)
 	}
 
@@ -1111,7 +1111,7 @@ func TestAllowForHarnessEmitsClaudeEmpty(t *testing.T) {
 
 	// When emitted via Claude's emitter, it should produce {}.
 	var buf bytes.Buffer
-	if err := emitClaudeResponse(&buf, result); err != nil {
+	if err := emitClaudeResponseForEvent(&buf, "", result); err != nil {
 		t.Fatalf("emitClaudeResponse: %v", err)
 	}
 
@@ -1138,7 +1138,7 @@ func TestAllowForHarnessEmitsCodexContinue(t *testing.T) {
 
 	// When emitted via Codex's emitter, it should produce {"continue": true}.
 	var buf bytes.Buffer
-	if err := emitCodexResponse(&buf, result); err != nil {
+	if err := emitCodexResponseForEvent(&buf, "", result); err != nil {
 		t.Fatalf("emitCodexResponse: %v", err)
 	}
 
@@ -1164,7 +1164,7 @@ func TestAllowForHarnessEmitsGeminiContinue(t *testing.T) {
 
 	// When emitted via Gemini's emitter, it should produce {"continue": true}.
 	var buf bytes.Buffer
-	if err := emitGeminiResponse(&buf, result); err != nil {
+	if err := emitGeminiResponseForEvent(&buf, "", result); err != nil {
 		t.Fatalf("emitGeminiResponse: %v", err)
 	}
 

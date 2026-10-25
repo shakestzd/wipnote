@@ -9,15 +9,11 @@ import "testing"
 // that for its current code.
 var asyncSafeHandlers = map[string]bool{
 	"posttooluse-failure": true,
-	"pre-compact":         true,
-	"post-compact":        true,
-	"teammate-idle":       true,
 	"task-created":        true,
-	"instructions-loaded": true,
 	"config-change":       true,
 	// posttooluse-record (bug-07fd4a51 step 6): core/hooks.PostToolUseRecord
 	// returns a bare {Continue:true} on every path; it only upserts the
-	// tool_call row through routeHookWriteVia and appends the session HTML.
+	// tool_call row through RouteHookWrite and appends the session HTML.
 	// Everything model-visible (CheckFileQuality warning, auto-complete
 	// notices, the work-item lookup loud block) stays in the sync, matcher-
 	// narrowed claude `posttooluse` entry (PostToolUseRespond).
@@ -26,6 +22,10 @@ var asyncSafeHandlers = map[string]bool{
 	// recordSimpleEventWithOutput, which returns {Continue:true} on every path;
 	// Claude Code ignores StopFailure output anyway.
 	"stop-failure": true,
+	// permission-denied (feat-ddeaa0d1): core/hooks.PermissionDenied only
+	// appends the failed tool-log line and the session HTML entry, and returns
+	// {Continue:true} on every path; it never asks for a retry.
+	"permission-denied": true,
 }
 
 func TestLiveManifestAsyncOnlyOnVerifiedRecordOnlyHandlers(t *testing.T) {

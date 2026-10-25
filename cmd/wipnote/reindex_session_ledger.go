@@ -38,9 +38,9 @@ import (
 // # Ordering
 //
 // Must run AFTER reindexSessions (telemetry is the richer source and wins) and
-// BEFORE collectSessionIDs and purgeStaleEntries — the purge judges targets
-// against validIDs as it stands at that moment, so an id registered afterwards
-// is one the purge has already condemned.
+// BEFORE collectSessionIDs and the edge passes — they judge targets against
+// validIDs as it stands at that moment, so an id registered afterwards is one
+// they have already treated as unresolvable.
 //
 // # Insert-if-absent
 //

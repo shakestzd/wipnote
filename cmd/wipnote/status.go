@@ -9,6 +9,7 @@ import (
 	dbpkg "github.com/shakestzd/wipnote/core/db"
 	"github.com/shakestzd/wipnote/core/graph"
 	"github.com/shakestzd/wipnote/core/models"
+	"github.com/shakestzd/wipnote/core/slug"
 	versionpkg "github.com/shakestzd/wipnote/internal/version"
 	"github.com/spf13/cobra"
 )
@@ -78,7 +79,7 @@ func runStatus(_ *cobra.Command, _ []string) error {
 		})
 		fmt.Println("\nIn progress:")
 		for _, n := range inProgress {
-			fmt.Printf("  %-20s  %s\n", n.ID, truncate(n.Title, 60))
+			fmt.Printf("  %-20s  %s\n", n.ID, slug.Truncate(n.Title, 60))
 		}
 	}
 

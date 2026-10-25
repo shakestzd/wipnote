@@ -10,7 +10,7 @@ import (
 // TestSessionFiles_Query verifies that ListFilesBySession returns only rows
 // where session_id matches, ordered by last_seen DESC.
 func TestSessionFiles_Query(t *testing.T) {
-	database, err := Open(":memory:")
+	database, err := openTestDB(":memory:")
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}

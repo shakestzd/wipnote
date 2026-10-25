@@ -79,18 +79,6 @@ const intervalPredicate = `started_at <= ? AND (ended_at = '' OR ended_at > ?)`
 const claimEpisodeColumns = `episode_id, work_item_id, session_id, root_session_id,
 	agent_id, started_at, ended_at, outcome, source_file`
 
-// WorkItemForAgentAt returns the work item that agentID held at instant at, or
-// "" when the agent held nothing then.
-//
-// This is the query the claim ledger exists to serve: per-signal attribution
-// knows the agent that emitted a signal and when, and needs the work item to
-// charge it to. Prefer WorkItemForSessionAgentAt when the session is known —
-// AgentRootSentinel ("__root__") is shared by every root session, so agent
-// alone is ambiguous across concurrent sessions.
-func WorkItemForAgentAt(db *sql.DB, agentID string, at time.Time) (string, error) {
-	return WorkItemForSessionAgentAt(db, "", agentID, at)
-}
-
 // WorkItemForSessionAgentAt is WorkItemForAgentAt scoped to one session. An
 // empty sessionID matches any session.
 //

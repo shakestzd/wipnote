@@ -1,36 +1,24 @@
 package hooks
 
 import (
-	"os"
 	"testing"
 )
 
-// readInputFrom runs ReadInputRaw against payload as stdin.
+// readInputFrom parses payload the way the hook CLI does for Claude.
 func readInputFrom(t *testing.T, payload string) *CloudEvent {
 	t.Helper()
-	r, w, err := os.Pipe()
+	ev, err := ParseEventForHarness(HarnessClaude, []byte(payload))
 	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := w.WriteString(payload); err != nil {
-		t.Fatal(err)
-	}
-	w.Close()
-	orig := os.Stdin
-	os.Stdin = r
-	t.Cleanup(func() { os.Stdin = orig; r.Close() })
-	ev, _, err := ReadInputRaw()
-	if err != nil {
-		t.Fatalf("ReadInputRaw: %v", err)
+		t.Fatalf("ParseEventForHarness: %v", err)
 	}
 	return ev
 }
 
-// TestReadInputRaw_ClaudeToolResponse uses PostToolUse payloads captured live
+// TestParseClaudeEvent_ToolResponse uses PostToolUse payloads captured live
 // from Claude Code 2.1.302. Claude sends "tool_response", never
 // "tool_result", so before the fix ToolResult was always nil on Claude and
 // `git commit` output never reached commit-message parsing.
-func TestReadInputRaw_ClaudeToolResponse(t *testing.T) {
+func TestParseClaudeEvent_ToolResponse(t *testing.T) {
 	bash := readInputFrom(t, `{"hook_event_name":"PostToolUse","tool_name":"Bash",
 		"tool_use_id":"toolu_1","duration_ms":12,
 		"tool_response":{"stdout":"[main abc1234] feat: x","stderr":"","interrupted":false,"isImage":false}}`)

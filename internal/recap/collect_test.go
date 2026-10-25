@@ -9,6 +9,7 @@ import (
 	"time"
 
 	dbpkg "github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/db/dbtest"
 	"github.com/shakestzd/wipnote/core/models"
 )
 
@@ -29,7 +30,7 @@ func newFixture(t *testing.T) *fixture {
 	run(t, dir, "git", "config", "user.name", "Test")
 	run(t, dir, "git", "config", "commit.gpgsign", "false")
 
-	database, err := dbpkg.Open("file::memory:?cache=shared")
+	database, err := dbtest.Open("file::memory:?cache=shared")
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
@@ -61,7 +62,7 @@ func (f *fixture) commit(msg string, files map[string]string) string {
 // recordCommit inserts a git_commits read-index row for a hash.
 func (f *fixture) recordCommit(hash, session, feature, msg string, ts time.Time) {
 	f.t.Helper()
-	err := dbpkg.InsertGitCommit(f.db, &models.GitCommit{
+	err := dbtest.InsertGitCommit(f.db, &models.GitCommit{
 		CommitHash: hash,
 		SessionID:  session,
 		FeatureID:  feature,
@@ -120,11 +121,11 @@ func TestCollect_FromFeature(t *testing.T) {
 	})
 	c2 := f.commit("feat: drop a", map[string]string{"a.go": ""})
 
-	if err := dbpkg.InsertFeature(f.db, &dbpkg.Feature{
+	if err := dbpkg.UpsertFeature(f.db, &dbpkg.Feature{
 		ID: "feat-aaa", Type: "feature", Title: "Add B and prune A",
 		Status: "done", Priority: "medium", CreatedAt: now, UpdatedAt: now,
 	}); err != nil {
-		t.Fatalf("InsertFeature: %v", err)
+		t.Fatalf("UpsertFeature: %v", err)
 	}
 	f.recordCommit(c1, "sess-1", "feat-aaa", "feat: add b", now)
 	f.recordCommit(c2, "sess-1", "feat-aaa", "feat: drop a", now.Add(time.Second))
@@ -172,11 +173,11 @@ func TestCollect_FromFeature_DiffsOnlySelectedCommits(t *testing.T) {
 	unrelated := f.commit("unrelated", map[string]string{"unrelated.txt": "do not include\n"})
 	f.commit("selected followup", map[string]string{"selected.txt": "root\nfollowup\n"})
 
-	if err := dbpkg.InsertFeature(f.db, &dbpkg.Feature{
+	if err := dbpkg.UpsertFeature(f.db, &dbpkg.Feature{
 		ID: "feat-selected", Type: "feature", Title: "Selected only",
 		Status: "done", Priority: "medium", CreatedAt: now, UpdatedAt: now,
 	}); err != nil {
-		t.Fatalf("InsertFeature: %v", err)
+		t.Fatalf("UpsertFeature: %v", err)
 	}
 	f.recordCommit(selected, "sess-1", "feat-selected", "selected root", now)
 	f.recordCommit(f.commits[2], "sess-1", "feat-selected", "selected followup", now.Add(time.Second))
@@ -198,11 +199,11 @@ func TestCollect_FromFeature_RootCommitDoesNotRequireParent(t *testing.T) {
 	now := time.Now().UTC()
 
 	root := f.commit("root selected", map[string]string{"root.txt": "hello\n"})
-	if err := dbpkg.InsertFeature(f.db, &dbpkg.Feature{
+	if err := dbpkg.UpsertFeature(f.db, &dbpkg.Feature{
 		ID: "feat-root", Type: "feature", Title: "Root",
 		Status: "done", Priority: "medium", CreatedAt: now, UpdatedAt: now,
 	}); err != nil {
-		t.Fatalf("InsertFeature: %v", err)
+		t.Fatalf("UpsertFeature: %v", err)
 	}
 	f.recordCommit(root, "sess-root", "feat-root", "root selected", now)
 

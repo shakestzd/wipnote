@@ -45,9 +45,9 @@ func TestSpawnCollector_HandshakeAndPort(t *testing.T) {
 	bin := buildOtelCollectTestBinary(t)
 	projectDir := mkOtelCollectProject(t)
 
-	port, proc, err := spawnCollector(bin, "test-spawn-hs", projectDir)
+	port, proc, err := collector.DefaultSpawnFn(bin, "test-spawn-hs", projectDir, 0)
 	if err != nil {
-		t.Fatalf("spawnCollector: %v", err)
+		t.Fatalf("DefaultSpawnFn: %v", err)
 	}
 	t.Cleanup(func() {
 		_ = proc.Kill()
@@ -65,11 +65,11 @@ func TestSpawnCollector_HandshakeAndPort(t *testing.T) {
 }
 
 // TestSpawnCollector_BindFailure tests that a non-existent binary path
-// causes spawnCollector to return an error without leaking a process.
+// causes collector.DefaultSpawnFn to return an error without leaking a process.
 func TestSpawnCollector_BindFailure(t *testing.T) {
 	projectDir := mkOtelCollectProject(t)
 
-	port, proc, err := spawnCollector("/nonexistent/binary", "test-bindfail", projectDir)
+	port, proc, err := collector.DefaultSpawnFn("/nonexistent/binary", "test-bindfail", projectDir, 0)
 	if err == nil {
 		if proc != nil {
 			_ = proc.Kill()
@@ -85,13 +85,13 @@ func TestSpawnCollector_BindFailure(t *testing.T) {
 	}
 }
 
-// TestSpawnCollector_HandshakeTimeout verifies that spawnCollector returns
+// TestSpawnCollector_HandshakeTimeout verifies that collector.DefaultSpawnFn returns
 // an error when the child does not print a handshake line within the timeout.
 // We simulate this by spawning a binary that never prints the expected line.
 func TestSpawnCollector_HandshakeTimeout(t *testing.T) {
 	// Use "sleep" as the binary — it will never print a handshake.
-	// spawnCollector should timeout and kill it.
-	port, proc, err := spawnCollector("sleep", "test-timeout", t.TempDir())
+	// DefaultSpawnFn should timeout and kill it.
+	port, proc, err := collector.DefaultSpawnFn("sleep", "test-timeout", t.TempDir(), 0)
 	if err == nil {
 		if proc != nil {
 			_ = proc.Kill()
@@ -122,7 +122,7 @@ func TestWriteCollectorPID(t *testing.T) {
 	sid := "test-pid-write"
 	pid := os.Getpid() // a PID that's guaranteed alive, so /proc/<pid>/stat exists
 
-	writeCollectorPID(projectDir, sid, pid)
+	collector.WriteCollectorPID(projectDir, sid, pid)
 
 	pidPath := filepath.Join(projectDir, ".wipnote", "sessions", sid, ".collector-pid")
 	got, _, _, err := collector.ReadCollectorPIDFile(pidPath)
@@ -134,13 +134,13 @@ func TestWriteCollectorPID(t *testing.T) {
 	}
 }
 
-// TestWriteCollectorPID_CreatesDirectories verifies that writeCollectorPID
+// TestWriteCollectorPID_CreatesDirectories verifies that collector.WriteCollectorPID
 // creates the necessary directory structure.
 func TestWriteCollectorPID_CreatesDirectories(t *testing.T) {
 	projectDir := t.TempDir()
 	sid := "test-pid-dirs"
 
-	writeCollectorPID(projectDir, sid, 1234)
+	collector.WriteCollectorPID(projectDir, sid, 1234)
 
 	sessDir := filepath.Join(projectDir, ".wipnote", "sessions", sid)
 	info, err := os.Stat(sessDir)
@@ -214,7 +214,7 @@ func TestRetrySpawn_SucceedsOnThirdAttempt(t *testing.T) {
 		return 9999, &os.Process{Pid: 12345}, nil
 	}
 
-	port, proc, attempts, err := retrySpawnCollector("/fake/bin", "sid", t.TempDir(), 3, fakeFn, &buf)
+	port, proc, attempts, err := collector.RetrySpawn("/fake/bin", "sid", t.TempDir(), 0, 3, fakeFn, &buf)
 
 	if err != nil {
 		t.Fatalf("expected success on third attempt, got error: %v", err)
@@ -247,7 +247,7 @@ func TestRetrySpawn_AllFail(t *testing.T) {
 		return 0, nil, fmt.Errorf("persistent failure attempt %d", callCount)
 	}
 
-	port, proc, attempts, err := retrySpawnCollector("/fake/bin", "sid", t.TempDir(), 3, fakeFn, &buf)
+	port, proc, attempts, err := collector.RetrySpawn("/fake/bin", "sid", t.TempDir(), 0, 3, fakeFn, &buf)
 
 	if err == nil {
 		t.Fatal("expected error when all attempts fail, got nil")
@@ -270,7 +270,7 @@ func TestRetrySpawn_AllFail(t *testing.T) {
 
 // TestWatchdog_RespawnsOnDeath starts a watchdog with a fast interval, kills
 // the initial process, and asserts that the watchdog detects death and calls
-// retrySpawnCollector (via the injected spawnCollectorFn).
+// collector.RetrySpawn (via the injected spawnCollectorFn).
 func TestWatchdog_RespawnsOnDeath(t *testing.T) {
 	t.Setenv("WIPNOTE_OTEL_WATCHDOG_INTERVAL", "50ms")
 
@@ -300,7 +300,7 @@ func TestWatchdog_RespawnsOnDeath(t *testing.T) {
 	var buf bytes.Buffer
 	var procPtr atomic.Pointer[os.Process]
 	procPtr.Store(initialProc)
-	stopWatchdog := startCollectorWatchdog(&procPtr, 8888, "/fake/bin", "test-wd-sid", projectDir, &buf)
+	stopWatchdog := collector.StartWatchdog(&procPtr, 8888, "/fake/bin", "test-wd-sid", projectDir, &buf, spawnCollectorFn, "WIPNOTE_OTEL_WATCHDOG_INTERVAL")
 	t.Cleanup(stopWatchdog)
 
 	// Kill the initial process and reap it so it doesn't linger as a zombie.
@@ -342,7 +342,7 @@ func TestWatchdog_StopsCleanlyWhenLive(t *testing.T) {
 	var buf bytes.Buffer
 	var procPtr atomic.Pointer[os.Process]
 	procPtr.Store(cmd.Process)
-	stopWatchdog := startCollectorWatchdog(&procPtr, 8888, "/fake/bin", "test-wd-live", t.TempDir(), &buf)
+	stopWatchdog := collector.StartWatchdog(&procPtr, 8888, "/fake/bin", "test-wd-live", t.TempDir(), &buf, spawnCollectorFn, "WIPNOTE_OTEL_WATCHDOG_INTERVAL")
 
 	// Stop immediately — process is still alive, so no warnings expected.
 	stopWatchdog()
@@ -380,7 +380,7 @@ func TestWatchdog_IntervalEnvOverride(t *testing.T) {
 	var buf bytes.Buffer
 	var procPtr atomic.Pointer[os.Process]
 	procPtr.Store(cmd.Process)
-	stopWatchdog := startCollectorWatchdog(&procPtr, 8888, "/fake/bin", "test-wd-interval", t.TempDir(), &buf)
+	stopWatchdog := collector.StartWatchdog(&procPtr, 8888, "/fake/bin", "test-wd-interval", t.TempDir(), &buf, spawnCollectorFn, "WIPNOTE_OTEL_WATCHDOG_INTERVAL")
 
 	// Let the watchdog tick several times.
 	time.Sleep(100 * time.Millisecond)

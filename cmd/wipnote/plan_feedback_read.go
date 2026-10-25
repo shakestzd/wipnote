@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -208,7 +207,5 @@ func readHTMLCommentsAndAnswers(doc *goquery.Document, out *planFeedbackOutput) 
 
 // printFeedbackJSON marshals the output struct and writes it to stdout.
 func printFeedbackJSON(out planFeedbackOutput) error {
-	enc := json.NewEncoder(os.Stdout)
-	enc.SetIndent("", "  ")
-	return enc.Encode(out)
+	return printJSON(out)
 }

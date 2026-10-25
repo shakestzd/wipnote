@@ -83,6 +83,15 @@ func Names() []string {
 // is a no-op: walking a directory while writing over its files truncates them
 // to zero bytes.
 func copyAssetTree(srcDir, dstDir string) error {
+	return walkAssetTree(srcDir, dstDir, nil, copyFile)
+}
+
+// walkAssetTree is the walk every target's asset copy shares: a missing
+// srcDir is a no-op, a non-directory is an error, a copy onto itself is a
+// no-op, and .archived subtrees are skipped. Directories are created under
+// dstDir; each other entry for which skip (when non-nil) is false goes to
+// copyFn with its target path.
+func walkAssetTree(srcDir, dstDir string, skip func(os.DirEntry) bool, copyFn func(src, dst string) error) error {
 	info, err := os.Stat(srcDir)
 	if os.IsNotExist(err) {
 		return nil
@@ -94,11 +103,8 @@ func copyAssetTree(srcDir, dstDir string) error {
 		return fmt.Errorf("asset source %s is not a directory", srcDir)
 	}
 	same, err := samePath(srcDir, dstDir)
-	if err != nil {
+	if err != nil || same {
 		return err
-	}
-	if same {
-		return nil
 	}
 	if err := os.MkdirAll(dstDir, 0o755); err != nil {
 		return err
@@ -110,6 +116,9 @@ func copyAssetTree(srcDir, dstDir string) error {
 		if isArchivedAssetDir(d) {
 			return filepath.SkipDir
 		}
+		if skip != nil && skip(d) {
+			return nil
+		}
 		rel, err := filepath.Rel(srcDir, path)
 		if err != nil {
 			return err
@@ -118,8 +127,14 @@ func copyAssetTree(srcDir, dstDir string) error {
 		if d.IsDir() {
 			return os.MkdirAll(target, 0o755)
 		}
-		return copyFile(path, target)
+		return copyFn(path, target)
 	})
+}
+
+// isCodexOverrideEntry reports whether d is a regular "<name>.codex.<ext>"
+// override file, which only the Codex source resolution reads.
+func isCodexOverrideEntry(d os.DirEntry) bool {
+	return d.Type().IsRegular() && isCodexOverrideFile(d.Name())
 }
 
 // isArchivedAssetDir reports whether d is an `.archived` directory. Retired

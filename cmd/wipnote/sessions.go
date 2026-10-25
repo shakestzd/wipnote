@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -9,6 +8,7 @@ import (
 	"text/tabwriter"
 
 	dbpkg "github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/slug"
 	"github.com/spf13/cobra"
 )
 
@@ -50,9 +50,7 @@ func runSessionsResumable(jsonOut bool) error {
 		return err
 	}
 	if jsonOut {
-		enc := json.NewEncoder(os.Stdout)
-		enc.SetIndent("", "  ")
-		return enc.Encode(rows)
+		return printJSON(rows)
 	}
 	renderResumableSessionsTable(os.Stdout, rows)
 	return nil
@@ -72,7 +70,7 @@ func renderResumableSessionsTable(w io.Writer, rows []dbpkg.ResumableSession) {
 			row.Harness,
 			live,
 			row.LastActivity,
-			truncate(row.LastSessionID, 14),
+			slug.Truncate(row.LastSessionID, 14),
 			row.Branch,
 			emptyDash(row.ExecWorktreePath),
 			row.Title,

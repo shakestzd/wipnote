@@ -56,7 +56,7 @@ func TestMergedUpstreamGate_UnmergedBranchBlocks(t *testing.T) {
 	commitOnUnmergedBranch(t, tmpDir, id)
 
 	p, col := openFeatureCollection(t, hgDir)
-	err := checkMergedUpstreamCompleteGate(p, col, "feature", id, "")
+	err := checkMergedUpstreamCompleteGate(col, evidenceFor(p, col, id), "feature", id, "")
 	if err == nil {
 		t.Fatalf("a linked commit only on an unmerged branch must block")
 	}
@@ -88,13 +88,13 @@ func TestMergedUpstreamGate_MergedCommitPasses(t *testing.T) {
 	provGit(t, tmpDir, "push", "-q", "origin", branch)
 
 	p, col := openFeatureCollection(t, hgDir)
-	if err := checkMergedUpstreamCompleteGate(p, col, "feature", id, ""); err != nil {
+	if err := checkMergedUpstreamCompleteGate(col, evidenceFor(p, col, id), "feature", id, ""); err != nil {
 		t.Fatalf("a linked commit reachable from origin/%s must pass, got: %v", branch, err)
 	}
 	// An unmerged commit alongside the merged one changes nothing: one
 	// reachable commit is enough.
 	commitOnUnmergedBranch(t, tmpDir, id)
-	if err := checkMergedUpstreamCompleteGate(p, col, "feature", id, ""); err != nil {
+	if err := checkMergedUpstreamCompleteGate(col, evidenceFor(p, col, id), "feature", id, ""); err != nil {
 		t.Fatalf("one merged commit must satisfy the gate, got: %v", err)
 	}
 }
@@ -117,7 +117,7 @@ func TestMergedUpstreamGate_AllowOrphanRecordsNote(t *testing.T) {
 	if node.Status != models.StatusDone {
 		t.Errorf("status = %s, want done", node.Status)
 	}
-	if got := allowOrphanOf(node); got != "branch-local by design" {
+	if got := markedNoteOf(node, allowOrphanMarker); got != "branch-local by design" {
 		t.Errorf("allow-orphan rationale not persisted, got %q", got)
 	}
 	if acceptedAdvisoryOf(node) != "" {
@@ -133,12 +133,12 @@ func TestMergedUpstreamGate_SkipsWithoutRemoteOrCommits(t *testing.T) {
 	p, col := openFeatureCollection(t, hgDir)
 
 	// No linked commits at all: the provenance gate owns that case.
-	if err := checkMergedUpstreamCompleteGate(p, col, "feature", id, ""); err != nil {
+	if err := checkMergedUpstreamCompleteGate(col, evidenceFor(p, col, id), "feature", id, ""); err != nil {
 		t.Fatalf("zero linked commits must skip, got: %v", err)
 	}
 	// Unmerged commit but no remote: nothing to be merged into, skip.
 	commitOnUnmergedBranch(t, tmpDir, id)
-	if err := checkMergedUpstreamCompleteGate(p, col, "feature", id, ""); err != nil {
+	if err := checkMergedUpstreamCompleteGate(col, evidenceFor(p, col, id), "feature", id, ""); err != nil {
 		t.Fatalf("no remote must skip, got: %v", err)
 	}
 	// Non-git project root: skip.
@@ -147,7 +147,7 @@ func TestMergedUpstreamGate_SkipsWithoutRemoteOrCommits(t *testing.T) {
 		t.Fatalf("open non-git project: %v", err)
 	}
 	defer nonGit.Close()
-	if err := checkMergedUpstreamCompleteGate(nonGit, col, "feature", id, ""); err != nil {
+	if err := checkMergedUpstreamCompleteGate(col, evidenceFor(nonGit, col, id), "feature", id, ""); err != nil {
 		t.Fatalf("non-git project must skip, got: %v", err)
 	}
 }

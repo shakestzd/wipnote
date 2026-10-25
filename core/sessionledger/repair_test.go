@@ -1,8 +1,12 @@
 package sessionledger
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 	"time"
+
+	"github.com/PuerkitoBio/goquery"
 )
 
 var (
@@ -226,4 +230,21 @@ func TestProvenanceRoundTripsAndOldRowsStillParse(t *testing.T) {
 	if !parsed[0].EndedAt.Equal(repairMtime) {
 		t.Errorf("legacy row lost its end: %v", parsed[0].EndedAt)
 	}
+}
+
+// parseLedgerString parses ledger markup that is already in memory with the
+// same row selector and row parser ReadFile uses.
+func parseLedgerString(markup string) ([]Record, error) {
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(markup))
+	if err != nil {
+		return nil, fmt.Errorf("sessionledger: parse markup: %w", err)
+	}
+	var records []Record
+	doc.Find(rowSelector).Each(func(_ int, row *goquery.Selection) {
+		if r, ok := parseRow(row); ok {
+			records = append(records, r)
+		}
+	})
+	sortRecords(records)
+	return records, nil
 }

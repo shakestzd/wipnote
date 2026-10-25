@@ -19,13 +19,13 @@ import (
 // that takes 500ms per call. The end note and the essential writes must finish
 // in under 1.0s, and nothing may spawn git or scan the claim directory.
 func TestSessionEnd_EssentialWritesFitTheWindow(t *testing.T) {
-	td := setupTestDB(t)
+	setupTestDB(t)
 	f := newEndFixture(t, 13)
 	gitLog := stubGit(t, f, 500*time.Millisecond)
 	probe := installSlowFS(t, f, 25*time.Millisecond)
 
 	start := time.Now()
-	if _, err := SessionEnd(&CloudEvent{SessionID: f.sessionID, CWD: f.projectDir, Reason: "prompt_input_exit"}, td.DB, f.projectDir); err != nil {
+	if _, err := SessionEnd(&CloudEvent{SessionID: f.sessionID, CWD: f.projectDir, Reason: "prompt_input_exit"}, f.projectDir); err != nil {
 		t.Fatalf("SessionEnd: %v", err)
 	}
 	elapsed := time.Since(start)
@@ -73,11 +73,11 @@ func violations(f *endFixture, gitLog string, probe *probeLog, t *testing.T) []s
 // handler AND must fail for the old ordering, so a regression cannot slip by.
 func TestSessionEnd_NoGitOrScanBeforeNote(t *testing.T) {
 	t.Run("real handler is clean", func(t *testing.T) {
-		td := setupTestDB(t)
+		setupTestDB(t)
 		f := newEndFixture(t, 3)
 		gitLog := stubGit(t, f, 10*time.Millisecond)
 		probe := installSlowFS(t, f, time.Millisecond)
-		if _, err := SessionEnd(&CloudEvent{SessionID: f.sessionID, CWD: f.projectDir}, td.DB, f.projectDir); err != nil {
+		if _, err := SessionEnd(&CloudEvent{SessionID: f.sessionID, CWD: f.projectDir}, f.projectDir); err != nil {
 			t.Fatal(err)
 		}
 		if v := violations(f, gitLog, probe, t); len(v) != 0 {
@@ -101,7 +101,7 @@ func TestSessionEnd_NoGitOrScanBeforeNote(t *testing.T) {
 // SIGTERM and moves on. A collector that ignores it must neither delay the hook
 // nor be SIGKILLed by it; catch-up reaps it later.
 func TestSessionEnd_CollectorIgnoringSIGTERMDoesNotHoldHook(t *testing.T) {
-	td := setupTestDB(t)
+	setupTestDB(t)
 	f := newEndFixture(t, 0)
 	cmd := exec.Command("sh", "-c", `trap '' TERM; while :; do sleep 0.1; done`)
 	if err := cmd.Start(); err != nil {
@@ -121,7 +121,7 @@ func TestSessionEnd_CollectorIgnoringSIGTERMDoesNotHoldHook(t *testing.T) {
 	}
 
 	start := time.Now()
-	if _, err := SessionEnd(&CloudEvent{SessionID: f.sessionID, CWD: f.projectDir}, td.DB, f.projectDir); err != nil {
+	if _, err := SessionEnd(&CloudEvent{SessionID: f.sessionID, CWD: f.projectDir}, f.projectDir); err != nil {
 		t.Fatal(err)
 	}
 	if elapsed := time.Since(start); elapsed > 500*time.Millisecond {
@@ -136,7 +136,7 @@ func TestSessionEnd_CollectorIgnoringSIGTERMDoesNotHoldHook(t *testing.T) {
 		t.Error("pid file removed although the collector is still alive")
 	}
 
-	CatchUpEndedSessions(td.DB, f.projectDir, "", true)
+	CatchUpEndedSessions(f.projectDir, "", true)
 	select {
 	case <-exited:
 	case <-time.After(3 * time.Second):

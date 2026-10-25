@@ -11,6 +11,7 @@ import (
 	"time"
 
 	dbpkg "github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/db/dbtest"
 	"github.com/shakestzd/wipnote/internal/launcher"
 )
 
@@ -205,7 +206,7 @@ func TestApplyClaudeLaunchIntent_BrowseRunsBareResume(t *testing.T) {
 }
 
 func TestListHarnessGroupedResumableSessions_ClaudeCodeGroupsWithClaude(t *testing.T) {
-	database, err := dbpkg.Open(filepath.Join(t.TempDir(), "claude_code.db"))
+	database, err := dbtest.Open(filepath.Join(t.TempDir(), "claude_code.db"))
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}

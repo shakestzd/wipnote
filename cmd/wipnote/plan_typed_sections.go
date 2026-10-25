@@ -7,6 +7,7 @@ import (
 
 	dbpkg "github.com/shakestzd/wipnote/core/db"
 	"github.com/shakestzd/wipnote/core/htmlparse"
+	"github.com/shakestzd/wipnote/core/workitem"
 	"github.com/shakestzd/wipnote/plan/plantmpl"
 )
 
@@ -59,7 +60,7 @@ func buildTypedPlanSections(nodePath, wipnoteDir string) ([]plantmpl.SliceCard, 
 		var what string
 		var files int
 
-		childPath := resolveNodePath(wipnoteDir, f.id)
+		childPath := workitem.NodePath(wipnoteDir, f.id)
 		if childPath != "" {
 			if childNode, err := htmlparse.ParseFile(childPath); err == nil {
 				if childNode.Content != "" {

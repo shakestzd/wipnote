@@ -318,13 +318,6 @@ func decodeStringList(raw json.RawMessage) []string {
 	return filtered
 }
 
-func mergeLauncherEnv(env []string, extra ...string) []string {
-	if len(extra) == 0 {
-		return env
-	}
-	return launcher.AppendOrReplaceEnv(env, extra...)
-}
-
 func normalizeContinueHarness(v string) string {
 	return strings.ToLower(strings.TrimSpace(v))
 }

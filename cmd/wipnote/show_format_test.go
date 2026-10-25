@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/shakestzd/wipnote/core/htmlparse"
+	"github.com/spf13/cobra"
 )
 
 // sampleBugHTML is a minimal wipnote bug HTML fixture.
@@ -157,8 +158,8 @@ func TestBugShow_DefaultIsText(t *testing.T) {
 
 	// Default (no format flag) should produce text, not JSON.
 	out := captureStdout(t, func() {
-		if err := runWiShow("bug-aabbccdd"); err != nil {
-			t.Fatalf("runWiShow: %v", err)
+		if err := runShowCmdNoFlags(wiShowCmd("bug"), "bug-aabbccdd"); err != nil {
+			t.Fatalf("bug show: %v", err)
 		}
 	})
 
@@ -292,8 +293,8 @@ func TestTrackShow_DefaultIsText(t *testing.T) {
 	defer func() { projectDirFlag = "" }()
 
 	out := captureStdout(t, func() {
-		if err := runTrackShow("trk-aabbccdd", false); err != nil {
-			t.Fatalf("runTrackShow: %v", err)
+		if err := runShowCmdNoFlags(trackShowCmd(), "trk-aabbccdd"); err != nil {
+			t.Fatalf("track show: %v", err)
 		}
 	})
 
@@ -355,10 +356,9 @@ func TestPlanShow_DefaultIsText(t *testing.T) {
 	projectDirFlag = tmpDir
 	defer func() { projectDirFlag = "" }()
 
-	// planShowCmd delegates to runWiShow which uses text by default.
 	out := captureStdout(t, func() {
-		if err := runWiShow("plan-aabbccdd"); err != nil {
-			t.Fatalf("runWiShow: %v", err)
+		if err := runShowCmdNoFlags(planShowCmd(), "plan-aabbccdd"); err != nil {
+			t.Fatalf("plan show: %v", err)
 		}
 	})
 
@@ -402,4 +402,12 @@ func jsonKeys(m map[string]any) []string {
 		keys = append(keys, k)
 	}
 	return keys
+}
+
+// runShowCmdNoFlags runs a show command with only the id argument, so the
+// command's own --format default is what is under test.
+func runShowCmdNoFlags(cmd *cobra.Command, id string) error {
+	cmd.SetArgs([]string{id})
+	cmd.SilenceUsage = true
+	return cmd.Execute()
 }

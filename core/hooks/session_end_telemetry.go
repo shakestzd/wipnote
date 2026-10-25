@@ -7,54 +7,7 @@ import (
 	"strings"
 	"syscall"
 	"time"
-
-	"github.com/shakestzd/wipnote/core/agent"
 )
-
-// collectorDrainWait bounds how long a CATCH-UP pass waits for a collector to
-// drain before it sends SIGKILL. The SessionEnd hook itself no longer waits.
-//
-// Claude Code does NOT grant a plugin SessionEnd hook its configured timeout.
-// The hooks reference (https://code.claude.com/docs/en/hooks, SessionEnd) says:
-// "SessionEnd hooks have a default timeout of 1.5 seconds" and "Timeouts set on
-// plugin-provided hooks don't raise the budget". The "timeout": 60 in
-// plugin/hooks/hooks.json is therefore ignored by Claude Code and stays only for
-// harnesses that read it. Codex caps a SessionEnd hook at 3s (default 1s;
-// codex-rs hooks/src/events/session_end.rs) and kills it past that.
-func collectorDrainWait() time.Duration {
-	if agent.DetectEnvHarness() == agent.HarnessCodex {
-		return 1200 * time.Millisecond
-	}
-	return 3 * time.Second
-}
-
-// telemetryFinalizeBudget bounds SessionTelemetryFn: ingesting the session's
-// NDJSON and materializing its rollup. Under Codex, drain plus finalize stays
-// near 2.1s of the 3s cap, leaving room for the steps before and after them.
-// A session too large for the budget is not lost: it stays unmarked, and the
-// catch-up pass before the next retention sweep finishes it.
-func telemetryFinalizeBudget() time.Duration {
-	if agent.DetectEnvHarness() == agent.HarnessCodex {
-		return 900 * time.Millisecond
-	}
-	return 10 * time.Second
-}
-
-// signalCollector reads the .collector-pid file for this session, sends SIGTERM,
-// waits up to the collector drain budget (collectorDrainWait; 3s outside Codex)
-// for a clean drain, then falls back to SIGKILL. The SessionEnd hook does not
-// call it (it has 1.5s); see termCollector. Catch-up uses the Wait variant.
-// All errors are silently logged — the collector PID file is best-effort.
-func signalCollector(projectDir, sessionID string) {
-	// The launcher keys the collector's directory by its own OTel id
-	// (WIPNOTE_OTEL_SESSION_ID), not the harness session id the hook receives.
-	// Try the launcher id first, then the harness id as the fallback.
-	launcher := os.Getenv("WIPNOTE_OTEL_SESSION_ID")
-	if launcher != "" && launcher != sessionID && filepath.Base(launcher) == launcher && launcher != ".." && launcher != "." {
-		signalCollectorDir(projectDir, launcher)
-	}
-	signalCollectorDir(projectDir, sessionID)
-}
 
 // collectorPID extracts the collector pid from the PID file contents. The
 // writer records "<pid>\n<starttime>". When CollectorAliveFn is wired it also
@@ -67,12 +20,6 @@ func collectorPID(sessDir string, data []byte) (int, bool) {
 	first, _, _ := strings.Cut(strings.TrimSpace(string(data)), "\n")
 	pid, err := strconv.Atoi(strings.TrimSpace(first))
 	return pid, err == nil && pid > 0
-}
-
-// signalCollectorDir signals the collector whose PID file lives under the
-// shard directory named sessionID.
-func signalCollectorDir(projectDir, sessionID string) {
-	signalCollectorDirWait(projectDir, sessionID, collectorDrainWait(), true)
 }
 
 // signalCollectorDirWait sends the collector SIGTERM, then waits up to wait for

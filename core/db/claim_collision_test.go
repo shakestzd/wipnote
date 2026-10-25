@@ -5,9 +5,10 @@ package db_test
 
 import (
 	"database/sql"
-	"strings"
 	"testing"
 	"time"
+
+	"github.com/shakestzd/wipnote/core/db/dbtest"
 
 	"github.com/shakestzd/wipnote/core/db"
 	"github.com/shakestzd/wipnote/core/models"
@@ -34,7 +35,7 @@ func TestClaimCollisionPolicy(t *testing.T) {
 		ClaimedByAgentID: "agent-A",
 		Status:           models.ClaimInProgress,
 	}
-	if err := db.ClaimItemOrRenew(database, c1, 30*time.Minute); err != nil {
+	if err := dbtest.InsertClaim(database, c1, 30*time.Minute); err != nil {
 		t.Fatalf("first claim: %v", err)
 	}
 
@@ -47,7 +48,7 @@ func TestClaimCollisionPolicy(t *testing.T) {
 		ClaimedByAgentID: "agent-B",
 		Status:           models.ClaimInProgress,
 	}
-	if err := db.ClaimItemOrRenew(database, c2, 30*time.Minute); err != nil {
+	if err := dbtest.InsertClaim(database, c2, 30*time.Minute); err != nil {
 		t.Fatalf("second claim (warn-and-allow must succeed): %v", err)
 	}
 
@@ -96,7 +97,7 @@ func TestSameHarnessTwoRootSessionsCollision(t *testing.T) {
 		ClaimedByAgentID: "", // root / orchestrator: no subagent discriminator
 		Status:           models.ClaimInProgress,
 	}
-	if err := db.ClaimItemOrRenew(database, c1, 30*time.Minute); err != nil {
+	if err := dbtest.InsertClaim(database, c1, 30*time.Minute); err != nil {
 		t.Fatalf("first root claim: %v", err)
 	}
 
@@ -109,7 +110,7 @@ func TestSameHarnessTwoRootSessionsCollision(t *testing.T) {
 		ClaimedByAgentID: "",
 		Status:           models.ClaimInProgress,
 	}
-	if err := db.ClaimItemOrRenew(database, c2, 30*time.Minute); err != nil {
+	if err := dbtest.InsertClaim(database, c2, 30*time.Minute); err != nil {
 		t.Fatalf("second root claim (warn-and-allow must succeed): %v", err)
 	}
 
@@ -134,17 +135,6 @@ func TestSameHarnessTwoRootSessionsCollision(t *testing.T) {
 		t.Fatalf("expected 2 distinct claimants, got %d", len(coll.Claimants))
 	}
 
-	// Idempotency guard: a SAME-session re-claim renews in place (no 3rd row).
-	if err := db.ClaimItemOrRenew(database, c1, 30*time.Minute); err != nil {
-		t.Fatalf("re-claim from sess-root-1: %v", err)
-	}
-	again, err := db.ListClaimsForWorkItem(database, "feat-tworoot")
-	if err != nil {
-		t.Fatalf("ListClaimsForWorkItem after re-claim: %v", err)
-	}
-	if len(again) != 2 {
-		t.Fatalf("re-claim from same session must renew in place, expected 2 rows, got %d", len(again))
-	}
 }
 
 // TestParallelHarnessClaims — three harnesses (Claude, Codex, Gemini) claim the
@@ -183,7 +173,7 @@ func TestParallelHarnessClaims(t *testing.T) {
 			ClaimedByAgentID: h.agentID,
 			Status:           models.ClaimInProgress,
 		}
-		if err := db.ClaimItemOrRenew(database, c, 30*time.Minute); err != nil {
+		if err := dbtest.InsertClaim(database, c, 30*time.Minute); err != nil {
 			t.Fatalf("claim %s: %v", h.claimID, err)
 		}
 	}
@@ -212,85 +202,6 @@ func TestParallelHarnessClaims(t *testing.T) {
 	}
 }
 
-// TestSubagentAttribution_OutOfOrderParent verifies that subagent session rows
-// written BEFORE the parent session record arrives are retained and correctly
-// linked after BackfillParentSession is called.
-func TestSubagentAttribution_OutOfOrderParent(t *testing.T) {
-	database := setupTestDB(t)
-	defer database.Close()
-
-	now := time.Now().UTC()
-	insertExtraFeature(t, database, "feat-ooo")
-
-	// Insert child session WITHOUT parent yet (out-of-order arrival).
-	_, err := database.Exec(
-		`INSERT OR IGNORE INTO sessions (session_id, agent_assigned, created_at, status, is_subagent)
-		 VALUES ('agent-child-ooo', 'feature-coder', ?, 'active', 1)`,
-		now.Format(time.RFC3339),
-	)
-	if err != nil {
-		t.Fatalf("insert child session: %v", err)
-	}
-
-	// Insert child event with work-item attribution before parent exists.
-	ev := &models.AgentEvent{
-		EventID:      "evt-ooo-1",
-		AgentID:      "agent-child-ooo",
-		EventType:    models.EventToolCall,
-		Timestamp:    now,
-		ToolName:     "Write",
-		InputSummary: "child editing",
-		SessionID:    "agent-child-ooo",
-		FeatureID:    "feat-ooo",
-		Status:       "started",
-		Source:       "hook",
-		CreatedAt:    now,
-		UpdatedAt:    now,
-	}
-	if err := db.InsertEvent(database, ev); err != nil {
-		t.Fatalf("insert child event: %v", err)
-	}
-
-	// Parent arrives late.
-	parent := &models.Session{
-		SessionID:     "sess-parent-ooo",
-		AgentAssigned: "claude-code",
-		CreatedAt:     now,
-		Status:        "active",
-	}
-	if err := db.InsertSession(database, parent); err != nil {
-		t.Fatalf("insert parent: %v", err)
-	}
-
-	// Backfill the parent link on the child session.
-	if err := db.BackfillParentSession(database, "agent-child-ooo", "sess-parent-ooo"); err != nil {
-		t.Fatalf("BackfillParentSession: %v", err)
-	}
-
-	// Child event must still exist with feature attribution.
-	retrieved, err := db.GetEvent(database, "evt-ooo-1")
-	if err != nil {
-		t.Fatalf("GetEvent: %v", err)
-	}
-	if retrieved == nil {
-		t.Fatal("child event not found after parent backfill")
-	}
-	if retrieved.FeatureID != "feat-ooo" {
-		t.Errorf("child event lost feature: got %q, want %q", retrieved.FeatureID, "feat-ooo")
-	}
-
-	// Parent row now has a linked child.
-	var childSID string
-	err = database.QueryRow(
-		`SELECT session_id FROM sessions WHERE parent_session_id = ?`, "sess-parent-ooo",
-	).Scan(&childSID)
-	if err == sql.ErrNoRows {
-		t.Error("child session not linked to parent after BackfillParentSession")
-	} else if err != nil {
-		t.Fatalf("query child: %v", err)
-	}
-}
-
 // TestLiveCollision_LiveRefusal verifies that LiveCollision reports
 // HasLiveCollision=true when a foreign session holds a fresh heartbeat.
 func TestLiveCollision_LiveRefusal(t *testing.T) {
@@ -310,7 +221,7 @@ func TestLiveCollision_LiveRefusal(t *testing.T) {
 		ClaimedByAgentID: "agent-holder",
 		Status:           models.ClaimInProgress,
 	}
-	if err := db.ClaimItemOrRenew(database, holder, 30*time.Minute); err != nil {
+	if err := dbtest.InsertClaim(database, holder, 30*time.Minute); err != nil {
 		t.Fatalf("holder claim: %v", err)
 	}
 
@@ -334,15 +245,6 @@ func TestLiveCollision_LiveRefusal(t *testing.T) {
 	if len(lc.LiveClaimants) != 1 {
 		t.Errorf("expected 1 live claimant, got %d", len(lc.LiveClaimants))
 	}
-
-	// LiveCollisionMessage must produce a non-empty refusal string.
-	msg := db.LiveCollisionMessage(lc)
-	if msg == "" {
-		t.Error("LiveCollisionMessage returned empty string for live collision")
-	}
-	if !strings.Contains(msg, "--force") {
-		t.Errorf("LiveCollisionMessage missing '--force' hint: %q", msg)
-	}
 }
 
 // TestLiveCollision_StaleAllows verifies that a stale (expired-heartbeat)
@@ -363,7 +265,7 @@ func TestLiveCollision_StaleAllows(t *testing.T) {
 		ClaimedByAgentID: "agent-stale",
 		Status:           models.ClaimInProgress,
 	}
-	if err := db.ClaimItemOrRenew(database, stale, 30*time.Minute); err != nil {
+	if err := dbtest.InsertClaim(database, stale, 30*time.Minute); err != nil {
 		t.Fatalf("stale claim: %v", err)
 	}
 
@@ -407,7 +309,7 @@ func TestLiveCollision_SelfReclaim(t *testing.T) {
 		ClaimedByAgentID: "agent-self",
 		Status:           models.ClaimInProgress,
 	}
-	if err := db.ClaimItemOrRenew(database, self, 30*time.Minute); err != nil {
+	if err := dbtest.InsertClaim(database, self, 30*time.Minute); err != nil {
 		t.Fatalf("self claim: %v", err)
 	}
 
@@ -451,7 +353,7 @@ func TestLiveCollision_EndedSessionReclaimable(t *testing.T) {
 		ClaimedByAgentID: "agent-ended",
 		Status:           models.ClaimInProgress,
 	}
-	if err := db.ClaimItemOrRenew(database, ended, 30*time.Minute); err != nil {
+	if err := dbtest.InsertClaim(database, ended, 30*time.Minute); err != nil {
 		t.Fatalf("ended claim: %v", err)
 	}
 
@@ -506,7 +408,7 @@ func TestLiveCollision_ActiveNonEndedBlocks(t *testing.T) {
 		ClaimedByAgentID: "agent-active",
 		Status:           models.ClaimInProgress,
 	}
-	if err := db.ClaimItemOrRenew(database, active, 30*time.Minute); err != nil {
+	if err := dbtest.InsertClaim(database, active, 30*time.Minute); err != nil {
 		t.Fatalf("active claim: %v", err)
 	}
 

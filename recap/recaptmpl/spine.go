@@ -3,11 +3,12 @@ package recaptmpl
 import (
 	"html/template"
 	"io"
+	"sync"
 )
 
-var lineageSpineTmpl = template.Must(
-	template.ParseFS(templateFS, "templates/lineage_spine.gohtml"),
-)
+var lineageSpineTmpl = sync.OnceValue(func() *template.Template {
+	return template.Must(template.ParseFS(templateFS, "templates/lineage_spine.gohtml"))
+})
 
 // spineRef is a non-pivot station on the causal spine: an ancestry node above
 // the pivot, or a produced/related node below it. Glyph is the kind-shaped inline
@@ -64,7 +65,7 @@ func (s *LineageSpine) has() bool {
 
 // Render writes the spine zone HTML to w.
 func (s *LineageSpine) Render(w io.Writer) error {
-	return lineageSpineTmpl.Execute(w, s)
+	return lineageSpineTmpl().Execute(w, s)
 }
 
 // glyphFor returns the kind-shaped inline SVG for a node type. Shape encodes

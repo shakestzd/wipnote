@@ -15,6 +15,7 @@ import (
 	"github.com/shakestzd/wipnote/core/paths"
 	"github.com/shakestzd/wipnote/core/provenance"
 	"github.com/shakestzd/wipnote/core/research"
+	"github.com/shakestzd/wipnote/core/slug"
 	"github.com/shakestzd/wipnote/core/workitem"
 	"github.com/spf13/cobra"
 )
@@ -22,7 +23,7 @@ import (
 // needsTriageDupTag is the marker carried on the auto-attached relates_to
 // edge's Title so the duplicate flag survives in canonical HTML (edge link
 // text round-trips through the parser) and is queryable from graph_edges.
-// `wipnote check` and the dashboard detect clusters by this prefix.
+// `wipnote check` detects clusters by this prefix.
 const needsTriageDupTag = "needs-triage-dup"
 
 type wiCreateOpts struct {
@@ -97,6 +98,24 @@ func runWiCreate(typeName, title string, o *wiCreateOpts) error {
 	}
 	defer p.Close()
 
+	if err := validateWiCreate(p, typeName, o); err != nil {
+		return err
+	}
+
+	node, err := createNode(p, typeName, title, o)
+	if err != nil {
+		return fmt.Errorf("create %s: %w", typeName, err)
+	}
+	applyChangeKind(collectionFor(p, typeName), typeName, node, o.changeKind)
+
+	recordCreateMetadata(p, dir, typeName, node, o)
+	linkCreatedNode(p, typeName, node, o)
+	return finishWiCreate(p, dir, typeName, node, o)
+}
+
+// validateWiCreate enforces the plan hierarchy, resolves --plan to its track
+// and validates the create inputs before anything is written.
+func validateWiCreate(p *workitem.Project, typeName string, o *wiCreateOpts) error {
 	// Enforce plan hierarchy for features first: require --plan OR --standalone.
 	// Features with an explicit --track but no --plan are also accepted (e.g.
 	// created by automated finalize), so only reject truly bare feature creates.
@@ -128,13 +147,12 @@ func runWiCreate(typeName, title string, o *wiCreateOpts) error {
 	if o.changeKind != "" && !research.ValidKind(o.changeKind) {
 		return fmt.Errorf("--change-kind %q is not one of %s", o.changeKind, strings.Join(research.AllKinds, ", "))
 	}
+	return nil
+}
 
-	node, err := createNode(p, typeName, title, o)
-	if err != nil {
-		return fmt.Errorf("create %s: %w", typeName, err)
-	}
-	applyChangeKind(collectionFor(p, typeName), typeName, node, o.changeKind)
-
+// recordCreateMetadata records steps, session provenance, affected files, and
+// model/role/CLI attribution on a freshly-created node.
+func recordCreateMetadata(p *workitem.Project, dir, typeName string, node *models.Node, o *wiCreateOpts) {
 	// Post-creation: record steps, session provenance, affected files, and
 	// model/role/CLI attribution. Resolve provenance now (after createNode so
 	// session lookup is available) and apply via the same Edit chain.
@@ -165,7 +183,11 @@ func runWiCreate(typeName, title string, o *wiCreateOpts) error {
 			fmt.Fprintf(os.Stderr, "Warning: failed to save metadata: %v\n", saveErr)
 		}
 	}
+}
 
+// linkCreatedNode wires a freshly-created node to its plan, causing feature,
+// track and any near-duplicate.
+func linkCreatedNode(p *workitem.Project, typeName string, node *models.Node, o *wiCreateOpts) {
 	// Wire feature → plan (planned_in edge) and record standalone_reason.
 	if typeName == "feature" {
 		if o.planID != "" {
@@ -212,7 +234,11 @@ func runWiCreate(typeName, title string, o *wiCreateOpts) error {
 	if typeName == "bug" || typeName == "feature" {
 		maybeAttachDedupRelation(p, typeName, node, o.description)
 	}
+}
 
+// finishWiCreate auto-commits the created artifact, optionally starts the
+// item, and prints the result.
+func finishWiCreate(p *workitem.Project, dir, typeName string, node *models.Node, o *wiCreateOpts) error {
 	// Auto-commit the freshly-created HTML so in-progress lineage starts on
 	// commit-1 rather than waiting for completion. Gated by the same allowlist
 	// that gates the complete-time commit; plans use commitPlanChange instead.
@@ -290,20 +316,6 @@ func normalizeFilesInput(input, repoRoot string) string {
 	return strings.Join(out, ",")
 }
 
-// dedupWindowDays resolves the closed-item lookback window. Default is
-// dbpkg.DedupDefaultWindowDays (~30d); operators override via the
-// WIPNOTE_DEDUP_WINDOW_DAYS env var. The rationale for keeping the *window*
-// configurable (but the similarity *threshold* a fixed code constant) lives
-// in internal/db/feature_repo.go.
-func dedupWindowDays() int {
-	if raw := strings.TrimSpace(os.Getenv("WIPNOTE_DEDUP_WINDOW_DAYS")); raw != "" {
-		if n, err := strconv.Atoi(raw); err == nil && n > 0 {
-			return n
-		}
-	}
-	return dbpkg.DedupDefaultWindowDays
-}
-
 // maybeAttachDedupRelation runs the similarity check and, on a strong match,
 // attaches a relates_to edge whose Title carries the needs-triage-dup marker.
 //
@@ -362,7 +374,7 @@ func maybeAttachDedupRelation(p *workitem.Project, typeName string, node *models
 // default: do not silently link when a human is present and declines).
 func confirmDedupAttach(newID string, match *dbpkg.DedupCandidate) bool {
 	fmt.Printf("Possible duplicate: %s looks similar to %s %q (score %.2f).\n",
-		newID, match.ID, truncate(match.Title, 50), match.Score)
+		newID, match.ID, slug.Truncate(match.Title, 50), match.Score)
 	fmt.Printf("Attach relates_to + %s tag? [y/N]: ", needsTriageDupTag)
 	reader := bufio.NewReader(os.Stdin)
 	line, err := reader.ReadString('\n')

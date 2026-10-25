@@ -342,14 +342,14 @@ func TestAntigravityHooksSchema(t *testing.T) {
 	if !spec.Enabled {
 		t.Error("named hook \"wipnote\" must have enabled:true")
 	}
-	// The five agy events that register handlers must all be present and wired
-	// to a wipnote hook command.
+	// The four agy events that register handlers must all be present and wired
+	// to a wipnote hook command. PostInvocation carried only after-agent, a
+	// no-op removed in feat-174dc958.
 	for name, groups := range map[string][]claudeMatcherGroup{
-		"PreToolUse":     spec.PreToolUse,
-		"PostToolUse":    spec.PostToolUse,
-		"PreInvocation":  spec.PreInvocation,
-		"PostInvocation": spec.PostInvocation,
-		"Stop":           spec.Stop,
+		"PreToolUse":    spec.PreToolUse,
+		"PostToolUse":   spec.PostToolUse,
+		"PreInvocation": spec.PreInvocation,
+		"Stop":          spec.Stop,
 	} {
 		if len(groups) == 0 {
 			t.Errorf("agy event %q missing from generated hooks.json", name)

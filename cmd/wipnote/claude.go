@@ -16,16 +16,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// devModeBackup records the state we swapped out during dev mode so we can
-// restore it after the session (or after a crash on next startup).
-type devModeBackup struct {
-	InstallPath    string `json:"installPath"`
-	BackupPath     string `json:"backupPath"`
-	WasEnabled     bool   `json:"wasEnabled"`
-	PluginKey      string `json:"pluginKey"`
-	HadInstallPath bool   `json:"hadInstallPath"`
-}
-
 // LaunchOpts controls how Claude Code is launched.
 type LaunchOpts struct {
 	// Mode is written to the launch marker (e.g. "go", "init", "continue", "default").
@@ -243,358 +233,6 @@ func removeMarketplaceWipnote() {
 	fmt.Println("Marketplace wipnote removed (uninstalled, disabled, cache wiped).")
 }
 
-func launchClaudeDev(extraArgs []string, auto bool, resumeID, name, workItem string, inPlace, continue_ bool) error {
-	if err := requireWipnoteOnPath(); err != nil {
-		return err
-	}
-
-	// Resolve the source project root (the wipnote repo with plugin/).
-	// This must happen BEFORE intent resolution so cleanupStaleDev and
-	// resolveProjectPluginDirFrom can anchor to the source tree, not CWD.
-	projectRoot := ""
-	if wipnoteDir, err := findWipnoteDir(); err == nil {
-		projectRoot = filepath.Dir(wipnoteDir)
-	}
-
-	// Clean up any leftover symlink state from a previous dev mode crash.
-	cleanupStaleDev(projectRoot)
-
-	// Resolve the in-tree plugin/ from the source root NOW, before intent
-	// resolution might redirect childDir to a worktree. The plugin source always
-	// lives in the wipnote source tree, never in a linked worktree.
-	pluginDir, err := devLaunchPluginDir(projectRoot)
-	if err != nil {
-		return err
-	}
-	// Verify expected plugin structure.
-	if _, err := os.Stat(filepath.Join(pluginDir, ".claude-plugin", "plugin.json")); os.IsNotExist(err) {
-		return fmt.Errorf("plugin.json not found at %s",
-			filepath.Join(pluginDir, ".claude-plugin", "plugin.json"))
-	}
-
-	// Resolve canonical root (non-empty only when projectRoot is a linked worktree).
-	wipnoteRoot := canonicalProjectRoot(projectRoot)
-
-	// Run the intent chooser and isolation planner — same path as launchClaudeDefault.
-	// continue_ suppresses the chooser (explicit "resume most recent" intent) and is
-	// honored below via Resume: true on the launch opts.
-	lctx, err := resolveClaudeIntentIsolation(projectRoot, wipnoteRoot, resumeID, workItem, inPlace, continue_, extraArgs)
-	if err != nil {
-		return err
-	}
-	resumeID = lctx.intentResult.resumeID
-
-	browse := lctx.intentResult.browse
-	sessionName := resolveSessionName(name, resumeID, continue_ || browse, projectRoot)
-
-	devHeadline := "Launching Claude Code with local plugin (--plugin-dir mode)"
-	if auto {
-		devHeadline += " + auto mode"
-	}
-	fmt.Println(launchtui.RenderLaunchBanner(nil, launchtui.BannerInput{
-		Headline:        devHeadline,
-		PluginSource:    pluginDir,
-		Session:         sessionName,
-		Warning:         lctx.dirtyMainWarning,
-		WarningSeverity: "amber",
-	}))
-
-	// Remove any installed marketplace plugin after intent and isolation resolution
-	// succeeds so --plugin-dir cannot be shadowed by a stale install.
-	removeMarketplaceWipnote()
-
-	return launchClaude(LaunchOpts{
-		// Mode is always "go" for dev sessions: it identifies the dev-plugin
-		// launcher type (opts.PluginDir != "" && opts.Mode == "go") for
-		// computeLauncherMode and writeLaunchMarker. The intent's continue/new
-		// distinction is captured via ResumeID and Intent — not the mode string.
-		Mode:      "go",
-		PluginDir: pluginDir,
-		// Resume the most recent session when --dev --continue was requested
-		// (mirrors launchClaudeContinue). ResumeID, when set, still takes
-		// precedence in launchClaude's arg construction.
-		// "Browse all sessions" in the picker is the same bare --resume.
-		Resume:             continue_ || browse,
-		ResumeID:           resumeID,
-		InjectSystemPrompt: true,
-		PermissionMode:     autoPermissionMode(auto),
-		Name:               sessionName,
-		ExtraArgs:          extraArgs,
-		// childDir is the worktree (or projectRoot when in-place). Claude Code
-		// runs here so the agent works on the right branch, but WIPNOTE_PROJECT_DIR
-		// still points at the canonical source root via WipnoteRoot.
-		ProjectRoot: lctx.childDir,
-		WipnoteRoot: lctx.wipnoteRoot,
-		Intent:      lctx.intentResult.intent,
-		ExtraEnv:    lctx.continueEnv,
-	})
-}
-
-func requireWipnoteOnPath() error {
-	if _, err := exec.LookPath("wipnote"); err != nil {
-		return fmt.Errorf("wipnote binary not found on PATH\nBuild with: wipnote build")
-	}
-	return nil
-}
-
-// autoPermissionMode returns "auto" when enabled is true, otherwise empty string.
-// This avoids passing --permission-mode when auto mode is not requested.
-func autoPermissionMode(enabled bool) string {
-	if enabled {
-		return "auto"
-	}
-	return ""
-}
-
-// launchClaudeAuto launches Claude Code with auto mode enabled for autonomous operation.
-// It uses the bundled plugin (like normal mode) but adds --permission-mode auto so
-// Claude starts in autonomous operation immediately. (--enable-auto-mode is no
-// longer passed: Claude Code 2.1.111 removed it — auto mode no longer requires it.)
-func launchClaudeAuto(extraArgs []string, resumeID, name string) error {
-	projectRoot, _ := resolveProjectRoot()
-	cleanupStaleDev(projectRoot)
-	// Resolve canonical main repo root when CWD is a linked worktree (slice-3).
-	wipnoteRoot := canonicalProjectRoot(projectRoot)
-	pluginDir, err := resolveBundledPluginDir()
-	if err != nil {
-		return err
-	}
-	sessionName := name
-	// Only synthesize a default name for new sessions. When resuming an existing
-	// session, skip default-name generation so we don't rename or conflict with
-	// the resumed session. The user can still override with an explicit --name.
-	if sessionName == "" && resumeID == "" {
-		sessionName = defaultSessionName(projectRoot)
-	}
-	fmt.Println(launchtui.RenderLaunchBanner(nil, launchtui.BannerInput{
-		Headline:        "Launching Claude Code in auto mode (autonomous operation)...",
-		PluginSource:    pluginDir,
-		Session:         sessionName,
-		Warning:         "Actions will be approved by the background classifier, not prompted.",
-		WarningSeverity: "amber",
-	}))
-	return launchClaude(LaunchOpts{
-		Mode:               "auto",
-		PluginDir:          pluginDir,
-		ResumeID:           resumeID,
-		InjectSystemPrompt: true,
-		PermissionMode:     "auto",
-		Name:               sessionName,
-		ExtraArgs:          extraArgs,
-		ProjectRoot:        projectRoot,
-		WipnoteRoot:        wipnoteRoot,
-	})
-}
-
-// installedPluginsJSON is the path to the Claude Code installed plugins registry.
-func installedPluginsJSONPath() string {
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".claude", "plugins", "installed_plugins.json")
-}
-
-// claudeSettingsJSONPath is the path to the Claude Code user settings file.
-func claudeSettingsJSONPath() string {
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".claude", "settings.json")
-}
-
-// devModeBackupPath returns the path to the dev-mode backup state file.
-func devModeBackupPath(projectRoot string) string {
-	base := ".wipnote"
-	if projectRoot != "" {
-		base = filepath.Join(projectRoot, ".wipnote")
-	}
-	return filepath.Join(base, ".dev-mode-backup")
-}
-
-// restoreFromSymlink removes the dev-mode symlink and restores the backup.
-// Kept for cleanupStaleDev to recover from old symlink-based dev mode sessions.
-func restoreFromSymlink(installPath, backupPath, pluginKey string, wasEnabled bool, backupStateFile string) {
-	// Remove the symlink.
-	if err := os.Remove(installPath); err != nil && !os.IsNotExist(err) {
-		fmt.Fprintf(os.Stderr, "warning: could not remove dev symlink %s: %v\n", installPath, err)
-	}
-
-	// Restore backup if it exists.
-	if _, err := os.Stat(backupPath); err == nil {
-		if err := os.Rename(backupPath, installPath); err != nil {
-			fmt.Fprintf(os.Stderr, "warning: could not restore %s from %s: %v\n", installPath, backupPath, err)
-		}
-	}
-
-	// Restore enabled state in settings.json.
-	if err := setPluginEnabled(pluginKey, wasEnabled); err != nil {
-		fmt.Fprintf(os.Stderr, "warning: could not restore plugin enabled state: %v\n", err)
-	}
-
-	// Remove the backup state file.
-	os.Remove(backupStateFile) //nolint:errcheck
-
-	fmt.Println("Dev mode cleanup complete.")
-}
-
-// setPluginEnabled sets enabledPlugins[key] = enabled in ~/.claude/settings.json.
-func setPluginEnabled(key string, enabled bool) error {
-	settingsPath := claudeSettingsJSONPath()
-	data, err := os.ReadFile(settingsPath)
-	if err != nil {
-		return fmt.Errorf("reading settings.json: %w", err)
-	}
-
-	var settings map[string]json.RawMessage
-	if err := json.Unmarshal(data, &settings); err != nil {
-		return fmt.Errorf("parsing settings.json: %w", err)
-	}
-
-	var ep map[string]bool
-	if epRaw, ok := settings["enabledPlugins"]; ok {
-		if err := json.Unmarshal(epRaw, &ep); err != nil {
-			ep = make(map[string]bool)
-		}
-	} else {
-		ep = make(map[string]bool)
-	}
-
-	ep[key] = enabled
-
-	epBytes, err := json.Marshal(ep)
-	if err != nil {
-		return fmt.Errorf("marshalling enabledPlugins: %w", err)
-	}
-	settings["enabledPlugins"] = json.RawMessage(epBytes)
-
-	out, err := json.MarshalIndent(settings, "", "  ")
-	if err != nil {
-		return fmt.Errorf("marshalling settings.json: %w", err)
-	}
-	if err := os.WriteFile(settingsPath, out, 0644); err != nil {
-		return fmt.Errorf("writing settings.json: %w", err)
-	}
-	return nil
-}
-
-// cleanupStaleDev checks for a leftover .dev-mode-backup file from a previous
-// crash and restores the original plugin state if one is found.
-func cleanupStaleDev(projectRoot string) {
-	backupStateFile := devModeBackupPath(projectRoot)
-	data, err := os.ReadFile(backupStateFile)
-	if err != nil {
-		return // No stale backup — nothing to do.
-	}
-
-	var backup devModeBackup
-	if err := json.Unmarshal(data, &backup); err != nil {
-		fmt.Fprintf(os.Stderr, "warning: could not parse stale dev-mode backup state: %v\n", err)
-		return
-	}
-
-	fmt.Println("Found stale dev-mode state from previous crash — restoring...")
-	restoreFromSymlink(backup.InstallPath, backup.BackupPath, backup.PluginKey, backup.WasEnabled, backupStateFile)
-}
-
-func launchClaudeInit(extraArgs []string, resumeID, name string) error {
-	// --init always uses CWD — never walk up to a parent with .wipnote/.
-	// The user explicitly wants to work in THIS directory, which may not
-	// have .wipnote/ yet. Walk-up would anchor to the wrong project.
-	projectRoot, _ := os.Getwd()
-	cleanupStaleDev(projectRoot)
-	// Resolve canonical main repo root when CWD is a linked worktree (slice-3).
-	wipnoteRoot := canonicalProjectRoot(projectRoot)
-	pluginDir, err := resolveBundledPluginDir()
-	if err != nil {
-		return err
-	}
-	sessionName := name
-	// Only synthesize a default name for new sessions. When resuming an existing
-	// session, skip default-name generation so we don't rename or conflict with
-	// the resumed session. The user can still override with an explicit --name.
-	if sessionName == "" && resumeID == "" {
-		sessionName = defaultSessionName(projectRoot)
-	}
-	fmt.Println(launchtui.RenderLaunchBanner(nil, launchtui.BannerInput{
-		Headline:     "Launching Claude Code with bundled wipnote plugin (init mode)...",
-		PluginSource: pluginDir,
-		Session:      sessionName,
-	}))
-	return launchClaude(LaunchOpts{
-		Mode:               "init",
-		PluginDir:          pluginDir,
-		ResumeID:           resumeID,
-		InjectSystemPrompt: true,
-		Name:               sessionName,
-		ExtraArgs:          extraArgs,
-		ProjectRoot:        projectRoot,
-		WipnoteRoot:        wipnoteRoot,
-	})
-}
-
-func launchClaudeContinue(extraArgs []string, resumeID string) error {
-	projectRoot, _ := resolveProjectRoot()
-	cleanupStaleDev(projectRoot)
-	// Resolve canonical main repo root when CWD is a linked worktree (slice-3).
-	wipnoteRoot := canonicalProjectRoot(projectRoot)
-	pluginDir, err := resolveBundledPluginDir()
-	if err != nil {
-		return err
-	}
-	fmt.Println(launchtui.RenderLaunchBanner(nil, launchtui.BannerInput{
-		Headline:     "Resuming last Claude Code session (continue mode)...",
-		PluginSource: pluginDir,
-	}))
-	return launchClaude(LaunchOpts{
-		Mode:        "continue",
-		PluginDir:   pluginDir,
-		Resume:      true,
-		ResumeID:    resumeID,
-		ExtraArgs:   extraArgs,
-		ProjectRoot: projectRoot,
-		WipnoteRoot: wipnoteRoot,
-		Intent:      launcher.ContinueWorkIntent("", "claude", resumeID, "", true),
-	})
-}
-
-func launchClaudeDefault(extraArgs []string, resumeID, name, workItem string, inPlace bool) error {
-	projectRoot, _ := resolveProjectRoot()
-	cleanupStaleDev(projectRoot)
-
-	// Resolve canonical main repo root when CWD is a linked worktree (slice-3).
-	// canonicalProjectRoot returns "" for the main worktree (no override needed).
-	wipnoteRoot := canonicalProjectRoot(projectRoot)
-
-	lctx, err := resolveClaudeIntentIsolation(projectRoot, wipnoteRoot, resumeID, workItem, inPlace, false, extraArgs)
-	if err != nil {
-		return err
-	}
-	resumeID = lctx.intentResult.resumeID
-
-	pluginDir, err := resolveBundledPluginDir()
-	if err != nil {
-		return err
-	}
-	sessionName := resolveSessionName(name, resumeID, lctx.intentResult.browse, projectRoot)
-	fmt.Println(launchtui.RenderLaunchBanner(nil, launchtui.BannerInput{
-		Headline:        fmt.Sprintf("Launching Claude Code (%s mode)...", lctx.intentResult.mode),
-		PluginSource:    pluginDir,
-		Session:         sessionName,
-		Warning:         lctx.dirtyMainWarning,
-		WarningSeverity: "amber",
-	}))
-	return launchClaude(LaunchOpts{
-		Mode:      lctx.intentResult.mode,
-		PluginDir: pluginDir,
-		// "Browse all sessions" opens Claude's own picker: a bare --resume.
-		Resume:             lctx.intentResult.browse,
-		ResumeID:           resumeID,
-		InjectSystemPrompt: true,
-		Name:               sessionName,
-		ExtraArgs:          extraArgs,
-		ProjectRoot:        lctx.childDir,
-		WipnoteRoot:        lctx.wipnoteRoot,
-		Intent:             lctx.intentResult.intent,
-		ExtraEnv:           lctx.continueEnv,
-	})
-}
-
 // resolveBundledPluginDir resolves the path to the bundled wipnote Claude
 // plugin tree installed by `wipnote build` or `brew install wipnote`. It
 // is the Phase-B replacement for relying on the marketplace plugin install.
@@ -604,25 +242,6 @@ func resolveBundledPluginDir() (string, error) {
 }
 
 const wipnoteMarketplaceRepo = "shakestzd/wipnote"
-
-// ensureWipnotePlugin registers the wipnote marketplace (if needed) and
-// installs or updates the plugin. Returns an error if both install and update fail.
-func ensureWipnotePlugin() error {
-	// Step 1: Register marketplace if not already known.
-	fmt.Println("Registering wipnote marketplace...")
-	exec.Command("claude", "plugin", "marketplace", "add",
-		wipnoteMarketplaceRepo).Run() //nolint:errcheck
-
-	// Step 2: Try install, fall back to update.
-	fmt.Println("Installing/updating wipnote plugin...")
-	if out, err := exec.Command("claude", "plugin", "install", "wipnote@wipnote").CombinedOutput(); err != nil {
-		if out2, err2 := exec.Command("claude", "plugin", "update", "wipnote").CombinedOutput(); err2 != nil {
-			return fmt.Errorf("plugin install failed: %s\nplugin update failed: %s",
-				strings.TrimSpace(string(out)), strings.TrimSpace(string(out2)))
-		}
-	}
-	return nil
-}
 
 // launchClaude is the shared launcher used by all modes.
 func launchClaude(opts LaunchOpts) error {
@@ -728,7 +347,7 @@ func launchClaude(opts LaunchOpts) error {
 	// claude_env.go:buildClaudeLaunchEnv for precedence rules (user-set
 	// OTEL_* always wins).
 	c.Env = buildClaudeLaunchEnv(claudeEnvProjectDir(opts), &envOverrides)
-	c.Env = mergeLauncherEnv(c.Env, opts.ExtraEnv...)
+	c.Env = launcher.AppendOrReplaceEnv(c.Env, opts.ExtraEnv...)
 
 	// Publish the work-item daemon's socket into the session (feat-f6759e37)
 	// if the ensure started above is done. markerRoot is the same root the
@@ -736,7 +355,7 @@ func launchClaude(opts LaunchOpts) error {
 	// in a worktree — so the daemon, the lease and the marker all agree on
 	// which project this is. A daemon still starting is not waited for
 	// (bug-06d2c91d): the session then runs the unguaranteed contract.
-	c.Env = mergeLauncherEnv(c.Env, daemonEnsure.sessionEnv(os.Stderr, daemonJoinBudget)...)
+	c.Env = launcher.AppendOrReplaceEnv(c.Env, daemonEnsure.sessionEnv(os.Stderr, daemonJoinBudget)...)
 
 	// Set working directory to project root so Claude starts in the right place,
 	// even if this command is run from a subdirectory like packages/go.
@@ -838,7 +457,7 @@ const (
 // inherited value (launcher-authoritative). Shared across launchers so each
 // harness stamps a single source of truth. Reuses setOrReplaceEnv (claude_env.go).
 func withHarnessEnv(env []string, harness string) []string {
-	return setOrReplaceEnv(env, harnessEnvKey, harness)
+	return launcher.SetEnv(env, harnessEnvKey, harness)
 }
 
 // writeLaunchMarker writes .wipnote/.launch-mode for hooks to detect the launch mode.

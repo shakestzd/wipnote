@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	dbpkg "github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/db/dbtest"
 	"github.com/shakestzd/wipnote/core/paths"
 )
 
@@ -37,7 +37,7 @@ func newFixture(t *testing.T) *fixture {
 		}
 	}
 	dbPath := filepath.Join(t.TempDir(), "test.db")
-	database, err := dbpkg.Open(dbPath)
+	database, err := dbtest.Open(dbPath)
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}

@@ -1,14 +1,12 @@
 package research
 
 import (
-	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
 	"slices"
 	"strings"
 
 	"github.com/shakestzd/wipnote/core/models"
+	"github.com/shakestzd/wipnote/core/paths"
 )
 
 // Mode is the gate's enforcement level, after ESLint's off | warn | error
@@ -44,14 +42,10 @@ const Rule = "Research-first: work that introduces new behaviour (change kinds "
 // A missing file, key or unknown mode yields the defaults (warn, DefaultRequiredKinds).
 func LoadConfig(projectRoot string) Config {
 	cfg := Config{Mode: ModeWarn, RequiredKinds: DefaultRequiredKinds}
-	data, err := os.ReadFile(filepath.Join(projectRoot, ".wipnote", "config.json"))
-	if err != nil {
-		return cfg
-	}
 	var file struct {
 		Research *Config `json:"research"`
 	}
-	if json.Unmarshal(data, &file) != nil || file.Research == nil {
+	if !paths.ReadProjectConfig(projectRoot, &file) || file.Research == nil {
 		return cfg
 	}
 	var notices []string

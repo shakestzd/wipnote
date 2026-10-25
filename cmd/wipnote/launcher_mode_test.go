@@ -62,18 +62,18 @@ func TestResolveManagedWorktree_FallbackWhenNotManaged(t *testing.T) {
 	fallback := "/tmp/project-root"
 
 	p := plan.LaunchPlan{IsolationMode: plan.IsolationWarnOnly}
-	got, err := resolveManagedWorktree(p, "/repo", "", "", "bug-12345678", fallback, false, io.Discard)
+	got, _, err := resolveManagedWorktreeStatus(p, "/repo", "", "", "bug-12345678", fallback, false, io.Discard)
 	if err != nil {
-		t.Fatalf("resolveManagedWorktree: %v", err)
+		t.Fatalf("resolveManagedWorktreeStatus: %v", err)
 	}
 	if got != fallback {
 		t.Errorf("warn-only plan: want fallback %q, got %q", fallback, got)
 	}
 
 	pm := plan.LaunchPlan{IsolationMode: plan.IsolationManagedWorktree}
-	got2, err := resolveManagedWorktree(pm, "/repo", "", "", "bug-12345678", fallback, true, io.Discard)
+	got2, _, err := resolveManagedWorktreeStatus(pm, "/repo", "", "", "bug-12345678", fallback, true, io.Discard)
 	if err != nil {
-		t.Fatalf("resolveManagedWorktree (alreadyResolved): %v", err)
+		t.Fatalf("resolveManagedWorktreeStatus (alreadyResolved): %v", err)
 	}
 	if got2 != fallback {
 		t.Errorf("alreadyResolved: want fallback %q, got %q", fallback, got2)
@@ -86,9 +86,9 @@ func TestResolveManagedWorktree_FallbackWhenNotManaged(t *testing.T) {
 func TestResolveManagedWorktree_NoWorkItemReturnsFallback(t *testing.T) {
 	fallback := "/tmp/project-root"
 	pm := plan.LaunchPlan{IsolationMode: plan.IsolationManagedWorktree}
-	got, err := resolveManagedWorktree(pm, "/repo", "", "", "", fallback, false, io.Discard)
+	got, _, err := resolveManagedWorktreeStatus(pm, "/repo", "", "", "", fallback, false, io.Discard)
 	if err != nil {
-		t.Fatalf("resolveManagedWorktree: %v", err)
+		t.Fatalf("resolveManagedWorktreeStatus: %v", err)
 	}
 	if got != fallback {
 		t.Errorf("no work item: want fallback %q, got %q", fallback, got)

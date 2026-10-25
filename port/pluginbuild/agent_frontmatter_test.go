@@ -20,6 +20,8 @@ func TestAgentFrontmatterFieldSpecsDriveDerivedTables(t *testing.T) {
 		"background",
 		"initialPrompt",
 		"memory",
+		"omitClaudeMd",
+		"autoCompactWindow",
 		"timeout_mins",
 	}
 	if !reflect.DeepEqual(sharedAgentFrontmatterOrder, wantOrder) {

@@ -260,34 +260,6 @@ func TestCountWords(t *testing.T) {
 
 // ---- Marshal round-trip tests -----------------------------------------------
 
-func TestMarshal_RoundTrip(t *testing.T) {
-	c := validCard()
-	c.Links = []string{"feat-abc123"}
-
-	data, err := Marshal(c)
-	if err != nil {
-		t.Fatalf("marshal: %v", err)
-	}
-
-	parsed, err := Parse(data)
-	if err != nil {
-		t.Fatalf("parse after marshal: %v", err)
-	}
-
-	if parsed.Name != c.Name {
-		t.Errorf("name: got %q, want %q", parsed.Name, c.Name)
-	}
-	if parsed.Kind != c.Kind {
-		t.Errorf("kind: got %q, want %q", parsed.Kind, c.Kind)
-	}
-	if parsed.Body != c.Body {
-		t.Errorf("body: got %q, want %q", parsed.Body, c.Body)
-	}
-	if !strings.Contains(string(data), "body:") {
-		t.Errorf("marshal should emit explicit body field, got:\n%s", string(data))
-	}
-}
-
 // ---- Store tests ------------------------------------------------------------
 
 func TestStore_CreateAndGet(t *testing.T) {

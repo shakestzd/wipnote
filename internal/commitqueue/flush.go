@@ -24,7 +24,7 @@ type IntentFailure struct {
 // Committer performs the actual git commit for one intent. It returns nil on
 // success (including the idempotent "nothing to commit" no-op) and a non-nil
 // error on a real failure (locked index, hook rejection, etc.). Production
-// wires this to a func that calls runGitMutation under the repo-scoped advisory
+// wires this to a func that calls runGitMutationBatch under the repo-scoped advisory
 // lock; tests inject a stub so they never touch real git.
 //
 // The committer MUST be idempotent: because flush rewrites the outbox only

@@ -128,11 +128,10 @@ const (
 // and an edge previously tombstoned loses its marker on the next pass because
 // InsertEdge replaces the row wholesale. Both are the intended outcomes.
 //
-// The one constraint a new collector must honour: it has to run BEFORE
-// purgeStaleEntries, for the same reason collectPlanIDs and collectSessionIDs
-// do — the purge consults this function with whatever validIDs holds at that
-// moment, so an id registered afterwards is an id the purge has already judged
-// unresolvable.
+// The one constraint a new collector must honour: it has to run BEFORE the
+// edge passes, for the same reason collectPlanIDs and collectSessionIDs do —
+// indexNodeEdges consults this function with whatever validIDs holds at that
+// moment, so an id registered afterwards is an id already judged unresolvable.
 //
 // And the constraint that decided the ledger's design: resolving a target here
 // does NOT make it renderable. Titles come from the sessions table in three

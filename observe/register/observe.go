@@ -25,7 +25,6 @@ func init() {
 	hooks.RetentionSweepFn = runRetentionSweep
 	hooks.SessionTelemetryFn = finalizeSessionTelemetry
 	hooks.PortDriftPathsFn = portDriftPaths
-	hooks.ReapCollectorFn = collector.ReapCollector
 	hooks.CollectorAliveFn = collector.IsCollectorAlive
 }
 

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -51,12 +50,7 @@ func planInterviewQuestionsCmd() *cobra.Command {
 				}
 				stages = attachBlockPrompts(interview.BuildForSlice(slice.Complexity, sliceOpenQuestions(slice)))
 			}
-			out, err := json.MarshalIndent(interview.Definition{Stages: stages}, "", "  ")
-			if err != nil {
-				return fmt.Errorf("marshal questions: %w", err)
-			}
-			fmt.Println(string(out))
-			return nil
+			return printJSON(interview.Definition{Stages: stages})
 		},
 	}
 }

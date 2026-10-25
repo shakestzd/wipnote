@@ -8,6 +8,8 @@ import (
 	"testing"
 
 	dbpkg "github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/db/dbtest"
+	"github.com/shakestzd/wipnote/core/paths"
 )
 
 func TestParseTrailers_RefsFeature(t *testing.T) {
@@ -202,7 +204,7 @@ func TestReindexCommitTrailers_ParenthesizedCommit(t *testing.T) {
 	run("add", "file.go")
 	run("commit", "-m", "fix: resolve crash (feat-a1b2c3d4)")
 
-	database, err := dbpkg.Open(":memory:")
+	database, err := dbtest.Open(":memory:")
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
@@ -253,7 +255,7 @@ func TestReindexCommitTrailers_MultiItemCommitLinksBothIDs(t *testing.T) {
 	run("add", "file.go")
 	run("commit", "-m", "fix: shared cleanup\n\nRefs: feat-aaaa1111, bug-bbbb2222")
 
-	database, err := dbpkg.Open(":memory:")
+	database, err := dbtest.Open(":memory:")
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
@@ -311,7 +313,7 @@ func TestReindexCommitTrailers_IngestsFromGit(t *testing.T) {
 	run("add", "file.go")
 	run("commit", "-m", "fix: something\n\nRefs: feat-test-001")
 
-	database, err := dbpkg.Open(":memory:")
+	database, err := dbtest.Open(":memory:")
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
@@ -350,7 +352,7 @@ func TestReindexCommitTrailers_Idempotent(t *testing.T) {
 	run("add", "file.go")
 	run("commit", "-m", "fix: thing\n\nRefs: feat-idem")
 
-	database, err := dbpkg.Open(":memory:")
+	database, err := dbtest.Open(":memory:")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -395,7 +397,7 @@ func TestReindexCommitTrailers_IncrementalBookmark(t *testing.T) {
 	run("commit", "-m", "fix: first (feat-aaaa1111)")
 	run("commit", "--allow-empty", "-m", "fix: second (feat-bbbb2222)")
 
-	database, err := dbpkg.Open(":memory:")
+	database, err := dbtest.Open(":memory:")
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
@@ -410,7 +412,7 @@ func TestReindexCommitTrailers_IncrementalBookmark(t *testing.T) {
 	}
 
 	bookmark, _ := dbpkg.GetMetadata(database, metaKeyLastTrailerScanCommit)
-	head := gitHeadCommit(tmpDir)
+	head := paths.GitHead(tmpDir)
 	if bookmark != head {
 		t.Fatalf("bookmark = %q, want HEAD %q", bookmark, head)
 	}

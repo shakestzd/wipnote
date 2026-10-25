@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/shakestzd/wipnote/core/models"
+	"github.com/shakestzd/wipnote/core/slug"
 )
 
 // Already-fixed advisory on start (feat-89d7b057 / GH-#178).
@@ -39,7 +40,7 @@ func emitAlreadyFixedAdvisory(w io.Writer, repoRoot, id string, node *models.Nod
 				fmt.Fprintf(w, "  … and %d more\n", len(commits)-i)
 				break
 			}
-			fmt.Fprintf(w, "  %s  %s\n", truncate(sha, 12), commitSubject(repoRoot, sha))
+			fmt.Fprintf(w, "  %s  %s\n", slug.Truncate(sha, 12), commitSubject(repoRoot, sha))
 		}
 	}
 	if hits := sourceMentionsOfID(repoRoot, id); len(hits) > 0 {

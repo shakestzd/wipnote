@@ -15,7 +15,7 @@ import (
 // TestAppendOrReplaceEnv_AppendsNew verifies that a key not present in env is appended.
 func TestAppendOrReplaceEnv_AppendsNew(t *testing.T) {
 	env := []string{"FOO=bar", "BAZ=qux"}
-	got := appendOrReplaceEnv(env, "NEW_KEY=new_value")
+	got := launcher.AppendOrReplaceEnv(env, "NEW_KEY=new_value")
 	found := false
 	for _, kv := range got {
 		if kv == "NEW_KEY=new_value" {
@@ -43,7 +43,7 @@ func TestAppendOrReplaceEnv_AppendsNew(t *testing.T) {
 // TestAppendOrReplaceEnv_OverridesExisting verifies that an existing key is replaced in-place.
 func TestAppendOrReplaceEnv_OverridesExisting(t *testing.T) {
 	env := []string{"FOO=old", "BAR=keep"}
-	got := appendOrReplaceEnv(env, "FOO=new")
+	got := launcher.AppendOrReplaceEnv(env, "FOO=new")
 
 	// FOO must be overridden.
 	fooCount := 0
@@ -74,7 +74,7 @@ func TestAppendOrReplaceEnv_OverridesExisting(t *testing.T) {
 // TestAppendOrReplaceEnv_Multiple verifies that multiple kv pairs are all applied.
 func TestAppendOrReplaceEnv_Multiple(t *testing.T) {
 	env := []string{"EXISTING=old"}
-	got := appendOrReplaceEnv(env, "EXISTING=new", "BRAND=fresh")
+	got := launcher.AppendOrReplaceEnv(env, "EXISTING=new", "BRAND=fresh")
 
 	existingNew := false
 	brandFresh := false
@@ -99,12 +99,12 @@ func TestAppendOrReplaceEnv_Multiple(t *testing.T) {
 
 // TestAppendOrReplaceEnv_Empty verifies that empty input env is handled correctly.
 func TestAppendOrReplaceEnv_Empty(t *testing.T) {
-	got := appendOrReplaceEnv(nil, "KEY=val")
+	got := launcher.AppendOrReplaceEnv(nil, "KEY=val")
 	if len(got) != 1 || got[0] != "KEY=val" {
 		t.Errorf("expected [KEY=val], got %v", got)
 	}
 
-	got2 := appendOrReplaceEnv([]string{}, "A=1", "B=2")
+	got2 := launcher.AppendOrReplaceEnv([]string{}, "A=1", "B=2")
 	if len(got2) != 2 {
 		t.Errorf("expected 2 entries, got %v", got2)
 	}
@@ -363,42 +363,31 @@ func TestBuildCodexArgs_PutsWritableRootsBeforeResume(t *testing.T) {
 //     cache_pollution_test.go is the guard that the redirect still works. The
 //     variable, its reader in core/storage, and every pin on it stay until no
 //     code path can create a DB file at all — see that guard for why.
-//   - the SOURCE ASSERTION. The child env is assembled inline in execCodex,
+//   - the SOURCE ASSERTION. The child env is assembled in execCodex (codex_exec.go),
 //     which needs a real Codex binary to exercise, so the removal of the
 //     propagation itself is pinned by scanning the source.
 func TestCodexLauncherNeverPropagatesDBPath(t *testing.T) {
 	dbPath := filepath.Join(t.TempDir(), "cache", "wipnote.db")
 	t.Setenv("WIPNOTE_DB_PATH", dbPath)
 
-	data, err := os.ReadFile("codex.go")
+	data, err := os.ReadFile("codex_exec.go")
 	if err != nil {
-		t.Fatalf("read codex.go: %v", err)
+		t.Fatalf("read codex_exec.go: %v", err)
 	}
 	src := string(data)
 	for _, forbidden := range []string{
-		`setOrReplaceEnv(env, "WIPNOTE_DB_PATH"`,
+		`SetEnv(env, "WIPNOTE_DB_PATH"`,
 		"prepareCodexWritableDB",
 		"CanonicalDBPath(",
 		"EnsureDBDir(",
 	} {
 		if strings.Contains(src, forbidden) {
-			t.Fatalf("codex.go still references %q — the Codex launcher must not know about a project DB", forbidden)
+			t.Fatalf("codex_exec.go still references %q — the Codex launcher must not know about a project DB", forbidden)
 		}
 	}
 
 	if _, err := os.Stat(filepath.Dir(dbPath)); !os.IsNotExist(err) {
 		t.Fatalf("the DB parent dir exists or stat failed unexpectedly: %v", err)
-	}
-}
-
-func TestAppendUniqueCodexWritableRootDedupesCleanPaths(t *testing.T) {
-	got := appendUniqueCodexWritableRoot([]string{"/tmp/wipnote-cache"}, "/tmp/wipnote-cache/.")
-	if len(got) != 1 {
-		t.Fatalf("expected duplicate clean path to be ignored, got %v", got)
-	}
-	got = appendUniqueCodexWritableRoot(got, "/tmp/other-cache")
-	if len(got) != 2 || got[1] != "/tmp/other-cache" {
-		t.Fatalf("expected distinct root to be appended, got %v", got)
 	}
 }
 

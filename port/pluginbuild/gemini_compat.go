@@ -92,45 +92,8 @@ func toGeminiCommandTOML(mdBody string) (string, error) {
 // the Antigravity asset emitter, which shares the Gemini-CLI command/agent-ID
 // conventions. Codex-override files are skipped. Missing sources are no-ops.
 func copyAssetTreeGemini(srcDir, dstDir string, knownRoles map[string]struct{}) error {
-	info, err := os.Stat(srcDir)
-	if os.IsNotExist(err) {
-		return nil
-	}
-	if err != nil {
-		return fmt.Errorf("stat %s: %w", srcDir, err)
-	}
-	if !info.IsDir() {
-		return fmt.Errorf("asset source %s is not a directory", srcDir)
-	}
-	same, err := samePath(srcDir, dstDir)
-	if err != nil {
-		return err
-	}
-	if same {
-		return nil
-	}
-	if err := os.MkdirAll(dstDir, 0o755); err != nil {
-		return err
-	}
-	return filepath.WalkDir(srcDir, func(path string, d os.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if isArchivedAssetDir(d) {
-			return filepath.SkipDir
-		}
-		if d.Type().IsRegular() && isCodexOverrideFile(d.Name()) {
-			return nil
-		}
-		rel, err := filepath.Rel(srcDir, path)
-		if err != nil {
-			return err
-		}
-		target := filepath.Join(dstDir, rel)
-		if d.IsDir() {
-			return os.MkdirAll(target, 0o755)
-		}
-		return copyFileGemini(path, target, knownRoles)
+	return walkAssetTree(srcDir, dstDir, isCodexOverrideEntry, func(src, dst string) error {
+		return copyFileGemini(src, dst, knownRoles)
 	})
 }
 

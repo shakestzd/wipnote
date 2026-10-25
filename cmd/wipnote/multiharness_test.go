@@ -12,6 +12,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/shakestzd/wipnote/core/db/dbtest"
+
 	"google.golang.org/protobuf/proto"
 
 	commonpb "go.opentelemetry.io/proto/otlp/common/v1"
@@ -249,7 +251,7 @@ func TestParallelHarnessLineage(t *testing.T) {
 	t.Setenv("WIPNOTE_SESSION_FAMILY_ID", "")
 
 	dbPath := filepath.Join(t.TempDir(), "parallel.db")
-	database, err := dbpkg.Open(dbPath)
+	database, err := dbtest.Open(dbPath)
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
@@ -278,10 +280,10 @@ func TestParallelHarnessLineage(t *testing.T) {
 			ProjectDir:      canonicalProject,
 			ActiveFeatureID: featureID,
 		}
-		if err := dbpkg.InsertSession(database, sess); err != nil {
-			t.Fatalf("InsertSession %s: %v", r.sid, err)
+		if err := dbtest.UpsertSession(database, sess); err != nil {
+			t.Fatalf("UpsertSession %s: %v", r.sid, err)
 		}
-		if err := dbpkg.SetSessionFamilyID(database, r.sid, familyID); err != nil {
+		if err := dbtest.SetSessionFamilyID(database, r.sid, familyID); err != nil {
 			t.Fatalf("SetSessionFamilyID %s: %v", r.sid, err)
 		}
 	}
@@ -297,8 +299,8 @@ func TestParallelHarnessLineage(t *testing.T) {
 		ParentSessionID: "sess-claude-root",
 		IsSubagent:      true,
 	}
-	if err := dbpkg.InsertSession(database, subSess); err != nil {
-		t.Fatalf("InsertSession subagent: %v", err)
+	if err := dbtest.UpsertSession(database, subSess); err != nil {
+		t.Fatalf("UpsertSession subagent: %v", err)
 	}
 
 	trace := &models.LineageTrace{
@@ -312,7 +314,7 @@ func TestParallelHarnessLineage(t *testing.T) {
 		StartedAt:     now,
 		Status:        "active",
 	}
-	if err := dbpkg.InsertLineageTrace(database, trace); err != nil {
+	if err := dbtest.InsertLineageTrace(database, trace); err != nil {
 		t.Fatalf("InsertLineageTrace: %v", err)
 	}
 

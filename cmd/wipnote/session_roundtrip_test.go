@@ -11,8 +11,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/shakestzd/wipnote/core/db/dbtest"
+
 	"github.com/PuerkitoBio/goquery"
-	dbpkg "github.com/shakestzd/wipnote/core/db"
 	"github.com/shakestzd/wipnote/core/hooks"
 	"github.com/shakestzd/wipnote/core/ingest"
 	"github.com/shakestzd/wipnote/core/models"
@@ -31,7 +32,7 @@ func setupRoundTripEnv(t *testing.T) (projectDir, wipnoteDir, dbPath string) {
 	}
 	dbPath = filepath.Join(wipnoteDir, "wipnote.db")
 
-	database, err := dbpkg.Open(dbPath)
+	database, err := dbtest.Open(dbPath)
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
@@ -45,7 +46,7 @@ func setupRoundTripEnv(t *testing.T) (projectDir, wipnoteDir, dbPath string) {
 func TestSessionRoundTrip_IngestThenReindex(t *testing.T) {
 	_, wipnoteDir, dbPath := setupRoundTripEnv(t)
 
-	database, err := dbpkg.Open(dbPath)
+	database, err := dbtest.Open(dbPath)
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
@@ -72,8 +73,8 @@ func TestSessionRoundTrip_IngestThenReindex(t *testing.T) {
 		CreatedAt:     msgTs,
 		Status:        "completed",
 	}
-	if err := dbpkg.InsertSession(database, sess); err != nil {
-		t.Fatalf("InsertSession: %v", err)
+	if err := dbtest.UpsertSession(database, sess); err != nil {
+		t.Fatalf("UpsertSession: %v", err)
 	}
 	if err := hooks.RenderIngestedSessionHTML(wipnoteDir, sessionID, "/src/project", result, false); err != nil {
 		t.Fatalf("render: %v", err)
@@ -111,7 +112,7 @@ func TestSessionRoundTrip_IngestThenReindex(t *testing.T) {
 func TestSessionRoundTrip_OrphanSweepReindexesAsAborted(t *testing.T) {
 	projectDir, wipnoteDir, dbPath := setupRoundTripEnv(t)
 
-	database, err := dbpkg.Open(dbPath)
+	database, err := dbtest.Open(dbPath)
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
@@ -124,29 +125,13 @@ func TestSessionRoundTrip_OrphanSweepReindexesAsAborted(t *testing.T) {
 		CreatedAt:     time.Now().UTC(),
 		Status:        "active",
 	}
-	if err := dbpkg.InsertSession(database, sess); err != nil {
-		t.Fatalf("InsertSession: %v", err)
+	if err := dbtest.UpsertSession(database, sess); err != nil {
+		t.Fatalf("UpsertSession: %v", err)
 	}
 	hooks.CreateSessionHTML(projectDir, sess)
 
-	old := time.Now().UTC().Add(-10 * time.Minute)
-	orphan := &models.AgentEvent{
-		EventID:   "evt-sweep-roundtrip-1",
-		AgentID:   "claude-code",
-		EventType: models.EventToolCall,
-		Timestamp: old,
-		ToolName:  "Bash",
-		SessionID: sessionID,
-		Status:    "started",
-		Source:    "hook",
-		CreatedAt: old,
-		UpdatedAt: old,
-	}
-	if err := dbpkg.UpsertEvent(database, orphan); err != nil {
-		t.Fatalf("UpsertEvent: %v", err)
-	}
-
-	if hooks.SweepOrphanedEventsForSession(database, projectDir, sessionID) != 1 {
+	seedToolLogOrphan(t, projectDir, sessionID, "evt-sweep-roundtrip-1", time.Now().UTC().Add(-10*time.Minute))
+	if hooks.SweepOrphanedToolCalls(projectDir, "", time.Now().UTC(), 0) != 1 {
 		t.Fatal("sweep should have appended one synthetic entry")
 	}
 
@@ -162,70 +147,12 @@ func TestSessionRoundTrip_OrphanSweepReindexesAsAborted(t *testing.T) {
 		t.Errorf("upserted: got %d, want 1", upserted)
 	}
 
-	evt, err := dbpkg.GetEvent(database, "evt-sweep-roundtrip-1")
+	evt, err := dbtest.GetEvent(database, "evt-sweep-roundtrip-1")
 	if err != nil {
 		t.Fatalf("GetEvent: %v", err)
 	}
 	if evt.Status != "aborted" {
 		t.Errorf("reindexed status: got %q, want aborted", evt.Status)
-	}
-}
-
-// TestSessionRoundTrip_MigrationBackfill verifies slice 3: SQLite-only
-// sessions get rendered and round-trip through reindex.
-func TestSessionRoundTrip_MigrationBackfill(t *testing.T) {
-	_, wipnoteDir, dbPath := setupRoundTripEnv(t)
-
-	database, err := dbpkg.Open(dbPath)
-	if err != nil {
-		t.Fatalf("open: %v", err)
-	}
-	defer database.Close()
-
-	now := time.Now().UTC()
-	for _, id := range []string{"sess-mig-a", "sess-mig-b"} {
-		sess := &models.Session{
-			SessionID:     id,
-			AgentAssigned: "claude-code",
-			CreatedAt:     now,
-			Status:        "completed",
-		}
-		if err := dbpkg.InsertSession(database, sess); err != nil {
-			t.Fatalf("InsertSession: %v", err)
-		}
-		msg := &models.Message{SessionID: id, Ordinal: 0, Role: "assistant", Content: "x", Timestamp: now}
-		msgID, err := dbpkg.InsertMessage(database, msg)
-		if err != nil {
-			t.Fatalf("InsertMessage: %v", err)
-		}
-		tc := &models.ToolCall{
-			MessageID: int(msgID), SessionID: id, ToolName: "Read",
-			ToolUseID: "tu-" + id, InputJSON: `{"file_path":"/mock/a.go"}`,
-			Category: "Read", MessageOrdinal: 0,
-		}
-		if err := dbpkg.InsertToolCall(database, tc); err != nil {
-			t.Fatalf("InsertToolCall: %v", err)
-		}
-	}
-
-	// Migrate directly via the internal helpers (no CLI plumbing needed).
-	emptyIdx := map[string]ingest.SessionFile{}
-	for _, id := range []string{"sess-mig-a", "sess-mig-b"} {
-		if err := migrateOneSession(database, wipnoteDir, id, "sqlite", emptyIdx); err != nil {
-			t.Fatalf("migrateOneSession %s: %v", id, err)
-		}
-	}
-
-	// Reindex round-trip.
-	if _, err := database.Exec(`DELETE FROM agent_events`); err != nil {
-		t.Fatalf("delete events: %v", err)
-	}
-	_, upserted, errFiles := reindexSessions(database, filepath.Join(wipnoteDir, "sessions"), filepath.Dir(wipnoteDir))
-	if errFiles != 0 {
-		t.Fatalf("reindex errors: %d", errFiles)
-	}
-	if upserted != 2 {
-		t.Errorf("upserted: got %d, want 2", upserted)
 	}
 }
 
@@ -238,7 +165,7 @@ func TestSessionRoundTrip_MigrationBackfill(t *testing.T) {
 func TestSessionRoundTrip_ConcurrentWriters(t *testing.T) {
 	projectDir, wipnoteDir, dbPath := setupRoundTripEnv(t)
 
-	database, err := dbpkg.Open(dbPath)
+	database, err := dbtest.Open(dbPath)
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
@@ -251,8 +178,8 @@ func TestSessionRoundTrip_ConcurrentWriters(t *testing.T) {
 		CreatedAt:     time.Now().UTC(),
 		Status:        "active",
 	}
-	if err := dbpkg.InsertSession(database, sess); err != nil {
-		t.Fatalf("InsertSession: %v", err)
+	if err := dbtest.UpsertSession(database, sess); err != nil {
+		t.Fatalf("UpsertSession: %v", err)
 	}
 	hooks.CreateSessionHTML(projectDir, sess)
 
@@ -263,27 +190,13 @@ func TestSessionRoundTrip_ConcurrentWriters(t *testing.T) {
 	)
 	total := liveWriters + ingestWriters + sweepWriters
 
-	// Pre-seed one started agent_event per sweep writer so the sweep path
-	// has something to turn into a synthetic aborted entry.
+	// Pre-seed one unmatched tool-log start per sweep writer so the sweep
+	// path has something to turn into a synthetic aborted entry.
 	old := time.Now().UTC().Add(-10 * time.Minute)
 	sweepIDs := make([]string, sweepWriters)
 	for i := 0; i < sweepWriters; i++ {
 		sweepIDs[i] = fmt.Sprintf("evt-sweep-%02d", i)
-		ev := &models.AgentEvent{
-			EventID:   sweepIDs[i],
-			AgentID:   "claude-code",
-			EventType: models.EventToolCall,
-			Timestamp: old,
-			ToolName:  "Bash",
-			SessionID: sessionID,
-			Status:    "started",
-			Source:    "hook",
-			CreatedAt: old,
-			UpdatedAt: old,
-		}
-		if err := dbpkg.UpsertEvent(database, ev); err != nil {
-			t.Fatalf("seed orphan %s: %v", sweepIDs[i], err)
-		}
+		seedToolLogOrphan(t, projectDir, sessionID, sweepIDs[i], old)
 	}
 
 	// Expected event IDs must include every writer's event id so the
@@ -330,10 +243,9 @@ func TestSessionRoundTrip_ConcurrentWriters(t *testing.T) {
 	}
 
 	// Sweep-style writers — each goroutine runs the sweep scoped to the
-	// session, which under the hood calls AppendEventToSessionHTML with
-	// data-status="aborted" for every pre-seeded orphan row it still sees.
-	// Only the first goroutine will append all N entries; the rest are
-	// no-ops because of the dedup check — that's OK. The expected set
+	// project, which calls AppendEventToSessionHTML with data-status="aborted"
+	// for every pre-seeded orphan it finds. One goroutine holds the tool log's
+	// sweeper lock and appends all N entries; the rest skip — that's OK. The expected set
 	// already includes the sweep IDs from the pre-seed loop above.
 	for _, id := range sweepIDs {
 		expected[id] = struct{}{}
@@ -343,7 +255,7 @@ func TestSessionRoundTrip_ConcurrentWriters(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			<-start
-			hooks.SweepOrphanedEventsForSession(database, projectDir, sessionID)
+			hooks.SweepOrphanedToolCalls(projectDir, "", time.Now().UTC(), 0)
 		}()
 	}
 
@@ -392,5 +304,27 @@ func TestSessionRoundTrip_ConcurrentWriters(t *testing.T) {
 	}
 	if upserted != len(expected) {
 		t.Errorf("reindex upserted: got %d, want %d", upserted, len(expected))
+	}
+}
+
+// seedToolLogOrphan writes an unmatched PreToolUse start line for id into the
+// session's canonical tool log and marks the session's owner process dead, so
+// the session-start sweep records it as aborted (feat-174dc958).
+func seedToolLogOrphan(t *testing.T, projectDir, sessionID, id string, at time.Time) {
+	t.Helper()
+	dir := filepath.Join(projectDir, ".wipnote", "sessions", sessionID)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	f, err := os.OpenFile(filepath.Join(dir, "tool-events.ndjson"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	if _, err := fmt.Fprintf(f, "{\"t\":\"Bash\",\"id\":%q,\"ts\":%d}\n", id, at.Unix()); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, ".session-pid"), []byte("2147483647\n1"), 0o644); err != nil {
+		t.Fatal(err)
 	}
 }

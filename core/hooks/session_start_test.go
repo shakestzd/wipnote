@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/db/dbtest"
 	"github.com/shakestzd/wipnote/core/models"
 	"github.com/shakestzd/wipnote/core/paths"
 )
@@ -38,16 +39,13 @@ func TestSessionStartStoresProjectDir(t *testing.T) {
 	t.Setenv("WIPNOTE_NESTING_DEPTH", "")
 	t.Setenv("CLAUDE_ENV_FILE", "") // prevent writing to a real env file
 
-	_, err = SessionStart(event, database, projectDir)
+	_, err = SessionStart(event, projectDir)
 	if err != nil {
 		t.Fatalf("SessionStart: %v", err)
 	}
 
 	// Retrieve the session from DB and verify project_dir is stored.
-	got, err := db.GetSession(database, sessionID)
-	if err != nil {
-		t.Fatalf("GetSession: %v", err)
-	}
+	got := sessionHTMLRecord(t, projectDir, sessionID)
 	if want := paths.NormalizeProjectDir(projectDir); got.ProjectDir != want {
 		t.Errorf("project_dir mismatch: got %q, want %q", got.ProjectDir, want)
 	}
@@ -75,7 +73,7 @@ func TestSessionStartActiveSessionContainsProjectDir(t *testing.T) {
 	t.Setenv("WIPNOTE_NESTING_DEPTH", "")
 	t.Setenv("CLAUDE_ENV_FILE", "") // force fallback to .active-session
 
-	_, err = SessionStart(event, database, projectDir)
+	_, err = SessionStart(event, projectDir)
 	if err != nil {
 		t.Fatalf("SessionStart: %v", err)
 	}
@@ -101,14 +99,14 @@ func TestSessionStartContinueHandoffAdditionalContext(t *testing.T) {
 		t.Fatalf("db.Open: %v", err)
 	}
 	defer database.Close()
-	if err := db.InsertSession(database, &models.Session{
+	if err := dbtest.UpsertSession(database, &models.Session{
 		SessionID:     "sess-continue-old",
 		AgentAssigned: "claude-code",
 		Status:        "completed",
 		CreatedAt:     time.Now().UTC(),
 		ProjectDir:    paths.NormalizeProjectDir(projectDir),
 	}); err != nil {
-		t.Fatalf("InsertSession prior: %v", err)
+		t.Fatalf("UpsertSession prior: %v", err)
 	}
 
 	event := &CloudEvent{SessionID: "sess-continue-new", CWD: projectDir}
@@ -120,92 +118,12 @@ func TestSessionStartContinueHandoffAdditionalContext(t *testing.T) {
 	t.Setenv("WIPNOTE_CONTINUE_HANDOFF_B64",
 		base64.StdEncoding.EncodeToString([]byte("## Continued Session Handoff\n\nResume the existing worktree.")))
 
-	result, err := SessionStart(event, database, projectDir)
+	result, err := SessionStart(event, projectDir)
 	if err != nil {
 		t.Fatalf("SessionStart: %v", err)
 	}
 	if result == nil || !strings.Contains(result.AdditionalContext, "Continued Session Handoff") {
 		t.Fatalf("AdditionalContext missing continue handoff: %#v", result)
-	}
-
-	sess, err := db.GetSession(database, "sess-continue-new")
-	if err != nil {
-		t.Fatalf("GetSession: %v", err)
-	}
-	if sess.ContinuedFrom != "sess-continue-old" {
-		t.Fatalf("ContinuedFrom = %q, want sess-continue-old", sess.ContinuedFrom)
-	}
-}
-
-// TestSessionStartWorktreeParentSessionIDPopulated verifies that when a
-// subagent session is started with a known parent session ID (as
-// resolveWorktreeParentSession would provide), the new session row gets
-// parent_session_id set and is_subagent = true.
-//
-// We test the upsertSession path directly rather than going through
-// resolveWorktreeParentSession (which requires a real git worktree) to keep
-// the test hermetic.  The FK constraint previously caused INSERT OR IGNORE to
-// silently drop the row when the parent session was absent from the test DB.
-func TestSessionStartWorktreeParentSessionIDPopulated(t *testing.T) {
-	// Set up the project directory.
-	mainDir := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(mainDir, ".wipnote"), 0o755); err != nil {
-		t.Fatalf("mkdir .wipnote: %v", err)
-	}
-
-	database, err := db.Open(filepath.Join(mainDir, ".wipnote", "wipnote.db"))
-	if err != nil {
-		t.Fatalf("db.Open: %v", err)
-	}
-	defer database.Close()
-
-	// Insert the parent (outer YOLO) session so FK constraint is satisfied.
-	parentSessionID := "parent-yolo-session-001"
-	if err := db.InsertSession(database, &models.Session{
-		SessionID:     parentSessionID,
-		AgentAssigned: "claude-code",
-		Status:        "active",
-		CreatedAt:     time.Now().UTC(),
-		ProjectDir:    mainDir,
-	}); err != nil {
-		t.Fatalf("InsertSession parent: %v", err)
-	}
-
-	// Write .active-session as the outer YOLO session would have done so that
-	// ReadActiveSession can return the parent session ID.
-	WriteActiveSession(parentSessionID, mainDir)
-
-	// Verify ReadActiveSession round-trips correctly.
-	as := ReadActiveSession(mainDir)
-	if as == nil || as.SessionID != parentSessionID {
-		t.Fatalf("ReadActiveSession: got %v, want session_id=%q", as, parentSessionID)
-	}
-
-	// Simulate what SessionStart does after resolveWorktreeParentSession
-	// returns (parentSessionID, true): upsert the subagent session with
-	// parent_session_id and is_subagent = true.
-	subSessionID := "sub-worktree-session-001"
-	if err := upsertSession(database, &models.Session{
-		SessionID:       subSessionID,
-		AgentAssigned:   "claude-code",
-		Status:          "active",
-		CreatedAt:       time.Now().UTC(),
-		ProjectDir:      mainDir,
-		ParentSessionID: parentSessionID,
-		IsSubagent:      true,
-	}); err != nil {
-		t.Fatalf("upsertSession subagent: %v", err)
-	}
-
-	got, err := db.GetSession(database, subSessionID)
-	if err != nil {
-		t.Fatalf("GetSession subagent: %v", err)
-	}
-	if got.ParentSessionID != parentSessionID {
-		t.Errorf("parent_session_id: got %q, want %q", got.ParentSessionID, parentSessionID)
-	}
-	if !got.IsSubagent {
-		t.Error("is_subagent: got false, want true")
 	}
 }
 
@@ -241,7 +159,7 @@ func TestSessionStart_PrefersClaudeProjectDirOverCWD(t *testing.T) {
 	t.Setenv("CLAUDE_ENV_FILE", "") // prevent real env file writes
 
 	// Open DB in project A (the correct project).
-	database, err := db.Open(filepath.Join(projectA, ".wipnote", "wipnote.db"))
+	database, err := dbtest.Open(filepath.Join(projectA, ".wipnote", "wipnote.db"))
 	if err != nil {
 		t.Fatalf("db.Open: %v", err)
 	}
@@ -258,7 +176,7 @@ func TestSessionStart_PrefersClaudeProjectDirOverCWD(t *testing.T) {
 
 	// Fire SessionStart with the correctly resolved project dir (project A).
 	event := &CloudEvent{SessionID: testSessionID, CWD: projectB}
-	_, err = SessionStart(event, database, resolvedDir)
+	_, err = SessionStart(event, resolvedDir)
 	if err != nil {
 		t.Fatalf("SessionStart: %v", err)
 	}
@@ -276,7 +194,7 @@ func TestSessionStart_PrefersClaudeProjectDirOverCWD(t *testing.T) {
 
 func TestInsertAndGetSessionProjectDir(t *testing.T) {
 	dir := t.TempDir()
-	database, err := db.Open(filepath.Join(dir, "wipnote.db"))
+	database, err := dbtest.Open(filepath.Join(dir, "wipnote.db"))
 	if err != nil {
 		t.Fatalf("db.Open: %v", err)
 	}
@@ -289,8 +207,8 @@ func TestInsertAndGetSessionProjectDir(t *testing.T) {
 		CreatedAt:     time.Now().UTC(),
 		ProjectDir:    "/home/user/myproject",
 	}
-	if err := db.InsertSession(database, s); err != nil {
-		t.Fatalf("InsertSession: %v", err)
+	if err := dbtest.UpsertSession(database, s); err != nil {
+		t.Fatalf("UpsertSession: %v", err)
 	}
 
 	got, err := db.GetSession(database, s.SessionID)
@@ -316,7 +234,7 @@ func TestSessionStartUsesOnDemandAttributionGuidance(t *testing.T) {
 
 	// Add an open work item to verify SessionStart does not eagerly list it.
 	now := time.Now().UTC()
-	if err := db.InsertFeature(database, &db.Feature{
+	if err := db.UpsertFeature(database, &db.Feature{
 		ID:        "feat-001",
 		Type:      "feature",
 		Title:     "Auth system",
@@ -325,7 +243,7 @@ func TestSessionStartUsesOnDemandAttributionGuidance(t *testing.T) {
 		CreatedAt: now,
 		UpdatedAt: now,
 	}); err != nil {
-		t.Fatalf("InsertFeature: %v", err)
+		t.Fatalf("UpsertFeature: %v", err)
 	}
 
 	sessionID := "test-session-attribution"
@@ -339,7 +257,7 @@ func TestSessionStartUsesOnDemandAttributionGuidance(t *testing.T) {
 		t.Fatalf("write .launch-mode: %v", err)
 	}
 
-	result, err := SessionStart(event, database, projectDir)
+	result, err := SessionStart(event, projectDir)
 	if err != nil {
 		t.Fatalf("SessionStart: %v", err)
 	}
@@ -402,7 +320,7 @@ func TestSessionStartNoOpenItemsNonBareLaunch(t *testing.T) {
 		t.Fatalf("write .launch-mode: %v", err)
 	}
 
-	result, err := SessionStart(event, database, projectDir)
+	result, err := SessionStart(event, projectDir)
 	if err != nil {
 		t.Fatalf("SessionStart: %v", err)
 	}
@@ -448,7 +366,7 @@ func TestSessionStartNoOpenItemsBareLaunch(t *testing.T) {
 	// bareLaunchNudge detects a bare launch and emits the nudge.
 	// bareLaunchNudge returns non-empty text when .launch-mode is absent or >30s old.
 
-	result, err := SessionStart(event, database, projectDir)
+	result, err := SessionStart(event, projectDir)
 	if err != nil {
 		t.Fatalf("SessionStart: %v", err)
 	}

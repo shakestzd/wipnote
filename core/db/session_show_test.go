@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/db/dbtest"
 	"github.com/shakestzd/wipnote/core/models"
 )
 
@@ -13,141 +14,6 @@ func insertTestFeatures(t *testing.T, database *sql.DB, ids ...string) {
 	t.Helper()
 	for _, id := range ids {
 		database.Exec(`INSERT OR IGNORE INTO features (id, type, title, status) VALUES (?, 'feature', 'test', 'todo')`, id)
-	}
-}
-
-func TestCountEventsByTool(t *testing.T) {
-	database := setupTestDB(t)
-	defer database.Close()
-	insertTestFeatures(t, database, "feat-aaa", "feat-bbb")
-
-	now := time.Now().UTC()
-	insertEvents := []struct {
-		id   string
-		tool string
-		feat string
-	}{
-		{"evt-cet-1", "Read", "feat-aaa"},
-		{"evt-cet-2", "Read", "feat-aaa"},
-		{"evt-cet-3", "Read", "feat-bbb"},
-		{"evt-cet-4", "Bash", "feat-aaa"},
-		{"evt-cet-5", "", ""}, // empty tool_name — should be excluded
-		{"evt-cet-6", "Grep", ""},
-	}
-
-	for i, ev := range insertEvents {
-		e := &models.AgentEvent{
-			EventID:   ev.id,
-			AgentID:   "claude-code",
-			EventType: models.EventToolCall,
-			Timestamp: now.Add(time.Duration(i) * time.Second),
-			ToolName:  ev.tool,
-			FeatureID: ev.feat,
-			SessionID: "sess-test",
-			Status:    "completed",
-			Source:    "hook",
-			CreatedAt: now.Add(time.Duration(i) * time.Second),
-			UpdatedAt: now.Add(time.Duration(i) * time.Second),
-		}
-		if err := db.InsertEvent(database, e); err != nil {
-			t.Fatalf("InsertEvent %s: %v", ev.id, err)
-		}
-	}
-
-	counts, err := db.CountEventsByTool(database, "sess-test")
-	if err != nil {
-		t.Fatalf("CountEventsByTool: %v", err)
-	}
-
-	if counts["Read"] != 3 {
-		t.Errorf("Read count: got %d, want 3", counts["Read"])
-	}
-	if counts["Bash"] != 1 {
-		t.Errorf("Bash count: got %d, want 1", counts["Bash"])
-	}
-	if counts["Grep"] != 1 {
-		t.Errorf("Grep count: got %d, want 1", counts["Grep"])
-	}
-	// Empty tool_name should not appear.
-	if _, ok := counts[""]; ok {
-		t.Errorf("empty tool_name should be excluded from counts")
-	}
-
-	// Different session returns empty map.
-	counts2, err := db.CountEventsByTool(database, "sess-other")
-	if err != nil {
-		t.Fatalf("CountEventsByTool (other session): %v", err)
-	}
-	if len(counts2) != 0 {
-		t.Errorf("expected empty map for unknown session, got %v", counts2)
-	}
-}
-
-func TestDistinctFeatureIDs(t *testing.T) {
-	database := setupTestDB(t)
-	defer database.Close()
-	insertTestFeatures(t, database, "feat-aaa", "feat-bbb", "feat-ccc")
-
-	now := time.Now().UTC()
-	insertEvents := []struct {
-		id   string
-		feat string
-	}{
-		{"evt-dfi-1", "feat-aaa"},
-		{"evt-dfi-2", "feat-aaa"}, // duplicate — should deduplicate
-		{"evt-dfi-3", "feat-bbb"},
-		{"evt-dfi-4", ""}, // empty feature_id — should be excluded
-		{"evt-dfi-5", "feat-ccc"},
-	}
-
-	for i, ev := range insertEvents {
-		e := &models.AgentEvent{
-			EventID:   ev.id,
-			AgentID:   "claude-code",
-			EventType: models.EventToolCall,
-			Timestamp: now.Add(time.Duration(i) * time.Second),
-			ToolName:  "Read",
-			FeatureID: ev.feat,
-			SessionID: "sess-test",
-			Status:    "completed",
-			Source:    "hook",
-			CreatedAt: now.Add(time.Duration(i) * time.Second),
-			UpdatedAt: now.Add(time.Duration(i) * time.Second),
-		}
-		if err := db.InsertEvent(database, e); err != nil {
-			t.Fatalf("InsertEvent %s: %v", ev.id, err)
-		}
-	}
-
-	feats, err := db.DistinctFeatureIDs(database, "sess-test")
-	if err != nil {
-		t.Fatalf("DistinctFeatureIDs: %v", err)
-	}
-
-	if len(feats) != 3 {
-		t.Errorf("expected 3 distinct feature IDs, got %d: %v", len(feats), feats)
-	}
-
-	featSet := make(map[string]bool, len(feats))
-	for _, f := range feats {
-		featSet[f] = true
-	}
-	for _, want := range []string{"feat-aaa", "feat-bbb", "feat-ccc"} {
-		if !featSet[want] {
-			t.Errorf("expected feature %q in result, got %v", want, feats)
-		}
-	}
-	if featSet[""] {
-		t.Errorf("empty feature_id should be excluded")
-	}
-
-	// Different session returns empty slice.
-	feats2, err := db.DistinctFeatureIDs(database, "sess-other")
-	if err != nil {
-		t.Fatalf("DistinctFeatureIDs (other session): %v", err)
-	}
-	if len(feats2) != 0 {
-		t.Errorf("expected empty slice for unknown session, got %v", feats2)
 	}
 }
 
@@ -181,7 +47,7 @@ func TestGetCommitsBySession(t *testing.T) {
 	}
 
 	for i := range commits {
-		if err := db.InsertGitCommit(database, &commits[i]); err != nil {
+		if err := dbtest.InsertGitCommit(database, &commits[i]); err != nil {
 			t.Fatalf("InsertGitCommit %s: %v", commits[i].CommitHash, err)
 		}
 	}
@@ -232,7 +98,7 @@ func TestTraceCommit(t *testing.T) {
 		Message:    "feat: traced commit",
 		Timestamp:  time.Now().UTC(),
 	}
-	if err := db.InsertGitCommit(database, &commit); err != nil {
+	if err := dbtest.InsertGitCommit(database, &commit); err != nil {
 		t.Fatalf("InsertGitCommit: %v", err)
 	}
 

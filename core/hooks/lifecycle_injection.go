@@ -34,18 +34,6 @@ var (
 	// session-exit reconcile and the pre-commit port-drift guard.
 	PortDriftPathsFn func(repoRoot string) []string
 
-	// ReapCollectorFn terminates an identity-verified orphaned collector for sessDir
-	// (SIGTERM→grace→SIGKILL) and clears its .collector-pid. Returns the pid acted on
-	// and whether a live collector was actually reaped. nil ⇒ telemetry not wired ⇒
-	// collector reaping degrades to a no-op (best-effort, never block).
-	//
-	// The implementation lives in observe/otel/collector (ReapCollector) and is
-	// wired here by observe/register's init(). It is the identity-verified
-	// counterpart of the legacy signalCollector (which reads the pid as a raw int
-	// with NO start-time check): ReapCollector gates every kill on IsCollectorAlive,
-	// so a reused pid is never signalled.
-	ReapCollectorFn func(sessDir string, grace time.Duration) (pid int, reaped bool)
-
 	// CollectorAliveFn reports whether the .collector-pid under sessDir names a
 	// live collector, parsing the writer's "<pid>\n<starttime>" format and
 	// checking the start time against pid reuse. Wired to

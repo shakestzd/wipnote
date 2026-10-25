@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/shakestzd/wipnote/core/db/dbtest"
+
 	db "github.com/shakestzd/wipnote/core/db"
 	_ "modernc.org/sqlite"
 )
@@ -19,7 +21,7 @@ func TestApplyPragmas_AppliesBusyTimeout(t *testing.T) {
 	dir := t.TempDir()
 	dbPath := filepath.Join(dir, "test.db")
 
-	database, err := db.Open(dbPath)
+	database, err := dbtest.Open(dbPath)
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
@@ -44,19 +46,22 @@ func TestApplyPragmas_AppliesBusyTimeout(t *testing.T) {
 	}
 }
 
-// selectedJournalMode returns the journal mode the REAL, unchanged selection
-// logic (BuildPragmas -> isUnsafeForMmap) chooses for dbPath on the host
+// selectedJournalMode returns the journal mode the selection logic
+// (ProbeFsType: DELETE where WAL mmap is unsafe) chooses for dbPath on the host
 // running the test. Assertions derive the expected mode from this — never a
 // hardcoded "delete", which only holds on WAL-unsafe filesystems (overlayfs/
 // FUSE devcontainers) and would false-fail on WAL hosts (host installs on
 // APFS/ext4). This is the same filesystem-agnostic discipline as
 // bug-74a7bda7's busy_filesystem_agnostic_test.go.
 func selectedJournalMode(dbPath string) string {
-	return strings.ToLower(db.BuildPragmas(dbPath)["journal_mode"])
+	if _, walSafe := db.ProbeFsType(dbPath); !walSafe {
+		return "delete"
+	}
+	return strings.ToLower(db.Pragmas["journal_mode"])
 }
 
-// seededJournalDB creates a fresh schema'd temp-file DB via db.Open (which
-// applies BuildPragmas, so the file lands in whatever mode the host's
+// seededJournalDB creates a fresh schema'd temp-file DB via dbtest.Open (which
+// applies the same selection, so the file lands in whatever mode the host's
 // selection logic chooses) and returns its path. It does NOT force a specific
 // journal mode — callers that need the DELETE-specific contention path either
 // skip-on-WAL or drive ApplyPragmas directly with an explicit DELETE pragma
@@ -65,7 +70,7 @@ func selectedJournalMode(dbPath string) string {
 func seededJournalDB(t *testing.T) string {
 	t.Helper()
 	dbPath := filepath.Join(t.TempDir(), "pragma-busy.db")
-	w, err := db.Open(dbPath) // creates schema + runs migrations
+	w, err := dbtest.Open(dbPath) // creates schema + runs migrations
 	if err != nil {
 		t.Fatalf("db.Open seed: %v", err)
 	}
@@ -98,7 +103,7 @@ func TestApplyPragmas_NonBusyPragmaErrorNotRetried(t *testing.T) {
 	wantMode := selectedJournalMode(dbPath)
 
 	start := time.Now()
-	d, err := db.Open(dbPath)
+	d, err := dbtest.Open(dbPath)
 	if err != nil {
 		t.Fatalf("uncontended Open: %v", err)
 	}
@@ -109,7 +114,7 @@ func TestApplyPragmas_NonBusyPragmaErrorNotRetried(t *testing.T) {
 	}
 	// Sanity: the selected mode survived the wrapped re-application (we only
 	// hardened the WRITE; mode SELECTION is unchanged and filesystem-derived).
-	if jm := db.QueryJournalMode(d); !strings.EqualFold(jm, wantMode) {
+	if jm := dbtest.JournalMode(d); !strings.EqualFold(jm, wantMode) {
 		d.Close()
 		t.Fatalf("journal_mode = %q after Open, want %q (the host-selected "+
 			"mode; RetryOnBusy wrap must not change which mode is written)",

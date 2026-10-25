@@ -314,7 +314,7 @@ func runBatchExport(trackID string) error {
 	}
 
 	// Load track
-	trackPath := resolveNodePath(dir, trackID)
+	trackPath := workitem.NodePath(dir, trackID)
 	if trackPath == "" {
 		return fmt.Errorf("track %q not found", trackID)
 	}

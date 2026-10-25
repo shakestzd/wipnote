@@ -11,9 +11,9 @@ import (
 // Only a launcher starts the writer (bug-5ca53f70).
 //
 // spawnHeadlessWriter is unexported and its one caller is EnsureDaemon, which
-// only the harness launchers call. Hooks and CLI commands use plain
-// WriterClient.Submit: when no socket answers they fall back to the derived
-// index at once. They used to fork a writer of their own on a miss
+// only the harness launchers call. Hooks and CLI commands never start one:
+// with no socket, a hook reads canonical files directly. They used to fork a
+// writer of their own on a miss
 // (SubmitOrSpawn), and on a slow bind mount, where the socket took longer
 // than a hook to appear, every hook forked another. Those servers outlived
 // their hooks as orphans, each hydrating the project (#260).

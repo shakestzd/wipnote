@@ -7,8 +7,6 @@ import (
 	"path/filepath"
 	"syscall"
 	"time"
-
-	"github.com/shakestzd/wipnote/core/db/writequeue"
 )
 
 // Test child: the daemon test binary re-executes itself as a minimal writer
@@ -61,13 +59,8 @@ func runTestChild() int {
 }
 
 func serveTestChild(ctx context.Context, stop context.CancelFunc, root string, lease *Lease, idle time.Duration) int {
-	q := writequeue.New(writequeue.Config{Capacity: 16})
-	if err := q.Start(ctx); err != nil {
-		return childNoBind
-	}
-	defer q.Stop(time.Second)
 	keepChildLease(ctx, stop, lease)
-	ln, err := NewListener(childListenerConfig(root, q, lease))
+	ln, err := NewListener(childListenerConfig(root, lease))
 	if err != nil {
 		return childNoBind
 	}

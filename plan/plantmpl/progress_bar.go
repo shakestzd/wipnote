@@ -3,11 +3,12 @@ package plantmpl
 import (
 	"html/template"
 	"io"
+	"sync"
 )
 
-var progressBarTmpl = template.Must(
-	template.ParseFS(templateFS, "templates/progress_bar.gohtml"),
-)
+var progressBarTmpl = sync.OnceValue(func() *template.Template {
+	return template.Must(template.ParseFS(templateFS, "templates/progress_bar.gohtml"))
+})
 
 // ProgressBar renders the plan progress indicator showing
 // approved vs pending vs total slice counts.
@@ -19,7 +20,7 @@ type ProgressBar struct {
 
 // Render writes the progress bar zone HTML.
 func (pb *ProgressBar) Render(w io.Writer) error {
-	return progressBarTmpl.Execute(w, pb)
+	return progressBarTmpl().Execute(w, pb)
 }
 
 // Percent returns the approval percentage (0-100).

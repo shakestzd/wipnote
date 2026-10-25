@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/shakestzd/wipnote/core/workitem"
 	"github.com/shakestzd/wipnote/plan/planyaml"
 	"github.com/spf13/cobra"
 )
@@ -32,7 +33,7 @@ func runPlanShowWithFormat(rawID, format string) error {
 	if format != "json" {
 		// Only check drift for human-readable output (avoids confusing stderr noise in JSON mode).
 		if wipnoteDir, err := findWipnoteDir(); err == nil {
-			resolved, err := resolveID(wipnoteDir, rawID)
+			resolved, err := workitem.ResolvePartialID(wipnoteDir, rawID)
 			if err == nil && strings.HasPrefix(resolved, "plan-") {
 				yamlPath := filepath.Join(wipnoteDir, "plans", resolved+".yaml")
 				htmlPath := filepath.Join(wipnoteDir, "plans", resolved+".html")

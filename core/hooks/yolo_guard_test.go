@@ -1,18 +1,17 @@
 package hooks
 
 import (
-	"database/sql"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"time"
+
 	"github.com/shakestzd/wipnote/core/agent"
 	"github.com/shakestzd/wipnote/core/claimledger"
 	"github.com/shakestzd/wipnote/core/db"
-	"github.com/shakestzd/wipnote/core/models"
-	"time"
 )
 
 func init() {
@@ -94,7 +93,7 @@ func TestConfigChange_RecordsPermissionModeCanonically(t *testing.T) {
 		CWD:            tmpDir,
 		PermissionMode: "bypassPermissions",
 	}
-	if _, err := ConfigChange(ev, nil); err != nil {
+	if _, err := ConfigChange(ev); err != nil {
 		t.Fatalf("ConfigChange: %v", err)
 	}
 	if !isYoloFromRecordedMode(hgDir, "config-change-sess") {
@@ -104,7 +103,7 @@ func TestConfigChange_RecordsPermissionModeCanonically(t *testing.T) {
 	// A later non-bypass ConfigChange must overwrite the posture, not leave the
 	// stale YOLO marker behind.
 	ev.PermissionMode = "default"
-	if _, err := ConfigChange(ev, nil); err != nil {
+	if _, err := ConfigChange(ev); err != nil {
 		t.Fatalf("ConfigChange(default): %v", err)
 	}
 	if isYoloFromRecordedMode(hgDir, "config-change-sess") {
@@ -176,7 +175,7 @@ func TestCheckYoloWorkItemGuard(t *testing.T) {
 			// The featureID check is the primary path; sessionHasLinkedFeature
 			// is the fallback tested separately.
 			// Empty targetFile and projectRoot → in-project path assumed (conservative).
-			result := checkYoloWorkItemGuard(tt.tool, tt.featureID, tt.yolo, "", nil, "", "")
+			result := checkYoloWorkItemGuard(tt.tool, tt.featureID, tt.yolo, "", "", "")
 			if tt.blocked && result == "" {
 				t.Errorf("expected block for tool=%s feature=%q yolo=%v",
 					tt.tool, tt.featureID, tt.yolo)
@@ -186,61 +185,6 @@ func TestCheckYoloWorkItemGuard(t *testing.T) {
 					tt.tool, tt.featureID, tt.yolo, result)
 			}
 		})
-	}
-}
-
-// TestAncestorHasActiveWorkItem verifies the one-hop parent-chain fallback that
-// lets nested/subagent sessions inherit the orchestrator's active work item
-// without reintroducing the global "any in-progress item" false-pass.
-func TestAncestorHasActiveWorkItem(t *testing.T) {
-	tdb := setupTestDB(t)
-	defer tdb.DB.Close()
-
-	if ancestorHasActiveWorkItem(nil, "x") {
-		t.Error("nil DB → false")
-	}
-	if ancestorHasActiveWorkItem(tdb.DB, "") {
-		t.Error("empty session → false")
-	}
-
-	// Session with no parent → false.
-	tdb.addSession("child-noparent", "", "")
-	if ancestorHasActiveWorkItem(tdb.DB, "child-noparent") {
-		t.Error("no parent → false")
-	}
-
-	// Parent has an in-progress active feature → true.
-	tdb.addFeature("feat-live", "feature", "Live", "in-progress")
-	tdb.addSession("parent-live", "", "feat-live")
-	tdb.addSession("child-live", "parent-live", "")
-	if !ancestorHasActiveWorkItem(tdb.DB, "child-live") {
-		t.Error("parent with in-progress feature → true")
-	}
-
-	// Parent's active feature is completed → false (no stale false-pass).
-	tdb.addFeature("feat-done", "feature", "Done", "done")
-	tdb.addSession("parent-done", "", "feat-done")
-	tdb.addSession("child-done", "parent-done", "")
-	if ancestorHasActiveWorkItem(tdb.DB, "child-done") {
-		t.Error("parent with completed feature → false")
-	}
-}
-
-// TestCheckYoloWorkItemGuard_NestedSessionInheritsParent verifies that a
-// subagent whose own session row has no active_feature_id is allowed to write
-// when its parent (orchestrator) session holds an in-progress work item.
-func TestCheckYoloWorkItemGuard_NestedSessionInheritsParent(t *testing.T) {
-	tdb := setupTestDB(t)
-	defer tdb.DB.Close()
-
-	tdb.addFeature("feat-nest", "feature", "Nested", "in-progress")
-	tdb.addSession("orch", "", "feat-nest")
-	tdb.addSession("sub", "orch", "")
-
-	for _, tool := range []string{"Write", "Edit", "MultiEdit", "apply_patch"} {
-		if got := checkYoloWorkItemGuard(tool, "", true, "sub", tdb.DB, "", ""); got != "" {
-			t.Errorf("%s in nested session should be allowed via parent, got block: %s", tool, got)
-		}
 	}
 }
 
@@ -255,7 +199,7 @@ func TestCheckYoloWorkItemGuard_UnrelatedSessionStillBlocked(t *testing.T) {
 	tdb.addSession("unrelated", "", "feat-other")
 	tdb.addSession("lonely", "", "") // no parent, no feature of its own
 
-	if got := checkYoloWorkItemGuard("Write", "", true, "lonely", tdb.DB, "", ""); got == "" {
+	if got := checkYoloWorkItemGuard("Write", "", true, "lonely", "", ""); got == "" {
 		t.Error("unrelated in-progress feature must NOT satisfy a different session")
 	}
 }
@@ -267,14 +211,14 @@ func TestCheckYoloWorkItemGuard_RejectsUnlinkedActiveWorkItem(t *testing.T) {
 	defer tdb.DB.Close()
 
 	// No active work items → blocked
-	result := checkYoloWorkItemGuard("Write", "", true, "some-session", tdb.DB, "", "")
+	result := checkYoloWorkItemGuard("Write", "", true, "some-session", "", "")
 	if result == "" {
 		t.Error("expected block when no active work item and session unlinked")
 	}
 
 	// Add an in-progress spike in the project. It must not satisfy this session.
 	tdb.addFeature("spike-active", "spike", "Active spike", "in-progress")
-	result = checkYoloWorkItemGuard("Write", "", true, "some-session", tdb.DB, "", "")
+	result = checkYoloWorkItemGuard("Write", "", true, "some-session", "", "")
 	if result == "" {
 		t.Error("expected block when only an unrelated work item is active")
 	}
@@ -289,13 +233,13 @@ func TestBashWorkItemGuardRemoved_RegressionBug(t *testing.T) {
 	defer tdb.DB.Close()
 
 	// Bash with write-intent command and no active work item: must not be blocked.
-	bashResult := checkYoloWorkItemGuard("Bash", "", true, "sess-regression", tdb.DB, "", "")
+	bashResult := checkYoloWorkItemGuard("Bash", "", true, "sess-regression", "", "")
 	if bashResult != "" {
 		t.Errorf("Bash should not be blocked by work-item guard (guard removed), got: %s", bashResult)
 	}
 
 	// Write with no active work item: must still be blocked by checkYoloWorkItemGuard.
-	writeResult := checkYoloWorkItemGuard("Write", "", true, "sess-regression", tdb.DB, "", "")
+	writeResult := checkYoloWorkItemGuard("Write", "", true, "sess-regression", "", "")
 	if writeResult == "" {
 		t.Error("Write should still be blocked by checkYoloWorkItemGuard when no active work item")
 	}
@@ -682,29 +626,6 @@ func setupTempGitRepo(t *testing.T) string {
 	return repoDir
 }
 
-// insertAgentEvent is a test helper that inserts a minimal agent_events row.
-func insertAgentEvent(t *testing.T, database *sql.DB, eventID, sessionID, toolName, toolInput, inputSummary, status string) {
-	t.Helper()
-	now := time.Now().UTC()
-	e := &models.AgentEvent{
-		EventID:      eventID,
-		AgentID:      "agent-test",
-		EventType:    "tool_call",
-		Timestamp:    now,
-		ToolName:     toolName,
-		ToolInput:    toolInput,
-		InputSummary: inputSummary,
-		SessionID:    sessionID,
-		Status:       status,
-		Source:       "test",
-		CreatedAt:    now,
-		UpdatedAt:    now,
-	}
-	if err := db.InsertEvent(database, e); err != nil {
-		t.Fatalf("InsertEvent(%s): %v", eventID, err)
-	}
-}
-
 // TestVisualValidation_SkipsWhenNoUIFilesStaged verifies that a commit with
 // only .go files staged passes immediately without requiring a screenshot
 // (fix 1: staged-diff precheck).
@@ -721,12 +642,12 @@ func TestVisualValidation_SkipsWhenNoUIFilesStaged(t *testing.T) {
 		t.Fatalf("git add: %v\n%s", err, out)
 	}
 
-	// The guard should pass even with no screenshot recorded in DB.
+	// The guard should pass even with no screenshot recorded.
 	event := &CloudEvent{
 		ToolName:  "Bash",
 		ToolInput: map[string]any{"command": "git commit -m 'backend only'"},
 	}
-	result := checkYoloUIValidationGuard(event, true, nil, "sess-go-only", "")
+	result := checkYoloUIValidationGuard(event, true, "sess-go-only", "")
 	if result != "" {
 		t.Errorf("expected allow for backend-only commit, got: %s", result)
 	}
@@ -747,18 +668,15 @@ func TestVisualValidation_FiresWhenUIFilesStaged(t *testing.T) {
 		t.Fatalf("git add: %v\n%s", err, out)
 	}
 
-	tdb := setupTestDB(t)
-	defer tdb.DB.Close()
-
-	// Record a UI file edit in session state so uiFileCount > 0.
-	insertAgentEvent(t, tdb.DB, "evt-edit-html", "test-sess", "Edit",
-		`{"file_path":"index.html"}`, "index.html", "completed")
+	// Record a UI file edit in the canonical tool log.
+	appendCanonicalToolEvent(repoDir, "test-sess", canonicalToolEvent{Tool: "Edit",
+		Summary: "index.html", Input: `{"file_path":"index.html"}`})
 
 	event := &CloudEvent{
 		ToolName:  "Bash",
 		ToolInput: map[string]any{"command": "git commit -m 'ui change'"},
 	}
-	result := checkYoloUIValidationGuard(event, true, tdb.DB, "test-sess", "")
+	result := checkYoloUIValidationGuard(event, true, "test-sess", repoDir)
 	if result == "" {
 		t.Error("expected block when HTML file staged but no screenshot recorded")
 	}
@@ -780,23 +698,19 @@ func TestVisualValidation_AcceptsChromeMcpScreenshot(t *testing.T) {
 		t.Fatalf("git add: %v\n%s", err, out)
 	}
 
-	tdb := setupTestDB(t)
-	defer tdb.DB.Close()
-
-	// Record a UI file edit so uiFileCount > 0.
-	insertAgentEvent(t, tdb.DB, "evt-edit-html2", "test-sess", "Edit",
-		`{"file_path":"index.html"}`, "index.html", "completed")
+	// Record a UI file edit in the canonical tool log.
+	appendCanonicalToolEvent(repoDir, "test-sess", canonicalToolEvent{Tool: "Edit",
+		Summary: "index.html", Input: `{"file_path":"index.html"}`})
 
 	// Record a Chrome MCP screenshot tool call.
-	insertAgentEvent(t, tdb.DB, "evt-screenshot", "test-sess",
-		"mcp__claude-in-chrome__computer",
-		`{"action":"screenshot"}`, "", "completed")
+	appendCanonicalToolEvent(repoDir, "test-sess", canonicalToolEvent{
+		Tool: "mcp__claude-in-chrome__computer", Input: `{"action":"screenshot"}`})
 
 	event := &CloudEvent{
 		ToolName:  "Bash",
 		ToolInput: map[string]any{"command": "git commit -m 'ui with screenshot'"},
 	}
-	result := checkYoloUIValidationGuard(event, true, tdb.DB, "test-sess", "")
+	result := checkYoloUIValidationGuard(event, true, "test-sess", repoDir)
 	if result != "" {
 		t.Errorf("expected allow after Chrome MCP screenshot, got: %s", result)
 	}
@@ -810,8 +724,7 @@ func TestVisualValidation_IgnoresNonGitCommitBash(t *testing.T) {
 		ToolName:  "Bash",
 		ToolInput: map[string]any{"command": "gh issue create --title 'foo'"},
 	}
-	// nil DB is safe here — the function must return before touching it.
-	result := checkYoloUIValidationGuard(event, true, nil, "sess-gh", "")
+	result := checkYoloUIValidationGuard(event, true, "sess-gh", "")
 	if result != "" {
 		t.Errorf("expected allow for non-git-commit bash, got: %s", result)
 	}
@@ -825,8 +738,7 @@ func TestVisualValidation_GitCommitTreeNotGated(t *testing.T) {
 		ToolName:  "Bash",
 		ToolInput: map[string]any{"command": "git commit-tree HEAD~1"},
 	}
-	// nil DB is safe — the function must return before touching it.
-	result := checkYoloUIValidationGuard(event, true, nil, "sess-plumbing", "")
+	result := checkYoloUIValidationGuard(event, true, "sess-plumbing", "")
 	if result != "" {
 		t.Errorf("expected allow for git commit-tree, got: %s", result)
 	}
@@ -848,25 +760,22 @@ func TestUIValidationGuard_BrowserBatchScreenshotCounts(t *testing.T) {
 		t.Fatalf("git add: %v\n%s", err, out)
 	}
 
-	tdb := setupTestDB(t)
-	defer tdb.DB.Close()
-
-	// Record a UI file edit in session state so uiFileCount > 0.
-	insertAgentEvent(t, tdb.DB, "evt-edit-html-batch", "test-sess", "Edit",
-		`{"file_path":"index.html"}`, "index.html", "completed")
+	// Record a UI file edit in the canonical tool log.
+	appendCanonicalToolEvent(repoDir, "test-sess", canonicalToolEvent{Tool: "Edit",
+		Summary: "index.html", Input: `{"file_path":"index.html"}`})
 
 	// Record a browser_batch screenshot tool call with nested computer action.
 	// This simulates: tool_name='mcp__claude-in-chrome__browser_batch'
 	// with tool_input containing actions:[{name:'computer',input:{action:'screenshot',...}}]
-	insertAgentEvent(t, tdb.DB, "evt-screenshot-batch", "test-sess",
-		"mcp__claude-in-chrome__browser_batch",
-		`{"actions":[{"name":"computer","input":{"action":"screenshot"}}]}`, "", "completed")
+	appendCanonicalToolEvent(repoDir, "test-sess", canonicalToolEvent{
+		Tool:  "mcp__claude-in-chrome__browser_batch",
+		Input: `{"actions":[{"name":"computer","input":{"action":"screenshot"}}]}`})
 
 	event := &CloudEvent{
 		ToolName:  "Bash",
 		ToolInput: map[string]any{"command": "git commit -m 'ui with browser_batch screenshot'"},
 	}
-	result := checkYoloUIValidationGuard(event, true, tdb.DB, "test-sess", "")
+	result := checkYoloUIValidationGuard(event, true, "test-sess", repoDir)
 	if result != "" {
 		t.Errorf("expected allow after browser_batch screenshot, got: %s", result)
 	}
@@ -1314,7 +1223,6 @@ func TestIsYoloWithInheritance(t *testing.T) {
 	if err := os.MkdirAll(hgDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	var database *sql.DB // ancestry is canonical now; the handle is unused
 
 	// Parent (orchestrator) session in YOLO mode.
 	parentSessID := "parent-yolo-sess"
@@ -1332,7 +1240,7 @@ func TestIsYoloWithInheritance(t *testing.T) {
 
 	// isYoloWithInheritance must return true because the parent is YOLO.
 	// (isSubagent=true: child has a parent and no YOLO marker of its own.)
-	if !isYoloWithInheritance(childEvent, hgDir, database, childSessID, tmpDir, true) {
+	if !isYoloWithInheritance(childEvent, hgDir, childSessID, tmpDir, true) {
 		t.Error("expected isYoloWithInheritance=true: child should inherit parent YOLO posture")
 	}
 
@@ -1361,13 +1269,13 @@ func TestIsYoloWithInheritance(t *testing.T) {
 		PermissionMode: "default",
 		SessionID:      childSessID,
 	}
-	if isYoloWithInheritance(explicitDefaultEvent, hgDir, database, childSessID, tmpDir, false) {
+	if isYoloWithInheritance(explicitDefaultEvent, hgDir, childSessID, tmpDir, false) {
 		t.Error("expected isYoloWithInheritance=false: explicit non-YOLO mode on a top-level session must not be overridden by parent")
 	}
 
 	// A session with no registered family ancestor has nothing to inherit from.
 	orphanEvent := &CloudEvent{PermissionMode: "", SessionID: "unfamilied-sess"}
-	if isYoloWithInheritance(orphanEvent, hgDir, database, "unfamilied-sess", tmpDir, true) {
+	if isYoloWithInheritance(orphanEvent, hgDir, "unfamilied-sess", tmpDir, true) {
 		t.Error("expected isYoloWithInheritance=false for a session with no family ancestor")
 	}
 
@@ -1375,7 +1283,7 @@ func TestIsYoloWithInheritance(t *testing.T) {
 	seedPermissionMode(t, hgDir, "plain-parent-sess", "default")
 	seedSessionFamily(t, tmpDir, "plain-child-sess", "plain-parent-sess")
 	plainEvent := &CloudEvent{PermissionMode: "", SessionID: "plain-child-sess"}
-	if isYoloWithInheritance(plainEvent, hgDir, database, "plain-child-sess", tmpDir, true) {
+	if isYoloWithInheritance(plainEvent, hgDir, "plain-child-sess", tmpDir, true) {
 		t.Error("expected isYoloWithInheritance=false when the family root is not YOLO")
 	}
 }
@@ -1392,7 +1300,6 @@ func TestIsYoloWithInheritance_SubagentNonBypassModeInherits(t *testing.T) {
 	if err := os.MkdirAll(hgDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	var database *sql.DB // ancestry is canonical now; the handle is unused
 
 	parentSessID := "parent-yolo-sess"
 	seedPermissionMode(t, hgDir, parentSessID, "bypassPermissions")
@@ -1403,11 +1310,11 @@ func TestIsYoloWithInheritance_SubagentNonBypassModeInherits(t *testing.T) {
 	for _, mode := range []string{"default", "acceptEdits"} {
 		ev := &CloudEvent{PermissionMode: mode, SessionID: childSessID}
 		// Subagent → falls through to parent walk regardless of its own mode.
-		if !isYoloWithInheritance(ev, hgDir, database, childSessID, tmpDir, true) {
+		if !isYoloWithInheritance(ev, hgDir, childSessID, tmpDir, true) {
 			t.Errorf("expected YOLO=true for subagent with mode=%q and YOLO parent", mode)
 		}
 		// Same event treated as a TOP-LEVEL session → explicit mode respected → false.
-		if isYoloWithInheritance(ev, hgDir, database, childSessID, tmpDir, false) {
+		if isYoloWithInheritance(ev, hgDir, childSessID, tmpDir, false) {
 			t.Errorf("expected YOLO=false for top-level session with explicit mode=%q", mode)
 		}
 	}
@@ -1417,17 +1324,16 @@ func TestIsYoloWithInheritance_SubagentNonBypassModeInherits(t *testing.T) {
 // fast-path still wins for a subagent regardless of inheritance.
 func TestIsYoloWithInheritance_SubagentBypassFastPath(t *testing.T) {
 	ev := &CloudEvent{PermissionMode: "bypassPermissions", SessionID: "sub-sess"}
-	if !isYoloWithInheritance(ev, t.TempDir(), nil, "sub-sess", t.TempDir(), true) {
+	if !isYoloWithInheritance(ev, t.TempDir(), "sub-sess", t.TempDir(), true) {
 		t.Error("expected YOLO=true for subagent with bypassPermissions event")
 	}
 }
 
-// setupYoloParentDB creates an isolated project with a parent session in the
+// setupYoloParent creates an isolated project with a parent session in the
 // requested posture and a child session (no marker of its own) registered into
-// the parent's family. Returns the wipnote dir, the child session ID, and a nil
-// DB handle — ancestry and posture are both canonical now, and the handle only
-// remains so the call shape of the guards under test is unchanged.
-func setupYoloParentDB(t *testing.T, parentIsYolo bool) (string, string, *sql.DB) {
+// the parent's family. Returns the wipnote dir and the child session ID;
+// ancestry and posture are both canonical.
+func setupYoloParent(t *testing.T, parentIsYolo bool) (string, string) {
 	t.Helper()
 	tmpDir := t.TempDir()
 	hgDir := filepath.Join(tmpDir, ".wipnote")
@@ -1443,7 +1349,7 @@ func setupYoloParentDB(t *testing.T, parentIsYolo bool) (string, string, *sql.DB
 	}
 	seedPermissionMode(t, hgDir, parentSessID, mode)
 	seedSessionFamily(t, tmpDir, childSessID, parentSessID)
-	return hgDir, childSessID, nil
+	return hgDir, childSessID
 }
 
 // TestWorktreeGuardDefenseInDepth_SubagentYoloParent is the defense-in-depth
@@ -1452,12 +1358,12 @@ func setupYoloParentDB(t *testing.T, parentIsYolo bool) (string, string, *sql.DB
 // The resilient signal is anyParentSessionYolo, which the pretooluse worktree
 // guard ORs with ctx.IsYoloMode.
 func TestWorktreeGuardDefenseInDepth_SubagentYoloParent(t *testing.T) {
-	hgDir, childSessID, database := setupYoloParentDB(t, true /*parentIsYolo*/)
+	hgDir, childSessID := setupYoloParent(t, true /*parentIsYolo*/)
 
 	// Simulate ctx.IsYoloMode resolving false for this subagent.
 	isYoloMode := false
 	isSubagent := true
-	yoloContext := isYoloMode || (isSubagent && anyParentSessionYolo(database, hgDir, childSessID))
+	yoloContext := isYoloMode || (isSubagent && anyParentSessionYolo(hgDir, childSessID))
 	if !yoloContext {
 		t.Fatal("expected resilient yoloContext=true via parent-chain inheritance")
 	}
@@ -1473,15 +1379,15 @@ func TestWorktreeGuardDefenseInDepth_SubagentYoloParent(t *testing.T) {
 // Also verifies a yolo subagent editing on a feature/worktree branch is allowed.
 func TestWorktreeGuardRegression_NonYoloMainEditAllowed(t *testing.T) {
 	// Non-yolo: parent session is NOT yolo.
-	hgDir, childSessID, database := setupYoloParentDB(t, false /*parentIsYolo*/)
+	hgDir, childSessID := setupYoloParent(t, false /*parentIsYolo*/)
 
 	// Top-level non-yolo session: IsYoloMode=false, not a subagent.
-	yoloContext := false || (false && anyParentSessionYolo(database, hgDir, childSessID))
+	yoloContext := false || (false && anyParentSessionYolo(hgDir, childSessID))
 	if yoloContext {
 		t.Fatal("expected yoloContext=false for non-yolo top-level session")
 	}
 	// Even a subagent here has a non-yolo parent → resilient signal stays false.
-	subYoloContext := false || (true && anyParentSessionYolo(database, hgDir, childSessID))
+	subYoloContext := false || (true && anyParentSessionYolo(hgDir, childSessID))
 	if subYoloContext {
 		t.Fatal("expected yoloContext=false for subagent with non-yolo parent")
 	}
@@ -1516,7 +1422,7 @@ func TestCheckYoloWorkItemGuard_ExternalPathSkipped(t *testing.T) {
 	for _, tc := range externalPaths {
 		t.Run(tc.name, func(t *testing.T) {
 			// No feature, no DB — guard must skip (return "") for external paths.
-			result := checkYoloWorkItemGuard("Write", "", true, "", nil, tc.path, projectRoot)
+			result := checkYoloWorkItemGuard("Write", "", true, "", tc.path, projectRoot)
 			if result != "" {
 				t.Errorf("work-item guard should NOT fire for external path %q, got: %s", tc.path, result)
 			}
@@ -1541,7 +1447,7 @@ func TestCheckYoloWorkItemGuard_InProjectPathStillBlocked(t *testing.T) {
 	for _, tc := range inProjectPaths {
 		t.Run(tc.name, func(t *testing.T) {
 			// No feature, no DB — guard must BLOCK for in-project paths.
-			result := checkYoloWorkItemGuard("Write", "", true, "", nil, tc.path, projectRoot)
+			result := checkYoloWorkItemGuard("Write", "", true, "", tc.path, projectRoot)
 			if result == "" {
 				t.Errorf("work-item guard should BLOCK Write to in-project path %q with no work item", tc.path)
 			}
@@ -1694,8 +1600,8 @@ func TestCheckYoloWorktreeGuardWIPNOTEYOLO(t *testing.T) {
 // bug-369da005.
 //
 // It reproduces the exact post-cutover condition: the derived index handed to
-// the guard is an EMPTY projection (what OpenHookDBReadOnly returns now that
-// there is no per-project SQLite file), while the canonical claim ledger holds
+// the guard is an EMPTY projection (what the hot hooks read before
+// feat-af8d1689 dropped the handle altogether), while the canonical claim ledger holds
 // a genuine open episode. Before the canonical check existed, checks 1-3 all
 // read that empty index, returned false, and the guard — which fails closed —
 // blocked every Write/Edit in every session on the machine.
@@ -1707,11 +1613,10 @@ func TestCheckYoloWorkItemGuardReadsCanonicalClaimLedger(t *testing.T) {
 		t.Fatalf("mkdir .wipnote: %v", err)
 	}
 
-	// An EMPTY tables-only projection is precisely what the hook read path
-	// supplies post-cutover. Using the real thing keeps this test honest: if
-	// the projection ever starts hydrating again, the test still passes for
-	// the right reason.
-	database, err := db.OpenEphemeralProjectionTablesOnly()
+	// An EMPTY projection is what the hook read path supplied post-cutover.
+	// Using the real thing keeps this test honest: if the projection ever
+	// starts hydrating again, the test still passes for the right reason.
+	database, err := db.OpenEphemeralProjection()
 	if err != nil {
 		t.Fatalf("open ephemeral projection: %v", err)
 	}
@@ -1722,7 +1627,7 @@ func TestCheckYoloWorkItemGuardReadsCanonicalClaimLedger(t *testing.T) {
 	// With no canonical claim, the guard must still BLOCK — a missing shard is
 	// an authoritative "no claim", not an unverifiable one. Without this half,
 	// a fix that simply failed open would pass the other half.
-	if got := checkYoloWorkItemGuard("Write", "", false, sessionID, database, target, projectRoot); got == "" {
+	if got := checkYoloWorkItemGuard("Write", "", false, sessionID, target, projectRoot); got == "" {
 		t.Fatal("expected a block when no canonical claim episode exists")
 	}
 
@@ -1738,7 +1643,7 @@ func TestCheckYoloWorkItemGuardReadsCanonicalClaimLedger(t *testing.T) {
 		t.Fatalf("open claim episode: %v", err)
 	}
 
-	if got := checkYoloWorkItemGuard("Write", "", false, sessionID, database, target, projectRoot); got != "" {
+	if got := checkYoloWorkItemGuard("Write", "", false, sessionID, target, projectRoot); got != "" {
 		t.Fatalf("guard blocked despite an open canonical claim episode: %s", got)
 	}
 
@@ -1748,7 +1653,7 @@ func TestCheckYoloWorkItemGuardReadsCanonicalClaimLedger(t *testing.T) {
 		claimledger.OutcomeCompleted, time.Now().UTC()); err != nil {
 		t.Fatalf("close claim episode: %v", err)
 	}
-	if got := checkYoloWorkItemGuard("Write", "", false, sessionID, database, target, projectRoot); got == "" {
+	if got := checkYoloWorkItemGuard("Write", "", false, sessionID, target, projectRoot); got == "" {
 		t.Fatal("expected a block after the claim episode was closed")
 	}
 }
@@ -1776,7 +1681,7 @@ func TestCanonicalOpenClaimFailsOpenOnUnreadableLedger(t *testing.T) {
 	}
 
 	// And the guard must therefore allow rather than block.
-	if got := checkYoloWorkItemGuard("Write", "", false, sessionID, nil,
+	if got := checkYoloWorkItemGuard("Write", "", false, sessionID,
 		filepath.Join(projectRoot, "main.go"), projectRoot); got != "" {
 		t.Fatalf("guard blocked on an unverifiable ledger: %s", got)
 	}

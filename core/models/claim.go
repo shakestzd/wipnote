@@ -63,27 +63,3 @@ type Claim struct {
 	CreatedAt        time.Time       `json:"created_at"`
 	UpdatedAt        time.Time       `json:"updated_at"`
 }
-
-// IsActive reports whether the claim is in a non-terminal state.
-func (c *Claim) IsActive() bool {
-	for _, s := range ActiveClaimStatuses {
-		if c.Status == s {
-			return true
-		}
-	}
-	return false
-}
-
-// CanTransitionTo reports whether transitioning to the target status is valid.
-func (c *Claim) CanTransitionTo(target ClaimStatus) bool {
-	allowed, ok := ValidClaimTransitions[c.Status]
-	if !ok {
-		return false // terminal state
-	}
-	for _, s := range allowed {
-		if s == target {
-			return true
-		}
-	}
-	return false
-}

@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -82,9 +81,7 @@ func runHealth(path string, goOnly, pythonOnly, jsonOut, failOnWarn bool) error 
 			healthResult: *result,
 			Runtime:      collectRuntimeHealth(),
 		}
-		enc := json.NewEncoder(os.Stdout)
-		enc.SetIndent("", "  ")
-		return enc.Encode(envelope)
+		return printJSON(envelope)
 	}
 	// Slice-10 contention observability: surface runtime SQLITE_BUSY
 	// counters + writer queue depth BEFORE the code-size report so

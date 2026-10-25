@@ -6,6 +6,7 @@ import (
 	"io"
 	"regexp"
 	"strings"
+	"sync"
 	"unicode/utf8"
 
 	"github.com/shakestzd/wipnote/plan/planyaml"
@@ -81,9 +82,9 @@ func (sc *SliceCard) Preview() string {
 	return plain
 }
 
-var sliceCardTmpl = template.Must(
-	template.New("slice_card.gohtml").Funcs(sliceCardFuncs).ParseFS(templateFS, "templates/slice_card.gohtml"),
-)
+var sliceCardTmpl = sync.OnceValue(func() *template.Template {
+	return template.Must(template.New("slice_card.gohtml").Funcs(sliceCardFuncs).ParseFS(templateFS, "templates/slice_card.gohtml"))
+})
 
 // revealThreshold is the character count above which a markdown block gets a
 // "Show full description" reveal toggle.
@@ -254,7 +255,7 @@ func (sc *SliceCard) TestsHTML() template.HTML { return RenderMd(sc.Tests) }
 
 // Render writes the slice card HTML.
 func (sc *SliceCard) Render(w io.Writer) error {
-	return sliceCardTmpl.Execute(w, sc)
+	return sliceCardTmpl().Execute(w, sc)
 }
 
 // EffortClass returns the CSS class for the effort badge.

@@ -51,7 +51,7 @@ func newToolSpec[In, Out any](name, desc string, fn func(dir string, in In, now 
 // write tools.
 func mcpToolSpecs() []mcpToolSpec {
 	return []mcpToolSpec{
-		newToolSpec("wipnote_overview", "One-call project dashboard: work-item counts by status/type, a bounded "+
+		newToolSpec("wipnote_overview", "One-call project overview: work-item counts by status/type, a bounded "+
 			"needs-attention list (blocked or stale work items, claim collisions, failed tool "+
 			"calls, permission waits, API errors) and cost per session from OpenTelemetry "+
 			"(single source of truth for cost). Returns ids, counts, durations and USD only.", buildOverview),

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/db/dbtest"
 	"github.com/shakestzd/wipnote/core/models"
 )
 
@@ -36,7 +37,7 @@ func TestInsertGitCommit_MultipleFeatureIDsSameCommitSession(t *testing.T) {
 		},
 	}
 	for i := range commits {
-		if err := db.InsertGitCommit(database, &commits[i]); err != nil {
+		if err := dbtest.InsertGitCommit(database, &commits[i]); err != nil {
 			t.Fatalf("InsertGitCommit %d: %v", i, err)
 		}
 	}
@@ -92,7 +93,7 @@ func TestInsertGitCommit_UnattributedDuplicateStillDeduped(t *testing.T) {
 			Message:    "chore: no work item",
 			Timestamp:  now,
 		}
-		if err := db.InsertGitCommit(database, commit); err != nil {
+		if err := dbtest.InsertGitCommit(database, commit); err != nil {
 			t.Fatalf("InsertGitCommit run %d: %v", i, err)
 		}
 	}
@@ -117,7 +118,7 @@ func TestInsertGitCommit_UnattributedDuplicateStillDeduped(t *testing.T) {
 func TestGitCommitsCompositeKeyMigration_UpgradesLegacyTwoColumnKey(t *testing.T) {
 	path := fileDBPath(t, "git_commits_legacy_key.db")
 
-	cold, err := db.Open(path)
+	cold, err := dbtest.Open(path)
 	if err != nil {
 		t.Fatalf("cold Open: %v", err)
 	}
@@ -156,7 +157,7 @@ func TestGitCommitsCompositeKeyMigration_UpgradesLegacyTwoColumnKey(t *testing.T
 	}
 	cold.Close()
 
-	warm, err := db.Open(path)
+	warm, err := dbtest.Open(path)
 	if err != nil {
 		t.Fatalf("warm Open (migration): %v", err)
 	}
@@ -179,7 +180,7 @@ func TestGitCommitsCompositeKeyMigration_UpgradesLegacyTwoColumnKey(t *testing.T
 
 	// The new PK must now accept a second feature_id for the same
 	// (commit_hash, session_id) pair -- impossible under the old schema.
-	if err := db.InsertGitCommit(warm, &models.GitCommit{
+	if err := dbtest.InsertGitCommit(warm, &models.GitCommit{
 		CommitHash: "legacyhash01",
 		SessionID:  "sess-legacy",
 		FeatureID:  "feat-legacy2",

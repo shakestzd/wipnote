@@ -7,6 +7,7 @@ import (
 
 	dbpkg "github.com/shakestzd/wipnote/core/db"
 	"github.com/shakestzd/wipnote/core/models"
+	"github.com/shakestzd/wipnote/core/slug"
 )
 
 // RenderAgentTree reads agent_lineage_trace rows for the given rootSessionID,
@@ -55,7 +56,7 @@ func RenderAgentTree(db *sql.DB, rootSessionID string) (string, error) {
 	sep := strings.Repeat("─", 60)
 	var sb strings.Builder
 	fmt.Fprintln(&sb, sep)
-	fmt.Fprintf(&sb, "  Agent tree: %s\n", truncate(rootSessionID, 16))
+	fmt.Fprintf(&sb, "  Agent tree: %s\n", slug.Truncate(rootSessionID, 16))
 	fmt.Fprintln(&sb, sep)
 
 	// DFS emission.
@@ -66,7 +67,7 @@ func RenderAgentTree(db *sql.DB, rootSessionID string) (string, error) {
 			return
 		}
 		indent := strings.Repeat("  ", depth)
-		shortSess := truncate(sessionID, 8)
+		shortSess := slug.Truncate(sessionID, 8)
 		featureID := t.FeatureID
 		if featureID == "" {
 			featureID = "-"

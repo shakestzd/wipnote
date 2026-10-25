@@ -6,14 +6,15 @@ import (
 	"testing"
 	"time"
 
-	dbpkg "github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/db/dbtest"
+
 	"github.com/shakestzd/wipnote/core/models"
 )
 
 // setupLineageTestDB opens an in-memory DB for lineage tree tests.
 func setupLineageTestDB(t *testing.T) *sql.DB {
 	t.Helper()
-	database, err := dbpkg.Open(":memory:")
+	database, err := dbtest.Open(":memory:")
 	if err != nil {
 		t.Fatalf("open test db: %v", err)
 	}
@@ -35,7 +36,7 @@ func insertTrace(t *testing.T, db *sql.DB, traceID, rootSession, session, agentN
 		StartedAt:     time.Now().UTC(),
 		Status:        "active",
 	}
-	if err := dbpkg.InsertLineageTrace(db, trace); err != nil {
+	if err := dbtest.InsertLineageTrace(db, trace); err != nil {
 		t.Fatalf("InsertLineageTrace %s: %v", traceID, err)
 	}
 }

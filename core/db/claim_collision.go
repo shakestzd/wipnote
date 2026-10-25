@@ -3,7 +3,6 @@ package db
 import (
 	"database/sql"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/shakestzd/wipnote/core/models"
@@ -67,28 +66,6 @@ func DetectCollaboration(database *sql.DB, workItemID string) (CollaborationStat
 		HasCollision: len(unique) > 1,
 		Claimants:    unique,
 	}, nil
-}
-
-// CollaborationSummary formats a human-readable collision/collaboration notice
-// for display in `wipnote who` and session-start attribution blocks.
-func CollaborationSummary(state CollaborationState) string {
-	if !state.HasCollision {
-		return ""
-	}
-	lines := make([]string, 0, len(state.Claimants)+1)
-	lines = append(lines, fmt.Sprintf(
-		"WARNING: %s has %d concurrent claimants (collaboration/collision detected):",
-		state.WorkItemID, len(state.Claimants),
-	))
-	for _, c := range state.Claimants {
-		ts := c.LeasedAt.UTC().Format(time.RFC3339)
-		lines = append(lines, fmt.Sprintf(
-			"  %s  session=%s  harness=%s  claimed=%s",
-			c.ClaimID, c.OwnerSessionID, c.OwnerAgent, ts,
-		))
-	}
-	lines = append(lines, "  (warn-and-allow: work continues; coordinate manually)")
-	return strings.Join(lines, "\n")
 }
 
 // LiveCollisionState extends CollaborationState with a liveness filter.
@@ -162,51 +139,6 @@ func LiveCollision(database *sql.DB, workItemID, callerSessionID string, livenes
 	}
 	state.HasLiveCollision = len(state.LiveClaimants) > 0
 	return state, nil
-}
-
-// LiveCollisionMessage formats a human-readable refusal message for a live
-// collision. Returns "" when state.HasLiveCollision is false.
-func LiveCollisionMessage(state LiveCollisionState) string {
-	if !state.HasLiveCollision {
-		return ""
-	}
-	lines := make([]string, 0, len(state.LiveClaimants)+2)
-	for _, c := range state.LiveClaimants {
-		ts := c.LeasedAt.UTC().Format(time.RFC3339)
-		lines = append(lines, fmt.Sprintf(
-			"%s is actively claimed by session %s (agent %s, since %s).\n"+
-				"Coordinate, or re-run with --force to claim anyway.",
-			state.WorkItemID, c.OwnerSessionID, c.OwnerAgent, ts,
-		))
-	}
-	return strings.Join(lines, "\n")
-}
-
-// BackfillParentSession sets parent_session_id on a child session row when
-// the parent record arrives after the child was already written (out-of-order).
-// This is idempotent: if parent_session_id is already set to the same value
-// the UPDATE is a no-op.
-func BackfillParentSession(database *sql.DB, childSessionID, parentSessionID string) error {
-	query, args := BackfillParentSessionStmt(childSessionID, parentSessionID)
-	if _, err := database.Exec(query, args...); err != nil {
-		return fmt.Errorf("backfill parent session %s->%s: %w", childSessionID, parentSessionID, err)
-	}
-	return nil
-}
-
-// BackfillParentSessionStmt builds the parameterized UPDATE that
-// BackfillParentSession Execs, WITHOUT executing it, so the hot-path
-// subagent-start hook can route the exact same statement through the daemon's
-// enqueue-only seam instead of blocking a direct writable handle under a held
-// external write lock (bug-c9ec25a4). The returned (sql, args) is byte-for-byte
-// equivalent to what BackfillParentSession binds today.
-//
-// JSON-TRANSPORT SAFETY: both args are plain strings — transport-safe
-// primitives the daemon can JSON-encode and re-bind identically. No
-// sql.NullString / time.Time crosses the wire.
-func BackfillParentSessionStmt(childSessionID, parentSessionID string) (string, []any) {
-	return `UPDATE sessions SET parent_session_id = ? WHERE session_id = ?`,
-		[]any{parentSessionID, childSessionID}
 }
 
 // GetClaimIdentity returns the claim owner, session family, harness, work item,

@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/shakestzd/wipnote/core/db/dbtest"
+
 	corearch "github.com/shakestzd/wipnote/core/arch"
 	dbpkg "github.com/shakestzd/wipnote/core/db"
 	"github.com/shakestzd/wipnote/core/models"
@@ -17,7 +19,7 @@ import (
 // setupLineageDB opens an in-memory DB for lineage routing tests.
 func setupLineageDB(t *testing.T) *sql.DB {
 	t.Helper()
-	database, err := dbpkg.Open(":memory:")
+	database, err := dbtest.Open(":memory:")
 	if err != nil {
 		t.Fatalf("open lineage db: %v", err)
 	}
@@ -227,10 +229,10 @@ func TestLineageAgentTreeForSession(t *testing.T) {
 		StartedAt:     time.Now().UTC(),
 		Status:        "active",
 	}
-	if err := dbpkg.InsertLineageTrace(db, rootTrace); err != nil {
+	if err := dbtest.InsertLineageTrace(db, rootTrace); err != nil {
 		t.Fatalf("insert root trace: %v", err)
 	}
-	if err := dbpkg.InsertLineageTrace(db, childTrace); err != nil {
+	if err := dbtest.InsertLineageTrace(db, childTrace); err != nil {
 		t.Fatalf("insert child trace: %v", err)
 	}
 
@@ -337,14 +339,14 @@ func TestLineageSessionJSONIncludesAgentTree(t *testing.T) {
 	db := setupLineageDB(t)
 	rootSession := "sess-jsontree"
 	childSession := "sess-jsontree-child"
-	if err := dbpkg.InsertLineageTrace(db, &models.LineageTrace{
+	if err := dbtest.InsertLineageTrace(db, &models.LineageTrace{
 		TraceID: "lt-jt-root", RootSessionID: rootSession, SessionID: rootSession,
 		AgentName: "orchestrator-jt", Depth: 0, Path: []string{rootSession},
 		FeatureID: "feat-jt", StartedAt: time.Now().UTC(), Status: "active",
 	}); err != nil {
 		t.Fatalf("seed root trace: %v", err)
 	}
-	if err := dbpkg.InsertLineageTrace(db, &models.LineageTrace{
+	if err := dbtest.InsertLineageTrace(db, &models.LineageTrace{
 		TraceID: "lt-jt-child", RootSessionID: rootSession, SessionID: childSession,
 		AgentName: "sub-jt", Depth: 1, Path: []string{rootSession, childSession},
 		FeatureID: "feat-jt", StartedAt: time.Now().UTC(), Status: "active",

@@ -50,13 +50,9 @@ and the operator opts in via WIPNOTE_ENFORCE_ISOLATION=true.`,
 	}
 }
 
-// findRepoRoot returns the git repository root from the current directory.
+// doctorFindRepoRoot returns the git repository root of the current directory.
 func doctorFindRepoRoot() (string, error) {
-	out, err := exec.Command("git", "rev-parse", "--show-toplevel").Output()
-	if err != nil {
-		return "", err
-	}
-	return strings.TrimSpace(string(out)), nil
+	return paths.GitTopLevel(".")
 }
 
 // runDoctorReport is the pure diagnostic core — takes a repoRoot and
@@ -136,7 +132,7 @@ func reportSessionDivergence(b *bytes.Buffer, repoRoot string) {
 		}
 		fmt.Fprintf(b, "  %d sessions registered; %d legacy (no family-id)\n", len(familyMap), legacy)
 		if legacy > 0 {
-			fmt.Fprintln(b, "  legacy sessions remain VISIBLE in the dashboard — no action required")
+			fmt.Fprintln(b, "  legacy sessions stay readable — no action required")
 		}
 	}
 	fmt.Fprintln(b)
@@ -155,16 +151,6 @@ func reportRolloutGate(b *bytes.Buffer) {
 		fmt.Fprintln(b, "  see docs/runbook/launcher-isolation.md for the full migration guide")
 	}
 	fmt.Fprintln(b)
-}
-
-// doctorSessionLabel returns the display label for a session given the family map.
-// Returns "legacy" for sessions without a family-id entry.
-func doctorSessionLabel(sessionID string, familyMap map[string]string) string {
-	fid, ok := familyMap[sessionID]
-	if !ok || fid == "" {
-		return "legacy"
-	}
-	return fid
 }
 
 // worktreeEntry describes one git worktree entry for doctor reporting.
