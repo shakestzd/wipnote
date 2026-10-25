@@ -1,6 +1,7 @@
 package hooks
 
 import (
+	"database/sql"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -61,11 +62,7 @@ func TestResolveToolUseContext_BackfillsCanonicalParent(t *testing.T) {
 		t.Fatalf("RegisterSessionFamily: %v", err)
 	}
 
-	database, reason := OpenHookDBReadOnly("pretooluse", childSession, ":memory:")
-	if database == nil {
-		t.Fatalf("OpenHookDBReadOnly returned nil (reason=%s)", reason)
-	}
-	t.Cleanup(func() { _ = database.Close() })
+	var database *sql.DB // hot hooks dispatch with no handle (feat-af8d1689)
 
 	// Sub-agent owning a distinct session ID: parent is the family root.
 	ctx := resolveToolUseContext(&CloudEvent{
@@ -124,11 +121,7 @@ func TestPreToolUse_SubagentCommitOnMainBlocked(t *testing.T) {
 		t.Fatalf("RegisterSessionFamily: %v", err)
 	}
 
-	database, _ := OpenHookDBReadOnly("pretooluse", childSession, ":memory:")
-	if database == nil {
-		t.Fatal("OpenHookDBReadOnly returned nil handle")
-	}
-	t.Cleanup(func() { _ = database.Close() })
+	var database *sql.DB // hot hooks dispatch with no handle (feat-af8d1689)
 
 	commitEvent := func(sessionID, agentID string) *CloudEvent {
 		return &CloudEvent{

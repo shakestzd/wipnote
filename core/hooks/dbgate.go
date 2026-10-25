@@ -95,6 +95,9 @@ func RecordFallback(handler, sessionID string, reason FallbackReason, detail str
 	case FallbackTimeout:
 		fallbackTimeout.Add(1)
 	}
+	if !debugLogEnabled() {
+		return
+	}
 	projectDir := resolveLogDir()
 	if projectDir == "" {
 		return
@@ -139,46 +142,6 @@ func OpenHookDB(handler, sessionID, dbPath string) (*sql.DB, FallbackReason) {
 	return database, ""
 }
 
-// OpenHookDBReadOnly returns a TRULY read-only DB handle for the hot hooks that
-// route every derived-index WRITE through the daemon and use the handle ONLY for
-// reads (roborev-473 finding 1: pretooluse, user-prompt, stop). A read-only open
-// never acquires the write lock — so under contention these hot hooks never block
-// on a writable open.
-//
-// CURRENT BEHAVIOUR (feat-fc3cc9e0): there is no per-project SQLite file left to
-// open read-only, so this returns a process-local in-memory projection.
-// dbPath is ignored. The projection starts EMPTY, so every read through this
-// handle sees no rows — callers must already be nil-DB-safe (they are; that was
-// the roborev-478 finding 1 contract), and any fact a guard genuinely needs has
-// to come from canonical state instead.
-//
-// Because the projection is empty AND this handle is never written through, it
-// is built WITHOUT the 97 indexes (feat-2bd74c58): an index on a table with no
-// rows accelerates nothing, and building them measured 8.3ms of the 9.7ms this
-// call used to cost — per hook invocation, i.e. per tool call. Every table is
-// still created, so reads return zero rows exactly as before rather than
-// failing with "no such table"; TestEphemeralTablesOnlyKeepsReadsWorking pins
-// that. Do NOT reuse this handle for writes: upsert paths depend on UNIQUE
-// indexes this projection does not have.
-//
-// The contention rationale that motivated a read-only open no longer applies:
-// an in-memory database takes no file lock and cannot contend with the daemon or
-// the dashboard.
-//
-// Failure semantics mirror OpenHookDB: a failed open is classified under
-// hook_writer, logged + counted as writer_unavailable, and returns a nil handle
-// the caller MUST treat as a signal to return canonical-success.
-func OpenHookDBReadOnly(handler, sessionID, dbPath string) (*sql.DB, FallbackReason) {
-	_ = dbPath
-	database, err := db.OpenEphemeralProjectionTablesOnly()
-	if err != nil {
-		db.Record(db.SubsystemHookWriter, err)
-		RecordFallback(handler, sessionID, FallbackWriterUnavailable, err.Error())
-		return nil, FallbackWriterUnavailable
-	}
-	return database, ""
-}
-
 // SessionStartBusyTimeout bounds how long the session-start hook's writable DB
 // handle waits on a held write lock before failing fast. The session-start hook
 // runs on the launcher's POST-selection critical path: Claude blocks on the
@@ -206,9 +169,9 @@ const SessionStartBusyTimeout = 750 * time.Millisecond
 // under hook_writer, logged + counted as writer_unavailable, and returns a nil
 // handle the caller MUST treat as a signal to return canonical-success.
 //
-// Unlike OpenHookDBReadOnly, the writable daemon-miss fallback MUST open the
-// canonical SQLite DB, because callers expect the fallback write to be visible
-// to the same database handle they already hold.
+// The writable daemon-miss fallback MUST open the canonical SQLite DB, because
+// callers expect the fallback write to be visible to the same database handle
+// they already hold.
 func OpenHookDBWithBusyTimeout(handler, sessionID, dbPath string, busyTimeout time.Duration) (*sql.DB, FallbackReason) {
 	database, err := db.OpenWithBusyTimeout(dbPath, busyTimeout)
 	if err != nil {

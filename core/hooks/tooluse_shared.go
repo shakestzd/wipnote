@@ -165,8 +165,8 @@ func resolveToolUseContext(event *CloudEvent, database *sql.DB, trustParentEnvVa
 	}
 
 	// Canonical backfill (bug-2e5081b4 / GH-#88): every branch above sources
-	// parent_session_id from the projection, and the read-only hook path opens
-	// an EMPTY tables-only projection (OpenHookDBReadOnly), so parentSessionID
+	// parent_session_id from the projection, and the read-only hook path has no
+	// hydrated index (no handle at all since feat-af8d1689), so parentSessionID
 	// was always "" for the hot PreToolUse hook. checkSubagentCommitGuard reads
 	// "no parent" as "this is the orchestrator — allow", which is how dispatched
 	// sub-agents were able to `git commit` straight onto main. Derive the parent

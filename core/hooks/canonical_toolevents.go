@@ -12,8 +12,8 @@ import (
 
 // Canonical per-session tool-call log.
 //
-// The hot PreToolUse hook opens an EMPTY in-memory projection
-// (OpenHookDBReadOnly → db.OpenEphemeralProjectionTablesOnly), so every guard
+// The hot PreToolUse hook has no hydrated index (an empty in-memory projection,
+// and since feat-af8d1689 no handle at all), so every guard
 // that counted agent_events rows to decide "did this session already research /
 // screenshot / touch UI files" reads zero and degrades to its fail-open branch.
 // The guards are therefore inert, not wrong (bug-a3b17225).

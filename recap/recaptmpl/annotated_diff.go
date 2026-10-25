@@ -4,6 +4,7 @@ import (
 	"html/template"
 	"io"
 	"strconv"
+	"sync"
 
 	"github.com/shakestzd/wipnote/internal/recap"
 )
@@ -20,9 +21,9 @@ const (
 	DiffSplit DiffMode = "split"
 )
 
-var annotatedDiffTmpl = template.Must(
-	template.ParseFS(templateFS, "templates/annotated_diff.gohtml"),
-)
+var annotatedDiffTmpl = sync.OnceValue(func() *template.Template {
+	return template.Must(template.ParseFS(templateFS, "templates/annotated_diff.gohtml"))
+})
 
 // HunkView is the pre-computed render model for one hunk: its header context,
 // add/remove counts, and the lines for unified or split layout.
@@ -68,7 +69,7 @@ func (d *AnnotatedDiff) Render(w io.Writer) error {
 	if lang == "" {
 		lang = "plaintext"
 	}
-	return annotatedDiffTmpl.Execute(w, struct {
+	return annotatedDiffTmpl().Execute(w, struct {
 		Path     string
 		Change   string
 		Language string

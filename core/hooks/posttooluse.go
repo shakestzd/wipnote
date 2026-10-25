@@ -96,8 +96,8 @@ func postToolUseRecord(event *CloudEvent, ctx *toolUseContext, database *sql.DB)
 		Summary:   SummariseInput(event.ToolName, event.ToolInput),
 	})
 
-	// No per-call orphan sweep here any more. posttooluse dispatches with the
-	// read-only empty projection (hookSubcmdReadOnly), where a per-session
+	// No per-call orphan sweep here any more. posttooluse dispatches with no
+	// database handle (hookSubcmdReadOnly), where a per-session
 	// sweep could see no rows and could not mark one aborted anyway. Started rows a daemon-miss pretooluse left on the disk
 	// fallback are still swept by session-start's capped project-wide sweep;
 	// daemon-routed rows are completed in place by recordToolCompletion.

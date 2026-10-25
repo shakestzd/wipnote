@@ -6,6 +6,7 @@ import (
 	"io"
 	"strconv"
 	"strings"
+	"sync"
 	"unicode/utf8"
 
 	"github.com/shakestzd/wipnote/plan/blocks/svg"
@@ -149,9 +150,9 @@ func nodeID(num int) string { return strconv.Itoa(num) }
 // stylesheet, the dashboard, and `wipnote plan validate` all key off it.
 const depGraphSVGID = "dep-graph-svg"
 
-var depGraphTmpl = template.Must(
-	template.ParseFS(templateFS, "templates/dependency_graph.gohtml"),
-)
+var depGraphTmpl = sync.OnceValue(func() *template.Template {
+	return template.Must(template.ParseFS(templateFS, "templates/dependency_graph.gohtml"))
+})
 
 // depGraphView is what the zone template renders: the node data island plus
 // the finished SVG document.
@@ -166,7 +167,7 @@ func (g *DependencyGraph) Render(w io.Writer) error {
 	if err != nil {
 		return err
 	}
-	return depGraphTmpl.Execute(w, depGraphView{Nodes: g.Nodes, SVG: template.HTML(markup)})
+	return depGraphTmpl().Execute(w, depGraphView{Nodes: g.Nodes, SVG: template.HTML(markup)})
 }
 
 // renderSVG lays the graph out and returns the complete inline <svg> element.

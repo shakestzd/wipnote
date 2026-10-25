@@ -5,14 +5,15 @@ import (
 	"html/template"
 	"io"
 	"strings"
+	"sync"
 
 	"github.com/shakestzd/wipnote/plan/blocks"
 	"github.com/shakestzd/wipnote/plan/planyaml"
 )
 
-var blocksZoneTmpl = template.Must(
-	template.ParseFS(templateFS, "templates/blocks_zone.gohtml"),
-)
+var blocksZoneTmpl = sync.OnceValue(func() *template.Template {
+	return template.Must(template.ParseFS(templateFS, "templates/blocks_zone.gohtml"))
+})
 
 // renderedBlock pairs one block's anchor id with its rendered HTML. The anchor
 // follows the slice-8 dashboard contract (slice-<num>-block-<name>-<idx>) so the
@@ -129,5 +130,5 @@ func (z *BlocksZone) Render(w io.Writer) error {
 	if len(rs) == 0 {
 		return nil
 	}
-	return blocksZoneTmpl.ExecuteTemplate(w, "blocks_zone", struct{ Blocks []renderedBlock }{Blocks: rs})
+	return blocksZoneTmpl().ExecuteTemplate(w, "blocks_zone", struct{ Blocks []renderedBlock }{Blocks: rs})
 }

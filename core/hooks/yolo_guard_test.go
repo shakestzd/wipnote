@@ -11,7 +11,6 @@ import (
 	"github.com/shakestzd/wipnote/core/agent"
 	"github.com/shakestzd/wipnote/core/claimledger"
 	"github.com/shakestzd/wipnote/core/db"
-	"github.com/shakestzd/wipnote/core/models"
 	"time"
 )
 
@@ -682,29 +681,6 @@ func setupTempGitRepo(t *testing.T) string {
 	return repoDir
 }
 
-// insertAgentEvent is a test helper that inserts a minimal agent_events row.
-func insertAgentEvent(t *testing.T, database *sql.DB, eventID, sessionID, toolName, toolInput, inputSummary, status string) {
-	t.Helper()
-	now := time.Now().UTC()
-	e := &models.AgentEvent{
-		EventID:      eventID,
-		AgentID:      "agent-test",
-		EventType:    "tool_call",
-		Timestamp:    now,
-		ToolName:     toolName,
-		ToolInput:    toolInput,
-		InputSummary: inputSummary,
-		SessionID:    sessionID,
-		Status:       status,
-		Source:       "test",
-		CreatedAt:    now,
-		UpdatedAt:    now,
-	}
-	if err := db.InsertEvent(database, e); err != nil {
-		t.Fatalf("InsertEvent(%s): %v", eventID, err)
-	}
-}
-
 // TestVisualValidation_SkipsWhenNoUIFilesStaged verifies that a commit with
 // only .go files staged passes immediately without requiring a screenshot
 // (fix 1: staged-diff precheck).
@@ -721,12 +697,12 @@ func TestVisualValidation_SkipsWhenNoUIFilesStaged(t *testing.T) {
 		t.Fatalf("git add: %v\n%s", err, out)
 	}
 
-	// The guard should pass even with no screenshot recorded in DB.
+	// The guard should pass even with no screenshot recorded.
 	event := &CloudEvent{
 		ToolName:  "Bash",
 		ToolInput: map[string]any{"command": "git commit -m 'backend only'"},
 	}
-	result := checkYoloUIValidationGuard(event, true, nil, "sess-go-only", "")
+	result := checkYoloUIValidationGuard(event, true, "sess-go-only", "")
 	if result != "" {
 		t.Errorf("expected allow for backend-only commit, got: %s", result)
 	}
@@ -747,18 +723,15 @@ func TestVisualValidation_FiresWhenUIFilesStaged(t *testing.T) {
 		t.Fatalf("git add: %v\n%s", err, out)
 	}
 
-	tdb := setupTestDB(t)
-	defer tdb.DB.Close()
-
-	// Record a UI file edit in session state so uiFileCount > 0.
-	insertAgentEvent(t, tdb.DB, "evt-edit-html", "test-sess", "Edit",
-		`{"file_path":"index.html"}`, "index.html", "completed")
+	// Record a UI file edit in the canonical tool log.
+	appendCanonicalToolEvent(repoDir, "test-sess", canonicalToolEvent{Tool: "Edit",
+		Summary: "index.html", Input: `{"file_path":"index.html"}`})
 
 	event := &CloudEvent{
 		ToolName:  "Bash",
 		ToolInput: map[string]any{"command": "git commit -m 'ui change'"},
 	}
-	result := checkYoloUIValidationGuard(event, true, tdb.DB, "test-sess", "")
+	result := checkYoloUIValidationGuard(event, true, "test-sess", repoDir)
 	if result == "" {
 		t.Error("expected block when HTML file staged but no screenshot recorded")
 	}
@@ -780,23 +753,19 @@ func TestVisualValidation_AcceptsChromeMcpScreenshot(t *testing.T) {
 		t.Fatalf("git add: %v\n%s", err, out)
 	}
 
-	tdb := setupTestDB(t)
-	defer tdb.DB.Close()
-
-	// Record a UI file edit so uiFileCount > 0.
-	insertAgentEvent(t, tdb.DB, "evt-edit-html2", "test-sess", "Edit",
-		`{"file_path":"index.html"}`, "index.html", "completed")
+	// Record a UI file edit in the canonical tool log.
+	appendCanonicalToolEvent(repoDir, "test-sess", canonicalToolEvent{Tool: "Edit",
+		Summary: "index.html", Input: `{"file_path":"index.html"}`})
 
 	// Record a Chrome MCP screenshot tool call.
-	insertAgentEvent(t, tdb.DB, "evt-screenshot", "test-sess",
-		"mcp__claude-in-chrome__computer",
-		`{"action":"screenshot"}`, "", "completed")
+	appendCanonicalToolEvent(repoDir, "test-sess", canonicalToolEvent{
+		Tool: "mcp__claude-in-chrome__computer", Input: `{"action":"screenshot"}`})
 
 	event := &CloudEvent{
 		ToolName:  "Bash",
 		ToolInput: map[string]any{"command": "git commit -m 'ui with screenshot'"},
 	}
-	result := checkYoloUIValidationGuard(event, true, tdb.DB, "test-sess", "")
+	result := checkYoloUIValidationGuard(event, true, "test-sess", repoDir)
 	if result != "" {
 		t.Errorf("expected allow after Chrome MCP screenshot, got: %s", result)
 	}
@@ -810,8 +779,7 @@ func TestVisualValidation_IgnoresNonGitCommitBash(t *testing.T) {
 		ToolName:  "Bash",
 		ToolInput: map[string]any{"command": "gh issue create --title 'foo'"},
 	}
-	// nil DB is safe here — the function must return before touching it.
-	result := checkYoloUIValidationGuard(event, true, nil, "sess-gh", "")
+	result := checkYoloUIValidationGuard(event, true, "sess-gh", "")
 	if result != "" {
 		t.Errorf("expected allow for non-git-commit bash, got: %s", result)
 	}
@@ -825,8 +793,7 @@ func TestVisualValidation_GitCommitTreeNotGated(t *testing.T) {
 		ToolName:  "Bash",
 		ToolInput: map[string]any{"command": "git commit-tree HEAD~1"},
 	}
-	// nil DB is safe — the function must return before touching it.
-	result := checkYoloUIValidationGuard(event, true, nil, "sess-plumbing", "")
+	result := checkYoloUIValidationGuard(event, true, "sess-plumbing", "")
 	if result != "" {
 		t.Errorf("expected allow for git commit-tree, got: %s", result)
 	}
@@ -848,25 +815,22 @@ func TestUIValidationGuard_BrowserBatchScreenshotCounts(t *testing.T) {
 		t.Fatalf("git add: %v\n%s", err, out)
 	}
 
-	tdb := setupTestDB(t)
-	defer tdb.DB.Close()
-
-	// Record a UI file edit in session state so uiFileCount > 0.
-	insertAgentEvent(t, tdb.DB, "evt-edit-html-batch", "test-sess", "Edit",
-		`{"file_path":"index.html"}`, "index.html", "completed")
+	// Record a UI file edit in the canonical tool log.
+	appendCanonicalToolEvent(repoDir, "test-sess", canonicalToolEvent{Tool: "Edit",
+		Summary: "index.html", Input: `{"file_path":"index.html"}`})
 
 	// Record a browser_batch screenshot tool call with nested computer action.
 	// This simulates: tool_name='mcp__claude-in-chrome__browser_batch'
 	// with tool_input containing actions:[{name:'computer',input:{action:'screenshot',...}}]
-	insertAgentEvent(t, tdb.DB, "evt-screenshot-batch", "test-sess",
-		"mcp__claude-in-chrome__browser_batch",
-		`{"actions":[{"name":"computer","input":{"action":"screenshot"}}]}`, "", "completed")
+	appendCanonicalToolEvent(repoDir, "test-sess", canonicalToolEvent{
+		Tool:  "mcp__claude-in-chrome__browser_batch",
+		Input: `{"actions":[{"name":"computer","input":{"action":"screenshot"}}]}`})
 
 	event := &CloudEvent{
 		ToolName:  "Bash",
 		ToolInput: map[string]any{"command": "git commit -m 'ui with browser_batch screenshot'"},
 	}
-	result := checkYoloUIValidationGuard(event, true, tdb.DB, "test-sess", "")
+	result := checkYoloUIValidationGuard(event, true, "test-sess", repoDir)
 	if result != "" {
 		t.Errorf("expected allow after browser_batch screenshot, got: %s", result)
 	}
@@ -1694,8 +1658,8 @@ func TestCheckYoloWorktreeGuardWIPNOTEYOLO(t *testing.T) {
 // bug-369da005.
 //
 // It reproduces the exact post-cutover condition: the derived index handed to
-// the guard is an EMPTY projection (what OpenHookDBReadOnly returns now that
-// there is no per-project SQLite file), while the canonical claim ledger holds
+// the guard is an EMPTY projection (what the hot hooks read before
+// feat-af8d1689 dropped the handle altogether), while the canonical claim ledger holds
 // a genuine open episode. Before the canonical check existed, checks 1-3 all
 // read that empty index, returned false, and the guard — which fails closed —
 // blocked every Write/Edit in every session on the machine.
@@ -1707,11 +1671,10 @@ func TestCheckYoloWorkItemGuardReadsCanonicalClaimLedger(t *testing.T) {
 		t.Fatalf("mkdir .wipnote: %v", err)
 	}
 
-	// An EMPTY tables-only projection is precisely what the hook read path
-	// supplies post-cutover. Using the real thing keeps this test honest: if
-	// the projection ever starts hydrating again, the test still passes for
-	// the right reason.
-	database, err := db.OpenEphemeralProjectionTablesOnly()
+	// An EMPTY projection is what the hook read path supplied post-cutover.
+	// Using the real thing keeps this test honest: if the projection ever
+	// starts hydrating again, the test still passes for the right reason.
+	database, err := db.OpenEphemeralProjection()
 	if err != nil {
 		t.Fatalf("open ephemeral projection: %v", err)
 	}

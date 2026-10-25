@@ -266,9 +266,9 @@ func checkYoloWorkItemGuard(toolName, featureID string, _ bool, sessionID string
 // than the derived SQLite index.
 //
 // WHY THIS EXISTS. Checks 1-3 of checkYoloWorkItemGuard all query the derived
-// index. Since the feat-fc3cc9e0 cutover the hook read path opens that index
-// via OpenHookDBReadOnly, which returns a per-process in-memory projection it
-// never hydrates: every table is empty, so those three checks can only ever
+// index. Since the feat-fc3cc9e0 cutover the hook read path has opened that
+// index as a per-process in-memory projection it never hydrates (and since
+// feat-af8d1689 gets no handle at all), so those three checks can only ever
 // return false. Because the guard fails CLOSED, that turned it into a universal
 // Write/Edit block for every session on the machine the moment a post-cutover
 // binary shipped (bug-369da005). The sibling research guard survived the same
@@ -1149,54 +1149,51 @@ func collectRelatedSessionIDs(database *sql.DB, sessionID string) []string {
 // related IDs), the function fails open and emits a debug-log warning rather
 // than silently blocking valid work.
 func hasRecentResearch(database *sql.DB, sessionID, agentID, projectDir string) bool {
-	if database == nil || sessionID == "" {
+	if sessionID == "" {
 		return true // fail-open: can't verify, don't block
 	}
+	// A nil database is the hot-hook dispatch (feat-af8d1689): it answers as the
+	// empty projection it replaced, which recorded no tool calls.
+	if database != nil {
+		if researched, recorded := indexedResearch(database, sessionID, agentID, projectDir); researched || recorded {
+			return researched
+		}
+	}
+	// No tool_call events at all. On the hot-hook path this is ALWAYS the case,
+	// so consult the canonical per-session tool log before conceding
+	// (bug-a3b17225).
+	if seen, ok := canonicalAnySeen(projectDir, sessionID, isCanonicalResearchEvent); ok {
+		debugLog(projectDir,
+			"[wipnote] research-gate canonical fallback: session=%s research=%v", sessionID, seen)
+		return seen
+	}
+	// Nothing canonical either — a genuine recording-pipeline gap (FK
+	// failures, DB mismatch in worktrees, fresh session where only a
+	// SessionStart event has been recorded). Fail open.
+	debugLog(projectDir,
+		"[wipnote] research-gate fail-open: no tool_call events recorded for session=%s agent=%s — recording pipeline may be broken",
+		sessionID, agentID)
+	return true
+}
 
+// indexedResearch asks the derived index whether research ran (researched) and
+// whether it recorded any tool call at all (recorded). recorded=false is a
+// recording gap, not a "no research" answer.
+func indexedResearch(database *sql.DB, sessionID, agentID, projectDir string) (researched, recorded bool) {
 	relatedSIDs := collectRelatedSessionIDs(database, sessionID)
-
-	// Build the parameterized IN clause for session IDs.
 	inClause, inArgs := buildInClause(relatedSIDs)
-
-	// Determine whether agentID is usable as a cross-session bridge.
 	useAgentID := agentID != "" && !isGenericAgentID(agentID)
 
-	// Compose the research query.
 	researchQuery, researchArgs := buildResearchQuery(inClause, inArgs, useAgentID, agentID, projectDir)
-
 	var researchCount int
 	database.QueryRow(researchQuery, researchArgs...).Scan(&researchCount)
 	if researchCount > 0 {
-		return true
+		return true, true
 	}
-
-	// Research count is 0 — determine whether that's because no tool calls were
-	// recorded at all (recording gap → fail-open) or because tool calls ran but
-	// none were research-y (genuine no-research → block).
 	toolCallQuery, toolCallArgs := buildToolCallQuery(inClause, inArgs, useAgentID, agentID, projectDir)
 	var toolCallCount int
 	database.QueryRow(toolCallQuery, toolCallArgs...).Scan(&toolCallCount)
-
-	if toolCallCount == 0 {
-		// No tool_call events at all. On the read-only hook path this is ALWAYS
-		// the case — the projection is empty by construction — so consult the
-		// canonical per-session tool log before conceding (bug-a3b17225).
-		if seen, ok := canonicalAnySeen(projectDir, sessionID, isCanonicalResearchEvent); ok {
-			debugLog(projectDir,
-				"[wipnote] research-gate canonical fallback: session=%s research=%v", sessionID, seen)
-			return seen
-		}
-		// Nothing canonical either — a genuine recording-pipeline gap (FK
-		// failures, DB mismatch in worktrees, fresh session where only a
-		// SessionStart event has been recorded). Fail open.
-		debugLog(projectDir,
-			"[wipnote] research-gate fail-open: no tool_call events recorded for session=%s agent=%s — recording pipeline may be broken",
-			sessionID, agentID)
-		return true
-	}
-
-	// Tool calls were recorded but none qualify as research → block.
-	return false
+	return false, toolCallCount > 0
 }
 
 // hasRecentWebResearch reports whether web/docs research — WebSearch/WebFetch
@@ -1210,10 +1207,24 @@ func hasRecentResearch(database *sql.DB, sessionID, agentID, projectDir string) 
 // pipeline is broken (zero tool_call events across all related IDs) it returns
 // true rather than false-blocking valid work.
 func hasRecentWebResearch(database *sql.DB, sessionID, agentID, projectDir string) bool {
-	if database == nil || sessionID == "" {
+	if sessionID == "" {
 		return true // fail-open: can't verify, don't block
 	}
+	// A nil database is the hot-hook dispatch (feat-af8d1689): it answers as the
+	// empty projection it replaced — a recording gap, so fail open below.
+	if database != nil {
+		if researched, recorded := indexedWebResearch(database, sessionID, agentID, projectDir); researched || recorded {
+			return researched
+		}
+	}
+	debugLog(projectDir,
+		"[wipnote] web-research-gate fail-open: no tool_call events recorded for session=%s agent=%s — recording pipeline may be broken",
+		sessionID, agentID)
+	return true
+}
 
+// indexedWebResearch is indexedResearch for the web-only research subset.
+func indexedWebResearch(database *sql.DB, sessionID, agentID, projectDir string) (researched, recorded bool) {
 	relatedSIDs := collectRelatedSessionIDs(database, sessionID)
 	inClause, inArgs := buildInClause(relatedSIDs)
 	useAgentID := agentID != "" && !isGenericAgentID(agentID)
@@ -1222,24 +1233,12 @@ func hasRecentWebResearch(database *sql.DB, sessionID, agentID, projectDir strin
 	var webCount int
 	database.QueryRow(webQuery, webArgs...).Scan(&webCount)
 	if webCount > 0 {
-		return true
+		return true, true
 	}
-
-	// No web research recorded — distinguish a recording gap (fail-open) from a
-	// genuine no-web-research case (block), using the same tool_call probe as
-	// hasRecentResearch.
 	toolCallQuery, toolCallArgs := buildToolCallQuery(inClause, inArgs, useAgentID, agentID, projectDir)
 	var toolCallCount int
 	database.QueryRow(toolCallQuery, toolCallArgs...).Scan(&toolCallCount)
-	if toolCallCount == 0 {
-		debugLog(projectDir,
-			"[wipnote] web-research-gate fail-open: no tool_call events recorded for session=%s agent=%s — recording pipeline may be broken",
-			sessionID, agentID)
-		return true
-	}
-
-	// Tool calls ran but none were web/docs research → block.
-	return false
+	return false, toolCallCount > 0
 }
 
 // buildInClause returns a SQL fragment like "(?, ?, ?)" and the matching args
@@ -1536,7 +1535,7 @@ func hasStagedUIFiles() bool {
 //     Now also checks tool_name = 'mcp__claude-in-chrome__computer' with
 //     "action":"screenshot" in the tool_input JSON column. Existing
 //     take_screenshot patterns are retained for other MCP server flavours.
-func checkYoloUIValidationGuard(event *CloudEvent, yolo bool, database *sql.DB, sessionID, projectDir string) string {
+func checkYoloUIValidationGuard(event *CloudEvent, yolo bool, sessionID, projectDir string) string {
 	if !yolo || !isShellTool(event.ToolName) {
 		return ""
 	}
@@ -1552,10 +1551,10 @@ func checkYoloUIValidationGuard(event *CloudEvent, yolo bool, database *sql.DB, 
 		return ""
 	}
 
-	if !sessionTouchedUIFiles(database, sessionID, projectDir) {
+	if !sessionTouchedUIFiles(sessionID, projectDir) {
 		return "" // no UI files touched in this session (or cannot verify)
 	}
-	if sessionHasVisualValidation(database, sessionID, projectDir) {
+	if sessionHasVisualValidation(sessionID, projectDir) {
 		return ""
 	}
 
@@ -1563,85 +1562,30 @@ func checkYoloUIValidationGuard(event *CloudEvent, yolo bool, database *sql.DB, 
 		"Take a screenshot before committing."
 }
 
-// sessionTouchedUIFiles reports whether this session edited a UI file.
-// .wipnote/ HTML is work-item data, not UI, and is excluded.
+// sessionTouchedUIFiles reports whether this session edited a UI file, per the
+// canonical tool log (bug-a3b17225). .wipnote/ HTML is work-item data, not UI,
+// and is excluded. With no canonical log this returns false and the gate stays
+// open.
 //
-// The derived index is consulted first, then the canonical tool log
-// (bug-a3b17225): on the read-only hook path the projection is empty, so the
-// SQL count is always 0 and the gate was inert. When neither source can answer
-// — nil DB, or no canonical log — this returns false and the gate stays open.
-func sessionTouchedUIFiles(database *sql.DB, sessionID, projectDir string) bool {
-	var uiFileCount int
-	if database != nil {
-		database.QueryRow(`
-			SELECT COUNT(*) FROM agent_events
-			WHERE session_id = ? AND tool_name IN ('Write', 'Edit', 'MultiEdit')
-			  AND (input_summary LIKE '%.html%' OR input_summary LIKE '%.css%'
-			    OR input_summary LIKE '%.js%'  OR input_summary LIKE '%.ts%'
-			    OR input_summary LIKE '%.tsx%' OR input_summary LIKE '%.vue%'
-			    OR input_summary LIKE '%.svelte%')
-			  AND input_summary NOT LIKE '%.wipnote/%'
-			  AND status = 'completed'`,
-			sessionID,
-		).Scan(&uiFileCount)
-	}
-	if uiFileCount > 0 {
-		return true
-	}
+// It used to count agent_events rows first, but the only caller (pretooluse)
+// has no hydrated index — no handle at all since feat-af8d1689 — so that count
+// was always zero.
+func sessionTouchedUIFiles(sessionID, projectDir string) bool {
 	seen, ok := canonicalAnySeen(projectDir, sessionID, isCanonicalUIEditEvent)
 	return ok && seen
 }
 
 // sessionHasVisualValidation reports whether a screenshot was taken in this
-// session or its parent. Supported patterns:
-//   - tool_input contains "action":"screenshot" (Chrome MCP, including browser_batch)
-//   - tool_name matches *take_screenshot* or *screenshot* (other MCP flavours)
+// session or its family, per the canonical tool log. Supported patterns:
+//   - input contains "action":"screenshot" (Chrome MCP, including browser_batch)
+//   - tool name contains "screenshot" (other MCP flavours)
 //
-// It fails OPEN (true) when neither the index nor the canonical log can answer,
-// so a recording gap never blocks a commit.
-func sessionHasVisualValidation(database *sql.DB, sessionID, projectDir string) bool {
-	for _, sid := range getSessionAndParent(database, sessionID) {
-		var validationCount int
-		if database == nil {
-			break
-		}
-		database.QueryRow(`
-			SELECT COUNT(*) FROM agent_events
-			WHERE session_id = ?
-			  AND (
-			    tool_input LIKE '%"action":"screenshot"%'
-			    OR tool_name LIKE '%take_screenshot%'
-			    OR tool_name LIKE '%screenshot%'
-			  )`,
-			sid,
-		).Scan(&validationCount)
-		if validationCount > 0 {
-			return true
-		}
-	}
-	// A hydrated index that recorded tool calls for this session but no
-	// screenshot is an authoritative "no visual validation" — block.
-	if sessionRecordedEvents(database, sessionID) {
-		return false
-	}
+// It fails OPEN (true) when there is no canonical log, so a recording gap
+// never blocks a commit.
+func sessionHasVisualValidation(sessionID, projectDir string) bool {
 	seen, ok := canonicalAnySeen(projectDir, sessionID, isCanonicalScreenshotEvent)
 	if !ok {
 		return true // recording gap — cannot verify, do not block
 	}
 	return seen
-}
-
-// sessionRecordedEvents reports whether the derived index holds ANY agent_event
-// for this session. It is the same recording-gap probe hasRecentResearch uses:
-// zero rows means the index cannot answer (on the read-only hook path it is
-// empty by construction), not that nothing happened.
-func sessionRecordedEvents(database *sql.DB, sessionID string) bool {
-	if database == nil || sessionID == "" {
-		return false
-	}
-	var n int
-	database.QueryRow(
-		`SELECT COUNT(*) FROM agent_events WHERE session_id = ? LIMIT 1`, sessionID,
-	).Scan(&n)
-	return n > 0
 }

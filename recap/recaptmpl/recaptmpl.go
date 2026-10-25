@@ -26,6 +26,7 @@ import (
 	htmlesc "html"
 	"html/template"
 	"io"
+	"sync"
 	texttemplate "text/template"
 )
 
@@ -56,12 +57,14 @@ func renderZone(c Component) template.HTML {
 // recapPageTmpl uses text/template (not html/template) for the same reasons as
 // plantmpl's page shell: zones self-escape, the shell carries static markup, and
 // scalar fields are escaped explicitly via htmlEscape.
-var recapPageTmpl = texttemplate.Must(
-	texttemplate.New("recap_page.gohtml").Funcs(texttemplate.FuncMap{
-		"renderZone": renderZone,
-		"htmlEscape": htmlesc.EscapeString,
-	}).ParseFS(templateFS, "templates/recap_page.gohtml"),
-)
+var recapPageTmpl = sync.OnceValue(func() *texttemplate.Template {
+	return texttemplate.Must(
+		texttemplate.New("recap_page.gohtml").Funcs(texttemplate.FuncMap{
+			"renderZone": renderZone,
+			"htmlEscape": htmlesc.EscapeString,
+		}).ParseFS(templateFS, "templates/recap_page.gohtml"),
+	)
+})
 
 // RecapPage is the top-level struct that assembles all recap zones into a
 // complete, self-contained HTML document.
@@ -85,7 +88,7 @@ type RecapPage struct {
 
 // Render writes the complete recap HTML to w.
 func (p *RecapPage) Render(w io.Writer) error {
-	return recapPageTmpl.Execute(w, p)
+	return recapPageTmpl().Execute(w, p)
 }
 
 // isNil reports whether a Component interface holds a typed nil pointer, so that

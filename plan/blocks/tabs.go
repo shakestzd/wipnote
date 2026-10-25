@@ -50,7 +50,7 @@ func (t *Tabs) Render(w io.Writer) error {
 			Checked: i == 0,
 		})
 	}
-	return blockTmpl.ExecuteTemplate(w, "tabs", struct {
+	return blockTmpl().ExecuteTemplate(w, "tabs", struct {
 		Title string
 		Group string
 		Tabs  []tabView

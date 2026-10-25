@@ -1,6 +1,7 @@
 package hooks
 
 import (
+	"database/sql"
 	"os/exec"
 	"strings"
 	"testing"
@@ -12,11 +13,7 @@ func yoloCommitResult(t *testing.T, repoDir, sessionID string) *HookResult {
 	t.Helper()
 	t.Setenv("WIPNOTE_PROJECT_DIR", repoDir)
 	t.Setenv("CLAUDE_PROJECT_DIR", repoDir)
-	database, _ := OpenHookDBReadOnly("pretooluse", sessionID, ":memory:")
-	if database == nil {
-		t.Fatal("OpenHookDBReadOnly returned nil handle")
-	}
-	t.Cleanup(func() { _ = database.Close() })
+	var database *sql.DB // hot hooks dispatch with no handle (feat-af8d1689)
 	event := &CloudEvent{
 		SessionID:      sessionID,
 		CWD:            repoDir,

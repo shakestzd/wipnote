@@ -283,7 +283,7 @@ func PreToolUse(event *CloudEvent, database *sql.DB) (*HookResult, error) {
 		if warn := checkYoloDiffReviewGuard(event, ctx.IsYoloMode, hasRecentDiffReview(ctx.ProjectDir, ctx.SessionID)); warn != "" {
 			return &HookResult{Decision: "block", Reason: warn}, nil
 		}
-		if warn := checkYoloUIValidationGuard(event, ctx.IsYoloMode, database, ctx.SessionID, ctx.ProjectDir); warn != "" {
+		if warn := checkYoloUIValidationGuard(event, ctx.IsYoloMode, ctx.SessionID, ctx.ProjectDir); warn != "" {
 			return &HookResult{Decision: "block", Reason: warn}, nil
 		}
 		if warn := checkYoloBudgetGuard(event, ctx.IsYoloMode); warn != "" {
@@ -343,7 +343,10 @@ func appendAdditionalContext(result *HookResult, context string) {
 }
 
 func checkOrchestratorResearchDelegationAdvisory(event *CloudEvent, ctx *toolUseContext, database *sql.DB) string {
-	if event == nil || ctx == nil || database == nil || ctx.IsSubagent || ctx.SessionID == "" {
+	// A nil database is the hot-hook dispatch (feat-af8d1689) and must answer
+	// exactly as the empty projection it replaced: no prior research and no
+	// sidecar recorded, so the advisory fires.
+	if event == nil || ctx == nil || ctx.IsSubagent || ctx.SessionID == "" {
 		return ""
 	}
 	if !isOrchestratorResearchTool(event.ToolName) {
@@ -396,6 +399,9 @@ func hasPriorDelegationEvidence(counts map[string]int) bool {
 }
 
 func hasPriorSidecarCommand(database *sql.DB, sessionID string) bool {
+	if database == nil {
+		return false
+	}
 	var count int
 	err := database.QueryRow(`
 		SELECT COUNT(*) FROM agent_events

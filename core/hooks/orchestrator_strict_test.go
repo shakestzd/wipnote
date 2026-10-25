@@ -1,6 +1,7 @@
 package hooks
 
 import (
+	"database/sql"
 	"os"
 	"path/filepath"
 	"strings"
@@ -233,11 +234,7 @@ func TestPreToolUse_OrchestratorStrictBlocksSkill(t *testing.T) {
 	t.Setenv("CLAUDE_PROJECT_DIR", "")
 	t.Setenv("WIPNOTE_PROJECT_DIR", projectDir)
 
-	database, _ := OpenHookDBReadOnly("pretooluse", sessionID, ":memory:")
-	if database == nil {
-		t.Fatal("OpenHookDBReadOnly returned nil handle")
-	}
-	t.Cleanup(func() { _ = database.Close() })
+	var database *sql.DB // hot hooks dispatch with no handle (feat-af8d1689)
 
 	result, err := PreToolUse(&CloudEvent{
 		SessionID: sessionID,
@@ -271,11 +268,7 @@ func TestPreToolUse_OrchestratorStrictAdvisesBeforeBlocking(t *testing.T) {
 	t.Setenv("CLAUDE_PROJECT_DIR", "")
 	t.Setenv("WIPNOTE_PROJECT_DIR", projectDir)
 
-	database, _ := OpenHookDBReadOnly("pretooluse", sessionID, ":memory:")
-	if database == nil {
-		t.Fatal("OpenHookDBReadOnly returned nil handle")
-	}
-	t.Cleanup(func() { _ = database.Close() })
+	var database *sql.DB // hot hooks dispatch with no handle (feat-af8d1689)
 
 	result, err := PreToolUse(&CloudEvent{
 		SessionID: sessionID,
