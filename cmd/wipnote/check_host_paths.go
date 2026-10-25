@@ -6,23 +6,12 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"strings"
 
-	"github.com/shakestzd/wipnote/core/paths"
+	"github.com/shakestzd/wipnote/core/hostpath"
 	"github.com/shakestzd/wipnote/core/storage"
 	"github.com/spf13/cobra"
 )
-
-// hostPathPattern is the precommit-gate alias for paths.HostPathPattern.
-// The canonical definition lives in internal/paths/hostpattern.go so the
-// runtime normalizer (NormalizeToRepoRelative) and the precommit gate
-// always agree on what counts as a host-local path.
-var hostPathPattern = paths.HostPathPattern
-
-// ciAllowPattern matches paths that should be excluded from violations even though
-// they match hostPathPattern — specifically /home/runner/ used by GitHub Actions CI.
-var ciAllowPattern = regexp.MustCompile(`^/home/runner/`)
 
 // hostPathViolation records a single match found during scanning.
 type hostPathViolation struct {
@@ -46,14 +35,9 @@ func validateDescriptionForHostPaths(description string, allowHostPaths bool) er
 	if allowHostPaths || description == "" {
 		return nil
 	}
-	matches := hostPathPattern.FindAllString(description, -1)
-	var violations []string
-	for _, m := range matches {
-		if ciAllowPattern.MatchString(m) {
-			continue
-		}
-		violations = append(violations, m)
-	}
+	// core/hostpath is the shared detector: the ledger writers refuse what
+	// this check and the precommit scan report.
+	violations := hostpath.Find(description)
 	if len(violations) == 0 {
 		return nil
 	}
@@ -258,12 +242,7 @@ func scanFileForHostPaths(absPath, displayPath string) ([]hostPathViolation, err
 	for scanner.Scan() {
 		lineNum++
 		line := scanner.Text()
-		matches := hostPathPattern.FindAllString(line, -1)
-		for _, m := range matches {
-			// /home/runner/ is the GitHub Actions CI user — not a developer path.
-			if ciAllowPattern.MatchString(m) {
-				continue
-			}
+		for _, m := range hostpath.Find(line) {
 			violations = append(violations, hostPathViolation{
 				file:    displayPath,
 				line:    lineNum,
