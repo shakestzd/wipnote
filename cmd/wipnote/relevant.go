@@ -534,7 +534,7 @@ func searchViaGitFileHistory(projectDir, hgDir, filePath string, scores map[stri
 		sha, date, subject, body := parts[0], parts[1], parts[2], parts[3]
 
 		// Extract wipnote-item trailers from commit body.
-		for _, itemID := range extractHTMLGraphTrailers(body) {
+		for _, itemID := range extractCommitItems(body) {
 			filePath := resolveItemHTMLPath(hgDir, itemID)
 			var node *relevantResult
 			if filePath != "" {
@@ -579,7 +579,7 @@ func searchViaGitSHA(projectDir, hgDir, sha string, scores map[string]*relevantR
 	}
 	fullSHA, date, subject, body := parts[0], parts[1], parts[2], parts[3]
 
-	for _, itemID := range extractHTMLGraphTrailers(body) {
+	for _, itemID := range extractCommitItems(body) {
 		filePath := resolveItemHTMLPath(hgDir, itemID)
 		var node *relevantResult
 		if filePath != "" {
@@ -602,25 +602,10 @@ func searchViaGitSHA(projectDir, hgDir, sha string, scores map[string]*relevantR
 	return nil
 }
 
-// extractHTMLGraphTrailers parses "wipnote-item: <id>" trailers from a commit body.
-func extractHTMLGraphTrailers(body string) []string {
-	var ids []string
-	for _, line := range strings.Split(body, "\n") {
-		line = strings.TrimSpace(line)
-		after, ok := strings.CutPrefix(strings.ToLower(line), "wipnote-item:")
-		if !ok {
-			continue
-		}
-		id := strings.TrimSpace(after)
-		// Restore original case — re-cut from original line.
-		orig := strings.TrimSpace(line[len("wipnote-item:"):])
-		if orig != "" {
-			ids = append(ids, orig)
-		} else if id != "" {
-			ids = append(ids, id)
-		}
-	}
-	return ids
+// extractCommitItems returns the work item IDs a commit message references:
+// Refs:/Fixes: trailers and inline ids, via parseTrailers.
+func extractCommitItems(body string) []string {
+	return parseTrailers(body)
 }
 
 // resolveItemHTMLPath finds the HTML file for a work-item ID by checking known subdirs.
