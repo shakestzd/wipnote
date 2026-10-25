@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	dbpkg "github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/db/dbtest"
 	"github.com/shakestzd/wipnote/core/gateledger"
 	"github.com/shakestzd/wipnote/core/guardprofile"
 	"github.com/shakestzd/wipnote/core/storage"
@@ -77,7 +78,7 @@ func openGateTestDB(t *testing.T, projectRoot string) *sql.DB {
 	if err := storage.EnsureDBDir(dbPath); err != nil {
 		t.Fatalf("EnsureDBDir: %v", err)
 	}
-	database, err := dbpkg.Open(dbPath)
+	database, err := dbtest.Open(dbPath)
 	if err != nil {
 		t.Fatalf("db open: %v", err)
 	}

@@ -8,7 +8,7 @@ import "testing"
 // allowlisted read-only wipnote query at low risk produces a
 // hookSpecificOutput.decision.behavior == "allow".
 func TestPermissionRequest_AllowlistedReadOnly_AutoAllows(t *testing.T) {
-	td, sessionID := setupMissingEventsDB(t)
+	_, sessionID := setupMissingEventsDB(t)
 
 	event := &CloudEvent{
 		SessionID:          sessionID,
@@ -19,7 +19,7 @@ func TestPermissionRequest_AllowlistedReadOnly_AutoAllows(t *testing.T) {
 		RiskLevel:          "low",
 	}
 
-	result, err := PermissionRequest(event, td.DB)
+	result, err := PermissionRequest(event)
 	if err != nil {
 		t.Fatalf("PermissionRequest: %v", err)
 	}
@@ -32,25 +32,13 @@ func TestPermissionRequest_AllowlistedReadOnly_AutoAllows(t *testing.T) {
 	if result.HookSpecificOutput.HookEventName != "PermissionRequest" {
 		t.Errorf("hookEventName = %q, want PermissionRequest", result.HookSpecificOutput.HookEventName)
 	}
-
-	// The checkpoint must still have been recorded.
-	var count int
-	if err := td.DB.QueryRow(
-		`SELECT COUNT(*) FROM agent_events WHERE session_id = ? AND tool_name = 'PermissionRequest'`,
-		sessionID,
-	).Scan(&count); err != nil {
-		t.Fatalf("query agent_events: %v", err)
-	}
-	if count != 1 {
-		t.Errorf("expected 1 PermissionRequest checkpoint, got %d", count)
-	}
 }
 
 // TestPermissionRequest_WriteCommand_NoDecision verifies that a non-allowlisted
 // / side-effecting command receives NO decision (CC prompts as usual) and is
 // never auto-denied.
 func TestPermissionRequest_WriteCommand_NoDecision(t *testing.T) {
-	td, sessionID := setupMissingEventsDB(t)
+	_, sessionID := setupMissingEventsDB(t)
 
 	event := &CloudEvent{
 		SessionID: sessionID,
@@ -60,7 +48,7 @@ func TestPermissionRequest_WriteCommand_NoDecision(t *testing.T) {
 		RiskLevel: "low",
 	}
 
-	result, err := PermissionRequest(event, td.DB)
+	result, err := PermissionRequest(event)
 	if err != nil {
 		t.Fatalf("PermissionRequest: %v", err)
 	}
@@ -75,7 +63,7 @@ func TestPermissionRequest_WriteCommand_NoDecision(t *testing.T) {
 // TestPermissionRequest_ArbitraryTool_NoDecision verifies that a non-Bash tool
 // (e.g. Write) is never auto-allowed.
 func TestPermissionRequest_ArbitraryTool_NoDecision(t *testing.T) {
-	td, sessionID := setupMissingEventsDB(t)
+	_, sessionID := setupMissingEventsDB(t)
 
 	event := &CloudEvent{
 		SessionID: sessionID,
@@ -85,7 +73,7 @@ func TestPermissionRequest_ArbitraryTool_NoDecision(t *testing.T) {
 		RiskLevel: "low",
 	}
 
-	result, err := PermissionRequest(event, td.DB)
+	result, err := PermissionRequest(event)
 	if err != nil {
 		t.Fatalf("PermissionRequest: %v", err)
 	}
@@ -97,7 +85,7 @@ func TestPermissionRequest_ArbitraryTool_NoDecision(t *testing.T) {
 // TestPermissionRequest_HighRisk_VetoesAllow verifies belt-and-suspenders:
 // even an allowlisted command is NOT auto-allowed when risk_level is not low.
 func TestPermissionRequest_HighRisk_VetoesAllow(t *testing.T) {
-	td, sessionID := setupMissingEventsDB(t)
+	_, sessionID := setupMissingEventsDB(t)
 
 	event := &CloudEvent{
 		SessionID: sessionID,
@@ -107,7 +95,7 @@ func TestPermissionRequest_HighRisk_VetoesAllow(t *testing.T) {
 		RiskLevel: "high",
 	}
 
-	result, err := PermissionRequest(event, td.DB)
+	result, err := PermissionRequest(event)
 	if err != nil {
 		t.Fatalf("PermissionRequest: %v", err)
 	}

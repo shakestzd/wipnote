@@ -2,10 +2,10 @@ package dbtest
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"time"
 
-	"github.com/shakestzd/wipnote/core/db"
 	"github.com/shakestzd/wipnote/core/models"
 )
 
@@ -20,14 +20,21 @@ func SetSessionFamilyID(database *sql.DB, sessionID, familyID string) error {
 	return err
 }
 
-// InsertLineageTrace writes trace with the statement the subagent-start hook
-// routes through the daemon.
+// InsertLineageTrace writes one agent_lineage_trace row.
 func InsertLineageTrace(database *sql.DB, trace *models.LineageTrace) error {
-	query, args, err := db.InsertLineageTraceStmt(trace)
+	pathJSON, err := json.Marshal(trace.Path)
 	if err != nil {
-		return err
+		return fmt.Errorf("marshal lineage path: %w", err)
 	}
-	if _, err := database.Exec(query, args...); err != nil {
+	_, err = database.Exec(`
+		INSERT INTO agent_lineage_trace
+			(trace_id, root_session_id, session_id, agent_name, depth, path,
+			 feature_id, started_at, status)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		trace.TraceID, trace.RootSessionID, nullable(trace.SessionID),
+		nullable(trace.AgentName), trace.Depth, string(pathJSON),
+		nullable(trace.FeatureID), trace.StartedAt.UTC().Format(time.RFC3339), trace.Status)
+	if err != nil {
 		return fmt.Errorf("insert lineage trace %s: %w", trace.TraceID, err)
 	}
 	return nil
@@ -63,23 +70,4 @@ func GetEvent(database *sql.DB, eventID string) (*models.AgentEvent, error) {
 	e.ParentAgentID, e.ParentEventID, e.SubagentType = parentAgent.String, parentEvt.String, subType.String
 	e.Model, e.Source, e.StepID = model.String, src.String, stepID.String
 	return e, nil
-}
-
-// GetPendingSubagentStart reads the pending_subagent_starts row for agentID,
-// or nil when there is none.
-func GetPendingSubagentStart(database *sql.DB, agentID string) (*db.PendingSubagentStart, error) {
-	var p db.PendingSubagentStart
-	var cwd, parentAgentID sql.NullString
-	err := database.QueryRow(`
-		SELECT agent_id, agent_type, session_id, cwd, parent_agent_id, created_at
-		FROM pending_subagent_starts WHERE agent_id = ?`, agentID).Scan(
-		&p.AgentID, &p.AgentType, &p.SessionID, &cwd, &parentAgentID, &p.CreatedAt)
-	if err == sql.ErrNoRows {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, err
-	}
-	p.CWD, p.ParentAgentID = cwd.String, parentAgentID.String
-	return &p, nil
 }

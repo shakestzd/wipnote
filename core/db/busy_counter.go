@@ -176,9 +176,9 @@ func FirstPartyBusyTotal() int64 {
 	return total
 }
 
-// ResetBusyCounters zeroes every counter. Intended for tests that need a
-// clean baseline between table-driven sub-tests; production code should
-// never reset.
+// ResetBusyCounters zeroes every counter. It is test support: nothing in
+// production calls it (deadcode reports it), but tests in several packages
+// need a clean baseline for the live counters (feat-726637b8 keeps it).
 func ResetBusyCounters() {
 	busyMu.Lock()
 	defer busyMu.Unlock()

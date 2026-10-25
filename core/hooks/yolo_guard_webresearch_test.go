@@ -78,7 +78,7 @@ func TestCheckExternalTechResearchGuard_SkipsNonWriteTool(t *testing.T) {
 	}
 }
 
-// --- hasRecentWebResearch (DB-backed) ---------------------------------------
+// --- hasRecentWebResearch (canonical tool log) ------------------------------
 
 func TestHasRecentWebResearch_WebToolsCount(t *testing.T) {
 	cases := []struct {
@@ -95,12 +95,10 @@ func TestHasRecentWebResearch_WebToolsCount(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			tdb := setupTestDB(t)
-			defer tdb.DB.Close()
+			projectDir := canonGuardProject(t)
 			const sid, aid = "web-sess-1", "web-agent-1"
-			insertResearchTestSessionWithProject(t, tdb, sid, "", "")
-			insertAgentEventFull(t, tdb, "evt-web-"+tc.name, sid, aid, "tool_call", tc.tool, tc.summ)
-			if !hasRecentWebResearch(tdb.DB, sid, aid, "") {
+			appendCanonicalToolEvent(projectDir, sid, canonicalToolEvent{Tool: tc.tool, Summary: tc.summ})
+			if !hasRecentWebResearch(sid, aid, projectDir) {
 				t.Errorf("expected hasRecentWebResearch=true for %s", tc.tool)
 			}
 		})
@@ -111,12 +109,10 @@ func TestHasRecentWebResearch_LocalReadDoesNotCount(t *testing.T) {
 	// The crux of R1: a plain local Read must NOT satisfy web research.
 	for _, tool := range []string{"Read", "Grep", "Glob"} {
 		t.Run(tool, func(t *testing.T) {
-			tdb := setupTestDB(t)
-			defer tdb.DB.Close()
+			projectDir := canonGuardProject(t)
 			const sid, aid = "read-only-sess", "read-only-agent"
-			insertResearchTestSessionWithProject(t, tdb, sid, "", "")
-			insertAgentEventFull(t, tdb, "evt-local-"+tool, sid, aid, "tool_call", tool, "core/hooks/foo.go")
-			if hasRecentWebResearch(tdb.DB, sid, aid, "") {
+			appendCanonicalToolEvent(projectDir, sid, canonicalToolEvent{Tool: tool, Summary: "core/hooks/foo.go"})
+			if hasRecentWebResearch(sid, aid, projectDir) {
 				t.Errorf("expected hasRecentWebResearch=false: %s is a local read, not web research", tool)
 			}
 		})
@@ -126,24 +122,19 @@ func TestHasRecentWebResearch_LocalReadDoesNotCount(t *testing.T) {
 func TestHasRecentWebResearch_CatBashDoesNotCount(t *testing.T) {
 	// `cat go.mod` is local research that the any-read guard accepts, but it must
 	// NOT satisfy the web-research gate (spk-0a982f70 root cause).
-	tdb := setupTestDB(t)
-	defer tdb.DB.Close()
+	projectDir := canonGuardProject(t)
 	const sid, aid = "cat-sess", "cat-agent"
-	insertResearchTestSessionWithProject(t, tdb, sid, "", "")
-	insertAgentEventFull(t, tdb, "evt-cat", sid, aid, "tool_call", "Bash", "cat go.mod")
-	if hasRecentWebResearch(tdb.DB, sid, aid, "") {
+	appendCanonicalToolEvent(projectDir, sid, canonicalToolEvent{Tool: "Bash", Summary: "cat go.mod"})
+	if hasRecentWebResearch(sid, aid, projectDir) {
 		t.Error("expected hasRecentWebResearch=false: `cat go.mod` is not web research")
 	}
 }
 
 func TestHasRecentWebResearch_FailsOpenOnRecordingGap(t *testing.T) {
 	// Only a SessionStart event (no tool_call) → recording gap → fail-open.
-	tdb := setupTestDB(t)
-	defer tdb.DB.Close()
+	projectDir := canonGuardProject(t)
 	const sid, aid = "gap-web-sess", "gap-web-agent"
-	insertResearchTestSessionWithProject(t, tdb, sid, "", "")
-	insertAgentEventFull(t, tdb, "evt-gap-web-start", sid, aid, "start", "", "")
-	if !hasRecentWebResearch(tdb.DB, sid, aid, "") {
+	if !hasRecentWebResearch(sid, aid, projectDir) {
 		t.Error("expected hasRecentWebResearch=true (fail-open): no tool_call events recorded")
 	}
 }
@@ -153,13 +144,11 @@ func TestHasRecentWebResearch_FailsOpenOnRecordingGap(t *testing.T) {
 // TestR1_OnlyReadsPlusManifestEdit_Blocks proves: a session with only local
 // Reads attempting an external-lib (go.mod) edit is BLOCKED.
 func TestR1_OnlyReadsPlusManifestEdit_Blocks(t *testing.T) {
-	tdb := setupTestDB(t)
-	defer tdb.DB.Close()
+	projectDir := canonGuardProject(t)
 	const sid, aid = "r1-block-sess", "r1-block-agent"
-	insertResearchTestSessionWithProject(t, tdb, sid, "", "")
-	insertAgentEventFull(t, tdb, "evt-r1-read", sid, aid, "tool_call", "Read", "go.mod")
+	appendCanonicalToolEvent(projectDir, sid, canonicalToolEvent{Tool: "Read", Summary: "go.mod"})
 
-	hasWeb := hasRecentWebResearch(tdb.DB, sid, aid, "")
+	hasWeb := hasRecentWebResearch(sid, aid, projectDir)
 	if hasWeb {
 		t.Fatal("precondition failed: only a Read happened, hasRecentWebResearch should be false")
 	}
@@ -171,14 +160,12 @@ func TestR1_OnlyReadsPlusManifestEdit_Blocks(t *testing.T) {
 // TestR1_PriorWebSearchPlusManifestEdit_Allows proves: the same go.mod edit
 // after a prior WebSearch is ALLOWED.
 func TestR1_PriorWebSearchPlusManifestEdit_Allows(t *testing.T) {
-	tdb := setupTestDB(t)
-	defer tdb.DB.Close()
+	projectDir := canonGuardProject(t)
 	const sid, aid = "r1-allow-sess", "r1-allow-agent"
-	insertResearchTestSessionWithProject(t, tdb, sid, "", "")
-	insertAgentEventFull(t, tdb, "evt-r1-read2", sid, aid, "tool_call", "Read", "go.mod")
-	insertAgentEventFull(t, tdb, "evt-r1-web", sid, aid, "tool_call", "WebSearch", "go module version")
+	appendCanonicalToolEvent(projectDir, sid, canonicalToolEvent{Tool: "Read", Summary: "go.mod"})
+	appendCanonicalToolEvent(projectDir, sid, canonicalToolEvent{Tool: "WebSearch", Summary: "go module version"})
 
-	hasWeb := hasRecentWebResearch(tdb.DB, sid, aid, "")
+	hasWeb := hasRecentWebResearch(sid, aid, projectDir)
 	if !hasWeb {
 		t.Fatal("precondition failed: a WebSearch happened, hasRecentWebResearch should be true")
 	}
@@ -190,11 +177,9 @@ func TestR1_PriorWebSearchPlusManifestEdit_Allows(t *testing.T) {
 // TestR1_NonManifestEditAfterRead_Allows proves: a non-external-tech edit after
 // one Read is still ALLOWED (no regression on ordinary code edits).
 func TestR1_NonManifestEditAfterRead_Allows(t *testing.T) {
-	tdb := setupTestDB(t)
-	defer tdb.DB.Close()
+	projectDir := canonGuardProject(t)
 	const sid, aid = "r1-noreg-sess", "r1-noreg-agent"
-	insertResearchTestSessionWithProject(t, tdb, sid, "", "")
-	insertAgentEventFull(t, tdb, "evt-r1-read3", sid, aid, "tool_call", "Read", "core/hooks/foo.go")
+	appendCanonicalToolEvent(projectDir, sid, canonicalToolEvent{Tool: "Read", Summary: "core/hooks/foo.go"})
 
 	// foo.go is not a dependency manifest → guard never fires regardless of web research.
 	if warn := checkExternalTechResearchGuard("Edit", false, "core/hooks/foo.go", ""); warn != "" {
@@ -222,12 +207,10 @@ func TestHasRecentWebResearch_CodexWebAndShellTools(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			tdb := setupTestDB(t)
-			defer tdb.DB.Close()
+			projectDir := canonGuardProject(t)
 			sid, aid := "codexweb-"+tc.name, "codexweb-agent"
-			insertResearchTestSessionWithProject(t, tdb, sid, "", "")
-			insertAgentEventFull(t, tdb, "evt-cw-"+tc.name, sid, aid, "tool_call", tc.tool, tc.summ)
-			if !hasRecentWebResearch(tdb.DB, sid, aid, "") {
+			appendCanonicalToolEvent(projectDir, sid, canonicalToolEvent{Tool: tc.tool, Summary: tc.summ})
+			if !hasRecentWebResearch(sid, aid, projectDir) {
 				t.Errorf("expected hasRecentWebResearch=true for %s/%q", tc.tool, tc.summ)
 			}
 		})

@@ -8,7 +8,7 @@ import (
 )
 
 func TestResolveFileOwner_ReturnsMostFrequent(t *testing.T) {
-	database, err := Open(":memory:")
+	database, err := openTestDB(":memory:")
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
@@ -75,7 +75,7 @@ func TestResolveFileOwner_ReturnsMostFrequent(t *testing.T) {
 }
 
 func TestResolveFileOwner_ReturnsNilForUnknownFile(t *testing.T) {
-	database, err := Open(":memory:")
+	database, err := openTestDB(":memory:")
 	if err != nil {
 		t.Fatal(err)
 	}

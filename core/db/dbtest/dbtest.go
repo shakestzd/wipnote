@@ -14,8 +14,6 @@ package dbtest
 import (
 	"database/sql"
 	"testing"
-
-	dbpkg "github.com/shakestzd/wipnote/core/db"
 )
 
 // OpenForTest returns a fully-migrated, in-memory wipnote SQLite database
@@ -27,10 +25,10 @@ import (
 //
 //   - The DSN is the literal ":memory:". modernc.org/sqlite routes a DSN
 //     containing the substring ":memory:" to a transient in-memory database, and
-//     dbpkg.Open's in-memory detection matches the same literal substring, so the
+//     Open's in-memory detection matches the same literal substring, so the
 //     file-backed code path (directory creation, file pragmas, WAL/DELETE
 //     journal selection) is skipped. Do NOT substitute a file:...?mode=memory
-//     URI: dbpkg.Open would misroute it through the file path.
+//     URI: Open would misroute it through the file path.
 //
 //   - SetMaxOpenConns(1) + SetConnMaxLifetime(0) pin the handle to exactly ONE
 //     physical connection that never recycles. This is REQUIRED for in-memory
@@ -40,7 +38,7 @@ import (
 //     drop the migrated one. With a single permanent connection, migrations,
 //     writes, and reads all observe one consistent in-memory database.
 //
-// Migrations run through the real dbpkg.Open machinery (CreateAllTables +
+// Migrations run through the real Open machinery (CreateAllTables +
 // CreateAllIndexes + every registered migration step), so the schema returned
 // here is identical to a production database at currentSchemaVersion. We never
 // reimplement migrations.
@@ -59,21 +57,21 @@ import (
 //	revert (commit 47fcd4c90): the api_*_test.go DBs were migrated to this
 //	helper, then deadlocked buildEventTree, which queries inside a rows.Next()
 //	loop. For those nested-query paths use a shared-cache in-memory DSN instead
-//	— dbpkg.Open("file::memory:?cache=shared") permits a second connection
+//	— Open("file::memory:?cache=shared") permits a second connection
 //	because every connection shares ONE in-memory DB (see openGraphTestDB /
 //	openTreeTestDB in cmd/wipnote). Reach for OpenForTest only when the code
 //	under test issues strictly sequential queries (no overlapping result sets).
 func OpenForTest(t testing.TB) *sql.DB {
 	t.Helper()
 
-	// dbpkg.Open opens at most one physical connection internally (ApplyPragmas
+	// Open opens at most one physical connection internally (ApplyPragmas
 	// pins one dedicated connection, releases it back to the idle pool, and
 	// runMigrations reuses that idle connection). Constraining the pool to a
 	// single connection immediately after Open ensures the one connection that
 	// holds the migrated :memory: database is the only connection that will ever
 	// be used — no second empty in-memory database can be created, and the
 	// migrated one is never recycled away.
-	database, err := dbpkg.Open(":memory:")
+	database, err := Open(":memory:")
 	if err != nil {
 		t.Fatalf("dbtest.OpenForTest: open in-memory database: %v", err)
 	}

@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"github.com/shakestzd/wipnote/core/claimledger"
-	dbpkg "github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/db/dbtest"
 	"github.com/shakestzd/wipnote/core/fsprobe"
 	"github.com/shakestzd/wipnote/core/hooks"
 	"github.com/shakestzd/wipnote/core/sessionledger"
@@ -195,12 +195,12 @@ func (p *cancelProject) checkAfterCancel(t *testing.T) {
 		t.Fatalf("no note but state changed: open episodes=%d ledger open=%v", open, ledgerOpen)
 	}
 
-	database, err := dbpkg.Open(filepath.Join(t.TempDir(), "p.db"))
+	database, err := dbtest.Open(filepath.Join(t.TempDir(), "p.db"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer database.Close()
-	hooks.CatchUpEndedSessions(database, p.dir, "", false)
+	hooks.CatchUpEndedSessions(p.dir, "", false)
 
 	if len(notes) > 0 {
 		end := notes[len(notes)-1].EndTime()

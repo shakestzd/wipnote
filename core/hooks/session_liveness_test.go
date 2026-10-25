@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/db/dbtest"
 	"github.com/shakestzd/wipnote/core/models"
 	"github.com/shakestzd/wipnote/core/paths"
 )
@@ -128,45 +128,6 @@ func TestIsSessionProcessAliveEPERM(t *testing.T) {
 	}
 }
 
-func TestSessionReapEligible(t *testing.T) {
-	self := os.Getpid()
-	selfStart, hasStart := readProcStartTime(self)
-
-	aliveDir := t.TempDir()
-	content := strconv.Itoa(self)
-	if hasStart {
-		content += "\n" + strconv.FormatUint(selfStart, 10)
-	}
-	writeSessionPIDRaw(t, aliveDir, content)
-
-	deadDir := t.TempDir()
-	writeSessionPIDRaw(t, deadDir, "2147483647")
-
-	missingDir := t.TempDir() // no .session-pid
-
-	cases := []struct {
-		name           string
-		heartbeatStale bool
-		sessDir        string
-		want           bool
-	}{
-		{"alive + stale -> not eligible", true, aliveDir, false},
-		{"alive + fresh -> not eligible", false, aliveDir, false},
-		{"dead + stale -> eligible", true, deadDir, true},
-		{"dead + fresh -> not eligible", false, deadDir, false},
-		{"missing + stale -> not eligible (LIVE)", true, missingDir, false},
-		{"missing + fresh -> not eligible (LIVE)", false, missingDir, false},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			if got := SessionReapEligible(tc.heartbeatStale, tc.sessDir); got != tc.want {
-				t.Fatalf("SessionReapEligible(%v, %q) = %v, want %v",
-					tc.heartbeatStale, tc.sessDir, got, tc.want)
-			}
-		})
-	}
-}
-
 func TestSessionResumeRefreshesPid(t *testing.T) {
 	clearNestedSessionEnv(t)
 
@@ -182,7 +143,7 @@ func TestSessionResumeRefreshesPid(t *testing.T) {
 	defer database.Close()
 
 	sessionID := "test-resume-refresh-pid-001"
-	if err := db.UpsertSession(database, &models.Session{
+	if err := dbtest.UpsertSession(database, &models.Session{
 		SessionID:     sessionID,
 		AgentAssigned: "claude-code",
 		Status:        "completed",
@@ -208,7 +169,7 @@ func TestSessionResumeRefreshesPid(t *testing.T) {
 	}
 
 	event := &CloudEvent{SessionID: sessionID, CWD: projectDir}
-	if _, err := SessionResume(event, database, projectDir); err != nil {
+	if _, err := SessionResume(event, projectDir); err != nil {
 		t.Fatalf("SessionResume: %v", err)
 	}
 
@@ -262,7 +223,7 @@ func TestSessionResumeRemovesStaleAnchor(t *testing.T) {
 	defer database.Close()
 
 	sessionID := "test-resume-remove-stale-001"
-	if err := db.UpsertSession(database, &models.Session{
+	if err := dbtest.UpsertSession(database, &models.Session{
 		SessionID:     sessionID,
 		AgentAssigned: "claude-code",
 		Status:        "completed",
@@ -279,7 +240,7 @@ func TestSessionResumeRemovesStaleAnchor(t *testing.T) {
 	// No .launch-mode written → resolveOwningPID returns ok=false → the anchor
 	// must be REMOVED, not left in place.
 	event := &CloudEvent{SessionID: sessionID, CWD: projectDir}
-	if _, err := SessionResume(event, database, projectDir); err != nil {
+	if _, err := SessionResume(event, projectDir); err != nil {
 		t.Fatalf("SessionResume: %v", err)
 	}
 

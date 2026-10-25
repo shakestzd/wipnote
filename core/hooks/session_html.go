@@ -7,7 +7,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"syscall"
 	"time"
@@ -44,6 +43,13 @@ func CreateSessionHTML(projectDir string, s *models.Session) {
 		return
 	}
 
+	content := renderInitialSessionHTML(projectDir, s)
+	htmlPath := filepath.Join(sessDir, s.SessionID+".html")
+	writeInitialSessionHTML(projectDir, htmlPath, s.SessionID, content)
+}
+
+// renderInitialSessionHTML renders the empty, active session HTML shell.
+func renderInitialSessionHTML(projectDir string, s *models.Session) string {
 	// data-project-dir is the canonical attribution for the session and
 	// must reflect the TRANSCRIPT'S source project, not the destination
 	// repo that the HTML is being written into. RenderIngestedSessionHTML
@@ -72,6 +78,14 @@ func CreateSessionHTML(projectDir string, s *models.Session) {
 	startedAt := s.CreatedAt.UTC().Format(time.RFC3339)
 
 	var b strings.Builder
+	writeSessionArticleOpen(&b, s, canonicalProjectDir, isSubagent, startedAt)
+	writeSessionArticleBody(&b, s, startedAt)
+	return b.String()
+}
+
+// writeSessionArticleOpen writes the document head and the session
+// <article> opening tag with its data attributes.
+func writeSessionArticleOpen(b *strings.Builder, s *models.Session, canonicalProjectDir, isSubagent, startedAt string) {
 	b.WriteString(`<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -120,6 +134,11 @@ func CreateSessionHTML(projectDir string, s *models.Session) {
 		CLIVersion: s.CreatedByCLIVersion,
 	}
 	b.WriteString(prov.HTMLAttrs())
+}
+
+// writeSessionArticleBody writes the session header, empty edge nav and
+// activity log, and closes the document.
+func writeSessionArticleBody(b *strings.Builder, s *models.Session, startedAt string) {
 	b.WriteString(`>
 
         <header>
@@ -146,9 +165,10 @@ func CreateSessionHTML(projectDir string, s *models.Session) {
 </body>
 </html>
 `)
+}
 
-	htmlPath := filepath.Join(sessDir, s.SessionID+".html")
-
+// writeInitialSessionHTML writes content to htmlPath under an exclusive lock.
+func writeInitialSessionHTML(projectDir, htmlPath, sessionID, content string) {
 	// Guard: do not clobber an existing session HTML that is already
 	// populated or belongs to a different session. Only write when:
 	//   (a) the file does not yet exist, or
@@ -178,11 +198,11 @@ func CreateSessionHTML(projectDir string, s *models.Session) {
 
 	// Read under the lock so the guard and the write see the same file.
 	if existing, readErr := io.ReadAll(f); readErr == nil && len(existing) > 0 {
-		if !sessionHTMLMayOverwrite(projectDir, htmlPath, s.SessionID, string(existing)) {
+		if !sessionHTMLMayOverwrite(projectDir, htmlPath, sessionID, string(existing)) {
 			return
 		}
 	}
-	if err := rewriteLocked(f, b.String()); err != nil {
+	if err := rewriteLocked(f, content); err != nil {
 		debugLog(projectDir, "[session-html] write %s: %v", htmlPath, err)
 	}
 }
@@ -220,47 +240,6 @@ func sessionHTMLMayOverwrite(projectDir, htmlPath, sessionID, existing string) b
 		return false
 	}
 	return true
-}
-
-// SetSessionHTMLActiveFeature persists the session's current root work-item
-// attribution into the canonical session HTML article. SQLite is derived, so
-// this lets reindex/rebuild faithfully restore propagated family attribution.
-func SetSessionHTMLActiveFeature(projectDir, sessionID, featureID string) error {
-	if projectDir == "" || sessionID == "" || featureID == "" {
-		return nil
-	}
-	htmlPath := filepath.Join(projectDir, ".wipnote", "sessions", sessionID+".html")
-	f, err := os.OpenFile(htmlPath, os.O_RDWR, 0o644)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil
-		}
-		return err
-	}
-	defer f.Close()
-	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX); err != nil {
-		return err
-	}
-	defer syscall.Flock(int(f.Fd()), syscall.LOCK_UN) //nolint:errcheck
-	data, err := io.ReadAll(f)
-	if err != nil {
-		return err
-	}
-	content := removeArticleDataAttr(string(data), "data-active-feature-id")
-	escaped := html.EscapeString(featureID)
-	re := regexp.MustCompile(`(<article\b[^>]*)>`)
-	updated := re.ReplaceAllStringFunc(content, func(match string) string {
-		return strings.TrimSuffix(match, ">") + ` data-active-feature-id="` + escaped + `">`
-	})
-	if updated == content {
-		return nil
-	}
-	return rewriteLocked(f, updated)
-}
-
-func removeArticleDataAttr(htmlText, attr string) string {
-	re := regexp.MustCompile(`\s+` + regexp.QuoteMeta(attr) + `="[^"]*"`)
-	return re.ReplaceAllString(htmlText, "")
 }
 
 // extractArticleID extracts the id="..." value from the first <article id="...">
@@ -318,101 +297,6 @@ func extractArticleStatus(content string) string {
 		return ""
 	}
 	return rest[:end]
-}
-
-// countActivityEntries counts the number of <li …> elements inside
-// <section data-activity-log> in the session HTML content. This is the
-// canonical way to detect whether a live (non-finalized) session has recorded
-// events: AppendEventToSessionHTML writes <li> entries but does NOT update
-// data-event-count (only FinalizeSessionHTML does that). Returns 0 when the
-// section is absent or contains no entries.
-func countActivityEntries(content string) int {
-	const sectionMarker = `<section data-activity-log>`
-	sIdx := strings.Index(content, sectionMarker)
-	if sIdx < 0 {
-		return 0
-	}
-	section := content[sIdx:]
-	return strings.Count(section, "<li ")
-}
-
-// articleAttrRe matches data attributes on the <article> tag for replacement.
-var articleStatusRe = regexp.MustCompile(`data-status="[^"]*"`)
-var articleEventCountRe = regexp.MustCompile(`data-event-count="[^"]*"`)
-var badgeStatusRe = regexp.MustCompile(`<span class="badge status-[^"]*">[^<]*</span>`)
-var badgeEventsRe = regexp.MustCompile(`<span class="badge">\d+ events?</span>`)
-
-// FinalizeSessionHTML updates the session HTML file with completion data:
-// sets data-status, adds data-ended-at, and updates data-event-count.
-// Errors are silently logged. Acquires the same exclusive flock as
-// AppendEventToSessionHTML so it does not race a concurrent sweep append
-// or a late PostToolUse write during SessionEnd.
-func FinalizeSessionHTML(projectDir, sessionID, endedAt, status string, eventCount int) {
-	htmlPath := filepath.Join(projectDir, ".wipnote", "sessions", sessionID+".html")
-	f, err := os.OpenFile(htmlPath, os.O_RDWR, 0o644)
-	if err != nil {
-		// File doesn't exist — silently ignore.
-		return
-	}
-	defer f.Close()
-
-	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX); err != nil {
-		debugLog(projectDir, "[session-html] finalize flock %s: %v", htmlPath, err)
-		return
-	}
-	defer syscall.Flock(int(f.Fd()), syscall.LOCK_UN) //nolint:errcheck
-
-	data, err := io.ReadAll(f)
-	if err != nil {
-		debugLog(projectDir, "[session-html] finalize read %s: %v", htmlPath, err)
-		return
-	}
-
-	content := string(data)
-
-	// Update data-status.
-	content = articleStatusRe.ReplaceAllString(content,
-		fmt.Sprintf(`data-status="%s"`, html.EscapeString(status)))
-
-	// Add data-ended-at after data-status on the article tag.
-	// Find the article's data-status and insert data-ended-at after it.
-	endedAtAttr := fmt.Sprintf(`data-ended-at="%s"`, html.EscapeString(endedAt))
-	if !strings.Contains(content, "data-ended-at=") {
-		// Insert after data-status in the article tag.
-		statusAttr := fmt.Sprintf(`data-status="%s"`, html.EscapeString(status))
-		content = strings.Replace(content, statusAttr,
-			statusAttr+"\n             "+endedAtAttr, 1)
-	}
-
-	// Update data-event-count.
-	content = articleEventCountRe.ReplaceAllString(content,
-		fmt.Sprintf(`data-event-count="%d"`, eventCount))
-
-	// Update badge status text.
-	statusTitle := strings.ToUpper(status[:1]) + status[1:]
-	content = badgeStatusRe.ReplaceAllString(content,
-		fmt.Sprintf(`<span class="badge status-%s">%s</span>`,
-			html.EscapeString(status), html.EscapeString(statusTitle)))
-
-	// Update badge event count text.
-	evtWord := "events"
-	if eventCount == 1 {
-		evtWord = "event"
-	}
-	content = badgeEventsRe.ReplaceAllString(content,
-		fmt.Sprintf(`<span class="badge">%d %s</span>`, eventCount, evtWord))
-
-	if err := f.Truncate(0); err != nil {
-		debugLog(projectDir, "[session-html] finalize truncate %s: %v", htmlPath, err)
-		return
-	}
-	if _, err := f.Seek(0, 0); err != nil {
-		debugLog(projectDir, "[session-html] finalize seek %s: %v", htmlPath, err)
-		return
-	}
-	if _, err := f.Write([]byte(content)); err != nil {
-		debugLog(projectDir, "[session-html] finalize write %s: %v", htmlPath, err)
-	}
 }
 
 // RenderIngestedSessionHTML writes a complete session HTML file for an

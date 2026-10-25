@@ -47,14 +47,14 @@ func TestApplyPragmas_JournalModeSET_RetriesNonWaitableBusy(t *testing.T) {
 	// taking bug-56b686aa's query-before-set fast path.
 	//
 	// SCOPE: mode SELECTION is NOT changed. The test drives ApplyPragmas with
-	// the UNMODIFIED real BuildPragmas(dbPath) output, so whatever
-	// isUnsafeForMmap/BuildPragmas chooses for this path is exactly what gets
+	// the UNMODIFIED real testPragmasFor(dbPath) output, so whatever
+	// testPragmasFor chooses for this path is exactly what gets
 	// written — the fix only makes that WRITE resilient, never picks a mode.
 	// If the host filesystem cannot hold WAL, or the selected mode already
 	// equals the file mode, the SET would be skipped and the contention path
 	// unexercised — detect that and Skip rather than assert a false negative.
 	dbPath := filepath.Join(t.TempDir(), "whitebox.db")
-	bootstrap, err := Open(dbPath)
+	bootstrap, err := openTestDB(dbPath)
 	if err != nil {
 		t.Fatalf("bootstrap Open: %v", err)
 	}
@@ -66,8 +66,8 @@ func TestApplyPragmas_JournalModeSET_RetriesNonWaitableBusy(t *testing.T) {
 	bootstrap.Close()
 
 	// The mode ApplyPragmas WILL write is whatever the existing, unchanged
-	// selection logic chooses — read from the real BuildPragmas, not overridden.
-	contendPragmas := BuildPragmas(dbPath)
+	// selection logic chooses — read from testPragmasFor, not overridden.
+	contendPragmas := testPragmasFor(dbPath)
 	selected := contendPragmas["journal_mode"]
 	if strings.EqualFold(fileMode, selected) {
 		t.Skipf("file journal_mode %q already equals selected %q on this host "+

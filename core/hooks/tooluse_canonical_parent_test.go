@@ -1,7 +1,6 @@
 package hooks
 
 import (
-	"database/sql"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -47,8 +46,6 @@ func initMainRepo(t *testing.T) string {
 func TestResolveToolUseContext_BackfillsCanonicalParent(t *testing.T) {
 	clearNestedEnv(t)
 	t.Setenv("WIPNOTE_NO_AUTO_WRITER", "1")
-	stubRouteSQLAsync(t, true)
-	featureIDCache = featureIDCacheEntry{}
 
 	const rootSession = "019ee380-abcd-7000-8000-0000000088a0"
 	const childSession = "019ee380-abcd-7000-8000-0000000088a1"
@@ -62,15 +59,13 @@ func TestResolveToolUseContext_BackfillsCanonicalParent(t *testing.T) {
 		t.Fatalf("RegisterSessionFamily: %v", err)
 	}
 
-	var database *sql.DB // hot hooks dispatch with no handle (feat-af8d1689)
-
 	// Sub-agent owning a distinct session ID: parent is the family root.
 	ctx := resolveToolUseContext(&CloudEvent{
 		SessionID: childSession,
 		AgentID:   "worktree-coder-1",
 		CWD:       projectDir,
 		ToolName:  "Bash",
-	}, database, false)
+	})
 	if ctx == nil {
 		t.Fatal("resolveToolUseContext returned nil")
 	}
@@ -88,7 +83,7 @@ func TestResolveToolUseContext_BackfillsCanonicalParent(t *testing.T) {
 		AgentID:   "claude-code",
 		CWD:       projectDir,
 		ToolName:  "Bash",
-	}, database, false)
+	})
 	if rootCtx == nil {
 		t.Fatal("resolveToolUseContext(root) returned nil")
 	}
@@ -109,8 +104,6 @@ func TestPreToolUse_SubagentCommitOnMainBlocked(t *testing.T) {
 	clearNestedEnv(t)
 	t.Setenv("WIPNOTE_NO_AUTO_WRITER", "1")
 	t.Setenv("WIPNOTE_AGENT_BRANCH", "")
-	stubRouteSQLAsync(t, true)
-	featureIDCache = featureIDCacheEntry{}
 
 	const rootSession = "019ee380-abcd-7000-8000-0000000088b0"
 	const childSession = "019ee380-abcd-7000-8000-0000000088b1"
@@ -120,8 +113,6 @@ func TestPreToolUse_SubagentCommitOnMainBlocked(t *testing.T) {
 	if err := agent.RegisterSessionFamily(projectDir, childSession, rootSession); err != nil {
 		t.Fatalf("RegisterSessionFamily: %v", err)
 	}
-
-	var database *sql.DB // hot hooks dispatch with no handle (feat-af8d1689)
 
 	commitEvent := func(sessionID, agentID string) *CloudEvent {
 		return &CloudEvent{
@@ -133,7 +124,7 @@ func TestPreToolUse_SubagentCommitOnMainBlocked(t *testing.T) {
 		}
 	}
 
-	result, err := PreToolUse(commitEvent(childSession, "worktree-coder-1"), database)
+	result, err := PreToolUse(commitEvent(childSession, "worktree-coder-1"))
 	if err != nil {
 		t.Fatalf("PreToolUse(subagent): %v", err)
 	}
@@ -143,7 +134,7 @@ func TestPreToolUse_SubagentCommitOnMainBlocked(t *testing.T) {
 	}
 
 	// The orchestrator keeps its permission to commit on main.
-	result, err = PreToolUse(commitEvent(rootSession, "claude-code"), database)
+	result, err = PreToolUse(commitEvent(rootSession, "claude-code"))
 	if err != nil {
 		t.Fatalf("PreToolUse(orchestrator): %v", err)
 	}

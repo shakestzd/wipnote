@@ -8,7 +8,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
-	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -26,9 +25,7 @@ func leftoverSocket(t *testing.T, root string) string {
 
 func newGuardListener(t *testing.T, root string, lease *Lease) (*Listener, error) {
 	t.Helper()
-	q, stop := startQueue(t)
-	t.Cleanup(stop)
-	ln, err := NewListener(ListenerConfig{SocketPath: SocketPath(root), Queue: q, Applier: RejectingApplier, Lease: lease})
+	ln, err := NewListener(ListenerConfig{SocketPath: SocketPath(root), Lease: lease})
 	if err == nil {
 		t.Cleanup(func() { _ = ln.Close() })
 	}
@@ -155,14 +152,19 @@ func TestSocketGuard_ExitsOnLostOwnership(t *testing.T) {
 	}
 }
 
-// With no client, the idle window ends the server even while its startup
-// projection is still building; a live attached launcher keeps it up.
-func TestIdle_NoClientExitsDuringHydrateAttachedStays(t *testing.T) {
-	var ready atomic.Bool // never ready: the hydrate is running throughout
-	ln, _ := newGatedListener(t, RejectingApplier, ready.Load)
-	expectExit(t, serveInBackground(ln, 100*time.Millisecond), 3*time.Second, "100ms with no client mid-hydrate")
+// With no client, the idle window ends the server; a live attached launcher
+// keeps it up.
+func TestIdle_NoClientExitsAttachedStays(t *testing.T) {
+	ln, err := newGuardListener(t, idleRoot(t), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	expectExit(t, serveInBackground(ln, 100*time.Millisecond), 3*time.Second, "100ms with no client")
 
-	attached, _ := newGatedListener(t, RejectingApplier, ready.Load)
+	attached, err := newGuardListener(t, idleRoot(t), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 	attached.attached = map[int]struct{}{os.Getpid(): {}}
 	done := serveInBackground(attached, 50*time.Millisecond)
 	select {
@@ -247,4 +249,14 @@ func TestEnsureDaemon_LegacyOwnerNotDisturbed(t *testing.T) {
 	if _, err := EnsureDaemon(ctx, root, "/nonexistent/wipnote", os.Getpid()); !errors.Is(err, ErrDaemonLegacyOwner) {
 		t.Fatalf("err = %v, want ErrDaemonLegacyOwner", err)
 	}
+}
+
+// idleRoot is a temp project with the .wipnote dir the socket lives in.
+func idleRoot(t *testing.T) string {
+	t.Helper()
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, ".wipnote"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	return root
 }

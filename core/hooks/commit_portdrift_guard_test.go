@@ -18,7 +18,7 @@ import (
 func TestStopPath_SkipsPortDrift(t *testing.T) {
 	// Reconcile with skipPortDrift=true must never populate PortDrift.
 	t.Run("per_turn_stop_skips_checkports", func(t *testing.T) {
-		td := setupTestDB(t)
+		setupTestDB(t)
 		root := t.TempDir()
 		gitInitRepo(t, root)
 
@@ -36,9 +36,9 @@ func TestStopPath_SkipsPortDrift(t *testing.T) {
 		}
 
 		// Call Reconcile with skipPortDrift=true (Stop path).
-		rep, err := Reconcile(td.DB, root, false, true)
+		rep, err := Reconcile(root, false, true)
 		if err != nil {
-			t.Fatalf("Reconcile(skipPortDrift=true): unexpected error: %v", err)
+			t.Fatalf("Reconcile(): unexpected error: %v", err)
 		}
 		if len(rep.PortDrift) != 0 {
 			t.Fatalf("per-turn Stop path must not populate PortDrift; got %v", rep.PortDrift)
@@ -47,14 +47,14 @@ func TestStopPath_SkipsPortDrift(t *testing.T) {
 
 	// Reconcile with skipPortDrift=false (SessionEnd path) runs without error.
 	t.Run("session_end_invokes_checkports_path", func(t *testing.T) {
-		td := setupTestDB(t)
+		setupTestDB(t)
 		root := t.TempDir()
 		gitInitRepo(t, root)
 
 		// No manifest.json → reconcilePortDrift returns nil early.
-		rep, err := Reconcile(td.DB, root, false, false)
+		rep, err := Reconcile(root, false, false)
 		if err != nil {
-			t.Fatalf("Reconcile(skipPortDrift=false): unexpected error: %v", err)
+			t.Fatalf("Reconcile(): unexpected error: %v", err)
 		}
 		if rep == nil {
 			t.Fatal("Reconcile must not return nil report")

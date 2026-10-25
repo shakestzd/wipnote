@@ -1,109 +1,34 @@
 package hooks
 
 import (
-	"database/sql"
 	"os"
 	"path/filepath"
 	"time"
 
 	"github.com/shakestzd/wipnote/core/agent"
-	"github.com/shakestzd/wipnote/core/db"
 	"github.com/shakestzd/wipnote/core/paths"
 )
 
-// featureIDCacheEntry holds the single cached result of GetActiveFeatureID for
-// the lifetime of this process invocation. Each hook binary invocation handles
-// exactly one CloudEvent, so the (sessionID → featureID) mapping is constant.
-// No sync needed — hook handlers run in a single goroutine.
-type featureIDCacheEntry struct {
-	sessionID string
-	featureID string
-	populated bool
-}
-
-var featureIDCache featureIDCacheEntry
-
-// cachedGetActiveFeatureID returns the active feature ID for sessionID,
-// querying the database at most once per process invocation.
-func cachedGetActiveFeatureID(database *sql.DB, sessionID string) string {
-	if featureIDCache.populated && featureIDCache.sessionID == sessionID {
-		return featureIDCache.featureID
-	}
-	featureID := GetActiveFeatureID(database, sessionID)
-	featureIDCache = featureIDCacheEntry{
-		sessionID: sessionID,
-		featureID: featureID,
-		populated: true,
-	}
-	return featureID
-}
-
 // toolUseContext holds resolved identifiers shared by PreToolUse and PostToolUse.
 type toolUseContext struct {
-	SessionID        string
-	FeatureID        string
-	AgentID          string
-	AgentType        string
-	IsSubagent       bool
-	ProjectDir       string
-	HgDir            string
-	IsYoloMode       bool
-	ParentEventID    string
-	ParentSessionID  string    // parent session ID for subagent context lookups
-	SessionCreatedAt time.Time // used for subagent grace period
-	ClaimedItem      string    // work_item_id of agent's active claim, or ""
+	SessionID       string
+	FeatureID       string
+	AgentID         string
+	AgentType       string
+	IsSubagent      bool
+	ProjectDir      string
+	HgDir           string
+	IsYoloMode      bool
+	ParentSessionID string // parent session ID for subagent context lookups
+	ClaimedItem     string // work_item_id of agent's active claim, or ""
 }
 
-// resolveFeatureIDForContext picks which of the two feature_id sources a
-// tool-use context should report (bug-b65b82bd): activeFeatureID is the
-// session-wide sessions.active_feature_id column, writable only by root/codex
-// (see legacyActiveFeatureAgents in cmd/wipnote/workitem.go); claimedItem is
-// the calling agent's own claim, resolved by db.GetToolUseContext's
-// claimed_by_agent_id-first lookup against the claims table.
-//
-// For a subagent, the agent's own claim wins, falling back to the session-wide
-// value only when the agent has no claim of its own. This mirrors the pattern
-// pretooluse.go's hasAgentClaim already uses for guard purposes (`if
-// ctx.IsSubagent { hasAgentClaim = claimedItem != "" }`) — that pattern was
-// never applied where ctx.FeatureID itself gets computed, so every other
-// consumer (feature_files attribution, git-commit attribution, session
-// activity logging, claim-lease heartbeating) inherited root's claim instead
-// of the actual acting agent's, even though the write side already restricts
-// the shared column to root/codex specifically so subagents would rely on
-// their own per-agent claims.
-//
-// Root/orchestrator resolution is UNCHANGED: the session-wide value still
-// wins there, with the claim as fallback — exactly the prior behavior for
-// every non-subagent caller.
-func resolveFeatureIDForContext(isSubagent bool, activeFeatureID, claimedItem string) string {
-	if isSubagent {
-		if claimedItem != "" {
-			return claimedItem
-		}
-		return activeFeatureID
-	}
-	if activeFeatureID != "" {
-		return activeFeatureID
-	}
-	return claimedItem
-}
-
-// resolveToolUseContext resolves session, feature, agent identifiers, project
-// directory, YOLO mode, and parent event ID from a CloudEvent and database.
-// Returns nil when no active session is found, indicating the caller should
-// skip all DB operations.
-//
-// trustParentEnvVar should be true only in PostToolUse, where
-// WIPNOTE_PARENT_PROMPT_EVENT was set by the paired PreToolUse for this
-// specific tool call. PreToolUse passes false so it always re-resolves the
-// parent from the DB, preventing stale env-var values from a prior tool call
-// from leaking into the next prompt's tool calls.
-//
-// Item 1 (feat-8b6fdf86): replaces 3 separate queries (GetSession,
-// GetActiveFeatureID, HasActiveClaimByAgent) with a single SQL join via
-// db.GetToolUseContext. The YOLO conditional queries remain separate since
-// they only run in YOLO mode.
-func resolveToolUseContext(event *CloudEvent, database *sql.DB, trustParentEnvVar bool) *toolUseContext {
+// resolveToolUseContext resolves session, agent identifiers, project
+// directory and YOLO mode from a CloudEvent and canonical
+// state. Returns nil when no session ID is found, indicating the caller should
+// skip recording. FeatureID and ClaimedItem start empty: guards fill them from
+// the canonical claim ledger (inheritParentChainClaim).
+func resolveToolUseContext(event *CloudEvent) *toolUseContext {
 	start := time.Now()
 
 	sessionID := resolveSessionIDWithHarness(event)
@@ -115,66 +40,10 @@ func resolveToolUseContext(event *CloudEvent, database *sql.DB, trustParentEnvVa
 	isSubagent := isSubagentEvent(event)
 	projectDir := ResolveProjectDir(event.CWD, event.SessionID)
 
-	// Batch fetch: session row + active claim in one query (Item 1).
-	var (
-		featureID        string
-		parentSessionID  string
-		sessionCreatedAt time.Time
-		claimedItem      string
-	)
-	if row, err := db.GetToolUseContext(database, sessionID, agentID); err == nil && row != nil {
-		parentSessionID = row.ParentSessionID
-		sessionCreatedAt = row.CreatedAt
-		claimedItem = row.ClaimedItem
-		featureID = resolveFeatureIDForContext(isSubagent, row.ActiveFeatureID, claimedItem)
-		if featureID == "" {
-			if fallbackSessionID, fallback := projectClaimedToolUseContext(database, projectDir, agentID, sessionID); fallback != nil {
-				sessionID = fallbackSessionID
-				parentSessionID = fallback.ParentSessionID
-				sessionCreatedAt = fallback.CreatedAt
-				claimedItem = fallback.ClaimedItem
-				featureID = resolveFeatureIDForContext(isSubagent, fallback.ActiveFeatureID, claimedItem)
-			}
-		}
-		// Keep the process-level cache warm for other callers (missing_events etc.)
-		featureIDCache = featureIDCacheEntry{
-			sessionID: sessionID,
-			featureID: featureID,
-			populated: true,
-		}
-	} else {
-		// Fallback: session not in DB yet (race during session-start), or a
-		// harness supplied an invocation/session token that differs from the
-		// wipnote session row. Codex Desktop can do this for apply_patch, while
-		// `wipnote who` still sees the active claim on a sibling in the same
-		// session family. Never use an arbitrary project-level claim here.
-		if fallbackSessionID, row := projectClaimedToolUseContext(database, projectDir, agentID, sessionID); row != nil {
-			sessionID = fallbackSessionID
-			parentSessionID = row.ParentSessionID
-			sessionCreatedAt = row.CreatedAt
-			claimedItem = row.ClaimedItem
-			featureID = resolveFeatureIDForContext(isSubagent, row.ActiveFeatureID, claimedItem)
-			featureIDCache = featureIDCacheEntry{
-				sessionID: sessionID,
-				featureID: featureID,
-				populated: true,
-			}
-		} else {
-			featureID = cachedGetActiveFeatureID(database, sessionID)
-		}
-	}
-
-	// Canonical backfill (bug-2e5081b4 / GH-#88): every branch above sources
-	// parent_session_id from the projection, and the read-only hook path has no
-	// hydrated index (no handle at all since feat-af8d1689), so parentSessionID
-	// was always "" for the hot PreToolUse hook. checkSubagentCommitGuard reads
-	// "no parent" as "this is the orchestrator — allow", which is how dispatched
-	// sub-agents were able to `git commit` straight onto main. Derive the parent
-	// from durable state (session-family index / WIPNOTE_PARENT_SESSION) when
-	// the projection did not supply one.
-	if parentSessionID == "" {
-		parentSessionID = canonicalParentSessionID(projectDir, sessionID, isSubagent)
-	}
+	// The parent session comes from durable state (session-family index /
+	// WIPNOTE_PARENT_SESSION): checkSubagentCommitGuard reads "no parent" as
+	// "this is the orchestrator — allow" (bug-2e5081b4 / GH-#88).
+	parentSessionID := canonicalParentSessionID(projectDir, sessionID, isSubagent)
 
 	agentType := event.AgentType
 	if agentType == "" {
@@ -182,8 +51,7 @@ func resolveToolUseContext(event *CloudEvent, database *sql.DB, trustParentEnvVa
 	}
 
 	hgDir := filepath.Join(projectDir, ".wipnote")
-	yolo := isYoloWithInheritance(event, hgDir, database, sessionID, projectDir, isSubagent)
-	parentEventID := resolveParentEventID(database, sessionID, agentID, isSubagent, trustParentEnvVar)
+	yolo := isYoloWithInheritance(event, hgDir, sessionID, projectDir, isSubagent)
 
 	LogTimed(projectDir, "pretooluse", map[string]string{
 		"phase":   "resolve-context",
@@ -192,77 +60,15 @@ func resolveToolUseContext(event *CloudEvent, database *sql.DB, trustParentEnvVa
 	}, start, "context resolved")
 
 	return &toolUseContext{
-		SessionID:        sessionID,
-		FeatureID:        featureID,
-		AgentID:          agentID,
-		AgentType:        agentType,
-		IsSubagent:       isSubagent,
-		ProjectDir:       projectDir,
-		HgDir:            hgDir,
-		IsYoloMode:       yolo,
-		ParentEventID:    parentEventID,
-		ParentSessionID:  parentSessionID,
-		SessionCreatedAt: sessionCreatedAt,
-		ClaimedItem:      claimedItem,
+		SessionID:       sessionID,
+		AgentID:         agentID,
+		AgentType:       agentType,
+		IsSubagent:      isSubagent,
+		ProjectDir:      projectDir,
+		HgDir:           hgDir,
+		IsYoloMode:      yolo,
+		ParentSessionID: parentSessionID,
 	}
-}
-
-func projectClaimedToolUseContext(database *sql.DB, projectDir, agentID, skipSessionID string) (string, *db.ToolUseContextRow) {
-	if database == nil || projectDir == "" {
-		return "", nil
-	}
-	familyID := sessionFamilyForToolUse(database, projectDir, skipSessionID)
-	if familyID == "" {
-		return "", nil
-	}
-	rows, err := database.Query(`
-		SELECT session_id FROM sessions
-		WHERE status = 'active'
-		  AND COALESCE(project_dir, '') = ?
-		  AND COALESCE(NULLIF(session_family_id, ''), session_id) = ?
-		ORDER BY created_at DESC
-		LIMIT 5`, projectDir, familyID)
-	if err != nil {
-		return "", nil
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var sid string
-		if err := rows.Scan(&sid); err != nil || sid == "" {
-			continue
-		}
-		if sid == skipSessionID {
-			continue
-		}
-		row, err := db.GetToolUseContext(database, sid, agentID)
-		if err != nil || row == nil {
-			continue
-		}
-		if row.ActiveFeatureID != "" || row.ClaimedItem != "" {
-			return sid, row
-		}
-	}
-	return "", nil
-}
-
-func sessionFamilyForToolUse(database *sql.DB, projectDir, sessionID string) string {
-	if sessionID == "" {
-		return ""
-	}
-	var familyID string
-	if database != nil {
-		_ = database.QueryRow(`
-			SELECT COALESCE(NULLIF(session_family_id, ''), session_id)
-			FROM sessions
-			WHERE session_id = ?`, sessionID).Scan(&familyID)
-		if familyID != "" {
-			return familyID
-		}
-	}
-	if envFamily := os.Getenv("WIPNOTE_SESSION_FAMILY_ID"); envFamily != "" {
-		return envFamily
-	}
-	return agent.SessionFamilyFor(projectDir, sessionID)
 }
 
 // isSubagentEvent returns true when the event originates from a subagent.
@@ -337,64 +143,4 @@ func resolveEventAgentID(event *CloudEvent) string {
 		return event.AgentID
 	}
 	return agent.Detect().ID
-}
-
-// resolveParentEventID finds the parent event using a multi-step fallback that
-// mirrors the Python event_tracker.py logic:
-//  1. Env var WIPNOTE_PARENT_PROMPT_EVENT (only when trustEnvVar=true, i.e. PostToolUse)
-//  2. Env var WIPNOTE_PARENT_EVENT (written by SubagentStart when CLAUDE_ENV_FILE set)
-//  3. Per-subagent hint file parent_event_id (written when CLAUDE_ENV_FILE unset)
-//  4. For subagents: task_delegation row matching our agent_id (Method 0.5)
-//  5. Most recent UserQuery in this session (orchestrator default)
-//
-// trustEnvVar must be true only in PostToolUse, where the env var was set by the
-// paired PreToolUse for this specific tool call. PreToolUse must pass false so it
-// always re-resolves from the DB — this prevents stale values from a prior tool
-// call being parented to the wrong prompt (the value persists in the process
-// environment across tool calls until the next UserPromptSubmit).
-func resolveParentEventID(database *sql.DB, sessionID, agentID string, isSubagent bool, trustEnvVar bool) string {
-	// WIPNOTE_PARENT_PROMPT_EVENT is written to CLAUDE_ENV_FILE by PreToolUse at
-	// the moment the tool starts (before the tool executes). PostToolUse trusts it
-	// to avoid the race where a new UserQuery arrives while a long-running tool is
-	// executing (the LatestEventByTool fallback would return the wrong UserQuery).
-	//
-	// PreToolUse does NOT trust this env var — it is the authority and always
-	// re-resolves from the DB. This prevents the env var set by tool call N from
-	// leaking into tool call N+1 (it persists in the process environment until the
-	// next UserPromptSubmit hook resets it).
-	//
-	// Validate that the env-var event ID actually exists in the current DB before
-	// returning it. In tests, multiple hook invocations share a process and an
-	// earlier PreToolUse may have set this env var for a different DB instance —
-	// using a stale ID that doesn't exist in the current DB causes FK violations
-	// and silent InsertEvent failures.
-	if trustEnvVar {
-		if v := os.Getenv("WIPNOTE_PARENT_PROMPT_EVENT"); v != "" {
-			if db.EventExists(database, v) {
-				return v
-			}
-		}
-	}
-
-	// TODO(bug-cb4918d8): remove WIPNOTE_PARENT_EVENT read after lineage
-	// wiring verified end-to-end — this env var is never set in subagent
-	// hook contexts; the subagent-hint file and DB fallback carry the load.
-	parentEventID := os.Getenv("WIPNOTE_PARENT_EVENT")
-
-	if parentEventID == "" && sessionID != "" {
-		// Check per-subagent hint file (fallback for CLAUDE_ENV_FILE-unset case).
-		if hint := paths.ReadSubagentHint(sessionID); hint.AgentID == agentID && hint.ParentEventID != "" {
-			parentEventID = hint.ParentEventID
-		}
-	}
-
-	if parentEventID == "" && (isSubagent || agentID != agent.Detect().ID) {
-		parentEventID, _ = db.FindDelegationByAgent(database, sessionID, agentID)
-	}
-
-	if parentEventID == "" {
-		parentEventID, _ = db.LatestEventByTool(database, sessionID, "UserQuery")
-	}
-
-	return parentEventID
 }

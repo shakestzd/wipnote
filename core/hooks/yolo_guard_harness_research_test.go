@@ -75,13 +75,11 @@ func TestCheckHarnessContractResearchGuard_SkipsNonWriteTool(t *testing.T) {
 // TestR4_HarnessEditNoWebResearch_Blocks proves: a harness-integration edit with
 // no web research in the session is BLOCKED (only local reads do not satisfy it).
 func TestR4_HarnessEditNoWebResearch_Blocks(t *testing.T) {
-	tdb := setupTestDB(t)
-	defer tdb.DB.Close()
+	projectDir := canonGuardProject(t)
 	const sid, aid = "r4-block-sess", "r4-block-agent"
-	insertResearchTestSessionWithProject(t, tdb, sid, "", "")
-	insertAgentEventFull(t, tdb, "evt-r4-read", sid, aid, "tool_call", "Read", "plugin/agents/patch-coder.md")
+	appendCanonicalToolEvent(projectDir, sid, canonicalToolEvent{Tool: "Read", Summary: "plugin/agents/patch-coder.md"})
 
-	hasWeb := hasRecentWebResearch(tdb.DB, sid, aid, "")
+	hasWeb := hasRecentWebResearch(sid, aid, projectDir)
 	if hasWeb {
 		t.Fatal("precondition failed: only a Read happened, hasRecentWebResearch should be false")
 	}
@@ -93,13 +91,11 @@ func TestR4_HarnessEditNoWebResearch_Blocks(t *testing.T) {
 // TestR4_HarnessEditWithWebResearch_Allows proves: the same harness edit after a
 // WebSearch is ALLOWED.
 func TestR4_HarnessEditWithWebResearch_Allows(t *testing.T) {
-	tdb := setupTestDB(t)
-	defer tdb.DB.Close()
+	projectDir := canonGuardProject(t)
 	const sid, aid = "r4-allow-sess", "r4-allow-agent"
-	insertResearchTestSessionWithProject(t, tdb, sid, "", "")
-	insertAgentEventFull(t, tdb, "evt-r4-web", sid, aid, "tool_call", "WebFetch", "https://code.claude.com/docs/en/sub-agents")
+	appendCanonicalToolEvent(projectDir, sid, canonicalToolEvent{Tool: "WebFetch", Summary: "https://code.claude.com/docs/en/sub-agents"})
 
-	hasWeb := hasRecentWebResearch(tdb.DB, sid, aid, "")
+	hasWeb := hasRecentWebResearch(sid, aid, projectDir)
 	if !hasWeb {
 		t.Fatal("precondition failed: a WebFetch happened, hasRecentWebResearch should be true")
 	}

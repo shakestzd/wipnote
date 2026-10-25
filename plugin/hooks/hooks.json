@@ -205,40 +205,6 @@
         ]
       }
     ],
-    "PreCompact": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "wipnote",
-            "args": [
-              "hook",
-              "pre-compact"
-            ],
-            "timeout": 15,
-            "async": true
-          }
-        ]
-      }
-    ],
-    "TeammateIdle": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "wipnote",
-            "args": [
-              "hook",
-              "teammate-idle"
-            ],
-            "timeout": 15,
-            "async": true
-          }
-        ]
-      }
-    ],
     "TaskCompleted": [
       {
         "matcher": "",
@@ -250,23 +216,6 @@
               "hook",
               "task-completed"
             ]
-          }
-        ]
-      }
-    ],
-    "InstructionsLoaded": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "wipnote",
-            "args": [
-              "hook",
-              "instructions-loaded"
-            ],
-            "timeout": 15,
-            "async": true
           }
         ]
       }
@@ -303,23 +252,6 @@
         ]
       }
     ],
-    "PostCompact": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "wipnote",
-            "args": [
-              "hook",
-              "post-compact"
-            ],
-            "timeout": 15,
-            "async": true
-          }
-        ]
-      }
-    ],
     "TaskCreated": [
       {
         "matcher": "",
@@ -349,6 +281,23 @@
               "permission-request"
             ],
             "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PermissionDenied": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "wipnote",
+            "args": [
+              "hook",
+              "permission-denied"
+            ],
+            "timeout": 15,
+            "async": true
           }
         ]
       }

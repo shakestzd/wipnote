@@ -8,9 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/shakestzd/wipnote/core/db/dbtest"
-
 	"github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/db/dbtest"
 	"github.com/shakestzd/wipnote/core/models"
 	"github.com/shakestzd/wipnote/core/paths"
 )
@@ -63,15 +62,12 @@ func TestCWDNormalize_MainWorktree_StoresRelative(t *testing.T) {
 	t.Setenv("WIPNOTE_PROJECT_DIR", "")
 	t.Setenv("WIPNOTE_SESSION_ID", "")
 
-	_, err = SessionStart(event, database, projectDir)
+	_, err = SessionStart(event, projectDir)
 	if err != nil {
 		t.Fatalf("SessionStart: %v", err)
 	}
 
-	got, err := db.GetSession(database, sessionID)
-	if err != nil {
-		t.Fatalf("GetSession: %v", err)
-	}
+	got := sessionHTMLRecord(t, projectDir, sessionID)
 	// Main worktree → stored as repo-relative canonical root (".").
 	if filepath.IsAbs(got.ProjectDir) {
 		t.Errorf("project_dir should be relative, got absolute: %q", got.ProjectDir)
@@ -108,7 +104,7 @@ func TestCWDNormalize_LinkedWorktree_CollapsesToRoot(t *testing.T) {
 	// (mainRepo) is the canonical root, so DBPath would otherwise resolve the host
 	// cache DB, not this handle's file.
 	t.Setenv("WIPNOTE_DB_PATH", dbPath)
-	database, err := db.Open(dbPath)
+	database, err := dbtest.Open(dbPath)
 	if err != nil {
 		t.Fatalf("db.Open: %v", err)
 	}
@@ -127,15 +123,12 @@ func TestCWDNormalize_LinkedWorktree_CollapsesToRoot(t *testing.T) {
 	t.Setenv("WIPNOTE_PROJECT_DIR", "")
 	t.Setenv("WIPNOTE_SESSION_ID", "")
 
-	_, err = SessionStart(event, database, mainRepo)
+	_, err = SessionStart(event, mainRepo)
 	if err != nil {
 		t.Fatalf("SessionStart: %v", err)
 	}
 
-	got, err := db.GetSession(database, sessionID)
-	if err != nil {
-		t.Fatalf("GetSession: %v", err)
-	}
+	got := sessionHTMLRecord(t, mainRepo, sessionID)
 	// Linked worktree → collapses to canonical root (".") same as main worktree.
 	if filepath.IsAbs(got.ProjectDir) {
 		t.Errorf("project_dir should be relative (worktree collapse), got absolute: %q", got.ProjectDir)
@@ -147,24 +140,11 @@ func TestCWDNormalize_LinkedWorktree_CollapsesToRoot(t *testing.T) {
 
 // TestCWDNormalize_ForeignCWD_StoredWithUnresolvedPrefix verifies that when
 // the SessionStart projectDir is an absolute path that cannot be resolved as
-// a local wipnote repo (foreign-machine ingest scenario), it is stored with
-// the "unresolved:" prefix.
+// a local wipnote repo (foreign-machine ingest scenario), the session record
+// SessionStart persists stores it with the "unresolved:" prefix. It checks the
+// record newStartedSession builds rather than running SessionStart, which would
+// write the session HTML under the foreign path, outside the test's temp dirs.
 func TestCWDNormalize_ForeignCWD_StoredWithUnresolvedPrefix(t *testing.T) {
-	// The local project dir (where our DB lives).
-	localProjectDir := makeTestRepo(t)
-
-	dbPath := filepath.Join(localProjectDir, ".wipnote", "wipnote.db")
-	// Pin WIPNOTE_DB_PATH to the LOCAL db: SessionStart is called below with a
-	// FOREIGN projectDir, so DBPath(foreignDir) would resolve an unrelated path.
-	// The daemon-routed writes must land in this local handle's file (see
-	// openWipnoteTestDB).
-	t.Setenv("WIPNOTE_DB_PATH", dbPath)
-	database, err := db.Open(dbPath)
-	if err != nil {
-		t.Fatalf("db.Open: %v", err)
-	}
-	defer database.Close()
-
 	sessionID := "test-cwd-foreign-001"
 	// foreignDir is an absolute path that does not exist on this machine and
 	// does not resolve to any local wipnote repo — simulating a path from a
@@ -172,26 +152,7 @@ func TestCWDNormalize_ForeignCWD_StoredWithUnresolvedPrefix(t *testing.T) {
 	foreignDir := "/home/other-user-x7k2/their-project"
 
 	event := &CloudEvent{SessionID: sessionID, CWD: foreignDir}
-
-	t.Setenv("CLAUDE_SESSION_ID", "")
-	t.Setenv("WIPNOTE_PARENT_SESSION", "")
-	t.Setenv("WIPNOTE_NESTING_DEPTH", "")
-	t.Setenv("CLAUDE_ENV_FILE", "")
-	t.Setenv("CLAUDE_PROJECT_DIR", "")
-	t.Setenv("WIPNOTE_PROJECT_DIR", "")
-	t.Setenv("WIPNOTE_SESSION_ID", "")
-
-	// Pass the foreignDir as projectDir — simulates RenderIngestedSessionHTML
-	// passing the foreign source dir to CreateSessionHTML via s.ProjectDir.
-	_, err = SessionStart(event, database, foreignDir)
-	if err != nil {
-		t.Fatalf("SessionStart: %v", err)
-	}
-
-	got, err := db.GetSession(database, sessionID)
-	if err != nil {
-		t.Fatalf("GetSession: %v", err)
-	}
+	got := newStartedSession(event, foreignDir, sessionID, time.Now(), "")
 	// Foreign machine path → stored with "unresolved:" prefix.
 	if !strings.HasPrefix(got.ProjectDir, "unresolved:") {
 		t.Errorf("foreign project_dir should have unresolved: prefix, got: %q", got.ProjectDir)
@@ -203,7 +164,7 @@ func TestCWDNormalize_ForeignCWD_StoredWithUnresolvedPrefix(t *testing.T) {
 // stored unchanged.
 func TestCWDNormalize_AlreadyRelative_PassThrough(t *testing.T) {
 	dir := t.TempDir()
-	database, err := db.Open(filepath.Join(dir, "wipnote.db"))
+	database, err := dbtest.Open(filepath.Join(dir, "wipnote.db"))
 	if err != nil {
 		t.Fatalf("db.Open: %v", err)
 	}
@@ -217,7 +178,7 @@ func TestCWDNormalize_AlreadyRelative_PassThrough(t *testing.T) {
 		CreatedAt:     time.Now().UTC(),
 		ProjectDir:    relPath,
 	}
-	if err := db.UpsertSession(database, s); err != nil {
+	if err := dbtest.UpsertSession(database, s); err != nil {
 		t.Fatalf("UpsertSession: %v", err)
 	}
 
@@ -227,64 +188,6 @@ func TestCWDNormalize_AlreadyRelative_PassThrough(t *testing.T) {
 	}
 	if got.ProjectDir != relPath {
 		t.Errorf("relative project_dir round-trip: got %q, want %q", got.ProjectDir, relPath)
-	}
-}
-
-// TestCWDNormalize_SubagentStart_StoresRelativeCWD verifies that a subagent's
-// CWD is stored repo-relative in pending_subagent_starts.
-func TestCWDNormalize_SubagentStart_StoresRelativeCWD(t *testing.T) {
-	projectDir := makeTestRepo(t)
-
-	database, err := openWipnoteTestDB(t, projectDir)
-	if err != nil {
-		t.Fatalf("db.Open: %v", err)
-	}
-	defer database.Close()
-
-	// Seed the parent session so FK constraints are satisfied.
-	parentSessionID := "test-subagent-parent-001"
-	if err := db.UpsertSession(database, &models.Session{
-		SessionID:     parentSessionID,
-		AgentAssigned: "claude-code",
-		Status:        "active",
-		CreatedAt:     time.Now().UTC(),
-	}); err != nil {
-		t.Fatalf("UpsertSession parent: %v", err)
-	}
-
-	agentID := "test-subagent-agent-001"
-	event := &CloudEvent{
-		SessionID: parentSessionID,
-		AgentID:   agentID,
-		AgentType: "feature-coder",
-		CWD:       projectDir,
-	}
-
-	t.Setenv("CLAUDE_SESSION_ID", parentSessionID)
-	t.Setenv("WIPNOTE_AGENT_ID", "")
-	t.Setenv("CLAUDE_ENV_FILE", "")
-	t.Setenv("CLAUDE_PROJECT_DIR", "")
-	t.Setenv("WIPNOTE_PROJECT_DIR", "")
-	t.Setenv("WIPNOTE_SESSION_ID", parentSessionID)
-
-	_, err = SubagentStart(event, database)
-	if err != nil {
-		t.Fatalf("SubagentStart: %v", err)
-	}
-
-	// Read pending_subagent_starts and verify CWD is relative.
-	pending, err := dbtest.GetPendingSubagentStart(database, agentID)
-	if err != nil {
-		t.Fatalf("GetPendingSubagentStart: %v", err)
-	}
-	if pending == nil {
-		t.Fatal("no pending subagent start row found")
-	}
-	if filepath.IsAbs(pending.CWD) {
-		t.Errorf("pending_subagent_starts.cwd should be relative, got absolute: %q", pending.CWD)
-	}
-	if strings.HasPrefix(pending.CWD, "unresolved:") {
-		t.Errorf("pending cwd should not be unresolved for local session, got: %q", pending.CWD)
 	}
 }
 

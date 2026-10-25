@@ -75,16 +75,6 @@ func UpsertFeature(database *sql.DB, f *Feature) error {
 	return nil
 }
 
-// UpdateFeatureStatus updates a feature's status (and updated_at).
-func UpdateFeatureStatus(db *sql.DB, id, status string) error {
-	now := time.Now().UTC().Format(time.RFC3339)
-	_, err := db.Exec(`
-		UPDATE features SET status = ?, updated_at = ? WHERE id = ?`,
-		status, now, id,
-	)
-	return err
-}
-
 // --- Dedup-at-create similarity ----------------------------------------------
 //
 // Slice-6 (feat-e8879220): when a bug/feature is created we compare its

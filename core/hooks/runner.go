@@ -8,43 +8,14 @@
 package hooks
 
 import (
-	"database/sql"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 
 	"github.com/shakestzd/wipnote/core/agent"
-	"github.com/shakestzd/wipnote/core/db/writequeue"
 	"github.com/shakestzd/wipnote/core/paths"
-	"github.com/shakestzd/wipnote/core/storage"
 )
-
-// Runner bundles the optional dependencies needed by in-process hook
-// invocations (e.g. `wipnote claude` / `wipnote yolo` embedding the hook
-// dispatch loop without spawning subprocesses).
-//
-// SLICE-7 CONTRACT (plan-ae0c37b2 / feat-33c26c74):
-//
-//	Subprocess hooks construct a zero-value Runner: Queue is nil, so any
-//	derived-index op falls back to the synchronous DB path. In-process
-//	callers pass a *writequeue.Queue obtained from the slice-6 writer
-//	service so their derived-index updates serialize through the queue
-//	worker (the single SQLite writer per project DB).
-//
-// All fields are optional. A nil Runner is the canonical-only-mode default
-// for legacy callers and tests.
-type Runner struct {
-	// Queue is the slice-6 write queue. Optional. When non-nil, hook
-	// handlers route their derived-index updates through it via
-	// SubmitDerivedOp; when nil, ops run synchronously against the DB
-	// handle (subprocess hooks) or are skipped (canonical-only paths).
-	Queue *writequeue.Queue
-
-	// DB is the writable SQLite handle that handlers use for synchronous
-	// queries/updates when the queue is unavailable. Optional.
-	DB *sql.DB
-}
 
 // CloudEvent is the JSON payload Claude Code sends to every hook via stdin.
 // Only the fields wipnote actually uses are decoded; the rest are ignored.
@@ -95,6 +66,10 @@ type CloudEvent struct {
 	// Stop / SubagentStop / StopFailure
 	StopReason           string `json:"stop_reason"`
 	LastAssistantMessage string `json:"last_assistant_message"`
+
+	// SubagentStop: the subagent's own transcript, in a nested subagents/
+	// folder; transcript_path stays the main session's.
+	AgentTranscriptPath string `json:"agent_transcript_path"`
 
 	// StopFailure: error type (rate_limit, overloaded, ...) and optional details.
 	StopError    looseString `json:"error"`
@@ -322,14 +297,6 @@ func ResolveProjectDir(cwd, sessionID string) string {
 func IswipnoteProject(projectDir string) bool {
 	_, err := os.Stat(filepath.Join(projectDir, ".wipnote"))
 	return err == nil
-}
-
-// DBPath resolves the canonical SQLite path for this project. Hook fallback
-// writes must target the SAME DB the rest of the process reads, otherwise the
-// daemon-miss path writes rows into an isolated database that the caller never
-// sees (the regression behind the quality-gates failure on PR #181).
-func DBPath(projectDir string) (string, error) {
-	return storage.CanonicalDBPath(projectDir)
 }
 
 // EnvSessionID returns the current session ID using a four-step fallback:

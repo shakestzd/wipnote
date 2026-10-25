@@ -146,7 +146,7 @@ func TestGuardInit_DeclineDoesNotCommit(t *testing.T) {
 func TestLaunchers_InvokeEnsureGuardProfile(t *testing.T) {
 	cases := []struct{ file, anchor string }{
 		{"claude.go", "launchClaude"},                // claude, yolo, dev
-		{"codex.go", "execCodex"},                    // codex
+		{"codex_exec.go", "execCodex"},               // codex
 		{"antigravity_launch.go", "execAntigravity"}, // antigravity
 	}
 	for _, c := range cases {

@@ -2,13 +2,15 @@ package hooks
 
 import (
 	"context"
-	"database/sql"
+	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sync"
 	"time"
 
 	"github.com/shakestzd/wipnote/core/daemon"
+	"github.com/shakestzd/wipnote/core/daemon/readsrv"
 )
 
 // Hook-side client for the daemon read path (feat-f6759e37).
@@ -178,11 +180,13 @@ func readClientForProcess() (*daemon.ReadClient, string) {
 
 // LookupWorkItem resolves one work item's canonical state.
 //
-// Under a launcher guarantee it reads the daemon and NEVER touches database: on
-// failure it latches a breach and returns not-found, and the hook's response is
-// replaced with a loud block before anything acts on that zero value. Without a
-// guarantee it queries the derived index exactly as before.
-func LookupWorkItem(database *sql.DB, id string) (daemon.WorkItem, bool) {
+// Under a launcher guarantee it reads the daemon: on failure it latches a
+// breach and returns not-found, and the hook's response is replaced with a
+// loud block before anything acts on that zero value. Without a guarantee it
+// reads the canonical HTML under projectDir directly, through the same cache
+// the daemon serves from (feat-174dc958; it used to read the hook database,
+// which never held work items).
+func LookupWorkItem(projectDir, id string) (daemon.WorkItem, bool) {
 	if id == "" {
 		return daemon.WorkItem{}, false
 	}
@@ -196,39 +200,16 @@ func LookupWorkItem(database *sql.DB, id string) (daemon.WorkItem, bool) {
 		}
 		return res.Item, res.Found
 	}
-	return lookupWorkItemFromIndex(database, id)
-}
-
-// lookupWorkItemFromIndex is the pre-existing derived-index read, unchanged in
-// behaviour. It remains the ONLY path for sessions no launcher started.
-func lookupWorkItemFromIndex(database *sql.DB, id string) (daemon.WorkItem, bool) {
-	if database == nil {
+	if projectDir == "" {
 		return daemon.WorkItem{}, false
 	}
-	var (
-		status  sql.NullString
-		title   sql.NullString
-		typ     sql.NullString
-		trackID sql.NullString
-	)
-	err := database.QueryRow(
-		`SELECT status, title, type, track_id FROM features WHERE id = ?`, id,
-	).Scan(&status, &title, &typ, &trackID)
-	if err != nil {
-		return daemon.WorkItem{}, false
-	}
-	return daemon.WorkItem{
-		ID:      id,
-		Status:  status.String,
-		Title:   title.String,
-		Type:    typ.String,
-		TrackID: trackID.String,
-	}, true
+	item, found, _ := readsrv.NewCache(filepath.Join(projectDir, ".wipnote")).Get(id)
+	return item, found
 }
 
 // ListWorkItems lists work items matching args. Same contract split as
 // LookupWorkItem.
-func ListWorkItems(database *sql.DB, args daemon.WorkItemListArgs) []daemon.WorkItem {
+func ListWorkItems(projectDir string, args daemon.WorkItemListArgs) []daemon.WorkItem {
 	if client, sock := readClientForProcess(); client != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), daemonReadBudget)
 		defer cancel()
@@ -239,78 +220,27 @@ func ListWorkItems(database *sql.DB, args daemon.WorkItemListArgs) []daemon.Work
 		}
 		return res.Items
 	}
-	return listWorkItemsFromIndex(database, args)
+	return listCanonicalWorkItems(projectDir, args)
 }
 
-// listWorkItemsFromIndex is the pre-existing derived-index read. The ORDER BY
-// reproduces what the daemon's canonical scan sorts by, so the two paths agree
-// on ordering as well as on membership.
-func listWorkItemsFromIndex(database *sql.DB, args daemon.WorkItemListArgs) []daemon.WorkItem {
-	if database == nil {
+// listCanonicalWorkItems answers a list from the canonical HTML with the
+// daemon's own reader, so both paths agree on membership and order.
+func listCanonicalWorkItems(projectDir string, args daemon.WorkItemListArgs) []daemon.WorkItem {
+	if projectDir == "" {
 		return nil
 	}
-	query := `SELECT id, title, status, type, track_id FROM features WHERE 1=1`
-	var qargs []any
-	if args.TrackID != "" {
-		query += ` AND track_id = ?`
-		qargs = append(qargs, args.TrackID)
-	}
-	if len(args.Statuses) > 0 {
-		query += ` AND status IN (` + placeholders(len(args.Statuses)) + `)`
-		for _, s := range args.Statuses {
-			qargs = append(qargs, s)
-		}
-	}
-	if len(args.Types) > 0 {
-		query += ` AND type IN (` + placeholders(len(args.Types)) + `)`
-		for _, t := range args.Types {
-			qargs = append(qargs, t)
-		}
-	}
-	query += `
-		ORDER BY
-			CASE status WHEN 'in-progress' THEN 0 ELSE 1 END,
-			CASE type WHEN 'feature' THEN 0 WHEN 'bug' THEN 1 ELSE 2 END,
-			created_at DESC`
-	if args.Limit > 0 {
-		query += ` LIMIT ?`
-		qargs = append(qargs, args.Limit)
-	}
-
-	rows, err := database.Query(query, qargs...)
+	raw, err := json.Marshal(args)
 	if err != nil {
 		return nil
 	}
-	defer rows.Close()
-
-	var out []daemon.WorkItem
-	for rows.Next() {
-		var (
-			it      daemon.WorkItem
-			title   sql.NullString
-			typ     sql.NullString
-			trackID sql.NullString
-		)
-		if err := rows.Scan(&it.ID, &title, &it.Status, &typ, &trackID); err != nil {
-			continue
-		}
-		it.Title, it.Type, it.TrackID = title.String, typ.String, trackID.String
-		out = append(out, it)
+	read := readsrv.Reader(readsrv.NewCache(filepath.Join(projectDir, ".wipnote")))
+	body, _, err := read(daemon.ReadRequest{ReadOp: daemon.ReadOpWorkItemList, Args: raw})
+	if err != nil {
+		return nil
 	}
-	return out
-}
-
-// placeholders returns "?, ?, …" for n bind parameters.
-func placeholders(n int) string {
-	if n <= 0 {
-		return ""
+	var res daemon.WorkItemListResult
+	if json.Unmarshal(body, &res) != nil {
+		return nil
 	}
-	out := make([]byte, 0, n*3)
-	for i := 0; i < n; i++ {
-		if i > 0 {
-			out = append(out, ',', ' ')
-		}
-		out = append(out, '?')
-	}
-	return string(out)
+	return res.Items
 }

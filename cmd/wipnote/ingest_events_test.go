@@ -17,7 +17,7 @@ import (
 
 func setupIngestEventsDB(t *testing.T) *sql.DB {
 	t.Helper()
-	database, err := dbpkg.Open(":memory:")
+	database, err := dbtest.Open(":memory:")
 	if err != nil {
 		t.Fatalf("open test db: %v", err)
 	}

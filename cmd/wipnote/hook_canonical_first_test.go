@@ -8,41 +8,14 @@
 package main
 
 import (
-	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
 	dbpkg "github.com/shakestzd/wipnote/core/db"
-	"github.com/shakestzd/wipnote/core/hooks"
+	"github.com/shakestzd/wipnote/core/db/dbtest"
 	"github.com/shakestzd/wipnote/core/models"
 )
-
-// TestOpenHookDB_BadPathReturnsWriterUnavailable pins the canonical-fallback
-// contract restored by the hook DB-path fix: OpenHookDB now opens the shared
-// canonical SQLite file again, so an unopenable path must degrade as
-// writer_unavailable rather than silently yielding an isolated projection.
-func TestOpenHookDB_BadPathReturnsWriterUnavailable(t *testing.T) {
-	// A directory: unopenable as a SQLite file by construction.
-	badPath := t.TempDir()
-
-	database, reason := hooks.OpenHookDB("test", "sess-writer-unavailable", filepath.Join(badPath))
-	if database != nil {
-		t.Fatalf("want nil DB for an unopenable path, got non-nil handle (reason=%q)", reason)
-	}
-	if reason != hooks.FallbackWriterUnavailable {
-		t.Fatalf("reason = %q, want %q", reason, hooks.FallbackWriterUnavailable)
-	}
-
-	// A failed open must not create artifacts at the supplied directory path.
-	entries, err := os.ReadDir(badPath)
-	if err != nil {
-		t.Fatalf("read %s: %v", badPath, err)
-	}
-	if len(entries) != 0 {
-		t.Fatalf("OpenHookDB created artifacts at the supplied path: %v", entries)
-	}
-}
 
 // TestReplayAfterFallback_IsIdempotent writes the same event twice through
 // the synchronous DB path (simulating "fallback hit, then later reindex
@@ -51,7 +24,7 @@ func TestOpenHookDB_BadPathReturnsWriterUnavailable(t *testing.T) {
 // primary key; this test locks in that contract for slice 7.
 func TestReplayAfterFallback_IsIdempotent(t *testing.T) {
 	dbPath := filepath.Join(t.TempDir(), "wipnote.db")
-	database, err := dbpkg.Open(dbPath)
+	database, err := dbtest.Open(dbPath)
 	if err != nil {
 		t.Fatalf("db.Open: %v", err)
 	}

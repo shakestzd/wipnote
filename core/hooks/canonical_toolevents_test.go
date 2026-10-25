@@ -1,7 +1,6 @@
 package hooks
 
 import (
-	"database/sql"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -139,30 +138,28 @@ func TestCanonicalToolEventClassifiers(t *testing.T) {
 func TestHasRecentResearch_CanonicalFallback(t *testing.T) {
 	clearNestedEnv(t)
 	t.Setenv("WIPNOTE_NO_AUTO_WRITER", "1")
-	stubRouteSQLAsync(t, true)
 
 	const sessionID = "canon-research-1"
 	projectDir := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(projectDir, ".wipnote"), 0o755); err != nil {
 		t.Fatalf("mkdir .wipnote: %v", err)
 	}
-	var database *sql.DB // hot hooks dispatch with no handle (feat-af8d1689)
 
 	// Nothing recorded anywhere: genuine gap → fail open.
-	if !hasRecentResearch(database, sessionID, "coder-1", projectDir) {
+	if !hasRecentResearch(sessionID, "coder-1", projectDir) {
 		t.Fatal("expected fail-open with no canonical log")
 	}
 
 	// Tool calls happened, none of them research → block.
 	recordTool(t, projectDir, sessionID, "Bash", "go build ./...", "")
 	recordTool(t, projectDir, sessionID, "TodoWrite", "plan", "")
-	if hasRecentResearch(database, sessionID, "coder-1", projectDir) {
+	if hasRecentResearch(sessionID, "coder-1", projectDir) {
 		t.Fatal("expected no-research block once the canonical log shows non-research tool calls")
 	}
 
 	// A real research read clears the gate.
 	recordTool(t, projectDir, sessionID, "Read", "core/hooks/pretooluse.go", "")
-	if !hasRecentResearch(database, sessionID, "coder-1", projectDir) {
+	if !hasRecentResearch(sessionID, "coder-1", projectDir) {
 		t.Fatal("expected the gate to clear after a canonical Read")
 	}
 }
@@ -173,7 +170,6 @@ func TestHasRecentResearch_CanonicalFallback(t *testing.T) {
 func TestHasRecentResearch_CanonicalFallbackUsesFamilyRoot(t *testing.T) {
 	clearNestedEnv(t)
 	t.Setenv("WIPNOTE_NO_AUTO_WRITER", "1")
-	stubRouteSQLAsync(t, true)
 
 	const rootSession = "canon-research-root"
 	const childSession = "canon-research-child"
@@ -184,14 +180,13 @@ func TestHasRecentResearch_CanonicalFallbackUsesFamilyRoot(t *testing.T) {
 	if err := agent.RegisterSessionFamily(projectDir, childSession, rootSession); err != nil {
 		t.Fatalf("RegisterSessionFamily: %v", err)
 	}
-	var database *sql.DB // hot hooks dispatch with no handle (feat-af8d1689)
 
 	recordTool(t, projectDir, childSession, "Bash", "go build ./...", "")
-	if hasRecentResearch(database, childSession, "coder-1", projectDir) {
+	if hasRecentResearch(childSession, "coder-1", projectDir) {
 		t.Fatal("expected block: only non-research tool calls recorded")
 	}
 	recordTool(t, projectDir, rootSession, "Grep", "handler", "")
-	if !hasRecentResearch(database, childSession, "coder-1", projectDir) {
+	if !hasRecentResearch(childSession, "coder-1", projectDir) {
 		t.Fatal("expected the family root's research to clear the child's gate")
 	}
 }

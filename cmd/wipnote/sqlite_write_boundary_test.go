@@ -23,9 +23,8 @@
 // those call sites are gone as of this update, verified individually against
 // the current source (not assumed from the test failure) — see the removal
 // note above the empty intentional-cli-mutation/reindex-only/migration-only
-// section below. The one remaining hook-tree exception is
-// core/hooks/dbgate.go:OpenHookDB, the rare canonical-first daemon-miss
-// fallback documented in its own classification note below.
+// section below. The hook tree has no exception: no hook opens any SQLite
+// database (feat-174dc958).
 //
 // This file is the enforcement boundary. It maintains an explicit inventory
 // of every first-party Go callsite that opens a writable SQLite handle and
@@ -35,8 +34,8 @@
 //     indexer, event-capture) without being added to the inventory.
 //  2. An inventory entry no longer matches a real callsite (stale entry).
 //  3. A forbidden-path entry is mis-classified as something other than
-//     daemon-routed-writer-service or canonical-first-hook-fallback (the
-//     only forbidden-path classifications still in use).
+//     daemon-routed-writer-service (the only forbidden-path classification
+//     still in use).
 //     (daemon-routed-pending-slice-6 is RETIRED — no entries use it; any
 //     new forbidden-path open must go through the daemon, not add to the
 //     legacy pending classification.)
@@ -62,10 +61,9 @@
 //     with classification "intentional-cli-mutation".
 //   - New reindex command: add with "reindex-only".
 //   - New schema migration runner: add with "migration-only".
-//   - New hook / collector / indexer write path: STOP. Route it through
-//     RouteHookWrite / RouteInsertEvent (daemon-first enqueue-only seam,
-//     plan-2390966a). Do not add a direct open and do not use the retired
-//     daemon-routed-pending-slice-6 classification.
+//   - New hook / collector / indexer write path: STOP. Hooks write canonical
+//     files only (feat-174dc958). Do not add a direct open and do not use the
+//     retired daemon-routed-pending-slice-6 classification.
 package main
 
 import (
@@ -106,17 +104,6 @@ const (
 	// terminal classification: producers that route through the queue
 	// no longer need their own entry in this inventory.
 	daemonRoutedWriterService writeSiteClassification = "daemon-routed-writer-service"
-
-	// canonicalFirstHookFallback marks the single writable open used by hook
-	// subprocesses (`wipnote hook <name>` spawned by Claude Code) when the
-	// daemon-first enqueue path is unavailable. Slice 7 (feat-33c26c74)
-	// consolidated the three formerly-direct `db.Open` call sites in
-	// cmd/wipnote/hook.go into one helper (core/hooks/dbgate.go:OpenHookDB),
-	// keeping the fallback auditable at one boundary. Unlike the writer
-	// service's own handle, this is not the primary path: it exists only for
-	// daemon-miss recovery, writing into the canonical shared DB so the
-	// immediate caller sees the same state as the rest of the process.
-	canonicalFirstHookFallback writeSiteClassification = "canonical-first-hook-fallback"
 
 	// intentionalCLIMutation marks user-driven CLI commands that legitimately
 	// mutate work items (e.g., wipnote feature start). These keep direct
@@ -229,27 +216,15 @@ type writeSite struct {
 // for why OpenEphemeralProjection callers do not need entries of their own.
 var approvedWriteSites = []writeSite{
 	// ----------------------------------------------------------------------
-	// canonical-first-hook-fallback (FORBIDDEN PATH — explicitly classified)
-	// ----------------------------------------------------------------------
-	{
-		File:           "core/hooks/dbgate.go",
-		Function:       "OpenHookDB",
-		OpenExpr:       "db.Open",
-		Ordinal:        1,
-		Classification: canonicalFirstHookFallback,
-		Note:           "Rare daemon-miss fallback for hook subprocesses: the primary hook path routes derived-index writes through RouteHookWrite / RouteInsertEvent, but when apply.RouteSQLAsync returns false this helper opens the canonical shared DB directly so the hook can synchronously upsert into the same file-backed index every other reader sees. This is the single allowed writable open in core/hooks/; new hook writes should still go through the daemon-first queue, not add more direct opens.",
-	},
-
-	// ----------------------------------------------------------------------
 	// daemon-routed-writer-service (FORBIDDEN PATH — explicitly classified)
 	// ----------------------------------------------------------------------
 	{
 		File:           "observe/otel/receiver/writer.go",
-		Function:       "NewWriter",
+		Function:       "openWriterDB",
 		OpenExpr:       "sql.Open",
 		Ordinal:        1,
 		Classification: daemonRoutedWriterService,
-		Note:           "Slice 6 writer service (feat-f3bcbcef): the writable, file-backed SQLite handle this constructor opens on its own pool (own-pool mode). feat-fc3cc9e0: production no longer calls this constructor — cmd/wipnote/reindex_otel_events.go, its only caller, was deleted, and the daemon (serve_child.go:runWriterOnly) now opens dbpkg.OpenEphemeralProjection() and hands the SAME handle to the sibling constructor NewWriterFromDB (shared mode) instead of letting the Writer open its own pool. NewWriter itself is kept for tests/benchmarks that want an isolated writer against a real file; its sql.Open call is real and file-backed (dsn is dbPath + pragma string, not \":memory:\"), so it stays classified daemon-routed-writer-service rather than being removed as dead — if it is ever called from production again it is still the single approved writable handle for that call path.",
+		Note:           "Slice 6 writer service (feat-f3bcbcef): the writable, file-backed SQLite handle NewWriter opens (via openWriterDB) on its own pool (own-pool mode). feat-fc3cc9e0: production no longer calls this constructor — cmd/wipnote/reindex_otel_events.go, its only caller, was deleted, and the daemon (serve_child.go:runWriterOnly) now opens dbpkg.OpenEphemeralProjection() and hands the SAME handle to the sibling constructor NewWriterFromDB (shared mode) instead of letting the Writer open its own pool. NewWriter itself is kept for tests/benchmarks that want an isolated writer against a real file; its sql.Open call is real and file-backed (dsn is dbPath + pragma string, not \":memory:\"), so it stays classified daemon-routed-writer-service rather than being removed as dead — if it is ever called from production again it is still the single approved writable handle for that call path.",
 	},
 
 	// ----------------------------------------------------------------------
@@ -293,12 +268,12 @@ var approvedWriteSites = []writeSite{
 }
 
 // forbiddenPathPrefixes is the set of first-party directories where a
-// writable SQLite open MUST be marked daemon-routed-writer-service or
-// canonical-first-hook-fallback. daemon-routed-pending-slice-6 is retired
+// writable SQLite open MUST be marked daemon-routed-writer-service.
+// daemon-routed-pending-slice-6 is retired
 // and no longer accepted (architectural ratchet — see
 // isForbiddenPathClassification). Hook, collector, indexer, and
 // event-capture paths are the contention sources the plan targets; new
-// writes in these paths must route through RouteHookWrite / RouteInsertEvent.
+// hook writes go to canonical files, never a database.
 var forbiddenPathPrefixes = []string{
 	"cmd/wipnote/hook.go",     // hook event handlers
 	"core/hooks/",             // hook implementations (moved out of internal/ — feat-0e3f1b3f)
@@ -346,9 +321,8 @@ type foundSite struct {
 //  1. A new writable open that is not in approvedWriteSites (review/migration trigger).
 //  2. An approved entry that no longer matches a real callsite (stale entry).
 //  3. A forbidden-path entry that is not marked daemon-routed-writer-service
-//     or canonical-first-hook-fallback (architectural ratchet: hook/indexer/
-//     receiver/collector writes MUST route through RouteHookWrite /
-//     RouteInsertEvent; daemon-routed-pending-slice-6 is retired).
+//     (architectural ratchet: hooks open no database at all, feat-174dc958;
+//     daemon-routed-pending-slice-6 is retired).
 func TestWritableDBOpenBoundary(t *testing.T) {
 	root := findModuleRoot(t)
 
@@ -399,11 +373,9 @@ func TestWritableDBOpenBoundary(t *testing.T) {
 	// 3. Forbidden-path entries must be daemon-routed-writer-service (the
 	// writer service's own internal Open — terminal state for slice 6). Any
 	// other classification on a forbidden path means someone added a direct
-	// writable open in the hook/indexer/receiver/collector tree that bypasses
-	// the daemon — this SHOULD be routed through RouteHookWrite /
-	// RouteInsertEvent instead. daemon-routed-pending-slice-6 remains retired;
-	// canonical-first-hook-fallback stays reserved for the single OpenHookDB
-	// daemon-miss fallback site.
+	// writable open in the hook/indexer/receiver/collector tree. Hooks open no
+	// database at all (feat-174dc958); daemon-routed-pending-slice-6 remains
+	// retired.
 	var misclassified []writeSite
 	for _, ws := range approvedWriteSites {
 		if !isForbiddenPath(ws.File) {
@@ -474,9 +446,9 @@ func TestWritableDBOpenBoundary(t *testing.T) {
 		}
 		if len(misclassified) > 0 {
 			fmt.Fprintf(&b, "MISCLASSIFIED forbidden-path entries (%d):\n", len(misclassified))
-			fmt.Fprintf(&b, "  Hook / indexer / receiver / event-capture paths must use %q or %q.\n",
-				daemonRoutedWriterService, canonicalFirstHookFallback)
-			fmt.Fprintf(&b, "  Route new hook writes through RouteHookWrite / RouteInsertEvent instead of adding a direct open.\n")
+			fmt.Fprintf(&b, "  Hook / indexer / receiver / event-capture paths must use %q.\n",
+				daemonRoutedWriterService)
+			fmt.Fprintf(&b, "  Hooks must not open a database at all; write a canonical file instead.\n")
 			fmt.Fprintf(&b, "  The retired %q classification is no longer accepted.\n", daemonRoutedPendingSlice6)
 			for _, ws := range misclassified {
 				fmt.Fprintf(&b, "  ! %s  func=%s#%d  class=%s\n",
@@ -514,13 +486,12 @@ func TestWriteSiteInventoryComplete(t *testing.T) {
 
 	// Verify every classification is a known constant.
 	known := map[writeSiteClassification]bool{
-		daemonRoutedPendingSlice6:  true,
-		daemonRoutedWriterService:  true,
-		canonicalFirstHookFallback: true,
-		intentionalCLIMutation:     true,
-		reindexOnly:                true,
-		migrationOnly:              true,
-		ephemeralInMemory:          true,
+		daemonRoutedPendingSlice6: true,
+		daemonRoutedWriterService: true,
+		intentionalCLIMutation:    true,
+		reindexOnly:               true,
+		migrationOnly:             true,
+		ephemeralInMemory:         true,
 	}
 	for _, ws := range approvedWriteSites {
 		if !known[ws.Classification] {
@@ -907,19 +878,20 @@ func isForbiddenPath(relPath string) bool {
 }
 
 // isForbiddenPathClassification reports whether a classification is
-// permitted on a forbidden-path entry. Exactly two labels are accepted:
+// permitted on a forbidden-path entry. Exactly one label is accepted:
 //
 //   - daemon-routed-writer-service: slice-6 writer service's own internal
 //     writable open — the single handle per project while serve runs.
-//   - canonical-first-hook-fallback: the single daemon-miss fallback open in
-//     core/hooks/dbgate.go:OpenHookDB.
+//
+// canonical-first-hook-fallback is RETIRED with the hook daemon-miss fallback
+// (feat-174dc958): no hook opens a database.
 //
 // daemon-routed-pending-slice-6 is RETIRED (excluded here as the
 // architectural ratchet: any new forbidden-path entry using it will cause
-// this check to fail, forcing the author to route through RouteHookWrite /
-// RouteInsertEvent instead, or to justify a genuinely new classification).
+// this check to fail, forcing the author to write a canonical file instead,
+// or to justify a genuinely new classification).
 func isForbiddenPathClassification(c writeSiteClassification) bool {
-	return c == daemonRoutedWriterService || c == canonicalFirstHookFallback
+	return c == daemonRoutedWriterService
 }
 
 // isExcludedPath returns true when path lives under one of excludedDirs,

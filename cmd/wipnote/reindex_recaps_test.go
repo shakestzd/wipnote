@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	dbpkg "github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/db/dbtest"
 	"github.com/shakestzd/wipnote/internal/recap"
 	"github.com/shakestzd/wipnote/recap/recaptmpl"
 )
@@ -55,7 +56,7 @@ func TestReindexRecaps(t *testing.T) {
 		},
 	})
 
-	db, err := dbpkg.Open(":memory:")
+	db, err := dbtest.Open(":memory:")
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
@@ -114,7 +115,7 @@ func TestReindexRecaps(t *testing.T) {
 
 func TestReindexRecaps_PurgesStale(t *testing.T) {
 	dir := t.TempDir()
-	db, err := dbpkg.Open(":memory:")
+	db, err := dbtest.Open(":memory:")
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}

@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	dbpkg "github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/db/dbtest"
 	"github.com/shakestzd/wipnote/core/htmlparse"
 	"github.com/shakestzd/wipnote/core/models"
 	"github.com/shakestzd/wipnote/core/workitem"
@@ -50,7 +50,7 @@ func seedCommit(t *testing.T, proj *workitem.Project, hash, featID, msg string, 
 		Message:    msg,
 		Timestamp:  ts,
 	}
-	if err := dbpkg.InsertGitCommit(proj.DB, c); err != nil {
+	if err := dbtest.InsertGitCommit(proj.DB, c); err != nil {
 		t.Fatalf("InsertGitCommit %s: %v", hash, err)
 	}
 }

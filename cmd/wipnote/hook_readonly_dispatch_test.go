@@ -1,7 +1,6 @@
 package main
 
 import (
-	"database/sql"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -10,12 +9,10 @@ import (
 	"github.com/shakestzd/wipnote/core/hooks"
 )
 
-// TestHookSubcmdReadOnly_PassesNoDatabase pins that the hot-hook dispatcher
-// (pretooluse, user-prompt, posttooluse, posttooluse-record) hands its handler
-// no database at all (feat-af8d1689). It used to build a fresh in-memory
-// projection per call that no hook ever hydrated; core/hooks
-// TestReadOnlyHooks_NilMatchesEmptyProjection pins that nil answers the same.
-func TestHookSubcmdReadOnly_PassesNoDatabase(t *testing.T) {
+// TestHookSubcmd_CallsHandler pins that the hook dispatcher runs its handler
+// for a wipnote project. Handlers take no database at all (feat-174dc958,
+// feat-726637b8); the signature enforces that.
+func TestHookSubcmd_CallsHandler(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
 	t.Setenv("XDG_CACHE_HOME", filepath.Join(home, ".cache"))
@@ -32,10 +29,9 @@ func TestHookSubcmdReadOnly_PassesNoDatabase(t *testing.T) {
 	withStdin(t, payload)
 
 	called := false
-	var got *sql.DB
-	cmd := hookSubcmdReadOnly("pretooluse", "test", &hooks.HookResult{},
-		func(_ *hooks.CloudEvent, database *sql.DB) (*hooks.HookResult, error) {
-			called, got = true, database
+	cmd := hookSubcmd("pretooluse", "test", &hooks.HookResult{},
+		func(_ *hooks.CloudEvent) (*hooks.HookResult, error) {
+			called = true
 			return &hooks.HookResult{}, nil
 		})
 	devNull, _ := os.OpenFile(os.DevNull, os.O_WRONLY, 0)
@@ -49,9 +45,6 @@ func TestHookSubcmdReadOnly_PassesNoDatabase(t *testing.T) {
 	}
 	if !called {
 		t.Fatal("handler was not called")
-	}
-	if got != nil {
-		t.Fatal("read-only hook dispatch opened a database handle; it must pass nil")
 	}
 }
 

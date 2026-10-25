@@ -77,7 +77,7 @@ func TestReconcile_DoneButUncommitted_AutoCommitsAndReports(t *testing.T) {
 	td.addFeature("feat-aaaaaaaa", "feature", "done item", "done")
 	writeArtifact(t, root, "feature", "feat-aaaaaaaa")
 
-	rep, err := Reconcile(td.DB, root, false)
+	rep, err := Reconcile(root, false)
 	if err != nil {
 		t.Fatalf("Reconcile: %v", err)
 	}
@@ -97,11 +97,11 @@ func TestReconcile_DoneButUncommitted_AutoCommitsAndReports(t *testing.T) {
 // repo yields no port drift; the engine does not crash and the class is empty),
 // which proves reconcilePortDrift is invoked and gated on manifest presence.
 func TestReconcile_PortDrift_UsesCheckPortsReuse(t *testing.T) {
-	td := setupTestDB(t)
+	setupTestDB(t)
 	root := t.TempDir()
 	gitInitRepo(t, root)
 	// No packages/plugin-core/manifest.json here → not a generator repo.
-	rep, err := Reconcile(td.DB, root, false)
+	rep, err := Reconcile(root, false)
 	if err != nil {
 		t.Fatalf("Reconcile: %v", err)
 	}
@@ -197,7 +197,7 @@ func TestReconcile_AutoCommit_IdempotentDoesNotWedgeComplete(t *testing.T) {
 	td.addFeature("feat-bbbbbbbb", "feature", "done item", "done")
 	writeArtifact(t, root, "feature", "feat-bbbbbbbb")
 
-	if rep, _ := Reconcile(td.DB, root, false); len(rep.AutoCommitted) != 1 {
+	if rep, _ := Reconcile(root, false); len(rep.AutoCommitted) != 1 {
 		t.Fatalf("first pass should auto-commit once, got %v", rep.AutoCommitted)
 	}
 	headAfterFirst := gitHead(t, root)
@@ -205,7 +205,7 @@ func TestReconcile_AutoCommit_IdempotentDoesNotWedgeComplete(t *testing.T) {
 	// Second pass: artifact already committed and unchanged → idempotent
 	// no-op, HEAD must NOT advance (so a later strict complete's
 	// must-not-advance branch is satisfied — no wedge).
-	rep2, _ := Reconcile(td.DB, root, false)
+	rep2, _ := Reconcile(root, false)
 	if len(rep2.AutoCommitted) != 0 {
 		t.Fatalf("second pass must be a no-op, got %v", rep2.AutoCommitted)
 	}

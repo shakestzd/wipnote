@@ -40,6 +40,11 @@ func TestLaunchYoloDev_RefusesOnDirtyProtectedBranch(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(bin, "claude"), []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
+	// launchYoloDev requires a wipnote binary on PATH before it reaches the
+	// launch plan; stub one so the test does not depend on the host install.
+	if err := os.WriteFile(filepath.Join(bin, "wipnote"), []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
 
 	t.Chdir(repo)

@@ -1,40 +1,22 @@
 package hooks
 
 import (
-	"context"
-	"database/sql"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/shakestzd/wipnote/core/daemon"
-	"github.com/shakestzd/wipnote/core/daemon/apply"
-	"github.com/shakestzd/wipnote/core/db"
 	"github.com/shakestzd/wipnote/core/models"
 )
 
-// splitDBHarness reproduces the production handle topology for the
-// PreToolUse → PostToolUse pair (bug-07fd4a51):
-//
-//   - daemonDB stands in for the writer daemon's in-memory projection
-//     (serve_child opens it with OpenEphemeralProjection). Every
-//     routeSQLAsync call is applied there through the genuine
-//     Encode → applier → Exec transport, i.e. the daemon is reachable.
-//   - pretooluse runs on OpenHookDBReadOnly's empty, query_only projection,
-//     exactly as hookSubcmdReadOnly dispatches it.
-//   - posttooluse runs on a SEPARATE on-disk handle opened with OpenHookDB, as
-//     hookSubcmd dispatches it.
-//
-// The old tests handed one writable DB to both handlers, which made the
-// started row pretooluse wrote visible to posttooluse's lookup and hid the split.
+// splitDBHarness runs the PreToolUse → PostToolUse pair the way production
+// dispatches them: with no database handle (feat-174dc958). Everything a test
+// checks is canonical: the tool log and the session HTML.
 type splitDBHarness struct {
 	projectDir string
 	sessionID  string
-	daemonDB   *sql.DB
-	diskDB     *sql.DB
-	diskPath   string
 }
 
 func newSplitDBHarness(t *testing.T, sessionID string) *splitDBHarness {
@@ -51,53 +33,7 @@ func newSplitDBHarness(t *testing.T, sessionID string) *splitDBHarness {
 	t.Setenv("WIPNOTE_AGENT_TYPE", "")
 	t.Setenv("WIPNOTE_PARENT_EVENT", "")
 	t.Setenv("WIPNOTE_PARENT_PROMPT_EVENT", "")
-	t.Setenv("WIPNOTE_NO_AUTO_WRITER", "1")
-
-	diskPath := filepath.Join(t.TempDir(), "hook-disk.db")
-	t.Setenv("WIPNOTE_DB_PATH", diskPath)
-
-	daemonDB, err := db.OpenEphemeralProjection()
-	if err != nil {
-		t.Fatalf("open daemon projection: %v", err)
-	}
-	t.Cleanup(func() { daemonDB.Close() })
-	// session-start routes the session row to the daemon in production; seed it
-	// so agent_events' session FK is satisfied in the daemon projection.
-	if err := db.UpsertSession(daemonDB, &models.Session{
-		SessionID: sessionID, AgentAssigned: "claude-code", Status: "active",
-		CreatedAt: time.Now().UTC(), ProjectDir: projectDir,
-	}); err != nil {
-		t.Fatalf("seed daemon session: %v", err)
-	}
-
-	applier := apply.NewApplier(daemonDB)
-	prev := routeSQLAsync
-	t.Cleanup(func() { routeSQLAsync = prev })
-	routeSQLAsync = func(_ string, sqlStmt string, args ...any) bool {
-		payload, encErr := apply.Encode(apply.DerivedOp{Type: apply.OpTypeSQL, SQL: sqlStmt, Args: args})
-		if encErr != nil {
-			t.Fatalf("daemon encode: %v", encErr)
-		}
-		op, opErr := applier(daemon.Envelope{OpType: apply.OpTypeSQL, Payload: payload})
-		if opErr != nil {
-			t.Fatalf("daemon applier: %v", opErr)
-		}
-		// Best-effort like the real daemon: an apply error is not the hook's
-		// problem, and some claim statements legitimately touch no rows.
-		if err := op(context.Background()); err != nil {
-			t.Logf("daemon apply: %v", err)
-		}
-		return true
-	}
-
-	diskDB, reason := OpenHookDB("posttooluse", sessionID, diskPath)
-	if diskDB == nil {
-		t.Fatalf("OpenHookDB: nil (reason=%s)", reason)
-	}
-	t.Cleanup(func() { diskDB.Close() })
-
-	featureIDCache = featureIDCacheEntry{}
-
+	t.Setenv("WIPNOTE_DB_PATH", filepath.Join(t.TempDir(), "never-opened.db"))
 	CreateSessionHTML(projectDir, &models.Session{
 		SessionID:     sessionID,
 		AgentAssigned: "claude-code",
@@ -105,22 +41,14 @@ func newSplitDBHarness(t *testing.T, sessionID string) *splitDBHarness {
 		CreatedAt:     time.Now().UTC(),
 		ProjectDir:    projectDir,
 	})
-
-	return &splitDBHarness{
-		projectDir: projectDir,
-		sessionID:  sessionID,
-		daemonDB:   daemonDB,
-		diskDB:     diskDB,
-		diskPath:   diskPath,
-	}
+	return &splitDBHarness{projectDir: projectDir, sessionID: sessionID}
 }
 
 // runPre dispatches PreToolUse with no handle, the way hookSubcmdReadOnly
 // does in production.
 func (h *splitDBHarness) runPre(t *testing.T, ev *CloudEvent) *HookResult {
 	t.Helper()
-	var ro *sql.DB // hot hooks dispatch with no handle (feat-af8d1689)
-	res, err := PreToolUse(ev, ro)
+	res, err := PreToolUse(ev)
 	if err != nil {
 		t.Fatalf("PreToolUse: %v", err)
 	}
@@ -134,8 +62,7 @@ func (h *splitDBHarness) runPre(t *testing.T, ev *CloudEvent) *HookResult {
 // dispatches it in production.
 func (h *splitDBHarness) runPost(t *testing.T, ev *CloudEvent) *HookResult {
 	t.Helper()
-	var ro *sql.DB // hot hooks dispatch with no handle (feat-af8d1689)
-	res, err := PostToolUse(ev, ro)
+	res, err := PostToolUse(ev)
 	if err != nil {
 		t.Fatalf("PostToolUse: %v", err)
 	}
@@ -167,51 +94,9 @@ func writeOversizedFile(t *testing.T, dir string) string {
 	return p
 }
 
-// TestPostToolUse_SplitDB_SideEffectsRun is the bug-07fd4a51 regression test:
-// with pretooluse's started row in the daemon projection and posttooluse
-// reading a separate disk handle, the started-row lookup misses. PostToolUse
-// must still append to the session HTML and return the file-quality warning.
-func TestPostToolUse_SplitDB_SideEffectsRun(t *testing.T) {
-	h := newSplitDBHarness(t, "split-db-sess-001")
-	// Target lives outside the project root so the work-item write guard (which
-	// only constrains project code) does not block the PreToolUse half.
-	bigFile := writeOversizedFile(t, t.TempDir())
-
-	input := map[string]any{"file_path": bigFile, "content": "x"}
-	h.runPre(t, &CloudEvent{
-		SessionID: h.sessionID, CWD: h.projectDir,
-		ToolName: "Write", ToolUseID: "toolu_split_001", ToolInput: input,
-	})
-
-	// Precondition proving the split: the started row is in the daemon
-	// projection and NOT on the disk handle posttooluse reads.
-	var daemonRows, diskRows int
-	_ = h.daemonDB.QueryRow(`SELECT COUNT(*) FROM agent_events WHERE session_id = ? AND tool_name = 'Write'`, h.sessionID).Scan(&daemonRows)
-	_ = h.diskDB.QueryRow(`SELECT COUNT(*) FROM agent_events WHERE session_id = ? AND tool_name = 'Write'`, h.sessionID).Scan(&diskRows)
-	if daemonRows != 1 || diskRows != 0 {
-		t.Fatalf("precondition: want started row only in daemon projection, got daemon=%d disk=%d", daemonRows, diskRows)
-	}
-
-	res, err := PostToolUse(&CloudEvent{
-		SessionID: h.sessionID, CWD: h.projectDir,
-		ToolName: "Write", ToolUseID: "toolu_split_001", ToolInput: input,
-		ToolResult: map[string]any{"output": "ok"},
-	}, h.diskDB)
-	if err != nil {
-		t.Fatalf("PostToolUse: %v", err)
-	}
-	if res == nil || !strings.Contains(res.AdditionalContext, "[Quality]") {
-		t.Errorf("file-quality warning missing from PostToolUse result: %+v", res)
-	}
-	if html := h.sessionHTML(t); !strings.Contains(html, `data-tool="Write"`) {
-		t.Errorf("session HTML was not appended for the Write call")
-	}
-}
-
-// TestPostToolUse_ReadOnlyHandle_SideEffectsRun is the step-5 counterpart of
-// the regression test above: posttooluse on the read-only projection (its
-// production handle now) still returns the quality warning, appends the
-// session HTML and completes the daemon row.
+// TestPostToolUse_ReadOnlyHandle_SideEffectsRun: posttooluse with no handle
+// returns the quality warning, appends the session HTML and writes the
+// completion line for the call (bug-07fd4a51, feat-174dc958).
 func TestPostToolUse_ReadOnlyHandle_SideEffectsRun(t *testing.T) {
 	h := newSplitDBHarness(t, "split-db-ro-001")
 	bigFile := writeOversizedFile(t, t.TempDir())
@@ -228,39 +113,8 @@ func TestPostToolUse_ReadOnlyHandle_SideEffectsRun(t *testing.T) {
 	if !strings.Contains(h.sessionHTML(t), `data-event-id="`+toolCallEventID(h.sessionID, "toolu_ro_001")+`"`) {
 		t.Errorf("session HTML entry missing or not keyed by the shared event id")
 	}
-	var status string
-	_ = h.daemonDB.QueryRow(`SELECT status FROM agent_events WHERE event_id = ?`, toolCallEventID(h.sessionID, "toolu_ro_001")).Scan(&status)
-	if status != "completed" {
-		t.Errorf("daemon row status = %q, want completed", status)
-	}
-}
-
-// TestPostToolUse_ReadOnlyHandle_DaemonMissFallsBackToDisk: with the daemon
-// unreachable for both halves, pretooluse and posttooluse each fall back to
-// their own bounded writable handle on the disk DB, and the completion
-// upserts the started row there instead of failing on the read-only handle.
-func TestPostToolUse_ReadOnlyHandle_DaemonMissFallsBackToDisk(t *testing.T) {
-	h := newSplitDBHarness(t, "split-db-miss-001")
-	stubRouteSQLAsync(t, false)
-	if err := db.UpsertSession(h.diskDB, &models.Session{
-		SessionID: h.sessionID, AgentAssigned: "claude-code", Status: "active",
-		CreatedAt: time.Now().UTC(), ProjectDir: h.projectDir,
-	}); err != nil {
-		t.Fatalf("seed disk session: %v", err)
-	}
-	in := map[string]any{"file_path": "/tmp/miss.go"}
-	h.runPre(t, &CloudEvent{SessionID: h.sessionID, CWD: h.projectDir, ToolName: "Read", ToolUseID: "toolu_miss", ToolInput: in})
-	h.runPost(t, &CloudEvent{SessionID: h.sessionID, CWD: h.projectDir, ToolName: "Read", ToolUseID: "toolu_miss", ToolInput: in,
-		ToolResult: map[string]any{"output": "x"}})
-
-	r, ok := readEventRow(t, h.diskDB, toolCallEventID(h.sessionID, "toolu_miss"))
-	if !ok || r.status != "completed" {
-		t.Fatalf("disk row = %+v (found=%v), want completed", r, ok)
-	}
-	var n int
-	_ = h.diskDB.QueryRow(`SELECT COUNT(*) FROM agent_events WHERE session_id = ?`, h.sessionID).Scan(&n)
-	if n != 1 {
-		t.Errorf("disk rows = %d, want 1 (upsert in place)", n)
+	if got := toolLogDone(t, h, "toolu_ro_001"); got != "completed" {
+		t.Errorf("tool-log completion = %q, want completed", got)
 	}
 }
 
@@ -274,15 +128,12 @@ func TestPostToolUseForHarness_ClaudeSplit(t *testing.T) {
 		return &CloudEvent{SessionID: h.sessionID, CWD: h.projectDir, ToolName: "Write", ToolUseID: id,
 			ToolInput: map[string]any{"file_path": bigFile, "content": "x"}, ToolResult: map[string]any{"output": "ok"}, Harness: harness}
 	}
-	status := func(id string) string {
-		var s string
-		_ = h.daemonDB.QueryRow(`SELECT status FROM agent_events WHERE event_id = ?`, toolCallEventID(h.sessionID, id)).Scan(&s)
-		return s
-	}
-	ro := func() *sql.DB { return nil } // hot hooks dispatch with no handle (feat-af8d1689)
+	status := func(id string) string { return toolLogDone(t, h, id) }
+	h.runPre(t, mk("toolu_claude", HarnessClaude))
+	h.runPre(t, mk("toolu_codex", HarnessCodex))
 
-	// Claude respond half: warning, but no row and no HTML entry.
-	res, _ := PostToolUseForHarness(mk("toolu_claude", HarnessClaude), ro())
+	// Claude respond half: warning, but no completion and no HTML entry.
+	res, _ := PostToolUseForHarness(mk("toolu_claude", HarnessClaude))
 	if !strings.Contains(res.AdditionalContext, "[Quality]") {
 		t.Errorf("claude posttooluse lost the quality warning: %+v", res)
 	}
@@ -290,8 +141,8 @@ func TestPostToolUseForHarness_ClaudeSplit(t *testing.T) {
 		t.Error("claude posttooluse must not record; posttooluse-record does")
 	}
 
-	// Claude record half: row + HTML, no context.
-	res, _ = PostToolUseRecord(mk("toolu_claude", HarnessClaude), ro())
+	// Claude record half: completion + HTML, no context.
+	res, _ = PostToolUseRecord(mk("toolu_claude", HarnessClaude))
 	if res.AdditionalContext != "" || res.Decision != "" {
 		t.Errorf("posttooluse-record must never return context or a decision: %+v", res)
 	}
@@ -300,8 +151,27 @@ func TestPostToolUseForHarness_ClaudeSplit(t *testing.T) {
 	}
 
 	// Codex: one handler does both.
-	res, _ = PostToolUseForHarness(mk("toolu_codex", HarnessCodex), ro())
+	res, _ = PostToolUseForHarness(mk("toolu_codex", HarnessCodex))
 	if !strings.Contains(res.AdditionalContext, "[Quality]") || status("toolu_codex") != "completed" {
 		t.Errorf("codex posttooluse must both respond and record: res=%+v status=%q", res, status("toolu_codex"))
 	}
+}
+
+// toolLogDone is the completion status the canonical tool log records for a
+// call, or "" when it records none.
+func toolLogDone(t *testing.T, h *splitDBHarness, toolUseID string) string {
+	t.Helper()
+	data, err := os.ReadFile(canonicalToolLogPath(h.projectDir, h.sessionID))
+	if err != nil {
+		return ""
+	}
+	id := toolCallEventID(h.sessionID, toolUseID)
+	done := ""
+	for _, line := range strings.Split(string(data), "\n") {
+		var rec toolLogLine
+		if json.Unmarshal([]byte(line), &rec) == nil && rec.ID == id && rec.Done != "" {
+			done = rec.Done
+		}
+	}
+	return done
 }

@@ -5,11 +5,12 @@ import (
 	"time"
 
 	"github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/db/dbtest"
 )
 
 func TestOtelSchemaCreated(t *testing.T) {
 	dbPath := t.TempDir() + "/otel.db"
-	database, err := db.Open(dbPath)
+	database, err := dbtest.Open(dbPath)
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
@@ -51,7 +52,7 @@ func TestOtelSchemaCreated(t *testing.T) {
 // idempotency guarantee the feature_id column migration already relies on.
 func TestOtelSignalsAgentIDColumn(t *testing.T) {
 	dbPath := t.TempDir() + "/otel.db"
-	database, err := db.Open(dbPath)
+	database, err := dbtest.Open(dbPath)
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
@@ -105,7 +106,7 @@ func TestOtelSignalsAgentIDColumn(t *testing.T) {
 
 func TestOtelSignalsInsertAndIdempotency(t *testing.T) {
 	dbPath := t.TempDir() + "/otel.db"
-	database, err := db.Open(dbPath)
+	database, err := dbtest.Open(dbPath)
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
@@ -156,7 +157,7 @@ func TestOtelSignalsInsertAndIdempotency(t *testing.T) {
 
 func TestOtelSignalsCheckConstraints(t *testing.T) {
 	dbPath := t.TempDir() + "/otel.db"
-	database, err := db.Open(dbPath)
+	database, err := dbtest.Open(dbPath)
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}

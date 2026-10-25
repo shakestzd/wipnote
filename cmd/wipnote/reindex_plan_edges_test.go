@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	dbpkg "github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/db/dbtest"
 	"github.com/shakestzd/wipnote/core/graph"
 	"github.com/shakestzd/wipnote/plan/planyaml"
 )
@@ -50,7 +50,7 @@ func edgeMetadata(t *testing.T, database *sql.DB, fromID, toID, relType string) 
 
 func TestReindexPlanEdges_StampsPlanSliceOrigin(t *testing.T) {
 	dir := t.TempDir()
-	database, err := dbpkg.Open(":memory:")
+	database, err := dbtest.Open(":memory:")
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}

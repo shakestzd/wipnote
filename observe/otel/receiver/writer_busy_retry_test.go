@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/db/dbtest"
 	"github.com/shakestzd/wipnote/observe/otel"
 )
 
@@ -71,7 +72,7 @@ func openDeleteJournalOTelDB(t *testing.T) (*sql.DB, string) {
 	t.Helper()
 
 	dbPath := filepath.Join(t.TempDir(), "otel-busy.db")
-	database, err := db.Open(dbPath)
+	database, err := dbtest.Open(dbPath)
 	if err != nil {
 		t.Fatalf("create schema: %v", err)
 	}

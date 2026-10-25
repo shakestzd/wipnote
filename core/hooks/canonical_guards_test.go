@@ -27,7 +27,6 @@ func canonGuardProject(t *testing.T) string {
 		t.Fatal(err)
 	}
 	t.Chdir(projectDir)
-	featureIDCache = featureIDCacheEntry{}
 	return projectDir
 }
 
@@ -40,15 +39,15 @@ func logTools(projectDir string, evs ...canonicalToolEvent) {
 // (a) hasRecentWebResearch reads web research from the canonical tool log.
 func TestHasRecentWebResearch_ReadsCanonicalLog(t *testing.T) {
 	projectDir := canonGuardProject(t)
-	if !hasRecentWebResearch(nil, canonGuardSession, "", projectDir) {
+	if !hasRecentWebResearch(canonGuardSession, "", projectDir) {
 		t.Fatal("no canonical log: want fail-open true")
 	}
 	logTools(projectDir, canonicalToolEvent{Tool: "Read", Summary: "go.mod"})
-	if hasRecentWebResearch(nil, canonGuardSession, "", projectDir) {
+	if hasRecentWebResearch(canonGuardSession, "", projectDir) {
 		t.Fatal("log with only a local Read: want false")
 	}
 	logTools(projectDir, canonicalToolEvent{Tool: "Bash", Summary: "gh release view v1.2.3"})
-	if !hasRecentWebResearch(nil, canonGuardSession, "", projectDir) {
+	if !hasRecentWebResearch(canonGuardSession, "", projectDir) {
 		t.Fatal("log with a gh command: want true")
 	}
 }
@@ -57,7 +56,7 @@ func TestHasRecentWebResearch_WebFetchCounts(t *testing.T) {
 	projectDir := canonGuardProject(t)
 	logTools(projectDir, canonicalToolEvent{Tool: "Edit", Summary: "x.go"},
 		canonicalToolEvent{Tool: "WebFetch", Summary: "https://pkg.go.dev"})
-	if !hasRecentWebResearch(nil, canonGuardSession, "", projectDir) {
+	if !hasRecentWebResearch(canonGuardSession, "", projectDir) {
 		t.Fatal("log with WebFetch: want true")
 	}
 }
@@ -68,11 +67,11 @@ func TestOrchestratorResearchAdvisory_UsesCanonicalLog(t *testing.T) {
 	projectDir := canonGuardProject(t)
 	ctx := &toolUseContext{SessionID: canonGuardSession, ProjectDir: projectDir}
 	ev := &CloudEvent{SessionID: canonGuardSession, CWD: projectDir, ToolName: "WebSearch"}
-	if checkOrchestratorResearchDelegationAdvisory(ev, ctx, nil) == "" {
+	if checkOrchestratorResearchDelegationAdvisory(ev, ctx) == "" {
 		t.Fatal("first root web research with nothing recorded: want the advisory")
 	}
 	logTools(projectDir, canonicalToolEvent{Tool: "WebFetch", Summary: "https://example.com"})
-	if got := checkOrchestratorResearchDelegationAdvisory(ev, ctx, nil); got != "" {
+	if got := checkOrchestratorResearchDelegationAdvisory(ev, ctx); got != "" {
 		t.Fatalf("prior web research recorded: want no advisory, got %q", got)
 	}
 }
@@ -86,7 +85,7 @@ func TestOrchestratorResearchAdvisory_SidecarSuppresses(t *testing.T) {
 		logTools(projectDir, canonicalToolEvent{Tool: "Read", Summary: "x.go"}, prior)
 		ctx := &toolUseContext{SessionID: canonGuardSession, ProjectDir: projectDir}
 		ev := &CloudEvent{SessionID: canonGuardSession, CWD: projectDir, ToolName: "WebSearch"}
-		if got := checkOrchestratorResearchDelegationAdvisory(ev, ctx, nil); got != "" {
+		if got := checkOrchestratorResearchDelegationAdvisory(ev, ctx); got != "" {
 			t.Fatalf("prior %s recorded: want no advisory, got %q", prior.Tool, got)
 		}
 	}
@@ -95,9 +94,8 @@ func TestOrchestratorResearchAdvisory_SidecarSuppresses(t *testing.T) {
 // (c) the UserPrompt ACTIVE line comes from the canonical claim ledger.
 func TestUserPrompt_ActiveLineFromClaimLedger(t *testing.T) {
 	projectDir := canonGuardProject(t)
-	stubDaemonRoute(t)
 	ev := &CloudEvent{SessionID: canonGuardSession, CWD: projectDir, Prompt: "carry on", Harness: HarnessClaude}
-	res, err := UserPrompt(ev, nil)
+	res, err := UserPrompt(ev)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -113,9 +111,8 @@ func TestUserPrompt_ActiveLineFromClaimLedger(t *testing.T) {
 		AgentID: db.AgentRootSentinel, StartedAt: time.Now().UTC()}); err != nil {
 		t.Fatal(err)
 	}
-	featureIDCache = featureIDCacheEntry{}
 	ev.Prompt = "carry on, please"
-	res, err = UserPrompt(ev, nil)
+	res, err = UserPrompt(ev)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -149,14 +146,14 @@ func TestGuardsOff_RecordsOverrideInCanonicalLog(t *testing.T) {
 		ToolInput: map[string]any{"command": "ls"}, Harness: HarnessClaude}
 
 	t.Setenv(guardOverrideEnvVar, "")
-	if _, err := PreToolUse(ev, nil); err != nil {
+	if _, err := PreToolUse(ev); err != nil {
 		t.Fatal(err)
 	}
 	if hasGuardOverrideEvent(projectDir) {
 		t.Fatal("override not set: no GuardOverride event expected")
 	}
 	t.Setenv(guardOverrideEnvVar, "1")
-	if _, err := PreToolUse(ev, nil); err != nil {
+	if _, err := PreToolUse(ev); err != nil {
 		t.Fatal(err)
 	}
 	if !hasGuardOverrideEvent(projectDir) {

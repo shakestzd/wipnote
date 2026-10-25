@@ -9,6 +9,7 @@ import (
 	"time"
 
 	dbpkg "github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/db/dbtest"
 	"github.com/shakestzd/wipnote/core/models"
 )
 
@@ -29,7 +30,7 @@ func newFixture(t *testing.T) *fixture {
 	run(t, dir, "git", "config", "user.name", "Test")
 	run(t, dir, "git", "config", "commit.gpgsign", "false")
 
-	database, err := dbpkg.Open("file::memory:?cache=shared")
+	database, err := dbtest.Open("file::memory:?cache=shared")
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
@@ -61,7 +62,7 @@ func (f *fixture) commit(msg string, files map[string]string) string {
 // recordCommit inserts a git_commits read-index row for a hash.
 func (f *fixture) recordCommit(hash, session, feature, msg string, ts time.Time) {
 	f.t.Helper()
-	err := dbpkg.InsertGitCommit(f.db, &models.GitCommit{
+	err := dbtest.InsertGitCommit(f.db, &models.GitCommit{
 		CommitHash: hash,
 		SessionID:  session,
 		FeatureID:  feature,

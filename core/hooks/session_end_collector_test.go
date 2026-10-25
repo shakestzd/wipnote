@@ -117,7 +117,7 @@ func TestSignalCollector_LiveProcess(t *testing.T) {
 // collector has exited, with a positive budget. That function ingests the
 // NDJSON, materialises the rollup and only then publishes .index-offset.
 func TestSessionEnd_FinalizesTelemetry(t *testing.T) {
-	td := setupTestDB(t)
+	setupTestDB(t)
 	projectDir := t.TempDir()
 	sessionID := "sess-finalize-telemetry"
 	t.Setenv("WIPNOTE_SESSION_ID", sessionID)
@@ -136,10 +136,10 @@ func TestSessionEnd_FinalizesTelemetry(t *testing.T) {
 	t.Cleanup(func() { SessionTelemetryFn = orig })
 
 	evt := &CloudEvent{SessionID: sessionID, CWD: projectDir}
-	if _, err := SessionEnd(evt, td.DB, projectDir); err != nil {
+	if _, err := SessionEnd(evt, projectDir); err != nil {
 		t.Fatalf("SessionEnd: %v", err)
 	}
-	CatchUpEndedSessions(td.DB, projectDir, "", true) // deferred handoff, features, telemetry (bug-1daed6d6)
+	CatchUpEndedSessions(projectDir, "", true) // deferred handoff, features, telemetry (bug-1daed6d6)
 	if calls != 1 {
 		t.Fatalf("SessionTelemetryFn called %d times, want 1", calls)
 	}

@@ -25,9 +25,9 @@ func TestResearchGuardVerdict_YoloBlocksAttendedAdvises(t *testing.T) {
 // A yolo subagent whose own IsYoloMode is false but whose parent is yolo must
 // still be blocked by the research guards (bug-0ed4e469 signal).
 func TestResearchGuard_SubagentWithYoloParentBlocks(t *testing.T) {
-	hgDir, childSessID, database := setupYoloParentDB(t, true)
+	hgDir, childSessID := setupYoloParent(t, true)
 	ctx := &toolUseContext{IsYoloMode: false, IsSubagent: true, HgDir: hgDir, SessionID: childSessID}
-	yoloContext := resilientYoloContext(database, ctx)
+	yoloContext := resilientYoloContext(ctx)
 	if block, _ := researchGuardVerdict("Research is required before writing code.", yoloContext); !block {
 		t.Error("subagent with yolo parent must be blocked")
 	}

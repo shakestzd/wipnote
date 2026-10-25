@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/db/dbtest"
 	"github.com/shakestzd/wipnote/core/models"
 	"github.com/shakestzd/wipnote/internal/blame"
 )
@@ -17,7 +18,7 @@ import (
 // openTestDB creates an in-memory SQLite database with the full wipnote schema.
 func openTestDB(t testing.TB) *sql.DB {
 	t.Helper()
-	database, err := db.Open(":memory:")
+	database, err := dbtest.Open(":memory:")
 	if err != nil {
 		t.Fatalf("open test db: %v", err)
 	}

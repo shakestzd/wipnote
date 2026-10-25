@@ -8,7 +8,6 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
-	"maps"
 	"strings"
 )
 
@@ -23,19 +22,6 @@ var Pragmas = map[string]string{
 	"cache_size":   "-64000",
 	"temp_store":   "MEMORY",
 	"mmap_size":    "0",
-}
-
-// BuildPragmas returns a pragma map with journal_mode resolved for the given
-// database path. On filesystems where WAL-mode mmap is unsafe (virtiofs, FUSE,
-// 9p, overlayfs, NFS, SMB), journal_mode is set to DELETE to avoid SIGBUS
-// crashes. On safelisted native filesystems it stays WAL.
-func BuildPragmas(dbPath string) map[string]string {
-	p := make(map[string]string, len(Pragmas))
-	maps.Copy(p, Pragmas)
-	if isUnsafeForMmap(dbPath) {
-		p["journal_mode"] = "DELETE"
-	}
-	return p
 }
 
 // ApplyPragmas sets all performance PRAGMAs on a database connection.

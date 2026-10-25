@@ -10,6 +10,7 @@ import (
 	"time"
 
 	dbpkg "github.com/shakestzd/wipnote/core/db"
+	"github.com/shakestzd/wipnote/core/db/dbtest"
 	"github.com/shakestzd/wipnote/core/htmlparse"
 )
 
@@ -57,7 +58,7 @@ func setupOrphanTestRepo(t *testing.T) (string, []string) {
 // openTestDB opens an in-memory SQLite DB with the full schema.
 func openTestDB(t *testing.T) *sql.DB {
 	t.Helper()
-	db, err := dbpkg.Open(":memory:")
+	db, err := dbtest.Open(":memory:")
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
