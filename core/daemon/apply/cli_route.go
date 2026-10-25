@@ -3,7 +3,7 @@
 // transitions and session insert/status). This mirrors the committed MVP-3 hook
 // path in internal/hooks/dbgate.go (routeDerivedEventViaDaemon): build a typed
 // DerivedOp, ship it to the per-project writer daemon under a hard deadline,
-// auto-spawning the daemon when absent, and report whether the op was applied.
+// never starting one (bug-5ca53f70), and report whether the op was applied.
 //
 // LIVE-SESSION SAFETY: these run inside foreground CLI commands that the user
 // is waiting on (feature/bug/spike start+complete, session start+end). The
@@ -23,7 +23,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"os"
 	"time"
 
 	"github.com/shakestzd/wipnote/core/daemon"
@@ -31,7 +30,7 @@ import (
 )
 
 // CLISubmitBudget is the TOTAL wall-clock budget for a daemon-routed CLI
-// derived-write attempt (dial + submit; an auto-spawn is never waited for). It
+// derived-write attempt (dial + submit; it never starts a writer). It
 // matches the hook tree's daemonSubmitBudget — the failure boundary is the
 // same: exceed it and the caller falls back to the direct path. Foreground CLI
 // commands must never hang on a wedged or absent daemon.
@@ -72,7 +71,7 @@ func routeViaDaemon(projectRoot, opID, opType string, op DerivedOp) bool {
 // async is false it requests an applied-ack (AckApplied/AckDuplicate ⇒ true);
 // when async is true it requests an enqueue-only ack (AckEnqueued/AckDuplicate,
 // and also AckApplied for a warm fast-path, all ⇒ true). budget bounds the
-// whole dial+spawn+submit. Empty projectRoot, encode failure, unavailability,
+// whole dial+submit. Empty projectRoot, encode failure, unavailability,
 // ctx deadline, queue-full, or any error ack all return false so the caller
 // falls back to its direct write.
 func submitViaDaemon(projectRoot, opID, opType string, op DerivedOp, async bool, budget time.Duration) bool {
@@ -93,9 +92,8 @@ func submitViaDaemon(projectRoot, opID, opType string, op DerivedOp, async bool,
 	ctx, cancel := context.WithTimeout(context.Background(), budget)
 	defer cancel()
 
-	selfExe, _ := os.Executable()
-	client := daemon.NewWriterClient(projectRoot)
-	ack, err := client.SubmitOrSpawn(ctx, projectRoot, selfExe, env)
+	// Submit never starts a writer: only a launcher does (bug-5ca53f70).
+	ack, err := daemon.NewWriterClient(projectRoot).Submit(ctx, env)
 	if err != nil {
 		return false // ErrWriterUnavailable / ctx deadline → fall back
 	}

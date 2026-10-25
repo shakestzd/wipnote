@@ -105,8 +105,8 @@ func TestMain(m *testing.M) {
 	}
 
 	// Suppress the headless-writer daemon fork for the whole unit suite:
-	// workitem.Open -> SubmitOrSpawn must not spawn a background writer during
-	// tests (checked at core/daemon/spawn.go). Set process-wide before m.Run.
+	// a launcher under test must not spawn a background writer (checked by
+	// EnsureDaemon in core/daemon/ensure.go). Hooks and CLI never spawn one. Set process-wide before m.Run.
 	os.Setenv("WIPNOTE_NO_AUTO_WRITER", "1") //nolint:errcheck
 
 	// Share ONE warm GOCACHE across the package so the gate tests' nested

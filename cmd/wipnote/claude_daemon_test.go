@@ -3,7 +3,9 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -87,5 +89,43 @@ func TestDaemonEnsure_NotAProjectIsSilent(t *testing.T) {
 	var out bytes.Buffer
 	if env := startDaemonEnsure(t.TempDir()).sessionEnv(&out, time.Second); env != nil || out.Len() != 0 {
 		t.Fatalf("env=%v out=%q, want nothing outside a wipnote project", env, out.String())
+	}
+}
+
+// A lease held by an older wipnote gets exactly one line, whatever the
+// ensure returned (bug-5ca53f70).
+func TestDaemonEnsure_OlderOwnerIsOneLine(t *testing.T) {
+	oldVersion := version
+	version = "0.81.0"
+	t.Cleanup(func() { version = oldVersion })
+	for name, ensureErr := range map[string]error{
+		"attached":     nil,
+		"legacy owner": fmt.Errorf("%w (pid 42)", daemon.ErrDaemonLegacyOwner),
+	} {
+		root := stubEnsure(t, func(context.Context) (string, error) {
+			if ensureErr != nil {
+				return "", ensureErr
+			}
+			return "/tmp/x.sock", nil
+		})
+		if ensureErr == nil {
+			writeOlderLeaseForTest(t, root)
+		}
+		var out bytes.Buffer
+		startDaemonEnsure(root).sessionEnv(&out, time.Second)
+		if got := out.String(); strings.Count(got, "older wipnote") != 1 {
+			t.Fatalf("%s: output = %q, want one older-owner line", name, got)
+		}
+	}
+}
+
+// writeOlderLeaseForTest leaves a live-looking lease from version 0.0.1.
+func writeOlderLeaseForTest(t *testing.T, root string) {
+	t.Helper()
+	now := time.Now().UTC()
+	rec := daemon.LeaseRecord{Format: 2, Version: "0.0.1", Token: "t", PID: 1, BootID: "b", PIDNamespace: "n", StartedAt: now, HeartbeatAt: now}
+	data, _ := json.Marshal(rec)
+	if err := os.WriteFile(daemon.LeasePath(root), data, 0o644); err != nil {
+		t.Fatal(err)
 	}
 }

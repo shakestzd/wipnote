@@ -36,10 +36,35 @@ var ErrDaemonReadUnsupported = errors.New("daemon: resident daemon does not spea
 // once it binds. The launcher prints nothing for it (bug-06d2c91d).
 var ErrDaemonStarting = errors.New("daemon: still starting")
 
-// ensureReadyBudget bounds the wait for a freshly spawned daemon to bind and
-// answer a ping. The launcher runs EnsureDaemon in the background and joins it
-// with a much shorter budget, so this wait is never on the launch path.
+// ErrDaemonLegacyOwner is returned by EnsureDaemon when no daemon answers but
+// a live writer from before the heartbeat lease (bug-5ca53f70) still holds
+// .wipnote/writer.pid. The launcher does not start a second writer beside it,
+// and it cannot stop another session's process safely, so it leaves the old
+// writer running and says so in one line.
+var ErrDaemonLegacyOwner = errors.New("daemon: an older wipnote writer holds the legacy lease")
+
+// ensureReadyBudget is the default bound on the wait for a freshly spawned
+// daemon to bind and answer a ping. The launcher runs EnsureDaemon in the
+// background and joins it with a much shorter budget, so this wait is never
+// on the launch path.
+//
+// WIPNOTE_DAEMON_READY_TIMEOUT overrides it with a Go duration ("15s", "1m").
+// Raise it where the socket appears slowly, such as a project on a bind mount
+// from another kernel. An empty, unparsable or non-positive value keeps the
+// default. See ReadyTimeout.
 const ensureReadyBudget = 5 * time.Second
+
+// readyTimeoutEnv names the override for ensureReadyBudget.
+const readyTimeoutEnv = "WIPNOTE_DAEMON_READY_TIMEOUT"
+
+// ReadyTimeout is the launcher's readiness bound: ensureReadyBudget, or the
+// WIPNOTE_DAEMON_READY_TIMEOUT override.
+func ReadyTimeout() time.Duration {
+	if d, err := time.ParseDuration(os.Getenv(readyTimeoutEnv)); err == nil && d > 0 {
+		return d
+	}
+	return ensureReadyBudget
+}
 
 // ensureDialInterval is the backoff between readiness dials.
 const ensureDialInterval = 25 * time.Millisecond
@@ -70,26 +95,10 @@ func EnsureDaemon(ctx context.Context, projectRoot, selfExe string, attachPID in
 		return "", fmt.Errorf("daemon: auto-start disabled by WIPNOTE_NO_AUTO_WRITER")
 	}
 
-	// No daemon reachable. Take the O_EXCL lease to decide whether WE spawn or
-	// join a racer's spawn — the same guard the write path uses, so two racing
-	// launchers can never fork a pair of daemons.
-	lease, lerr := AcquireLease(projectRoot)
-	switch {
-	case lerr == nil:
-		// We hold the lease but we are not the daemon; the child must own it.
-		// Release, then spawn. A child that fails to start simply leaves the
-		// lease free for the next attempt.
-		_ = lease.Release()
-		if serr := spawnHeadlessWriter(selfExe, projectRoot); serr != nil {
-			return "", fmt.Errorf("daemon: spawn: %w", serr)
-		}
-	case lerr == ErrLeaseHeld:
-		// Another launcher is starting one; wait for its socket.
-	default:
-		return "", fmt.Errorf("daemon: acquire lease: %w", lerr)
+	if err := startWriterUnlessHeld(projectRoot, selfExe); err != nil {
+		return "", err
 	}
-
-	if !waitForSocketPath(ctx, client.SocketPath(), ensureReadyBudget) {
+	if !waitForSocketPath(ctx, client.SocketPath(), ReadyTimeout()) {
 		return "", fmt.Errorf("%w: socket not bound yet", ErrDaemonStarting)
 	}
 	if _, err := client.Ping(ctx); err != nil {
@@ -99,6 +108,25 @@ func EnsureDaemon(ctx context.Context, projectRoot, selfExe string, attachPID in
 		return "", fmt.Errorf("daemon: ping after spawn: %w", err)
 	}
 	return attachAndReturn(ctx, client, attachPID)
+}
+
+// startWriterUnlessHeld spawns a writer unless somebody already holds the
+// lease. A current-format owner is starting or serving, so the caller waits
+// for its socket. A live legacy owner is left alone (ErrDaemonLegacyOwner).
+// A spawned writer that loses a race with another launcher's simply exits:
+// the lease admits one owner, so spawning on a stale reading is safe.
+func startWriterUnlessHeld(projectRoot, selfExe string) error {
+	state := InspectLease(projectRoot)
+	switch state.Status {
+	case LeaseLegacyHeld:
+		return fmt.Errorf("%w (pid %d)", ErrDaemonLegacyOwner, state.LegacyPID)
+	case LeaseHeld:
+		return nil
+	}
+	if err := spawnHeadlessWriter(selfExe, projectRoot); err != nil {
+		return fmt.Errorf("daemon: spawn: %w", err)
+	}
+	return nil
 }
 
 // attachAndReturn registers attachPID with the daemon and returns its socket.

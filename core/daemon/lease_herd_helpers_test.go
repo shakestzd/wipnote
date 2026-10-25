@@ -167,3 +167,27 @@ func assertOneServer(t *testing.T, h *herd, round int) {
 			round, len(alive), alive, sockPID, leasePID)
 	}
 }
+
+// wave starts n more children into a running herd and releases them
+// together. Children already past the barrier are not affected.
+func (h *herd) wave(n int, idle time.Duration, extraEnv []string) {
+	h.t.Helper()
+	_ = os.Remove(barrierPath(h.root))
+	for i := 0; i < n; i++ {
+		h.spawn(idle, extraEnv)
+	}
+	if err := os.WriteFile(barrierPath(h.root), nil, 0o644); err != nil {
+		h.t.Fatal(err)
+	}
+}
+
+// exitCodes counts exited children by exit code.
+func (h *herd) exitCodes() map[int]int {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	out := map[int]int{}
+	for _, c := range h.code {
+		out[c]++
+	}
+	return out
+}

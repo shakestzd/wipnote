@@ -2,12 +2,12 @@ package daemon
 
 import (
 	"bufio"
+	"io/fs"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
-	"os"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -55,6 +55,11 @@ type Listener struct {
 	queue    *writequeue.Queue
 	applier  Applier
 	sockPath string
+
+	// lease and sockInfo are what this listener owns: the writer lease (nil
+	// for a fixture) and the socket inode it bound. See socket_life.go.
+	lease    *Lease
+	sockInfo fs.FileInfo
 
 	// reader answers read-protocol frames (feat-f6759e37). Nil means this
 	// daemon serves writes only, and every read is answered
@@ -111,15 +116,18 @@ type Listener struct {
 // ListenerConfig configures a Listener. SocketPath is the Unix socket the
 // listener binds (caller derives it via SocketPath(projectRoot)). Queue is
 // the single-writer queue ops funnel through — the SAME type serve_child
-// constructs. Applier maps op_type+payload to a WriteOp. OwnerPID is the
-// process ID of the lease holder (the process that called AcquireLease);
-// passed to unlinkStaleSocket so the lease holder may unlink its own stale
-// socket (feat-075c110d bugfix).
+// constructs. Applier maps op_type+payload to a WriteOp.
 type ListenerConfig struct {
 	SocketPath string
 	Queue      *writequeue.Queue
 	Applier    Applier
-	OwnerPID   int
+
+	// Lease is the writer lease this process holds (bug-5ca53f70). Only the
+	// lease owner may bind the socket: NewListener refuses when Lease no
+	// longer names this process, and the listener exits once it stops doing
+	// so. A nil Lease is for in-process fixtures: it binds only when nobody
+	// holds the project's lease.
+	Lease *Lease
 
 	// Reader answers read-protocol frames (feat-f6759e37). Optional: a nil
 	// Reader yields a write-only daemon whose reads are all answered
@@ -135,16 +143,13 @@ type ListenerConfig struct {
 
 // NewListener binds the Unix socket and returns a Listener ready to Serve.
 //
-// A leftover socket file from a crashed prior owner is unlinked before bind
-// (a Unix socket bind fails with EADDRINUSE if the path already exists). The
-// lease — not the socket inode — is the ownership authority: the caller is
-// expected to already hold the write lease (see AcquireLease) before binding,
-// and AcquireLease only returns to a single live owner. So when we reach
-// here a leftover socket is necessarily stale and safe to unlink. For defence
-// in depth NewListener still confirms no live lease owner before unlinking, so
-// a programming error that called NewListener without the lease cannot stomp a
-// live writer's socket. When the lease owner (cfg.OwnerPID) is the current
-// process, the socket is always reclaimed (feat-075c110d bugfix).
+// The lease, not the socket inode, is the ownership authority. Before it
+// binds, unlinkStaleSocket confirms this process may bind at all (it holds
+// cfg.Lease, or nobody holds the lease) and removes a leftover socket file,
+// since a Unix-socket bind fails with EADDRINUSE while the path exists.
+// Go's unlink-on-close is turned off: Close removes the path only while it is
+// still the inode this listener bound, so a server that lost its socket can
+// never delete its successor's.
 func NewListener(cfg ListenerConfig) (*Listener, error) {
 	if cfg.Queue == nil {
 		return nil, errors.New("daemon: NewListener requires a non-nil Queue")
@@ -152,13 +157,17 @@ func NewListener(cfg ListenerConfig) (*Listener, error) {
 	if cfg.Applier == nil {
 		return nil, errors.New("daemon: NewListener requires a non-nil Applier")
 	}
-	if err := unlinkStaleSocket(cfg.SocketPath, cfg.OwnerPID); err != nil {
+	if err := unlinkStaleSocket(cfg.SocketPath, cfg.Lease); err != nil {
 		return nil, err
 	}
 	ln, err := net.Listen("unix", cfg.SocketPath)
 	if err != nil {
 		return nil, fmt.Errorf("listen unix %s: %w", cfg.SocketPath, err)
 	}
+	if ul, ok := ln.(*net.UnixListener); ok {
+		ul.SetUnlinkOnClose(false)
+	}
+	sockInfo, _ := leaseFS.Stat(cfg.SocketPath)
 	l := &Listener{
 		ln:           ln,
 		queue:        cfg.Queue,
@@ -166,6 +175,8 @@ func NewListener(cfg ListenerConfig) (*Listener, error) {
 		reader:       cfg.Reader,
 		ready:        cfg.Ready,
 		sockPath:     cfg.SocketPath,
+		lease:        cfg.Lease,
+		sockInfo:     sockInfo,
 		dedupApplied: newLRUSet(dedupCapacity),
 		dedupPending: newLRUSet(dedupCapacity),
 	}
@@ -185,6 +196,9 @@ func (l *Listener) Serve(ctx context.Context) error {
 		conn, err := l.ln.Accept()
 		if err != nil {
 			if errors.Is(err, net.ErrClosed) {
+				// Wait for Close to finish removing our socket file, so the
+				// path is gone by the time Serve returns.
+				_ = l.Close()
 				l.wg.Wait()
 				return nil
 			}
@@ -196,92 +210,6 @@ func (l *Listener) Serve(ctx context.Context) error {
 			l.handleConn(ctx, conn)
 		}()
 	}
-}
-
-// DefaultIdleTimeout is how long a headless writer waits with zero ops before
-// it self-terminates (running the graceful-shutdown cleanup). This bounds the
-// lifetime of an auto-spawned writer so it never lingers indefinitely holding
-// the lease + socket; the next write simply auto-spawns a fresh writer. Five
-// minutes is long enough to amortise spawn cost across a burst of hook/CLI
-// writes yet short enough that an idle project releases its writer promptly.
-const DefaultIdleTimeout = 5 * time.Minute
-
-// idleCheckInterval is how often ServeWithIdleTimeout samples idleness. Kept
-// well below DefaultIdleTimeout so the actual exit lands within one interval of
-// the configured deadline.
-const idleCheckInterval = 15 * time.Second
-
-// ServeWithIdleTimeout runs Serve and additionally cancels (via the returned
-// derived context) once the writer has been idle — no op in flight AND no op
-// submitted within idleTimeout. It returns when Serve returns. Passing
-// idleTimeout <= 0 disables idle-exit (equivalent to plain Serve).
-//
-// The idle watcher resets implicitly: process() stamps lastActivity on every
-// op and increments inFlight for the op's whole lifetime, so a steady stream of
-// writes — or even a single slow in-flight commit — keeps the writer alive.
-// On idle, the watcher cancels an internal context which closes the listener;
-// the CALLER's cleanup (socket + lease removal) then runs exactly as it does
-// for a signal-driven shutdown.
-func (l *Listener) ServeWithIdleTimeout(ctx context.Context, idleTimeout time.Duration) error {
-	if idleTimeout <= 0 {
-		return l.Serve(ctx)
-	}
-	idleCtx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
-	interval := idleCheckInterval
-	if idleTimeout < interval {
-		interval = idleTimeout / 2
-		if interval <= 0 {
-			interval = idleTimeout
-		}
-	}
-
-	done := make(chan struct{})
-	go func() {
-		ticker := time.NewTicker(interval)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-idleCtx.Done():
-				return
-			case <-done:
-				return
-			case <-ticker.C:
-				if l.isIdle(idleTimeout) {
-					cancel() // triggers Serve's listener close
-					return
-				}
-			}
-		}
-	}()
-
-	err := l.Serve(idleCtx)
-	close(done)
-	return err
-}
-
-// isIdle reports whether no op is in flight and the last op completed more than
-// idleTimeout ago. Both conditions are required: a long-running commit keeps
-// inFlight > 0 even if lastActivity briefly looks old.
-//
-// A THIRD condition was added with the read protocol (feat-f6759e37): a daemon
-// with any live ATTACHED launcher process is never idle. The availability
-// policy says a launcher-started session guarantees the daemon and hooks do not
-// negotiate — so the daemon must not exit under a session that was promised it,
-// merely because the user stepped away for longer than the idle window. The
-// attachment is pid-scoped rather than open-ended, so the daemon still exits
-// once every launcher that claimed it has gone: a shared daemon outlives any
-// ONE session, not all of them.
-func (l *Listener) isIdle(idleTimeout time.Duration) bool {
-	if l.inFlight.Load() != 0 || !l.isReady() {
-		return false
-	}
-	if l.liveAttachedCount() > 0 {
-		return false
-	}
-	last := time.Unix(0, l.lastActivity.Load())
-	return time.Since(last) >= idleTimeout
 }
 
 // handleConn reads newline-delimited frames and writes one reply per frame.
@@ -463,8 +391,10 @@ func (l *Listener) Close() error {
 	var err error
 	l.closeOnce.Do(func() {
 		err = l.ln.Close()
-		// Best-effort socket unlink so the next owner binds cleanly.
-		_ = os.Remove(l.sockPath)
+		// Unlink so the next owner binds cleanly, but only our own inode.
+		if l.ownsSocket() {
+			_ = leaseFS.Remove(l.sockPath)
+		}
 	})
 	return err
 }

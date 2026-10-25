@@ -1308,8 +1308,7 @@ func startInProcessWriterDaemon(t *testing.T, projectRoot, dbPath string) func()
 	writerDB.SetMaxOpenConns(1)
 	writerDB.SetMaxIdleConns(1)
 
-	// Hold the writer lease in-process so any (unexpected) SubmitOrSpawn spawn
-	// branch sees a live owner and joins rather than forking a subprocess.
+	// Hold the writer lease in-process: only the lease owner may bind the socket.
 	lease, err := daemon.AcquireLease(projectRoot)
 	if err != nil {
 		writerDB.Close()
@@ -1329,7 +1328,7 @@ func startInProcessWriterDaemon(t *testing.T, projectRoot, dbPath string) func()
 		SocketPath: daemon.SocketPath(projectRoot),
 		Queue:      q,
 		Applier:    apply.NewApplier(writerDB),
-		OwnerPID:   os.Getpid(),
+		Lease:      lease,
 	})
 	if err != nil {
 		q.Stop(time.Second)

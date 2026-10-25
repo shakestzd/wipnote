@@ -6,15 +6,11 @@ import (
 	"path/filepath"
 	"strconv"
 	"sync/atomic"
-	"syscall"
 	"testing"
 	"time"
 
 	"github.com/shakestzd/wipnote/core/db/writequeue"
 )
-
-// syscallZero is the kill(pid,0) liveness probe signal.
-var syscallZero = syscall.Signal(0)
 
 // newTestListener starts a Listener on a temp-dir socket backed by a started
 // writequeue with the given applier. It returns the listener, the socket
@@ -197,83 +193,4 @@ func TestClientUnavailable(t *testing.T) {
 	if err != ErrWriterUnavailable {
 		t.Fatalf("err = %v, want ErrWriterUnavailable", err)
 	}
-}
-
-// TestLease_AcquireAndHold verifies a second O_EXCL attempt fails while the
-// owner holds the lease, and succeeds after the stale lease is reclaimed.
-func TestLease_AcquireAndHold(t *testing.T) {
-	// Opt into the test-only project-root-name fallback (bug-fddf5820,
-	// finding 7); production keeps the strict cmdline-only guard.
-	t.Setenv("WIPNOTE_LEASE_TEST_FALLBACK", "1")
-	// Use a "wipnote"-named subdirectory so isWriterProcessImpl's project-root
-	// fallback fires when the test binary path does not contain "wipnote"
-	// (e.g. on CI without GOTMPDIR set). See lease_linux.go for the constraint.
-	dir := filepath.Join(t.TempDir(), "wipnote-test")
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		t.Fatalf("mkdir wipnote-test: %v", err)
-	}
-
-	l1, err := AcquireLease(dir)
-	if err != nil {
-		t.Fatalf("first acquire: %v", err)
-	}
-
-	// Second attempt while owner (this live process) holds it -> ErrLeaseHeld.
-	if _, err := AcquireLease(dir); err != ErrLeaseHeld {
-		t.Fatalf("second acquire err = %v, want ErrLeaseHeld", err)
-	}
-
-	// Release, then re-acquire succeeds.
-	if err := l1.Release(); err != nil {
-		t.Fatalf("release: %v", err)
-	}
-	l2, err := AcquireLease(dir)
-	if err != nil {
-		t.Fatalf("re-acquire after release: %v", err)
-	}
-	_ = l2.Release()
-}
-
-// TestLease_StaleTakeover verifies a lease recorded for a dead PID is
-// reclaimable via the O_EXCL re-attempt.
-func TestLease_StaleTakeover(t *testing.T) {
-	dir := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(dir, ".wipnote"), 0o755); err != nil {
-		t.Fatalf("mkdir: %v", err)
-	}
-	// Write a lease file pointing at a PID that is essentially never alive.
-	deadPID := findDeadPID()
-	if err := os.WriteFile(LeasePath(dir), []byte(strconv.Itoa(deadPID)+"\n"), 0o644); err != nil {
-		t.Fatalf("write stale lease: %v", err)
-	}
-
-	l, err := AcquireLease(dir)
-	if err != nil {
-		t.Fatalf("acquire over stale lease: %v", err)
-	}
-	defer l.Release()
-
-	// The reclaimed lease must now record OUR pid.
-	data, err := os.ReadFile(LeasePath(dir))
-	if err != nil {
-		t.Fatalf("read reclaimed lease: %v", err)
-	}
-	if got := string(data); got != strconv.Itoa(os.Getpid())+"\n" {
-		t.Fatalf("reclaimed lease pid = %q, want our pid %d", got, os.Getpid())
-	}
-}
-
-// findDeadPID returns a PID that is not currently alive. High PIDs are
-// almost never in use; we probe downward from a large value.
-func findDeadPID() int {
-	for pid := 999999; pid > 90000; pid -= 7919 {
-		proc, err := os.FindProcess(pid)
-		if err != nil {
-			return pid
-		}
-		if proc.Signal(syscallZero) != nil {
-			return pid
-		}
-	}
-	return 999983
 }

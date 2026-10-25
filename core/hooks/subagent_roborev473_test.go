@@ -63,7 +63,7 @@ func startInProcessDaemonForHooks(t *testing.T, projectRoot, dbPath string) func
 		SocketPath: daemon.SocketPath(projectRoot),
 		Queue:      q,
 		Applier:    apply.NewApplier(writerDB),
-		OwnerPID:   os.Getpid(),
+		Lease:      lease,
 	})
 	if err != nil {
 		q.Stop(time.Second)

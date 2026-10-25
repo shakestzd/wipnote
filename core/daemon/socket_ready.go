@@ -17,7 +17,9 @@ package daemon
 //     what it did before, when no socket existed yet.
 //   - Reads are unaffected: the Reader works from canonical files, not from
 //     the projection.
-//   - The daemon is never idle, so it cannot exit before the build ends.
+//   - The build is busy work on behalf of clients only. A daemon with no
+//     client for its whole idle window exits even mid-build, and its owner
+//     cancels the build through ctx (bug-5ca53f70; see socket_life.go).
 
 // NotReadyError is the error text of the ack an applied-ack write gets while
 // the daemon's startup projection is still being built.

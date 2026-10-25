@@ -127,6 +127,10 @@ func execAntigravity(opts antigravityLaunchOpts) error {
 	}
 	writeLaunchMarker("default", markerRoot)
 
+	// Start the work-item daemon now and collect it just before exec. Only a
+	// launcher starts the writer (bug-5ca53f70): Antigravity hooks never do.
+	daemonEnsure := startDaemonEnsure(markerRoot)
+
 	agyPath, err := exec.LookPath("agy")
 	if err != nil {
 		return fmt.Errorf("agy not found in PATH: %w\nInstall Antigravity CLI first.", err)
@@ -176,6 +180,7 @@ func execAntigravity(opts antigravityLaunchOpts) error {
 	env = append(env, "WIPNOTE_AGENT=antigravity")
 	env = buildAntigravityOtelEnv(env, otelPort, otelSessionID)
 	env = mergeLauncherEnv(env, opts.ExtraEnv...)
+	env = mergeLauncherEnv(env, daemonEnsure.sessionEnv(os.Stderr, daemonJoinBudget)...)
 
 	// Make the orchestrator system prompt available to the PreInvocation hook,
 	// which injects it via injectSteps[].systemMessage — the only channel agy

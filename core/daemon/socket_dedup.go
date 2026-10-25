@@ -1,45 +1,5 @@
 package daemon
 
-import (
-	"fmt"
-	"os"
-	"path/filepath"
-)
-
-// unlinkStaleSocket removes a leftover socket inode so a fresh bind succeeds
-// after an unclean exit. It refuses to unlink when a LIVE lease owner exists
-// for the same project (lease co-located with the socket under .wipnote/): the
-// lease, not the socket, is the ownership authority, so a live owner's socket
-// must never be stomped. However, if the lease is held by ownerPID (the current
-// lease holder), the socket is reclaimable and will be unlinked — the lease
-// holder may clear its own stale socket before binding (feat-075c110d bugfix).
-// A missing socket is a no-op.
-func unlinkStaleSocket(sockPath string, ownerPID int) error {
-	if _, err := os.Lstat(sockPath); err != nil {
-		if os.IsNotExist(err) {
-			return nil
-		}
-		return fmt.Errorf("stat socket %s: %w", sockPath, err)
-	}
-	// The lease lives next to the socket: .wipnote/writer.pid alongside
-	// .wipnote/writer.sock. If a live owner still holds it, do not unlink —
-	// unless the owner is us (ownerPID == our pid), in which case the socket
-	// is our stale leftover and we may reclaim it.
-	leasePath := filepath.Join(filepath.Dir(sockPath), "writer.pid")
-	if leaseOwnerAlive(leasePath) {
-		// Check if the live owner is us (the lease holder passed to NewListener).
-		if ownerPID != os.Getpid() {
-			return fmt.Errorf("daemon: refusing to unlink socket %s: a live writer holds the lease", sockPath)
-		}
-		// The lease is held by the current process — the socket is our stale
-		// leftover, safe to unlink.
-	}
-	if err := os.Remove(sockPath); err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("clear stale socket: %w", err)
-	}
-	return nil
-}
-
 // recordApplied adds opID to the APPLIED dedup set (no-op for an empty id). Used
 // by the sync path AFTER SubmitSync confirms the commit, so a later duplicate of
 // a known-committed op durably dedups (AckDuplicate). It also defensively clears
