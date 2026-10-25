@@ -7,7 +7,7 @@ meta:
     status: finalized
     priority: medium
     schema_version: v4
-    version: 44
+    version: 45
 design:
     problem: |
         ## Problem
@@ -1829,6 +1829,30 @@ slices:
       effort: S
       risk: Low
       tests: 'Unit: TestBrief_UnderLimit, TestBrief_TrimNamesCutSections, TestBrief_NoHostPaths, TestBrief_Deterministic, TestBrief_SectionOrder.'
+      approved: false
+      comment: ""
+    - id: slic-f9043a7e
+      num: 25
+      title: Overview state vocabulary for delegate
+      what: 'delegate list and the orchestra band and run.html group workers and runs with the Projects Overview groups: Working; Waiting on you; Ready for review; Landing; Idle; Resolved. A table maps slice 10 readiness states and run states to those groups.'
+      why: 'Owner 2026-10-25: delegate plus herdr is a multi-harness Projects harness, so it should speak the same state language as the Projects Overview.'
+      files:
+        - internal/delegate/session/groups.go
+        - internal/delegate/session/groups_test.go
+        - mods/wipnote-orchestra/hooks/model.ts
+        - mods/wipnote-orchestra/tests/runs.test.ts
+        - internal/delegate/render/page.go
+      deps:
+        - 10
+        - 19
+      done_when:
+        - Every readiness and run state maps to exactly one group
+        - question and failed map to Waiting on you
+        - An open PR maps to Ready for review and an approved or queued one to Landing
+        - The band and list and run page show the same group for the same run
+      effort: S
+      risk: Low
+      tests: 'Unit: TestGroups_EveryStateMapped, TestGroups_QuestionIsWaitingOnYou, TestGroups_FailedIsWaitingOnYou, TestGroups_PRStates. Mod: runs.test.ts groups rows. Cross: TestGroups_BandListPageAgree.'
       approved: false
       comment: ""
 questions:
