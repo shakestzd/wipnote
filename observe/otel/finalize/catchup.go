@@ -14,6 +14,7 @@ import (
 
 // CatchUpResult counts what one CatchUp pass did.
 type CatchUpResult struct {
+	Stale      int // sessions found eligible: quiet and not yet marked
 	Finalized  int // sessions replayed, rolled up and marked
 	Incomplete int // sessions the budget ran out on; retried next pass
 	Failed     int // sessions that returned an error
@@ -32,7 +33,9 @@ type staleSession struct {
 // appended. Oldest sessions go first, and the pass stops when ctx expires.
 func CatchUp(ctx context.Context, projectDir, activeSessionID string) CatchUpResult {
 	var res CatchUpResult
-	for _, s := range staleSessions(projectDir, activeSessionID, time.Now()) {
+	stale := staleSessions(projectDir, activeSessionID, time.Now())
+	res.Stale = len(stale)
+	for _, s := range stale {
 		if ctx.Err() != nil {
 			break
 		}
@@ -45,6 +48,7 @@ func CatchUp(ctx context.Context, projectDir, activeSessionID string) CatchUpRes
 			res.Finalized++
 		default:
 			res.Incomplete++
+			log.Printf("telemetry catch-up: session %s incomplete: offset=%d size=%d", s.id, out.Offset, out.Size)
 		}
 	}
 	return res

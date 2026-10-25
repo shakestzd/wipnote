@@ -75,11 +75,21 @@ func runWriterOnly() error {
 	}
 	defer lease.Release()
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Telemetry catch-up must NOT wait for the hydrate below. On a repo with
+	// ~1600 work-item files the hydrate runs one `git log --follow` per file and
+	// took over 15 minutes, so a loop started after it left every unmarked shard
+	// unfinalized for that long (bug-98f32723). Catch-up reads only
+	// events.ndjson and uses its own projection, so it is safe to run now.
+	startTelemetryCatchUpLoop(ctx, telemetryCatchUpInterval, projectRoot)
+
 	writeDB, err := dbpkg.OpenEphemeralProjection()
 	if err != nil {
 		return fmt.Errorf("open ephemeral compatibility db: %w", err)
 	}
-	if err := hydrateCompatibilityDB(writeDB, wipnoteDir); err != nil {
+	if err := hydrateWriterDB(writeDB, wipnoteDir); err != nil {
 		writeDB.Close()
 		return fmt.Errorf("hydrate compatibility db: %w", err)
 	}
@@ -100,8 +110,6 @@ func runWriterOnly() error {
 		Capacity: writequeue.DefaultCapacity,
 		OnError:  func(err error) { log.Printf("writequeue: op error: %v", err) },
 	})
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 	if err := q.Start(ctx); err != nil {
 		return fmt.Errorf("writer queue start: %w", err)
 	}
@@ -172,6 +180,10 @@ func runWriterOnly() error {
 // (archive completed sessions, sweep stale NDJSON). It matches the cadence
 // retention.StartLoop used before this function drove the ticker itself.
 const retentionSweepInterval = 24 * time.Hour
+
+// hydrateWriterDB builds the daemon's startup projection. It is a variable so a
+// test can make it block and prove the maintenance loops do not wait for it.
+var hydrateWriterDB = hydrateCompatibilityDB
 
 // telemetryCatchUpBudget bounds the telemetry catch-up that runs before each
 // retention sweep (daemon and `wipnote prune`). Neither runs under a hook cap,
@@ -304,9 +316,8 @@ func startWriterMaintenance(ctx context.Context, wipnoteDir string) {
 		})
 	})
 
-	// Telemetry catch-up: the guarantee that every shard gets its marker, since
-	// SessionEnd finalize can be cut off. Startup, then every 10m.
-	startTelemetryCatchUpLoop(ctx, telemetryCatchUpInterval, projectRoot)
+	// Telemetry catch-up is started by runWriterOnly before the startup hydrate,
+	// so it is not delayed by it.
 
 	// Out-of-band reconcile drain (feat-c08d1ba1 slice-6). No projection: the
 	// callee ignores the handle and reads canonical artifacts directly, so
