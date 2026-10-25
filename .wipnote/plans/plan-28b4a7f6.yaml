@@ -7,7 +7,7 @@ meta:
     status: finalized
     priority: medium
     schema_version: v4
-    version: 36
+    version: 37
 design:
     problem: |
         ## Problem
@@ -2118,6 +2118,9 @@ critique:
         - risk: A run folder is swept before a resume.
           severity: Low
           mitigation: Resume refuses with that reason (slice 20).
+        - risk: wait trusts hook state alone, so it hangs on a stuck working state or a stopped session, and misses questions the worker writes as files (orch defect, Mac evidence 2026-10-25).
+          severity: High
+          mitigation: Outbox result and q-files count even when hooks are silent; a stopped session ends wait at once. Two-sided tests in slices 11 (D1b, D7) and 17 (D7).
     synthesis: 'All danger items are fixed in this revision. Blockers left: spike spk-87139e0e decides whether delegate run keeps a headless path (slice 8); bug-01f182e5 must be fixed before the worker claim gate (slice 16); slice 1 needs the owner''s orch source; slice 2 must run on the owner''s Mac. The reviewer should look first at slices 10 and 16 (claims), slice 17 (typing answers into panes) and slice 19 (the orchestra merge). Round 3 (2026-10-25): owner decisions R, S, C, L, D and E and the orch inventory findings are applied. New slices: 20 (resume) and 21 (devcontainer workers). The owner then resolved the open points: layout is exactly orch''s (one workers tab per caller, splits, cap 6); wait may write the ledger only under the lock on an open row (F-1); the ccx deny reason shows the --container form (slice 9 exception).'
 feedback:
     entries:
