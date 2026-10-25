@@ -7,7 +7,7 @@ meta:
     status: draft
     priority: medium
     schema_version: v4
-    version: 6
+    version: 7
 design:
     problem: |
         ## Problem
@@ -23,7 +23,7 @@ design:
         - Auto-accepting a worker's trust or permission prompts (brgr does this; we do not copy it by default).
         - Replacing Claude Code's native subagents (Task/Agent) or Codex's native subagents.
         - A dashboard or web view. The dashboard is gone; lineage and the CLI are the read surfaces.
-        - Antigravity workers in v1, unless the owner says otherwise (question q-antigravity).
+        - Antigravity workers in v1 (q-antigravity answered no). The delegate skill is not shipped in the Antigravity tree.
 
         ## Design decisions (rationale in each slice's decisions_notes)
 
@@ -58,7 +58,7 @@ design:
 
         Defined behaviour, which follows from that model whatever q-claim-handoff decides:
 
-        - **How the worker claims.** Its brief begins with `wipnote <kind> start <id>`, so the item lock, the collision gate and the ledger write run unchanged. `spawn` checks that the episode appeared and reports it if not. `spawn` needs a work item: `--work-item`, or else the caller's active claim. It refuses when neither exists.
+        - **How the worker claims.** Its brief begins with `wipnote <kind> start <id>`, so the item lock, the collision gate and the ledger write run unchanged. `spawn` returns before the worker claims, so `delegate wait` and `list` check that the episode appeared and report it if not. `spawn` needs a work item: `--work-item`, or else the caller's active claim. It refuses when neither exists.
         - **The worker stays a root session.** `spawn` does not set `WIPNOTE_PARENT_SESSION`, which would mark the worker as a subagent and drop its sessions-ledger row. The caller link travels in `WIPNOTE_DELEGATE_CALLER` and in the delegations ledger.
         - **Worker stop.** `delegate stop` asks the worker to exit. The worker's own SessionEnd closes its episode as `abandoned`. The delegations ledger records `end_reason=stop`, so lineage shows the stop was deliberate. The caller never writes the worker's shard while the worker lives.
         - **Worker crash or lost pane.** No SessionEnd fires. A `delegate` command in the caller (`wait`, `list` or `stop`) sees the pane gone and confirms that no worker process remains. It then closes only that worker session's episodes as `expired`, the same session-scoped close that `closeClaimEpisodesForSession` uses. `wipnote claims reconcile` stays the backstop. This depends on bug-01f182e5 (reconcile treats live sessions as dead) being fixed first, or reconcile would expire live workers.
@@ -98,17 +98,17 @@ design:
 
         ## Migration
 
-        - **orch users (the owner).** orch keeps working until slices 10 and 11 reach parity. `internal/orchlink` keeps reading orch's registry until slice 13. An import of orch history is optional (q-orch-import).
-        - **codex-herdr-pane users.** The mod keeps working until slice 14 removes it (timing: q-mod-removal). Its settings map to wipnote settings, with a one-time notice. Its run folders under the user cache age out through its own 7-day sweep. `wipnote delegate list` and `view` replace `/codex-runs`.
-        - **The read-only orchlink.** It stays for the migration window, then slice 13 deletes it and `cmd/wipnote/lineage_orch.go`.
+        - **orch users (the owner).** orch keeps working until slices 10 and 11 reach parity. `internal/orchlink` keeps reading orch's registry until the import runs. The import is required: slice 18 (`wipnote delegate import-orch`) copies orch history into the ledger once (q-orch-import).
+        - **codex-herdr-pane users.** The mod is removed by slice 14 in the same release that ships `delegate run` and the redirect (q-mod-removal). Its settings map to wipnote settings, with a one-time notice. Its run folders under the user cache age out through its own 7-day sweep. `wipnote delegate list` and `view` replace `/codex-runs`.
+        - **The read-only orchlink.** It stays until slice 18's import has run. Then slice 13 deletes it and `cmd/wipnote/lineage_orch.go`.
 
         ## Notes
 
         - feat-ac66c687 is `in-progress` (10 of 11 steps), not done. Its open step is Q3/Q4, which this plan answers (decision 4).
         - The OpenUI twin views for this plan's slices are not written yet (follow-up).
     goals:
-        - 'One native path: wipnote delegate spawn, send, wait, result, stop, questions, tree and run, written in Go in the wipnote binary.'
-        - One-shot runs (codex exec/review, claude -p, ccx task) and interactive sessions share one run store, one herdr adapter and one canonical record.
+        - 'One native path: wipnote delegate spawn, send, wait, result, answer, stop, questions, tree, list, view, inbox, run, doctor and import-orch, written in Go in the wipnote binary.'
+        - One-shot runs (codex exec/review, claude -p, ccx task) and interactive sessions share one run store, one herdr adapter and one canonical record. If spike spk-87139e0e shows parity, delegate run becomes spawn, send, wait and stop on an interactive worker, and the headless path is dropped.
         - A spawned worker claims its work item through the existing claim-episode model, and every worker claim ends with a recorded outcome.
         - Every delegation is a canonical row in .wipnote/delegations-ledger.html, linked to its work item and to its caller and worker sessions, and visible in wipnote lineage.
         - The orchestrator settles on durable signals and never parses a pane's screen to decide that a worker finished.
@@ -187,18 +187,19 @@ design:
 slices:
     - id: slic-0a1f3c11
       num: 1
-      title: Bring in the orch source and README as reference
-      what: The owner shares the orch repo. Import its README and a pinned source snapshot, or an inventory only (q-orch-source), as read-only reference. Write an inventory that maps every orch command, flag, file and event to its wipnote delegate target. Scrub host paths and user names.
+      title: Bring in the orch README and an inventory as reference
+      what: Import orch's README (scrubbed) and write docs/design/orch-inventory.md from the owner's local source. The source stays outside the repo.
       why: orch is the reference for the port, and its source exists only on the owner's machine. Slices 5, 10 and 11 need its exact behaviour (mailbox layout, pinning, verified stop).
       files:
         - docs/reference/orch/README.md
-        - docs/reference/orch/SOURCE.md
+        - docs/reference/orch/PROVENANCE.md
         - docs/design/orch-inventory.md
       deps: []
       done_when:
         - The inventory lists every orch subcommand and flag, each with a wipnote delegate target or 'not ported' and a reason
+        - The inventory names the orch file and function for each behaviour slices 5, 10 and 11 copy (mailbox layout, pinning, verified stop)
+        - PROVENANCE.md names the orch commit that was read and holds no code
         - wipnote check host-paths reports nothing in docs/reference/orch/ or docs/design/orch-inventory.md
-        - SOURCE.md names the orch commit, its license and what was scrubbed
       effort: S
       risk: Med
       tests: |
@@ -209,18 +210,18 @@ slices:
       comment: ""
       research_waiver: Internal source import. The owner supplies the material and no external standard applies.
       decisions_notes: |
-        **Trigger:** the owner shares the repo (read access, a fork or an archive).
-        **State:** reference only. Nothing in docs/reference/orch/ is built, run or imported by Go code.
-        **Payload:** a README copy; SOURCE.md with commit, license and a scrub log; docs/design/orch-inventory.md as the port checklist.
-        **Rejected:** a git submodule, because it pulls a private remote into every clone. Porting from the README alone is also rejected: feat-ac66c687 found the README stale on mail roots.
-        **Risk:** the license is unknown and the source may hold host paths or user names, so scrub before commit.
+        **Trigger:** the owner reads the orch source on the local machine, or shares a read-only view of it.
+        **State:** reference only (q-orch-source answered 2026-10-25: inventory-only). No orch code enters the repo. Nothing in docs/reference/orch/ is built, run or imported by Go code.
+        **Payload:** a scrubbed README copy; PROVENANCE.md with the orch commit that was read; docs/design/orch-inventory.md as the port checklist, with orch file and function names.
+        **Rejected:** a git submodule, because it pulls a private remote into every clone. A source snapshot is rejected by the owner (license unknown). Porting from the README alone is also rejected: feat-ac66c687 found the README stale on mail roots.
+        **Risk:** the README may hold host paths or user names, so scrub it before commit.
         **Parallel:** yes, with slices 2, 4 and 6.
       blocks:
         - type: file-tree
           title: Files added
           entries:
             - docs/reference/orch/README.md
-            - docs/reference/orch/SOURCE.md
+            - docs/reference/orch/PROVENANCE.md
             - docs/design/orch-inventory.md
     - id: slic-1b2e4d22
       num: 2
@@ -260,6 +261,7 @@ slices:
         **Docs prior:** Claude Code docs say hook entries merge across settings levels and plugin hooks merge with user and project hooks. --settings is the command-line level, so the docs predict "add". The hooks page does not list --settings as a hook location, so the check stays.
         **Rejected:** deciding from docs alone, because CLAUDE.md records silent drift in every harness.
         **Parallel:** yes, with slices 1, 4 and 6.
+        **Non-blocking for slice 10:** B1 and B2 test orch's --settings hook file and orch-spawned sids. Native workers start through wipnote's launchers with no --settings, so slice 10 does not wait on B1 or B2.
       blocks:
         - type: tabs
           title: Phase B checks
@@ -301,6 +303,7 @@ slices:
         - Sections 6 and 7 cite the Phase B results and mark Q3 and Q4 as decided
         - docs/design/delegate.md lists every wipnote delegate command with its flags, exit codes and files
         - docs/design/delegate.md states the claim handoff as answered in q-claim-handoff and q-concurrent-workers
+        - The spec records the result of spike spk-87139e0e and the decision to merge wipnote-orchestra into delegate
       effort: S
       risk: Low
       tests: |
@@ -328,18 +331,20 @@ slices:
       what: Add core/delegationledger, which owns .wipnote/delegations-ledger.html with one row per run. Open appends a row at spawn. Close sets the end time, exit and reason. Enrich adds usage and session ids. One row type serves one-shot and interactive runs (Q4). Reindex reads the ledger. No field holds an absolute path.
       why: Delegations leave only hook events today (feat-dd8b0cde). Q3 decided that spawn and stop become records. A canonical row survives cache purges and appears in lineage.
       files:
+        - core/hostpath/hostpath.go
         - core/delegationledger/record.go
         - core/delegationledger/ledger.go
         - core/delegationledger/store.go
         - core/delegationledger/ledger_test.go
         - cmd/wipnote/reindex_delegation_ledger.go
+        - cmd/wipnote/check_host_paths.go
       deps: []
       done_when:
-        - Open, Close and Enrich round-trip every field through the HTML, and reindex yields the same rows
-        - Concurrent Open calls from 8 goroutines and 2 processes lose no row (core/filelock.Guard)
-        - A field holding an absolute host path or a home directory is refused at write time
-        - A torn last row is detected and repaired the way core/sessionledger does it
-        - 'A read helper answers the claim gate''s two questions from one parse: the open interactive rows for a work item (caller_session, worker_sessions), and the open row for a run id'
+        - Open, Close and Enrich round-trip every field through the HTML; reindex yields the same rows
+        - Concurrent Open from 8 goroutines and 2 processes loses no row (core/filelock.Guard)
+        - The shared host-path detector refuses an absolute host path or home directory at write time
+        - A torn last row is repaired as core/sessionledger does it
+        - One read helper returns the open interactive rows for a work item and the open row for a run id
       effort: M
       risk: Med
       tests: |
@@ -363,6 +368,9 @@ slices:
         **Claims (q-claim-handoff answered: co-claim-gate):** the claim gate reads mode, work_item, ended, caller_session and worker_sessions. Only open interactive rows count. The read helper returns ok=false on an unreadable ledger, so the gate fails open. worker_sessions must hold every session a worker has used, because the gate matches episodes by session id.
         **Promotion:** feature_id is feat-dd8b0cde, so promote-slice reuses it instead of creating a duplicate.
         **Parallel:** yes, with slices 1, 2, 5 and 6.
+        **Label (q-label answered 2026-10-25: explicit-only):** the label column holds an explicit --label only, and is empty otherwise. A derived label stays in the run folder.
+        **Host paths:** reuse the matcher in cmd/wipnote/check_host_paths.go (hostPathPattern, ciAllowPattern) at write time. Move it to core/hostpath, because core cannot import cmd. check host-paths then imports core/hostpath.
+        **Import:** end_reason=imported marks rows written by slice 18 (import-orch).
       blocks:
         - type: data-model
           title: Ledger row
@@ -378,7 +386,7 @@ slices:
             - name: name
               type: string (interactive runs only)
             - name: label
-              type: string, rule set by q-label
+              type: explicit --label only; empty otherwise
             - name: work_item
               type: feat-/bug-/spk- id or empty
             - name: link
@@ -396,7 +404,7 @@ slices:
             - name: exit
               type: int or empty
             - name: end_reason
-              type: exit | stop | pane_closed | gone
+              type: exit | stop | pane_closed | gone | imported
             - name: usage_input
               type: int tokens
             - name: usage_cached
@@ -406,11 +414,13 @@ slices:
         - type: file-tree
           title: Files added
           entries:
+            - core/hostpath/hostpath.go
             - core/delegationledger/record.go
             - core/delegationledger/ledger.go
             - core/delegationledger/store.go
             - core/delegationledger/ledger_test.go
             - cmd/wipnote/reindex_delegation_ledger.go
+            - cmd/wipnote/check_host_paths.go
     - id: slic-4e5b7a55
       num: 5
       title: 'Live run store: run folders, events and a file mailbox'
@@ -424,18 +434,20 @@ slices:
         - internal/delegate/runstore/sweep.go
         - internal/delegate/runstore/store_test.go
         - core/worktree/gitignore.go
+        - core/worktree/gitignore_test.go
       deps:
         - 1
       done_when:
-        - Two processes writing events for one run never write the same file, and a reader merges them in seq order
-        - A partial last NDJSON line and a half-written message file are skipped, never parsed
-        - The run-folder file names match the feat-a1df60c2 contract, and the mod's viewer can read a run folder written by Go
-        - The managed .wipnote/.gitignore block (core/worktree/gitignore.go) ignores delegate/, and git status shows nothing under .wipnote/delegate/ after a run
+        - Two writers for one run never share a file; a reader merges them in seq order
+        - A partial NDJSON line or half-written message file is skipped, never parsed
+        - Run-folder names match feat-a1df60c2, checked by the mod's fixtures plus wipnote delegate view
+        - A new .wipnote/.gitignore ignores delegate/; git status shows nothing there after a run
+        - In an existing checkout, the upgrader appends missing managed lines and keeps user lines
       effort: M
       risk: Med
       tests: |
-        Unit: TestRunStore_OneWriterPerFile, TestRunStore_SkipsPartialLine, TestMailbox_AtomicDeliver, TestSweep_KeepsLiveRuns, TestGitignore_IgnoresDelegate.
-        Contract: TestRunFolder_MatchesModContract (uses mods/codex-herdr-pane/test/fixtures).
+        Unit: TestRunStore_OneWriterPerFile, TestRunStore_SkipsPartialLine, TestMailbox_AtomicDeliver, TestSweep_KeepsLiveRuns, TestGitignore_IgnoresDelegate, TestGitignore_UpgradesExistingFile, TestGitignore_KeepsUserLines.
+        Contract: TestRunFolder_MatchesModContract (uses mods/codex-herdr-pane/test/fixtures); slice 7 adds TestView_ReadsGoRunFolder.
       complexity: complex
       approved: false
       comment: ""
@@ -454,7 +466,7 @@ slices:
         **Trigger:** delegate run and spawn create a run directory. Hooks in a tagged worker write events. send writes messages.
         **State:** <root>/runs/<run-id>/ holds the run-folder files and events-*.ndjson. <root>/mail/<name>/ holds messages. <root> is .wipnote/delegate/ (q-live-store, owner 2026-10-25).
         **Payload:** see the data-model blocks. Files are written by temp file plus rename and fsynced before rename.
-        **Gitignore:** this slice adds delegate/ to the managed block that core/worktree/gitignore.go writes, beside sessions/, events/ and logs/.
+        **Gitignore:** this slice adds delegate/ to the managed block that core/worktree/gitignore.go writes, beside sessions/, events/ and logs/. EnsureWipnoteGitignore only creates a missing file (core/worktree/gitignore.go:10-19), so an existing project never gets the new line. Add an upgrader that appends each missing managed line to an existing file and never removes or reorders a user line.
         **Why the project root:** a container worker reaches it through the same bind mount as the code. A per-user cache differs between the Mac and the container.
         **Rejected:** one shared events.ndjson with flock, because of APFS O_APPEND and an unverified flock across the mount. SQLite for live state is rejected: it adds a writer and a lock to every hook.
         **Refine:** after slice 1, check the layout against orch's mailbox and record any difference in docs/design/orch-inventory.md.
@@ -512,6 +524,7 @@ slices:
             - internal/delegate/runstore/sweep.go
             - internal/delegate/runstore/store_test.go
             - core/worktree/gitignore.go
+            - core/worktree/gitignore_test.go
     - id: slic-5f6c8b66
       num: 6
       title: herdr adapter in Go
@@ -550,7 +563,7 @@ slices:
         **Payload:** typed results (pane id, agent state, process list).
         **Choice:** use the herdr CLI, not the socket API. herdr-orch pins socket protocol 22, which changes between releases, and the CLI is the documented surface.
         **Rejected:** packaging wipnote as a herdr plugin (herdr-plugin.toml). herdr has no shutdown hook and does not supervise daemons, and wipnote must also work outside herdr.
-        **Unverified:** whether herdr agent start accepts a custom command such as wipnote claude. Until checked, spawn uses pane run.
+        **Checked 2026-10-25:** herdr agent start cannot run a custom command such as wipnote claude (herdr agent-automation docs). spawn uses pane run, which takes a shell string.
         **Parallel:** yes, with slices 1, 2, 4 and 5.
       blocks:
         - type: data-model
@@ -661,14 +674,15 @@ slices:
         - 6
         - 7
       done_when:
-        - With the codex stub, a run prints 'codex exited 0 after Ns, <usage>; raw log ..., answer file ...' and then last.md, capped at maxReturnLines
-        - Outside herdr the same run completes headless with the same report and run folder
-        - A pane closed early ends the run with exit 130 and end_reason pane_closed in the ledger
-        - The ledger row carries the caller's active work item when --work-item is not given
+        - With the codex stub, a run prints 'codex exited 0 after Ns, <usage>; ...' then last.md, capped at maxReturnLines
+        - 'Only if spk-87139e0e finds no parity: outside herdr the run completes headless with the same report'
+        - A pane closed early ends with exit 130 and end_reason pane_closed
+        - The row carries the caller's active work item when --work-item is absent
+        - A derived label is written only to the run folder's label file, never to the ledger (TestRun_DerivedLabelNotInLedger)
       effort: L
       risk: Med
       tests: |
-        Integration (stubs on PATH): TestRun_CodexInPane, TestRun_Headless, TestRun_PaneClosed, TestRun_ClaudePrintStreamJSON, TestRun_CcxFollowsOwnLog.
+        Integration (stubs on PATH): TestRun_CodexInPane, TestRun_Headless (only if the spike keeps headless), TestRun_PaneClosed, TestRun_ClaudePrintStreamJSON, TestRun_CcxFollowsOwnLog, TestRun_DerivedLabelNotInLedger.
         Unit: TestReport_CapsSections, TestRecipes_LeanProfileOnlyWhenPresent.
       complexity: complex
       approved: false
@@ -686,7 +700,9 @@ slices:
         **State:** run folder (slice 5), ledger row (slice 4), pane via the adapter (slice 6).
         **Payload:** stdout is the status line, then the capped answer (or the cleaned-log tail on failure), then 'run page: <path>'. The exit code is the tool's exit code.
         **Settings:** the mod's userConfig (layout, maxPanes, closePane, closeDelay, tailLines, maxReturnLines, leanProfile, leanProfileName, ccxRunsDir) maps to wipnote settings. ccxRunsDir keeps no machine-specific default.
-        **Rejected:** chained commands (pipes, ;) in v1, which the mod handles with shims (q-chained). Running the tool through a generated shell script, as the mod does, is also rejected: Go runs argv directly.
+        **Blocked by:** spike spk-87139e0e. If parity holds, delegate run becomes spawn + send + wait + stop on an interactive worker, and the headless path and --no-pane are dropped.
+        **Label (q-label):** only an explicit --label enters the ledger; a derived label goes to the run folder's label file.
+        **Rejected:** chained commands (pipes, ;) in v1, which the mod handles with shims (q-chained answered: v2). Running the tool through a generated shell script, as the mod does, is also rejected: Go runs argv directly.
         **Parallel:** no; it needs slices 4, 6 and 7. It can run beside slice 10.
       blocks:
         - type: diagram
@@ -707,11 +723,11 @@ slices:
             name: wipnote delegate run
           rows:
             - name: --label
-              type: string, pane title and ledger label
+              type: string, pane title; the only label the ledger keeps
             - name: --work-item
               type: id; default is the caller's active claim
             - name: --no-pane
-              type: bool, force headless
+              type: bool, force headless (dropped if spk-87139e0e shows parity)
             - name: --
               type: the tool argv (codex, claude, ccx)
             - name: exit code
@@ -719,25 +735,27 @@ slices:
     - id: slic-8c9f1e99
       num: 9
       title: Catch bare delegations in the Bash tool
-      what: Port the recogniser in tools.ts to internal/delegate/detect. It covers codex exec, e and review, ccx task and claude -p (optionally behind dev exec), and it blanks quoted text and heredocs. The PreToolUse hook then sends a bare standalone delegation to wipnote delegate run (q-intercept). Chained commands pass through unchanged.
+      what: 'Port the recogniser in tools.ts to internal/delegate/detect (codex exec, e and review, ccx task, claude -p, optionally behind dev exec; quotes and heredocs blanked). The PreToolUse hook denies a bare standalone delegation with a reason that names wipnote delegate run (q-intercept: deny-redirect). Chained commands pass through.'
       why: Agents and users type codex exec directly. Without this, those runs skip the ledger and the pane, as they did before the mod.
       files:
         - internal/delegate/detect/detect.go
         - internal/delegate/detect/detect_test.go
+        - core/hooks/pretooluse_delegate.go
+        - core/hooks/pretooluse_delegate_test.go
         - core/hooks/pretooluse.go
-        - core/hooks/pretooluse_delegate_run_test.go
       deps:
         - 8
       done_when:
         - Every recogniser case in register.test.ts and claude.test.ts passes as a Go table test
-        - A standalone codex exec in the Bash tool reaches wipnote delegate run on Claude Code and on Codex
-        - No redirect turns a command the user would be asked about into an auto-approved one
+        - A standalone codex exec or claude -p is denied with a reason that holds the exact `wipnote delegate run -- <same argv>`
+        - '`wipnote delegate run -- codex exec ...` is not denied (no redirect loop)'
+        - The hook never returns allow or updatedInput
         - The hook adds under 5 ms p95 to a Bash call that is not a delegation
       effort: M
       risk: High
       tests: |
         Unit: TestDetect_ModCases (ported tables), TestDetect_BlanksQuotesAndHeredocs, TestDetect_InfoFlagsAreNotRuns.
-        Hook: TestPreToolUse_RedirectsStandaloneDelegation, TestPreToolUse_ChainedPassesThrough, TestPreToolUse_NeverWidensPermission.
+        Hook: TestPreToolUse_DeniesStandaloneDelegation, TestPreToolUse_DelegateRunPrefixNotDenied, TestPreToolUse_ChainedPassesThrough, TestPreToolUse_NeverAllowsOrRewrites.
         Bench: BenchmarkPreToolUse_NonDelegation.
       complexity: complex
       approved: false
@@ -747,7 +765,7 @@ slices:
           claim: Claude Code PreToolUse updatedInput replaces the whole input, works with allow (auto-approve) or ask (show to the user).
           accessed: "2026-10-25"
         - url: https://learn.chatgpt.com/docs/hooks
-          claim: Codex PreToolUse updatedInput is valid only with permissionDecision allow; Bash and exec_command match as Bash.
+          claim: Codex PreToolUse supports permissionDecision deny with a reason; ask is parsed but not supported; updatedInput is valid only with allow. Bash and exec_command match as Bash.
           accessed: "2026-10-25"
       questions:
         - id: q-rewrite-support
@@ -756,44 +774,44 @@ slices:
       decisions_notes: |
         **Trigger:** PreToolUse on Bash, after the cheap tool-type match.
         **State:** none; a pure recogniser.
-        **Payload:** one of three modes per q-intercept. deny-with-reason tells the model to run 'wipnote delegate run -- <same command>', so the retry passes normal permission checks. rewrite-ask (Claude only) shows the rewritten command. rewrite-allow (opt-in only) widens permission.
-        **Risk High:** a rewrite with allow would auto-approve a codex exec the user never approved. On Codex, allow is the only rewrite mode.
-        **Rejected:** a mod-side tool.call hook, because mods exist only in Claude Code. Rewriting chained commands is deferred (q-chained).
+        **Payload:** deny only (q-intercept answered 2026-10-25: deny-redirect). The reason holds the exact 'wipnote delegate run -- <same argv>', so the retry passes normal permission checks. A command that already starts with wipnote delegate run is never denied.
+        **Codex hook contract:** deny is supported; ask is parsed but not supported; updatedInput needs allow (https://learn.chatgpt.com/docs/hooks). Deny is the one mode that works the same on both harnesses.
+        **Layout:** new code goes in core/hooks/pretooluse_delegate.go. pretooluse.go is 1188 lines, so it gains only one call.
+        **Risk:** a redirect loop if the recogniser matches its own redirect; the delegate run prefix is exempt and tested.
+        **Rejected:** rewrite-ask (Claude only; the user sees a rewritten command) and rewrite-allow (auto-approves a codex exec the user never approved). A mod-side tool.call hook is rejected, because mods exist only in Claude Code. Rewriting chained commands is deferred to v2 (q-chained).
         **Parallel:** no; it needs slice 8. It can run beside slices 10 to 13.
       blocks:
         - type: tabs
-          title: Redirect modes (q-intercept)
+          title: 'Redirect (q-intercept: deny-redirect)'
           rows:
-            - body: Both harnesses. The model re-issues wipnote delegate run -- <cmd>; normal permission checks apply. One extra turn.
+            - body: Both harnesses. The hook denies with the exact 'wipnote delegate run -- <same argv>'. The model re-issues it; normal permission checks apply. One extra turn.
               label: deny-with-reason
-            - body: 'Claude Code only. updatedInput plus ask: the user sees the rewritten command.'
-              label: rewrite-ask
-            - body: 'Both, opt-in only. updatedInput plus allow: no prompt, so permission widens.'
-              label: rewrite-allow
+            - body: A command that already starts with wipnote delegate run passes through. No redirect loop.
+              label: loop guard
         - type: file-tree
           title: Files touched
           entries:
             - internal/delegate/detect/detect.go
             - internal/delegate/detect/detect_test.go
+            - core/hooks/pretooluse_delegate.go
+            - core/hooks/pretooluse_delegate_test.go
             - core/hooks/pretooluse.go
-            - core/hooks/pretooluse_delegate_run_test.go
     - id: slic-9d0a2faa
       num: 10
       title: 'Interactive sessions: spawn, stop, list and tree'
-      what: Add wipnote delegate spawn NAME --harness claude|codex [--work-item] [--prompt]. It opens a herdr pane running wipnote claude or codex with WIPNOTE_DELEGATE_RUN set. The SessionStart hook binds each session id to the run, and the worker claims the work item. Add a verified stop, list, status and tree.
+      what: Add wipnote delegate spawn NAME --harness claude|codex [--work-item] [--prompt]. It opens a herdr pane with pane run and returns with status starting. In the pane, wipnote claude or codex starts with WIPNOTE_DELEGATE_RUN set and the brief. The SessionStart hook binds each session id. Add a verified stop, list and tree.
       why: orch's interactive sessions are the half the mod never covered. Running workers under wipnote's launchers gives them wipnote hooks and lineage, and the owner chose that each worker claims its work item (q-worker-claim).
       files:
         - cmd/wipnote/delegate_spawn.go
         - cmd/wipnote/delegate_stop.go
         - cmd/wipnote/delegate_tree.go
         - internal/delegate/session/spawn.go
+        - internal/delegate/session/shellquote.go
         - internal/delegate/session/stop.go
         - internal/delegate/session/tree.go
         - internal/delegate/session/session_test.go
         - core/hooks/session_start.go
         - core/hooks/delegate_bind.go
-        - cmd/wipnote/claim_ledger.go
-        - core/hooks/claim_episodes.go
       deps:
         - 1
         - 2
@@ -801,24 +819,19 @@ slices:
         - 5
         - 6
       done_when:
-        - spawn returns within 3 s with the run id, pane id and name, and refuses a name that is already live
-        - After /clear in the worker, the run lists both session ids
-        - stop reports verified only when the pane is gone and no worker process remains; otherwise it names what survives
-        - tree shows caller, run, worker sessions and sub-agents, reusing RenderAgentTree
-        - The SessionStart bind adds under 2 ms and never fails the hook
-        - Within 10 s of spawn, .wipnote/claims/ holds an open episode for the work item and the worker session, written by the normal wipnote <kind> start path
-        - spawn refuses when no work item resolves (no --work-item and no active claim in the caller)
-        - After stop, crash or pane loss, no episode stays open for the worker session (abandoned on stop, expired on loss), and the orchestrator's episode stays open
-        - The claim gate admits the worker beside the orchestrator and the orchestrator beside its worker, and still refuses an unrelated live session
-        - spawn refuses a second live worker on a work item that already has one, and proceeds once that worker's pane is gone
+        - spawn returns within 3 s with status "starting", run id, pane id and name; the bind finishes in the pane
+        - spawn refuses a live name, and refuses when no work item resolves
+        - spawn scrubs inherited WIPNOTE_* session env; rootSessionFor(worker) == worker session id (TestSpawn_WorkerShardIsOwnRoot)
+        - After /clear, the run lists both session ids
+        - stop is verified only when the pane and every worker process are gone
+        - tree reuses RenderAgentTree
+        - The bind hook adds under 2 ms and never fails
       effort: L
       risk: High
       tests: |
-        Integration (fake herdr): TestSpawn_RefusesLiveName, TestSpawn_BindsSessionOnStart, TestSpawn_ClearAddsSecondSession, TestStop_VerifiedOnlyWhenNoProcess, TestTree_CallerRunWorkerSubagents.
+        Integration (fake herdr): TestSpawn_ReturnsStartingWithin3s, TestSpawn_RefusesLiveName, TestSpawn_RefusesWithoutWorkItem, TestSpawn_BindsSessionOnStart, TestSpawn_ClearAddsSecondSession, TestStop_VerifiedOnlyWhenNoProcess, TestTree_CallerRunWorkerSubagents.
+        Env: TestSpawn_ScrubsInheritedSessionEnv, TestSpawn_WorkerShardIsOwnRoot, TestShellQuote_RoundTrip.
         Hook: TestDelegateBind_FastAndFailOpen.
-        Claims: TestSpawn_WorkerClaimsItem, TestSpawn_RefusesWithoutWorkItem, TestStop_WorkerEpisodeAbandonedBySessionEnd, TestPaneLoss_ExpiresOnlyWorkerEpisode, TestOrchestratorEnd_WorkerKeepsClaim.
-        Gate (cmd/wipnote/claim_ledger.go): TestLiveForeignClaims_WorkerIsFamilyOfCaller, TestLiveForeignClaims_CallerIsFamilyOfWorker, TestLiveForeignClaims_UnrelatedSessionStillRefused, TestLiveForeignClaims_EndedRowIsNotFamily, TestLiveForeignClaims_UnreadableDelegationLedgerFailsOpen, TestLiveForeignClaims_ClearedWorkerSessionIsFamily.
-        Concurrency: TestSpawn_RefusesSecondLiveWorkerOnItem, TestSpawn_AllowsAfterWorkerPaneGone, TestSpawn_OneShotRunsDoNotCount.
         Live (HERDR_ENV=1 only): TestSpawn_LiveClaudeWorker.
       complexity: complex
       approved: false
@@ -833,23 +846,26 @@ slices:
         - url: https://github.com/ellingtonsp/herdr-orch
           claim: 'Prior art for verified release: close the pane, then prove no process survives (SIGTERM, then SIGKILL).'
           accessed: "2026-10-25"
+        - url: https://herdr.dev/docs/agent-automation/
+          claim: herdr agent start launches a known agent and cannot run a custom command; pane run takes a shell string.
+          accessed: "2026-10-25"
       questions:
         - id: q-settings
           text: Does a native worker need orch's --settings hook file?
           answer: No. Workers start through wipnote claude or wipnote codex, whose plugin hooks fire, and the launcher passes no --settings (code search, 2026-10-25). The --settings risk applies only to orch during migration (Phase B check B1).
       decisions_notes: |
         **Trigger:** wipnote delegate spawn from a caller session or a human shell.
-        **State:** ledger row (mode interactive), run folder with pane id and name, events written by the worker's hooks. The worker's sessions.parent_session_id is set to the caller from WIPNOTE_DELEGATE_CALLER.
-        **Payload:** spawn prints {run, name, pane, harness}. tree prints a text tree, or JSON with --json.
+        **State:** ledger row (mode interactive), run folder with pane id, name and brief, events written by the worker's hooks. The caller is stored only as delegate_caller_session (the ledger's caller_session, passed in WIPNOTE_DELEGATE_CALLER). The worker's sessions.parent_session_id stays empty.
+        **Spawn (decision F, ANSWERED 2026-10-25):** spawn returns within 3 s with status "starting". The bind and the brief happen inside the pane. delegate wait and list show readiness (starting, ready, gone).
+        **Payload:** spawn prints {run, name, pane, harness, status}. tree prints a text tree, or JSON with --json.
+        **Transport:** herdr pane run only. herdr agent start cannot run a custom command (https://herdr.dev/docs/agent-automation/). pane run takes a shell string, so a quoting helper builds it, with env prefixes inline (WIPNOTE_DELEGATE_RUN=... WIPNOTE_DELEGATE_CALLER=... wipnote claude ...).
+        **Env scrub:** spawn removes inherited WIPNOTE_* session env from the pane command (WIPNOTE_PARENT_SESSION, WIPNOTE_PARENT_EVENT, WIPNOTE_NESTING_DEPTH). session_start.go reads them (lines 227-233 and isSubagent at 908-911); left in place they mark the worker as a subagent of the caller.
         **Names:** [a-z0-9-], 1 to 32 characters, unique among live runs in the project.
         **Stop:** ask the agent to exit, wait, close the pane, then check herdr process-info. A worker that survives is reported, never silently killed outside the pane.
-        **Rejected:** copying orch's --settings hook file (needless under wipnote's launchers). herdr agent start is rejected until it is known to accept a custom command.
-        **Claim:** the worker's brief begins with wipnote <kind> start <id>, so the item lock, collision gate and claim ledger run unchanged; spawn polls .wipnote/claims/ for the episode. The worker stays a root session (no WIPNOTE_PARENT_SESSION), so it gets its own sessions-ledger row and claim shard. Stop relies on the worker's SessionEnd (abandoned); the caller never writes a live worker's shard. On a lost pane, after confirming no worker process remains, stop or list closes only that session's episodes as expired.
-        **Family rule (q-claim-handoff answered: co-claim-gate):** extend liveForeignClaims in cmd/wipnote/claim_ledger.go (called by checkLiveCollisionGate from <kind> start, cmd/wipnote/workitem.go). An episode is family when (a) its session is in worker_sessions of an open interactive row whose caller_session is the caller, or (b) the caller's WIPNOTE_DELEGATE_RUN names an open row whose caller_session is the episode's session or root. An unreadable delegations ledger fails open. This is a cooperative gate, like --force: the env var is trusted only when it names an open row.
-        **Ordering:** spawn waits for the SessionStart bind event, then writes the worker session into worker_sessions (ledger Enrich), and only then sends the brief that runs <kind> start. The hook stays a fast event write. After a /clear, the new session's bind event is added to worker_sessions by the next spawn, list or wait (slice 11).
-        **One worker per item (q-concurrent-workers answered):** spawn refuses when an open interactive row for the item has a live pane. A row whose pane is gone is closed through the worker-loss path first. One-shot runs do not claim and do not count.
-        **Rejected (claim):** opening the episode from the SessionStart hook, because that adds an item-lock and canonical write to a hook. A new suspended outcome is also rejected: the episode model has four outcomes, and the owner asked not to invent a new model.
-        **Precondition:** bug-01f182e5 (claims reconcile treats live sessions as dead) must be fixed first; otherwise reconcile expires live workers' and orchestrators' episodes.
+        **Ordering:** the SessionStart hook writes only a bind event. The next wait, list or stop moves bound sessions into worker_sessions (ledger Enrich). The worker's own claim does not wait for that, because the family gate's worker case matches on WIPNOTE_DELEGATE_RUN (slice 16).
+        **ANSWERED 2026-10-25 (owner):** D: the wipnote-orchestra mod merges into delegate (slice 19). E: the orchestrator answers a worker's question by typing into the worker's herdr pane, with no blocking hook and no reply file (slice 17). F: spawn returns with status starting, as above.
+        **Claims:** moved to slice 16 (worker claim and family gate).
+        **Rejected:** copying orch's --settings hook file (needless under wipnote's launchers). herdr agent start (no custom command). Setting WIPNOTE_PARENT_SESSION for the worker (it would drop its sessions-ledger row).
         **Refine:** check against orch's spawn, pinning and stop semantics from slice 1.
         **Parallel:** it can run beside slices 8, 9 and 12.
       blocks:
@@ -859,10 +875,12 @@ slices:
             direction: tb
           entries:
             - wipnote delegate spawn w1 --harness claude
-            - ledger Open (interactive) and run folder
-            - herdr pane runs wipnote claude with WIPNOTE_DELEGATE_RUN
+            - ledger Open (interactive), run folder and brief
+            - herdr pane run with a quoted shell string and scrubbed env
+            - 'spawn returns: status starting'
+            - 'in the pane: wipnote claude starts with the brief as first prompt'
             - SessionStart hook writes a bind event (run, sid)
-            - ledger Enrich adds the worker session
+            - 'next wait or list: ledger Enrich adds the worker session'
         - type: file-tree
           title: Files touched
           entries:
@@ -870,6 +888,7 @@ slices:
             - cmd/wipnote/delegate_stop.go
             - cmd/wipnote/delegate_tree.go
             - internal/delegate/session/spawn.go
+            - internal/delegate/session/shellquote.go
             - internal/delegate/session/stop.go
             - internal/delegate/session/tree.go
             - internal/delegate/session/session_test.go
@@ -878,7 +897,7 @@ slices:
     - id: slic-0e1b3abb
       num: 11
       title: 'Mailbox verbs: send, wait, result and questions'
-      what: Add send NAME (a message file plus a herdr agent prompt hint) and wait NAME --timeout, which blocks until a durable signal. Add result (the last assistant message from the Stop hook payload, or the worker's report) and questions (pending AskUserQuestion and PermissionRequest calls captured by worker hooks). Events from an older turn are rejected.
+      what: Add send NAME (a message file plus a herdr prompt hint), wait NAME --timeout (blocks until a durable signal), result (the last assistant message or the worker's report) and questions (pending AskUserQuestion and PermissionRequest calls). Add inbox, the worker-side read of its own mailbox. Older-turn events are rejected. All verbs live in cmd/wipnote/delegate_mail.go.
       why: These verbs let an orchestrator drive a live worker without reading its screen. herdr's own wait observes agent state, not a finished turn.
       files:
         - cmd/wipnote/delegate_mail.go
@@ -891,11 +910,11 @@ slices:
         - 1
         - 10
       done_when:
-        - wait returns on the worker's Stop event for the current turn id and ignores an event from an older turn
-        - wait without --timeout is refused, and a timed-out wait exits 124 and prints the last known state
-        - A message is readable with wipnote delegate inbox even when the prompt hint was lost
+        - wait returns on the worker's Stop event for the current turn and ignores older turns
+        - wait needs --timeout; a timed-out wait exits 124 and prints the last known state
+        - inbox shows a message even when the prompt hint was lost
         - questions lists a pending AskUserQuestion with its options and drops it once the worker continues
-        - wait, send, result and questions open or close no claim episode. On outcome gone, wait calls slice 10's worker-loss close. wait also adds a newly bound worker session (after /clear) to worker_sessions.
+        - These verbs open or close no claim; on gone, wait calls the worker-loss close; wait adds a /clear session to worker_sessions
       effort: L
       risk: High
       tests: |
@@ -922,10 +941,12 @@ slices:
       decisions_notes: |
         **Trigger:** the caller runs send, wait, result or questions. The worker's hooks (UserPromptSubmit starts a turn; Stop, PreToolUse on AskUserQuestion and PermissionRequest record events) write the evidence.
         **State:** mail files and events-*.ndjson in the run store. The turn id increments at each delivered message.
+        **Inbox:** wipnote delegate inbox runs in the worker. It reads the worker's own mailbox (<root>/mail/<name>/), named by WIPNOTE_DELEGATE_RUN.
+        **Answering:** slice 17 adds delegate answer.
         **Payload:** wait prints {run, turn, outcome: done|question|timeout|gone}. result prints last.md for the turn. questions prints JSON rows.
         **Polling:** at most 2 Hz, plus an fs watch where available. No daemon.
         **Claims (co-claim, answered 2026-10-25):** wait observes; a timeout changes no claim, and the orchestrator's episode is never touched. When the worker is gone, wait reuses slice 10's session-scoped expired close. When a bind event names a session not yet in worker_sessions (the worker ran /clear), wait enriches the ledger row, so the claim gate keeps treating that session as family.
-        **Rejected:** settling on herdr idle (a lifecycle state, not a turn result). Parsing agent read output is rejected as racy. Answering questions from the orchestrator is deferred (q-answer-questions).
+        **Rejected:** settling on herdr idle (a lifecycle state, not a turn result). Parsing agent read output is rejected as racy.
         **Refine:** match orch's send and wait semantics from slice 1.
         **Parallel:** no; it needs slice 10. It can run beside slices 12 and 13.
       blocks:
@@ -958,14 +979,16 @@ slices:
         - internal/delegate/codex/jsonl.go
         - internal/delegate/codex/codex_test.go
         - cmd/wipnote/delegate_doctor.go
+        - cmd/wipnote/codex_launch.go
       deps:
         - 2
         - 8
+        - 10
       done_when:
-        - Where bwrap fails, spawn and run fail fast with the probe output and the options from q-codex-sandbox
-        - A codex exec --json fixture yields the thread id as a worker session id and the four usage fields in the ledger
-        - No default ever passes --sandbox danger-full-access
-        - A Codex worker's claim episode carries its Codex session id, or spawn reports that Codex hooks gave none (Phase B check B4)
+        - With the host opted in, run and spawn pass --sandbox danger-full-access and print a warning; without it they refuse with the probe output
+        - The opt-in comes only from user config delegate.codex.dangerFullAccessHosts, never a committed file
+        - A codex exec --json fixture yields the thread id as worker session and four usage fields in the ledger
+        - A Codex worker's episode carries its Codex session id, or spawn reports none (Phase B check B4)
       effort: M
       risk: Med
       tests: |
@@ -988,6 +1011,8 @@ slices:
         **Trigger:** delegate doctor, and a cached preflight before the first Codex spawn or run per host.
         **State:** the probe result is cached in the run store with a short TTL.
         **Payload:** pass/fail per check with the exact stderr.
+        **Probe:** reuse codexSandboxProbe (cmd/wipnote/codex_launch.go:31). Move it to internal/delegate/codex so the launcher and delegate share one probe.
+        **Opt-in (q-codex-sandbox answered: refuse by default, per-host opt-in):** user config delegate.codex.dangerFullAccessHosts lists host names. It is never committed.
         **Rejected:** silently falling back to danger-full-access, because it removes Codex's isolation without consent.
         **Claims:** a Codex worker claims with wipnote <kind> start like a Claude worker. That needs a session id from the Codex hooks; without one, the episode cannot name the worker, so spawn reports it.
         **Feeds:** feat-74c3d200 (cache-aware cost) and bug-3e4c6e02 (Codex exec captures no session) are related; the cached token count lands in the ledger.
@@ -1000,10 +1025,11 @@ slices:
             - internal/delegate/codex/jsonl.go
             - internal/delegate/codex/codex_test.go
             - cmd/wipnote/delegate_doctor.go
+            - cmd/wipnote/codex_launch.go
     - id: slic-2a3d5cdd
       num: 13
       title: Lineage shows delegations; retire orchlink
-      what: wipnote lineage <work-item> gains a delegations section from the ledger. It shows tagged rows, and untagged rows whose worker sessions belong to the item (derived and labelled). Add wipnote lineage dlg-<id>. Keep internal/orchlink read-only until migration ends (q-orch-import), then delete it and lineage_orch.go.
+      what: wipnote lineage <work-item> gains a delegations section from the ledger. It shows tagged rows, and untagged rows whose worker sessions belong to the item (derived and labelled). Add wipnote lineage dlg-<id>. Delete internal/orchlink and lineage_orch.go after import-orch (slice 18) has run (q-orch-import).
       why: Lineage is where a work item's delegations must show. Two readers for one concept (orch sessions and delegations) would drift apart.
       files:
         - cmd/wipnote/lineage.go
@@ -1016,12 +1042,13 @@ slices:
       deps:
         - 4
         - 10
+        - 18
       done_when:
-        - lineage --json carries delegations[] with link tag or sid, and a row tagged with another item is never derived (the orchlink rule is kept)
-        - lineage dlg-<id> shows the caller session, the work item and the worker sessions
-        - Under each delegation, lineage shows each worker's claim episode (start, end, outcome) read from .wipnote/claims/
-        - Overlapping orchestrator and worker episodes on one item are labelled as a co-claim through their delegation id, not shown as a collision
-        - After removal, go build ./... has no orchlink import, and the lineage JSON schema note records that orch_sessions was dropped
+        - lineage --json carries delegations[] with link tag or sid; a row tagged with another item is never derived
+        - lineage dlg-<id> shows the caller session, work item and worker sessions
+        - Under each delegation, lineage shows each worker's claim episode (start, end, outcome)
+        - Overlapping orchestrator and worker episodes show as a co-claim with the dlg- id, not a collision
+        - After removal, nothing imports orchlink, and the lineage JSON note records that orch_sessions was dropped
       effort: M
       risk: Med
       tests: |
@@ -1037,7 +1064,7 @@ slices:
         **Payload:** a text section "delegations", and delegations[] in --json. Each row has id, mode, harness, name, link, state and worker session ids.
         **Claims:** worker claim episodes come from the existing claim ledger reader, joined on worker session id; no claim data is copied into the delegations ledger. Under the answered co-claim rule, an orchestrator episode and a worker episode that overlap are one delegation's co-claim; lineage names the dlg- id instead of flagging two claimants.
         **Kept from orchlink:** tag is asserted; sid is derived and labelled; a row tagged with another item is never derived; no host path is printed.
-        **Rejected:** keeping both orch_sessions and delegations for good (two readers drift). Deleting orchlink before the owner stops using orch is rejected: lineage would lose those links.
+        **Rejected:** keeping both orch_sessions and delegations for good (two readers drift). Deleting orchlink before import-orch has run is rejected: lineage would lose those links.
         **Parallel:** yes, with slices 11 and 12.
       blocks:
         - type: data-model
@@ -1078,18 +1105,20 @@ slices:
         - cmd/wipnote/mods.go
         - cmd/wipnote/mods_test.go
         - mods/codex-herdr-pane
-        - packages/plugin-core/manifest.json
+        - port/pluginbuild/antigravity.go
       deps:
         - 3
         - 9
         - 11
         - 12
         - 13
+        - 19
       done_when:
-        - No file outside git history names codex-herdr-pane except the release note
-        - wipnote plugin build-ports runs clean, and all three generated trees carry the delegate skill
-        - A user with the mod's settings sees a one-time notice that names the new settings
-        - 'The delegate skill states the claim rules: the orchestrator keeps its claim and co-claims with its worker, one worker per item, stop the worker before completing (completion closes the worker''s episode too), and never release or force-claim by hand'
+        - No file in code, scripts, plugin/, mods/ or the generated trees names codex-herdr-pane (.wipnote/, docs/design and CLAUDE.md are exempt)
+        - build-ports runs clean; the Claude and Codex trees carry the delegate skill, the Antigravity tree does not
+        - A user with the mod's settings sees a one-time notice
+        - 'The skill states the claim rules: co-claim, one worker per item, stop the worker before completing'
+        - The release note says chained delegations skip the ledger until v2
       effort: M
       risk: Med
       tests: |
@@ -1107,7 +1136,10 @@ slices:
         **State:** guidance lives in plugin/skills/delegate/SKILL.md (shared source) and the system prompt.
         **Owner follow-up:** CLAUDE.md lists codex-herdr-pane among the mods. Agents may not edit CLAUDE.md, so the owner updates that paragraph.
         **Rejected:** keeping the mod as a second path, because runs would be recorded twice. A silent settings migration is also rejected: users must see where their settings went.
-        **Open:** whether a view-only Claude Code pane survives outside herdr (q-claude-pane).
+        **Claude pane (q-claude-pane ANSWERED 2026-10-25):** orchestra. Slice 19 merges wipnote-orchestra into delegate; it shows runs inside and outside herdr.
+        **Antigravity (q-antigravity answered no):** port/pluginbuild/antigravity.go leaves the delegate skill out of the Antigravity tree.
+        **Manifest:** no hook is added, so packages/plugin-core/manifest.json is not touched.
+        **Removal (q-mod-removal answered: same release):** the mod goes in the release that ships delegate run and the redirect.
         **Parallel:** no; this is the last slice.
       blocks:
         - type: file-tree
@@ -1118,29 +1150,244 @@ slices:
             - cmd/wipnote/mods.go
             - cmd/wipnote/mods_test.go
             - mods/codex-herdr-pane
-            - packages/plugin-core/manifest.json
+            - port/pluginbuild/antigravity.go
     - id: slic-59b08ff0
       num: 15
       title: Name sessions by work item
-      what: Delegated workers get the name <item-id>-<title-slug> at spawn (Claude --name; Codex and herdr pane label where supported). An orchestrator session is renamed when it claims a work item. First check whether Claude Code and Codex allow a rename mid-session; if not the session keeps its harness name and wipnote's own session title shows the item.
+      what: 'Delegated workers get the harness name <item-id>-<slug> at spawn (Claude --name; Codex and herdr pane label where supported). A running Claude session is renamed after it claims a work item: the user-prompt hook sets sessionTitle on the next prompt.'
       why: 'Owner request 2026-10-25: sessions must be named by work item so a pane list or session list shows what each session works on. Today wipnote claude names sessions <project>-<timestamp> and yolo uses the track title.'
       files:
+        - core/hooks/user_prompt.go
+        - core/slug/slug.go
         - cmd/wipnote/claude.go
-        - cmd/wipnote/yolo.go
-        - cmd/wipnote/claim_ledger.go
       deps:
         - 10
         - 12
       done_when:
-        - A spawned worker's harness session name starts with its work-item id
-        - Claiming an item in a running session renames it or sets wipnote's session title when no rename exists
-        - The rename research result is recorded with upstream doc links
-        - Explicit --name and resume keep their current names
+        - Worker harness name = `<item-id>-<slug>` truncated to 32 chars, and equals the mailbox NAME unless NAME is given
+        - After a claim, the next prompt sets sessionTitle to `<item-id> <title>`
+        - 'Codex: recorded as unsupported, or supported with a doc link'
+        - Explicit --name and resume keep their names
       effort: M
       risk: Low
-      tests: 'Unit: worker name built from item id and title (two-sided: no item gives the old name). Unit: claim hook sets the session title. Integration against a fake harness: spawn passes the name flag.'
+      tests: 'Unit: worker name built from item id and slug, truncated to 32 (two-sided: no item gives the old name). Unit: user-prompt hook emits sessionTitle once after a claim. Integration against a fake harness: spawn passes the name flag; --name and resume keep theirs.'
+      complexity: standard
       approved: false
       comment: ""
+      research:
+        - url: https://code.claude.com/docs/en/hooks
+          claim: UserPromptSubmit and SessionStart hook output can set sessionTitle, which renames the live session.
+          accessed: "2026-10-25"
+      decisions_notes: |
+        **Trigger:** spawn builds the worker name; a claim in a live session marks a pending title.
+        **State:** the pending title lives with the session; the user-prompt hook reads it once.
+        **Payload:** Claude Code hook output field sessionTitle on UserPromptSubmit or SessionStart renames a live session (https://code.claude.com/docs/en/hooks).
+        **Timing:** a claim happens inside a Bash call, not a hook, so the title lands on the next UserPromptSubmit.
+        **Layout:** the rename lives in core/hooks (user-prompt handler) and uses core/slug for the slug.
+        **Rejected:** renaming from the claim command itself (no hook output there). Codex naming is unverified, so Codex gets a recorded result, not code, until a doc confirms it.
+        **Risk:** a long title overflows pane lists; names are truncated to 32 characters.
+        **Parallel:** after slices 10 and 12.
+      blocks:
+        - type: file-tree
+          title: Files touched
+          entries:
+            - core/hooks/user_prompt.go
+            - core/slug/slug.go
+            - cmd/wipnote/claude.go
+    - id: slic-6c1d2e16
+      num: 16
+      title: Worker claim and family gate
+      what: The spawned worker claims its work item through the normal <kind> start path, beside the orchestrator. The claim gate treats the caller's live workers as family. spawn refuses a second live worker on an item. A lost worker's episodes close as expired.
+      why: The owner chose that each worker claims its item (q-worker-claim) and co-claims with the orchestrator (q-claim-handoff). Today the collision gate refuses a worker while the orchestrator holds the item.
+      files:
+        - cmd/wipnote/claim_ledger.go
+        - core/hooks/claim_episodes.go
+        - cmd/wipnote/workitem.go
+        - cmd/wipnote/claim_ledger_delegate_test.go
+      deps:
+        - 10
+        - 4
+      done_when:
+        - 'The worker co-claims: .wipnote/claims/ holds open episodes for the worker and the orchestrator'
+        - The gate treats the caller's live workers from the ledger as family, and still refuses an unrelated live session
+        - A second live worker on an item is refused
+        - After /clear, the new worker session reopens its episode on the next brief, or lineage shows the lapse
+        - feature complete warns when a live delegation row exists
+      effort: L
+      risk: High
+      tests: |
+        Claims: TestSpawn_WorkerClaimsItem, TestStop_WorkerEpisodeAbandonedBySessionEnd, TestPaneLoss_ExpiresOnlyWorkerEpisode, TestOrchestratorEnd_WorkerKeepsClaim, TestClear_ReopensEpisodeOnNextBrief.
+        Gate (cmd/wipnote/claim_ledger.go): TestLiveForeignClaims_WorkerIsFamilyOfCaller, TestLiveForeignClaims_CallerIsFamilyOfWorker, TestLiveForeignClaims_UnrelatedSessionStillRefused, TestLiveForeignClaims_EndedRowIsNotFamily, TestLiveForeignClaims_UnreadableDelegationLedgerFailsOpen.
+        Concurrency: TestSpawn_RefusesSecondLiveWorkerOnItem, TestSpawn_AllowsAfterWorkerPaneGone, TestSpawn_OneShotRunsDoNotCount.
+        Complete: TestComplete_WarnsOnLiveDelegation.
+      complexity: complex
+      approved: false
+      comment: ""
+      research_waiver: Extends the in-repo claim-episode model (core/claimledger, cmd/wipnote/claim_ledger.go). No external standard applies.
+      questions:
+        - id: q-worker-family
+          text: Do a caller's live workers count as its claim family?
+          answer: 'Yes. q-claim-handoff was answered co-claim-gate on 2026-10-25: the orchestrator keeps its episode, the worker opens its own, and the gate reads the delegations ledger to treat them as one family.'
+      decisions_notes: |
+        **Blocked by:** bug-01f182e5 (claims reconcile treats live sessions as dead). Until it is fixed, reconcile expires live workers' and orchestrators' episodes.
+        **Trigger:** the worker's brief begins with wipnote <kind> start <id>; the orchestrator runs start, wait, list, stop or complete.
+        **State:** existing claim shards in .wipnote/claims/; the delegations ledger (slice 4) gives caller_session and worker_sessions. No new claim store or outcome.
+        **Payload:** family rule in liveForeignClaims (cmd/wipnote/claim_ledger.go, called by checkLiveCollisionGate from <kind> start in cmd/wipnote/workitem.go). An episode is family when (a) its session is in worker_sessions of an open interactive row whose caller_session is the caller, or (b) the caller's WIPNOTE_DELEGATE_RUN names an open row whose caller_session is the episode's session or root. An unreadable ledger fails open.
+        **Stop and loss:** stop relies on the worker's SessionEnd (abandoned). On a lost pane, after no worker process remains, wait, list or stop closes only that session's episodes as expired (closeClaimEpisodesForSession in core/hooks/claim_episodes.go).
+        **Complete:** completion closes every open episode on the item (CloseWorkItem), so feature complete warns while a live delegation row exists.
+        **Rejected:** opening the episode from the SessionStart hook (adds an item lock and a canonical write to a hook). A new suspended outcome (the owner asked not to invent a new model).
+        **Risk:** a cooperative gate, like --force: the env var is trusted only when it names an open row.
+        **Parallel:** after slice 10; beside slices 11, 12 and 17.
+      blocks:
+        - type: file-tree
+          title: Files touched
+          entries:
+            - cmd/wipnote/claim_ledger.go
+            - core/hooks/claim_episodes.go
+            - cmd/wipnote/workitem.go
+            - cmd/wipnote/claim_ledger_delegate_test.go
+    - id: slic-7d2e3f17
+      num: 17
+      title: Answer worker questions by typing into the pane
+      what: Add wipnote delegate answer NAME <qid> <text|option>. It checks that the question is still pending, then types the answer into the worker's herdr pane through the herdr adapter. There is no blocking hook and no reply file.
+      why: The owner chose that the orchestrator answers a worker's question (q-answer-questions), by typing into the worker's pane (2026-10-25).
+      files:
+        - cmd/wipnote/delegate_answer.go
+        - internal/delegate/session/answer.go
+        - internal/delegate/session/answer_test.go
+        - internal/delegate/herdr/herdr.go
+      deps:
+        - 6
+        - 11
+      done_when:
+        - An AskUserQuestion pending in the worker gets the typed choice, and the worker continues
+        - A stale or unknown qid is refused
+        - A permission prompt is never answered by the orchestrator (the non-goal stays)
+        - Outside herdr the verb refuses with a clear message
+      effort: M
+      risk: Med
+      tests: |
+        Integration (herdr stub): TestAnswer_TypesOptionIntoPane, TestAnswer_RefusesStaleQid, TestAnswer_RefusesUnknownQid, TestAnswer_NeverAnswersPermissionPrompt, TestAnswer_RefusesOutsideHerdr.
+        Contract: TestHerdr_TypeKeysStub.
+      complexity: standard
+      approved: false
+      comment: ""
+      research:
+        - url: https://herdr.dev/docs/agents/
+          claim: Agent state shows blocked while an agent waits for input; agent prompt sends text to an agent pane.
+          accessed: "2026-10-25"
+        - url: https://code.claude.com/docs/en/hooks
+          claim: AskUserQuestion tool input carries questions and options.
+          accessed: "2026-10-25"
+      decisions_notes: |
+        **Trigger:** the caller runs wipnote delegate answer after delegate questions lists a pending question.
+        **State:** reads pending questions from the run's events (slice 11); writes an answered event so a second answer is refused.
+        **Payload:** an option becomes its number plus Enter; free text is typed plus Enter, through a new herdr adapter call.
+        **Rejected:** a blocking PreToolUse hook (holds the worker's hook open) and a reply-file protocol like herdr-orch ask/reply. The owner chose typing into the pane.
+        **Risk:** Medium. Key input differs across herdr and harness versions; contract-test against the herdr stub and refuse outside herdr.
+        **Parallel:** after slice 11; beside slices 12, 16 and 19.
+      blocks:
+        - type: diagram
+          title: Answer flow
+          fields:
+            direction: tb
+          entries:
+            - worker hook records AskUserQuestion (qid)
+            - delegate questions lists it
+            - delegate answer w1 <qid> 2
+            - pending check, then herdr types into the pane
+            - worker continues; answered event recorded
+        - type: file-tree
+          title: Files touched
+          entries:
+            - cmd/wipnote/delegate_answer.go
+            - internal/delegate/session/answer.go
+            - internal/delegate/session/answer_test.go
+            - internal/delegate/herdr/herdr.go
+    - id: slic-8e3f4a18
+      num: 18
+      title: wipnote delegate import-orch
+      what: Add a one-shot, idempotent wipnote delegate import-orch. It reads orch's registry through internal/orchlink and writes one ledger row per past orch run.
+      why: The owner chose to import orch history (q-orch-import), so lineage keeps orch runs after slice 13 deletes orchlink.
+      files:
+        - cmd/wipnote/delegate_import_orch.go
+        - internal/delegate/importorch/import.go
+        - internal/delegate/importorch/import_test.go
+      deps:
+        - 1
+        - 4
+      done_when:
+        - A rerun adds no rows
+        - Host paths and derived labels are dropped
+        - Imported rows have end_reason=imported
+        - A row keeps orch's work-item tag as link=tag
+      effort: S
+      risk: Low
+      tests: |
+        Unit: TestImportOrch_Idempotent, TestImportOrch_DropsHostPathsAndLabels, TestImportOrch_EndReasonImported, TestImportOrch_KeepsTag (orchlink fixtures).
+      complexity: standard
+      approved: false
+      comment: ""
+      research_waiver: Reads an in-repo reader (internal/orchlink) into an in-repo ledger. No external standard applies.
+      decisions_notes: |
+        **Trigger:** the owner runs it once on the machine that holds orch's registry.
+        **State:** reads through internal/orchlink; writes ledger rows through core/delegationledger.
+        **Payload:** mode interactive, harness, name, work_item, started, ended and end_reason=imported. The dlg- id is derived from orch's run id, so a rerun finds the row and adds nothing.
+        **Rejected:** keeping orchlink for good (two readers drift). Copying orch's events (they duplicate nothing wipnote reads).
+        **Risk:** orch's registry format may drift; slice 1's inventory pins it.
+        **Parallel:** yes, with slices 5 to 12.
+      blocks:
+        - type: file-tree
+          title: Files added
+          entries:
+            - cmd/wipnote/delegate_import_orch.go
+            - internal/delegate/importorch/import.go
+            - internal/delegate/importorch/import_test.go
+    - id: slic-9f4a5b19
+      num: 19
+      title: Merge wipnote-orchestra into delegate
+      what: The wipnote-orchestra mod's code and release move under the delegate feature. The band shows live and ended delegate runs (one-shot and interactive) from .wipnote/delegate/runs/, with each run's last.md.
+      why: The owner chose that orchestra is part of delegate (q-claude-pane, 2026-10-25). It replaces the mod's Claude Code run pane.
+      files:
+        - mods/wipnote-orchestra/hooks/runs.ts
+        - mods/wipnote-orchestra/hooks/model.ts
+        - mods/wipnote-orchestra/hooks/band.tsx
+        - mods/wipnote-orchestra/tests/runs.test.ts
+        - mods/wipnote-orchestra/README.md
+      deps:
+        - 5
+        - 7
+      done_when:
+        - A run folder written by Go appears in the band within 2 s
+        - It works outside herdr
+        - The view never writes to the run store
+        - mods/wipnote-orchestra builds and its tests pass
+      effort: M
+      risk: Med
+      tests: |
+        Unit (mod): runs.test.ts reads Go-written run folders (fixtures from slice 5) and checks live and ended rows.
+        Check: the existing orchestra tests keep passing.
+      complexity: standard
+      approved: false
+      comment: ""
+      research_waiver: An in-repo mod change; the mods engine contract lives in mods/wipnote-orchestra and its tests.
+      decisions_notes: |
+        **Trigger:** the band's refresh in Claude Code.
+        **State:** read-only over .wipnote/delegate/runs/; it never writes there.
+        **Payload:** one row per run: name or label, harness, mode, state, and the first line of last.md.
+        **Release:** the mod stays at mods/wipnote-orchestra, but it is tracked and shipped under the delegate feature.
+        **Rejected:** dropping the Claude Code pane, and a thin separate view-only mod (q-claude-pane options).
+        **Risk:** mods engine API drift; the owner updates the CLAUDE.md mods paragraph.
+        **Parallel:** after slices 5 and 7; beside slices 16 to 18.
+      blocks:
+        - type: file-tree
+          title: Files touched
+          entries:
+            - mods/wipnote-orchestra/hooks/runs.ts
+            - mods/wipnote-orchestra/hooks/model.ts
+            - mods/wipnote-orchestra/hooks/band.tsx
+            - mods/wipnote-orchestra/tests/runs.test.ts
+            - mods/wipnote-orchestra/README.md
 questions:
     - id: q-adopt-vs-port
       text: Adopt or wrap the herdr plugin herdr-orch, or port orch?
@@ -1190,7 +1437,7 @@ questions:
       answer: deny-redirect
     - id: q-claude-pane
       text: Outside herdr, does a Claude Code pane still show the run?
-      description: 'The mod''s claudePane auto mode uses the Claude Code mods UI, which Go cannot drive. ANSWERED 2026-10-25 by the owner: orchestra should be part of delegate. The run view folds into the wipnote-orchestra mod.'
+      description: 'The mod''s claudePane auto mode uses the Claude Code mods UI, which Go cannot drive. ANSWERED 2026-10-25 by the owner: orchestra should be part of delegate. The run view folds into the wipnote-orchestra mod. NOTE 2026-10-25 (owner): merge the wipnote-orchestra mod into delegate; its code and release move under the delegate feature (slice 19).'
       options:
         - key: drop
           label: Drop it; run.html and wipnote delegate view cover it
@@ -1268,7 +1515,7 @@ questions:
       answer: later
     - id: q-answer-questions
       text: Can the orchestrator answer a worker's question?
-      description: 'orch only lists pending questions. Answering means typing into the worker''s pane or a blocking ask/reply protocol. ANSWERED 2026-10-25 by the owner: also answer (ask/reply, as herdr-orch does), in v1.'
+      description: 'orch only lists pending questions. Answering means typing into the worker''s pane or a blocking ask/reply protocol. ANSWERED 2026-10-25 by the owner: also answer (ask/reply, as herdr-orch does), in v1. NOTE 2026-10-25 (owner): the orchestrator answers by typing into the worker''s herdr pane; no blocking hook and no reply-file protocol (slice 17). Spawn returns with status starting; the bind and brief happen in the pane (slice 10).'
       options:
         - key: list-only
           label: List only (orch parity)
