@@ -72,10 +72,8 @@ type whoOutput struct {
 	ClaimedAt       string `json:"claimed_at,omitempty"`
 	ExecutionRoot   string `json:"execution_root,omitempty"`
 	IsSubagent      bool   `json:"is_subagent"`
-	// Live is derived from claim-heartbeat recency (NOT sessions.status). It is
-	// the honest cross-harness liveness signal — true only when this session's
-	// newest claim heartbeat is within the staleness threshold. A stale
-	// status='active' ghost row reports Live=false (folds bug-6c3e8252).
+	// Live follows the sessions ledger (NOT sessions.status): true until the
+	// ledger records this session's end, the same rule claim reconcile uses.
 	Live          bool             `json:"live"`
 	Collaboration *collabOutput    `json:"collaboration,omitempty"`
 	TaskTracking  taskTrackingInfo `json:"task_tracking"`
@@ -177,15 +175,10 @@ func runWho(jsonOut bool) error {
 	// Per-harness task tracking support.
 	taskInfo := resolveTaskTrackingInfo(displayHarness)
 
-	// Honest liveness: derive from claim-heartbeat recency, NOT sessions.status.
-	// projectDir = parent of the .wipnote dir; used only to read the optional
-	// liveness_staleness_seconds tunable from .wipnote/config.json.
+	// Liveness follows the sessions ledger (live until it records an end), the
+	// rule claim reconcile uses. projectDir = parent of the .wipnote dir.
 	projectDir := filepath.Dir(dir)
-	live := false
-	if sessionID != "" {
-		live = dbpkg.SessionLivenessByHeartbeat(
-			database, sessionID, dbpkg.LivenessStalenessThreshold(projectDir))
-	}
+	live := sessionID != "" && sessionsLedgerNotEnded(dir)(sessionID)
 
 	// Files touched by this session (current project only, read-only). Two
 	// ledgers are merged: feature_files (claimed touches) and session_files
@@ -335,9 +328,9 @@ func renderWhoText(out whoOutput) error {
 	} else {
 		fmt.Printf("  Role:            root CLI\n")
 	}
-	liveLabel := "no (no recent claim heartbeat)"
+	liveLabel := "no (sessions ledger records its end)"
 	if out.Live {
-		liveLabel = "yes (claim heartbeat recent)"
+		liveLabel = "yes (no end in the sessions ledger)"
 	}
 	fmt.Printf("  Live:            %s\n", liveLabel)
 

@@ -195,6 +195,22 @@ func claimLedgerWarn(format string, args ...any) {
 // sessions ledger, or an unreadable ledger, counts as live — closing or
 // archiving a running session would corrupt a real interval.
 func claimLedgerLivePredicate(wipnoteDir string) claimledger.LivePredicate {
+	notEnded := sessionsLedgerNotEnded(wipnoteDir)
+	current := hooks.EnvSessionID("")
+	return func(rootSessionID string) bool {
+		// No identity to check, or the session doing the reconciling: live.
+		if rootSessionID == "" || (current != "" && rootSessionID == current) {
+			return true
+		}
+		return notEnded(rootSessionID)
+	}
+}
+
+// sessionsLedgerNotEnded is the sessions-ledger liveness rule: a session is
+// live until the ledger records its end. A session missing from the ledger,
+// or an unreadable ledger, counts as live. `wipnote who` and claim
+// reconcile/archive share it.
+func sessionsLedgerNotEnded(wipnoteDir string) func(sessionID string) bool {
 	recs, err := sessionledger.NewStore(wipnoteDir).ReadAll()
 	if err != nil {
 		return func(string) bool { return true }
@@ -203,14 +219,7 @@ func claimLedgerLivePredicate(wipnoteDir string) claimledger.LivePredicate {
 	for _, r := range recs {
 		ended[r.SessionID] = !r.IsOpen()
 	}
-	current := hooks.EnvSessionID("")
-	return func(rootSessionID string) bool {
-		// No identity to check, or the session doing the reconciling: live.
-		if rootSessionID == "" || (current != "" && rootSessionID == current) {
-			return true
-		}
-		return !ended[rootSessionID]
-	}
+	return func(sessionID string) bool { return !ended[sessionID] }
 }
 
 // liveForeignClaims returns the open claim episodes on workItemID held by a
