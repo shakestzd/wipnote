@@ -31,16 +31,6 @@ type ReconcileReport struct {
 	AutoCommitted []string `json:"auto_committed,omitempty"`
 	PortDrift     []string `json:"port_drift,omitempty"`
 	Orphaned      []string `json:"orphaned,omitempty"`
-
-	// ReapedSessions and ReapedCollectors are the forced-reap audit trail
-	// produced by ReapStaleSessionsAndCollectors (feat-88f92f44). They are
-	// deliberately report-only JSON fields with NO backing schema/DB column —
-	// this struct IS the audit trail; a migration would break migrations_test.go
-	// and there is no query that needs them indexed. ReapedSessions holds the
-	// session ids transitioned active→completed; ReapedCollectors holds
-	// "<sid>:<pid>" entries for each identity-verified orphan collector killed.
-	ReapedSessions   []string `json:"reaped_sessions,omitempty"`
-	ReapedCollectors []string `json:"reaped_collectors,omitempty"`
 }
 
 // HasAmbiguousDrift reports whether the pass found unresolved source-ambiguous
@@ -56,8 +46,7 @@ func (r *ReconcileReport) HasAmbiguousDrift() bool {
 // Empty reports whether the pass found nothing actionable at all.
 func (r *ReconcileReport) Empty() bool {
 	return r == nil ||
-		(len(r.AutoCommitted) == 0 && len(r.PortDrift) == 0 && len(r.Orphaned) == 0 &&
-			len(r.ReapedSessions) == 0 && len(r.ReapedCollectors) == 0)
+		(len(r.AutoCommitted) == 0 && len(r.PortDrift) == 0 && len(r.Orphaned) == 0)
 }
 
 // reconcileArtifactCommitFn is the injection seam for the deterministic

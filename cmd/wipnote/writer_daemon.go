@@ -294,18 +294,11 @@ const telemetryCatchUpBudget = 2 * time.Minute
 //     it finds zero orphans on every pass. This one fails CLOSED — an empty
 //     table means it sweeps nothing — so it is harmless, but it would pay a
 //     full project hydrate every five minutes to guarantee finding nothing.
-//   - REAPER — OFF. Its heartbeat guard is dead the same way the sweep's is:
-//     db.SessionLivenessByHeartbeat reads MAX(last_heartbeat_at) FROM claims
-//     (session_repo.go:586), so heartbeatStale is permanently true. Unlike the
-//     sweep it is NOT dangerous, because SessionReapEligible ANDs that with
-//     !IsSessionProcessAlive (session_liveness.go:224), a pid-file + kill(0)
-//     check that degrades to LIVE on any uncertainty. It stays off for a
-//     different reason: its only durable output is closing claim episodes in
-//     the canonical ledger, and it cannot record that it did so — the session
-//     stays open in sessions-ledger.html because the remediation is an UPDATE
-//     against the projection — so every daemon restart re-reaps the same dead
-//     sessions. Restore it once that close is durable; the orphaned-collector
-//     reaping it also does is real work being deferred with it.
+//   - REAPER — DELETED (feat-174dc958). Its guards read tables no hook or
+//     daemon path fills (claims heartbeats, sessions status), so it could not
+//     tell a live session from a dead one except by pid file. Nothing reaps
+//     crashed sessions now; a session that never reports an end stays open in
+//     the ledger.
 //   - AUTO-INGEST — OFF. Both of its skip guards read unhydrated state:
 //     CountMessages reads `messages`, so it always returns 0, and the
 //     transcript_synced mtime guard reads a column the ledger hydration never

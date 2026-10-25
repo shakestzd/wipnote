@@ -16,14 +16,6 @@ import (
 	"github.com/shakestzd/wipnote/core/worktree"
 )
 
-// sessionStartReapCap bounds how many stale sessions the SYNCHRONOUS SessionStart
-// self-heal reaper will transition per launch. The reaper runs on the hot hook
-// path; under write contention each candidate can cost ~one busy-timeout, so an
-// uncapped pass over a large stale backlog could stall the launcher. 64 keeps the
-// worst case bounded while the long-lived daemon (which passes 0 ⇒ unbounded)
-// catches any remainder within one interval.
-const sessionStartReapCap = 64
-
 // bareLaunchNudge returns an extra startup hint when Claude was started without
 // `wipnote claude` (i.e. .launch-mode is missing or older than 30 seconds).
 // Returns an empty string when the orchestrator system prompt is already active.
@@ -176,8 +168,8 @@ func newStartedSession(event *CloudEvent, projectDir, sessionID string, now time
 }
 
 // persistStartedSession persists the session row and its lineage, the liveness
-// anchor, the canonical session HTML and ledger entry, and runs the
-// stale-session reap and bounded orphan sweep.
+// anchor, the canonical session HTML and ledger entry, finishes sessions whose
+// end hook was cancelled, and runs the bounded orphan sweep.
 func persistStartedSession(event *CloudEvent, database *sql.DB, projectDir, sessionID, shortID string, s *models.Session) {
 	routeStartedSession(event, database, projectDir, sessionID, shortID, s)
 
@@ -189,14 +181,10 @@ func persistStartedSession(event *CloudEvent, database *sql.DB, projectDir, sess
 	sessDir := filepath.Join(projectDir, ".wipnote", "sessions", sessionID)
 	updateSessionPIDAnchor(projectDir, sessDir)
 
-	// Self-heal: reap stale-active SESSIONS left by a prior abnormal exit. Sessions
-	// only (includeCollectors=false) — marking ended is cheap and synchronous and
-	// completes before the short-lived hook process exits. Collectors are reaped by
-	// the long-lived daemon (a fire-and-forget goroutine here would be killed on
-	// hook exit — roborev #542). Own sid passed for self-exclusion; not report-only.
-	if database != nil {
-		_ = ReapStaleSessionsAndCollectors(database, projectDir, sessionID, false, false, sessionStartReapCap)
-	}
+	// Finish sessions whose SessionEnd hook was cancelled after it wrote its
+	// end note: close their ledger rows and claim episodes from the note.
+	// Sessions that never reported an end are left alone (feat-174dc958).
+	_ = CatchUpEndedSessions(database, projectDir, sessionID, false)
 
 	// Write canonical session HTML file (non-critical, errors silently logged).
 	CreateSessionHTML(projectDir, s)

@@ -128,45 +128,6 @@ func TestIsSessionProcessAliveEPERM(t *testing.T) {
 	}
 }
 
-func TestSessionReapEligible(t *testing.T) {
-	self := os.Getpid()
-	selfStart, hasStart := readProcStartTime(self)
-
-	aliveDir := t.TempDir()
-	content := strconv.Itoa(self)
-	if hasStart {
-		content += "\n" + strconv.FormatUint(selfStart, 10)
-	}
-	writeSessionPIDRaw(t, aliveDir, content)
-
-	deadDir := t.TempDir()
-	writeSessionPIDRaw(t, deadDir, "2147483647")
-
-	missingDir := t.TempDir() // no .session-pid
-
-	cases := []struct {
-		name           string
-		heartbeatStale bool
-		sessDir        string
-		want           bool
-	}{
-		{"alive + stale -> not eligible", true, aliveDir, false},
-		{"alive + fresh -> not eligible", false, aliveDir, false},
-		{"dead + stale -> eligible", true, deadDir, true},
-		{"dead + fresh -> not eligible", false, deadDir, false},
-		{"missing + stale -> not eligible (LIVE)", true, missingDir, false},
-		{"missing + fresh -> not eligible (LIVE)", false, missingDir, false},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			if got := SessionReapEligible(tc.heartbeatStale, tc.sessDir); got != tc.want {
-				t.Fatalf("SessionReapEligible(%v, %q) = %v, want %v",
-					tc.heartbeatStale, tc.sessDir, got, tc.want)
-			}
-		})
-	}
-}
-
 func TestSessionResumeRefreshesPid(t *testing.T) {
 	clearNestedSessionEnv(t)
 

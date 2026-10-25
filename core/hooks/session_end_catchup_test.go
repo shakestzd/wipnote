@@ -172,25 +172,6 @@ func TestCatchUp_DeepPassFindsUnnamedRootShard(t *testing.T) {
 	}
 }
 
-// The session-start reaper runs catch-up first, so a cancelled hook's session
-// closes as ABANDONED at its real end, not as EXPIRED at reap time.
-func TestReap_ClosesCancelledHookSessionFromNote(t *testing.T) {
-	td := setupTestDB(t)
-	f := newEndFixture(t, 0)
-	endedAt := time.Now().UTC().Add(-20 * time.Minute)
-	f.writeNote(t, endedAt, "abandoned")
-
-	ReapStaleSessionsAndCollectors(td.DB, f.projectDir, "someone-else", false, false, 5)
-	for _, e := range f.episodes(t, f.sessionID) {
-		if e.IsOpen() || e.Outcome != claimledger.OutcomeAbandoned {
-			t.Errorf("episode %s open=%v outcome=%q, want abandoned", e.WorkItemID, e.IsOpen(), e.Outcome)
-		}
-	}
-	if row := f.ledgerRow(t); row.IsOpen() || row.EndedAt.Sub(endedAt).Abs() > time.Second {
-		t.Errorf("ledger end = %v, want the note's %v", row.EndedAt, endedAt)
-	}
-}
-
 // Happy path: SessionEnd closes the ledger and episodes in the window; the
 // handoff, features and lineage follow once catch-up runs, exactly once.
 func TestSessionEnd_HappyPath_HandoffWrittenOnceAfterCatchUp(t *testing.T) {

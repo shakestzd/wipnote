@@ -120,7 +120,7 @@ func RecordSessionEndNote(event *CloudEvent, projectDir string) bool {
 
 // ReadSessionEndNote returns the latest complete, valid note for sessionID. A
 // missing file, a torn tail and a line for another session all read as "no
-// note" rather than an error: the reaper is the backstop for those.
+// note" rather than an error: those sessions are left open.
 func ReadSessionEndNote(projectDir, sessionID string) (SessionEndNote, bool) {
 	dir := sessionDirFor(projectDir, sessionID)
 	if dir == "" {
