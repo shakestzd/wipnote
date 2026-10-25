@@ -4,10 +4,10 @@ meta:
     title: 'Native delegation in wipnote: port orch to Go and absorb codex-herdr-pane'
     description: 'Make orch''s delegation a native, Go-built wipnote feature (wipnote delegate: spawn, send, wait, result, stop, questions, tree, run) with a file mailbox, herdr panes for interactive sessions and one-shot runs on ONE path that absorbs mods/codex-herdr-pane. orch (Python, owner''s machine) is the reference. Replaces the mod-vs-orch split in docs/design/orch-integration.md.'
     created_at: "2026-10-25"
-    status: draft
+    status: finalized
     priority: medium
     schema_version: v4
-    version: 33
+    version: 34
 design:
     problem: |
         ## Problem
@@ -196,6 +196,7 @@ design:
           accessed: "2026-10-25"
 slices:
     - id: slic-0a1f3c11
+      feature_id: feat-0031fd91
       num: 1
       title: Bring in the orch README and an inventory as reference
       what: Import orch's README (scrubbed) and write docs/design/orch-inventory.md from the owner's local source. The source stays outside the repo.
@@ -220,6 +221,7 @@ slices:
       comment: ""
       research_waiver: Internal source import. The owner supplies the material and no external standard applies.
       approval_status: approved
+      execution_status: promoted
       decisions_notes: |
         **Trigger:** the owner reads the orch source on the local machine, or shares a read-only view of it.
         **State:** reference only (q-orch-source answered 2026-10-25: inventory-only). No orch code enters the repo. Nothing in docs/reference/orch/ is built, run or imported by Go code.
@@ -239,6 +241,7 @@ slices:
             - docs/reference/orch/PROVENANCE.md
             - docs/design/orch-inventory.md
     - id: slic-1b2e4d22
+      feature_id: feat-0c976595
       num: 2
       title: 'Phase B: verify harness hooks on the owner''s Mac'
       what: Run a scripted check on the owner's Mac inside herdr, with its container half run here. It checks that --settings hooks add to plugin hooks, worker sids match wipnote sessions, Codex hooks fire (interactive and exec), container workers write the Mac's .wipnote/, and flock works across the bind mount.
@@ -270,6 +273,7 @@ slices:
           claim: herdr's Claude and Codex integrations add their own hook entries for session identity.
           accessed: "2026-10-25"
       approval_status: approved
+      execution_status: promoted
       decisions_notes: |
         **Trigger:** the owner runs scripts/delegate-phase-b.sh on the Mac in a herdr pane. The container half runs in this devcontainer.
         **State:** writes only to a temp dir and one scratch session; no project file changes.
@@ -309,6 +313,7 @@ slices:
             - scripts/delegate-phase-b.sh
             - docs/design/delegate-phase-b.md
     - id: slic-2c3f5e33
+      feature_id: feat-53e0abb9
       num: 3
       title: Correct the orch integration spec
       what: Replace the one-shot versus interactive split in docs/design/orch-integration.md (line 16) with the native design. Record the Phase B results, the Q3 and Q4 answers and the owner's answers to this plan's questions. Point to a new docs/design/delegate.md as the live spec.
@@ -335,6 +340,7 @@ slices:
       comment: ""
       research_waiver: A docs-only slice. Its facts come from slices 1 and 2 and the owner's answers.
       approval_status: approved
+      execution_status: promoted
       decisions_notes: |
         **Trigger:** slices 1 and 2 are done and the plan questions are answered.
         **State:** orch-integration.md keeps its history and gains a pointer; delegate.md becomes the spec.
@@ -378,6 +384,7 @@ slices:
       comment: ""
       research_waiver: Follows the in-repo core/sessionledger and core/gateledger pattern. No external standard applies.
       approval_status: approved
+      execution_status: promoted
       questions:
         - id: q-one-type
           text: One record type for one-shot and interactive runs (Q4)?
@@ -450,6 +457,7 @@ slices:
             - cmd/wipnote/reindex_delegation_ledger.go
             - cmd/wipnote/check_host_paths.go
     - id: slic-4e5b7a55
+      feature_id: feat-7565fbf7
       num: 5
       title: 'Live run store: run folders, events and a file mailbox'
       what: 'Add internal/delegate/runstore: a run directory per run (the feat-a1df60c2 contract), per-writer events NDJSON files and a file mailbox with inbox, outbox and ack folders (one JSON file per message, temp file plus rename). It lives in .wipnote/delegate/, gitignored; only ledger rows are committed. Finished runs are swept after N days.'
@@ -490,6 +498,7 @@ slices:
           claim: A durable, fsynced report written before anyone is told; a later wait returns it at once.
           accessed: "2026-10-25"
       approval_status: approved
+      execution_status: promoted
       questions:
         - id: q-append
           text: Do several processes ever append to one file?
@@ -568,6 +577,7 @@ slices:
             - core/worktree/gitignore.go
             - core/worktree/gitignore_test.go
     - id: slic-5f6c8b66
+      feature_id: feat-39bc46a1
       num: 6
       title: herdr adapter in Go
       what: 'Add internal/delegate/herdr, a Go interface over the herdr CLI: tab create and close; pane split, run, get, close, rename, process-info, send-text and send-keys; agent prompt, read, get, list and rename. One-shot panes keep the mod''s tile layout; interactive workers share one workers tab per caller, split like orch (cap 6). A scripted fake drives the tests.'
@@ -605,6 +615,7 @@ slices:
           claim: agent start runs a known agent only; pane run, send-text and send-keys drive any pane.
           accessed: "2026-10-25"
       approval_status: approved
+      execution_status: promoted
       decisions_notes: |
         **Trigger:** called by delegate run, spawn, send and stop.
         **State:** stateless. Pane ids live in the run folder.
@@ -666,6 +677,7 @@ slices:
             - internal/delegate/herdr/testdata/herdr
             - internal/delegate/herdr/testdata/scripts
     - id: slic-6a7d9c77
+      feature_id: feat-3a124c5e
       num: 7
       title: Log filters and run page in Go
       what: Port the mod's viewer filters to internal/delegate/render. This covers Codex JSONL to clean.log and clean.md, claude stream-json, ccx output, safe Markdown fencing, the usage line and run.html. Add wipnote delegate view, a plain Go viewer that runs in the pane.
@@ -700,6 +712,7 @@ slices:
           claim: codex exec --json event types (thread.started, turn.*, item.*) and usage fields used by the Codex filter.
           accessed: "2026-10-25"
       approval_status: approved
+      execution_status: promoted
       decisions_notes: |
         **Trigger:** delegate run pipes raw output through the filter for the harness. delegate view reads clean.md.
         **State:** pure functions over bytes, plus a file follower for view.
@@ -731,6 +744,7 @@ slices:
             - internal/delegate/render/testdata
             - cmd/wipnote/delegate_view.go
     - id: slic-7b8e0d88
+      feature_id: feat-2ebbc708
       num: 8
       title: 'One-shot runs: wipnote delegate run'
       what: Add wipnote delegate run [--label] [--work-item] -- <cmd> for codex exec and review, claude -p and ccx task. It opens a ledger row and runs the command in a herdr pane when HERDR_ENV=1, else headless. It writes the run folder, prints the mod's report and closes the row.
@@ -765,6 +779,7 @@ slices:
           claim: codex exec --json and -o/--output-last-message, used for the raw log and last.md.
           accessed: "2026-10-25"
       approval_status: approved
+      execution_status: promoted
       questions:
         - id: q-report
           text: Must the output of run match the mod's report?
@@ -810,6 +825,7 @@ slices:
             - name: exit code
               type: the tool's exit; 130 when the pane closed
     - id: slic-8c9f1e99
+      feature_id: feat-6734c55f
       num: 9
       title: Catch bare delegations in the Bash tool
       what: 'Port the recogniser in tools.ts to internal/delegate/detect (codex exec, e and review, ccx task, claude -p, optionally behind dev exec; quotes and heredocs blanked). The PreToolUse hook denies a bare standalone delegation with a reason that names wipnote delegate run (q-intercept: deny-redirect). Chained commands pass through.'
@@ -845,6 +861,7 @@ slices:
           claim: Codex PreToolUse supports permissionDecision deny with a reason; ask is parsed but not supported; updatedInput is valid only with allow. Bash and exec_command match as Bash.
           accessed: "2026-10-25"
       approval_status: approved
+      execution_status: promoted
       questions:
         - id: q-rewrite-support
           text: Which harnesses can rewrite a Bash call in PreToolUse?
@@ -876,6 +893,7 @@ slices:
             - core/hooks/pretooluse_delegate_test.go
             - core/hooks/pretooluse.go
     - id: slic-9d0a2faa
+      feature_id: feat-ee335139
       num: 10
       title: 'Interactive sessions: spawn, stop, list and tree'
       what: Add wipnote delegate spawn NAME --harness claude|codex. Workers open as splits in one workers tab per caller (cap 6). spawn types one short boot line and returns with status starting; the boot reads the brief from a file and starts wipnote claude or codex. Add one readiness predicate, a verified stop, list and tree.
@@ -933,6 +951,7 @@ slices:
           claim: herdr agent start launches a known agent and cannot run a custom command; pane run takes a shell string.
           accessed: "2026-10-25"
       approval_status: approved
+      execution_status: promoted
       questions:
         - id: q-settings
           text: Does a native worker need orch's --settings hook file?
@@ -993,6 +1012,7 @@ slices:
             - core/hooks/session_start.go
             - core/hooks/delegate_bind.go
     - id: slic-0e1b3abb
+      feature_id: feat-a786efa7
       num: 11
       title: 'Mailbox verbs: send, wait, result and questions'
       what: Add send NAME (an inbox file plus a herdr prompt hint), wait NAME --timeout (blocks until a durable signal), result (the newest result file the worker wrote) and questions (pending AskUserQuestion and PermissionRequest calls). Add inbox, the worker-side read of its mailbox. Older-turn events are rejected. All verbs live in cmd/wipnote/delegate_mail.go.
@@ -1041,6 +1061,7 @@ slices:
           claim: agent prompt gives no receipt, so the store, not the hint, is authoritative.
           accessed: "2026-10-25"
       approval_status: approved
+      execution_status: promoted
       questions:
         - id: q-settle
           text: What settles a wait?
@@ -1086,6 +1107,7 @@ slices:
             - internal/delegate/session/mail_test.go
             - core/hooks/delegate_events.go
     - id: slic-1f2c4bcc
+      feature_id: feat-4ae30080
       num: 12
       title: 'Codex workers: sandbox preflight and session ids'
       what: 'Add wipnote delegate doctor and a preflight at spawn and run time. Codex workers follow a sandbox ladder: read-only by default, --write for workspace-write, danger-full-access only for an opted-in host. The preflight probes bwrap and refuses with the probe output when it fails. Read codex exec session ids and usage; bind interactive Codex hook ids.'
@@ -1126,6 +1148,7 @@ slices:
           claim: 'Third party, unverified: Docker''s default seccomp and AppArmor block bwrap user namespaces; the options are to loosen the container or use danger-full-access inside it.'
           accessed: "2026-10-25"
       approval_status: approved
+      execution_status: promoted
       decisions_notes: |
         **Trigger:** delegate doctor, and a cached preflight before the first Codex spawn or run per host.
         **State:** the probe result is cached in the run store with a short TTL.
@@ -1148,6 +1171,7 @@ slices:
             - cmd/wipnote/delegate_doctor.go
             - cmd/wipnote/codex_launch.go
     - id: slic-2a3d5cdd
+      feature_id: feat-7c862865
       num: 13
       title: Lineage shows delegations; retire orchlink
       what: wipnote lineage <work-item> gains a delegations section from the ledger. It shows tagged rows, and untagged rows whose worker sessions belong to the item (derived and labelled). Add wipnote lineage dlg-<id>. Delete internal/orchlink and lineage_orch.go after import-orch (slice 18) has run (q-orch-import).
@@ -1180,6 +1204,7 @@ slices:
       comment: ""
       research_waiver: An in-repo lineage change. Its rules come from internal/orchlink and feat-ac66c687's decision Q1.
       approval_status: approved
+      execution_status: promoted
       decisions_notes: |
         **Trigger:** wipnote lineage on a work item or a dlg- id.
         **State:** reads the ledger, never live run files.
@@ -1217,6 +1242,7 @@ slices:
             - cmd/wipnote/lineage_orch.go
             - internal/orchlink/orchlink.go
     - id: slic-3b4e6dee
+      feature_id: feat-89cfa21c
       num: 14
       title: Move guidance to wipnote delegate and retire codex-herdr-pane
       what: Update the system prompt and add a delegate skill so agents use wipnote delegate. Map the mod's userConfig to wipnote settings, with a one-time notice. Remove mods/codex-herdr-pane, its tests and its launcher references at the time set by q-mod-removal. Regenerate the plugin trees. Ask the owner to update the CLAUDE.md mods paragraph.
@@ -1254,6 +1280,7 @@ slices:
           claim: Plugin hooks merge with user and project hooks, so removing the mod leaves wipnote's plugin hooks as the only delegation path.
           accessed: "2026-10-25"
       approval_status: approved
+      execution_status: promoted
       decisions_notes: |
         **Trigger:** slices 8 to 13 pass their gates.
         **State:** guidance lives in plugin/skills/delegate/SKILL.md (shared source) and the system prompt.
@@ -1275,6 +1302,7 @@ slices:
             - mods/codex-herdr-pane
             - port/pluginbuild/antigravity.go
     - id: slic-59b08ff0
+      feature_id: feat-b11344a3
       num: 15
       title: Name sessions by work item
       what: 'Delegated workers get the harness name <item-id>-<slug> at spawn (Claude --name; Codex and herdr pane label where supported). A running Claude session is renamed after it claims a work item: the user-prompt hook sets sessionTitle on the next prompt.'
@@ -1302,6 +1330,7 @@ slices:
           claim: UserPromptSubmit and SessionStart hook output can set sessionTitle, which renames the live session.
           accessed: "2026-10-25"
       approval_status: approved
+      execution_status: promoted
       decisions_notes: |
         **Trigger:** spawn builds the worker name; a claim in a live session marks a pending title.
         **State:** the pending title lives with the session; the user-prompt hook reads it once.
@@ -1319,6 +1348,7 @@ slices:
             - core/slug/slug.go
             - cmd/wipnote/claude.go
     - id: slic-6c1d2e16
+      feature_id: feat-f1171e59
       num: 16
       title: Worker claim and family gate
       what: The spawned worker claims its work item through the normal <kind> start path, beside the orchestrator. The claim gate treats the caller's live workers as family. spawn refuses a second live worker on an item. A lost worker's episodes close as expired.
@@ -1349,6 +1379,7 @@ slices:
       comment: ""
       research_waiver: Extends the in-repo claim-episode model (core/claimledger, cmd/wipnote/claim_ledger.go). No external standard applies.
       approval_status: approved
+      execution_status: promoted
       questions:
         - id: q-worker-family
           text: Do a caller's live workers count as its claim family?
@@ -1372,6 +1403,7 @@ slices:
             - cmd/wipnote/workitem.go
             - cmd/wipnote/claim_ledger_delegate_test.go
     - id: slic-7d2e3f17
+      feature_id: feat-d1282268
       num: 17
       title: Answer worker questions by typing into the pane
       what: Add wipnote delegate answer NAME <qid> <text|option>. It checks that the question is still pending and that the pane and terminal_id still match, then types the answer with herdr pane send-text and send-keys enter. There is no blocking hook and no reply file.
@@ -1406,6 +1438,7 @@ slices:
           claim: AskUserQuestion tool input carries questions and options.
           accessed: "2026-10-25"
       approval_status: approved
+      execution_status: promoted
       decisions_notes: |
         **Trigger:** the caller runs wipnote delegate answer after delegate questions lists a pending question.
         **State:** reads pending questions from the run's events (slice 11); writes an answered event so a second answer is refused.
@@ -1436,6 +1469,7 @@ slices:
             - internal/delegate/session/answer_test.go
             - internal/delegate/herdr/herdr.go
     - id: slic-8e3f4a18
+      feature_id: feat-3d08f822
       num: 18
       title: wipnote delegate import-orch
       what: Add a one-shot, idempotent wipnote delegate import-orch [--mail-root DIR]. It reads orch's registry and mailboxes, archived ones included, and writes one ledger row per past orch run. It reads event format v1 and v2 and refuses any other version by name.
@@ -1465,6 +1499,7 @@ slices:
       comment: ""
       research_waiver: Reads an in-repo reader (internal/orchlink) into an in-repo ledger. No external standard applies.
       approval_status: approved
+      execution_status: promoted
       decisions_notes: |
         **Trigger:** the owner runs it once on the machine that holds orch's registry.
         **State:** reads through internal/orchlink; writes ledger rows through core/delegationledger.
@@ -1483,6 +1518,7 @@ slices:
             - internal/delegate/importorch/import.go
             - internal/delegate/importorch/import_test.go
     - id: slic-9f4a5b19
+      feature_id: feat-1386a82b
       num: 19
       title: Merge wipnote-orchestra into delegate
       what: The wipnote-orchestra mod's code and release move under the delegate feature. The band shows live and ended delegate runs (one-shot and interactive) from .wipnote/delegate/runs/, with each run's last.md.
@@ -1511,6 +1547,7 @@ slices:
       comment: ""
       research_waiver: An in-repo mod change; the mods engine contract lives in mods/wipnote-orchestra and its tests.
       approval_status: approved
+      execution_status: promoted
       decisions_notes: |
         **Trigger:** the band's refresh in Claude Code.
         **State:** read-only over .wipnote/delegate/runs/; it never writes there.
@@ -1530,6 +1567,7 @@ slices:
             - mods/wipnote-orchestra/tests/runs.test.ts
             - mods/wipnote-orchestra/README.md
     - id: slic-a05b6c20
+      feature_id: feat-896b34d2
       num: 20
       title: Resume a stopped worker with its context
       what: Add wipnote delegate spawn NAME2 --resume NAME. It relaunches the stopped run's harness with its last recorded session id (Claude --resume <id>, Codex resume <id>), in the same cwd and place (host or devcontainer), under wipnote's launchers and hooks. A short design note comes first.
@@ -1567,6 +1605,7 @@ slices:
           claim: codex exec resume <SESSION_ID> or --last continues an earlier run.
           accessed: "2026-10-25"
       approval_status: approved
+      execution_status: promoted
       questions:
         - id: q-resume-mode
           text: How does a later task reuse a stopped worker's context?
@@ -1602,6 +1641,7 @@ slices:
             - cmd/wipnote/delegate_spawn.go
             - core/hooks/delegate_bind.go
     - id: slic-b16c7d21
+      feature_id: feat-3608ec45
       num: 21
       title: Run workers in the project's devcontainer
       what: Add --container to delegate run and spawn. The worker runs inside the project's own devcontainer (.devcontainer/devcontainer.json) through devcontainer up and devcontainer exec, never an ad-hoc image. The workspace bind mount carries .wipnote/delegate/, and wipnote's hooks run inside. There is no second-account gate.
@@ -1641,6 +1681,7 @@ slices:
           claim: devcontainer up and devcontainer exec take --workspace-folder; up prints JSON with outcome, containerId, remoteUser and remoteWorkspaceFolder.
           accessed: "2026-10-25"
       approval_status: approved
+      execution_status: promoted
       questions:
         - id: q-container-image
           text: Which container runs a --container worker?
@@ -2280,3 +2321,8 @@ feedback:
           value: "true"
           created_at: "2026-10-25T14:55:50Z"
           updated_at: "2026-10-25T14:55:50Z"
+        - section: meta
+          action: finalize
+          value: "true"
+          created_at: "2026-10-25T14:56:33Z"
+          updated_at: "2026-10-25T14:56:33Z"
