@@ -13,7 +13,7 @@
              data-status="in-progress"
              data-priority="medium"
              data-created="2026-10-25T14:53:57.580962"
-             data-updated="2026-10-25T17:40:40.367965" data-agent-assigned="claude-code" data-track-id="trk-0677c709" data-created-by-cli-version="888f588" data-change_kind="capability" data-created_in_session="1c92d9d4-85b0-5403-a06e-93312ec46faf">
+             data-updated="2026-10-25T17:45:12.482799" data-agent-assigned="claude-code" data-track-id="trk-0677c709" data-created-by-cli-version="888f588" data-change_kind="capability" data-created_in_session="1c92d9d4-85b0-5403-a06e-93312ec46faf">
 
         <header>
             <h1>Hooks stop using the file-backed SQLite db: drop writes, move cross-hook reads to canonical files</h1>
@@ -53,6 +53,7 @@
                 <li data-completed="true" data-step-id="step-feat-174dc958-9" data-agent="claude-code" data-created-by-agent="claude-code">✅ Remove the daemon-miss fallback writes (two-sided test, red first)</li>
                 <li data-completed="true" data-step-id="step-feat-174dc958-10" data-agent="claude-code" data-created-by-agent="claude-code">✅ Orphan-tool sweep from tool-log start/completion pairing (two-sided test, red first)</li>
                 <li data-completed="false" data-step-id="step-feat-174dc958-11" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Phase 1 done (commits 0dd70535c, 41eec3201, a4671d48a on bloat/hooks-nodb). Proposed drops await owner: file-db writes in cold hooks, Stop backfill/assistant-text, session-end handoff/projection writes, session-resume db update, subagent-stop delegation update, task-step mirroring (dead: active feature always empty), RouteInsertEvent parent lookup. Open question: posttooluse-failure should write a failed completion line.</li>
+                <li data-completed="false" data-step-id="step-feat-174dc958-12" data-agent="claude-code" data-created-by-agent="claude-code">⏳ Owner 2026-10-25 phase 2: drop every unused write and read (file db, daemon-routed hook writes, daemon write socket); remove 9 no-op cold hooks; rewire task-created/completed to the claim ledger; posttooluse-failure writes a failed line; open-session orphans need a dead owner pid; no reaper replacement</li>
             </ol>
         </section>
 
