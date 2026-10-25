@@ -15,7 +15,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/shakestzd/wipnote/core/paths"
+	"github.com/shakestzd/wipnote/core/hostpath"
 	"github.com/shakestzd/wipnote/plan/planyaml"
 )
 
@@ -57,14 +57,27 @@ type doc struct {
 	secs   []*section
 }
 
-// Build renders the brief for plan within Limit.
-func Build(plan *planyaml.PlanYAML) Brief {
-	return BuildWithLimit(plan, Limit)
+// Options tunes Build. FeatureStatus, when set, returns the status of a
+// slice's linked work item ("done" closes the slice); Limit overrides the
+// character limit (0 means Limit).
+type Options struct {
+	FeatureStatus func(featureID string) string
+	Limit         int
 }
 
-// BuildWithLimit renders the brief for plan within limit characters.
-func BuildWithLimit(plan *planyaml.PlanYAML, limit int) Brief {
-	d := derive(plan)
+// Build renders the brief for plan within Limit.
+func Build(plan *planyaml.PlanYAML) Brief {
+	return BuildWith(plan, Options{})
+}
+
+// BuildWith renders the brief for plan's open slices, trimming list items
+// only when the open slices still do not fit the limit.
+func BuildWith(plan *planyaml.PlanYAML, opts Options) Brief {
+	limit := opts.Limit
+	if limit <= 0 {
+		limit = Limit
+	}
+	d := derive(plan, opts)
 	text := d.render()
 	for utf8.RuneCountInString(text) > limit && d.cutOne() {
 		text = d.render()
@@ -161,5 +174,5 @@ func (d *doc) renderBody() string {
 			b.WriteString("\n")
 		}
 	}
-	return paths.SanitizeHostPaths(b.String())
+	return hostpath.Redact(b.String())
 }

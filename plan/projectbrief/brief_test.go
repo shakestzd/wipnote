@@ -124,7 +124,7 @@ func TestBrief_TrimNamesCutSections(t *testing.T) {
 
 func TestBrief_NoHostPaths(t *testing.T) {
 	p := smallPlan()
-	p.Meta.Description = "See /Users/alice/proj/notes.md for context."
+	p.Meta.Description = "See /Users/alice/proj/notes.md for context, kept under /home/carol."
 	p.Design.Constraints = append(p.Design.Constraints, "Never write to /home/bob/cache/x.")
 	p.Slices[0].Files = append(p.Slices[0].Files, "/workspaces/wipnote/internal/x.go")
 	input := p.Meta.Description + p.Design.Constraints[2] + p.Slices[0].Files[1]
@@ -135,7 +135,10 @@ func TestBrief_NoHostPaths(t *testing.T) {
 	if found := hostpath.Find(out); len(found) != 0 {
 		t.Fatalf("brief holds host paths %v", found)
 	}
-	if !strings.Contains(out, "notes.md") {
+	if err := hostpath.Check("brief", out); err != nil {
+		t.Fatalf("brief holds a bare home root: %v", err)
+	}
+	if !strings.Contains(out, "notes.md") || !strings.Contains(out, "internal/delegate/run.go") {
 		t.Fatalf("redaction dropped the portable remainder of the path")
 	}
 }
@@ -198,7 +201,7 @@ func TestBrief_DerivesFromPlan(t *testing.T) {
 
 func TestBrief_SaysWhenPlanHasNoData(t *testing.T) {
 	out := Build(&planyaml.PlanYAML{Meta: planyaml.PlanMeta{ID: "plan-empty", Title: "Empty"}}).Text
-	for _, want := range []string{noRepoLine, noGoAheadLine, missingRule} {
+	for _, want := range []string{noRepoLine, noBranchLine, noPRLine, noGatesLine, noGoAheadLine, missingRule} {
 		if !strings.Contains(out, want) {
 			t.Errorf("empty plan brief misses %q", want)
 		}
@@ -213,4 +216,95 @@ func tail(s string, n int) string {
 		return s
 	}
 	return s[len(s)-n:]
+}
+
+func TestBrief_UsesMetaWorkspaceFields(t *testing.T) {
+	p := smallPlan()
+	p.Meta.Repositories = []string{"shakestzd/wipnote", "shakestzd/docs"}
+	p.Meta.BaseBranch = "feature/delegate"
+	p.Meta.PRNaming = "<work-item-id>: <slice title>"
+	p.Meta.Gates = []string{"go build ./...", "go test ./..."}
+	out := Build(p).Text
+	for _, want := range []string{"shakestzd/wipnote", "shakestzd/docs", "feature/delegate",
+		"<work-item-id>: <slice title>", "`go build ./...`", "`go test ./...`"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("brief misses %q", want)
+		}
+	}
+	for _, absent := range []string{noRepoLine, noBranchLine, noPRLine, noGatesLine, missingMetaLine} {
+		if strings.Contains(out, absent) {
+			t.Errorf("brief keeps the none line %q although the field is set", absent)
+		}
+	}
+	where := between(out, "## "+sectionWhere, "## "+sectionChecks)
+	checks := between(out, "## "+sectionChecks, "## "+sectionMissing)
+	if !strings.Contains(where, "feature/delegate") || !strings.Contains(checks, "`go test ./...`") {
+		t.Errorf("fields landed in the wrong section")
+	}
+}
+
+func TestBrief_PartialMetaKeepsNoneLines(t *testing.T) {
+	p := smallPlan()
+	p.Meta.Repositories = []string{"shakestzd/wipnote"}
+	out := Build(p).Text
+	if strings.Contains(out, noRepoLine) {
+		t.Errorf("repository is set but the none line stayed")
+	}
+	for _, want := range []string{noBranchLine, noPRLine, noGatesLine, missingMetaLine} {
+		if !strings.Contains(out, want) {
+			t.Errorf("absent field lost its none line %q", want)
+		}
+	}
+}
+
+func TestBrief_OpenSlicesOnly(t *testing.T) {
+	p := smallPlan()
+	p.Slices = append(p.Slices,
+		planyaml.PlanSlice{Num: 3, Title: "Done in plan", FeatureID: "feat-c", ExecutionStatus: "done", DoneWhen: []string{"CLOSED-3"}},
+		planyaml.PlanSlice{Num: 4, Title: "Superseded", FeatureID: "feat-d", ExecutionStatus: "superseded", DoneWhen: []string{"CLOSED-4"}},
+		planyaml.PlanSlice{Num: 5, Title: "Feature done", FeatureID: "feat-e", ExecutionStatus: "promoted", DoneWhen: []string{"CLOSED-5"},
+			Questions: []planyaml.SliceQuestion{{ID: "sq-closed", Text: "Gone?"}}},
+	)
+	status := func(id string) string {
+		if id == "feat-e" {
+			return "done"
+		}
+		return "in-progress"
+	}
+	out := BuildWith(p, Options{FeatureStatus: status}).Text
+	for _, absent := range []string{"CLOSED-3", "CLOSED-4", "CLOSED-5", "Done in plan", "Feature done", "sq-closed"} {
+		if strings.Contains(out, absent) {
+			t.Errorf("closed slice content %q is in the brief", absent)
+		}
+	}
+	for _, want := range []string{"Run exits zero", "A prints", closedLead + "slice 3, slice 4, slice 5"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("brief misses %q", want)
+		}
+	}
+	if strings.Contains(Build(smallPlan()).Text, closedLead) {
+		t.Errorf("a plan with no closed slices should not print the closed line")
+	}
+}
+
+func TestBrief_ClosedSlicesFreeBudget(t *testing.T) {
+	p := largePlan(200)
+	for i := range p.Slices[:190] {
+		p.Slices[i].ExecutionStatus = "done"
+	}
+	b := Build(p)
+	if len(b.Cut) != 0 {
+		t.Fatalf("10 open slices should fit without a trim, cut %v", b.Cut)
+	}
+	if !strings.Contains(b.Text, "SENTINEL-200-") || strings.Contains(b.Text, "SENTINEL-1-") {
+		t.Fatalf("open slices missing or closed slices kept")
+	}
+}
+
+func between(s, from, to string) string {
+	i, j := strings.Index(s, from), strings.Index(s, to)
+	if i < 0 || j < i {
+		return ""
+	}
+	return s[i:j]
 }
