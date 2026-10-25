@@ -82,13 +82,7 @@ func promoteSliceFromYAML(wipnoteDir, planID string, sliceNum int, waiveDeps, al
 	releasePlan := planyaml.LockPlanForWrite(planPath)
 	defer releasePlan()
 
-	plan, err := planyaml.Load(planPath)
-	if err != nil {
-		return "", fmt.Errorf("load plan: %w", err)
-	}
-
-	// Find the slice.
-	sliceIdx, slice, err := findPlanSlice(plan, sliceNum)
+	plan, sliceIdx, slice, err := loadPlanSlice(planPath, sliceNum)
 	if err != nil {
 		return "", err
 	}
@@ -100,27 +94,112 @@ func promoteSliceFromYAML(wipnoteDir, planID string, sliceNum int, waiveDeps, al
 	}
 	defer db.Close()
 
-	// Validate approval.
-	approvals, err := dbpkg.GetSliceApprovals(db, planID)
-	if err != nil {
-		return "", fmt.Errorf("read approvals: %w", err)
-	}
 	sectionKey := fmt.Sprintf("slice-%d", sliceNum)
-	// Accept approval from either plan_feedback (CLI-driven) or YAML
-	// approval_status (pre-set in the source). Either source is sufficient;
-	// runApproveSlice keeps both in sync, but a YAML-only seed should also work.
-	if approvals[sectionKey] != "approved" && slice.ApprovalStatus != "approved" {
-		return "", fmt.Errorf("slice %d is not approved (plan_feedback=%q, yaml=%q); run 'wipnote plan approve-slice %s %d' first",
-			sliceNum, approvals[sectionKey], slice.ApprovalStatus, planID, sliceNum)
+	if err := checkPromoteGates(db, plan, sliceIdx, wipnoteDir, planID, sliceNum, waiveDeps, allowSpecSkip); err != nil {
+		return "", err
 	}
 
-	// CRISPI spec-enforcement gate: refuse if config opts in and slice has no
-	// decisions captured. Audited override via --allow-spec-skip writes a
-	// comment to the slice so deliberate skips are visible in plan history.
+	// Idempotent: if feature_id already set, reuse it.
+	if slice.FeatureID != "" {
+		refreshPromotedSlice(plan, planPath, sectionKey)
+		return slice.FeatureID, nil
+	}
+
+	feat, err := createSliceFeature(wipnoteDir, plan, planID, slice)
+	if err != nil {
+		return "", err
+	}
+
+	if err := savePromotedSlice(plan, planPath, sliceIdx, sectionKey, planID, sliceNum, feat.ID); err != nil {
+		return "", err
+	}
+	return feat.ID, nil
+}
+
+// loadPlanSlice loads the plan and finds the slice with the given num.
+func loadPlanSlice(planPath string, sliceNum int) (*planyaml.PlanYAML, int, planyaml.PlanSlice, error) {
+	plan, err := planyaml.Load(planPath)
+	if err != nil {
+		return nil, 0, planyaml.PlanSlice{}, fmt.Errorf("load plan: %w", err)
+	}
+
+	// Find the slice.
+	sliceIdx, slice, err := findPlanSlice(plan, sliceNum)
+	if err != nil {
+		return nil, 0, planyaml.PlanSlice{}, err
+	}
+	return plan, sliceIdx, slice, nil
+}
+
+// checkPromoteGates validates the slice's approval, the spec-enforcement gate
+// and (unless waived) dependency readiness.
+func checkPromoteGates(db *sql.DB, plan *planyaml.PlanYAML, sliceIdx int, wipnoteDir, planID string, sliceNum int, waiveDeps, allowSpecSkip bool) error {
+	slice := plan.Slices[sliceIdx]
+	// Validate approval.
+	if err := checkSliceApproved(db, planID, sliceNum, slice); err != nil {
+		return err
+	}
+
+	if err := applyPromoteSpecGate(plan, sliceIdx, wipnoteDir, planID, sliceNum, allowSpecSkip); err != nil {
+		return err
+	}
+
+	// Validate dependency readiness.
+	if !waiveDeps && len(slice.Deps) > 0 {
+		if err := checkDepReadiness(db, plan, planID, slice.Deps); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// savePromotedSlice writes feature_id back to YAML and records
+// execution_status (both plan.Feedback.Entries and slice.ExecutionStatus, via
+// recordExecutionStatus) on the plan already loaded/locked by the caller, then
+// persists once. See refreshPromotedSlice for why this replaced a dead
+// dbpkg.StorePlanFeedback call against the ephemeral SQL handle.
+func savePromotedSlice(plan *planyaml.PlanYAML, planPath string, sliceIdx int, sectionKey, planID string, sliceNum int, featID string) error {
+	plan.Slices[sliceIdx].FeatureID = featID
+	recordExecutionStatus(plan, sectionKey, "promoted")
+	if err := planyaml.SaveLocked(planPath, plan); err != nil {
+		return fmt.Errorf("save plan: %w", err)
+	}
+
+	// Auto-commit (non-fatal on failure, matching finalize-yaml behaviour).
+	commitMsg := fmt.Sprintf("plan(%s): promote slice-%d → %s", planID, sliceNum, featID)
+	if err := commitPlanChange(planPath, commitMsg); err != nil {
+		fmt.Fprintf(stderr, "promote-slice: autocommit warning: %v\n", err)
+	}
+	return nil
+}
+
+// checkSliceApproved accepts approval from either plan_feedback (CLI-driven)
+// or YAML approval_status (pre-set in the source). Either source is
+// sufficient; runApproveSlice keeps both in sync, but a YAML-only seed should
+// also work.
+func checkSliceApproved(db *sql.DB, planID string, sliceNum int, slice planyaml.PlanSlice) error {
+	approvals, err := dbpkg.GetSliceApprovals(db, planID)
+	if err != nil {
+		return fmt.Errorf("read approvals: %w", err)
+	}
+	sectionKey := fmt.Sprintf("slice-%d", sliceNum)
+	if approvals[sectionKey] != "approved" && slice.ApprovalStatus != "approved" {
+		return fmt.Errorf("slice %d is not approved (plan_feedback=%q, yaml=%q); run 'wipnote plan approve-slice %s %d' first",
+			sliceNum, approvals[sectionKey], slice.ApprovalStatus, planID, sliceNum)
+	}
+	return nil
+}
+
+// applyPromoteSpecGate is the CRISPI spec-enforcement gate: refuse if config
+// opts in and slice has no decisions captured. Audited override via
+// --allow-spec-skip writes a comment to the slice so deliberate skips are
+// visible in plan history.
+func applyPromoteSpecGate(plan *planyaml.PlanYAML, sliceIdx int, wipnoteDir, planID string, sliceNum int, allowSpecSkip bool) error {
+	slice := plan.Slices[sliceIdx]
 	enforcement := hooks.ReadSpecEnforcement(filepath.Dir(wipnoteDir))
 	if enforcement.PromoteSlice && strings.TrimSpace(slice.DecisionsNotes) == "" {
 		if !allowSpecSkip {
-			return "", fmt.Errorf("slice %d has no decisions; run `wipnote plan elicit-decisions %s %d` first (or follow phase 5 of /wipnote:plan). Override with --allow-spec-skip if intentional.",
+			return fmt.Errorf("slice %d has no decisions; run `wipnote plan elicit-decisions %s %d` first (or follow phase 5 of /wipnote:plan). Override with --allow-spec-skip if intentional.",
 				sliceNum, planID, sliceNum)
 		}
 		auditNote := fmt.Sprintf("[%s] promote-slice --allow-spec-skip: promoted without decisions_notes",
@@ -132,50 +211,48 @@ func promoteSliceFromYAML(wipnoteDir, planID string, sliceNum int, waiveDeps, al
 		}
 		fmt.Fprintln(stderr, "promote-slice: --allow-spec-skip set; bypassing spec_enforcement.promote_slice gate")
 	}
+	return nil
+}
 
-	// Validate dependency readiness.
-	if !waiveDeps && len(slice.Deps) > 0 {
-		if err := checkDepReadiness(db, plan, planID, slice.Deps); err != nil {
-			return "", err
-		}
+// refreshPromotedSlice still refreshes execution_status='promoted' on an
+// already-promoted slice in case it was lost.
+//
+// Record it on the plan already loaded/locked above and persist via
+// SaveLocked — this used to be dbpkg.StorePlanFeedback(db, ...)
+// against the ephemeral :memory: handle openPlanDB just opened
+// (OpenEphemeralProjection). That handle is closed (defer db.Close()
+// above) the moment this function returns and was NEVER read by
+// anything else in the meantime, so re-promoting an already-promoted
+// slice persisted nothing at all — a live bug, not a test artifact
+// (feat-fc3cc9e0). recordExecutionStatus mirrors what
+// storePlanFeedbackEntry's upsertPlanFeedback+mirrorPlanFeedback do,
+// but writes straight into the plan this function already holds
+// planyaml.LockPlanForWrite on; calling storePlanFeedback here would
+// re-enter that same non-reentrant lock and deadlock.
+func refreshPromotedSlice(plan *planyaml.PlanYAML, planPath, sectionKey string) {
+	recordExecutionStatus(plan, sectionKey, "promoted")
+	if err := planyaml.SaveLocked(planPath, plan); err != nil {
+		fmt.Fprintf(stderr, "promote-slice: refresh execution_status warning: %v\n", err)
 	}
+}
 
-	// Idempotent: if feature_id already set, reuse it.
-	if slice.FeatureID != "" {
-		// Still refresh execution_status='promoted' in case it was lost.
-		// Record it on the plan already loaded/locked above and persist via
-		// SaveLocked — this used to be dbpkg.StorePlanFeedback(db, ...)
-		// against the ephemeral :memory: handle openPlanDB just opened
-		// (OpenEphemeralProjection). That handle is closed (defer db.Close()
-		// above) the moment this function returns and was NEVER read by
-		// anything else in the meantime, so re-promoting an already-promoted
-		// slice persisted nothing at all — a live bug, not a test artifact
-		// (feat-fc3cc9e0). recordExecutionStatus mirrors what
-		// storePlanFeedbackEntry's upsertPlanFeedback+mirrorPlanFeedback do,
-		// but writes straight into the plan this function already holds
-		// planyaml.LockPlanForWrite on; calling storePlanFeedback here would
-		// re-enter that same non-reentrant lock and deadlock.
-		recordExecutionStatus(plan, sectionKey, "promoted")
-		if err := planyaml.SaveLocked(planPath, plan); err != nil {
-			fmt.Fprintf(stderr, "promote-slice: refresh execution_status warning: %v\n", err)
-		}
-		return slice.FeatureID, nil
-	}
-
+// createSliceFeature opens the project, resolves the plan's track, creates the slice's feature
+// and emits its track, planned_in and blocked_by edges.
+func createSliceFeature(wipnoteDir string, plan *planyaml.PlanYAML, planID string, slice planyaml.PlanSlice) (*models.Node, error) {
 	// Open project for work item creation.
 	p, err := workitem.Open(wipnoteDir, agentForClaim())
 	if err != nil {
-		return "", fmt.Errorf("open project: %w", err)
+		return nil, fmt.Errorf("open project: %w", err)
 	}
 	defer p.Close()
 
 	// Resolve track.
 	if plan.Meta.TrackID == "" {
-		return "", fmt.Errorf("plan %s has no track_id; link a track first", planID)
+		return nil, fmt.Errorf("plan %s has no track_id; link a track first", planID)
 	}
 	track, err := p.Tracks.Get(plan.Meta.TrackID)
 	if err != nil {
-		return "", fmt.Errorf("get track %s: %w", plan.Meta.TrackID, err)
+		return nil, fmt.Errorf("get track %s: %w", plan.Meta.TrackID, err)
 	}
 
 	// Create feature.
@@ -184,12 +261,12 @@ func promoteSliceFromYAML(wipnoteDir, planID string, sliceNum int, waiveDeps, al
 		workitem.FeatWithContent(slice.What),
 	)
 	if err != nil {
-		return "", fmt.Errorf("create feature: %w", err)
+		return nil, fmt.Errorf("create feature: %w", err)
 	}
 
 	// Emit edges.
 	if err := wireTrackEdges(p, feat.ID, track.ID, feat.Title); err != nil {
-		return "", fmt.Errorf("wire track edges: %w", err)
+		return nil, fmt.Errorf("wire track edges: %w", err)
 	}
 	p.Features.AddEdge(feat.ID, models.Edge{ //nolint:errcheck
 		TargetID:     planID,
@@ -198,8 +275,14 @@ func promoteSliceFromYAML(wipnoteDir, planID string, sliceNum int, waiveDeps, al
 		Since:        time.Now().UTC(),
 	})
 
-	// blocked_by edges for promoted dep slices that have a feature_id.
-	for _, depNum := range slice.Deps {
+	wireSliceBlockedByEdges(p, plan, feat.ID, slice.Deps)
+	return feat, nil
+}
+
+// wireSliceBlockedByEdges adds blocked_by edges for promoted dep slices that
+// have a feature_id.
+func wireSliceBlockedByEdges(p *workitem.Project, plan *planyaml.PlanYAML, featID string, deps []int) {
+	for _, depNum := range deps {
 		depSliceIdx := -1
 		for i, s := range plan.Slices {
 			if s.Num == depNum {
@@ -208,32 +291,13 @@ func promoteSliceFromYAML(wipnoteDir, planID string, sliceNum int, waiveDeps, al
 			}
 		}
 		if depSliceIdx >= 0 && plan.Slices[depSliceIdx].FeatureID != "" {
-			p.Features.AddEdge(feat.ID, models.Edge{ //nolint:errcheck
+			p.Features.AddEdge(featID, models.Edge{ //nolint:errcheck
 				TargetID:     plan.Slices[depSliceIdx].FeatureID,
 				Relationship: "blocked_by",
 				Since:        time.Now().UTC(),
 			})
 		}
 	}
-
-	// Write feature_id back to YAML and record execution_status (both
-	// plan.Feedback.Entries and slice.ExecutionStatus, via
-	// recordExecutionStatus) on the plan already loaded/locked above, then
-	// persist once. See the idempotent branch above for why this replaced a
-	// dead dbpkg.StorePlanFeedback call against the ephemeral SQL handle.
-	plan.Slices[sliceIdx].FeatureID = feat.ID
-	recordExecutionStatus(plan, sectionKey, "promoted")
-	if err := planyaml.SaveLocked(planPath, plan); err != nil {
-		return "", fmt.Errorf("save plan: %w", err)
-	}
-
-	// Auto-commit (non-fatal on failure, matching finalize-yaml behaviour).
-	commitMsg := fmt.Sprintf("plan(%s): promote slice-%d → %s", planID, sliceNum, feat.ID)
-	if err := commitPlanChange(planPath, commitMsg); err != nil {
-		fmt.Fprintf(stderr, "promote-slice: autocommit warning: %v\n", err)
-	}
-
-	return feat.ID, nil
 }
 
 // recordExecutionStatus mirrors a set_execution_status feedback entry into an

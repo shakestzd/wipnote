@@ -2,6 +2,7 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -119,56 +120,11 @@ func runWho(jsonOut bool) error {
 	}
 	defer database.Close()
 
-	// Resolve session ID through the shared resolver (the same one `bug start`
-	// and the PreToolUse gate use, issue #148), falling back to the most-recent
-	// active session. The source is surfaced so a wrong pick is diagnosable.
-	sessionID, sessionSource := hooks.ResolveSessionID("")
-	if sessionID == "" {
-		sessionID, _ = dbpkg.MostRecentActiveSession(database)
-		if sessionID != "" {
-			sessionSource = whoSourceMostRecentActive
-		}
-	}
+	sessionID, sessionSource := resolveWhoSession(database)
+	familyID := resolveWhoSessionFamily(database, sessionID)
 
-	// Detect the raw harness token from the environment. The launcher sets
-	// WIPNOTE_AGENT_ID to the AgentID ("codex"/"gemini"), and subagents set it
-	// to an arbitrary agent role name — neither is the display harness name
-	// resolveTaskTrackingInfo keys on. Authoritative resolution happens below
-	// once the claim identity (DB owner_agent) is loaded; this is the fallback.
-	prov := provenance.Detect()
-	rawHarness := prov.Agent
-
-	// Resolve session family from DB.
-	familyID := sessionID
-	if sessionID != "" {
-		var fid string
-		if err := database.QueryRow(
-			`SELECT COALESCE(session_family_id, session_id) FROM sessions WHERE session_id = ?`, sessionID,
-		).Scan(&fid); err == nil && fid != "" {
-			familyID = fid
-		}
-	}
-
-	// Load claim identity.
-	var identity *dbpkg.ClaimIdentity
-	if sessionID != "" {
-		identity, _ = dbpkg.GetClaimIdentity(database, sessionID)
-	}
-
-	// Resolve the display harness name. Prefer the claim/session DB owner_agent
-	// (authoritative for what actually claimed the work, and correct even for
-	// subagent sessions whose WIPNOTE_AGENT_ID is a role name, not a harness),
-	// falling back to the env token. Normalize through the harness registry so
-	// launcher AgentIDs ("codex"/"gemini") and DB IDs ("gemini_cli") map to the
-	// canonical display name ("codex-cli"/"gemini-cli") before capability lookup.
-	harnessToken := rawHarness
-	if identity != nil && identity.Harness != "" {
-		harnessToken = identity.Harness
-	}
-	displayHarness := harness.NormalizeDisplayName(harnessToken)
-	if displayHarness == "" {
-		displayHarness = "claude-code" // default when nothing is known
-	}
+	identity := loadWhoClaimIdentity(database, sessionID)
+	displayHarness := resolveWhoHarness(identity)
 
 	// Per-harness task tracking support.
 	taskInfo := resolveTaskTrackingInfo(displayHarness)
@@ -178,10 +134,101 @@ func runWho(jsonOut bool) error {
 	projectDir := filepath.Dir(dir)
 	live := sessionID != "" && sessionsLedgerNotEnded(dir)(sessionID)
 
-	// Files touched by this session (current project only, read-only). Two
-	// ledgers are merged: feature_files (claimed touches) and session_files
-	// (claimless touches — work done with no active feature, previously
-	// invisible). Deduped on file_path, newest last_seen wins.
+	fileEntries := collectWhoFiles(database, sessionID)
+	annotateWhoFileOverlaps(database, projectDir, sessionID, fileEntries)
+
+	out := whoOutput{
+		SessionID:       sessionID,
+		SessionSource:   sessionSource,
+		SessionFamilyID: familyID,
+		Harness:         displayHarness,
+		IsSubagent:      false,
+		Live:            live,
+		TaskTracking:    taskInfo,
+		Files:           fileEntries,
+	}
+
+	applyWhoClaimIdentity(&out, database, identity)
+
+	if jsonOut {
+		return printJSON(out)
+	}
+
+	return renderWhoText(out)
+}
+
+// resolveWhoSession resolves the session ID through the shared resolver (the
+// same one `bug start` and the PreToolUse gate use, issue #148), falling back
+// to the most-recent active session. The source is surfaced so a wrong pick
+// is diagnosable.
+func resolveWhoSession(database *sql.DB) (sessionID, sessionSource string) {
+	sessionID, sessionSource = hooks.ResolveSessionID("")
+	if sessionID == "" {
+		sessionID, _ = dbpkg.MostRecentActiveSession(database)
+		if sessionID != "" {
+			sessionSource = whoSourceMostRecentActive
+		}
+	}
+	return sessionID, sessionSource
+}
+
+// resolveWhoSessionFamily resolves the session family from the DB, defaulting
+// to the session itself.
+func resolveWhoSessionFamily(database *sql.DB, sessionID string) string {
+	familyID := sessionID
+	if sessionID != "" {
+		var fid string
+		if err := database.QueryRow(
+			`SELECT COALESCE(session_family_id, session_id) FROM sessions WHERE session_id = ?`, sessionID,
+		).Scan(&fid); err == nil && fid != "" {
+			familyID = fid
+		}
+	}
+	return familyID
+}
+
+// loadWhoClaimIdentity loads the session's claim identity, or nil.
+func loadWhoClaimIdentity(database *sql.DB, sessionID string) *dbpkg.ClaimIdentity {
+	var identity *dbpkg.ClaimIdentity
+	if sessionID != "" {
+		identity, _ = dbpkg.GetClaimIdentity(database, sessionID)
+	}
+	return identity
+}
+
+// resolveWhoHarness resolves the display harness name.
+//
+// Detect the raw harness token from the environment. The launcher sets
+// WIPNOTE_AGENT_ID to the AgentID ("codex"/"gemini"), and subagents set it
+// to an arbitrary agent role name — neither is the display harness name
+// resolveTaskTrackingInfo keys on. Authoritative resolution happens below
+// once the claim identity (DB owner_agent) is loaded; this is the fallback.
+//
+// Resolve the display harness name. Prefer the claim/session DB owner_agent
+// (authoritative for what actually claimed the work, and correct even for
+// subagent sessions whose WIPNOTE_AGENT_ID is a role name, not a harness),
+// falling back to the env token. Normalize through the harness registry so
+// launcher AgentIDs ("codex"/"gemini") and DB IDs ("gemini_cli") map to the
+// canonical display name ("codex-cli"/"gemini-cli") before capability lookup.
+func resolveWhoHarness(identity *dbpkg.ClaimIdentity) string {
+	prov := provenance.Detect()
+	rawHarness := prov.Agent
+	harnessToken := rawHarness
+	if identity != nil && identity.Harness != "" {
+		harnessToken = identity.Harness
+	}
+	displayHarness := harness.NormalizeDisplayName(harnessToken)
+	if displayHarness == "" {
+		displayHarness = "claude-code" // default when nothing is known
+	}
+	return displayHarness
+}
+
+// collectWhoFiles lists the files touched by this session (current project
+// only, read-only). Two ledgers are merged: feature_files (claimed touches)
+// and session_files (claimless touches — work done with no active feature,
+// previously invisible). Deduped on file_path, newest last_seen wins.
+func collectWhoFiles(database *sql.DB, sessionID string) []whoFileEntry {
 	fileSeen := map[string]int{} // file_path -> index into fileEntries
 	var fileEntries []whoFileEntry
 	addFile := func(sf dbpkg.SessionFile) {
@@ -214,12 +261,15 @@ func runWho(jsonOut bool) error {
 	if fileEntries == nil {
 		fileEntries = []whoFileEntry{}
 	}
+	return fileEntries
+}
 
-	// Live file-overlap detection (Tier 1): for each file this session has
-	// touched, surface OTHER *live* sessions that touched the same path within
-	// the recency window. Liveness is heartbeat-recency derived (Tier 3), so a
-	// stale status='active' ghost session never produces a false ⚠
-	// (bug-6c3e8252). Each lookup is a single indexed SELECT with zero writes.
+// annotateWhoFileOverlaps is the live file-overlap detection (Tier 1): for each file this session has
+// touched, surface OTHER *live* sessions that touched the same path within
+// the recency window. Liveness is heartbeat-recency derived (Tier 3), so a
+// stale status='active' ghost session never produces a false ⚠
+// (bug-6c3e8252). Each lookup is a single indexed SELECT with zero writes.
+func annotateWhoFileOverlaps(database *sql.DB, projectDir, sessionID string, fileEntries []whoFileEntry) {
 	if sessionID != "" {
 		window := dbpkg.FileOverlapWindow(projectDir)
 		liveness := dbpkg.LivenessStalenessThreshold(projectDir)
@@ -235,50 +285,38 @@ func runWho(jsonOut bool) error {
 			}
 		}
 	}
+}
 
-	out := whoOutput{
-		SessionID:       sessionID,
-		SessionSource:   sessionSource,
-		SessionFamilyID: familyID,
-		Harness:         displayHarness,
-		IsSubagent:      false,
-		Live:            live,
-		TaskTracking:    taskInfo,
-		Files:           fileEntries,
+// applyWhoClaimIdentity copies the claim identity onto out and checks for
+// collaboration/collision on the active work item.
+func applyWhoClaimIdentity(out *whoOutput, database *sql.DB, identity *dbpkg.ClaimIdentity) {
+	if identity == nil {
+		return
+	}
+	out.WorkItem = identity.WorkItemID
+	out.ClaimID = identity.ClaimID
+	out.ClaimStatus = string(identity.ClaimStatus)
+	out.ClaimedAt = identity.LeasedAt.UTC().Format(time.RFC3339)
+	out.ExecutionRoot = identity.ExecutionRoot
+	out.IsSubagent = identity.IsSubagent
+	if identity.SessionFamilyID != "" {
+		out.SessionFamilyID = identity.SessionFamilyID
 	}
 
-	if identity != nil {
-		out.WorkItem = identity.WorkItemID
-		out.ClaimID = identity.ClaimID
-		out.ClaimStatus = string(identity.ClaimStatus)
-		out.ClaimedAt = identity.LeasedAt.UTC().Format(time.RFC3339)
-		out.ExecutionRoot = identity.ExecutionRoot
-		out.IsSubagent = identity.IsSubagent
-		if identity.SessionFamilyID != "" {
-			out.SessionFamilyID = identity.SessionFamilyID
+	// Check for collaboration/collision on the active work item.
+	coll, err := dbpkg.DetectCollaboration(database, identity.WorkItemID)
+	if err == nil && coll.HasCollision {
+		collOut := &collabOutput{HasCollision: true}
+		for _, c := range coll.Claimants {
+			collOut.Claimants = append(collOut.Claimants, claimantRecord{
+				ClaimID:   c.ClaimID,
+				SessionID: c.OwnerSessionID,
+				Harness:   c.OwnerAgent,
+				ClaimedAt: c.LeasedAt.UTC().Format(time.RFC3339),
+			})
 		}
-
-		// Check for collaboration/collision on the active work item.
-		coll, err := dbpkg.DetectCollaboration(database, identity.WorkItemID)
-		if err == nil && coll.HasCollision {
-			collOut := &collabOutput{HasCollision: true}
-			for _, c := range coll.Claimants {
-				collOut.Claimants = append(collOut.Claimants, claimantRecord{
-					ClaimID:   c.ClaimID,
-					SessionID: c.OwnerSessionID,
-					Harness:   c.OwnerAgent,
-					ClaimedAt: c.LeasedAt.UTC().Format(time.RFC3339),
-				})
-			}
-			out.Collaboration = collOut
-		}
+		out.Collaboration = collOut
 	}
-
-	if jsonOut {
-		return printJSON(out)
-	}
-
-	return renderWhoText(out)
 }
 
 // resolveTaskTrackingInfo returns per-harness task lifecycle tracking support.
@@ -330,6 +368,18 @@ func renderWhoText(out whoOutput) error {
 	}
 	fmt.Printf("  Live:            %s\n", liveLabel)
 
+	printWhoClaim(out)
+
+	fmt.Printf("\n  Task tracking:   %s\n", out.TaskTracking.Detail)
+
+	printWhoFiles(out)
+
+	fmt.Println(sep)
+	return nil
+}
+
+// printWhoClaim prints the active claim and any collision/collaboration.
+func printWhoClaim(out whoOutput) {
 	if out.WorkItem != "" {
 		fmt.Printf("\n  Active claim:\n")
 		fmt.Printf("    Work item:   %s\n", out.WorkItem)
@@ -348,9 +398,10 @@ func renderWhoText(out whoOutput) error {
 		}
 		fmt.Printf("  (warn-and-allow: work continues; coordinate manually)\n")
 	}
+}
 
-	fmt.Printf("\n  Task tracking:   %s\n", out.TaskTracking.Detail)
-
+// printWhoFiles prints the files this session touched, flagging overlaps.
+func printWhoFiles(out whoOutput) {
 	if len(out.Files) > 0 {
 		fmt.Printf("\n  Files touched (%d):\n", len(out.Files))
 		fmt.Printf("    %-3s %-10s  %-24s  %s\n", "", "OPERATION", "LAST SEEN", "PATH")
@@ -369,7 +420,4 @@ func renderWhoText(out whoOutput) error {
 	} else {
 		fmt.Printf("\n  No files recorded for this session.\n")
 	}
-
-	fmt.Println(sep)
-	return nil
 }
