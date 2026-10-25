@@ -822,7 +822,7 @@ slices:
         - spawn returns within 3 s with status "starting", run id, pane id and name; the bind finishes in the pane
         - spawn refuses a live name, and refuses when no work item resolves
         - spawn scrubs inherited WIPNOTE_* session env; rootSessionFor(worker) == worker session id (TestSpawn_WorkerShardIsOwnRoot)
-        - After /clear, the run lists both session ids
+        - After /clear, the run lists both sessions
         - stop is verified only when the pane and every worker process are gone
         - tree reuses RenderAgentTree
         - The bind hook adds under 2 ms and never fails
