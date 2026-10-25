@@ -7,12 +7,1206 @@ meta:
     status: draft
     priority: medium
     schema_version: v4
-    version: 2
+    version: 3
 design:
-    problem: ""
-    goals: []
-    constraints: []
+    problem: |
+        ## Problem
+
+        wipnote has two delegation paths. The `mods/codex-herdr-pane` mod (TypeScript, Claude Code mods engine) wraps one-shot `codex exec`, `codex review`, `ccx task` and `claude -p` calls in a herdr pane and writes a run folder (feat-a1df60c2). orch (Python, on the owner's machine only) drives interactive Claude and Codex sessions in herdr panes through a file mailbox. wipnote only reads orch's files (`internal/orchlink`, feat-ac66c687). `docs/design/orch-integration.md` line 16 splits the work: "the mod covers one-shot runs, orch covers interactive sessions". The owner replaced that split. Delegation becomes a native wipnote feature written in Go in the wipnote binary, with orch as the reference and the mod absorbed. The result is ONE path.
+
+        Today a delegation leaves only hook events. No canonical record links it to a work item (feat-dd8b0cde). orch facts live outside the project and never reach `.wipnote/`.
+
+        ## Non-goals
+
+        - herdr-orch-style task DAGs, auto-dispatch, resource leases, PR CI watch, schedules and web UI. These are prior art, not scope.
+        - Remote machines over SSH, and phone or chat front ends.
+        - Auto-accepting a worker's trust or permission prompts (brgr does this; we do not copy it by default).
+        - Replacing Claude Code's native subagents (Task/Agent) or Codex's native subagents.
+        - A dashboard or web view. The dashboard is gone; lineage and the CLI are the read surfaces.
+        - Antigravity workers in v1, unless the owner says otherwise (question q-antigravity).
+
+        ## Design decisions (rationale in each slice's decisions_notes)
+
+        1. **No daemon.** Every verb is a short CLI process, a bounded wait, or a process that lives in a herdr pane. Hooks write one small file and return. A missing or slow writer daemon never delays a hook or the launcher (user rule: daemons never block Claude).
+        2. **Workers run under wipnote's launchers.** `spawn` starts `wipnote claude` or `wipnote codex` in the pane with `WIPNOTE_DELEGATE_RUN=<run-id>`. wipnote's own plugin hooks fire, so no `--settings` hook file is needed. The launcher passes no `--settings` today (code search, 2026-10-25). The `--settings` risk remains only for orch during migration (Phase B check B1).
+        3. **One writer per file.** Each mailbox message is its own file, written by temp file plus rename. Each process appends to its own events file. This avoids the APFS O_APPEND hazard (arch card daemon-purpose-outlives-sqlite) and any flock across a host-container bind mount.
+        4. **One canonical record type (Q4) holding spawn and stop (Q3).** `.wipnote/delegations-ledger.html` has one row per run with `mode=oneshot|interactive`. Spawn opens the row. Exit or stop closes it. Usage and session ids enrich it. Tool and prompt events are not copied: they duplicate `agent_events`.
+        5. **Settle on durable signals.** A wait ends on the worker's Stop hook event for the current turn, an exit file or an explicit report. herdr agent state is only a hint: herdr's docs say `agent wait` observes state, not job completion. cbds and herdr-orch settle the same way.
+        6. **Keep the run-folder contract.** The files are raw.log, clean.log, clean.md, last.md, usage, exit, start, end, label, host and run.html, as in feat-a1df60c2. The report the caller sees keeps the mod's format, so prompts and viewers keep working.
+        7. **Layout.** The engine lives in `internal/delegate/` (cmd imports internal). The ledger lives in `core/delegationledger/`, beside `core/sessionledger` and `core/gateledger`. herdr is driven through its CLI behind an interface, not the socket API: herdr-orch pins socket protocol 22, which changes between releases.
+
+        ## The store
+
+        | Data | Where | Committed | Why |
+        |---|---|---|---|
+        | Delegation-run row (spawn, stop, exit, usage, work item, caller and worker session ids) | `.wipnote/delegations-ledger.html` | yes, canonical | Survives cache purges; lineage reads it; reindex rebuilds the index from it |
+        | Run folder, events, mailbox, pane ids | live runtime root (default `.wipnote/delegate/`, gitignored like `sessions/`; see q-live-store) | no | Ephemeral; reachable from the caller, the hooks and a container worker through the project bind mount |
+        | Per-turn tool and prompt events | existing `agent_events` from wipnote hooks | as today | Not duplicated |
+
+        No absolute host path, user name or home directory enters a ledger row or a work item. The ledger writer refuses such values. Run folders hold paths, but they are runtime files and never committed.
+
+        ## Prior art: herdr plugins (surveyed 2026-10-25)
+
+        The directory at https://herdr.dev/plugins/ loads by JavaScript. It lists GitHub repos tagged `herdr-plugin` (1,907 repos). The survey read the top 100 by stars plus topic searches for orchestrat, delegat, mailbox, spawn, subagent, swarm, worker, dispatch, send task and inbox. It read READMEs only: no code was run and nothing was installed. All content was treated as reference data.
+
+        | Plugin | Version / last update | License | spawn | send | wait | result | stop | questions | tree | Driven by | Use for wipnote |
+        |---|---|---|---|---|---|---|---|---|---|---|---|
+        | herdr built-in `agent` and `pane` commands (herdr 0.9.5) | 0.9.5 | herdr's own | `agent start`, `pane run` | `agent prompt` | `agent wait` (state only) | `agent read` (screen) | `pane close` | `blocked` state only | no | herdr CLI and socket API | **Use** as the transport in slice 6 |
+        | [ellingtonsp/herdr-orch](https://github.com/ellingtonsp/herdr-orch) (`horch`) | v0.1.2, 2026-10-02; push 2026-10-14 | MIT | yes | yes, with receipts | `check --wait` | `horch done` plus herdr state | release with process-exit proof | `ask`/`reply`, decision gates | board only (runs, tasks, workers) | `herdr plugin install`; `horch` CLI; daemon started by the herdr server; SQLite per herdr session in herdr's plugin state dir | **Covers most of the scope.** Options: adopt, wrap or learn (q-adopt-vs-port) |
+        | [zielus/herdr-woof](https://github.com/zielus/herdr-woof) | v1.1.0, 2026-10-04 | MIT | yes | yes | yes | dispatch settlement | protected release | yes | no | global `woofd` daemon, SQLite, `woof` CLI over a Unix socket | Learn from (its global daemon conflicts with decision 1) |
+        | [mrrobot-ec/pod](https://github.com/mrrobot-ec/pod) | v0.2.10, 2026-10-16 | MIT | yes (Claude, Codex, Grok) | durable, acked | yes | report-proven | yes | gates | board | `herdr plugin install`, skills; **no daemon** | Learn from: its no-daemon model matches decision 1 |
+        | [zqkra/cbds](https://github.com/zqkra/cbds) | no release; push 2026-08-31 | MIT | `dispatch start`, `spawn` | `say` | `wait` (fs watch, mandatory timeout) | fsynced report, task id plus dispatch id | partial | no | no | herdr plugin and CLI, Node, no dependencies | Learn from: stale-dispatch rejection and the mandatory timeout (slice 11) |
+        | [husniadil/herdr-mail](https://github.com/husniadil/herdr-mail) and [herdr-dispatch](https://github.com/husniadil/herdr-dispatch) | v0.6.4 and v0.10.7, 2026-08-30/31 | MIT | dispatch | notify, ask, reply | partial | partial | dispatcher stop | ask/reply | **deliberately absent** ("who spawned whom") | Go binaries, `[[startup]]` daemon, skill symlink | Learn from: "the store is authoritative, the pane marker is a hint" (slice 5) |
+        | [justn-hyeok/brgr](https://github.com/justn-hyeok/brgr) | v2.14.2, 2026-10-14 | MIT | yes | no | report notice | sealed report | closes the pane | no | no | Rust CLI | Learn from; do not copy its prompt auto-accept |
+        | [junghan0611/entwurf](https://github.com/junghan0611/entwurf) | v0.41.2, 2026-10-24 | MIT | open/reopen | message | no | callback | retire | no | no | TS package, ACP plugin | Learn from: cross-harness identity (garden id), incl. Codex and Antigravity |
+        | [GODVvVZzz/herdr-agent-chat](https://github.com/GODVvVZzz/herdr-agent-chat) | no release; 2026-09-23 | MIT | yes | yes | guardian delivery | files plus message | no | no | no | skill plus herdr plugin | Learn from |
+        | [anhnd3005-infinity/herdr-worker-orchestrator](https://github.com/anhnd3005-infinity/herdr-worker-orchestrator) | no release; 2026-08-25 | MIT | yes (agy, codex) | yes | yes | diff review | no | no | no | Claude Code plugin plus herdr plugin | Learn from |
+        | [jeffory/herdr-walkietalkie](https://github.com/jeffory/herdr-walkietalkie) | v0.5.1, 2026-08-12 | **none** | yes | files under `.wt/` | yes | files | no | no | no | shell `wt`; edits user agent config files | Cannot reuse (no license) |
+
+        Narrower prior art: question inboxes (speardragon/herdr-ask-inbox, no license; LeaveMyYard/herdr-inbox, MIT) and sub-agent trees (blavka/agents-tree, MIT; LeaveMyYard/herdr-panorama, MIT).
+
+        **Finding.** herdr-orch covers spawn, send, wait, result, stop and questions, and gives a board instead of a sub-agent tree. That is most of the scope, so q-adopt-vs-port puts "adopt or wrap herdr-orch vs port orch" to the owner. Points against adopting it: it needs its own daemon and SQLite outside `.wipnote/`, so it has no work-item link or lineage. It is v0.1.x from one maintainer, with no stars. It covers neither one-shot `codex exec` runs nor the run-folder contract. Points for it: it is MIT and written in Go, and its settlement and verified-release logic is already built.
+
+        ## Migration
+
+        - **orch users (the owner).** orch keeps working until slices 10 and 11 reach parity. `internal/orchlink` keeps reading orch's registry until slice 13. An import of orch history is optional (q-orch-import).
+        - **codex-herdr-pane users.** The mod keeps working until slice 14 removes it (timing: q-mod-removal). Its settings map to wipnote settings, with a one-time notice. Its run folders under the user cache age out through its own 7-day sweep. `wipnote delegate list` and `view` replace `/codex-runs`.
+        - **The read-only orchlink.** It stays for the migration window, then slice 13 deletes it and `cmd/wipnote/lineage_orch.go`.
+
+        ## Notes
+
+        - feat-ac66c687 is `in-progress` (10 of 11 steps), not done. Its open step is Q3/Q4, which this plan answers (decision 4).
+        - The OpenUI twin views for this plan's slices are not written yet (follow-up).
+    goals:
+        - 'One native path: wipnote delegate spawn, send, wait, result, stop, questions, tree and run, written in Go in the wipnote binary.'
+        - One-shot runs (codex exec/review, claude -p, ccx task) and interactive sessions share one run store, one herdr adapter and one canonical record.
+        - Every delegation is a canonical row in .wipnote/delegations-ledger.html, linked to its work item and to its caller and worker sessions, and visible in wipnote lineage.
+        - The orchestrator settles on durable signals and never parses a pane's screen to decide that a worker finished.
+        - mods/codex-herdr-pane and internal/orchlink are retired once the native path reaches parity.
+    constraints:
+        - No daemon dependency. No hook and no launcher waits on a daemon (user rule).
+        - No absolute host paths, user names or company names in work items, ledger rows or this plan.
+        - .wipnote/*.html is canonical. SQLite is a derived index. Runtime state is gitignored.
+        - Generated plugin trees change only through wipnote plugin build-ports.
+        - Code limits apply (file 500 lines, function 50 lines). Tests use a herdr stub; live herdr tests run only when HERDR_ENV=1.
+        - Codex's sandbox is never disabled by default.
+        - AGENTS.md, CLAUDE.md and GEMINI.md are owner-edited. Slices name needed changes as follow-ups.
     approved: false
     comment: ""
-slices: []
-questions: []
+    research:
+        - url: https://herdr.dev/plugins/
+          claim: The plugin directory loads by JavaScript and lists repos tagged herdr-plugin; listings are not reviewed by herdr.
+          accessed: "2026-10-25"
+        - url: https://github.com/topics/herdr-plugin
+          claim: 1,907 repos carry the topic (gh search API, 2026-10-25); top 100 by stars plus keyword searches were read.
+          accessed: "2026-10-25"
+        - url: https://github.com/ellingtonsp/herdr-orch
+          claim: 'horch v0.1.2, MIT, Go: mailbox with receipts, ask/reply, tracked dispatch, verified release; daemon plus SQLite per herdr session.'
+          accessed: "2026-10-25"
+        - url: https://github.com/zielus/herdr-woof
+          claim: 'woof v1.1.0, MIT, Go: global woofd plus SQLite; workers, messages, questions, settlement, protected release.'
+          accessed: "2026-10-25"
+        - url: https://github.com/mrrobot-ec/pod
+          claim: 'pod v0.2.10, MIT, Rust: report-proven completion, durable acked messages, no daemon.'
+          accessed: "2026-10-25"
+        - url: https://github.com/zqkra/cbds
+          claim: 'cbds, MIT: durable fsynced report, task id plus dispatch id authentication, wait with mandatory timeout.'
+          accessed: "2026-10-25"
+        - url: https://github.com/husniadil/herdr-mail
+          claim: 'herdr-mail v0.6.4, MIT, Go: store-authoritative mailbox; agent prompt gives no receipt, so the pane marker is a hint.'
+          accessed: "2026-10-25"
+        - url: https://github.com/husniadil/herdr-dispatch
+          claim: 'herdr-dispatch v0.10.7, MIT, Go: worker pane per ready task; lineage deliberately absent.'
+          accessed: "2026-10-25"
+        - url: https://github.com/justn-hyeok/brgr
+          claim: 'brgr v2.14.2, MIT, Rust: workers in panes, sealed reports, auto-accepts trust prompts.'
+          accessed: "2026-10-25"
+        - url: https://github.com/junghan0611/entwurf
+          claim: 'entwurf v0.41.2, MIT: cross-harness sibling sessions and messaging, incl. Codex and Antigravity.'
+          accessed: "2026-10-25"
+        - url: https://github.com/GODVvVZzz/herdr-agent-chat
+          claim: 'herdr-agent-chat, MIT: worker panes with a delivery guardian.'
+          accessed: "2026-10-25"
+        - url: https://github.com/anhnd3005-infinity/herdr-worker-orchestrator
+          claim: Claude Code plus herdr dual plugin dispatching to agy and codex workers, MIT.
+          accessed: "2026-10-25"
+        - url: https://github.com/jeffory/herdr-walkietalkie
+          claim: 'wt v0.5.1: file-based tasks and results under .wt/; no license, so not reusable.'
+          accessed: "2026-10-25"
+        - url: https://herdr.dev/docs/plugins/
+          claim: herdr-plugin.toml with build, startup, actions, events, panes; startup hooks are one-shot, not supervised daemons; no shutdown hook; plugins are not sandboxed.
+          accessed: "2026-10-25"
+        - url: https://herdr.dev/docs/agents/
+          claim: Agent states idle, working, blocked, done; agent wait and prompt --wait observe state, not job completion.
+          accessed: "2026-10-25"
+        - url: https://herdr.dev/docs/integrations/
+          claim: herdr integration install claude adds a SessionStart hook to settings.json that reports session identity; codex adds hooks.json entries.
+          accessed: "2026-10-25"
+        - url: https://code.claude.com/docs/en/hooks
+          claim: Hook entries merge across settings levels; plugin hooks merge with user and project hooks; PreToolUse updatedInput replaces the input with allow or ask.
+          accessed: "2026-10-25"
+        - url: https://code.claude.com/docs/en/settings
+          claim: --settings is the command-line level, above project and user, below managed; list keys merge across levels.
+          accessed: "2026-10-25"
+        - url: https://learn.chatgpt.com/docs/hooks
+          claim: Codex hooks get session_id on stdin; PreToolUse updatedInput is valid only with permissionDecision allow.
+          accessed: "2026-10-25"
+        - url: https://learn.chatgpt.com/docs/non-interactive-mode
+          claim: codex exec --json emits thread.started (thread_id) and turn.completed usage (input, cached_input, output, reasoning_output tokens).
+          accessed: "2026-10-25"
+slices:
+    - id: slic-0a1f3c11
+      num: 1
+      title: Bring in the orch source and README as reference
+      what: The owner shares the orch repo. Import its README and a pinned source snapshot, or an inventory only (q-orch-source), as read-only reference. Write an inventory that maps every orch command, flag, file and event to its wipnote delegate target. Scrub host paths and user names.
+      why: orch is the reference for the port, and its source exists only on the owner's machine. Slices 5, 10 and 11 need its exact behaviour (mailbox layout, pinning, verified stop).
+      files:
+        - docs/reference/orch/README.md
+        - docs/reference/orch/SOURCE.md
+        - docs/design/orch-inventory.md
+      deps: []
+      done_when:
+        - The inventory lists every orch subcommand and flag, each with a wipnote delegate target or 'not ported' and a reason
+        - wipnote check host-paths reports nothing in docs/reference/orch/ or docs/design/orch-inventory.md
+        - SOURCE.md names the orch commit, its license and what was scrubbed
+      effort: S
+      risk: Med
+      tests: |
+        Check: wipnote check host-paths over the new docs.
+        Review: the owner confirms the inventory against orch --help output.
+      complexity: standard
+      approved: false
+      comment: ""
+      research_waiver: Internal source import. The owner supplies the material and no external standard applies.
+      decisions_notes: |
+        **Trigger:** the owner shares the repo (read access, a fork or an archive).
+        **State:** reference only. Nothing in docs/reference/orch/ is built, run or imported by Go code.
+        **Payload:** a README copy; SOURCE.md with commit, license and a scrub log; docs/design/orch-inventory.md as the port checklist.
+        **Rejected:** a git submodule, because it pulls a private remote into every clone. Porting from the README alone is also rejected: feat-ac66c687 found the README stale on mail roots.
+        **Risk:** the license is unknown and the source may hold host paths or user names, so scrub before commit.
+        **Parallel:** yes, with slices 2, 4 and 6.
+      blocks:
+        - type: file-tree
+          title: Files added
+          entries:
+            - docs/reference/orch/README.md
+            - docs/reference/orch/SOURCE.md
+            - docs/design/orch-inventory.md
+    - id: slic-1b2e4d22
+      num: 2
+      title: 'Phase B: verify harness hooks on the owner''s Mac'
+      what: Run a scripted check on the owner's Mac inside herdr, with its container half run here. It checks that --settings hooks add to plugin hooks, worker sids match wipnote sessions, Codex hooks fire (interactive and exec), container workers write the Mac's .wipnote/, and flock works across the bind mount.
+      why: docs/design/orch-integration.md section 6 lists these as unverified. Slices 5, 10 and 12 depend on the answers, so this slice runs first.
+      files:
+        - scripts/delegate-phase-b.sh
+        - docs/design/delegate-phase-b.md
+      deps: []
+      done_when:
+        - docs/design/delegate-phase-b.md records each check as pass, fail or not run, with the command and the observed output
+        - Each result is stored as an arch card (wipnote arch add) with repo-relative paths only
+        - The script exits non-zero and names the check when herdr, claude, codex or wipnote is missing
+      effort: S
+      risk: Low
+      tests: |
+        Self-test in the container with HERDR_ENV unset: the script skips herdr checks and reports them as not run.
+        Manual: the owner runs it on the Mac in a herdr pane and pastes the table into delegate-phase-b.md.
+      complexity: standard
+      approved: false
+      comment: ""
+      research:
+        - url: https://code.claude.com/docs/en/hooks
+          claim: Hook entries merge across settings levels; plugin hooks merge with user and project hooks. --settings is not listed as a hook location.
+          accessed: "2026-10-25"
+        - url: https://code.claude.com/docs/en/settings
+          claim: --settings applies at the command-line level, above user and project files.
+          accessed: "2026-10-25"
+        - url: https://herdr.dev/docs/integrations/
+          claim: herdr's Claude and Codex integrations add their own hook entries for session identity.
+          accessed: "2026-10-25"
+      decisions_notes: |
+        **Trigger:** the owner runs scripts/delegate-phase-b.sh on the Mac in a herdr pane. The container half runs in this devcontainer.
+        **State:** writes only to a temp dir and one scratch session; no project file changes.
+        **Payload:** a pass/fail table plus one arch card per result.
+        **Docs prior:** Claude Code docs say hook entries merge across settings levels and plugin hooks merge with user and project hooks. --settings is the command-line level, so the docs predict "add". The hooks page does not list --settings as a hook location, so the check stays.
+        **Rejected:** deciding from docs alone, because CLAUDE.md records silent drift in every harness.
+        **Parallel:** yes, with slices 1, 4 and 6.
+      blocks:
+        - type: tabs
+          title: Phase B checks
+          rows:
+            - body: 'claude --settings <marker hook> started through wipnote claude: both the marker hook and the wipnote plugin hooks fire (a wipnote session row exists).'
+              label: B1
+            - body: 'An orch-spawned claude worker: the sid in orch events.ndjson equals the wipnote session id of that worker.'
+              label: B2
+            - body: herdr integration install claude/codex hooks coexist with wipnote plugin hooks; both report.
+              label: B3
+            - body: 'wipnote codex, interactive, in a pane: SessionStart fires and carries session_id.'
+              label: B4
+            - body: 'codex exec under the wipnote plugin: do any hooks fire (bug-3e4c6e02)?'
+              label: B5
+            - body: 'A container worker started with wipnote claude: its sessions-ledger row appears in the Mac checkout''s .wipnote/.'
+              label: B6
+            - body: 'flock and rename on a file in .wipnote/ across the host-container bind mount: exclusive, atomic, or neither.'
+              label: B7
+        - type: file-tree
+          title: Files added
+          entries:
+            - scripts/delegate-phase-b.sh
+            - docs/design/delegate-phase-b.md
+    - id: slic-2c3f5e33
+      num: 3
+      title: Correct the orch integration spec
+      what: Replace the one-shot versus interactive split in docs/design/orch-integration.md (line 16) with the native design. Record the Phase B results, the Q3 and Q4 answers and the owner's answers to this plan's questions. Point to a new docs/design/delegate.md as the live spec.
+      why: The spec says the mod covers one-shot runs and orch covers interactive ones. The owner replaced that split, so the spec now misleads readers.
+      files:
+        - docs/design/orch-integration.md
+        - docs/design/delegate.md
+      deps:
+        - 1
+        - 2
+      done_when:
+        - The line 16 split is gone and the spec states one native path
+        - Sections 6 and 7 cite the Phase B results and mark Q3 and Q4 as decided
+        - docs/design/delegate.md lists every wipnote delegate command with its flags, exit codes and files
+      effort: S
+      risk: Low
+      tests: |
+        Check: wipnote check host-paths over both docs.
+        Review: every command in delegate.md exists in the slice 8, 10 and 11 help output once they land.
+      complexity: standard
+      approved: false
+      comment: ""
+      research_waiver: A docs-only slice. Its facts come from slices 1 and 2 and the owner's answers.
+      decisions_notes: |
+        **Trigger:** slices 1 and 2 are done and the plan questions are answered.
+        **State:** orch-integration.md keeps its history and gains a pointer; delegate.md becomes the spec.
+        **Rejected:** editing the spec now, because the brief says to correct it as a slice once the facts are in. Deleting orch-integration.md is also rejected: feat-ac66c687 cites it.
+        **Parallel:** it waits for slices 1 and 2, then runs beside slices 4 to 7.
+      blocks:
+        - type: file-tree
+          title: Files touched
+          entries:
+            - docs/design/orch-integration.md
+            - docs/design/delegate.md
+    - id: slic-3d4a6f44
+      feature_id: feat-dd8b0cde
+      num: 4
+      title: 'Delegation-run ledger: one canonical record per run'
+      what: Add core/delegationledger, which owns .wipnote/delegations-ledger.html with one row per run. Open appends a row at spawn. Close sets the end time, exit and reason. Enrich adds usage and session ids. One row type serves one-shot and interactive runs (Q4). Reindex reads the ledger. No field holds an absolute path.
+      why: Delegations leave only hook events today (feat-dd8b0cde). Q3 decided that spawn and stop become records. A canonical row survives cache purges and appears in lineage.
+      files:
+        - core/delegationledger/record.go
+        - core/delegationledger/ledger.go
+        - core/delegationledger/store.go
+        - core/delegationledger/ledger_test.go
+        - cmd/wipnote/reindex_delegation_ledger.go
+      deps: []
+      done_when:
+        - Open, Close and Enrich round-trip every field through the HTML, and reindex yields the same rows
+        - Concurrent Open calls from 8 goroutines and 2 processes lose no row (core/filelock.Guard)
+        - A field holding an absolute host path or a home directory is refused at write time
+        - A torn last row is detected and repaired the way core/sessionledger does it
+      effort: M
+      risk: Med
+      tests: |
+        Unit: TestLedger_OpenCloseEnrichRoundTrip, TestLedger_ConcurrentOpen, TestLedger_RefusesHostPath, TestLedger_TornTailRepair.
+        Integration: TestReindex_DelegationLedgerRows.
+      complexity: complex
+      approved: false
+      comment: ""
+      research_waiver: Follows the in-repo core/sessionledger and core/gateledger pattern. No external standard applies.
+      questions:
+        - id: q-one-type
+          text: One record type for one-shot and interactive runs (Q4)?
+          answer: Yes. One row type with mode=oneshot or interactive. Both share tool, label, work item, times, exit and usage. The dashboard is gone, so only lineage and the CLI read it (orch-integration.md Q4).
+      decisions_notes: |
+        **Trigger:** delegate run and spawn call Open. Exit, stop or pane loss call Close. The usage parser calls Enrich.
+        **State:** one shared canonical table. Open appends at the tail. Close and Enrich do a read-modify-write under core/filelock.Guard with temp file plus rename (core/sessionledger precedent).
+        **Payload:** see the data-model block. An interactive run can hold many worker sessions, because /clear gives a new session id.
+        **Q3:** spawn and stop persist. Tool, prompt and turn-stop events do not: they duplicate agent_events.
+        **Rejected:** one HTML file per run (a file per codex exec call, and lineage would have to glob them all). Per-session shards are rejected because lineage queries by work item. SQLite only is rejected because it is purgeable (bug-550c1cd8).
+        **Commit:** rows go through the existing artifact commit path. No write waits on the daemon.
+        **Promotion:** feature_id is feat-dd8b0cde, so promote-slice reuses it instead of creating a duplicate.
+        **Parallel:** yes, with slices 1, 2, 5 and 6.
+      blocks:
+        - type: data-model
+          title: Ledger row
+          fields:
+            name: delegations-ledger.html row (tr id = run id)
+          rows:
+            - name: id
+              type: string dlg-<8 hex>
+            - name: mode
+              type: oneshot | interactive
+            - name: harness
+              type: claude | claude-print | codex | codex-review | ccx
+            - name: name
+              type: string (interactive runs only)
+            - name: label
+              type: string, rule set by q-label
+            - name: work_item
+              type: feat-/bug-/spk- id or empty
+            - name: link
+              type: tag | sid
+            - name: caller_session
+              type: session id or empty
+            - name: worker_sessions
+              type: space-separated session ids
+            - name: host
+              type: host | container
+            - name: started
+              type: RFC3339
+            - name: ended
+              type: RFC3339 or empty
+            - name: exit
+              type: int or empty
+            - name: end_reason
+              type: exit | stop | pane_closed | gone
+            - name: usage_input
+              type: int tokens
+            - name: usage_cached
+              type: int tokens
+            - name: usage_output
+              type: int tokens
+        - type: file-tree
+          title: Files added
+          entries:
+            - core/delegationledger/record.go
+            - core/delegationledger/ledger.go
+            - core/delegationledger/store.go
+            - core/delegationledger/ledger_test.go
+            - cmd/wipnote/reindex_delegation_ledger.go
+    - id: slic-4e5b7a55
+      num: 5
+      title: 'Live run store: run folders, events and a file mailbox'
+      what: Add internal/delegate/runstore with a run directory per run (the feat-a1df60c2 run-folder contract), per-writer events NDJSON files and a file mailbox (one JSON file per message, temp file plus rename). The location follows q-live-store; the default is .wipnote/delegate/, gitignored like sessions/. Finished runs are swept after N days.
+      why: One-shot runs, interactive sessions, hooks and the mailbox need one shared runtime layout. It must survive a crashed caller and work with no daemon.
+      files:
+        - internal/delegate/runstore/store.go
+        - internal/delegate/runstore/runfolder.go
+        - internal/delegate/runstore/events.go
+        - internal/delegate/runstore/mailbox.go
+        - internal/delegate/runstore/sweep.go
+        - internal/delegate/runstore/store_test.go
+        - core/worktree/gitignore.go
+      deps:
+        - 1
+      done_when:
+        - Two processes writing events for one run never write the same file, and a reader merges them in seq order
+        - A partial last NDJSON line and a half-written message file are skipped, never parsed
+        - The run-folder file names match the feat-a1df60c2 contract, and the mod's viewer can read a run folder written by Go
+        - The managed .wipnote/.gitignore block ignores delegate/
+      effort: M
+      risk: Med
+      tests: |
+        Unit: TestRunStore_OneWriterPerFile, TestRunStore_SkipsPartialLine, TestMailbox_AtomicDeliver, TestSweep_KeepsLiveRuns, TestGitignore_IgnoresDelegate.
+        Contract: TestRunFolder_MatchesModContract (uses mods/codex-herdr-pane/test/fixtures).
+      complexity: complex
+      approved: false
+      comment: ""
+      research:
+        - url: https://github.com/husniadil/herdr-mail
+          claim: 'Store-authoritative mailbox: herdr agent prompt gives no receipt, so every message must be readable from the store.'
+          accessed: "2026-10-25"
+        - url: https://github.com/zqkra/cbds
+          claim: A durable, fsynced report written before anyone is told; a later wait returns it at once.
+          accessed: "2026-10-25"
+      questions:
+        - id: q-append
+          text: Do several processes ever append to one file?
+          answer: No. Each writer owns its files (events-<writer>.ndjson, one file per message). The arch card daemon-purpose-outlives-sqlite records that O_APPEND is not atomic on APFS. flock across a host-container bind mount is unverified (Phase B check B7).
+      decisions_notes: |
+        **Trigger:** delegate run and spawn create a run directory. Hooks in a tagged worker write events. send writes messages.
+        **State:** <root>/runs/<run-id>/ holds the run-folder files and events-*.ndjson. <root>/mail/<name>/ holds messages. <root> defaults to .wipnote/delegate/ (q-live-store).
+        **Payload:** see the data-model blocks. Files are written by temp file plus rename and fsynced before rename.
+        **Why the project root by default:** a container worker reaches it through the same bind mount as the code. A per-user cache differs between the Mac and the container.
+        **Rejected:** one shared events.ndjson with flock, because of APFS O_APPEND and an unverified flock across the mount. SQLite for live state is rejected: it adds a writer and a lock to every hook.
+        **Refine:** after slice 1, check the layout against orch's mailbox and record any difference in docs/design/orch-inventory.md.
+        **Parallel:** yes, with slices 4 and 6 once slice 1 is done.
+      blocks:
+        - type: data-model
+          title: Run folder
+          fields:
+            name: <root>/runs/<run-id>/
+          rows:
+            - name: raw.log
+              type: harness output as captured
+            - name: clean.log / clean.md
+              type: filtered log, Markdown with safe fencing
+            - name: last.md
+              type: final answer
+            - name: usage
+              type: one-line token summary
+            - name: start / end
+              type: unix seconds
+            - name: exit
+              type: int; its presence ends the run
+            - name: label / host
+              type: pane title; claude | herdr | none
+            - name: run.html
+              type: rendered page
+            - name: events-<writer>.ndjson
+              type: '{v, seq, ts, run, kind, sid, turn, agent_id}'
+        - type: data-model
+          title: Mailbox message
+          fields:
+            name: <root>/mail/<name>/<seq>-<msg-id>.json
+          rows:
+            - name: id
+              type: string msg-<8 hex>
+            - name: from
+              type: caller session id or human
+            - name: to
+              type: run name
+            - name: body
+              type: string
+            - name: turn
+              type: int turn id the message starts
+            - name: created
+              type: RFC3339
+            - name: hinted
+              type: 'bool: herdr agent prompt succeeded'
+        - type: file-tree
+          title: Files touched
+          entries:
+            - internal/delegate/runstore/store.go
+            - internal/delegate/runstore/runfolder.go
+            - internal/delegate/runstore/events.go
+            - internal/delegate/runstore/mailbox.go
+            - internal/delegate/runstore/sweep.go
+            - internal/delegate/runstore/store_test.go
+            - core/worktree/gitignore.go
+    - id: slic-5f6c8b66
+      num: 6
+      title: herdr adapter in Go
+      what: Add internal/delegate/herdr, a Go interface over the herdr CLI. It covers pane split, run, get, close, rename, process-info and report-metadata, and agent start, prompt, read and wait. It keeps the mod's tile layout (right first, then 2x2, cap 6). A fake implements the interface for tests, and the mod's herdr stub drives contract tests.
+      why: Every pane operation goes through one tested place. One-shot and interactive runs then place, label and close panes the same way.
+      files:
+        - internal/delegate/herdr/herdr.go
+        - internal/delegate/herdr/layout.go
+        - internal/delegate/herdr/fake.go
+        - internal/delegate/herdr/herdr_test.go
+        - internal/delegate/herdr/testdata/herdr
+      deps: []
+      done_when:
+        - Layout tests reproduce layout.ts placement for 1 to 7 panes, including the cap
+        - Every call has a timeout and returns a typed error when herdr is absent or HERDR_ENV is unset
+        - A live test, skipped unless HERDR_ENV=1, splits, runs, reads and closes a real pane
+      effort: M
+      risk: Low
+      tests: |
+        Unit: TestLayout_MatchesModTile, TestHerdr_TimeoutAndAbsent.
+        Contract: TestHerdr_StubScript (testdata/herdr copied from mods/codex-herdr-pane/test/stubs/herdr).
+        Live (HERDR_ENV=1 only): TestHerdr_LivePaneRoundTrip.
+      complexity: standard
+      approved: false
+      comment: ""
+      research:
+        - url: https://herdr.dev/docs/agents/
+          claim: Agent states and that agent wait observes state, not job completion.
+          accessed: "2026-10-25"
+        - url: https://herdr.dev/docs/plugins/
+          claim: herdr does not supervise daemons and has no shutdown hook, so wipnote stays a CLI and not a herdr plugin.
+          accessed: "2026-10-25"
+      decisions_notes: |
+        **Trigger:** called by delegate run, spawn, send and stop.
+        **State:** stateless. Pane ids live in the run folder.
+        **Payload:** typed results (pane id, agent state, process list).
+        **Choice:** use the herdr CLI, not the socket API. herdr-orch pins socket protocol 22, which changes between releases, and the CLI is the documented surface.
+        **Rejected:** packaging wipnote as a herdr plugin (herdr-plugin.toml). herdr has no shutdown hook and does not supervise daemons, and wipnote must also work outside herdr.
+        **Unverified:** whether herdr agent start accepts a custom command such as wipnote claude. Until checked, spawn uses pane run.
+        **Parallel:** yes, with slices 1, 2, 4 and 5.
+      blocks:
+        - type: data-model
+          title: Adapter interface
+          fields:
+            name: herdr.Client (Go interface)
+          rows:
+            - name: Split(target, dir) -> PaneID
+              type: herdr pane split
+            - name: Run(pane, argv)
+              type: herdr pane run
+            - name: Get(pane) -> Pane
+              type: herdr pane get
+            - name: Close(pane)
+              type: herdr pane close
+            - name: Rename(pane, title)
+              type: herdr pane rename
+            - name: Processes(pane) -> []Proc
+              type: herdr pane process-info
+            - name: Prompt(pane, text)
+              type: herdr agent prompt
+            - name: Read(pane, lines) -> string
+              type: herdr agent read
+            - name: State(pane) -> AgentState
+              type: herdr agent get
+        - type: file-tree
+          title: Files added
+          entries:
+            - internal/delegate/herdr/herdr.go
+            - internal/delegate/herdr/layout.go
+            - internal/delegate/herdr/fake.go
+            - internal/delegate/herdr/herdr_test.go
+            - internal/delegate/herdr/testdata/herdr
+    - id: slic-6a7d9c77
+      num: 7
+      title: Log filters and run page in Go
+      what: Port the mod's viewer filters to internal/delegate/render. This covers Codex JSONL to clean.log and clean.md, claude stream-json, ccx output, safe Markdown fencing, the usage line and run.html. Add wipnote delegate view, a plain Go viewer that runs in the pane.
+      why: The mod needs jq, awk and uv with Textual in the pane. A Go port removes those dependencies and gives every harness the same output.
+      files:
+        - internal/delegate/render/codex.go
+        - internal/delegate/render/claude.go
+        - internal/delegate/render/ccx.go
+        - internal/delegate/render/markdown.go
+        - internal/delegate/render/page.go
+        - internal/delegate/render/render_test.go
+        - internal/delegate/render/testdata
+        - cmd/wipnote/delegate_view.go
+      deps:
+        - 5
+      done_when:
+        - 'Golden tests: each fixture (run1 to run3 raw logs, claude.stream.jsonl) renders the same clean.log and last.md as the mod pipeline'
+        - run.html escapes raw HTML and Markdown in prose, and the cases in the mod's fixes.test.ts pass in Go
+        - wipnote delegate view follows a live run until its exit file appears
+      effort: M
+      risk: Med
+      tests: |
+        Golden: TestRender_CodexFixtures, TestRender_ClaudeStreamJSON, TestRender_CcxOrder.
+        Unit: TestMarkdown_SafeFence, TestPage_EscapesHTML, TestView_FollowsToExit.
+      complexity: standard
+      approved: false
+      comment: ""
+      research:
+        - url: https://learn.chatgpt.com/docs/non-interactive-mode
+          claim: codex exec --json event types (thread.started, turn.*, item.*) and usage fields used by the Codex filter.
+          accessed: "2026-10-25"
+      decisions_notes: |
+        **Trigger:** delegate run pipes raw output through the filter for the harness. delegate view reads clean.md.
+        **State:** pure functions over bytes, plus a file follower for view.
+        **Payload:** clean.log, clean.md, last.md, usage, run.html.
+        **Rejected:** keeping the Python Textual viewer (it needs uv and downloads Textual on first run; see q-viewer). Shelling out to jq and awk is rejected: they are missing on some hosts.
+        **Parallel:** yes, with slices 4 and 6 once slice 5 is done.
+      blocks:
+        - type: diagram
+          title: Filter flow
+          fields:
+            direction: lr
+          entries:
+            - raw.log
+            - harness filter (codex / claude / ccx)
+            - clean.log + clean.md
+            - last.md + usage
+            - run.html
+        - type: file-tree
+          title: Files added
+          entries:
+            - internal/delegate/render/codex.go
+            - internal/delegate/render/claude.go
+            - internal/delegate/render/ccx.go
+            - internal/delegate/render/markdown.go
+            - internal/delegate/render/page.go
+            - internal/delegate/render/render_test.go
+            - internal/delegate/render/testdata
+            - cmd/wipnote/delegate_view.go
+    - id: slic-7b8e0d88
+      num: 8
+      title: 'One-shot runs: wipnote delegate run'
+      what: Add wipnote delegate run [--label] [--work-item] -- <cmd> for codex exec and review, claude -p and ccx task. It opens a ledger row and runs the command in a herdr pane when HERDR_ENV=1, else headless. It writes the run folder, prints the mod's report and closes the row.
+      why: This is the one path that replaces the mod's Bash wrapper. Agents and humans call it directly on every harness.
+      files:
+        - cmd/wipnote/delegate.go
+        - cmd/wipnote/delegate_run.go
+        - internal/delegate/oneshot/run.go
+        - internal/delegate/oneshot/recipes.go
+        - internal/delegate/oneshot/report.go
+        - internal/delegate/oneshot/run_test.go
+      deps:
+        - 4
+        - 6
+        - 7
+      done_when:
+        - With the codex stub, a run prints 'codex exited 0 after Ns, <usage>; raw log ..., answer file ...' and then last.md, capped at maxReturnLines
+        - Outside herdr the same run completes headless with the same report and run folder
+        - A pane closed early ends the run with exit 130 and end_reason pane_closed in the ledger
+        - The ledger row carries the caller's active work item when --work-item is not given
+      effort: L
+      risk: Med
+      tests: |
+        Integration (stubs on PATH): TestRun_CodexInPane, TestRun_Headless, TestRun_PaneClosed, TestRun_ClaudePrintStreamJSON, TestRun_CcxFollowsOwnLog.
+        Unit: TestReport_CapsSections, TestRecipes_LeanProfileOnlyWhenPresent.
+      complexity: complex
+      approved: false
+      comment: ""
+      research:
+        - url: https://learn.chatgpt.com/docs/non-interactive-mode
+          claim: codex exec --json and -o/--output-last-message, used for the raw log and last.md.
+          accessed: "2026-10-25"
+      questions:
+        - id: q-report
+          text: Must the output of run match the mod's report?
+          answer: Yes. Agents already read the mod's status line and its 'answer file' pointer. Keeping the format lets the mod retire without changing prompts (feat-a1df60c2 contract).
+      decisions_notes: |
+        **Trigger:** an explicit call, or a Bash call redirected by slice 9.
+        **State:** run folder (slice 5), ledger row (slice 4), pane via the adapter (slice 6).
+        **Payload:** stdout is the status line, then the capped answer (or the cleaned-log tail on failure), then 'run page: <path>'. The exit code is the tool's exit code.
+        **Settings:** the mod's userConfig (layout, maxPanes, closePane, closeDelay, tailLines, maxReturnLines, leanProfile, leanProfileName, ccxRunsDir) maps to wipnote settings. ccxRunsDir keeps no machine-specific default.
+        **Rejected:** chained commands (pipes, ;) in v1, which the mod handles with shims (q-chained). Running the tool through a generated shell script, as the mod does, is also rejected: Go runs argv directly.
+        **Parallel:** no; it needs slices 4, 6 and 7. It can run beside slice 10.
+      blocks:
+        - type: diagram
+          title: Run flow
+          fields:
+            direction: tb
+          entries:
+            - wipnote delegate run -- codex exec ...
+            - ledger Open (dlg-id, work item, caller session)
+            - herdr pane, or headless when HERDR_ENV is unset
+            - filters write the run folder
+            - exit file appears
+            - ledger Close and Enrich (exit, usage)
+            - report on stdout
+        - type: data-model
+          title: CLI
+          fields:
+            name: wipnote delegate run
+          rows:
+            - name: --label
+              type: string, pane title and ledger label
+            - name: --work-item
+              type: id; default is the caller's active claim
+            - name: --no-pane
+              type: bool, force headless
+            - name: --
+              type: the tool argv (codex, claude, ccx)
+            - name: exit code
+              type: the tool's exit; 130 when the pane closed
+    - id: slic-8c9f1e99
+      num: 9
+      title: Catch bare delegations in the Bash tool
+      what: Port the recogniser in tools.ts to internal/delegate/detect. It covers codex exec, e and review, ccx task and claude -p (optionally behind dev exec), and it blanks quoted text and heredocs. The PreToolUse hook then sends a bare standalone delegation to wipnote delegate run (q-intercept). Chained commands pass through unchanged.
+      why: Agents and users type codex exec directly. Without this, those runs skip the ledger and the pane, as they did before the mod.
+      files:
+        - internal/delegate/detect/detect.go
+        - internal/delegate/detect/detect_test.go
+        - core/hooks/pretooluse.go
+        - core/hooks/pretooluse_delegate_run_test.go
+      deps:
+        - 8
+      done_when:
+        - Every recogniser case in register.test.ts and claude.test.ts passes as a Go table test
+        - A standalone codex exec in the Bash tool reaches wipnote delegate run on Claude Code and on Codex
+        - No redirect turns a command the user would be asked about into an auto-approved one
+        - The hook adds under 5 ms p95 to a Bash call that is not a delegation
+      effort: M
+      risk: High
+      tests: |
+        Unit: TestDetect_ModCases (ported tables), TestDetect_BlanksQuotesAndHeredocs, TestDetect_InfoFlagsAreNotRuns.
+        Hook: TestPreToolUse_RedirectsStandaloneDelegation, TestPreToolUse_ChainedPassesThrough, TestPreToolUse_NeverWidensPermission.
+        Bench: BenchmarkPreToolUse_NonDelegation.
+      complexity: complex
+      approved: false
+      comment: ""
+      research:
+        - url: https://code.claude.com/docs/en/hooks
+          claim: Claude Code PreToolUse updatedInput replaces the whole input, works with allow (auto-approve) or ask (show to the user).
+          accessed: "2026-10-25"
+        - url: https://learn.chatgpt.com/docs/hooks
+          claim: Codex PreToolUse updatedInput is valid only with permissionDecision allow; Bash and exec_command match as Bash.
+          accessed: "2026-10-25"
+      questions:
+        - id: q-rewrite-support
+          text: Which harnesses can rewrite a Bash call in PreToolUse?
+          answer: Both. Claude Code accepts updatedInput with allow or ask. Codex accepts updatedInput only with allow, which also auto-approves the call (docs read 2026-10-25).
+      decisions_notes: |
+        **Trigger:** PreToolUse on Bash, after the cheap tool-type match.
+        **State:** none; a pure recogniser.
+        **Payload:** one of three modes per q-intercept. deny-with-reason tells the model to run 'wipnote delegate run -- <same command>', so the retry passes normal permission checks. rewrite-ask (Claude only) shows the rewritten command. rewrite-allow (opt-in only) widens permission.
+        **Risk High:** a rewrite with allow would auto-approve a codex exec the user never approved. On Codex, allow is the only rewrite mode.
+        **Rejected:** a mod-side tool.call hook, because mods exist only in Claude Code. Rewriting chained commands is deferred (q-chained).
+        **Parallel:** no; it needs slice 8. It can run beside slices 10 to 13.
+      blocks:
+        - type: tabs
+          title: Redirect modes (q-intercept)
+          rows:
+            - body: Both harnesses. The model re-issues wipnote delegate run -- <cmd>; normal permission checks apply. One extra turn.
+              label: deny-with-reason
+            - body: 'Claude Code only. updatedInput plus ask: the user sees the rewritten command.'
+              label: rewrite-ask
+            - body: 'Both, opt-in only. updatedInput plus allow: no prompt, so permission widens.'
+              label: rewrite-allow
+        - type: file-tree
+          title: Files touched
+          entries:
+            - internal/delegate/detect/detect.go
+            - internal/delegate/detect/detect_test.go
+            - core/hooks/pretooluse.go
+            - core/hooks/pretooluse_delegate_run_test.go
+    - id: slic-9d0a2faa
+      num: 10
+      title: 'Interactive sessions: spawn, stop, list and tree'
+      what: Add wipnote delegate spawn NAME --harness claude|codex [--work-item] [--prompt]. It opens a herdr pane running wipnote claude or wipnote codex with WIPNOTE_DELEGATE_RUN set, and the SessionStart hook binds each session id to the run. Add a verified stop, list, status and tree.
+      why: orch's interactive sessions are the half the mod never covered. Running workers under wipnote's launchers gives them wipnote hooks, claims and lineage.
+      files:
+        - cmd/wipnote/delegate_spawn.go
+        - cmd/wipnote/delegate_stop.go
+        - cmd/wipnote/delegate_tree.go
+        - internal/delegate/session/spawn.go
+        - internal/delegate/session/stop.go
+        - internal/delegate/session/tree.go
+        - internal/delegate/session/session_test.go
+        - core/hooks/session_start.go
+        - core/hooks/delegate_bind.go
+      deps:
+        - 1
+        - 2
+        - 4
+        - 5
+        - 6
+      done_when:
+        - spawn returns within 3 s with the run id, pane id and name, and refuses a name that is already live
+        - After /clear in the worker, the run lists both session ids
+        - stop reports verified only when the pane is gone and no worker process remains; otherwise it names what survives
+        - tree shows caller, run, worker sessions and sub-agents, reusing RenderAgentTree
+        - The SessionStart bind adds under 2 ms and never fails the hook
+      effort: L
+      risk: High
+      tests: |
+        Integration (fake herdr): TestSpawn_RefusesLiveName, TestSpawn_BindsSessionOnStart, TestSpawn_ClearAddsSecondSession, TestStop_VerifiedOnlyWhenNoProcess, TestTree_CallerRunWorkerSubagents.
+        Hook: TestDelegateBind_FastAndFailOpen.
+        Live (HERDR_ENV=1 only): TestSpawn_LiveClaudeWorker.
+      complexity: complex
+      approved: false
+      comment: ""
+      research:
+        - url: https://code.claude.com/docs/en/hooks
+          claim: Every hook payload carries session_id; SubagentStart carries agent_id and agent_type.
+          accessed: "2026-10-25"
+        - url: https://herdr.dev/docs/agents/
+          claim: herdr detects agent state from the screen or from integration reports.
+          accessed: "2026-10-25"
+        - url: https://github.com/ellingtonsp/herdr-orch
+          claim: 'Prior art for verified release: close the pane, then prove no process survives (SIGTERM, then SIGKILL).'
+          accessed: "2026-10-25"
+      questions:
+        - id: q-settings
+          text: Does a native worker need orch's --settings hook file?
+          answer: No. Workers start through wipnote claude or wipnote codex, whose plugin hooks fire, and the launcher passes no --settings (code search, 2026-10-25). The --settings risk applies only to orch during migration (Phase B check B1).
+      decisions_notes: |
+        **Trigger:** wipnote delegate spawn from a caller session or a human shell.
+        **State:** ledger row (mode interactive), run folder with pane id and name, events written by the worker's hooks. The worker's sessions.parent_session_id is set to the caller from WIPNOTE_DELEGATE_CALLER.
+        **Payload:** spawn prints {run, name, pane, harness}. tree prints a text tree, or JSON with --json.
+        **Names:** [a-z0-9-], 1 to 32 characters, unique among live runs in the project.
+        **Stop:** ask the agent to exit, wait, close the pane, then check herdr process-info. A worker that survives is reported, never silently killed outside the pane.
+        **Rejected:** copying orch's --settings hook file (needless under wipnote's launchers). herdr agent start is rejected until it is known to accept a custom command.
+        **Refine:** check against orch's spawn, pinning and stop semantics from slice 1.
+        **Parallel:** it can run beside slices 8, 9 and 12.
+      blocks:
+        - type: diagram
+          title: Spawn and bind
+          fields:
+            direction: tb
+          entries:
+            - wipnote delegate spawn w1 --harness claude
+            - ledger Open (interactive) and run folder
+            - herdr pane runs wipnote claude with WIPNOTE_DELEGATE_RUN
+            - SessionStart hook writes a bind event (run, sid)
+            - ledger Enrich adds the worker session
+        - type: file-tree
+          title: Files touched
+          entries:
+            - cmd/wipnote/delegate_spawn.go
+            - cmd/wipnote/delegate_stop.go
+            - cmd/wipnote/delegate_tree.go
+            - internal/delegate/session/spawn.go
+            - internal/delegate/session/stop.go
+            - internal/delegate/session/tree.go
+            - internal/delegate/session/session_test.go
+            - core/hooks/session_start.go
+            - core/hooks/delegate_bind.go
+    - id: slic-0e1b3abb
+      num: 11
+      title: 'Mailbox verbs: send, wait, result and questions'
+      what: Add send NAME (a message file plus a herdr agent prompt hint) and wait NAME --timeout, which blocks until a durable signal. Add result (the last assistant message from the Stop hook payload, or the worker's report) and questions (pending AskUserQuestion and PermissionRequest calls captured by worker hooks). Events from an older turn are rejected.
+      why: These verbs let an orchestrator drive a live worker without reading its screen. herdr's own wait observes agent state, not a finished turn.
+      files:
+        - cmd/wipnote/delegate_mail.go
+        - internal/delegate/session/mail.go
+        - internal/delegate/session/wait.go
+        - internal/delegate/session/questions.go
+        - internal/delegate/session/mail_test.go
+        - core/hooks/delegate_events.go
+      deps:
+        - 1
+        - 10
+      done_when:
+        - wait returns on the worker's Stop event for the current turn id and ignores an event from an older turn
+        - wait without --timeout is refused, and a timed-out wait exits 124 and prints the last known state
+        - A message is readable with wipnote delegate inbox even when the prompt hint was lost
+        - questions lists a pending AskUserQuestion with its options and drops it once the worker continues
+      effort: L
+      risk: High
+      tests: |
+        Integration (fake herdr): TestSend_StoreFirstThenHint, TestWait_CurrentTurnOnly, TestWait_RequiresTimeout, TestResult_FromStopPayload, TestQuestions_PendingThenCleared.
+        Hook: TestDelegateEvents_StopAndAskCaptured, TestDelegateEvents_FailOpen.
+      complexity: complex
+      approved: false
+      comment: ""
+      research:
+        - url: https://herdr.dev/docs/agents/
+          claim: agent wait and agent prompt --wait observe state, not job completion.
+          accessed: "2026-10-25"
+        - url: https://github.com/zqkra/cbds
+          claim: Reject a superseded dispatch (stale id) and require a timeout on every wait.
+          accessed: "2026-10-25"
+        - url: https://code.claude.com/docs/en/hooks
+          claim: AskUserQuestion tool input carries questions and options; PermissionRequest carries tool_name and tool_input; SubagentStop carries last_assistant_message.
+          accessed: "2026-10-25"
+      questions:
+        - id: q-settle
+          text: What settles a wait?
+          answer: A durable signal. That is the worker's Stop hook event for the current turn (with the last assistant message) or an explicit report. herdr's docs say agent wait observes state, not job completion. cbds and herdr-orch settle the same way.
+      decisions_notes: |
+        **Trigger:** the caller runs send, wait, result or questions. The worker's hooks (UserPromptSubmit starts a turn; Stop, PreToolUse on AskUserQuestion and PermissionRequest record events) write the evidence.
+        **State:** mail files and events-*.ndjson in the run store. The turn id increments at each delivered message.
+        **Payload:** wait prints {run, turn, outcome: done|question|timeout|gone}. result prints last.md for the turn. questions prints JSON rows.
+        **Polling:** at most 2 Hz, plus an fs watch where available. No daemon.
+        **Rejected:** settling on herdr idle (a lifecycle state, not a turn result). Parsing agent read output is rejected as racy. Answering questions from the orchestrator is deferred (q-answer-questions).
+        **Refine:** match orch's send and wait semantics from slice 1.
+        **Parallel:** no; it needs slice 10. It can run beside slices 12 and 13.
+      blocks:
+        - type: diagram
+          title: Send and wait
+          fields:
+            direction: tb
+          entries:
+            - send w1 'task' writes mail file (turn N)
+            - herdr agent prompt hint
+            - worker UserPromptSubmit logs turn N start
+            - worker Stop hook logs turn N stop + last message
+            - wait w1 --timeout 20m returns done
+        - type: file-tree
+          title: Files touched
+          entries:
+            - cmd/wipnote/delegate_mail.go
+            - internal/delegate/session/mail.go
+            - internal/delegate/session/wait.go
+            - internal/delegate/session/questions.go
+            - internal/delegate/session/mail_test.go
+            - core/hooks/delegate_events.go
+    - id: slic-1f2c4bcc
+      num: 12
+      title: 'Codex workers: sandbox preflight and session ids'
+      what: Add wipnote delegate doctor and a preflight at spawn and run time. The preflight probes Codex's sandbox (bwrap) and refuses with a fix when it fails (q-codex-sandbox). For codex exec, read the session id from thread.started and usage from turn.completed. For interactive Codex, bind the hook session_id once Phase B shows the hooks fire.
+      why: Codex's sandbox fails in this devcontainer (bwrap), and orch's Codex workers have no hook sid. Their runs cannot join lineage today.
+      files:
+        - internal/delegate/codex/sandbox.go
+        - internal/delegate/codex/jsonl.go
+        - internal/delegate/codex/codex_test.go
+        - cmd/wipnote/delegate_doctor.go
+      deps:
+        - 2
+        - 8
+      done_when:
+        - Where bwrap fails, spawn and run fail fast with the probe output and the options from q-codex-sandbox
+        - A codex exec --json fixture yields the thread id as a worker session id and the four usage fields in the ledger
+        - No default ever passes --sandbox danger-full-access
+      effort: M
+      risk: Med
+      tests: |
+        Unit: TestJSONL_ThreadIDAndUsage, TestSandboxProbe_ReportsBwrapFailure (stub codex), TestDoctor_NamesEachCheck.
+        Manual: run wipnote delegate doctor in this devcontainer and on the Mac.
+      complexity: standard
+      approved: false
+      comment: ""
+      research:
+        - url: https://learn.chatgpt.com/docs/non-interactive-mode
+          claim: thread.started carries thread_id; turn.completed usage holds input, cached_input, output and reasoning_output tokens; --sandbox workspace-write or danger-full-access.
+          accessed: "2026-10-25"
+        - url: https://learn.chatgpt.com/docs/hooks
+          claim: Codex hooks carry session_id. The page does not say whether hooks fire in exec mode (unverified).
+          accessed: "2026-10-25"
+        - url: https://codex.danielvaughan.com/2026/04/20/codex-cli-devcontainers-docker-sandboxes-secure-containerised-agents/
+          claim: 'Third party, unverified: Docker''s default seccomp and AppArmor block bwrap user namespaces; the options are to loosen the container or use danger-full-access inside it.'
+          accessed: "2026-10-25"
+      decisions_notes: |
+        **Trigger:** delegate doctor, and a cached preflight before the first Codex spawn or run per host.
+        **State:** the probe result is cached in the run store with a short TTL.
+        **Payload:** pass/fail per check with the exact stderr.
+        **Rejected:** silently falling back to danger-full-access, because it removes Codex's isolation without consent.
+        **Feeds:** feat-74c3d200 (cache-aware cost) and bug-3e4c6e02 (Codex exec captures no session) are related; the cached token count lands in the ledger.
+        **Parallel:** yes, with slices 10, 11 and 13.
+      blocks:
+        - type: file-tree
+          title: Files added
+          entries:
+            - internal/delegate/codex/sandbox.go
+            - internal/delegate/codex/jsonl.go
+            - internal/delegate/codex/codex_test.go
+            - cmd/wipnote/delegate_doctor.go
+    - id: slic-2a3d5cdd
+      num: 13
+      title: Lineage shows delegations; retire orchlink
+      what: wipnote lineage <work-item> gains a delegations section from the ledger. It shows tagged rows, and untagged rows whose worker sessions belong to the item (derived and labelled). Add wipnote lineage dlg-<id>. Keep internal/orchlink read-only until migration ends (q-orch-import), then delete it and lineage_orch.go.
+      why: Lineage is where a work item's delegations must show. Two readers for one concept (orch sessions and delegations) would drift apart.
+      files:
+        - cmd/wipnote/lineage.go
+        - cmd/wipnote/lineage_delegate.go
+        - cmd/wipnote/lineage_delegate_test.go
+        - cmd/wipnote/lineage_orch.go
+        - cmd/wipnote/lineage_orch_test.go
+        - internal/orchlink/orchlink.go
+        - internal/orchlink/orchlink_test.go
+      deps:
+        - 4
+        - 10
+      done_when:
+        - lineage --json carries delegations[] with link tag or sid, and a row tagged with another item is never derived (the orchlink rule is kept)
+        - lineage dlg-<id> shows the caller session, the work item and the worker sessions
+        - After removal, go build ./... has no orchlink import, and the lineage JSON schema note records that orch_sessions was dropped
+      effort: M
+      risk: Med
+      tests: |
+        Unit: TestLineageDelegations_TagAndSid, TestLineageDelegations_NeverDeriveForeignTag, TestLineageDlgRoot.
+        Regression: the existing lineage_orch tests keep passing until removal, then are deleted with orchlink.
+      complexity: standard
+      approved: false
+      comment: ""
+      research_waiver: An in-repo lineage change. Its rules come from internal/orchlink and feat-ac66c687's decision Q1.
+      decisions_notes: |
+        **Trigger:** wipnote lineage on a work item or a dlg- id.
+        **State:** reads the ledger, never live run files.
+        **Payload:** a text section "delegations", and delegations[] in --json. Each row has id, mode, harness, name, link, state and worker session ids.
+        **Kept from orchlink:** tag is asserted; sid is derived and labelled; a row tagged with another item is never derived; no host path is printed.
+        **Rejected:** keeping both orch_sessions and delegations for good (two readers drift). Deleting orchlink before the owner stops using orch is rejected: lineage would lose those links.
+        **Parallel:** yes, with slices 11 and 12.
+      blocks:
+        - type: data-model
+          title: lineage --json addition
+          fields:
+            name: delegations[] item
+          rows:
+            - name: id
+              type: dlg-<8 hex>
+            - name: mode
+              type: oneshot | interactive
+            - name: harness
+              type: string
+            - name: name
+              type: string or empty
+            - name: link
+              type: tag | sid
+            - name: state
+              type: running | ended
+            - name: worker_sessions
+              type: '[]session id'
+        - type: file-tree
+          title: Files touched
+          entries:
+            - cmd/wipnote/lineage.go
+            - cmd/wipnote/lineage_delegate.go
+            - cmd/wipnote/lineage_delegate_test.go
+            - cmd/wipnote/lineage_orch.go
+            - internal/orchlink/orchlink.go
+    - id: slic-3b4e6dee
+      num: 14
+      title: Move guidance to wipnote delegate and retire codex-herdr-pane
+      what: Update the system prompt and add a delegate skill so agents use wipnote delegate. Map the mod's userConfig to wipnote settings, with a one-time notice. Remove mods/codex-herdr-pane, its tests and its launcher references at the time set by q-mod-removal. Regenerate the plugin trees. Ask the owner to update the CLAUDE.md mods paragraph.
+      why: Two paths would record the same run twice and confuse agents. The owner chose ONE path.
+      files:
+        - cmd/wipnote/prompts/system-prompt.md
+        - plugin/skills/delegate/SKILL.md
+        - cmd/wipnote/mods.go
+        - cmd/wipnote/mods_test.go
+        - mods/codex-herdr-pane
+        - packages/plugin-core/manifest.json
+      deps:
+        - 3
+        - 9
+        - 11
+        - 12
+        - 13
+      done_when:
+        - No file outside git history names codex-herdr-pane except the release note
+        - wipnote plugin build-ports runs clean, and all three generated trees carry the delegate skill
+        - A user with the mod's settings sees a one-time notice that names the new settings
+      effort: M
+      risk: Med
+      tests: |
+        Unit: TestMods_NoCodexHerdrPane, TestSettingsNotice_OnceForModUsers.
+        Build: wipnote plugin build-ports --target claude/codex/antigravity, then the port-drift check.
+      complexity: standard
+      approved: false
+      comment: ""
+      research:
+        - url: https://code.claude.com/docs/en/hooks
+          claim: Plugin hooks merge with user and project hooks, so removing the mod leaves wipnote's plugin hooks as the only delegation path.
+          accessed: "2026-10-25"
+      decisions_notes: |
+        **Trigger:** slices 8 to 13 pass their gates.
+        **State:** guidance lives in plugin/skills/delegate/SKILL.md (shared source) and the system prompt.
+        **Owner follow-up:** CLAUDE.md lists codex-herdr-pane among the mods. Agents may not edit CLAUDE.md, so the owner updates that paragraph.
+        **Rejected:** keeping the mod as a second path, because runs would be recorded twice. A silent settings migration is also rejected: users must see where their settings went.
+        **Open:** whether a view-only Claude Code pane survives outside herdr (q-claude-pane).
+        **Parallel:** no; this is the last slice.
+      blocks:
+        - type: file-tree
+          title: Files touched
+          entries:
+            - cmd/wipnote/prompts/system-prompt.md
+            - plugin/skills/delegate/SKILL.md
+            - cmd/wipnote/mods.go
+            - cmd/wipnote/mods_test.go
+            - mods/codex-herdr-pane
+            - packages/plugin-core/manifest.json
+questions:
+    - id: q-adopt-vs-port
+      text: Adopt or wrap the herdr plugin herdr-orch, or port orch?
+      description: herdr-orch (MIT, Go, v0.1.2) covers spawn, send, wait, result, stop and questions, and gives a board instead of a tree. It needs its own daemon and SQLite outside .wipnote/ and has no work-item link. It does not cover one-shot codex exec runs. The owner's earlier direction was to port orch.
+      options:
+        - key: port-orch
+          label: Port orch to Go as planned; take ideas from herdr-orch, cbds, pod and herdr-mail
+        - key: wrap-horch
+          label: Wrap horch for interactive sessions; build only one-shot runs, the ledger and lineage in wipnote
+        - key: adopt-horch
+          label: Adopt herdr-orch as the engine and contribute the missing parts upstream
+      answer: null
+    - id: q-command-name
+      text: What is the command name?
+      description: The plan uses wipnote delegate with spawn, send, wait, result, stop, questions, tree, run, list, view, inbox and doctor.
+      options:
+        - key: delegate
+          label: wipnote delegate
+        - key: agent
+          label: wipnote agent
+        - key: other
+          label: Another name
+      answer: null
+    - id: q-live-store
+      text: Where does live run state live?
+      description: Live state means run folders, events and the mailbox. A container worker must reach it. The project root is shared through the bind mount; a per-user cache is not.
+      options:
+        - key: project-runtime
+          label: .wipnote/delegate/ in the project, gitignored like sessions/
+        - key: user-cache
+          label: The per-user wipnote cache for the project
+        - key: configurable
+          label: project-runtime by default, with an environment override for a shared mount
+      answer: null
+    - id: q-intercept
+      text: How should a bare codex exec or claude -p in the Bash tool be handled?
+      description: On Codex, a rewrite needs permissionDecision allow, which auto-approves the call.
+      options:
+        - key: deny-redirect
+          label: Deny with a reason; the model re-runs it as wipnote delegate run (no permission change)
+        - key: rewrite-ask
+          label: Rewrite with ask on Claude Code and deny-redirect on Codex
+        - key: rewrite-allow
+          label: Rewrite with allow on both (widens permission)
+        - key: none
+          label: No interception; guidance only
+      answer: null
+    - id: q-claude-pane
+      text: Outside herdr, does a Claude Code pane still show the run?
+      description: The mod's claudePane auto mode uses the Claude Code mods UI, which Go cannot drive.
+      options:
+        - key: drop
+          label: Drop it; run.html and wipnote delegate view cover it
+        - key: orchestra
+          label: Fold a view-only run pane into the wipnote-orchestra mod
+        - key: thin-mod
+          label: Keep a thin view-only mod that reads the run store
+      answer: null
+    - id: q-viewer
+      text: Keep the Python Textual pane viewer?
+      description: The mod's textual viewer needs uv and downloads Textual on first run. Slice 7 adds a plain Go viewer.
+      options:
+        - key: go-plain
+          label: Replace it with the Go viewer (wipnote delegate view)
+        - key: keep-textual
+          label: Keep Textual as an option (needs uv)
+      answer: null
+    - id: q-label
+      text: What label goes into the committed ledger?
+      description: The mod derives a 48-character label from the prompt, and a prompt can hold sensitive text that git would then keep.
+      options:
+        - key: explicit-only
+          label: Only an explicit --label; derived labels stay in the run folder
+        - key: derived
+          label: The derived 48-character label
+        - key: none
+          label: No label in the ledger
+      answer: null
+    - id: q-worker-claim
+      text: Does a spawned worker claim the work item?
+      description: The ledger tag links the run either way. A shared claim also attributes the worker's edits and commits to the item.
+      options:
+        - key: link-only
+          label: No claim; the ledger tag links it
+        - key: shared-claim
+          label: The worker starts the same work item (shared claim)
+      answer: null
+    - id: q-codex-sandbox
+      text: What happens when Codex's sandbox fails (bwrap in a container)?
+      description: Codex's bwrap sandbox fails in this devcontainer. danger-full-access is safe only when the container is the isolation boundary.
+      options:
+        - key: refuse
+          label: Refuse with the probe output and the fix options
+        - key: per-host-optin
+          label: Allow a per-host setting that passes --sandbox danger-full-access
+        - key: auto-fallback
+          label: Fall back to danger-full-access automatically in containers
+      answer: null
+    - id: q-orch-import
+      text: Import orch history into the ledger?
+      description: orch's registry holds past runs with work-item tags. Without an import, lineage loses them when orchlink is deleted.
+      options:
+        - key: import
+          label: One-shot wipnote delegate import-orch, then delete orchlink
+        - key: no-import
+          label: No import; keep orchlink until orch is no longer used, then delete it
+      answer: null
+    - id: q-orch-source
+      text: How does the orch source enter the repo?
+      description: The license and any host paths in it are unknown.
+      options:
+        - key: snapshot
+          label: A scrubbed snapshot under docs/reference/orch/
+        - key: inventory-only
+          label: README and inventory only; the source stays outside the repo
+      answer: null
+    - id: q-chained
+      text: Should chained delegations (pipes, ;) be wrapped in v1?
+      description: The mod wraps them with shell shims. The plan passes them through unchanged in v1.
+      options:
+        - key: later
+          label: Later, if usage shows the need
+        - key: v1
+          label: In v1, before the mod is removed
+      answer: null
+    - id: q-answer-questions
+      text: Can the orchestrator answer a worker's question?
+      description: orch only lists pending questions. Answering means typing into the worker's pane or a blocking ask/reply protocol.
+      options:
+        - key: list-only
+          label: List only (orch parity)
+        - key: answer
+          label: Also answer it (as herdr-orch ask/reply does)
+      answer: null
+    - id: q-mod-removal
+      text: When is mods/codex-herdr-pane removed?
+      description: Removal in the same release gives one path at once. One release later gives mod users time to move settings.
+      options:
+        - key: same-release
+          label: In the release that ships delegate run and the redirect
+        - key: one-release-later
+          label: One release later, after a deprecation notice
+      answer: null
+    - id: q-antigravity
+      text: Are Antigravity workers in scope for v1?
+      description: Antigravity is a supported harness, but no verified upstream doc set exists yet, and entwurf reports its native push as paused.
+      options:
+        - key: "no"
+          label: No; Claude and Codex only
+        - key: "yes"
+          label: Yes, as a third spawn harness
+      answer: null
