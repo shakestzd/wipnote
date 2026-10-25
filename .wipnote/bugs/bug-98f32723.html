@@ -10,15 +10,15 @@
 <body>
     <article id="bug-98f32723"
              data-type="bug"
-             data-status="in-progress"
+             data-status="done"
              data-priority="medium"
              data-created="2026-10-25T00:20:32.303752"
-             data-updated="2026-10-25T01:33:41.696417" data-agent-assigned="claude-code" data-track-id="trk-0677c709" data-created-by-agent="claude-code" data-created-by-model="claude-opus-5-5" data-created-by-cli-version="0.81.0" data-change_kind="bugfix" data-created_in_session="b0991d53-1a24-4f08-85e1-85786a570a50">
+             data-updated="2026-10-25T06:19:28.249384" data-agent-assigned="claude-code" data-track-id="trk-0677c709" data-created-by-agent="claude-code" data-created-by-model="claude-opus-5-5" data-created-by-cli-version="0.81.0" data-change_kind="bugfix" data-created_in_session="b0991d53-1a24-4f08-85e1-85786a570a50" data-rollup-unavailable="no_read_index">
 
         <header>
             <h1>SessionEnd finalize is a no-op for launcher sessions: Claude session ID used, telemetry keyed by launcher ID</h1>
             <div class="metadata">
-                <span class="badge status-in-progress">In Progress</span>
+                <span class="badge status-done">Done</span>
                 <span class="badge priority-medium">Medium Priority</span>
             </div>
         </header>
@@ -28,6 +28,18 @@
                 <h3>Caused By:</h3>
                 <ul>
                     <li><a href="../bugs/bug-bb96a980.html" data-relationship="caused_by" data-since="2026-10-25T00:20:48.080436">PR #252: telemetry never archived and session rollup missing collector data after serve removal</a></li>
+                </ul>
+            </section>
+            <section data-edge-type="committed_in">
+                <h3>Committed In:</h3>
+                <ul>
+                    <li><a href="1ec42e0dcb80fdd56ffd9042d6318987a1fb6338.html" data-relationship="committed_in" data-since="2026-10-25T02:17:32">wipnote: start bug-98f32723</a></li>
+                    <li><a href="9a749936de1e6c28eaa5ea3fd465e5e4f8a9c590.html" data-relationship="committed_in" data-since="2026-10-24T22:00:28">fix(writer): start telemetry catch-up before the startup hydrate (bug-98f32723)</a></li>
+                    <li><a href="512d8bac080b9291899293f9b6332fd248ed0cd1.html" data-relationship="committed_in" data-since="2026-10-24T21:20:45">Merge pull request #258 from shakestzd/fix/finalize-catchup-daemon</a></li>
+                    <li><a href="3544789301a679e4bc5c1ff0d46fb63d1a1d11ef.html" data-relationship="committed_in" data-since="2026-10-24T21:14:30">fix(observe): run telemetry catch-up every 10m in the writer daemon (bug-98f32723)</a></li>
+                    <li><a href="ec2ebae9567b9c7e3a64237b83220ebaa93c6fa7.html" data-relationship="committed_in" data-since="2026-10-24T20:42:48">Merge pull request #257 from shakestzd/fix/finalize-launcher-session-id</a></li>
+                    <li><a href="96512f6a9d4810278dc92d51c0fdcaeed858cc13.html" data-relationship="committed_in" data-since="2026-10-24T20:35:28">fix(hooks): signal the launcher-keyed collector at SessionEnd (bug-98f32723)</a></li>
+                    <li><a href="309140fd0db0b54d0b0ef10721d4c7ec6ed1dfbb.html" data-relationship="committed_in" data-since="2026-10-24T20:28:54">fix(observe): finalize launcher-keyed telemetry shards at SessionEnd (bug-98f32723)</a></li>
                 </ul>
             </section>
             <section data-edge-type="implemented_in">
