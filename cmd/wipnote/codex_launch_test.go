@@ -15,7 +15,7 @@ import (
 // TestAppendOrReplaceEnv_AppendsNew verifies that a key not present in env is appended.
 func TestAppendOrReplaceEnv_AppendsNew(t *testing.T) {
 	env := []string{"FOO=bar", "BAZ=qux"}
-	got := appendOrReplaceEnv(env, "NEW_KEY=new_value")
+	got := launcher.AppendOrReplaceEnv(env, "NEW_KEY=new_value")
 	found := false
 	for _, kv := range got {
 		if kv == "NEW_KEY=new_value" {
@@ -43,7 +43,7 @@ func TestAppendOrReplaceEnv_AppendsNew(t *testing.T) {
 // TestAppendOrReplaceEnv_OverridesExisting verifies that an existing key is replaced in-place.
 func TestAppendOrReplaceEnv_OverridesExisting(t *testing.T) {
 	env := []string{"FOO=old", "BAR=keep"}
-	got := appendOrReplaceEnv(env, "FOO=new")
+	got := launcher.AppendOrReplaceEnv(env, "FOO=new")
 
 	// FOO must be overridden.
 	fooCount := 0
@@ -74,7 +74,7 @@ func TestAppendOrReplaceEnv_OverridesExisting(t *testing.T) {
 // TestAppendOrReplaceEnv_Multiple verifies that multiple kv pairs are all applied.
 func TestAppendOrReplaceEnv_Multiple(t *testing.T) {
 	env := []string{"EXISTING=old"}
-	got := appendOrReplaceEnv(env, "EXISTING=new", "BRAND=fresh")
+	got := launcher.AppendOrReplaceEnv(env, "EXISTING=new", "BRAND=fresh")
 
 	existingNew := false
 	brandFresh := false
@@ -99,12 +99,12 @@ func TestAppendOrReplaceEnv_Multiple(t *testing.T) {
 
 // TestAppendOrReplaceEnv_Empty verifies that empty input env is handled correctly.
 func TestAppendOrReplaceEnv_Empty(t *testing.T) {
-	got := appendOrReplaceEnv(nil, "KEY=val")
+	got := launcher.AppendOrReplaceEnv(nil, "KEY=val")
 	if len(got) != 1 || got[0] != "KEY=val" {
 		t.Errorf("expected [KEY=val], got %v", got)
 	}
 
-	got2 := appendOrReplaceEnv([]string{}, "A=1", "B=2")
+	got2 := launcher.AppendOrReplaceEnv([]string{}, "A=1", "B=2")
 	if len(got2) != 2 {
 		t.Errorf("expected 2 entries, got %v", got2)
 	}
@@ -376,7 +376,7 @@ func TestCodexLauncherNeverPropagatesDBPath(t *testing.T) {
 	}
 	src := string(data)
 	for _, forbidden := range []string{
-		`setOrReplaceEnv(env, "WIPNOTE_DB_PATH"`,
+		`SetEnv(env, "WIPNOTE_DB_PATH"`,
 		"prepareCodexWritableDB",
 		"CanonicalDBPath(",
 		"EnsureDBDir(",

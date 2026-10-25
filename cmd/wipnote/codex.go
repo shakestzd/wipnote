@@ -1589,10 +1589,10 @@ func execCodex(opts codexLaunchOpts) error {
 		if projectDir == "" {
 			projectDir = opts.ProjectRoot
 		}
-		env = setOrReplaceEnv(env, "WIPNOTE_PROJECT_DIR", projectDir)
+		env = launcher.SetEnv(env, "WIPNOTE_PROJECT_DIR", projectDir)
 		workDir = opts.WorktreeRoot
 	case opts.ProjectRoot != "":
-		env = setOrReplaceEnv(env, "WIPNOTE_PROJECT_DIR", opts.ProjectRoot)
+		env = launcher.SetEnv(env, "WIPNOTE_PROJECT_DIR", opts.ProjectRoot)
 		workDir = opts.ProjectRoot
 	}
 
@@ -1603,7 +1603,7 @@ func execCodex(opts codexLaunchOpts) error {
 	// silent mutation of the operator's own environment.
 	env = buildCodexOtelEnv(env, otelPort, otelSessionID)
 	env = buildCodexAgentEnv(env)
-	env = mergeLauncherEnv(env, opts.ExtraEnv...)
+	env = launcher.AppendOrReplaceEnv(env, opts.ExtraEnv...)
 
 	// Session-family continuity (slice-4, feat-a225ce7c):
 	// Resolve which family this Codex session belongs to, then inject
@@ -1617,7 +1617,7 @@ func execCodex(opts codexLaunchOpts) error {
 		// does not, resolveSessionFamilyID falls through to the ordered
 		// most-recent-session family (correct for "resume last").
 		familyID := resolveSessionFamilyID(effectiveProjDir, otelSessionID, opts.ResumeID, isResume)
-		env = setOrReplaceEnv(env, "WIPNOTE_SESSION_FAMILY_ID", familyID)
+		env = launcher.SetEnv(env, "WIPNOTE_SESSION_FAMILY_ID", familyID)
 		persistLauncherSessionFamily(effectiveProjDir, otelSessionID, "codex", familyID)
 	}
 
@@ -1625,7 +1625,7 @@ func execCodex(opts codexLaunchOpts) error {
 	// explicit --yolo launch so the worktree source-isolation guard fires under
 	// Codex just as it does under Claude Code's bypassPermissions path.
 	if opts.Yolo {
-		env = setOrReplaceEnv(env, "WIPNOTE_YOLO", "1")
+		env = launcher.SetEnv(env, "WIPNOTE_YOLO", "1")
 	}
 
 	// When the bwrap sandbox probe determined that Bubblewrap is unavailable
@@ -1639,7 +1639,7 @@ func execCodex(opts codexLaunchOpts) error {
 	env = applySandboxDegradedEnv(env, sandboxDegraded)
 
 	env = withHarnessEnv(env, harnessCodex)
-	env = mergeLauncherEnv(env, daemonEnsure.sessionEnv(os.Stderr, daemonJoinBudget)...)
+	env = launcher.AppendOrReplaceEnv(env, daemonEnsure.sessionEnv(os.Stderr, daemonJoinBudget)...)
 	c.Env = env
 	if workDir != "" {
 		c.Dir = workDir

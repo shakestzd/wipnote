@@ -170,24 +170,24 @@ func execAntigravity(opts antigravityLaunchOpts) error {
 		if projectDir == "" {
 			projectDir = opts.ProjectRoot
 		}
-		env = setOrReplaceEnv(env, "WIPNOTE_PROJECT_DIR", projectDir)
+		env = launcher.SetEnv(env, "WIPNOTE_PROJECT_DIR", projectDir)
 		c.Dir = opts.WorktreeRoot
 	case opts.ProjectRoot != "":
-		env = setOrReplaceEnv(env, "WIPNOTE_PROJECT_DIR", opts.ProjectRoot)
+		env = launcher.SetEnv(env, "WIPNOTE_PROJECT_DIR", opts.ProjectRoot)
 		c.Dir = opts.ProjectRoot
 	}
 	env = buildAntigravityAgentEnv(env)
 	env = append(env, "WIPNOTE_AGENT=antigravity")
 	env = buildAntigravityOtelEnv(env, otelPort, otelSessionID)
-	env = mergeLauncherEnv(env, opts.ExtraEnv...)
-	env = mergeLauncherEnv(env, daemonEnsure.sessionEnv(os.Stderr, daemonJoinBudget)...)
+	env = launcher.AppendOrReplaceEnv(env, opts.ExtraEnv...)
+	env = launcher.AppendOrReplaceEnv(env, daemonEnsure.sessionEnv(os.Stderr, daemonJoinBudget)...)
 
 	// Make the orchestrator system prompt available to the PreInvocation hook,
 	// which injects it via injectSteps[].systemMessage — the only channel agy
 	// honors (GEMINI_SYSTEM_MD / additionalContext / plugin context are ignored).
 	// Non-fatal: without it, hooks still fire and the agent runs unguided.
 	if smdPath, smdErr := writeAntigravitySystemPrompt(); smdErr == nil {
-		env = setOrReplaceEnv(env, "WIPNOTE_ANTIGRAVITY_SYSTEM_MD", smdPath)
+		env = launcher.SetEnv(env, "WIPNOTE_ANTIGRAVITY_SYSTEM_MD", smdPath)
 	} else {
 		fmt.Fprintf(os.Stderr, "wipnote: warning: could not stage Antigravity orchestrator prompt: %v\n", smdErr)
 	}
@@ -201,7 +201,7 @@ func execAntigravity(opts antigravityLaunchOpts) error {
 		// path (mirrors gemini_launch.go).
 		isResume := opts.Continue || opts.ResumeID != ""
 		familyID := resolveSessionFamilyID(effectiveProjDir, otelSessionID, "", isResume)
-		env = setOrReplaceEnv(env, "WIPNOTE_SESSION_FAMILY_ID", familyID)
+		env = launcher.SetEnv(env, "WIPNOTE_SESSION_FAMILY_ID", familyID)
 		persistLauncherSessionFamily(effectiveProjDir, otelSessionID, "antigravity", familyID)
 	}
 

@@ -480,10 +480,10 @@ func hasPythonProject(root string) bool {
 // (bug-c3c9278a) so an interrupt kills the whole subtree instead of orphaning
 // the `go test`/`go build` child.
 func runGate(ctx context.Context, name, dir string, args ...string) gateResult {
-	env, _, _ := gateExecEnv(dir)
-	output, err := runManagedGate(ctx, name, dir, env, os.Stdout, os.Stderr, args...)
-	if err != nil && isLikelyNoexecFailure(output) {
-		fmt.Fprintf(os.Stderr, "\nhint: this looks like a noexec temp-dir failure. Retry with an exec-capable temp dir:\n  %s\n", gateTmpRemediation(dir))
+	env, _, _ := gate.GateExecEnv(dir)
+	output, err := gate.RunManagedGate(ctx, name, dir, env, os.Stdout, os.Stderr, args...)
+	if err != nil && gate.IsLikelyNoexecFailure(output) {
+		fmt.Fprintf(os.Stderr, "\nhint: this looks like a noexec temp-dir failure. Retry with an exec-capable temp dir:\n  %s\n", gate.GateTmpRemediation(dir))
 	}
 	return gateResult{name: name, passed: err == nil, err: err}
 }

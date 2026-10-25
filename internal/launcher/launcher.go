@@ -18,6 +18,9 @@ type HarnessResult struct {
 	ExitCode   int
 }
 
+// AppendOrReplaceEnv applies each "KEY=VALUE" pair to env: the first entry
+// for KEY is replaced in place, or the pair is appended when KEY is absent.
+// env is modified and returned; later duplicates of KEY are left as they are.
 func AppendOrReplaceEnv(env []string, kv ...string) []string {
 	for _, pair := range kv {
 		key := pair
@@ -37,6 +40,12 @@ func AppendOrReplaceEnv(env []string, kv ...string) []string {
 		}
 	}
 	return env
+}
+
+// SetEnv sets key to value in env (see AppendOrReplaceEnv): the launcher's
+// value wins over any inherited one.
+func SetEnv(env []string, key, value string) []string {
+	return AppendOrReplaceEnv(env, key+"="+value)
 }
 
 func BuildHarnessOtelEnv(base []string, harnessID string, port int, sessionID string) []string {
