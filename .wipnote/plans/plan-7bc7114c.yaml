@@ -7,7 +7,7 @@ meta:
     status: draft
     priority: medium
     schema_version: v4
-    version: 9
+    version: 10
 design:
     problem: ""
     goals: []
@@ -165,6 +165,32 @@ slices:
         - Full test suite passes
       effort: L
       risk: Med
+      tests: ""
+      approved: false
+      comment: ""
+    - id: slic-3459766c
+      num: 8
+      title: Merge duplicated helpers
+      what: One HTML ledger codec for claim, gate and session ledgers; one ID-prefix to kind/collection table (seven copies disagree today); core git helpers (top-level, branch, output) replacing about ten copies; filelock.Guard everywhere; one env-slice helper; one cached .wipnote/config.json loader; shared OTel adapter base for Gemini/Antigravity; one glob matcher; one plugin asset-tree walker; printJSON and atomic-write helpers.
+      why: 'Copies have already drifted: different escaping, different prefixes and different marker parsing.'
+      files:
+        - core/claimledger
+        - core/gateledger
+        - core/sessionledger
+        - core/models
+        - core/paths
+        - core/filelock
+        - observe/otel/adapter
+        - port/pluginbuild
+      deps:
+        - 3
+        - 4
+        - 5
+      done_when:
+        - golangci-lint dupl reports no duplicate over 30 lines in the touched packages
+        - Full test suite passes
+      effort: M
+      risk: Low
       tests: ""
       approved: false
       comment: ""
