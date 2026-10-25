@@ -150,6 +150,17 @@ rises without one. The plan's `hinted`, `turn` and `created` fields have no orch
 `deadline_s`, `ack_timeout_s` and `origin` have no plan counterpart. Worker-to-orchestrator messages are the
 result, question and progress files in outbox, as in orch.
 
+As built in slice 5 (`internal/delegate/runstore`, feat-7565fbf7): messages are
+`<root>/mail/<name>/{inbox,outbox}/<seq>-<msg-id>.json` with seq zero-padded to six digits, ids `msg-` plus 16 hex
+(12 to 64 accepted), the result is `outbox/<task-id>-result.json` (id `<task-id>-result`, outside the seq order)
+and the ack is `ack/<msg-id>` holding a timestamp. Kept from orch: `v`, `in_reply_to`, an existing id returning the
+stored message, a seq that must rise per folder, and the reader skipping temp, misnamed, symlinked and invalid
+files and files whose content names another id or seq than the file name. Not kept: `ack`, `deadline_s`,
+`ack_timeout_s` and `origin` (no consumer yet). Events go to `<root>/runs/<run-id>/events-<writer>.ndjson`, one
+file per writer process; a writer's next seq is one above the highest seq of every events file of the run, so the
+merged order (seq, then writer name) follows what each writer had seen. A torn last line is never parsed and is
+closed with an invalid marker before the next append, and the own file is scanned whole for its last seq (P-7).
+
 ## 4. Pinning and verified stop (slice 10, slice 17)
 
 Pinning: `orch/src/orch/service/transports.py` `check_occupant` (line 70) and `pinned` (line 77).
